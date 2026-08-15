@@ -14,4 +14,4 @@ DSH `sandbox-local` is a same-world file-effect boundary: it can constrain write
 
 ## Consequences
 
-P0A can keep advancing through hashing, scope, budget, report, calibration-data and static validation slices, but a real parse/test/build/assembled Candidate Trial cannot promote or reject until a sealed executor is available. Lack of such an executor is an expected incomplete result, not a reason to weaken the boundary or create a second Agent runtime.
+P0A can keep advancing through hashing, scope, budget, report, calibration-data and static validation slices, but a real parse/test/build/assembled Candidate Trial cannot promote or reject until a sealed executor is integrated. The first private adapter is a macOS Seatbelt primitive; tests prove declared read/write/process/network boundaries, a clean environment, timeout and bounded captured output. It remains unwired, has no workspace disk quota, and is not a cross-platform claim. Lack of a suitable integrated adapter is an expected incomplete result, not a reason to weaken the boundary or create a second Agent runtime.

@@ -20,6 +20,12 @@ P0A.1 implements the first safety tracer:
 - exit `2` plus an incomplete report when the model boundary fails or an in-scope candidate reaches the not-yet-implemented Trial evaluator;
 - no write outside the requested run directory, including through a symlinked output parent.
 
+The source tree also contains a macOS Sealed Trial primitive with an actual
+Seatbelt escape test, sanitized environment, timeout, and combined-output cap.
+It is deliberately not connected to `shadow` until Candidate assembly and the
+case/evaluator boundary are implemented. Linux and Windows adapters, and a
+workspace disk quota, remain open work.
+
 P0A.1 is not yet a useful self-improvement release. It proves the mutation boundary before adding Trial execution. A candidate that passes the path gate is deliberately left `incomplete`, never guessed to be good or bad.
 
 ## Run the tracer

@@ -20,7 +20,7 @@
 | DSH/Claude Code Rev/Hermes 调研 | `verified` | [研究索引](research/README.zh.md)、固定 revision 与源码定位 | 上游 revision 改变时重新审计 |
 | DSH 171 原生插件目录 | `verified` | [全量目录](research/deepseek-harness-native-plugins.zh.md) | 新 revision 重新生成统计 |
 | `dsh-evolve` P0A.1 safety tracer | `implemented` | [P0A.1 证据](evidence/p0a-1-owned-path-tracer.zh.md)、6 条 CLI 测试 | 第三方复跑及完整 P0A evaluator |
-| Sealed Trial executor | `planned` | [ADR-0006](adr/0006-fail-closed-sealed-trial-execution.md) | 可证明 read/write/process/network 边界的实现与逃逸测试 |
+| Sealed Trial executor | `implemented`（macOS 原语） | [边界证据](evidence/p0a-2-darwin-sealed-trial.zh.md)、[ADR-0006](adr/0006-fail-closed-sealed-trial-execution.md) | 接入 Shadow、磁盘配额、Linux/Windows 适配与真实 Candidate Trial |
 | known-bad / known-correction 校准 | `planned` | [P0A 契约](architecture/p0a-shadow-contract.zh.md) | 真实 fixture、selection 与未见 final-test |
 | Candidate 的 `promote/review/reject` 评价 | `planned` | Decision 规则已有设计 | paired Trial、校准和可重放 Decision |
 | Capability Generation 与 Session pin | `planned` | [进化架构](architecture/evolution-design.zh.md) | P0A 先证明 evaluator 有价值 |
@@ -41,7 +41,7 @@
 
 - 不能让 `dsh-evolve` 自动修改或晋升 active Skill；
 - 不能把一次 `reject` safety tracer 当作 evaluator 已经可靠；
-- 不能安全执行任意模型生成代码；
+- `shadow` 尚不能安全执行任意模型生成代码；macOS 隔离原语还没有接入该命令；
 - 不能声称已经持续进化、可回滚、长时常驻或优于 Hermes；
 - 不能作为生产依赖安装。
 
