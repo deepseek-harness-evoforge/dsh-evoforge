@@ -23,8 +23,11 @@
 2. [领域语言与不变量](CONTEXT.md)：实现和评审必须保持的统一术语。
 3. [产品架构](docs/architecture/evoforge-product.zh.md)：Hermes Replacement Target、能力边界、交互、可靠性、缓存与仓库策略。
 4. [自进化架构](docs/architecture/evolution-design.zh.md)：当前唯一自进化方案与分阶段验证路线。
-5. [研究索引](docs/research/README.zh.md)：DSH、171 个原生插件、Claude Code Rev、Hermes 及公开自进化项目的一手证据。
-6. [ADR](docs/adr)：缓存、Goal、上游边界、旗舰方向和仓库边界的精简决策。
+5. [插件目录](docs/plugins.zh.md)与[接口规范](docs/plugin-contract.zh.md)：哪些能力成为插件，以及每个发布物的验收合同。
+6. [路线图](docs/roadmap.zh.md)：从 Shadow evaluator 到 Local Continuity、交互闭环和有限自治的退出门。
+7. [研究索引](docs/research/README.zh.md)：DSH、171 个原生插件、Claude Code Rev、Hermes 及公开自进化项目的一手证据。
+8. [ADR](docs/adr)：缓存、Goal、上游边界、旗舰方向和仓库边界的精简决策。
+9. [DSH 插件开发 Skill](skills/build-dsh-plugin/SKILL.md)：从用户结果、接缝选择和红测试到缓存、权限、卸载与发布证据的可执行流程。
 
 ## 当前下一步
 

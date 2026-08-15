@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build a DSH Plugin"
+  short_description: "Design, implement, and verify cache-safe DSH plugins"
+  default_prompt: "Use $build-dsh-plugin to design and implement a cache-safe out-of-tree DSH plugin."
