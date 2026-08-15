@@ -27,19 +27,19 @@
 | 用户安装后应自动向 profile 增加一组插件 | DSH bundle package |
 | 只增加浏览器/TUI 呈现 | Client plugin 或现有 Host API 的 UI Adapter |
 
-普通插件使用函数形态；只有真正需要被其他插件消费的具名服务才使用 `Service`。DSH loader 接受命名导出的 `apply(ctx, config)`，加载顺序由 `inject` 依赖而不是 YAML 行顺序决定：[首次插件](/Users/my/harness/deepseek-harness/docs/cordis-tutorial/01-first-plugin.zh.md:5)、[Service 与 inject](/Users/my/harness/deepseek-harness/docs/cordis-tutorial/03-services.zh.md:44)。
+普通插件使用函数形态；只有真正需要被其他插件消费的具名服务才使用 `Service`。DSH loader 接受命名导出的 `apply(ctx, config)`，加载顺序由 `inject` 依赖而不是 YAML 行顺序决定：[首次插件](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/docs/cordis-tutorial/01-first-plugin.zh.md#L5)、[Service 与 inject](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/docs/cordis-tutorial/03-services.zh.md#L44)。
 
 ## 3. Runtime 契约
 
 - 导出稳定诊断名 `name`。
 - 硬依赖写入 `inject`；真正可选的能力在使用点通过 `ctx.get()` 探测。
-- 可配置项同时导出 TypeScript `Config` 和运行时 Standard Schema；无效配置在加载或最早可解析点失败：[配置验证](/Users/my/harness/deepseek-harness/docs/cordis-tutorial/05-config.zh.md:5)。
+- 可配置项同时导出 TypeScript `Config` 和运行时 Standard Schema；无效配置在加载或最早可解析点失败：[配置验证](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/docs/cordis-tutorial/05-config.zh.md#L5)。
 - 所有注册使用 DSH/Cordis 自带的 effect API。计时器、watcher、子进程、连接和临时目录等外部资源在 `ctx.effect()` 内获取并返回 disposer。
 - 一个 disposer 内按顺序清理具有顺序依赖的资源；不要依赖多个异步 disposer 的完成顺序。
 - 自有 Service 使用 `evoforge.*` 命名空间。Consumer 依赖 Service Definition，不导入具体 Provider 或 `agent-loop`。
 - 新公共 seam 至少由两个真实 Adapter 证明；此前保持插件私有。
 
-Cordis 会在插件卸载、热重载或依赖消失时撤销 effect 并重载 Consumer，因此“启动成功”不能代替卸载测试：[生命周期](/Users/my/harness/deepseek-harness/docs/cordis-tutorial/02-lifecycle-and-effects.zh.md:5)。
+Cordis 会在插件卸载、热重载或依赖消失时撤销 effect 并重载 Consumer，因此“启动成功”不能代替卸载测试：[生命周期](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/docs/cordis-tutorial/02-lifecycle-and-effects.zh.md#L5)。
 
 ## 4. 安装与组合契约
 
@@ -52,7 +52,7 @@ Cordis 会在插件卸载、热重载或依赖消失时撤销 effect 并重载 C
 }
 ```
 
-Bundle 必须导出并发布 `cordis.patch.yml`；普通库或需要用户手工 patch 的插件不冒充 Bundle。DSH 会将声明 `dsh.bundle` 的已安装依赖加入 `dsh.profile.bundles`：[插件管理](/Users/my/harness/deepseek-harness/apps/cli/reference/README.md:41)。
+Bundle 必须导出并发布 `cordis.patch.yml`；普通库或需要用户手工 patch 的插件不冒充 Bundle。DSH 会将声明 `dsh.bundle` 的已安装依赖加入 `dsh.profile.bundles`：[插件管理](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/apps/cli/reference/README.md#L41)。
 
 在 DSH 仍为 RC 时，发布包对实际导入的 `@deepseek-ai/dsh-*` 与 `@deepseek-ai/cordis` 使用经过 CI 验证的精确兼容范围。每次扩大范围前，在该版本安装、dump composition、boot、dispose 并运行关键行为测试。
 
@@ -103,7 +103,7 @@ Bundle 必须导出并发布 `cordis.patch.yml`；普通库或需要用户手工
 | Persistence | 每个 durable transition 前后注入崩溃，无半状态和重复外部效果 |
 | Removal | 删除 Bundle 或禁用插件后，原生 DSH 仍能启动并恢复自己的 Session/Goal |
 
-工具插件还必须通过真实 `ctx.tools.execute()` 流水线，而不是只直接调用 `execute`；注册和结果事件模式见[进入 Harness](/Users/my/harness/deepseek-harness/docs/cordis-tutorial/07-into-the-harness.zh.md:19)。
+工具插件还必须通过真实 `ctx.tools.execute()` 流水线，而不是只直接调用 `execute`；注册和结果事件模式见[进入 Harness](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/docs/cordis-tutorial/07-into-the-harness.zh.md#L19)。
 
 ## 9. 发布证据
 

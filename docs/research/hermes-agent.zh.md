@@ -1,13 +1,13 @@
 # Hermes Agent 深度调研报告
 
-> 审计对象：`/Users/my/harness/hermes-agent`
+> 审计对象：[`NousResearch/hermes-agent`](https://github.com/NousResearch/hermes-agent/tree/29d0cc2602e01943ab300c0382fc9d97efb376da)
 > Revision：`29d0cc2602e01943ab300c0382fc9d97efb376da`
 > 分支状态：`main...origin/main`，审计时工作树干净
 > 本文基于本地源码、测试和仓库文档，重点分析整体架构与 self-improvement loop。
 
 ## 1. 结论先行
 
-Hermes Agent 是一个产品完成度很高的 Python 通用 Agent：它把终端、模型 Provider、工具、Skill、长期记忆、会话检索、消息平台、Cron、子 Agent 和多种执行环境组合成一个可长期常驻的个人 Agent。它最有辨识度的产品主张是“closed learning loop”：从对话中保存记忆、创建或修改 Skill，再由 Curator 做整理、归档与回滚。[README](/Users/my/harness/hermes-agent/README.md:19)
+Hermes Agent 是一个产品完成度很高的 Python 通用 Agent：它把终端、模型 Provider、工具、Skill、长期记忆、会话检索、消息平台、Cron、子 Agent 和多种执行环境组合成一个可长期常驻的个人 Agent。它最有辨识度的产品主张是“closed learning loop”：从对话中保存记忆、创建或修改 Skill，再由 Curator 做整理、归档与回滚。[README](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/README.md#L19)
 
 但 Hermes 当前更准确的定位是：
 
@@ -15,7 +15,7 @@ Hermes Agent 是一个产品完成度很高的 Python 通用 Agent：它把终�
 
 原因不是它缺少“自动修改”，恰恰是自动修改很多；真正缺少的是修改前后的因果比较、未见样本、独立评价、精确版本晋升和效果回归检测。它把 reflection、使用次数和模型判断当作学习信号，却没有可靠回答“新版本是否比旧版本更好”。
 
-对 oh-my-dsh 而言，Hermes 值得继承的是：
+对 EvoForge 而言，Hermes 值得继承的是：
 
 - 学习在旁路运行，不阻塞前台会话；
 - Memory、Skill、Session Search 分工明确；
@@ -52,11 +52,11 @@ CLI / TUI / Messaging Gateway / Cron
  SQLite Session DB + FTS5 / Memory stores / Skill files
 ```
 
-仓库开发文档也把 `run_agent.py` 的 `AIAgent` 描述为核心，把工具、Gateway、SQLite 状态和 Agent 内部模块围绕它组织。[CONTRIBUTING](/Users/my/harness/hermes-agent/CONTRIBUTING.md:218)
+仓库开发文档也把 `run_agent.py` 的 `AIAgent` 描述为核心，把工具、Gateway、SQLite 状态和 Agent 内部模块围绕它组织。[CONTRIBUTING](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/CONTRIBUTING.md#L218)
 
 ### 2.1 主控制流
 
-`AIAgent` 的入口仍位于大型 `run_agent.py` 中，具体循环逐渐拆到 `agent/` 下的辅助模块。[AIAgent](/Users/my/harness/hermes-agent/run_agent.py:412) [conversation loop](/Users/my/harness/hermes-agent/agent/conversation_loop.py:1494)
+`AIAgent` 的入口仍位于大型 `run_agent.py` 中，具体循环逐渐拆到 `agent/` 下的辅助模块。[AIAgent](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/run_agent.py#L412) [conversation loop](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/agent/conversation_loop.py#L1494)
 
 一次用户消息大体经过：
 
@@ -75,11 +75,11 @@ CLI / TUI / Messaging Gateway / Cron
 
 Hermes 对 Prompt Cache 有明确工程意识：
 
-- `AIAgent` 缓存 system prompt，而不是每轮完全重建；[agent_init.py](/Users/my/harness/hermes-agent/agent/agent_init.py:1619)
-- 技能目录有单独的 system-prompt cache；[prompt_builder.py](/Users/my/harness/hermes-agent/agent/prompt_builder.py:1477)
-- 派生标识避免随机 UUID 破坏前缀稳定；[run_agent.py](/Users/my/harness/hermes-agent/run_agent.py:4758)
-- Anthropic 适配器会保留和迁移 `cache_control` 标记；[anthropic_adapter.py](/Users/my/harness/hermes-agent/agent/anthropic_adapter.py:1813)
-- 后台复盘在同模型路径重放完整历史以复用温缓存，换模型时才生成短 digest。[background_review.py](/Users/my/harness/hermes-agent/agent/background_review.py:26)
+- `AIAgent` 缓存 system prompt，而不是每轮完全重建；[agent_init.py](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/agent/agent_init.py#L1619)
+- 技能目录有单独的 system-prompt cache；[prompt_builder.py](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/agent/prompt_builder.py#L1477)
+- 派生标识避免随机 UUID 破坏前缀稳定；[run_agent.py](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/run_agent.py#L4758)
+- Anthropic 适配器会保留和迁移 `cache_control` 标记；[anthropic_adapter.py](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/agent/anthropic_adapter.py#L1813)
+- 后台复盘在同模型路径重放完整历史以复用温缓存，换模型时才生成短 digest。[background_review.py](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/agent/background_review.py#L26)
 
 这比许多 Agent 项目更成熟。但它仍有结构性矛盾：Skill、Memory、插件 prompt section 和上下文文件都是 system prompt 的组成来源；后台修改这些文件会使以后请求的前缀变化。Hermes 优化了“如何命中当前缓存”，却没有把“一个活动会话固定使用哪一代能力”建模为不可变契约。
 
@@ -87,7 +87,7 @@ Hermes 对 Prompt Cache 有明确工程意识：
 
 ### 3.1 Tool Registry
 
-工具通过中央 `ToolRegistry` 注册和分派；Schema、handler、toolset、要求和来源被集中管理。[registry.py](/Users/my/harness/hermes-agent/tools/registry.py:426) [register](/Users/my/harness/hermes-agent/tools/registry.py:737) [dispatch](/Users/my/harness/hermes-agent/tools/registry.py:1102)
+工具通过中央 `ToolRegistry` 注册和分派；Schema、handler、toolset、要求和来源被集中管理。[registry.py](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/tools/registry.py#L426) [register](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/tools/registry.py#L737) [dispatch](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/tools/registry.py#L1102)
 
 优点：
 
@@ -104,7 +104,7 @@ Hermes 对 Prompt Cache 有明确工程意识：
 
 ### 3.2 权限
 
-危险命令由规则、session approval、永久 allowlist 和 Gateway/CLI 回调共同控制。审批支持 once、session、always、deny、timeout，并包含连续拒绝的 circuit breaker。[approval.py](/Users/my/harness/hermes-agent/tools/approval.py:2319)
+危险命令由规则、session approval、永久 allowlist 和 Gateway/CLI 回调共同控制。审批支持 once、session、always、deny、timeout，并包含连续拒绝的 circuit breaker。[approval.py](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/tools/approval.py#L2319)
 
 这是面向真实用户产品的实用设计：消息平台上的审批也能阻塞危险命令并被 `/approve`、`/deny` 解除。
 
@@ -112,7 +112,7 @@ Hermes 对 Prompt Cache 有明确工程意识：
 
 ### 3.3 执行环境
 
-`BaseEnvironment` 抽象了 local、Docker、SSH、Singularity、Modal、Daytona 和 Vercel Sandbox 等终端后端。[base.py](/Users/my/harness/hermes-agent/tools/environments/base.py:595)
+`BaseEnvironment` 抽象了 local、Docker、SSH、Singularity、Modal、Daytona 和 Vercel Sandbox 等终端后端。[base.py](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/tools/environments/base.py#L595)
 
 这是 Hermes 的重要长处：同一个 Agent 可以在本机、远端、容器和 serverless 环境执行任务，产品使用场景远超单一 coding CLI。
 
@@ -122,7 +122,7 @@ Hermes 对 Prompt Cache 有明确工程意识：
 
 ### 4.1 SQLite 是主状态
 
-Hermes 已把 `state.db` 作为会话主存储，SQLite 中保存 Session 和消息，并用 FTS5 做跨会话搜索；JSON snapshot 默认关闭，只为外部兼容保留。[hermes_state.py](/Users/my/harness/hermes-agent/hermes_state.py:1)
+Hermes 已把 `state.db` 作为会话主存储，SQLite 中保存 Session 和消息，并用 FTS5 做跨会话搜索；JSON snapshot 默认关闭，只为外部兼容保留。[hermes_state.py](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/hermes_state.py#L1)
 
 优点：
 
@@ -139,9 +139,9 @@ Hermes 已把 `state.db` 作为会话主存储，SQLite 中保存 Session 和消
 
 ### 4.2 Memory Provider
 
-`MemoryProvider` 定义了 Memory 后端抽象，`MemoryManager` 负责 Provider 生命周期、system prompt 注入和同步。[memory_provider.py](/Users/my/harness/hermes-agent/agent/memory_provider.py:104) [memory_manager.py](/Users/my/harness/hermes-agent/agent/memory_manager.py:364)
+`MemoryProvider` 定义了 Memory 后端抽象，`MemoryManager` 负责 Provider 生命周期、system prompt 注入和同步。[memory_provider.py](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/agent/memory_provider.py#L104) [memory_manager.py](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/agent/memory_manager.py#L364)
 
-仓库包含多种 Memory Provider，并明确要求新第三方 Provider 作为独立插件发布，而不是继续进入主仓库。[CONTRIBUTING](/Users/my/harness/hermes-agent/CONTRIBUTING.md:70)
+仓库包含多种 Memory Provider，并明确要求新第三方 Provider 作为独立插件发布，而不是继续进入主仓库。[CONTRIBUTING](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/CONTRIBUTING.md#L70)
 
 Memory、Session Search 和 Skill 的设计分工值得借鉴：
 
@@ -149,15 +149,15 @@ Memory、Session Search 和 Skill 的设计分工值得借鉴：
 - Session Search：过去发生了什么；
 - Skill：某类任务应该怎样做。
 
-问题在于实际后台提示会把用户偏好同时写入 Memory 和任务 Skill，个人偏好容易污染本应可移植的通用程序性知识。[background_review.py](/Users/my/harness/hermes-agent/agent/background_review.py:246)
+问题在于实际后台提示会把用户偏好同时写入 Memory 和任务 Skill，个人偏好容易污染本应可移植的通用程序性知识。[background_review.py](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/agent/background_review.py#L246)
 
 ## 5. Gateway、Cron 与常驻自治
 
-`GatewayRunner` 统一管理 Telegram、Discord、Slack、WhatsApp、Signal 等消息适配器，处理会话路由、流式输出、审批、Cron 和平台生命周期。[gateway/run.py](/Users/my/harness/hermes-agent/gateway/run.py:6269)
+`GatewayRunner` 统一管理 Telegram、Discord、Slack、WhatsApp、Signal 等消息适配器，处理会话路由、流式输出、审批、Cron 和平台生命周期。[gateway/run.py](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/gateway/run.py#L6269)
 
-`SessionStore` 把平台、chat、thread 与 Agent session 关联，使同一 Agent 能从消息渠道持续交互。[gateway/session.py](/Users/my/harness/hermes-agent/gateway/session.py:1238)
+`SessionStore` 把平台、chat、thread 与 Agent session 关联，使同一 Agent 能从消息渠道持续交互。[gateway/session.py](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/gateway/session.py#L1238)
 
-Cron 能创建独立执行、保存输出并投递回平台，也为执行建立可搜索的 Session。它对 thread/DM/channel continuity 做了大量工程处理。[cron/scheduler.py](/Users/my/harness/hermes-agent/cron/scheduler.py:3425)
+Cron 能创建独立执行、保存输出并投递回平台，也为执行建立可搜索的 Session。它对 thread/DM/channel continuity 做了大量工程处理。[cron/scheduler.py](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/cron/scheduler.py#L3425)
 
 长处：
 
@@ -169,7 +169,7 @@ Cron 能创建独立执行、保存输出并投递回平台，也为执行建立
 
 - Gateway、Cron、Session 和 Agent 生命周期主要通过大型宿主模块及 ContextVar 协调，理解成本和耦合较高；
 - 定时执行常建立新的执行 Session，缺少一个统一、可持久恢复的原生 Goal 连续体；
-- 后台 review 使用 daemon thread，进程退出时任务可以直接消失；[run_agent.py](/Users/my/harness/hermes-agent/run_agent.py:1803)
+- 后台 review 使用 daemon thread，进程退出时任务可以直接消失；[run_agent.py](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/run_agent.py#L1803)
 - 大量 best-effort 和异常吞掉策略保护主会话，却会让后台自治的失败难以成为可靠状态。
 
 Hermes 在“常驻入口和消息触达”上强，在“一个长期目标经过崩溃后可证明地继续”上仍不够深。
@@ -185,9 +185,9 @@ Hermes 在“常驻入口和消息触达”上强，在“一个长期目标经�
 3. 项目 `.hermes/plugins`；
 4. `hermes_agent.plugins` Python entry point。
 
-同名用户插件可以覆盖 bundled 插件。[plugins.py](/Users/my/harness/hermes-agent/hermes_cli/plugins.py:1)
+同名用户插件可以覆盖 bundled 插件。[plugins.py](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/hermes_cli/plugins.py#L1)
 
-目录插件包含 `plugin.yaml` 和 Python 入口。Manifest 支持版本、依赖、配置 Schema、能力声明、事件声明、Skill namespace 等。[PluginManifest](/Users/my/harness/hermes-agent/hermes_cli/plugins.py:1031)
+目录插件包含 `plugin.yaml` 和 Python 入口。Manifest 支持版本、依赖、配置 Schema、能力声明、事件声明、Skill namespace 等。[PluginManifest](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/hermes_cli/plugins.py#L1031)
 
 ### 6.2 PluginContext
 
@@ -202,19 +202,19 @@ Hermes 在“常驻入口和消息触达”上强，在“一个长期目标经�
 - 平台动作；
 - Skill 和 system-prompt section 等扩展能力。
 
-相关入口见 [PluginContext](/Users/my/harness/hermes-agent/hermes_cli/plugins.py:1388)。
+相关入口见 [PluginContext](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/hermes_cli/plugins.py#L1388)。
 
 值得肯定：
 
 - 插件有独立配置命名空间和持久状态；
-- 工具覆盖默认禁止，需要显式授权；[plugins.py](/Users/my/harness/hermes-agent/hermes_cli/plugins.py:1713)
-- MCP 默认无权限，必须 operator allowlist；[plugins.py](/Users/my/harness/hermes-agent/hermes_cli/plugins.py:1820)
+- 工具覆盖默认禁止，需要显式授权；[plugins.py](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/hermes_cli/plugins.py#L1713)
+- MCP 默认无权限，必须 operator allowlist；[plugins.py](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/hermes_cli/plugins.py#L1820)
 - 后台任务与 cleanup 被记录，有比普通 Python import 更清晰的所有权；
-- 项目明确要求第三方产品集成 out-of-tree 发布。[CONTRIBUTING](/Users/my/harness/hermes-agent/CONTRIBUTING.md:90)
+- 项目明确要求第三方产品集成 out-of-tree 发布。[CONTRIBUTING](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/CONTRIBUTING.md#L90)
 
 主要不足：
 
-- 依赖和事件声明部分仍是 advisory；缺失依赖通常警告后继续加载，而不是像 Cordis `inject` 那样控制激活；[plugins.py](/Users/my/harness/hermes-agent/hermes_cli/plugins.py:1082)
+- 依赖和事件声明部分仍是 advisory；缺失依赖通常警告后继续加载，而不是像 Cordis `inject` 那样控制激活；[plugins.py](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/hermes_cli/plugins.py#L1082)
 - 插件最终汇入全局 Tool、Hook 和宿主 Manager，隔离与作用域弱于 DSH 的 fiber/context；
 - Python 插件拥有较强宿主能力，Manifest capability 不能单独构成进程级安全边界；
 - Plugin Manager 自身接口很宽，新增能力容易继续扩大 facade。
@@ -225,26 +225,26 @@ Hermes 的插件系统是“功能丰富的宿主扩展接口”；DSH 更接近
 
 ### 7.1 前台 Skill 行为
 
-system prompt 要求 Agent 在复杂任务、棘手修复或新工作流后保存 Skill，并在发现 Skill 过时或错误时立即 patch。[prompt_builder.py](/Users/my/harness/hermes-agent/agent/prompt_builder.py:194)
+system prompt 要求 Agent 在复杂任务、棘手修复或新工作流后保存 Skill，并在发现 Skill 过时或错误时立即 patch。[prompt_builder.py](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/agent/prompt_builder.py#L194)
 
-`skill_manage` 支持创建、整体编辑、patch、删除和管理 references/templates/scripts/assets。[skill_manager_tool.py](/Users/my/harness/hermes-agent/tools/skill_manager_tool.py:1)
+`skill_manage` 支持创建、整体编辑、patch、删除和管理 references/templates/scripts/assets。[skill_manager_tool.py](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/tools/skill_manager_tool.py#L1)
 
 正面价值：
 
 - Agent 能把一次性解决过程沉淀为可重用程序；
 - Skill 包不只是一段提示词，可以包含脚本、模板与参考材料；
 - 写前读取、路径和归属 guard 降低误改风险；
-- `/learn` 提供显式的用户驱动学习入口。[learn_prompt.py](/Users/my/harness/hermes-agent/agent/learn_prompt.py:1)
+- `/learn` 提供显式的用户驱动学习入口。[learn_prompt.py](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/agent/learn_prompt.py#L1)
 
 ### 7.2 后台 Review
 
-默认每累计约十次工具迭代会触发 Skill review，Memory 则按用户轮次计数。Review 在回答完成后启动，因此不占用前台 Agent 的注意力。[turn_finalizer.py](/Users/my/harness/hermes-agent/agent/turn_finalizer.py:732)
+默认每累计约十次工具迭代会触发 Skill review，Memory 则按用户轮次计数。Review 在回答完成后启动，因此不占用前台 Agent 的注意力。[turn_finalizer.py](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/agent/turn_finalizer.py#L732)
 
-同模型时，它继承完整历史以利用温缓存；不同模型时改用摘要。工具白名单限制为 Memory 和 Skill 管理。[background_review.py](/Users/my/harness/hermes-agent/agent/background_review.py:1)
+同模型时，它继承完整历史以利用温缓存；不同模型时改用摘要。工具白名单限制为 Memory 和 Skill 管理。[background_review.py](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/agent/background_review.py#L1)
 
 这是一个非常好的产品交互选择：学习默认旁路，用户不会因为“等待复盘”而被卡住。
 
-但 Prompt 明确要求“多数 session 至少做一次更新”，把 no-op 描述为错失学习机会。[background_review.py](/Users/my/harness/hermes-agent/agent/background_review.py:182) 这会产生系统性 mutation bias：模型倾向于找到东西可写，而不是先证明内容值得长期保留。
+但 Prompt 明确要求“多数 session 至少做一次更新”，把 no-op 描述为错失学习机会。[background_review.py](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/agent/background_review.py#L182) 这会产生系统性 mutation bias：模型倾向于找到东西可写，而不是先证明内容值得长期保留。
 
 ### 7.3 Curator
 
@@ -256,7 +256,7 @@ Curator 每隔一段时间在空闲期运行：
 - 支持 Pin、adopt、archive、restore、backup 和 rollback；
 - 输出每轮报告。
 
-设计与用户命令见 [Curator 文档](/Users/my/harness/hermes-agent/website/docs/user-guide/features/curator.md:1)。
+设计与用户命令见 [Curator 文档](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/website/docs/user-guide/features/curator.md#L1)。
 
 值得继承：
 
@@ -269,15 +269,15 @@ Curator 每隔一段时间在空闲期运行：
 核心问题：
 
 1. **触发不是效果。** Tool iteration 多不代表产生了可推广经验。
-2. **使用不是质量。** view/use/patch 统计衡量活动，不衡量任务是否更成功。[skill_usage.py](/Users/my/harness/hermes-agent/tools/skill_usage.py:146)
+2. **使用不是质量。** view/use/patch 统计衡量活动，不衡量任务是否更成功。[skill_usage.py](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/tools/skill_usage.py#L146)
 3. **同源偏差。** 同一段对话和经常同一个模型负责提出并执行修改。
 4. **没有 baseline。** 修改前后没有在相同任务上做配对比较。
 5. **没有未见回归集。** 触发改进的案例可能通过，但其他场景是否退化未知。
-6. **强制整理配额。** Consolidation Prompt 把少于十次 archive 视为停止过早。[curator.py](/Users/my/harness/hermes-agent/agent/curator.py:545)
+6. **强制整理配额。** Consolidation Prompt 把少于十次 archive 视为停止过早。[curator.py](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/agent/curator.py#L545)
 7. **直接改变活动库。** 候选不是隔离版本，修改完成后即成为未来加载内容。
-8. **回滚粒度粗。** Curator 备份整个 Skill 树；快照失败仍继续变更。[curator.py](/Users/my/harness/hermes-agent/agent/curator.py:1546)
-9. **安全扫描默认关闭。** 理由是 Agent 可通过 terminal 做同类操作，说明控制面并未真正收口。[skill_manager_tool.py](/Users/my/harness/hermes-agent/tools/skill_manager_tool.py:57)
-10. **归属字段混义。** `created_by: agent` 实际同时被当作“允许自治维护”的 policy flag，而非可靠 provenance。[skill_usage.py](/Users/my/harness/hermes-agent/tools/skill_usage.py:485)
+8. **回滚粒度粗。** Curator 备份整个 Skill 树；快照失败仍继续变更。[curator.py](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/agent/curator.py#L1546)
+9. **安全扫描默认关闭。** 理由是 Agent 可通过 terminal 做同类操作，说明控制面并未真正收口。[skill_manager_tool.py](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/tools/skill_manager_tool.py#L57)
+10. **归属字段混义。** `created_by: agent` 实际同时被当作“允许自治维护”的 policy flag，而非可靠 provenance。[skill_usage.py](https://github.com/NousResearch/hermes-agent/blob/29d0cc2602e01943ab300c0382fc9d97efb376da/tools/skill_usage.py#L485)
 
 因此 Hermes 的循环可以证明“知识库持续发生变化”，不能证明“Agent 能力持续改善”。
 
@@ -327,7 +327,7 @@ Curator 每隔一段时间在空闲期运行：
 - 第三方插件依赖声明部分 advisory，缺失时仍可能进入降级运行；
 - 动态 Skill/Prompt 修改会改变后续上下文，缺少会话版本固定。
 
-## 10. 对 DSH 和 oh-my-dsh 的借鉴
+## 10. 对 DSH 和 EvoForge 的借鉴
 
 ### 10.1 应直接吸收
 
@@ -376,10 +376,10 @@ EvoForge 的 `dsh-evolve` 应保留 Hermes 的旁路体验，但把内部机制�
 
 ## 11. 最终评价
 
-Hermes 最强的地方不是单个算法，而是它认真完成了“一个 Agent 如何进入日常生活”：常驻、消息、Cron、Memory、Skill、检索、插件和用户控制都能工作在同一产品里。这些是 oh-my-dsh 做通用自治时最值得学习的部分。
+Hermes 最强的地方不是单个算法，而是它认真完成了“一个 Agent 如何进入日常生活”：常驻、消息、Cron、Memory、Skill、检索、插件和用户控制都能工作在同一产品里。这些是 EvoForge 做通用自治时最值得学习的部分。
 
 Hermes 最弱的地方则正好位于其最响亮的主张：它把持续改变称作持续进化，却没有把“更好”变成可重复验证的工程事实。
 
-因此，oh-my-dsh 不需要比 Hermes 更频繁地学习，而需要做到：
+因此，EvoForge 不需要比 Hermes 更频繁地学习，而需要做到：
 
 > 每一次晋升都有来源、有对照、有硬门、有未见案例、有缓存测量、有权限边界、有版本，并且随时可以准确回滚。

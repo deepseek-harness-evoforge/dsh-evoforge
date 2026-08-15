@@ -1,6 +1,6 @@
 # EvoForge 可证明自进化设计
 
-> 状态：经公开项目审计后的设计候选；等待确认后只实现离线 P0A Shadow
+> 状态：设计已获授权；P0A.1 safety tracer 已实现，完整 P0A evaluator 尚未完成
 > 更新日期：2026-08-15
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 
@@ -97,9 +97,9 @@ Evolution Store
 | 成本和缓存 | Token Meter、LLM usage | 记录 token、cache-read、耗时和完整 composition 指纹 |
 | 权限 | Approval、Permission Preset | 可执行变化和 Protected Action 继续走原生权限管线 |
 
-DSH 的 Skill Registry 本身支持分层 Provider、Agent scope 和 lifecycle disposer：[Skill Registry](/Users/my/harness/deepseek-harness/packages/skill/skill/src/index.ts:1)。Skill body 不被 registry 缓存，每次 `get()` 重新读取，因此 P0 不能让 Provider 指向一个会原地变化的目录；必须让它读取 immutable Generation。
+DSH 的 Skill Registry 本身支持分层 Provider、Agent scope 和 lifecycle disposer：[Skill Registry](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/packages/skill/skill/src/index.ts#L1)。Skill body 不被 registry 缓存，每次 `get()` 重新读取，因此 P0 不能让 Provider 指向一个会原地变化的目录；必须让它读取 immutable Generation。
 
-DSH 的 Agent 创建流程会在首个 prompt assembly 前完成 scoped setup，并提供 `agent/session-start` 与可等待的 `agent/pre-step`：[Agent lifecycle](/Users/my/harness/deepseek-harness/packages/core/agent/src/index.ts:105)。Storage Domain 的写入语义是“先持久化，再改变权威内存，再发事件”，适合作为 sidecar：[Storage Domain](/Users/my/harness/deepseek-harness/packages/storage/storage-domain/src/domain.ts:1)。
+DSH 的 Agent 创建流程会在首个 prompt assembly 前完成 scoped setup，并提供 `agent/session-start` 与可等待的 `agent/pre-step`：[Agent lifecycle](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/packages/core/agent/src/index.ts#L105)。Storage Domain 的写入语义是“先持久化，再改变权威内存，再发事件”，适合作为 sidecar：[Storage Domain](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/packages/storage/storage-domain/src/domain.ts#L1)。
 
 ## 6. 为什么不用 Session 自定义事件保存 Generation
 
@@ -109,7 +109,7 @@ DSH 的 Agent 创建流程会在首个 prompt assembly 前完成 scoped setup，
 - 插件卸载后，原生 DSH 会话仍应能工作；
 - Generation pin 不参与模型历史重建，属于插件 sidecar，而不是 Session 事实。
 
-因此 Generation pin 存在 Evolution Store，使用 `sessionId + createdAt + cwd` 绑定准确 Session 生命周期，沿用 Message Feedback 防止同名 Session 重建后串数据的思路：[Message Feedback identity](/Users/my/harness/deepseek-harness/packages/feedback/message-feedback/src/spec.ts:42)。
+因此 Generation pin 存在 Evolution Store，使用 `sessionId + createdAt + cwd` 绑定准确 Session 生命周期，沿用 Message Feedback 防止同名 Session 重建后串数据的思路：[Message Feedback identity](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/packages/feedback/message-feedback/src/spec.ts#L42)。
 
 这使插件满足可卸载性：移除 `evolve` 以后，DSH Session 日志没有私有必需事件，只是不再加载 evolved Skill overlay。
 

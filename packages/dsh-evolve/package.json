@@ -1,9 +1,26 @@
 {
   "name": "dsh-evolve",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.1",
   "description": "Evidence-driven shadow evolution for DeepSeek Harness skills",
   "license": "MIT",
   "type": "module",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepseek-harness-evoforge/dsh-evoforge.git",
+    "directory": "packages/dsh-evolve"
+  },
+  "homepage": "https://github.com/deepseek-harness-evoforge/dsh-evoforge#readme",
+  "bugs": {
+    "url": "https://github.com/deepseek-harness-evoforge/dsh-evoforge/issues"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "agent",
+    "evaluation",
+    "skill"
+  ],
   "bin": {
     "dsh-evolve": "./dist/cli.mjs"
   },

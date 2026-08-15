@@ -5,6 +5,10 @@
   "description": "Evidence-driven, cache-stable extensions for DeepSeek Harness",
   "license": "MIT",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepseek-harness-evoforge/dsh-evoforge.git"
+  },
   "packageManager": "pnpm@11.7.0",
   "engines": {
     "node": "^22.19.0 || >=24.0.0"
@@ -14,8 +18,9 @@
   ],
   "scripts": {
     "build": "pnpm -r build",
+    "check:docs": "node scripts/check-docs.mjs",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
-    "check": "pnpm run typecheck && pnpm run test && pnpm run build"
+    "check": "pnpm run check:docs && pnpm run typecheck && pnpm run test && pnpm run build"
   }
 }

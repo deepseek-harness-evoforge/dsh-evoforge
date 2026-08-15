@@ -16,7 +16,7 @@
 - 用 DSH 作为底层 Runtime；
 - 借鉴 Claude Code 的开发控制面和权限细节；
 - 借鉴 Hermes 的常驻产品体验；
-- 由 oh-my-dsh 补上可验证、缓存稳定、可回滚的持续进化。
+- 由 EvoForge 补上可验证、缓存稳定、可回滚的持续进化。
 
 ## 2. 架构形态
 
@@ -49,7 +49,7 @@ Hermes 以大型 `AIAgent` 为中心，Tool Registry、Plugin Manager、Gateway�
 | Provider 可替换性 | Definition/Provider/Consumer 是正式纪律 | MCP/Tool adapter 较强，但核心接口较胖 | Model、Memory、Environment 较强，其他能力依赖宿主 facade |
 | out-of-tree 方向 | 天然适合 | Marketplace/Plugin/MCP | 明确鼓励第三方集成独立插件仓库 |
 
-结论：oh-my-dsh 应遵循 DSH 的 Service/Provider 纪律；从 Hermes 学习插件所有权和私有状态；从 Claude Code 学习插件来源优先级和企业策略，但不复制巨型 Tool 接口。
+结论：EvoForge 应遵循 DSH 的 Service/Provider 纪律；从 Hermes 学习插件所有权和私有状态；从 Claude Code 学习插件来源优先级和企业策略，但不复制巨型 Tool 接口。
 
 ## 4. Session、Goal 与长期运行
 
@@ -71,7 +71,7 @@ Hermes 以大型 `AIAgent` 为中心，Tool Registry、Plugin Manager、Gateway�
 - **Claude Code Rev** 能恢复对话和压缩状态，但缺少持久 workflow lease/checkpoint。
 - **Hermes** 的 Gateway/Cron 可由服务进程常驻，部分后台 review 仍是 daemon/best-effort。
 
-结论：oh-my-dsh 不应新增 Mission，应复用 DSH Goal 和 Session，在其上增加单机、有限、可恢复的监督与 Evolution 后台状态。
+结论：EvoForge 不应新增 Mission，应复用 DSH Goal 和 Session，在其上增加单机、有限、可恢复的监督与 Evolution 后台状态。
 
 ## 5. 上下文、压缩与 KV Cache
 
@@ -98,7 +98,7 @@ tool-result budget
 
 Hermes 缓存 system prompt、Skill catalog，支持 Provider cache marker；后台复盘同模型时利用完整温前缀，异模型才生成 digest。问题是 Skill/Memory 可被后台热修改，缺少每 Session 固定能力代。
 
-结论：oh-my-dsh 的所有插件必须共同遵守 Cache Contract。持续进化不进入前台 Prompt，候选保持 inactive，Promotion 只影响后续 Session。
+结论：EvoForge 的所有插件必须共同遵守 Cache Contract。持续进化不进入前台 Prompt，候选保持 inactive，Promotion 只影响后续 Session。
 
 ## 6. Tool、权限和安全
 
@@ -119,7 +119,7 @@ Hermes 缓存 system prompt、Skill catalog，支持 Provider cache marker；后
 
 Gateway 上的危险命令也能进入审批往返，session/permanent allowlist、timeout 和拒绝 circuit breaker 很实用。插件 Tool override 与 MCP access 默认受限。
 
-结论：底层使用 DSH 原生 Approval/Sandbox/Permission Preset；借鉴 Claude 的 pre-model filtering 和 Bash 分析；借鉴 Hermes 的跨消息平台审批 UX。oh-my-dsh 不建立平行 Policy 平台。
+结论：底层使用 DSH 原生 Approval/Sandbox/Permission Preset；借鉴 Claude 的 pre-model filtering 和 Bash 分析；借鉴 Hermes 的跨消息平台审批 UX。EvoForge 不建立平行 Policy 平台。
 
 ## 7. Skill、Memory 和持续进化
 
@@ -141,7 +141,7 @@ Hermes 最接近“持续进化”，但它的循环是：
 → 按使用和时间整理
 ```
 
-oh-my-dsh 需要替换为：
+EvoForge 需要替换为：
 
 ```text
 真实结果
@@ -169,7 +169,7 @@ oh-my-dsh 需要替换为：
 
 通用工具足够做开发，也有 Issue-to-PR 等 Skill，但产品重心更偏通用个人 Agent；软件交付的统一完成门和仓库隔离不如专门 coding agent 清晰。
 
-结论：oh-my-dsh 的 Software Delivery Pack 应借鉴 Claude Code 的流程体验，以 DSH 原生能力实现，并作为 Evolution Loop 的第一组强评价数据。
+结论：EvoForge 的 Software Delivery Pack 应借鉴 Claude Code 的流程体验，以 DSH 原生能力实现，并作为 Evolution Loop 的第一组强评价数据。
 
 ## 9. 个人助理与外部消息
 
@@ -179,7 +179,7 @@ DSH 提供构建这些能力所需的 Schedule、Jobs、Web、Credentials、Appr
 
 Claude Code 的主场是软件开发，不适合作为通用个人助理蓝本。
 
-结论：oh-my-dsh 后续的消息、内容、日程和个人助理包主要参考 Hermes 的用户体验，但每个渠道作为独立 out-of-tree 插件，不合并成一个巨型 Gateway。
+结论：EvoForge 后续的消息、内容、日程和个人助理包主要参考 Hermes 的用户体验，但每个渠道作为独立 out-of-tree 插件，不合并成一个巨型 Gateway。
 
 ## 10. 可观测性、测试与维护
 
@@ -187,7 +187,7 @@ Claude Code 的主场是软件开发，不适合作为通用个人助理蓝本�
 - **Claude Code Rev**：恢复仓库没有完整测试脚本，许多 stub 和 fallback 使结论只能作为设计参考。
 - **Hermes**：测试量大、对跨平台和大量历史问题有回归覆盖，但核心模块体量和状态组合也非常大。
 
-oh-my-dsh 应采用 DSH 的契约测试纪律，并为每个插件额外验证：
+EvoForge 应采用 DSH 的契约测试纪律，并为每个插件额外验证：
 
 - 加载、卸载、重复加载；
 - scope 和依赖消失；
@@ -234,13 +234,13 @@ oh-my-dsh 应采用 DSH 的契约测试纪律，并为每个插件额外验证�
 
 不复制其强制变更倾向、活动统计评价、直接修改 active Skill 和粗粒度回滚。
 
-### oh-my-dsh 的独特位置
+### EvoForge 的独特位置
 
-oh-my-dsh 不应成为第四个 Agent Runtime。它的产品公式是：
+EvoForge 不应成为第四个 Agent Runtime。它的产品公式是：
 
 > DSH 的插件化 Runtime
 > + Claude Code 的可信开发控制面
 > + Hermes 的常驻通用 Agent 体验
 > + 可验证、非阻塞、缓存稳定、可回滚的持续进化。
 
-这四项中，前三项已有可学习实现；第四项是 oh-my-dsh 应形成独特开源价值的地方。
+这四项中，前三项已有可学习实现；第四项是 EvoForge 应形成独特开源价值的地方。

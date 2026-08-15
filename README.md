@@ -1,34 +1,89 @@
 # dsh-evoforge
 
-[dsh-evoforge](https://github.com/deepseek-harness-evoforge/dsh-evoforge) 是 DeepSeek Harness EvoForge 的首个公开 Suite。项目只增加可独立安装、可删除的新能力，不 fork DSH，也不以插件修补 DSH Core Defect。
+[English](README.en.md) · [当前实现状态](docs/status.zh.md) · [开始参与](docs/getting-started.zh.md) · [研究报告](docs/research/README.zh.md)
 
-研究和设计基线已经完成，当前进入 `dsh-evolve` 的 P0A Shadow 实现。长期目标是成为 Hermes 的可验证上位选择：同时覆盖可靠软件交付、通用个人助理、消息与日程、可充分交互的人类控制面，以及可证明的持续进化。软件开发交付是第一个可客观评测的试验场。
+面向 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的 out-of-tree 开源扩展套件。EvoForge 只增加可独立安装、可删除的新能力，不 fork DSH，也不以插件修补 DSH Core Defect。
 
-## 当前决策
+> **Pre-alpha：暂不可用于自动晋升。** 当前只有 `dsh-evolve` 的 P0A.1 Shadow 安全纵切得到实现和测试。Trial、真实改善判定、Generation、晋升、回滚、常驻恢复及 UI 均未完成。详见[状态页](docs/status.zh.md)。
 
-- 复用 DSH 原生 Goal、Session、Storage、Approval、Jobs、Skills 和插件生命周期。
-- 不增加 Mission、通用任务 DAG、平行 Runtime 或第二套审批系统。
-- KV Cache 稳定是所有插件的第一设计约束。
-- 状态、审批、时间线、证据、成本和回滚优先显示在 host/UI control plane，不为界面便利持续改写模型前缀。
-- 先用离线 Shadow 实验证明 evaluator 能拒绝坏候选并识别真实改善，再建设在线 Generation、晋升和崩溃恢复。
-- 明确胜出的纯指令候选未来可自动晋升；代码、权限和外部副作用只生成 commit/Draft PR 或进入人工审批。
+## 为什么做
 
-## 仓库边界
+现有 Agent 可以反思、改写 Skill，甚至持续运行，但“发生了修改”不等于“能力真的变好”。`dsh-evolve` 的目标是把自进化变成一条可验证的能力发布链：
 
-默认先在 EvoForge Suite 内按 `packages/*` 组织相关插件。只有插件拥有独立发布或信任边界、明显不同的依赖/许可证，或可以被用户完全独立采用时，才拆为 `deepseek-harness-evoforge/<plugin>` 独立仓库。详见 [ADR 0005](docs/adr/0005-evoforge-repository-boundaries.md)。
+```text
+真实结果 → inactive Candidate → sealed paired Trial
+        → promote / review / reject → 仅未来 Session 生效 → 可回滚
+```
 
-## 文档入口
+它必须同时守住四个边界：
 
-1. [需求基线](docs/requirements.zh.md)：项目所有者已确认的范围、授权和交付顺序。
-2. [领域语言与不变量](CONTEXT.md)：实现和评审必须保持的统一术语。
-3. [产品架构](docs/architecture/evoforge-product.zh.md)：Hermes Replacement Target、能力边界、交互、可靠性、缓存与仓库策略；[Hermes 上位目标验收记分卡](docs/architecture/hermes-replacement-scorecard.zh.md)规定何时才允许声称某个工作流更好。
-4. [自进化架构](docs/architecture/evolution-design.zh.md)：当前唯一自进化方案与分阶段验证路线；[P0A Shadow 契约](docs/architecture/p0a-shadow-contract.zh.md)冻结首个测试接缝、隔离和 evaluator。
-5. [插件目录](docs/plugins.zh.md)与[接口规范](docs/plugin-contract.zh.md)：哪些能力成为插件，以及每个发布物的验收合同。
-6. [路线图](docs/roadmap.zh.md)：从 Shadow evaluator 到 Local Continuity、交互闭环和有限自治的退出门。
-7. [研究索引](docs/research/README.zh.md)：DSH、171 个原生插件、Claude Code Rev、Hermes 及公开自进化项目的一手证据。
-8. [ADR](docs/adr)：缓存、Goal、上游边界、旗舰方向和仓库边界的精简决策。
-9. [DSH 插件开发 Skill](skills/build-dsh-plugin/SKILL.md)：从用户结果、接缝选择和红测试到缓存、权限、卸载与发布证据的可执行流程。
+- **证据优先**：模型反思只产生候选，不能证明改进；
+- **会话不漂移**：active Session 固定 Capability Generation；
+- **默认可逆**：候选不原地修改 active Skill，每个版本可定位和回滚；
+- **KV Cache 优先**：后台状态不进入正常 Session 的动态 system prompt、Tool Schema 或 Skill catalog。
 
-## 当前下一步
+## 现在已经有什么
 
-按 [P0A Shadow 契约](docs/architecture/p0a-shadow-contract.zh.md)实现离线 `dsh-evolve shadow <skill-dir>`：以 `build-dsh-plugin` 为首个真实 Skill，建立独立 final-test、生成并评测候选，但不改变 active Skill。Shadow 不能证明真实价值时停止扩张。
+仓库目前包含一个正在开发的包：
+
+| 包 | 当前能力 | 状态 |
+|---|---|---|
+| [`dsh-evolve`](packages/dsh-evolve) | 离线 `shadow` 命令；Skill/case-pack 哈希；owned-path、symlink、并发完整性和 token 预算门；最小证据报告 | P0A.1 implemented |
+
+P0A.1 的正常 DSH Session 模型表面为 `none`，因此正常 Session 的额外 token 和 KV Cache 影响为 `0`。Shadow 只有在用户显式调用时才请求配置的模型。
+
+当前命令：
+
+```text
+dsh-evolve shadow <skill-dir> --case-pack <case-pack-dir> --output <run-dir>
+```
+
+它现在可以可靠拒绝越出 owned Skill 的候选；遇到合法候选、模型失败、预算超限或无法证明完整隔离时会返回 `2 + incomplete`，不会假装已经得到 `promote/review/reject`。
+
+## 本地验证
+
+需要 Node.js `^22.19.0 || >=24` 与 pnpm `11.7.0`：
+
+```bash
+pnpm install
+pnpm check
+pnpm --filter dsh-evolve pack --pack-destination "$PWD/.evoforge/pack"
+```
+
+当前测试跨越真实 CLI 子进程、HTTP 模型边界、文件系统效果、退出码和报告文件。模型是唯一被替换的系统边界；evaluator 与文件效果不使用 mock。
+
+如果要手工运行 P0A.1，请先阅读[开始参与](docs/getting-started.zh.md)。该命令可能调用付费模型，必须由调用者显式配置预算和凭据。
+
+## 尚未实现
+
+- 能执行模型生成代码并证明 read/write/process/network 隔离的 Sealed Trial；
+- known-bad、known-correction、selection 与未开放 final-test 的完整校准；
+- 自动或人工晋升、immutable Generation、Session pin 与精确回滚；
+- 单机常驻、崩溃恢复及幂等续跑；
+- `dsh-software-delivery`、个人助理、消息、内容和日程插件；
+- Web/TUI 控制面。
+
+这些能力不会仅凭设计文档被标为完成。每个阶段必须满足[路线图退出条件](docs/roadmap.zh.md)和[Hermes 上位目标记分卡](docs/architecture/hermes-replacement-scorecard.zh.md)。
+
+## 文档地图
+
+- [当前实现状态](docs/status.zh.md)：implemented、verified、planned 的严格区分；
+- [开始参与](docs/getting-started.zh.md)：环境、命令、P0A.1 输入和退出语义；
+- [需求基线](docs/requirements.zh.md)：产品目标、授权边界与工作顺序；
+- [领域语言](CONTEXT.md)：Candidate、Trial、Generation、Cache Contract 等统一术语；
+- [产品架构](docs/architecture/evoforge-product.zh.md)与[自进化架构](docs/architecture/evolution-design.zh.md)；
+- [P0A Shadow 契约](docs/architecture/p0a-shadow-contract.zh.md)；
+- [DSH 全量 171 插件目录](docs/research/deepseek-harness-native-plugins.zh.md)；
+- [DSH、Claude Code Rev、Hermes 深度调研与比较](docs/research/README.zh.md)；
+- [插件接口与验收规范](docs/plugin-contract.zh.md)；
+- [DSH 插件开发 Skill](skills/build-dsh-plugin/SKILL.md)。
+
+## 参与项目
+
+请先阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。新增能力必须在“DSH 完全正确”时仍有独立用户价值，并明确模型表面、KV Cache、权限、持久状态、卸载和验证证据。DSH 自身缺陷请提交给上游，不在本仓库长期维护 workaround。
+
+安全问题请按 [SECURITY.md](SECURITY.md) 私下报告；使用范围与支持边界见 [SUPPORT.md](SUPPORT.md)。
+
+## 许可证
+
+[MIT](LICENSE)

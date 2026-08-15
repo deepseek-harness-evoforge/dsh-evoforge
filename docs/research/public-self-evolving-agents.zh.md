@@ -2,15 +2,15 @@
 
 > 审计日期：2026-08-15
 > 范围：公开论文、官方 GitHub、官方文档；不使用媒体转述作为结论依据
-> 目的：校准 `oh-my-dsh` 自进化设计，识别真正已有的能力、未解决的问题和可形成差异的位置
+> 目的：校准 `EvoForge` 自进化设计，识别真正已有的能力、未解决的问题和可形成差异的位置
 
 ## 1. 结论先行
 
-此前的 `oh-my-dsh` 设计参考了 Hermes Agent 本体，但**没有完成足够广泛的公开自进化项目横向审计**。这次审计后，需要诚实修正三个判断：
+此前的 `EvoForge` 设计参考了 Hermes Agent 本体，但**没有完成足够广泛的公开自进化项目横向审计**。这次审计后，需要诚实修正三个判断：
 
 1. “从执行轨迹生成 Skill 候选，再做 Baseline/Candidate 评测”已经不是独一无二的设计。最接近的公开实现是 [NousResearch/hermes-agent-self-evolution](https://github.com/NousResearch/hermes-agent-self-evolution) 和 [Canvas Meta-Agent](https://github.com/canvas-org/meta-agent)。
 2. 当前最成熟、最值得直接复用的候选搜索器不是自研反思提示词，而是 [DSPy/GEPA](https://github.com/gepa-ai/gepa)：它读取完整轨迹和文本反馈，维护 Pareto 候选，并在少量 rollout 下做反思式变异。
-3. 公开项目普遍擅长“生成更好的候选”，却普遍没有解决**一个正在服务用户的常驻 Agent 如何安全上线新能力**：Session 内版本固定、KV Cache 前缀稳定、崩溃恢复、非阻塞审批、原子晋升、线上回归后的自动回滚，仍是 `oh-my-dsh` 最有价值的差异化空间。
+3. 公开项目普遍擅长“生成更好的候选”，却普遍没有解决**一个正在服务用户的常驻 Agent 如何安全上线新能力**：Session 内版本固定、KV Cache 前缀稳定、崩溃恢复、非阻塞审批、原子晋升、线上回归后的自动回滚，仍是 `EvoForge` 最有价值的差异化空间。
 
 所以不应把产品定位为“另一个 prompt optimizer”，而应定位为：
 
@@ -27,7 +27,7 @@
 | L2 跨尝试经验 | 保存反思，影响同类任务后续尝试 | Reflexion | 弱相关；有学习，但没有能力发布 |
 | L3 可复用能力增长 | 产生可持久化 Skill、prompt 或 workflow | Voyager、Hermes Skill | 是，但若没有对照评测，仍可能退化 |
 | L4 经验驱动优化 | 生成多个候选，以任务结果选择更优版本 | GEPA、AFlow、ADAS | 是；通常是离线优化 |
-| L5 可运营持续进化 | 线上采集信号、隔离评测、版本晋升、监测、回滚 | 公开项目尚不完整 | `oh-my-dsh` 的目标 |
+| L5 可运营持续进化 | 线上采集信号、隔离评测、版本晋升、监测、回滚 | 公开项目尚不完整 | `EvoForge` 的目标 |
 
 “Agent 会写自己的文件”不等于自进化；“模型说新版本更好”也不等于能力提高。至少要区分：进化对象、反馈信号、候选生成、评估选择、发布与回滚。
 
@@ -86,7 +86,7 @@ Hermes 把短事实放入 Memory，把长流程放入 Skill。Agent 可以通过
 - Curator 的 use count/idle time 只能证明活跃度，不能证明质量；归档恢复也不是逐版本的能力发布。
 - 官方 issue 已出现后台 review 把会话叙事和代码块写进 `SKILL.md`、导致 Skill 膨胀的实例，说明“会整理 Skill”本身仍需要结构和尺寸 gate。[官方 issue #55255](https://github.com/NousResearch/hermes-agent/issues/55255)
 
-**对 oh-my-dsh 的启示**
+**对 EvoForge 的启示**
 
 借鉴它的异步 pending inbox、patch 优先、progressive disclosure、provenance/pin/restore；不要复制“复盘后直接写 active Skill”。
 
@@ -122,9 +122,9 @@ NousResearch 已在 2026 年公开独立仓库 [hermes-agent-self-evolution](htt
 - 全部改善必须 PR + 人工 merge，可信但人工介入较多，不是非阻塞自动晋升。
 - 没有描述 live Session 固定旧版本、并发 Session、崩溃时 active pointer 的事务语义。
 - 真实 Session 挖掘依赖 LLM-as-judge；合成数据和同源 Judge 可能共同偏置。
-- 计划把工具实现中的 bug 修复列为进化目标；这与 `oh-my-dsh`“只做 DSH 新能力扩展、不承担 Core bug 修复”的产品边界不同。
+- 计划把工具实现中的 bug 修复列为进化目标；这与 `EvoForge`“只做 DSH 新能力扩展、不承担 Core bug 修复”的产品边界不同。
 
-**对 oh-my-dsh 的直接影响**
+**对 EvoForge 的直接影响**
 
 不得再把“GEPA + held-out + Git PR”作为独特卖点。应复用或兼容 GEPA，把差异放在：
 
@@ -254,7 +254,7 @@ ADAS 在 2024 年 8 月提出，ICLR 2025 收录。Meta Agent Search 让一个 m
 
 **启示**
 
-自由搜索适合研究阶段，不适合 P0。`oh-my-dsh` 应使用窄 artifact schema 和 protected evaluator，先证明一个 Skill 的可控改进。
+自由搜索适合研究阶段，不适合 P0。`EvoForge` 应使用窄 artifact schema 和 protected evaluator，先证明一个 Skill 的可控改进。
 
 ### 4.8 AFlow
 
@@ -309,7 +309,7 @@ Agent0 于 2025 年 11 月公开，后进入 ICML 2026。它不依赖人工标�
 - 权重更新难以解释到具体规则，也无法像 Git Skill diff 一样做低成本人工审查。
 - 官方研究代码没有 live Session 固定版本、权限、审批、原子晋升或外部副作用回滚。
 
-**对 oh-my-dsh 的启示**
+**对 EvoForge 的启示**
 
 P0 不应引入 RL 或权重训练。可借鉴的是“frontier case generation”：当真实失败样本太少时，由一个受约束 Curriculum Adapter 围绕已知能力边界生成更难但可验证的 Trial cases；这些合成 case 只能用于 search/validation，最终晋升仍需独立真实或 deterministic final-test。
 
@@ -449,11 +449,11 @@ Canvas 于 2026 年公开 Meta-Agent。它冻结基础模型，fast loop 修改 
 - Candidate 必须有单一 hypothesis，并保留失败证据；
 - search/selection/final-test 三分，反复查看的 held-out 必须降级成 validation；
 - 暂不实现“进化 proposer”的 slow loop，先证明 task-facing Skill 的保留与迁移；
-- `oh-my-dsh` 的长期护城河不能是“会改 harness”，而是“能在真实常驻 DSH 中可靠发布和撤销能力”。
+- `EvoForge` 的长期护城河不能是“会改 harness”，而是“能在真实常驻 DSH 中可靠发布和撤销能力”。
 
 ## 5. 首次设计审计发现的缺陷与处理状态
 
-以下问题来自对早期 [可证明自进化设计](/Users/my/harness/dsh-evoforge/docs/architecture/evolution-design.zh.md) 的审计，不是泛泛风险。后续文档已经处理了一部分**设计缺口**，但尚无实现和真实效果证据；“设计已处理”不得写成“问题已解决”。当前权威测试接缝见 [P0A Shadow 契约](../architecture/p0a-shadow-contract.zh.md)，长期声明门见 [Hermes 上位目标验收记分卡](../architecture/hermes-replacement-scorecard.zh.md)。
+以下问题来自对早期 [可证明自进化设计](../architecture/evolution-design.zh.md) 的审计，不是泛泛风险。后续文档已经处理了一部分**设计缺口**，当前也只有 P0A.1 safety tracer 的实现证据，仍没有真实改善效果证据；“设计已处理”或“安全门已实现”不得写成“进化问题已解决”。当前权威测试接缝见 [P0A Shadow 契约](../architecture/p0a-shadow-contract.zh.md)，长期声明门见 [Hermes 上位目标验收记分卡](../architecture/hermes-replacement-scorecard.zh.md)。
 
 | 审计项 | 当前处理状态 |
 |---|---|

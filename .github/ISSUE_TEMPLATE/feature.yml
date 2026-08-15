@@ -1,0 +1,35 @@
+name: Feature extension proposal
+description: Propose a removable DSH capability with an independently testable user result.
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    attributes:
+      label: User and outcome
+      description: Who installs it, and what new result do they get?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Why native DSH is not enough
+      description: Explain why this remains valuable when DSH works exactly as documented.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Proposed DSH seams
+      description: Services, events, plugins, commands, views, or Skills to compose.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Cache, authority, and rollback
+      description: Model-visible changes, permissions, state, external effects, uninstall, and rollback.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Success evidence
+      description: The outcome test or benchmark that would prove value.
+    validations:
+      required: true

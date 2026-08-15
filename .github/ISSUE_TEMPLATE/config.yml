@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: DeepSeek Harness core issues
+    url: https://github.com/deepseek-ai/deepseek-harness/issues
+    about: Report behavior that violates DSH's own documented contract upstream.
+  - name: Security vulnerability
+    url: https://github.com/deepseek-harness-evoforge/dsh-evoforge/security/advisories/new
+    about: Report vulnerabilities privately; never include secrets in a public issue.

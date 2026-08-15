@@ -1,0 +1,50 @@
+# Contributing to dsh-evoforge
+
+感谢你帮助构建更可靠的 DeepSeek Harness 扩展。本项目处于 pre-alpha，优先接受能够缩短 P0 证据链的、小而完整的贡献。
+
+## 贡献边界
+
+一个新能力必须回答：
+
+1. 谁会安装它，得到什么新的用户结果？
+2. 如果 DSH 完全符合文档，它是否仍然有价值？
+3. 为什么现有 DSH Service/插件组合还不能直接完成？
+4. 它改变哪些模型可见内容、权限、状态和外部效果？
+5. 如何测量收益、KV Cache 影响、卸载和回滚？
+
+如果第二问为否，请向 DSH 上游提交最小复现，不要在 EvoForge 增加 monkey patch 或长期 workaround。
+
+## 开发流程
+
+1. 阅读根目录 `CONTEXT.md`、适用 ADR 和对应阶段契约；
+2. 用一句话写清用户结果和非目标；
+3. 先添加穿过公共接缝的失败测试；
+4. 实现最小纵切，不为假想复用发布公共抽象；
+5. 运行 `pnpm check`；
+6. 若改变 DSH runtime 接缝，补安装、组装、dispose、移除与完整 composition/cache 证据；
+7. 若改变 Web/GUI，使用真实浏览器覆盖可见成功路径、刷新后的权威状态和失败反馈。
+
+## Pull Request 要求
+
+PR 描述应包含：
+
+- 用户结果与非目标；
+- 支持的 DSH revision/range；
+- 使用的 DSH seam；
+- 模型表面与 KV Cache 差异；
+- 权限、秘密、网络、费用和外部效果；
+- 持久状态、崩溃、卸载和回滚语义；
+- 实际运行的测试及结果；
+- 已知限制。
+
+默认允许 PR 产生代码、测试、文档和 Draft PR；merge、release、部署、秘密读取、付费验证和不可逆外部动作仍需维护者或明确策略批准。
+
+## 代码约定
+
+- 使用 TypeScript ESM、严格类型和 Node.js 内置能力优先；
+- 源码提交到 `src/`，不提交 `dist/`、`node_modules/` 或 `.evoforge/`；
+- 错误必须区分 invocation error、incomplete evaluation 和完整业务结论；
+- 证据默认保存哈希、计数和引用，不复制秘密、完整 transcript 或无关源码；
+- 动态状态保留在 host/control plane，不为状态展示持续改写模型前缀。
+
+行为规范见 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)，安全问题不要提交公开 Issue，请阅读 [SECURITY.md](SECURITY.md)。

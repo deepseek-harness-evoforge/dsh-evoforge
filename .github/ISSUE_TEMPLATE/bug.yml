@@ -1,0 +1,41 @@
+name: EvoForge bug
+description: Report a reproducible defect in an implemented EvoForge capability.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: checkboxes
+    attributes:
+      label: Scope check
+      options:
+        - label: This affects an implemented EvoForge capability, not a planned feature or DSH core behavior.
+          required: true
+        - label: I removed secrets, private code, personal data, and unsafe exploit details.
+          required: true
+  - type: input
+    attributes:
+      label: EvoForge commit
+      placeholder: git rev-parse HEAD
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: DSH revision
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Reproduction
+      description: Include the smallest case pack, command, exit code, and sanitized report.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Expected and actual result
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Environment
+      description: OS, Node, pnpm, model route class, and relevant sandbox/executor.
+    validations:
+      required: true
