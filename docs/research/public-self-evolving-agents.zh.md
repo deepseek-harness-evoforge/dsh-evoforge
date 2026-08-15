@@ -451,13 +451,23 @@ Canvas 于 2026 年公开 Meta-Agent。它冻结基础模型，fast loop 修改 
 - 暂不实现“进化 proposer”的 slow loop，先证明 task-facing Skill 的保留与迁移；
 - `oh-my-dsh` 的长期护城河不能是“会改 harness”，而是“能在真实常驻 DSH 中可靠发布和撤销能力”。
 
-## 5. 当前 `oh-my-dsh` 设计的缺陷
+## 5. 首次设计审计发现的缺陷与处理状态
 
-以下问题基于当前 [可证明自进化设计](/Users/my/harness/oh-my-dsh/docs/architecture/evolution-design.zh.md) 审计，不是泛泛风险。
+以下问题来自对早期 [可证明自进化设计](/Users/my/harness/oh-my-dsh/docs/architecture/evolution-design.zh.md) 的审计，不是泛泛风险。后续文档已经处理了一部分**设计缺口**，但尚无实现和真实效果证据；“设计已处理”不得写成“问题已解决”。当前权威测试接缝见 [P0A Shadow 契约](../architecture/p0a-shadow-contract.zh.md)，长期声明门见 [Hermes 上位目标验收记分卡](../architecture/hermes-replacement-scorecard.zh.md)。
+
+| 审计项 | 当前处理状态 |
+|---|---|
+| evaluator、数据分区、随机性与 epoch | P0A 契约已定义；实现与误报/漏报仍待实测 |
+| 基础设施先行 | 路线已改为 P0A Shadow 先证明价值，P0B 才建设在线发布 |
+| Markdown 权限语义、外部副作用 | 已成为 hard gate；语义检测能力仍待实现 |
+| final-test 隔离 | 已定义无工具 proposer、受限 Trial 和 host evaluator；隔离强度仍待攻击测试 |
+| 反事实监测、冲突、淘汰 | 保留到 P0B/P1；当前未实现 |
+| signal poisoning、隐私、跨 Skill 路由 | 只有原则或局部约束，仍是开放风险 |
+| 独特性与宣传边界 | 已收缩为 DSH 原生可信发布闭环，并增加分级验收；尚未获得 paired benchmark 证据 |
 
 ### 5.1 最大缺口仍是 evaluator，不是 Candidate 生成
 
-设计详细规定了 Generation、pin、Storage、状态恢复，却没有给出第一个真实 Skill 的：
+首次审计时，设计详细规定了 Generation、pin、Storage、状态恢复，却没有给出第一个真实 Skill 的：
 
 - 哪些任务进入 train/validation/final-test；
 - 谁写 expected behavior；
@@ -465,11 +475,11 @@ Canvas 于 2026 年公开 Meta-Agent。它冻结基础模型，fast loop 修改 
 - evaluator 自己如何校准误报/漏报；
 - model/judge/模型版本改变时如何保持可比性。
 
-公开项目共同证明：有 metric 才有优化；错误 metric 会把 Agent 稳定优化到错误方向。当前方案对发布地基描述强，对“凭什么更好”仍描述弱。
+公开项目共同证明：有 metric 才有优化；错误 metric 会把 Agent 稳定优化到错误方向。现在 P0A 已固定 `build-dsh-plugin`、三个 deterministic fixture、known-bad/known-correction、报告与 epoch，但在真实 Trial 产生误报/漏报数据前，evaluator 仍是最大未证实风险。
 
-### 5.2 P0.1 可能成为无用户价值的基础设施先行
+### 5.2 P0B 可能成为无用户价值的基础设施先行
 
-Generation Binder、sidecar pin、active pointer、crash injection 都重要，但 P0.1 不生成候选、不给出任何改进结果。若先花大量时间构建它，可能再次落入工程自嗨。
+Generation Binder、sidecar pin、active pointer、crash injection 都重要，但 P0B 本身不生成候选、不给出任何改进结果。若在 P0A 证明价值前建设它，仍会落入工程自嗨。当前路线已经把 P0A Shadow 设为 P0B 的硬进入条件。
 
 更小的验证顺序应是：先用离线 Shadow CLI 在一个 Skill + 一个真实 evaluator 上证明“能发现并拒绝坏 Candidate、至少找到一个稳定提升”；只有证明有价值，才把 Candidate 接入 live Generation Binder。
 
@@ -479,22 +489,22 @@ Generation Binder、sidecar pin、active pointer、crash injection 都重要，�
 
 自动晋升必须检查**能力效果和权限请求差异**，不只是 diff 类型。任何增加工具范围、外部目标、secret 请求、Protected Action 触发率的文本 Candidate 都应进入 review。
 
-### 5.4 retained cases 的独立性还没有被保证
+### 5.4 retained/final-test 的独立性仍需实现证明
 
-当前只写“proposer 未见 retained cases”，但没有定义：
+首次审计时只写了“proposer 未见 retained cases”，没有定义：
 
 - proposer 是否能通过仓库或 Trial 工具读取它；
 - evaluator 是否与 proposer 使用相同模型/提示，形成相关偏差；
 - repeated promotion 是否已经间接泄露 case；
 - 何时把反复使用的 retained 降级为 validation，并补充新的 final-test。
 
-应采用 Canvas Meta-Agent 明确的 search / selection / final-test 分层；final-test 只在一次搜索结束后打开，不能参与每轮候选选择。
+P0A 契约现已采用 search / selection / final-test 分层，并要求无工具 proposer、受限 Trial workspace 与 host 侧 evaluator。真正的剩余问题是实现能否阻止路径逃逸、间接泄漏和重复试验后的 case 污染。
 
-### 5.5 随机性和统计门槛未定义
+### 5.5 随机性和统计门槛尚未校准
 
-“Candidate 稳定通过”“明显提升”“minimumMargin”目前没有重复次数、置信区间、tie policy 或序贯停止规则。一次 Baseline 失败、Candidate 成功可能只是采样噪声。
+P0A 契约已经要求随机 case 预声明最小复跑数、paired 配置和 tie policy，epoch 变化后不得累计旧分数，但没有真实数据可以确定各类 case 的合理重复次数或 margin。一次 Baseline 失败、Candidate 成功仍可能只是采样噪声。
 
-P0 至少要定义：确定性 case 单次可判；随机 case 使用固定最小复跑数和 paired seed/config；证据不足一律 review/reject，而不是自动 promote。
+实现必须从 case pack 读取这些预声明参数并把实际复跑数写入报告；证据不足一律 review/reject，而不是自动 promote。具体数值只能由 P0A 数据校准，不能在设计文档中拍脑袋设定。
 
 ### 5.6 线上 Monitor 缺少反事实
 
@@ -544,13 +554,13 @@ P0 不需要复杂 merge engine，但至少要规定：同一 artifact 同时只
 4. 明确胜出的安全指令只对未来 Session 非阻塞晋升；
 5. active pointer 崩溃一致性和线上 counterfactual rollback；
 6. DSH Goal + 软件交付结果成为第一个客观 adapter；
-7. optimizer 可插拔，首选复用 GEPA，不把搜索算法绑死在产品里。
+7. 候选搜索保持私有可替换：先用最小 proposer，只有同一 evaluator 证明 GEPA 有净收益时才接入，不把搜索算法绑死在产品里。
 
 ## 6. 人工介入到底多不多
 
 ### 6.1 按当前设计，P0 阶段人工介入偏多
 
-当前路线中的 P0.3 是 Human promotion，P1 才开放有限自动晋升。因此在 P0：
+当前路线中的 P0C 是 Human promotion，P1 才开放有限自动晋升。因此在 P0：
 
 - Candidate 生成、静态检查、Trial、reject 可以自动；
 - 所有真正生效的 Candidate 都需要人 `/evolve promote`；
@@ -628,10 +638,10 @@ P0 不需要复杂 merge engine，但至少要规定：同一 artifact 同时只
 
 仅允许：project-scoped、owned、纯指令、权限效果不变、deterministic clear win、selection/final-test 无回归、rollback rehearsal 成功。先小比例 future-session canary，再全量切 active pointer。
 
-### P2：优化器与 outcome adapter 插件化
+### P2：只在真实变化出现后提取 Adapter
 
-- `OptimizerAdapter`：GEPA、轻量 LangMem-style proposer、以后 TextGrad；
-- `OutcomeAdapter`：软件交付 tests/lint/typecheck/diff/Goal，未来才加消息、日程、内容；
+- 简单 proposer 不足且 GEPA 在同一 evaluator 上有净收益时，先作为 Evolve 私有 Adapter；第二个真实 optimizer 出现后才形成公共 Interface；
+- Software Delivery 可以因独立用户结果成为插件，但它与 Evolve 的 outcome seam 在第二个真实 outcome 出现前保持私有；
 - release/runtime 保持一个深模块，不把内部 Observer/Runner/Promoter 拆成十几个浅插件。
 
 ## 8. 应借鉴与应拒绝的设计
@@ -662,13 +672,13 @@ P0 不需要复杂 merge engine，但至少要规定：同一 artifact 同时只
 
 ## 9. 最终判断
 
-公开市场已经有大量“会反思”“会改 prompt”“会搜索 workflow”的项目，也已经有与当前方案高度相似的 Hermes 官方 self-evolution 和 Canvas Meta-Agent。`oh-my-dsh` 若只做候选生成和 benchmark，不足以构成独特开源价值。
+公开市场已经有大量“会反思”“会改 prompt”“会搜索 workflow”的项目，也已经有与当前方案高度相似的 Hermes 官方 self-evolution 和 Canvas Meta-Agent。EvoForge 若只做候选生成和 benchmark，不足以构成独特开源价值。
 
 真正仍未被这些项目完整解决、又与 DSH 优势天然一致的问题是：
 
 > 如何让一个单机常驻、正在处理真实工作且拥有工具权限的 Agent，在不改变当前 Session、不破坏 KV Cache、不扩大授权、不阻塞用户的前提下，把经过独立证据证明的能力版本安全地交付给未来 Session，并在崩溃或真实回归后精确恢复。
 
-这应成为 `@oh-my-dsh/evolve` 的唯一核心。候选生成算法可以复用；可信发布闭环才是产品。
+这应成为逻辑插件 `Evolve` 的唯一核心。实际包名尚未冻结；候选生成算法可以复用，可信发布闭环才是产品。
 
 ## 10. 一手来源索引
 

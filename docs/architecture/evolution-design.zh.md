@@ -452,34 +452,34 @@ Candidate 不能通过修改自身评测政策、held-out cases 或权限配置�
 
 每一阶段只实现对应的失败测试；P0A 不提前建设 P0B/P0C：
 
-### P0B — Generation 与 Session
-
-1. 新 Session pin 当前 Generation；
-2. promotion 后旧 Session 仍读取原 Skill body；
-3. 新 Session 读取新 Skill body；
-4. resume 恢复原 pin；
-5. fork/child 继承父 pin；
-6. pin 持久化失败时卸载 overlay，但原生会话继续；
-7. 插件卸载后原生 Session 仍能恢复。
-
 ### P0A — Candidate isolation
 
-8. Candidate worktree 中的修改不会改变 active tree；
-9. 非 owned 路径修改被拒绝；
-10. executable 文件变化不能进入 auto-promote；
-11. Candidate 失败和取消能安全清理或保留可恢复 worktree。
+1. Candidate worktree 中的修改不会改变 active tree；
+2. 非 owned 路径修改被拒绝；
+3. executable 文件变化不能进入 auto-promote；
+4. Candidate 失败和取消能安全清理或保留可恢复 worktree。
 
 ### P0A — Trial 与 Decision
 
-12. known-bad Candidate 被 deterministic gate 拒绝；
-13. 修复触发 case 且通过 retained cases 的 Candidate 得到 promote recommendation；
-14. 只有 model judge 偏好的 Candidate 进入 review；
-15. baseline 与 Candidate 的非目标 composition 不一致时 Trial 无效；
-16. cache regression 超预算时不能自动晋升；
-17. 已保存 Trial result 重放得到同一 Decision。
-18. proposer 不能读取 selection/final-test；final-test 只在搜索结束后开放；
-19. 随机 case 未达到预声明复跑数时不能给出自动晋升建议；
-20. evaluator 或模型 epoch 改变后不能沿用旧分数。
+5. known-bad Candidate 被 deterministic gate 拒绝；
+6. 修复触发 case 且通过 retained cases 的 Candidate 得到 promote recommendation；
+7. 只有 model judge 偏好的 Candidate 进入 review；
+8. baseline 与 Candidate 的非目标 composition 不一致时 Trial 无效；
+9. cache regression 超预算时不能自动晋升；
+10. 已保存 Trial result 重放得到同一 Decision；
+11. proposer 不能读取 selection/final-test；final-test 只在搜索结束后开放；
+12. 随机 case 未达到预声明复跑数时不能给出自动晋升建议；
+13. evaluator 或模型 epoch 改变后不能沿用旧分数。
+
+### P0B — Generation 与 Session
+
+14. 新 Session pin 当前 Generation；
+15. promotion 后旧 Session 仍读取原 Skill body；
+16. 新 Session 读取新 Skill body；
+17. resume 恢复原 pin；
+18. fork/child 继承父 pin；
+19. pin 持久化失败时卸载 overlay，但原生会话继续；
+20. 插件卸载后原生 Session 仍能恢复。
 
 ### P0B/P0C — Promotion 与恢复
 

@@ -357,7 +357,7 @@ Curator 每隔一段时间在空闲期运行：
 
 ### 10.3 上位替代方向
 
-`@oh-my-dsh/evolve` 应保留 Hermes 的旁路体验，但把内部机制替换为：
+EvoForge 的逻辑插件 `Evolve` 应保留 Hermes 的旁路体验，但把内部机制替换为（实际包名尚未冻结）：
 
 ```text
 真实结果
