@@ -1,6 +1,6 @@
 # EvoForge 开发路线图
 
-> 状态：设计确认前的执行基线；每阶段只有满足退出条件才进入下一阶段
+> 状态：P0A 已获项目所有者授权并开始 test-first 实现；每阶段只有满足退出条件才进入下一阶段
 
 ## 当前状态
 
@@ -8,8 +8,8 @@
 |---|---|---|
 | R0 上游与市场研究 | 完成 | DSH、171 插件、Claude Code Rev、Hermes、公开自进化项目报告 |
 | R1 产品边界 | 完成 | Requirements、CONTEXT、产品架构、ADR、插件目录和接口规范 |
-| R2 开源仓库就绪 | 部分完成 | 本地 Git 基线已提交；远端仓名、GitHub 认证和许可证未冻结 |
-| P0A Shadow evaluator | 契约待确认 | CLI、隔离、报告、首个 Skill 与 fixture 已冻结；尚无实现或效果证据 |
+| R2 开源仓库就绪 | 部分完成 | 仓名 `dsh-evoforge` 与 MIT 已冻结；等待浏览器完成 GitHub CLI 授权后创建远端 |
+| P0A Shadow evaluator | 实现中 | P0A.1 owned-path tracer 已转绿；完整 Trial、校准和未见 case 尚未完成 |
 
 ## P0A — 先证明会判断
 
@@ -84,8 +84,4 @@
 
 ## 外部准备项
 
-1. 在 `deepseek-harness-evoforge` 组织下确定首个远端仓名；
-2. 选择开源许可证；
-3. 登录 GitHub CLI 或提供其他安全推送方式；
-4. 冻结发布包 scope 与命名；
-5. 项目所有者确认 P0A 设计后才进入代码。
+只剩 GitHub CLI 的浏览器设备授权。仓库固定为 `deepseek-harness-evoforge/dsh-evoforge`，首包固定为 `dsh-evolve`，许可证为 MIT；项目所有者已授权按 P0A 契约自主实现和验证。

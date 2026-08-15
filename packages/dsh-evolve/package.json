@@ -1,0 +1,29 @@
+{
+  "name": "dsh-evolve",
+  "version": "0.1.0",
+  "description": "Evidence-driven shadow evolution for DeepSeek Harness skills",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "dsh-evolve": "./dist/cli.mjs"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown src/cli.ts --format esm --clean",
+    "prepack": "pnpm run build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.0",
+    "tsdown": "^0.22.2",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  }
+}

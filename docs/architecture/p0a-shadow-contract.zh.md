@@ -1,6 +1,6 @@
 # P0A Shadow 契约
 
-> 状态：待项目所有者确认；本文冻结测试接缝，不代表已进入实现
+> 状态：项目所有者已授权实现；P0A.1 owned-path tracer 已进入验证，完整 P0A 尚未完成
 > 更新日期：2026-08-15
 > 目标：用最小离线实验证明 evaluator 值得信任，而不是先建设在线自进化平台
 
@@ -169,7 +169,7 @@ case pack 必须预声明 `candidateLimit`、`trialLimit` 和 token/cost cap；�
 
 ## 8. 拟定红测试
 
-设计确认后，测试只穿过 CLI、退出码、文件系统效果和报告这个公共接缝：
+测试只穿过 CLI、退出码、文件系统效果和报告这个公共接缝：
 
 1. 完整 vertical slice：固定的系统边界模型返回已知坏 patch，命令完成、报告为 `reject`，active Skill 哈希不变；
 2. 已知修正通过校准、selection 和 sealed final-test，报告给出 `promote` 建议但 active Skill 仍不变；
@@ -180,7 +180,7 @@ case pack 必须预声明 `candidateLimit`、`trialLimit` 和 token/cost cap；�
 7. 同一落盘 Trial evidence 重放得到相同 Decision；
 8. 无论成功、失败或取消，命令都只写 `run-dir`，临时 workspace 可安全回收。
 
-首个实现切片只做第 1 条端到端行为；不先实现内部抽象大全。测试中的固定模型只模拟外部模型边界，不模拟 evaluator 或 DSH 组装行为。
+首个实现切片只做第 1 条端到端行为；不先实现内部抽象大全。测试中的固定模型只模拟外部模型边界，不模拟 evaluator 或 DSH 组装行为。P0A.1 另外固定了两条失败语义：in-scope Candidate 在 Trial evaluator 落地前只能返回 `2 + incomplete`，模型边界失败时尽可能保存 incomplete 报告。
 
 ## 9. 人工介入与退出门
 
