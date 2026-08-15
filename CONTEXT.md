@@ -52,6 +52,10 @@ _Avoid_: Live patch, learned rule
 A paired comparison that runs the active version and one Evolution Candidate against the same representative cases and hard safety checks. Deterministic outcomes lead; model judgment is supplementary.
 _Avoid_: Self-review, usage count
 
+**Sealed Trial**:
+A Trial whose executor can prove that a Candidate cannot read protected cases or host data, write outside its workspace, or use undeclared network/process capabilities. If that boundary cannot be enforced, the run is incomplete rather than an evaluation result.
+_Avoid_: Best-effort sandbox, prompt-only isolation
+
 **Promotion**:
 An atomic selection of a proven candidate for future sessions. Clear improvements may promote automatically within configured authority; ambiguous results enter a separate review inbox, and executable or permission-expanding changes remain Protected Actions.
 _Avoid_: Merge, in-place edit

@@ -127,6 +127,8 @@ case-pack/
 2. 每个 Baseline/Candidate Trial 在干净的受限 workspace 中运行，只挂载任务仓库和对应 Skill，不挂载 case pack、evaluator 源码或其他 Candidate；
 3. Trial 退出后，由 host 侧 evaluator 注入或执行隐藏检查；Candidate 无权修改检查器、预算或 policy。
 
+DSH `sandbox-local` 的公开契约是 same-world file-effect confinement，不能单独证明 Candidate 无法读取 case pack/宿主文件或使用网络。因此它可以成为写边界的一层，但不能被当作完整 Trial 隔离。没有能够证明声明的 read/write/process/network 边界的执行路径时，Shadow 必须返回 `2 + incomplete`，且不得执行模型生成代码；详细决定见 [ADR-0006](../adr/0006-fail-closed-sealed-trial-execution.md)。
+
 公开仓库中的 final-test 只用于框架回归，不能证明真实泛化。一次有说服力的 P0A 退出试验还需要一个未参与开发、保存在用户本机的 final-test pack；报告只公开脱敏指标与哈希。
 
 ## 5. 第一个受管 Skill 与三个 fixture
