@@ -368,4 +368,77 @@ describe('dsh-evolve shadow', () => {
     })
     await expect(readdir(join(fixture.skillDir, 'run'))).rejects.toThrow()
   })
+
+  it('returns an incomplete report when the active Skill changes during evaluation', async () => {
+    const fixture = await createFixture()
+    const skillPath = join(fixture.skillDir, 'SKILL.md')
+    const originalSkill = await readFile(skillPath, 'utf8')
+    const server = createServer(async (_request, response) => {
+      await writeFile(skillPath, `${originalSkill}\nExternal concurrent edit.\n`)
+      response.setHeader('content-type', 'application/json')
+      response.end(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  claim: 'Clarify the owned-path rule',
+                  files: [{ path: 'SKILL.md', content: originalSkill }],
+                }),
+              },
+            },
+          ],
+          usage: { prompt_tokens: 100, completion_tokens: 20 },
+        }),
+      )
+    })
+    await new Promise<void>((resolveListen) => server.listen(0, '127.0.0.1', resolveListen))
+    const address = server.address()
+    if (!address || typeof address === 'string') throw new Error('mock model server did not bind')
+
+    try {
+      let failure: unknown
+      try {
+        await execFileAsync(
+          process.execPath,
+          [
+            '--import',
+            'tsx',
+            cliPath,
+            'shadow',
+            fixture.skillDir,
+            '--case-pack',
+            fixture.casePackDir,
+            '--output',
+            fixture.outputDir,
+          ],
+          {
+            cwd: packageRoot,
+            env: {
+              ...process.env,
+              DSH_EVOLVE_MODEL_BASE_URL: `http://127.0.0.1:${address.port}/v1`,
+              DSH_EVOLVE_MODEL_NAME: 'fixed-boundary-model',
+            },
+          },
+        )
+      } catch (error) {
+        failure = error
+      }
+
+      expect(failure).toMatchObject({
+        code: 2,
+        stdout: '',
+        stderr: 'incomplete: active Skill changed during shadow evaluation\n',
+      })
+      const report = JSON.parse(await readFile(join(fixture.outputDir, 'report.json'), 'utf8'))
+      expect(report.run.status).toBe('incomplete')
+      expect(report.subject.unchanged).toBe(false)
+      expect(report.subject.finalTreeHash).not.toBe(report.subject.baseTreeHash)
+      expect(report).not.toHaveProperty('decision')
+    } finally {
+      await new Promise<void>((resolveClose, rejectClose) =>
+        server.close((error) => (error ? rejectClose(error) : resolveClose())),
+      )
+    }
+  })
 })

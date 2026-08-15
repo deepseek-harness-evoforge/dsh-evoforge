@@ -130,16 +130,14 @@ export async function runShadow(options: ShadowOptions): Promise<
   await writeJson(resolve(outputDir, 'evidence', 'proposal.json'), proposalEvidence)
 
   const finalTreeHash = await hashTree(skillDir)
-  if (finalTreeHash !== baseTreeHash) {
-    throw new Error('active Skill changed during shadow evaluation')
-  }
+  const activeSkillUnchanged = finalTreeHash === baseTreeHash
 
   const candidateTreeHash = sha256(JSON.stringify(proposal))
   const reportBase = {
     schemaVersion: 1,
     run: {
       id: randomUUID(),
-      status: unsafePaths.length > 0 ? 'complete' : 'incomplete',
+      status: activeSkillUnchanged && unsafePaths.length > 0 ? 'complete' : 'incomplete',
       startedAt,
       finishedAt: new Date().toISOString(),
     },
@@ -147,7 +145,7 @@ export async function runShadow(options: ShadowOptions): Promise<
       skillName,
       baseTreeHash,
       finalTreeHash,
-      unchanged: true,
+      unchanged: activeSkillUnchanged,
     },
     epoch: {
       dshRevision: manifest.epoch.dshRevision,
@@ -169,13 +167,20 @@ export async function runShadow(options: ShadowOptions): Promise<
         id: manifest.id,
         partition: 'search',
         baseline: 'pass',
-        candidate: unsafePaths.length > 0 ? 'fail' : 'incomplete',
+        candidate: activeSkillUnchanged && unsafePaths.length > 0 ? 'fail' : 'incomplete',
         checks: [
           {
             name: 'owned-path',
             passed: unsafePaths.length === 0,
             evidenceRef: 'evidence/proposal.json',
           },
+          ...activeSkillUnchanged
+            ? []
+            : [{
+                name: 'active-skill-unchanged',
+                passed: false,
+                evidenceRef: 'report.json#subject',
+              }],
         ],
       },
     ],
@@ -192,6 +197,11 @@ export async function runShadow(options: ShadowOptions): Promise<
     },
   } as const
   const reportPath = resolve(outputDir, 'report.json')
+  if (!activeSkillUnchanged) {
+    const reason = 'active Skill changed during shadow evaluation'
+    await writeJson(reportPath, reportBase)
+    return { status: 'incomplete', reportPath, reason }
+  }
   if (unsafePaths.length === 0) {
     const reason = 'no trial evaluator is configured for an in-scope candidate'
     await writeJson(reportPath, reportBase)

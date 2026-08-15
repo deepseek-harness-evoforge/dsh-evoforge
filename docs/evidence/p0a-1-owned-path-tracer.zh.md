@@ -15,7 +15,8 @@
 2. 合法路径但尚无 Trial evaluator 的候选以 `incomplete + exit 2` 结束，绝不伪造建议；
 3. 模型 HTTP 失败保存 incomplete 报告并返回 `2`；
 4. output parent 经符号链接落入 active Skill 时，在任何写入和模型调用前返回 `1`；
-5. active Skill 内容不变，越权文件不存在，成功路径只产生 `evidence/proposal.json` 与 `report.json`。
+5. 评测期间 active Skill 被并发改变时保存完整性失败报告并返回 `2`，不产生建议；
+6. 正常路径下 active Skill 内容不变，越权文件不存在，成功路径只产生 `evidence/proposal.json` 与 `report.json`。
 
 构建验证包括 TypeScript 类型检查、Vitest、tsdown 可执行 CLI 构建和发布包内容检查。
 
