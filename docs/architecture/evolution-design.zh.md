@@ -564,10 +564,10 @@ P0A 先回答“是否值得做”：
 
 ## 23. 下一步
 
-进入代码前只冻结 P0A 所需的三个小规格：
+P0A 所需的三个小规格已经收敛到 [P0A Shadow 契约](p0a-shadow-contract.zh.md)：
 
 1. `evolve shadow <skill>` 的输入、退出码和报告格式；
 2. `search`、`selection`、`final-test` 的目录隔离与可见性；
 3. evaluator、已知坏 Candidate 和至少一个真实修正 fixture。
 
-确认后只实现 P0A，使用 red → green → refactor。P0A 通过以前，不实现 Session pin、active pointer、在线晋升或自动回滚。
+项目所有者确认该契约后，只实现 P0A，使用 red → green → refactor。P0A 通过以前，不实现 Session pin、active pointer、在线晋升或自动回滚。

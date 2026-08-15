@@ -22,7 +22,7 @@
 1. [需求基线](docs/requirements.zh.md)：项目所有者已确认的范围、授权和交付顺序。
 2. [领域语言与不变量](CONTEXT.md)：实现和评审必须保持的统一术语。
 3. [产品架构](docs/architecture/evoforge-product.zh.md)：Hermes Replacement Target、能力边界、交互、可靠性、缓存与仓库策略。
-4. [自进化架构](docs/architecture/evolution-design.zh.md)：当前唯一自进化方案与分阶段验证路线。
+4. [自进化架构](docs/architecture/evolution-design.zh.md)：当前唯一自进化方案与分阶段验证路线；[P0A Shadow 契约](docs/architecture/p0a-shadow-contract.zh.md)冻结首个测试接缝、隔离和 evaluator。
 5. [插件目录](docs/plugins.zh.md)与[接口规范](docs/plugin-contract.zh.md)：哪些能力成为插件，以及每个发布物的验收合同。
 6. [路线图](docs/roadmap.zh.md)：从 Shadow evaluator 到 Local Continuity、交互闭环和有限自治的退出门。
 7. [研究索引](docs/research/README.zh.md)：DSH、171 个原生插件、Claude Code Rev、Hermes 及公开自进化项目的一手证据。
@@ -31,4 +31,4 @@
 
 ## 当前下一步
 
-设计确认后只实现离线 `evolve shadow <skill>`：选择一个真实 Skill、建立独立 final-test、生成并评测候选，但不改变 active Skill。Shadow 不能证明真实价值时停止扩张。
+确认 [P0A Shadow 契约](docs/architecture/p0a-shadow-contract.zh.md)后，只实现离线 `evolve shadow <skill>`：以 `build-dsh-plugin` 为首个真实 Skill，建立独立 final-test、生成并评测候选，但不改变 active Skill。Shadow 不能证明真实价值时停止扩张。

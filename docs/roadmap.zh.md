@@ -9,7 +9,7 @@
 | R0 上游与市场研究 | 完成 | DSH、171 插件、Claude Code Rev、Hermes、公开自进化项目报告 |
 | R1 产品边界 | 完成 | Requirements、CONTEXT、产品架构、ADR、插件目录和接口规范 |
 | R2 开源仓库就绪 | 部分完成 | 本地 Git 基线已提交；远端仓名、GitHub 认证和许可证未冻结 |
-| P0A Shadow evaluator | 等待设计确认 | 尚无实现或效果证据 |
+| P0A Shadow evaluator | 契约待确认 | CLI、隔离、报告、首个 Skill 与 fixture 已冻结；尚无实现或效果证据 |
 
 ## P0A — 先证明会判断
 
@@ -23,6 +23,8 @@
 - 报告 claim、diff、逐 case 结果、成本和限制，不做激活。
 
 退出条件：稳定拒绝坏 Candidate，并至少有一个改善通过未参与搜索的 final-test。否则停止，不建设在线发布底座。
+
+详细测试接缝、报告 Schema、case 隔离和人工边界见 [P0A Shadow 契约](architecture/p0a-shadow-contract.zh.md)。
 
 ## P0B — Local Continuity 与 Release Safety
 

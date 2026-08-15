@@ -11,7 +11,8 @@
 5. [三项目横向比较](cross-project-comparison.zh.md)：查看三者的能力映射、取舍以及 EvoForge 应组合什么、不应照搬什么。
 6. [用户核心痛点证据](user-pain-evidence.md)：用真实需求约束路线图，防止把平台工程当成用户价值。
 7. [公开 Agent 自进化项目证据审计](public-self-evolving-agents.zh.md)：横向审计 Hermes Self-Evolution、GEPA、DGM、Voyager、ADAS、AFlow、Agent0 等项目，并校准当前方案的独特价值与缺陷。
-8. [可证明自进化设计](../architecture/evolution-design.zh.md)：查看 Generation 固定、Learning Signal、Candidate、Trial、晋升、回滚、缓存与 P0 测试规格。
+8. [可证明自进化设计](../architecture/evolution-design.zh.md)：查看 Generation 固定、Learning Signal、Candidate、Trial、晋升、回滚与缓存约束。
+9. [P0A Shadow 契约](../architecture/p0a-shadow-contract.zh.md)：查看首个可执行验证的 CLI、报告、case 隔离、evaluator 和红测试接缝。
 
 ## 审计基线
 
