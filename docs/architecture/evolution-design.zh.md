@@ -1,6 +1,6 @@
 # EvoForge 可证明自进化设计
 
-> 状态：设计已获授权；P0A.1 safety tracer 已实现，完整 P0A evaluator 尚未完成
+> 状态：设计已获授权；安全门与一个 macOS 确定性校准/paired final-test 纵切已实现，完整 P0A evaluator 尚未完成
 > 更新日期：2026-08-15
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 

@@ -33,7 +33,7 @@ pnpm --filter dsh-evolve build
 pnpm --filter dsh-evolve pack --pack-destination "$PWD/.evoforge/pack"
 ```
 
-## 3. P0A.1 Shadow 输入
+## 3. Shadow 输入
 
 命令：
 
@@ -41,24 +41,56 @@ pnpm --filter dsh-evolve pack --pack-destination "$PWD/.evoforge/pack"
 dsh-evolve shadow <skill-dir> --case-pack <case-pack-dir> --output <run-dir>
 ```
 
-`skill-dir` 必须包含带 `name` frontmatter 的 `SKILL.md`。当前 case pack 至少包含：
+`skill-dir` 必须包含带 `name` frontmatter 的 `SKILL.md`。只有安全门的最小
+Case Pack 可以不声明 Trial；要得到 in-scope Candidate 的完整建议，manifest
+还必须声明 search evidence、隐藏 evaluator 和两个 calibration tree：
 
 ```json
 {
   "schemaVersion": 1,
-  "id": "owned-path-boundary",
+  "id": "real-browser-e2e",
   "epoch": {
     "dshRevision": "0.1.0-rc.6",
-    "evaluatorVersion": "p0a.1"
+    "evaluatorVersion": "browser-e2e-guidance-v1"
   },
   "budget": {
     "candidateLimit": 1,
-    "trialLimit": 1,
-    "inputTokenLimit": 2000,
-    "outputTokenLimit": 400
+    "trialLimit": 4,
+    "inputTokenLimit": 4000,
+    "outputTokenLimit": 600
+  },
+  "search": {
+    "evidence": "search/evidence.md"
+  },
+  "trial": {
+    "evaluator": "final-test/evaluator.mjs",
+    "timeoutMs": 5000,
+    "outputLimitBytes": 65536
+  },
+  "calibration": {
+    "knownBad": "calibration/known-bad",
+    "knownCorrection": "calibration/known-correction"
   }
 }
 ```
+
+完整目录示例见
+[`examples/case-packs/browser-e2e-guidance`](../examples/case-packs/browser-e2e-guidance)。
+proposer 只会收到 active Skill 和 `search.evidence`；calibration tree 与
+`trial.evaluator` 不进入模型请求。macOS 实现会分别复制 known-bad、
+known-correction、baseline 和 Candidate，执行四次 Sealed Trial。Evaluator 必须是
+一个只依赖 Node.js builtin 的 ESM 文件，并向 stdout 输出：
+
+```json
+{
+  "schemaVersion": 1,
+  "passed": true,
+  "checks": [{ "name": "check-name", "passed": true }]
+}
+```
+
+Case Pack 是可信本地输入，但 evaluator 仍运行在无网络、无父环境秘密、限制
+读写范围、时间和输出的进程中。当前没有 workspace 磁盘配额。
 
 Shadow 使用一个显式配置的 OpenAI-compatible proposer：
 
@@ -72,13 +104,25 @@ node packages/dsh-evolve/dist/cli.mjs shadow ./skill \
   --output ./runs/run-001
 ```
 
+仓库内示例路径可替换为：
+
+```bash
+node packages/dsh-evolve/dist/cli.mjs shadow \
+  ./examples/skills/browser-e2e-baseline \
+  --case-pack ./examples/case-packs/browser-e2e-guidance \
+  --output ./runs/browser-e2e-demo
+```
+
+自动化测试使用本地固定 HTTP proposer 来验证框架行为；真实 provider 是否能提出
+有效修正是另一项实验结论，不能由该固定响应替代。
+
 这可能产生付费模型调用。不要把 API key 写进 manifest、命令历史、Issue、测试 fixture 或 Git；程序不会将环境变量中的 key 写入报告。
 
 ## 4. 退出语义
 
-- `0`：一次完整业务结果；P0A.1 目前只有 owned-path hard gate 的 `reject` 能达到该状态；
+- `0`：一次完整业务结果；可能是 `promote`、`review` 或 `reject` 建议，但绝不自动激活；
 - `1`：参数、目录、配置或兼容性错误，未开始有效 Trial；
-- `2`：评测不完整；模型失败、预算超限、active Skill 被并发改变、合法 Candidate 尚无 Sealed Trial 等均走这里。
+- `2`：评测不完整；模型失败、预算超限、平台无 Sealed Trial、active Skill 或 Case Pack 被并发改变等均走这里。
 
 `2` 不是失败掩盖，而是核心安全合同：证据不足时不猜测 `promote/review/reject`。
 

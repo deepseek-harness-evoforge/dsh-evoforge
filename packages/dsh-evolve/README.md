@@ -10,23 +10,27 @@ Shadow proposes and evaluates an inactive Skill candidate. It never edits the ac
 
 ## Current status
 
-P0A.1 implements the first safety tracer:
+The implemented Shadow slices include:
 
 - one bounded OpenAI-compatible proposer request;
 - deterministic hashing of the active Skill and case pack;
 - rejection before application when a candidate names a path outside the owned Skill;
 - fail-closed enforcement of reported input/output token limits;
 - an auditable `report.json` and minimal proposal evidence;
-- exit `2` plus an incomplete report when the model boundary fails or an in-scope candidate reaches the not-yet-implemented Trial evaluator;
+- exit `2` plus an incomplete report when the model, integrity, budget, platform, or configured Trial boundary cannot support a recommendation;
 - no write outside the requested run directory, including through a symlinked output parent.
 
-The source tree also contains a macOS Sealed Trial primitive with an actual
-Seatbelt escape test, sanitized environment, timeout, and combined-output cap.
-It is deliberately not connected to `shadow` until Candidate assembly and the
-case/evaluator boundary are implemented. Linux and Windows adapters, and a
-workspace disk quota, remain open work.
+On macOS, a Case Pack can add explicit search evidence, known-bad and
+known-correction trees, and a trusted single-file evaluator. `shadow` exposes
+only the search evidence to the proposer, then runs four separate Sealed Trials
+for calibration, baseline, and Candidate before opening the hidden final test.
+Candidate files remain inactive data; arbitrary Candidate code and assembled
+DSH tasks are not executed. Linux and Windows adapters, a workspace disk quota,
+and real DSH workflow fixtures remain open work.
 
-P0A.1 is not yet a useful self-improvement release. It proves the mutation boundary before adding Trial execution. A candidate that passes the path gate is deliberately left `incomplete`, never guessed to be good or bad.
+This is not yet a useful self-improvement release. The deterministic example
+proves the mechanics and failure semantics, not improvement in an assembled DSH
+workflow or generalization to a locally held-out case.
 
 ## Run the tracer
 

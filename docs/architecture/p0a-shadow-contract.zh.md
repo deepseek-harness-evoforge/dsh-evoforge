@@ -1,6 +1,6 @@
 # P0A Shadow 契约
 
-> 状态：项目所有者已授权实现；P0A.1 owned-path tracer 已进入验证，完整 P0A 尚未完成
+> 状态：项目所有者已授权实现；安全门和一个 macOS 确定性校准/paired final-test 纵切已实现，完整 P0A 尚未完成
 > 更新日期：2026-08-15
 > 目标：用最小离线实验证明 evaluator 值得信任，而不是先建设在线自进化平台
 
@@ -60,6 +60,8 @@ interface ShadowReportV1 {
     modelConfigHash: string
     evaluatorVersion: string
     casePackHash: string
+    casePackFinalHash?: string
+    casePackUnchanged?: boolean
   }
   candidate?: {
     id: string
@@ -69,16 +71,17 @@ interface ShadowReportV1 {
     changedFiles: string[]
   }
   calibration: Array<{
-    candidate: 'known-bad' | 'known-correction'
+    id: 'known-bad' | 'known-correction'
+    expected: 'pass' | 'fail'
+    actual: 'pass' | 'fail'
     passed: boolean
-    reasons: string[]
   }>
   cases: Array<{
     id: string
     partition: 'search' | 'selection' | 'final-test'
     baseline: 'pass' | 'fail' | 'incomplete'
     candidate: 'pass' | 'fail' | 'incomplete'
-    checks: Array<{ name: string; passed: boolean; evidenceRef: string }>
+    checks: Array<{ name: string; passed: boolean; evidenceRef?: string }>
   }>
   composition: {
     baselineFingerprint: string
@@ -92,6 +95,11 @@ interface ShadowReportV1 {
     inputTokens: number
     outputTokens: number
     estimatedCost?: number
+  }
+  trial?: {
+    backend: 'darwin-seatbelt'
+    enforcement: 'full'
+    count: number
   }
   decision?: {
     recommendation: 'promote' | 'review' | 'reject'
@@ -182,7 +190,7 @@ case pack 必须预声明 `candidateLimit`、`trialLimit` 和 token/cost cap；�
 7. 同一落盘 Trial evidence 重放得到相同 Decision；
 8. 无论成功、失败或取消，命令都只写 `run-dir`，临时 workspace 可安全回收。
 
-首个实现切片只做第 1 条端到端行为；不先实现内部抽象大全。测试中的固定模型只模拟外部模型边界，不模拟 evaluator 或 DSH 组装行为。P0A.1 另外固定了两条失败语义：in-scope Candidate 在 Trial evaluator 落地前只能返回 `2 + incomplete`，模型边界失败时尽可能保存 incomplete 报告。
+当前实现先完成 owned-path safety tracer，再完成一条确定性纵切：固定模型只模拟外部 proposer 边界；真实文件、macOS Seatbelt、校准 evaluator、退出码和报告均不 mock。该纵切仍只把 Skill Candidate 当作数据做隐藏检查，尚未执行真实 DSH 组装任务，因此不能替代本节列出的三个 assembled fixture 和本地未见 final-test。
 
 ## 9. 人工介入与退出门
 

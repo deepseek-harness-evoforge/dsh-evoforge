@@ -19,10 +19,10 @@
 |---|---|---|---|
 | DSH/Claude Code Rev/Hermes 调研 | `verified` | [研究索引](research/README.zh.md)、固定 revision 与源码定位 | 上游 revision 改变时重新审计 |
 | DSH 171 原生插件目录 | `verified` | [全量目录](research/deepseek-harness-native-plugins.zh.md) | 新 revision 重新生成统计 |
-| `dsh-evolve` P0A.1 safety tracer | `implemented` | [P0A.1 证据](evidence/p0a-1-owned-path-tracer.zh.md)、6 条 CLI 测试 | 第三方复跑及完整 P0A evaluator |
-| Sealed Trial executor | `implemented`（macOS 原语） | [边界证据](evidence/p0a-2-darwin-sealed-trial.zh.md)、[ADR-0006](adr/0006-fail-closed-sealed-trial-execution.md) | 接入 Shadow、磁盘配额、Linux/Windows 适配与真实 Candidate Trial |
-| known-bad / known-correction 校准 | `planned` | [P0A 契约](architecture/p0a-shadow-contract.zh.md) | 真实 fixture、selection 与未见 final-test |
-| Candidate 的 `promote/review/reject` 评价 | `planned` | Decision 规则已有设计 | paired Trial、校准和可重放 Decision |
+| `dsh-evolve` Shadow 安全门 | `implemented` | [P0A.1 证据](evidence/p0a-1-owned-path-tracer.zh.md)、CLI 测试 | 第三方复跑及完整 P0A evaluator |
+| Sealed Trial executor | `implemented`（macOS、已接入确定性 evaluator） | [边界证据](evidence/p0a-2-darwin-sealed-trial.zh.md)、[ADR-0006](adr/0006-fail-closed-sealed-trial-execution.md) | 磁盘配额、Linux/Windows 与任意 Candidate/DSH 组装执行 |
+| known-bad / known-correction 校准 | `implemented`（示例纵切） | [P0A.3 证据](evidence/p0a-3-calibrated-paired-trial.zh.md)、[示例 Case Pack](../examples/case-packs/browser-e2e-guidance) | 三个真实 assembled fixture 与本地未见 final-test |
+| Candidate 的 `promote/review/reject` 评价 | `implemented`（单个确定性 case） | 同一 CLI 报告中的 paired baseline/Candidate 与纯 Decision | 多 case margin、落盘重放与真实 outcome 验证 |
 | Capability Generation 与 Session pin | `planned` | [进化架构](architecture/evolution-design.zh.md) | P0A 先证明 evaluator 有价值 |
 | 晋升、回滚与异步人工复核 | `planned` | 路线图 P0B/P0C | immutable Generation、崩溃测试、控制面 |
 | 单机常驻和崩溃恢复 | `planned` | Local Continuity 需求已冻结 | P0A 退出后实现 durable state machine |
@@ -34,14 +34,14 @@
 
 - 阅读三项目深度研究与 DSH 插件目录；
 - 复用 `build-dsh-plugin` Skill 开发 cache-safe DSH 扩展；
-- 运行 P0A.1 测试或 Shadow tracer，验证候选越权、预算和 active Skill 完整性边界；
+- 运行 Shadow，验证候选越权、预算、active/Case Pack 完整性，以及 macOS 上的校准配对检查；
 - 审查报告 Schema 的实际 JSON 输出。
 
 ## 当前不能做什么
 
 - 不能让 `dsh-evolve` 自动修改或晋升 active Skill；
-- 不能把一次 `reject` safety tracer 当作 evaluator 已经可靠；
-- `shadow` 尚不能安全执行任意模型生成代码；macOS 隔离原语还没有接入该命令；
+- 不能把公开的确定性示例当作真实 DSH 工作流已经改善；
+- `shadow` 不执行任意模型生成代码；当前只把 Candidate 当作数据交给受限的可信 evaluator；
 - 不能声称已经持续进化、可回滚、长时常驻或优于 Hermes；
 - 不能作为生产依赖安装。
 

@@ -8,8 +8,8 @@
 |---|---|---|
 | R0 上游与市场研究 | 完成 | DSH、171 插件、Claude Code Rev、Hermes、公开自进化项目报告 |
 | R1 产品边界 | 完成 | Requirements、CONTEXT、产品架构、ADR、插件目录和接口规范 |
-| R2 开源仓库就绪 | 部分完成 | 仓名 `dsh-evoforge` 与 MIT 已冻结；等待浏览器完成 GitHub CLI 授权后创建远端 |
-| P0A Shadow evaluator | 实现中 | P0A.1 owned-path tracer 已转绿；完整 Trial、校准和未见 case 尚未完成 |
+| R2 开源仓库就绪 | 完成 | [公共仓库](https://github.com/deepseek-harness-evoforge/dsh-evoforge)、MIT、贡献/安全文档与 Linux CI；macOS CI 在独立 Draft PR 验证 |
+| P0A Shadow evaluator | 实现中 | 安全门、macOS Sealed Trial、确定性校准/paired final-test 纵切已转绿；真实 assembled fixture 与本地未见 case 尚未完成 |
 
 ## P0A — 先证明会判断
 
@@ -82,6 +82,6 @@
 
 每个阶段的完成声明还必须遵守 [Hermes 上位目标验收记分卡](architecture/hermes-replacement-scorecard.zh.md)：代码和测试只能证明 `implemented`；没有故障注入、未见 case 和 paired benchmark 时不能写成 `verified` 或“优于 Hermes”。
 
-## 外部准备项
+## 当前外部准备项
 
-只剩 GitHub CLI 的浏览器设备授权。仓库固定为 `deepseek-harness-evoforge/dsh-evoforge`，首包固定为 `dsh-evolve`，许可证为 MIT；项目所有者已授权按 P0A 契约自主实现和验证。
+无。公共仓库、GitHub CLI 与 SSH push 已验证。首包固定为 `dsh-evolve`，许可证为 MIT；项目所有者已授权按 P0A 契约自主实现和验证。

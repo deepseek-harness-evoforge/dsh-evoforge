@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdir, readFile, realpath, writeFile } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, relative, resolve } from 'node:path'
 import { hashTree, sha256 } from './hash.js'
+import { runPairedTrial } from './trial.js'
 
 interface ShadowOptions {
   casePackDir: string
@@ -21,6 +22,18 @@ interface CasePackManifest {
     trialLimit: number
     inputTokenLimit: number
     outputTokenLimit: number
+  }
+  trial?: {
+    evaluator: string
+    timeoutMs: number
+    outputLimitBytes: number
+  }
+  calibration?: {
+    knownBad: string
+    knownCorrection: string
+  }
+  search?: {
+    evidence: string
   }
 }
 
@@ -45,6 +58,9 @@ export async function runShadow(options: ShadowOptions): Promise<
   assertSeparateOutput(outputDir, skillDir, casePackDir)
 
   const manifest = parseManifest(await readFile(resolve(casePackDir, 'manifest.json'), 'utf8'))
+  const searchEvidence = manifest.search
+    ? await readOwnedCasePackFile(casePackDir, manifest.search.evidence)
+    : undefined
   const skillSource = await readFile(resolve(skillDir, 'SKILL.md'), 'utf8')
   const skillName = parseSkillName(skillSource)
   const baseTreeHash = await hashTree(skillDir)
@@ -70,6 +86,7 @@ export async function runShadow(options: ShadowOptions): Promise<
       inputTokenLimit: manifest.budget.inputTokenLimit,
       model: modelRoute,
       outputTokenLimit: manifest.budget.outputTokenLimit,
+      searchEvidence,
       skillName,
       skillSource,
     })
@@ -203,22 +220,216 @@ export async function runShadow(options: ShadowOptions): Promise<
     await writeJson(reportPath, reportBase)
     return { status: 'incomplete', reportPath, reason }
   }
-  if (unsafePaths.length === 0) {
+  if (unsafePaths.length > 0) {
+    const reason = 'candidate attempted to change a non-owned path'
+    await writeJson(reportPath, {
+      ...reportBase,
+      decision: {
+        recommendation: 'reject',
+        reasons: [reason],
+        limitations: ['P0A.1 evaluates the owned-path hard gate only'],
+      },
+    })
+    return { status: 'complete', reportPath, summary: `reject: ${reason}; report: ${reportPath}` }
+  }
+  const identityGate = checkCandidateSkillIdentity(proposal, skillName)
+  if (!identityGate.passed) {
+    await writeJson(reportPath, {
+      ...reportBase,
+      run: { ...reportBase.run, status: 'complete' },
+      cases: [{
+        id: manifest.id,
+        partition: 'search',
+        baseline: 'pass',
+        candidate: 'fail',
+        checks: [{
+          name: 'skill-name-stable',
+          passed: false,
+          evidenceRef: 'evidence/proposal.json',
+        }],
+      }],
+      decision: {
+        recommendation: 'reject',
+        reasons: [identityGate.reason],
+        limitations: ['Candidate identity hard gate failed before Trial'],
+      },
+    })
+    return {
+      status: 'complete',
+      reportPath,
+      summary: `reject: ${identityGate.reason}; report: ${reportPath}`,
+    }
+  }
+  if (!manifest.trial || !manifest.calibration) {
     const reason = 'no trial evaluator is configured for an in-scope candidate'
     await writeJson(reportPath, reportBase)
     return { status: 'incomplete', reportPath, reason }
   }
 
-  const reason = 'candidate attempted to change a non-owned path'
+  const casePackHashBeforeTrial = await hashTree(casePackDir)
+  if (casePackHashBeforeTrial !== casePackHash) {
+    const reason = 'case pack changed during shadow evaluation'
+    await writeJson(reportPath, {
+      ...reportBase,
+      run: { ...reportBase.run, finishedAt: new Date().toISOString() },
+      epoch: {
+        ...reportBase.epoch,
+        casePackFinalHash: casePackHashBeforeTrial,
+        casePackUnchanged: false,
+      },
+    })
+    return { status: 'incomplete', reportPath, reason }
+  }
+
+  let pairedTrial
+  try {
+    pairedTrial = await runPairedTrial({
+      calibration: manifest.calibration,
+      casePackDir,
+      outputDir,
+      proposal,
+      skillDir,
+      trial: manifest.trial,
+      trialLimit: manifest.budget.trialLimit,
+    })
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error)
+    const treeHashAfterTrial = await hashTree(skillDir)
+    await writeJson(reportPath, {
+      ...reportBase,
+      run: { ...reportBase.run, finishedAt: new Date().toISOString() },
+      subject: {
+        ...reportBase.subject,
+        finalTreeHash: treeHashAfterTrial,
+        unchanged: treeHashAfterTrial === baseTreeHash,
+      },
+    })
+    return { status: 'incomplete', reportPath, reason }
+  }
+
+  const treeHashAfterTrial = await hashTree(skillDir)
+  const casePackHashAfterTrial = await hashTree(casePackDir)
+  if (casePackHashAfterTrial !== casePackHash) {
+    const reason = 'case pack changed during shadow evaluation'
+    await writeJson(reportPath, {
+      ...reportBase,
+      run: { ...reportBase.run, finishedAt: new Date().toISOString() },
+      epoch: {
+        ...reportBase.epoch,
+        casePackFinalHash: casePackHashAfterTrial,
+        casePackUnchanged: false,
+      },
+      calibration: pairedTrial.calibration,
+    })
+    return { status: 'incomplete', reportPath, reason }
+  }
+  if (treeHashAfterTrial !== baseTreeHash) {
+    const reason = 'active Skill changed during sealed Trial'
+    await writeJson(reportPath, {
+      ...reportBase,
+      run: { ...reportBase.run, finishedAt: new Date().toISOString() },
+      subject: {
+        ...reportBase.subject,
+        finalTreeHash: treeHashAfterTrial,
+        unchanged: false,
+      },
+      calibration: pairedTrial.calibration,
+    })
+    return { status: 'incomplete', reportPath, reason }
+  }
+
+  const calibrationPassed = pairedTrial.calibration.every((result) => result.passed)
+  const decision = decidePairedTrial({
+    baselinePassed: pairedTrial.baseline.passed,
+    calibrationPassed,
+    candidatePassed: pairedTrial.candidate.passed,
+  })
+  const actualCandidateTreeHash = pairedTrial.candidate.treeHash
   await writeJson(reportPath, {
     ...reportBase,
+    run: { ...reportBase.run, status: 'complete', finishedAt: new Date().toISOString() },
+    subject: {
+      ...reportBase.subject,
+      finalTreeHash: treeHashAfterTrial,
+      unchanged: true,
+    },
+    epoch: {
+      ...reportBase.epoch,
+      casePackFinalHash: casePackHashAfterTrial,
+      casePackUnchanged: true,
+    },
+    candidate: {
+      ...reportBase.candidate,
+      id: actualCandidateTreeHash.slice(0, 16),
+      treeHash: actualCandidateTreeHash,
+    },
+    calibration: pairedTrial.calibration,
+    cases: [{
+      id: manifest.id,
+      partition: 'final-test',
+      baseline: pairedTrial.baseline.passed ? 'pass' : 'fail',
+      candidate: pairedTrial.candidate.passed ? 'pass' : 'fail',
+      checks: pairedTrial.candidate.checks,
+    }],
+    composition: {
+      ...reportBase.composition,
+      candidateFingerprint: sha256(`${baselineFingerprint}:${actualCandidateTreeHash}`),
+    },
+    trial: {
+      backend: pairedTrial.backend,
+      enforcement: 'full',
+      count: pairedTrial.count,
+    },
     decision: {
-      recommendation: 'reject',
-      reasons: [reason],
-      limitations: ['P0A.1 evaluates the owned-path hard gate only'],
+      recommendation: decision.recommendation,
+      reasons: [decision.reason],
+      limitations: ['P0A.2 evaluates one deterministic sealed final-test on macOS'],
     },
   })
-  return { status: 'complete', reportPath, summary: `reject: ${reason}; report: ${reportPath}` }
+  return {
+    status: 'complete',
+    reportPath,
+    summary: `${decision.recommendation}: ${decision.reason}; report: ${reportPath}`,
+  }
+}
+
+function checkCandidateSkillIdentity(
+  proposal: Proposal,
+  expectedName: string,
+): { passed: true } | { passed: false; reason: string } {
+  const skillFiles = proposal.files.filter((file) => file.path === 'SKILL.md')
+  if (skillFiles.length === 0) return { passed: true }
+  if (skillFiles.length > 1) {
+    return { passed: false, reason: 'candidate proposed SKILL.md more than once' }
+  }
+  try {
+    if (parseSkillName(skillFiles[0]!.content) !== expectedName) {
+      return { passed: false, reason: 'candidate changed the Skill name' }
+    }
+  } catch {
+    return { passed: false, reason: 'candidate SKILL.md has no valid name' }
+  }
+  return { passed: true }
+}
+
+function decidePairedTrial(input: {
+  baselinePassed: boolean
+  calibrationPassed: boolean
+  candidatePassed: boolean
+}): { recommendation: 'promote' | 'review' | 'reject'; reason: string } {
+  if (!input.calibrationPassed) {
+    return { recommendation: 'reject', reason: 'case pack calibration failed' }
+  }
+  if (!input.candidatePassed) {
+    return { recommendation: 'reject', reason: 'candidate failed the Trial evaluator' }
+  }
+  if (!input.baselinePassed) {
+    return {
+      recommendation: 'promote',
+      reason: 'candidate passed sealed final-test while baseline failed',
+    }
+  }
+  return { recommendation: 'review', reason: 'candidate did not improve the passing baseline' }
 }
 
 function validateModelUsage(response: ModelResponse, budget: CasePackManifest['budget']): void {
@@ -271,6 +482,31 @@ function parseManifest(source: string): CasePackManifest {
       throw new Error(`case pack budget ${key} must be a positive integer`)
     }
   }
+  if (value.trial !== undefined || value.calibration !== undefined) {
+    if (!isRecord(value.trial)
+      || typeof value.trial.evaluator !== 'string'
+      || !isOwnedRelativePath(value.trial.evaluator)
+      || !Number.isSafeInteger(value.trial.timeoutMs)
+      || (value.trial.timeoutMs as number) <= 0
+      || !Number.isSafeInteger(value.trial.outputLimitBytes)
+      || (value.trial.outputLimitBytes as number) <= 0) {
+      throw new Error('case pack has an invalid Trial definition')
+    }
+    if (!isRecord(value.calibration)
+      || typeof value.calibration.knownBad !== 'string'
+      || !isOwnedRelativePath(value.calibration.knownBad)
+      || typeof value.calibration.knownCorrection !== 'string'
+      || !isOwnedRelativePath(value.calibration.knownCorrection)) {
+      throw new Error('case pack has an invalid calibration definition')
+    }
+  }
+  if (value.search !== undefined) {
+    if (!isRecord(value.search)
+      || typeof value.search.evidence !== 'string'
+      || !isOwnedRelativePath(value.search.evidence)) {
+      throw new Error('case pack has an invalid search evidence definition')
+    }
+  }
   return value as unknown as CasePackManifest
 }
 
@@ -286,10 +522,13 @@ async function requestProposal(options: {
   inputTokenLimit: number
   model: string
   outputTokenLimit: number
+  searchEvidence: string | undefined
   skillName: string
   skillSource: string
 }): Promise<ModelResponse> {
-  const estimatedInputTokens = Math.ceil(options.skillSource.length / 4)
+  const estimatedInputTokens = Math.ceil(
+    (options.skillSource.length + (options.searchEvidence?.length ?? 0)) / 4,
+  )
   if (estimatedInputTokens > options.inputTokenLimit) {
     throw new Error('Skill exceeds the case pack input token budget')
   }
@@ -309,7 +548,13 @@ async function requestProposal(options: {
         },
         {
           role: 'user',
-          content: `Owned Skill: ${options.skillName}\n\n${options.skillSource}`,
+          content: [
+            `Owned Skill: ${options.skillName}`,
+            options.skillSource,
+            ...options.searchEvidence
+              ? [`Observed search evidence:\n${options.searchEvidence}`]
+              : [],
+          ].join('\n\n'),
         },
       ],
     }),
@@ -343,6 +588,15 @@ function isOwnedRelativePath(path: string): boolean {
   if (path.length === 0 || path.includes('\\') || isAbsolute(path)) return false
   const normalized = path.split('/')
   return normalized.every((segment) => segment !== '' && segment !== '.' && segment !== '..')
+}
+
+async function readOwnedCasePackFile(casePackDir: string, entry: string): Promise<string> {
+  const path = await realpath(resolve(casePackDir, entry))
+  const fromRoot = relative(casePackDir, path)
+  if (fromRoot !== '' && (fromRoot.startsWith('..') || isAbsolute(fromRoot))) {
+    throw new Error(`case pack entry escapes its root: ${entry}`)
+  }
+  return await readFile(path, 'utf8')
 }
 
 function requireEnvironment(name: string): string {

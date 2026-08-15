@@ -1,6 +1,6 @@
 import { createServer } from 'node:http'
 import { execFile } from 'node:child_process'
-import { mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
+import { cp, mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 const execFileAsync = promisify(execFile)
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const suiteRoot = resolve(packageRoot, '../..')
 const cliPath = join(packageRoot, 'src', 'cli.ts')
 const temporaryRoots: string[] = []
 
@@ -62,6 +63,22 @@ async function createFixture() {
   )
 
   return { casePackDir, outputDir, root, skillDir }
+}
+
+async function configureBrowserTrial(fixture: Awaited<ReturnType<typeof createFixture>>) {
+  const skillPath = join(fixture.skillDir, 'SKILL.md')
+  const originalSkill = await readFile(skillPath, 'utf8')
+  const correctedSkill = originalSkill.replace(
+    'Only edit files owned by the target plugin.',
+    'Only edit files owned by the target plugin.\nFor Web or GUI work, verify the real flow in a controlled browser.',
+  )
+  await rm(fixture.casePackDir, { force: true, recursive: true })
+  await cp(
+    join(suiteRoot, 'examples', 'case-packs', 'browser-e2e-guidance'),
+    fixture.casePackDir,
+    { recursive: true },
+  )
+  return { correctedSkill, originalSkill, skillPath }
 }
 
 async function listTree(root: string): Promise<string[]> {
@@ -516,6 +533,303 @@ describe('dsh-evolve shadow', () => {
       expect(report.run.status).toBe('incomplete')
       expect(report.budget.inputTokens).toBe(120)
       expect(report.budget.outputTokens).toBe(401)
+      expect(report).not.toHaveProperty('decision')
+    } finally {
+      await new Promise<void>((resolveClose, rejectClose) =>
+        server.close((error) => (error ? rejectClose(error) : resolveClose())),
+      )
+    }
+  })
+
+  it.skipIf(process.platform !== 'darwin')('recommends an inactive correction only after sealed calibration and a paired Trial', async () => {
+    const fixture = await createFixture()
+    const { correctedSkill, originalSkill, skillPath } = await configureBrowserTrial(fixture)
+
+    let proposerRequest = ''
+    const server = createServer(async (request, response) => {
+      for await (const chunk of request) proposerRequest += chunk
+      response.setHeader('content-type', 'application/json')
+      response.end(JSON.stringify({
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              claim: 'Require real browser verification for UI work',
+              files: [{ path: 'SKILL.md', content: correctedSkill }],
+            }),
+          },
+        }],
+        usage: { prompt_tokens: 130, completion_tokens: 38 },
+      }))
+    })
+    await new Promise<void>((resolveListen) => server.listen(0, '127.0.0.1', resolveListen))
+    const address = server.address()
+    if (!address || typeof address === 'string') throw new Error('mock model server did not bind')
+
+    try {
+      const result = await execFileAsync(
+        process.execPath,
+        [
+          '--import',
+          'tsx',
+          cliPath,
+          'shadow',
+          fixture.skillDir,
+          '--case-pack',
+          fixture.casePackDir,
+          '--output',
+          fixture.outputDir,
+        ],
+        {
+          cwd: packageRoot,
+          env: {
+            ...process.env,
+            DSH_EVOLVE_MODEL_BASE_URL: `http://127.0.0.1:${address.port}/v1`,
+            DSH_EVOLVE_MODEL_NAME: 'fixed-correction-model',
+          },
+        },
+      )
+
+      expect(result.stderr).toBe('')
+      const report = JSON.parse(await readFile(join(fixture.outputDir, 'report.json'), 'utf8'))
+      expect(result.stdout, JSON.stringify(report.calibration)).toMatch(/^promote: candidate passed sealed final-test while baseline failed; report: .+\/report\.json\n$/)
+      expect(proposerRequest).toContain('A GUI plugin change passed component tests')
+      expect(proposerRequest).not.toContain('case-pack-only-final-test-sentinel')
+      expect(await readFile(skillPath, 'utf8')).toBe(originalSkill)
+      expect(report).toMatchObject({
+        run: { status: 'complete' },
+        subject: { unchanged: true },
+        calibration: [
+          { id: 'known-bad', expected: 'fail', actual: 'fail', passed: true },
+          { id: 'known-correction', expected: 'pass', actual: 'pass', passed: true },
+        ],
+        cases: [{
+          id: 'real-browser-e2e',
+          partition: 'final-test',
+          baseline: 'fail',
+          candidate: 'pass',
+          checks: [{ name: 'real-browser-e2e', passed: true }],
+        }],
+        decision: {
+          recommendation: 'promote',
+          reasons: ['candidate passed sealed final-test while baseline failed'],
+        },
+      })
+      expect(report.trial).toMatchObject({ backend: 'darwin-seatbelt', count: 4 })
+      expect(await listTree(fixture.outputDir)).toEqual([
+        'evidence',
+        'evidence/proposal.json',
+        'report.json',
+      ])
+    } finally {
+      await new Promise<void>((resolveClose, rejectClose) =>
+        server.close((error) => (error ? rejectClose(error) : resolveClose())),
+      )
+    }
+  })
+
+  it.skipIf(process.platform !== 'darwin')('returns incomplete when the case pack changes after its evidence hash is captured', async () => {
+    const fixture = await createFixture()
+    const { correctedSkill, originalSkill, skillPath } = await configureBrowserTrial(fixture)
+    const server = createServer(async (request, response) => {
+      for await (const _chunk of request) {
+        // Drain the request before changing evidence used by this run.
+      }
+      await writeFile(join(fixture.casePackDir, 'concurrent-change.txt'), 'changed')
+      response.setHeader('content-type', 'application/json')
+      response.end(JSON.stringify({
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              claim: 'Require real browser verification for UI work',
+              files: [{ path: 'SKILL.md', content: correctedSkill }],
+            }),
+          },
+        }],
+        usage: { prompt_tokens: 130, completion_tokens: 38 },
+      }))
+    })
+    await new Promise<void>((resolveListen) => server.listen(0, '127.0.0.1', resolveListen))
+    const address = server.address()
+    if (!address || typeof address === 'string') throw new Error('mock model server did not bind')
+
+    try {
+      let failure: unknown
+      try {
+        await execFileAsync(
+          process.execPath,
+          [
+            '--import',
+            'tsx',
+            cliPath,
+            'shadow',
+            fixture.skillDir,
+            '--case-pack',
+            fixture.casePackDir,
+            '--output',
+            fixture.outputDir,
+          ],
+          {
+            cwd: packageRoot,
+            env: {
+              ...process.env,
+              DSH_EVOLVE_MODEL_BASE_URL: `http://127.0.0.1:${address.port}/v1`,
+              DSH_EVOLVE_MODEL_NAME: 'fixed-correction-model',
+            },
+          },
+        )
+      } catch (error) {
+        failure = error
+      }
+
+      expect(failure).toMatchObject({
+        code: 2,
+        stdout: '',
+        stderr: 'incomplete: case pack changed during shadow evaluation\n',
+      })
+      expect(await readFile(skillPath, 'utf8')).toBe(originalSkill)
+      const report = JSON.parse(await readFile(join(fixture.outputDir, 'report.json'), 'utf8'))
+      expect(report.run.status).toBe('incomplete')
+      expect(report.epoch.casePackUnchanged).toBe(false)
+      expect(report).not.toHaveProperty('decision')
+    } finally {
+      await new Promise<void>((resolveClose, rejectClose) =>
+        server.close((error) => (error ? rejectClose(error) : resolveClose())),
+      )
+    }
+  })
+
+  it.skipIf(process.platform !== 'darwin')('rejects a Candidate that changes the owned Skill identity even when the final-test would pass', async () => {
+    const fixture = await createFixture()
+    const { correctedSkill, originalSkill, skillPath } = await configureBrowserTrial(fixture)
+    const renamedSkill = correctedSkill.replace('name: build-dsh-plugin', 'name: renamed-skill')
+    const server = createServer((_request, response) => {
+      response.setHeader('content-type', 'application/json')
+      response.end(JSON.stringify({
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              claim: 'Rename the Skill while adding browser verification',
+              files: [{ path: 'SKILL.md', content: renamedSkill }],
+            }),
+          },
+        }],
+        usage: { prompt_tokens: 130, completion_tokens: 38 },
+      }))
+    })
+    await new Promise<void>((resolveListen) => server.listen(0, '127.0.0.1', resolveListen))
+    const address = server.address()
+    if (!address || typeof address === 'string') throw new Error('mock model server did not bind')
+
+    try {
+      const result = await execFileAsync(
+        process.execPath,
+        [
+          '--import',
+          'tsx',
+          cliPath,
+          'shadow',
+          fixture.skillDir,
+          '--case-pack',
+          fixture.casePackDir,
+          '--output',
+          fixture.outputDir,
+        ],
+        {
+          cwd: packageRoot,
+          env: {
+            ...process.env,
+            DSH_EVOLVE_MODEL_BASE_URL: `http://127.0.0.1:${address.port}/v1`,
+            DSH_EVOLVE_MODEL_NAME: 'fixed-rename-model',
+          },
+        },
+      )
+
+      expect(result.stderr).toBe('')
+      expect(result.stdout).toMatch(/^reject: candidate changed the Skill name; report: .+\/report\.json\n$/)
+      expect(await readFile(skillPath, 'utf8')).toBe(originalSkill)
+      const report = JSON.parse(await readFile(join(fixture.outputDir, 'report.json'), 'utf8'))
+      expect(report).toMatchObject({
+        run: { status: 'complete' },
+        subject: { skillName: 'build-dsh-plugin', unchanged: true },
+        cases: [{
+          id: 'real-browser-e2e',
+          candidate: 'fail',
+          checks: [{ name: 'skill-name-stable', passed: false }],
+        }],
+        decision: {
+          recommendation: 'reject',
+          reasons: ['candidate changed the Skill name'],
+        },
+      })
+    } finally {
+      await new Promise<void>((resolveClose, rejectClose) =>
+        server.close((error) => (error ? rejectClose(error) : resolveClose())),
+      )
+    }
+  })
+
+  it.skipIf(process.platform !== 'darwin')('returns incomplete when evaluator aggregate contradicts its checks', async () => {
+    const fixture = await createFixture()
+    const { correctedSkill, originalSkill, skillPath } = await configureBrowserTrial(fixture)
+    await writeFile(
+      join(fixture.casePackDir, 'final-test', 'evaluator.mjs'),
+      `process.stdout.write(JSON.stringify({ schemaVersion: 1, passed: true, checks: [{ name: 'contradiction', passed: false }] }))`,
+    )
+    const server = createServer((_request, response) => {
+      response.setHeader('content-type', 'application/json')
+      response.end(JSON.stringify({
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              claim: 'Require real browser verification for UI work',
+              files: [{ path: 'SKILL.md', content: correctedSkill }],
+            }),
+          },
+        }],
+        usage: { prompt_tokens: 130, completion_tokens: 38 },
+      }))
+    })
+    await new Promise<void>((resolveListen) => server.listen(0, '127.0.0.1', resolveListen))
+    const address = server.address()
+    if (!address || typeof address === 'string') throw new Error('mock model server did not bind')
+
+    try {
+      let failure: unknown
+      try {
+        await execFileAsync(
+          process.execPath,
+          [
+            '--import',
+            'tsx',
+            cliPath,
+            'shadow',
+            fixture.skillDir,
+            '--case-pack',
+            fixture.casePackDir,
+            '--output',
+            fixture.outputDir,
+          ],
+          {
+            cwd: packageRoot,
+            env: {
+              ...process.env,
+              DSH_EVOLVE_MODEL_BASE_URL: `http://127.0.0.1:${address.port}/v1`,
+              DSH_EVOLVE_MODEL_NAME: 'fixed-correction-model',
+            },
+          },
+        )
+      } catch (error) {
+        failure = error
+      }
+
+      expect(failure).toMatchObject({
+        code: 2,
+        stdout: '',
+        stderr: 'incomplete: Trial evaluator aggregate contradicts its checks\n',
+      })
+      expect(await readFile(skillPath, 'utf8')).toBe(originalSkill)
+      const report = JSON.parse(await readFile(join(fixture.outputDir, 'report.json'), 'utf8'))
+      expect(report.run.status).toBe('incomplete')
       expect(report).not.toHaveProperty('decision')
     } finally {
       await new Promise<void>((resolveClose, rejectClose) =>

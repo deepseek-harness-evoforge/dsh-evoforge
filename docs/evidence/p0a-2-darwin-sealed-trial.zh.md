@@ -1,6 +1,6 @@
 # P0A.2：macOS Sealed Trial 原语证据
 
-> 状态：`implemented`，尚未接入 `dsh-evolve shadow`。
+> 状态：`implemented`；已接入可信确定性 evaluator，未开放任意 Candidate 代码执行。
 
 ## 要证明什么
 
@@ -28,15 +28,16 @@ pnpm --filter dsh-evolve typecheck
 pnpm check
 ```
 
-2026-08-15 本机结果为 2 个测试文件、9 条测试全部通过，随后 typecheck、
-build 与完整 `pnpm check` 通过。
+2026-08-15 首个原语切片的本机结果为 2 个测试文件、9 条测试全部通过，
+随后 typecheck、build 与完整 `pnpm check` 通过。后续 P0A.3 纵切把该原语接入
+四次独立的可信 evaluator Trial，见 [P0A.3 证据](p0a-3-calibrated-paired-trial.zh.md)。
 
 ## 尚不能声称什么
 
-- 该原语没有接入 Candidate assembly、paired Trial 或 `shadow` CLI；
+- 该原语尚未执行 Candidate assembly 或任意模型生成代码；
 - 没有 workspace 磁盘配额，不能运行不受信任的任意 Candidate；
 - 只验证当前 macOS Seatbelt 环境，不代表 Linux 或 Windows；
-- 还没有证明 case pack、evaluator 和 final-test 的分阶段不可见性；
+- 当前只证明 search evidence 与可信 evaluator/final-test 的基本信息分区；
 - 它不是第二套 Agent Runtime，只是 `dsh-evolve` 私有的离线进程边界。
 
 因此此证据把 Sealed Trial 的 macOS 执行原语标为 `implemented`，不把完整
