@@ -29,7 +29,8 @@ pnpm check
 ```
 
 2026-08-15 本机结果为 2 个测试文件、9 条测试全部通过，随后 typecheck、
-build 与完整 `pnpm check` 通过。
+build 与完整 `pnpm check` 通过。公开 CI 另设 `macos-15` job，确保该文件不因
+Linux 的平台跳过而获得假绿色。
 
 ## 尚不能声称什么
 
