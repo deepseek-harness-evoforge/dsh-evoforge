@@ -80,6 +80,8 @@
 - 每次只增加能独立解释的用户结果；共享 seam 需要两个真实 Adapter。
 - Protected Action 不因自治程度提高而自动获得授权。
 
+每个阶段的完成声明还必须遵守 [Hermes 上位目标验收记分卡](architecture/hermes-replacement-scorecard.zh.md)：代码和测试只能证明 `implemented`；没有故障注入、未见 case 和 paired benchmark 时不能写成 `verified` 或“优于 Hermes”。
+
 ## 外部准备项
 
 1. 在 `deepseek-harness-evoforge` 组织下确定首个远端仓名；

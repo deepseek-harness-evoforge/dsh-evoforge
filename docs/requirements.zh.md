@@ -286,6 +286,7 @@ EvoForge 是新增功能项目，不是 DSH Bug 修复项目。
 
 - [领域语言与不变量](../CONTEXT.md)
 - [EvoForge 产品架构](architecture/evoforge-product.zh.md)
+- [Hermes 上位目标验收记分卡](architecture/hermes-replacement-scorecard.zh.md)
 - [持续进化架构](architecture/evolution-design.zh.md)
 - [插件目录](plugins.zh.md)
 - [插件接口与验收规范](plugin-contract.zh.md)

@@ -92,6 +92,8 @@ DSH 始终拥有模型执行和基础服务；EvoForge 插件只增加用户结�
 
 只有这些项目在真实任务、故障注入和成本测量中成立，才可以宣称对应范围优于 Hermes。
 
+具体 paired benchmark、hard gate 和声明等级见 [Hermes 上位目标验收记分卡](hermes-replacement-scorecard.zh.md)。单个能力胜出只能声明对应工作流；在消息或日程等 Hermes 优势范围尚未交付前，不作全局“已经上位”声明。
+
 ## 7. 仓库策略
 
 GitHub 组织 `deepseek-harness-evoforge` 是所有 DSH 扩展设计与开发的公开归属。默认在 EvoForge Suite 中共仓，避免每个内部阶段一个空仓库。
