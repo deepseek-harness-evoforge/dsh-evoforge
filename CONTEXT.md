@@ -9,7 +9,7 @@ The public project hosted by the GitHub organization `deepseek-harness-evoforge`
 _Avoid_: DSH fork, alternate harness, one mandatory monorepo
 
 **EvoForge Suite**:
-The initial repository containing capabilities that share DSH integration, release cadence, tests, and user installation. A capability moves to its own repository only when it has an independent lifecycle or trust boundary.
+The `dsh-evoforge` repository containing capabilities that share DSH integration, release cadence, tests, and user installation. Published plugins use a `dsh-*` name. A capability moves to its own repository only when it has an independent lifecycle or trust boundary.
 _Avoid_: Platform kernel, plugin marketplace
 
 **EvoForge Plugin**:

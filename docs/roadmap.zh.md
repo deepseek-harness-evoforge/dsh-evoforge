@@ -13,7 +13,7 @@
 
 ## P0A — 先证明会判断
 
-交付：离线 `evolve shadow <skill>`，只读 active Skill。
+交付：离线 `dsh-evolve shadow <skill-dir>`，只读 active Skill。
 
 - 一个真实软件开发 Skill；
 - 3–5 个 deterministic reproduction cases；

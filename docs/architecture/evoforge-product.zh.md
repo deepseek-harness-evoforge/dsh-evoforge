@@ -1,6 +1,6 @@
 # EvoForge 产品架构
 
-> 状态：产品边界候选；插件发布包名和远端仓库名尚未冻结
+> 状态：产品边界已确认；首仓与首个插件名已冻结
 > 更新日期：2026-08-15
 
 ## 1. 产品结果
@@ -23,11 +23,11 @@ DSH 始终拥有模型执行和基础服务；EvoForge 插件只增加用户结�
 
 ## 2. 首批能力边界
 
-### Evolve
+### dsh-evolve
 
 旗舰插件。P0A 只提供离线 Shadow；证明 evaluator 有价值后，才增加 Generation、Session pin、晋升、监测和回滚。Observer、Trial Runner、Decision 和 Release 都是内部模块，不拆成浅插件。
 
-### Software Delivery
+### dsh-software-delivery
 
 独立插件。它把一个原生 Goal 交付为隔离 worktree、仓库检查、可审查 diff、commit 和可选 Draft PR。即使不启用 Evolve，它仍有完整用户价值；启用后，它提供第一组强 outcome signal。
 
@@ -106,11 +106,11 @@ GitHub 组织 `deepseek-harness-evoforge` 是所有 DSH 扩展设计与开发的
 - 用户可以不安装 Suite 其余部分而完整采用；
 - 独立维护者需要清晰所有权。
 
-GitHub 组织当前没有已核验的公开仓库，本地 `oh-my-dsh` 只是工作目录名。确定首个远端仓库名后再配置 `origin`；不得把组织主页误当 Git remote。
+首个公开仓库为 `deepseek-harness-evoforge/dsh-evoforge`，首个插件包为 `dsh-evolve`。相关插件默认留在该 Suite；只有 ADR 0005 的拆仓条件成立时才创建新的 `dsh-*` 仓库。
 
 ## 8. 最小路线
 
-1. **P0A**：`evolve shadow <skill>`，一个真实 Skill、独立 final-test、已知坏 Candidate 和至少一个真实修正。
+1. **P0A**：`dsh-evolve shadow <skill-dir>`，一个真实 Skill、独立 final-test、已知坏 Candidate 和至少一个真实修正。
 2. **P0B**：Generation、Session pin、原子 active pointer、crash recovery、composition fingerprint。
 3. **P0C**：host command/view、异步人工晋升和 rollback。
 4. **P1**：权限效果不变的纯指令 future-session canary 与窄自动晋升。

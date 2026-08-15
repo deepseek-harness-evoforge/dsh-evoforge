@@ -118,6 +118,8 @@ Run the smallest checks that cover the changed surface, then prove:
 7. model composition and cache metrics match the declared class;
 8. supported DSH versions pass the same contract tests.
 
+For any Web or GUI change, also exercise the real user-visible flow in a controlled browser, refresh once to verify authoritative state, and inspect the visible failure path. Component tests or screenshots alone do not complete UI verification.
+
 Report only commands actually run. A narrow passing test cannot prove a repository-wide or multi-version claim.
 
 ## 9. Hand off evidence

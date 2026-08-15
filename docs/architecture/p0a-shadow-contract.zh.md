@@ -15,7 +15,7 @@ P0A 不提供常驻进程、在线观察、Generation pin、激活、回滚、�
 ## 2. 唯一外部接缝
 
 ```text
-evolve shadow <skill-dir> --case-pack <case-pack-dir> --output <run-dir>
+dsh-evolve shadow <skill-dir> --case-pack <case-pack-dir> --output <run-dir>
 ```
 
 输入：

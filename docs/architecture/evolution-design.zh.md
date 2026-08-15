@@ -30,7 +30,7 @@ P0 只解决一个窄而真实的问题：
 
 个人助理、内容、消息和日程以后可以提供新的 Learning Signal 与 Trial case，但不能让 P0 预建通用自治平台。
 
-第一个交付物不是 Generation Binder，而是离线 `evolve shadow <skill>`。它只读 active Skill，在一个真实 evaluator 上证明候选评价有用；证明失败就停止，不用发布基础设施掩盖价值缺口。
+第一个交付物不是 Generation Binder，而是离线 `dsh-evolve shadow <skill-dir>`。它只读 active Skill，在一个真实 evaluator 上证明候选评价有用；证明失败就停止，不用发布基础设施掩盖价值缺口。
 
 ## 3. “完美”的可验证定义
 
@@ -50,7 +50,7 @@ P0 只解决一个窄而真实的问题：
 最终产品只发布一个可选插件；P0A 先以仓库内离线 Shadow 命令验证价值，不承诺为稳定公共接口：
 
 ```text
-EvoForge Evolve（逻辑插件名；发布包名尚未冻结）
+dsh-evolve
   人类界面：/evolve status | review | promote | rollback | pause
   模型工具：无
   常驻提示词：无
@@ -566,7 +566,7 @@ P0A 先回答“是否值得做”：
 
 P0A 所需的三个小规格已经收敛到 [P0A Shadow 契约](p0a-shadow-contract.zh.md)：
 
-1. `evolve shadow <skill>` 的输入、退出码和报告格式；
+1. `dsh-evolve shadow <skill-dir>` 的输入、退出码和报告格式；
 2. `search`、`selection`、`final-test` 的目录隔离与可见性；
 3. evaluator、已知坏 Candidate 和至少一个真实修正 fixture。
 

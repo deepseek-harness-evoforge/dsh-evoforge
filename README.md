@@ -1,8 +1,8 @@
-# DeepSeek Harness EvoForge
+# dsh-evoforge
 
-[DeepSeek Harness EvoForge](https://github.com/deepseek-harness-evoforge) 是面向 DeepSeek Harness 的开源扩展组织。当前目录是首个 EvoForge Suite 的设计工作区：项目只增加可独立安装、可删除的新能力，不 fork DSH，也不以插件修补 DSH Core Defect。
+[dsh-evoforge](https://github.com/deepseek-harness-evoforge/dsh-evoforge) 是 DeepSeek Harness EvoForge 的首个公开 Suite。项目只增加可独立安装、可删除的新能力，不 fork DSH，也不以插件修补 DSH Core Defect。
 
-当前处于研究和设计阶段，尚未进入插件实现。长期目标是成为 Hermes 的可验证上位选择：同时覆盖可靠软件交付、通用个人助理、消息与日程、可充分交互的人类控制面，以及可证明的持续进化。软件开发交付是第一个可客观评测的试验场。
+研究和设计基线已经完成，当前进入 `dsh-evolve` 的 P0A Shadow 实现。长期目标是成为 Hermes 的可验证上位选择：同时覆盖可靠软件交付、通用个人助理、消息与日程、可充分交互的人类控制面，以及可证明的持续进化。软件开发交付是第一个可客观评测的试验场。
 
 ## 当前决策
 
@@ -31,4 +31,4 @@
 
 ## 当前下一步
 
-确认 [P0A Shadow 契约](docs/architecture/p0a-shadow-contract.zh.md)后，只实现离线 `evolve shadow <skill>`：以 `build-dsh-plugin` 为首个真实 Skill，建立独立 final-test、生成并评测候选，但不改变 active Skill。Shadow 不能证明真实价值时停止扩张。
+按 [P0A Shadow 契约](docs/architecture/p0a-shadow-contract.zh.md)实现离线 `dsh-evolve shadow <skill-dir>`：以 `build-dsh-plugin` 为首个真实 Skill，建立独立 final-test、生成并评测候选，但不改变 active Skill。Shadow 不能证明真实价值时停止扩张。

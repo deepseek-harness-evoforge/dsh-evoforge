@@ -1,12 +1,12 @@
 # DeepSeek Harness EvoForge 项目需求基线
 
-> 状态：已确认；研究交付已完成，P0 实现待设计确认
+> 状态：已确认；研究与设计交付已完成，P0A 实现已授权
 > 更新日期：2026-08-15
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。
 
 ## 1. 项目愿景
 
-以 GitHub 组织 [`deepseek-harness-evoforge`](https://github.com/deepseek-harness-evoforge) 作为所有 DSH 扩展设计与开发的公开归属。首个 EvoForge Suite 通过 out-of-tree 插件为 DSH 增加真正有用、通用、可插拔的新能力；相关插件可以共仓，具有独立生命周期或信任边界时可以拆为独立仓库。
+以 GitHub 组织 [`deepseek-harness-evoforge`](https://github.com/deepseek-harness-evoforge) 作为所有 DSH 扩展设计与开发的公开归属。首个公开仓库命名为 `dsh-evoforge`，通过 out-of-tree 插件为 DSH 增加真正有用、通用、可插拔的新能力；相关插件可以共仓，具有独立生命周期或信任边界时可以拆为独立仓库。
 
 DSH 继续作为 Agent Runtime，拥有 Session、Goal、工具、权限、存储、工作流、Skill、调度和模型执行。EvoForge 复用这些原生接缝，不 fork DSH，不建立平行 Runtime，不以插件形式修补 DSH 核心缺陷。
 
@@ -151,6 +151,8 @@ EvoForge 不能只在后台“自主运行”。CLI、TUI、Web 或消息渠道�
 
 交互状态属于 host/control plane。除非模型执行任务确实需要，不得为了 UI 刷新而新增模型工具、动态 system prompt 或每轮状态注入。
 
+任何新增或修改的 Web/GUI 交互除了自动化组件测试，还必须使用真实浏览器控制完成端到端验收，覆盖用户可见路径、刷新后的权威状态和关键失败反馈；不能仅凭 DOM 单元测试或截图宣称前端完成。
+
 ### 3.5 Hermes 上位目标
 
 “上位替代”按真实结果验证，不按功能数量或宣传语判断。目标矩阵至少覆盖：软件交付、单机持续运行、会话与 Goal 连续性、Memory/Skill、消息和日程 Adapter、人类控制、权限、成本、KV Cache、持续进化证据和回滚。首版不承诺复制 Hermes 的全部渠道，也不把单机崩溃恢复称为高可用。
@@ -259,7 +261,7 @@ EvoForge 是新增功能项目，不是 DSH Bug 修复项目。
 
 1. 收敛架构、领域模型、ADR、接口规范、路线图和开发 Skill；
 2. 删除重复、过重和无法说明用户价值的设计；
-3. 设计确认后，以 test-first 方式实现离线 P0A Shadow；
+3. 项目所有者已授权实现方式与技术取舍，由维护 Agent 按冻结的公开接缝，以 test-first 方式实现离线 P0A Shadow；
 4. P0A 必须先证明 evaluator 能拒绝坏 Candidate，并至少找到一个通过未开放 final-test 的真实改善；
 5. P0A 有价值后，才实现 P0B Generation Binder、Session pin、原子晋升、崩溃恢复和回滚；
 6. P0C 提供异步人工晋升；P1 才允许极窄、可证明的纯指令自动晋升；
@@ -280,7 +282,10 @@ EvoForge 是新增功能项目，不是 DSH Bug 修复项目。
 - 所有能力版本可回滚；外部副作用仍由原生审批和补偿流程负责。
 - 所有插件共同以 KV Cache 稳定为第一设计约束。
 - 先证明 evaluator 与 Candidate 有用户价值，再建设在线发布底座；不能用基础设施完成度代替进化效果。
-- 先完成设计交付并确认，再 test-first 实现 P0A。
+- 首个仓库为 `dsh-evoforge`；公开插件和独立插件仓库使用 `dsh-*` 命名，首个插件为 `dsh-evolve`。
+- 项目所有者只负责最终产品验收；命名、开发方式和验证路径由维护 Agent 按本需求基线自主决定。
+- 涉及前端时必须补充真实浏览器端到端验证，并保留可复核结果。
+- 设计基线已经确认，按 P0A Shadow 契约 test-first 实现。
 
 ## 12. 相关设计文档
 

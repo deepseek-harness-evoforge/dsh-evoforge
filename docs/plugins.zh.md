@@ -4,14 +4,14 @@
 
 ## 已进入路线图
 
-| 逻辑插件 | 用户结果 | 首个阶段 | DSH 复用 | 模型可见面 | 默认仓库 |
+| 插件名 | 用户结果 | 首个阶段 | DSH 复用 | 模型可见面 | 默认仓库 |
 |---|---|---|---|---|---|
-| `Evolve` | 从真实任务结果产生 inactive Skill Candidate，独立评测，随后为未来 Session 安全晋升或回滚 | P0A Shadow；P0B/P0C 才在线 | Skill、Session、Goal、Feedback、Storage、Jobs、FS、Shell、Approval、Token Meter | P0A/P0B 默认无新增工具和常驻 Prompt；按需加载被测 Skill | EvoForge Suite |
-| `Software Delivery` | 把原生 Goal 交付为隔离、遵循仓库规范、验证过的 commit 和可选 Draft PR | P2 产品化；P0A 只使用最小 evaluator fixture | Goal、Session、FS、Shell、Sandbox、Approval、Workflow | 优先复用已有工具；不为状态展示新增模型工具 | EvoForge Suite，成熟后可独立采用 |
+| `dsh-evolve` | 从真实任务结果产生 inactive Skill Candidate，独立评测，随后为未来 Session 安全晋升或回滚 | P0A Shadow；P0B/P0C 才在线 | Skill、Session、Goal、Feedback、Storage、Jobs、FS、Shell、Approval、Token Meter | P0A/P0B 默认无新增工具和常驻 Prompt；按需加载被测 Skill | `dsh-evoforge` |
+| `dsh-software-delivery` | 把原生 Goal 交付为隔离、遵循仓库规范、验证过的 commit 和可选 Draft PR | P2 产品化；P0A 只使用最小 evaluator fixture | Goal、Session、FS、Shell、Sandbox、Approval、Workflow | 优先复用已有工具；不为状态展示新增模型工具 | `dsh-evoforge`，成熟后可独立采用 |
 
-`Evolve` 内部的 Observer、Candidate Lab、Trial Runner、Decision、Release、Monitor 和 Generation Binder 不是独立插件。它们只有组合起来才产生一个用户结果，拆开只会增加配置、版本和缓存理解成本。
+`dsh-evolve` 内部的 Observer、Candidate Lab、Trial Runner、Decision、Release、Monitor 和 Generation Binder 不是独立插件。它们只有组合起来才产生一个用户结果，拆开只会增加配置、版本和缓存理解成本。
 
-`Software Delivery` 对不启用进化的用户仍有完整价值，因此是第二个插件，而不是 `Evolve` 的私有 evaluator。
+`dsh-software-delivery` 对不启用进化的用户仍有完整价值，因此是第二个插件，而不是 `dsh-evolve` 的私有 evaluator。
 
 ## 尚未进入路线图的候选
 
@@ -34,4 +34,4 @@
 
 插件默认放在 Suite。只有独立发布/维护周期、独立信任边界、明显不同的重型依赖或许可证、或者无需 Suite 其余能力即可完整采用时才拆仓；详见 [ADR 0005](adr/0005-evoforge-repository-boundaries.md)。
 
-实际 NPM scope、包名和首个 GitHub 远端仓名尚未冻结，逻辑插件名不得提前当作发布坐标。
+首个 GitHub 仓库名与插件包名已经冻结为 `dsh-evoforge` 和 `dsh-evolve`。npm 尚未发布；发布前仍需完成 P0A 退出门、打包校验和版本策略。

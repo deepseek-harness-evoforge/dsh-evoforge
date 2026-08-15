@@ -453,7 +453,7 @@ Canvas 于 2026 年公开 Meta-Agent。它冻结基础模型，fast loop 修改 
 
 ## 5. 首次设计审计发现的缺陷与处理状态
 
-以下问题来自对早期 [可证明自进化设计](/Users/my/harness/oh-my-dsh/docs/architecture/evolution-design.zh.md) 的审计，不是泛泛风险。后续文档已经处理了一部分**设计缺口**，但尚无实现和真实效果证据；“设计已处理”不得写成“问题已解决”。当前权威测试接缝见 [P0A Shadow 契约](../architecture/p0a-shadow-contract.zh.md)，长期声明门见 [Hermes 上位目标验收记分卡](../architecture/hermes-replacement-scorecard.zh.md)。
+以下问题来自对早期 [可证明自进化设计](/Users/my/harness/dsh-evoforge/docs/architecture/evolution-design.zh.md) 的审计，不是泛泛风险。后续文档已经处理了一部分**设计缺口**，但尚无实现和真实效果证据；“设计已处理”不得写成“问题已解决”。当前权威测试接缝见 [P0A Shadow 契约](../architecture/p0a-shadow-contract.zh.md)，长期声明门见 [Hermes 上位目标验收记分卡](../architecture/hermes-replacement-scorecard.zh.md)。
 
 | 审计项 | 当前处理状态 |
 |---|---|
@@ -609,7 +609,7 @@ P0 不需要复杂 merge engine，但至少要规定：同一 artifact 同时只
 
 ### P0A：先证明评测，不先建设完整发布平台
 
-交付一个离线、只读 active Skill 的 `evolve shadow <skill>`：
+交付一个离线、只读 active Skill 的 `dsh-evolve shadow <skill-dir>`：
 
 - 一个软件开发 Skill；
 - 3–5 个 deterministic reproduction cases；
@@ -678,7 +678,7 @@ P0 不需要复杂 merge engine，但至少要规定：同一 artifact 同时只
 
 > 如何让一个单机常驻、正在处理真实工作且拥有工具权限的 Agent，在不改变当前 Session、不破坏 KV Cache、不扩大授权、不阻塞用户的前提下，把经过独立证据证明的能力版本安全地交付给未来 Session，并在崩溃或真实回归后精确恢复。
 
-这应成为逻辑插件 `Evolve` 的唯一核心。实际包名尚未冻结；候选生成算法可以复用，可信发布闭环才是产品。
+这应成为 `dsh-evolve` 的唯一核心。候选生成算法可以复用，可信发布闭环才是产品。
 
 ## 10. 一手来源索引
 
