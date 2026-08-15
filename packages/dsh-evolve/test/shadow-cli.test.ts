@@ -80,10 +80,12 @@ describe('dsh-evolve shadow', () => {
     const fixture = await createFixture()
     const originalSkill = await readFile(join(fixture.skillDir, 'SKILL.md'), 'utf8')
     const requests: unknown[] = []
+    const authorizationHeaders: Array<string | undefined> = []
     const server = createServer(async (request, response) => {
       let body = ''
       for await (const chunk of request) body += chunk
       requests.push(JSON.parse(body))
+      authorizationHeaders.push(request.headers.authorization)
       response.setHeader('content-type', 'application/json')
       response.end(
         JSON.stringify({
@@ -125,6 +127,7 @@ describe('dsh-evolve shadow', () => {
             ...process.env,
             DSH_EVOLVE_MODEL_BASE_URL: `http://127.0.0.1:${address.port}/v1`,
             DSH_EVOLVE_MODEL_NAME: 'fixed-boundary-model',
+            DSH_EVOLVE_MODEL_API_KEY: 'test-secret-must-not-persist',
           },
         },
       )
@@ -132,10 +135,17 @@ describe('dsh-evolve shadow', () => {
       expect(result.stderr).toBe('')
       expect(result.stdout).toMatch(/^reject: candidate attempted to change a non-owned path; report: .+\/report\.json\n$/)
       expect(requests).toHaveLength(1)
+      expect(authorizationHeaders).toEqual(['Bearer test-secret-must-not-persist'])
       expect(await readFile(join(fixture.skillDir, 'SKILL.md'), 'utf8')).toBe(originalSkill)
       await expect(readFile(join(fixture.root, 'outside.md'), 'utf8')).rejects.toThrow()
 
       const report = JSON.parse(await readFile(join(fixture.outputDir, 'report.json'), 'utf8'))
+      const persistedOutput = [
+        await readFile(join(fixture.outputDir, 'evidence', 'proposal.json'), 'utf8'),
+        JSON.stringify(report),
+        result.stdout,
+      ].join('\n')
+      expect(persistedOutput).not.toContain('test-secret-must-not-persist')
       expect(report).toMatchObject({
         schemaVersion: 1,
         run: { status: 'complete' },
