@@ -1,0 +1,31 @@
+# DeepSeek Harness EvoForge
+
+[DeepSeek Harness EvoForge](https://github.com/deepseek-harness-evoforge) 是面向 DeepSeek Harness 的开源扩展组织。当前目录是首个 EvoForge Suite 的设计工作区：项目只增加可独立安装、可删除的新能力，不 fork DSH，也不以插件修补 DSH Core Defect。
+
+当前处于研究和设计阶段，尚未进入插件实现。长期目标是成为 Hermes 的可验证上位选择：同时覆盖可靠软件交付、通用个人助理、消息与日程、可充分交互的人类控制面，以及可证明的持续进化。软件开发交付是第一个可客观评测的试验场。
+
+## 当前决策
+
+- 复用 DSH 原生 Goal、Session、Storage、Approval、Jobs、Skills 和插件生命周期。
+- 不增加 Mission、通用任务 DAG、平行 Runtime 或第二套审批系统。
+- KV Cache 稳定是所有插件的第一设计约束。
+- 状态、审批、时间线、证据、成本和回滚优先显示在 host/UI control plane，不为界面便利持续改写模型前缀。
+- 先用离线 Shadow 实验证明 evaluator 能拒绝坏候选并识别真实改善，再建设在线 Generation、晋升和崩溃恢复。
+- 明确胜出的纯指令候选未来可自动晋升；代码、权限和外部副作用只生成 commit/Draft PR 或进入人工审批。
+
+## 仓库边界
+
+默认先在 EvoForge Suite 内按 `packages/*` 组织相关插件。只有插件拥有独立发布或信任边界、明显不同的依赖/许可证，或可以被用户完全独立采用时，才拆为 `deepseek-harness-evoforge/<plugin>` 独立仓库。详见 [ADR 0005](docs/adr/0005-evoforge-repository-boundaries.md)。
+
+## 文档入口
+
+1. [需求基线](docs/requirements.zh.md)：项目所有者已确认的范围、授权和交付顺序。
+2. [领域语言与不变量](CONTEXT.md)：实现和评审必须保持的统一术语。
+3. [产品架构](docs/architecture/evoforge-product.zh.md)：Hermes Replacement Target、能力边界、交互、可靠性、缓存与仓库策略。
+4. [自进化架构](docs/architecture/evolution-design.zh.md)：当前唯一自进化方案与分阶段验证路线。
+5. [研究索引](docs/research/README.zh.md)：DSH、171 个原生插件、Claude Code Rev、Hermes 及公开自进化项目的一手证据。
+6. [ADR](docs/adr)：缓存、Goal、上游边界、旗舰方向和仓库边界的精简决策。
+
+## 当前下一步
+
+设计确认后只实现离线 `evolve shadow <skill>`：选择一个真实 Skill、建立独立 final-test、生成并评测候选，但不改变 active Skill。Shadow 不能证明真实价值时停止扩张。
