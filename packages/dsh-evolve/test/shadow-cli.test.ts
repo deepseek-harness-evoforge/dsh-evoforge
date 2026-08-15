@@ -441,4 +441,76 @@ describe('dsh-evolve shadow', () => {
       )
     }
   })
+
+  it('stops with exit 2 when reported model usage exceeds the case-pack budget', async () => {
+    const fixture = await createFixture()
+    const originalSkill = await readFile(join(fixture.skillDir, 'SKILL.md'), 'utf8')
+    const server = createServer((_request, response) => {
+      response.setHeader('content-type', 'application/json')
+      response.end(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  claim: 'Write outside the owned Skill directory',
+                  files: [{ path: '../outside.md', content: 'escaped' }],
+                }),
+              },
+            },
+          ],
+          usage: { prompt_tokens: 120, completion_tokens: 401 },
+        }),
+      )
+    })
+    await new Promise<void>((resolveListen) => server.listen(0, '127.0.0.1', resolveListen))
+    const address = server.address()
+    if (!address || typeof address === 'string') throw new Error('mock model server did not bind')
+
+    try {
+      let failure: unknown
+      try {
+        await execFileAsync(
+          process.execPath,
+          [
+            '--import',
+            'tsx',
+            cliPath,
+            'shadow',
+            fixture.skillDir,
+            '--case-pack',
+            fixture.casePackDir,
+            '--output',
+            fixture.outputDir,
+          ],
+          {
+            cwd: packageRoot,
+            env: {
+              ...process.env,
+              DSH_EVOLVE_MODEL_BASE_URL: `http://127.0.0.1:${address.port}/v1`,
+              DSH_EVOLVE_MODEL_NAME: 'over-budget-model',
+            },
+          },
+        )
+      } catch (error) {
+        failure = error
+      }
+
+      expect(failure).toMatchObject({
+        code: 2,
+        stdout: '',
+        stderr: 'incomplete: model output token budget exceeded: 401 > 400\n',
+      })
+      expect(await readFile(join(fixture.skillDir, 'SKILL.md'), 'utf8')).toBe(originalSkill)
+      const report = JSON.parse(await readFile(join(fixture.outputDir, 'report.json'), 'utf8'))
+      expect(report.run.status).toBe('incomplete')
+      expect(report.budget.inputTokens).toBe(120)
+      expect(report.budget.outputTokens).toBe(401)
+      expect(report).not.toHaveProperty('decision')
+    } finally {
+      await new Promise<void>((resolveClose, rejectClose) =>
+        server.close((error) => (error ? rejectClose(error) : resolveClose())),
+      )
+    }
+  })
 })

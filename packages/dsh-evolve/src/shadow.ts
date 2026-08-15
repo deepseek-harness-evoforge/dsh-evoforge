@@ -61,7 +61,7 @@ export async function runShadow(options: ShadowOptions): Promise<
   await mkdir(outputDir)
   await mkdir(resolve(outputDir, 'evidence'))
 
-  let modelResponse: ModelResponse
+  let modelResponse: ModelResponse | undefined
   let proposal: Proposal
   try {
     modelResponse = await requestProposal({
@@ -73,6 +73,7 @@ export async function runShadow(options: ShadowOptions): Promise<
       skillName,
       skillSource,
     })
+    validateModelUsage(modelResponse, manifest.budget)
     proposal = parseProposal(modelResponse)
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error)
@@ -109,8 +110,8 @@ export async function runShadow(options: ShadowOptions): Promise<
       budget: {
         candidateLimit: manifest.budget.candidateLimit,
         trialLimit: manifest.budget.trialLimit,
-        inputTokens: 0,
-        outputTokens: 0,
+        inputTokens: modelResponse?.usage?.prompt_tokens ?? 0,
+        outputTokens: modelResponse?.usage?.completion_tokens ?? 0,
       },
     })
     return { status: 'incomplete', reportPath, reason }
@@ -218,6 +219,21 @@ export async function runShadow(options: ShadowOptions): Promise<
     },
   })
   return { status: 'complete', reportPath, summary: `reject: ${reason}; report: ${reportPath}` }
+}
+
+function validateModelUsage(response: ModelResponse, budget: CasePackManifest['budget']): void {
+  const inputTokens = response.usage?.prompt_tokens
+  const outputTokens = response.usage?.completion_tokens
+  if (!Number.isSafeInteger(inputTokens) || (inputTokens as number) < 0
+    || !Number.isSafeInteger(outputTokens) || (outputTokens as number) < 0) {
+    throw new Error('model response has no valid token usage')
+  }
+  if ((inputTokens as number) > budget.inputTokenLimit) {
+    throw new Error(`model input token budget exceeded: ${inputTokens} > ${budget.inputTokenLimit}`)
+  }
+  if ((outputTokens as number) > budget.outputTokenLimit) {
+    throw new Error(`model output token budget exceeded: ${outputTokens} > ${budget.outputTokenLimit}`)
+  }
 }
 
 function assertSeparateOutput(outputDir: string, skillDir: string, casePackDir: string): void {

@@ -15,6 +15,7 @@ P0A.1 implements the first safety tracer:
 - one bounded OpenAI-compatible proposer request;
 - deterministic hashing of the active Skill and case pack;
 - rejection before application when a candidate names a path outside the owned Skill;
+- fail-closed enforcement of reported input/output token limits;
 - an auditable `report.json` and minimal proposal evidence;
 - exit `2` plus an incomplete report when the model boundary fails or an in-scope candidate reaches the not-yet-implemented Trial evaluator;
 - no write outside the requested run directory, including through a symlinked output parent.
