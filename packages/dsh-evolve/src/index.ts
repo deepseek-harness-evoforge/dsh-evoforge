@@ -28,6 +28,8 @@ import {
   openFeedbackSignalStore,
 } from './feedback-signal-monitor.ts'
 import { FeedbackCaseDraftBuilder } from './feedback-case-draft.ts'
+import { EvolutionControlPlane } from './evolution-control-plane.ts'
+import { EvolutionRemoteService } from './evolution-remote.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -117,6 +119,15 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           return feedbackDraftBuilder.create(signalId, skillName)
         },
       }
+  const control = new EvolutionControlPlane({
+    store,
+    ...(review === undefined ? {} : { review }),
+    ...(resident === undefined ? {} : { resident }),
+    ...(automaticPolicy === undefined ? {} : { automatic: automaticPolicy }),
+    outcomes: deliveryOutcomes,
+    feedback: feedbackSignals,
+  })
+  new EvolutionRemoteService(ctx, control)
   installEvolutionCommand(ctx, store, {
     ...(review === undefined ? {} : { review }),
     ...(resident === undefined ? {} : { resident }),
@@ -239,3 +250,17 @@ export type {
   FeedbackSignal,
   FeedbackSignalSummary,
 } from './feedback-signal-monitor.ts'
+export { EvolutionControlPlane } from './evolution-control-plane.ts'
+export type { EvolutionControlPlaneModules } from './evolution-control-plane.ts'
+export { EvolutionRemoteService } from './evolution-remote.ts'
+export type { EvolutionRemoteTypertContract } from './evolution-remote.typert.ts'
+export type {
+  EvolutionActionReceipt,
+  EvolutionArtifactView,
+  EvolutionGenerationView,
+  EvolutionInactiveGenerationView,
+  EvolutionOverview,
+  EvolutionReviewCaseView,
+  EvolutionReviewDetail,
+  EvolutionReviewView,
+} from './control-types.ts'

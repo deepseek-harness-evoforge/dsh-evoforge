@@ -1,6 +1,6 @@
 # EvoForge 开发路线图
 
-> 状态：P0A–P1.7 已实现；P2A.1 验证、P2B.1 Goal 完成、P2C.1 Draft PR、P2C.2 exact checks 门与 P2D.1 Outcome 第二消费者已实现
+> 状态：P0A–P1.7 已实现（含 P0C.6 Web 控制面）；P2A.1 验证、P2B.1 Goal 完成、P2C.1 Draft PR、P2C.2 exact checks 门与 P2D.1 Outcome 第二消费者已实现
 
 ## 当前状态
 
@@ -11,7 +11,7 @@
 | R2 开源仓库就绪 | 完成 | [公共仓库](https://github.com/deepseek-harness-evoforge/dsh-evoforge)、MIT、贡献/安全文档与 Linux CI；macOS CI 在独立 Draft PR 验证 |
 | P0A Shadow evaluator | 本地退出门通过 | 安全门、macOS Sealed Trial、真实 DSH bridge、3/3 公开产品 fixture 与[本地未见首测](evidence/p0a-8-private-heldout.zh.md)均转绿；真实 provider 与第三方独立复跑仍属更高等级证据 |
 | P0B Local Continuity | implemented | P0B.1 release kernel、P0B.2a durable resume 与 P0B.2b resident supervisor 已通过本地/pinned DSH 测试；生产多日 soak 仍属发布前证据 |
-| P0C Human Control | 命令闭环 + verified bounded diff + lexical effect projection implemented；可用性门待验证 | P0C.1 release、P0C.2 review → inactive Generation、P0C.3 durable pause/resume、P0C.4 exact Git diff preview、P0C.5 protected-effect 词法提示已通过测试 |
+| P0C Human Control | Commands + Web 闭环、verified bounded diff 与 lexical effect projection implemented；陌生用户可用性门待验证 | P0C.1 release、P0C.2 review → inactive Generation、P0C.3 durable pause/resume、P0C.4 exact Git diff preview、P0C.5 protected-effect 词法提示、P0C.6 真实 DSH Web/RPC/跨重启控制已通过测试 |
 | P1 Bounded Autonomy | P1.1–P1.7 implemented；P2D.1 信号已接通 | 默认关闭的 allowlist + append-only policy、交付 outcome、显式反馈 intake、私有 Case Draft、既有 Case Pack 下的反馈引导 Shadow、proposer 前零模型校准、显式 evaluator authoring Skill、exact parent/Candidate 反事实 canary、pointer-safe 自动回滚均已通过测试；全新失败自动 evaluator 与真实任务长期率待验证 |
 | P2 Software Delivery | P2A.1 + P2B.1 + P2C.1–P2C.2 + P2D.1 consumer implemented | linked worktree/commit/check、原生 Bash policy → exact push/Draft PR → 可选 exact-head 远端 checks 门 → `update_goal`，并由 Evolve 异步记录最小三态信号；pinned DSH Agent/ToolRuntime/Storage 与 package 已测 |
 
@@ -90,9 +90,16 @@ P0C.5 已完成：同一 exact baseline/Candidate 变更会产生固定版本的
 [P0C.5](evidence/p0c-5-protected-effect-projection.zh.md)与
 [ADR-0024](adr/0024-review-effects-are-conservative-host-projections.md)。
 
-P0C 剩余的是退出证据：由不了解内部实现的用户完成一次查看、审批、暂停和回滚，测量
-控制时延与误操作。只有该试验证明 command preview 仍不足，且至少两个 UI adapter 需要同一
-投影时，才提取通用 Control Center。
+P0C.6 已完成：独立 `dsh-evolve-web` Bundle 把结构化、bounded 的同一权威 host 状态接到
+DSH 原生 Web 全局侧栏；无需 Workspace 或 Session。页面只在打开、刷新和动作后读取，无后台
+轮询，不注册模型可见表面。固定 DSH revision 已通过 tarball 装配、生成式 RPC、真实浏览器
+pause、进程重启保持 pause、resume 与零页面错误验收。批准仍只发布 inactive Generation，晋升
+保持第二个动作。证据见 [P0C.6](evidence/p0c-6-web-control-plane.zh.md)与
+[ADR-0025](adr/0025-web-is-a-thin-kv-safe-adapter.md)。
+
+P0C 剩余的是退出证据：由不了解内部实现的用户在 Web 完成一次查看、审批、晋升和回滚，测量
+控制时延与误操作。只有真实使用数据证明需要时，才增加实时推送、分页/图形 diff 或 TUI；不提取
+第二套 Control Center、状态库或工作流概念。
 
 退出条件：不了解内部实现的用户可以在一次查看中解释“改了什么、凭什么更好、有什么风险、怎么撤销”。
 

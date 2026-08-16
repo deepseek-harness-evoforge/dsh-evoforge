@@ -1,0 +1,14 @@
+# Real-DSH browser acceptance overlay. It is intentionally outside the shipped
+# profile so the test proves an out-of-tree package installation.
+- insert:
+    - id: evoforge-evolution
+      name: dsh-evolve
+      config:
+        cacheRoot: !!js dshHomePath('evoforge', 'git-skills')
+        supervisor:
+          runRoots:
+            - !!js dshHomePath('evoforge', 'runs')
+          scanIntervalMs: 30000
+
+    - id: evoforge-evolution-web
+      name: dsh-evolve-web

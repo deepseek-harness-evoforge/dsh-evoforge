@@ -70,6 +70,12 @@ safety proof; native DSH Approval remains authoritative. It does not persist ano
 patch copy or add a model call. Promotion remains a separate explicit action. Promotion/rollback
 changes only future Sessions; existing Sessions keep their pin.
 
+For a discoverable browser surface, install the separate `dsh-evolve-web` Bundle.
+It delegates bounded reads and actions to the same authoritative owners, adds a
+root-scoped sidebar action that works without a Session, and performs no polling.
+It adds no Tool, Prompt, Skill, system message, Session event, or model token.
+See [`dsh-evolve-web`](../dsh-evolve-web/README.md) for install and removal.
+
 After an interrupted run, explicitly resume the same immutable inputs with
 `--resume`. A durable Candidate resumes at the sealed Trial. A proposal whose
 request was observed but whose response was not recorded becomes

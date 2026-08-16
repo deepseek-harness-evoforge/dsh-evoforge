@@ -118,10 +118,12 @@ async function linkPinnedRuntime(profileDir: string): Promise<void> {
   const scope = join(profileDir, 'node_modules', '@deepseek-ai')
   await mkdir(scope, { recursive: true })
   for (const [name, source] of [
+    ['dsh-invariants', join(dshSourceDir, 'packages', 'runtime-diagnostics', 'invariants')],
     ['dsh-storage', join(dshSourceDir, 'packages', 'storage', 'storage')],
     ['dsh-storage-json', join(dshSourceDir, 'packages', 'storage', 'storage-json')],
     ['dsh-storage-domain', join(dshSourceDir, 'packages', 'storage', 'storage-domain')],
     ['dsh-system-prompt', join(dshSourceDir, 'packages', 'core', 'system-prompt')],
+    ['dsh-typert-protocol', join(dshSourceDir, 'packages', 'typert', 'protocol')],
   ] as const) {
     await symlink(source, join(scope, name), 'dir')
   }

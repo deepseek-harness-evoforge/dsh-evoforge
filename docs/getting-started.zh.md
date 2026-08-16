@@ -19,9 +19,13 @@ pnpm check
 
 ```text
 packages/dsh-evolve/
-  src/          Shadow CLI 实现
-  test/         跨 CLI 进程的行为测试
+  src/          Shadow CLI、runtime 与权威控制模块
+  test/         CLI/runtime/控制面行为测试
   README.md     包级行为和限制
+packages/dsh-evolve-web/
+  src/          DSH Host/Client Web Adapter
+  test/         Remote、React 交互与 Bundle 契约测试
+  README.md     安装、缓存和隐私边界
 packages/dsh-software-delivery/
   src/          按需 Skill、Git 验证器与受验证完成动作
   test/         真实 Git、原生 Bash/Goal/Agent、打包安装/卸载测试
@@ -35,6 +39,11 @@ pnpm --filter dsh-evolve typecheck
 pnpm --filter dsh-evolve test
 pnpm --filter dsh-evolve build
 pnpm --filter dsh-evolve pack --pack-destination "$PWD/.evoforge/pack"
+
+pnpm --filter dsh-evolve-web typecheck
+pnpm --filter dsh-evolve-web test
+pnpm --filter dsh-evolve-web build
+pnpm --filter dsh-evolve-web pack --pack-destination "$PWD/.evoforge/pack"
 
 pnpm --filter dsh-software-delivery typecheck
 pnpm --filter dsh-software-delivery test
@@ -170,10 +179,50 @@ proposal evidence 和 run journal 不直接复制输入字段。但 proposer 若
 和 search evidence 共用 manifest 的 `inputTokenLimit`。没有显式 Shadow 时，正常 DSH Session 的
 额外 token 仍为 0。
 
-### P0B runtime 开发装配
+### Evolve Web Bundle 装配
 
-`dsh-evolve` 目前是普通 Cordis runtime plugin，不是自动修改 profile 的 Bundle。
-在 DSH Storage Domain 已装配的配置里添加：
+发布后，一条命令安装 host runtime 与 Web Adapter：
+
+```bash
+dsh plugin --profile web add dsh-evolve-web
+```
+
+从本仓库验证本地 tarball 时，因为 `dsh-evolve` 尚未发布，两个 artifact 必须在同一次调用中安装：
+
+```bash
+pnpm --filter dsh-evolve pack --pack-destination "$PWD/.evoforge/pack"
+pnpm --filter dsh-evolve-web pack --pack-destination "$PWD/.evoforge/pack"
+
+dsh plugin --profile web add \
+  "$PWD/.evoforge/pack/dsh-evolve-0.1.0-alpha.1.tgz" \
+  "$PWD/.evoforge/pack/dsh-evolve-web-0.1.0-alpha.1.tgz"
+```
+
+Bundle 默认只加入 `dsh-evolve` 和全局 Web 入口；不会猜测 run root，不启用 supervisor、Git
+source、私有反馈复制或自动晋升。无 Session 时也能从侧栏“演化”打开面板。Remote 只在打开、
+刷新和动作后读取，不注册 Tool/Prompt/Skill/System/Session surface，普通模型请求额外 token 为 `0`。
+卸载使用：
+
+```bash
+dsh plugin --profile web remove dsh-evolve-web
+```
+
+高级运行配置应作为 profile 中更晚的显式 patch，例如：
+
+```yaml
+- id: evoforge-evolution
+  config:
+    cacheRoot: !!js dshHomePath('evoforge', 'git-skills')
+    supervisor:
+      runRoots:
+        - !!js dshHomePath('evoforge', 'runs')
+      scanIntervalMs: 30000
+```
+
+### P0B runtime 手工装配
+
+不需要 Web 时，`dsh-evolve` 仍可作为普通 Cordis runtime plugin 手工装配。在 DSH Storage
+Domain 已装配的配置里添加：
 
 ```yaml
 - id: dsh-evolve
