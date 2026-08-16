@@ -65,6 +65,23 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-evolve package boundar
     const installedManifest = JSON.parse(await readFile(join(profileDir, 'package.json'), 'utf8'))
     expect(installedManifest.dependencies?.['dsh-evolve']).toBeDefined()
     expect(installedManifest.dsh.profile.bundles).toEqual([])
+    const installedCli = join(profileDir, 'node_modules', 'dsh-evolve', 'dist', 'cli.mjs')
+    let retainUsageFailure: unknown
+    try {
+      await execFile(process.execPath, [
+        installedCli,
+        'retain',
+        '--case-pack', join(root, 'prior-case-pack'),
+        '--output', join(root, 'retention-run'),
+      ], { cwd: root, encoding: 'utf8' })
+    } catch (error) {
+      retainUsageFailure = error
+    }
+    expect(retainUsageFailure).toMatchObject({
+      code: 1,
+      stdout: '',
+      stderr: 'error: usage: dsh-evolve retain --run <completed-shadow-run> --case-pack <prior-case-pack-dir> --output <new-run-dir>\n',
+    })
 
     await linkPinnedRuntime(profileDir)
     const skillRepository = join(root, 'owned-skill-repository')

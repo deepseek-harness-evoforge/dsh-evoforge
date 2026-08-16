@@ -577,11 +577,37 @@ node packages/dsh-evolve/dist/cli.mjs shadow \
 同一个 provider，因此只应选择允许外发的草稿。不要把 API key 写进 manifest、命令历史、Issue、
 测试 fixture 或 Git；程序不会将环境变量中的 key 写入报告。
 
+### 3.1 用历史 Case Pack 检查遗忘
+
+一个 Candidate 通过新 Case Pack，并不证明它保留了以前成立的能力。对已经完成且报告建议为
+`promote|review` 的 exact Shadow run，可以显式选择另一个历史可信 Case Pack：
+
+```bash
+dsh-evolve retain \
+  --run ./runs/completed-shadow-001 \
+  --case-pack ./case-packs/trusted-prior-capability \
+  --output ./runs/retention-001
+```
+
+`retain` 会重新验证 source run、durable proposal、baseline/Candidate tree、原 Case Pack 与 prior
+Case Pack 的 exact identity，然后复用同一个 macOS Sealed Trial 依次执行 known-bad、
+known-correction、baseline 和 exact Candidate。结果写入 `retention-report.json`：
+
+- `retained`：历史 baseline 与 Candidate 都通过，退出 `0`；
+- `regressed`：历史 baseline 通过、Candidate 失败，退出 `3`；
+- `incomplete`：calibration、baseline、隔离或完整性不足，退出 `2`。
+
+该动作不会调用 proposer、创建新 Candidate、改 active Skill 或触发晋升。一次完整检查固定运行四次
+evaluator；如果 assembled evaluator 内部调用模型，那是独立的 Trial 成本，不能理解为零成本。
+普通 DSH Session 仍没有新增 Tool/Prompt/Skill/system surface，token 增量为 `0`。CLI 调用本身授权
+本次 Trial；中断后不会自动重试，必须换一个新 output 再显式执行。
+
 ## 4. 退出语义
 
-- `0`：一次完整业务结果；可能是 `promote`、`review` 或 `reject` 建议，但绝不自动激活；
+- `0`：Shadow 的 `promote|review|reject` 建议，或 Retention 的 `retained`；绝不自动激活；
 - `1`：参数、目录、配置或兼容性错误，未开始有效 Trial；
 - `2`：评测不完整；模型失败、预算超限、平台无 Sealed Trial、active Skill 或 Case Pack 被并发改变等均走这里。
+- `3`：Retention 完整执行并证明 `baseline pass / exact Candidate fail`；适合 CI fail。
 
 `2` 不是失败掩盖，而是核心安全合同：证据不足时不猜测 `promote/review/reject`。
 
@@ -593,7 +619,8 @@ node packages/dsh-evolve/dist/cli.mjs shadow \
 2. [需求基线](requirements.zh.md)
 3. [插件接口规范](plugin-contract.zh.md)
 4. [P0A Shadow 契约](architecture/p0a-shadow-contract.zh.md)
-5. [ADR-0006：Sealed Trial](adr/0006-fail-closed-sealed-trial-execution.md)
-6. [CONTRIBUTING.md](../CONTRIBUTING.md)
+5. [P1.11 Exact Retention Gate 契约](architecture/p1-11-exact-retention-gate.zh.md)
+6. [ADR-0006：Sealed Trial](adr/0006-fail-closed-sealed-trial-execution.md)
+7. [CONTRIBUTING.md](../CONTRIBUTING.md)
 
 新增行为先写穿过公共接缝的红测试。只有模型、外部 provider 或操作系统边界可以被替换；不要 mock evaluator 内部阶段后再声称端到端通过。

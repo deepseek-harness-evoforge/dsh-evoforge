@@ -1,6 +1,6 @@
 # dsh-evolve
 
-`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains twelve deliberately separate lanes:
+`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains fifteen deliberately separate lanes:
 
 - **P0A Shadow** compares an active Skill with an inactive Candidate without changing live DSH.
 - **P0B Local Continuity** records immutable Capability Generations, pins one Generation per Session, switches or rolls back only future Sessions, and resumes durable sealed work through an optional resident supervisor.
@@ -14,6 +14,9 @@
 - **P1.6 Pre-proposal Calibration** proves known-bad/known-correction direction with zero model calls and makes complete Shadow runs pass that gate before requesting a Candidate.
 - **P1.7 Evaluator Authoring** provides an explicit, non-runtime Skill for turning one reproducible novel failure into independent search/calibration/final-test partitions and a calibrated evaluator.
 - **P1.8 Feedback Shadow Launch** explicitly submits one current correction to one statically bound Skill/Case Pack target as a native background Job.
+- **P1.9 Private Evaluator Draft** generates one bounded inactive evaluator draft and requires a separate exact-hash human qualification before generated code runs.
+- **P1.10 Qualified Shadow Handoff** explicitly hands one unchanged qualified Case Pack to the existing background Shadow path after a fresh paid-action confirmation.
+- **P1.11 Exact Retention Gate** replays one reviewable exact Candidate against one trusted prior Case Pack with zero proposer calls and no release effect.
 
 The offline evaluation command is:
 
@@ -32,6 +35,19 @@ evaluator, records zero model calls/tokens, and writes one
 `calibration-report.json`. Complete Shadow runs perform this gate automatically
 before the proposer. Their successful paired Trial remains four executions total:
 two calibration fixtures, baseline, and Candidate.
+
+To check that one completed Shadow Candidate did not forget a previously passing capability, run:
+
+```bash
+dsh-evolve retain --run <completed-shadow-run> \
+  --case-pack <trusted-prior-case-pack> --output <new-retention-run>
+```
+
+The source report, durable proposal, baseline, Candidate, primary Case Pack, and prior Case Pack are
+verified by exact identity. The command makes zero proposer calls and returns `retained` (exit 0),
+`regressed` (exit 3), or `incomplete` (exit 2). It does not create a Candidate or change release state.
+A complete invocation runs four sealed evaluator Trials; model calls made inside an assembled evaluator,
+if any, are separate from proposer cost and appear as evaluator evidence.
 
 For a failure class that has no trusted Case Pack, explicitly use the repository's
 [`author-dsh-evolution-case`](../../skills/author-dsh-evolution-case/SKILL.md) Skill. It requires an
@@ -336,9 +352,10 @@ stderr.
 
 Exit codes:
 
-- `0`: evaluation finished with `promote`, `review`, or `reject` as a business result;
+- `0`: Shadow finished with `promote`, `review`, or `reject`, or retention finished as `retained`;
 - `1`: invocation, configuration, path, or compatibility error before a valid Trial;
 - `2`: incomplete evaluation; evidence is retained when possible, but no recommendation is fabricated.
+- `3`: exact retention completed and found `baseline pass / Candidate fail` regression evidence.
 
 ## Develop
 

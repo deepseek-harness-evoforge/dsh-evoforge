@@ -38,6 +38,7 @@
 | 显式 Feedback Shadow Launch | `implemented`（P1.8） | [P1.8](evidence/p1-8-explicit-feedback-shadow-launch.zh.md)：静态 Target、Commands/Web 确认、原生 Jobs、内容寻址去重、真实 DSH composition/packed 浏览器、无路径 Remote 与零模型表面 | 真实 provider/用户纠正改善率、陌生用户可用性与多日崩溃数据 |
 | 私有 Evaluator Draft 与人工资格验证 | `implemented`（P1.9） | [P1.9 证据](evidence/p1-9-private-evaluator-draft.zh.md)：host-owned manifest/known-bad、生成后零执行、exact-hash 人工批准、真实 sealed DSH qualification、`SIGKILL` 付费不重试、Commands/Remote/Web、packed lifecycle 与普通 Session 零模型表面 | 真实 provider/用户纠正的 qualified/semantic-rejection/cost 数据、陌生用户可用性与多日 soak；Qualified 仍不自动启动 Shadow |
 | Qualified Case Pack 显式进入 Feedback Shadow | `implemented`（P1.10） | [P1.10 证据](evidence/p1-10-qualified-shadow-handoff.zh.md)：新付费确认、host-only exact path/hash、复用 P1.8 launcher/Jobs/journal、真实 generated Pack → calibrated paired Trial、真实 Chrome、packed lifecycle 与零模型表面 | 真实 provider/用户纠正改善率、陌生用户可用性与多日 soak |
+| Exact Candidate Retention Gate | `implemented`（P1.11） | [P1.11 证据](evidence/p1-11-exact-retention-gate.zh.md)：一个 source run + 一个 prior Case Pack、零 proposer、retained/regressed/incomplete、篡改/`SIGKILL`、packed lifecycle | 多个独立真实旧能力 Case、真实 provider Candidate 遗忘率、成为 release gate 前的成本/误阻塞数据 |
 | 单机常驻和崩溃恢复 | `implemented`（P0B） | 四个 release `SIGKILL` 边界；[P0B.2a](evidence/p0b-2a-durable-shadow-resume.zh.md)；[P0B.2b](evidence/p0b-2b-resident-shadow-supervisor.zh.md) native Jobs supervisor/关机恢复/重复扫描 | 生产多日 soak、真实磁盘耗尽与更多机器数据 |
 | `dsh-software-delivery` | `implemented`（P2A.1 + P2B.1 + P2C.1–P2C.2 + P2D.1 consumer） | [P2A.1](evidence/p2a-1-software-delivery-verifier.zh.md)：真实 Git/CLI/package；[P2B.1](evidence/p2b-1-native-goal-verified-completion.zh.md)：Goal/Bash/update_goal；[P2C.1](evidence/p2c-1-idempotent-draft-pr.zh.md)：exact push、create/reuse、不确定重试、ready 冲突；[P2C.2](evidence/p2c-2-exact-draft-check-gate.zh.md)：exact-head checks 三态门与真实 PR；[P2D.1](evidence/p2d-1-delivery-outcome-signal.zh.md)：Evolve 第二消费者；[P1.2](evidence/p1-2-counterfactual-canary.zh.md)：失败后的反事实消费 | fork/其他 forge、required-only/CI 日志与自动等待、真实开发任务数据 |
 | `dsh-doctor` Runtime Readiness | `implemented` | [实现证据](evidence/dsh-doctor-runtime-readiness.zh.md)：三态分类、原生 Commands、真实 Loader、tarball add/dump-config/boot/remove、零模型表面 | 发布版本、陌生用户诊断成功率；启动前失败与外部 provider 不在首版范围 |
@@ -82,7 +83,7 @@
 - 不能把 P2A–P2D 当作完整跨 forge 自动交付：受验证动作不是全局 Goal 拦截，原生直接完成仍可用；Draft PR 只支持 GitHub.com 同仓分支；可选门只单次读取全部 rollup checks，不实现 required-only 规则、CI 日志诊断或自动等待；standalone CLI 也不是运行不可信 checks 的安全沙箱；
 - 不能把公开的确定性示例当作真实 DSH 工作流已经改善；
 - `shadow` 不执行任意模型生成代码；assembled lane 会运行真实 DSH，但 Candidate 仍只作为 Skill 数据选择受限的可信 evaluator 行为；
-- 不能声称完整持续进化、生产级多日可靠性、任意外部效果 crash-resume 或优于 Hermes；
+- Exact Retention 已能检查一个 prior Case Pack，但不能据此声称完整抗遗忘、完整持续进化、生产级多日可靠性、任意外部效果 crash-resume 或优于 Hermes；
 - 不能把 `dsh-telegram` 当作生产消息平台或通用 Gateway：尚未跑真实 Bot 多日 soak、陌生用户安装
   或 Hermes paired benchmark；transport 不确定与 crash-in-send 只会标为 `uncertain`，不会盲重试，
   也不能撤回已经发送的消息；
