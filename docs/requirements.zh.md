@@ -325,6 +325,7 @@ Case Pack authoring 先提供零模型校准命令，不创建新 Service 或 SD
 - [插件接口与验收规范](plugin-contract.zh.md)
 - [开发路线图](roadmap.zh.md)
 - [可执行 DSH 插件开发 Skill](../skills/build-dsh-plugin/SKILL.md)
+- [全新失败 evaluator authoring Skill](../skills/author-dsh-evolution-case/SKILL.md)
 - [用户痛点证据](research/user-pain-evidence.md)
 - [公开自进化项目证据审计](research/public-self-evolving-agents.zh.md)
 - [ADR：只增强原生 Goal](adr/0002-extend-native-goal.md)

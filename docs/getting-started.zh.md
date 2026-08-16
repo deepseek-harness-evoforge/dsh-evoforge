@@ -247,6 +247,12 @@ sealed `fail → pass`、全部 checks、Trial≥4 和单一 `SKILL.md` ≤2 KiB
 
 ## 3. Shadow 输入
 
+若失败类型尚无可信 Case Pack，先显式调用仓库内
+[`author-dsh-evolution-case`](../skills/author-dsh-evolution-case/SKILL.md)。它要求先证明同一个
+observable 在 known-bad 上失败、在人工确认 correction 上通过，并加入能识别“措辞对但行为错”的
+negative control，再进入下述校准。该 Skill 禁止隐式调用，不进入 DSH profile 或普通 Session；
+没有独立可重放 observable 时应停在 investigation，而不是让模型同时生成 Candidate 和 grader。
+
 先在不配置任何模型 route/key 的情况下验证一个完整 Case Pack：
 
 ```bash

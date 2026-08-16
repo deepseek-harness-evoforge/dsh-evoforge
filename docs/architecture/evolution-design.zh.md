@@ -1,6 +1,6 @@
 # EvoForge 可证明自进化设计
 
-> 状态：P0A/P0B/P0C implemented；P1.1 最窄 opt-in 自动晋升、P2D.1 Outcome、P1.2 反事实 canary/自动回滚、P1.3 显式反馈入口、P1.4 私有 Case Draft、P1.5 反馈引导 Shadow 与 P1.6 proposer 前 Case Pack 校准 implemented；全新失败 evaluator 和真实任务长期证据待完成
+> 状态：P0A/P0B/P0C implemented；P1.1 最窄 opt-in 自动晋升、P2D.1 Outcome、P1.2 反事实 canary/自动回滚、P1.3 显式反馈入口、P1.4 私有 Case Draft、P1.5 反馈引导 Shadow、P1.6 proposer 前 Case Pack 校准与 P1.7 显式 evaluator authoring Skill implemented；全新失败自动 evaluator 和真实任务长期证据待完成
 > 更新日期：2026-08-16
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 
@@ -635,8 +635,9 @@ reference-only、可撤回、零模型表面的明确纠正入口，见
 Shadow proposer，同时由既有校准 Case Pack 独立评测，见
 [P1.5](../evidence/p1-5-feedback-guided-shadow.zh.md)。
 P1.6 已提供零模型独立校准，并让完整 Shadow 在 proposer 前 fail closed，见
-[P1.6](../evidence/p1-6-preproposal-case-pack-calibration.zh.md)。下一步不扩建通用 Signal/Memory/Case
-平台；先用真实 provider 与用户纠正测量候选改善率，再只为一个现有 Case Pack 无法覆盖的高频
-失败验证最窄 evaluator authoring 工作流，并继续
-测量 false promotion、false rollback、review rate、返工与成本。P0C 仍需普通用户完成控制
-任务的可用性退出证据。
+[P1.6](../evidence/p1-6-preproposal-case-pack-calibration.zh.md)。P1.7 已把一个新失败的最窄
+evaluator authoring 流程沉淀为显式、非隐式注入 Skill，要求独立 observable、negative controls、
+known-bad/correction 与零模型校准，见 [P1.7](../evidence/p1-7-evaluator-authoring-skill.zh.md)。下一步
+不扩建通用 Signal/Memory/Case 平台；用一个陌生真实失败前向验证该 Skill，同时用真实 provider 与
+用户纠正测量候选改善率，并继续测量 false promotion、false rollback、review rate、返工与成本。
+P0C 仍需普通用户完成控制任务的可用性退出证据。

@@ -4,7 +4,7 @@
 
 An out-of-tree extension suite for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). EvoForge adds removable capabilities through supported DSH seams; it is not a DSH fork or a home for core-defect workarounds.
 
-> **Pre-alpha: do not use automatic activation in production.** The `dsh-evolve` P0A/P0B/P0C slices, narrow P1.1 auto-promotion, P1.2 counterfactual canary/rollback, P1.3 explicit-feedback intake, P1.4 private Feedback Case Drafts, P1.5 feedback-guided Shadow, P1.6 pre-proposal Case Pack calibration, and P2D.1 delivery-outcome observation are implemented. The `dsh-software-delivery` Skill, Git verifier, native-Goal verified completion, idempotent Draft-PR publication, and optional exact-head remote-check gate are also implemented. Evaluators for novel failures, real-task false-promotion/false-rollback data, real-user evidence, and production multi-day evidence remain incomplete.
+> **Pre-alpha: do not use automatic activation in production.** The `dsh-evolve` P0A/P0B/P0C slices, narrow P1.1 auto-promotion, P1.2 counterfactual canary/rollback, P1.3 explicit-feedback intake, P1.4 private Feedback Case Drafts, P1.5 feedback-guided Shadow, P1.6 pre-proposal Case Pack calibration, P1.7 explicit evaluator-authoring Skill, and P2D.1 delivery-outcome observation are implemented. The `dsh-software-delivery` Skill, Git verifier, native-Goal verified completion, idempotent Draft-PR publication, and optional exact-head remote-check gate are also implemented. Automatic evaluators for novel failures, real-task false-promotion/false-rollback data, real-user evidence, and production multi-day evidence remain incomplete.
 
 `dsh-evolve` aims to turn agent self-improvement into an evidence-backed release process:
 
@@ -31,5 +31,7 @@ pnpm --filter dsh-software-delivery pack --pack-destination "$PWD/.evoforge/pack
 ```
 
 Read the [Chinese status page](docs/status.zh.md) for the exact implemented/planned boundary, [CONTRIBUTING.md](CONTRIBUTING.md) before proposing a change, and [SECURITY.md](SECURITY.md) for private vulnerability reporting.
+
+Case authors can explicitly invoke the repository's [`author-dsh-evolution-case`](skills/author-dsh-evolution-case/SKILL.md) Skill to turn one reproducible novel failure into a partitioned, calibrated Case Pack. It is not implicitly loaded and does not create a runtime model surface.
 
 Licensed under [MIT](LICENSE).

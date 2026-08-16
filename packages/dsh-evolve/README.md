@@ -1,6 +1,6 @@
 # dsh-evolve
 
-`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains ten deliberately separate lanes:
+`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains eleven deliberately separate lanes:
 
 - **P0A Shadow** compares an active Skill with an inactive Candidate without changing live DSH.
 - **P0B Local Continuity** records immutable Capability Generations, pins one Generation per Session, switches or rolls back only future Sessions, and resumes durable sealed work through an optional resident supervisor.
@@ -12,6 +12,7 @@
 - **P1.4 Private Feedback Case Draft** explicitly copies one exact, single-Skill correction into an unscored private draft without creating a Candidate.
 - **P1.5 Feedback-guided Shadow** uses one exact private draft only as proposer search evidence while an existing calibrated Case Pack remains the evaluator.
 - **P1.6 Pre-proposal Calibration** proves known-bad/known-correction direction with zero model calls and makes complete Shadow runs pass that gate before requesting a Candidate.
+- **P1.7 Evaluator Authoring** provides an explicit, non-runtime Skill for turning one reproducible novel failure into independent search/calibration/final-test partitions and a calibrated evaluator.
 
 The offline evaluation command is:
 
@@ -30,6 +31,13 @@ evaluator, records zero model calls/tokens, and writes one
 `calibration-report.json`. Complete Shadow runs perform this gate automatically
 before the proposer. Their successful paired Trial remains four executions total:
 two calibration fixtures, baseline, and Candidate.
+
+For a failure class that has no trusted Case Pack, explicitly use the repository's
+[`author-dsh-evolution-case`](../../skills/author-dsh-evolution-case/SKILL.md) Skill. It requires an
+observable reproduction, known-bad and independently confirmed correction, realistic negative
+controls, and a red-then-green evaluator before calibration. The Skill has implicit invocation
+disabled and is not part of the DSH runtime model surface. It does not claim to generate a grader
+automatically.
 
 When the DSH composition includes native Commands, the host-only human release
 surface is also available:

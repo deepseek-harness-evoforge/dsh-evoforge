@@ -1,0 +1,7 @@
+interface:
+  display_name: "Author DSH Evolution Case"
+  short_description: "Turn a reproducible failure into a sealed Case Pack"
+  default_prompt: "Use $author-dsh-evolution-case to turn this reproducible DSH Skill failure into a calibrated, sealed evolution Case Pack."
+
+policy:
+  allow_implicit_invocation: false
