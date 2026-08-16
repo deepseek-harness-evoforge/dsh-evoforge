@@ -179,15 +179,17 @@ export class GitSkillSource {
       await makeDirectoriesReadOnly(tree)
       await writeFile(join(stage, 'evoforge-owner.json'), `${JSON.stringify(marker, null, 2)}\n`, { mode: 0o444 })
       await chmod(join(stage, 'evoforge-owner.json'), 0o444)
-      await chmod(stage, 0o555)
+      let installed = false
       try {
         await rename(stage, finalRoot)
+        installed = true
       } catch (error) {
         if (!await pathExists(finalRoot)) throw error
         await verifyMaterialization(finalRoot, marker)
         await makeOwnedStageWritable(stage)
         await rm(stage, { force: true, recursive: true })
       }
+      if (installed) await chmod(finalRoot, 0o555)
       return finalTree
     } catch (error) {
       if (await pathExists(stage)) {
