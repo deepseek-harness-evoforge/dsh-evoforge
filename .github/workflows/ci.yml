@@ -103,4 +103,6 @@ jobs:
           pnpm --filter dsh-doctor exec vitest run \
             test/package-install-remove.e2e.test.ts
       - name: Run PA-1 protected-action hard gate
+        env:
+          DSH_EVOLVE_DSH_SOURCE_DIR: ${{ github.workspace }}/.evoforge/deepseek-harness
         run: pnpm test:pa1
