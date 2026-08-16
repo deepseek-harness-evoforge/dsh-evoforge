@@ -1,4 +1,5 @@
 import { execFile as execFileCallback } from 'node:child_process'
+import { createServer } from 'node:http'
 import { chmod, cp, readFile, readdir, mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -27,6 +28,193 @@ afterEach(async () => {
 })
 
 describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () => {
+  it('keeps the complete native model request equal when evaluator authoring is configured', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-evaluator-composition-'))
+    temporaryRoots.push(root)
+    const repository = join(root, 'source')
+    await commitSkill(repository, 'Composition-stable body.', 'composition reference')
+    const requests: unknown[] = []
+    for (const enabled of [false, true]) {
+      const runtimeRoot = join(root, enabled ? 'enabled' : 'disabled')
+      await mkdir(runtimeRoot)
+      const ctx = await bootStorage(await writeStorageConfig(runtimeRoot))
+      const adapter = await installAgentRuntime(ctx)
+      await ctx.plugin(EvolvePlugin, {
+        cacheRoot: join(runtimeRoot, 'cache'),
+        feedbackDraftRoot: join(runtimeRoot, 'private-feedback'),
+        sources: [{
+          name: 'stable-evolved-skill',
+          repository,
+          path: 'skills/stable-evolved-skill',
+        }],
+        ...(enabled
+          ? {
+              evaluatorTargets: [{
+                id: 'stable-skill-fix',
+                skill: 'stable-evolved-skill',
+                root: join(runtimeRoot, 'private-evaluators'),
+                dshRevision: '47f943859bef60e4160492346772ded9b24f765a',
+              }],
+            }
+          : {}),
+      })
+      await createAndRunAgent(ctx, 'composition-session', '/tmp/evoforge-composition', undefined, 'same request')
+      requests.push(adapter.requests[0])
+      await ctx.fiber.dispose()
+    }
+
+    expect(modelVisibleRequest(requests[1])).toEqual(modelVisibleRequest(requests[0]))
+    expect(JSON.stringify(requests[1])).not.toContain('evaluator')
+    expect(JSON.stringify(requests[1])).not.toContain('stable-skill-fix')
+  })
+
+  it('authors a private inactive evaluator through real DSH Feedback, Commands, and Jobs', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-evaluator-authoring-'))
+    temporaryRoots.push(root)
+    const repository = join(root, 'source')
+    const revision = await commitSingleFileSkill(repository, 'Original bounded behavior.')
+    const sessionsRoot = join(root, 'sessions')
+    const feedbackDraftRoot = join(root, 'private-feedback')
+    const evaluatorRoot = join(root, 'private-evaluators')
+    const executionMarker = join(root, 'generated-code-executed')
+    let modelRequests = 0
+    const correctedSkill = [
+      '---',
+      'name: stable-evolved-skill',
+      'description: Corrected single-file fixture.',
+      '---',
+      '',
+      'Run the independently observable check before completion.',
+      '',
+    ].join('\n')
+    const server = createServer((_request, response) => {
+      modelRequests += 1
+      response.setHeader('content-type', 'application/json')
+      response.end(JSON.stringify({
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              searchEvidence: '# Independent observable\n\nCheck the durable completion marker.\n',
+              knownCorrectionSkill: correctedSkill,
+              evaluatorSource: `await import('node:fs/promises').then(fs => fs.writeFile(${JSON.stringify(executionMarker)}, 'executed'))\n`,
+            }),
+          },
+        }],
+        usage: { prompt_tokens: 140, completion_tokens: 90 },
+      }))
+    })
+    await new Promise<void>(resolveListen => server.listen(0, '127.0.0.1', resolveListen))
+    const address = server.address()
+    if (!address || typeof address === 'string') throw new Error('evaluator model server did not bind')
+    const previousBase = process.env.DSH_EVOLVE_MODEL_BASE_URL
+    const previousModel = process.env.DSH_EVOLVE_MODEL_NAME
+    process.env.DSH_EVOLVE_MODEL_BASE_URL = `http://127.0.0.1:${address.port}/v1`
+    process.env.DSH_EVOLVE_MODEL_NAME = 'fixed-evaluator-author'
+
+    const ctx = await bootStorage(await writeStorageConfig(root))
+    const adapter = await installAgentRuntime(ctx, sessionsRoot)
+    try {
+      await ctx.plugin(EvolvePlugin, {
+        cacheRoot: join(root, 'cache'),
+        feedbackDraftRoot,
+        sources: [{
+          name: 'stable-evolved-skill',
+          repository,
+          path: 'skills/stable-evolved-skill',
+        }],
+        evaluatorTargets: [{
+          id: 'stable-skill-fix',
+          skill: 'stable-evolved-skill',
+          root: evaluatorRoot,
+          dshRevision: '47f943859bef60e4160492346772ded9b24f765a',
+        }],
+      })
+      const packages = (path: string) => pathToFileURL(
+        join(dshSourceDir, 'packages', path, 'lib', 'index.js'),
+      ).href
+      const [commands, messageFeedbackModule, jobsModule] = await Promise.all([
+        import(packages('interaction/commands')),
+        import(packages('feedback/message-feedback')),
+        import(packages('jobs/jobs-local')),
+      ])
+      await ctx.plugin(commands.default)
+      await ctx.plugin(messageFeedbackModule.default, { maxNoteBytes: 1_024 })
+      await ctx.plugin(jobsModule.default)
+      const store = ctx.get('evoforge.evolution') as EvolutionStore
+      const feedback = ctx.get('messageFeedback') as {
+        put(request: {
+          sessionId: string
+          messageId: string
+          rating: 'negative'
+          note: string
+          ifVersion: null
+        }): Promise<{ ok: boolean }>
+      }
+      const generation = (await store.publishGeneration(generationInput(revision))).generation
+      await store.promoteGeneration(generation.id)
+      const agent = await createAndRunAgent(
+        ctx,
+        'evaluator-authoring-session',
+        root,
+        undefined,
+        '/stable-evolved-skill reproduce the missing observable check',
+      )
+      const assistant = agent.session.events.find(
+        (event: { type: string }) => event.type === 'assistant/message',
+      ) as { data: { message: { id: string } } } | undefined
+      if (assistant === undefined) throw new Error('assistant message fixture missing')
+      await feedback.put({
+        sessionId: String(agent.session.header.id),
+        messageId: assistant.data.message.id,
+        rating: 'negative',
+        note: 'Run the independently observable check before completion.',
+        ifVersion: null,
+      })
+      await waitForEvolutionStatus(ctx, agent, 'Explicit feedback signals: 1 retained (1 active selection)')
+      const list = await ctx.commands.execute(agent, '/evolve feedback', new AbortController().signal)
+      const signalId = /^- ([a-f0-9]{64}) /m.exec(list?.result.text ?? '')?.[1]
+      if (signalId === undefined) throw new Error('feedback signal id missing')
+      const agentRequestsBeforeAuthor = adapter.requests.length
+
+      const authored = await ctx.commands.execute(
+        agent,
+        `/evolve feedback ${signalId} author stable-skill-fix`,
+        new AbortController().signal,
+      )
+      expect(authored?.result).toMatchObject({
+        kind: 'success',
+        text: expect.stringContaining('submitted as native Job'),
+      })
+      const evaluatorList = await waitForCommandText(
+        ctx,
+        agent,
+        '/evolve evaluator',
+        '[draft-ready]',
+      )
+      const draftId = /^- ([a-f0-9]{64}) \[draft-ready\]/m.exec(evaluatorList)?.[1]
+      if (draftId === undefined) throw new Error('evaluator draft id missing')
+      const detail = await ctx.commands.execute(
+        agent,
+        `/evolve evaluator ${draftId}`,
+        new AbortController().signal,
+      )
+
+      expect(detail?.result.text).toContain('--- final-test/evaluator.mjs')
+      expect(detail?.result.text).toContain('Authoring cost: 1 model call(s), 140 input / 90 output tokens')
+      expect(modelRequests).toBe(1)
+      expect(adapter.requests).toHaveLength(agentRequestsBeforeAuthor)
+      await expect(stat(executionMarker)).rejects.toMatchObject({ code: 'ENOENT' })
+      await expect(stat(join(evaluatorRoot, 'qualified'))).rejects.toMatchObject({ code: 'ENOENT' })
+    } finally {
+      if (previousBase === undefined) delete process.env.DSH_EVOLVE_MODEL_BASE_URL
+      else process.env.DSH_EVOLVE_MODEL_BASE_URL = previousBase
+      if (previousModel === undefined) delete process.env.DSH_EVOLVE_MODEL_NAME
+      else process.env.DSH_EVOLVE_MODEL_NAME = previousModel
+      await ctx.fiber.dispose()
+      await new Promise<void>((resolveClose, rejectClose) => server.close(error => error ? rejectClose(error) : resolveClose()))
+    }
+  })
+
   it('auto-promotes only an allowlisted append-only clear win after late native Jobs composition', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-auto-promote-'))
     temporaryRoots.push(root)
@@ -1123,6 +1311,22 @@ async function commitSkill(repository: string, body: string, reference: string):
   }
 }
 
+async function commitSingleFileSkill(repository: string, body: string): Promise<GitRevision> {
+  await commitSkill(repository, body, 'temporary reference')
+  await rm(join(repository, 'skills', 'stable-evolved-skill', 'references'), { recursive: true })
+  await git(repository, 'add', '-A', 'skills/stable-evolved-skill')
+  await git(
+    repository,
+    '-c', 'user.name=EvoForge Test',
+    '-c', 'user.email=evoforge@example.invalid',
+    'commit', '--quiet', '-m', 'make Skill single-file',
+  )
+  return {
+    commit: await git(repository, 'rev-parse', 'HEAD'),
+    treeHash: await git(repository, 'rev-parse', 'HEAD:skills/stable-evolved-skill'),
+  }
+}
+
 async function git(repository: string, ...args: string[]): Promise<string> {
   const { stdout } = await execFile('git', ['-C', repository, ...args], { encoding: 'utf8' })
   return stdout.trim()
@@ -1151,6 +1355,22 @@ async function waitForEvolutionStatus(
     await new Promise(resolve => setTimeout(resolve, 10))
   }
   throw new Error(`evolution status did not contain '${expected}'`)
+}
+
+async function waitForCommandText(
+  ctx: Awaited<ReturnType<typeof bootStorage>>,
+  agent: object,
+  command: string,
+  expected: string,
+): Promise<string> {
+  const deadline = Date.now() + 5_000
+  while (Date.now() < deadline) {
+    const execution = await ctx.commands.execute(agent, command, new AbortController().signal)
+    const text = execution?.result.text ?? ''
+    if (text.includes(expected)) return text
+    await new Promise(resolve => setTimeout(resolve, 10))
+  }
+  throw new Error(`${command} did not contain '${expected}'`)
 }
 
 async function waitForCanaryDecision(
@@ -1297,6 +1517,12 @@ function requestView(value: unknown): { messages: unknown[]; tools: unknown[] } 
     throw new Error('adapter request has no messages/tools arrays')
   }
   return { messages: request.messages, tools: request.tools }
+}
+
+function modelVisibleRequest(value: unknown): unknown {
+  const request = structuredClone(value) as { messages?: Array<Record<string, unknown>> }
+  for (const message of request.messages ?? []) delete message.id
+  return request
 }
 
 function identityOf(agent: {

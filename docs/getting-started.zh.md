@@ -242,6 +242,34 @@ shadowTargets:
 Skill tree、Case Pack 和模型 route 派生相同 launch id；已有 durable journal 时复用而不重复请求。
 它不会自动创建 evaluator 或晋升 Candidate。
 
+如果该纠正没有可信 Case Pack，可另外配置最窄 Evaluator Target：
+
+```yaml
+evaluatorTargets:
+  - id: plugin-delivery-evaluator
+    skill: build-dsh-plugin
+    root: /absolute/path/to/.dsh/evoforge/private-evaluator-drafts
+    dshRevision: 47f943859bef60e4160492346772ded9b24f765a
+```
+
+`root` 必须是每个 Target 独占的私有 absolute directory，不能是 symlink；`dshRevision` 必须是
+完整 Git object id。首片只支持 tree 中恰好一个 `SKILL.md` 的纯指令 Skill。还必须配置
+`feedbackDraftRoot` 并装配原生 Jobs、Message Feedback 与 Session Persistence。使用：
+
+```text
+/evolve feedback <64-char-signal-id> author plugin-delivery-evaluator
+/evolve evaluator
+/evolve evaluator <64-char-draft-id>
+/evolve evaluator <64-char-draft-id> approve <independent-review-note>
+/evolve evaluator <64-char-draft-id> reject <reason>
+```
+
+Author 每次逐次确认一次可能付费的请求和 bounded correction/exact Skill 外发，host 固定生成
+manifest 与 known-bad；输出上限 1600 token。结果保持 private/inactive。Approve 是另一项人工
+exact-hash 决策，才允许 generated evaluator 进入 sealed DSH qualification。通过只发布 Qualified
+Case Pack，不启动 Shadow、Candidate 或 Promotion。不确定 provider effect 在重启后不自动重试；
+normal Session、列表、detail 与 qualification 的 proposer token 均为 0。
+
 ### Evolve Web Bundle 装配
 
 发布后，一条命令安装 host runtime 与 Web Adapter：
@@ -306,6 +334,11 @@ Domain 已装配的配置里添加：
         skill: build-dsh-plugin
         casePackDir: /absolute/path/to/trusted-case-pack
         runRoot: /absolute/path/to/.dsh/evoforge/plugin-delivery-runs
+    evaluatorTargets:
+      - id: plugin-delivery-evaluator
+        skill: build-dsh-plugin
+        root: /absolute/path/to/.dsh/evoforge/private-evaluator-drafts
+        dshRevision: 47f943859bef60e4160492346772ded9b24f765a
     autoPromote:
       skills:
         - build-dsh-plugin
@@ -323,6 +356,11 @@ non-executable 文件。`cacheRoot` 只是带 owner marker 的只读重建缓存
 /evolve feedback <64-char-signal-id>
 /evolve feedback <64-char-signal-id> draft <skill-name>
 /evolve feedback <64-char-signal-id> shadow <target-id>
+/evolve feedback <64-char-signal-id> author <evaluator-target-id>
+/evolve evaluator
+/evolve evaluator <64-char-draft-id>
+/evolve evaluator <64-char-draft-id> reject <note>
+/evolve evaluator <64-char-draft-id> approve <note>
 /evolve review
 /evolve review <64-char-review-id>
 /evolve review <64-char-review-id> reject <note>
@@ -333,7 +371,9 @@ non-executable 文件。`cacheRoot` 只是带 owner marker 的只读重建缓存
 /evolve rollback
 ```
 
-命令不调用模型。`review` 从配置的 run roots 投影已完成 Shadow 证据；reject 只记录
+除显式 `feedback ... author` 会提交一次 bounded 后台模型请求外，状态、review、reject、approve、
+pause/resume/promote/rollback 命令不调用 proposer。Evaluator approve 会执行 sealed 本地资格验证，
+不会请求 proposer。`review` 从配置的 run roots 投影已完成 Shadow 证据；reject 只记录
 证据绑定的处置，approve 只创建 owned Git ref 和 inactive Generation。它不会移动用户
 branch/worktree 或 active pointer。只有随后显式 `promote` 才改变 future Session；当前
 Session 始终不漂移。不要把 P0C 人工命令当作已完成的自动晋升产品。

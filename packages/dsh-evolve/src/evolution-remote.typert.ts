@@ -2,6 +2,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import type {
   EvolutionActionReceipt,
+  EvolutionEvaluatorDraftDetail,
   EvolutionOverview,
   EvolutionReviewDetail,
 } from './control-types.ts'
@@ -66,6 +67,33 @@ export class EvolutionRemoteTypertContract extends TypertRemoteService {
   startFeedbackShadow(signalId: string, targetId: string): Promise<EvolutionActionReceipt> {
     void signalId
     void targetId
+    throw new Error('static Typert contract')
+  }
+
+  @Remote
+  evaluatorDraft(id: string): Promise<EvolutionEvaluatorDraftDetail> {
+    void id
+    throw new Error('static Typert contract')
+  }
+
+  @Remote
+  authorEvaluator(signalId: string, targetId: string): Promise<EvolutionActionReceipt> {
+    void signalId
+    void targetId
+    throw new Error('static Typert contract')
+  }
+
+  @Remote
+  approveEvaluator(id: string, note: string): Promise<EvolutionActionReceipt> {
+    void id
+    void note
+    throw new Error('static Typert contract')
+  }
+
+  @Remote
+  rejectEvaluator(id: string, note: string): Promise<EvolutionActionReceipt> {
+    void id
+    void note
     throw new Error('static Typert contract')
   }
 }

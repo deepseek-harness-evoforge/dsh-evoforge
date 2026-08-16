@@ -2,6 +2,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import type {
   EvolutionActionReceipt,
+  EvolutionEvaluatorDraftDetail,
   EvolutionOverview,
   EvolutionReviewDetail,
 } from './control-types.ts'
@@ -59,6 +60,22 @@ export class EvolutionRemoteService extends TypertRemoteService {
   startFeedbackShadow(signalId: string, targetId: string): Promise<EvolutionActionReceipt> {
     return this.control.startFeedbackShadow(signalId, targetId)
   }
+
+  evaluatorDraft(id: string): Promise<EvolutionEvaluatorDraftDetail> {
+    return this.control.evaluatorDraft(id)
+  }
+
+  authorEvaluator(signalId: string, targetId: string): Promise<EvolutionActionReceipt> {
+    return this.control.authorEvaluator(signalId, targetId)
+  }
+
+  approveEvaluator(id: string, note: string): Promise<EvolutionActionReceipt> {
+    return this.control.approveEvaluator(id, note)
+  }
+
+  rejectEvaluator(id: string, note: string): Promise<EvolutionActionReceipt> {
+    return this.control.rejectEvaluator(id, note)
+  }
 }
 
 export const EVOLUTION_REMOTE_METHODS = [
@@ -71,6 +88,10 @@ export const EVOLUTION_REMOTE_METHODS = [
   'promote',
   'rollback',
   'startFeedbackShadow',
+  'evaluatorDraft',
+  'authorEvaluator',
+  'approveEvaluator',
+  'rejectEvaluator',
 ] as const satisfies readonly (keyof EvolutionRemoteService)[]
 
 type RemoteInitializer = (this: EvolutionRemoteService) => void

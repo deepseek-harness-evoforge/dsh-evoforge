@@ -1,6 +1,6 @@
 # DeepSeek Harness EvoForge 项目需求基线
 
-> 状态：已确认；研究与设计已完成，P0A–P1.8、P2A.1–P2D.1 与 Runtime Readiness 已进入 test-first 实现
+> 状态：已确认；研究与设计已完成，P0A–P1.9、P2A.1–P2D.1 与 Runtime Readiness 已实现；真实 provider、陌生用户与长期效果证据待积累
 > 更新日期：2026-08-17
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。
 
@@ -292,8 +292,12 @@ Draft PR 继续复用同一个 Tool 的可选参数，不再增加模型动作�
 用户逐条选择 signal/Skill，才保存未评分 Case Draft；它必须重新核对 exact feedback version、
 Session-pinned Generation、单一 Skill invocation 和 whole-Skill content hash。已有可信 Case Pack
 覆盖该失败类型时，用户可显式授权一次 Shadow，把草稿只作为 proposer 搜索证据；既有 evaluator
-仍是独立裁判，草稿输入字段不直接进入长期 run evidence（proposer 回显仍可随 Candidate 持久化）。全新失败再为一个高频场景验证最窄 deterministic
-evaluator authoring 工作流，不预建通用 Memory、Signal Bus 或 Case SDK。
+仍是独立裁判，草稿输入字段不直接进入长期 run evidence（proposer 回显仍可随 Candidate 持久化）。
+全新失败允许一次显式、可能付费的 evaluator authoring：结果先成为私有、不可执行的 Evaluator
+Draft；host 固定生成 manifest，并用 exact active Skill 形成 known-bad，模型只能提议 evidence、
+known-correction 与 evaluator。只有另一项人工决定批准 exact hash，且 sealed calibration 方向成立，
+才发布 immutable Qualified Case Pack。资格成立不等于 Candidate 改善或晋升证据；后续 Shadow 仍需
+另一次显式动作。不预建通用 Memory、Signal Bus 或 Case SDK。
 
 Case Pack authoring 先提供零模型校准命令，不创建新 Service 或 SDK。完整 Shadow 必须在 proposer
 之前用同一个 sealed evaluator 拒绝 known-bad、接受 known-correction；方向不成立时不发送付费

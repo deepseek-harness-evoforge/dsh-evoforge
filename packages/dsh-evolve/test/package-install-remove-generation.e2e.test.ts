@@ -67,6 +67,26 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-evolve package boundar
     expect(installedManifest.dsh.profile.bundles).toEqual([])
 
     await linkPinnedRuntime(profileDir)
+    const skillRepository = join(root, 'owned-skill-repository')
+    const skillPath = join(skillRepository, 'skills', 'build-dsh-plugin')
+    await mkdir(skillPath, { recursive: true })
+    await writeFile(join(skillPath, 'SKILL.md'), [
+      '---',
+      'name: build-dsh-plugin',
+      'description: Packed evaluator-target fixture.',
+      '---',
+      '',
+      'Develop the requested out-of-tree DSH plugin.',
+      '',
+    ].join('\n'))
+    await execFile('git', ['init', '-q', skillRepository])
+    await execFile('git', ['-C', skillRepository, 'config', 'user.name', 'EvoForge Test'])
+    await execFile('git', ['-C', skillRepository, 'config', 'user.email', 'test@example.invalid'])
+    await execFile('git', ['-C', skillRepository, 'add', '.'])
+    await execFile('git', ['-C', skillRepository, 'commit', '-qm', 'packed evaluator target'])
+    const pinnedDshRevision = (await execFile(
+      'git', ['-C', dshSourceDir, 'rev-parse', 'HEAD'], { encoding: 'utf8' },
+    )).stdout.trim()
     const nativeRows = [
       {
         id: 'system-prompt',
@@ -89,7 +109,25 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-evolve package boundar
     const nativeConfig = join(profileDir, 'native.cordis.yml')
     await writeFile(installedConfig, JSON.stringify([
       ...nativeRows,
-      { id: 'dsh-evolve', name: 'dsh-evolve', config: { sources: [] } },
+      {
+        id: 'dsh-evolve',
+        name: 'dsh-evolve',
+        config: {
+          cacheRoot: join(root, 'git-skill-cache'),
+          feedbackDraftRoot: join(root, 'private-feedback-drafts'),
+          sources: [{
+            name: 'build-dsh-plugin',
+            repository: skillRepository,
+            path: 'skills/build-dsh-plugin',
+          }],
+          evaluatorTargets: [{
+            id: 'plugin-delivery',
+            skill: 'build-dsh-plugin',
+            root: join(root, 'private-evaluator-drafts'),
+            dshRevision: pinnedDshRevision,
+          }],
+        },
+      },
     ], null, 2))
     await writeFile(nativeConfig, JSON.stringify(nativeRows, null, 2))
 

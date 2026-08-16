@@ -168,6 +168,15 @@ evidence, or run journal; only its content id and private resume path are added.
 The proposer claim and Candidate are durable for crash recovery, so model output
 that echoes or paraphrases the draft can still be retained.
 
+P1.9 covers a correction for which no trusted Case Pack exists yet. A statically
+configured Evaluator Target authorizes one explicit, bounded model request that
+can propose only search evidence, one corrected single-file Skill, and one
+evaluator. The host supplies the exact known-bad Skill, manifest, budgets, and
+pinned DSH revision. Generated code stays private and inactive. A separate human
+exact-hash approval is required before sealed known-bad/known-correction
+qualification; a qualified pack still cannot start Shadow or Promotion. A crash
+or ambiguous transport after durable intent never causes an automatic paid retry.
+
 This is still pre-alpha. There is no paginated/graphical diff UI, real-task
 false-promotion/false-rollback dataset, release, or production support. Explicit and resident
 Shadow recovery now cover bounded proposer/Candidate/Trial crash boundaries, but
@@ -198,6 +207,11 @@ Skill that a Generation may activate:
         skill: build-dsh-plugin
         casePackDir: /absolute/path/to/calibrated-plugin-delivery-cases
         runRoot: /absolute/path/to/.dsh/evoforge/plugin-delivery-runs
+    evaluatorTargets:
+      - id: plugin-delivery-evaluator
+        skill: build-dsh-plugin
+        root: /absolute/path/to/.dsh/evoforge/private-evaluator-drafts
+        dshRevision: 47f943859bef60e4160492346772ded9b24f765a
     autoPromote:
       skills:
         - build-dsh-plugin
@@ -217,6 +231,16 @@ Starting a target is an explicit authorization for one potentially paid proposer
 request and disclosure of that bounded private correction. It returns immediately;
 the originating Session does not wait. The content-addressed launch directory and
 existing Shadow journal make retries idempotent and restart recovery conservative.
+
+`evaluatorTargets` is optional and bounded to 20 entries. Each public id binds
+one exact single-file Skill, a unique private absolute root, and a full pinned
+DSH Git revision. It also requires `feedbackDraftRoot`, native Jobs, Message
+Feedback, and Session Persistence. `/evolve feedback <signal> author <target>`
+authorizes one possible charge and bounded disclosure; `/evolve evaluator`
+lists drafts, and `/evolve evaluator <id> approve|reject <note>` records the
+independent human decision. Approval executes generated code only inside the
+sealed runner. Normal Sessions, overview, detail, and approval add zero model
+tokens; author uses at most one request with a fixed 1,600 output-token limit.
 
 `supervisor` is optional. When configured, the DSH composition must also load a
 native `ctx.jobs` implementation such as `@deepseek-ai/dsh-jobs-local`. Each

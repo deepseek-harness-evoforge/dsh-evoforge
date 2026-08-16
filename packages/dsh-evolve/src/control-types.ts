@@ -109,6 +109,40 @@ export interface EvolutionShadowRunView {
   readonly updatedAt: string
 }
 
+/** Bounded host-only evaluator proposal; generated code remains inactive. */
+export interface EvolutionEvaluatorDraftView {
+  readonly id: string
+  readonly launchId: string
+  readonly targetId: string
+  readonly skillName: string
+  readonly status: 'authoring-pending' | 'uncertain' | 'draft-ready' | 'qualification-running' | 'qualified' | 'incomplete' | 'rejected'
+  readonly createdAt: string
+  readonly updatedAt: string
+  readonly cost: {
+    readonly modelCalls: 0 | 1
+    readonly inputTokens: number
+    readonly outputTokens: number
+  }
+}
+
+/** Exact bounded files shown only after an explicit detail request. */
+export interface EvolutionEvaluatorDraftDetail {
+  readonly schemaVersion: 1
+  readonly draft: EvolutionEvaluatorDraftView
+  readonly files: readonly { readonly path: string; readonly content: string }[]
+  readonly limitations: readonly string[]
+  readonly decision?: {
+    readonly actor: 'human'
+    readonly note: string
+    readonly decidedAt: string
+  }
+  readonly qualification?: {
+    readonly calibrated: boolean
+    readonly attempt: number
+  }
+  readonly reason?: string
+}
+
 /** Browser overview. Dynamic global state stays outside Session and model context. */
 export interface EvolutionOverview {
   readonly schemaVersion: 1
@@ -135,6 +169,13 @@ export interface EvolutionOverview {
     readonly signals: readonly EvolutionFeedbackSignalView[]
     readonly targets: readonly EvolutionShadowTargetView[]
     readonly runs: readonly EvolutionShadowRunView[]
+  }
+  readonly evaluatorAuthoring?: {
+    readonly available: boolean
+    readonly warningCount: number
+    readonly signals: readonly EvolutionFeedbackSignalView[]
+    readonly targets: readonly EvolutionShadowTargetView[]
+    readonly drafts: readonly EvolutionEvaluatorDraftView[]
   }
   readonly reviews: {
     readonly available: boolean
@@ -167,7 +208,7 @@ export interface EvolutionReviewDetail {
 /** Durable action acknowledgement; UI refreshes the authoritative overview afterwards. */
 export interface EvolutionActionReceipt {
   readonly schemaVersion: 1
-  readonly action: 'pause' | 'resume' | 'approve-review' | 'reject-review' | 'promote' | 'rollback' | 'start-shadow'
+  readonly action: 'pause' | 'resume' | 'approve-review' | 'reject-review' | 'promote' | 'rollback' | 'start-shadow' | 'author-evaluator' | 'approve-evaluator' | 'reject-evaluator'
   readonly reviewId?: string
   readonly status?: 'approved' | 'rejected'
   readonly generationId?: string
@@ -179,4 +220,6 @@ export interface EvolutionActionReceipt {
   readonly skillName?: string
   readonly runStatus?: 'scheduled' | 'prepared' | 'proposal-pending' | 'candidate-ready' | 'trial-running' | 'complete' | 'incomplete'
   readonly jobId?: string
+  readonly draftId?: string
+  readonly draftStatus?: 'scheduled' | 'authoring-pending' | 'uncertain' | 'draft-ready' | 'qualification-running' | 'qualified' | 'incomplete' | 'rejected'
 }

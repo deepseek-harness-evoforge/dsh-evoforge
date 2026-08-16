@@ -96,6 +96,14 @@ _Avoid_: `/learn` command, feedback memory, transcript copy, automatic Skill edi
 A private, content-addressed, unscored sample created only after configuration-level copy authorization and an explicit host command. It binds one still-current feedback version to one direct user text, one correction, one exact Generation Skill artifact, the whole materialized Skill content hash, and one Session-prefix hash; it excludes assistant responses, Tool output, Skill bodies, cwd, and full Transcript. It is not evaluator truth by itself.
 _Avoid_: Automatic transcript harvesting, generic Case platform, Candidate, proof of improvement
 
+**Evaluator Draft**:
+A private, content-addressed and inactive proposal for one Case Pack, authored from an exact Feedback Case Draft and exact Skill version. Its generated files are review material only: they cannot execute, score a Candidate, become a Shadow Target, or authorize promotion until a separate human decision and sealed qualification succeed.
+_Avoid_: Evaluator, trusted test, automatic grader, Evolution Candidate
+
+**Qualified Case Pack**:
+An immutable Evaluator Draft whose exact files were semantically approved by a human and whose evaluator then rejected the declared known-bad fixture and accepted the declared known-correction fixture inside the sealed runner. Qualification proves direction for that exact pack, not novel-case coverage or Candidate improvement.
+_Avoid_: Proven evaluator, self-certified test, active Skill, promotion evidence
+
 **Feedback-guided Shadow**:
 An explicit Shadow run that supplies one exact private Feedback Case Draft only to the proposer as untrusted search evidence, while an existing calibrated Case Pack remains the independent evaluator. The draft id and private resume path are durable; its input fields are not directly copied into Shadow evidence, although proposer output that echoes them remains durable Candidate evidence. The host invocation authorizes that one potentially paid provider request and disclosure.
 _Avoid_: Generated evaluator, self-scoring Candidate, background paid proposal, feedback text in report/journal

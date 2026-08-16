@@ -10,12 +10,17 @@ afterEach(cleanup)
 const reviewId = 'c'.repeat(64)
 const generationId = 'a'.repeat(64)
 const signalId = '8'.repeat(64)
+const evaluatorDraftId = 'e'.repeat(64)
 
 function success<T>(value: T) {
   return Promise.resolve({ ok: true as const, value })
 }
 
-function remote(withActive = false, withInactive = false): EvolutionRemoteClient {
+function remote(
+  withActive = false,
+  withInactive = false,
+  evaluatorStatus: 'draft-ready' | 'incomplete' = 'draft-ready',
+): EvolutionRemoteClient {
   const overview = {
     schemaVersion: 1 as const,
     recovery: { available: true, paused: false },
@@ -26,6 +31,22 @@ function remote(withActive = false, withInactive = false): EvolutionRemoteClient
       signals: [{ id: signalId, sourceUpdatedAt: 1_786_896_000_000, generationId }],
       targets: [{ id: 'plugin-delivery', skillName: 'build-dsh-plugin' }],
       runs: [],
+    },
+    evaluatorAuthoring: {
+      available: true,
+      warningCount: 0,
+      signals: [{ id: signalId, sourceUpdatedAt: 1_786_896_000_000, generationId }],
+      targets: [{ id: 'plugin-delivery', skillName: 'build-dsh-plugin' }],
+      drafts: [{
+        id: evaluatorDraftId,
+        launchId: 'd'.repeat(64),
+        targetId: 'plugin-delivery',
+        skillName: 'build-dsh-plugin',
+        status: evaluatorStatus,
+        createdAt: '2026-08-17T00:00:00.000Z',
+        updatedAt: '2026-08-17T00:00:01.000Z',
+        cost: { modelCalls: 1 as const, inputTokens: 100, outputTokens: 50 },
+      }],
     },
     reviews: {
       available: true,
@@ -99,6 +120,42 @@ function remote(withActive = false, withInactive = false): EvolutionRemoteClient
       runStatus: 'scheduled' as const,
       jobId: 'evolution-1',
     })),
+    evaluatorDraft: vi.fn(() => success({
+      schemaVersion: 1 as const,
+      draft: overview.evaluatorAuthoring.drafts[0]!,
+      files: [
+        { path: 'final-test/evaluator.mjs', content: 'process.stdout.write("bounded")\n' },
+        { path: 'search/evidence.md', content: 'independent observable\n' },
+      ],
+      limitations: ['inactive until human qualification'],
+    })),
+    authorEvaluator: vi.fn(() => success({
+      schemaVersion: 1 as const,
+      action: 'author-evaluator' as const,
+      launchId: 'd'.repeat(64),
+      targetId: 'plugin-delivery',
+      skillName: 'build-dsh-plugin',
+      draftStatus: 'scheduled' as const,
+      jobId: 'evolution-2',
+    })),
+    approveEvaluator: vi.fn(() => success({
+      schemaVersion: 1 as const,
+      action: 'approve-evaluator' as const,
+      launchId: 'd'.repeat(64),
+      draftId: evaluatorDraftId,
+      targetId: 'plugin-delivery',
+      skillName: 'build-dsh-plugin',
+      draftStatus: 'qualified' as const,
+    })),
+    rejectEvaluator: vi.fn(() => success({
+      schemaVersion: 1 as const,
+      action: 'reject-evaluator' as const,
+      launchId: 'd'.repeat(64),
+      draftId: evaluatorDraftId,
+      targetId: 'plugin-delivery',
+      skillName: 'build-dsh-plugin',
+      draftStatus: 'rejected' as const,
+    })),
   }
 }
 
@@ -114,6 +171,9 @@ const t = (key: string) => ({
   'action.promote': 'Promote',
   'action.rollback': 'Rollback',
   'action.startShadow': 'Start Shadow',
+  'action.authorEvaluator': 'Author Evaluator',
+  'action.inspectEvaluator': 'Inspect Evaluator',
+  'action.approveEvaluator': 'Qualify Evaluator',
   'action.confirm': 'Confirm',
   'action.cancel': 'Cancel',
   'field.note': 'Decision note',
@@ -179,6 +239,59 @@ describe('EvolutionAction', () => {
     const confirmation = await screen.findByRole('alertdialog')
     fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm' }))
     await waitFor(() => expect(api.startFeedbackShadow).toHaveBeenCalledWith(signalId, 'plugin-delivery'))
+  })
+
+  it('keeps paid evaluator authoring cancellable and qualification behind a second confirmation', async () => {
+    const api = remote()
+    render(<EvolutionAction remote={api} t={t} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
+    await screen.findByRole('dialog')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Author Evaluator · plugin-delivery' }))
+    expect(api.authorEvaluator).not.toHaveBeenCalled()
+    let confirmation = await screen.findByRole('alertdialog')
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Cancel' }))
+    expect(api.authorEvaluator).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Author Evaluator · plugin-delivery' }))
+    confirmation = await screen.findByRole('alertdialog')
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm' }))
+    await waitFor(() => expect(api.authorEvaluator).toHaveBeenCalledWith(signalId, 'plugin-delivery'))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Inspect Evaluator' }))
+    await screen.findByText('final-test/evaluator.mjs')
+    expect(api.evaluatorDraft).toHaveBeenCalledWith(evaluatorDraftId)
+    fireEvent.change(screen.getByLabelText('Decision note'), { target: { value: 'independent semantics reviewed' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Qualify Evaluator' }))
+    expect(api.approveEvaluator).not.toHaveBeenCalled()
+    confirmation = await screen.findByRole('alertdialog')
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm' }))
+    await waitFor(() => expect(api.approveEvaluator).toHaveBeenCalledWith(
+      evaluatorDraftId,
+      'independent semantics reviewed',
+    ))
+    expect(api.startFeedbackShadow).not.toHaveBeenCalled()
+    expect(api.promote).not.toHaveBeenCalled()
+  })
+
+  it('allows only local sealed qualification to be retried for an incomplete exact draft', async () => {
+    const api = remote(false, false, 'incomplete')
+    render(<EvolutionAction remote={api} t={t} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
+    await screen.findByRole('dialog')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Inspect Evaluator' }))
+    await screen.findByText('final-test/evaluator.mjs')
+    fireEvent.change(screen.getByLabelText('Decision note'), { target: { value: 'retry exact local qualification' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Qualify Evaluator' }))
+    const confirmation = await screen.findByRole('alertdialog')
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm' }))
+
+    await waitFor(() => expect(api.approveEvaluator).toHaveBeenCalledWith(
+      evaluatorDraftId,
+      'retry exact local qualification',
+    ))
+    expect(api.authorEvaluator).not.toHaveBeenCalled()
   })
 })
 

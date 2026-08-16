@@ -18,6 +18,10 @@ describe('EvolutionRemoteService', () => {
       promote: vi.fn(),
       rollback: vi.fn(),
       startFeedbackShadow: vi.fn(async () => ({ ...receipt, action: 'start-shadow' })),
+      evaluatorDraft: vi.fn(),
+      authorEvaluator: vi.fn(async () => ({ ...receipt, action: 'author-evaluator' })),
+      approveEvaluator: vi.fn(),
+      rejectEvaluator: vi.fn(),
     } as unknown as EvolutionControlPlane
     const ctx = new Context()
     const remote = new EvolutionRemoteService(ctx, control)
@@ -25,7 +29,9 @@ describe('EvolutionRemoteService', () => {
     await expect(remote.overview()).resolves.toBe(overview)
     await expect(remote.pause()).resolves.toBe(receipt)
     await remote.startFeedbackShadow('signal', 'target')
+    await remote.authorEvaluator('signal', 'target')
     expect(control.startFeedbackShadow).toHaveBeenCalledWith('signal', 'target')
+    expect(control.authorEvaluator).toHaveBeenCalledWith('signal', 'target')
     expect(ctx.get('evoforge.evolutionControl')).toMatchObject({ name: 'evoforge.evolutionControl' })
     expect(remote.typertRemote).toMatchObject({
       serviceKey: 'evoforge.evolutionControl',
@@ -41,6 +47,10 @@ describe('EvolutionRemoteService', () => {
       'promote',
       'rollback',
       'startFeedbackShadow',
+      'evaluatorDraft',
+      'authorEvaluator',
+      'approveEvaluator',
+      'rejectEvaluator',
     ])
   })
 })

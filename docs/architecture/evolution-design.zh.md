@@ -1,7 +1,7 @@
 # EvoForge 可证明自进化设计
 
-> 状态：P0A/P0B/P0C（含 exact diff 与 protected-effect 词法提示）implemented；P1.1 最窄 opt-in 自动晋升、P2D.1 Outcome、P1.2 反事实 canary/自动回滚、P1.3 显式反馈入口、P1.4 私有 Case Draft、P1.5 反馈引导 Shadow、P1.6 proposer 前 Case Pack 校准、P1.7 显式 evaluator authoring Skill 与 P1.8 显式目标绑定 Shadow Launch implemented；全新失败自动 evaluator 和真实任务长期证据待完成
-> 更新日期：2026-08-16
+> 状态：P0A/P0B/P0C（含 exact diff 与 protected-effect 词法提示）implemented；P1.1 最窄 opt-in 自动晋升、P2D.1 Outcome、P1.2 反事实 canary/自动回滚、P1.3 显式反馈入口、P1.4 私有 Case Draft、P1.5 反馈引导 Shadow、P1.6 proposer 前 Case Pack 校准、P1.7 显式 evaluator authoring Skill、P1.8 显式目标绑定 Shadow Launch 与 P1.9 私有 Evaluator Draft/人工资格验证 implemented；真实 provider 与真实任务长期证据待完成
+> 更新日期：2026-08-17
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 
 ## 1. 结论
@@ -640,8 +640,17 @@ Shadow proposer，同时由既有校准 Case Pack 独立评测，见
 P1.6 已提供零模型独立校准，并让完整 Shadow 在 proposer 前 fail closed，见
 [P1.6](../evidence/p1-6-preproposal-case-pack-calibration.zh.md)。P1.7 已把一个新失败的最窄
 evaluator authoring 流程沉淀为显式、非隐式注入 Skill，要求独立 observable、negative controls、
-known-bad/correction 与零模型校准，见 [P1.7](../evidence/p1-7-evaluator-authoring-skill.zh.md)。下一步
-不扩建通用 Signal/Memory/Case 平台；首个新失败已完成 keyless red→green→bounded Shadow 与
-可回滚 Skill 晋升，下一步由独立陌生作者复跑，并用真实 provider 与用户纠正测量候选改善率，
+known-bad/correction 与零模型校准，见 [P1.7](../evidence/p1-7-evaluator-authoring-skill.zh.md)。
+
+P1.9 在同一 `dsh-evolve` 内补最窄深模块，不新增插件或 Case 平台：静态 Evaluator Target 只暴露
+公开 id；显式 Author 把 exact Feedback Case Draft 和 exact Skill 交给一次有界 provider 请求，host
+固定生成 manifest 并把 exact active Skill 作为 known-bad，模型只提议 evidence、known-correction
+与 evaluator。结果先是不可执行、内容寻址的私有 Evaluator Draft；独立人工批准 exact hash 后才
+允许 sealed qualification，方向成立仅发布 immutable Qualified Case Pack，不能直接成为 Shadow、
+Candidate 或 Promotion。原反馈 Session 永不等待，普通模型 request composition 不变。契约见
+[P1.9](p1-9-evaluator-draft-contract.zh.md)与 [ADR-0029](../adr/0029-generated-evaluators-remain-inactive-until-human-qualified.md)。
+
+不扩建通用 Signal/Memory/Case 平台；首个新失败已完成 keyless red→green→bounded Shadow 与可回滚
+Skill 晋升；P1.9 也已通过真实 DSH、浏览器、`SIGKILL` 与 packed lifecycle 实现门。下一步由独立陌生作者复跑，并用真实 provider 与用户纠正测量 qualified rate、semantic rejection rate、成本与后续候选改善率，
 继续测量 false promotion、false rollback、review rate、返工与成本。
 P0C 仍需普通用户完成控制任务的可用性退出证据。

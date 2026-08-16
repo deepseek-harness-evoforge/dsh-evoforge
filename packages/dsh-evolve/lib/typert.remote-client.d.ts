@@ -3,14 +3,18 @@ import type {
   RemoteResult,
   TypertRemoteContribution,
 } from '@deepseek-ai/dsh-typert-protocol'
-import type { EvolutionActionReceipt, EvolutionOverview, EvolutionReviewDetail } from 'dsh-evolve/client'
+import type { EvolutionActionReceipt, EvolutionEvaluatorDraftDetail, EvolutionOverview, EvolutionReviewDetail } from 'dsh-evolve/client'
 
 declare module '@deepseek-ai/dsh-typert-protocol' {
   interface TypertRemoteNamespace$65766f666f72676545766f6c7574696f6e {
+    approveEvaluator: (id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     approveReview: (id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
+    authorEvaluator: (signalId: string, targetId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
+    evaluatorDraft: (id: string) => Promise<RemoteResult<EvolutionEvaluatorDraftDetail>>
     overview: () => Promise<RemoteResult<EvolutionOverview>>
     pause: () => Promise<RemoteResult<EvolutionActionReceipt>>
     promote: (generationId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
+    rejectEvaluator: (id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     rejectReview: (id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     resume: () => Promise<RemoteResult<EvolutionActionReceipt>>
     review: (id: string) => Promise<RemoteResult<EvolutionReviewDetail>>
@@ -18,10 +22,14 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     startFeedbackShadow: (signalId: string, targetId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
   }
   interface TypertRemoteMap {
+    'evoforgeEvolution/approveEvaluator': (id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     'evoforgeEvolution/approveReview': (id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
+    'evoforgeEvolution/authorEvaluator': (signalId: string, targetId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
+    'evoforgeEvolution/evaluatorDraft': (id: string) => Promise<RemoteResult<EvolutionEvaluatorDraftDetail>>
     'evoforgeEvolution/overview': () => Promise<RemoteResult<EvolutionOverview>>
     'evoforgeEvolution/pause': () => Promise<RemoteResult<EvolutionActionReceipt>>
     'evoforgeEvolution/promote': (generationId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
+    'evoforgeEvolution/rejectEvaluator': (id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     'evoforgeEvolution/rejectReview': (id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     'evoforgeEvolution/resume': () => Promise<RemoteResult<EvolutionActionReceipt>>
     'evoforgeEvolution/review': (id: string) => Promise<RemoteResult<EvolutionReviewDetail>>

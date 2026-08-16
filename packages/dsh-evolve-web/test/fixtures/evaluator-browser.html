@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EvoForge Evaluator Browser Acceptance</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 2rem; }
+      button, textarea { margin: .25rem; padding: .5rem; }
+      .dsh-evolve-panel { border: 1px solid #999; padding: 1rem; max-width: 60rem; }
+      .dsh-evolve-review { margin: .75rem 0; }
+      .dsh-evolve-confirm-backdrop { position: fixed; inset: 0; background: #0008; display: grid; place-items: center; }
+      .dsh-evolve-confirm { background: white; padding: 1rem; border-radius: .5rem; }
+      pre { white-space: pre-wrap; border: 1px solid #ddd; padding: .5rem; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./evaluator-browser.js"></script>
+  </body>
+</html>

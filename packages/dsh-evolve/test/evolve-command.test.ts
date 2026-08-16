@@ -149,6 +149,78 @@ describe('/evolve host command', () => {
     expect(feedbackShadow.launch).toHaveBeenCalledWith(id, 'stable-skill')
   })
 
+  it('authors and reviews evaluator drafts through a separate human qualification inbox', async () => {
+    const signalId = 'f'.repeat(64)
+    const draftId = 'e'.repeat(64)
+    const evaluatorDrafts = {
+      author: vi.fn(async () => ({
+        schemaVersion: 1 as const,
+        action: 'author-evaluator' as const,
+        launchId: childId,
+        targetId: 'stable-skill',
+        skillName: 'stable-skill',
+        draftStatus: 'scheduled' as const,
+        jobId: 'evolution-2',
+      })),
+      scan: vi.fn(async () => ({
+        warningCount: 0,
+        drafts: [{
+          id: draftId,
+          launchId: childId,
+          targetId: 'stable-skill',
+          skillName: 'stable-skill',
+          status: 'draft-ready' as const,
+          createdAt: '2026-08-17T00:00:00.000Z',
+          updatedAt: '2026-08-17T00:00:01.000Z',
+          cost: { modelCalls: 1 as const, inputTokens: 30, outputTokens: 20 },
+        }],
+      })),
+      get: vi.fn(async () => ({
+        id: draftId,
+        launchId: childId,
+        targetId: 'stable-skill',
+        skillName: 'stable-skill',
+        status: 'draft-ready' as const,
+        createdAt: '2026-08-17T00:00:00.000Z',
+        updatedAt: '2026-08-17T00:00:01.000Z',
+        cost: { modelCalls: 1 as const, inputTokens: 30, outputTokens: 20 },
+        files: [{ path: 'search/evidence.md', content: 'bounded evidence' }],
+        limitations: ['not executable before approval'],
+      })),
+      approve: vi.fn(async () => ({
+        schemaVersion: 1 as const,
+        action: 'approve-evaluator' as const,
+        launchId: childId,
+        draftId,
+        targetId: 'stable-skill',
+        skillName: 'stable-skill',
+        draftStatus: 'qualified' as const,
+      })),
+      reject: vi.fn(),
+    }
+
+    await expect(executeEvolutionCommand(
+      fakeStore(),
+      `feedback ${signalId} author stable-skill`,
+      { evaluatorDrafts: evaluatorDrafts as never },
+    )).resolves.toMatchObject({
+      kind: 'success',
+      text: expect.stringContaining('submitted as native Job evolution-2'),
+    })
+    expect(evaluatorDrafts.author).toHaveBeenCalledWith(signalId, 'stable-skill')
+
+    await expect(executeEvolutionCommand(fakeStore(), 'evaluator', { evaluatorDrafts: evaluatorDrafts as never }))
+      .resolves.toMatchObject({ kind: 'success', text: expect.stringContaining(draftId) })
+    await expect(executeEvolutionCommand(fakeStore(), `evaluator ${draftId}`, { evaluatorDrafts: evaluatorDrafts as never }))
+      .resolves.toMatchObject({ kind: 'success', text: expect.stringContaining('bounded evidence') })
+    await expect(executeEvolutionCommand(
+      fakeStore(),
+      `evaluator ${draftId} approve independently reviewed`,
+      { evaluatorDrafts: evaluatorDrafts as never },
+    )).resolves.toMatchObject({ kind: 'success', text: expect.stringContaining('Qualified Case Pack') })
+    expect(evaluatorDrafts.approve).toHaveBeenCalledWith(draftId, 'independently reviewed')
+  })
+
   it('promotes a full content id only for future Sessions and is idempotent', async () => {
     const root = generation(rootId)
     const promoteGeneration = vi.fn<
@@ -209,7 +281,7 @@ describe('/evolve host command', () => {
     for (const input of ['promote', 'promote abc', `promote ${rootId} extra`, 'unknown']) {
       await expect(executeEvolutionCommand(store, input)).resolves.toMatchObject({
         kind: 'error',
-        text: 'Usage: /evolve [status|feedback [<signal-id> [draft <skill>|shadow <target>]]|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]',
+        text: 'Usage: /evolve [status|feedback [<signal-id> [draft <skill>|shadow <target>|author <evaluator-target>]]|evaluator [<draft-id> [approve|reject <note>]]|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]',
       })
     }
     expect(store.promoteGeneration).not.toHaveBeenCalled()

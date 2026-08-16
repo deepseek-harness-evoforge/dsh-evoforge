@@ -13,8 +13,9 @@ import type {
 } from './feedback-signal-monitor.ts'
 import type { FeedbackCaseDraftBuilder } from './feedback-case-draft.ts'
 import type { FeedbackShadowLauncher } from './feedback-shadow-launcher.ts'
+import type { EvaluatorDraftInbox } from './evaluator-draft-inbox.ts'
 
-const USAGE = 'Usage: /evolve [status|feedback [<signal-id> [draft <skill>|shadow <target>]]|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]'
+const USAGE = 'Usage: /evolve [status|feedback [<signal-id> [draft <skill>|shadow <target>|author <evaluator-target>]]|evaluator [<draft-id> [approve|reject <note>]]|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]'
 const generationIdPattern = /^[a-f0-9]{64}$/
 
 export interface EvolutionCommandModules {
@@ -25,6 +26,7 @@ export interface EvolutionCommandModules {
   readonly feedback?: Pick<FeedbackSignalStore, 'list' | 'summarize'>
   readonly feedbackDraft?: Pick<FeedbackCaseDraftBuilder, 'create'>
   readonly feedbackShadow?: Pick<FeedbackShadowLauncher, 'launch'>
+  readonly evaluatorDrafts?: Pick<EvaluatorDraftInbox, 'author' | 'scan' | 'get' | 'approve' | 'reject'>
 }
 
 /** Register the optional human control plane without adding a model Tool. */
@@ -50,7 +52,7 @@ export async function executeEvolutionCommand(
   modules: EvolutionCommandModules = {},
 ): Promise<CommandResult> {
   const input = rawInput.trim()
-  const { review, resident, automatic, outcomes, feedback, feedbackDraft, feedbackShadow } = modules
+  const { review, resident, automatic, outcomes, feedback, feedbackDraft, feedbackShadow, evaluatorDrafts } = modules
   try {
     if (input === '' || input === 'status') {
       const active = store.getActiveGeneration()
@@ -97,6 +99,21 @@ export async function executeEvolutionCommand(
             ].join('\n'),
       }
     }
+    const evaluatorAuthorAction = /^feedback\s+([a-f0-9]{64})\s+author\s+([a-z0-9]+(?:-[a-z0-9]+)*)$/u.exec(input)
+    if (evaluatorAuthorAction?.[1] !== undefined && evaluatorAuthorAction[2] !== undefined) {
+      if (evaluatorDrafts === undefined) return evaluatorDraftsUnavailable()
+      const authored = await evaluatorDrafts.author(evaluatorAuthorAction[1], evaluatorAuthorAction[2])
+      return {
+        kind: 'success',
+        text: authored.jobId === undefined
+          ? `Evaluator authoring ${authored.launchId} has durable status ${authored.draftStatus}. No paid request was repeated.`
+          : [
+              `Evaluator authoring ${authored.launchId} submitted as native Job ${authored.jobId}.`,
+              'This explicit action authorized one potentially paid request and disclosure of the bounded private correction plus exact Skill.',
+              'The result stays private and non-executable until a separate human approval.',
+            ].join('\n'),
+      }
+    }
     const feedbackAction = /^feedback\s+([a-f0-9]{64})(?:\s+draft\s+([a-z0-9]+(?:-[a-z0-9]+)*))?$/u.exec(input)
     if (feedbackAction?.[1] !== undefined) {
       if (feedback === undefined) return feedbackUnavailable()
@@ -119,6 +136,70 @@ export async function executeEvolutionCommand(
       if (review === undefined) return reviewUnavailable()
       const scan = await review.inbox.scan()
       return renderReviewList(scan.candidates, scan.warnings.length)
+    }
+    if (input === 'evaluator') {
+      if (evaluatorDrafts === undefined) return evaluatorDraftsUnavailable()
+      const scan = await evaluatorDrafts.scan()
+      if (scan.drafts.length === 0) {
+        return {
+          kind: 'success',
+          text: `No evaluator drafts.${scan.warningCount === 0 ? '' : ` Skipped ${scan.warningCount} invalid run(s).`}`,
+        }
+      }
+      return {
+        kind: 'success',
+        text: [
+          `Evaluator drafts: ${scan.drafts.length}`,
+          ...scan.drafts.map(draft => `- ${draft.id} [${draft.status}] ${draft.skillName}; model calls ${draft.cost.modelCalls}, tokens ${draft.cost.inputTokens}/${draft.cost.outputTokens}`),
+          ...scan.warningCount === 0 ? [] : [`Skipped invalid runs: ${scan.warningCount}`],
+          '',
+          'Inspect: /evolve evaluator <draft-id>',
+        ].join('\n'),
+      }
+    }
+    const evaluatorAction = /^evaluator\s+([a-f0-9]{64})(?:\s+(approve|reject)\s+([\s\S]+))?$/u.exec(input)
+    if (evaluatorAction?.[1] !== undefined) {
+      if (evaluatorDrafts === undefined) return evaluatorDraftsUnavailable()
+      const [, id, action, note] = evaluatorAction
+      if (action === undefined) {
+        const draft = await evaluatorDrafts.get(id)
+        return {
+          kind: 'success',
+          text: [
+            `Evaluator Draft ${draft.id}`,
+            `Status: ${draft.status}`,
+            `Target: ${draft.targetId} / ${draft.skillName}`,
+            `Authoring cost: ${draft.cost.modelCalls} model call(s), ${draft.cost.inputTokens} input / ${draft.cost.outputTokens} output tokens`,
+            `Limitations: ${draft.limitations.join('; ')}`,
+            ...draft.reason === undefined ? [] : [`Reason: ${draft.reason}`],
+            ...draft.files.flatMap(file => [`--- ${file.path}`, file.content]),
+            '',
+            ...draft.status === 'draft-ready'
+              ? [
+                  `Approve exact hash for sealed qualification: /evolve evaluator ${draft.id} approve <note>`,
+                  `Reject: /evolve evaluator ${draft.id} reject <note>`,
+                ]
+              : [],
+          ].join('\n'),
+        }
+      }
+      if (note === undefined || note.trim() === '') return { kind: 'error', text: USAGE }
+      if (action === 'reject') {
+        const rejected = await evaluatorDrafts.reject(id, note)
+        return {
+          kind: 'success',
+          text: `Evaluator Draft ${rejected.draftId ?? id} rejected durably. No generated code was executed.`,
+        }
+      }
+      const approved = await evaluatorDrafts.approve(id, note)
+      return {
+        kind: 'success',
+        text: [
+          `Evaluator Draft ${approved.draftId ?? id} approved and sealed calibration passed.`,
+          'Qualified Case Pack published immutably.',
+          'No Skill, Session, Shadow, Candidate, or Generation was changed.',
+        ].join('\n'),
+      }
     }
     const reviewAction = /^review\s+([a-f0-9]{64})(?:\s+(approve|reject)\s+([\s\S]+))?$/u.exec(input)
     if (reviewAction?.[1] !== undefined) {
@@ -228,6 +309,13 @@ function feedbackShadowUnavailable(): CommandResult {
   return {
     kind: 'error',
     text: 'Feedback Shadow launch is disabled. Configure a private feedbackDraftRoot, supervisor run roots, static shadowTargets, and native Jobs.',
+  }
+}
+
+function evaluatorDraftsUnavailable(): CommandResult {
+  return {
+    kind: 'error',
+    text: 'Evaluator authoring is disabled. Configure a private feedbackDraftRoot, static evaluatorTargets, and native Jobs.',
   }
 }
 

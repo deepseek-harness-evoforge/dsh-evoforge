@@ -34,6 +34,10 @@ import {
   FeedbackShadowLauncher,
   type FeedbackShadowTargetConfig,
 } from './feedback-shadow-launcher.ts'
+import {
+  EvaluatorDraftInbox,
+  type EvaluatorDraftTargetConfig,
+} from './evaluator-draft-inbox.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -56,6 +60,7 @@ export interface Config {
     skills: string[]
   }
   shadowTargets?: FeedbackShadowTargetConfig[]
+  evaluatorTargets?: EvaluatorDraftTargetConfig[]
 }
 
 export const Config: Schema<Config> = z.object({
@@ -78,6 +83,12 @@ export const Config: Schema<Config> = z.object({
     skill: z.string().required(),
     casePackDir: z.string().required(),
     runRoot: z.string().required(),
+  })).default([]),
+  evaluatorTargets: z.array(z.object({
+    id: z.string().required(),
+    skill: z.string().required(),
+    root: z.string().required(),
+    dshRevision: z.string().required(),
   })).default([]),
 })
 
@@ -105,6 +116,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     : new ResidentEvolutionControl(store)
   const automaticSkills = config.autoPromote?.skills ?? []
   const shadowTargets = config.shadowTargets ?? []
+  const evaluatorTargets = config.evaluatorTargets ?? []
   if (automaticSkills.length > 0 && review === undefined) {
     throw new Error('automatic promotion requires configured supervisor.runRoots')
   }
@@ -112,6 +124,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     || config.supervisor.runRoots.length === 0
     || config.feedbackDraftRoot === undefined)) {
     throw new Error('feedback Shadow targets require supervisor.runRoots and feedbackDraftRoot')
+  }
+  if (evaluatorTargets.length > 0 && config.feedbackDraftRoot === undefined) {
+    throw new Error('evaluator targets require feedbackDraftRoot')
   }
   const automaticPolicy = automaticSkills.length === 0
     ? undefined
@@ -144,6 +159,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         drafts: () => feedbackDraftBuilder,
         source,
       })
+  const evaluatorDrafts = evaluatorTargets.length === 0
+    ? undefined
+    : new EvaluatorDraftInbox({
+        targets: evaluatorTargets,
+        drafts: () => feedbackDraftBuilder,
+        source,
+      })
   const control = new EvolutionControlPlane({
     store,
     ...(review === undefined ? {} : { review }),
@@ -152,6 +174,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     outcomes: deliveryOutcomes,
     feedback: feedbackSignals,
     ...(feedbackShadow === undefined ? {} : { feedbackShadow }),
+    ...(evaluatorDrafts === undefined ? {} : { evaluatorDrafts }),
   })
   new EvolutionRemoteService(ctx, control)
   installEvolutionCommand(ctx, store, {
@@ -162,6 +185,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     feedback: feedbackSignals,
     ...(feedbackDraft === undefined ? {} : { feedbackDraft }),
     ...(feedbackShadow === undefined ? {} : { feedbackShadow }),
+    ...(evaluatorDrafts === undefined ? {} : { evaluatorDrafts }),
   })
   if (config.feedbackDraftRoot !== undefined) {
     ctx.inject(['messageFeedback', 'sessionPersistence'], (draftCtx) => {
@@ -191,6 +215,18 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       }
     }, 'dsh-evolve.deliveryOutcomeMonitor')
   })
+  if (evaluatorDrafts !== undefined) {
+    ctx.inject(['jobs'], (jobCtx) => {
+      jobCtx.effect(() => {
+        const detachController = jobCtx.jobs.attachController('dsh-evolve-evaluator-authoring')
+        const detachInbox = evaluatorDrafts.attachJobs(jobCtx.jobs)
+        return () => {
+          detachInbox()
+          detachController()
+        }
+      }, 'dsh-evolve.evaluatorDraftJobs')
+    })
+  }
   if (config.supervisor !== undefined && config.supervisor.runRoots.length > 0) {
     // Jobs is optional for the base release kernel. A configured supervisor activates
     // only when the host composes the native process-local Jobs service.

@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import type { EvolutionActionReceipt, EvolutionOverview, EvolutionReviewDetail } from 'dsh-evolve/client'
+import type {
+  EvolutionActionReceipt,
+  EvolutionEvaluatorDraftDetail,
+  EvolutionOverview,
+  EvolutionReviewDetail,
+} from 'dsh-evolve/client'
 import { remoteValue, type EvolutionRemoteClient } from './remote.ts'
 
 export interface EvolutionActionProps {
@@ -8,16 +13,18 @@ export interface EvolutionActionProps {
   readonly wide?: boolean
 }
 
-type ConfirmAction = 'approve' | 'reject' | 'promote' | 'rollback' | 'shadow'
+type ConfirmAction = 'approve' | 'reject' | 'promote' | 'rollback' | 'shadow' | 'authorEvaluator' | 'approveEvaluator' | 'rejectEvaluator'
 
 /** Sidebar trigger and bounded global evolution control panel. */
 export function EvolutionAction({ remote, t, wide = true }: EvolutionActionProps) {
   const [open, setOpen] = useState(false)
   const [overview, setOverview] = useState<EvolutionOverview>()
   const [detail, setDetail] = useState<EvolutionReviewDetail>()
+  const [evaluatorDetail, setEvaluatorDetail] = useState<EvolutionEvaluatorDraftDetail>()
   const [note, setNote] = useState('')
   const [promotionTarget, setPromotionTarget] = useState<string>()
   const [shadowSelection, setShadowSelection] = useState<{ signalId: string; targetId: string }>()
+  const [evaluatorSelection, setEvaluatorSelection] = useState<{ signalId: string; targetId: string }>()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   const [notice, setNotice] = useState<string>()
@@ -42,6 +49,21 @@ export function EvolutionAction({ remote, t, wide = true }: EvolutionActionProps
     setError(undefined)
     try {
       setDetail(await remoteValue(remote.review(id)))
+      setEvaluatorDetail(undefined)
+      setNote('')
+    } catch (cause) {
+      setError(message(cause))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const inspectEvaluator = async (id: string) => {
+    setBusy(true)
+    setError(undefined)
+    try {
+      setEvaluatorDetail(await remoteValue(remote.evaluatorDraft(id)))
+      setDetail(undefined)
       setNote('')
     } catch (cause) {
       setError(message(cause))
@@ -58,6 +80,9 @@ export function EvolutionAction({ remote, t, wide = true }: EvolutionActionProps
     try {
       const receipt = await request()
       if (receipt.action === 'promote') setPromotionTarget(undefined)
+      if (receipt.action === 'approve-evaluator' || receipt.action === 'reject-evaluator') {
+        setEvaluatorDetail(undefined)
+      }
       setNotice(t('notice.done'))
       await loadOverview()
     } catch (cause) {
@@ -81,6 +106,15 @@ export function EvolutionAction({ remote, t, wide = true }: EvolutionActionProps
         shadowSelection.signalId,
         shadowSelection.targetId,
       )))
+    } else if (confirm === 'authorEvaluator' && evaluatorSelection !== undefined) {
+      void run(() => remoteValue(remote.authorEvaluator(
+        evaluatorSelection.signalId,
+        evaluatorSelection.targetId,
+      )))
+    } else if (confirm === 'approveEvaluator' && evaluatorDetail !== undefined) {
+      void run(() => remoteValue(remote.approveEvaluator(evaluatorDetail.draft.id, note.trim())))
+    } else if (confirm === 'rejectEvaluator' && evaluatorDetail !== undefined) {
+      void run(() => remoteValue(remote.rejectEvaluator(evaluatorDetail.draft.id, note.trim())))
     }
   }
 
@@ -134,7 +168,7 @@ export function EvolutionAction({ remote, t, wide = true }: EvolutionActionProps
             </div>
             {notice !== undefined && <div className="dsh-evolve-message" role="status">{notice}</div>}
             {error !== undefined && <div className="dsh-evolve-message dsh-evolve-error" role="alert">{t('error.prefix')}{error}</div>}
-            {detail === undefined
+            {detail === undefined && evaluatorDetail === undefined
               ? <ReviewQueue
                   overview={overview}
                   busy={busy}
@@ -147,9 +181,14 @@ export function EvolutionAction({ remote, t, wide = true }: EvolutionActionProps
                     setShadowSelection({ signalId, targetId })
                     setConfirm('shadow')
                   }}
+                  authorEvaluator={(signalId, targetId) => {
+                    setEvaluatorSelection({ signalId, targetId })
+                    setConfirm('authorEvaluator')
+                  }}
+                  inspectEvaluator={inspectEvaluator}
                   t={t}
                 />
-              : (
+              : detail !== undefined ? (
                   <ReviewDetail
                     detail={detail}
                     note={note}
@@ -159,7 +198,17 @@ export function EvolutionAction({ remote, t, wide = true }: EvolutionActionProps
                     confirm={setConfirm}
                     t={t}
                   />
-                )}
+                ) : evaluatorDetail !== undefined ? (
+                  <EvaluatorDetail
+                    detail={evaluatorDetail}
+                    note={note}
+                    busy={busy}
+                    setNote={setNote}
+                    back={() => setEvaluatorDetail(undefined)}
+                    confirm={setConfirm}
+                    t={t}
+                  />
+                ) : null}
           </div>
         </section>
       )}
@@ -195,16 +244,19 @@ function Overview({ summary, t }: { summary: EvolutionOverview; t: (key: string)
   ))}</div>
 }
 
-function ReviewQueue({ overview, busy, inspect, promote, startShadow, t }: {
+function ReviewQueue({ overview, busy, inspect, promote, startShadow, authorEvaluator, inspectEvaluator, t }: {
   overview: EvolutionOverview | undefined
   busy: boolean
   inspect: (id: string) => Promise<void>
   promote: (generationId: string) => void
   startShadow: (signalId: string, targetId: string) => void
+  authorEvaluator: (signalId: string, targetId: string) => void
+  inspectEvaluator: (id: string) => Promise<void>
   t: (key: string) => string
 }) {
   if (overview === undefined) return null
   const feedbackShadow = overview.feedbackShadow
+  const evaluatorAuthoring = overview.evaluatorAuthoring
   return <>
     {feedbackShadow !== undefined && <section>
       <h3 className="dsh-evolve-section-title">{t('section.feedback')}</h3>
@@ -244,6 +296,51 @@ function ReviewQueue({ overview, busy, inspect, promote, startShadow, t }: {
         </li>
       ))}</ul>
     </section>}
+    {evaluatorAuthoring !== undefined && <section>
+      <h3 className="dsh-evolve-section-title">{t('section.evaluators')}</h3>
+      {evaluatorAuthoring.signals.length > 0 && <ul className="dsh-evolve-list">{evaluatorAuthoring.signals.map(signal => (
+        <li className="dsh-evolve-review" key={`author-${signal.id}`}>
+          <div className="dsh-evolve-review-head">
+            <div className="dsh-evolve-review-copy">
+              <div className="dsh-evolve-review-skill">{shortId(signal.id)}</div>
+              <div className="dsh-evolve-meta">{signal.generationId === undefined ? t('status.native') : shortId(signal.generationId)}</div>
+            </div>
+            <div className="dsh-evolve-actions">
+              {evaluatorAuthoring.targets.map(target => (
+                <button
+                  type="button"
+                  className="dsh-evolve-button dsh-evolve-primary"
+                  disabled={busy || !evaluatorAuthoring.available}
+                  key={target.id}
+                  title={`${target.id}: ${target.skillName}`}
+                  onClick={() => authorEvaluator(signal.id, target.id)}
+                >
+                  {t('action.authorEvaluator')} · {target.id}
+                </button>
+              ))}
+            </div>
+          </div>
+        </li>
+      ))}</ul>}
+      {evaluatorAuthoring.drafts.length === 0
+        ? <div className="dsh-evolve-message">{t('empty.evaluators')}</div>
+        : <ul className="dsh-evolve-list">{evaluatorAuthoring.drafts.map(draft => (
+          <li className="dsh-evolve-review" key={draft.id}>
+            <div className="dsh-evolve-review-head">
+              <div className="dsh-evolve-review-copy">
+                <div className="dsh-evolve-review-skill">{draft.skillName}</div>
+                <div className="dsh-evolve-meta">{draft.status} · {shortId(draft.id)} · {draft.cost.inputTokens}/{draft.cost.outputTokens} tokens</div>
+              </div>
+              {draft.status !== 'authoring-pending' && draft.status !== 'uncertain' && <button
+                type="button"
+                className="dsh-evolve-button"
+                disabled={busy}
+                onClick={() => { void inspectEvaluator(draft.id) }}
+              >{t('action.inspectEvaluator')}</button>}
+            </div>
+          </li>
+        ))}</ul>}
+    </section>}
     <section>
       <h3 className="dsh-evolve-section-title">{t('section.reviews')}</h3>
       {overview.reviews.items.length === 0
@@ -276,6 +373,45 @@ function ReviewQueue({ overview, busy, inspect, promote, startShadow, t }: {
       ))}</ul>
     </section>}
   </>
+}
+
+function EvaluatorDetail({ detail, note, busy, setNote, back, confirm, t }: {
+  detail: EvolutionEvaluatorDraftDetail
+  note: string
+  busy: boolean
+  setNote: (value: string) => void
+  back: () => void
+  confirm: (action: ConfirmAction) => void
+  t: (key: string) => string
+}) {
+  const validNote = note.trim().length > 0
+  const hasDraft = detail.draft.id !== detail.draft.launchId
+  const canApprove = hasDraft && ['draft-ready', 'qualification-running', 'incomplete'].includes(detail.draft.status)
+  const canReject = !['qualified', 'rejected'].includes(detail.draft.status)
+  return <section>
+    <h3 className="dsh-evolve-section-title">{t('section.evaluatorDetail')}</h3>
+    <dl className="dsh-evolve-detail-grid">
+      <dt>{t('label.skill')}</dt><dd>{detail.draft.skillName}</dd>
+      <dt>{t('label.status')}</dt><dd>{detail.draft.status}</dd>
+      <dt>{t('label.tokens')}</dt><dd>{detail.draft.cost.inputTokens} in / {detail.draft.cost.outputTokens} out</dd>
+      <dt>{t('label.limitations')}</dt><dd>{detail.limitations.join('; ')}</dd>
+    </dl>
+    {detail.files.map(file => <section key={file.path}>
+      <h4 className="dsh-evolve-section-title">{file.path}</h4>
+      <pre className="dsh-evolve-diff">{file.content}</pre>
+    </section>)}
+    <label>
+      <span className="dsh-evolve-section-title">{t('field.note')}</span>
+      <textarea className="dsh-evolve-note" aria-label={t('field.note')} value={note} maxLength={500} onChange={event => setNote(event.currentTarget.value)} />
+    </label>
+    <div className="dsh-evolve-actions">
+      <button type="button" className="dsh-evolve-button" disabled={busy} onClick={back}>{t('action.back')}</button>
+      {(canApprove || canReject) && <>
+        <button type="button" className="dsh-evolve-button dsh-evolve-danger" disabled={busy || !validNote} onClick={() => confirm('rejectEvaluator')}>{t('action.reject')}</button>
+        {canApprove && <button type="button" className="dsh-evolve-button dsh-evolve-primary" disabled={busy || !validNote} onClick={() => confirm('approveEvaluator')}>{t('action.approveEvaluator')}</button>}
+      </>}
+    </div>
+  </section>
 }
 
 function ReviewDetail({ detail, note, busy, setNote, back, confirm, t }: {

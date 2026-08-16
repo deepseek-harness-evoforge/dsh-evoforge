@@ -280,4 +280,61 @@ describe('EvolutionControlPlane', () => {
     })
     expect(launcher.launch).toHaveBeenCalledWith('9'.repeat(64), 'plugin-delivery')
   })
+
+  it('projects and delegates evaluator drafts without exposing owned paths', async () => {
+    const draftId = '8'.repeat(64)
+    const evaluatorDrafts = {
+      available: () => true,
+      targets: () => [{ id: 'plugin-delivery', skillName: 'build-dsh-plugin' }],
+      scan: vi.fn(async () => ({
+        warningCount: 0,
+        drafts: [{
+          id: draftId,
+          launchId: '9'.repeat(64),
+          targetId: 'plugin-delivery',
+          skillName: 'build-dsh-plugin',
+          status: 'draft-ready' as const,
+          createdAt: '2026-08-17T00:00:00.000Z',
+          updatedAt: '2026-08-17T00:00:01.000Z',
+          cost: { modelCalls: 1 as const, inputTokens: 30, outputTokens: 20 },
+        }],
+      })),
+      get: vi.fn(async () => ({
+        id: draftId,
+        launchId: '9'.repeat(64),
+        targetId: 'plugin-delivery',
+        skillName: 'build-dsh-plugin',
+        status: 'draft-ready' as const,
+        createdAt: '2026-08-17T00:00:00.000Z',
+        updatedAt: '2026-08-17T00:00:01.000Z',
+        cost: { modelCalls: 1 as const, inputTokens: 30, outputTokens: 20 },
+        files: [{ path: 'final-test/evaluator.mjs', content: 'private bounded source' }],
+        limitations: ['inactive'],
+      })),
+      author: vi.fn(async () => ({ schemaVersion: 1 as const, action: 'author-evaluator' as const })),
+      approve: vi.fn(async () => ({ schemaVersion: 1 as const, action: 'approve-evaluator' as const })),
+      reject: vi.fn(async () => ({ schemaVersion: 1 as const, action: 'reject-evaluator' as const })),
+    }
+    const control = new EvolutionControlPlane({ store: store(), evaluatorDrafts: evaluatorDrafts as never })
+
+    await expect(control.overview()).resolves.toMatchObject({
+      evaluatorAuthoring: {
+        available: true,
+        warningCount: 0,
+        targets: [{ id: 'plugin-delivery', skillName: 'build-dsh-plugin' }],
+        drafts: [{ id: draftId, status: 'draft-ready' }],
+      },
+    })
+    await expect(control.evaluatorDraft(draftId)).resolves.toMatchObject({
+      schemaVersion: 1,
+      draft: { id: draftId },
+      files: [{ path: 'final-test/evaluator.mjs', content: 'private bounded source' }],
+    })
+    await control.authorEvaluator('7'.repeat(64), 'plugin-delivery')
+    await control.approveEvaluator(draftId, 'reviewed')
+    await control.rejectEvaluator(draftId, 'wrong observable')
+    expect(evaluatorDrafts.author).toHaveBeenCalledWith('7'.repeat(64), 'plugin-delivery')
+    expect(evaluatorDrafts.approve).toHaveBeenCalledWith(draftId, 'reviewed')
+    expect(evaluatorDrafts.reject).toHaveBeenCalledWith(draftId, 'wrong observable')
+  })
 })

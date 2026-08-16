@@ -3,12 +3,14 @@ import type { CandidatePublisher } from './candidate-publisher.ts'
 import type { DeliveryOutcomeStore } from './delivery-outcome-monitor.ts'
 import type { FeedbackSignalStore } from './feedback-signal-monitor.ts'
 import type { FeedbackShadowLauncher } from './feedback-shadow-launcher.ts'
+import type { EvaluatorDraftInbox } from './evaluator-draft-inbox.ts'
 import type { EvolutionStore } from './generation-store.ts'
 import type { ResidentEvolutionControl } from './resident-evolution-control.ts'
 import type { ReviewCandidate, ReviewInbox } from './review-inbox.ts'
 import type {
   EvolutionActionReceipt,
   EvolutionGenerationView,
+  EvolutionEvaluatorDraftDetail,
   EvolutionOverview,
   EvolutionReviewDetail,
   EvolutionReviewView,
@@ -29,6 +31,7 @@ export interface EvolutionControlPlaneModules {
   readonly outcomes?: Pick<DeliveryOutcomeStore, 'summarize'>
   readonly feedback?: Pick<FeedbackSignalStore, 'list' | 'summarize'>
   readonly feedbackShadow?: Pick<FeedbackShadowLauncher, 'available' | 'targets' | 'scan' | 'launch'>
+  readonly evaluatorDrafts?: Pick<EvaluatorDraftInbox, 'available' | 'targets' | 'scan' | 'get' | 'author' | 'approve' | 'reject'>
 }
 
 /** A structured adapter surface that delegates to the same owners as Commands. */
@@ -41,9 +44,10 @@ export class EvolutionControlPlane {
 
   async overview(): Promise<EvolutionOverview> {
     const active = this.modules.store.getActiveGeneration()
-    const [scan, shadowScan] = await Promise.all([
+    const [scan, shadowScan, evaluatorScan] = await Promise.all([
       this.modules.review === undefined ? undefined : this.modules.review.inbox.scanAll(),
       this.modules.feedbackShadow === undefined ? undefined : this.modules.feedbackShadow.scan(),
+      this.modules.evaluatorDrafts === undefined ? undefined : this.modules.evaluatorDrafts.scan(),
     ])
     const automaticSkills = this.modules.automatic?.skills() ?? []
     return {
@@ -78,6 +82,27 @@ export class EvolutionControlPlane {
                 })),
               targets: this.modules.feedbackShadow.targets().map(target => ({ ...target })),
               runs: (shadowScan?.runs ?? []).map(run => ({ ...run })),
+            },
+          }),
+      ...(this.modules.evaluatorDrafts === undefined
+        ? {}
+        : {
+            evaluatorAuthoring: {
+              available: this.modules.evaluatorDrafts.available(),
+              warningCount: evaluatorScan?.warningCount ?? 0,
+              signals: (this.modules.feedback?.list() ?? [])
+                .slice(-MAX_FEEDBACK_ROWS)
+                .reverse()
+                .map(signal => ({
+                  id: signal.id,
+                  sourceUpdatedAt: signal.sourceUpdatedAt,
+                  ...(signal.generationId === undefined ? {} : { generationId: signal.generationId }),
+                })),
+              targets: this.modules.evaluatorDrafts.targets().map(target => ({ ...target })),
+              drafts: (evaluatorScan?.drafts ?? []).map(draft => ({
+                ...draft,
+                cost: { ...draft.cost },
+              })),
             },
           }),
       reviews: scan === undefined
@@ -194,6 +219,32 @@ export class EvolutionControlPlane {
     return this.modules.feedbackShadow.launch(signalId, targetId)
   }
 
+  async evaluatorDraft(id: string): Promise<EvolutionEvaluatorDraftDetail> {
+    const draft = await this.requireEvaluatorDrafts().get(id)
+    const { files, limitations, decision, qualification, reason, ...view } = draft
+    return {
+      schemaVersion: 1,
+      draft: { ...view, cost: { ...view.cost } },
+      files: files.map(file => ({ ...file })),
+      limitations: [...limitations],
+      ...(decision === undefined ? {} : { decision: { ...decision } }),
+      ...(qualification === undefined ? {} : { qualification: { ...qualification } }),
+      ...(reason === undefined ? {} : { reason }),
+    }
+  }
+
+  async authorEvaluator(signalId: string, targetId: string): Promise<EvolutionActionReceipt> {
+    return this.requireEvaluatorDrafts().author(signalId, targetId)
+  }
+
+  async approveEvaluator(id: string, note: string): Promise<EvolutionActionReceipt> {
+    return this.requireEvaluatorDrafts().approve(id, note)
+  }
+
+  async rejectEvaluator(id: string, note: string): Promise<EvolutionActionReceipt> {
+    return this.requireEvaluatorDrafts().reject(id, note)
+  }
+
   private requireReview(): NonNullable<EvolutionControlPlaneModules['review']> {
     if (this.modules.review === undefined) {
       throw new Error('review inbox is not configured')
@@ -206,6 +257,13 @@ export class EvolutionControlPlane {
       throw new Error('resident recovery is not configured')
     }
     return this.modules.resident
+  }
+
+  private requireEvaluatorDrafts(): NonNullable<EvolutionControlPlaneModules['evaluatorDrafts']> {
+    if (this.modules.evaluatorDrafts === undefined) {
+      throw new Error('evaluator authoring is not configured')
+    }
+    return this.modules.evaluatorDrafts
   }
 }
 
