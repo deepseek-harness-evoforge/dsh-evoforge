@@ -1,12 +1,21 @@
-import { randomUUID } from 'node:crypto'
-import { mkdir, readFile, realpath, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, realpath } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, relative, resolve } from 'node:path'
 import { hashTree, sha256 } from './hash.js'
+import {
+  acquireShadowRunLock,
+  assertShadowRunIdentity,
+  loadShadowRunState,
+  saveShadowRunState,
+  writeDurableJson,
+  type ShadowRunIdentity,
+  type ShadowRunState,
+} from './shadow-run-state.js'
 import { runPairedTrial } from './trial.js'
 
 interface ShadowOptions {
   casePackDir: string
   outputDir: string
+  resume?: boolean
   skillDir: string
 }
 
@@ -74,35 +83,196 @@ export async function runShadow(options: ShadowOptions): Promise<
   const baselineFingerprint = sha256(
     JSON.stringify({ baseTreeHash, casePackHash, modelConfigHash }),
   )
-  const startedAt = new Date().toISOString()
+  let startedAt = new Date().toISOString()
 
-  await mkdir(outputDir)
-  await mkdir(resolve(outputDir, 'evidence'))
-
-  let modelResponse: ModelResponse | undefined
-  let proposal: Proposal
+  const identity: ShadowRunIdentity = {
+    baseTreeHash,
+    casePackHash,
+    dshRevision: manifest.epoch.dshRevision,
+    evaluatorVersion: manifest.epoch.evaluatorVersion,
+    modelConfigHash,
+    modelRoute,
+    skillName,
+  }
+  const runId = sha256(JSON.stringify(identity))
+  if (options.resume === true) {
+    const actualOutputDir = await realpath(outputDir)
+    if (actualOutputDir !== outputDir) throw new Error('Shadow resume output path is not exact')
+  } else {
+    await mkdir(outputDir)
+    await mkdir(resolve(outputDir, 'evidence'))
+  }
+  const releaseRunLock = await acquireShadowRunLock(outputDir)
   try {
-    modelResponse = await requestProposal({
-      apiKey,
-      baseUrl: modelBaseUrl,
-      inputTokenLimit: manifest.budget.inputTokenLimit,
-      model: modelRoute,
-      outputTokenLimit: manifest.budget.outputTokenLimit,
-      searchEvidence,
-      skillName,
-      skillSource,
-    })
-    validateModelUsage(modelResponse, manifest.budget)
-    proposal = parseProposal(modelResponse)
-  } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error)
+    let state: ShadowRunState
+    if (options.resume === true) {
+      state = await loadShadowRunState(outputDir)
+      startedAt = state.startedAt
+      assertShadowRunIdentity(state.identity, identity)
+      if (state.runId !== runId) throw new Error('Shadow resume run id does not match its inputs')
+      if (state.outcome?.kind === 'complete') {
+        await assertTerminalReport(outputDir, state.outcome.reportPath)
+        return {
+          status: 'complete',
+          reportPath: state.outcome.reportPath,
+          summary: state.outcome.summary,
+        }
+      }
+      if (state.outcome?.kind === 'incomplete') {
+        await assertTerminalReport(outputDir, state.outcome.reportPath)
+        return {
+          status: 'incomplete',
+          reportPath: state.outcome.reportPath,
+          reason: state.outcome.reason,
+        }
+      }
+    } else {
+      state = {
+        schemaVersion: 1,
+        runId,
+        phase: 'prepared',
+        startedAt,
+        updatedAt: startedAt,
+        identity,
+      }
+      await saveShadowRunState(outputDir, state)
+    }
+
+    const updateState = async (patch: Partial<ShadowRunState>): Promise<void> => {
+      state = { ...state, ...patch, updatedAt: new Date().toISOString() }
+      await saveShadowRunState(outputDir, state)
+    }
+    const finishIncomplete = async (reportPath: string, reason: string) => {
+      await updateState({
+        phase: 'incomplete',
+        outcome: { kind: 'incomplete', reportPath, reason },
+      })
+      return { status: 'incomplete' as const, reportPath, reason }
+    }
+    const finishComplete = async (reportPath: string, summary: string) => {
+      await updateState({
+        phase: 'complete',
+        outcome: { kind: 'complete', reportPath, summary },
+      })
+      return { status: 'complete' as const, reportPath, summary }
+    }
+
+    let modelResponse: ModelResponse | undefined
+    let proposal: Proposal
+    try {
+      if (state.phase === 'proposal-pending') {
+        throw new Error('proposal outcome is uncertain after interruption; refusing automatic retry')
+      }
+      if (state.phase !== 'prepared') {
+        if (state.proposal === undefined
+          || state.proposalHash === undefined
+          || state.modelUsage === undefined) {
+          throw new Error('durable Candidate checkpoint is incomplete; refusing proposal retry')
+        }
+        proposal = parsePersistedProposal(state.proposal)
+        if (state.proposalHash !== sha256(JSON.stringify(proposal))) {
+          throw new Error('durable model proposal does not match its recorded hash')
+        }
+        modelResponse = {
+          usage: {
+            prompt_tokens: state.modelUsage.inputTokens,
+            completion_tokens: state.modelUsage.outputTokens,
+          },
+        }
+        validateModelUsage(modelResponse, manifest.budget)
+      } else {
+        const proposalEffect = {
+          id: sha256(`${runId}:proposal:1`),
+          requestedAt: new Date().toISOString(),
+        }
+        await updateState({ phase: 'proposal-pending', proposalEffect })
+        modelResponse = await requestProposal({
+          apiKey,
+          baseUrl: modelBaseUrl,
+          idempotencyKey: proposalEffect.id,
+          inputTokenLimit: manifest.budget.inputTokenLimit,
+          model: modelRoute,
+          outputTokenLimit: manifest.budget.outputTokenLimit,
+          searchEvidence,
+          skillName,
+          skillSource,
+        })
+        validateModelUsage(modelResponse, manifest.budget)
+        proposal = parseProposal(modelResponse)
+        await updateState({
+          phase: 'candidate-ready',
+          proposal,
+          proposalHash: sha256(JSON.stringify(proposal)),
+          modelUsage: {
+            inputTokens: modelResponse.usage?.prompt_tokens ?? 0,
+            outputTokens: modelResponse.usage?.completion_tokens ?? 0,
+          },
+        })
+      }
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error)
+      const finalTreeHash = await hashTree(skillDir)
+      const reportPath = resolve(outputDir, 'report.json')
+      await writeJson(reportPath, {
+        schemaVersion: 1,
+        run: {
+          id: runId,
+          status: 'incomplete',
+          startedAt,
+          finishedAt: new Date().toISOString(),
+        },
+        subject: {
+          skillName,
+          baseTreeHash,
+          finalTreeHash,
+          unchanged: finalTreeHash === baseTreeHash,
+        },
+        epoch: {
+          dshRevision: manifest.epoch.dshRevision,
+          modelRoute,
+          modelConfigHash,
+          evaluatorVersion: manifest.epoch.evaluatorVersion,
+          casePackHash,
+        },
+        calibration: [],
+        cases: [],
+        composition: {
+          baselineFingerprint,
+          candidateFingerprint: baselineFingerprint,
+          allowedDifference: [],
+        },
+        budget: {
+          candidateLimit: manifest.budget.candidateLimit,
+          trialLimit: manifest.budget.trialLimit,
+          inputTokens: modelResponse?.usage?.prompt_tokens ?? 0,
+          outputTokens: modelResponse?.usage?.completion_tokens ?? 0,
+        },
+      })
+      return finishIncomplete(reportPath, reason)
+    }
+    const changedFiles = proposal.files.map((file) => file.path)
+    const unsafePaths = changedFiles.filter((path) => !isOwnedRelativePath(path))
+    const proposalEvidence = {
+      claim: proposal.claim,
+      files: proposal.files.map((file) => ({
+        path: file.path,
+        contentHash: sha256(file.content),
+        byteLength: Buffer.byteLength(file.content),
+      })),
+      modelRoute,
+      usage: modelResponse.usage ?? {},
+    }
+    await writeJson(resolve(outputDir, 'evidence', 'proposal.json'), proposalEvidence)
+
     const finalTreeHash = await hashTree(skillDir)
-    const reportPath = resolve(outputDir, 'report.json')
-    await writeJson(reportPath, {
+    const activeSkillUnchanged = finalTreeHash === baseTreeHash
+
+    const candidateTreeHash = sha256(JSON.stringify(proposal))
+    const reportBase = {
       schemaVersion: 1,
       run: {
-        id: randomUUID(),
-        status: 'incomplete',
+        id: runId,
+        status: activeSkillUnchanged && unsafePaths.length > 0 ? 'complete' : 'incomplete',
         startedAt,
         finishedAt: new Date().toISOString(),
       },
@@ -110,7 +280,7 @@ export async function runShadow(options: ShadowOptions): Promise<
         skillName,
         baseTreeHash,
         finalTreeHash,
-        unchanged: finalTreeHash === baseTreeHash,
+        unchanged: activeSkillUnchanged,
       },
       epoch: {
         dshRevision: manifest.epoch.dshRevision,
@@ -119,308 +289,255 @@ export async function runShadow(options: ShadowOptions): Promise<
         evaluatorVersion: manifest.epoch.evaluatorVersion,
         casePackHash,
       },
+      candidate: {
+        id: candidateTreeHash.slice(0, 16),
+        treeHash: candidateTreeHash,
+        parentTreeHash: baseTreeHash,
+        claim: proposal.claim,
+        changedFiles,
+      },
       calibration: [],
-      cases: [],
+      cases: [
+        {
+          id: manifest.id,
+          partition: 'search',
+          baseline: 'pass',
+          candidate: activeSkillUnchanged && unsafePaths.length > 0 ? 'fail' : 'incomplete',
+          checks: [
+            {
+              name: 'owned-path',
+              passed: unsafePaths.length === 0,
+              evidenceRef: 'evidence/proposal.json',
+            },
+            ...activeSkillUnchanged
+              ? []
+              : [{
+                  name: 'active-skill-unchanged',
+                  passed: false,
+                  evidenceRef: 'report.json#subject',
+                }],
+          ],
+        },
+      ],
       composition: {
         baselineFingerprint,
-        candidateFingerprint: baselineFingerprint,
-        allowedDifference: [],
+        candidateFingerprint: sha256(`${baselineFingerprint}:${candidateTreeHash}`),
+        allowedDifference: ['skill.body'],
       },
       budget: {
         candidateLimit: manifest.budget.candidateLimit,
         trialLimit: manifest.budget.trialLimit,
-        inputTokens: modelResponse?.usage?.prompt_tokens ?? 0,
-        outputTokens: modelResponse?.usage?.completion_tokens ?? 0,
+        inputTokens: modelResponse.usage?.prompt_tokens ?? 0,
+        outputTokens: modelResponse.usage?.completion_tokens ?? 0,
       },
-    })
-    return { status: 'incomplete', reportPath, reason }
-  }
-  const changedFiles = proposal.files.map((file) => file.path)
-  const unsafePaths = changedFiles.filter((path) => !isOwnedRelativePath(path))
-  const proposalEvidence = {
-    claim: proposal.claim,
-    files: proposal.files.map((file) => ({
-      path: file.path,
-      contentHash: sha256(file.content),
-      byteLength: Buffer.byteLength(file.content),
-    })),
-    modelRoute,
-    usage: modelResponse.usage ?? {},
-  }
-  await writeJson(resolve(outputDir, 'evidence', 'proposal.json'), proposalEvidence)
-
-  const finalTreeHash = await hashTree(skillDir)
-  const activeSkillUnchanged = finalTreeHash === baseTreeHash
-
-  const candidateTreeHash = sha256(JSON.stringify(proposal))
-  const reportBase = {
-    schemaVersion: 1,
-    run: {
-      id: randomUUID(),
-      status: activeSkillUnchanged && unsafePaths.length > 0 ? 'complete' : 'incomplete',
-      startedAt,
-      finishedAt: new Date().toISOString(),
-    },
-    subject: {
-      skillName,
-      baseTreeHash,
-      finalTreeHash,
-      unchanged: activeSkillUnchanged,
-    },
-    epoch: {
-      dshRevision: manifest.epoch.dshRevision,
-      modelRoute,
-      modelConfigHash,
-      evaluatorVersion: manifest.epoch.evaluatorVersion,
-      casePackHash,
-    },
-    candidate: {
-      id: candidateTreeHash.slice(0, 16),
-      treeHash: candidateTreeHash,
-      parentTreeHash: baseTreeHash,
-      claim: proposal.claim,
-      changedFiles,
-    },
-    calibration: [],
-    cases: [
-      {
-        id: manifest.id,
-        partition: 'search',
-        baseline: 'pass',
-        candidate: activeSkillUnchanged && unsafePaths.length > 0 ? 'fail' : 'incomplete',
-        checks: [
-          {
-            name: 'owned-path',
-            passed: unsafePaths.length === 0,
-            evidenceRef: 'evidence/proposal.json',
-          },
-          ...activeSkillUnchanged
-            ? []
-            : [{
-                name: 'active-skill-unchanged',
-                passed: false,
-                evidenceRef: 'report.json#subject',
-              }],
-        ],
-      },
-    ],
-    composition: {
-      baselineFingerprint,
-      candidateFingerprint: sha256(`${baselineFingerprint}:${candidateTreeHash}`),
-      allowedDifference: ['skill.body'],
-    },
-    budget: {
-      candidateLimit: manifest.budget.candidateLimit,
-      trialLimit: manifest.budget.trialLimit,
-      inputTokens: modelResponse.usage?.prompt_tokens ?? 0,
-      outputTokens: modelResponse.usage?.completion_tokens ?? 0,
-    },
-  } as const
-  const reportPath = resolve(outputDir, 'report.json')
-  if (!activeSkillUnchanged) {
-    const reason = 'active Skill changed during shadow evaluation'
-    await writeJson(reportPath, reportBase)
-    return { status: 'incomplete', reportPath, reason }
-  }
-  if (unsafePaths.length > 0) {
-    const reason = 'candidate attempted to change a non-owned path'
-    await writeJson(reportPath, {
-      ...reportBase,
-      decision: {
-        recommendation: 'reject',
-        reasons: [reason],
-        limitations: ['P0A.1 evaluates the owned-path hard gate only'],
-      },
-    })
-    return { status: 'complete', reportPath, summary: `reject: ${reason}; report: ${reportPath}` }
-  }
-  const identityGate = checkCandidateSkillIdentity(proposal, skillName)
-  if (!identityGate.passed) {
-    await writeJson(reportPath, {
-      ...reportBase,
-      run: { ...reportBase.run, status: 'complete' },
-      cases: [{
-        id: manifest.id,
-        partition: 'search',
-        baseline: 'pass',
-        candidate: 'fail',
-        checks: [{
-          name: 'skill-name-stable',
-          passed: false,
-          evidenceRef: 'evidence/proposal.json',
-        }],
-      }],
-      decision: {
-        recommendation: 'reject',
-        reasons: [identityGate.reason],
-        limitations: ['Candidate identity hard gate failed before Trial'],
-      },
-    })
-    return {
-      status: 'complete',
-      reportPath,
-      summary: `reject: ${identityGate.reason}; report: ${reportPath}`,
+    } as const
+    const reportPath = resolve(outputDir, 'report.json')
+    if (!activeSkillUnchanged) {
+      const reason = 'active Skill changed during shadow evaluation'
+      await writeJson(reportPath, reportBase)
+      return finishIncomplete(reportPath, reason)
     }
-  }
-  if (!manifest.trial || !manifest.calibration) {
-    const reason = 'no trial evaluator is configured for an in-scope candidate'
-    await writeJson(reportPath, reportBase)
-    return { status: 'incomplete', reportPath, reason }
-  }
+    if (unsafePaths.length > 0) {
+      const reason = 'candidate attempted to change a non-owned path'
+      await writeJson(reportPath, {
+        ...reportBase,
+        decision: {
+          recommendation: 'reject',
+          reasons: [reason],
+          limitations: ['P0A.1 evaluates the owned-path hard gate only'],
+        },
+      })
+      return finishComplete(reportPath, `reject: ${reason}; report: ${reportPath}`)
+    }
+    const identityGate = checkCandidateSkillIdentity(proposal, skillName)
+    if (!identityGate.passed) {
+      await writeJson(reportPath, {
+        ...reportBase,
+        run: { ...reportBase.run, status: 'complete' },
+        cases: [{
+          id: manifest.id,
+          partition: 'search',
+          baseline: 'pass',
+          candidate: 'fail',
+          checks: [{
+            name: 'skill-name-stable',
+            passed: false,
+            evidenceRef: 'evidence/proposal.json',
+          }],
+        }],
+        decision: {
+          recommendation: 'reject',
+          reasons: [identityGate.reason],
+          limitations: ['Candidate identity hard gate failed before Trial'],
+        },
+      })
+      return finishComplete(
+        reportPath,
+        `reject: ${identityGate.reason}; report: ${reportPath}`,
+      )
+    }
+    if (!manifest.trial || !manifest.calibration) {
+      const reason = 'no trial evaluator is configured for an in-scope candidate'
+      await writeJson(reportPath, reportBase)
+      return finishIncomplete(reportPath, reason)
+    }
 
-  const casePackHashBeforeTrial = await hashTree(casePackDir)
-  if (casePackHashBeforeTrial !== casePackHash) {
-    const reason = 'case pack changed during shadow evaluation'
-    await writeJson(reportPath, {
-      ...reportBase,
-      run: { ...reportBase.run, finishedAt: new Date().toISOString() },
-      epoch: {
-        ...reportBase.epoch,
-        casePackFinalHash: casePackHashBeforeTrial,
-        casePackUnchanged: false,
-      },
-    })
-    return { status: 'incomplete', reportPath, reason }
-  }
+    const casePackHashBeforeTrial = await hashTree(casePackDir)
+    if (casePackHashBeforeTrial !== casePackHash) {
+      const reason = 'case pack changed during shadow evaluation'
+      await writeJson(reportPath, {
+        ...reportBase,
+        run: { ...reportBase.run, finishedAt: new Date().toISOString() },
+        epoch: {
+          ...reportBase.epoch,
+          casePackFinalHash: casePackHashBeforeTrial,
+          casePackUnchanged: false,
+        },
+      })
+      return finishIncomplete(reportPath, reason)
+    }
 
-  let pairedTrial
-  try {
-    pairedTrial = await runPairedTrial({
-      calibration: manifest.calibration,
-      casePackDir,
-      dshRevision: manifest.epoch.dshRevision,
-      outputDir,
-      proposal,
-      skillDir,
-      trial: manifest.trial,
-      trialLimit: manifest.budget.trialLimit,
-    })
-  } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error)
+    let pairedTrial
+    try {
+      await updateState({ phase: 'trial-running' })
+      pairedTrial = await runPairedTrial({
+        calibration: manifest.calibration,
+        casePackDir,
+        dshRevision: manifest.epoch.dshRevision,
+        outputDir,
+        proposal,
+        skillDir,
+        trial: manifest.trial,
+        trialLimit: manifest.budget.trialLimit,
+      })
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error)
+      const treeHashAfterTrial = await hashTree(skillDir)
+      await writeJson(reportPath, {
+        ...reportBase,
+        run: { ...reportBase.run, finishedAt: new Date().toISOString() },
+        subject: {
+          ...reportBase.subject,
+          finalTreeHash: treeHashAfterTrial,
+          unchanged: treeHashAfterTrial === baseTreeHash,
+        },
+      })
+      return finishIncomplete(reportPath, reason)
+    }
+
     const treeHashAfterTrial = await hashTree(skillDir)
+    const casePackHashAfterTrial = await hashTree(casePackDir)
+    if (casePackHashAfterTrial !== casePackHash) {
+      const reason = 'case pack changed during shadow evaluation'
+      await writeJson(reportPath, {
+        ...reportBase,
+        run: { ...reportBase.run, finishedAt: new Date().toISOString() },
+        epoch: {
+          ...reportBase.epoch,
+          casePackFinalHash: casePackHashAfterTrial,
+          casePackUnchanged: false,
+        },
+        calibration: pairedTrial.calibration,
+      })
+      return finishIncomplete(reportPath, reason)
+    }
+    if (treeHashAfterTrial !== baseTreeHash) {
+      const reason = 'active Skill changed during sealed Trial'
+      await writeJson(reportPath, {
+        ...reportBase,
+        run: { ...reportBase.run, finishedAt: new Date().toISOString() },
+        subject: {
+          ...reportBase.subject,
+          finalTreeHash: treeHashAfterTrial,
+          unchanged: false,
+        },
+        calibration: pairedTrial.calibration,
+      })
+      return finishIncomplete(reportPath, reason)
+    }
+
+    const calibrationPassed = pairedTrial.calibration.every((result) => result.passed)
+    const baselineComposition = pairedTrial.baseline.composition
+    const candidateComposition = pairedTrial.candidate.composition
+    const hasCompositionEvidence = baselineComposition !== undefined && candidateComposition !== undefined
+    const compositionStable = !hasCompositionEvidence
+      || baselineComposition.fingerprint === candidateComposition.fingerprint
+    const decision = decidePairedTrial({
+      baselinePassed: pairedTrial.baseline.passed,
+      calibrationPassed,
+      candidatePassed: pairedTrial.candidate.passed,
+      compositionStable,
+    })
+    const actualCandidateTreeHash = pairedTrial.candidate.treeHash
     await writeJson(reportPath, {
       ...reportBase,
-      run: { ...reportBase.run, finishedAt: new Date().toISOString() },
+      run: { ...reportBase.run, status: 'complete', finishedAt: new Date().toISOString() },
       subject: {
         ...reportBase.subject,
         finalTreeHash: treeHashAfterTrial,
-        unchanged: treeHashAfterTrial === baseTreeHash,
+        unchanged: true,
       },
-    })
-    return { status: 'incomplete', reportPath, reason }
-  }
-
-  const treeHashAfterTrial = await hashTree(skillDir)
-  const casePackHashAfterTrial = await hashTree(casePackDir)
-  if (casePackHashAfterTrial !== casePackHash) {
-    const reason = 'case pack changed during shadow evaluation'
-    await writeJson(reportPath, {
-      ...reportBase,
-      run: { ...reportBase.run, finishedAt: new Date().toISOString() },
       epoch: {
         ...reportBase.epoch,
         casePackFinalHash: casePackHashAfterTrial,
-        casePackUnchanged: false,
+        casePackUnchanged: true,
+      },
+      candidate: {
+        ...reportBase.candidate,
+        id: actualCandidateTreeHash.slice(0, 16),
+        treeHash: actualCandidateTreeHash,
       },
       calibration: pairedTrial.calibration,
-    })
-    return { status: 'incomplete', reportPath, reason }
-  }
-  if (treeHashAfterTrial !== baseTreeHash) {
-    const reason = 'active Skill changed during sealed Trial'
-    await writeJson(reportPath, {
-      ...reportBase,
-      run: { ...reportBase.run, finishedAt: new Date().toISOString() },
-      subject: {
-        ...reportBase.subject,
-        finalTreeHash: treeHashAfterTrial,
-        unchanged: false,
+      cases: [{
+        id: manifest.id,
+        partition: 'final-test',
+        baseline: pairedTrial.baseline.passed ? 'pass' : 'fail',
+        candidate: pairedTrial.candidate.passed && compositionStable ? 'pass' : 'fail',
+        checks: [
+          ...pairedTrial.candidate.checks,
+          ...hasCompositionEvidence
+            ? [{ name: 'non-target-composition-stable', passed: compositionStable }]
+            : [],
+        ],
+      }],
+      composition: {
+        ...reportBase.composition,
+        baselineFingerprint: baselineComposition?.fingerprint ?? baselineFingerprint,
+        candidateFingerprint: candidateComposition?.fingerprint
+          ?? sha256(`${baselineFingerprint}:${actualCandidateTreeHash}`),
+        ...hasCompositionEvidence ? { stable: compositionStable } : {},
       },
-      calibration: pairedTrial.calibration,
+      trial: {
+        backend: pairedTrial.backend,
+        enforcement: 'full',
+        count: pairedTrial.count,
+        ...baselineComposition !== undefined && candidateComposition !== undefined
+          ? {
+              modelCalls: {
+                baseline: baselineComposition.modelCalls,
+                candidate: candidateComposition.modelCalls,
+              },
+              usage: {
+                baseline: baselineComposition.usage,
+                candidate: candidateComposition.usage,
+              },
+            }
+          : {},
+      },
+      decision: {
+        recommendation: decision.recommendation,
+        reasons: [decision.reason],
+        limitations: [pairedTrial.assembled
+          ? 'P0A.3 uses a keyless scripted model through one real assembled DSH path on macOS'
+          : 'P0A.2 evaluates one deterministic sealed final-test on macOS'],
+      },
     })
-    return { status: 'incomplete', reportPath, reason }
-  }
-
-  const calibrationPassed = pairedTrial.calibration.every((result) => result.passed)
-  const baselineComposition = pairedTrial.baseline.composition
-  const candidateComposition = pairedTrial.candidate.composition
-  const hasCompositionEvidence = baselineComposition !== undefined && candidateComposition !== undefined
-  const compositionStable = !hasCompositionEvidence
-    || baselineComposition.fingerprint === candidateComposition.fingerprint
-  const decision = decidePairedTrial({
-    baselinePassed: pairedTrial.baseline.passed,
-    calibrationPassed,
-    candidatePassed: pairedTrial.candidate.passed,
-    compositionStable,
-  })
-  const actualCandidateTreeHash = pairedTrial.candidate.treeHash
-  await writeJson(reportPath, {
-    ...reportBase,
-    run: { ...reportBase.run, status: 'complete', finishedAt: new Date().toISOString() },
-    subject: {
-      ...reportBase.subject,
-      finalTreeHash: treeHashAfterTrial,
-      unchanged: true,
-    },
-    epoch: {
-      ...reportBase.epoch,
-      casePackFinalHash: casePackHashAfterTrial,
-      casePackUnchanged: true,
-    },
-    candidate: {
-      ...reportBase.candidate,
-      id: actualCandidateTreeHash.slice(0, 16),
-      treeHash: actualCandidateTreeHash,
-    },
-    calibration: pairedTrial.calibration,
-    cases: [{
-      id: manifest.id,
-      partition: 'final-test',
-      baseline: pairedTrial.baseline.passed ? 'pass' : 'fail',
-      candidate: pairedTrial.candidate.passed && compositionStable ? 'pass' : 'fail',
-      checks: [
-        ...pairedTrial.candidate.checks,
-        ...hasCompositionEvidence
-          ? [{ name: 'non-target-composition-stable', passed: compositionStable }]
-          : [],
-      ],
-    }],
-    composition: {
-      ...reportBase.composition,
-      baselineFingerprint: baselineComposition?.fingerprint ?? baselineFingerprint,
-      candidateFingerprint: candidateComposition?.fingerprint
-        ?? sha256(`${baselineFingerprint}:${actualCandidateTreeHash}`),
-      ...hasCompositionEvidence ? { stable: compositionStable } : {},
-    },
-    trial: {
-      backend: pairedTrial.backend,
-      enforcement: 'full',
-      count: pairedTrial.count,
-      ...baselineComposition !== undefined && candidateComposition !== undefined
-        ? {
-            modelCalls: {
-              baseline: baselineComposition.modelCalls,
-              candidate: candidateComposition.modelCalls,
-            },
-            usage: {
-              baseline: baselineComposition.usage,
-              candidate: candidateComposition.usage,
-            },
-          }
-        : {},
-    },
-    decision: {
-      recommendation: decision.recommendation,
-      reasons: [decision.reason],
-      limitations: [pairedTrial.assembled
-        ? 'P0A.3 uses a keyless scripted model through one real assembled DSH path on macOS'
-        : 'P0A.2 evaluates one deterministic sealed final-test on macOS'],
-    },
-  })
-  return {
-    status: 'complete',
-    reportPath,
-    summary: `${decision.recommendation}: ${decision.reason}; report: ${reportPath}`,
+    return finishComplete(
+      reportPath,
+      `${decision.recommendation}: ${decision.reason}; report: ${reportPath}`,
+    )
+  } finally {
+    await releaseRunLock()
   }
 }
 
@@ -563,6 +680,7 @@ function parseSkillName(source: string): string {
 async function requestProposal(options: {
   apiKey: string | undefined
   baseUrl: string
+  idempotencyKey: string
   inputTokenLimit: number
   model: string
   outputTokenLimit: number
@@ -576,7 +694,10 @@ async function requestProposal(options: {
   if (estimatedInputTokens > options.inputTokenLimit) {
     throw new Error('Skill exceeds the case pack input token budget')
   }
-  const headers: Record<string, string> = { 'content-type': 'application/json' }
+  const headers: Record<string, string> = {
+    'content-type': 'application/json',
+    'idempotency-key': options.idempotencyKey,
+  }
   if (options.apiKey) headers.authorization = `Bearer ${options.apiKey}`
   const response = await fetch(`${options.baseUrl.replace(/\/$/, '')}/chat/completions`, {
     method: 'POST',
@@ -628,6 +749,18 @@ function parseProposal(response: ModelResponse): Proposal {
   return value as unknown as Proposal
 }
 
+function parsePersistedProposal(value: unknown): Proposal {
+  if (!isRecord(value) || typeof value.claim !== 'string' || !Array.isArray(value.files)) {
+    throw new Error('durable model proposal has an invalid shape')
+  }
+  for (const file of value.files) {
+    if (!isRecord(file) || typeof file.path !== 'string' || typeof file.content !== 'string') {
+      throw new Error('durable model proposal file has an invalid shape')
+    }
+  }
+  return structuredClone(value) as unknown as Proposal
+}
+
 function isOwnedRelativePath(path: string): boolean {
   if (path.length === 0 || path.includes('\\') || isAbsolute(path)) return false
   const normalized = path.split('/')
@@ -654,5 +787,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 async function writeJson(path: string, value: unknown): Promise<void> {
-  await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, { flag: 'wx' })
+  await writeDurableJson(path, value)
+}
+
+async function assertTerminalReport(outputDir: string, reportPath: string): Promise<void> {
+  if (reportPath !== resolve(outputDir, 'report.json')) {
+    throw new Error('Shadow terminal state references a report outside its run')
+  }
+  await readFile(reportPath)
 }

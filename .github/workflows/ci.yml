@@ -76,6 +76,7 @@ jobs:
           test/cache-safe-status-shadow.e2e.test.ts
           test/dispose-owned-watcher-shadow.e2e.test.ts
           test/profile-install-remove-shadow.e2e.test.ts
+          test/shadow-resume.e2e.test.ts
           test/generation-store.e2e.test.ts
           test/generation-binder.e2e.test.ts
           test/generation-crash-recovery.e2e.test.ts

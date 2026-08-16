@@ -240,6 +240,7 @@ describe('dsh-evolve shadow', () => {
         'evidence',
         'evidence/proposal.json',
         'report.json',
+        'run-state.json',
       ])
     } finally {
       await new Promise<void>((resolveClose, rejectClose) =>
@@ -650,6 +651,7 @@ describe('dsh-evolve shadow', () => {
         'evidence',
         'evidence/proposal.json',
         'report.json',
+        'run-state.json',
       ])
     } finally {
       await new Promise<void>((resolveClose, rejectClose) =>

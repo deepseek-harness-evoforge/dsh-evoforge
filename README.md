@@ -4,7 +4,7 @@
 
 面向 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的 out-of-tree 开源扩展套件。EvoForge 只增加可独立安装、可删除的新能力，不 fork DSH，也不以插件修补 DSH Core Defect。
 
-> **Pre-alpha：暂不可用于自动激活。** P0A Shadow 的本地退出门已通过；P0B.1 已实现并本地验证 immutable Generation、Session pin、future-session-only 晋升/回滚、Git tree 完整性、`SIGKILL` 边界恢复和插件移除后的 Session/Goal 读取。用户控制面、自动晋升策略和完整 Candidate/Trial 常驻恢复仍未完成。详见[状态页](docs/status.zh.md)。
+> **Pre-alpha：暂不可用于自动激活。** P0A Shadow 的本地退出门已通过；P0B.1 已验证 immutable Generation/Session pin/release recovery，P0B.2a 已验证付费 proposal 不确定窗口与 durable Candidate/Trial 显式恢复。用户控制面、自动晋升策略、常驻 supervisor 和长时 soak 仍未完成。详见[状态页](docs/status.zh.md)。
 
 ## 为什么做
 
@@ -28,14 +28,14 @@
 
 | 包 | 当前能力 | 状态 |
 |---|---|---|
-| [`dsh-evolve`](packages/dsh-evolve) | 离线 `shadow`；校准与 Sealed paired Trial；immutable Generation；Session-scoped Git Skill Provider；future-session-only 晋升/回滚 | P0A 本地退出门通过；P0B.1 release kernel 已实现，P0B 总退出门未通过 |
+| [`dsh-evolve`](packages/dsh-evolve) | 离线 `shadow` 与显式 resume；校准与 Sealed paired Trial；immutable Generation；Session-scoped Git Skill Provider；future-session-only 晋升/回滚 | P0A、P0B.1、P0B.2a 本地门通过；P0B 总退出门未通过 |
 
 Shadow 和未激活 Generation 的运行时模型表面为 `none`，额外 token 为 `0`。Generation 激活后只复用 DSH 原生 Skill catalog/body 路径：catalog 在 Session 开始时固定，正文按需加载；插件不增加 Tool 或 system prompt。真实 Agent 回归已证明晋升后旧 Session 的请求工具面不变、后一请求保留前一请求的完整消息前缀。Shadow 只有在用户显式调用时才请求配置的模型。
 
 当前命令：
 
 ```text
-dsh-evolve shadow <skill-dir> --case-pack <case-pack-dir> --output <run-dir>
+dsh-evolve shadow <skill-dir> --case-pack <case-pack-dir> --output <run-dir> [--resume]
 ```
 
 它可以可靠拒绝越出 owned Skill 的候选；带完整 Case Pack 时，先用 known-bad/known-correction 校准 evaluator，再在四个相互独立的 macOS Sealed Trial 中比较 baseline 与 Candidate。证据不足、预算超限、平台无隔离器或 active/Case Pack 漂移时返回 `2 + incomplete`。
@@ -58,7 +58,7 @@ pnpm --filter dsh-evolve pack --pack-destination "$PWD/.evoforge/pack"
 
 - 多个独立真实 case、真实 provider 提案效果、Linux/Windows 隔离与 workspace 磁盘配额；
 - 用户可操作的人工晋升/review 控制面与窄自动晋升策略；
-- proposer/Trial/Candidate 全状态机的单机常驻、崩溃恢复及幂等续跑；
+- 常驻 Job supervisor、自动扫描、关机恢复和多日 soak（显式 Shadow run 的 Candidate/Trial `--resume` 已实现）；
 - `dsh-software-delivery`、个人助理、消息、内容和日程插件；
 - Web/TUI 控制面。
 

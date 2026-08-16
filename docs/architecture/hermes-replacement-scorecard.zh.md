@@ -44,7 +44,7 @@ EvoForge 不以插件数量、渠道数量、运行时长或“会修改自己�
 | ID | 用户结果 | 必须证明 | 主要比较指标 | 当前状态 |
 |---|---|---|---|---|
 | `SD-1` 软件交付 | 一个原生 Goal 变成隔离、验证过的 commit 和可选 Draft PR | 读取仓库规范；worktree 隔离；运行仓库检查；diff 可审查；Protected Action 未越权 | 完成率、人工返工、错误提交、token/时间 | 已设计；未实现 |
-| `LC-1` 单机连续性 | 进程意外退出后继续同一 Goal/Session/后台状态 | 在关键 durable transition 前后 kill；无丢失 Goal、半激活版本或重复外部效果 | 自动恢复率、恢复时间、人工修复数 | Generation release 四个 `SIGKILL` 边界 implemented；完整 pipeline pending |
+| `LC-1` 单机连续性 | 进程意外退出后继续同一 Goal/Session/后台状态 | 在关键 durable transition 前后 kill；无丢失 Goal、半激活版本或重复外部效果 | 自动恢复率、恢复时间、人工修复数 | Generation release + explicit Shadow proposal/Candidate/Trial `SIGKILL` boundaries implemented；常驻 supervisor/soak pending |
 | `EV-1` 可证明进化 | 重复错误被 Skill Candidate 修正并通过未见 case | known-bad 被拒；真实修正通过 final-test；原 Session 与 active Skill 不变；Decision 可重放 | final-test 改善、false promotion、每次减少返工的成本 | 一次冻结 Candidate 的本地未见 `fail → pass` 已通过；真实 provider、重放与长期误晋升数据 pending |
 | `UI-1` 非阻塞控制 | 用户能查看状态、证据、成本、权限并 pause/review/rollback | 不调用模型即可读取权威状态；不回复 review 不影响原会话；动作结果明确 | 找到并完成控制动作的时间、误操作、前台阻塞 | P0C 设计；未实现 |
 | `KV-1` 缓存稳定 | 长会话、后台观察和能力晋升不破坏当前 Session 的可复用前缀 | 正常会话零 Evolve 常驻 Prompt/Tool；同 Session composition 固定；新版本只进未来 Session | cache-read token/ratio、首个变化位置、额外 input token | Generation pin + 真实两轮前缀/Tool surface implemented；长会话 token soak pending |

@@ -28,6 +28,10 @@ _Avoid_: Perfect agent, feature-for-feature rewrite
 The first availability milestone: one host process may restart or crash without losing authoritative progress, duplicating protected effects, or corrupting active capability selection.
 _Avoid_: High availability, distributed failover
 
+**Uncertain External Effect**:
+An effect whose durable intent exists and may have reached an external service, but whose result was not durably recorded before interruption. Recovery must not claim success or retry automatically when repetition could cost money or duplicate a user-visible action.
+_Avoid_: Failed request, safe retry, exactly-once
+
 **High Availability**:
 A later, measured service property requiring failure-domain redundancy and an explicit availability objective. A restartable single-machine daemon is reliable but is not described as highly available.
 _Avoid_: Crash recovery, long-running process

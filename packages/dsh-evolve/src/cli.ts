@@ -10,19 +10,25 @@ async function main(): Promise<number> {
       options: {
         'case-pack': { type: 'string' },
         output: { type: 'string' },
+        resume: { type: 'boolean', default: false },
       },
       strict: true,
     })
     const [command, skillDir, ...extraPositionals] = parsed.positionals
     if (command !== 'shadow' || !skillDir || extraPositionals.length > 0) {
-      throw new Error('usage: dsh-evolve shadow <skill-dir> --case-pack <case-pack-dir> --output <run-dir>')
+      throw new Error('usage: dsh-evolve shadow <skill-dir> --case-pack <case-pack-dir> --output <run-dir> [--resume]')
     }
     const casePackDir = parsed.values['case-pack']
     const outputDir = parsed.values.output
     if (!casePackDir || !outputDir) {
       throw new Error('--case-pack and --output are required')
     }
-    const result = await runShadow({ casePackDir, outputDir, skillDir })
+    const result = await runShadow({
+      casePackDir,
+      outputDir,
+      resume: parsed.values.resume,
+      skillDir,
+    })
     if (result.status === 'incomplete') {
       process.stderr.write(`incomplete: ${result.reason}\n`)
       return 2

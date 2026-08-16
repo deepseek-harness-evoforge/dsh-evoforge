@@ -11,6 +11,12 @@ The user-facing command remains the offline Shadow command:
 dsh-evolve shadow <skill-dir> --case-pack <case-pack-dir> --output <run-dir>
 ```
 
+After an interrupted run, explicitly resume the same immutable inputs with
+`--resume`. A durable Candidate resumes at the sealed Trial. A proposal whose
+request was observed but whose response was not recorded becomes
+`incomplete/uncertain`; it is never retried automatically because the request
+may have been paid.
+
 Shadow proposes and evaluates an inactive Skill candidate. It never edits the active Skill and does not add a Tool, provider, system-prompt fragment, or other model-visible surface to normal DSH Sessions. With no active Capability Generation, the runtime plugin also adds no model-visible surface.
 
 ## Current status
@@ -22,6 +28,8 @@ The implemented Shadow slices include:
 - rejection before application when a candidate names a path outside the owned Skill;
 - fail-closed enforcement of reported input/output token limits;
 - an auditable `report.json` and minimal proposal evidence;
+- a durable run journal, deterministic proposal effect id, and explicit `--resume` path;
+- refusal to auto-retry an uncertain paid proposal, while a durable Candidate may restart its sealed Trial;
 - exit `2` plus an incomplete report when the model, integrity, budget, platform, or configured Trial boundary cannot support a recommendation;
 - no write outside the requested run directory, including through a symlinked output parent.
 
@@ -57,8 +65,9 @@ The P0B.1 runtime kernel also proves on the pinned DSH revision that:
 - removing the plugin leaves native DSH Session and Goal facts readable.
 
 This is still pre-alpha. There is no end-user promotion command, review inbox,
-automatic promotion policy, durable proposer/Trial recovery, release, or
-production support. The runtime service is an implementation surface for P0B
+automatic promotion policy, an always-on Job supervisor, release, or production
+support. Explicit Shadow runs now have bounded proposer/Candidate/Trial crash
+recovery, but this is not a multi-day autonomous runtime. The runtime service is an implementation surface for P0B
 testing, not a claim that continuous self-improvement is complete.
 
 ## Runtime configuration (P0B.1)

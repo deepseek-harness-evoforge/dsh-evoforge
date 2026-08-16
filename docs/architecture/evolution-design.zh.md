@@ -360,18 +360,18 @@ Rollback 使用相同机制，把 active pointer 指回已验证的 parent；roo
 
 进程拉起交给 systemd、launchd 或用户已有的 DSH 启动方式，插件不实现第二个 daemon manager。
 
-Evolution Store 是 durable authority；`ctx.jobs` 只是当前进程执行器。启动时扫描：
+在线 runtime 以 Evolution Storage Domain 为 durable authority；`ctx.jobs` 只是当前进程执行器。显式离线 Shadow 不创建第二个服务数据库，只在其 owned output directory 保存一个 run-local journal。启动或 `--resume` 时扫描：
 
 | 状态 | 恢复动作 |
 |---|---|
-| `proposing` | 检查 worktree/commit；已完成则进入 ready，否则按同一 Candidate id 重试 |
-| `testing` | 保留已落盘 case result，只重跑未完成 case |
+| `proposal-pending` 且无 durable response | 标记 uncertain，不自动重复可能收费的外部请求 |
+| `candidate-ready` / `trial-running` | 复用已落盘 Candidate，只重跑无网络、owned workspace 内的 Sealed Trial |
 | `review` | 不做任何模型工作，继续等待异步人工选择 |
 | Generation 已写、active 未切换 | 保持 inactive，可重新执行 promotion |
 | active 已切换、Candidate 未标 promoted | 依据指针补齐 Candidate 状态 |
 | 临时 worktree 残留 | 验证 owner marker 后回收；不碰未知目录 |
 
-不需要 Lease、分布式选主、通用 DAG 或第二套事件溯源。单进程内部用一条状态写入链和稳定 idempotency key 防止重复执行。
+不需要 Lease、分布式选主、通用 DAG 或第二套事件溯源。单进程内部用 owner lock、一条状态写入链和稳定 idempotency key 防止并发重复；兼容 Provider 不保证服务端 exactly-once，因此请求结果不确定时必须停止而非乐观重试。
 
 ## 16. Evolution Store 的最小形状
 

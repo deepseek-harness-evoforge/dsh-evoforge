@@ -66,6 +66,16 @@ non-executable 文件。`cacheRoot` 只是带 owner marker 的只读重建缓存
 dsh-evolve shadow <skill-dir> --case-pack <case-pack-dir> --output <run-dir>
 ```
 
+若同一个 output run 被进程中断，保持 Skill、Case Pack、模型 route 不变并显式恢复：
+
+```bash
+dsh-evolve shadow <skill-dir> --case-pack <case-pack-dir> --output <run-dir> --resume
+```
+
+若中断发生在付费 proposal 已发出但 response 尚未 durable 的窗口，恢复返回
+`2 + incomplete/uncertain`，不会自动重试。若 Candidate 已 durable，则只重跑
+无网络的 Sealed Trial。并发恢复会被 run owner lock 拒绝。
+
 `skill-dir` 必须包含带 `name` frontmatter 的 `SKILL.md`。只有安全门的最小
 Case Pack 可以不声明 Trial；要得到 in-scope Candidate 的完整建议，manifest
 还必须声明 search evidence、隐藏 evaluator 和两个 calibration tree：

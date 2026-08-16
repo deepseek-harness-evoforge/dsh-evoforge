@@ -10,7 +10,7 @@
 | R1 产品边界 | 完成 | Requirements、CONTEXT、产品架构、ADR、插件目录和接口规范 |
 | R2 开源仓库就绪 | 完成 | [公共仓库](https://github.com/deepseek-harness-evoforge/dsh-evoforge)、MIT、贡献/安全文档与 Linux CI；macOS CI 在独立 Draft PR 验证 |
 | P0A Shadow evaluator | 本地退出门通过 | 安全门、macOS Sealed Trial、真实 DSH bridge、3/3 公开产品 fixture 与[本地未见首测](evidence/p0a-8-private-heldout.zh.md)均转绿；真实 provider 与第三方独立复跑仍属更高等级证据 |
-| P0B Local Continuity | 实现中 | P0B.1 Generation release kernel 已通过本地测试；proposer/Trial/Candidate durable recovery 尚未完成 |
+| P0B Local Continuity | 实现中 | P0B.1 Generation release kernel 与 P0B.2a 显式 Shadow resume 已通过本地测试；常驻 supervisor/soak 尚未完成 |
 
 ## P0A — 先证明会判断
 
@@ -42,8 +42,12 @@ P0B.1 已完成：Generation/active pointer/Session pin、exact Git Skill Provid
 future-session-only promotion/rollback、四个 release `SIGKILL` 边界，以及删除插件后
 原生 Session/Goal 恢复。证据见 [P0B.1](evidence/p0b-1-generation-release-kernel.zh.md)。
 
-P0B.2 剩余：把 proposer、Trial 和 Candidate 状态转为同一单机 durable state
-machine，证明重启只重排未完成工作、不会重复 Candidate 或外部效果，并完成长时 soak。
+P0B.2a 已完成：一个 run-local durable journal 在付费 proposal 前记录 intent；
+不确定结果不自动重试；已落盘 Candidate 在 `SIGKILL` 后只重跑无网络 Sealed Trial；
+并发 runner 被 owner lock 拒绝。证据见 [P0B.2a](evidence/p0b-2a-durable-shadow-resume.zh.md)。
+
+P0B.2 剩余：用 DSH Job/Storage seam 增加可选的常驻扫描与恢复，完成关机/启动、
+磁盘故障和长时 soak；不增加 Mission、DAG 或第二 daemon manager。
 
 退出条件：所有注入崩溃点无半激活、无重复效果；活动 Session 不漂移；卸载后原生 DSH 可恢复。
 

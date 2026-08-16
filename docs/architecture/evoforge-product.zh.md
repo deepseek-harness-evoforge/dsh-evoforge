@@ -81,11 +81,11 @@ DSH 始终拥有模型执行和基础服务；EvoForge 插件只增加用户结�
 | 能力 | EvoForge 目标 | 当前证据 |
 |---|---|---|
 | 软件交付 | 原生 Goal 到 verified commit/Draft PR | 已设计，未实现 |
-| 单机持续运行 | crash-resume、幂等恢复、无半激活版本 | Generation release 边界已实现并通过 `SIGKILL`；完整 pipeline pending |
+| 单机持续运行 | crash-resume、幂等恢复、无半激活版本 | Generation release + 显式 Shadow proposal/Candidate/Trial 边界通过 `SIGKILL`；常驻 supervisor/soak pending |
 | Memory/Skill | 复用 DSH/社区能力，不造第二套 Memory | 架构边界已确认 |
 | 消息与日程 | 按真实 workflow 提供可拆 Adapter | 后续验证，不承诺首版 |
 | 人类控制 | 状态、证据、审批、暂停、回滚不阻塞会话 | 契约已定义，未实现 |
-| 自进化 | 独立 final-test、inactive Candidate、可证明晋升 | P0A 本地未见 `fail → pass` + P0B.1 verified-Git Generation/Session pin/rollback；控制面与自动政策 pending |
+| 自进化 | 独立 final-test、inactive Candidate、可证明晋升 | P0A 本地未见 `fail → pass` + P0B.1 verified-Git Generation + P0B.2a durable Shadow resume；控制面与自动政策 pending |
 | 权限 | 代码和外部效果不自动激活 | 需求与测试门已定义 |
 | KV Cache | Session 内完整 composition 稳定 | 真实两轮 Agent 前缀与 Tool surface 回归通过；长会话 cache token soak pending |
 | 回滚 | future Session 精确恢复 artifact；外部效果不虚假承诺 | exact parent Git tree 与 live Session 不漂移已实现；外部效果仍不在回滚范围 |
