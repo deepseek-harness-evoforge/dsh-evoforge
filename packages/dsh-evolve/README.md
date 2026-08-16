@@ -5,11 +5,21 @@
 - **P0A Shadow** compares an active Skill with an inactive Candidate without changing live DSH.
 - **P0B Local Continuity** records immutable Capability Generations, pins one Generation per Session, switches or rolls back only future Sessions, and resumes durable sealed work through an optional resident supervisor.
 
-The user-facing command remains the offline Shadow command:
+The offline evaluation command is:
 
 ```bash
 dsh-evolve shadow <skill-dir> --case-pack <case-pack-dir> --output <run-dir>
 ```
+
+When the DSH composition includes native Commands, the host-only human release
+surface is also available:
+
+```text
+/evolve [status|promote <64-char-generation-id>|rollback]
+```
+
+It never invokes the model. Promotion/rollback verifies the immutable release
+target and changes only future Sessions; existing Sessions keep their pin.
 
 After an interrupted run, explicitly resume the same immutable inputs with
 `--resume`. A durable Candidate resumes at the sealed Trial. A proposal whose
@@ -64,7 +74,7 @@ The P0B.1 runtime kernel also proves on the pinned DSH revision that:
 - the packed artifact installs into a real DSH profile, boots, removes cleanly, and leaves native DSH composition intact;
 - removing the plugin leaves native DSH Session and Goal facts readable.
 
-This is still pre-alpha. There is no end-user promotion command, review inbox,
+This is still pre-alpha. There is no review inbox, durable pause/resume,
 automatic promotion policy, release, or production support. Explicit and resident
 Shadow recovery now cover bounded proposer/Candidate/Trial crash boundaries, but
 short automated soak is not production multi-day evidence. This is not a claim

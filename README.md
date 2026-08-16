@@ -28,7 +28,7 @@
 
 | 包 | 当前能力 | 状态 |
 |---|---|---|
-| [`dsh-evolve`](packages/dsh-evolve) | 离线 `shadow`；durable resume 与 resident supervisor；Sealed paired Trial；immutable Generation；Session-scoped Git Skill Provider；future-session-only 晋升/回滚 | P0A 本地门、P0B Local Continuity 实现门通过；P0C 待实现 |
+| [`dsh-evolve`](packages/dsh-evolve) | 离线 `shadow`；durable resume 与 resident supervisor；Sealed paired Trial；immutable Generation；Session-scoped Git Skill Provider；host-only 人工晋升/回滚 | P0A 本地门、P0B 实现门、P0C.1 人工 release command 通过；review inbox 待实现 |
 
 Shadow 和未激活 Generation 的运行时模型表面为 `none`，额外 token 为 `0`。Generation 激活后只复用 DSH 原生 Skill catalog/body 路径：catalog 在 Session 开始时固定，正文按需加载；插件不增加 Tool 或 system prompt。真实 Agent 回归已证明晋升后旧 Session 的请求工具面不变、后一请求保留前一请求的完整消息前缀。Shadow 只有在用户显式调用时才请求配置的模型。
 
@@ -36,6 +36,7 @@ Shadow 和未激活 Generation 的运行时模型表面为 `none`，额外 token
 
 ```text
 dsh-evolve shadow <skill-dir> --case-pack <case-pack-dir> --output <run-dir> [--resume]
+/evolve [status|promote <64-char-generation-id>|rollback]
 ```
 
 它可以可靠拒绝越出 owned Skill 的候选；带完整 Case Pack 时，先用 known-bad/known-correction 校准 evaluator，再在四个相互独立的 macOS Sealed Trial 中比较 baseline 与 Candidate。证据不足、预算超限、平台无隔离器或 active/Case Pack 漂移时返回 `2 + incomplete`。
@@ -57,7 +58,7 @@ pnpm --filter dsh-evolve pack --pack-destination "$PWD/.evoforge/pack"
 ## 尚未实现
 
 - 多个独立真实 case、真实 provider 提案效果、Linux/Windows 隔离与 workspace 磁盘配额；
-- 用户可操作的人工晋升/review 控制面与窄自动晋升策略；
+- claim/diff/case/cost review inbox、durable pause/resume 与窄自动晋升策略（最小人工 status/promote/rollback 已实现）；
 - 生产多日 soak、真实磁盘耗尽与大规模 run 性能数据（常驻 native Jobs supervisor、自动扫描和关机恢复已实现）；
 - `dsh-software-delivery`、个人助理、消息、内容和日程插件；
 - Web/TUI 控制面。

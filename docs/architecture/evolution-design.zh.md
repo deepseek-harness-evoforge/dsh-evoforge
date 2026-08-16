@@ -1,6 +1,6 @@
 # EvoForge 可证明自进化设计
 
-> 状态：设计已获授权；P0A 本地退出门已通过；P0B Local Continuity 已实现，P0C 人工控制面待实现
+> 状态：设计已获授权；P0A/P0B 已实现；P0C.1 人工 release command 已实现，review inbox 待完成
 > 更新日期：2026-08-16
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 

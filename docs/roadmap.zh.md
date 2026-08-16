@@ -11,6 +11,7 @@
 | R2 开源仓库就绪 | 完成 | [公共仓库](https://github.com/deepseek-harness-evoforge/dsh-evoforge)、MIT、贡献/安全文档与 Linux CI；macOS CI 在独立 Draft PR 验证 |
 | P0A Shadow evaluator | 本地退出门通过 | 安全门、macOS Sealed Trial、真实 DSH bridge、3/3 公开产品 fixture 与[本地未见首测](evidence/p0a-8-private-heldout.zh.md)均转绿；真实 provider 与第三方独立复跑仍属更高等级证据 |
 | P0B Local Continuity | implemented | P0B.1 release kernel、P0B.2a durable resume 与 P0B.2b resident supervisor 已通过本地/pinned DSH 测试；生产多日 soak 仍属发布前证据 |
+| P0C Human Control | 实现中 | P0C.1 host-only status/promote/rollback 已通过真实 Commands/Agent 测试；review inbox 与 pause/resume 待实现 |
 
 ## P0A — 先证明会判断
 
@@ -59,6 +60,13 @@ P0B.2b 已完成：可选 supervisor 在 DSH 生命周期内扫描显式 run roo
 - host view 显示 claim、diff、case、成本、缓存、权限和 rollback target；
 - review inbox 聚合、静默、可过期；原会话不等待；
 - P0C 所有激活仍由人工决定。
+
+P0C.1 已完成：可选 DSH Commands surface 提供 `/evolve status`、完整 content-id
+`promote` 和精确 `rollback`；命令不调用模型，当前 Session 不漂移，hot unload 自动
+注销。证据见 [P0C.1](evidence/p0c-1-human-release-command.zh.md)。
+
+P0C 剩余：把 Shadow 的 claim、diff、case、成本与限制变成 durable Candidate/review
+projection，再增加 `review` 和可持久化 `pause/resume`。不为此预建通用 Control Center。
 
 退出条件：不了解内部实现的用户可以在一次查看中解释“改了什么、凭什么更好、有什么风险、怎么撤销”。
 

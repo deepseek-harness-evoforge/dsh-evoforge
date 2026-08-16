@@ -24,6 +24,80 @@ afterEach(async () => {
 })
 
 describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () => {
+  it('uses a late-composed native /evolve command without a model call or live Session drift', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-command-binder-'))
+    temporaryRoots.push(root)
+    const repository = join(root, 'source')
+    const revision = await commitSkill(repository, 'Command-promoted body.', 'command reference')
+    const ctx = await bootStorage(await writeStorageConfig(root))
+    const adapter = await installAgentRuntime(ctx)
+    const evolveFiber = await ctx.plugin(EvolvePlugin, {
+      cacheRoot: join(root, 'cache'),
+      sources: [{
+        name: 'stable-evolved-skill',
+        repository,
+        path: 'skills/stable-evolved-skill',
+      }],
+    })
+    const commandsModule = await import(pathToFileURL(
+      join(dshSourceDir, 'packages', 'interaction', 'commands', 'lib', 'index.js'),
+    ).href)
+    await ctx.plugin(commandsModule.default)
+    const commands = ctx.get('commands') as {
+      execute(agent: object, line: string, signal: AbortSignal): Promise<{
+        result: { kind: string; text?: string }
+      } | undefined>
+      list(agent: object): ReadonlyArray<{ name: string }>
+    } | undefined
+    const store = ctx.get('evoforge.evolution') as EvolutionStore | undefined
+    const skills = ctx.get('skills') as {
+      get(name: string, options: { cwd?: string; scope?: object }): Promise<{ content: string } | undefined>
+    } | undefined
+    if (commands === undefined || store === undefined || skills === undefined) {
+      throw new Error('command test services did not load')
+    }
+    const liveAgent = await createAndRunAgent(ctx, 'command-live-native', root)
+    const firstRequest = requestView(adapter.requests[0])
+    const generation = (await store.publishGeneration(generationInput(revision))).generation
+
+    expect(commands.list(liveAgent)).toContainEqual(expect.objectContaining({ name: 'evolve' }))
+    const requestsBeforePromote = adapter.requests.length
+    const promoted = await commands.execute(
+      liveAgent,
+      `/evolve promote ${generation.id}`,
+      new AbortController().signal,
+    )
+    expect(promoted?.result).toMatchObject({
+      kind: 'success',
+      text: expect.stringContaining('Existing Sessions were not changed.'),
+    })
+    expect(adapter.requests).toHaveLength(requestsBeforePromote)
+    expect(store.getSessionGeneration(identityOf(liveAgent))).toBeUndefined()
+
+    const futureAgent = await createAndRunAgent(ctx, 'command-future-evolved', root)
+    expect((await skills.get('stable-evolved-skill', { cwd: root, scope: futureAgent }))?.content)
+      .toBe('Command-promoted body.')
+    const requestsBeforeRollback = adapter.requests.length
+    const rolledBack = await commands.execute(
+      liveAgent,
+      '/evolve rollback',
+      new AbortController().signal,
+    )
+    expect(rolledBack?.result).toMatchObject({ kind: 'success', text: expect.stringContaining('Active: native DSH') })
+    expect(adapter.requests).toHaveLength(requestsBeforeRollback)
+
+    const nativeAgain = await createAndRunAgent(ctx, 'command-future-native', root)
+    expect(await skills.get('stable-evolved-skill', { cwd: root, scope: nativeAgain })).toBeUndefined()
+    await runAgentTurn(liveAgent, 'continue after host release commands')
+    const secondLiveRequest = requestView(adapter.requests.at(-1))
+    expect(secondLiveRequest.tools).toEqual(firstRequest.tools)
+    expect(secondLiveRequest.messages.slice(0, firstRequest.messages.length))
+      .toEqual(firstRequest.messages)
+    await evolveFiber.dispose()
+    expect(commands.list(liveAgent)).not.toContainEqual(expect.objectContaining({ name: 'evolve' }))
+    await ctx.fiber.dispose()
+  })
+
   it('keeps an already-started native Agent and its child native after the first promotion', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-native-generation-binder-'))
     temporaryRoots.push(root)

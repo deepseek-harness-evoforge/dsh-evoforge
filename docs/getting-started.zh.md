@@ -57,10 +57,17 @@ pnpm --filter dsh-evolve pack --pack-destination "$PWD/.evoforge/pack"
 manifest 中的完整 commit 和 tree object id；晋升前会物化并逐 blob 验证普通
 non-executable 文件。`cacheRoot` 只是带 owner marker 的只读重建缓存，Git 才是事实源。
 
-当前没有面向普通用户的 promote/review command。测试或后续 host control consumer
-通过 `ctx.get('evoforge.evolution')` 使用 `publishGeneration()`、
-`promoteGeneration()`、`rollbackGeneration()` 和只读查询。不要把这个编程接缝当作
-已经完成的自动晋升产品。
+装配原生 `@deepseek-ai/dsh-commands` 后，普通用户可以使用：
+
+```text
+/evolve status
+/evolve promote <64-char-generation-id>
+/evolve rollback
+```
+
+命令不调用模型，且只改变 future Session。尚无 Candidate review inbox；测试或后续
+host consumer 仍可通过 `ctx.get('evoforge.evolution')` 使用
+`publishGeneration()` 与只读查询。不要把 P0C.1 command 当作已完成的自动晋升产品。
 
 `supervisor` 可省略。启用时还要在同一 DSH composition 中装配原生
 `@deepseek-ai/dsh-jobs-local`（或兼容 `ctx.jobs` 实现）。每个 `runRoots` 只扫描直接
