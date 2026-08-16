@@ -51,7 +51,10 @@ Retention report 为 exact `retained` 且 `proposerCalls: 0`。
 - 全部 typecheck、build、文档链接、Node artifact、Typert artifact、diff check 与 packed
   install/boot/dispose/remove 通过。
 
-GitHub Node 22/24 与 macOS CI 结果在 Draft PR 终态后补入。
+Draft PR #13 的同一 commit CI 终态为：Node 22 1m14s、Node 24 重跑 57s、macOS assembled 2m40s，
+三组均通过。Node 24 首次执行在既有 evaluator-authoring `SIGKILL` 测试的首个 output 目录创建前读取，
+出现一次 `expected one evaluator launch, got 0` 时序抖动；未修改源码的 failed-job rerun 随即全绿。
+这不是 P1.14 产品路径通过率证据，保留在记录中以避免把 CI 重跑伪装成首次成功。
 
 关键文件：
 
