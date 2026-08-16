@@ -139,3 +139,15 @@ When a finding is a DSH Core Defect, attach a native minimal reproduction and ke
 ## Package host-provided runtime dependencies
 
 Declare DSH and Cordis packages supplied by the host in both `peerDependencies` and `devDependencies`, never in production `dependencies`. This keeps local typechecking reproducible without bundling a second host runtime. Verify the packed artifact contains only the intended exports and files, and prove install, boot, removal, and native boot against the exact supported DSH revision.
+
+## Finish the authorized outcome
+
+When implementation is authorized, continue through every remaining safe, in-scope step needed for the requested deliverable. A progress or status update is not completion. Do not turn continuation into open-ended churn or expand the user's authority.
+
+Stop only when one of these conditions is true:
+
+- The requested outcome and its verification are complete.
+- You are blocked by missing user authority, required input, or external state after exhausting safe in-scope checks and recovery paths.
+- No safe, in-scope work remains.
+
+Before the final handoff, reconcile the requested artifacts with the evidence actually produced. If the authorized outcome includes a push, Draft PR, or remote checks, finish and verify those steps before reporting completion. Protected actions still require the user's existing approval or an explicit policy.

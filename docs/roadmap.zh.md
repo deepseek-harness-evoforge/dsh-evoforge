@@ -159,9 +159,12 @@ P1.7 提供显式、非隐式注入的
 [P1.7](evidence/p1-7-evaluator-authoring-skill.zh.md)与
 [ADR-0023](adr/0023-evaluator-authoring-is-an-explicit-skill.md)。
 
-P1 剩余：用一个现有 Case Pack 无法覆盖的陌生真实失败前向验证 P1.7，并测量既有可信 Case Pack
-下真实 provider/用户纠正的改善率；继续收集真实开发任务的 false promotion、false rollback、
-review rate、返工减少和多日常驻证据。P1.1–P1.7/P2D.1 不作
+P1.7 已用一个既有 Pack 未覆盖的“进度汇报被误当完成”失败完成首次 keyless 前向测试：red
+evaluator、两个 negative control、零模型校准、一次 bounded Shadow 与可回滚 Skill 晋升均成立。
+
+P1 剩余：由独立陌生作者复跑 authoring workflow，并测量既有可信 Case Pack 下真实
+provider/用户纠正的改善率；继续收集真实开发任务的 false promotion、false rollback、review rate、
+返工减少和多日常驻证据。P1.1–P1.7/P2D.1 不作
 完整退出声明。
 
 退出条件：真实 Shadow/Canary 数据证明 false promotion、false rollback、review rate 和每次减少返工的成本在预声明预算内。

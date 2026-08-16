@@ -38,9 +38,34 @@ fail-closed 规则放在一个按需 reference 中；作者不需要从长篇架
 - 完整 `pnpm check` 通过：`dsh-evolve` 116 passed / 2 skipped，`dsh-software-delivery`
   26 passed / 1 skipped，合计 142 passed / 3 skipped；docs、typecheck 与两个包 build 全绿。
 
-当前环境没有使用独立 Agent 做前向泛化测试，因此这只证明 Skill 结构、契约链接和规定的真实校准
-路径可执行；尚未证明陌生作者能一次写出高质量 evaluator。该可用性证据必须由一个新的真实失败
-补齐，不能用现有 fixture 冒充。
+## 首个新失败前向测试
+
+实现 Skill 后，按其完整流程处理了既有公开 Case Pack 未覆盖的新失败：插件开发已获授权且本地
+步骤通过后，Agent 把进度汇报误当作完成，在仍有安全、范围内的文档、Draft PR 与远端验证工作时
+提前停止。没有复制用户原话、Prompt 或私有项目内容；私有 Case Pack 只保存在 ignored
+`.evoforge/`。
+
+- target 是 exact `build-dsh-plugin` Skill，known-bad SHA-256 为
+  `3d75e62833a9bbfed0e8134d49ef0e92b6ec4174765087dd39f1975a582dc243`；
+- evaluator 同时要求“进度不是完成”“继续安全已授权工作”和三类 bounded terminal conditions；
+  两个隐藏 negative control 会拒绝“关键词齐全但允许进度即停”和“永远继续”；
+- 首次 red calibration 中 known-bad fail、未修正 correction 也 fail，报告 hash 为
+  `8585cbe4ebc185c2021cb592d2473cf0c295e063af86b8f6f7068c650c968974`；
+- 加入独立 correction 后，零模型 assembled calibration 为 known-bad fail / correction pass；最终
+  Case Pack hash 前后同为
+  `91da5e2fc46ea8b229af9e3a8e7fdd6b820c871b58cb5cc7352b1116d5db4ffe`；
+- 一次本地冻结 transport Shadow 得到 baseline fail / Candidate pass、10/10 checks、stable
+  non-target composition、active Skill unchanged 和 `promote`；Candidate tree hash 为
+  `ad4e757e0da59d6d952149d3e75cbfd5c68d3af63363fa1ac3ff1a845c69caf7`，report hash 为
+  `f64ef3b3c2e623dbf35873796cc2a662e1c6b1ba9fa796046fa3d83f3246a79f`；
+- proposer input/output token 为 0，没有外部 provider、网络或付费；四次 sealed Trial 使用 pinned
+  DSH keyless fixture，baseline/Candidate 各 2 次模型调用且 composition fingerprint 相同；
+- 明显正向且 bounded 的 correction 已写入 `build-dsh-plugin`，新 Skill hash 为
+  `4cee62e2fb9d2915b6468bd70fc445daee030e7e5c9770149256863903422ab6`；Git commit 提供回滚点。
+
+这证明作者流程能从一个新失败走到 calibrated Candidate，并抓住两种近似但错误的负控制；它仍不
+证明陌生作者可一次成功、真实模型会遵循该 Skill，或词法状态机能代表全部软件交付行为。后续需要
+独立作者可用性测试和真实 provider/任务 outcome，不能用这次 keyless 前向测试冒充。
 
 ## Cache、权限与边界
 

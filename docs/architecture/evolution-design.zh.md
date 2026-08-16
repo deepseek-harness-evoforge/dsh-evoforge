@@ -640,6 +640,7 @@ P1.6 已提供零模型独立校准，并让完整 Shadow 在 proposer 前 fail 
 [P1.6](../evidence/p1-6-preproposal-case-pack-calibration.zh.md)。P1.7 已把一个新失败的最窄
 evaluator authoring 流程沉淀为显式、非隐式注入 Skill，要求独立 observable、negative controls、
 known-bad/correction 与零模型校准，见 [P1.7](../evidence/p1-7-evaluator-authoring-skill.zh.md)。下一步
-不扩建通用 Signal/Memory/Case 平台；用一个陌生真实失败前向验证该 Skill，同时用真实 provider 与
-用户纠正测量候选改善率，并继续测量 false promotion、false rollback、review rate、返工与成本。
+不扩建通用 Signal/Memory/Case 平台；首个新失败已完成 keyless red→green→bounded Shadow 与
+可回滚 Skill 晋升，下一步由独立陌生作者复跑，并用真实 provider 与用户纠正测量候选改善率，
+继续测量 false promotion、false rollback、review rate、返工与成本。
 P0C 仍需普通用户完成控制任务的可用性退出证据。
