@@ -32,6 +32,8 @@ export const cssText = `
 .dsh-evolve-detail-grid{display:grid;grid-template-columns:max-content 1fr;gap:5px 10px;font-size:12px}
 .dsh-evolve-detail-grid dt{color:var(--dsw-alias-label-tertiary)}
 .dsh-evolve-detail-grid dd{min-width:0;margin:0;overflow-wrap:anywhere}
+.dsh-evolve-claim-card{padding:10px;border-radius:10px;background:var(--dsw-alias-fill-l1)}
+.dsh-evolve-claim-card p{margin:4px 0 0;font-size:13px;line-height:19px}
 .dsh-evolve-diff{max-height:260px;margin:6px 0 0;padding:10px;overflow:auto;border-radius:8px;background:var(--dsw-alias-fill-l1);font:11px/17px var(--dsw-font-mono);white-space:pre-wrap}
 .dsh-evolve-note{box-sizing:border-box;width:100%;min-height:64px;padding:8px 10px;resize:vertical;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-fill-l1);color:inherit;font:12px/18px inherit}
 .dsh-evolve-message{padding:8px 10px;border-radius:8px;background:var(--dsw-alias-fill-l1);font-size:12px;line-height:18px}

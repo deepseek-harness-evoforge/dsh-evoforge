@@ -5,12 +5,17 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { EvolutionAction } from '../../src/client/EvolutionAction.tsx'
 import type { EvolutionRemoteClient } from '../../src/client/remote.ts'
+import { cssText } from '../../src/client/style.ts'
 
 const signalId = '8'.repeat(64)
 const draftId = 'e'.repeat(64)
 const launchId = 'd'.repeat(64)
-const qualifiedMode = new URLSearchParams(window.location.search).has('qualified')
-const calls = { author: 0, approve: 0, reject: 0, shadow: 0 }
+const reviewId = 'c'.repeat(64)
+const search = new URLSearchParams(window.location.search)
+const qualifiedMode = search.has('qualified')
+const reviewMode = search.has('review')
+const calls = { author: 0, approve: 0, reject: 0, shadow: 0, reviewApprove: 0 }
+let reviewApproved = false
 const runs: Array<{
   launchId: string
   targetId: string
@@ -29,6 +34,30 @@ const draft = {
   createdAt: '2026-08-17T00:00:00.000Z',
   updatedAt: '2026-08-17T00:00:01.000Z',
   cost: { modelCalls: 1 as const, inputTokens: 100, outputTokens: 50 },
+}
+
+const review = {
+  id: reviewId,
+  status: 'pending' as const,
+  recommendation: 'review' as const,
+  skillName: 'build-dsh-plugin',
+  claim: 'Keep working until the requested result is verified.',
+  changedFiles: ['SKILL.md'],
+  candidateTreeHash: '1'.repeat(64),
+  cases: [{
+    id: 'progress-stop-heldout',
+    baseline: 'fail' as const,
+    candidate: 'pass' as const,
+    passedChecks: 2,
+    totalChecks: 2,
+  }],
+  cost: { inputTokens: 120, outputTokens: 30, trialCount: 4 },
+  reasons: ['held-out case changed from fail to pass', 'complete composition stayed stable'],
+  limitations: ['validated for one bounded software-delivery failure class'],
+  evaluatorVersion: 'browser-review-v1',
+  compositionFingerprint: '2'.repeat(64),
+  compositionStable: true,
+  startedAt: '2026-08-16T00:00:00.000Z',
 }
 
 const ok = <T,>(value: T) => Promise.resolve({ ok: true as const, value })
@@ -53,10 +82,10 @@ const remote: EvolutionRemoteClient = {
     },
     reviews: {
       available: true,
-      pendingCount: 0,
-      actionableCount: 0,
+      pendingCount: reviewMode && !reviewApproved ? 1 : 0,
+      actionableCount: reviewMode && !reviewApproved ? 1 : 0,
       warningCount: 0,
-      items: [],
+      items: reviewMode && !reviewApproved ? [review] : [],
       inactiveGenerations: [],
     },
   }),
@@ -129,10 +158,45 @@ const remote: EvolutionRemoteClient = {
       jobId: 'evolution-3',
     })
   },
-  review: () => Promise.reject(new Error('not used')),
+  review: (selectedReview) => {
+    if (!reviewMode || selectedReview !== reviewId) throw new Error('wrong review selection')
+    return ok({
+      schemaVersion: 1,
+      review,
+      diff: {
+        patch: '-Stop after reporting progress.\n+Continue until the requested result is verified.\n',
+        shownBytes: 85,
+        totalBytes: 85,
+        truncated: false,
+        impact: {
+          version: 'lexical-protected-effects-v1' as const,
+          scope: 'append-only-skill' as const,
+          indicators: [],
+        },
+      },
+      automatic: {
+        eligible: false,
+        policyVersion: 'auto-clear-instruction-v1' as const,
+        reasons: ['manual review fixture'],
+      },
+    })
+  },
   pause: () => Promise.reject(new Error('not used')),
   resume: () => Promise.reject(new Error('not used')),
-  approveReview: () => Promise.reject(new Error('not used')),
+  approveReview: (selectedReview, note) => {
+    if (!reviewMode || selectedReview !== reviewId || note !== 'evidence and limitation reviewed') {
+      throw new Error('wrong review approval')
+    }
+    calls.reviewApprove += 1
+    reviewApproved = true
+    return ok({
+      schemaVersion: 1,
+      action: 'approve-review',
+      reviewId,
+      status: 'approved',
+      generationId: 'a'.repeat(64),
+    })
+  },
   rejectReview: () => Promise.reject(new Error('not used')),
   promote: () => Promise.reject(new Error('not used')),
   rollback: () => Promise.reject(new Error('not used')),
@@ -153,12 +217,15 @@ const labels: Record<string, string> = {
   'status.off': 'Off',
   'section.evaluators': 'Evaluator drafts',
   'section.evaluatorDetail': 'Evaluator qualification review',
+  'section.detail': 'Review evidence',
   'section.runs': 'Recent Shadow runs',
   'section.reviews': 'Reviews',
   'empty.reviews': 'No reviews',
   'action.refresh': 'Refresh',
   'action.authorEvaluator': 'Author Evaluator',
   'action.inspectEvaluator': 'Inspect Evaluator',
+  'action.inspect': 'Inspect',
+  'action.approve': 'Publish inactive',
   'action.approveEvaluator': 'Qualify Evaluator',
   'action.startQualifiedShadow': 'Start Qualified Shadow',
   'action.reject': 'Reject',
@@ -166,10 +233,17 @@ const labels: Record<string, string> = {
   'action.cancel': 'Cancel',
   'action.confirm': 'Confirm',
   'field.note': 'Decision note',
+  'label.claim': 'Improvement claim',
   'label.skill': 'Skill',
+  'label.changedFiles': 'Changed files',
+  'label.reasons': 'Decision reasons',
   'label.status': 'Status',
   'label.limitations': 'Limitations',
+  'label.cases': 'Cases',
+  'label.impact': 'Protected-effect indicators',
+  'label.diff': 'Verified diff',
   'label.tokens': 'Tokens',
+  'confirm.approve': 'Publish an inactive Generation without changing current or future Sessions?',
   'confirm.authorEvaluator': 'Paid disclosure confirmation',
   'confirm.approveEvaluator': 'Execute generated code in sealed qualification?',
   'confirm.qualifiedShadow': 'Start paid Qualified Shadow?',
@@ -179,6 +253,9 @@ const labels: Record<string, string> = {
 }
 
 Object.assign(window, { __EVOFORGE_E2E__: calls })
+const productStyle = document.createElement('style')
+productStyle.textContent = cssText
+document.head.append(productStyle)
 createRoot(document.getElementById('root')!).render(
   <EvolutionAction remote={remote} t={key => labels[key] ?? key} />,
 )

@@ -80,6 +80,9 @@ export function EvolutionAction({ remote, t, wide = true }: EvolutionActionProps
     try {
       const receipt = await request()
       if (receipt.action === 'promote') setPromotionTarget(undefined)
+      if (receipt.action === 'approve-review' || receipt.action === 'reject-review') {
+        setDetail(undefined)
+      }
       if (receipt.action === 'approve-evaluator' || receipt.action === 'reject-evaluator') {
         setEvaluatorDetail(undefined)
       }
@@ -434,8 +437,15 @@ function ReviewDetail({ detail, note, busy, setNote, back, confirm, t }: {
   const validNote = note.trim().length > 0
   return <section>
     <h3 className="dsh-evolve-section-title">{t('section.detail')}</h3>
+    <div className="dsh-evolve-claim-card">
+      <span className="dsh-evolve-stat-label">{t('label.claim')}</span>
+      <p>{detail.review.claim}</p>
+    </div>
     <dl className="dsh-evolve-detail-grid">
       <dt>{t('label.skill')}</dt><dd>{detail.review.skillName}</dd>
+      <dt>{t('label.changedFiles')}</dt><dd>{detail.review.changedFiles.join(', ')}</dd>
+      <dt>{t('label.reasons')}</dt><dd>{detail.review.reasons.join('; ')}</dd>
+      <dt>{t('label.limitations')}</dt><dd>{detail.review.limitations.join('; ')}</dd>
       <dt>{t('label.cases')}</dt><dd>{detail.review.cases.map(item => `${item.id}: ${item.baseline}→${item.candidate} ${item.passedChecks}/${item.totalChecks}`).join('; ')}</dd>
       <dt>{t('label.tokens')}</dt><dd>{detail.review.cost.inputTokens} in / {detail.review.cost.outputTokens} out</dd>
       <dt>{t('label.impact')}</dt><dd>{detail.diff.impact.indicators.length === 0 ? 'none' : detail.diff.impact.indicators.join(', ')}</dd>

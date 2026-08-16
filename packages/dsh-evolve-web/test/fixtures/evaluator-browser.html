@@ -5,13 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EvoForge Evaluator Browser Acceptance</title>
     <style>
-      body { font-family: system-ui, sans-serif; margin: 2rem; }
-      button, textarea { margin: .25rem; padding: .5rem; }
-      .dsh-evolve-panel { border: 1px solid #999; padding: 1rem; max-width: 60rem; }
-      .dsh-evolve-review { margin: .75rem 0; }
-      .dsh-evolve-confirm-backdrop { position: fixed; inset: 0; background: #0008; display: grid; place-items: center; }
-      .dsh-evolve-confirm { background: white; padding: 1rem; border-radius: .5rem; }
-      pre { white-space: pre-wrap; border: 1px solid #ddd; padding: .5rem; }
+      :root {
+        --dsw-alias-label-primary: #18181b;
+        --dsw-alias-label-secondary: #52525b;
+        --dsw-alias-label-tertiary: #71717a;
+        --dsw-alias-fill-l1: #f4f4f5;
+        --dsw-alias-fill-l2: #e4e4e7;
+        --dsw-alias-border-l2: #d4d4d8;
+        --dsw-alias-brand-primary: #2563eb;
+        --dsw-alias-red: #b91c1c;
+        --dsw-specific-menu: #fff;
+        --dsw-shadow-lv3: 0 18px 50px rgba(0, 0, 0, .14);
+        --dsw-font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      body { min-height: 100vh; margin: 0; background: #fafafa; font-family: system-ui, sans-serif; }
     </style>
   </head>
   <body>

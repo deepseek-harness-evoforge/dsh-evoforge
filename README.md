@@ -42,7 +42,7 @@ P0C.5 在每次 review detail 中显示固定版本的 protected-effect 词法�
 相对 Candidate 的变更文本，复用 P1.1 的保守路由规则；否定句仍会提示，未命中也不是安全证明。
 该投影完全位于 host plane，DSH Approval/Permission/Sandbox 仍是外部效果的权威边界。
 
-P0C.6 用 `dsh-evolve-web` 把同一权威控制模块接到 DSH 原生 Web。入口位于全局侧栏，无 Session 也可用；只在打开、刷新或动作后读取，没有后台轮询。approve 后的 inactive Generation 从 durable review evidence 投影，刷新或进程重启后仍可继续 promote。真实固定版本 DSH 已通过 tarball 安装、Client Module/RPC、浏览器 pause→重启仍暂停→resume 验收。它不新增模型可见表面，正常 Session token 增量为 `0`。
+P0C.6 用 `dsh-evolve-web` 把同一权威控制模块接到 DSH 原生 Web。入口位于全局侧栏，无 Session 也可用；只在打开、刷新或动作后读取，没有后台轮询。review detail 同屏显示 claim、changed files、判定理由、限制、case、成本、词法影响和 exact diff；approve/reject 后立即关闭过期表单。approve 后的 inactive Generation 从 durable review evidence 投影，刷新或进程重启后仍可继续 promote。真实固定版本 DSH 已通过 tarball 安装、Client Module/RPC、浏览器 pause→重启仍暂停→resume 验收；[可解释审查卡](docs/evidence/ui-1-explainable-review.zh.md)另经真实 Chrome 审批闭环验证。它不新增模型可见表面，正常 Session token 增量为 `0`。
 
 P1.8 把“已有明确纠正”到“一次后台 Shadow”接进同一 Commands/Web 控制面。操作者预先把公开 target id 静态绑定到 exact Skill、已校准 Case Pack 和 owned run root；用户每次仍要明确确认一次可能付费的 proposer 请求和受限纠正文案外发。浏览器与命令不能提交路径或模型参数，调用立即返回原会话，重复调用复用内容寻址 launch 与 durable journal。它不自动生成 evaluator、不自动晋升，也不增加正常 Session token。
 

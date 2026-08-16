@@ -203,6 +203,10 @@ describe('EvolutionAction', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Inspect' }))
     await screen.findByText((_content, element) => element?.tagName === 'PRE' && element.textContent?.includes('-stop') === true)
     expect(api.review).toHaveBeenCalledWith(reviewId)
+    expect(screen.getByText('Continue safe work.')).toBeTruthy()
+    expect(screen.getByText('SKILL.md')).toBeTruthy()
+    expect(screen.getByText('passed')).toBeTruthy()
+    expect(screen.getByText('bounded case')).toBeTruthy()
     expect(screen.getAllByText('label.tokens')).toHaveLength(1)
 
     fireEvent.change(screen.getByLabelText('Decision note'), { target: { value: 'checked evidence' } })
@@ -210,6 +214,7 @@ describe('EvolutionAction', () => {
     const confirmation = await screen.findByRole('alertdialog')
     fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm' }))
     await waitFor(() => expect(api.approveReview).toHaveBeenCalledWith(reviewId, 'checked evidence'))
+    await waitFor(() => expect(screen.queryByLabelText('Decision note')).toBeNull())
     expect(api.promote).not.toHaveBeenCalled()
   })
 

@@ -96,7 +96,8 @@ P0C.6 已完成：独立 `dsh-evolve-web` Bundle 把结构化、bounded 的同�
 DSH 原生 Web 全局侧栏；无需 Workspace 或 Session。页面只在打开、刷新和动作后读取，无后台
 轮询，不注册模型可见表面。固定 DSH revision 已通过 tarball 装配、生成式 RPC、真实浏览器
 pause、进程重启保持 pause、resume 与零页面错误验收。批准仍只发布 inactive Generation，晋升
-保持第二个动作。证据见 [P0C.6](evidence/p0c-6-web-control-plane.zh.md)与
+保持第二个动作。证据见 [P0C.6](evidence/p0c-6-web-control-plane.zh.md)、
+[UI-1 可解释审查卡](evidence/ui-1-explainable-review.zh.md)与
 [ADR-0025](adr/0025-web-is-a-thin-kv-safe-adapter.md)。
 
 P0C 剩余的是退出证据：由不了解内部实现的用户在 Web 完成一次查看、审批、晋升和回滚，测量
