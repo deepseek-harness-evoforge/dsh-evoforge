@@ -18,7 +18,7 @@
   ],
   "scripts": {
     "build": "pnpm -r build",
-    "generate:typert": "pnpm --filter dsh-evolve exec tsc -b ../../tsconfig.host.json && node scripts/generate-typert.mjs",
+    "generate:typert": "pnpm --filter dsh-evolve exec tsc -b ../../tsconfig.host.json --force && node scripts/generate-typert.mjs",
     "check:docs": "node scripts/check-docs.mjs",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",

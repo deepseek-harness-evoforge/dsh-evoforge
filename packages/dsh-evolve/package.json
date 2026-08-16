@@ -56,7 +56,7 @@
     "lib/typert.source.sha256"
   ],
   "scripts": {
-    "build": "tsc -b ../../tsconfig.host.json && tsdown && node ../../scripts/verify-typert-artifacts.mjs && node ../../scripts/verify-node-artifacts.mjs packages/dsh-evolve/dist/index.mjs packages/dsh-evolve/dist/cli.mjs",
+    "build": "tsc -b ../../tsconfig.host.json --force && tsdown && node ../../scripts/verify-typert-artifacts.mjs && node ../../scripts/verify-node-artifacts.mjs packages/dsh-evolve/dist/index.mjs packages/dsh-evolve/dist/cli.mjs",
     "prepack": "pnpm run build",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "test": "vitest run"

@@ -1,5 +1,3 @@
-import type {} from 'dsh-evolve'
-
 export const name = 'dsh-evolve-web'
 export const inject = ['evoforge.evolutionControl']
 

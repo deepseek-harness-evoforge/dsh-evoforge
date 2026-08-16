@@ -1,0 +1,128 @@
+export type CandidateImpactIndicator = 'artifact-scope-change' | 'credential-access' | 'destructive-action' | 'messaging-or-calendar' | 'network-access' | 'payment-action' | 'permission-or-sandbox' | 'privileged-tooling' | 'production-change' | 'rewritten-instructions';
+/** Browser-safe copy of the versioned host impact projection contract. */
+export interface CandidateImpactProjection {
+    readonly version: 'lexical-protected-effects-v1';
+    readonly scope: 'append-only-skill' | 'broader-change';
+    readonly indicators: readonly CandidateImpactIndicator[];
+}
+/** Minimal delivery aggregate; individual outcomes never cross the adapter. */
+export interface DeliveryOutcomeCounts {
+    readonly total: number;
+    readonly passed: number;
+    readonly failed: number;
+    readonly unknown: number;
+}
+/** Client-safe immutable Generation projection. */
+export interface EvolutionGenerationView {
+    readonly id: string;
+    readonly rollbackTargetId?: string;
+    readonly createdAt: number;
+    readonly evaluatorVersion: string;
+    readonly policyVersion: string;
+    readonly artifacts: readonly EvolutionArtifactView[];
+}
+/** Client-safe Skill artifact identity; no repository path is exposed. */
+export interface EvolutionArtifactView {
+    readonly kind: 'skill';
+    readonly name: string;
+    readonly gitCommit: string;
+    readonly treeHash: string;
+}
+/** One sealed evaluator result shown in review. */
+export interface EvolutionReviewCaseView {
+    readonly id: string;
+    readonly baseline: 'pass' | 'fail' | 'incomplete';
+    readonly candidate: 'pass' | 'fail' | 'incomplete';
+    readonly passedChecks: number;
+    readonly totalChecks: number;
+}
+/** Bounded review metadata shared by the list and detail views. */
+export interface EvolutionReviewView {
+    readonly id: string;
+    readonly status: 'pending' | 'approved' | 'rejected';
+    readonly recommendation: 'promote' | 'review';
+    readonly skillName: string;
+    readonly claim: string;
+    readonly changedFiles: readonly string[];
+    readonly candidateTreeHash: string;
+    readonly cases: readonly EvolutionReviewCaseView[];
+    readonly cost: {
+        readonly inputTokens: number;
+        readonly outputTokens: number;
+        readonly trialCount: number;
+    };
+    readonly reasons: readonly string[];
+    readonly limitations: readonly string[];
+    readonly evaluatorVersion: string;
+    readonly compositionFingerprint: string;
+    readonly compositionStable: boolean;
+    readonly startedAt: string;
+    readonly decisionActor?: 'human' | 'auto-clear-instruction-v1';
+    readonly decisionNote?: string;
+    readonly generationId?: string;
+    readonly activatedAt?: string;
+}
+/** Durable approved Generation that is not the current active selection. */
+export interface EvolutionInactiveGenerationView {
+    readonly generationId: string;
+    readonly reviewId: string;
+    readonly skillName: string;
+}
+/** Browser overview. Dynamic global state stays outside Session and model context. */
+export interface EvolutionOverview {
+    readonly schemaVersion: 1;
+    readonly active?: EvolutionGenerationView;
+    readonly recovery: {
+        readonly available: boolean;
+        readonly paused?: boolean;
+    };
+    readonly automaticPromotion: {
+        readonly enabled: boolean;
+        readonly skills: readonly string[];
+    };
+    readonly deliveryOutcomes?: {
+        readonly all: DeliveryOutcomeCounts;
+        readonly selected: DeliveryOutcomeCounts;
+    };
+    readonly feedbackSignals?: {
+        readonly all: number;
+        readonly selected: number;
+    };
+    readonly reviews: {
+        readonly available: boolean;
+        readonly pendingCount: number;
+        readonly actionableCount: number;
+        readonly warningCount: number;
+        readonly items: readonly EvolutionReviewView[];
+        readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[];
+    };
+}
+/** Exact bounded diff and deterministic policy projection for one review. */
+export interface EvolutionReviewDetail {
+    readonly schemaVersion: 1;
+    readonly review: EvolutionReviewView;
+    readonly diff: {
+        readonly patch: string;
+        readonly shownBytes: number;
+        readonly totalBytes: number;
+        readonly truncated: boolean;
+        readonly impact: CandidateImpactProjection;
+    };
+    readonly automatic?: {
+        readonly eligible: boolean;
+        readonly policyVersion: 'auto-clear-instruction-v1';
+        readonly reasons: readonly string[];
+    };
+}
+/** Durable action acknowledgement; UI refreshes the authoritative overview afterwards. */
+export interface EvolutionActionReceipt {
+    readonly schemaVersion: 1;
+    readonly action: 'pause' | 'resume' | 'approve-review' | 'reject-review' | 'promote' | 'rollback';
+    readonly reviewId?: string;
+    readonly status?: 'approved' | 'rejected';
+    readonly generationId?: string;
+    readonly previousGenerationId?: string;
+    readonly activeGenerationId?: string;
+    readonly recoveryPaused?: boolean;
+}
+//# sourceMappingURL=control-types.d.ts.map

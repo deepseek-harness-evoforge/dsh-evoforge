@@ -1,5 +1,29 @@
-import type { CandidateImpactProjection } from './candidate-impact.ts'
-import type { DeliveryOutcomeCounts } from './delivery-outcome-monitor.ts'
+export type CandidateImpactIndicator =
+  | 'artifact-scope-change'
+  | 'credential-access'
+  | 'destructive-action'
+  | 'messaging-or-calendar'
+  | 'network-access'
+  | 'payment-action'
+  | 'permission-or-sandbox'
+  | 'privileged-tooling'
+  | 'production-change'
+  | 'rewritten-instructions'
+
+/** Browser-safe copy of the versioned host impact projection contract. */
+export interface CandidateImpactProjection {
+  readonly version: 'lexical-protected-effects-v1'
+  readonly scope: 'append-only-skill' | 'broader-change'
+  readonly indicators: readonly CandidateImpactIndicator[]
+}
+
+/** Minimal delivery aggregate; individual outcomes never cross the adapter. */
+export interface DeliveryOutcomeCounts {
+  readonly total: number
+  readonly passed: number
+  readonly failed: number
+  readonly unknown: number
+}
 
 /** Client-safe immutable Generation projection. */
 export interface EvolutionGenerationView {
