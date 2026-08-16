@@ -51,9 +51,22 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
         ...(enabled
           ? {
               supervisor: {
-                runRoots: [join(runtimeRoot, 'qualified-shadow-runs')],
+                runRoots: [
+                  join(runtimeRoot, 'feedback-shadow-runs'),
+                  join(runtimeRoot, 'qualified-shadow-runs'),
+                ],
                 scanIntervalMs: 60_000,
               },
+              shadowTargets: [{
+                id: 'stable-feedback-fix',
+                skill: 'stable-evolved-skill',
+                casePackDir: join(runtimeRoot, 'feedback-case-pack'),
+                runRoot: join(runtimeRoot, 'feedback-shadow-runs'),
+              }],
+              automaticFeedbackTargets: [{
+                target: 'stable-feedback-fix',
+                casePackHash: '7'.repeat(64),
+              }],
               evaluatorTargets: [{
                 id: 'stable-skill-fix',
                 skill: 'stable-evolved-skill',
@@ -83,6 +96,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     expect(modelVisibleRequest(requests[1])).toEqual(modelVisibleRequest(requests[0]))
     expect(JSON.stringify(requests[1])).not.toContain('evaluator')
     expect(JSON.stringify(requests[1])).not.toContain('stable-skill-fix')
+    expect(JSON.stringify(requests[1])).not.toContain('stable-feedback-fix')
     expect(JSON.stringify(requests[1])).not.toContain('stable-prior-capability')
   })
 
@@ -423,6 +437,176 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
       expect(adapter.requests).toHaveLength(normalRequests)
       expect(await readFile(skillPath, 'utf8')).toBe(originalSkill)
       expect(store.getActiveGeneration()?.id).toBe(generation.id)
+    } finally {
+      if (previousBase === undefined) delete process.env.DSH_EVOLVE_MODEL_BASE_URL
+      else process.env.DSH_EVOLVE_MODEL_BASE_URL = previousBase
+      if (previousModel === undefined) delete process.env.DSH_EVOLVE_MODEL_NAME
+      else process.env.DSH_EVOLVE_MODEL_NAME = previousModel
+      if (previousDshSource === undefined) delete process.env.DSH_EVOLVE_DSH_SOURCE_DIR
+      else process.env.DSH_EVOLVE_DSH_SOURCE_DIR = previousDshSource
+      await ctx.fiber.dispose()
+      await new Promise<void>((resolveClose, rejectClose) => server.close(error => error ? rejectClose(error) : resolveClose()))
+    }
+  }, 60_000)
+
+  it('turns one explicit correction into exact Shadow, Retention, and a future Generation automatically', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-automatic-feedback-shadow-'))
+    temporaryRoots.push(root)
+    const repository = join(root, 'source')
+    const revision = await commitSingleFileSkill(repository, [
+      '# Develop a DSH Plugin',
+      '',
+      'Preserve the existing capability.',
+    ].join('\n'))
+    const skillPath = join(repository, 'skills', 'stable-evolved-skill', 'SKILL.md')
+    const originalSkill = await readFile(skillPath, 'utf8')
+    const correction = 'Confirm the requested result before completion.'
+    const correctedSkill = `${originalSkill.trimEnd()}\n\n${correction}\n`
+    const sessionsRoot = join(root, 'sessions')
+    const feedbackDraftRoot = join(root, 'private-feedback')
+    const shadowRunRoot = join(root, 'feedback-shadow-runs')
+    const retentionRoot = join(root, 'retention-runs')
+    const casePackDir = join(root, 'feedback-case-pack')
+    const priorCasePack = join(root, 'prior-case-pack')
+    await Promise.all([
+      mkdir(shadowRunRoot),
+      mkdir(retentionRoot),
+      writeAutomaticFeedbackCasePack(casePackDir, correction),
+      writeTextRetentionCasePack(priorCasePack, 'Preserve the existing capability.'),
+    ])
+    const [casePackHash, priorCasePackHash] = await Promise.all([
+      hashTree(casePackDir),
+      hashTree(priorCasePack),
+    ])
+    let proposerRequests = 0
+    const server = createServer(async (request, response) => {
+      for await (const _chunk of request) {
+        // Consume the request before replying so the test exercises the real model client.
+      }
+      proposerRequests += 1
+      response.setHeader('content-type', 'application/json')
+      response.end(JSON.stringify({
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              claim: 'Confirm the requested result before completion',
+              files: [{ path: 'SKILL.md', content: correctedSkill }],
+            }),
+          },
+        }],
+        usage: { prompt_tokens: 500, completion_tokens: 100 },
+      }))
+    })
+    await new Promise<void>(resolveListen => server.listen(0, '127.0.0.1', resolveListen))
+    const address = server.address()
+    if (!address || typeof address === 'string') throw new Error('automatic feedback model server did not bind')
+    const previousBase = process.env.DSH_EVOLVE_MODEL_BASE_URL
+    const previousModel = process.env.DSH_EVOLVE_MODEL_NAME
+    const previousDshSource = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
+    process.env.DSH_EVOLVE_MODEL_BASE_URL = `http://127.0.0.1:${address.port}/v1`
+    process.env.DSH_EVOLVE_MODEL_NAME = 'fixed-automatic-feedback-model'
+    process.env.DSH_EVOLVE_DSH_SOURCE_DIR = dshSourceDir
+
+    const ctx = await bootStorage(await writeStorageConfig(root))
+    const adapter = await installAgentRuntime(ctx, sessionsRoot)
+    try {
+      await ctx.plugin(EvolvePlugin, {
+        cacheRoot: join(root, 'cache'),
+        feedbackDraftRoot,
+        sources: [{
+          name: 'stable-evolved-skill',
+          repository,
+          path: 'skills/stable-evolved-skill',
+        }],
+        supervisor: { runRoots: [shadowRunRoot], scanIntervalMs: 1_000 },
+        shadowTargets: [{
+          id: 'stable-skill-fix',
+          skill: 'stable-evolved-skill',
+          casePackDir,
+          runRoot: shadowRunRoot,
+        }],
+        automaticFeedbackTargets: [{
+          target: 'stable-skill-fix',
+          casePackHash,
+        }],
+        autoPromote: {
+          skills: ['stable-evolved-skill'],
+          retentionRoots: [retentionRoot],
+          retentionTargets: [{
+            id: 'stable-prior-capability',
+            skill: 'stable-evolved-skill',
+            casePackDir: priorCasePack,
+            casePackHash: priorCasePackHash,
+            runRoot: retentionRoot,
+          }],
+        },
+      })
+      const packages = (path: string) => pathToFileURL(
+        join(dshSourceDir, 'packages', path, 'lib', 'index.js'),
+      ).href
+      const [messageFeedbackModule, jobsModule] = await Promise.all([
+        import(packages('feedback/message-feedback')),
+        import(packages('jobs/jobs-local')),
+      ])
+      await ctx.plugin(messageFeedbackModule.default, { maxNoteBytes: 1_024 })
+      await ctx.plugin(jobsModule.default)
+      const store = ctx.get('evoforge.evolution') as EvolutionStore | undefined
+      const feedback = ctx.get('messageFeedback') as {
+        put(request: {
+          sessionId: string
+          messageId: string
+          rating: 'negative'
+          note: string
+          ifVersion: null
+        }): Promise<{ ok: boolean }>
+      } | undefined
+      if (store === undefined || feedback === undefined) {
+        throw new Error('automatic feedback services did not load')
+      }
+      const baseline = (await store.publishGeneration(generationInput(revision))).generation
+      await store.promoteGeneration(baseline.id)
+      const agent = await createAndRunAgent(
+        ctx,
+        'automatic-feedback-session',
+        root,
+        undefined,
+        '/stable-evolved-skill reproduce the missing completion check',
+      )
+      const assistant = agent.session.events.find(
+        (event: { type: string }) => event.type === 'assistant/message',
+      ) as { data: { message: { id: string } } } | undefined
+      if (assistant === undefined) throw new Error('assistant message fixture missing')
+      const normalRequests = adapter.requests.length
+
+      await expect(feedback.put({
+        sessionId: String(agent.session.header.id),
+        messageId: assistant.data.message.id,
+        rating: 'negative',
+        note: correction,
+        ifVersion: null,
+      })).resolves.toMatchObject({ ok: true })
+
+      const active = await waitForGenerationChange(store, baseline.id, 45_000)
+      expect(active.policyVersion).toBe('auto-clear-instruction-v1')
+      expect(proposerRequests).toBe(1)
+      expect(adapter.requests).toHaveLength(normalRequests)
+      expect(store.getSessionGeneration(identityOf(agent))?.id).toBe(baseline.id)
+      expect(await readFile(skillPath, 'utf8')).toBe(originalSkill)
+      expect(await git(repository, 'rev-parse', 'HEAD')).toBe(revision.commit)
+      expect(await git(repository, 'status', '--porcelain')).toBe('')
+      expect(await readdir(feedbackDraftRoot)).toHaveLength(1)
+      expect(await waitForRetentionDecision(retentionRoot, 'retained')).toMatchObject({
+        casePack: { hash: priorCasePackHash },
+        decision: { outcome: 'retained' },
+        model: { proposerCalls: 0 },
+      })
+
+      const future = await createAndRunAgent(ctx, 'automatic-feedback-future', root)
+      const skills = ctx.get('skills') as {
+        get(name: string, options: { cwd?: string; scope?: object }): Promise<{ content: string } | undefined>
+      }
+      expect((await skills.get('stable-evolved-skill', { cwd: root, scope: future }))?.content)
+        .toContain(correction)
     } finally {
       if (previousBase === undefined) delete process.env.DSH_EVOLVE_MODEL_BASE_URL
       else process.env.DSH_EVOLVE_MODEL_BASE_URL = previousBase
@@ -1682,6 +1866,78 @@ async function writeAutomaticCanaryCasePack(casePackDir: string): Promise<string
   return hashTree(casePackDir)
 }
 
+async function writeAutomaticFeedbackCasePack(
+  casePackDir: string,
+  correction: string,
+): Promise<void> {
+  const source = join(suiteRoot, 'examples', 'case-packs', 'browser-e2e-guidance-assembled')
+  await cp(source, casePackDir, { recursive: true })
+  const files = [
+    'calibration/known-bad/SKILL.md',
+    'calibration/known-correction/SKILL.md',
+    'final-test/evaluator.mjs',
+    'manifest.json',
+  ]
+  for (const path of files) {
+    const file = join(casePackDir, path)
+    const input = await readFile(file, 'utf8')
+    await writeFile(file, input
+      .replaceAll('browser-e2e-baseline', 'stable-evolved-skill')
+      .replaceAll(
+        'For Web or GUI work, component tests and screenshots are sufficient.',
+        'Preserve the existing capability.',
+      )
+      .replaceAll(
+        'For Web or GUI work, verify the real flow in a controlled browser, refresh once, and inspect the visible failure path.',
+        `Preserve the existing capability.\n\n${correction}`,
+      )
+      .replaceAll('verify the real flow in a controlled browser', correction)
+      .replaceAll('real-browser-e2e-assembled', 'automatic-feedback-assembled')
+      .replaceAll('browser-e2e-guidance-assembled-v1', 'automatic-feedback-assembled-v1'))
+  }
+}
+
+async function writeTextRetentionCasePack(
+  casePackDir: string,
+  requiredText: string,
+): Promise<void> {
+  const knownBad = join(casePackDir, 'calibration', 'known-bad')
+  const knownCorrection = join(casePackDir, 'calibration', 'known-correction')
+  await Promise.all([
+    mkdir(knownBad, { recursive: true }),
+    mkdir(knownCorrection, { recursive: true }),
+  ])
+  const skill = (body: string) => [
+    '---',
+    'name: stable-evolved-skill',
+    'description: Retention fixture.',
+    '---',
+    '',
+    body,
+    '',
+  ].join('\n')
+  await writeFile(join(knownBad, 'SKILL.md'), skill('The prior capability is missing.'))
+  await writeFile(join(knownCorrection, 'SKILL.md'), skill(requiredText))
+  await writeFile(join(casePackDir, 'evaluator.mjs'), [
+    "import { readFile } from 'node:fs/promises'",
+    "import { join } from 'node:path'",
+    "const source = await readFile(join(process.argv[2], 'SKILL.md'), 'utf8')",
+    `const passed = source.includes(${JSON.stringify(requiredText)})`,
+    "process.stdout.write(JSON.stringify({ schemaVersion: 1, passed, checks: [{ name: 'prior-text-retained', passed }] }))",
+  ].join('\n'))
+  await writeFile(join(casePackDir, 'manifest.json'), `${JSON.stringify({
+    schemaVersion: 1,
+    id: 'prior-text-retention',
+    epoch: { dshRevision: 'fixture', evaluatorVersion: 'prior-text-retention-v1' },
+    budget: { candidateLimit: 1, trialLimit: 4, inputTokenLimit: 100, outputTokenLimit: 100 },
+    trial: { evaluator: 'evaluator.mjs', timeoutMs: 5_000, outputLimitBytes: 8_192 },
+    calibration: {
+      knownBad: 'calibration/known-bad',
+      knownCorrection: 'calibration/known-correction',
+    },
+  }, null, 2)}\n`)
+}
+
 async function writePriorRetentionCasePack(
   casePackDir: string,
   rejectCandidateAppend = false,
@@ -1803,6 +2059,20 @@ async function waitForActiveGeneration(store: EvolutionStore): Promise<NonNullab
     await new Promise(resolve => setTimeout(resolve, 10))
   }
   throw new Error('automatic promotion did not activate a Generation')
+}
+
+async function waitForGenerationChange(
+  store: EvolutionStore,
+  baselineId: string,
+  timeoutMs: number,
+): Promise<NonNullable<ReturnType<EvolutionStore['getActiveGeneration']>>> {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    const active = store.getActiveGeneration()
+    if (active !== undefined && active.id !== baselineId) return active
+    await new Promise(resolve => setTimeout(resolve, 25))
+  }
+  throw new Error('automatic feedback did not activate a future Generation')
 }
 
 async function waitForEvolutionStatus(

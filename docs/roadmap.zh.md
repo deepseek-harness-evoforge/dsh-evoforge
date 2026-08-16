@@ -1,6 +1,6 @@
 # EvoForge 开发路线图
 
-> 状态：P0A–P1.13 已实现；P2A.1 验证、P2B.1 Goal 完成、P2C.1 Draft PR、P2C.2 exact checks 门、P2D.1 Outcome 第二消费者、横切 Runtime Readiness 与 P3/AS-1 Telegram 首片已实现
+> 状态：P0A–P1.14 已实现；P2A.1 验证、P2B.1 Goal 完成、P2C.1 Draft PR、P2C.2 exact checks 门、P2D.1 Outcome 第二消费者、横切 Runtime Readiness 与 P3/AS-1 Telegram 首片已实现
 
 ## 当前状态
 
@@ -12,7 +12,7 @@
 | P0A Shadow evaluator | 本地退出门通过 | 安全门、macOS Sealed Trial、真实 DSH bridge、3/3 公开产品 fixture 与[本地未见首测](evidence/p0a-8-private-heldout.zh.md)均转绿；真实 provider 与第三方独立复跑仍属更高等级证据 |
 | P0B Local Continuity | implemented | P0B.1 release kernel、P0B.2a durable resume 与 P0B.2b resident supervisor 已通过本地/pinned DSH 测试；生产多日 soak 仍属发布前证据 |
 | P0C Human Control | Commands + Web 闭环、verified bounded diff 与 lexical effect projection implemented；陌生用户可用性门待验证 | P0C.1 release、P0C.2 review → inactive Generation、P0C.3 durable pause/resume、P0C.4 exact Git diff preview、P0C.5 protected-effect 词法提示、P0C.6 真实 DSH Web/RPC/跨重启控制已通过测试 |
-| P1 Bounded Autonomy | P1.1–P1.13 implemented；P2D.1 信号已接通 | 默认关闭的 allowlist + append-only policy、交付 outcome、显式反馈 intake、私有 Case Draft、既有或新资格验证 Case Pack 下的反馈引导 Shadow、静态 Target 的显式后台启动、proposer 前零模型校准、显式 evaluator authoring Skill、私有 Evaluator Draft/人工资格验证、exact Candidate 历史能力保留门、opt-in 自动晋升绑定与单静态 prior Target 自动执行、exact parent/Candidate 反事实 canary与 pointer-safe 自动回滚均已通过测试；真实 provider、陌生用户与真实任务长期率待验证 |
+| P1 Bounded Autonomy | P1.1–P1.14 implemented；P2D.1 信号已接通 | 默认关闭的 allowlist + append-only policy、交付 outcome、显式反馈 intake、私有 Case Draft、可信 Case Pack 下静态 Target 的显式或 opt-in 自动 Shadow、proposer 前零模型校准、显式 evaluator authoring Skill、私有 Evaluator Draft/人工资格验证、exact Candidate 历史能力保留门、单静态 prior Target 自动执行、exact parent/Candidate 反事实 canary 与 pointer-safe 自动回滚均已通过测试；真实 provider、陌生用户与真实任务长期率待验证 |
 | P2 Software Delivery | P2A.1 + P2B.1 + P2C.1–P2C.2 + P2D.1 consumer implemented | linked worktree/commit/check、原生 Bash policy → exact push/Draft PR → 可选 exact-head 远端 checks 门 → `update_goal`，并由 Evolve 异步记录最小三态信号；pinned DSH Agent/ToolRuntime/Storage 与 package 已测 |
 | Adoption Runtime Readiness | implemented | `dsh-doctor` 把原生 Loader 快照归约为三态阻塞与下一步；真实 tarball add/dump-config/boot/remove 已测；无轮询、修复或模型表面 |
 | P3 / AS-1 通用助理首片 | implemented | `dsh-telegram` 把一个 exact private chat/user 连接到一个稳定 Agent；真实 Loader/Agent Loop、原生 Commands/Approval、429、Storage 重启和 tarball 边界已测；真实 Bot/Hermes paired 待验证 |
@@ -191,7 +191,7 @@ DSH assembled qualification、packed lifecycle 与浏览器确认/取消流程�
 P1 剩余：由独立陌生作者复跑 authoring workflow，并测量真实 provider/用户纠正下的 qualified
 rate、semantic rejection rate、每个 Qualified Case Pack 成本及后续改善率；继续测量既有可信 Case Pack 下真实
 provider/用户纠正的改善率；继续收集真实开发任务的 false promotion、false rollback、review rate、
-返工减少和多日常驻证据。P1.1–P1.13/P2D.1 不作
+返工减少和多日常驻证据。P1.1–P1.14/P2D.1 不作
 完整退出声明。
 
 P1.10 已闭合一个产品死端：Qualified Case Pack 不再要求用户手工泄露/复制私有 path 后再配置
@@ -223,6 +223,15 @@ Jobs/P1.11/P1.12；retained 才晋升，regressed/incomplete/uncertain 留在 re
 [P1.13](architecture/p1-13-automatic-retention-target.zh.md)、
 [ADR-0033](adr/0033-automatic-retention-is-one-static-target-per-skill.md)与
 [P1.13 证据](evidence/p1-13-automatic-retention-target.zh.md)。
+
+P1.14 消除已有可信 evaluator 的明确纠错在 Shadow 前的最后一个逐条命令断点。部署者只引用既有
+P1.8 Target 并固定 Case Pack hash，即授权最小私有 Draft copy、一次 proposer/evaluator 成本与受限
+纠正外发；supervisor 每轮最多处理一个。只有 pinned Generation 恰好匹配一个已授权 Skill 才启动；
+歧义、失配、执行失败或 `proposal-pending` 均留给异步人工，原 Session 不等待。后续完全复用 P1.11–
+P1.13 与 P1.1，正常请求 composition 不变。契约、决策与证据见
+[P1.14](architecture/p1-14-automatic-feedback-shadow.zh.md)、
+[ADR-0034](adr/0034-explicit-feedback-may-enter-one-static-shadow-target.md)与
+[P1.14 证据](evidence/p1-14-automatic-feedback-shadow.zh.md)。
 
 退出条件：真实 Shadow/Canary 数据证明 false promotion、false rollback、review rate 和每次减少返工的成本在预声明预算内。
 

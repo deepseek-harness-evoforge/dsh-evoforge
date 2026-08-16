@@ -93,7 +93,7 @@ A retractable, reference-only projection of one current DSH message-feedback ite
 _Avoid_: `/learn` command, feedback memory, transcript copy, automatic Skill edit
 
 **Feedback Case Draft**:
-A private, content-addressed, unscored sample created only after configuration-level copy authorization and an explicit host command. It binds one still-current feedback version to one direct user text, one correction, one exact Generation Skill artifact, the whole materialized Skill content hash, and one Session-prefix hash; it excludes assistant responses, Tool output, Skill bodies, cwd, and full Transcript. It is not evaluator truth by itself.
+A private, content-addressed, unscored sample created only after configuration-level copy authorization and either one explicit host action or an explicit Automatic Feedback Shadow deployment policy. It binds one still-current feedback version to one direct user text, one correction, one exact Generation Skill artifact, the whole materialized Skill content hash, and one Session-prefix hash; it excludes assistant responses, Tool output, Skill bodies, cwd, and full Transcript. It is not evaluator truth by itself.
 _Avoid_: Automatic transcript harvesting, generic Case platform, Candidate, proof of improvement
 
 **Evaluator Draft**:
@@ -105,7 +105,7 @@ An immutable Evaluator Draft whose exact files were semantically approved by a h
 _Avoid_: Proven evaluator, self-certified test, active Skill, promotion evidence
 
 **Feedback-guided Shadow**:
-An explicit Shadow run that supplies one exact private Feedback Case Draft only to the proposer as untrusted search evidence, while an existing calibrated Case Pack remains the independent evaluator. The draft id and private resume path are durable; its input fields are not directly copied into Shadow evidence, although proposer output that echoes them remains durable Candidate evidence. The host invocation authorizes that one potentially paid provider request and disclosure.
+A Shadow run that supplies one exact private Feedback Case Draft only to the proposer as untrusted search evidence, while an existing calibrated Case Pack remains the independent evaluator. The draft id and private resume path are durable; its input fields are not directly copied into Shadow evidence, although proposer output that echoes them remains durable Candidate evidence. One explicit host invocation or Automatic Feedback Shadow deployment policy authorizes the potentially paid provider request and disclosure.
 _Avoid_: Generated evaluator, self-scoring Candidate, background paid proposal, feedback text in report/journal
 
 **Shadow Target**:
@@ -115,6 +115,10 @@ _Avoid_: Workflow, arbitrary run request, dynamic evaluator
 **Feedback Shadow Launch**:
 A human-initiated Protected Action that turns one still-current Explicit Feedback Signal into a private draft and submits one configured Feedback-guided Shadow to native Jobs. It returns immediately to the caller and originating Session; it creates evidence for later review but does not prove improvement or authorize promotion.
 _Avoid_: Automatic learning, synchronous Session reflection, paid resident retry
+
+**Automatic Feedback Shadow**:
+An opt-in deployment policy that lets one still-current explicit correction enter one statically configured, exact-hash Shadow Target without another per-signal command. It reuses the private Draft, independent evaluator, native Jobs, review, Retention, future-Session promotion, and rollback paths; ambiguity and uncertain paid effects remain asynchronous human work.
+_Avoid_: Background reflection, automatic evaluator trust, live-session learning, self-grading
 
 **Case Pack Calibration**:
 A zero-model, host-only execution of the declared known-bad and known-correction fixtures through the same sealed evaluator used by Shadow. It proves evaluator direction before proposer spend; it does not prove coverage of novel failures. A complete Shadow performs this gate before requesting a Candidate and still uses four Trial executions total.

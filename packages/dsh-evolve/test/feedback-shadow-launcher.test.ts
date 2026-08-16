@@ -270,6 +270,59 @@ describe('FeedbackShadowLauncher', () => {
     })).rejects.toThrow('does not match its qualified hash')
     expect(runner).toHaveBeenCalledOnce()
   })
+
+  it('never restarts an automatic exact launch whose paid proposal outcome is uncertain', async () => {
+    const fixture = await setup()
+    const jobs = fakeJobs()
+    const runner = vi.fn(async (invocation) => {
+      await mkdir(invocation.outputDir)
+      const now = '2026-08-17T00:00:00.000Z'
+      await saveShadowRunState(invocation.outputDir, {
+        schemaVersion: 1,
+        runId: invocation.outputDir.split('/').at(-1)!,
+        phase: 'proposal-pending',
+        startedAt: now,
+        updatedAt: now,
+        identity: {
+          baseTreeHash: artifact.treeHash,
+          casePackHash: await hashTree(fixture.casePackDir),
+          dshRevision: '7'.repeat(40),
+          evaluatorVersion: 'automatic-fixture-v1',
+          modelConfigHash: '8'.repeat(64),
+          modelRoute: 'fixture',
+          skillName: artifact.name,
+          feedbackDraftId: draftId,
+        },
+        proposalEffect: { id: '9'.repeat(64), requestedAt: now },
+      })
+      throw new Error('simulated lost paid proposal response')
+    })
+    const launcher = new FeedbackShadowLauncher({
+      targets: [fixture.target],
+      supervisorRunRoots: [fixture.runRoot],
+      drafts: () => fixture.drafts,
+      source: fixture.source,
+      runner,
+      modelIdentity: () => 'fixed-route-v1',
+    })
+    launcher.attachJobs(jobs.registry)
+    const exactTarget = { ...fixture.target, casePackHash: await hashTree(fixture.casePackDir) }
+
+    const first = await launcher.launchAutomaticExact(signalId, exactTarget)
+    await jobs.hooks[0]!.done
+    const uncertain = await launcher.launchAutomaticExact(signalId, exactTarget)
+
+    expect(uncertain).toEqual({
+      schemaVersion: 1,
+      action: 'start-shadow',
+      launchId: first.launchId,
+      targetId: fixture.target.id,
+      skillName: artifact.name,
+      runStatus: 'proposal-pending',
+    })
+    expect(jobs.starts).toHaveLength(1)
+    expect(runner).toHaveBeenCalledOnce()
+  })
 })
 
 async function setup() {

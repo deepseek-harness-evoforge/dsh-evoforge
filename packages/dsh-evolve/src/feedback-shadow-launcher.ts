@@ -164,6 +164,21 @@ export class FeedbackShadowLauncher {
     signalId: string,
     input: FeedbackShadowExactTargetConfig,
   ): Promise<FeedbackShadowLaunchReceipt> {
+    return this.launchExactWithPolicy(signalId, input, false)
+  }
+
+  async launchAutomaticExact(
+    signalId: string,
+    input: FeedbackShadowExactTargetConfig,
+  ): Promise<FeedbackShadowLaunchReceipt> {
+    return this.launchExactWithPolicy(signalId, input, true)
+  }
+
+  private async launchExactWithPolicy(
+    signalId: string,
+    input: FeedbackShadowExactTargetConfig,
+    holdUncertainProposal: boolean,
+  ): Promise<FeedbackShadowLaunchReceipt> {
     if (!CONTENT_ID.test(input.casePackHash)) {
       throw new Error('qualified feedback Shadow Case Pack hash must be a full 64-character id')
     }
@@ -183,13 +198,14 @@ export class FeedbackShadowLauncher {
       skill: input.skill,
       casePackDir: resolve(input.casePackDir),
       runRoot: monitored.runRoot,
-    }), input.casePackHash)
+    }), input.casePackHash, holdUncertainProposal)
   }
 
   private async launchTarget(
     signalId: string,
     target: FeedbackShadowTargetConfig,
     expectedCasePackHash?: string,
+    holdUncertainProposal = false,
   ): Promise<FeedbackShadowLaunchReceipt> {
     if (!CONTENT_ID.test(signalId)) throw new Error('feedback signal id must be a full 64-character id')
     const jobs = this.jobs
@@ -244,6 +260,9 @@ export class FeedbackShadowLauncher {
         throw error
       }
       if (existing.phase === 'complete' || existing.phase === 'incomplete') {
+        return receipt(launchId, target, existing.phase)
+      }
+      if (holdUncertainProposal && existing.phase === 'proposal-pending') {
         return receipt(launchId, target, existing.phase)
       }
       resume = true

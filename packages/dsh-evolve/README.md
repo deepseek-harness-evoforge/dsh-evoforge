@@ -1,6 +1,6 @@
 # dsh-evolve
 
-`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains seventeen deliberately separate lanes:
+`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains eighteen deliberately separate lanes:
 
 - **P0A Shadow** compares an active Skill with an inactive Candidate without changing live DSH.
 - **P0B Local Continuity** records immutable Capability Generations, pins one Generation per Session, switches or rolls back only future Sessions, and resumes durable sealed work through an optional resident supervisor.
@@ -19,6 +19,7 @@
 - **P1.11 Exact Retention Gate** replays one reviewable exact Candidate against one trusted prior Case Pack with zero proposer calls and no release effect.
 - **P1.12 Retention-gated Auto-Promotion** optionally requires exact retained evidence before the existing narrow clear-instruction policy may activate a future Session.
 - **P1.13 Automatic Retention Target** lets a deployment authorize one exact prior Case Pack per Skill for a single background Retention attempt before clear-win promotion.
+- **P1.14 Automatic Feedback Shadow** lets a deployment authorize one unambiguous explicit correction to enter one existing exact Shadow Target without another foreground command.
 
 The offline evaluation command is:
 
@@ -231,6 +232,9 @@ Skill that a Generation may activate:
         skill: build-dsh-plugin
         casePackDir: /absolute/path/to/calibrated-plugin-delivery-cases
         runRoot: /absolute/path/to/.dsh/evoforge/plugin-delivery-runs
+    automaticFeedbackTargets:
+      - target: plugin-delivery
+        casePackHash: <64-char-sha256>
     evaluatorTargets:
       - id: plugin-delivery-evaluator
         skill: build-dsh-plugin
@@ -251,9 +255,9 @@ Skill that a Generation may activate:
 ```
 
 `feedbackDraftRoot` is optional. Setting it authorizes local copying of the
-minimal user text and correction, but does not create anything automatically.
-Draft creation additionally requires native Message Feedback, Session
-Persistence, Commands, and an explicit `/evolve feedback <id> draft <skill>`.
+minimal user text and correction. By default, Draft creation additionally
+requires native Message Feedback, Session Persistence, Commands, and an explicit
+`/evolve feedback <id> draft <skill>`.
 The directory must be a real private directory with no group/world permissions.
 
 `shadowTargets` is optional and bounded to 20 entries. Each public id binds one
@@ -264,6 +268,19 @@ Starting a target is an explicit authorization for one potentially paid proposer
 request and disclosure of that bounded private correction. It returns immediately;
 the originating Session does not wait. The content-addressed launch directory and
 existing Shadow journal make retries idempotent and restart recovery conservative.
+
+`automaticFeedbackTargets` is optional and disabled when absent. Each entry
+references one existing `shadowTargets.id` and pins its calibrated Case Pack by
+full content hash; an authorized Skill may appear only once. Declaring it is the
+deployment policy authorization for automatic minimal Draft copy, one potentially
+paid proposer request, bounded correction disclosure, and that exact evaluator.
+The supervisor handles at most one signal per scan. A signal must belong to an
+exact Generation with exactly one matching authorized Skill; zero or multiple
+matches remain manual. Terminal runs are reused, durable Candidate/Trial phases
+use the existing journal, and `proposal-pending` is never restarted automatically.
+This setting does not author or qualify evaluators, loosen auto-promotion, change
+the originating Session, or add any normal-Session model surface/token. See the
+[P1.14 contract](../../docs/architecture/p1-14-automatic-feedback-shadow.zh.md).
 
 `evaluatorTargets` is optional and bounded to 20 entries. Each public id binds
 one exact single-file Skill, a unique private absolute root, and a full pinned

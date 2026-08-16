@@ -1,6 +1,6 @@
 # DeepSeek Harness EvoForge 项目需求基线
 
-> 状态：已确认；研究与设计已完成，P0A–P1.9、P2A.1–P2D.1 与 Runtime Readiness 已实现；真实 provider、陌生用户与长期效果证据待积累
+> 状态：已确认；研究与设计已完成，P0A–P1.14、P2A.1–P2D.1 与 Runtime Readiness 已实现；真实 provider、陌生用户与长期效果证据待积累
 > 更新日期：2026-08-17
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。
 
@@ -288,11 +288,12 @@ Draft PR 继续复用同一个 Tool 的可选参数，不再增加模型动作�
 不复制日志。failed、pending、缺失、无法读取或 head 漂移都保持 Goal active，稍后显式重试复用
 同一个 PR。
 
-反馈进化先复用原生 Message Feedback 保存 reference-only Signal。只有管理者配置私有复制目录且
-用户逐条选择 signal/Skill，才保存未评分 Case Draft；它必须重新核对 exact feedback version、
-Session-pinned Generation、单一 Skill invocation 和 whole-Skill content hash。已有可信 Case Pack
-覆盖该失败类型时，用户可显式授权一次 Shadow，把草稿只作为 proposer 搜索证据；既有 evaluator
-仍是独立裁判，草稿输入字段不直接进入长期 run evidence（proposer 回显仍可随 Candidate 持久化）。
+反馈进化先复用原生 Message Feedback 保存 reference-only Signal。只有管理者配置私有复制目录，且
+用户逐条选择 signal/Skill 或部署者绑定一个静态 exact evaluator/成本策略，才保存未评分 Case Draft；
+它必须重新核对 exact feedback version、Session-pinned Generation、单一 Skill invocation 和 whole-Skill
+content hash。已有可信 Case Pack 覆盖该失败类型时，用户可逐次显式授权一次 Shadow，或由上述默认关闭
+的部署策略每轮最多启动一个；草稿只作为 proposer 搜索证据，既有 evaluator 仍是独立裁判，草稿输入
+字段不直接进入长期 run evidence（proposer 回显仍可随 Candidate 持久化）。
 全新失败允许一次显式、可能付费的 evaluator authoring：结果先成为私有、不可执行的 Evaluator
 Draft；host 固定生成 manifest，并用 exact active Skill 形成 known-bad，模型只能提议 evidence、
 known-correction 与 evaluator。只有另一项人工决定批准 exact hash，且 sealed calibration 方向成立，

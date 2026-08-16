@@ -45,6 +45,12 @@ import {
   type AutomaticRetentionTargetConfig,
 } from './automatic-retention.ts'
 import { createAutomaticRetentionJobRunner } from './automatic-retention-job.ts'
+import {
+  assertAutomaticFeedbackShadowTargets,
+  AutomaticFeedbackShadowService,
+  type AutomaticFeedbackShadowTarget,
+  type AutomaticFeedbackShadowTargetReference,
+} from './automatic-feedback-shadow.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -69,6 +75,7 @@ export interface Config {
     retentionTargets?: AutomaticRetentionTargetConfig[]
   }
   shadowTargets?: FeedbackShadowTargetConfig[]
+  automaticFeedbackTargets?: AutomaticFeedbackShadowTargetReference[]
   evaluatorTargets?: EvaluatorDraftTargetConfig[]
 }
 
@@ -101,6 +108,10 @@ export const Config: Schema<Config> = z.object({
     casePackDir: z.string().required(),
     runRoot: z.string().required(),
   })).default([]),
+  automaticFeedbackTargets: z.array(z.object({
+    target: z.string().required(),
+    casePackHash: z.string().required(),
+  })).max(20).default([]),
   evaluatorTargets: z.array(z.object({
     id: z.string().required(),
     skill: z.string().required(),
@@ -136,6 +147,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const retentionRoots = config.autoPromote?.retentionRoots ?? []
   const retentionTargets = config.autoPromote?.retentionTargets ?? []
   const shadowTargets = config.shadowTargets ?? []
+  const automaticFeedbackTargetReferences = config.automaticFeedbackTargets ?? []
   const evaluatorTargets = config.evaluatorTargets ?? []
   if (retentionTargets.length > 0) assertAutomaticRetentionTargets(retentionTargets)
   if (automaticSkills.length > 0 && review === undefined) {
@@ -158,6 +170,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     || config.supervisor.runRoots.length === 0
     || config.feedbackDraftRoot === undefined)) {
     throw new Error('feedback Shadow targets require supervisor.runRoots and feedbackDraftRoot')
+  }
+  if (automaticFeedbackTargetReferences.length > 0 && shadowTargets.length === 0) {
+    throw new Error('automatic Feedback Shadow requires configured feedback Shadow targets')
   }
   if (evaluatorTargets.length > 0 && config.feedbackDraftRoot === undefined) {
     throw new Error('evaluator targets require feedbackDraftRoot')
@@ -212,6 +227,26 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         supervisorRunRoots: config.supervisor!.runRoots,
         drafts: () => feedbackDraftBuilder,
         source,
+      })
+  const shadowTargetsById = new Map(shadowTargets.map(target => [target.id, target]))
+  const automaticFeedbackTargets: AutomaticFeedbackShadowTarget[] =
+    automaticFeedbackTargetReferences.map((reference) => {
+      const target = shadowTargetsById.get(reference.target)
+      if (target === undefined) {
+        throw new Error(`automatic Feedback Shadow references unknown target '${reference.target}'`)
+      }
+      return { ...target, casePackHash: reference.casePackHash }
+    })
+  if (automaticFeedbackTargets.length > 0) {
+    assertAutomaticFeedbackShadowTargets(automaticFeedbackTargets)
+  }
+  const automaticFeedback = automaticFeedbackTargets.length === 0 || feedbackShadow === undefined
+    ? undefined
+    : new AutomaticFeedbackShadowService({
+        evolution: store,
+        shadow: feedbackShadow,
+        signals: feedbackSignals,
+        targets: automaticFeedbackTargets,
       })
   const evaluatorDrafts = evaluatorTargets.length === 0
     ? undefined
@@ -311,12 +346,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             runner: createAutomaticRetentionJobRunner(jobCtx.jobs),
             targets: retentionTargets,
           })
-      const supervisor = new ShadowSupervisor({
-        runRoots: config.supervisor!.runRoots,
-        scanIntervalMs: config.supervisor!.scanIntervalMs ?? 30_000,
-        paused: resident!.isPaused(),
-        ...automatic === undefined ? {} : {
-          afterScan: async (signal) => {
+      const afterScan = automaticFeedback === undefined && automatic === undefined
+        ? undefined
+        : async (signal: AbortSignal) => {
+            const feedbackResult = await automaticFeedback?.scanOnce()
+            for (const warning of feedbackResult?.warnings ?? []) {
+              jobCtx.logger.warn(`dsh-evolve automatic Feedback Shadow skipped signal: ${warning}`)
+            }
+            if (automatic === undefined) return
             const retentionResult = await automaticRetention?.scanOnce(signal)
             for (const warning of retentionResult?.warnings ?? []) {
               jobCtx.logger.warn(`dsh-evolve automatic Retention skipped evidence: ${warning}`)
@@ -339,8 +376,12 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
                 `dsh-evolve counterfactual canary rolled back Generation ${rollback.previousId}`,
               )
             }
-          },
-        },
+          }
+      const supervisor = new ShadowSupervisor({
+        runRoots: config.supervisor!.runRoots,
+        scanIntervalMs: config.supervisor!.scanIntervalMs ?? 30_000,
+        paused: resident!.isPaused(),
+        ...(afterScan === undefined ? {} : { afterScan }),
         runner: createShadowJobRunner(jobCtx.jobs, runShadow),
         onError: (error, path) => {
           jobCtx.logger.warn(`dsh-evolve supervisor skipped ${path}: ${String(error)}`)
@@ -376,6 +417,7 @@ export type {
 } from './generation-store.ts'
 export type { GitSkillSourceConfig } from './git-skill-source.ts'
 export type { FeedbackShadowTargetConfig } from './feedback-shadow-launcher.ts'
+export type { AutomaticFeedbackShadowTargetReference } from './automatic-feedback-shadow.ts'
 export type { AutomaticRetentionTargetConfig } from './automatic-retention.ts'
 export type { ShadowResumeInvocation, ShadowSupervisorOptions } from './shadow-supervisor.ts'
 export type {
