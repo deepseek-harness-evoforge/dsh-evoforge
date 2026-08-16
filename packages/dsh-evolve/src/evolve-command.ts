@@ -6,35 +6,37 @@ import type { ReviewCandidate, ReviewInbox } from './review-inbox.ts'
 import type { ResidentEvolutionControl } from './resident-evolution-control.ts'
 import type { AutoPromotionPolicy, AutoPromotionPolicyResult } from './auto-promotion.ts'
 import type { DeliveryOutcomeStore, DeliveryOutcomeSummary } from './delivery-outcome-monitor.ts'
-import type { FeedbackSignalStore, FeedbackSignalSummary } from './feedback-signal-monitor.ts'
+import type {
+  FeedbackSignal,
+  FeedbackSignalStore,
+  FeedbackSignalSummary,
+} from './feedback-signal-monitor.ts'
+import type { FeedbackCaseDraftBuilder } from './feedback-case-draft.ts'
 
-const USAGE = 'Usage: /evolve [status|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]'
+const USAGE = 'Usage: /evolve [status|feedback [<signal-id> [draft <skill>]]|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]'
 const generationIdPattern = /^[a-f0-9]{64}$/
+
+export interface EvolutionCommandModules {
+  readonly review?: { inbox: ReviewInbox; publisher: CandidatePublisher }
+  readonly resident?: Pick<ResidentEvolutionControl, 'isPaused' | 'pause' | 'resume'>
+  readonly automatic?: Pick<AutoPromotionPolicy, 'evaluate' | 'skills'>
+  readonly outcomes?: Pick<DeliveryOutcomeStore, 'summarize'>
+  readonly feedback?: Pick<FeedbackSignalStore, 'list' | 'summarize'>
+  readonly feedbackDraft?: Pick<FeedbackCaseDraftBuilder, 'create'>
+}
 
 /** Register the optional human control plane without adding a model Tool. */
 export function installEvolutionCommand(
   ctx: Context,
   store: EvolutionStore,
-  review?: { inbox: ReviewInbox; publisher: CandidatePublisher },
-  resident?: Pick<ResidentEvolutionControl, 'isPaused' | 'pause' | 'resume'>,
-  automatic?: Pick<AutoPromotionPolicy, 'evaluate' | 'skills'>,
-  outcomes?: Pick<DeliveryOutcomeStore, 'summarize'>,
-  feedback?: Pick<FeedbackSignalStore, 'summarize'>,
+  modules: EvolutionCommandModules = {},
 ): void {
   ctx.inject(['commands'], (commandCtx) => {
     commandCtx.commands.register({
       name: 'evolve',
-      description: 'review, publish, promote, or roll back immutable capability Generations',
-      input: { hint: '[status|review ...|pause|resume|promote <generation-id>|rollback]' },
-      handler: ({ rawInput }) => executeEvolutionCommand(
-        store,
-        rawInput,
-        review,
-        resident,
-        automatic,
-        outcomes,
-        feedback,
-      ),
+      description: 'inspect feedback, review, publish, promote, or roll back immutable capability Generations',
+      input: { hint: '[status|feedback ...|review ...|pause|resume|promote <generation-id>|rollback]' },
+      handler: ({ rawInput }) => executeEvolutionCommand(store, rawInput, modules),
     })
   })
 }
@@ -43,13 +45,10 @@ export function installEvolutionCommand(
 export async function executeEvolutionCommand(
   store: EvolutionStore,
   rawInput: string,
-  review?: { inbox: ReviewInbox; publisher: CandidatePublisher },
-  resident?: Pick<ResidentEvolutionControl, 'isPaused' | 'pause' | 'resume'>,
-  automatic?: Pick<AutoPromotionPolicy, 'evaluate' | 'skills'>,
-  outcomes?: Pick<DeliveryOutcomeStore, 'summarize'>,
-  feedback?: Pick<FeedbackSignalStore, 'summarize'>,
+  modules: EvolutionCommandModules = {},
 ): Promise<CommandResult> {
   const input = rawInput.trim()
+  const { review, resident, automatic, outcomes, feedback, feedbackDraft } = modules
   try {
     if (input === '' || input === 'status') {
       const active = store.getActiveGeneration()
@@ -75,6 +74,28 @@ export async function executeEvolutionCommand(
       return {
         kind: 'success',
         text: 'Resident evolution recovery resumed. Durable Candidate/Trial discovery was awakened.',
+      }
+    }
+    if (input === 'feedback') {
+      if (feedback === undefined) return feedbackUnavailable()
+      return renderFeedbackList(feedback.list())
+    }
+    const feedbackAction = /^feedback\s+([a-f0-9]{64})(?:\s+draft\s+([a-z0-9]+(?:-[a-z0-9]+)*))?$/u.exec(input)
+    if (feedbackAction?.[1] !== undefined) {
+      if (feedback === undefined) return feedbackUnavailable()
+      const [, id, skillName] = feedbackAction
+      if (skillName === undefined) {
+        const signal = feedback.list().find(candidate => candidate.id === id)
+        if (signal === undefined) throw new Error('feedback signal is no longer current')
+        return renderFeedback(signal)
+      }
+      if (feedbackDraft === undefined) return feedbackDraftUnavailable()
+      const result = await feedbackDraft.create(id, skillName)
+      return {
+        kind: 'success',
+        text: result.created
+          ? `Feedback Case Draft created.\nDraft: ${result.draft.id}\nStatus: draft; no replay score or Candidate was created.`
+          : `Feedback Case Draft already exists.\nDraft: ${result.draft.id}\nStatus: draft; no replay score or Candidate was created.`,
       }
     }
     if (input === 'review') {
@@ -168,6 +189,53 @@ function residentUnavailable(): CommandResult {
   return {
     kind: 'error',
     text: 'Resident recovery is not configured. Set dsh-evolve supervisor.runRoots before using pause/resume.',
+  }
+}
+
+function feedbackUnavailable(): CommandResult {
+  return {
+    kind: 'error',
+    text: 'Explicit feedback signals are unavailable in this runtime composition.',
+  }
+}
+
+function feedbackDraftUnavailable(): CommandResult {
+  return {
+    kind: 'error',
+    text: 'Feedback Case Draft creation is disabled. Configure a private dsh-evolve feedbackDraftRoot and compose native message feedback plus Session persistence.',
+  }
+}
+
+function renderFeedbackList(signals: FeedbackSignal[]): CommandResult {
+  if (signals.length === 0) {
+    return { kind: 'success', text: 'No current explicit feedback signals.' }
+  }
+  const visible = [...signals].reverse().slice(0, 20)
+  return {
+    kind: 'success',
+    text: [
+      `Current explicit feedback signals: ${signals.length}`,
+      ...visible.map(signal =>
+        `- ${signal.id} [${signal.generationId ?? 'native DSH'}] Session ${signal.sessionId}, message ${signal.messageId}`),
+      ...signals.length > visible.length ? [`- … ${signals.length - visible.length} more`] : [],
+      '',
+      'Inspect: /evolve feedback <signal-id>',
+    ].join('\n'),
+  }
+}
+
+function renderFeedback(signal: FeedbackSignal): CommandResult {
+  return {
+    kind: 'success',
+    text: [
+      `Explicit feedback signal ${signal.id}`,
+      `Session: ${signal.sessionId}`,
+      `Message: ${signal.messageId}`,
+      `Feedback version: ${signal.feedbackVersion}`,
+      `Generation: ${signal.generationId ?? 'native DSH'}`,
+      'The correction text remains in native DSH feedback authority.',
+      'Create a private draft: /evolve feedback <signal-id> draft <skill>',
+    ].join('\n'),
   }
 }
 

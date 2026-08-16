@@ -84,6 +84,7 @@ interface FeedbackSignalSessionInput {
 export interface FeedbackSignalStore {
   replaceSession(input: FeedbackSignalSessionInput): Promise<void>
   removeSession(sessionId: string): Promise<void>
+  get(id: string): FeedbackSignal | undefined
   list(): FeedbackSignal[]
   summarize(selectedGenerationId?: string): FeedbackSignalSummary
   close(): Promise<void>
@@ -139,6 +140,24 @@ class DomainFeedbackSignalStore implements FeedbackSignalStore {
     return this.enqueue(async () => {
       await this.domain.table('sessions').delete(sessionId)
     })
+  }
+
+  get(id: string): FeedbackSignal | undefined {
+    for (const [, session] of this.domain.table('sessions').entries()) {
+      const item = session.items.find(candidate => candidate.id === id)
+      if (item === undefined) continue
+      return immutableCopy({
+        schemaVersion: 1,
+        id: item.id,
+        observedAt: session.observedAt,
+        sessionId: session.sessionId,
+        messageId: item.messageId,
+        feedbackVersion: item.feedbackVersion,
+        sourceUpdatedAt: item.sourceUpdatedAt,
+        ...(session.generationId === undefined ? {} : { generationId: session.generationId }),
+      })
+    }
+    return undefined
   }
 
   list(): FeedbackSignal[] {

@@ -50,16 +50,15 @@ describe('/evolve host command', () => {
 
   it('shows host-only explicit feedback counts for the active selection', async () => {
     const store = fakeStore(generation(rootId))
-    const feedback = { summarize: vi.fn(() => ({ all: 5, selected: 2 })) }
+    const feedback = {
+      list: vi.fn(() => []),
+      summarize: vi.fn(() => ({ all: 5, selected: 2 })),
+    }
 
     const result = await executeEvolutionCommand(
       store,
       'status',
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      feedback,
+      { feedback },
     )
 
     expect(result).toMatchObject({
@@ -67,6 +66,62 @@ describe('/evolve host command', () => {
       text: expect.stringContaining('Explicit feedback signals: 5 retained (2 active selection)'),
     })
     expect(feedback.summarize).toHaveBeenCalledWith(rootId)
+  })
+
+  it('lists opaque feedback references and delegates explicit draft creation', async () => {
+    const signal = {
+      schemaVersion: 1 as const,
+      id: 'f'.repeat(64),
+      observedAt: 3,
+      sessionId: 'session-private',
+      messageId: 'message-private',
+      feedbackVersion: 'version-private',
+      sourceUpdatedAt: 2,
+      generationId: rootId,
+    }
+    const feedback = {
+      list: vi.fn(() => [signal]),
+      summarize: vi.fn(() => ({ all: 1, selected: 1 })),
+    }
+    const feedbackDraft = {
+      create: vi.fn(async () => ({
+        created: true,
+        draft: { id: childId },
+        path: '/private/draft.json',
+      })),
+    }
+
+    await expect(executeEvolutionCommand(fakeStore(), 'feedback', { feedback }))
+      .resolves.toMatchObject({
+        kind: 'success',
+        text: expect.stringContaining(`- ${signal.id} [${rootId}] Session session-private`),
+      })
+    await expect(executeEvolutionCommand(
+      fakeStore(),
+      `feedback ${signal.id} draft stable-skill`,
+      { feedback, feedbackDraft: feedbackDraft as never },
+    )).resolves.toMatchObject({
+      kind: 'success',
+      text: expect.stringContaining('Feedback Case Draft created.'),
+    })
+    expect(feedbackDraft.create).toHaveBeenCalledWith(signal.id, 'stable-skill')
+  })
+
+  it('does not create a draft without explicit private-root composition', async () => {
+    const id = 'f'.repeat(64)
+    const feedback = {
+      list: vi.fn(() => []),
+      summarize: vi.fn(() => ({ all: 0, selected: 0 })),
+    }
+
+    await expect(executeEvolutionCommand(
+      fakeStore(),
+      `feedback ${id} draft stable-skill`,
+      { feedback },
+    )).resolves.toMatchObject({
+      kind: 'error',
+      text: expect.stringContaining('Feedback Case Draft creation is disabled.'),
+    })
   })
 
   it('promotes a full content id only for future Sessions and is idempotent', async () => {
@@ -129,7 +184,7 @@ describe('/evolve host command', () => {
     for (const input of ['promote', 'promote abc', `promote ${rootId} extra`, 'unknown']) {
       await expect(executeEvolutionCommand(store, input)).resolves.toMatchObject({
         kind: 'error',
-        text: 'Usage: /evolve [status|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]',
+        text: 'Usage: /evolve [status|feedback [<signal-id> [draft <skill>]]|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]',
       })
     }
     expect(store.promoteGeneration).not.toHaveBeenCalled()
@@ -161,16 +216,14 @@ describe('/evolve host command', () => {
       })),
     } as unknown as AutoPromotionPolicy
 
-    await expect(executeEvolutionCommand(store, 'review', review)).resolves.toMatchObject({
+    await expect(executeEvolutionCommand(store, 'review', { review })).resolves.toMatchObject({
       kind: 'success',
       text: expect.stringContaining(`${candidate.id} [promote] stable-skill`),
     })
     await expect(executeEvolutionCommand(
       store,
       `review ${candidate.id}`,
-      review,
-      undefined,
-      automatic,
+      { review, automatic },
     )).resolves.toMatchObject({
       kind: 'success',
       text: expect.stringContaining('Automatic policy: manual review — instruction change mentions a protected effect'),
@@ -178,12 +231,12 @@ describe('/evolve host command', () => {
     await expect(executeEvolutionCommand(
       store,
       `review ${candidate.id} reject too narrow`,
-      review,
+      { review },
     )).resolves.toMatchObject({ kind: 'success', text: expect.stringContaining('No Generation was created') })
     await expect(executeEvolutionCommand(
       store,
       `review ${candidate.id} approve clear held-out win`,
-      review,
+      { review },
     )).resolves.toMatchObject({
       kind: 'success',
       text: expect.stringContaining(`/evolve promote ${childId}`),
@@ -207,15 +260,15 @@ describe('/evolve host command', () => {
     }
     const store = fakeStore()
 
-    await expect(executeEvolutionCommand(store, 'pause', undefined, resident)).resolves.toEqual({
+    await expect(executeEvolutionCommand(store, 'pause', { resident })).resolves.toEqual({
       kind: 'success',
       text: 'Resident evolution recovery paused durably. Active recovery was stopped; normal Sessions and human review remain available.',
     })
-    await expect(executeEvolutionCommand(store, 'status', undefined, resident)).resolves.toMatchObject({
+    await expect(executeEvolutionCommand(store, 'status', { resident })).resolves.toMatchObject({
       kind: 'success',
       text: expect.stringContaining('Resident recovery: paused'),
     })
-    await expect(executeEvolutionCommand(store, 'resume', undefined, resident)).resolves.toEqual({
+    await expect(executeEvolutionCommand(store, 'resume', { resident })).resolves.toEqual({
       kind: 'success',
       text: 'Resident evolution recovery resumed. Durable Candidate/Trial discovery was awakened.',
     })
@@ -232,9 +285,7 @@ describe('/evolve host command', () => {
     await expect(executeEvolutionCommand(
       fakeStore(),
       'status',
-      undefined,
-      undefined,
-      automatic,
+      { automatic },
     )).resolves.toMatchObject({
       kind: 'success',
       text: expect.stringContaining('Automatic promotion: auto-clear-instruction-v1 (stable-skill)'),
@@ -252,10 +303,7 @@ describe('/evolve host command', () => {
     await expect(executeEvolutionCommand(
       fakeStore(generation(rootId)),
       'status',
-      undefined,
-      undefined,
-      undefined,
-      outcomes,
+      { outcomes },
     )).resolves.toMatchObject({
       kind: 'success',
       text: expect.stringContaining([

@@ -1,5 +1,5 @@
 import { execFile as execFileCallback } from 'node:child_process'
-import { chmod, cp, readFile, readdir, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { chmod, cp, readFile, readdir, mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { promisify } from 'node:util'
@@ -721,6 +721,145 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     }
   })
 
+  it('creates one private idempotent Case Draft from exact feedback and one invoked Generation Skill', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-feedback-case-draft-'))
+    temporaryRoots.push(root)
+    const repository = join(root, 'source')
+    const sessionsRoot = join(root, 'sessions')
+    const feedbackDraftRoot = join(root, 'private-feedback-drafts')
+    const revision = await commitSkill(repository, 'Draft-aware body.', 'draft reference')
+    const ctx = await bootStorage(await writeStorageConfig(root))
+    const adapter = await installAgentRuntime(ctx, sessionsRoot)
+    await ctx.plugin(EvolvePlugin, {
+      cacheRoot: join(root, 'cache'),
+      feedbackDraftRoot,
+      sources: [{
+        name: 'stable-evolved-skill',
+        repository,
+        path: 'skills/stable-evolved-skill',
+      }],
+    })
+    const packages = (path: string) => pathToFileURL(
+      join(dshSourceDir, 'packages', path, 'lib', 'index.js'),
+    ).href
+    const [commands, messageFeedbackModule] = await Promise.all([
+      import(packages('interaction/commands')),
+      import(packages('feedback/message-feedback')),
+    ])
+    await ctx.plugin(commands.default)
+    await ctx.plugin(messageFeedbackModule.default, { maxNoteBytes: 1_024 })
+    const store = ctx.get('evoforge.evolution') as EvolutionStore | undefined
+    const feedback = ctx.get('messageFeedback') as {
+      put(request: {
+        sessionId: string
+        messageId: string
+        rating: 'positive' | 'negative'
+        note?: string
+        ifVersion: string | null
+      }): Promise<{ ok: boolean; value?: { version: string } }>
+    } | undefined
+    if (store === undefined || feedback === undefined) throw new Error('draft services did not load')
+    const generation = (await store.publishGeneration(generationInput(revision))).generation
+    await store.promoteGeneration(generation.id)
+    const userText = '/stable-evolved-skill reproduce the browser verification failure'
+    const correction = 'Run the visible browser flow and inspect its failure before completion.'
+    const agent = await createAndRunAgent(ctx, 'feedback-draft-session', root, undefined, userText)
+    const assistant = agent.session.events.find(
+      (event: { type: string }) => event.type === 'assistant/message',
+    ) as { data: { message: { id: string } } } | undefined
+    if (assistant === undefined) throw new Error('assistant message fixture missing')
+    const requestsBeforeFeedback = adapter.requests.length
+    const negative = await feedback.put({
+      sessionId: String(agent.session.header.id),
+      messageId: assistant.data.message.id,
+      rating: 'negative',
+      note: correction,
+      ifVersion: null,
+    })
+    expect(negative.ok).toBe(true)
+    await waitForEvolutionStatus(ctx, agent, 'Explicit feedback signals: 1 retained (1 active selection)')
+
+    const list = await ctx.commands.execute(agent, '/evolve feedback', new AbortController().signal)
+    const signalId = /^- ([a-f0-9]{64}) /m.exec(list?.result.text ?? '')?.[1]
+    expect(signalId).toBeDefined()
+    if (signalId === undefined) throw new Error('feedback signal id missing')
+    const created = await ctx.commands.execute(
+      agent,
+      `/evolve feedback ${signalId} draft stable-evolved-skill`,
+      new AbortController().signal,
+    )
+    expect(created?.result).toMatchObject({
+      kind: 'success',
+      text: expect.stringContaining('Feedback Case Draft created.'),
+    })
+    expect(adapter.requests).toHaveLength(requestsBeforeFeedback)
+
+    const files = await readdir(feedbackDraftRoot)
+    expect(files).toHaveLength(1)
+    expect(files[0]).toMatch(/^[a-f0-9]{64}\.json$/)
+    const draftPath = join(feedbackDraftRoot, files[0]!)
+    const draft = JSON.parse(await readFile(draftPath, 'utf8'))
+    expect(draft).toMatchObject({
+      schemaVersion: 1,
+      id: files[0]!.slice(0, -5),
+      status: 'draft',
+      source: {
+        signalId,
+        sessionId: 'feedback-draft-session',
+        messageId: assistant.data.message.id,
+        feedbackVersion: negative.value?.version,
+        generationId: generation.id,
+        assistantSeq: expect.any(Number),
+        turn: expect.any(Number),
+        prefixHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      },
+      target: {
+        kind: 'skill',
+        name: 'stable-evolved-skill',
+        artifact: {
+          kind: 'skill',
+          name: 'stable-evolved-skill',
+          gitCommit: revision.commit,
+          treeHash: revision.treeHash,
+        },
+      },
+      sample: { userText, correction },
+    })
+    expect(JSON.stringify(draft)).not.toContain('Draft-aware body.')
+    expect(JSON.stringify(draft)).not.toContain('CLI_TOOL_ROUND_TRIP')
+    expect((await stat(draftPath)).mode & 0o077).toBe(0)
+
+    const repeated = await ctx.commands.execute(
+      agent,
+      `/evolve feedback ${signalId} draft stable-evolved-skill`,
+      new AbortController().signal,
+    )
+    expect(repeated?.result.text).toContain('Feedback Case Draft already exists.')
+    expect(await readdir(feedbackDraftRoot)).toEqual(files)
+
+    const version = negative.value?.version
+    if (version === undefined) throw new Error('feedback version missing')
+    await feedback.put({
+      sessionId: String(agent.session.header.id),
+      messageId: assistant.data.message.id,
+      rating: 'positive',
+      note: 'Resolved.',
+      ifVersion: version,
+    })
+    await waitForEvolutionStatus(ctx, agent, 'Explicit feedback signals: 0 retained (0 active selection)')
+    const stale = await ctx.commands.execute(
+      agent,
+      `/evolve feedback ${signalId} draft stable-evolved-skill`,
+      new AbortController().signal,
+    )
+    expect(stale?.result).toMatchObject({
+      kind: 'error',
+      text: expect.stringContaining('feedback signal is no longer current'),
+    })
+    expect(adapter.requests).toHaveLength(requestsBeforeFeedback)
+    await ctx.fiber.dispose()
+  })
+
   it('leaves persisted Session and Goal facts readable by native DSH after plugin removal', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-generation-removal-'))
     temporaryRoots.push(root)
@@ -1051,6 +1190,7 @@ async function createAndRunAgent(
   sessionId: string,
   cwd: string,
   parentSessionId?: string,
+  userText = 'run one real step',
 ) {
   const llm = await import(
     pathToFileURL(join(dshSourceDir, 'packages', 'llm', 'llm', 'lib', 'index.js')).href
@@ -1067,7 +1207,7 @@ async function createAndRunAgent(
     },
   })
   handle.agent.followup(llm.createUserMessage({
-    content: [{ type: 'text', text: 'run one real step' }],
+    content: [{ type: 'text', text: userText }],
     source: { kind: 'user' },
   }))
   await handle.agent.whenIdle()

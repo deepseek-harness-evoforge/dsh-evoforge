@@ -27,6 +27,7 @@ import {
   installFeedbackSignalMonitor,
   openFeedbackSignalStore,
 } from './feedback-signal-monitor.ts'
+import { FeedbackCaseDraftBuilder } from './feedback-case-draft.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -39,6 +40,7 @@ export const inject = ['storageDomain']
 
 export interface Config {
   cacheRoot?: string
+  feedbackDraftRoot?: string
   sources?: GitSkillSourceConfig[]
   supervisor?: {
     runRoots: string[]
@@ -51,6 +53,7 @@ export interface Config {
 
 export const Config: Schema<Config> = z.object({
   cacheRoot: z.string(),
+  feedbackDraftRoot: z.string(),
   sources: z.array(z.object({
     name: z.string().required(),
     repository: z.string().required(),
@@ -74,6 +77,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const deliveryOutcomes = await openDeliveryOutcomeStore(ctx.storageDomain)
   const feedbackSignals = await openFeedbackSignalStore(ctx.storageDomain)
   const feedbackMonitor = installFeedbackSignalMonitor(ctx, feedbackSignals, store)
+  let feedbackDraftBuilder: FeedbackCaseDraftBuilder | undefined
   const deliveryMonitors = new Set<DeliveryOutcomeMonitor>()
   ctx.provide('evoforge.evolution', store)
   const disposeBinder = installGenerationBinder(ctx, store, source)
@@ -101,15 +105,44 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         publisher: review.publisher,
         store,
       })
-  installEvolutionCommand(
-    ctx,
-    store,
-    review,
-    resident,
-    automaticPolicy,
-    deliveryOutcomes,
-    feedbackSignals,
-  )
+  const feedbackDraft = config.feedbackDraftRoot === undefined
+    ? undefined
+    : {
+        create: (signalId: string, skillName: string) => {
+          if (feedbackDraftBuilder === undefined) {
+            throw new Error(
+              'native message feedback and Session persistence are not composed for Feedback Case Draft creation',
+            )
+          }
+          return feedbackDraftBuilder.create(signalId, skillName)
+        },
+      }
+  installEvolutionCommand(ctx, store, {
+    ...(review === undefined ? {} : { review }),
+    ...(resident === undefined ? {} : { resident }),
+    ...(automaticPolicy === undefined ? {} : { automatic: automaticPolicy }),
+    outcomes: deliveryOutcomes,
+    feedback: feedbackSignals,
+    ...(feedbackDraft === undefined ? {} : { feedbackDraft }),
+  })
+  if (config.feedbackDraftRoot !== undefined) {
+    ctx.inject(['messageFeedback', 'sessionPersistence'], (draftCtx) => {
+      const builder = new FeedbackCaseDraftBuilder(
+        config.feedbackDraftRoot!,
+        feedbackSignals,
+        store,
+        source,
+        draftCtx.messageFeedback,
+        draftCtx.sessionPersistence,
+      )
+      draftCtx.effect(() => {
+        feedbackDraftBuilder = builder
+        return () => {
+          if (feedbackDraftBuilder === builder) feedbackDraftBuilder = undefined
+        }
+      }, 'dsh-evolve.feedbackCaseDraftBuilder')
+    })
+  }
   ctx.inject(['tools'], (toolCtx) => {
     toolCtx.effect(() => {
       const monitor = installDeliveryOutcomeMonitor(toolCtx, deliveryOutcomes, store)
