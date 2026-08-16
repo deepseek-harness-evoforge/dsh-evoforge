@@ -1,11 +1,12 @@
 # dsh-evolve
 
-`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains four deliberately separate lanes:
+`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains five deliberately separate lanes:
 
 - **P0A Shadow** compares an active Skill with an inactive Candidate without changing live DSH.
 - **P0B Local Continuity** records immutable Capability Generations, pins one Generation per Session, switches or rolls back only future Sessions, and resumes durable sealed work through an optional resident supervisor.
 - **P0C Human Control** reviews completed evidence and publishes approved Candidates as inactive Generations before a separate explicit promotion.
 - **P1.1 Narrow Autonomy** optionally auto-promotes only allowlisted, append-only instruction clear wins; every other Candidate remains human review.
+- **P2D.1 Delivery Signals** passively associates verified `complete_delivery` outcomes with the Session-pinned Generation and shows only bounded host-side aggregates.
 
 The offline evaluation command is:
 
@@ -87,8 +88,14 @@ The P0B.1 runtime kernel also proves on the pinned DSH revision that:
 - the packed artifact installs into a real DSH profile, boots, removes cleanly, and leaves native DSH composition intact;
 - removing the plugin leaves native DSH Session and Goal facts readable.
 
+P2D.1 observes the native final `tools/result` asynchronously. It retains at most
+1,000 compact, idempotent outcomes and adds aggregate delivery counts to
+`/evolve status`; prompts, repository paths, PR bodies, check output, and model
+surface are excluded. A delivery failure is not attributed to the active Skill
+and never triggers rollback by itself.
+
 This is still pre-alpha. There is no full diff viewer, future-session canary,
-outcome-triggered automatic rollback, release, or production support. Explicit and resident
+counterfactual automatic rollback, release, or production support. Explicit and resident
 Shadow recovery now cover bounded proposer/Candidate/Trial crash boundaries, but
 short automated soak is not production multi-day evidence. This is not a claim
 that continuous self-improvement is complete.

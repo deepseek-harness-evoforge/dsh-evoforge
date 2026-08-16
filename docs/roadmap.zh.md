@@ -1,6 +1,6 @@
 # EvoForge 开发路线图
 
-> 状态：P0A–P1.1 已实现；P2A.1 验证、P2B.1 Goal 完成与 P2C.1 Draft PR 已实现
+> 状态：P0A–P1.1 已实现；P2A.1 验证、P2B.1 Goal 完成、P2C.1 Draft PR 与 P2D.1 Outcome 第二消费者已实现
 
 ## 当前状态
 
@@ -12,8 +12,8 @@
 | P0A Shadow evaluator | 本地退出门通过 | 安全门、macOS Sealed Trial、真实 DSH bridge、3/3 公开产品 fixture 与[本地未见首测](evidence/p0a-8-private-heldout.zh.md)均转绿；真实 provider 与第三方独立复跑仍属更高等级证据 |
 | P0B Local Continuity | implemented | P0B.1 release kernel、P0B.2a durable resume 与 P0B.2b resident supervisor 已通过本地/pinned DSH 测试；生产多日 soak 仍属发布前证据 |
 | P0C Human Control | 命令闭环 implemented；可用性门待验证 | P0C.1 release、P0C.2 review → inactive Generation、P0C.3 durable pause/resume 已通过真实 Commands/Agent 测试 |
-| P1 Bounded Autonomy | P1.1 implemented | 默认关闭的 allowlist + append-only clear-instruction policy 已通过 policy/crash/真实 DSH future-Session 测试；canary/自动回滚待完成 |
-| P2 Software Delivery | P2A.1 + P2B.1 + P2C.1 implemented | linked worktree/commit/check、原生 Bash policy → exact push/Draft PR → `update_goal`、pinned DSH Agent 与 package；Evolve outcome 集成待完成 |
+| P1 Bounded Autonomy | P1.1 implemented；P2D.1 信号已接通 | 默认关闭的 allowlist + append-only clear-instruction policy 已通过 policy/crash/真实 DSH future-Session 测试；交付 outcome 已按 Generation 聚合；可归因 canary/自动回滚待完成 |
+| P2 Software Delivery | P2A.1 + P2B.1 + P2C.1 + P2D.1 consumer implemented | linked worktree/commit/check、原生 Bash policy → exact push/Draft PR → `update_goal`，并由 Evolve 异步记录最小三态信号；pinned DSH Agent/ToolRuntime/Storage 与 package 已测 |
 
 ## P0A — 先证明会判断
 
@@ -97,8 +97,13 @@ append。protected-effect 或任何模糊证据留在人工 inbox。Automatic ac
 [P1.1](evidence/p1-1-opt-in-clear-instruction-auto-promotion.zh.md)与
 [ADR-0011](adr/0011-automatic-promotion-is-an-opt-in-clear-instruction-policy.md)。
 
-P1 剩余：future-session canary、真实 outcome monitor、阈值化自动 rollback，以及真实
-provider 数据下的 false promotion/false rollback/review rate。P1.1 不作完整退出声明。
+P2D.1 已接通真实 Software Delivery outcome：观察最终 `tools/result`，关联 Session pin，按
+Session + callId 幂等保存最多 1000 条最小三态记录，并只在 host `/evolve status` 聚合。
+单次业务失败不回滚。证据见 [P2D.1](evidence/p2d-1-delivery-outcome-signal.zh.md)与
+[ADR-0015](adr/0015-delivery-outcomes-are-derived-signals.md)。
+
+P1 剩余：active-vs-parent sealed canary、可重放反事实门与自动 rollback，以及真实 provider
+数据下的 false promotion/false rollback/review rate。P1.1/P2D.1 不作完整退出声明。
 
 退出条件：真实 Shadow/Canary 数据证明 false promotion、false rollback、review rate 和每次减少返工的成本在预声明预算内。
 
@@ -130,8 +135,11 @@ open PR：已存在且仍为 Draft 时复用；不存在时创建 Draft 并 read
 证据见 [P2C.1](evidence/p2c-1-idempotent-draft-pr.zh.md)与
 [ADR-0014](adr/0014-remote-draft-pr-facts-are-idempotency-source.md)。
 
-P2 剩余：由 `dsh-evolve` 作为第二消费者接入 outcome monitor；再用真实开发任务测量通过率、
-返工率、人工介入和 token/cache 成本。GitHub fork/其他 forge/远端 CI 等待只在真实需求数据
+P2D.1 已完成第二消费者：`dsh-evolve` 不反向侵入 Software Delivery，通过 DSH final
+`tools/result` 异步记录 compact outcome，持久化/去重/重启失败不影响原 Goal 或 Tool。动态
+状态只在 host Commands 可见，模型表面保持不变。它是 Learning Signal，不是 rollback 权限。
+
+P2 剩余：用真实开发任务测量通过率、返工率、人工介入和 token/cache 成本。GitHub fork/其他 forge/远端 CI 等待只在真实需求数据
 证明后扩展。全局拦截所有 Goal transition 不在计划内，除非真实误完成数据证明原子动作不足。
 
 ## P3 — 一个通用助理场景

@@ -55,7 +55,7 @@ async function bindAgent(
   agent: Agent,
   state: BindingState,
 ): Promise<CapabilityGeneration | undefined> {
-  const identity = identityOf(agent)
+  const identity = sessionIdentityOf(agent)
   try {
     const generation = await store.pinSession(identity, {
       ...agent.session.header.parentSession === undefined
@@ -105,7 +105,7 @@ async function disposeBinding(state: BindingState, states: Set<BindingState>): P
   states.delete(state)
 }
 
-function identityOf(agent: Agent): SessionIdentity {
+export function sessionIdentityOf(agent: Agent): SessionIdentity {
   const { id, createdAt, cwd } = agent.session.header
   return {
     sessionId: String(id),

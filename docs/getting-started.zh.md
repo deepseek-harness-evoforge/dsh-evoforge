@@ -92,6 +92,17 @@ dsh-delivery verify \
 当前要求 GitHub.com、已登录 `gh`、`origin` 同仓 branch。它只创建或复用 Draft，不 merge、
 不转 ready，也不读取或输出 token；命令仍由原生 shell policy 决定。
 
+如果同一 DSH composition 也加载 `dsh-evolve`，无需再增加 Tool 或配置 Adapter。Evolve 会
+旁路观察最终 `complete_delivery` 结果并关联该 Session 的 Generation；`/evolve status` 增加：
+
+```text
+Delivery outcomes: 4 total (2 passed, 1 failed, 1 unknown)
+Active selection outcomes (<generation-id-or-native>): 2 total (2 passed, 0 failed, 0 unknown)
+```
+
+计数最多来自最近 1000 条幂等记录，不包含 Prompt、仓库路径、PR 正文或 check 输出。记录失败
+不会延迟或改变原 Tool；单次失败也不会触发自动回滚。
+
 ### P0B runtime 开发装配
 
 `dsh-evolve` 目前是普通 Cordis runtime plugin，不是自动修改 profile 的 Bundle。

@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import * as EvolvePlugin from '../src/index.js'
 import type { EvolutionStore } from '../src/generation-store.js'
+import { openDeliveryOutcomeStore } from '../src/delivery-outcome-monitor.js'
 import { hashTree, sha256 } from '../src/hash.js'
 
 const execFile = promisify(execFileCallback)
@@ -523,6 +524,70 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     await ctx.fiber.dispose()
   })
 
+  it('observes a pinned native ToolRuntime result once and recovers it after plugin reload', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-delivery-result-'))
+    temporaryRoots.push(root)
+    const configPath = await writeStorageConfig(root)
+    const ctx = await bootStorage(configPath)
+    const adapter = await installAgentRuntime(ctx)
+    const evolveFiber = await ctx.plugin(EvolvePlugin, { cacheRoot: join(root, 'cache') })
+    const packages = (path: string) => pathToFileURL(
+      join(dshSourceDir, 'packages', path, 'lib', 'index.js'),
+    ).href
+    const [llm, tools, commands] = await Promise.all([
+      import(packages('llm/llm')),
+      import(packages('core/tools')),
+      import(packages('interaction/commands')),
+    ])
+    await ctx.plugin(commands.default)
+    const agent = await createAndRunAgent(ctx, 'delivery-outcome-session', root)
+    const modelRequestsBeforeDelivery = adapter.requests.length
+    const unregister = ctx.tools.register(tools.defineTool({
+      name: 'complete_delivery',
+      description: 'Pinned native outcome fixture.',
+      parameters: {},
+      output: {
+        schema: { type: 'json' },
+        render: (_args: unknown, value: unknown) => [{ type: 'text', text: JSON.stringify(value) }],
+      },
+      execute: () => ({
+        schemaVersion: 1,
+        status: 'passed',
+        reason: 'verified',
+        goal: { id: 'native-goal', revision: 3, phase: 'complete' },
+        artifact: { kind: 'git-commit', commit: 'b'.repeat(40), branch: 'feature/native' },
+        repository: { worktree: '/must/not/persist' },
+        checks: [{ name: 'native-check', stdoutPreview: 'must-not-persist' }],
+      }),
+    }))
+    const execution = {
+      callId: llm.CallId('native-delivery-outcome'),
+      name: 'complete_delivery',
+      arguments: {},
+      agent,
+      signal: new AbortController().signal,
+    }
+
+    await expect(ctx.tools.execute(execution)).resolves.toMatchObject({ isError: false })
+    await expect(ctx.tools.execute(execution)).resolves.toMatchObject({ isError: false })
+    const status = await waitForEvolutionStatus(ctx, agent, 'Delivery outcomes: 1 total')
+    expect(status).toContain('Active selection outcomes (native DSH): 1 total (1 passed, 0 failed, 0 unknown)')
+    expect(adapter.requests).toHaveLength(modelRequestsBeforeDelivery)
+
+    unregister()
+    await evolveFiber.dispose()
+    const recovered = await openDeliveryOutcomeStore(ctx.storageDomain)
+    try {
+      expect(recovered.summarize()).toEqual({
+        all: { total: 1, passed: 1, failed: 0, unknown: 0 },
+        selected: { total: 1, passed: 1, failed: 0, unknown: 0 },
+      })
+    } finally {
+      await recovered.close()
+      await ctx.fiber.dispose()
+    }
+  })
+
   it('leaves persisted Session and Goal facts readable by native DSH after plugin removal', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-generation-removal-'))
     temporaryRoots.push(root)
@@ -716,6 +781,21 @@ async function waitForActiveGeneration(store: EvolutionStore): Promise<NonNullab
     await new Promise(resolve => setTimeout(resolve, 10))
   }
   throw new Error('automatic promotion did not activate a Generation')
+}
+
+async function waitForEvolutionStatus(
+  ctx: Awaited<ReturnType<typeof bootStorage>>,
+  agent: object,
+  expected: string,
+): Promise<string> {
+  const deadline = Date.now() + 2_000
+  while (Date.now() < deadline) {
+    const execution = await ctx.commands.execute(agent, '/evolve status', new AbortController().signal)
+    const text = execution?.result.text ?? ''
+    if (text.includes(expected)) return text
+    await new Promise(resolve => setTimeout(resolve, 10))
+  }
+  throw new Error(`evolution status did not contain '${expected}'`)
 }
 
 async function installAgentRuntime(

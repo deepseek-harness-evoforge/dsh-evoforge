@@ -1,0 +1,108 @@
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+import { afterEach, describe, expect, it } from 'vitest'
+import { openDeliveryOutcomeStore } from '../src/delivery-outcome-monitor.js'
+
+const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const suiteRoot = resolve(packageRoot, '../..')
+const dshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
+  ?? resolve(suiteRoot, '../deepseek-harness')
+const temporaryRoots: string[] = []
+
+afterEach(async () => {
+  await Promise.all(temporaryRoots.splice(0).map(path => rm(path, { force: true, recursive: true })))
+})
+
+describe.skipIf(process.platform !== 'darwin')('delivery outcome store', () => {
+  it('deduplicates calls, bounds retained evidence, and recovers it after restart', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-delivery-outcomes-'))
+    temporaryRoots.push(root)
+    const configPath = await writeStorageConfig(root)
+
+    const firstCtx = await bootStorage(configPath)
+    const firstStore = await openDeliveryOutcomeStore(firstCtx.storageDomain, { maxRecords: 2 })
+    try {
+      const duplicate = outcome('call-1', 1, 'passed', 'a'.repeat(64))
+      expect((await firstStore.record(duplicate)).created).toBe(true)
+      expect((await firstStore.record(duplicate)).created).toBe(false)
+      await firstStore.record(outcome('call-2', 2, 'failed'))
+      await firstStore.record(outcome('call-3', 3, 'unknown', 'a'.repeat(64)))
+      expect(firstStore.summarize('a'.repeat(64))).toEqual({
+        all: { total: 2, passed: 0, failed: 1, unknown: 1 },
+        selected: { total: 1, passed: 0, failed: 0, unknown: 1 },
+      })
+    } finally {
+      await firstStore.close()
+      await firstCtx.fiber.dispose()
+    }
+
+    const resumedCtx = await bootStorage(configPath)
+    const resumedStore = await openDeliveryOutcomeStore(resumedCtx.storageDomain, { maxRecords: 2 })
+    try {
+      expect(resumedStore.summarize()).toEqual({
+        all: { total: 2, passed: 0, failed: 1, unknown: 1 },
+        selected: { total: 1, passed: 0, failed: 1, unknown: 0 },
+      })
+      expect((await resumedStore.record(outcome('call-3', 3, 'unknown', 'a'.repeat(64)))).created)
+        .toBe(false)
+    } finally {
+      await resumedStore.close()
+      await resumedCtx.fiber.dispose()
+    }
+  })
+})
+
+function outcome(
+  callId: string,
+  observedAt: number,
+  status: 'passed' | 'failed' | 'unknown',
+  generationId?: string,
+) {
+  return {
+    observedAt,
+    sessionId: `session-${callId}`,
+    callId,
+    ...(generationId === undefined ? {} : { generationId }),
+    goal: { id: `goal-${callId}`, revision: 1, phase: status === 'passed' ? 'complete' : 'active' },
+    status,
+    reason: status === 'passed' ? 'verified' : 'check-result',
+    commit: 'b'.repeat(40),
+  }
+}
+
+async function writeStorageConfig(root: string): Promise<string> {
+  const packageScope = join(root, 'node_modules', '@deepseek-ai')
+  await mkdir(packageScope, { recursive: true })
+  for (const [name, source] of [
+    ['dsh-storage', join(dshSourceDir, 'packages', 'storage', 'storage')],
+    ['dsh-storage-json', join(dshSourceDir, 'packages', 'storage', 'storage-json')],
+    ['dsh-storage-domain', join(dshSourceDir, 'packages', 'storage', 'storage-domain')],
+  ] as const) {
+    await symlink(source, join(packageScope, name), 'dir')
+  }
+  await writeFile(join(root, 'package.json'), '{"type":"module"}\n')
+  const configPath = join(root, 'cordis.yml')
+  await writeFile(configPath, JSON.stringify([
+    { id: 'storage', name: '@deepseek-ai/dsh-storage' },
+    {
+      id: 'storage-json',
+      name: '@deepseek-ai/dsh-storage-json',
+      config: { root: join(root, 'storage') },
+    },
+    {
+      id: 'storage-domain',
+      name: '@deepseek-ai/dsh-storage-domain',
+      config: { backend: 'json' },
+    },
+  ], null, 2))
+  return configPath
+}
+
+async function bootStorage(configPath: string) {
+  const { boot } = await import(
+    pathToFileURL(join(dshSourceDir, 'packages', 'boot', 'app-boot', 'lib', 'index.js')).href
+  )
+  return boot('dsh-evolve-delivery-outcome-test', configPath)
+}

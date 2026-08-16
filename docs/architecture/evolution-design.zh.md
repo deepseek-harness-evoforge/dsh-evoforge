@@ -581,6 +581,9 @@ P0C.3 已提供 durable resident pause/resume，证据见
 [P0C.3](../evidence/p0c-3-durable-resident-pause-resume.zh.md)。P0C 不增加模型 Tool，
 也不让审批等待阻塞产生信号的原会话。P1.1 已实现默认关闭、allowlist、append-only 的
 clear-instruction 自动晋升，证据见
-[P1.1](../evidence/p1-1-opt-in-clear-instruction-auto-promotion.zh.md)。下一实现纵切是
-future-session canary 与 outcome-triggered rollback；P0C 仍需普通用户完成控制任务的
-可用性退出证据。
+[P1.1](../evidence/p1-1-opt-in-clear-instruction-auto-promotion.zh.md)。P2D.1 已通过最终
+`tools/result` 接入真实 Software Delivery 三态 outcome，并关联 Session-pinned Generation；
+该信号异步、host-only、零模型表面，见
+[P2D.1](../evidence/p2d-1-delivery-outcome-signal.zh.md)。下一实现纵切是 active-vs-parent
+sealed canary：只有同一预声明 case 上当前版本失败且父版本通过，才具备自动 rollback 的
+可归因证据；单次真实交付失败只触发异步评估。P0C 仍需普通用户完成控制任务的可用性退出证据。

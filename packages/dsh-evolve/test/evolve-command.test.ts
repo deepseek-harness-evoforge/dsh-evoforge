@@ -4,6 +4,7 @@ import { executeEvolutionCommand } from '../src/evolve-command.js'
 import type { CandidatePublisher } from '../src/candidate-publisher.js'
 import type { ReviewCandidate, ReviewInbox } from '../src/review-inbox.js'
 import type { AutoPromotionPolicy } from '../src/auto-promotion.js'
+import type { DeliveryOutcomeStore } from '../src/delivery-outcome-monitor.js'
 
 const rootId = '1'.repeat(64)
 const childId = '2'.repeat(64)
@@ -217,6 +218,31 @@ describe('/evolve host command', () => {
       kind: 'success',
       text: expect.stringContaining('Automatic promotion: auto-clear-instruction-v1 (stable-skill)'),
     })
+  })
+
+  it('shows only compact delivery outcome counts on the host status plane', async () => {
+    const outcomes = {
+      summarize: vi.fn(() => ({
+        all: { total: 4, passed: 2, failed: 1, unknown: 1 },
+        selected: { total: 2, passed: 2, failed: 0, unknown: 0 },
+      })),
+    } as unknown as DeliveryOutcomeStore
+
+    await expect(executeEvolutionCommand(
+      fakeStore(generation(rootId)),
+      'status',
+      undefined,
+      undefined,
+      undefined,
+      outcomes,
+    )).resolves.toMatchObject({
+      kind: 'success',
+      text: expect.stringContaining([
+        'Delivery outcomes: 4 total (2 passed, 1 failed, 1 unknown)',
+        `Active selection outcomes (${rootId}): 2 total (2 passed, 0 failed, 0 unknown)`,
+      ].join('\n')),
+    })
+    expect(outcomes.summarize).toHaveBeenCalledWith(rootId)
   })
 
   it('returns an actionable host error instead of throwing an implementation stack', async () => {

@@ -80,6 +80,10 @@ _Avoid_: Autonomous SDLC platform, coding operating system
 A small, inspectable result used before a Goal is allowed to complete. It reports `passed`, `failed`, or `unknown`, a concise explanation, and optional artifact references. It does not introduce a universal evidence ontology.
 _Avoid_: Agent self-certification, evaluator framework
 
+**Delivery Outcome**:
+A compact Learning Signal observed from the final `complete_delivery` result and attributed to the Capability Generation pinned to that Session. It may trigger evaluation, but one outcome never proves regression or authorizes rollback.
+_Avoid_: Transcript archive, rollback vote, delivery event platform
+
 **Cache Contract**:
 The suite-wide rule that model-visible instructions, tools, schemas, and ordering remain stable within a DSH session. Cache impact is checked at the complete composition surface when that surface changes; plugins with no model-visible effect add no separate burden.
 _Avoid_: Runtime cache plugin, per-plugin bureaucracy

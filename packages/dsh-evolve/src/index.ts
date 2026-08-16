@@ -15,6 +15,11 @@ import { ReviewInbox } from './review-inbox.ts'
 import { ResidentEvolutionControl } from './resident-evolution-control.ts'
 import { VerifiedEvolutionStore } from './verified-evolution-store.ts'
 import { AutoPromotionPolicy, AutoPromotionService } from './auto-promotion.ts'
+import {
+  installDeliveryOutcomeMonitor,
+  openDeliveryOutcomeStore,
+  type DeliveryOutcomeMonitor,
+} from './delivery-outcome-monitor.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -59,6 +64,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     config.sources ?? [],
   )
   const store = new VerifiedEvolutionStore(await openEvolutionStore(ctx.storageDomain), source)
+  const deliveryOutcomes = await openDeliveryOutcomeStore(ctx.storageDomain)
+  const deliveryMonitors = new Set<DeliveryOutcomeMonitor>()
   ctx.provide('evoforge.evolution', store)
   const disposeBinder = installGenerationBinder(ctx, store, source)
   const review = config.supervisor === undefined || config.supervisor.runRoots.length === 0
@@ -85,7 +92,17 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         publisher: review.publisher,
         store,
       })
-  installEvolutionCommand(ctx, store, review, resident, automaticPolicy)
+  installEvolutionCommand(ctx, store, review, resident, automaticPolicy, deliveryOutcomes)
+  ctx.inject(['tools'], (toolCtx) => {
+    toolCtx.effect(() => {
+      const monitor = installDeliveryOutcomeMonitor(toolCtx, deliveryOutcomes, store)
+      deliveryMonitors.add(monitor)
+      return async () => {
+        await monitor.dispose()
+        deliveryMonitors.delete(monitor)
+      }
+    }, 'dsh-evolve.deliveryOutcomeMonitor')
+  })
   if (config.supervisor !== undefined && config.supervisor.runRoots.length > 0) {
     // Jobs is optional for the base release kernel. A configured supervisor activates
     // only when the host composes the native process-local Jobs service.
@@ -119,6 +136,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     })
   }
   ctx.effect(() => async () => {
+    await Promise.all([...deliveryMonitors].map(monitor => monitor.dispose()))
+    await deliveryOutcomes.close()
     await disposeBinder()
     await store.close()
   }, 'dsh-evolve.runtimeClose')
@@ -133,3 +152,9 @@ export type {
 } from './generation-store.ts'
 export type { GitSkillSourceConfig } from './git-skill-source.ts'
 export type { ShadowResumeInvocation, ShadowSupervisorOptions } from './shadow-supervisor.ts'
+export type {
+  DeliveryOutcome,
+  DeliveryOutcomeCounts,
+  DeliveryOutcomeInput,
+  DeliveryOutcomeSummary,
+} from './delivery-outcome-monitor.ts'
