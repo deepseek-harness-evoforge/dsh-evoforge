@@ -30,6 +30,55 @@ afterEach(async () => {
 })
 
 describe('complete_delivery Tool', () => {
+  it.runIf(process.env.DSH_DELIVERY_LIVE_WORKTREE !== undefined)(
+    'reuses the authenticated repository Draft PR without creating another one',
+    async () => {
+      const worktree = await realpath(process.env.DSH_DELIVERY_LIVE_WORKTREE!)
+      const branch = await git(worktree, 'symbolic-ref', '--short', 'HEAD')
+      const headCommit = await git(worktree, 'rev-parse', 'HEAD')
+      const existing = JSON.parse((await execFile('gh', [
+        'pr', 'list', '--state', 'open', '--head', branch, '--base', 'main',
+        '--json', 'number,url,isDraft,headRefName,headRefOid,baseRefName',
+      ], { cwd: worktree, encoding: 'utf8' })).stdout) as ReturnType<typeof draftPrView>[]
+      expect(existing).toHaveLength(1)
+      expect(existing[0]).toMatchObject({ isDraft: true, headRefOid: headCommit })
+      const fixture: DeliveryFixture = {
+        root: worktree,
+        repository: worktree,
+        worktree,
+        baseCommit: await git(worktree, 'rev-parse', 'main'),
+        headCommit,
+      }
+      const args = deliveryArgs(fixture)
+      args.draft_pr = { base_branch: 'main', title: 'unused because the Draft exists', body: '' }
+      const test = await setup([
+        toolCall('delivery-live-github', 'complete_delivery', args),
+        textResponse('existing draft reused'),
+      ])
+      const goal = test.ctx.goals.create(test.agent, { objective: 'Reuse the existing authenticated Draft PR.' })
+      test.adapter.replaceAllArguments({ ...args, goal_id: goal.id, revision: goal.revision })
+
+      await runHumanTurn(test.agent)
+
+      expect(toolResultValue(test.agent, 'delivery-live-github')).toMatchObject({
+        status: 'passed',
+        goal: { phase: 'complete' },
+        draftPr: {
+          status: 'passed',
+          reason: 'existing-draft',
+          artifact: {
+            number: existing[0]?.number,
+            url: existing[0]?.url,
+            commit: headCommit,
+            reused: true,
+          },
+        },
+      })
+      await test.ctx.fiber.dispose()
+    },
+    30_000,
+  )
+
   it('atomically verifies a real linked-worktree commit and completes the exact native Goal', async () => {
     const fixture = await createDeliveryFixture()
     const test = await setup([
@@ -164,6 +213,192 @@ describe('complete_delivery Tool', () => {
     await test.ctx.fiber.dispose()
   })
 
+  it('recovers an uncertain Draft PR create by reusing remote facts before completing the Goal', async () => {
+    const fixture = await createDeliveryFixture()
+    const args = deliveryArgs(fixture)
+    args.draft_pr = {
+      base_branch: 'main',
+      title: 'feat: verified delivery',
+      body: 'Created by the delivery test.',
+    }
+    let remotelyCreated = false
+    const commands: string[] = []
+    const test = await setup([
+      toolCall('delivery-publish-uncertain', 'complete_delivery', args),
+      toolCall('delivery-publish-retry', 'complete_delivery', args),
+      textResponse('draft ready'),
+    ], (command) => {
+      commands.push(command)
+      if (command.includes("'gh' 'auth' 'status'")) return shellValue(0, '', '')
+      if (command.includes("'git' 'push'")) return shellValue(0, '', '')
+      if (command.includes("'gh' 'pr' 'list'")) {
+        return shellValue(0, remotelyCreated ? JSON.stringify([draftPrView(fixture, true)]) : '[]', '')
+      }
+      if (command.includes("'gh' 'pr' 'create'")) {
+        remotelyCreated = true
+        return shellValue(1, '', 'response lost after create')
+      }
+      return undefined
+    })
+    const goal = test.ctx.goals.create(test.agent, { objective: 'Publish one idempotent Draft PR.' })
+    test.adapter.replaceAllArguments({ ...args, goal_id: goal.id, revision: goal.revision })
+
+    await runHumanTurn(test.agent)
+
+    expect(toolResultValue(test.agent, 'delivery-publish-uncertain')).toMatchObject({
+      status: 'unknown',
+      reason: 'draft-pr-create-inconclusive',
+      goal: { phase: 'active', revision: goal.revision },
+      draftPr: { status: 'unknown', reason: 'create-inconclusive' },
+    })
+    expect(toolResultValue(test.agent, 'delivery-publish-retry')).toMatchObject({
+      status: 'passed',
+      reason: 'verified',
+      goal: { phase: 'complete', revision: goal.revision + 1 },
+      draftPr: {
+        status: 'passed',
+        reason: 'existing-draft',
+        artifact: {
+          kind: 'github-draft-pr',
+          number: 7,
+          url: 'https://github.com/example/project/pull/7',
+          head: 'feature/delivery',
+          base: 'main',
+          commit: fixture.headCommit,
+          reused: true,
+        },
+      },
+    })
+    expect(test.ctx.goals.get(test.agent)).toMatchObject({ phase: 'complete' })
+    expect(commands.filter(command => command.includes("'gh' 'pr' 'create'"))).toHaveLength(1)
+    await test.ctx.fiber.dispose()
+  })
+
+  it('creates and confirms one new Draft PR before completing the Goal', async () => {
+    const fixture = await createDeliveryFixture()
+    const args = deliveryArgs(fixture)
+    args.draft_pr = { base_branch: 'main', title: 'feat: create draft', body: 'Verified body.' }
+    const test = await setup([
+      toolCall('delivery-create-draft', 'complete_delivery', args),
+      textResponse('draft created'),
+    ], (command) => {
+      if (command.includes("'gh' 'auth' 'status'") || command.includes("'git' 'push'")) {
+        return shellValue(0, '', '')
+      }
+      if (command.includes("'gh' 'pr' 'list'")) return shellValue(0, '[]', '')
+      if (command.includes("'gh' 'pr' 'create'")) {
+        return shellValue(0, 'https://github.com/example/project/pull/7\n', '')
+      }
+      if (command.includes("'gh' 'pr' 'view'")) {
+        return shellValue(0, JSON.stringify(draftPrView(fixture, true)), '')
+      }
+      return undefined
+    })
+    const goal = test.ctx.goals.create(test.agent, { objective: 'Create a verified Draft PR.' })
+    test.adapter.replaceAllArguments({ ...args, goal_id: goal.id, revision: goal.revision })
+
+    await runHumanTurn(test.agent)
+
+    expect(toolResultValue(test.agent, 'delivery-create-draft')).toMatchObject({
+      status: 'passed',
+      goal: { phase: 'complete' },
+      draftPr: {
+        status: 'passed',
+        reason: 'created-draft',
+        artifact: { kind: 'github-draft-pr', reused: false, commit: fixture.headCommit },
+      },
+    })
+    await test.ctx.fiber.dispose()
+  })
+
+  it('fails before push when native GitHub authentication is unavailable', async () => {
+    const fixture = await createDeliveryFixture()
+    const args = deliveryArgs(fixture)
+    args.draft_pr = { base_branch: 'main', title: 'feat: no credentials', body: '' }
+    const commands: string[] = []
+    const test = await setup([
+      toolCall('delivery-auth-fail', 'complete_delivery', args),
+      textResponse('authentication required'),
+    ], (command) => {
+      commands.push(command)
+      if (command.includes("'gh' 'auth' 'status'")) return shellValue(1, '', 'not logged in')
+      return undefined
+    })
+    const goal = test.ctx.goals.create(test.agent, { objective: 'Respect native GitHub authority.' })
+    test.adapter.replaceAllArguments({ ...args, goal_id: goal.id, revision: goal.revision })
+
+    await runHumanTurn(test.agent)
+
+    expect(toolResultValue(test.agent, 'delivery-auth-fail')).toMatchObject({
+      status: 'failed',
+      reason: 'draft-pr-auth-unavailable',
+      draftPr: { status: 'failed', reason: 'auth-unavailable' },
+    })
+    expect(commands.some(command => command.includes("'git' 'push'"))).toBe(false)
+    expect(test.ctx.goals.get(test.agent)).toMatchObject({ phase: 'active' })
+    await test.ctx.fiber.dispose()
+  })
+
+  it('rejects an invalid Draft PR base before authentication or push', async () => {
+    const fixture = await createDeliveryFixture()
+    const args = deliveryArgs(fixture)
+    args.draft_pr = { base_branch: 'bad..base', title: 'feat: invalid base', body: '' }
+    const commands: string[] = []
+    const test = await setup([
+      toolCall('delivery-invalid-base', 'complete_delivery', args),
+      textResponse('invalid base rejected'),
+    ], (command) => {
+      commands.push(command)
+      return undefined
+    })
+    const goal = test.ctx.goals.create(test.agent, { objective: 'Reject invalid remote refs.' })
+    test.adapter.replaceAllArguments({ ...args, goal_id: goal.id, revision: goal.revision })
+
+    await runHumanTurn(test.agent)
+
+    expect(toolResultValue(test.agent, 'delivery-invalid-base')).toMatchObject({
+      status: 'failed',
+      reason: 'draft-pr-base-invalid',
+      draftPr: { status: 'failed', reason: 'base-invalid' },
+    })
+    expect(commands.some(command => command.includes("'gh' 'auth'") || command.includes("'git' 'push'"))).toBe(false)
+    expect(test.ctx.goals.get(test.agent)).toMatchObject({ phase: 'active' })
+    await test.ctx.fiber.dispose()
+  })
+
+  it('does not alter an existing ready PR or complete the Goal as if it were a Draft', async () => {
+    const fixture = await createDeliveryFixture()
+    const args = deliveryArgs(fixture)
+    args.draft_pr = { base_branch: 'main', title: 'feat: draft only', body: '' }
+    const commands: string[] = []
+    const test = await setup([
+      toolCall('delivery-ready-conflict', 'complete_delivery', args),
+      textResponse('human decision required'),
+    ], (command) => {
+      commands.push(command)
+      if (command.includes("'gh' 'auth' 'status'") || command.includes("'git' 'push'")) {
+        return shellValue(0, '', '')
+      }
+      if (command.includes("'gh' 'pr' 'list'")) {
+        return shellValue(0, JSON.stringify([draftPrView(fixture, false)]), '')
+      }
+      return undefined
+    })
+    const goal = test.ctx.goals.create(test.agent, { objective: 'Never rewrite PR review state.' })
+    test.adapter.replaceAllArguments({ ...args, goal_id: goal.id, revision: goal.revision })
+
+    await runHumanTurn(test.agent)
+
+    expect(toolResultValue(test.agent, 'delivery-ready-conflict')).toMatchObject({
+      status: 'failed',
+      reason: 'draft-pr-existing-not-draft',
+      draftPr: { status: 'failed', reason: 'existing-not-draft' },
+    })
+    expect(test.ctx.goals.get(test.agent)).toMatchObject({ phase: 'active', revision: goal.revision })
+    expect(commands.some(command => command.includes("'gh' 'pr' 'create'"))).toBe(false)
+    await test.ctx.fiber.dispose()
+  })
+
   it('binds late native Tool providers, then removes only its Tool and Skill on disposal', async () => {
     const ctx = new Context()
     await ctx.plugin(SystemPrompt)
@@ -198,6 +433,7 @@ type DeliveryArgs = {
   worktree: string
   base_ref: string
   checks: { name: string; argv: string[] }[]
+  draft_pr?: { base_branch: string; title: string; body: string }
 }
 
 function deliveryArgs(fixture: DeliveryFixture): DeliveryArgs {
@@ -235,15 +471,26 @@ class ScriptedAdapter extends LlmAdapter {
     const delta = chunks?.find(chunk => chunk.type === 'tool-call-delta')
     if (delta?.type === 'tool-call-delta') delta.argumentsDelta = json
   }
+
+  replaceAllArguments(args: DeliveryArgs): void {
+    for (const chunks of this.script) {
+      const end = chunks.find(chunk => chunk.type === 'block-end')
+      if (end?.type !== 'block-end' || end.block.type !== 'tool-call' || end.block.name !== 'complete_delivery') continue
+      const json = JSON.stringify(args)
+      end.block = { ...end.block, arguments: json }
+      const delta = chunks.find(chunk => chunk.type === 'tool-call-delta')
+      if (delta?.type === 'tool-call-delta') delta.argumentsDelta = json
+    }
+  }
 }
 
-async function setup(script: StreamChunk[][]) {
+async function setup(script: StreamChunk[][], interceptBash?: TestBashInterceptor) {
   const ctx = new Context()
   await ctx.plugin(LlmRuntime)
   await ctx.plugin(SessionStore)
   await ctx.plugin(SystemPrompt, { persona: 'Delivery completion fixture.' })
   await ctx.plugin(ToolRuntime)
-  installTestBash(ctx)
+  installTestBash(ctx, interceptBash)
   await ctx.plugin(SkillRegistry)
   await ctx.plugin(AgentRegistry)
   await ctx.plugin(GoalService)
@@ -259,7 +506,9 @@ async function setup(script: StreamChunk[][]) {
   return { ctx, adapter, agent }
 }
 
-function installTestBash(ctx: Context): void {
+type TestBashInterceptor = (command: string) => ReturnType<typeof shellValue> | undefined
+
+function installTestBash(ctx: Context, intercept?: TestBashInterceptor): void {
   ctx.tools.register(defineTool({
     name: 'bash',
     description: 'Execute one test-only bash command.',
@@ -274,6 +523,8 @@ function installTestBash(ctx: Context): void {
       render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }],
     },
     async execute(args) {
+      const intercepted = intercept?.(args.command)
+      if (intercepted !== undefined) return intercepted as unknown as JsonValue
       try {
         const result = await execFile('bash', ['-c', args.command], {
           cwd: args.workdir,
@@ -302,6 +553,17 @@ function shellValue(exitCode: number | null, stdout: string, stderr: string) {
     timeoutMs: TOOL_TIMEOUT_FIXTURE,
     stdout: { text: stdout, truncated: false },
     stderr: { text: stderr, truncated: false },
+  }
+}
+
+function draftPrView(fixture: DeliveryFixture, isDraft: boolean) {
+  return {
+    number: 7,
+    url: 'https://github.com/example/project/pull/7',
+    isDraft,
+    headRefName: 'feature/delivery',
+    headRefOid: fixture.headCommit,
+    baseRefName: 'main',
   }
 }
 

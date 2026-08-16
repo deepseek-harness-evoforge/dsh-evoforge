@@ -10,6 +10,7 @@ import {
   type DeliveryCheckRunner,
   type DeliveryReport,
 } from './verify-delivery.js'
+import { publishDraftPr, validateDraftPrInput, type DraftPrResult } from './draft-pr.js'
 
 const TOOL_OUTPUT_LIMIT_BYTES = 4 * 1024
 const TOOL_CHECK_TIMEOUT_MS = 15 * 60_000
@@ -40,6 +41,7 @@ interface CompleteDeliveryValue {
     readonly stdoutPreview?: string
     readonly stderrPreview?: string
   }[]
+  readonly draftPr?: DraftPrResult
 }
 
 /** Register the single cache-stable delivery completion action. */
@@ -70,6 +72,16 @@ export function installCompleteDelivery(ctx: Context): () => void {
           },
         },
       },
+      draft_pr: {
+        type: 'object',
+        additionalProperties: false,
+        description: 'Optionally push the exact commit and ensure one GitHub Draft PR.',
+        properties: {
+          base_branch: { type: 'string', required: true, description: 'Target branch name.' },
+          title: { type: 'string', required: true, description: 'Draft PR title.' },
+          body: { type: 'string', required: true, description: 'Draft PR body.' },
+        },
+      },
     },
     output: {
       schema: { type: 'json' },
@@ -90,6 +102,7 @@ export function installCompleteDelivery(ctx: Context): () => void {
           'DELIVERY_GOAL_STALE',
         )
       }
+      if (args.draft_pr !== undefined) validateDraftPrInput(args.draft_pr)
       const runner = nativeShellRunner(ctx, exec)
       const report = await verifyDelivery({
         worktree: args.worktree,
@@ -101,6 +114,30 @@ export function installCompleteDelivery(ctx: Context): () => void {
         checkRunner: runner,
       })
       if (report.status !== 'passed') return compact(report, current) as unknown as JsonValue
+
+      let draftPr: DraftPrResult | undefined
+      if (args.draft_pr !== undefined) {
+        const artifact = report.artifact
+        if (artifact === null) {
+          throw new HarnessError('verified delivery has no Git commit artifact', 'DELIVERY_ARTIFACT_REQUIRED')
+        }
+        draftPr = await publishDraftPr(runner, {
+          worktree: report.repository.worktree,
+          branch: artifact.branch,
+          commit: artifact.commit,
+          baseBranch: args.draft_pr.base_branch,
+          title: args.draft_pr.title,
+          body: args.draft_pr.body,
+          signal: exec.signal,
+        })
+        if (draftPr.status !== 'passed') {
+          return compact(report, current, {
+            status: draftPr.status,
+            reason: `draft-pr-${draftPr.reason}`,
+            draftPr,
+          }) as unknown as JsonValue
+        }
+      }
 
       const completion = await ctx.tools.execute({
         callId: CallId(`${exec.callId}:delivery-complete`),
@@ -127,7 +164,7 @@ export function installCompleteDelivery(ctx: Context): () => void {
       if (completed === undefined || completed.phase !== 'complete') {
         throw new HarnessError('native update_goal returned without a completed Goal', 'DELIVERY_GOAL_NOT_COMPLETED')
       }
-      return compact(report, completed) as unknown as JsonValue
+      return compact(report, completed, { ...(draftPr === undefined ? {} : { draftPr }) }) as unknown as JsonValue
     },
     presentCall: args => ({
       card: 'generic',
@@ -268,11 +305,21 @@ function pwshCommand(argv: readonly string[]): string {
   return `& ${argv.map(value => `'${value.replaceAll("'", "''")}'`).join(' ')}`
 }
 
-function compact(report: DeliveryReport, goal: { id: unknown; revision: number; phase: string }): CompleteDeliveryValue {
+interface CompactOptions {
+  readonly status?: CompleteDeliveryValue['status']
+  readonly reason?: string
+  readonly draftPr?: DraftPrResult
+}
+
+function compact(
+  report: DeliveryReport,
+  goal: { id: unknown; revision: number; phase: string },
+  options: CompactOptions = {},
+): CompleteDeliveryValue {
   return {
     schemaVersion: 1,
-    status: report.status,
-    reason: report.reason,
+    status: options.status ?? report.status,
+    reason: options.reason ?? report.reason,
     goal: { id: String(goal.id), revision: goal.revision, phase: goal.phase },
     artifact: report.artifact,
     repository: report.repository,
@@ -291,5 +338,6 @@ function compact(report: DeliveryReport, goal: { id: unknown; revision: number; 
       ...(check.status === 'passed' || check.stdout.text === '' ? {} : { stdoutPreview: check.stdout.text }),
       ...(check.status === 'passed' || check.stderr.text === '' ? {} : { stderrPreview: check.stderr.text }),
     })),
+    ...(options.draftPr === undefined ? {} : { draftPr: options.draftPr }),
   }
 }

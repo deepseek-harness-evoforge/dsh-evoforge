@@ -1,6 +1,6 @@
 # EvoForge 开发路线图
 
-> 状态：P0A–P1.1 已实现；P2A.1 验证器与 P2B.1 原生 Goal 受验证完成已实现
+> 状态：P0A–P1.1 已实现；P2A.1 验证、P2B.1 Goal 完成与 P2C.1 Draft PR 已实现
 
 ## 当前状态
 
@@ -13,7 +13,7 @@
 | P0B Local Continuity | implemented | P0B.1 release kernel、P0B.2a durable resume 与 P0B.2b resident supervisor 已通过本地/pinned DSH 测试；生产多日 soak 仍属发布前证据 |
 | P0C Human Control | 命令闭环 implemented；可用性门待验证 | P0C.1 release、P0C.2 review → inactive Generation、P0C.3 durable pause/resume 已通过真实 Commands/Agent 测试 |
 | P1 Bounded Autonomy | P1.1 implemented | 默认关闭的 allowlist + append-only clear-instruction policy 已通过 policy/crash/真实 DSH future-Session 测试；canary/自动回滚待完成 |
-| P2 Software Delivery | P2A.1 + P2B.1 implemented | 按需 Skill、真实 linked worktree/commit/check verifier、原生 Bash policy → `update_goal` 完成、pinned DSH Agent 与 packed install/remove/CLI；PR/outcome 集成待完成 |
+| P2 Software Delivery | P2A.1 + P2B.1 + P2C.1 implemented | linked worktree/commit/check、原生 Bash policy → exact push/Draft PR → `update_goal`、pinned DSH Agent 与 package；Evolve outcome 集成待完成 |
 
 ## P0A — 先证明会判断
 
@@ -123,9 +123,16 @@ GoalService，不阻断人工直接完成，也不增加第二套 policy/state�
 [P2B.1](evidence/p2b-1-native-goal-verified-completion.zh.md)与
 [ADR-0013](adr/0013-verified-completion-delegates-native-tools.md)。
 
-P2 剩余：在原生 Approval/Permission 下实现幂等 push 与 Draft PR；由 `dsh-evolve` 作为第二
-消费者接入 outcome monitor；再用真实开发任务测量通过率、返工率、人工介入和 token/cache
-成本。全局拦截所有 Goal transition 不在计划内，除非真实误完成数据证明原子动作不足。
+P2C.1 在同一 `complete_delivery` Tool 增加可选 `draft_pr`，不增加第二个模型动作。它先检查
+`gh auth`，把 exact verified commit 非强制推到 `origin` 同名 branch，查询 exact head/base 的
+open PR：已存在且仍为 Draft 时复用；不存在时创建 Draft 并 read-after-write；ready PR 不降级。
+创建响应不确定时保持 Goal active，重试先查远端事实，因此不会重复 PR，也不需要第二份 journal。
+证据见 [P2C.1](evidence/p2c-1-idempotent-draft-pr.zh.md)与
+[ADR-0014](adr/0014-remote-draft-pr-facts-are-idempotency-source.md)。
+
+P2 剩余：由 `dsh-evolve` 作为第二消费者接入 outcome monitor；再用真实开发任务测量通过率、
+返工率、人工介入和 token/cache 成本。GitHub fork/其他 forge/远端 CI 等待只在真实需求数据
+证明后扩展。全局拦截所有 Goal transition 不在计划内，除非真实误完成数据证明原子动作不足。
 
 ## P3 — 一个通用助理场景
 

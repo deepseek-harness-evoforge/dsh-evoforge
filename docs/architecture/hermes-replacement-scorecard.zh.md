@@ -43,7 +43,7 @@ EvoForge 不以插件数量、渠道数量、运行时长或“会修改自己�
 
 | ID | 用户结果 | 必须证明 | 主要比较指标 | 当前状态 |
 |---|---|---|---|---|
-| `SD-1` 软件交付 | 一个原生 Goal 变成隔离、验证过的 commit 和可选 Draft PR | 读取仓库规范；worktree 隔离；运行仓库检查；diff 可审查；Protected Action 未越权 | 完成率、人工返工、错误提交、token/时间 | verified commit + 原生 Goal 受验证完成 implemented；push/Draft PR 与真实任务数据 pending |
+| `SD-1` 软件交付 | 一个原生 Goal 变成隔离、验证过的 commit 和可选 Draft PR | 读取仓库规范；worktree 隔离；运行仓库检查；diff 可审查；Protected Action 未越权 | 完成率、人工返工、错误提交、token/时间 | verified commit + 幂等 Draft PR + 原生 Goal 完成 implemented；真实任务数据 pending |
 | `LC-1` 单机连续性 | 进程意外退出后继续同一 Goal/Session/后台状态 | 在关键 durable transition 前后 kill；无丢失 Goal、半激活版本或重复外部效果 | 自动恢复率、恢复时间、人工修复数 | Generation release + Shadow proposal/Candidate/Trial `SIGKILL` + native Jobs supervisor/关机恢复 implemented；生产多日 soak pending |
 | `EV-1` 可证明进化 | 重复错误被 Skill Candidate 修正并通过未见 case | known-bad 被拒；真实修正通过 final-test；原 Session 与 active Skill 不变；Decision 可重放 | final-test 改善、false promotion、每次减少返工的成本 | 本地未见 `fail → pass` + P1.1 opt-in append-only auto path implemented；canary、真实 provider 与长期误晋升数据 pending |
 | `UI-1` 非阻塞控制 | 用户能查看状态、证据、成本、权限并 pause/review/rollback | 不调用模型即可读取权威状态；不回复 review 不影响原会话；动作结果明确 | 找到并完成控制动作的时间、误操作、前台阻塞 | P0C.1 release + P0C.2 review + P0C.3 pause/resume implemented；权限投影与真实可用性数据 pending |

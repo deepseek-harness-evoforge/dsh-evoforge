@@ -77,6 +77,21 @@ dsh-delivery verify \
 `complete_delivery` Tool。它通过原生 shell policy 执行 exact argv，并只在所有证据通过时
 调用原生 `update_goal complete`；不需要配置第二个工作流或状态库。
 
+需要 GitHub Draft PR 时，在同一次 Tool 调用增加：
+
+```json
+{
+  "draft_pr": {
+    "base_branch": "main",
+    "title": "feat: verified change",
+    "body": "Summary and verification evidence"
+  }
+}
+```
+
+当前要求 GitHub.com、已登录 `gh`、`origin` 同仓 branch。它只创建或复用 Draft，不 merge、
+不转 ready，也不读取或输出 token；命令仍由原生 shell policy 决定。
+
 ### P0B runtime 开发装配
 
 `dsh-evolve` 目前是普通 Cordis runtime plugin，不是自动修改 profile 的 Bundle。

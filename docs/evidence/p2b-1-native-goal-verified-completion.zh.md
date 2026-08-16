@@ -52,3 +52,6 @@ Goal 进入 `complete`。连续两次模型请求的完整 Tool 数组相等。�
   浏览器 E2E。
 
 设计取舍见 [ADR-0013](../adr/0013-verified-completion-delegates-native-tools.md)。
+
+本页保留 P2B.1 的 Goal 完成边界。后续可选 Draft PR 证据见
+[P2C.1](p2c-1-idempotent-draft-pr.zh.md)。
