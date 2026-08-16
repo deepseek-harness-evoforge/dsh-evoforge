@@ -204,6 +204,20 @@ describe('/evolve host command', () => {
       }),
     } as unknown as ReviewInbox
     const publisher = {
+      preview: vi.fn(async () => ({
+        patch: [
+          'diff --git a/SKILL.md b/SKILL.md',
+          '--- a/SKILL.md',
+          '+++ b/SKILL.md',
+          '@@ -1 +1 @@',
+          '-old body',
+          '+new body',
+          '',
+        ].join('\n'),
+        shownBytes: 107,
+        totalBytes: 107,
+        truncated: false,
+      })),
       publish: vi.fn(async () => ({ id: childId })),
     } as unknown as CandidatePublisher
     const review = { inbox, publisher }
@@ -226,8 +240,18 @@ describe('/evolve host command', () => {
       { review, automatic },
     )).resolves.toMatchObject({
       kind: 'success',
-      text: expect.stringContaining('Automatic policy: manual review — instruction change mentions a protected effect'),
+      text: expect.stringContaining([
+        'Verified diff (exact Git baseline → sealed Candidate; controls escaped; 107 bytes):',
+        'diff --git a/SKILL.md b/SKILL.md',
+        '--- a/SKILL.md',
+        '+++ b/SKILL.md',
+        '@@ -1 +1 @@',
+        '-old body',
+        '+new body',
+        'Automatic policy: manual review — instruction change mentions a protected effect',
+      ].join('\n')),
     })
+    expect(publisher.preview).toHaveBeenCalledWith(candidate)
     await expect(executeEvolutionCommand(
       store,
       `review ${candidate.id} reject too narrow`,

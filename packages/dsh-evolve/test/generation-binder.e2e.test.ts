@@ -171,6 +171,10 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
       new AbortController().signal,
     )
     expect(detail?.result.text).toContain('held-out-browser fail→pass checks 2/2')
+    expect(detail?.result.text).toContain('Verified diff (exact Git baseline → sealed Candidate; controls escaped;')
+    expect(detail?.result.text).toContain('+Verify the exact browser flow before completion.')
+    expect(detail?.result.text).not.toContain(root)
+    expect(adapter.requests).toHaveLength(requestsBeforeReview)
     const approved = await commands.execute(
       liveNative,
       `/evolve review ${reviewId} approve exact held-out improvement`,

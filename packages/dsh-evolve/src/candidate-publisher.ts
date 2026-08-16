@@ -18,8 +18,16 @@ import { hashTree } from './hash.ts'
 import type { ReviewCandidate } from './review-inbox.ts'
 
 const execFile = promisify(execFileCallback)
+const MAX_DIFF_PREVIEW_BYTES = 16 * 1024
 
-/** Publish one human-approved, already-evaluated Skill proposal without moving a user branch. */
+export interface CandidateDiffPreview {
+  patch: string
+  shownBytes: number
+  totalBytes: number
+  truncated: boolean
+}
+
+/** Verify, preview, and publish one evaluated Skill proposal without moving a user branch. */
 export class CandidatePublisher {
   private readonly store: EvolutionStore
   private readonly source: GitSkillSource
@@ -29,48 +37,38 @@ export class CandidatePublisher {
     this.source = source
   }
 
+  /** Render a bounded diff from the same exact Git baseline required for publication. */
+  async preview(candidate: ReviewCandidate): Promise<CandidateDiffPreview> {
+    assertProposal(candidate)
+    const { base } = await this.resolveBaseline(candidate)
+    const stage = await mkdtemp(join(tmpdir(), 'dsh-evolve-preview-'))
+    try {
+      const baselineTree = join(stage, 'a')
+      const candidateTree = join(stage, 'b')
+      await cp(base.resourceBase, baselineTree, { recursive: true })
+      await cp(base.resourceBase, candidateTree, { recursive: true })
+      await materializeCandidate(candidateTree, candidate)
+      const patch = await diffTrees(stage)
+      return boundDiffPreview(patch)
+    } finally {
+      await makeWritable(stage).catch(() => undefined)
+      await rm(stage, { recursive: true, force: true })
+    }
+  }
+
   async publish(
     candidate: ReviewCandidate,
     options: { policyVersion?: 'human-review-v1' | 'auto-clear-instruction-v1' } = {},
   ) {
     if (candidate.status !== 'pending') throw new Error('only a pending review Candidate can be published')
-    if (candidate.proposal.files.length === 0) throw new Error('review Candidate proposes no files')
-    if (new Set(candidate.proposal.files.map(file => file.path)).size !== candidate.proposal.files.length) {
-      throw new Error('review Candidate proposes the same path more than once')
-    }
-    const active = this.store.getActiveGeneration()
-    const activeArtifacts = active?.artifacts ?? []
-    if (active !== undefined) await this.source.providerFor(active)
-    const prior = activeArtifacts.find(artifact => artifact.name === candidate.skillName)
-    if (active !== undefined && prior === undefined) {
-      throw new Error(`active Generation has no artifact for Skill '${candidate.skillName}'`)
-    }
-    const base = await this.source.resolveArtifact(candidate.skillName, prior)
-    if (await hashTree(base.resourceBase) !== candidate.baseTreeHash) {
-      throw new Error('reviewed baseline does not match the exact Git Skill tree')
-    }
+    assertProposal(candidate)
+    const { active, activeArtifacts, base } = await this.resolveBaseline(candidate)
 
     const stage = await mkdtemp(join(tmpdir(), 'dsh-evolve-approved-'))
     try {
       const candidateTree = join(stage, 'candidate')
       await cp(base.resourceBase, candidateTree, { recursive: true })
-      await makeWritable(candidateTree)
-      for (const file of candidate.proposal.files) {
-        const target = containedPath(candidateTree, file.path)
-        await mkdir(dirname(target), { recursive: true })
-        try {
-          const info = await lstat(target)
-          if (!info.isFile() || info.isSymbolicLink()) {
-            throw new Error(`approved Candidate cannot replace non-file '${file.path}'`)
-          }
-        } catch (error) {
-          if (!isMissing(error)) throw error
-        }
-        await writeFile(target, file.content, { mode: 0o644 })
-      }
-      if (await hashTree(candidateTree) !== candidate.candidateTreeHash) {
-        throw new Error('approved proposal does not reproduce the sealed Candidate tree')
-      }
+      await materializeCandidate(candidateTree, candidate)
       const artifact = await writeImmutableCommit({
         baseCommit: base.artifact.gitCommit,
         candidate,
@@ -106,6 +104,103 @@ export class CandidatePublisher {
       await rm(stage, { recursive: true, force: true })
     }
   }
+
+  private async resolveBaseline(candidate: ReviewCandidate) {
+    const active = this.store.getActiveGeneration()
+    const activeArtifacts = active?.artifacts ?? []
+    if (active !== undefined) await this.source.providerFor(active)
+    const prior = activeArtifacts.find(artifact => artifact.name === candidate.skillName)
+    if (active !== undefined && prior === undefined) {
+      throw new Error(`active Generation has no artifact for Skill '${candidate.skillName}'`)
+    }
+    const base = await this.source.resolveArtifact(candidate.skillName, prior)
+    if (await hashTree(base.resourceBase) !== candidate.baseTreeHash) {
+      throw new Error('reviewed baseline does not match the exact Git Skill tree')
+    }
+    return { active, activeArtifacts, base }
+  }
+}
+
+function assertProposal(candidate: ReviewCandidate): void {
+  if (candidate.proposal.files.length === 0) throw new Error('review Candidate proposes no files')
+  if (new Set(candidate.proposal.files.map(file => file.path)).size !== candidate.proposal.files.length) {
+    throw new Error('review Candidate proposes the same path more than once')
+  }
+}
+
+async function materializeCandidate(candidateTree: string, candidate: ReviewCandidate): Promise<void> {
+  await makeWritable(candidateTree)
+  for (const file of candidate.proposal.files) {
+    const target = containedPath(candidateTree, file.path)
+    await mkdir(dirname(target), { recursive: true })
+    try {
+      const info = await lstat(target)
+      if (!info.isFile() || info.isSymbolicLink()) {
+        throw new Error(`approved Candidate cannot replace non-file '${file.path}'`)
+      }
+    } catch (error) {
+      if (!isMissing(error)) throw error
+    }
+    await writeFile(target, file.content, { mode: 0o644 })
+  }
+  if (await hashTree(candidateTree) !== candidate.candidateTreeHash) {
+    throw new Error('approved proposal does not reproduce the sealed Candidate tree')
+  }
+}
+
+async function diffTrees(stage: string): Promise<string> {
+  try {
+    const { stdout } = await execFile('git', [
+      'diff',
+      '--no-index',
+      '--no-color',
+      '--no-ext-diff',
+      '--no-prefix',
+      '--',
+      'a',
+      'b',
+    ], {
+      cwd: stage,
+      encoding: 'utf8',
+      maxBuffer: 32 * 1024 * 1024,
+    })
+    return stdout
+  } catch (error) {
+    if (isRecord(error) && error.code === 1 && typeof error.stdout === 'string') {
+      return error.stdout
+    }
+    throw error
+  }
+}
+
+function boundDiffPreview(patch: string): CandidateDiffPreview {
+  const safePatch = escapeDiffControls(patch)
+  const source = Buffer.from(safePatch)
+  const totalBytes = source.byteLength
+  if (totalBytes <= MAX_DIFF_PREVIEW_BYTES) {
+    return { patch: safePatch, shownBytes: totalBytes, totalBytes, truncated: false }
+  }
+  let end = MAX_DIFF_PREVIEW_BYTES
+  while (end > 0 && (source[end] ?? 0) >= 0x80 && (source[end] ?? 0) < 0xc0) end -= 1
+  const bounded = source.subarray(0, end).toString('utf8')
+  return {
+    patch: bounded,
+    shownBytes: Buffer.byteLength(bounded),
+    totalBytes,
+    truncated: true,
+  }
+}
+
+function escapeDiffControls(value: string): string {
+  return value.replace(
+    /[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/gu,
+    character => {
+      const code = character.codePointAt(0)!
+      return code <= 0xff
+        ? `\\x${code.toString(16).padStart(2, '0')}`
+        : `\\u${code.toString(16).padStart(4, '0')}`
+    },
+  )
 }
 
 async function writeImmutableCommit(input: {

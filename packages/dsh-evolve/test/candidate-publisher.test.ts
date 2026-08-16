@@ -25,6 +25,114 @@ afterEach(async () => {
 })
 
 describe('approved Candidate publisher', () => {
+  it('previews the sealed Candidate against the exact Git baseline without publishing or moving user state', async () => {
+    const fixture = await createFixture()
+    const store = fakeStore()
+    const source = new GitSkillSource(join(fixture.root, 'cache'), [{
+      name: 'stable-skill',
+      repository: fixture.repository,
+      path: 'skills/stable-skill',
+    }])
+    const publisher = new CandidatePublisher(store, source)
+
+    const preview = await publisher.preview(fixture.candidate)
+
+    expect(preview).toMatchObject({ truncated: false })
+    expect(preview.patch).toBe([
+      'diff --git a/SKILL.md b/SKILL.md',
+      'index 689cbb5..9b95a64 100644',
+      '--- a/SKILL.md',
+      '+++ b/SKILL.md',
+      '@@ -4,3 +4,4 @@ description: Stable fixture.',
+      ' ---',
+      ' ',
+      ' # Stable Skill',
+      '+Verify the real browser flow.',
+      '',
+    ].join('\n'))
+    expect(preview.patch).not.toContain(fixture.root)
+    expect(preview.shownBytes).toBe(Buffer.byteLength(preview.patch))
+    expect(preview.totalBytes).toBe(preview.shownBytes)
+    expect(store.publishGeneration).not.toHaveBeenCalled()
+    expect(await git(fixture.repository, 'rev-parse', 'HEAD')).toBe(fixture.baseCommit)
+    expect(await git(fixture.repository, 'status', '--porcelain')).toBe('')
+    await expect(git(
+      fixture.repository,
+      'rev-parse',
+      `refs/evoforge/generations/${fixture.candidate.id}`,
+    )).rejects.toThrow()
+  })
+
+  it('bounds a large UTF-8 diff while reporting exact byte coverage', async () => {
+    const fixture = await createFixture()
+    const store = fakeStore()
+    const source = new GitSkillSource(join(fixture.root, 'cache'), [{
+      name: 'stable-skill',
+      repository: fixture.repository,
+      path: 'skills/stable-skill',
+    }])
+    const proposed = `${fixture.baseline}\u001b[31m${'改'.repeat(8_000)}\n`
+    const candidateTree = join(fixture.root, 'large-candidate')
+    await cp(join(fixture.repository, 'skills', 'stable-skill'), candidateTree, { recursive: true })
+    await writeFile(join(candidateTree, 'SKILL.md'), proposed)
+    const proposal = {
+      claim: 'Add a large verified instruction',
+      files: [{ path: 'SKILL.md', content: proposed }],
+    }
+    const candidate = {
+      ...fixture.candidate,
+      claim: proposal.claim,
+      proposal,
+      proposalHash: sha256(JSON.stringify(proposal)),
+      candidateTreeHash: await hashTree(candidateTree),
+    }
+
+    const preview = await new CandidatePublisher(store, source).preview(candidate)
+
+    expect(preview.truncated).toBe(true)
+    expect(preview.totalBytes).toBeGreaterThan(preview.shownBytes)
+    expect(preview.shownBytes).toBeLessThanOrEqual(16 * 1024)
+    expect(preview.shownBytes).toBeGreaterThan(15 * 1024)
+    expect(Buffer.byteLength(preview.patch)).toBe(preview.shownBytes)
+    expect(preview.patch).toContain('+\\x1b[31m改改改')
+    expect(preview.patch).not.toContain('\u001b')
+    expect(preview.patch).not.toContain('\uFFFD')
+    expect(store.publishGeneration).not.toHaveBeenCalled()
+  })
+
+  it('escapes terminal controls in an otherwise untruncated diff', async () => {
+    const fixture = await createFixture()
+    const store = fakeStore()
+    const source = new GitSkillSource(join(fixture.root, 'cache'), [{
+      name: 'stable-skill',
+      repository: fixture.repository,
+      path: 'skills/stable-skill',
+    }])
+    const proposed = `${fixture.baseline}\u001b[31mspoof\u202erender\n`
+    const candidateTree = join(fixture.root, 'control-candidate')
+    await cp(join(fixture.repository, 'skills', 'stable-skill'), candidateTree, { recursive: true })
+    await writeFile(join(candidateTree, 'SKILL.md'), proposed)
+    const proposal = {
+      claim: 'Render controls safely',
+      files: [{ path: 'SKILL.md', content: proposed }],
+    }
+    const candidate = {
+      ...fixture.candidate,
+      claim: proposal.claim,
+      proposal,
+      proposalHash: sha256(JSON.stringify(proposal)),
+      candidateTreeHash: await hashTree(candidateTree),
+    }
+
+    const preview = await new CandidatePublisher(store, source).preview(candidate)
+
+    expect(preview.truncated).toBe(false)
+    expect(preview.patch).toContain('+\\x1b[31mspoof\\u202erender')
+    expect(preview.patch).not.toContain('\u001b')
+    expect(preview.patch).not.toContain('\u202e')
+    expect(preview.shownBytes).toBe(Buffer.byteLength(preview.patch))
+  })
+
   it('writes an immutable Git ref and inactive Generation without moving the user branch or worktree', async () => {
     const fixture = await createFixture()
     const store = fakeStore()
@@ -106,11 +214,16 @@ describe('approved Candidate publisher', () => {
       repository: fixture.repository,
       path: 'skills/stable-skill',
     }])
-
-    await expect(new CandidatePublisher(store, source).publish({
+    const publisher = new CandidatePublisher(store, source)
+    const stale = {
       ...fixture.candidate,
       baseTreeHash: '0'.repeat(64),
-    })).rejects.toThrow('reviewed baseline does not match the exact Git Skill tree')
+    }
+
+    await expect(publisher.preview(stale))
+      .rejects.toThrow('reviewed baseline does not match the exact Git Skill tree')
+    await expect(publisher.publish(stale))
+      .rejects.toThrow('reviewed baseline does not match the exact Git Skill tree')
     expect(store.publishGeneration).not.toHaveBeenCalled()
     await expect(git(
       fixture.repository,
@@ -126,6 +239,7 @@ async function createFixture(): Promise<{
   baseCommit: string
   baseGitTree: string
   otherGitTree: string
+  baseline: string
   candidate: ReviewCandidate
 }> {
   const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-publisher-'))
@@ -189,7 +303,7 @@ async function createFixture(): Promise<{
     startedAt: '2026-08-16T00:00:00.000Z',
     evidenceHash: 'd'.repeat(64),
   }
-  return { root, repository, baseCommit, baseGitTree, otherGitTree, candidate }
+  return { root, repository, baseCommit, baseGitTree, otherGitTree, baseline, candidate }
 }
 
 function fakeStore(active?: CapabilityGeneration): EvolutionStore & {

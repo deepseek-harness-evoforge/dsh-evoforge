@@ -1,7 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { CommandResult } from '@deepseek-ai/dsh-commands'
 import type { CapabilityGeneration, EvolutionStore } from './generation-store.ts'
-import type { CandidatePublisher } from './candidate-publisher.ts'
+import type { CandidateDiffPreview, CandidatePublisher } from './candidate-publisher.ts'
 import type { ReviewCandidate, ReviewInbox } from './review-inbox.ts'
 import type { ResidentEvolutionControl } from './resident-evolution-control.ts'
 import type { AutoPromotionPolicy, AutoPromotionPolicyResult } from './auto-promotion.ts'
@@ -109,10 +109,11 @@ export async function executeEvolutionCommand(
       const [, id, action, note] = reviewAction
       if (action === undefined) {
         const candidate = await review.inbox.get(id)
+        const diff = await review.publisher.preview(candidate)
         const automaticDecision = automatic === undefined
           ? undefined
           : await automatic.evaluate(candidate)
-        return renderReview(candidate, automaticDecision)
+        return renderReview(candidate, diff, automaticDecision)
       }
       if (note === undefined || note.trim() === '') return { kind: 'error', text: USAGE }
       if (action === 'reject') {
@@ -263,8 +264,13 @@ function renderReviewList(candidates: ReviewCandidate[], warningCount: number): 
 
 function renderReview(
   candidate: ReviewCandidate,
+  diff: CandidateDiffPreview,
   automatic?: AutoPromotionPolicyResult,
 ): CommandResult {
+  const diffHeader = diff.truncated
+    ? `Verified diff (exact Git baseline → sealed Candidate; controls escaped; first ${diff.shownBytes} of ${diff.totalBytes} bytes, truncated):`
+    : `Verified diff (exact Git baseline → sealed Candidate; controls escaped; ${diff.totalBytes} bytes):`
+  const patch = diff.patch.endsWith('\n') ? diff.patch.slice(0, -1) : diff.patch
   return {
     kind: 'success',
     text: [
@@ -284,6 +290,9 @@ function renderReview(
       `Limitations: ${candidate.limitations.join('; ')}`,
       ...candidate.generationId === undefined ? [] : [`Generation: ${candidate.generationId}`],
       ...candidate.activatedAt === undefined ? [] : [`Activated: ${candidate.activatedAt}`],
+      diffHeader,
+      patch.length === 0 ? '(no textual changes)' : patch,
+      ...diff.truncated ? ['[diff truncated; publication still verifies the complete Candidate tree]'] : [],
       ...automatic === undefined
         ? []
         : [automatic.eligible
