@@ -187,7 +187,7 @@ async function evaluateTree(options: {
               '/bin/bash',
               ...options.dshSource.packageManager === undefined
                 ? []
-                : [options.dshSource.packageManager.executable, '/usr/bin/env'],
+                : [options.dshSource.packageManager.executable, '/usr/bin/env', '/bin/sh'],
             ],
             readOnlyRoots: options.dshSource.readOnlyRoots,
           },
