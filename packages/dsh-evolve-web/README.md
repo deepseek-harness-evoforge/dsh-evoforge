@@ -67,4 +67,4 @@ Create the run root before boot. The shipped Web profile already provides native
 - Shadow launch transports only a signal id and target id; host paths, feedback text, and model parameters never enter the browser;
 - the browser never becomes a second source of truth.
 
-See [ADR-0025](../../docs/adr/0025-web-is-a-thin-kv-safe-adapter.md) and the [real-browser evidence](../../docs/evidence/p0c-6-web-control-plane.zh.md).
+See [ADR-0025](../../docs/adr/0025-web-is-a-thin-kv-safe-adapter.md), the [base real-browser evidence](../../docs/evidence/p0c-6-web-control-plane.zh.md), and the [target-bound Shadow browser evidence](../../docs/evidence/p1-8-explicit-feedback-shadow-launch.zh.md).

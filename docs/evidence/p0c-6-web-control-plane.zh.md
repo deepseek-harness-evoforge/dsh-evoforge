@@ -18,7 +18,9 @@
 
 ## 浏览器验收
 
-使用真实 DSH 页面完成以下操作。该浏览器验收额外加载仓库内测试 patch，只把 supervisor 指向隔离的临时 run root；默认 Bundle 仍保持 resident recovery 关闭：
+使用真实 DSH 页面完成以下操作。该浏览器验收额外加载仓库内测试 patch，只覆盖 Bundle 已插入的
+host 行，把 supervisor、私有 draft root 与一个静态 Shadow Target 指向隔离的测试目录；默认
+Bundle 仍保持这些能力关闭。夹具不重复插入 Bundle 行：
 
 1. 不创建 Workspace、Session 或 API key，确认侧栏出现“演化”；
 2. 打开面板，读取 `原生 DSH / 运行中 / 0 待审查 / 自动晋升关闭`；

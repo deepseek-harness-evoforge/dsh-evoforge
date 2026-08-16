@@ -29,7 +29,7 @@
 | 包 | 当前能力 | 状态 |
 |---|---|---|
 | [`dsh-evolve`](packages/dsh-evolve) | 离线 `shadow`/零模型 Case Pack 校准；durable resident recovery；Sealed paired Trial；immutable Generation；Session-scoped Git Skill；含 exact diff/词法影响提示的 host-only review；pause/release；opt-in clear-instruction auto promotion；交付 Outcome、显式反馈/私有 Case Draft/目标绑定 Shadow Launch、evaluator authoring Skill 与反事实 canary | P0A/P0B/P0C + P1.1–P1.8 + P2D.1 implemented；真实任务安全率与可用性门待验证 |
-| [`dsh-evolve-web`](packages/dsh-evolve-web) | 一条可删除 Bundle 安装 host + Web；无 Session 可达的全局入口；显式 Feedback Shadow 启动；有界 review/diff；pause/resume/approve/reject/promote/rollback | P0C.6 + P1.8 implemented；固定 DSH tarball、浏览器 RPC 与跨重启 pause/resume 已验收，P1.8 真实浏览器复验和陌生用户数据待补 |
+| [`dsh-evolve-web`](packages/dsh-evolve-web) | 一条可删除 Bundle 安装 host + Web；无 Session 可达的全局入口；显式 Feedback Shadow 启动；有界 review/diff；pause/resume/approve/reject/promote/rollback | P0C.6 + P1.8 implemented；固定 DSH tarball、浏览器 RPC、跨重启 pause/resume 与付费 Shadow 确认/取消已验收，陌生用户数据待补 |
 | [`dsh-software-delivery`](packages/dsh-software-delivery) | 按需原生 Skill；linked worktree/commit/check 验证；原生 Shell policy 下幂等 push/Draft PR；可选 exact-head 远端 checks 门；通过后完成 exact native Goal | P2A.1 + P2B.1 + P2C.1–P2C.2 implemented；Evolve 第二消费者已接通 |
 
 Shadow 和未激活 Generation 的运行时模型表面为 `none`，额外 token 为 `0`。Generation 激活后只复用 DSH 原生 Skill catalog/body 路径：catalog 在 Session 开始时固定，正文按需加载；插件不增加 Tool 或 system prompt。真实 Agent 回归已证明晋升后旧 Session 的请求工具面不变、后一请求保留前一请求的完整消息前缀。Shadow 只有在用户显式调用时才请求配置的模型。

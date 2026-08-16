@@ -34,13 +34,15 @@ Web 提供同一动作，并在调用前明确提示可能产生一次付费 pro
   以及 Web 在确认前不得调用、确认后只发送 exact signal/target id；
 - pinned DSH `47f943859bef60e4160492346772ded9b24f765a` 的真实 Loader/Storage/Message Feedback/
   Session Persistence/Jobs composition 证明该入口可用并且能投影同一 signal 与 target；
+- 两个真实 tarball 安装到隔离的固定 DSH Web profile 后，无 Workspace、Session 或 API Key 也能从
+  全局入口看到一条持久 signal 和 `plugin-delivery` Target；点击显示完整付费/纠正外发确认，取消后
+  run root 仍为空，控制台 error 为 0，页面截图布局无溢出或遮挡；
 - workspace 验证为 163 passed、3 skipped；三包 typecheck/build、Typert source digest、9 个
   Remote 方法、peer 完整性与 `git diff --check` 同时通过。
 
 ## 尚未证明
 
 - 尚未用真实 provider 测量用户纠正带来的 Candidate 改善率和每次改善 token 成本；
-- 新 UI 动作仍需在 packed、固定 DSH 的真实浏览器中复验；
 - 自动 evaluator 仍不存在：Target 必须指向覆盖该失败类型并通过 calibration 的 Case Pack；
 - 短时测试不等于生产多日常驻、磁盘耗尽或任意崩溃时序证据；
 - 完成的 Candidate 仍进入既有 review/auto-policy，Launch 本身不授权晋升。
