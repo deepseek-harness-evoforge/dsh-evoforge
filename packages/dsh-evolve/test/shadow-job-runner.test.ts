@@ -2,6 +2,7 @@ import type { JobHooks, JobStart } from '@deepseek-ai/dsh-jobs'
 import { JobId, type JobRegistry } from '@deepseek-ai/dsh-jobs'
 import { describe, expect, it, vi } from 'vitest'
 import { createShadowJobRunner } from '../src/shadow-job-runner.js'
+import { ShadowRecoveryPaused } from '../src/shadow-supervisor.js'
 
 describe('DSH Jobs adapter for Shadow recovery', () => {
   it('reports one completed host job without putting the run path in its label', async () => {
@@ -61,6 +62,26 @@ describe('DSH Jobs adapter for Shadow recovery', () => {
     await expect(jobs.hooks?.done).resolves.toEqual({
       status: 'failed',
       detail: 'disk unavailable',
+    })
+  })
+
+  it('preserves a durable owner pause so the supervisor can rediscover the run', async () => {
+    const jobs = new CapturingJobs()
+    const owner = new AbortController()
+    const runner = createShadowJobRunner(jobs as unknown as JobRegistry, async ({ signal }) => {
+      await new Promise<void>((_resolve, reject) => {
+        signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+      })
+      throw new Error('unreachable')
+    })
+
+    const running = runner({ ...invocation(), signal: owner.signal })
+    owner.abort(new ShadowRecoveryPaused('durable pause'))
+
+    await expect(running).rejects.toBeInstanceOf(ShadowRecoveryPaused)
+    await expect(jobs.hooks?.done).resolves.toMatchObject({
+      status: 'killed',
+      detail: 'durable pause',
     })
   })
 })

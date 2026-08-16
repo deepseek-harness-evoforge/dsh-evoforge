@@ -3,8 +3,9 @@ import type { CommandResult } from '@deepseek-ai/dsh-commands'
 import type { CapabilityGeneration, EvolutionStore } from './generation-store.ts'
 import type { CandidatePublisher } from './candidate-publisher.ts'
 import type { ReviewCandidate, ReviewInbox } from './review-inbox.ts'
+import type { ResidentEvolutionControl } from './resident-evolution-control.ts'
 
-const USAGE = 'Usage: /evolve [status|review [<review-id> [approve|reject <note>]]|promote <64-char-generation-id>|rollback]'
+const USAGE = 'Usage: /evolve [status|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]'
 const generationIdPattern = /^[a-f0-9]{64}$/
 
 /** Register the optional human control plane without adding a model Tool. */
@@ -12,13 +13,14 @@ export function installEvolutionCommand(
   ctx: Context,
   store: EvolutionStore,
   review?: { inbox: ReviewInbox; publisher: CandidatePublisher },
+  resident?: Pick<ResidentEvolutionControl, 'isPaused' | 'pause' | 'resume'>,
 ): void {
   ctx.inject(['commands'], (commandCtx) => {
     commandCtx.commands.register({
       name: 'evolve',
       description: 'review, publish, promote, or roll back immutable capability Generations',
-      input: { hint: '[status|review ...|promote <generation-id>|rollback]' },
-      handler: ({ rawInput }) => executeEvolutionCommand(store, rawInput, review),
+      input: { hint: '[status|review ...|pause|resume|promote <generation-id>|rollback]' },
+      handler: ({ rawInput }) => executeEvolutionCommand(store, rawInput, review, resident),
     })
   })
 }
@@ -28,10 +30,29 @@ export async function executeEvolutionCommand(
   store: EvolutionStore,
   rawInput: string,
   review?: { inbox: ReviewInbox; publisher: CandidatePublisher },
+  resident?: Pick<ResidentEvolutionControl, 'isPaused' | 'pause' | 'resume'>,
 ): Promise<CommandResult> {
   const input = rawInput.trim()
   try {
-    if (input === '' || input === 'status') return renderStatus(store.getActiveGeneration())
+    if (input === '' || input === 'status') {
+      return renderStatus(store.getActiveGeneration(), resident?.isPaused())
+    }
+    if (input === 'pause') {
+      if (resident === undefined) return residentUnavailable()
+      await resident.pause()
+      return {
+        kind: 'success',
+        text: 'Resident evolution recovery paused durably. Active recovery was stopped; normal Sessions and human review remain available.',
+      }
+    }
+    if (input === 'resume') {
+      if (resident === undefined) return residentUnavailable()
+      await resident.resume()
+      return {
+        kind: 'success',
+        text: 'Resident evolution recovery resumed. Durable Candidate/Trial discovery was awakened.',
+      }
+    }
     if (input === 'review') {
       if (review === undefined) return reviewUnavailable()
       const scan = await review.inbox.scan()
@@ -113,6 +134,13 @@ function reviewUnavailable(): CommandResult {
   }
 }
 
+function residentUnavailable(): CommandResult {
+  return {
+    kind: 'error',
+    text: 'Resident recovery is not configured. Set dsh-evolve supervisor.runRoots before using pause/resume.',
+  }
+}
+
 function renderReviewList(candidates: ReviewCandidate[], warningCount: number): CommandResult {
   if (candidates.length === 0) {
     return {
@@ -159,13 +187,20 @@ function renderReview(candidate: ReviewCandidate): CommandResult {
   }
 }
 
-function renderStatus(active: CapabilityGeneration | undefined): CommandResult {
+function renderStatus(
+  active: CapabilityGeneration | undefined,
+  recoveryPaused?: boolean,
+): CommandResult {
+  const recovery = recoveryPaused === undefined
+    ? []
+    : [`Resident recovery: ${recoveryPaused ? 'paused' : 'running'}`]
   if (active === undefined) {
     return {
       kind: 'success',
       text: [
         'Evolution status',
         'Active: native DSH',
+        ...recovery,
         'Future Sessions will use native capabilities.',
         '',
         'Commands: /evolve promote <64-char-generation-id>',
@@ -177,6 +212,7 @@ function renderStatus(active: CapabilityGeneration | undefined): CommandResult {
     text: [
       'Evolution status',
       `Active: ${active.id}`,
+      ...recovery,
       `Rollback target: ${active.parentId ?? 'native DSH'}`,
       'Artifacts:',
       ...active.artifacts.map(artifact =>

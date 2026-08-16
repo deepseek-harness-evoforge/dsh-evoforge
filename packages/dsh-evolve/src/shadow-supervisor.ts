@@ -14,13 +14,19 @@ export interface ShadowResumeInvocation {
 export interface ShadowSupervisorOptions {
   runRoots: string[]
   scanIntervalMs: number
+  paused?: boolean
   runner?: (invocation: ShadowResumeInvocation) => ReturnType<typeof runShadow>
   onError?: (error: unknown, path: string) => void
 }
 
 /** A native Job cancellation stops automatic retries for this DSH process. */
 export class ShadowRecoveryCancelled extends Error {
-  override readonly name = 'ShadowRecoveryCancelled'
+  override readonly name: string = 'ShadowRecoveryCancelled'
+}
+
+/** Durable operator pause is resumable and must not suppress the interrupted run. */
+export class ShadowRecoveryPaused extends ShadowRecoveryCancelled {
+  override readonly name: string = 'ShadowRecoveryPaused'
 }
 
 /**
@@ -33,6 +39,7 @@ export class ShadowSupervisor {
   private activeAbort: AbortController | undefined
   private timer: ReturnType<typeof setTimeout> | undefined
   private stopped = false
+  private paused: boolean
   private readonly suppressedRuns = new Set<string>()
   private readonly reportedErrors = new Map<string, string>()
 
@@ -41,16 +48,17 @@ export class ShadowSupervisor {
       throw new Error('Shadow supervisor scan interval must be a positive integer')
     }
     this.options = options
+    this.paused = options.paused ?? false
   }
 
   start(): void {
-    if (this.stopped || this.timer !== undefined || this.scanPromise !== undefined) return
+    if (this.stopped || this.paused || this.timer !== undefined || this.scanPromise !== undefined) return
     this.schedule(0)
   }
 
   scanOnce(): Promise<void> {
     if (this.scanPromise !== undefined) return this.scanPromise
-    if (this.stopped) return Promise.resolve()
+    if (this.stopped || this.paused) return Promise.resolve()
     const scan = this.scanAll()
     const wrapped = scan.finally(() => {
       if (this.scanPromise === wrapped) this.scanPromise = undefined
@@ -67,11 +75,26 @@ export class ShadowSupervisor {
     await this.scanPromise
   }
 
+  async pause(): Promise<void> {
+    if (this.stopped) return
+    this.paused = true
+    if (this.timer !== undefined) clearTimeout(this.timer)
+    this.timer = undefined
+    this.activeAbort?.abort(new ShadowRecoveryPaused('resident evolution recovery paused'))
+    await this.scanPromise
+  }
+
+  resume(): void {
+    if (this.stopped || !this.paused) return
+    this.paused = false
+    this.start()
+  }
+
   private schedule(delay: number): void {
     this.timer = setTimeout(() => {
       this.timer = undefined
       void this.scanOnce().finally(() => {
-        if (!this.stopped) this.schedule(this.options.scanIntervalMs)
+        if (!this.stopped && !this.paused) this.schedule(this.options.scanIntervalMs)
       })
     }, delay)
     this.timer.unref?.()
@@ -79,7 +102,7 @@ export class ShadowSupervisor {
 
   private async scanAll(): Promise<void> {
     for (const requestedRoot of this.options.runRoots) {
-      if (this.stopped) return
+      if (this.stopped || this.paused) return
       let root: string
       let entries
       try {
@@ -92,7 +115,7 @@ export class ShadowSupervisor {
         continue
       }
       for (const entry of entries) {
-        if (this.stopped) return
+        if (this.stopped || this.paused) return
         if (!entry.isDirectory()) continue
         const outputDir = join(root, entry.name)
         if (this.suppressedRuns.has(outputDir)) continue
@@ -117,7 +140,9 @@ export class ShadowSupervisor {
           })
           this.reportedErrors.delete(outputDir)
         } catch (error) {
-          if (error instanceof ShadowRecoveryCancelled) {
+          if (error instanceof ShadowRecoveryPaused) {
+            // The durable journal remains discoverable after an explicit resume.
+          } else if (error instanceof ShadowRecoveryCancelled) {
             this.suppressedRuns.add(outputDir)
           } else if (!controller.signal.aborted) {
             this.report(error, outputDir)

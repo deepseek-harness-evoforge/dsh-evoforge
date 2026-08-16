@@ -65,6 +65,8 @@ non-executable 文件。`cacheRoot` 只是带 owner marker 的只读重建缓存
 /evolve review <64-char-review-id>
 /evolve review <64-char-review-id> reject <note>
 /evolve review <64-char-review-id> approve <note>
+/evolve pause
+/evolve resume
 /evolve promote <64-char-generation-id>
 /evolve rollback
 ```
@@ -81,7 +83,9 @@ Session 始终不漂移。不要把 P0C 人工命令当作已完成的自动晋�
 `proposal-pending` 也不会自动重试。当前 Job 可从 DSH host plane 观察或取消，重启
 事实仍来自 `run-state.json`，而不是易失的 Job record。
 取消 Job 后，同一 DSH 进程不会再次自动提交该 run；下次 DSH 启动仍可从未终结
-journal 继续。P0C.3 会再提供显式、可持久化的 pause/resume 控制。
+journal 继续。`/evolve pause` 则先持久化全局 resident pause，再取消当前 recovery；
+重启仍保持暂停。`/evolve resume` 持久化解除并立即唤醒扫描。两者不暂停普通 Session、
+显式 Shadow CLI 或人工 review/release。
 
 Review 使用和 supervisor 相同的 `runRoots`，但不要求安装 Jobs。它只扫描直接子目录，
 并要求 journal、report 和处置文件都是 owned regular file。`review` 列表展示 pending

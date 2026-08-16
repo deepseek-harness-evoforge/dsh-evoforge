@@ -155,6 +155,50 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
     }
   })
 
+  it('persists resident recovery pause across restart and preserves it through release pointer writes', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-recovery-pause-'))
+    temporaryRoots.push(root)
+    const configPath = await writeStorageConfig(root)
+    const input = {
+      createdAt: 1_723_456_789_000,
+      artifacts: [{
+        kind: 'skill' as const,
+        name: 'build-dsh-plugin',
+        gitCommit: '0123456789abcdef0123456789abcdef01234567',
+        treeHash: 'a'.repeat(64),
+      }],
+      evaluatorVersion: 'private-host-runtime-package-boundary-v1',
+      policyVersion: 'p0c.3',
+      compositionFingerprint: 'b'.repeat(64),
+    }
+
+    const firstCtx = await bootStorage(configPath)
+    const firstStore = await openEvolutionStore(firstCtx.storageDomain)
+    const generation = (await firstStore.publishGeneration(input)).generation
+    try {
+      expect(firstStore.isRecoveryPaused()).toBe(false)
+      await expect(firstStore.setRecoveryPaused(true)).resolves.toEqual({ changed: true, paused: true })
+      await firstStore.promoteGeneration(generation.id)
+      expect(firstStore.isRecoveryPaused()).toBe(true)
+    } finally {
+      await firstStore.close()
+      await firstCtx.fiber.dispose()
+    }
+
+    const resumedCtx = await bootStorage(configPath)
+    const resumedStore = await openEvolutionStore(resumedCtx.storageDomain)
+    try {
+      expect(resumedStore.isRecoveryPaused()).toBe(true)
+      await resumedStore.rollbackGeneration()
+      expect(resumedStore.isRecoveryPaused()).toBe(true)
+      await expect(resumedStore.setRecoveryPaused(false)).resolves.toEqual({ changed: true, paused: false })
+      await expect(resumedStore.setRecoveryPaused(false)).resolves.toEqual({ changed: false, paused: false })
+    } finally {
+      await resumedStore.close()
+      await resumedCtx.fiber.dispose()
+    }
+  })
+
   it('durably pins a native Session and its children to native DSH before the first promotion', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-native-session-pins-'))
     temporaryRoots.push(root)

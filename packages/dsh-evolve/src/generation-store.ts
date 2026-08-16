@@ -55,6 +55,8 @@ export interface EvolutionStore {
   ): Promise<CapabilityGeneration | undefined>
   fallbackSessionToNative(identity: SessionIdentity): Promise<void>
   getSessionGeneration(identity: SessionIdentity): CapabilityGeneration | undefined
+  isRecoveryPaused(): boolean
+  setRecoveryPaused(paused: boolean): Promise<{ changed: boolean; paused: boolean }>
   close(): Promise<void>
 }
 
@@ -79,6 +81,7 @@ const generationContentSchema = z.strictObject({
 const generationSchema = generationContentSchema.extend({ id: hashSchema })
 const generationPointerSchema = z.strictObject({
   activeGenerationId: hashSchema.optional(),
+  recoveryPaused: z.boolean().optional(),
 })
 type GenerationPointer = z.infer<typeof generationPointerSchema>
 const sessionIdentitySchema = z.strictObject({
@@ -139,6 +142,16 @@ class DomainEvolutionStore implements EvolutionStore {
       throw new Error(`active Generation '${id}' is missing`)
     }
     return generation
+  }
+
+  isRecoveryPaused(): boolean {
+    return this.domain.global.get().recoveryPaused === true
+  }
+
+  setRecoveryPaused(paused: boolean): Promise<{ changed: boolean; paused: boolean }> {
+    const result = this.writeTail.then(() => this.setRecoveryPausedNow(paused))
+    this.writeTail = result.then(() => {}, () => {})
+    return result
   }
 
   promoteGeneration(id: string): Promise<{
@@ -229,7 +242,7 @@ class DomainEvolutionStore implements EvolutionStore {
           : `Generation '${id}' is not a child of active Generation '${previousId}'`,
       )
     }
-    if (previousId !== id) await this.domain.global.set({ activeGenerationId: id })
+    if (previousId !== id) await this.domain.global.set(this.pointerWithActive(id))
     return { previousId, generation }
   }
 
@@ -242,15 +255,39 @@ class DomainEvolutionStore implements EvolutionStore {
     const active = this.getGeneration(previousId)
     if (active === undefined) throw new Error(`active Generation '${previousId}' is missing`)
     if (active.parentId === undefined) {
-      await this.domain.global.set({})
+      await this.domain.global.set(this.pointerWithActive())
       return { previousId, generation: undefined }
     }
     const generation = this.getGeneration(active.parentId)
     if (generation === undefined) {
       throw new Error(`parent Generation '${active.parentId}' is missing`)
     }
-    await this.domain.global.set({ activeGenerationId: generation.id })
+    await this.domain.global.set(this.pointerWithActive(generation.id))
     return { previousId, generation }
+  }
+
+  private async setRecoveryPausedNow(
+    paused: boolean,
+  ): Promise<{ changed: boolean; paused: boolean }> {
+    const current = this.domain.global.get()
+    const changed = (current.recoveryPaused === true) !== paused
+    if (changed) {
+      await this.domain.global.set({
+        ...current.activeGenerationId === undefined
+          ? {}
+          : { activeGenerationId: current.activeGenerationId },
+        recoveryPaused: paused,
+      })
+    }
+    return { changed, paused }
+  }
+
+  private pointerWithActive(activeGenerationId?: string): GenerationPointer {
+    const recoveryPaused = this.domain.global.get().recoveryPaused
+    return {
+      ...activeGenerationId === undefined ? {} : { activeGenerationId },
+      ...recoveryPaused === undefined ? {} : { recoveryPaused },
+    }
   }
 
   private async pinNow(

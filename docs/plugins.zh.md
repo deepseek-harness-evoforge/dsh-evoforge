@@ -6,7 +6,7 @@
 
 | 插件名 | 用户结果 | 首个阶段 | DSH 复用 | 模型可见面 | 默认仓库 |
 |---|---|---|---|---|---|
-| `dsh-evolve` | 从真实任务结果产生 inactive Skill Candidate，独立评测、异步复核，随后为未来 Session 安全晋升或回滚 | P0A Shadow + P0B Local Continuity + P0C.1/P0C.2 human control；pause/resume 待完成 | Skill、Session、Goal、Feedback、Storage、Jobs、Commands、FS、Shell、Approval、Token Meter | 无新增 Evolve Tool/Prompt；active Generation 复用原生 Skill catalog/body，并按 Session 固定 | `dsh-evoforge` |
+| `dsh-evolve` | 从真实任务结果产生 inactive Skill Candidate，独立评测、异步复核，随后为未来 Session 安全晋升或回滚 | P0A Shadow + P0B Local Continuity + P0C.1–P0C.3 human control；可用性门待验证 | Skill、Session、Goal、Feedback、Storage、Jobs、Commands、FS、Shell、Approval、Token Meter | 无新增 Evolve Tool/Prompt；active Generation 复用原生 Skill catalog/body，并按 Session 固定 | `dsh-evoforge` |
 | `dsh-software-delivery` | 把原生 Goal 交付为隔离、遵循仓库规范、验证过的 commit 和可选 Draft PR | P2 产品化；P0A 只使用最小 evaluator fixture | Goal、Session、FS、Shell、Sandbox、Approval、Workflow | 优先复用已有工具；不为状态展示新增模型工具 | `dsh-evoforge`，成熟后可独立采用 |
 
 `dsh-evolve` 内部的 Observer、Candidate Lab、Trial Runner、Decision、Release、Monitor 和 Generation Binder 不是独立插件。它们只有组合起来才产生一个用户结果，拆开只会增加配置、版本和缓存理解成本。

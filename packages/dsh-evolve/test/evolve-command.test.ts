@@ -106,7 +106,7 @@ describe('/evolve host command', () => {
     for (const input of ['promote', 'promote abc', `promote ${rootId} extra`, 'unknown']) {
       await expect(executeEvolutionCommand(store, input)).resolves.toMatchObject({
         kind: 'error',
-        text: 'Usage: /evolve [status|review [<review-id> [approve|reject <note>]]|promote <64-char-generation-id>|rollback]',
+        text: 'Usage: /evolve [status|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]',
       })
     }
     expect(store.promoteGeneration).not.toHaveBeenCalled()
@@ -159,6 +159,31 @@ describe('/evolve host command', () => {
       kind: 'error',
       text: 'Review inbox is not configured. Set dsh-evolve supervisor.runRoots to owned Shadow run roots.',
     })
+  })
+
+  it('durably pauses and resumes resident recovery without invoking release state', async () => {
+    let paused = false
+    const resident = {
+      isPaused: vi.fn(() => paused),
+      pause: vi.fn(async () => { paused = true }),
+      resume: vi.fn(async () => { paused = false }),
+    }
+    const store = fakeStore()
+
+    await expect(executeEvolutionCommand(store, 'pause', undefined, resident)).resolves.toEqual({
+      kind: 'success',
+      text: 'Resident evolution recovery paused durably. Active recovery was stopped; normal Sessions and human review remain available.',
+    })
+    await expect(executeEvolutionCommand(store, 'status', undefined, resident)).resolves.toMatchObject({
+      kind: 'success',
+      text: expect.stringContaining('Resident recovery: paused'),
+    })
+    await expect(executeEvolutionCommand(store, 'resume', undefined, resident)).resolves.toEqual({
+      kind: 'success',
+      text: 'Resident evolution recovery resumed. Durable Candidate/Trial discovery was awakened.',
+    })
+    expect(store.promoteGeneration).not.toHaveBeenCalled()
+    expect(store.rollbackGeneration).not.toHaveBeenCalled()
   })
 
   it('returns an actionable host error instead of throwing an implementation stack', async () => {
@@ -232,6 +257,8 @@ function fakeStore(
     pinSession: vi.fn(),
     fallbackSessionToNative: vi.fn(),
     getSessionGeneration: vi.fn(),
+    isRecoveryPaused: vi.fn(() => false),
+    setRecoveryPaused: vi.fn(),
     close: vi.fn(),
     ...overrides,
   } as unknown as EvolutionStore & {

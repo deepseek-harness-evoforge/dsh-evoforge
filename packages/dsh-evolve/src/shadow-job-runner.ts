@@ -1,6 +1,7 @@
 import type { JobRegistry } from '@deepseek-ai/dsh-jobs'
 import {
   ShadowRecoveryCancelled,
+  ShadowRecoveryPaused,
   type ShadowResumeInvocation,
 } from './shadow-supervisor.ts'
 import type { runShadow } from './shadow.ts'
@@ -36,8 +37,11 @@ export function createShadowJobRunner(
           signal: controller.signal,
         })
         void task.then(resolve, (error: unknown) => {
+          const reason = controller.signal.reason
           reject(controller.signal.aborted
-            ? new ShadowRecoveryCancelled(errorDetail(controller.signal.reason))
+            ? reason instanceof ShadowRecoveryPaused
+              ? reason
+              : new ShadowRecoveryCancelled(errorDetail(reason))
             : error)
         })
         const done = task.then((result) => ({

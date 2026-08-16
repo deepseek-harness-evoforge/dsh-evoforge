@@ -21,6 +21,8 @@ surface is also available:
 /evolve review <64-char-review-id>
 /evolve review <64-char-review-id> reject <note>
 /evolve review <64-char-review-id> approve <note>
+/evolve pause
+/evolve resume
 /evolve promote <64-char-generation-id>
 /evolve rollback
 ```
@@ -84,8 +86,8 @@ The P0B.1 runtime kernel also proves on the pinned DSH revision that:
 - the packed artifact installs into a real DSH profile, boots, removes cleanly, and leaves native DSH composition intact;
 - removing the plugin leaves native DSH Session and Goal facts readable.
 
-This is still pre-alpha. There is no durable pause/resume, full diff viewer,
-automatic promotion policy, release, or production support. Explicit and resident
+This is still pre-alpha. There is no full diff viewer, automatic promotion
+policy, release, or production support. Explicit and resident
 Shadow recovery now cover bounded proposer/Candidate/Trial crash boundaries, but
 short automated soak is not production multi-day evidence. This is not a claim
 that continuous self-improvement is complete.
@@ -118,6 +120,11 @@ proposal work is never started automatically. Jobs supplies current-process
 visibility and cancellation, while the journal remains the restart authority.
 Cancelling a recovery suppresses that run for the rest of the current DSH
 process; a later DSH restart may discover the still-durable Trial again.
+
+`/evolve pause` durably stops only automatic resident recovery; normal Sessions,
+explicit Shadow CLI runs, review, promotion, and rollback remain available.
+`/evolve resume` durably clears the pause and wakes discovery immediately. A
+restart honors the stored state, and release pointer writes do not clear it.
 
 The same `supervisor.runRoots` feed the host-only review inbox even when Jobs is
 not installed. Only completed `promote` or `review` reports become pending

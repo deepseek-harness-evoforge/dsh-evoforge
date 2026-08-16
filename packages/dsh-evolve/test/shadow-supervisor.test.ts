@@ -152,6 +152,62 @@ describe('Shadow supervisor', () => {
 
     expect(runner).toHaveBeenCalledTimes(1)
   })
+
+  it('starts durably paused and resumes discovery only after an explicit wake', async () => {
+    const runRoot = await createRunRoot()
+    await writeRun(runRoot, 'candidate-ready', 'candidate-ready')
+    const runner = vi.fn(async () => ({
+      status: 'complete' as const,
+      reportPath: 'report.json',
+      summary: 'done',
+    }))
+    const supervisor = new ShadowSupervisor({
+      runRoots: [runRoot],
+      scanIntervalMs: 10_000,
+      paused: true,
+      runner,
+    })
+
+    supervisor.start()
+    await supervisor.scanOnce()
+    expect(runner).not.toHaveBeenCalled()
+
+    supervisor.resume()
+    await supervisor.scanOnce()
+    expect(runner).toHaveBeenCalledTimes(1)
+    await supervisor.stop()
+  })
+
+  it('pauses an active recovery without suppressing its durable run after resume', async () => {
+    const runRoot = await createRunRoot()
+    await writeRun(runRoot, 'candidate-ready', 'candidate-ready')
+    let entered!: () => void
+    const firstEntered = new Promise<void>(resolve => { entered = resolve })
+    let calls = 0
+    const supervisor = new ShadowSupervisor({
+      runRoots: [runRoot],
+      scanIntervalMs: 10_000,
+      runner: async ({ signal }) => {
+        calls += 1
+        if (calls > 1) return { status: 'complete', reportPath: 'report.json', summary: 'done' }
+        entered()
+        await new Promise<void>(resolve => signal.addEventListener('abort', () => resolve(), { once: true }))
+        throw signal.reason
+      },
+    })
+
+    const active = supervisor.scanOnce()
+    await firstEntered
+    await supervisor.pause()
+    await active
+    await supervisor.scanOnce()
+    expect(calls).toBe(1)
+
+    supervisor.resume()
+    await supervisor.scanOnce()
+    expect(calls).toBe(2)
+    await supervisor.stop()
+  })
 })
 
 async function createRunRoot(): Promise<string> {

@@ -62,6 +62,14 @@ export class VerifiedEvolutionStore implements EvolutionStore {
     return this.store.getSessionGeneration(identity)
   }
 
+  isRecoveryPaused(): boolean {
+    return this.store.isRecoveryPaused()
+  }
+
+  setRecoveryPaused(paused: boolean) {
+    return this.store.setRecoveryPaused(paused)
+  }
+
   close(): Promise<void> {
     return this.store.close()
   }

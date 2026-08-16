@@ -54,9 +54,22 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     const skills = ctx.get('skills') as {
       get(name: string, options: { cwd?: string; scope?: object }): Promise<{ content: string } | undefined>
     } | undefined
-    if (commands === undefined || skills === undefined) throw new Error('review services did not load')
+    const store = ctx.get('evoforge.evolution') as EvolutionStore | undefined
+    if (commands === undefined || skills === undefined || store === undefined) {
+      throw new Error('review services did not load')
+    }
     const liveNative = await createAndRunAgent(ctx, 'review-live-native', root)
     const requestsBeforeReview = adapter.requests.length
+
+    const paused = await commands.execute(liveNative, '/evolve pause', new AbortController().signal)
+    expect(paused?.result).toMatchObject({ kind: 'success' })
+    expect(store.isRecoveryPaused()).toBe(true)
+    const pausedStatus = await commands.execute(liveNative, '/evolve status', new AbortController().signal)
+    expect(pausedStatus?.result.text).toContain('Resident recovery: paused')
+    const resumed = await commands.execute(liveNative, '/evolve resume', new AbortController().signal)
+    expect(resumed?.result).toMatchObject({ kind: 'success' })
+    expect(store.isRecoveryPaused()).toBe(false)
+    expect(adapter.requests).toHaveLength(requestsBeforeReview)
 
     const list = await commands.execute(liveNative, '/evolve review', new AbortController().signal)
     const reviewId = /^- ([a-f0-9]{64}) /m.exec(list?.result.text ?? '')?.[1]
