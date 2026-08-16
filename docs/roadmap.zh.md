@@ -9,7 +9,7 @@
 | R0 上游与市场研究 | 完成 | DSH、171 插件、Claude Code Rev、Hermes、公开自进化项目报告 |
 | R1 产品边界 | 完成 | Requirements、CONTEXT、产品架构、ADR、插件目录和接口规范 |
 | R2 开源仓库就绪 | 完成 | [公共仓库](https://github.com/deepseek-harness-evoforge/dsh-evoforge)、MIT、贡献/安全文档与 Linux CI；macOS CI 在独立 Draft PR 验证 |
-| P0A Shadow evaluator | 实现中 | 安全门、macOS Sealed Trial、校准/paired final-test 与一条真实 DSH assembled bridge 已转绿；三个产品 fixture 与本地未见 case 尚未完成 |
+| P0A Shadow evaluator | 实现中 | 安全门、macOS Sealed Trial、校准/paired final-test、真实 DSH assembled bridge 与 1/3 产品 fixture 已转绿；另外两个产品 fixture 与本地未见 case 尚未完成 |
 
 ## P0A — 先证明会判断
 

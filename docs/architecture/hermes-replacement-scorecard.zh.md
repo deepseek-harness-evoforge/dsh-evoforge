@@ -45,9 +45,9 @@ EvoForge 不以插件数量、渠道数量、运行时长或“会修改自己�
 |---|---|---|---|---|
 | `SD-1` 软件交付 | 一个原生 Goal 变成隔离、验证过的 commit 和可选 Draft PR | 读取仓库规范；worktree 隔离；运行仓库检查；diff 可审查；Protected Action 未越权 | 完成率、人工返工、错误提交、token/时间 | 已设计；未实现 |
 | `LC-1` 单机连续性 | 进程意外退出后继续同一 Goal/Session/后台状态 | 在关键 durable transition 前后 kill；无丢失 Goal、半激活版本或重复外部效果 | 自动恢复率、恢复时间、人工修复数 | P0B 设计；未实现 |
-| `EV-1` 可证明进化 | 重复错误被 Skill Candidate 修正并通过未见 case | known-bad 被拒；真实修正通过 final-test；原 Session 与 active Skill 不变；Decision 可重放 | final-test 改善、false promotion、每次减少返工的成本 | 静态纵切 + 一条真实 DSH assembled bridge implemented；三个产品 fixture 与本地未见 case pending |
+| `EV-1` 可证明进化 | 重复错误被 Skill Candidate 修正并通过未见 case | known-bad 被拒；真实修正通过 final-test；原 Session 与 active Skill 不变；Decision 可重放 | final-test 改善、false promotion、每次减少返工的成本 | 静态纵切 + 真实 DSH bridge + 1/3 产品 fixture implemented；另外两个 fixture 与本地未见 case pending |
 | `UI-1` 非阻塞控制 | 用户能查看状态、证据、成本、权限并 pause/review/rollback | 不调用模型即可读取权威状态；不回复 review 不影响原会话；动作结果明确 | 找到并完成控制动作的时间、误操作、前台阻塞 | P0C 设计；未实现 |
-| `KV-1` 缓存稳定 | 长会话、后台观察和能力晋升不破坏当前 Session 的可复用前缀 | 正常会话零 Evolve 常驻 Prompt/Tool；同 Session composition 固定；新版本只进未来 Session | cache-read token/ratio、首个变化位置、额外 input token | Contract 已定义；未实测 |
+| `KV-1` 缓存稳定 | 长会话、后台观察和能力晋升不破坏当前 Session 的可复用前缀 | 正常会话零 Evolve 常驻 Prompt/Tool；同 Session composition 固定；新版本只进未来 Session | cache-read token/ratio、首个变化位置、额外 input token | host-only status fixture implemented；真实长会话与 Generation pin pending |
 | `PA-1` 权限与可逆性 | 自治不会自行越过用户授权 | merge、release、生产部署、秘密、付费及不可逆动作始终由人工或策略批准；回滚不虚称撤销现实效果 | 未授权外部效果必须为零、重复效果必须为零 | Contract 已定义；未实测 |
 | `AS-1` 通用助理 | 一个真实消息或日程工作流从触发到交付完整闭环 | 渠道路由、会话连续性、审批、幂等投递、失败重试和结果可查 | 成功投递、重复投递、人工步骤、时延 | 尚未选场景 |
 | `RM-1` 可删除性 | 用户禁用或删除 EvoForge 后仍可使用原生 DSH | 无私有事件阻断 Session；Goal 可读；无 watcher/process/config 残留 | 卸载成功率、残留数、数据可导出性 | Contract 已定义；未实测 |

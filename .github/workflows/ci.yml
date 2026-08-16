@@ -73,3 +73,4 @@ jobs:
           pnpm --filter dsh-evolve exec vitest run
           test/sealed-trial-darwin.e2e.test.ts
           test/dsh-assembled-shadow.e2e.test.ts
+          test/cache-safe-status-shadow.e2e.test.ts

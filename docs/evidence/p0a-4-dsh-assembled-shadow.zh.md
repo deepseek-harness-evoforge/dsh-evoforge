@@ -61,10 +61,10 @@ pnpm --filter dsh-evolve exec vitest run \
 
 ## 尚不能声称
 
-- 这不是 `cache-safe-status`、`dispose-owned-watcher`、`profile-install-remove` 三个产品 fixture 的完成；
+- 这份通用 bridge 本身不是产品 fixture；第一个 `cache-safe-status` 的后续证据见 [P0A.5](p0a-5-cache-safe-status.zh.md)，另外两个仍未完成；
 - 没有执行任意 Candidate 代码，Candidate 仍只是 Skill 数据；
 - 公开 final-test 已参与开发，不能替代用户本机未见 final-test；
 - 没有真实 provider 的 paired benchmark、统计复跑、磁盘配额、Linux/Windows executor；
 - 不能声称已持续进化、可自动晋升或优于 Hermes。
 
-因此 P0A 仍为 `implemented / in progress`。下一步是把相同装配接缝用于第一个真实 `cache-safe-status` plugin fixture，运行 parse/typecheck/test/load/removal，并继续保持 Candidate 代码不越过已声明的执行边界。
+因此 P0A 仍为 `implemented / in progress`。后续产品 fixture 继续复用同一受限装配接缝，并保持 Candidate 代码不越过已声明的执行边界。

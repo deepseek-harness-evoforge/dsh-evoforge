@@ -1,7 +1,7 @@
 # P0A Shadow 契约
 
-> 状态：项目所有者已授权实现；安全门和一个 macOS 确定性校准/paired final-test 纵切已实现，完整 P0A 尚未完成
-> 更新日期：2026-08-15
+> 状态：项目所有者已授权实现；安全门、真实 assembled bridge 与第一个产品 fixture 已实现，完整 P0A 尚未完成
+> 更新日期：2026-08-16
 > 目标：用最小离线实验证明 evaluator 值得信任，而不是先建设在线自进化平台
 
 ## 1. 用户结果与非目标
@@ -190,7 +190,7 @@ case pack 必须预声明 `candidateLimit`、`trialLimit` 和 token/cost cap；�
 7. 同一落盘 Trial evidence 重放得到相同 Decision；
 8. 无论成功、失败或取消，命令都只写 `run-dir`，临时 workspace 可安全回收。
 
-当前实现先完成 owned-path safety tracer 和静态确定性纵切，再增加一条真实 DSH assembled bridge：固定模型只模拟外部 proposer/LLM 边界；真实文件、macOS Seatbelt、Cordis Loader、Agent Loop、Skill 按需注入、bash Tool、退出码和报告均不 mock。Candidate 仍只作为 Skill 数据，不执行任意 Candidate 代码。该 bridge 证明装配和完整 composition gate 可工作，但不能替代本节列出的三个产品 fixture 和本地未见 final-test；证据见 [P0A.4](../evidence/p0a-4-dsh-assembled-shadow.zh.md)。
+当前实现先完成 owned-path safety tracer 和静态确定性纵切，再增加一条真实 DSH assembled bridge：固定模型只模拟外部 proposer/LLM 边界；真实文件、macOS Seatbelt、Cordis Loader、Agent Loop、Skill 按需注入、bash Tool、退出码和报告均不 mock。随后 `cache-safe-status` 以固定、受信的 TypeScript 实现完成 strict typecheck、真实 Loader、host service update、composition 对比、dispose 与 native-only 重启。Candidate 仍只作为 Skill 数据，不执行任意 Candidate 代码。证据见 [P0A.4](../evidence/p0a-4-dsh-assembled-shadow.zh.md)与 [P0A.5](../evidence/p0a-5-cache-safe-status.zh.md)；另外两个产品 fixture 和本地未见 final-test 仍缺失。
 
 ## 9. 人工介入与退出门
 

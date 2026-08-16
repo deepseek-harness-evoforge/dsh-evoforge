@@ -27,9 +27,11 @@ for calibration, baseline, and Candidate before opening the hidden final test.
 An opt-in assembled Case Pack can also mount one exact DSH checkout read-only,
 verify its Git revision, and boot the real Loader, Agent Loop, Skill path, and a
 real tool round trip with a keyless scripted adapter. Candidate files remain
-inactive data; arbitrary Candidate code is not executed. Linux and Windows
-adapters, a workspace disk quota, and the three product evaluator fixtures
-remain open work.
+inactive data; arbitrary Candidate code is not executed. The first product
+fixture now typechecks and loads a trusted cache-safe host status service,
+updates and disposes it, and compares its model composition to native DSH.
+Linux and Windows adapters, a workspace disk quota, two product evaluator
+fixtures, and a locally held-out case remain open work.
 
 This is not yet a useful self-improvement release. The assembled example proves
 the mechanics and non-target composition gate, not real-provider improvement or
