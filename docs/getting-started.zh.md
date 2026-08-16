@@ -217,7 +217,10 @@ journal 继续。`/evolve pause` 则先持久化全局 resident pause，再取�
 Review 使用和 supervisor 相同的 `runRoots`，但不要求安装 Jobs。它只扫描直接子目录，
 并要求 journal、report 和处置文件都是 owned regular file。`review` 列表展示 pending
 候选；详情展示 claim、changed files、tree、逐 case、proposal token、Trial 次数、
-composition、理由和限制。首版没有逐行 diff viewer。
+composition、理由、限制，以及 exact Git baseline 到 sealed Candidate 的逐行 diff。Diff
+复用批准时相同的 baseline/Candidate whole-tree gate，不读取 `resumeInputs.skillDir`；最多
+显示 16 KiB，控制字符可见转义，截断会报告显示/总字节数。查看不会调用模型、持久化 patch
+或修改 release state。若 exact Git baseline 已漂移则失败关闭。
 
 `autoPromote` 可完全省略；省略或 `skills: []` 即关闭。开启时必须同时配置 supervisor 并
 装配 native Jobs。只有 allowlist 内 Skill 的 exact baseline、assembled composition stable、

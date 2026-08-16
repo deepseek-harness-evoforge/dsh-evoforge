@@ -67,7 +67,7 @@ pnpm --filter dsh-software-delivery pack --pack-destination "$PWD/.evoforge/pack
 ## 尚未实现
 
 - 多个独立真实 case、真实 provider 提案效果、Linux/Windows 隔离与 workspace 磁盘配额；
-- 逐行 diff viewer、真实人工可用性数据，以及真实任务上的 false-promotion/false-rollback/review rate（最窄 allowlist 自动晋升、outcome、显式反馈、私有 Case Draft、反馈引导 Candidate 和反事实自动回滚已实现；全新失败仍需独立 evaluator）；
+- 真实人工 review 可用性数据、权限效果投影和可选分页/图形 diff，以及真实任务上的 false-promotion/false-rollback/review rate（exact bounded diff、最窄 allowlist 自动晋升、outcome、显式反馈、私有 Case Draft、反馈引导 Candidate 和反事实自动回滚已实现；全新失败仍需独立 evaluator）；
 - 生产多日 soak、真实磁盘耗尽与大规模 run 性能数据（常驻 native Jobs supervisor、自动扫描和关机恢复已实现）；
 - `dsh-software-delivery` 不做全局 Goal 拦截；原生直接 `update_goal` 仍可用。Draft PR 首片只支持 GitHub.com 同仓分支，尚缺 fork/其他 forge 和 CI 等待；Evolve canary 尚缺真实开发任务长期数据；个人助理、消息、内容和日程插件也未实现；
 - Web/TUI 控制面。

@@ -617,8 +617,10 @@ P0C.1 已用 host-only `/evolve status | promote | rollback` 暴露 release；P0
 durable Shadow evidence 投影为 review inbox，并把人工批准发布为不激活的 immutable
 Generation，证据见 [P0C.2](../evidence/p0c-2-review-to-inactive-generation.zh.md)。
 P0C.3 已提供 durable resident pause/resume，证据见
-[P0C.3](../evidence/p0c-3-durable-resident-pause-resume.zh.md)。P0C 不增加模型 Tool，
-也不让审批等待阻塞产生信号的原会话。P1.1 已实现默认关闭、allowlist、append-only 的
+[P0C.3](../evidence/p0c-3-durable-resident-pause-resume.zh.md)。P0C.4 复用 publication 的
+exact Git baseline/Candidate gate，在同一 detail 中显示 control-safe bounded diff，见
+[P0C.4](../evidence/p0c-4-verified-diff-preview.zh.md)。P0C 不增加模型 Tool，也不让审批等待
+阻塞产生信号的原会话。P1.1 已实现默认关闭、allowlist、append-only 的
 clear-instruction 自动晋升，证据见
 [P1.1](../evidence/p1-1-opt-in-clear-instruction-auto-promotion.zh.md)。P2D.1 已通过最终
 `tools/result` 接入真实 Software Delivery 三态 outcome，并关联 Session-pinned Generation；

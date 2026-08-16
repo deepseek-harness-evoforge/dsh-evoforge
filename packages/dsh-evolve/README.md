@@ -52,7 +52,9 @@ surface is also available:
 It never invokes the model. Review approval verifies the completed Shadow
 evidence and exact Git Skill tree, then creates an immutable owned Git ref and
 inactive Generation without moving the user's branch, worktree, or active
-pointer. Promotion remains a separate explicit action. Promotion/rollback
+pointer. Review detail first reconstructs that same verified baseline and sealed
+Candidate and renders at most 16 KiB of their diff; control characters are escaped
+and truncation is explicit. It does not persist another patch copy. Promotion remains a separate explicit action. Promotion/rollback
 changes only future Sessions; existing Sessions keep their pin.
 
 After an interrupted run, explicitly resume the same immutable inputs with
@@ -145,8 +147,8 @@ evidence, or run journal; only its content id and private resume path are added.
 The proposer claim and Candidate are durable for crash recovery, so model output
 that echoes or paraphrases the draft can still be retained.
 
-This is still pre-alpha. There is no full diff viewer, real-task false-promotion/
-false-rollback dataset, release, or production support. Explicit and resident
+This is still pre-alpha. There is no paginated/graphical diff UI, real-task
+false-promotion/false-rollback dataset, release, or production support. Explicit and resident
 Shadow recovery now cover bounded proposer/Candidate/Trial crash boundaries, but
 short automated soak is not production multi-day evidence. This is not a claim
 that continuous self-improvement is complete.
