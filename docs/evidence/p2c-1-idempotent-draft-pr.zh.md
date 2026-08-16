@@ -44,4 +44,10 @@ Draft PR 都确认后才完成。Agent 不需要自己编排 push、查重、cre
 本机提供显式 `DSH_DELIVERY_LIVE_WORKTREE` gate，可在已经存在 Draft PR 的真实已登录仓库上
 验证 exact push + remote reuse；CI 使用无密钥确定性边界，不创建外部 PR。
 
+本轮已在公开仓库 live gate 运行：exact commit
+`b42afd6dfc4756a8225b4ab295bf497008811be6` 复用
+[Draft PR #7](https://github.com/deepseek-harness-evoforge/dsh-evoforge/pull/7)，结果 `1 passed`；
+read-back 确认 `isDraft=true`、head `feat/p0a-case-pack`、base `main` 且 head OID 完全相等。
+没有创建第二个 PR，也没有改变 title/body/review 状态。
+
 设计取舍见 [ADR-0014](../adr/0014-remote-draft-pr-facts-are-idempotency-source.md)。
