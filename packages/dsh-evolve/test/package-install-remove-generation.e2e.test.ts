@@ -153,6 +153,13 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-evolve package boundar
           autoPromote: {
             skills: ['build-dsh-plugin'],
             retentionRoots: [retentionRoot],
+            retentionTargets: [{
+              id: 'plugin-delivery-prior',
+              skill: 'build-dsh-plugin',
+              casePackDir: join(root, 'prior-case-pack'),
+              casePackHash: '8'.repeat(64),
+              runRoot: retentionRoot,
+            }],
           },
         },
       },

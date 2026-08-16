@@ -120,6 +120,10 @@ _Avoid_: Automatic learning, synchronous Session reflection, paid resident retry
 A zero-model, host-only execution of the declared known-bad and known-correction fixtures through the same sealed evaluator used by Shadow. It proves evaluator direction before proposer spend; it does not prove coverage of novel failures. A complete Shadow performs this gate before requesting a Candidate and still uses four Trial executions total.
 _Avoid_: Evaluator generation, cached trust forever, extra runtime service, model judge
 
+**Retention Target**:
+A static deployment policy binding one exact Skill to one independent prior Case Pack version for automatic Retention before clear-win promotion. It authorizes one potentially effectful evaluation attempt per exact Candidate; an uncertain attempt remains human-reviewed.
+_Avoid_: Case registry, test scheduler, remembered consent
+
 **Counterfactual Canary**:
 An asynchronous replay of the original sealed Case Pack against the exact active Candidate and its immutable Git parent after a matching failed Delivery Outcome. It may roll back future-session selection only when calibration passes, the parent passes, the Candidate fails, and the active pointer is unchanged.
 _Avoid_: Live traffic routing, failure counter, model reflection, automatic retry platform

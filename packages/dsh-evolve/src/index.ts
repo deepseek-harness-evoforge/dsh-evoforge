@@ -1,6 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import z from '@deepseek-ai/schemastery'
 import type Schema from '@deepseek-ai/schemastery'
 import { installGenerationBinder } from './generation-binder.ts'
@@ -39,6 +39,12 @@ import {
   type EvaluatorDraftTargetConfig,
 } from './evaluator-draft-inbox.ts'
 import { RetentionEvidenceIndex } from './retention-evidence-index.ts'
+import {
+  assertAutomaticRetentionTargets,
+  AutomaticRetentionService,
+  type AutomaticRetentionTargetConfig,
+} from './automatic-retention.ts'
+import { createAutomaticRetentionJobRunner } from './automatic-retention-job.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -60,6 +66,7 @@ export interface Config {
   autoPromote?: {
     skills: string[]
     retentionRoots?: string[]
+    retentionTargets?: AutomaticRetentionTargetConfig[]
   }
   shadowTargets?: FeedbackShadowTargetConfig[]
   evaluatorTargets?: EvaluatorDraftTargetConfig[]
@@ -80,6 +87,13 @@ export const Config: Schema<Config> = z.object({
   autoPromote: z.object({
     skills: z.array(z.string()).default([]),
     retentionRoots: z.array(z.string()).max(20).default([]),
+    retentionTargets: z.array(z.object({
+      id: z.string().required(),
+      skill: z.string().required(),
+      casePackDir: z.string().required(),
+      casePackHash: z.string().required(),
+      runRoot: z.string().required(),
+    })).max(20).default([]),
   }),
   shadowTargets: z.array(z.object({
     id: z.string().required(),
@@ -120,13 +134,25 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     : new ResidentEvolutionControl(store)
   const automaticSkills = config.autoPromote?.skills ?? []
   const retentionRoots = config.autoPromote?.retentionRoots ?? []
+  const retentionTargets = config.autoPromote?.retentionTargets ?? []
   const shadowTargets = config.shadowTargets ?? []
   const evaluatorTargets = config.evaluatorTargets ?? []
+  if (retentionTargets.length > 0) assertAutomaticRetentionTargets(retentionTargets)
   if (automaticSkills.length > 0 && review === undefined) {
     throw new Error('automatic promotion requires configured supervisor.runRoots')
   }
   if (retentionRoots.length > 0 && automaticSkills.length === 0) {
     throw new Error('retention evidence roots require a non-empty automatic promotion Skill allowlist')
+  }
+  if (retentionTargets.length > 0 && retentionRoots.length === 0) {
+    throw new Error('automatic Retention targets require configured retention evidence roots')
+  }
+  if (retentionTargets.some(target => !automaticSkills.includes(target.skill))) {
+    throw new Error('automatic Retention targets must name an automatic promotion Skill')
+  }
+  if (retentionTargets.some(target =>
+    !retentionRoots.some(root => resolve(root) === resolve(target.runRoot)))) {
+    throw new Error('automatic Retention target run roots must be exact retention evidence roots')
   }
   if (shadowTargets.length > 0 && (config.supervisor === undefined
     || config.supervisor.runRoots.length === 0
@@ -144,13 +170,19 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     || config.supervisor.runRoots.length === 0)) {
     throw new Error('qualified evaluator Shadow requires configured supervisor.runRoots')
   }
+  const retentionEvidence = retentionRoots.length === 0
+    ? undefined
+    : new RetentionEvidenceIndex(retentionRoots)
+  const automaticPreflight = automaticSkills.length === 0
+    ? undefined
+    : new AutoPromotionPolicy(source, store, automaticSkills)
   const automaticPolicy = automaticSkills.length === 0
     ? undefined
     : new AutoPromotionPolicy(
         source,
         store,
         automaticSkills,
-        ...retentionRoots.length === 0 ? [] : [new RetentionEvidenceIndex(retentionRoots)],
+        ...retentionEvidence === undefined ? [] : [retentionEvidence],
       )
   const automatic = automaticPolicy === undefined || review === undefined
     ? undefined
@@ -267,12 +299,28 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             ),
             store,
           })
+      const automaticRetention = retentionTargets.length === 0
+        || retentionEvidence === undefined
+        || automaticPreflight === undefined
+        || review === undefined
+        ? undefined
+        : new AutomaticRetentionService({
+            evidence: retentionEvidence,
+            inbox: review.inbox,
+            preflight: automaticPreflight,
+            runner: createAutomaticRetentionJobRunner(jobCtx.jobs),
+            targets: retentionTargets,
+          })
       const supervisor = new ShadowSupervisor({
         runRoots: config.supervisor!.runRoots,
         scanIntervalMs: config.supervisor!.scanIntervalMs ?? 30_000,
         paused: resident!.isPaused(),
         ...automatic === undefined ? {} : {
           afterScan: async (signal) => {
+            const retentionResult = await automaticRetention?.scanOnce(signal)
+            for (const warning of retentionResult?.warnings ?? []) {
+              jobCtx.logger.warn(`dsh-evolve automatic Retention skipped evidence: ${warning}`)
+            }
             const result = await automatic.scanOnce()
             for (const warning of result.warnings) {
               jobCtx.logger.warn(`dsh-evolve automatic promotion skipped evidence: ${warning}`)
@@ -328,6 +376,7 @@ export type {
 } from './generation-store.ts'
 export type { GitSkillSourceConfig } from './git-skill-source.ts'
 export type { FeedbackShadowTargetConfig } from './feedback-shadow-launcher.ts'
+export type { AutomaticRetentionTargetConfig } from './automatic-retention.ts'
 export type { ShadowResumeInvocation, ShadowSupervisorOptions } from './shadow-supervisor.ts'
 export type {
   DeliveryOutcome,

@@ -10,6 +10,7 @@ const HASH = /^[a-f0-9]{64}$/
 export interface RetentionOptions {
   readonly sourceRunDir: string
   readonly casePackDir: string
+  readonly expectedCasePackHash?: string
   readonly outputDir: string
   readonly signal?: AbortSignal
 }
@@ -94,6 +95,9 @@ export async function evaluateRetention(options: RetentionOptions): Promise<Rete
     )
   }
   const casePackHash = await hashTree(casePackDir)
+  if (options.expectedCasePackHash !== undefined && casePackHash !== options.expectedCasePackHash) {
+    throw new Error('retention Case Pack does not match its configured exact hash')
+  }
   if (casePackHash === state.identity.casePackHash) {
     throw new Error('retention Case Pack must not duplicate the source Case Pack')
   }

@@ -352,6 +352,12 @@ Domain 已装配的配置里添加：
         - build-dsh-plugin
       retentionRoots:
         - /absolute/path/to/.dsh/evoforge/retention-runs
+      retentionTargets:
+        - id: plugin-delivery-prior-v1
+          skill: build-dsh-plugin
+          casePackDir: /absolute/path/to/prior-case-pack
+          casePackHash: <64-char-sha256>
+          runRoot: /absolute/path/to/.dsh/evoforge/retention-runs
 ```
 
 每个 Generation artifact 的 `name` 都必须有一条 source。Repository 必须能解析
@@ -422,6 +428,17 @@ run、recommendation、Skill、baseline 和 Candidate exact 匹配的 `retained`
 `incomplete`、missing、篡改、symlink、重复冲突、超过 256 KiB 或全部 roots 合计超过 200 项都失败关闭并
 留在人工 review。它不会自动运行 Retention，也不改变显式 human approve/promote。报告在之后写入
 时，既有 supervisor 下一轮重评，无需重启；整个 scan 为本地零模型操作，不进入 Session 历史。
+
+`retentionTargets` 可继续省略；此时 P1.12 只消费人工或 CI 写入的报告。配置后，每个 allowlisted Skill
+只能有一个静态 Target，且 `runRoot` 必须 exact 属于 `retentionRoots`。Target 的 path/hash 不会进入
+Command、Web、Remote 或模型请求。声明 Target 是一条显式部署策略：对原本已通过 P1.1 的 exact
+Candidate，supervisor 每轮最多通过 native Jobs 自动执行一个 P1.11 Retention。一次执行固定零
+proposer、四次 evaluator；standalone evaluator 可零模型，assembled evaluator 可能产生其报告所示
+模型费用。`retained` 才进入既有自动晋升，`regressed|incomplete` 留在 review；Trial 创建 output 后
+崩溃或结果不确定时绝不自动重试。explicit human approve/promote 始终不受此实验性门阻断。
+不要手工猜 `casePackHash`：先对 prior Pack 执行下文 `dsh-evolve calibrate`，只在 calibrated report
+显示 unchanged 后复制 `calibration-report.json.casePack.hash`。Pack 内容变化后必须重新校准并显式更新
+Target version/hash；运行时 hash 不一致会在任何 evaluator Trial 前失败关闭。
 
 ## 3. Shadow 输入
 
@@ -629,7 +646,9 @@ evaluator；如果 assembled evaluator 内部调用模型，那是独立的 Tria
 3. [插件接口规范](plugin-contract.zh.md)
 4. [P0A Shadow 契约](architecture/p0a-shadow-contract.zh.md)
 5. [P1.11 Exact Retention Gate 契约](architecture/p1-11-exact-retention-gate.zh.md)
-6. [ADR-0006：Sealed Trial](adr/0006-fail-closed-sealed-trial-execution.md)
+6. [P1.12 Retention Auto-Promotion Gate 契约](architecture/p1-12-opt-in-retention-auto-promotion-gate.zh.md)
+7. [P1.13 Automatic Retention Target 契约](architecture/p1-13-automatic-retention-target.zh.md)
+8. [ADR-0006：Sealed Trial](adr/0006-fail-closed-sealed-trial-execution.md)
 7. [CONTRIBUTING.md](../CONTRIBUTING.md)
 
 新增行为先写穿过公共接缝的红测试。只有模型、外部 provider 或操作系统边界可以被替换；不要 mock evaluator 内部阶段后再声称端到端通过。

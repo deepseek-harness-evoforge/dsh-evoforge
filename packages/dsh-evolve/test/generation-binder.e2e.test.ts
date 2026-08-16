@@ -64,6 +64,13 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
               autoPromote: {
                 skills: ['stable-evolved-skill'],
                 retentionRoots: [join(runtimeRoot, 'retention-runs')],
+                retentionTargets: [{
+                  id: 'stable-prior-capability',
+                  skill: 'stable-evolved-skill',
+                  casePackDir: join(runtimeRoot, 'prior-case-pack'),
+                  casePackHash: '8'.repeat(64),
+                  runRoot: join(runtimeRoot, 'retention-runs'),
+                }],
               },
             }
           : {}),
@@ -76,6 +83,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     expect(modelVisibleRequest(requests[1])).toEqual(modelVisibleRequest(requests[0]))
     expect(JSON.stringify(requests[1])).not.toContain('evaluator')
     expect(JSON.stringify(requests[1])).not.toContain('stable-skill-fix')
+    expect(JSON.stringify(requests[1])).not.toContain('stable-prior-capability')
   })
 
   it('authors a private inactive evaluator through real DSH Feedback, Commands, and Jobs', async () => {
@@ -571,6 +579,128 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     expect(adapter.requests).toHaveLength(requestsBeforeRetention)
     expect(JSON.parse(await readFile(join(runRoot, 'sealed-candidate', 'review-state.json'), 'utf8')))
       .toMatchObject({ status: 'approved', actor: 'auto-clear-instruction-v1', generationId: active.id })
+    await ctx.fiber.dispose()
+  }, 20_000)
+
+  it('automatically evaluates one exact prior Case Pack before clear-win promotion', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-automatic-retention-'))
+    temporaryRoots.push(root)
+    const repository = join(root, 'source')
+    await commitSkill(repository, 'Baseline body.', 'baseline reference')
+    const runRoot = await writeCompletedReviewRun(root, repository, true)
+    const retentionRoot = join(root, 'retention-runs')
+    const priorCasePack = join(root, 'prior-case-pack')
+    await Promise.all([mkdir(retentionRoot), writePriorRetentionCasePack(priorCasePack)])
+    const priorCasePackHash = await hashTree(priorCasePack)
+    const ctx = await bootStorage(await writeStorageConfig(root))
+    const adapter = await installAgentRuntime(ctx)
+    await ctx.plugin(EvolvePlugin, {
+      cacheRoot: join(root, 'cache'),
+      sources: [{
+        name: 'stable-evolved-skill',
+        repository,
+        path: 'skills/stable-evolved-skill',
+      }],
+      supervisor: { runRoots: [runRoot], scanIntervalMs: 1_000 },
+      autoPromote: {
+        skills: ['stable-evolved-skill'],
+        retentionRoots: [retentionRoot],
+        retentionTargets: [{
+          id: 'prior-baseline-body',
+          skill: 'stable-evolved-skill',
+          casePackDir: priorCasePack,
+          casePackHash: priorCasePackHash,
+          runRoot: retentionRoot,
+        }],
+      },
+    })
+    const store = ctx.get('evoforge.evolution') as EvolutionStore | undefined
+    if (store === undefined) throw new Error('automatic Retention store did not load')
+    const requestsBeforeRetention = adapter.requests.length
+    const jobsModule = await import(pathToFileURL(
+      join(dshSourceDir, 'packages', 'jobs', 'jobs-local', 'lib', 'index.js'),
+    ).href)
+    await ctx.plugin(jobsModule.default)
+
+    const active = await waitForActiveGeneration(store)
+    const retentionRuns = await readdir(retentionRoot)
+    expect(retentionRuns).toHaveLength(1)
+    expect(JSON.parse(await readFile(
+      join(retentionRoot, retentionRuns[0]!, 'retention-report.json'),
+      'utf8',
+    ))).toMatchObject({
+      casePack: { hash: priorCasePackHash },
+      decision: { outcome: 'retained' },
+      model: { proposerCalls: 0 },
+      trial: { count: 4 },
+    })
+    expect(active.policyVersion).toBe('auto-clear-instruction-v1')
+    expect(adapter.requests).toHaveLength(requestsBeforeRetention)
+    await ctx.fiber.dispose()
+  }, 20_000)
+
+  it('keeps a clear-win Candidate in review when automatic Retention finds a regression', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-automatic-retention-regression-'))
+    temporaryRoots.push(root)
+    const repository = join(root, 'source')
+    await commitSkill(repository, 'Baseline body.', 'baseline reference')
+    const runRoot = await writeCompletedReviewRun(root, repository, true)
+    const retentionRoot = join(root, 'retention-runs')
+    const priorCasePack = join(root, 'prior-case-pack')
+    await Promise.all([mkdir(retentionRoot), writePriorRetentionCasePack(priorCasePack, true)])
+    const priorCasePackHash = await hashTree(priorCasePack)
+    const ctx = await bootStorage(await writeStorageConfig(root))
+    const adapter = await installAgentRuntime(ctx)
+    await ctx.plugin(EvolvePlugin, {
+      cacheRoot: join(root, 'cache'),
+      sources: [{
+        name: 'stable-evolved-skill',
+        repository,
+        path: 'skills/stable-evolved-skill',
+      }],
+      supervisor: { runRoots: [runRoot], scanIntervalMs: 1_000 },
+      autoPromote: {
+        skills: ['stable-evolved-skill'],
+        retentionRoots: [retentionRoot],
+        retentionTargets: [{
+          id: 'prior-baseline-body',
+          skill: 'stable-evolved-skill',
+          casePackDir: priorCasePack,
+          casePackHash: priorCasePackHash,
+          runRoot: retentionRoot,
+        }],
+      },
+    })
+    const store = ctx.get('evoforge.evolution') as EvolutionStore | undefined
+    const control = ctx.get('evoforge.evolutionControl') as {
+      overview(): Promise<{ reviews: { items: Array<{ id: string }> } }>
+      review(id: string): Promise<{ automatic?: { eligible: boolean; reasons: string[] } }>
+    } | undefined
+    if (store === undefined || control === undefined) {
+      throw new Error('automatic Retention review services did not load')
+    }
+    const requestsBeforeRetention = adapter.requests.length
+    const jobsModule = await import(pathToFileURL(
+      join(dshSourceDir, 'packages', 'jobs', 'jobs-local', 'lib', 'index.js'),
+    ).href)
+    await ctx.plugin(jobsModule.default)
+
+    await expect(waitForRetentionDecision(retentionRoot, 'regressed')).resolves.toMatchObject({
+      decision: { outcome: 'regressed' },
+      model: { proposerCalls: 0 },
+    })
+    const reviewId = (await control.overview()).reviews.items[0]?.id
+    if (reviewId === undefined) throw new Error('automatic Retention review fixture missing')
+    await expect(control.review(reviewId)).resolves.toMatchObject({
+      automatic: {
+        eligible: false,
+        reasons: expect.arrayContaining([
+          'an exact prior Case Pack proves baseline pass / Candidate fail',
+        ]),
+      },
+    })
+    expect(store.getActiveGeneration()).toBeUndefined()
+    expect(adapter.requests).toHaveLength(requestsBeforeRetention)
     await ctx.fiber.dispose()
   }, 20_000)
 
@@ -1552,7 +1682,10 @@ async function writeAutomaticCanaryCasePack(casePackDir: string): Promise<string
   return hashTree(casePackDir)
 }
 
-async function writePriorRetentionCasePack(casePackDir: string): Promise<void> {
+async function writePriorRetentionCasePack(
+  casePackDir: string,
+  rejectCandidateAppend = false,
+): Promise<void> {
   const knownBad = join(casePackDir, 'calibration', 'known-bad')
   const knownCorrection = join(casePackDir, 'calibration', 'known-correction')
   await Promise.all([
@@ -1574,7 +1707,9 @@ async function writePriorRetentionCasePack(casePackDir: string): Promise<void> {
     "import { readFile } from 'node:fs/promises'",
     "import { join } from 'node:path'",
     "const source = await readFile(join(process.argv[2], 'SKILL.md'), 'utf8')",
-    "const passed = source.includes('Baseline body.')",
+    `const passed = source.includes('Baseline body.')${rejectCandidateAppend
+      ? " && !source.includes('Verify the exact browser flow before completion.')"
+      : ''}`,
     "process.stdout.write(JSON.stringify({ schemaVersion: 1, passed, checks: [{ name: 'baseline-body-retained', passed }] }))",
   ].join('\n'))
   await writeFile(join(casePackDir, 'manifest.json'), `${JSON.stringify({
@@ -1588,6 +1723,25 @@ async function writePriorRetentionCasePack(casePackDir: string): Promise<void> {
       knownCorrection: 'calibration/known-correction',
     },
   }, null, 2)}\n`)
+}
+
+async function waitForRetentionDecision(
+  root: string,
+  outcome: 'retained' | 'regressed' | 'incomplete',
+): Promise<Record<string, unknown>> {
+  const deadline = Date.now() + 5_000
+  while (Date.now() < deadline) {
+    for (const entry of await readdir(root)) {
+      try {
+        const report = JSON.parse(await readFile(join(root, entry, 'retention-report.json'), 'utf8'))
+        if (report.decision?.outcome === outcome) return report
+      } catch {
+        // A durable output directory is created before its terminal report.
+      }
+    }
+    await new Promise(resolve => setTimeout(resolve, 10))
+  }
+  throw new Error(`automatic Retention did not produce '${outcome}' evidence`)
 }
 
 async function commitSkill(repository: string, body: string, reference: string): Promise<GitRevision> {

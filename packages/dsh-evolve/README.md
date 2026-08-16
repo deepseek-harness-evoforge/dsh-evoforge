@@ -1,6 +1,6 @@
 # dsh-evolve
 
-`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains sixteen deliberately separate lanes:
+`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains seventeen deliberately separate lanes:
 
 - **P0A Shadow** compares an active Skill with an inactive Candidate without changing live DSH.
 - **P0B Local Continuity** records immutable Capability Generations, pins one Generation per Session, switches or rolls back only future Sessions, and resumes durable sealed work through an optional resident supervisor.
@@ -18,6 +18,7 @@
 - **P1.10 Qualified Shadow Handoff** explicitly hands one unchanged qualified Case Pack to the existing background Shadow path after a fresh paid-action confirmation.
 - **P1.11 Exact Retention Gate** replays one reviewable exact Candidate against one trusted prior Case Pack with zero proposer calls and no release effect.
 - **P1.12 Retention-gated Auto-Promotion** optionally requires exact retained evidence before the existing narrow clear-instruction policy may activate a future Session.
+- **P1.13 Automatic Retention Target** lets a deployment authorize one exact prior Case Pack per Skill for a single background Retention attempt before clear-win promotion.
 
 The offline evaluation command is:
 
@@ -241,6 +242,12 @@ Skill that a Generation may activate:
         - build-dsh-plugin
       retentionRoots:
         - /absolute/path/to/.dsh/evoforge/retention-runs
+      retentionTargets:
+        - id: plugin-delivery-prior-v1
+          skill: build-dsh-plugin
+          casePackDir: /absolute/path/to/prior-case-pack
+          casePackHash: <64-char-sha256>
+          runRoot: /absolute/path/to/.dsh/evoforge/retention-runs
 ```
 
 `feedbackDraftRoot` is optional. Setting it authorizes local copying of the
@@ -288,6 +295,21 @@ one P1.11 `retention-report.json`. The existing policy requires an exact
 malformed, symlinked, conflicting, oversized, or excess evidence remains human
 review. The same supervisor rescan notices a later report. It does not run a
 Trial, call a model, expose host paths remotely, or block explicit human release.
+
+`autoPromote.retentionTargets` is optional. Each allowlisted Skill may bind at
+most one stable id to an exact prior Case Pack hash and one run root already in
+`retentionRoots`. Declaring a Target is the deployment policy authorization for
+that evaluator: the supervisor runs at most one otherwise-eligible Candidate per
+scan through native Jobs and the existing P1.11 path. A retained report continues
+through P1.12; regressed, incomplete, or uncertain execution remains review. Once
+a potentially effectful Trial has created its content-addressed output, an
+uncertain crash is never retried automatically. Normal Session model composition
+and token cost remain unchanged; an assembled evaluator may still incur the
+separately reported model usage authorized by the Target.
+Obtain `casePackHash` from `casePack.hash` in a successful, unchanged
+`calibration-report.json`; do not guess or use a Git object id. Any later Pack
+change requires a new calibration and explicit Target version/hash update, and
+runtime mismatch fails before an evaluator Trial begins.
 
 When `autoPromote` is enabled, the same supervisor also scans compact failed
 Delivery Outcomes after promotion. Counterfactual work reuses native Jobs and

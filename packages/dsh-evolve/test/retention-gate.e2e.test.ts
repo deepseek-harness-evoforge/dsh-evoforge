@@ -152,6 +152,16 @@ describe.skipIf(process.platform !== 'darwin')('exact Candidate retention gate',
       expect(primary.status === 'complete' ? primary.summary : '').toContain('promote')
       expect(proposerCalls).toBe(1)
 
+      const wrongHashOutput = join(root, 'wrong-target-hash')
+      await expect(evaluateRetention({
+        casePackDir: priorCasePack,
+        expectedCasePackHash: '0'.repeat(64),
+        outputDir: wrongHashOutput,
+        sourceRunDir: sourceRun,
+      })).rejects.toThrow('retention Case Pack does not match its configured exact hash')
+      await expect(access(wrongHashOutput)).rejects.toMatchObject({ code: 'ENOENT' })
+      expect(proposerCalls).toBe(1)
+
       const retained = await evaluateRetention({
         casePackDir: priorCasePack,
         outputDir: retentionRun,
