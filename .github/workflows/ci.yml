@@ -74,3 +74,4 @@ jobs:
           test/sealed-trial-darwin.e2e.test.ts
           test/dsh-assembled-shadow.e2e.test.ts
           test/cache-safe-status-shadow.e2e.test.ts
+          test/dispose-owned-watcher-shadow.e2e.test.ts

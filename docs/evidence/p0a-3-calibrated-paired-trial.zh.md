@@ -45,7 +45,7 @@ pnpm check
 - 公开 final-test 参与框架开发，不能充当 P0A 退出所需的本地未见样本；
 - Candidate 文件只是被 evaluator 读取，没有执行任意模型生成代码；
 
-真实 Loader/Agent/Skill/Tool 的后续装配证据见 [P0A.4](p0a-4-dsh-assembled-shadow.zh.md)；它仍不执行任意 Candidate 代码，也不替代三个产品 fixture。
+真实 Loader/Agent/Skill/Tool 的后续装配证据见 [P0A.4](p0a-4-dsh-assembled-shadow.zh.md)，两个产品 fixture 证据见 [P0A.5](p0a-5-cache-safe-status.zh.md)与 [P0A.6](p0a-6-dispose-owned-watcher.zh.md)。它们仍不执行任意 Candidate 代码，也不替代最后一个产品 fixture。
 - 仍没有 Linux/Windows Adapter 或 workspace 磁盘配额；
 - `promote` 只是离线建议，不会激活、merge 或发布任何内容。
 

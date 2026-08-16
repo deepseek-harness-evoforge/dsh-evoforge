@@ -4,7 +4,7 @@
 
 面向 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的 out-of-tree 开源扩展套件。EvoForge 只增加可独立安装、可删除的新能力，不 fork DSH，也不以插件修补 DSH Core Defect。
 
-> **Pre-alpha：暂不可用于自动激活。** `dsh-evolve` 已在 macOS 上实现校准后的 Shadow、固定 revision 的真实 DSH Loader/Agent/Skill/Tool 装配路径和首个 cache-safe 产品 fixture；另外两个产品 fixture 与本地未见样本仍未通过，P0A 尚未退出。Generation、激活、回滚、常驻恢复及 UI 均未完成。详见[状态页](docs/status.zh.md)。
+> **Pre-alpha：暂不可用于自动激活。** `dsh-evolve` 已在 macOS 上实现校准后的 Shadow、固定 revision 的真实 DSH 装配路径，以及 cache-safe、资源生命周期两个产品 fixture；最后一个产品 fixture 与本地未见样本仍未通过，P0A 尚未退出。Generation、激活、回滚、常驻恢复及 UI 均未完成。详见[状态页](docs/status.zh.md)。
 
 ## 为什么做
 
@@ -56,7 +56,7 @@ pnpm --filter dsh-evolve pack --pack-destination "$PWD/.evoforge/pack"
 
 ## 尚未实现
 
-- `dispose-owned-watcher` 与 `profile-install-remove` 两个真实 DSH 产品 fixture；`cache-safe-status` 已完成 strict typecheck、load、status update、dispose、removal 与 composition 检查；
+- `profile-install-remove` 真实 DSH 产品 fixture；`cache-safe-status` 与 `dispose-owned-watcher` 已完成真实装配检查；
 - 本地未参与开发的 final-test、多个真实 case、Linux/Windows 隔离与 workspace 磁盘配额；
 - 自动或人工晋升、immutable Generation、Session pin 与精确回滚；
 - 单机常驻、崩溃恢复及幂等续跑；
