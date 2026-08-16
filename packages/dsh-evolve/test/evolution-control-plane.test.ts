@@ -359,6 +359,7 @@ describe('EvolutionControlPlane', () => {
     await expect(control.overview()).resolves.toMatchObject({
       evaluatorAuthoring: {
         available: true,
+        actionableCount: 1,
         warningCount: 0,
         targets: [{ id: 'plugin-delivery', skillName: 'build-dsh-plugin' }],
         drafts: [{ id: draftId, status: 'draft-ready' }],
@@ -383,5 +384,40 @@ describe('EvolutionControlPlane', () => {
     )
     expect(evaluatorDrafts.reject).toHaveBeenCalledWith(draftId, 'wrong observable')
     expect(evaluatorDrafts.startShadow).toHaveBeenCalledWith(draftId)
+  })
+
+  it('counts only evaluator states that require human attention', async () => {
+    const statuses = [
+      'scheduled',
+      'authoring-pending',
+      'uncertain',
+      'draft-ready',
+      'qualification-running',
+      'qualified',
+      'incomplete',
+      'rejected',
+    ] as const
+    const evaluatorDrafts = {
+      available: () => true,
+      targets: () => [],
+      scan: vi.fn(async () => ({
+        warningCount: 0,
+        drafts: statuses.map((status, index) => ({
+          id: String(index).repeat(64),
+          launchId: '9'.repeat(64),
+          targetId: 'plugin-delivery',
+          skillName: 'build-dsh-plugin',
+          status,
+          createdAt: '2026-08-17T00:00:00.000Z',
+          updatedAt: '2026-08-17T00:00:01.000Z',
+          cost: { modelCalls: 1 as const, inputTokens: 30, outputTokens: 20 },
+        })),
+      })),
+    }
+    const control = new EvolutionControlPlane({ store: store(), evaluatorDrafts: evaluatorDrafts as never })
+
+    await expect(control.overview()).resolves.toMatchObject({
+      evaluatorAuthoring: { actionableCount: 4 },
+    })
   })
 })

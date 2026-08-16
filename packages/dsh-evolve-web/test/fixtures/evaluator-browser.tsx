@@ -99,6 +99,7 @@ const remote: EvolutionRemoteClient = {
     },
     evaluatorAuthoring: {
       available: true,
+      actionableCount: 1,
       warningCount: 0,
       signals: [{ id: signalId, sourceUpdatedAt: 1_786_896_000_000 }],
       targets: [{ id: 'plugin-delivery', skillName: 'build-dsh-plugin' }],
@@ -255,6 +256,7 @@ const labels: Record<string, string> = {
   'status.recovery': 'Recovery',
   'status.unavailable': 'Unavailable',
   'status.reviews': 'Reviews',
+  'status.actions': 'Actionable',
   'status.auto': 'Automatic',
   'status.off': 'Off',
   'status.budgetUnknown': 'Budget state unknown; automatic action is blocked',

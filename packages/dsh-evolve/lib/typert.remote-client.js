@@ -199,6 +199,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
 })]).readonly().optional(),
   'evaluatorAuthoring': z.union([z.undefined(), z.object({
   'available': z.boolean().readonly(),
+  'actionableCount': z.number().readonly(),
   'warningCount': z.number().readonly(),
   'signals': z.array(z.object({
   'id': z.string().readonly(),

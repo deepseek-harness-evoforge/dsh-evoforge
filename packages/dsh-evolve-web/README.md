@@ -4,6 +4,8 @@
 
 The panel reads the authoritative host state only when opened or explicitly refreshed. It shows the active Generation, resident-recovery state, automatic-promotion policy, separately labelled Feedback Shadow and Evaluator Draft UTC-day budgets, current explicit-feedback signal ids, statically configured Shadow/Evaluator targets, private Evaluator Drafts, recent Shadow runs, pending reviews, bounded diffs, Trial counts, token evidence, and conservative protected-effect indicators. A Candidate detail keeps its improvement claim beside the exact changed files, decision reasons, limitations, cases, cost, impact indicators, and verified diff. Starting Feedback Shadow or authoring an Evaluator requires a confirmation that discloses the possible model charge and private correction transfer. Inspecting a Draft exposes only its bounded generated files. The reviewer may qualify it alone, or use one combined confirmation that executes sealed qualification and starts a paid Shadow only on success. The original fresh Qualified Shadow confirmation remains available. Approval publishes an inactive Generation and closes the stale review form; promotion is always a separate action. Author, qualify, combined qualify-and-Shadow, Shadow launch, reject, pause, resume, promote, and rollback preserve the same owners used by the host Commands surface.
 
+The sidebar badge and top summary combine host-counted actionable Candidate reviews and Evaluator Drafts. This improves discoverability without adding polling or Session-visible state.
+
 Approved inactive Generations are projected from durable review evidence rather
 than browser memory, so a refresh or process restart between approval and
 promotion does not force the user back to the command line.

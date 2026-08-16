@@ -37,6 +37,7 @@ human reviewed exact Draft + note + paid disclosure
 - Draft/Qualified Pack hash 漂移、缺少 static `shadowRunRoot`、Jobs 不可用或 launcher 不确定均 fail closed；
 - 原有分步 qualification 和 Qualified Shadow 保留，便于需要先观察 calibration 结果的用户；
 - Commands、Remote 和 Web 只传 exact draft id 与 bounded note，不返回私有路径、Prompt、secret 或 feedback 正文；
+- host 将需要人工处理的 Evaluator Draft 归入 bounded `actionableCount`；Web 徽标与顶部合并 Candidate review 数，不轮询、不把状态写进 Session；
 - 普通 Session 不新增 Prompt、Tool、Skill、event 或动态状态，token 增量为 `0`。
 
 ## 非目标

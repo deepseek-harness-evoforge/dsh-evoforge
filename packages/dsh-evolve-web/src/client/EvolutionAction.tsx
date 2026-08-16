@@ -137,7 +137,7 @@ export function EvolutionAction({ remote, t, wide = true }: EvolutionActionProps
     triggerRef.current?.focus()
   }
 
-  const pending = overview?.reviews.actionableCount ?? 0
+  const pending = actionableCount(overview)
   return (
     <>
       <button
@@ -246,7 +246,7 @@ function Overview({ summary, t }: { summary: EvolutionOverview; t: (key: string)
     [t('status.recovery'), !summary.recovery.available
       ? t('status.unavailable')
       : t(summary.recovery.paused === true ? 'status.paused' : 'status.running')],
-    [t('status.reviews'), String(summary.reviews.actionableCount)],
+    [t('status.actions'), String(actionableCount(summary))],
     [t('status.auto'), t(summary.automaticPromotion.enabled ? 'status.on' : 'status.off')],
   ]
   return <div className="dsh-evolve-summary">{stats.map(([label, value]) => (
@@ -255,6 +255,12 @@ function Overview({ summary, t }: { summary: EvolutionOverview; t: (key: string)
       <span className="dsh-evolve-stat-value" title={value}>{value}</span>
     </div>
   ))}</div>
+}
+
+function actionableCount(overview: EvolutionOverview | undefined): number {
+  if (overview === undefined) return 0
+  return overview.reviews.actionableCount
+    + (overview.evaluatorAuthoring?.actionableCount ?? 0)
 }
 
 function ReviewQueue({ overview, busy, inspect, promote, startShadow, authorEvaluator, inspectEvaluator, t }: {

@@ -11,6 +11,7 @@ import type { ResidentEvolutionControl } from './resident-evolution-control.ts'
 import type { ReviewCandidate, ReviewInbox } from './review-inbox.ts'
 import type {
   EvolutionActionReceipt,
+  EvolutionEvaluatorDraftView,
   EvolutionGenerationView,
   EvolutionEvaluatorDraftDetail,
   EvolutionOverview,
@@ -121,6 +122,8 @@ export class EvolutionControlPlane {
         : {
             evaluatorAuthoring: {
               available: this.modules.evaluatorDrafts.available(),
+              actionableCount: (evaluatorScan?.drafts ?? [])
+                .filter(draft => isActionableEvaluatorStatus(draft.status)).length,
               warningCount: evaluatorScan?.warningCount ?? 0,
               signals: (this.modules.feedback?.list() ?? [])
                 .slice(-MAX_FEEDBACK_ROWS)
@@ -306,6 +309,10 @@ export class EvolutionControlPlane {
     }
     return this.modules.evaluatorDrafts
   }
+}
+
+function isActionableEvaluatorStatus(status: EvolutionEvaluatorDraftView['status']): boolean {
+  return ['uncertain', 'draft-ready', 'qualification-running', 'incomplete'].includes(status)
 }
 
 function projectReviews(

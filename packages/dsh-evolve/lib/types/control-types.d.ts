@@ -171,6 +171,7 @@ export interface EvolutionOverview {
     };
     readonly evaluatorAuthoring?: {
         readonly available: boolean;
+        readonly actionableCount: number;
         readonly warningCount: number;
         readonly signals: readonly EvolutionFeedbackSignalView[];
         readonly targets: readonly EvolutionShadowTargetView[];

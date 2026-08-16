@@ -59,6 +59,7 @@ function remote(
     },
     evaluatorAuthoring: {
       available: true,
+      actionableCount: 1,
       warningCount: 0,
       signals: [{ id: signalId, sourceUpdatedAt: 1_786_896_000_000, generationId }],
       targets: [{ id: 'plugin-delivery', skillName: 'build-dsh-plugin' }],
@@ -206,6 +207,7 @@ function remote(
 const t = (key: string) => ({
   'trigger.label': 'Evolution',
   'panel.title': 'Evolution control',
+  'status.actions': 'Actionable',
   'action.refresh': 'Refresh',
   'action.pause': 'Pause',
   'action.resume': 'Resume',
@@ -240,6 +242,8 @@ describe('EvolutionAction', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
     await screen.findByRole('dialog', { name: 'Evolution control' })
     expect(api.overview).toHaveBeenCalledOnce()
+    expect(within(screen.getByRole('button', { name: 'Evolution' })).getByText('2')).toBeTruthy()
+    expect(screen.getByText('Actionable')).toBeTruthy()
     expect(screen.getByText('Feedback Shadow · plugin-delivery · build-dsh-plugin')).toBeTruthy()
     expect(screen.getByText('1/2 attempts used · 1 remaining · 2026-08-17 UTC')).toBeTruthy()
     expect(screen.getByText('Evaluator Draft · novel-failure · build-dsh-plugin')).toBeTruthy()
