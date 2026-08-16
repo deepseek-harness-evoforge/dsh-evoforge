@@ -1,6 +1,6 @@
 # dsh-evolve
 
-`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains eight deliberately separate lanes:
+`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains nine deliberately separate lanes:
 
 - **P0A Shadow** compares an active Skill with an inactive Candidate without changing live DSH.
 - **P0B Local Continuity** records immutable Capability Generations, pins one Generation per Session, switches or rolls back only future Sessions, and resumes durable sealed work through an optional resident supervisor.
@@ -10,11 +10,12 @@
 - **P1.2 Counterfactual Canary** asynchronously replays the original sealed Case Pack against the exact Git parent and Candidate before any automatic rollback.
 - **P1.3 Explicit Feedback Intake** projects current negative DSH message feedback with a note into a retractable, reference-only host signal without copying the note.
 - **P1.4 Private Feedback Case Draft** explicitly copies one exact, single-Skill correction into an unscored private draft without creating a Candidate.
+- **P1.5 Feedback-guided Shadow** uses one exact private draft only as proposer search evidence while an existing calibrated Case Pack remains the evaluator.
 
 The offline evaluation command is:
 
 ```bash
-dsh-evolve shadow <skill-dir> --case-pack <case-pack-dir> --output <run-dir>
+dsh-evolve shadow <skill-dir> --case-pack <case-pack-dir> --output <run-dir> [--feedback-draft <private-draft.json>]
 ```
 
 When the DSH composition includes native Commands, the host-only human release
@@ -121,7 +122,13 @@ version, durable Session lifecycle, pinned Generation, exact Git artifact, and
 requires exactly one explicit target-Skill invocation. The content-addressed
 `0600` draft excludes the assistant response, Tool output, Skill body, cwd, and
 full transcript. It has no replay result or evaluator score and does not create
-a Candidate.
+a Candidate. An explicit `shadow --feedback-draft` may use that exact draft to
+guide the proposer only when its target name and whole-Skill content hash match
+the active Skill. The existing calibrated Case Pack remains the independent
+evaluator. Draft input fields are not directly copied into the report, proposal
+evidence, or run journal; only its content id and private resume path are added.
+The proposer claim and Candidate are durable for crash recovery, so model output
+that echoes or paraphrases the draft can still be retained.
 
 This is still pre-alpha. There is no full diff viewer, real-task false-promotion/
 false-rollback dataset, release, or production support. Explicit and resident
@@ -225,7 +232,20 @@ dsh-evolve shadow ./my-skill \
   --output ./runs/first-shadow
 ```
 
-The API key is used only as the request credential. It is not included in evidence, reports, fingerprints, stdout, or stderr.
+To guide proposal search with one explicitly selected correction, add:
+
+```bash
+  --feedback-draft /absolute/private/path/<draft-id>.json
+```
+
+This explicit invocation authorizes both the potentially paid proposer request
+and disclosure of that draft's direct user text and correction to the configured
+provider. The extra proposer input is bounded by the draft's 8 KiB user-text and
+4 KiB correction limits and the Case Pack's shared `inputTokenLimit` (roughly
+3,072 input tokens at the draft byte limit). Normal DSH Sessions still add zero
+Evolve tokens or model-visible surfaces. The API key is used only as the request
+credential and is not included in evidence, reports, fingerprints, stdout, or
+stderr.
 
 Exit codes:
 

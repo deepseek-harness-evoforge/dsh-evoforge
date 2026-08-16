@@ -89,8 +89,12 @@ A retractable, reference-only projection of one current DSH message-feedback ite
 _Avoid_: `/learn` command, feedback memory, transcript copy, automatic Skill edit
 
 **Feedback Case Draft**:
-A private, content-addressed, unscored sample created only after configuration-level copy authorization and an explicit host command. It binds one still-current feedback version to one direct user text, one correction, one exact Generation Skill artifact, and one Session-prefix hash; it excludes assistant responses, Tool output, Skill bodies, cwd, and full Transcript. It is not replayable evidence until a concrete evaluator compiles and scores it.
+A private, content-addressed, unscored sample created only after configuration-level copy authorization and an explicit host command. It binds one still-current feedback version to one direct user text, one correction, one exact Generation Skill artifact, the whole materialized Skill content hash, and one Session-prefix hash; it excludes assistant responses, Tool output, Skill bodies, cwd, and full Transcript. It is not evaluator truth by itself.
 _Avoid_: Automatic transcript harvesting, generic Case platform, Candidate, proof of improvement
+
+**Feedback-guided Shadow**:
+An explicit offline Shadow run that supplies one exact private Feedback Case Draft only to the proposer as untrusted search evidence, while an existing calibrated Case Pack remains the independent evaluator. The draft id and private resume path are durable; its input fields are not directly copied into Shadow evidence, although proposer output that echoes them remains durable Candidate evidence. The CLI invocation authorizes that one potentially paid provider request and disclosure.
+_Avoid_: Generated evaluator, self-scoring Candidate, background paid proposal, feedback text in report/journal
 
 **Counterfactual Canary**:
 An asynchronous replay of the original sealed Case Pack against the exact active Candidate and its immutable Git parent after a matching failed Delivery Outcome. It may roll back future-session selection only when calibration passes, the parent passes, the Candidate fails, and the active pointer is unchanged.

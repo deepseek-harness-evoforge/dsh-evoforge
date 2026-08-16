@@ -135,6 +135,24 @@ feedbackDraftRoot: /absolute/path/to/.dsh/evoforge/private-feedback-drafts
 向 group/world 开放；草稿文件不含 assistant response、Tool output、Skill body、cwd 或完整
 Transcript。草稿状态固定为 `draft`，没有 replay score，不会创建 Candidate、调用模型或触发发布。
 
+如果已有一个可信、经过 known-bad/known-correction 校准且覆盖该失败类型的 Case Pack，可以显式
+让这条纠正只引导一次 proposer 搜索：
+
+```bash
+dsh-evolve shadow /absolute/path/to/exact-skill \
+  --case-pack /absolute/path/to/trusted-case-pack \
+  --feedback-draft /absolute/path/to/private/<draft-id>.json \
+  --output /absolute/path/to/runs/run-001
+```
+
+该命令会验证草稿权限、内容 id、目标 Skill 名和 whole-Skill content hash。直接用户文本和
+correction 只作为输入进入本次 proposer 请求；calibration 和 hidden evaluator 不会看到草稿，报告、
+proposal evidence 和 run journal 不直接复制输入字段。但 proposer 若在 claim/Candidate 中回显或
+转述，输出会为 crash-resume 持久化。CLI 调用表示用户授权这一次可能付费的请求，并允许向当前
+配置的 provider 发送草稿原文。最大额外正文为 12 KiB，粗略最坏约 3,072 input tokens，并与 Skill
+和 search evidence 共用 manifest 的 `inputTokenLimit`。没有显式 Shadow 时，正常 DSH Session 的
+额外 token 仍为 0。
+
 ### P0B runtime 开发装配
 
 `dsh-evolve` 目前是普通 Cordis runtime plugin，不是自动修改 profile 的 Bundle。
@@ -212,13 +230,13 @@ sealed `fail → pass`、全部 checks、Trial≥4 和单一 `SKILL.md` ≤2 KiB
 命令：
 
 ```text
-dsh-evolve shadow <skill-dir> --case-pack <case-pack-dir> --output <run-dir>
+dsh-evolve shadow <skill-dir> --case-pack <case-pack-dir> --output <run-dir> [--feedback-draft <private-draft.json>]
 ```
 
 若同一个 output run 被进程中断，保持 Skill、Case Pack、模型 route 不变并显式恢复：
 
 ```bash
-dsh-evolve shadow <skill-dir> --case-pack <case-pack-dir> --output <run-dir> --resume
+dsh-evolve shadow <skill-dir> --case-pack <case-pack-dir> --output <run-dir> [--feedback-draft <private-draft.json>] --resume
 ```
 
 若中断发生在付费 proposal 已发出但 response 尚未 durable 的窗口，恢复返回
@@ -347,7 +365,9 @@ node packages/dsh-evolve/dist/cli.mjs shadow \
 自动化测试使用本地固定 HTTP proposer 来验证框架行为；真实 provider 是否能提出
 有效修正是另一项实验结论，不能由该固定响应替代。
 
-这可能产生付费模型调用。不要把 API key 写进 manifest、命令历史、Issue、测试 fixture 或 Git；程序不会将环境变量中的 key 写入报告。
+这可能产生付费模型调用。带 `--feedback-draft` 时还会把该草稿的直接用户文本和 correction 发给
+同一个 provider，因此只应选择允许外发的草稿。不要把 API key 写进 manifest、命令历史、Issue、
+测试 fixture 或 Git；程序不会将环境变量中的 key 写入报告。
 
 ## 4. 退出语义
 

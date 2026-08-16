@@ -14,6 +14,8 @@
 
 - P0A.1 不修改 active Skill，也不执行模型生成代码；
 - API key 只用于显式 Shadow 请求的 Authorization header，不进入报告或证据；
+- Feedback Case Draft 只应存放在私有目录；`--feedback-draft` 会把其中的直接用户文本和 correction
+  发给配置的 provider。输入字段不直接写入运行证据，但模型回显可能随 Candidate/claim 持久化；
 - 正常 DSH Session 不新增 Tool、Provider、system prompt 或 Skill catalog 项；
 - 无法证明 Trial 的 read/write/process/network 隔离时，命令必须返回 `incomplete`；
 - merge、release、部署、秘密、付费与不可逆外部动作属于 Protected Action。

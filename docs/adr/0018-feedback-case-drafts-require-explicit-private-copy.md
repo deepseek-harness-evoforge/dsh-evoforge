@@ -32,7 +32,7 @@ Builder 只有一个动作 `create(signalId, skillName)`，不发布通用 Case/
 - 用户文本最多 8 KiB，纠正最多 4 KiB。
 
 草稿只包含直接用户文本、纠正、Session/message/feedback/Generation 引用、exact Skill Git
-artifact 和目标 assistant 之前的 durable prefix hash。它不包含 assistant response、Tool output、
+artifact、whole-Skill content hash 和目标 assistant 之前的 durable prefix hash。它不包含 assistant response、Tool output、
 Skill body、cwd 或完整 Transcript。
 
 草稿 id 由规范化内容计算。目录必须是权限不宽于 `0700` 的真实目录，文件必须是权限不宽于
@@ -48,6 +48,6 @@ Case Draft 不调用模型、不生成 Candidate、不执行 Trial、不晋升�
 - 原文复制是显式、逐条、可审计的本地动作，不会因后台观察静默发生；
 - exact Generation、单 Skill invocation 和当前 feedback version 把误归因范围压到最窄；
 - 私有草稿可删除，不成为第二套 Session/Memory 权威；
-- 下一步仍需为具体失败类型提供 deterministic reproduction/evaluator，才能把 Draft 编译成 sealed
-  Case 并进入现有 Trial。多个真实编译器出现前不抽象公共 Adapter。
-
+- 只有已有可信 Case Pack 覆盖该失败类型时，草稿才能作为 proposer 搜索证据进入现有 Shadow；
+  Case Pack 仍是独立裁判。全新失败仍需具体 deterministic reproduction/evaluator。多个真实编译器
+  出现前不抽象公共 Adapter。

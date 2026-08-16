@@ -24,8 +24,8 @@
 - 固定 revision DSH 的真实 Agent/Skill/ToolSkill/Session Persistence/Message Feedback/Commands
   组合生成一个直接用户输入、一次显式 Generation Skill invocation 和 assistant message；
 - 官方 `MessageFeedbackService.put` 写入带备注负反馈，随后 host command 创建一个内容寻址 JSON；
-- JSON 绑定同一 feedback version、Session、message、turn、assistant seq、Generation 和 exact Git
-  commit/tree，只复制直接用户文本与 correction；
+- JSON 绑定同一 feedback version、Session、message、turn、assistant seq、Generation、exact Git
+  commit/tree 和 whole-Skill content hash，只复制直接用户文本与 correction；
 - JSON 不含 fixture Skill body、Tool output 或 assistant response；文件权限不向 group/world 开放；
 - 相同命令重试返回 `already exists` 且目录不新增文件；
 - feedback 改成正向并撤回 P1.3 Signal 后，旧 signal id 立即报
@@ -58,8 +58,8 @@ DSH command-level 验收，并继续复跑 sealed Shadow/canary、Jobs、Generat
 - `feedbackDraftRoot` 是允许复制最小原文的配置授权，具体 command 是逐条授权。没有二者就不复制
   note/user text。根目录要求 `0700` 等价权限，文件要求 `0600` 等价权限。
 - 草稿不是原生反馈或 Session 的第二权威；创建前后都重新核对原生 feedback version。
-- 草稿没有 reproduction fixture、expected checks、replay result 或 evaluator score，因此还不能进入
-  paired Trial。P1.5 应先为一个高频软件交付失败实现单一私有编译器，证明第二个真实 Adapter
-  需求前不建设通用 Case SDK。
+- 草稿没有 reproduction fixture、expected checks、replay result 或 evaluator score，因此不能自己
+  充当 Trial 真相。P1.5 已允许它在 exact Skill 匹配时只引导 proposer，并继续使用既有可信 Case
+  Pack 独立评测；全新失败类型仍需要一个具体 evaluator，不建设通用 Case SDK。
 
 设计取舍见 [ADR-0018](../adr/0018-feedback-case-drafts-require-explicit-private-copy.md)。

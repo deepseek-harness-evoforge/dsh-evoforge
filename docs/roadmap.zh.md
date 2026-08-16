@@ -1,6 +1,6 @@
 # EvoForge 开发路线图
 
-> 状态：P0A–P1.4 已实现；P2A.1 验证、P2B.1 Goal 完成、P2C.1 Draft PR 与 P2D.1 Outcome 第二消费者已实现
+> 状态：P0A–P1.5 已实现；P2A.1 验证、P2B.1 Goal 完成、P2C.1 Draft PR 与 P2D.1 Outcome 第二消费者已实现
 
 ## 当前状态
 
@@ -12,7 +12,7 @@
 | P0A Shadow evaluator | 本地退出门通过 | 安全门、macOS Sealed Trial、真实 DSH bridge、3/3 公开产品 fixture 与[本地未见首测](evidence/p0a-8-private-heldout.zh.md)均转绿；真实 provider 与第三方独立复跑仍属更高等级证据 |
 | P0B Local Continuity | implemented | P0B.1 release kernel、P0B.2a durable resume 与 P0B.2b resident supervisor 已通过本地/pinned DSH 测试；生产多日 soak 仍属发布前证据 |
 | P0C Human Control | 命令闭环 implemented；可用性门待验证 | P0C.1 release、P0C.2 review → inactive Generation、P0C.3 durable pause/resume 已通过真实 Commands/Agent 测试 |
-| P1 Bounded Autonomy | P1.1–P1.4 implemented；P2D.1 信号已接通 | 默认关闭的 allowlist + append-only policy、交付 outcome、显式反馈 intake、私有 Case Draft、exact parent/Candidate 反事实 canary、pointer-safe 自动回滚均已通过测试；Draft 到 scored Case 与真实任务长期率待验证 |
+| P1 Bounded Autonomy | P1.1–P1.5 implemented；P2D.1 信号已接通 | 默认关闭的 allowlist + append-only policy、交付 outcome、显式反馈 intake、私有 Case Draft、既有 Case Pack 下的反馈引导 Shadow、exact parent/Candidate 反事实 canary、pointer-safe 自动回滚均已通过测试；全新失败 evaluator 与真实任务长期率待验证 |
 | P2 Software Delivery | P2A.1 + P2B.1 + P2C.1 + P2D.1 consumer implemented | linked worktree/commit/check、原生 Bash policy → exact push/Draft PR → `update_goal`，并由 Evolve 异步记录最小三态信号；pinned DSH Agent/ToolRuntime/Storage 与 package 已测 |
 
 ## P0A — 先证明会判断
@@ -124,9 +124,17 @@ pinned Generation、exact Git Skill 与单一显式 invocation，并保存不含
 [P1.4](evidence/p1-4-private-feedback-case-draft.zh.md)与
 [ADR-0018](adr/0018-feedback-case-drafts-require-explicit-private-copy.md)。
 
-P1 剩余：为一个高频软件交付失败把 Draft 编译成带 deterministic reproduction/evaluator 的最小
-可重放 Case；真实 provider/开发任务数据下的 false promotion、false rollback、review rate、
-返工减少和多日常驻证据。P1.1–P1.4/P2D.1 不作
+P1.5 已完成最窄可用反馈闭环：用户显式执行
+`shadow ... --feedback-draft <private-draft.json>` 后，草稿只作为 proposer 的不可信搜索证据；运行
+前验证私有文件、内容 id、目标 Skill 和 whole-Skill content hash，运行中仍由既有校准 Case Pack
+独立完成 baseline/Candidate paired Trial。用户文本和 correction 不作为输入字段直接复制，新增的
+durable 字段只有草稿 id 与私有恢复路径；proposer 回显仍可能随 Candidate/claim 持久化。命令显式授权本次可能付费的请求及反馈外发；正常 Session 与后台
+恢复不增加 proposer 调用。证据见 [P1.5](evidence/p1-5-feedback-guided-shadow.zh.md)与
+[ADR-0019](adr/0019-feedback-guides-search-not-evaluation.md)。
+
+P1 剩余：先测量既有可信 Case Pack 下真实 provider/用户纠正的改善率；再为一个现有 Case Pack
+无法覆盖的高频软件交付失败验证最窄 deterministic evaluator authoring 工作流；真实开发任务数据下的 false promotion、false rollback、review rate、
+返工减少和多日常驻证据。P1.1–P1.5/P2D.1 不作
 完整退出声明。
 
 退出条件：真实 Shadow/Canary 数据证明 false promotion、false rollback、review rate 和每次减少返工的成本在预声明预算内。
