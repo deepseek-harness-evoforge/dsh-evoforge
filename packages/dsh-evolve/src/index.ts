@@ -20,6 +20,9 @@ import {
   openDeliveryOutcomeStore,
   type DeliveryOutcomeMonitor,
 } from './delivery-outcome-monitor.ts'
+import { CounterfactualCanary } from './counterfactual-canary.ts'
+import { createCanaryJobRunner } from './counterfactual-canary-job.ts'
+import { createSealedCanaryRunner } from './sealed-canary-runner.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -108,15 +111,40 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     // only when the host composes the native process-local Jobs service.
     ctx.inject(['jobs'], (jobCtx) => {
       jobCtx.jobs.attachController('dsh-evolve-shadow-supervisor')
+      const canary = automatic === undefined || review === undefined
+        ? undefined
+        : new CounterfactualCanary({
+            inbox: review.inbox,
+            outcomes: deliveryOutcomes,
+            runner: createCanaryJobRunner(
+              jobCtx.jobs,
+              createSealedCanaryRunner(source, store),
+            ),
+            store,
+          })
       const supervisor = new ShadowSupervisor({
         runRoots: config.supervisor!.runRoots,
         scanIntervalMs: config.supervisor!.scanIntervalMs ?? 30_000,
         paused: resident!.isPaused(),
         ...automatic === undefined ? {} : {
-          afterScan: async () => {
+          afterScan: async (signal) => {
             const result = await automatic.scanOnce()
             for (const warning of result.warnings) {
               jobCtx.logger.warn(`dsh-evolve automatic promotion skipped evidence: ${warning}`)
+            }
+            const canaryResult = await canary!.scanOnce(signal)
+            for (const warning of canaryResult.warnings) {
+              jobCtx.logger.warn(`dsh-evolve counterfactual canary skipped evidence: ${warning}`)
+            }
+            for (const reviewed of canaryResult.reviewed) {
+              jobCtx.logger.warn(
+                `dsh-evolve counterfactual canary requires review for Generation ${reviewed.generationId}: ${reviewed.reason}`,
+              )
+            }
+            for (const rollback of canaryResult.rolledBack) {
+              jobCtx.logger.warn(
+                `dsh-evolve counterfactual canary rolled back Generation ${rollback.previousId}`,
+              )
             }
           },
         },

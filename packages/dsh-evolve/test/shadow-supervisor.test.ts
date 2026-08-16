@@ -228,6 +228,31 @@ describe('Shadow supervisor', () => {
     expect(afterScan).toHaveBeenCalledTimes(2)
     expect(errors).toEqual(['automatic-promotion:Error: automatic policy unavailable'])
   })
+
+  it('aborts active post-scan evolution work when the resident supervisor stops', async () => {
+    const runRoot = await createRunRoot()
+    let entered!: () => void
+    const afterScanEntered = new Promise<void>(resolve => { entered = resolve })
+    const afterScan = vi.fn(async (signal: AbortSignal) => {
+      entered()
+      await new Promise<void>(resolve => signal.addEventListener('abort', () => resolve(), { once: true }))
+      throw signal.reason
+    })
+    const supervisor = new ShadowSupervisor({
+      runRoots: [runRoot],
+      scanIntervalMs: 10_000,
+      afterScan,
+    })
+
+    const active = supervisor.scanOnce()
+    await afterScanEntered
+    await supervisor.stop()
+
+    await expect(active).resolves.toBeUndefined()
+    expect(afterScan).toHaveBeenCalledOnce()
+    expect(afterScan.mock.calls[0]?.[0]).toBeInstanceOf(AbortSignal)
+    expect(afterScan.mock.calls[0]?.[0].aborted).toBe(true)
+  })
 })
 
 async function createRunRoot(): Promise<string> {

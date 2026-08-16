@@ -67,6 +67,7 @@ export interface DeliveryOutcomeSummary {
 
 export interface DeliveryOutcomeStore {
   record(input: DeliveryOutcomeInput): Promise<{ created: boolean; outcome: DeliveryOutcome }>
+  list(): DeliveryOutcome[]
   summarize(selectedGenerationId?: string): DeliveryOutcomeSummary
   close(): Promise<void>
 }
@@ -126,6 +127,12 @@ class DomainDeliveryOutcomeStore implements DeliveryOutcomeStore {
       if (outcome.generationId === selectedGenerationId) increment(selected, outcome.status)
     }
     return { all, selected }
+  }
+
+  list(): DeliveryOutcome[] {
+    return [...this.domain.table('outcomes').entries()].map(([, outcome]) => outcome)
+      .sort((left, right) => left.observedAt - right.observedAt || left.id.localeCompare(right.id))
+      .map(immutableCopy)
   }
 
   close(): Promise<void> {

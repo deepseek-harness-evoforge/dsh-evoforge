@@ -1,6 +1,6 @@
 # EvoForge 可证明自进化设计
 
-> 状态：P0A/P0B/P0C implemented；P1.1 最窄 opt-in 自动晋升 implemented；canary/自动回滚与真实用户证据待完成
+> 状态：P0A/P0B/P0C implemented；P1.1 最窄 opt-in 自动晋升、P2D.1 Outcome 与 P1.2 反事实 canary/自动回滚 implemented；真实任务长期证据待完成
 > 更新日期：2026-08-16
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 
@@ -347,20 +347,24 @@ Rollback 使用相同机制，把 active pointer 指回已验证的 parent；roo
 
 ## 14. Post-promotion monitoring
 
-晋升不是终点。Monitor 只比较与原 claim 相关的后续信号：
+晋升不是终点。P1.2 当前只接一个客观、已实现的触发器：归属于自动晋升 Generation 的失败
+Delivery Outcome。它不是回滚票，而是要求重放原证据：
 
-- 同一个 deterministic failure 再次出现：先在隔离环境补跑 parent/candidate；只有 parent 通过而 candidate 失败时自动回滚；
-- Protected Action、权限或缓存 hard gate 回归：立即自动回滚；
-- 主指标明显下降但无法建立反事实：进入 review，不自动来回切换；
-- 没有足够匹配任务：保持当前版本，不把“没有投诉”误判为成功。
+- 读取原 Shadow run 的 Case Pack、hash 与 evaluator epoch；
+- 从不可变 Git artifact 物化 Candidate 及其精确 parent；
+- 用相同 known-bad/known-correction 和 evaluator 跑四次 Sealed Trial；
+- 校准通过、parent 通过、Candidate 失败且 active 仍是该 Candidate：自动回滚 future Session；
+- Candidate 仍通过：保持；parent 也失败、校准/证据漂移或 active 已变化：进入 review。
 
-每个 Generation 只允许一次自动回滚，避免两个版本之间振荡。再次晋升必须产生新 Candidate 和新 Trial。
+一次回滚后 active 不再是该 Candidate，因此其后续 Outcome 不会再次移动指针，避免两个版本之间
+振荡。再次晋升必须产生新 Candidate 和新 Trial。原 Session 永不等待 canary，已有 Session pin
+不漂移。详见 [ADR-0016](../adr/0016-rollback-requires-counterfactual-canary.md)。
 
 ## 15. 单机常驻与崩溃恢复
 
 进程拉起交给 systemd、launchd 或用户已有的 DSH 启动方式，插件不实现第二个 daemon manager。
 
-Generation 以 Evolution Storage Domain 为 durable authority；Shadow run 以 owned output directory 的 run-local journal 为 authority；`ctx.jobs` 只负责当前进程观察和取消。插件不创建第二个服务数据库。`--resume` 或配置的 resident supervisor 按下表处理：
+Generation 以 Evolution Storage Domain 为 durable authority；Shadow/canary run 以 owned output directory 的 run-local journal 为 authority；`ctx.jobs` 只负责当前进程观察和取消。插件不创建第二个调度数据库。`--resume` 或配置的 resident supervisor 按下表处理：
 
 | 状态 | 恢复动作 |
 |---|---|
@@ -369,29 +373,31 @@ Generation 以 Evolution Storage Domain 为 durable authority；Shadow run 以 o
 | `review` | 不做任何模型工作，继续等待异步人工选择 |
 | Generation 已写、active 未切换 | 保持 inactive，可重新执行 promotion |
 | active 已切换、Candidate 未标 promoted | 依据指针补齐 Candidate 状态 |
+| canary `trial-running` | 复跑同一无提案模型的 exact parent/Candidate Trial |
+| canary `rollback-pending` | 以 active pointer 为事实补齐结果；只在仍指向 Candidate 时移动一次 |
 | 临时 worktree 残留 | 验证 owner marker 后回收；不碰未知目录 |
 
 不需要 Lease、分布式选主、通用 DAG 或第二套事件溯源。单进程内部用 owner lock、一条状态写入链和稳定 idempotency key 防止并发重复；兼容 Provider 不保证服务端 exactly-once，因此请求结果不确定时必须停止而非乐观重试。
 
 Resident supervisor 只扫描配置 root 的直接子目录，不跟随符号链接，并串行提交原生
-`evolution` Job。DSH 关闭时 Job 取消信号杀死完整 Sealed Trial 进程组，但不把该 run
-误写成终态；下次启动继续。具体权衡见 [ADR-0009](../adr/0009-journal-authority-native-jobs-observability.md)。
+`evolution` Job；完成 Shadow 扫描后在同一生命周期处理自动晋升和 canary，不另起 daemon。
+DSH 关闭时 Job 取消信号杀死完整 Sealed Trial 进程组，但不把该 run 误写成终态；下次启动继续。
+具体权衡见 [ADR-0009](../adr/0009-journal-authority-native-jobs-observability.md)。
 
-## 16. Evolution Store 的最小形状
+## 16. 持久状态的最小形状
 
-一个 Storage Domain 足够：
+权威 Generation 和可丢失的派生 Outcome 故意分域，长证据留在 owned run 目录：
 
 ```text
-global
-  activeGenerationId
-  mode: shadow | review | auto-instructions
-  paused
+Evolution Domain
+  global: activeGenerationId, recoveryPaused
+  tables: generations, sessionPins
 
-tables
-  signals       compact facts + source refs
-  candidates    claim + state + trial results
-  generations   immutable manifests
-  sessionPins   lifecycle identity → generation id
+Delivery Outcome Domain
+  tables: outcomes (bounded compact derived signals)
+
+owned Shadow run directory
+  run-state.json, report.json, review-state.json, canary/<outcome>/state.json
 ```
 
 不建立：
@@ -404,7 +410,8 @@ tables
 - 事件总线持久化镜像；
 - 全局万能评分。
 
-`review` inbox 是 `candidates.status === 'review'` 的查询结果，不需要第五张表。
+`review` inbox 直接投影已完成的 Shadow evidence 和旁置 disposition，不复制 Candidate 数据库。
+Canary journal 与原 evidence 共址；原 Case Pack 丢失或漂移时 fail closed。
 
 ## 17. KV Cache 约束
 
@@ -584,6 +591,8 @@ clear-instruction 自动晋升，证据见
 [P1.1](../evidence/p1-1-opt-in-clear-instruction-auto-promotion.zh.md)。P2D.1 已通过最终
 `tools/result` 接入真实 Software Delivery 三态 outcome，并关联 Session-pinned Generation；
 该信号异步、host-only、零模型表面，见
-[P2D.1](../evidence/p2d-1-delivery-outcome-signal.zh.md)。下一实现纵切是 active-vs-parent
-sealed canary：只有同一预声明 case 上当前版本失败且父版本通过，才具备自动 rollback 的
-可归因证据；单次真实交付失败只触发异步评估。P0C 仍需普通用户完成控制任务的可用性退出证据。
+[P2D.1](../evidence/p2d-1-delivery-outcome-signal.zh.md)。P1.2 已实现 exact Git
+active-vs-parent sealed canary、原生 Jobs 与 crash-safe rollback，见
+[P1.2](../evidence/p1-2-counterfactual-canary.zh.md)。下一步不扩建平台，优先用真实开发任务测量
+false promotion、false rollback、review rate、返工与成本。P0C 仍需普通用户完成控制任务的
+可用性退出证据。

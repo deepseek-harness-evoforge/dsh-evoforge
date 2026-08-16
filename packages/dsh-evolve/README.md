@@ -1,12 +1,13 @@
 # dsh-evolve
 
-`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains five deliberately separate lanes:
+`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains six deliberately separate lanes:
 
 - **P0A Shadow** compares an active Skill with an inactive Candidate without changing live DSH.
 - **P0B Local Continuity** records immutable Capability Generations, pins one Generation per Session, switches or rolls back only future Sessions, and resumes durable sealed work through an optional resident supervisor.
 - **P0C Human Control** reviews completed evidence and publishes approved Candidates as inactive Generations before a separate explicit promotion.
 - **P1.1 Narrow Autonomy** optionally auto-promotes only allowlisted, append-only instruction clear wins; every other Candidate remains human review.
 - **P2D.1 Delivery Signals** passively associates verified `complete_delivery` outcomes with the Session-pinned Generation and shows only bounded host-side aggregates.
+- **P1.2 Counterfactual Canary** asynchronously replays the original sealed Case Pack against the exact Git parent and Candidate before any automatic rollback.
 
 The offline evaluation command is:
 
@@ -92,10 +93,17 @@ P2D.1 observes the native final `tools/result` asynchronously. It retains at mos
 1,000 compact, idempotent outcomes and adds aggregate delivery counts to
 `/evolve status`; prompts, repository paths, PR bodies, check output, and model
 surface are excluded. A delivery failure is not attributed to the active Skill
-and never triggers rollback by itself.
+and never triggers rollback by itself. For allowlisted automatic Generations,
+P1.2 may submit the original Case Pack and exact immutable parent/Candidate trees
+as one native `evolution` Job. Only calibrated parent-pass/Candidate-fail evidence
+with an unchanged active pointer rolls back future Sessions. Candidate pass keeps
+the version; every ambiguous or drifting case remains review. Its run-local
+journal recovers a crash around the pointer write without repeating rollback.
+Each immutable Generation runs at most one such four-execution canary, regardless
+of how many later failures are observed.
 
-This is still pre-alpha. There is no full diff viewer, future-session canary,
-counterfactual automatic rollback, release, or production support. Explicit and resident
+This is still pre-alpha. There is no full diff viewer, real-task false-promotion/
+false-rollback dataset, release, or production support. Explicit and resident
 Shadow recovery now cover bounded proposer/Candidate/Trial crash boundaries, but
 short automated soak is not production multi-day evidence. This is not a claim
 that continuous self-improvement is complete.
@@ -131,6 +139,13 @@ proposal work is never started automatically. Jobs supplies current-process
 visibility and cancellation, while the journal remains the restart authority.
 Cancelling a recovery suppresses that run for the rest of the current DSH
 process; a later DSH restart may discover the still-durable Trial again.
+
+When `autoPromote` is enabled, the same supervisor also scans compact failed
+Delivery Outcomes after promotion. Counterfactual work reuses native Jobs and
+the original run-local evidence; it does not add another daemon or scheduler.
+The original originating Session continues immediately and keeps its pinned
+Generation. Canary proposal-model token cost is zero; trusted evaluator cost is
+still governed by the original Case Pack budget.
 
 `/evolve pause` durably stops only automatic resident recovery; normal Sessions,
 explicit Shadow CLI runs, review, promotion, and rollback remain available.

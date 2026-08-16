@@ -1,7 +1,7 @@
 # P1.1 证据：Opt-in Clear-Instruction Auto Promotion
 
 > 日期：2026-08-16  
-> 声明等级：`implemented`；默认关闭、实验性，不等于 P1 canary/自动回滚完成
+> 声明等级：`implemented`；默认关闭、实验性；后续 P1.2 已补 canary/自动回滚，但不改变本片的历史证据范围
 
 ## 用户结果
 
@@ -63,7 +63,7 @@ DSH_EVOLVE_DSH_SOURCE_DIR=/absolute/path/to/deepseek-harness \
 
 ## 当前限制
 
-- 没有 future-session canary 分流、真实 outcome monitor 或自动 rollback；
+- 本片当时没有 future-session canary、真实 outcome monitor 或自动 rollback；后续分别由 P2D.1/P1.2 补齐；
 - 仅允许 `SKILL.md` 小幅 append，其他合理改动也会进入人工 review；
 - 当前 assembled evidence 与真实 DSH E2E 在 macOS 固定 revision 验证；
 - 尚无真实 provider 长期 false-promotion、false-rollback、review-rate 和返工下降数据；

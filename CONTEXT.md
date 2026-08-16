@@ -84,6 +84,10 @@ _Avoid_: Agent self-certification, evaluator framework
 A compact Learning Signal observed from the final `complete_delivery` result and attributed to the Capability Generation pinned to that Session. It may trigger evaluation, but one outcome never proves regression or authorizes rollback.
 _Avoid_: Transcript archive, rollback vote, delivery event platform
 
+**Counterfactual Canary**:
+An asynchronous replay of the original sealed Case Pack against the exact active Candidate and its immutable Git parent after a matching failed Delivery Outcome. It may roll back future-session selection only when calibration passes, the parent passes, the Candidate fails, and the active pointer is unchanged.
+_Avoid_: Live traffic routing, failure counter, model reflection, automatic retry platform
+
 **Cache Contract**:
 The suite-wide rule that model-visible instructions, tools, schemas, and ordering remain stable within a DSH session. Cache impact is checked at the complete composition surface when that surface changes; plugins with no model-visible effect add no separate burden.
 _Avoid_: Runtime cache plugin, per-plugin bureaucracy

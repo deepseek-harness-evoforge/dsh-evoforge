@@ -122,6 +122,31 @@ export class GitSkillSource {
     }
   }
 
+  /** Resolve the immutable first-parent Skill tree of an exact Candidate artifact. */
+  async resolveParentArtifact(
+    name: string,
+    candidate: SkillGenerationArtifact,
+  ): Promise<ResolvedGitSkillArtifact> {
+    const source = this.sources.get(name)
+    if (source === undefined) throw new Error(`no configured Git source for Skill '${name}'`)
+    if (candidate.name !== name) {
+      throw new Error(`Git artifact '${candidate.name}' does not match requested Skill '${name}'`)
+    }
+    const parentCommit = await gitText(
+      source.repository,
+      'rev-parse',
+      '--verify',
+      `${candidate.gitCommit}^1^{commit}`,
+    )
+    const parentTree = await gitText(source.repository, 'rev-parse', `${parentCommit}:${source.path}`)
+    return this.resolveArtifact(name, {
+      kind: 'skill',
+      name,
+      gitCommit: parentCommit,
+      treeHash: parentTree,
+    })
+  }
+
   private async loadDefinition(
     artifact: SkillGenerationArtifact,
     source: ResolvedGitSkillSource,

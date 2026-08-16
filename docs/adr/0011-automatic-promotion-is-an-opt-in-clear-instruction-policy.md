@@ -27,4 +27,4 @@ The existing resident scan owns automatic recovery. It records an evidence-bound
 - The policy cannot delete or rewrite existing safeguards, add files, code, tools, or permission configuration.
 - DSH Approval and permission enforcement remain the actual Protected Action boundary. The lexical gate is deliberately conservative but is not presented as a semantic security proof.
 - The change remains Cache Contract safe: it adds no Tool/Prompt, bounds Skill body growth, and affects future Sessions only.
-- This is P1.1, not complete bounded autonomy. Canary routing, real-outcome monitoring, automatic rollback, false-promotion data, and production enablement remain required before a broader claim.
+- This is P1.1, not complete bounded autonomy. P2D.1 and follow-up [ADR-0016](0016-rollback-requires-counterfactual-canary.md) later added outcome monitoring and counterfactual rollback; false-promotion/false-rollback data and production enablement still remain required before a broader claim.

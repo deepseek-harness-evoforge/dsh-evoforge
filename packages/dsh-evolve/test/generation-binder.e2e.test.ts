@@ -41,7 +41,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
         repository,
         path: 'skills/stable-evolved-skill',
       }],
-      supervisor: { runRoots: [runRoot], scanIntervalMs: 30_000 },
+      supervisor: { runRoots: [runRoot], scanIntervalMs: 1_000 },
       autoPromote: { skills: ['stable-evolved-skill'] },
     })
     const store = ctx.get('evoforge.evolution') as EvolutionStore | undefined
@@ -70,6 +70,47 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     expect((await skills.get('stable-evolved-skill', { cwd: root, scope: futureEvolved }))?.content)
       .toContain('Verify the exact browser flow before completion.')
     expect(adapter.requests).toHaveLength(requestsBeforeAutomatic + 1)
+
+    const packages = (path: string) => pathToFileURL(join(dshSourceDir, 'packages', path, 'lib', 'index.js')).href
+    const [llm, tools] = await Promise.all([
+      import(packages('llm/llm')),
+      import(packages('core/tools')),
+    ])
+    const unregister = ctx.tools.register(tools.defineTool({
+      name: 'complete_delivery',
+      description: 'Counterfactual canary trigger fixture.',
+      parameters: {},
+      output: {
+        schema: { type: 'json' },
+        render: (_args: unknown, value: unknown) => [{ type: 'text', text: JSON.stringify(value) }],
+      },
+      execute: () => ({
+        schemaVersion: 1,
+        status: 'failed',
+        reason: 'check-failed:test',
+        goal: { id: 'canary-goal', revision: 1, phase: 'active' },
+        artifact: { kind: 'git-commit', commit: 'c'.repeat(40), branch: 'feature/canary' },
+        repository: {},
+        checks: [],
+      }),
+    }))
+    await expect(ctx.tools.execute({
+      callId: llm.CallId('canary-delivery-outcome'),
+      name: 'complete_delivery',
+      arguments: {},
+      agent: futureEvolved,
+      signal: new AbortController().signal,
+    })).resolves.toMatchObject({ isError: false })
+    const canaryState = await waitForCanaryDecision(runRoot, active.id, 'keep')
+    expect(canaryState).toMatchObject({
+      generationId: active.id,
+      phase: 'complete',
+      decision: 'keep',
+      comparison: { calibrationPassed: true, parentPassed: false, candidatePassed: true },
+    })
+    expect(store.getActiveGeneration()?.id).toBe(active.id)
+    expect(adapter.requests).toHaveLength(requestsBeforeAutomatic + 1)
+    unregister()
     await ctx.fiber.dispose()
   })
 
@@ -679,6 +720,10 @@ async function writeCompletedReviewRun(
   const reportPath = join(runDir, 'report.json')
   const baseTreeHash = await hashTree(skillDir)
   const candidateTreeHash = await hashTree(candidateDir)
+  const casePackDir = join(root, 'case-pack')
+  const casePackHash = automatic
+    ? await writeAutomaticCanaryCasePack(casePackDir)
+    : '8'.repeat(64)
   await writeFile(join(runDir, 'run-state.json'), `${JSON.stringify({
     schemaVersion: 1,
     runId,
@@ -687,14 +732,14 @@ async function writeCompletedReviewRun(
     updatedAt: '2026-08-16T00:01:00.000Z',
     identity: {
       baseTreeHash,
-      casePackHash: '8'.repeat(64),
+      casePackHash,
       dshRevision: 'fixture',
       evaluatorVersion: 'review-e2e-v1',
       modelConfigHash: '9'.repeat(64),
       modelRoute: 'fixture-model',
       skillName: 'stable-evolved-skill',
     },
-    resumeInputs: { skillDir, casePackDir: join(root, 'case-pack') },
+    resumeInputs: { skillDir, casePackDir },
     proposal,
     proposalHash: sha256(JSON.stringify(proposal)),
     modelUsage: { inputTokens: 120, outputTokens: 32 },
@@ -736,6 +781,45 @@ async function writeCompletedReviewRun(
     },
   }, null, 2)}\n`)
   return runRoot
+}
+
+async function writeAutomaticCanaryCasePack(casePackDir: string): Promise<string> {
+  const knownBad = join(casePackDir, 'calibration', 'known-bad')
+  const knownCorrection = join(casePackDir, 'calibration', 'known-correction')
+  await mkdir(knownBad, { recursive: true })
+  await mkdir(knownCorrection, { recursive: true })
+  const skill = (body: string) => [
+    '---',
+    'name: stable-evolved-skill',
+    'description: Counterfactual canary fixture.',
+    '---',
+    '',
+    body,
+    '',
+  ].join('\n')
+  await writeFile(join(knownBad, 'SKILL.md'), skill('Baseline body.'))
+  await writeFile(join(knownCorrection, 'SKILL.md'), skill(
+    'Baseline body.\n\nVerify the exact browser flow before completion.',
+  ))
+  await writeFile(join(casePackDir, 'evaluator.mjs'), [
+    "import { readFile } from 'node:fs/promises'",
+    "import { join } from 'node:path'",
+    "const source = await readFile(join(process.argv[2], 'SKILL.md'), 'utf8')",
+    "const passed = source.includes('Verify the exact browser flow before completion.')",
+    "process.stdout.write(JSON.stringify({ schemaVersion: 1, passed, checks: [{ name: 'browser-guidance', passed }] }))",
+  ].join('\n'))
+  await writeFile(join(casePackDir, 'manifest.json'), `${JSON.stringify({
+    schemaVersion: 1,
+    id: 'automatic-canary-e2e',
+    epoch: { dshRevision: 'fixture', evaluatorVersion: 'review-e2e-v1' },
+    budget: { candidateLimit: 1, trialLimit: 4, inputTokenLimit: 100, outputTokenLimit: 100 },
+    trial: { evaluator: 'evaluator.mjs', timeoutMs: 5_000, outputLimitBytes: 8_192 },
+    calibration: {
+      knownBad: 'calibration/known-bad',
+      knownCorrection: 'calibration/known-correction',
+    },
+  }, null, 2)}\n`)
+  return hashTree(casePackDir)
 }
 
 async function commitSkill(repository: string, body: string, reference: string): Promise<GitRevision> {
@@ -796,6 +880,27 @@ async function waitForEvolutionStatus(
     await new Promise(resolve => setTimeout(resolve, 10))
   }
   throw new Error(`evolution status did not contain '${expected}'`)
+}
+
+async function waitForCanaryDecision(
+  runRoot: string,
+  generationId: string,
+  decision: string,
+): Promise<Record<string, unknown>> {
+  const path = join(runRoot, 'sealed-candidate', 'canary', generationId, 'state.json')
+  const deadline = Date.now() + 8_000
+  while (Date.now() < deadline) {
+    try {
+      const state = JSON.parse(await readFile(path, 'utf8')) as Record<string, unknown>
+      if (state.phase === 'complete' && state.decision === decision) return state
+    } catch (error) {
+      if (!(typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT')) {
+        throw error
+      }
+    }
+    await new Promise(resolve => setTimeout(resolve, 25))
+  }
+  throw new Error(`canary did not reach decision '${decision}'`)
 }
 
 async function installAgentRuntime(

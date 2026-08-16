@@ -1,13 +1,13 @@
 import { execFile } from 'node:child_process'
 import { constants } from 'node:fs'
-import { access, cp, lstat, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
+import { access, chmod, cp, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { hashTree } from './hash.ts'
 import { runSealedDarwinTrial } from './sealed-trial-darwin.ts'
 
-interface TrialDefinition {
+export interface TrialDefinition {
   evaluator: string
   timeoutMs: number
   outputLimitBytes: number
@@ -15,7 +15,7 @@ interface TrialDefinition {
   dshProfileInstall?: boolean
 }
 
-interface CalibrationDefinition {
+export interface CalibrationDefinition {
   knownBad: string
   knownCorrection: string
 }
@@ -78,7 +78,8 @@ export async function runPairedTrial(options: {
   casePackDir: string
   dshRevision: string
   outputDir: string
-  proposal: Proposal
+  candidateSkillDir?: string
+  proposal?: Proposal
   signal?: AbortSignal
   skillDir: string
   trial: TrialDefinition
@@ -91,6 +92,9 @@ export async function runPairedTrial(options: {
   }
   if (process.platform !== 'darwin') {
     throw new Error(`sealed Trial executor is unavailable on ${process.platform}`)
+  }
+  if ((options.proposal === undefined) === (options.candidateSkillDir === undefined)) {
+    throw new Error('paired Trial requires exactly one proposed or exact Candidate Skill tree')
   }
 
   const evaluatorPath = await resolveCasePackEntry(
@@ -122,11 +126,9 @@ export async function runPairedTrial(options: {
     sourceDir: knownCorrectionDir,
   })
   const baseline = await evaluateTree({ ...trialOptions, sourceDir: options.skillDir })
-  const candidate = await evaluateTree({
-    ...trialOptions,
-    proposal: options.proposal,
-    sourceDir: options.skillDir,
-  })
+  const candidate = await evaluateTree(options.candidateSkillDir === undefined
+    ? { ...trialOptions, proposal: options.proposal!, sourceDir: options.skillDir }
+    : { ...trialOptions, sourceDir: options.candidateSkillDir })
 
   return {
     backend: 'darwin-seatbelt',
@@ -164,6 +166,7 @@ async function evaluateTree(options: {
   try {
     const candidateDir = join(trialRoot, 'candidate')
     await cp(options.sourceDir, candidateDir, { recursive: true })
+    await makeTreeWritable(candidateDir)
     if (options.proposal) await applyProposal(candidateDir, options.proposal)
     const treeHash = await hashTree(candidateDir)
     const evaluatorCopy = join(trialRoot, 'evaluator.mjs')
@@ -214,6 +217,19 @@ async function evaluateTree(options: {
     return { ...outcome, treeHash }
   } finally {
     await rm(trialRoot, { force: true, recursive: true })
+  }
+}
+
+async function makeTreeWritable(root: string): Promise<void> {
+  await chmod(root, (await lstat(root)).mode | 0o700)
+  for (const entry of await readdir(root, { withFileTypes: true })) {
+    const path = join(root, entry.name)
+    if (entry.isDirectory()) await makeTreeWritable(path)
+    else {
+      const stats = await lstat(path)
+      if (!stats.isFile()) throw new Error(`unsupported non-file entry: ${path}`)
+      await chmod(path, stats.mode | 0o200)
+    }
   }
 }
 

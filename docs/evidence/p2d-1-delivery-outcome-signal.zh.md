@@ -41,5 +41,6 @@ ToolRuntime、Generation/Shadow 回归，以及既有 Software Delivery assemble
   Tool 日志、建立 event bus 或重放外部动作得不偿失，因此当前明确接受 at-most-one-sample-loss。
 - 单个 `failed`/`unknown` 不触发 rollback。业务代码失败不能被伪装成 Skill 退化。
 
-设计取舍见 [ADR-0015](../adr/0015-delivery-outcomes-are-derived-signals.md)。下一片是用预声明
-sealed canary 构造可归因的 active-vs-parent 反事实门；在门冻结前只积累样本。
+设计取舍见 [ADR-0015](../adr/0015-delivery-outcomes-are-derived-signals.md)。后续 P1.2 已用原
+Case Pack 与 exact Git parent/Candidate 实现反事实门；见
+[P1.2 证据](p1-2-counterfactual-canary.zh.md)。单条 Outcome 本身仍只是一条信号。

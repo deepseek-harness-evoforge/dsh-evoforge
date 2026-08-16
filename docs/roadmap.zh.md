@@ -1,6 +1,6 @@
 # EvoForge 开发路线图
 
-> 状态：P0A–P1.1 已实现；P2A.1 验证、P2B.1 Goal 完成、P2C.1 Draft PR 与 P2D.1 Outcome 第二消费者已实现
+> 状态：P0A–P1.2 已实现；P2A.1 验证、P2B.1 Goal 完成、P2C.1 Draft PR 与 P2D.1 Outcome 第二消费者已实现
 
 ## 当前状态
 
@@ -12,7 +12,7 @@
 | P0A Shadow evaluator | 本地退出门通过 | 安全门、macOS Sealed Trial、真实 DSH bridge、3/3 公开产品 fixture 与[本地未见首测](evidence/p0a-8-private-heldout.zh.md)均转绿；真实 provider 与第三方独立复跑仍属更高等级证据 |
 | P0B Local Continuity | implemented | P0B.1 release kernel、P0B.2a durable resume 与 P0B.2b resident supervisor 已通过本地/pinned DSH 测试；生产多日 soak 仍属发布前证据 |
 | P0C Human Control | 命令闭环 implemented；可用性门待验证 | P0C.1 release、P0C.2 review → inactive Generation、P0C.3 durable pause/resume 已通过真实 Commands/Agent 测试 |
-| P1 Bounded Autonomy | P1.1 implemented；P2D.1 信号已接通 | 默认关闭的 allowlist + append-only clear-instruction policy 已通过 policy/crash/真实 DSH future-Session 测试；交付 outcome 已按 Generation 聚合；可归因 canary/自动回滚待完成 |
+| P1 Bounded Autonomy | P1.1 + P1.2 implemented；P2D.1 信号已接通 | 默认关闭的 allowlist + append-only policy、交付 outcome、exact parent/Candidate 反事实 canary、pointer-safe 自动回滚均已通过测试；真实任务长期率待验证 |
 | P2 Software Delivery | P2A.1 + P2B.1 + P2C.1 + P2D.1 consumer implemented | linked worktree/commit/check、原生 Bash policy → exact push/Draft PR → `update_goal`，并由 Evolve 异步记录最小三态信号；pinned DSH Agent/ToolRuntime/Storage 与 package 已测 |
 
 ## P0A — 先证明会判断
@@ -102,8 +102,16 @@ Session + callId 幂等保存最多 1000 条最小三态记录，并只在 host 
 单次业务失败不回滚。证据见 [P2D.1](evidence/p2d-1-delivery-outcome-signal.zh.md)与
 [ADR-0015](adr/0015-delivery-outcomes-are-derived-signals.md)。
 
-P1 剩余：active-vs-parent sealed canary、可重放反事实门与自动 rollback，以及真实 provider
-数据下的 false promotion/false rollback/review rate。P1.1/P2D.1 不作完整退出声明。
+P1.2 已完成最窄反事实闭环：匹配失败只触发异步复测；runner 校验原 Shadow run、Case Pack
+hash/evaluator epoch、exact Git parent/Candidate 和 reviewed content hash，用同一个 calibrated
+Sealed Trial 比较。只有 parent pass / Candidate fail 且 active pointer 未变化才自动 rollback
+future Session；Candidate pass 保持，模糊或漂移进入 review。它复用 resident supervisor 与原生
+Jobs，提案模型调用为 0，并用 run-local journal 恢复 pointer write 前后崩溃。证据见
+[P1.2](evidence/p1-2-counterfactual-canary.zh.md)与
+[ADR-0016](adr/0016-rollback-requires-counterfactual-canary.md)。
+
+P1 剩余：真实 provider/开发任务数据下的 false promotion、false rollback、review rate、返工
+减少和多日常驻证据。P1.1/P2D.1/P1.2 不作完整退出声明。
 
 退出条件：真实 Shadow/Canary 数据证明 false promotion、false rollback、review rate 和每次减少返工的成本在预声明预算内。
 

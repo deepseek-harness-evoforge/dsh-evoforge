@@ -80,6 +80,7 @@ jobs:
           test/profile-install-remove-shadow.e2e.test.ts
           test/shadow-resume.e2e.test.ts
           test/shadow-jobs-dsh.e2e.test.ts
+          test/sealed-canary-runner.e2e.test.ts
           test/delivery-outcome-store.e2e.test.ts
           test/generation-store.e2e.test.ts
           test/generation-binder.e2e.test.ts

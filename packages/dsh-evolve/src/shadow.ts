@@ -20,7 +20,7 @@ export interface ShadowOptions {
   skillDir: string
 }
 
-interface CasePackManifest {
+export interface CasePackManifest {
   schemaVersion: 1
   id: string
   epoch: {
@@ -70,7 +70,7 @@ export async function runShadow(options: ShadowOptions): Promise<
   const outputDir = resolve(await realpath(dirname(requestedOutputDir)), basename(requestedOutputDir))
   assertSeparateOutput(outputDir, skillDir, casePackDir)
 
-  const manifest = parseManifest(await readFile(resolve(casePackDir, 'manifest.json'), 'utf8'))
+  const manifest = parseCasePackManifest(await readFile(resolve(casePackDir, 'manifest.json'), 'utf8'))
   const searchEvidence = manifest.search
     ? await readOwnedCasePackFile(casePackDir, manifest.search.evidence)
     : undefined
@@ -627,7 +627,7 @@ function assertSeparateOutput(outputDir: string, skillDir: string, casePackDir: 
   }
 }
 
-function parseManifest(source: string): CasePackManifest {
+export function parseCasePackManifest(source: string): CasePackManifest {
   let value: unknown
   try {
     value = JSON.parse(source)

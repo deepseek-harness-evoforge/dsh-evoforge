@@ -15,7 +15,7 @@ export interface ShadowSupervisorOptions {
   runRoots: string[]
   scanIntervalMs: number
   paused?: boolean
-  afterScan?: () => Promise<void>
+  afterScan?: (signal: AbortSignal) => Promise<void>
   runner?: (invocation: ShadowResumeInvocation) => ReturnType<typeof runShadow>
   onError?: (error: unknown, path: string) => void
 }
@@ -158,11 +158,15 @@ export class ShadowSupervisor {
   private async scanCycle(): Promise<void> {
     await this.scanAll()
     if (this.stopped || this.paused || this.options.afterScan === undefined) return
+    const controller = new AbortController()
+    this.activeAbort = controller
     try {
-      await this.options.afterScan()
+      await this.options.afterScan(controller.signal)
       this.reportedErrors.delete('automatic-promotion')
     } catch (error) {
-      this.report(error, 'automatic-promotion')
+      if (!controller.signal.aborted) this.report(error, 'automatic-promotion')
+    } finally {
+      if (this.activeAbort === controller) this.activeAbort = undefined
     }
   }
 

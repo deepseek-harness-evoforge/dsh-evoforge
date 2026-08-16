@@ -113,6 +113,7 @@ function fakeOutcomes() {
       created: true,
       outcome: { ...input, id: 'f'.repeat(64), schemaVersion: 1 },
     })),
+    list: vi.fn(() => []),
     summarize: vi.fn(),
     close: vi.fn(),
   }
