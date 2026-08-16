@@ -4,7 +4,7 @@
 
 面向 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的 out-of-tree 开源扩展套件。EvoForge 只增加可独立安装、可删除的新能力，不 fork DSH，也不以插件修补 DSH Core Defect。
 
-> **Pre-alpha：不可用于生产自动激活。** `dsh-evolve` 的 P0A/P0B/P0C（含 exact diff、protected-effect 词法提示和真实 DSH Web 控制面）、P1.1 最窄自动晋升、P1.2 反事实 canary/自动回滚、P1.3 显式反馈入口、P1.4 私有 Feedback Case Draft、P1.5 反馈引导 Shadow、P1.6 proposer 前 Case Pack 校准、P1.7 evaluator authoring Skill、P1.8 显式 Feedback Shadow Launch、P1.9 私有 Evaluator Draft/人工资格验证、P1.10 Qualified Shadow Handoff、P1.11 exact Retention Gate、P1.12 opt-in Retention 自动晋升门、P1.13 静态 Automatic Retention Target、P1.14 opt-in Automatic Feedback Shadow、P1.15 持久自动进化日预算和 P2D.1 交付 Outcome 已实现；`dsh-software-delivery` 的受验证交付闭环、`dsh-doctor` 的零 Token Runtime Readiness 与 `dsh-telegram` 的单私聊 Agent Adapter 也已实现。默认后台自动 evaluator author/qualification、真实任务误晋升/误回滚数据、陌生用户可用性门与生产多日证据仍未完成。详见[状态页](docs/status.zh.md)。
+> **Pre-alpha：不可用于生产自动激活。** `dsh-evolve` 的 P0A/P0B/P0C（含 exact diff、protected-effect 词法提示和真实 DSH Web 控制面）、P1.1 最窄自动晋升、P1.2 反事实 canary/自动回滚、P1.3 显式反馈入口、P1.4 私有 Feedback Case Draft、P1.5 反馈引导 Shadow、P1.6 proposer 前 Case Pack 校准、P1.7 evaluator authoring Skill、P1.8 显式 Feedback Shadow Launch、P1.9 私有 Evaluator Draft/人工资格验证、P1.10 Qualified Shadow Handoff、P1.11 exact Retention Gate、P1.12 opt-in Retention 自动晋升门、P1.13 静态 Automatic Retention Target、P1.14 opt-in Automatic Feedback Shadow、P1.15 持久自动进化日预算、P1.16 opt-in Automatic Evaluator Draft 和 P2D.1 交付 Outcome 已实现；`dsh-software-delivery` 的受验证交付闭环、`dsh-doctor` 的零 Token Runtime Readiness 与 `dsh-telegram` 的单私聊 Agent Adapter 也已实现。默认开启的后台 evaluator author、自动 evaluator qualification、真实任务误晋升/误回滚数据、陌生用户可用性门与生产多日证据仍未完成。详见[状态页](docs/status.zh.md)。
 
 ## 为什么做
 
@@ -28,13 +28,13 @@
 
 | 包 | 当前能力 | 状态 |
 |---|---|---|
-| [`dsh-evolve`](packages/dsh-evolve) | 离线 `shadow`/零模型 Case Pack 校准；exact Candidate 保留旧能力门、opt-in 自动晋升绑定、单静态 prior Target、明确纠错自动 Shadow 与 crash-safe 日预算；durable resident recovery；Sealed paired Trial；immutable Generation；Session-scoped Git Skill；含 exact diff/词法影响提示的 host-only review；pause/release；交付 Outcome、私有 Case Draft/Evaluator Draft、Qualified Shadow Handoff、evaluator authoring Skill 与反事实 canary | P0A/P0B/P0C + P1.1–P1.15 + P2D.1 implemented；真实 provider/任务安全率与可用性门待验证 |
+| [`dsh-evolve`](packages/dsh-evolve) | 离线 `shadow`/零模型 Case Pack 校准；exact Candidate 保留旧能力门、opt-in 自动晋升绑定、单静态 prior Target、明确纠错自动 Shadow、全新失败自动 inactive Evaluator Draft 与 crash-safe 日预算；durable resident recovery；Sealed paired Trial；immutable Generation；Session-scoped Git Skill；含 exact diff/词法影响提示的 host-only review；pause/release；交付 Outcome、私有 Case Draft/Evaluator Draft、Qualified Shadow Handoff、evaluator authoring Skill 与反事实 canary | P0A/P0B/P0C + P1.1–P1.16 + P2D.1 implemented；真实 provider/任务安全率与可用性门待验证 |
 | [`dsh-evolve-web`](packages/dsh-evolve-web) | 一条可删除 Bundle 安装 host + Web；无 Session 可达的全局入口；显式 Feedback Shadow/Evaluator Author/Qualified Shadow；有界 evaluator/review/diff；pause/resume/qualify/reject/promote/rollback | P0C.6 + P1.8–P1.10 implemented；固定 DSH tarball、浏览器 RPC、跨重启 pause/resume 与独立付费/执行确认已验收，陌生用户数据待补 |
 | [`dsh-software-delivery`](packages/dsh-software-delivery) | 按需原生 Skill；linked worktree/commit/check 验证；原生 Shell policy 下幂等 push/Draft PR；可选 exact-head 远端 checks 门；通过后完成 exact native Goal | P2A.1 + P2B.1 + P2C.1–P2C.2 implemented；Evolve 第二消费者已接通 |
 | [`dsh-doctor`](packages/dsh-doctor) | 一条可删除 Bundle；把当前原生 Loader 状态归约为三态 Runtime Readiness、具体阻塞插件和下一步动作；只诊断、不修复 | implemented；真实 tarball add/dump-config/boot/remove 已通过，陌生用户诊断成功率待验证 |
 | [`dsh-telegram`](packages/dsh-telegram) | 把一个静态授权的 Telegram 私聊连接到一个稳定 DSH Agent；复用原生 Commands/Approval/Goal/Schedule，以 durable journal 防止不确定发送盲目重试 | AS-1 implemented；真实 Loader/Agent Loop、429、Approval callback、Storage 重启和 tarball add/boot/remove 已通过，真实 Bot soak 与 Hermes paired benchmark 待验证 |
 
-Shadow 和未激活 Generation 的运行时模型表面为 `none`，额外 token 为 `0`。Generation 激活后只复用 DSH 原生 Skill catalog/body 路径：catalog 在 Session 开始时固定，正文按需加载；插件不增加 Tool 或 system prompt。[64 轮真实 Agent 对照](docs/evidence/kv-1-long-session-request-stability.zh.md)已证明：完整进化配置和中途 future-Generation pointer 变化下，当前 Session 的每一轮模型可见请求仍与未安装 EvoForge 的控制组序列化等价，且后一请求保留前一请求的完整前缀。默认只有用户显式调用才会请求 Shadow 模型；P1.14 仅在部署者另行配置 exact 自动 Target 时例外，并由 P1.15 的静态 UTC 日 cap 进一步限制。
+Shadow 和未激活 Generation 的运行时模型表面为 `none`，额外 token 为 `0`。Generation 激活后只复用 DSH 原生 Skill catalog/body 路径：catalog 在 Session 开始时固定，正文按需加载；插件不增加 Tool 或 system prompt。[64 轮真实 Agent 对照](docs/evidence/kv-1-long-session-request-stability.zh.md)已证明：完整进化配置和中途 future-Generation pointer 变化下，当前 Session 的每一轮模型可见请求仍与未安装 EvoForge 的控制组序列化等价，且后一请求保留前一请求的完整前缀。默认只有用户显式调用才会请求进化模型；P1.14/P1.16 仅在部署者另行配置 exact 自动 Target 时分别允许 Shadow proposer 或 inactive evaluator author，并由 P1.15 的静态 UTC 日 cap 限制。
 
 P1.1 policy、自动发布和 host 状态同样是 `0` 模型调用；自动候选最多追加 2 KiB Skill 正文，且只在 future Session 通过原生 Skill body 路径实际加载时产生 tokenizer 相关输入。它不会改写当前 Session 的可缓存前缀。
 
@@ -84,6 +84,11 @@ owned run root 原子预留；崩溃后同一 Signal 复用额度，额度耗尽
 人工 Shadow 继续可用。`/evolve status` 与 Web 只投影 bounded `used/limit/remaining`；journal 每个
 Target 恒定为一个最多 20 项的 `current.json`，正常 Session token 增量仍为 `0`。
 
+P1.16 可用 `automaticEvaluatorTargets` 为尚无可信 Case Pack 的静态 Skill 预授权一次 bounded
+evaluator author。明确纠正会先消费日预算，再进入既有私有、不可执行 Draft inbox；人工 qualification、
+Shadow 与 Promotion 仍是独立权限。一个 Skill 不能同时配置 P1.14 与 P1.16，避免同一纠正触发两次
+外部调用。原 Session 不等待，普通请求 token 增量为 `0`。
+
 P2D.1 被动观察 DSH 最终 `tools/result`，把 Software Delivery 的三态结果关联到该 Session 已固定的 Generation。它异步保存最多 1000 条最小信号，`/evolve status` 只在 host plane 显示聚合；不保存 Prompt、仓库路径、PR 正文或 check 输出，不增加任何模型 token。P1.3 同样复用 DSH 原生 Message Feedback：只有带备注的当前负反馈形成可撤回引用，note、note hash、cwd 和消息正文均不复制。P1.4 只有在配置私有 `feedbackDraftRoot` 且用户逐条执行 draft 命令后，才复制一个直接用户文本和 correction，并绑定 exact Generation Skill。P1.5 允许用户把该草稿显式交给一次 Shadow，只引导 proposer；既有校准 Case Pack 仍是独立裁判，草稿字段不被直接复制到 run evidence（proposer 若在 Candidate 中回显，输出仍会持久化）。P1.6 可用独立零模型命令验证 Case Pack 方向；完整 Shadow 也先校准、再请求 Candidate，失准 evaluator 的 proposer token 为 0。P1.2 只把匹配交付失败当作异步 canary 触发器：复用原 Case Pack 和 exact Git parent/Candidate，只有 parent pass / Candidate fail 的可归因反事实成立且 active 未变化才回滚 future Session。它不调用 proposer，模糊结果进入 review。
 
 `dsh-software-delivery` 的 Skill 正文仍按原生路径按需加载；完整 Goal/Shell composition 只增加一个稳定 `complete_delivery` Tool，无 system prompt。其序列化 Schema 被测试限制在 2 KiB 内，同一 Session 的重复请求 Tool surface 完全相等。可选 `requireDraftPrChecks` 只在 host plane 改变调用后的完成门，不改变 Tool Schema；它单次读取 exact PR head 的远端 checks，不轮询、不复制 CI 日志。CLI 在模型上下文外运行；Tool 只在实际调用时返回有界的 commit/check 证据。
@@ -129,7 +134,7 @@ pnpm --filter dsh-telegram pack --pack-destination "$PWD/.evoforge/pack"
 ## 尚未实现
 
 - 多个独立真实 case、真实 provider 提案效果、Linux/Windows 隔离与 workspace 磁盘配额；
-- 真实人工 review/evaluator qualification 可用性数据、语义级 capability/权限差异审计和可选分页/图形 diff，以及真实任务上的 false-promotion/false-rollback/review rate；私有 Evaluator Draft 已实现，但仍缺真实 provider 的 qualified rate、semantic rejection rate、成本与后续改善率；
+- 真实人工 review/evaluator qualification 可用性数据、语义级 capability/权限差异审计和可选分页/图形 diff，以及真实任务上的 false-promotion/false-rollback/review rate；私有与 opt-in 自动生成的 inactive Evaluator Draft 已实现，但仍缺真实 provider 的 qualified rate、semantic rejection rate、成本与后续改善率；
 - 生产多日 soak、真实磁盘耗尽与大规模 run 性能数据（常驻 native Jobs supervisor、自动扫描和关机恢复已实现）；
 - `dsh-software-delivery` 不做全局 Goal 拦截；原生直接 `update_goal` 仍可用。Draft PR 首片只支持 GitHub.com 同仓分支；可选门能读取 exact-head 全量 checks，但尚缺 fork/其他 forge、required-only 规则、CI 日志诊断和自动等待；Evolve canary 尚缺真实开发任务长期数据；消息侧只实现一个 Telegram 私聊，真实 Bot 多日 soak、其他渠道、内容和日程插件尚未实现；
 - TUI 控制面；Web 首版已实现，但尚无陌生用户 approve/promote/rollback 可用性数据、实时推送或分页/图形 diff。
@@ -149,6 +154,7 @@ pnpm --filter dsh-telegram pack --pack-destination "$PWD/.evoforge/pack"
 - [P1.13 Automatic Retention Target 契约](docs/architecture/p1-13-automatic-retention-target.zh.md)；
 - [P1.14 Automatic Feedback Shadow 契约](docs/architecture/p1-14-automatic-feedback-shadow.zh.md)；
 - [P1.15 Automatic Evolution Budget 契约](docs/architecture/p1-15-automatic-evolution-budget.zh.md)；
+- [P1.16 Automatic Evaluator Draft 契约](docs/architecture/p1-16-automatic-evaluator-draft.zh.md)；
 - [DSH 全量 171 插件目录](docs/research/deepseek-harness-native-plugins.zh.md)；
 - [DSH、Claude Code Rev、Hermes 深度调研与比较](docs/research/README.zh.md)；
 - [插件接口与验收规范](docs/plugin-contract.zh.md)；

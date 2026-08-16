@@ -18,6 +18,10 @@ import type {
   AutomaticFeedbackBudgetStatus,
   AutomaticFeedbackShadowService,
 } from './automatic-feedback-shadow.ts'
+import type {
+  AutomaticEvaluatorBudgetStatus,
+  AutomaticEvaluatorDraftService,
+} from './automatic-evaluator-draft.ts'
 
 const USAGE = 'Usage: /evolve [status|feedback [<signal-id> [draft <skill>|shadow <target>|author <evaluator-target>]]|evaluator [<draft-id> [shadow|approve|reject <note>]]|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]'
 const generationIdPattern = /^[a-f0-9]{64}$/
@@ -31,6 +35,7 @@ export interface EvolutionCommandModules {
   readonly feedbackDraft?: Pick<FeedbackCaseDraftBuilder, 'create'>
   readonly feedbackShadow?: Pick<FeedbackShadowLauncher, 'launch'>
   readonly automaticFeedback?: Pick<AutomaticFeedbackShadowService, 'budgetStatus'>
+  readonly automaticEvaluator?: Pick<AutomaticEvaluatorDraftService, 'budgetStatus'>
   readonly evaluatorDrafts?: Pick<EvaluatorDraftInbox, 'author' | 'scan' | 'get' | 'approve' | 'reject' | 'startShadow'>
 }
 
@@ -57,17 +62,22 @@ export async function executeEvolutionCommand(
   modules: EvolutionCommandModules = {},
 ): Promise<CommandResult> {
   const input = rawInput.trim()
-  const { review, resident, automatic, outcomes, feedback, feedbackDraft, feedbackShadow, automaticFeedback, evaluatorDrafts } = modules
+  const { review, resident, automatic, outcomes, feedback, feedbackDraft, feedbackShadow, automaticFeedback, automaticEvaluator, evaluatorDrafts } = modules
   try {
     if (input === '' || input === 'status') {
       const active = store.getActiveGeneration()
+      const [automaticFeedbackBudget, automaticEvaluatorBudget] = await Promise.all([
+        automaticFeedback?.budgetStatus(),
+        automaticEvaluator?.budgetStatus(),
+      ])
       return renderStatus(
         active,
         resident?.isPaused(),
         automatic?.skills(),
         outcomes?.summarize(active?.id),
         feedback?.summarize(active?.id),
-        await automaticFeedback?.budgetStatus(),
+        automaticFeedbackBudget,
+        automaticEvaluatorBudget,
       )
     }
     if (input === 'pause') {
@@ -459,6 +469,7 @@ function renderStatus(
   outcomeSummary?: DeliveryOutcomeSummary,
   feedbackSummary?: FeedbackSignalSummary,
   automaticFeedbackBudget?: AutomaticFeedbackBudgetStatus,
+  automaticEvaluatorBudget?: AutomaticEvaluatorBudgetStatus,
 ): CommandResult {
   const recovery = recoveryPaused === undefined
     ? []
@@ -475,16 +486,10 @@ function renderStatus(
   const feedback = feedbackSummary === undefined
     ? []
     : [`Explicit feedback signals: ${feedbackSummary.all} retained (${feedbackSummary.selected} active selection)`]
-  const budget = automaticFeedbackBudget === undefined
-    ? []
-    : [
-        ...automaticFeedbackBudget.targets.map(target => target.status === 'unknown'
-          ? `Automatic evolution budget: ${target.targetId} unknown; automatic launch fails closed`
-          : `Automatic evolution budget: ${target.targetId} ${target.used}/${target.limit} attempts used on ${target.utcDay} UTC (${target.remaining} remaining)`),
-        ...automaticFeedbackBudget.warningCount === 0
-          ? []
-          : [`Automatic evolution budget warnings: ${automaticFeedbackBudget.warningCount}`],
-      ]
+  const budget = [
+    ...renderAutomaticBudget('Feedback Shadow', automaticFeedbackBudget),
+    ...renderAutomaticBudget('Evaluator Draft', automaticEvaluatorBudget),
+  ]
   if (active === undefined) {
     return {
       kind: 'success',
@@ -521,6 +526,21 @@ function renderStatus(
       'Commands: /evolve rollback',
     ].join('\n'),
   }
+}
+
+function renderAutomaticBudget(
+  workflow: 'Feedback Shadow' | 'Evaluator Draft',
+  budget: AutomaticFeedbackBudgetStatus | AutomaticEvaluatorBudgetStatus | undefined,
+): string[] {
+  if (budget === undefined) return []
+  return [
+    ...budget.targets.map(target => target.status === 'unknown'
+      ? `Automatic evolution budget (${workflow}): ${target.targetId} unknown; automatic action fails closed`
+      : `Automatic evolution budget (${workflow}): ${target.targetId} ${target.used}/${target.limit} attempts used on ${target.utcDay} UTC (${target.remaining} remaining)`),
+    ...budget.warningCount === 0
+      ? []
+      : [`Automatic evolution budget (${workflow}) warnings: ${budget.warningCount}`],
+  ]
 }
 
 function renderOutcomeCounts(counts: DeliveryOutcomeSummary['all']): string {

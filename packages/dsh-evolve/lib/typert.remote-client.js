@@ -166,6 +166,18 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'status': z.union([z.literal("ready"), z.literal("unknown")]).readonly(),
 })).readonly(),
 })]).readonly().optional(),
+  'automaticEvaluatorBudget': z.union([z.undefined(), z.object({
+  'warningCount': z.number().readonly(),
+  'targets': z.array(z.object({
+  'targetId': z.string().readonly(),
+  'skillName': z.string().readonly(),
+  'utcDay': z.string().readonly(),
+  'used': z.number().readonly(),
+  'limit': z.number().readonly(),
+  'remaining': z.number().readonly(),
+  'status': z.union([z.literal("ready"), z.literal("unknown")]).readonly(),
+})).readonly(),
+})]).readonly().optional(),
   'evaluatorAuthoring': z.union([z.undefined(), z.object({
   'available': z.boolean().readonly(),
   'warningCount': z.number().readonly(),

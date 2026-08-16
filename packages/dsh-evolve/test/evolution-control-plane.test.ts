@@ -169,6 +169,20 @@ describe('EvolutionControlPlane', () => {
           }],
         })),
       },
+      automaticEvaluator: {
+        budgetStatus: vi.fn(async () => ({
+          warningCount: 0,
+          targets: [{
+            targetId: 'novel-failure',
+            skillName: 'build-dsh-plugin',
+            utcDay: '2026-08-17',
+            used: 1,
+            limit: 1,
+            remaining: 0,
+            status: 'ready' as const,
+          }],
+        })),
+      },
     })
 
     const overview = await control.overview()
@@ -186,6 +200,10 @@ describe('EvolutionControlPlane', () => {
       automaticFeedbackBudget: {
         warningCount: 0,
         targets: [{ targetId: 'plugin-delivery', used: 1, limit: 2, remaining: 1 }],
+      },
+      automaticEvaluatorBudget: {
+        warningCount: 0,
+        targets: [{ targetId: 'novel-failure', used: 1, limit: 1, remaining: 0 }],
       },
       reviews: { available: true, pendingCount: 1, warningCount: 1 },
     })

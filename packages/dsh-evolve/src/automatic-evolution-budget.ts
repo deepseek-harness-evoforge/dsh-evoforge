@@ -1,5 +1,5 @@
-import { mkdir, readFile, realpath } from 'node:fs/promises'
-import { isAbsolute, join, resolve } from 'node:path'
+import { lstat, mkdir, readFile, realpath } from 'node:fs/promises'
+import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { writeDurableJson } from './shadow-run-state.ts'
 
 const CONTENT_ID = /^[a-f0-9]{64}$/
@@ -64,6 +64,9 @@ export class AutomaticEvolutionBudget {
     }
     if (targets.some(target => !isAbsolute(target.runRoot))) {
       throw new Error('automatic evolution budget run roots must be absolute')
+    }
+    if (targets.some(target => dirname(resolve(target.runRoot)) === resolve(target.runRoot))) {
+      throw new Error('automatic evolution budget run roots must not be filesystem roots')
     }
     if (targets.some(target => !Number.isInteger(target.maxAttemptsPerUtcDay)
       || target.maxAttemptsPerUtcDay < 1
@@ -173,7 +176,13 @@ export class AutomaticEvolutionBudget {
     target: AutomaticEvolutionBudgetTarget,
     create: boolean,
   ): Promise<string> {
-    const runRoot = await realpath(resolve(target.runRoot))
+    const requestedRunRoot = resolve(target.runRoot)
+    if (create) await mkdir(requestedRunRoot, { recursive: true, mode: 0o700 })
+    const runRootInfo = await lstat(requestedRunRoot)
+    if (!runRootInfo.isDirectory() || runRootInfo.isSymbolicLink()) {
+      throw new Error('automatic evolution budget run root must be a real directory')
+    }
+    const runRoot = await realpath(requestedRunRoot)
     const journalRoot = join(runRoot, JOURNAL_DIR)
     if (create) await mkdir(journalRoot, { recursive: true, mode: 0o700 })
     const exactJournalRoot = await realpath(journalRoot)

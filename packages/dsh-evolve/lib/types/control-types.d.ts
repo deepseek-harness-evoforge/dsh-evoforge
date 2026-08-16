@@ -165,6 +165,10 @@ export interface EvolutionOverview {
         readonly warningCount: number;
         readonly targets: readonly EvolutionAutomaticBudgetView[];
     };
+    readonly automaticEvaluatorBudget?: {
+        readonly warningCount: number;
+        readonly targets: readonly EvolutionAutomaticBudgetView[];
+    };
     readonly evaluatorAuthoring?: {
         readonly available: boolean;
         readonly warningCount: number;

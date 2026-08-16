@@ -76,6 +76,6 @@ P1.5 只把用户文本和纠正交给 proposer；Case Pack evaluator 从未接�
 
 ## 非目标
 
-自动 evaluator authoring/qualification、默认后台 reflection、无反馈行为推断、多 Target quorum、Case
+自动 evaluator qualification、默认后台 reflection、无反馈行为推断、多 Target quorum、Case
 Registry、Memory graph、通用预算调度、通知中心、Web 配置编辑、跨主机执行、Linux/Windows sealed
 backend 与生产多日 soak 均不进入 P1.14。

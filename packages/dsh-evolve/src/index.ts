@@ -52,6 +52,13 @@ import {
   type AutomaticFeedbackShadowTargetReference,
 } from './automatic-feedback-shadow.ts'
 import { AutomaticEvolutionBudget } from './automatic-evolution-budget.ts'
+import {
+  assertAutomaticEvaluatorDraftTargets,
+  assertAutomaticEvaluatorDraftSeparation,
+  AutomaticEvaluatorDraftService,
+  type AutomaticEvaluatorDraftTarget,
+  type AutomaticEvaluatorDraftTargetReference,
+} from './automatic-evaluator-draft.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -78,6 +85,7 @@ export interface Config {
   shadowTargets?: FeedbackShadowTargetConfig[]
   automaticFeedbackTargets?: AutomaticFeedbackShadowTargetReference[]
   evaluatorTargets?: EvaluatorDraftTargetConfig[]
+  automaticEvaluatorTargets?: AutomaticEvaluatorDraftTargetReference[]
 }
 
 export const Config: Schema<Config> = z.object({
@@ -121,6 +129,10 @@ export const Config: Schema<Config> = z.object({
     dshRevision: z.string().required(),
     shadowRunRoot: z.string(),
   })).default([]),
+  automaticEvaluatorTargets: z.array(z.object({
+    target: z.string().required(),
+    maxAttemptsPerUtcDay: z.number().step(1).min(1).max(20).default(1),
+  })).max(20).default([]),
 })
 
 export async function apply(ctx: Context, config: Config = {}): Promise<void> {
@@ -151,6 +163,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const shadowTargets = config.shadowTargets ?? []
   const automaticFeedbackTargetReferences = config.automaticFeedbackTargets ?? []
   const evaluatorTargets = config.evaluatorTargets ?? []
+  const automaticEvaluatorTargetReferences = config.automaticEvaluatorTargets ?? []
   if (retentionTargets.length > 0) assertAutomaticRetentionTargets(retentionTargets)
   if (automaticSkills.length > 0 && review === undefined) {
     throw new Error('automatic promotion requires configured supervisor.runRoots')
@@ -178,6 +191,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   }
   if (evaluatorTargets.length > 0 && config.feedbackDraftRoot === undefined) {
     throw new Error('evaluator targets require feedbackDraftRoot')
+  }
+  if (automaticEvaluatorTargetReferences.length > 0 && evaluatorTargets.length === 0) {
+    throw new Error('Automatic Evaluator Draft requires configured evaluator targets')
+  }
+  if (automaticEvaluatorTargetReferences.length > 0 && (config.supervisor === undefined
+    || config.supervisor.runRoots.length === 0)) {
+    throw new Error('Automatic Evaluator Draft requires configured supervisor.runRoots')
   }
   const evaluatorShadowTargets = evaluatorTargets.flatMap(target =>
     target.shadowRunRoot === undefined
@@ -265,6 +285,40 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         source,
         ...(feedbackShadow === undefined ? {} : { shadow: feedbackShadow }),
       })
+  const evaluatorTargetsById = new Map(evaluatorTargets.map(target => [target.id, target]))
+  const automaticEvaluatorTargets: AutomaticEvaluatorDraftTarget[] =
+    automaticEvaluatorTargetReferences.map((reference) => {
+      const target = evaluatorTargetsById.get(reference.target)
+      if (target === undefined) {
+        throw new Error(`Automatic Evaluator Draft references unknown target '${reference.target}'`)
+      }
+      return {
+        id: target.id,
+        skill: target.skill,
+        root: target.root,
+        maxAttemptsPerUtcDay: reference.maxAttemptsPerUtcDay ?? 1,
+      }
+    })
+  if (automaticEvaluatorTargets.length > 0) {
+    assertAutomaticEvaluatorDraftTargets(automaticEvaluatorTargets)
+    automaticEvolutionBudget.assertTargets(automaticEvaluatorTargets.map(target => ({
+      id: target.id,
+      skill: target.skill,
+      runRoot: target.root,
+      maxAttemptsPerUtcDay: target.maxAttemptsPerUtcDay,
+    })))
+  }
+  const automaticFeedbackSkills = new Set(automaticFeedbackTargets.map(target => target.skill))
+  assertAutomaticEvaluatorDraftSeparation(automaticEvaluatorTargets, automaticFeedbackSkills)
+  const automaticEvaluator = automaticEvaluatorTargets.length === 0 || evaluatorDrafts === undefined
+    ? undefined
+    : new AutomaticEvaluatorDraftService({
+        evolution: store,
+        evaluator: evaluatorDrafts,
+        signals: feedbackSignals,
+        targets: automaticEvaluatorTargets,
+        budget: automaticEvolutionBudget,
+      })
   const control = new EvolutionControlPlane({
     store,
     ...(review === undefined ? {} : { review }),
@@ -274,6 +328,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     feedback: feedbackSignals,
     ...(feedbackShadow === undefined ? {} : { feedbackShadow }),
     ...(automaticFeedback === undefined ? {} : { automaticFeedback }),
+    ...(automaticEvaluator === undefined ? {} : { automaticEvaluator }),
     ...(evaluatorDrafts === undefined ? {} : { evaluatorDrafts }),
   })
   new EvolutionRemoteService(ctx, control)
@@ -286,6 +341,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     ...(feedbackDraft === undefined ? {} : { feedbackDraft }),
     ...(feedbackShadow === undefined ? {} : { feedbackShadow }),
     ...(automaticFeedback === undefined ? {} : { automaticFeedback }),
+    ...(automaticEvaluator === undefined ? {} : { automaticEvaluator }),
     ...(evaluatorDrafts === undefined ? {} : { evaluatorDrafts }),
   })
   if (config.feedbackDraftRoot !== undefined) {
@@ -357,12 +413,18 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             runner: createAutomaticRetentionJobRunner(jobCtx.jobs),
             targets: retentionTargets,
           })
-      const afterScan = automaticFeedback === undefined && automatic === undefined
+      const afterScan = automaticFeedback === undefined
+        && automaticEvaluator === undefined
+        && automatic === undefined
         ? undefined
         : async (signal: AbortSignal) => {
             const feedbackResult = await automaticFeedback?.scanOnce()
             for (const warning of feedbackResult?.warnings ?? []) {
               jobCtx.logger.warn(`dsh-evolve automatic Feedback Shadow skipped signal: ${warning}`)
+            }
+            const evaluatorResult = await automaticEvaluator?.scanOnce()
+            for (const warning of evaluatorResult?.warnings ?? []) {
+              jobCtx.logger.warn(`dsh-evolve Automatic Evaluator Draft skipped signal: ${warning}`)
             }
             if (automatic === undefined) return
             const retentionResult = await automaticRetention?.scanOnce(signal)
@@ -429,6 +491,7 @@ export type {
 export type { GitSkillSourceConfig } from './git-skill-source.ts'
 export type { FeedbackShadowTargetConfig } from './feedback-shadow-launcher.ts'
 export type { AutomaticFeedbackShadowTargetReference } from './automatic-feedback-shadow.ts'
+export type { AutomaticEvaluatorDraftTargetReference } from './automatic-evaluator-draft.ts'
 export type { AutomaticRetentionTargetConfig } from './automatic-retention.ts'
 export type { ShadowResumeInvocation, ShadowSupervisorOptions } from './shadow-supervisor.ts'
 export type {

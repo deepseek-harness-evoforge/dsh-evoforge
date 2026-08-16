@@ -72,7 +72,13 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
             root: join(runtimeRoot, 'private-evaluators'),
             dshRevision: '47f943859bef60e4160492346772ded9b24f765a',
             shadowRunRoot: join(runtimeRoot, 'qualified-shadow-runs'),
+          }, {
+            id: 'novel-evaluator-fix',
+            skill: 'automatic-evaluator-only-skill',
+            root: join(runtimeRoot, 'automatic-evaluators'),
+            dshRevision: '47f943859bef60e4160492346772ded9b24f765a',
           }],
+          automaticEvaluatorTargets: [{ target: 'novel-evaluator-fix' }],
           autoPromote: {
             skills: ['stable-evolved-skill'],
             retentionRoots: [join(runtimeRoot, 'retention-runs')],
@@ -125,6 +131,8 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     }
     expect(JSON.stringify(experiment)).not.toContain('evaluator')
     expect(JSON.stringify(experiment)).not.toContain('stable-skill-fix')
+    expect(JSON.stringify(experiment)).not.toContain('novel-evaluator-fix')
+    expect(JSON.stringify(experiment)).not.toContain('automatic-evaluator-only-skill')
     expect(JSON.stringify(experiment)).not.toContain('stable-feedback-fix')
     expect(JSON.stringify(experiment)).not.toContain('stable-prior-capability')
   })
@@ -276,7 +284,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     }
   })
 
-  it('hands a generated Qualified Pack to the existing real DSH Shadow only after a new explicit action', async () => {
+  it('automatically authors one inactive evaluator then requires explicit qualification and Shadow', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-qualified-shadow-'))
     temporaryRoots.push(root)
     const repository = join(root, 'source')
@@ -352,13 +360,17 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
           repository,
           path: 'skills/stable-evolved-skill',
         }],
-        supervisor: { runRoots: [shadowRunRoot], scanIntervalMs: 60_000 },
+        supervisor: { runRoots: [shadowRunRoot], scanIntervalMs: 1_000 },
         evaluatorTargets: [{
           id: 'stable-skill-fix',
           skill: 'stable-evolved-skill',
           root: evaluatorRoot,
           dshRevision: '47f943859bef60e4160492346772ded9b24f765a',
           shadowRunRoot,
+        }],
+        automaticEvaluatorTargets: [{
+          target: 'stable-skill-fix',
+          maxAttemptsPerUtcDay: 1,
         }],
       })
       const packages = (path: string) => pathToFileURL(
@@ -403,21 +415,27 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
         ifVersion: null,
       })
       await waitForEvolutionStatus(ctx, agent, 'Explicit feedback signals: 1 retained (1 active selection)')
-      const feedbackList = await ctx.commands.execute(agent, '/evolve feedback', new AbortController().signal)
-      const signalId = /^- ([a-f0-9]{64}) /m.exec(feedbackList?.result.text ?? '')?.[1]
-      if (signalId === undefined) throw new Error('feedback signal id missing')
       const normalRequests = adapter.requests.length
 
-      await ctx.commands.execute(
-        agent,
-        `/evolve feedback ${signalId} author stable-skill-fix`,
-        new AbortController().signal,
-      )
       const evaluatorList = await waitForCommandText(ctx, agent, '/evolve evaluator', '[draft-ready]')
       const draftId = /^- ([a-f0-9]{64}) \[draft-ready\]/m.exec(evaluatorList)?.[1]
       if (draftId === undefined) throw new Error('evaluator draft id missing')
       expect(modelRequests).toEqual(['author'])
       expect(adapter.requests).toHaveLength(normalRequests)
+      expect(await readFile(join(
+        evaluatorRoot,
+        '.automatic-evolution-budget-v1',
+        'current.json',
+      ), 'utf8')).not.toContain('Require real controlled-browser verification.')
+      const automaticStatus = await ctx.commands.execute(
+        agent,
+        '/evolve status',
+        new AbortController().signal,
+      )
+      expect(automaticStatus?.result.text).toContain(
+        'Automatic evolution budget (Evaluator Draft): stable-skill-fix 1/1 attempts used',
+      )
+      expect(store.getSessionGeneration(identityOf(agent))?.id).toBe(generation.id)
 
       const qualified = await ctx.commands.execute(
         agent,

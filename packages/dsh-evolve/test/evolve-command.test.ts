@@ -83,16 +83,38 @@ describe('/evolve host command', () => {
         }],
       })),
     }
+    const automaticEvaluator = {
+      budgetStatus: vi.fn(async () => ({
+        warningCount: 0,
+        targets: [{
+          targetId: 'novel-failure',
+          skillName: 'stable-skill',
+          utcDay: '2026-08-17',
+          used: 1,
+          limit: 1,
+          remaining: 0,
+          status: 'ready' as const,
+        }],
+      })),
+    }
 
-    const result = await executeEvolutionCommand(fakeStore(), 'status', { automaticFeedback })
+    const result = await executeEvolutionCommand(
+      fakeStore(),
+      'status',
+      { automaticFeedback, automaticEvaluator },
+    )
 
     expect(result).toMatchObject({
       kind: 'success',
       text: expect.stringContaining(
-        'Automatic evolution budget: stable-target 1/2 attempts used on 2026-08-17 UTC (1 remaining)',
+        'Automatic evolution budget (Feedback Shadow): stable-target 1/2 attempts used on 2026-08-17 UTC (1 remaining)',
       ),
     })
+    expect(result.text).toContain(
+      'Automatic evolution budget (Evaluator Draft): novel-failure 1/1 attempts used on 2026-08-17 UTC (0 remaining)',
+    )
     expect(automaticFeedback.budgetStatus).toHaveBeenCalledOnce()
+    expect(automaticEvaluator.budgetStatus).toHaveBeenCalledOnce()
   })
 
   it('lists opaque feedback references and delegates explicit draft creation', async () => {

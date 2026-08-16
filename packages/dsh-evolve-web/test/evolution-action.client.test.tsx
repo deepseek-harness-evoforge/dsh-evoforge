@@ -38,6 +38,18 @@ function remote(
         status: budgetStatus,
       }],
     },
+    automaticEvaluatorBudget: {
+      warningCount: 0,
+      targets: [{
+        targetId: 'novel-failure',
+        skillName: 'build-dsh-plugin',
+        utcDay: '2026-08-17',
+        used: 1,
+        limit: 1,
+        remaining: 0,
+        status: 'ready' as const,
+      }],
+    },
     feedbackShadow: {
       available: true,
       warningCount: 0,
@@ -204,6 +216,8 @@ const t = (key: string) => ({
   'section.budget': 'Automatic evolution budget',
   'label.attemptsUsed': 'attempts used',
   'label.remaining': 'remaining',
+  'label.feedbackShadow': 'Feedback Shadow',
+  'label.evaluatorDraft': 'Evaluator Draft',
   'status.budgetUnknown': 'Budget state unknown; automatic launch is blocked',
 }[key] ?? key)
 
@@ -216,7 +230,10 @@ describe('EvolutionAction', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
     await screen.findByRole('dialog', { name: 'Evolution control' })
     expect(api.overview).toHaveBeenCalledOnce()
+    expect(screen.getByText('Feedback Shadow · plugin-delivery · build-dsh-plugin')).toBeTruthy()
     expect(screen.getByText('1/2 attempts used · 1 remaining · 2026-08-17 UTC')).toBeTruthy()
+    expect(screen.getByText('Evaluator Draft · novel-failure · build-dsh-plugin')).toBeTruthy()
+    expect(screen.getByText('1/1 attempts used · 0 remaining · 2026-08-17 UTC')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Inspect' }))
     await screen.findByText((_content, element) => element?.tagName === 'PRE' && element.textContent?.includes('-stop') === true)

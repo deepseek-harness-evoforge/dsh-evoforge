@@ -1,7 +1,8 @@
-import { mkdir } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import type { JobHooks, JobStart } from '@deepseek-ai/dsh-jobs'
 import { EvaluatorDraftInbox } from '../../src/evaluator-draft-inbox.ts'
+import { AutomaticEvaluatorDraftService } from '../../src/automatic-evaluator-draft.ts'
+import { AutomaticEvolutionBudget } from '../../src/automatic-evolution-budget.ts'
 import { hashTree } from '../../src/hash.ts'
 
 const [fixtureRoot] = process.argv.slice(2)
@@ -74,7 +75,6 @@ const inbox = new EvaluatorDraftInbox({
   },
 })
 
-await mkdir(ownedRoot, { recursive: true })
 inbox.attachJobs({
   start(spec: JobStart) {
     starts.push(spec)
@@ -83,7 +83,40 @@ inbox.attachJobs({
   },
 } as never)
 
-const receipt = await inbox.author(signalId, 'plugin-delivery')
+const automatic = new AutomaticEvaluatorDraftService({
+  evolution: {
+    getGeneration: () => ({
+      schemaVersion: 1,
+      id: generationId,
+      createdAt: 1,
+      artifacts: [artifact],
+      evaluatorVersion: 'fixture-v1',
+      policyVersion: 'fixture-v1',
+      compositionFingerprint: '8'.repeat(64),
+    }),
+  },
+  evaluator: inbox,
+  signals: {
+    list: () => [{
+      schemaVersion: 1,
+      id: signalId,
+      observedAt: 1,
+      sessionId: 'session-private',
+      messageId: 'message-private',
+      feedbackVersion: '00000000-0000-4000-8000-000000000001',
+      sourceUpdatedAt: 2,
+      generationId,
+    }],
+  },
+  targets: [{
+    id: 'plugin-delivery',
+    skill: skillName,
+    root: ownedRoot,
+    maxAttemptsPerUtcDay: 1,
+  }],
+  budget: new AutomaticEvolutionBudget(),
+})
+const receipt = await automatic.scanOnce()
 process.stdout.write(`${JSON.stringify(receipt)}\n`)
 if (hooks[0] !== undefined) {
   const result = await hooks[0].done

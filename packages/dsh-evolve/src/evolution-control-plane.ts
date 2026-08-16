@@ -5,6 +5,7 @@ import type { FeedbackSignalStore } from './feedback-signal-monitor.ts'
 import type { FeedbackShadowLauncher } from './feedback-shadow-launcher.ts'
 import type { EvaluatorDraftInbox } from './evaluator-draft-inbox.ts'
 import type { AutomaticFeedbackShadowService } from './automatic-feedback-shadow.ts'
+import type { AutomaticEvaluatorDraftService } from './automatic-evaluator-draft.ts'
 import type { EvolutionStore } from './generation-store.ts'
 import type { ResidentEvolutionControl } from './resident-evolution-control.ts'
 import type { ReviewCandidate, ReviewInbox } from './review-inbox.ts'
@@ -33,6 +34,7 @@ export interface EvolutionControlPlaneModules {
   readonly feedback?: Pick<FeedbackSignalStore, 'list' | 'summarize'>
   readonly feedbackShadow?: Pick<FeedbackShadowLauncher, 'available' | 'targets' | 'scan' | 'launch'>
   readonly automaticFeedback?: Pick<AutomaticFeedbackShadowService, 'budgetStatus'>
+  readonly automaticEvaluator?: Pick<AutomaticEvaluatorDraftService, 'budgetStatus'>
   readonly evaluatorDrafts?: Pick<EvaluatorDraftInbox, 'available' | 'targets' | 'scan' | 'get' | 'author' | 'approve' | 'reject' | 'startShadow'>
 }
 
@@ -46,13 +48,22 @@ export class EvolutionControlPlane {
 
   async overview(): Promise<EvolutionOverview> {
     const active = this.modules.store.getActiveGeneration()
-    const [scan, shadowScan, evaluatorScan, automaticFeedbackBudget] = await Promise.all([
+    const [
+      scan,
+      shadowScan,
+      evaluatorScan,
+      automaticFeedbackBudget,
+      automaticEvaluatorBudget,
+    ] = await Promise.all([
       this.modules.review === undefined ? undefined : this.modules.review.inbox.scanAll(),
       this.modules.feedbackShadow === undefined ? undefined : this.modules.feedbackShadow.scan(),
       this.modules.evaluatorDrafts === undefined ? undefined : this.modules.evaluatorDrafts.scan(),
       this.modules.automaticFeedback === undefined
         ? undefined
         : this.modules.automaticFeedback.budgetStatus(),
+      this.modules.automaticEvaluator === undefined
+        ? undefined
+        : this.modules.automaticEvaluator.budgetStatus(),
     ])
     const automaticSkills = this.modules.automatic?.skills() ?? []
     return {
@@ -95,6 +106,14 @@ export class EvolutionControlPlane {
             automaticFeedbackBudget: {
               warningCount: automaticFeedbackBudget.warningCount,
               targets: automaticFeedbackBudget.targets.map(target => ({ ...target })),
+            },
+          }),
+      ...(automaticEvaluatorBudget === undefined
+        ? {}
+        : {
+            automaticEvaluatorBudget: {
+              warningCount: automaticEvaluatorBudget.warningCount,
+              targets: automaticEvaluatorBudget.targets.map(target => ({ ...target })),
             },
           }),
       ...(this.modules.evaluatorDrafts === undefined

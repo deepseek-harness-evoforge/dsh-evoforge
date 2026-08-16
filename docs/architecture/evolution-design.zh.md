@@ -1,6 +1,6 @@
 # EvoForge 可证明自进化设计
 
-> 状态：P0A/P0B/P0C、P1.1–P1.15 与 P2D.1 implemented；包含最窄 opt-in 自动晋升、反事实 canary/回滚、显式反馈、私有 Draft、独立 evaluator、静态 Target、exact Retention、明确纠错自动 Shadow 与持久日预算；真实 provider 与真实任务长期证据待完成
+> 状态：P0A/P0B/P0C、P1.1–P1.16 与 P2D.1 implemented；包含最窄 opt-in 自动晋升、反事实 canary/回滚、显式反馈、私有 Draft、独立 evaluator、静态 Target、exact Retention、明确纠错自动 Shadow/自动 inactive evaluator Draft 与持久日预算；真实 provider 与真实任务长期证据待完成
 > 更新日期：2026-08-17
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 
@@ -88,7 +88,7 @@ Evolution Store
 | Skill 供应 | `ctx.skills.registerProvider()` | 在 Agent scope 注册固定 Generation 的 provider |
 | Session 生命周期 | `agent/session-start`、`agent/pre-step` | 选择 Generation，并在首个模型步骤前等待 sidecar pin 落盘 |
 | 真实过程事实 | `session/event`、`goal/changed` | 记录最小 Learning Signal 引用，不复制完整 transcript |
-| 人工反馈 | `domain/changed` 的 `message_feedback` durable snapshot | P1.3 只将带 note 的当前负反馈投影为 reference-only Signal；P1.4 只在配置授权后复制最小 Case Draft；P1.5 只把 exact Draft 交给 proposer；P1.8 要求逐次授权，P1.14 可由静态 exact Target 部署策略授权自动启动 |
+| 人工反馈 | `domain/changed` 的 `message_feedback` durable snapshot | P1.3 只将带 note 的当前负反馈投影为 reference-only Signal；P1.4 只在配置授权后复制最小 Case Draft；P1.5 只把 exact Draft 交给 proposer；P1.8 要求逐次授权，P1.14/P1.16 可由互斥的静态 Target 策略分别授权自动 Shadow 或 inactive evaluator Draft |
 | 持久小状态 | `ctx.storageDomain` | Evolution sidecar；写入先 durable 后改变内存 |
 | 后台执行 | `ctx.jobs` | 执行当前进程内候选和 Trial；Job 本身不是 durable authority |
 | 重启恢复 | Shadow journal / Evolution Store 扫描 | 只把可安全恢复的未终结状态重新提交给 Jobs |
@@ -674,3 +674,9 @@ crash-safe UTC 日 attempt。单次 token 上限仍属于 Case Pack；日 cap、
 Commands/Web 状态都留在 host plane。显式人工动作继续逐次授权。见
 [P1.15](p1-15-automatic-evolution-budget.zh.md)与
 [ADR-0035](../adr/0035-automatic-evolution-reserves-budget-before-paid-launch.md)。
+
+P1.16 只消除新失败在 P1.9 author 前的机械动作：静态、默认关闭的部署策略允许一个仍然当前的明确
+纠正，在唯一 Skill 匹配和日预算预留后生成私有 inactive Evaluator Draft。它不自动执行、qualification、
+Shadow 或 Promotion；P1.14 与 P1.16 对同一 Skill 互斥，任何歧义或不确定外部结果留给异步人工。
+普通 Session composition 不变。见 [P1.16](p1-16-automatic-evaluator-draft.zh.md)与
+[ADR-0036](../adr/0036-explicit-correction-may-create-one-inactive-evaluator-draft.md)。

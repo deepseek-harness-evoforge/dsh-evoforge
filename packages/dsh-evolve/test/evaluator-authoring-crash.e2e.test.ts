@@ -68,8 +68,11 @@ describe('Evaluator authoring crash recovery', () => {
       expect(output.code).toBe(0)
       expect(output.stderr).toBe('')
       expect(JSON.parse(output.stdout.trim())).toMatchObject({
-        action: 'author-evaluator',
-        draftStatus: 'uncertain',
+        authored: [{
+          targetId: 'plugin-delivery',
+          draftStatus: 'uncertain',
+        }],
+        warnings: [],
       })
       expect(requests).toBe(1)
       expect(idempotencyKey).toMatch(/^[a-f0-9]{64}$/)
@@ -82,6 +85,8 @@ describe('Evaluator authoring crash recovery', () => {
         phase: 'authoring-pending',
         cost: { modelCalls: 1, inputTokens: 0, outputTokens: 0 },
       })
+      expect(await readFile(join(root, 'owned', '.automatic-evolution-budget-v1', 'current.json'), 'utf8'))
+        .not.toContain('A private failing request')
     } finally {
       first.kill('SIGKILL')
       await new Promise<void>((resolveClose, rejectClose) =>

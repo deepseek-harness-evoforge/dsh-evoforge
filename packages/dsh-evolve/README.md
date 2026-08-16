@@ -1,6 +1,6 @@
 # dsh-evolve
 
-`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains nineteen deliberately separate lanes:
+`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains twenty deliberately separate lanes:
 
 - **P0A Shadow** compares an active Skill with an inactive Candidate without changing live DSH.
 - **P0B Local Continuity** records immutable Capability Generations, pins one Generation per Session, switches or rolls back only future Sessions, and resumes durable sealed work through an optional resident supervisor.
@@ -21,6 +21,7 @@
 - **P1.13 Automatic Retention Target** lets a deployment authorize one exact prior Case Pack per Skill for a single background Retention attempt before clear-win promotion.
 - **P1.14 Automatic Feedback Shadow** lets a deployment authorize one unambiguous explicit correction to enter one existing exact Shadow Target without another foreground command.
 - **P1.15 Automatic Evolution Budget** durably caps each automatic Target's possible paid attempts per UTC day and projects the remaining allowance without touching Session context.
+- **P1.16 Automatic Evaluator Draft** optionally turns one unambiguous explicit correction into a private inactive evaluator proposal while keeping qualification, Shadow, and Promotion separately authorized.
 
 A 64-turn assembled DSH Agent parity test also verifies that installing the configured evolution host plane and changing the future-Session Generation pointer leaves every current-Session model-visible request byte-equivalent to the no-EvoForge control after removing DSH-internal message ids. It proves a zero request delta; real-provider cache-read and latency measurements still require an explicitly funded paired soak.
 
@@ -306,6 +307,25 @@ Optional `shadowRunRoot` must exactly match a unique `supervisor.runRoots` entry
 Only a qualified, unchanged pack may enter `/evolve evaluator <id> shadow`, and
 that separate action authorizes one possibly paid proposer call plus bounded
 correction disclosure without blocking the originating Session.
+
+`automaticEvaluatorTargets` is optional and disabled when absent. Each entry
+references one existing `evaluatorTargets.id`; `maxAttemptsPerUtcDay` defaults
+to `1` and is bounded to `1..20`. Declaring it authorizes the existing bounded
+correction/exact single-file Skill disclosure and at most one evaluator-author
+request per reservation. A still-current explicit correction must match exactly
+one configured Skill. The result is only a private inactive Draft: generated
+code cannot execute until a later human qualification, and Shadow/Promotion keep
+their existing separate authorities. A Skill cannot also appear in
+`automaticFeedbackTargets`, preventing two paid paths for one correction. See the
+[P1.16 contract](../../docs/architecture/p1-16-automatic-evaluator-draft.zh.md).
+
+For a Skill that does not use Automatic Feedback Shadow, the minimal opt-in is:
+
+```yaml
+automaticEvaluatorTargets:
+  - target: plugin-delivery-evaluator
+    maxAttemptsPerUtcDay: 1
+```
 
 `supervisor` is optional. When configured, the DSH composition must also load a
 native `ctx.jobs` implementation such as `@deepseek-ai/dsh-jobs-local`. Each

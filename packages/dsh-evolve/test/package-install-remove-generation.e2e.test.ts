@@ -162,6 +162,14 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-evolve package boundar
             root: join(root, 'private-evaluator-drafts'),
             dshRevision: pinnedDshRevision,
             shadowRunRoot: join(root, 'qualified-shadow-runs'),
+          }, {
+            id: 'novel-evaluator',
+            skill: 'automatic-evaluator-only-skill',
+            root: join(root, 'automatic-evaluator-drafts'),
+            dshRevision: pinnedDshRevision,
+          }],
+          automaticEvaluatorTargets: [{
+            target: 'novel-evaluator',
           }],
           autoPromote: {
             skills: ['build-dsh-plugin'],

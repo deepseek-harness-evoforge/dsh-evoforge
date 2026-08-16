@@ -264,14 +264,23 @@ function ReviewQueue({ overview, busy, inspect, promote, startShadow, authorEval
 }) {
   if (overview === undefined) return null
   const feedbackShadow = overview.feedbackShadow
-  const automaticBudget = overview.automaticFeedbackBudget
+  const automaticBudgets = [
+    ...(overview.automaticFeedbackBudget?.targets ?? []).map(target => ({
+      workflow: 'label.feedbackShadow',
+      target,
+    })),
+    ...(overview.automaticEvaluatorBudget?.targets ?? []).map(target => ({
+      workflow: 'label.evaluatorDraft',
+      target,
+    })),
+  ]
   const evaluatorAuthoring = overview.evaluatorAuthoring
   return <>
-    {automaticBudget !== undefined && <section>
+    {automaticBudgets.length > 0 && <section>
       <h3 className="dsh-evolve-section-title">{t('section.budget')}</h3>
-      <ul className="dsh-evolve-list">{automaticBudget.targets.map(target => (
-        <li className="dsh-evolve-review" key={target.targetId}>
-          <div className="dsh-evolve-review-skill">{target.targetId} · {target.skillName}</div>
+      <ul className="dsh-evolve-list">{automaticBudgets.map(({ workflow, target }) => (
+        <li className="dsh-evolve-review" key={`${workflow}:${target.targetId}`}>
+          <div className="dsh-evolve-review-skill">{t(workflow)} · {target.targetId} · {target.skillName}</div>
           <div className="dsh-evolve-meta">{target.status === 'unknown'
             ? t('status.budgetUnknown')
             : `${target.used}/${target.limit} ${t('label.attemptsUsed')} · ${target.remaining} ${t('label.remaining')} · ${target.utcDay} UTC`}</div>

@@ -9,6 +9,19 @@ import {
 } from '../src/automatic-evolution-budget.ts'
 
 describe('AutomaticEvolutionBudget', () => {
+  it('creates a missing statically configured owned root privately before the first reservation', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-automatic-budget-new-root-'))
+    const runRoot = join(root, 'new-owned-root')
+    const budget = new AutomaticEvolutionBudget({ now: () => Date.UTC(2026, 7, 17, 12) })
+
+    await expect(budget.reserve(budgetTarget(runRoot, 1), '9'.repeat(64)))
+      .resolves.toMatchObject({ allowed: true, newlyReserved: true })
+
+    expect((await stat(runRoot)).mode & 0o777).toBe(0o700)
+    expect((await stat(join(runRoot, '.automatic-evolution-budget-v1', 'current.json'))).mode & 0o777)
+      .toBe(0o600)
+  })
+
   it('durably reserves a bounded number of automatic attempts per UTC day', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-automatic-budget-'))
     const runRoot = join(root, 'runs')
@@ -83,6 +96,8 @@ describe('AutomaticEvolutionBudget', () => {
     expect(() => budget.assertTargets([])).toThrow('requires 1-20 static targets')
     expect(() => budget.assertTargets([budgetTarget('relative', 1)]))
       .toThrow('run roots must be absolute')
+    expect(() => budget.assertTargets([budgetTarget('/', 1)]))
+      .toThrow('run roots must not be filesystem roots')
     expect(() => budget.assertTargets([budgetTarget('/private/runs', 0)]))
       .toThrow('daily attempt limits must be integers between 1 and 20')
     expect(() => budget.assertTargets([
@@ -101,6 +116,19 @@ describe('AutomaticEvolutionBudget', () => {
 
     await expect(budget.reserve(budgetTarget(runRoot, 1), '1'.repeat(64)))
       .rejects.toThrow('automatic evolution budget journal path is not exact')
+  })
+
+  it('refuses a configured run root that is itself a symbolic link', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-automatic-budget-root-symlink-'))
+    const runRoot = join(root, 'runs')
+    const outside = join(root, 'outside')
+    await mkdir(outside)
+    await symlink(outside, runRoot, 'dir')
+
+    await expect(new AutomaticEvolutionBudget().reserve(
+      budgetTarget(runRoot, 1),
+      '1'.repeat(64),
+    )).rejects.toThrow('run root must be a real directory')
   })
 })
 

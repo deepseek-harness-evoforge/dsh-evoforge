@@ -166,6 +166,18 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'status': z.union([z.literal("ready"), z.literal("unknown")]).readonly(),
 })).readonly(),
 })]).readonly().optional(),
+  'automaticEvaluatorBudget': z.union([z.undefined(), z.object({
+  'warningCount': z.number().readonly(),
+  'targets': z.array(z.object({
+  'targetId': z.string().readonly(),
+  'skillName': z.string().readonly(),
+  'utcDay': z.string().readonly(),
+  'used': z.number().readonly(),
+  'limit': z.number().readonly(),
+  'remaining': z.number().readonly(),
+  'status': z.union([z.literal("ready"), z.literal("unknown")]).readonly(),
+})).readonly(),
+})]).readonly().optional(),
   'evaluatorAuthoring': z.union([z.undefined(), z.object({
   'available': z.boolean().readonly(),
   'warningCount': z.number().readonly(),
@@ -1017,7 +1029,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionOverview",
-            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly automaticPromotion: { readonly enabled: boolean; readonly skills: readonly string[]; };\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly feedbackShadow?: { readonly available: boolean; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly runs: readonly EvolutionShadowRunView[]; };\n    readonly automaticFeedbackBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly evaluatorAuthoring?: { readonly available: boolean; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly drafts: readonly EvolutionEvaluatorDraftView[]; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
+            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly automaticPromotion: { readonly enabled: boolean; readonly skills: readonly string[]; };\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly feedbackShadow?: { readonly available: boolean; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly runs: readonly EvolutionShadowRunView[]; };\n    readonly automaticFeedbackBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly automaticEvaluatorBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly evaluatorAuthoring?: { readonly available: boolean; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly drafts: readonly EvolutionEvaluatorDraftView[]; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
           },
           {
             "name": "EvolutionReviewCaseView",

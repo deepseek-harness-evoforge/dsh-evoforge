@@ -121,8 +121,12 @@ An opt-in deployment policy that lets one still-current explicit correction ente
 _Avoid_: Background reflection, automatic evaluator trust, live-session learning, self-grading
 
 **Automatic Evolution Budget**:
-A deployment-level UTC-day cap on durable automatic attempt reservations for one exact Shadow Target. A reservation is consumed before a possibly paid launch and survives crashes; it never limits an explicit human launch or claims to be a billing ledger.
+A deployment-level UTC-day cap on durable automatic attempt reservations for one exact automatic Target. A reservation is consumed before a possibly paid author/launch boundary and survives crashes; it never limits an explicit human action or claims to be a billing ledger.
 _Avoid_: Token scheduler, pricing engine, global quota service, model budget in Session
+
+**Automatic Evaluator Draft**:
+An opt-in deployment policy that lets one still-current explicit correction create one private, inactive Evaluator Draft for a unique static Target without a per-signal author command. It spends a durable daily attempt reservation first and leaves execution, qualification, Shadow, and Promotion under their existing separate authorities.
+_Avoid_: Automatic evaluator trust, self-grading, synchronous Session reflection, default background spending
 
 **Case Pack Calibration**:
 A zero-model, host-only execution of the declared known-bad and known-correction fixtures through the same sealed evaluator used by Shadow. It proves evaluator direction before proposer spend; it does not prove coverage of novel failures. A complete Shadow performs this gate before requesting a Candidate and still uses four Trial executions total.
