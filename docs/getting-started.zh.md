@@ -53,6 +53,17 @@ pnpm --filter dsh-software-delivery pack --pack-destination "$PWD/.evoforge/pack
   name: dsh-software-delivery
 ```
 
+若仓库要求远端 CI 也成为 Goal 完成条件，显式开启：
+
+```yaml
+- id: dsh-software-delivery
+  name: dsh-software-delivery
+  config:
+    requireDraftPrChecks: true
+```
+
+默认值为 `false`。开关位于 host plane，不增加或修改模型 Tool。
+
 创建可信本地配置并验证一个已经 commit 的 linked worktree：
 
 ```json
@@ -91,6 +102,12 @@ dsh-delivery verify \
 
 当前要求 GitHub.com、已登录 `gh`、`origin` 同仓 branch。它只创建或复用 Draft，不 merge、
 不转 ready，也不读取或输出 token；命令仍由原生 shell policy 决定。
+
+启用 `requireDraftPrChecks` 后，同一次调用还会核对 Draft PR 的 `headRefOid` 与
+`statusCheckRollup`：exact head 至少有一项且全部绿色才完成 Goal；failed 返回 `failed`，pending、
+缺失、无法读取或 head 漂移返回 `unknown`，Goal 都保持 active。插件不后台等待、不轮询；稍后
+重试会重新验证本地 commit/check、复用同一个 PR 并读取最新远端事实。当前读取全部 rollup checks，
+不是 GitHub required-only 规则，也不下载 CI 日志。
 
 如果同一 DSH composition 也加载 `dsh-evolve`，无需再增加 Tool 或配置 Adapter。Evolve 会
 旁路观察最终 `complete_delivery` 结果并关联该 Session 的 Generation；`/evolve status` 增加：

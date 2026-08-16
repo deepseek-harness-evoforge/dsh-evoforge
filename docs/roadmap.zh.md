@@ -1,6 +1,6 @@
 # EvoForge 开发路线图
 
-> 状态：P0A–P1.6 已实现；P2A.1 验证、P2B.1 Goal 完成、P2C.1 Draft PR 与 P2D.1 Outcome 第二消费者已实现
+> 状态：P0A–P1.6 已实现；P2A.1 验证、P2B.1 Goal 完成、P2C.1 Draft PR、P2C.2 exact checks 门与 P2D.1 Outcome 第二消费者已实现
 
 ## 当前状态
 
@@ -13,7 +13,7 @@
 | P0B Local Continuity | implemented | P0B.1 release kernel、P0B.2a durable resume 与 P0B.2b resident supervisor 已通过本地/pinned DSH 测试；生产多日 soak 仍属发布前证据 |
 | P0C Human Control | 命令闭环 + verified bounded diff implemented；可用性门待验证 | P0C.1 release、P0C.2 review → inactive Generation、P0C.3 durable pause/resume、P0C.4 exact Git diff preview 已通过真实 Commands/Agent 测试 |
 | P1 Bounded Autonomy | P1.1–P1.6 implemented；P2D.1 信号已接通 | 默认关闭的 allowlist + append-only policy、交付 outcome、显式反馈 intake、私有 Case Draft、既有 Case Pack 下的反馈引导 Shadow、proposer 前零模型校准、exact parent/Candidate 反事实 canary、pointer-safe 自动回滚均已通过测试；全新失败 evaluator 与真实任务长期率待验证 |
-| P2 Software Delivery | P2A.1 + P2B.1 + P2C.1 + P2D.1 consumer implemented | linked worktree/commit/check、原生 Bash policy → exact push/Draft PR → `update_goal`，并由 Evolve 异步记录最小三态信号；pinned DSH Agent/ToolRuntime/Storage 与 package 已测 |
+| P2 Software Delivery | P2A.1 + P2B.1 + P2C.1–P2C.2 + P2D.1 consumer implemented | linked worktree/commit/check、原生 Bash policy → exact push/Draft PR → 可选 exact-head 远端 checks 门 → `update_goal`，并由 Evolve 异步记录最小三态信号；pinned DSH Agent/ToolRuntime/Storage 与 package 已测 |
 
 ## P0A — 先证明会判断
 
@@ -180,12 +180,19 @@ open PR：已存在且仍为 Draft 时复用；不存在时创建 Draft 并 read
 证据见 [P2C.1](evidence/p2c-1-idempotent-draft-pr.zh.md)与
 [ADR-0014](adr/0014-remote-draft-pr-facts-are-idempotency-source.md)。
 
+P2C.2 增加默认关闭的 host 配置 `requireDraftPrChecks`，仍不改变同一个 Tool 的 Schema。启用后
+读取 exact PR `headRefOid/statusCheckRollup`：至少一项且全绿才完成 Goal；failed、pending、缺失、
+不确定或 wrong-head 都保持 active。它每次调用只读一次，不建立 watcher/journal；显式重试复用
+远端同一个 PR。证据见 [P2C.2](evidence/p2c-2-exact-draft-check-gate.zh.md)与
+[ADR-0022](adr/0022-draft-checks-are-an-opt-in-completion-gate.md)。
+
 P2D.1 已完成第二消费者：`dsh-evolve` 不反向侵入 Software Delivery，通过 DSH final
 `tools/result` 异步记录 compact outcome，持久化/去重/重启失败不影响原 Goal 或 Tool。动态
 状态只在 host Commands 可见，模型表面保持不变。它是 Learning Signal，不是 rollback 权限。
 
-P2 剩余：用真实开发任务测量通过率、返工率、人工介入和 token/cache 成本。GitHub fork/其他 forge/远端 CI 等待只在真实需求数据
-证明后扩展。全局拦截所有 Goal transition 不在计划内，除非真实误完成数据证明原子动作不足。
+P2 剩余：用真实开发任务测量通过率、返工率、人工介入和 token/cache 成本。GitHub fork/其他
+forge、required-only 规则、CI 日志诊断与自动等待只在真实需求数据证明后扩展。全局拦截所有
+Goal transition 不在计划内，除非真实误完成数据证明原子动作不足。
 
 ## P3 — 一个通用助理场景
 

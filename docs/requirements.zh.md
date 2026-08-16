@@ -279,6 +279,11 @@ Draft PR 继续复用同一个 Tool 的可选参数，不再增加模型动作�
 创建或复用 Draft 和 read-after-write；不 merge、不转 ready。远端 branch/PR 是幂等事实源，
 网络结果不确定时 Goal 保持 active，重试先查询而不是盲目重复外部动作。
 
+仓库可通过默认关闭的 host 配置要求 exact Draft PR head 至少有一项且全部远端 checks 通过后才
+完成 Goal。该配置不改变 Tool Schema；每次调用只读一次远端事实，不轮询、不保存 CI journal、
+不复制日志。failed、pending、缺失、无法读取或 head 漂移都保持 Goal active，稍后显式重试复用
+同一个 PR。
+
 反馈进化先复用原生 Message Feedback 保存 reference-only Signal。只有管理者配置私有复制目录且
 用户逐条选择 signal/Skill，才保存未评分 Case Draft；它必须重新核对 exact feedback version、
 Session-pinned Generation、单一 Skill invocation 和 whole-Skill content hash。已有可信 Case Pack

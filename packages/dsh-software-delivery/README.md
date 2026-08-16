@@ -7,6 +7,7 @@ The intended path is:
 ```text
 native DSH Goal → linked worktree → repository change and checks
                 → clean commit → verification report → optional Draft PR
+                → optional exact-head remote-check gate
 ```
 
 It does not add a second Goal, workflow database, daemon, policy engine, or system-prompt fragment.
@@ -21,6 +22,18 @@ This package is a normal Cordis runtime plugin, not a profile-mutating Bundle. A
 - id: dsh-software-delivery
   name: dsh-software-delivery
 ```
+
+To keep the Goal active until the exact Draft PR head has at least one remote check and every check
+is green, opt in at the host configuration boundary:
+
+```yaml
+- id: dsh-software-delivery
+  name: dsh-software-delivery
+  config:
+    requireDraftPrChecks: true
+```
+
+The default is `false` for compatibility. This setting does not add or change a model Tool.
 
 The stable Skill name and description appear in DSH's native catalog. Its body is loaded only when the user invokes it or the Agent calls the existing `skill` Tool.
 
@@ -69,17 +82,26 @@ Pass the optional `draft_pr` object to `complete_delivery` when the Goal require
 
 The Tool first checks `gh auth`, pushes the exact verified commit to the same branch on `origin`, then looks for an open PR with the exact head/base. An existing Draft at the exact commit is reused. Otherwise one Draft is created and read back before Goal completion. A lost create response is safe to retry because the next call queries remote facts first; no local journal or idempotency database is added. A non-Draft PR is never downgraded or edited, and merge/ready/release operations are absent.
 
-This alpha slice targets GitHub.com and same-repository branches. Fork PR routing, other forges, PR body updates, reviewers, labels, and CI-waiting are not yet supported.
+With `requireDraftPrChecks: true`, the Tool then reads the exact PR's `headRefOid` and
+`statusCheckRollup` once. At least one check must exist and all checks must be successful, neutral, or
+skipped. Failed checks return `failed`; pending, missing, malformed, unreadable, or wrong-head checks
+return `unknown`. Either result keeps the native Goal active. A later explicit retry repeats local
+verification, reuses the same PR, and reads current remote facts. There is no polling process or CI
+journal.
+
+This alpha slice targets GitHub.com and same-repository branches. Fork PR routing, GHES, other forges,
+required-only branch-protection interpretation, PR body updates, reviewers, labels, CI-log download,
+and automatic CI waiting are not supported.
 
 ## Trust and authority
 
 Verification configs are trusted local execution input, not untrusted repository data. The standalone CLI is not a sandbox. The integrated Tool delegates checks to DSH's native shell Tool, so its existing sandbox, approval, and Tool guards remain authoritative. Review checks and keep them repository-scoped. Merge, release, production deployment, secret access, paid calls, and irreversible external actions still require native DSH approval or an explicit deployment policy.
 
-The plugin does not globally intercept native Goal completion: a human or another native path can still call `update_goal` directly. Instead it provides one atomic, evidence-gated completion path without monkey-patching GoalService or building a second state machine. It does not yet feed outcomes to Evolve.
+The plugin does not globally intercept native Goal completion: a human or another native path can still call `update_goal` directly. Instead it provides one atomic, evidence-gated completion path without monkey-patching GoalService or building a second state machine. When `dsh-evolve` is also installed, it can passively consume the compact final outcome without changing this delivery path.
 
 ## Cache surface
 
-The Skill body remains on demand. In a fully integrated composition, one stable Tool schema covers verification, optional Draft PR, and completion; it remains tested at no more than 2 KiB serialized JSON. Its name, schema, and order stay unchanged across repeated model calls. A successful invocation returns compact commit/check/PR facts. Failure previews are bounded. Exact token counts depend on the active tokenizer, so the repository asserts bytes and full-request equality rather than claiming a tokenizer-independent number.
+The Skill body remains on demand. In a fully integrated composition, one stable Tool schema covers verification, optional Draft PR, remote-check gating, and completion; it remains tested at no more than 2 KiB serialized JSON. Enabling the gate does not change its name, description, schema, or order across model calls. A successful invocation returns compact commit/check/PR facts and bounded remote-check counts. CI logs and dynamic check names are not copied into the model result. Exact token counts depend on the active tokenizer, so the repository asserts bytes and full-request equality rather than claiming a tokenizer-independent number.
 
 ## Develop
 

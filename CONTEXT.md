@@ -73,11 +73,11 @@ An immutable set of active capability versions selected for a session. Existing 
 _Avoid_: Latest files, mutable skill catalog
 
 **Software Delivery Pack**:
-The optional `dsh-software-delivery` capability that takes a native DSH Goal through isolated editing, repository-defined verification, commit, and Draft PR. Git-specific behavior belongs here rather than in generic Goal infrastructure.
+The optional `dsh-software-delivery` capability that takes a native DSH Goal through isolated editing, repository-defined verification, commit, and Draft PR. A host may also require at least one green remote check on the exact Draft PR head before this path completes the Goal. Git-specific behavior belongs here rather than in generic Goal infrastructure.
 _Avoid_: Autonomous SDLC platform, coding operating system
 
 **Completion Check**:
-A small, inspectable result used before a Goal is allowed to complete. It reports `passed`, `failed`, or `unknown`, a concise explanation, and optional artifact references. It does not introduce a universal evidence ontology.
+A small, inspectable result used before a Goal is allowed to complete. It reports `passed`, `failed`, or `unknown`, a concise explanation, and optional artifact references. Local checks and an opt-in exact-head remote-check read use the same three-state semantics; pending, missing, unreadable, or wrong-head evidence is `unknown`, never an implicit pass. It does not introduce a universal evidence ontology, watcher, or second state machine.
 _Avoid_: Agent self-certification, evaluator framework
 
 **Delivery Outcome**:
