@@ -42,6 +42,7 @@ jobs:
           pnpm --filter dsh-evolve-web pack --pack-destination "$RUNNER_TEMP"
           pnpm --filter dsh-software-delivery pack --pack-destination "$RUNNER_TEMP"
           pnpm --filter dsh-doctor pack --pack-destination "$RUNNER_TEMP"
+          pnpm --filter dsh-telegram pack --pack-destination "$RUNNER_TEMP"
 
   assembled-darwin:
     name: macOS DSH Assembled Trial
@@ -92,7 +93,7 @@ jobs:
           test/generation-binder.e2e.test.ts
           test/generation-crash-recovery.e2e.test.ts
           test/package-install-remove-generation.e2e.test.ts
-      - name: Run delivery and Doctor assembled/package-boundary tests
+      - name: Run delivery, Doctor, and Telegram assembled/package-boundary tests
         env:
           DSH_EVOLVE_DSH_SOURCE_DIR: ${{ github.workspace }}/.evoforge/deepseek-harness
         run: |
@@ -101,6 +102,11 @@ jobs:
             test/dsh-assembled-completion.e2e.test.ts \
             test/package-install-remove.e2e.test.ts
           pnpm --filter dsh-doctor exec vitest run \
+            test/package-install-remove.e2e.test.ts
+          pnpm --filter dsh-telegram exec vitest run \
+            test/cache-composition.e2e.test.ts \
+            test/delivery-store-persistence.e2e.test.ts \
+            test/dsh-assembled-chat.e2e.test.ts \
             test/package-install-remove.e2e.test.ts
       - name: Run PA-1 protected-action hard gate
         env:

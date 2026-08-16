@@ -1,7 +1,7 @@
 # EvoForge 产品架构
 
-> 状态：产品边界已确认；首仓与首个插件名已冻结
-> 更新日期：2026-08-16
+> 状态：产品边界已确认；首个 Assistant Adapter 已实现
+> 更新日期：2026-08-17
 
 ## 1. 产品结果
 
@@ -16,7 +16,7 @@ DSH Runtime ─ Goal / Session / Tool / Approval / Storage / Jobs / Skill
 EvoForge 可选能力
   ├─ Evolve：从真实结果产生、评测和发布能力候选
   ├─ Software Delivery：隔离、验证、commit、Draft PR
-  └─ 后续 Assistant Adapter：消息、日程、内容或个人工作流
+  └─ Telegram Adapter：一个私聊持续使用一个稳定 DSH Agent
 ```
 
 DSH 始终拥有模型执行和基础服务；EvoForge 插件只增加用户结果。插件卸载后，原生 DSH Session 和 Goal 仍可恢复。
@@ -31,9 +31,12 @@ DSH 始终拥有模型执行和基础服务；EvoForge 插件只增加用户结�
 
 独立插件。它把一个原生 Goal 交付为隔离 worktree、仓库检查、可审查 diff、commit 和可选 Draft PR；仓库也可选择 exact-head 远端 checks 全绿后才完成 Goal。即使不启用 Evolve，它仍有完整用户价值；启用后，它提供第一组强 outcome signal。
 
-### Assistant Adapter
+### dsh-telegram
 
-不是首版承诺。只有一个高频具体工作流、明确外部效果边界和可验证 outcome 同时成立时，才增加一个消息、日程、内容或个人助理 Adapter。每个 Adapter 独立安装，不复制 Hermes 巨型 Gateway。
+首个 Assistant Adapter 已选择 Telegram 单私聊：一个 Bot、一个 exact private chat/user、一个带
+稳定 `sessionId` 的既有 DSH Agent。它复用原生 Commands、Approval、Goal 与 Schedule，不创建
+第二 Session 或 Gateway；0 Tool/Skill/Prompt。真实 Bot/Hermes paired benchmark 之前只标记为
+`implemented`。下一个消息、日程、内容或个人助理 Adapter 仍需独立用户需求与 outcome 证据。
 
 当前不创建独立的 Mission、Supervisor、Cache、Policy、Memory、Event Store 或通用 UI 平台插件。两个真实消费者出现前，共享接缝留在插件内部。
 
@@ -83,7 +86,7 @@ DSH 始终拥有模型执行和基础服务；EvoForge 插件只增加用户结�
 | 软件交付 | 原生 Goal 到 verified commit/Draft PR | verified commit、幂等 Draft PR、可选 exact-head checks 门与原生 Goal 受验证完成 implemented；真实任务数据 pending |
 | 单机持续运行 | crash-resume、幂等恢复、无半激活版本 | Generation release + Shadow journal + native Jobs supervisor 已通过 `SIGKILL`、关机取消和重复扫描；生产多日 soak pending |
 | Memory/Skill | 复用 DSH/社区能力，不造第二套 Memory | 架构边界已确认 |
-| 消息与日程 | 按真实 workflow 提供可拆 Adapter | 后续验证，不承诺首版 |
+| 消息与日程 | 按真实 workflow 提供可拆 Adapter | Telegram 单私聊首片 implemented；真实 Bot/Hermes paired 与其他场景 pending |
 | 人类控制 | 状态、证据、审批、暂停、回滚不阻塞会话 | P0C.1 release + P0C.2 review + P0C.3 durable pause/resume + P0C.4 exact bounded diff + P0C.5 protected-effect lexical projection + P0C.6 无 Session 可达 Web 控制面 implemented；语义 capability 审计与陌生用户可用性数据 pending |
 | 自进化 | 独立 final-test、inactive Candidate、可证明晋升 | P0A `fail → pass` + P0B verified-Git/resident resume + P0C inactive publication + P1.1 opt-in auto policy + P2D.1 Outcome + P1.2 exact-parent 反事实回滚 + P1.3 feedback intake + P1.4 private Case Draft + P1.5 feedback-guided Shadow + P1.6 pre-proposal calibration + P1.7 explicit evaluator authoring；全新失败自动 evaluator 与真实长期效果 pending |
 | 权限 | 代码和外部效果不自动激活 | 需求与测试门已定义 |
@@ -92,7 +95,7 @@ DSH 始终拥有模型执行和基础服务；EvoForge 插件只增加用户结�
 
 只有这些项目在真实任务、故障注入和成本测量中成立，才可以宣称对应范围优于 Hermes。
 
-具体 paired benchmark、hard gate 和声明等级见 [Hermes 上位目标验收记分卡](hermes-replacement-scorecard.zh.md)。单个能力胜出只能声明对应工作流；在消息或日程等 Hermes 优势范围尚未交付前，不作全局“已经上位”声明。
+具体 paired benchmark、hard gate 和声明等级见 [Hermes 上位目标验收记分卡](hermes-replacement-scorecard.zh.md)。单个能力胜出只能声明对应工作流；Telegram 尚未通过真实 paired benchmark，其他消息或日程范围也尚未交付，因此不作全局“已经上位”声明。
 
 ## 7. 仓库策略
 
@@ -115,6 +118,6 @@ GitHub 组织 `deepseek-harness-evoforge` 是所有 DSH 扩展设计与开发的
 3. **P0C**：host command/view、异步人工晋升和 rollback。
 4. **P1**：权限效果不变的纯指令 future-session canary 与窄自动晋升。
 5. **P2**：Software Delivery 正式产品化；代码 Candidate 只到 Draft PR。
-6. **P3**：基于真实用户 workflow 选择一个 Assistant Adapter。
+6. **P3**：Telegram 单私聊 Adapter implemented；下一门是实际 Bot soak、陌生安装与 Hermes paired benchmark，不是扩渠道。
 
 每一阶段未达到可验证退出条件时停止扩张，不用更多插件或基础设施掩盖失败。

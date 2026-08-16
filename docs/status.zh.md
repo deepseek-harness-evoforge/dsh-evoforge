@@ -39,8 +39,9 @@
 | 单机常驻和崩溃恢复 | `implemented`（P0B） | 四个 release `SIGKILL` 边界；[P0B.2a](evidence/p0b-2a-durable-shadow-resume.zh.md)；[P0B.2b](evidence/p0b-2b-resident-shadow-supervisor.zh.md) native Jobs supervisor/关机恢复/重复扫描 | 生产多日 soak、真实磁盘耗尽与更多机器数据 |
 | `dsh-software-delivery` | `implemented`（P2A.1 + P2B.1 + P2C.1–P2C.2 + P2D.1 consumer） | [P2A.1](evidence/p2a-1-software-delivery-verifier.zh.md)：真实 Git/CLI/package；[P2B.1](evidence/p2b-1-native-goal-verified-completion.zh.md)：Goal/Bash/update_goal；[P2C.1](evidence/p2c-1-idempotent-draft-pr.zh.md)：exact push、create/reuse、不确定重试、ready 冲突；[P2C.2](evidence/p2c-2-exact-draft-check-gate.zh.md)：exact-head checks 三态门与真实 PR；[P2D.1](evidence/p2d-1-delivery-outcome-signal.zh.md)：Evolve 第二消费者；[P1.2](evidence/p1-2-counterfactual-canary.zh.md)：失败后的反事实消费 | fork/其他 forge、required-only/CI 日志与自动等待、真实开发任务数据 |
 | `dsh-doctor` Runtime Readiness | `implemented` | [实现证据](evidence/dsh-doctor-runtime-readiness.zh.md)：三态分类、原生 Commands、真实 Loader、tarball add/dump-config/boot/remove、零模型表面 | 发布版本、陌生用户诊断成功率；启动前失败与外部 provider 不在首版范围 |
+| `dsh-telegram` 单私聊 Agent Adapter | `implemented`（AS-1 首片） | [AS-1 证据](evidence/as-1-telegram-private-chat.zh.md)：exact route、真实 Loader/Agent Loop、Goal/Schedule turn routing、原生 Commands、Approval callback、429 有界重试、Storage 重启、tarball add/boot/remove、零模型表面 | 真实 Bot 多日 soak、移动端/公网故障、陌生安装与 Hermes paired benchmark |
 | PA-1 Protected Action hard gate | `implemented` | [PA-1 证据](evidence/pa-1-protected-action-hard-gates.zh.md)：一个 test pack 聚合 auto-promotion、sealed secret/network、paid retry、Draft-only delivery、future-session rollback | 真实第三方插件、恶意仓库、非 macOS 隔离与明确部署策略对抗数据 |
-| 个人助理、消息、内容、日程插件 | `planned` | 仅产品范围 | 每次只选择一个高频工作流验证 |
+| 其他个人助理、消息、内容、日程 Adapter | `planned` | Telegram 单私聊已提供首个最小形态 | 每次只选择一个具备独立需求和 outcome 的工作流验证；两个真实 Adapter 前不抽 Gateway |
 | Web 控制面 | `implemented`（P0C.6） | 可删除 Bundle、生成式 Remote、全局侧栏入口；固定 DSH tarball 装配与真实浏览器 pause → 进程重启仍暂停 → resume，[证据](evidence/p0c-6-web-control-plane.zh.md) | 陌生用户可用性数据、分页/图形 diff；实时推送仅在证据显示需要时考虑 |
 | TUI 控制面 | `planned` | Commands 已可用，尚无独立 TUI 必要性证据 | 先证明 Web/Commands 无法覆盖的高频场景 |
 
@@ -68,6 +69,9 @@
 - 审查报告 Schema 的实际 JSON 输出。
 - 通过 `software-delivery` Skill 使用原生 Goal/Shell 完成隔离开发；可用 `complete_delivery` 原子验证 exact Goal/commit/check、可选幂等发布 GitHub Draft PR，并可选择 exact-head 远端 checks 全绿后才调用原生完成，也可用 standalone CLI 生成三态结果。
 - 安装 `dsh-doctor` 后用 `/doctor` 一次性查看当前 required plugins 和全部 enabled failures；结果只读、零模型 token，卸载后不留 Bundle 配置。
+- 显式配置一个 Bot token 环境变量、exact private chat/user 与稳定 Agent `sessionId` 后，用
+  `dsh-telegram` 在 Telegram 继续同一 Agent；原生 Commands/Approval/Goal/Schedule 均复用现有
+  DSH seam，`/telegram` 可查看 delivery 状态，插件不增加模型 token。
 
 ## 当前不能做什么
 
@@ -77,6 +81,9 @@
 - 不能把公开的确定性示例当作真实 DSH 工作流已经改善；
 - `shadow` 不执行任意模型生成代码；assembled lane 会运行真实 DSH，但 Candidate 仍只作为 Skill 数据选择受限的可信 evaluator 行为；
 - 不能声称完整持续进化、生产级多日可靠性、任意外部效果 crash-resume 或优于 Hermes；
+- 不能把 `dsh-telegram` 当作生产消息平台或通用 Gateway：尚未跑真实 Bot 多日 soak、陌生用户安装
+  或 Hermes paired benchmark；transport 不确定与 crash-in-send 只会标为 `uncertain`，不会盲重试，
+  也不能撤回已经发送的消息；
 - 不能作为生产依赖安装。
 
-P0B 的本地实现门已通过；P0C.1–P0C.6 已形成含 exact bounded diff、protected-effect 词法提示、零模型调用和真实 DSH Web 入口的人工闭环；P1.1 已增加默认关闭、可解释、崩溃可恢复的最窄自动晋升。P2A–P2C.2 已把真实 Git/local checks/Draft PR/exact-head remote checks 绑定到一个原生 Goal 的受验证完成路径；P2D.1 已让 Evolve 成为不阻塞、零模型表面的第二消费者；P1.2 已用原 Case Pack 和 exact Git parent/Candidate 实现可归因自动回滚；P1.3/P1.4 已把明确纠正保存为私有、未评分 Case Draft；P1.5 已让 exact 草稿在一次显式 Shadow 中只引导 proposer，由既有可信 Case Pack 独立裁判；P1.6 已把 evaluator 方向校准提前到 proposer 之前；P1.7 已提供不进入 runtime surface 的显式 authoring Skill，并用一个新失败完成 keyless 前向测试和可回滚 Skill 晋升；P1.8 已让用户从 Commands/Web 显式选择静态 Target 后后台启动同一 Shadow，原会话不等待。下一步应收集独立陌生作者、真实 provider/任务 outcome 与纠正改善率，而不是扩大成新 Memory/Signal/Workflow 平台。P0C 陌生用户可用性和生产多日 soak 继续作为证据积累，不能被短时自动化测试替代。
+P0B 的本地实现门已通过；P0C.1–P0C.6 已形成含 exact bounded diff、protected-effect 词法提示、零模型调用和真实 DSH Web 入口的人工闭环；P1.1 已增加默认关闭、可解释、崩溃可恢复的最窄自动晋升。P2A–P2C.2 已把真实 Git/local checks/Draft PR/exact-head remote checks 绑定到一个原生 Goal 的受验证完成路径；P2D.1 已让 Evolve 成为不阻塞、零模型表面的第二消费者；P1.2 已用原 Case Pack 和 exact Git parent/Candidate 实现可归因自动回滚；P1.3/P1.4 已把明确纠正保存为私有、未评分 Case Draft；P1.5 已让 exact 草稿在一次显式 Shadow 中只引导 proposer，由既有可信 Case Pack 独立裁判；P1.6 已把 evaluator 方向校准提前到 proposer 之前；P1.7 已提供不进入 runtime surface 的显式 authoring Skill，并用一个新失败完成 keyless 前向测试和可回滚 Skill 晋升；P1.8 已让用户从 Commands/Web 显式选择静态 Target 后后台启动同一 Shadow，原会话不等待。AS-1 首片也已由 `dsh-telegram` 实现，但仍只到自动化 `implemented`。下一步应收集独立陌生作者、真实 provider/任务 outcome、纠正改善率与真实 Bot/Hermes paired 数据，而不是扩大成新 Memory/Signal/Workflow/Gateway 平台。P0C 陌生用户可用性和生产多日 soak 继续作为证据积累，不能被短时自动化测试替代。

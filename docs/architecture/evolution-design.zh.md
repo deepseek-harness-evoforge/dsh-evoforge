@@ -583,7 +583,8 @@ Candidate 不能通过修改自身评测政策、held-out cases 或权限配置�
 
 ### P3 — 通用自治数据源
 
-- 只选择一个已有明确高频工作流和客观 outcome adapter 的个人助理、消息、内容或日程场景；
+- 首个场景已选择独立 `dsh-telegram` 单私聊 Adapter；它只把结果和显式反馈接到既有 DSH/Evolve
+  seam，不扩张 Evolve 的状态模型；真实 adoption/outcome 证据出现前不增加第二渠道；
 - 不改变 `evolve` 的用户心智模型。
 
 ## 22. 成功与停止条件

@@ -267,6 +267,10 @@ EvoForge 是新增功能项目，不是 DSH Bug 修复项目。
 6. P0C 提供异步人工晋升；P1 才允许极窄、可证明的纯指令自动晋升；
 7. 用真实结果决定后续软件交付、个人助理、内容、消息和日程插件，不一次性全部实现。
 
+当前进度说明：软件交付、Runtime Readiness 与首个 Telegram 单私聊 Adapter 已分别以独立
+`dsh-*` 包实现；Telegram 仍只到自动化 `implemented`，真实 Bot/Hermes paired 证据完成以前不
+扩张为 Gateway，也不把其他消息、内容或日程需求视为已交付。该说明不改变以上需求顺序和权限边界。
+
 在 P1.1 之后，先实现 `dsh-software-delivery` 的最小 objective outcome：稳定按需 Skill 与
 linked-worktree/commit/check 验证器。只有真实交付 outcome 可用后，才建设 future-session
 canary 和 outcome-triggered rollback，避免先造没有可信信号的自动路由系统。

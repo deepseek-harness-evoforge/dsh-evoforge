@@ -14,7 +14,10 @@ EvoForge 不以插件数量、渠道数量、运行时长或“会修改自己�
 4. token、延迟、人工操作或功能覆盖没有超过预声明的退化上限；
 5. 证据来自可重放的 paired run，而不是项目作者主观打分。
 
-在消息、日程、Memory、语音等 Hermes 已成熟而 EvoForge 尚未交付的范围，项目只能说“目标覆盖”，不能说“已经上位”。全局宣传必须由下面所有必选场景共同支持；单项胜出只能声明该单项。
+在 Telegram 单私聊以外的消息、日程、Memory、语音等 Hermes 已成熟而 EvoForge 尚未交付的范围，
+项目只能说“目标覆盖”，不能说“已经上位”。Telegram 首片也只到自动化 `implemented`；没有真实
+Bot/Hermes paired benchmark 前不能声称胜出。全局宣传必须由下面所有必选场景共同支持；单项胜出
+只能声明该单项。
 
 ## 2. 共同试验协议
 
@@ -49,7 +52,7 @@ EvoForge 不以插件数量、渠道数量、运行时长或“会修改自己�
 | `UI-1` 非阻塞控制 | 用户能查看状态、证据、成本、权限并 pause/review/rollback | 不调用模型即可读取权威状态；不回复 review 不影响原会话；动作结果明确 | 找到并完成控制动作的时间、误操作、前台阻塞 | P0C.1–P0C.6 Commands/Web + P1.8 target-bound Shadow confirmation implemented；语义 capability 审计与真实可用性数据 pending |
 | `KV-1` 缓存稳定 | 长会话、后台观察和能力晋升不破坏当前 Session 的可复用前缀 | 正常会话零 Evolve 常驻 Prompt/Tool；同 Session composition 固定；新版本只进未来 Session | cache-read token/ratio、首个变化位置、额外 input token | Generation pin + 真实两轮前缀/Tool surface implemented；长会话 token soak pending |
 | `PA-1` 权限与可逆性 | 自治不会自行越过用户授权 | merge、release、生产部署、秘密、付费及不可逆动作始终由人工或策略批准；回滚不虚称撤销现实效果 | 未授权外部效果必须为零、重复效果必须为零 | [跨插件 hard-gate test pack](../evidence/pa-1-protected-action-hard-gates.zh.md) implemented；真实第三方/恶意仓库/部署策略对抗数据 pending |
-| `AS-1` 通用助理 | 一个真实消息或日程工作流从触发到交付完整闭环 | 渠道路由、会话连续性、审批、幂等投递、失败重试和结果可查 | 成功投递、重复投递、人工步骤、时延 | 尚未选场景 |
+| `AS-1` 通用助理 | 一个真实消息或日程工作流从触发到交付完整闭环 | 渠道路由、会话连续性、审批、幂等投递、失败重试和结果可查 | 成功投递、重复投递、人工步骤、时延 | `dsh-telegram` 单私聊首片 implemented：真实 DSH Agent/Commands/Approval、durable journal、429 与 package 边界已测；真实 Bot soak、陌生安装和 Hermes paired pending |
 | `RM-1` 可删除性 | 用户禁用或删除 EvoForge 后仍可使用原生 DSH | 无私有事件阻断 Session；Goal 可读；无 watcher/process/config 残留 | 卸载成功率、残留数、数据可导出性 | Evolve/Delivery/Doctor packed artifact profile add/boot/remove + native Session/Goal resume implemented；第三方复跑 pending |
 
 `LC-1` 只能证明 Local Continuity，不能称为 High Availability。High Availability 还必须有明确 SLO、至少两个故障域、故障转移和共享状态一致性试验；没有真实需求和单机运行数据前不进入实现。
@@ -88,6 +91,7 @@ EvoForge 不以插件数量、渠道数量、运行时长或“会修改自己�
 3. 用 P0C 验证 `UI-1`，确认审批始终旁路；
 4. P1 用真实数据测 false promotion、false rollback、review rate 与成本；
 5. P2 完成 `SD-1`，并与 Hermes 做第一组 paired benchmark；
-6. 只根据真实用户频率选择一个 `AS-1`，不为追求渠道数量复制巨型 Gateway。
+6. 用真实 Bot soak 与 Hermes paired benchmark 验证已选择的 Telegram `AS-1`；证据不足时不扩成
+   巨型 Gateway，也不提前开发第二渠道。
 
 这份记分卡是验收文档，不是新的插件、公共 Interface、数据平台或运行时模块。每个阶段直接输出一份可版本化报告即可；出现两个真实报告消费者以前，不建设通用 benchmark 服务。
