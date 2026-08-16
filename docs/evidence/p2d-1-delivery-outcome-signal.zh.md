@@ -29,6 +29,10 @@
 本地全量结果：`dsh-evolve` 85 passed / 1 skipped；`dsh-software-delivery` 24 passed / 1 skipped，
 合计 109 passed。两个 skip 都是显式环境/外部效果门，不被算作通过。
 
+公开 Draft PR 的 CI run `31945162478` 同样通过：Node 22.19.0 为 36 秒、Node 24 为 33 秒；
+macOS 固定 DSH assembled lane 为 2 分 5 秒，包含新 Delivery Outcome Storage restart、真实
+ToolRuntime、Generation/Shadow 回归，以及既有 Software Delivery assembled/package boundary。
+
 ## Cache、权限与边界
 
 - 不新增 Tool、Prompt、Skill 或模型调用；动态计数只走已有 DSH Commands host plane。
