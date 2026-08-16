@@ -20,6 +20,7 @@ export interface EvolutionRemoteClient {
   evaluatorDraft(id: string): Promise<RemoteResult<EvolutionEvaluatorDraftDetail>>
   authorEvaluator(signalId: string, targetId: string): Promise<RemoteResult<EvolutionActionReceipt>>
   approveEvaluator(id: string, note: string): Promise<RemoteResult<EvolutionActionReceipt>>
+  approveAndStartEvaluatorShadow(id: string, note: string): Promise<RemoteResult<EvolutionActionReceipt>>
   rejectEvaluator(id: string, note: string): Promise<RemoteResult<EvolutionActionReceipt>>
   startEvaluatorShadow(id: string): Promise<RemoteResult<EvolutionActionReceipt>>
 }

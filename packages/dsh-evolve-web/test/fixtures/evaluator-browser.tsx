@@ -149,6 +149,24 @@ const remote: EvolutionRemoteClient = {
       draftStatus: 'qualified',
     })
   },
+  approveAndStartEvaluatorShadow: (selectedDraft, note) => {
+    if (qualifiedMode
+      || selectedDraft !== draftId
+      || note !== 'independent semantics reviewed') {
+      throw new Error('wrong combined qualification')
+    }
+    calls.approve += 1
+    calls.shadow += 1
+    return ok({
+      schemaVersion: 1,
+      action: 'start-shadow',
+      launchId: '8'.repeat(64),
+      targetId: 'plugin-delivery',
+      skillName: 'build-dsh-plugin',
+      runStatus: 'scheduled',
+      jobId: 'evolution-4',
+    })
+  },
   rejectEvaluator: () => {
     calls.reject += 1
     return ok({
@@ -255,6 +273,7 @@ const labels: Record<string, string> = {
   'action.inspect': 'Inspect',
   'action.approve': 'Publish inactive',
   'action.approveEvaluator': 'Qualify Evaluator',
+  'action.approveAndShadow': 'Qualify & start Shadow',
   'action.startQualifiedShadow': 'Start Qualified Shadow',
   'action.reject': 'Reject',
   'action.back': 'Back',
@@ -278,6 +297,7 @@ const labels: Record<string, string> = {
   'confirm.approve': 'Publish an inactive Generation without changing current or future Sessions?',
   'confirm.authorEvaluator': 'Paid disclosure confirmation',
   'confirm.approveEvaluator': 'Execute generated code in sealed qualification?',
+  'confirm.approveAndShadow': 'Approve this exact Evaluator Draft and start one potentially paid Shadow only if sealed qualification succeeds? A failed qualification makes no proposer call; success sends bounded user text and correction to the configured model. This does not modify a Skill or authorize Promotion.',
   'confirm.qualifiedShadow': 'Start paid Qualified Shadow?',
   'confirm.rejectEvaluator': 'Reject without execution?',
   'notice.done': 'Done',

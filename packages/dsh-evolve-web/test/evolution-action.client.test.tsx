@@ -173,6 +173,15 @@ function remote(
       skillName: 'build-dsh-plugin',
       draftStatus: 'qualified' as const,
     })),
+    approveAndStartEvaluatorShadow: vi.fn(() => success({
+      schemaVersion: 1 as const,
+      action: 'start-shadow' as const,
+      launchId: '8'.repeat(64),
+      targetId: 'plugin-delivery',
+      skillName: 'build-dsh-plugin',
+      runStatus: 'scheduled' as const,
+      jobId: 'evolution-4',
+    })),
     rejectEvaluator: vi.fn(() => success({
       schemaVersion: 1 as const,
       action: 'reject-evaluator' as const,
@@ -209,6 +218,7 @@ const t = (key: string) => ({
   'action.authorEvaluator': 'Author Evaluator',
   'action.inspectEvaluator': 'Inspect Evaluator',
   'action.approveEvaluator': 'Qualify Evaluator',
+  'action.approveAndShadow': 'Qualify & start Shadow',
   'action.startQualifiedShadow': 'Start Qualified Shadow',
   'action.confirm': 'Confirm',
   'action.cancel': 'Cancel',
@@ -370,6 +380,35 @@ describe('EvolutionAction', () => {
     confirmation = await screen.findByRole('alertdialog')
     fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm' }))
     await waitFor(() => expect(api.startEvaluatorShadow).toHaveBeenCalledWith(evaluatorDraftId))
+    expect(api.promote).not.toHaveBeenCalled()
+  })
+
+  it('combines human qualification and contingent paid Shadow behind one cancellable confirmation', async () => {
+    const api = remote()
+    render(<EvolutionAction remote={api} t={t} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
+    await screen.findByRole('dialog')
+    fireEvent.click(await screen.findByRole('button', { name: 'Inspect Evaluator' }))
+    await screen.findByText('final-test/evaluator.mjs')
+    fireEvent.change(screen.getByLabelText('Decision note'), {
+      target: { value: 'reviewed exact evaluator and authorize paid Shadow' },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Qualify & start Shadow' }))
+    let confirmation = await screen.findByRole('alertdialog')
+    expect(api.approveAndStartEvaluatorShadow).not.toHaveBeenCalled()
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Cancel' }))
+    expect(api.approveAndStartEvaluatorShadow).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Qualify & start Shadow' }))
+    confirmation = await screen.findByRole('alertdialog')
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm' }))
+    await waitFor(() => expect(api.approveAndStartEvaluatorShadow).toHaveBeenCalledWith(
+      evaluatorDraftId,
+      'reviewed exact evaluator and authorize paid Shadow',
+    ))
+    expect(api.approveEvaluator).not.toHaveBeenCalled()
+    expect(api.startEvaluatorShadow).not.toHaveBeenCalled()
     expect(api.promote).not.toHaveBeenCalled()
   })
 })

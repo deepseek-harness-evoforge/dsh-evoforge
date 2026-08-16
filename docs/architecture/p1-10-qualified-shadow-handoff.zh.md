@@ -18,6 +18,8 @@
 
 Web 在 qualified detail 中显示 `Start Qualified Shadow`；点击后必须出现区别于 qualification 的确认：
 这一步会把 bounded correction 发送给配置模型并可能产生费用，但不会修改 Skill 或晋升。
+P1.17 另提供人工 `qualify-shadow` 快捷入口；它只在 sealed qualification 成功后调用同一个
+`startShadow()`，不改变本契约的 hash、journal、付费或 Promotion 边界。
 
 内部只扩展两个深 Interface：
 

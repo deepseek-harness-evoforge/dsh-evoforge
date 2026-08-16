@@ -265,6 +265,7 @@ evaluatorTargets:
 /evolve evaluator <64-char-draft-id>
 /evolve evaluator <64-char-draft-id> approve <independent-review-note>
 /evolve evaluator <64-char-draft-id> reject <reason>
+/evolve evaluator <64-char-draft-id> qualify-shadow <independent-review-note>
 /evolve evaluator <64-char-qualified-draft-id> shadow
 ```
 
@@ -275,6 +276,8 @@ Case Pack，不自动启动 Shadow、Candidate 或 Promotion。可选 `shadowRun
 `supervisor.runRoots` exact 路径；只有 qualified 且 hash 未漂移的 Pack 才能由最后一条命令在新的
 付费/纠正外发确认后进入既有 Shadow。原会话不等待，重复动作复用 durable journal。不确定 provider
 effect 在重启后不自动重试；normal Session、列表、detail 与 qualification 的 proposer token 均为 0。
+已经读完 exact Draft 的用户也可用 `qualify-shadow` 一次确认 sealed execution 与“仅成功后”的
+付费 Shadow；校准失败时 proposer 请求为 0，原分步命令和独立 Promotion 仍保留。
 
 ### Evolve Web Bundle 装配
 

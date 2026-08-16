@@ -246,6 +246,15 @@ describe('/evolve host command', () => {
         skillName: 'stable-skill',
         draftStatus: 'qualified' as const,
       })),
+      approveAndStartShadow: vi.fn(async () => ({
+        schemaVersion: 1 as const,
+        action: 'start-shadow' as const,
+        launchId: '8'.repeat(64),
+        targetId: 'stable-skill',
+        skillName: 'stable-skill',
+        runStatus: 'scheduled' as const,
+        jobId: 'evolution-4',
+      })),
       reject: vi.fn(),
       startShadow: vi.fn(async () => ({
         schemaVersion: 1 as const,
@@ -284,6 +293,18 @@ describe('/evolve host command', () => {
       { evaluatorDrafts: evaluatorDrafts as never },
     )).resolves.toMatchObject({ kind: 'success', text: expect.stringContaining('evolution-3') })
     expect(evaluatorDrafts.startShadow).toHaveBeenCalledWith(draftId)
+    await expect(executeEvolutionCommand(
+      fakeStore(),
+      `evaluator ${draftId} qualify-shadow independently reviewed and paid Shadow authorized`,
+      { evaluatorDrafts: evaluatorDrafts as never },
+    )).resolves.toMatchObject({
+      kind: 'success',
+      text: expect.stringContaining('evolution-4'),
+    })
+    expect(evaluatorDrafts.approveAndStartShadow).toHaveBeenCalledWith(
+      draftId,
+      'independently reviewed and paid Shadow authorized',
+    )
   })
 
   it('promotes a full content id only for future Sessions and is idempotent', async () => {
@@ -346,7 +367,7 @@ describe('/evolve host command', () => {
     for (const input of ['promote', 'promote abc', `promote ${rootId} extra`, 'unknown']) {
       await expect(executeEvolutionCommand(store, input)).resolves.toMatchObject({
         kind: 'error',
-      text: 'Usage: /evolve [status|feedback [<signal-id> [draft <skill>|shadow <target>|author <evaluator-target>]]|evaluator [<draft-id> [shadow|approve|reject <note>]]|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]',
+      text: 'Usage: /evolve [status|feedback [<signal-id> [draft <skill>|shadow <target>|author <evaluator-target>]]|evaluator [<draft-id> [shadow|qualify-shadow <note>|approve|reject <note>]]|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]',
       })
     }
     expect(store.promoteGeneration).not.toHaveBeenCalled()

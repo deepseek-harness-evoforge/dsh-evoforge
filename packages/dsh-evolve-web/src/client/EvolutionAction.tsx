@@ -13,7 +13,7 @@ export interface EvolutionActionProps {
   readonly wide?: boolean
 }
 
-type ConfirmAction = 'approve' | 'reject' | 'promote' | 'rollback' | 'shadow' | 'authorEvaluator' | 'approveEvaluator' | 'rejectEvaluator' | 'qualifiedShadow'
+type ConfirmAction = 'approve' | 'reject' | 'promote' | 'rollback' | 'shadow' | 'authorEvaluator' | 'approveEvaluator' | 'approveAndShadow' | 'rejectEvaluator' | 'qualifiedShadow'
 
 /** Sidebar trigger and bounded global evolution control panel. */
 export function EvolutionAction({ remote, t, wide = true }: EvolutionActionProps) {
@@ -119,6 +119,11 @@ export function EvolutionAction({ remote, t, wide = true }: EvolutionActionProps
       )))
     } else if (confirm === 'approveEvaluator' && evaluatorDetail !== undefined) {
       void run(() => remoteValue(remote.approveEvaluator(evaluatorDetail.draft.id, note.trim())))
+    } else if (confirm === 'approveAndShadow' && evaluatorDetail !== undefined) {
+      void run(() => remoteValue(remote.approveAndStartEvaluatorShadow(
+        evaluatorDetail.draft.id,
+        note.trim(),
+      )))
     } else if (confirm === 'rejectEvaluator' && evaluatorDetail !== undefined) {
       void run(() => remoteValue(remote.rejectEvaluator(evaluatorDetail.draft.id, note.trim())))
     } else if (confirm === 'qualifiedShadow' && evaluatorDetail !== undefined) {
@@ -437,7 +442,10 @@ function EvaluatorDetail({ detail, note, busy, setNote, back, confirm, t }: {
       <button type="button" className="dsh-evolve-button" disabled={busy} onClick={back}>{t('action.back')}</button>
       {(canApprove || canReject) && <>
         <button type="button" className="dsh-evolve-button dsh-evolve-danger" disabled={busy || !validNote} onClick={() => confirm('rejectEvaluator')}>{t('action.reject')}</button>
-        {canApprove && <button type="button" className="dsh-evolve-button dsh-evolve-primary" disabled={busy || !validNote} onClick={() => confirm('approveEvaluator')}>{t('action.approveEvaluator')}</button>}
+        {canApprove && <>
+          <button type="button" className="dsh-evolve-button" disabled={busy || !validNote} onClick={() => confirm('approveEvaluator')}>{t('action.approveEvaluator')}</button>
+          {detail.qualifiedShadowAvailable && <button type="button" className="dsh-evolve-button dsh-evolve-primary" disabled={busy || !validNote} onClick={() => confirm('approveAndShadow')}>{t('action.approveAndShadow')}</button>}
+        </>}
       </>}
       {detail.draft.status === 'qualified' && detail.qualifiedShadowAvailable && (
         <button type="button" className="dsh-evolve-button dsh-evolve-primary" disabled={busy} onClick={() => confirm('qualifiedShadow')}>{t('action.startQualifiedShadow')}</button>

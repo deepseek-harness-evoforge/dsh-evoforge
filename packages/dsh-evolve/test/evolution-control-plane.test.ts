@@ -350,6 +350,7 @@ describe('EvolutionControlPlane', () => {
       })),
       author: vi.fn(async () => ({ schemaVersion: 1 as const, action: 'author-evaluator' as const })),
       approve: vi.fn(async () => ({ schemaVersion: 1 as const, action: 'approve-evaluator' as const })),
+      approveAndStartShadow: vi.fn(async () => ({ schemaVersion: 1 as const, action: 'start-shadow' as const })),
       reject: vi.fn(async () => ({ schemaVersion: 1 as const, action: 'reject-evaluator' as const })),
       startShadow: vi.fn(async () => ({ schemaVersion: 1 as const, action: 'start-shadow' as const })),
     }
@@ -371,10 +372,15 @@ describe('EvolutionControlPlane', () => {
     })
     await control.authorEvaluator('7'.repeat(64), 'plugin-delivery')
     await control.approveEvaluator(draftId, 'reviewed')
+    await control.approveAndStartEvaluatorShadow(draftId, 'reviewed and paid Shadow authorized')
     await control.rejectEvaluator(draftId, 'wrong observable')
     await control.startEvaluatorShadow(draftId)
     expect(evaluatorDrafts.author).toHaveBeenCalledWith('7'.repeat(64), 'plugin-delivery')
     expect(evaluatorDrafts.approve).toHaveBeenCalledWith(draftId, 'reviewed')
+    expect(evaluatorDrafts.approveAndStartShadow).toHaveBeenCalledWith(
+      draftId,
+      'reviewed and paid Shadow authorized',
+    )
     expect(evaluatorDrafts.reject).toHaveBeenCalledWith(draftId, 'wrong observable')
     expect(evaluatorDrafts.startShadow).toHaveBeenCalledWith(draftId)
   })

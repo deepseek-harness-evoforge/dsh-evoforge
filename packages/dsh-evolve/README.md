@@ -1,6 +1,6 @@
 # dsh-evolve
 
-`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains twenty deliberately separate lanes:
+`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains twenty-one deliberately separate lanes:
 
 - **P0A Shadow** compares an active Skill with an inactive Candidate without changing live DSH.
 - **P0B Local Continuity** records immutable Capability Generations, pins one Generation per Session, switches or rolls back only future Sessions, and resumes durable sealed work through an optional resident supervisor.
@@ -22,6 +22,7 @@
 - **P1.14 Automatic Feedback Shadow** lets a deployment authorize one unambiguous explicit correction to enter one existing exact Shadow Target without another foreground command.
 - **P1.15 Automatic Evolution Budget** durably caps each automatic Target's possible paid attempts per UTC day and projects the remaining allowance without touching Session context.
 - **P1.16 Automatic Evaluator Draft** optionally turns one unambiguous explicit correction into a private inactive evaluator proposal while keeping qualification, Shadow, and Promotion separately authorized.
+- **P1.17 Human-approved Qualify-and-Shadow** lets a reviewer authorize sealed qualification and one contingent paid Shadow in one cancellable action, without coupling either to Promotion.
 
 A 64-turn assembled DSH Agent parity test also verifies that installing the configured evolution host plane and changing the future-Session Generation pointer leaves every current-Session model-visible request byte-equivalent to the no-EvoForge control after removing DSH-internal message ids. It proves a zero request delta; real-provider cache-read and latency measurements still require an explicitly funded paired soak.
 
@@ -205,6 +206,12 @@ calibration, paired Trial, and review path. It never directly creates a Generati
 or Promotion. A crash or ambiguous transport after durable intent never causes
 an automatic paid retry.
 
+After reviewing the exact files, P1.17 optionally combines the two explicit
+steps as `/evolve evaluator <id> qualify-shadow <note>`. It runs the same sealed
+qualification first and submits the same P1.10 Shadow only on success. A failed
+qualification makes zero proposer requests; the split `approve` and `shadow`
+actions remain available, and Promotion is never included.
+
 This is still pre-alpha. There is no paginated/graphical diff UI, real-task
 false-promotion/false-rollback dataset, release, or production support. Explicit and resident
 Shadow recovery now cover bounded proposer/Candidate/Trial crash boundaries, but
@@ -307,6 +314,10 @@ Optional `shadowRunRoot` must exactly match a unique `supervisor.runRoots` entry
 Only a qualified, unchanged pack may enter `/evolve evaluator <id> shadow`, and
 that separate action authorizes one possibly paid proposer call plus bounded
 correction disclosure without blocking the originating Session.
+`/evolve evaluator <id> qualify-shadow <note>` provides the same two authorities
+in one human confirmation: qualification failure stops before proposer spend,
+while success delegates to the same idempotent Shadow journal. It never authorizes
+Promotion.
 
 `automaticEvaluatorTargets` is optional and disabled when absent. Each entry
 references one existing `evaluatorTargets.id`; `maxAttemptsPerUtcDay` defaults
@@ -318,6 +329,8 @@ code cannot execute until a later human qualification, and Shadow/Promotion keep
 their existing separate authorities. A Skill cannot also appear in
 `automaticFeedbackTargets`, preventing two paid paths for one correction. See the
 [P1.16 contract](../../docs/architecture/p1-16-automatic-evaluator-draft.zh.md).
+The optional combined human action is specified by the
+[P1.17 contract](../../docs/architecture/p1-17-human-approved-qualify-and-shadow.zh.md).
 
 For a Skill that does not use Automatic Feedback Shadow, the minimal opt-in is:
 

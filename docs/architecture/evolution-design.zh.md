@@ -1,6 +1,6 @@
 # EvoForge 可证明自进化设计
 
-> 状态：P0A/P0B/P0C、P1.1–P1.16 与 P2D.1 implemented；包含最窄 opt-in 自动晋升、反事实 canary/回滚、显式反馈、私有 Draft、独立 evaluator、静态 Target、exact Retention、明确纠错自动 Shadow/自动 inactive evaluator Draft 与持久日预算；真实 provider 与真实任务长期证据待完成
+> 状态：P0A/P0B/P0C、P1.1–P1.17 与 P2D.1 implemented；包含最窄 opt-in 自动晋升、反事实 canary/回滚、显式反馈、私有 Draft、独立 evaluator、静态 Target、exact Retention、明确纠错自动 Shadow/自动 inactive evaluator Draft、人工 Qualify-and-Shadow 与持久日预算；真实 provider 与真实任务长期证据待完成
 > 更新日期：2026-08-17
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 
@@ -680,3 +680,9 @@ P1.16 只消除新失败在 P1.9 author 前的机械动作：静态、默认关�
 Shadow 或 Promotion；P1.14 与 P1.16 对同一 Skill 互斥，任何歧义或不确定外部结果留给异步人工。
 普通 Session composition 不变。见 [P1.16](p1-16-automatic-evaluator-draft.zh.md)与
 [ADR-0036](../adr/0036-explicit-correction-may-create-one-inactive-evaluator-draft.md)。
+
+P1.17 只组合已有人工权限：审查者可用一次确认先运行 P1.9 sealed qualification，并在成功时进入
+P1.10 paid Shadow。失败时 proposer 为 `0`；qualification 已持久化后的重试不重复执行 evaluator；
+分步动作和独立 Promotion 保留。普通 Session composition 不变。见
+[P1.17](p1-17-human-approved-qualify-and-shadow.zh.md)与
+[ADR-0037](../adr/0037-one-human-action-may-qualify-and-start-shadow.md)。

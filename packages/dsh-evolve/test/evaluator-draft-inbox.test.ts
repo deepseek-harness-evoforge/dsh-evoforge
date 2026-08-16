@@ -395,20 +395,21 @@ describe('EvaluatorDraftInbox', () => {
         jobId: 'evolution-shadow-1',
       })),
     }
+    const qualify = vi.fn(async ({ outputDir }: { outputDir: string }) => {
+      await mkdir(outputDir, { recursive: true })
+      await writeFile(join(outputDir, 'calibration-report.json'), '{}\n')
+      return {
+        status: 'calibrated' as const,
+        reportPath: join(outputDir, 'calibration-report.json'),
+        summary: 'calibrated',
+      }
+    })
     const inbox = new EvaluatorDraftInbox({
       targets: [target],
       drafts: () => fixture.drafts,
       source: fixture.source,
       authorModel: vi.fn(async () => proposal()),
-      qualify: vi.fn(async ({ outputDir }: { outputDir: string }) => {
-        await mkdir(outputDir, { recursive: true })
-        await writeFile(join(outputDir, 'calibration-report.json'), '{}\n')
-        return {
-          status: 'calibrated' as const,
-          reportPath: join(outputDir, 'calibration-report.json'),
-          summary: 'calibrated',
-        }
-      }),
+      qualify,
       modelIdentity: () => 'model-route-v1',
       shadow,
     })
@@ -418,12 +419,29 @@ describe('EvaluatorDraftInbox', () => {
     const draftId = (await inbox.scan()).drafts[0]!.id
 
     await expect(inbox.startShadow(draftId)).rejects.toThrow('must be qualified')
-    await inbox.approve(draftId, 'independent semantics reviewed')
-    await expect(inbox.get(draftId)).resolves.toMatchObject({ qualifiedShadowAvailable: true })
-    await expect(inbox.startShadow(draftId)).resolves.toMatchObject({
-      action: 'start-shadow',
-      runStatus: 'scheduled',
+    qualify.mockResolvedValueOnce({
+      status: 'not-calibrated',
+      reportPath: join(fixture.root, 'failed-calibration.json'),
+      reason: 'known-bad unexpectedly passed',
+    } as never)
+    await expect(inbox.approveAndStartShadow(draftId, 'independent semantics reviewed'))
+      .rejects.toThrow('known-bad unexpectedly passed')
+    expect(shadow.launchExact).not.toHaveBeenCalled()
+    shadow.launchExact.mockRejectedValueOnce(new Error('launcher interrupted after qualification'))
+    await expect(inbox.approveAndStartShadow(draftId, 'retry exact qualification and paid Shadow'))
+      .rejects.toThrow('launcher interrupted after qualification')
+    await expect(inbox.get(draftId)).resolves.toMatchObject({
+      status: 'qualified',
+      qualifiedShadowAvailable: true,
     })
+    expect(qualify).toHaveBeenCalledTimes(2)
+    await expect(inbox.approveAndStartShadow(draftId, 'resume already qualified paid Shadow'))
+      .resolves.toMatchObject({
+        action: 'start-shadow',
+        runStatus: 'scheduled',
+      })
+    expect(qualify).toHaveBeenCalledTimes(2)
+    await expect(inbox.get(draftId)).resolves.toMatchObject({ qualifiedShadowAvailable: true })
     expect(shadow.launchExact).toHaveBeenCalledWith(signalId, {
       id: target.id,
       skill: target.skill,
@@ -437,7 +455,7 @@ describe('EvaluatorDraftInbox', () => {
       'qualified pack drift\n',
     )
     await expect(inbox.startShadow(draftId)).rejects.toThrow('Qualified Case Pack changed')
-    expect(shadow.launchExact).toHaveBeenCalledOnce()
+    expect(shadow.launchExact).toHaveBeenCalledTimes(2)
   })
 })
 

@@ -128,6 +128,10 @@ _Avoid_: Token scheduler, pricing engine, global quota service, model budget in 
 An opt-in deployment policy that lets one still-current explicit correction create one private, inactive Evaluator Draft for a unique static Target without a per-signal author command. It spends a durable daily attempt reservation first and leaves execution, qualification, Shadow, and Promotion under their existing separate authorities.
 _Avoid_: Automatic evaluator trust, self-grading, synchronous Session reflection, default background spending
 
+**Human-approved Qualify-and-Shadow**:
+One explicit host action taken after a human reviews an exact Evaluator Draft. It authorizes sealed qualification and one contingent paid Shadow: qualification failure stops before the proposer, while success delegates to the existing content-addressed Qualified Shadow launcher. It does not authorize Promotion.
+_Avoid_: Automatic approval, qualify-and-promote, workflow engine, Session-visible review state
+
 **Case Pack Calibration**:
 A zero-model, host-only execution of the declared known-bad and known-correction fixtures through the same sealed evaluator used by Shadow. It proves evaluator direction before proposer spend; it does not prove coverage of novel failures. A complete Shadow performs this gate before requesting a Candidate and still uses four Trial executions total.
 _Avoid_: Evaluator generation, cached trust forever, extra runtime service, model judge

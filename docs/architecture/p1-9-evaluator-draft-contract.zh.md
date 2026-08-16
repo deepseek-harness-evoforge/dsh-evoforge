@@ -83,6 +83,7 @@ final-test/evaluator.mjs
 |---|---|---|
 | Author | 本次 Command/Web 确认，或 P1.16 静态、默认关闭且带日预算的部署策略 | 执行生成代码、Shadow、Promotion |
 | Approve | 独立人工 note + 原生/host 确认 | 修改 active Skill、把 qualification 当 clear win |
+| Qualify-and-Shadow | P1.17 联合人工确认；qualification 成功才使用一次 P1.10 付费权限 | 自动审批、Promotion、qualification 失败时调用 proposer |
 | Reject | 独立人工 note | 删除源 feedback 或 Session |
 | 后续 Shadow | 继续沿用 P1.8 每次显式付费确认 | merge/release/deploy |
 
@@ -101,7 +102,7 @@ Hard gates：
 5. approve 只对 exact unchanged hash，且 sealed known-bad fail / correction pass；
 6. Browser 覆盖 disclosure → cancel（0 request）、author → refresh 后仍可见、approve 二次确认与失败反馈；
 7. disable/remove 后 native DSH Session/Goal 可恢复，私有 Draft 可手工删除但不阻断启动；
-8. 无真实 provider/陌生用户数据时只声明 `implemented`，不写“evaluator 已可信”或“better than Hermes”；P1.16 后续只自动生成 inactive Draft，不改变本门。
+8. 无真实 provider/陌生用户数据时只声明 `implemented`，不写“evaluator 已可信”或“better than Hermes”；P1.16 只自动生成 inactive Draft，P1.17 只组合人工权限，均不改变本门。
 
 已实现证据见 [P1.9 验证记录](../evidence/p1-9-private-evaluator-draft.zh.md)。
 

@@ -548,6 +548,15 @@ export class EvaluatorDraftInbox {
     })
   }
 
+  /** Qualify one exact Draft, then start its paid Shadow only after calibration succeeds. */
+  async approveAndStartShadow(
+    draftId: string,
+    note: string,
+  ): Promise<FeedbackShadowLaunchReceipt> {
+    await this.approve(draftId, note)
+    return this.startShadow(draftId)
+  }
+
   private async runAuthoring(options: {
     controller: AbortController
     identity: EvaluatorRunState['identity']

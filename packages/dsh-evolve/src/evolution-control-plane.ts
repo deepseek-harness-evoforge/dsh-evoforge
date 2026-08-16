@@ -35,7 +35,7 @@ export interface EvolutionControlPlaneModules {
   readonly feedbackShadow?: Pick<FeedbackShadowLauncher, 'available' | 'targets' | 'scan' | 'launch'>
   readonly automaticFeedback?: Pick<AutomaticFeedbackShadowService, 'budgetStatus'>
   readonly automaticEvaluator?: Pick<AutomaticEvaluatorDraftService, 'budgetStatus'>
-  readonly evaluatorDrafts?: Pick<EvaluatorDraftInbox, 'available' | 'targets' | 'scan' | 'get' | 'author' | 'approve' | 'reject' | 'startShadow'>
+  readonly evaluatorDrafts?: Pick<EvaluatorDraftInbox, 'available' | 'targets' | 'scan' | 'get' | 'author' | 'approve' | 'approveAndStartShadow' | 'reject' | 'startShadow'>
 }
 
 /** A structured adapter surface that delegates to the same owners as Commands. */
@@ -272,6 +272,10 @@ export class EvolutionControlPlane {
 
   async approveEvaluator(id: string, note: string): Promise<EvolutionActionReceipt> {
     return this.requireEvaluatorDrafts().approve(id, note)
+  }
+
+  async approveAndStartEvaluatorShadow(id: string, note: string): Promise<EvolutionActionReceipt> {
+    return this.requireEvaluatorDrafts().approveAndStartShadow(id, note)
   }
 
   async rejectEvaluator(id: string, note: string): Promise<EvolutionActionReceipt> {

@@ -91,6 +91,13 @@ export class EvolutionRemoteTypertContract extends TypertRemoteService {
   }
 
   @Remote
+  approveAndStartEvaluatorShadow(id: string, note: string): Promise<EvolutionActionReceipt> {
+    void id
+    void note
+    throw new Error('static Typert contract')
+  }
+
+  @Remote
   rejectEvaluator(id: string, note: string): Promise<EvolutionActionReceipt> {
     void id
     void note

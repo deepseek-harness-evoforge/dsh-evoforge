@@ -437,31 +437,21 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
       )
       expect(store.getSessionGeneration(identityOf(agent))?.id).toBe(generation.id)
 
-      const qualified = await ctx.commands.execute(
-        agent,
-        `/evolve evaluator ${draftId} approve independent real-DSH semantics reviewed`,
-        new AbortController().signal,
-      )
-      expect(qualified?.result).toMatchObject({
-        kind: 'success',
-        text: expect.stringContaining('Qualified Case Pack published'),
-      })
-      expect(modelRequests).toEqual(['author'])
       const detail = await ctx.commands.execute(
         agent,
         `/evolve evaluator ${draftId}`,
         new AbortController().signal,
       )
-      expect(detail?.result.text).toContain(`/evolve evaluator ${draftId} shadow`)
+      expect(detail?.result.text).toContain(`/evolve evaluator ${draftId} qualify-shadow <note>`)
 
       const started = await ctx.commands.execute(
         agent,
-        `/evolve evaluator ${draftId} shadow`,
+        `/evolve evaluator ${draftId} qualify-shadow independent real-DSH semantics reviewed and paid Shadow authorized`,
         new AbortController().signal,
       )
       expect(started?.result).toMatchObject({
         kind: 'success',
-        text: expect.stringContaining('submitted as native Job'),
+        text: expect.stringContaining('qualification passed'),
       })
       const terminal = await waitForCommandText(
         ctx,

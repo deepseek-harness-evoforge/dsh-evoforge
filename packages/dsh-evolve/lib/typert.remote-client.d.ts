@@ -7,6 +7,7 @@ import type { EvolutionActionReceipt, EvolutionEvaluatorDraftDetail, EvolutionOv
 
 declare module '@deepseek-ai/dsh-typert-protocol' {
   interface TypertRemoteNamespace$65766f666f72676545766f6c7574696f6e {
+    approveAndStartEvaluatorShadow: (id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     approveEvaluator: (id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     approveReview: (id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     authorEvaluator: (signalId: string, targetId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
@@ -23,6 +24,7 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     startFeedbackShadow: (signalId: string, targetId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
   }
   interface TypertRemoteMap {
+    'evoforgeEvolution/approveAndStartEvaluatorShadow': (id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     'evoforgeEvolution/approveEvaluator': (id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     'evoforgeEvolution/approveReview': (id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     'evoforgeEvolution/authorEvaluator': (signalId: string, targetId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
