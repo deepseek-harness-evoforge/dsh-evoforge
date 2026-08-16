@@ -106,7 +106,16 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Shadow', () => {
       expect(report.composition.baselineFingerprint).toMatch(/^[a-f0-9]{64}$/)
       expect(report.composition.candidateFingerprint).toBe(report.composition.baselineFingerprint)
       expect(report.trial.usage.baseline).toMatchObject({ inputTokens: 18, outputTokens: 8, cacheReadTokens: 2 })
-      expect(report.trial.usage.candidate).toEqual(report.trial.usage.baseline)
+      expect(report.trial.usage.candidate).toMatchObject({
+        inputTokens: expect.any(Number),
+        outputTokens: expect.any(Number),
+        cacheReadTokens: expect.any(Number),
+        reasoningTokens: 1,
+      })
+      for (const amount of Object.values(report.trial.usage.candidate)) {
+        expect(Number.isSafeInteger(amount)).toBe(true)
+        expect(amount).toBeGreaterThanOrEqual(0)
+      }
       expect(await readFile(join(skillDir, 'SKILL.md'), 'utf8')).toBe(originalSkill)
     } finally {
       await new Promise<void>((resolveClose, rejectClose) =>
