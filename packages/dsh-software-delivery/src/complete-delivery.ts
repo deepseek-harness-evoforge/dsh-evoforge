@@ -44,8 +44,15 @@ interface CompleteDeliveryValue {
   readonly draftPr?: DraftPrResult
 }
 
+export interface CompleteDeliveryOptions {
+  readonly requireDraftPrChecks?: boolean
+}
+
 /** Register the single cache-stable delivery completion action. */
-export function installCompleteDelivery(ctx: Context): () => void {
+export function installCompleteDelivery(
+  ctx: Context,
+  options: CompleteDeliveryOptions = {},
+): () => void {
   return ctx.tools.register(defineTool({
     name: 'complete_delivery',
     description: 'Verify committed worktree checks through native shell policy, then complete the exact DSH Goal only on pass.',
@@ -128,6 +135,7 @@ export function installCompleteDelivery(ctx: Context): () => void {
           baseBranch: args.draft_pr.base_branch,
           title: args.draft_pr.title,
           body: args.draft_pr.body,
+          requireChecks: options.requireDraftPrChecks === true,
           signal: exec.signal,
         })
         if (draftPr.status !== 'passed') {
@@ -180,7 +188,10 @@ export function installCompleteDelivery(ctx: Context): () => void {
  * The model surface changes only with the availability of its actual native
  * update_goal and shell dependencies, then remains fixed for the Session.
  */
-export function installCompleteDeliveryBinder(ctx: Context): void {
+export function installCompleteDeliveryBinder(
+  ctx: Context,
+  options: CompleteDeliveryOptions = {},
+): void {
   let registration: (() => void) | undefined
   let reconciling = false
   const reconcile = () => {
@@ -189,7 +200,7 @@ export function installCompleteDeliveryBinder(ctx: Context): void {
     try {
       const shell = process.platform === 'win32' ? 'pwsh' : 'bash'
       const ready = ctx.tools.get('update_goal') !== undefined && ctx.tools.get(shell) !== undefined
-      if (ready && registration === undefined) registration = installCompleteDelivery(ctx)
+      if (ready && registration === undefined) registration = installCompleteDelivery(ctx, options)
       else if (!ready && registration !== undefined) {
         const dispose = registration
         registration = undefined

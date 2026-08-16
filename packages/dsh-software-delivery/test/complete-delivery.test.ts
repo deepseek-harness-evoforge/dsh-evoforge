@@ -54,7 +54,7 @@ describe('complete_delivery Tool', () => {
       const test = await setup([
         toolCall('delivery-live-github', 'complete_delivery', args),
         textResponse('existing draft reused'),
-      ])
+      ], undefined, { requireDraftPrChecks: true })
       const goal = test.ctx.goals.create(test.agent, { objective: 'Reuse the existing authenticated Draft PR.' })
       test.adapter.replaceAllArguments({ ...args, goal_id: goal.id, revision: goal.revision })
 
@@ -71,6 +71,11 @@ describe('complete_delivery Tool', () => {
             url: existing[0]?.url,
             commit: headCommit,
             reused: true,
+          },
+          remoteChecks: {
+            status: 'passed',
+            pending: 0,
+            failed: 0,
           },
         },
       })
@@ -274,6 +279,148 @@ describe('complete_delivery Tool', () => {
     await test.ctx.fiber.dispose()
   })
 
+  it('keeps the Goal active for non-green Draft PR checks and completes by reusing the same green PR', async () => {
+    const fixture = await createDeliveryFixture()
+    const args = deliveryArgs(fixture)
+    args.draft_pr = {
+      base_branch: 'main',
+      title: 'feat: require remote checks',
+      body: 'Complete only after the exact Draft PR head is green.',
+    }
+    let checkQuery = 0
+    const commands: string[] = []
+    const test = await setup([
+      toolCall('delivery-checks-pending', 'complete_delivery', args),
+      toolCall('delivery-checks-failed', 'complete_delivery', args),
+      toolCall('delivery-checks-missing', 'complete_delivery', args),
+      toolCall('delivery-checks-green', 'complete_delivery', args),
+      textResponse('draft checks passed'),
+    ], (command) => {
+      commands.push(command)
+      if (command.includes("'gh' 'auth' 'status'") || command.includes("'git' 'push'")) {
+        return shellValue(0, '', '')
+      }
+      if (command.includes("'gh' 'pr' 'list'")) {
+        return shellValue(0, JSON.stringify([draftPrView(fixture, true)]), '')
+      }
+      if (command.includes("'gh' 'pr' 'view'")) {
+        checkQuery += 1
+        return shellValue(0, JSON.stringify({
+          headRefOid: fixture.headCommit,
+          statusCheckRollup: checkQuery === 3
+            ? []
+            : [{
+                __typename: 'CheckRun',
+                name: 'CI',
+                status: checkQuery === 1 ? 'IN_PROGRESS' : 'COMPLETED',
+                conclusion: checkQuery === 1 ? '' : checkQuery === 2 ? 'FAILURE' : 'SUCCESS',
+              }],
+        }), '')
+      }
+      return undefined
+    }, { requireDraftPrChecks: true })
+    const goal = test.ctx.goals.create(test.agent, { objective: 'Deliver only after remote CI passes.' })
+    test.adapter.replaceAllArguments({ ...args, goal_id: goal.id, revision: goal.revision })
+
+    await runHumanTurn(test.agent)
+
+    expect(toolResultValue(test.agent, 'delivery-checks-pending')).toMatchObject({
+      status: 'unknown',
+      reason: 'draft-pr-checks-pending',
+      goal: { phase: 'active', revision: goal.revision },
+      draftPr: {
+        status: 'unknown',
+        reason: 'checks-pending',
+        artifact: { number: 7, commit: fixture.headCommit, reused: true },
+        remoteChecks: { status: 'unknown', total: 1, passed: 0, pending: 1, failed: 0 },
+      },
+    })
+    expect(toolResultValue(test.agent, 'delivery-checks-green')).toMatchObject({
+      status: 'passed',
+      reason: 'verified',
+      goal: { phase: 'complete', revision: goal.revision + 1 },
+      draftPr: {
+        status: 'passed',
+        reason: 'existing-draft',
+        artifact: { number: 7, commit: fixture.headCommit, reused: true },
+        remoteChecks: { status: 'passed', total: 1, passed: 1, pending: 0, failed: 0 },
+      },
+    })
+    expect(toolResultValue(test.agent, 'delivery-checks-failed')).toMatchObject({
+      status: 'failed',
+      reason: 'draft-pr-checks-failed',
+      goal: { phase: 'active', revision: goal.revision },
+      draftPr: {
+        status: 'failed',
+        reason: 'checks-failed',
+        remoteChecks: { status: 'failed', total: 1, passed: 0, pending: 0, failed: 1 },
+      },
+    })
+    expect(toolResultValue(test.agent, 'delivery-checks-missing')).toMatchObject({
+      status: 'unknown',
+      reason: 'draft-pr-checks-missing',
+      goal: { phase: 'active', revision: goal.revision },
+      draftPr: {
+        status: 'unknown',
+        reason: 'checks-missing',
+        remoteChecks: { status: 'unknown', total: 0, passed: 0, pending: 0, failed: 0 },
+      },
+    })
+    expect(commands.filter(command => command.includes("'gh' 'pr' 'create'"))).toHaveLength(0)
+    expect(commands.filter(command => command.includes("'gh' 'pr' 'view'"))).toHaveLength(4)
+    expect(test.adapter.requests[1]?.tools).toEqual(test.adapter.requests[0]?.tools)
+    expect(test.adapter.requests[2]?.tools).toEqual(test.adapter.requests[0]?.tools)
+    expect(test.adapter.requests[3]?.tools).toEqual(test.adapter.requests[0]?.tools)
+    expect(test.ctx.goals.get(test.agent)).toMatchObject({ phase: 'complete' })
+    await test.ctx.fiber.dispose()
+  })
+
+  it('refuses green checks that are not bound to the exact published head', async () => {
+    const fixture = await createDeliveryFixture()
+    const args = deliveryArgs(fixture)
+    args.draft_pr = { base_branch: 'main', title: 'feat: exact check head', body: '' }
+    const test = await setup([
+      toolCall('delivery-checks-wrong-head', 'complete_delivery', args),
+      textResponse('head changed'),
+    ], (command) => {
+      if (command.includes("'gh' 'auth' 'status'") || command.includes("'git' 'push'")) {
+        return shellValue(0, '', '')
+      }
+      if (command.includes("'gh' 'pr' 'list'")) {
+        return shellValue(0, JSON.stringify([draftPrView(fixture, true)]), '')
+      }
+      if (command.includes("'gh' 'pr' 'view'")) {
+        return shellValue(0, JSON.stringify({
+          headRefOid: '0'.repeat(40),
+          statusCheckRollup: [{
+            __typename: 'CheckRun',
+            name: 'CI',
+            status: 'COMPLETED',
+            conclusion: 'SUCCESS',
+          }],
+        }), '')
+      }
+      return undefined
+    }, { requireDraftPrChecks: true })
+    const goal = test.ctx.goals.create(test.agent, { objective: 'Bind remote checks to the exact commit.' })
+    test.adapter.replaceAllArguments({ ...args, goal_id: goal.id, revision: goal.revision })
+
+    await runHumanTurn(test.agent)
+
+    expect(toolResultValue(test.agent, 'delivery-checks-wrong-head')).toMatchObject({
+      status: 'unknown',
+      reason: 'draft-pr-checks-head-not-confirmed',
+      goal: { phase: 'active', revision: goal.revision },
+      draftPr: {
+        status: 'unknown',
+        reason: 'checks-head-not-confirmed',
+        artifact: { commit: fixture.headCommit },
+      },
+    })
+    expect(test.ctx.goals.get(test.agent)).toMatchObject({ phase: 'active' })
+    await test.ctx.fiber.dispose()
+  })
+
   it('creates and confirms one new Draft PR before completing the Goal', async () => {
     const fixture = await createDeliveryFixture()
     const args = deliveryArgs(fixture)
@@ -423,6 +570,10 @@ describe('complete_delivery Tool', () => {
     expect(ctx.tools.schemas().map(tool => tool.name)).not.toContain('complete_delivery')
     expect(ctx.tools.get('update_goal')).toBe(nativeUpdate)
     expect(await ctx.skills.get('software-delivery')).toBeUndefined()
+    const gatedFiber = await ctx.plugin(DeliveryPlugin, { requireDraftPrChecks: true })
+    expect(ctx.tools.schemas().find(tool => tool.name === 'complete_delivery')).toEqual(completeSchema)
+    await gatedFiber.dispose()
+    expect(ctx.tools.schemas().map(tool => tool.name)).not.toContain('complete_delivery')
     await ctx.fiber.dispose()
   })
 })
@@ -484,7 +635,11 @@ class ScriptedAdapter extends LlmAdapter {
   }
 }
 
-async function setup(script: StreamChunk[][], interceptBash?: TestBashInterceptor) {
+async function setup(
+  script: StreamChunk[][],
+  interceptBash?: TestBashInterceptor,
+  deliveryConfig: { requireDraftPrChecks?: boolean } = {},
+) {
   const ctx = new Context()
   await ctx.plugin(LlmRuntime)
   await ctx.plugin(SessionStore)
@@ -495,7 +650,7 @@ async function setup(script: StreamChunk[][], interceptBash?: TestBashIntercepto
   await ctx.plugin(AgentRegistry)
   await ctx.plugin(GoalService)
   await ctx.plugin(ToolGoal, {})
-  await ctx.plugin(DeliveryPlugin)
+  await ctx.plugin(DeliveryPlugin, deliveryConfig)
   await ctx.plugin(AgentLoop, { agents: [] })
   const adapter = new ScriptedAdapter(script)
   ctx.llm.registerAdapter(['delivery-test'], adapter)

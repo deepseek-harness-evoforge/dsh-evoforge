@@ -4,7 +4,12 @@ import { installCompleteDeliveryBinder } from './complete-delivery.js'
 export const name = 'dsh-software-delivery'
 export const inject = ['skills']
 
-export function apply(ctx: Context): void {
+export interface Config {
+  /** Keep a Goal active until every check on the exact Draft PR head is green. */
+  readonly requireDraftPrChecks?: boolean
+}
+
+export function apply(ctx: Context, config: Config = {}): void {
   ctx.skills.register({
     name: 'software-delivery',
     description: 'Deliver a software change in an isolated Git worktree with repository-defined checks, a commit, and an optional Draft PR.',
@@ -13,7 +18,9 @@ export function apply(ctx: Context): void {
     invocation: { modelInvocable: true, userInvocable: true },
     content: SOFTWARE_DELIVERY_SKILL,
   })
-  ctx.inject(['goals', 'tools'], installCompleteDeliveryBinder)
+  ctx.inject(['goals', 'tools'], deliveryCtx => installCompleteDeliveryBinder(deliveryCtx, {
+    requireDraftPrChecks: config.requireDraftPrChecks === true,
+  }))
 }
 
 const SOFTWARE_DELIVERY_SKILL = `# Software delivery

@@ -31,7 +31,16 @@ export interface DraftPrResult {
   readonly status: DeliveryCheckRunResult['status']
   readonly reason: string
   readonly artifact?: DraftPrArtifact
+  readonly remoteChecks?: DraftPrRemoteChecks
   readonly steps: readonly DraftPrStepEvidence[]
+}
+
+export interface DraftPrRemoteChecks {
+  readonly status: DeliveryCheckRunResult['status']
+  readonly total: number
+  readonly passed: number
+  readonly pending: number
+  readonly failed: number
 }
 
 export interface DraftPrInput {
@@ -62,6 +71,7 @@ export interface PublishDraftPrOptions {
   readonly baseBranch: string
   readonly title: string
   readonly body: string
+  readonly requireChecks?: boolean
   readonly signal?: AbortSignal
 }
 
@@ -95,7 +105,14 @@ export async function publishDraftPr(
     status: DraftPrResult['status'],
     reason: string,
     artifact?: DraftPrArtifact,
-  ): DraftPrResult => ({ status, reason, ...(artifact === undefined ? {} : { artifact }), steps })
+    remoteChecks?: DraftPrRemoteChecks,
+  ): DraftPrResult => ({
+    status,
+    reason,
+    ...(artifact === undefined ? {} : { artifact }),
+    ...(remoteChecks === undefined ? {} : { remoteChecks }),
+    steps,
+  })
 
   const base = await run('git-base-ref-format', ['git', 'check-ref-format', '--branch', options.baseBranch])
   if (base.status !== 'passed') return finish(base.status === 'failed' ? 'failed' : 'unknown', 'base-invalid')
@@ -177,6 +194,31 @@ export async function publishDraftPr(
   if (status.status !== 'passed') return finish('unknown', 'post-state-inconclusive')
   if (head.stdout.text.trim() !== options.commit || status.stdout.text !== '') {
     return finish('failed', 'repository-changed')
+  }
+  if (options.requireChecks === true) {
+    const checked = await run('github-pr-checks', [
+      'gh',
+      'pr',
+      'view',
+      artifact.url,
+      '--json',
+      'headRefOid,statusCheckRollup',
+    ])
+    if (checked.status !== 'passed') return finish('unknown', 'checks-inconclusive', artifact)
+    const remote = parseRemoteChecks(checked.stdout.text, options.commit)
+    if (remote === undefined) return finish('unknown', 'checks-invalid', artifact)
+    if (remote === 'head-not-confirmed') {
+      return finish('unknown', 'checks-head-not-confirmed', artifact)
+    }
+    if (remote.total === 0) return finish('unknown', 'checks-missing', artifact, remote)
+    if (remote.failed > 0) return finish('failed', 'checks-failed', artifact, remote)
+    if (remote.pending > 0) return finish('unknown', 'checks-pending', artifact, remote)
+    return finish(
+      'passed',
+      artifact.reused ? 'existing-draft' : 'created-draft',
+      artifact,
+      remote,
+    )
   }
   return finish('passed', artifact.reused ? 'existing-draft' : 'created-draft', artifact)
 }
@@ -262,4 +304,58 @@ function isGitHubUrl(value: string): boolean {
   } catch {
     return false
   }
+}
+
+function parseRemoteChecks(
+  text: string,
+  expectedHead: string,
+): DraftPrRemoteChecks | 'head-not-confirmed' | undefined {
+  let value: unknown
+  try {
+    value = JSON.parse(text)
+  } catch {
+    return undefined
+  }
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
+  const view = value as Record<string, unknown>
+  if (typeof view.headRefOid !== 'string' || !Array.isArray(view.statusCheckRollup)) return undefined
+  if (view.headRefOid !== expectedHead) return 'head-not-confirmed'
+  let passed = 0
+  let pending = 0
+  let failed = 0
+  for (const item of view.statusCheckRollup) {
+    const status = classifyRemoteCheck(item)
+    if (status === undefined) return undefined
+    if (status === 'passed') passed += 1
+    else if (status === 'failed') failed += 1
+    else pending += 1
+  }
+  const total = view.statusCheckRollup.length
+  return {
+    status: failed > 0 ? 'failed' : pending > 0 || total === 0 ? 'unknown' : 'passed',
+    total,
+    passed,
+    pending,
+    failed,
+  }
+}
+
+function classifyRemoteCheck(value: unknown): 'passed' | 'pending' | 'failed' | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
+  const check = value as Record<string, unknown>
+  if (check.__typename === 'CheckRun') {
+    if (typeof check.status !== 'string') return undefined
+    if (check.status !== 'COMPLETED') return 'pending'
+    if (typeof check.conclusion !== 'string') return undefined
+    if (['SUCCESS', 'NEUTRAL', 'SKIPPED'].includes(check.conclusion)) return 'passed'
+    if (['FAILURE', 'CANCELLED', 'TIMED_OUT', 'ACTION_REQUIRED', 'STARTUP_FAILURE', 'STALE']
+      .includes(check.conclusion)) return 'failed'
+    return 'pending'
+  }
+  if (check.__typename === 'StatusContext') {
+    if (check.state === 'SUCCESS') return 'passed'
+    if (check.state === 'FAILURE' || check.state === 'ERROR') return 'failed'
+    if (check.state === 'PENDING' || check.state === 'EXPECTED') return 'pending'
+  }
+  return undefined
 }
