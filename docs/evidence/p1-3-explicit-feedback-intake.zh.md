@@ -38,6 +38,12 @@ pnpm exec vitest run test/generation-binder.e2e.test.ts -t "turns real pinned DS
 pnpm check
 ```
 
+公开 Draft PR 的功能 HEAD `3bd2fdc2ce11e0b8c43a79da0b33ce50e1321bb5`、CI run
+`31948153426` 全部通过：Node 22.19.0 为 36 秒，Node 24 为 34 秒，macOS 固定 DSH assembled
+lane 为 1 分 44 秒。macOS lane 显式包含新 feedback-signal Storage 测试和真实
+`MessageFeedbackService.put` 集成，并继续复跑 sealed Shadow/canary、Jobs、Generation、
+crash recovery、安装/卸载与 Software Delivery package boundary。
+
 ## Cache、权限与边界
 
 - 新能力不增加 Tool、system prompt、Skill catalog 项、模型调用或动态 Session 前缀；额外模型 token 为 0。
