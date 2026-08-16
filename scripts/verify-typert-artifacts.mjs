@@ -14,6 +14,7 @@ const expectedMethods = [
   'resume',
   'review',
   'rollback',
+  'startFeedbackShadow',
 ]
 
 const recorded = (await readFile(join(output, 'typert.source.sha256'), 'utf8')).trim()
@@ -47,6 +48,7 @@ const expectedParameters = {
   resume: [],
   review: ['id'],
   rollback: [],
+  startFeedbackShadow: ['signalId', 'targetId'],
 }
 const actualParameters = Object.fromEntries(
   remoteManifest.descriptors

@@ -93,8 +93,16 @@ A private, content-addressed, unscored sample created only after configuration-l
 _Avoid_: Automatic transcript harvesting, generic Case platform, Candidate, proof of improvement
 
 **Feedback-guided Shadow**:
-An explicit offline Shadow run that supplies one exact private Feedback Case Draft only to the proposer as untrusted search evidence, while an existing calibrated Case Pack remains the independent evaluator. The draft id and private resume path are durable; its input fields are not directly copied into Shadow evidence, although proposer output that echoes them remains durable Candidate evidence. The CLI invocation authorizes that one potentially paid provider request and disclosure.
+An explicit Shadow run that supplies one exact private Feedback Case Draft only to the proposer as untrusted search evidence, while an existing calibrated Case Pack remains the independent evaluator. The draft id and private resume path are durable; its input fields are not directly copied into Shadow evidence, although proposer output that echoes them remains durable Candidate evidence. The host invocation authorizes that one potentially paid provider request and disclosure.
 _Avoid_: Generated evaluator, self-scoring Candidate, background paid proposal, feedback text in report/journal
+
+**Shadow Target**:
+A statically configured binding from a public operator-chosen id to one exact Skill name, calibrated Case Pack, and owned run root. A target makes an explicit Feedback Shadow Launch repeatable without exposing host paths or accepting browser-supplied execution paths.
+_Avoid_: Workflow, arbitrary run request, dynamic evaluator
+
+**Feedback Shadow Launch**:
+A human-initiated Protected Action that turns one still-current Explicit Feedback Signal into a private draft and submits one configured Feedback-guided Shadow to native Jobs. It returns immediately to the caller and originating Session; it creates evidence for later review but does not prove improvement or authorize promotion.
+_Avoid_: Automatic learning, synchronous Session reflection, paid resident retry
 
 **Case Pack Calibration**:
 A zero-model, host-only execution of the declared known-bad and known-correction fixtures through the same sealed evaluator used by Shadow. It proves evaluator direction before proposer spend; it does not prove coverage of novel failures. A complete Shadow performs this gate before requesting a Candidate and still uses four Trial executions total.

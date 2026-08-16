@@ -2,7 +2,7 @@
 
 `dsh-evolve-web` is the optional, removable DSH Web adapter for `dsh-evolve`. It installs as one DSH profile Bundle and adds a root-scoped **Evolution** action beside Settings. The action remains available when no Session exists.
 
-The panel reads the authoritative host state only when opened or explicitly refreshed. It shows the active Generation, resident-recovery state, automatic-promotion policy, pending reviews, bounded diffs, Trial counts, token evidence, and conservative protected-effect indicators. Approval publishes an inactive Generation; promotion is always a separate action. Reject, pause, resume, promote, and rollback preserve the same durable owners used by the host Commands surface.
+The panel reads the authoritative host state only when opened or explicitly refreshed. It shows the active Generation, resident-recovery state, automatic-promotion policy, current explicit-feedback signal ids, statically configured Shadow targets, recent Shadow runs, pending reviews, bounded diffs, Trial counts, token evidence, and conservative protected-effect indicators. Starting Feedback Shadow requires a confirmation that discloses the possible model charge and private correction transfer. Approval publishes an inactive Generation; promotion is always a separate action. Shadow launch, reject, pause, resume, promote, and rollback preserve the same owners used by the host Commands surface.
 
 Approved inactive Generations are projected from durable review evidence rather
 than browser memory, so a refresh or process restart between approval and
@@ -45,8 +45,14 @@ The Bundle intentionally does not guess an owned run directory or enable automat
     cacheRoot: !!js dshHomePath('evoforge', 'git-skills')
     supervisor:
       runRoots:
-        - !!js dshHomePath('evoforge', 'runs')
+        - !!js dshHomePath('evoforge', 'plugin-delivery-runs')
       scanIntervalMs: 30000
+    feedbackDraftRoot: !!js dshHomePath('evoforge', 'private-feedback-drafts')
+    shadowTargets:
+      - id: plugin-delivery
+        skill: build-dsh-plugin
+        casePackDir: /absolute/path/to/calibrated-plugin-delivery-cases
+        runRoot: !!js dshHomePath('evoforge', 'plugin-delivery-runs')
 ```
 
 Create the run root before boot. The shipped Web profile already provides native Jobs, Storage Domain, Commands, and the browser runtime required by this configuration.
@@ -57,7 +63,8 @@ Create the run root before boot. The shipped Web profile already provides native
 - normal model requests gain zero tokens and retain the native DSH request shape;
 - no background polling occurs; open, refresh, and completed actions cause reads;
 - the Remote excludes run paths, proposal objects, feedback text, Prompt, cwd, and Session messages;
-- at most 20 actionable reviews, 20 approved inactive Generations, and one bounded diff cross the browser transport;
+- at most 20 feedback signals, 20 static targets, 20 recent Shadow runs, 20 actionable reviews, 20 approved inactive Generations, and one bounded diff cross the browser transport;
+- Shadow launch transports only a signal id and target id; host paths, feedback text, and model parameters never enter the browser;
 - the browser never becomes a second source of truth.
 
 See [ADR-0025](../../docs/adr/0025-web-is-a-thin-kv-safe-adapter.md) and the [real-browser evidence](../../docs/evidence/p0c-6-web-control-plane.zh.md).

@@ -126,7 +126,35 @@ describe('EvolutionControlPlane', () => {
         all: { total: 3, passed: 2, failed: 1, unknown: 0 },
         selected: { total: 2, passed: 2, failed: 0, unknown: 0 },
       }) },
-      feedback: { summarize: () => ({ all: 4, selected: 1 }) },
+      feedback: {
+        summarize: () => ({ all: 4, selected: 1 }),
+        list: () => [{
+          schemaVersion: 1 as const,
+          id: '8'.repeat(64),
+          observedAt: 1_786_896_000_000,
+          sessionId: 'private-session',
+          messageId: 'private-message',
+          feedbackVersion: '00000000-0000-4000-8000-000000000001',
+          sourceUpdatedAt: 1_786_896_000_001,
+          generationId,
+        }],
+      },
+      feedbackShadow: {
+        available: () => true,
+        targets: () => [{ id: 'plugin-delivery', skillName: 'build-dsh-plugin' }],
+        scan: vi.fn(async () => ({
+          warningCount: 0,
+          runs: [{
+            launchId: '9'.repeat(64),
+            targetId: 'plugin-delivery',
+            skillName: 'build-dsh-plugin',
+            phase: 'trial-running' as const,
+            startedAt: '2026-08-16T00:00:00.000Z',
+            updatedAt: '2026-08-16T00:00:01.000Z',
+          }],
+        })),
+        launch: vi.fn(),
+      },
     })
 
     const overview = await control.overview()
@@ -135,6 +163,12 @@ describe('EvolutionControlPlane', () => {
       active: { id: generationId, rollbackTargetId: parentId },
       recovery: { available: true, paused: false },
       automaticPromotion: { enabled: true, skills: ['build-dsh-plugin'] },
+      feedbackShadow: {
+        available: true,
+        signals: [{ id: '8'.repeat(64), generationId }],
+        targets: [{ id: 'plugin-delivery', skillName: 'build-dsh-plugin' }],
+        runs: [{ launchId: '9'.repeat(64), phase: 'trial-running' }],
+      },
       reviews: { available: true, pendingCount: 1, warningCount: 1 },
     })
     expect(overview.reviews.inactiveGenerations).toEqual([{
@@ -149,6 +183,8 @@ describe('EvolutionControlPlane', () => {
     expect(detail.automatic?.eligible).toBe(false)
     expect(JSON.stringify({ overview, detail })).not.toContain('/private/evolution')
     expect(JSON.stringify({ overview, detail })).not.toContain('private content')
+    expect(JSON.stringify(overview)).not.toContain('private-session')
+    expect(JSON.stringify(overview)).not.toContain('private-message')
   })
 
   it('keeps approval inactive and requires a separate promotion action', async () => {
@@ -219,5 +255,29 @@ describe('EvolutionControlPlane', () => {
     expect(resident.pause).toHaveBeenCalledOnce()
     expect(resident.resume).toHaveBeenCalledOnce()
     expect(inbox.reject).toHaveBeenCalledWith(reviewId, 'not enough evidence')
+  })
+
+  it('starts a configured feedback Shadow through the existing launcher', async () => {
+    const launcher = {
+      available: () => true,
+      targets: () => [],
+      scan: vi.fn(async () => ({ runs: [], warningCount: 0 })),
+      launch: vi.fn(async () => ({
+        schemaVersion: 1 as const,
+        action: 'start-shadow' as const,
+        launchId: '8'.repeat(64),
+        targetId: 'plugin-delivery',
+        skillName: 'build-dsh-plugin',
+        runStatus: 'scheduled' as const,
+        jobId: 'evolution-1',
+      })),
+    }
+    const control = new EvolutionControlPlane({ store: store(), feedbackShadow: launcher })
+
+    await expect(control.startFeedbackShadow('9'.repeat(64), 'plugin-delivery')).resolves.toMatchObject({
+      action: 'start-shadow',
+      jobId: 'evolution-1',
+    })
+    expect(launcher.launch).toHaveBeenCalledWith('9'.repeat(64), 'plugin-delivery')
   })
 })

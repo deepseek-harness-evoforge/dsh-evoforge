@@ -68,6 +68,26 @@ export interface EvolutionInactiveGenerationView {
     readonly reviewId: string;
     readonly skillName: string;
 }
+/** Reference-only feedback row; Session/message ids and correction text stay on host. */
+export interface EvolutionFeedbackSignalView {
+    readonly id: string;
+    readonly sourceUpdatedAt: number;
+    readonly generationId?: string;
+}
+/** Public name of one statically configured host-side Shadow Target. */
+export interface EvolutionShadowTargetView {
+    readonly id: string;
+    readonly skillName: string;
+}
+/** Bounded run projection; host paths, proposal and private draft stay excluded. */
+export interface EvolutionShadowRunView {
+    readonly launchId: string;
+    readonly targetId: string;
+    readonly skillName: string;
+    readonly phase: 'prepared' | 'proposal-pending' | 'candidate-ready' | 'trial-running' | 'complete' | 'incomplete';
+    readonly startedAt: string;
+    readonly updatedAt: string;
+}
 /** Browser overview. Dynamic global state stays outside Session and model context. */
 export interface EvolutionOverview {
     readonly schemaVersion: 1;
@@ -87,6 +107,13 @@ export interface EvolutionOverview {
     readonly feedbackSignals?: {
         readonly all: number;
         readonly selected: number;
+    };
+    readonly feedbackShadow?: {
+        readonly available: boolean;
+        readonly warningCount: number;
+        readonly signals: readonly EvolutionFeedbackSignalView[];
+        readonly targets: readonly EvolutionShadowTargetView[];
+        readonly runs: readonly EvolutionShadowRunView[];
     };
     readonly reviews: {
         readonly available: boolean;
@@ -117,12 +144,17 @@ export interface EvolutionReviewDetail {
 /** Durable action acknowledgement; UI refreshes the authoritative overview afterwards. */
 export interface EvolutionActionReceipt {
     readonly schemaVersion: 1;
-    readonly action: 'pause' | 'resume' | 'approve-review' | 'reject-review' | 'promote' | 'rollback';
+    readonly action: 'pause' | 'resume' | 'approve-review' | 'reject-review' | 'promote' | 'rollback' | 'start-shadow';
     readonly reviewId?: string;
     readonly status?: 'approved' | 'rejected';
     readonly generationId?: string;
     readonly previousGenerationId?: string;
     readonly activeGenerationId?: string;
     readonly recoveryPaused?: boolean;
+    readonly launchId?: string;
+    readonly targetId?: string;
+    readonly skillName?: string;
+    readonly runStatus?: 'scheduled' | 'prepared' | 'proposal-pending' | 'candidate-ready' | 'trial-running' | 'complete' | 'incomplete';
+    readonly jobId?: string;
 }
 //# sourceMappingURL=control-types.d.ts.map

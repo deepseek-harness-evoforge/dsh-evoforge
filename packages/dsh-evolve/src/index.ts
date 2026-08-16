@@ -30,6 +30,10 @@ import {
 import { FeedbackCaseDraftBuilder } from './feedback-case-draft.ts'
 import { EvolutionControlPlane } from './evolution-control-plane.ts'
 import { EvolutionRemoteService } from './evolution-remote.ts'
+import {
+  FeedbackShadowLauncher,
+  type FeedbackShadowTargetConfig,
+} from './feedback-shadow-launcher.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -51,6 +55,7 @@ export interface Config {
   autoPromote?: {
     skills: string[]
   }
+  shadowTargets?: FeedbackShadowTargetConfig[]
 }
 
 export const Config: Schema<Config> = z.object({
@@ -68,6 +73,12 @@ export const Config: Schema<Config> = z.object({
   autoPromote: z.object({
     skills: z.array(z.string()).default([]),
   }),
+  shadowTargets: z.array(z.object({
+    id: z.string().required(),
+    skill: z.string().required(),
+    casePackDir: z.string().required(),
+    runRoot: z.string().required(),
+  })).default([]),
 })
 
 export async function apply(ctx: Context, config: Config = {}): Promise<void> {
@@ -93,8 +104,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     ? undefined
     : new ResidentEvolutionControl(store)
   const automaticSkills = config.autoPromote?.skills ?? []
+  const shadowTargets = config.shadowTargets ?? []
   if (automaticSkills.length > 0 && review === undefined) {
     throw new Error('automatic promotion requires configured supervisor.runRoots')
+  }
+  if (shadowTargets.length > 0 && (config.supervisor === undefined
+    || config.supervisor.runRoots.length === 0
+    || config.feedbackDraftRoot === undefined)) {
+    throw new Error('feedback Shadow targets require supervisor.runRoots and feedbackDraftRoot')
   }
   const automaticPolicy = automaticSkills.length === 0
     ? undefined
@@ -119,6 +136,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           return feedbackDraftBuilder.create(signalId, skillName)
         },
       }
+  const feedbackShadow = shadowTargets.length === 0
+    ? undefined
+    : new FeedbackShadowLauncher({
+        targets: shadowTargets,
+        supervisorRunRoots: config.supervisor!.runRoots,
+        drafts: () => feedbackDraftBuilder,
+        source,
+      })
   const control = new EvolutionControlPlane({
     store,
     ...(review === undefined ? {} : { review }),
@@ -126,6 +151,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     ...(automaticPolicy === undefined ? {} : { automatic: automaticPolicy }),
     outcomes: deliveryOutcomes,
     feedback: feedbackSignals,
+    ...(feedbackShadow === undefined ? {} : { feedbackShadow }),
   })
   new EvolutionRemoteService(ctx, control)
   installEvolutionCommand(ctx, store, {
@@ -135,6 +161,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     outcomes: deliveryOutcomes,
     feedback: feedbackSignals,
     ...(feedbackDraft === undefined ? {} : { feedbackDraft }),
+    ...(feedbackShadow === undefined ? {} : { feedbackShadow }),
   })
   if (config.feedbackDraftRoot !== undefined) {
     ctx.inject(['messageFeedback', 'sessionPersistence'], (draftCtx) => {
@@ -169,6 +196,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     // only when the host composes the native process-local Jobs service.
     ctx.inject(['jobs'], (jobCtx) => {
       jobCtx.jobs.attachController('dsh-evolve-shadow-supervisor')
+      const detachFeedbackShadow = feedbackShadow?.attachJobs(jobCtx.jobs)
       const canary = automatic === undefined || review === undefined
         ? undefined
         : new CounterfactualCanary({
@@ -215,6 +243,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         const detach = resident!.attach(supervisor)
         supervisor.start()
         return async () => {
+          detachFeedbackShadow?.()
           detach()
           await supervisor.stop()
         }
@@ -239,6 +268,7 @@ export type {
   SkillGenerationArtifact,
 } from './generation-store.ts'
 export type { GitSkillSourceConfig } from './git-skill-source.ts'
+export type { FeedbackShadowTargetConfig } from './feedback-shadow-launcher.ts'
 export type { ShadowResumeInvocation, ShadowSupervisorOptions } from './shadow-supervisor.ts'
 export type {
   DeliveryOutcome,

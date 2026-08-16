@@ -124,6 +124,31 @@ describe('/evolve host command', () => {
     })
   })
 
+  it('submits an explicitly confirmed feedback Shadow without waiting for completion', async () => {
+    const id = 'f'.repeat(64)
+    const feedbackShadow = {
+      launch: vi.fn(async () => ({
+        schemaVersion: 1 as const,
+        action: 'start-shadow' as const,
+        launchId: childId,
+        targetId: 'stable-skill',
+        skillName: 'stable-skill',
+        runStatus: 'scheduled' as const,
+        jobId: 'evolution-1',
+      })),
+    }
+
+    await expect(executeEvolutionCommand(
+      fakeStore(),
+      `feedback ${id} shadow stable-skill`,
+      { feedbackShadow },
+    )).resolves.toMatchObject({
+      kind: 'success',
+      text: expect.stringContaining('submitted as native Job evolution-1'),
+    })
+    expect(feedbackShadow.launch).toHaveBeenCalledWith(id, 'stable-skill')
+  })
+
   it('promotes a full content id only for future Sessions and is idempotent', async () => {
     const root = generation(rootId)
     const promoteGeneration = vi.fn<
@@ -184,7 +209,7 @@ describe('/evolve host command', () => {
     for (const input of ['promote', 'promote abc', `promote ${rootId} extra`, 'unknown']) {
       await expect(executeEvolutionCommand(store, input)).resolves.toMatchObject({
         kind: 'error',
-        text: 'Usage: /evolve [status|feedback [<signal-id> [draft <skill>]]|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]',
+        text: 'Usage: /evolve [status|feedback [<signal-id> [draft <skill>|shadow <target>]]|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]',
       })
     }
     expect(store.promoteGeneration).not.toHaveBeenCalled()

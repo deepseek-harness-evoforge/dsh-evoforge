@@ -15,6 +15,7 @@ export interface EvolutionRemoteClient {
   rejectReview(id: string, note: string): Promise<RemoteResult<EvolutionActionReceipt>>
   promote(generationId: string): Promise<RemoteResult<EvolutionActionReceipt>>
   rollback(): Promise<RemoteResult<EvolutionActionReceipt>>
+  startFeedbackShadow(signalId: string, targetId: string): Promise<RemoteResult<EvolutionActionReceipt>>
 }
 
 /** Turn the Remote result union into the component's ordinary success/error flow. */

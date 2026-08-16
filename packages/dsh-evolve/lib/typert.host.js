@@ -5,13 +5,18 @@ const dsh_evolve_evoforgeEvolution_approveReview_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_approveReview_parameter_1$schema = z.string()
 const dsh_evolve_evoforgeEvolution_approveReview_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
-  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("rollback")]).readonly(),
+  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("rollback"), z.literal("start-shadow")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("approved"), z.literal("rejected")]).readonly().optional(),
   'generationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'previousGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'activeGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'recoveryPaused': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
+  'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("complete"), z.literal("incomplete"), z.literal("scheduled")]).readonly().optional(),
+  'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
@@ -54,6 +59,27 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'all': z.number().readonly(),
   'selected': z.number().readonly(),
 })]).readonly().optional(),
+  'feedbackShadow': z.union([z.undefined(), z.object({
+  'available': z.boolean().readonly(),
+  'warningCount': z.number().readonly(),
+  'signals': z.array(z.object({
+  'id': z.string().readonly(),
+  'sourceUpdatedAt': z.number().readonly(),
+  'generationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+})).readonly(),
+  'targets': z.array(z.object({
+  'id': z.string().readonly(),
+  'skillName': z.string().readonly(),
+})).readonly(),
+  'runs': z.array(z.object({
+  'launchId': z.string().readonly(),
+  'targetId': z.string().readonly(),
+  'skillName': z.string().readonly(),
+  'phase': z.union([z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("complete"), z.literal("incomplete")]).readonly(),
+  'startedAt': z.string().readonly(),
+  'updatedAt': z.string().readonly(),
+})).readonly(),
+})]).readonly().optional(),
   'reviews': z.object({
   'available': z.boolean().readonly(),
   'pendingCount': z.number().readonly(),
@@ -69,8 +95,8 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'candidateTreeHash': z.string().readonly(),
   'cases': z.array(z.object({
   'id': z.string().readonly(),
-  'baseline': z.union([z.literal("pass"), z.literal("fail"), z.literal("incomplete")]).readonly(),
-  'candidate': z.union([z.literal("pass"), z.literal("fail"), z.literal("incomplete")]).readonly(),
+  'baseline': z.union([z.literal("incomplete"), z.literal("pass"), z.literal("fail")]).readonly(),
+  'candidate': z.union([z.literal("incomplete"), z.literal("pass"), z.literal("fail")]).readonly(),
   'passedChecks': z.number().readonly(),
   'totalChecks': z.number().readonly(),
 })).readonly(),
@@ -99,46 +125,66 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
 })
 const dsh_evolve_evoforgeEvolution_pause_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
-  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("rollback")]).readonly(),
+  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("rollback"), z.literal("start-shadow")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("approved"), z.literal("rejected")]).readonly().optional(),
   'generationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'previousGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'activeGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'recoveryPaused': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
+  'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("complete"), z.literal("incomplete"), z.literal("scheduled")]).readonly().optional(),
+  'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_promote_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_promote_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
-  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("rollback")]).readonly(),
+  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("rollback"), z.literal("start-shadow")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("approved"), z.literal("rejected")]).readonly().optional(),
   'generationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'previousGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'activeGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'recoveryPaused': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
+  'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("complete"), z.literal("incomplete"), z.literal("scheduled")]).readonly().optional(),
+  'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_rejectReview_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_rejectReview_parameter_1$schema = z.string()
 const dsh_evolve_evoforgeEvolution_rejectReview_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
-  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("rollback")]).readonly(),
+  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("rollback"), z.literal("start-shadow")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("approved"), z.literal("rejected")]).readonly().optional(),
   'generationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'previousGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'activeGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'recoveryPaused': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
+  'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("complete"), z.literal("incomplete"), z.literal("scheduled")]).readonly().optional(),
+  'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_resume_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
-  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("rollback")]).readonly(),
+  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("rollback"), z.literal("start-shadow")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("approved"), z.literal("rejected")]).readonly().optional(),
   'generationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'previousGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'activeGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'recoveryPaused': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
+  'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("complete"), z.literal("incomplete"), z.literal("scheduled")]).readonly().optional(),
+  'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_review_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_review_result$schema = z.object({
@@ -153,8 +199,8 @@ const dsh_evolve_evoforgeEvolution_review_result$schema = z.object({
   'candidateTreeHash': z.string().readonly(),
   'cases': z.array(z.object({
   'id': z.string().readonly(),
-  'baseline': z.union([z.literal("pass"), z.literal("fail"), z.literal("incomplete")]).readonly(),
-  'candidate': z.union([z.literal("pass"), z.literal("fail"), z.literal("incomplete")]).readonly(),
+  'baseline': z.union([z.literal("incomplete"), z.literal("pass"), z.literal("fail")]).readonly(),
+  'candidate': z.union([z.literal("incomplete"), z.literal("pass"), z.literal("fail")]).readonly(),
   'passedChecks': z.number().readonly(),
   'totalChecks': z.number().readonly(),
 })).readonly(),
@@ -193,13 +239,35 @@ const dsh_evolve_evoforgeEvolution_review_result$schema = z.object({
 })
 const dsh_evolve_evoforgeEvolution_rollback_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
-  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("rollback")]).readonly(),
+  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("rollback"), z.literal("start-shadow")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("approved"), z.literal("rejected")]).readonly().optional(),
   'generationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'previousGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'activeGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'recoveryPaused': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
+  'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("complete"), z.literal("incomplete"), z.literal("scheduled")]).readonly().optional(),
+  'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
+})
+const dsh_evolve_evoforgeEvolution_startFeedbackShadow_parameter_0$schema = z.string()
+const dsh_evolve_evoforgeEvolution_startFeedbackShadow_parameter_1$schema = z.string()
+const dsh_evolve_evoforgeEvolution_startFeedbackShadow_result$schema = z.object({
+  'schemaVersion': z.literal(1).readonly(),
+  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("rollback"), z.literal("start-shadow")]).readonly(),
+  'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'status': z.union([z.undefined(), z.literal("approved"), z.literal("rejected")]).readonly().optional(),
+  'generationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'previousGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'activeGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'recoveryPaused': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
+  'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("complete"), z.literal("incomplete"), z.literal("scheduled")]).readonly().optional(),
+  'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
 })
 
 export const TYPERT = {
@@ -388,6 +456,41 @@ export const TYPERT = {
       },
       sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":61,"column":3},
     },
+    {
+      id: 'dsh-evolve#evoforgeEvolution/startFeedbackShadow',
+      service: 'evoforge.evolutionControl',
+      namespace: 'evoforgeEvolution',
+      method: 'startFeedbackShadow',
+      invocation: { kind: 'direct' },
+      parameters: [
+        {
+          name: 'signalId',
+          wire: 'signalId',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/startFeedbackShadow:signalId',
+            schema: dsh_evolve_evoforgeEvolution_startFeedbackShadow_parameter_0$schema,
+          },
+        },
+        {
+          name: 'targetId',
+          wire: 'targetId',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/startFeedbackShadow:targetId',
+            schema: dsh_evolve_evoforgeEvolution_startFeedbackShadow_parameter_1$schema,
+          },
+        },
+      ],
+      result: {
+        mode: 'strict',
+        typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
+        schema: dsh_evolve_evoforgeEvolution_startFeedbackShadow_result$schema,
+      },
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":66,"column":3},
+    },
   ],
   model: {
     "services": [
@@ -518,6 +621,11 @@ export const TYPERT = {
             "kind": "method",
             "name": "rollback",
             "signature": "rollback(): Promise<EvolutionActionReceipt>"
+          },
+          {
+            "kind": "method",
+            "name": "startFeedbackShadow",
+            "signature": "startFeedbackShadow(signalId: string, targetId: string): Promise<EvolutionActionReceipt>"
           }
         ],
         "types": [
@@ -535,11 +643,15 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionActionReceipt",
-            "declaration": "export interface EvolutionActionReceipt {\n    readonly schemaVersion: 1;\n    readonly action: 'pause' | 'resume' | 'approve-review' | 'reject-review' | 'promote' | 'rollback';\n    readonly reviewId?: string;\n    readonly status?: 'approved' | 'rejected';\n    readonly generationId?: string;\n    readonly previousGenerationId?: string;\n    readonly activeGenerationId?: string;\n    readonly recoveryPaused?: boolean;\n}"
+            "declaration": "export interface EvolutionActionReceipt {\n    readonly schemaVersion: 1;\n    readonly action: 'pause' | 'resume' | 'approve-review' | 'reject-review' | 'promote' | 'rollback' | 'start-shadow';\n    readonly reviewId?: string;\n    readonly status?: 'approved' | 'rejected';\n    readonly generationId?: string;\n    readonly previousGenerationId?: string;\n    readonly activeGenerationId?: string;\n    readonly recoveryPaused?: boolean;\n    readonly launchId?: string;\n    readonly targetId?: string;\n    readonly skillName?: string;\n    readonly runStatus?: 'scheduled' | 'prepared' | 'proposal-pending' | 'candidate-ready' | 'trial-running' | 'complete' | 'incomplete';\n    readonly jobId?: string;\n}"
           },
           {
             "name": "EvolutionArtifactView",
             "declaration": "export interface EvolutionArtifactView {\n    readonly kind: 'skill';\n    readonly name: string;\n    readonly gitCommit: string;\n    readonly treeHash: string;\n}"
+          },
+          {
+            "name": "EvolutionFeedbackSignalView",
+            "declaration": "export interface EvolutionFeedbackSignalView {\n    readonly id: string;\n    readonly sourceUpdatedAt: number;\n    readonly generationId?: string;\n}"
           },
           {
             "name": "EvolutionGenerationView",
@@ -551,7 +663,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionOverview",
-            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly automaticPromotion: { readonly enabled: boolean; readonly skills: readonly string[]; };\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
+            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly automaticPromotion: { readonly enabled: boolean; readonly skills: readonly string[]; };\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly feedbackShadow?: { readonly available: boolean; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly runs: readonly EvolutionShadowRunView[]; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
           },
           {
             "name": "EvolutionReviewCaseView",
@@ -564,6 +676,14 @@ export const TYPERT = {
           {
             "name": "EvolutionReviewView",
             "declaration": "export interface EvolutionReviewView {\n    readonly id: string;\n    readonly status: 'pending' | 'approved' | 'rejected';\n    readonly recommendation: 'promote' | 'review';\n    readonly skillName: string;\n    readonly claim: string;\n    readonly changedFiles: readonly string[];\n    readonly candidateTreeHash: string;\n    readonly cases: readonly EvolutionReviewCaseView[];\n    readonly cost: { readonly inputTokens: number; readonly outputTokens: number; readonly trialCount: number; };\n    readonly reasons: readonly string[];\n    readonly limitations: readonly string[];\n    readonly evaluatorVersion: string;\n    readonly compositionFingerprint: string;\n    readonly compositionStable: boolean;\n    readonly startedAt: string;\n    readonly decisionActor?: 'human' | 'auto-clear-instruction-v1';\n    readonly decisionNote?: string;\n    readonly generationId?: string;\n    readonly activatedAt?: string;\n}"
+          },
+          {
+            "name": "EvolutionShadowRunView",
+            "declaration": "export interface EvolutionShadowRunView {\n    readonly launchId: string;\n    readonly targetId: string;\n    readonly skillName: string;\n    readonly phase: 'prepared' | 'proposal-pending' | 'candidate-ready' | 'trial-running' | 'complete' | 'incomplete';\n    readonly startedAt: string;\n    readonly updatedAt: string;\n}"
+          },
+          {
+            "name": "EvolutionShadowTargetView",
+            "declaration": "export interface EvolutionShadowTargetView {\n    readonly id: string;\n    readonly skillName: string;\n}"
           }
         ]
       }

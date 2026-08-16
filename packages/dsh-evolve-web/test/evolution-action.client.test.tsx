@@ -9,6 +9,7 @@ afterEach(cleanup)
 
 const reviewId = 'c'.repeat(64)
 const generationId = 'a'.repeat(64)
+const signalId = '8'.repeat(64)
 
 function success<T>(value: T) {
   return Promise.resolve({ ok: true as const, value })
@@ -19,6 +20,13 @@ function remote(withActive = false, withInactive = false): EvolutionRemoteClient
     schemaVersion: 1 as const,
     recovery: { available: true, paused: false },
     automaticPromotion: { enabled: false, skills: [] },
+    feedbackShadow: {
+      available: true,
+      warningCount: 0,
+      signals: [{ id: signalId, sourceUpdatedAt: 1_786_896_000_000, generationId }],
+      targets: [{ id: 'plugin-delivery', skillName: 'build-dsh-plugin' }],
+      runs: [],
+    },
     reviews: {
       available: true,
       pendingCount: 1,
@@ -82,6 +90,15 @@ function remote(withActive = false, withInactive = false): EvolutionRemoteClient
     rejectReview: vi.fn(() => success({ schemaVersion: 1 as const, action: 'reject-review' as const, reviewId, status: 'rejected' as const })),
     promote: vi.fn(() => success({ schemaVersion: 1 as const, action: 'promote' as const, activeGenerationId: generationId })),
     rollback: vi.fn(() => success({ schemaVersion: 1 as const, action: 'rollback' as const, previousGenerationId: generationId })),
+    startFeedbackShadow: vi.fn(() => success({
+      schemaVersion: 1 as const,
+      action: 'start-shadow' as const,
+      launchId: '9'.repeat(64),
+      targetId: 'plugin-delivery',
+      skillName: 'build-dsh-plugin',
+      runStatus: 'scheduled' as const,
+      jobId: 'evolution-1',
+    })),
   }
 }
 
@@ -96,6 +113,7 @@ const t = (key: string) => ({
   'action.reject': 'Reject',
   'action.promote': 'Promote',
   'action.rollback': 'Rollback',
+  'action.startShadow': 'Start Shadow',
   'action.confirm': 'Confirm',
   'action.cancel': 'Cancel',
   'field.note': 'Decision note',
@@ -148,6 +166,19 @@ describe('EvolutionAction', () => {
     const confirmation = await screen.findByRole('alertdialog')
     fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm' }))
     await waitFor(() => expect(api.promote).toHaveBeenCalledWith(generationId))
+  })
+
+  it('requires explicit confirmation before starting a paid feedback Shadow', async () => {
+    const api = remote()
+    render(<EvolutionAction remote={api} t={t} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
+    await screen.findByRole('dialog')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Start Shadow · plugin-delivery' }))
+    expect(api.startFeedbackShadow).not.toHaveBeenCalled()
+    const confirmation = await screen.findByRole('alertdialog')
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm' }))
+    await waitFor(() => expect(api.startFeedbackShadow).toHaveBeenCalledWith(signalId, 'plugin-delivery'))
   })
 })
 

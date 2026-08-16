@@ -55,6 +55,10 @@ export class EvolutionRemoteService extends TypertRemoteService {
   rollback(): Promise<EvolutionActionReceipt> {
     return this.control.rollback()
   }
+
+  startFeedbackShadow(signalId: string, targetId: string): Promise<EvolutionActionReceipt> {
+    return this.control.startFeedbackShadow(signalId, targetId)
+  }
 }
 
 export const EVOLUTION_REMOTE_METHODS = [
@@ -66,6 +70,7 @@ export const EVOLUTION_REMOTE_METHODS = [
   'rejectReview',
   'promote',
   'rollback',
+  'startFeedbackShadow',
 ] as const satisfies readonly (keyof EvolutionRemoteService)[]
 
 type RemoteInitializer = (this: EvolutionRemoteService) => void

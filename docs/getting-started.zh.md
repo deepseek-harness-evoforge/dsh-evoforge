@@ -179,6 +179,32 @@ proposal evidence 和 run journal 不直接复制输入字段。但 proposer 若
 和 search evidence 共用 manifest 的 `inputTokenLimit`。没有显式 Shadow 时，正常 DSH Session 的
 额外 token 仍为 0。
 
+常用 Skill 可以把这些固定输入预先声明为静态 Target，避免用户复制绝对路径：
+
+```yaml
+supervisor:
+  runRoots:
+    - /absolute/path/to/.dsh/evoforge/plugin-delivery-runs
+  scanIntervalMs: 30000
+shadowTargets:
+  - id: plugin-delivery
+    skill: build-dsh-plugin
+    casePackDir: /absolute/path/to/trusted-case-pack
+    runRoot: /absolute/path/to/.dsh/evoforge/plugin-delivery-runs
+```
+
+每个 Target 使用一个已在 `supervisor.runRoots` 中声明的独立 run root；最多 20 个。还必须装配
+原生 Jobs、Message Feedback 与 Session Persistence。之后可从 Web 确认，或执行：
+
+```text
+/evolve feedback <64-char-signal-id> shadow plugin-delivery
+```
+
+该动作逐次授权一次可能付费的 proposer 请求和受限纠正外发，并立即返回。系统在 host 端重新
+创建/核对 exact 私有 Draft，只把 signal id 与 target id 暴露给 Commands/Web。相同 signal、Draft、
+Skill tree、Case Pack 和模型 route 派生相同 launch id；已有 durable journal 时复用而不重复请求。
+它不会自动创建 evaluator 或晋升 Candidate。
+
 ### Evolve Web Bundle 装配
 
 发布后，一条命令安装 host runtime 与 Web Adapter：
@@ -236,8 +262,13 @@ Domain 已装配的配置里添加：
         path: skills/build-dsh-plugin
     supervisor:
       runRoots:
-        - /absolute/path/to/.dsh/evoforge/runs
+        - /absolute/path/to/.dsh/evoforge/plugin-delivery-runs
       scanIntervalMs: 30000
+    shadowTargets:
+      - id: plugin-delivery
+        skill: build-dsh-plugin
+        casePackDir: /absolute/path/to/trusted-case-pack
+        runRoot: /absolute/path/to/.dsh/evoforge/plugin-delivery-runs
     autoPromote:
       skills:
         - build-dsh-plugin
@@ -254,6 +285,7 @@ non-executable 文件。`cacheRoot` 只是带 owner marker 的只读重建缓存
 /evolve feedback
 /evolve feedback <64-char-signal-id>
 /evolve feedback <64-char-signal-id> draft <skill-name>
+/evolve feedback <64-char-signal-id> shadow <target-id>
 /evolve review
 /evolve review <64-char-review-id>
 /evolve review <64-char-review-id> reject <note>

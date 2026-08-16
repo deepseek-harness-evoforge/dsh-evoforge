@@ -61,4 +61,11 @@ export class EvolutionRemoteTypertContract extends TypertRemoteService {
   rollback(): Promise<EvolutionActionReceipt> {
     throw new Error('static Typert contract')
   }
+
+  @Remote
+  startFeedbackShadow(signalId: string, targetId: string): Promise<EvolutionActionReceipt> {
+    void signalId
+    void targetId
+    throw new Error('static Typert contract')
+  }
 }

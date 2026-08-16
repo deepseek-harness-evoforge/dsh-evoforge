@@ -35,6 +35,7 @@
 | 反馈引导、独立评测 Shadow | `implemented`（P1.5） | [P1.5](evidence/p1-5-feedback-guided-shadow.zh.md)：私有草稿只进 proposer、existing Case Pack 独立判定、exact Skill gate、输入字段不直接复制、durable resume、macOS 55/55 | 真实 provider/用户纠正数据；P1.7 已补新失败 keyless 前向测试，仍需真实 outcome |
 | proposer 前 Case Pack 校准 | `implemented`（P1.6） | [P1.6](evidence/p1-6-preproposal-case-pack-calibration.zh.md)：独立零模型命令、known-bad/correction sealed report、Shadow preflight、失准时 provider 0 请求、macOS 60/60 | 真实作者使用数据；Linux/Windows sealed backend；P1.7 只指导编写，不自动生成 evaluator |
 | 全新失败 evaluator authoring | `implemented` workflow（P1.7） | [P1.7](evidence/p1-7-evaluator-authoring-skill.zh.md)：显式 user-invoked Skill、独立分区/negative controls、真实 assembled calibration；一个新“进度即停”失败完成 red→green→bounded Shadow→可回滚 Skill 晋升；无 runtime surface | 独立陌生作者可用性、真实 provider/任务 outcome；仍不自动生成 evaluator |
+| 显式 Feedback Shadow Launch | `implemented`（P1.8） | [P1.8](evidence/p1-8-explicit-feedback-shadow-launch.zh.md)：静态 Target、Commands/Web 确认、原生 Jobs、内容寻址去重、真实 DSH composition、无路径 Remote 与零模型表面 | 固定 DSH 的真实浏览器复验、真实 provider/用户纠正改善率与多日崩溃数据 |
 | 单机常驻和崩溃恢复 | `implemented`（P0B） | 四个 release `SIGKILL` 边界；[P0B.2a](evidence/p0b-2a-durable-shadow-resume.zh.md)；[P0B.2b](evidence/p0b-2b-resident-shadow-supervisor.zh.md) native Jobs supervisor/关机恢复/重复扫描 | 生产多日 soak、真实磁盘耗尽与更多机器数据 |
 | `dsh-software-delivery` | `implemented`（P2A.1 + P2B.1 + P2C.1–P2C.2 + P2D.1 consumer） | [P2A.1](evidence/p2a-1-software-delivery-verifier.zh.md)：真实 Git/CLI/package；[P2B.1](evidence/p2b-1-native-goal-verified-completion.zh.md)：Goal/Bash/update_goal；[P2C.1](evidence/p2c-1-idempotent-draft-pr.zh.md)：exact push、create/reuse、不确定重试、ready 冲突；[P2C.2](evidence/p2c-2-exact-draft-check-gate.zh.md)：exact-head checks 三态门与真实 PR；[P2D.1](evidence/p2d-1-delivery-outcome-signal.zh.md)：Evolve 第二消费者；[P1.2](evidence/p1-2-counterfactual-canary.zh.md)：失败后的反事实消费 | fork/其他 forge、required-only/CI 日志与自动等待、真实开发任务数据 |
 | 个人助理、消息、内容、日程插件 | `planned` | 仅产品范围 | 每次只选择一个高频工作流验证 |
@@ -57,6 +58,7 @@
 - 继续使用 DSH 原生逐消息反馈：带备注负反馈会异步形成仅含引用/version/Generation 的可撤回 Signal，并在 `/evolve status` 聚合；EvoForge 不复制 note、cwd、Prompt 或消息正文；
 - 显式配置私有 `feedbackDraftRoot` 后，通过 `/evolve feedback` 选择一条仍有效且只调用一个 Generation Skill 的纠正，生成可删除、未评分的内容寻址 Case Draft；
 - 对已有可信 Case Pack 覆盖的失败类型，显式把 exact 私有草稿用于一次付费 Shadow proposer 搜索；独立 evaluator 仍决定结果，当前 Session/active Skill 不变；
+- 为常用 Skill 配置静态 Shadow Target 后，可在 Commands/Web 只选择 signal id 与 target id，明确确认一次付费/纠正外发并立即把同一 Shadow 提交到原生 Jobs；重复动作复用 durable run；
 - 在任何 proposer 请求前独立或自动验证 Case Pack 能拒绝 known-bad、接受 known-correction；失准时保留报告并消耗 0 proposer token；
 - 显式调用 `author-dsh-evolution-case`，把一个可复现新失败按 search/calibration/final-test 分区写成 Case Pack，并在 proposer 前做零模型校准；
 - 对 allowlist 自动晋升版本，在匹配失败后异步复用原 Case Pack 做 exact parent-vs-Candidate canary；只有可归因回归才回滚 future Session，模糊证据留待 review；
@@ -67,11 +69,11 @@
 ## 当前不能做什么
 
 - 不能把 P0C Commands/Web 闭环当作已验证的完整控制产品；已有受限逐行 diff 和保守词法影响提示，但后者不是语义安全证明，也尚无陌生用户 approve/promote/rollback 可用性数据、capability/权限差异审计或分页/折叠；
-- 不能把 P1.1–P1.7/P2D.1 当作已验证的完整 bounded autonomy；已有反馈 intake、私有 Case Draft、既有 evaluator 下的反馈引导 Shadow、proposer 前校准、显式 evaluator authoring Skill 与反事实自动回滚，但全新失败仍没有自动 evaluator，也无真实任务长期误晋升、误回滚和 review-rate 数据；
+- 不能把 P1.1–P1.8/P2D.1 当作已验证的完整 bounded autonomy；已有反馈 intake、私有 Case Draft、既有 evaluator 下的显式后台 Shadow、proposer 前校准、显式 evaluator authoring Skill 与反事实自动回滚，但全新失败仍没有自动 evaluator，也无真实任务长期误晋升、误回滚和 review-rate 数据；
 - 不能把 P2A–P2D 当作完整跨 forge 自动交付：受验证动作不是全局 Goal 拦截，原生直接完成仍可用；Draft PR 只支持 GitHub.com 同仓分支；可选门只单次读取全部 rollup checks，不实现 required-only 规则、CI 日志诊断或自动等待；standalone CLI 也不是运行不可信 checks 的安全沙箱；
 - 不能把公开的确定性示例当作真实 DSH 工作流已经改善；
 - `shadow` 不执行任意模型生成代码；assembled lane 会运行真实 DSH，但 Candidate 仍只作为 Skill 数据选择受限的可信 evaluator 行为；
 - 不能声称完整持续进化、生产级多日可靠性、任意外部效果 crash-resume 或优于 Hermes；
 - 不能作为生产依赖安装。
 
-P0B 的本地实现门已通过；P0C.1–P0C.6 已形成含 exact bounded diff、protected-effect 词法提示、零模型调用和真实 DSH Web 入口的人工闭环；P1.1 已增加默认关闭、可解释、崩溃可恢复的最窄自动晋升。P2A–P2C.2 已把真实 Git/local checks/Draft PR/exact-head remote checks 绑定到一个原生 Goal 的受验证完成路径；P2D.1 已让 Evolve 成为不阻塞、零模型表面的第二消费者；P1.2 已用原 Case Pack 和 exact Git parent/Candidate 实现可归因自动回滚；P1.3/P1.4 已把明确纠正保存为私有、未评分 Case Draft；P1.5 已让 exact 草稿在一次显式 Shadow 中只引导 proposer，由既有可信 Case Pack 独立裁判；P1.6 已把 evaluator 方向校准提前到 proposer 之前；P1.7 已提供不进入 runtime surface 的显式 authoring Skill，并用一个新失败完成 keyless 前向测试和可回滚 Skill 晋升。下一步应收集独立陌生作者、真实 provider/任务 outcome 与纠正改善率，而不是扩大成新 Memory/Signal/Workflow 平台。P0C 陌生用户可用性和生产多日 soak 继续作为证据积累，不能被短时自动化测试替代。
+P0B 的本地实现门已通过；P0C.1–P0C.6 已形成含 exact bounded diff、protected-effect 词法提示、零模型调用和真实 DSH Web 入口的人工闭环；P1.1 已增加默认关闭、可解释、崩溃可恢复的最窄自动晋升。P2A–P2C.2 已把真实 Git/local checks/Draft PR/exact-head remote checks 绑定到一个原生 Goal 的受验证完成路径；P2D.1 已让 Evolve 成为不阻塞、零模型表面的第二消费者；P1.2 已用原 Case Pack 和 exact Git parent/Candidate 实现可归因自动回滚；P1.3/P1.4 已把明确纠正保存为私有、未评分 Case Draft；P1.5 已让 exact 草稿在一次显式 Shadow 中只引导 proposer，由既有可信 Case Pack 独立裁判；P1.6 已把 evaluator 方向校准提前到 proposer 之前；P1.7 已提供不进入 runtime surface 的显式 authoring Skill，并用一个新失败完成 keyless 前向测试和可回滚 Skill 晋升；P1.8 已让用户从 Commands/Web 显式选择静态 Target 后后台启动同一 Shadow，原会话不等待。下一步应收集独立陌生作者、真实 provider/任务 outcome 与纠正改善率，而不是扩大成新 Memory/Signal/Workflow 平台。P0C 陌生用户可用性和生产多日 soak 继续作为证据积累，不能被短时自动化测试替代。

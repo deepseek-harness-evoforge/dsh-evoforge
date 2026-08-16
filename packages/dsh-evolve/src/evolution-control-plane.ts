@@ -2,6 +2,7 @@ import type { AutoPromotionPolicy } from './auto-promotion.ts'
 import type { CandidatePublisher } from './candidate-publisher.ts'
 import type { DeliveryOutcomeStore } from './delivery-outcome-monitor.ts'
 import type { FeedbackSignalStore } from './feedback-signal-monitor.ts'
+import type { FeedbackShadowLauncher } from './feedback-shadow-launcher.ts'
 import type { EvolutionStore } from './generation-store.ts'
 import type { ResidentEvolutionControl } from './resident-evolution-control.ts'
 import type { ReviewCandidate, ReviewInbox } from './review-inbox.ts'
@@ -14,6 +15,7 @@ import type {
 } from './control-types.ts'
 
 const MAX_REVIEW_ROWS = 20
+const MAX_FEEDBACK_ROWS = 20
 
 /** Existing authoritative owners used by Commands and structured adapters. */
 export interface EvolutionControlPlaneModules {
@@ -25,7 +27,8 @@ export interface EvolutionControlPlaneModules {
   readonly resident?: Pick<ResidentEvolutionControl, 'isPaused' | 'pause' | 'resume'>
   readonly automatic?: Pick<AutoPromotionPolicy, 'evaluate' | 'skills'>
   readonly outcomes?: Pick<DeliveryOutcomeStore, 'summarize'>
-  readonly feedback?: Pick<FeedbackSignalStore, 'summarize'>
+  readonly feedback?: Pick<FeedbackSignalStore, 'list' | 'summarize'>
+  readonly feedbackShadow?: Pick<FeedbackShadowLauncher, 'available' | 'targets' | 'scan' | 'launch'>
 }
 
 /** A structured adapter surface that delegates to the same owners as Commands. */
@@ -38,9 +41,10 @@ export class EvolutionControlPlane {
 
   async overview(): Promise<EvolutionOverview> {
     const active = this.modules.store.getActiveGeneration()
-    const scan = this.modules.review === undefined
-      ? undefined
-      : await this.modules.review.inbox.scanAll()
+    const [scan, shadowScan] = await Promise.all([
+      this.modules.review === undefined ? undefined : this.modules.review.inbox.scanAll(),
+      this.modules.feedbackShadow === undefined ? undefined : this.modules.feedbackShadow.scan(),
+    ])
     const automaticSkills = this.modules.automatic?.skills() ?? []
     return {
       schemaVersion: 1,
@@ -58,6 +62,24 @@ export class EvolutionControlPlane {
       ...(this.modules.feedback === undefined
         ? {}
         : { feedbackSignals: { ...this.modules.feedback.summarize(active?.id) } }),
+      ...(this.modules.feedbackShadow === undefined
+        ? {}
+        : {
+            feedbackShadow: {
+              available: this.modules.feedbackShadow.available(),
+              warningCount: shadowScan?.warningCount ?? 0,
+              signals: (this.modules.feedback?.list() ?? [])
+                .slice(-MAX_FEEDBACK_ROWS)
+                .reverse()
+                .map(signal => ({
+                  id: signal.id,
+                  sourceUpdatedAt: signal.sourceUpdatedAt,
+                  ...(signal.generationId === undefined ? {} : { generationId: signal.generationId }),
+                })),
+              targets: this.modules.feedbackShadow.targets().map(target => ({ ...target })),
+              runs: (shadowScan?.runs ?? []).map(run => ({ ...run })),
+            },
+          }),
       reviews: scan === undefined
         ? {
             available: false,
@@ -163,6 +185,13 @@ export class EvolutionControlPlane {
       previousGenerationId: result.previousId,
       ...(result.generation === undefined ? {} : { activeGenerationId: result.generation.id }),
     }
+  }
+
+  async startFeedbackShadow(signalId: string, targetId: string): Promise<EvolutionActionReceipt> {
+    if (this.modules.feedbackShadow === undefined) {
+      throw new Error('feedback Shadow is not configured')
+    }
+    return this.modules.feedbackShadow.launch(signalId, targetId)
   }
 
   private requireReview(): NonNullable<EvolutionControlPlaneModules['review']> {

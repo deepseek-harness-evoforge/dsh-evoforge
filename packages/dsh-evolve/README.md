@@ -1,6 +1,6 @@
 # dsh-evolve
 
-`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains eleven deliberately separate lanes:
+`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains twelve deliberately separate lanes:
 
 - **P0A Shadow** compares an active Skill with an inactive Candidate without changing live DSH.
 - **P0B Local Continuity** records immutable Capability Generations, pins one Generation per Session, switches or rolls back only future Sessions, and resumes durable sealed work through an optional resident supervisor.
@@ -13,6 +13,7 @@
 - **P1.5 Feedback-guided Shadow** uses one exact private draft only as proposer search evidence while an existing calibrated Case Pack remains the evaluator.
 - **P1.6 Pre-proposal Calibration** proves known-bad/known-correction direction with zero model calls and makes complete Shadow runs pass that gate before requesting a Candidate.
 - **P1.7 Evaluator Authoring** provides an explicit, non-runtime Skill for turning one reproducible novel failure into independent search/calibration/final-test partitions and a calibrated evaluator.
+- **P1.8 Feedback Shadow Launch** explicitly submits one current correction to one statically bound Skill/Case Pack target as a native background Job.
 
 The offline evaluation command is:
 
@@ -47,6 +48,7 @@ surface is also available:
 /evolve feedback
 /evolve feedback <64-char-signal-id>
 /evolve feedback <64-char-signal-id> draft <skill-name>
+/evolve feedback <64-char-signal-id> shadow <target-id>
 /evolve review
 /evolve review <64-char-review-id>
 /evolve review <64-char-review-id> reject <note>
@@ -189,8 +191,13 @@ Skill that a Generation may activate:
         path: skills/build-dsh-plugin
     supervisor:
       runRoots:
-        - /absolute/path/to/.dsh/evoforge/runs
+        - /absolute/path/to/.dsh/evoforge/plugin-delivery-runs
       scanIntervalMs: 30000
+    shadowTargets:
+      - id: plugin-delivery
+        skill: build-dsh-plugin
+        casePackDir: /absolute/path/to/calibrated-plugin-delivery-cases
+        runRoot: /absolute/path/to/.dsh/evoforge/plugin-delivery-runs
     autoPromote:
       skills:
         - build-dsh-plugin
@@ -201,6 +208,15 @@ minimal user text and correction, but does not create anything automatically.
 Draft creation additionally requires native Message Feedback, Session
 Persistence, Commands, and an explicit `/evolve feedback <id> draft <skill>`.
 The directory must be a real private directory with no group/world permissions.
+
+`shadowTargets` is optional and bounded to 20 entries. Each public id binds one
+exact Skill, calibrated Case Pack, and a unique run root already declared in
+`supervisor.runRoots`. Native Jobs and Feedback Case Draft creation must both be
+available. Commands and Web accept only the signal id and target id, never paths.
+Starting a target is an explicit authorization for one potentially paid proposer
+request and disclosure of that bounded private correction. It returns immediately;
+the originating Session does not wait. The content-addressed launch directory and
+existing Shadow journal make retries idempotent and restart recovery conservative.
 
 `supervisor` is optional. When configured, the DSH composition must also load a
 native `ctx.jobs` implementation such as `@deepseek-ai/dsh-jobs-local`. Each

@@ -1,6 +1,6 @@
 # EvoForge 开发路线图
 
-> 状态：P0A–P1.7 已实现（含 P0C.6 Web 控制面）；P2A.1 验证、P2B.1 Goal 完成、P2C.1 Draft PR、P2C.2 exact checks 门与 P2D.1 Outcome 第二消费者已实现
+> 状态：P0A–P1.8 已实现（含 P0C.6 Web 控制面）；P2A.1 验证、P2B.1 Goal 完成、P2C.1 Draft PR、P2C.2 exact checks 门与 P2D.1 Outcome 第二消费者已实现
 
 ## 当前状态
 
@@ -12,7 +12,7 @@
 | P0A Shadow evaluator | 本地退出门通过 | 安全门、macOS Sealed Trial、真实 DSH bridge、3/3 公开产品 fixture 与[本地未见首测](evidence/p0a-8-private-heldout.zh.md)均转绿；真实 provider 与第三方独立复跑仍属更高等级证据 |
 | P0B Local Continuity | implemented | P0B.1 release kernel、P0B.2a durable resume 与 P0B.2b resident supervisor 已通过本地/pinned DSH 测试；生产多日 soak 仍属发布前证据 |
 | P0C Human Control | Commands + Web 闭环、verified bounded diff 与 lexical effect projection implemented；陌生用户可用性门待验证 | P0C.1 release、P0C.2 review → inactive Generation、P0C.3 durable pause/resume、P0C.4 exact Git diff preview、P0C.5 protected-effect 词法提示、P0C.6 真实 DSH Web/RPC/跨重启控制已通过测试 |
-| P1 Bounded Autonomy | P1.1–P1.7 implemented；P2D.1 信号已接通 | 默认关闭的 allowlist + append-only policy、交付 outcome、显式反馈 intake、私有 Case Draft、既有 Case Pack 下的反馈引导 Shadow、proposer 前零模型校准、显式 evaluator authoring Skill、exact parent/Candidate 反事实 canary、pointer-safe 自动回滚均已通过测试；全新失败自动 evaluator 与真实任务长期率待验证 |
+| P1 Bounded Autonomy | P1.1–P1.8 implemented；P2D.1 信号已接通 | 默认关闭的 allowlist + append-only policy、交付 outcome、显式反馈 intake、私有 Case Draft、既有 Case Pack 下的反馈引导 Shadow、静态 Target 的显式后台启动、proposer 前零模型校准、显式 evaluator authoring Skill、exact parent/Candidate 反事实 canary、pointer-safe 自动回滚均已通过测试；全新失败自动 evaluator 与真实任务长期率待验证 |
 | P2 Software Delivery | P2A.1 + P2B.1 + P2C.1–P2C.2 + P2D.1 consumer implemented | linked worktree/commit/check、原生 Bash policy → exact push/Draft PR → 可选 exact-head 远端 checks 门 → `update_goal`，并由 Evolve 异步记录最小三态信号；pinned DSH Agent/ToolRuntime/Storage 与 package 已测 |
 
 ## P0A — 先证明会判断
@@ -169,9 +169,17 @@ P1.7 提供显式、非隐式注入的
 P1.7 已用一个既有 Pack 未覆盖的“进度汇报被误当完成”失败完成首次 keyless 前向测试：red
 evaluator、两个 negative control、零模型校准、一次 bounded Shadow 与可回滚 Skill 晋升均成立。
 
+P1.8 已把现有 Signal → Draft → Shadow 从手工路径拼接收敛为一个显式 host 动作。运维只配置
+少量静态 Target，把公开 id 绑定 exact Skill、已校准 Case Pack 和 supervisor run root；Commands
+与 Web 只提交 signal id + target id。每次动作明确授权一次可能付费的 proposer 和受限纠正外发，
+立即返回并以原生 Jobs 观察；相同内容复用 launch id 与 run journal。它不自动生成 evaluator、
+不自动晋升、不阻塞原会话，也不改变模型表面。证据见
+[P1.8](evidence/p1-8-explicit-feedback-shadow-launch.zh.md)与
+[ADR-0026](adr/0026-feedback-shadow-launch-is-explicit-and-target-bound.md)。
+
 P1 剩余：由独立陌生作者复跑 authoring workflow，并测量既有可信 Case Pack 下真实
 provider/用户纠正的改善率；继续收集真实开发任务的 false promotion、false rollback、review rate、
-返工减少和多日常驻证据。P1.1–P1.7/P2D.1 不作
+返工减少和多日常驻证据。P1.1–P1.8/P2D.1 不作
 完整退出声明。
 
 退出条件：真实 Shadow/Canary 数据证明 false promotion、false rollback、review rate 和每次减少返工的成本在预声明预算内。

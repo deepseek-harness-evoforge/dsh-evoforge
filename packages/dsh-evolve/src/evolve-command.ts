@@ -12,8 +12,9 @@ import type {
   FeedbackSignalSummary,
 } from './feedback-signal-monitor.ts'
 import type { FeedbackCaseDraftBuilder } from './feedback-case-draft.ts'
+import type { FeedbackShadowLauncher } from './feedback-shadow-launcher.ts'
 
-const USAGE = 'Usage: /evolve [status|feedback [<signal-id> [draft <skill>]]|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]'
+const USAGE = 'Usage: /evolve [status|feedback [<signal-id> [draft <skill>|shadow <target>]]|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]'
 const generationIdPattern = /^[a-f0-9]{64}$/
 
 export interface EvolutionCommandModules {
@@ -23,6 +24,7 @@ export interface EvolutionCommandModules {
   readonly outcomes?: Pick<DeliveryOutcomeStore, 'summarize'>
   readonly feedback?: Pick<FeedbackSignalStore, 'list' | 'summarize'>
   readonly feedbackDraft?: Pick<FeedbackCaseDraftBuilder, 'create'>
+  readonly feedbackShadow?: Pick<FeedbackShadowLauncher, 'launch'>
 }
 
 /** Register the optional human control plane without adding a model Tool. */
@@ -48,7 +50,7 @@ export async function executeEvolutionCommand(
   modules: EvolutionCommandModules = {},
 ): Promise<CommandResult> {
   const input = rawInput.trim()
-  const { review, resident, automatic, outcomes, feedback, feedbackDraft } = modules
+  const { review, resident, automatic, outcomes, feedback, feedbackDraft, feedbackShadow } = modules
   try {
     if (input === '' || input === 'status') {
       const active = store.getActiveGeneration()
@@ -79,6 +81,21 @@ export async function executeEvolutionCommand(
     if (input === 'feedback') {
       if (feedback === undefined) return feedbackUnavailable()
       return renderFeedbackList(feedback.list())
+    }
+    const feedbackShadowAction = /^feedback\s+([a-f0-9]{64})\s+shadow\s+([a-z0-9]+(?:-[a-z0-9]+)*)$/u.exec(input)
+    if (feedbackShadowAction?.[1] !== undefined && feedbackShadowAction[2] !== undefined) {
+      if (feedbackShadow === undefined) return feedbackShadowUnavailable()
+      const launched = await feedbackShadow.launch(feedbackShadowAction[1], feedbackShadowAction[2])
+      return {
+        kind: 'success',
+        text: launched.jobId === undefined
+          ? `Feedback Shadow ${launched.launchId} already has durable status ${launched.runStatus}. No paid request was repeated.`
+          : [
+              `Feedback Shadow ${launched.launchId} submitted as native Job ${launched.jobId}.`,
+              'This explicit action authorized one potentially paid proposer request and disclosure of the bounded private correction.',
+              'The originating Session does not wait; inspect the review inbox after completion.',
+            ].join('\n'),
+      }
     }
     const feedbackAction = /^feedback\s+([a-f0-9]{64})(?:\s+draft\s+([a-z0-9]+(?:-[a-z0-9]+)*))?$/u.exec(input)
     if (feedbackAction?.[1] !== undefined) {
@@ -204,6 +221,13 @@ function feedbackDraftUnavailable(): CommandResult {
   return {
     kind: 'error',
     text: 'Feedback Case Draft creation is disabled. Configure a private dsh-evolve feedbackDraftRoot and compose native message feedback plus Session persistence.',
+  }
+}
+
+function feedbackShadowUnavailable(): CommandResult {
+  return {
+    kind: 'error',
+    text: 'Feedback Shadow launch is disabled. Configure a private feedbackDraftRoot, supervisor run roots, static shadowTargets, and native Jobs.',
   }
 }
 

@@ -8,7 +8,7 @@ export interface EvolutionActionProps {
   readonly wide?: boolean
 }
 
-type ConfirmAction = 'approve' | 'reject' | 'promote' | 'rollback'
+type ConfirmAction = 'approve' | 'reject' | 'promote' | 'rollback' | 'shadow'
 
 /** Sidebar trigger and bounded global evolution control panel. */
 export function EvolutionAction({ remote, t, wide = true }: EvolutionActionProps) {
@@ -17,6 +17,7 @@ export function EvolutionAction({ remote, t, wide = true }: EvolutionActionProps
   const [detail, setDetail] = useState<EvolutionReviewDetail>()
   const [note, setNote] = useState('')
   const [promotionTarget, setPromotionTarget] = useState<string>()
+  const [shadowSelection, setShadowSelection] = useState<{ signalId: string; targetId: string }>()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   const [notice, setNotice] = useState<string>()
@@ -75,6 +76,11 @@ export function EvolutionAction({ remote, t, wide = true }: EvolutionActionProps
       void run(() => remoteValue(remote.promote(promotionTarget)))
     } else if (confirm === 'rollback') {
       void run(() => remoteValue(remote.rollback()))
+    } else if (confirm === 'shadow' && shadowSelection !== undefined) {
+      void run(() => remoteValue(remote.startFeedbackShadow(
+        shadowSelection.signalId,
+        shadowSelection.targetId,
+      )))
     }
   }
 
@@ -137,6 +143,10 @@ export function EvolutionAction({ remote, t, wide = true }: EvolutionActionProps
                     setPromotionTarget(generationId)
                     setConfirm('promote')
                   }}
+                  startShadow={(signalId, targetId) => {
+                    setShadowSelection({ signalId, targetId })
+                    setConfirm('shadow')
+                  }}
                   t={t}
                 />
               : (
@@ -185,15 +195,55 @@ function Overview({ summary, t }: { summary: EvolutionOverview; t: (key: string)
   ))}</div>
 }
 
-function ReviewQueue({ overview, busy, inspect, promote, t }: {
+function ReviewQueue({ overview, busy, inspect, promote, startShadow, t }: {
   overview: EvolutionOverview | undefined
   busy: boolean
   inspect: (id: string) => Promise<void>
   promote: (generationId: string) => void
+  startShadow: (signalId: string, targetId: string) => void
   t: (key: string) => string
 }) {
   if (overview === undefined) return null
+  const feedbackShadow = overview.feedbackShadow
   return <>
+    {feedbackShadow !== undefined && <section>
+      <h3 className="dsh-evolve-section-title">{t('section.feedback')}</h3>
+      {feedbackShadow.signals.length === 0
+        ? <div className="dsh-evolve-message">{t('empty.feedback')}</div>
+        : <ul className="dsh-evolve-list">{feedbackShadow.signals.map(signal => (
+          <li className="dsh-evolve-review" key={signal.id}>
+            <div className="dsh-evolve-review-head">
+              <div className="dsh-evolve-review-copy">
+                <div className="dsh-evolve-review-skill">{shortId(signal.id)}</div>
+                <div className="dsh-evolve-meta">{signal.generationId === undefined ? t('status.native') : shortId(signal.generationId)}</div>
+              </div>
+              <div className="dsh-evolve-actions">
+                {feedbackShadow.targets.map(target => (
+                  <button
+                    type="button"
+                    className="dsh-evolve-button dsh-evolve-primary"
+                    disabled={busy || !feedbackShadow.available}
+                    key={target.id}
+                    title={`${target.id}: ${target.skillName}`}
+                    onClick={() => startShadow(signal.id, target.id)}
+                  >
+                    {t('action.startShadow')} · {target.id}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </li>
+        ))}</ul>}
+    </section>}
+    {feedbackShadow !== undefined && feedbackShadow.runs.length > 0 && <section>
+      <h3 className="dsh-evolve-section-title">{t('section.runs')}</h3>
+      <ul className="dsh-evolve-list">{feedbackShadow.runs.map(run => (
+        <li className="dsh-evolve-review" key={run.launchId}>
+          <div className="dsh-evolve-review-skill">{run.skillName}</div>
+          <div className="dsh-evolve-meta">{run.phase} · {shortId(run.launchId)}</div>
+        </li>
+      ))}</ul>
+    </section>}
     <section>
       <h3 className="dsh-evolve-section-title">{t('section.reviews')}</h3>
       {overview.reviews.items.length === 0

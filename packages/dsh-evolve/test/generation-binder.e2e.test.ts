@@ -737,6 +737,9 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     const repository = join(root, 'source')
     const sessionsRoot = join(root, 'sessions')
     const feedbackDraftRoot = join(root, 'private-feedback-drafts')
+    const runRoot = join(root, 'feedback-shadow-runs')
+    const casePackDir = join(root, 'feedback-shadow-case-pack')
+    await Promise.all([mkdir(runRoot), mkdir(casePackDir)])
     const revision = await commitSkill(repository, 'Draft-aware body.', 'draft reference')
     const ctx = await bootStorage(await writeStorageConfig(root))
     const adapter = await installAgentRuntime(ctx, sessionsRoot)
@@ -748,16 +751,25 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
         repository,
         path: 'skills/stable-evolved-skill',
       }],
+      supervisor: { runRoots: [runRoot], scanIntervalMs: 30_000 },
+      shadowTargets: [{
+        id: 'stable-skill-fix',
+        skill: 'stable-evolved-skill',
+        casePackDir,
+        runRoot,
+      }],
     })
     const packages = (path: string) => pathToFileURL(
       join(dshSourceDir, 'packages', path, 'lib', 'index.js'),
     ).href
-    const [commands, messageFeedbackModule] = await Promise.all([
+    const [commands, messageFeedbackModule, jobsModule] = await Promise.all([
       import(packages('interaction/commands')),
       import(packages('feedback/message-feedback')),
+      import(packages('jobs/jobs-local')),
     ])
     await ctx.plugin(commands.default)
     await ctx.plugin(messageFeedbackModule.default, { maxNoteBytes: 1_024 })
+    await ctx.plugin(jobsModule.default)
     const store = ctx.get('evoforge.evolution') as EvolutionStore | undefined
     const feedback = ctx.get('messageFeedback') as {
       put(request: {
@@ -793,6 +805,23 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     const signalId = /^- ([a-f0-9]{64}) /m.exec(list?.result.text ?? '')?.[1]
     expect(signalId).toBeDefined()
     if (signalId === undefined) throw new Error('feedback signal id missing')
+    const control = ctx.get('evoforge.evolutionControl') as {
+      overview(): Promise<{
+        feedbackShadow?: {
+          available: boolean
+          signals: Array<{ id: string }>
+          targets: Array<{ id: string; skillName: string }>
+        }
+      }>
+    } | undefined
+    if (control === undefined) throw new Error('evolution control service did not load')
+    await expect(control.overview()).resolves.toMatchObject({
+      feedbackShadow: {
+        available: true,
+        signals: [{ id: signalId }],
+        targets: [{ id: 'stable-skill-fix', skillName: 'stable-evolved-skill' }],
+      },
+    })
     const created = await ctx.commands.execute(
       agent,
       `/evolve feedback ${signalId} draft stable-evolved-skill`,

@@ -1,6 +1,6 @@
 # EvoForge 可证明自进化设计
 
-> 状态：P0A/P0B/P0C（含 exact diff 与 protected-effect 词法提示）implemented；P1.1 最窄 opt-in 自动晋升、P2D.1 Outcome、P1.2 反事实 canary/自动回滚、P1.3 显式反馈入口、P1.4 私有 Case Draft、P1.5 反馈引导 Shadow、P1.6 proposer 前 Case Pack 校准与 P1.7 显式 evaluator authoring Skill implemented；全新失败自动 evaluator 和真实任务长期证据待完成
+> 状态：P0A/P0B/P0C（含 exact diff 与 protected-effect 词法提示）implemented；P1.1 最窄 opt-in 自动晋升、P2D.1 Outcome、P1.2 反事实 canary/自动回滚、P1.3 显式反馈入口、P1.4 私有 Case Draft、P1.5 反馈引导 Shadow、P1.6 proposer 前 Case Pack 校准、P1.7 显式 evaluator authoring Skill 与 P1.8 显式目标绑定 Shadow Launch implemented；全新失败自动 evaluator 和真实任务长期证据待完成
 > 更新日期：2026-08-16
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 
@@ -88,7 +88,7 @@ Evolution Store
 | Skill 供应 | `ctx.skills.registerProvider()` | 在 Agent scope 注册固定 Generation 的 provider |
 | Session 生命周期 | `agent/session-start`、`agent/pre-step` | 选择 Generation，并在首个模型步骤前等待 sidecar pin 落盘 |
 | 真实过程事实 | `session/event`、`goal/changed` | 记录最小 Learning Signal 引用，不复制完整 transcript |
-| 人工反馈 | `domain/changed` 的 `message_feedback` durable snapshot | P1.3 只将带 note 的当前负反馈投影为 reference-only Signal；P1.4 只在双重显式授权后复制最小 Case Draft；P1.5 只在显式 Shadow 中把 exact Draft 交给 proposer |
+| 人工反馈 | `domain/changed` 的 `message_feedback` durable snapshot | P1.3 只将带 note 的当前负反馈投影为 reference-only Signal；P1.4 只在双重显式授权后复制最小 Case Draft；P1.5 只在显式 Shadow 中把 exact Draft 交给 proposer；P1.8 用静态 Target 从 Commands/Web 提交同一动作，仍要求逐次授权 |
 | 持久小状态 | `ctx.storageDomain` | Evolution sidecar；写入先 durable 后改变内存 |
 | 后台执行 | `ctx.jobs` | 执行当前进程内候选和 Trial；Job 本身不是 durable authority |
 | 重启恢复 | Shadow journal / Evolution Store 扫描 | 只把可安全恢复的未终结状态重新提交给 Jobs |
