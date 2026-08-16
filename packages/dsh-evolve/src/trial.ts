@@ -187,7 +187,7 @@ async function evaluateTree(options: {
               '/bin/bash',
               ...options.dshSource.packageManager === undefined
                 ? []
-                : [options.dshSource.packageManager.executable, '/usr/bin/env', '/bin/sh'],
+                : [options.dshSource.packageManager.executable, '/usr/bin/env'],
             ],
             readOnlyRoots: options.dshSource.readOnlyRoots,
           },
@@ -394,38 +394,40 @@ async function resolvePnpmExecutable(): Promise<HostExecutable> {
   if (expectedVersion === undefined) {
     throw new Error('assembled Trial requires an exact pnpm packageManager version')
   }
-  if (located.packageRoot !== undefined) {
-    const manifest = JSON.parse(await readFile(join(located.packageRoot, 'package.json'), 'utf8')) as unknown
-    if (isRecord(manifest) && manifest.name === 'pnpm') {
-      if (manifest.version !== expectedVersion) {
-        throw new Error(`assembled Trial requires pnpm ${expectedVersion}, found ${String(manifest.version)}`)
-      }
-      return { executable: located.executable, readOnlyRoots: located.readOnlyRoots }
-    }
-    if (isRecord(manifest) && manifest.name === 'corepack') {
-      const corepackHomes = [
-        process.env.COREPACK_HOME,
-        join(homedir(), '.cache', 'node', 'corepack'),
-        join(homedir(), 'Library', 'Caches', 'node', 'corepack'),
-      ].filter((path): path is string => path !== undefined && path !== '')
-      for (const home of corepackHomes) {
-        const packageRoot = join(home, 'v1', 'pnpm', expectedVersion)
-        const executable = join(packageRoot, 'bin', 'pnpm.mjs')
-        try {
-          await access(executable, constants.X_OK)
-          return {
-            executable: await realpath(executable),
-            readOnlyRoots: [await realpath(packageRoot)],
-          }
-        } catch (error) {
-          if (isMissingPathError(error) || (isRecord(error) && error.code === 'EACCES')) continue
-          throw error
-        }
-      }
-      throw new Error(`assembled Trial cannot find cached pnpm ${expectedVersion} without network access`)
-    }
+  const packageRoots = [
+    located.packageRoot,
+    process.env.PNPM_HOME === undefined ? undefined : resolve(process.env.PNPM_HOME, '..', 'pnpm'),
+    ...[
+      process.env.COREPACK_HOME,
+      join(homedir(), '.cache', 'node', 'corepack'),
+      join(homedir(), 'Library', 'Caches', 'node', 'corepack'),
+    ].filter((path): path is string => path !== undefined && path !== '')
+      .map(home => join(home, 'v1', 'pnpm', expectedVersion)),
+  ].filter((path): path is string => path !== undefined)
+  for (const packageRoot of packageRoots) {
+    const resolved = await resolvePnpmPackage(packageRoot, expectedVersion)
+    if (resolved !== undefined) return resolved
   }
-  return { executable: located.executable, readOnlyRoots: located.readOnlyRoots }
+  throw new Error(`assembled Trial cannot find installed pnpm ${expectedVersion} without network access`)
+}
+
+async function resolvePnpmPackage(
+  packageRoot: string,
+  expectedVersion: string,
+): Promise<HostExecutable | undefined> {
+  try {
+    const root = await realpath(packageRoot)
+    const manifest = JSON.parse(await readFile(join(root, 'package.json'), 'utf8')) as unknown
+    if (!isRecord(manifest) || manifest.name !== 'pnpm' || manifest.version !== expectedVersion) return undefined
+    const bin = isRecord(manifest.bin) ? manifest.bin.pnpm : undefined
+    if (typeof bin !== 'string') return undefined
+    const executable = await realpath(resolve(root, bin))
+    await access(executable, constants.X_OK)
+    return { executable, readOnlyRoots: [root] }
+  } catch (error) {
+    if (isMissingPathError(error) || (isRecord(error) && error.code === 'EACCES')) return undefined
+    throw error
+  }
 }
 
 async function findPackageRoot(executable: string): Promise<string | undefined> {
