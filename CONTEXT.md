@@ -96,6 +96,10 @@ _Avoid_: Automatic transcript harvesting, generic Case platform, Candidate, proo
 An explicit offline Shadow run that supplies one exact private Feedback Case Draft only to the proposer as untrusted search evidence, while an existing calibrated Case Pack remains the independent evaluator. The draft id and private resume path are durable; its input fields are not directly copied into Shadow evidence, although proposer output that echoes them remains durable Candidate evidence. The CLI invocation authorizes that one potentially paid provider request and disclosure.
 _Avoid_: Generated evaluator, self-scoring Candidate, background paid proposal, feedback text in report/journal
 
+**Case Pack Calibration**:
+A zero-model, host-only execution of the declared known-bad and known-correction fixtures through the same sealed evaluator used by Shadow. It proves evaluator direction before proposer spend; it does not prove coverage of novel failures. A complete Shadow performs this gate before requesting a Candidate and still uses four Trial executions total.
+_Avoid_: Evaluator generation, cached trust forever, extra runtime service, model judge
+
 **Counterfactual Canary**:
 An asynchronous replay of the original sealed Case Pack against the exact active Candidate and its immutable Git parent after a matching failed Delivery Outcome. It may roll back future-session selection only when calibration passes, the parent passes, the Candidate fails, and the active pointer is unchanged.
 _Avoid_: Live traffic routing, failure counter, model reflection, automatic retry platform

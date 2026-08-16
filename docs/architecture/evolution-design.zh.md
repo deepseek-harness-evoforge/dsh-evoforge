@@ -1,6 +1,6 @@
 # EvoForge 可证明自进化设计
 
-> 状态：P0A/P0B/P0C implemented；P1.1 最窄 opt-in 自动晋升、P2D.1 Outcome、P1.2 反事实 canary/自动回滚、P1.3 显式反馈入口、P1.4 私有 Case Draft 与 P1.5 反馈引导 Shadow implemented；全新失败 evaluator 和真实任务长期证据待完成
+> 状态：P0A/P0B/P0C implemented；P1.1 最窄 opt-in 自动晋升、P2D.1 Outcome、P1.2 反事实 canary/自动回滚、P1.3 显式反馈入口、P1.4 私有 Case Draft、P1.5 反馈引导 Shadow 与 P1.6 proposer 前 Case Pack 校准 implemented；全新失败 evaluator 和真实任务长期证据待完成
 > 更新日期：2026-08-16
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 
@@ -244,6 +244,13 @@ P1.5 不生成 evaluator，也不新增 Case 平台。用户显式执行
 新增字段只保存 draft id 和私有恢复路径，不直接复制原文；proposer 回显可能随 Candidate/claim
 持久化。已有 Candidate 的 resident recovery 不重复 proposer。
 见 [ADR-0019](../adr/0019-feedback-guides-search-not-evaluation.md)。
+
+P1.6 把同一个 Trial Runner 深化为两个内部动作：`runCalibrationTrial` 运行 known-bad/correction，
+`runComparisonTrial` 运行 baseline/Candidate；完整 `runPairedTrial` 仍组合为四次执行。独立
+`dsh-evolve calibrate` 只调用前者并生成零模型报告。完整 Shadow 在 prepared 阶段也先调用前者，
+只有方向正确才 durable 记录 proposer intent；当前进程随后只运行 comparison，因此总数不变。
+Candidate resume 为避免信任过期的内存结果，会重新运行完整 paired Trial，但不重复 proposer。见
+[ADR-0020](../adr/0020-calibrate-case-packs-before-proposals.md)。
 
 ## 10. Candidate
 
@@ -624,7 +631,9 @@ reference-only、可撤回、零模型表面的明确纠正入口，见
 未评分的 Feedback Case Draft，见
 [P1.4](../evidence/p1-4-private-feedback-case-draft.zh.md)。P1.5 已允许 exact Draft 只引导一次显式
 Shadow proposer，同时由既有校准 Case Pack 独立评测，见
-[P1.5](../evidence/p1-5-feedback-guided-shadow.zh.md)。下一步不扩建通用 Signal/Memory/Case
+[P1.5](../evidence/p1-5-feedback-guided-shadow.zh.md)。
+P1.6 已提供零模型独立校准，并让完整 Shadow 在 proposer 前 fail closed，见
+[P1.6](../evidence/p1-6-preproposal-case-pack-calibration.zh.md)。下一步不扩建通用 Signal/Memory/Case
 平台；先用真实 provider 与用户纠正测量候选改善率，再只为一个现有 Case Pack 无法覆盖的高频
 失败验证最窄 evaluator authoring 工作流，并继续
 测量 false promotion、false rollback、review rate、返工与成本。P0C 仍需普通用户完成控制

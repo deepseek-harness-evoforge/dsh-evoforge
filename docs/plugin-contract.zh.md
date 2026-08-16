@@ -74,6 +74,8 @@ Bundle 必须导出并发布 `cordis.patch.yml`；普通库或需要用户手工
 - 无变化 Hook 是真正 no-op。
 - 新模型可见输入必须可从 Session 事实重建；不能存在“模型看见但日志不知道”的状态。
 - Cache gate 比较完整 composition fingerprint 和真实 cache-read，不接受插件局部估算。
+- 可信 deterministic gate 应先于付费/隐私外发模型调用；能用现有 fixture 校准的 evaluator 必须先
+  证明 known-bad fail、known-correction pass，再允许 proposer 消耗预算。
 
 ## 6. 权限与外部效果
 

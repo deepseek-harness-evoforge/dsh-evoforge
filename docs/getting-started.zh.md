@@ -227,6 +227,19 @@ sealed `fail → pass`、全部 checks、Trial≥4 和单一 `SKILL.md` ≤2 KiB
 
 ## 3. Shadow 输入
 
+先在不配置任何模型 route/key 的情况下验证一个完整 Case Pack：
+
+```bash
+dsh-evolve calibrate \
+  --case-pack ./case-pack \
+  --output ./runs/case-pack-calibration-001
+```
+
+命令只执行 known-bad 和 known-correction 两次 sealed evaluator，并写入
+`calibration-report.json`。方向正确退出 0；方向错误或执行证据不完整退出 2。它不创建 Candidate、
+不读取 proposer 环境变量、不产生模型 token，且要求 output 是 Case Pack 外部的新目录。完整 Shadow
+会自动先跑同一门，只有通过后才请求 Candidate；成功路径仍共四次 Trial。
+
 命令：
 
 ```text

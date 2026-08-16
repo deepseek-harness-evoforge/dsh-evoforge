@@ -1,6 +1,6 @@
 # dsh-evolve
 
-`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains nine deliberately separate lanes:
+`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains ten deliberately separate lanes:
 
 - **P0A Shadow** compares an active Skill with an inactive Candidate without changing live DSH.
 - **P0B Local Continuity** records immutable Capability Generations, pins one Generation per Session, switches or rolls back only future Sessions, and resumes durable sealed work through an optional resident supervisor.
@@ -11,12 +11,25 @@
 - **P1.3 Explicit Feedback Intake** projects current negative DSH message feedback with a note into a retractable, reference-only host signal without copying the note.
 - **P1.4 Private Feedback Case Draft** explicitly copies one exact, single-Skill correction into an unscored private draft without creating a Candidate.
 - **P1.5 Feedback-guided Shadow** uses one exact private draft only as proposer search evidence while an existing calibrated Case Pack remains the evaluator.
+- **P1.6 Pre-proposal Calibration** proves known-bad/known-correction direction with zero model calls and makes complete Shadow runs pass that gate before requesting a Candidate.
 
 The offline evaluation command is:
 
 ```bash
 dsh-evolve shadow <skill-dir> --case-pack <case-pack-dir> --output <run-dir> [--feedback-draft <private-draft.json>]
 ```
+
+Before spending proposer budget, a Case Pack author can run:
+
+```bash
+dsh-evolve calibrate --case-pack <case-pack-dir> --output <new-run-dir>
+```
+
+This executes only known-bad and known-correction through the same sealed
+evaluator, records zero model calls/tokens, and writes one
+`calibration-report.json`. Complete Shadow runs perform this gate automatically
+before the proposer. Their successful paired Trial remains four executions total:
+two calibration fixtures, baseline, and Candidate.
 
 When the DSH composition includes native Commands, the host-only human release
 surface is also available:
@@ -62,12 +75,14 @@ The implemented Shadow slices include:
 - a durable run journal, deterministic proposal effect id, and explicit `--resume` path;
 - refusal to auto-retry an uncertain paid proposal, while a durable Candidate may restart its sealed Trial;
 - exit `2` plus an incomplete report when the model, integrity, budget, platform, or configured Trial boundary cannot support a recommendation;
-- no write outside the requested run directory, including through a symlinked output parent.
+- no write outside the requested run directory, including through a symlinked output parent;
+- pre-proposal fail-closed calibration, so an invalid evaluator consumes zero proposer tokens;
 
 On macOS, a Case Pack can add explicit search evidence, known-bad and
-known-correction trees, and a trusted single-file evaluator. `shadow` exposes
-only the search evidence to the proposer, then runs four separate Sealed Trials
-for calibration, baseline, and Candidate before opening the hidden final test.
+known-correction trees, and a trusted single-file evaluator. `shadow` first
+calibrates the evaluator without a model call, exposes only the search evidence
+to the proposer, then compares baseline and Candidate. The complete path remains
+four separate Sealed Trials, and the hidden final test never enters the proposer.
 An opt-in assembled Case Pack can also mount one exact DSH checkout read-only,
 verify its Git revision, and boot the real Loader, Agent Loop, Skill path, and a
 real tool round trip with a keyless scripted adapter. Candidate files remain

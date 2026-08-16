@@ -4,7 +4,7 @@
 
 面向 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的 out-of-tree 开源扩展套件。EvoForge 只增加可独立安装、可删除的新能力，不 fork DSH，也不以插件修补 DSH Core Defect。
 
-> **Pre-alpha：不可用于生产自动激活。** `dsh-evolve` 的 P0A/P0B/P0C、P1.1 最窄自动晋升、P1.2 反事实 canary/自动回滚、P1.3 显式反馈入口、P1.4 私有 Feedback Case Draft、P1.5 反馈引导 Shadow 和 P2D.1 交付 Outcome 已实现；`dsh-software-delivery` 的 Skill、Git 验证器、原生 Goal 受验证完成和幂等 Draft PR 也已实现。全新失败的 evaluator 生成、真实任务误晋升/误回滚数据、用户可用性门与生产多日证据仍未完成。详见[状态页](docs/status.zh.md)。
+> **Pre-alpha：不可用于生产自动激活。** `dsh-evolve` 的 P0A/P0B/P0C、P1.1 最窄自动晋升、P1.2 反事实 canary/自动回滚、P1.3 显式反馈入口、P1.4 私有 Feedback Case Draft、P1.5 反馈引导 Shadow、P1.6 proposer 前 Case Pack 校准和 P2D.1 交付 Outcome 已实现；`dsh-software-delivery` 的 Skill、Git 验证器、原生 Goal 受验证完成和幂等 Draft PR 也已实现。全新失败的 evaluator 生成、真实任务误晋升/误回滚数据、用户可用性门与生产多日证据仍未完成。详见[状态页](docs/status.zh.md)。
 
 ## 为什么做
 
@@ -28,25 +28,26 @@
 
 | 包 | 当前能力 | 状态 |
 |---|---|---|
-| [`dsh-evolve`](packages/dsh-evolve) | 离线 `shadow`；durable resident recovery；Sealed paired Trial；immutable Generation；Session-scoped Git Skill；host-only review/pause/release；opt-in clear-instruction auto promotion；交付 Outcome、显式反馈/私有 Case Draft/反馈引导 Shadow 与反事实 canary | P0A/P0B/P0C + P1.1–P1.5 + P2D.1 implemented；真实任务安全率与可用性门待验证 |
+| [`dsh-evolve`](packages/dsh-evolve) | 离线 `shadow`/零模型 Case Pack 校准；durable resident recovery；Sealed paired Trial；immutable Generation；Session-scoped Git Skill；host-only review/pause/release；opt-in clear-instruction auto promotion；交付 Outcome、显式反馈/私有 Case Draft/反馈引导 Shadow 与反事实 canary | P0A/P0B/P0C + P1.1–P1.6 + P2D.1 implemented；真实任务安全率与可用性门待验证 |
 | [`dsh-software-delivery`](packages/dsh-software-delivery) | 按需原生 Skill；linked worktree/commit/check 验证；原生 Shell policy 下幂等 push/Draft PR；通过后完成 exact native Goal | P2A.1 + P2B.1 + P2C.1 implemented；Evolve 第二消费者已接通 |
 
 Shadow 和未激活 Generation 的运行时模型表面为 `none`，额外 token 为 `0`。Generation 激活后只复用 DSH 原生 Skill catalog/body 路径：catalog 在 Session 开始时固定，正文按需加载；插件不增加 Tool 或 system prompt。真实 Agent 回归已证明晋升后旧 Session 的请求工具面不变、后一请求保留前一请求的完整消息前缀。Shadow 只有在用户显式调用时才请求配置的模型。
 
 P1.1 policy、自动发布和 host 状态同样是 `0` 模型调用；自动候选最多追加 2 KiB Skill 正文，且只在 future Session 通过原生 Skill body 路径实际加载时产生 tokenizer 相关输入。它不会改写当前 Session 的可缓存前缀。
 
-P2D.1 被动观察 DSH 最终 `tools/result`，把 Software Delivery 的三态结果关联到该 Session 已固定的 Generation。它异步保存最多 1000 条最小信号，`/evolve status` 只在 host plane 显示聚合；不保存 Prompt、仓库路径、PR 正文或 check 输出，不增加任何模型 token。P1.3 同样复用 DSH 原生 Message Feedback：只有带备注的当前负反馈形成可撤回引用，note、note hash、cwd 和消息正文均不复制。P1.4 只有在配置私有 `feedbackDraftRoot` 且用户逐条执行 draft 命令后，才复制一个直接用户文本和 correction，并绑定 exact Generation Skill。P1.5 允许用户把该草稿显式交给一次 Shadow，只引导 proposer；既有校准 Case Pack 仍是独立裁判，草稿字段不被直接复制到 run evidence（proposer 若在 Candidate 中回显，输出仍会持久化）。P1.2 只把匹配交付失败当作异步 canary 触发器：复用原 Case Pack 和 exact Git parent/Candidate，只有 parent pass / Candidate fail 的可归因反事实成立且 active 未变化才回滚 future Session。它不调用 proposer，模糊结果进入 review。
+P2D.1 被动观察 DSH 最终 `tools/result`，把 Software Delivery 的三态结果关联到该 Session 已固定的 Generation。它异步保存最多 1000 条最小信号，`/evolve status` 只在 host plane 显示聚合；不保存 Prompt、仓库路径、PR 正文或 check 输出，不增加任何模型 token。P1.3 同样复用 DSH 原生 Message Feedback：只有带备注的当前负反馈形成可撤回引用，note、note hash、cwd 和消息正文均不复制。P1.4 只有在配置私有 `feedbackDraftRoot` 且用户逐条执行 draft 命令后，才复制一个直接用户文本和 correction，并绑定 exact Generation Skill。P1.5 允许用户把该草稿显式交给一次 Shadow，只引导 proposer；既有校准 Case Pack 仍是独立裁判，草稿字段不被直接复制到 run evidence（proposer 若在 Candidate 中回显，输出仍会持久化）。P1.6 可用独立零模型命令验证 Case Pack 方向；完整 Shadow 也先校准、再请求 Candidate，失准 evaluator 的 proposer token 为 0。P1.2 只把匹配交付失败当作异步 canary 触发器：复用原 Case Pack 和 exact Git parent/Candidate，只有 parent pass / Candidate fail 的可归因反事实成立且 active 未变化才回滚 future Session。它不调用 proposer，模糊结果进入 review。
 
 `dsh-software-delivery` 的 Skill 正文仍按原生路径按需加载；完整 Goal/Shell composition 只增加一个稳定 `complete_delivery` Tool，无 system prompt。其序列化 Schema 被测试限制在 2 KiB 内，同一 Session 的重复请求 Tool surface 完全相等。CLI 在模型上下文外运行；Tool 只在实际调用时返回有界的 commit/check 证据。
 
 当前命令：
 
 ```text
+dsh-evolve calibrate --case-pack <case-pack-dir> --output <new-run-dir>
 dsh-evolve shadow <skill-dir> --case-pack <case-pack-dir> --output <run-dir> [--feedback-draft <private-draft.json>] [--resume]
 /evolve [status|feedback [<64-char-signal-id> [draft <skill>]]|review [<64-char-review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]
 ```
 
-它可以可靠拒绝越出 owned Skill 的候选；带完整 Case Pack 时，先用 known-bad/known-correction 校准 evaluator，再在四个相互独立的 macOS Sealed Trial 中比较 baseline 与 Candidate。证据不足、预算超限、平台无隔离器或 active/Case Pack 漂移时返回 `2 + incomplete`。
+它可以可靠拒绝越出 owned Skill 的候选；带完整 Case Pack 时，在 proposer 前先用 known-bad/known-correction 校准 evaluator，再比较 baseline 与 Candidate，完整成功路径仍是四个相互独立的 macOS Sealed Trial。证据不足、预算超限、平台无隔离器或 active/Case Pack 漂移时返回 `2 + incomplete`。
 
 ## 本地验证
 

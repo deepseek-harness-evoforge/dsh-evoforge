@@ -1,6 +1,6 @@
 # DeepSeek Harness EvoForge 项目需求基线
 
-> 状态：已确认；研究与设计已完成，P0A–P1.5 与 P2A.1–P2D.1 已进入 test-first 实现
+> 状态：已确认；研究与设计已完成，P0A–P1.6 与 P2A.1–P2D.1 已进入 test-first 实现
 > 更新日期：2026-08-16
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。
 
@@ -285,6 +285,10 @@ Session-pinned Generation、单一 Skill invocation 和 whole-Skill content hash
 覆盖该失败类型时，用户可显式授权一次 Shadow，把草稿只作为 proposer 搜索证据；既有 evaluator
 仍是独立裁判，草稿输入字段不直接进入长期 run evidence（proposer 回显仍可随 Candidate 持久化）。全新失败再为一个高频场景验证最窄 deterministic
 evaluator authoring 工作流，不预建通用 Memory、Signal Bus 或 Case SDK。
+
+Case Pack authoring 先提供零模型校准命令，不创建新 Service 或 SDK。完整 Shadow 必须在 proposer
+之前用同一个 sealed evaluator 拒绝 known-bad、接受 known-correction；方向不成立时不发送付费
+请求。成功路径仍是四次 Trial，校准不是额外的第 5/6 次执行。
 
 研究完成的标准是“当前 revision 的每一个原生插件都有归类和作用说明，三个项目的关键结论都有源码证据”。设计完成的标准是“每个计划插件都有用户结果、DSH 接缝、缓存影响、权限边界、验证方法和回滚方案”。实现完成的标准由相应 P0 测试规格定义。
 
