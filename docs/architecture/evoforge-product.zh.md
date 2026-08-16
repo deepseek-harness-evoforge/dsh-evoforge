@@ -85,7 +85,7 @@ DSH 始终拥有模型执行和基础服务；EvoForge 插件只增加用户结�
 | Memory/Skill | 复用 DSH/社区能力，不造第二套 Memory | 架构边界已确认 |
 | 消息与日程 | 按真实 workflow 提供可拆 Adapter | 后续验证，不承诺首版 |
 | 人类控制 | 状态、证据、审批、暂停、回滚不阻塞会话 | 契约已定义，未实现 |
-| 自进化 | 独立 final-test、inactive Candidate、可证明晋升 | 确定性校准/paired final-test + 真实 DSH bridge + 2/3 产品 fixture implemented；最后一个 fixture 与本地未见 case pending |
+| 自进化 | 独立 final-test、inactive Candidate、可证明晋升 | 确定性校准/paired final-test + 真实 DSH bridge + 3/3 公开产品 fixture implemented；本地未见 case pending |
 | 权限 | 代码和外部效果不自动激活 | 需求与测试门已定义 |
 | KV Cache | Session 内完整 composition 稳定 | 不变量已定义，待实测 |
 | 回滚 | future Session 精确恢复 artifact；外部效果不虚假承诺 | 机制已设计，未实现 |

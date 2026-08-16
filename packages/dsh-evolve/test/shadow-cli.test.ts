@@ -93,6 +93,37 @@ async function listTree(root: string): Promise<string[]> {
 }
 
 describe('dsh-evolve shadow', () => {
+  it('rejects package-manager authority unless the Trial is explicitly DSH-assembled', async () => {
+    const fixture = await createFixture()
+    const manifestPath = join(fixture.casePackDir, 'manifest.json')
+    const manifest = JSON.parse(await readFile(manifestPath, 'utf8'))
+    manifest.trial = {
+      evaluator: 'final-test/evaluator.mjs',
+      timeoutMs: 1_000,
+      outputLimitBytes: 1_024,
+      dshProfileInstall: true,
+    }
+    manifest.calibration = {
+      knownBad: 'calibration/known-bad',
+      knownCorrection: 'calibration/known-correction',
+    }
+    await writeFile(manifestPath, JSON.stringify(manifest, null, 2))
+
+    await expect(execFileAsync(
+      process.execPath,
+      [
+        '--import', 'tsx', cliPath, 'shadow', fixture.skillDir,
+        '--case-pack', fixture.casePackDir,
+        '--output', fixture.outputDir,
+      ],
+      { cwd: packageRoot },
+    )).rejects.toMatchObject({
+      code: 1,
+      stdout: '',
+      stderr: 'error: case pack Trial dshProfileInstall requires dshAssembled\n',
+    })
+  })
+
   it('rejects an out-of-scope model patch without changing the active Skill', async () => {
     const fixture = await createFixture()
     const originalSkill = await readFile(join(fixture.skillDir, 'SKILL.md'), 'utf8')

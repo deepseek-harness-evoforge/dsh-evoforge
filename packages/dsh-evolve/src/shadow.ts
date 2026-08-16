@@ -28,6 +28,7 @@ interface CasePackManifest {
     timeoutMs: number
     outputLimitBytes: number
     dshAssembled?: boolean
+    dshProfileInstall?: boolean
   }
   calibration?: {
     knownBad: string
@@ -528,6 +529,12 @@ function parseManifest(source: string): CasePackManifest {
     }
     if (value.trial.dshAssembled !== undefined && typeof value.trial.dshAssembled !== 'boolean') {
       throw new Error('case pack Trial dshAssembled must be boolean')
+    }
+    if (value.trial.dshProfileInstall !== undefined && typeof value.trial.dshProfileInstall !== 'boolean') {
+      throw new Error('case pack Trial dshProfileInstall must be boolean')
+    }
+    if (value.trial.dshProfileInstall === true && value.trial.dshAssembled !== true) {
+      throw new Error('case pack Trial dshProfileInstall requires dshAssembled')
     }
     if (!isRecord(value.calibration)
       || typeof value.calibration.knownBad !== 'string'

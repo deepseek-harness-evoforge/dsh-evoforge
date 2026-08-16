@@ -1,5 +1,7 @@
 import { execFile } from 'node:child_process'
-import { cp, lstat, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
+import { constants } from 'node:fs'
+import { access, cp, lstat, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { hashTree } from './hash.js'
@@ -10,6 +12,7 @@ interface TrialDefinition {
   timeoutMs: number
   outputLimitBytes: number
   dshAssembled?: boolean
+  dshProfileInstall?: boolean
 }
 
 interface CalibrationDefinition {
@@ -47,6 +50,12 @@ interface EvaluatorComposition {
 
 interface DshSource {
   dir: string
+  readOnlyRoots: string[]
+  packageManager?: HostExecutable
+}
+
+interface HostExecutable {
+  executable: string
   readOnlyRoots: string[]
 }
 
@@ -95,7 +104,7 @@ export async function runPairedTrial(options: {
     options.calibration.knownCorrection,
   )
   const dshSource = options.trial.dshAssembled
-    ? await resolveDshSource(options.dshRevision)
+    ? await resolveDshSource(options.dshRevision, options.trial.dshProfileInstall ?? false)
     : undefined
 
   const trialOptions = {
@@ -154,18 +163,32 @@ async function evaluateTree(options: {
     const treeHash = await hashTree(candidateDir)
     const evaluatorCopy = join(trialRoot, 'evaluator.mjs')
     await writeFile(evaluatorCopy, await readFile(options.evaluatorPath))
+    let packageManagerCommand: string | undefined
+    if (options.dshSource?.packageManager !== undefined) {
+      const toolsDir = join(trialRoot, '.host-tools')
+      await mkdir(toolsDir)
+      packageManagerCommand = join(toolsDir, 'pnpm')
+      await symlink(options.dshSource.packageManager.executable, packageManagerCommand)
+    }
     const execution = await runSealedDarwinTrial({
       argv: [
         process.execPath,
         evaluatorCopy,
         candidateDir,
-        ...options.dshSource === undefined ? [] : [options.dshSource.dir],
+        ...options.dshSource === undefined
+          ? []
+          : [options.dshSource.dir, ...packageManagerCommand === undefined ? [] : [packageManagerCommand]],
       ],
       ...options.dshSource === undefined
         ? {}
         : {
             allowProcessFork: true,
-            allowedExecutables: ['/bin/bash'],
+            allowedExecutables: [
+              '/bin/bash',
+              ...options.dshSource.packageManager === undefined
+                ? []
+                : [options.dshSource.packageManager.executable, '/usr/bin/env'],
+            ],
             readOnlyRoots: options.dshSource.readOnlyRoots,
           },
       outputLimitBytes: options.trial.outputLimitBytes,
@@ -289,7 +312,7 @@ function parseEvaluatorComposition(value: unknown): EvaluatorComposition {
 
 const execFileAsync = promisify(execFile)
 
-async function resolveDshSource(expectedRevision: string): Promise<DshSource> {
+async function resolveDshSource(expectedRevision: string, profileInstall: boolean): Promise<DshSource> {
   const configured = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
   if (configured === undefined || configured.trim() === '') {
     throw new Error('assembled Trial requires DSH_EVOLVE_DSH_SOURCE_DIR')
@@ -313,7 +336,112 @@ async function resolveDshSource(expectedRevision: string): Promise<DshSource> {
       .map(async path => await realpath(join(sourceDir, path))),
   )
   await realpath(join(sourceDir, 'packages', 'boot', 'app-boot', 'lib', 'index.js'))
-  return { dir: sourceDir, readOnlyRoots }
+  if (!profileInstall) {
+    return { dir: sourceDir, readOnlyRoots }
+  }
+  readOnlyRoots.push(await realpath(join(sourceDir, 'native')))
+  const pnpm = await resolvePnpmExecutable()
+  return {
+    dir: sourceDir,
+    readOnlyRoots: [...new Set([...readOnlyRoots, ...pnpm.readOnlyRoots])],
+    packageManager: pnpm,
+  }
+}
+
+async function resolveHostExecutable(name: string): Promise<{
+  commandPath: string
+  executable: string
+  packageRoot?: string
+  readOnlyRoots: string[]
+}> {
+  const hostPath = process.env.PATH
+  if (hostPath === undefined) throw new Error(`assembled Trial cannot locate ${name}: host PATH is unset`)
+  for (const directory of hostPath.split(':')) {
+    if (directory === '') continue
+    const commandPath = resolve(directory, name)
+    try {
+      await access(commandPath, constants.X_OK)
+      const executable = await realpath(commandPath)
+      const packageRoot = await findPackageRoot(executable)
+      const roots = await Promise.all(
+        [dirname(commandPath), dirname(executable), packageRoot]
+          .filter((path): path is string => path !== undefined)
+          .map(async path => await realpath(path)),
+      )
+      return {
+        commandPath,
+        executable,
+        ...packageRoot === undefined ? {} : { packageRoot },
+        readOnlyRoots: [...new Set(roots)],
+      }
+    } catch (error) {
+      if (isMissingPathError(error) || (isRecord(error) && error.code === 'EACCES')) continue
+      throw error
+    }
+  }
+  throw new Error(`assembled Trial cannot locate executable ${name} on host PATH`)
+}
+
+async function resolvePnpmExecutable(): Promise<HostExecutable> {
+  const located = await resolveHostExecutable('pnpm')
+  const rootManifest = JSON.parse(
+    await readFile(new URL('../../../package.json', import.meta.url), 'utf8'),
+  ) as unknown
+  const packageManager = isRecord(rootManifest) ? rootManifest.packageManager : undefined
+  const expectedVersion = typeof packageManager === 'string'
+    ? /^pnpm@(?<version>\d+\.\d+\.\d+(?:-.+)?)$/.exec(packageManager)?.groups?.version
+    : undefined
+  if (expectedVersion === undefined) {
+    throw new Error('assembled Trial requires an exact pnpm packageManager version')
+  }
+  if (located.packageRoot !== undefined) {
+    const manifest = JSON.parse(await readFile(join(located.packageRoot, 'package.json'), 'utf8')) as unknown
+    if (isRecord(manifest) && manifest.name === 'pnpm') {
+      if (manifest.version !== expectedVersion) {
+        throw new Error(`assembled Trial requires pnpm ${expectedVersion}, found ${String(manifest.version)}`)
+      }
+      return { executable: located.executable, readOnlyRoots: located.readOnlyRoots }
+    }
+    if (isRecord(manifest) && manifest.name === 'corepack') {
+      const corepackHomes = [
+        process.env.COREPACK_HOME,
+        join(homedir(), '.cache', 'node', 'corepack'),
+        join(homedir(), 'Library', 'Caches', 'node', 'corepack'),
+      ].filter((path): path is string => path !== undefined && path !== '')
+      for (const home of corepackHomes) {
+        const packageRoot = join(home, 'v1', 'pnpm', expectedVersion)
+        const executable = join(packageRoot, 'bin', 'pnpm.mjs')
+        try {
+          await access(executable, constants.X_OK)
+          return {
+            executable: await realpath(executable),
+            readOnlyRoots: [await realpath(packageRoot)],
+          }
+        } catch (error) {
+          if (isMissingPathError(error) || (isRecord(error) && error.code === 'EACCES')) continue
+          throw error
+        }
+      }
+      throw new Error(`assembled Trial cannot find cached pnpm ${expectedVersion} without network access`)
+    }
+  }
+  return { executable: located.executable, readOnlyRoots: located.readOnlyRoots }
+}
+
+async function findPackageRoot(executable: string): Promise<string | undefined> {
+  let directory = dirname(executable)
+  for (let depth = 0; depth < 8; depth += 1) {
+    try {
+      const manifest = JSON.parse(await readFile(join(directory, 'package.json'), 'utf8')) as unknown
+      if (isRecord(manifest) && typeof manifest.name === 'string') return directory
+    } catch (error) {
+      if (!isMissingPathError(error) && !(error instanceof SyntaxError)) throw error
+    }
+    const parent = dirname(directory)
+    if (parent === directory) return undefined
+    directory = parent
+  }
+  return undefined
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

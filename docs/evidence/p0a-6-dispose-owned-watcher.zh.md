@@ -64,10 +64,10 @@ Evaluator 在退出前有自己的受信清理兜底，防止故意泄漏样本�
 
 ## 尚不能声称
 
-- 尚缺 `profile-install-remove`；
+- 后续 `profile-install-remove` 已完成并记录于 [P0A.7](p0a-7-profile-install-remove.zh.md)；
 - 未覆盖子进程、网络连接、临时目录和异常 cleanup，它们应在出现真实产品需求时各自增加 case；
 - public final-test 不是用户本机未见 case；
 - Candidate 仍是 Skill 数据，尚未开放任意生成代码执行；
 - 没有证明崩溃恢复、Generation 回滚或长时稳定性。
 
-下一步是第三个产品 fixture `profile-install-remove`：验证 Bundle 选择、精确 profile patch、真实 boot 和删除后原生 DSH 恢复。
+下一份产品证据见 [P0A.7](p0a-7-profile-install-remove.zh.md)。当前下一步是本地未见 final-test。

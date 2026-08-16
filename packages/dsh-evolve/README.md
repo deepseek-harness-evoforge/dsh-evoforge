@@ -30,9 +30,10 @@ real tool round trip with a keyless scripted adapter. Candidate files remain
 inactive data; arbitrary Candidate code is not executed. The first product
 fixture typechecks and loads a trusted cache-safe host status service. A second
 fixture starts real timer and watcher resources and verifies exact ownership
-across restart, disable, re-enable, and root disposal. Linux and Windows
-adapters, a workspace disk quota, one product evaluator fixture, and a locally
-held-out case remain open work.
+across restart, disable, re-enable, and root disposal. A third fixture performs
+real offline `dsh plugin add/remove`, exact config dumps, and pinned App Boot
+before and after removal. Linux and Windows adapters, a workspace disk quota,
+and a locally held-out case remain open work.
 
 This is not yet a useful self-improvement release. The assembled example proves
 the mechanics and non-target composition gate, not real-provider improvement or

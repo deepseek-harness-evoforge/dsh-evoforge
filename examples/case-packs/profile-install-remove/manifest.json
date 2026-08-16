@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "profile-install-remove",
+  "epoch": {
+    "dshRevision": "47f943859bef60e4160492346772ded9b24f765a",
+    "evaluatorVersion": "profile-install-remove-v1"
+  },
+  "budget": {
+    "candidateLimit": 1,
+    "trialLimit": 4,
+    "inputTokenLimit": 12000,
+    "outputTokenLimit": 1200
+  },
+  "search": {
+    "evidence": "search/evidence.md"
+  },
+  "trial": {
+    "evaluator": "final-test/evaluator.mjs",
+    "timeoutMs": 25000,
+    "outputLimitBytes": 65536,
+    "dshAssembled": true,
+    "dshProfileInstall": true
+  },
+  "calibration": {
+    "knownBad": "calibration/known-bad",
+    "knownCorrection": "calibration/known-correction"
+  }
+}

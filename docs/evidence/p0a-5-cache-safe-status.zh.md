@@ -71,10 +71,10 @@ Evaluator 不执行模型任意生成的插件代码。它只根据受管 Skill 
 
 ## 尚不能声称
 
-- 后续 `dispose-owned-watcher` 已完成并记录于 [P0A.6](p0a-6-dispose-owned-watcher.zh.md)；`profile-install-remove` 仍未完成；
+- 后续两个产品 fixture 已完成，分别记录于 [P0A.6](p0a-6-dispose-owned-watcher.zh.md)与 [P0A.7](p0a-7-profile-install-remove.zh.md)；
 - public final-test 已参与开发，仍缺用户本机未见 case；
 - 尚未执行任意 Candidate 代码，也没有真实 provider paired benchmark；
 - 没有 Generation、激活、回滚、常驻恢复或异步 review inbox；
 - 因此不能声称已实现持续进化或已经优于 Hermes。
 
-下一份产品证据见 [P0A.6](p0a-6-dispose-owned-watcher.zh.md)。当前下一步是 `profile-install-remove`。
+后续产品证据见 [P0A.6](p0a-6-dispose-owned-watcher.zh.md)与 [P0A.7](p0a-7-profile-install-remove.zh.md)。当前下一步是本地未见 final-test。

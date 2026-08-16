@@ -61,7 +61,7 @@ pnpm --filter dsh-evolve exec vitest run \
 
 ## 尚不能声称
 
-- 这份通用 bridge 本身不是产品 fixture；后续产品证据见 [P0A.5 cache-safe](p0a-5-cache-safe-status.zh.md) 与 [P0A.6 lifecycle](p0a-6-dispose-owned-watcher.zh.md)，最后一个仍未完成；
+- 这份通用 bridge 本身不是产品 fixture；三个后续产品证据见 [P0A.5 cache-safe](p0a-5-cache-safe-status.zh.md)、[P0A.6 lifecycle](p0a-6-dispose-owned-watcher.zh.md) 与 [P0A.7 profile](p0a-7-profile-install-remove.zh.md)；
 - 没有执行任意 Candidate 代码，Candidate 仍只是 Skill 数据；
 - 公开 final-test 已参与开发，不能替代用户本机未见 final-test；
 - 没有真实 provider 的 paired benchmark、统计复跑、磁盘配额、Linux/Windows executor；
