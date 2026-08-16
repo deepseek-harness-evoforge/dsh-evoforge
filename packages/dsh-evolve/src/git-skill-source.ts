@@ -34,6 +34,13 @@ export interface GitSkillSourceConfig {
   path: string
 }
 
+export interface ResolvedGitSkillArtifact {
+  artifact: SkillGenerationArtifact
+  repository: string
+  path: string
+  resourceBase: string
+}
+
 interface ResolvedGitSkillSource {
   name: string
   repository: string
@@ -89,6 +96,30 @@ export class GitSkillSource {
       definitions.set(artifact.name, await this.loadDefinition(artifact, source))
     }
     return new ImmutableGenerationProvider(generation.id, definitions)
+  }
+
+  /** Resolve either an exact Generation artifact or the configured repository HEAD. */
+  async resolveArtifact(
+    name: string,
+    artifact?: SkillGenerationArtifact,
+  ): Promise<ResolvedGitSkillArtifact> {
+    const source = this.sources.get(name)
+    if (source === undefined) throw new Error(`no configured Git source for Skill '${name}'`)
+    if (artifact !== undefined && artifact.name !== name) {
+      throw new Error(`Git artifact '${artifact.name}' does not match requested Skill '${name}'`)
+    }
+    const resolvedArtifact = artifact ?? {
+      kind: 'skill' as const,
+      name,
+      gitCommit: await gitText(source.repository, 'rev-parse', '--verify', 'HEAD^{commit}'),
+      treeHash: await gitText(source.repository, 'rev-parse', 'HEAD:' + source.path),
+    }
+    return {
+      artifact: resolvedArtifact,
+      repository: source.repository,
+      path: source.path,
+      resourceBase: await this.materialize(resolvedArtifact, source),
+    }
   }
 
   private async loadDefinition(

@@ -4,7 +4,7 @@
 
 面向 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的 out-of-tree 开源扩展套件。EvoForge 只增加可独立安装、可删除的新能力，不 fork DSH，也不以插件修补 DSH Core Defect。
 
-> **Pre-alpha：暂不可用于自动激活。** P0A Shadow 的本地退出门已通过；P0B 已实现 immutable Generation、Session pin、release recovery、付费 proposal 不确定窗口和 resident Candidate/Trial 恢复。用户控制面、自动晋升策略与生产多日证据仍未完成。详见[状态页](docs/status.zh.md)。
+> **Pre-alpha：暂不可用于自动激活。** P0A Shadow 的本地退出门已通过；P0B 已实现 Local Continuity；P0C.1/P0C.2 已提供人工 release 与异步 review 到 inactive Generation。durable pause/resume、自动晋升策略与生产多日证据仍未完成。详见[状态页](docs/status.zh.md)。
 
 ## 为什么做
 
@@ -28,7 +28,7 @@
 
 | 包 | 当前能力 | 状态 |
 |---|---|---|
-| [`dsh-evolve`](packages/dsh-evolve) | 离线 `shadow`；durable resume 与 resident supervisor；Sealed paired Trial；immutable Generation；Session-scoped Git Skill Provider；host-only 人工晋升/回滚 | P0A 本地门、P0B 实现门、P0C.1 人工 release command 通过；review inbox 待实现 |
+| [`dsh-evolve`](packages/dsh-evolve) | 离线 `shadow`；durable resume 与 resident supervisor；Sealed paired Trial；immutable Generation；Session-scoped Git Skill Provider；host-only review/晋升/回滚 | P0A 本地门、P0B 实现门、P0C.1/P0C.2 人工闭环通过；pause/resume 待实现 |
 
 Shadow 和未激活 Generation 的运行时模型表面为 `none`，额外 token 为 `0`。Generation 激活后只复用 DSH 原生 Skill catalog/body 路径：catalog 在 Session 开始时固定，正文按需加载；插件不增加 Tool 或 system prompt。真实 Agent 回归已证明晋升后旧 Session 的请求工具面不变、后一请求保留前一请求的完整消息前缀。Shadow 只有在用户显式调用时才请求配置的模型。
 
@@ -36,7 +36,7 @@ Shadow 和未激活 Generation 的运行时模型表面为 `none`，额外 token
 
 ```text
 dsh-evolve shadow <skill-dir> --case-pack <case-pack-dir> --output <run-dir> [--resume]
-/evolve [status|promote <64-char-generation-id>|rollback]
+/evolve [status|review [<64-char-review-id> [approve|reject <note>]]|promote <64-char-generation-id>|rollback]
 ```
 
 它可以可靠拒绝越出 owned Skill 的候选；带完整 Case Pack 时，先用 known-bad/known-correction 校准 evaluator，再在四个相互独立的 macOS Sealed Trial 中比较 baseline 与 Candidate。证据不足、预算超限、平台无隔离器或 active/Case Pack 漂移时返回 `2 + incomplete`。
@@ -58,7 +58,7 @@ pnpm --filter dsh-evolve pack --pack-destination "$PWD/.evoforge/pack"
 ## 尚未实现
 
 - 多个独立真实 case、真实 provider 提案效果、Linux/Windows 隔离与 workspace 磁盘配额；
-- claim/diff/case/cost review inbox、durable pause/resume 与窄自动晋升策略（最小人工 status/promote/rollback 已实现）；
+- 逐行 diff viewer、durable pause/resume 与窄自动晋升策略（claim/files/case/cost review 到 inactive Generation 已实现）；
 - 生产多日 soak、真实磁盘耗尽与大规模 run 性能数据（常驻 native Jobs supervisor、自动扫描和关机恢复已实现）；
 - `dsh-software-delivery`、个人助理、消息、内容和日程插件；
 - Web/TUI 控制面。

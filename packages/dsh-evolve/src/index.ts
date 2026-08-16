@@ -5,11 +5,13 @@ import z from '@deepseek-ai/schemastery'
 import type Schema from '@deepseek-ai/schemastery'
 import { installGenerationBinder } from './generation-binder.ts'
 import { installEvolutionCommand } from './evolve-command.ts'
+import { CandidatePublisher } from './candidate-publisher.ts'
 import { GitSkillSource, type GitSkillSourceConfig } from './git-skill-source.ts'
 import { openEvolutionStore, type EvolutionStore } from './generation-store.ts'
 import { ShadowSupervisor } from './shadow-supervisor.ts'
 import { createShadowJobRunner } from './shadow-job-runner.ts'
 import { runShadow } from './shadow.ts'
+import { ReviewInbox } from './review-inbox.ts'
 import { VerifiedEvolutionStore } from './verified-evolution-store.ts'
 
 declare module '@deepseek-ai/cordis' {
@@ -51,7 +53,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const store = new VerifiedEvolutionStore(await openEvolutionStore(ctx.storageDomain), source)
   ctx.provide('evoforge.evolution', store)
   const disposeBinder = installGenerationBinder(ctx, store, source)
-  installEvolutionCommand(ctx, store)
+  const review = config.supervisor === undefined || config.supervisor.runRoots.length === 0
+    ? undefined
+    : {
+        inbox: new ReviewInbox(config.supervisor.runRoots),
+        publisher: new CandidatePublisher(store, source),
+      }
+  installEvolutionCommand(ctx, store, review)
   if (config.supervisor !== undefined && config.supervisor.runRoots.length > 0) {
     // Jobs is optional for the base release kernel. A configured supervisor activates
     // only when the host composes the native process-local Jobs service.

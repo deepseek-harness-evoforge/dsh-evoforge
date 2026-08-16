@@ -1,9 +1,10 @@
 # dsh-evolve
 
-`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains two deliberately separate lanes:
+`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains three deliberately separate lanes:
 
 - **P0A Shadow** compares an active Skill with an inactive Candidate without changing live DSH.
 - **P0B Local Continuity** records immutable Capability Generations, pins one Generation per Session, switches or rolls back only future Sessions, and resumes durable sealed work through an optional resident supervisor.
+- **P0C Human Control** reviews completed evidence and publishes approved Candidates as inactive Generations before a separate explicit promotion.
 
 The offline evaluation command is:
 
@@ -15,11 +16,20 @@ When the DSH composition includes native Commands, the host-only human release
 surface is also available:
 
 ```text
-/evolve [status|promote <64-char-generation-id>|rollback]
+/evolve status
+/evolve review
+/evolve review <64-char-review-id>
+/evolve review <64-char-review-id> reject <note>
+/evolve review <64-char-review-id> approve <note>
+/evolve promote <64-char-generation-id>
+/evolve rollback
 ```
 
-It never invokes the model. Promotion/rollback verifies the immutable release
-target and changes only future Sessions; existing Sessions keep their pin.
+It never invokes the model. Review approval verifies the completed Shadow
+evidence and exact Git Skill tree, then creates an immutable owned Git ref and
+inactive Generation without moving the user's branch, worktree, or active
+pointer. Promotion remains a separate explicit action. Promotion/rollback
+changes only future Sessions; existing Sessions keep their pin.
 
 After an interrupted run, explicitly resume the same immutable inputs with
 `--resume`. A durable Candidate resumes at the sealed Trial. A proposal whose
@@ -74,7 +84,7 @@ The P0B.1 runtime kernel also proves on the pinned DSH revision that:
 - the packed artifact installs into a real DSH profile, boots, removes cleanly, and leaves native DSH composition intact;
 - removing the plugin leaves native DSH Session and Goal facts readable.
 
-This is still pre-alpha. There is no review inbox, durable pause/resume,
+This is still pre-alpha. There is no durable pause/resume, full diff viewer,
 automatic promotion policy, release, or production support. Explicit and resident
 Shadow recovery now cover bounded proposer/Candidate/Trial crash boundaries, but
 short automated soak is not production multi-day evidence. This is not a claim
@@ -108,6 +118,12 @@ proposal work is never started automatically. Jobs supplies current-process
 visibility and cancellation, while the journal remains the restart authority.
 Cancelling a recovery suppresses that run for the rest of the current DSH
 process; a later DSH restart may discover the still-durable Trial again.
+
+The same `supervisor.runRoots` feed the host-only review inbox even when Jobs is
+not installed. Only completed `promote` or `review` reports become pending
+reviews. Approval accepts a full review id and a human note, publishes an
+inactive Generation, and returns the full id required by `/evolve promote`.
+Rejection and approval are durably bound to the evidence hash beside the run.
 
 `repository` remains the source of truth. `cacheRoot` is a rebuildable,
 read-only materialization cache; it is never the authority for a Generation.

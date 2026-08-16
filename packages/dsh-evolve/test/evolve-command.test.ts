@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { CapabilityGeneration, EvolutionStore } from '../src/generation-store.js'
 import { executeEvolutionCommand } from '../src/evolve-command.js'
+import type { CandidatePublisher } from '../src/candidate-publisher.js'
+import type { ReviewCandidate, ReviewInbox } from '../src/review-inbox.js'
 
 const rootId = '1'.repeat(64)
 const childId = '2'.repeat(64)
@@ -101,14 +103,62 @@ describe('/evolve host command', () => {
   it('rejects ambiguous ids and unknown actions without touching release state', async () => {
     const store = fakeStore()
 
-    for (const input of ['promote', 'promote abc', `promote ${rootId} extra`, 'review']) {
+    for (const input of ['promote', 'promote abc', `promote ${rootId} extra`, 'unknown']) {
       await expect(executeEvolutionCommand(store, input)).resolves.toMatchObject({
         kind: 'error',
-        text: 'Usage: /evolve [status|promote <64-char-generation-id>|rollback]',
+        text: 'Usage: /evolve [status|review [<review-id> [approve|reject <note>]]|promote <64-char-generation-id>|rollback]',
       })
     }
     expect(store.promoteGeneration).not.toHaveBeenCalled()
     expect(store.rollbackGeneration).not.toHaveBeenCalled()
+  })
+
+  it('lists, explains, rejects, and publishes reviews through the host plane', async () => {
+    const store = fakeStore()
+    const candidate = reviewCandidate()
+    const inbox = {
+      scan: vi.fn(async () => ({ candidates: [candidate], warnings: [] })),
+      get: vi.fn(async () => candidate),
+      reject: vi.fn(async () => ({ ...candidate, status: 'rejected' as const })),
+      approve: vi.fn(async (_id, _note, publish) => {
+        const generation = await publish(candidate)
+        return { ...candidate, status: 'approved' as const, generationId: generation.id }
+      }),
+    } as unknown as ReviewInbox
+    const publisher = {
+      publish: vi.fn(async () => ({ id: childId })),
+    } as unknown as CandidatePublisher
+    const review = { inbox, publisher }
+
+    await expect(executeEvolutionCommand(store, 'review', review)).resolves.toMatchObject({
+      kind: 'success',
+      text: expect.stringContaining(`${candidate.id} [promote] stable-skill`),
+    })
+    await expect(executeEvolutionCommand(store, `review ${candidate.id}`, review)).resolves.toMatchObject({
+      kind: 'success',
+      text: expect.stringContaining('held-out fail→pass checks 1/1'),
+    })
+    await expect(executeEvolutionCommand(
+      store,
+      `review ${candidate.id} reject too narrow`,
+      review,
+    )).resolves.toMatchObject({ kind: 'success', text: expect.stringContaining('No Generation was created') })
+    await expect(executeEvolutionCommand(
+      store,
+      `review ${candidate.id} approve clear held-out win`,
+      review,
+    )).resolves.toMatchObject({
+      kind: 'success',
+      text: expect.stringContaining(`/evolve promote ${childId}`),
+    })
+    expect(publisher.publish).toHaveBeenCalledWith(candidate)
+  })
+
+  it('does not invent a review store when no owned run roots are configured', async () => {
+    await expect(executeEvolutionCommand(fakeStore(), 'review')).resolves.toEqual({
+      kind: 'error',
+      text: 'Review inbox is not configured. Set dsh-evolve supervisor.runRoots to owned Shadow run roots.',
+    })
   })
 
   it('returns an actionable host error instead of throwing an implementation stack', async () => {
@@ -138,6 +188,31 @@ function generation(id: string, parentId?: string): CapabilityGeneration {
     evaluatorVersion: 'fixture',
     policyVersion: 'human-p0c.1',
     compositionFingerprint: 'c'.repeat(64),
+  }
+}
+
+function reviewCandidate(): ReviewCandidate {
+  return {
+    id: 'a'.repeat(64),
+    runId: 'b'.repeat(64),
+    status: 'pending',
+    outputDir: '/private/run',
+    skillName: 'stable-skill',
+    recommendation: 'promote',
+    claim: 'Add exact browser verification',
+    changedFiles: ['SKILL.md'],
+    candidateTreeHash: 'c'.repeat(64),
+    baseTreeHash: 'd'.repeat(64),
+    proposalHash: 'e'.repeat(64),
+    proposal: { claim: 'Add exact browser verification', files: [{ path: 'SKILL.md', content: 'body' }] },
+    cases: [{ id: 'held-out', baseline: 'fail', candidate: 'pass', passedChecks: 1, totalChecks: 1 }],
+    cost: { inputTokens: 120, outputTokens: 32, trialCount: 4 },
+    reasons: ['held-out pass'],
+    limitations: ['one case'],
+    evaluatorVersion: 'fixture-v1',
+    compositionFingerprint: 'f'.repeat(64),
+    startedAt: '2026-08-16T00:00:00.000Z',
+    evidenceHash: '1'.repeat(64),
   }
 }
 

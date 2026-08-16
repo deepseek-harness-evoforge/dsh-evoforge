@@ -1,5 +1,5 @@
 import { execFile as execFileCallback } from 'node:child_process'
-import { chmod, readFile, readdir, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { chmod, cp, readFile, readdir, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { promisify } from 'node:util'
@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import * as EvolvePlugin from '../src/index.js'
 import type { EvolutionStore } from '../src/generation-store.js'
+import { hashTree, sha256 } from '../src/hash.js'
 
 const execFile = promisify(execFileCallback)
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -24,6 +25,76 @@ afterEach(async () => {
 })
 
 describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () => {
+  it('reviews, publishes, and explicitly promotes one sealed Candidate without moving the user branch', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-review-publish-'))
+    temporaryRoots.push(root)
+    const repository = join(root, 'source')
+    const revision = await commitSkill(repository, 'Baseline body.', 'baseline reference')
+    const runRoot = await writeCompletedReviewRun(root, repository)
+    const ctx = await bootStorage(await writeStorageConfig(root))
+    const adapter = await installAgentRuntime(ctx)
+    await ctx.plugin(EvolvePlugin, {
+      cacheRoot: join(root, 'cache'),
+      sources: [{
+        name: 'stable-evolved-skill',
+        repository,
+        path: 'skills/stable-evolved-skill',
+      }],
+      supervisor: { runRoots: [runRoot], scanIntervalMs: 30_000 },
+    })
+    const commandsModule = await import(pathToFileURL(
+      join(dshSourceDir, 'packages', 'interaction', 'commands', 'lib', 'index.js'),
+    ).href)
+    await ctx.plugin(commandsModule.default)
+    const commands = ctx.get('commands') as {
+      execute(agent: object, line: string, signal: AbortSignal): Promise<{
+        result: { kind: string; text?: string }
+      } | undefined>
+    } | undefined
+    const skills = ctx.get('skills') as {
+      get(name: string, options: { cwd?: string; scope?: object }): Promise<{ content: string } | undefined>
+    } | undefined
+    if (commands === undefined || skills === undefined) throw new Error('review services did not load')
+    const liveNative = await createAndRunAgent(ctx, 'review-live-native', root)
+    const requestsBeforeReview = adapter.requests.length
+
+    const list = await commands.execute(liveNative, '/evolve review', new AbortController().signal)
+    const reviewId = /^- ([a-f0-9]{64}) /m.exec(list?.result.text ?? '')?.[1]
+    expect(reviewId).toBeDefined()
+    if (reviewId === undefined) throw new Error('review id missing')
+    const detail = await commands.execute(
+      liveNative,
+      `/evolve review ${reviewId}`,
+      new AbortController().signal,
+    )
+    expect(detail?.result.text).toContain('held-out-browser fail→pass checks 2/2')
+    const approved = await commands.execute(
+      liveNative,
+      `/evolve review ${reviewId} approve exact held-out improvement`,
+      new AbortController().signal,
+    )
+    const generationId = /Inactive Generation: ([a-f0-9]{64})/.exec(approved?.result.text ?? '')?.[1]
+    expect(generationId).toBeDefined()
+    if (generationId === undefined) throw new Error('generation id missing')
+    expect(adapter.requests).toHaveLength(requestsBeforeReview)
+    expect(await git(repository, 'rev-parse', 'HEAD')).toBe(revision.commit)
+    expect(await git(repository, 'status', '--porcelain')).toBe('')
+    expect(await git(repository, 'rev-parse', `refs/evoforge/generations/${reviewId}`))
+      .not.toBe(revision.commit)
+
+    await commands.execute(
+      liveNative,
+      `/evolve promote ${generationId}`,
+      new AbortController().signal,
+    )
+    const futureEvolved = await createAndRunAgent(ctx, 'review-future-evolved', root)
+    expect(await skills.get('stable-evolved-skill', { cwd: root, scope: liveNative })).toBeUndefined()
+    expect((await skills.get('stable-evolved-skill', { cwd: root, scope: futureEvolved }))?.content)
+      .toContain('Verify the exact browser flow before completion.')
+    expect(adapter.requests).toHaveLength(requestsBeforeReview + 1)
+    await ctx.fiber.dispose()
+  })
+
   it('uses a late-composed native /evolve command without a model call or live Session drift', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-command-binder-'))
     temporaryRoots.push(root)
@@ -459,6 +530,78 @@ function generationInput(revision: GitRevision) {
     policyVersion: 'p0b.1',
     compositionFingerprint: 'b'.repeat(64),
   }
+}
+
+async function writeCompletedReviewRun(
+  root: string,
+  repository: string,
+): Promise<string> {
+  const runRoot = join(root, 'runs')
+  const runDir = join(runRoot, 'sealed-candidate')
+  const skillDir = join(repository, 'skills', 'stable-evolved-skill')
+  const candidateDir = join(root, 'review-candidate-tree')
+  await mkdir(runDir, { recursive: true })
+  await cp(skillDir, candidateDir, { recursive: true })
+  const baseline = await readFile(join(skillDir, 'SKILL.md'), 'utf8')
+  const proposed = `${baseline.trimEnd()}\n\nVerify the exact browser flow before completion.\n`
+  await writeFile(join(candidateDir, 'SKILL.md'), proposed)
+  const proposal = {
+    claim: 'Require exact browser verification before completion',
+    files: [{ path: 'SKILL.md', content: proposed }],
+  }
+  const runId = '7'.repeat(64)
+  const reportPath = join(runDir, 'report.json')
+  const baseTreeHash = await hashTree(skillDir)
+  const candidateTreeHash = await hashTree(candidateDir)
+  await writeFile(join(runDir, 'run-state.json'), `${JSON.stringify({
+    schemaVersion: 1,
+    runId,
+    phase: 'complete',
+    startedAt: '2026-08-16T00:00:00.000Z',
+    updatedAt: '2026-08-16T00:01:00.000Z',
+    identity: {
+      baseTreeHash,
+      casePackHash: '8'.repeat(64),
+      dshRevision: 'fixture',
+      evaluatorVersion: 'review-e2e-v1',
+      modelConfigHash: '9'.repeat(64),
+      modelRoute: 'fixture-model',
+      skillName: 'stable-evolved-skill',
+    },
+    resumeInputs: { skillDir, casePackDir: join(root, 'case-pack') },
+    proposal,
+    proposalHash: sha256(JSON.stringify(proposal)),
+    modelUsage: { inputTokens: 120, outputTokens: 32 },
+    outcome: { kind: 'complete', reportPath, summary: 'promote: held-out improvement' },
+  }, null, 2)}\n`)
+  await writeFile(reportPath, `${JSON.stringify({
+    schemaVersion: 1,
+    run: { id: runId, status: 'complete' },
+    subject: { skillName: 'stable-evolved-skill', baseTreeHash, unchanged: true },
+    candidate: {
+      id: candidateTreeHash.slice(0, 16),
+      treeHash: candidateTreeHash,
+      parentTreeHash: baseTreeHash,
+      claim: proposal.claim,
+      changedFiles: ['SKILL.md'],
+    },
+    epoch: { evaluatorVersion: 'review-e2e-v1' },
+    budget: { inputTokens: 120, outputTokens: 32 },
+    trial: { count: 4 },
+    cases: [{
+      id: 'held-out-browser',
+      baseline: 'fail',
+      candidate: 'pass',
+      checks: [{ name: 'browser', passed: true }, { name: 'composition', passed: true }],
+    }],
+    composition: { candidateFingerprint: 'a'.repeat(64) },
+    decision: {
+      recommendation: 'promote',
+      reasons: ['candidate passed sealed held-out case'],
+      limitations: ['one deterministic held-out case'],
+    },
+  }, null, 2)}\n`)
+  return runRoot
 }
 
 async function commitSkill(repository: string, body: string, reference: string): Promise<GitRevision> {

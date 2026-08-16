@@ -1,6 +1,6 @@
 # EvoForge 可证明自进化设计
 
-> 状态：设计已获授权；P0A/P0B 已实现；P0C.1 人工 release command 已实现，review inbox 待完成
+> 状态：设计已获授权；P0A/P0B 已实现；P0C.1/P0C.2 已形成 review → inactive Generation → 显式 release，pause/resume 待完成
 > 更新日期：2026-08-16
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 
@@ -574,6 +574,8 @@ P0A 与 P0B 的实现证据已经分别收敛到 [P0A Shadow 契约](p0a-shadow-
 [P0B.1 release kernel](../evidence/p0b-1-generation-release-kernel.zh.md)、
 [P0B.2a durable resume](../evidence/p0b-2a-durable-shadow-resume.zh.md)和
 [P0B.2b resident supervisor](../evidence/p0b-2b-resident-shadow-supervisor.zh.md)。
-下一纵切是最小 P0C：先用 host-only `/evolve status | promote | rollback` 让普通用户
-无需调用内部 service；随后再接 review inbox 与 pause/resume。P0C 不增加模型 Tool，
-也不让审批等待阻塞产生信号的原会话。
+P0C.1 已用 host-only `/evolve status | promote | rollback` 暴露 release；P0C.2 已把
+durable Shadow evidence 投影为 review inbox，并把人工批准发布为不激活的 immutable
+Generation，证据见 [P0C.2](../evidence/p0c-2-review-to-inactive-generation.zh.md)。
+下一纵切只补 durable pause/resume。P0C 不增加模型 Tool，也不让审批等待阻塞产生
+信号的原会话。

@@ -61,13 +61,18 @@ non-executable 文件。`cacheRoot` 只是带 owner marker 的只读重建缓存
 
 ```text
 /evolve status
+/evolve review
+/evolve review <64-char-review-id>
+/evolve review <64-char-review-id> reject <note>
+/evolve review <64-char-review-id> approve <note>
 /evolve promote <64-char-generation-id>
 /evolve rollback
 ```
 
-命令不调用模型，且只改变 future Session。尚无 Candidate review inbox；测试或后续
-host consumer 仍可通过 `ctx.get('evoforge.evolution')` 使用
-`publishGeneration()` 与只读查询。不要把 P0C.1 command 当作已完成的自动晋升产品。
+命令不调用模型。`review` 从配置的 run roots 投影已完成 Shadow 证据；reject 只记录
+证据绑定的处置，approve 只创建 owned Git ref 和 inactive Generation。它不会移动用户
+branch/worktree 或 active pointer。只有随后显式 `promote` 才改变 future Session；当前
+Session 始终不漂移。不要把 P0C 人工命令当作已完成的自动晋升产品。
 
 `supervisor` 可省略。启用时还要在同一 DSH composition 中装配原生
 `@deepseek-ai/dsh-jobs-local`（或兼容 `ctx.jobs` 实现）。每个 `runRoots` 只扫描直接
@@ -76,7 +81,12 @@ host consumer 仍可通过 `ctx.get('evoforge.evolution')` 使用
 `proposal-pending` 也不会自动重试。当前 Job 可从 DSH host plane 观察或取消，重启
 事实仍来自 `run-state.json`，而不是易失的 Job record。
 取消 Job 后，同一 DSH 进程不会再次自动提交该 run；下次 DSH 启动仍可从未终结
-journal 继续。P0C 会再提供显式、可持久化的 pause/resume 控制。
+journal 继续。P0C.3 会再提供显式、可持久化的 pause/resume 控制。
+
+Review 使用和 supervisor 相同的 `runRoots`，但不要求安装 Jobs。它只扫描直接子目录，
+并要求 journal、report 和处置文件都是 owned regular file。`review` 列表展示 pending
+候选；详情展示 claim、changed files、tree、逐 case、proposal token、Trial 次数、
+composition、理由和限制。首版没有逐行 diff viewer。
 
 ## 3. Shadow 输入
 
