@@ -1,6 +1,6 @@
 # dsh-evolve
 
-`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains eighteen deliberately separate lanes:
+`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains nineteen deliberately separate lanes:
 
 - **P0A Shadow** compares an active Skill with an inactive Candidate without changing live DSH.
 - **P0B Local Continuity** records immutable Capability Generations, pins one Generation per Session, switches or rolls back only future Sessions, and resumes durable sealed work through an optional resident supervisor.
@@ -20,6 +20,7 @@
 - **P1.12 Retention-gated Auto-Promotion** optionally requires exact retained evidence before the existing narrow clear-instruction policy may activate a future Session.
 - **P1.13 Automatic Retention Target** lets a deployment authorize one exact prior Case Pack per Skill for a single background Retention attempt before clear-win promotion.
 - **P1.14 Automatic Feedback Shadow** lets a deployment authorize one unambiguous explicit correction to enter one existing exact Shadow Target without another foreground command.
+- **P1.15 Automatic Evolution Budget** durably caps each automatic Target's possible paid attempts per UTC day and projects the remaining allowance without touching Session context.
 
 A 64-turn assembled DSH Agent parity test also verifies that installing the configured evolution host plane and changing the future-Session Generation pointer leaves every current-Session model-visible request byte-equivalent to the no-EvoForge control after removing DSH-internal message ids. It proves a zero request delta; real-provider cache-read and latency measurements still require an explicitly funded paired soak.
 
@@ -237,6 +238,7 @@ Skill that a Generation may activate:
     automaticFeedbackTargets:
       - target: plugin-delivery
         casePackHash: <64-char-sha256>
+        maxAttemptsPerUtcDay: 2
     evaluatorTargets:
       - id: plugin-delivery-evaluator
         skill: build-dsh-plugin
@@ -273,9 +275,10 @@ existing Shadow journal make retries idempotent and restart recovery conservativ
 
 `automaticFeedbackTargets` is optional and disabled when absent. Each entry
 references one existing `shadowTargets.id` and pins its calibrated Case Pack by
-full content hash; an authorized Skill may appear only once. Declaring it is the
+full content hash; an authorized Skill may appear only once. `maxAttemptsPerUtcDay`
+defaults to `1` and is bounded to `1..20`. Declaring the entry is the
 deployment policy authorization for automatic minimal Draft copy, one potentially
-paid proposer request, bounded correction disclosure, and that exact evaluator.
+paid proposer request per reserved attempt, bounded correction disclosure, and that exact evaluator.
 The supervisor handles at most one signal per scan. A signal must belong to an
 exact Generation with exactly one matching authorized Skill; zero or multiple
 matches remain manual. Terminal runs are reused, durable Candidate/Trial phases
@@ -283,6 +286,12 @@ use the existing journal, and `proposal-pending` is never restarted automaticall
 This setting does not author or qualify evaluators, loosen auto-promotion, change
 the originating Session, or add any normal-Session model surface/token. See the
 [P1.14 contract](../../docs/architecture/p1-14-automatic-feedback-shadow.zh.md).
+Before Draft creation or Job submission, P1.15 writes one atomic `0600`
+current-day journal under the Target run root. A crash does not refund the
+reservation; the same Signal reuses it. `/evolve status` and the optional Web
+adapter show `used/limit/remaining`. Explicit human Shadow remains separately
+authorized and is not limited by this automatic cap. See the
+[P1.15 contract](../../docs/architecture/p1-15-automatic-evolution-budget.zh.md).
 
 `evaluatorTargets` is optional and bounded to 20 entries. Each public id binds
 one exact single-file Skill, a unique private absolute root, and a full pinned

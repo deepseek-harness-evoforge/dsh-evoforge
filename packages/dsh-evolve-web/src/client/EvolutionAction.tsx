@@ -264,8 +264,20 @@ function ReviewQueue({ overview, busy, inspect, promote, startShadow, authorEval
 }) {
   if (overview === undefined) return null
   const feedbackShadow = overview.feedbackShadow
+  const automaticBudget = overview.automaticFeedbackBudget
   const evaluatorAuthoring = overview.evaluatorAuthoring
   return <>
+    {automaticBudget !== undefined && <section>
+      <h3 className="dsh-evolve-section-title">{t('section.budget')}</h3>
+      <ul className="dsh-evolve-list">{automaticBudget.targets.map(target => (
+        <li className="dsh-evolve-review" key={target.targetId}>
+          <div className="dsh-evolve-review-skill">{target.targetId} · {target.skillName}</div>
+          <div className="dsh-evolve-meta">{target.status === 'unknown'
+            ? t('status.budgetUnknown')
+            : `${target.used}/${target.limit} ${t('label.attemptsUsed')} · ${target.remaining} ${t('label.remaining')} · ${target.utcDay} UTC`}</div>
+        </li>
+      ))}</ul>
+    </section>}
     {feedbackShadow !== undefined && <section>
       <h3 className="dsh-evolve-section-title">{t('section.feedback')}</h3>
       {feedbackShadow.signals.length === 0

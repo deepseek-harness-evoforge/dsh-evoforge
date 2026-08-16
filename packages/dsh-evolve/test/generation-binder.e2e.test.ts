@@ -557,6 +557,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
         automaticFeedbackTargets: [{
           target: 'stable-skill-fix',
           casePackHash,
+          maxAttemptsPerUtcDay: 2,
         }],
         autoPromote: {
           skills: ['stable-evolved-skill'],
@@ -618,6 +619,11 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
       const active = await waitForGenerationChange(store, baseline.id, 45_000)
       expect(active.policyVersion).toBe('auto-clear-instruction-v1')
       expect(proposerRequests).toBe(1)
+      expect(await readFile(join(
+        shadowRunRoot,
+        '.automatic-evolution-budget-v1',
+        'current.json',
+      ), 'utf8')).not.toContain(correction)
       expect(adapter.requests).toHaveLength(normalRequests)
       expect(store.getSessionGeneration(identityOf(agent))?.id).toBe(baseline.id)
       expect(await readFile(skillPath, 'utf8')).toBe(originalSkill)

@@ -120,6 +120,10 @@ _Avoid_: Automatic learning, synchronous Session reflection, paid resident retry
 An opt-in deployment policy that lets one still-current explicit correction enter one statically configured, exact-hash Shadow Target without another per-signal command. It reuses the private Draft, independent evaluator, native Jobs, review, Retention, future-Session promotion, and rollback paths; ambiguity and uncertain paid effects remain asynchronous human work.
 _Avoid_: Background reflection, automatic evaluator trust, live-session learning, self-grading
 
+**Automatic Evolution Budget**:
+A deployment-level UTC-day cap on durable automatic attempt reservations for one exact Shadow Target. A reservation is consumed before a possibly paid launch and survives crashes; it never limits an explicit human launch or claims to be a billing ledger.
+_Avoid_: Token scheduler, pricing engine, global quota service, model budget in Session
+
 **Case Pack Calibration**:
 A zero-model, host-only execution of the declared known-bad and known-correction fixtures through the same sealed evaluator used by Shadow. It proves evaluator direction before proposer spend; it does not prove coverage of novel failures. A complete Shadow performs this gate before requesting a Candidate and still uses four Trial executions total.
 _Avoid_: Evaluator generation, cached trust forever, extra runtime service, model judge

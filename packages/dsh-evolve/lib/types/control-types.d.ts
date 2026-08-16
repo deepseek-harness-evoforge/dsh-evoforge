@@ -88,6 +88,16 @@ export interface EvolutionShadowRunView {
     readonly startedAt: string;
     readonly updatedAt: string;
 }
+/** Daily host-only reservation cap for one automatic paid evolution Target. */
+export interface EvolutionAutomaticBudgetView {
+    readonly targetId: string;
+    readonly skillName: string;
+    readonly utcDay: string;
+    readonly used: number;
+    readonly limit: number;
+    readonly remaining: number;
+    readonly status: 'ready' | 'unknown';
+}
 /** Bounded host-only evaluator proposal; generated code remains inactive. */
 export interface EvolutionEvaluatorDraftView {
     readonly id: string;
@@ -150,6 +160,10 @@ export interface EvolutionOverview {
         readonly signals: readonly EvolutionFeedbackSignalView[];
         readonly targets: readonly EvolutionShadowTargetView[];
         readonly runs: readonly EvolutionShadowRunView[];
+    };
+    readonly automaticFeedbackBudget?: {
+        readonly warningCount: number;
+        readonly targets: readonly EvolutionAutomaticBudgetView[];
     };
     readonly evaluatorAuthoring?: {
         readonly available: boolean;

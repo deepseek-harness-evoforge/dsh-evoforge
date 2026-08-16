@@ -1,6 +1,6 @@
 # EvoForge 可证明自进化设计
 
-> 状态：P0A/P0B/P0C、P1.1–P1.14 与 P2D.1 implemented；包含最窄 opt-in 自动晋升、反事实 canary/回滚、显式反馈、私有 Draft、独立 evaluator、静态 Target、exact Retention 与明确纠错自动 Shadow；真实 provider 与真实任务长期证据待完成
+> 状态：P0A/P0B/P0C、P1.1–P1.15 与 P2D.1 implemented；包含最窄 opt-in 自动晋升、反事实 canary/回滚、显式反馈、私有 Draft、独立 evaluator、静态 Target、exact Retention、明确纠错自动 Shadow 与持久日预算；真实 provider 与真实任务长期证据待完成
 > 更新日期：2026-08-17
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 
@@ -668,3 +668,9 @@ P1.14 只为“已有可信 Case Pack”的明确纠错消除逐次 Shadow 命�
 `proposal-pending` 不自动重试，任何歧义都留在异步人工区，原 Session 不等待且 normal model request
 不变。见 [P1.14](p1-14-automatic-feedback-shadow.zh.md)与
 [ADR-0034](../adr/0034-explicit-feedback-may-enter-one-static-shadow-target.md)。
+
+P1.15 不增加通用调度或 token 账本，只在 P1.14 的自动付费边界前为每个 exact Target 预留一个
+crash-safe UTC 日 attempt。单次 token 上限仍属于 Case Pack；日 cap、损坏 fail closed 与
+Commands/Web 状态都留在 host plane。显式人工动作继续逐次授权。见
+[P1.15](p1-15-automatic-evolution-budget.zh.md)与
+[ADR-0035](../adr/0035-automatic-evolution-reserves-budget-before-paid-launch.md)。

@@ -29,9 +29,11 @@ automaticFeedbackTargets:
     casePackHash: <64-char-content-hash>
 ```
 
-`automaticFeedbackTargets` 只引用既有 Target，不接受动态 path、Skill、模型或预算参数。Target ≤ 20；
+`automaticFeedbackTargets` 只引用既有 Target，不接受动态 path、Skill、模型或单次 Case Pack 预算参数。Target ≤ 20；
 引用必须存在；Case Pack hash 必须 exact；每个自动 Target 的 Skill 必须唯一。配置是部署者对最小私有
 copy 和该 Target 一次 proposer/evaluator 成本的明确策略授权。删除该段即恢复 P1.8 逐次显式启动。
+P1.15 后每项另有可选 `maxAttemptsPerUtcDay`，只收紧跨 Signal 自动尝试次数，不改变 Case Pack 单次
+token budget；默认 `1`。
 
 若希望明显正向结果自动进入未来会话，再独立配置 P1.1 `autoPromote`、P1.12 `retentionRoots` 与 P1.13
 `retentionTargets`。P1.14 本身不放宽任何 Promotion policy，也不把人工 promote 变成 hard block。

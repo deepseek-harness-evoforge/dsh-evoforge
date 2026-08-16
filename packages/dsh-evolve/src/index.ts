@@ -51,6 +51,7 @@ import {
   type AutomaticFeedbackShadowTarget,
   type AutomaticFeedbackShadowTargetReference,
 } from './automatic-feedback-shadow.ts'
+import { AutomaticEvolutionBudget } from './automatic-evolution-budget.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -111,6 +112,7 @@ export const Config: Schema<Config> = z.object({
   automaticFeedbackTargets: z.array(z.object({
     target: z.string().required(),
     casePackHash: z.string().required(),
+    maxAttemptsPerUtcDay: z.number().step(1).min(1).max(20).default(1),
   })).max(20).default([]),
   evaluatorTargets: z.array(z.object({
     id: z.string().required(),
@@ -235,10 +237,16 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       if (target === undefined) {
         throw new Error(`automatic Feedback Shadow references unknown target '${reference.target}'`)
       }
-      return { ...target, casePackHash: reference.casePackHash }
+      return {
+        ...target,
+        casePackHash: reference.casePackHash,
+        maxAttemptsPerUtcDay: reference.maxAttemptsPerUtcDay ?? 1,
+      }
     })
+  const automaticEvolutionBudget = new AutomaticEvolutionBudget()
   if (automaticFeedbackTargets.length > 0) {
     assertAutomaticFeedbackShadowTargets(automaticFeedbackTargets)
+    automaticEvolutionBudget.assertTargets(automaticFeedbackTargets)
   }
   const automaticFeedback = automaticFeedbackTargets.length === 0 || feedbackShadow === undefined
     ? undefined
@@ -247,6 +255,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         shadow: feedbackShadow,
         signals: feedbackSignals,
         targets: automaticFeedbackTargets,
+        budget: automaticEvolutionBudget,
       })
   const evaluatorDrafts = evaluatorTargets.length === 0
     ? undefined
@@ -264,6 +273,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     outcomes: deliveryOutcomes,
     feedback: feedbackSignals,
     ...(feedbackShadow === undefined ? {} : { feedbackShadow }),
+    ...(automaticFeedback === undefined ? {} : { automaticFeedback }),
     ...(evaluatorDrafts === undefined ? {} : { evaluatorDrafts }),
   })
   new EvolutionRemoteService(ctx, control)
@@ -275,6 +285,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     feedback: feedbackSignals,
     ...(feedbackDraft === undefined ? {} : { feedbackDraft }),
     ...(feedbackShadow === undefined ? {} : { feedbackShadow }),
+    ...(automaticFeedback === undefined ? {} : { automaticFeedback }),
     ...(evaluatorDrafts === undefined ? {} : { evaluatorDrafts }),
   })
   if (config.feedbackDraftRoot !== undefined) {

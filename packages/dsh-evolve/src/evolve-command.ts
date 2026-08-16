@@ -14,6 +14,10 @@ import type {
 import type { FeedbackCaseDraftBuilder } from './feedback-case-draft.ts'
 import type { FeedbackShadowLauncher } from './feedback-shadow-launcher.ts'
 import type { EvaluatorDraftInbox } from './evaluator-draft-inbox.ts'
+import type {
+  AutomaticFeedbackBudgetStatus,
+  AutomaticFeedbackShadowService,
+} from './automatic-feedback-shadow.ts'
 
 const USAGE = 'Usage: /evolve [status|feedback [<signal-id> [draft <skill>|shadow <target>|author <evaluator-target>]]|evaluator [<draft-id> [shadow|approve|reject <note>]]|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]'
 const generationIdPattern = /^[a-f0-9]{64}$/
@@ -26,6 +30,7 @@ export interface EvolutionCommandModules {
   readonly feedback?: Pick<FeedbackSignalStore, 'list' | 'summarize'>
   readonly feedbackDraft?: Pick<FeedbackCaseDraftBuilder, 'create'>
   readonly feedbackShadow?: Pick<FeedbackShadowLauncher, 'launch'>
+  readonly automaticFeedback?: Pick<AutomaticFeedbackShadowService, 'budgetStatus'>
   readonly evaluatorDrafts?: Pick<EvaluatorDraftInbox, 'author' | 'scan' | 'get' | 'approve' | 'reject' | 'startShadow'>
 }
 
@@ -52,7 +57,7 @@ export async function executeEvolutionCommand(
   modules: EvolutionCommandModules = {},
 ): Promise<CommandResult> {
   const input = rawInput.trim()
-  const { review, resident, automatic, outcomes, feedback, feedbackDraft, feedbackShadow, evaluatorDrafts } = modules
+  const { review, resident, automatic, outcomes, feedback, feedbackDraft, feedbackShadow, automaticFeedback, evaluatorDrafts } = modules
   try {
     if (input === '' || input === 'status') {
       const active = store.getActiveGeneration()
@@ -62,6 +67,7 @@ export async function executeEvolutionCommand(
         automatic?.skills(),
         outcomes?.summarize(active?.id),
         feedback?.summarize(active?.id),
+        await automaticFeedback?.budgetStatus(),
       )
     }
     if (input === 'pause') {
@@ -452,6 +458,7 @@ function renderStatus(
   automaticSkills?: string[],
   outcomeSummary?: DeliveryOutcomeSummary,
   feedbackSummary?: FeedbackSignalSummary,
+  automaticFeedbackBudget?: AutomaticFeedbackBudgetStatus,
 ): CommandResult {
   const recovery = recoveryPaused === undefined
     ? []
@@ -468,6 +475,16 @@ function renderStatus(
   const feedback = feedbackSummary === undefined
     ? []
     : [`Explicit feedback signals: ${feedbackSummary.all} retained (${feedbackSummary.selected} active selection)`]
+  const budget = automaticFeedbackBudget === undefined
+    ? []
+    : [
+        ...automaticFeedbackBudget.targets.map(target => target.status === 'unknown'
+          ? `Automatic evolution budget: ${target.targetId} unknown; automatic launch fails closed`
+          : `Automatic evolution budget: ${target.targetId} ${target.used}/${target.limit} attempts used on ${target.utcDay} UTC (${target.remaining} remaining)`),
+        ...automaticFeedbackBudget.warningCount === 0
+          ? []
+          : [`Automatic evolution budget warnings: ${automaticFeedbackBudget.warningCount}`],
+      ]
   if (active === undefined) {
     return {
       kind: 'success',
@@ -478,6 +495,7 @@ function renderStatus(
         ...automatic,
         ...delivery,
         ...feedback,
+        ...budget,
         'Future Sessions will use native capabilities.',
         '',
         'Commands: /evolve promote <64-char-generation-id>',
@@ -493,6 +511,7 @@ function renderStatus(
       ...automatic,
       ...delivery,
       ...feedback,
+      ...budget,
       `Rollback target: ${active.parentId ?? 'native DSH'}`,
       'Artifacts:',
       ...active.artifacts.map(artifact =>

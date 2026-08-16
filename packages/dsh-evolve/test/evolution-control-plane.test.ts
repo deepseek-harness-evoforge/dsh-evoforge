@@ -155,6 +155,20 @@ describe('EvolutionControlPlane', () => {
         })),
         launch: vi.fn(),
       },
+      automaticFeedback: {
+        budgetStatus: vi.fn(async () => ({
+          warningCount: 0,
+          targets: [{
+            targetId: 'plugin-delivery',
+            skillName: 'build-dsh-plugin',
+            utcDay: '2026-08-17',
+            used: 1,
+            limit: 2,
+            remaining: 1,
+            status: 'ready' as const,
+          }],
+        })),
+      },
     })
 
     const overview = await control.overview()
@@ -168,6 +182,10 @@ describe('EvolutionControlPlane', () => {
         signals: [{ id: '8'.repeat(64), generationId }],
         targets: [{ id: 'plugin-delivery', skillName: 'build-dsh-plugin' }],
         runs: [{ launchId: '9'.repeat(64), phase: 'trial-running' }],
+      },
+      automaticFeedbackBudget: {
+        warningCount: 0,
+        targets: [{ targetId: 'plugin-delivery', used: 1, limit: 2, remaining: 1 }],
       },
       reviews: { available: true, pendingCount: 1, warningCount: 1 },
     })

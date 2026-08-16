@@ -20,11 +20,24 @@ function remote(
   withActive = false,
   withInactive = false,
   evaluatorStatus: 'draft-ready' | 'incomplete' | 'qualified' = 'draft-ready',
+  budgetStatus: 'ready' | 'unknown' = 'ready',
 ): EvolutionRemoteClient {
   const overview = {
     schemaVersion: 1 as const,
     recovery: { available: true, paused: false },
     automaticPromotion: { enabled: false, skills: [] },
+    automaticFeedbackBudget: {
+      warningCount: 0,
+      targets: [{
+        targetId: 'plugin-delivery',
+        skillName: 'build-dsh-plugin',
+        utcDay: '2026-08-17',
+        used: budgetStatus === 'ready' ? 1 : 0,
+        limit: 2,
+        remaining: budgetStatus === 'ready' ? 1 : 0,
+        status: budgetStatus,
+      }],
+    },
     feedbackShadow: {
       available: true,
       warningCount: 0,
@@ -188,6 +201,10 @@ const t = (key: string) => ({
   'action.confirm': 'Confirm',
   'action.cancel': 'Cancel',
   'field.note': 'Decision note',
+  'section.budget': 'Automatic evolution budget',
+  'label.attemptsUsed': 'attempts used',
+  'label.remaining': 'remaining',
+  'status.budgetUnknown': 'Budget state unknown; automatic launch is blocked',
 }[key] ?? key)
 
 describe('EvolutionAction', () => {
@@ -199,6 +216,7 @@ describe('EvolutionAction', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
     await screen.findByRole('dialog', { name: 'Evolution control' })
     expect(api.overview).toHaveBeenCalledOnce()
+    expect(screen.getByText('1/2 attempts used · 1 remaining · 2026-08-17 UTC')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Inspect' }))
     await screen.findByText((_content, element) => element?.tagName === 'PRE' && element.textContent?.includes('-stop') === true)
@@ -230,6 +248,14 @@ describe('EvolutionAction', () => {
     fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm' }))
     await waitFor(() => expect(api.rollback).toHaveBeenCalledOnce())
     await waitFor(() => expect(api.overview).toHaveBeenCalledTimes(2))
+  })
+
+  it('explains that automatic launch is blocked when the budget journal is unknown', async () => {
+    const api = remote(false, false, 'draft-ready', 'unknown')
+    render(<EvolutionAction remote={api} t={t} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
+
+    expect(await screen.findByText('Budget state unknown; automatic launch is blocked')).toBeTruthy()
   })
 
   it('can promote a durably approved inactive Generation after the panel is reopened', async () => {

@@ -154,6 +154,18 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'updatedAt': z.string().readonly(),
 })).readonly(),
 })]).readonly().optional(),
+  'automaticFeedbackBudget': z.union([z.undefined(), z.object({
+  'warningCount': z.number().readonly(),
+  'targets': z.array(z.object({
+  'targetId': z.string().readonly(),
+  'skillName': z.string().readonly(),
+  'utcDay': z.string().readonly(),
+  'used': z.number().readonly(),
+  'limit': z.number().readonly(),
+  'remaining': z.number().readonly(),
+  'status': z.union([z.literal("ready"), z.literal("unknown")]).readonly(),
+})).readonly(),
+})]).readonly().optional(),
   'evaluatorAuthoring': z.union([z.undefined(), z.object({
   'available': z.boolean().readonly(),
   'warningCount': z.number().readonly(),
@@ -980,6 +992,10 @@ export const TYPERT = {
             "declaration": "export interface EvolutionArtifactView {\n    readonly kind: 'skill';\n    readonly name: string;\n    readonly gitCommit: string;\n    readonly treeHash: string;\n}"
           },
           {
+            "name": "EvolutionAutomaticBudgetView",
+            "declaration": "export interface EvolutionAutomaticBudgetView {\n    readonly targetId: string;\n    readonly skillName: string;\n    readonly utcDay: string;\n    readonly used: number;\n    readonly limit: number;\n    readonly remaining: number;\n    readonly status: 'ready' | 'unknown';\n}"
+          },
+          {
             "name": "EvolutionEvaluatorDraftDetail",
             "declaration": "export interface EvolutionEvaluatorDraftDetail {\n    readonly schemaVersion: 1;\n    readonly draft: EvolutionEvaluatorDraftView;\n    readonly files: readonly { readonly path: string; readonly content: string; }[];\n    readonly limitations: readonly string[];\n    readonly qualifiedShadowAvailable: boolean;\n    readonly decision?: { readonly actor: 'human'; readonly note: string; readonly decidedAt: string; };\n    readonly qualification?: { readonly calibrated: boolean; readonly attempt: number; };\n    readonly reason?: string;\n}"
           },
@@ -1001,7 +1017,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionOverview",
-            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly automaticPromotion: { readonly enabled: boolean; readonly skills: readonly string[]; };\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly feedbackShadow?: { readonly available: boolean; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly runs: readonly EvolutionShadowRunView[]; };\n    readonly evaluatorAuthoring?: { readonly available: boolean; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly drafts: readonly EvolutionEvaluatorDraftView[]; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
+            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly automaticPromotion: { readonly enabled: boolean; readonly skills: readonly string[]; };\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly feedbackShadow?: { readonly available: boolean; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly runs: readonly EvolutionShadowRunView[]; };\n    readonly automaticFeedbackBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly evaluatorAuthoring?: { readonly available: boolean; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly drafts: readonly EvolutionEvaluatorDraftView[]; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
           },
           {
             "name": "EvolutionReviewCaseView",

@@ -68,6 +68,33 @@ describe('/evolve host command', () => {
     expect(feedback.summarize).toHaveBeenCalledWith(rootId)
   })
 
+  it('shows the durable automatic evolution budget without a model call', async () => {
+    const automaticFeedback = {
+      budgetStatus: vi.fn(async () => ({
+        warningCount: 0,
+        targets: [{
+          targetId: 'stable-target',
+          skillName: 'stable-skill',
+          utcDay: '2026-08-17',
+          used: 1,
+          limit: 2,
+          remaining: 1,
+          status: 'ready' as const,
+        }],
+      })),
+    }
+
+    const result = await executeEvolutionCommand(fakeStore(), 'status', { automaticFeedback })
+
+    expect(result).toMatchObject({
+      kind: 'success',
+      text: expect.stringContaining(
+        'Automatic evolution budget: stable-target 1/2 attempts used on 2026-08-17 UTC (1 remaining)',
+      ),
+    })
+    expect(automaticFeedback.budgetStatus).toHaveBeenCalledOnce()
+  })
+
   it('lists opaque feedback references and delegates explicit draft creation', async () => {
     const signal = {
       schemaVersion: 1 as const,
