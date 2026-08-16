@@ -1,6 +1,6 @@
 # EvoForge 可证明自进化设计
 
-> 状态：P0A/P0B/P0C（含 exact diff 与 protected-effect 词法提示）implemented；P1.1 最窄 opt-in 自动晋升、P2D.1 Outcome、P1.2 反事实 canary/自动回滚、P1.3 显式反馈入口、P1.4 私有 Case Draft、P1.5 反馈引导 Shadow、P1.6 proposer 前 Case Pack 校准、P1.7 显式 evaluator authoring Skill、P1.8 显式目标绑定 Shadow Launch 与 P1.9 私有 Evaluator Draft/人工资格验证 implemented；真实 provider 与真实任务长期证据待完成
+> 状态：P0A/P0B/P0C（含 exact diff 与 protected-effect 词法提示）implemented；P1.1 最窄 opt-in 自动晋升、P2D.1 Outcome、P1.2 反事实 canary/自动回滚、P1.3 显式反馈入口、P1.4 私有 Case Draft、P1.5 反馈引导 Shadow、P1.6 proposer 前 Case Pack 校准、P1.7 显式 evaluator authoring Skill、P1.8 显式目标绑定 Shadow Launch、P1.9 私有 Evaluator Draft/人工资格验证与 P1.10 Qualified Shadow Handoff implemented；真实 provider 与真实任务长期证据待完成
 > 更新日期：2026-08-17
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 
@@ -650,7 +650,13 @@ P1.9 在同一 `dsh-evolve` 内补最窄深模块，不新增插件或 Case 平�
 Candidate 或 Promotion。原反馈 Session 永不等待，普通模型 request composition 不变。契约见
 [P1.9](p1-9-evaluator-draft-contract.zh.md)与 [ADR-0029](../adr/0029-generated-evaluators-remain-inactive-until-human-qualified.md)。
 
+P1.10 只消除 qualified 结果的手工路径死端：可选静态 `shadowRunRoot` 让新的显式动作从 P1.9
+journal 恢复 exact Pack/hash，再委托 P1.8 同一个 launcher、Jobs、run journal、calibration、paired
+Trial 与 review。它不自动启动、不复制 Shadow phase、不允许浏览器提交 path，也不绕过 Candidate 或
+Promotion。见 [P1.10](p1-10-qualified-shadow-handoff.zh.md)与
+[ADR-0030](../adr/0030-qualified-case-packs-enter-shadow-only-through-a-new-explicit-action.md)。
+
 不扩建通用 Signal/Memory/Case 平台；首个新失败已完成 keyless red→green→bounded Shadow 与可回滚
-Skill 晋升；P1.9 也已通过真实 DSH、浏览器、`SIGKILL` 与 packed lifecycle 实现门。下一步由独立陌生作者复跑，并用真实 provider 与用户纠正测量 qualified rate、semantic rejection rate、成本与后续候选改善率，
+Skill 晋升；P1.9/P1.10 已通过真实 DSH 纵向链路、既有崩溃恢复边界与 packed lifecycle 实现门。下一步由独立陌生作者复跑，并用真实 provider 与用户纠正测量 qualified rate、semantic rejection rate、成本与后续候选改善率，
 继续测量 false promotion、false rollback、review rate、返工与成本。
 P0C 仍需普通用户完成控制任务的可用性退出证据。

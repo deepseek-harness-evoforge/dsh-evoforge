@@ -47,6 +47,7 @@ export const zh = {
   'action.authorEvaluator': '起草 Evaluator',
   'action.inspectEvaluator': '审查 Evaluator',
   'action.approveEvaluator': '资格验证',
+  'action.startQualifiedShadow': '启动 Qualified Shadow',
   'action.confirm': '确认',
   'action.cancel': '取消',
   'field.note': '决策备注',
@@ -58,6 +59,7 @@ export const zh = {
   'confirm.authorEvaluator': '确认启动一次可能付费的 Evaluator 起草？本次操作会把受限用户文本、纠正和 exact Skill 发送给已配置模型；生成代码保持不可执行，原会话不会等待。',
   'confirm.approveEvaluator': '确认批准这个 exact Evaluator Draft 并在 sealed runner 中执行生成代码做资格验证？这不会修改 Skill 或启动 Shadow。',
   'confirm.rejectEvaluator': '确认拒绝这个 Evaluator Draft？生成代码不会执行。',
+  'confirm.qualifiedShadow': '确认用这个 exact Qualified Case Pack 启动一次可能付费的 Shadow？受限用户文本和纠正会发送给配置模型；这不会修改 Skill 或授权晋升。',
   'notice.done': '动作已持久完成，权威状态已刷新。',
   'error.prefix': '演化动作失败：',
 } as const
@@ -111,6 +113,7 @@ export const en: Record<EvolutionLocaleKey, string> = {
   'action.authorEvaluator': 'Author Evaluator',
   'action.inspectEvaluator': 'Inspect Evaluator',
   'action.approveEvaluator': 'Qualify Evaluator',
+  'action.startQualifiedShadow': 'Start Qualified Shadow',
   'action.confirm': 'Confirm',
   'action.cancel': 'Cancel',
   'field.note': 'Decision note',
@@ -122,6 +125,7 @@ export const en: Record<EvolutionLocaleKey, string> = {
   'confirm.authorEvaluator': 'Start one potentially paid Evaluator authoring job? This sends bounded user text, correction, and the exact Skill to the configured model. Generated code remains inactive and the originating Session does not wait.',
   'confirm.approveEvaluator': 'Approve this exact Evaluator Draft and execute generated code inside the sealed runner for qualification? This does not modify a Skill or start Shadow.',
   'confirm.rejectEvaluator': 'Reject this Evaluator Draft? Generated code will not execute.',
+  'confirm.qualifiedShadow': 'Start one potentially paid Shadow with this exact Qualified Case Pack? Bounded user text and correction will be sent to the configured model. This does not modify a Skill or authorize Promotion.',
   'notice.done': 'The durable action completed and authoritative state was refreshed.',
   'error.prefix': 'Evolution action failed: ',
 }

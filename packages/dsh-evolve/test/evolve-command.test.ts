@@ -186,6 +186,7 @@ describe('/evolve host command', () => {
         cost: { modelCalls: 1 as const, inputTokens: 30, outputTokens: 20 },
         files: [{ path: 'search/evidence.md', content: 'bounded evidence' }],
         limitations: ['not executable before approval'],
+        qualifiedShadowAvailable: true,
       })),
       approve: vi.fn(async () => ({
         schemaVersion: 1 as const,
@@ -197,6 +198,15 @@ describe('/evolve host command', () => {
         draftStatus: 'qualified' as const,
       })),
       reject: vi.fn(),
+      startShadow: vi.fn(async () => ({
+        schemaVersion: 1 as const,
+        action: 'start-shadow' as const,
+        launchId: '9'.repeat(64),
+        targetId: 'stable-skill',
+        skillName: 'stable-skill',
+        runStatus: 'scheduled' as const,
+        jobId: 'evolution-3',
+      })),
     }
 
     await expect(executeEvolutionCommand(
@@ -219,6 +229,12 @@ describe('/evolve host command', () => {
       { evaluatorDrafts: evaluatorDrafts as never },
     )).resolves.toMatchObject({ kind: 'success', text: expect.stringContaining('Qualified Case Pack') })
     expect(evaluatorDrafts.approve).toHaveBeenCalledWith(draftId, 'independently reviewed')
+    await expect(executeEvolutionCommand(
+      fakeStore(),
+      `evaluator ${draftId} shadow`,
+      { evaluatorDrafts: evaluatorDrafts as never },
+    )).resolves.toMatchObject({ kind: 'success', text: expect.stringContaining('evolution-3') })
+    expect(evaluatorDrafts.startShadow).toHaveBeenCalledWith(draftId)
   })
 
   it('promotes a full content id only for future Sessions and is idempotent', async () => {
@@ -281,7 +297,7 @@ describe('/evolve host command', () => {
     for (const input of ['promote', 'promote abc', `promote ${rootId} extra`, 'unknown']) {
       await expect(executeEvolutionCommand(store, input)).resolves.toMatchObject({
         kind: 'error',
-        text: 'Usage: /evolve [status|feedback [<signal-id> [draft <skill>|shadow <target>|author <evaluator-target>]]|evaluator [<draft-id> [approve|reject <note>]]|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]',
+      text: 'Usage: /evolve [status|feedback [<signal-id> [draft <skill>|shadow <target>|author <evaluator-target>]]|evaluator [<draft-id> [shadow|approve|reject <note>]]|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]',
       })
     }
     expect(store.promoteGeneration).not.toHaveBeenCalled()

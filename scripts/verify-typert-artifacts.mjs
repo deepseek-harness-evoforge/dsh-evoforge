@@ -18,6 +18,7 @@ const expectedMethods = [
   'resume',
   'review',
   'rollback',
+  'startEvaluatorShadow',
   'startFeedbackShadow',
 ]
 
@@ -56,6 +57,7 @@ const expectedParameters = {
   resume: [],
   review: ['id'],
   rollback: [],
+  startEvaluatorShadow: ['id'],
   startFeedbackShadow: ['signalId', 'targetId'],
 }
 const actualParameters = Object.fromEntries(

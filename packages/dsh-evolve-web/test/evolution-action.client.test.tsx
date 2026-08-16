@@ -19,7 +19,7 @@ function success<T>(value: T) {
 function remote(
   withActive = false,
   withInactive = false,
-  evaluatorStatus: 'draft-ready' | 'incomplete' = 'draft-ready',
+  evaluatorStatus: 'draft-ready' | 'incomplete' | 'qualified' = 'draft-ready',
 ): EvolutionRemoteClient {
   const overview = {
     schemaVersion: 1 as const,
@@ -128,6 +128,7 @@ function remote(
         { path: 'search/evidence.md', content: 'independent observable\n' },
       ],
       limitations: ['inactive until human qualification'],
+      qualifiedShadowAvailable: true,
     })),
     authorEvaluator: vi.fn(() => success({
       schemaVersion: 1 as const,
@@ -156,6 +157,15 @@ function remote(
       skillName: 'build-dsh-plugin',
       draftStatus: 'rejected' as const,
     })),
+    startEvaluatorShadow: vi.fn(() => success({
+      schemaVersion: 1 as const,
+      action: 'start-shadow' as const,
+      launchId: '9'.repeat(64),
+      targetId: 'plugin-delivery',
+      skillName: 'build-dsh-plugin',
+      runStatus: 'scheduled' as const,
+      jobId: 'evolution-3',
+    })),
   }
 }
 
@@ -174,6 +184,7 @@ const t = (key: string) => ({
   'action.authorEvaluator': 'Author Evaluator',
   'action.inspectEvaluator': 'Inspect Evaluator',
   'action.approveEvaluator': 'Qualify Evaluator',
+  'action.startQualifiedShadow': 'Start Qualified Shadow',
   'action.confirm': 'Confirm',
   'action.cancel': 'Cancel',
   'field.note': 'Decision note',
@@ -292,6 +303,26 @@ describe('EvolutionAction', () => {
       'retry exact local qualification',
     ))
     expect(api.authorEvaluator).not.toHaveBeenCalled()
+  })
+
+  it('requires a fresh paid-disclosure confirmation before a Qualified Pack enters Shadow', async () => {
+    const api = remote(false, false, 'qualified')
+    render(<EvolutionAction remote={api} t={t} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
+    await screen.findByRole('dialog')
+    fireEvent.click(await screen.findByRole('button', { name: 'Inspect Evaluator' }))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Start Qualified Shadow' }))
+    let confirmation = await screen.findByRole('alertdialog')
+    expect(api.startEvaluatorShadow).not.toHaveBeenCalled()
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Cancel' }))
+    expect(api.startEvaluatorShadow).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start Qualified Shadow' }))
+    confirmation = await screen.findByRole('alertdialog')
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm' }))
+    await waitFor(() => expect(api.startEvaluatorShadow).toHaveBeenCalledWith(evaluatorDraftId))
+    expect(api.promote).not.toHaveBeenCalled()
   })
 })
 

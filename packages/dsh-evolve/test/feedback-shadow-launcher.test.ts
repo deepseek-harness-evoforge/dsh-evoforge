@@ -8,6 +8,7 @@ import {
   type FeedbackShadowTargetConfig,
 } from '../src/feedback-shadow-launcher.ts'
 import { saveShadowRunState } from '../src/shadow-run-state.ts'
+import { hashTree } from '../src/hash.ts'
 
 const signalId = '1'.repeat(64)
 const draftId = '2'.repeat(64)
@@ -180,6 +181,94 @@ describe('FeedbackShadowLauncher', () => {
     await expect(launcher.launch(signalId, fixture.target.id))
       .rejects.toThrow('exists without a durable journal')
     expect(jobs.starts).toHaveLength(1)
+  })
+
+  it('launches an exact qualified Case Pack only through a predeclared monitored run target', async () => {
+    const fixture = await setup()
+    const jobs = fakeJobs()
+    const runner = vi.fn(async (invocation) => {
+      await mkdir(invocation.outputDir)
+      const now = '2026-08-17T00:00:00.000Z'
+      await saveShadowRunState(invocation.outputDir, {
+        schemaVersion: 1,
+        runId: invocation.outputDir.split('/').at(-1)!,
+        phase: 'complete',
+        startedAt: now,
+        updatedAt: now,
+        identity: {
+          baseTreeHash: artifact.treeHash,
+          casePackHash: '6'.repeat(64),
+          dshRevision: '7'.repeat(40),
+          evaluatorVersion: 'qualified-fixture-v1',
+          modelConfigHash: '8'.repeat(64),
+          modelRoute: 'fixture',
+          skillName: artifact.name,
+          feedbackDraftId: draftId,
+        },
+        outcome: {
+          kind: 'complete',
+          reportPath: join(invocation.outputDir, 'report.json'),
+          summary: 'review',
+        },
+      })
+      return {
+        status: 'complete' as const,
+        reportPath: join(invocation.outputDir, 'report.json'),
+        summary: 'review',
+      }
+    })
+    const launcher = new FeedbackShadowLauncher({
+      targets: [],
+      monitoredTargets: [{
+        id: fixture.target.id,
+        skill: fixture.target.skill,
+        runRoot: fixture.target.runRoot,
+      }],
+      supervisorRunRoots: [fixture.runRoot],
+      drafts: () => fixture.drafts,
+      source: fixture.source,
+      runner,
+      modelIdentity: () => 'fixed-route-v1',
+    })
+    launcher.attachJobs(jobs.registry)
+
+    const exactTarget = { ...fixture.target, casePackHash: await hashTree(fixture.casePackDir) }
+    const launched = await launcher.launchExact(signalId, exactTarget)
+    const duplicate = await launcher.launchExact(signalId, exactTarget)
+    expect(duplicate).toEqual(launched)
+    expect(jobs.starts).toHaveLength(1)
+    await jobs.hooks[0]!.done
+    const terminal = await launcher.launchExact(signalId, exactTarget)
+
+    expect(launched).toMatchObject({
+      action: 'start-shadow',
+      targetId: fixture.target.id,
+      runStatus: 'scheduled',
+    })
+    expect(runner).toHaveBeenCalledWith(expect.objectContaining({
+      casePackDir: await realpath(fixture.casePackDir),
+      outputDir: join(await realpath(fixture.runRoot), launched.launchId),
+    }))
+    expect(terminal).toMatchObject({ runStatus: 'complete' })
+    expect(terminal).not.toHaveProperty('jobId')
+    expect(runner).toHaveBeenCalledOnce()
+    await expect(launcher.scan()).resolves.toMatchObject({
+      warningCount: 0,
+      runs: [{ launchId: launched.launchId, targetId: fixture.target.id }],
+    })
+    await expect(launcher.launchExact(signalId, {
+      ...exactTarget,
+      runRoot: join(fixture.root, 'unconfigured-run-root'),
+    })).rejects.toThrow('does not match its configured run root')
+    await expect(launcher.launchExact(signalId, {
+      ...exactTarget,
+      casePackHash: 'invalid',
+    })).rejects.toThrow('hash must be a full 64-character id')
+    await expect(launcher.launchExact(signalId, {
+      ...exactTarget,
+      casePackHash: 'f'.repeat(64),
+    })).rejects.toThrow('does not match its qualified hash')
+    expect(runner).toHaveBeenCalledOnce()
   })
 })
 

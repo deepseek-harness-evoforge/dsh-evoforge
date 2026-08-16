@@ -9,14 +9,23 @@ import type { EvolutionRemoteClient } from '../../src/client/remote.ts'
 const signalId = '8'.repeat(64)
 const draftId = 'e'.repeat(64)
 const launchId = 'd'.repeat(64)
-const calls = { author: 0, approve: 0, reject: 0 }
+const qualifiedMode = new URLSearchParams(window.location.search).has('qualified')
+const calls = { author: 0, approve: 0, reject: 0, shadow: 0 }
+const runs: Array<{
+  launchId: string
+  targetId: string
+  skillName: string
+  phase: 'prepared'
+  startedAt: string
+  updatedAt: string
+}> = []
 
 const draft = {
   id: draftId,
   launchId,
   targetId: 'plugin-delivery',
   skillName: 'build-dsh-plugin',
-  status: 'draft-ready' as const,
+  status: qualifiedMode ? 'qualified' as const : 'draft-ready' as const,
   createdAt: '2026-08-17T00:00:00.000Z',
   updatedAt: '2026-08-17T00:00:01.000Z',
   cost: { modelCalls: 1 as const, inputTokens: 100, outputTokens: 50 },
@@ -28,6 +37,13 @@ const remote: EvolutionRemoteClient = {
     schemaVersion: 1,
     recovery: { available: false },
     automaticPromotion: { enabled: false, skills: [] },
+    feedbackShadow: {
+      available: true,
+      warningCount: 0,
+      signals: [],
+      targets: [],
+      runs,
+    },
     evaluatorAuthoring: {
       available: true,
       warningCount: 0,
@@ -52,6 +68,7 @@ const remote: EvolutionRemoteClient = {
       { path: 'search/evidence.md', content: 'independent observable\n' },
     ],
     limitations: ['inactive until exact-hash human qualification'],
+    qualifiedShadowAvailable: true,
   }),
   authorEvaluator: (selectedSignal, selectedTarget) => {
     if (selectedSignal !== signalId || selectedTarget !== 'plugin-delivery') throw new Error('wrong author selection')
@@ -91,6 +108,27 @@ const remote: EvolutionRemoteClient = {
       draftStatus: 'rejected',
     })
   },
+  startEvaluatorShadow: (selectedDraft) => {
+    if (!qualifiedMode || selectedDraft !== draftId) throw new Error('wrong qualified Shadow selection')
+    calls.shadow += 1
+    if (runs.length === 0) runs.push({
+      launchId: '9'.repeat(64),
+      targetId: 'plugin-delivery',
+      skillName: 'build-dsh-plugin',
+      phase: 'prepared',
+      startedAt: '2026-08-17T00:00:02.000Z',
+      updatedAt: '2026-08-17T00:00:02.000Z',
+    })
+    return ok({
+      schemaVersion: 1,
+      action: 'start-shadow',
+      launchId: '9'.repeat(64),
+      targetId: 'plugin-delivery',
+      skillName: 'build-dsh-plugin',
+      runStatus: 'scheduled',
+      jobId: 'evolution-3',
+    })
+  },
   review: () => Promise.reject(new Error('not used')),
   pause: () => Promise.reject(new Error('not used')),
   resume: () => Promise.reject(new Error('not used')),
@@ -115,12 +153,14 @@ const labels: Record<string, string> = {
   'status.off': 'Off',
   'section.evaluators': 'Evaluator drafts',
   'section.evaluatorDetail': 'Evaluator qualification review',
+  'section.runs': 'Recent Shadow runs',
   'section.reviews': 'Reviews',
   'empty.reviews': 'No reviews',
   'action.refresh': 'Refresh',
   'action.authorEvaluator': 'Author Evaluator',
   'action.inspectEvaluator': 'Inspect Evaluator',
   'action.approveEvaluator': 'Qualify Evaluator',
+  'action.startQualifiedShadow': 'Start Qualified Shadow',
   'action.reject': 'Reject',
   'action.back': 'Back',
   'action.cancel': 'Cancel',
@@ -132,6 +172,7 @@ const labels: Record<string, string> = {
   'label.tokens': 'Tokens',
   'confirm.authorEvaluator': 'Paid disclosure confirmation',
   'confirm.approveEvaluator': 'Execute generated code in sealed qualification?',
+  'confirm.qualifiedShadow': 'Start paid Qualified Shadow?',
   'confirm.rejectEvaluator': 'Reject without execution?',
   'notice.done': 'Done',
   'error.prefix': 'Error: ',

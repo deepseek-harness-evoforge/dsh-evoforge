@@ -89,6 +89,7 @@ export const Config: Schema<Config> = z.object({
     skill: z.string().required(),
     root: z.string().required(),
     dshRevision: z.string().required(),
+    shadowRunRoot: z.string(),
   })).default([]),
 })
 
@@ -128,6 +129,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   if (evaluatorTargets.length > 0 && config.feedbackDraftRoot === undefined) {
     throw new Error('evaluator targets require feedbackDraftRoot')
   }
+  const evaluatorShadowTargets = evaluatorTargets.flatMap(target =>
+    target.shadowRunRoot === undefined
+      ? []
+      : [{ id: target.id, skill: target.skill, runRoot: target.shadowRunRoot }])
+  if (evaluatorShadowTargets.length > 0 && (config.supervisor === undefined
+    || config.supervisor.runRoots.length === 0)) {
+    throw new Error('qualified evaluator Shadow requires configured supervisor.runRoots')
+  }
   const automaticPolicy = automaticSkills.length === 0
     ? undefined
     : new AutoPromotionPolicy(source, store, automaticSkills)
@@ -151,10 +160,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           return feedbackDraftBuilder.create(signalId, skillName)
         },
       }
-  const feedbackShadow = shadowTargets.length === 0
+  const feedbackShadow = shadowTargets.length === 0 && evaluatorShadowTargets.length === 0
     ? undefined
     : new FeedbackShadowLauncher({
         targets: shadowTargets,
+        monitoredTargets: evaluatorShadowTargets,
         supervisorRunRoots: config.supervisor!.runRoots,
         drafts: () => feedbackDraftBuilder,
         source,
@@ -165,6 +175,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         targets: evaluatorTargets,
         drafts: () => feedbackDraftBuilder,
         source,
+        ...(feedbackShadow === undefined ? {} : { shadow: feedbackShadow }),
       })
   const control = new EvolutionControlPlane({
     store,

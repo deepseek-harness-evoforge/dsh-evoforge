@@ -31,7 +31,7 @@ export interface EvolutionControlPlaneModules {
   readonly outcomes?: Pick<DeliveryOutcomeStore, 'summarize'>
   readonly feedback?: Pick<FeedbackSignalStore, 'list' | 'summarize'>
   readonly feedbackShadow?: Pick<FeedbackShadowLauncher, 'available' | 'targets' | 'scan' | 'launch'>
-  readonly evaluatorDrafts?: Pick<EvaluatorDraftInbox, 'available' | 'targets' | 'scan' | 'get' | 'author' | 'approve' | 'reject'>
+  readonly evaluatorDrafts?: Pick<EvaluatorDraftInbox, 'available' | 'targets' | 'scan' | 'get' | 'author' | 'approve' | 'reject' | 'startShadow'>
 }
 
 /** A structured adapter surface that delegates to the same owners as Commands. */
@@ -221,12 +221,13 @@ export class EvolutionControlPlane {
 
   async evaluatorDraft(id: string): Promise<EvolutionEvaluatorDraftDetail> {
     const draft = await this.requireEvaluatorDrafts().get(id)
-    const { files, limitations, decision, qualification, reason, ...view } = draft
+    const { files, limitations, qualifiedShadowAvailable, decision, qualification, reason, ...view } = draft
     return {
       schemaVersion: 1,
       draft: { ...view, cost: { ...view.cost } },
       files: files.map(file => ({ ...file })),
       limitations: [...limitations],
+      qualifiedShadowAvailable,
       ...(decision === undefined ? {} : { decision: { ...decision } }),
       ...(qualification === undefined ? {} : { qualification: { ...qualification } }),
       ...(reason === undefined ? {} : { reason }),
@@ -243,6 +244,10 @@ export class EvolutionControlPlane {
 
   async rejectEvaluator(id: string, note: string): Promise<EvolutionActionReceipt> {
     return this.requireEvaluatorDrafts().reject(id, note)
+  }
+
+  async startEvaluatorShadow(id: string): Promise<EvolutionActionReceipt> {
+    return this.requireEvaluatorDrafts().startShadow(id)
   }
 
   private requireReview(): NonNullable<EvolutionControlPlaneModules['review']> {

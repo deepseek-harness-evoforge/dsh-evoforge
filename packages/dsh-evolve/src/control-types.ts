@@ -131,6 +131,7 @@ export interface EvolutionEvaluatorDraftDetail {
   readonly draft: EvolutionEvaluatorDraftView
   readonly files: readonly { readonly path: string; readonly content: string }[]
   readonly limitations: readonly string[]
+  readonly qualifiedShadowAvailable: boolean
   readonly decision?: {
     readonly actor: 'human'
     readonly note: string

@@ -21,6 +21,7 @@ import { readPrivateFeedbackCaseDraft } from './feedback-case-draft.ts'
 
 export interface ShadowOptions {
   casePackDir: string
+  expectedCasePackHash?: string
   outputDir: string
   resume?: boolean
   signal?: AbortSignal
@@ -110,6 +111,9 @@ export async function runShadow(options: ShadowOptions): Promise<
         `Human correction:\n${feedbackDraft.sample.correction}`,
       ].join('\n\n')
   const casePackHash = await hashTree(casePackDir)
+  if (options.expectedCasePackHash !== undefined && casePackHash !== options.expectedCasePackHash) {
+    throw new Error('Shadow Case Pack does not match the expected qualified hash')
+  }
   const modelBaseUrl = requireEnvironment('DSH_EVOLVE_MODEL_BASE_URL')
   const modelRoute = requireEnvironment('DSH_EVOLVE_MODEL_NAME')
   const apiKey = process.env.DSH_EVOLVE_MODEL_API_KEY

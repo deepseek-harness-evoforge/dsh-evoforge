@@ -49,11 +49,16 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
         }],
         ...(enabled
           ? {
+              supervisor: {
+                runRoots: [join(runtimeRoot, 'qualified-shadow-runs')],
+                scanIntervalMs: 60_000,
+              },
               evaluatorTargets: [{
                 id: 'stable-skill-fix',
                 skill: 'stable-evolved-skill',
                 root: join(runtimeRoot, 'private-evaluators'),
                 dshRevision: '47f943859bef60e4160492346772ded9b24f765a',
+                shadowRunRoot: join(runtimeRoot, 'qualified-shadow-runs'),
               }],
             }
           : {}),
@@ -214,6 +219,208 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
       await new Promise<void>((resolveClose, rejectClose) => server.close(error => error ? rejectClose(error) : resolveClose()))
     }
   })
+
+  it('hands a generated Qualified Pack to the existing real DSH Shadow only after a new explicit action', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-qualified-shadow-'))
+    temporaryRoots.push(root)
+    const repository = join(root, 'source')
+    const revision = await commitSingleFileSkill(repository, [
+      '# Develop a DSH Plugin',
+      '',
+      'For Web or GUI work, component tests and screenshots are sufficient.',
+    ].join('\n'))
+    const skillPath = join(repository, 'skills', 'stable-evolved-skill', 'SKILL.md')
+    const originalSkill = await readFile(skillPath, 'utf8')
+    const correctedSkill = originalSkill.replace(
+      'component tests and screenshots are sufficient.',
+      'verify the real flow in a controlled browser, refresh once, and inspect the visible failure path.',
+    )
+    const evaluatorSource = (await readFile(
+      join(suiteRoot, 'examples', 'case-packs', 'browser-e2e-guidance-assembled', 'final-test', 'evaluator.mjs'),
+      'utf8',
+    )).replaceAll('browser-e2e-baseline', 'stable-evolved-skill')
+    const sessionsRoot = join(root, 'sessions')
+    const feedbackDraftRoot = join(root, 'private-feedback')
+    const evaluatorRoot = join(root, 'private-evaluators')
+    const shadowRunRoot = join(root, 'qualified-shadow-runs')
+    await mkdir(shadowRunRoot)
+    const modelRequests: string[] = []
+    const server = createServer(async (request, response) => {
+      const chunks: Buffer[] = []
+      for await (const chunk of request) chunks.push(Buffer.from(chunk))
+      const payload = JSON.parse(Buffer.concat(chunks).toString('utf8')) as {
+        messages?: Array<{ role?: string; content?: string }>
+      }
+      const system = payload.messages?.find(message => message.role === 'system')?.content ?? ''
+      const authoring = system.includes('Author one deterministic regression evaluator')
+      modelRequests.push(authoring ? 'author' : 'proposer')
+      response.setHeader('content-type', 'application/json')
+      response.end(JSON.stringify({
+        choices: [{
+          message: {
+            content: JSON.stringify(authoring
+              ? {
+                  searchEvidence: '# Evidence\n\nRun a real DSH Skill invocation and inspect the model-visible history.\n',
+                  knownCorrectionSkill: correctedSkill,
+                  evaluatorSource,
+                }
+              : {
+                  claim: 'Require controlled browser verification for GUI work',
+                  files: [{ path: 'SKILL.md', content: correctedSkill }],
+                }),
+          },
+        }],
+        usage: authoring
+          ? { prompt_tokens: 1_000, completion_tokens: 1_200 }
+          : { prompt_tokens: 500, completion_tokens: 200 },
+      }))
+    })
+    await new Promise<void>(resolveListen => server.listen(0, '127.0.0.1', resolveListen))
+    const address = server.address()
+    if (!address || typeof address === 'string') throw new Error('qualified Shadow model server did not bind')
+    const previousBase = process.env.DSH_EVOLVE_MODEL_BASE_URL
+    const previousModel = process.env.DSH_EVOLVE_MODEL_NAME
+    const previousDshSource = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
+    process.env.DSH_EVOLVE_MODEL_BASE_URL = `http://127.0.0.1:${address.port}/v1`
+    process.env.DSH_EVOLVE_MODEL_NAME = 'fixed-qualified-shadow-model'
+    process.env.DSH_EVOLVE_DSH_SOURCE_DIR = dshSourceDir
+
+    const ctx = await bootStorage(await writeStorageConfig(root))
+    const adapter = await installAgentRuntime(ctx, sessionsRoot)
+    try {
+      await ctx.plugin(EvolvePlugin, {
+        cacheRoot: join(root, 'cache'),
+        feedbackDraftRoot,
+        sources: [{
+          name: 'stable-evolved-skill',
+          repository,
+          path: 'skills/stable-evolved-skill',
+        }],
+        supervisor: { runRoots: [shadowRunRoot], scanIntervalMs: 60_000 },
+        evaluatorTargets: [{
+          id: 'stable-skill-fix',
+          skill: 'stable-evolved-skill',
+          root: evaluatorRoot,
+          dshRevision: '47f943859bef60e4160492346772ded9b24f765a',
+          shadowRunRoot,
+        }],
+      })
+      const packages = (path: string) => pathToFileURL(
+        join(dshSourceDir, 'packages', path, 'lib', 'index.js'),
+      ).href
+      const [commands, messageFeedbackModule, jobsModule] = await Promise.all([
+        import(packages('interaction/commands')),
+        import(packages('feedback/message-feedback')),
+        import(packages('jobs/jobs-local')),
+      ])
+      await ctx.plugin(commands.default)
+      await ctx.plugin(messageFeedbackModule.default, { maxNoteBytes: 1_024 })
+      await ctx.plugin(jobsModule.default)
+      const store = ctx.get('evoforge.evolution') as EvolutionStore
+      const feedback = ctx.get('messageFeedback') as {
+        put(request: {
+          sessionId: string
+          messageId: string
+          rating: 'negative'
+          note: string
+          ifVersion: null
+        }): Promise<{ ok: boolean }>
+      }
+      const generation = (await store.publishGeneration(generationInput(revision))).generation
+      await store.promoteGeneration(generation.id)
+      const agent = await createAndRunAgent(
+        ctx,
+        'qualified-shadow-session',
+        root,
+        undefined,
+        '/stable-evolved-skill fix the missing real browser verification',
+      )
+      const assistant = agent.session.events.find(
+        (event: { type: string }) => event.type === 'assistant/message',
+      ) as { data: { message: { id: string } } } | undefined
+      if (assistant === undefined) throw new Error('assistant message fixture missing')
+      await feedback.put({
+        sessionId: String(agent.session.header.id),
+        messageId: assistant.data.message.id,
+        rating: 'negative',
+        note: 'Require real controlled-browser verification.',
+        ifVersion: null,
+      })
+      await waitForEvolutionStatus(ctx, agent, 'Explicit feedback signals: 1 retained (1 active selection)')
+      const feedbackList = await ctx.commands.execute(agent, '/evolve feedback', new AbortController().signal)
+      const signalId = /^- ([a-f0-9]{64}) /m.exec(feedbackList?.result.text ?? '')?.[1]
+      if (signalId === undefined) throw new Error('feedback signal id missing')
+      const normalRequests = adapter.requests.length
+
+      await ctx.commands.execute(
+        agent,
+        `/evolve feedback ${signalId} author stable-skill-fix`,
+        new AbortController().signal,
+      )
+      const evaluatorList = await waitForCommandText(ctx, agent, '/evolve evaluator', '[draft-ready]')
+      const draftId = /^- ([a-f0-9]{64}) \[draft-ready\]/m.exec(evaluatorList)?.[1]
+      if (draftId === undefined) throw new Error('evaluator draft id missing')
+      expect(modelRequests).toEqual(['author'])
+      expect(adapter.requests).toHaveLength(normalRequests)
+
+      const qualified = await ctx.commands.execute(
+        agent,
+        `/evolve evaluator ${draftId} approve independent real-DSH semantics reviewed`,
+        new AbortController().signal,
+      )
+      expect(qualified?.result).toMatchObject({
+        kind: 'success',
+        text: expect.stringContaining('Qualified Case Pack published'),
+      })
+      expect(modelRequests).toEqual(['author'])
+      const detail = await ctx.commands.execute(
+        agent,
+        `/evolve evaluator ${draftId}`,
+        new AbortController().signal,
+      )
+      expect(detail?.result.text).toContain(`/evolve evaluator ${draftId} shadow`)
+
+      const started = await ctx.commands.execute(
+        agent,
+        `/evolve evaluator ${draftId} shadow`,
+        new AbortController().signal,
+      )
+      expect(started?.result).toMatchObject({
+        kind: 'success',
+        text: expect.stringContaining('submitted as native Job'),
+      })
+      const terminal = await waitForCommandText(
+        ctx,
+        agent,
+        `/evolve evaluator ${draftId} shadow`,
+        'durable status',
+        30_000,
+      )
+      expect(terminal).toContain('durable status complete')
+      const review = await waitForCommandText(
+        ctx,
+        agent,
+        '/evolve review',
+        'Pending evolution reviews: 1',
+        30_000,
+      )
+
+      expect(review).toContain('stable-evolved-skill')
+      expect(modelRequests).toEqual(['author', 'proposer'])
+      expect(adapter.requests).toHaveLength(normalRequests)
+      expect(await readFile(skillPath, 'utf8')).toBe(originalSkill)
+      expect(store.getActiveGeneration()?.id).toBe(generation.id)
+    } finally {
+      if (previousBase === undefined) delete process.env.DSH_EVOLVE_MODEL_BASE_URL
+      else process.env.DSH_EVOLVE_MODEL_BASE_URL = previousBase
+      if (previousModel === undefined) delete process.env.DSH_EVOLVE_MODEL_NAME
+      else process.env.DSH_EVOLVE_MODEL_NAME = previousModel
+      if (previousDshSource === undefined) delete process.env.DSH_EVOLVE_DSH_SOURCE_DIR
+      else process.env.DSH_EVOLVE_DSH_SOURCE_DIR = previousDshSource
+      await ctx.fiber.dispose()
+      await new Promise<void>((resolveClose, rejectClose) => server.close(error => error ? rejectClose(error) : resolveClose()))
+    }
+  }, 60_000)
 
   it('auto-promotes only an allowlisted append-only clear win after late native Jobs composition', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-auto-promote-'))
@@ -1362,8 +1569,9 @@ async function waitForCommandText(
   agent: object,
   command: string,
   expected: string,
+  timeoutMs = 5_000,
 ): Promise<string> {
-  const deadline = Date.now() + 5_000
+  const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     const execution = await ctx.commands.execute(agent, command, new AbortController().signal)
     const text = execution?.result.text ?? ''

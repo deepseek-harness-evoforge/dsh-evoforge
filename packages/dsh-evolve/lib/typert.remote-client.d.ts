@@ -19,6 +19,7 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     resume: () => Promise<RemoteResult<EvolutionActionReceipt>>
     review: (id: string) => Promise<RemoteResult<EvolutionReviewDetail>>
     rollback: () => Promise<RemoteResult<EvolutionActionReceipt>>
+    startEvaluatorShadow: (id: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     startFeedbackShadow: (signalId: string, targetId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
   }
   interface TypertRemoteMap {
@@ -34,6 +35,7 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     'evoforgeEvolution/resume': () => Promise<RemoteResult<EvolutionActionReceipt>>
     'evoforgeEvolution/review': (id: string) => Promise<RemoteResult<EvolutionReviewDetail>>
     'evoforgeEvolution/rollback': () => Promise<RemoteResult<EvolutionActionReceipt>>
+    'evoforgeEvolution/startEvaluatorShadow': (id: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     'evoforgeEvolution/startFeedbackShadow': (signalId: string, targetId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
   }
   interface TypertRemoteNamespaceMap {

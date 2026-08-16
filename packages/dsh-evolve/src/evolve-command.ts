@@ -15,7 +15,7 @@ import type { FeedbackCaseDraftBuilder } from './feedback-case-draft.ts'
 import type { FeedbackShadowLauncher } from './feedback-shadow-launcher.ts'
 import type { EvaluatorDraftInbox } from './evaluator-draft-inbox.ts'
 
-const USAGE = 'Usage: /evolve [status|feedback [<signal-id> [draft <skill>|shadow <target>|author <evaluator-target>]]|evaluator [<draft-id> [approve|reject <note>]]|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]'
+const USAGE = 'Usage: /evolve [status|feedback [<signal-id> [draft <skill>|shadow <target>|author <evaluator-target>]]|evaluator [<draft-id> [shadow|approve|reject <note>]]|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]'
 const generationIdPattern = /^[a-f0-9]{64}$/
 
 export interface EvolutionCommandModules {
@@ -26,7 +26,7 @@ export interface EvolutionCommandModules {
   readonly feedback?: Pick<FeedbackSignalStore, 'list' | 'summarize'>
   readonly feedbackDraft?: Pick<FeedbackCaseDraftBuilder, 'create'>
   readonly feedbackShadow?: Pick<FeedbackShadowLauncher, 'launch'>
-  readonly evaluatorDrafts?: Pick<EvaluatorDraftInbox, 'author' | 'scan' | 'get' | 'approve' | 'reject'>
+  readonly evaluatorDrafts?: Pick<EvaluatorDraftInbox, 'author' | 'scan' | 'get' | 'approve' | 'reject' | 'startShadow'>
 }
 
 /** Register the optional human control plane without adding a model Tool. */
@@ -157,6 +157,21 @@ export async function executeEvolutionCommand(
         ].join('\n'),
       }
     }
+    const evaluatorShadowAction = /^evaluator\s+([a-f0-9]{64})\s+shadow$/u.exec(input)
+    if (evaluatorShadowAction?.[1] !== undefined) {
+      if (evaluatorDrafts === undefined) return evaluatorDraftsUnavailable()
+      const launched = await evaluatorDrafts.startShadow(evaluatorShadowAction[1])
+      return {
+        kind: 'success',
+        text: launched.jobId === undefined
+          ? `Qualified Shadow ${launched.launchId} has durable status ${launched.runStatus}. No paid request was repeated.`
+          : [
+              `Qualified Shadow ${launched.launchId} submitted as native Job ${launched.jobId}.`,
+              'This explicit action authorized one potentially paid proposer request and disclosure of the bounded private correction.',
+              'It does not modify a Skill or authorize Promotion.',
+            ].join('\n'),
+      }
+    }
     const evaluatorAction = /^evaluator\s+([a-f0-9]{64})(?:\s+(approve|reject)\s+([\s\S]+))?$/u.exec(input)
     if (evaluatorAction?.[1] !== undefined) {
       if (evaluatorDrafts === undefined) return evaluatorDraftsUnavailable()
@@ -179,6 +194,9 @@ export async function executeEvolutionCommand(
                   `Approve exact hash for sealed qualification: /evolve evaluator ${draft.id} approve <note>`,
                   `Reject: /evolve evaluator ${draft.id} reject <note>`,
                 ]
+              : [],
+            ...draft.status === 'qualified' && draft.qualifiedShadowAvailable
+              ? [`Start one explicit paid Shadow: /evolve evaluator ${draft.id} shadow`]
               : [],
           ].join('\n'),
         }

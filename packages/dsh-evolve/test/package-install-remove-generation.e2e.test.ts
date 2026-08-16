@@ -115,6 +115,10 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-evolve package boundar
         config: {
           cacheRoot: join(root, 'git-skill-cache'),
           feedbackDraftRoot: join(root, 'private-feedback-drafts'),
+          supervisor: {
+            runRoots: [join(root, 'qualified-shadow-runs')],
+            scanIntervalMs: 60_000,
+          },
           sources: [{
             name: 'build-dsh-plugin',
             repository: skillRepository,
@@ -125,6 +129,7 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-evolve package boundar
             skill: 'build-dsh-plugin',
             root: join(root, 'private-evaluator-drafts'),
             dshRevision: pinnedDshRevision,
+            shadowRunRoot: join(root, 'qualified-shadow-runs'),
           }],
         },
       },

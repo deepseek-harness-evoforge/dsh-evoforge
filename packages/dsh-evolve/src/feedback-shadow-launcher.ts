@@ -20,6 +20,16 @@ export interface FeedbackShadowTargetConfig {
   readonly runRoot: string
 }
 
+export interface FeedbackShadowMonitoredTargetConfig {
+  readonly id: string
+  readonly skill: string
+  readonly runRoot: string
+}
+
+export interface FeedbackShadowExactTargetConfig extends FeedbackShadowTargetConfig {
+  readonly casePackHash: string
+}
+
 export interface FeedbackShadowTargetView {
   readonly id: string
   readonly skillName: string
@@ -51,6 +61,7 @@ export interface FeedbackShadowLaunchReceipt {
 
 interface FeedbackShadowLauncherOptions {
   readonly targets: readonly FeedbackShadowTargetConfig[]
+  readonly monitoredTargets?: readonly FeedbackShadowMonitoredTargetConfig[]
   readonly supervisorRunRoots: readonly string[]
   readonly drafts: () => Pick<FeedbackCaseDraftBuilder, 'create'> | undefined
   readonly source: Pick<GitSkillSource, 'resolveArtifact'>
@@ -61,6 +72,7 @@ interface FeedbackShadowLauncherOptions {
 /** Explicit paid bridge from one exact feedback correction to existing Shadow evidence. */
 export class FeedbackShadowLauncher {
   private readonly targetsById = new Map<string, FeedbackShadowTargetConfig>()
+  private readonly runTargetsById = new Map<string, FeedbackShadowMonitoredTargetConfig>()
   private readonly drafts: FeedbackShadowLauncherOptions['drafts']
   private readonly source: FeedbackShadowLauncherOptions['source']
   private readonly runner: NonNullable<FeedbackShadowLauncherOptions['runner']>
@@ -69,35 +81,53 @@ export class FeedbackShadowLauncher {
   private jobs: Pick<JobRegistry, 'start'> | undefined
 
   constructor(options: FeedbackShadowLauncherOptions) {
-    if (options.targets.length === 0 || options.targets.length > MAX_TARGETS) {
-      throw new Error(`feedback Shadow requires between 1 and ${MAX_TARGETS} targets`)
-    }
     const supervisorRoots = new Set(options.supervisorRunRoots.map(path => resolve(path)))
-    const targetRoots = new Set<string>()
-    for (const input of options.targets) {
+    const targetRoots = new Map<string, string>()
+    const registerRunTarget = (input: FeedbackShadowMonitoredTargetConfig) => {
       if (!TARGET_ID.test(input.id) || !TARGET_ID.test(input.skill)) {
         throw new Error(`invalid feedback Shadow target '${input.id}'`)
       }
+      if (!isAbsolute(input.runRoot)) {
+        throw new Error(`feedback Shadow target '${input.id}' run root must be absolute`)
+      }
+      const runRoot = resolve(input.runRoot)
+      if (!supervisorRoots.has(runRoot)) {
+        throw new Error(`feedback Shadow target '${input.id}' must use one configured supervisor run root`)
+      }
+      const existing = this.runTargetsById.get(input.id)
+      if (existing !== undefined) {
+        if (existing.skill !== input.skill || existing.runRoot !== runRoot) {
+          throw new Error(`feedback Shadow target '${input.id}' conflicts with its monitored run target`)
+        }
+        return existing
+      }
+      const rootOwner = targetRoots.get(runRoot)
+      if (rootOwner !== undefined) {
+        throw new Error(`feedback Shadow targets '${rootOwner}' and '${input.id}' must use unique run roots`)
+      }
+      const target = Object.freeze({ id: input.id, skill: input.skill, runRoot })
+      targetRoots.set(runRoot, input.id)
+      this.runTargetsById.set(input.id, target)
+      return target
+    }
+    for (const input of options.targets) {
       if (!isAbsolute(input.casePackDir) || !isAbsolute(input.runRoot)) {
         throw new Error(`feedback Shadow target '${input.id}' paths must be absolute`)
       }
       if (this.targetsById.has(input.id)) {
         throw new Error(`duplicate feedback Shadow target '${input.id}'`)
       }
-      const runRoot = resolve(input.runRoot)
-      if (!supervisorRoots.has(runRoot)) {
-        throw new Error(`feedback Shadow target '${input.id}' must use one configured supervisor run root`)
-      }
-      if (targetRoots.has(runRoot)) {
-        throw new Error(`feedback Shadow target '${input.id}' must have a unique supervisor run root`)
-      }
-      targetRoots.add(runRoot)
+      const monitored = registerRunTarget(input)
       this.targetsById.set(input.id, Object.freeze({
         id: input.id,
         skill: input.skill,
         casePackDir: resolve(input.casePackDir),
-        runRoot,
+        runRoot: monitored.runRoot,
       }))
+    }
+    for (const input of options.monitoredTargets ?? []) registerRunTarget(input)
+    if (this.runTargetsById.size === 0 || this.runTargetsById.size > MAX_TARGETS) {
+      throw new Error(`feedback Shadow requires between 1 and ${MAX_TARGETS} observed targets`)
     }
     this.drafts = options.drafts
     this.source = options.source
@@ -125,9 +155,43 @@ export class FeedbackShadowLauncher {
   }
 
   async launch(signalId: string, targetId: string): Promise<FeedbackShadowLaunchReceipt> {
-    if (!CONTENT_ID.test(signalId)) throw new Error('feedback signal id must be a full 64-character id')
     const target = this.targetsById.get(targetId)
     if (target === undefined) throw new Error(`unknown feedback Shadow target '${targetId}'`)
+    return this.launchTarget(signalId, target)
+  }
+
+  async launchExact(
+    signalId: string,
+    input: FeedbackShadowExactTargetConfig,
+  ): Promise<FeedbackShadowLaunchReceipt> {
+    if (!CONTENT_ID.test(input.casePackHash)) {
+      throw new Error('qualified feedback Shadow Case Pack hash must be a full 64-character id')
+    }
+    const monitored = this.runTargetsById.get(input.id)
+    if (monitored === undefined) throw new Error(`unknown monitored feedback Shadow target '${input.id}'`)
+    if (monitored.skill !== input.skill) {
+      throw new Error(`feedback Shadow target '${input.id}' does not match its configured Skill`)
+    }
+    if (!isAbsolute(input.casePackDir) || !isAbsolute(input.runRoot)) {
+      throw new Error(`feedback Shadow target '${input.id}' paths must be absolute`)
+    }
+    if (resolve(input.runRoot) !== monitored.runRoot) {
+      throw new Error(`feedback Shadow target '${input.id}' does not match its configured run root`)
+    }
+    return this.launchTarget(signalId, Object.freeze({
+      id: input.id,
+      skill: input.skill,
+      casePackDir: resolve(input.casePackDir),
+      runRoot: monitored.runRoot,
+    }), input.casePackHash)
+  }
+
+  private async launchTarget(
+    signalId: string,
+    target: FeedbackShadowTargetConfig,
+    expectedCasePackHash?: string,
+  ): Promise<FeedbackShadowLaunchReceipt> {
+    if (!CONTENT_ID.test(signalId)) throw new Error('feedback signal id must be a full 64-character id')
     const jobs = this.jobs
     if (jobs === undefined) throw new Error('native Jobs is unavailable for feedback Shadow')
     const drafts = this.drafts()
@@ -140,6 +204,9 @@ export class FeedbackShadowLauncher {
     const runRoot = await realpath(target.runRoot)
     const casePackDir = await realpath(target.casePackDir)
     const casePackHash = await hashTree(casePackDir)
+    if (expectedCasePackHash !== undefined && casePackHash !== expectedCasePackHash) {
+      throw new Error('feedback Shadow Case Pack does not match its qualified hash')
+    }
     const draft = await drafts.create(signalId, target.skill)
     const resolvedSkill = await this.source.resolveArtifact(target.skill, draft.draft.target.artifact)
     if (resolvedSkill.artifact.treeHash !== draft.draft.target.artifact.treeHash) {
@@ -148,7 +215,7 @@ export class FeedbackShadowLauncher {
     const launchId = sha256(JSON.stringify({
       signalId,
       draftId: draft.draft.id,
-      targetId,
+      targetId: target.id,
       casePackHash,
       modelIdentity,
       skillTree: resolvedSkill.artifact.treeHash,
@@ -185,6 +252,7 @@ export class FeedbackShadowLauncher {
     const controller = new AbortController()
     const invocation: ShadowOptions = {
       casePackDir,
+      ...(expectedCasePackHash === undefined ? {} : { expectedCasePackHash }),
       feedbackDraftPath: draft.path,
       outputDir,
       resume,
@@ -223,7 +291,7 @@ export class FeedbackShadowLauncher {
   async scan(): Promise<FeedbackShadowScan> {
     const runs: FeedbackShadowRunView[] = []
     let warningCount = 0
-    for (const target of this.targetsById.values()) {
+    for (const target of this.runTargetsById.values()) {
       let root: string
       let entries
       try {

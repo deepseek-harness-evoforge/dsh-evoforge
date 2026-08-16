@@ -376,6 +376,69 @@ describe('EvaluatorDraftInbox', () => {
     },
     45_000,
   )
+
+  it('hands only an unchanged qualified Pack to the existing Feedback Shadow launcher', async () => {
+    const fixture = await setup()
+    const shadowRunRoot = join(fixture.root, 'qualified-shadow-runs')
+    await mkdir(shadowRunRoot)
+    const target = { ...fixture.target, shadowRunRoot }
+    const jobs = fakeJobs()
+    const shadow = {
+      available: vi.fn(() => true),
+      launchExact: vi.fn(async () => ({
+        schemaVersion: 1 as const,
+        action: 'start-shadow' as const,
+        launchId: '9'.repeat(64),
+        targetId: target.id,
+        skillName: target.skill,
+        runStatus: 'scheduled' as const,
+        jobId: 'evolution-shadow-1',
+      })),
+    }
+    const inbox = new EvaluatorDraftInbox({
+      targets: [target],
+      drafts: () => fixture.drafts,
+      source: fixture.source,
+      authorModel: vi.fn(async () => proposal()),
+      qualify: vi.fn(async ({ outputDir }: { outputDir: string }) => {
+        await mkdir(outputDir, { recursive: true })
+        await writeFile(join(outputDir, 'calibration-report.json'), '{}\n')
+        return {
+          status: 'calibrated' as const,
+          reportPath: join(outputDir, 'calibration-report.json'),
+          summary: 'calibrated',
+        }
+      }),
+      modelIdentity: () => 'model-route-v1',
+      shadow,
+    })
+    inbox.attachJobs(jobs.registry)
+    await inbox.author(signalId, target.id)
+    await jobs.hooks[0]!.done
+    const draftId = (await inbox.scan()).drafts[0]!.id
+
+    await expect(inbox.startShadow(draftId)).rejects.toThrow('must be qualified')
+    await inbox.approve(draftId, 'independent semantics reviewed')
+    await expect(inbox.get(draftId)).resolves.toMatchObject({ qualifiedShadowAvailable: true })
+    await expect(inbox.startShadow(draftId)).resolves.toMatchObject({
+      action: 'start-shadow',
+      runStatus: 'scheduled',
+    })
+    expect(shadow.launchExact).toHaveBeenCalledWith(signalId, {
+      id: target.id,
+      skill: target.skill,
+      casePackDir: join(target.root, 'qualified', draftId),
+      casePackHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      runRoot: shadowRunRoot,
+    })
+
+    await writeFile(
+      join(target.root, 'qualified', draftId, 'search', 'evidence.md'),
+      'qualified pack drift\n',
+    )
+    await expect(inbox.startShadow(draftId)).rejects.toThrow('Qualified Case Pack changed')
+    expect(shadow.launchExact).toHaveBeenCalledOnce()
+  })
 })
 
 async function setup(options: { originalSkill?: string } = {}) {

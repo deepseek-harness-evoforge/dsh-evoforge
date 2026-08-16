@@ -80,6 +80,7 @@ const dsh_evolve_evoforgeEvolution_evaluatorDraft_result$schema = z.object({
   'content': z.string().readonly(),
 })).readonly(),
   'limitations': z.array(z.string()).readonly(),
+  'qualifiedShadowAvailable': z.boolean().readonly(),
   'decision': z.union([z.undefined(), z.object({
   'actor': z.literal("human").readonly(),
   'note': z.string().readonly(),
@@ -365,6 +366,24 @@ const dsh_evolve_evoforgeEvolution_review_result$schema = z.object({
 })]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_rollback_result$schema = z.object({
+  'schemaVersion': z.literal(1).readonly(),
+  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("rollback"), z.literal("start-shadow"), z.literal("author-evaluator"), z.literal("approve-evaluator"), z.literal("reject-evaluator")]).readonly(),
+  'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'status': z.union([z.undefined(), z.literal("rejected"), z.literal("approved")]).readonly().optional(),
+  'generationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'previousGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'activeGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'recoveryPaused': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
+  'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("complete"), z.literal("incomplete"), z.literal("scheduled")]).readonly().optional(),
+  'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected"), z.literal("scheduled")]).readonly().optional(),
+})
+const dsh_evolve_evoforgeEvolution_startEvaluatorShadow_parameter_0$schema = z.string()
+const dsh_evolve_evoforgeEvolution_startEvaluatorShadow_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
   'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("rollback"), z.literal("start-shadow"), z.literal("author-evaluator"), z.literal("approve-evaluator"), z.literal("reject-evaluator")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
@@ -713,6 +732,31 @@ export const TYPERT_REMOTE = {
         schema: dsh_evolve_evoforgeEvolution_rollback_result$schema,
       },
       sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":62,"column":3},
+    },
+    {
+      id: 'dsh-evolve#evoforgeEvolution/startEvaluatorShadow',
+      service: 'evoforge.evolutionControl',
+      namespace: 'evoforgeEvolution',
+      method: 'startEvaluatorShadow',
+      invocation: { kind: 'direct' },
+      parameters: [
+        {
+          name: 'id',
+          wire: 'id',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/startEvaluatorShadow:id',
+            schema: dsh_evolve_evoforgeEvolution_startEvaluatorShadow_parameter_0$schema,
+          },
+        },
+      ],
+      result: {
+        mode: 'strict',
+        typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
+        schema: dsh_evolve_evoforgeEvolution_startEvaluatorShadow_result$schema,
+      },
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":101,"column":3},
     },
     {
       id: 'dsh-evolve#evoforgeEvolution/startFeedbackShadow',

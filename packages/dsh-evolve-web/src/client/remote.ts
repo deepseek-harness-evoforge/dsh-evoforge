@@ -21,6 +21,7 @@ export interface EvolutionRemoteClient {
   authorEvaluator(signalId: string, targetId: string): Promise<RemoteResult<EvolutionActionReceipt>>
   approveEvaluator(id: string, note: string): Promise<RemoteResult<EvolutionActionReceipt>>
   rejectEvaluator(id: string, note: string): Promise<RemoteResult<EvolutionActionReceipt>>
+  startEvaluatorShadow(id: string): Promise<RemoteResult<EvolutionActionReceipt>>
 }
 
 /** Turn the Remote result union into the component's ordinary success/error flow. */

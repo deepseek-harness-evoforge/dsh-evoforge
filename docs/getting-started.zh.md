@@ -222,6 +222,7 @@ proposal evidence 和 run journal 不直接复制输入字段。但 proposer 若
 supervisor:
   runRoots:
     - /absolute/path/to/.dsh/evoforge/plugin-delivery-runs
+    - /absolute/path/to/.dsh/evoforge/plugin-delivery-qualified-runs
   scanIntervalMs: 30000
 shadowTargets:
   - id: plugin-delivery
@@ -230,7 +231,8 @@ shadowTargets:
     runRoot: /absolute/path/to/.dsh/evoforge/plugin-delivery-runs
 ```
 
-每个 Target 使用一个已在 `supervisor.runRoots` 中声明的独立 run root；最多 20 个。还必须装配
+每个 Target 使用一个已在 `supervisor.runRoots` 中声明的独立 run root；第二条 root 为后续
+Qualified Shadow 预留。观察 Target 合计最多 20 个。还必须装配
 原生 Jobs、Message Feedback 与 Session Persistence。之后可从 Web 确认，或执行：
 
 ```text
@@ -250,6 +252,7 @@ evaluatorTargets:
     skill: build-dsh-plugin
     root: /absolute/path/to/.dsh/evoforge/private-evaluator-drafts
     dshRevision: 47f943859bef60e4160492346772ded9b24f765a
+    shadowRunRoot: /absolute/path/to/.dsh/evoforge/plugin-delivery-qualified-runs
 ```
 
 `root` 必须是每个 Target 独占的私有 absolute directory，不能是 symlink；`dshRevision` 必须是
@@ -262,13 +265,16 @@ evaluatorTargets:
 /evolve evaluator <64-char-draft-id>
 /evolve evaluator <64-char-draft-id> approve <independent-review-note>
 /evolve evaluator <64-char-draft-id> reject <reason>
+/evolve evaluator <64-char-qualified-draft-id> shadow
 ```
 
 Author 每次逐次确认一次可能付费的请求和 bounded correction/exact Skill 外发，host 固定生成
 manifest 与 known-bad；输出上限 1600 token。结果保持 private/inactive。Approve 是另一项人工
 exact-hash 决策，才允许 generated evaluator 进入 sealed DSH qualification。通过只发布 Qualified
-Case Pack，不启动 Shadow、Candidate 或 Promotion。不确定 provider effect 在重启后不自动重试；
-normal Session、列表、detail 与 qualification 的 proposer token 均为 0。
+Case Pack，不自动启动 Shadow、Candidate 或 Promotion。可选 `shadowRunRoot` 必须是该 Target 独占的
+`supervisor.runRoots` exact 路径；只有 qualified 且 hash 未漂移的 Pack 才能由最后一条命令在新的
+付费/纠正外发确认后进入既有 Shadow。原会话不等待，重复动作复用 durable journal。不确定 provider
+effect 在重启后不自动重试；normal Session、列表、detail 与 qualification 的 proposer token 均为 0。
 
 ### Evolve Web Bundle 装配
 
@@ -328,6 +334,7 @@ Domain 已装配的配置里添加：
     supervisor:
       runRoots:
         - /absolute/path/to/.dsh/evoforge/plugin-delivery-runs
+        - /absolute/path/to/.dsh/evoforge/plugin-delivery-qualified-runs
       scanIntervalMs: 30000
     shadowTargets:
       - id: plugin-delivery
@@ -339,6 +346,7 @@ Domain 已装配的配置里添加：
         skill: build-dsh-plugin
         root: /absolute/path/to/.dsh/evoforge/private-evaluator-drafts
         dshRevision: 47f943859bef60e4160492346772ded9b24f765a
+        shadowRunRoot: /absolute/path/to/.dsh/evoforge/plugin-delivery-qualified-runs
     autoPromote:
       skills:
         - build-dsh-plugin

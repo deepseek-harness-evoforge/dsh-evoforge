@@ -112,6 +112,7 @@ export interface EvolutionEvaluatorDraftDetail {
         readonly content: string;
     }[];
     readonly limitations: readonly string[];
+    readonly qualifiedShadowAvailable: boolean;
     readonly decision?: {
         readonly actor: 'human';
         readonly note: string;

@@ -16,6 +16,10 @@ import { z } from 'zod'
 import { calibrateCasePack, type CasePackCalibrationResult } from './case-pack-calibration.ts'
 import type { FeedbackCaseDraftBuilder } from './feedback-case-draft.ts'
 import type { GitSkillSource } from './git-skill-source.ts'
+import type {
+  FeedbackShadowLauncher,
+  FeedbackShadowLaunchReceipt,
+} from './feedback-shadow-launcher.ts'
 import { hashTree, sha256 } from './hash.ts'
 import { writeDurableJson } from './shadow-run-state.ts'
 
@@ -53,6 +57,7 @@ export interface EvaluatorDraftTargetConfig {
   readonly skill: string
   readonly root: string
   readonly dshRevision: string
+  readonly shadowRunRoot?: string
 }
 
 export type EvaluatorDraftStatus =
@@ -87,6 +92,7 @@ export interface EvaluatorDraftView {
 export interface EvaluatorDraftDetail extends EvaluatorDraftView {
   readonly files: readonly { readonly path: string; readonly content: string }[]
   readonly limitations: readonly string[]
+  readonly qualifiedShadowAvailable: boolean
   readonly decision?: {
     readonly actor: 'human'
     readonly note: string
@@ -146,6 +152,7 @@ interface EvaluatorDraftInboxOptions {
     signal?: AbortSignal
   }) => Promise<CasePackCalibrationResult>
   readonly modelIdentity?: () => string
+  readonly shadow?: Pick<FeedbackShadowLauncher, 'available' | 'launchExact'>
 }
 
 interface EvaluatorRunState {
@@ -199,6 +206,7 @@ export class EvaluatorDraftInbox {
   private readonly authorModel: NonNullable<EvaluatorDraftInboxOptions['authorModel']>
   private readonly qualify: NonNullable<EvaluatorDraftInboxOptions['qualify']>
   private readonly modelIdentity: NonNullable<EvaluatorDraftInboxOptions['modelIdentity']>
+  private readonly shadow: EvaluatorDraftInboxOptions['shadow']
   private readonly active = new Map<string, EvaluatorDraftReceipt>()
   private jobs: Pick<JobRegistry, 'start'> | undefined
 
@@ -217,17 +225,29 @@ export class EvaluatorDraftInbox {
       if (!GIT_OBJECT.test(input.dshRevision)) {
         throw new Error(`evaluator target '${input.id}' must pin an exact DSH revision`)
       }
+      if (input.shadowRunRoot !== undefined
+        && (!isAbsolute(input.shadowRunRoot)
+          || dirname(resolve(input.shadowRunRoot)) === resolve(input.shadowRunRoot))) {
+        throw new Error(`evaluator target '${input.id}' shadow run root must be an absolute non-root path`)
+      }
       if (this.targetsById.has(input.id)) throw new Error(`duplicate evaluator target '${input.id}'`)
       const root = resolve(input.root)
       if (roots.has(root)) throw new Error(`evaluator target '${input.id}' must have a unique owned root`)
       roots.add(root)
-      this.targetsById.set(input.id, Object.freeze({ ...input, root }))
+      this.targetsById.set(input.id, Object.freeze({
+        ...input,
+        root,
+        ...(input.shadowRunRoot === undefined
+          ? {}
+          : { shadowRunRoot: resolve(input.shadowRunRoot) }),
+      }))
     }
     this.drafts = options.drafts
     this.source = options.source
     this.authorModel = options.authorModel ?? requestEvaluatorAuthor
     this.qualify = options.qualify ?? calibrateCasePack
     this.modelIdentity = options.modelIdentity ?? configuredModelIdentity
+    this.shadow = options.shadow
   }
 
   attachJobs(jobs: Pick<JobRegistry, 'start'>): () => void {
@@ -393,6 +413,9 @@ export class EvaluatorDraftInbox {
         'Qualification proves only known-bad fail and known-correction pass for this exact hash.',
         'A Qualified Case Pack cannot modify a Skill, start Shadow, or authorize Promotion.',
       ]),
+      qualifiedShadowAvailable: located.state.phase === 'qualified'
+        && located.target.shadowRunRoot !== undefined
+        && this.shadow?.available() === true,
       ...(located.state.decision === undefined ? {} : { decision: { ...located.state.decision } }),
       ...(located.state.qualification === undefined
         ? {}
@@ -494,6 +517,35 @@ export class EvaluatorDraftInbox {
       },
     })
     return receiptFromState(state, located.target, 'rejected', 'reject-evaluator')
+  }
+
+  async startShadow(draftId: string): Promise<FeedbackShadowLaunchReceipt> {
+    const located = await this.findById(draftId)
+    const state = located.state
+    if (state.phase !== 'qualified' || state.draftId === undefined || state.packHash === undefined) {
+      throw new Error('Evaluator Draft must be qualified before starting Shadow')
+    }
+    if (located.target.shadowRunRoot === undefined) {
+      throw new Error(`evaluator target '${located.target.id}' has no qualified Shadow run root`)
+    }
+    if (this.shadow === undefined || !this.shadow.available()) {
+      throw new Error('native Jobs and private Feedback Case Draft creation are unavailable for qualified Shadow')
+    }
+    const draftDir = join(located.target.root, 'drafts', state.draftId)
+    if (await hashTree(draftDir) !== state.packHash) {
+      throw new Error('Evaluator Draft changed after qualification')
+    }
+    const casePackDir = join(located.target.root, 'qualified', state.draftId)
+    if (await hashTree(casePackDir) !== state.packHash) {
+      throw new Error('Qualified Case Pack changed after publication')
+    }
+    return this.shadow.launchExact(state.identity.signalId, {
+      id: located.target.id,
+      skill: located.target.skill,
+      casePackDir,
+      casePackHash: state.packHash,
+      runRoot: located.target.shadowRunRoot,
+    })
   }
 
   private async runAuthoring(options: {

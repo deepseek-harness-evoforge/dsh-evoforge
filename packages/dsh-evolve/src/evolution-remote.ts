@@ -76,6 +76,10 @@ export class EvolutionRemoteService extends TypertRemoteService {
   rejectEvaluator(id: string, note: string): Promise<EvolutionActionReceipt> {
     return this.control.rejectEvaluator(id, note)
   }
+
+  startEvaluatorShadow(id: string): Promise<EvolutionActionReceipt> {
+    return this.control.startEvaluatorShadow(id)
+  }
 }
 
 export const EVOLUTION_REMOTE_METHODS = [
@@ -92,6 +96,7 @@ export const EVOLUTION_REMOTE_METHODS = [
   'authorEvaluator',
   'approveEvaluator',
   'rejectEvaluator',
+  'startEvaluatorShadow',
 ] as const satisfies readonly (keyof EvolutionRemoteService)[]
 
 type RemoteInitializer = (this: EvolutionRemoteService) => void

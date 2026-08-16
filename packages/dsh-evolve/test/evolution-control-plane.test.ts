@@ -310,10 +310,12 @@ describe('EvolutionControlPlane', () => {
         cost: { modelCalls: 1 as const, inputTokens: 30, outputTokens: 20 },
         files: [{ path: 'final-test/evaluator.mjs', content: 'private bounded source' }],
         limitations: ['inactive'],
+        qualifiedShadowAvailable: true,
       })),
       author: vi.fn(async () => ({ schemaVersion: 1 as const, action: 'author-evaluator' as const })),
       approve: vi.fn(async () => ({ schemaVersion: 1 as const, action: 'approve-evaluator' as const })),
       reject: vi.fn(async () => ({ schemaVersion: 1 as const, action: 'reject-evaluator' as const })),
+      startShadow: vi.fn(async () => ({ schemaVersion: 1 as const, action: 'start-shadow' as const })),
     }
     const control = new EvolutionControlPlane({ store: store(), evaluatorDrafts: evaluatorDrafts as never })
 
@@ -329,12 +331,15 @@ describe('EvolutionControlPlane', () => {
       schemaVersion: 1,
       draft: { id: draftId },
       files: [{ path: 'final-test/evaluator.mjs', content: 'private bounded source' }],
+      qualifiedShadowAvailable: true,
     })
     await control.authorEvaluator('7'.repeat(64), 'plugin-delivery')
     await control.approveEvaluator(draftId, 'reviewed')
     await control.rejectEvaluator(draftId, 'wrong observable')
+    await control.startEvaluatorShadow(draftId)
     expect(evaluatorDrafts.author).toHaveBeenCalledWith('7'.repeat(64), 'plugin-delivery')
     expect(evaluatorDrafts.approve).toHaveBeenCalledWith(draftId, 'reviewed')
     expect(evaluatorDrafts.reject).toHaveBeenCalledWith(draftId, 'wrong observable')
+    expect(evaluatorDrafts.startShadow).toHaveBeenCalledWith(draftId)
   })
 })

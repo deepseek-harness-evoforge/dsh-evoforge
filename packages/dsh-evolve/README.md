@@ -174,8 +174,13 @@ can propose only search evidence, one corrected single-file Skill, and one
 evaluator. The host supplies the exact known-bad Skill, manifest, budgets, and
 pinned DSH revision. Generated code stays private and inactive. A separate human
 exact-hash approval is required before sealed known-bad/known-correction
-qualification; a qualified pack still cannot start Shadow or Promotion. A crash
-or ambiguous transport after durable intent never causes an automatic paid retry.
+qualification; a qualified pack still cannot start Shadow or Promotion without
+a new explicit action. P1.10 optionally binds the Evaluator Target to one existing
+supervisor run root. `/evolve evaluator <id> shadow` rechecks the exact qualified
+hash, then delegates to the existing Feedback Shadow launcher, Jobs, journal,
+calibration, paired Trial, and review path. It never directly creates a Generation
+or Promotion. A crash or ambiguous transport after durable intent never causes
+an automatic paid retry.
 
 This is still pre-alpha. There is no paginated/graphical diff UI, real-task
 false-promotion/false-rollback dataset, release, or production support. Explicit and resident
@@ -201,6 +206,7 @@ Skill that a Generation may activate:
     supervisor:
       runRoots:
         - /absolute/path/to/.dsh/evoforge/plugin-delivery-runs
+        - /absolute/path/to/.dsh/evoforge/plugin-delivery-qualified-runs
       scanIntervalMs: 30000
     shadowTargets:
       - id: plugin-delivery
@@ -212,6 +218,7 @@ Skill that a Generation may activate:
         skill: build-dsh-plugin
         root: /absolute/path/to/.dsh/evoforge/private-evaluator-drafts
         dshRevision: 47f943859bef60e4160492346772ded9b24f765a
+        shadowRunRoot: /absolute/path/to/.dsh/evoforge/plugin-delivery-qualified-runs
     autoPromote:
       skills:
         - build-dsh-plugin
@@ -241,6 +248,10 @@ lists drafts, and `/evolve evaluator <id> approve|reject <note>` records the
 independent human decision. Approval executes generated code only inside the
 sealed runner. Normal Sessions, overview, detail, and approval add zero model
 tokens; author uses at most one request with a fixed 1,600 output-token limit.
+Optional `shadowRunRoot` must exactly match a unique `supervisor.runRoots` entry.
+Only a qualified, unchanged pack may enter `/evolve evaluator <id> shadow`, and
+that separate action authorizes one possibly paid proposer call plus bounded
+correction disclosure without blocking the originating Session.
 
 `supervisor` is optional. When configured, the DSH composition must also load a
 native `ctx.jobs` implementation such as `@deepseek-ai/dsh-jobs-local`. Each
