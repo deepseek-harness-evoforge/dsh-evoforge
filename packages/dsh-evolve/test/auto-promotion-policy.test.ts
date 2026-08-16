@@ -9,6 +9,7 @@ import { GitSkillSource } from '../src/git-skill-source.js'
 import { hashTree } from '../src/hash.js'
 import type { EvolutionStore } from '../src/generation-store.js'
 import type { ReviewCandidate } from '../src/review-inbox.js'
+import type { RetentionEvidenceGate } from '../src/retention-evidence-index.js'
 
 const execFile = promisify(execFileCallback)
 const temporaryRoots: string[] = []
@@ -67,11 +68,43 @@ describe('automatic clear-instruction promotion policy', () => {
       expect(result.reasons.length, reason).toBeGreaterThan(0)
     }
   })
+
+  it('requires retained evidence when the opt-in gate is configured', async () => {
+    const fixture = await policyFixture()
+    const gate: RetentionEvidenceGate = {
+      evaluate: async () => ({
+        status: 'missing' as const,
+        matchedReports: 0,
+        reasons: ['no exact Retention evidence is available'],
+        warnings: [],
+      }),
+    }
+    const policy = new AutoPromotionPolicy(
+      fixture.source,
+      fixture.store,
+      ['stable-skill'],
+      gate,
+    )
+
+    await expect(policy.evaluate(fixture.candidate)).resolves.toMatchObject({
+      eligible: false,
+      reasons: expect.arrayContaining(['no exact Retention evidence is available']),
+    })
+    gate.evaluate = async () => ({
+      status: 'retained' as const,
+      matchedReports: 1,
+      reasons: ['one exact prior Case Pack retained the Candidate capability'],
+      warnings: [],
+    })
+    await expect(policy.evaluate(fixture.candidate)).resolves.toMatchObject({ eligible: true })
+  })
 })
 
 async function policyFixture(): Promise<{
   candidate: ReviewCandidate
   policy: AutoPromotionPolicy
+  source: GitSkillSource
+  store: EvolutionStore
 }> {
   const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-auto-policy-'))
   temporaryRoots.push(root)
@@ -122,7 +155,7 @@ async function policyFixture(): Promise<{
     startedAt: '2026-08-16T00:00:00.000Z',
     evidenceHash: '6'.repeat(64),
   }
-  return { candidate, policy: new AutoPromotionPolicy(source, store, ['stable-skill']) }
+  return { candidate, policy: new AutoPromotionPolicy(source, store, ['stable-skill']), source, store }
 }
 
 function mutate(candidate: ReviewCandidate, update: (copy: ReviewCandidate) => void): ReviewCandidate {

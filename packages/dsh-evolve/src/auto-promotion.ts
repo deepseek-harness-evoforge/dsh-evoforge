@@ -6,6 +6,7 @@ import type { EvolutionStore } from './generation-store.ts'
 import type { GitSkillSource } from './git-skill-source.ts'
 import { hashTree } from './hash.ts'
 import type { ReviewCandidate, ReviewInbox } from './review-inbox.ts'
+import type { RetentionEvidenceGate } from './retention-evidence-index.ts'
 
 export const AUTO_PROMOTION_ACTOR = 'auto-clear-instruction-v1' as const
 const MAX_APPEND_BYTES = 2_048
@@ -24,8 +25,14 @@ export class AutoPromotionPolicy {
   private readonly source: GitSkillSource
   private readonly store: EvolutionStore
   private readonly allowedSkills: ReadonlySet<string>
+  private readonly retention: RetentionEvidenceGate | undefined
 
-  constructor(source: GitSkillSource, store: EvolutionStore, allowedSkills: string[]) {
+  constructor(
+    source: GitSkillSource,
+    store: EvolutionStore,
+    allowedSkills: string[],
+    retention?: RetentionEvidenceGate,
+  ) {
     const normalized = allowedSkills.map(name => name.trim()).filter(Boolean)
     if (normalized.length === 0 || new Set(normalized).size !== normalized.length) {
       throw new Error('automatic promotion requires a non-empty unique Skill allowlist')
@@ -33,6 +40,7 @@ export class AutoPromotionPolicy {
     this.source = source
     this.store = store
     this.allowedSkills = new Set(normalized)
+    this.retention = retention
   }
 
   skills(): string[] {
@@ -41,6 +49,7 @@ export class AutoPromotionPolicy {
 
   async evaluate(candidate: ReviewCandidate): Promise<AutoPromotionPolicyResult> {
     const reasons: string[] = []
+    let retentionPassed = false
     if (!this.allowedSkills.has(candidate.skillName)) reasons.push('Skill is not in the automatic allowlist')
     if (candidate.recommendation !== 'promote') reasons.push('Shadow recommendation is not promote')
     if (!candidate.compositionStable) reasons.push('non-target composition is not explicitly stable')
@@ -55,6 +64,16 @@ export class AutoPromotionPolicy {
     }
     if (candidate.limitations.some(item => !allowedLimitations.has(item))) {
       reasons.push('evidence contains a limitation outside the automatic policy')
+    }
+    if (this.retention !== undefined) {
+      try {
+        const retention = await this.retention.evaluate(candidate)
+        retentionPassed = retention.status === 'retained' && retention.warnings.length === 0
+        if (retention.status !== 'retained') reasons.push(...retention.reasons)
+        if (retention.warnings.length > 0) reasons.push(...retention.warnings)
+      } catch {
+        reasons.push('exact Retention evidence verification failed')
+      }
     }
     if (candidate.changedFiles.length !== 1 || candidate.changedFiles[0] !== 'SKILL.md'
       || candidate.proposal.files.length !== 1 || candidate.proposal.files[0]?.path !== 'SKILL.md') {
@@ -95,7 +114,9 @@ export class AutoPromotionPolicy {
     return {
       eligible: true,
       policyVersion: AUTO_PROMOTION_ACTOR,
-      reasons: ['sealed clear win; append-only instruction change has no protected-effect terms'],
+      reasons: [retentionPassed
+        ? 'sealed clear win; append-only instruction and exact prior capability retained'
+        : 'sealed clear win; append-only instruction change has no protected-effect terms'],
     }
   }
 }
@@ -128,10 +149,10 @@ export class AutoPromotionService {
         continue
       }
       try {
+        const decision = await this.options.policy.evaluate(candidate)
+        if (!decision.eligible) continue
         let generationId = candidate.generationId
         if (candidate.status === 'pending') {
-          const decision = await this.options.policy.evaluate(candidate)
-          if (!decision.eligible) continue
           const approved = await this.options.inbox.approve(
             candidate.id,
             `Automatic policy ${decision.policyVersion}: ${decision.reasons.join('; ')}`,

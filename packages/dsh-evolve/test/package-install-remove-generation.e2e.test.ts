@@ -124,6 +124,8 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-evolve package boundar
     ]
     const installedConfig = join(profileDir, 'installed.cordis.yml')
     const nativeConfig = join(profileDir, 'native.cordis.yml')
+    const retentionRoot = join(root, 'retention-runs')
+    await mkdir(retentionRoot)
     await writeFile(installedConfig, JSON.stringify([
       ...nativeRows,
       {
@@ -148,6 +150,10 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-evolve package boundar
             dshRevision: pinnedDshRevision,
             shadowRunRoot: join(root, 'qualified-shadow-runs'),
           }],
+          autoPromote: {
+            skills: ['build-dsh-plugin'],
+            retentionRoots: [retentionRoot],
+          },
         },
       },
     ], null, 2))

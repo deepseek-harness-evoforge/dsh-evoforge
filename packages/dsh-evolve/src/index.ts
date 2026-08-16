@@ -38,6 +38,7 @@ import {
   EvaluatorDraftInbox,
   type EvaluatorDraftTargetConfig,
 } from './evaluator-draft-inbox.ts'
+import { RetentionEvidenceIndex } from './retention-evidence-index.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -58,6 +59,7 @@ export interface Config {
   }
   autoPromote?: {
     skills: string[]
+    retentionRoots?: string[]
   }
   shadowTargets?: FeedbackShadowTargetConfig[]
   evaluatorTargets?: EvaluatorDraftTargetConfig[]
@@ -77,6 +79,7 @@ export const Config: Schema<Config> = z.object({
   }),
   autoPromote: z.object({
     skills: z.array(z.string()).default([]),
+    retentionRoots: z.array(z.string()).max(20).default([]),
   }),
   shadowTargets: z.array(z.object({
     id: z.string().required(),
@@ -116,10 +119,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     ? undefined
     : new ResidentEvolutionControl(store)
   const automaticSkills = config.autoPromote?.skills ?? []
+  const retentionRoots = config.autoPromote?.retentionRoots ?? []
   const shadowTargets = config.shadowTargets ?? []
   const evaluatorTargets = config.evaluatorTargets ?? []
   if (automaticSkills.length > 0 && review === undefined) {
     throw new Error('automatic promotion requires configured supervisor.runRoots')
+  }
+  if (retentionRoots.length > 0 && automaticSkills.length === 0) {
+    throw new Error('retention evidence roots require a non-empty automatic promotion Skill allowlist')
   }
   if (shadowTargets.length > 0 && (config.supervisor === undefined
     || config.supervisor.runRoots.length === 0
@@ -139,7 +146,12 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   }
   const automaticPolicy = automaticSkills.length === 0
     ? undefined
-    : new AutoPromotionPolicy(source, store, automaticSkills)
+    : new AutoPromotionPolicy(
+        source,
+        store,
+        automaticSkills,
+        ...retentionRoots.length === 0 ? [] : [new RetentionEvidenceIndex(retentionRoots)],
+      )
   const automatic = automaticPolicy === undefined || review === undefined
     ? undefined
     : new AutoPromotionService({

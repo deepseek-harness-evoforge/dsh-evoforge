@@ -1,6 +1,6 @@
 import { execFile as execFileCallback } from 'node:child_process'
 import { createServer } from 'node:http'
-import { chmod, cp, readFile, readdir, mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises'
+import { chmod, cp, readFile, readdir, realpath, mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { promisify } from 'node:util'
@@ -12,6 +12,7 @@ import type { EvolutionStore } from '../src/generation-store.js'
 import { openDeliveryOutcomeStore } from '../src/delivery-outcome-monitor.js'
 import { openFeedbackSignalStore } from '../src/feedback-signal-monitor.js'
 import { hashTree, sha256 } from '../src/hash.js'
+import { evaluateRetention } from '../src/retention.js'
 
 const execFile = promisify(execFileCallback)
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -60,6 +61,10 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
                 dshRevision: '47f943859bef60e4160492346772ded9b24f765a',
                 shadowRunRoot: join(runtimeRoot, 'qualified-shadow-runs'),
               }],
+              autoPromote: {
+                skills: ['stable-evolved-skill'],
+                retentionRoots: [join(runtimeRoot, 'retention-runs')],
+              },
             }
           : {}),
       })
@@ -509,6 +514,65 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     unregister()
     await ctx.fiber.dispose()
   })
+
+  it('holds opt-in automatic promotion until an exact retained report appears', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-auto-retention-'))
+    temporaryRoots.push(root)
+    const repository = join(root, 'source')
+    await commitSkill(repository, 'Baseline body.', 'baseline reference')
+    const runRoot = await writeCompletedReviewRun(root, repository, true)
+    const retentionRoot = join(root, 'retention-runs')
+    const priorCasePack = join(root, 'prior-case-pack')
+    await Promise.all([mkdir(retentionRoot), writePriorRetentionCasePack(priorCasePack)])
+    const ctx = await bootStorage(await writeStorageConfig(root))
+    const adapter = await installAgentRuntime(ctx)
+    await ctx.plugin(EvolvePlugin, {
+      cacheRoot: join(root, 'cache'),
+      sources: [{
+        name: 'stable-evolved-skill',
+        repository,
+        path: 'skills/stable-evolved-skill',
+      }],
+      supervisor: { runRoots: [runRoot], scanIntervalMs: 1_000 },
+      autoPromote: {
+        skills: ['stable-evolved-skill'],
+        retentionRoots: [retentionRoot],
+      },
+    })
+    const store = ctx.get('evoforge.evolution') as EvolutionStore | undefined
+    const control = ctx.get('evoforge.evolutionControl') as {
+      overview(): Promise<{ reviews: { items: Array<{ id: string }> } }>
+      review(id: string): Promise<{ automatic?: { eligible: boolean; reasons: string[] } }>
+    } | undefined
+    if (store === undefined || control === undefined) throw new Error('retention policy services did not load')
+    const jobsModule = await import(pathToFileURL(
+      join(dshSourceDir, 'packages', 'jobs', 'jobs-local', 'lib', 'index.js'),
+    ).href)
+    await ctx.plugin(jobsModule.default)
+    const reviewId = (await control.overview()).reviews.items[0]?.id
+    if (reviewId === undefined) throw new Error('retention review fixture missing')
+    await expect(control.review(reviewId)).resolves.toMatchObject({
+      automatic: {
+        eligible: false,
+        reasons: expect.arrayContaining(['no exact Retention evidence is available']),
+      },
+    })
+    expect(store.getActiveGeneration()).toBeUndefined()
+    const requestsBeforeRetention = adapter.requests.length
+
+    await expect(evaluateRetention({
+      sourceRunDir: join(runRoot, 'sealed-candidate'),
+      casePackDir: priorCasePack,
+      outputDir: join(retentionRoot, 'prior-capability'),
+    })).resolves.toMatchObject({ status: 'retained' })
+
+    const active = await waitForActiveGeneration(store)
+    expect(active.policyVersion).toBe('auto-clear-instruction-v1')
+    expect(adapter.requests).toHaveLength(requestsBeforeRetention)
+    expect(JSON.parse(await readFile(join(runRoot, 'sealed-candidate', 'review-state.json'), 'utf8')))
+      .toMatchObject({ status: 'approved', actor: 'auto-clear-instruction-v1', generationId: active.id })
+    await ctx.fiber.dispose()
+  }, 20_000)
 
   it('reviews, publishes, and explicitly promotes one sealed Candidate without moving the user branch', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-review-publish-'))
@@ -1383,7 +1447,7 @@ async function writeCompletedReviewRun(
     files: [{ path: 'SKILL.md', content: proposed }],
   }
   const runId = '7'.repeat(64)
-  const reportPath = join(runDir, 'report.json')
+  const reportPath = join(await realpath(runDir), 'report.json')
   const baseTreeHash = await hashTree(skillDir)
   const candidateTreeHash = await hashTree(candidateDir)
   const casePackDir = join(root, 'case-pack')
@@ -1486,6 +1550,44 @@ async function writeAutomaticCanaryCasePack(casePackDir: string): Promise<string
     },
   }, null, 2)}\n`)
   return hashTree(casePackDir)
+}
+
+async function writePriorRetentionCasePack(casePackDir: string): Promise<void> {
+  const knownBad = join(casePackDir, 'calibration', 'known-bad')
+  const knownCorrection = join(casePackDir, 'calibration', 'known-correction')
+  await Promise.all([
+    mkdir(knownBad, { recursive: true }),
+    mkdir(knownCorrection, { recursive: true }),
+  ])
+  const skill = (body: string) => [
+    '---',
+    'name: stable-evolved-skill',
+    'description: Retention fixture.',
+    '---',
+    '',
+    body,
+    '',
+  ].join('\n')
+  await writeFile(join(knownBad, 'SKILL.md'), skill('The prior capability is missing.'))
+  await writeFile(join(knownCorrection, 'SKILL.md'), skill('Baseline body.'))
+  await writeFile(join(casePackDir, 'evaluator.mjs'), [
+    "import { readFile } from 'node:fs/promises'",
+    "import { join } from 'node:path'",
+    "const source = await readFile(join(process.argv[2], 'SKILL.md'), 'utf8')",
+    "const passed = source.includes('Baseline body.')",
+    "process.stdout.write(JSON.stringify({ schemaVersion: 1, passed, checks: [{ name: 'baseline-body-retained', passed }] }))",
+  ].join('\n'))
+  await writeFile(join(casePackDir, 'manifest.json'), `${JSON.stringify({
+    schemaVersion: 1,
+    id: 'prior-baseline-body',
+    epoch: { dshRevision: 'fixture', evaluatorVersion: 'prior-retention-v1' },
+    budget: { candidateLimit: 1, trialLimit: 4, inputTokenLimit: 100, outputTokenLimit: 100 },
+    trial: { evaluator: 'evaluator.mjs', timeoutMs: 5_000, outputLimitBytes: 8_192 },
+    calibration: {
+      knownBad: 'calibration/known-bad',
+      knownCorrection: 'calibration/known-correction',
+    },
+  }, null, 2)}\n`)
 }
 
 async function commitSkill(repository: string, body: string, reference: string): Promise<GitRevision> {

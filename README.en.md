@@ -4,7 +4,7 @@
 
 An out-of-tree extension suite for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). EvoForge adds removable capabilities through supported DSH seams; it is not a DSH fork or a home for core-defect workarounds.
 
-> **Pre-alpha: do not use automatic activation in production.** The `dsh-evolve` P0A/P0B/P0C slices, including exact diffs, protected-effect lexical indicators, and the real-DSH Web control surface, narrow P1.1 auto-promotion, P1.2 counterfactual canary/rollback, P1.3 explicit-feedback intake, P1.4 private Feedback Case Drafts, P1.5 feedback-guided Shadow, P1.6 pre-proposal Case Pack calibration, P1.7 explicit evaluator-authoring Skill, P1.8 explicit target-bound Feedback Shadow Launch, P1.9 private Evaluator Draft/human qualification, P1.10 Qualified Shadow Handoff, P1.11 exact Candidate retention, and P2D.1 delivery-outcome observation are implemented. The `dsh-software-delivery` verified-delivery path, `dsh-doctor` zero-token Runtime Readiness report, and `dsh-telegram` single-private-chat Agent adapter are also implemented. Default background author/approval, real-task false-promotion/false-rollback data, independent usability evidence, and production multi-day evidence remain incomplete.
+> **Pre-alpha: do not use automatic activation in production.** The `dsh-evolve` P0A/P0B/P0C slices, including exact diffs, protected-effect lexical indicators, and the real-DSH Web control surface, narrow P1.1 auto-promotion, P1.2 counterfactual canary/rollback, P1.3 explicit-feedback intake, P1.4 private Feedback Case Drafts, P1.5 feedback-guided Shadow, P1.6 pre-proposal Case Pack calibration, P1.7 explicit evaluator-authoring Skill, P1.8 explicit target-bound Feedback Shadow Launch, P1.9 private Evaluator Draft/human qualification, P1.10 Qualified Shadow Handoff, P1.11 exact Candidate retention, P1.12 opt-in retention-gated auto-promotion, and P2D.1 delivery-outcome observation are implemented. The `dsh-software-delivery` verified-delivery path, `dsh-doctor` zero-token Runtime Readiness report, and `dsh-telegram` single-private-chat Agent adapter are also implemented. Default background author/approval, real-task false-promotion/false-rollback data, independent usability evidence, and production multi-day evidence remain incomplete.
 
 `dsh-evolve` aims to turn agent self-improvement into an evidence-backed release process:
 
@@ -32,6 +32,11 @@ It returns `retained`, `regressed`, or `incomplete` after the existing sealed ca
 baseline/Candidate Trial, makes zero additional proposer calls, and never changes the active Skill or
 promotion state. A complete invocation runs four evaluator Trials. Any model calls made by an assembled
 evaluator are a separate reported cost; normal Session model surfaces and token cost remain unchanged.
+
+P1.12 optionally requires that exact P1.11 evidence before the existing narrow clear-instruction policy
+may auto-promote. Static host-only roots are scanned by the existing supervisor; missing, incomplete,
+regressed, malformed, symlinked, or conflicting reports keep the Candidate in human review. It does not
+run Retention automatically, change explicit human promotion, or add a model call or Session surface.
 
 `dsh-doctor` is a separate removable Bundle that reads the native Loader only when `/doctor` is invoked. It reports `READY`, `NOT READY`, or `UNKNOWN`, names missing/disabled/failed or still-changing required plugins, and suggests a next action without changing runtime state. It adds one native human Command, no model Tool/Prompt/Skill, no polling, and zero normal-Session tokens. Packed `dsh plugin add`, native config dump, real Loader boot, and removal are covered by the package test.
 

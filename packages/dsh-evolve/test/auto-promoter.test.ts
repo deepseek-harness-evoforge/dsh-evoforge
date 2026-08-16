@@ -72,6 +72,38 @@ describe('resident automatic promoter', () => {
     expect(inbox.markAutomaticActivated).toHaveBeenCalledWith(approved.id, generationId)
   })
 
+  it('rechecks policy and does not activate an automatic approval whose Retention evidence regressed', async () => {
+    const generationId = '8'.repeat(64)
+    const approved = {
+      ...fixtureCandidate(),
+      status: 'approved' as const,
+      decisionActor: AUTO_PROMOTION_ACTOR,
+      generationId,
+    }
+    const policy = { evaluate: vi.fn(async () => ({
+      eligible: false,
+      policyVersion: AUTO_PROMOTION_ACTOR,
+      reasons: ['an exact prior Case Pack proves baseline pass / Candidate fail'],
+    })) }
+    const inbox = {
+      scanAll: vi.fn(async () => ({ candidates: [approved], warnings: [] })),
+      approve: vi.fn(),
+      markAutomaticActivated: vi.fn(),
+    } as unknown as ReviewInbox
+    const store = { promoteGeneration: vi.fn() } as unknown as EvolutionStore
+    const service = new AutoPromotionService({
+      inbox,
+      policy,
+      publisher: { publish: vi.fn() } as unknown as CandidatePublisher,
+      store,
+    })
+
+    await expect(service.scanOnce()).resolves.toEqual({ promoted: [], warnings: [] })
+    expect(policy.evaluate).toHaveBeenCalledWith(approved)
+    expect(store.promoteGeneration).not.toHaveBeenCalled()
+    expect(inbox.markAutomaticActivated).not.toHaveBeenCalled()
+  })
+
   it('never activates ineligible, rejected, or human-approved Candidates', async () => {
     const candidates = [
       fixtureCandidate(),

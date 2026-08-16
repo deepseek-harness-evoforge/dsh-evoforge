@@ -350,6 +350,8 @@ Domain 已装配的配置里添加：
     autoPromote:
       skills:
         - build-dsh-plugin
+      retentionRoots:
+        - /absolute/path/to/.dsh/evoforge/retention-runs
 ```
 
 每个 Generation artifact 的 `name` 都必须有一条 source。Repository 必须能解析
@@ -413,6 +415,13 @@ protected-effect 词法类别；结构范围扩大或改写 `SKILL.md` 也会单
 sealed `fail → pass`、全部 checks、Trial≥4 和单一 `SKILL.md` ≤2 KiB append 同时满足才
 自动晋升。详情命令会解释未满足的门。代码、工具、权限、protected-effect 词或其他文件
 一律转人工。pre-alpha 阶段不要在生产 profile 开启。
+
+`retentionRoots` 可省略；省略时保持上述 P1.1 行为。配置后最多接受 20 个唯一 absolute root，
+每个直接子目录可放一次 `dsh-evolve retain` output。自动 policy 只接受与当前 review 的 source
+run、recommendation、Skill、baseline 和 Candidate exact 匹配的 `retained` 报告；`regressed`、
+`incomplete`、missing、篡改、symlink、重复冲突、超过 256 KiB 或全部 roots 合计超过 200 项都失败关闭并
+留在人工 review。它不会自动运行 Retention，也不改变显式 human approve/promote。报告在之后写入
+时，既有 supervisor 下一轮重评，无需重启；整个 scan 为本地零模型操作，不进入 Session 历史。
 
 ## 3. Shadow 输入
 

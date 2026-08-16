@@ -1,6 +1,6 @@
 # dsh-evolve
 
-`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains fifteen deliberately separate lanes:
+`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains sixteen deliberately separate lanes:
 
 - **P0A Shadow** compares an active Skill with an inactive Candidate without changing live DSH.
 - **P0B Local Continuity** records immutable Capability Generations, pins one Generation per Session, switches or rolls back only future Sessions, and resumes durable sealed work through an optional resident supervisor.
@@ -17,6 +17,7 @@
 - **P1.9 Private Evaluator Draft** generates one bounded inactive evaluator draft and requires a separate exact-hash human qualification before generated code runs.
 - **P1.10 Qualified Shadow Handoff** explicitly hands one unchanged qualified Case Pack to the existing background Shadow path after a fresh paid-action confirmation.
 - **P1.11 Exact Retention Gate** replays one reviewable exact Candidate against one trusted prior Case Pack with zero proposer calls and no release effect.
+- **P1.12 Retention-gated Auto-Promotion** optionally requires exact retained evidence before the existing narrow clear-instruction policy may activate a future Session.
 
 The offline evaluation command is:
 
@@ -238,6 +239,8 @@ Skill that a Generation may activate:
     autoPromote:
       skills:
         - build-dsh-plugin
+      retentionRoots:
+        - /absolute/path/to/.dsh/evoforge/retention-runs
 ```
 
 `feedbackDraftRoot` is optional. Setting it authorizes local copying of the
@@ -277,6 +280,14 @@ proposal work is never started automatically. Jobs supplies current-process
 visibility and cancellation, while the journal remains the restart authority.
 Cancelling a recovery suppresses that run for the rest of the current DSH
 process; a later DSH restart may discover the still-durable Trial again.
+
+`autoPromote.retentionRoots` is optional, bounded to 20 unique absolute paths,
+and has no effect when omitted. When configured, each direct child may contain
+one P1.11 `retention-report.json`. The existing policy requires an exact
+`retained` report with no evidence warnings; missing, incomplete, regressed,
+malformed, symlinked, conflicting, oversized, or excess evidence remains human
+review. The same supervisor rescan notices a later report. It does not run a
+Trial, call a model, expose host paths remotely, or block explicit human release.
 
 When `autoPromote` is enabled, the same supervisor also scans compact failed
 Delivery Outcomes after promotion. Counterfactual work reuses native Jobs and
