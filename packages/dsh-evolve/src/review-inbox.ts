@@ -30,10 +30,13 @@ export interface ReviewCandidate {
   limitations: string[]
   evaluatorVersion: string
   compositionFingerprint: string
+  compositionStable: boolean
   startedAt: string
   evidenceHash: string
+  decisionActor?: 'human' | 'auto-clear-instruction-v1'
   decisionNote?: string
   generationId?: string
+  activatedAt?: string
 }
 
 export interface ReviewScan {
@@ -46,9 +49,11 @@ interface ReviewDisposition {
   reviewId: string
   evidenceHash: string
   status: 'approved' | 'rejected'
+  actor?: 'human' | 'auto-clear-instruction-v1'
   decidedAt: string
   decisionNote?: string
   generationId?: string
+  activatedAt?: string
 }
 
 const hashPattern = /^[a-f0-9]{64}$/
@@ -56,12 +61,22 @@ const hashPattern = /^[a-f0-9]{64}$/
 /** Read and durably disposition completed Shadow evidence without copying it into a second database. */
 export class ReviewInbox {
   private readonly runRoots: string[]
+  private readonly actionTails = new Map<string, Promise<void>>()
 
   constructor(runRoots: string[]) {
     this.runRoots = [...runRoots]
   }
 
   async scan(): Promise<ReviewScan> {
+    return this.scanCandidates(true)
+  }
+
+  /** Include terminal dispositions for crash recovery by trusted host policies. */
+  async scanAll(): Promise<ReviewScan> {
+    return this.scanCandidates(false)
+  }
+
+  private async scanCandidates(pendingOnly: boolean): Promise<ReviewScan> {
     const candidates = new Map<string, ReviewCandidate>()
     const warnings: string[] = []
     for (const requestedRoot of this.runRoots) {
@@ -80,7 +95,11 @@ export class ReviewInbox {
         const outputDir = join(root, entry.name)
         try {
           const candidate = await this.readCandidate(outputDir)
-          if (candidate === undefined || candidate.status !== 'pending') continue
+          const actionable = candidate?.status === 'pending'
+            || (candidate?.status === 'approved'
+              && candidate.decisionActor === 'auto-clear-instruction-v1'
+              && candidate.activatedAt === undefined)
+          if (candidate === undefined || (pendingOnly && !actionable)) continue
           const existing = candidates.get(candidate.id)
           if (existing !== undefined && existing.evidenceHash !== candidate.evidenceHash) {
             throw new Error(`duplicate review id '${candidate.id}' has different evidence`)
@@ -106,6 +125,10 @@ export class ReviewInbox {
   }
 
   async reject(id: string, note: string): Promise<ReviewCandidate> {
+    return this.enqueue(id, () => this.rejectNow(id, note))
+  }
+
+  private async rejectNow(id: string, note: string): Promise<ReviewCandidate> {
     assertReviewId(id)
     const normalizedNote = note.trim()
     if (normalizedNote.length === 0 || normalizedNote.length > 500) {
@@ -119,17 +142,33 @@ export class ReviewInbox {
       reviewId: candidate.id,
       evidenceHash: candidate.evidenceHash,
       status: 'rejected',
+      actor: 'human',
       decidedAt: new Date().toISOString(),
       decisionNote: normalizedNote,
     }
     await writeDurableJson(join(candidate.outputDir, 'review-state.json'), disposition)
-    return { ...candidate, status: 'rejected', decisionNote: normalizedNote }
+    return {
+      ...candidate,
+      status: 'rejected',
+      decisionActor: 'human',
+      decisionNote: normalizedNote,
+    }
   }
 
-  async approve(
+  approve(
     id: string,
     note: string,
     publish: (candidate: ReviewCandidate) => Promise<{ id: string }>,
+    options: { actor?: 'human' | 'auto-clear-instruction-v1' } = {},
+  ): Promise<ReviewCandidate> {
+    return this.enqueue(id, () => this.approveNow(id, note, publish, options))
+  }
+
+  private async approveNow(
+    id: string,
+    note: string,
+    publish: (candidate: ReviewCandidate) => Promise<{ id: string }>,
+    options: { actor?: 'human' | 'auto-clear-instruction-v1' },
   ): Promise<ReviewCandidate> {
     assertReviewId(id)
     const normalizedNote = note.trim()
@@ -146,6 +185,7 @@ export class ReviewInbox {
       reviewId: candidate.id,
       evidenceHash: candidate.evidenceHash,
       status: 'approved',
+      actor: options.actor ?? 'human',
       decidedAt: new Date().toISOString(),
       decisionNote: normalizedNote,
       generationId: generation.id,
@@ -154,9 +194,37 @@ export class ReviewInbox {
     return {
       ...candidate,
       status: 'approved',
+      decisionActor: options.actor ?? 'human',
       decisionNote: normalizedNote,
       generationId: generation.id,
     }
+  }
+
+  markAutomaticActivated(id: string, generationId: string): Promise<ReviewCandidate> {
+    return this.enqueue(id, () => this.markAutomaticActivatedNow(id, generationId))
+  }
+
+  private async markAutomaticActivatedNow(
+    id: string,
+    generationId: string,
+  ): Promise<ReviewCandidate> {
+    assertReviewId(id)
+    if (!hashPattern.test(generationId)) throw new Error('activation requires a full Generation id')
+    const candidate = await this.findCandidate(id)
+    if (candidate.status !== 'approved'
+      || candidate.decisionActor !== 'auto-clear-instruction-v1'
+      || candidate.generationId !== generationId) {
+      throw new Error('only the exact automatic approval can be marked activated')
+    }
+    if (candidate.activatedAt !== undefined) return candidate
+    const disposition = await readDisposition(candidate.outputDir)
+    if (disposition === undefined) throw new Error('automatic approval disposition is missing')
+    const activatedAt = new Date().toISOString()
+    await writeDurableJson(join(candidate.outputDir, 'review-state.json'), {
+      ...disposition,
+      activatedAt,
+    })
+    return { ...candidate, activatedAt }
   }
 
   private async findCandidate(id: string): Promise<ReviewCandidate> {
@@ -221,6 +289,7 @@ export class ReviewInbox {
       limitations: report.limitations,
       cases: report.cases,
       compositionFingerprint: report.compositionFingerprint,
+      compositionStable: report.compositionStable,
     }
     const evidenceHash = sha256(JSON.stringify(evidence))
     const id = sha256(JSON.stringify({ runId: state.runId, proposalHash: state.proposalHash }))
@@ -252,11 +321,27 @@ export class ReviewInbox {
       limitations: report.limitations,
       evaluatorVersion: report.evaluatorVersion,
       compositionFingerprint: report.compositionFingerprint,
+      compositionStable: report.compositionStable,
       startedAt: state.startedAt,
       evidenceHash,
+      ...disposition === undefined
+        ? {}
+        : { decisionActor: disposition.actor ?? 'human' },
       ...disposition?.decisionNote === undefined ? {} : { decisionNote: disposition.decisionNote },
       ...disposition?.generationId === undefined ? {} : { generationId: disposition.generationId },
+      ...disposition?.activatedAt === undefined ? {} : { activatedAt: disposition.activatedAt },
     }
+  }
+
+  private enqueue<T>(id: string, action: () => Promise<T>): Promise<T> {
+    const previous = this.actionTails.get(id) ?? Promise.resolve()
+    const result = previous.then(action)
+    const tail = result.then(() => {}, () => {})
+    this.actionTails.set(id, tail)
+    void tail.finally(() => {
+      if (this.actionTails.get(id) === tail) this.actionTails.delete(id)
+    })
+    return result
   }
 }
 
@@ -274,6 +359,7 @@ function parseReport(value: unknown): {
   trialCount: number
   evaluatorVersion: string
   compositionFingerprint: string
+  compositionStable: boolean
 } {
   if (!isRecord(value) || value.schemaVersion !== 1
     || !isRecord(value.run) || typeof value.run.id !== 'string'
@@ -286,7 +372,8 @@ function parseReport(value: unknown): {
     || !Array.isArray(value.cases) || !isRecord(value.trial)
     || !Number.isSafeInteger(value.trial.count) || !isRecord(value.epoch)
     || typeof value.epoch.evaluatorVersion !== 'string' || !isRecord(value.composition)
-    || typeof value.composition.candidateFingerprint !== 'string') {
+    || !hashPattern.test(String(value.composition.candidateFingerprint))
+    || (value.composition.stable !== undefined && typeof value.composition.stable !== 'boolean')) {
     throw new Error('Shadow report has an invalid review shape')
   }
   const changedFiles = value.candidate.changedFiles
@@ -295,6 +382,11 @@ function parseReport(value: unknown): {
   }
   const reasons = stringArray(value.decision.reasons, 'reasons')
   const limitations = stringArray(value.decision.limitations, 'limitations')
+  if (value.composition.stable === true
+    && (!hashPattern.test(String(value.composition.baselineFingerprint))
+      || value.composition.baselineFingerprint !== value.composition.candidateFingerprint)) {
+    throw new Error('stable Shadow composition has no matching exact baseline fingerprint')
+  }
   const cases = value.cases.map((item): ReviewCaseSummary => {
     if (!isRecord(item) || typeof item.id !== 'string'
       || !['pass', 'fail', 'incomplete'].includes(String(item.baseline))
@@ -327,7 +419,8 @@ function parseReport(value: unknown): {
     cases,
     trialCount: value.trial.count as number,
     evaluatorVersion: value.epoch.evaluatorVersion,
-    compositionFingerprint: value.composition.candidateFingerprint,
+    compositionFingerprint: String(value.composition.candidateFingerprint),
+    compositionStable: value.composition.stable === true,
   }
 }
 
@@ -340,9 +433,16 @@ async function readDisposition(outputDir: string): Promise<ReviewDisposition | u
     if (!isRecord(value) || value.schemaVersion !== 1 || !hashPattern.test(String(value.reviewId))
       || !hashPattern.test(String(value.evidenceHash)) || !['approved', 'rejected'].includes(String(value.status))
       || typeof value.decidedAt !== 'string'
+      || (value.actor !== undefined && !['human', 'auto-clear-instruction-v1'].includes(String(value.actor)))
       || (value.decisionNote !== undefined && typeof value.decisionNote !== 'string')
-      || (value.generationId !== undefined && !hashPattern.test(String(value.generationId)))) {
+      || (value.generationId !== undefined && !hashPattern.test(String(value.generationId)))
+      || (value.activatedAt !== undefined && typeof value.activatedAt !== 'string')) {
       throw new Error('review-state.json has an invalid shape')
+    }
+    if ((value.status === 'approved') !== (value.generationId !== undefined)
+      || (value.actor === 'auto-clear-instruction-v1' && value.status !== 'approved')
+      || (value.activatedAt !== undefined && value.actor !== 'auto-clear-instruction-v1')) {
+      throw new Error('review-state.json has an invalid terminal disposition')
     }
     return value as unknown as ReviewDisposition
   } catch (error) {

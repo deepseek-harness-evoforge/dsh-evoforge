@@ -14,6 +14,7 @@ import { runShadow } from './shadow.ts'
 import { ReviewInbox } from './review-inbox.ts'
 import { ResidentEvolutionControl } from './resident-evolution-control.ts'
 import { VerifiedEvolutionStore } from './verified-evolution-store.ts'
+import { AutoPromotionPolicy, AutoPromotionService } from './auto-promotion.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -31,6 +32,9 @@ export interface Config {
     runRoots: string[]
     scanIntervalMs?: number
   }
+  autoPromote?: {
+    skills: string[]
+  }
 }
 
 export const Config: Schema<Config> = z.object({
@@ -43,6 +47,9 @@ export const Config: Schema<Config> = z.object({
   supervisor: z.object({
     runRoots: z.array(z.string()).default([]),
     scanIntervalMs: z.number().step(1).min(1_000).default(30_000),
+  }),
+  autoPromote: z.object({
+    skills: z.array(z.string()).default([]),
   }),
 })
 
@@ -63,7 +70,22 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const resident = config.supervisor === undefined || config.supervisor.runRoots.length === 0
     ? undefined
     : new ResidentEvolutionControl(store)
-  installEvolutionCommand(ctx, store, review, resident)
+  const automaticSkills = config.autoPromote?.skills ?? []
+  if (automaticSkills.length > 0 && review === undefined) {
+    throw new Error('automatic promotion requires configured supervisor.runRoots')
+  }
+  const automaticPolicy = automaticSkills.length === 0
+    ? undefined
+    : new AutoPromotionPolicy(source, store, automaticSkills)
+  const automatic = automaticPolicy === undefined || review === undefined
+    ? undefined
+    : new AutoPromotionService({
+        inbox: review.inbox,
+        policy: automaticPolicy,
+        publisher: review.publisher,
+        store,
+      })
+  installEvolutionCommand(ctx, store, review, resident, automaticPolicy)
   if (config.supervisor !== undefined && config.supervisor.runRoots.length > 0) {
     // Jobs is optional for the base release kernel. A configured supervisor activates
     // only when the host composes the native process-local Jobs service.
@@ -73,6 +95,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         runRoots: config.supervisor!.runRoots,
         scanIntervalMs: config.supervisor!.scanIntervalMs ?? 30_000,
         paused: resident!.isPaused(),
+        ...automatic === undefined ? {} : {
+          afterScan: async () => {
+            const result = await automatic.scanOnce()
+            for (const warning of result.warnings) {
+              jobCtx.logger.warn(`dsh-evolve automatic promotion skipped evidence: ${warning}`)
+            }
+          },
+        },
         runner: createShadowJobRunner(jobCtx.jobs, runShadow),
         onError: (error, path) => {
           jobCtx.logger.warn(`dsh-evolve supervisor skipped ${path}: ${String(error)}`)

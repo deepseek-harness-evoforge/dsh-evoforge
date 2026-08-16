@@ -27,6 +27,7 @@
 | Git Skill 晋升与回滚内核 | `implemented`（host service + P0C Commands） | exact Git gate、future-session pointer、live Session 不漂移；[P0C.1](evidence/p0c-1-human-release-command.zh.md) 与 [P0C.2](evidence/p0c-2-review-to-inactive-generation.zh.md) | P1 自动晋升与真实 canary 数据 |
 | 异步人工复核 | `implemented`（P0C.2） | claim/files/case/cost/限制 projection；reject durable；approve 生成 inactive Generation；真实 Commands/Agent 零模型调用且不阻塞原会话 | 逐行 diff viewer 与真实用户可用性数据 |
 | Resident pause/resume | `implemented`（P0C.3） | [P0C.3](evidence/p0c-3-durable-resident-pause-resume.zh.md)：Storage 重启、release pointer 保持、活动 Trial 取消/resume 重发现、真实 Commands/Agent 零模型调用 | 生产多日 soak 与真实用户控制时延 |
+| 极窄纯指令自动晋升 | `implemented`（P1.1，默认关闭） | [P1.1](evidence/p1-1-opt-in-clear-instruction-auto-promotion.zh.md)：allowlist、append-only、protected-effect gate、durable actor、崩溃续晋升、真实 future Session E2E | canary、真实 outcome monitor、自动 rollback 与长期 false-promotion 数据 |
 | 单机常驻和崩溃恢复 | `implemented`（P0B） | 四个 release `SIGKILL` 边界；[P0B.2a](evidence/p0b-2a-durable-shadow-resume.zh.md)；[P0B.2b](evidence/p0b-2b-resident-shadow-supervisor.zh.md) native Jobs supervisor/关机恢复/重复扫描 | 生产多日 soak、真实磁盘耗尽与更多机器数据 |
 | `dsh-software-delivery` | `planned` | 用户结果和验收方向已定义 | 独立 test-first 实现与 DSH assembled test |
 | 个人助理、消息、内容、日程插件 | `planned` | 仅产品范围 | 每次只选择一个高频工作流验证 |
@@ -42,15 +43,17 @@
 - 配置 resident supervisor 后，由常驻 DSH 自动继续已落盘、无网络的 Candidate/Trial，并通过原生 Jobs 观察或取消；
 - 通过 host-only `/evolve review` 查看 claim/files/case/cost，reject 或批准为 inactive Generation；随后显式 promote/rollback future-session Generation，全程不产生模型请求；
 - 通过 `/evolve pause|resume` 持久控制自动 resident recovery；普通 Session、显式 Shadow 和人工 review/release 不受影响；
+- 对显式 allowlist 的 `SKILL.md` 小幅 append clear win 开启实验性自动晋升；未满足固定门的候选仍留在人工 inbox；
 - 在真实 DSH Agent 上让 root/resume/child 固定各自 Generation；pin 或 Git 完整性失败时原生会话继续；
 - 审查报告 Schema 的实际 JSON 输出。
 
 ## 当前不能做什么
 
-- 不能把 P0C 命令闭环当作已验证的完整控制产品；它尚无逐行 diff viewer、真实用户可用性数据或自动晋升政策；
+- 不能把 P0C 命令闭环当作已验证的完整控制产品；它尚无逐行 diff viewer 或真实用户可用性数据；
+- 不能把 P1.1 当作完整 bounded autonomy；它尚无 canary、真实 outcome-triggered 自动 rollback 或生产长期误晋升数据；
 - 不能把公开的确定性示例当作真实 DSH 工作流已经改善；
 - `shadow` 不执行任意模型生成代码；assembled lane 会运行真实 DSH，但 Candidate 仍只作为 Skill 数据选择受限的可信 evaluator 行为；
 - 不能声称完整持续进化、生产级多日可靠性、任意外部效果 crash-resume 或优于 Hermes；
 - 不能作为生产依赖安装。
 
-P0B 的本地实现门已通过；P0C.1–P0C.3 已形成零模型调用的 review → inactive Generation → 显式 future-session promotion/rollback，并可持久 pause/resume resident recovery。P0C 仍需普通用户可用性证据；下一实现纵切是 P1 的极窄自动晋升政策，不建设新的控制平台。生产多日 soak 继续作为发布证据积累，不能被短时自动化测试替代。
+P0B 的本地实现门已通过；P0C.1–P0C.3 已形成零模型调用的人工闭环；P1.1 已增加默认关闭、可解释、崩溃可恢复的最窄自动晋升。下一纵切是 future-session canary 与真实 outcome monitor/自动 rollback，不建设新控制平台。P0C 普通用户可用性和生产多日 soak 继续作为证据积累，不能被短时自动化测试替代。

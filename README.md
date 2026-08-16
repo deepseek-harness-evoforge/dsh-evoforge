@@ -4,7 +4,7 @@
 
 面向 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的 out-of-tree 开源扩展套件。EvoForge 只增加可独立安装、可删除的新能力，不 fork DSH，也不以插件修补 DSH Core Defect。
 
-> **Pre-alpha：暂不可用于自动激活。** P0A Shadow 的本地退出门已通过；P0B 已实现 Local Continuity；P0C 已提供人工 review/release 与 durable resident pause/resume。自动晋升策略、真实用户可用性门与生产多日证据仍未完成。详见[状态页](docs/status.zh.md)。
+> **Pre-alpha：不可用于生产自动激活。** P0A Shadow、P0B Local Continuity 与 P0C 人工控制已实现；P1.1 增加默认关闭、显式 allowlist 的最窄纯指令自动晋升。canary、自动回滚、真实用户可用性门与生产多日证据仍未完成。详见[状态页](docs/status.zh.md)。
 
 ## 为什么做
 
@@ -28,9 +28,11 @@
 
 | 包 | 当前能力 | 状态 |
 |---|---|---|
-| [`dsh-evolve`](packages/dsh-evolve) | 离线 `shadow`；durable resume 与 resident supervisor；Sealed paired Trial；immutable Generation；Session-scoped Git Skill Provider；host-only review/pause/晋升/回滚 | P0A 本地门、P0B 实现门、P0C.1–P0C.3 命令闭环通过；真实可用性门待验证 |
+| [`dsh-evolve`](packages/dsh-evolve) | 离线 `shadow`；durable resident recovery；Sealed paired Trial；immutable Generation；Session-scoped Git Skill；host-only review/pause/release；opt-in clear-instruction auto promotion | P0A/P0B/P0C implemented；P1.1 implemented；canary/自动回滚与真实可用性门待验证 |
 
 Shadow 和未激活 Generation 的运行时模型表面为 `none`，额外 token 为 `0`。Generation 激活后只复用 DSH 原生 Skill catalog/body 路径：catalog 在 Session 开始时固定，正文按需加载；插件不增加 Tool 或 system prompt。真实 Agent 回归已证明晋升后旧 Session 的请求工具面不变、后一请求保留前一请求的完整消息前缀。Shadow 只有在用户显式调用时才请求配置的模型。
+
+P1.1 policy、自动发布和 host 状态同样是 `0` 模型调用；自动候选最多追加 2 KiB Skill 正文，且只在 future Session 通过原生 Skill body 路径实际加载时产生 tokenizer 相关输入。它不会改写当前 Session 的可缓存前缀。
 
 当前命令：
 
@@ -58,7 +60,7 @@ pnpm --filter dsh-evolve pack --pack-destination "$PWD/.evoforge/pack"
 ## 尚未实现
 
 - 多个独立真实 case、真实 provider 提案效果、Linux/Windows 隔离与 workspace 磁盘配额；
-- 逐行 diff viewer、真实人工可用性数据与窄自动晋升策略（claim/files/case/cost review、durable pause/resume 已实现）；
+- 逐行 diff viewer、真实人工可用性数据、future-session canary 与 outcome-triggered 自动回滚（最窄 allowlist 自动晋升已实现）；
 - 生产多日 soak、真实磁盘耗尽与大规模 run 性能数据（常驻 native Jobs supervisor、自动扫描和关机恢复已实现）；
 - `dsh-software-delivery`、个人助理、消息、内容和日程插件；
 - Web/TUI 控制面。

@@ -3,6 +3,7 @@ import type { CapabilityGeneration, EvolutionStore } from '../src/generation-sto
 import { executeEvolutionCommand } from '../src/evolve-command.js'
 import type { CandidatePublisher } from '../src/candidate-publisher.js'
 import type { ReviewCandidate, ReviewInbox } from '../src/review-inbox.js'
+import type { AutoPromotionPolicy } from '../src/auto-promotion.js'
 
 const rootId = '1'.repeat(64)
 const childId = '2'.repeat(64)
@@ -129,14 +130,28 @@ describe('/evolve host command', () => {
       publish: vi.fn(async () => ({ id: childId })),
     } as unknown as CandidatePublisher
     const review = { inbox, publisher }
+    const automatic = {
+      skills: vi.fn(() => ['stable-skill']),
+      evaluate: vi.fn(async () => ({
+        eligible: false,
+        policyVersion: 'auto-clear-instruction-v1' as const,
+        reasons: ['instruction change mentions a protected effect'],
+      })),
+    } as unknown as AutoPromotionPolicy
 
     await expect(executeEvolutionCommand(store, 'review', review)).resolves.toMatchObject({
       kind: 'success',
       text: expect.stringContaining(`${candidate.id} [promote] stable-skill`),
     })
-    await expect(executeEvolutionCommand(store, `review ${candidate.id}`, review)).resolves.toMatchObject({
+    await expect(executeEvolutionCommand(
+      store,
+      `review ${candidate.id}`,
+      review,
+      undefined,
+      automatic,
+    )).resolves.toMatchObject({
       kind: 'success',
-      text: expect.stringContaining('held-out fail→pass checks 1/1'),
+      text: expect.stringContaining('Automatic policy: manual review — instruction change mentions a protected effect'),
     })
     await expect(executeEvolutionCommand(
       store,
@@ -184,6 +199,24 @@ describe('/evolve host command', () => {
     })
     expect(store.promoteGeneration).not.toHaveBeenCalled()
     expect(store.rollbackGeneration).not.toHaveBeenCalled()
+  })
+
+  it('shows the explicit automatic Skill allowlist in host-only status', async () => {
+    const automatic = {
+      skills: vi.fn(() => ['stable-skill']),
+      evaluate: vi.fn(),
+    } as unknown as AutoPromotionPolicy
+
+    await expect(executeEvolutionCommand(
+      fakeStore(),
+      'status',
+      undefined,
+      undefined,
+      automatic,
+    )).resolves.toMatchObject({
+      kind: 'success',
+      text: expect.stringContaining('Automatic promotion: auto-clear-instruction-v1 (stable-skill)'),
+    })
   })
 
   it('returns an actionable host error instead of throwing an implementation stack', async () => {
@@ -236,6 +269,7 @@ function reviewCandidate(): ReviewCandidate {
     limitations: ['one case'],
     evaluatorVersion: 'fixture-v1',
     compositionFingerprint: 'f'.repeat(64),
+    compositionStable: false,
     startedAt: '2026-08-16T00:00:00.000Z',
     evidenceHash: '1'.repeat(64),
   }

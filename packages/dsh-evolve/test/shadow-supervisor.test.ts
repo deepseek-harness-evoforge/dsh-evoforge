@@ -208,6 +208,26 @@ describe('Shadow supervisor', () => {
     expect(calls).toBe(2)
     await supervisor.stop()
   })
+
+  it('runs one contained post-scan policy hook and keeps scheduling after its failure', async () => {
+    const runRoot = await createRunRoot()
+    const errors: string[] = []
+    const afterScan = vi.fn()
+      .mockRejectedValueOnce(new Error('automatic policy unavailable'))
+      .mockResolvedValueOnce(undefined)
+    const supervisor = new ShadowSupervisor({
+      runRoots: [runRoot],
+      scanIntervalMs: 10_000,
+      afterScan,
+      onError: (error, path) => errors.push(`${path}:${String(error)}`),
+    })
+
+    await supervisor.scanOnce()
+    await supervisor.scanOnce()
+
+    expect(afterScan).toHaveBeenCalledTimes(2)
+    expect(errors).toEqual(['automatic-promotion:Error: automatic policy unavailable'])
+  })
 })
 
 async function createRunRoot(): Promise<string> {

@@ -29,7 +29,10 @@ export class CandidatePublisher {
     this.source = source
   }
 
-  async publish(candidate: ReviewCandidate) {
+  async publish(
+    candidate: ReviewCandidate,
+    options: { policyVersion?: 'human-review-v1' | 'auto-clear-instruction-v1' } = {},
+  ) {
     if (candidate.status !== 'pending') throw new Error('only a pending review Candidate can be published')
     if (candidate.proposal.files.length === 0) throw new Error('review Candidate proposes no files')
     if (new Set(candidate.proposal.files.map(file => file.path)).size !== candidate.proposal.files.length) {
@@ -88,7 +91,7 @@ export class CandidatePublisher {
         createdAt,
         artifacts,
         evaluatorVersion: candidate.evaluatorVersion,
-        policyVersion: 'human-review-v1',
+        policyVersion: options.policyVersion ?? 'human-review-v1',
         compositionFingerprint: candidate.compositionFingerprint,
       }
       // Fail before Storage publication if the exact Git tree or Skill definition is invalid.

@@ -25,6 +25,53 @@ afterEach(async () => {
 })
 
 describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () => {
+  it('auto-promotes only an allowlisted append-only clear win after late native Jobs composition', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-auto-promote-'))
+    temporaryRoots.push(root)
+    const repository = join(root, 'source')
+    const revision = await commitSkill(repository, 'Baseline body.', 'baseline reference')
+    const runRoot = await writeCompletedReviewRun(root, repository, true)
+    const ctx = await bootStorage(await writeStorageConfig(root))
+    const adapter = await installAgentRuntime(ctx)
+    await ctx.plugin(EvolvePlugin, {
+      cacheRoot: join(root, 'cache'),
+      sources: [{
+        name: 'stable-evolved-skill',
+        repository,
+        path: 'skills/stable-evolved-skill',
+      }],
+      supervisor: { runRoots: [runRoot], scanIntervalMs: 30_000 },
+      autoPromote: { skills: ['stable-evolved-skill'] },
+    })
+    const store = ctx.get('evoforge.evolution') as EvolutionStore | undefined
+    const skills = ctx.get('skills') as {
+      get(name: string, options: { cwd?: string; scope?: object }): Promise<{ content: string } | undefined>
+    } | undefined
+    if (store === undefined || skills === undefined) throw new Error('automatic services did not load')
+    const liveNative = await createAndRunAgent(ctx, 'auto-live-native', root)
+    const requestsBeforeAutomatic = adapter.requests.length
+
+    const jobsModule = await import(pathToFileURL(
+      join(dshSourceDir, 'packages', 'jobs', 'jobs-local', 'lib', 'index.js'),
+    ).href)
+    await ctx.plugin(jobsModule.default)
+    const active = await waitForActiveGeneration(store)
+
+    expect(active.policyVersion).toBe('auto-clear-instruction-v1')
+    expect(adapter.requests).toHaveLength(requestsBeforeAutomatic)
+    expect(store.getSessionGeneration(identityOf(liveNative))).toBeUndefined()
+    expect(JSON.parse(await readFile(join(runRoot, 'sealed-candidate', 'review-state.json'), 'utf8')))
+      .toMatchObject({ status: 'approved', actor: 'auto-clear-instruction-v1', generationId: active.id })
+    expect(await git(repository, 'rev-parse', 'HEAD')).toBe(revision.commit)
+    expect(await git(repository, 'status', '--porcelain')).toBe('')
+
+    const futureEvolved = await createAndRunAgent(ctx, 'auto-future-evolved', root)
+    expect((await skills.get('stable-evolved-skill', { cwd: root, scope: futureEvolved }))?.content)
+      .toContain('Verify the exact browser flow before completion.')
+    expect(adapter.requests).toHaveLength(requestsBeforeAutomatic + 1)
+    await ctx.fiber.dispose()
+  })
+
   it('reviews, publishes, and explicitly promotes one sealed Candidate without moving the user branch', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-review-publish-'))
     temporaryRoots.push(root)
@@ -548,6 +595,7 @@ function generationInput(revision: GitRevision) {
 async function writeCompletedReviewRun(
   root: string,
   repository: string,
+  automatic = false,
 ): Promise<string> {
   const runRoot = join(root, 'runs')
   const runDir = join(runRoot, 'sealed-candidate')
@@ -607,11 +655,19 @@ async function writeCompletedReviewRun(
       candidate: 'pass',
       checks: [{ name: 'browser', passed: true }, { name: 'composition', passed: true }],
     }],
-    composition: { candidateFingerprint: 'a'.repeat(64) },
+    composition: automatic
+      ? {
+          baselineFingerprint: 'a'.repeat(64),
+          candidateFingerprint: 'a'.repeat(64),
+          stable: true,
+        }
+      : { candidateFingerprint: 'a'.repeat(64) },
     decision: {
       recommendation: 'promote',
       reasons: ['candidate passed sealed held-out case'],
-      limitations: ['one deterministic held-out case'],
+      limitations: [automatic
+        ? 'P0A.3 uses a keyless scripted model through one real assembled DSH path on macOS'
+        : 'one deterministic held-out case'],
     },
   }, null, 2)}\n`)
   return runRoot
@@ -650,6 +706,16 @@ async function commitSkill(repository: string, body: string, reference: string):
 async function git(repository: string, ...args: string[]): Promise<string> {
   const { stdout } = await execFile('git', ['-C', repository, ...args], { encoding: 'utf8' })
   return stdout.trim()
+}
+
+async function waitForActiveGeneration(store: EvolutionStore): Promise<NonNullable<ReturnType<EvolutionStore['getActiveGeneration']>>> {
+  const deadline = Date.now() + 5_000
+  while (Date.now() < deadline) {
+    const active = store.getActiveGeneration()
+    if (active !== undefined) return active
+    await new Promise(resolve => setTimeout(resolve, 10))
+  }
+  throw new Error('automatic promotion did not activate a Generation')
 }
 
 async function installAgentRuntime(

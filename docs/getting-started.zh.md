@@ -51,6 +51,9 @@ pnpm --filter dsh-evolve pack --pack-destination "$PWD/.evoforge/pack"
       runRoots:
         - /absolute/path/to/.dsh/evoforge/runs
       scanIntervalMs: 30000
+    autoPromote:
+      skills:
+        - build-dsh-plugin
 ```
 
 每个 Generation artifact 的 `name` 都必须有一条 source。Repository 必须能解析
@@ -91,6 +94,12 @@ Review 使用和 supervisor 相同的 `runRoots`，但不要求安装 Jobs。它
 并要求 journal、report 和处置文件都是 owned regular file。`review` 列表展示 pending
 候选；详情展示 claim、changed files、tree、逐 case、proposal token、Trial 次数、
 composition、理由和限制。首版没有逐行 diff viewer。
+
+`autoPromote` 可完全省略；省略或 `skills: []` 即关闭。开启时必须同时配置 supervisor 并
+装配 native Jobs。只有 allowlist 内 Skill 的 exact baseline、assembled composition stable、
+sealed `fail → pass`、全部 checks、Trial≥4 和单一 `SKILL.md` ≤2 KiB append 同时满足才
+自动晋升。详情命令会解释未满足的门。代码、工具、权限、protected-effect 词或其他文件
+一律转人工。pre-alpha 阶段不要在生产 profile 开启。
 
 ## 3. Shadow 输入
 

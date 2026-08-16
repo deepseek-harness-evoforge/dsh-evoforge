@@ -4,6 +4,7 @@ import type { CapabilityGeneration, EvolutionStore } from './generation-store.ts
 import type { CandidatePublisher } from './candidate-publisher.ts'
 import type { ReviewCandidate, ReviewInbox } from './review-inbox.ts'
 import type { ResidentEvolutionControl } from './resident-evolution-control.ts'
+import type { AutoPromotionPolicy, AutoPromotionPolicyResult } from './auto-promotion.ts'
 
 const USAGE = 'Usage: /evolve [status|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]'
 const generationIdPattern = /^[a-f0-9]{64}$/
@@ -14,13 +15,14 @@ export function installEvolutionCommand(
   store: EvolutionStore,
   review?: { inbox: ReviewInbox; publisher: CandidatePublisher },
   resident?: Pick<ResidentEvolutionControl, 'isPaused' | 'pause' | 'resume'>,
+  automatic?: Pick<AutoPromotionPolicy, 'evaluate' | 'skills'>,
 ): void {
   ctx.inject(['commands'], (commandCtx) => {
     commandCtx.commands.register({
       name: 'evolve',
       description: 'review, publish, promote, or roll back immutable capability Generations',
       input: { hint: '[status|review ...|pause|resume|promote <generation-id>|rollback]' },
-      handler: ({ rawInput }) => executeEvolutionCommand(store, rawInput, review, resident),
+      handler: ({ rawInput }) => executeEvolutionCommand(store, rawInput, review, resident, automatic),
     })
   })
 }
@@ -31,11 +33,12 @@ export async function executeEvolutionCommand(
   rawInput: string,
   review?: { inbox: ReviewInbox; publisher: CandidatePublisher },
   resident?: Pick<ResidentEvolutionControl, 'isPaused' | 'pause' | 'resume'>,
+  automatic?: Pick<AutoPromotionPolicy, 'evaluate' | 'skills'>,
 ): Promise<CommandResult> {
   const input = rawInput.trim()
   try {
     if (input === '' || input === 'status') {
-      return renderStatus(store.getActiveGeneration(), resident?.isPaused())
+      return renderStatus(store.getActiveGeneration(), resident?.isPaused(), automatic?.skills())
     }
     if (input === 'pause') {
       if (resident === undefined) return residentUnavailable()
@@ -62,7 +65,13 @@ export async function executeEvolutionCommand(
     if (reviewAction?.[1] !== undefined) {
       if (review === undefined) return reviewUnavailable()
       const [, id, action, note] = reviewAction
-      if (action === undefined) return renderReview(await review.inbox.get(id))
+      if (action === undefined) {
+        const candidate = await review.inbox.get(id)
+        const automaticDecision = automatic === undefined
+          ? undefined
+          : await automatic.evaluate(candidate)
+        return renderReview(candidate, automaticDecision)
+      }
       if (note === undefined || note.trim() === '') return { kind: 'error', text: USAGE }
       if (action === 'reject') {
         const rejected = await review.inbox.reject(id, note)
@@ -154,7 +163,7 @@ function renderReviewList(candidates: ReviewCandidate[], warningCount: number): 
     text: [
       `Pending evolution reviews: ${candidates.length}`,
       ...visible.map(candidate =>
-        `- ${candidate.id} [${candidate.recommendation}] ${candidate.skillName}: ${candidate.claim}`),
+        `- ${candidate.id} [${candidate.status === 'pending' ? '' : `${candidate.status}/`}${candidate.recommendation}] ${candidate.skillName}: ${candidate.claim}`),
       ...candidates.length > visible.length ? [`- … ${candidates.length - visible.length} more`] : [],
       ...warningCount === 0 ? [] : [`Skipped invalid runs: ${warningCount}`],
       '',
@@ -163,11 +172,15 @@ function renderReviewList(candidates: ReviewCandidate[], warningCount: number): 
   }
 }
 
-function renderReview(candidate: ReviewCandidate): CommandResult {
+function renderReview(
+  candidate: ReviewCandidate,
+  automatic?: AutoPromotionPolicyResult,
+): CommandResult {
   return {
     kind: 'success',
     text: [
       `Evolution review ${candidate.id}`,
+      `Status: ${candidate.status}${candidate.decisionActor === undefined ? '' : ` (${candidate.decisionActor})`}`,
       `Recommendation: ${candidate.recommendation}`,
       `Skill: ${candidate.skillName}`,
       `Claim: ${candidate.claim}`,
@@ -180,9 +193,25 @@ function renderReview(candidate: ReviewCandidate): CommandResult {
       `Composition: ${candidate.compositionFingerprint}`,
       `Reasons: ${candidate.reasons.join('; ')}`,
       `Limitations: ${candidate.limitations.join('; ')}`,
+      ...candidate.generationId === undefined ? [] : [`Generation: ${candidate.generationId}`],
+      ...candidate.activatedAt === undefined ? [] : [`Activated: ${candidate.activatedAt}`],
+      ...automatic === undefined
+        ? []
+        : [automatic.eligible
+            ? `Automatic policy: eligible (${automatic.policyVersion})`
+            : `Automatic policy: manual review — ${automatic.reasons.join('; ')}`],
       '',
-      `Approve inactive publication: /evolve review ${candidate.id} approve <note>`,
-      `Reject: /evolve review ${candidate.id} reject <note>`,
+      ...candidate.status === 'pending'
+        ? [
+            `Approve inactive publication: /evolve review ${candidate.id} approve <note>`,
+            `Reject: /evolve review ${candidate.id} reject <note>`,
+          ]
+        : candidate.status === 'approved' && candidate.activatedAt === undefined
+          ? [
+              'Automatic activation is pending; the Candidate remains visible until the pointer move is durable.',
+              `Manual retry for future Sessions: /evolve promote ${candidate.generationId}`,
+            ]
+          : [],
     ].join('\n'),
   }
 }
@@ -190,10 +219,14 @@ function renderReview(candidate: ReviewCandidate): CommandResult {
 function renderStatus(
   active: CapabilityGeneration | undefined,
   recoveryPaused?: boolean,
+  automaticSkills?: string[],
 ): CommandResult {
   const recovery = recoveryPaused === undefined
     ? []
     : [`Resident recovery: ${recoveryPaused ? 'paused' : 'running'}`]
+  const automatic = automaticSkills === undefined
+    ? []
+    : [`Automatic promotion: auto-clear-instruction-v1 (${automaticSkills.join(', ')})`]
   if (active === undefined) {
     return {
       kind: 'success',
@@ -201,6 +234,7 @@ function renderStatus(
         'Evolution status',
         'Active: native DSH',
         ...recovery,
+        ...automatic,
         'Future Sessions will use native capabilities.',
         '',
         'Commands: /evolve promote <64-char-generation-id>',
@@ -213,6 +247,7 @@ function renderStatus(
       'Evolution status',
       `Active: ${active.id}`,
       ...recovery,
+      ...automatic,
       `Rollback target: ${active.parentId ?? 'native DSH'}`,
       'Artifacts:',
       ...active.artifacts.map(artifact =>

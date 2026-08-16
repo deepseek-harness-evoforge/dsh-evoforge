@@ -15,6 +15,7 @@ export interface ShadowSupervisorOptions {
   runRoots: string[]
   scanIntervalMs: number
   paused?: boolean
+  afterScan?: () => Promise<void>
   runner?: (invocation: ShadowResumeInvocation) => ReturnType<typeof runShadow>
   onError?: (error: unknown, path: string) => void
 }
@@ -59,7 +60,7 @@ export class ShadowSupervisor {
   scanOnce(): Promise<void> {
     if (this.scanPromise !== undefined) return this.scanPromise
     if (this.stopped || this.paused) return Promise.resolve()
-    const scan = this.scanAll()
+    const scan = this.scanCycle()
     const wrapped = scan.finally(() => {
       if (this.scanPromise === wrapped) this.scanPromise = undefined
     })
@@ -151,6 +152,17 @@ export class ShadowSupervisor {
           if (this.activeAbort === controller) this.activeAbort = undefined
         }
       }
+    }
+  }
+
+  private async scanCycle(): Promise<void> {
+    await this.scanAll()
+    if (this.stopped || this.paused || this.options.afterScan === undefined) return
+    try {
+      await this.options.afterScan()
+      this.reportedErrors.delete('automatic-promotion')
+    } catch (error) {
+      this.report(error, 'automatic-promotion')
     }
   }
 

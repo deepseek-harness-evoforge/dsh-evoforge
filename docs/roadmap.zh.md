@@ -12,6 +12,7 @@
 | P0A Shadow evaluator | 本地退出门通过 | 安全门、macOS Sealed Trial、真实 DSH bridge、3/3 公开产品 fixture 与[本地未见首测](evidence/p0a-8-private-heldout.zh.md)均转绿；真实 provider 与第三方独立复跑仍属更高等级证据 |
 | P0B Local Continuity | implemented | P0B.1 release kernel、P0B.2a durable resume 与 P0B.2b resident supervisor 已通过本地/pinned DSH 测试；生产多日 soak 仍属发布前证据 |
 | P0C Human Control | 命令闭环 implemented；可用性门待验证 | P0C.1 release、P0C.2 review → inactive Generation、P0C.3 durable pause/resume 已通过真实 Commands/Agent 测试 |
+| P1 Bounded Autonomy | P1.1 implemented | 默认关闭的 allowlist + append-only clear-instruction policy 已通过 policy/crash/真实 DSH future-Session 测试；canary/自动回滚待完成 |
 
 ## P0A — 先证明会判断
 
@@ -87,6 +88,16 @@ Control Center。
 - deterministic clear win、独立 final-test、rollback rehearsal；
 - future-session canary；可重放反事实证明回归时自动 rollback；
 - 代码、工具、权限和外部动作继续只到 Draft PR/review。
+
+P1.1 已完成：`autoPromote.skills` 显式 opt-in；只接受 exact baseline、assembled
+composition stable、sealed clear win、全部 checks、Trial≥4 和 ≤2 KiB 单一 `SKILL.md`
+append。protected-effect 或任何模糊证据留在人工 inbox。Automatic actor 先 durable，
+崩溃后可完成 future-session promotion。证据见
+[P1.1](evidence/p1-1-opt-in-clear-instruction-auto-promotion.zh.md)与
+[ADR-0011](adr/0011-automatic-promotion-is-an-opt-in-clear-instruction-policy.md)。
+
+P1 剩余：future-session canary、真实 outcome monitor、阈值化自动 rollback，以及真实
+provider 数据下的 false promotion/false rollback/review rate。P1.1 不作完整退出声明。
 
 退出条件：真实 Shadow/Canary 数据证明 false promotion、false rollback、review rate 和每次减少返工的成本在预声明预算内。
 

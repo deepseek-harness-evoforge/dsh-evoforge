@@ -4,7 +4,7 @@
 
 An out-of-tree extension suite for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). EvoForge adds removable capabilities through supported DSH seams; it is not a DSH fork or a home for core-defect workarounds.
 
-> **Pre-alpha: do not use for automatic activation.** The local P0A Shadow gate has passed. P0B implements Local Continuity. P0C adds host-only review/release plus durable resident pause/resume. Automatic-promotion policy, real-user usability evidence, and production multi-day evidence remain incomplete.
+> **Pre-alpha: do not use automatic activation in production.** P0A Shadow, P0B Local Continuity, and the P0C human controls are implemented. P1.1 adds a disabled-by-default, explicit-allowlist clear-instruction auto-promotion path. Canary routing, automatic rollback, real-user usability evidence, and production multi-day evidence remain incomplete.
 
 `dsh-evolve` aims to turn agent self-improvement into an evidence-backed release process:
 

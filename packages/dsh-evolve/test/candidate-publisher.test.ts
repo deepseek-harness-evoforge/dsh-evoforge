@@ -185,6 +185,7 @@ async function createFixture(): Promise<{
     limitations: ['fixture'],
     evaluatorVersion: 'fixture-v1',
     compositionFingerprint,
+    compositionStable: false,
     startedAt: '2026-08-16T00:00:00.000Z',
     evidenceHash: 'd'.repeat(64),
   }

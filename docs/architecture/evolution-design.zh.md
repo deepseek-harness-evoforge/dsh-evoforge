@@ -1,6 +1,6 @@
 # EvoForge 可证明自进化设计
 
-> 状态：设计已获授权；P0A/P0B 已实现；P0C.1–P0C.3 命令闭环已形成，真实用户可用性门待验证
+> 状态：P0A/P0B/P0C implemented；P1.1 最窄 opt-in 自动晋升 implemented；canary/自动回滚与真实用户证据待完成
 > 更新日期：2026-08-16
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 
@@ -579,5 +579,8 @@ durable Shadow evidence 投影为 review inbox，并把人工批准发布为不�
 Generation，证据见 [P0C.2](../evidence/p0c-2-review-to-inactive-generation.zh.md)。
 P0C.3 已提供 durable resident pause/resume，证据见
 [P0C.3](../evidence/p0c-3-durable-resident-pause-resume.zh.md)。P0C 不增加模型 Tool，
-也不让审批等待阻塞产生信号的原会话。下一实现纵切是 P1 极窄自动晋升；P0C 仍需
-普通用户完成控制任务的可用性退出证据。
+也不让审批等待阻塞产生信号的原会话。P1.1 已实现默认关闭、allowlist、append-only 的
+clear-instruction 自动晋升，证据见
+[P1.1](../evidence/p1-1-opt-in-clear-instruction-auto-promotion.zh.md)。下一实现纵切是
+future-session canary 与 outcome-triggered rollback；P0C 仍需普通用户完成控制任务的
+可用性退出证据。

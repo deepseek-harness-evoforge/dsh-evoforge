@@ -1,10 +1,11 @@
 # dsh-evolve
 
-`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains three deliberately separate lanes:
+`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains four deliberately separate lanes:
 
 - **P0A Shadow** compares an active Skill with an inactive Candidate without changing live DSH.
 - **P0B Local Continuity** records immutable Capability Generations, pins one Generation per Session, switches or rolls back only future Sessions, and resumes durable sealed work through an optional resident supervisor.
 - **P0C Human Control** reviews completed evidence and publishes approved Candidates as inactive Generations before a separate explicit promotion.
+- **P1.1 Narrow Autonomy** optionally auto-promotes only allowlisted, append-only instruction clear wins; every other Candidate remains human review.
 
 The offline evaluation command is:
 
@@ -86,8 +87,8 @@ The P0B.1 runtime kernel also proves on the pinned DSH revision that:
 - the packed artifact installs into a real DSH profile, boots, removes cleanly, and leaves native DSH composition intact;
 - removing the plugin leaves native DSH Session and Goal facts readable.
 
-This is still pre-alpha. There is no full diff viewer, automatic promotion
-policy, release, or production support. Explicit and resident
+This is still pre-alpha. There is no full diff viewer, future-session canary,
+outcome-triggered automatic rollback, release, or production support. Explicit and resident
 Shadow recovery now cover bounded proposer/Candidate/Trial crash boundaries, but
 short automated soak is not production multi-day evidence. This is not a claim
 that continuous self-improvement is complete.
@@ -110,6 +111,9 @@ Skill that a Generation may activate:
       runRoots:
         - /absolute/path/to/.dsh/evoforge/runs
       scanIntervalMs: 30000
+    autoPromote:
+      skills:
+        - build-dsh-plugin
 ```
 
 `supervisor` is optional. When configured, the DSH composition must also load a
@@ -131,6 +135,17 @@ not installed. Only completed `promote` or `review` reports become pending
 reviews. Approval accepts a full review id and a human note, publishes an
 inactive Generation, and returns the full id required by `/evolve promote`.
 Rejection and approval are durably bound to the evidence hash beside the run.
+
+`autoPromote` is optional and disabled when its Skill list is empty or absent.
+It also requires the resident supervisor and native Jobs. Version
+`auto-clear-instruction-v1` accepts only an allowlisted exact baseline, explicit
+assembled composition stability, a sealed baseline-fail/Candidate-pass result,
+four or more Trial executions, and one non-empty append of at most 2 KiB to
+`SKILL.md`. Protected-action, tool, permission, secret, network, deployment,
+payment, messaging, and calendar terms route to human review. The lexical gate
+is conservative routing, not a semantic security boundary; DSH Approval remains
+authoritative. Automatic approval is durable before future-session activation,
+so a crash between them is retryable.
 
 `repository` remains the source of truth. `cacheRoot` is a rebuildable,
 read-only materialization cache; it is never the authority for a Generation.

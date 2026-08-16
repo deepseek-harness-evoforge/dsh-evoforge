@@ -95,6 +95,9 @@ describe('Shadow review inbox', () => {
       decisionNote: 'too narrow for the shared Skill',
     })
     expect((await new ReviewInbox([root]).scan()).candidates).toEqual([])
+    expect((await new ReviewInbox([root]).scanAll()).candidates).toEqual([
+      expect.objectContaining({ status: 'rejected', decisionActor: 'human' }),
+    ])
   })
 
   it('publishes before durably approving and returns the inactive Generation id', async () => {
@@ -117,9 +120,71 @@ describe('Shadow review inbox', () => {
       decisionNote: 'evidence is sufficient',
     })
     expect(JSON.parse(await readFile(join(root, 'candidate', 'review-state.json'), 'utf8')))
-      .toMatchObject({ status: 'approved', generationId: '9'.repeat(64) })
+      .toMatchObject({ status: 'approved', actor: 'human', generationId: '9'.repeat(64) })
     await expect(inbox.reject(candidate.id, 'change the terminal decision'))
       .rejects.toThrow('approved Candidate cannot be rejected')
+  })
+
+  it('keeps an automatic approval visible until future-session activation is durable', async () => {
+    const root = await createRoot()
+    await writeCandidateRun(root, 'candidate', 'promote')
+    const inbox = new ReviewInbox([root])
+    const candidate = (await inbox.scan()).candidates[0]
+    if (candidate === undefined) throw new Error('candidate missing')
+    const generationId = '8'.repeat(64)
+
+    const approved = await inbox.approve(
+      candidate.id,
+      'automatic clear win',
+      async () => ({ id: generationId }),
+      { actor: 'auto-clear-instruction-v1' },
+    )
+    expect(approved).toMatchObject({
+      status: 'approved',
+      decisionActor: 'auto-clear-instruction-v1',
+      generationId,
+    })
+    expect((await inbox.scan()).candidates).toEqual([
+      expect.objectContaining({ id: candidate.id, status: 'approved' }),
+    ])
+
+    await inbox.markAutomaticActivated(candidate.id, generationId)
+
+    expect((await inbox.scan()).candidates).toEqual([])
+    expect((await inbox.scanAll()).candidates).toEqual([
+      expect.objectContaining({
+        id: candidate.id,
+        activatedAt: expect.any(String),
+      }),
+    ])
+  })
+
+  it('serializes competing automatic approval and human rejection into one terminal decision', async () => {
+    const root = await createRoot()
+    await writeCandidateRun(root, 'candidate', 'promote')
+    const inbox = new ReviewInbox([root])
+    const candidate = (await inbox.scan()).candidates[0]
+    if (candidate === undefined) throw new Error('candidate missing')
+    let release!: () => void
+    const publishing = new Promise<void>(resolve => { release = resolve })
+    const approving = inbox.approve(
+      candidate.id,
+      'automatic clear win',
+      async () => {
+        await publishing
+        return { id: '7'.repeat(64) }
+      },
+      { actor: 'auto-clear-instruction-v1' },
+    )
+    const rejecting = inbox.reject(candidate.id, 'human raced with policy')
+
+    release()
+
+    await expect(approving).resolves.toMatchObject({ decisionActor: 'auto-clear-instruction-v1' })
+    await expect(rejecting).rejects.toThrow('approved Candidate cannot be rejected')
+    expect((await inbox.scanAll()).candidates).toEqual([
+      expect.objectContaining({ decisionActor: 'auto-clear-instruction-v1' }),
+    ])
   })
 
   it('requires a full unambiguous review id and refuses a changed report after disposition', async () => {
