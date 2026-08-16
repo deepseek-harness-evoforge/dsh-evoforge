@@ -10,7 +10,13 @@ import {
   type ShadowRunIdentity,
   type ShadowRunState,
 } from './shadow-run-state.ts'
-import { runPairedTrial } from './trial.ts'
+import {
+  runCalibrationTrial,
+  runComparisonTrial,
+  runPairedTrial,
+  type CalibrationTrialResult,
+  type PairedTrialResult,
+} from './trial.ts'
 import { readPrivateFeedbackCaseDraft } from './feedback-case-draft.ts'
 
 export interface ShadowOptions {
@@ -92,6 +98,9 @@ export async function runShadow(options: ShadowOptions): Promise<
   }
   if (feedbackDraft !== undefined && feedbackDraft.target.contentHash !== baseTreeHash) {
     throw new Error('feedback draft does not match the exact active Skill content')
+  }
+  if (feedbackDraft !== undefined && (manifest.trial === undefined || manifest.calibration === undefined)) {
+    throw new Error('feedback-guided Shadow requires a calibrated Case Pack')
   }
   const feedbackEvidence = feedbackDraft === undefined
     ? undefined
@@ -194,6 +203,94 @@ export async function runShadow(options: ShadowOptions): Promise<
         outcome: { kind: 'complete', reportPath, summary },
       })
       return { status: 'complete' as const, reportPath, summary }
+    }
+
+    const finishBeforeProposalIncomplete = async (
+      reason: string,
+      calibration: PairedTrialResult['calibration'] = [],
+      finalCasePackHash = casePackHash,
+    ) => {
+      const finalTreeHash = await hashTree(skillDir)
+      const reportPath = resolve(outputDir, 'report.json')
+      await writeJson(reportPath, {
+        schemaVersion: 1,
+        run: {
+          id: runId,
+          status: 'incomplete',
+          startedAt,
+          finishedAt: new Date().toISOString(),
+        },
+        subject: {
+          skillName,
+          baseTreeHash,
+          finalTreeHash,
+          unchanged: finalTreeHash === baseTreeHash,
+        },
+        epoch: {
+          dshRevision: manifest.epoch.dshRevision,
+          modelRoute,
+          modelConfigHash,
+          evaluatorVersion: manifest.epoch.evaluatorVersion,
+          casePackHash,
+          casePackFinalHash: finalCasePackHash,
+          casePackUnchanged: finalCasePackHash === casePackHash,
+          ...(feedbackDraft === undefined ? {} : { feedbackDraftId: feedbackDraft.id }),
+        },
+        calibration,
+        cases: [],
+        composition: {
+          baselineFingerprint,
+          candidateFingerprint: baselineFingerprint,
+          allowedDifference: [],
+        },
+        budget: {
+          candidateLimit: manifest.budget.candidateLimit,
+          trialLimit: manifest.budget.trialLimit,
+          inputTokens: 0,
+          outputTokens: 0,
+        },
+      })
+      return finishIncomplete(reportPath, reason)
+    }
+
+    let preflightCalibration: CalibrationTrialResult | undefined
+    if (state.phase === 'prepared'
+      && manifest.trial !== undefined
+      && manifest.calibration !== undefined) {
+      if (manifest.budget.trialLimit < 4) {
+        return finishBeforeProposalIncomplete(
+          `case pack trial budget is ${manifest.budget.trialLimit}; paired calibration requires 4`,
+        )
+      }
+      try {
+        preflightCalibration = await runCalibrationTrial({
+          calibration: manifest.calibration,
+          casePackDir,
+          dshRevision: manifest.epoch.dshRevision,
+          outputDir,
+          ...options.signal === undefined ? {} : { signal: options.signal },
+          trial: manifest.trial,
+          trialLimit: manifest.budget.trialLimit,
+        })
+      } catch (error) {
+        if (options.signal?.aborted) throw options.signal.reason
+        const reason = error instanceof Error ? error.message : String(error)
+        return finishBeforeProposalIncomplete(reason)
+      }
+      const finalCasePackHash = await hashTree(casePackDir)
+      if (finalCasePackHash !== casePackHash) {
+        return finishBeforeProposalIncomplete(
+          'case pack changed during pre-proposal calibration',
+          preflightCalibration.calibration,
+          finalCasePackHash,
+        )
+      }
+      if (preflightCalibration.calibration.some(result => !result.passed)) {
+        return finishBeforeProposalIncomplete(
+          'case pack calibration failed before proposal',
+          preflightCalibration.calibration,
+        )
+      }
     }
 
     let modelResponse: ModelResponse | undefined
@@ -441,20 +538,41 @@ export async function runShadow(options: ShadowOptions): Promise<
       return finishIncomplete(reportPath, reason)
     }
 
-    let pairedTrial
+    let pairedTrial: PairedTrialResult
     try {
       await updateState({ phase: 'trial-running' })
-      pairedTrial = await runPairedTrial({
-        calibration: manifest.calibration,
-        casePackDir,
-        dshRevision: manifest.epoch.dshRevision,
-        outputDir,
-        proposal,
-        ...options.signal === undefined ? {} : { signal: options.signal },
-        skillDir,
-        trial: manifest.trial,
-        trialLimit: manifest.budget.trialLimit,
-      })
+      if (preflightCalibration === undefined) {
+        pairedTrial = await runPairedTrial({
+          calibration: manifest.calibration,
+          casePackDir,
+          dshRevision: manifest.epoch.dshRevision,
+          outputDir,
+          proposal,
+          ...options.signal === undefined ? {} : { signal: options.signal },
+          skillDir,
+          trial: manifest.trial,
+          trialLimit: manifest.budget.trialLimit,
+        })
+      } else {
+        const comparison = await runComparisonTrial({
+          casePackDir,
+          dshRevision: manifest.epoch.dshRevision,
+          outputDir,
+          proposal,
+          ...options.signal === undefined ? {} : { signal: options.signal },
+          skillDir,
+          trial: manifest.trial,
+          trialLimit: manifest.budget.trialLimit,
+        })
+        pairedTrial = {
+          backend: comparison.backend,
+          count: 4,
+          assembled: comparison.assembled,
+          calibration: preflightCalibration.calibration,
+          baseline: comparison.baseline,
+          candidate: comparison.candidate,
+        }
+      }
     } catch (error) {
       if (options.signal?.aborted) throw options.signal.reason
       const reason = error instanceof Error ? error.message : String(error)

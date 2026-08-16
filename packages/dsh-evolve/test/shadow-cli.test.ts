@@ -661,6 +661,58 @@ describe('dsh-evolve shadow', () => {
     }
   })
 
+  it.skipIf(process.platform !== 'darwin')('refuses an uncalibrated Case Pack before any proposer request', async () => {
+    const fixture = await createFixture()
+    await configureBrowserTrial(fixture)
+    await cp(
+      join(fixture.casePackDir, 'calibration', 'known-bad', 'SKILL.md'),
+      join(fixture.casePackDir, 'calibration', 'known-correction', 'SKILL.md'),
+    )
+    let proposalRequests = 0
+    const server = createServer((_request, response) => {
+      proposalRequests += 1
+      response.setHeader('content-type', 'application/json')
+      response.end('{}')
+    })
+    await new Promise<void>(resolveListen => server.listen(0, '127.0.0.1', resolveListen))
+    const address = server.address()
+    if (!address || typeof address === 'string') throw new Error('mock model server did not bind')
+
+    try {
+      await expect(execFileAsync(process.execPath, [
+        '--import', 'tsx', cliPath, 'shadow', fixture.skillDir,
+        '--case-pack', fixture.casePackDir,
+        '--output', fixture.outputDir,
+      ], {
+        cwd: packageRoot,
+        env: {
+          ...process.env,
+          DSH_EVOLVE_MODEL_BASE_URL: `http://127.0.0.1:${address.port}/v1`,
+          DSH_EVOLVE_MODEL_NAME: 'must-not-be-called',
+        },
+      })).rejects.toMatchObject({
+        code: 2,
+        stdout: '',
+        stderr: 'incomplete: case pack calibration failed before proposal\n',
+      })
+      expect(proposalRequests).toBe(0)
+      const report = JSON.parse(await readFile(join(fixture.outputDir, 'report.json'), 'utf8'))
+      expect(report).toMatchObject({
+        run: { status: 'incomplete' },
+        calibration: [
+          { id: 'known-bad', passed: true },
+          { id: 'known-correction', expected: 'pass', actual: 'fail', passed: false },
+        ],
+        budget: { inputTokens: 0, outputTokens: 0 },
+      })
+      expect(report).not.toHaveProperty('candidate')
+    } finally {
+      await new Promise<void>((resolveClose, rejectClose) =>
+        server.close(error => error ? rejectClose(error) : resolveClose()),
+      )
+    }
+  })
+
   it.skipIf(process.platform !== 'darwin')('uses an exact private Feedback Case Draft only as proposer evidence before sealed Trial', async () => {
     const fixture = await createFixture()
     const { correctedSkill, originalSkill, skillPath } = await configureBrowserTrial(fixture)

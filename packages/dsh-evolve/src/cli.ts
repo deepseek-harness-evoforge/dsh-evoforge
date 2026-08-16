@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util'
+import { calibrateCasePack } from './case-pack-calibration.js'
 import { runShadow } from './shadow.js'
+
+const SHADOW_USAGE = 'usage: dsh-evolve shadow <skill-dir> --case-pack <case-pack-dir> --output <run-dir> [--feedback-draft <private-draft.json>] [--resume]'
+const CALIBRATE_USAGE = 'usage: dsh-evolve calibrate --case-pack <case-pack-dir> --output <run-dir>'
 
 async function main(): Promise<number> {
   try {
@@ -15,14 +19,31 @@ async function main(): Promise<number> {
       },
       strict: true,
     })
-    const [command, skillDir, ...extraPositionals] = parsed.positionals
-    if (command !== 'shadow' || !skillDir || extraPositionals.length > 0) {
-      throw new Error('usage: dsh-evolve shadow <skill-dir> --case-pack <case-pack-dir> --output <run-dir> [--feedback-draft <private-draft.json>] [--resume]')
-    }
+    const [command, ...positionals] = parsed.positionals
     const casePackDir = parsed.values['case-pack']
     const outputDir = parsed.values.output
     if (!casePackDir || !outputDir) {
       throw new Error('--case-pack and --output are required')
+    }
+    if (command === 'calibrate') {
+      if (positionals.length > 0
+        || parsed.values['feedback-draft'] !== undefined
+        || parsed.values.resume) {
+        throw new Error(CALIBRATE_USAGE)
+      }
+      const result = await calibrateCasePack({ casePackDir, outputDir })
+      if (result.status === 'calibrated') {
+        process.stdout.write(`calibrated: ${result.summary}\n`)
+        return 0
+      }
+      process.stderr.write(
+        `${result.status}: ${result.reason}; report: ${result.reportPath}\n`,
+      )
+      return 2
+    }
+    const [skillDir, ...extraPositionals] = positionals
+    if (command !== 'shadow' || !skillDir || extraPositionals.length > 0) {
+      throw new Error(SHADOW_USAGE)
     }
     const result = await runShadow({
       casePackDir,

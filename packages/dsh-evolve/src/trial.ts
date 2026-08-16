@@ -73,6 +73,21 @@ export interface PairedTrialResult {
   candidate: EvaluatorOutcome
 }
 
+export interface CalibrationTrialResult {
+  backend: 'darwin-seatbelt'
+  count: 2
+  assembled: boolean
+  calibration: PairedTrialResult['calibration']
+}
+
+export interface ComparisonTrialResult {
+  backend: 'darwin-seatbelt'
+  count: 2
+  assembled: boolean
+  baseline: EvaluatorOutcome
+  candidate: EvaluatorOutcome
+}
+
 export async function runPairedTrial(options: {
   calibration: CalibrationDefinition
   casePackDir: string
@@ -96,11 +111,31 @@ export async function runPairedTrial(options: {
   if ((options.proposal === undefined) === (options.candidateSkillDir === undefined)) {
     throw new Error('paired Trial requires exactly one proposed or exact Candidate Skill tree')
   }
+  const calibration = await runCalibrationTrial(options)
+  const comparison = await runComparisonTrial(options)
 
-  const evaluatorPath = await resolveCasePackEntry(
-    options.casePackDir,
-    options.trial.evaluator,
-  )
+  return {
+    backend: 'darwin-seatbelt',
+    count: requiredTrialCount,
+    assembled: calibration.assembled,
+    calibration: calibration.calibration,
+    baseline: comparison.baseline,
+    candidate: comparison.candidate,
+  }
+}
+
+/** Run only the trusted known-bad/known-correction gate. This never calls a proposer. */
+export async function runCalibrationTrial(options: {
+  calibration: CalibrationDefinition
+  casePackDir: string
+  dshRevision: string
+  outputDir: string
+  signal?: AbortSignal
+  trial: TrialDefinition
+  trialLimit: number
+}): Promise<CalibrationTrialResult> {
+  assertTrialCapacity(options.trialLimit, 2, 'calibration')
+  const trialOptions = await prepareTrialRuntime(options)
   const knownBadDir = await resolveCasePackEntry(
     options.casePackDir,
     options.calibration.knownBad,
@@ -109,37 +144,82 @@ export async function runPairedTrial(options: {
     options.casePackDir,
     options.calibration.knownCorrection,
   )
+  const knownBad = await evaluateTree({ ...trialOptions, sourceDir: knownBadDir })
+  const knownCorrection = await evaluateTree({ ...trialOptions, sourceDir: knownCorrectionDir })
+  return {
+    backend: 'darwin-seatbelt',
+    count: 2,
+    assembled: options.trial.dshAssembled ?? false,
+    calibration: [
+      calibrationResult('known-bad', 'fail', knownBad.passed),
+      calibrationResult('known-correction', 'pass', knownCorrection.passed),
+    ],
+  }
+}
+
+/** Compare baseline and Candidate after calibration has established evaluator direction. */
+export async function runComparisonTrial(options: {
+  casePackDir: string
+  dshRevision: string
+  outputDir: string
+  candidateSkillDir?: string
+  proposal?: Proposal
+  signal?: AbortSignal
+  skillDir: string
+  trial: TrialDefinition
+  trialLimit: number
+}): Promise<ComparisonTrialResult> {
+  assertTrialCapacity(options.trialLimit, 2, 'comparison')
+  if ((options.proposal === undefined) === (options.candidateSkillDir === undefined)) {
+    throw new Error('comparison Trial requires exactly one proposed or exact Candidate Skill tree')
+  }
+  const trialOptions = await prepareTrialRuntime(options)
+  const baseline = await evaluateTree({ ...trialOptions, sourceDir: options.skillDir })
+  const candidate = await evaluateTree(options.candidateSkillDir === undefined
+    ? { ...trialOptions, proposal: options.proposal!, sourceDir: options.skillDir }
+    : { ...trialOptions, sourceDir: options.candidateSkillDir })
+  return {
+    backend: 'darwin-seatbelt',
+    count: 2,
+    assembled: options.trial.dshAssembled ?? false,
+    baseline,
+    candidate,
+  }
+}
+
+async function prepareTrialRuntime(options: {
+  casePackDir: string
+  dshRevision: string
+  outputDir: string
+  signal?: AbortSignal
+  trial: TrialDefinition
+}): Promise<{
+  dshSource?: DshSource
+  evaluatorPath: string
+  outputDir: string
+  signal?: AbortSignal
+  trial: TrialDefinition
+}> {
+  options.signal?.throwIfAborted()
+  if (process.platform !== 'darwin') {
+    throw new Error(`sealed Trial executor is unavailable on ${process.platform}`)
+  }
+  const evaluatorPath = await resolveCasePackEntry(options.casePackDir, options.trial.evaluator)
   const dshSource = options.trial.dshAssembled
     ? await resolveDshSource(options.dshRevision, options.trial.dshProfileInstall ?? false)
     : undefined
-
-  const trialOptions = {
+  return {
     ...dshSource === undefined ? {} : { dshSource },
     evaluatorPath,
     outputDir: options.outputDir,
     ...options.signal === undefined ? {} : { signal: options.signal },
     trial: options.trial,
   }
-  const knownBad = await evaluateTree({ ...trialOptions, sourceDir: knownBadDir })
-  const knownCorrection = await evaluateTree({
-    ...trialOptions,
-    sourceDir: knownCorrectionDir,
-  })
-  const baseline = await evaluateTree({ ...trialOptions, sourceDir: options.skillDir })
-  const candidate = await evaluateTree(options.candidateSkillDir === undefined
-    ? { ...trialOptions, proposal: options.proposal!, sourceDir: options.skillDir }
-    : { ...trialOptions, sourceDir: options.candidateSkillDir })
+}
 
-  return {
-    backend: 'darwin-seatbelt',
-    count: requiredTrialCount,
-    assembled: options.trial.dshAssembled ?? false,
-    calibration: [
-      calibrationResult('known-bad', 'fail', knownBad.passed),
-      calibrationResult('known-correction', 'pass', knownCorrection.passed),
-    ],
-    baseline,
-    candidate,
+function assertTrialCapacity(actual: number, required: number, label: string): void {
+  if (actual < required) {
+    throw new Error(`case pack trial budget is ${actual}; ${label} requires ${required}`)
   }
 }
 
