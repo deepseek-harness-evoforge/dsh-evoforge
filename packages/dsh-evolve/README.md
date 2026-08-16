@@ -24,13 +24,16 @@ On macOS, a Case Pack can add explicit search evidence, known-bad and
 known-correction trees, and a trusted single-file evaluator. `shadow` exposes
 only the search evidence to the proposer, then runs four separate Sealed Trials
 for calibration, baseline, and Candidate before opening the hidden final test.
-Candidate files remain inactive data; arbitrary Candidate code and assembled
-DSH tasks are not executed. Linux and Windows adapters, a workspace disk quota,
-and real DSH workflow fixtures remain open work.
+An opt-in assembled Case Pack can also mount one exact DSH checkout read-only,
+verify its Git revision, and boot the real Loader, Agent Loop, Skill path, and a
+real tool round trip with a keyless scripted adapter. Candidate files remain
+inactive data; arbitrary Candidate code is not executed. Linux and Windows
+adapters, a workspace disk quota, and the three product evaluator fixtures
+remain open work.
 
-This is not yet a useful self-improvement release. The deterministic example
-proves the mechanics and failure semantics, not improvement in an assembled DSH
-workflow or generalization to a locally held-out case.
+This is not yet a useful self-improvement release. The assembled example proves
+the mechanics and non-target composition gate, not real-provider improvement or
+generalization to a locally held-out case.
 
 ## Run the tracer
 

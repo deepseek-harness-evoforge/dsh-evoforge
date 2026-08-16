@@ -27,6 +27,7 @@ interface CasePackManifest {
     evaluator: string
     timeoutMs: number
     outputLimitBytes: number
+    dshAssembled?: boolean
   }
   calibration?: {
     knownBad: string
@@ -286,6 +287,7 @@ export async function runShadow(options: ShadowOptions): Promise<
     pairedTrial = await runPairedTrial({
       calibration: manifest.calibration,
       casePackDir,
+      dshRevision: manifest.epoch.dshRevision,
       outputDir,
       proposal,
       skillDir,
@@ -339,10 +341,16 @@ export async function runShadow(options: ShadowOptions): Promise<
   }
 
   const calibrationPassed = pairedTrial.calibration.every((result) => result.passed)
+  const baselineComposition = pairedTrial.baseline.composition
+  const candidateComposition = pairedTrial.candidate.composition
+  const hasCompositionEvidence = baselineComposition !== undefined && candidateComposition !== undefined
+  const compositionStable = !hasCompositionEvidence
+    || baselineComposition.fingerprint === candidateComposition.fingerprint
   const decision = decidePairedTrial({
     baselinePassed: pairedTrial.baseline.passed,
     calibrationPassed,
     candidatePassed: pairedTrial.candidate.passed,
+    compositionStable,
   })
   const actualCandidateTreeHash = pairedTrial.candidate.treeHash
   await writeJson(reportPath, {
@@ -368,22 +376,44 @@ export async function runShadow(options: ShadowOptions): Promise<
       id: manifest.id,
       partition: 'final-test',
       baseline: pairedTrial.baseline.passed ? 'pass' : 'fail',
-      candidate: pairedTrial.candidate.passed ? 'pass' : 'fail',
-      checks: pairedTrial.candidate.checks,
+      candidate: pairedTrial.candidate.passed && compositionStable ? 'pass' : 'fail',
+      checks: [
+        ...pairedTrial.candidate.checks,
+        ...hasCompositionEvidence
+          ? [{ name: 'non-target-composition-stable', passed: compositionStable }]
+          : [],
+      ],
     }],
     composition: {
       ...reportBase.composition,
-      candidateFingerprint: sha256(`${baselineFingerprint}:${actualCandidateTreeHash}`),
+      baselineFingerprint: baselineComposition?.fingerprint ?? baselineFingerprint,
+      candidateFingerprint: candidateComposition?.fingerprint
+        ?? sha256(`${baselineFingerprint}:${actualCandidateTreeHash}`),
+      ...hasCompositionEvidence ? { stable: compositionStable } : {},
     },
     trial: {
       backend: pairedTrial.backend,
       enforcement: 'full',
       count: pairedTrial.count,
+      ...baselineComposition !== undefined && candidateComposition !== undefined
+        ? {
+            modelCalls: {
+              baseline: baselineComposition.modelCalls,
+              candidate: candidateComposition.modelCalls,
+            },
+            usage: {
+              baseline: baselineComposition.usage,
+              candidate: candidateComposition.usage,
+            },
+          }
+        : {},
     },
     decision: {
       recommendation: decision.recommendation,
       reasons: [decision.reason],
-      limitations: ['P0A.2 evaluates one deterministic sealed final-test on macOS'],
+      limitations: [pairedTrial.assembled
+        ? 'P0A.3 uses a keyless scripted model through one real assembled DSH path on macOS'
+        : 'P0A.2 evaluates one deterministic sealed final-test on macOS'],
     },
   })
   return {
@@ -416,12 +446,16 @@ function decidePairedTrial(input: {
   baselinePassed: boolean
   calibrationPassed: boolean
   candidatePassed: boolean
+  compositionStable: boolean
 }): { recommendation: 'promote' | 'review' | 'reject'; reason: string } {
   if (!input.calibrationPassed) {
     return { recommendation: 'reject', reason: 'case pack calibration failed' }
   }
   if (!input.candidatePassed) {
     return { recommendation: 'reject', reason: 'candidate failed the Trial evaluator' }
+  }
+  if (!input.compositionStable) {
+    return { recommendation: 'reject', reason: 'candidate changed non-target DSH composition' }
   }
   if (!input.baselinePassed) {
     return {
@@ -491,6 +525,9 @@ function parseManifest(source: string): CasePackManifest {
       || !Number.isSafeInteger(value.trial.outputLimitBytes)
       || (value.trial.outputLimitBytes as number) <= 0) {
       throw new Error('case pack has an invalid Trial definition')
+    }
+    if (value.trial.dshAssembled !== undefined && typeof value.trial.dshAssembled !== 'boolean') {
+      throw new Error('case pack Trial dshAssembled must be boolean')
     }
     if (!isRecord(value.calibration)
       || typeof value.calibration.knownBad !== 'string'

@@ -1,6 +1,6 @@
 # 当前实现状态
 
-> 更新日期：2026-08-15
+> 更新日期：2026-08-16
 
 本页是仓库完成度的权威入口。架构文档描述目标和约束，不等于能力已经实现。
 
@@ -21,8 +21,8 @@
 | DSH 171 原生插件目录 | `verified` | [全量目录](research/deepseek-harness-native-plugins.zh.md) | 新 revision 重新生成统计 |
 | `dsh-evolve` Shadow 安全门 | `implemented` | [P0A.1 证据](evidence/p0a-1-owned-path-tracer.zh.md)、CLI 测试 | 第三方复跑及完整 P0A evaluator |
 | Sealed Trial executor | `implemented`（macOS、已接入确定性 evaluator） | [边界证据](evidence/p0a-2-darwin-sealed-trial.zh.md)、[ADR-0006](adr/0006-fail-closed-sealed-trial-execution.md) | 磁盘配额、Linux/Windows 与任意 Candidate/DSH 组装执行 |
-| known-bad / known-correction 校准 | `implemented`（示例纵切） | [P0A.3 证据](evidence/p0a-3-calibrated-paired-trial.zh.md)、[示例 Case Pack](../examples/case-packs/browser-e2e-guidance) | 三个真实 assembled fixture 与本地未见 final-test |
-| Candidate 的 `promote/review/reject` 评价 | `implemented`（单个确定性 case） | 同一 CLI 报告中的 paired baseline/Candidate 与纯 Decision | 多 case margin、落盘重放与真实 outcome 验证 |
+| known-bad / known-correction 校准 | `implemented`（静态示例 + 一条真实装配路径） | [P0A.3 静态证据](evidence/p0a-3-calibrated-paired-trial.zh.md)、[P0A.4 assembled 证据](evidence/p0a-4-dsh-assembled-shadow.zh.md) | 三个产品 assembled fixture 与本地未见 final-test |
+| Candidate 的 `promote/review/reject` 评价 | `implemented`（单个确定性 assembled case） | 同一 CLI 报告中的 paired baseline/Candidate、真实 composition 指纹与纯 Decision | 多 case margin、落盘重放与真实 provider outcome 验证 |
 | Capability Generation 与 Session pin | `planned` | [进化架构](architecture/evolution-design.zh.md) | P0A 先证明 evaluator 有价值 |
 | 晋升、回滚与异步人工复核 | `planned` | 路线图 P0B/P0C | immutable Generation、崩溃测试、控制面 |
 | 单机常驻和崩溃恢复 | `planned` | Local Continuity 需求已冻结 | P0A 退出后实现 durable state machine |
@@ -41,7 +41,7 @@
 
 - 不能让 `dsh-evolve` 自动修改或晋升 active Skill；
 - 不能把公开的确定性示例当作真实 DSH 工作流已经改善；
-- `shadow` 不执行任意模型生成代码；当前只把 Candidate 当作数据交给受限的可信 evaluator；
+- `shadow` 不执行任意模型生成代码；assembled lane 会运行真实 DSH，但 Candidate 仍只作为按需 Skill 数据进入受限的可信 evaluator；
 - 不能声称已经持续进化、可回滚、长时常驻或优于 Hermes；
 - 不能作为生产依赖安装。
 

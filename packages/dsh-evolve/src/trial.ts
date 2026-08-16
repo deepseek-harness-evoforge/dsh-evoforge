@@ -1,5 +1,7 @@
+import { execFile } from 'node:child_process'
 import { cp, lstat, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
+import { promisify } from 'node:util'
 import { hashTree } from './hash.js'
 import { runSealedDarwinTrial } from './sealed-trial-darwin.js'
 
@@ -7,6 +9,7 @@ interface TrialDefinition {
   evaluator: string
   timeoutMs: number
   outputLimitBytes: number
+  dshAssembled?: boolean
 }
 
 interface CalibrationDefinition {
@@ -27,11 +30,30 @@ interface EvaluatorOutcome {
   passed: boolean
   checks: EvaluatorCheck[]
   treeHash: string
+  composition?: EvaluatorComposition
+}
+
+interface EvaluatorComposition {
+  fingerprint: string
+  modelCalls: number
+  usage: {
+    inputTokens?: number
+    outputTokens?: number
+    cacheReadTokens?: number
+    cacheWriteTokens?: number
+    reasoningTokens?: number
+  }
+}
+
+interface DshSource {
+  dir: string
+  readOnlyRoots: string[]
 }
 
 export interface PairedTrialResult {
   backend: 'darwin-seatbelt'
   count: 4
+  assembled: boolean
   calibration: Array<{
     id: 'known-bad' | 'known-correction'
     expected: 'fail' | 'pass'
@@ -45,6 +67,7 @@ export interface PairedTrialResult {
 export async function runPairedTrial(options: {
   calibration: CalibrationDefinition
   casePackDir: string
+  dshRevision: string
   outputDir: string
   proposal: Proposal
   skillDir: string
@@ -71,8 +94,12 @@ export async function runPairedTrial(options: {
     options.casePackDir,
     options.calibration.knownCorrection,
   )
+  const dshSource = options.trial.dshAssembled
+    ? await resolveDshSource(options.dshRevision)
+    : undefined
 
   const trialOptions = {
+    ...dshSource === undefined ? {} : { dshSource },
     evaluatorPath,
     outputDir: options.outputDir,
     trial: options.trial,
@@ -92,6 +119,7 @@ export async function runPairedTrial(options: {
   return {
     backend: 'darwin-seatbelt',
     count: requiredTrialCount,
+    assembled: options.trial.dshAssembled ?? false,
     calibration: [
       calibrationResult('known-bad', 'fail', knownBad.passed),
       calibrationResult('known-correction', 'pass', knownCorrection.passed),
@@ -111,6 +139,7 @@ function calibrationResult(
 }
 
 async function evaluateTree(options: {
+  dshSource?: DshSource
   evaluatorPath: string
   outputDir: string
   proposal?: Proposal
@@ -126,7 +155,19 @@ async function evaluateTree(options: {
     const evaluatorCopy = join(trialRoot, 'evaluator.mjs')
     await writeFile(evaluatorCopy, await readFile(options.evaluatorPath))
     const execution = await runSealedDarwinTrial({
-      argv: [process.execPath, evaluatorCopy, candidateDir],
+      argv: [
+        process.execPath,
+        evaluatorCopy,
+        candidateDir,
+        ...options.dshSource === undefined ? [] : [options.dshSource.dir],
+      ],
+      ...options.dshSource === undefined
+        ? {}
+        : {
+            allowProcessFork: true,
+            allowedExecutables: ['/bin/bash'],
+            readOnlyRoots: options.dshSource.readOnlyRoots,
+          },
       outputLimitBytes: options.trial.outputLimitBytes,
       timeoutMs: options.trial.timeoutMs,
       workspace: trialRoot,
@@ -138,6 +179,9 @@ async function evaluateTree(options: {
       throw new Error(`Trial evaluator exited with ${execution.exitCode}${detail ? `: ${detail}` : ''}`)
     }
     const outcome = parseEvaluatorOutcome(execution.stdout)
+    if (options.dshSource !== undefined && outcome.composition === undefined) {
+      throw new Error('assembled Trial evaluator returned no composition evidence')
+    }
     return { ...outcome, treeHash }
   } finally {
     await rm(trialRoot, { force: true, recursive: true })
@@ -185,7 +229,7 @@ function isMissingPathError(error: unknown): boolean {
   return isRecord(error) && error.code === 'ENOENT'
 }
 
-function parseEvaluatorOutcome(source: string): Pick<EvaluatorOutcome, 'passed' | 'checks'> {
+function parseEvaluatorOutcome(source: string): Pick<EvaluatorOutcome, 'passed' | 'checks' | 'composition'> {
   let value: unknown
   try {
     value = JSON.parse(source)
@@ -208,10 +252,68 @@ function parseEvaluatorOutcome(source: string): Pick<EvaluatorOutcome, 'passed' 
   if (value.passed !== checks.every((check) => check.passed)) {
     throw new Error('Trial evaluator aggregate contradicts its checks')
   }
+  const composition = value.composition === undefined
+    ? undefined
+    : parseEvaluatorComposition(value.composition)
   return {
     passed: value.passed,
     checks,
+    ...composition === undefined ? {} : { composition },
   }
+}
+
+function parseEvaluatorComposition(value: unknown): EvaluatorComposition {
+  if (!isRecord(value)
+    || typeof value.fingerprint !== 'string'
+    || !/^[a-f0-9]{64}$/.test(value.fingerprint)
+    || !Number.isSafeInteger(value.modelCalls)
+    || (value.modelCalls as number) < 0
+    || !isRecord(value.usage)) {
+    throw new Error('Trial evaluator composition evidence has an invalid shape')
+  }
+  const usage: EvaluatorComposition['usage'] = {}
+  for (const key of ['inputTokens', 'outputTokens', 'cacheReadTokens', 'cacheWriteTokens', 'reasoningTokens'] as const) {
+    const amount = value.usage[key]
+    if (amount === undefined) continue
+    if (!Number.isSafeInteger(amount) || (amount as number) < 0) {
+      throw new Error('Trial evaluator composition usage has an invalid shape')
+    }
+    usage[key] = amount as number
+  }
+  return {
+    fingerprint: value.fingerprint,
+    modelCalls: value.modelCalls as number,
+    usage,
+  }
+}
+
+const execFileAsync = promisify(execFile)
+
+async function resolveDshSource(expectedRevision: string): Promise<DshSource> {
+  const configured = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
+  if (configured === undefined || configured.trim() === '') {
+    throw new Error('assembled Trial requires DSH_EVOLVE_DSH_SOURCE_DIR')
+  }
+  const sourceDir = await realpath(resolve(configured))
+  const packageJson = JSON.parse(await readFile(join(sourceDir, 'package.json'), 'utf8')) as unknown
+  if (!isRecord(packageJson) || packageJson.name !== '@deepseek-ai/dsh-root') {
+    throw new Error('DSH_EVOLVE_DSH_SOURCE_DIR is not a DeepSeek Harness checkout')
+  }
+  const result = await execFileAsync('git', ['-C', sourceDir, 'rev-parse', 'HEAD'], {
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024,
+    timeout: 5_000,
+  })
+  const actualRevision = result.stdout.trim()
+  if (actualRevision !== expectedRevision) {
+    throw new Error(`DSH source revision ${actualRevision} does not match case pack ${expectedRevision}`)
+  }
+  const readOnlyRoots = await Promise.all(
+    ['apps', 'examples', 'packages', 'node_modules', 'vendor']
+      .map(async path => await realpath(join(sourceDir, path))),
+  )
+  await realpath(join(sourceDir, 'packages', 'boot', 'app-boot', 'lib', 'index.js'))
+  return { dir: sourceDir, readOnlyRoots }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

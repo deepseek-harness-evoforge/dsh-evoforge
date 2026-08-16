@@ -190,7 +190,7 @@ case pack 必须预声明 `candidateLimit`、`trialLimit` 和 token/cost cap；�
 7. 同一落盘 Trial evidence 重放得到相同 Decision；
 8. 无论成功、失败或取消，命令都只写 `run-dir`，临时 workspace 可安全回收。
 
-当前实现先完成 owned-path safety tracer，再完成一条确定性纵切：固定模型只模拟外部 proposer 边界；真实文件、macOS Seatbelt、校准 evaluator、退出码和报告均不 mock。该纵切仍只把 Skill Candidate 当作数据做隐藏检查，尚未执行真实 DSH 组装任务，因此不能替代本节列出的三个 assembled fixture 和本地未见 final-test。
+当前实现先完成 owned-path safety tracer 和静态确定性纵切，再增加一条真实 DSH assembled bridge：固定模型只模拟外部 proposer/LLM 边界；真实文件、macOS Seatbelt、Cordis Loader、Agent Loop、Skill 按需注入、bash Tool、退出码和报告均不 mock。Candidate 仍只作为 Skill 数据，不执行任意 Candidate 代码。该 bridge 证明装配和完整 composition gate 可工作，但不能替代本节列出的三个产品 fixture 和本地未见 final-test；证据见 [P0A.4](../evidence/p0a-4-dsh-assembled-shadow.zh.md)。
 
 ## 9. 人工介入与退出门
 

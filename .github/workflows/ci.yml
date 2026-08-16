@@ -38,3 +38,38 @@ jobs:
         run: pnpm check
       - name: Verify package contents
         run: pnpm --filter dsh-evolve pack --pack-destination "$RUNNER_TEMP"
+
+  assembled-darwin:
+    name: macOS DSH Assembled Trial
+    runs-on: macos-14
+    steps:
+      - name: Checkout EvoForge
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Checkout pinned DeepSeek Harness
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: deepseek-ai/deepseek-harness
+          ref: 47f943859bef60e4160492346772ded9b24f765a
+          path: .evoforge/deepseek-harness
+      - name: Install pnpm
+        uses: pnpm/action-setup@a8198c4bff370c8506180b035930dea56dbd5288 # v5
+        with:
+          version: 11.7.0
+      - name: Install Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install EvoForge dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install pinned DSH dependencies
+        run: pnpm --dir .evoforge/deepseek-harness install --frozen-lockfile
+      - name: Build pinned DSH host libraries
+        run: pnpm --dir .evoforge/deepseek-harness build:lib:host
+      - name: Run sealed and assembled Trials
+        env:
+          DSH_EVOLVE_DSH_SOURCE_DIR: ${{ github.workspace }}/.evoforge/deepseek-harness
+        run: >-
+          pnpm --filter dsh-evolve exec vitest run
+          test/sealed-trial-darwin.e2e.test.ts
+          test/dsh-assembled-shadow.e2e.test.ts

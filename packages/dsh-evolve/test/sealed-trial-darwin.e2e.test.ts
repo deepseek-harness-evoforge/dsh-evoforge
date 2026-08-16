@@ -107,6 +107,56 @@ function finish() { process.stdout.write(JSON.stringify(facts)); socket.destroy(
     expect(result.outputTruncated).toBe(true)
     expect(Buffer.byteLength(result.stdout) + Buffer.byteLength(result.stderr)).toBe(1_024)
   })
+
+  it('grants only declared runtime reads and child executables for an assembled Trial', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-assembled-sealed-'))
+    temporaryRoots.push(root)
+    const workspace = join(root, 'trial')
+    const runtime = join(root, 'runtime')
+    await mkdir(workspace)
+    await mkdir(runtime)
+    await writeFile(join(runtime, 'visible.txt'), 'runtime-visible')
+    const attemptedWrite = join(runtime, 'must-stay-read-only.txt')
+    const childScript = join(workspace, 'child.cjs')
+    const parentScript = join(workspace, 'parent.cjs')
+    await writeFile(
+      childScript,
+      `
+const fs = require('node:fs')
+const facts = { runtimeRead: fs.readFileSync(${JSON.stringify(join(runtime, 'visible.txt'))}, 'utf8') }
+try { fs.writeFileSync(${JSON.stringify(attemptedWrite)}, 'escaped'); facts.runtimeWrite = 'allowed' }
+catch (error) { facts.runtimeWrite = error.code }
+process.stdout.write(JSON.stringify(facts))
+`,
+    )
+    await writeFile(
+      parentScript,
+      `
+const { spawnSync } = require('node:child_process')
+const child = spawnSync(process.execPath, [${JSON.stringify(childScript)}], { encoding: 'utf8' })
+if (child.error) throw child.error
+if (child.status !== 0) throw new Error(child.stderr)
+process.stdout.write(child.stdout)
+`,
+    )
+
+    const result = await runSealedDarwinTrial({
+      argv: [process.execPath, parentScript],
+      allowProcessFork: true,
+      allowedExecutables: [process.execPath],
+      outputLimitBytes: 64 * 1024,
+      readOnlyRoots: [runtime],
+      timeoutMs: 5_000,
+      workspace,
+    })
+
+    expect(result.exitCode, result.stderr).toBe(0)
+    expect(JSON.parse(result.stdout)).toEqual({
+      runtimeRead: 'runtime-visible',
+      runtimeWrite: 'EPERM',
+    })
+    await expect(readFile(attemptedWrite, 'utf8')).rejects.toThrow()
+  })
 })
 
 async function createWorkspace(): Promise<string> {

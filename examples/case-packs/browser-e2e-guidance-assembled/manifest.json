@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "real-browser-e2e-assembled",
+  "epoch": {
+    "dshRevision": "47f943859bef60e4160492346772ded9b24f765a",
+    "evaluatorVersion": "browser-e2e-guidance-assembled-v1"
+  },
+  "budget": {
+    "candidateLimit": 1,
+    "trialLimit": 4,
+    "inputTokenLimit": 4000,
+    "outputTokenLimit": 600
+  },
+  "search": {
+    "evidence": "search/evidence.md"
+  },
+  "trial": {
+    "evaluator": "final-test/evaluator.mjs",
+    "timeoutMs": 15000,
+    "outputLimitBytes": 65536,
+    "dshAssembled": true
+  },
+  "calibration": {
+    "knownBad": "calibration/known-bad",
+    "knownCorrection": "calibration/known-correction"
+  }
+}

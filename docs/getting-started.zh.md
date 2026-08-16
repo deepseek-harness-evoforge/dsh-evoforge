@@ -89,6 +89,42 @@ known-correction、baseline 和 Candidate，执行四次 Sealed Trial。Evaluato
 }
 ```
 
+需要验证真实 DSH 组合时，Trial 可显式声明：
+
+```json
+{
+  "trial": {
+    "evaluator": "final-test/evaluator.mjs",
+    "timeoutMs": 15000,
+    "outputLimitBytes": 65536,
+    "dshAssembled": true
+  }
+}
+```
+
+此时还必须设置 `DSH_EVOLVE_DSH_SOURCE_DIR`，指向已经安装依赖并完成
+`build:lib:host` 的 DSH checkout。Host 会先确认它是 `@deepseek-ai/dsh-root`，再用
+Git 检查实际 `HEAD` 与 `epoch.dshRevision` 完全相同。DSH tree 只读挂载；
+workspace 仍是唯一可写区域。Evaluator 除普通 checks 外必须返回真实组合证据：
+
+```json
+{
+  "schemaVersion": 1,
+  "passed": true,
+  "checks": [{ "name": "real-loader-agent-turn", "passed": true }],
+  "composition": {
+    "fingerprint": "64-char-sha256",
+    "modelCalls": 2,
+    "usage": { "inputTokens": 18, "outputTokens": 8, "cacheReadTokens": 2 }
+  }
+}
+```
+
+公开 assembled 示例见
+[`examples/case-packs/browser-e2e-guidance-assembled`](../examples/case-packs/browser-e2e-guidance-assembled)。
+它使用无密钥脚本 Adapter 跑真实 Loader、Agent Loop、Skill 注入和 bash Tool，
+用于验证装配与 KV Cache 归因，不代表真实模型已经改善。
+
 Case Pack 是可信本地输入，但 evaluator 仍运行在无网络、无父环境秘密、限制
 读写范围、时间和输出的进程中。当前没有 workspace 磁盘配额。
 
@@ -111,6 +147,17 @@ node packages/dsh-evolve/dist/cli.mjs shadow \
   ./examples/skills/browser-e2e-baseline \
   --case-pack ./examples/case-packs/browser-e2e-guidance \
   --output ./runs/browser-e2e-demo
+```
+
+assembled 示例还需要：
+
+```bash
+export DSH_EVOLVE_DSH_SOURCE_DIR=/absolute/path/to/deepseek-harness
+
+node packages/dsh-evolve/dist/cli.mjs shadow \
+  ./examples/skills/browser-e2e-baseline \
+  --case-pack ./examples/case-packs/browser-e2e-guidance-assembled \
+  --output ./runs/browser-e2e-assembled
 ```
 
 自动化测试使用本地固定 HTTP proposer 来验证框架行为；真实 provider 是否能提出

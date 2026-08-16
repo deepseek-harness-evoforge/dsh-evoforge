@@ -4,7 +4,13 @@ import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 
 export interface SealedDarwinTrialOptions {
   argv: [string, ...string[]]
+  /** Permit the trusted evaluator to create child processes. Disabled by default. */
+  allowProcessFork?: boolean
+  /** Additional absolute executables available to a trusted assembled evaluator. */
+  allowedExecutables?: readonly string[]
   outputLimitBytes: number
+  /** Host runtime trees mounted read-only for trusted framework assembly. */
+  readOnlyRoots?: readonly string[]
   timeoutMs: number
   workspace: string
 }
@@ -47,6 +53,18 @@ export async function runSealedDarwinTrial(
   const requestedWorkspace = resolve(options.workspace)
   const workspace = await realpath(requestedWorkspace)
   const executable = await realpath(options.argv[0])
+  const allowedExecutables = await Promise.all(
+    (options.allowedExecutables ?? []).map(async (path) => {
+      if (!isAbsolute(path)) throw new Error('Trial allowed executables must use absolute paths')
+      return await realpath(path)
+    }),
+  )
+  const readOnlyRoots = await Promise.all(
+    (options.readOnlyRoots ?? []).map(async (path) => {
+      if (!isAbsolute(path)) throw new Error('Trial read-only roots must use absolute paths')
+      return await realpath(path)
+    }),
+  )
   const argv: [string, ...string[]] = [
     executable,
     ...options.argv.slice(1).map((argument) => canonicalizeWorkspaceArgument(
@@ -58,7 +76,12 @@ export async function runSealedDarwinTrial(
   const temporaryDirectory = join(workspace, '.trial-tmp')
   await mkdir(temporaryDirectory, { recursive: true })
 
-  const profile = buildSeatbeltProfile({ executable, workspace })
+  const profile = buildSeatbeltProfile({
+    allowProcessFork: options.allowProcessFork ?? false,
+    executables: [...new Set([executable, ...allowedExecutables])],
+    readOnlyRoots: [...new Set(readOnlyRoots)],
+    workspace,
+  })
   return await runSandboxedProcess({
     argv,
     outputLimitBytes: options.outputLimitBytes,
@@ -83,17 +106,30 @@ function canonicalizeWorkspaceArgument(
   return argument
 }
 
-function buildSeatbeltProfile(input: { executable: string; workspace: string }): string {
-  const workspaceAncestors = pathAncestors(input.workspace)
+function buildSeatbeltProfile(input: {
+  allowProcessFork: boolean
+  executables: readonly string[]
+  readOnlyRoots: readonly string[]
+  workspace: string
+}): string {
+  const readableRoots = [input.workspace, ...input.readOnlyRoots]
+  const readableAncestors = [...new Set(readableRoots.flatMap(pathAncestors))]
+    .map((path) => `(literal ${seatbeltString(path)})`)
+    .join(' ')
+  const readableSubpaths = readableRoots
+    .map((path) => `(subpath ${seatbeltString(path)})`)
+    .join(' ')
+  const executableLiterals = input.executables
     .map((path) => `(literal ${seatbeltString(path)})`)
     .join(' ')
   return [
     '(version 1)',
     '(deny default)',
     '(import "system.sb")',
-    `(allow process-exec (literal ${seatbeltString(input.executable)}))`,
-    `(allow file-test-existence file-read-metadata ${workspaceAncestors} (subpath ${seatbeltString(input.workspace)}))`,
-    `(allow file-read* file-map-executable (literal ${seatbeltString(input.executable)}) (subpath ${seatbeltString(input.workspace)}))`,
+    ...(input.allowProcessFork ? ['(allow process-fork)'] : []),
+    `(allow process-exec ${executableLiterals})`,
+    `(allow file-test-existence file-read-metadata ${readableAncestors} ${readableSubpaths})`,
+    `(allow file-read* file-map-executable ${executableLiterals} ${readableSubpaths})`,
     `(allow file-write* (subpath ${seatbeltString(input.workspace)}))`,
   ].join('\n')
 }

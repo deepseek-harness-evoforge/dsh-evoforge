@@ -4,7 +4,7 @@
 
 An out-of-tree extension suite for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). EvoForge adds removable capabilities through supported DSH seams; it is not a DSH fork or a home for core-defect workarounds.
 
-> **Pre-alpha: do not use for automatic activation.** A deterministic, calibrated Shadow slice with a hidden final test now runs on macOS, but it has not passed the P0A exit gate against an assembled DSH workflow and a locally held-out case. Generations, activation, rollback, continuity, and UI are not complete.
+> **Pre-alpha: do not use for automatic activation.** Calibrated Shadow now runs on macOS and one pinned-revision DSH Loader/Agent/Skill/Tool assembly path is green. The three product fixtures and a locally held-out case have not passed, so P0A has not exited. Generations, activation, rollback, continuity, and UI are not complete.
 
 `dsh-evolve` aims to turn agent self-improvement into an evidence-backed release process:
 
@@ -13,7 +13,7 @@ real outcomes → inactive candidate → sealed paired trial
              → promote / review / reject → future sessions only → rollback
 ```
 
-The current slice provides deterministic Skill and case-pack hashes, owned-path and symlink boundaries, concurrent-mutation detection, token budgets, explicit incomplete results, known-bad/known-correction calibration, and a sealed paired final test. The macOS executor proves workspace-only reads/writes, denied network and undeclared executables, a clean environment, timeout, and bounded output. Nothing adds a provider, tool, prompt, or catalog entry to normal DSH sessions, so the current normal-session token and KV-cache delta is zero.
+The current slice provides deterministic Skill and case-pack hashes, owned-path and symlink boundaries, concurrent-mutation detection, token budgets, explicit incomplete results, known-bad/known-correction calibration, and a sealed paired final test. An opt-in assembled lane verifies the pinned DSH Git revision, mounts it read-only, boots the real Loader and Agent Loop, injects the Skill on demand, completes a real tool round trip, and rejects non-target composition drift. Nothing adds a provider, tool, prompt, or catalog entry to normal DSH sessions, so the current normal-session token and KV-cache delta is zero.
 
 ## Verify locally
 
