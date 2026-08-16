@@ -33,7 +33,7 @@ pnpm --filter dsh-evolve build
 pnpm --filter dsh-evolve pack --pack-destination "$PWD/.evoforge/pack"
 ```
 
-### P0B.1 runtime 开发装配
+### P0B runtime 开发装配
 
 `dsh-evolve` 目前是普通 Cordis runtime plugin，不是自动修改 profile 的 Bundle。
 在 DSH Storage Domain 已装配的配置里添加：
@@ -47,6 +47,10 @@ pnpm --filter dsh-evolve pack --pack-destination "$PWD/.evoforge/pack"
       - name: build-dsh-plugin
         repository: /absolute/path/to/owned-repository
         path: skills/build-dsh-plugin
+    supervisor:
+      runRoots:
+        - /absolute/path/to/.dsh/evoforge/runs
+      scanIntervalMs: 30000
 ```
 
 每个 Generation artifact 的 `name` 都必须有一条 source。Repository 必须能解析
@@ -57,6 +61,15 @@ non-executable 文件。`cacheRoot` 只是带 owner marker 的只读重建缓存
 通过 `ctx.get('evoforge.evolution')` 使用 `publishGeneration()`、
 `promoteGeneration()`、`rollbackGeneration()` 和只读查询。不要把这个编程接缝当作
 已经完成的自动晋升产品。
+
+`supervisor` 可省略。启用时还要在同一 DSH composition 中装配原生
+`@deepseek-ai/dsh-jobs-local`（或兼容 `ctx.jobs` 实现）。每个 `runRoots` 只扫描直接
+子目录，不跟随符号链接；自动恢复仅接受已落盘 Candidate 的
+`candidate-ready` / `trial-running`。`prepared` 不会自动调用模型，
+`proposal-pending` 也不会自动重试。当前 Job 可从 DSH host plane 观察或取消，重启
+事实仍来自 `run-state.json`，而不是易失的 Job record。
+取消 Job 后，同一 DSH 进程不会再次自动提交该 run；下次 DSH 启动仍可从未终结
+journal 继续。P0C 会再提供显式、可持久化的 pause/resume 控制。
 
 ## 3. Shadow 输入
 

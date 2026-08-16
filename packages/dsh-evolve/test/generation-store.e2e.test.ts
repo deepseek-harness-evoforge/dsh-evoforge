@@ -4,6 +4,7 @@ import { dirname, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
+import type { JobRegistry } from '@deepseek-ai/dsh-jobs'
 import { openEvolutionStore, type EvolutionStore } from '../src/generation-store.js'
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -288,6 +289,13 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
     expect(service).toBeDefined()
     if (service === undefined) throw new Error('evolution service did not load')
     const before = await evolvedCtx.systemPrompt.assemble()
+    const evolvedJobs = evolvedCtx.get('jobs') as JobRegistry | undefined
+    expect(evolvedJobs).toBeDefined()
+    expect(() => evolvedJobs?.start({
+      kind: 'evolution',
+      label: 'supervisor controller probe',
+      run: () => ({ cancel() {}, done: Promise.resolve({ status: 'completed' }) }),
+    })).not.toThrow()
     const generation = (await service.publishGeneration(input)).generation
     const after = await evolvedCtx.systemPrompt.assemble()
     expect(after).toEqual(before)
@@ -403,6 +411,7 @@ async function writeRuntimeConfigs(root: string): Promise<{
     ['dsh-storage-json', join(dshSourceDir, 'packages', 'storage', 'storage-json')],
     ['dsh-storage-domain', join(dshSourceDir, 'packages', 'storage', 'storage-domain')],
     ['dsh-system-prompt', join(dshSourceDir, 'packages', 'core', 'system-prompt')],
+    ['dsh-jobs-local', join(dshSourceDir, 'packages', 'jobs', 'jobs-local')],
   ] as const) {
     await symlink(source, join(packageScope, name), 'dir')
   }
@@ -424,15 +433,19 @@ async function writeRuntimeConfigs(root: string): Promise<{
       name: '@deepseek-ai/dsh-storage-domain',
       config: { backend: 'json' },
     },
+    { id: 'jobs', name: '@deepseek-ai/dsh-jobs-local' },
   ]
   const nativeConfig = join(root, 'native.cordis.yml')
   const evolvedConfig = join(root, 'evolved.cordis.yml')
+  const runRoot = join(root, 'runs')
+  await mkdir(runRoot)
   await writeFile(nativeConfig, JSON.stringify(nativeRows, null, 2))
   await writeFile(evolvedConfig, JSON.stringify([
     ...nativeRows,
     {
       id: 'dsh-evolve',
       name: join(packageRoot, 'src', 'index.ts'),
+      config: { supervisor: { runRoots: [runRoot], scanIntervalMs: 1_000 } },
     },
   ], null, 2))
   return { evolvedConfig, nativeConfig }

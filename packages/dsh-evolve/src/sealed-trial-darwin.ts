@@ -11,6 +11,8 @@ export interface SealedDarwinTrialOptions {
   outputLimitBytes: number
   /** Host runtime trees mounted read-only for trusted framework assembly. */
   readOnlyRoots?: readonly string[]
+  /** Cancellation owned by the resident DSH plugin lifecycle. */
+  signal?: AbortSignal
   timeoutMs: number
   workspace: string
 }
@@ -86,6 +88,7 @@ export async function runSealedDarwinTrial(
     argv,
     outputLimitBytes: options.outputLimitBytes,
     profile,
+    ...options.signal === undefined ? {} : { signal: options.signal },
     temporaryDirectory,
     timeoutMs: options.timeoutMs,
     workspace,
@@ -155,6 +158,7 @@ async function runSandboxedProcess(input: {
   argv: [string, ...string[]]
   outputLimitBytes: number
   profile: string
+  signal?: AbortSignal
   temporaryDirectory: string
   timeoutMs: number
   workspace: string
@@ -182,6 +186,7 @@ async function runSandboxedProcess(input: {
     let outputTruncated = false
     let timedOut = false
     let settled = false
+    let aborted: unknown
 
     const terminate = (): void => {
       if (child.pid !== undefined) {
@@ -205,6 +210,10 @@ async function runSandboxedProcess(input: {
       destination.push(chunk)
       capturedBytes += chunk.byteLength
     }
+    const abort = (): void => {
+      aborted = input.signal?.reason ?? new Error('Trial aborted')
+      terminate()
+    }
 
     child.stdout.on('data', (chunk: Buffer) => capture(stdout, chunk))
     child.stderr.on('data', (chunk: Buffer) => capture(stderr, chunk))
@@ -212,17 +221,25 @@ async function runSandboxedProcess(input: {
       timedOut = true
       terminate()
     }, input.timeoutMs)
+    input.signal?.addEventListener('abort', abort, { once: true })
+    if (input.signal?.aborted) abort()
 
     child.once('error', (error) => {
       if (settled) return
       settled = true
       clearTimeout(timeout)
-      reject(error)
+      input.signal?.removeEventListener('abort', abort)
+      reject(aborted ?? error)
     })
     child.once('close', (exitCode, signal) => {
       if (settled) return
       settled = true
       clearTimeout(timeout)
+      input.signal?.removeEventListener('abort', abort)
+      if (aborted !== undefined) {
+        reject(aborted)
+        return
+      }
       resolve({
         backend: 'darwin-seatbelt',
         enforcement: 'full',

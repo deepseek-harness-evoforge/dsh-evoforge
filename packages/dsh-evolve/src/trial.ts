@@ -4,8 +4,8 @@ import { access, cp, lstat, mkdir, mkdtemp, readFile, realpath, rm, symlink, wri
 import { homedir } from 'node:os'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { promisify } from 'node:util'
-import { hashTree } from './hash.js'
-import { runSealedDarwinTrial } from './sealed-trial-darwin.js'
+import { hashTree } from './hash.ts'
+import { runSealedDarwinTrial } from './sealed-trial-darwin.ts'
 
 interface TrialDefinition {
   evaluator: string
@@ -79,11 +79,13 @@ export async function runPairedTrial(options: {
   dshRevision: string
   outputDir: string
   proposal: Proposal
+  signal?: AbortSignal
   skillDir: string
   trial: TrialDefinition
   trialLimit: number
 }): Promise<PairedTrialResult> {
   const requiredTrialCount = 4
+  options.signal?.throwIfAborted()
   if (options.trialLimit < requiredTrialCount) {
     throw new Error(`case pack trial budget is ${options.trialLimit}; paired calibration requires ${requiredTrialCount}`)
   }
@@ -111,6 +113,7 @@ export async function runPairedTrial(options: {
     ...dshSource === undefined ? {} : { dshSource },
     evaluatorPath,
     outputDir: options.outputDir,
+    ...options.signal === undefined ? {} : { signal: options.signal },
     trial: options.trial,
   }
   const knownBad = await evaluateTree({ ...trialOptions, sourceDir: knownBadDir })
@@ -152,9 +155,11 @@ async function evaluateTree(options: {
   evaluatorPath: string
   outputDir: string
   proposal?: Proposal
+  signal?: AbortSignal
   sourceDir: string
   trial: TrialDefinition
 }): Promise<EvaluatorOutcome> {
+  options.signal?.throwIfAborted()
   const trialRoot = await mkdtemp(join(options.outputDir, '.trial-'))
   try {
     const candidateDir = join(trialRoot, 'candidate')
@@ -192,6 +197,7 @@ async function evaluateTree(options: {
             readOnlyRoots: options.dshSource.readOnlyRoots,
           },
       outputLimitBytes: options.trial.outputLimitBytes,
+      ...options.signal === undefined ? {} : { signal: options.signal },
       timeoutMs: options.trial.timeoutMs,
       workspace: trialRoot,
     })

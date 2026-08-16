@@ -1,7 +1,7 @@
 # EvoForge 可证明自进化设计
 
-> 状态：设计已获授权；P0A 本地退出门已通过；P0B.1 Generation release kernel 已实现，完整 P0B Local Continuity 仍在进行
-> 更新日期：2026-08-15
+> 状态：设计已获授权；P0A 本地退出门已通过；P0B Local Continuity 已实现，P0C 人工控制面待实现
+> 更新日期：2026-08-16
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 
 ## 1. 结论
@@ -91,7 +91,7 @@ Evolution Store
 | 人工反馈 | `ctx.messageFeedback` 与 `domain/changed` | 读取已持久化的正负反馈和 note |
 | 持久小状态 | `ctx.storageDomain` | Evolution sidecar；写入先 durable 后改变内存 |
 | 后台执行 | `ctx.jobs` | 执行当前进程内候选和 Trial；Job 本身不是 durable authority |
-| 重启恢复 | Evolution Store 扫描 | 把未终结状态重新提交给 Jobs |
+| 重启恢复 | Shadow journal / Evolution Store 扫描 | 只把可安全恢复的未终结状态重新提交给 Jobs |
 | 隔离执行 | DSH FS、Shell、Sandbox | 创建候选 worktree 和成对 Trial 环境 |
 | 会话事实读取 | Session Persistence / Query | 只在授权的候选生成或评测中按引用读取需要的片段 |
 | 成本和缓存 | Token Meter、LLM usage | 记录 token、cache-read、耗时和完整 composition 指纹 |
@@ -360,18 +360,22 @@ Rollback 使用相同机制，把 active pointer 指回已验证的 parent；roo
 
 进程拉起交给 systemd、launchd 或用户已有的 DSH 启动方式，插件不实现第二个 daemon manager。
 
-在线 runtime 以 Evolution Storage Domain 为 durable authority；`ctx.jobs` 只是当前进程执行器。显式离线 Shadow 不创建第二个服务数据库，只在其 owned output directory 保存一个 run-local journal。启动或 `--resume` 时扫描：
+Generation 以 Evolution Storage Domain 为 durable authority；Shadow run 以 owned output directory 的 run-local journal 为 authority；`ctx.jobs` 只负责当前进程观察和取消。插件不创建第二个服务数据库。`--resume` 或配置的 resident supervisor 按下表处理：
 
 | 状态 | 恢复动作 |
 |---|---|
 | `proposal-pending` 且无 durable response | 标记 uncertain，不自动重复可能收费的外部请求 |
-| `candidate-ready` / `trial-running` | 复用已落盘 Candidate，只重跑无网络、owned workspace 内的 Sealed Trial |
+| `candidate-ready` / `trial-running` | 复用已落盘 Candidate，只重跑无网络、owned workspace 内的 Sealed Trial；resident supervisor 唯一自动处理的状态 |
 | `review` | 不做任何模型工作，继续等待异步人工选择 |
 | Generation 已写、active 未切换 | 保持 inactive，可重新执行 promotion |
 | active 已切换、Candidate 未标 promoted | 依据指针补齐 Candidate 状态 |
 | 临时 worktree 残留 | 验证 owner marker 后回收；不碰未知目录 |
 
 不需要 Lease、分布式选主、通用 DAG 或第二套事件溯源。单进程内部用 owner lock、一条状态写入链和稳定 idempotency key 防止并发重复；兼容 Provider 不保证服务端 exactly-once，因此请求结果不确定时必须停止而非乐观重试。
+
+Resident supervisor 只扫描配置 root 的直接子目录，不跟随符号链接，并串行提交原生
+`evolution` Job。DSH 关闭时 Job 取消信号杀死完整 Sealed Trial 进程组，但不把该 run
+误写成终态；下次启动继续。具体权衡见 [ADR-0009](../adr/0009-journal-authority-native-jobs-observability.md)。
 
 ## 16. Evolution Store 的最小形状
 
@@ -516,6 +520,8 @@ Candidate 不能通过修改自身评测政策、held-out cases 或权限配置�
 - active pointer 原子切换；
 - crash recovery、rollback rehearsal 和 composition fingerprint；
 - promotion 只影响 future Session。
+- resident supervisor 只恢复 durable、无网络 Trial，当前执行复用 DSH Jobs；
+- DSH 关闭取消 Trial 后保留可恢复 journal，不创建第二 daemon manager。
 
 进入条件：P0A 已经证明 evaluator 和 Candidate 对真实任务有价值。
 
@@ -564,10 +570,10 @@ P0A 先回答“是否值得做”：
 
 ## 23. 下一步
 
-P0A 所需的三个小规格已经收敛到 [P0A Shadow 契约](p0a-shadow-contract.zh.md)：
-
-1. `dsh-evolve shadow <skill-dir>` 的输入、退出码和报告格式；
-2. `search`、`selection`、`final-test` 的目录隔离与可见性；
-3. evaluator、已知坏 Candidate 和至少一个真实修正 fixture。
-
-项目所有者确认该契约后，只实现 P0A，使用 red → green → refactor。P0A 通过以前，不实现 Session pin、active pointer、在线晋升或自动回滚。
+P0A 与 P0B 的实现证据已经分别收敛到 [P0A Shadow 契约](p0a-shadow-contract.zh.md)、
+[P0B.1 release kernel](../evidence/p0b-1-generation-release-kernel.zh.md)、
+[P0B.2a durable resume](../evidence/p0b-2a-durable-shadow-resume.zh.md)和
+[P0B.2b resident supervisor](../evidence/p0b-2b-resident-shadow-supervisor.zh.md)。
+下一纵切是最小 P0C：先用 host-only `/evolve status | promote | rollback` 让普通用户
+无需调用内部 service；随后再接 review inbox 与 pause/resume。P0C 不增加模型 Tool，
+也不让审批等待阻塞产生信号的原会话。

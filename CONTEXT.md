@@ -32,6 +32,10 @@ _Avoid_: High availability, distributed failover
 An effect whose durable intent exists and may have reached an external service, but whose result was not durably recorded before interruption. Recovery must not claim success or retry automatically when repetition could cost money or duplicate a user-visible action.
 _Avoid_: Failed request, safe retry, exactly-once
 
+**Shadow Supervisor**:
+An optional DSH-lifecycle worker that scans explicitly configured run roots and resumes only durable, network-free Candidate/Trial phases. The run journal is authoritative; native DSH Jobs provides process-local observation and cancellation only.
+_Avoid_: Daemon manager, durable scheduler, proposal retry loop
+
 **High Availability**:
 A later, measured service property requiring failure-domain redundancy and an explicit availability objective. A restartable single-machine daemon is reliable but is not described as highly available.
 _Avoid_: Crash recovery, long-running process

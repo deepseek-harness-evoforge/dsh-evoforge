@@ -26,7 +26,7 @@
 | Capability Generation 与 Session pin | `implemented`（P0B.1） | [P0B.1 证据](evidence/p0b-1-generation-release-kernel.zh.md)、真实 DSH Storage/Agent/Skill 测试 | 第三方复跑、更多 DSH 版本与长会话 cache 指标 |
 | Git Skill 晋升与回滚内核 | `implemented`（仅 host service） | exact Git commit/tree gate、future-session pointer、live Session 不漂移、精确 rollback 测试 | P0C 人工控制面、P1 自动晋升政策与真实 canary 数据 |
 | 异步人工复核 | `planned` | 路线图 P0C | command/view、review inbox 与不阻塞原会话测试 |
-| 单机常驻和崩溃恢复 | `implemented`（Generation release + 显式 Shadow resume 边界） | 四个 release `SIGKILL` 边界；[P0B.2a](evidence/p0b-2a-durable-shadow-resume.zh.md) proposal uncertainty/Candidate/Trial 恢复 | 常驻 Job supervisor、自动扫描、关机恢复与长时 soak |
+| 单机常驻和崩溃恢复 | `implemented`（P0B） | 四个 release `SIGKILL` 边界；[P0B.2a](evidence/p0b-2a-durable-shadow-resume.zh.md)；[P0B.2b](evidence/p0b-2b-resident-shadow-supervisor.zh.md) native Jobs supervisor/关机恢复/重复扫描 | 生产多日 soak、真实磁盘耗尽与更多机器数据 |
 | `dsh-software-delivery` | `planned` | 用户结果和验收方向已定义 | 独立 test-first 实现与 DSH assembled test |
 | 个人助理、消息、内容、日程插件 | `planned` | 仅产品范围 | 每次只选择一个高频工作流验证 |
 | Web/TUI | `planned` | 交互原则已定义 | 权威 host projection、真实浏览器 E2E |
@@ -38,6 +38,7 @@
 - 运行 Shadow，验证候选越权、预算、active/Case Pack 完整性，以及 macOS 上的校准配对检查；
 - 通过 host service 记录 inactive Generation，并在 exact Git tree 校验后为未来 Session 晋升或回滚；
 - 使用 `shadow --resume` 继续 durable Candidate/Trial；不确定的付费 proposal 不自动重试；
+- 配置 resident supervisor 后，由常驻 DSH 自动继续已落盘、无网络的 Candidate/Trial，并通过原生 Jobs 观察或取消；
 - 在真实 DSH Agent 上让 root/resume/child 固定各自 Generation；pin 或 Git 完整性失败时原生会话继续；
 - 审查报告 Schema 的实际 JSON 输出。
 
@@ -46,7 +47,7 @@
 - 不能把 P0B.1 host service 当作面向普通用户的晋升产品；尚无 review command/view 或自动晋升政策；
 - 不能把公开的确定性示例当作真实 DSH 工作流已经改善；
 - `shadow` 不执行任意模型生成代码；assembled lane 会运行真实 DSH，但 Candidate 仍只作为 Skill 数据选择受限的可信 evaluator 行为；
-- 不能声称完整持续进化、长时常驻、完整 pipeline crash-resume 或优于 Hermes；
+- 不能声称完整持续进化、生产级多日可靠性、任意外部效果 crash-resume 或优于 Hermes；
 - 不能作为生产依赖安装。
 
-P0B.1 的 Generation release kernel 和 P0B.2a 显式 Shadow resume 已通过本地门：活动 Session 固定原 Generation，release 边界无半激活；付费 proposal 的不确定窗口不自动重试，durable Candidate 可在 Trial 中断后继续。P0B 总退出门仍要求常驻 Job supervisor、关机恢复和长时 soak；随后才进入 P0C 用户控制面。
+P0B 的本地实现门已通过：活动 Session 固定原 Generation，release 边界无半激活；付费 proposal 的不确定窗口不自动重试；durable Candidate 可由常驻 DSH 自动继续，关机取消后仍可恢复。下一纵切是 P0C 用户控制面；生产多日 soak 继续作为发布证据积累，不能被短时自动化测试替代。

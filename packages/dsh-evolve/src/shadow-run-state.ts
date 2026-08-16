@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { link, open, readFile, rename, rm } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { dirname, isAbsolute, join } from 'node:path'
 
 export interface ShadowRunIdentity {
   baseTreeHash: string
@@ -29,6 +29,11 @@ export interface ShadowRunState {
   startedAt: string
   updatedAt: string
   identity: ShadowRunIdentity
+  /** Exact, non-secret inputs required for a resident DSH process to resume a sealed Trial. */
+  resumeInputs?: {
+    skillDir: string
+    casePackDir: string
+  }
   proposalEffect?: {
     id: string
     requestedAt: string
@@ -112,6 +117,14 @@ export async function loadShadowRunState(outputDir: string): Promise<ShadowRunSt
   if (!['prepared', 'proposal-pending', 'candidate-ready', 'trial-running', 'complete', 'incomplete']
     .includes(value.phase)) {
     throw new Error(`Shadow run state has unsupported phase '${value.phase}'`)
+  }
+  if (value.resumeInputs !== undefined
+    && (!isRecord(value.resumeInputs)
+      || typeof value.resumeInputs.skillDir !== 'string'
+      || !isAbsolute(value.resumeInputs.skillDir)
+      || typeof value.resumeInputs.casePackDir !== 'string'
+      || !isAbsolute(value.resumeInputs.casePackDir))) {
+    throw new Error('Shadow run state has invalid resume inputs')
   }
   return value as unknown as ShadowRunState
 }

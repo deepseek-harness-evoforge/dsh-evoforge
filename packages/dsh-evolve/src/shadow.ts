@@ -1,6 +1,6 @@
 import { mkdir, readFile, realpath } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, relative, resolve } from 'node:path'
-import { hashTree, sha256 } from './hash.js'
+import { hashTree, sha256 } from './hash.ts'
 import {
   acquireShadowRunLock,
   assertShadowRunIdentity,
@@ -9,13 +9,14 @@ import {
   writeDurableJson,
   type ShadowRunIdentity,
   type ShadowRunState,
-} from './shadow-run-state.js'
-import { runPairedTrial } from './trial.js'
+} from './shadow-run-state.ts'
+import { runPairedTrial } from './trial.ts'
 
-interface ShadowOptions {
+export interface ShadowOptions {
   casePackDir: string
   outputDir: string
   resume?: boolean
+  signal?: AbortSignal
   skillDir: string
 }
 
@@ -62,6 +63,7 @@ export async function runShadow(options: ShadowOptions): Promise<
   | { status: 'complete'; reportPath: string; summary: string }
   | { status: 'incomplete'; reportPath: string; reason: string }
 > {
+  options.signal?.throwIfAborted()
   const skillDir = await realpath(options.skillDir)
   const casePackDir = await realpath(options.casePackDir)
   const requestedOutputDir = resolve(options.outputDir)
@@ -110,6 +112,11 @@ export async function runShadow(options: ShadowOptions): Promise<
       startedAt = state.startedAt
       assertShadowRunIdentity(state.identity, identity)
       if (state.runId !== runId) throw new Error('Shadow resume run id does not match its inputs')
+      if (state.resumeInputs !== undefined
+        && (state.resumeInputs.skillDir !== skillDir
+          || state.resumeInputs.casePackDir !== casePackDir)) {
+        throw new Error('Shadow resume paths do not match the durable run inputs')
+      }
       if (state.outcome?.kind === 'complete') {
         await assertTerminalReport(outputDir, state.outcome.reportPath)
         return {
@@ -134,6 +141,7 @@ export async function runShadow(options: ShadowOptions): Promise<
         startedAt,
         updatedAt: startedAt,
         identity,
+        resumeInputs: { skillDir, casePackDir },
       }
       await saveShadowRunState(outputDir, state)
     }
@@ -141,6 +149,9 @@ export async function runShadow(options: ShadowOptions): Promise<
     const updateState = async (patch: Partial<ShadowRunState>): Promise<void> => {
       state = { ...state, ...patch, updatedAt: new Date().toISOString() }
       await saveShadowRunState(outputDir, state)
+    }
+    if (state.resumeInputs === undefined) {
+      await updateState({ resumeInputs: { skillDir, casePackDir } })
     }
     const finishIncomplete = async (reportPath: string, reason: string) => {
       await updateState({
@@ -193,6 +204,7 @@ export async function runShadow(options: ShadowOptions): Promise<
           inputTokenLimit: manifest.budget.inputTokenLimit,
           model: modelRoute,
           outputTokenLimit: manifest.budget.outputTokenLimit,
+          ...options.signal === undefined ? {} : { signal: options.signal },
           searchEvidence,
           skillName,
           skillSource,
@@ -210,6 +222,7 @@ export async function runShadow(options: ShadowOptions): Promise<
         })
       }
     } catch (error) {
+      if (options.signal?.aborted) throw options.signal.reason
       const reason = error instanceof Error ? error.message : String(error)
       const finalTreeHash = await hashTree(skillDir)
       const reportPath = resolve(outputDir, 'report.json')
@@ -406,11 +419,13 @@ export async function runShadow(options: ShadowOptions): Promise<
         dshRevision: manifest.epoch.dshRevision,
         outputDir,
         proposal,
+        ...options.signal === undefined ? {} : { signal: options.signal },
         skillDir,
         trial: manifest.trial,
         trialLimit: manifest.budget.trialLimit,
       })
     } catch (error) {
+      if (options.signal?.aborted) throw options.signal.reason
       const reason = error instanceof Error ? error.message : String(error)
       const treeHashAfterTrial = await hashTree(skillDir)
       await writeJson(reportPath, {
@@ -684,6 +699,7 @@ async function requestProposal(options: {
   inputTokenLimit: number
   model: string
   outputTokenLimit: number
+  signal?: AbortSignal
   searchEvidence: string | undefined
   skillName: string
   skillSource: string
@@ -723,7 +739,9 @@ async function requestProposal(options: {
         },
       ],
     }),
-    signal: AbortSignal.timeout(60_000),
+    signal: options.signal === undefined
+      ? AbortSignal.timeout(60_000)
+      : AbortSignal.any([options.signal, AbortSignal.timeout(60_000)]),
   })
   if (!response.ok) throw new Error(`model request failed with HTTP ${response.status}`)
   return await response.json() as ModelResponse

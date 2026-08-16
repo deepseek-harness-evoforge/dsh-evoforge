@@ -92,6 +92,26 @@ function finish() { process.stdout.write(JSON.stringify(facts)); socket.destroy(
     })
   })
 
+  it('kills the complete Trial process group when its DSH owner shuts down', async () => {
+    const workspace = await createWorkspace()
+    const script = join(workspace, 'shutdown.cjs')
+    await writeFile(script, 'setInterval(() => {}, 1_000)')
+    const controller = new AbortController()
+    const startedAt = Date.now()
+    const running = runSealedDarwinTrial({
+      argv: [process.execPath, script],
+      outputLimitBytes: 1_024,
+      signal: controller.signal,
+      timeoutMs: 30_000,
+      workspace,
+    })
+
+    setTimeout(() => controller.abort(new Error('DSH shutdown')), 100)
+
+    await expect(running).rejects.toThrow('DSH shutdown')
+    expect(Date.now() - startedAt).toBeLessThan(2_000)
+  })
+
   it('kills a Trial and truncates evidence at the combined output limit', async () => {
     const workspace = await createWorkspace()
     const script = join(workspace, 'too-loud.cjs')

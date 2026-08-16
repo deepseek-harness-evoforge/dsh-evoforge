@@ -3,7 +3,7 @@
 `dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains two deliberately separate lanes:
 
 - **P0A Shadow** compares an active Skill with an inactive Candidate without changing live DSH.
-- **P0B.1 release kernel** records immutable Capability Generations, pins one Generation per Session, and switches or rolls back only future Sessions.
+- **P0B Local Continuity** records immutable Capability Generations, pins one Generation per Session, switches or rolls back only future Sessions, and resumes durable sealed work through an optional resident supervisor.
 
 The user-facing command remains the offline Shadow command:
 
@@ -65,12 +65,12 @@ The P0B.1 runtime kernel also proves on the pinned DSH revision that:
 - removing the plugin leaves native DSH Session and Goal facts readable.
 
 This is still pre-alpha. There is no end-user promotion command, review inbox,
-automatic promotion policy, an always-on Job supervisor, release, or production
-support. Explicit Shadow runs now have bounded proposer/Candidate/Trial crash
-recovery, but this is not a multi-day autonomous runtime. The runtime service is an implementation surface for P0B
-testing, not a claim that continuous self-improvement is complete.
+automatic promotion policy, release, or production support. Explicit and resident
+Shadow recovery now cover bounded proposer/Candidate/Trial crash boundaries, but
+short automated soak is not production multi-day evidence. This is not a claim
+that continuous self-improvement is complete.
 
-## Runtime configuration (P0B.1)
+## Runtime configuration (P0B)
 
 The runtime plugin requires DSH Storage Domain and a source mapping for every
 Skill that a Generation may activate:
@@ -84,7 +84,20 @@ Skill that a Generation may activate:
       - name: build-dsh-plugin
         repository: /absolute/path/to/owned-git-repository
         path: skills/build-dsh-plugin
+    supervisor:
+      runRoots:
+        - /absolute/path/to/.dsh/evoforge/runs
+      scanIntervalMs: 30000
 ```
+
+`supervisor` is optional. When configured, the DSH composition must also load a
+native `ctx.jobs` implementation such as `@deepseek-ai/dsh-jobs-local`. Each
+direct child of a run root may contain one Shadow `run-state.json`. Only
+`candidate-ready` and `trial-running` are resumed; prepared or uncertain paid
+proposal work is never started automatically. Jobs supplies current-process
+visibility and cancellation, while the journal remains the restart authority.
+Cancelling a recovery suppresses that run for the rest of the current DSH
+process; a later DSH restart may discover the still-durable Trial again.
 
 `repository` remains the source of truth. `cacheRoot` is a rebuildable,
 read-only materialization cache; it is never the authority for a Generation.

@@ -1,11 +1,13 @@
 import { execFile as execFileCallback, spawn } from 'node:child_process'
 import { createServer } from 'node:http'
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
+import { runShadow } from '../src/shadow.js'
+import { ShadowSupervisor } from '../src/shadow-supervisor.js'
 
 const execFile = promisify(execFileCallback)
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -100,6 +102,10 @@ describe('durable Shadow resume', () => {
           kind: 'incomplete',
           reason: 'proposal outcome is uncertain after interruption; refusing automatic retry',
         },
+        resumeInputs: {
+          skillDir: await realpath(fixture.skillDir),
+          casePackDir: await realpath(fixture.casePackDir),
+        },
       })
       expect(JSON.parse(await readFile(join(fixture.outputDir, 'report.json'), 'utf8')).run.id)
         .toBe(state.runId)
@@ -154,14 +160,51 @@ describe('durable Shadow resume', () => {
         first.once('error', rejectClose)
       })
 
-      const resumed = await execFile(process.execPath, [...args, '--resume'], {
-        cwd: packageRoot,
-        env,
-        timeout: 15_000,
-      })
+      const previousBaseUrl = process.env.DSH_EVOLVE_MODEL_BASE_URL
+      const previousModel = process.env.DSH_EVOLVE_MODEL_NAME
+      process.env.DSH_EVOLVE_MODEL_BASE_URL = env.DSH_EVOLVE_MODEL_BASE_URL
+      process.env.DSH_EVOLVE_MODEL_NAME = env.DSH_EVOLVE_MODEL_NAME
+      try {
+        const controller = new AbortController()
+        const interrupted = runShadow({
+          casePackDir: fixture.casePackDir,
+          outputDir: fixture.outputDir,
+          resume: true,
+          signal: controller.signal,
+          skillDir: fixture.skillDir,
+        })
+        setTimeout(() => controller.abort(new Error('resident DSH shutdown')), 100)
+        await expect(interrupted).rejects.toThrow('resident DSH shutdown')
+      } finally {
+        if (previousBaseUrl === undefined) delete process.env.DSH_EVOLVE_MODEL_BASE_URL
+        else process.env.DSH_EVOLVE_MODEL_BASE_URL = previousBaseUrl
+        if (previousModel === undefined) delete process.env.DSH_EVOLVE_MODEL_NAME
+        else process.env.DSH_EVOLVE_MODEL_NAME = previousModel
+      }
+      const interruptedState = await readState(fixture.outputDir)
+      expect(interruptedState).toMatchObject({ phase: 'trial-running' })
+      expect(interruptedState).not.toHaveProperty('outcome')
 
-      expect(resumed.stderr).toBe('')
-      expect(resumed.stdout).toMatch(/^promote: candidate passed sealed final-test while baseline failed; report: .+\/report\.json\n$/)
+      const previousBaseUrlForSupervisor = process.env.DSH_EVOLVE_MODEL_BASE_URL
+      const previousModelForSupervisor = process.env.DSH_EVOLVE_MODEL_NAME
+      process.env.DSH_EVOLVE_MODEL_BASE_URL = env.DSH_EVOLVE_MODEL_BASE_URL
+      process.env.DSH_EVOLVE_MODEL_NAME = env.DSH_EVOLVE_MODEL_NAME
+      try {
+        const errors: unknown[] = []
+        const supervisor = new ShadowSupervisor({
+          runRoots: [dirname(fixture.outputDir)],
+          scanIntervalMs: 30_000,
+          onError: error => errors.push(error),
+        })
+        await supervisor.scanOnce()
+        expect(errors).toEqual([])
+      } finally {
+        if (previousBaseUrlForSupervisor === undefined) delete process.env.DSH_EVOLVE_MODEL_BASE_URL
+        else process.env.DSH_EVOLVE_MODEL_BASE_URL = previousBaseUrlForSupervisor
+        if (previousModelForSupervisor === undefined) delete process.env.DSH_EVOLVE_MODEL_NAME
+        else process.env.DSH_EVOLVE_MODEL_NAME = previousModelForSupervisor
+      }
+
       expect(requests).toBe(1)
       expect(await readFile(join(fixture.skillDir, 'SKILL.md'), 'utf8')).toBe(originalSkill)
       const state = JSON.parse(await readFile(join(fixture.outputDir, 'run-state.json'), 'utf8'))
@@ -174,6 +217,7 @@ describe('durable Shadow resume', () => {
       const report = JSON.parse(await readFile(join(fixture.outputDir, 'report.json'), 'utf8'))
       expect(report.run.id).toBe(state.runId)
       expect(report.run.startedAt).toBe(state.startedAt)
+      expect(report.decision).toMatchObject({ recommendation: 'promote' })
     } finally {
       first.kill('SIGKILL')
       await new Promise<void>((resolveClose, rejectClose) =>

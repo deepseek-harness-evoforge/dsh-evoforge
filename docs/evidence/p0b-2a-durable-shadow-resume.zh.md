@@ -1,6 +1,6 @@
 # P0B.2a：Durable Shadow Resume 本地证据
 
-> 状态：`implemented`；不是完整常驻 supervisor、自动晋升或长期运行证明
+> 状态：`implemented`；本页只证明显式 resume，后续 resident supervisor 见 [P0B.2b](p0b-2b-resident-shadow-supervisor.zh.md)；仍不是自动晋升或生产长期运行证明
 > 日期：2026-08-16
 
 ## 用户结果

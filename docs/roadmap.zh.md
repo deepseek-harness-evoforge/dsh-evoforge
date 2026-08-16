@@ -1,6 +1,6 @@
 # EvoForge 开发路线图
 
-> 状态：P0A 本地退出门已通过，P0B 开始 test-first 实现；每阶段只有满足退出条件才进入下一阶段
+> 状态：P0A 本地退出门已通过，P0B Local Continuity 已完成实现门，下一纵切为 P0C 人工控制面
 
 ## 当前状态
 
@@ -10,7 +10,7 @@
 | R1 产品边界 | 完成 | Requirements、CONTEXT、产品架构、ADR、插件目录和接口规范 |
 | R2 开源仓库就绪 | 完成 | [公共仓库](https://github.com/deepseek-harness-evoforge/dsh-evoforge)、MIT、贡献/安全文档与 Linux CI；macOS CI 在独立 Draft PR 验证 |
 | P0A Shadow evaluator | 本地退出门通过 | 安全门、macOS Sealed Trial、真实 DSH bridge、3/3 公开产品 fixture 与[本地未见首测](evidence/p0a-8-private-heldout.zh.md)均转绿；真实 provider 与第三方独立复跑仍属更高等级证据 |
-| P0B Local Continuity | 实现中 | P0B.1 Generation release kernel 与 P0B.2a 显式 Shadow resume 已通过本地测试；常驻 supervisor/soak 尚未完成 |
+| P0B Local Continuity | implemented | P0B.1 release kernel、P0B.2a durable resume 与 P0B.2b resident supervisor 已通过本地/pinned DSH 测试；生产多日 soak 仍属发布前证据 |
 
 ## P0A — 先证明会判断
 
@@ -46,8 +46,10 @@ P0B.2a 已完成：一个 run-local durable journal 在付费 proposal 前记录
 不确定结果不自动重试；已落盘 Candidate 在 `SIGKILL` 后只重跑无网络 Sealed Trial；
 并发 runner 被 owner lock 拒绝。证据见 [P0B.2a](evidence/p0b-2a-durable-shadow-resume.zh.md)。
 
-P0B.2 剩余：用 DSH Job/Storage seam 增加可选的常驻扫描与恢复，完成关机/启动、
-磁盘故障和长时 soak；不增加 Mission、DAG 或第二 daemon manager。
+P0B.2b 已完成：可选 supervisor 在 DSH 生命周期内扫描显式 run roots，只把 durable、
+无网络的 Candidate/Trial 重新提交到原生 Jobs；关机取消完整 Trial 进程组，损坏 run 隔离，
+重复扫描不重复执行。Journal 是事实源，Job 不是。证据见
+[P0B.2b](evidence/p0b-2b-resident-shadow-supervisor.zh.md)与 [ADR-0009](adr/0009-journal-authority-native-jobs-observability.md)。
 
 退出条件：所有注入崩溃点无半激活、无重复效果；活动 Session 不漂移；卸载后原生 DSH 可恢复。
 
