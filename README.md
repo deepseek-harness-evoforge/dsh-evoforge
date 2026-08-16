@@ -4,7 +4,7 @@
 
 面向 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的 out-of-tree 开源扩展套件。EvoForge 只增加可独立安装、可删除的新能力，不 fork DSH，也不以插件修补 DSH Core Defect。
 
-> **Pre-alpha：不可用于生产自动激活。** P0A Shadow、P0B Local Continuity 与 P0C 人工控制已实现；P1.1 增加默认关闭、显式 allowlist 的最窄纯指令自动晋升。canary、自动回滚、真实用户可用性门与生产多日证据仍未完成。详见[状态页](docs/status.zh.md)。
+> **Pre-alpha：不可用于生产自动激活。** `dsh-evolve` 的 P0A/P0B/P0C 与 P1.1 最窄自动晋升已实现；`dsh-software-delivery` 的首个 Skill + Git 验证器纵切也已实现。canary、自动回滚、完整交付自动化、真实用户可用性门与生产多日证据仍未完成。详见[状态页](docs/status.zh.md)。
 
 ## 为什么做
 
@@ -24,15 +24,18 @@
 
 ## 现在已经有什么
 
-仓库目前包含一个正在开发的包：
+仓库目前包含两个可独立删除、仍在开发的包：
 
 | 包 | 当前能力 | 状态 |
 |---|---|---|
 | [`dsh-evolve`](packages/dsh-evolve) | 离线 `shadow`；durable resident recovery；Sealed paired Trial；immutable Generation；Session-scoped Git Skill；host-only review/pause/release；opt-in clear-instruction auto promotion | P0A/P0B/P0C implemented；P1.1 implemented；canary/自动回滚与真实可用性门待验证 |
+| [`dsh-software-delivery`](packages/dsh-software-delivery) | 一个按需原生 Skill；linked worktree、clean commit、exact base 与仓库 checks 的确定性 CLI 验证；可选 Draft PR 流程指导 | P2A.1 implemented；尚未拦截 Goal 完成、自动 push/建 PR 或接入 Evolve outcome monitor |
 
 Shadow 和未激活 Generation 的运行时模型表面为 `none`，额外 token 为 `0`。Generation 激活后只复用 DSH 原生 Skill catalog/body 路径：catalog 在 Session 开始时固定，正文按需加载；插件不增加 Tool 或 system prompt。真实 Agent 回归已证明晋升后旧 Session 的请求工具面不变、后一请求保留前一请求的完整消息前缀。Shadow 只有在用户显式调用时才请求配置的模型。
 
 P1.1 policy、自动发布和 host 状态同样是 `0` 模型调用；自动候选最多追加 2 KiB Skill 正文，且只在 future Session 通过原生 Skill body 路径实际加载时产生 tokenizer 相关输入。它不会改写当前 Session 的可缓存前缀。
+
+`dsh-software-delivery` 不新增 Tool 或 system prompt，只增加一个稳定 Skill catalog entry；正文仍按原生 Skill Tool 按需加载。`dsh-delivery verify` 在模型上下文外运行，所以验证报告本身不消耗模型 token。
 
 当前命令：
 
@@ -51,6 +54,7 @@ dsh-evolve shadow <skill-dir> --case-pack <case-pack-dir> --output <run-dir> [--
 pnpm install
 pnpm check
 pnpm --filter dsh-evolve pack --pack-destination "$PWD/.evoforge/pack"
+pnpm --filter dsh-software-delivery pack --pack-destination "$PWD/.evoforge/pack"
 ```
 
 当前测试跨越真实 CLI 子进程、HTTP 模型边界、文件系统效果、退出码和报告文件；macOS assembled lane 还会启动固定 revision 的真实 DSH Loader、Agent Loop、Skill 与 bash Tool。外部模型由无密钥固定 Adapter 替换，DSH 下游装配和文件效果不 mock。
@@ -62,7 +66,7 @@ pnpm --filter dsh-evolve pack --pack-destination "$PWD/.evoforge/pack"
 - 多个独立真实 case、真实 provider 提案效果、Linux/Windows 隔离与 workspace 磁盘配额；
 - 逐行 diff viewer、真实人工可用性数据、future-session canary 与 outcome-triggered 自动回滚（最窄 allowlist 自动晋升已实现）；
 - 生产多日 soak、真实磁盘耗尽与大规模 run 性能数据（常驻 native Jobs supervisor、自动扫描和关机恢复已实现）；
-- `dsh-software-delivery`、个人助理、消息、内容和日程插件；
+- `dsh-software-delivery` 的 Goal transition 强制门、push/Draft PR 自动化与 Evolve outcome adapter；个人助理、消息、内容和日程插件；
 - Web/TUI 控制面。
 
 这些能力不会仅凭设计文档被标为完成。每个阶段必须满足[路线图退出条件](docs/roadmap.zh.md)和[Hermes 上位目标记分卡](docs/architecture/hermes-replacement-scorecard.zh.md)。

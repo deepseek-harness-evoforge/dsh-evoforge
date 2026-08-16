@@ -73,7 +73,7 @@ An immutable set of active capability versions selected for a session. Existing 
 _Avoid_: Latest files, mutable skill catalog
 
 **Software Delivery Pack**:
-The optional capability pack that takes a native DSH Goal through isolated editing, repository-defined verification, commit, and Draft PR. Git-specific behavior belongs here rather than in generic Goal infrastructure.
+The optional `dsh-software-delivery` capability that takes a native DSH Goal through isolated editing, repository-defined verification, commit, and Draft PR. Git-specific behavior belongs here rather than in generic Goal infrastructure.
 _Avoid_: Autonomous SDLC platform, coding operating system
 
 **Completion Check**:

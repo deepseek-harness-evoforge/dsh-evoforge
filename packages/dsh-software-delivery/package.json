@@ -1,0 +1,60 @@
+{
+  "name": "dsh-software-delivery",
+  "version": "0.1.0-alpha.1",
+  "description": "Worktree-isolated, evidence-verified software delivery for DeepSeek Harness",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepseek-harness-evoforge/dsh-evoforge.git",
+    "directory": "packages/dsh-software-delivery"
+  },
+  "homepage": "https://github.com/deepseek-harness-evoforge/dsh-evoforge#readme",
+  "bugs": {
+    "url": "https://github.com/deepseek-harness-evoforge/dsh-evoforge/issues"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "agent",
+    "git",
+    "software-delivery"
+  ],
+  "bin": {
+    "dsh-delivery": "./dist/cli.mjs"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown src/cli.ts src/index.ts --format esm --clean",
+    "prepack": "pnpm run build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": ">=4.0.0-rc.7 <5",
+    "@deepseek-ai/dsh-skill": ">=0.1.0-rc.5 <0.2.0"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "4.0.1",
+    "@deepseek-ai/dsh-skill": "0.1.0-rc.6",
+    "@types/node": "^22.20.0",
+    "tsdown": "^0.22.2",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  }
+}

@@ -4,7 +4,7 @@
 
 An out-of-tree extension suite for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). EvoForge adds removable capabilities through supported DSH seams; it is not a DSH fork or a home for core-defect workarounds.
 
-> **Pre-alpha: do not use automatic activation in production.** P0A Shadow, P0B Local Continuity, and the P0C human controls are implemented. P1.1 adds a disabled-by-default, explicit-allowlist clear-instruction auto-promotion path. Canary routing, automatic rollback, real-user usability evidence, and production multi-day evidence remain incomplete.
+> **Pre-alpha: do not use automatic activation in production.** The `dsh-evolve` P0A/P0B/P0C slices and narrow P1.1 auto-promotion are implemented. The first `dsh-software-delivery` Skill + Git verifier slice is also implemented. Canary routing, automatic rollback, complete delivery automation, real-user evidence, and production multi-day evidence remain incomplete.
 
 `dsh-evolve` aims to turn agent self-improvement into an evidence-backed release process:
 
@@ -15,6 +15,8 @@ real outcomes → inactive candidate → sealed paired trial
 
 The Shadow lane provides deterministic Skill and case-pack hashes, owned-path and symlink boundaries, concurrent-mutation detection, token budgets, explicit incomplete results, known-bad/known-correction calibration, and a sealed paired final test. Interrupted runs can explicitly `--resume`; an optional resident supervisor scans configured roots and submits only durable, network-free Candidate/Trial recovery to native DSH Jobs. The journal remains authoritative, and an uncertain paid proposal is never retried automatically. Completed evidence appears in a host-only review inbox; approval creates a deterministic owned Git ref and inactive Generation without moving the user's branch, worktree, active pointer, or live Session. Activation remains a separate explicit action. The runtime lane uses DSH Storage Domain plus an Agent-scoped provider backed by verified, read-only Git trees. With no active Generation it adds no model surface. With one active, it reuses DSH's native Skill catalog/body path, freezes that catalog per Session, and never adds an EvoForge Tool or system-prompt fragment. A real two-turn Agent regression proves that promotion preserves the live Session's Tool surface and full prior message prefix.
 
+`dsh-software-delivery` contributes one stable, on-demand native Skill and a `dsh-delivery verify` CLI. The verifier requires a named linked worktree, an exact base ancestor, committed changes, a clean tree, and passing exact-argv repository checks. It emits a three-state result plus an exact Git commit artifact. It adds no Tool or system-prompt fragment; the Skill body appears only after native on-demand loading. The first slice does not intercept Goal completion, push, create a Draft PR, or integrate with Evolve yet.
+
 ## Verify locally
 
 Requires Node.js `^22.19.0 || >=24` and pnpm `11.7.0`:
@@ -23,6 +25,7 @@ Requires Node.js `^22.19.0 || >=24` and pnpm `11.7.0`:
 pnpm install
 pnpm check
 pnpm --filter dsh-evolve pack --pack-destination "$PWD/.evoforge/pack"
+pnpm --filter dsh-software-delivery pack --pack-destination "$PWD/.evoforge/pack"
 ```
 
 Read the [Chinese status page](docs/status.zh.md) for the exact implemented/planned boundary, [CONTRIBUTING.md](CONTRIBUTING.md) before proposing a change, and [SECURITY.md](SECURITY.md) for private vulnerability reporting.

@@ -29,7 +29,7 @@
 | Resident pause/resume | `implemented`（P0C.3） | [P0C.3](evidence/p0c-3-durable-resident-pause-resume.zh.md)：Storage 重启、release pointer 保持、活动 Trial 取消/resume 重发现、真实 Commands/Agent 零模型调用 | 生产多日 soak 与真实用户控制时延 |
 | 极窄纯指令自动晋升 | `implemented`（P1.1，默认关闭） | [P1.1](evidence/p1-1-opt-in-clear-instruction-auto-promotion.zh.md)：allowlist、append-only、protected-effect gate、durable actor、崩溃续晋升、真实 future Session E2E | canary、真实 outcome monitor、自动 rollback 与长期 false-promotion 数据 |
 | 单机常驻和崩溃恢复 | `implemented`（P0B） | 四个 release `SIGKILL` 边界；[P0B.2a](evidence/p0b-2a-durable-shadow-resume.zh.md)；[P0B.2b](evidence/p0b-2b-resident-shadow-supervisor.zh.md) native Jobs supervisor/关机恢复/重复扫描 | 生产多日 soak、真实磁盘耗尽与更多机器数据 |
-| `dsh-software-delivery` | `planned` | 用户结果和验收方向已定义 | 独立 test-first 实现与 DSH assembled test |
+| `dsh-software-delivery` | `implemented`（P2A.1） | [P2A.1](evidence/p2a-1-software-delivery-verifier.zh.md)：真实 linked worktree/commit/check、三态 artifact、pinned DSH Agent、packed add/boot/remove 与 built CLI | Goal completion guard、幂等 push/Draft PR、Evolve outcome adapter 与真实开发任务数据 |
 | 个人助理、消息、内容、日程插件 | `planned` | 仅产品范围 | 每次只选择一个高频工作流验证 |
 | Web/TUI | `planned` | 交互原则已定义 | 权威 host projection、真实浏览器 E2E |
 
@@ -46,14 +46,16 @@
 - 对显式 allowlist 的 `SKILL.md` 小幅 append clear win 开启实验性自动晋升；未满足固定门的候选仍留在人工 inbox；
 - 在真实 DSH Agent 上让 root/resume/child 固定各自 Generation；pin 或 Git 完整性失败时原生会话继续；
 - 审查报告 Schema 的实际 JSON 输出。
+- 通过 `software-delivery` Skill 使用原生 Goal/Shell 完成隔离开发，并用 `dsh-delivery verify` 对 clean commit 和仓库 checks 生成客观三态结果。
 
 ## 当前不能做什么
 
 - 不能把 P0C 命令闭环当作已验证的完整控制产品；它尚无逐行 diff viewer 或真实用户可用性数据；
 - 不能把 P1.1 当作完整 bounded autonomy；它尚无 canary、真实 outcome-triggered 自动 rollback 或生产长期误晋升数据；
+- 不能把 P2A.1 当作完整自动交付：它尚不拦截 Goal transition，不自动 push/创建 Draft PR，也不是运行不可信 checks 的安全沙箱；
 - 不能把公开的确定性示例当作真实 DSH 工作流已经改善；
 - `shadow` 不执行任意模型生成代码；assembled lane 会运行真实 DSH，但 Candidate 仍只作为 Skill 数据选择受限的可信 evaluator 行为；
 - 不能声称完整持续进化、生产级多日可靠性、任意外部效果 crash-resume 或优于 Hermes；
 - 不能作为生产依赖安装。
 
-P0B 的本地实现门已通过；P0C.1–P0C.3 已形成零模型调用的人工闭环；P1.1 已增加默认关闭、可解释、崩溃可恢复的最窄自动晋升。下一纵切是 future-session canary 与真实 outcome monitor/自动 rollback，不建设新控制平台。P0C 普通用户可用性和生产多日 soak 继续作为证据积累，不能被短时自动化测试替代。
+P0B 的本地实现门已通过；P0C.1–P0C.3 已形成零模型调用的人工闭环；P1.1 已增加默认关闭、可解释、崩溃可恢复的最窄自动晋升。P2A.1 先提供了 canary 所需的真实 Git/check outcome；下一纵切是把它绑定到原生 Goal 与 Evolve monitor，再做 future-session canary/自动 rollback，不建设新控制平台。P0C 普通用户可用性和生产多日 soak 继续作为证据积累，不能被短时自动化测试替代。

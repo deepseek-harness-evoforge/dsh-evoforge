@@ -22,6 +22,10 @@ packages/dsh-evolve/
   src/          Shadow CLI 实现
   test/         跨 CLI 进程的行为测试
   README.md     包级行为和限制
+packages/dsh-software-delivery/
+  src/          按需 Skill 与 Git 交付验证器
+  test/         真实 Git、DSH Agent、打包安装/卸载测试
+  README.md     安装、验证、权限和限制
 ```
 
 构建和检查单包：
@@ -31,7 +35,43 @@ pnpm --filter dsh-evolve typecheck
 pnpm --filter dsh-evolve test
 pnpm --filter dsh-evolve build
 pnpm --filter dsh-evolve pack --pack-destination "$PWD/.evoforge/pack"
+
+pnpm --filter dsh-software-delivery typecheck
+pnpm --filter dsh-software-delivery test
+pnpm --filter dsh-software-delivery build
+pnpm --filter dsh-software-delivery pack --pack-destination "$PWD/.evoforge/pack"
 ```
+
+### P2A Software Delivery 装配
+
+`dsh-software-delivery` 也是普通 Cordis plugin。装配原生 Skill registry 后添加：
+
+```yaml
+- id: skill
+  name: '@deepseek-ai/dsh-skill'
+- id: dsh-software-delivery
+  name: dsh-software-delivery
+```
+
+创建可信本地配置并验证一个已经 commit 的 linked worktree：
+
+```json
+{
+  "schemaVersion": 1,
+  "baseRef": "main",
+  "checks": [{ "name": "test", "argv": ["pnpm", "test"] }]
+}
+```
+
+```bash
+dsh-delivery verify \
+  --worktree /absolute/path/to/linked-worktree \
+  --config /absolute/path/to/delivery.json
+```
+
+退出码 `0/1/2` 分别表示 `passed/failed/unknown-or-invalid`。验证配置会执行精确 argv，
+因此必须是可信本地输入；它不是 untrusted-code sandbox。详情见
+[`dsh-software-delivery` README](../packages/dsh-software-delivery/README.md)。
 
 ### P0B runtime 开发装配
 
