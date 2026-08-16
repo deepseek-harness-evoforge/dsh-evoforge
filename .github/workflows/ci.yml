@@ -66,7 +66,7 @@ jobs:
         run: pnpm --dir .evoforge/deepseek-harness install --frozen-lockfile
       - name: Build pinned DSH host libraries
         run: pnpm --dir .evoforge/deepseek-harness build:lib:host
-      - name: Run sealed and assembled Trials
+      - name: Run sealed, assembled, and Local Continuity tests
         env:
           DSH_EVOLVE_DSH_SOURCE_DIR: ${{ github.workspace }}/.evoforge/deepseek-harness
         run: >-
@@ -76,3 +76,7 @@ jobs:
           test/cache-safe-status-shadow.e2e.test.ts
           test/dispose-owned-watcher-shadow.e2e.test.ts
           test/profile-install-remove-shadow.e2e.test.ts
+          test/generation-store.e2e.test.ts
+          test/generation-binder.e2e.test.ts
+          test/generation-crash-recovery.e2e.test.ts
+          test/package-install-remove-generation.e2e.test.ts

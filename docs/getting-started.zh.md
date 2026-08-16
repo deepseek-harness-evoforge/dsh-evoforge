@@ -33,6 +33,31 @@ pnpm --filter dsh-evolve build
 pnpm --filter dsh-evolve pack --pack-destination "$PWD/.evoforge/pack"
 ```
 
+### P0B.1 runtime 开发装配
+
+`dsh-evolve` 目前是普通 Cordis runtime plugin，不是自动修改 profile 的 Bundle。
+在 DSH Storage Domain 已装配的配置里添加：
+
+```yaml
+- id: dsh-evolve
+  name: /absolute/path/to/dsh-evoforge/packages/dsh-evolve/dist/index.mjs
+  config:
+    cacheRoot: /absolute/path/to/.dsh/evoforge/git-skills
+    sources:
+      - name: build-dsh-plugin
+        repository: /absolute/path/to/owned-repository
+        path: skills/build-dsh-plugin
+```
+
+每个 Generation artifact 的 `name` 都必须有一条 source。Repository 必须能解析
+manifest 中的完整 commit 和 tree object id；晋升前会物化并逐 blob 验证普通
+non-executable 文件。`cacheRoot` 只是带 owner marker 的只读重建缓存，Git 才是事实源。
+
+当前没有面向普通用户的 promote/review command。测试或后续 host control consumer
+通过 `ctx.get('evoforge.evolution')` 使用 `publishGeneration()`、
+`promoteGeneration()`、`rollbackGeneration()` 和只读查询。不要把这个编程接缝当作
+已经完成的自动晋升产品。
+
 ## 3. Shadow 输入
 
 命令：

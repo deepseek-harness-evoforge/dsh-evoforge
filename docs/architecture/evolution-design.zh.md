@@ -1,6 +1,6 @@
 # EvoForge 可证明自进化设计
 
-> 状态：设计已获授权；P0A 本地退出门已通过，P0B Local Continuity 开始 test-first 实现
+> 状态：设计已获授权；P0A 本地退出门已通过；P0B.1 Generation release kernel 已实现，完整 P0B Local Continuity 仍在进行
 > 更新日期：2026-08-15
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 
@@ -139,7 +139,7 @@ interface Generation {
 - Evolution Store 只保存清单、索引和状态；
 - active pointer 指向一个已经完整写入且校验过的 Generation；
 - 晋升只改变 active pointer；
-- 回滚只把 active pointer 指回祖先 Generation；
+- 回滚把 active pointer 指回祖先 Generation；root 回滚清空 pointer，恢复原生 DSH；
 - 已有 Session 的 sidecar pin 永远不跟随 active pointer；
 - 新根 Session 使用晋升时的 active pointer；
 - fork、continuation child 或 subagent 优先继承父 Session 的 Generation，以保持派生历史的能力语义一致。
@@ -165,15 +165,15 @@ sequenceDiagram
   else "fresh root"
     E->>S: "读取 active pointer"
   end
-  E->>K: "注册 immutable Generation provider"
   E->>S: "持久化 lifecycle-bound pin"
+  E->>K: "校验 Git tree 并注册 immutable Generation provider"
   L->>E: "首个 agent/pre-step"
   E-->>L: "pin durable 后 next()"
 ```
 
 若 pin 写入失败：
 
-1. 在首个模型步骤前卸载 evolved provider；
+1. 在首个模型步骤前保持或恢复为无 evolved provider；
 2. 该 Session 继续使用原生 Skill，不阻塞正常 DSH 会话；
 3. 记录可诊断错误；
 4. 本 Session 后续不再动态启用 evolved provider，避免模型工具目录中途变化。
@@ -343,7 +343,7 @@ Promotion 是两阶段的：
 - Candidate 状态还没写成 `promoted` 时，恢复器以 active pointer 为准补齐派生状态；
 - active pointer 永远不能指向不存在或未校验的 Generation。
 
-Rollback 使用相同机制，把 active pointer 指回已验证的 parent。已有 Session 不切换；回滚只影响之后创建或恢复时尚未 pin 的新 Session。它只能恢复能力版本，不能撤销已经发送的消息、创建的日程、付费、部署或数据修改。
+Rollback 使用相同机制，把 active pointer 指回已验证的 parent；root 回滚则清空 pointer，令未来 Session 使用原生 DSH。已有 Session 不切换；回滚只影响之后创建的未 pin Session。它只能恢复能力版本，不能撤销已经发送的消息、创建的日程、付费、部署或数据修改。
 
 ## 14. Post-promotion monitoring
 

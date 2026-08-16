@@ -4,7 +4,7 @@
 
 An out-of-tree extension suite for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). EvoForge adds removable capabilities through supported DSH seams; it is not a DSH fork or a home for core-defect workarounds.
 
-> **Pre-alpha: do not use for automatic activation.** Calibrated Shadow now runs on macOS; a pinned-revision DSH assembly path plus three public product fixtures are green, and one locally held-out first run passed after freezing the Candidate before the Case Pack. The local P0A exit gate has passed. Generations, activation, rollback, continuity, and UI are not complete.
+> **Pre-alpha: do not use for automatic activation.** The local P0A Shadow gate has passed. P0B.1 now locally verifies immutable Generations, Session pins, future-session-only promotion/rollback, exact Git-tree integrity, `SIGKILL` boundary recovery, and native Session/Goal recovery after removal. User controls, automatic-promotion policy, and full Candidate/Trial continuity remain incomplete.
 
 `dsh-evolve` aims to turn agent self-improvement into an evidence-backed release process:
 
@@ -13,7 +13,7 @@ real outcomes → inactive candidate → sealed paired trial
              → promote / review / reject → future sessions only → rollback
 ```
 
-The current slice provides deterministic Skill and case-pack hashes, owned-path and symlink boundaries, concurrent-mutation detection, token budgets, explicit incomplete results, known-bad/known-correction calibration, and a sealed paired final test. An opt-in assembled lane verifies the pinned DSH Git revision, mounts it read-only, boots the real Loader and Agent Loop, injects the Skill on demand, completes a real tool round trip, and rejects non-target composition drift. Nothing adds a provider, tool, prompt, or catalog entry to normal DSH sessions, so the current normal-session token and KV-cache delta is zero.
+The Shadow lane provides deterministic Skill and case-pack hashes, owned-path and symlink boundaries, concurrent-mutation detection, token budgets, explicit incomplete results, known-bad/known-correction calibration, and a sealed paired final test. The P0B.1 runtime lane uses DSH Storage Domain plus an Agent-scoped provider backed by verified, read-only Git trees. With no active Generation it adds no model surface. With one active, it reuses DSH's native Skill catalog/body path, freezes that catalog per Session, and never adds an EvoForge Tool or system-prompt fragment. A real two-turn Agent regression proves that promotion preserves the live Session's Tool surface and full prior message prefix.
 
 ## Verify locally
 

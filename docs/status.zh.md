@@ -23,9 +23,10 @@
 | Sealed Trial executor | `implemented`（macOS、已接入确定性 evaluator） | [边界证据](evidence/p0a-2-darwin-sealed-trial.zh.md)、[ADR-0006](adr/0006-fail-closed-sealed-trial-execution.md) | 磁盘配额、Linux/Windows 与任意 Candidate/DSH 组装执行 |
 | known-bad / known-correction 校准 | `implemented`（静态示例 + 真实 bridge + 3/3 公开产品 fixture + 本地 held-out） | [P0A.3](evidence/p0a-3-calibrated-paired-trial.zh.md)至[P0A.8](evidence/p0a-8-private-heldout.zh.md) | 更多独立真实 Case 与误报/漏报数据 |
 | Candidate 的 `promote/review/reject` 评价 | `implemented`（本地 P0A 退出门通过） | paired baseline/Candidate、真实 composition、纯 Decision；冻结修正首次 held-out 为 `fail → pass` | 落盘重放、真实 provider outcome 与长期 false-promotion 数据 |
-| Capability Generation 与 Session pin | `planned`（P0B 已进入） | [进化架构](architecture/evolution-design.zh.md)、[路线图](roadmap.zh.md) | test-first 实现 immutable Generation、pin 与 crash recovery |
-| 晋升、回滚与异步人工复核 | `planned` | 路线图 P0B/P0C | immutable Generation、崩溃测试、控制面 |
-| 单机常驻和崩溃恢复 | `planned` | Local Continuity 需求已冻结 | P0A 退出后实现 durable state machine |
+| Capability Generation 与 Session pin | `implemented`（P0B.1） | [P0B.1 证据](evidence/p0b-1-generation-release-kernel.zh.md)、真实 DSH Storage/Agent/Skill 测试 | 第三方复跑、更多 DSH 版本与长会话 cache 指标 |
+| Git Skill 晋升与回滚内核 | `implemented`（仅 host service） | exact Git commit/tree gate、future-session pointer、live Session 不漂移、精确 rollback 测试 | P0C 人工控制面、P1 自动晋升政策与真实 canary 数据 |
+| 异步人工复核 | `planned` | 路线图 P0C | command/view、review inbox 与不阻塞原会话测试 |
+| 单机常驻和崩溃恢复 | `implemented`（仅 Generation release 边界） | 四个 `SIGKILL` 边界与重启恢复；无半激活 pointer | proposer/Trial/Candidate durable state machine、幂等 job 恢复与长时 soak |
 | `dsh-software-delivery` | `planned` | 用户结果和验收方向已定义 | 独立 test-first 实现与 DSH assembled test |
 | 个人助理、消息、内容、日程插件 | `planned` | 仅产品范围 | 每次只选择一个高频工作流验证 |
 | Web/TUI | `planned` | 交互原则已定义 | 权威 host projection、真实浏览器 E2E |
@@ -35,14 +36,16 @@
 - 阅读三项目深度研究与 DSH 插件目录；
 - 复用 `build-dsh-plugin` Skill 开发 cache-safe DSH 扩展；
 - 运行 Shadow，验证候选越权、预算、active/Case Pack 完整性，以及 macOS 上的校准配对检查；
+- 通过 host service 记录 inactive Generation，并在 exact Git tree 校验后为未来 Session 晋升或回滚；
+- 在真实 DSH Agent 上让 root/resume/child 固定各自 Generation；pin 或 Git 完整性失败时原生会话继续；
 - 审查报告 Schema 的实际 JSON 输出。
 
 ## 当前不能做什么
 
-- 不能让 `dsh-evolve` 自动修改或晋升 active Skill；
+- 不能把 P0B.1 host service 当作面向普通用户的晋升产品；尚无 review command/view 或自动晋升政策；
 - 不能把公开的确定性示例当作真实 DSH 工作流已经改善；
 - `shadow` 不执行任意模型生成代码；assembled lane 会运行真实 DSH，但 Candidate 仍只作为 Skill 数据选择受限的可信 evaluator 行为；
-- 不能声称已经持续进化、可回滚、长时常驻或优于 Hermes；
+- 不能声称完整持续进化、长时常驻、完整 pipeline crash-resume 或优于 Hermes；
 - 不能作为生产依赖安装。
 
-下一条产品退出门是 P0B：所有声明的崩溃点都不能产生半激活或重复效果；活动 Session 固定原 Generation；删除插件后原生 DSH 可启动且 Session/Goal 仍可读。
+P0B.1 的 Generation release kernel 本地门已通过：活动 Session 固定原 Generation，四个 release 边界无半激活，删除插件后原生 DSH 可恢复 Session/Goal。P0B 总退出门还要求把 proposer、Trial 和 Candidate 状态机纳入同样的崩溃恢复与幂等测试；随后才进入 P0C 用户控制面。
