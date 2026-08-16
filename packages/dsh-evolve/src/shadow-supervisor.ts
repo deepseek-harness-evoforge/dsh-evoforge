@@ -9,6 +9,7 @@ export interface ShadowResumeInvocation {
   resume: true
   signal: AbortSignal
   skillDir: string
+  feedbackDraftPath?: string
 }
 
 export interface ShadowSupervisorOptions {
@@ -134,6 +135,9 @@ export class ShadowSupervisor {
         try {
           await (this.options.runner ?? runShadow)({
             casePackDir: state.resumeInputs.casePackDir,
+            ...(state.resumeInputs.feedbackDraftPath === undefined
+              ? {}
+              : { feedbackDraftPath: state.resumeInputs.feedbackDraftPath }),
             outputDir,
             resume: true,
             signal: controller.signal,

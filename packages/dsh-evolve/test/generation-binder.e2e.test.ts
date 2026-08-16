@@ -822,6 +822,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
           gitCommit: revision.commit,
           treeHash: revision.treeHash,
         },
+        contentHash: expect.stringMatching(/^[a-f0-9]{64}$/),
       },
       sample: { userText, correction },
     })

@@ -9,6 +9,7 @@ async function main(): Promise<number> {
       allowPositionals: true,
       options: {
         'case-pack': { type: 'string' },
+        'feedback-draft': { type: 'string' },
         output: { type: 'string' },
         resume: { type: 'boolean', default: false },
       },
@@ -16,7 +17,7 @@ async function main(): Promise<number> {
     })
     const [command, skillDir, ...extraPositionals] = parsed.positionals
     if (command !== 'shadow' || !skillDir || extraPositionals.length > 0) {
-      throw new Error('usage: dsh-evolve shadow <skill-dir> --case-pack <case-pack-dir> --output <run-dir> [--resume]')
+      throw new Error('usage: dsh-evolve shadow <skill-dir> --case-pack <case-pack-dir> --output <run-dir> [--feedback-draft <private-draft.json>] [--resume]')
     }
     const casePackDir = parsed.values['case-pack']
     const outputDir = parsed.values.output
@@ -25,6 +26,9 @@ async function main(): Promise<number> {
     }
     const result = await runShadow({
       casePackDir,
+      ...(parsed.values['feedback-draft'] === undefined
+        ? {}
+        : { feedbackDraftPath: parsed.values['feedback-draft'] }),
       outputDir,
       resume: parsed.values.resume,
       skillDir,

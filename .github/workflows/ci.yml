@@ -83,6 +83,7 @@ jobs:
           test/sealed-canary-runner.e2e.test.ts
           test/delivery-outcome-store.e2e.test.ts
           test/feedback-case-draft.test.ts
+          test/shadow-cli.test.ts
           test/feedback-signal-monitor.e2e.test.ts
           test/generation-store.e2e.test.ts
           test/generation-binder.e2e.test.ts

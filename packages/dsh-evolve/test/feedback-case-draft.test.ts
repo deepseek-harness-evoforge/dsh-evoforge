@@ -1,8 +1,11 @@
-import { chmod, mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { FeedbackCaseDraftBuilder } from '../src/feedback-case-draft.js'
+import {
+  FeedbackCaseDraftBuilder,
+  readPrivateFeedbackCaseDraft,
+} from '../src/feedback-case-draft.js'
 import type { CapabilityGeneration } from '../src/generation-store.js'
 
 const roots: string[] = []
@@ -18,7 +21,7 @@ afterEach(async () => {
 describe('FeedbackCaseDraftBuilder rejection gates', () => {
   it('rejects a turn with more than one explicitly invoked Skill', async () => {
     const root = await temporaryRoot()
-    const builder = fixtureBuilder(join(root, 'drafts'), [
+    const builder = await fixtureBuilder(root, join(root, 'drafts'), [
       directUser('/stable-skill do the work'),
       invokedSkill('stable-skill', 2),
       invokedSkill('other-skill', 3),
@@ -34,7 +37,7 @@ describe('FeedbackCaseDraftBuilder rejection gates', () => {
     const draftRoot = join(root, 'drafts')
     await mkdir(draftRoot, { mode: 0o755 })
     await chmod(draftRoot, 0o755)
-    const builder = fixtureBuilder(draftRoot, [
+    const builder = await fixtureBuilder(root, draftRoot, [
       directUser('/stable-skill do the work'),
       invokedSkill('stable-skill', 2),
     ])
@@ -46,7 +49,7 @@ describe('FeedbackCaseDraftBuilder rejection gates', () => {
 
   it('rejects a stale native feedback version even if its derived signal has not retracted yet', async () => {
     const root = await temporaryRoot()
-    const builder = fixtureBuilder(join(root, 'drafts'), [
+    const builder = await fixtureBuilder(root, join(root, 'drafts'), [
       directUser('/stable-skill do the work'),
       invokedSkill('stable-skill', 2),
     ], { currentVersion: '6836c43f-721a-4be8-9fca-89403b39095b' })
@@ -55,13 +58,57 @@ describe('FeedbackCaseDraftBuilder rejection gates', () => {
       'feedback signal is no longer current',
     )
   })
+
+  it('authenticates a private draft and rejects content changed under the same id', async () => {
+    const root = await temporaryRoot()
+    const builder = await fixtureBuilder(root, join(root, 'drafts'), [
+      directUser('/stable-skill do the work'),
+      invokedSkill('stable-skill', 2),
+    ])
+    const created = await builder.create(signalId, 'stable-skill')
+
+    await expect(readPrivateFeedbackCaseDraft(created.path)).resolves.toEqual(created.draft)
+    const tampered = JSON.parse(JSON.stringify(created.draft))
+    tampered.sample.correction = 'silently changed correction'
+    await writeFile(created.path, `${JSON.stringify(tampered, null, 2)}\n`)
+    await expect(readPrivateFeedbackCaseDraft(created.path)).rejects.toThrow(
+      'feedback draft id does not match its content',
+    )
+  })
+
+  it('rejects a group-readable draft before parsing its content', async () => {
+    const root = await temporaryRoot()
+    const path = join(root, 'public-draft.json')
+    await writeFile(path, '{}\n', { mode: 0o600 })
+    await chmod(path, 0o640)
+
+    await expect(readPrivateFeedbackCaseDraft(path)).rejects.toThrow(
+      'feedback draft must be a private regular file',
+    )
+  })
+
+  it('never follows a symlink selected as a private draft', async () => {
+    const root = await temporaryRoot()
+    const target = join(root, 'target.json')
+    const path = join(root, 'linked-draft.json')
+    await writeFile(target, '{}\n', { mode: 0o600 })
+    await symlink(target, path)
+
+    await expect(readPrivateFeedbackCaseDraft(path)).rejects.toThrow(
+      'feedback draft must be a private regular file',
+    )
+  })
 })
 
-function fixtureBuilder(
+async function fixtureBuilder(
   root: string,
+  draftRoot: string,
   userEvents: unknown[],
   options: { currentVersion?: string } = {},
-): FeedbackCaseDraftBuilder {
+): Promise<FeedbackCaseDraftBuilder> {
+  const resourceBase = join(root, 'materialized-skill')
+  await mkdir(resourceBase, { recursive: true })
+  await writeFile(join(resourceBase, 'SKILL.md'), 'private materialized fixture\n')
   const generation: CapabilityGeneration = {
     schemaVersion: 1,
     id: generationId,
@@ -91,7 +138,7 @@ function fixtureBuilder(
     }),
   ]
   return new FeedbackCaseDraftBuilder(
-    root,
+    draftRoot,
     {
       get: vi.fn(() => ({
         schemaVersion: 1 as const,
@@ -105,7 +152,7 @@ function fixtureBuilder(
       })),
     },
     { getSessionGeneration: vi.fn(() => generation) },
-    { resolveArtifact: vi.fn(async (_name, artifact) => ({ artifact })) } as never,
+    { resolveArtifact: vi.fn(async (_name, artifact) => ({ artifact, resourceBase })) } as never,
     {
       list: vi.fn(async () => ({
         ok: true,

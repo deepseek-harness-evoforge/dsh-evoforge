@@ -10,6 +10,7 @@ export interface ShadowRunIdentity {
   modelConfigHash: string
   modelRoute: string
   skillName: string
+  feedbackDraftId?: string
 }
 
 export interface PersistedProposal {
@@ -33,6 +34,7 @@ export interface ShadowRunState {
   resumeInputs?: {
     skillDir: string
     casePackDir: string
+    feedbackDraftPath?: string
   }
   proposalEffect?: {
     id: string
@@ -123,7 +125,10 @@ export async function loadShadowRunState(outputDir: string): Promise<ShadowRunSt
       || typeof value.resumeInputs.skillDir !== 'string'
       || !isAbsolute(value.resumeInputs.skillDir)
       || typeof value.resumeInputs.casePackDir !== 'string'
-      || !isAbsolute(value.resumeInputs.casePackDir))) {
+      || !isAbsolute(value.resumeInputs.casePackDir)
+      || (value.resumeInputs.feedbackDraftPath !== undefined
+        && (typeof value.resumeInputs.feedbackDraftPath !== 'string'
+          || !isAbsolute(value.resumeInputs.feedbackDraftPath))))) {
     throw new Error('Shadow run state has invalid resume inputs')
   }
   return value as unknown as ShadowRunState

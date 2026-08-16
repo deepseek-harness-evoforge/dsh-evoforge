@@ -26,6 +26,8 @@ describe('Shadow supervisor', () => {
       'incomplete',
     ] as const
     for (const phase of phases) await writeRun(runRoot, phase, phase)
+    const feedbackDraftPath = join(runRoot, 'private-feedback-draft.json')
+    await writeRun(runRoot, 'feedback-ready', 'candidate-ready', true, feedbackDraftPath)
     await writeRun(runRoot, 'missing-inputs', 'candidate-ready', false)
     const outside = await createRunRoot()
     await writeRun(outside, 'outside', 'candidate-ready')
@@ -48,9 +50,12 @@ describe('Shadow supervisor', () => {
     const exactRunRoot = await realpath(runRoot)
     expect(invocations.map(invocation => invocation.outputDir).sort()).toEqual([
       join(exactRunRoot, 'candidate-ready'),
+      join(exactRunRoot, 'feedback-ready'),
       join(exactRunRoot, 'trial-running'),
     ])
     expect(invocations.every(invocation => invocation.resume)).toBe(true)
+    expect(invocations.find(invocation => invocation.outputDir.endsWith('/feedback-ready')))
+      .toMatchObject({ feedbackDraftPath })
   })
 
   it('coalesces overlapping scans and aborts active recovery on stop', async () => {
@@ -266,6 +271,7 @@ async function writeRun(
   name: string,
   phase: 'prepared' | 'proposal-pending' | 'candidate-ready' | 'trial-running' | 'complete' | 'incomplete',
   withInputs = true,
+  feedbackDraftPath?: string,
 ): Promise<void> {
   const outputDir = join(runRoot, name)
   await mkdir(outputDir)
@@ -288,6 +294,7 @@ async function writeRun(
       resumeInputs: {
         skillDir: join(runRoot, 'skill'),
         casePackDir: join(runRoot, 'case-pack'),
+        ...(feedbackDraftPath === undefined ? {} : { feedbackDraftPath }),
       },
     } : {}),
   }

@@ -6,6 +6,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { afterEach, describe, expect, it } from 'vitest'
+import { hashTree, sha256 } from '../src/hash.js'
 
 const execFileAsync = promisify(execFile)
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -660,6 +661,153 @@ describe('dsh-evolve shadow', () => {
     }
   })
 
+  it.skipIf(process.platform !== 'darwin')('uses an exact private Feedback Case Draft only as proposer evidence before sealed Trial', async () => {
+    const fixture = await createFixture()
+    const { correctedSkill, originalSkill, skillPath } = await configureBrowserTrial(fixture)
+    const feedbackDraftPath = join(fixture.root, 'feedback-draft.json')
+    const draftContent = {
+      schemaVersion: 1 as const,
+      status: 'draft' as const,
+      source: {
+        signalId: '1'.repeat(64),
+        sessionId: 'feedback-session',
+        messageId: 'feedback-message',
+        feedbackVersion: '8efc182b-fc7f-44ac-894c-efc6bfe56252',
+        generationId: '2'.repeat(64),
+        assistantSeq: 9,
+        turn: 1,
+        prefixHash: '3'.repeat(64),
+      },
+      target: {
+        kind: 'skill' as const,
+        name: 'build-dsh-plugin',
+        artifact: {
+          kind: 'skill' as const,
+          name: 'build-dsh-plugin',
+          gitCommit: '4'.repeat(40),
+          treeHash: '5'.repeat(64),
+        },
+        contentHash: await hashTree(fixture.skillDir),
+      },
+      sample: {
+        userText: '/build-dsh-plugin finish the visible settings flow',
+        correction: 'Run the visible browser flow and inspect its failure before completion.',
+      },
+      limitations: [
+        'Draft only: no replay result or evaluator score exists yet.',
+        'Contains the direct user text and correction, never the assistant response, Tool output, or Skill body.',
+      ],
+    }
+    const draft = { ...draftContent, id: sha256(canonicalJson(draftContent)) }
+    await writeFile(feedbackDraftPath, `${JSON.stringify(draft, null, 2)}\n`, { mode: 0o600 })
+    let proposerRequest = ''
+    let proposalRequests = 0
+    const server = createServer(async (request, response) => {
+      proposalRequests += 1
+      for await (const chunk of request) proposerRequest += chunk
+      response.setHeader('content-type', 'application/json')
+      response.end(JSON.stringify({
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              claim: 'Require real browser verification for UI work',
+              files: [{ path: 'SKILL.md', content: correctedSkill }],
+            }),
+          },
+        }],
+        usage: { prompt_tokens: 160, completion_tokens: 38 },
+      }))
+    })
+    await new Promise<void>((resolveListen) => server.listen(0, '127.0.0.1', resolveListen))
+    const address = server.address()
+    if (!address || typeof address === 'string') throw new Error('mock model server did not bind')
+
+    try {
+      const result = await execFileAsync(
+        process.execPath,
+        [
+          '--import', 'tsx', cliPath, 'shadow', fixture.skillDir,
+          '--case-pack', fixture.casePackDir,
+          '--feedback-draft', feedbackDraftPath,
+          '--output', fixture.outputDir,
+        ],
+        {
+          cwd: packageRoot,
+          env: {
+            ...process.env,
+            DSH_EVOLVE_MODEL_BASE_URL: `http://127.0.0.1:${address.port}/v1`,
+            DSH_EVOLVE_MODEL_NAME: 'fixed-feedback-correction-model',
+          },
+        },
+      )
+
+      expect(result.stdout).toMatch(/^promote: candidate passed sealed final-test while baseline failed;/)
+      expect(result.stderr).toBe('')
+      expect(proposerRequest).toContain(draft.sample.userText)
+      expect(proposerRequest).toContain(draft.sample.correction)
+      expect(proposerRequest).toContain('untrusted search evidence, not evaluator truth')
+      expect(proposerRequest).not.toContain('case-pack-only-final-test-sentinel')
+      expect(await readFile(skillPath, 'utf8')).toBe(originalSkill)
+
+      const report = JSON.parse(await readFile(join(fixture.outputDir, 'report.json'), 'utf8'))
+      const state = JSON.parse(await readFile(join(fixture.outputDir, 'run-state.json'), 'utf8'))
+      expect(report).toMatchObject({
+        run: { status: 'complete' },
+        epoch: { feedbackDraftId: draft.id },
+        cases: [{ baseline: 'fail', candidate: 'pass' }],
+        decision: { recommendation: 'promote' },
+      })
+      expect(state).toMatchObject({
+        identity: { feedbackDraftId: draft.id },
+        resumeInputs: { feedbackDraftPath },
+      })
+      const durableEvidence = [
+        JSON.stringify(report),
+        JSON.stringify(state),
+        await readFile(join(fixture.outputDir, 'evidence', 'proposal.json'), 'utf8'),
+      ].join('\n')
+      expect(durableEvidence).not.toContain(draft.sample.userText)
+      expect(durableEvidence).not.toContain(draft.sample.correction)
+
+      const mismatchedContent = {
+        ...draftContent,
+        target: { ...draftContent.target, contentHash: '9'.repeat(64) },
+      }
+      const mismatched = {
+        ...mismatchedContent,
+        id: sha256(canonicalJson(mismatchedContent)),
+      }
+      const mismatchedPath = join(fixture.root, 'mismatched-feedback-draft.json')
+      await writeFile(mismatchedPath, `${JSON.stringify(mismatched, null, 2)}\n`, { mode: 0o600 })
+      await expect(execFileAsync(
+        process.execPath,
+        [
+          '--import', 'tsx', cliPath, 'shadow', fixture.skillDir,
+          '--case-pack', fixture.casePackDir,
+          '--feedback-draft', mismatchedPath,
+          '--output', fixture.outputDir,
+        ],
+        {
+          cwd: packageRoot,
+          env: {
+            ...process.env,
+            DSH_EVOLVE_MODEL_BASE_URL: `http://127.0.0.1:${address.port}/v1`,
+            DSH_EVOLVE_MODEL_NAME: 'fixed-feedback-correction-model',
+          },
+        },
+      )).rejects.toMatchObject({
+        code: 1,
+        stdout: '',
+        stderr: 'error: feedback draft does not match the exact active Skill content\n',
+      })
+      expect(proposalRequests).toBe(1)
+    } finally {
+      await new Promise<void>((resolveClose, rejectClose) =>
+        server.close(error => error ? rejectClose(error) : resolveClose()),
+      )
+    }
+  })
+
   it.skipIf(process.platform !== 'darwin')('returns incomplete when the case pack changes after its evidence hash is captured', async () => {
     const fixture = await createFixture()
     const { correctedSkill, originalSkill, skillPath } = await configureBrowserTrial(fixture)
@@ -871,3 +1019,12 @@ describe('dsh-evolve shadow', () => {
     }
   })
 })
+
+function canonicalJson(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value)
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`
+  const record = value as Record<string, unknown>
+  return `{${Object.keys(record).sort()
+    .map(key => `${JSON.stringify(key)}:${canonicalJson(record[key])}`)
+    .join(',')}}`
+}

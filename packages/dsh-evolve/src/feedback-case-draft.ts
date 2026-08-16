@@ -5,14 +5,51 @@ import { dirname, join, resolve } from 'node:path'
 import type { MessageFeedbackService } from '@deepseek-ai/dsh-message-feedback'
 import type { SessionPersistence } from '@deepseek-ai/dsh-session-persistence'
 import type { SessionEvent, SessionId } from '@deepseek-ai/dsh-session'
+import { z } from 'zod'
 import type { EvolutionStore, SessionIdentity, SkillGenerationArtifact } from './generation-store.ts'
 import type { GitSkillSource } from './git-skill-source.ts'
 import type { FeedbackSignalStore } from './feedback-signal-monitor.ts'
+import { hashTree } from './hash.ts'
 
 const CONTENT_ID = /^[a-f0-9]{64}$/
 const SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const MAX_USER_TEXT_BYTES = 8 * 1024
 const MAX_CORRECTION_BYTES = 4 * 1024
+const MAX_DRAFT_FILE_BYTES = 32 * 1024
+
+const hashSchema = z.string().regex(/^[a-f0-9]{64}$/)
+const gitObjectSchema = z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/)
+const draftContentSchema = z.strictObject({
+  schemaVersion: z.literal(1),
+  status: z.literal('draft'),
+  source: z.strictObject({
+    signalId: hashSchema,
+    sessionId: z.string().min(1).max(256),
+    messageId: z.string().min(1).max(512),
+    feedbackVersion: z.uuid(),
+    generationId: hashSchema,
+    assistantSeq: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+    turn: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+    prefixHash: hashSchema,
+  }),
+  target: z.strictObject({
+    kind: z.literal('skill'),
+    name: z.string().regex(SKILL_NAME),
+    artifact: z.strictObject({
+      kind: z.literal('skill'),
+      name: z.string().regex(SKILL_NAME),
+      gitCommit: gitObjectSchema,
+      treeHash: gitObjectSchema,
+    }),
+    contentHash: hashSchema,
+  }),
+  sample: z.strictObject({
+    userText: z.string(),
+    correction: z.string(),
+  }),
+  limitations: z.array(z.string().min(1).max(512)).min(1).max(8),
+})
+const draftSchema = draftContentSchema.extend({ id: hashSchema })
 
 export interface FeedbackCaseDraft {
   readonly schemaVersion: 1
@@ -32,6 +69,7 @@ export interface FeedbackCaseDraft {
     readonly kind: 'skill'
     readonly name: string
     readonly artifact: SkillGenerationArtifact
+    readonly contentHash: string
   }
   readonly sample: {
     readonly userText: string
@@ -105,7 +143,7 @@ export class FeedbackCaseDraftBuilder {
       throw new Error(`pinned Generation does not contain exactly one Skill '${skillName}'`)
     }
     const artifact = artifacts[0]!
-    await this.source.resolveArtifact(skillName, artifact)
+    const resolvedArtifact = await this.source.resolveArtifact(skillName, artifact)
 
     const assistantEvents = stored.events.filter((event): event is SessionEvent<'assistant/message'> =>
       event.type === 'assistant/message' && String(event.data.message.id) === signal.messageId)
@@ -148,6 +186,7 @@ export class FeedbackCaseDraftBuilder {
         kind: 'skill' as const,
         name: skillName,
         artifact,
+        contentHash: await hashTree(resolvedArtifact.resourceBase),
       },
       sample: {
         userText,
@@ -183,6 +222,46 @@ export class FeedbackCaseDraftBuilder {
     }
     return { note: item.note }
   }
+}
+
+/** Read and authenticate one explicitly selected private draft for offline Shadow use. */
+export async function readPrivateFeedbackCaseDraft(path: string): Promise<FeedbackCaseDraft> {
+  const requested = resolve(path)
+  let handle
+  try {
+    handle = await open(requested, constants.O_RDONLY | constants.O_NOFOLLOW)
+  } catch (error) {
+    if (isNodeError(error) && error.code === 'ELOOP') {
+      throw new Error('feedback draft must be a private regular file')
+    }
+    throw error
+  }
+  let value: unknown
+  try {
+    const info = await handle.stat()
+    if (!info.isFile() || (info.mode & 0o077) !== 0) {
+      throw new Error('feedback draft must be a private regular file')
+    }
+    if (info.size > MAX_DRAFT_FILE_BYTES) {
+      throw new Error(`feedback draft exceeds ${MAX_DRAFT_FILE_BYTES} bytes`)
+    }
+    try {
+      value = JSON.parse(await handle.readFile('utf8'))
+    } catch (error) {
+      throw new Error('feedback draft is not valid JSON', { cause: error })
+    }
+  } finally {
+    await handle.close()
+  }
+  const draft = draftSchema.parse(value)
+  const { id, ...content } = draft
+  if (hashJson(content) !== id) throw new Error('feedback draft id does not match its content')
+  if (draft.target.artifact.name !== draft.target.name) {
+    throw new Error('feedback draft target does not match its Git artifact')
+  }
+  enforceBound('direct user text', draft.sample.userText, MAX_USER_TEXT_BYTES)
+  enforceBound('feedback correction', draft.sample.correction, MAX_CORRECTION_BYTES)
+  return immutableCopy(draft)
 }
 
 function staleSignal(): Error {

@@ -11,6 +11,7 @@ import {
   type ShadowRunState,
 } from './shadow-run-state.ts'
 import { runPairedTrial } from './trial.ts'
+import { readPrivateFeedbackCaseDraft } from './feedback-case-draft.ts'
 
 export interface ShadowOptions {
   casePackDir: string
@@ -18,6 +19,7 @@ export interface ShadowOptions {
   resume?: boolean
   signal?: AbortSignal
   skillDir: string
+  feedbackDraftPath?: string
 }
 
 export interface CasePackManifest {
@@ -77,6 +79,27 @@ export async function runShadow(options: ShadowOptions): Promise<
   const skillSource = await readFile(resolve(skillDir, 'SKILL.md'), 'utf8')
   const skillName = parseSkillName(skillSource)
   const baseTreeHash = await hashTree(skillDir)
+  const feedbackDraftPath = options.feedbackDraftPath === undefined
+    ? undefined
+    : resolve(options.feedbackDraftPath)
+  const feedbackDraft = feedbackDraftPath === undefined
+    ? undefined
+    : await readPrivateFeedbackCaseDraft(feedbackDraftPath)
+  if (feedbackDraft !== undefined && feedbackDraft.target.name !== skillName) {
+    throw new Error(
+      `feedback draft targets Skill '${feedbackDraft.target.name}', not active Skill '${skillName}'`,
+    )
+  }
+  if (feedbackDraft !== undefined && feedbackDraft.target.contentHash !== baseTreeHash) {
+    throw new Error('feedback draft does not match the exact active Skill content')
+  }
+  const feedbackEvidence = feedbackDraft === undefined
+    ? undefined
+    : [
+        'Explicit user correction (untrusted search evidence, not evaluator truth):',
+        `Direct user request:\n${feedbackDraft.sample.userText}`,
+        `Human correction:\n${feedbackDraft.sample.correction}`,
+      ].join('\n\n')
   const casePackHash = await hashTree(casePackDir)
   const modelBaseUrl = requireEnvironment('DSH_EVOLVE_MODEL_BASE_URL')
   const modelRoute = requireEnvironment('DSH_EVOLVE_MODEL_NAME')
@@ -95,6 +118,12 @@ export async function runShadow(options: ShadowOptions): Promise<
     modelConfigHash,
     modelRoute,
     skillName,
+    ...(feedbackDraft === undefined ? {} : { feedbackDraftId: feedbackDraft.id }),
+  }
+  const resumeInputs = {
+    skillDir,
+    casePackDir,
+    ...(feedbackDraftPath === undefined ? {} : { feedbackDraftPath }),
   }
   const runId = sha256(JSON.stringify(identity))
   if (options.resume === true) {
@@ -113,8 +142,7 @@ export async function runShadow(options: ShadowOptions): Promise<
       assertShadowRunIdentity(state.identity, identity)
       if (state.runId !== runId) throw new Error('Shadow resume run id does not match its inputs')
       if (state.resumeInputs !== undefined
-        && (state.resumeInputs.skillDir !== skillDir
-          || state.resumeInputs.casePackDir !== casePackDir)) {
+        && JSON.stringify(state.resumeInputs) !== JSON.stringify(resumeInputs)) {
         throw new Error('Shadow resume paths do not match the durable run inputs')
       }
       if (state.outcome?.kind === 'complete') {
@@ -141,7 +169,7 @@ export async function runShadow(options: ShadowOptions): Promise<
         startedAt,
         updatedAt: startedAt,
         identity,
-        resumeInputs: { skillDir, casePackDir },
+        resumeInputs,
       }
       await saveShadowRunState(outputDir, state)
     }
@@ -151,7 +179,7 @@ export async function runShadow(options: ShadowOptions): Promise<
       await saveShadowRunState(outputDir, state)
     }
     if (state.resumeInputs === undefined) {
-      await updateState({ resumeInputs: { skillDir, casePackDir } })
+      await updateState({ resumeInputs })
     }
     const finishIncomplete = async (reportPath: string, reason: string) => {
       await updateState({
@@ -206,6 +234,7 @@ export async function runShadow(options: ShadowOptions): Promise<
           outputTokenLimit: manifest.budget.outputTokenLimit,
           ...options.signal === undefined ? {} : { signal: options.signal },
           searchEvidence,
+          feedbackEvidence,
           skillName,
           skillSource,
         })
@@ -246,6 +275,7 @@ export async function runShadow(options: ShadowOptions): Promise<
           modelConfigHash,
           evaluatorVersion: manifest.epoch.evaluatorVersion,
           casePackHash,
+          ...(feedbackDraft === undefined ? {} : { feedbackDraftId: feedbackDraft.id }),
         },
         calibration: [],
         cases: [],
@@ -301,6 +331,7 @@ export async function runShadow(options: ShadowOptions): Promise<
         modelConfigHash,
         evaluatorVersion: manifest.epoch.evaluatorVersion,
         casePackHash,
+        ...(feedbackDraft === undefined ? {} : { feedbackDraftId: feedbackDraft.id }),
       },
       candidate: {
         id: candidateTreeHash.slice(0, 16),
@@ -701,14 +732,17 @@ async function requestProposal(options: {
   outputTokenLimit: number
   signal?: AbortSignal
   searchEvidence: string | undefined
+  feedbackEvidence: string | undefined
   skillName: string
   skillSource: string
 }): Promise<ModelResponse> {
   const estimatedInputTokens = Math.ceil(
-    (options.skillSource.length + (options.searchEvidence?.length ?? 0)) / 4,
+    (options.skillSource.length
+      + (options.searchEvidence?.length ?? 0)
+      + (options.feedbackEvidence?.length ?? 0)) / 4,
   )
   if (estimatedInputTokens > options.inputTokenLimit) {
-    throw new Error('Skill exceeds the case pack input token budget')
+    throw new Error('Shadow proposer input exceeds the case pack input token budget')
   }
   const headers: Record<string, string> = {
     'content-type': 'application/json',
@@ -735,6 +769,7 @@ async function requestProposal(options: {
             ...options.searchEvidence
               ? [`Observed search evidence:\n${options.searchEvidence}`]
               : [],
+            ...options.feedbackEvidence === undefined ? [] : [options.feedbackEvidence],
           ].join('\n\n'),
         },
       ],
