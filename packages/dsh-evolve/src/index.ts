@@ -23,6 +23,10 @@ import {
 import { CounterfactualCanary } from './counterfactual-canary.ts'
 import { createCanaryJobRunner } from './counterfactual-canary-job.ts'
 import { createSealedCanaryRunner } from './sealed-canary-runner.ts'
+import {
+  installFeedbackSignalMonitor,
+  openFeedbackSignalStore,
+} from './feedback-signal-monitor.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -68,6 +72,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   )
   const store = new VerifiedEvolutionStore(await openEvolutionStore(ctx.storageDomain), source)
   const deliveryOutcomes = await openDeliveryOutcomeStore(ctx.storageDomain)
+  const feedbackSignals = await openFeedbackSignalStore(ctx.storageDomain)
+  const feedbackMonitor = installFeedbackSignalMonitor(ctx, feedbackSignals, store)
   const deliveryMonitors = new Set<DeliveryOutcomeMonitor>()
   ctx.provide('evoforge.evolution', store)
   const disposeBinder = installGenerationBinder(ctx, store, source)
@@ -95,7 +101,15 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         publisher: review.publisher,
         store,
       })
-  installEvolutionCommand(ctx, store, review, resident, automaticPolicy, deliveryOutcomes)
+  installEvolutionCommand(
+    ctx,
+    store,
+    review,
+    resident,
+    automaticPolicy,
+    deliveryOutcomes,
+    feedbackSignals,
+  )
   ctx.inject(['tools'], (toolCtx) => {
     toolCtx.effect(() => {
       const monitor = installDeliveryOutcomeMonitor(toolCtx, deliveryOutcomes, store)
@@ -165,7 +179,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   }
   ctx.effect(() => async () => {
     await Promise.all([...deliveryMonitors].map(monitor => monitor.dispose()))
+    await feedbackMonitor.dispose()
     await deliveryOutcomes.close()
+    await feedbackSignals.close()
     await disposeBinder()
     await store.close()
   }, 'dsh-evolve.runtimeClose')
@@ -186,3 +202,7 @@ export type {
   DeliveryOutcomeInput,
   DeliveryOutcomeSummary,
 } from './delivery-outcome-monitor.ts'
+export type {
+  FeedbackSignal,
+  FeedbackSignalSummary,
+} from './feedback-signal-monitor.ts'

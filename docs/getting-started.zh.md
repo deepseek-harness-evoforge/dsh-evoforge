@@ -103,6 +103,19 @@ Active selection outcomes (<generation-id-or-native>): 2 total (2 passed, 0 fail
 计数最多来自最近 1000 条幂等记录，不包含 Prompt、仓库路径、PR 正文或 check 输出。记录失败
 不会延迟或改变原 Tool；单次失败也不会触发自动回滚。
 
+如果 composition 同时加载 DSH 原生 `@deepseek-ai/dsh-message-feedback`，无需增加新的学习命令。
+用户在已有消息反馈 UI 中选择负反馈并填写非空备注后，`/evolve status` 还会显示：
+
+```text
+Explicit feedback signals: 3 retained (1 active selection)
+```
+
+完整 Session lifecycle 只在事件当下用于精确 Generation 归属；派生记录只保存 Session/message
+引用、opaque feedback version、时间和 pinned Generation，不保存 createdAt、cwd 或其 hash，
+也不复制 note、note hash、Prompt、Transcript 或消息正文。用户改成正反馈、
+删除反馈或移除备注会撤回派生引用。该入口不调用模型，也不会直接创建 Candidate、晋升或回滚；
+当前最多保留 1000 个 Session、每个 Session 100 条引用。
+
 ### P0B runtime 开发装配
 
 `dsh-evolve` 目前是普通 Cordis runtime plugin，不是自动修改 profile 的 Bundle。

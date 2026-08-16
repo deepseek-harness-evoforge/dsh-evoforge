@@ -1,6 +1,6 @@
 # dsh-evolve
 
-`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains six deliberately separate lanes:
+`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains seven deliberately separate lanes:
 
 - **P0A Shadow** compares an active Skill with an inactive Candidate without changing live DSH.
 - **P0B Local Continuity** records immutable Capability Generations, pins one Generation per Session, switches or rolls back only future Sessions, and resumes durable sealed work through an optional resident supervisor.
@@ -8,6 +8,7 @@
 - **P1.1 Narrow Autonomy** optionally auto-promotes only allowlisted, append-only instruction clear wins; every other Candidate remains human review.
 - **P2D.1 Delivery Signals** passively associates verified `complete_delivery` outcomes with the Session-pinned Generation and shows only bounded host-side aggregates.
 - **P1.2 Counterfactual Canary** asynchronously replays the original sealed Case Pack against the exact Git parent and Candidate before any automatic rollback.
+- **P1.3 Explicit Feedback Intake** projects current negative DSH message feedback with a note into a retractable, reference-only host signal without copying the note.
 
 The offline evaluation command is:
 
@@ -101,6 +102,16 @@ the version; every ambiguous or drifting case remains review. Its run-local
 journal recovers a crash around the pointer write without repeating rollback.
 Each immutable Generation runs at most one such four-execution canary, regardless
 of how many later failures are observed.
+
+P1.3 listens only to DSH's durable `message_feedback` change surface. It retains
+at most 1,000 Session rows and 100 current signals per Session. A signal contains
+Session/message references, the opaque feedback version, timestamps, and the
+pinned Generation; it excludes the note, note hash, lifecycle fields,
+cwd, transcript, Prompt, and message body. Changing the item to positive, removing
+its note, or deleting it retracts the derived signal. Counts are host-only in
+`/evolve status`, with zero model calls and no Tool, Prompt, or Skill-catalog
+change. This intake does not yet turn novel feedback into a replayable Case or
+Candidate.
 
 This is still pre-alpha. There is no full diff viewer, real-task false-promotion/
 false-rollback dataset, release, or production support. Explicit and resident

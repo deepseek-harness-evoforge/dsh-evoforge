@@ -1,6 +1,6 @@
 # EvoForge 开发路线图
 
-> 状态：P0A–P1.2 已实现；P2A.1 验证、P2B.1 Goal 完成、P2C.1 Draft PR 与 P2D.1 Outcome 第二消费者已实现
+> 状态：P0A–P1.3 已实现；P2A.1 验证、P2B.1 Goal 完成、P2C.1 Draft PR 与 P2D.1 Outcome 第二消费者已实现
 
 ## 当前状态
 
@@ -12,7 +12,7 @@
 | P0A Shadow evaluator | 本地退出门通过 | 安全门、macOS Sealed Trial、真实 DSH bridge、3/3 公开产品 fixture 与[本地未见首测](evidence/p0a-8-private-heldout.zh.md)均转绿；真实 provider 与第三方独立复跑仍属更高等级证据 |
 | P0B Local Continuity | implemented | P0B.1 release kernel、P0B.2a durable resume 与 P0B.2b resident supervisor 已通过本地/pinned DSH 测试；生产多日 soak 仍属发布前证据 |
 | P0C Human Control | 命令闭环 implemented；可用性门待验证 | P0C.1 release、P0C.2 review → inactive Generation、P0C.3 durable pause/resume 已通过真实 Commands/Agent 测试 |
-| P1 Bounded Autonomy | P1.1 + P1.2 implemented；P2D.1 信号已接通 | 默认关闭的 allowlist + append-only policy、交付 outcome、exact parent/Candidate 反事实 canary、pointer-safe 自动回滚均已通过测试；真实任务长期率待验证 |
+| P1 Bounded Autonomy | P1.1–P1.3 implemented；P2D.1 信号已接通 | 默认关闭的 allowlist + append-only policy、交付 outcome、显式反馈 intake、exact parent/Candidate 反事实 canary、pointer-safe 自动回滚均已通过测试；反馈到新 Case 与真实任务长期率待验证 |
 | P2 Software Delivery | P2A.1 + P2B.1 + P2C.1 + P2D.1 consumer implemented | linked worktree/commit/check、原生 Bash policy → exact push/Draft PR → `update_goal`，并由 Evolve 异步记录最小三态信号；pinned DSH Agent/ToolRuntime/Storage 与 package 已测 |
 
 ## P0A — 先证明会判断
@@ -110,8 +110,16 @@ Jobs，提案模型调用为 0，并用 run-local journal 恢复 pointer write �
 [P1.2](evidence/p1-2-counterfactual-canary.zh.md)与
 [ADR-0016](adr/0016-rollback-requires-counterfactual-canary.md)。
 
-P1 剩余：真实 provider/开发任务数据下的 false promotion、false rollback、review rate、返工
-减少和多日常驻证据。P1.1/P2D.1/P1.2 不作完整退出声明。
+P1.3 已完成最小显式反馈入口：复用 DSH 原生逐消息 rating/note 与 durable
+`domain/changed`；仅带备注的当前负反馈形成 reference-only、可撤回、限量的派生 Signal，
+`/evolve status` 只显示 host 聚合。note、note hash、cwd、Prompt、Transcript 和消息正文均不
+进入 EvoForge；不生成 Candidate、不调用模型、不触发 release。证据见
+[P1.3](evidence/p1-3-explicit-feedback-intake.zh.md)与
+[ADR-0017](adr/0017-explicit-feedback-stays-reference-only.md)。
+
+P1 剩余：把授权的新颖反馈转成最小可重放 Case；真实 provider/开发任务数据下的 false
+promotion、false rollback、review rate、返工减少和多日常驻证据。P1.1–P1.3/P2D.1 不作
+完整退出声明。
 
 退出条件：真实 Shadow/Canary 数据证明 false promotion、false rollback、review rate 和每次减少返工的成本在预声明预算内。
 

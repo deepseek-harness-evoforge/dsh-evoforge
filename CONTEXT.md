@@ -84,6 +84,10 @@ _Avoid_: Agent self-certification, evaluator framework
 A compact Learning Signal observed from the final `complete_delivery` result and attributed to the Capability Generation pinned to that Session. It may trigger evaluation, but one outcome never proves regression or authorizes rollback.
 _Avoid_: Transcript archive, rollback vote, delivery event platform
 
+**Explicit Feedback Signal**:
+A retractable, reference-only projection of one current DSH message-feedback item that is negative and carries a non-blank human note. It stores the DSH feedback version and Session/message/Generation references, but never copies the note, note hash, cwd, Prompt, Transcript, or message body. It may justify later Candidate investigation; it never authorizes a mutation by itself.
+_Avoid_: `/learn` command, feedback memory, transcript copy, automatic Skill edit
+
 **Counterfactual Canary**:
 An asynchronous replay of the original sealed Case Pack against the exact active Candidate and its immutable Git parent after a matching failed Delivery Outcome. It may roll back future-session selection only when calibration passes, the parent passes, the Candidate fails, and the active pointer is unchanged.
 _Avoid_: Live traffic routing, failure counter, model reflection, automatic retry platform

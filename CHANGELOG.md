@@ -12,7 +12,8 @@ All notable changes will be recorded here. The project has not published a stabl
 - A macOS Sealed Trial execution primitive with real read, write, process, network, environment, timeout and output-limit tests.
 - A calibrated `shadow` vertical slice that exposes only search evidence to the proposer, runs known-bad, known-correction, baseline and Candidate in separate macOS Sealed Trials, and keeps the final-test evaluator hidden.
 - Public status, contributor, support and security documentation.
+- `dsh-evolve` P1.3 explicit-feedback intake, which turns current DSH negative message feedback with a note into bounded, retractable, reference-only host signals without adding model-visible context.
 
 ### Security
 
-- `shadow` executes only the trusted single-file Case Pack evaluator inside the integrated macOS boundary. Candidate files are treated as inactive data; arbitrary Candidate code and assembled Agent execution remain disabled.
+- `shadow` executes only the trusted Case Pack evaluator inside the integrated macOS boundary. The opt-in assembled lane may boot an exact pinned DSH checkout, but Candidate files remain inactive data and arbitrary Candidate code execution remains disabled.

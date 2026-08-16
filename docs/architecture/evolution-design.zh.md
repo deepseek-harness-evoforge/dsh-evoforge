@@ -1,6 +1,6 @@
 # EvoForge 可证明自进化设计
 
-> 状态：P0A/P0B/P0C implemented；P1.1 最窄 opt-in 自动晋升、P2D.1 Outcome 与 P1.2 反事实 canary/自动回滚 implemented；真实任务长期证据待完成
+> 状态：P0A/P0B/P0C implemented；P1.1 最窄 opt-in 自动晋升、P2D.1 Outcome、P1.2 反事实 canary/自动回滚与 P1.3 显式反馈入口 implemented；反馈到新 Case 和真实任务长期证据待完成
 > 更新日期：2026-08-16
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 
@@ -88,7 +88,7 @@ Evolution Store
 | Skill 供应 | `ctx.skills.registerProvider()` | 在 Agent scope 注册固定 Generation 的 provider |
 | Session 生命周期 | `agent/session-start`、`agent/pre-step` | 选择 Generation，并在首个模型步骤前等待 sidecar pin 落盘 |
 | 真实过程事实 | `session/event`、`goal/changed` | 记录最小 Learning Signal 引用，不复制完整 transcript |
-| 人工反馈 | `ctx.messageFeedback` 与 `domain/changed` | 读取已持久化的正负反馈和 note |
+| 人工反馈 | `domain/changed` 的 `message_feedback` durable snapshot | P1.3 只将带 note 的当前负反馈投影为 reference-only Signal；不复制 note |
 | 持久小状态 | `ctx.storageDomain` | Evolution sidecar；写入先 durable 后改变内存 |
 | 后台执行 | `ctx.jobs` | 执行当前进程内候选和 Trial；Job 本身不是 durable authority |
 | 重启恢复 | Shadow journal / Evolution Store 扫描 | 只把可安全恢复的未终结状态重新提交给 Jobs |
@@ -219,6 +219,14 @@ interface LearningSignal {
 - 一条明确用户纠正可以生成候选，但仍必须通过 Trial；
 - 非明确反馈需要同类信号跨至少两个独立 Session 重复，才值得花模型预算生成候选；
 - Project signal 默认只能改进 project-scoped Skill；跨至少两个项目证明通用后才能提议上移到 user/global scope。
+
+P1.3 只落地这个设计中的一个具体 Adapter，不实现上面的通用 runtime interface：监听 DSH
+`message_feedback/sessions`，把当前 `negative + non-blank note` 投影到专用
+`evoforge_feedback_signals` Domain。完整 Session lifecycle 只在事件当下用于精确 Generation
+归属；派生值只保留 Session/message 引用、opaque feedback version、时间和 pinned Generation，
+不保留 createdAt、cwd 或其 hash，也不保留 note、note hash、Prompt、Transcript 或消息正文。
+whole-row 更新允许用户把负反馈改正、删掉或移除 note 后撤回 Signal。它不生成
+Candidate；见 [ADR-0017](../adr/0017-explicit-feedback-stays-reference-only.md)。
 
 ## 10. Candidate
 
@@ -593,6 +601,9 @@ clear-instruction 自动晋升，证据见
 该信号异步、host-only、零模型表面，见
 [P2D.1](../evidence/p2d-1-delivery-outcome-signal.zh.md)。P1.2 已实现 exact Git
 active-vs-parent sealed canary、原生 Jobs 与 crash-safe rollback，见
-[P1.2](../evidence/p1-2-counterfactual-canary.zh.md)。下一步不扩建平台，优先用真实开发任务测量
-false promotion、false rollback、review rate、返工与成本。P0C 仍需普通用户完成控制任务的
-可用性退出证据。
+[P1.2](../evidence/p1-2-counterfactual-canary.zh.md)。P1.3 已复用原生 Message Feedback 提供
+reference-only、可撤回、零模型表面的明确纠正入口，见
+[P1.3](../evidence/p1-3-explicit-feedback-intake.zh.md)。下一步不扩建通用 Signal/Memory 平台，
+只设计“读取当前 exact feedback version → 生成最小可重放 Case → 走现有 Trial”的纵切，并继续
+测量 false promotion、false rollback、review rate、返工与成本。P0C 仍需普通用户完成控制
+任务的可用性退出证据。

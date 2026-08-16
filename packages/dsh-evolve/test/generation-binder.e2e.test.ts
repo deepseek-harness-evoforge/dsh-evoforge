@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import * as EvolvePlugin from '../src/index.js'
 import type { EvolutionStore } from '../src/generation-store.js'
 import { openDeliveryOutcomeStore } from '../src/delivery-outcome-monitor.js'
+import { openFeedbackSignalStore } from '../src/feedback-signal-monitor.js'
 import { hashTree, sha256 } from '../src/hash.js'
 
 const execFile = promisify(execFileCallback)
@@ -623,6 +624,97 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
         all: { total: 1, passed: 1, failed: 0, unknown: 0 },
         selected: { total: 1, passed: 1, failed: 0, unknown: 0 },
       })
+    } finally {
+      await recovered.close()
+      await ctx.fiber.dispose()
+    }
+  })
+
+  it('turns real pinned DSH message feedback into a retractable host-only learning signal', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-message-feedback-'))
+    temporaryRoots.push(root)
+    const repository = join(root, 'source')
+    const sessionsRoot = join(root, 'sessions')
+    const revision = await commitSkill(repository, 'Feedback-aware body.', 'feedback reference')
+    const ctx = await bootStorage(await writeStorageConfig(root))
+    const adapter = await installAgentRuntime(ctx, sessionsRoot)
+    const evolveFiber = await ctx.plugin(EvolvePlugin, {
+      cacheRoot: join(root, 'cache'),
+      sources: [{
+        name: 'stable-evolved-skill',
+        repository,
+        path: 'skills/stable-evolved-skill',
+      }],
+    })
+    const packages = (path: string) => pathToFileURL(
+      join(dshSourceDir, 'packages', path, 'lib', 'index.js'),
+    ).href
+    const [commands, messageFeedbackModule] = await Promise.all([
+      import(packages('interaction/commands')),
+      import(packages('feedback/message-feedback')),
+    ])
+    await ctx.plugin(commands.default)
+    await ctx.plugin(messageFeedbackModule.default, { maxNoteBytes: 1_024 })
+    const store = ctx.get('evoforge.evolution') as EvolutionStore | undefined
+    const feedback = ctx.get('messageFeedback') as {
+      put(request: {
+        sessionId: string
+        messageId: string
+        rating: 'positive' | 'negative'
+        note?: string
+        ifVersion: string | null
+      }): Promise<{ ok: boolean; value?: { version: string } }>
+      list(request: { sessionId: string }): Promise<{
+        ok: boolean
+        value?: { items: ReadonlyArray<{ rating: string; note?: string }> }
+      }>
+    } | undefined
+    if (store === undefined || feedback === undefined) throw new Error('feedback services did not load')
+    const generation = (await store.publishGeneration(generationInput(revision))).generation
+    await store.promoteGeneration(generation.id)
+    const agent = await createAndRunAgent(ctx, 'message-feedback-session', root)
+    const assistant = agent.session.events.find(
+      (event: { type: string }) => event.type === 'assistant/message',
+    ) as { data: { message: { id: string } } } | undefined
+    if (assistant === undefined) throw new Error('assistant message fixture missing')
+    const requestsBeforeFeedback = adapter.requests.length
+
+    const negative = await feedback.put({
+      sessionId: String(agent.session.header.id),
+      messageId: assistant.data.message.id,
+      rating: 'negative',
+      note: 'The verification command should run before completion.',
+      ifVersion: null,
+    })
+    expect(negative.ok).toBe(true)
+    const negativeStatus = await waitForEvolutionStatus(
+      ctx,
+      agent,
+      'Explicit feedback signals: 1 retained (1 active selection)',
+    )
+    expect(negativeStatus).toContain(`Active: ${generation.id}`)
+    expect(adapter.requests).toHaveLength(requestsBeforeFeedback)
+
+    const version = negative.value?.version
+    if (version === undefined) throw new Error('feedback version missing')
+    await expect(feedback.put({
+      sessionId: String(agent.session.header.id),
+      messageId: assistant.data.message.id,
+      rating: 'positive',
+      note: 'Resolved.',
+      ifVersion: version,
+    })).resolves.toMatchObject({ ok: true })
+    await waitForEvolutionStatus(ctx, agent, 'Explicit feedback signals: 0 retained (0 active selection)')
+    expect(adapter.requests).toHaveLength(requestsBeforeFeedback)
+
+    await evolveFiber.dispose()
+    await expect(feedback.list({ sessionId: String(agent.session.header.id) })).resolves.toMatchObject({
+      ok: true,
+      value: { items: [{ rating: 'positive', note: 'Resolved.' }] },
+    })
+    const recovered = await openFeedbackSignalStore(ctx.storageDomain)
+    try {
+      expect(recovered.list()).toEqual([])
     } finally {
       await recovered.close()
       await ctx.fiber.dispose()

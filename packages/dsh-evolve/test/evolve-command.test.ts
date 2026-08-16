@@ -48,6 +48,27 @@ describe('/evolve host command', () => {
     })
   })
 
+  it('shows host-only explicit feedback counts for the active selection', async () => {
+    const store = fakeStore(generation(rootId))
+    const feedback = { summarize: vi.fn(() => ({ all: 5, selected: 2 })) }
+
+    const result = await executeEvolutionCommand(
+      store,
+      'status',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      feedback,
+    )
+
+    expect(result).toMatchObject({
+      kind: 'success',
+      text: expect.stringContaining('Explicit feedback signals: 5 retained (2 active selection)'),
+    })
+    expect(feedback.summarize).toHaveBeenCalledWith(rootId)
+  })
+
   it('promotes a full content id only for future Sessions and is idempotent', async () => {
     const root = generation(rootId)
     const promoteGeneration = vi.fn<

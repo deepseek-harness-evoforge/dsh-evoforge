@@ -6,6 +6,7 @@ import type { ReviewCandidate, ReviewInbox } from './review-inbox.ts'
 import type { ResidentEvolutionControl } from './resident-evolution-control.ts'
 import type { AutoPromotionPolicy, AutoPromotionPolicyResult } from './auto-promotion.ts'
 import type { DeliveryOutcomeStore, DeliveryOutcomeSummary } from './delivery-outcome-monitor.ts'
+import type { FeedbackSignalStore, FeedbackSignalSummary } from './feedback-signal-monitor.ts'
 
 const USAGE = 'Usage: /evolve [status|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]'
 const generationIdPattern = /^[a-f0-9]{64}$/
@@ -18,13 +19,22 @@ export function installEvolutionCommand(
   resident?: Pick<ResidentEvolutionControl, 'isPaused' | 'pause' | 'resume'>,
   automatic?: Pick<AutoPromotionPolicy, 'evaluate' | 'skills'>,
   outcomes?: Pick<DeliveryOutcomeStore, 'summarize'>,
+  feedback?: Pick<FeedbackSignalStore, 'summarize'>,
 ): void {
   ctx.inject(['commands'], (commandCtx) => {
     commandCtx.commands.register({
       name: 'evolve',
       description: 'review, publish, promote, or roll back immutable capability Generations',
       input: { hint: '[status|review ...|pause|resume|promote <generation-id>|rollback]' },
-      handler: ({ rawInput }) => executeEvolutionCommand(store, rawInput, review, resident, automatic, outcomes),
+      handler: ({ rawInput }) => executeEvolutionCommand(
+        store,
+        rawInput,
+        review,
+        resident,
+        automatic,
+        outcomes,
+        feedback,
+      ),
     })
   })
 }
@@ -37,6 +47,7 @@ export async function executeEvolutionCommand(
   resident?: Pick<ResidentEvolutionControl, 'isPaused' | 'pause' | 'resume'>,
   automatic?: Pick<AutoPromotionPolicy, 'evaluate' | 'skills'>,
   outcomes?: Pick<DeliveryOutcomeStore, 'summarize'>,
+  feedback?: Pick<FeedbackSignalStore, 'summarize'>,
 ): Promise<CommandResult> {
   const input = rawInput.trim()
   try {
@@ -47,6 +58,7 @@ export async function executeEvolutionCommand(
         resident?.isPaused(),
         automatic?.skills(),
         outcomes?.summarize(active?.id),
+        feedback?.summarize(active?.id),
       )
     }
     if (input === 'pause') {
@@ -230,6 +242,7 @@ function renderStatus(
   recoveryPaused?: boolean,
   automaticSkills?: string[],
   outcomeSummary?: DeliveryOutcomeSummary,
+  feedbackSummary?: FeedbackSignalSummary,
 ): CommandResult {
   const recovery = recoveryPaused === undefined
     ? []
@@ -243,6 +256,9 @@ function renderStatus(
         `Delivery outcomes: ${renderOutcomeCounts(outcomeSummary.all)}`,
         `Active selection outcomes (${active?.id ?? 'native DSH'}): ${renderOutcomeCounts(outcomeSummary.selected)}`,
       ]
+  const feedback = feedbackSummary === undefined
+    ? []
+    : [`Explicit feedback signals: ${feedbackSummary.all} retained (${feedbackSummary.selected} active selection)`]
   if (active === undefined) {
     return {
       kind: 'success',
@@ -252,6 +268,7 @@ function renderStatus(
         ...recovery,
         ...automatic,
         ...delivery,
+        ...feedback,
         'Future Sessions will use native capabilities.',
         '',
         'Commands: /evolve promote <64-char-generation-id>',
@@ -266,6 +283,7 @@ function renderStatus(
       ...recovery,
       ...automatic,
       ...delivery,
+      ...feedback,
       `Rollback target: ${active.parentId ?? 'native DSH'}`,
       'Artifacts:',
       ...active.artifacts.map(artifact =>
