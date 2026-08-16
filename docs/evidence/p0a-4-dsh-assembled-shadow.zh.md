@@ -67,4 +67,4 @@ pnpm --filter dsh-evolve exec vitest run \
 - 没有真实 provider 的 paired benchmark、统计复跑、磁盘配额、Linux/Windows executor；
 - 不能声称已持续进化、可自动晋升或优于 Hermes。
 
-因此 P0A 仍为 `implemented / in progress`。后续产品 fixture 继续复用同一受限装配接缝，并保持 Candidate 代码不越过已声明的执行边界。
+此阶段结束时 P0A 仍为 `implemented / in progress`。后续产品 fixture 继续复用同一受限装配接缝；最终本地退出试验见 [P0A.8](p0a-8-private-heldout.zh.md)，Candidate 代码仍未越过已声明的执行边界。

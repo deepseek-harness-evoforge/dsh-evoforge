@@ -135,3 +135,7 @@ Summarize in one compact record:
 - known limitations and protected next action.
 
 When a finding is a DSH Core Defect, attach a native minimal reproduction and keep it out of the EvoForge feature roadmap.
+
+## Package host-provided runtime dependencies
+
+Declare DSH and Cordis packages supplied by the host in both `peerDependencies` and `devDependencies`, never in production `dependencies`. This keeps local typechecking reproducible without bundling a second host runtime. Verify the packed artifact contains only the intended exports and files, and prove install, boot, removal, and native boot against the exact supported DSH revision.

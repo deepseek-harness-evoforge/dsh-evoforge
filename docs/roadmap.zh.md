@@ -1,6 +1,6 @@
 # EvoForge 开发路线图
 
-> 状态：P0A 已获项目所有者授权并开始 test-first 实现；每阶段只有满足退出条件才进入下一阶段
+> 状态：P0A 本地退出门已通过，P0B 开始 test-first 实现；每阶段只有满足退出条件才进入下一阶段
 
 ## 当前状态
 
@@ -9,7 +9,8 @@
 | R0 上游与市场研究 | 完成 | DSH、171 插件、Claude Code Rev、Hermes、公开自进化项目报告 |
 | R1 产品边界 | 完成 | Requirements、CONTEXT、产品架构、ADR、插件目录和接口规范 |
 | R2 开源仓库就绪 | 完成 | [公共仓库](https://github.com/deepseek-harness-evoforge/dsh-evoforge)、MIT、贡献/安全文档与 Linux CI；macOS CI 在独立 Draft PR 验证 |
-| P0A Shadow evaluator | 实现中 | 安全门、macOS Sealed Trial、校准/paired final-test、真实 DSH assembled bridge 与 3/3 公开产品 fixture 已转绿；本地未见 case 尚未完成 |
+| P0A Shadow evaluator | 本地退出门通过 | 安全门、macOS Sealed Trial、真实 DSH bridge、3/3 公开产品 fixture 与[本地未见首测](evidence/p0a-8-private-heldout.zh.md)均转绿；真实 provider 与第三方独立复跑仍属更高等级证据 |
+| P0B Local Continuity | 实现中 | 进入条件已满足；从 immutable Generation 与崩溃点红测试开始 |
 
 ## P0A — 先证明会判断
 

@@ -19,11 +19,11 @@
 |---|---|---|---|
 | DSH/Claude Code Rev/Hermes 调研 | `verified` | [研究索引](research/README.zh.md)、固定 revision 与源码定位 | 上游 revision 改变时重新审计 |
 | DSH 171 原生插件目录 | `verified` | [全量目录](research/deepseek-harness-native-plugins.zh.md) | 新 revision 重新生成统计 |
-| `dsh-evolve` Shadow 安全门 | `implemented` | [P0A.1 证据](evidence/p0a-1-owned-path-tracer.zh.md)、CLI 测试 | 第三方复跑及完整 P0A evaluator |
+| `dsh-evolve` Shadow 安全门 | `implemented`（P0A 本地退出门通过） | [P0A.1 证据](evidence/p0a-1-owned-path-tracer.zh.md)、CLI 测试、[P0A.8 本地未见首测](evidence/p0a-8-private-heldout.zh.md) | 第三方独立复跑与真实 provider outcome |
 | Sealed Trial executor | `implemented`（macOS、已接入确定性 evaluator） | [边界证据](evidence/p0a-2-darwin-sealed-trial.zh.md)、[ADR-0006](adr/0006-fail-closed-sealed-trial-execution.md) | 磁盘配额、Linux/Windows 与任意 Candidate/DSH 组装执行 |
-| known-bad / known-correction 校准 | `implemented`（静态示例 + 真实 bridge + 3/3 公开产品 fixture） | [P0A.3 静态证据](evidence/p0a-3-calibrated-paired-trial.zh.md)、[P0A.4 assembled 证据](evidence/p0a-4-dsh-assembled-shadow.zh.md)、[P0A.5 cache-safe](evidence/p0a-5-cache-safe-status.zh.md)、[P0A.6 lifecycle](evidence/p0a-6-dispose-owned-watcher.zh.md)、[P0A.7 profile](evidence/p0a-7-profile-install-remove.zh.md) | 本地未见 final-test |
-| Candidate 的 `promote/review/reject` 评价 | `implemented`（四个确定性 assembled case） | 同一 CLI 报告中的 paired baseline/Candidate、真实 composition 指纹与纯 Decision；三个产品 case 都拒绝虚构净改进 | held-out 改善、落盘重放与真实 provider outcome 验证 |
-| Capability Generation 与 Session pin | `planned` | [进化架构](architecture/evolution-design.zh.md) | P0A 先证明 evaluator 有价值 |
+| known-bad / known-correction 校准 | `implemented`（静态示例 + 真实 bridge + 3/3 公开产品 fixture + 本地 held-out） | [P0A.3](evidence/p0a-3-calibrated-paired-trial.zh.md)至[P0A.8](evidence/p0a-8-private-heldout.zh.md) | 更多独立真实 Case 与误报/漏报数据 |
+| Candidate 的 `promote/review/reject` 评价 | `implemented`（本地 P0A 退出门通过） | paired baseline/Candidate、真实 composition、纯 Decision；冻结修正首次 held-out 为 `fail → pass` | 落盘重放、真实 provider outcome 与长期 false-promotion 数据 |
+| Capability Generation 与 Session pin | `planned`（P0B 已进入） | [进化架构](architecture/evolution-design.zh.md)、[路线图](roadmap.zh.md) | test-first 实现 immutable Generation、pin 与 crash recovery |
 | 晋升、回滚与异步人工复核 | `planned` | 路线图 P0B/P0C | immutable Generation、崩溃测试、控制面 |
 | 单机常驻和崩溃恢复 | `planned` | Local Continuity 需求已冻结 | P0A 退出后实现 durable state machine |
 | `dsh-software-delivery` | `planned` | 用户结果和验收方向已定义 | 独立 test-first 实现与 DSH assembled test |
@@ -45,4 +45,4 @@
 - 不能声称已经持续进化、可回滚、长时常驻或优于 Hermes；
 - 不能作为生产依赖安装。
 
-下一条产品退出门是：evaluator 稳定拒绝 known-bad，并让至少一个真实修正在未参与搜索的 final-test 上胜过 baseline，同时 active Skill、sealed cases 和正常 DSH composition 均不被污染。
+下一条产品退出门是 P0B：所有声明的崩溃点都不能产生半激活或重复效果；活动 Session 固定原 Generation；删除插件后原生 DSH 可启动且 Session/Goal 仍可读。

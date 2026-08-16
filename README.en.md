@@ -4,7 +4,7 @@
 
 An out-of-tree extension suite for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). EvoForge adds removable capabilities through supported DSH seams; it is not a DSH fork or a home for core-defect workarounds.
 
-> **Pre-alpha: do not use for automatic activation.** Calibrated Shadow now runs on macOS; a pinned-revision DSH assembly path plus cache-safe, owned-resource lifecycle, and profile install/remove fixtures are green. A locally held-out case remains, so P0A has not exited. Generations, activation, rollback, continuity, and UI are not complete.
+> **Pre-alpha: do not use for automatic activation.** Calibrated Shadow now runs on macOS; a pinned-revision DSH assembly path plus three public product fixtures are green, and one locally held-out first run passed after freezing the Candidate before the Case Pack. The local P0A exit gate has passed. Generations, activation, rollback, continuity, and UI are not complete.
 
 `dsh-evolve` aims to turn agent self-improvement into an evidence-backed release process:
 

@@ -1,6 +1,6 @@
 # P0A Shadow 契约
 
-> 状态：项目所有者已授权实现；安全门、真实 assembled bridge 与三个公开产品 fixture 已实现，完整 P0A 尚未完成
+> 状态：本地退出门已通过；证据只允许开始 P0B，不等于自动晋升、持续进化或真实 provider 效果已经完成
 > 更新日期：2026-08-16
 > 目标：用最小离线实验证明 evaluator 值得信任，而不是先建设在线自进化平台
 
@@ -190,7 +190,7 @@ case pack 必须预声明 `candidateLimit`、`trialLimit` 和 token/cost cap；�
 7. 同一落盘 Trial evidence 重放得到相同 Decision；
 8. 无论成功、失败或取消，命令都只写 `run-dir`，临时 workspace 可安全回收。
 
-当前实现先完成 owned-path safety tracer 和静态确定性纵切，再增加一条真实 DSH assembled bridge：固定模型只模拟外部 proposer/LLM 边界；真实文件、macOS Seatbelt、Cordis Loader、Agent Loop、Skill 按需注入、bash Tool、退出码和报告均不 mock。三个公开产品 fixture 分别覆盖 host-only cache、timer/watcher ownership、真实 profile add/dump/boot/remove。Candidate 仍只作为 Skill 数据，不执行任意 Candidate 代码。证据见 [P0A.4](../evidence/p0a-4-dsh-assembled-shadow.zh.md)、[P0A.5](../evidence/p0a-5-cache-safe-status.zh.md)、[P0A.6](../evidence/p0a-6-dispose-owned-watcher.zh.md)与 [P0A.7](../evidence/p0a-7-profile-install-remove.zh.md)；本地未见 final-test 仍缺失。
+当前实现先完成 owned-path safety tracer 和静态确定性纵切，再增加一条真实 DSH assembled bridge：固定模型只模拟外部 proposer/LLM 边界；真实文件、macOS Seatbelt、Cordis Loader、Agent Loop、Skill 按需注入、bash Tool、退出码和报告均不 mock。三个公开产品 fixture 分别覆盖 host-only cache、timer/watcher ownership、真实 profile add/dump/boot/remove。Candidate 仍只作为 Skill 数据，不执行任意 Candidate 代码。公开实现证据见 [P0A.4](../evidence/p0a-4-dsh-assembled-shadow.zh.md)、[P0A.5](../evidence/p0a-5-cache-safe-status.zh.md)、[P0A.6](../evidence/p0a-6-dispose-owned-watcher.zh.md)与 [P0A.7](../evidence/p0a-7-profile-install-remove.zh.md)；本地未见首测与限制见 [P0A.8](../evidence/p0a-8-private-heldout.zh.md)。
 
 ## 9. 人工介入与退出门
 

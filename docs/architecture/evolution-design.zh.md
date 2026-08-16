@@ -1,6 +1,6 @@
 # EvoForge 可证明自进化设计
 
-> 状态：设计已获授权；安全门、真实 assembled bridge 与三个公开产品 fixture 已实现，完整 P0A evaluator 尚未完成
+> 状态：设计已获授权；P0A 本地退出门已通过，P0B Local Continuity 开始 test-first 实现
 > 更新日期：2026-08-15
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 

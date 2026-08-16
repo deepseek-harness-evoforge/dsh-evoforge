@@ -4,7 +4,7 @@
 
 面向 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的 out-of-tree 开源扩展套件。EvoForge 只增加可独立安装、可删除的新能力，不 fork DSH，也不以插件修补 DSH Core Defect。
 
-> **Pre-alpha：暂不可用于自动激活。** `dsh-evolve` 已在 macOS 上实现校准后的 Shadow、固定 revision 的真实 DSH 装配路径，以及 cache-safe、资源生命周期、profile 安装删除三个公开产品 fixture；本地未见样本仍未通过，P0A 尚未退出。Generation、激活、回滚、常驻恢复及 UI 均未完成。详见[状态页](docs/status.zh.md)。
+> **Pre-alpha：暂不可用于自动激活。** `dsh-evolve` 已在 macOS 上实现校准后的 Shadow、固定 revision 的真实 DSH 装配路径、三个公开产品 fixture，并通过一次先冻结 Candidate、后冻结 Case Pack 的本地未见首测。P0A 的本地退出门已通过；Generation、激活、回滚、常驻恢复及 UI 仍未完成。详见[状态页](docs/status.zh.md)。
 
 ## 为什么做
 
@@ -28,7 +28,7 @@
 
 | 包 | 当前能力 | 状态 |
 |---|---|---|
-| [`dsh-evolve`](packages/dsh-evolve) | 离线 `shadow`；有界 proposer；校准；macOS Sealed paired Trial；真实 DSH assembled bridge；组合指纹、预算与证据报告 | P0A vertical slice implemented |
+| [`dsh-evolve`](packages/dsh-evolve) | 离线 `shadow`；有界 proposer；校准；macOS Sealed paired Trial；真实 DSH assembled bridge；组合指纹、预算与证据报告 | P0A 本地退出门通过；P0B 开发中 |
 
 当前实现的正常 DSH Session 模型表面为 `none`，因此正常 Session 的额外 token 和 KV Cache 影响为 `0`。Shadow 只有在用户显式调用时才请求配置的模型。
 
@@ -56,7 +56,7 @@ pnpm --filter dsh-evolve pack --pack-destination "$PWD/.evoforge/pack"
 
 ## 尚未实现
 
-- 本地未参与开发的 final-test、多个真实 case、Linux/Windows 隔离与 workspace 磁盘配额；
+- 多个独立真实 case、真实 provider 提案效果、Linux/Windows 隔离与 workspace 磁盘配额；
 - 自动或人工晋升、immutable Generation、Session pin 与精确回滚；
 - 单机常驻、崩溃恢复及幂等续跑；
 - `dsh-software-delivery`、个人助理、消息、内容和日程插件；

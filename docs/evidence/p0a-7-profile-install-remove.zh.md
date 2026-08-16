@@ -1,6 +1,6 @@
 # P0A.7：`profile-install-remove` 产品 fixture 证据
 
-> 状态：`implemented`；三个公开产品 fixture 已全部完成，但本地未见 final-test 仍缺失，P0A 尚未退出
+> 状态：`implemented`；三个公开产品 fixture 已全部完成；后续本地未见首测见 [P0A.8](p0a-8-private-heldout.zh.md)
 
 ## 用户问题
 
@@ -58,6 +58,6 @@
 - Candidate 仍是 Skill 数据，未执行任意模型生成代码；
 - 未做真实 registry/tarball 安装、Windows profile 或网络失败恢复；
 - 未实现 Generation、激活、回滚、常驻恢复或自动晋升；
-- 因此 P0A 仍是 `implemented / in progress`，不能声称持续进化已完成或优于 Hermes。
+- 此证据单独不能退出 P0A，也不能声称持续进化已完成或优于 Hermes；后续本地退出试验已记录于 [P0A.8](p0a-8-private-heldout.zh.md)。
 
-下一步不再增加公开 fixture，而是准备一份不进入仓库、不给 proposer 的本地 held-out Case Pack。只有真实修正胜过 baseline、全部 known-bad 稳定失败且成本值得，P0A 才能退出并进入 P0B。
+下一步原定为本地 held-out Case Pack；该试验现已完成并记录于 [P0A.8](p0a-8-private-heldout.zh.md)，P0B 从 immutable Generation 与崩溃点红测试开始。

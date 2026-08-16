@@ -70,4 +70,4 @@ Evaluator 在退出前有自己的受信清理兜底，防止故意泄漏样本�
 - Candidate 仍是 Skill 数据，尚未开放任意生成代码执行；
 - 没有证明崩溃恢复、Generation 回滚或长时稳定性。
 
-下一份产品证据见 [P0A.7](p0a-7-profile-install-remove.zh.md)。当前下一步是本地未见 final-test。
+下一份产品证据见 [P0A.7](p0a-7-profile-install-remove.zh.md)；最终本地未见首测见 [P0A.8](p0a-8-private-heldout.zh.md)。

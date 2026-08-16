@@ -34,4 +34,4 @@
 
 插件默认放在 Suite。只有独立发布/维护周期、独立信任边界、明显不同的重型依赖或许可证、或者无需 Suite 其余能力即可完整采用时才拆仓；详见 [ADR 0005](adr/0005-evoforge-repository-boundaries.md)。
 
-首个 GitHub 仓库名与插件包名已经冻结为 `dsh-evoforge` 和 `dsh-evolve`。npm 尚未发布；发布前仍需完成 P0A 退出门、打包校验和版本策略。
+首个 GitHub 仓库名与插件包名已经冻结为 `dsh-evoforge` 和 `dsh-evolve`。P0A 本地退出门已通过；npm 尚未发布，发布前仍需完成面向用户的安装验收、打包校验和版本策略。

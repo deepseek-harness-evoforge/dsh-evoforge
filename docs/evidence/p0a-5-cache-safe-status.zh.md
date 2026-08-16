@@ -77,4 +77,4 @@ Evaluator 不执行模型任意生成的插件代码。它只根据受管 Skill 
 - 没有 Generation、激活、回滚、常驻恢复或异步 review inbox；
 - 因此不能声称已实现持续进化或已经优于 Hermes。
 
-后续产品证据见 [P0A.6](p0a-6-dispose-owned-watcher.zh.md)与 [P0A.7](p0a-7-profile-install-remove.zh.md)。当前下一步是本地未见 final-test。
+后续产品证据见 [P0A.6](p0a-6-dispose-owned-watcher.zh.md)与 [P0A.7](p0a-7-profile-install-remove.zh.md)；最终本地未见首测见 [P0A.8](p0a-8-private-heldout.zh.md)。
