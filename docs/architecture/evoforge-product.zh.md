@@ -85,7 +85,7 @@ DSH 始终拥有模型执行和基础服务；EvoForge 插件只增加用户结�
 | Memory/Skill | 复用 DSH/社区能力，不造第二套 Memory | 架构边界已确认 |
 | 消息与日程 | 按真实 workflow 提供可拆 Adapter | 后续验证，不承诺首版 |
 | 人类控制 | 状态、证据、审批、暂停、回滚不阻塞会话 | P0C.1 release + P0C.2 review + P0C.3 durable pause/resume implemented；真实可用性数据 pending |
-| 自进化 | 独立 final-test、inactive Candidate、可证明晋升 | P0A `fail → pass` + P0B verified-Git/resident resume + P0C inactive publication + P1.1 opt-in auto policy + P2D.1 Outcome + P1.2 exact-parent 反事实回滚 + P1.3 显式反馈 intake；反馈到新 Case 与真实长期效果 pending |
+| 自进化 | 独立 final-test、inactive Candidate、可证明晋升 | P0A `fail → pass` + P0B verified-Git/resident resume + P0C inactive publication + P1.1 opt-in auto policy + P2D.1 Outcome + P1.2 exact-parent 反事实回滚 + P1.3 feedback intake + P1.4 private Case Draft；Draft 到 scored Case 与真实长期效果 pending |
 | 权限 | 代码和外部效果不自动激活 | 需求与测试门已定义 |
 | KV Cache | Session 内完整 composition 稳定 | 真实两轮 Agent 前缀与 Tool surface 回归通过；长会话 cache token soak pending |
 | 回滚 | future Session 精确恢复 artifact；外部效果不虚假承诺 | exact parent Git tree 与 live Session 不漂移已实现；外部效果仍不在回滚范围 |

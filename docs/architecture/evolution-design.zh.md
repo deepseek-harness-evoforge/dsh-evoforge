@@ -1,6 +1,6 @@
 # EvoForge 可证明自进化设计
 
-> 状态：P0A/P0B/P0C implemented；P1.1 最窄 opt-in 自动晋升、P2D.1 Outcome、P1.2 反事实 canary/自动回滚与 P1.3 显式反馈入口 implemented；反馈到新 Case 和真实任务长期证据待完成
+> 状态：P0A/P0B/P0C implemented；P1.1 最窄 opt-in 自动晋升、P2D.1 Outcome、P1.2 反事实 canary/自动回滚、P1.3 显式反馈入口与 P1.4 私有 Case Draft implemented；Draft 到 scored Case 和真实任务长期证据待完成
 > 更新日期：2026-08-16
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 
@@ -88,7 +88,7 @@ Evolution Store
 | Skill 供应 | `ctx.skills.registerProvider()` | 在 Agent scope 注册固定 Generation 的 provider |
 | Session 生命周期 | `agent/session-start`、`agent/pre-step` | 选择 Generation，并在首个模型步骤前等待 sidecar pin 落盘 |
 | 真实过程事实 | `session/event`、`goal/changed` | 记录最小 Learning Signal 引用，不复制完整 transcript |
-| 人工反馈 | `domain/changed` 的 `message_feedback` durable snapshot | P1.3 只将带 note 的当前负反馈投影为 reference-only Signal；不复制 note |
+| 人工反馈 | `domain/changed` 的 `message_feedback` durable snapshot | P1.3 只将带 note 的当前负反馈投影为 reference-only Signal；P1.4 只在双重显式授权后复制最小 Case Draft |
 | 持久小状态 | `ctx.storageDomain` | Evolution sidecar；写入先 durable 后改变内存 |
 | 后台执行 | `ctx.jobs` | 执行当前进程内候选和 Trial；Job 本身不是 durable authority |
 | 重启恢复 | Shadow journal / Evolution Store 扫描 | 只把可安全恢复的未终结状态重新提交给 Jobs |
@@ -227,6 +227,14 @@ P1.3 只落地这个设计中的一个具体 Adapter，不实现上面的通用 
 不保留 createdAt、cwd 或其 hash，也不保留 note、note hash、Prompt、Transcript 或消息正文。
 whole-row 更新允许用户把负反馈改正、删掉或移除 note 后撤回 Signal。它不生成
 Candidate；见 [ADR-0017](../adr/0017-explicit-feedback-stays-reference-only.md)。
+
+P1.4 仍不实现通用接口。配置 `feedbackDraftRoot` 只表示允许复制最小原文，用户还必须通过
+host-only `/evolve feedback <signal-id> draft <skill>` 逐条选择。一个私有 Builder 重新读取原生
+Message Feedback 与 Session Persistence，要求 exact feedback version、同一生命周期的 pinned
+Generation、一个直接纯文本用户消息和恰好一次目标 Skill invocation。它保存用户文本、correction、
+exact Git artifact 与 prefix hash，不保存 assistant response、Tool output、Skill body、cwd 或完整
+Transcript。输出状态固定为 `draft`，没有 evaluator score，不生成 Candidate。见
+[ADR-0018](../adr/0018-feedback-case-drafts-require-explicit-private-copy.md)。
 
 ## 10. Candidate
 
@@ -603,7 +611,10 @@ clear-instruction 自动晋升，证据见
 active-vs-parent sealed canary、原生 Jobs 与 crash-safe rollback，见
 [P1.2](../evidence/p1-2-counterfactual-canary.zh.md)。P1.3 已复用原生 Message Feedback 提供
 reference-only、可撤回、零模型表面的明确纠正入口，见
-[P1.3](../evidence/p1-3-explicit-feedback-intake.zh.md)。下一步不扩建通用 Signal/Memory 平台，
-只设计“读取当前 exact feedback version → 生成最小可重放 Case → 走现有 Trial”的纵切，并继续
+[P1.3](../evidence/p1-3-explicit-feedback-intake.zh.md)。P1.4 已在双重授权下生成私有、内容寻址、
+未评分的 Feedback Case Draft，见
+[P1.4](../evidence/p1-4-private-feedback-case-draft.zh.md)。下一步不扩建通用 Signal/Memory/Case
+平台，只为一个高频软件交付失败设计“Draft → deterministic reproduction/evaluator → sealed Case
+→ 现有 Trial”的纵切，并继续
 测量 false promotion、false rollback、review rate、返工与成本。P0C 仍需普通用户完成控制
 任务的可用性退出证据。

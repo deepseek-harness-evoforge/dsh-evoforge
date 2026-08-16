@@ -88,6 +88,10 @@ _Avoid_: Transcript archive, rollback vote, delivery event platform
 A retractable, reference-only projection of one current DSH message-feedback item that is negative and carries a non-blank human note. It stores the DSH feedback version and Session/message/Generation references, but never copies the note, note hash, cwd, Prompt, Transcript, or message body. It may justify later Candidate investigation; it never authorizes a mutation by itself.
 _Avoid_: `/learn` command, feedback memory, transcript copy, automatic Skill edit
 
+**Feedback Case Draft**:
+A private, content-addressed, unscored sample created only after configuration-level copy authorization and an explicit host command. It binds one still-current feedback version to one direct user text, one correction, one exact Generation Skill artifact, and one Session-prefix hash; it excludes assistant responses, Tool output, Skill bodies, cwd, and full Transcript. It is not replayable evidence until a concrete evaluator compiles and scores it.
+_Avoid_: Automatic transcript harvesting, generic Case platform, Candidate, proof of improvement
+
 **Counterfactual Canary**:
 An asynchronous replay of the original sealed Case Pack against the exact active Candidate and its immutable Git parent after a matching failed Delivery Outcome. It may roll back future-session selection only when calibration passes, the parent passes, the Candidate fails, and the active pointer is unchanged.
 _Avoid_: Live traffic routing, failure counter, model reflection, automatic retry platform

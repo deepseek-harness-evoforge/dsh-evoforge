@@ -1,6 +1,6 @@
 # dsh-evolve
 
-`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains seven deliberately separate lanes:
+`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains eight deliberately separate lanes:
 
 - **P0A Shadow** compares an active Skill with an inactive Candidate without changing live DSH.
 - **P0B Local Continuity** records immutable Capability Generations, pins one Generation per Session, switches or rolls back only future Sessions, and resumes durable sealed work through an optional resident supervisor.
@@ -9,6 +9,7 @@
 - **P2D.1 Delivery Signals** passively associates verified `complete_delivery` outcomes with the Session-pinned Generation and shows only bounded host-side aggregates.
 - **P1.2 Counterfactual Canary** asynchronously replays the original sealed Case Pack against the exact Git parent and Candidate before any automatic rollback.
 - **P1.3 Explicit Feedback Intake** projects current negative DSH message feedback with a note into a retractable, reference-only host signal without copying the note.
+- **P1.4 Private Feedback Case Draft** explicitly copies one exact, single-Skill correction into an unscored private draft without creating a Candidate.
 
 The offline evaluation command is:
 
@@ -21,6 +22,9 @@ surface is also available:
 
 ```text
 /evolve status
+/evolve feedback
+/evolve feedback <64-char-signal-id>
+/evolve feedback <64-char-signal-id> draft <skill-name>
 /evolve review
 /evolve review <64-char-review-id>
 /evolve review <64-char-review-id> reject <note>
@@ -110,8 +114,14 @@ pinned Generation; it excludes the note, note hash, lifecycle fields,
 cwd, transcript, Prompt, and message body. Changing the item to positive, removing
 its note, or deleting it retracts the derived signal. Counts are host-only in
 `/evolve status`, with zero model calls and no Tool, Prompt, or Skill-catalog
-change. This intake does not yet turn novel feedback into a replayable Case or
-Candidate.
+change. P1.4 can copy one direct user text and correction only after both a
+private `feedbackDraftRoot` is configured and a user explicitly selects one
+signal and one Skill through the host command. It rechecks the native feedback
+version, durable Session lifecycle, pinned Generation, exact Git artifact, and
+requires exactly one explicit target-Skill invocation. The content-addressed
+`0600` draft excludes the assistant response, Tool output, Skill body, cwd, and
+full transcript. It has no replay result or evaluator score and does not create
+a Candidate.
 
 This is still pre-alpha. There is no full diff viewer, real-task false-promotion/
 false-rollback dataset, release, or production support. Explicit and resident
@@ -129,6 +139,7 @@ Skill that a Generation may activate:
   name: dsh-evolve
   config:
     cacheRoot: /absolute/path/to/.dsh/evoforge/git-skills
+    feedbackDraftRoot: /absolute/path/to/.dsh/evoforge/private-feedback-drafts
     sources:
       - name: build-dsh-plugin
         repository: /absolute/path/to/owned-git-repository
@@ -141,6 +152,12 @@ Skill that a Generation may activate:
       skills:
         - build-dsh-plugin
 ```
+
+`feedbackDraftRoot` is optional. Setting it authorizes local copying of the
+minimal user text and correction, but does not create anything automatically.
+Draft creation additionally requires native Message Feedback, Session
+Persistence, Commands, and an explicit `/evolve feedback <id> draft <skill>`.
+The directory must be a real private directory with no group/world permissions.
 
 `supervisor` is optional. When configured, the DSH composition must also load a
 native `ctx.jobs` implementation such as `@deepseek-ai/dsh-jobs-local`. Each

@@ -1,6 +1,6 @@
 # DeepSeek Harness EvoForge 项目需求基线
 
-> 状态：已确认；研究与设计已完成，P0A–P1.1 与 P2A.1–P2D.1 已进入 test-first 实现
+> 状态：已确认；研究与设计已完成，P0A–P1.4 与 P2A.1–P2D.1 已进入 test-first 实现
 > 更新日期：2026-08-16
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。
 
@@ -278,6 +278,11 @@ canary 和 outcome-triggered rollback，避免先造没有可信信号的自动�
 Draft PR 继续复用同一个 Tool 的可选参数，不再增加模型动作。默认只做非强制 exact commit push、
 创建或复用 Draft 和 read-after-write；不 merge、不转 ready。远端 branch/PR 是幂等事实源，
 网络结果不确定时 Goal 保持 active，重试先查询而不是盲目重复外部动作。
+
+反馈进化先复用原生 Message Feedback 保存 reference-only Signal。只有管理者配置私有复制目录且
+用户逐条选择 signal/Skill，才保存未评分 Case Draft；它必须重新核对 exact feedback version、
+Session-pinned Generation 和单一 Skill invocation。下一步先为一个高频失败实现 deterministic
+Case 编译器，不预建通用 Memory、Signal Bus 或 Case SDK。
 
 研究完成的标准是“当前 revision 的每一个原生插件都有归类和作用说明，三个项目的关键结论都有源码证据”。设计完成的标准是“每个计划插件都有用户结果、DSH 接缝、缓存影响、权限边界、验证方法和回滚方案”。实现完成的标准由相应 P0 测试规格定义。
 

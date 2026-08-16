@@ -116,6 +116,25 @@ Explicit feedback signals: 3 retained (1 active selection)
 删除反馈或移除备注会撤回派生引用。该入口不调用模型，也不会直接创建 Candidate、晋升或回滚；
 当前最多保留 1000 个 Session、每个 Session 100 条引用。
 
+如需把其中一条纠正保存为后续 evaluator 的输入，先显式配置一个私有目录：
+
+```yaml
+feedbackDraftRoot: /absolute/path/to/.dsh/evoforge/private-feedback-drafts
+```
+
+这表示允许复制最小原文，但不会自动复制任何内容。还必须在 host plane 逐条执行：
+
+```text
+/evolve feedback
+/evolve feedback <64-char-signal-id>
+/evolve feedback <64-char-signal-id> draft <skill-name>
+```
+
+创建时会重新核对当前 feedback version、Session 生命周期、pinned Generation、exact Git Skill，
+并要求目标 turn 只有一个直接纯文本用户消息和恰好一次目标 Skill 的显式 invocation。目录权限不能
+向 group/world 开放；草稿文件不含 assistant response、Tool output、Skill body、cwd 或完整
+Transcript。草稿状态固定为 `draft`，没有 replay score，不会创建 Candidate、调用模型或触发发布。
+
 ### P0B runtime 开发装配
 
 `dsh-evolve` 目前是普通 Cordis runtime plugin，不是自动修改 profile 的 Bundle。
@@ -126,6 +145,7 @@ Explicit feedback signals: 3 retained (1 active selection)
   name: /absolute/path/to/dsh-evoforge/packages/dsh-evolve/dist/index.mjs
   config:
     cacheRoot: /absolute/path/to/.dsh/evoforge/git-skills
+    feedbackDraftRoot: /absolute/path/to/.dsh/evoforge/private-feedback-drafts
     sources:
       - name: build-dsh-plugin
         repository: /absolute/path/to/owned-repository
@@ -147,6 +167,9 @@ non-executable 文件。`cacheRoot` 只是带 owner marker 的只读重建缓存
 
 ```text
 /evolve status
+/evolve feedback
+/evolve feedback <64-char-signal-id>
+/evolve feedback <64-char-signal-id> draft <skill-name>
 /evolve review
 /evolve review <64-char-review-id>
 /evolve review <64-char-review-id> reject <note>

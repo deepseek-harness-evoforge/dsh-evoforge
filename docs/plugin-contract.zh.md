@@ -82,6 +82,8 @@ Bundle 必须导出并发布 `cordis.patch.yml`；普通库或需要用户手工
 - Markdown/Skill Candidate 按语义效果检查；文件不是可执行代码不代表低风险。
 - 每个外部写入使用稳定 idempotency key，并在重试前查询既有结果；版本回滚不宣称撤销已发生的现实效果。
 - 收集 Session/Goal/feedback 时默认最小引用、本机保存、项目隔离；对外发给模型或 PR 前脱敏。
+- 从引用复制用户原文必须同时有配置级本地目录授权和逐条显式动作；私有目录/文件权限、内容上限、
+  当前 source version 与最小归因都必须 fail closed。未评分草稿不能宣称为 Case 证据。
 
 ## 7. Persistence 与交互
 
