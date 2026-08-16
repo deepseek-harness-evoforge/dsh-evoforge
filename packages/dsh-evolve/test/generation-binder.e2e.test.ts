@@ -171,6 +171,12 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
       new AbortController().signal,
     )
     expect(detail?.result.text).toContain('held-out-browser fail→pass checks 2/2')
+    expect(detail?.result.text).toContain(
+      'Protected-effect projection (lexical-protected-effects-v1; lexical only): scope append-only-skill; indicators none detected',
+    )
+    expect(detail?.result.text).toContain(
+      'DSH Approval remains authoritative; no lexical indicator is a safety proof.',
+    )
     expect(detail?.result.text).toContain('Verified diff (exact Git baseline → sealed Candidate; controls escaped;')
     expect(detail?.result.text).toContain('+Verify the exact browser flow before completion.')
     expect(detail?.result.text).not.toContain(root)

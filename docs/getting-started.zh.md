@@ -237,7 +237,10 @@ Review 使用和 supervisor 相同的 `runRoots`，但不要求安装 Jobs。它
 composition、理由、限制，以及 exact Git baseline 到 sealed Candidate 的逐行 diff。Diff
 复用批准时相同的 baseline/Candidate whole-tree gate，不读取 `resumeInputs.skillDir`；最多
 显示 16 KiB，控制字符可见转义，截断会报告显示/总字节数。查看不会调用模型、持久化 patch
-或修改 release state。若 exact Git baseline 已漂移则失败关闭。
+或修改 release state。详情还会基于同一 exact baseline 的变更文本显示固定版本的
+protected-effect 词法类别；结构范围扩大或改写 `SKILL.md` 也会单独提示。否定句不会被当作
+安全豁免，`none detected` 也不表示安全。DSH Approval/Permission/Sandbox 仍决定实际动作。
+若 exact Git baseline 已漂移则失败关闭。
 
 `autoPromote` 可完全省略；省略或 `skills: []` 即关闭。开启时必须同时配置 supervisor 并
 装配 native Jobs。只有 allowlist 内 Skill 的 exact baseline、assembled composition stable、

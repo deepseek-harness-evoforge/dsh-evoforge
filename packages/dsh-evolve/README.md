@@ -4,7 +4,7 @@
 
 - **P0A Shadow** compares an active Skill with an inactive Candidate without changing live DSH.
 - **P0B Local Continuity** records immutable Capability Generations, pins one Generation per Session, switches or rolls back only future Sessions, and resumes durable sealed work through an optional resident supervisor.
-- **P0C Human Control** reviews completed evidence and publishes approved Candidates as inactive Generations before a separate explicit promotion.
+- **P0C Human Control** reviews completed evidence with an exact bounded diff and conservative protected-effect indicators, then publishes approved Candidates as inactive Generations before a separate explicit promotion.
 - **P1.1 Narrow Autonomy** optionally auto-promotes only allowlisted, append-only instruction clear wins; every other Candidate remains human review.
 - **P2D.1 Delivery Signals** passively associates verified `complete_delivery` outcomes with the Session-pinned Generation and shows only bounded host-side aggregates.
 - **P1.2 Counterfactual Canary** asynchronously replays the original sealed Case Pack against the exact Git parent and Candidate before any automatic rollback.
@@ -62,7 +62,12 @@ evidence and exact Git Skill tree, then creates an immutable owned Git ref and
 inactive Generation without moving the user's branch, worktree, or active
 pointer. Review detail first reconstructs that same verified baseline and sealed
 Candidate and renders at most 16 KiB of their diff; control characters are escaped
-and truncation is explicit. It does not persist another patch copy. Promotion remains a separate explicit action. Promotion/rollback
+and truncation is explicit. The same exact baseline also produces fixed lexical
+indicators for changed scope, credentials, destructive actions, messaging/calendar,
+network, payment, permissions, privileged tools, production changes, and rewritten
+instructions. Negated language remains visible and an empty indicator list is not a
+safety proof; native DSH Approval remains authoritative. It does not persist another
+patch copy or add a model call. Promotion remains a separate explicit action. Promotion/rollback
 changes only future Sessions; existing Sessions keep their pin.
 
 After an interrupted run, explicitly resume the same immutable inputs with

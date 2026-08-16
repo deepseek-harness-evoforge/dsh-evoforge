@@ -1,6 +1,6 @@
 # EvoForge 可证明自进化设计
 
-> 状态：P0A/P0B/P0C implemented；P1.1 最窄 opt-in 自动晋升、P2D.1 Outcome、P1.2 反事实 canary/自动回滚、P1.3 显式反馈入口、P1.4 私有 Case Draft、P1.5 反馈引导 Shadow、P1.6 proposer 前 Case Pack 校准与 P1.7 显式 evaluator authoring Skill implemented；全新失败自动 evaluator 和真实任务长期证据待完成
+> 状态：P0A/P0B/P0C（含 exact diff 与 protected-effect 词法提示）implemented；P1.1 最窄 opt-in 自动晋升、P2D.1 Outcome、P1.2 反事实 canary/自动回滚、P1.3 显式反馈入口、P1.4 私有 Case Draft、P1.5 反馈引导 Shadow、P1.6 proposer 前 Case Pack 校准与 P1.7 显式 evaluator authoring Skill implemented；全新失败自动 evaluator 和真实任务长期证据待完成
 > 更新日期：2026-08-16
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 
@@ -619,7 +619,9 @@ Generation，证据见 [P0C.2](../evidence/p0c-2-review-to-inactive-generation.z
 P0C.3 已提供 durable resident pause/resume，证据见
 [P0C.3](../evidence/p0c-3-durable-resident-pause-resume.zh.md)。P0C.4 复用 publication 的
 exact Git baseline/Candidate gate，在同一 detail 中显示 control-safe bounded diff，见
-[P0C.4](../evidence/p0c-4-verified-diff-preview.zh.md)。P0C 不增加模型 Tool，也不让审批等待
+[P0C.4](../evidence/p0c-4-verified-diff-preview.zh.md)。P0C.5 在相同 exact 变更上投影固定、保守的
+protected-effect 词法类别，并与 P1.1 复用 detector；它不是语义安全证明，见
+[P0C.5](../evidence/p0c-5-protected-effect-projection.zh.md)。P0C 不增加模型 Tool，也不让审批等待
 阻塞产生信号的原会话。P1.1 已实现默认关闭、allowlist、append-only 的
 clear-instruction 自动晋升，证据见
 [P1.1](../evidence/p1-1-opt-in-clear-instruction-auto-promotion.zh.md)。P2D.1 已通过最终

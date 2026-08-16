@@ -4,7 +4,7 @@
 
 面向 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的 out-of-tree 开源扩展套件。EvoForge 只增加可独立安装、可删除的新能力，不 fork DSH，也不以插件修补 DSH Core Defect。
 
-> **Pre-alpha：不可用于生产自动激活。** `dsh-evolve` 的 P0A/P0B/P0C、P1.1 最窄自动晋升、P1.2 反事实 canary/自动回滚、P1.3 显式反馈入口、P1.4 私有 Feedback Case Draft、P1.5 反馈引导 Shadow、P1.6 proposer 前 Case Pack 校准、P1.7 evaluator authoring Skill 和 P2D.1 交付 Outcome 已实现；`dsh-software-delivery` 的 Skill、Git 验证器、原生 Goal 受验证完成、幂等 Draft PR 和可选 exact-head 远端 checks 完成门也已实现。全新失败的自动 evaluator 生成、真实任务误晋升/误回滚数据、用户可用性门与生产多日证据仍未完成。详见[状态页](docs/status.zh.md)。
+> **Pre-alpha：不可用于生产自动激活。** `dsh-evolve` 的 P0A/P0B/P0C（含 exact diff 与 protected-effect 词法提示）、P1.1 最窄自动晋升、P1.2 反事实 canary/自动回滚、P1.3 显式反馈入口、P1.4 私有 Feedback Case Draft、P1.5 反馈引导 Shadow、P1.6 proposer 前 Case Pack 校准、P1.7 evaluator authoring Skill 和 P2D.1 交付 Outcome 已实现；`dsh-software-delivery` 的 Skill、Git 验证器、原生 Goal 受验证完成、幂等 Draft PR 和可选 exact-head 远端 checks 完成门也已实现。全新失败的自动 evaluator 生成、真实任务误晋升/误回滚数据、用户可用性门与生产多日证据仍未完成。详见[状态页](docs/status.zh.md)。
 
 ## 为什么做
 
@@ -28,12 +28,16 @@
 
 | 包 | 当前能力 | 状态 |
 |---|---|---|
-| [`dsh-evolve`](packages/dsh-evolve) | 离线 `shadow`/零模型 Case Pack 校准；durable resident recovery；Sealed paired Trial；immutable Generation；Session-scoped Git Skill；host-only review/pause/release；opt-in clear-instruction auto promotion；交付 Outcome、显式反馈/私有 Case Draft/反馈引导 Shadow、evaluator authoring Skill 与反事实 canary | P0A/P0B/P0C + P1.1–P1.7 + P2D.1 implemented；真实任务安全率与可用性门待验证 |
+| [`dsh-evolve`](packages/dsh-evolve) | 离线 `shadow`/零模型 Case Pack 校准；durable resident recovery；Sealed paired Trial；immutable Generation；Session-scoped Git Skill；含 exact diff/词法影响提示的 host-only review；pause/release；opt-in clear-instruction auto promotion；交付 Outcome、显式反馈/私有 Case Draft/反馈引导 Shadow、evaluator authoring Skill 与反事实 canary | P0A/P0B/P0C + P1.1–P1.7 + P2D.1 implemented；真实任务安全率与可用性门待验证 |
 | [`dsh-software-delivery`](packages/dsh-software-delivery) | 按需原生 Skill；linked worktree/commit/check 验证；原生 Shell policy 下幂等 push/Draft PR；可选 exact-head 远端 checks 门；通过后完成 exact native Goal | P2A.1 + P2B.1 + P2C.1–P2C.2 implemented；Evolve 第二消费者已接通 |
 
 Shadow 和未激活 Generation 的运行时模型表面为 `none`，额外 token 为 `0`。Generation 激活后只复用 DSH 原生 Skill catalog/body 路径：catalog 在 Session 开始时固定，正文按需加载；插件不增加 Tool 或 system prompt。真实 Agent 回归已证明晋升后旧 Session 的请求工具面不变、后一请求保留前一请求的完整消息前缀。Shadow 只有在用户显式调用时才请求配置的模型。
 
 P1.1 policy、自动发布和 host 状态同样是 `0` 模型调用；自动候选最多追加 2 KiB Skill 正文，且只在 future Session 通过原生 Skill body 路径实际加载时产生 tokenizer 相关输入。它不会改写当前 Session 的可缓存前缀。
+
+P0C.5 在每次 review detail 中显示固定版本的 protected-effect 词法提示。它只扫描 exact baseline
+相对 Candidate 的变更文本，复用 P1.1 的保守路由规则；否定句仍会提示，未命中也不是安全证明。
+该投影完全位于 host plane，DSH Approval/Permission/Sandbox 仍是外部效果的权威边界。
 
 P2D.1 被动观察 DSH 最终 `tools/result`，把 Software Delivery 的三态结果关联到该 Session 已固定的 Generation。它异步保存最多 1000 条最小信号，`/evolve status` 只在 host plane 显示聚合；不保存 Prompt、仓库路径、PR 正文或 check 输出，不增加任何模型 token。P1.3 同样复用 DSH 原生 Message Feedback：只有带备注的当前负反馈形成可撤回引用，note、note hash、cwd 和消息正文均不复制。P1.4 只有在配置私有 `feedbackDraftRoot` 且用户逐条执行 draft 命令后，才复制一个直接用户文本和 correction，并绑定 exact Generation Skill。P1.5 允许用户把该草稿显式交给一次 Shadow，只引导 proposer；既有校准 Case Pack 仍是独立裁判，草稿字段不被直接复制到 run evidence（proposer 若在 Candidate 中回显，输出仍会持久化）。P1.6 可用独立零模型命令验证 Case Pack 方向；完整 Shadow 也先校准、再请求 Candidate，失准 evaluator 的 proposer token 为 0。P1.2 只把匹配交付失败当作异步 canary 触发器：复用原 Case Pack 和 exact Git parent/Candidate，只有 parent pass / Candidate fail 的可归因反事实成立且 active 未变化才回滚 future Session。它不调用 proposer，模糊结果进入 review。
 
@@ -67,7 +71,7 @@ pnpm --filter dsh-software-delivery pack --pack-destination "$PWD/.evoforge/pack
 ## 尚未实现
 
 - 多个独立真实 case、真实 provider 提案效果、Linux/Windows 隔离与 workspace 磁盘配额；
-- 真实人工 review 可用性数据、权限效果投影和可选分页/图形 diff，以及真实任务上的 false-promotion/false-rollback/review rate（exact bounded diff、最窄 allowlist 自动晋升、outcome、显式反馈、私有 Case Draft、反馈引导 Candidate 和反事实自动回滚已实现；全新失败仍需独立 evaluator）；
+- 真实人工 review 可用性数据、语义级 capability/权限差异审计和可选分页/图形 diff，以及真实任务上的 false-promotion/false-rollback/review rate（exact bounded diff、保守词法影响提示、最窄 allowlist 自动晋升、outcome、显式反馈、私有 Case Draft、反馈引导 Candidate 和反事实自动回滚已实现；全新失败仍需独立 evaluator）；
 - 生产多日 soak、真实磁盘耗尽与大规模 run 性能数据（常驻 native Jobs supervisor、自动扫描和关机恢复已实现）；
 - `dsh-software-delivery` 不做全局 Goal 拦截；原生直接 `update_goal` 仍可用。Draft PR 首片只支持 GitHub.com 同仓分支；可选门能读取 exact-head 全量 checks，但尚缺 fork/其他 forge、required-only 规则、CI 日志诊断和自动等待；Evolve canary 尚缺真实开发任务长期数据；个人助理、消息、内容和日程插件也未实现；
 - Web/TUI 控制面。

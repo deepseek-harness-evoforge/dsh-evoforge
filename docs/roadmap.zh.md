@@ -11,7 +11,7 @@
 | R2 开源仓库就绪 | 完成 | [公共仓库](https://github.com/deepseek-harness-evoforge/dsh-evoforge)、MIT、贡献/安全文档与 Linux CI；macOS CI 在独立 Draft PR 验证 |
 | P0A Shadow evaluator | 本地退出门通过 | 安全门、macOS Sealed Trial、真实 DSH bridge、3/3 公开产品 fixture 与[本地未见首测](evidence/p0a-8-private-heldout.zh.md)均转绿；真实 provider 与第三方独立复跑仍属更高等级证据 |
 | P0B Local Continuity | implemented | P0B.1 release kernel、P0B.2a durable resume 与 P0B.2b resident supervisor 已通过本地/pinned DSH 测试；生产多日 soak 仍属发布前证据 |
-| P0C Human Control | 命令闭环 + verified bounded diff implemented；可用性门待验证 | P0C.1 release、P0C.2 review → inactive Generation、P0C.3 durable pause/resume、P0C.4 exact Git diff preview 已通过真实 Commands/Agent 测试 |
+| P0C Human Control | 命令闭环 + verified bounded diff + lexical effect projection implemented；可用性门待验证 | P0C.1 release、P0C.2 review → inactive Generation、P0C.3 durable pause/resume、P0C.4 exact Git diff preview、P0C.5 protected-effect 词法提示已通过测试 |
 | P1 Bounded Autonomy | P1.1–P1.7 implemented；P2D.1 信号已接通 | 默认关闭的 allowlist + append-only policy、交付 outcome、显式反馈 intake、私有 Case Draft、既有 Case Pack 下的反馈引导 Shadow、proposer 前零模型校准、显式 evaluator authoring Skill、exact parent/Candidate 反事实 canary、pointer-safe 自动回滚均已通过测试；全新失败自动 evaluator 与真实任务长期率待验证 |
 | P2 Software Delivery | P2A.1 + P2B.1 + P2C.1–P2C.2 + P2D.1 consumer implemented | linked worktree/commit/check、原生 Bash policy → exact push/Draft PR → 可选 exact-head 远端 checks 门 → `update_goal`，并由 Evolve 异步记录最小三态信号；pinned DSH Agent/ToolRuntime/Storage 与 package 已测 |
 
@@ -82,6 +82,13 @@ P0C.4 已完成：review detail 复用 publication 的 exact Git baseline 和 Ca
 不持久化第二份 patch，也不调用模型或改变 Session composition。证据见
 [P0C.4](evidence/p0c-4-verified-diff-preview.zh.md)与
 [ADR-0021](adr/0021-review-diff-reuses-publication-baseline.md)。
+
+P0C.5 已完成：同一 exact baseline/Candidate 变更会产生固定版本的 host-only protected-effect
+词法提示，并与 P1.1 自动晋升复用一个 detector。它涵盖 artifact scope、凭据、破坏性动作、
+消息/日程、网络、付费、权限、特权工具、生产变更和重写指令；否定句仍提示，未命中也不构成
+安全证明，DSH Approval 继续权威。证据见
+[P0C.5](evidence/p0c-5-protected-effect-projection.zh.md)与
+[ADR-0024](adr/0024-review-effects-are-conservative-host-projections.md)。
 
 P0C 剩余的是退出证据：由不了解内部实现的用户完成一次查看、审批、暂停和回滚，测量
 控制时延与误操作。只有该试验证明 command preview 仍不足，且至少两个 UI adapter 需要同一
