@@ -11,9 +11,12 @@
 ```bash
 pnpm install
 pnpm check
+pnpm test:pa1
 ```
 
 `pnpm check` 依次执行 TypeScript 类型检查、全部测试和构建。生成目录 `dist/`、依赖目录和 `.evoforge/` 本地证据不会进入 Git。
+`pnpm test:pa1` 额外把分散在 Evolve、Delivery 和 Web 的 Protected Action 行为收敛为一个
+可执行 hard gate；macOS 才能完整执行 Seatbelt secret/network/host-read 隔离 case。
 
 ## 2. 当前包
 

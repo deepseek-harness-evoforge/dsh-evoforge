@@ -563,6 +563,16 @@ describe('complete_delivery Tool', () => {
     expect(ctx.tools.schemas().map(tool => tool.name)).toContain('complete_delivery')
     const completeSchema = ctx.tools.schemas().find(tool => tool.name === 'complete_delivery')
     expect(Buffer.byteLength(JSON.stringify(completeSchema))).toBeLessThanOrEqual(2_048)
+    expect(Object.keys((completeSchema?.parameters as {
+      properties?: Record<string, unknown>
+    }).properties ?? {}).sort()).toEqual([
+      'base_ref',
+      'checks',
+      'draft_pr',
+      'goal_id',
+      'revision',
+      'worktree',
+    ])
     expect(ctx.tools.get('update_goal')).toBe(nativeUpdate)
 
     await fiber.dispose()

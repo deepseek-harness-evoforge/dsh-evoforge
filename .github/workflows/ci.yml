@@ -39,7 +39,9 @@ jobs:
       - name: Verify package contents
         run: |
           pnpm --filter dsh-evolve pack --pack-destination "$RUNNER_TEMP"
+          pnpm --filter dsh-evolve-web pack --pack-destination "$RUNNER_TEMP"
           pnpm --filter dsh-software-delivery pack --pack-destination "$RUNNER_TEMP"
+          pnpm --filter dsh-doctor pack --pack-destination "$RUNNER_TEMP"
 
   assembled-darwin:
     name: macOS DSH Assembled Trial
@@ -90,11 +92,15 @@ jobs:
           test/generation-binder.e2e.test.ts
           test/generation-crash-recovery.e2e.test.ts
           test/package-install-remove-generation.e2e.test.ts
-      - name: Run software-delivery assembled and package-boundary tests
+      - name: Run delivery and Doctor assembled/package-boundary tests
         env:
           DSH_EVOLVE_DSH_SOURCE_DIR: ${{ github.workspace }}/.evoforge/deepseek-harness
-        run: >-
-          pnpm --filter dsh-software-delivery exec vitest run
-          test/dsh-assembled-skill.e2e.test.ts
-          test/dsh-assembled-completion.e2e.test.ts
-          test/package-install-remove.e2e.test.ts
+        run: |
+          pnpm --filter dsh-software-delivery exec vitest run \
+            test/dsh-assembled-skill.e2e.test.ts \
+            test/dsh-assembled-completion.e2e.test.ts \
+            test/package-install-remove.e2e.test.ts
+          pnpm --filter dsh-doctor exec vitest run \
+            test/package-install-remove.e2e.test.ts
+      - name: Run PA-1 protected-action hard gate
+        run: pnpm test:pa1
