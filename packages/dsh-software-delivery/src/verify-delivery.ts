@@ -19,6 +19,8 @@ export interface VerifyDeliveryOptions {
   readonly checks: readonly DeliveryCheck[]
   readonly timeoutMs?: number
   readonly outputLimitBytes?: number
+  readonly signal?: AbortSignal
+  readonly checkRunner?: DeliveryCheckRunner
 }
 
 export interface CapturedOutput {
@@ -26,7 +28,28 @@ export interface CapturedOutput {
   readonly bytes: number
   readonly truncated: boolean
   readonly sha256: string
+  readonly hashScope: 'full' | 'retained'
 }
+
+export interface DeliveryCheckRunContext {
+  readonly worktree: string
+  readonly timeoutMs: number
+  readonly outputLimitBytes: number
+  readonly signal?: AbortSignal
+}
+
+export interface DeliveryCheckRunResult {
+  readonly status: 'passed' | 'failed' | 'unknown'
+  readonly exitCode: number | null
+  readonly signal: NodeJS.Signals | null
+  readonly stdout: CapturedOutput
+  readonly stderr: CapturedOutput
+}
+
+export type DeliveryCheckRunner = (
+  check: DeliveryCheck,
+  context: DeliveryCheckRunContext,
+) => Promise<DeliveryCheckRunResult>
 
 export interface DeliveryCheckEvidence {
   readonly name: string
@@ -68,6 +91,7 @@ interface ProcessEvidence {
   readonly stdout: CapturedOutput
   readonly stderr: CapturedOutput
   readonly timedOut: boolean
+  readonly aborted: boolean
   readonly spawnError?: string
 }
 
@@ -94,6 +118,8 @@ export async function verifyDelivery(options: VerifyDeliveryOptions): Promise<De
   const env = safeEnvironment(isolatedHome)
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS
   const outputLimitBytes = options.outputLimitBytes ?? DEFAULT_OUTPUT_LIMIT_BYTES
+  const checkRunner: DeliveryCheckRunner = options.checkRunner
+    ?? ((check, context) => runLocalCheck(check, context, env))
 
   try {
     let worktree: string
@@ -105,13 +131,13 @@ export async function verifyDelivery(options: VerifyDeliveryOptions): Promise<De
       return report('failed', 'worktree-not-found', repository, checks)
     }
 
-    const topLevel = await git(worktree, ['rev-parse', '--show-toplevel'], env, timeoutMs, outputLimitBytes)
+    const topLevel = await git(worktree, ['rev-parse', '--show-toplevel'], env, timeoutMs, outputLimitBytes, options.signal)
     if (!succeeded(topLevel)) return report('failed', 'not-a-git-worktree', repository, checks)
     const resolvedTopLevel = await realpath(topLevel.stdout.text.trim())
     if (resolvedTopLevel !== worktree) return report('failed', 'worktree-root-required', repository, checks)
 
-    const gitDirResult = await git(worktree, ['rev-parse', '--path-format=absolute', '--git-dir'], env, timeoutMs, outputLimitBytes)
-    const commonDirResult = await git(worktree, ['rev-parse', '--path-format=absolute', '--git-common-dir'], env, timeoutMs, outputLimitBytes)
+    const gitDirResult = await git(worktree, ['rev-parse', '--path-format=absolute', '--git-dir'], env, timeoutMs, outputLimitBytes, options.signal)
+    const commonDirResult = await git(worktree, ['rev-parse', '--path-format=absolute', '--git-common-dir'], env, timeoutMs, outputLimitBytes, options.signal)
     if (!succeeded(gitDirResult) || !succeeded(commonDirResult)) {
       return report('unknown', 'git-metadata-unavailable', repository, checks)
     }
@@ -120,14 +146,14 @@ export async function verifyDelivery(options: VerifyDeliveryOptions): Promise<De
     repository.linkedWorktree = gitDir !== commonDir
     if (!repository.linkedWorktree) return report('failed', 'linked-worktree-required', repository, checks)
 
-    const branch = await git(worktree, ['symbolic-ref', '--quiet', '--short', 'HEAD'], env, timeoutMs, outputLimitBytes)
+    const branch = await git(worktree, ['symbolic-ref', '--quiet', '--short', 'HEAD'], env, timeoutMs, outputLimitBytes, options.signal)
     if (!succeeded(branch)) return report('failed', 'named-branch-required', repository, checks)
     repository.branch = branch.stdout.text.trim()
 
-    const base = await git(worktree, ['rev-parse', '--verify', `${options.baseRef}^{commit}`], env, timeoutMs, outputLimitBytes)
+    const base = await git(worktree, ['rev-parse', '--verify', `${options.baseRef}^{commit}`], env, timeoutMs, outputLimitBytes, options.signal)
     if (!succeeded(base)) return report('failed', 'base-ref-not-found', repository, checks)
     repository.baseCommit = base.stdout.text.trim()
-    const head = await git(worktree, ['rev-parse', '--verify', 'HEAD^{commit}'], env, timeoutMs, outputLimitBytes)
+    const head = await git(worktree, ['rev-parse', '--verify', 'HEAD^{commit}'], env, timeoutMs, outputLimitBytes, options.signal)
     if (!succeeded(head)) return report('unknown', 'head-unavailable', repository, checks)
     repository.headCommit = head.stdout.text.trim()
 
@@ -137,6 +163,7 @@ export async function verifyDelivery(options: VerifyDeliveryOptions): Promise<De
       env,
       timeoutMs,
       outputLimitBytes,
+      options.signal,
     )
     if (ancestor.exitCode === 1 && !ancestor.timedOut && ancestor.spawnError === undefined) {
       return report('failed', 'base-not-ancestor', repository, checks)
@@ -149,25 +176,29 @@ export async function verifyDelivery(options: VerifyDeliveryOptions): Promise<De
       env,
       timeoutMs,
       outputLimitBytes,
+      options.signal,
     )
     if (!succeeded(ahead)) return report('unknown', 'commit-count-unavailable', repository, checks)
     repository.ahead = Number.parseInt(ahead.stdout.text.trim(), 10)
     if (!Number.isSafeInteger(repository.ahead)) return report('unknown', 'invalid-commit-count', repository, checks)
     if (repository.ahead < 1) return report('failed', 'committed-change-required', repository, checks)
 
-    const status = await git(worktree, ['status', '--porcelain=v1', '--untracked-files=all'], env, timeoutMs, outputLimitBytes)
+    const status = await git(worktree, ['status', '--porcelain=v1', '--untracked-files=all'], env, timeoutMs, outputLimitBytes, options.signal)
     if (!succeeded(status)) return report('unknown', 'worktree-status-unavailable', repository, checks)
     repository.clean = status.stdout.bytes === 0
     if (!repository.clean) return report('failed', 'worktree-not-clean', repository, checks)
 
     for (const check of options.checks) {
-      const result = await runProcess(check.argv[0]!, check.argv.slice(1), worktree, env, timeoutMs, outputLimitBytes)
+      const result = await checkRunner(check, {
+        worktree,
+        timeoutMs,
+        outputLimitBytes,
+        ...(options.signal === undefined ? {} : { signal: options.signal }),
+      })
       const evidence: DeliveryCheckEvidence = {
         name: check.name,
         argv: [...check.argv],
-        status: result.timedOut || result.spawnError !== undefined || result.signal !== null
-          ? 'unknown'
-          : result.exitCode === 0 ? 'passed' : 'failed',
+        status: result.status,
         exitCode: result.exitCode,
         signal: result.signal,
         stdout: result.stdout,
@@ -178,9 +209,9 @@ export async function verifyDelivery(options: VerifyDeliveryOptions): Promise<De
       if (evidence.status === 'failed') return report('failed', `check-failed:${check.name}`, repository, checks)
     }
 
-    const finalHead = await git(worktree, ['rev-parse', '--verify', 'HEAD^{commit}'], env, timeoutMs, outputLimitBytes)
-    const finalBase = await git(worktree, ['rev-parse', '--verify', `${options.baseRef}^{commit}`], env, timeoutMs, outputLimitBytes)
-    const finalStatus = await git(worktree, ['status', '--porcelain=v1', '--untracked-files=all'], env, timeoutMs, outputLimitBytes)
+    const finalHead = await git(worktree, ['rev-parse', '--verify', 'HEAD^{commit}'], env, timeoutMs, outputLimitBytes, options.signal)
+    const finalBase = await git(worktree, ['rev-parse', '--verify', `${options.baseRef}^{commit}`], env, timeoutMs, outputLimitBytes, options.signal)
+    const finalStatus = await git(worktree, ['status', '--porcelain=v1', '--untracked-files=all'], env, timeoutMs, outputLimitBytes, options.signal)
     if (!succeeded(finalHead) || !succeeded(finalBase) || !succeeded(finalStatus)) {
       return report('unknown', 'post-check-git-state-unavailable', repository, checks)
     }
@@ -263,19 +294,53 @@ async function git(
   env: NodeJS.ProcessEnv,
   timeoutMs: number,
   outputLimitBytes: number,
+  signal?: AbortSignal,
 ): Promise<ProcessEvidence> {
-  return runProcess(
+  signal?.throwIfAborted()
+  const result = await runProcess(
     'git',
     ['-C', worktree, ...args],
     worktree,
     env,
     timeoutMs,
     Math.max(DEFAULT_OUTPUT_LIMIT_BYTES, outputLimitBytes),
+    signal,
   )
+  signal?.throwIfAborted()
+  return result
+}
+
+async function runLocalCheck(
+  check: DeliveryCheck,
+  context: DeliveryCheckRunContext,
+  env: NodeJS.ProcessEnv,
+): Promise<DeliveryCheckRunResult> {
+  const result = await runProcess(
+    check.argv[0]!,
+    check.argv.slice(1),
+    context.worktree,
+    env,
+    context.timeoutMs,
+    context.outputLimitBytes,
+    context.signal,
+  )
+  return {
+    status: result.timedOut || result.aborted || result.spawnError !== undefined || result.signal !== null
+      ? 'unknown'
+      : result.exitCode === 0 ? 'passed' : 'failed',
+    exitCode: result.exitCode,
+    signal: result.signal,
+    stdout: result.stdout,
+    stderr: result.stderr,
+  }
 }
 
 function succeeded(result: ProcessEvidence): boolean {
-  return result.exitCode === 0 && result.signal === null && !result.timedOut && result.spawnError === undefined
+  return result.exitCode === 0
+    && result.signal === null
+    && !result.timedOut
+    && !result.aborted
+    && result.spawnError === undefined
 }
 
 async function runProcess(
@@ -285,11 +350,13 @@ async function runProcess(
   env: NodeJS.ProcessEnv,
   timeoutMs: number,
   outputLimitBytes: number,
+  signal?: AbortSignal,
 ): Promise<ProcessEvidence> {
   return new Promise((resolveProcess) => {
     const stdout = new OutputCapture(outputLimitBytes)
     const stderr = new OutputCapture(outputLimitBytes)
     let timedOut = false
+    let aborted = false
     let spawnError: string | undefined
     let settled = false
     const ownsProcessGroup = process.platform !== 'win32'
@@ -304,27 +371,39 @@ async function runProcess(
     child.stderr.on('data', (chunk: Buffer) => stderr.push(chunk))
     child.once('error', (error) => { spawnError = error.message })
     let forceKill: NodeJS.Timeout | undefined
-    const timer = setTimeout(() => {
-      timedOut = true
+    const requestTermination = () => {
       terminate(child.pid, ownsProcessGroup, child.kill.bind(child), 'SIGTERM')
+      if (forceKill !== undefined) return
       forceKill = setTimeout(
         () => terminate(child.pid, ownsProcessGroup, child.kill.bind(child), 'SIGKILL'),
         1_000,
       )
       forceKill.unref()
+    }
+    const abort = () => {
+      aborted = true
+      requestTermination()
+    }
+    signal?.addEventListener('abort', abort, { once: true })
+    if (signal?.aborted) abort()
+    const timer = setTimeout(() => {
+      timedOut = true
+      requestTermination()
     }, timeoutMs)
     timer.unref()
-    child.once('close', (exitCode, signal) => {
+    child.once('close', (exitCode, exitSignal) => {
       if (settled) return
       settled = true
       clearTimeout(timer)
       if (forceKill !== undefined) clearTimeout(forceKill)
+      signal?.removeEventListener('abort', abort)
       resolveProcess({
         exitCode,
-        signal,
+        signal: exitSignal,
         stdout: stdout.finish(),
         stderr: stderr.finish(),
         timedOut,
+        aborted,
         ...(spawnError === undefined ? {} : { spawnError }),
       })
     })
@@ -374,6 +453,7 @@ class OutputCapture {
       bytes: this.totalBytes,
       truncated: this.totalBytes > this.storedBytes,
       sha256: this.hash.digest('hex'),
+      hashScope: 'full',
     }
   }
 }

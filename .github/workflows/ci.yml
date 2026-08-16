@@ -90,4 +90,5 @@ jobs:
         run: >-
           pnpm --filter dsh-software-delivery exec vitest run
           test/dsh-assembled-skill.e2e.test.ts
+          test/dsh-assembled-completion.e2e.test.ts
           test/package-install-remove.e2e.test.ts

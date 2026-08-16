@@ -4,7 +4,7 @@
 
 面向 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的 out-of-tree 开源扩展套件。EvoForge 只增加可独立安装、可删除的新能力，不 fork DSH，也不以插件修补 DSH Core Defect。
 
-> **Pre-alpha：不可用于生产自动激活。** `dsh-evolve` 的 P0A/P0B/P0C 与 P1.1 最窄自动晋升已实现；`dsh-software-delivery` 的首个 Skill + Git 验证器纵切也已实现。canary、自动回滚、完整交付自动化、真实用户可用性门与生产多日证据仍未完成。详见[状态页](docs/status.zh.md)。
+> **Pre-alpha：不可用于生产自动激活。** `dsh-evolve` 的 P0A/P0B/P0C 与 P1.1 最窄自动晋升已实现；`dsh-software-delivery` 的 Skill、Git 验证器和原生 Goal 受验证完成动作也已实现。canary、自动回滚、push/Draft PR 自动化、真实用户可用性门与生产多日证据仍未完成。详见[状态页](docs/status.zh.md)。
 
 ## 为什么做
 
@@ -29,13 +29,13 @@
 | 包 | 当前能力 | 状态 |
 |---|---|---|
 | [`dsh-evolve`](packages/dsh-evolve) | 离线 `shadow`；durable resident recovery；Sealed paired Trial；immutable Generation；Session-scoped Git Skill；host-only review/pause/release；opt-in clear-instruction auto promotion | P0A/P0B/P0C implemented；P1.1 implemented；canary/自动回滚与真实可用性门待验证 |
-| [`dsh-software-delivery`](packages/dsh-software-delivery) | 一个按需原生 Skill；linked worktree、clean commit、exact base 与仓库 checks 的确定性 CLI 验证；可选 Draft PR 流程指导 | P2A.1 implemented；尚未拦截 Goal 完成、自动 push/建 PR 或接入 Evolve outcome monitor |
+| [`dsh-software-delivery`](packages/dsh-software-delivery) | 按需原生 Skill；linked worktree/commit/check 验证；通过原生 Shell policy 的 `complete_delivery` 原子动作 | P2A.1 + P2B.1 implemented；push/Draft PR 与 Evolve outcome monitor 待完成 |
 
 Shadow 和未激活 Generation 的运行时模型表面为 `none`，额外 token 为 `0`。Generation 激活后只复用 DSH 原生 Skill catalog/body 路径：catalog 在 Session 开始时固定，正文按需加载；插件不增加 Tool 或 system prompt。真实 Agent 回归已证明晋升后旧 Session 的请求工具面不变、后一请求保留前一请求的完整消息前缀。Shadow 只有在用户显式调用时才请求配置的模型。
 
 P1.1 policy、自动发布和 host 状态同样是 `0` 模型调用；自动候选最多追加 2 KiB Skill 正文，且只在 future Session 通过原生 Skill body 路径实际加载时产生 tokenizer 相关输入。它不会改写当前 Session 的可缓存前缀。
 
-`dsh-software-delivery` 不新增 Tool 或 system prompt，只增加一个稳定 Skill catalog entry；正文仍按原生 Skill Tool 按需加载。`dsh-delivery verify` 在模型上下文外运行，所以验证报告本身不消耗模型 token。
+`dsh-software-delivery` 的 Skill 正文仍按原生路径按需加载；完整 Goal/Shell composition 只增加一个稳定 `complete_delivery` Tool，无 system prompt。其序列化 Schema 被测试限制在 2 KiB 内，同一 Session 的重复请求 Tool surface 完全相等。CLI 在模型上下文外运行；Tool 只在实际调用时返回有界的 commit/check 证据。
 
 当前命令：
 
@@ -66,7 +66,7 @@ pnpm --filter dsh-software-delivery pack --pack-destination "$PWD/.evoforge/pack
 - 多个独立真实 case、真实 provider 提案效果、Linux/Windows 隔离与 workspace 磁盘配额；
 - 逐行 diff viewer、真实人工可用性数据、future-session canary 与 outcome-triggered 自动回滚（最窄 allowlist 自动晋升已实现）；
 - 生产多日 soak、真实磁盘耗尽与大规模 run 性能数据（常驻 native Jobs supervisor、自动扫描和关机恢复已实现）；
-- `dsh-software-delivery` 的 Goal transition 强制门、push/Draft PR 自动化与 Evolve outcome adapter；个人助理、消息、内容和日程插件；
+- `dsh-software-delivery` 不做全局 Goal 拦截；原生直接 `update_goal` 仍可用。尚缺幂等 push/Draft PR 自动化与 Evolve outcome adapter；个人助理、消息、内容和日程插件也未实现；
 - Web/TUI 控制面。
 
 这些能力不会仅凭设计文档被标为完成。每个阶段必须满足[路线图退出条件](docs/roadmap.zh.md)和[Hermes 上位目标记分卡](docs/architecture/hermes-replacement-scorecard.zh.md)。

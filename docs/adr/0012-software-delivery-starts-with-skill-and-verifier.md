@@ -29,3 +29,6 @@ Skill 指导 Agent 复用原生 Goal 和 Shell 完成 worktree、编辑、检查
 - 验证配置是可信本地执行输入；剥离环境秘密和禁止 shell 不能把任意命令变成沙箱，实际权限仍由外围 DSH Shell/Sandbox/Approval 决定。
 - 删除插件会同时移除 Skill；没有自有持久状态需要迁移。
 - 这条窄实现不足以宣称 Software Delivery 产品化完成，但先建立 canary/rollback 所需的客观结果基础。
+
+后续 P2B.1 在不改变本 ADR 首个纵切结论的前提下，增加了一个复用原生 Shell 与
+`update_goal` 的受验证完成动作；见 [ADR-0013](0013-verified-completion-delegates-native-tools.md)。

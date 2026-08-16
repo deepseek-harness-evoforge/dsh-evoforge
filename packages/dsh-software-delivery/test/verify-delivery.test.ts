@@ -169,6 +169,36 @@ describe('delivery verifier', () => {
     await expect(readFile(descendantMarker, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
   }, 5_000)
 
+  it('cancels the local process group promptly when the caller aborts', async () => {
+    const fixture = await createDeliveryFixture()
+    const readyMarker = join(fixture.root, 'parent-ready')
+    const descendantMarker = join(fixture.root, 'aborted-descendant-must-die')
+    const descendant = `setTimeout(() => require('node:fs').writeFileSync(${JSON.stringify(descendantMarker)}, 'leak'), 1200)`
+    const parent = [
+      `require('node:fs').writeFileSync(${JSON.stringify(readyMarker)}, 'ready');`,
+      `require('node:child_process').spawn(${JSON.stringify(process.execPath)},`,
+      `['-e', ${JSON.stringify(descendant)}], { stdio: 'inherit' });`,
+      'setInterval(() => {}, 10_000)',
+    ].join(' ')
+    const controller = new AbortController()
+    const verification = verifyDelivery({
+      worktree: fixture.worktree,
+      baseRef: 'main',
+      signal: controller.signal,
+      checks: [{ name: 'abort', argv: [process.execPath, '-e', parent] }],
+    })
+    await waitUntilReadable(readyMarker)
+    controller.abort()
+
+    await expect(verification).resolves.toMatchObject({
+      status: 'unknown',
+      reason: 'check-inconclusive:abort',
+      checks: [{ name: 'abort', status: 'unknown', signal: 'SIGTERM' }],
+    })
+    await new Promise(resolve => setTimeout(resolve, 1_400))
+    await expect(readFile(descendantMarker, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+  }, 5_000)
+
   it('rejects a check that dirties the repository after reporting success', async () => {
     const fixture = await createDeliveryFixture()
     const report = await verifyDelivery({
@@ -228,4 +258,17 @@ async function createDeliveryFixture(): Promise<{
 
 async function git(cwd: string, ...args: string[]): Promise<string> {
   return (await execFile('git', args, { cwd, encoding: 'utf8' })).stdout.trim()
+}
+
+async function waitUntilReadable(path: string): Promise<void> {
+  const deadline = Date.now() + 2_000
+  while (Date.now() < deadline) {
+    try {
+      await readFile(path, 'utf8')
+      return
+    } catch {
+      await new Promise(resolve => setTimeout(resolve, 20))
+    }
+  }
+  throw new Error(`timed out waiting for ${path}`)
 }

@@ -1,7 +1,7 @@
 # EvoForge 产品架构
 
 > 状态：产品边界已确认；首仓与首个插件名已冻结
-> 更新日期：2026-08-15
+> 更新日期：2026-08-16
 
 ## 1. 产品结果
 
@@ -80,7 +80,7 @@ DSH 始终拥有模型执行和基础服务；EvoForge 插件只增加用户结�
 
 | 能力 | EvoForge 目标 | 当前证据 |
 |---|---|---|
-| 软件交付 | 原生 Goal 到 verified commit/Draft PR | 已设计，未实现 |
+| 软件交付 | 原生 Goal 到 verified commit/Draft PR | verified commit 与原生 Goal 受验证完成动作 implemented；push/Draft PR pending |
 | 单机持续运行 | crash-resume、幂等恢复、无半激活版本 | Generation release + Shadow journal + native Jobs supervisor 已通过 `SIGKILL`、关机取消和重复扫描；生产多日 soak pending |
 | Memory/Skill | 复用 DSH/社区能力，不造第二套 Memory | 架构边界已确认 |
 | 消息与日程 | 按真实 workflow 提供可拆 Adapter | 后续验证，不承诺首版 |

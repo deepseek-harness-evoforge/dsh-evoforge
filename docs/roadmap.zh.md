@@ -1,6 +1,6 @@
 # EvoForge 开发路线图
 
-> 状态：P0A–P1.1 已实现；P2A.1 Software Delivery 客观结果纵切已实现
+> 状态：P0A–P1.1 已实现；P2A.1 验证器与 P2B.1 原生 Goal 受验证完成已实现
 
 ## 当前状态
 
@@ -13,7 +13,7 @@
 | P0B Local Continuity | implemented | P0B.1 release kernel、P0B.2a durable resume 与 P0B.2b resident supervisor 已通过本地/pinned DSH 测试；生产多日 soak 仍属发布前证据 |
 | P0C Human Control | 命令闭环 implemented；可用性门待验证 | P0C.1 release、P0C.2 review → inactive Generation、P0C.3 durable pause/resume 已通过真实 Commands/Agent 测试 |
 | P1 Bounded Autonomy | P1.1 implemented | 默认关闭的 allowlist + append-only clear-instruction policy 已通过 policy/crash/真实 DSH future-Session 测试；canary/自动回滚待完成 |
-| P2 Software Delivery | P2A.1 implemented | 按需 Skill、真实 linked worktree/commit/check verifier、pinned DSH Agent 与 packed install/remove/CLI 证据；完整 Goal/PR/outcome 集成待完成 |
+| P2 Software Delivery | P2A.1 + P2B.1 implemented | 按需 Skill、真实 linked worktree/commit/check verifier、原生 Bash policy → `update_goal` 完成、pinned DSH Agent 与 packed install/remove/CLI；PR/outcome 集成待完成 |
 
 ## P0A — 先证明会判断
 
@@ -116,9 +116,16 @@ exact-argv checks 生成三态 JSON 和 Git commit artifact。它不新增 Tool/
 证据见 [P2A.1](evidence/p2a-1-software-delivery-verifier.zh.md)与
 [ADR-0012](adr/0012-software-delivery-starts-with-skill-and-verifier.md)。
 
-P2 剩余：将验证结果绑定到原生 Goal completion guard；在原生 Approval/Permission 下实现
-幂等 push 与 Draft PR；由 `dsh-evolve` 作为第二消费者接入 outcome monitor；再用真实开发
-任务测量通过率、返工率、人工介入和 token/cache 成本。
+P2B.1 增加一个稳定 `complete_delivery` Tool。它先核对 exact Goal id/revision 与 Git 状态，
+再通过已有原生 `bash/pwsh` Tool 执行 checks，只有 `passed` 才嵌套调用原生 `update_goal`
+完成同一个 Goal。失败、超时、policy 拒绝或仓库漂移都保持 Goal active。该动作不 monkey-patch
+GoalService，不阻断人工直接完成，也不增加第二套 policy/state。证据见
+[P2B.1](evidence/p2b-1-native-goal-verified-completion.zh.md)与
+[ADR-0013](adr/0013-verified-completion-delegates-native-tools.md)。
+
+P2 剩余：在原生 Approval/Permission 下实现幂等 push 与 Draft PR；由 `dsh-evolve` 作为第二
+消费者接入 outcome monitor；再用真实开发任务测量通过率、返工率、人工介入和 token/cache
+成本。全局拦截所有 Goal transition 不在计划内，除非真实误完成数据证明原子动作不足。
 
 ## P3 — 一个通用助理场景
 

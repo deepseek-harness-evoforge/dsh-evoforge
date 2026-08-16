@@ -67,7 +67,14 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-software-delivery pack
 
     const packageScope = join(profileDir, 'node_modules', '@deepseek-ai')
     await mkdir(packageScope, { recursive: true })
-    await symlink(join(dshSourceDir, 'packages', 'skill', 'skill'), join(packageScope, 'dsh-skill'), 'dir')
+    const peerPackages = [
+      ['llm/llm', 'dsh-llm'],
+      ['skill/skill', 'dsh-skill'],
+      ['core/tools', 'dsh-tools'],
+    ] as const
+    for (const [source, name] of peerPackages) {
+      await symlink(join(dshSourceDir, 'packages', source), join(packageScope, name), 'dir')
+    }
     const installedConfig = join(profileDir, 'installed.cordis.yml')
     const nativeConfig = join(profileDir, 'native.cordis.yml')
     await writeFile(installedConfig, JSON.stringify([

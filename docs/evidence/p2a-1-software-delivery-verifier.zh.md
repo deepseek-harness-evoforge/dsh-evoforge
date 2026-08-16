@@ -47,3 +47,6 @@ passed | failed | unknown + reason + git-commit artifact + bounded check evidenc
 - 当前真实 assembled/package boundary 在 macOS；Linux CI 执行纯 Git/类型/构建测试。
 
 设计取舍见 [ADR-0012](../adr/0012-software-delivery-starts-with-skill-and-verifier.md)。
+
+本页保留 P2A.1 当时的首片证据。后续原生 Goal 绑定证据见
+[P2B.1](p2b-1-native-goal-verified-completion.zh.md)。

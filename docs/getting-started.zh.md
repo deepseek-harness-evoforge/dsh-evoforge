@@ -23,8 +23,8 @@ packages/dsh-evolve/
   test/         跨 CLI 进程的行为测试
   README.md     包级行为和限制
 packages/dsh-software-delivery/
-  src/          按需 Skill 与 Git 交付验证器
-  test/         真实 Git、DSH Agent、打包安装/卸载测试
+  src/          按需 Skill、Git 验证器与受验证完成动作
+  test/         真实 Git、原生 Bash/Goal/Agent、打包安装/卸载测试
   README.md     安装、验证、权限和限制
 ```
 
@@ -42,7 +42,7 @@ pnpm --filter dsh-software-delivery build
 pnpm --filter dsh-software-delivery pack --pack-destination "$PWD/.evoforge/pack"
 ```
 
-### P2A Software Delivery 装配
+### P2 Software Delivery 装配
 
 `dsh-software-delivery` 也是普通 Cordis plugin。装配原生 Skill registry 后添加：
 
@@ -72,6 +72,10 @@ dsh-delivery verify \
 退出码 `0/1/2` 分别表示 `passed/failed/unknown-or-invalid`。验证配置会执行精确 argv，
 因此必须是可信本地输入；它不是 untrusted-code sandbox。详情见
 [`dsh-software-delivery` README](../packages/dsh-software-delivery/README.md)。
+
+若同一 composition 已有原生 Goal、`update_goal` 和 `bash/pwsh`，插件还会自动注册稳定的
+`complete_delivery` Tool。它通过原生 shell policy 执行 exact argv，并只在所有证据通过时
+调用原生 `update_goal complete`；不需要配置第二个工作流或状态库。
 
 ### P0B runtime 开发装配
 
