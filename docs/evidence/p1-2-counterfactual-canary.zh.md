@@ -1,7 +1,7 @@
 # P1.2 证据：零提案模型的反事实 Canary 与可恢复回滚
 
 > 日期：2026-08-16  
-> 声明等级：`implemented`；本地真实 macOS executor 已通过，公开 CI 结果待本提交推送后补录
+> 声明等级：`implemented`；本地与公开固定 DSH macOS executor 均已通过
 
 ## 用户结果
 
@@ -32,6 +32,11 @@ Sealed Trial。只有“校准通过、parent 通过、Candidate 失败、active
 本地全仓结果：`dsh-evolve` 95 passed / 2 explicit skips，`dsh-software-delivery` 24 passed /
 1 explicit skip，合计 119 passed。另用固定 DSH checkout 单独运行真实 Jobs、Generation binder 和
 sealed canary 集成，13 passed；完整 macOS 固定 DSH lane 也在提交前运行，34 passed。
+
+公开 Draft PR CI run `31946719396` 在 exact head `550be84bf05121f54a101d67c51d21788d261055`
+通过：Node 22.19.0 为 38 秒、Node 24 为 31 秒、macOS 固定 DSH assembled lane 为 1 分 50 秒。
+macOS lane 明确包含新增 sealed canary runner、真实 Jobs Adapter 和完整自动晋升→失败 Outcome→
+canary 装配链。
 
 ## 成本与 Cache
 
