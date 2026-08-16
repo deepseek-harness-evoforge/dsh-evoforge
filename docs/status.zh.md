@@ -1,6 +1,6 @@
 # 当前实现状态
 
-> 更新日期：2026-08-16
+> 更新日期：2026-08-17
 
 本页是仓库完成度的权威入口。架构文档描述目标和约束，不等于能力已经实现。
 
@@ -38,6 +38,7 @@
 | 显式 Feedback Shadow Launch | `implemented`（P1.8） | [P1.8](evidence/p1-8-explicit-feedback-shadow-launch.zh.md)：静态 Target、Commands/Web 确认、原生 Jobs、内容寻址去重、真实 DSH composition/packed 浏览器、无路径 Remote 与零模型表面 | 真实 provider/用户纠正改善率、陌生用户可用性与多日崩溃数据 |
 | 单机常驻和崩溃恢复 | `implemented`（P0B） | 四个 release `SIGKILL` 边界；[P0B.2a](evidence/p0b-2a-durable-shadow-resume.zh.md)；[P0B.2b](evidence/p0b-2b-resident-shadow-supervisor.zh.md) native Jobs supervisor/关机恢复/重复扫描 | 生产多日 soak、真实磁盘耗尽与更多机器数据 |
 | `dsh-software-delivery` | `implemented`（P2A.1 + P2B.1 + P2C.1–P2C.2 + P2D.1 consumer） | [P2A.1](evidence/p2a-1-software-delivery-verifier.zh.md)：真实 Git/CLI/package；[P2B.1](evidence/p2b-1-native-goal-verified-completion.zh.md)：Goal/Bash/update_goal；[P2C.1](evidence/p2c-1-idempotent-draft-pr.zh.md)：exact push、create/reuse、不确定重试、ready 冲突；[P2C.2](evidence/p2c-2-exact-draft-check-gate.zh.md)：exact-head checks 三态门与真实 PR；[P2D.1](evidence/p2d-1-delivery-outcome-signal.zh.md)：Evolve 第二消费者；[P1.2](evidence/p1-2-counterfactual-canary.zh.md)：失败后的反事实消费 | fork/其他 forge、required-only/CI 日志与自动等待、真实开发任务数据 |
+| `dsh-doctor` Runtime Readiness | `implemented` | [实现证据](evidence/dsh-doctor-runtime-readiness.zh.md)：三态分类、原生 Commands、真实 Loader、tarball add/dump-config/boot/remove、零模型表面 | 发布版本、陌生用户诊断成功率；启动前失败与外部 provider 不在首版范围 |
 | 个人助理、消息、内容、日程插件 | `planned` | 仅产品范围 | 每次只选择一个高频工作流验证 |
 | Web 控制面 | `implemented`（P0C.6） | 可删除 Bundle、生成式 Remote、全局侧栏入口；固定 DSH tarball 装配与真实浏览器 pause → 进程重启仍暂停 → resume，[证据](evidence/p0c-6-web-control-plane.zh.md) | 陌生用户可用性数据、分页/图形 diff；实时推送仅在证据显示需要时考虑 |
 | TUI 控制面 | `planned` | Commands 已可用，尚无独立 TUI 必要性证据 | 先证明 Web/Commands 无法覆盖的高频场景 |
@@ -65,6 +66,7 @@
 - 在真实 DSH Agent 上让 root/resume/child 固定各自 Generation；pin 或 Git 完整性失败时原生会话继续；
 - 审查报告 Schema 的实际 JSON 输出。
 - 通过 `software-delivery` Skill 使用原生 Goal/Shell 完成隔离开发；可用 `complete_delivery` 原子验证 exact Goal/commit/check、可选幂等发布 GitHub Draft PR，并可选择 exact-head 远端 checks 全绿后才调用原生完成，也可用 standalone CLI 生成三态结果。
+- 安装 `dsh-doctor` 后用 `/doctor` 一次性查看当前 required plugins 和全部 enabled failures；结果只读、零模型 token，卸载后不留 Bundle 配置。
 
 ## 当前不能做什么
 

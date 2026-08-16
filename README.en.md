@@ -4,7 +4,7 @@
 
 An out-of-tree extension suite for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). EvoForge adds removable capabilities through supported DSH seams; it is not a DSH fork or a home for core-defect workarounds.
 
-> **Pre-alpha: do not use automatic activation in production.** The `dsh-evolve` P0A/P0B/P0C slices, including exact diffs, protected-effect lexical indicators, and the real-DSH Web control surface, narrow P1.1 auto-promotion, P1.2 counterfactual canary/rollback, P1.3 explicit-feedback intake, P1.4 private Feedback Case Drafts, P1.5 feedback-guided Shadow, P1.6 pre-proposal Case Pack calibration, P1.7 explicit evaluator-authoring Skill, P1.8 explicit target-bound Feedback Shadow Launch, and P2D.1 delivery-outcome observation are implemented. The `dsh-software-delivery` Skill, Git verifier, native-Goal verified completion, idempotent Draft-PR publication, and optional exact-head remote-check gate are also implemented. Automatic evaluators for novel failures, real-task false-promotion/false-rollback data, independent usability evidence, and production multi-day evidence remain incomplete.
+> **Pre-alpha: do not use automatic activation in production.** The `dsh-evolve` P0A/P0B/P0C slices, including exact diffs, protected-effect lexical indicators, and the real-DSH Web control surface, narrow P1.1 auto-promotion, P1.2 counterfactual canary/rollback, P1.3 explicit-feedback intake, P1.4 private Feedback Case Drafts, P1.5 feedback-guided Shadow, P1.6 pre-proposal Case Pack calibration, P1.7 explicit evaluator-authoring Skill, P1.8 explicit target-bound Feedback Shadow Launch, and P2D.1 delivery-outcome observation are implemented. The `dsh-software-delivery` verified-delivery path and `dsh-doctor` zero-token Runtime Readiness report are also implemented. Automatic evaluators for novel failures, real-task false-promotion/false-rollback data, independent usability evidence, and production multi-day evidence remain incomplete.
 
 `dsh-evolve` aims to turn agent self-improvement into an evidence-backed release process:
 
@@ -23,6 +23,8 @@ When both plugins are present, `dsh-evolve` passively observes the final native 
 
 P1.8 closes the usability gap between an existing explicit correction and one background Shadow. An operator statically binds a public target id to an exact Skill, calibrated Case Pack, and owned run root. Commands and Web submit only a signal id and target id; they cannot supply host paths or model parameters. Each launch explicitly authorizes one potentially paid proposer request and bounded correction disclosure, returns without blocking the originating Session, and reuses content-addressed durable evidence on retry. A packed pinned-DSH browser test verified the global target button, disclosure dialog, cancel-with-no-run boundary, and zero console errors. It does not auto-generate an evaluator or auto-promote a Candidate, and it adds no model-visible surface or normal-Session tokens.
 
+`dsh-doctor` is a separate removable Bundle that reads the native Loader only when `/doctor` is invoked. It reports `READY`, `NOT READY`, or `UNKNOWN`, names missing/disabled/failed or still-changing required plugins, and suggests a next action without changing runtime state. It adds one native human Command, no model Tool/Prompt/Skill, no polling, and zero normal-Session tokens. Packed `dsh plugin add`, native config dump, real Loader boot, and removal are covered by the package test.
+
 ## Verify locally
 
 Requires Node.js `^22.19.0 || >=24` and pnpm `11.7.0`:
@@ -32,6 +34,7 @@ pnpm install
 pnpm check
 pnpm --filter dsh-evolve pack --pack-destination "$PWD/.evoforge/pack"
 pnpm --filter dsh-software-delivery pack --pack-destination "$PWD/.evoforge/pack"
+pnpm --filter dsh-doctor pack --pack-destination "$PWD/.evoforge/pack"
 ```
 
 Read the [Chinese status page](docs/status.zh.md) for the exact implemented/planned boundary, [CONTRIBUTING.md](CONTRIBUTING.md) before proposing a change, and [SECURITY.md](SECURITY.md) for private vulnerability reporting.

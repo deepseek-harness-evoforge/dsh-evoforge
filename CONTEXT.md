@@ -28,6 +28,10 @@ _Avoid_: Perfect agent, feature-for-feature rewrite
 The first availability milestone: one host process may restart or crash without losing authoritative progress, duplicating protected effects, or corrupting active capability selection.
 _Avoid_: High availability, distributed failover
 
+**Runtime Readiness Report**:
+A point-in-time, read-only answer to whether the capabilities an operator explicitly requires are currently usable. Its outcome is `ready`, `not-ready`, or `unknown`; it names concrete blockers and next actions without repairing them, retaining health history, or becoming a second lifecycle authority.
+_Avoid_: Invariant result, plugin inventory, uptime monitor, auto-repair plan
+
 **Uncertain External Effect**:
 An effect whose durable intent exists and may have reached an external service, but whose result was not durably recorded before interruption. Recovery must not claim success or retry automatically when repetition could cost money or duplicate a user-visible action.
 _Avoid_: Failed request, safe retry, exactly-once
@@ -123,6 +127,7 @@ _Avoid_: Policy platform, remembered consent
 ## Rules
 
 - Every published capability must be a Feature Extension with a user-visible outcome. A plugin whose primary value is repairing or masking a Core Defect is out of scope.
+- Runtime diagnostics may explain current composition failures, but must leave DSH lifecycle and repair authority unchanged.
 - Reproduce Core Defects against native DSH, report them upstream, and remove them from the EvoForge roadmap. Diagnostics and version gating are allowed; monkey patches and shadow core implementations are not.
 - Extend native DSH Goal, Session, Approval, Permission Preset, Storage, Jobs, Schedule, Workflow, FS, Shell, Skills, and Cordis lifecycle before adding a new seam.
 - No Mission, Work Item DAG, parallel event-sourcing platform, Effect Broker, distributed lease, or unmeasured in-place self-rewrite.

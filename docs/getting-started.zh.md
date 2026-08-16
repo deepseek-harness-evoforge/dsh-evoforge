@@ -30,6 +30,10 @@ packages/dsh-software-delivery/
   src/          按需 Skill、Git 验证器与受验证完成动作
   test/         真实 Git、原生 Bash/Goal/Agent、打包安装/卸载测试
   README.md     安装、验证、权限和限制
+packages/dsh-doctor/
+  src/          Runtime Readiness 三态分类与原生 Command
+  test/         Loader/Commands、Bundle dump、打包安装/卸载测试
+  README.md     安装、三态语义、缓存和非目标
 ```
 
 构建和检查单包：
@@ -49,7 +53,37 @@ pnpm --filter dsh-software-delivery typecheck
 pnpm --filter dsh-software-delivery test
 pnpm --filter dsh-software-delivery build
 pnpm --filter dsh-software-delivery pack --pack-destination "$PWD/.evoforge/pack"
+
+pnpm --filter dsh-doctor typecheck
+pnpm --filter dsh-doctor test
+pnpm --filter dsh-doctor build
+pnpm --filter dsh-doctor pack --pack-destination "$PWD/.evoforge/pack"
 ```
+
+### Runtime Readiness 装配
+
+`dsh-doctor` 自带一个可删除 Bundle：
+
+```bash
+dsh plugin --profile web add dsh-doctor
+```
+
+默认只要求 Doctor 自身 active。若要检查完整 EvoForge composition，在 profile 的后置
+`cordis.patch.yml` 中配置 exact module names：
+
+```yaml
+- id: evoforge-doctor
+  config:
+    requiredModules:
+      - dsh-doctor
+      - dsh-evolve
+      - dsh-evolve-web
+      - dsh-software-delivery
+```
+
+在任意支持 DSH 原生 Commands 的交互面执行 `/doctor`。它只读一次 Loader，并返回
+`READY / NOT READY / UNKNOWN`、具体 entry 和下一步；不自动 enable、重启或修复，也不调用模型。
+详情见 [`dsh-doctor` README](../packages/dsh-doctor/README.md)。
 
 ### P2 Software Delivery 装配
 

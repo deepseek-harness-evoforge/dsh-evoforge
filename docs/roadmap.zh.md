@@ -1,6 +1,6 @@
 # EvoForge 开发路线图
 
-> 状态：P0A–P1.8 已实现（含 P0C.6 Web 控制面）；P2A.1 验证、P2B.1 Goal 完成、P2C.1 Draft PR、P2C.2 exact checks 门与 P2D.1 Outcome 第二消费者已实现
+> 状态：P0A–P1.8 已实现（含 P0C.6 Web 控制面）；P2A.1 验证、P2B.1 Goal 完成、P2C.1 Draft PR、P2C.2 exact checks 门、P2D.1 Outcome 第二消费者与横切 Runtime Readiness 已实现
 
 ## 当前状态
 
@@ -14,6 +14,7 @@
 | P0C Human Control | Commands + Web 闭环、verified bounded diff 与 lexical effect projection implemented；陌生用户可用性门待验证 | P0C.1 release、P0C.2 review → inactive Generation、P0C.3 durable pause/resume、P0C.4 exact Git diff preview、P0C.5 protected-effect 词法提示、P0C.6 真实 DSH Web/RPC/跨重启控制已通过测试 |
 | P1 Bounded Autonomy | P1.1–P1.8 implemented；P2D.1 信号已接通 | 默认关闭的 allowlist + append-only policy、交付 outcome、显式反馈 intake、私有 Case Draft、既有 Case Pack 下的反馈引导 Shadow、静态 Target 的显式后台启动、proposer 前零模型校准、显式 evaluator authoring Skill、exact parent/Candidate 反事实 canary、pointer-safe 自动回滚均已通过测试；全新失败自动 evaluator 与真实任务长期率待验证 |
 | P2 Software Delivery | P2A.1 + P2B.1 + P2C.1–P2C.2 + P2D.1 consumer implemented | linked worktree/commit/check、原生 Bash policy → exact push/Draft PR → 可选 exact-head 远端 checks 门 → `update_goal`，并由 Evolve 异步记录最小三态信号；pinned DSH Agent/ToolRuntime/Storage 与 package 已测 |
+| Adoption Runtime Readiness | implemented | `dsh-doctor` 把原生 Loader 快照归约为三态阻塞与下一步；真实 tarball add/dump-config/boot/remove 已测；无轮询、修复或模型表面 |
 
 ## P0A — 先证明会判断
 
