@@ -217,6 +217,11 @@ describe('/evolve host command', () => {
         shownBytes: 107,
         totalBytes: 107,
         truncated: false,
+        impact: {
+          version: 'lexical-protected-effects-v1',
+          scope: 'append-only-skill',
+          indicators: ['production-change'],
+        },
       })),
       publish: vi.fn(async () => ({ id: childId })),
     } as unknown as CandidatePublisher
@@ -241,6 +246,8 @@ describe('/evolve host command', () => {
     )).resolves.toMatchObject({
       kind: 'success',
       text: expect.stringContaining([
+        'Protected-effect projection (lexical-protected-effects-v1; lexical only): scope append-only-skill; indicators production-change',
+        'DSH Approval remains authoritative; no lexical indicator is a safety proof.',
         'Verified diff (exact Git baseline → sealed Candidate; controls escaped; 107 bytes):',
         'diff --git a/SKILL.md b/SKILL.md',
         '--- a/SKILL.md',

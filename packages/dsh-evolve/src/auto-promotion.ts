@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { CandidatePublisher } from './candidate-publisher.ts'
+import { projectCandidateImpact } from './candidate-impact.ts'
 import type { EvolutionStore } from './generation-store.ts'
 import type { GitSkillSource } from './git-skill-source.ts'
 import { hashTree } from './hash.ts'
@@ -11,11 +12,6 @@ const MAX_APPEND_BYTES = 2_048
 const allowedLimitations = new Set([
   'P0A.3 uses a keyless scripted model through one real assembled DSH path on macOS',
 ])
-const protectedEffectPattern = new RegExp([
-  '\\b(?:merge|publish|release|deploy|production|secret|credential|api[ _-]?key|payment|purchase)',
-  'delete|force[ _-]?push|sudo|permission|sandbox|network|shell|bash|curl|wget|tool|email|calendar\\b',
-  '合并|发布|部署|生产|密钥|凭据|付费|购买|删除|强推|权限|沙箱|网络|工具|邮件|日程',
-].join('|'), 'iu')
 
 export interface AutoPromotionPolicyResult {
   eligible: boolean
@@ -88,7 +84,7 @@ export class AutoPromotionPolicy {
       if (Buffer.byteLength(appended) > MAX_APPEND_BYTES) {
         reasons.push(`instruction append exceeds ${MAX_APPEND_BYTES} bytes`)
       }
-      if (protectedEffectPattern.test(appended)) {
+      if (projectCandidateImpact(baseline, candidate.proposal.files).indicators.length > 0) {
         reasons.push('instruction append mentions a protected action, tool, permission, or external effect')
       }
     } catch (error) {

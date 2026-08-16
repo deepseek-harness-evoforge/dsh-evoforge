@@ -5,6 +5,7 @@ import {
   lstat,
   mkdir,
   mkdtemp,
+  readFile,
   readdir,
   rm,
   writeFile,
@@ -13,6 +14,7 @@ import { tmpdir } from 'node:os'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { promisify } from 'node:util'
 import type { EvolutionStore, SkillGenerationArtifact } from './generation-store.ts'
+import { projectCandidateImpact, type CandidateImpactProjection } from './candidate-impact.ts'
 import type { GitSkillSource } from './git-skill-source.ts'
 import { hashTree } from './hash.ts'
 import type { ReviewCandidate } from './review-inbox.ts'
@@ -25,6 +27,7 @@ export interface CandidateDiffPreview {
   shownBytes: number
   totalBytes: number
   truncated: boolean
+  impact: CandidateImpactProjection
 }
 
 /** Verify, preview, and publish one evaluated Skill proposal without moving a user branch. */
@@ -41,6 +44,8 @@ export class CandidatePublisher {
   async preview(candidate: ReviewCandidate): Promise<CandidateDiffPreview> {
     assertProposal(candidate)
     const { base } = await this.resolveBaseline(candidate)
+    const baselineSkill = await readFile(join(base.resourceBase, 'SKILL.md'), 'utf8')
+    const impact = projectCandidateImpact(baselineSkill, candidate.proposal.files)
     const stage = await mkdtemp(join(tmpdir(), 'dsh-evolve-preview-'))
     try {
       const baselineTree = join(stage, 'a')
@@ -49,7 +54,7 @@ export class CandidatePublisher {
       await cp(base.resourceBase, candidateTree, { recursive: true })
       await materializeCandidate(candidateTree, candidate)
       const patch = await diffTrees(stage)
-      return boundDiffPreview(patch)
+      return { ...boundDiffPreview(patch), impact }
     } finally {
       await makeWritable(stage).catch(() => undefined)
       await rm(stage, { recursive: true, force: true })
@@ -173,7 +178,7 @@ async function diffTrees(stage: string): Promise<string> {
   }
 }
 
-function boundDiffPreview(patch: string): CandidateDiffPreview {
+function boundDiffPreview(patch: string): Omit<CandidateDiffPreview, 'impact'> {
   const safePatch = escapeDiffControls(patch)
   const source = Buffer.from(safePatch)
   const totalBytes = source.byteLength

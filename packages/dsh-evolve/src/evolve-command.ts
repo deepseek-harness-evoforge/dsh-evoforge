@@ -290,6 +290,8 @@ function renderReview(
       `Limitations: ${candidate.limitations.join('; ')}`,
       ...candidate.generationId === undefined ? [] : [`Generation: ${candidate.generationId}`],
       ...candidate.activatedAt === undefined ? [] : [`Activated: ${candidate.activatedAt}`],
+      `Protected-effect projection (${diff.impact.version}; lexical only): scope ${diff.impact.scope}; indicators ${diff.impact.indicators.length === 0 ? 'none detected' : diff.impact.indicators.join(', ')}`,
+      'DSH Approval remains authoritative; no lexical indicator is a safety proof.',
       diffHeader,
       patch.length === 0 ? '(no textual changes)' : patch,
       ...diff.truncated ? ['[diff truncated; publication still verifies the complete Candidate tree]'] : [],

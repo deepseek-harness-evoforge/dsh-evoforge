@@ -37,7 +37,14 @@ describe('approved Candidate publisher', () => {
 
     const preview = await publisher.preview(fixture.candidate)
 
-    expect(preview).toMatchObject({ truncated: false })
+    expect(preview).toMatchObject({
+      truncated: false,
+      impact: {
+        version: 'lexical-protected-effects-v1',
+        scope: 'append-only-skill',
+        indicators: [],
+      },
+    })
     expect(preview.patch).toBe([
       'diff --git a/SKILL.md b/SKILL.md',
       'index 689cbb5..9b95a64 100644',
