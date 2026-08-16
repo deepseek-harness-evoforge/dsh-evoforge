@@ -29,75 +29,104 @@ afterEach(async () => {
 })
 
 describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () => {
-  it('keeps the complete native model request equal when evaluator authoring is configured', async () => {
+  it('keeps 64 native turns byte-equivalent while the configured evolution host plane changes', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-evaluator-composition-'))
     temporaryRoots.push(root)
     const repository = join(root, 'source')
-    await commitSkill(repository, 'Composition-stable body.', 'composition reference')
-    const requests: unknown[] = []
+    const revision = await commitSkill(repository, 'Composition-stable body.', 'composition reference')
+    const requests: unknown[][] = []
     for (const enabled of [false, true]) {
       const runtimeRoot = join(root, enabled ? 'enabled' : 'disabled')
       await mkdir(runtimeRoot)
       const ctx = await bootStorage(await writeStorageConfig(runtimeRoot))
       const adapter = await installAgentRuntime(ctx)
-      await ctx.plugin(EvolvePlugin, {
-        cacheRoot: join(runtimeRoot, 'cache'),
-        feedbackDraftRoot: join(runtimeRoot, 'private-feedback'),
-        sources: [{
-          name: 'stable-evolved-skill',
-          repository,
-          path: 'skills/stable-evolved-skill',
-        }],
-        ...(enabled
-          ? {
-              supervisor: {
-                runRoots: [
-                  join(runtimeRoot, 'feedback-shadow-runs'),
-                  join(runtimeRoot, 'qualified-shadow-runs'),
-                ],
-                scanIntervalMs: 60_000,
-              },
-              shadowTargets: [{
-                id: 'stable-feedback-fix',
-                skill: 'stable-evolved-skill',
-                casePackDir: join(runtimeRoot, 'feedback-case-pack'),
-                runRoot: join(runtimeRoot, 'feedback-shadow-runs'),
-              }],
-              automaticFeedbackTargets: [{
-                target: 'stable-feedback-fix',
-                casePackHash: '7'.repeat(64),
-              }],
-              evaluatorTargets: [{
-                id: 'stable-skill-fix',
-                skill: 'stable-evolved-skill',
-                root: join(runtimeRoot, 'private-evaluators'),
-                dshRevision: '47f943859bef60e4160492346772ded9b24f765a',
-                shadowRunRoot: join(runtimeRoot, 'qualified-shadow-runs'),
-              }],
-              autoPromote: {
-                skills: ['stable-evolved-skill'],
-                retentionRoots: [join(runtimeRoot, 'retention-runs')],
-                retentionTargets: [{
-                  id: 'stable-prior-capability',
-                  skill: 'stable-evolved-skill',
-                  casePackDir: join(runtimeRoot, 'prior-case-pack'),
-                  casePackHash: '8'.repeat(64),
-                  runRoot: join(runtimeRoot, 'retention-runs'),
-                }],
-              },
-            }
-          : {}),
-      })
-      await createAndRunAgent(ctx, 'composition-session', '/tmp/evoforge-composition', undefined, 'same request')
-      requests.push(adapter.requests[0])
+      if (enabled) {
+        await ctx.plugin(EvolvePlugin, {
+          cacheRoot: join(runtimeRoot, 'cache'),
+          feedbackDraftRoot: join(runtimeRoot, 'private-feedback'),
+          sources: [{
+            name: 'stable-evolved-skill',
+            repository,
+            path: 'skills/stable-evolved-skill',
+          }],
+          supervisor: {
+            runRoots: [
+              join(runtimeRoot, 'feedback-shadow-runs'),
+              join(runtimeRoot, 'qualified-shadow-runs'),
+            ],
+            scanIntervalMs: 60_000,
+          },
+          shadowTargets: [{
+            id: 'stable-feedback-fix',
+            skill: 'stable-evolved-skill',
+            casePackDir: join(runtimeRoot, 'feedback-case-pack'),
+            runRoot: join(runtimeRoot, 'feedback-shadow-runs'),
+          }],
+          automaticFeedbackTargets: [{
+            target: 'stable-feedback-fix',
+            casePackHash: '7'.repeat(64),
+          }],
+          evaluatorTargets: [{
+            id: 'stable-skill-fix',
+            skill: 'stable-evolved-skill',
+            root: join(runtimeRoot, 'private-evaluators'),
+            dshRevision: '47f943859bef60e4160492346772ded9b24f765a',
+            shadowRunRoot: join(runtimeRoot, 'qualified-shadow-runs'),
+          }],
+          autoPromote: {
+            skills: ['stable-evolved-skill'],
+            retentionRoots: [join(runtimeRoot, 'retention-runs')],
+            retentionTargets: [{
+              id: 'stable-prior-capability',
+              skill: 'stable-evolved-skill',
+              casePackDir: join(runtimeRoot, 'prior-case-pack'),
+              casePackHash: '8'.repeat(64),
+              runRoot: join(runtimeRoot, 'retention-runs'),
+            }],
+          },
+        })
+      }
+      const agent = await createAndRunAgent(
+        ctx,
+        'composition-session',
+        '/tmp/evoforge-composition',
+        undefined,
+        'stable turn 01',
+      )
+      for (let turn = 2; turn <= 64; turn += 1) {
+        if (enabled && turn === 33) {
+          const store = ctx.get('evoforge.evolution') as EvolutionStore | undefined
+          if (store === undefined) throw new Error('evolution store did not load')
+          const generation = (await store.publishGeneration(generationInput(revision))).generation
+          await store.promoteGeneration(generation.id)
+          expect(store.getSessionGeneration(identityOf(agent))).toBeUndefined()
+        }
+        await runAgentTurn(agent, `stable turn ${String(turn).padStart(2, '0')}`)
+      }
+      requests.push(adapter.requests.map(modelVisibleRequest))
       await ctx.fiber.dispose()
     }
 
-    expect(modelVisibleRequest(requests[1])).toEqual(modelVisibleRequest(requests[0]))
-    expect(JSON.stringify(requests[1])).not.toContain('evaluator')
-    expect(JSON.stringify(requests[1])).not.toContain('stable-skill-fix')
-    expect(JSON.stringify(requests[1])).not.toContain('stable-feedback-fix')
-    expect(JSON.stringify(requests[1])).not.toContain('stable-prior-capability')
+    const [control, experiment] = requests
+    if (control === undefined || experiment === undefined) {
+      throw new Error('long-Session parity profiles did not complete')
+    }
+    expect(control).toHaveLength(64)
+    expect(experiment).toHaveLength(64)
+    expect(experiment).toEqual(control)
+    expect(experiment.map(request => JSON.stringify(request)))
+      .toEqual(control.map(request => JSON.stringify(request)))
+    const firstEnabled = requestView(experiment[0])
+    for (let index = 1; index < experiment.length; index += 1) {
+      const previous = requestView(experiment[index - 1])
+      const current = requestView(experiment[index])
+      expect(current.tools).toEqual(firstEnabled.tools)
+      expect(current.messages.slice(0, previous.messages.length)).toEqual(previous.messages)
+    }
+    expect(JSON.stringify(experiment)).not.toContain('evaluator')
+    expect(JSON.stringify(experiment)).not.toContain('stable-skill-fix')
+    expect(JSON.stringify(experiment)).not.toContain('stable-feedback-fix')
+    expect(JSON.stringify(experiment)).not.toContain('stable-prior-capability')
   })
 
   it('authors a private inactive evaluator through real DSH Feedback, Commands, and Jobs', async () => {

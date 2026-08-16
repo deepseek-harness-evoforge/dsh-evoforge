@@ -34,7 +34,7 @@
 | [`dsh-doctor`](packages/dsh-doctor) | 一条可删除 Bundle；把当前原生 Loader 状态归约为三态 Runtime Readiness、具体阻塞插件和下一步动作；只诊断、不修复 | implemented；真实 tarball add/dump-config/boot/remove 已通过，陌生用户诊断成功率待验证 |
 | [`dsh-telegram`](packages/dsh-telegram) | 把一个静态授权的 Telegram 私聊连接到一个稳定 DSH Agent；复用原生 Commands/Approval/Goal/Schedule，以 durable journal 防止不确定发送盲目重试 | AS-1 implemented；真实 Loader/Agent Loop、429、Approval callback、Storage 重启和 tarball add/boot/remove 已通过，真实 Bot soak 与 Hermes paired benchmark 待验证 |
 
-Shadow 和未激活 Generation 的运行时模型表面为 `none`，额外 token 为 `0`。Generation 激活后只复用 DSH 原生 Skill catalog/body 路径：catalog 在 Session 开始时固定，正文按需加载；插件不增加 Tool 或 system prompt。真实 Agent 回归已证明晋升后旧 Session 的请求工具面不变、后一请求保留前一请求的完整消息前缀。默认只有用户显式调用才会请求 Shadow 模型；P1.14 仅在部署者另行配置 exact 自动 Target 时例外。
+Shadow 和未激活 Generation 的运行时模型表面为 `none`，额外 token 为 `0`。Generation 激活后只复用 DSH 原生 Skill catalog/body 路径：catalog 在 Session 开始时固定，正文按需加载；插件不增加 Tool 或 system prompt。[64 轮真实 Agent 对照](docs/evidence/kv-1-long-session-request-stability.zh.md)已证明：完整进化配置和中途 future-Generation pointer 变化下，当前 Session 的每一轮模型可见请求仍与未安装 EvoForge 的控制组序列化等价，且后一请求保留前一请求的完整前缀。默认只有用户显式调用才会请求 Shadow 模型；P1.14 仅在部署者另行配置 exact 自动 Target 时例外。
 
 P1.1 policy、自动发布和 host 状态同样是 `0` 模型调用；自动候选最多追加 2 KiB Skill 正文，且只在 future Session 通过原生 Skill body 路径实际加载时产生 tokenizer 相关输入。它不会改写当前 Session 的可缓存前缀。
 

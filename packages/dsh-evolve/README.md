@@ -21,6 +21,8 @@
 - **P1.13 Automatic Retention Target** lets a deployment authorize one exact prior Case Pack per Skill for a single background Retention attempt before clear-win promotion.
 - **P1.14 Automatic Feedback Shadow** lets a deployment authorize one unambiguous explicit correction to enter one existing exact Shadow Target without another foreground command.
 
+A 64-turn assembled DSH Agent parity test also verifies that installing the configured evolution host plane and changing the future-Session Generation pointer leaves every current-Session model-visible request byte-equivalent to the no-EvoForge control after removing DSH-internal message ids. It proves a zero request delta; real-provider cache-read and latency measurements still require an explicitly funded paired soak.
+
 The offline evaluation command is:
 
 ```bash

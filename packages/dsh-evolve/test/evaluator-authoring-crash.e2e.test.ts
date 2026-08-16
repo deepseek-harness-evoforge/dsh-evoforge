@@ -93,7 +93,12 @@ describe('Evaluator authoring crash recovery', () => {
 
 async function readPhase(root: string): Promise<unknown> {
   try {
-    return JSON.parse(await readFile(await findStatePath(root), 'utf8')).phase
+    const launches = await readdir(join(root, 'owned', 'runs'))
+    if (launches.length === 0) return undefined
+    if (launches.length !== 1) {
+      throw new Error(`expected one evaluator launch, got ${launches.length}`)
+    }
+    return JSON.parse(await readFile(join(root, 'owned', 'runs', launches[0]!, 'run-state.json'), 'utf8')).phase
   } catch (error) {
     if ((error as { code?: unknown }).code === 'ENOENT') return undefined
     throw error
