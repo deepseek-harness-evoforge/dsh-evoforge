@@ -33,7 +33,7 @@
 
 ## V2 — 飞书 Adapter
 
-实现状态：Adapter、可靠投递、真实 DSH 单 Workspace 组合、双 Workspace 双渠道同 Host 重启隔离、Telegram/飞书进化注意力、tarball lifecycle 与十一包总装已完成；真实飞书 App 身份请求及标准代理环境 WebSocket 握手已通过，exact route 消息仍未达到退出门。
+实现状态：Adapter、可靠投递、真实 DSH 单 Workspace 组合、双 Workspace 双渠道同 Host 重启隔离、Telegram/飞书进化注意力、tarball lifecycle 与十一包总装已完成；真实飞书 App 身份请求、标准代理环境 WebSocket 和 setup-only pairing transport 已通过，`/feishu-pair` 可由当前 DSH Workspace/Session 生成静态 route；用户尚未发送配对短语，exact route 消息仍未达到退出门。
 
 - 支持静态授权的私聊或群聊文本、原生 Command、一次性 Approval、最终回答、Goal/Schedule 与进化注意力；
 - 凭据、身份与 Workspace route 只能由部署配置决定；

@@ -1,18 +1,31 @@
 import type { Context } from '@deepseek-ai/cordis'
+import type { Agent } from '@deepseek-ai/dsh-agent'
+import type {} from '@deepseek-ai/dsh-commands'
+import type {} from '@deepseek-ai/dsh-workspace'
 import z from '@deepseek-ai/schemastery'
 import type Schema from '@deepseek-ai/schemastery'
 import type { ChannelRouter, ResolvedChannelRoute } from 'dsh-channel-router'
-import { resolveFeishuConfig } from './config.js'
+import {
+  resolveFeishuConfig,
+  resolveFeishuPairingConfig,
+  type ResolvedFeishuPairingConfig,
+} from './config.js'
 import { openFeishuDeliveryStore } from './delivery-store.js'
 import type { FeishuHostNotice, FeishuHostRoute } from './host-route.js'
-import { createOfficialFeishuPlatform } from './platform.js'
+import { FeishuPairingRuntime, type FeishuPairingTarget } from './pairing.js'
+import {
+  createOfficialFeishuPairingPlatform,
+  createOfficialFeishuPlatform,
+  type FeishuPlatform,
+} from './platform.js'
 import { FeishuRuntime } from './runtime.js'
 
 export const name = 'dsh-feishu'
-export const inject = ['evoforge.channelRouter', 'storageDomain']
+export const inject = ['commands', 'evoforge.channelRouter', 'storageDomain', 'workspaceRegistry']
 
 export interface Config {
-  readonly routeIds: readonly string[]
+  readonly mode?: 'routes' | 'pairing'
+  readonly routeIds?: readonly string[]
   readonly appIdEnv?: string
   readonly appSecretEnv?: string
   readonly handshakeTimeoutMs?: number
@@ -23,7 +36,8 @@ export interface Config {
 }
 
 export const Config: Schema<Config> = z.object({
-  routeIds: z.array(z.string()).required(),
+  mode: z.union(['routes', 'pairing'] as const).default('routes'),
+  routeIds: z.array(z.string()).default([]),
   appIdEnv: z.string().default('DSH_FEISHU_APP_ID'),
   appSecretEnv: z.string().default('DSH_FEISHU_APP_SECRET'),
   handshakeTimeoutMs: z.number().step(1).min(1_000).max(60_000).default(15_000),
@@ -34,14 +48,24 @@ export const Config: Schema<Config> = z.object({
 }) as Schema<Config>
 
 export async function apply(ctx: Context, config: Config): Promise<void> {
+  const routeIds = config.routeIds ?? []
+  if (config.mode === 'pairing') {
+    const resolved = resolveFeishuPairingConfig({ ...config, mode: 'pairing', routeIds })
+    installFeishuPairing(ctx, resolved, createOfficialFeishuPairingPlatform({
+      appId: resolved.appId,
+      appSecret: resolved.appSecret,
+      handshakeTimeoutMs: resolved.handshakeTimeoutMs,
+    }))
+    return
+  }
   const router = ctx.get('evoforge.channelRouter' as never) as ChannelRouter | undefined
   if (router === undefined) throw new Error('dsh-feishu: dsh-channel-router service is unavailable')
   const routes: ResolvedChannelRoute[] = []
-  for (const id of config.routeIds) {
+  for (const id of routeIds) {
     const route = router.route(id)
     if (route !== undefined) routes.push(route)
   }
-  const resolved = resolveFeishuConfig(config, routes)
+  const resolved = resolveFeishuConfig({ ...config, mode: 'routes', routeIds }, routes)
   const store = await openFeishuDeliveryStore(ctx.storageDomain, { maxRecords: resolved.maxDeliveryRecords })
   const runtime = new FeishuRuntime(
     ctx,
@@ -73,7 +97,66 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   }
 }
 
-export { resolveFeishuConfig, type ResolvedFeishuConfig, type ResolvedFeishuRoute } from './config.js'
+/** Install the DSH-owned command/lifecycle around either the official or a test transport Adapter. */
+export function installFeishuPairing(
+  ctx: Context,
+  config: ResolvedFeishuPairingConfig,
+  platform: FeishuPlatform,
+): FeishuPairingRuntime {
+  const runtime = new FeishuPairingRuntime(platform, {
+    appId: config.appId,
+    appIdEnv: config.appIdEnv,
+    appSecretEnv: config.appSecretEnv,
+    pairingWindowMs: config.pairingWindowMs,
+  })
+  ctx.effect(() => async () => runtime.dispose(), 'dsh-feishu.pairing')
+  ctx.commands.register({
+    name: 'feishu-pair',
+    description: 'pair one exact Feishu chat/user with this native Workspace and Session',
+    input: { hint: 'start | status | cancel' },
+    recordInput: false,
+    handler: ({ agent, rawInput }) => {
+      try {
+        return runtime.command(resolvePairingTarget(ctx, agent), rawInput)
+      } catch (error: unknown) {
+        return { kind: 'error', text: error instanceof Error ? error.message : '无法解析目标 DSH Session。' }
+      }
+    },
+  })
+  return runtime
+}
+
+/** Bind setup to the exact DSH Session where the human invoked the command. */
+export function resolvePairingTarget(ctx: Context, agent: Agent): FeishuPairingTarget {
+  const sessionId = String(agent.session.id)
+  const owners = ctx.workspaceRegistry.list().filter(workspace =>
+    workspace.sessionIds.some(id => String(id) === sessionId))
+  if (owners.length !== 1) {
+    throw new Error('飞书配对要求当前 Session 明确属于一个已注册的 DSH Workspace。')
+  }
+  const agentPreset = agent.session.header.agentPreset
+  const provider = agent.options.provider
+  const model = agent.options.model
+  if (agentPreset === undefined || provider === undefined || model === undefined) {
+    throw new Error('飞书配对要求当前 Session 已选择 Agent preset、provider 和 model。')
+  }
+  return Object.freeze({
+    workspaceId: String(owners[0]!.id),
+    sessionId,
+    agentPreset,
+    provider,
+    model,
+    ...(agent.options.maxTokens === undefined ? {} : { maxTokens: agent.options.maxTokens }),
+  })
+}
+
+export {
+  resolveFeishuConfig,
+  resolveFeishuPairingConfig,
+  type ResolvedFeishuConfig,
+  type ResolvedFeishuPairingConfig,
+  type ResolvedFeishuRoute,
+} from './config.js'
 export {
   openFeishuDeliveryStore,
   type FeishuDeliveryRecord,
@@ -97,12 +180,15 @@ export type {
   FeishuHostRouteBinding,
 } from './host-route.js'
 export {
+  createOfficialFeishuPairingPlatform,
   createOfficialFeishuPlatform,
   FeishuPlatformSendError,
   type FeishuApprovalAction,
   type FeishuInboundMessage,
   type FeishuPlatform,
+  type FeishuPairingPlatformOptions,
   type FeishuPlatformOptions,
   type FeishuSendOptions,
 } from './platform.js'
+export { FeishuPairingRuntime, type FeishuPairingRuntimeOptions, type FeishuPairingTarget } from './pairing.js'
 export { FeishuRuntime } from './runtime.js'

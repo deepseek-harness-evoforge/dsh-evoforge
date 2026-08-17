@@ -52,6 +52,20 @@ export interface FeishuPlatformOptions {
   readonly allowedUsers: readonly string[]
 }
 
+export interface FeishuPairingPlatformOptions {
+  readonly appId: string
+  readonly appSecret: string
+  readonly handshakeTimeoutMs: number
+}
+
+interface FeishuPolicy {
+  readonly dmMode: 'open' | 'allowlist'
+  readonly dmAllowlist?: string[]
+  readonly groupAllowlist?: string[]
+  readonly requireMention: boolean
+  readonly respondToMentionAll: boolean
+}
+
 interface FeishuTransport {
   readonly httpInstance: AxiosInstance & HttpInstance
   readonly agent?: HttpsProxyAgent<string>
@@ -71,6 +85,28 @@ export class FeishuPlatformSendError extends Error {
 
 /** Official Feishu WebSocket transport, narrowed behind an Adapter-owned port. */
 export function createOfficialFeishuPlatform(options: FeishuPlatformOptions): FeishuPlatform {
+  return createOfficialPlatform(options, {
+    dmMode: 'allowlist',
+    dmAllowlist: [...options.allowedUsers],
+    groupAllowlist: [...options.allowedChats],
+    requireMention: true,
+    respondToMentionAll: false,
+  })
+}
+
+/** Setup-only transport; the pairing runtime adds the high-entropy one-message gate. */
+export function createOfficialFeishuPairingPlatform(options: FeishuPairingPlatformOptions): FeishuPlatform {
+  return createOfficialPlatform(options, {
+    dmMode: 'open',
+    requireMention: true,
+    respondToMentionAll: false,
+  })
+}
+
+function createOfficialPlatform(
+  options: FeishuPairingPlatformOptions,
+  policy: FeishuPolicy,
+): FeishuPlatform {
   const transport = resolveFeishuTransport()
   const channel = createLarkChannel({
     appId: options.appId,
@@ -83,13 +119,7 @@ export function createOfficialFeishuPlatform(options: FeishuPlatformOptions): Fe
     ...(transport.agent === undefined ? {} : { agent: transport.agent }),
     handshakeTimeoutMs: options.handshakeTimeoutMs,
     includeRawEvent: false,
-    policy: {
-      dmMode: 'allowlist',
-      dmAllowlist: [...options.allowedUsers],
-      groupAllowlist: [...options.allowedChats],
-      requireMention: true,
-      respondToMentionAll: false,
-    },
+    policy,
     safety: {
       // Router StorageDomain ingress is the durable idempotency authority.
       dedup: { ttl: 0, maxEntries: 1, sweepIntervalMs: 60_000 },

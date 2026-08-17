@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { resolveChannelRoutes } from 'dsh-channel-router'
-import { resolveFeishuConfig } from '../src/config.js'
+import { resolveFeishuConfig, resolveFeishuPairingConfig } from '../src/config.js'
 
 const routes = resolveChannelRoutes([{
   id: 'feishu-private',
@@ -63,6 +63,8 @@ describe('Feishu protected deployment config', () => {
 
   it('fails closed on missing routes, wrong adapters, mixed accounts, or credential mismatch', () => {
     const input = { routeIds: ['feishu-private'], appIdEnv: 'FEISHU_ID', appSecretEnv: 'FEISHU_SECRET' }
+    expect(() => resolveFeishuConfig({ ...input, mode: 'pairing' }, [routes[0]!], environment))
+      .toThrow(/routes config.*pairing mode/u)
     expect(() => resolveFeishuConfig({ ...input, routeIds: [] }, [], environment)).toThrow(/routeIds/u)
     expect(() => resolveFeishuConfig({ ...input, routeIds: ['feishu-private', 'feishu-private'] }, routes, environment))
       .toThrow(/unique/u)
@@ -89,5 +91,30 @@ describe('Feishu protected deployment config', () => {
       .toThrow(/handshakeTimeoutMs/u)
     expect(() => resolveFeishuConfig({ ...input, maxTextChars: 30_001 }, [routes[0]!], environment))
       .toThrow(/maxTextChars/u)
+  })
+
+  it('resolves explicit pairing mode without inventing a Router route', () => {
+    const resolved = resolveFeishuPairingConfig({
+      mode: 'pairing',
+      routeIds: [],
+      appIdEnv: 'FEISHU_ID',
+      appSecretEnv: 'FEISHU_SECRET',
+    }, environment)
+
+    expect(resolved).toEqual({
+      mode: 'pairing',
+      appId: 'cli_app_id',
+      appIdEnv: 'FEISHU_ID',
+      appSecret: 'secret-value',
+      appSecretEnv: 'FEISHU_SECRET',
+      handshakeTimeoutMs: 15_000,
+      pairingWindowMs: 120_000,
+    })
+    expect(() => resolveFeishuPairingConfig({
+      mode: 'pairing',
+      routeIds: ['feishu-private'],
+      appIdEnv: 'FEISHU_ID',
+      appSecretEnv: 'FEISHU_SECRET',
+    }, environment)).toThrow(/pairing mode.*routeIds/u)
   })
 })

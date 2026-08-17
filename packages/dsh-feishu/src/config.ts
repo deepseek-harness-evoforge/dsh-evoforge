@@ -1,6 +1,7 @@
 import type { ChannelEndpoint, ResolvedChannelRoute } from 'dsh-channel-router'
 
 export interface FeishuConfigInput {
+  readonly mode?: 'routes' | 'pairing'
   readonly routeIds: readonly string[]
   readonly appIdEnv?: string
   readonly appSecretEnv?: string
@@ -9,6 +10,16 @@ export interface FeishuConfigInput {
   readonly maxRetryAfterSeconds?: number
   readonly maxSendAttempts?: number
   readonly maxTextChars?: number
+}
+
+export interface ResolvedFeishuPairingConfig {
+  readonly mode: 'pairing'
+  readonly appId: string
+  readonly appIdEnv: string
+  readonly appSecret: string
+  readonly appSecretEnv: string
+  readonly handshakeTimeoutMs: number
+  readonly pairingWindowMs: number
 }
 
 export interface ResolvedFeishuRoute {
@@ -37,6 +48,7 @@ export function resolveFeishuConfig(
   routes: readonly ResolvedChannelRoute[],
   environment: NodeJS.ProcessEnv = process.env,
 ): ResolvedFeishuConfig {
+  if (config.mode === 'pairing') throw new Error('dsh-feishu: routes config cannot use pairing mode')
   if (!Array.isArray(config.routeIds) || config.routeIds.length === 0 || config.routeIds.length > 100) {
     throw new Error('dsh-feishu: routeIds must contain 1 to 100 exact Router route ids')
   }
@@ -51,13 +63,7 @@ export function resolveFeishuConfig(
   const accountIds = new Set(routes.map(route => route.accountId))
   if (accountIds.size !== 1) throw new Error('dsh-feishu: one Adapter instance can bind only one Feishu app account')
 
-  const appIdEnv = config.appIdEnv ?? 'DSH_FEISHU_APP_ID'
-  const appSecretEnv = config.appSecretEnv ?? 'DSH_FEISHU_APP_SECRET'
-  assertEnvironmentName(appIdEnv, 'appIdEnv')
-  assertEnvironmentName(appSecretEnv, 'appSecretEnv')
-  if (appIdEnv === appSecretEnv) throw new Error('dsh-feishu: app id and secret must use different environment variables')
-  const appId = exactSecret(environment[appIdEnv], appIdEnv)
-  const appSecret = exactSecret(environment[appSecretEnv], appSecretEnv)
+  const { appId, appIdEnv, appSecret, appSecretEnv } = resolveCredentials(config, environment)
   if (appId !== routes[0]!.accountId) {
     throw new Error('dsh-feishu: credential app id does not match the Router accountId')
   }
@@ -98,6 +104,46 @@ export function resolveFeishuConfig(
     routes: Object.freeze(resolvedRoutes),
     routeIds,
   })
+}
+
+/** Resolve explicit setup-only mode; it discovers identity but never creates or mutates a Router route. */
+export function resolveFeishuPairingConfig(
+  config: FeishuConfigInput,
+  environment: NodeJS.ProcessEnv = process.env,
+): ResolvedFeishuPairingConfig {
+  if (config.mode !== 'pairing') throw new Error('dsh-feishu: pairing config mode must be pairing')
+  if (!Array.isArray(config.routeIds) || config.routeIds.length !== 0) {
+    throw new Error('dsh-feishu: pairing mode requires empty routeIds')
+  }
+  const { appId, appIdEnv, appSecret, appSecretEnv } = resolveCredentials(config, environment)
+  const handshakeTimeoutMs = config.handshakeTimeoutMs ?? 15_000
+  assertIntegerRange('handshakeTimeoutMs', handshakeTimeoutMs, 1_000, 60_000)
+  return Object.freeze({
+    mode: 'pairing',
+    appId,
+    appIdEnv,
+    appSecret,
+    appSecretEnv,
+    handshakeTimeoutMs,
+    pairingWindowMs: 120_000,
+  })
+}
+
+function resolveCredentials(
+  config: Pick<FeishuConfigInput, 'appIdEnv' | 'appSecretEnv'>,
+  environment: NodeJS.ProcessEnv,
+): { appId: string; appIdEnv: string; appSecret: string; appSecretEnv: string } {
+  const appIdEnv = config.appIdEnv ?? 'DSH_FEISHU_APP_ID'
+  const appSecretEnv = config.appSecretEnv ?? 'DSH_FEISHU_APP_SECRET'
+  assertEnvironmentName(appIdEnv, 'appIdEnv')
+  assertEnvironmentName(appSecretEnv, 'appSecretEnv')
+  if (appIdEnv === appSecretEnv) throw new Error('dsh-feishu: app id and secret must use different environment variables')
+  return {
+    appId: exactSecret(environment[appIdEnv], appIdEnv),
+    appIdEnv,
+    appSecret: exactSecret(environment[appSecretEnv], appSecretEnv),
+    appSecretEnv,
+  }
 }
 
 function assertEnvironmentName(value: string, label: string): void {

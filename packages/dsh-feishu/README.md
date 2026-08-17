@@ -14,7 +14,40 @@ dsh plugin --profile web add "$PACK_DIR"/dsh-channel-router-*.tgz "$PACK_DIR"/ds
 dsh --profile web --dump-config
 ```
 
-两个 Bundle 默认 disabled。部署者先在飞书开发者后台启用机器人能力、订阅 `im.message.receive_v1` 与卡片回调所需权限并选择长连接，再配置 exact Router route：
+两个 Bundle 默认 disabled。部署者先在飞书开发者后台启用机器人能力、订阅 `im.message.receive_v1` 与卡片回调所需权限并选择长连接。
+
+## 第一次连接：不手工查 ID
+
+不知道 `chat_id`/`open_id` 时，先在 profile 中启用空 Router 和 setup-only pairing mode：
+
+```yaml
+- id: evoforge-channel-router
+  name: dsh-channel-router
+  disabled: false
+  config:
+    routes: []
+
+- id: evoforge-feishu
+  name: dsh-feishu
+  disabled: false
+  config:
+    mode: pairing
+    routeIds: []
+    appIdEnv: DSH_FEISHU_APP_ID
+    appSecretEnv: DSH_FEISHU_APP_SECRET
+```
+
+启动唯一的 DSH Host，在准备绑定的 Workspace/Session 中运行 `/feishu-pair start`。DSH 会显示一个
+两分钟有效的一次性短语；在目标飞书私聊中原样发送，群聊中先 `@机器人` 再发送。收到飞书回执后运行
+`/feishu-pair status`，DSH 会根据当前原生 Workspace、Session、Agent preset 和模型生成完整 exact
+route 草案。审查草案并写回 profile，把 pairing mode 替换为普通 routes 配置后重启 DSH。
+
+配对窗口只接受首条完全匹配的高熵短语；其他消息不会进入 Agent，不会自动写 profile、创建 route 或
+扩大权限。`/feishu-pair cancel` 可立即关闭连接，超时、disable、reload 和 remove 也会断开。
+
+## 正常运行配置
+
+配对输出等价于以下 exact Router route 结构：
 
 ```yaml
 - id: evoforge-channel-router
@@ -42,7 +75,9 @@ dsh --profile web --dump-config
     appSecretEnv: DSH_FEISHU_APP_SECRET
 ```
 
-`accountId` 必须等于环境中的 App ID；App Secret 只从部署环境读取。一个 Adapter 实例可列出同一个 App 的多个 exact route，不接受 wildcard、模型选择的 Workspace 或运行时配对。
+`accountId` 必须等于环境中的 App ID；App Secret 只从部署环境读取。一个 Adapter 实例可列出同一个
+App 的多个 exact route。普通 routes 模式不接受 wildcard、模型选择的 Workspace 或动态授权；
+setup-only pairing 只输出待审查配置，重启进入 routes 模式后才生效。
 
 ## 运行合同
 

@@ -90,7 +90,25 @@ Goal cold-resume 示例：
 
 token 由启动 DSH 的环境提供。模型不能读取 token、修改 route、选择 Workspace 或扩大 allowlist。
 
-飞书使用官方 SDK WebSocket 长连接，不创建 EvoForge Webhook server。一个 App 可列出多个 exact route，但所有 route 的 `accountId` 必须等于部署环境中的 App ID：
+飞书使用官方 SDK WebSocket 长连接，不创建 EvoForge Webhook server。第一次使用无需到后台手工寻找
+`chat_id`/`open_id`：先把 Router 配成 `routes: []`，再把 `evoforge-feishu` 配成：
+
+```yaml
+  name: dsh-feishu
+  disabled: false
+  config:
+    mode: pairing
+    routeIds: []
+    appIdEnv: DSH_FEISHU_APP_ID
+    appSecretEnv: DSH_FEISHU_APP_SECRET
+```
+
+在准备绑定的 DSH Workspace/Session 中运行 `/feishu-pair start`，把显示的一次性短语发送给机器人；
+群聊需要 `@机器人`。收到回执后运行 `/feishu-pair status`，审查 DSH 自动生成的完整静态配置，再用它
+替换 pairing mode 并重启。窗口两分钟后自动断开；普通消息不进入 Agent，插件不会自动写 profile 或
+扩大权限。
+
+正常模式下，一个 App 可列出多个 exact route，所有 route 的 `accountId` 必须等于部署环境中的 App ID：
 
 ```yaml
 - id: evoforge-channel-router
