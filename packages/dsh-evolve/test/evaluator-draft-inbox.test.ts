@@ -81,6 +81,9 @@ describe('EvaluatorDraftInbox', () => {
 
     const scan = await inbox.scan()
     expect(scan).toMatchObject({ warningCount: 0, drafts: [{ status: 'draft-ready' }] })
+    expect(scan.drafts[0]).not.toHaveProperty('signalId')
+    await expect(inbox.automaticInflightStatus(artifact.name, signalId)).resolves.toBe('clear')
+    await expect(inbox.automaticInflightStatus(artifact.name, '9'.repeat(64))).resolves.toBe('busy')
     const draftId = scan.drafts[0]!.id
     const detail = await inbox.get(draftId)
     expect(detail).toMatchObject({
@@ -152,6 +155,8 @@ describe('EvaluatorDraftInbox', () => {
     expect(detail.qualification).toMatchObject({ calibrated: true })
     expect(await readdir(join(fixture.target.root, 'qualified', draftId)))
       .toEqual(['calibration', 'final-test', 'manifest.json', 'search'])
+    await expect(inbox.automaticInflightStatus(artifact.name, '9'.repeat(64)))
+      .resolves.toBe('clear')
 
     await expect(inbox.approve(draftId, 'duplicate')).resolves.toEqual(approved)
     expect(qualify).toHaveBeenCalledOnce()

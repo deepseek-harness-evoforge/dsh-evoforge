@@ -100,6 +100,28 @@ describe('Shadow review inbox', () => {
     ])
   })
 
+  it('projects actionable Candidate state as a fail-closed automatic inflight gate', async () => {
+    const root = await createRoot()
+    await writeCandidateRun(root, 'candidate', 'promote')
+    const inbox = new ReviewInbox([root])
+
+    await expect(inbox.automaticInflightStatus('stable-skill', '1'.repeat(64)))
+      .resolves.toBe('busy')
+    await expect(inbox.automaticInflightStatus('unrelated-skill', '1'.repeat(64)))
+      .resolves.toBe('clear')
+
+    const candidate = (await inbox.scan()).candidates[0]!
+    await inbox.reject(candidate.id, 'resolved before another automatic attempt')
+    await expect(inbox.automaticInflightStatus('stable-skill', '2'.repeat(64)))
+      .resolves.toBe('clear')
+
+    const broken = join(root, 'broken')
+    await mkdir(broken)
+    await writeFile(join(broken, 'run-state.json'), '{')
+    await expect(inbox.automaticInflightStatus('stable-skill', '2'.repeat(64)))
+      .resolves.toBe('unknown')
+  })
+
   it('publishes before durably approving and returns the inactive Generation id', async () => {
     const root = await createRoot()
     await writeCandidateRun(root, 'candidate', 'promote')

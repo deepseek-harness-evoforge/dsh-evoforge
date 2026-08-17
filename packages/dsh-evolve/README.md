@@ -1,6 +1,6 @@
 # dsh-evolve
 
-`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains twenty-one deliberately separate lanes:
+`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains twenty-two deliberately separate lanes:
 
 - **P0A Shadow** compares an active Skill with an inactive Candidate without changing live DSH.
 - **P0B Local Continuity** records immutable Capability Generations, pins one Generation per Session, switches or rolls back only future Sessions, and resumes durable sealed work through an optional resident supervisor.
@@ -23,6 +23,7 @@
 - **P1.15 Automatic Evolution Budget** durably caps each automatic Target's possible paid attempts per UTC day and projects the remaining allowance without touching Session context.
 - **P1.16 Automatic Evaluator Draft** optionally turns one unambiguous explicit correction into a private inactive evaluator proposal while keeping qualification, Shadow, and Promotion separately authorized.
 - **P1.17 Human-approved Qualify-and-Shadow** lets a reviewer authorize sealed qualification and one contingent paid Shadow in one cancellable action, without coupling either to Promotion.
+- **P1.18 Per-Skill Automatic Inflight Gate** defers new automatic work before budget while the same Skill still has an unresolved Draft, Shadow, or Review Candidate.
 
 A 64-turn assembled DSH Agent parity test also verifies that installing the configured evolution host plane and changing the future-Session Generation pointer leaves every current-Session model-visible request byte-equivalent to the no-EvoForge control after removing DSH-internal message ids. It proves a zero request delta; real-provider cache-read and latency measurements still require an explicitly funded paired soak.
 
@@ -331,6 +332,12 @@ their existing separate authorities. A Skill cannot also appear in
 [P1.16 contract](../../docs/architecture/p1-16-automatic-evaluator-draft.zh.md).
 The optional combined human action is specified by the
 [P1.17 contract](../../docs/architecture/p1-17-human-approved-qualify-and-shadow.zh.md).
+Both automatic paths also use the
+[P1.18 gate](../../docs/architecture/p1-18-per-skill-automatic-inflight-gate.zh.md):
+before reserving daily budget, they read existing Draft, Shadow, and Review facts.
+Unresolved or unreadable state defers the new Signal without a provider request;
+the Signal stays in the existing store for a later resident scan. This adds no
+queue, configuration, model-visible surface, or restriction on explicit human actions.
 
 For a Skill that does not use Automatic Feedback Shadow, the minimal opt-in is:
 

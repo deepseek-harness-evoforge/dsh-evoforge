@@ -114,6 +114,7 @@ const automatic = new AutomaticEvaluatorDraftService({
     root: ownedRoot,
     maxAttemptsPerUtcDay: 1,
   }],
+  inflight: [inbox],
   budget: new AutomaticEvolutionBudget(),
 })
 const receipt = await automatic.scanOnce()

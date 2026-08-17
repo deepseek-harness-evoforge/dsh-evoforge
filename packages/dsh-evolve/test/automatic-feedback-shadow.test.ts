@@ -10,6 +10,7 @@ import type {
 import type { EvolutionStore } from '../src/generation-store.ts'
 import type { FeedbackSignalStore } from '../src/feedback-signal-monitor.ts'
 import type { FeedbackShadowLauncher } from '../src/feedback-shadow-launcher.ts'
+import type { AutomaticEvolutionInflightSource } from '../src/automatic-evolution-inflight.ts'
 
 describe('automatic Feedback Shadow', () => {
   it('launches one exact Target for an explicit signal with one matching Generation Skill', async () => {
@@ -60,6 +61,7 @@ describe('automatic Feedback Shadow', () => {
         }],
       } as Pick<FeedbackSignalStore, 'list'>,
       targets: [target()],
+      inflight: [clearInflight()],
       budget: {
         reserve: vi.fn(async target => {
           effects.push('budget')
@@ -124,6 +126,7 @@ describe('automatic Feedback Shadow', () => {
         generationId: '2'.repeat(64),
       }] } as Pick<FeedbackSignalStore, 'list'>,
       targets: [target(), { ...target(), id: 'other-target', skill: 'other-skill' }],
+      inflight: [clearInflight()],
       budget: allowingBudget(),
     })
 
@@ -145,6 +148,7 @@ describe('automatic Feedback Shadow', () => {
         } as unknown as Pick<FeedbackShadowLauncher, 'available' | 'launchAutomaticExact'>,
         signals: { list: vi.fn() } as Pick<FeedbackSignalStore, 'list'>,
         targets,
+        inflight: [clearInflight()],
         budget: allowingBudget(),
       })
 
@@ -195,6 +199,7 @@ describe('automatic Feedback Shadow', () => {
       } as unknown as Pick<FeedbackShadowLauncher, 'available' | 'launchAutomaticExact'>,
       signals: oneSignal(),
       targets: [target()],
+      inflight: [clearInflight()],
       budget: {
         reserve,
         inspect: vi.fn(),
@@ -236,6 +241,7 @@ describe('automatic Feedback Shadow', () => {
       } as unknown as Pick<FeedbackShadowLauncher, 'available' | 'launchAutomaticExact'>,
       signals: oneSignal(),
       targets: [target()],
+      inflight: [clearInflight()],
       budget: {
         reserve: vi.fn(),
         inspect: vi.fn(async () => { throw new Error('corrupt') }),
@@ -255,6 +261,86 @@ describe('automatic Feedback Shadow', () => {
         status: 'unknown',
       }],
     })
+  })
+
+  it('defers before budget while one Skill has unresolved work and resumes when it clears', async () => {
+    let status: 'clear' | 'busy' | 'unknown' = 'busy'
+    const automaticInflightStatus = vi.fn(async () => status)
+    const reserve = vi.fn(async input => ({
+      allowed: true as const,
+      newlyReserved: true as const,
+      snapshot: {
+        targetId: input.id,
+        skillName: input.skill,
+        utcDay: '2026-08-17',
+        used: 1,
+        limit: input.maxAttemptsPerUtcDay,
+        remaining: input.maxAttemptsPerUtcDay - 1,
+      },
+    }))
+    const launchAutomaticExact = vi.fn(async () => ({
+      schemaVersion: 1 as const,
+      action: 'start-shadow' as const,
+      launchId: '4'.repeat(64),
+      targetId: 'plugin-delivery',
+      skillName: 'stable-skill',
+      runStatus: 'scheduled' as const,
+      jobId: 'job-1',
+    }))
+    const service = new AutomaticFeedbackShadowService({
+      evolution: generationStore(),
+      shadow: {
+        available: () => true,
+        launchAutomaticExact,
+      } as unknown as Pick<FeedbackShadowLauncher, 'available' | 'launchAutomaticExact'>,
+      signals: {
+        list: () => [
+          ...oneSignal().list(),
+          { ...oneSignal().list()[0]!, id: '2'.repeat(64), messageId: 'message-2' },
+        ],
+      },
+      targets: [target()],
+      inflight: [{ automaticInflightStatus }],
+      budget: { reserve, inspect: vi.fn() },
+    })
+
+    await expect(service.scanOnce()).resolves.toEqual({
+      launched: [],
+      warnings: ['automatic evolution deferred for Skill stable-skill while prior work is unresolved'],
+    })
+    await expect(service.scanOnce()).resolves.toEqual({ launched: [], warnings: [] })
+    expect(reserve).not.toHaveBeenCalled()
+    expect(launchAutomaticExact).not.toHaveBeenCalled()
+    expect(automaticInflightStatus).toHaveBeenCalledTimes(2)
+
+    status = 'clear'
+    await expect(service.scanOnce()).resolves.toMatchObject({
+      launched: [{ targetId: 'plugin-delivery', runStatus: 'scheduled' }],
+      warnings: [],
+    })
+    expect(reserve).toHaveBeenCalledOnce()
+    expect(launchAutomaticExact).toHaveBeenCalledOnce()
+  })
+
+  it('fails closed without spending when prior-work authority is unreadable', async () => {
+    const reserve = vi.fn()
+    const service = new AutomaticFeedbackShadowService({
+      evolution: generationStore(),
+      shadow: {
+        available: () => true,
+        launchAutomaticExact: vi.fn(),
+      } as unknown as Pick<FeedbackShadowLauncher, 'available' | 'launchAutomaticExact'>,
+      signals: oneSignal(),
+      targets: [target()],
+      inflight: [{ automaticInflightStatus: vi.fn(async () => 'unknown' as const) }],
+      budget: { reserve, inspect: vi.fn() },
+    })
+
+    await expect(service.scanOnce()).resolves.toEqual({
+      launched: [],
+      warnings: ['automatic evolution deferred because prior-work state is unavailable for Skill stable-skill'],
+    })
+    expect(reserve).not.toHaveBeenCalled()
   })
 })
 
@@ -317,4 +403,8 @@ function oneSignal(): Pick<FeedbackSignalStore, 'list'> {
     sourceUpdatedAt: 2,
     generationId: '2'.repeat(64),
   }] }
+}
+
+function clearInflight(): AutomaticEvolutionInflightSource {
+  return { automaticInflightStatus: vi.fn(async () => 'clear' as const) }
 }

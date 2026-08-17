@@ -135,6 +135,69 @@ describe('FeedbackShadowLauncher', () => {
     })
   })
 
+  it('finds every nonterminal same-Skill run before another automatic attempt', async () => {
+    const fixture = await setup()
+    const launcher = new FeedbackShadowLauncher({
+      targets: [fixture.target],
+      supervisorRunRoots: [fixture.runRoot],
+      drafts: () => fixture.drafts,
+      source: fixture.source,
+      runner: vi.fn(),
+      modelIdentity: () => 'fixed-route-v1',
+    })
+    const runId = 'a'.repeat(64)
+    const runDir = join(fixture.runRoot, runId)
+    await mkdir(runDir)
+    const state = {
+      schemaVersion: 1 as const,
+      runId,
+      phase: 'prepared' as const,
+      startedAt: '2026-08-17T00:00:00.000Z',
+      updatedAt: '2026-08-17T00:00:00.000Z',
+      identity: {
+        baseTreeHash: artifact.treeHash,
+        casePackHash: '6'.repeat(64),
+        dshRevision: '7'.repeat(40),
+        evaluatorVersion: 'fixture-v1',
+        modelConfigHash: '8'.repeat(64),
+        modelRoute: 'fixture',
+        skillName: artifact.name,
+        feedbackDraftId: draftId,
+      },
+      feedbackSignalId: signalId,
+    }
+    await saveShadowRunState(runDir, state)
+
+    await expect(launcher.automaticInflightStatus(artifact.name, '9'.repeat(64)))
+      .resolves.toBe('busy')
+    await expect(launcher.automaticInflightStatus(artifact.name, signalId))
+      .resolves.toBe('clear')
+    expect((await launcher.scan()).runs[0]).not.toHaveProperty('feedbackSignalId')
+    await expect(launcher.automaticInflightStatus('unconfigured-skill', signalId))
+      .resolves.toBe('clear')
+
+    await saveShadowRunState(runDir, {
+      ...state,
+      phase: 'candidate-ready',
+      updatedAt: '2026-08-17T00:00:30.000Z',
+    })
+    await expect(launcher.automaticInflightStatus(artifact.name, signalId))
+      .resolves.toBe('busy')
+
+    await saveShadowRunState(runDir, {
+      ...state,
+      phase: 'incomplete',
+      updatedAt: '2026-08-17T00:01:00.000Z',
+      outcome: {
+        kind: 'incomplete',
+        reportPath: join(runDir, 'report.json'),
+        reason: 'terminal fixture failure',
+      },
+    })
+    await expect(launcher.automaticInflightStatus(artifact.name, '9'.repeat(64)))
+      .resolves.toBe('clear')
+  })
+
   it('fails closed when a target is outside the configured supervisor roots or runtime seams are absent', async () => {
     const fixture = await setup()
     expect(() => new FeedbackShadowLauncher({

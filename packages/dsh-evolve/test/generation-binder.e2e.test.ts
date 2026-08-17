@@ -370,7 +370,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
         }],
         automaticEvaluatorTargets: [{
           target: 'stable-skill-fix',
-          maxAttemptsPerUtcDay: 1,
+          maxAttemptsPerUtcDay: 2,
         }],
       })
       const packages = (path: string) => pathToFileURL(
@@ -415,13 +415,42 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
         ifVersion: null,
       })
       await waitForEvolutionStatus(ctx, agent, 'Explicit feedback signals: 1 retained (1 active selection)')
-      const normalRequests = adapter.requests.length
+      let normalRequests = adapter.requests.length
 
       const evaluatorList = await waitForCommandText(ctx, agent, '/evolve evaluator', '[draft-ready]')
       const draftId = /^- ([a-f0-9]{64}) \[draft-ready\]/m.exec(evaluatorList)?.[1]
       if (draftId === undefined) throw new Error('evaluator draft id missing')
       expect(modelRequests).toEqual(['author'])
       expect(adapter.requests).toHaveLength(normalRequests)
+
+      const secondAgent = await createAndRunAgent(
+        ctx,
+        'qualified-shadow-second-signal',
+        root,
+        undefined,
+        '/stable-evolved-skill reproduce another missing browser verification',
+      )
+      const secondAssistant = secondAgent.session.events.find(
+        (event: { type: string }) => event.type === 'assistant/message',
+      ) as { data: { message: { id: string } } } | undefined
+      if (secondAssistant === undefined) throw new Error('second assistant message fixture missing')
+      await feedback.put({
+        sessionId: String(secondAgent.session.header.id),
+        messageId: secondAssistant.data.message.id,
+        rating: 'negative',
+        note: 'Require another independently verified browser condition.',
+        ifVersion: null,
+      })
+      await waitForEvolutionStatus(ctx, secondAgent, 'Explicit feedback signals: 2 retained')
+      normalRequests = adapter.requests.length
+      await new Promise(resolveWait => setTimeout(resolveWait, 1_200))
+      expect(modelRequests).toEqual(['author'])
+      expect(JSON.parse(await readFile(join(
+        evaluatorRoot,
+        '.automatic-evolution-budget-v1',
+        'current.json',
+      ), 'utf8'))).toMatchObject({ reservations: [expect.objectContaining({ signalId: expect.any(String) })] })
+
       expect(await readFile(join(
         evaluatorRoot,
         '.automatic-evolution-budget-v1',
@@ -433,7 +462,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
         new AbortController().signal,
       )
       expect(automaticStatus?.result.text).toContain(
-        'Automatic evolution budget (Evaluator Draft): stable-skill-fix 1/1 attempts used',
+        'Automatic evolution budget (Evaluator Draft): stable-skill-fix 1/2 attempts used',
       )
       expect(store.getSessionGeneration(identityOf(agent))?.id).toBe(generation.id)
 

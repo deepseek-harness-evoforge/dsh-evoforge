@@ -1,6 +1,6 @@
 # DeepSeek Harness EvoForge 项目需求基线
 
-> 状态：已确认；研究与设计已完成，P0A–P1.17、P2A.1–P2D.1 与 Runtime Readiness 已实现；真实 provider、陌生用户与长期效果证据待积累
+> 状态：已确认；研究与设计已完成，P0A–P1.18、P2A.1–P2D.1 与 Runtime Readiness 已实现；真实 provider、陌生用户与长期效果证据待积累
 > 更新日期：2026-08-17
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。
 
@@ -299,6 +299,10 @@ Draft；host 固定生成 manifest，并用 exact active Skill 形成 known-bad�
 known-correction 与 evaluator。只有另一项人工决定批准 exact hash，且 sealed calibration 方向成立，
 才发布 immutable Qualified Case Pack。资格成立不等于 Candidate 改善或晋升证据；后续 Shadow 仍需
 另一次显式动作。不预建通用 Memory、Signal Bus 或 Case SDK。
+
+P1.14/P1.16 的自动入口在消费日预算前，还必须复用既有 Evaluator Draft、Shadow journal 与 Review
+Inbox，保证受支持的单 resident 拓扑下，同一 Skill 只有一条未决自动路径。状态不可读时 fail closed；
+其余 Signal 保留在现有 Signal Store 后续再查，不新建队列或 lease，也不限制逐次人工动作。
 
 Case Pack authoring 先提供零模型校准命令，不创建新 Service 或 SDK。完整 Shadow 必须在 proposer
 之前用同一个 sealed evaluator 拒绝 known-bad、接受 known-correction；方向不成立时不发送付费

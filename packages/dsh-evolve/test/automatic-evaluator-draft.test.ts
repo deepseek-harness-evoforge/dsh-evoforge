@@ -11,6 +11,7 @@ import type {
 import type { EvaluatorDraftInbox } from '../src/evaluator-draft-inbox.ts'
 import type { EvolutionStore } from '../src/generation-store.ts'
 import type { FeedbackSignalStore } from '../src/feedback-signal-monitor.ts'
+import type { AutomaticEvolutionInflightSource } from '../src/automatic-evolution-inflight.ts'
 
 describe('Automatic Evaluator Draft', () => {
   it('reserves durable budget before authoring one inactive draft for one exact Skill match', async () => {
@@ -32,6 +33,7 @@ describe('Automatic Evaluator Draft', () => {
       evaluator: { available: () => true, author },
       signals: oneSignal(),
       targets: [target()],
+      inflight: [clearInflight()],
       budget: {
         reserve: vi.fn(async input => {
           effects.push('budget')
@@ -63,6 +65,7 @@ describe('Automatic Evaluator Draft', () => {
       evaluator: { available: () => true, author } as Pick<EvaluatorDraftInbox, 'available' | 'author'>,
       signals: oneSignal(),
       targets: [target(), { ...target(), id: 'other-target', skill: 'other-skill', root: '/private/other' }],
+      inflight: [clearInflight()],
       budget: { reserve, inspect: vi.fn() } as Pick<AutomaticEvolutionBudget, 'reserve' | 'inspect'>,
     })
 
@@ -107,6 +110,7 @@ describe('Automatic Evaluator Draft', () => {
       evaluator: { available: () => true, author },
       signals: oneSignal(),
       targets: [target()],
+      inflight: [clearInflight()],
       budget: { reserve, inspect: vi.fn() },
       now: () => now,
     })
@@ -133,6 +137,7 @@ describe('Automatic Evaluator Draft', () => {
       evaluator: { available: () => true, author: vi.fn() } as Pick<EvaluatorDraftInbox, 'available' | 'author'>,
       signals: oneSignal(),
       targets: [target()],
+      inflight: [clearInflight()],
       budget: {
         reserve: vi.fn(),
         inspect: vi.fn(async () => { throw new Error('/private/evaluator-root is corrupt') }),
@@ -162,6 +167,7 @@ describe('Automatic Evaluator Draft', () => {
       evaluator: { available: () => true, author: vi.fn() } as Pick<EvaluatorDraftInbox, 'available' | 'author'>,
       signals: oneSignal(),
       targets,
+      inflight: [clearInflight()],
       budget: allowingBudget(),
     })
 
@@ -178,6 +184,44 @@ describe('Automatic Evaluator Draft', () => {
       [target()],
       new Set(['stable-skill']),
     )).toThrow('one Skill cannot enable both Automatic Feedback Shadow and Automatic Evaluator Draft')
+  })
+
+  it('does not spend while the same Skill has an unresolved Draft or Candidate', async () => {
+    let status: 'clear' | 'busy' = 'busy'
+    const reserve = vi.fn(async input =>
+      allowedReservation(input.id, input.skill, input.maxAttemptsPerUtcDay))
+    const author = vi.fn(async () => ({
+      schemaVersion: 1 as const,
+      action: 'author-evaluator' as const,
+      launchId: '4'.repeat(64),
+      targetId: 'plugin-delivery',
+      skillName: 'stable-skill',
+      draftStatus: 'scheduled' as const,
+      jobId: 'job-1',
+    }))
+    const service = new AutomaticEvaluatorDraftService({
+      evolution: generationStore(),
+      evaluator: { available: () => true, author },
+      signals: oneSignal(),
+      targets: [target()],
+      inflight: [{ automaticInflightStatus: vi.fn(async () => status) }],
+      budget: { reserve, inspect: vi.fn() },
+    })
+
+    await expect(service.scanOnce()).resolves.toEqual({
+      authored: [],
+      warnings: ['automatic evolution deferred for Skill stable-skill while prior work is unresolved'],
+    })
+    expect(reserve).not.toHaveBeenCalled()
+    expect(author).not.toHaveBeenCalled()
+
+    status = 'clear'
+    await expect(service.scanOnce()).resolves.toMatchObject({
+      authored: [{ targetId: 'plugin-delivery', draftStatus: 'scheduled' }],
+      warnings: [],
+    })
+    expect(reserve).toHaveBeenCalledOnce()
+    expect(author).toHaveBeenCalledOnce()
   })
 })
 
@@ -242,4 +286,8 @@ function allowingBudget(): Pick<AutomaticEvolutionBudget, 'reserve' | 'inspect'>
     reserve: vi.fn(async input => allowedReservation(input.id, input.skill, input.maxAttemptsPerUtcDay)),
     inspect: vi.fn(),
   }
+}
+
+function clearInflight(): AutomaticEvolutionInflightSource {
+  return { automaticInflightStatus: vi.fn(async () => 'clear' as const) }
 }

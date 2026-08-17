@@ -22,6 +22,7 @@ import type {
 } from './feedback-shadow-launcher.ts'
 import { hashTree, sha256 } from './hash.ts'
 import { writeDurableJson } from './shadow-run-state.ts'
+import type { AutomaticEvolutionInflightStatus } from './automatic-evolution-inflight.ts'
 
 const CONTENT_ID = /^[a-f0-9]{64}$/
 const GIT_OBJECT = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/
@@ -369,9 +370,38 @@ export class EvaluatorDraftInbox {
   }
 
   async scan(): Promise<EvaluatorDraftScan> {
-    const drafts: EvaluatorDraftView[] = []
+    const scan = await this.scanDrafts()
+    return {
+      drafts: scan.drafts.slice(0, MAX_ROWS).map(row => row.view),
+      warningCount: scan.warningCount,
+    }
+  }
+
+  async automaticInflightStatus(
+    skillName: string,
+    signalId: string,
+  ): Promise<AutomaticEvolutionInflightStatus> {
+    const scan = await this.scanDrafts(skillName)
+    if (scan.targetCount === 0) return 'clear'
+    if (scan.warningCount > 0) return 'unknown'
+    return scan.drafts.some(row => row.view.status !== 'qualified'
+      && row.view.status !== 'rejected'
+      && row.signalId !== signalId)
+      ? 'busy'
+      : 'clear'
+  }
+
+  private async scanDrafts(skillName?: string): Promise<{
+    drafts: Array<{ view: EvaluatorDraftView; signalId: string }>
+    warningCount: number
+    targetCount: number
+  }> {
+    const drafts: Array<{ view: EvaluatorDraftView; signalId: string }> = []
     let warningCount = 0
+    let targetCount = 0
     for (const target of this.targetsById.values()) {
+      if (skillName !== undefined && target.skill !== skillName) continue
+      targetCount += 1
       let entries
       const runsRoot = join(target.root, 'runs')
       try {
@@ -389,15 +419,18 @@ export class EvaluatorDraftInbox {
             warningCount += 1
             continue
           }
-          drafts.push(projectState(state, this.active.has(state.launchId)))
+          drafts.push({
+            view: projectState(state, this.active.has(state.launchId)),
+            signalId: state.identity.signalId,
+          })
         } catch {
           warningCount += 1
         }
       }
     }
-    drafts.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)
-      || left.id.localeCompare(right.id))
-    return { drafts: drafts.slice(0, MAX_ROWS), warningCount }
+    drafts.sort((left, right) => right.view.updatedAt.localeCompare(left.view.updatedAt)
+      || left.view.id.localeCompare(right.view.id))
+    return { drafts, warningCount, targetCount }
   }
 
   async get(draftId: string): Promise<EvaluatorDraftDetail> {

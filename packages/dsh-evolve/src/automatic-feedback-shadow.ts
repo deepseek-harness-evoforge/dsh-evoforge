@@ -10,6 +10,11 @@ import type {
   FeedbackShadowLauncher,
   FeedbackShadowLaunchReceipt,
 } from './feedback-shadow-launcher.ts'
+import {
+  automaticEvolutionInflightStatus,
+  type AutomaticEvolutionInflightSource,
+  type AutomaticEvolutionInflightStatus,
+} from './automatic-evolution-inflight.ts'
 
 const CONTENT_ID = /^[a-f0-9]{64}$/
 const MAX_TARGETS = 20
@@ -29,6 +34,7 @@ export interface AutomaticFeedbackShadowOptions {
   readonly shadow: Pick<FeedbackShadowLauncher, 'available' | 'launchAutomaticExact'>
   readonly signals: Pick<FeedbackSignalStore, 'list'>
   readonly targets: AutomaticFeedbackShadowTarget[]
+  readonly inflight: readonly AutomaticEvolutionInflightSource[]
   readonly budget: Pick<AutomaticEvolutionBudget, 'reserve' | 'inspect'>
   readonly now?: () => number
 }
@@ -56,6 +62,7 @@ export class AutomaticFeedbackShadowService {
   private readonly options: AutomaticFeedbackShadowOptions
   private readonly attemptedSignals = new Set<string>()
   private readonly deferredUntil = new Map<string, number>()
+  private readonly inflightDeferrals = new Map<string, Exclude<AutomaticEvolutionInflightStatus, 'clear'>>()
   private readonly now: () => number
 
   constructor(options: AutomaticFeedbackShadowOptions) {
@@ -67,6 +74,7 @@ export class AutomaticFeedbackShadowService {
   async scanOnce(): Promise<AutomaticFeedbackShadowResult> {
     const launched: AutomaticFeedbackShadowResult['launched'] = []
     const warnings: string[] = []
+    const blockedSkills = new Set<string>()
     if (!this.options.shadow.available()) return { launched, warnings }
     const signals = this.options.signals.list()
     const currentSignals = new Set(signals.map(signal => signal.id))
@@ -95,6 +103,20 @@ export class AutomaticFeedbackShadowService {
         break
       }
       const target = matches[0]!
+      if (blockedSkills.has(target.skill)) continue
+      const inflight = await automaticEvolutionInflightStatus(
+        target.skill,
+        signal.id,
+        this.options.inflight,
+      )
+      if (inflight !== 'clear') {
+        blockedSkills.add(target.skill)
+        const previous = this.inflightDeferrals.get(target.skill)
+        this.inflightDeferrals.set(target.skill, inflight)
+        if (previous !== inflight) warnings.push(inflightWarning(target.skill, inflight))
+        continue
+      }
+      this.inflightDeferrals.delete(target.skill)
       let reservation
       try {
         reservation = await this.options.budget.reserve(target, signal.id)
@@ -148,6 +170,15 @@ export class AutomaticFeedbackShadowService {
     }
     return { targets, warningCount }
   }
+}
+
+function inflightWarning(
+  skillName: string,
+  status: Exclude<AutomaticEvolutionInflightStatus, 'clear'>,
+): string {
+  return status === 'busy'
+    ? `automatic evolution deferred for Skill ${skillName} while prior work is unresolved`
+    : `automatic evolution deferred because prior-work state is unavailable for Skill ${skillName}`
 }
 
 export function assertAutomaticFeedbackShadowTargets(

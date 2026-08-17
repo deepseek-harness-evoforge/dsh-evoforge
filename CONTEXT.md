@@ -132,6 +132,10 @@ _Avoid_: Token scheduler, pricing engine, global quota service, model budget in 
 An opt-in deployment policy that lets one still-current explicit correction create one private, inactive Evaluator Draft for a unique static Target without a per-signal author command. It spends a durable daily attempt reservation first and leaves execution, qualification, Shadow, and Promotion under their existing separate authorities.
 _Avoid_: Automatic evaluator trust, self-grading, synchronous Session reflection, default background spending
 
+**Per-Skill Automatic Inflight Gate**:
+A host-only preflight that lets P1.14/P1.16 reserve budget for a Skill only when its existing Evaluator Draft, Shadow journal, and Review Inbox contain no unresolved earlier automatic work. Deferred Signals stay in the existing Signal Store; explicit human actions remain available.
+_Avoid_: Evolution queue, distributed lease, duplicate state store, limit on human actions
+
 **Human-approved Qualify-and-Shadow**:
 One explicit host action taken after a human reviews an exact Evaluator Draft. It authorizes sealed qualification and one contingent paid Shadow: qualification failure stops before the proposer, while success delegates to the existing content-addressed Qualified Shadow launcher. It does not authorize Promotion.
 _Avoid_: Automatic approval, qualify-and-promote, workflow engine, Session-visible review state

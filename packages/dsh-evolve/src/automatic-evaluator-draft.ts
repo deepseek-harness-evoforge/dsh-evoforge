@@ -7,6 +7,11 @@ import type {
 import type { EvaluatorDraftInbox, EvaluatorDraftReceipt } from './evaluator-draft-inbox.ts'
 import type { EvolutionStore } from './generation-store.ts'
 import type { FeedbackSignalStore } from './feedback-signal-monitor.ts'
+import {
+  automaticEvolutionInflightStatus,
+  type AutomaticEvolutionInflightSource,
+  type AutomaticEvolutionInflightStatus,
+} from './automatic-evolution-inflight.ts'
 
 const MAX_TARGETS = 20
 
@@ -45,6 +50,7 @@ interface AutomaticEvaluatorDraftOptions {
   readonly evaluator: Pick<EvaluatorDraftInbox, 'available' | 'author'>
   readonly signals: Pick<FeedbackSignalStore, 'list'>
   readonly targets: AutomaticEvaluatorDraftTarget[]
+  readonly inflight: readonly AutomaticEvolutionInflightSource[]
   readonly budget: Pick<AutomaticEvolutionBudget, 'reserve' | 'inspect'>
   readonly now?: () => number
 }
@@ -54,6 +60,7 @@ export class AutomaticEvaluatorDraftService {
   private readonly options: AutomaticEvaluatorDraftOptions
   private readonly attemptedSignals = new Set<string>()
   private readonly deferredUntil = new Map<string, number>()
+  private readonly inflightDeferrals = new Map<string, Exclude<AutomaticEvolutionInflightStatus, 'clear'>>()
   private readonly now: () => number
 
   constructor(options: AutomaticEvaluatorDraftOptions) {
@@ -65,6 +72,7 @@ export class AutomaticEvaluatorDraftService {
   async scanOnce(): Promise<AutomaticEvaluatorDraftResult> {
     const authored: AutomaticEvaluatorDraftResult['authored'] = []
     const warnings: string[] = []
+    const blockedSkills = new Set<string>()
     if (!this.options.evaluator.available()) return { authored, warnings }
     const signals = this.options.signals.list()
     const currentSignals = new Set(signals.map(signal => signal.id))
@@ -93,6 +101,20 @@ export class AutomaticEvaluatorDraftService {
         break
       }
       const target = matches[0]!
+      if (blockedSkills.has(target.skill)) continue
+      const inflight = await automaticEvolutionInflightStatus(
+        target.skill,
+        signal.id,
+        this.options.inflight,
+      )
+      if (inflight !== 'clear') {
+        blockedSkills.add(target.skill)
+        const previous = this.inflightDeferrals.get(target.skill)
+        this.inflightDeferrals.set(target.skill, inflight)
+        if (previous !== inflight) warnings.push(inflightWarning(target.skill, inflight))
+        continue
+      }
+      this.inflightDeferrals.delete(target.skill)
       let reservation
       try {
         reservation = await this.options.budget.reserve(budgetTarget(target), signal.id)
@@ -153,6 +175,15 @@ export class AutomaticEvaluatorDraftService {
     }
     return { targets, warningCount }
   }
+}
+
+function inflightWarning(
+  skillName: string,
+  status: Exclude<AutomaticEvolutionInflightStatus, 'clear'>,
+): string {
+  return status === 'busy'
+    ? `automatic evolution deferred for Skill ${skillName} while prior work is unresolved`
+    : `automatic evolution deferred because prior-work state is unavailable for Skill ${skillName}`
 }
 
 export function assertAutomaticEvaluatorDraftTargets(

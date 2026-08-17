@@ -1,6 +1,6 @@
 # EvoForge 可证明自进化设计
 
-> 状态：P0A/P0B/P0C、P1.1–P1.17 与 P2D.1 implemented；包含最窄 opt-in 自动晋升、反事实 canary/回滚、显式反馈、私有 Draft、独立 evaluator、静态 Target、exact Retention、明确纠错自动 Shadow/自动 inactive evaluator Draft、人工 Qualify-and-Shadow 与持久日预算；真实 provider 与真实任务长期证据待完成
+> 状态：P0A/P0B/P0C、P1.1–P1.18 与 P2D.1 implemented；包含最窄 opt-in 自动晋升、反事实 canary/回滚、显式反馈、私有 Draft、独立 evaluator、静态 Target、exact Retention、明确纠错自动 Shadow/自动 inactive evaluator Draft、人工 Qualify-and-Shadow、持久日预算与每 Skill 单未决自动门；真实 provider 与真实任务长期证据待完成
 > 更新日期：2026-08-17
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 
@@ -686,3 +686,9 @@ P1.10 paid Shadow。失败时 proposer 为 `0`；qualification 已持久化后�
 分步动作和独立 Promotion 保留。普通 Session composition 不变。见
 [P1.17](p1-17-human-approved-qualify-and-shadow.zh.md)与
 [ADR-0037](../adr/0037-one-human-action-may-qualify-and-start-shadow.md)。
+
+P1.18 在 P1.14/P1.16 的预算预留前读取已有 Evaluator Draft、Shadow journal 与 actionable Review
+Candidate。同一 Skill 尚有未决自动工作时，新 Signal 留在原 store 后续再查，provider 与预算增量为
+零；状态不可读 fail closed。它不新增 queue/lease/config，也不限制逐次人工动作。见
+[P1.18](p1-18-per-skill-automatic-inflight-gate.zh.md)与
+[ADR-0039](../adr/0039-automatic-evolution-keeps-one-unresolved-path-per-skill.md)。

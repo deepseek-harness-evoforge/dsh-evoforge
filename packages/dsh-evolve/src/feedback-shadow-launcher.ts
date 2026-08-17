@@ -7,6 +7,7 @@ import type { GitSkillSource } from './git-skill-source.ts'
 import { hashTree } from './hash.ts'
 import { loadShadowRunState, type ShadowRunState } from './shadow-run-state.ts'
 import { runShadow, type ShadowOptions } from './shadow.ts'
+import type { AutomaticEvolutionInflightStatus } from './automatic-evolution-inflight.ts'
 
 const CONTENT_ID = /^[a-f0-9]{64}$/
 const TARGET_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
@@ -308,9 +309,39 @@ export class FeedbackShadowLauncher {
   }
 
   async scan(): Promise<FeedbackShadowScan> {
-    const runs: FeedbackShadowRunView[] = []
+    const scan = await this.scanRuns()
+    return {
+      runs: scan.runs.slice(0, MAX_RUNS).map(row => row.view),
+      warningCount: scan.warningCount,
+    }
+  }
+
+  async automaticInflightStatus(
+    skillName: string,
+    signalId: string,
+  ): Promise<AutomaticEvolutionInflightStatus> {
+    const scan = await this.scanRuns(skillName)
+    if (scan.targetCount === 0) return 'clear'
+    if (scan.warningCount > 0) return 'unknown'
+    return scan.runs.some(row => row.view.phase !== 'complete'
+      && row.view.phase !== 'incomplete'
+      && !(row.feedbackSignalId === signalId
+        && (row.view.phase === 'prepared' || row.view.phase === 'proposal-pending')))
+      ? 'busy'
+      : 'clear'
+  }
+
+  private async scanRuns(skillName?: string): Promise<{
+    runs: Array<{ view: FeedbackShadowRunView; feedbackSignalId?: string }>
+    warningCount: number
+    targetCount: number
+  }> {
+    const runs: Array<{ view: FeedbackShadowRunView; feedbackSignalId?: string }> = []
     let warningCount = 0
+    let targetCount = 0
     for (const target of this.runTargetsById.values()) {
+      if (skillName !== undefined && target.skill !== skillName) continue
+      targetCount += 1
       let root: string
       let entries
       try {
@@ -328,22 +359,27 @@ export class FeedbackShadowLauncher {
             warningCount += 1
             continue
           }
-          runs.push(Object.freeze({
-            launchId: entry.name,
-            targetId: target.id,
-            skillName: state.identity.skillName,
-            phase: state.phase,
-            startedAt: state.startedAt,
-            updatedAt: state.updatedAt,
-          }))
+          runs.push({
+            view: Object.freeze({
+              launchId: entry.name,
+              targetId: target.id,
+              skillName: state.identity.skillName,
+              phase: state.phase,
+              startedAt: state.startedAt,
+              updatedAt: state.updatedAt,
+            }),
+            ...(state.feedbackSignalId === undefined
+              ? {}
+              : { feedbackSignalId: state.feedbackSignalId }),
+          })
         } catch {
           warningCount += 1
         }
       }
     }
-    runs.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)
-      || left.launchId.localeCompare(right.launchId))
-    return { runs: runs.slice(0, MAX_RUNS), warningCount }
+    runs.sort((left, right) => right.view.updatedAt.localeCompare(left.view.updatedAt)
+      || left.view.launchId.localeCompare(right.view.launchId))
+    return { runs, warningCount, targetCount }
   }
 }
 

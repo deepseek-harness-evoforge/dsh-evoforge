@@ -182,6 +182,7 @@ export async function runShadow(options: ShadowOptions): Promise<
         startedAt,
         updatedAt: startedAt,
         identity,
+        ...(feedbackDraft === undefined ? {} : { feedbackSignalId: feedbackDraft.source.signalId }),
         resumeInputs,
       }
       await saveShadowRunState(outputDir, state)

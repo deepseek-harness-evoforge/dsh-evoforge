@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { lstat, readFile, readdir, realpath } from 'node:fs/promises'
 import { basename, isAbsolute, join, relative } from 'node:path'
 import { loadShadowRunState, writeDurableJson } from './shadow-run-state.ts'
+import type { AutomaticEvolutionInflightStatus } from './automatic-evolution-inflight.ts'
 
 export interface ReviewCaseSummary {
   id: string
@@ -69,6 +70,15 @@ export class ReviewInbox {
 
   async scan(): Promise<ReviewScan> {
     return this.scanCandidates(true)
+  }
+
+  async automaticInflightStatus(
+    skillName: string,
+    _signalId: string,
+  ): Promise<AutomaticEvolutionInflightStatus> {
+    const scan = await this.scan()
+    if (scan.warnings.length > 0) return 'unknown'
+    return scan.candidates.some(candidate => candidate.skillName === skillName) ? 'busy' : 'clear'
   }
 
   /** Include terminal dispositions for crash recovery by trusted host policies. */

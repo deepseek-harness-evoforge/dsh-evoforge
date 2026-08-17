@@ -268,13 +268,16 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     assertAutomaticFeedbackShadowTargets(automaticFeedbackTargets)
     automaticEvolutionBudget.assertTargets(automaticFeedbackTargets)
   }
-  const automaticFeedback = automaticFeedbackTargets.length === 0 || feedbackShadow === undefined
+  const automaticFeedback = automaticFeedbackTargets.length === 0
+    || feedbackShadow === undefined
+    || review === undefined
     ? undefined
     : new AutomaticFeedbackShadowService({
         evolution: store,
         shadow: feedbackShadow,
         signals: feedbackSignals,
         targets: automaticFeedbackTargets,
+        inflight: [feedbackShadow, review.inbox],
         budget: automaticEvolutionBudget,
       })
   const evaluatorDrafts = evaluatorTargets.length === 0
@@ -310,13 +313,20 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   }
   const automaticFeedbackSkills = new Set(automaticFeedbackTargets.map(target => target.skill))
   assertAutomaticEvaluatorDraftSeparation(automaticEvaluatorTargets, automaticFeedbackSkills)
-  const automaticEvaluator = automaticEvaluatorTargets.length === 0 || evaluatorDrafts === undefined
+  const automaticEvaluator = automaticEvaluatorTargets.length === 0
+    || evaluatorDrafts === undefined
+    || review === undefined
     ? undefined
     : new AutomaticEvaluatorDraftService({
         evolution: store,
         evaluator: evaluatorDrafts,
         signals: feedbackSignals,
         targets: automaticEvaluatorTargets,
+        inflight: [
+          evaluatorDrafts,
+          ...(feedbackShadow === undefined ? [] : [feedbackShadow]),
+          review.inbox,
+        ],
         budget: automaticEvolutionBudget,
       })
   const control = new EvolutionControlPlane({

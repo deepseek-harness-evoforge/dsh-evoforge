@@ -30,6 +30,8 @@ export interface ShadowRunState {
   startedAt: string
   updatedAt: string
   identity: ShadowRunIdentity
+  /** Reference-only source id used to distinguish crash reentry from a newer automatic signal. */
+  feedbackSignalId?: string
   /** Exact, non-secret inputs required for a resident DSH process to resume a sealed Trial. */
   resumeInputs?: {
     skillDir: string
@@ -119,6 +121,11 @@ export async function loadShadowRunState(outputDir: string): Promise<ShadowRunSt
   if (!['prepared', 'proposal-pending', 'candidate-ready', 'trial-running', 'complete', 'incomplete']
     .includes(value.phase)) {
     throw new Error(`Shadow run state has unsupported phase '${value.phase}'`)
+  }
+  if (value.feedbackSignalId !== undefined
+    && (typeof value.feedbackSignalId !== 'string'
+      || !/^[a-f0-9]{64}$/.test(value.feedbackSignalId))) {
+    throw new Error('Shadow run state has an invalid feedback Signal id')
   }
   if (value.resumeInputs !== undefined
     && (!isRecord(value.resumeInputs)
