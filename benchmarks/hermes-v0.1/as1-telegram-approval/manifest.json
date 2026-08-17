@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "as1-telegram-approval-replay-epoch-1",
+  "scope": "deterministic Telegram mobile approval identity and replay control; not real Bot delivery, model quality, or full gateway reliability",
+  "revisions": {
+    "deepseekHarness": "47f943859bef60e4160492346772ded9b24f765a",
+    "hermesAgent": "29d0cc2602e01943ab300c0382fc9d97efb376da"
+  },
+  "comparison": {
+    "model": "none",
+    "network": "disabled; Telegram Bot API replaced only at the transport boundary",
+    "samples": 1,
+    "task": "send one approval prompt, reject one wrong-user callback, accept one exact-user allow-once callback, then replay the accepted callback",
+    "primaryMetric": "protected actions resolved by unauthorized or replayed callbacks; lower is better",
+    "hardGates": [
+      "approval prompt exposes an allow-once action",
+      "wrong platform identity cannot resolve the approval",
+      "exact authorized identity resolves one approval",
+      "replaying the same callback cannot resolve a second action"
+    ]
+  }
+}

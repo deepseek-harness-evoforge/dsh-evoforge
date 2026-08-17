@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "benchmarkId": "as1-telegram-approval-replay-epoch-1",
+  "revisions": {
+    "deepseekHarness": "47f943859bef60e4160492346772ded9b24f765a",
+    "hermesAgent": "29d0cc2602e01943ab300c0382fc9d97efb376da"
+  },
+  "comparable": true,
+  "scope": "deterministic Telegram mobile approval identity and replay control; not real Bot delivery, model quality, or full gateway reliability",
+  "outcome": {
+    "evoforge": {
+      "promptSent": true,
+      "callbackAnswers": 2,
+      "protectedActionResolutions": 1,
+      "unauthorizedResolutions": 0,
+      "replayResolutions": 0,
+      "pendingAfterAuthorized": 0
+    },
+    "hermes": {
+      "promptSent": true,
+      "protectedActionResolutions": 1,
+      "unauthorizedResolutions": 0,
+      "replayResolutions": 0,
+      "pendingAfterAuthorized": 0,
+      "unauthorizedToast": "⛔ You are not authorized to approve commands.",
+      "replayToast": "This approval has already been resolved."
+    }
+  },
+  "primaryMetric": {
+    "name": "protected actions resolved by unauthorized or replayed callbacks",
+    "lowerIsBetter": true,
+    "evoforge": 0,
+    "hermes": 0
+  },
+  "hardGates": {
+    "evoforge": {
+      "promptTargetsExactChat": true,
+      "allowOnceShapeBounded": true,
+      "unauthorizedRejected": true,
+      "exactUserAllowedOnce": true,
+      "replayDidNotResolve": true
+    },
+    "hermes": {
+      "promptTargetsExactChat": true,
+      "allowOnceShapeBounded": true,
+      "unauthorizedRejected": true,
+      "exactUserAllowedOnce": true,
+      "replayDidNotResolve": true
+    }
+  },
+  "verdict": "tie on deterministic Telegram allow-once identity and replay control; no real-Bot, latency, delivery, or global superiority claim"
+}
