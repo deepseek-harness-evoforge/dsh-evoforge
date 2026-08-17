@@ -1,18 +1,16 @@
-#!/usr/bin/env node
-
+/** Pure user-level launchd/systemd adapter behind the DSH-native control command. */
 import { execFile as execFileCallback } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
 import { access, mkdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { promisify } from 'node:util'
-import { parseArgs } from 'node:util'
 
-type Manager = 'launchd' | 'systemd'
+export type Manager = 'launchd' | 'systemd'
 
 const execFile = promisify(execFileCallback)
 
-interface Plan {
+export interface Plan {
   schemaVersion: 1
   action: 'plan'
   manager: Manager
@@ -28,7 +26,7 @@ interface Plan {
   logRoot?: string
 }
 
-interface ServiceLocation {
+export interface ServiceLocation {
   manager: Manager
   serviceId: string
   unitPath: string
@@ -36,75 +34,7 @@ interface ServiceLocation {
   dshHome: string
 }
 
-const HELP = `Usage:
-  dsh-resident plan --profile <name> --dsh-entry <absolute-js-path> \\
-    --node-bin <absolute-node-path> --dsh-home <absolute-path> --cwd <absolute-path> \\
-    [--manager launchd|systemd]
-  dsh-resident apply <same options> --confirm-deployment
-  dsh-resident status --profile <name> --dsh-home <absolute-path> [--manager launchd|systemd]
-  dsh-resident remove --profile <name> --dsh-home <absolute-path> \\
-    [--manager launchd|systemd] --confirm-deployment
-`
-
-async function main(argv: readonly string[]): Promise<void> {
-  const [action, ...rest] = argv
-  if (action === undefined || action === '--help' || action === '-h') {
-    process.stdout.write(HELP)
-    return
-  }
-  if (action !== 'plan' && action !== 'apply' && action !== 'status' && action !== 'remove') {
-    throw new Error(`unknown action ${JSON.stringify(action)}`)
-  }
-  const { values } = parseArgs({
-    args: rest,
-    strict: true,
-    options: {
-      manager: { type: 'string' },
-      profile: { type: 'string' },
-      'dsh-entry': { type: 'string' },
-      'node-bin': { type: 'string' },
-      'dsh-home': { type: 'string' },
-      cwd: { type: 'string' },
-      'confirm-deployment': { type: 'boolean' },
-      help: { type: 'boolean', short: 'h' },
-    },
-  })
-  if (values.help === true) {
-    process.stdout.write(HELP)
-    return
-  }
-  if ((action === 'apply' || action === 'remove') && values['confirm-deployment'] !== true) {
-    throw new Error(`${action} requires --confirm-deployment`)
-  }
-  const manager = resolveManager(values.manager)
-  const profile = required(values.profile, '--profile')
-  const dshHomeInput = required(values['dsh-home'], '--dsh-home')
-  if (action === 'status' || action === 'remove') {
-    const location = await createLocation({ manager, profile, dshHome: dshHomeInput })
-    requireNativeManager(manager)
-    const output = action === 'status'
-      ? await status(location)
-      : await removeService(location)
-    process.stdout.write(`${JSON.stringify(output, null, 2)}\n`)
-    return
-  }
-  const plan = await createPlan({
-    manager,
-    profile,
-    dshEntry: required(values['dsh-entry'], '--dsh-entry'),
-    nodeBin: required(values['node-bin'], '--node-bin'),
-    dshHome: dshHomeInput,
-    cwd: required(values.cwd, '--cwd'),
-  })
-  if (action === 'plan') {
-    process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`)
-    return
-  }
-  requireNativeManager(manager)
-  process.stdout.write(`${JSON.stringify(await applyPlan(plan), null, 2)}\n`)
-}
-
-async function createPlan(input: {
+export async function createPlan(input: {
   manager: Manager
   profile: string
   dshEntry: string
@@ -170,7 +100,7 @@ async function createPlan(input: {
   }
 }
 
-async function createLocation(input: {
+export async function createLocation(input: {
   manager: Manager
   profile: string
   dshHome: string
@@ -200,7 +130,7 @@ async function createLocation(input: {
   }
 }
 
-async function applyPlan(plan: Plan): Promise<Record<string, unknown>> {
+export async function applyPlan(plan: Plan): Promise<Record<string, unknown>> {
   await mkdir(dirname(plan.unitPath), { recursive: true, mode: 0o700 })
   if (plan.logRoot !== undefined) await mkdir(plan.logRoot, { recursive: true, mode: 0o700 })
   await atomicWrite(plan.unitPath, plan.definition)
@@ -243,7 +173,7 @@ function appliedStatus(plan: Plan, registered: boolean, active: boolean): Record
   }
 }
 
-async function status(location: ServiceLocation): Promise<Record<string, unknown>> {
+export async function status(location: ServiceLocation): Promise<Record<string, unknown>> {
   if (location.manager === 'systemd') {
     const current = await systemdState(unitName(location.unitPath))
     return serviceStatus(location, current.registered, 'status', current.active)
@@ -252,7 +182,7 @@ async function status(location: ServiceLocation): Promise<Record<string, unknown
   return serviceStatus(location, current.registered, 'status', current.active)
 }
 
-async function removeService(location: ServiceLocation): Promise<Record<string, unknown>> {
+export async function removeService(location: ServiceLocation): Promise<Record<string, unknown>> {
   if (location.manager === 'systemd') {
     const unit = unitName(location.unitPath)
     const current = await systemdState(unit)
@@ -391,7 +321,7 @@ async function runLaunchctl(args: readonly string[]): Promise<string> {
   }
 }
 
-function requireNativeManager(manager: Manager): void {
+export function requireNativeManager(manager: Manager): void {
   if (manager === 'systemd'
     && process.env.NODE_ENV === 'test'
     && process.env.DSH_RESIDENT_TEST_SYSTEMCTL !== undefined) return
@@ -502,12 +432,7 @@ function escapeSystemdPath(value: string): string {
     .replace(/[\\ "'#;]/gu, character => `\\x${character.charCodeAt(0).toString(16).padStart(2, '0')}`)
 }
 
-function required(value: string | undefined, flag: string): string {
-  if (value === undefined || value === '') throw new Error(`${flag} is required`)
-  return value
-}
-
-function resolveManager(value: string | undefined): Manager {
+export function resolveManager(value: string | undefined): Manager {
   if (value === 'launchd' || value === 'systemd') return value
   if (value !== undefined) throw new Error('--manager must be launchd or systemd')
   if (process.platform === 'darwin') return 'launchd'
@@ -551,9 +476,3 @@ function absolute(value: string, flag: string): string {
   if (path !== value) throw new Error(`${flag} must be an absolute normalized path`)
   return path
 }
-
-main(process.argv.slice(2)).catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error)
-  process.stderr.write(`dsh-resident: ${message}\n`)
-  process.exitCode = 1
-})

@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const cli = join(packageRoot, 'src', 'cli.ts')
+const cli = join(packageRoot, 'test', 'fixtures', 'resident-driver.ts')
 const temporaryRoots: string[] = []
 
 afterEach(() => {

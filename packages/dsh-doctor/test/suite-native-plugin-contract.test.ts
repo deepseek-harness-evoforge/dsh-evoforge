@@ -37,6 +37,11 @@ const contracts = [
     entryId: 'evoforge-goal-continuity',
     disabled: true,
   },
+  {
+    name: 'dsh-resident',
+    entryId: 'evoforge-resident',
+    disabled: true,
+  },
 ] as const
 
 describe('EvoForge native DSH plugin suite contract', () => {

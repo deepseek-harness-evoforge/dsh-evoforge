@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 const execFile = promisify(execFileCallback)
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const cli = join(packageRoot, 'src', 'cli.ts')
+const cli = join(packageRoot, 'test', 'fixtures', 'resident-driver.ts')
 const fakeSystemctl = join(packageRoot, 'test', 'fixtures', 'fake-systemctl.mjs')
 const temporaryRoots: string[] = []
 

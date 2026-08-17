@@ -1,5 +1,5 @@
 import { execFile as execFileCallback } from 'node:child_process'
-import { access, mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
+import { access, mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { promisify } from 'node:util'
@@ -14,23 +14,13 @@ afterEach(async () => {
   await Promise.all(temporaryRoots.splice(0).map(path => rm(path, { recursive: true, force: true })))
 })
 
-describe('packed dsh-resident CLI boundary', () => {
-  it('installs its executable and renders a plan without source or dev dependencies', async () => {
+describe('packed dsh-resident Bundle boundary', () => {
+  it('publishes one DSH Bundle and no executable or second runtime', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-resident-package-'))
     temporaryRoots.push(root)
     const installRoot = join(root, 'install')
-    const dshHome = join(root, 'dsh-home')
-    const userHome = join(root, 'home')
-    const cwd = join(root, 'cwd')
-    const dshEntry = join(root, 'dsh.js')
-    await Promise.all([
-      mkdir(installRoot, { recursive: true }),
-      mkdir(dshHome, { recursive: true }),
-      mkdir(userHome, { recursive: true }),
-      mkdir(cwd, { recursive: true }),
-      writeFile(dshEntry, '#!/usr/bin/env node\n'),
-      writeFile(join(installRoot, 'package.json'), '{"private":true}\n'),
-    ])
+    await mkdir(installRoot, { recursive: true })
+    await writeFile(join(installRoot, 'package.json'), '{"private":true}\n')
 
     await execFile('pnpm', ['pack', '--pack-destination', root], {
       cwd: packageRoot,
@@ -44,25 +34,20 @@ describe('packed dsh-resident CLI boundary', () => {
       timeout: 30_000,
     })
     const binary = join(installRoot, 'node_modules', '.bin', 'dsh-resident')
-    await expect(access(binary)).resolves.toBeUndefined()
+    await expect(access(binary)).rejects.toThrow()
 
-    const output = await execFile(binary, [
-      'plan', '--manager', 'launchd', '--profile', 'fixture',
-      '--dsh-entry', dshEntry,
-      '--node-bin', process.execPath,
-      '--dsh-home', dshHome,
-      '--cwd', cwd,
-    ], {
-      cwd: installRoot,
-      env: { ...process.env, HOME: userHome },
-      encoding: 'utf8',
-      timeout: 10_000,
-    })
-    expect(JSON.parse(output.stdout)).toMatchObject({
-      action: 'plan',
-      manager: 'launchd',
-      profile: 'fixture',
-    })
-    expect(output.stderr).toBe('')
+    const installedRoot = join(installRoot, 'node_modules', 'dsh-resident')
+    const manifest = JSON.parse(await readFile(join(installedRoot, 'package.json'), 'utf8')) as {
+      bin?: unknown
+      exports?: Record<string, unknown>
+      dsh?: { bundle?: { patch?: string } }
+    }
+    expect(manifest.bin).toBeUndefined()
+    expect(manifest.dsh?.bundle?.patch).toBe('./cordis.patch.yml')
+    expect(manifest.exports?.['./cordis.patch.yml']).toBe('./cordis.patch.yml')
+    expect(await readFile(join(installedRoot, 'cordis.patch.yml'), 'utf8'))
+      .toContain('name: dsh-resident')
+    expect(await readFile(join(installedRoot, 'dist', 'index.mjs'), 'utf8'))
+      .toContain('const name = "dsh-resident"')
   }, 60_000)
 })
