@@ -11,6 +11,7 @@ import {
   openFeedbackSignalStore,
 } from '../src/feedback-signal-monitor.js'
 import { openEvolutionStore } from '../src/generation-store.js'
+import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const suiteRoot = resolve(packageRoot, '../..')
@@ -34,12 +35,18 @@ describe.skipIf(process.platform !== 'darwin')('explicit feedback learning signa
     temporaryRoots.push(root)
     const configPath = await writeStorageConfig(root)
     const ctx = await bootStorage(configPath)
+    installWorkspaceFixture(ctx)
     const evolution = await openEvolutionStore(ctx.storageDomain)
     const signals = await openFeedbackSignalStore(ctx.storageDomain)
     const source = await ctx.storageDomain.open(sourceFeedbackSpec)
-    const lifecycle = { sessionId: 'feedback-session', createdAt: 1_723_456_789_100, cwd: '/private/customer-repo' }
+    const lifecycle = {
+      workspaceId: WORKSPACE_ID,
+      sessionId: 'feedback-session',
+      createdAt: 1_723_456_789_100,
+      cwd: '/private/customer-repo',
+    }
     const generation = (await evolution.publishGeneration(generationInput())).generation
-    await evolution.promoteGeneration(generation.id)
+    await evolution.promoteGeneration(WORKSPACE_ID, generation.id)
     await evolution.pinSession(lifecycle)
     const monitor = installFeedbackSignalMonitor(ctx, signals, evolution, { now: () => 42 })
     const negativeVersion = '11111111-1111-4111-8111-111111111111'
@@ -77,13 +84,15 @@ describe.skipIf(process.platform !== 'darwin')('explicit feedback learning signa
       await monitor.flush()
 
       const expectedId = sha256(JSON.stringify([
+        WORKSPACE_ID,
         lifecycle.sessionId,
         'assistant-negative',
         negativeVersion,
       ]))
-      expect(signals.list()).toEqual([{
-        schemaVersion: 1,
+      expect(signals.list(WORKSPACE_ID)).toEqual([{
+        schemaVersion: 2,
         id: expectedId,
+        workspaceId: WORKSPACE_ID,
         observedAt: 42,
         sessionId: lifecycle.sessionId,
         messageId: 'assistant-negative',
@@ -91,11 +100,11 @@ describe.skipIf(process.platform !== 'darwin')('explicit feedback learning signa
         sourceUpdatedAt: 21,
         generationId: generation.id,
       }])
-      expect(signals.summarize(generation.id)).toEqual({ all: 1, selected: 1 })
-      expect(JSON.stringify(signals.list())).not.toContain(secretNote.trim())
-      expect(JSON.stringify(signals.list())).not.toContain(sha256(secretNote))
-      expect(JSON.stringify(signals.list())).not.toContain(lifecycle.cwd)
-      expect(JSON.stringify(signals.list())).not.toContain(sha256(JSON.stringify([
+      expect(signals.summarize(WORKSPACE_ID, generation.id)).toEqual({ all: 1, selected: 1 })
+      expect(JSON.stringify(signals.list(WORKSPACE_ID))).not.toContain(secretNote.trim())
+      expect(JSON.stringify(signals.list(WORKSPACE_ID))).not.toContain(sha256(secretNote))
+      expect(JSON.stringify(signals.list(WORKSPACE_ID))).not.toContain(lifecycle.cwd)
+      expect(JSON.stringify(signals.list(WORKSPACE_ID))).not.toContain(sha256(JSON.stringify([
         lifecycle.sessionId,
         lifecycle.createdAt,
         lifecycle.cwd,
@@ -113,7 +122,7 @@ describe.skipIf(process.platform !== 'darwin')('explicit feedback learning signa
         }],
       })
       await monitor.flush()
-      expect(signals.list()).toEqual([])
+      expect(signals.list(WORKSPACE_ID)).toEqual([])
     } finally {
       await monitor.dispose()
       await source.close()
@@ -125,7 +134,7 @@ describe.skipIf(process.platform !== 'darwin')('explicit feedback learning signa
     const resumed = await bootStorage(configPath)
     const recovered = await openFeedbackSignalStore(resumed.storageDomain)
     try {
-      expect(recovered.list()).toEqual([])
+      expect(recovered.list(WORKSPACE_ID)).toEqual([])
     } finally {
       await recovered.close()
       await resumed.fiber.dispose()
@@ -143,6 +152,7 @@ describe.skipIf(process.platform !== 'darwin')('explicit feedback learning signa
         const sessionId = `session-${index}`
         await firstStore.replaceSession({
           observedAt: index,
+          workspaceId: WORKSPACE_ID,
           sessionId,
           generationId: 'a'.repeat(64),
           items: [{
@@ -153,7 +163,7 @@ describe.skipIf(process.platform !== 'darwin')('explicit feedback learning signa
           }],
         })
       }
-      expect(firstStore.list().map(signal => signal.sessionId)).toEqual(['session-2', 'session-3'])
+      expect(firstStore.list(WORKSPACE_ID).map(signal => signal.sessionId)).toEqual(['session-2', 'session-3'])
     } finally {
       await firstStore.close()
       await first.fiber.dispose()
@@ -162,8 +172,8 @@ describe.skipIf(process.platform !== 'darwin')('explicit feedback learning signa
     const resumed = await bootStorage(configPath)
     const recovered = await openFeedbackSignalStore(resumed.storageDomain, { maxSessions: 2 })
     try {
-      expect(recovered.list().map(signal => signal.sessionId)).toEqual(['session-2', 'session-3'])
-      expect(recovered.summarize('a'.repeat(64))).toEqual({ all: 2, selected: 2 })
+      expect(recovered.list(WORKSPACE_ID).map(signal => signal.sessionId)).toEqual(['session-2', 'session-3'])
+      expect(recovered.summarize(WORKSPACE_ID, 'a'.repeat(64))).toEqual({ all: 2, selected: 2 })
     } finally {
       await recovered.close()
       await resumed.fiber.dispose()
@@ -173,6 +183,7 @@ describe.skipIf(process.platform !== 'darwin')('explicit feedback learning signa
 
 function generationInput() {
   return {
+    workspaceId: WORKSPACE_ID,
     createdAt: 1_723_456_789_000,
     artifacts: [{
       kind: 'skill' as const,
@@ -188,6 +199,13 @@ function generationInput() {
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex')
+}
+
+function installWorkspaceFixture(ctx: object): void {
+  Object.defineProperty(ctx, 'workspaceRegistry', {
+    configurable: true,
+    value: { resolveByPath: async () => ({ id: WORKSPACE_ID }) },
+  })
 }
 
 async function writeStorageConfig(root: string): Promise<string> {

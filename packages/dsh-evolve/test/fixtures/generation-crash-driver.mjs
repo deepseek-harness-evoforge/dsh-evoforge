@@ -22,10 +22,11 @@ if (action === 'before-publish') {
 } else if (action === 'after-promote') {
   const input = JSON.parse(await readFile(inputPath, 'utf8'))
   const generation = (await store.publishGeneration(input)).generation
-  await store.promoteGeneration(generation.id)
+  await store.promoteGeneration(input.workspaceId, generation.id)
   process.kill(process.pid, 'SIGKILL')
 } else if (action === 'after-rollback') {
-  await store.rollbackGeneration()
+  const input = JSON.parse(await readFile(inputPath, 'utf8'))
+  await store.rollbackGeneration(input.workspaceId)
   process.kill(process.pid, 'SIGKILL')
 } else {
   throw new Error(`unknown crash action '${action}'`)

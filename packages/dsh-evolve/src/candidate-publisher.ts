@@ -90,6 +90,7 @@ export class CandidatePublisher {
         throw new Error('review Candidate has an invalid startedAt timestamp')
       }
       const input = {
+        workspaceId: candidate.workspaceId,
         ...active === undefined ? {} : { parentId: active.id },
         createdAt,
         artifacts,
@@ -98,9 +99,9 @@ export class CandidatePublisher {
         compositionFingerprint: candidate.compositionFingerprint,
       }
       // Fail before Storage publication if the exact Git tree or Skill definition is invalid.
-      await this.source.providerFor({ id: '0'.repeat(64), schemaVersion: 1, ...input })
+      await this.source.providerFor({ id: '0'.repeat(64), schemaVersion: 2, ...input })
       const published = await this.store.publishGeneration(input)
-      if (this.store.getActiveGeneration()?.id !== active?.id) {
+      if (this.store.getActiveGeneration(candidate.workspaceId)?.id !== active?.id) {
         throw new Error('active Generation changed while the reviewed Candidate was being published')
       }
       return published.generation
@@ -111,7 +112,7 @@ export class CandidatePublisher {
   }
 
   private async resolveBaseline(candidate: ReviewCandidate) {
-    const active = this.store.getActiveGeneration()
+    const active = this.store.getActiveGeneration(candidate.workspaceId)
     const activeArtifacts = active?.artifacts ?? []
     if (active !== undefined) await this.source.providerFor(active)
     const prior = activeArtifacts.find(artifact => artifact.name === candidate.skillName)

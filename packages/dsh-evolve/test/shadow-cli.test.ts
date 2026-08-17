@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { afterEach, describe, expect, it } from 'vitest'
 import { hashTree, sha256 } from '../src/hash.js'
+import { WORKSPACE_ID } from './workspace-fixture.js'
 
 const execFileAsync = promisify(execFile)
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -47,6 +48,7 @@ async function createFixture() {
       {
         schemaVersion: 1,
         id: 'owned-path-boundary',
+        workspaceId: WORKSPACE_ID,
         epoch: {
           dshRevision: '0.1.0-rc.6',
           evaluatorVersion: 'p0a.1',
@@ -718,9 +720,10 @@ describe('dsh-evolve shadow', () => {
     const { correctedSkill, originalSkill, skillPath } = await configureBrowserTrial(fixture)
     const feedbackDraftPath = join(fixture.root, 'feedback-draft.json')
     const draftContent = {
-      schemaVersion: 1 as const,
+      schemaVersion: 2 as const,
       status: 'draft' as const,
       source: {
+        workspaceId: WORKSPACE_ID,
         signalId: '1'.repeat(64),
         sessionId: 'feedback-session',
         messageId: 'feedback-message',

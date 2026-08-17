@@ -9,6 +9,7 @@ import {
 } from '../src/feedback-shadow-launcher.ts'
 import { saveShadowRunState } from '../src/shadow-run-state.ts'
 import { hashTree } from '../src/hash.ts'
+import { WORKSPACE_ID, runRoot as ownedRunRoot } from './workspace-fixture.ts'
 
 const signalId = '1'.repeat(64)
 const draftId = '2'.repeat(64)
@@ -37,7 +38,7 @@ describe('FeedbackShadowLauncher', () => {
     const jobs = fakeJobs()
     const launcher = new FeedbackShadowLauncher({
       targets: [fixture.target],
-      supervisorRunRoots: [fixture.runRoot],
+      supervisorRunRoots: [ownedRunRoot(WORKSPACE_ID, fixture.runRoot)],
       drafts: () => fixture.drafts,
       source: fixture.source,
       runner,
@@ -45,12 +46,13 @@ describe('FeedbackShadowLauncher', () => {
     })
     launcher.attachJobs(jobs.registry)
 
-    const first = await launcher.launch(signalId, fixture.target.id)
-    const duplicate = await launcher.launch(signalId, fixture.target.id)
+    const first = await launcher.launch(WORKSPACE_ID, signalId, fixture.target.id)
+    const duplicate = await launcher.launch(WORKSPACE_ID, signalId, fixture.target.id)
 
     expect(first).toMatchObject({
       schemaVersion: 1,
       action: 'start-shadow',
+      workspaceId: WORKSPACE_ID,
       targetId: fixture.target.id,
       skillName: artifact.name,
       runStatus: 'scheduled',
@@ -69,7 +71,7 @@ describe('FeedbackShadowLauncher', () => {
       outputDir: join(await realpath(fixture.runRoot), first.launchId),
       resume: false,
     }))
-    expect(fixture.drafts.create).toHaveBeenCalledWith(signalId, artifact.name)
+    expect(fixture.drafts.create).toHaveBeenCalledWith(WORKSPACE_ID, signalId, artifact.name)
     expect(fixture.source.resolveArtifact).toHaveBeenCalledWith(artifact.name, artifact)
 
     release()
@@ -89,6 +91,7 @@ describe('FeedbackShadowLauncher', () => {
         startedAt: now,
         updatedAt: now,
         identity: {
+          workspaceId: WORKSPACE_ID,
           baseTreeHash: artifact.treeHash,
           casePackHash: '6'.repeat(64),
           dshRevision: '7'.repeat(40),
@@ -108,7 +111,7 @@ describe('FeedbackShadowLauncher', () => {
     })
     const launcher = new FeedbackShadowLauncher({
       targets: [fixture.target],
-      supervisorRunRoots: [fixture.runRoot],
+      supervisorRunRoots: [ownedRunRoot(WORKSPACE_ID, fixture.runRoot)],
       drafts: () => fixture.drafts,
       source: fixture.source,
       runner,
@@ -116,13 +119,14 @@ describe('FeedbackShadowLauncher', () => {
     })
     launcher.attachJobs(jobs.registry)
 
-    const first = await launcher.launch(signalId, fixture.target.id)
+    const first = await launcher.launch(WORKSPACE_ID, signalId, fixture.target.id)
     await jobs.hooks[0]!.done
-    const second = await launcher.launch(signalId, fixture.target.id)
+    const second = await launcher.launch(WORKSPACE_ID, signalId, fixture.target.id)
 
     expect(second).toEqual({
       schemaVersion: 1,
       action: 'start-shadow',
+      workspaceId: WORKSPACE_ID,
       launchId: first.launchId,
       targetId: fixture.target.id,
       skillName: artifact.name,
@@ -140,7 +144,7 @@ describe('FeedbackShadowLauncher', () => {
     const fixture = await setup()
     const launcher = new FeedbackShadowLauncher({
       targets: [fixture.target],
-      supervisorRunRoots: [fixture.runRoot],
+      supervisorRunRoots: [ownedRunRoot(WORKSPACE_ID, fixture.runRoot)],
       drafts: () => fixture.drafts,
       source: fixture.source,
       runner: vi.fn(),
@@ -156,6 +160,7 @@ describe('FeedbackShadowLauncher', () => {
       startedAt: '2026-08-17T00:00:00.000Z',
       updatedAt: '2026-08-17T00:00:00.000Z',
       identity: {
+        workspaceId: WORKSPACE_ID,
         baseTreeHash: artifact.treeHash,
         casePackHash: '6'.repeat(64),
         dshRevision: '7'.repeat(40),
@@ -169,12 +174,12 @@ describe('FeedbackShadowLauncher', () => {
     }
     await saveShadowRunState(runDir, state)
 
-    await expect(launcher.automaticInflightStatus(artifact.name, '9'.repeat(64)))
+    await expect(launcher.automaticInflightStatus(WORKSPACE_ID, artifact.name, '9'.repeat(64)))
       .resolves.toBe('busy')
-    await expect(launcher.automaticInflightStatus(artifact.name, signalId))
+    await expect(launcher.automaticInflightStatus(WORKSPACE_ID, artifact.name, signalId))
       .resolves.toBe('clear')
     expect((await launcher.scan()).runs[0]).not.toHaveProperty('feedbackSignalId')
-    await expect(launcher.automaticInflightStatus('unconfigured-skill', signalId))
+    await expect(launcher.automaticInflightStatus(WORKSPACE_ID, 'unconfigured-skill', signalId))
       .resolves.toBe('clear')
 
     await saveShadowRunState(runDir, {
@@ -182,7 +187,7 @@ describe('FeedbackShadowLauncher', () => {
       phase: 'candidate-ready',
       updatedAt: '2026-08-17T00:00:30.000Z',
     })
-    await expect(launcher.automaticInflightStatus(artifact.name, signalId))
+    await expect(launcher.automaticInflightStatus(WORKSPACE_ID, artifact.name, signalId))
       .resolves.toBe('busy')
 
     await saveShadowRunState(runDir, {
@@ -195,7 +200,7 @@ describe('FeedbackShadowLauncher', () => {
         reason: 'terminal fixture failure',
       },
     })
-    await expect(launcher.automaticInflightStatus(artifact.name, '9'.repeat(64)))
+    await expect(launcher.automaticInflightStatus(WORKSPACE_ID, artifact.name, '9'.repeat(64)))
       .resolves.toBe('clear')
   })
 
@@ -203,7 +208,7 @@ describe('FeedbackShadowLauncher', () => {
     const fixture = await setup()
     expect(() => new FeedbackShadowLauncher({
       targets: [{ ...fixture.target, runRoot: join(fixture.root, 'other-runs') }],
-      supervisorRunRoots: [fixture.runRoot],
+      supervisorRunRoots: [ownedRunRoot(WORKSPACE_ID, fixture.runRoot)],
       drafts: () => fixture.drafts,
       source: fixture.source,
       runner: vi.fn(),
@@ -211,14 +216,14 @@ describe('FeedbackShadowLauncher', () => {
 
     const launcher = new FeedbackShadowLauncher({
       targets: [fixture.target],
-      supervisorRunRoots: [fixture.runRoot],
+      supervisorRunRoots: [ownedRunRoot(WORKSPACE_ID, fixture.runRoot)],
       drafts: () => undefined,
       source: fixture.source,
       runner: vi.fn(),
       modelIdentity: () => 'fixed-route-v1',
     })
     launcher.attachJobs(fakeJobs().registry)
-    await expect(launcher.launch(signalId, fixture.target.id)).rejects.toThrow('private Feedback Case Draft')
+    await expect(launcher.launch(WORKSPACE_ID, signalId, fixture.target.id)).rejects.toThrow('private Feedback Case Draft')
   })
 
   it('does not overwrite an orphaned launch directory without a durable journal', async () => {
@@ -226,7 +231,7 @@ describe('FeedbackShadowLauncher', () => {
     const jobs = fakeJobs()
     const launcher = new FeedbackShadowLauncher({
       targets: [fixture.target],
-      supervisorRunRoots: [fixture.runRoot],
+      supervisorRunRoots: [ownedRunRoot(WORKSPACE_ID, fixture.runRoot)],
       drafts: () => fixture.drafts,
       source: fixture.source,
       runner: vi.fn(async () => ({
@@ -238,11 +243,11 @@ describe('FeedbackShadowLauncher', () => {
     })
     launcher.attachJobs(jobs.registry)
 
-    const first = await launcher.launch(signalId, fixture.target.id)
+    const first = await launcher.launch(WORKSPACE_ID, signalId, fixture.target.id)
     await jobs.hooks[0]!.done
     await mkdir(join(fixture.runRoot, first.launchId), { recursive: true })
 
-    await expect(launcher.launch(signalId, fixture.target.id))
+    await expect(launcher.launch(WORKSPACE_ID, signalId, fixture.target.id))
       .rejects.toThrow('exists without a durable journal')
     expect(jobs.starts).toHaveLength(1)
   })
@@ -260,6 +265,7 @@ describe('FeedbackShadowLauncher', () => {
         startedAt: now,
         updatedAt: now,
         identity: {
+          workspaceId: WORKSPACE_ID,
           baseTreeHash: artifact.treeHash,
           casePackHash: '6'.repeat(64),
           dshRevision: '7'.repeat(40),
@@ -285,10 +291,11 @@ describe('FeedbackShadowLauncher', () => {
       targets: [],
       monitoredTargets: [{
         id: fixture.target.id,
+        workspaceId: WORKSPACE_ID,
         skill: fixture.target.skill,
         runRoot: fixture.target.runRoot,
       }],
-      supervisorRunRoots: [fixture.runRoot],
+      supervisorRunRoots: [ownedRunRoot(WORKSPACE_ID, fixture.runRoot)],
       drafts: () => fixture.drafts,
       source: fixture.source,
       runner,
@@ -348,6 +355,7 @@ describe('FeedbackShadowLauncher', () => {
         startedAt: now,
         updatedAt: now,
         identity: {
+          workspaceId: WORKSPACE_ID,
           baseTreeHash: artifact.treeHash,
           casePackHash: await hashTree(fixture.casePackDir),
           dshRevision: '7'.repeat(40),
@@ -363,7 +371,7 @@ describe('FeedbackShadowLauncher', () => {
     })
     const launcher = new FeedbackShadowLauncher({
       targets: [fixture.target],
-      supervisorRunRoots: [fixture.runRoot],
+      supervisorRunRoots: [ownedRunRoot(WORKSPACE_ID, fixture.runRoot)],
       drafts: () => fixture.drafts,
       source: fixture.source,
       runner,
@@ -379,6 +387,7 @@ describe('FeedbackShadowLauncher', () => {
     expect(uncertain).toEqual({
       schemaVersion: 1,
       action: 'start-shadow',
+      workspaceId: WORKSPACE_ID,
       launchId: first.launchId,
       targetId: fixture.target.id,
       skillName: artifact.name,
@@ -402,6 +411,7 @@ async function setup() {
   await Promise.all([mkdir(runRoot), mkdir(casePackDir), mkdir(skillDir)])
   const target: FeedbackShadowTargetConfig = {
     id: 'plugin-delivery',
+    workspaceId: WORKSPACE_ID,
     skill: artifact.name,
     casePackDir,
     runRoot,
@@ -411,10 +421,11 @@ async function setup() {
       created: true,
       path: draftPath,
       draft: {
-        schemaVersion: 1 as const,
+        schemaVersion: 2 as const,
         id: draftId,
         status: 'draft' as const,
         source: {
+          workspaceId: WORKSPACE_ID,
           signalId,
           sessionId: 'session-1',
           messageId: 'message-1',

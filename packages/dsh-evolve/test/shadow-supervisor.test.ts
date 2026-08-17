@@ -7,6 +7,7 @@ import {
   ShadowSupervisor,
   type ShadowResumeInvocation,
 } from '../src/shadow-supervisor.js'
+import { WORKSPACE_ID, runRoot as ownedRunRoot } from './workspace-fixture.ts'
 
 const temporaryRoots: string[] = []
 
@@ -37,7 +38,7 @@ describe('Shadow supervisor', () => {
 
     const invocations: ShadowResumeInvocation[] = []
     const supervisor = new ShadowSupervisor({
-      runRoots: [runRoot],
+      runRoots: [ownedRunRoot(WORKSPACE_ID, runRoot)],
       scanIntervalMs: 10_000,
       runner: async invocation => {
         invocations.push(invocation)
@@ -71,7 +72,7 @@ describe('Shadow supervisor', () => {
       throw signal.reason
     })
     const supervisor = new ShadowSupervisor({
-      runRoots: [runRoot],
+      runRoots: [ownedRunRoot(WORKSPACE_ID, runRoot)],
       scanIntervalMs: 10_000,
       runner,
     })
@@ -94,7 +95,7 @@ describe('Shadow supervisor', () => {
     const errors: string[] = []
     const calls: string[] = []
     const supervisor = new ShadowSupervisor({
-      runRoots: [runRoot],
+      runRoots: [ownedRunRoot(WORKSPACE_ID, runRoot)],
       scanIntervalMs: 10_000,
       onError: (error, outputDir) => errors.push(`${outputDir}:${String(error)}`),
       runner: async (invocation) => {
@@ -118,7 +119,7 @@ describe('Shadow supervisor', () => {
     await writeRun(runRoot, 'candidate-ready', 'candidate-ready')
     let calls = 0
     const supervisor = new ShadowSupervisor({
-      runRoots: [runRoot],
+      runRoots: [ownedRunRoot(WORKSPACE_ID, runRoot)],
       scanIntervalMs: 10_000,
       runner: async (invocation) => {
         calls += 1
@@ -147,7 +148,7 @@ describe('Shadow supervisor', () => {
       throw new ShadowRecoveryCancelled('operator stop')
     })
     const supervisor = new ShadowSupervisor({
-      runRoots: [runRoot],
+      runRoots: [ownedRunRoot(WORKSPACE_ID, runRoot)],
       scanIntervalMs: 10_000,
       runner,
     })
@@ -167,9 +168,9 @@ describe('Shadow supervisor', () => {
       summary: 'done',
     }))
     const supervisor = new ShadowSupervisor({
-      runRoots: [runRoot],
+      runRoots: [ownedRunRoot(WORKSPACE_ID, runRoot)],
       scanIntervalMs: 10_000,
-      paused: true,
+      pausedWorkspaces: [WORKSPACE_ID],
       runner,
     })
 
@@ -177,7 +178,7 @@ describe('Shadow supervisor', () => {
     await supervisor.scanOnce()
     expect(runner).not.toHaveBeenCalled()
 
-    supervisor.resume()
+    supervisor.resume(WORKSPACE_ID)
     await supervisor.scanOnce()
     expect(runner).toHaveBeenCalledTimes(1)
     await supervisor.stop()
@@ -190,7 +191,7 @@ describe('Shadow supervisor', () => {
     const firstEntered = new Promise<void>(resolve => { entered = resolve })
     let calls = 0
     const supervisor = new ShadowSupervisor({
-      runRoots: [runRoot],
+      runRoots: [ownedRunRoot(WORKSPACE_ID, runRoot)],
       scanIntervalMs: 10_000,
       runner: async ({ signal }) => {
         calls += 1
@@ -203,12 +204,12 @@ describe('Shadow supervisor', () => {
 
     const active = supervisor.scanOnce()
     await firstEntered
-    await supervisor.pause()
+    await supervisor.pause(WORKSPACE_ID)
     await active
     await supervisor.scanOnce()
     expect(calls).toBe(1)
 
-    supervisor.resume()
+    supervisor.resume(WORKSPACE_ID)
     await supervisor.scanOnce()
     expect(calls).toBe(2)
     await supervisor.stop()
@@ -221,7 +222,7 @@ describe('Shadow supervisor', () => {
       .mockRejectedValueOnce(new Error('automatic policy unavailable'))
       .mockResolvedValueOnce(undefined)
     const supervisor = new ShadowSupervisor({
-      runRoots: [runRoot],
+      runRoots: [ownedRunRoot(WORKSPACE_ID, runRoot)],
       scanIntervalMs: 10_000,
       afterScan,
       onError: (error, path) => errors.push(`${path}:${String(error)}`),
@@ -231,7 +232,7 @@ describe('Shadow supervisor', () => {
     await supervisor.scanOnce()
 
     expect(afterScan).toHaveBeenCalledTimes(2)
-    expect(errors).toEqual(['automatic-promotion:Error: automatic policy unavailable'])
+    expect(errors).toEqual([`automatic-promotion:${WORKSPACE_ID}:Error: automatic policy unavailable`])
   })
 
   it('aborts active post-scan evolution work when the resident supervisor stops', async () => {
@@ -244,7 +245,7 @@ describe('Shadow supervisor', () => {
       throw signal.reason
     })
     const supervisor = new ShadowSupervisor({
-      runRoots: [runRoot],
+      runRoots: [ownedRunRoot(WORKSPACE_ID, runRoot)],
       scanIntervalMs: 10_000,
       afterScan,
     })
@@ -282,6 +283,7 @@ async function writeRun(
     startedAt: '2026-08-16T00:00:00.000Z',
     updatedAt: '2026-08-16T00:00:00.000Z',
     identity: {
+      workspaceId: WORKSPACE_ID,
       baseTreeHash: 'b'.repeat(64),
       casePackHash: 'c'.repeat(64),
       dshRevision: 'fixture',

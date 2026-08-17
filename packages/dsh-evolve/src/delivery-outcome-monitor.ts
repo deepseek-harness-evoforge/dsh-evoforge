@@ -34,6 +34,7 @@ const deliveryResultSchema = z.object({
 
 export interface DeliveryOutcomeInput {
   readonly observedAt: number
+  readonly workspaceId: string
   readonly sessionId: string
   readonly callId: string
   readonly generationId?: string | undefined
@@ -50,7 +51,7 @@ export interface DeliveryOutcomeInput {
 
 export interface DeliveryOutcome extends DeliveryOutcomeInput {
   readonly id: string
-  readonly schemaVersion: 1
+  readonly schemaVersion: 2
 }
 
 export interface DeliveryOutcomeCounts {
@@ -68,8 +69,9 @@ export interface DeliveryOutcomeSummary {
 
 export interface DeliveryOutcomeStore {
   record(input: DeliveryOutcomeInput): Promise<{ created: boolean; outcome: DeliveryOutcome }>
-  list(): DeliveryOutcome[]
+  list(workspaceId?: string): DeliveryOutcome[]
   summarize(
+    workspaceId: string,
     selectedGenerationId?: string,
     options?: { readonly baselineGenerationId?: string },
   ): DeliveryOutcomeSummary
@@ -82,8 +84,9 @@ export interface DeliveryOutcomeMonitor {
 }
 
 const outcomeContentSchema = z.strictObject({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(2),
   observedAt: z.number().int().nonnegative(),
+  workspaceId: z.uuid(),
   sessionId: z.string().min(1).max(256),
   callId: z.string().min(1).max(512),
   generationId: hashSchema.optional(),
@@ -97,7 +100,7 @@ const outcomeSchema = outcomeContentSchema.extend({ id: hashSchema })
 
 const deliveryOutcomeDomainSpec = defineDomain({
   name: 'evoforge_delivery_outcomes',
-  version: 1,
+  version: 2,
   tables: {
     outcomes: domainTable<string, DeliveryOutcome>(outcomeSchema),
   },
@@ -124,6 +127,7 @@ class DomainDeliveryOutcomeStore implements DeliveryOutcomeStore {
   }
 
   summarize(
+    workspaceId: string,
     selectedGenerationId?: string,
     options?: { readonly baselineGenerationId?: string },
   ): DeliveryOutcomeSummary {
@@ -131,6 +135,7 @@ class DomainDeliveryOutcomeStore implements DeliveryOutcomeStore {
     const selected = emptyCounts()
     const baseline = options === undefined ? undefined : emptyCounts()
     for (const [, outcome] of this.domain.table('outcomes').entries()) {
+      if (outcome.workspaceId !== workspaceId) continue
       increment(all, outcome.status)
       if (outcome.generationId === selectedGenerationId) increment(selected, outcome.status)
       if (baseline !== undefined
@@ -139,8 +144,9 @@ class DomainDeliveryOutcomeStore implements DeliveryOutcomeStore {
     return { all, selected, ...(baseline === undefined ? {} : { baseline }) }
   }
 
-  list(): DeliveryOutcome[] {
+  list(workspaceId?: string): DeliveryOutcome[] {
     return [...this.domain.table('outcomes').entries()].map(([, outcome]) => outcome)
+      .filter(outcome => workspaceId === undefined || outcome.workspaceId === workspaceId)
       .sort((left, right) => left.observedAt - right.observedAt || left.id.localeCompare(right.id))
       .map(immutableCopy)
   }
@@ -154,9 +160,9 @@ class DomainDeliveryOutcomeStore implements DeliveryOutcomeStore {
     created: boolean
     outcome: DeliveryOutcome
   }> {
-    const content = outcomeContentSchema.parse({ schemaVersion: 1, ...input })
+    const content = outcomeContentSchema.parse({ schemaVersion: 2, ...input })
     const id = createHash('sha256')
-      .update(JSON.stringify([content.sessionId, content.callId]))
+      .update(JSON.stringify([content.workspaceId, content.sessionId, content.callId]))
       .digest('hex')
     const table = this.domain.table('outcomes')
     const existing = table.get(id)
@@ -199,22 +205,20 @@ export function installDeliveryOutcomeMonitor(
     if (disposed || execution.name !== 'complete_delivery' || execution.agent === undefined) return
     const parsed = parseDeliveryResult(result)
     if (parsed === undefined) return
-    const identity = sessionIdentityOf(execution.agent)
-    const input = {
-      observedAt: now(),
-      sessionId: identity.sessionId,
-      callId: String(execution.callId),
-      goal: parsed.goal,
-      status: parsed.status,
-      reason: parsed.reason,
-      ...(parsed.commit === undefined ? {} : { commit: parsed.commit }),
-      ...(parsed.draftPrNumber === undefined ? {} : { draftPrNumber: parsed.draftPrNumber }),
-    } satisfies Omit<DeliveryOutcomeInput, 'generationId'>
     tail = tail.then(async () => {
       try {
+        const identity = await sessionIdentityOf(ctx, execution.agent!)
         const generationId = evolution.getSessionGeneration(identity)?.id
         await outcomes.record({
-          ...input,
+          observedAt: now(),
+          workspaceId: identity.workspaceId,
+          sessionId: identity.sessionId,
+          callId: String(execution.callId),
+          goal: parsed.goal,
+          status: parsed.status,
+          reason: parsed.reason,
+          ...(parsed.commit === undefined ? {} : { commit: parsed.commit }),
+          ...(parsed.draftPrNumber === undefined ? {} : { draftPrNumber: parsed.draftPrNumber }),
           ...(generationId === undefined ? {} : { generationId }),
         })
       } catch (error) {

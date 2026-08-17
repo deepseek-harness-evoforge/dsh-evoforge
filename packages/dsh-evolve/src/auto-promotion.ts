@@ -82,7 +82,7 @@ export class AutoPromotionPolicy {
     }
 
     try {
-      const active = this.store.getActiveGeneration()
+      const active = this.store.getActiveGeneration(candidate.workspaceId)
       const prior = active?.artifacts.find(artifact => artifact.name === candidate.skillName)
       if (active !== undefined && prior === undefined) {
         reasons.push('active Generation has no exact baseline artifact for the Skill')
@@ -137,12 +137,13 @@ export class AutoPromotionService {
     this.options = options
   }
 
-  async scanOnce(): Promise<{ promoted: string[]; warnings: string[] }> {
+  async scanOnce(workspaceId: string): Promise<{ promoted: string[]; warnings: string[] }> {
     const scan = await this.options.inbox.scanAll()
     const warnings: string[] = []
     for (const warning of scan.warnings) this.report('inbox', warning, warnings)
     const promoted: string[] = []
     for (const candidate of scan.candidates) {
+      if (candidate.workspaceId !== workspaceId) continue
       if (candidate.status === 'rejected'
         || candidate.activatedAt !== undefined
         || (candidate.status === 'approved' && candidate.decisionActor !== AUTO_PROMOTION_ACTOR)) {
@@ -162,7 +163,7 @@ export class AutoPromotionService {
           generationId = approved.generationId
         }
         if (generationId === undefined) throw new Error('automatic approval has no Generation id')
-        await this.options.store.promoteGeneration(generationId)
+        await this.options.store.promoteGeneration(candidate.workspaceId, generationId)
         await this.options.inbox.markAutomaticActivated(candidate.id, generationId)
         promoted.push(generationId)
         this.reportedWarnings.delete(candidate.id)

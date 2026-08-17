@@ -15,6 +15,7 @@ export interface SkillGenerationArtifact {
 }
 
 export interface GenerationInput {
+  workspaceId: string
   parentId?: string | undefined
   createdAt: number
   artifacts: SkillGenerationArtifact[]
@@ -25,10 +26,11 @@ export interface GenerationInput {
 
 export interface CapabilityGeneration extends GenerationInput {
   id: string
-  schemaVersion: 1
+  schemaVersion: 2
 }
 
 export interface SessionIdentity {
+  workspaceId: string
   sessionId: string
   createdAt: number
   cwd?: string | undefined
@@ -40,12 +42,12 @@ export interface EvolutionStore {
     generation: CapabilityGeneration
   }>
   getGeneration(id: string): CapabilityGeneration | undefined
-  getActiveGeneration(): CapabilityGeneration | undefined
-  promoteGeneration(id: string): Promise<{
+  getActiveGeneration(workspaceId: string): CapabilityGeneration | undefined
+  promoteGeneration(workspaceId: string, id: string): Promise<{
     previousId: string | undefined
     generation: CapabilityGeneration
   }>
-  rollbackGeneration(): Promise<{
+  rollbackGeneration(workspaceId: string): Promise<{
     previousId: string
     generation: CapabilityGeneration | undefined
   }>
@@ -55,12 +57,13 @@ export interface EvolutionStore {
   ): Promise<CapabilityGeneration | undefined>
   fallbackSessionToNative(identity: SessionIdentity): Promise<void>
   getSessionGeneration(identity: SessionIdentity): CapabilityGeneration | undefined
-  isRecoveryPaused(): boolean
-  setRecoveryPaused(paused: boolean): Promise<{ changed: boolean; paused: boolean }>
+  isRecoveryPaused(workspaceId: string): boolean
+  setRecoveryPaused(workspaceId: string, paused: boolean): Promise<{ changed: boolean; paused: boolean }>
   close(): Promise<void>
 }
 
 const hashSchema = z.string().regex(/^[a-f0-9]{64}$/)
+const workspaceIdSchema = z.uuid()
 const gitObjectSchema = z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/)
 const gitCommitSchema = z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/)
 const artifactSchema = z.strictObject({
@@ -70,7 +73,8 @@ const artifactSchema = z.strictObject({
   treeHash: gitObjectSchema,
 })
 const generationContentSchema = z.strictObject({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(2),
+  workspaceId: workspaceIdSchema,
   parentId: hashSchema.optional(),
   createdAt: z.number().int().nonnegative(),
   artifacts: z.array(artifactSchema).min(1),
@@ -79,12 +83,17 @@ const generationContentSchema = z.strictObject({
   compositionFingerprint: hashSchema,
 })
 const generationSchema = generationContentSchema.extend({ id: hashSchema })
-const generationPointerSchema = z.strictObject({
+const evolutionGlobalSchema = z.strictObject({
+  schemaVersion: z.literal(2),
+})
+const workspaceStateSchema = z.strictObject({
+  workspaceId: workspaceIdSchema,
   activeGenerationId: hashSchema.optional(),
   recoveryPaused: z.boolean().optional(),
 })
-type GenerationPointer = z.infer<typeof generationPointerSchema>
+type WorkspaceEvolutionState = z.infer<typeof workspaceStateSchema>
 const sessionIdentitySchema = z.strictObject({
+  workspaceId: workspaceIdSchema,
   sessionId: z.string().min(1),
   createdAt: z.number().int().nonnegative(),
   cwd: z.string().min(1).optional(),
@@ -95,13 +104,14 @@ const sessionPinSchema = z.strictObject({
 })
 const evolutionDomainSpec = defineDomain({
   name: 'evoforge_evolution',
-  version: 1,
+  version: 2,
   global: {
-    schema: generationPointerSchema,
-    initial: {} as GenerationPointer,
+    schema: evolutionGlobalSchema,
+    initial: { schemaVersion: 2 },
   },
   tables: {
     generations: domainTable<string, CapabilityGeneration>(generationSchema),
+    workspace_states: domainTable<string, WorkspaceEvolutionState>(workspaceStateSchema),
     session_pins: domainTable<string, {
       identity: SessionIdentity
       generationId?: string | undefined
@@ -134,40 +144,48 @@ class DomainEvolutionStore implements EvolutionStore {
     return stored === undefined ? undefined : immutableCopy(stored)
   }
 
-  getActiveGeneration(): CapabilityGeneration | undefined {
-    const id = this.domain.global.get().activeGenerationId
+  getActiveGeneration(workspaceId: string): CapabilityGeneration | undefined {
+    const exactWorkspaceId = workspaceIdSchema.parse(workspaceId)
+    const id = this.domain.table('workspace_states').get(exactWorkspaceId)?.activeGenerationId
     if (id === undefined) return undefined
     const generation = this.getGeneration(id)
     if (generation === undefined) {
-      throw new Error(`active Generation '${id}' is missing`)
+      throw new Error(`Workspace '${exactWorkspaceId}' active Generation '${id}' is missing`)
+    }
+    if (generation.workspaceId !== exactWorkspaceId) {
+      throw new Error(`active Generation '${id}' belongs to Workspace '${generation.workspaceId}'`)
     }
     return generation
   }
 
-  isRecoveryPaused(): boolean {
-    return this.domain.global.get().recoveryPaused === true
+  isRecoveryPaused(workspaceId: string): boolean {
+    const exactWorkspaceId = workspaceIdSchema.parse(workspaceId)
+    return this.domain.table('workspace_states').get(exactWorkspaceId)?.recoveryPaused === true
   }
 
-  setRecoveryPaused(paused: boolean): Promise<{ changed: boolean; paused: boolean }> {
-    const result = this.writeTail.then(() => this.setRecoveryPausedNow(paused))
+  setRecoveryPaused(workspaceId: string, paused: boolean): Promise<{ changed: boolean; paused: boolean }> {
+    const exactWorkspaceId = workspaceIdSchema.parse(workspaceId)
+    const result = this.writeTail.then(() => this.setRecoveryPausedNow(exactWorkspaceId, paused))
     this.writeTail = result.then(() => {}, () => {})
     return result
   }
 
-  promoteGeneration(id: string): Promise<{
+  promoteGeneration(workspaceId: string, id: string): Promise<{
     previousId: string | undefined
     generation: CapabilityGeneration
   }> {
-    const result = this.writeTail.then(() => this.promoteNow(id))
+    const exactWorkspaceId = workspaceIdSchema.parse(workspaceId)
+    const result = this.writeTail.then(() => this.promoteNow(exactWorkspaceId, id))
     this.writeTail = result.then(() => {}, () => {})
     return result
   }
 
-  rollbackGeneration(): Promise<{
+  rollbackGeneration(workspaceId: string): Promise<{
     previousId: string
     generation: CapabilityGeneration | undefined
   }> {
-    const result = this.writeTail.then(() => this.rollbackNow())
+    const exactWorkspaceId = workspaceIdSchema.parse(workspaceId)
+    const result = this.writeTail.then(() => this.rollbackNow(exactWorkspaceId))
     this.writeTail = result.then(() => {}, () => {})
     return result
   }
@@ -201,6 +219,11 @@ class DomainEvolutionStore implements EvolutionStore {
         `Session pin '${normalized.sessionId}' references missing Generation '${pin.generationId}'`,
       )
     }
+    if (generation.workspaceId !== normalized.workspaceId) {
+      throw new Error(
+        `Session pin '${normalized.sessionId}' references Generation '${pin.generationId}' from Workspace '${generation.workspaceId}'`,
+      )
+    }
     return generation
   }
 
@@ -213,7 +236,16 @@ class DomainEvolutionStore implements EvolutionStore {
     created: boolean
     generation: CapabilityGeneration
   }> {
-    const content = generationContentSchema.parse({ schemaVersion: 1, ...input })
+    const content = generationContentSchema.parse({ schemaVersion: 2, ...input })
+    if (content.parentId !== undefined) {
+      const parent = this.getGeneration(content.parentId)
+      if (parent === undefined) throw new Error(`parent Generation '${content.parentId}' is missing`)
+      if (parent.workspaceId !== content.workspaceId) {
+        throw new Error(
+          `parent Generation '${content.parentId}' belongs to Workspace '${parent.workspaceId}', not '${content.workspaceId}'`,
+        )
+      }
+    }
     const id = createHash('sha256').update(canonicalJson(content)).digest('hex')
     const generation = immutableCopy(generationSchema.parse({ ...content, id }))
     const table = this.domain.table('generations')
@@ -228,13 +260,16 @@ class DomainEvolutionStore implements EvolutionStore {
     return { created: true, generation }
   }
 
-  private async promoteNow(id: string): Promise<{
+  private async promoteNow(workspaceId: string, id: string): Promise<{
     previousId: string | undefined
     generation: CapabilityGeneration
   }> {
     const generation = this.getGeneration(id)
     if (generation === undefined) throw new Error(`Generation '${id}' does not exist`)
-    const previousId = this.domain.global.get().activeGenerationId
+    if (generation.workspaceId !== workspaceId) {
+      throw new Error(`Generation '${id}' belongs to Workspace '${generation.workspaceId}', not '${workspaceId}'`)
+    }
+    const previousId = this.workspaceState(workspaceId).activeGenerationId
     if (previousId !== id && generation.parentId !== previousId) {
       throw new Error(
         previousId === undefined
@@ -242,52 +277,63 @@ class DomainEvolutionStore implements EvolutionStore {
           : `Generation '${id}' is not a child of active Generation '${previousId}'`,
       )
     }
-    if (previousId !== id) await this.domain.global.set(this.pointerWithActive(id))
+    if (previousId !== id) await this.putWorkspaceState(workspaceId, id)
     return { previousId, generation }
   }
 
-  private async rollbackNow(): Promise<{
+  private async rollbackNow(workspaceId: string): Promise<{
     previousId: string
     generation: CapabilityGeneration | undefined
   }> {
-    const previousId = this.domain.global.get().activeGenerationId
-    if (previousId === undefined) throw new Error('no active Generation to roll back')
+    const previousId = this.workspaceState(workspaceId).activeGenerationId
+    if (previousId === undefined) throw new Error(`Workspace '${workspaceId}' has no active Generation to roll back`)
     const active = this.getGeneration(previousId)
     if (active === undefined) throw new Error(`active Generation '${previousId}' is missing`)
+    if (active.workspaceId !== workspaceId) {
+      throw new Error(`active Generation '${previousId}' belongs to Workspace '${active.workspaceId}'`)
+    }
     if (active.parentId === undefined) {
-      await this.domain.global.set(this.pointerWithActive())
+      await this.putWorkspaceState(workspaceId)
       return { previousId, generation: undefined }
     }
     const generation = this.getGeneration(active.parentId)
     if (generation === undefined) {
       throw new Error(`parent Generation '${active.parentId}' is missing`)
     }
-    await this.domain.global.set(this.pointerWithActive(generation.id))
+    if (generation.workspaceId !== workspaceId) {
+      throw new Error(`parent Generation '${generation.id}' belongs to Workspace '${generation.workspaceId}'`)
+    }
+    await this.putWorkspaceState(workspaceId, generation.id)
     return { previousId, generation }
   }
 
   private async setRecoveryPausedNow(
+    workspaceId: string,
     paused: boolean,
   ): Promise<{ changed: boolean; paused: boolean }> {
-    const current = this.domain.global.get()
+    const current = this.workspaceState(workspaceId)
     const changed = (current.recoveryPaused === true) !== paused
     if (changed) {
-      await this.domain.global.set({
-        ...current.activeGenerationId === undefined
-          ? {}
-          : { activeGenerationId: current.activeGenerationId },
+      await this.domain.table('workspace_states').put(workspaceId, {
+        workspaceId,
+        ...(current.activeGenerationId === undefined ? {} : { activeGenerationId: current.activeGenerationId }),
         recoveryPaused: paused,
       })
     }
     return { changed, paused }
   }
 
-  private pointerWithActive(activeGenerationId?: string): GenerationPointer {
-    const recoveryPaused = this.domain.global.get().recoveryPaused
-    return {
-      ...activeGenerationId === undefined ? {} : { activeGenerationId },
-      ...recoveryPaused === undefined ? {} : { recoveryPaused },
-    }
+  private workspaceState(workspaceId: string): WorkspaceEvolutionState {
+    return this.domain.table('workspace_states').get(workspaceId) ?? { workspaceId }
+  }
+
+  private async putWorkspaceState(workspaceId: string, activeGenerationId?: string): Promise<void> {
+    const recoveryPaused = this.workspaceState(workspaceId).recoveryPaused
+    await this.domain.table('workspace_states').put(workspaceId, {
+      workspaceId,
+      ...(activeGenerationId === undefined ? {} : { activeGenerationId }),
+      ...(recoveryPaused === undefined ? {} : { recoveryPaused }),
+    })
   }
 
   private async pinNow(
@@ -306,16 +352,26 @@ class DomainEvolutionStore implements EvolutionStore {
           `Session pin '${normalized.sessionId}' references missing Generation '${existingPin.generationId}'`,
         )
       }
+      if (existing.workspaceId !== normalized.workspaceId) {
+        throw new Error(
+          `Session pin '${normalized.sessionId}' references Generation '${existing.id}' from Workspace '${existing.workspaceId}'`,
+        )
+      }
       return existing
     }
 
     let generation: CapabilityGeneration | undefined
     if (options?.parentSessionId === undefined) {
-      generation = this.getActiveGeneration()
+      generation = this.getActiveGeneration(normalized.workspaceId)
     } else {
       const parentPin = this.domain.table('session_pins').get(options.parentSessionId)
       if (parentPin === undefined) {
         throw new Error(`parent Session '${options.parentSessionId}' has no Generation pin`)
+      }
+      if (parentPin.identity.workspaceId !== normalized.workspaceId) {
+        throw new Error(
+          `parent Session '${options.parentSessionId}' belongs to a different Workspace '${parentPin.identity.workspaceId}'`,
+        )
       }
       generation = parentPin.generationId === undefined
         ? undefined
@@ -324,6 +380,9 @@ class DomainEvolutionStore implements EvolutionStore {
         throw new Error(
           `parent Session '${options.parentSessionId}' references missing Generation '${parentPin.generationId}'`,
         )
+      }
+      if (generation !== undefined && generation.workspaceId !== normalized.workspaceId) {
+        throw new Error(`parent Session Generation '${generation.id}' belongs to a different Workspace`)
       }
     }
 

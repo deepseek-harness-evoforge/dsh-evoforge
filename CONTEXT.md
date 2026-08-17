@@ -91,7 +91,7 @@ A compact factual observation linked to an existing DSH session or artifact, suc
 _Avoid_: Full transcript copy, model reflection
 
 **Evolution Candidate**:
-An inactive, versioned diff to an owned capability, accompanied by a falsifiable improvement claim and a trial plan. Candidate creation cannot alter any active session.
+An inactive, versioned diff owned by exactly one registered DSH Workspace, accompanied by a falsifiable improvement claim and a trial plan. Candidate creation cannot alter any active session or be reviewed, promoted, or reused from another Workspace.
 _Avoid_: Live patch, learned rule
 
 **Trial**:
@@ -107,8 +107,12 @@ An atomic selection of a proven candidate for future sessions. Clear improvement
 _Avoid_: Merge, in-place edit
 
 **Capability Generation**:
-An immutable set of active capability versions selected for a session. Existing sessions keep their generation; promotion affects only later sessions so behavior and the model-visible prefix do not drift mid-session.
+An immutable, content-addressed set of capability versions owned by exactly one registered DSH Workspace and selected for one of its sessions. Existing sessions keep their generation; promotion affects only later sessions in that same Workspace, so behavior and the model-visible prefix do not drift mid-session.
 _Avoid_: Latest files, mutable skill catalog
+
+**Evolution Workspace**:
+The registered DSH Workspace whose stable native id is the mandatory ownership boundary for a Generation, Candidate, Case Pack, feedback signal, budget reservation, review decision, promotion, and rollback.
+_Avoid_: Global evolution namespace, cwd prefix, channel account
 
 **Software Delivery Pack**:
 The optional `dsh-software-delivery` capability that takes a native DSH Goal through isolated editing, repository-defined verification, commit, and Draft PR. A host may also require at least one green remote check on the exact Draft PR head before this path completes the Goal. Git-specific behavior belongs here rather than in generic Goal infrastructure.
@@ -131,7 +135,7 @@ A host-only, read-only comparison of bounded delivery outcome counts attributed 
 _Avoid_: A/B platform, automatic verdict, improvement percentage, task-normalized benchmark
 
 **Explicit Feedback Signal**:
-A retractable, reference-only projection of one current DSH message-feedback item that is negative and carries a non-blank human note. It stores the DSH feedback version and Session/message/Generation references, but never copies the note, note hash, cwd, Prompt, Transcript, or message body. It may justify later Candidate investigation; it never authorizes a mutation by itself.
+A retractable, reference-only projection owned by the same Evolution Workspace as one current negative DSH message-feedback item with a non-blank human note. It stores the Workspace, DSH feedback version and Session/message/Generation references, but never copies the note, note hash, cwd, Prompt, Transcript, or message body. It may justify later Candidate investigation; it never authorizes a mutation by itself.
 _Avoid_: `/learn` command, feedback memory, transcript copy, automatic Skill edit
 
 **Feedback Case Draft**:

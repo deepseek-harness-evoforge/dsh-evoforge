@@ -8,6 +8,7 @@ import {
   type AutomaticRetentionTargetConfig,
 } from '../src/automatic-retention.ts'
 import type { ReviewCandidate, ReviewInbox } from '../src/review-inbox.ts'
+import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const temporaryRoots: string[] = []
 
@@ -49,7 +50,7 @@ describe('automatic Retention', () => {
       targets: [target(casePackDir, runRoot)],
     })
 
-    await expect(service.scanOnce(new AbortController().signal)).resolves.toEqual({
+    await expect(service.scanOnce(new AbortController().signal, WORKSPACE_ID)).resolves.toEqual({
       evaluated: [{
         candidateId: candidate.id,
         targetId: 'prior-capability',
@@ -77,7 +78,7 @@ describe('automatic Retention', () => {
       preflight: { evaluate: vi.fn() },
       runner: vi.fn(),
       targets: [target('/private/prior-one', '/private/retention-runs'), duplicate],
-    })).toThrow('automatic Retention permits exactly one target per Skill')
+    })).toThrow('automatic Retention permits exactly one target per Workspace and Skill')
   })
 
   it('rejects an automatic target that is not bounded and exact', () => {
@@ -134,11 +135,11 @@ describe('automatic Retention', () => {
       targets: [target(casePackDir, runRoot)],
     })
 
-    await expect(service.scanOnce(new AbortController().signal)).resolves.toEqual({
+    await expect(service.scanOnce(new AbortController().signal, WORKSPACE_ID)).resolves.toEqual({
       evaluated: [],
       warnings: ['automatic Retention execution did not reach a terminal report'],
     })
-    await expect(service.scanOnce(new AbortController().signal)).resolves.toEqual({
+    await expect(service.scanOnce(new AbortController().signal, WORKSPACE_ID)).resolves.toEqual({
       evaluated: [],
       warnings: ['automatic Retention has an existing non-terminal output; human review is required'],
     })
@@ -177,7 +178,7 @@ describe('automatic Retention', () => {
       targets: [target(casePackDir, runRoot)],
     })
 
-    await expect(service.scanOnce(new AbortController().signal)).resolves.toEqual({
+    await expect(service.scanOnce(new AbortController().signal, WORKSPACE_ID)).resolves.toEqual({
       evaluated: [],
       warnings: [],
     })
@@ -213,11 +214,11 @@ describe('automatic Retention', () => {
       targets: [target(casePackDir, runRoot)],
     })
 
-    await expect(service.scanOnce(new AbortController().signal)).resolves.toEqual({
+    await expect(service.scanOnce(new AbortController().signal, WORKSPACE_ID)).resolves.toEqual({
       evaluated: [],
       warnings: ['automatic Retention was cancelled and is suppressed for this process'],
     })
-    await expect(service.scanOnce(new AbortController().signal)).resolves.toEqual({
+    await expect(service.scanOnce(new AbortController().signal, WORKSPACE_ID)).resolves.toEqual({
       evaluated: [],
       warnings: [],
     })
@@ -228,6 +229,7 @@ describe('automatic Retention', () => {
 function target(casePackDir: string, runRoot: string): AutomaticRetentionTargetConfig {
   return {
     id: 'prior-capability',
+    workspaceId: WORKSPACE_ID,
     skill: 'stable-skill',
     casePackDir,
     casePackHash: '8'.repeat(64),
@@ -238,6 +240,7 @@ function target(casePackDir: string, runRoot: string): AutomaticRetentionTargetC
 function fixtureCandidate(): ReviewCandidate {
   return {
     id: '1'.repeat(64),
+    workspaceId: WORKSPACE_ID,
     runId: '2'.repeat(64),
     status: 'pending',
     outputDir: '/private/shadow-run',

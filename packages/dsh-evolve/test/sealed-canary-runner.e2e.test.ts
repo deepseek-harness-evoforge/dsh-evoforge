@@ -10,6 +10,7 @@ import type { CapabilityGeneration } from '../src/generation-store.js'
 import { GitSkillSource } from '../src/git-skill-source.js'
 import { hashTree, sha256 } from '../src/hash.js'
 import type { ReviewCandidate } from '../src/review-inbox.js'
+import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const execFile = promisify(execFileCallback)
 const temporaryRoots: string[] = []
@@ -45,7 +46,8 @@ describe.skipIf(process.platform !== 'darwin')('sealed counterfactual canary run
     const casePackHash = await hashTree(casePackDir)
     const generation: CapabilityGeneration = {
       id: '1'.repeat(64),
-      schemaVersion: 1,
+      schemaVersion: 2,
+      workspaceId: WORKSPACE_ID,
       createdAt: 1_723_456_789_000,
       artifacts: [{ kind: 'skill', name: 'stable-skill', ...candidateArtifact }],
       evaluatorVersion: 'canary-e2e-v1',
@@ -63,6 +65,7 @@ describe.skipIf(process.platform !== 'darwin')('sealed counterfactual canary run
       startedAt: '2026-08-16T00:00:00.000Z',
       updatedAt: '2026-08-16T00:01:00.000Z',
       identity: {
+        workspaceId: WORKSPACE_ID,
         baseTreeHash: parentContentHash,
         casePackHash,
         dshRevision: 'fixture-dsh',
@@ -125,6 +128,7 @@ async function writeCasePack(casePackDir: string): Promise<void> {
   ].join('\n'))
   await writeFile(join(casePackDir, 'manifest.json'), `${JSON.stringify({
     schemaVersion: 1,
+    workspaceId: WORKSPACE_ID,
     id: 'counterfactual-canary-fixture',
     epoch: { dshRevision: 'fixture-dsh', evaluatorVersion: 'canary-e2e-v1' },
     budget: { candidateLimit: 1, trialLimit: 4, inputTokenLimit: 100, outputTokenLimit: 100 },
@@ -170,6 +174,7 @@ async function git(repository: string, ...args: string[]): Promise<string> {
 function reviewCandidate(outputDir: string, baseTreeHash: string, candidateTreeHash: string): ReviewCandidate {
   return {
     id: '5'.repeat(64),
+    workspaceId: WORKSPACE_ID,
     runId: '3'.repeat(64),
     status: 'approved',
     outputDir,
@@ -198,7 +203,8 @@ function reviewCandidate(outputDir: string, baseTreeHash: string, candidateTreeH
 
 function failedOutcome(generationId: string): DeliveryOutcome {
   return {
-    id: '8'.repeat(64), schemaVersion: 1, observedAt: 1_723_456_790_000,
+    id: '8'.repeat(64), schemaVersion: 2, workspaceId: WORKSPACE_ID,
+    observedAt: 1_723_456_790_000,
     sessionId: 'session', callId: 'delivery', generationId,
     goal: { id: 'goal', revision: 1, phase: 'active' },
     status: 'failed', reason: 'check-failed:test', commit: '9'.repeat(40),

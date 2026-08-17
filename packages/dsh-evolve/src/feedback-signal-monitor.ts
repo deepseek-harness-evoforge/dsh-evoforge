@@ -8,6 +8,7 @@ import {
 } from '@deepseek-ai/dsh-storage-domain'
 import { z } from 'zod'
 import type { EvolutionStore, SessionIdentity } from './generation-store.ts'
+import { workspaceIdForCwd } from './workspace-identity.ts'
 
 const DEFAULT_MAX_SESSIONS = 1_000
 const MAX_SIGNALS_PER_SESSION = 100
@@ -39,8 +40,9 @@ const storedSignalItemSchema = z.strictObject({
 })
 
 const storedSignalSessionSchema = z.strictObject({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(2),
   observedAt: nonNegativeSafeInteger,
+  workspaceId: z.uuid(),
   sessionId: z.string().min(1).max(256),
   generationId: hashSchema.optional(),
   items: z.array(storedSignalItemSchema).max(MAX_SIGNALS_PER_SESSION),
@@ -50,7 +52,7 @@ type StoredSignalSession = z.infer<typeof storedSignalSessionSchema>
 
 const feedbackSignalDomainSpec = defineDomain({
   name: 'evoforge_feedback_signals',
-  version: 1,
+  version: 2,
   tables: {
     sessions: domainTable<string, StoredSignalSession>(storedSignalSessionSchema),
   },
@@ -59,9 +61,10 @@ const feedbackSignalDomainSpec = defineDomain({
 type FeedbackSignalDomain = Domain<typeof feedbackSignalDomainSpec>
 
 export interface FeedbackSignal {
-  readonly schemaVersion: 1
+  readonly schemaVersion: 2
   readonly id: string
   readonly observedAt: number
+  readonly workspaceId: string
   readonly sessionId: string
   readonly messageId: string
   readonly feedbackVersion: string
@@ -76,6 +79,7 @@ export interface FeedbackSignalSummary {
 
 interface FeedbackSignalSessionInput {
   readonly observedAt: number
+  readonly workspaceId: string
   readonly sessionId: string
   readonly generationId?: string | undefined
   readonly items: readonly z.infer<typeof storedSignalItemSchema>[]
@@ -84,9 +88,9 @@ interface FeedbackSignalSessionInput {
 export interface FeedbackSignalStore {
   replaceSession(input: FeedbackSignalSessionInput): Promise<void>
   removeSession(sessionId: string): Promise<void>
-  get(id: string): FeedbackSignal | undefined
-  list(): FeedbackSignal[]
-  summarize(selectedGenerationId?: string): FeedbackSignalSummary
+  get(id: string, workspaceId?: string): FeedbackSignal | undefined
+  list(workspaceId?: string): FeedbackSignal[]
+  summarize(workspaceId: string, selectedGenerationId?: string): FeedbackSignalSummary
   close(): Promise<void>
 }
 
@@ -117,7 +121,7 @@ class DomainFeedbackSignalStore implements FeedbackSignalStore {
         return
       }
       const session = immutableCopy(storedSignalSessionSchema.parse({
-        schemaVersion: 1,
+        schemaVersion: 2,
         ...input,
         items: [...input.items]
           .sort((left, right) => right.sourceUpdatedAt - left.sourceUpdatedAt
@@ -142,14 +146,16 @@ class DomainFeedbackSignalStore implements FeedbackSignalStore {
     })
   }
 
-  get(id: string): FeedbackSignal | undefined {
+  get(id: string, workspaceId?: string): FeedbackSignal | undefined {
     for (const [, session] of this.domain.table('sessions').entries()) {
+      if (workspaceId !== undefined && session.workspaceId !== workspaceId) continue
       const item = session.items.find(candidate => candidate.id === id)
       if (item === undefined) continue
       return immutableCopy({
-        schemaVersion: 1,
+        schemaVersion: 2,
         id: item.id,
         observedAt: session.observedAt,
+        workspaceId: session.workspaceId,
         sessionId: session.sessionId,
         messageId: item.messageId,
         feedbackVersion: item.feedbackVersion,
@@ -160,12 +166,14 @@ class DomainFeedbackSignalStore implements FeedbackSignalStore {
     return undefined
   }
 
-  list(): FeedbackSignal[] {
+  list(workspaceId?: string): FeedbackSignal[] {
     return [...this.domain.table('sessions').entries()]
+      .filter(([, session]) => workspaceId === undefined || session.workspaceId === workspaceId)
       .flatMap(([, session]) => session.items.map(item => immutableCopy({
-        schemaVersion: 1 as const,
+        schemaVersion: 2 as const,
         id: item.id,
         observedAt: session.observedAt,
+        workspaceId: session.workspaceId,
         sessionId: session.sessionId,
         messageId: item.messageId,
         feedbackVersion: item.feedbackVersion,
@@ -176,10 +184,11 @@ class DomainFeedbackSignalStore implements FeedbackSignalStore {
         || left.id.localeCompare(right.id))
   }
 
-  summarize(selectedGenerationId?: string): FeedbackSignalSummary {
+  summarize(workspaceId: string, selectedGenerationId?: string): FeedbackSignalSummary {
     let all = 0
     let selected = 0
     for (const [, session] of this.domain.table('sessions').entries()) {
+      if (session.workspaceId !== workspaceId) continue
       all += session.items.length
       if (session.generationId === selectedGenerationId) selected += session.items.length
     }
@@ -246,32 +255,32 @@ export function installFeedbackSignalMonitor(
       ctx.logger.warn(`dsh-evolve ignored invalid message feedback row '${sessionId}'`)
       return
     }
-    const identity: SessionIdentity = {
-      sessionId,
-      createdAt: parsed.data.session.createdAt,
-      ...(parsed.data.session.cwd === undefined ? {} : { cwd: parsed.data.session.cwd }),
-    }
-    const generationId = evolution.getSessionGeneration(identity)?.id
-    const items = parsed.data.items.flatMap((item) => {
-      if (item.rating !== 'negative' || item.note === undefined || item.note.trim() === '') return []
-      return [{
-        id: hashJson([
-          identity.sessionId,
-          item.messageId,
-          item.version,
-        ]),
-        messageId: item.messageId,
-        feedbackVersion: item.version,
-        sourceUpdatedAt: item.updatedAt,
-      }]
+    enqueue(async () => {
+      const workspaceId = await workspaceIdForCwd(ctx, parsed.data.session.cwd)
+      const identity: SessionIdentity = {
+        workspaceId,
+        sessionId,
+        createdAt: parsed.data.session.createdAt,
+        ...(parsed.data.session.cwd === undefined ? {} : { cwd: parsed.data.session.cwd }),
+      }
+      const generationId = evolution.getSessionGeneration(identity)?.id
+      const items = parsed.data.items.flatMap((item) => {
+        if (item.rating !== 'negative' || item.note === undefined || item.note.trim() === '') return []
+        return [{
+          id: hashJson([workspaceId, identity.sessionId, item.messageId, item.version]),
+          messageId: item.messageId,
+          feedbackVersion: item.version,
+          sourceUpdatedAt: item.updatedAt,
+        }]
+      })
+      await signals.replaceSession({
+        observedAt: now(),
+        workspaceId,
+        sessionId,
+        ...(generationId === undefined ? {} : { generationId }),
+        items,
+      })
     })
-    const input: FeedbackSignalSessionInput = {
-      observedAt: now(),
-      sessionId,
-      ...(generationId === undefined ? {} : { generationId }),
-      items,
-    }
-    enqueue(() => signals.replaceSession(input))
   })
 
   return {

@@ -9,6 +9,7 @@ import { GitSkillSource } from '../src/git-skill-source.js'
 import { hashTree } from '../src/hash.js'
 import type { EvolutionStore } from '../src/generation-store.js'
 import type { ReviewCandidate } from '../src/review-inbox.js'
+import { WORKSPACE_ID } from './workspace-fixture.ts'
 import type { RetentionEvidenceGate } from '../src/retention-evidence-index.js'
 
 const execFile = promisify(execFileCallback)
@@ -133,6 +134,7 @@ async function policyFixture(): Promise<{
   }])
   const store = { getActiveGeneration: () => undefined } as unknown as EvolutionStore
   const candidate: ReviewCandidate = {
+    workspaceId: WORKSPACE_ID,
     id: '1'.repeat(64),
     runId: '2'.repeat(64),
     status: 'pending',

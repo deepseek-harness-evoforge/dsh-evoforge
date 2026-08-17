@@ -12,6 +12,7 @@ import type { EvaluatorDraftInbox } from '../src/evaluator-draft-inbox.ts'
 import type { EvolutionStore } from '../src/generation-store.ts'
 import type { FeedbackSignalStore } from '../src/feedback-signal-monitor.ts'
 import type { AutomaticEvolutionInflightSource } from '../src/automatic-evolution-inflight.ts'
+import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 describe('Automatic Evaluator Draft', () => {
   it('reserves durable budget before authoring one inactive draft for one exact Skill match', async () => {
@@ -21,6 +22,7 @@ describe('Automatic Evaluator Draft', () => {
       return {
         schemaVersion: 1 as const,
         action: 'author-evaluator' as const,
+        workspaceId: WORKSPACE_ID,
         launchId: '4'.repeat(64),
         targetId: 'plugin-delivery',
         skillName: 'stable-skill',
@@ -43,7 +45,7 @@ describe('Automatic Evaluator Draft', () => {
       },
     })
 
-    await expect(service.scanOnce()).resolves.toEqual({
+    await expect(service.scanOnce(WORKSPACE_ID)).resolves.toEqual({
       authored: [{
         signalId: '1'.repeat(64),
         targetId: 'plugin-delivery',
@@ -51,7 +53,7 @@ describe('Automatic Evaluator Draft', () => {
       }],
       warnings: [],
     })
-    expect(author).toHaveBeenCalledWith('1'.repeat(64), 'plugin-delivery')
+    expect(author).toHaveBeenCalledWith(WORKSPACE_ID, '1'.repeat(64), 'plugin-delivery')
     expect(effects).toEqual(['budget', 'author'])
   })
 
@@ -69,11 +71,11 @@ describe('Automatic Evaluator Draft', () => {
       budget: { reserve, inspect: vi.fn() } as Pick<AutomaticEvolutionBudget, 'reserve' | 'inspect'>,
     })
 
-    await expect(service.scanOnce()).resolves.toEqual({
+    await expect(service.scanOnce(WORKSPACE_ID)).resolves.toEqual({
       authored: [],
       warnings: ['explicit feedback matches multiple automatic Evaluator Targets; choose one explicitly'],
     })
-    await expect(service.scanOnce()).resolves.toEqual({ authored: [], warnings: [] })
+    await expect(service.scanOnce(WORKSPACE_ID)).resolves.toEqual({ authored: [], warnings: [] })
     expect(reserve).not.toHaveBeenCalled()
     expect(author).not.toHaveBeenCalled()
   })
@@ -87,6 +89,7 @@ describe('Automatic Evaluator Draft', () => {
           newlyReserved: false,
           retryAt: Date.UTC(2026, 7, 18),
           snapshot: {
+            workspaceId: WORKSPACE_ID,
             targetId: 'plugin-delivery',
             skillName: 'stable-skill',
             utcDay: '2026-08-17',
@@ -99,6 +102,7 @@ describe('Automatic Evaluator Draft', () => {
     const author = vi.fn(async () => ({
       schemaVersion: 1 as const,
       action: 'author-evaluator' as const,
+      workspaceId: WORKSPACE_ID,
       launchId: '4'.repeat(64),
       targetId: 'plugin-delivery',
       skillName: 'stable-skill',
@@ -115,16 +119,16 @@ describe('Automatic Evaluator Draft', () => {
       now: () => now,
     })
 
-    await expect(service.scanOnce()).resolves.toEqual({
+    await expect(service.scanOnce(WORKSPACE_ID)).resolves.toEqual({
       authored: [],
       warnings: ['automatic evolution budget exhausted for Evaluator Target plugin-delivery until the next UTC day'],
     })
-    await expect(service.scanOnce()).resolves.toEqual({ authored: [], warnings: [] })
+    await expect(service.scanOnce(WORKSPACE_ID)).resolves.toEqual({ authored: [], warnings: [] })
     expect(author).not.toHaveBeenCalled()
 
     now = Date.UTC(2026, 7, 18, 0, 1)
     exhausted = false
-    await expect(service.scanOnce()).resolves.toMatchObject({
+    await expect(service.scanOnce(WORKSPACE_ID)).resolves.toMatchObject({
       authored: [{ targetId: 'plugin-delivery', draftStatus: 'scheduled' }],
       warnings: [],
     })
@@ -145,11 +149,12 @@ describe('Automatic Evaluator Draft', () => {
       now: () => Date.UTC(2026, 7, 17),
     })
 
-    const status = await service.budgetStatus()
+    const status = await service.budgetStatus(WORKSPACE_ID)
     expect(status).toEqual({
       warningCount: 1,
       targets: [{
         targetId: 'plugin-delivery',
+        workspaceId: WORKSPACE_ID,
         skillName: 'stable-skill',
         utcDay: '2026-08-17',
         used: 0,
@@ -173,7 +178,7 @@ describe('Automatic Evaluator Draft', () => {
 
     expect(make([])).toThrow('Automatic Evaluator Draft requires 1-20 exact targets')
     expect(make([target(), { ...target(), id: 'other-target', root: '/private/other' }]))
-      .toThrow('Automatic Evaluator Draft permits exactly one target per Skill')
+      .toThrow('Automatic Evaluator Draft permits exactly one target per Workspace and Skill')
     expect(make([{ ...target(), root: 'relative' }]))
       .toThrow('Automatic Evaluator Draft roots must be absolute')
     expect(make([{ ...target(), root: '/' }]))
@@ -182,7 +187,7 @@ describe('Automatic Evaluator Draft', () => {
       .toThrow('Automatic Evaluator Draft daily attempt limits must be integers between 1 and 20')
     expect(() => assertAutomaticEvaluatorDraftSeparation(
       [target()],
-      new Set(['stable-skill']),
+      new Set([`${WORKSPACE_ID}\0stable-skill`]),
     )).toThrow('one Skill cannot enable both Automatic Feedback Shadow and Automatic Evaluator Draft')
   })
 
@@ -193,6 +198,7 @@ describe('Automatic Evaluator Draft', () => {
     const author = vi.fn(async () => ({
       schemaVersion: 1 as const,
       action: 'author-evaluator' as const,
+      workspaceId: WORKSPACE_ID,
       launchId: '4'.repeat(64),
       targetId: 'plugin-delivery',
       skillName: 'stable-skill',
@@ -208,7 +214,7 @@ describe('Automatic Evaluator Draft', () => {
       budget: { reserve, inspect: vi.fn() },
     })
 
-    await expect(service.scanOnce()).resolves.toEqual({
+    await expect(service.scanOnce(WORKSPACE_ID)).resolves.toEqual({
       authored: [],
       warnings: ['automatic evolution deferred for Skill stable-skill while prior work is unresolved'],
     })
@@ -216,7 +222,7 @@ describe('Automatic Evaluator Draft', () => {
     expect(author).not.toHaveBeenCalled()
 
     status = 'clear'
-    await expect(service.scanOnce()).resolves.toMatchObject({
+    await expect(service.scanOnce(WORKSPACE_ID)).resolves.toMatchObject({
       authored: [{ targetId: 'plugin-delivery', draftStatus: 'scheduled' }],
       warnings: [],
     })
@@ -228,6 +234,7 @@ describe('Automatic Evaluator Draft', () => {
 function target(): AutomaticEvaluatorDraftTarget {
   return {
     id: 'plugin-delivery',
+    workspaceId: WORKSPACE_ID,
     skill: 'stable-skill',
     root: '/private/evaluator-root',
     maxAttemptsPerUtcDay: 1,
@@ -241,7 +248,8 @@ function generationStore(): Pick<EvolutionStore, 'getGeneration'> {
 function generation(skills: string[]) {
   return {
     id: '2'.repeat(64),
-    schemaVersion: 1 as const,
+    schemaVersion: 2 as const,
+    workspaceId: WORKSPACE_ID,
     createdAt: 1,
     artifacts: skills.map((name, index) => ({
       kind: 'skill' as const,
@@ -257,7 +265,8 @@ function generation(skills: string[]) {
 
 function oneSignal(): Pick<FeedbackSignalStore, 'list'> {
   return { list: () => [{
-    schemaVersion: 1,
+    schemaVersion: 2,
+    workspaceId: WORKSPACE_ID,
     id: '1'.repeat(64),
     observedAt: 1,
     sessionId: 'session-1',
@@ -277,7 +286,15 @@ function allowedReservation(
   return {
     allowed: true,
     newlyReserved: true,
-    snapshot: { targetId, skillName, utcDay, used: 1, limit, remaining: limit - 1 },
+    snapshot: {
+      targetId,
+      workspaceId: WORKSPACE_ID,
+      skillName,
+      utcDay,
+      used: 1,
+      limit,
+      remaining: limit - 1,
+    },
   }
 }
 

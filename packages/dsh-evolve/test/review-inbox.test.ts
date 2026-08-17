@@ -3,7 +3,32 @@ import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { ReviewInbox } from '../src/review-inbox.js'
+import {
+  ReviewInbox as NativeReviewInbox,
+  type AutomaticReviewExpiryPolicy,
+} from '../src/review-inbox.js'
+import { WORKSPACE_ID } from './workspace-fixture.ts'
+
+interface FixtureReviewOptions {
+  automaticReviewExpiry?: Array<Omit<AutomaticReviewExpiryPolicy, 'workspaceId'>>
+  now?: () => number
+}
+
+class ReviewInbox extends NativeReviewInbox {
+  constructor(runRoots: string[], options: FixtureReviewOptions = {}) {
+    super(runRoots.map(path => ({ workspaceId: WORKSPACE_ID, path })), {
+      ...(options.now === undefined ? {} : { now: options.now }),
+      ...(options.automaticReviewExpiry === undefined
+        ? {}
+        : {
+            automaticReviewExpiry: options.automaticReviewExpiry.map(policy => ({
+              ...policy,
+              workspaceId: WORKSPACE_ID,
+            })),
+          }),
+    })
+  }
+}
 
 const temporaryRoots: string[] = []
 
@@ -85,7 +110,8 @@ describe('Shadow review inbox', () => {
     })
     const durable = JSON.parse(await readFile(join(root, 'candidate', 'review-state.json'), 'utf8'))
     expect(durable).toMatchObject({
-      schemaVersion: 1,
+      schemaVersion: 2,
+      workspaceId: WORKSPACE_ID,
       reviewId: candidate.id,
       status: 'rejected',
       decisionNote: 'too narrow for the shared Skill',
@@ -105,20 +131,20 @@ describe('Shadow review inbox', () => {
     await writeCandidateRun(root, 'candidate', 'promote')
     const inbox = new ReviewInbox([root])
 
-    await expect(inbox.automaticInflightStatus('stable-skill', '1'.repeat(64)))
+    await expect(inbox.automaticInflightStatus(WORKSPACE_ID, 'stable-skill', '1'.repeat(64)))
       .resolves.toBe('busy')
-    await expect(inbox.automaticInflightStatus('unrelated-skill', '1'.repeat(64)))
+    await expect(inbox.automaticInflightStatus(WORKSPACE_ID, 'unrelated-skill', '1'.repeat(64)))
       .resolves.toBe('clear')
 
     const candidate = (await inbox.scan()).candidates[0]!
     await inbox.reject(candidate.id, 'resolved before another automatic attempt')
-    await expect(inbox.automaticInflightStatus('stable-skill', '2'.repeat(64)))
+    await expect(inbox.automaticInflightStatus(WORKSPACE_ID, 'stable-skill', '2'.repeat(64)))
       .resolves.toBe('clear')
 
     const broken = join(root, 'broken')
     await mkdir(broken)
     await writeFile(join(broken, 'run-state.json'), '{')
-    await expect(inbox.automaticInflightStatus('stable-skill', '2'.repeat(64)))
+    await expect(inbox.automaticInflightStatus(WORKSPACE_ID, 'stable-skill', '2'.repeat(64)))
       .resolves.toBe('unknown')
   })
 
@@ -136,7 +162,7 @@ describe('Shadow review inbox', () => {
       now: () => Date.parse('2026-08-23T00:00:00.000Z'),
     })
 
-    await expect(inbox.automaticInflightStatus('stable-skill', '2'.repeat(64)))
+    await expect(inbox.automaticInflightStatus(WORKSPACE_ID, 'stable-skill', '2'.repeat(64)))
       .resolves.toBe('clear')
     expect((await inbox.scan()).candidates).toEqual([])
     expect((await inbox.scanAll()).candidates).toEqual([
@@ -159,7 +185,7 @@ describe('Shadow review inbox', () => {
       }],
       now: () => Date.parse('2026-08-24T00:00:00.000Z'),
     })
-    await expect(restarted.automaticInflightStatus('stable-skill', '3'.repeat(64)))
+    await expect(restarted.automaticInflightStatus(WORKSPACE_ID, 'stable-skill', '3'.repeat(64)))
       .resolves.toBe('clear')
     expect((await restarted.scanAll()).candidates).toEqual([
       expect.objectContaining({ decisionActor: 'auto-review-expiry-v1' }),
@@ -228,7 +254,7 @@ describe('Shadow review inbox', () => {
         now: () => Date.parse('2026-08-23T00:00:00.000Z'),
       })
 
-      await expect(inbox.automaticInflightStatus('stable-skill', '2'.repeat(64)))
+      await expect(inbox.automaticInflightStatus(WORKSPACE_ID, 'stable-skill', '2'.repeat(64)))
         .resolves.toBe('busy')
       const candidate = (await inbox.scanAll()).candidates[0]
       expect(candidate).toMatchObject({ status: 'pending' })
@@ -257,7 +283,7 @@ describe('Shadow review inbox', () => {
       now: () => Date.parse('2026-08-23T00:00:00.000Z'),
     })
 
-    await expect(inbox.automaticInflightStatus('stable-skill', '2'.repeat(64)))
+    await expect(inbox.automaticInflightStatus(WORKSPACE_ID, 'stable-skill', '2'.repeat(64)))
       .resolves.toBe('unknown')
     await expect(readFile(join(runDir, 'review-state.json'), 'utf8'))
       .rejects.toMatchObject({ code: 'ENOENT' })
@@ -400,6 +426,7 @@ async function writeCandidateRun(
     startedAt: '2026-08-16T00:00:00.000Z',
     updatedAt: options.updatedAt ?? '2026-08-16T00:01:00.000Z',
     identity: {
+      workspaceId: WORKSPACE_ID,
       baseTreeHash: 'a'.repeat(64),
       casePackHash: 'b'.repeat(64),
       dshRevision: 'fixture',

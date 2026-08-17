@@ -4,6 +4,7 @@ import { EvaluatorDraftInbox } from '../../src/evaluator-draft-inbox.ts'
 import { AutomaticEvaluatorDraftService } from '../../src/automatic-evaluator-draft.ts'
 import { AutomaticEvolutionBudget } from '../../src/automatic-evolution-budget.ts'
 import { hashTree } from '../../src/hash.ts'
+import { WORKSPACE_ID } from '../workspace-fixture.ts'
 
 const [fixtureRoot] = process.argv.slice(2)
 if (fixtureRoot === undefined) {
@@ -29,6 +30,7 @@ const starts: JobStart[] = []
 const inbox = new EvaluatorDraftInbox({
   targets: [{
     id: 'plugin-delivery',
+    workspaceId: WORKSPACE_ID,
     skill: skillName,
     root: ownedRoot,
     dshRevision: '4'.repeat(40),
@@ -38,10 +40,11 @@ const inbox = new EvaluatorDraftInbox({
       created: true,
       path: join(root, 'source-draft.json'),
       draft: {
-        schemaVersion: 1 as const,
+        schemaVersion: 2 as const,
         id: sourceDraftId,
         status: 'draft' as const,
         source: {
+          workspaceId: WORKSPACE_ID,
           signalId,
           sessionId: 'session-private',
           messageId: 'message-private',
@@ -86,7 +89,8 @@ inbox.attachJobs({
 const automatic = new AutomaticEvaluatorDraftService({
   evolution: {
     getGeneration: () => ({
-      schemaVersion: 1,
+      schemaVersion: 2,
+      workspaceId: WORKSPACE_ID,
       id: generationId,
       createdAt: 1,
       artifacts: [artifact],
@@ -98,7 +102,8 @@ const automatic = new AutomaticEvaluatorDraftService({
   evaluator: inbox,
   signals: {
     list: () => [{
-      schemaVersion: 1,
+      schemaVersion: 2,
+      workspaceId: WORKSPACE_ID,
       id: signalId,
       observedAt: 1,
       sessionId: 'session-private',
@@ -110,6 +115,7 @@ const automatic = new AutomaticEvaluatorDraftService({
   },
   targets: [{
     id: 'plugin-delivery',
+    workspaceId: WORKSPACE_ID,
     skill: skillName,
     root: ownedRoot,
     maxAttemptsPerUtcDay: 1,
@@ -117,7 +123,7 @@ const automatic = new AutomaticEvaluatorDraftService({
   inflight: [inbox],
   budget: new AutomaticEvolutionBudget(),
 })
-const receipt = await automatic.scanOnce()
+const receipt = await automatic.scanOnce(WORKSPACE_ID)
 process.stdout.write(`${JSON.stringify(receipt)}\n`)
 if (hooks[0] !== undefined) {
   const result = await hooks[0].done

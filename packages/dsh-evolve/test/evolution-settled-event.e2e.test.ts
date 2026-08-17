@@ -4,6 +4,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import * as EvolvePlugin from '../src/index.js'
+import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const suiteRoot = resolve(packageRoot, '../..')
@@ -41,12 +42,15 @@ describe.skipIf(process.platform !== 'darwin')('resident evolution settled signa
       join(dshSourceDir, 'packages', 'boot', 'app-boot', 'lib', 'index.js'),
     ).href)
     const ctx = await boot('dsh-evolution-settled-test', config)
+    ctx.provide('workspaceRegistry', {
+      resolveByPath: async () => ({ id: WORKSPACE_ID }),
+    } as never)
     let settled = 0
     ctx.on('evoforge/evolution/settled', () => { settled += 1 })
     try {
       await ctx.plugin(EvolvePlugin, {
         cacheRoot: join(root, 'cache'),
-        supervisor: { runRoots: [runRoot], scanIntervalMs: 1_000 },
+        supervisor: { runRoots: [{ workspaceId: WORKSPACE_ID, path: runRoot }], scanIntervalMs: 1_000 },
       })
       const jobs = await import(pathToFileURL(
         join(dshSourceDir, 'packages', 'jobs', 'jobs-local', 'lib', 'index.js'),

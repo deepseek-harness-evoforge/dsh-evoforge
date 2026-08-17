@@ -13,6 +13,7 @@ import type {
   GenerationInput,
 } from '../src/generation-store.js'
 import type { ReviewCandidate } from '../src/review-inbox.js'
+import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const execFile = promisify(execFileCallback)
 const temporaryRoots: string[] = []
@@ -289,6 +290,7 @@ async function createFixture(): Promise<{
   const compositionFingerprint = 'c'.repeat(64)
   const candidate: ReviewCandidate = {
     id: reviewId,
+    workspaceId: WORKSPACE_ID,
     runId: 'b'.repeat(64),
     status: 'pending',
     outputDir: join(root, 'run'),
@@ -319,7 +321,7 @@ function fakeStore(active?: CapabilityGeneration): EvolutionStore & {
   const publishGeneration = vi.fn(async (input: GenerationInput) => {
     const value = generation({
       ...input,
-      id: sha256(JSON.stringify({ schemaVersion: 1, ...input })),
+      id: sha256(JSON.stringify({ schemaVersion: 2, ...input })),
     })
     return { created: true, generation: value }
   })
@@ -338,7 +340,8 @@ function fakeStore(active?: CapabilityGeneration): EvolutionStore & {
 
 function generation(input: Partial<CapabilityGeneration> & Pick<CapabilityGeneration, 'id'>): CapabilityGeneration {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
+    workspaceId: WORKSPACE_ID,
     createdAt: 1_723_456_789_000,
     artifacts: [],
     evaluatorVersion: 'fixture-v1',

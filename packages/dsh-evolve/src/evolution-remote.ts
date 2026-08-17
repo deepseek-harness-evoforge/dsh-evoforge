@@ -25,60 +25,64 @@ export class EvolutionRemoteService extends TypertRemoteService {
     for (const initialize of remoteInitializers) initialize.call(this)
   }
 
-  overview(): Promise<EvolutionOverview> {
-    return this.control.overview()
+  overview(workspaceId: string): Promise<EvolutionOverview> {
+    return this.control.overview(workspaceId)
   }
 
-  review(id: string): Promise<EvolutionReviewDetail> {
-    return this.control.review(id)
+  review(workspaceId: string, id: string): Promise<EvolutionReviewDetail> {
+    return this.control.review(workspaceId, id)
   }
 
-  pause(): Promise<EvolutionActionReceipt> {
-    return this.control.pause()
+  pause(workspaceId: string): Promise<EvolutionActionReceipt> {
+    return this.control.pause(workspaceId)
   }
 
-  resume(): Promise<EvolutionActionReceipt> {
-    return this.control.resume()
+  resume(workspaceId: string): Promise<EvolutionActionReceipt> {
+    return this.control.resume(workspaceId)
   }
 
-  approveReview(id: string, note: string): Promise<EvolutionActionReceipt> {
-    return this.control.approveReview(id, note)
+  approveReview(workspaceId: string, id: string, note: string): Promise<EvolutionActionReceipt> {
+    return this.control.approveReview(workspaceId, id, note)
   }
 
-  rejectReview(id: string, note: string): Promise<EvolutionActionReceipt> {
-    return this.control.rejectReview(id, note)
+  rejectReview(workspaceId: string, id: string, note: string): Promise<EvolutionActionReceipt> {
+    return this.control.rejectReview(workspaceId, id, note)
   }
 
-  promote(generationId: string): Promise<EvolutionActionReceipt> {
-    return this.control.promote(generationId)
+  promote(workspaceId: string, generationId: string): Promise<EvolutionActionReceipt> {
+    return this.control.promote(workspaceId, generationId)
   }
 
-  rollback(): Promise<EvolutionActionReceipt> {
-    return this.control.rollback()
+  rollback(workspaceId: string): Promise<EvolutionActionReceipt> {
+    return this.control.rollback(workspaceId)
   }
 
-  startFeedbackShadow(signalId: string, targetId: string): Promise<EvolutionActionReceipt> {
-    return this.control.startFeedbackShadow(signalId, targetId)
+  startFeedbackShadow(workspaceId: string, signalId: string, targetId: string): Promise<EvolutionActionReceipt> {
+    return this.control.startFeedbackShadow(workspaceId, signalId, targetId)
   }
 
-  evaluatorDraft(id: string): Promise<EvolutionEvaluatorDraftDetail> {
-    return this.control.evaluatorDraft(id)
+  evaluatorDraft(workspaceId: string, id: string): Promise<EvolutionEvaluatorDraftDetail> {
+    return this.control.evaluatorDraft(workspaceId, id)
   }
 
-  authorEvaluator(signalId: string, targetId: string): Promise<EvolutionActionReceipt> {
-    return this.control.authorEvaluator(signalId, targetId)
+  authorEvaluator(workspaceId: string, signalId: string, targetId: string): Promise<EvolutionActionReceipt> {
+    return this.control.authorEvaluator(workspaceId, signalId, targetId)
   }
 
-  approveEvaluator(id: string, note: string): Promise<EvolutionActionReceipt> {
-    return this.control.approveEvaluator(id, note)
+  approveEvaluator(workspaceId: string, id: string, note: string): Promise<EvolutionActionReceipt> {
+    return this.control.approveEvaluator(workspaceId, id, note)
   }
 
-  rejectEvaluator(id: string, note: string): Promise<EvolutionActionReceipt> {
-    return this.control.rejectEvaluator(id, note)
+  approveAndStartEvaluatorShadow(workspaceId: string, id: string, note: string): Promise<EvolutionActionReceipt> {
+    return this.control.approveAndStartEvaluatorShadow(workspaceId, id, note)
   }
 
-  startEvaluatorShadow(id: string): Promise<EvolutionActionReceipt> {
-    return this.control.startEvaluatorShadow(id)
+  rejectEvaluator(workspaceId: string, id: string, note: string): Promise<EvolutionActionReceipt> {
+    return this.control.rejectEvaluator(workspaceId, id, note)
+  }
+
+  startEvaluatorShadow(workspaceId: string, id: string): Promise<EvolutionActionReceipt> {
+    return this.control.startEvaluatorShadow(workspaceId, id)
   }
 }
 
@@ -95,6 +99,7 @@ export const EVOLUTION_REMOTE_METHODS = [
   'evaluatorDraft',
   'authorEvaluator',
   'approveEvaluator',
+  'approveAndStartEvaluatorShadow',
   'rejectEvaluator',
   'startEvaluatorShadow',
 ] as const satisfies readonly (keyof EvolutionRemoteService)[]

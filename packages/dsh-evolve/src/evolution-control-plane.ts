@@ -47,8 +47,8 @@ export class EvolutionControlPlane {
     this.modules = modules
   }
 
-  async overview(): Promise<EvolutionOverview> {
-    const active = this.modules.store.getActiveGeneration()
+  async overview(workspaceId: string): Promise<EvolutionOverview> {
+    const active = this.modules.store.getActiveGeneration(workspaceId)
     const [
       scan,
       shadowScan,
@@ -57,22 +57,23 @@ export class EvolutionControlPlane {
       automaticEvaluatorBudget,
     ] = await Promise.all([
       this.modules.review === undefined ? undefined : this.modules.review.inbox.scanAll(),
-      this.modules.feedbackShadow === undefined ? undefined : this.modules.feedbackShadow.scan(),
-      this.modules.evaluatorDrafts === undefined ? undefined : this.modules.evaluatorDrafts.scan(),
+      this.modules.feedbackShadow === undefined ? undefined : this.modules.feedbackShadow.scan(workspaceId),
+      this.modules.evaluatorDrafts === undefined ? undefined : this.modules.evaluatorDrafts.scan(workspaceId),
       this.modules.automaticFeedback === undefined
         ? undefined
-        : this.modules.automaticFeedback.budgetStatus(),
+        : this.modules.automaticFeedback.budgetStatus(workspaceId),
       this.modules.automaticEvaluator === undefined
         ? undefined
-        : this.modules.automaticEvaluator.budgetStatus(),
+        : this.modules.automaticEvaluator.budgetStatus(workspaceId),
     ])
     const automaticSkills = this.modules.automatic?.skills() ?? []
     return {
       schemaVersion: 1,
       ...(active === undefined ? {} : { active: projectGeneration(active) }),
+      workspaceId,
       recovery: this.modules.resident === undefined
         ? { available: false }
-        : { available: true, paused: this.modules.resident.isPaused() },
+        : { available: true, paused: this.modules.resident.isPaused(workspaceId) },
       automaticPromotion: {
         enabled: automaticSkills.length > 0,
         skills: [...automaticSkills],
@@ -81,6 +82,7 @@ export class EvolutionControlPlane {
         ? {}
         : {
             deliveryOutcomes: cloneOutcomeSummary(this.modules.outcomes.summarize(
+              workspaceId,
               active?.id,
               active === undefined
                 ? undefined
@@ -89,23 +91,28 @@ export class EvolutionControlPlane {
           }),
       ...(this.modules.feedback === undefined
         ? {}
-        : { feedbackSignals: { ...this.modules.feedback.summarize(active?.id) } }),
+        : { feedbackSignals: { ...this.modules.feedback.summarize(workspaceId, active?.id) } }),
       ...(this.modules.feedbackShadow === undefined
         ? {}
         : {
             feedbackShadow: {
               available: this.modules.feedbackShadow.available(),
               warningCount: shadowScan?.warningCount ?? 0,
-              signals: (this.modules.feedback?.list() ?? [])
+              signals: (this.modules.feedback?.list(workspaceId) ?? [])
                 .slice(-MAX_FEEDBACK_ROWS)
                 .reverse()
                 .map(signal => ({
                   id: signal.id,
+                  workspaceId: signal.workspaceId,
                   sourceUpdatedAt: signal.sourceUpdatedAt,
                   ...(signal.generationId === undefined ? {} : { generationId: signal.generationId }),
                 })),
-              targets: this.modules.feedbackShadow.targets().map(target => ({ ...target })),
-              runs: (shadowScan?.runs ?? []).map(run => ({ ...run })),
+              targets: this.modules.feedbackShadow.targets()
+                .filter(target => target.workspaceId === workspaceId)
+                .map(target => ({ ...target })),
+              runs: (shadowScan?.runs ?? [])
+                .filter(run => run.workspaceId === workspaceId)
+                .map(run => ({ ...run })),
             },
           }),
       ...(automaticFeedbackBudget === undefined
@@ -132,15 +139,18 @@ export class EvolutionControlPlane {
               actionableCount: (evaluatorScan?.drafts ?? [])
                 .filter(draft => isActionableEvaluatorStatus(draft.status)).length,
               warningCount: evaluatorScan?.warningCount ?? 0,
-              signals: (this.modules.feedback?.list() ?? [])
+              signals: (this.modules.feedback?.list(workspaceId) ?? [])
                 .slice(-MAX_FEEDBACK_ROWS)
                 .reverse()
                 .map(signal => ({
                   id: signal.id,
+                  workspaceId: signal.workspaceId,
                   sourceUpdatedAt: signal.sourceUpdatedAt,
                   ...(signal.generationId === undefined ? {} : { generationId: signal.generationId }),
                 })),
-              targets: this.modules.evaluatorDrafts.targets().map(target => ({ ...target })),
+              targets: this.modules.evaluatorDrafts.targets()
+                .filter(target => target.workspaceId === workspaceId)
+                .map(target => ({ ...target })),
               drafts: (evaluatorScan?.drafts ?? []).map(draft => ({
                 ...draft,
                 cost: { ...draft.cost },
@@ -157,14 +167,15 @@ export class EvolutionControlPlane {
             inactiveGenerations: [],
           }
         : {
-            ...projectReviews(scan, active?.id),
+            ...projectReviews(scan, active?.id, workspaceId),
           },
     }
   }
 
-  async review(id: string): Promise<EvolutionReviewDetail> {
+  async review(workspaceId: string, id: string): Promise<EvolutionReviewDetail> {
     const review = this.requireReview()
     const candidate = await review.inbox.get(id)
+    assertWorkspace(candidate.workspaceId, workspaceId, 'Review Candidate')
     const diff = await review.publisher.preview(candidate)
     const automatic = this.modules.automatic === undefined
       ? undefined
@@ -193,20 +204,21 @@ export class EvolutionControlPlane {
     }
   }
 
-  async pause(): Promise<EvolutionActionReceipt> {
+  async pause(workspaceId: string): Promise<EvolutionActionReceipt> {
     const resident = this.requireResident()
-    await resident.pause()
-    return { schemaVersion: 1, action: 'pause', recoveryPaused: resident.isPaused() }
+    await resident.pause(workspaceId)
+    return { schemaVersion: 1, workspaceId, action: 'pause', recoveryPaused: resident.isPaused(workspaceId) }
   }
 
-  async resume(): Promise<EvolutionActionReceipt> {
+  async resume(workspaceId: string): Promise<EvolutionActionReceipt> {
     const resident = this.requireResident()
-    await resident.resume()
-    return { schemaVersion: 1, action: 'resume', recoveryPaused: resident.isPaused() }
+    await resident.resume(workspaceId)
+    return { schemaVersion: 1, workspaceId, action: 'resume', recoveryPaused: resident.isPaused(workspaceId) }
   }
 
-  async approveReview(id: string, note: string): Promise<EvolutionActionReceipt> {
+  async approveReview(workspaceId: string, id: string, note: string): Promise<EvolutionActionReceipt> {
     const review = this.requireReview()
+    assertWorkspace((await review.inbox.get(id)).workspaceId, workspaceId, 'Review Candidate')
     const approved = await review.inbox.approve(
       id,
       note,
@@ -217,6 +229,7 @@ export class EvolutionControlPlane {
     }
     return {
       schemaVersion: 1,
+      workspaceId,
       action: 'approve-review',
       reviewId: approved.id,
       generationId: approved.generationId,
@@ -224,45 +237,50 @@ export class EvolutionControlPlane {
     }
   }
 
-  async rejectReview(id: string, note: string): Promise<EvolutionActionReceipt> {
-    const rejected = await this.requireReview().inbox.reject(id, note)
+  async rejectReview(workspaceId: string, id: string, note: string): Promise<EvolutionActionReceipt> {
+    const inbox = this.requireReview().inbox
+    assertWorkspace((await inbox.get(id)).workspaceId, workspaceId, 'Review Candidate')
+    const rejected = await inbox.reject(id, note)
     return {
       schemaVersion: 1,
+      workspaceId,
       action: 'reject-review',
       reviewId: rejected.id,
       status: 'rejected',
     }
   }
 
-  async promote(generationId: string): Promise<EvolutionActionReceipt> {
-    const result = await this.modules.store.promoteGeneration(generationId)
+  async promote(workspaceId: string, generationId: string): Promise<EvolutionActionReceipt> {
+    const result = await this.modules.store.promoteGeneration(workspaceId, generationId)
     return {
       schemaVersion: 1,
+      workspaceId,
       action: 'promote',
       ...(result.previousId === undefined ? {} : { previousGenerationId: result.previousId }),
       activeGenerationId: result.generation.id,
     }
   }
 
-  async rollback(): Promise<EvolutionActionReceipt> {
-    const result = await this.modules.store.rollbackGeneration()
+  async rollback(workspaceId: string): Promise<EvolutionActionReceipt> {
+    const result = await this.modules.store.rollbackGeneration(workspaceId)
     return {
       schemaVersion: 1,
+      workspaceId,
       action: 'rollback',
       previousGenerationId: result.previousId,
       ...(result.generation === undefined ? {} : { activeGenerationId: result.generation.id }),
     }
   }
 
-  async startFeedbackShadow(signalId: string, targetId: string): Promise<EvolutionActionReceipt> {
+  async startFeedbackShadow(workspaceId: string, signalId: string, targetId: string): Promise<EvolutionActionReceipt> {
     if (this.modules.feedbackShadow === undefined) {
       throw new Error('feedback Shadow is not configured')
     }
-    return this.modules.feedbackShadow.launch(signalId, targetId)
+    return this.modules.feedbackShadow.launch(workspaceId, signalId, targetId)
   }
 
-  async evaluatorDraft(id: string): Promise<EvolutionEvaluatorDraftDetail> {
-    const draft = await this.requireEvaluatorDrafts().get(id)
+  async evaluatorDraft(workspaceId: string, id: string): Promise<EvolutionEvaluatorDraftDetail> {
+    const draft = await this.requireEvaluatorDrafts().get(workspaceId, id)
     const { files, limitations, qualifiedShadowAvailable, decision, qualification, reason, ...view } = draft
     return {
       schemaVersion: 1,
@@ -276,24 +294,24 @@ export class EvolutionControlPlane {
     }
   }
 
-  async authorEvaluator(signalId: string, targetId: string): Promise<EvolutionActionReceipt> {
-    return this.requireEvaluatorDrafts().author(signalId, targetId)
+  async authorEvaluator(workspaceId: string, signalId: string, targetId: string): Promise<EvolutionActionReceipt> {
+    return this.requireEvaluatorDrafts().author(workspaceId, signalId, targetId)
   }
 
-  async approveEvaluator(id: string, note: string): Promise<EvolutionActionReceipt> {
-    return this.requireEvaluatorDrafts().approve(id, note)
+  async approveEvaluator(workspaceId: string, id: string, note: string): Promise<EvolutionActionReceipt> {
+    return this.requireEvaluatorDrafts().approve(workspaceId, id, note)
   }
 
-  async approveAndStartEvaluatorShadow(id: string, note: string): Promise<EvolutionActionReceipt> {
-    return this.requireEvaluatorDrafts().approveAndStartShadow(id, note)
+  async approveAndStartEvaluatorShadow(workspaceId: string, id: string, note: string): Promise<EvolutionActionReceipt> {
+    return this.requireEvaluatorDrafts().approveAndStartShadow(workspaceId, id, note)
   }
 
-  async rejectEvaluator(id: string, note: string): Promise<EvolutionActionReceipt> {
-    return this.requireEvaluatorDrafts().reject(id, note)
+  async rejectEvaluator(workspaceId: string, id: string, note: string): Promise<EvolutionActionReceipt> {
+    return this.requireEvaluatorDrafts().reject(workspaceId, id, note)
   }
 
-  async startEvaluatorShadow(id: string): Promise<EvolutionActionReceipt> {
-    return this.requireEvaluatorDrafts().startShadow(id)
+  async startEvaluatorShadow(workspaceId: string, id: string): Promise<EvolutionActionReceipt> {
+    return this.requireEvaluatorDrafts().startShadow(workspaceId, id)
   }
 
   private requireReview(): NonNullable<EvolutionControlPlaneModules['review']> {
@@ -325,18 +343,21 @@ function isActionableEvaluatorStatus(status: EvolutionEvaluatorDraftView['status
 function projectReviews(
   all: Awaited<ReturnType<ReviewInbox['scanAll']>>,
   activeGenerationId: string | undefined,
+  workspaceId: string,
 ): EvolutionOverview['reviews'] {
-  const actionable = all.candidates.filter(candidate => candidate.status === 'pending'
+  const workspaceCandidates = all.candidates.filter(candidate => candidate.workspaceId === workspaceId)
+  const actionable = workspaceCandidates.filter(candidate => candidate.status === 'pending'
     || (candidate.status === 'approved'
       && candidate.decisionActor === 'auto-clear-instruction-v1'
       && candidate.activatedAt === undefined))
-  const inactiveGenerations = all.candidates
+  const inactiveGenerations = workspaceCandidates
     .filter(candidate => candidate.status === 'approved'
       && candidate.generationId !== undefined
       && candidate.generationId !== activeGenerationId)
     .slice(-MAX_REVIEW_ROWS)
     .reverse()
     .map(candidate => ({
+      workspaceId: candidate.workspaceId,
       generationId: candidate.generationId!,
       reviewId: candidate.id,
       skillName: candidate.skillName,
@@ -354,6 +375,7 @@ function projectReviews(
 function projectGeneration(generation: ReturnType<EvolutionStore['getActiveGeneration']> & {}): EvolutionGenerationView {
   return {
     id: generation.id,
+    workspaceId: generation.workspaceId,
     ...(generation.parentId === undefined ? {} : { rollbackTargetId: generation.parentId }),
     createdAt: generation.createdAt,
     evaluatorVersion: generation.evaluatorVersion,
@@ -365,6 +387,7 @@ function projectGeneration(generation: ReturnType<EvolutionStore['getActiveGener
 function projectReview(candidate: ReviewCandidate): EvolutionReviewView {
   return {
     id: candidate.id,
+    workspaceId: candidate.workspaceId,
     status: candidate.status,
     recommendation: candidate.recommendation,
     skillName: candidate.skillName,
@@ -394,5 +417,11 @@ function cloneOutcomeSummary(summary: ReturnType<DeliveryOutcomeStore['summarize
     all: { ...summary.all },
     selected: { ...summary.selected },
     ...(summary.baseline === undefined ? {} : { baseline: { ...summary.baseline } }),
+  }
+}
+
+function assertWorkspace(actual: string, expected: string, label: string): void {
+  if (actual !== expected) {
+    throw new Error(`${label} belongs to Workspace '${actual}', not '${expected}'`)
   }
 }

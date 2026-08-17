@@ -29,25 +29,31 @@ export class VerifiedEvolutionStore implements EvolutionStore {
     return this.store.getGeneration(id)
   }
 
-  getActiveGeneration(): CapabilityGeneration | undefined {
-    return this.store.getActiveGeneration()
+  getActiveGeneration(workspaceId: string): CapabilityGeneration | undefined {
+    return this.store.getActiveGeneration(workspaceId)
   }
 
-  async promoteGeneration(id: string) {
+  async promoteGeneration(workspaceId: string, id: string) {
     const generation = this.store.getGeneration(id)
     if (generation === undefined) throw new Error(`Generation '${id}' does not exist`)
+    if (generation.workspaceId !== workspaceId) {
+      throw new Error(`Generation '${id}' belongs to Workspace '${generation.workspaceId}', not '${workspaceId}'`)
+    }
     await this.source.providerFor(generation)
-    return this.store.promoteGeneration(id)
+    return this.store.promoteGeneration(workspaceId, id)
   }
 
-  async rollbackGeneration() {
-    const active = this.store.getActiveGeneration()
-    if (active === undefined) throw new Error('no active Generation to roll back')
-    if (active.parentId === undefined) return this.store.rollbackGeneration()
+  async rollbackGeneration(workspaceId: string) {
+    const active = this.store.getActiveGeneration(workspaceId)
+    if (active === undefined) throw new Error(`Workspace '${workspaceId}' has no active Generation to roll back`)
+    if (active.parentId === undefined) return this.store.rollbackGeneration(workspaceId)
     const parent = this.store.getGeneration(active.parentId)
     if (parent === undefined) throw new Error(`parent Generation '${active.parentId}' is missing`)
+    if (parent.workspaceId !== workspaceId) {
+      throw new Error(`parent Generation '${parent.id}' belongs to Workspace '${parent.workspaceId}'`)
+    }
     await this.source.providerFor(parent)
-    return this.store.rollbackGeneration()
+    return this.store.rollbackGeneration(workspaceId)
   }
 
   pinSession(identity: SessionIdentity, options?: { parentSessionId?: string }) {
@@ -62,12 +68,12 @@ export class VerifiedEvolutionStore implements EvolutionStore {
     return this.store.getSessionGeneration(identity)
   }
 
-  isRecoveryPaused(): boolean {
-    return this.store.isRecoveryPaused()
+  isRecoveryPaused(workspaceId: string): boolean {
+    return this.store.isRecoveryPaused(workspaceId)
   }
 
-  setRecoveryPaused(paused: boolean) {
-    return this.store.setRecoveryPaused(paused)
+  setRecoveryPaused(workspaceId: string, paused: boolean) {
+    return this.store.setRecoveryPaused(workspaceId, paused)
   }
 
   close(): Promise<void> {

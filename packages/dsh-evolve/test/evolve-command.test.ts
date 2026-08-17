@@ -1,10 +1,22 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { CapabilityGeneration, EvolutionStore } from '../src/generation-store.js'
-import { executeEvolutionCommand } from '../src/evolve-command.js'
+import {
+  executeEvolutionCommand as executeNativeEvolutionCommand,
+  type EvolutionCommandModules,
+} from '../src/evolve-command.js'
 import type { CandidatePublisher } from '../src/candidate-publisher.js'
 import type { ReviewCandidate, ReviewInbox } from '../src/review-inbox.js'
 import type { AutoPromotionPolicy } from '../src/auto-promotion.js'
 import type { DeliveryOutcomeStore } from '../src/delivery-outcome-monitor.js'
+import { WORKSPACE_ID } from './workspace-fixture.ts'
+
+function executeEvolutionCommand(
+  store: EvolutionStore,
+  rawInput: string,
+  modules: EvolutionCommandModules = {},
+) {
+  return executeNativeEvolutionCommand(store, rawInput, modules, WORKSPACE_ID)
+}
 
 const rootId = '1'.repeat(64)
 const childId = '2'.repeat(64)
@@ -65,7 +77,7 @@ describe('/evolve host command', () => {
       kind: 'success',
       text: expect.stringContaining('Explicit feedback signals: 5 retained (2 active selection)'),
     })
-    expect(feedback.summarize).toHaveBeenCalledWith(rootId)
+    expect(feedback.summarize).toHaveBeenCalledWith(WORKSPACE_ID, rootId)
   })
 
   it('shows the durable automatic evolution budget without a model call', async () => {
@@ -74,6 +86,7 @@ describe('/evolve host command', () => {
         warningCount: 0,
         targets: [{
           targetId: 'stable-target',
+          workspaceId: WORKSPACE_ID,
           skillName: 'stable-skill',
           utcDay: '2026-08-17',
           used: 1,
@@ -88,6 +101,7 @@ describe('/evolve host command', () => {
         warningCount: 0,
         targets: [{
           targetId: 'novel-failure',
+          workspaceId: WORKSPACE_ID,
           skillName: 'stable-skill',
           utcDay: '2026-08-17',
           used: 1,
@@ -119,7 +133,8 @@ describe('/evolve host command', () => {
 
   it('lists opaque feedback references and delegates explicit draft creation', async () => {
     const signal = {
-      schemaVersion: 1 as const,
+      schemaVersion: 2 as const,
+      workspaceId: WORKSPACE_ID,
       id: 'f'.repeat(64),
       observedAt: 3,
       sessionId: 'session-private',
@@ -153,7 +168,7 @@ describe('/evolve host command', () => {
       kind: 'success',
       text: expect.stringContaining('Feedback Case Draft created.'),
     })
-    expect(feedbackDraft.create).toHaveBeenCalledWith(signal.id, 'stable-skill')
+    expect(feedbackDraft.create).toHaveBeenCalledWith(WORKSPACE_ID, signal.id, 'stable-skill')
   })
 
   it('does not create a draft without explicit private-root composition', async () => {
@@ -179,6 +194,7 @@ describe('/evolve host command', () => {
       launch: vi.fn(async () => ({
         schemaVersion: 1 as const,
         action: 'start-shadow' as const,
+        workspaceId: WORKSPACE_ID,
         launchId: childId,
         targetId: 'stable-skill',
         skillName: 'stable-skill',
@@ -195,7 +211,7 @@ describe('/evolve host command', () => {
       kind: 'success',
       text: expect.stringContaining('submitted as native Job evolution-1'),
     })
-    expect(feedbackShadow.launch).toHaveBeenCalledWith(id, 'stable-skill')
+    expect(feedbackShadow.launch).toHaveBeenCalledWith(WORKSPACE_ID, id, 'stable-skill')
   })
 
   it('authors and reviews evaluator drafts through a separate human qualification inbox', async () => {
@@ -275,7 +291,7 @@ describe('/evolve host command', () => {
       kind: 'success',
       text: expect.stringContaining('submitted as native Job evolution-2'),
     })
-    expect(evaluatorDrafts.author).toHaveBeenCalledWith(signalId, 'stable-skill')
+    expect(evaluatorDrafts.author).toHaveBeenCalledWith(WORKSPACE_ID, signalId, 'stable-skill')
 
     await expect(executeEvolutionCommand(fakeStore(), 'evaluator', { evaluatorDrafts: evaluatorDrafts as never }))
       .resolves.toMatchObject({ kind: 'success', text: expect.stringContaining(draftId) })
@@ -286,13 +302,13 @@ describe('/evolve host command', () => {
       `evaluator ${draftId} approve independently reviewed`,
       { evaluatorDrafts: evaluatorDrafts as never },
     )).resolves.toMatchObject({ kind: 'success', text: expect.stringContaining('Qualified Case Pack') })
-    expect(evaluatorDrafts.approve).toHaveBeenCalledWith(draftId, 'independently reviewed')
+    expect(evaluatorDrafts.approve).toHaveBeenCalledWith(WORKSPACE_ID, draftId, 'independently reviewed')
     await expect(executeEvolutionCommand(
       fakeStore(),
       `evaluator ${draftId} shadow`,
       { evaluatorDrafts: evaluatorDrafts as never },
     )).resolves.toMatchObject({ kind: 'success', text: expect.stringContaining('evolution-3') })
-    expect(evaluatorDrafts.startShadow).toHaveBeenCalledWith(draftId)
+    expect(evaluatorDrafts.startShadow).toHaveBeenCalledWith(WORKSPACE_ID, draftId)
     await expect(executeEvolutionCommand(
       fakeStore(),
       `evaluator ${draftId} qualify-shadow independently reviewed and paid Shadow authorized`,
@@ -302,6 +318,7 @@ describe('/evolve host command', () => {
       text: expect.stringContaining('evolution-4'),
     })
     expect(evaluatorDrafts.approveAndStartShadow).toHaveBeenCalledWith(
+      WORKSPACE_ID,
       draftId,
       'independently reviewed and paid Shadow authorized',
     )
@@ -324,7 +341,7 @@ describe('/evolve host command', () => {
         `Rollback: /evolve rollback`,
       ].join('\n'),
     })
-    expect(promoteGeneration).toHaveBeenCalledWith(rootId)
+    expect(promoteGeneration).toHaveBeenCalledWith(WORKSPACE_ID, rootId)
 
     promoteGeneration.mockResolvedValue({ previousId: rootId, generation: root })
     await expect(executeEvolutionCommand(store, `promote ${rootId}`)).resolves.toMatchObject({
@@ -542,7 +559,11 @@ describe('/evolve host command', () => {
         'Observed delivery counts are descriptive; they do not prove that a Generation caused the difference.',
       ].join('\n')),
     })
-    expect(outcomes.summarize).toHaveBeenCalledWith(rootId, { baselineGenerationId: childId })
+    expect(outcomes.summarize).toHaveBeenCalledWith(
+      WORKSPACE_ID,
+      rootId,
+      { baselineGenerationId: childId },
+    )
   })
 
   it('returns an actionable host error instead of throwing an implementation stack', async () => {
@@ -560,7 +581,8 @@ describe('/evolve host command', () => {
 function generation(id: string, parentId?: string): CapabilityGeneration {
   return {
     id,
-    schemaVersion: 1,
+    schemaVersion: 2,
+    workspaceId: WORKSPACE_ID,
     ...(parentId === undefined ? {} : { parentId }),
     createdAt: 1_723_456_789_000,
     artifacts: [{
@@ -578,6 +600,7 @@ function generation(id: string, parentId?: string): CapabilityGeneration {
 function reviewCandidate(): ReviewCandidate {
   return {
     id: 'a'.repeat(64),
+    workspaceId: WORKSPACE_ID,
     runId: 'b'.repeat(64),
     status: 'pending',
     outputDir: '/private/run',

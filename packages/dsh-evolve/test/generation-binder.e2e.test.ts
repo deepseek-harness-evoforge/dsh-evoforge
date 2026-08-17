@@ -13,6 +13,7 @@ import { openDeliveryOutcomeStore } from '../src/delivery-outcome-monitor.js'
 import { openFeedbackSignalStore } from '../src/feedback-signal-monitor.js'
 import { hashTree, sha256 } from '../src/hash.js'
 import { evaluateRetention } from '../src/retention.js'
+import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const execFile = promisify(execFileCallback)
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -51,12 +52,13 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
           }],
           supervisor: {
             runRoots: [
-              join(runtimeRoot, 'feedback-shadow-runs'),
-              join(runtimeRoot, 'qualified-shadow-runs'),
+              { workspaceId: WORKSPACE_ID, path: join(runtimeRoot, 'feedback-shadow-runs') },
+              { workspaceId: WORKSPACE_ID, path: join(runtimeRoot, 'qualified-shadow-runs') },
             ],
             scanIntervalMs: 60_000,
           },
           shadowTargets: [{
+            workspaceId: WORKSPACE_ID,
             id: 'stable-feedback-fix',
             skill: 'stable-evolved-skill',
             casePackDir: join(runtimeRoot, 'feedback-case-pack'),
@@ -67,12 +69,14 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
             casePackHash: '7'.repeat(64),
           }],
           evaluatorTargets: [{
+            workspaceId: WORKSPACE_ID,
             id: 'stable-skill-fix',
             skill: 'stable-evolved-skill',
             root: join(runtimeRoot, 'private-evaluators'),
             dshRevision: '47f943859bef60e4160492346772ded9b24f765a',
             shadowRunRoot: join(runtimeRoot, 'qualified-shadow-runs'),
           }, {
+            workspaceId: WORKSPACE_ID,
             id: 'novel-evaluator-fix',
             skill: 'automatic-evaluator-only-skill',
             root: join(runtimeRoot, 'automatic-evaluators'),
@@ -83,6 +87,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
             skills: ['stable-evolved-skill'],
             retentionRoots: [join(runtimeRoot, 'retention-runs')],
             retentionTargets: [{
+              workspaceId: WORKSPACE_ID,
               id: 'stable-prior-capability',
               skill: 'stable-evolved-skill',
               casePackDir: join(runtimeRoot, 'prior-case-pack'),
@@ -104,7 +109,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
           const store = ctx.get('evoforge.evolution') as EvolutionStore | undefined
           if (store === undefined) throw new Error('evolution store did not load')
           const generation = (await store.publishGeneration(generationInput(revision))).generation
-          await store.promoteGeneration(generation.id)
+      await store.promoteGeneration(WORKSPACE_ID, generation.id)
           expect(store.getSessionGeneration(identityOf(agent))).toBeUndefined()
         }
         await runAgentTurn(agent, `stable turn ${String(turn).padStart(2, '0')}`)
@@ -192,6 +197,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
           path: 'skills/stable-evolved-skill',
         }],
         evaluatorTargets: [{
+          workspaceId: WORKSPACE_ID,
           id: 'stable-skill-fix',
           skill: 'stable-evolved-skill',
           root: evaluatorRoot,
@@ -220,7 +226,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
         }): Promise<{ ok: boolean }>
       }
       const generation = (await store.publishGeneration(generationInput(revision))).generation
-      await store.promoteGeneration(generation.id)
+      await store.promoteGeneration(WORKSPACE_ID, generation.id)
       const agent = await createAndRunAgent(
         ctx,
         'evaluator-authoring-session',
@@ -360,8 +366,9 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
           repository,
           path: 'skills/stable-evolved-skill',
         }],
-        supervisor: { runRoots: [shadowRunRoot], scanIntervalMs: 1_000 },
+        supervisor: { runRoots: [{ workspaceId: WORKSPACE_ID, path: shadowRunRoot }], scanIntervalMs: 1_000 },
         evaluatorTargets: [{
+          workspaceId: WORKSPACE_ID,
           id: 'stable-skill-fix',
           skill: 'stable-evolved-skill',
           root: evaluatorRoot,
@@ -395,7 +402,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
         }): Promise<{ ok: boolean }>
       }
       const generation = (await store.publishGeneration(generationInput(revision))).generation
-      await store.promoteGeneration(generation.id)
+      await store.promoteGeneration(WORKSPACE_ID, generation.id)
       const agent = await createAndRunAgent(
         ctx,
         'qualified-shadow-session',
@@ -502,7 +509,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
       expect(modelRequests).toEqual(['author', 'proposer'])
       expect(adapter.requests).toHaveLength(normalRequests)
       expect(await readFile(skillPath, 'utf8')).toBe(originalSkill)
-      expect(store.getActiveGeneration()?.id).toBe(generation.id)
+      expect(store.getActiveGeneration(WORKSPACE_ID)?.id).toBe(generation.id)
     } finally {
       if (previousBase === undefined) delete process.env.DSH_EVOLVE_MODEL_BASE_URL
       else process.env.DSH_EVOLVE_MODEL_BASE_URL = previousBase
@@ -593,8 +600,9 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
           repository,
           path: 'skills/stable-evolved-skill',
         }],
-        supervisor: { runRoots: [shadowRunRoot], scanIntervalMs: 1_000 },
+        supervisor: { runRoots: [{ workspaceId: WORKSPACE_ID, path: shadowRunRoot }], scanIntervalMs: 1_000 },
         shadowTargets: [{
+          workspaceId: WORKSPACE_ID,
           id: 'stable-skill-fix',
           skill: 'stable-evolved-skill',
           casePackDir,
@@ -610,6 +618,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
           skills: ['stable-evolved-skill'],
           retentionRoots: [retentionRoot],
           retentionTargets: [{
+            workspaceId: WORKSPACE_ID,
             id: 'stable-prior-capability',
             skill: 'stable-evolved-skill',
             casePackDir: priorCasePack,
@@ -643,7 +652,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
         throw new Error('automatic feedback services did not load')
       }
       const baseline = (await store.publishGeneration(generationInput(revision))).generation
-      await store.promoteGeneration(baseline.id)
+      await store.promoteGeneration(WORKSPACE_ID, baseline.id)
       const agent = await createAndRunAgent(
         ctx,
         'automatic-feedback-session',
@@ -733,7 +742,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
         repository,
         path: 'skills/stable-evolved-skill',
       }],
-      supervisor: { runRoots: [runRoot], scanIntervalMs: 1_000 },
+      supervisor: { runRoots: [{ workspaceId: WORKSPACE_ID, path: runRoot }], scanIntervalMs: 1_000 },
       autoPromote: { skills: ['stable-evolved-skill'] },
     })
     const store = ctx.get('evoforge.evolution') as EvolutionStore | undefined
@@ -800,7 +809,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
       decision: 'keep',
       comparison: { calibrationPassed: true, parentPassed: false, candidatePassed: true },
     })
-    expect(store.getActiveGeneration()?.id).toBe(active.id)
+    expect(store.getActiveGeneration(WORKSPACE_ID)?.id).toBe(active.id)
     expect(adapter.requests).toHaveLength(requestsBeforeAutomatic + 1)
     unregister()
     await ctx.fiber.dispose()
@@ -824,7 +833,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
         repository,
         path: 'skills/stable-evolved-skill',
       }],
-      supervisor: { runRoots: [runRoot], scanIntervalMs: 1_000 },
+      supervisor: { runRoots: [{ workspaceId: WORKSPACE_ID, path: runRoot }], scanIntervalMs: 1_000 },
       autoPromote: {
         skills: ['stable-evolved-skill'],
         retentionRoots: [retentionRoot],
@@ -832,23 +841,23 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     })
     const store = ctx.get('evoforge.evolution') as EvolutionStore | undefined
     const control = ctx.get('evoforge.evolutionControl') as {
-      overview(): Promise<{ reviews: { items: Array<{ id: string }> } }>
-      review(id: string): Promise<{ automatic?: { eligible: boolean; reasons: string[] } }>
+      overview(workspaceId: string): Promise<{ reviews: { items: Array<{ id: string }> } }>
+      review(workspaceId: string, id: string): Promise<{ automatic?: { eligible: boolean; reasons: string[] } }>
     } | undefined
     if (store === undefined || control === undefined) throw new Error('retention policy services did not load')
     const jobsModule = await import(pathToFileURL(
       join(dshSourceDir, 'packages', 'jobs', 'jobs-local', 'lib', 'index.js'),
     ).href)
     await ctx.plugin(jobsModule.default)
-    const reviewId = (await control.overview()).reviews.items[0]?.id
+    const reviewId = (await control.overview(WORKSPACE_ID)).reviews.items[0]?.id
     if (reviewId === undefined) throw new Error('retention review fixture missing')
-    await expect(control.review(reviewId)).resolves.toMatchObject({
+    await expect(control.review(WORKSPACE_ID, reviewId)).resolves.toMatchObject({
       automatic: {
         eligible: false,
         reasons: expect.arrayContaining(['no exact Retention evidence is available']),
       },
     })
-    expect(store.getActiveGeneration()).toBeUndefined()
+    expect(store.getActiveGeneration(WORKSPACE_ID)).toBeUndefined()
     const requestsBeforeRetention = adapter.requests.length
 
     await expect(evaluateRetention({
@@ -884,11 +893,12 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
         repository,
         path: 'skills/stable-evolved-skill',
       }],
-      supervisor: { runRoots: [runRoot], scanIntervalMs: 1_000 },
+      supervisor: { runRoots: [{ workspaceId: WORKSPACE_ID, path: runRoot }], scanIntervalMs: 1_000 },
       autoPromote: {
         skills: ['stable-evolved-skill'],
         retentionRoots: [retentionRoot],
         retentionTargets: [{
+          workspaceId: WORKSPACE_ID,
           id: 'prior-baseline-body',
           skill: 'stable-evolved-skill',
           casePackDir: priorCasePack,
@@ -941,11 +951,12 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
         repository,
         path: 'skills/stable-evolved-skill',
       }],
-      supervisor: { runRoots: [runRoot], scanIntervalMs: 1_000 },
+      supervisor: { runRoots: [{ workspaceId: WORKSPACE_ID, path: runRoot }], scanIntervalMs: 1_000 },
       autoPromote: {
         skills: ['stable-evolved-skill'],
         retentionRoots: [retentionRoot],
         retentionTargets: [{
+          workspaceId: WORKSPACE_ID,
           id: 'prior-baseline-body',
           skill: 'stable-evolved-skill',
           casePackDir: priorCasePack,
@@ -956,8 +967,8 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     })
     const store = ctx.get('evoforge.evolution') as EvolutionStore | undefined
     const control = ctx.get('evoforge.evolutionControl') as {
-      overview(): Promise<{ reviews: { items: Array<{ id: string }> } }>
-      review(id: string): Promise<{ automatic?: { eligible: boolean; reasons: string[] } }>
+      overview(workspaceId: string): Promise<{ reviews: { items: Array<{ id: string }> } }>
+      review(workspaceId: string, id: string): Promise<{ automatic?: { eligible: boolean; reasons: string[] } }>
     } | undefined
     if (store === undefined || control === undefined) {
       throw new Error('automatic Retention review services did not load')
@@ -972,9 +983,9 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
       decision: { outcome: 'regressed' },
       model: { proposerCalls: 0 },
     })
-    const reviewId = (await control.overview()).reviews.items[0]?.id
+    const reviewId = (await control.overview(WORKSPACE_ID)).reviews.items[0]?.id
     if (reviewId === undefined) throw new Error('automatic Retention review fixture missing')
-    await expect(control.review(reviewId)).resolves.toMatchObject({
+    await expect(control.review(WORKSPACE_ID, reviewId)).resolves.toMatchObject({
       automatic: {
         eligible: false,
         reasons: expect.arrayContaining([
@@ -982,7 +993,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
         ]),
       },
     })
-    expect(store.getActiveGeneration()).toBeUndefined()
+    expect(store.getActiveGeneration(WORKSPACE_ID)).toBeUndefined()
     expect(adapter.requests).toHaveLength(requestsBeforeRetention)
     await ctx.fiber.dispose()
   }, 20_000)
@@ -1002,7 +1013,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
         repository,
         path: 'skills/stable-evolved-skill',
       }],
-      supervisor: { runRoots: [runRoot], scanIntervalMs: 30_000 },
+      supervisor: { runRoots: [{ workspaceId: WORKSPACE_ID, path: runRoot }], scanIntervalMs: 30_000 },
     })
     const commandsModule = await import(pathToFileURL(
       join(dshSourceDir, 'packages', 'interaction', 'commands', 'lib', 'index.js'),
@@ -1025,12 +1036,12 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
 
     const paused = await commands.execute(liveNative, '/evolve pause', new AbortController().signal)
     expect(paused?.result).toMatchObject({ kind: 'success' })
-    expect(store.isRecoveryPaused()).toBe(true)
+    expect(store.isRecoveryPaused(WORKSPACE_ID)).toBe(true)
     const pausedStatus = await commands.execute(liveNative, '/evolve status', new AbortController().signal)
     expect(pausedStatus?.result.text).toContain('Resident recovery: paused')
     const resumed = await commands.execute(liveNative, '/evolve resume', new AbortController().signal)
     expect(resumed?.result).toMatchObject({ kind: 'success' })
-    expect(store.isRecoveryPaused()).toBe(false)
+    expect(store.isRecoveryPaused(WORKSPACE_ID)).toBe(false)
     expect(adapter.requests).toHaveLength(requestsBeforeReview)
 
     const list = await commands.execute(liveNative, '/evolve review', new AbortController().signal)
@@ -1178,7 +1189,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     const nativeAgent = await createAndRunAgent(ctx, 'native-before-first-promotion', root)
     const firstNativeRequest = requestView(adapter.requests[0])
     const generation = (await store.publishGeneration(generationInput(revision))).generation
-    await store.promoteGeneration(generation.id)
+      await store.promoteGeneration(WORKSPACE_ID, generation.id)
     const nativeChild = await createAndRunAgent(
       ctx,
       'native-child-after-first-promotion',
@@ -1234,14 +1245,14 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
       }],
     })).generation
 
-    await expect(store.promoteGeneration(invalid.id)).rejects.toThrow('Git tree mismatch')
-    expect(store.getActiveGeneration()).toBeUndefined()
+    await expect(store.promoteGeneration(WORKSPACE_ID, invalid.id)).rejects.toThrow('Git tree mismatch')
+    expect(store.getActiveGeneration(WORKSPACE_ID)).toBeUndefined()
 
     const valid = (await store.publishGeneration({
       ...generationInput(revision),
       createdAt: 1_723_456_789_001,
     })).generation
-    await store.promoteGeneration(valid.id)
+    await store.promoteGeneration(WORKSPACE_ID, valid.id)
     const cachedTree = join(cacheRoot, revision.treeHash, 'tree')
     await chmod(cachedTree, 0o755)
     await writeFile(join(cachedTree, 'rogue.md'), 'not in Git\n')
@@ -1309,7 +1320,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     if (store === undefined || skills === undefined) throw new Error('required service did not load')
 
     const oldGeneration = (await store.publishGeneration(generationInput(oldRevision))).generation
-    await store.promoteGeneration(oldGeneration.id)
+    await store.promoteGeneration(WORKSPACE_ID, oldGeneration.id)
     const oldAgent = await createAndRunAgent(ctx, 'old-session', root)
     const oldIdentity = identityOf(oldAgent)
     const oldSkill = await skills.get('stable-evolved-skill', { cwd: root, scope: oldAgent })
@@ -1319,7 +1330,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
       parentId: oldGeneration.id,
       createdAt: 1_723_456_789_001,
     })).generation
-    await store.promoteGeneration(newGeneration.id)
+    await store.promoteGeneration(WORKSPACE_ID, newGeneration.id)
     const newAgent = await createAndRunAgent(ctx, 'new-session', root)
     const childAgent = await createAndRunAgent(ctx, 'child-session', root, 'old-session')
     await runAgentTurn(oldAgent, 'run after promotion')
@@ -1328,7 +1339,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     const newSkill = await skills.get('stable-evolved-skill', { cwd: root, scope: newAgent })
     const childSkill = await skills.get('stable-evolved-skill', { cwd: root, scope: childAgent })
 
-    await store.rollbackGeneration()
+    await store.rollbackGeneration(WORKSPACE_ID)
     const rollbackAgent = await createAndRunAgent(ctx, 'rollback-session', root)
     const rollbackSkill = await skills.get('stable-evolved-skill', { cwd: root, scope: rollbackAgent })
     const oldSkillAfterRollback = await skills.get('stable-evolved-skill', { cwd: root, scope: oldAgent })
@@ -1401,7 +1412,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     } | undefined
     if (store === undefined || skills === undefined) throw new Error('required service did not load')
     const generation = (await store.publishGeneration(generationInput(revision))).generation
-    await store.promoteGeneration(generation.id)
+      await store.promoteGeneration(WORKSPACE_ID, generation.id)
 
     await chmod(join(root, 'storage'), 0o500)
     const agent = await createAndRunAgent(ctx, 'pin-failure-session', root)
@@ -1434,7 +1445,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     } | undefined
     if (store === undefined || skills === undefined) throw new Error('required service did not load')
     const generation = (await store.publishGeneration(generationInput(revision))).generation
-    await store.promoteGeneration(generation.id)
+      await store.promoteGeneration(WORKSPACE_ID, generation.id)
     const agent = await createAndRunAgent(ctx, 'hot-unload-session', root)
     expect((await skills.get('stable-evolved-skill', { cwd: root, scope: agent }))?.content)
       .toBe('Unload body.')
@@ -1510,7 +1521,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     expect(adapter.requests).toHaveLength(modelRequestsBeforeDelivery)
 
     const active = (await store.publishGeneration(generationInput(revision))).generation
-    await store.promoteGeneration(active.id)
+    await store.promoteGeneration(WORKSPACE_ID, active.id)
     const activeAgent = await createAndRunAgent(ctx, 'active-delivery-outcome-session', root)
     const requestsBeforeActiveDelivery = adapter.requests.length
     const activeExecution = {
@@ -1537,7 +1548,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     await evolveFiber.dispose()
     const recovered = await openDeliveryOutcomeStore(ctx.storageDomain)
     try {
-      expect(recovered.summarize(active.id, {})).toEqual({
+      expect(recovered.summarize(WORKSPACE_ID, active.id, {})).toEqual({
         all: { total: 2, passed: 2, failed: 0, unknown: 0 },
         selected: { total: 1, passed: 1, failed: 0, unknown: 0 },
         baseline: { total: 1, passed: 1, failed: 0, unknown: 0 },
@@ -1589,7 +1600,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     } | undefined
     if (store === undefined || feedback === undefined) throw new Error('feedback services did not load')
     const generation = (await store.publishGeneration(generationInput(revision))).generation
-    await store.promoteGeneration(generation.id)
+      await store.promoteGeneration(WORKSPACE_ID, generation.id)
     const agent = await createAndRunAgent(ctx, 'message-feedback-session', root)
     const assistant = agent.session.events.find(
       (event: { type: string }) => event.type === 'assistant/message',
@@ -1659,8 +1670,9 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
         repository,
         path: 'skills/stable-evolved-skill',
       }],
-      supervisor: { runRoots: [runRoot], scanIntervalMs: 30_000 },
+      supervisor: { runRoots: [{ workspaceId: WORKSPACE_ID, path: runRoot }], scanIntervalMs: 30_000 },
       shadowTargets: [{
+        workspaceId: WORKSPACE_ID,
         id: 'stable-skill-fix',
         skill: 'stable-evolved-skill',
         casePackDir,
@@ -1690,7 +1702,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     } | undefined
     if (store === undefined || feedback === undefined) throw new Error('draft services did not load')
     const generation = (await store.publishGeneration(generationInput(revision))).generation
-    await store.promoteGeneration(generation.id)
+      await store.promoteGeneration(WORKSPACE_ID, generation.id)
     const userText = '/stable-evolved-skill reproduce the browser verification failure'
     const correction = 'Run the visible browser flow and inspect its failure before completion.'
     const agent = await createAndRunAgent(ctx, 'feedback-draft-session', root, undefined, userText)
@@ -1714,7 +1726,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     expect(signalId).toBeDefined()
     if (signalId === undefined) throw new Error('feedback signal id missing')
     const control = ctx.get('evoforge.evolutionControl') as {
-      overview(): Promise<{
+      overview(workspaceId: string): Promise<{
         feedbackShadow?: {
           available: boolean
           signals: Array<{ id: string }>
@@ -1723,7 +1735,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
       }>
     } | undefined
     if (control === undefined) throw new Error('evolution control service did not load')
-    await expect(control.overview()).resolves.toMatchObject({
+    await expect(control.overview(WORKSPACE_ID)).resolves.toMatchObject({
       feedbackShadow: {
         available: true,
         signals: [{ id: signalId }],
@@ -1747,10 +1759,11 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     const draftPath = join(feedbackDraftRoot, files[0]!)
     const draft = JSON.parse(await readFile(draftPath, 'utf8'))
     expect(draft).toMatchObject({
-      schemaVersion: 1,
+      schemaVersion: 2,
       id: files[0]!.slice(0, -5),
       status: 'draft',
       source: {
+        workspaceId: WORKSPACE_ID,
         signalId,
         sessionId: 'feedback-draft-session',
         messageId: assistant.data.message.id,
@@ -1831,7 +1844,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     } | undefined
     if (store === undefined || goals === undefined) throw new Error('required service did not load')
     const generation = (await store.publishGeneration(generationInput(revision))).generation
-    await store.promoteGeneration(generation.id)
+      await store.promoteGeneration(WORKSPACE_ID, generation.id)
     const evolvedAgent = await createAndRunAgent(evolvedCtx, 'removable-session', root)
     expect(goals.create(evolvedAgent, { objective: 'Persist without EvoForge.' }).objective)
       .toBe('Persist without EvoForge.')
@@ -1864,6 +1877,7 @@ interface GitRevision {
 
 function generationInput(revision: GitRevision) {
   return {
+    workspaceId: WORKSPACE_ID,
     createdAt: 1_723_456_789_000,
     artifacts: [{
       kind: 'skill' as const,
@@ -1910,6 +1924,7 @@ async function writeCompletedReviewRun(
     startedAt: '2026-08-16T00:00:00.000Z',
     updatedAt: '2026-08-16T00:01:00.000Z',
     identity: {
+      workspaceId: WORKSPACE_ID,
       baseTreeHash,
       casePackHash,
       dshRevision: 'fixture',
@@ -1989,6 +2004,7 @@ async function writeAutomaticCanaryCasePack(casePackDir: string): Promise<string
   ].join('\n'))
   await writeFile(join(casePackDir, 'manifest.json'), `${JSON.stringify({
     schemaVersion: 1,
+    workspaceId: WORKSPACE_ID,
     id: 'automatic-canary-e2e',
     epoch: { dshRevision: 'fixture', evaluatorVersion: 'review-e2e-v1' },
     budget: { candidateLimit: 1, trialLimit: 4, inputTokenLimit: 100, outputTokenLimit: 100 },
@@ -2062,6 +2078,7 @@ async function writeTextRetentionCasePack(
   ].join('\n'))
   await writeFile(join(casePackDir, 'manifest.json'), `${JSON.stringify({
     schemaVersion: 1,
+    workspaceId: WORKSPACE_ID,
     id: 'prior-text-retention',
     epoch: { dshRevision: 'fixture', evaluatorVersion: 'prior-text-retention-v1' },
     budget: { candidateLimit: 1, trialLimit: 4, inputTokenLimit: 100, outputTokenLimit: 100 },
@@ -2105,6 +2122,7 @@ async function writePriorRetentionCasePack(
   ].join('\n'))
   await writeFile(join(casePackDir, 'manifest.json'), `${JSON.stringify({
     schemaVersion: 1,
+    workspaceId: WORKSPACE_ID,
     id: 'prior-baseline-body',
     epoch: { dshRevision: 'fixture', evaluatorVersion: 'prior-retention-v1' },
     budget: { candidateLimit: 1, trialLimit: 4, inputTokenLimit: 100, outputTokenLimit: 100 },
@@ -2189,7 +2207,7 @@ async function git(repository: string, ...args: string[]): Promise<string> {
 async function waitForActiveGeneration(store: EvolutionStore): Promise<NonNullable<ReturnType<EvolutionStore['getActiveGeneration']>>> {
   const deadline = Date.now() + 5_000
   while (Date.now() < deadline) {
-    const active = store.getActiveGeneration()
+    const active = store.getActiveGeneration(WORKSPACE_ID)
     if (active !== undefined) return active
     await new Promise(resolve => setTimeout(resolve, 10))
   }
@@ -2203,7 +2221,7 @@ async function waitForGenerationChange(
 ): Promise<NonNullable<ReturnType<EvolutionStore['getActiveGeneration']>>> {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
-    const active = store.getActiveGeneration()
+    const active = store.getActiveGeneration(WORKSPACE_ID)
     if (active !== undefined && active.id !== baselineId) return active
     await new Promise(resolve => setTimeout(resolve, 25))
   }
@@ -2292,6 +2310,9 @@ async function installAgentRuntime(
   if (persistenceRoot !== undefined) {
     await ctx.plugin(persistence.default, { root: persistenceRoot, compression: 'none' })
   }
+  ctx.provide('workspaceRegistry', {
+    resolveByPath: async () => ({ id: WORKSPACE_ID }),
+  } as never)
 
   class FixedAdapter extends llm.LlmAdapter {
     requests: unknown[] = []
@@ -2399,6 +2420,7 @@ function identityOf(agent: {
 }) {
   const { id, createdAt, cwd } = agent.session.header
   return {
+    workspaceId: WORKSPACE_ID,
     sessionId: String(id),
     createdAt,
     ...cwd === undefined ? {} : { cwd },

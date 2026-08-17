@@ -22,6 +22,7 @@ import type {
   AutomaticEvaluatorBudgetStatus,
   AutomaticEvaluatorDraftService,
 } from './automatic-evaluator-draft.ts'
+import { workspaceIdForCwd } from './workspace-identity.ts'
 
 const USAGE = 'Usage: /evolve [status|feedback [<signal-id> [draft <skill>|shadow <target>|author <evaluator-target>]]|evaluator [<draft-id> [shadow|qualify-shadow <note>|approve|reject <note>]]|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]'
 const generationIdPattern = /^[a-f0-9]{64}$/
@@ -50,7 +51,12 @@ export function installEvolutionCommand(
       name: 'evolve',
       description: 'inspect feedback, review, publish, promote, or roll back immutable capability Generations',
       input: { hint: '[status|feedback ...|review ...|pause|resume|promote <generation-id>|rollback]' },
-      handler: ({ rawInput }) => executeEvolutionCommand(store, rawInput, modules),
+      handler: async ({ rawInput, agent }) => executeEvolutionCommand(
+        store,
+        rawInput,
+        modules,
+        await workspaceIdForCwd(ctx, agent.session.header.cwd),
+      ),
     })
   })
 }
@@ -60,34 +66,36 @@ export async function executeEvolutionCommand(
   store: EvolutionStore,
   rawInput: string,
   modules: EvolutionCommandModules = {},
+  workspaceId: string,
 ): Promise<CommandResult> {
   const input = rawInput.trim()
   const { review, resident, automatic, outcomes, feedback, feedbackDraft, feedbackShadow, automaticFeedback, automaticEvaluator, evaluatorDrafts } = modules
   try {
     if (input === '' || input === 'status') {
-      const active = store.getActiveGeneration()
+      const active = store.getActiveGeneration(workspaceId)
       const [automaticFeedbackBudget, automaticEvaluatorBudget] = await Promise.all([
         automaticFeedback?.budgetStatus(),
         automaticEvaluator?.budgetStatus(),
       ])
       return renderStatus(
         active,
-        resident?.isPaused(),
+        resident?.isPaused(workspaceId),
         automatic?.skills(),
         outcomes?.summarize(
+          workspaceId,
           active?.id,
           active === undefined
             ? undefined
             : active.parentId === undefined ? {} : { baselineGenerationId: active.parentId },
         ),
-        feedback?.summarize(active?.id),
+        feedback?.summarize(workspaceId, active?.id),
         automaticFeedbackBudget,
         automaticEvaluatorBudget,
       )
     }
     if (input === 'pause') {
       if (resident === undefined) return residentUnavailable()
-      await resident.pause()
+      await resident.pause(workspaceId)
       return {
         kind: 'success',
         text: 'Resident evolution recovery paused durably. Active recovery was stopped; normal Sessions and human review remain available.',
@@ -95,7 +103,7 @@ export async function executeEvolutionCommand(
     }
     if (input === 'resume') {
       if (resident === undefined) return residentUnavailable()
-      await resident.resume()
+      await resident.resume(workspaceId)
       return {
         kind: 'success',
         text: 'Resident evolution recovery resumed. Durable Candidate/Trial discovery was awakened.',
@@ -103,12 +111,12 @@ export async function executeEvolutionCommand(
     }
     if (input === 'feedback') {
       if (feedback === undefined) return feedbackUnavailable()
-      return renderFeedbackList(feedback.list())
+      return renderFeedbackList(feedback.list(workspaceId))
     }
     const feedbackShadowAction = /^feedback\s+([a-f0-9]{64})\s+shadow\s+([a-z0-9]+(?:-[a-z0-9]+)*)$/u.exec(input)
     if (feedbackShadowAction?.[1] !== undefined && feedbackShadowAction[2] !== undefined) {
       if (feedbackShadow === undefined) return feedbackShadowUnavailable()
-      const launched = await feedbackShadow.launch(feedbackShadowAction[1], feedbackShadowAction[2])
+      const launched = await feedbackShadow.launch(workspaceId, feedbackShadowAction[1], feedbackShadowAction[2])
       return {
         kind: 'success',
         text: launched.jobId === undefined
@@ -123,7 +131,7 @@ export async function executeEvolutionCommand(
     const evaluatorAuthorAction = /^feedback\s+([a-f0-9]{64})\s+author\s+([a-z0-9]+(?:-[a-z0-9]+)*)$/u.exec(input)
     if (evaluatorAuthorAction?.[1] !== undefined && evaluatorAuthorAction[2] !== undefined) {
       if (evaluatorDrafts === undefined) return evaluatorDraftsUnavailable()
-      const authored = await evaluatorDrafts.author(evaluatorAuthorAction[1], evaluatorAuthorAction[2])
+      const authored = await evaluatorDrafts.author(workspaceId, evaluatorAuthorAction[1], evaluatorAuthorAction[2])
       return {
         kind: 'success',
         text: authored.jobId === undefined
@@ -140,12 +148,12 @@ export async function executeEvolutionCommand(
       if (feedback === undefined) return feedbackUnavailable()
       const [, id, skillName] = feedbackAction
       if (skillName === undefined) {
-        const signal = feedback.list().find(candidate => candidate.id === id)
+        const signal = feedback.list(workspaceId).find(candidate => candidate.id === id)
         if (signal === undefined) throw new Error('feedback signal is no longer current')
         return renderFeedback(signal)
       }
       if (feedbackDraft === undefined) return feedbackDraftUnavailable()
-      const result = await feedbackDraft.create(id, skillName)
+      const result = await feedbackDraft.create(workspaceId, id, skillName)
       return {
         kind: 'success',
         text: result.created
@@ -156,11 +164,14 @@ export async function executeEvolutionCommand(
     if (input === 'review') {
       if (review === undefined) return reviewUnavailable()
       const scan = await review.inbox.scan()
-      return renderReviewList(scan.candidates, scan.warnings.length)
+      return renderReviewList(
+        scan.candidates.filter(candidate => candidate.workspaceId === workspaceId),
+        scan.warnings.length,
+      )
     }
     if (input === 'evaluator') {
       if (evaluatorDrafts === undefined) return evaluatorDraftsUnavailable()
-      const scan = await evaluatorDrafts.scan()
+      const scan = await evaluatorDrafts.scan(workspaceId)
       if (scan.drafts.length === 0) {
         return {
           kind: 'success',
@@ -181,7 +192,7 @@ export async function executeEvolutionCommand(
     const evaluatorShadowAction = /^evaluator\s+([a-f0-9]{64})\s+shadow$/u.exec(input)
     if (evaluatorShadowAction?.[1] !== undefined) {
       if (evaluatorDrafts === undefined) return evaluatorDraftsUnavailable()
-      const launched = await evaluatorDrafts.startShadow(evaluatorShadowAction[1])
+      const launched = await evaluatorDrafts.startShadow(workspaceId, evaluatorShadowAction[1])
       return {
         kind: 'success',
         text: launched.jobId === undefined
@@ -200,6 +211,7 @@ export async function executeEvolutionCommand(
       const [,, note] = evaluatorQualifyShadowAction
       if (note.trim() === '') return { kind: 'error', text: USAGE }
       const launched = await evaluatorDrafts.approveAndStartShadow(
+        workspaceId,
         evaluatorQualifyShadowAction[1],
         note,
       )
@@ -219,7 +231,7 @@ export async function executeEvolutionCommand(
       if (evaluatorDrafts === undefined) return evaluatorDraftsUnavailable()
       const [, id, action, note] = evaluatorAction
       if (action === undefined) {
-        const draft = await evaluatorDrafts.get(id)
+        const draft = await evaluatorDrafts.get(workspaceId, id)
         return {
           kind: 'success',
           text: [
@@ -246,13 +258,13 @@ export async function executeEvolutionCommand(
       }
       if (note === undefined || note.trim() === '') return { kind: 'error', text: USAGE }
       if (action === 'reject') {
-        const rejected = await evaluatorDrafts.reject(id, note)
+        const rejected = await evaluatorDrafts.reject(workspaceId, id, note)
         return {
           kind: 'success',
           text: `Evaluator Draft ${rejected.draftId ?? id} rejected durably. No generated code was executed.`,
         }
       }
-      const approved = await evaluatorDrafts.approve(id, note)
+      const approved = await evaluatorDrafts.approve(workspaceId, id, note)
       return {
         kind: 'success',
         text: [
@@ -268,6 +280,7 @@ export async function executeEvolutionCommand(
       const [, id, action, note] = reviewAction
       if (action === undefined) {
         const candidate = await review.inbox.get(id)
+        assertWorkspace(candidate.workspaceId, workspaceId, 'Review Candidate')
         const diff = await review.publisher.preview(candidate)
         const automaticDecision = automatic === undefined
           ? undefined
@@ -275,6 +288,7 @@ export async function executeEvolutionCommand(
         return renderReview(candidate, diff, automaticDecision)
       }
       if (note === undefined || note.trim() === '') return { kind: 'error', text: USAGE }
+      assertWorkspace((await review.inbox.get(id)).workspaceId, workspaceId, 'Review Candidate')
       if (action === 'reject') {
         const rejected = await review.inbox.reject(id, note)
         return {
@@ -298,7 +312,7 @@ export async function executeEvolutionCommand(
       }
     }
     if (input === 'rollback') {
-      const result = await store.rollbackGeneration()
+      const result = await store.rollbackGeneration(workspaceId)
       return {
         kind: 'success',
         text: [
@@ -311,7 +325,7 @@ export async function executeEvolutionCommand(
     }
     const promote = /^promote\s+([^\s]+)$/u.exec(input)
     if (promote?.[1] !== undefined && generationIdPattern.test(promote[1])) {
-      const result = await store.promoteGeneration(promote[1])
+      const result = await store.promoteGeneration(workspaceId, promote[1])
       if (result.previousId === result.generation.id) {
         return {
           kind: 'success',
@@ -357,6 +371,10 @@ function feedbackUnavailable(): CommandResult {
     kind: 'error',
     text: 'Explicit feedback signals are unavailable in this runtime composition.',
   }
+}
+
+function assertWorkspace(actual: string, expected: string, label: string): void {
+  if (actual !== expected) throw new Error(`${label} belongs to Workspace '${actual}', not '${expected}'`)
 }
 
 function feedbackDraftUnavailable(): CommandResult {

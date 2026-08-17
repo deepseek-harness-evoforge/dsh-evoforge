@@ -4,6 +4,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { openDeliveryOutcomeStore } from '../src/delivery-outcome-monitor.js'
+import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const suiteRoot = resolve(packageRoot, '../..')
@@ -29,7 +30,7 @@ describe.skipIf(process.platform !== 'darwin')('delivery outcome store', () => {
       expect((await firstStore.record(duplicate)).created).toBe(false)
       await firstStore.record(outcome('call-2', 2, 'failed'))
       await firstStore.record(outcome('call-3', 3, 'unknown', 'a'.repeat(64)))
-      expect(firstStore.summarize('a'.repeat(64), {})).toEqual({
+      expect(firstStore.summarize(WORKSPACE_ID, 'a'.repeat(64), {})).toEqual({
         all: { total: 2, passed: 0, failed: 1, unknown: 1 },
         selected: { total: 1, passed: 0, failed: 0, unknown: 1 },
         baseline: { total: 1, passed: 0, failed: 1, unknown: 0 },
@@ -42,7 +43,7 @@ describe.skipIf(process.platform !== 'darwin')('delivery outcome store', () => {
     const resumedCtx = await bootStorage(configPath)
     const resumedStore = await openDeliveryOutcomeStore(resumedCtx.storageDomain, { maxRecords: 2 })
     try {
-      expect(resumedStore.summarize()).toEqual({
+      expect(resumedStore.summarize(WORKSPACE_ID)).toEqual({
         all: { total: 2, passed: 0, failed: 1, unknown: 1 },
         selected: { total: 1, passed: 0, failed: 1, unknown: 0 },
       })
@@ -62,6 +63,7 @@ function outcome(
   generationId?: string,
 ) {
   return {
+    workspaceId: WORKSPACE_ID,
     observedAt,
     sessionId: `session-${callId}`,
     callId,

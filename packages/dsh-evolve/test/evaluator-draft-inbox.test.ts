@@ -11,6 +11,7 @@ import {
   type EvaluatorDraftTargetConfig,
 } from '../src/evaluator-draft-inbox.ts'
 import { hashTree } from '../src/hash.ts'
+import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const signalId = '1'.repeat(64)
 const sourceDraftId = '2'.repeat(64)
@@ -57,7 +58,7 @@ describe('EvaluatorDraftInbox', () => {
     })
     inbox.attachJobs(jobs.registry)
 
-    const receipt = await inbox.author(signalId, fixture.target.id)
+    const receipt = await inbox.author(WORKSPACE_ID, signalId, fixture.target.id)
     expect(receipt).toMatchObject({
       schemaVersion: 1,
       action: 'author-evaluator',
@@ -82,10 +83,10 @@ describe('EvaluatorDraftInbox', () => {
     const scan = await inbox.scan()
     expect(scan).toMatchObject({ warningCount: 0, drafts: [{ status: 'draft-ready' }] })
     expect(scan.drafts[0]).not.toHaveProperty('signalId')
-    await expect(inbox.automaticInflightStatus(artifact.name, signalId)).resolves.toBe('clear')
-    await expect(inbox.automaticInflightStatus(artifact.name, '9'.repeat(64))).resolves.toBe('busy')
+    await expect(inbox.automaticInflightStatus(WORKSPACE_ID, artifact.name, signalId)).resolves.toBe('clear')
+    await expect(inbox.automaticInflightStatus(WORKSPACE_ID, artifact.name, '9'.repeat(64))).resolves.toBe('busy')
     const draftId = scan.drafts[0]!.id
-    const detail = await inbox.get(draftId)
+    const detail = await inbox.get(WORKSPACE_ID, draftId)
     expect(detail).toMatchObject({
       id: draftId,
       status: 'draft-ready',
@@ -133,11 +134,11 @@ describe('EvaluatorDraftInbox', () => {
       modelIdentity: () => 'model-route-v1',
     })
     inbox.attachJobs(jobs.registry)
-    await inbox.author(signalId, fixture.target.id)
+    await inbox.author(WORKSPACE_ID, signalId, fixture.target.id)
     await jobs.hooks[0]!.done
     const draftId = (await inbox.scan()).drafts[0]!.id
 
-    const approved = await inbox.approve(draftId, 'Evaluator semantics independently reviewed')
+    const approved = await inbox.approve(WORKSPACE_ID, draftId, 'Evaluator semantics independently reviewed')
 
     expect(qualify).toHaveBeenCalledOnce()
     expect(approved).toMatchObject({
@@ -146,7 +147,7 @@ describe('EvaluatorDraftInbox', () => {
       draftId,
       draftStatus: 'qualified',
     })
-    const detail = await inbox.get(draftId)
+    const detail = await inbox.get(WORKSPACE_ID, draftId)
     expect(detail.status).toBe('qualified')
     expect(detail.decision).toMatchObject({
       actor: 'human',
@@ -155,10 +156,10 @@ describe('EvaluatorDraftInbox', () => {
     expect(detail.qualification).toMatchObject({ calibrated: true })
     expect(await readdir(join(fixture.target.root, 'qualified', draftId)))
       .toEqual(['calibration', 'final-test', 'manifest.json', 'search'])
-    await expect(inbox.automaticInflightStatus(artifact.name, '9'.repeat(64)))
+    await expect(inbox.automaticInflightStatus(WORKSPACE_ID, artifact.name, '9'.repeat(64)))
       .resolves.toBe('clear')
 
-    await expect(inbox.approve(draftId, 'duplicate')).resolves.toEqual(approved)
+    await expect(inbox.approve(WORKSPACE_ID, draftId, 'duplicate')).resolves.toEqual(approved)
     expect(qualify).toHaveBeenCalledOnce()
   })
 
@@ -174,12 +175,12 @@ describe('EvaluatorDraftInbox', () => {
       modelIdentity: () => 'model-route-v1',
     })
     inbox.attachJobs(jobs.registry)
-    await inbox.author(signalId, drift.target.id)
+    await inbox.author(WORKSPACE_ID, signalId, drift.target.id)
     await jobs.hooks[0]!.done
     const draftId = (await inbox.scan()).drafts[0]!.id
     const internal = join(drift.target.root, 'drafts', draftId)
     await writeFile(join(internal, 'search', 'evidence.md'), 'drift\n')
-    await expect(inbox.approve(draftId, 'looks good')).rejects.toThrow('changed after authoring')
+    await expect(inbox.approve(WORKSPACE_ID, draftId, 'looks good')).rejects.toThrow('changed after authoring')
 
     const invalid = await setup()
     const invalidJobs = fakeJobs()
@@ -192,18 +193,18 @@ describe('EvaluatorDraftInbox', () => {
       modelIdentity: () => 'model-route-v1',
     })
     invalidInbox.attachJobs(invalidJobs.registry)
-    await invalidInbox.author(signalId, invalid.target.id)
+    await invalidInbox.author(WORKSPACE_ID, signalId, invalid.target.id)
     await invalidJobs.hooks[0]!.done
     const invalidRow = (await invalidInbox.scan()).drafts[0]!
     expect(invalidRow.status).toBe('incomplete')
-    await expect(invalidInbox.get(invalidRow.id)).resolves.toMatchObject({
+    await expect(invalidInbox.get(WORKSPACE_ID, invalidRow.id)).resolves.toMatchObject({
       id: invalidRow.id,
       status: 'incomplete',
       files: [],
     })
-    await expect(invalidInbox.approve(invalidRow.id, 'cannot qualify missing files'))
+    await expect(invalidInbox.approve(WORKSPACE_ID, invalidRow.id, 'cannot qualify missing files'))
       .rejects.toThrow('produced no draft')
-    await expect(invalidInbox.reject(invalidRow.id, 'invalid response fields'))
+    await expect(invalidInbox.reject(WORKSPACE_ID, invalidRow.id, 'invalid response fields'))
       .resolves.toMatchObject({ draftStatus: 'rejected' })
 
     const multi = await setup()
@@ -218,7 +219,7 @@ describe('EvaluatorDraftInbox', () => {
       modelIdentity: () => 'model-route-v1',
     })
     multiInbox.attachJobs(multiJobs.registry)
-    await expect(multiInbox.author(signalId, multi.target.id)).rejects.toThrow('single-file Skill')
+    await expect(multiInbox.author(WORKSPACE_ID, signalId, multi.target.id)).rejects.toThrow('single-file Skill')
 
     const linked = await setup()
     const external = join(linked.root, 'external-private-data')
@@ -234,7 +235,7 @@ describe('EvaluatorDraftInbox', () => {
       modelIdentity: () => 'model-route-v1',
     })
     linkedInbox.attachJobs(fakeJobs().registry)
-    await expect(linkedInbox.author(signalId, linked.target.id)).rejects.toThrow('must not be a symlink')
+    await expect(linkedInbox.author(WORKSPACE_ID, signalId, linked.target.id)).rejects.toThrow('must not be a symlink')
     expect((await stat(external)).mode & 0o777).toBe(0o755)
   })
 
@@ -255,7 +256,7 @@ describe('EvaluatorDraftInbox', () => {
       modelIdentity: () => 'model-route-v1',
     })
     first.attachJobs(jobs.registry)
-    const receipt = await first.author(signalId, fixture.target.id)
+    const receipt = await first.author(WORKSPACE_ID, signalId, fixture.target.id)
     await waitFor(async () => authorModel.mock.calls.length === 1
       && (await first.scan()).drafts[0]?.status === 'authoring-pending')
     expect(authorModel).toHaveBeenCalledOnce()
@@ -271,7 +272,7 @@ describe('EvaluatorDraftInbox', () => {
       modelIdentity: () => 'model-route-v1',
     })
     restarted.attachJobs(restartedJobs.registry)
-    const duplicate = await restarted.author(signalId, fixture.target.id)
+    const duplicate = await restarted.author(WORKSPACE_ID, signalId, fixture.target.id)
 
     expect(duplicate).toMatchObject({
       launchId: receipt.launchId,
@@ -307,12 +308,12 @@ describe('EvaluatorDraftInbox', () => {
       modelIdentity: () => 'model-route-v1',
     })
     inbox.attachJobs(jobs.registry)
-    await inbox.author(signalId, fixture.target.id)
+    await inbox.author(WORKSPACE_ID, signalId, fixture.target.id)
     await jobs.hooks[0]!.done
     const draftId = (await inbox.scan()).drafts[0]!.id
 
-    await expect(inbox.approve(draftId, 'reviewed once')).rejects.toThrow('local runner interrupted')
-    await expect(inbox.approve(draftId, 'reviewed again')).resolves.toMatchObject({
+    await expect(inbox.approve(WORKSPACE_ID, draftId, 'reviewed once')).rejects.toThrow('local runner interrupted')
+    await expect(inbox.approve(WORKSPACE_ID, draftId, 'reviewed again')).resolves.toMatchObject({
       draftStatus: 'qualified',
     })
 
@@ -320,7 +321,7 @@ describe('EvaluatorDraftInbox', () => {
     expect(qualify).toHaveBeenCalledTimes(2)
     expect(qualify.mock.calls[0]?.[0].outputDir).toMatch(/attempt-1$/)
     expect(qualify.mock.calls[1]?.[0].outputDir).toMatch(/attempt-2$/)
-    expect((await inbox.get(draftId)).qualification).toEqual({ calibrated: true, attempt: 2 })
+    expect((await inbox.get(WORKSPACE_ID, draftId)).qualification).toEqual({ calibrated: true, attempt: 2 })
   })
 
   it.skipIf(process.platform !== 'darwin')(
@@ -362,15 +363,15 @@ describe('EvaluatorDraftInbox', () => {
       const previousDshSource = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
       process.env.DSH_EVOLVE_DSH_SOURCE_DIR = dshSourceDir
       try {
-        await inbox.author(signalId, target.id)
+        await inbox.author(WORKSPACE_ID, signalId, target.id)
         await jobs.hooks[0]!.done
         const draftId = (await inbox.scan()).drafts[0]!.id
 
         expect(authorModel).toHaveBeenCalledOnce()
-        expect((await inbox.get(draftId)).status).toBe('draft-ready')
-        await expect(inbox.approve(draftId, 'Real DSH assembly semantics independently reviewed'))
+        expect((await inbox.get(WORKSPACE_ID, draftId)).status).toBe('draft-ready')
+        await expect(inbox.approve(WORKSPACE_ID, draftId, 'Real DSH assembly semantics independently reviewed'))
           .resolves.toMatchObject({ draftStatus: 'qualified' })
-        expect((await inbox.get(draftId))).toMatchObject({
+        expect((await inbox.get(WORKSPACE_ID, draftId))).toMatchObject({
           status: 'qualified',
           qualification: { calibrated: true, attempt: 1 },
         })
@@ -393,6 +394,7 @@ describe('EvaluatorDraftInbox', () => {
       launchExact: vi.fn(async () => ({
         schemaVersion: 1 as const,
         action: 'start-shadow' as const,
+        workspaceId: WORKSPACE_ID,
         launchId: '9'.repeat(64),
         targetId: target.id,
         skillName: target.skill,
@@ -419,35 +421,36 @@ describe('EvaluatorDraftInbox', () => {
       shadow,
     })
     inbox.attachJobs(jobs.registry)
-    await inbox.author(signalId, target.id)
+    await inbox.author(WORKSPACE_ID, signalId, target.id)
     await jobs.hooks[0]!.done
     const draftId = (await inbox.scan()).drafts[0]!.id
 
-    await expect(inbox.startShadow(draftId)).rejects.toThrow('must be qualified')
+    await expect(inbox.startShadow(WORKSPACE_ID, draftId)).rejects.toThrow('must be qualified')
     qualify.mockResolvedValueOnce({
       status: 'not-calibrated',
       reportPath: join(fixture.root, 'failed-calibration.json'),
       reason: 'known-bad unexpectedly passed',
     } as never)
-    await expect(inbox.approveAndStartShadow(draftId, 'independent semantics reviewed'))
+    await expect(inbox.approveAndStartShadow(WORKSPACE_ID, draftId, 'independent semantics reviewed'))
       .rejects.toThrow('known-bad unexpectedly passed')
     expect(shadow.launchExact).not.toHaveBeenCalled()
     shadow.launchExact.mockRejectedValueOnce(new Error('launcher interrupted after qualification'))
-    await expect(inbox.approveAndStartShadow(draftId, 'retry exact qualification and paid Shadow'))
+    await expect(inbox.approveAndStartShadow(WORKSPACE_ID, draftId, 'retry exact qualification and paid Shadow'))
       .rejects.toThrow('launcher interrupted after qualification')
-    await expect(inbox.get(draftId)).resolves.toMatchObject({
+    await expect(inbox.get(WORKSPACE_ID, draftId)).resolves.toMatchObject({
       status: 'qualified',
       qualifiedShadowAvailable: true,
     })
     expect(qualify).toHaveBeenCalledTimes(2)
-    await expect(inbox.approveAndStartShadow(draftId, 'resume already qualified paid Shadow'))
+    await expect(inbox.approveAndStartShadow(WORKSPACE_ID, draftId, 'resume already qualified paid Shadow'))
       .resolves.toMatchObject({
         action: 'start-shadow',
         runStatus: 'scheduled',
       })
     expect(qualify).toHaveBeenCalledTimes(2)
-    await expect(inbox.get(draftId)).resolves.toMatchObject({ qualifiedShadowAvailable: true })
+    await expect(inbox.get(WORKSPACE_ID, draftId)).resolves.toMatchObject({ qualifiedShadowAvailable: true })
     expect(shadow.launchExact).toHaveBeenCalledWith(signalId, {
+      workspaceId: WORKSPACE_ID,
       id: target.id,
       skill: target.skill,
       casePackDir: join(target.root, 'qualified', draftId),
@@ -459,7 +462,7 @@ describe('EvaluatorDraftInbox', () => {
       join(target.root, 'qualified', draftId, 'search', 'evidence.md'),
       'qualified pack drift\n',
     )
-    await expect(inbox.startShadow(draftId)).rejects.toThrow('Qualified Case Pack changed')
+    await expect(inbox.startShadow(WORKSPACE_ID, draftId)).rejects.toThrow('Qualified Case Pack changed')
     expect(shadow.launchExact).toHaveBeenCalledTimes(2)
   })
 
@@ -485,6 +488,7 @@ describe('EvaluatorDraftInbox', () => {
         return {
           schemaVersion: 1 as const,
           action: 'start-shadow' as const,
+          workspaceId: WORKSPACE_ID,
           launchId: '9'.repeat(64),
           targetId: target.id,
           skillName: target.skill,
@@ -512,14 +516,14 @@ describe('EvaluatorDraftInbox', () => {
       shadow,
     })
     inbox.attachJobs(jobs.registry)
-    await inbox.author(signalId, target.id)
+    await inbox.author(WORKSPACE_ID, signalId, target.id)
     await jobs.hooks[0]!.done
     const draftId = (await inbox.scan()).drafts[0]!.id
 
-    const handoff = inbox.approveAndStartShadow(draftId, 'exact evaluator and paid Shadow reviewed')
+    const handoff = inbox.approveAndStartShadow(WORKSPACE_ID, draftId, 'exact evaluator and paid Shadow reviewed')
     await shadowEntered
 
-    const inflightDuringHandoff = await inbox.automaticInflightStatus(artifact.name, '9'.repeat(64))
+    const inflightDuringHandoff = await inbox.automaticInflightStatus(WORKSPACE_ID, artifact.name, '9'.repeat(64))
     releaseShadow()
     await expect(handoff).resolves.toMatchObject({
       action: 'start-shadow',
@@ -540,6 +544,7 @@ async function setup(options: { originalSkill?: string } = {}) {
   const contentHash = await hashTree(skillDir)
   const target: EvaluatorDraftTargetConfig = {
     id: 'plugin-delivery',
+    workspaceId: WORKSPACE_ID,
     skill: artifact.name,
     root: ownedRoot,
     dshRevision,
@@ -549,10 +554,11 @@ async function setup(options: { originalSkill?: string } = {}) {
       created: true,
       path: join(root, 'source-draft.json'),
       draft: {
-        schemaVersion: 1 as const,
+        schemaVersion: 2 as const,
         id: sourceDraftId,
         status: 'draft' as const,
         source: {
+          workspaceId: WORKSPACE_ID,
           signalId,
           sessionId: 'session-private',
           messageId: 'message-private',

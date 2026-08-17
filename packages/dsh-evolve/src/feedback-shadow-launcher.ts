@@ -16,6 +16,7 @@ const MAX_RUNS = 20
 
 export interface FeedbackShadowTargetConfig {
   readonly id: string
+  readonly workspaceId: string
   readonly skill: string
   readonly casePackDir: string
   readonly runRoot: string
@@ -23,6 +24,7 @@ export interface FeedbackShadowTargetConfig {
 
 export interface FeedbackShadowMonitoredTargetConfig {
   readonly id: string
+  readonly workspaceId: string
   readonly skill: string
   readonly runRoot: string
 }
@@ -33,12 +35,14 @@ export interface FeedbackShadowExactTargetConfig extends FeedbackShadowTargetCon
 
 export interface FeedbackShadowTargetView {
   readonly id: string
+  readonly workspaceId: string
   readonly skillName: string
 }
 
 export interface FeedbackShadowRunView {
   readonly launchId: string
   readonly targetId: string
+  readonly workspaceId: string
   readonly skillName: string
   readonly phase: ShadowRunState['phase']
   readonly startedAt: string
@@ -55,6 +59,7 @@ export interface FeedbackShadowLaunchReceipt {
   readonly action: 'start-shadow'
   readonly launchId: string
   readonly targetId: string
+  readonly workspaceId: string
   readonly skillName: string
   readonly runStatus: 'scheduled' | 'prepared' | 'proposal-pending' | 'candidate-ready' | 'trial-running' | 'complete' | 'incomplete'
   readonly jobId?: string
@@ -63,7 +68,7 @@ export interface FeedbackShadowLaunchReceipt {
 interface FeedbackShadowLauncherOptions {
   readonly targets: readonly FeedbackShadowTargetConfig[]
   readonly monitoredTargets?: readonly FeedbackShadowMonitoredTargetConfig[]
-  readonly supervisorRunRoots: readonly string[]
+  readonly supervisorRunRoots: ReadonlyArray<{ readonly workspaceId: string; readonly path: string }>
   readonly drafts: () => Pick<FeedbackCaseDraftBuilder, 'create'> | undefined
   readonly source: Pick<GitSkillSource, 'resolveArtifact'>
   readonly runner?: (options: ShadowOptions) => ReturnType<typeof runShadow>
@@ -82,11 +87,17 @@ export class FeedbackShadowLauncher {
   private jobs: Pick<JobRegistry, 'start'> | undefined
 
   constructor(options: FeedbackShadowLauncherOptions) {
-    const supervisorRoots = new Set(options.supervisorRunRoots.map(path => resolve(path)))
+    const supervisorRoots = new Map(options.supervisorRunRoots.map(root => [
+      resolve(root.path),
+      root.workspaceId,
+    ]))
     const targetRoots = new Map<string, string>()
     const registerRunTarget = (input: FeedbackShadowMonitoredTargetConfig) => {
       if (!TARGET_ID.test(input.id) || !TARGET_ID.test(input.skill)) {
         throw new Error(`invalid feedback Shadow target '${input.id}'`)
+      }
+      if (!isWorkspaceId(input.workspaceId)) {
+        throw new Error(`feedback Shadow target '${input.id}' has an invalid Workspace id`)
       }
       if (!isAbsolute(input.runRoot)) {
         throw new Error(`feedback Shadow target '${input.id}' run root must be absolute`)
@@ -95,9 +106,13 @@ export class FeedbackShadowLauncher {
       if (!supervisorRoots.has(runRoot)) {
         throw new Error(`feedback Shadow target '${input.id}' must use one configured supervisor run root`)
       }
+      if (supervisorRoots.get(runRoot) !== input.workspaceId) {
+        throw new Error(`feedback Shadow target '${input.id}' must use a run root owned by its Workspace`)
+      }
       const existing = this.runTargetsById.get(input.id)
       if (existing !== undefined) {
-        if (existing.skill !== input.skill || existing.runRoot !== runRoot) {
+        if (existing.skill !== input.skill || existing.workspaceId !== input.workspaceId
+          || existing.runRoot !== runRoot) {
           throw new Error(`feedback Shadow target '${input.id}' conflicts with its monitored run target`)
         }
         return existing
@@ -106,7 +121,9 @@ export class FeedbackShadowLauncher {
       if (rootOwner !== undefined) {
         throw new Error(`feedback Shadow targets '${rootOwner}' and '${input.id}' must use unique run roots`)
       }
-      const target = Object.freeze({ id: input.id, skill: input.skill, runRoot })
+      const target = Object.freeze({
+        id: input.id, workspaceId: input.workspaceId, skill: input.skill, runRoot,
+      })
       targetRoots.set(runRoot, input.id)
       this.runTargetsById.set(input.id, target)
       return target
@@ -121,6 +138,7 @@ export class FeedbackShadowLauncher {
       const monitored = registerRunTarget(input)
       this.targetsById.set(input.id, Object.freeze({
         id: input.id,
+        workspaceId: input.workspaceId,
         skill: input.skill,
         casePackDir: resolve(input.casePackDir),
         runRoot: monitored.runRoot,
@@ -151,13 +169,17 @@ export class FeedbackShadowLauncher {
   targets(): FeedbackShadowTargetView[] {
     return [...this.targetsById.values()].map(target => Object.freeze({
       id: target.id,
+      workspaceId: target.workspaceId,
       skillName: target.skill,
     }))
   }
 
-  async launch(signalId: string, targetId: string): Promise<FeedbackShadowLaunchReceipt> {
+  async launch(workspaceId: string, signalId: string, targetId: string): Promise<FeedbackShadowLaunchReceipt> {
     const target = this.targetsById.get(targetId)
     if (target === undefined) throw new Error(`unknown feedback Shadow target '${targetId}'`)
+    if (target.workspaceId !== workspaceId) {
+      throw new Error(`feedback Shadow target '${targetId}' belongs to Workspace '${target.workspaceId}'`)
+    }
     return this.launchTarget(signalId, target)
   }
 
@@ -185,7 +207,7 @@ export class FeedbackShadowLauncher {
     }
     const monitored = this.runTargetsById.get(input.id)
     if (monitored === undefined) throw new Error(`unknown monitored feedback Shadow target '${input.id}'`)
-    if (monitored.skill !== input.skill) {
+    if (monitored.skill !== input.skill || monitored.workspaceId !== input.workspaceId) {
       throw new Error(`feedback Shadow target '${input.id}' does not match its configured Skill`)
     }
     if (!isAbsolute(input.casePackDir) || !isAbsolute(input.runRoot)) {
@@ -196,6 +218,7 @@ export class FeedbackShadowLauncher {
     }
     return this.launchTarget(signalId, Object.freeze({
       id: input.id,
+      workspaceId: input.workspaceId,
       skill: input.skill,
       casePackDir: resolve(input.casePackDir),
       runRoot: monitored.runRoot,
@@ -224,12 +247,13 @@ export class FeedbackShadowLauncher {
     if (expectedCasePackHash !== undefined && casePackHash !== expectedCasePackHash) {
       throw new Error('feedback Shadow Case Pack does not match its qualified hash')
     }
-    const draft = await drafts.create(signalId, target.skill)
+    const draft = await drafts.create(target.workspaceId, signalId, target.skill)
     const resolvedSkill = await this.source.resolveArtifact(target.skill, draft.draft.target.artifact)
     if (resolvedSkill.artifact.treeHash !== draft.draft.target.artifact.treeHash) {
       throw new Error('resolved feedback Shadow Skill does not match its private draft')
     }
     const launchId = sha256(JSON.stringify({
+      workspaceId: target.workspaceId,
       signalId,
       draftId: draft.draft.id,
       targetId: target.id,
@@ -309,8 +333,8 @@ export class FeedbackShadowLauncher {
     return launched
   }
 
-  async scan(): Promise<FeedbackShadowScan> {
-    const scan = await this.scanRuns()
+  async scan(workspaceId?: string): Promise<FeedbackShadowScan> {
+    const scan = await this.scanRuns(workspaceId)
     return {
       runs: scan.runs.slice(0, MAX_RUNS).map(row => row.view),
       warningCount: scan.warningCount,
@@ -318,10 +342,11 @@ export class FeedbackShadowLauncher {
   }
 
   async automaticInflightStatus(
+    workspaceId: string,
     skillName: string,
     signalId: string,
   ): Promise<AutomaticEvolutionInflightStatus> {
-    const scan = await this.scanRuns(skillName)
+    const scan = await this.scanRuns(workspaceId, skillName)
     if (scan.targetCount === 0) return 'clear'
     if (scan.warningCount > 0) return 'unknown'
     return scan.runs.some(row => row.view.phase !== 'complete'
@@ -332,7 +357,7 @@ export class FeedbackShadowLauncher {
       : 'clear'
   }
 
-  private async scanRuns(skillName?: string): Promise<{
+  private async scanRuns(workspaceId?: string, skillName?: string): Promise<{
     runs: Array<{ view: FeedbackShadowRunView; feedbackSignalId?: string }>
     warningCount: number
     targetCount: number
@@ -341,7 +366,8 @@ export class FeedbackShadowLauncher {
     let warningCount = 0
     let targetCount = 0
     for (const target of this.runTargetsById.values()) {
-      if (skillName !== undefined && target.skill !== skillName) continue
+      if ((workspaceId !== undefined && target.workspaceId !== workspaceId)
+        || (skillName !== undefined && target.skill !== skillName)) continue
       targetCount += 1
       let root: string
       let entries
@@ -356,7 +382,12 @@ export class FeedbackShadowLauncher {
         if (!entry.isDirectory() || !CONTENT_ID.test(entry.name)) continue
         try {
           const state = await loadShadowRunState(join(root, entry.name))
-          if (state.identity.skillName !== target.skill) {
+          if (state.identity.workspaceId !== target.workspaceId
+            || state.identity.skillName !== target.skill) {
+            warningCount += 1
+            continue
+          }
+          if (state.identity.workspaceId !== target.workspaceId) {
             warningCount += 1
             continue
           }
@@ -364,6 +395,7 @@ export class FeedbackShadowLauncher {
             view: Object.freeze({
               launchId: entry.name,
               targetId: target.id,
+              workspaceId: target.workspaceId,
               skillName: state.identity.skillName,
               phase: state.phase,
               startedAt: state.startedAt,
@@ -395,6 +427,7 @@ function receipt(
     action: 'start-shadow',
     launchId,
     targetId: target.id,
+    workspaceId: target.workspaceId,
     skillName: target.skill,
     runStatus,
     ...(jobId === undefined ? {} : { jobId }),
@@ -408,6 +441,10 @@ function configuredModelIdentity(): string {
     throw new Error('feedback Shadow requires DSH_EVOLVE_MODEL_BASE_URL and DSH_EVOLVE_MODEL_NAME')
   }
   return sha256(JSON.stringify({ baseUrl, model }))
+}
+
+function isWorkspaceId(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(value)
 }
 
 function sha256(value: string): string {

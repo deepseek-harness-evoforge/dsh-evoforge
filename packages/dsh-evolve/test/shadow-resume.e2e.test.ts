@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { runShadow } from '../src/shadow.js'
 import { ShadowSupervisor } from '../src/shadow-supervisor.js'
+import { WORKSPACE_ID, runRoot as ownedRunRoot } from './workspace-fixture.ts'
 
 const execFile = promisify(execFileCallback)
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -192,7 +193,7 @@ describe('durable Shadow resume', () => {
       try {
         const errors: unknown[] = []
         const supervisor = new ShadowSupervisor({
-          runRoots: [dirname(fixture.outputDir)],
+          runRoots: [ownedRunRoot(WORKSPACE_ID, dirname(fixture.outputDir))],
           scanIntervalMs: 30_000,
           onError: error => errors.push(error),
         })
@@ -251,6 +252,7 @@ async function createFixture(): Promise<Fixture> {
   ].join('\n'))
   await writeFile(join(casePackDir, 'manifest.json'), `${JSON.stringify({
     schemaVersion: 1,
+    workspaceId: WORKSPACE_ID,
     id: 'durable-shadow-resume',
     epoch: { dshRevision: 'fixture', evaluatorVersion: 'resume-v1' },
     budget: {
@@ -288,6 +290,7 @@ async function createTrialFixture(): Promise<Fixture> {
   ].join('\n'))
   await writeFile(join(fixture.casePackDir, 'manifest.json'), `${JSON.stringify({
     schemaVersion: 1,
+    workspaceId: WORKSPACE_ID,
     id: 'durable-trial-resume',
     epoch: { dshRevision: 'fixture', evaluatorVersion: 'resume-trial-v1' },
     budget: {

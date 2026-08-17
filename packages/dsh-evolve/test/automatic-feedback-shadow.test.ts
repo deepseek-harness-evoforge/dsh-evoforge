@@ -11,6 +11,7 @@ import type { EvolutionStore } from '../src/generation-store.ts'
 import type { FeedbackSignalStore } from '../src/feedback-signal-monitor.ts'
 import type { FeedbackShadowLauncher } from '../src/feedback-shadow-launcher.ts'
 import type { AutomaticEvolutionInflightSource } from '../src/automatic-evolution-inflight.ts'
+import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 describe('automatic Feedback Shadow', () => {
   it('launches one exact Target for an explicit signal with one matching Generation Skill', async () => {
@@ -20,6 +21,7 @@ describe('automatic Feedback Shadow', () => {
       return {
         schemaVersion: 1 as const,
         action: 'start-shadow' as const,
+        workspaceId: WORKSPACE_ID,
         launchId: '4'.repeat(64),
         targetId: 'plugin-delivery',
         skillName: 'stable-skill',
@@ -31,7 +33,8 @@ describe('automatic Feedback Shadow', () => {
       evolution: {
         getGeneration: () => ({
           id: '2'.repeat(64),
-          schemaVersion: 1,
+          schemaVersion: 2,
+          workspaceId: WORKSPACE_ID,
           createdAt: 1,
           artifacts: [{
             kind: 'skill' as const,
@@ -50,7 +53,8 @@ describe('automatic Feedback Shadow', () => {
       } as unknown as Pick<FeedbackShadowLauncher, 'available' | 'launchAutomaticExact'>,
       signals: {
         list: () => [{
-          schemaVersion: 1 as const,
+          schemaVersion: 2 as const,
+          workspaceId: WORKSPACE_ID,
           id: '1'.repeat(64),
           observedAt: 1,
           sessionId: 'session-1',
@@ -69,6 +73,7 @@ describe('automatic Feedback Shadow', () => {
             allowed: true as const,
             newlyReserved: true as const,
             snapshot: {
+              workspaceId: WORKSPACE_ID,
               targetId: target.id,
               skillName: target.skill,
               utcDay: '2026-08-17',
@@ -82,7 +87,7 @@ describe('automatic Feedback Shadow', () => {
       },
     })
 
-    await expect(service.scanOnce()).resolves.toEqual({
+    await expect(service.scanOnce(WORKSPACE_ID)).resolves.toEqual({
       launched: [{
         signalId: '1'.repeat(64),
         targetId: 'plugin-delivery',
@@ -100,7 +105,8 @@ describe('automatic Feedback Shadow', () => {
       evolution: {
         getGeneration: () => ({
           id: '2'.repeat(64),
-          schemaVersion: 1,
+          schemaVersion: 2,
+          workspaceId: WORKSPACE_ID,
           createdAt: 1,
           artifacts: [
             { kind: 'skill' as const, name: 'stable-skill', gitCommit: '3'.repeat(40), treeHash: '4'.repeat(40) },
@@ -116,7 +122,8 @@ describe('automatic Feedback Shadow', () => {
         launchAutomaticExact,
       } as unknown as Pick<FeedbackShadowLauncher, 'available' | 'launchAutomaticExact'>,
       signals: { list: () => [{
-        schemaVersion: 1 as const,
+        schemaVersion: 2 as const,
+        workspaceId: WORKSPACE_ID,
         id: '1'.repeat(64),
         observedAt: 1,
         sessionId: 'session-1',
@@ -130,11 +137,11 @@ describe('automatic Feedback Shadow', () => {
       budget: allowingBudget(),
     })
 
-    await expect(service.scanOnce()).resolves.toEqual({
+    await expect(service.scanOnce(WORKSPACE_ID)).resolves.toEqual({
       launched: [],
       warnings: ['explicit feedback matches multiple automatic Shadow Targets; choose one explicitly'],
     })
-    await expect(service.scanOnce()).resolves.toEqual({ launched: [], warnings: [] })
+    await expect(service.scanOnce(WORKSPACE_ID)).resolves.toEqual({ launched: [], warnings: [] })
     expect(launchAutomaticExact).not.toHaveBeenCalled()
   })
 
@@ -156,7 +163,7 @@ describe('automatic Feedback Shadow', () => {
     expect(make([{ ...target(), casePackHash: 'mutable' }]))
       .toThrow('automatic Feedback Shadow Case Pack hashes must be exact')
     expect(make([target(), { ...target(), id: 'duplicate-skill' }]))
-      .toThrow('automatic Feedback Shadow permits exactly one target per Skill')
+      .toThrow('automatic Feedback Shadow permits exactly one target per Workspace and Skill')
     expect(make([{ ...target(), maxAttemptsPerUtcDay: 21 }]))
       .toThrow('automatic Feedback Shadow daily attempt limits must be integers between 1 and 20')
     expect(make([{ ...target(), maxPendingReviewAgeHours: 0 }]))
@@ -174,6 +181,7 @@ describe('automatic Feedback Shadow', () => {
           newlyReserved: false,
           retryAt: Date.UTC(2026, 7, 18),
           snapshot: {
+            workspaceId: WORKSPACE_ID,
             targetId: 'plugin-delivery',
             skillName: 'stable-skill',
             utcDay: '2026-08-17',
@@ -186,6 +194,7 @@ describe('automatic Feedback Shadow', () => {
           allowed: true,
           newlyReserved: true,
           snapshot: {
+            workspaceId: WORKSPACE_ID,
             targetId: 'plugin-delivery',
             skillName: 'stable-skill',
             utcDay: '2026-08-18',
@@ -211,11 +220,11 @@ describe('automatic Feedback Shadow', () => {
       now: () => now,
     })
 
-    await expect(service.scanOnce()).resolves.toEqual({
+    await expect(service.scanOnce(WORKSPACE_ID)).resolves.toEqual({
       launched: [],
       warnings: ['automatic evolution budget exhausted for Target plugin-delivery until the next UTC day'],
     })
-    await expect(service.scanOnce()).resolves.toEqual({ launched: [], warnings: [] })
+    await expect(service.scanOnce(WORKSPACE_ID)).resolves.toEqual({ launched: [], warnings: [] })
     expect(reserve).toHaveBeenCalledTimes(1)
     expect(launchAutomaticExact).not.toHaveBeenCalled()
 
@@ -224,13 +233,14 @@ describe('automatic Feedback Shadow', () => {
     launchAutomaticExact.mockResolvedValueOnce({
       schemaVersion: 1,
       action: 'start-shadow',
+      workspaceId: WORKSPACE_ID,
       launchId: '4'.repeat(64),
       targetId: 'plugin-delivery',
       skillName: 'stable-skill',
       runStatus: 'scheduled',
       jobId: 'job-1',
     })
-    await expect(service.scanOnce()).resolves.toMatchObject({
+    await expect(service.scanOnce(WORKSPACE_ID)).resolves.toMatchObject({
       launched: [{ targetId: 'plugin-delivery', runStatus: 'scheduled' }],
       warnings: [],
     })
@@ -257,6 +267,7 @@ describe('automatic Feedback Shadow', () => {
       warningCount: 1,
       targets: [{
         targetId: 'plugin-delivery',
+        workspaceId: WORKSPACE_ID,
         skillName: 'stable-skill',
         utcDay: '2026-08-17',
         used: 0,
@@ -273,7 +284,8 @@ describe('automatic Feedback Shadow', () => {
     const reserve = vi.fn(async input => ({
       allowed: true as const,
       newlyReserved: true as const,
-      snapshot: {
+        snapshot: {
+        workspaceId: WORKSPACE_ID,
         targetId: input.id,
         skillName: input.skill,
         utcDay: '2026-08-17',
@@ -285,6 +297,7 @@ describe('automatic Feedback Shadow', () => {
     const launchAutomaticExact = vi.fn(async () => ({
       schemaVersion: 1 as const,
       action: 'start-shadow' as const,
+      workspaceId: WORKSPACE_ID,
       launchId: '4'.repeat(64),
       targetId: 'plugin-delivery',
       skillName: 'stable-skill',
@@ -308,17 +321,17 @@ describe('automatic Feedback Shadow', () => {
       budget: { reserve, inspect: vi.fn() },
     })
 
-    await expect(service.scanOnce()).resolves.toEqual({
+    await expect(service.scanOnce(WORKSPACE_ID)).resolves.toEqual({
       launched: [],
       warnings: ['automatic evolution deferred for Skill stable-skill while prior work is unresolved'],
     })
-    await expect(service.scanOnce()).resolves.toEqual({ launched: [], warnings: [] })
+    await expect(service.scanOnce(WORKSPACE_ID)).resolves.toEqual({ launched: [], warnings: [] })
     expect(reserve).not.toHaveBeenCalled()
     expect(launchAutomaticExact).not.toHaveBeenCalled()
     expect(automaticInflightStatus).toHaveBeenCalledTimes(2)
 
     status = 'clear'
-    await expect(service.scanOnce()).resolves.toMatchObject({
+    await expect(service.scanOnce(WORKSPACE_ID)).resolves.toMatchObject({
       launched: [{ targetId: 'plugin-delivery', runStatus: 'scheduled' }],
       warnings: [],
     })
@@ -340,7 +353,7 @@ describe('automatic Feedback Shadow', () => {
       budget: { reserve, inspect: vi.fn() },
     })
 
-    await expect(service.scanOnce()).resolves.toEqual({
+    await expect(service.scanOnce(WORKSPACE_ID)).resolves.toEqual({
       launched: [],
       warnings: ['automatic evolution deferred because prior-work state is unavailable for Skill stable-skill'],
     })
@@ -351,6 +364,7 @@ describe('automatic Feedback Shadow', () => {
 function target(): AutomaticFeedbackShadowTarget {
   return {
     id: 'plugin-delivery',
+    workspaceId: WORKSPACE_ID,
     skill: 'stable-skill',
     casePackDir: '/private/case-pack',
     casePackHash: '6'.repeat(64),
@@ -366,6 +380,7 @@ function allowingBudget(): Pick<AutomaticEvolutionBudget, 'reserve' | 'inspect'>
       allowed: true,
       newlyReserved: true,
       snapshot: {
+        workspaceId: WORKSPACE_ID,
         targetId: target.id,
         skillName: target.skill,
         utcDay: '2026-08-17',
@@ -382,7 +397,8 @@ function generationStore(): Pick<EvolutionStore, 'getGeneration'> {
   return {
     getGeneration: () => ({
       id: '2'.repeat(64),
-      schemaVersion: 1,
+      schemaVersion: 2,
+      workspaceId: WORKSPACE_ID,
       createdAt: 1,
       artifacts: [{
         kind: 'skill' as const,
@@ -399,7 +415,8 @@ function generationStore(): Pick<EvolutionStore, 'getGeneration'> {
 
 function oneSignal(): Pick<FeedbackSignalStore, 'list'> {
   return { list: () => [{
-    schemaVersion: 1,
+    schemaVersion: 2,
+    workspaceId: WORKSPACE_ID,
     id: '1'.repeat(64),
     observedAt: 1,
     sessionId: 'session-1',

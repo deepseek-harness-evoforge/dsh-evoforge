@@ -11,22 +11,22 @@ export class ResidentEvolutionControl {
     this.store = store
   }
 
-  isPaused(): boolean {
-    return this.store.isRecoveryPaused()
+  isPaused(workspaceId: string): boolean {
+    return this.store.isRecoveryPaused(workspaceId)
   }
 
-  pause(): Promise<void> {
+  pause(workspaceId: string): Promise<void> {
     return this.enqueue(async () => {
       // Persist first so a crash can never restart work the operator paused.
-      await this.store.setRecoveryPaused(true)
-      await this.supervisor?.pause()
+      await this.store.setRecoveryPaused(workspaceId, true)
+      await this.supervisor?.pause(workspaceId)
     })
   }
 
-  resume(): Promise<void> {
+  resume(workspaceId: string): Promise<void> {
     return this.enqueue(async () => {
-      await this.store.setRecoveryPaused(false)
-      this.supervisor?.resume()
+      await this.store.setRecoveryPaused(workspaceId, false)
+      this.supervisor?.resume(workspaceId)
     })
   }
 

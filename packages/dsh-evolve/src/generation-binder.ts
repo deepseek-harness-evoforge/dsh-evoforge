@@ -2,6 +2,7 @@ import type { Context, Fiber } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { GitSkillSource } from './git-skill-source.ts'
 import type { CapabilityGeneration, EvolutionStore, SessionIdentity } from './generation-store.ts'
+import { workspaceIdForCwd } from './workspace-identity.ts'
 
 interface BindingState {
   settled: Promise<CapabilityGeneration | undefined>
@@ -55,7 +56,7 @@ async function bindAgent(
   agent: Agent,
   state: BindingState,
 ): Promise<CapabilityGeneration | undefined> {
-  const identity = sessionIdentityOf(agent)
+  const identity = await sessionIdentityOf(ctx, agent)
   try {
     const generation = await store.pinSession(identity, {
       ...agent.session.header.parentSession === undefined
@@ -105,9 +106,10 @@ async function disposeBinding(state: BindingState, states: Set<BindingState>): P
   states.delete(state)
 }
 
-export function sessionIdentityOf(agent: Agent): SessionIdentity {
+export async function sessionIdentityOf(ctx: Context, agent: Agent): Promise<SessionIdentity> {
   const { id, createdAt, cwd } = agent.session.header
   return {
+    workspaceId: await workspaceIdForCwd(ctx, cwd),
     sessionId: String(id),
     createdAt,
     ...cwd === undefined ? {} : { cwd },

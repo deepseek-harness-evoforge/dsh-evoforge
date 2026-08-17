@@ -20,9 +20,10 @@ const MAX_DRAFT_FILE_BYTES = 32 * 1024
 const hashSchema = z.string().regex(/^[a-f0-9]{64}$/)
 const gitObjectSchema = z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/)
 const draftContentSchema = z.strictObject({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(2),
   status: z.literal('draft'),
   source: z.strictObject({
+    workspaceId: z.uuid(),
     signalId: hashSchema,
     sessionId: z.string().min(1).max(256),
     messageId: z.string().min(1).max(512),
@@ -52,10 +53,11 @@ const draftContentSchema = z.strictObject({
 const draftSchema = draftContentSchema.extend({ id: hashSchema })
 
 export interface FeedbackCaseDraft {
-  readonly schemaVersion: 1
+  readonly schemaVersion: 2
   readonly id: string
   readonly status: 'draft'
   readonly source: {
+    readonly workspaceId: string
     readonly signalId: string
     readonly sessionId: string
     readonly messageId: string
@@ -115,11 +117,11 @@ export class FeedbackCaseDraftBuilder {
     }
   }
 
-  async create(signalId: string, skillName: string): Promise<FeedbackCaseDraftResult> {
+  async create(workspaceId: string, signalId: string, skillName: string): Promise<FeedbackCaseDraftResult> {
     if (!CONTENT_ID.test(signalId)) throw new Error('feedback signal id must be a full 64-character id')
     if (!SKILL_NAME.test(skillName)) throw new Error(`invalid Skill name '${skillName}'`)
 
-    const signal = this.signals.get(signalId)
+    const signal = this.signals.get(signalId, workspaceId)
     if (signal === undefined) throw staleSignal()
     if (signal.generationId === undefined) {
       throw new Error('feedback signal is not backed by an exact EvoForge Generation')
@@ -130,6 +132,7 @@ export class FeedbackCaseDraftBuilder {
     if (String(stored.meta.id) !== signal.sessionId) throw staleSignal()
 
     const identity: SessionIdentity = {
+      workspaceId: signal.workspaceId,
       sessionId: signal.sessionId,
       createdAt: stored.meta.createdAt,
       ...(stored.meta.cwd === undefined ? {} : { cwd: stored.meta.cwd }),
@@ -170,9 +173,10 @@ export class FeedbackCaseDraftBuilder {
     enforceBound('feedback correction', current.note, MAX_CORRECTION_BYTES)
 
     const content = {
-      schemaVersion: 1 as const,
+      schemaVersion: 2 as const,
       status: 'draft' as const,
       source: {
+        workspaceId: signal.workspaceId,
         signalId: signal.id,
         sessionId: signal.sessionId,
         messageId: signal.messageId,

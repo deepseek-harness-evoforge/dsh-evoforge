@@ -39,7 +39,8 @@ interface CounterfactualCanaryOptions {
 }
 
 interface CanaryState {
-  schemaVersion: 1
+  schemaVersion: 2
+  workspaceId: string
   outcomeId: string
   generationId: string
   parentId?: string
@@ -57,34 +58,36 @@ interface CanaryState {
  */
 export class CounterfactualCanary {
   private readonly options: CounterfactualCanaryOptions
-  private scanTail: Promise<CanaryScanResult> | undefined
+  private readonly scanTails = new Map<string, Promise<CanaryScanResult>>()
 
   constructor(options: CounterfactualCanaryOptions) {
     this.options = options
   }
 
-  scanOnce(signal: AbortSignal): Promise<CanaryScanResult> {
-    if (this.scanTail !== undefined) return this.scanTail
-    const task = this.scan(signal)
+  scanOnce(signal: AbortSignal, workspaceId: string): Promise<CanaryScanResult> {
+    const active = this.scanTails.get(workspaceId)
+    if (active !== undefined) return active
+    const task = this.scan(signal, workspaceId)
     const wrapped = task.finally(() => {
-      if (this.scanTail === wrapped) this.scanTail = undefined
+      if (this.scanTails.get(workspaceId) === wrapped) this.scanTails.delete(workspaceId)
     })
-    this.scanTail = wrapped
+    this.scanTails.set(workspaceId, wrapped)
     return wrapped
   }
 
-  private async scan(signal: AbortSignal): Promise<CanaryScanResult> {
+  private async scan(signal: AbortSignal, workspaceId: string): Promise<CanaryScanResult> {
     const result: CanaryScanResult = { kept: [], reviewed: [], rolledBack: [], warnings: [] }
     const reviews = await this.options.inbox.scanAll()
     result.warnings.push(...reviews.warnings.map(bounded))
     const candidates = new Map(reviews.candidates
       .filter(candidate => candidate.status === 'approved'
+        && candidate.workspaceId === workspaceId
         && candidate.decisionActor === AUTO_PROMOTION_ACTOR
         && candidate.activatedAt !== undefined
         && candidate.generationId !== undefined)
       .map(candidate => [candidate.generationId!, candidate]))
 
-    for (const outcome of this.options.outcomes.list()) {
+    for (const outcome of this.options.outcomes.list(workspaceId)) {
       signal.throwIfAborted()
       if (outcome.status !== 'failed' || outcome.generationId === undefined) continue
       const candidate = candidates.get(outcome.generationId)
@@ -114,7 +117,8 @@ export class CounterfactualCanary {
     const directory = join(candidate.outputDir, 'canary', generation.id)
     const statePath = join(directory, 'state.json')
     const existing = await loadState(statePath)
-    if (existing !== undefined && existing.generationId !== generation.id) {
+    if (existing !== undefined && (existing.workspaceId !== candidate.workspaceId
+      || existing.generationId !== generation.id)) {
       throw new Error('canary state identity does not match its durable path')
     }
     if (existing?.phase === 'complete') return
@@ -125,11 +129,15 @@ export class CounterfactualCanary {
       await this.finishRollback(existing, outcome, statePath, result)
       return
     }
-    if (this.options.store.getActiveGeneration()?.id !== generation.id) return
+    if (generation.workspaceId !== candidate.workspaceId || outcome.workspaceId !== candidate.workspaceId) {
+      throw new Error('canary Candidate, Generation, and Delivery Outcome cross Workspace ownership')
+    }
+    if (this.options.store.getActiveGeneration(candidate.workspaceId)?.id !== generation.id) return
 
     await mkdir(directory, { recursive: true })
     const running: CanaryState = {
-      schemaVersion: 1,
+      schemaVersion: 2,
+      workspaceId: candidate.workspaceId,
       outcomeId: outcome.id,
       generationId: generation.id,
       ...(generation.parentId === undefined ? {} : { parentId: generation.parentId }),
@@ -189,7 +197,7 @@ export class CounterfactualCanary {
     statePath: string,
     result: CanaryScanResult,
   ): Promise<void> {
-    const active = this.options.store.getActiveGeneration()
+    const active = this.options.store.getActiveGeneration(outcome.workspaceId)
     if (active?.id !== state.generationId) {
       if (active?.id === state.parentId || (active === undefined && state.parentId === undefined)) {
         await writeDurableJson(statePath, {
@@ -211,7 +219,7 @@ export class CounterfactualCanary {
       return
     }
 
-    const rollback = await this.options.store.rollbackGeneration()
+    const rollback = await this.options.store.rollbackGeneration(outcome.workspaceId)
     if (rollback.previousId !== state.generationId || rollback.generation?.id !== state.parentId) {
       throw new Error('Generation rollback did not reach the sealed parent')
     }
@@ -233,7 +241,8 @@ async function loadState(path: string): Promise<CanaryState | undefined> {
   try {
     const value = JSON.parse(await readFile(path, 'utf8')) as unknown
     if (!isRecord(value)
-      || value.schemaVersion !== 1
+      || value.schemaVersion !== 2
+      || typeof value.workspaceId !== 'string'
       || !hashPattern.test(String(value.outcomeId))
       || !hashPattern.test(String(value.generationId))
       || !['trial-running', 'rollback-pending', 'complete'].includes(String(value.phase))) {

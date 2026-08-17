@@ -72,14 +72,14 @@ declare module '@deepseek-ai/cordis' {
 }
 
 export const name = 'dsh-evolve'
-export const inject = ['storageDomain']
+export const inject = ['storageDomain', 'workspaceRegistry']
 
 export interface Config {
   cacheRoot?: string
   feedbackDraftRoot?: string
   sources?: GitSkillSourceConfig[]
   supervisor?: {
-    runRoots: string[]
+    runRoots: Array<{ workspaceId: string; path: string }>
     scanIntervalMs?: number
   }
   autoPromote?: {
@@ -102,7 +102,10 @@ export const Config: Schema<Config> = z.object({
     path: z.string().required(),
   })).default([]),
   supervisor: z.object({
-    runRoots: z.array(z.string()).default([]),
+    runRoots: z.array(z.object({
+      workspaceId: z.string().required(),
+      path: z.string().required(),
+    })).default([]),
     scanIntervalMs: z.number().step(1).min(1_000).default(30_000),
   }),
   autoPromote: z.object({
@@ -110,6 +113,7 @@ export const Config: Schema<Config> = z.object({
     retentionRoots: z.array(z.string()).max(20).default([]),
     retentionTargets: z.array(z.object({
       id: z.string().required(),
+      workspaceId: z.string().required(),
       skill: z.string().required(),
       casePackDir: z.string().required(),
       casePackHash: z.string().required(),
@@ -118,6 +122,7 @@ export const Config: Schema<Config> = z.object({
   }),
   shadowTargets: z.array(z.object({
     id: z.string().required(),
+    workspaceId: z.string().required(),
     skill: z.string().required(),
     casePackDir: z.string().required(),
     runRoot: z.string().required(),
@@ -131,6 +136,7 @@ export const Config: Schema<Config> = z.object({
   })).max(20).default([]),
   evaluatorTargets: z.array(z.object({
     id: z.string().required(),
+    workspaceId: z.string().required(),
     skill: z.string().required(),
     root: z.string().required(),
     dshRevision: z.string().required(),
@@ -185,6 +191,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     : {
         inbox: new ReviewInbox(config.supervisor.runRoots, {
           automaticReviewExpiry: automaticFeedbackTargets.map(target => ({
+            workspaceId: target.workspaceId,
             skillName: target.skill,
             maxPendingReviewMs: target.maxPendingReviewAgeHours * 60 * 60 * 1_000,
           })),
@@ -232,7 +239,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const evaluatorShadowTargets = evaluatorTargets.flatMap(target =>
     target.shadowRunRoot === undefined
       ? []
-      : [{ id: target.id, skill: target.skill, runRoot: target.shadowRunRoot }])
+      : [{ id: target.id, workspaceId: target.workspaceId, skill: target.skill, runRoot: target.shadowRunRoot }])
   if (evaluatorShadowTargets.length > 0 && (config.supervisor === undefined
     || config.supervisor.runRoots.length === 0)) {
     throw new Error('qualified evaluator Shadow requires configured supervisor.runRoots')
@@ -262,13 +269,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const feedbackDraft = config.feedbackDraftRoot === undefined
     ? undefined
     : {
-        create: (signalId: string, skillName: string) => {
+        create: (workspaceId: string, signalId: string, skillName: string) => {
           if (feedbackDraftBuilder === undefined) {
             throw new Error(
               'native message feedback and Session persistence are not composed for Feedback Case Draft creation',
             )
           }
-          return feedbackDraftBuilder.create(signalId, skillName)
+          return feedbackDraftBuilder.create(workspaceId, signalId, skillName)
         },
       }
   const feedbackShadow = shadowTargets.length === 0 && evaluatorShadowTargets.length === 0
@@ -313,6 +320,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       }
       return {
         id: target.id,
+        workspaceId: target.workspaceId,
         skill: target.skill,
         root: target.root,
         maxAttemptsPerUtcDay: reference.maxAttemptsPerUtcDay ?? 1,
@@ -322,12 +330,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     assertAutomaticEvaluatorDraftTargets(automaticEvaluatorTargets)
     automaticEvolutionBudget.assertTargets(automaticEvaluatorTargets.map(target => ({
       id: target.id,
+      workspaceId: target.workspaceId,
       skill: target.skill,
       runRoot: target.root,
       maxAttemptsPerUtcDay: target.maxAttemptsPerUtcDay,
     })))
   }
-  const automaticFeedbackSkills = new Set(automaticFeedbackTargets.map(target => target.skill))
+  const automaticFeedbackSkills = new Set(automaticFeedbackTargets.map(target =>
+    `${target.workspaceId}\0${target.skill}`))
   assertAutomaticEvaluatorDraftSeparation(automaticEvaluatorTargets, automaticFeedbackSkills)
   const automaticEvaluator = automaticEvaluatorTargets.length === 0
     || evaluatorDrafts === undefined
@@ -443,25 +453,25 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         && automaticEvaluator === undefined
         && automatic === undefined
         ? undefined
-        : async (signal: AbortSignal) => {
-            const feedbackResult = await automaticFeedback?.scanOnce()
+        : async (signal: AbortSignal, workspaceId: string) => {
+            const feedbackResult = await automaticFeedback?.scanOnce(workspaceId)
             for (const warning of feedbackResult?.warnings ?? []) {
               jobCtx.logger.warn(`dsh-evolve automatic Feedback Shadow skipped signal: ${warning}`)
             }
-            const evaluatorResult = await automaticEvaluator?.scanOnce()
+            const evaluatorResult = await automaticEvaluator?.scanOnce(workspaceId)
             for (const warning of evaluatorResult?.warnings ?? []) {
               jobCtx.logger.warn(`dsh-evolve Automatic Evaluator Draft skipped signal: ${warning}`)
             }
             if (automatic === undefined) return
-            const retentionResult = await automaticRetention?.scanOnce(signal)
+            const retentionResult = await automaticRetention?.scanOnce(signal, workspaceId)
             for (const warning of retentionResult?.warnings ?? []) {
               jobCtx.logger.warn(`dsh-evolve automatic Retention skipped evidence: ${warning}`)
             }
-            const result = await automatic.scanOnce()
+            const result = await automatic.scanOnce(workspaceId)
             for (const warning of result.warnings) {
               jobCtx.logger.warn(`dsh-evolve automatic promotion skipped evidence: ${warning}`)
             }
-            const canaryResult = await canary!.scanOnce(signal)
+            const canaryResult = await canary!.scanOnce(signal, workspaceId)
             for (const warning of canaryResult.warnings) {
               jobCtx.logger.warn(`dsh-evolve counterfactual canary skipped evidence: ${warning}`)
             }
@@ -476,9 +486,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
               )
             }
           }
-      const afterScan = async (signal: AbortSignal): Promise<void> => {
+      const afterScan = async (signal: AbortSignal, workspaceId: string): Promise<void> => {
         try {
-          await automaticAfterScan?.(signal)
+          await automaticAfterScan?.(signal, workspaceId)
         } finally {
           ctx.emit('evoforge/evolution/settled')
         }
@@ -486,7 +496,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       const supervisor = new ShadowSupervisor({
         runRoots: config.supervisor!.runRoots,
         scanIntervalMs: config.supervisor!.scanIntervalMs ?? 30_000,
-        paused: resident!.isPaused(),
+        pausedWorkspaces: [...new Set([
+          ...shadowTargets.map(target => target.workspaceId),
+          ...evaluatorTargets.map(target => target.workspaceId),
+          ...retentionTargets.map(target => target.workspaceId),
+        ])].filter(workspaceId => resident!.isPaused(workspaceId)),
         afterScan,
         runner: createShadowJobRunner(jobCtx.jobs, runShadow),
         onError: (error, path) => {

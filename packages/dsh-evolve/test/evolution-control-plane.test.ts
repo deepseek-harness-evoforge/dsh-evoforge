@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { EvolutionControlPlane } from '../src/evolution-control-plane.ts'
 import type { CapabilityGeneration, EvolutionStore } from '../src/generation-store.ts'
 import type { ReviewCandidate } from '../src/review-inbox.ts'
+import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const generationId = 'a'.repeat(64)
 const parentId = 'b'.repeat(64)
@@ -10,7 +11,8 @@ const reviewId = 'c'.repeat(64)
 function generation(id = generationId): CapabilityGeneration {
   return {
     id,
-    schemaVersion: 1,
+    schemaVersion: 2,
+    workspaceId: WORKSPACE_ID,
     parentId,
     createdAt: 1_786_896_000_000,
     artifacts: [{
@@ -28,6 +30,7 @@ function generation(id = generationId): CapabilityGeneration {
 function candidate(status: ReviewCandidate['status'] = 'pending'): ReviewCandidate {
   return {
     id: reviewId,
+    workspaceId: WORKSPACE_ID,
     runId: 'run-1',
     status,
     outputDir: '/private/evolution/run-1',
@@ -62,7 +65,7 @@ function store(active: CapabilityGeneration | undefined = generation()): Evoluti
     publishGeneration: vi.fn(),
     getGeneration: vi.fn(),
     getActiveGeneration: vi.fn(() => current),
-    promoteGeneration: vi.fn(async (id: string) => {
+    promoteGeneration: vi.fn(async (_workspaceId: string, id: string) => {
       const previousId = current?.id
       current = generation(id)
       return { previousId, generation: current }
@@ -135,7 +138,8 @@ describe('EvolutionControlPlane', () => {
       feedback: {
         summarize: () => ({ all: 4, selected: 1 }),
         list: () => [{
-          schemaVersion: 1 as const,
+          schemaVersion: 2 as const,
+          workspaceId: WORKSPACE_ID,
           id: '8'.repeat(64),
           observedAt: 1_786_896_000_000,
           sessionId: 'private-session',
@@ -147,11 +151,12 @@ describe('EvolutionControlPlane', () => {
       },
       feedbackShadow: {
         available: () => true,
-        targets: () => [{ id: 'plugin-delivery', skillName: 'build-dsh-plugin' }],
+        targets: () => [{ id: 'plugin-delivery', workspaceId: WORKSPACE_ID, skillName: 'build-dsh-plugin' }],
         scan: vi.fn(async () => ({
           warningCount: 0,
           runs: [{
             launchId: '9'.repeat(64),
+            workspaceId: WORKSPACE_ID,
             targetId: 'plugin-delivery',
             skillName: 'build-dsh-plugin',
             phase: 'trial-running' as const,
@@ -166,6 +171,7 @@ describe('EvolutionControlPlane', () => {
           warningCount: 0,
           targets: [{
             targetId: 'plugin-delivery',
+            workspaceId: WORKSPACE_ID,
             skillName: 'build-dsh-plugin',
             utcDay: '2026-08-17',
             used: 1,
@@ -180,6 +186,7 @@ describe('EvolutionControlPlane', () => {
           warningCount: 0,
           targets: [{
             targetId: 'novel-failure',
+            workspaceId: WORKSPACE_ID,
             skillName: 'build-dsh-plugin',
             utcDay: '2026-08-17',
             used: 1,
@@ -191,7 +198,7 @@ describe('EvolutionControlPlane', () => {
       },
     })
 
-    const overview = await control.overview()
+    const overview = await control.overview(WORKSPACE_ID)
     expect(overview).toMatchObject({
       schemaVersion: 1,
       active: { id: generationId, rollbackTargetId: parentId },
@@ -219,6 +226,7 @@ describe('EvolutionControlPlane', () => {
       reviews: { available: true, pendingCount: 1, warningCount: 1 },
     })
     expect(overview.reviews.inactiveGenerations).toEqual([{
+      workspaceId: WORKSPACE_ID,
       generationId: '7'.repeat(64),
       reviewId: '6'.repeat(64),
       skillName: 'build-dsh-plugin',
@@ -233,7 +241,7 @@ describe('EvolutionControlPlane', () => {
       },
     })
 
-    const detail = await control.review(reviewId)
+    const detail = await control.review(WORKSPACE_ID, reviewId)
     expect(detail.diff.patch).toBe('-old\n+new\n')
     expect(detail.automatic?.eligible).toBe(false)
     expect(detail.review.automaticReviewExpiry).toEqual({
@@ -268,9 +276,10 @@ describe('EvolutionControlPlane', () => {
       review: { inbox, publisher },
     })
 
-    const approval = await control.approveReview(reviewId, 'verified by a human')
+    const approval = await control.approveReview(WORKSPACE_ID, reviewId, 'verified by a human')
     expect(approval).toEqual({
       schemaVersion: 1,
+      workspaceId: WORKSPACE_ID,
       action: 'approve-review',
       reviewId,
       generationId,
@@ -278,8 +287,8 @@ describe('EvolutionControlPlane', () => {
     })
     expect(evolutionStore.promoteGeneration).not.toHaveBeenCalled()
 
-    const promotion = await control.promote(generationId)
-    expect(evolutionStore.promoteGeneration).toHaveBeenCalledWith(generationId)
+    const promotion = await control.promote(WORKSPACE_ID, generationId)
+    expect(evolutionStore.promoteGeneration).toHaveBeenCalledWith(WORKSPACE_ID, generationId)
     expect(promotion).toMatchObject({ action: 'promote', activeGenerationId: generationId })
   })
 
@@ -293,7 +302,7 @@ describe('EvolutionControlPlane', () => {
     const rejected = { ...candidate('rejected'), decisionActor: 'human' as const, decisionNote: 'not enough evidence' }
     const inbox = {
       scanAll: vi.fn(async () => ({ candidates: [], warnings: [] })),
-      get: vi.fn(),
+      get: vi.fn(async () => candidate()),
       approve: vi.fn(),
       reject: vi.fn(async () => rejected),
     }
@@ -304,12 +313,12 @@ describe('EvolutionControlPlane', () => {
       review: { inbox, publisher: { preview: vi.fn(), publish: vi.fn() } },
     })
 
-    await expect(control.pause()).resolves.toMatchObject({ action: 'pause', recoveryPaused: true })
-    await expect(control.resume()).resolves.toMatchObject({ action: 'resume', recoveryPaused: false })
-    await expect(control.rejectReview(reviewId, 'not enough evidence')).resolves.toMatchObject({
+    await expect(control.pause(WORKSPACE_ID)).resolves.toMatchObject({ action: 'pause', recoveryPaused: true })
+    await expect(control.resume(WORKSPACE_ID)).resolves.toMatchObject({ action: 'resume', recoveryPaused: false })
+    await expect(control.rejectReview(WORKSPACE_ID, reviewId, 'not enough evidence')).resolves.toMatchObject({
       action: 'reject-review', reviewId, status: 'rejected',
     })
-    await expect(control.rollback()).resolves.toMatchObject({
+    await expect(control.rollback(WORKSPACE_ID)).resolves.toMatchObject({
       action: 'rollback', previousGenerationId: generationId,
     })
     expect(resident.pause).toHaveBeenCalledOnce()
@@ -325,6 +334,7 @@ describe('EvolutionControlPlane', () => {
       launch: vi.fn(async () => ({
         schemaVersion: 1 as const,
         action: 'start-shadow' as const,
+        workspaceId: WORKSPACE_ID,
         launchId: '8'.repeat(64),
         targetId: 'plugin-delivery',
         skillName: 'build-dsh-plugin',
@@ -334,22 +344,23 @@ describe('EvolutionControlPlane', () => {
     }
     const control = new EvolutionControlPlane({ store: store(), feedbackShadow: launcher })
 
-    await expect(control.startFeedbackShadow('9'.repeat(64), 'plugin-delivery')).resolves.toMatchObject({
+    await expect(control.startFeedbackShadow(WORKSPACE_ID, '9'.repeat(64), 'plugin-delivery')).resolves.toMatchObject({
       action: 'start-shadow',
       jobId: 'evolution-1',
     })
-    expect(launcher.launch).toHaveBeenCalledWith('9'.repeat(64), 'plugin-delivery')
+    expect(launcher.launch).toHaveBeenCalledWith(WORKSPACE_ID, '9'.repeat(64), 'plugin-delivery')
   })
 
   it('projects and delegates evaluator drafts without exposing owned paths', async () => {
     const draftId = '8'.repeat(64)
     const evaluatorDrafts = {
       available: () => true,
-      targets: () => [{ id: 'plugin-delivery', skillName: 'build-dsh-plugin' }],
+      targets: () => [{ id: 'plugin-delivery', workspaceId: WORKSPACE_ID, skillName: 'build-dsh-plugin' }],
       scan: vi.fn(async () => ({
         warningCount: 0,
         drafts: [{
           id: draftId,
+          workspaceId: WORKSPACE_ID,
           launchId: '9'.repeat(64),
           targetId: 'plugin-delivery',
           skillName: 'build-dsh-plugin',
@@ -361,6 +372,7 @@ describe('EvolutionControlPlane', () => {
       })),
       get: vi.fn(async () => ({
         id: draftId,
+        workspaceId: WORKSPACE_ID,
         launchId: '9'.repeat(64),
         targetId: 'plugin-delivery',
         skillName: 'build-dsh-plugin',
@@ -372,15 +384,15 @@ describe('EvolutionControlPlane', () => {
         limitations: ['inactive'],
         qualifiedShadowAvailable: true,
       })),
-      author: vi.fn(async () => ({ schemaVersion: 1 as const, action: 'author-evaluator' as const })),
-      approve: vi.fn(async () => ({ schemaVersion: 1 as const, action: 'approve-evaluator' as const })),
-      approveAndStartShadow: vi.fn(async () => ({ schemaVersion: 1 as const, action: 'start-shadow' as const })),
-      reject: vi.fn(async () => ({ schemaVersion: 1 as const, action: 'reject-evaluator' as const })),
-      startShadow: vi.fn(async () => ({ schemaVersion: 1 as const, action: 'start-shadow' as const })),
+      author: vi.fn(async () => ({ schemaVersion: 1 as const, workspaceId: WORKSPACE_ID, action: 'author-evaluator' as const })),
+      approve: vi.fn(async () => ({ schemaVersion: 1 as const, workspaceId: WORKSPACE_ID, action: 'approve-evaluator' as const })),
+      approveAndStartShadow: vi.fn(async () => ({ schemaVersion: 1 as const, workspaceId: WORKSPACE_ID, action: 'start-shadow' as const })),
+      reject: vi.fn(async () => ({ schemaVersion: 1 as const, workspaceId: WORKSPACE_ID, action: 'reject-evaluator' as const })),
+      startShadow: vi.fn(async () => ({ schemaVersion: 1 as const, workspaceId: WORKSPACE_ID, action: 'start-shadow' as const })),
     }
     const control = new EvolutionControlPlane({ store: store(), evaluatorDrafts: evaluatorDrafts as never })
 
-    await expect(control.overview()).resolves.toMatchObject({
+    await expect(control.overview(WORKSPACE_ID)).resolves.toMatchObject({
       evaluatorAuthoring: {
         available: true,
         actionableCount: 1,
@@ -389,25 +401,26 @@ describe('EvolutionControlPlane', () => {
         drafts: [{ id: draftId, status: 'draft-ready' }],
       },
     })
-    await expect(control.evaluatorDraft(draftId)).resolves.toMatchObject({
+    await expect(control.evaluatorDraft(WORKSPACE_ID, draftId)).resolves.toMatchObject({
       schemaVersion: 1,
       draft: { id: draftId },
       files: [{ path: 'final-test/evaluator.mjs', content: 'private bounded source' }],
       qualifiedShadowAvailable: true,
     })
-    await control.authorEvaluator('7'.repeat(64), 'plugin-delivery')
-    await control.approveEvaluator(draftId, 'reviewed')
-    await control.approveAndStartEvaluatorShadow(draftId, 'reviewed and paid Shadow authorized')
-    await control.rejectEvaluator(draftId, 'wrong observable')
-    await control.startEvaluatorShadow(draftId)
-    expect(evaluatorDrafts.author).toHaveBeenCalledWith('7'.repeat(64), 'plugin-delivery')
-    expect(evaluatorDrafts.approve).toHaveBeenCalledWith(draftId, 'reviewed')
+    await control.authorEvaluator(WORKSPACE_ID, '7'.repeat(64), 'plugin-delivery')
+    await control.approveEvaluator(WORKSPACE_ID, draftId, 'reviewed')
+    await control.approveAndStartEvaluatorShadow(WORKSPACE_ID, draftId, 'reviewed and paid Shadow authorized')
+    await control.rejectEvaluator(WORKSPACE_ID, draftId, 'wrong observable')
+    await control.startEvaluatorShadow(WORKSPACE_ID, draftId)
+    expect(evaluatorDrafts.author).toHaveBeenCalledWith(WORKSPACE_ID, '7'.repeat(64), 'plugin-delivery')
+    expect(evaluatorDrafts.approve).toHaveBeenCalledWith(WORKSPACE_ID, draftId, 'reviewed')
     expect(evaluatorDrafts.approveAndStartShadow).toHaveBeenCalledWith(
+      WORKSPACE_ID,
       draftId,
       'reviewed and paid Shadow authorized',
     )
-    expect(evaluatorDrafts.reject).toHaveBeenCalledWith(draftId, 'wrong observable')
-    expect(evaluatorDrafts.startShadow).toHaveBeenCalledWith(draftId)
+    expect(evaluatorDrafts.reject).toHaveBeenCalledWith(WORKSPACE_ID, draftId, 'wrong observable')
+    expect(evaluatorDrafts.startShadow).toHaveBeenCalledWith(WORKSPACE_ID, draftId)
   })
 
   it('counts only evaluator states that require human attention', async () => {
@@ -428,6 +441,7 @@ describe('EvolutionControlPlane', () => {
         warningCount: 0,
         drafts: statuses.map((status, index) => ({
           id: String(index).repeat(64),
+          workspaceId: WORKSPACE_ID,
           launchId: '9'.repeat(64),
           targetId: 'plugin-delivery',
           skillName: 'build-dsh-plugin',
@@ -440,7 +454,7 @@ describe('EvolutionControlPlane', () => {
     }
     const control = new EvolutionControlPlane({ store: store(), evaluatorDrafts: evaluatorDrafts as never })
 
-    await expect(control.overview()).resolves.toMatchObject({
+    await expect(control.overview(WORKSPACE_ID)).resolves.toMatchObject({
       evaluatorAuthoring: { actionableCount: 4 },
     })
   })

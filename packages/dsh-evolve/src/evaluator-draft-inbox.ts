@@ -55,6 +55,7 @@ const FIXED_FILES = [
 
 export interface EvaluatorDraftTargetConfig {
   readonly id: string
+  readonly workspaceId: string
   readonly skill: string
   readonly root: string
   readonly dshRevision: string
@@ -72,6 +73,7 @@ export type EvaluatorDraftStatus =
 
 export interface EvaluatorDraftTargetView {
   readonly id: string
+  readonly workspaceId: string
   readonly skillName: string
 }
 
@@ -79,6 +81,7 @@ export interface EvaluatorDraftView {
   readonly id: string
   readonly launchId: string
   readonly targetId: string
+  readonly workspaceId: string
   readonly skillName: string
   readonly status: EvaluatorDraftStatus
   readonly createdAt: string
@@ -117,6 +120,7 @@ export interface EvaluatorDraftReceipt {
   readonly launchId: string
   readonly draftId?: string
   readonly targetId: string
+  readonly workspaceId: string
   readonly skillName: string
   readonly draftStatus: 'scheduled' | EvaluatorDraftStatus
   readonly jobId?: string
@@ -127,6 +131,7 @@ export interface EvaluatorAuthorInput {
   readonly signalId: string
   readonly sourceDraftId: string
   readonly targetId: string
+  readonly workspaceId: string
   readonly skillName: string
   readonly skillSource: string
   readonly userText: string
@@ -171,6 +176,7 @@ interface EvaluatorRunState {
   readonly createdAt: string
   readonly updatedAt: string
   readonly identity: {
+    readonly workspaceId: string
     readonly signalId: string
     readonly sourceDraftId: string
     readonly targetId: string
@@ -221,6 +227,9 @@ export class EvaluatorDraftInbox {
       if (!TARGET_ID.test(input.id) || !TARGET_ID.test(input.skill)) {
         throw new Error(`invalid evaluator target '${input.id}'`)
       }
+      if (!isWorkspaceId(input.workspaceId)) {
+        throw new Error(`evaluator target '${input.id}' has an invalid Workspace id`)
+      }
       if (!isAbsolute(input.root) || dirname(resolve(input.root)) === resolve(input.root)) {
         throw new Error(`evaluator target '${input.id}' root must be an absolute non-root path`)
       }
@@ -267,20 +276,24 @@ export class EvaluatorDraftInbox {
   targets(): EvaluatorDraftTargetView[] {
     return [...this.targetsById.values()].map(target => Object.freeze({
       id: target.id,
+      workspaceId: target.workspaceId,
       skillName: target.skill,
     }))
   }
 
-  async author(signalId: string, targetId: string): Promise<EvaluatorDraftReceipt> {
+  async author(workspaceId: string, signalId: string, targetId: string): Promise<EvaluatorDraftReceipt> {
     if (!CONTENT_ID.test(signalId)) throw new Error('feedback signal id must be a full 64-character id')
     const target = this.requireTarget(targetId)
+    if (target.workspaceId !== workspaceId) {
+      throw new Error(`evaluator target '${targetId}' belongs to Workspace '${target.workspaceId}'`)
+    }
     const jobs = this.jobs
     if (jobs === undefined) throw new Error('native Jobs is unavailable for evaluator authoring')
     const drafts = this.drafts()
     if (drafts === undefined) throw new Error('private Feedback Case Draft creation is unavailable')
 
     await ensureOwnedRoot(target.root)
-    const sourceDraft = await drafts.create(signalId, target.skill)
+    const sourceDraft = await drafts.create(target.workspaceId, signalId, target.skill)
     const resolved = await this.source.resolveArtifact(target.skill, sourceDraft.draft.target.artifact)
     if (resolved.artifact.treeHash !== sourceDraft.draft.target.artifact.treeHash) {
       throw new Error('resolved evaluator target Skill does not match its private draft')
@@ -293,6 +306,7 @@ export class EvaluatorDraftInbox {
     const modelIdentity = this.modelIdentity()
     if (modelIdentity.trim() === '') throw new Error('evaluator authoring model identity must not be empty')
     const identity: EvaluatorRunState['identity'] = {
+      workspaceId: target.workspaceId,
       signalId,
       sourceDraftId: sourceDraft.draft.id,
       targetId,
@@ -362,6 +376,7 @@ export class EvaluatorDraftInbox {
       action: 'author-evaluator',
       launchId,
       targetId,
+      workspaceId: target.workspaceId,
       skillName: target.skill,
       draftStatus: 'scheduled',
       jobId: String(jobId),
@@ -370,8 +385,8 @@ export class EvaluatorDraftInbox {
     return submitted
   }
 
-  async scan(): Promise<EvaluatorDraftScan> {
-    const scan = await this.scanDrafts()
+  async scan(workspaceId?: string): Promise<EvaluatorDraftScan> {
+    const scan = await this.scanDrafts(workspaceId)
     return {
       drafts: scan.drafts.slice(0, MAX_ROWS).map(row => row.view),
       warningCount: scan.warningCount,
@@ -379,10 +394,11 @@ export class EvaluatorDraftInbox {
   }
 
   async automaticInflightStatus(
+    workspaceId: string,
     skillName: string,
     signalId: string,
   ): Promise<AutomaticEvolutionInflightStatus> {
-    const scan = await this.scanDrafts(skillName)
+    const scan = await this.scanDrafts(workspaceId, skillName)
     if (scan.targetCount === 0) return 'clear'
     if (scan.warningCount > 0) return 'unknown'
     return scan.drafts.some(row => (row.view.status !== 'qualified'
@@ -393,7 +409,7 @@ export class EvaluatorDraftInbox {
       : 'clear'
   }
 
-  private async scanDrafts(skillName?: string): Promise<{
+  private async scanDrafts(workspaceId?: string, skillName?: string): Promise<{
     drafts: Array<{
       view: EvaluatorDraftView
       signalId: string
@@ -410,7 +426,8 @@ export class EvaluatorDraftInbox {
     let warningCount = 0
     let targetCount = 0
     for (const target of this.targetsById.values()) {
-      if (skillName !== undefined && target.skill !== skillName) continue
+      if ((workspaceId !== undefined && target.workspaceId !== workspaceId)
+        || (skillName !== undefined && target.skill !== skillName)) continue
       targetCount += 1
       let entries
       const runsRoot = join(target.root, 'runs')
@@ -425,7 +442,9 @@ export class EvaluatorDraftInbox {
         if (!entry.isDirectory() || !CONTENT_ID.test(entry.name)) continue
         try {
           const state = await loadState(join(runsRoot, entry.name))
-          if (state.identity.targetId !== target.id || state.identity.skillName !== target.skill) {
+          if (state.identity.workspaceId !== target.workspaceId
+            || state.identity.targetId !== target.id
+            || state.identity.skillName !== target.skill) {
             warningCount += 1
             continue
           }
@@ -444,9 +463,10 @@ export class EvaluatorDraftInbox {
     return { drafts, warningCount, targetCount }
   }
 
-  async get(draftId: string): Promise<EvaluatorDraftDetail> {
+  async get(workspaceId: string, draftId: string): Promise<EvaluatorDraftDetail> {
     if (!CONTENT_ID.test(draftId)) throw new Error('evaluator draft id must be a full 64-character id')
     const located = await this.findById(draftId)
+    assertWorkspace(located.state.identity.workspaceId, workspaceId)
     const view = projectState(located.state, this.active.has(located.state.launchId))
     const files = await readAndVerifyPack(located.target, located.state)
     return Object.freeze({
@@ -473,17 +493,19 @@ export class EvaluatorDraftInbox {
     })
   }
 
-  async approve(draftId: string, note: string): Promise<EvaluatorDraftReceipt> {
-    return this.qualifyDraft(draftId, note, false)
+  async approve(workspaceId: string, draftId: string, note: string): Promise<EvaluatorDraftReceipt> {
+    return this.qualifyDraft(workspaceId, draftId, note, false)
   }
 
   private async qualifyDraft(
+    workspaceId: string,
     draftId: string,
     note: string,
     shadowHandoff: boolean,
   ): Promise<EvaluatorDraftReceipt> {
     enforceNote(note)
     const located = await this.findById(draftId)
+    assertWorkspace(located.state.identity.workspaceId, workspaceId)
     let state = located.state
     if (state.phase === 'qualified') {
       if (shadowHandoff && state.shadowHandoff !== 'pending') {
@@ -559,9 +581,10 @@ export class EvaluatorDraftInbox {
     return receiptFromState(state, located.target, 'qualified', 'approve-evaluator')
   }
 
-  async reject(draftId: string, note: string): Promise<EvaluatorDraftReceipt> {
+  async reject(workspaceId: string, draftId: string, note: string): Promise<EvaluatorDraftReceipt> {
     enforceNote(note)
     const located = await this.findById(draftId)
+    assertWorkspace(located.state.identity.workspaceId, workspaceId)
     if (located.state.phase === 'qualified') throw new Error('qualified evaluator draft cannot be rejected')
     if (located.state.phase === 'rejected') {
       return receiptFromState(located.state, located.target, 'rejected', 'reject-evaluator')
@@ -577,8 +600,9 @@ export class EvaluatorDraftInbox {
     return receiptFromState(state, located.target, 'rejected', 'reject-evaluator')
   }
 
-  async startShadow(draftId: string): Promise<FeedbackShadowLaunchReceipt> {
+  async startShadow(workspaceId: string, draftId: string): Promise<FeedbackShadowLaunchReceipt> {
     const located = await this.findById(draftId)
+    assertWorkspace(located.state.identity.workspaceId, workspaceId)
     let state = located.state
     if (state.phase !== 'qualified' || state.draftId === undefined || state.packHash === undefined) {
       throw new Error('Evaluator Draft must be qualified before starting Shadow')
@@ -604,6 +628,7 @@ export class EvaluatorDraftInbox {
     }
     const receipt = await this.shadow.launchExact(state.identity.signalId, {
       id: located.target.id,
+      workspaceId: located.target.workspaceId,
       skill: located.target.skill,
       casePackDir,
       casePackHash: packHashExact,
@@ -615,11 +640,12 @@ export class EvaluatorDraftInbox {
 
   /** Qualify one exact Draft, then start its paid Shadow only after calibration succeeds. */
   async approveAndStartShadow(
+    workspaceId: string,
     draftId: string,
     note: string,
   ): Promise<FeedbackShadowLaunchReceipt> {
-    await this.qualifyDraft(draftId, note, true)
-    return this.startShadow(draftId)
+    await this.qualifyDraft(workspaceId, draftId, note, true)
+    return this.startShadow(workspaceId, draftId)
   }
 
   private async runAuthoring(options: {
@@ -642,6 +668,7 @@ export class EvaluatorDraftInbox {
         signalId: options.identity.signalId,
         sourceDraftId: options.identity.sourceDraftId,
         targetId: options.identity.targetId,
+        workspaceId: options.identity.workspaceId,
         skillName: options.identity.skillName,
         skillSource: options.skillSource,
         userText: options.sourceDraft.draft.sample.userText,
@@ -748,6 +775,7 @@ function buildFiles(
   const manifest = {
     schemaVersion: 1,
     id: draftId,
+    workspaceId: identity.workspaceId,
     epoch: {
       dshRevision: identity.dshRevision,
       evaluatorVersion: `evaluator-draft-${draftId}`,
@@ -886,6 +914,7 @@ function projectState(state: EvaluatorRunState, active: boolean): EvaluatorDraft
     id: state.draftId ?? state.launchId,
     launchId: state.launchId,
     targetId: state.identity.targetId,
+    workspaceId: state.identity.workspaceId,
     skillName: state.identity.skillName,
     status,
     createdAt: state.createdAt,
@@ -906,6 +935,7 @@ function receiptFromState(
     launchId: state.launchId,
     ...(state.draftId === undefined ? {} : { draftId: state.draftId }),
     targetId: target.id,
+    workspaceId: target.workspaceId,
     skillName: target.skill,
     draftStatus: status,
   })
@@ -954,6 +984,8 @@ async function loadState(runDir: string): Promise<EvaluatorRunState> {
     || typeof value.createdAt !== 'string'
     || typeof value.updatedAt !== 'string'
     || !isRecord(value.identity)
+    || typeof value.identity.workspaceId !== 'string'
+    || !isWorkspaceId(value.identity.workspaceId)
     || !isRecord(value.cost)
     || (value.shadowHandoff !== undefined && value.shadowHandoff !== 'pending')) {
     throw new Error('evaluator authoring run state has an invalid shape')
@@ -965,6 +997,10 @@ function assertIdentity(state: EvaluatorRunState, identity: EvaluatorRunState['i
   if (JSON.stringify(state.identity) !== JSON.stringify(identity)) {
     throw new Error('evaluator authoring resume inputs do not match durable identity')
   }
+}
+
+function isWorkspaceId(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(value)
 }
 
 async function ensureOwnedRoot(root: string): Promise<void> {
@@ -1099,6 +1135,12 @@ function safeUsage(value: unknown): number {
 function errorDetail(error: unknown): string {
   const text = error instanceof Error ? error.message : String(error)
   return text.replaceAll(/[\r\n]+/g, ' ').slice(0, 512) || 'unknown error'
+}
+
+function assertWorkspace(actual: string, expected: string): void {
+  if (actual !== expected) {
+    throw new Error(`Evaluator Draft belongs to Workspace '${actual}'`)
+  }
 }
 
 function isMissing(error: unknown): boolean {

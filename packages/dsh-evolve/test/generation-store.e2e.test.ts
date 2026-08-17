@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { JobRegistry } from '@deepseek-ai/dsh-jobs'
 import { openEvolutionStore, type EvolutionStore } from '../src/generation-store.js'
+import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const suiteRoot = resolve(packageRoot, '../..')
@@ -23,6 +24,7 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
     temporaryRoots.push(root)
     const configPath = await writeStorageConfig(root)
     const input = {
+      workspaceId: WORKSPACE_ID,
       createdAt: 1_723_456_789_000,
       artifacts: [{
         kind: 'skill' as const,
@@ -34,16 +36,15 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
       policyVersion: 'p0b.1',
       compositionFingerprint: 'b'.repeat(64),
     }
-    const expected = {
-      id: '40ff403557630f5b5433dd161926d5a2a90e797d4525d82fd6dc80a9712ecf5a',
-      schemaVersion: 1,
-      ...input,
-    }
+    let expected: Awaited<ReturnType<EvolutionStore['publishGeneration']>>['generation'] | undefined
 
     const firstCtx = await bootStorage(configPath)
     const firstStore = await openEvolutionStore(firstCtx.storageDomain)
     try {
-      expect(await firstStore.publishGeneration(input)).toEqual({ created: true, generation: expected })
+      const published = await firstStore.publishGeneration(input)
+      expected = published.generation
+      expect(published).toEqual({ created: true, generation: expected })
+      expect(expected).toMatchObject({ schemaVersion: 2, ...input })
       expect(await firstStore.publishGeneration(input)).toEqual({ created: false, generation: expected })
       const loaded = firstStore.getGeneration(expected.id)
       expect(loaded).toEqual(expected)
@@ -58,6 +59,7 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
     const resumedCtx = await bootStorage(configPath)
     const resumedStore = await openEvolutionStore(resumedCtx.storageDomain)
     try {
+      if (expected === undefined) throw new Error('expected Generation was not published')
       expect(resumedStore.getGeneration(expected.id)).toEqual(expected)
     } finally {
       await resumedStore.close()
@@ -70,6 +72,7 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
     temporaryRoots.push(root)
     const configPath = await writeStorageConfig(root)
     const rootInput = {
+      workspaceId: WORKSPACE_ID,
       createdAt: 1_723_456_789_000,
       artifacts: [{
         kind: 'skill' as const,
@@ -81,9 +84,10 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
       policyVersion: 'p0b.1',
       compositionFingerprint: 'b'.repeat(64),
     }
-    const rootId = '40ff403557630f5b5433dd161926d5a2a90e797d4525d82fd6dc80a9712ecf5a'
-    const candidateInput = {
-      parentId: rootId,
+    let rootId = ''
+    const candidateInput = (parentId: string) => ({
+      workspaceId: WORKSPACE_ID,
+      parentId,
       createdAt: 1_723_456_789_001,
       artifacts: [{
         kind: 'skill' as const,
@@ -94,19 +98,20 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
       evaluatorVersion: 'private-host-runtime-package-boundary-v1',
       policyVersion: 'p0b.1',
       compositionFingerprint: 'd'.repeat(64),
-    }
-    const candidateId = '259e4870a6e10163c66b42110c795edad083ba5025ff010af924cea1bcb97f3a'
+    })
+    let candidateId = ''
 
     const publishingCtx = await bootStorage(configPath)
     const publishingStore = await openEvolutionStore(publishingCtx.storageDomain)
     try {
       const rootGeneration = (await publishingStore.publishGeneration(rootInput)).generation
-      expect(await publishingStore.promoteGeneration(rootId)).toEqual({
+      rootId = rootGeneration.id
+      expect(await publishingStore.promoteGeneration(WORKSPACE_ID, rootId)).toEqual({
         previousId: undefined,
         generation: rootGeneration,
       })
-      await publishingStore.publishGeneration(candidateInput)
-      expect(publishingStore.getActiveGeneration()).toEqual(rootGeneration)
+      candidateId = (await publishingStore.publishGeneration(candidateInput(rootId))).generation.id
+      expect(publishingStore.getActiveGeneration(WORKSPACE_ID)).toEqual(rootGeneration)
     } finally {
       await publishingStore.close()
       await publishingCtx.fiber.dispose()
@@ -117,12 +122,12 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
     try {
       const rootGeneration = promotingStore.getGeneration(rootId)
       const candidateGeneration = promotingStore.getGeneration(candidateId)
-      expect(promotingStore.getActiveGeneration()).toEqual(rootGeneration)
-      expect(await promotingStore.promoteGeneration(candidateId)).toEqual({
+      expect(promotingStore.getActiveGeneration(WORKSPACE_ID)).toEqual(rootGeneration)
+      expect(await promotingStore.promoteGeneration(WORKSPACE_ID, candidateId)).toEqual({
         previousId: rootId,
         generation: candidateGeneration,
       })
-      expect(await promotingStore.rollbackGeneration()).toEqual({
+      expect(await promotingStore.rollbackGeneration(WORKSPACE_ID)).toEqual({
         previousId: candidateId,
         generation: rootGeneration,
       })
@@ -134,12 +139,12 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
     const recoveredCtx = await bootStorage(configPath)
     const recoveredStore = await openEvolutionStore(recoveredCtx.storageDomain)
     try {
-      expect(recoveredStore.getActiveGeneration()?.id).toBe(rootId)
-      expect(await recoveredStore.rollbackGeneration()).toEqual({
+      expect(recoveredStore.getActiveGeneration(WORKSPACE_ID)?.id).toBe(rootId)
+      expect(await recoveredStore.rollbackGeneration(WORKSPACE_ID)).toEqual({
         previousId: rootId,
         generation: undefined,
       })
-      expect(recoveredStore.getActiveGeneration()).toBeUndefined()
+      expect(recoveredStore.getActiveGeneration(WORKSPACE_ID)).toBeUndefined()
     } finally {
       await recoveredStore.close()
       await recoveredCtx.fiber.dispose()
@@ -148,7 +153,7 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
     const nativeCtx = await bootStorage(configPath)
     const nativeStore = await openEvolutionStore(nativeCtx.storageDomain)
     try {
-      expect(nativeStore.getActiveGeneration()).toBeUndefined()
+      expect(nativeStore.getActiveGeneration(WORKSPACE_ID)).toBeUndefined()
     } finally {
       await nativeStore.close()
       await nativeCtx.fiber.dispose()
@@ -160,6 +165,7 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
     temporaryRoots.push(root)
     const configPath = await writeStorageConfig(root)
     const input = {
+      workspaceId: WORKSPACE_ID,
       createdAt: 1_723_456_789_000,
       artifacts: [{
         kind: 'skill' as const,
@@ -176,10 +182,10 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
     const firstStore = await openEvolutionStore(firstCtx.storageDomain)
     const generation = (await firstStore.publishGeneration(input)).generation
     try {
-      expect(firstStore.isRecoveryPaused()).toBe(false)
-      await expect(firstStore.setRecoveryPaused(true)).resolves.toEqual({ changed: true, paused: true })
-      await firstStore.promoteGeneration(generation.id)
-      expect(firstStore.isRecoveryPaused()).toBe(true)
+      expect(firstStore.isRecoveryPaused(WORKSPACE_ID)).toBe(false)
+      await expect(firstStore.setRecoveryPaused(WORKSPACE_ID, true)).resolves.toEqual({ changed: true, paused: true })
+      await firstStore.promoteGeneration(WORKSPACE_ID, generation.id)
+      expect(firstStore.isRecoveryPaused(WORKSPACE_ID)).toBe(true)
     } finally {
       await firstStore.close()
       await firstCtx.fiber.dispose()
@@ -188,11 +194,11 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
     const resumedCtx = await bootStorage(configPath)
     const resumedStore = await openEvolutionStore(resumedCtx.storageDomain)
     try {
-      expect(resumedStore.isRecoveryPaused()).toBe(true)
-      await resumedStore.rollbackGeneration()
-      expect(resumedStore.isRecoveryPaused()).toBe(true)
-      await expect(resumedStore.setRecoveryPaused(false)).resolves.toEqual({ changed: true, paused: false })
-      await expect(resumedStore.setRecoveryPaused(false)).resolves.toEqual({ changed: false, paused: false })
+      expect(resumedStore.isRecoveryPaused(WORKSPACE_ID)).toBe(true)
+      await resumedStore.rollbackGeneration(WORKSPACE_ID)
+      expect(resumedStore.isRecoveryPaused(WORKSPACE_ID)).toBe(true)
+      await expect(resumedStore.setRecoveryPaused(WORKSPACE_ID, false)).resolves.toEqual({ changed: true, paused: false })
+      await expect(resumedStore.setRecoveryPaused(WORKSPACE_ID, false)).resolves.toEqual({ changed: false, paused: false })
     } finally {
       await resumedStore.close()
       await resumedCtx.fiber.dispose()
@@ -204,6 +210,7 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
     temporaryRoots.push(root)
     const configPath = await writeStorageConfig(root)
     const input = {
+      workspaceId: WORKSPACE_ID,
       createdAt: 1_723_456_789_000,
       artifacts: [{
         kind: 'skill' as const,
@@ -215,16 +222,16 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
       policyVersion: 'p0b.1',
       compositionFingerprint: 'b'.repeat(64),
     }
-    const native = { sessionId: 'native-before-promotion', createdAt: 10 }
-    const nativeChild = { sessionId: 'native-child-after-promotion', createdAt: 11 }
-    const evolved = { sessionId: 'evolved-after-promotion', createdAt: 12 }
+    const native = session('native-before-promotion', 10)
+    const nativeChild = session('native-child-after-promotion', 11)
+    const evolved = session('evolved-after-promotion', 12)
 
     const ctx = await bootStorage(configPath)
     const store = await openEvolutionStore(ctx.storageDomain)
     const generation = (await store.publishGeneration(input)).generation
     try {
       expect(await store.pinSession(native)).toBeUndefined()
-      await store.promoteGeneration(generation.id)
+      await store.promoteGeneration(WORKSPACE_ID, generation.id)
       expect(await store.pinSession(native)).toBeUndefined()
       expect(await store.pinSession(nativeChild, { parentSessionId: native.sessionId }))
         .toBeUndefined()
@@ -252,6 +259,7 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
     temporaryRoots.push(root)
     const configPath = await writeStorageConfig(root)
     const rootInput = {
+      workspaceId: WORKSPACE_ID,
       createdAt: 1_723_456_789_000,
       artifacts: [{
         kind: 'skill' as const,
@@ -263,9 +271,10 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
       policyVersion: 'p0b.1',
       compositionFingerprint: 'b'.repeat(64),
     }
-    const rootId = '40ff403557630f5b5433dd161926d5a2a90e797d4525d82fd6dc80a9712ecf5a'
-    const candidateInput = {
-      parentId: rootId,
+    let rootId = ''
+    const candidateInput = (parentId: string) => ({
+      workspaceId: WORKSPACE_ID,
+      parentId,
       createdAt: 1_723_456_789_001,
       artifacts: [{
         kind: 'skill' as const,
@@ -276,21 +285,21 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
       evaluatorVersion: 'private-host-runtime-package-boundary-v1',
       policyVersion: 'p0b.1',
       compositionFingerprint: 'd'.repeat(64),
-    }
-    const candidateId = '259e4870a6e10163c66b42110c795edad083ba5025ff010af924cea1bcb97f3a'
-    const existing = { sessionId: 'existing', createdAt: 10, cwd: '/workspace/project' }
-    const fresh = { sessionId: 'fresh', createdAt: 11, cwd: '/workspace/project' }
-    const child = { sessionId: 'child', createdAt: 12, cwd: '/workspace/project' }
+    })
+    let candidateId = ''
+    const existing = session('existing', 10)
+    const fresh = session('fresh', 11)
+    const child = session('child', 12)
 
     const ctx = await bootStorage(configPath)
     const store = await openEvolutionStore(ctx.storageDomain)
     try {
-      await store.publishGeneration(rootInput)
-      await store.promoteGeneration(rootId)
+      rootId = (await store.publishGeneration(rootInput)).generation.id
+      await store.promoteGeneration(WORKSPACE_ID, rootId)
       expect((await store.pinSession(existing))?.id).toBe(rootId)
 
-      await store.publishGeneration(candidateInput)
-      await store.promoteGeneration(candidateId)
+      candidateId = (await store.publishGeneration(candidateInput(rootId))).generation.id
+      await store.promoteGeneration(WORKSPACE_ID, candidateId)
       expect((await store.pinSession(existing))?.id).toBe(rootId)
       expect((await store.pinSession(fresh))?.id).toBe(candidateId)
       expect((await store.pinSession(child, { parentSessionId: 'existing' }))?.id).toBe(rootId)
@@ -316,6 +325,7 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
     temporaryRoots.push(root)
     const { evolvedConfig, nativeConfig } = await writeRuntimeConfigs(root)
     const input = {
+      workspaceId: WORKSPACE_ID,
       createdAt: 1_723_456_789_000,
       artifacts: [{
         kind: 'skill' as const,
@@ -367,6 +377,7 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
     temporaryRoots.push(root)
     const configPath = await writeStorageConfig(root)
     const rootInput = {
+      workspaceId: WORKSPACE_ID,
       createdAt: 1_723_456_789_000,
       artifacts: [{
         kind: 'skill' as const,
@@ -378,9 +389,10 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
       policyVersion: 'p0b.1',
       compositionFingerprint: 'b'.repeat(64),
     }
-    const rootId = '40ff403557630f5b5433dd161926d5a2a90e797d4525d82fd6dc80a9712ecf5a'
-    const candidateInput = {
-      parentId: rootId,
+    let rootId = ''
+    const candidateInput = (parentId: string) => ({
+      workspaceId: WORKSPACE_ID,
+      parentId,
       createdAt: 1_723_456_789_001,
       artifacts: [{
         kind: 'skill' as const,
@@ -391,21 +403,21 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
       evaluatorVersion: 'private-host-runtime-package-boundary-v1',
       policyVersion: 'p0b.1',
       compositionFingerprint: 'd'.repeat(64),
-    }
-    const candidateId = '259e4870a6e10163c66b42110c795edad083ba5025ff010af924cea1bcb97f3a'
-    const oldLifecycle = { sessionId: 'reused', createdAt: 10 }
-    const currentLifecycle = { sessionId: 'reused', createdAt: 20 }
-    const child = { sessionId: 'child-of-reused', createdAt: 21 }
+    })
+    let candidateId = ''
+    const oldLifecycle = session('reused', 10)
+    const currentLifecycle = session('reused', 20)
+    const child = session('child-of-reused', 21)
 
     const ctx = await bootStorage(configPath)
     const store = await openEvolutionStore(ctx.storageDomain)
     try {
-      await store.publishGeneration(rootInput)
-      await store.promoteGeneration(rootId)
+      rootId = (await store.publishGeneration(rootInput)).generation.id
+      await store.promoteGeneration(WORKSPACE_ID, rootId)
       expect((await store.pinSession(oldLifecycle))?.id).toBe(rootId)
 
-      await store.publishGeneration(candidateInput)
-      await store.promoteGeneration(candidateId)
+      candidateId = (await store.publishGeneration(candidateInput(rootId))).generation.id
+      await store.promoteGeneration(WORKSPACE_ID, candidateId)
       expect((await store.pinSession(currentLifecycle))?.id).toBe(candidateId)
       expect(store.getSessionGeneration(oldLifecycle)).toBeUndefined()
       expect((await store.pinSession(child, { parentSessionId: 'reused' }))?.id).toBe(candidateId)
@@ -415,6 +427,15 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
     }
   })
 })
+
+function session(sessionId: string, createdAt: number) {
+  return {
+    workspaceId: WORKSPACE_ID,
+    sessionId,
+    createdAt,
+    cwd: '/workspace/project',
+  }
+}
 
 async function writeStorageConfig(root: string): Promise<string> {
   const packageScope = join(root, 'node_modules', '@deepseek-ai')
@@ -455,7 +476,10 @@ async function writeRuntimeConfigs(root: string): Promise<{
     ['dsh-storage-json', join(dshSourceDir, 'packages', 'storage', 'storage-json')],
     ['dsh-storage-domain', join(dshSourceDir, 'packages', 'storage', 'storage-domain')],
     ['dsh-system-prompt', join(dshSourceDir, 'packages', 'core', 'system-prompt')],
+    ['dsh-session', join(dshSourceDir, 'packages', 'core', 'session')],
     ['dsh-jobs-local', join(dshSourceDir, 'packages', 'jobs', 'jobs-local')],
+    ['dsh-session-persistence-jsonl', join(dshSourceDir, 'packages', 'session', 'session-persistence-jsonl')],
+    ['dsh-workspace', join(dshSourceDir, 'packages', 'workspace', 'workspace')],
   ] as const) {
     await symlink(source, join(packageScope, name), 'dir')
   }
@@ -466,6 +490,7 @@ async function writeRuntimeConfigs(root: string): Promise<{
       name: '@deepseek-ai/dsh-system-prompt',
       config: { persona: 'Stable P0B composition fixture.' },
     },
+    { id: 'session', name: '@deepseek-ai/dsh-session' },
     { id: 'storage', name: '@deepseek-ai/dsh-storage' },
     {
       id: 'storage-json',
@@ -478,6 +503,12 @@ async function writeRuntimeConfigs(root: string): Promise<{
       config: { backend: 'json' },
     },
     { id: 'jobs', name: '@deepseek-ai/dsh-jobs-local' },
+    {
+      id: 'session-persistence',
+      name: '@deepseek-ai/dsh-session-persistence-jsonl',
+      config: { root: join(root, 'sessions') },
+    },
+    { id: 'workspace', name: '@deepseek-ai/dsh-workspace' },
   ]
   const nativeConfig = join(root, 'native.cordis.yml')
   const evolvedConfig = join(root, 'evolved.cordis.yml')
@@ -489,7 +520,12 @@ async function writeRuntimeConfigs(root: string): Promise<{
     {
       id: 'dsh-evolve',
       name: join(packageRoot, 'src', 'index.ts'),
-      config: { supervisor: { runRoots: [runRoot], scanIntervalMs: 1_000 } },
+      config: {
+        supervisor: {
+          runRoots: [{ workspaceId: WORKSPACE_ID, path: runRoot }],
+          scanIntervalMs: 1_000,
+        },
+      },
     },
   ], null, 2))
   return { evolvedConfig, nativeConfig }

@@ -2,6 +2,7 @@ export type AutomaticEvolutionInflightStatus = 'clear' | 'busy' | 'unknown'
 
 export interface AutomaticEvolutionInflightSource {
   automaticInflightStatus(
+    workspaceId: string,
     skillName: string,
     signalId: string,
   ): Promise<AutomaticEvolutionInflightStatus>
@@ -9,6 +10,7 @@ export interface AutomaticEvolutionInflightSource {
 
 /** Combine existing durable authorities without creating another queue or state store. */
 export async function automaticEvolutionInflightStatus(
+  workspaceId: string,
   skillName: string,
   signalId: string,
   sources: readonly AutomaticEvolutionInflightSource[],
@@ -16,7 +18,7 @@ export async function automaticEvolutionInflightStatus(
   if (sources.length === 0) return 'unknown'
   const statuses = await Promise.all(sources.map(async (source) => {
     try {
-      return await source.automaticInflightStatus(skillName, signalId)
+      return await source.automaticInflightStatus(workspaceId, skillName, signalId)
     } catch {
       return 'unknown' as const
     }

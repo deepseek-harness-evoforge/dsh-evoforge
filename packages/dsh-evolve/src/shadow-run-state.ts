@@ -3,6 +3,7 @@ import { link, open, readFile, rename, rm } from 'node:fs/promises'
 import { dirname, isAbsolute, join } from 'node:path'
 
 export interface ShadowRunIdentity {
+  workspaceId: string
   baseTreeHash: string
   casePackHash: string
   dshRevision: string
@@ -119,6 +120,10 @@ export async function loadShadowRunState(outputDir: string): Promise<ShadowRunSt
     || typeof value.updatedAt !== 'string'
     || !isRecord(value.identity)) {
     throw new Error('Shadow run state has an invalid shape')
+  }
+  if (typeof value.identity.workspaceId !== 'string'
+    || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(value.identity.workspaceId)) {
+    throw new Error('Shadow run state has an invalid Workspace id')
   }
   if (!['prepared', 'proposal-pending', 'candidate-ready', 'trial-running', 'complete', 'incomplete']
     .includes(value.phase)) {

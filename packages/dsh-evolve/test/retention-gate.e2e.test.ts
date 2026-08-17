@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { evaluateRetention } from '../src/retention.ts'
 import { hashTree, sha256 } from '../src/hash.ts'
 import { runShadow } from '../src/shadow.ts'
+import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const suiteRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 const packageRoot = resolve(suiteRoot, 'packages', 'dsh-evolve')
@@ -43,6 +44,7 @@ describe('retention source integrity', () => {
       startedAt: '2026-08-17T00:00:00.000Z',
       updatedAt: '2026-08-17T00:00:01.000Z',
       identity: {
+        workspaceId: WORKSPACE_ID,
         baseTreeHash: '2'.repeat(64),
         casePackHash: '3'.repeat(64),
         dshRevision: '4'.repeat(40),
@@ -316,6 +318,7 @@ describe.skipIf(process.platform !== 'darwin')('exact Candidate retention gate',
       startedAt: '2026-08-17T00:00:00.000Z',
       updatedAt: '2026-08-17T00:00:01.000Z',
       identity: {
+        workspaceId: WORKSPACE_ID,
         baseTreeHash,
         casePackHash: primaryCasePackHash,
         dshRevision: '8'.repeat(40),
@@ -379,6 +382,7 @@ async function writePriorCasePack(casePackDir: string, correction: string, delay
   await writeFile(join(casePackDir, 'manifest.json'), JSON.stringify({
     schemaVersion: 1,
     id: 'owned-path-retention',
+    workspaceId: WORKSPACE_ID,
     epoch: {
       dshRevision: '47f943859bef60e4160492346772ded9b24f765a',
       evaluatorVersion: 'owned-path-retention-v1',

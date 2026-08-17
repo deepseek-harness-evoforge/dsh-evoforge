@@ -7,6 +7,7 @@ import {
   AutomaticEvolutionBudget,
   type AutomaticEvolutionBudgetTarget,
 } from '../src/automatic-evolution-budget.ts'
+import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 describe('AutomaticEvolutionBudget', () => {
   it('creates a missing statically configured owned root privately before the first reservation', async () => {
@@ -135,6 +136,7 @@ describe('AutomaticEvolutionBudget', () => {
 function budgetTarget(runRoot: string, maxAttemptsPerUtcDay: number): AutomaticEvolutionBudgetTarget {
   return {
     id: 'plugin-delivery',
+    workspaceId: WORKSPACE_ID,
     skill: 'stable-skill',
     runRoot,
     maxAttemptsPerUtcDay,

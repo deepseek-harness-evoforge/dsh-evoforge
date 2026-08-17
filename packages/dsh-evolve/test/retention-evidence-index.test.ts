@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { RetentionEvidenceIndex } from '../src/retention-evidence-index.ts'
 import type { ReviewCandidate } from '../src/review-inbox.ts'
+import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const temporaryRoots: string[] = []
 
@@ -182,6 +183,7 @@ async function writeEvidence(
 function fixtureCandidate(): ReviewCandidate {
   return {
     id: '1'.repeat(64),
+    workspaceId: WORKSPACE_ID,
     runId: '2'.repeat(64),
     status: 'pending',
     outputDir: '/private/shadow-run',

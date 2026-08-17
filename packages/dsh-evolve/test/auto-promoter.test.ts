@@ -7,6 +7,7 @@ import {
 import type { CandidatePublisher } from '../src/candidate-publisher.js'
 import type { EvolutionStore } from '../src/generation-store.js'
 import type { ReviewCandidate, ReviewInbox } from '../src/review-inbox.js'
+import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 describe('resident automatic promoter', () => {
   it('approves, publishes, and promotes an eligible pending Candidate', async () => {
@@ -34,9 +35,9 @@ describe('resident automatic promoter', () => {
     const policy = { evaluate: vi.fn(async () => eligible()) }
     const service = new AutoPromotionService({ inbox, policy, publisher, store })
 
-    await expect(service.scanOnce()).resolves.toMatchObject({ promoted: [generationId], warnings: [] })
+    await expect(service.scanOnce(WORKSPACE_ID)).resolves.toMatchObject({ promoted: [generationId], warnings: [] })
     expect(publisher.publish).toHaveBeenCalledWith(candidate, { policyVersion: AUTO_PROMOTION_ACTOR })
-    expect(store.promoteGeneration).toHaveBeenCalledWith(generationId)
+    expect(store.promoteGeneration).toHaveBeenCalledWith(WORKSPACE_ID, generationId)
     expect(inbox.markAutomaticActivated).toHaveBeenCalledWith(candidate.id, generationId)
   })
 
@@ -64,11 +65,11 @@ describe('resident automatic promoter', () => {
       store,
     })
 
-    await service.scanOnce()
+    await service.scanOnce(WORKSPACE_ID)
 
     expect(inbox.approve).not.toHaveBeenCalled()
     expect(publisher.publish).not.toHaveBeenCalled()
-    expect(store.promoteGeneration).toHaveBeenCalledWith(generationId)
+    expect(store.promoteGeneration).toHaveBeenCalledWith(WORKSPACE_ID, generationId)
     expect(inbox.markAutomaticActivated).toHaveBeenCalledWith(approved.id, generationId)
   })
 
@@ -98,7 +99,7 @@ describe('resident automatic promoter', () => {
       store,
     })
 
-    await expect(service.scanOnce()).resolves.toEqual({ promoted: [], warnings: [] })
+    await expect(service.scanOnce(WORKSPACE_ID)).resolves.toEqual({ promoted: [], warnings: [] })
     expect(policy.evaluate).toHaveBeenCalledWith(approved)
     expect(store.promoteGeneration).not.toHaveBeenCalled()
     expect(inbox.markAutomaticActivated).not.toHaveBeenCalled()
@@ -133,7 +134,7 @@ describe('resident automatic promoter', () => {
       store,
     })
 
-    await service.scanOnce()
+    await service.scanOnce(WORKSPACE_ID)
 
     expect(inbox.approve).not.toHaveBeenCalled()
     expect(store.promoteGeneration).not.toHaveBeenCalled()
@@ -150,6 +151,7 @@ function eligible(): AutoPromotionPolicyResult {
 
 function fixtureCandidate(): ReviewCandidate {
   return {
+    workspaceId: WORKSPACE_ID,
     id: '1'.repeat(64),
     runId: '2'.repeat(64),
     status: 'pending',

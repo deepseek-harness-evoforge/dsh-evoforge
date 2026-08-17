@@ -5,6 +5,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { openEvolutionStore } from '../src/generation-store.js'
+import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const suiteRoot = resolve(packageRoot, '../..')
@@ -29,19 +30,22 @@ describe.skipIf(process.platform !== 'darwin')('Generation crash recovery', () =
 
     await expectCrash(configPath, 'before-publish', inputPath)
     await withStore(configPath, (store) => {
-      expect(store.getActiveGeneration()).toBeUndefined()
-      expect(store.getGeneration(rootGenerationId)).toBeUndefined()
+      expect(store.getActiveGeneration(WORKSPACE_ID)).toBeUndefined()
     })
 
     await expectCrash(configPath, 'after-publish', inputPath)
-    await withStore(configPath, (store) => {
+    let rootGenerationId = ''
+    await withStore(configPath, async (store) => {
+      const recovered = await store.publishGeneration(input)
+      expect(recovered.created).toBe(false)
+      rootGenerationId = recovered.generation.id
       expect(store.getGeneration(rootGenerationId)?.id).toBe(rootGenerationId)
-      expect(store.getActiveGeneration()).toBeUndefined()
+      expect(store.getActiveGeneration(WORKSPACE_ID)).toBeUndefined()
     })
 
     await expectCrash(configPath, 'after-promote', inputPath)
     await withStore(configPath, (store) => {
-      expect(store.getActiveGeneration()?.id).toBe(rootGenerationId)
+      expect(store.getActiveGeneration(WORKSPACE_ID)?.id).toBe(rootGenerationId)
     })
 
     const childInput = {
@@ -59,22 +63,21 @@ describe.skipIf(process.platform !== 'darwin')('Generation crash recovery', () =
     let childId = ''
     await withStore(configPath, async (store) => {
       childId = (await store.publishGeneration(childInput)).generation.id
-      await store.promoteGeneration(childId)
-      expect(store.getActiveGeneration()?.id).toBe(childId)
+      await store.promoteGeneration(WORKSPACE_ID, childId)
+      expect(store.getActiveGeneration(WORKSPACE_ID)?.id).toBe(childId)
     })
 
     await expectCrash(configPath, 'after-rollback', inputPath)
     await withStore(configPath, (store) => {
-      expect(store.getActiveGeneration()?.id).toBe(rootGenerationId)
+      expect(store.getActiveGeneration(WORKSPACE_ID)?.id).toBe(rootGenerationId)
       expect(store.getGeneration(childId)?.parentId).toBe(rootGenerationId)
     })
   })
 })
 
-const rootGenerationId = '40ff403557630f5b5433dd161926d5a2a90e797d4525d82fd6dc80a9712ecf5a'
-
 function rootGenerationInput() {
   return {
+    workspaceId: WORKSPACE_ID,
     createdAt: 1_723_456_789_000,
     artifacts: [{
       kind: 'skill' as const,

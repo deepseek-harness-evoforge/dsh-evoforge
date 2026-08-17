@@ -33,6 +33,7 @@ export interface ShadowOptions {
 export interface CasePackManifest {
   schemaVersion: 1
   id: string
+  workspaceId: string
   epoch: {
     dshRevision: string
     evaluatorVersion: string
@@ -98,6 +99,9 @@ export async function runShadow(options: ShadowOptions): Promise<
       `feedback draft targets Skill '${feedbackDraft.target.name}', not active Skill '${skillName}'`,
     )
   }
+  if (feedbackDraft !== undefined && feedbackDraft.source.workspaceId !== manifest.workspaceId) {
+    throw new Error('feedback draft and Case Pack belong to different Workspaces')
+  }
   if (feedbackDraft !== undefined && feedbackDraft.target.contentHash !== baseTreeHash) {
     throw new Error('feedback draft does not match the exact active Skill content')
   }
@@ -125,6 +129,7 @@ export async function runShadow(options: ShadowOptions): Promise<
   let startedAt = new Date().toISOString()
 
   const identity: ShadowRunIdentity = {
+    workspaceId: manifest.workspaceId,
     baseTreeHash,
     casePackHash,
     dshRevision: manifest.epoch.dshRevision,
@@ -792,8 +797,9 @@ export function parseCasePackManifest(source: string): CasePackManifest {
   } catch {
     throw new Error('case pack manifest is not valid JSON')
   }
-  if (!isRecord(value) || value.schemaVersion !== 1 || typeof value.id !== 'string') {
-    throw new Error('case pack manifest must use schemaVersion 1 and have an id')
+  if (!isRecord(value) || value.schemaVersion !== 1 || typeof value.id !== 'string'
+    || typeof value.workspaceId !== 'string' || !zUuid(value.workspaceId)) {
+    throw new Error('case pack manifest must use schemaVersion 1 and have an id and Workspace id')
   }
   if (!isRecord(value.epoch)
     || typeof value.epoch.dshRevision !== 'string'
@@ -842,6 +848,10 @@ export function parseCasePackManifest(source: string): CasePackManifest {
     }
   }
   return value as unknown as CasePackManifest
+}
+
+function zUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(value)
 }
 
 function parseSkillName(source: string): string {

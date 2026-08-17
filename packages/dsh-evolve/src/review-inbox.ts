@@ -20,6 +20,7 @@ export interface AutomaticReviewExpiryProjection {
 
 export interface ReviewCandidate {
   id: string
+  workspaceId: string
   runId: string
   status: 'pending' | 'approved' | 'rejected'
   outputDir: string
@@ -56,7 +57,8 @@ export interface ReviewScan {
 }
 
 interface ReviewDisposition {
-  schemaVersion: 1
+  schemaVersion: 2
+  workspaceId: string
   reviewId: string
   evidenceHash: string
   status: 'approved' | 'rejected'
@@ -73,8 +75,14 @@ const MAX_PENDING_REVIEW_MS = 2_160 * 60 * 60 * 1_000
 type ReviewDecisionActor = 'human' | 'auto-clear-instruction-v1' | 'auto-review-expiry-v1'
 
 export interface AutomaticReviewExpiryPolicy {
+  readonly workspaceId: string
   readonly skillName: string
   readonly maxPendingReviewMs: number
+}
+
+export interface ReviewRunRoot {
+  readonly workspaceId: string
+  readonly path: string
 }
 
 export interface ReviewInboxOptions {
@@ -84,23 +92,29 @@ export interface ReviewInboxOptions {
 
 /** Read and durably disposition completed Shadow evidence without copying it into a second database. */
 export class ReviewInbox {
-  private readonly runRoots: string[]
+  private readonly runRoots: ReviewRunRoot[]
   private readonly actionTails = new Map<string, Promise<void>>()
   private readonly automaticReviewExpiry = new Map<string, number>()
   private readonly now: () => number
 
-  constructor(runRoots: string[], options: ReviewInboxOptions = {}) {
-    this.runRoots = [...runRoots]
+  constructor(runRoots: ReviewRunRoot[], options: ReviewInboxOptions = {}) {
+    if (runRoots.some(root => !isWorkspaceId(root.workspaceId) || !isAbsolute(root.path))) {
+      throw new Error('review run roots require a native Workspace id and absolute path')
+    }
+    if (new Set(runRoots.map(root => root.path)).size !== runRoots.length) {
+      throw new Error('review run roots must be uniquely owned')
+    }
+    this.runRoots = runRoots.map(root => ({ ...root }))
     this.now = options.now ?? Date.now
     for (const policy of options.automaticReviewExpiry ?? []) {
       if (policy.skillName.trim() === ''
         || !Number.isSafeInteger(policy.maxPendingReviewMs)
         || policy.maxPendingReviewMs < 1
         || policy.maxPendingReviewMs > MAX_PENDING_REVIEW_MS
-        || this.automaticReviewExpiry.has(policy.skillName)) {
-        throw new Error('automatic review expiry policies must have unique Skills and positive bounded ages')
+        || this.automaticReviewExpiry.has(targetKey(policy.workspaceId, policy.skillName))) {
+        throw new Error('automatic review expiry policies must have unique Workspace/Skill pairs and positive bounded ages')
       }
-      this.automaticReviewExpiry.set(policy.skillName, policy.maxPendingReviewMs)
+      this.automaticReviewExpiry.set(targetKey(policy.workspaceId, policy.skillName), policy.maxPendingReviewMs)
     }
   }
 
@@ -109,15 +123,16 @@ export class ReviewInbox {
   }
 
   async automaticInflightStatus(
+    workspaceId: string,
     skillName: string,
     _signalId: string,
   ): Promise<AutomaticEvolutionInflightStatus> {
     let scan = await this.scan()
     if (scan.warnings.length > 0) return 'unknown'
-    const maxPendingReviewMs = this.automaticReviewExpiry.get(skillName)
+    const maxPendingReviewMs = this.automaticReviewExpiry.get(targetKey(workspaceId, skillName))
     if (maxPendingReviewMs !== undefined) {
       for (const candidate of scan.candidates) {
-        if (!this.isExpiredAutomaticReview(candidate, skillName)) continue
+        if (!this.isExpiredAutomaticReview(candidate, workspaceId, skillName)) continue
         const hours = Math.floor(maxPendingReviewMs / (60 * 60 * 1_000))
         await this.enqueue(candidate.id, () => this.rejectNow(
           candidate.id,
@@ -128,21 +143,26 @@ export class ReviewInbox {
       scan = await this.scan()
       if (scan.warnings.length > 0) return 'unknown'
     }
-    return scan.candidates.some(candidate => candidate.skillName === skillName) ? 'busy' : 'clear'
+    return scan.candidates.some(candidate => candidate.workspaceId === workspaceId
+      && candidate.skillName === skillName) ? 'busy' : 'clear'
   }
 
   private isExpiredAutomaticReview(
     candidate: ReviewCandidate,
+    workspaceId: string,
     skillName: string,
   ): boolean {
-    return candidate.skillName === skillName
+    return candidate.workspaceId === workspaceId
+      && candidate.skillName === skillName
       && candidate.automaticReviewExpiry?.eligible === true
   }
 
   private projectAutomaticReviewExpiry(
     candidate: ReviewCandidate,
   ): AutomaticReviewExpiryProjection | undefined {
-    const maxPendingReviewMs = this.automaticReviewExpiry.get(candidate.skillName)
+    const maxPendingReviewMs = this.automaticReviewExpiry.get(
+      targetKey(candidate.workspaceId, candidate.skillName),
+    )
     if (maxPendingReviewMs === undefined
       || candidate.status !== 'pending'
       || candidate.recommendation !== 'review'
@@ -174,18 +194,18 @@ export class ReviewInbox {
       let root: string
       let entries
       try {
-        root = await realpath(requestedRoot)
+        root = await realpath(requestedRoot.path)
         entries = await readdir(root, { withFileTypes: true })
         entries.sort((left, right) => left.name.localeCompare(right.name))
       } catch (error) {
-        warnings.push(warning(requestedRoot, error))
+        warnings.push(warning(requestedRoot.path, error))
         continue
       }
       for (const entry of entries) {
         if (!entry.isDirectory()) continue
         const outputDir = join(root, entry.name)
         try {
-          const candidate = await this.readCandidate(outputDir)
+          const candidate = await this.readCandidate(outputDir, requestedRoot.workspaceId)
           const actionable = candidate?.status === 'pending'
             || (candidate?.status === 'approved'
               && candidate.decisionActor === 'auto-clear-instruction-v1'
@@ -233,7 +253,8 @@ export class ReviewInbox {
     if (candidate.status === 'approved') throw new Error('approved Candidate cannot be rejected')
     if (candidate.status === 'rejected') return candidate
     const disposition: ReviewDisposition = {
-      schemaVersion: 1,
+      schemaVersion: 2,
+      workspaceId: candidate.workspaceId,
       reviewId: candidate.id,
       evidenceHash: candidate.evidenceHash,
       status: 'rejected',
@@ -276,7 +297,8 @@ export class ReviewInbox {
     const generation = await publish(candidate)
     if (!hashPattern.test(generation.id)) throw new Error('publisher returned an invalid Generation id')
     const disposition: ReviewDisposition = {
-      schemaVersion: 1,
+      schemaVersion: 2,
+      workspaceId: candidate.workspaceId,
       reviewId: candidate.id,
       evidenceHash: candidate.evidenceHash,
       status: 'approved',
@@ -327,26 +349,35 @@ export class ReviewInbox {
       let root: string
       let entries
       try {
-        root = await realpath(requestedRoot)
+        root = await realpath(requestedRoot.path)
         entries = await readdir(root, { withFileTypes: true })
       } catch {
         continue
       }
       for (const entry of entries) {
         if (!entry.isDirectory()) continue
-        const candidate = await this.readCandidate(join(root, entry.name)).catch(() => undefined)
+        const candidate = await this.readCandidate(
+          join(root, entry.name),
+          requestedRoot.workspaceId,
+        ).catch(() => undefined)
         if (candidate?.id === id) return candidate
       }
     }
     throw new Error(`review Candidate '${id}' does not exist`)
   }
 
-  private async readCandidate(outputDir: string): Promise<ReviewCandidate | undefined> {
+  private async readCandidate(
+    outputDir: string,
+    expectedWorkspaceId: string,
+  ): Promise<ReviewCandidate | undefined> {
     const stateInfo = await lstat(join(outputDir, 'run-state.json'))
     if (!stateInfo.isFile() || stateInfo.isSymbolicLink()) {
       throw new Error('run-state.json must be a regular owned file')
     }
     const state = await loadShadowRunState(outputDir)
+    if (state.identity.workspaceId !== expectedWorkspaceId) {
+      throw new Error('Shadow run Workspace does not match its configured run root owner')
+    }
     if (state.phase !== 'complete' || state.outcome?.kind !== 'complete') return undefined
     if (state.proposal === undefined || state.proposalHash === undefined || state.modelUsage === undefined) {
       throw new Error('complete Shadow run has no durable Candidate evidence')
@@ -390,11 +421,14 @@ export class ReviewInbox {
     const id = sha256(JSON.stringify({ runId: state.runId, proposalHash: state.proposalHash }))
     const disposition = await readDisposition(outputDir)
     if (disposition !== undefined
-      && (disposition.reviewId !== id || disposition.evidenceHash !== evidenceHash)) {
+      && (disposition.workspaceId !== state.identity.workspaceId
+        || disposition.reviewId !== id
+        || disposition.evidenceHash !== evidenceHash)) {
       throw new Error('review-state.json does not match its Candidate evidence')
     }
     const candidate: ReviewCandidate = {
       id,
+      workspaceId: state.identity.workspaceId,
       runId: state.runId,
       status: disposition?.status ?? 'pending',
       outputDir,
@@ -537,7 +571,8 @@ async function readDisposition(outputDir: string): Promise<ReviewDisposition | u
     const info = await lstat(path)
     if (!info.isFile() || info.isSymbolicLink()) throw new Error('review-state.json must be a regular owned file')
     const value = JSON.parse(await readFile(path, 'utf8')) as unknown
-    if (!isRecord(value) || value.schemaVersion !== 1 || !hashPattern.test(String(value.reviewId))
+    if (!isRecord(value) || value.schemaVersion !== 2 || !isWorkspaceId(String(value.workspaceId))
+      || !hashPattern.test(String(value.reviewId))
       || !hashPattern.test(String(value.evidenceHash)) || !['approved', 'rejected'].includes(String(value.status))
       || typeof value.decidedAt !== 'string'
       || (value.actor !== undefined
@@ -562,6 +597,14 @@ async function readDisposition(outputDir: string): Promise<ReviewDisposition | u
 
 function assertReviewId(id: string): void {
   if (!hashPattern.test(id)) throw new Error('review action requires the full 64-character review id')
+}
+
+function targetKey(workspaceId: string, skill: string): string {
+  return `${workspaceId}\0${skill}`
+}
+
+function isWorkspaceId(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(value)
 }
 
 function stringArray(value: unknown[], label: string): string[] {

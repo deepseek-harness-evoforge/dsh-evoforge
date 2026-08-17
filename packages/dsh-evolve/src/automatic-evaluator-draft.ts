@@ -17,6 +17,7 @@ const MAX_TARGETS = 20
 
 export interface AutomaticEvaluatorDraftTarget {
   readonly id: string
+  readonly workspaceId: string
   readonly skill: string
   readonly root: string
   readonly maxAttemptsPerUtcDay: number
@@ -69,12 +70,12 @@ export class AutomaticEvaluatorDraftService {
     this.now = options.now ?? Date.now
   }
 
-  async scanOnce(): Promise<AutomaticEvaluatorDraftResult> {
+  async scanOnce(workspaceId: string): Promise<AutomaticEvaluatorDraftResult> {
     const authored: AutomaticEvaluatorDraftResult['authored'] = []
     const warnings: string[] = []
-    const blockedSkills = new Set<string>()
+    const blockedTargets = new Set<string>()
     if (!this.options.evaluator.available()) return { authored, warnings }
-    const signals = this.options.signals.list()
+    const signals = this.options.signals.list(workspaceId)
     const currentSignals = new Set(signals.map(signal => signal.id))
     for (const signalId of this.attemptedSignals) {
       if (!currentSignals.has(signalId)) this.attemptedSignals.delete(signalId)
@@ -89,9 +90,11 @@ export class AutomaticEvaluatorDraftService {
       if (deferredUntil !== undefined && now < deferredUntil) continue
       this.deferredUntil.delete(signal.id)
       const generation = this.options.evolution.getGeneration(signal.generationId)
-      if (generation === undefined) continue
+      if (generation === undefined || generation.workspaceId !== signal.workspaceId) continue
       const skillNames = new Set(generation.artifacts.map(artifact => artifact.name))
-      const matches = this.options.targets.filter(target => skillNames.has(target.skill))
+      const matches = this.options.targets.filter(target => target.workspaceId === workspaceId
+        && target.workspaceId === signal.workspaceId
+        && skillNames.has(target.skill))
       if (matches.length === 0) continue
       if (matches.length > 1) {
         this.attemptedSignals.add(signal.id)
@@ -101,20 +104,22 @@ export class AutomaticEvaluatorDraftService {
         break
       }
       const target = matches[0]!
-      if (blockedSkills.has(target.skill)) continue
+      const scopedSkill = targetKey(target.workspaceId, target.skill)
+      if (blockedTargets.has(scopedSkill)) continue
       const inflight = await automaticEvolutionInflightStatus(
+        target.workspaceId,
         target.skill,
         signal.id,
         this.options.inflight,
       )
       if (inflight !== 'clear') {
-        blockedSkills.add(target.skill)
-        const previous = this.inflightDeferrals.get(target.skill)
-        this.inflightDeferrals.set(target.skill, inflight)
+        blockedTargets.add(scopedSkill)
+        const previous = this.inflightDeferrals.get(scopedSkill)
+        this.inflightDeferrals.set(scopedSkill, inflight)
         if (previous !== inflight) warnings.push(inflightWarning(target.skill, inflight))
         continue
       }
-      this.inflightDeferrals.delete(target.skill)
+      this.inflightDeferrals.delete(scopedSkill)
       let reservation
       try {
         reservation = await this.options.budget.reserve(budgetTarget(target), signal.id)
@@ -137,7 +142,7 @@ export class AutomaticEvaluatorDraftService {
       }
       this.attemptedSignals.add(signal.id)
       try {
-        const receipt = await this.options.evaluator.author(signal.id, target.id)
+        const receipt = await this.options.evaluator.author(target.workspaceId, signal.id, target.id)
         authored.push({
           signalId: signal.id,
           targetId: target.id,
@@ -151,10 +156,11 @@ export class AutomaticEvaluatorDraftService {
     return { authored, warnings }
   }
 
-  async budgetStatus(): Promise<AutomaticEvaluatorBudgetStatus> {
+  async budgetStatus(workspaceId?: string): Promise<AutomaticEvaluatorBudgetStatus> {
     const targets: AutomaticEvaluatorBudgetView[] = []
     let warningCount = 0
     for (const target of this.options.targets) {
+      if (workspaceId !== undefined && target.workspaceId !== workspaceId) continue
       try {
         targets.push({
           ...await this.options.budget.inspect(budgetTarget(target)),
@@ -164,6 +170,7 @@ export class AutomaticEvaluatorDraftService {
         warningCount += 1
         targets.push({
           targetId: target.id,
+          workspaceId: target.workspaceId,
           skillName: target.skill,
           utcDay: new Date(this.now()).toISOString().slice(0, 10),
           used: 0,
@@ -205,9 +212,9 @@ export function assertAutomaticEvaluatorDraftTargets(
   }
   if (targets.some(target => target.id.trim() === '' || target.skill.trim() === '')
     || new Set(targets.map(target => target.id)).size !== targets.length
-    || new Set(targets.map(target => target.skill)).size !== targets.length
+    || new Set(targets.map(target => targetKey(target.workspaceId, target.skill))).size !== targets.length
     || new Set(targets.map(target => resolve(target.root))).size !== targets.length) {
-    throw new Error('Automatic Evaluator Draft permits exactly one target per Skill with unique ids and roots')
+    throw new Error('Automatic Evaluator Draft permits exactly one target per Workspace and Skill with unique ids and roots')
   }
 }
 
@@ -215,7 +222,7 @@ export function assertAutomaticEvaluatorDraftSeparation(
   targets: readonly AutomaticEvaluatorDraftTarget[],
   automaticShadowSkills: ReadonlySet<string>,
 ): void {
-  if (targets.some(target => automaticShadowSkills.has(target.skill))) {
+  if (targets.some(target => automaticShadowSkills.has(targetKey(target.workspaceId, target.skill)))) {
     throw new Error(
       'one Skill cannot enable both Automatic Feedback Shadow and Automatic Evaluator Draft',
     )
@@ -225,8 +232,13 @@ export function assertAutomaticEvaluatorDraftSeparation(
 function budgetTarget(target: AutomaticEvaluatorDraftTarget): AutomaticEvolutionBudgetTarget {
   return {
     id: target.id,
+    workspaceId: target.workspaceId,
     skill: target.skill,
     runRoot: target.root,
     maxAttemptsPerUtcDay: target.maxAttemptsPerUtcDay,
   }
+}
+
+function targetKey(workspaceId: string, skill: string): string {
+  return `${workspaceId}\0${skill}`
 }

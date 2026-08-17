@@ -5,12 +5,14 @@ import {
   type DeliveryOutcomeStore,
 } from '../src/delivery-outcome-monitor.js'
 import type { EvolutionStore } from '../src/generation-store.js'
+import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const generationId = 'a'.repeat(64)
 
 describe('verified delivery outcome monitor', () => {
   it('observes native tools/result without delaying the originating Tool result', async () => {
     const ctx = new Context()
+    installWorkspaceFixture(ctx)
     const outcomes = fakeOutcomes()
     const evolution = {
       getSessionGeneration: vi.fn(() => ({ id: generationId })),
@@ -44,6 +46,7 @@ describe('verified delivery outcome monitor', () => {
     const recorded = outcomes.record.mock.calls[0]?.[0]
     expect(recorded).toEqual({
       observedAt: 1_723_456_789_000,
+      workspaceId: WORKSPACE_ID,
       sessionId: 'session-1',
       callId: 'delivery-call-1',
       generationId,
@@ -62,6 +65,7 @@ describe('verified delivery outcome monitor', () => {
 
   it('ignores other Tools, failures, and malformed delivery values', async () => {
     const ctx = new Context()
+    installWorkspaceFixture(ctx)
     const outcomes = fakeOutcomes()
     const evolution = {
       getSessionGeneration: vi.fn(),
@@ -88,6 +92,7 @@ describe('verified delivery outcome monitor', () => {
 
   it('contains persistence failures and keeps later observations usable', async () => {
     const ctx = new Context()
+    installWorkspaceFixture(ctx)
     const outcomes = fakeOutcomes()
     outcomes.record
       .mockRejectedValueOnce(new Error('disk temporarily unavailable'))
@@ -111,7 +116,7 @@ function fakeOutcomes() {
   return {
     record: vi.fn<DeliveryOutcomeStore['record']>(async input => ({
       created: true,
-      outcome: { ...input, id: 'f'.repeat(64), schemaVersion: 1 },
+      outcome: { ...input, id: 'f'.repeat(64), schemaVersion: 2 },
     })),
     list: vi.fn(() => []),
     summarize: vi.fn(),
@@ -157,4 +162,11 @@ function emitToolResult(ctx: Context, executionValue: object, result: object): v
     emit(name: 'tools/result', execution: object, result: object): void
   }
   emitter.emit('tools/result', executionValue, result)
+}
+
+function installWorkspaceFixture(ctx: Context): void {
+  Object.defineProperty(ctx, 'workspaceRegistry', {
+    configurable: true,
+    value: { resolveByPath: vi.fn(async () => ({ id: WORKSPACE_ID })) },
+  })
 }

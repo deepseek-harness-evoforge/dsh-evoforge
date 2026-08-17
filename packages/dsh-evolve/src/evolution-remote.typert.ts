@@ -18,94 +18,109 @@ export class EvolutionRemoteTypertContract extends TypertRemoteService {
   }
 
   @Remote
-  overview(): Promise<EvolutionOverview> {
+  overview(workspaceId: string): Promise<EvolutionOverview> {
+    void workspaceId
     throw new Error('static Typert contract')
   }
 
   @Remote
-  review(id: string): Promise<EvolutionReviewDetail> {
+  review(workspaceId: string, id: string): Promise<EvolutionReviewDetail> {
+    void workspaceId
     void id
     throw new Error('static Typert contract')
   }
 
   @Remote
-  pause(): Promise<EvolutionActionReceipt> {
+  pause(workspaceId: string): Promise<EvolutionActionReceipt> {
+    void workspaceId
     throw new Error('static Typert contract')
   }
 
   @Remote
-  resume(): Promise<EvolutionActionReceipt> {
+  resume(workspaceId: string): Promise<EvolutionActionReceipt> {
+    void workspaceId
     throw new Error('static Typert contract')
   }
 
   @Remote
-  approveReview(id: string, note: string): Promise<EvolutionActionReceipt> {
-    void id
-    void note
-    throw new Error('static Typert contract')
-  }
-
-  @Remote
-  rejectReview(id: string, note: string): Promise<EvolutionActionReceipt> {
+  approveReview(workspaceId: string, id: string, note: string): Promise<EvolutionActionReceipt> {
+    void workspaceId
     void id
     void note
     throw new Error('static Typert contract')
   }
 
   @Remote
-  promote(generationId: string): Promise<EvolutionActionReceipt> {
+  rejectReview(workspaceId: string, id: string, note: string): Promise<EvolutionActionReceipt> {
+    void workspaceId
+    void id
+    void note
+    throw new Error('static Typert contract')
+  }
+
+  @Remote
+  promote(workspaceId: string, generationId: string): Promise<EvolutionActionReceipt> {
+    void workspaceId
     void generationId
     throw new Error('static Typert contract')
   }
 
   @Remote
-  rollback(): Promise<EvolutionActionReceipt> {
+  rollback(workspaceId: string): Promise<EvolutionActionReceipt> {
+    void workspaceId
     throw new Error('static Typert contract')
   }
 
   @Remote
-  startFeedbackShadow(signalId: string, targetId: string): Promise<EvolutionActionReceipt> {
+  startFeedbackShadow(workspaceId: string, signalId: string, targetId: string): Promise<EvolutionActionReceipt> {
+    void workspaceId
     void signalId
     void targetId
     throw new Error('static Typert contract')
   }
 
   @Remote
-  evaluatorDraft(id: string): Promise<EvolutionEvaluatorDraftDetail> {
+  evaluatorDraft(workspaceId: string, id: string): Promise<EvolutionEvaluatorDraftDetail> {
+    void workspaceId
     void id
     throw new Error('static Typert contract')
   }
 
   @Remote
-  authorEvaluator(signalId: string, targetId: string): Promise<EvolutionActionReceipt> {
+  authorEvaluator(workspaceId: string, signalId: string, targetId: string): Promise<EvolutionActionReceipt> {
+    void workspaceId
     void signalId
     void targetId
     throw new Error('static Typert contract')
   }
 
   @Remote
-  approveEvaluator(id: string, note: string): Promise<EvolutionActionReceipt> {
+  approveEvaluator(workspaceId: string, id: string, note: string): Promise<EvolutionActionReceipt> {
+    void workspaceId
     void id
     void note
     throw new Error('static Typert contract')
   }
 
   @Remote
-  approveAndStartEvaluatorShadow(id: string, note: string): Promise<EvolutionActionReceipt> {
+  approveAndStartEvaluatorShadow(workspaceId: string, id: string, note: string): Promise<EvolutionActionReceipt> {
+    void workspaceId
     void id
     void note
     throw new Error('static Typert contract')
   }
 
   @Remote
-  rejectEvaluator(id: string, note: string): Promise<EvolutionActionReceipt> {
+  rejectEvaluator(workspaceId: string, id: string, note: string): Promise<EvolutionActionReceipt> {
+    void workspaceId
     void id
     void note
     throw new Error('static Typert contract')
   }
 
   @Remote
-  startEvaluatorShadow(id: string): Promise<EvolutionActionReceipt> {
+  startEvaluatorShadow(workspaceId: string, id: string): Promise<EvolutionActionReceipt> {
+    void workspaceId
     void id
     throw new Error('static Typert contract')
   }

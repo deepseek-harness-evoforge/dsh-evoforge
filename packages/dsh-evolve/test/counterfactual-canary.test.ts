@@ -9,6 +9,7 @@ import {
 import type { DeliveryOutcome } from '../src/delivery-outcome-monitor.js'
 import type { CapabilityGeneration, EvolutionStore } from '../src/generation-store.js'
 import type { ReviewCandidate, ReviewInbox } from '../src/review-inbox.js'
+import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const parentId = '1'.repeat(64)
 const candidateId = '2'.repeat(64)
@@ -49,7 +50,7 @@ describe('counterfactual Generation canary', () => {
     })
     const canary = new CounterfactualCanary({ inbox, outcomes, runner, store })
 
-    await expect(canary.scanOnce(new AbortController().signal)).resolves.toEqual({
+    await expect(canary.scanOnce(new AbortController().signal, WORKSPACE_ID)).resolves.toEqual({
       kept: [],
       reviewed: [],
       rolledBack: [{
@@ -59,9 +60,9 @@ describe('counterfactual Generation canary', () => {
       }],
       warnings: [],
     })
-    expect(store.getActiveGeneration()?.id).toBe(parentId)
+    expect(store.getActiveGeneration(WORKSPACE_ID)?.id).toBe(parentId)
 
-    await expect(canary.scanOnce(new AbortController().signal)).resolves.toEqual({
+    await expect(canary.scanOnce(new AbortController().signal, WORKSPACE_ID)).resolves.toEqual({
       kept: [],
       reviewed: [],
       rolledBack: [],
@@ -96,13 +97,13 @@ describe('counterfactual Generation canary', () => {
       store,
     })
 
-    await expect(canary.scanOnce(new AbortController().signal)).resolves.toEqual({
+    await expect(canary.scanOnce(new AbortController().signal, WORKSPACE_ID)).resolves.toEqual({
       kept: [{ outcomeId: outcome.id, generationId: candidateId }],
       reviewed: [],
       rolledBack: [],
       warnings: [],
     })
-    expect(store.getActiveGeneration()?.id).toBe(candidateId)
+    expect(store.getActiveGeneration(WORKSPACE_ID)?.id).toBe(candidateId)
     expect(rollbackGeneration).not.toHaveBeenCalled()
   })
 
@@ -136,10 +137,10 @@ describe('counterfactual Generation canary', () => {
       store,
     })
 
-    await expect(canary.scanOnce(new AbortController().signal)).resolves.toMatchObject({
+    await expect(canary.scanOnce(new AbortController().signal, WORKSPACE_ID)).resolves.toMatchObject({
       warnings: ['simulated crash after active pointer commit'],
     })
-    await expect(canary.scanOnce(new AbortController().signal)).resolves.toEqual({
+    await expect(canary.scanOnce(new AbortController().signal, WORKSPACE_ID)).resolves.toEqual({
       kept: [],
       reviewed: [],
       rolledBack: [{
@@ -183,7 +184,7 @@ describe('counterfactual Generation canary', () => {
       } as unknown as EvolutionStore,
     })
 
-    await expect(canary.scanOnce(new AbortController().signal)).resolves.toEqual({
+    await expect(canary.scanOnce(new AbortController().signal, WORKSPACE_ID)).resolves.toEqual({
       kept: [],
       reviewed: [{
         outcomeId: outcome.id,
@@ -223,7 +224,7 @@ describe('counterfactual Generation canary', () => {
       } as unknown as EvolutionStore,
     })
 
-    await expect(canary.scanOnce(new AbortController().signal)).resolves.toMatchObject({
+    await expect(canary.scanOnce(new AbortController().signal, WORKSPACE_ID)).resolves.toMatchObject({
       kept: [{ outcomeId: first.id, generationId: candidateId }],
       reviewed: [],
       rolledBack: [],
@@ -253,7 +254,7 @@ describe('counterfactual Generation canary', () => {
       } as unknown as EvolutionStore,
     })
 
-    await expect(canary.scanOnce(new AbortController().signal)).resolves.toEqual({
+    await expect(canary.scanOnce(new AbortController().signal, WORKSPACE_ID)).resolves.toEqual({
       kept: [],
       reviewed: [{
         outcomeId: outcome.id,
@@ -263,7 +264,7 @@ describe('counterfactual Generation canary', () => {
       rolledBack: [],
       warnings: [],
     })
-    await expect(canary.scanOnce(new AbortController().signal)).resolves.toMatchObject({
+    await expect(canary.scanOnce(new AbortController().signal, WORKSPACE_ID)).resolves.toMatchObject({
       kept: [], reviewed: [], rolledBack: [], warnings: [],
     })
     expect(runner).toHaveBeenCalledOnce()
@@ -273,7 +274,8 @@ describe('counterfactual Generation canary', () => {
 function generation(id: string, parent?: string): CapabilityGeneration {
   return {
     id,
-    schemaVersion: 1,
+    schemaVersion: 2,
+    workspaceId: WORKSPACE_ID,
     ...(parent === undefined ? {} : { parentId: parent }),
     createdAt: 1_723_456_789_000,
     artifacts: [{
@@ -291,6 +293,7 @@ function generation(id: string, parent?: string): CapabilityGeneration {
 function reviewCandidate(outputDir: string): ReviewCandidate {
   return {
     id: '3'.repeat(64),
+    workspaceId: WORKSPACE_ID,
     runId: '4'.repeat(64),
     status: 'approved',
     outputDir,
@@ -320,7 +323,8 @@ function reviewCandidate(outputDir: string): ReviewCandidate {
 function failedOutcome(): DeliveryOutcome {
   return {
     id: '7'.repeat(64),
-    schemaVersion: 1,
+    schemaVersion: 2,
+    workspaceId: WORKSPACE_ID,
     observedAt: 1_723_456_790_000,
     sessionId: 'delivery-session',
     callId: 'complete-delivery-call',

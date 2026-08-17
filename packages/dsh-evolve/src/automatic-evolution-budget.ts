@@ -11,6 +11,7 @@ const DAY_MS = 24 * 60 * 60 * 1_000
 
 export interface AutomaticEvolutionBudgetTarget {
   readonly id: string
+  readonly workspaceId: string
   readonly skill: string
   readonly runRoot: string
   readonly maxAttemptsPerUtcDay: number
@@ -18,6 +19,7 @@ export interface AutomaticEvolutionBudgetTarget {
 
 export interface AutomaticEvolutionBudgetSnapshot {
   readonly targetId: string
+  readonly workspaceId: string
   readonly skillName: string
   readonly utcDay: string
   readonly used: number
@@ -42,8 +44,9 @@ interface ReservationMarker {
 }
 
 interface BudgetJournal {
-  readonly schemaVersion: 1
+  readonly schemaVersion: 2
   readonly targetId: string
+  readonly workspaceId: string
   readonly skillName: string
   readonly utcDay: string
   readonly reservations: readonly ReservationMarker[]
@@ -76,6 +79,7 @@ export class AutomaticEvolutionBudget {
       )
     }
     if (targets.some(target => target.id.trim() === '' || target.skill.trim() === '')
+      || targets.some(target => !isWorkspaceId(target.workspaceId))
       || new Set(targets.map(target => target.id)).size !== targets.length
       || new Set(targets.map(target => resolve(target.runRoot))).size !== targets.length) {
       throw new Error('automatic evolution budget Target ids and run roots must be unique')
@@ -132,8 +136,9 @@ export class AutomaticEvolutionBudget {
       reservedAt: new Date(instant).toISOString(),
     })
     const next: BudgetJournal = Object.freeze({
-      schemaVersion: 1,
+      schemaVersion: 2,
       targetId: target.id,
+      workspaceId: target.workspaceId,
       skillName: target.skill,
       utcDay,
       reservations: [...journal.reservations, marker],
@@ -167,6 +172,7 @@ export class AutomaticEvolutionBudget {
     }
     if (!isBudgetJournal(value)
       || value.targetId !== target.id
+      || value.workspaceId !== target.workspaceId
       || value.skillName !== target.skill
       || value.utcDay > utcDay) throw invalidJournal()
     return value.utcDay === utcDay ? value : emptyJournal(target, utcDay)
@@ -206,6 +212,7 @@ function snapshot(
 ): AutomaticEvolutionBudgetSnapshot {
   return Object.freeze({
     targetId: target.id,
+    workspaceId: target.workspaceId,
     skillName: target.skill,
     utcDay,
     used,
@@ -226,8 +233,9 @@ function emptyJournal(
   utcDay: string,
 ): BudgetJournal {
   return Object.freeze({
-    schemaVersion: 1,
+    schemaVersion: 2,
     targetId: target.id,
+    workspaceId: target.workspaceId,
     skillName: target.skill,
     utcDay,
     reservations: [],
@@ -236,8 +244,10 @@ function emptyJournal(
 
 function isBudgetJournal(value: unknown): value is BudgetJournal {
   return isRecord(value)
-    && value.schemaVersion === 1
+    && value.schemaVersion === 2
     && typeof value.targetId === 'string'
+    && typeof value.workspaceId === 'string'
+    && isWorkspaceId(value.workspaceId)
     && typeof value.skillName === 'string'
     && typeof value.utcDay === 'string'
     && /^\d{4}-\d{2}-\d{2}$/u.test(value.utcDay)
@@ -246,7 +256,7 @@ function isBudgetJournal(value: unknown): value is BudgetJournal {
     && value.reservations.every(entry => isReservationMarker(entry, value.utcDay as string))
     && new Set(value.reservations.map(entry => (entry as ReservationMarker).signalId)).size
       === value.reservations.length
-    && Object.keys(value).length === 5
+    && Object.keys(value).length === 6
 }
 
 function isReservationMarker(value: unknown, utcDay: string): value is ReservationMarker {
@@ -269,4 +279,8 @@ function isMissingPathError(error: unknown): boolean {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isWorkspaceId(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(value)
 }

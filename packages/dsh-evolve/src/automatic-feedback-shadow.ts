@@ -74,12 +74,12 @@ export class AutomaticFeedbackShadowService {
     this.now = options.now ?? Date.now
   }
 
-  async scanOnce(): Promise<AutomaticFeedbackShadowResult> {
+  async scanOnce(workspaceId: string): Promise<AutomaticFeedbackShadowResult> {
     const launched: AutomaticFeedbackShadowResult['launched'] = []
     const warnings: string[] = []
-    const blockedSkills = new Set<string>()
+    const blockedTargets = new Set<string>()
     if (!this.options.shadow.available()) return { launched, warnings }
-    const signals = this.options.signals.list()
+    const signals = this.options.signals.list(workspaceId)
     const currentSignals = new Set(signals.map(signal => signal.id))
     for (const signalId of this.attemptedSignals) {
       if (!currentSignals.has(signalId)) this.attemptedSignals.delete(signalId)
@@ -94,9 +94,11 @@ export class AutomaticFeedbackShadowService {
       if (deferredUntil !== undefined && now < deferredUntil) continue
       this.deferredUntil.delete(signal.id)
       const generation = this.options.evolution.getGeneration(signal.generationId)
-      if (generation === undefined) continue
+      if (generation === undefined || generation.workspaceId !== signal.workspaceId) continue
       const skillNames = new Set(generation.artifacts.map(artifact => artifact.name))
-      const matches = this.options.targets.filter(target => skillNames.has(target.skill))
+      const matches = this.options.targets.filter(target => target.workspaceId === workspaceId
+        && target.workspaceId === signal.workspaceId
+        && skillNames.has(target.skill))
       if (matches.length === 0) continue
       if (matches.length > 1) {
         this.attemptedSignals.add(signal.id)
@@ -106,20 +108,22 @@ export class AutomaticFeedbackShadowService {
         break
       }
       const target = matches[0]!
-      if (blockedSkills.has(target.skill)) continue
+      const scopedSkill = targetKey(target.workspaceId, target.skill)
+      if (blockedTargets.has(scopedSkill)) continue
       const inflight = await automaticEvolutionInflightStatus(
+        target.workspaceId,
         target.skill,
         signal.id,
         this.options.inflight,
       )
       if (inflight !== 'clear') {
-        blockedSkills.add(target.skill)
-        const previous = this.inflightDeferrals.get(target.skill)
-        this.inflightDeferrals.set(target.skill, inflight)
+        blockedTargets.add(scopedSkill)
+        const previous = this.inflightDeferrals.get(scopedSkill)
+        this.inflightDeferrals.set(scopedSkill, inflight)
         if (previous !== inflight) warnings.push(inflightWarning(target.skill, inflight))
         continue
       }
-      this.inflightDeferrals.delete(target.skill)
+      this.inflightDeferrals.delete(scopedSkill)
       let reservation
       try {
         reservation = await this.options.budget.reserve(target, signal.id)
@@ -152,16 +156,18 @@ export class AutomaticFeedbackShadowService {
     return { launched, warnings }
   }
 
-  async budgetStatus(): Promise<AutomaticFeedbackBudgetStatus> {
+  async budgetStatus(workspaceId?: string): Promise<AutomaticFeedbackBudgetStatus> {
     const targets: AutomaticFeedbackBudgetView[] = []
     let warningCount = 0
     for (const target of this.options.targets) {
+      if (workspaceId !== undefined && target.workspaceId !== workspaceId) continue
       try {
         targets.push({ ...await this.options.budget.inspect(target), status: 'ready' })
       } catch {
         warningCount += 1
         targets.push({
           targetId: target.id,
+          workspaceId: target.workspaceId,
           skillName: target.skill,
           utcDay: new Date(this.now()).toISOString().slice(0, 10),
           used: 0,
@@ -210,7 +216,11 @@ export function assertAutomaticFeedbackShadowTargets(
     || new Set(targets.map(target => target.id)).size !== targets.length) {
     throw new Error('automatic Feedback Shadow target identities must be unique and non-empty')
   }
-  if (new Set(targets.map(target => target.skill)).size !== targets.length) {
-    throw new Error('automatic Feedback Shadow permits exactly one target per Skill')
+  if (new Set(targets.map(target => targetKey(target.workspaceId, target.skill))).size !== targets.length) {
+    throw new Error('automatic Feedback Shadow permits exactly one target per Workspace and Skill')
   }
+}
+
+function targetKey(workspaceId: string, skill: string): string {
+  return `${workspaceId}\0${skill}`
 }

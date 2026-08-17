@@ -7,6 +7,7 @@ import {
   readPrivateFeedbackCaseDraft,
 } from '../src/feedback-case-draft.js'
 import type { CapabilityGeneration } from '../src/generation-store.js'
+import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const roots: string[] = []
 const signalId = '1'.repeat(64)
@@ -27,7 +28,7 @@ describe('FeedbackCaseDraftBuilder rejection gates', () => {
       invokedSkill('other-skill', 3),
     ])
 
-    await expect(builder.create(signalId, 'stable-skill')).rejects.toThrow(
+    await expect(builder.create(WORKSPACE_ID, signalId, 'stable-skill')).rejects.toThrow(
       "feedback target turn must contain exactly one explicit invocation of Skill 'stable-skill'",
     )
   })
@@ -42,7 +43,7 @@ describe('FeedbackCaseDraftBuilder rejection gates', () => {
       invokedSkill('stable-skill', 2),
     ])
 
-    await expect(builder.create(signalId, 'stable-skill')).rejects.toThrow(
+    await expect(builder.create(WORKSPACE_ID, signalId, 'stable-skill')).rejects.toThrow(
       'feedbackDraftRoot must not grant group or world permissions',
     )
   })
@@ -54,7 +55,7 @@ describe('FeedbackCaseDraftBuilder rejection gates', () => {
       invokedSkill('stable-skill', 2),
     ], { currentVersion: '6836c43f-721a-4be8-9fca-89403b39095b' })
 
-    await expect(builder.create(signalId, 'stable-skill')).rejects.toThrow(
+    await expect(builder.create(WORKSPACE_ID, signalId, 'stable-skill')).rejects.toThrow(
       'feedback signal is no longer current',
     )
   })
@@ -65,7 +66,7 @@ describe('FeedbackCaseDraftBuilder rejection gates', () => {
       directUser('/stable-skill do the work'),
       invokedSkill('stable-skill', 2),
     ])
-    const created = await builder.create(signalId, 'stable-skill')
+    const created = await builder.create(WORKSPACE_ID, signalId, 'stable-skill')
 
     await expect(readPrivateFeedbackCaseDraft(created.path)).resolves.toEqual(created.draft)
     const tampered = JSON.parse(JSON.stringify(created.draft))
@@ -110,7 +111,8 @@ async function fixtureBuilder(
   await mkdir(resourceBase, { recursive: true })
   await writeFile(join(resourceBase, 'SKILL.md'), 'private materialized fixture\n')
   const generation: CapabilityGeneration = {
-    schemaVersion: 1,
+    schemaVersion: 2,
+    workspaceId: WORKSPACE_ID,
     id: generationId,
     createdAt: 1,
     artifacts: [{
@@ -141,7 +143,8 @@ async function fixtureBuilder(
     draftRoot,
     {
       get: vi.fn(() => ({
-        schemaVersion: 1 as const,
+        schemaVersion: 2 as const,
+        workspaceId: WORKSPACE_ID,
         id: signalId,
         observedAt: 3,
         sessionId: 'session-1',

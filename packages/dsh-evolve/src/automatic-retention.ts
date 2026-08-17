@@ -12,6 +12,7 @@ const MAX_TARGETS = 20
 
 export interface AutomaticRetentionTargetConfig {
   readonly id: string
+  readonly workspaceId: string
   readonly skill: string
   readonly casePackDir: string
   readonly casePackHash: string
@@ -50,22 +51,23 @@ export class AutomaticRetentionService {
   constructor(options: AutomaticRetentionOptions) {
     assertAutomaticRetentionTargets(options.targets)
     this.options = options
-    this.targetsBySkill = new Map(options.targets.map(target => [target.skill, target]))
+    this.targetsBySkill = new Map(options.targets.map(target => [targetKey(target.workspaceId, target.skill), target]))
   }
 
-  async scanOnce(signal: AbortSignal): Promise<AutomaticRetentionResult> {
+  async scanOnce(signal: AbortSignal, workspaceId: string): Promise<AutomaticRetentionResult> {
     const scan = await this.options.inbox.scanAll()
     const warnings = [...scan.warnings]
     const evaluated: AutomaticRetentionResult['evaluated'] = []
     for (const candidate of scan.candidates) {
       signal.throwIfAborted()
+      if (candidate.workspaceId !== workspaceId) continue
       if (this.suppressedCandidates.has(candidate.id)) continue
       if (candidate.status === 'rejected'
         || candidate.activatedAt !== undefined
         || (candidate.status === 'approved' && candidate.decisionActor !== 'auto-clear-instruction-v1')) {
         continue
       }
-      const target = this.targetsBySkill.get(candidate.skillName)
+      const target = this.targetsBySkill.get(targetKey(candidate.workspaceId, candidate.skillName))
       if (target === undefined) {
         this.reportedWarnings.delete(candidate.id)
         continue
@@ -144,6 +146,9 @@ export function assertAutomaticRetentionTargets(targets: AutomaticRetentionTarge
   if (targets.some(target => !CONTENT_ID.test(target.casePackHash))) {
     throw new Error('automatic Retention Case Pack hashes must be exact')
   }
+  if (targets.some(target => !isWorkspaceId(target.workspaceId))) {
+    throw new Error('automatic Retention targets require native Workspace ids')
+  }
   if (targets.some(target => !isAbsolute(target.casePackDir) || !isAbsolute(target.runRoot))) {
     throw new Error('automatic Retention paths must be absolute')
   }
@@ -154,8 +159,8 @@ export function assertAutomaticRetentionTargets(targets: AutomaticRetentionTarge
   if (targets.some(target => target.skill.trim() === '')) {
     throw new Error('automatic Retention target Skills must not be empty')
   }
-  if (new Set(targets.map(target => target.skill)).size !== targets.length) {
-    throw new Error('automatic Retention permits exactly one target per Skill')
+  if (new Set(targets.map(target => targetKey(target.workspaceId, target.skill))).size !== targets.length) {
+    throw new Error('automatic Retention permits exactly one target per Workspace and Skill')
   }
 }
 
@@ -171,4 +176,12 @@ async function pathExists(path: string): Promise<boolean> {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function targetKey(workspaceId: string, skill: string): string {
+  return `${workspaceId}\0${skill}`
+}
+
+function isWorkspaceId(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(value)
 }
