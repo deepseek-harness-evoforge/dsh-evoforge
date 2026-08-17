@@ -124,7 +124,12 @@ function remote(
       createdAt: 1_786_896_000_000,
       evaluatorVersion: 'case-pack-v1',
       policyVersion: 'human-review-v1',
-      artifacts: [],
+      artifacts: [{
+        kind: 'skill' as const,
+        name: 'build-dsh-plugin',
+        gitCommit: 'f'.repeat(40),
+        treeHash: '3'.repeat(64),
+      }],
     },
     deliveryOutcomes: {
       all: { total: 6, passed: 3, failed: 2, unknown: 1 },
@@ -238,6 +243,15 @@ function remote(
 const t = (key: string) => ({
   'trigger.label': 'Evolution',
   'panel.title': 'Evolution control',
+  'view.overview': 'Overview',
+  'view.skills': 'Skills',
+  'view.advanced': 'Advanced',
+  'onboarding.idle': 'Nothing needs your attention',
+  'onboarding.step.correct': 'Correct an answer in the conversation',
+  'skills.empty': 'No evolved Skills yet.',
+  'skills.active': 'In use',
+  'skills.ready': 'Verified, waiting to be enabled',
+  'skills.reviewing': 'Waiting for review',
   'status.actions': 'Actionable',
   'action.refresh': 'Refresh',
   'action.pause': 'Pause',
@@ -297,7 +311,56 @@ function renderEvolution(api: EvolutionRemoteClient) {
   />)
 }
 
+async function selectAdvanced() {
+  fireEvent.click(await screen.findByRole('tab', { name: 'Advanced' }))
+}
+
 describe('EvolutionAction', () => {
+  it('guides a first-time user before exposing evolution machinery', async () => {
+    const api = remote()
+    vi.mocked(api.overview).mockImplementationOnce(() => success({
+      schemaVersion: 1,
+      workspaceId,
+      recovery: { available: true, paused: false },
+      automaticPromotion: { enabled: false, skills: [] },
+      reviews: {
+        available: true,
+        pendingCount: 0,
+        actionableCount: 0,
+        warningCount: 0,
+        items: [],
+        inactiveGenerations: [],
+      },
+    }))
+    renderEvolution(api)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
+
+    expect((await screen.findByRole('tab', { name: 'Overview' })).getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByRole('tab', { name: 'Skills' })).toBeTruthy()
+    expect(screen.getByRole('tab', { name: 'Advanced' })).toBeTruthy()
+    expect(screen.getByText('Nothing needs your attention')).toBeTruthy()
+    expect(screen.getByText('Correct an answer in the conversation')).toBeTruthy()
+    expect(screen.queryByText(/Generation|Shadow|Evaluator/)).toBeNull()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Skills' }))
+    expect(screen.getByText('No evolved Skills yet.')).toBeTruthy()
+  })
+
+  it('projects active, approved, and reviewing Skill states without another catalog', async () => {
+    const api = remote(true, true)
+    renderEvolution(api)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
+    fireEvent.click(await screen.findByRole('tab', { name: 'Skills' }))
+
+    expect(screen.getByText('In use')).toBeTruthy()
+    expect(screen.getByText('Verified, waiting to be enabled')).toBeTruthy()
+    expect(screen.getByText('Waiting for review')).toBeTruthy()
+    expect(screen.getAllByText('build-dsh-plugin')).toHaveLength(3)
+    expect(api.overview).toHaveBeenCalledTimes(1)
+  })
+
   it('fails closed when the current Session is not owned by a native Workspace', async () => {
     const api = remote()
     render(<EvolutionAction
@@ -373,6 +436,7 @@ describe('EvolutionAction', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
     await screen.findByRole('dialog', { name: 'Evolution control' })
+    await selectAdvanced()
     expect(api.overview).toHaveBeenCalledWith(workspaceId)
     expect(within(screen.getByRole('button', { name: 'Evolution' })).getByText('2')).toBeTruthy()
     expect(screen.getByText('Actionable')).toBeTruthy()
@@ -409,6 +473,7 @@ describe('EvolutionAction', () => {
     renderEvolution(api)
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
     await screen.findByRole('dialog')
+    await selectAdvanced()
 
     fireEvent.click(screen.getByRole('button', { name: 'Rollback' }))
     expect(api.rollback).not.toHaveBeenCalled()
@@ -422,6 +487,7 @@ describe('EvolutionAction', () => {
     const api = remote(true)
     renderEvolution(api)
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
+    await selectAdvanced()
 
     expect(await screen.findByText('Observed delivery outcomes')).toBeTruthy()
     expect(screen.getByText(/Active · aaaaaaaa… · 3 total · 2 passed · 1 failed · 0 unknown/)).toBeTruthy()
@@ -435,6 +501,7 @@ describe('EvolutionAction', () => {
     const api = remote(false, false, 'draft-ready', 'unknown')
     renderEvolution(api)
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
+    await selectAdvanced()
 
     expect(await screen.findByText('Budget state unknown; automatic launch is blocked')).toBeTruthy()
   })
@@ -443,6 +510,7 @@ describe('EvolutionAction', () => {
     const api = remote(false, false, 'draft-ready', 'ready', true)
     renderEvolution(api)
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
+    await selectAdvanced()
 
     expect(await screen.findByText('Expiry eligible since · 2026-08-23T00:00:00.000Z')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Inspect' }))
@@ -457,6 +525,7 @@ describe('EvolutionAction', () => {
     renderEvolution(api)
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
     await screen.findByRole('dialog')
+    await selectAdvanced()
     fireEvent.click(screen.getByRole('button', { name: 'Inspect' }))
     await screen.findByText(
       'Open until 2026-08-23T00:00:00.000Z. No background timer runs; rejection occurs only when the next same-Skill automatic Signal arrives.',
@@ -484,6 +553,7 @@ describe('EvolutionAction', () => {
     renderEvolution(api)
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
     await screen.findByRole('dialog')
+    await selectAdvanced()
     fireEvent.click(screen.getByRole('button', { name: 'Inspect' }))
 
     expect((await screen.findByRole('alert')).textContent).toContain(
@@ -496,6 +566,7 @@ describe('EvolutionAction', () => {
     renderEvolution(api)
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
     await screen.findByRole('dialog')
+    await selectAdvanced()
 
     fireEvent.click(await screen.findByRole('button', { name: 'Promote' }))
     const confirmation = await screen.findByRole('alertdialog')
@@ -508,6 +579,7 @@ describe('EvolutionAction', () => {
     renderEvolution(api)
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
     await screen.findByRole('dialog')
+    await selectAdvanced()
 
     fireEvent.click(await screen.findByRole('button', { name: 'Start Shadow · plugin-delivery' }))
     expect(api.startFeedbackShadow).not.toHaveBeenCalled()
@@ -521,6 +593,7 @@ describe('EvolutionAction', () => {
     renderEvolution(api)
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
     await screen.findByRole('dialog')
+    await selectAdvanced()
 
     fireEvent.click(await screen.findByRole('button', { name: 'Author Evaluator · plugin-delivery' }))
     expect(api.authorEvaluator).not.toHaveBeenCalled()
@@ -555,6 +628,7 @@ describe('EvolutionAction', () => {
     renderEvolution(api)
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
     await screen.findByRole('dialog')
+    await selectAdvanced()
 
     fireEvent.click(await screen.findByRole('button', { name: 'Inspect Evaluator' }))
     await screen.findByText('final-test/evaluator.mjs')
@@ -576,6 +650,7 @@ describe('EvolutionAction', () => {
     renderEvolution(api)
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
     await screen.findByRole('dialog')
+    await selectAdvanced()
     fireEvent.click(await screen.findByRole('button', { name: 'Inspect Evaluator' }))
 
     fireEvent.click(await screen.findByRole('button', { name: 'Start Qualified Shadow' }))
@@ -596,6 +671,7 @@ describe('EvolutionAction', () => {
     renderEvolution(api)
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
     await screen.findByRole('dialog')
+    await selectAdvanced()
     fireEvent.click(await screen.findByRole('button', { name: 'Inspect Evaluator' }))
     await screen.findByText('final-test/evaluator.mjs')
     fireEvent.change(screen.getByLabelText('Decision note'), {

@@ -8,9 +8,30 @@ export const cssText = `
 .dsh-evolve-head,.dsh-evolve-actions,.dsh-evolve-summary,.dsh-evolve-review-head{display:flex;align-items:center;gap:8px}
 .dsh-evolve-head{padding:14px 16px;border-bottom:1px solid var(--dsw-alias-border-l2)}
 .dsh-evolve-title{flex:1;margin:0;font-size:15px;line-height:22px}
+.dsh-evolve-tabs{display:flex;gap:4px;padding:8px 16px 0;border-bottom:1px solid var(--dsw-alias-border-l2)}
+.dsh-evolve-tab{margin-bottom:-1px;padding:7px 10px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--dsw-alias-label-tertiary);font:inherit;font-size:12px;cursor:pointer}
+.dsh-evolve-tab:hover,.dsh-evolve-tab:focus-visible{color:var(--dsw-alias-label-primary)}
+.dsh-evolve-tab-active{border-bottom-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-label-primary);font-weight:600}
 .dsh-evolve-close,.dsh-evolve-button{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-fill-l1);color:inherit;font:inherit;cursor:pointer}
 .dsh-evolve-close{width:28px;height:28px;border:0;background:transparent;font-size:20px}
 .dsh-evolve-body{display:flex;flex-direction:column;gap:14px;padding:14px 16px;overflow:auto}
+.dsh-evolve-welcome{padding:14px;border-radius:12px;background:var(--dsw-alias-fill-l1)}
+.dsh-evolve-welcome h3,.dsh-evolve-skill-intro h3{margin:3px 0 6px;font-size:15px;line-height:22px}
+.dsh-evolve-welcome p,.dsh-evolve-skill-intro p,.dsh-evolve-skill-card p{margin:0 0 10px;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px}
+.dsh-evolve-eyebrow{color:var(--dsw-alias-label-tertiary);font-size:10px;text-transform:uppercase;letter-spacing:.05em}
+.dsh-evolve-simple-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.dsh-evolve-simple-summary div{display:flex;align-items:baseline;gap:6px;padding:10px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px}
+.dsh-evolve-simple-summary strong{font-size:18px}
+.dsh-evolve-simple-summary span{color:var(--dsw-alias-label-secondary);font-size:11px}
+.dsh-evolve-steps{display:flex;flex-direction:column;gap:10px;margin:0;padding:0;list-style:none}
+.dsh-evolve-steps li{display:flex;align-items:flex-start;gap:9px}
+.dsh-evolve-steps li>span{display:grid;width:22px;height:22px;flex:0 0 22px;place-items:center;border-radius:11px;background:var(--dsw-alias-fill-l2);font-size:11px;font-weight:600}
+.dsh-evolve-steps strong{display:block;font-size:12px;line-height:18px}
+.dsh-evolve-steps p{margin:1px 0 0;color:var(--dsw-alias-label-tertiary);font-size:11px;line-height:17px}
+.dsh-evolve-guidance{margin:10px 0 0;color:var(--dsw-alias-label-tertiary);font-size:11px;line-height:17px}
+.dsh-evolve-skill-intro p{margin-bottom:0}
+.dsh-evolve-skill-card{padding:10px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px}
+.dsh-evolve-skill-card p{margin:3px 0 0}
 .dsh-evolve-summary{align-items:stretch;flex-wrap:wrap}
 .dsh-evolve-stat{min-width:112px;flex:1;padding:10px;border-radius:10px;background:var(--dsw-alias-fill-l1)}
 .dsh-evolve-stat-label{display:block;color:var(--dsw-alias-label-tertiary);font-size:11px}

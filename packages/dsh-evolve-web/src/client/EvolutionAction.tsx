@@ -16,6 +16,7 @@ export type EvolutionActionProps = PropsRuntime<'sidebar.footer.action'> & {
 }
 
 type ConfirmAction = 'approve' | 'reject' | 'promote' | 'rollback' | 'shadow' | 'authorEvaluator' | 'approveEvaluator' | 'approveAndShadow' | 'rejectEvaluator' | 'qualifiedShadow'
+type EvolutionView = 'overview' | 'skills' | 'advanced'
 
 /** Sidebar trigger and bounded global evolution control panel. */
 export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }: EvolutionActionProps) {
@@ -24,6 +25,7 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
     ? undefined
     : state.items.find(workspace => workspace.sessionIds.includes(currentSessionId))?.workspaceId)
   const [open, setOpen] = useState(false)
+  const [view, setView] = useState<EvolutionView>('overview')
   const [overview, setOverview] = useState<EvolutionOverview>()
   const [detail, setDetail] = useState<EvolutionReviewDetail>()
   const [evaluatorDetail, setEvaluatorDetail] = useState<EvolutionEvaluatorDraftDetail>()
@@ -40,6 +42,7 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
   workspaceRef.current = workspaceId
 
   const resetWorkspaceState = () => {
+    setView('overview')
     setOverview(undefined)
     setDetail(undefined)
     setEvaluatorDetail(undefined)
@@ -274,30 +277,53 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
             <h2 className="dsh-evolve-title">{t('panel.title')}</h2>
             <button type="button" className="dsh-evolve-close" aria-label={t('panel.close')} onClick={close}>×</button>
           </header>
+          <nav className="dsh-evolve-tabs" role="tablist" aria-label={t('view.label')}>
+            {(['overview', 'skills', 'advanced'] as const).map(item => (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={view === item}
+                className={`dsh-evolve-tab${view === item ? ' dsh-evolve-tab-active' : ''}`}
+                key={item}
+                onClick={() => {
+                  setView(item)
+                  setDetail(undefined)
+                  setEvaluatorDetail(undefined)
+                }}
+              >
+                {t(`view.${item}`)}
+              </button>
+            ))}
+          </nav>
           <div className="dsh-evolve-body">
             {overview === undefined && error === undefined && <div className="dsh-evolve-message">{t('status.loading')}</div>}
-            {overview !== undefined && <Overview summary={overview} t={t} />}
-            <div className="dsh-evolve-actions">
-              <button type="button" className="dsh-evolve-button" disabled={busy} onClick={() => { void refreshVisibleState() }}>{t('action.refresh')}</button>
-              {overview?.recovery.available === true && (
-                <button
-                  type="button"
-                  className="dsh-evolve-button"
-                  disabled={busy}
-                  onClick={() => { void run(() => remoteValue(overview.recovery.paused === true ? remote.resume(workspaceId!) : remote.pause(workspaceId!))) }}
-                >
-                  {t(overview.recovery.paused === true ? 'action.resume' : 'action.pause')}
-                </button>
-              )}
-              {overview?.active !== undefined && (
-                <button type="button" className="dsh-evolve-button dsh-evolve-danger" disabled={busy} onClick={() => setConfirm('rollback')}>
-                  {t('action.rollback')}
-                </button>
-              )}
-            </div>
             {notice !== undefined && <div className="dsh-evolve-message" role="status">{notice}</div>}
             {error !== undefined && <div className="dsh-evolve-message dsh-evolve-error" role="alert">{t('error.prefix')}{error}</div>}
-            {detail === undefined && evaluatorDetail === undefined
+            {overview !== undefined && view === 'overview' && (
+              <BeginnerOverview summary={overview} openAdvanced={() => setView('advanced')} t={t} />
+            )}
+            {overview !== undefined && view === 'skills' && <SkillsView summary={overview} t={t} />}
+            {view === 'advanced' && <>
+              {overview !== undefined && <Overview summary={overview} t={t} />}
+              <div className="dsh-evolve-actions">
+                <button type="button" className="dsh-evolve-button" disabled={busy} onClick={() => { void refreshVisibleState() }}>{t('action.refresh')}</button>
+                {overview?.recovery.available === true && (
+                  <button
+                    type="button"
+                    className="dsh-evolve-button"
+                    disabled={busy}
+                    onClick={() => { void run(() => remoteValue(overview.recovery.paused === true ? remote.resume(workspaceId!) : remote.pause(workspaceId!))) }}
+                  >
+                    {t(overview.recovery.paused === true ? 'action.resume' : 'action.pause')}
+                  </button>
+                )}
+                {overview?.active !== undefined && (
+                  <button type="button" className="dsh-evolve-button dsh-evolve-danger" disabled={busy} onClick={() => setConfirm('rollback')}>
+                    {t('action.rollback')}
+                  </button>
+                )}
+              </div>
+              {detail === undefined && evaluatorDetail === undefined
               ? <ReviewQueue
                   overview={overview}
                   busy={busy}
@@ -338,6 +364,7 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
                     t={t}
                   />
                 ) : null}
+            </>}
           </div>
         </section>
       )}
@@ -354,6 +381,85 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
       )}
     </>
   )
+}
+
+function BeginnerOverview({ summary, openAdvanced, t }: {
+  summary: EvolutionOverview
+  openAdvanced: () => void
+  t: (key: string) => string
+}) {
+  const pending = actionableCount(summary)
+  const activeSkills = summary.active?.artifacts.filter(artifact => artifact.kind === 'skill').length ?? 0
+  return <>
+    <section className="dsh-evolve-welcome">
+      <div className="dsh-evolve-eyebrow">{t('onboarding.eyebrow')}</div>
+      <h3>{pending === 0 ? t('onboarding.idle') : `${pending} ${t('onboarding.actionable')}`}</h3>
+      <p>{t('onboarding.intro')}</p>
+      {pending > 0 && (
+        <button type="button" className="dsh-evolve-button dsh-evolve-primary" onClick={openAdvanced}>
+          {t('onboarding.review')}
+        </button>
+      )}
+    </section>
+    <div className="dsh-evolve-simple-summary">
+      <div><strong>{activeSkills}</strong><span>{t('onboarding.activeSkills')}</span></div>
+      <div><strong>{pending}</strong><span>{t('onboarding.pending')}</span></div>
+    </div>
+    <section>
+      <h3 className="dsh-evolve-section-title">{t('onboarding.how')}</h3>
+      <ol className="dsh-evolve-steps">
+        <li><span>1</span><div><strong>{t('onboarding.step.correct')}</strong><p>{t('onboarding.step.correctHelp')}</p></div></li>
+        <li><span>2</span><div><strong>{t('onboarding.step.verify')}</strong><p>{t('onboarding.step.verifyHelp')}</p></div></li>
+        <li><span>3</span><div><strong>{t('onboarding.step.decide')}</strong><p>{t('onboarding.step.decideHelp')}</p></div></li>
+      </ol>
+      <p className="dsh-evolve-guidance">{t('onboarding.hint')}</p>
+    </section>
+  </>
+}
+
+function SkillsView({ summary, t }: { summary: EvolutionOverview; t: (key: string) => string }) {
+  const active = summary.active?.artifacts.filter(artifact => artifact.kind === 'skill') ?? []
+  const ready = summary.reviews.inactiveGenerations
+  const reviewing = summary.reviews.items.filter(review => review.status === 'pending')
+  const empty = active.length === 0 && ready.length === 0 && reviewing.length === 0
+  return <>
+    <section className="dsh-evolve-skill-intro">
+      <h3>{t('skills.title')}</h3>
+      <p>{t('skills.description')}</p>
+    </section>
+    {empty && <div className="dsh-evolve-message">{t('skills.empty')}</div>}
+    {active.length > 0 && <SkillGroup label={t('skills.active')} items={active.map(artifact => ({
+      key: `active:${artifact.gitCommit}:${artifact.name}`,
+      name: artifact.name,
+      detail: t('skills.activeHelp'),
+    }))} />}
+    {ready.length > 0 && <SkillGroup label={t('skills.ready')} items={ready.map(item => ({
+      key: `ready:${item.generationId}:${item.skillName}`,
+      name: item.skillName,
+      detail: t('skills.readyHelp'),
+    }))} />}
+    {reviewing.length > 0 && <SkillGroup label={t('skills.reviewing')} items={reviewing.map(item => ({
+      key: `review:${item.id}:${item.skillName}`,
+      name: item.skillName,
+      detail: item.claim,
+    }))} />}
+    <p className="dsh-evolve-guidance">{t('skills.native')}</p>
+  </>
+}
+
+function SkillGroup({ label, items }: {
+  label: string
+  items: readonly { key: string; name: string; detail: string }[]
+}) {
+  return <section>
+    <h3 className="dsh-evolve-section-title">{label}</h3>
+    <ul className="dsh-evolve-list">{items.map(item => (
+      <li className="dsh-evolve-skill-card" key={item.key}>
+        <div className="dsh-evolve-review-skill">{item.name}</div>
+        <p>{item.detail}</p>
+      </li>
+    ))}</ul>
+  </section>
 }
 
 function Overview({ summary, t }: { summary: EvolutionOverview; t: (key: string) => string }) {
