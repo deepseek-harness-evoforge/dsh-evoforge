@@ -29,6 +29,8 @@ describe('installable DSH bundle', () => {
     expect(bootstrap).not.toContain("from 'dsh-evolve'")
 
     const overlay = await readFile(resolve(packageRoot, 'test/fixtures/cordis.patch.yml'), 'utf8')
+    expect(overlay).toContain("- id: typert-loader\n  name: '@deepseek-ai/dsh-typert-loader'")
+    expect(overlay).toContain('packages:\n      - dsh-evolve')
     expect(overlay).toContain('name: __EVOFORGE_BROWSER_BOOTSTRAP__')
     expect(overlay).toContain('evolveEntry: __EVOFORGE_INSTALLED_ENTRY__')
     expect(overlay).not.toContain('name: !!js')

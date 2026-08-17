@@ -29,15 +29,25 @@ Workspace id 交给同一个 Cordis plugin。它不是产品入口，不进入 t
 固定 DSH Loader fail loud。夹具已改成 Workspace-owned `{ workspaceId, path }`，并用合同测试锁定
 “只加载已安装 artifact、fixture 不发布、Loader `name` 不接受表达式对象”三个事实。
 
+零基础 Interface 复验又暴露了一个只存在于测试 overlay 的注册缺口：overlay 为了用动态取得的
+Workspace id 装配 supervisor，会禁用普通 `dsh-evolve` Loader row；Typert Loader 因而无法自动发现
+该包，Client Module 虽能加载，但 `overview` 被原生 Gateway 以 `404` 拒绝。测试 overlay 现在把
+`dsh-evolve` 显式加入既有 `typert-loader.config.packages`；同一个 packed artifact、动态 bootstrap 与
+Gateway 随即恢复，产品 Bundle 和运行时均未增加第二条注册路径。
+
 1. 启动固定 revision 的真实 DSH Web Host，页面显示 `EvoForge Browser Acceptance` 原生 Workspace；
-2. 打开由已安装 `dsh-evolve-web` Client Module 注册的侧栏入口，读取
-   `原生 DSH / 运行中 / 0 待审查 / 自动晋升关闭`；
-3. 点击暂停，UI 显示“已暂停”和“动作已持久完成，权威状态已刷新”；
-4. 关闭并重启同一个隔离 DSH Host，重新打开面板后仍为“已暂停”；
-5. 点击恢复和刷新，权威状态回到“运行中”；
-6. 停止 Host 后点击刷新，面板原位保留最后状态并显示可见 alert：
+2. 打开由已安装 `dsh-evolve-web` Client Module 注册的侧栏入口，默认“概览”只显示当前无待办、
+   纠正回答 → 后台验证 → 人工决定未来 Session 是否使用的三步说明，以及“无需额外命令/版本 ID”；
+3. 切换独立 `Skills` 视图，空 Workspace 明确显示尚无进化 Skill，并声明原生 DSH Skill 目录仍归
+   DSH 管理；单元验收另覆盖使用中、已验证待启用、等待审核三类 host projection；
+4. 切换“高级”后读取 `原生 DSH / 运行中 / 0 待审查 / 自动晋升关闭`，原控制能力完整保留；
+5. 点击暂停，UI 显示“已暂停”和“动作已持久完成，权威状态已刷新”；
+6. 关闭并重启同一个隔离 DSH Host，重新打开面板后仍为“已暂停”；
+7. 点击恢复和刷新，权威状态回到“运行中”；
+8. 停止 Host 后点击刷新，面板原位保留最后状态并显示可见 alert：
    `演化动作失败：... Failed to fetch`，没有假成功；
-7. 重启 Host 后再次刷新，错误消失并恢复“运行中”；浏览器 console error 为 `0`。
+9. 重启 Host 后再次刷新，错误消失并恢复“运行中”；此次零基础/Skills/高级视图复验的浏览器
+   console error 为 `0`。
 
 验收没有发送用户消息、没有调用模型、没有读取 API key，也没有触碰真实用户 profile。最终状态恢复为运行中。
 
@@ -51,4 +61,6 @@ Web Adapter 不注册 Tool、Prompt、Skill、System Message 或 Session Event�
 
 ## 未证明
 
-本证据证明本机固定版本 DSH 的安装、启动、Client Module、RPC、持久 pause/resume 和浏览器交互，不证明陌生用户能无指导完成 approve/promote/rollback，也不证明生产多日稳定性、真实任务误晋升率或优于 Hermes。
+本证据证明本机固定版本 DSH 的安装、启动、Client Module、RPC、持久 pause/resume 和浏览器交互；
+零基础首屏是确定性验收，不等同于真实陌生用户研究。它仍不证明陌生用户能无指导完成
+approve/promote/rollback，也不证明生产多日稳定性、真实任务误晋升率或优于 Hermes。

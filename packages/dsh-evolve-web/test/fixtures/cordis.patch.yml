@@ -2,7 +2,15 @@
 # __...__ values with absolute test-owned paths. The shipped Bundle is unchanged.
 # The fixture disables its ordinary evolution row, registers one real native
 # Workspace/Session, then mounts the installed dsh-evolve artifact with the
-# Workspace id returned by WorkspaceRegistry.
+# Workspace id returned by WorkspaceRegistry. Because that ordinary Loader row
+# is disabled, keep the installed package explicit in the existing Typert Loader
+# so its generated Remote descriptors remain registered with the native Gateway.
+- id: typert-loader
+  name: '@deepseek-ai/dsh-typert-loader'
+  config:
+    packages:
+      - dsh-evolve
+
 - id: evoforge-evolution
   name: dsh-evolve
   disabled: true
