@@ -14,11 +14,12 @@
 - Cordis dispose 注销平台 handler、取消 pending Approval、停止 worker、关闭 domain 并断开连接；
 - packed `dsh-channel-router` + `dsh-feishu` 通过干净 profile 的官方 add、dump-config、官方 SDK 依赖解析与 remove。
 
-当前包回归为 `7 files / 18 tests`（包含 macOS assembled 与 package lifecycle）；Router 的独立合同与 Telegram cache parity 继续通过。官方协议依据是[事件订阅概述](https://open.feishu.cn/document/server-docs/event-subscription-guide/overview)、[官方 Node SDK](https://github.com/larksuite/node-sdk)与[发送消息 API](https://open.feishu.cn/document/server-docs/im-v1/message/create)。
+联合门禁还在**同一个真实 DSH Host** 中注册两个真实目录为两个 Workspace，加载实际 Router、Telegram Bundle 与飞书 runtime：Telegram 与飞书分别创建 `telegram-session`/`feishu-session`，其原生 `session.header.cwd`、WorkspaceRegistry `sessionIds`、User Message、Command、Approval 和 continuation 全部保持分离；错误飞书 operator 不能消费另一个 Workspace 的 Approval。Host dispose 后以同一 persistence/StorageDomain/config 冷启动，两个 Agent 各自恢复，重放同一 Telegram update 和飞书 message 不新增 turn 或对外投递。
+
+当前包回归为 `8 files / 19 tests`（包含单渠道与双 Workspace macOS assembled、package lifecycle）；Router 的独立合同与 Telegram cache parity 继续通过。官方协议依据是[事件订阅概述](https://open.feishu.cn/document/server-docs/event-subscription-guide/overview)、[官方 Node SDK](https://github.com/larksuite/node-sdk)与[发送消息 API](https://open.feishu.cn/document/server-docs/im-v1/message/create)。
 
 ## 尚未证明
 
 - 尚未使用用户提供的真实 App ID/Secret、真实 `im.message.receive_v1` 或卡片 action；
-- 尚未完成 Telegram + 飞书同一 Host 的双 Workspace 不串线 gate；
 - 尚未测多日自动重连、真实移动端延迟、飞书权限撤销和 Hermes 同场景 paired outcome；
 - 因此只能声明第二 Adapter 已实现，不能声明生产可用或已经上位 Hermes。

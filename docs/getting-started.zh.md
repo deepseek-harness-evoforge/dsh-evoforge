@@ -145,4 +145,4 @@ DSH_EVOLVE_DSH_SOURCE_DIR=/absolute/path/to/deepseek-harness \
 
 clean-profile gate 从 tarball 开始，通过官方 DSH CLI 安装、dump、boot，在真实 Agent preset/Session/Goal 内触发能力，flush 原生持久化，再卸载、重启并读回 Goal。它同时检查 tarball 无用户产品 bin、无 `node_modules`，且 production dependencies 不携带 DSH/Cordis。
 
-Resident 已有原生 Bundle、DSH Command、无 bin tarball以及 launchd/systemd 协议回归；Channel Router、Telegram 与飞书已通过原生 Bundle、持久 ingress/outbound、真实 DSH Host/Agent Loop、Command、Approval、continuation、429/uncertain 与 tarball lifecycle。十一包同一 clean-profile gate、双 Workspace 双渠道/evolution 隔离、真实渠道凭据和 Hermes paired benchmark 仍缺失；这些全部完成前不能发布 v0.1。
+Resident 已有原生 Bundle、DSH Command、无 bin tarball以及 launchd/systemd 协议回归；Channel Router、Telegram 与飞书已通过原生 Bundle、持久 ingress/outbound、真实 DSH Host/Agent Loop、Command、Approval、continuation、429/uncertain、双 Workspace 双渠道重启隔离与 tarball lifecycle。十一包同一 clean-profile gate、Workspace-scoped evolution 隔离、真实渠道凭据和 Hermes paired benchmark 仍缺失；这些全部完成前不能发布 v0.1。

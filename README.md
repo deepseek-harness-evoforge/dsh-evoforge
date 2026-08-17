@@ -73,7 +73,7 @@ dsh --profile web
 
 ## 当前 v0.1 工作
 
-Workspace Channel Router、Telegram 与飞书第二 Adapter 已实现：静态 exact endpoint、原生 Workspace/Session/Agent、原生 Command/Approval、持久 ingress/outbound、429/uncertain、Goal/Schedule continuation、真实 Host Agent Loop 与独立 tarball lifecycle 已通过。下一交付面是双 Workspace 双渠道组合隔离，以及把 Evolution 的 Candidate/Generation/预算/审查严格绑定 Workspace。完成声明还需要十一包 clean-profile 总装、完整 composition cache gate、真实浏览器、可用凭据下的飞书/Telegram 冒烟以及 Hermes paired benchmark。
+Workspace Channel Router、Telegram 与飞书第二 Adapter 已实现：静态 exact endpoint、原生 Workspace/Session/Agent、原生 Command/Approval、持久 ingress/outbound、429/uncertain、Goal/Schedule continuation、真实 Host Agent Loop、双 Workspace 双渠道重启隔离与独立 tarball lifecycle 已通过。下一交付面是把 Evolution 的 Candidate/Generation/预算/审查严格绑定 Workspace。完成声明还需要十一包 clean-profile 总装、完整 composition cache gate、真实浏览器、可用凭据下的飞书/Telegram 冒烟以及 Hermes paired benchmark。
 
 - [安装与验收](docs/getting-started.zh.md)
 - [当前状态](docs/status.zh.md)

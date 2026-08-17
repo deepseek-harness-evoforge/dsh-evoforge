@@ -29,11 +29,11 @@
 - Router ingress 幂等与各 Adapter outbound delivery 状态分别有界持久化；
 - Telegram 成为第一个 Adapter；路由核心不复制 DSH Session、Goal、Schedule 或权限。
 
-退出门：两个 Workspace 的输入、输出、Commands、Approval、Goal 和文件权限在重启前后无串线。
+退出门：两个 Workspace 的输入、输出、Commands、Approval、Goal 和文件权限在重启前后无串线。**已由 Telegram + 飞书同一真实 Host assembled gate 完成。**
 
 ## V2 — 飞书 Adapter
 
-实现状态：Adapter、可靠投递、真实 DSH 单 Workspace 组合与 tarball lifecycle 已完成；双 Workspace 双渠道同 Host 和真实凭据仍未达到退出门。
+实现状态：Adapter、可靠投递、真实 DSH 单 Workspace 组合、双 Workspace 双渠道同 Host 重启隔离与 tarball lifecycle 已完成；真实凭据仍未达到退出门。
 
 - 支持静态授权的私聊或群聊文本、原生 Command、一次性 Approval、最终回答、Goal/Schedule 与进化注意力；
 - 凭据、身份与 Workspace route 只能由部署配置决定；

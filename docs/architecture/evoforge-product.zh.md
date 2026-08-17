@@ -49,7 +49,7 @@ Channel Router route。Router 通过 WorkspaceRegistry、Agent preset 与 Sessio
 第二个 Assistant Adapter 已实现为飞书官方 SDK WebSocket 长连接。一个 App 可绑定多个静态 exact
 route，但 App ID 必须与 Router account 一致；Router 继续拥有 Workspace/Session/Agent/Command，
 Adapter 只保存有界出站 journal、平台协议和一次性 Approval 卡片。明确 429 才重试，模糊发送进入
-uncertain。真实 App 与双 Workspace 双渠道总装完成前仍只标记为 `implemented`，不能增加通用
+uncertain。双 Workspace 双渠道同 Host 重启隔离已经通过；真实 App 完成前仍只标记为 `implemented`，不能增加通用
 Gateway Runtime。
 
 ### dsh-evolve-telegram
@@ -154,7 +154,7 @@ GitHub 组织 `deepseek-harness-evoforge` 是所有 DSH 扩展设计与开发的
 3. **P0C**：host command/view、异步人工晋升和 rollback。
 4. **P1**：权限效果不变的纯指令 future-session canary 与窄自动晋升。
 5. **P2**：Software Delivery 正式产品化；代码 Candidate 只到 Draft PR。
-6. **P3**：Telegram、飞书、P3.1 Evolve 注意力桥与 P3.2 Draft PR 审查返修 implemented；下一门是双 Workspace 总装、实际 Bot/reviewer soak、陌生安装与 Hermes paired benchmark，不是继续扩渠道或建通知/Review 平台。
+6. **P3**：Telegram、飞书、P3.1 Evolve 注意力桥与 P3.2 Draft PR 审查返修 implemented；双 Workspace 双渠道同 Host 已通过，下一门是 Workspace-scoped evolution、实际 Bot/reviewer soak、陌生安装与 Hermes paired benchmark，不是继续扩渠道或建通知/Review 平台。
 7. **LC-1**：exact Session 原生 Goal 冷恢复 implemented；下一门是生产多日恢复率/时延，不是扩成 daemon 或 HA 平台。
 8. **LC-2**：用户级 launchd/systemd service implemented；下一门是 Linux 真机与多日运行，不是再建第二 supervisor。
 
