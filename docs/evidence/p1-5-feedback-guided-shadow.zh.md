@@ -1,5 +1,7 @@
 # P1.5 证据：反馈引导、独立评测的 Shadow
 
+> 历史接口提示：下文命令是 2026-08-16 的已执行 standalone 证据；该产品入口已由 [ADR-0041](../adr/0041-dsh-is-the-only-runtime-and-install-surface.md) 撤销，不能作为当前操作说明。当前等价授权是 `/evolve feedback <signal-id> shadow <target-id>`，并提交 native DSH Job。
+>
 > 日期：2026-08-16  
 > 声明等级：`implemented`；闭合已有可信 Case Pack 覆盖范围内的 feedback → Candidate → Trial，
 > 不代表任意新反馈都能自动生成 evaluator 或安全晋升

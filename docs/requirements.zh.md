@@ -1,8 +1,22 @@
 # DeepSeek Harness EvoForge 项目需求基线
 
-> 状态：已确认；研究与设计已完成，P0A–P1.21、P2A.1–P2D.1、LC-1 Goal 冷恢复与 Runtime Readiness 已实现；真实 provider、陌生用户与长期效果证据待积累
+> 状态：已确认；2026-08-17 产品形态纠正为“只安装并运行于 DSH 的原生 out-of-tree 插件套件”；旧功能里程碑只表示可复用内部实现，不再代表产品交付完成
 > 更新日期：2026-08-17
-> 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。
+> 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。发生冲突时，下述“方向纠正”优先于旧里程碑文字。
+
+## 0. 方向纠正：DSH 是唯一 Runtime 与安装入口
+
+本节是不可协商的当前交付顺序，并取代把 EvoForge 描述成独立工具、独立 Runtime 或旁路应用的任何旧表述。
+
+1. `dsh-evoforge` 是真正的 out-of-tree DeepSeek Harness 插件套件。用户通过 DSH 官方 `dsh plugin --profile <name> add/remove` 和 Bundle/profile patch 机制安装、启用、禁用与卸载。
+2. DSH 是唯一 Agent Host、Runtime、Session、Goal、Approval、Storage、Jobs、Skill、Tool 与 Cordis 生命周期权威。EvoForge 不建立第二套应用、CLI、Web server、daemon、数据库、任务系统或 agent loop。
+3. 每个发布包必须导出 DSH/Cordis 可加载的 `name`、`inject`、`Config`、`apply`（或目标 revision 的官方等价接缝），声明官方 `dsh.bundle.patch`，并由 `ctx.effect()`/Cordis fiber 持有资源。
+4. DSH/Cordis 只能由 Host 提供，放在 `peerDependencies` 与 `devDependencies`；打包产物不得包含第二份 Runtime。
+5. Web 只能是随 DSH Web profile 组合加载、读取 DSH Host 权威状态的 client adapter；不得成为第二控制面。用户核心能力不得依赖 EvoForge CLI；开发夹具不得发布为产品入口。
+6. 在 roadmap 恢复前，必须用固定目标 DSH 源码完成 clean-profile 的 tarball 安装、官方 Bundle 启用、`--dump-config`、Host 启动、真实 Agent/Session/Goal 能力、原生持久化、卸载后原生启动/读回以及无残留资源的 assembled 硬门禁。
+7. 不 fork、不 monkey patch DSH。若门禁暴露 DSH Core Defect，只保留最小复现并上游报告。
+
+截至本次纠正，目标源码为 DeepSeek Harness commit `47f943859bef60e4160492346772ded9b24f765a`（包版本 `0.1.0-rc.5`）。开发依赖可为获得已发布类型而使用兼容的 rc.6 包，但这不扩大支持声明；支持证据只来自上述固定源码 assembled gate。
 
 ## 1. 项目愿景
 
@@ -141,7 +155,7 @@ EvoForge 首先服务软件开发交付，同时允许个人助理、内容、�
 
 ### 3.4 人类可充分交互的控制面
 
-EvoForge 不能只在后台“自主运行”。CLI、TUI、Web 或消息渠道可以采用不同 Adapter，但必须投影同一组权威状态，使用户能够：
+EvoForge 不能只在后台“自主运行”。DSH Command、DSH TUI、随 Host 组合的 Web client 或消息 Adapter 可以投影同一组 DSH 权威状态，使用户能够：
 
 - 查看当前 Goal、执行阶段、最近动作、阻塞原因和下一步；
 - 查看 Candidate 的主张、diff、评测证据、token、缓存影响和权限变化；

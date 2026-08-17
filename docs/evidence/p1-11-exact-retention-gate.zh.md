@@ -1,5 +1,7 @@
 # P1.11 Exact Candidate Retention Gate 实现证据
 
+> 历史接口提示：下文命令是当时的已执行 standalone 证据；该产品入口已由 [ADR-0041](../adr/0041-dsh-is-the-only-runtime-and-install-surface.md) 撤销，不能作为当前操作说明。当前 exact Retention 由 Bundle deployment policy 固定 Target，并在 native DSH Job 中运行。
+>
 > 声明等级：`implemented`。本页证明一个 exact Shadow Candidate 可被另一个可信 Case Pack 检查
 > 是否遗忘旧能力；不声明完整抗遗忘、自动发布门、真实 provider 效果或生产长期可靠性。
 

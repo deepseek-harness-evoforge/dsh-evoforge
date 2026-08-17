@@ -193,34 +193,17 @@ export function installCompleteDelivery(
 }
 
 /**
- * Follow the native Tool providers without assuming sibling consumer order.
- * The model surface changes only with the availability of its actual native
- * update_goal and shell dependencies, then remains fixed for the Session.
+ * Register the fixed host contribution once. Web profiles mount native Bash
+ * and Goal tools inside each Agent preset, so availability must be resolved
+ * with the calling Agent at execution time rather than sampled from the
+ * host-global registry. The returned registration remains owned by this
+ * plugin fiber and disappears on disable/unload.
  */
 export function installCompleteDeliveryBinder(
   ctx: Context,
   options: CompleteDeliveryOptions = {},
 ): void {
-  let registration: (() => void) | undefined
-  let reconciling = false
-  const reconcile = () => {
-    if (reconciling) return
-    reconciling = true
-    try {
-      const shell = process.platform === 'win32' ? 'pwsh' : 'bash'
-      const ready = ctx.tools.get('update_goal') !== undefined && ctx.tools.get(shell) !== undefined
-      if (ready && registration === undefined) registration = installCompleteDelivery(ctx, options)
-      else if (!ready && registration !== undefined) {
-        const dispose = registration
-        registration = undefined
-        dispose()
-      }
-    } finally {
-      reconciling = false
-    }
-  }
-  ctx.on('tools/change', reconcile)
-  reconcile()
+  installCompleteDelivery(ctx, options)
 }
 
 function nativeShellRunner(ctx: Context, parent: ToolRunContext): DeliveryCheckRunner {

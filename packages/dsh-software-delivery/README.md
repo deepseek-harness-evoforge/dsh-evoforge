@@ -1,33 +1,18 @@
 # dsh-software-delivery
 
-`dsh-software-delivery` is a removable DeepSeek Harness extension for finishing a native DSH Goal as a reviewable Git artifact. It contributes one on-demand `software-delivery` Skill, one stable `complete_delivery` Tool when its native dependencies are present, and the standalone deterministic `dsh-delivery verify` command.
+`dsh-software-delivery` is an out-of-tree DSH Bundle for completing a native DSH Goal as a verified Git artifact. It contributes one on-demand `software-delivery` Skill and one stable `complete_delivery` Tool. There is no standalone verifier product or `dsh-delivery` executable.
 
-The intended path is:
-
-```text
-native DSH Goal → linked worktree → repository change and checks
-                → clean commit → verification report → optional Draft PR
-                → optional exact-head remote-check gate / bounded wait
+```sh
+dsh plugin --profile web add /absolute/path/dsh-software-delivery-0.1.0-alpha.1.tgz
+dsh --profile web
 ```
 
-It does not add a second Goal, workflow database, daemon, policy engine, or system-prompt fragment.
+In a DSH session, create/continue a native Goal and use the `software-delivery` Skill. The Agent calls `complete_delivery` with the exact Goal id/revision, linked worktree, base ref, and repository check argv. The Tool resolves that Agent's native Bash/pwsh and `update_goal`, so DSH Sandbox, Approval, Tool policy, Session event log, and Goal revision remain authoritative.
 
-## Install and compose
-
-This package is a normal Cordis runtime plugin, not a profile-mutating Bundle. After installing it into a DSH profile, compose the native Skill registry and this plugin:
+Optional profile config can require exact Draft PR head checks and a bounded in-call wait:
 
 ```yaml
-- id: skill
-  name: '@deepseek-ai/dsh-skill'
-- id: dsh-software-delivery
-  name: dsh-software-delivery
-```
-
-To keep the Goal active until the exact Draft PR head has at least one remote check and every check
-is green, opt in at the host configuration boundary:
-
-```yaml
-- id: dsh-software-delivery
+- id: evoforge-software-delivery
   name: dsh-software-delivery
   config:
     requireDraftPrChecks: true
@@ -36,93 +21,10 @@ is green, opt in at the host configuration boundary:
       pollIntervalMs: 15000
 ```
 
-`requireDraftPrChecks` is `false` by default. Omit `draftPrCheckWait` to preserve the one-read P2C.2
-behavior. When the wait object is present, its defaults are 30 minutes and 15 seconds; timeout is
-bounded to 10 seconds–2 hours and polling to 1 second–5 minutes. These host settings do not add or
-change a model Tool.
+The plugin never merges, releases, deploys, marks a PR ready, or creates a second Goal/state machine. If its native Tool dependencies are unavailable, the Skill tells the Agent to keep the Goal active rather than bypass DSH.
 
-The stable Skill name and description appear in DSH's native catalog. Its body is loaded only when the user invokes it or the Agent calls the existing `skill` Tool.
-
-When the composition also provides native Goal, `update_goal`, and `bash` (or `pwsh` on Windows), the plugin registers one fixed-schema `complete_delivery` Tool. It verifies the exact Goal id/revision and Git commit, delegates checks through the existing shell Tool, optionally confirms a pushed GitHub Draft PR, and calls native `update_goal complete` only after every requested artifact passes. Plugin order is irrelevant; the Tool follows dependency availability and is removed with the plugin.
-
-## Verify a delivery
-
-Create a trusted local JSON config outside the worktree, or use an already-reviewed tracked config:
-
-```json
-{
-  "schemaVersion": 1,
-  "baseRef": "main",
-  "checks": [
-    { "name": "test", "argv": ["pnpm", "test"] },
-    { "name": "typecheck", "argv": ["pnpm", "typecheck"] }
-  ]
-}
+```sh
+dsh plugin --profile web remove dsh-software-delivery
 ```
 
-Then run:
-
-```bash
-dsh-delivery verify \
-  --worktree /absolute/path/to/linked-worktree \
-  --config /absolute/path/to/delivery.json
-```
-
-Exit status `0` means `passed`, `1` means `failed`, and `2` means invalid or `unknown`. The JSON result contains only the three-state result, a concise reason, the exact commit artifact, repository evidence, and bounded/hash-addressed check output.
-
-The verifier requires a named branch, a linked worktree rather than the primary checkout, an exact base ancestor, at least one committed change, and a clean tree before and after all checks. Standalone commands are exact argv arrays and never pass through a shell. Child processes receive a temporary HOME and an allowlisted environment, so ordinary credential environment variables are not inherited.
-
-## Optional GitHub Draft PR
-
-Pass the optional `draft_pr` object to `complete_delivery` when the Goal requires a Draft PR:
-
-```json
-{
-  "draft_pr": {
-    "base_branch": "main",
-    "title": "feat: verified change",
-    "body": "Summary and verification evidence"
-  }
-}
-```
-
-The Tool first checks `gh auth`, pushes the exact verified commit to the same branch on `origin`, then looks for an open PR with the exact head/base. An existing Draft at the exact commit is reused. Otherwise one Draft is created and read back before Goal completion. A lost create response is safe to retry because the next call queries remote facts first; no local journal or idempotency database is added. A non-Draft PR is never downgraded or edited, and merge/ready/release operations are absent.
-
-With `requireDraftPrChecks: true`, the Tool then reads the exact PR's `headRefOid` and
-`statusCheckRollup` once. At least one check must exist and all checks must be successful, neutral, or
-skipped. Failed checks return `failed`; pending, missing, malformed, unreadable, or wrong-head checks
-return `unknown`. Either result keeps the native Goal active. A later explicit retry repeats local
-verification, reuses the same PR, and reads current remote facts.
-
-When `draftPrCheckWait` is also configured, pending or not-yet-created checks are read again inside
-that same active Tool call until they turn green or the fixed deadline expires. Push and PR lookup are
-not repeated. Failure, wrong head, unreadable evidence, native policy denial, or cancellation stops
-immediately. After a real wait reaches green, local HEAD and clean worktree are checked again before
-Goal completion. Timeout returns the last bounded counts as `unknown/checks-timeout`; a later invocation
-reuses GitHub's branch, Draft PR, and exact-head checks as recovery facts. There is no daemon, watcher,
-CI journal, background polling, or extra model turn while waiting.
-
-This alpha slice targets GitHub.com and same-repository branches. Fork PR routing, GHES, other forges,
-required-only branch-protection interpretation, PR body updates, reviewers, labels, CI-log download,
-automatic CI repair, and background CI waiting are not supported.
-
-## Trust and authority
-
-Verification configs are trusted local execution input, not untrusted repository data. The standalone CLI is not a sandbox. The integrated Tool delegates checks to DSH's native shell Tool, so its existing sandbox, approval, and Tool guards remain authoritative. Review checks and keep them repository-scoped. Merge, release, production deployment, secret access, paid calls, and irreversible external actions still require native DSH approval or an explicit deployment policy.
-
-The plugin does not globally intercept native Goal completion: a human or another native path can still call `update_goal` directly. Instead it provides one atomic, evidence-gated completion path without monkey-patching GoalService or building a second state machine. When `dsh-evolve` is also installed, it can passively consume the compact final outcome without changing this delivery path.
-
-## Cache surface
-
-The Skill body remains on demand. In a fully integrated composition, one stable Tool schema covers verification, optional Draft PR, remote-check gating, bounded waiting, and completion; it remains tested at no more than 2 KiB serialized JSON. Enabling the gate or wait does not change its name, description, schema, Skill text, or order across model calls. Waiting performs zero model requests. A successful invocation returns compact commit/check/PR facts and bounded remote-check counts. CI logs and dynamic check names are not copied into the model result. Exact token counts depend on the active tokenizer, so the repository asserts bytes and full-request equality rather than claiming a tokenizer-independent number.
-
-## Develop
-
-```bash
-pnpm --filter dsh-software-delivery typecheck
-pnpm --filter dsh-software-delivery test
-pnpm --filter dsh-software-delivery build
-pnpm --filter dsh-software-delivery pack --pack-destination /tmp/dsh-pack
-```
-
-The macOS assembled lane boots pinned DSH Skill, Goal, native Bash, ToolGoal, and Agent runtime with a keyless scripted adapter, then tests the packed install/remove boundary and built CLI against a real Git worktree.
+Unload removes only its Skill and Tool; native Goal and Session data stays in DSH.

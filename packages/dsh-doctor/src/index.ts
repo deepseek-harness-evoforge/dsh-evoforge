@@ -2,6 +2,8 @@ import type { Context, FiberState } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/cordis-plugin-loader'
 import type { CommandResult } from '@deepseek-ai/dsh-commands'
 import type {} from '@deepseek-ai/dsh-commands'
+import z from '@deepseek-ai/schemastery'
+import type Schema from '@deepseek-ai/schemastery'
 import {
   evaluateRuntimeReadiness,
   type RuntimePluginEntry,
@@ -24,8 +26,12 @@ const FIBER_PHASE = {
 
 export interface Config {
   /** Exact Loader module names that must have at least one enabled active entry. */
-  readonly requiredModules?: readonly string[]
+  readonly requiredModules?: string[]
 }
+
+export const Config: Schema<Config> = z.object({
+  requiredModules: z.array(z.string()).max(MAX_REQUIRED_MODULES).default(['dsh-doctor']),
+})
 
 export function apply(ctx: Context, config: Config = {}): void {
   const requiredModules = normalizeRequiredModules(config.requiredModules ?? ['dsh-doctor'])

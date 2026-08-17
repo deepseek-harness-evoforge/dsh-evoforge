@@ -1,21 +1,32 @@
 # P1.11 Exact Candidate Retention Gate 契约
 
-> 状态：implemented；离线 exact evidence，不是自动晋升门
+> 状态：历史实现契约；standalone Interface 已由 [ADR-0041](../adr/0041-dsh-is-the-only-runtime-and-install-surface.md) 撤销，exact Retention primitive 保留在 `dsh-evolve` Bundle 内
 
 ## 唯一用户结果
 
 > 对一个已通过新 Case 的 exact Shadow Candidate，用另一个以前可信的 Case Pack 证明它保留旧能力，
 > 或明确指出回归；全程不再请求 proposer、不修改 active Skill。
 
-## Interface
+## 当前原生 Interface
 
-```text
-dsh-evolve retain --run <completed-shadow-run> \
-  --case-pack <trusted-prior-case-pack> --output <new-retention-run>
+```yaml
+- id: evoforge-evolution
+  name: dsh-evolve
+  config:
+    autoPromote:
+      retentionRoots: [/absolute/owned/retention-runs]
+      retentionTargets:
+        - id: trusted-prior
+          skill: exact-skill-name
+          casePackDir: /absolute/private/prior-case-pack
+          casePackHash: <64-char-hash>
+          runRoot: /absolute/owned/retention-runs
 ```
 
-输入必须是 host absolute path。首片没有 Commands/Remote/Web，因为它尚未影响 release decision；
-把路径带进浏览器只会扩大权限面。
+部署者通过官方 Bundle/profile patch 固定 absolute paths 与 exact hash。插件在既有 Shadow/review
+链内通过 native DSH Job 运行一次 Retention；没有 Commands/Remote/Web 路径参数，也没有独立
+`dsh-evolve retain` executable。下文的 exit-code 语义保留为历史内部 runner 证据，当前 host-plane
+结果以 native Job 状态和 durable Retention report 为准。
 
 ## Exact input gate
 
@@ -48,7 +59,7 @@ host evaluator；active tree 在 Trial 前后必须不变。
 
 ## Exit semantics
 
-| CLI exit | 结果 | 含义 |
+| 历史 runner exit | 结果 | 含义 |
 |---:|---|---|
 | `0` | `retained` | baseline 与 Candidate 都 pass，composition 稳定 |
 | `3` | `regressed` | baseline pass、Candidate fail；适合 CI fail |
@@ -65,7 +76,7 @@ host evaluator；active tree 在 Trial 前后必须不变。
 - primary/retention Pack 或 active Skill 任一漂移时 Trial/发布效果 fail closed；
 - source run/report 不修改，正常 DSH Session Tool/Prompt/Skill/system composition 增量为 0；
 - `SIGKILL` 后不自动执行任何 Trial；操作者只能选择新 output 明确重试；
-- packed CLI 与 Node 22/24 构建通过。
+- packed Bundle 与 Node 22/24 构建通过；tarball 不含 CLI。
 
 ## 成本边界
 

@@ -1,5 +1,7 @@
 # P0C.3 证据：Durable Resident Pause / Resume
 
+> 历史接口提示：本页的 `/evolve` Commands 仍是当前 DSH 原生入口；仅下文提到的 standalone Shadow 并发场景已由 [ADR-0041](../adr/0041-dsh-is-the-only-runtime-and-install-surface.md) 撤销。
+>
 > 日期：2026-08-16  
 > 声明等级：`implemented`；这是后台恢复控制，不是暂停全部 DSH 或通用工作流引擎
 
@@ -18,7 +20,7 @@ Candidate/Trial recovery：
 DSH 立即崩溃，重启也不会自动继续。`resume` 先持久化解除暂停，再立即唤醒 durable run
 扫描，不必等待下一个 interval。
 
-暂停范围刻意保持窄：普通 DSH Goal/Session、显式 `dsh-evolve shadow`、人工 review、
+暂停范围刻意保持窄：普通 DSH Goal/Session、当时的显式 standalone Shadow、人工 review、
 promote 和 rollback 仍可使用。它不创建 Mission、DAG、第二个 Scheduler 或新的模型 Tool。
 
 ## 已验证边界
@@ -59,4 +61,3 @@ DSH_EVOLVE_DSH_SOURCE_DIR=/absolute/path/to/deepseek-harness \
 - 尚无 P1 自动晋升或 canary。
 
 因此本证据只支持“后台自动恢复可以安全、持久、可解释地暂停和恢复”。
-

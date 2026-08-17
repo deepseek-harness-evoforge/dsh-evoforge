@@ -6,12 +6,22 @@ const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const ignoredDirectories = new Set(['.evoforge', '.git', 'dist', 'node_modules'])
 const markdownLink = /\[[^\]]*\]\(([^)]+)\)/g
 const forbiddenPublicText = ['/Users/my/', '/home/runner/', 'file://', 'oh-my-dsh']
+const removedStandaloneCli = /\bdsh-evolve\s+(?:shadow|calibrate|retain)\b|\bdsh-delivery\s+verify\b/u
 const failures = []
 
 for (const file of await markdownFiles(repositoryRoot)) {
   const source = await readFile(file, 'utf8')
+  const relative = relativeFile(file)
   for (const text of forbiddenPublicText) {
-    if (source.includes(text)) failures.push(`${relativeFile(file)} contains private or legacy text: ${text}`)
+    if (source.includes(text)) failures.push(`${relative} contains private or legacy text: ${text}`)
+  }
+
+  if (removedStandaloneCli.test(source)) {
+    if (isOperationalDoc(relative)) {
+      failures.push(`${relative} invokes a removed standalone EvoForge CLI; use native DSH Commands/Jobs/Tools`)
+    } else if (!source.includes('ADR-0041')) {
+      failures.push(`${relative} mentions a removed standalone EvoForge CLI without an ADR-0041 supersession marker`)
+    }
   }
 
   for (const match of source.matchAll(markdownLink)) {
@@ -20,14 +30,14 @@ for (const file of await markdownFiles(repositoryRoot)) {
     const target = rawTarget.replace(/^<|>$/g, '').split('#', 1)[0]?.split('?', 1)[0]
     if (!target) continue
     if (isAbsolute(target)) {
-      failures.push(`${relativeFile(file)} has an absolute local link: ${rawTarget}`)
+      failures.push(`${relative} has an absolute local link: ${rawTarget}`)
       continue
     }
     const path = resolve(dirname(file), decodeURIComponent(target))
     try {
       await access(path)
     } catch {
-      failures.push(`${relativeFile(file)} has a missing local link: ${rawTarget}`)
+      failures.push(`${relative} has a missing local link: ${rawTarget}`)
     }
   }
 }
@@ -52,4 +62,12 @@ async function markdownFiles(root) {
 
 function relativeFile(file) {
   return file.slice(repositoryRoot.length + 1)
+}
+
+function isOperationalDoc(file) {
+  return file === 'README.md'
+    || file === 'README.en.md'
+    || file === 'docs/getting-started.zh.md'
+    || /^packages\/[^/]+\/README(?:\.[^/]+)?\.md$/u.test(file)
+    || /^skills\/[^/]+\/SKILL\.md$/u.test(file)
 }

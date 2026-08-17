@@ -2,7 +2,7 @@
   "name": "dsh-evoforge",
   "version": "0.0.0",
   "private": true,
-  "description": "Evidence-driven, cache-stable extensions for DeepSeek Harness",
+  "description": "Native out-of-tree plugin suite installed into DeepSeek Harness",
   "license": "MIT",
   "type": "module",
   "repository": {

@@ -1,5 +1,7 @@
 # P2B.1 证据：原生 Goal 受验证完成动作
 
+> 历史接口提示：本页保留 2026-08-16 已执行证据；其中 standalone verifier 后来由 [ADR-0041](../adr/0041-dsh-is-the-only-runtime-and-install-surface.md) 撤销。当前唯一支持的用户路径是 `software-delivery` Skill → `complete_delivery` Tool。
+>
 > 日期：2026-08-16  
 > 声明等级：`implemented`；不是全局 Goal completion guard，也不等于完整自动交付
 
@@ -10,7 +12,7 @@
 并且只在 `passed` 时使用原生 `update_goal` 完成同一个 Goal。
 
 `failed`、timeout/abort、原生 Tool policy 拒绝、陈旧 Goal revision 或检查期间 Git 漂移都不会
-完成 Goal。standalone `dsh-delivery verify` 仍可独立使用。
+完成 Goal。在本证据记录当时，standalone verifier 仍可独立使用；该历史事实不表示当前包仍提供 binary。
 
 ## Test-first 行为证据
 

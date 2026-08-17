@@ -1,12 +1,12 @@
 # ADR-0009：Journal 是恢复事实源，DSH Jobs 只负责当前进程可见性
 
-- 状态：Accepted
+- 状态：Accepted；standalone 入口由 [ADR-0041](0041-dsh-is-the-only-runtime-and-install-surface.md) 撤销，journal/Jobs 权威边界不变
 - 日期：2026-08-16
 - 适用范围：`dsh-evolve` P0B.2b Local Continuity
 
 ## 背景
 
-`dsh-evolve shadow` 已能在付费 proposal 之前写 durable intent，也能从已落盘
+本 ADR 作出决策时，历史 standalone Shadow 已能在付费 proposal 之前写 durable intent，也能从已落盘
 Candidate 重跑无网络 Sealed Trial。要让常驻 DSH 在重启后自动继续，需要一个扫描器；
 但如果再造 durable Job 数据库、通用 DAG 或 daemon manager，就会重复 DSH 和操作系统
 已有职责，并把一个用户功能做成内部平台。
@@ -27,7 +27,8 @@ DSH 原生 `ctx.jobs` 是当前进程的 Job registry：适合展示、取消和
 5. 每次恢复注册成一个原生 `evolution` Job。Jobs 只提供 host-plane 状态和取消；取消
    信号会杀死完整 Sealed Trial 进程组，journal 保持 `trial-running`，下次启动可继续。
 6. supervisor 串行恢复 run，同一进程的重叠扫描合并；run-local owner lock 继续防止
-   CLI、其他 DSH 进程或扫描器重复执行同一个 run。
+   其他 DSH 进程或扫描器重复执行同一个 run。历史 CLI 并发场景只保留为当时证据；当前入口是
+   `/evolve` Command 提交的 native Job。
 7. supervisor 不注册 Tool、Skill 或 system-prompt section。若部署没有组合 DSH Jobs，
    基础 Shadow/Generation 能力不受影响；已配置的 supervisor 不启动。
 

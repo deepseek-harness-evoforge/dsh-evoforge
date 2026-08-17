@@ -96,15 +96,16 @@ jobs:
           test/generation-store.e2e.test.ts
           test/generation-binder.e2e.test.ts
           test/generation-crash-recovery.e2e.test.ts
-          test/package-install-remove-generation.e2e.test.ts
-      - name: Run delivery, Doctor, and Telegram assembled/package-boundary tests
+      - name: Run native suite contract and clean-profile assembled gate
         env:
           DSH_EVOLVE_DSH_SOURCE_DIR: ${{ github.workspace }}/.evoforge/deepseek-harness
         run: |
+          pnpm --filter dsh-doctor exec vitest run \
+            test/suite-native-plugin-contract.test.ts
           pnpm --filter dsh-software-delivery exec vitest run \
             test/dsh-assembled-skill.e2e.test.ts \
             test/dsh-assembled-completion.e2e.test.ts \
-            test/package-install-remove.e2e.test.ts
+            test/clean-profile-suite.e2e.test.ts
           pnpm --filter dsh-doctor exec vitest run \
             test/package-install-remove.e2e.test.ts
           pnpm --filter dsh-telegram exec vitest run \

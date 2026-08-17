@@ -12,7 +12,7 @@ const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const suiteRoot = resolve(packageRoot, '../..')
 const dshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
   ?? resolve(suiteRoot, '../deepseek-harness')
-const cliPath = join(packageRoot, 'src', 'cli.ts')
+const cliPath = join(packageRoot, 'test', 'fixtures', 'shadow-driver.ts')
 const skillDir = join(suiteRoot, 'examples', 'skills', 'browser-e2e-baseline')
 const casePackDir = join(suiteRoot, 'examples', 'case-packs', 'browser-e2e-guidance-assembled')
 const temporaryRoots: string[] = []

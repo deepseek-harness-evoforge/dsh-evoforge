@@ -2,7 +2,7 @@
 
 ## 状态
 
-Accepted，2026-08-16。
+Accepted，2026-08-16；standalone CLI 保留条款于 2026-08-17 被 [ADR-0041](0041-dsh-is-the-only-runtime-and-install-surface.md) 撤销，原生 Tool 决策继续有效。
 
 ## 背景
 
@@ -26,7 +26,9 @@ Mission、DAG 或交付状态机同样超过这个用户问题所需的复杂度
 5. `failed` 或 `unknown` 返回有界证据并保持 Goal active。
 
 Tool 只在 Goal、Tools、原生 `update_goal` 与平台 shell 都可用时注册；依赖丢失或插件卸载时
-自动撤销。standalone CLI 继续保留，供无完整 Agent composition 的可信本地调用使用。
+自动撤销。本 ADR 当时还决定保留 standalone CLI，供无完整 Agent composition 的可信本地调用；
+该入口后来由 ADR-0041 撤销，binary 已删除。当前唯一受支持的用户路径是在 DSH Goal 中按需加载
+`software-delivery` Skill，并由 Agent 调用 `complete_delivery` Tool。
 
 ## 结果
 

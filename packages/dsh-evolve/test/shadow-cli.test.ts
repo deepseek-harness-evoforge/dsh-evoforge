@@ -11,7 +11,7 @@ import { hashTree, sha256 } from '../src/hash.js'
 const execFileAsync = promisify(execFile)
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const suiteRoot = resolve(packageRoot, '../..')
-const cliPath = join(packageRoot, 'src', 'cli.ts')
+const cliPath = join(packageRoot, 'test', 'fixtures', 'shadow-driver.ts')
 const temporaryRoots: string[] = []
 
 afterEach(async () => {

@@ -481,7 +481,7 @@ Canvas 于 2026 年公开 Meta-Agent。它冻结基础模型，fast loop 修改 
 
 Generation Binder、sidecar pin、active pointer、crash injection 都重要，但 P0B 本身不生成候选、不给出任何改进结果。若在 P0A 证明价值前建设它，仍会落入工程自嗨。当前路线已经把 P0A Shadow 设为 P0B 的硬进入条件。
 
-更小的验证顺序应是：先用离线 Shadow CLI 在一个 Skill + 一个真实 evaluator 上证明“能发现并拒绝坏 Candidate、至少找到一个稳定提升”；只有证明有价值，才把 Candidate 接入 live Generation Binder。
+更小的验证顺序应是：先用插件内部 Shadow evaluation 在一个 Skill + 一个真实 evaluator 上证明“能发现并拒绝坏 Candidate、至少找到一个稳定提升”；只有证明有价值，才把 Candidate 接入 live Generation Binder。独立 CLI 方案已由 ADR-0041 撤销。
 
 ### 5.3 “Markdown 指令”不等于低风险
 
@@ -609,7 +609,7 @@ P0 不需要复杂 merge engine，但至少要规定：同一 artifact 同时只
 
 ### P0A：先证明评测，不先建设完整发布平台
 
-交付一个离线、只读 active Skill 的 `dsh-evolve shadow <skill-dir>`：
+交付一个由 DSH 插件生命周期持有、只读 active Skill 的 Shadow operation：
 
 - 一个软件开发 Skill；
 - 3–5 个 deterministic reproduction cases；

@@ -1,4 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
+import { z } from 'zod'
 import { installCompleteDeliveryBinder } from './complete-delivery.js'
 import type { DraftPrCheckWaitPolicy } from './draft-pr.js'
 
@@ -14,6 +15,14 @@ export interface Config {
     readonly pollIntervalMs?: number
   }
 }
+
+export const Config = z.object({
+  requireDraftPrChecks: z.boolean().default(false),
+  draftPrCheckWait: z.object({
+    timeoutMs: z.number().step(1).optional(),
+    pollIntervalMs: z.number().step(1).optional(),
+  }).optional(),
+}).default({ requireDraftPrChecks: false })
 
 export function apply(ctx: Context, config: Config = {}): void {
   const draftPrCheckWait = resolveDraftPrCheckWait(config)
@@ -76,29 +85,12 @@ Use the native DSH Goal as the single source of task intent and completion state
 3. Create a named feature branch in a sibling linked Git worktree. Keep the user's primary checkout untouched.
 4. Make the smallest in-scope change. Preserve unrelated work and repository conventions.
 5. Run the repository's relevant checks, review the diff, and commit the complete change in the linked worktree.
-6. Create a JSON verification config outside the repository or in an already-tracked project location:
-
-   {"schemaVersion":1,"baseRef":"main","checks":[{"name":"test","argv":["pnpm","test"]}]}
-
-7. When the \`complete_delivery\` Tool is available, call it with the exact Goal id/revision, worktree, base and repository check argv. If the requested outcome includes a Draft PR, also pass \`draft_pr\` with its base branch, title and body. It uses native shell policy for checks and publication, then completes the native Goal only after every requested artifact is confirmed. Do not separately push, create the PR, or call \`update_goal complete\`.
-8. In a composition without Goal/Tool integration, run \`dsh-delivery verify --worktree <absolute-worktree> --config <absolute-config>\`. Treat only a \`passed\` report for the exact committed HEAD as objective completion evidence. A failed or unknown report keeps the native Goal active.
-9. Report the commit, verification result, remaining limitations, and Draft PR URL when requested. Keep the worktree available for review.
+6. Call the \`complete_delivery\` Tool with the exact Goal id/revision, worktree, base and repository check argv. If the requested outcome includes a Draft PR, also pass \`draft_pr\` with its base branch, title and body. It uses native shell policy for checks and publication, then completes the native Goal only after every requested artifact is confirmed. Do not separately push, create the PR, or call \`update_goal complete\`.
+7. If \`complete_delivery\` is unavailable, report that the DSH plugin composition is incomplete and keep the native Goal active. Do not bypass DSH with another EvoForge process or verifier.
+8. Report the commit, verification result, remaining limitations, and Draft PR URL when requested. Keep the worktree available for review.
 
 ## Authority
 
 Creating a worktree, editing, testing, committing, pushing the feature branch, and creating a Draft PR are delivery actions. Never merge, release, deploy, read secrets, make paid calls, or perform irreversible external actions without explicit human approval or an explicit deployment policy. Do not convert a Draft PR to ready-for-review unless authorized.
 
-The standalone verifier executes configured argv without a shell and a minimal environment. The integrated completion Tool delegates checks, push and GitHub Draft PR commands to DSH's existing bash/pwsh Tool so native sandbox and approval policy remain authoritative. It never merges or marks a PR ready. Both paths bound captured output and verify that checks did not move HEAD, move the base ref, or dirty the worktree.`
-
-export {
-  verifyDelivery,
-  type CapturedOutput,
-  type DeliveryCheck,
-  type DeliveryCheckEvidence,
-  type DeliveryCheckRunner,
-  type DeliveryCheckRunContext,
-  type DeliveryCheckRunResult,
-  type DeliveryReport,
-  type DeliveryRepositoryEvidence,
-  type VerifyDeliveryOptions,
-} from './verify-delivery.js'
+The completion Tool delegates checks, push and GitHub Draft PR commands to DSH's existing bash/pwsh Tool so native sandbox and approval policy remain authoritative. It never merges or marks a PR ready. Verification bounds captured output and rejects any check that moves HEAD, moves the base ref, or dirties the worktree.`

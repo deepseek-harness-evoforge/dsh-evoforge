@@ -10,16 +10,11 @@ describe('installable DSH bundle', () => {
     const manifest = JSON.parse(await readFile(resolve(packageRoot, 'package.json'), 'utf8'))
     expect(manifest.dsh?.bundle).toEqual({ patch: './cordis.patch.yml' })
     expect(manifest.dependencies?.['dsh-evolve']).toBeUndefined()
-    expect(manifest.peerDependencies?.['dsh-evolve']).toBe('>=0.1.0-alpha.1 <0.2.0')
+    expect(manifest.peerDependencies?.['dsh-evolve']).toBe('0.1.0-alpha.1')
     expect(manifest.files).toContain('cordis.patch.yml')
 
     expect(await readFile(resolve(packageRoot, 'cordis.patch.yml'), 'utf8')).toBe(
       "- insert:\n"
-      + "    - id: evoforge-evolution\n"
-      + "      name: dsh-evolve\n"
-      + "      config:\n"
-      + "        cacheRoot: !!js dshHomePath('evoforge', 'git-skills')\n"
-      + "\n"
       + "    - id: evoforge-evolution-web\n"
       + "      name: dsh-evolve-web\n",
     )

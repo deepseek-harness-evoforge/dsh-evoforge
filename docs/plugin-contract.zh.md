@@ -4,6 +4,10 @@
 
 本规范约束 EvoForge 发布物，不发明第二套插件 API。运行时接口由 Cordis 和 DSH 所有；EvoForge 只规定一个 out-of-tree 插件必须如何选择接缝、保护缓存、验证生命周期并证明用户价值。
 
+所有六个 suite 发布包都必须是官方 Bundle：包导出 `./cordis.patch.yml`，`package.json` 声明 `dsh.bundle.patch`，patch 中只插入该包自己的稳定 Loader row。不得依赖 root workspace manifest、自定义 installer 或源码 import 才能激活。
+
+DSH/Cordis 的直接运行时依赖必须同时出现在 `peerDependencies` 和 `devDependencies`，不得进入 `dependencies` 或 tarball 内的 `node_modules`。目前 registry 未提供全部 rc.5 单包，因此本仓开发类型使用 rc.6；这只是开发依赖事实，固定 rc.5 源码的 clean-profile assembled gate 才是支持证据。
+
 ## 1. 进入条件
 
 每个候选先回答：

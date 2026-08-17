@@ -2,7 +2,7 @@
 
 ## 状态
 
-Accepted，2026-08-16。
+Accepted，2026-08-16；standalone 校准/Shadow 入口于 2026-08-17 被 [ADR-0041](0041-dsh-is-the-only-runtime-and-install-surface.md) 撤销，显式 authoring 与独立裁判边界继续有效。
 
 ## 背景
 
@@ -16,8 +16,9 @@ Session 的模型表面、权限和持久状态，但不能凭这些基础设施
 ## 决策
 
 先提供仓库内显式调用的 `author-dsh-evolution-case` Skill。它要求作者从一个可复现失败、一个
-人工确认修正和一个独立可观察检查出发，并复用既有 Case Pack、`dsh-evolve calibrate` 与 Sealed
-Trial。它规定：
+人工确认修正和一个独立可观察检查出发，并复用既有 Case Pack 与 Sealed Trial。原始版本通过
+standalone calibration CLI 交接；当前 Skill 只交接给已安装 Bundle 的 `/evolve evaluator ...`
+Commands 与 native Jobs。它规定：
 
 - 一次只覆盖一个 failure class；
 - search、known-bad、known-correction 和 final-test 保持分区；
@@ -35,4 +36,3 @@ Skill 的 `allow_implicit_invocation` 为 `false`。它不加入 DSH profile，�
 - 正常 DSH Session 与 `dsh-evolve` runtime 的模型表面和 token 成本不变。
 - 本决策不宣称自动生成 evaluator，也不保证任意主观反馈可重放。无法形成独立 observable 的失败
   必须停在 investigation/review；出现多个真实 evaluator 形态前不抽象公共 SDK。
-

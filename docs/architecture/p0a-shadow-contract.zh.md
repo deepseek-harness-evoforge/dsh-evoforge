@@ -15,22 +15,21 @@ P0A 不提供常驻进程、在线观察、Generation pin、激活、回滚、�
 ## 2. 唯一外部接缝
 
 ```text
-dsh-evolve shadow <skill-dir> --case-pack <case-pack-dir> --output <run-dir>
+Shadow 只能由已加载的 `dsh-evolve` 插件经 DSH Host action/Command/Jobs 接缝提交；本仓测试驱动器不打包，也不是用户命令。
 ```
 
-输入：
+插件内部请求：
 
 - `<skill-dir>`：一个明确 owned、可读取但不可原地修改的 Skill 目录；
-- `--case-pack`：版本化的任务、分区、检查器、预算和校准候选；
-- `--output`：本轮唯一可写目录，保存候选、原始结果和报告。
+- `casePack`：版本化的任务、分区、检查器、预算和校准候选；
+- `outputRoot`：本轮唯一可写目录，保存候选、原始结果和报告。
 
 行为：
 
-- stdout 只输出一行人类摘要和报告路径；诊断写 stderr；
-- `0` 表示评测完整结束，三种建议都属于正常业务结果；
-- `1` 表示调用、配置或兼容性错误，未开始有效 Trial；
-- `2` 表示预算、取消、执行或完整性问题导致评测不完整；若已经产生证据，仍写 `incomplete` 报告，但不得伪装成三种建议；
-- 命令开始和结束时都校验 active Skill 内容哈希；不一致即为完整性失败；
+- DSH Command/Job 只投影有界摘要与报告引用；三种建议都属于正常业务结果；
+- 调用、配置或兼容性错误不产生有效 Trial；
+- 预算、取消、执行或完整性问题产生 `incomplete`；若已经产生证据仍可写报告，但不得伪装成三种建议；
+- operation 开始和结束时都校验 active Skill 内容哈希；不一致即为完整性失败；
 - 除 `run-dir` 和隔离的临时 Trial workspace 外，不允许写入任何路径。
 
 P0A 不发布 `Optimizer`、`Evaluator`、`CandidateStore` 或 `CaseLoader` 接口。它们是同一个用户结果的内部实现；出现第二个真实实现前，不为假想复用增加公共抽象。
@@ -179,16 +178,16 @@ case pack 必须预声明 `candidateLimit`、`trialLimit` 和 token/cost cap；�
 
 ## 8. 拟定红测试
 
-测试只穿过 CLI、退出码、文件系统效果和报告这个公共接缝：
+测试只穿过不打包的 fixture driver、退出码、文件系统效果和报告这个内部接缝；它不构成用户 CLI：
 
-1. 完整 vertical slice：固定的系统边界模型返回已知坏 patch，命令完成、报告为 `reject`，active Skill 哈希不变；
+1. 完整 vertical slice：固定的系统边界模型返回已知坏 patch，driver 完成、报告为 `reject`，active Skill 哈希不变；
 2. 已知修正通过校准、selection 和 sealed final-test，报告给出 `promote` 建议但 active Skill 仍不变；
 3. proposer 与 Trial 都无法读取 selection/final-test/evaluator；
 4. Candidate 修改非 owned path、增加权限或改变非目标 composition 时被拒绝；
 5. cache fixture 的动态 host 状态变化不增加模型调用，composition fingerprint 保持一致；
 6. 预算耗尽、取消、崩溃或 epoch 不兼容返回 `2 + incomplete`，不能留下伪建议；
 7. 同一落盘 Trial evidence 重放得到相同 Decision；
-8. 无论成功、失败或取消，命令都只写 `run-dir`，临时 workspace 可安全回收。
+8. 无论成功、失败或取消，driver 都只写 `run-dir`，临时 workspace 可安全回收。
 
 当前实现先完成 owned-path safety tracer 和静态确定性纵切，再增加一条真实 DSH assembled bridge：固定模型只模拟外部 proposer/LLM 边界；真实文件、macOS Seatbelt、Cordis Loader、Agent Loop、Skill 按需注入、bash Tool、退出码和报告均不 mock。三个公开产品 fixture 分别覆盖 host-only cache、timer/watcher ownership、真实 profile add/dump/boot/remove。Candidate 仍只作为 Skill 数据，不执行任意 Candidate 代码。公开实现证据见 [P0A.4](../evidence/p0a-4-dsh-assembled-shadow.zh.md)、[P0A.5](../evidence/p0a-5-cache-safe-status.zh.md)、[P0A.6](../evidence/p0a-6-dispose-owned-watcher.zh.md)与 [P0A.7](../evidence/p0a-7-profile-install-remove.zh.md)；本地未见首测与限制见 [P0A.8](../evidence/p0a-8-private-heldout.zh.md)。
 
