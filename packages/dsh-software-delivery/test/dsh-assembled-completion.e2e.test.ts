@@ -74,7 +74,10 @@ describe.skipIf(process.platform !== 'darwin')('assembled DSH verified completio
     await ctx.plugin(shellEnv)
     await ctx.plugin(bashLocal.default, { cwd: fixture.worktree, timeoutMs: 10_000 })
     await ctx.plugin(toolBash, { enableRunInBackground: false })
-    const deliveryFiber = await ctx.plugin(DeliveryPlugin)
+    const deliveryFiber = await ctx.plugin(DeliveryPlugin, {
+      requireDraftPrChecks: true,
+      draftPrCheckWait: { timeoutMs: 60_000, pollIntervalMs: 5_000 },
+    })
     await ctx.plugin(agentLoop.default, { agents: [] })
 
     class ScriptedAdapter extends llm.LlmAdapter {

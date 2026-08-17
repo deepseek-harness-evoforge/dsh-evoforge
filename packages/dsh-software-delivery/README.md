@@ -7,7 +7,7 @@ The intended path is:
 ```text
 native DSH Goal → linked worktree → repository change and checks
                 → clean commit → verification report → optional Draft PR
-                → optional exact-head remote-check gate
+                → optional exact-head remote-check gate / bounded wait
 ```
 
 It does not add a second Goal, workflow database, daemon, policy engine, or system-prompt fragment.
@@ -31,9 +31,15 @@ is green, opt in at the host configuration boundary:
   name: dsh-software-delivery
   config:
     requireDraftPrChecks: true
+    draftPrCheckWait:
+      timeoutMs: 1800000
+      pollIntervalMs: 15000
 ```
 
-The default is `false` for compatibility. This setting does not add or change a model Tool.
+`requireDraftPrChecks` is `false` by default. Omit `draftPrCheckWait` to preserve the one-read P2C.2
+behavior. When the wait object is present, its defaults are 30 minutes and 15 seconds; timeout is
+bounded to 10 seconds–2 hours and polling to 1 second–5 minutes. These host settings do not add or
+change a model Tool.
 
 The stable Skill name and description appear in DSH's native catalog. Its body is loaded only when the user invokes it or the Agent calls the existing `skill` Tool.
 
@@ -86,12 +92,19 @@ With `requireDraftPrChecks: true`, the Tool then reads the exact PR's `headRefOi
 `statusCheckRollup` once. At least one check must exist and all checks must be successful, neutral, or
 skipped. Failed checks return `failed`; pending, missing, malformed, unreadable, or wrong-head checks
 return `unknown`. Either result keeps the native Goal active. A later explicit retry repeats local
-verification, reuses the same PR, and reads current remote facts. There is no polling process or CI
-journal.
+verification, reuses the same PR, and reads current remote facts.
+
+When `draftPrCheckWait` is also configured, pending or not-yet-created checks are read again inside
+that same active Tool call until they turn green or the fixed deadline expires. Push and PR lookup are
+not repeated. Failure, wrong head, unreadable evidence, native policy denial, or cancellation stops
+immediately. After a real wait reaches green, local HEAD and clean worktree are checked again before
+Goal completion. Timeout returns the last bounded counts as `unknown/checks-timeout`; a later invocation
+reuses GitHub's branch, Draft PR, and exact-head checks as recovery facts. There is no daemon, watcher,
+CI journal, background polling, or extra model turn while waiting.
 
 This alpha slice targets GitHub.com and same-repository branches. Fork PR routing, GHES, other forges,
 required-only branch-protection interpretation, PR body updates, reviewers, labels, CI-log download,
-and automatic CI waiting are not supported.
+automatic CI repair, and background CI waiting are not supported.
 
 ## Trust and authority
 
@@ -101,7 +114,7 @@ The plugin does not globally intercept native Goal completion: a human or anothe
 
 ## Cache surface
 
-The Skill body remains on demand. In a fully integrated composition, one stable Tool schema covers verification, optional Draft PR, remote-check gating, and completion; it remains tested at no more than 2 KiB serialized JSON. Enabling the gate does not change its name, description, schema, or order across model calls. A successful invocation returns compact commit/check/PR facts and bounded remote-check counts. CI logs and dynamic check names are not copied into the model result. Exact token counts depend on the active tokenizer, so the repository asserts bytes and full-request equality rather than claiming a tokenizer-independent number.
+The Skill body remains on demand. In a fully integrated composition, one stable Tool schema covers verification, optional Draft PR, remote-check gating, bounded waiting, and completion; it remains tested at no more than 2 KiB serialized JSON. Enabling the gate or wait does not change its name, description, schema, Skill text, or order across model calls. Waiting performs zero model requests. A successful invocation returns compact commit/check/PR facts and bounded remote-check counts. CI logs and dynamic check names are not copied into the model result. Exact token counts depend on the active tokenizer, so the repository asserts bytes and full-request equality rather than claiming a tokenizer-independent number.
 
 ## Develop
 

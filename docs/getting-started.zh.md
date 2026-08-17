@@ -106,9 +106,13 @@ dsh plugin --profile web add dsh-doctor
   name: dsh-software-delivery
   config:
     requireDraftPrChecks: true
+    draftPrCheckWait:
+      timeoutMs: 1800000
+      pollIntervalMs: 15000
 ```
 
-默认值为 `false`。开关位于 host plane，不增加或修改模型 Tool。
+`requireDraftPrChecks` 默认值为 `false`。删除 `draftPrCheckWait` 会恢复单次读取；保留该对象时默认
+最多等待 30 分钟、每 15 秒读取一次。两个设置都位于 host plane，不增加或修改模型 Tool。
 
 创建可信本地配置并验证一个已经 commit 的 linked worktree：
 
@@ -151,9 +155,11 @@ dsh-delivery verify \
 
 启用 `requireDraftPrChecks` 后，同一次调用还会核对 Draft PR 的 `headRefOid` 与
 `statusCheckRollup`：exact head 至少有一项且全部绿色才完成 Goal；failed 返回 `failed`，pending、
-缺失、无法读取或 head 漂移返回 `unknown`，Goal 都保持 active。插件不后台等待、不轮询；稍后
-重试会重新验证本地 commit/check、复用同一个 PR 并读取最新远端事实。当前读取全部 rollup checks，
-不是 GitHub required-only 规则，也不下载 CI 日志。
+缺失、无法读取或 head 漂移返回 `unknown`，Goal 都保持 active。配置 `draftPrCheckWait` 后，pending
+或尚未出现的 checks 会在当前 Tool 调用内有界重读；全绿后无需额外模型轮次即可完成 Goal。failed、
+wrong-head、查询不可信或取消立即停止；timeout 返回最后一份计数。没有后台 watcher 或 CI journal，
+稍后重试会重新验证本地 commit/check、复用同一个 PR 并读取最新远端事实。当前读取全部 rollup
+checks，不是 GitHub required-only 规则，也不下载 CI 日志。
 
 如果同一 DSH composition 也加载 `dsh-evolve`，无需再增加 Tool 或配置 Adapter。Evolve 会
 旁路观察最终 `complete_delivery` 结果并关联该 Session 的 Generation；`/evolve status` 增加：

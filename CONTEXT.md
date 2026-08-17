@@ -84,6 +84,10 @@ _Avoid_: Autonomous SDLC platform, coding operating system
 A small, inspectable result used before a Goal is allowed to complete. It reports `passed`, `failed`, or `unknown`, a concise explanation, and optional artifact references. Local checks and an opt-in exact-head remote-check read use the same three-state semantics; pending, missing, unreadable, or wrong-head evidence is `unknown`, never an implicit pass. It does not introduce a universal evidence ontology, watcher, or second state machine.
 _Avoid_: Agent self-certification, evaluator framework
 
+**Bounded Draft Check Wait**:
+An opt-in host policy that keeps one active `complete_delivery` Tool call open for a fixed deadline while it read-only polls the same Draft PR's exact-head check rollup. It performs no model call, repeats no PR creation, stops on failure/head drift/cancellation, and stores no CI state; a later call recovers from GitHub facts.
+_Avoid_: CI daemon, background watcher, unbounded wait, workflow scheduler
+
 **Delivery Outcome**:
 A compact Learning Signal observed from the final `complete_delivery` result and attributed to the Capability Generation pinned to that Session. It may trigger evaluation, but one outcome never proves regression or authorizes rollback.
 _Avoid_: Transcript archive, rollback vote, delivery event platform

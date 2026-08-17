@@ -34,10 +34,11 @@ describe('complete_delivery Tool', () => {
     'reuses the authenticated repository Draft PR without creating another one',
     async () => {
       const worktree = await realpath(process.env.DSH_DELIVERY_LIVE_WORKTREE!)
+      const liveBase = process.env.DSH_DELIVERY_LIVE_BASE ?? 'main'
       const branch = await git(worktree, 'symbolic-ref', '--short', 'HEAD')
       const headCommit = await git(worktree, 'rev-parse', 'HEAD')
       const existing = JSON.parse((await execFile('gh', [
-        'pr', 'list', '--state', 'open', '--head', branch, '--base', 'main',
+        'pr', 'list', '--state', 'open', '--head', branch, '--base', liveBase,
         '--json', 'number,url,isDraft,headRefName,headRefOid,baseRefName',
       ], { cwd: worktree, encoding: 'utf8' })).stdout) as ReturnType<typeof draftPrView>[]
       expect(existing).toHaveLength(1)
@@ -50,11 +51,14 @@ describe('complete_delivery Tool', () => {
         headCommit,
       }
       const args = deliveryArgs(fixture)
-      args.draft_pr = { base_branch: 'main', title: 'unused because the Draft exists', body: '' }
+      args.draft_pr = { base_branch: liveBase, title: 'unused because the Draft exists', body: '' }
       const test = await setup([
         toolCall('delivery-live-github', 'complete_delivery', args),
         textResponse('existing draft reused'),
-      ], undefined, { requireDraftPrChecks: true })
+      ], undefined, {
+        requireDraftPrChecks: true,
+        draftPrCheckWait: { timeoutMs: 5 * 60_000, pollIntervalMs: 15_000 },
+      })
       const goal = test.ctx.goals.create(test.agent, { objective: 'Reuse the existing authenticated Draft PR.' })
       test.adapter.replaceAllArguments({ ...args, goal_id: goal.id, revision: goal.revision })
 
@@ -580,7 +584,10 @@ describe('complete_delivery Tool', () => {
     expect(ctx.tools.schemas().map(tool => tool.name)).not.toContain('complete_delivery')
     expect(ctx.tools.get('update_goal')).toBe(nativeUpdate)
     expect(await ctx.skills.get('software-delivery')).toBeUndefined()
-    const gatedFiber = await ctx.plugin(DeliveryPlugin, { requireDraftPrChecks: true })
+    const gatedFiber = await ctx.plugin(DeliveryPlugin, {
+      requireDraftPrChecks: true,
+      draftPrCheckWait: {},
+    })
     expect(ctx.tools.schemas().find(tool => tool.name === 'complete_delivery')).toEqual(completeSchema)
     await gatedFiber.dispose()
     expect(ctx.tools.schemas().map(tool => tool.name)).not.toContain('complete_delivery')
@@ -648,7 +655,7 @@ class ScriptedAdapter extends LlmAdapter {
 async function setup(
   script: StreamChunk[][],
   interceptBash?: TestBashInterceptor,
-  deliveryConfig: { requireDraftPrChecks?: boolean } = {},
+  deliveryConfig: DeliveryPlugin.Config = {},
 ) {
   const ctx = new Context()
   await ctx.plugin(LlmRuntime)

@@ -32,4 +32,22 @@ describe('dsh-software-delivery Skill plugin', () => {
     await fiber.dispose()
     expect(await ctx.skills.list()).toEqual(before)
   })
+
+  it('rejects misleading or unbounded host wait configuration before registration', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SkillRegistry)
+    expect(() => DeliveryPlugin.apply(ctx, {
+      draftPrCheckWait: {},
+    })).toThrow('requires requireDraftPrChecks')
+    expect(() => DeliveryPlugin.apply(ctx, {
+      requireDraftPrChecks: true,
+      draftPrCheckWait: { timeoutMs: 9_999 },
+    })).toThrow('timeoutMs')
+    expect(() => DeliveryPlugin.apply(ctx, {
+      requireDraftPrChecks: true,
+      draftPrCheckWait: { timeoutMs: 60_000, pollIntervalMs: 60_001 },
+    })).toThrow('pollIntervalMs')
+    expect(await ctx.skills.list()).toEqual([])
+    await ctx.fiber.dispose()
+  })
 })

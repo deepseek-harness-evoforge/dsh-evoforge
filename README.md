@@ -30,7 +30,7 @@
 |---|---|---|
 | [`dsh-evolve`](packages/dsh-evolve) | 离线 `shadow`/零模型 Case Pack 校准；exact Candidate 保留旧能力门、opt-in 自动晋升绑定、单静态 prior Target、明确纠错自动 Shadow、全新失败自动 inactive Evaluator Draft 与 crash-safe 日预算；durable resident recovery；Sealed paired Trial；immutable Generation；Session-scoped Git Skill；含 exact diff/词法影响提示的 host-only review；pause/release；交付 Outcome、私有 Case Draft/Evaluator Draft、人工 Qualify-and-Shadow、evaluator authoring Skill 与反事实 canary | P0A/P0B/P0C + P1.1–P1.17 + P2D.1 implemented；真实 provider/任务安全率与可用性门待验证 |
 | [`dsh-evolve-web`](packages/dsh-evolve-web) | 一条可删除 Bundle 安装 host + Web；无 Session 可达的全局入口；显式 Feedback Shadow/Evaluator Author/Qualified Shadow；可选一次确认 Qualify-and-Shadow；有界 evaluator/review/diff；pause/resume/qualify/reject/promote/rollback | P0C.6 + P1.8–P1.10 + P1.17 implemented；固定 DSH tarball、浏览器 RPC、跨重启 pause/resume 与付费/执行确认已验收，陌生用户数据待补 |
-| [`dsh-software-delivery`](packages/dsh-software-delivery) | 按需原生 Skill；linked worktree/commit/check 验证；原生 Shell policy 下幂等 push/Draft PR；可选 exact-head 远端 checks 门；通过后完成 exact native Goal | P2A.1 + P2B.1 + P2C.1–P2C.2 implemented；Evolve 第二消费者已接通 |
+| [`dsh-software-delivery`](packages/dsh-software-delivery) | 按需原生 Skill；linked worktree/commit/check 验证；原生 Shell policy 下幂等 push/Draft PR；可选 exact-head 远端 checks 门与 active-call 有界等待；通过后完成 exact native Goal | P2A.1 + P2B.1 + P2C.1–P2C.3 implemented；Evolve 第二消费者已接通 |
 | [`dsh-doctor`](packages/dsh-doctor) | 一条可删除 Bundle；把当前原生 Loader 状态归约为三态 Runtime Readiness、具体阻塞插件和下一步动作；只诊断、不修复 | implemented；真实 tarball add/dump-config/boot/remove 已通过，陌生用户诊断成功率待验证 |
 | [`dsh-telegram`](packages/dsh-telegram) | 把一个静态授权的 Telegram 私聊连接到一个稳定 DSH Agent；复用原生 Commands/Approval/Goal/Schedule，以 durable journal 防止不确定发送盲目重试 | AS-1 implemented；真实 Loader/Agent Loop、429、Approval callback、Storage 重启和 tarball add/boot/remove 已通过，真实 Bot soak 与 Hermes paired benchmark 待验证 |
 
@@ -95,7 +95,7 @@ P1.17 在人工已经读完 exact Draft 后提供可选的一次 `qualify-shadow
 
 P2D.1 被动观察 DSH 最终 `tools/result`，把 Software Delivery 的三态结果关联到该 Session 已固定的 Generation。它异步保存最多 1000 条最小信号，`/evolve status` 只在 host plane 显示聚合；不保存 Prompt、仓库路径、PR 正文或 check 输出，不增加任何模型 token。P1.3 同样复用 DSH 原生 Message Feedback：只有带备注的当前负反馈形成可撤回引用，note、note hash、cwd 和消息正文均不复制。P1.4 只有在配置私有 `feedbackDraftRoot` 且用户逐条执行 draft 命令后，才复制一个直接用户文本和 correction，并绑定 exact Generation Skill。P1.5 允许用户把该草稿显式交给一次 Shadow，只引导 proposer；既有校准 Case Pack 仍是独立裁判，草稿字段不被直接复制到 run evidence（proposer 若在 Candidate 中回显，输出仍会持久化）。P1.6 可用独立零模型命令验证 Case Pack 方向；完整 Shadow 也先校准、再请求 Candidate，失准 evaluator 的 proposer token 为 0。P1.2 只把匹配交付失败当作异步 canary 触发器：复用原 Case Pack 和 exact Git parent/Candidate，只有 parent pass / Candidate fail 的可归因反事实成立且 active 未变化才回滚 future Session。它不调用 proposer，模糊结果进入 review。
 
-`dsh-software-delivery` 的 Skill 正文仍按原生路径按需加载；完整 Goal/Shell composition 只增加一个稳定 `complete_delivery` Tool，无 system prompt。其序列化 Schema 被测试限制在 2 KiB 内，同一 Session 的重复请求 Tool surface 完全相等。可选 `requireDraftPrChecks` 只在 host plane 改变调用后的完成门，不改变 Tool Schema；它单次读取 exact PR head 的远端 checks，不轮询、不复制 CI 日志。CLI 在模型上下文外运行；Tool 只在实际调用时返回有界的 commit/check 证据。
+`dsh-software-delivery` 的 Skill 正文仍按原生路径按需加载；完整 Goal/Shell composition 只增加一个稳定 `complete_delivery` Tool，无 system prompt。其序列化 Schema 被测试限制在 2 KiB 内，同一 Session 的重复请求 Tool surface 完全相等。可选 `requireDraftPrChecks` 与 `draftPrCheckWait` 只在 host plane 改变调用后的完成门，不改变 Tool/Skill；前者读取 exact PR head checks，后者可在同一次 active 调用内有界零模型重读，均不复制 CI 日志或建立后台 watcher。CLI 在模型上下文外运行；Tool 只在实际调用时返回有界的 commit/check 证据。
 
 `dsh-telegram` 不建通用 Gateway，只绑定一个 exact private chat/user 与一个带稳定 `sessionId` 的
 既有 Agent。该 Agent 的完成 turn（含 Goal/Schedule continuation）回到 Telegram；原生 Command 不
@@ -140,7 +140,7 @@ pnpm --filter dsh-telegram pack --pack-destination "$PWD/.evoforge/pack"
 - 多个独立真实 case、真实 provider 提案效果、Linux/Windows 隔离与 workspace 磁盘配额；
 - 真实人工 review/evaluator qualification 可用性数据、语义级 capability/权限差异审计和可选分页/图形 diff，以及真实任务上的 false-promotion/false-rollback/review rate；私有与 opt-in 自动生成的 inactive Evaluator Draft 已实现，但仍缺真实 provider 的 qualified rate、semantic rejection rate、成本与后续改善率；
 - 生产多日 soak、真实磁盘耗尽与大规模 run 性能数据（常驻 native Jobs supervisor、自动扫描和关机恢复已实现）；
-- `dsh-software-delivery` 不做全局 Goal 拦截；原生直接 `update_goal` 仍可用。Draft PR 首片只支持 GitHub.com 同仓分支；可选门能读取 exact-head 全量 checks，但尚缺 fork/其他 forge、required-only 规则、CI 日志诊断和自动等待；Evolve canary 尚缺真实开发任务长期数据；消息侧只实现一个 Telegram 私聊，真实 Bot 多日 soak、其他渠道、内容和日程插件尚未实现；
+- `dsh-software-delivery` 不做全局 Goal 拦截；原生直接 `update_goal` 仍可用。Draft PR 首片只支持 GitHub.com 同仓分支；可选门能读取并在一次 active Tool 调用内有界等待 exact-head 全量 checks，但尚缺 fork/其他 forge、required-only 规则与 CI 日志诊断；Evolve canary 尚缺真实开发任务长期数据；消息侧只实现一个 Telegram 私聊，真实 Bot 多日 soak、其他渠道、内容和日程插件尚未实现；
 - TUI 控制面；Web 首版已实现，但尚无陌生用户 approve/promote/rollback 可用性数据、实时推送或分页/图形 diff。
 
 这些能力不会仅凭设计文档被标为完成。每个阶段必须满足[路线图退出条件](docs/roadmap.zh.md)和[Hermes 上位目标记分卡](docs/architecture/hermes-replacement-scorecard.zh.md)。

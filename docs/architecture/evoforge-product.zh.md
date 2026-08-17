@@ -29,7 +29,7 @@ DSH 始终拥有模型执行和基础服务；EvoForge 插件只增加用户结�
 
 ### dsh-software-delivery
 
-独立插件。它把一个原生 Goal 交付为隔离 worktree、仓库检查、可审查 diff、commit 和可选 Draft PR；仓库也可选择 exact-head 远端 checks 全绿后才完成 Goal。即使不启用 Evolve，它仍有完整用户价值；启用后，它提供第一组强 outcome signal。
+独立插件。它把一个原生 Goal 交付为隔离 worktree、仓库检查、可审查 diff、commit 和可选 Draft PR；仓库也可选择 exact-head 远端 checks 全绿后才完成 Goal，并可在一次 active Tool 调用内有界零模型等待。即使不启用 Evolve，它仍有完整用户价值；启用后，它提供第一组强 outcome signal。
 
 ### dsh-telegram
 
@@ -83,7 +83,7 @@ DSH 始终拥有模型执行和基础服务；EvoForge 插件只增加用户结�
 
 | 能力 | EvoForge 目标 | 当前证据 |
 |---|---|---|
-| 软件交付 | 原生 Goal 到 verified commit/Draft PR | verified commit、幂等 Draft PR、可选 exact-head checks 门与原生 Goal 受验证完成 implemented；真实任务数据 pending |
+| 软件交付 | 原生 Goal 到 verified commit/Draft PR | verified commit、幂等 Draft PR、可选 exact-head checks 门、有界 active-call wait 与原生 Goal 受验证完成 implemented；真实任务数据 pending |
 | 单机持续运行 | crash-resume、幂等恢复、无半激活版本 | Generation release + Shadow journal + native Jobs supervisor 已通过 `SIGKILL`、关机取消和重复扫描；生产多日 soak pending |
 | Memory/Skill | 复用 DSH/社区能力，不造第二套 Memory | 架构边界已确认 |
 | 消息与日程 | 按真实 workflow 提供可拆 Adapter | Telegram 单私聊首片 implemented；真实 Bot/Hermes paired 与其他场景 pending |

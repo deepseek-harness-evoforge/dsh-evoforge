@@ -54,3 +54,5 @@ forge、CI 故障诊断和生产长时重试不在本片范围。
 
 设计取舍见 [ADR-0022](../adr/0022-draft-checks-are-an-opt-in-completion-gate.md)。
 
+本页保留 P2C.2 的单次读取边界；后续可选、有界、只属于 active Tool 调用的等待见
+[P2C.3](p2c-3-bounded-draft-check-wait.zh.md)。

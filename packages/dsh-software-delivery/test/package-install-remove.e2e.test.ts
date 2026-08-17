@@ -79,7 +79,14 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-software-delivery pack
     const nativeConfig = join(profileDir, 'native.cordis.yml')
     await writeFile(installedConfig, JSON.stringify([
       { id: 'skill', name: '@deepseek-ai/dsh-skill' },
-      { id: 'dsh-software-delivery', name: 'dsh-software-delivery' },
+      {
+        id: 'dsh-software-delivery',
+        name: 'dsh-software-delivery',
+        config: {
+          requireDraftPrChecks: true,
+          draftPrCheckWait: { timeoutMs: 60_000, pollIntervalMs: 5_000 },
+        },
+      },
     ], null, 2))
     await writeFile(nativeConfig, JSON.stringify([
       { id: 'skill', name: '@deepseek-ai/dsh-skill' },

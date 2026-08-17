@@ -54,4 +54,5 @@ read-back 确认 `isDraft=true`、head `feat/p0a-case-pack`、base `main` 且 he
 
 本页保留 P2C.1 当时的边界。后续 Evolve 第二消费者已在
 [P2D.1](p2d-1-delivery-outcome-signal.zh.md)完成；默认关闭、单次读取的 exact-head checks 门已在
-[P2C.2](p2c-2-exact-draft-check-gate.zh.md)完成。fork/其他 forge 与 CI 自动等待仍未实现。
+[P2C.2](p2c-2-exact-draft-check-gate.zh.md)完成；active-call 有界等待后续由
+[P2C.3](p2c-3-bounded-draft-check-wait.zh.md)实现。fork/其他 forge 与后台 CI watcher 仍未实现。

@@ -1,3 +1,5 @@
+import { performance } from 'node:perf_hooks'
+import { setTimeout as sleep } from 'node:timers/promises'
 import { HarnessError } from '@deepseek-ai/dsh-llm'
 import {
   type DeliveryCheckRunContext,
@@ -72,7 +74,15 @@ export interface PublishDraftPrOptions {
   readonly title: string
   readonly body: string
   readonly requireChecks?: boolean
+  readonly checkWait?: DraftPrCheckWaitPolicy
   readonly signal?: AbortSignal
+}
+
+export interface DraftPrCheckWaitPolicy {
+  readonly timeoutMs: number
+  readonly pollIntervalMs: number
+  readonly now?: () => number
+  readonly sleep?: (delayMs: number, signal?: AbortSignal) => Promise<void>
 }
 
 /**
@@ -83,6 +93,7 @@ export async function publishDraftPr(
   runner: DeliveryCheckRunner,
   options: PublishDraftPrOptions,
 ): Promise<DraftPrResult> {
+  if (options.checkWait !== undefined) validateCheckWait(options.checkWait)
   const steps: DraftPrStepEvidence[] = []
   const context: DeliveryCheckRunContext = {
     worktree: options.worktree,
@@ -196,31 +207,78 @@ export async function publishDraftPr(
     return finish('failed', 'repository-changed')
   }
   if (options.requireChecks === true) {
-    const checked = await run('github-pr-checks', [
-      'gh',
-      'pr',
-      'view',
-      artifact.url,
-      '--json',
-      'headRefOid,statusCheckRollup',
-    ])
-    if (checked.status !== 'passed') return finish('unknown', 'checks-inconclusive', artifact)
-    const remote = parseRemoteChecks(checked.stdout.text, options.commit)
-    if (remote === undefined) return finish('unknown', 'checks-invalid', artifact)
-    if (remote === 'head-not-confirmed') {
-      return finish('unknown', 'checks-head-not-confirmed', artifact)
+    const now = options.checkWait?.now ?? (() => performance.now())
+    const wait = options.checkWait?.sleep ?? abortableSleep
+    const deadline = options.checkWait === undefined
+      ? undefined
+      : now() + options.checkWait.timeoutMs
+    let waited = false
+    while (true) {
+      const checked = await run('github-pr-checks', [
+        'gh',
+        'pr',
+        'view',
+        artifact.url,
+        '--json',
+        'headRefOid,statusCheckRollup',
+      ])
+      if (checked.status !== 'passed') return finish('unknown', 'checks-inconclusive', artifact)
+      const remote = parseRemoteChecks(checked.stdout.text, options.commit)
+      if (remote === undefined) return finish('unknown', 'checks-invalid', artifact)
+      if (remote === 'head-not-confirmed') {
+        return finish('unknown', 'checks-head-not-confirmed', artifact)
+      }
+      if (remote.failed > 0) return finish('failed', 'checks-failed', artifact, remote)
+      if (remote.total > 0 && remote.pending === 0) {
+        if (waited) {
+          const finalHead = await run('post-wait-head', ['git', 'rev-parse', '--verify', 'HEAD^{commit}'])
+          const finalStatus = await run('post-wait-status', [
+            'git', 'status', '--porcelain=v1', '--untracked-files=all',
+          ])
+          if (finalHead.status !== 'passed' || finalStatus.status !== 'passed') {
+            return finish('unknown', 'post-wait-state-inconclusive', artifact, remote)
+          }
+          if (finalHead.stdout.text.trim() !== options.commit || finalStatus.stdout.text !== '') {
+            return finish('failed', 'repository-changed-during-check-wait', artifact, remote)
+          }
+        }
+        return finish(
+          'passed',
+          artifact.reused ? 'existing-draft' : 'created-draft',
+          artifact,
+          remote,
+        )
+      }
+      if (deadline === undefined || options.checkWait === undefined) {
+        return finish(
+          'unknown',
+          remote.total === 0 ? 'checks-missing' : 'checks-pending',
+          artifact,
+          remote,
+        )
+      }
+      const remainingMs = deadline - now()
+      if (remainingMs <= 0) return finish('unknown', 'checks-timeout', artifact, remote)
+      await wait(Math.min(options.checkWait.pollIntervalMs, remainingMs), options.signal)
+      waited = true
+      if (now() >= deadline) return finish('unknown', 'checks-timeout', artifact, remote)
     }
-    if (remote.total === 0) return finish('unknown', 'checks-missing', artifact, remote)
-    if (remote.failed > 0) return finish('failed', 'checks-failed', artifact, remote)
-    if (remote.pending > 0) return finish('unknown', 'checks-pending', artifact, remote)
-    return finish(
-      'passed',
-      artifact.reused ? 'existing-draft' : 'created-draft',
-      artifact,
-      remote,
-    )
   }
   return finish('passed', artifact.reused ? 'existing-draft' : 'created-draft', artifact)
+}
+
+function validateCheckWait(policy: DraftPrCheckWaitPolicy): void {
+  if (!Number.isSafeInteger(policy.timeoutMs) || policy.timeoutMs < 1) {
+    throw new Error('Draft PR check wait timeout must be a positive integer')
+  }
+  if (!Number.isSafeInteger(policy.pollIntervalMs) || policy.pollIntervalMs < 1
+    || policy.pollIntervalMs > policy.timeoutMs) {
+    throw new Error('Draft PR check poll interval must be a positive integer within the wait timeout')
+  }
+}
+
+async function abortableSleep(delayMs: number, signal?: AbortSignal): Promise<void> {
+  await sleep(delayMs, undefined, signal === undefined ? undefined : { signal })
 }
 
 interface GitHubPrView {

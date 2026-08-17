@@ -10,7 +10,12 @@ import {
   type DeliveryCheckRunner,
   type DeliveryReport,
 } from './verify-delivery.js'
-import { publishDraftPr, validateDraftPrInput, type DraftPrResult } from './draft-pr.js'
+import {
+  publishDraftPr,
+  validateDraftPrInput,
+  type DraftPrCheckWaitPolicy,
+  type DraftPrResult,
+} from './draft-pr.js'
 
 const TOOL_OUTPUT_LIMIT_BYTES = 4 * 1024
 const TOOL_CHECK_TIMEOUT_MS = 15 * 60_000
@@ -46,6 +51,7 @@ interface CompleteDeliveryValue {
 
 export interface CompleteDeliveryOptions {
   readonly requireDraftPrChecks?: boolean
+  readonly draftPrCheckWait?: DraftPrCheckWaitPolicy
 }
 
 /** Register the single cache-stable delivery completion action. */
@@ -136,6 +142,9 @@ export function installCompleteDelivery(
           title: args.draft_pr.title,
           body: args.draft_pr.body,
           requireChecks: options.requireDraftPrChecks === true,
+          ...(options.draftPrCheckWait === undefined
+            ? {}
+            : { checkWait: options.draftPrCheckWait }),
           signal: exec.signal,
         })
         if (draftPr.status !== 'passed') {

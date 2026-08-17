@@ -1,5 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { installCompleteDeliveryBinder } from './complete-delivery.js'
+import type { DraftPrCheckWaitPolicy } from './draft-pr.js'
 
 export const name = 'dsh-software-delivery'
 export const inject = ['skills']
@@ -7,9 +8,15 @@ export const inject = ['skills']
 export interface Config {
   /** Keep a Goal active until every check on the exact Draft PR head is green. */
   readonly requireDraftPrChecks?: boolean
+  /** Optionally wait inside the active delivery Tool call instead of requiring another Agent turn. */
+  readonly draftPrCheckWait?: {
+    readonly timeoutMs?: number
+    readonly pollIntervalMs?: number
+  }
 }
 
 export function apply(ctx: Context, config: Config = {}): void {
+  const draftPrCheckWait = resolveDraftPrCheckWait(config)
   ctx.skills.register({
     name: 'software-delivery',
     description: 'Deliver a software change in an isolated Git worktree with repository-defined checks, a commit, and an optional Draft PR.',
@@ -20,7 +27,42 @@ export function apply(ctx: Context, config: Config = {}): void {
   })
   ctx.inject(['goals', 'tools'], deliveryCtx => installCompleteDeliveryBinder(deliveryCtx, {
     requireDraftPrChecks: config.requireDraftPrChecks === true,
+    ...(draftPrCheckWait === undefined ? {} : { draftPrCheckWait }),
   }))
+}
+
+const DEFAULT_CHECK_WAIT_TIMEOUT_MS = 30 * 60_000
+const DEFAULT_CHECK_POLL_INTERVAL_MS = 15_000
+const MIN_CHECK_WAIT_TIMEOUT_MS = 10_000
+const MAX_CHECK_WAIT_TIMEOUT_MS = 2 * 60 * 60_000
+const MIN_CHECK_POLL_INTERVAL_MS = 1_000
+const MAX_CHECK_POLL_INTERVAL_MS = 5 * 60_000
+
+/** Normalize host-only wait policy without changing the Tool or Skill model surface. */
+function resolveDraftPrCheckWait(config: Config): DraftPrCheckWaitPolicy | undefined {
+  if (config.draftPrCheckWait === undefined) return undefined
+  if (config.requireDraftPrChecks !== true) {
+    throw new Error('draftPrCheckWait requires requireDraftPrChecks: true')
+  }
+  const timeoutMs = config.draftPrCheckWait.timeoutMs ?? DEFAULT_CHECK_WAIT_TIMEOUT_MS
+  if (!Number.isSafeInteger(timeoutMs)
+    || timeoutMs < MIN_CHECK_WAIT_TIMEOUT_MS
+    || timeoutMs > MAX_CHECK_WAIT_TIMEOUT_MS) {
+    throw new Error(
+      `draftPrCheckWait.timeoutMs must be an integer between ${MIN_CHECK_WAIT_TIMEOUT_MS} and ${MAX_CHECK_WAIT_TIMEOUT_MS}`,
+    )
+  }
+  const pollIntervalMs = config.draftPrCheckWait.pollIntervalMs
+    ?? Math.min(DEFAULT_CHECK_POLL_INTERVAL_MS, timeoutMs)
+  if (!Number.isSafeInteger(pollIntervalMs)
+    || pollIntervalMs < MIN_CHECK_POLL_INTERVAL_MS
+    || pollIntervalMs > MAX_CHECK_POLL_INTERVAL_MS
+    || pollIntervalMs > timeoutMs) {
+    throw new Error(
+      `draftPrCheckWait.pollIntervalMs must be an integer between ${MIN_CHECK_POLL_INTERVAL_MS} and ${Math.min(MAX_CHECK_POLL_INTERVAL_MS, timeoutMs)}`,
+    )
+  }
+  return Object.freeze({ timeoutMs, pollIntervalMs })
 }
 
 const SOFTWARE_DELIVERY_SKILL = `# Software delivery
