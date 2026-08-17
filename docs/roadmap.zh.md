@@ -1,6 +1,6 @@
 # EvoForge 开发路线图
 
-> 状态：P0A–P1.21 已实现；P2A.1 验证、P2B.1 Goal 完成、P2C.1 Draft PR、P2C.2 exact checks 门、P2C.3 有界等待、P2D.1 Outcome 第二消费者、LC-1 Goal 冷恢复、LC-2 用户级进程常驻、横切 Runtime Readiness 与 P3/AS-1 Telegram 首片已实现
+> 状态：P0A–P1.21 已实现；P2A.1 验证、P2B.1 Goal 完成、P2C.1 Draft PR、P2C.2 exact checks 门、P2C.3 有界等待、P2D.1 Outcome 第二消费者、LC-1 Goal 冷恢复、LC-2 用户级进程常驻、横切 Runtime Readiness、P3/AS-1 Telegram 首片与 P3.1 进化注意力桥已实现
 
 ## 当前状态
 
@@ -17,7 +17,7 @@
 | P1 Bounded Autonomy | P1.1–P1.21 implemented；P2D.1 信号已接通；KV-1 长会话门通过 | 默认关闭的 allowlist + append-only policy、交付 outcome 与父版本观察对照、显式反馈 intake、私有 Case Draft、可信 Case Pack 下静态 Target 的显式或 opt-in 自动 Shadow、全新失败的 opt-in 自动 inactive Evaluator Draft、每 Target crash-safe UTC 日预算、每 Skill 单未决自动门、模糊自动 review 有界处置与窗口可见性、proposer 前零模型校准、人工 evaluator qualification 与可选一次 Qualify-and-Shadow、exact Candidate 历史能力保留门、单静态 prior Target 自动执行、exact parent/Candidate 反事实 canary 与 pointer-safe 自动回滚均已通过测试；64 轮当前 Session 请求与无插件控制组等价；真实 provider、陌生用户与真实任务长期率待验证 |
 | P2 Software Delivery | P2A.1 + P2B.1 + P2C.1–P2C.3 + P2D.1 consumer implemented | linked worktree/commit/check、原生 Bash policy → exact push/Draft PR → 可选 exact-head 远端 checks 门/有界 active-call wait → `update_goal`，并由 Evolve 异步记录最小三态信号；pinned DSH Agent/ToolRuntime/Storage 与 package 已测 |
 | Adoption Runtime Readiness | implemented | `dsh-doctor` 把原生 Loader 快照归约为三态阻塞与下一步；真实 tarball add/dump-config/boot/remove 已测；无轮询、修复或模型表面 |
-| P3 / AS-1 通用助理首片 | implemented | `dsh-telegram` 把一个 exact private chat/user 连接到一个稳定 Agent；真实 Loader/Agent Loop、原生 Commands/Approval、429、Storage 重启和 tarball 边界已测；真实 Bot/Hermes paired 待验证 |
+| P3 / AS-1 通用助理首片 | implemented | `dsh-telegram` 把一个 exact private chat/user 连接到一个稳定 Agent；P3.1 `dsh-evolve-telegram` 在需决策时发送有界提醒；真实 Loader/Agent Loop、Commands/Approval、durable notice、cache parity、Storage 重启和 tarball 边界已测；真实 Bot/Hermes paired 待验证 |
 
 ## P0A — 先证明会判断
 
@@ -357,6 +357,12 @@ Goal transition 不在计划内，除非真实误完成数据证明原子动作�
 直接复用；Storage Domain 先记录外发意图，只有明确 `429` 才有界重试，结果不确定时不自动重发；
 0 Tool/Skill/Prompt，普通 Session token 增量为 0。证据见
 [AS-1](evidence/as-1-telegram-private-chat.zh.md)与 [ADR-0028](adr/0028-telegram-is-one-thin-private-chat-adapter.md)。
+
+P3.1 再增加一个单用途组合包：`dsh-evolve-telegram` 在既有 Evolve supervisor settle 或启动补扫时，
+把待处理 Candidate/Evaluator Draft 发送到该 exact 私聊。它不建 timer、通用通知 SPI 或 inline 审批；
+确定性 notice id 复用 `dsh-telegram` journal，原 Session 不等待，普通 Session token 增量仍为 0。
+证据见 [P3.1](evidence/p3-1-evolve-telegram-attention.zh.md)与
+[ADR-0041](adr/0041-evolve-attention-is-one-telegram-bridge.md)。
 
 P3 当前只到 `implemented`。真实 Bot 多日 soak、陌生安装与 Hermes paired benchmark 通过后才可
 进入 `verified/better`。第二个消息、日程、内容或个人助理 Adapter 仍需独立高频需求和 outcome

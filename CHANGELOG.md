@@ -26,6 +26,7 @@ All notable changes will be recorded here. The project has not published a stabl
 - `dsh-evolve-web`, a removable DSH profile Bundle with a no-Session global sidebar entry, generated Remote transport, bounded review evidence, and durable pause/resume/approve/reject/promote/rollback actions without polling or model-visible context.
 - An explainable `dsh-evolve-web` Candidate detail that keeps the claim, changed files, decision reasons, limitations, cases, token cost, protected-effect hints, and exact diff together, then clears the stale review form after approve or reject.
 - `dsh-resident`, a zero-token operational CLI that renders and explicitly manages one exact DSH profile as a user-level launchd/systemd service, with a real macOS DSH `SIGKILL` restart lifecycle and clean unit removal.
+- `dsh-evolve-telegram`, a zero-token bridge that sends durable, bounded attention for actionable Candidate and Evaluator Draft states through an existing exact Telegram route while the originating Session continues.
 
 ### Security
 

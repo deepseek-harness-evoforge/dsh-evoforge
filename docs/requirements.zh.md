@@ -1,6 +1,6 @@
 # DeepSeek Harness EvoForge 项目需求基线
 
-> 状态：已确认；研究与设计已完成，P0A–P1.21、P2A.1–P2D.1、LC-1 Goal 冷恢复、LC-2 用户级进程常驻与 Runtime Readiness 已实现；真实 provider、陌生用户与长期效果证据待积累
+> 状态：已确认；研究与设计已完成，P0A–P1.21、P2A.1–P2D.1、P3.1 进化注意力、LC-1 Goal 冷恢复、LC-2 用户级进程常驻与 Runtime Readiness 已实现；真实 provider、陌生用户与长期效果证据待积累
 > 更新日期：2026-08-17
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。
 
@@ -272,8 +272,8 @@ workspace，输出可审查的 launchd/systemd unit。OS service manager 与 uni
 6. P0C 提供异步人工晋升；P1 才允许极窄、可证明的纯指令自动晋升；
 7. 用真实结果决定后续软件交付、个人助理、内容、消息和日程插件，不一次性全部实现。
 
-当前进度说明：软件交付、Runtime Readiness 与首个 Telegram 单私聊 Adapter 已分别以独立
-`dsh-*` 包实现；Telegram 仍只到自动化 `implemented`，真实 Bot/Hermes paired 证据完成以前不
+当前进度说明：软件交付、Runtime Readiness、首个 Telegram 单私聊 Adapter 与单用途 Evolve 注意力桥
+已分别以独立 `dsh-*` 包实现；Telegram 仍只到自动化 `implemented`，真实 Bot/Hermes paired 证据完成以前不
 扩张为 Gateway，也不把其他消息、内容或日程需求视为已交付。该说明不改变以上需求顺序和权限边界。
 
 在 P1.1 之后，先实现 `dsh-software-delivery` 的最小 objective outcome：稳定按需 Skill 与

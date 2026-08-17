@@ -18,6 +18,7 @@ import {
 } from './delivery-store.js'
 import { outboundTextForTurn } from './outbound.js'
 import { TelegramApi, type TelegramUpdate } from './telegram-api.js'
+import type { TelegramHostNotice, TelegramHostNoticeReceipt } from './host-route.js'
 
 const EMPTY_POLL_DELAY_MS = 100
 const POLL_FAILURE_DELAY_MS = 1_000
@@ -114,6 +115,23 @@ export class TelegramRuntime {
     }
     await Promise.allSettled([this.pollTask, this.deliveryTail])
     await this.store.close()
+  }
+
+  async notifyHost(notice: TelegramHostNotice): Promise<TelegramHostNoticeReceipt> {
+    if (!/^[a-f0-9]{64}$/u.test(notice.id)) {
+      throw new Error('dsh-telegram: host notice id must be a SHA-256 hex digest')
+    }
+    if (notice.text.length === 0) {
+      throw new Error('dsh-telegram: host notice text must be non-empty')
+    }
+    const prepared = await this.store.prepareNotice({
+      id: notice.id,
+      now: Date.now(),
+      sessionId: this.config.agentId,
+      text: boundText(notice.text, this.config.maxTextChars),
+    })
+    this.enqueue(prepared.record.id)
+    return { created: prepared.created, status: prepared.record.status }
   }
 
   private bind(agent: Agent): void {
@@ -314,7 +332,9 @@ export class TelegramRuntime {
   }
 
   private textFor(record: TelegramDeliveryRecord): string | undefined {
-    if (record.source.kind === 'command') return record.source.text
+    if (record.source.kind === 'command' || record.source.kind === 'notice') {
+      return record.source.text
+    }
     const agent = this.agent
     if (agent === undefined || String(agent.session.id) !== record.sessionId) return undefined
     return outboundTextForTurn(agent.session.events, record.source.turn, this.config.maxTextChars)

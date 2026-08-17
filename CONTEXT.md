@@ -60,6 +60,14 @@ _Avoid_: Plugin opportunity, compatibility feature
 The optional capability that turns repeated real-task outcomes into inactive candidate versions, evaluates them independently, and—only after offline value is proven—promotes or rejects them without blocking the originating session. Candidate search may reuse an external optimizer; EvoForge owns the DSH-native evaluation and release control plane.
 _Avoid_: Self-rewriting agent, autonomous platform
 
+**Evolution Attention**:
+A bounded host-only notice that an actionable Candidate or Evaluator Draft exists, delivered through an already authorized adapter while the originating Session continues. The notice points to the authoritative control command and never grants approval itself.
+_Avoid_: Notification platform, inline approval, dynamic prompt injection, second workflow engine
+
+**Evolve Telegram Bridge**:
+The removable `dsh-evolve-telegram` composition plugin that projects Evolution Attention onto the one exact private-chat route owned by `dsh-telegram`. It creates no timer, route configuration, public provider SPI, or second evolution state.
+_Avoid_: Generic notifier, second Assistant Adapter, Telegram approval bot
+
 **Learning Signal**:
 A compact factual observation linked to an existing DSH session or artifact, such as an explicit correction, verification result, repeated failure class, human rating, or measured cost. A signal may trigger investigation but never proves improvement or authorizes a mutation by itself.
 _Avoid_: Full transcript copy, model reflection

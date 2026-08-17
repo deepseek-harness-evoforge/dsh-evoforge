@@ -12,8 +12,9 @@
 6. [用户核心痛点证据](user-pain-evidence.md)：用真实需求约束路线图，防止把平台工程当成用户价值。
 7. [公开 Agent 自进化项目证据审计](public-self-evolving-agents.zh.md)：横向审计 Hermes Self-Evolution、GEPA、DGM、Voyager、ADAS、AFlow、Agent0 等项目，并校准当前方案的独特价值与缺陷。
 8. [AS-1 首个通用助理工作流选择](assistant-workflow-selection.zh.md)：解释为何先做一个 Telegram 私聊，而不是预建通用 Gateway，并冻结其权限、投递和缓存边界。
-9. [可证明自进化设计](../architecture/evolution-design.zh.md)：查看 Generation 固定、Learning Signal、Candidate、Trial、晋升、回滚与缓存约束。
-10. [P0A Shadow 契约](../architecture/p0a-shadow-contract.zh.md)：查看首个可执行验证的 CLI、报告、case 隔离、evaluator 和红测试接缝。
+9. [下一用户结果研究（2026-08）](next-user-outcome-2026-08.zh.md)：在现有能力和一手用户痛点之间比较下一项最小交付，解释为何先补后台进化注意力。
+10. [可证明自进化设计](../architecture/evolution-design.zh.md)：查看 Generation 固定、Learning Signal、Candidate、Trial、晋升、回滚与缓存约束。
+11. [P0A Shadow 契约](../architecture/p0a-shadow-contract.zh.md)：查看首个可执行验证的 CLI、报告、case 隔离、evaluator 和红测试接缝。
 
 ## 审计基线
 

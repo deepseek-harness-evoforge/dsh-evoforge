@@ -1,0 +1,4 @@
+- insert:
+    - id: evoforge-evolve-telegram
+      name: dsh-evolve-telegram
+      disabled: true

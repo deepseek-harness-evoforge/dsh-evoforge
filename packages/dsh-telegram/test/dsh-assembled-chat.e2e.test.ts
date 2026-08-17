@@ -267,6 +267,27 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Telegram chat', ()
         expect(currentEvents?.some(event => event.type === 'command/run'
           && event.data.name === 'telegram')).toBe(true)
       })
+
+      const route = ctx.get('evoforge.telegramRoute') as {
+        notify(input: { id: string; text: string }): Promise<{ created: boolean; status: string }>
+      } | undefined
+      if (route === undefined) throw new Error('Telegram host route service did not load')
+      const notice = {
+        id: 'f'.repeat(64),
+        text: `EvoForge attention\nInspect: /evolve review ${'a'.repeat(64)}`,
+      }
+      await expect(route.notify(notice)).resolves.toMatchObject({ created: true })
+      await vi.waitFor(() => { expect(sends).toHaveLength(6) })
+      expect(sends[5]).toEqual(expect.objectContaining({
+        chat_id: 1001,
+        text: notice.text,
+      }))
+      await expect(route.notify(notice)).resolves.toMatchObject({
+        created: false,
+        status: 'delivered',
+      })
+      await new Promise(resolve => setTimeout(resolve, 200))
+      expect(sends).toHaveLength(6)
     } finally {
       await ctx.fiber.dispose()
       process.chdir(previousCwd)

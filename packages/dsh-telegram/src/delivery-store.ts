@@ -21,6 +21,11 @@ const sourceSchema = z.discriminatedUnion('kind', [
     updateId: z.number().int().nonnegative(),
     text: z.string().min(1).max(4_096),
   }),
+  z.strictObject({
+    kind: z.literal('notice'),
+    noticeId: z.string().regex(/^[a-f0-9]{64}$/u),
+    text: z.string().min(1).max(4_096),
+  }),
 ])
 
 const deliverySchema = z.strictObject({
@@ -81,9 +86,17 @@ export interface PrepareCommandInput {
   readonly updateId: number
 }
 
+export interface PrepareNoticeInput {
+  readonly id: string
+  readonly now: number
+  readonly sessionId: string
+  readonly text: string
+}
+
 export interface TelegramDeliveryStore {
   prepareTurn(input: PrepareTurnInput): Promise<{ created: boolean; record: TelegramDeliveryRecord }>
   prepareCommand(input: PrepareCommandInput): Promise<{ created: boolean; record: TelegramDeliveryRecord }>
+  prepareNotice(input: PrepareNoticeInput): Promise<{ created: boolean; record: TelegramDeliveryRecord }>
   get(id: string): TelegramDeliveryRecord | undefined
   list(statuses?: readonly DeliveryStatus[]): TelegramDeliveryRecord[]
   markSending(id: string, now: number): Promise<TelegramDeliveryRecord>
@@ -120,6 +133,14 @@ class DomainTelegramDeliveryStore implements TelegramDeliveryStore {
       sessionId: input.sessionId,
       source: { kind: 'command', updateId: input.updateId, text: input.text },
       ...(input.replyToMessageId === undefined ? {} : { replyToMessageId: input.replyToMessageId }),
+    }))
+  }
+
+  prepareNotice(input: PrepareNoticeInput): Promise<{ created: boolean; record: TelegramDeliveryRecord }> {
+    return this.write(() => this.prepare({
+      now: input.now,
+      sessionId: input.sessionId,
+      source: { kind: 'notice', noticeId: input.id, text: input.text },
     }))
   }
 
@@ -307,7 +328,11 @@ async function pruneOldest<K, V>(
 }
 
 function deliveryId(sessionId: string, source: TelegramDeliveryRecord['source']): string {
-  const suffix = source.kind === 'turn' ? `turn:${source.turn}` : `command:${source.updateId}`
+  const suffix = source.kind === 'turn'
+    ? `turn:${source.turn}`
+    : source.kind === 'command'
+      ? `command:${source.updateId}`
+      : `notice:${source.noticeId}`
   return createHash('sha256').update(`${sessionId}\0${suffix}`).digest('hex')
 }
 

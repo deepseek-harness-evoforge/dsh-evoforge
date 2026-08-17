@@ -65,6 +65,10 @@ declare module '@deepseek-ai/cordis' {
   interface Context {
     'evoforge.evolution': EvolutionStore
   }
+  interface Events {
+    /** Host-only wakeup after the existing resident evolution scan has settled. */
+    'evoforge/evolution/settled'(): void
+  }
 }
 
 export const name = 'dsh-evolve'
@@ -435,7 +439,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             runner: createAutomaticRetentionJobRunner(jobCtx.jobs),
             targets: retentionTargets,
           })
-      const afterScan = automaticFeedback === undefined
+      const automaticAfterScan = automaticFeedback === undefined
         && automaticEvaluator === undefined
         && automatic === undefined
         ? undefined
@@ -472,11 +476,18 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
               )
             }
           }
+      const afterScan = async (signal: AbortSignal): Promise<void> => {
+        try {
+          await automaticAfterScan?.(signal)
+        } finally {
+          ctx.emit('evoforge/evolution/settled')
+        }
+      }
       const supervisor = new ShadowSupervisor({
         runRoots: config.supervisor!.runRoots,
         scanIntervalMs: config.supervisor!.scanIntervalMs ?? 30_000,
         paused: resident!.isPaused(),
-        ...(afterScan === undefined ? {} : { afterScan }),
+        afterScan,
         runner: createShadowJobRunner(jobCtx.jobs, runShadow),
         onError: (error, path) => {
           jobCtx.logger.warn(`dsh-evolve supervisor skipped ${path}: ${String(error)}`)
@@ -533,6 +544,7 @@ export type { EvolutionRemoteTypertContract } from './evolution-remote.typert.ts
 export type {
   EvolutionActionReceipt,
   EvolutionArtifactView,
+  EvolutionEvaluatorDraftView,
   EvolutionGenerationView,
   EvolutionInactiveGenerationView,
   EvolutionOverview,

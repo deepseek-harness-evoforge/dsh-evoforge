@@ -12,6 +12,8 @@ stable DeepSeek Harness Agent. It is deliberately not a multi-channel gateway.
 - native slash Commands without a model call;
 - one-shot DSH Approval buttons (`allowed-once` or `rejected` only);
 - a durable Storage Domain delivery journal and `/telegram` status;
+- a suite-internal exact notice route used by `dsh-evolve-telegram` without exposing a generic
+  notification provider;
 - a 10,000-record hard bound for terminal delivery history plus one monotonic command checkpoint;
 - bounded retry only after Telegram explicitly returns `429 + retry_after`.
 
@@ -78,6 +80,11 @@ Native Command admission is at-most-once per Telegram update. A crash after dura
 before command completion can therefore require the user to send the command again as a new
 Telegram message; replaying the same update will never execute it twice. Journal compaction removes
 only the oldest terminal records and never a live delivery.
+
+When the optional `dsh-evolve-telegram` bridge is enabled in the same profile, actionable Evolve
+Candidate and Evaluator Draft states use this package's existing exact chat route and delivery
+journal. The bridge does not read the Bot token, add another route, or turn a notice into Approval.
+See [`dsh-evolve-telegram`](../dsh-evolve-telegram/README.md) for its message and cache contract.
 
 ## Deliberate limits
 

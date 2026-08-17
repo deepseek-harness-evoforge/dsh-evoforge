@@ -55,6 +55,53 @@ describe('Telegram durable delivery store', () => {
     expect(duplicate).toEqual({ created: false, record: first.record })
   })
 
+  it('deduplicates an exact bounded host notice across reload and restart', async () => {
+    const facility = memoryFacility()
+    const first = await openTelegramDeliveryStore(facility)
+    const notice = {
+      id: 'a'.repeat(64),
+      now: 104,
+      sessionId: 'main',
+      text: 'EvoForge attention\nInspect: /evolve review deadbeef',
+    }
+    const prepared = await first.prepareNotice(notice)
+    const duplicate = await first.prepareNotice({ ...notice, now: 105 })
+    expect(prepared.created).toBe(true)
+    expect(prepared.record.source).toEqual({
+      kind: 'notice',
+      noticeId: notice.id,
+      text: notice.text,
+    })
+    expect(duplicate).toEqual({ created: false, record: prepared.record })
+    await first.close()
+
+    const resumed = await openTelegramDeliveryStore(facility)
+    await expect(resumed.prepareNotice({ ...notice, now: 106 }))
+      .resolves.toEqual({ created: false, record: prepared.record })
+  })
+
+  it('recovers a notice interrupted during send as uncertain without making it retryable', async () => {
+    const facility = memoryFacility()
+    const first = await openTelegramDeliveryStore(facility)
+    const prepared = await first.prepareNotice({
+      id: 'b'.repeat(64),
+      now: 110,
+      sessionId: 'main',
+      text: 'EvoForge attention\nInspect: /evolve evaluator deadbeef',
+    })
+    await first.markSending(prepared.record.id, 111)
+    await first.close()
+
+    const resumed = await openTelegramDeliveryStore(facility)
+    await expect(resumed.recoverInflight(112)).resolves.toBe(1)
+    expect(resumed.get(prepared.record.id)).toMatchObject({
+      source: { kind: 'notice', noticeId: 'b'.repeat(64) },
+      status: 'uncertain',
+      attempts: 1,
+      error: expect.stringContaining('automatic retry is disabled'),
+    })
+  })
+
   it('bounds terminal delivery history for long-running use', async () => {
     const store = await openTelegramDeliveryStore(memoryFacility(), { maxRecords: 2 })
 

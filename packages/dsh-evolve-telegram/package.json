@@ -1,0 +1,56 @@
+{
+  "name": "dsh-evolve-telegram",
+  "version": "0.1.0-alpha.1",
+  "description": "Cache-safe Telegram attention for actionable EvoForge reviews",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepseek-harness-evoforge/dsh-evoforge.git",
+    "directory": "packages/dsh-evolve-telegram"
+  },
+  "homepage": "https://github.com/deepseek-harness-evoforge/dsh-evoforge#readme",
+  "bugs": {
+    "url": "https://github.com/deepseek-harness-evoforge/dsh-evoforge/issues"
+  },
+  "keywords": ["deepseek-harness", "dsh", "evolution", "telegram", "attention"],
+  "files": ["dist", "cordis.patch.yml", "README.md"],
+  "scripts": {
+    "build": "tsdown src/index.ts --format esm --clean",
+    "prepack": "pnpm run build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": ">=4.0.0-rc.7 <5",
+    "dsh-evolve": ">=0.1.0-alpha.1 <0.2.0",
+    "dsh-telegram": ">=0.1.0-alpha.1 <0.2.0"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "4.0.1",
+    "@types/node": "^22.20.0",
+    "dsh-evolve": "workspace:*",
+    "dsh-telegram": "workspace:*",
+    "tsdown": "^0.22.2",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

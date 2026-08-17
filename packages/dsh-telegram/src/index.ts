@@ -5,6 +5,7 @@ import { TelegramApi } from './telegram-api.js'
 import { openTelegramDeliveryStore } from './delivery-store.js'
 import { TelegramRuntime } from './runtime.js'
 import { resolveTelegramConfig } from './config.js'
+import type { TelegramHostNotice, TelegramHostRoute } from './host-route.js'
 
 export const name = 'dsh-telegram'
 export const inject = ['agents', 'commands', 'sessions', 'storageDomain']
@@ -52,6 +53,10 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   ctx.effect(() => async () => runtime.dispose(), 'dsh-telegram runtime')
   try {
     await runtime.start()
+    const route: TelegramHostRoute = Object.freeze({
+      notify: (notice: TelegramHostNotice) => runtime.notifyHost(notice),
+    })
+    ctx.provide('evoforge.telegramRoute' as never, route as never)
   } catch (error) {
     await runtime.dispose()
     throw error

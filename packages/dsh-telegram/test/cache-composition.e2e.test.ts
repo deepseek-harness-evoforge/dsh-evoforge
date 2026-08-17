@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const suiteRoot = resolve(packageRoot, '../..')
+const bridgeRoot = resolve(packageRoot, '../dsh-evolve-telegram')
 const dshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR ?? resolve(suiteRoot, '../deepseek-harness')
 const temporaryRoots: string[] = []
 
@@ -20,9 +21,17 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Telegram cache con
   it('keeps the complete model request composition identical when the adapter is enabled', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-telegram-composition-'))
     temporaryRoots.push(root)
-    const server = createServer((_request, response) => {
+    const sentTexts: string[] = []
+    const server = createServer(async (request, response) => {
+      if (request.url?.endsWith('/sendMessage') === true) {
+        const body = JSON.parse(await requestText(request)) as { text?: unknown }
+        if (typeof body.text === 'string') sentTexts.push(body.text)
+      }
       response.setHeader('content-type', 'application/json')
-      response.end(JSON.stringify({ ok: true, result: [] }))
+      response.end(JSON.stringify({
+        ok: true,
+        result: request.url?.endsWith('/sendMessage') ? { message_id: 1 } : [],
+      }))
     })
     await new Promise<void>(accept => server.listen(0, '127.0.0.1', accept))
     const address = server.address()
@@ -34,18 +43,26 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Telegram cache con
     vi.stubEnv('DSH_TELEMETRY_DISABLED', '1')
 
     try {
-      const native = await captureComposition(root, false, address.port)
-      const enabled = await captureComposition(root, true, address.port)
-      expect(enabled).toEqual(native)
-      expect(JSON.stringify(enabled)).not.toContain('telegram')
+      const native = await captureComposition(root, 'native', address.port)
+      const telegram = await captureComposition(root, 'telegram', address.port)
+      const attention = await captureComposition(root, 'attention', address.port)
+      expect(telegram).toEqual(native)
+      expect(attention).toEqual(native)
+      expect(JSON.stringify(attention)).not.toContain('telegram')
+      expect(JSON.stringify(attention)).not.toContain('evolve')
+      expect(sentTexts.filter(text => text.startsWith('EvoForge attention'))).toHaveLength(1)
     } finally {
       await new Promise<void>((accept, reject) => server.close(error => error ? reject(error) : accept()))
     }
   }, 30_000)
 })
 
-async function captureComposition(root: string, telegram: boolean, port: number): Promise<unknown> {
-  const label = telegram ? 'enabled' : 'native'
+async function captureComposition(
+  root: string,
+  mode: 'native' | 'telegram' | 'attention',
+  port: number,
+): Promise<unknown> {
+  const label = mode
   const output = join(root, `${label}-composition.jsonl`)
   const config = join(root, `${label}-cordis.yml`)
   await writeFile(output, '')
@@ -102,7 +119,7 @@ async function captureComposition(root: string, telegram: boolean, port: number)
       id: 'commands',
       name: join(dshSourceDir, 'packages', 'interaction', 'commands', 'lib', 'index.js'),
     },
-    ...telegram ? [{
+    ...mode === 'native' ? [] : [{
       id: 'telegram',
       name: join(packageRoot, 'dist', 'index.mjs'),
       config: {
@@ -113,6 +130,13 @@ async function captureComposition(root: string, telegram: boolean, port: number)
         tokenEnv: 'DSH_TELEGRAM_TEST_TOKEN',
         userId: 2002,
       },
+    }],
+    ...mode === 'attention' ? [{
+      id: 'evolution-source',
+      name: join(bridgeRoot, 'test', 'fixtures', 'evolution-source.ts'),
+    }, {
+      id: 'evolve-telegram',
+      name: join(bridgeRoot, 'dist', 'index.mjs'),
     }] : [],
   ], null, 2))
 
@@ -141,4 +165,10 @@ async function captureComposition(root: string, telegram: boolean, port: number)
     await ctx.fiber.dispose()
     process.chdir(previousCwd)
   }
+}
+
+async function requestText(request: AsyncIterable<unknown>): Promise<string> {
+  const chunks: Buffer[] = []
+  for await (const chunk of request) chunks.push(Buffer.from(chunk as Uint8Array))
+  return Buffer.concat(chunks).toString('utf8')
 }

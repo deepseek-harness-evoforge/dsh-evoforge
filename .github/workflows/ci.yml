@@ -43,6 +43,7 @@ jobs:
           pnpm --filter dsh-software-delivery pack --pack-destination "$RUNNER_TEMP"
           pnpm --filter dsh-doctor pack --pack-destination "$RUNNER_TEMP"
           pnpm --filter dsh-telegram pack --pack-destination "$RUNNER_TEMP"
+          pnpm --filter dsh-evolve-telegram pack --pack-destination "$RUNNER_TEMP"
           pnpm --filter dsh-goal-continuity pack --pack-destination "$RUNNER_TEMP"
           pnpm --filter dsh-resident pack --pack-destination "$RUNNER_TEMP"
 
@@ -73,6 +74,11 @@ jobs:
         run: pnpm --dir .evoforge/deepseek-harness install --frozen-lockfile
       - name: Build pinned DSH host libraries
         run: pnpm --dir .evoforge/deepseek-harness build:lib:host
+      - name: Build EvoForge integration packages
+        run: |
+          pnpm --filter dsh-evolve build
+          pnpm --filter dsh-telegram build
+          pnpm --filter dsh-evolve-telegram build
       - name: Run sealed, assembled, and Local Continuity tests
         env:
           DSH_EVOLVE_DSH_SOURCE_DIR: ${{ github.workspace }}/.evoforge/deepseek-harness
@@ -97,6 +103,7 @@ jobs:
           test/generation-store.e2e.test.ts
           test/generation-binder.e2e.test.ts
           test/generation-crash-recovery.e2e.test.ts
+          test/evolution-settled-event.e2e.test.ts
           test/package-install-remove-generation.e2e.test.ts
       - name: Run delivery, Doctor, and Telegram assembled/package-boundary tests
         env:
@@ -112,6 +119,8 @@ jobs:
             test/cache-composition.e2e.test.ts \
             test/delivery-store-persistence.e2e.test.ts \
             test/dsh-assembled-chat.e2e.test.ts \
+            test/package-install-remove.e2e.test.ts
+          pnpm --filter dsh-evolve-telegram exec vitest run \
             test/package-install-remove.e2e.test.ts
           pnpm --filter dsh-goal-continuity exec vitest run \
             test/cold-resume.e2e.test.ts \
