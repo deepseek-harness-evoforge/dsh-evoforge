@@ -141,14 +141,14 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled GitHub review foll
 
       await vi.waitFor(async () => {
         expect((await readFile(output, 'utf8')).trim()).not.toBe('')
+        const followups = [...(ctx.storageDomain.get('evoforge_github_review')
+          ?.table('followups').entries() ?? [])]
+          .map(([, value]) => value as { status?: unknown; messageId?: unknown })
+        expect(followups).toEqual([expect.objectContaining({
+          status: 'delivered',
+          messageId: expect.stringMatching(/^github-review:/u),
+        })])
       }, { timeout: 10_000, interval: 25 })
-      const followups = [...(ctx.storageDomain.get('evoforge_github_review')
-        ?.table('followups').entries() ?? [])]
-        .map(([, value]) => value as { status?: unknown; messageId?: unknown })
-      expect(followups).toEqual([expect.objectContaining({
-        status: 'delivered',
-        messageId: expect.stringMatching(/^github-review:/u),
-      })])
       const request = JSON.parse((await readFile(output, 'utf8')).trim()) as {
         messages?: Array<{ role?: unknown; content?: unknown }>
       }
