@@ -18,6 +18,7 @@
 | `dsh-goal-continuity` | exact allowlist Session 的原生 Goal cold-resume policy | disabled，需显式配置 |
 | `dsh-resident` | `/resident` 管理 exact DSH profile 的 launchd/systemd user unit | disabled，需显式配置与逐次确认 |
 | `dsh-channel-router` | external endpoint 到原生 Workspace/Session/Agent 的静态、幂等绑定 | disabled，需显式配置 |
+| `dsh-feishu` | 一个飞书 App 的 exact 私聊/群聊经 Router 进入原生 Workspace/Session/Agent | disabled，需显式配置 |
 
 现有进化实现覆盖 P0A–P1.21：sealed paired Trial、inactive Candidate、immutable Generation、Session pin、人工审查、极窄自动晋升、Retention、预算、反馈驱动 Shadow、反事实 canary 和 future-session rollback。它们仍处于 `implemented`，真实 provider、陌生用户、长期误晋升率和生产多日证据尚未完成。
 
@@ -31,7 +32,7 @@ PACK_DIR="$(mktemp -d)"
 for package in \
   dsh-evolve dsh-evolve-web dsh-software-delivery dsh-doctor \
   dsh-github-review dsh-telegram dsh-evolve-telegram dsh-goal-continuity \
-  dsh-resident dsh-channel-router
+  dsh-resident dsh-channel-router dsh-feishu
 do
   pnpm --filter "$package" pack --pack-destination "$PACK_DIR"
 done
@@ -53,7 +54,7 @@ dsh --profile web
 - `/evolve status` 或 DSH Web 侧栏查看和处理进化状态；
 - 在原生 Goal 中按需加载 `software-delivery` Skill，由 `complete_delivery` 通过 DSH Bash/Sandbox/Approval 验证并调用原生 `update_goal`；
 - `/resident plan|status|apply <plan-sha256>|remove <service-id>` 通过 DSH Command 审查和管理 OS user unit；
-- Telegram 经 Channel Router 只使用原生 Workspace、Agent、Session 与 Commands；GitHub review、Goal continuity 和进化注意力也不创建第二套权威。
+- Telegram 与飞书经 Channel Router 只使用原生 Workspace、Agent、Session 与 Commands；GitHub review、Goal continuity 和进化注意力也不创建第二套权威。
 
 没有 `dsh-evolve`、`dsh-delivery` 或 `dsh-resident` 用户产品 CLI。测试驱动器不是打包入口。
 
@@ -63,7 +64,7 @@ dsh --profile web
 dsh plugin --profile web remove \
   dsh-evolve-web dsh-evolve dsh-software-delivery dsh-doctor \
   dsh-github-review dsh-evolve-telegram dsh-telegram dsh-goal-continuity \
-  dsh-resident dsh-channel-router
+  dsh-resident dsh-feishu dsh-channel-router
 dsh --profile web --dump-config
 dsh --profile web
 ```
@@ -72,7 +73,7 @@ dsh --profile web
 
 ## 当前 v0.1 工作
 
-Workspace Channel Router core 与 Telegram 首个 Adapter 迁移已实现：静态 exact endpoint、原生 Workspace/Session/Agent 绑定、持久 ingress 幂等、真实 DSH Agent Loop/Command/Approval/回复链路与 cache parity 已通过。下一交付面是增加飞书作为第二个 Adapter，并使 Evolution 的 Candidate/Generation/预算/审查严格按 Workspace 隔离。完成声明还需要十包 clean-profile tarball 总装、双 Workspace 双渠道链路、完整 composition cache gate、真实浏览器、可用凭据下的飞书/Telegram 冒烟以及 Hermes paired benchmark。
+Workspace Channel Router、Telegram 与飞书第二 Adapter 已实现：静态 exact endpoint、原生 Workspace/Session/Agent、原生 Command/Approval、持久 ingress/outbound、429/uncertain、Goal/Schedule continuation、真实 Host Agent Loop 与独立 tarball lifecycle 已通过。下一交付面是双 Workspace 双渠道组合隔离，以及把 Evolution 的 Candidate/Generation/预算/审查严格绑定 Workspace。完成声明还需要十一包 clean-profile 总装、完整 composition cache gate、真实浏览器、可用凭据下的飞书/Telegram 冒烟以及 Hermes paired benchmark。
 
 - [安装与验收](docs/getting-started.zh.md)
 - [当前状态](docs/status.zh.md)

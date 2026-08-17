@@ -8,7 +8,7 @@ EvoForge 只作为 DSH 原生 Bundle 套件运行。本页区分“开发者生�
 - DeepSeek Harness revision `47f943859bef60e4160492346772ded9b24f765a`（`0.1.0-rc.5`）；
 - 一个 DSH `web` profile。
 
-当前包尚未发布到 registry。先在本仓生成十个 `0.1.0-alpha.1.tgz`；这一步只生成 DSH 安装产物，不启动 EvoForge Runtime：
+当前包尚未发布到 registry。先在本仓生成十一个 `0.1.0-alpha.1.tgz`；这一步只生成 DSH 安装产物，不启动 EvoForge Runtime：
 
 ```sh
 pnpm install --frozen-lockfile
@@ -16,7 +16,7 @@ PACK_DIR="$(mktemp -d)"
 for package in \
   dsh-evolve dsh-evolve-web dsh-software-delivery dsh-doctor \
   dsh-github-review dsh-telegram dsh-evolve-telegram dsh-goal-continuity \
-  dsh-resident dsh-channel-router
+  dsh-resident dsh-channel-router dsh-feishu
 do
   pnpm --filter "$package" pack --pack-destination "$PACK_DIR"
 done
@@ -29,7 +29,7 @@ dsh plugin --profile web add "$PACK_DIR"/*.tgz
 dsh --profile web --dump-config
 ```
 
-有效配置应各出现一次：`dsh-evolve`、`dsh-evolve-web`、`dsh-software-delivery`、`dsh-doctor`、`dsh-github-review`、`dsh-telegram`、`dsh-evolve-telegram`、`dsh-goal-continuity`、`dsh-resident`、`dsh-channel-router`。涉及外部身份、凭据、自动恢复或 OS 部署的 row 应保持 disabled，直到部署者提供完整静态配置。
+有效配置应各出现一次：`dsh-evolve`、`dsh-evolve-web`、`dsh-software-delivery`、`dsh-doctor`、`dsh-github-review`、`dsh-telegram`、`dsh-evolve-telegram`、`dsh-goal-continuity`、`dsh-resident`、`dsh-channel-router`、`dsh-feishu`。涉及外部身份、凭据、自动恢复或 OS 部署的 row 应保持 disabled，直到部署者提供完整静态配置。
 
 启动唯一的 DSH Host：
 
@@ -45,7 +45,7 @@ dsh --profile web
 2. `/evolve status` 与 DSH Web 侧栏读取同一个 Host 权威状态。
 3. 创建原生 DSH Goal，让 Agent 按需加载 `software-delivery` Skill；`complete_delivery` 通过该 Agent 的 DSH Bash、Sandbox、Approval 和原生 `update_goal` 完成交付。
 4. `dsh-github-review` 只把 allowlist 人类对 exact Draft PR head 的修改要求作为有界、不可信 follow-up 送回原 Session。
-5. Telegram 只通过 Channel Router 绑定原生 Workspace/Session/Agent；进化注意力和 Goal cold resume 也不创建第二套会话、目标或调度。
+5. Telegram 与飞书只通过 Channel Router 绑定原生 Workspace/Session/Agent；进化注意力和 Goal cold resume 也不创建第二套会话、目标或调度。
 6. Resident 只通过 `/resident plan|status|apply <plan-sha256>|remove <service-id>` 管理 exact OS user unit；先审查 plan，再逐次确认 hash 或 service id。
 
 部署者配置 exact Shadow/Evaluator Target 后，进化资格验证、Shadow、review、promote 和 rollback 仍通过 `/evolve` Commands 或同一 DSH Web Host 完成。Command 和浏览器不接收任意 host path、模型路由或执行权限。
@@ -90,6 +90,34 @@ Goal cold-resume 示例：
 
 token 由启动 DSH 的环境提供。模型不能读取 token、修改 route、选择 Workspace 或扩大 allowlist。
 
+飞书使用官方 SDK WebSocket 长连接，不创建 EvoForge Webhook server。一个 App 可列出多个 exact route，但所有 route 的 `accountId` 必须等于部署环境中的 App ID：
+
+```yaml
+- id: evoforge-channel-router
+  name: dsh-channel-router
+  disabled: false
+  config:
+    routes:
+      - id: feishu-personal
+        adapter: feishu
+        accountId: cli_xxxxxxxxxxxxx
+        conversationId: oc_xxxxxxxxxxxxx
+        userId: ou_xxxxxxxxxxxxx
+        workspaceId: 22222222-2222-4222-8222-222222222222
+        sessionId: feishu-personal-main
+        agentPreset: standard
+        provider: deepseek-official
+        model: deepseek-v4-flash
+
+- id: evoforge-feishu
+  name: dsh-feishu
+  disabled: false
+  config:
+    routeIds: [feishu-personal]
+    appIdEnv: DSH_FEISHU_APP_ID
+    appSecretEnv: DSH_FEISHU_APP_SECRET
+```
+
 ## 4. 禁用、卸载与回退
 
 禁用单包时，在 profile patch 中覆盖稳定 row 的 `disabled: true`。完全移除：
@@ -98,7 +126,7 @@ token 由启动 DSH 的环境提供。模型不能读取 token、修改 route、
 dsh plugin --profile web remove \
   dsh-evolve-web dsh-evolve dsh-software-delivery dsh-doctor \
   dsh-github-review dsh-evolve-telegram dsh-telegram dsh-goal-continuity \
-  dsh-resident dsh-channel-router
+  dsh-resident dsh-feishu dsh-channel-router
 dsh --profile web --dump-config
 dsh --profile web
 ```
@@ -117,4 +145,4 @@ DSH_EVOLVE_DSH_SOURCE_DIR=/absolute/path/to/deepseek-harness \
 
 clean-profile gate 从 tarball 开始，通过官方 DSH CLI 安装、dump、boot，在真实 Agent preset/Session/Goal 内触发能力，flush 原生持久化，再卸载、重启并读回 Goal。它同时检查 tarball 无用户产品 bin、无 `node_modules`，且 production dependencies 不携带 DSH/Cordis。
 
-Resident 已有原生 Bundle、DSH Command、无 bin tarball 以及 launchd/systemd 协议回归；Channel Router 与 Telegram 已通过原生 Bundle、持久 ingress、真实 DSH Host/Agent Loop、Command、Approval、回复关联、cache parity 和联合 tarball add/boot/remove。十包同一 clean-profile 的总装 gate、飞书、双 Workspace evolution 隔离、真实渠道凭据和 Hermes paired benchmark 仍缺失；这些全部完成前不能发布 v0.1。
+Resident 已有原生 Bundle、DSH Command、无 bin tarball以及 launchd/systemd 协议回归；Channel Router、Telegram 与飞书已通过原生 Bundle、持久 ingress/outbound、真实 DSH Host/Agent Loop、Command、Approval、continuation、429/uncertain 与 tarball lifecycle。十一包同一 clean-profile gate、双 Workspace 双渠道/evolution 隔离、真实渠道凭据和 Hermes paired benchmark 仍缺失；这些全部完成前不能发布 v0.1。

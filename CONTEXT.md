@@ -80,7 +80,7 @@ _Avoid_: Notification platform, inline approval, dynamic prompt injection, secon
 
 **Evolve Telegram Bridge**:
 The removable `dsh-evolve-telegram` composition plugin that projects Evolution Attention onto the one exact private-chat route owned by `dsh-telegram`. It creates no timer, route configuration, public provider SPI, or second evolution state.
-_Avoid_: Generic notifier, second Assistant Adapter, Telegram approval bot
+_Avoid_: Generic notifier, channel routing core, Telegram approval bot
 
 **GitHub Review Follow-up**:
 A bounded, content-addressed follow-up created when an allowlisted reviewer requests changes on the exact Draft PR head produced by a Delivery Outcome. The review is trusted only to trigger attention; its text remains untrusted input and can never authorize a Protected Action.

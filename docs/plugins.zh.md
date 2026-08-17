@@ -14,7 +14,8 @@
 | `dsh-evolve-telegram` | Candidate 或 Evaluator Draft 需要用户处理时，经既有 exact Telegram 私聊发送一次提醒，原会话继续 | P3.1 implemented；supervisor signal、durable 去重、不确定发送、cache parity 与 tarball 生命周期已测；真实 Bot/移动端/多日 soak 待验证 | Evolve control service、Telegram exact host route、Storage delivery journal | 0 Tool/Skill/Prompt/Command；无模型调用、timer 或动态 Session 表面；普通 Session 0 token | `dsh-evoforge` |
 | `dsh-goal-continuity` | 进程重启后，exact 静态授权的持久 Session 可自动继续仍 active 的原生 Goal，不必每次人工 `/goal resume` | LC-1 implemented；真实 JSONL 冷恢复、`SIGKILL`、人工恢复 cache surface 等价与 tarball add/boot/remove 已通过；生产多日 soak 待验证 | Agent Session start、Goal、原生 Goal round driver | 0 Tool/Skill/Prompt/Command；只在 cold-resume 边沿 rearm；不扫描 Session、不新增状态库或预算账本 | `dsh-evoforge` |
 | `dsh-resident` | 通过 DSH `/resident` 把一个 exact profile 配置为 OS user service，退出或崩溃后自动拉起，并能显式查看和删除 | LC-2 implemented；原生 Bundle/Command、无 bin tarball、macOS 真 `launchd` 启动/`SIGKILL`/新 PID/删除、systemd unit 与 manager 协议已测；Linux 真机 crash 和多日 soak 待验证 | Commands；外部复用 `launchd`/`systemd` | 1 human Command；0 Tool/Skill/Prompt/模型调用；无 daemon 或状态库，普通模型请求不变 | `dsh-evoforge` |
-| `dsh-channel-router` | 把一个静态授权的外部 endpoint 精确绑定到原生 Workspace、Session 和 Agent，供多个薄 Adapter 共用 | core implemented；双 Workspace、持久 ingress、Command 一次执行、无 bin tarball 已测；Adapter 迁移和真实渠道待验证 | WorkspaceRegistry、Agent、Session persistence、Agent presets、Commands、Storage Domain | 0 Tool/Skill/Prompt/Command；route 与幂等状态只在 host plane；普通 Session 0 token | `dsh-evoforge` |
+| `dsh-channel-router` | 把一个静态授权的外部 endpoint 精确绑定到原生 Workspace、Session 和 Agent，供多个薄 Adapter 共用 | core implemented；双 Workspace、持久 ingress、Command 一次执行、Telegram 与飞书真实 Host 链路、无 bin tarball 已测；真实凭据待验证 | WorkspaceRegistry、Agent、Session persistence、Agent presets、Commands、Storage Domain | 0 Tool/Skill/Prompt/Command；route 与幂等状态只在 host plane；普通 Session 0 token | `dsh-evoforge` |
+| `dsh-feishu` | 一个飞书 App 的 exact 私聊/群聊通过 Router 持续使用原生 Workspace/Session/Agent，并接收最终回答、Command、一次性 Approval 与主动通知 | implemented；官方 SDK WebSocket、真实 DSH Agent Loop、持久 ingress/outbound、429/uncertain、tarball add/dump/remove 已测；真实 App 冒烟待验证 | Channel Router、Agent、Session、Commands、Approval、Storage Domain、Goal/Schedule continuation | 0 Tool/Skill/Prompt；平台协议、卡片与投递 worker 在 Adapter；普通 Session 0 token | `dsh-evoforge` |
 
 `dsh-evolve` 内部的 Observer、Candidate Lab、Trial Runner、Decision、Release、Monitor 和 Generation Binder 不是独立插件。它们只有组合起来才产生一个用户结果，拆开只会增加配置、版本和缓存理解成本。
 
@@ -25,7 +26,7 @@
 | 候选 | 进入条件 | 为什么现在不建 |
 |---|---|---|
 | `Control Center` | 至少 `Evolve` 与另一个插件需要同一状态投影，并且 CLI/Web 两个 Adapter 已证明公共契约 | P0C 先由 `Evolve` 自己提供 command/view，避免预建 UI 平台 |
-| 下一个 Assistant Adapter | Telegram 以外的一个消息、日程、内容或个人助理工作流同时具备独立高频需求、明确权限边界和可验证 outcome | `dsh-evolve-telegram` 只是既有 Telegram route 的组合插件，不是第二渠道；第二个真实场景未有证据前不提取通用 Gateway |
+| 第三个 Assistant Adapter | 在 Telegram 与飞书之外出现独立高频需求、明确权限边界和可验证 outcome，并能复用现有 Router 而不扩大其接口 | 两个 Adapter 已足够验证最小渠道接缝；不为“主流平台列表”预建空壳 |
 | 独立 Optimizer Adapter | 简单 patch proposer 无法覆盖 P0A，且 GEPA 或其他优化器在相同 evaluator 上产生净收益 | 候选搜索不是产品护城河；首版不发布抽象接口 |
 
 ## 明确不创建
@@ -42,5 +43,5 @@
 
 首个 GitHub 仓库名与当前包名已经冻结为 `dsh-evoforge`、`dsh-evolve`、
 `dsh-evolve-web`、`dsh-software-delivery`、`dsh-github-review`、`dsh-doctor`、`dsh-telegram`、`dsh-evolve-telegram`、
-`dsh-goal-continuity`、`dsh-resident` 和 `dsh-channel-router`。可发布包的本地
+`dsh-goal-continuity`、`dsh-resident`、`dsh-channel-router` 和 `dsh-feishu`。可发布包的本地
 打包安装/卸载边界已验证；npm 尚未发布，发布前仍需版本策略、第三方安装验收与发布授权。

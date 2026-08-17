@@ -286,8 +286,8 @@ workspace，输出可审查的 launchd/systemd unit。OS service manager 与 uni
 6. P0C 提供异步人工晋升；P1 才允许极窄、可证明的纯指令自动晋升；
 7. 用真实结果决定后续软件交付、个人助理、内容、消息和日程插件，不一次性全部实现。
 
-当前进度说明：软件交付、Runtime Readiness、首个 Telegram 单私聊 Adapter 与单用途 Evolve 注意力桥
-已分别以独立 `dsh-*` 包实现；Telegram 仍只到自动化 `implemented`，真实 Bot/Hermes paired 证据完成以前不
+当前进度说明：软件交付、Runtime Readiness、Telegram、飞书第二 Adapter 与单用途 Evolve 注意力桥
+已分别以独立 `dsh-*` 包实现；两个渠道仍只到自动化 `implemented`，真实凭据/Hermes paired 证据完成以前不
 扩张为 Gateway，也不把其他消息、内容或日程需求视为已交付。该说明不改变以上需求顺序和权限边界。
 
 在 P1.1 之后，先实现 `dsh-software-delivery` 的最小 objective outcome：稳定按需 Skill 与

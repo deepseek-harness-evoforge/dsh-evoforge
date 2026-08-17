@@ -1,0 +1,4 @@
+- insert:
+    - id: evoforge-feishu
+      name: dsh-feishu
+      disabled: true

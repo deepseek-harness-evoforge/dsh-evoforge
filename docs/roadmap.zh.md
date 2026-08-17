@@ -8,7 +8,7 @@
 - P2A.1–P2D.1：原生 Skill/Tool 软件交付、Draft PR、exact-head checks、交付 Outcome；
 - P3.1/P3.2：Telegram 进化注意力和 GitHub review follow-up；
 - LC-1/LC-2：Goal cold resume 与用户级 OS service unit；
-- DSH Web review、Runtime Readiness、Workspace Channel Router 和已迁移的单 Telegram 私聊 Adapter。
+- DSH Web review、Runtime Readiness、Workspace Channel Router、已迁移的 Telegram 与飞书 Adapter。
 
 这些条目表示内部实现和自动化证据存在，不等于当前发布形态已经满足 v0.1。
 
@@ -32,6 +32,8 @@
 退出门：两个 Workspace 的输入、输出、Commands、Approval、Goal 和文件权限在重启前后无串线。
 
 ## V2 — 飞书 Adapter
+
+实现状态：Adapter、可靠投递、真实 DSH 单 Workspace 组合与 tarball lifecycle 已完成；双 Workspace 双渠道同 Host 和真实凭据仍未达到退出门。
 
 - 支持静态授权的私聊或群聊文本、原生 Command、一次性 Approval、最终回答、Goal/Schedule 与进化注意力；
 - 凭据、身份与 Workspace route 只能由部署配置决定；
