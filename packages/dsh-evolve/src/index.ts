@@ -14,7 +14,7 @@ import { runShadow } from './shadow.ts'
 import { ReviewInbox } from './review-inbox.ts'
 import { ResidentEvolutionControl } from './resident-evolution-control.ts'
 import { VerifiedEvolutionStore } from './verified-evolution-store.ts'
-import { AutoPromotionPolicy, AutoPromotionService } from './auto-promotion.ts'
+import { AutoPromotionPolicy, AutoPromotionService, type AutoPromotionTarget } from './auto-promotion.ts'
 import {
   installDeliveryOutcomeMonitor,
   openDeliveryOutcomeStore,
@@ -83,7 +83,7 @@ export interface Config {
     scanIntervalMs?: number
   }
   autoPromote?: {
-    skills: string[]
+    targets: AutoPromotionTarget[]
     retentionRoots?: string[]
     retentionTargets?: AutomaticRetentionTargetConfig[]
   }
@@ -109,7 +109,10 @@ export const Config: Schema<Config> = z.object({
     scanIntervalMs: z.number().step(1).min(1_000).default(30_000),
   }),
   autoPromote: z.object({
-    skills: z.array(z.string()).default([]),
+    targets: z.array(z.object({
+      workspaceId: z.string().required(),
+      skill: z.string().required(),
+    })).max(100).default([]),
     retentionRoots: z.array(z.string()).max(20).default([]),
     retentionTargets: z.array(z.object({
       id: z.string().required(),
@@ -159,7 +162,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const feedbackMonitor = installFeedbackSignalMonitor(ctx, feedbackSignals, store)
   let feedbackDraftBuilder: FeedbackCaseDraftBuilder | undefined
   const deliveryMonitors = new Set<DeliveryOutcomeMonitor>()
-  const automaticSkills = config.autoPromote?.skills ?? []
+  const automaticTargets = config.autoPromote?.targets ?? []
   const retentionRoots = config.autoPromote?.retentionRoots ?? []
   const retentionTargets = config.autoPromote?.retentionTargets ?? []
   const shadowTargets = config.shadowTargets ?? []
@@ -202,17 +205,18 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     ? undefined
     : new ResidentEvolutionControl(store)
   if (retentionTargets.length > 0) assertAutomaticRetentionTargets(retentionTargets)
-  if (automaticSkills.length > 0 && review === undefined) {
+  if (automaticTargets.length > 0 && review === undefined) {
     throw new Error('automatic promotion requires configured supervisor.runRoots')
   }
-  if (retentionRoots.length > 0 && automaticSkills.length === 0) {
+  if (retentionRoots.length > 0 && automaticTargets.length === 0) {
     throw new Error('retention evidence roots require a non-empty automatic promotion Skill allowlist')
   }
   if (retentionTargets.length > 0 && retentionRoots.length === 0) {
     throw new Error('automatic Retention targets require configured retention evidence roots')
   }
-  if (retentionTargets.some(target => !automaticSkills.includes(target.skill))) {
-    throw new Error('automatic Retention targets must name an automatic promotion Skill')
+  if (retentionTargets.some(target => !automaticTargets.some(automatic =>
+    automatic.workspaceId === target.workspaceId && automatic.skill === target.skill))) {
+    throw new Error('automatic Retention targets must name an automatic promotion Workspace and Skill')
   }
   if (retentionTargets.some(target =>
     !retentionRoots.some(root => resolve(root) === resolve(target.runRoot)))) {
@@ -247,15 +251,15 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const retentionEvidence = retentionRoots.length === 0
     ? undefined
     : new RetentionEvidenceIndex(retentionRoots)
-  const automaticPreflight = automaticSkills.length === 0
+  const automaticPreflight = automaticTargets.length === 0
     ? undefined
-    : new AutoPromotionPolicy(source, store, automaticSkills)
-  const automaticPolicy = automaticSkills.length === 0
+    : new AutoPromotionPolicy(source, store, automaticTargets)
+  const automaticPolicy = automaticTargets.length === 0
     ? undefined
     : new AutoPromotionPolicy(
         source,
         store,
-        automaticSkills,
+        automaticTargets,
         ...retentionEvidence === undefined ? [] : [retentionEvidence],
       )
   const automatic = automaticPolicy === undefined || review === undefined

@@ -9,7 +9,7 @@ import { GitSkillSource } from '../src/git-skill-source.js'
 import { hashTree } from '../src/hash.js'
 import type { EvolutionStore } from '../src/generation-store.js'
 import type { ReviewCandidate } from '../src/review-inbox.js'
-import { WORKSPACE_ID } from './workspace-fixture.ts'
+import { OTHER_WORKSPACE_ID, WORKSPACE_ID } from './workspace-fixture.ts'
 import type { RetentionEvidenceGate } from '../src/retention-evidence-index.js'
 
 const execFile = promisify(execFileCallback)
@@ -83,7 +83,7 @@ describe('automatic clear-instruction promotion policy', () => {
     const policy = new AutoPromotionPolicy(
       fixture.source,
       fixture.store,
-      ['stable-skill'],
+      [{ workspaceId: WORKSPACE_ID, skill: 'stable-skill' }],
       gate,
     )
 
@@ -98,6 +98,20 @@ describe('automatic clear-instruction promotion policy', () => {
       warnings: [],
     })
     await expect(policy.evaluate(fixture.candidate)).resolves.toMatchObject({ eligible: true })
+  })
+
+  it('authorizes the exact Workspace and Skill pair only', async () => {
+    const fixture = await policyFixture()
+    expect(fixture.policy.skills(WORKSPACE_ID)).toEqual(['stable-skill'])
+    expect(fixture.policy.skills(OTHER_WORKSPACE_ID)).toEqual([])
+
+    await expect(fixture.policy.evaluate({
+      ...fixture.candidate,
+      workspaceId: OTHER_WORKSPACE_ID,
+    })).resolves.toMatchObject({
+      eligible: false,
+      reasons: expect.arrayContaining(['Workspace and Skill are not in the automatic allowlist']),
+    })
   })
 })
 
@@ -157,7 +171,12 @@ async function policyFixture(): Promise<{
     startedAt: '2026-08-16T00:00:00.000Z',
     evidenceHash: '6'.repeat(64),
   }
-  return { candidate, policy: new AutoPromotionPolicy(source, store, ['stable-skill']), source, store }
+  return {
+    candidate,
+    policy: new AutoPromotionPolicy(source, store, [{ workspaceId: WORKSPACE_ID, skill: 'stable-skill' }]),
+    source,
+    store,
+  }
 }
 
 function mutate(candidate: ReviewCandidate, update: (copy: ReviewCandidate) => void): ReviewCandidate {

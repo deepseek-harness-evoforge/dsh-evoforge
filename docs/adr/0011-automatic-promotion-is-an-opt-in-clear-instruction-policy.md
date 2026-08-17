@@ -8,9 +8,9 @@ The product owner permits self-promotion when an improvement is visibly positive
 
 ## Decision
 
-Automatic activation is disabled unless the operator configures an explicit `autoPromote.skills` allowlist. Version `auto-clear-instruction-v1` accepts a Candidate only when all of these deterministic gates pass:
+Automatic activation is disabled unless the operator configures an explicit `autoPromote.targets` Workspace-and-Skill allowlist. Version `auto-clear-instruction-v1` accepts a Candidate only when all of these deterministic gates pass:
 
-- the Skill is explicitly allowlisted and its exact baseline Git tree is still current;
+- the exact Workspace and Skill pair is explicitly allowlisted and its exact baseline Git tree is still current;
 - Shadow recommends `promote`, at least one sealed case is `fail → pass`, every Candidate case/check passes, and at least four Trial executions were recorded;
 - non-target DSH composition is explicitly reported stable by the assembled evaluator;
 - the only change is a non-empty append to the existing `SKILL.md`;

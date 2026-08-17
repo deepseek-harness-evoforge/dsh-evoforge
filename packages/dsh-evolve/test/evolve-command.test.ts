@@ -127,8 +127,8 @@ describe('/evolve host command', () => {
     expect(result.text).toContain(
       'Automatic evolution budget (Evaluator Draft): novel-failure 1/1 attempts used on 2026-08-17 UTC (0 remaining)',
     )
-    expect(automaticFeedback.budgetStatus).toHaveBeenCalledOnce()
-    expect(automaticEvaluator.budgetStatus).toHaveBeenCalledOnce()
+    expect(automaticFeedback.budgetStatus).toHaveBeenCalledWith(WORKSPACE_ID)
+    expect(automaticEvaluator.budgetStatus).toHaveBeenCalledWith(WORKSPACE_ID)
   })
 
   it('lists opaque feedback references and delegates explicit draft creation', async () => {
@@ -435,7 +435,7 @@ describe('/evolve host command', () => {
     } as unknown as CandidatePublisher
     const review = { inbox, publisher }
     const automatic = {
-      skills: vi.fn(() => ['stable-skill']),
+      skills: vi.fn((workspaceId: string) => workspaceId === WORKSPACE_ID ? ['stable-skill'] : []),
       evaluate: vi.fn(async () => ({
         eligible: false,
         policyVersion: 'auto-clear-instruction-v1' as const,
@@ -523,7 +523,7 @@ describe('/evolve host command', () => {
 
   it('shows the explicit automatic Skill allowlist in host-only status', async () => {
     const automatic = {
-      skills: vi.fn(() => ['stable-skill']),
+      skills: vi.fn((workspaceId: string) => workspaceId === WORKSPACE_ID ? ['stable-skill'] : []),
       evaluate: vi.fn(),
     } as unknown as AutoPromotionPolicy
 

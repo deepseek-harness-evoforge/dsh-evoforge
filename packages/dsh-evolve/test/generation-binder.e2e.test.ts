@@ -84,7 +84,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
           }],
           automaticEvaluatorTargets: [{ target: 'novel-evaluator-fix' }],
           autoPromote: {
-            skills: ['stable-evolved-skill'],
+            targets: [{ workspaceId: WORKSPACE_ID, skill: 'stable-evolved-skill' }],
             retentionRoots: [join(runtimeRoot, 'retention-runs')],
             retentionTargets: [{
               workspaceId: WORKSPACE_ID,
@@ -615,7 +615,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
           maxPendingReviewAgeHours: 1,
         }],
         autoPromote: {
-          skills: ['stable-evolved-skill'],
+          targets: [{ workspaceId: WORKSPACE_ID, skill: 'stable-evolved-skill' }],
           retentionRoots: [retentionRoot],
           retentionTargets: [{
             workspaceId: WORKSPACE_ID,
@@ -743,7 +743,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
         path: 'skills/stable-evolved-skill',
       }],
       supervisor: { runRoots: [{ workspaceId: WORKSPACE_ID, path: runRoot }], scanIntervalMs: 1_000 },
-      autoPromote: { skills: ['stable-evolved-skill'] },
+      autoPromote: { targets: [{ workspaceId: WORKSPACE_ID, skill: 'stable-evolved-skill' }] },
     })
     const store = ctx.get('evoforge.evolution') as EvolutionStore | undefined
     const skills = ctx.get('skills') as {
@@ -835,7 +835,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
       }],
       supervisor: { runRoots: [{ workspaceId: WORKSPACE_ID, path: runRoot }], scanIntervalMs: 1_000 },
       autoPromote: {
-        skills: ['stable-evolved-skill'],
+        targets: [{ workspaceId: WORKSPACE_ID, skill: 'stable-evolved-skill' }],
         retentionRoots: [retentionRoot],
       },
     })
@@ -895,7 +895,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
       }],
       supervisor: { runRoots: [{ workspaceId: WORKSPACE_ID, path: runRoot }], scanIntervalMs: 1_000 },
       autoPromote: {
-        skills: ['stable-evolved-skill'],
+        targets: [{ workspaceId: WORKSPACE_ID, skill: 'stable-evolved-skill' }],
         retentionRoots: [retentionRoot],
         retentionTargets: [{
           workspaceId: WORKSPACE_ID,
@@ -953,7 +953,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
       }],
       supervisor: { runRoots: [{ workspaceId: WORKSPACE_ID, path: runRoot }], scanIntervalMs: 1_000 },
       autoPromote: {
-        skills: ['stable-evolved-skill'],
+        targets: [{ workspaceId: WORKSPACE_ID, skill: 'stable-evolved-skill' }],
         retentionRoots: [retentionRoot],
         retentionTargets: [{
           workspaceId: WORKSPACE_ID,

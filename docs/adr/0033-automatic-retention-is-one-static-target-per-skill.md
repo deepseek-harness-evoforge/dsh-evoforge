@@ -15,7 +15,7 @@ Candidate 看起来优秀就推断用户已授权。
 
 ## 决策
 
-允许部署者在 `autoPromote.retentionTargets` 中为一个 allowlisted Skill 配置至多一个
+允许部署者在 `autoPromote.retentionTargets` 中为一个 allowlisted Workspace + Skill 配置至多一个
 `Retention Target`：公开稳定 id、exact Skill、独立 prior Case Pack 路径与 hash、以及既有
 `retentionRoots` 中的一个 owned output root。声明 Target 本身就是该 exact evaluator 的部署策略授权。
 
@@ -31,7 +31,7 @@ output identity 由 exact Candidate、Target id 和 Case Pack hash 导出。Tria
 
 ## 边界与后果
 
-- 一个 Skill 只有一个 Target；多个旧能力先由一个经过资格验证的 Case Pack 表达；
+- 一个 Workspace + Skill 只有一个 Target；多个旧能力先由一个经过资格验证的 Case Pack 表达；
 - 不自动生成、挑选、合并或淘汰 Case Pack，不引入 registry/quorum/DAG/第二个 daemon；
 - Target 只来自 host config；Command、Remote、Web 和模型不能提交 path、hash 或成本参数；
 - normal Session 不新增 Tool、Prompt、Skill、system message 或 token；

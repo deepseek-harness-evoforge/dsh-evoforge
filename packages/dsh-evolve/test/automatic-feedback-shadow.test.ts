@@ -162,6 +162,8 @@ describe('automatic Feedback Shadow', () => {
     expect(make([])).toThrow('automatic Feedback Shadow requires 1-20 exact targets')
     expect(make([{ ...target(), casePackHash: 'mutable' }]))
       .toThrow('automatic Feedback Shadow Case Pack hashes must be exact')
+    expect(make([{ ...target(), workspaceId: 'not-a-workspace' }]))
+      .toThrow('automatic Feedback Shadow target identities must be unique and non-empty')
     expect(make([target(), { ...target(), id: 'duplicate-skill' }]))
       .toThrow('automatic Feedback Shadow permits exactly one target per Workspace and Skill')
     expect(make([{ ...target(), maxAttemptsPerUtcDay: 21 }]))

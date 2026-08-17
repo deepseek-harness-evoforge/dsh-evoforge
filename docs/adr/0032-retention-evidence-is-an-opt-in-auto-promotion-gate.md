@@ -20,7 +20,9 @@ protected-effect 词法提示；它不知道 Candidate 是否删除或冲淡了�
 
 ```yaml
 autoPromote:
-  skills: [build-dsh-plugin]
+  targets:
+    - workspaceId: <workspace-uuid>
+      skill: build-dsh-plugin
   retentionRoots:
     - /absolute/path/to/retention-runs
 ```

@@ -74,13 +74,13 @@ export async function executeEvolutionCommand(
     if (input === '' || input === 'status') {
       const active = store.getActiveGeneration(workspaceId)
       const [automaticFeedbackBudget, automaticEvaluatorBudget] = await Promise.all([
-        automaticFeedback?.budgetStatus(),
-        automaticEvaluator?.budgetStatus(),
+        automaticFeedback?.budgetStatus(workspaceId),
+        automaticEvaluator?.budgetStatus(workspaceId),
       ])
       return renderStatus(
         active,
         resident?.isPaused(workspaceId),
-        automatic?.skills(),
+        automatic?.skills(workspaceId),
         outcomes?.summarize(
           workspaceId,
           active?.id,

@@ -66,7 +66,7 @@ export class EvolutionControlPlane {
         ? undefined
         : this.modules.automaticEvaluator.budgetStatus(workspaceId),
     ])
-    const automaticSkills = this.modules.automatic?.skills() ?? []
+    const automaticSkills = this.modules.automatic?.skills(workspaceId) ?? []
     return {
       schemaVersion: 1,
       ...(active === undefined ? {} : { active: projectGeneration(active) }),

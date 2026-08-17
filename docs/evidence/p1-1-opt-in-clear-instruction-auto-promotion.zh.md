@@ -5,12 +5,13 @@
 
 ## 用户结果
 
-用户可以只对明确列出的受管 Skill 开启最窄自动晋升：
+用户可以只对明确列出的 Workspace + 受管 Skill 开启最窄自动晋升：
 
 ```yaml
 autoPromote:
-  skills:
-    - stable-evolved-skill
+  targets:
+    - workspaceId: <workspace-uuid>
+      skill: stable-evolved-skill
 ```
 
 配置存在时，resident scan 会检查已完成 Shadow evidence。只有固定策略全部通过时，
@@ -22,7 +23,7 @@ Candidate 才会先发布成 inactive Generation，再自动切换 future-sessio
 
 ## `auto-clear-instruction-v1` 固定门
 
-1. Skill 必须在显式 allowlist，exact Git baseline 未漂移；
+1. Workspace + Skill 必须在显式 allowlist，exact Git baseline 未漂移；
 2. Shadow recommendation=`promote`；至少一个 sealed `fail → pass`；Candidate 所有 case/check 通过；Trial≥4；
 3. assembled evaluator 明确给出 non-target composition stable；
 4. 只允许一个 `SKILL.md`，且只能在原正文末尾非空追加；
@@ -34,7 +35,7 @@ Candidate 才会先发布成 inactive Generation，再自动切换 future-sessio
 
 ## 已验证边界
 
-- 默认没有 `autoPromote.skills` 时，所有行为保持 P0C 人工模式；
+- 默认没有 `autoPromote.targets` 时，所有行为保持 P0C 人工模式；授权 A Workspace 不会授权 B；
 - policy 对 append-only clear win 放行，对 rewrite、protected term、composition 不稳定和 ambiguous recommendation 拒绝；
 - durable review actor 与 Generation `policyVersion` 都是 `auto-clear-instruction-v1`；
 - publish 成功、promote 前崩溃时，下次 scan 从 automatic actor + Generation id 完成晋升，不重复发布；成功移动 pointer 后再写 `activatedAt`；

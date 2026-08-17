@@ -11,15 +11,16 @@
 
 ```yaml
 autoPromote:
-  skills:
-    - build-dsh-plugin
+  targets:
+    - workspaceId: <workspace-uuid>
+      skill: build-dsh-plugin
   retentionRoots:
     - /absolute/path/to/.dsh/evoforge/retention-runs
 ```
 
 - roots 是 host-only static absolute paths，必须唯一，最多 20 个；
 - 每个 root 的直接子目录是一次 P1.11 output；不递归猜路径；
-- 省略/空数组代表不启用，保持 P1.1 兼容；
+- 省略/空数组代表不启用；授权只对 exact Workspace + Skill 生效；
 - Web/Remote/Command 只显示状态与原因，不能提交 root/path。
 
 ## Evidence decision

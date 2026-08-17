@@ -12,7 +12,9 @@ P1.12 只增加一个 opt-in host 配置：
 
 ```yaml
 autoPromote:
-  skills: [build-dsh-plugin]
+  targets:
+    - workspaceId: <workspace-uuid>
+      skill: build-dsh-plugin
   retentionRoots:
     - /absolute/path/to/retention-runs
 ```

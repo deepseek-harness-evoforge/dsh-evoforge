@@ -7,6 +7,7 @@ import type { GitSkillSource } from './git-skill-source.ts'
 import { hashTree } from './hash.ts'
 import type { ReviewCandidate, ReviewInbox } from './review-inbox.ts'
 import type { RetentionEvidenceGate } from './retention-evidence-index.ts'
+import { isWorkspaceId } from './workspace-identity.ts'
 
 export const AUTO_PROMOTION_ACTOR = 'auto-clear-instruction-v1' as const
 const MAX_APPEND_BYTES = 2_048
@@ -20,37 +21,55 @@ export interface AutoPromotionPolicyResult {
   reasons: string[]
 }
 
+export interface AutoPromotionTarget {
+  readonly workspaceId: string
+  readonly skill: string
+}
+
 /** A deliberately narrow, deterministic policy for instruction-only clear wins. */
 export class AutoPromotionPolicy {
   private readonly source: GitSkillSource
   private readonly store: EvolutionStore
-  private readonly allowedSkills: ReadonlySet<string>
+  private readonly allowedTargets: ReadonlySet<string>
   private readonly retention: RetentionEvidenceGate | undefined
 
   constructor(
     source: GitSkillSource,
     store: EvolutionStore,
-    allowedSkills: string[],
+    allowedTargets: AutoPromotionTarget[],
     retention?: RetentionEvidenceGate,
   ) {
-    const normalized = allowedSkills.map(name => name.trim()).filter(Boolean)
-    if (normalized.length === 0 || new Set(normalized).size !== normalized.length) {
-      throw new Error('automatic promotion requires a non-empty unique Skill allowlist')
+    const normalized = allowedTargets.map(target => ({
+      workspaceId: target.workspaceId,
+      skill: target.skill.trim(),
+    }))
+    const keys = normalized.map(target => targetKey(target.workspaceId, target.skill))
+    if (normalized.length === 0
+      || normalized.some(target => !isWorkspaceId(target.workspaceId) || target.skill === '')
+      || new Set(keys).size !== keys.length) {
+      throw new Error('automatic promotion requires unique native Workspace and Skill targets')
     }
     this.source = source
     this.store = store
-    this.allowedSkills = new Set(normalized)
+    this.allowedTargets = new Set(keys)
     this.retention = retention
   }
 
-  skills(): string[] {
-    return [...this.allowedSkills].sort()
+  skills(workspaceId: string): string[] {
+    if (!isWorkspaceId(workspaceId)) return []
+    const prefix = `${workspaceId}\0`
+    return [...this.allowedTargets]
+      .filter(key => key.startsWith(prefix))
+      .map(key => key.slice(prefix.length))
+      .sort()
   }
 
   async evaluate(candidate: ReviewCandidate): Promise<AutoPromotionPolicyResult> {
     const reasons: string[] = []
     let retentionPassed = false
-    if (!this.allowedSkills.has(candidate.skillName)) reasons.push('Skill is not in the automatic allowlist')
+    if (!this.allowedTargets.has(targetKey(candidate.workspaceId, candidate.skillName))) {
+      reasons.push('Workspace and Skill are not in the automatic allowlist')
+    }
     if (candidate.recommendation !== 'promote') reasons.push('Shadow recommendation is not promote')
     if (!candidate.compositionStable) reasons.push('non-target composition is not explicitly stable')
     if (candidate.cost.trialCount < 4) reasons.push('fewer than four sealed Trial executions')
@@ -119,6 +138,10 @@ export class AutoPromotionPolicy {
         : 'sealed clear win; append-only instruction change has no protected-effect terms'],
     }
   }
+}
+
+function targetKey(workspaceId: string, skillName: string): string {
+  return `${workspaceId}\0${skillName}`
 }
 
 export interface AutoPromotionServiceOptions {

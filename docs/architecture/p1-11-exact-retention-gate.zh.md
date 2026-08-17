@@ -14,9 +14,13 @@
   name: dsh-evolve
   config:
     autoPromote:
+      targets:
+        - workspaceId: <workspace-uuid>
+          skill: exact-skill-name
       retentionRoots: [/absolute/owned/retention-runs]
       retentionTargets:
         - id: trusted-prior
+          workspaceId: <workspace-uuid>
           skill: exact-skill-name
           casePackDir: /absolute/private/prior-case-pack
           casePackHash: <64-char-hash>

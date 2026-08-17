@@ -4,7 +4,7 @@
 
 ## 唯一用户结果
 
-> 部署者为一个 Skill 显式配置一个 exact prior Case Pack 后，原本满足 clear-win 的 Candidate 会在
+> 部署者为一个 Workspace 内的 Skill 显式配置一个 exact prior Case Pack 后，原本满足 clear-win 的 Candidate 会在
 > 后台自动完成旧能力检查；只有 `retained` 才能继续自动晋升，回归、失败或不确定执行都留在 review，
 > 原始会话永不等待。
 
@@ -12,12 +12,14 @@
 
 ```yaml
 autoPromote:
-  skills:
-    - build-dsh-plugin
+  targets:
+    - workspaceId: <workspace-uuid>
+      skill: build-dsh-plugin
   retentionRoots:
     - /absolute/path/to/.dsh/evoforge/retention-runs
   retentionTargets:
     - id: plugin-delivery-prior-v1
+      workspaceId: <workspace-uuid>
       skill: build-dsh-plugin
       casePackDir: /absolute/path/to/prior-case-pack
       casePackHash: <64-char-sha256>
@@ -27,7 +29,7 @@ autoPromote:
 - Target id 是 1–64 字符的稳定公开 id；路径只来自 host config；
 - `casePackHash` 必须是 exact 64 字符内容 hash；运行时再次验证；
 - `runRoot` 必须 exact 对应一个 `retentionRoots`；
-- 每个 allowlisted Skill 最多一个 Target，总 Target ≤ 20；
+- 每个 allowlisted Workspace + Skill 最多一个 Target，总 Target ≤ 20；
 - 声明 Target 是部署者对该 exact evaluator 自动执行的明确策略授权。若 assembled evaluator 会调用
   模型，这可能为每个 exact Candidate 产生其报告所示费用；默认不配置即不自动执行。
 

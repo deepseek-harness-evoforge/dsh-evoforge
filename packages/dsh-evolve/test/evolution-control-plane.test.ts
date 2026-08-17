@@ -123,7 +123,7 @@ describe('EvolutionControlPlane', () => {
         },
       },
       automatic: {
-        skills: () => ['build-dsh-plugin'],
+        skills: workspaceId => workspaceId === WORKSPACE_ID ? ['build-dsh-plugin'] : [],
         evaluate: vi.fn(async () => ({
           eligible: false,
           policyVersion: 'auto-clear-instruction-v1' as const,

@@ -177,6 +177,8 @@ describe('Automatic Evaluator Draft', () => {
     })
 
     expect(make([])).toThrow('Automatic Evaluator Draft requires 1-20 exact targets')
+    expect(make([{ ...target(), workspaceId: 'not-a-workspace' }]))
+      .toThrow('Automatic Evaluator Draft permits exactly one target per Workspace and Skill')
     expect(make([target(), { ...target(), id: 'other-target', root: '/private/other' }]))
       .toThrow('Automatic Evaluator Draft permits exactly one target per Workspace and Skill')
     expect(make([{ ...target(), root: 'relative' }]))

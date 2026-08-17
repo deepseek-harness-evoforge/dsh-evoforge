@@ -15,6 +15,7 @@ import {
   type AutomaticEvolutionInflightSource,
   type AutomaticEvolutionInflightStatus,
 } from './automatic-evolution-inflight.ts'
+import { isWorkspaceId } from './workspace-identity.ts'
 
 const CONTENT_ID = /^[a-f0-9]{64}$/
 const MAX_TARGETS = 20
@@ -212,7 +213,8 @@ export function assertAutomaticFeedbackShadowTargets(
       || target.maxPendingReviewAgeHours > 2_160)) {
     throw new Error('automatic Feedback Shadow pending review ages must be integer hours between 1 and 2160')
   }
-  if (targets.some(target => target.id.trim() === '' || target.skill.trim() === '')
+  if (targets.some(target => !isWorkspaceId(target.workspaceId)
+      || target.id.trim() === '' || target.skill.trim() === '')
     || new Set(targets.map(target => target.id)).size !== targets.length) {
     throw new Error('automatic Feedback Shadow target identities must be unique and non-empty')
   }

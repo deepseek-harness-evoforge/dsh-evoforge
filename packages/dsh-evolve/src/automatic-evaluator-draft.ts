@@ -12,6 +12,7 @@ import {
   type AutomaticEvolutionInflightSource,
   type AutomaticEvolutionInflightStatus,
 } from './automatic-evolution-inflight.ts'
+import { isWorkspaceId } from './workspace-identity.ts'
 
 const MAX_TARGETS = 20
 
@@ -210,7 +211,8 @@ export function assertAutomaticEvaluatorDraftTargets(
     || target.maxAttemptsPerUtcDay > 20)) {
     throw new Error('Automatic Evaluator Draft daily attempt limits must be integers between 1 and 20')
   }
-  if (targets.some(target => target.id.trim() === '' || target.skill.trim() === '')
+  if (targets.some(target => !isWorkspaceId(target.workspaceId)
+      || target.id.trim() === '' || target.skill.trim() === '')
     || new Set(targets.map(target => target.id)).size !== targets.length
     || new Set(targets.map(target => targetKey(target.workspaceId, target.skill))).size !== targets.length
     || new Set(targets.map(target => resolve(target.root))).size !== targets.length) {

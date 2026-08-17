@@ -107,7 +107,8 @@ export class ReviewInbox {
     this.runRoots = runRoots.map(root => ({ ...root }))
     this.now = options.now ?? Date.now
     for (const policy of options.automaticReviewExpiry ?? []) {
-      if (policy.skillName.trim() === ''
+      if (!isWorkspaceId(policy.workspaceId)
+        || policy.skillName.trim() === ''
         || !Number.isSafeInteger(policy.maxPendingReviewMs)
         || policy.maxPendingReviewMs < 1
         || policy.maxPendingReviewMs > MAX_PENDING_REVIEW_MS

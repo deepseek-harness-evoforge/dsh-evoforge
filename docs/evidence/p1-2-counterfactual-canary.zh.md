@@ -5,7 +5,7 @@
 
 ## 用户结果
 
-显式启用 `autoPromote.skills` 的用户获得一个保守的晋升后安全网：失败交付不会直接回滚，而是异步
+显式启用 `autoPromote.targets` 的用户获得一个 Workspace-scoped 的保守晋升后安全网：失败交付不会直接回滚，而是异步
 复用原 Shadow Case Pack，把当前自动 Candidate 与其不可变 Git 父版本放进同一个校准过的
 Sealed Trial。只有“校准通过、parent 通过、Candidate 失败、active 未变化”才为未来 Session
 回滚；其他结果保持或进入异步 review，原交付会话不等待。
