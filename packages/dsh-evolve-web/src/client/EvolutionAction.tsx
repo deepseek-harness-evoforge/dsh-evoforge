@@ -390,20 +390,40 @@ function BeginnerOverview({ summary, openAdvanced, t }: {
 }) {
   const pending = actionableCount(summary)
   const activeSkills = summary.active?.artifacts.filter(artifact => artifact.kind === 'skill').length ?? 0
+  const corrections = recordedCorrectionCount(summary)
+  const verificationReady = hasVerificationTarget(summary)
+  const headline = pending > 0
+    ? `${pending} ${t('onboarding.actionable')}`
+    : corrections > 0
+      ? t(verificationReady ? 'onboarding.feedbackReady' : 'onboarding.feedbackBlocked')
+      : verificationReady
+        ? t('onboarding.idle')
+        : t('onboarding.verificationMissing')
+  const explanation = pending > 0 || (corrections === 0 && verificationReady)
+    ? t('onboarding.intro')
+    : corrections > 0
+      ? t(verificationReady ? 'onboarding.feedbackReadyHelp' : 'onboarding.feedbackBlockedHelp')
+      : t('onboarding.verificationMissingHelp')
   return <>
     <section className="dsh-evolve-welcome">
       <div className="dsh-evolve-eyebrow">{t('onboarding.eyebrow')}</div>
-      <h3>{pending === 0 ? t('onboarding.idle') : `${pending} ${t('onboarding.actionable')}`}</h3>
-      <p>{t('onboarding.intro')}</p>
+      <h3>{headline}</h3>
+      <p>{explanation}</p>
       {pending > 0 && (
         <button type="button" className="dsh-evolve-button dsh-evolve-primary" onClick={openAdvanced}>
           {t('onboarding.review')}
+        </button>
+      )}
+      {pending === 0 && corrections > 0 && verificationReady && (
+        <button type="button" className="dsh-evolve-button dsh-evolve-primary" onClick={openAdvanced}>
+          {t('onboarding.processFeedback')}
         </button>
       )}
     </section>
     <div className="dsh-evolve-simple-summary">
       <div><strong>{activeSkills}</strong><span>{t('onboarding.activeSkills')}</span></div>
       <div><strong>{pending}</strong><span>{t('onboarding.pending')}</span></div>
+      <div><strong>{corrections}</strong><span>{t('onboarding.recorded')}</span></div>
     </div>
     <section>
       <h3 className="dsh-evolve-section-title">{t('onboarding.how')}</h3>
@@ -415,6 +435,19 @@ function BeginnerOverview({ summary, openAdvanced, t }: {
       <p className="dsh-evolve-guidance">{t('onboarding.hint')}</p>
     </section>
   </>
+}
+
+function recordedCorrectionCount(summary: EvolutionOverview): number {
+  if (summary.feedbackSignals !== undefined) return summary.feedbackSignals.all
+  return new Set([
+    ...(summary.feedbackShadow?.signals ?? []).map(signal => signal.id),
+    ...(summary.evaluatorAuthoring?.signals ?? []).map(signal => signal.id),
+  ]).size
+}
+
+function hasVerificationTarget(summary: EvolutionOverview): boolean {
+  return (summary.feedbackShadow?.available === true && summary.feedbackShadow.targets.length > 0)
+    || (summary.evaluatorAuthoring?.available === true && summary.evaluatorAuthoring.targets.length > 0)
 }
 
 function SkillsView({ summary, t }: { summary: EvolutionOverview; t: (key: string) => string }) {

@@ -42,13 +42,13 @@ dsh --profile web
 在已有 DSH 会话中：
 
 1. `/doctor` 读取原生 Loader entries，返回 readiness，不修复或复制第二份健康状态。
-2. `/evolve status` 与 DSH Web 侧栏读取同一个 Host 权威状态。
+2. `/evolve status` 与 DSH Web 侧栏读取同一个 Host 权威状态；普通用户在回答下点击“有问题的回答”→“补充说明”，写清错误与正确结果后保存，不需要另学反馈命令。
 3. 创建原生 DSH Goal，让 Agent 按需加载 `software-delivery` Skill；`complete_delivery` 通过该 Agent 的 DSH Bash、Sandbox、Approval 和原生 `update_goal` 完成交付。
 4. `dsh-github-review` 只把 allowlist 人类对 exact Draft PR head 的修改要求作为有界、不可信 follow-up 送回原 Session。
 5. Telegram 与飞书只通过 Channel Router 绑定原生 Workspace/Session/Agent；进化注意力和 Goal cold resume 也不创建第二套会话、目标或调度。
 6. Resident 只通过 `/resident plan|status|apply <plan-sha256>|remove <service-id>` 管理 exact OS user unit；先审查 plan，再逐次确认 hash 或 service id。
 
-部署者配置 exact Shadow/Evaluator Target 后，进化资格验证、Shadow、review、promote 和 rollback 仍通过 `/evolve` Commands 或同一 DSH Web Host 完成。Command 和浏览器不接收任意 host path、模型路由或执行权限。
+纠正首先保存在当前 Workspace。若部署者尚未配置 exact Shadow/Evaluator Target，原生 DSH Web 概览会明确显示“验证流程尚未配置”，不会把“已记录反馈”误报为“已经进化”；配置 Target 后，概览才提供处理入口。进化资格验证、Shadow、review、promote 和 rollback 仍通过 `/evolve` Commands 或同一 DSH Web Host 完成。Command 和浏览器不接收任意 host path、模型路由或执行权限。
 
 Telegram 示例：
 

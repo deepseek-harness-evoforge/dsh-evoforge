@@ -247,7 +247,16 @@ const t = (key: string) => ({
   'view.skills': 'Skills',
   'view.advanced': 'Advanced',
   'onboarding.idle': 'Nothing needs your attention',
-  'onboarding.step.correct': 'Correct an answer in the conversation',
+  'onboarding.step.correct': 'Mark the assistant answer as problematic',
+  'onboarding.step.correctHelp': 'Under the answer, select “Bad response”, then “Add a note”; explain what was wrong and the correct result, and save it.',
+  'onboarding.verificationMissing': 'Corrections are available, but verification is not configured',
+  'onboarding.verificationMissingHelp': 'You can still leave a correction under an answer. Until one bounded verification target is configured, EvoForge records feedback without pretending that evolution ran.',
+  'onboarding.feedbackBlocked': 'A correction is recorded, but verification is not configured',
+  'onboarding.feedbackBlockedHelp': 'Your correction remains safely in this Workspace. One bounded verification target must be configured before EvoForge can test a change.',
+  'onboarding.feedbackReady': 'A recorded correction can be processed',
+  'onboarding.feedbackReadyHelp': 'Open the advanced view to choose a configured verification path. Nothing changes in this Session.',
+  'onboarding.processFeedback': 'Process recorded correction',
+  'onboarding.recorded': 'recorded corrections',
   'skills.empty': 'No evolved Skills yet.',
   'skills.active': 'In use',
   'skills.ready': 'Verified, waiting to be enabled',
@@ -339,12 +348,73 @@ describe('EvolutionAction', () => {
     expect((await screen.findByRole('tab', { name: 'Overview' })).getAttribute('aria-selected')).toBe('true')
     expect(screen.getByRole('tab', { name: 'Skills' })).toBeTruthy()
     expect(screen.getByRole('tab', { name: 'Advanced' })).toBeTruthy()
-    expect(screen.getByText('Nothing needs your attention')).toBeTruthy()
-    expect(screen.getByText('Correct an answer in the conversation')).toBeTruthy()
+    expect(screen.getByText('Corrections are available, but verification is not configured')).toBeTruthy()
+    expect(screen.getByText(/without pretending that evolution ran/u)).toBeTruthy()
+    expect(screen.getByText('Mark the assistant answer as problematic')).toBeTruthy()
+    expect(screen.getByText(/select “Bad response”, then “Add a note”/u)).toBeTruthy()
     expect(screen.queryByText(/Generation|Shadow|Evaluator/)).toBeNull()
 
     fireEvent.click(screen.getByRole('tab', { name: 'Skills' }))
     expect(screen.getByText('No evolved Skills yet.')).toBeTruthy()
+  })
+
+  it('does not hide a recorded correction when verification targets are missing', async () => {
+    const api = remote()
+    vi.mocked(api.overview).mockImplementationOnce(() => success({
+      schemaVersion: 1,
+      workspaceId,
+      recovery: { available: true, paused: false },
+      automaticPromotion: { enabled: false, skills: [] },
+      feedbackSignals: { all: 1, selected: 1 },
+      reviews: {
+        available: true,
+        pendingCount: 0,
+        actionableCount: 0,
+        warningCount: 0,
+        items: [],
+        inactiveGenerations: [],
+      },
+    }))
+    renderEvolution(api)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
+
+    expect(await screen.findByText('A correction is recorded, but verification is not configured')).toBeTruthy()
+    expect(screen.getByText(/must be configured before EvoForge can test/u)).toBeTruthy()
+    expect(screen.getByText('recorded corrections').parentElement?.textContent).toBe('1recorded corrections')
+    expect(screen.queryByText('Nothing needs your attention')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Process recorded correction' })).toBeNull()
+  })
+
+  it('routes a recorded correction with configured targets to the existing advanced controls', async () => {
+    const api = remote()
+    const configured = remote()
+    vi.mocked(api.overview).mockImplementationOnce(async (requestedWorkspaceId: string) => {
+      const result = await configured.overview(requestedWorkspaceId)
+      if (!result.ok) return result
+      return success({
+        ...result.value,
+        reviews: {
+          ...result.value.reviews,
+          pendingCount: 0,
+          actionableCount: 0,
+          items: [],
+        },
+        evaluatorAuthoring: {
+          ...result.value.evaluatorAuthoring!,
+          actionableCount: 0,
+          drafts: [],
+        },
+      })
+    })
+    renderEvolution(api)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
+    expect(await screen.findByText('A recorded correction can be processed')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Process recorded correction' }))
+
+    expect(screen.getByRole('tab', { name: 'Advanced' }).getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByRole('button', { name: /^Start Shadow/u })).toBeTruthy()
   })
 
   it('projects active, approved, and reviewing Skill states without another catalog', async () => {

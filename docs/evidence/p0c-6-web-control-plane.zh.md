@@ -1,6 +1,6 @@
 # P0C.6 真实 DSH Web 控制面证据
 
-- 日期：2026-08-17（v0.1 集成复验）
+- 日期：2026-08-18（v0.1 集成复验）
 - DSH revision：`47f943859bef60e4160492346772ded9b24f765a`
 - 状态：verified，真实本地 DSH/Web/浏览器验收通过；尚无陌生用户可用性数据
 
@@ -36,8 +36,10 @@ Workspace id 装配 supervisor，会禁用普通 `dsh-evolve` Loader row；Typer
 Gateway 随即恢复，产品 Bundle 和运行时均未增加第二条注册路径。
 
 1. 启动固定 revision 的真实 DSH Web Host，页面显示 `EvoForge Browser Acceptance` 原生 Workspace；
-2. 打开由已安装 `dsh-evolve-web` Client Module 注册的侧栏入口，默认“概览”只显示当前无待办、
-   纠正回答 → 后台验证 → 人工决定未来 Session 是否使用的三步说明，以及“无需额外命令/版本 ID”；
+2. 打开由已安装 `dsh-evolve-web` Client Module 注册的侧栏入口；概览指向原生回答反馈入口
+   “有问题的回答”→“补充说明”，并将已记录纠正单独计数。当前 fixture 没有 Shadow/Evaluator Target，
+   因而首屏明确显示“纠正入口可用，验证流程尚未配置”，只承诺保存反馈，不把缺失流程误报成
+   “无待办”或“已经进化”；组件回归另覆盖“已记录但无 Target”和“已记录且有 Target”两条分支；
 3. 切换独立 `Skills` 视图，空 Workspace 明确显示尚无进化 Skill，并声明原生 DSH Skill 目录仍归
    DSH 管理；单元验收另覆盖使用中、已验证待启用、等待审核三类 host projection；
 4. 切换“高级”后读取 `原生 DSH / 运行中 / 0 待审查 / 自动晋升关闭`，原控制能力完整保留；
@@ -46,7 +48,8 @@ Gateway 随即恢复，产品 Bundle 和运行时均未增加第二条注册路�
 7. 点击恢复和刷新，权威状态回到“运行中”；
 8. 停止 Host 后点击刷新，面板原位保留最后状态并显示可见 alert：
    `演化动作失败：... Failed to fetch`，没有假成功；
-9. 重启 Host 后再次刷新，错误消失并恢复“运行中”；此次零基础/Skills/高级视图复验的浏览器
+9. 重启 Host 后再次刷新，错误消失并恢复“运行中”；2026-08-18 又从重新构建的两个最终 tarball
+   安装到全新 profile，复验上述纠正入口、Target readiness、三列摘要、Skills 与高级视图，浏览器
    console error 为 `0`。
 
 验收没有发送用户消息、没有调用模型、没有读取 API key，也没有触碰真实用户 profile。最终状态恢复为运行中。
@@ -62,5 +65,6 @@ Web Adapter 不注册 Tool、Prompt、Skill、System Message 或 Session Event�
 ## 未证明
 
 本证据证明本机固定版本 DSH 的安装、启动、Client Module、RPC、持久 pause/resume 和浏览器交互；
-零基础首屏是确定性验收，不等同于真实陌生用户研究。它仍不证明陌生用户能无指导完成
+零基础首屏是确定性验收，不等同于真实陌生用户研究。默认安装仍需部署者提供一个有界验证 Target，
+目前只是把该前置条件如实暴露给普通用户；它仍不证明陌生用户能无指导完成 Target 配置、
 approve/promote/rollback，也不证明生产多日稳定性、真实任务误晋升率或优于 Hermes。

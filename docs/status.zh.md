@@ -13,7 +13,7 @@
 
 ## 当前总判断
 
-EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。最新能力与 ADR-0041 原生插件修正已经进入同一集成分支；十一个用户包都已收敛为无产品 bin 的 DSH Bundle，并通过同一次 clean-profile add/dump/boot/remove/readback。Workspace Channel Router、Telegram 与飞书第二 Adapter 已通过同 Host 双 Workspace 重启隔离；Workspace-owned Evolution 及其 Telegram/飞书 attention 已通过真实双 Workspace Host 路径；[完整 Cache Contract 门](evidence/kv-2-suite-composition-gate.zh.md)和包含零基础概览、Skills 与高级控制的 [v0.1 真实浏览器复验](evidence/p0c-6-web-control-plane.zh.md)也已通过。真实飞书 App 的身份请求、WebSocket 握手和 setup-only pairing transport 已在宿主标准代理环境中通过；`dsh-feishu` 同包 Client Module 也已由最终 tarball 安装进全新 profile，并在原生 DSH Web 完成生成、复制、取消与零 console error 的真实浏览器验收。逐条退出门见 [v0.1 完成条件审计](evidence/v0.1-completion-audit.zh.md)，当前仍需用户发送一次有界配对短语才能完成 exact 飞书消息闭环，另缺真实模型 paired 证据与长期数据。
+EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。最新能力与 ADR-0041 原生插件修正已经进入同一集成分支；十一个用户包都已收敛为无产品 bin 的 DSH Bundle，并通过同一次 clean-profile add/dump/boot/remove/readback。Workspace Channel Router、Telegram 与飞书第二 Adapter 已通过同 Host 双 Workspace 重启隔离；Workspace-owned Evolution 及其 Telegram/飞书 attention 已通过真实双 Workspace Host 路径；[完整 Cache Contract 门](evidence/kv-2-suite-composition-gate.zh.md)和包含零基础概览、Skills 与高级控制的 [v0.1 真实浏览器复验](evidence/p0c-6-web-control-plane.zh.md)也已通过。最新复验又锁定原生“有问题的回答”→“补充说明”才是反馈入口，并在概览分开显示已记录纠正与验证 Target readiness，避免把缺少配置误报成空闲或成功。真实飞书 App 的身份请求、WebSocket 握手和 setup-only pairing transport 已在宿主标准代理环境中通过；`dsh-feishu` 同包 Client Module 也已由最终 tarball 安装进全新 profile，并在原生 DSH Web 完成生成、复制、取消与零 console error 的真实浏览器验收。逐条退出门见 [v0.1 完成条件审计](evidence/v0.1-completion-audit.zh.md)，当前仍需用户发送一次有界配对短语才能完成 exact 飞书消息闭环，另缺真实模型 paired 证据与长期数据。
 
 | 能力 | 当前状态 | 已有证据 | 仍缺 |
 |---|---|---|---|

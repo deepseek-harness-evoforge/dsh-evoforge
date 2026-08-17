@@ -19,7 +19,7 @@ export const cssText = `
 .dsh-evolve-welcome h3,.dsh-evolve-skill-intro h3{margin:3px 0 6px;font-size:15px;line-height:22px}
 .dsh-evolve-welcome p,.dsh-evolve-skill-intro p,.dsh-evolve-skill-card p{margin:0 0 10px;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px}
 .dsh-evolve-eyebrow{color:var(--dsw-alias-label-tertiary);font-size:10px;text-transform:uppercase;letter-spacing:.05em}
-.dsh-evolve-simple-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.dsh-evolve-simple-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
 .dsh-evolve-simple-summary div{display:flex;align-items:baseline;gap:6px;padding:10px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px}
 .dsh-evolve-simple-summary strong{font-size:18px}
 .dsh-evolve-simple-summary span{color:var(--dsw-alias-label-secondary);font-size:11px}
