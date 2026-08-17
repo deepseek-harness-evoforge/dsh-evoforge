@@ -68,6 +68,10 @@ _Avoid_: Notification platform, inline approval, dynamic prompt injection, secon
 The removable `dsh-evolve-telegram` composition plugin that projects Evolution Attention onto the one exact private-chat route owned by `dsh-telegram`. It creates no timer, route configuration, public provider SPI, or second evolution state.
 _Avoid_: Generic notifier, second Assistant Adapter, Telegram approval bot
 
+**GitHub Review Follow-up**:
+A bounded, content-addressed follow-up created when an allowlisted reviewer requests changes on the exact Draft PR head produced by a Delivery Outcome. The review is trusted only to trigger attention; its text remains untrusted input and can never authorize a Protected Action.
+_Avoid_: Autonomous merge, trusted review instruction, webhook workflow, code-review platform
+
 **Learning Signal**:
 A compact factual observation linked to an existing DSH session or artifact, such as an explicit correction, verification result, repeated failure class, human rating, or measured cost. A signal may trigger investigation but never proves improvement or authorizes a mutation by itself.
 _Avoid_: Full transcript copy, model reflection

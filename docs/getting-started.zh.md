@@ -41,6 +41,14 @@ packages/dsh-telegram/
   src/          单 Telegram 私聊 Adapter 与幂等投递 journal
   test/         真实 Agent/Commands/Approval、429、Storage 与 package 测试
   README.md     route、秘密、外部效果与限制
+packages/dsh-evolve-telegram/
+  src/          Evolve actionable state 到既有 Telegram route 的注意力桥
+  test/         状态投影、真实 DSH signal、durable delivery 与 cache parity 测试
+  README.md     触发、隐私、权限和非目标
+packages/dsh-github-review/
+  src/          当前 Draft PR watch、GitHub 只读 adapter 与原 Session follow-up
+  test/         exact-head 筛选、崩溃恢复、真实 DSH、cache parity 与 package 测试
+  README.md     安装、秘密、不可信输入、耐久性和缓存边界
 packages/dsh-goal-continuity/
   src/          exact Session 原生 Goal 冷恢复策略
   test/         JSONL 恢复、SIGKILL、cache surface 与 package 测试
@@ -75,6 +83,13 @@ pnpm --filter dsh-doctor build
 pnpm --filter dsh-doctor pack --pack-destination "$PWD/.evoforge/pack"
 
 pnpm --filter dsh-telegram test
+pnpm --filter dsh-evolve-telegram test
+
+pnpm --filter dsh-github-review typecheck
+pnpm --filter dsh-github-review test
+pnpm --filter dsh-github-review build
+pnpm --filter dsh-github-review pack --pack-destination "$PWD/.evoforge/pack"
+
 pnpm --filter dsh-goal-continuity test
 
 pnpm --filter dsh-resident typecheck
@@ -191,6 +206,35 @@ Active selection outcomes (<generation-id-or-native>): 2 total (2 passed, 0 fail
 
 计数最多来自最近 1000 条幂等记录，不包含 Prompt、仓库路径、PR 正文或 check 输出。记录失败
 不会延迟或改变原 Tool；单次失败也不会触发自动回滚。
+
+### P3.2 GitHub Review Follow-up 装配
+
+`dsh-github-review` 依赖配置 Agent、Storage Domain 和 `dsh-software-delivery` 的 canonical
+`complete_delivery` 结果。Bundle 安装后默认 disabled：
+
+```bash
+dsh plugin --profile web add dsh-github-review
+```
+
+显式配置一个 Agent、一个仓库和静态 human reviewer allowlist 后启用：
+
+```yaml
+- id: evoforge-github-review
+  disabled: false
+  config:
+    agentId: main
+    owner: your-org
+    repo: your-repo
+    trustedReviewers:
+      - maintainer-login
+```
+
+公开仓库不读取 secret。私有仓库才配置 `tokenEnv`，这表示部署者明确允许插件读取该环境变量；token
+应只有 Pull requests read 权限。插件仅 GET 当前 Agent + repository 最近一次 passed Draft PR 的 exact
+head；allowlist human 的 `CHANGES_REQUESTED` 才以不可信数据进入原 Session。它不 merge、转 ready、
+评论、发布或部署。默认每 300 秒轮询，请求 20 秒超时；0 actionable review 时不调用模型、不增加
+Session token。详情见 [`dsh-github-review` README](../packages/dsh-github-review/README.md)和
+[P3.2 证据](evidence/p3-2-github-review-followup.zh.md)。
 
 如果 composition 同时加载 DSH 原生 `@deepseek-ai/dsh-message-feedback`，无需增加新的学习命令。
 用户在已有消息反馈 UI 中选择负反馈并填写非空备注后，`/evolve status` 还会显示：

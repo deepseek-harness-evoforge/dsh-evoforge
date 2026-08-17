@@ -41,6 +41,7 @@ jobs:
           pnpm --filter dsh-evolve pack --pack-destination "$RUNNER_TEMP"
           pnpm --filter dsh-evolve-web pack --pack-destination "$RUNNER_TEMP"
           pnpm --filter dsh-software-delivery pack --pack-destination "$RUNNER_TEMP"
+          pnpm --filter dsh-github-review pack --pack-destination "$RUNNER_TEMP"
           pnpm --filter dsh-doctor pack --pack-destination "$RUNNER_TEMP"
           pnpm --filter dsh-telegram pack --pack-destination "$RUNNER_TEMP"
           pnpm --filter dsh-evolve-telegram pack --pack-destination "$RUNNER_TEMP"
@@ -79,6 +80,7 @@ jobs:
           pnpm --filter dsh-evolve build
           pnpm --filter dsh-telegram build
           pnpm --filter dsh-evolve-telegram build
+          pnpm --filter dsh-github-review build
       - name: Run sealed, assembled, and Local Continuity tests
         env:
           DSH_EVOLVE_DSH_SOURCE_DIR: ${{ github.workspace }}/.evoforge/deepseek-harness
@@ -105,13 +107,17 @@ jobs:
           test/generation-crash-recovery.e2e.test.ts
           test/evolution-settled-event.e2e.test.ts
           test/package-install-remove-generation.e2e.test.ts
-      - name: Run delivery, Doctor, and Telegram assembled/package-boundary tests
+      - name: Run delivery, GitHub review, Doctor, and Telegram assembled/package-boundary tests
         env:
           DSH_EVOLVE_DSH_SOURCE_DIR: ${{ github.workspace }}/.evoforge/deepseek-harness
         run: |
           pnpm --filter dsh-software-delivery exec vitest run \
             test/dsh-assembled-skill.e2e.test.ts \
             test/dsh-assembled-completion.e2e.test.ts \
+            test/package-install-remove.e2e.test.ts
+          pnpm --filter dsh-github-review exec vitest run \
+            test/cache-composition.e2e.test.ts \
+            test/dsh-assembled-review.e2e.test.ts \
             test/package-install-remove.e2e.test.ts
           pnpm --filter dsh-doctor exec vitest run \
             test/package-install-remove.e2e.test.ts
