@@ -476,7 +476,7 @@ StartLimitBurst=5
 [Service]
 Type=simple
 ExecStart=${input.command.map(value => quoteSystemd(value)).join(' ')}
-WorkingDirectory=${quoteSystemd(input.cwd, false)}
+WorkingDirectory=${escapeSystemdPath(input.cwd)}
 Environment=${quoteSystemd(`DSH_HOME=${input.dshHome}`, false)}
 Restart=always
 RestartSec=5s
@@ -494,6 +494,12 @@ function quoteSystemd(value: string, expandEnvironment = true): string {
     .replaceAll('"', '\\"')
     .replaceAll('$', () => expandEnvironment ? '$$' : '$')
     .replaceAll('%', '%%')}"`
+}
+
+function escapeSystemdPath(value: string): string {
+  return value
+    .replaceAll('%', '%%')
+    .replace(/[\\ "'#;]/gu, character => `\\x${character.charCodeAt(0).toString(16).padStart(2, '0')}`)
 }
 
 function required(value: string | undefined, flag: string): string {

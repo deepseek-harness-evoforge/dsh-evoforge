@@ -115,7 +115,7 @@ describe('dsh-resident plan', () => {
     expect(plan.definition).toContain('StartLimitIntervalSec=60')
     expect(plan.definition).toContain('StartLimitBurst=5')
     expect(plan.definition).toContain(`Environment="DSH_HOME=${dshHome}"`)
-    expect(plan.definition).toContain(`WorkingDirectory="${cwd}"`)
+    expect(plan.definition).toContain(`WorkingDirectory=${cwd.replaceAll(' ', '\\x20')}`)
     expect(plan.definition).not.toMatch(/API_KEY|TOKEN|SECRET|Environment="PATH=|\/bin\/(?:ba)?sh/)
     expect(result.stderr).toBe('')
   })
