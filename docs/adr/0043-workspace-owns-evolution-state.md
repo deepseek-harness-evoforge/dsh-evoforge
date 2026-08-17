@@ -1,3 +1,5 @@
 # Workspace owns every evolution decision
 
 Every Candidate, Case Pack, Generation, feedback signal, automatic budget reservation, review decision, promotion and rollback is owned by one immutable native DSH Workspace id. Active Generation and recovery state are therefore per Workspace, Session pins include that ownership, and every parent/reference transition must match it; unscoped legacy state or a cross-Workspace reference fails closed instead of being guessed from cwd or migrated into a global default. This rejects the simpler global active pointer because it would let one Workspace silently change another Workspace's future Sessions, while using the native id rather than a path keeps ownership stable across display-name changes and avoids inventing a second Workspace registry.
+
+Automatic promotion authorization is likewise keyed by exact Workspace id plus Skill name; a global Skill-only allowlist is invalid. The real-Host two-Workspace proof is recorded in [native-workspace-owned-evolution.zh.md](../evidence/native-workspace-owned-evolution.zh.md).
