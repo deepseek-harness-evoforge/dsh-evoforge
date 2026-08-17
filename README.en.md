@@ -43,7 +43,7 @@ dsh --profile web
 
 Removal unregisters EvoForge effects while native DSH Session, Goal, and Workspace data remains readable. External effects that already occurred cannot be undone by uninstalling a plugin.
 
-The native Workspace Channel Router, Telegram and Feishu Adapters, Workspace-owned evolution, and eleven-package clean-profile gate are implemented. v0.1 still requires complete cache/browser acceptance, real-channel credential smoke tests, long-running outcome evidence, and a reproducible Hermes paired benchmark.
+The native Workspace Channel Router, Telegram and Feishu Adapters, Workspace-owned evolution, eleven-package clean-profile gate, and full composition Cache Contract gate are implemented. v0.1 still requires browser acceptance, real-channel credential smoke tests, long-running outcome evidence, and a reproducible Hermes paired benchmark.
 
 See the [Chinese installation guide](docs/getting-started.zh.md), [status](docs/status.zh.md), [shape audit](docs/native-plugin-shape-audit.zh.md), and [plugin contract](docs/plugin-contract.zh.md).
 

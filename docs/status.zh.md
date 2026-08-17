@@ -13,7 +13,7 @@
 
 ## 当前总判断
 
-EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。最新能力与 ADR-0041 原生插件修正已经进入同一集成分支；十一个用户包都已收敛为无产品 bin 的 DSH Bundle，并通过同一次 clean-profile add/dump/boot/remove/readback。Workspace Channel Router、Telegram 与飞书第二 Adapter 已通过同 Host 双 Workspace 重启隔离；Workspace-owned Evolution 及其 Telegram/飞书 attention 已通过真实双 Workspace Host 路径。剩余门禁主要是真实凭据/浏览器、完整 cache gate、长期 outcome 与 Hermes paired benchmark。
+EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。最新能力与 ADR-0041 原生插件修正已经进入同一集成分支；十一个用户包都已收敛为无产品 bin 的 DSH Bundle，并通过同一次 clean-profile add/dump/boot/remove/readback。Workspace Channel Router、Telegram 与飞书第二 Adapter 已通过同 Host 双 Workspace 重启隔离；Workspace-owned Evolution 及其 Telegram/飞书 attention 已通过真实双 Workspace Host 路径；[完整 Cache Contract 门](evidence/kv-2-suite-composition-gate.zh.md)也已通过。剩余门禁主要是真实凭据/浏览器、长期 outcome 与 Hermes paired benchmark。
 
 | 能力 | 当前状态 | 已有证据 | 仍缺 |
 |---|---|---|---|
@@ -28,7 +28,7 @@ EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。最新能�
 | Goal Continuity | `implemented` | JSONL cold resume、SIGKILL、原生 Goal round limit | 多 Workspace 绑定、生产 soak |
 | Resident OS unit | `implemented` | disabled Bundle、原生 `/resident`、exact hash/service-id 确认、无 bin tarball、十一包总装、launchd/systemd 与 macOS crash 测试 | Linux 真机和多日 soak |
 | Workspace Channel Router | `implemented` | exact endpoint deny-by-default；原生 Workspace/Session/Agent create/resume；持久幂等/uncertain 状态机；Telegram/飞书同一真实 Host 的双 Workspace、Command、Approval、continuation 与重启去重隔离；十一包总装 | 真实凭据 |
-| 飞书 Adapter | `implemented` | [AS-2](evidence/as-2-feishu-channel.zh.md)：官方 SDK WebSocket；exact allowlist；原生 Agent/Command/Approval/continuation；StorageDomain journal、429/uncertain、单渠道及双 Workspace 真实 Host、tarball add/dump/remove | 真实 App 凭据冒烟与多日重连 |
+| 飞书 Adapter | `implemented` | [AS-2](evidence/as-2-feishu-channel.zh.md)：官方 SDK WebSocket；exact allowlist；原生 Agent/Command/Approval/continuation；StorageDomain journal、429/uncertain、单渠道及双 Workspace 真实 Host、双 Agent 完整 composition parity、tarball add/dump/remove | 真实 App 凭据冒烟与多日重连 |
 | Hermes paired benchmark | `planned` | 历史架构记分卡 | 使用 v0.1 同一场景可复跑对照 |
 | Registry release | `planned` | 无 | 全部门禁、版本矩阵、用户授权 |
 
@@ -39,7 +39,7 @@ EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。最新能�
 ## 当前限制
 
 - 固定 rc.5 源码是唯一支持证据；兼容范围不能由宽 peer range 推断；
-- 完整 composition cache gate 与 v0.1 浏览器复验尚未完成；
+- v0.1 浏览器复验尚未完成；真实 provider cache-read/TTFT 仍需有预算的 paired soak；
 - 真实 Telegram/飞书凭据、真实 provider、陌生用户和生产多日证据仍缺失；
 - 自动化 `implemented` 不能替代真实 outcome，也不能支持笼统的“优于 Hermes”；
 - 不 merge、不发布 registry、不部署生产，除非用户另行授权。

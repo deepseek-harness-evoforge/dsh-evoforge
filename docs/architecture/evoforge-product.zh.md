@@ -19,7 +19,7 @@ EvoForge 可选能力
   ├─ Channel Router：静态 endpoint 绑定原生 Workspace/Session/Agent
   ├─ Telegram Adapter：一个私聊经 Router 持续使用原生 Agent
   ├─ Feishu Adapter：一个 App 的 exact 私聊/群聊经 Router 使用原生 Agent
-  ├─ Evolve Telegram：待处理进化决定发送到既有私聊
+  ├─ Evolve Attention：待处理进化决定发送到既有 Telegram/飞书 route
   ├─ Goal Continuity：授权固定 Session 在重启后继续原生 Goal
   └─ Resident：用户级 OS service 拉起 exact DSH profile
 ```
@@ -126,7 +126,7 @@ Resident 只恢复进程，Goal Continuity 只决定 exact Session 的原生 Goa
 | 人类控制 | 状态、证据、审批、暂停、回滚不阻塞会话 | P0C Commands/Web + P3.1 非阻塞 Telegram attention + P3.2 Draft PR review follow-up implemented；语义 capability 审计与陌生用户可用性数据 pending |
 | 自进化 | 独立 final-test、inactive Candidate、可证明晋升 | P0A `fail → pass` + P0B verified-Git/resident resume + P0C inactive publication + P1.1 opt-in auto policy + P2D.1 Outcome + P1.2 exact-parent 反事实回滚 + P1.3 feedback intake + P1.4 private Case Draft + P1.5 feedback-guided Shadow + P1.6 pre-proposal calibration + P1.7 explicit evaluator authoring + P1.8 target-bound launch + P1.9 private Evaluator Draft/human qualification + P1.15 crash-safe automatic budget + P1.16 opt-in automatic inactive Evaluator Draft + P1.17 human-approved Qualify-and-Shadow + P1.18 per-Skill automatic inflight gate + P1.19 bounded automatic ambiguous review + P1.20 review-window visibility + P1.21 parent outcome comparison；真实 provider、陌生用户与长期效果 pending |
 | 权限 | 代码和外部效果不自动激活 | 需求与测试门已定义 |
-| KV Cache | Session 内完整 composition 稳定 | 真实两轮 Agent 前缀与 Tool surface 回归通过；长会话 cache token soak pending |
+| KV Cache | Session 内完整 composition 稳定 | 64 轮 Evolution、GitHub review、Goal Continuity、Software Delivery 固定 surface，以及双 Workspace 双渠道全组合门禁通过；真实 provider cache-read/TTFT soak pending |
 | 回滚 | future Session 精确恢复 artifact；外部效果不虚假承诺 | exact parent Git tree 与 live Session 不漂移已实现；外部效果仍不在回滚范围 |
 
 只有这些项目在真实任务、故障注入和成本测量中成立，才可以宣称对应范围优于 Hermes。

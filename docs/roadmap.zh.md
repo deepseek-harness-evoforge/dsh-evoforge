@@ -6,7 +6,7 @@
 
 - P0A–P1.21：证据驱动 Shadow、Generation、Session pin、review、Retention、预算、反馈学习、canary 和 rollback；
 - P2A.1–P2D.1：原生 Skill/Tool 软件交付、Draft PR、exact-head checks、交付 Outcome；
-- P3.1/P3.2：Telegram 进化注意力和 GitHub review follow-up；
+- P3.1/P3.2：Telegram/飞书进化注意力和 GitHub review follow-up；
 - LC-1/LC-2：Goal cold resume 与用户级 OS service unit；
 - DSH Web review、Runtime Readiness、Workspace Channel Router、已迁移的 Telegram 与飞书 Adapter。
 
@@ -57,7 +57,7 @@
 
 - 全包 tarball clean-profile 安装、dump、boot、真实 Agent/Session/Goal、卸载与 readback；**已完成**
 - dependency loss、reload、dispose、崩溃、重复事件、429、网络不确定和身份拒绝；
-- 完整 composition cache parity；
+- 完整 composition cache parity；**已完成，见 `pnpm test:cache-contract`**
 - DSH Web 真实浏览器成功、刷新和失败路径；
 - 多 Workspace、自进化、消息、审批、崩溃恢复和软件交付的 Hermes paired benchmark。
 
