@@ -1,0 +1,24 @@
+# Real DSH Web acceptance overlay. Replace __...__ placeholders with absolute
+# test-owned paths; the shipped Bundle and tarball remain unchanged.
+- id: evoforge-channel-router
+  name: dsh-channel-router
+  disabled: false
+  config:
+    routes: []
+
+- id: evoforge-feishu
+  name: dsh-feishu
+  disabled: false
+  config:
+    mode: pairing
+    routeIds: []
+    appIdEnv: DSH_LIVE_FEISHU_APP_ID
+    appSecretEnv: DSH_LIVE_FEISHU_APP_SECRET
+
+- insert:
+    - id: evoforge-feishu-browser-workspace
+      name: __EVOFORGE_FEISHU_BROWSER_BOOTSTRAP__
+      config:
+        workspacePath: __EVOFORGE_FEISHU_BROWSER_WORKSPACE__
+        sessionId: evoforge-feishu-browser-session
+        agentPreset: standard

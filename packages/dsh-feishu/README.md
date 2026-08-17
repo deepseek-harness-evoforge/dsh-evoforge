@@ -1,6 +1,6 @@
 # dsh-feishu
 
-`dsh-feishu` 是 DeepSeek Harness 的飞书薄 Adapter Bundle。它不创建 Agent Runtime、Session、Goal、权限系统、网站、Webhook server 或 daemon；官方飞书 SDK 的 WebSocket 长连接由 DSH Cordis lifecycle 持有，所有入站身份和会话归属由 `dsh-channel-router` 静态决定。
+`dsh-feishu` 是 DeepSeek Harness 的飞书薄 Adapter Bundle。它不创建 Agent Runtime、Session、Goal、权限系统、网站、Webhook server 或 daemon；官方飞书 SDK 的 WebSocket 长连接由 DSH Cordis lifecycle 持有，所有入站身份和会话归属由 `dsh-channel-router` 静态决定。同一个 npm 包还带一个 DSH Web Client Module，只在原生 Session 具备配对命令时显示首次连接向导。
 
 ## 安装
 
@@ -37,13 +37,17 @@ dsh --profile web --dump-config
     appSecretEnv: DSH_FEISHU_APP_SECRET
 ```
 
-启动唯一的 DSH Host，在准备绑定的 Workspace/Session 中运行 `/feishu-pair start`。DSH 会显示一个
-两分钟有效的一次性短语；在目标飞书私聊中原样发送，群聊中先 `@机器人` 再发送。收到飞书回执后运行
-`/feishu-pair status`，DSH 会根据当前原生 Workspace、Session、Agent preset 和模型生成完整 exact
-route 草案。审查草案并写回 profile，把 pairing mode 替换为普通 routes 配置后重启 DSH。
+启动唯一的 DSH Web Host，打开准备绑定的 Workspace/Session，点击侧栏底部的“连接飞书”。向导会生成
+两分钟有效的一次性短语；在目标飞书私聊中原样发送，群聊中先 `@机器人` 再发送。回到向导点击
+“我已发送，检查连接”，页面会根据当前原生 Workspace、Session、Agent preset 和模型显示完整 exact
+route 草案；复制、审查并写回 profile，把 pairing mode 替换为普通 routes 配置后重启 DSH。
+
+命令仍是同一 Host 能力的备用入口：依次运行 `/feishu-pair start`、`/feishu-pair status`，必要时运行
+`/feishu-pair cancel`。Web 不新增配对 API、不轮询或复制状态机，只调用这些 Session-scoped Commands。
 
 配对窗口只接受首条完全匹配的高熵短语；其他消息不会进入 Agent，不会自动写 profile、创建 route 或
-扩大权限。`/feishu-pair cancel` 可立即关闭连接，超时、disable、reload 和 remove 也会断开。
+扩大权限。向导的“取消本次连接”或 `/feishu-pair cancel` 可立即关闭连接，超时、disable、reload 和
+remove 也会断开。
 
 ## 正常运行配置
 

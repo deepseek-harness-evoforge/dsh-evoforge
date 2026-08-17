@@ -288,7 +288,8 @@ workspace，输出可审查的 launchd/systemd unit。OS service manager 与 uni
 
 当前进度说明：软件交付、Runtime Readiness、Telegram、飞书第二 Adapter 与单用途 Evolve 注意力桥
 已分别以独立 `dsh-*` 包实现；飞书真实 App 身份请求、WebSocket 握手与 setup-only 配对 transport 已
-通过，`/feishu-pair` 会从当前 DSH Workspace/Session 生成待审查静态 route，消除手工查 ID 的负担。
+通过；同包 DSH Web Client Module 已从最终 tarball 在全新 profile 完成生成/复制/取消的真实浏览器验收，
+并只复用当前 Session 的 `/feishu-pair` 生成待审查静态 route，消除手工查 ID 和拼命令的负担。
 exact route 消息和 Hermes paired 证据完成以前仍只标记为 `implemented`，不扩张为 Gateway，也不把
 其他消息、内容或日程需求视为已交付。该说明不改变以上需求顺序和权限边界。
 

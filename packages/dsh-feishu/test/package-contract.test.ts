@@ -14,7 +14,10 @@ describe('dsh-feishu package contract', () => {
       peerDependencies?: Record<string, string>
     }
     expect(manifest.bin).toBeUndefined()
-    expect(manifest.dsh).toEqual({ bundle: { patch: './cordis.patch.yml' } })
+    expect(manifest.dsh).toMatchObject({
+      bundle: { patch: './cordis.patch.yml' },
+      client: { platform: 'web' },
+    })
     expect(manifest.dependencies?.['@larksuiteoapi/node-sdk']).toBe('1.73.0')
     expect(manifest.peerDependencies?.['dsh-channel-router']).toBe('0.1.0-alpha.1')
     expect(Object.keys(manifest.dependencies ?? {})).not.toContain('@deepseek-ai/cordis')

@@ -1,5 +1,5 @@
 import { execFile as execFileCallback } from 'node:child_process'
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { access, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { promisify } from 'node:util'
@@ -70,6 +70,17 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-feishu package boundar
     expect(manifest.dependencies?.['dsh-channel-router']).toBeDefined()
     expect(manifest.dependencies?.['dsh-feishu']).toBeDefined()
     expect(manifest.dsh.profile.bundles).toEqual(['dsh-channel-router', 'dsh-feishu'])
+    const installedFeishuRoot = join(profileDir, 'node_modules', 'dsh-feishu')
+    const installedFeishuManifest = JSON.parse(await readFile(join(installedFeishuRoot, 'package.json'), 'utf8'))
+    expect(installedFeishuManifest.dsh).toMatchObject({
+      bundle: { patch: './cordis.patch.yml' },
+      client: { platform: 'web' },
+    })
+    expect(installedFeishuManifest.exports?.['./client']).toBe('./dist/client.js')
+    const installedClient = await readFile(join(installedFeishuRoot, 'dist', 'client.js'), 'utf8')
+    expect(installedClient).toContain('window.__ModuleLoader__.load({')
+    expect(installedClient).toContain('id: "dsh-feishu"')
+    expect(installedClient).toContain('sidebar.footer.action')
     const sdkManifest = JSON.parse(await readFile(
       join(profileDir, 'node_modules', '@larksuiteoapi', 'node-sdk', 'package.json'),
       'utf8',
@@ -90,6 +101,7 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-feishu package boundar
     expect(removed.dependencies?.['dsh-feishu']).toBeUndefined()
     expect(removed.dependencies?.['dsh-channel-router']).toBeUndefined()
     expect(removed.dsh.profile.bundles).toEqual([])
+    await expect(access(installedFeishuRoot)).rejects.toMatchObject({ code: 'ENOENT' })
   }, 60_000)
 })
 

@@ -1,6 +1,6 @@
 # AS-2 飞书 Channel Adapter 实现证据
 
-> 日期：2026-08-17；固定 DSH revision：`47f943859bef60e4160492346772ded9b24f765a`；状态：implemented；真实 App 凭据、机器人身份请求与 WebSocket 握手已验证，exact route 消息闭环和 Hermes paired benchmark 尚未完成
+> 日期：2026-08-17；固定 DSH revision：`47f943859bef60e4160492346772ded9b24f765a`；状态：implemented；真实 App 凭据、机器人身份请求、WebSocket 握手与原生 DSH Web 配对向导已验证，exact route 消息闭环和 Hermes paired benchmark 尚未完成
 
 `dsh-feishu` 是 `dsh-channel-router` 上的第二个薄 Adapter，不是独立机器人 Runtime。它使用飞书官方 Node SDK `1.73.0` 的 WebSocket 长连接；Router 持有 endpoint → Workspace/Session/Agent、原生 Command admission 和 ingress 幂等，Adapter 只持有协议、Approval 卡片与出站 journal。
 
@@ -16,7 +16,7 @@
 
 联合门禁还在**同一个真实 DSH Host** 中注册两个真实目录为两个 Workspace，加载实际 Router、Telegram Bundle 与飞书 runtime：Telegram 与飞书分别创建 `telegram-session`/`feishu-session`，其原生 `session.header.cwd`、WorkspaceRegistry `sessionIds`、User Message、Command、Approval 和 continuation 全部保持分离；错误飞书 operator 不能消费另一个 Workspace 的 Approval。Host dispose 后以同一 persistence/StorageDomain/config 冷启动，两个 Agent 各自恢复，重放同一 Telegram update 和飞书 message 不新增 turn 或对外投递。另一条完整 composition 门同时启用 Router、Telegram、飞书与 evolution attention，将两个 Workspace 的 provider request 分别与原生双 Agent 控制组逐字段比较，结果均 byte-equivalent；route、App 与 attention 动态值未进入请求。
 
-当前包回归为 `12 files / 31 tests`（包含 setup-only 配对、连接失败清理、取消后重开、单渠道、代理选择、双 Workspace macOS assembled、完整渠道 composition 与 package lifecycle）；Router 的独立合同与 Telegram cache parity 继续通过。官方协议依据是[事件订阅概述](https://open.feishu.cn/document/server-docs/event-subscription-guide/overview)、[官方 Node SDK](https://github.com/larksuite/node-sdk)与[发送消息 API](https://open.feishu.cn/document/server-docs/im-v1/message/create)。
+当前包回归为 `14 files / 38 tests`（包含 setup-only 配对、Client Module/组件、剪贴板拒绝降级、连接失败清理、取消后重开、单渠道、代理选择、双 Workspace macOS assembled、完整渠道 composition 与 package lifecycle）；Router 的独立合同与 Telegram cache parity 继续通过。官方协议依据是[事件订阅概述](https://open.feishu.cn/document/server-docs/event-subscription-guide/overview)、[官方 Node SDK](https://github.com/larksuite/node-sdk)与[发送消息 API](https://open.feishu.cn/document/server-docs/im-v1/message/create)。
 
 ## 真实 App 连接复验
 
@@ -30,7 +30,7 @@ Adapter 随后增加进程局部的标准 HTTPS proxy 适配：选择 `HTTPS_PRO
 同一局部 Agent，并关闭 Axios 的隐式环境代理；它不修改进程环境或全局 Agent。单元测试覆盖小写代理、
 空小写变量向有效大写变量回退、`NO_PROXY` 直连和不支持协议的 fail-fast。保留宿主原有代理环境的真实
 Adapter 首次重跑约 `2.8s` 成功；整仓回归后的最终复验约 `0.8s` 成功，随后完成 typecheck、build、
-packed tarball 内容检查；加入配对后的当前回归是 `12 files / 31 tests`。exact 凭据对全部
+packed tarball 内容检查；加入原生 Web 配对后的当前回归是 `14 files / 38 tests`。exact 凭据对全部
 tracked/untracked 仓库文件的
 不回显扫描匹配数为 `0`。
 
@@ -49,6 +49,28 @@ tracked/untracked 仓库文件的
 真实 App、保留宿主代理的 official pairing transport 启动/取消复验约 `0.8s` 通过，同一实例的
 启动→取消→再次启动→再次取消也通过；本次尚未让真实
 用户发送配对短语，因此仍不把它声明为 exact route 消息闭环。
+
+## 原生 DSH Web 配对向导
+
+`dsh-feishu` 的同一个发布包同时包含 Host Bundle 与 browser half；`dsh.client` 让 DSH Module Loader
+把后者组合进原站 `sidebar.footer.action`。入口只在当前 Session 的 Command descriptor 含
+`feishu-pair` 时出现，因此普通 routes mode 不增加 setup surface。页面不建立 Remote、API、存储或
+后台轮询，只调用现有 `/feishu-pair start|status|cancel`，本地倒计时只是提示，Host 两分钟窗口仍是唯一
+权威。生成结果只显示一次性短语；匹配后才显示待审查 YAML，浏览器不能写 profile 或扩大权限。
+
+最终 `dsh-feishu-0.1.0-alpha.1.tgz` 与 Router tarball通过官方 `dsh plugin --profile web add` 安装到全新
+profile；安装测试同时核对 `dist/client.js`、Module Loader wrapper、侧栏 slot，并在 remove 后确认包目录
+消失。随后启动固定 DSH revision 与真实飞书凭据，在原生 Workspace/Session 中用真实浏览器完成：
+
+1. 侧栏只出现一个“连接飞书”入口，页面保持在 DSH Workspace/Session shell；
+2. 向导显示三步新手说明，生成真实 120 秒配对窗口和格式正确的一次性短语；
+3. “复制短语”出现成功反馈，浏览器剪贴板与页面短语完全一致；Clipboard API 被拒绝的路径另由组件
+   测试证明会降级为选中 textarea 复制；
+4. “取消本次连接”返回“没有创建或修改任何 Router route”，短语从 DOM 消失；
+5. 浏览器 console error 为 `0`，Host 退出后连接由 Cordis lifecycle 释放。
+
+浏览器验收没有向飞书发送用户消息，也没有写入 route/profile；它证明新手配对操作已成为原生 DSH
+插件体验，但不能替代下一步由用户在窗口内发送短语所产生的 exact 平台身份与消息闭环证据。
 
 ## 尚未证明
 

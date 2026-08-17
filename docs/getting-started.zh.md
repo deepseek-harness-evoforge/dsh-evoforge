@@ -103,10 +103,11 @@ token 由启动 DSH 的环境提供。模型不能读取 token、修改 route、
     appSecretEnv: DSH_FEISHU_APP_SECRET
 ```
 
-在准备绑定的 DSH Workspace/Session 中运行 `/feishu-pair start`，把显示的一次性短语发送给机器人；
-群聊需要 `@机器人`。收到回执后运行 `/feishu-pair status`，审查 DSH 自动生成的完整静态配置，再用它
-替换 pairing mode 并重启。窗口两分钟后自动断开；普通消息不进入 Agent，插件不会自动写 profile 或
-扩大权限。
+启动 DSH Web 后，打开准备绑定的 Workspace/Session，点击侧栏底部“连接飞书”，再点击“生成一次性
+短语”。把短语发送给机器人；群聊需要 `@机器人`。回到页面点击“我已发送，检查连接”，审查并复制
+DSH 自动生成的完整静态配置，再用它替换 pairing mode 并重启。窗口两分钟后自动断开；普通消息不进入
+Agent，插件不会自动写 profile 或扩大权限。没有 Web 时可使用同一 Session Command 备用路径：
+`/feishu-pair start`、`/feishu-pair status`、`/feishu-pair cancel`。
 
 正常模式下，一个 App 可列出多个 exact route，所有 route 的 `accountId` 必须等于部署环境中的 App ID：
 
