@@ -32,7 +32,8 @@ Candidate 的完整证据继续可读，新 Signal 才能进入既有 Shadow；�
   安装前后 system composition 相等。
 - 前端源码与交互未变化，因此不要求新的浏览器 E2E；本功能的真实用户路径是 host resident preflight。
 
-远端 CI 结果在 Draft PR checks 完成后补入本文件。
+- Draft PR #21 首轮远端 CI：Node 22.19.0（59 秒）、Node 24（1 分 4 秒）、macOS DSH
+  Assembled Trial（2 分 51 秒）全部通过；run `31984599483` conclusion 为 `success`。
 
 ## Cache、权限与限制
 
