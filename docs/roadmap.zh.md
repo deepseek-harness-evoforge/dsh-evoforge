@@ -20,7 +20,7 @@
 - DSH/Cordis 只作为 peer + dev dependency；
 - 建立覆盖全部包的 clean-profile tarball add/dump/boot/remove/readback gate。
 
-退出门：仓库只有一个权威集成分支和一套真实用户安装路径，原生 DSH 数据在卸载后仍可读取。
+退出门：仓库只有一个权威集成分支和一套真实用户安装路径，原生 DSH 数据在卸载后仍可读取。**十一包统一 clean-profile gate 已完成。**
 
 ## V1 — Workspace Channel Router
 
@@ -33,7 +33,7 @@
 
 ## V2 — 飞书 Adapter
 
-实现状态：Adapter、可靠投递、真实 DSH 单 Workspace 组合、双 Workspace 双渠道同 Host 重启隔离与 tarball lifecycle 已完成；真实凭据仍未达到退出门。
+实现状态：Adapter、可靠投递、真实 DSH 单 Workspace 组合、双 Workspace 双渠道同 Host 重启隔离、tarball lifecycle 与十一包总装已完成；飞书进化注意力和真实凭据仍未达到退出门。
 
 - 支持静态授权的私聊或群聊文本、原生 Command、一次性 Approval、最终回答、Goal/Schedule 与进化注意力；
 - 凭据、身份与 Workspace route 只能由部署配置决定；
@@ -51,9 +51,11 @@
 
 退出门：Workspace A 完成纠正、Candidate、评测、晋升和 future-session 生效时，Workspace B 与 A 的旧 Session 均不变化。
 
+实现状态：上述链路已由固定 DSH 源码的真实 Host 双 Workspace assembled test 完成，并覆盖重启持久化；真实 provider outcome 仍属于 V4。
+
 ## V4 — v0.1 验收
 
-- 全包 tarball clean-profile 安装、dump、boot、真实 Agent/Session/Goal、卸载与 readback；
+- 全包 tarball clean-profile 安装、dump、boot、真实 Agent/Session/Goal、卸载与 readback；**已完成**
 - dependency loss、reload、dispose、崩溃、重复事件、429、网络不确定和身份拒绝；
 - 完整 composition cache parity；
 - DSH Web 真实浏览器成功、刷新和失败路径；

@@ -154,7 +154,7 @@ GitHub 组织 `deepseek-harness-evoforge` 是所有 DSH 扩展设计与开发的
 3. **P0C**：host command/view、异步人工晋升和 rollback。
 4. **P1**：权限效果不变的纯指令 future-session canary 与窄自动晋升。
 5. **P2**：Software Delivery 正式产品化；代码 Candidate 只到 Draft PR。
-6. **P3**：Telegram、飞书、P3.1 Evolve 注意力桥与 P3.2 Draft PR 审查返修 implemented；双 Workspace 双渠道同 Host 已通过，下一门是 Workspace-scoped evolution、实际 Bot/reviewer soak、陌生安装与 Hermes paired benchmark，不是继续扩渠道或建通知/Review 平台。
+6. **P3**：Telegram、飞书、P3.1 Telegram Evolve 注意力桥与 P3.2 Draft PR 审查返修 implemented；双 Workspace 双渠道同 Host、Workspace-scoped evolution 与十一包总装已通过，下一门是飞书进化注意力、实际 Bot/reviewer soak、陌生安装与 Hermes paired benchmark，不是继续扩渠道或建通知/Review 平台。
 7. **LC-1**：exact Session 原生 Goal 冷恢复 implemented；下一门是生产多日恢复率/时延，不是扩成 daemon 或 HA 平台。
 8. **LC-2**：用户级 launchd/systemd service implemented；下一门是 Linux 真机与多日运行，不是再建第二 supervisor。
 
