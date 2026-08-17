@@ -57,11 +57,11 @@ Tool/Skill/Prompt/Command/模型调用，普通 Session token 增量为 0。
 
 ### dsh-resident
 
-独立的进程层 Local Continuity CLI。一个只读 plan 把 exact absolute Node、DSH entry、profile、home 和
-workspace 变成完整 launchd/systemd unit；逐次确认后才 apply 或 remove。OS manager 和 unit 是唯一
-权威，CLI 随即退出。它不进入 DSH Loader，不建 daemon、状态库或公共 supervisor API，0
-Tool/Skill/Prompt/模型调用。与 Goal Continuity 组合时，Resident 只恢复进程，Goal Continuity 只决定
-exact Session 的原生 Goal 是否被授权继续。
+默认关闭的进程层 Local Continuity Bundle。`/resident plan` 把静态配置中的 exact absolute Node、DSH
+entry、profile、home 和 workspace 变成完整 launchd/systemd unit；只有 exact plan hash 或 service id
+逐次确认后才 apply/remove。OS manager 和 unit 是唯一进程权威。插件不建 daemon、状态库或公共
+supervisor API，只有 1 human Command，0 Tool/Skill/Prompt/模型调用。与 Goal Continuity 组合时，
+Resident 只恢复进程，Goal Continuity 只决定 exact Session 的原生 Goal 是否被授权继续。
 
 当前不创建独立的 Mission、Supervisor、Cache、Policy、Memory、Event Store 或通用 UI 平台插件。两个真实消费者出现前，共享接缝留在插件内部。
 

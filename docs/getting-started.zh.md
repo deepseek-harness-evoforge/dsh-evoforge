@@ -8,20 +8,19 @@ EvoForge 只作为 DSH 原生 Bundle 套件运行。本页区分“开发者生�
 - DeepSeek Harness revision `47f943859bef60e4160492346772ded9b24f765a`（`0.1.0-rc.5`）；
 - 一个 DSH `web` profile。
 
-当前包尚未发布到 registry。先在本仓生成八个 `0.1.0-alpha.1.tgz`；这一步只生成 DSH 安装产物，不启动 EvoForge Runtime：
+当前包尚未发布到 registry。先在本仓生成九个 `0.1.0-alpha.1.tgz`；这一步只生成 DSH 安装产物，不启动 EvoForge Runtime：
 
 ```sh
 pnpm install --frozen-lockfile
 PACK_DIR="$(mktemp -d)"
 for package in \
   dsh-evolve dsh-evolve-web dsh-software-delivery dsh-doctor \
-  dsh-github-review dsh-telegram dsh-evolve-telegram dsh-goal-continuity
+  dsh-github-review dsh-telegram dsh-evolve-telegram dsh-goal-continuity \
+  dsh-resident
 do
   pnpm --filter "$package" pack --pack-destination "$PACK_DIR"
 done
 ```
-
-`dsh-resident` 当前仍有独立 bin，不属于可交付安装面；v0.1 必须先把它迁移成 DSH 插件。
 
 ## 2. 安装与有效配置
 
@@ -30,7 +29,7 @@ dsh plugin --profile web add "$PACK_DIR"/*.tgz
 dsh --profile web --dump-config
 ```
 
-有效配置应各出现一次：`dsh-evolve`、`dsh-evolve-web`、`dsh-software-delivery`、`dsh-doctor`、`dsh-github-review`、`dsh-telegram`、`dsh-evolve-telegram`、`dsh-goal-continuity`。涉及外部身份、凭据或自动恢复的 row 应保持 disabled，直到部署者提供完整静态配置。
+有效配置应各出现一次：`dsh-evolve`、`dsh-evolve-web`、`dsh-software-delivery`、`dsh-doctor`、`dsh-github-review`、`dsh-telegram`、`dsh-evolve-telegram`、`dsh-goal-continuity`、`dsh-resident`。涉及外部身份、凭据、自动恢复或 OS 部署的 row 应保持 disabled，直到部署者提供完整静态配置。
 
 启动唯一的 DSH Host：
 
@@ -47,6 +46,7 @@ dsh --profile web
 3. 创建原生 DSH Goal，让 Agent 按需加载 `software-delivery` Skill；`complete_delivery` 通过该 Agent 的 DSH Bash、Sandbox、Approval 和原生 `update_goal` 完成交付。
 4. `dsh-github-review` 只把 allowlist 人类对 exact Draft PR head 的修改要求作为有界、不可信 follow-up 送回原 Session。
 5. Telegram、进化注意力和 Goal cold resume 只绑定既有 DSH Agent/Session/Goal，不创建第二套会话、目标或调度。
+6. Resident 只通过 `/resident plan|status|apply <plan-sha256>|remove <service-id>` 管理 exact OS user unit；先审查 plan，再逐次确认 hash 或 service id。
 
 部署者配置 exact Shadow/Evaluator Target 后，进化资格验证、Shadow、review、promote 和 rollback 仍通过 `/evolve` Commands 或同一 DSH Web Host 完成。Command 和浏览器不接收任意 host path、模型路由或执行权限。
 
@@ -83,7 +83,8 @@ token 由启动 DSH 的环境提供。模型不能读取 token、修改 route、
 ```sh
 dsh plugin --profile web remove \
   dsh-evolve-web dsh-evolve dsh-software-delivery dsh-doctor \
-  dsh-github-review dsh-evolve-telegram dsh-telegram dsh-goal-continuity
+  dsh-github-review dsh-evolve-telegram dsh-telegram dsh-goal-continuity \
+  dsh-resident
 dsh --profile web --dump-config
 dsh --profile web
 ```
@@ -102,4 +103,4 @@ DSH_EVOLVE_DSH_SOURCE_DIR=/absolute/path/to/deepseek-harness \
 
 clean-profile gate 从 tarball 开始，通过官方 DSH CLI 安装、dump、boot，在真实 Agent preset/Session/Goal 内触发能力，flush 原生持久化，再卸载、重启并读回 Goal。它同时检查 tarball 无用户产品 bin、无 `node_modules`，且 production dependencies 不携带 DSH/Cordis。
 
-当前门禁尚未覆盖 `dsh-resident` 插件化、Workspace Channel Router、飞书、双 Workspace evolution 隔离、真实渠道凭据和 Hermes paired benchmark；这些全部完成前不能发布 v0.1。
+Resident 已有原生 Bundle、DSH Command、无 bin tarball 以及 launchd/systemd 协议回归；九包同一 clean-profile 的 assembled gate 尚未完成。Workspace Channel Router、飞书、双 Workspace evolution 隔离、真实渠道凭据和 Hermes paired benchmark 也仍缺失；这些全部完成前不能发布 v0.1。

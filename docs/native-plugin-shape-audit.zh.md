@@ -20,6 +20,9 @@
 | `dsh-doctor` | 是；Bundle row `evoforge-doctor` | 无独立入口、存储或修复器 | Commands + Loader；只读 entries 快照，注册随 fiber 释放 | 官方 add/remove；默认 enabled | 保留只读 `/doctor`；补 Config/Bundle export |
 | `dsh-telegram` | 是；Bundle row `evoforge-telegram` | 无 webhook server/daemon/第二 Session；外部已发送消息不是本地权威 | Agent、Commands、Session、Storage Domain、可选 Approval；长轮询、AbortController、delivery journal registration 全由 effect/fiber 持有 | 官方 add/remove；默认 disabled，profile patch 显式授权 exact agent/chat/user/token env | 保留薄 adapter；补 patch export；不扩展为 gateway |
 | `dsh-goal-continuity` | 是；Bundle row `evoforge-goal-continuity` | 无进程管理、任务库、Mission 或扫描 daemon | native `agent/session-start` + `goals`; 只对 exact allowlist resume，Goal/round 持久化仍属 DSH | 官方 add/remove；默认 disabled | 保留极窄 policy；补 patch export；冻结后续 LC 功能 |
+| `dsh-github-review` | 是；Bundle row `evoforge-github-review` | 无 webhook server、第二 Delivery 状态机或 merge 权限 | Agent、Storage Domain 与可选 Tool watch；poll task、monitor 和 AbortController 由 Cordis lifecycle 持有 | 官方 add/remove；默认 disabled，exact repo/agent/reviewer 配置 | 保留 exact-head follow-up；补统一 patch export/peer 门禁 |
+| `dsh-evolve-telegram` | 是；Bundle row `evoforge-evolve-telegram` | 无通用 notifier、route 配置、timer 或审批 bot | 只组合现有 evolution control 与 Telegram route；事件和 effect dispose 释放 bridge | 官方 add/remove；默认 disabled | 保留窄 attention bridge；补 Config/patch export 门禁，后续迁移到 Channel Router |
+| `dsh-resident` | 是；Bundle row `evoforge-resident`，注册 `/resident` | 无 executable、Runtime、daemon 或进程状态库；OS manager/unit 是唯一进程权威 | Commands；plan hash/service id 逐次确认，内部 launchd/systemd adapter 不进入模型表面 | 官方 add/remove；默认 disabled，exact profile/path 配置 | 保留 unit 算法；删除产品 CLI；测试 driver 仅在 `test/fixtures` |
 
 ## Root packaging 与文档
 
@@ -36,6 +39,6 @@ README、中文 getting-started、status、roadmap、 operational Skills 与包 
 
 ## Assembled 证据覆盖
 
-`test/clean-profile-suite.e2e.test.ts` 从六个 tarball 开始，使用官方 `dsh plugin --profile web add`，核对 manifest/Bundle/dump，启动真实 DSH Web Host，再用 shipped `standard` agent preset 创建真实 Agent/Session/Goal。零网络 DSH LLM adapter 让 Agent driver 调用 packed `complete_delivery`，实际 DSH Bash 运行 check、原生 `update_goal` 完成 Goal并写入 Session。随后 dispose、官方 remove、再次 dump/boot，确认 Tool/Skill/service 消失且原生持久化仍读到 complete Goal event。
+现有 `test/clean-profile-suite.e2e.test.ts` 从六个核心 tarball 开始，使用官方 `dsh plugin --profile web add`，核对 manifest/Bundle/dump，启动真实 DSH Web Host，再用 shipped `standard` agent preset 创建真实 Agent/Session/Goal。零网络 DSH LLM adapter 让 Agent driver 调用 packed `complete_delivery`，实际 DSH Bash 运行 check、原生 `update_goal` 完成 Goal并写入 Session。随后 dispose、官方 remove、再次 dump/boot，确认 Tool/Skill/service 消失且原生持久化仍读到 complete Goal event。Resident、GitHub Review 与 Evolution Telegram 另有各自 packed lifecycle；九包同一次 gate 仍是 v0.1 未完成项。
 
 该门禁同时检查 tarball 无 bin、无 `node_modules`、production dependencies 无 DSH/Cordis；CLI 启动使用随机端口并在 SIGTERM 后验证进程不存在。六包各自的 package lifecycle test 继续覆盖 watcher/长轮询/注册项卸载。

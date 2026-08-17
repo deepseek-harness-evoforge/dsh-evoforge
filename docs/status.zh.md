@@ -13,11 +13,11 @@
 
 ## 当前总判断
 
-EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。最新能力与 ADR-0041 原生插件修正已经进入同一集成工作树；仍需完成 Resident 插件化、Workspace Channel Router、飞书、双 Workspace evolution 隔离和完整验收。
+EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。最新能力与 ADR-0041 原生插件修正已经进入同一集成分支；九个用户包都已收敛为无产品 bin 的 DSH Bundle。仍需完成 Workspace Channel Router、飞书、双 Workspace evolution 隔离和完整验收。
 
 | 能力 | 当前状态 | 已有证据 | 仍缺 |
 |---|---|---|---|
-| 原生 DSH 插件产品形态 | `implemented`，整合中 | `dsh-evolve`、Web、Delivery、Doctor、GitHub Review、Telegram、Attention、Goal Continuity 已有 Bundle/生命周期测试 | Resident 仍有独立 bin；全九包 clean-profile gate 未完成 |
+| 原生 DSH 插件产品形态 | `implemented` | 九包均有 `name/inject/Config/apply`、Bundle patch、无 bin 合同；统一 18 项合同测试 | 全九包同一次 clean-profile gate 未完成 |
 | Evidence-driven Evolution P0A–P1.21 | `implemented` | paired Trial、Generation、Session pin、review、Retention、预算、canary、64 轮 cache parity | Workspace 归属、真实 provider、长期误晋升/回滚数据 |
 | Software Delivery P2A–P2D | `implemented` | 真实 Git、原生 Tool/Goal、Draft PR、checks 与 Outcome 测试 | 插件整合后 clean-profile 回归、真实长期任务 |
 | GitHub Review Follow-up P3.2 | `implemented` | exact-head allowlist、bounded follow-up、重启去重、cache parity | 真实 reviewer 返修闭环和多日 resident |
@@ -26,7 +26,7 @@ EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。最新能�
 | Telegram 单私聊 | `implemented` | Agent Loop、Commands、Approval、Goal/Schedule、durable delivery、cache parity | Workspace Router 迁移、真实 Bot 冒烟和多日证据 |
 | Evolve Telegram Attention | `implemented` | actionable state、durable notice、request parity | 公共 Channel Router 迁移和双 Adapter |
 | Goal Continuity | `implemented` | JSONL cold resume、SIGKILL、原生 Goal round limit | 多 Workspace 绑定、生产 soak |
-| Resident OS unit | `implemented` 算法，非合格产品形态 | launchd/systemd plan/apply/status/remove 与 macOS crash 测试 | 移除独立 bin，迁入 DSH Command/Approval/Bundle |
+| Resident OS unit | `implemented` | disabled Bundle、原生 `/resident`、exact hash/service-id 确认、无 bin tarball、launchd/systemd 与 macOS crash 测试 | 并入全九包 assembled gate、Linux 真机和多日 soak |
 | Workspace Channel Router | `planned` | DSH 已提供原生 `WorkspaceRegistry` | 路由模块、持久状态、双 Workspace 隔离测试 |
 | 飞书 Adapter | `planned` | 无 | 协议实现、授权、Approval、投递恢复、真实冒烟 |
 | Hermes paired benchmark | `planned` | 历史架构记分卡 | 使用 v0.1 同一场景可复跑对照 |
@@ -34,9 +34,7 @@ EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。最新能�
 
 ## 当前可安装面
 
-八个包可生成 tarball 并通过 `dsh plugin --profile web add` 安装：`dsh-evolve`、`dsh-evolve-web`、`dsh-software-delivery`、`dsh-doctor`、`dsh-github-review`、`dsh-telegram`、`dsh-evolve-telegram`、`dsh-goal-continuity`。外部路由和自动恢复默认关闭。
-
-`dsh-resident` 暂不属于用户安装面。没有任何 EvoForge 独立 Runtime、网站或 daemon 是受支持产品入口。
+九个包可生成 tarball 并通过 `dsh plugin --profile web add` 安装：`dsh-evolve`、`dsh-evolve-web`、`dsh-software-delivery`、`dsh-doctor`、`dsh-github-review`、`dsh-telegram`、`dsh-evolve-telegram`、`dsh-goal-continuity`、`dsh-resident`。外部路由、自动恢复和 OS 部署默认关闭。没有任何 EvoForge 独立 Runtime、网站、daemon 或产品 CLI 是受支持入口。
 
 ## 当前限制
 

@@ -15,21 +15,22 @@ Feature Extension，不是对 DSH Core Defect 的修补。
 ## 最小接口
 
 ```text
-dsh-resident plan   <exact paths/profile>          # 只读，输出完整 JSON + unit
-dsh-resident apply  <exact paths/profile> --confirm-deployment
-dsh-resident status --profile <name> --dsh-home <absolute-path>
-dsh-resident remove --profile <name> --dsh-home <absolute-path> --confirm-deployment
+/resident plan                         # 只读，输出完整 JSON + unit + plan SHA-256
+/resident apply <plan-sha256>          # 只应用刚审查的 exact plan
+/resident status
+/resident remove <exact-service-id>    # 只删除确认的 exact service
 ```
 
-公开参数只有 manager、profile、DSH JavaScript entry、Node executable、`DSH_HOME` 和工作目录。
-manager 默认随当前 OS 选择；非本机 manager 只能 `plan`，不能 apply/status/remove。
+manager、profile、DSH JavaScript entry、Node executable、`DSH_HOME` 和工作目录只来自 disabled-by-default
+Bundle 的机器部署配置，不从模型或 Command 输入选择。manager 默认随当前 OS 选择；非本机 manager 只能
+生成 `plan`，不能 apply/status/remove。
 
 ```text
-one explicit config
+one static DSH config
        │
        ▼
-pure plan renderer ──> inspectable unit
-                            │ explicit deployment confirmation
+pure plan renderer ──> inspectable unit + content hash
+                            │ exact hash / service-id confirmation
                             ▼
                  launchd / systemd --user
                             │
@@ -41,7 +42,7 @@ pure plan renderer ──> inspectable unit
 
 - service id 只由 normalized `DSH_HOME + NUL + profile` 的 SHA-256 前 16 位派生；同一配置可重复定位；
 - unit file 是唯一持久配置；launchd/systemd registration 和 active state 是运行权威；
-- CLI 执行完 `plan/apply/status/remove` 就退出，不保留 daemon、timer、watcher、队列或状态数据库；
+- DSH Command handler 执行完 `plan/apply/status/remove` 就释放调用，不保留 timer、watcher、队列或状态数据库；
 - `registered`、`active` 和 `unitPresent` 分开报告，避免把 backoff 中的已注册服务说成正在运行；
 - remove 停止并删除 unit。macOS stdout/stderr 日志保留为故障证据，不被隐式销毁。
 
@@ -50,8 +51,8 @@ launchd 与 systemd 只是私有 platform adapter，不是公共框架接口。�
 
 ## 安全、权限与秘密
 
-- `plan` 不写外部状态；`apply` 和 `remove` 是 Protected Action，每次必须显式
-  `--confirm-deployment`；
+- `plan` 不写外部状态；`apply` 和 `remove` 是 Protected Action，每次必须分别回传 exact plan SHA-256
+  或 exact service id；DSH `command/run`/`command/done` 记录该动作；
 - Node、DSH entry、home 和 cwd 必须是已存在、绝对、normalized 的路径；Node 还必须可执行；
 - unit 直接使用参数数组或 systemd quoting，不经过 shell，也不依赖 `PATH`；
 - unit 只写入 `DSH_HOME`，不枚举、读取或复制 API key、token、shell 环境或 `.env` 内容；
@@ -68,9 +69,10 @@ systemd user unit：`Restart=always`、`RestartSec=5s`、60 秒内最多 5 次 s
 
 ## KV Cache 与 token
 
-`dsh-resident` 不进入 DSH profile composition，不注册 Bundle、Service、Tool、Skill、Prompt、Command、
-Remote 或模型调用。它在模型进程外生成并管理 unit，所以空闲和运行时额外 token 都是 `0`，也不会改变
-同一 Session 的 system prompt、Tool Schema、Skill catalog 或消息前缀。
+`dsh-resident` 作为默认关闭的 Bundle 进入 DSH composition，只注册一个 human Command；它不注册
+Service、Tool、Skill、Prompt、Remote 或模型调用。Command descriptor 不进入模型请求，所以空闲和
+运行时额外模型 token 都是 `0`，也不会改变同一 Session 的 system prompt、Tool Schema、Skill catalog
+或消息前缀。
 
 进程被恢复后，DSH 自身和授权的 Goal 可能继续产生正常模型费用；那是原生运行语义，不是 LC-2 注入的
 上下文成本。LC-2 不以动态状态、时间或 PID 改写任何模型请求。

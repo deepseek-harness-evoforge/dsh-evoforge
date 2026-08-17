@@ -16,8 +16,7 @@
 | `dsh-telegram` | 一个授权私聊到一个既有 DSH Agent/Session 的 Adapter | disabled，需显式配置 |
 | `dsh-evolve-telegram` | 把进化待决事项投影到既有 Telegram route | disabled，需显式配置 |
 | `dsh-goal-continuity` | exact allowlist Session 的原生 Goal cold-resume policy | disabled，需显式配置 |
-
-仓库还含 `dsh-resident` 的既有 OS unit 实现，但它目前仍是独立 bin，因此不属于 v0.1 可交付安装面；必须迁移为 DSH 插件控制面后才能列入套件。
+| `dsh-resident` | `/resident` 管理 exact DSH profile 的 launchd/systemd user unit | disabled，需显式配置与逐次确认 |
 
 现有进化实现覆盖 P0A–P1.21：sealed paired Trial、inactive Candidate、immutable Generation、Session pin、人工审查、极窄自动晋升、Retention、预算、反馈驱动 Shadow、反事实 canary 和 future-session rollback。它们仍处于 `implemented`，真实 provider、陌生用户、长期误晋升率和生产多日证据尚未完成。
 
@@ -30,7 +29,8 @@ pnpm install --frozen-lockfile
 PACK_DIR="$(mktemp -d)"
 for package in \
   dsh-evolve dsh-evolve-web dsh-software-delivery dsh-doctor \
-  dsh-github-review dsh-telegram dsh-evolve-telegram dsh-goal-continuity
+  dsh-github-review dsh-telegram dsh-evolve-telegram dsh-goal-continuity \
+  dsh-resident
 do
   pnpm --filter "$package" pack --pack-destination "$PACK_DIR"
 done
@@ -51,6 +51,7 @@ dsh --profile web
 - `/doctor` 查看当前组合 readiness；
 - `/evolve status` 或 DSH Web 侧栏查看和处理进化状态；
 - 在原生 Goal 中按需加载 `software-delivery` Skill，由 `complete_delivery` 通过 DSH Bash/Sandbox/Approval 验证并调用原生 `update_goal`；
+- `/resident plan|status|apply <plan-sha256>|remove <service-id>` 通过 DSH Command 审查和管理 OS user unit；
 - Telegram、GitHub review、Goal continuity 和进化注意力只复用已有 DSH Agent、Session、Goal 与 Commands。
 
 没有 `dsh-evolve`、`dsh-delivery` 或 `dsh-resident` 用户产品 CLI。测试驱动器不是打包入口。
@@ -60,7 +61,8 @@ dsh --profile web
 ```sh
 dsh plugin --profile web remove \
   dsh-evolve-web dsh-evolve dsh-software-delivery dsh-doctor \
-  dsh-github-review dsh-evolve-telegram dsh-telegram dsh-goal-continuity
+  dsh-github-review dsh-evolve-telegram dsh-telegram dsh-goal-continuity \
+  dsh-resident
 dsh --profile web --dump-config
 dsh --profile web
 ```
@@ -69,7 +71,7 @@ dsh --profile web
 
 ## 当前 v0.1 工作
 
-下一交付面是：把 `dsh-resident` 迁入 DSH、增加基于原生 `WorkspaceRegistry` 的 Channel Router、把 Telegram 迁为第一个 Adapter、增加飞书作为第二个 Adapter，并使 Evolution 的 Candidate/Generation/预算/审查严格按 Workspace 隔离。完成声明还需要 clean-profile tarball 装配、双 Workspace 真实链路、完整 composition cache gate、真实浏览器、可用凭据下的飞书/Telegram 冒烟以及 Hermes paired benchmark。
+下一交付面是：增加基于原生 `WorkspaceRegistry` 的 Channel Router、把 Telegram 迁为第一个 Adapter、增加飞书作为第二个 Adapter，并使 Evolution 的 Candidate/Generation/预算/审查严格按 Workspace 隔离。完成声明还需要九包 clean-profile tarball 装配、双 Workspace 真实链路、完整 composition cache gate、真实浏览器、可用凭据下的飞书/Telegram 冒烟以及 Hermes paired benchmark。
 
 - [安装与验收](docs/getting-started.zh.md)
 - [当前状态](docs/status.zh.md)
