@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "sd1-checked-goal-completion-epoch-1",
+  "scope": "deterministic SD-1 completion-control comparison; not coding-model quality or remote PR evidence",
+  "revisions": {
+    "deepseekHarness": "47f943859bef60e4160492346772ded9b24f765a",
+    "hermesAgent": "29d0cc2602e01943ab300c0382fc9d97efb376da"
+  },
+  "comparison": {
+    "model": "none; both completion surfaces receive the same frozen check outcome",
+    "network": "disabled",
+    "samples": 2,
+    "cases": [
+      "one linked-worktree commit whose exact check exits 0",
+      "one linked-worktree commit whose same exact check exits 4"
+    ],
+    "nonInferiority": "both systems must accept the passing completion",
+    "primaryMetric": "failed-check tasks accepted as complete; lower is better",
+    "hardGates": [
+      "passing committed change can complete",
+      "failed deterministic check cannot complete",
+      "failure leaves the authoritative task active",
+      "completion evidence names the exact check result"
+    ]
+  }
+}
