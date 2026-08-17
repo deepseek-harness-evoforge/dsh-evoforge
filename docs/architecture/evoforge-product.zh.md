@@ -112,7 +112,7 @@ exact Session 的原生 Goal 是否被授权继续。
 | 单机持续运行 | crash-resume、幂等恢复、无半激活版本 | Generation release + Shadow journal + native Jobs supervisor、`dsh-goal-continuity` Goal 冷恢复与 `dsh-resident` 真实 macOS DSH PID `SIGKILL` 拉起已实现；Linux 真机与生产多日 soak pending |
 | Memory/Skill | 复用 DSH/社区能力，不造第二套 Memory | 架构边界已确认 |
 | 消息与日程 | 按真实 workflow 提供可拆 Adapter | Telegram 单私聊与 Evolve 注意力桥 implemented；真实 Bot/Hermes paired 与其他场景 pending |
-| 人类控制 | 状态、证据、审批、暂停、回滚不阻塞会话 | P0C Commands/Web + P3.1 非阻塞 Telegram attention implemented；语义 capability 审计与陌生用户可用性数据 pending |
+| 人类控制 | 状态、证据、审批、暂停、回滚不阻塞会话 | P0C Commands/Web + P3.1 非阻塞 Telegram attention + P3.2 Draft PR review follow-up implemented；语义 capability 审计与陌生用户可用性数据 pending |
 | 自进化 | 独立 final-test、inactive Candidate、可证明晋升 | P0A `fail → pass` + P0B verified-Git/resident resume + P0C inactive publication + P1.1 opt-in auto policy + P2D.1 Outcome + P1.2 exact-parent 反事实回滚 + P1.3 feedback intake + P1.4 private Case Draft + P1.5 feedback-guided Shadow + P1.6 pre-proposal calibration + P1.7 explicit evaluator authoring + P1.8 target-bound launch + P1.9 private Evaluator Draft/human qualification + P1.15 crash-safe automatic budget + P1.16 opt-in automatic inactive Evaluator Draft + P1.17 human-approved Qualify-and-Shadow + P1.18 per-Skill automatic inflight gate + P1.19 bounded automatic ambiguous review + P1.20 review-window visibility + P1.21 parent outcome comparison；真实 provider、陌生用户与长期效果 pending |
 | 权限 | 代码和外部效果不自动激活 | 需求与测试门已定义 |
 | KV Cache | Session 内完整 composition 稳定 | 真实两轮 Agent 前缀与 Tool surface 回归通过；长会话 cache token soak pending |
@@ -143,7 +143,7 @@ GitHub 组织 `deepseek-harness-evoforge` 是所有 DSH 扩展设计与开发的
 3. **P0C**：host command/view、异步人工晋升和 rollback。
 4. **P1**：权限效果不变的纯指令 future-session canary 与窄自动晋升。
 5. **P2**：Software Delivery 正式产品化；代码 Candidate 只到 Draft PR。
-6. **P3**：Telegram 单私聊 Adapter 与 P3.1 Evolve 注意力桥 implemented；下一门是实际 Bot soak、陌生安装与 Hermes paired benchmark，不是扩渠道或建通知平台。
+6. **P3**：Telegram 单私聊 Adapter、P3.1 Evolve 注意力桥与 P3.2 Draft PR 审查返修 implemented；下一门是实际 Bot/reviewer soak、陌生安装与 Hermes paired benchmark，不是扩渠道或建通知/Review 平台。
 7. **LC-1**：exact Session 原生 Goal 冷恢复 implemented；下一门是生产多日恢复率/时延，不是扩成 daemon 或 HA 平台。
 8. **LC-2**：用户级 launchd/systemd service implemented；下一门是 Linux 真机与多日运行，不是再建第二 supervisor。
 
