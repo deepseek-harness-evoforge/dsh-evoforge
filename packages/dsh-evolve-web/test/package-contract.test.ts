@@ -19,4 +19,18 @@ describe('installable DSH bundle', () => {
       + "      name: dsh-evolve-web\n",
     )
   })
+
+  it('keeps the real-browser bootstrap test-only and loads the installed host artifact', async () => {
+    const manifest = JSON.parse(await readFile(resolve(packageRoot, 'package.json'), 'utf8'))
+    expect(manifest.files).not.toContain('test')
+
+    const bootstrap = await readFile(resolve(packageRoot, 'test/fixtures/browser-workspace-bootstrap.mjs'), 'utf8')
+    expect(bootstrap).toContain('pathToFileURL(config.evolveEntry)')
+    expect(bootstrap).not.toContain("from 'dsh-evolve'")
+
+    const overlay = await readFile(resolve(packageRoot, 'test/fixtures/cordis.patch.yml'), 'utf8')
+    expect(overlay).toContain('name: __EVOFORGE_BROWSER_BOOTSTRAP__')
+    expect(overlay).toContain('evolveEntry: __EVOFORGE_INSTALLED_ENTRY__')
+    expect(overlay).not.toContain('name: !!js')
+  })
 })

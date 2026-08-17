@@ -1,16 +1,19 @@
-# Real-DSH browser acceptance overlay. It is intentionally outside the shipped
-# profile and binds only isolated test-owned paths plus one static Shadow target.
+# Template for the real-DSH browser acceptance overlay. Before use, replace the
+# __...__ values with absolute test-owned paths. The shipped Bundle is unchanged.
+# The fixture disables its ordinary evolution row, registers one real native
+# Workspace/Session, then mounts the installed dsh-evolve artifact with the
+# Workspace id returned by WorkspaceRegistry.
 - id: evoforge-evolution
   name: dsh-evolve
-  config:
-    cacheRoot: !!js dshHomePath('evoforge', 'git-skills')
-    feedbackDraftRoot: !!js dshHomePath('evoforge', 'private-feedback-drafts')
-    supervisor:
-      runRoots:
-        - !!js dshHomePath('evoforge', 'plugin-delivery-runs')
-      scanIntervalMs: 30000
-    shadowTargets:
-      - id: plugin-delivery
-        skill: build-dsh-plugin
-        casePackDir: !!js dshHomePath('evoforge', 'plugin-delivery-cases')
-        runRoot: !!js dshHomePath('evoforge', 'plugin-delivery-runs')
+  disabled: true
+
+- insert:
+    - id: evoforge-browser-workspace
+      name: __EVOFORGE_BROWSER_BOOTSTRAP__
+      config:
+        workspacePath: __EVOFORGE_BROWSER_WORKSPACE__
+        sessionId: evoforge-browser-session
+        agentPreset: standard
+        evolveEntry: __EVOFORGE_INSTALLED_ENTRY__
+        cacheRoot: __EVOFORGE_CACHE_ROOT__
+        runRoot: __EVOFORGE_RUN_ROOT__

@@ -73,7 +73,7 @@ dsh --profile web
 
 ## 当前 v0.1 工作
 
-Workspace Channel Router、Telegram 与飞书第二 Adapter 已实现：静态 exact endpoint、原生 Workspace/Session/Agent、原生 Command/Approval、持久 ingress/outbound、429/uncertain、Goal/Schedule continuation、真实 Host Agent Loop、双 Workspace 双渠道重启隔离与独立 tarball lifecycle 已通过。Evolution 的 Candidate、Case Pack、Generation、反馈、预算、审查、晋升与回滚也已显式绑定 Workspace，并由真实双 Workspace Host 路径证明 Session pin、future-session 生效与重启隔离；Telegram/飞书 evolution attention 也已通过同一双 Workspace Host 的精确路由、重复事件与重启去重。十一包同一次 clean-profile tarball add/dump/boot/remove/readback 和完整 composition Cache Contract 门禁均已通过。完成声明仍需要真实浏览器、可用凭据下的飞书/Telegram 冒烟以及 Hermes paired benchmark。
+Workspace Channel Router、Telegram 与飞书第二 Adapter 已实现：静态 exact endpoint、原生 Workspace/Session/Agent、原生 Command/Approval、持久 ingress/outbound、429/uncertain、Goal/Schedule continuation、真实 Host Agent Loop、双 Workspace 双渠道重启隔离与独立 tarball lifecycle 已通过。Evolution 的 Candidate、Case Pack、Generation、反馈、预算、审查、晋升与回滚也已显式绑定 Workspace，并由真实双 Workspace Host 路径证明 Session pin、future-session 生效与重启隔离；Telegram/飞书 evolution attention 也已通过同一双 Workspace Host 的精确路由、重复事件与重启去重。十一包同一次 clean-profile tarball add/dump/boot/remove/readback、完整 composition Cache Contract 和真实 DSH 浏览器 pause/restart/failure/recovery 门禁均已通过。完成声明仍需要可用凭据下的飞书/Telegram 冒烟以及 Hermes paired benchmark。
 
 - [安装与验收](docs/getting-started.zh.md)
 - [当前状态](docs/status.zh.md)

@@ -13,7 +13,7 @@
 
 ## 当前总判断
 
-EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。最新能力与 ADR-0041 原生插件修正已经进入同一集成分支；十一个用户包都已收敛为无产品 bin 的 DSH Bundle，并通过同一次 clean-profile add/dump/boot/remove/readback。Workspace Channel Router、Telegram 与飞书第二 Adapter 已通过同 Host 双 Workspace 重启隔离；Workspace-owned Evolution 及其 Telegram/飞书 attention 已通过真实双 Workspace Host 路径；[完整 Cache Contract 门](evidence/kv-2-suite-composition-gate.zh.md)也已通过。剩余门禁主要是真实凭据/浏览器、长期 outcome 与 Hermes paired benchmark。
+EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。最新能力与 ADR-0041 原生插件修正已经进入同一集成分支；十一个用户包都已收敛为无产品 bin 的 DSH Bundle，并通过同一次 clean-profile add/dump/boot/remove/readback。Workspace Channel Router、Telegram 与飞书第二 Adapter 已通过同 Host 双 Workspace 重启隔离；Workspace-owned Evolution 及其 Telegram/飞书 attention 已通过真实双 Workspace Host 路径；[完整 Cache Contract 门](evidence/kv-2-suite-composition-gate.zh.md)和 [v0.1 真实浏览器复验](evidence/p0c-6-web-control-plane.zh.md)也已通过。剩余门禁主要是真实渠道凭据、长期 outcome 与 Hermes paired benchmark。
 
 | 能力 | 当前状态 | 已有证据 | 仍缺 |
 |---|---|---|---|
@@ -21,7 +21,7 @@ EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。最新能�
 | Evidence-driven Evolution P0A–P1.21 | `implemented` | paired Trial、Workspace-owned Generation/feedback/review/budget、Session pin、Retention、canary、64 轮 cache parity、真实双 Workspace Host 重启隔离 | 真实 provider、长期误晋升/回滚数据 |
 | Software Delivery P2A–P2D | `implemented` | 真实 Git、原生 Tool/Goal、Draft PR、checks 与 Outcome；十一包 clean-profile 内从 packed Tool 完成原生 Goal | 真实长期任务 |
 | GitHub Review Follow-up P3.2 | `implemented` | exact-head allowlist、bounded follow-up、重启去重、cache parity | 真实 reviewer 返修闭环和多日 resident |
-| Web Control Plane | `implemented` | 真实 DSH Remote/Client Module、Chrome 审查与刷新 | v0.1 集成后的浏览器复验、陌生用户数据 |
+| Web Control Plane | `verified` | packed artifact、真实 DSH Workspace/Host/Client Module；浏览器 pause→Host restart→persisted pause→resume/refresh；断线 fail visible 与恢复，console error 0 | 陌生用户可用性与长期数据 |
 | Runtime Readiness | `implemented` | 原生 Loader/Command、tarball 生命周期 | v0.1 全包诊断和陌生安装数据 |
 | Telegram 单私聊 | `implemented` | 已迁移 Channel Router；真实 DSH Workspace/Agent Loop、Commands、Approval、Goal/Schedule、durable ingress/delivery、cache parity、联合 tarball lifecycle | 真实 Bot 冒烟和多日证据 |
 | Evolve Channel Attention | `implemented` | Telegram/飞书 actionable state、concrete routes、显式 Workspace、durable notice、request parity；进入十一包总装 | 真实渠道验证与多日移动端数据 |
@@ -39,7 +39,7 @@ EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。最新能�
 ## 当前限制
 
 - 固定 rc.5 源码是唯一支持证据；兼容范围不能由宽 peer range 推断；
-- v0.1 浏览器复验尚未完成；真实 provider cache-read/TTFT 仍需有预算的 paired soak；
+- v0.1 浏览器复验已完成；真实 provider cache-read/TTFT 仍需有预算的 paired soak；
 - 真实 Telegram/飞书凭据、真实 provider、陌生用户和生产多日证据仍缺失；
 - 自动化 `implemented` 不能替代真实 outcome，也不能支持笼统的“优于 Hermes”；
 - 不 merge、不发布 registry、不部署生产，除非用户另行授权。

@@ -1,8 +1,8 @@
 # P0C.6 真实 DSH Web 控制面证据
 
-- 日期：2026-08-16
+- 日期：2026-08-17（v0.1 集成复验）
 - DSH revision：`47f943859bef60e4160492346772ded9b24f765a`
-- 状态：implemented，真实本地 DSH/Web/浏览器验收通过；尚无陌生用户可用性数据
+- 状态：verified，真实本地 DSH/Web/浏览器验收通过；尚无陌生用户可用性数据
 
 ## 验收对象
 
@@ -18,19 +18,28 @@
 
 ## 浏览器验收
 
-使用真实 DSH 页面完成以下操作。该浏览器验收额外加载仓库内测试 patch，只覆盖 Bundle 已插入的
-host 行，把 supervisor、私有 draft root 与一个静态 Shadow Target 指向隔离的测试目录；默认
-Bundle 仍保持这些能力关闭。夹具不重复插入 Bundle 行：
+使用真实 DSH 页面完成以下操作。验收从重新打包的 `dsh-evolve`、`dsh-evolve-web` tarball 开始，
+通过官方 `dsh plugin --profile web add` 安装到隔离 `DSH_HOME`。测试 patch 先禁用 Bundle 的普通
+host row，再由一个**不发布**的 bootstrap fixture 调用 DSH `WorkspaceRegistry`、Agent preset 与
+Session API 创建一个真实 Workspace/Agent/Session；fixture 随后从该 profile 的
+`node_modules/dsh-evolve/dist/index.mjs` 动态加载已安装 artifact，把 Registry 返回的 exact
+Workspace id 交给同一个 Cordis plugin。它不是产品入口，不进入 tarball，也不创建第二 Runtime。
 
-1. 不创建 Workspace、Session 或 API key，确认侧栏出现“演化”；
-2. 打开面板，读取 `原生 DSH / 运行中 / 0 待审查 / 自动晋升关闭`；
-3. 点击暂停，确认 UI 显示“已暂停”和 durable action receipt；
-4. 关闭并重启同一个隔离 DSH 进程；
-5. 刷新页面并重新打开面板，确认仍为“已暂停”；
-6. 点击恢复，确认权威状态重新显示“运行中”；
-7. 当前页面控制台 error 数为 `0`。
+这次 v0.1 复验同时暴露了旧浏览器 patch 仍把 `supervisor.runRoots` 写成 `string[]` 的历史漂移；
+固定 DSH Loader fail loud。夹具已改成 Workspace-owned `{ workspaceId, path }`，并用合同测试锁定
+“只加载已安装 artifact、fixture 不发布、Loader `name` 不接受表达式对象”三个事实。
 
-这条验收没有创建 Session、没有发送用户消息、没有调用模型、没有读秘密，也没有触碰真实用户 profile。最终恢复为运行状态。
+1. 启动固定 revision 的真实 DSH Web Host，页面显示 `EvoForge Browser Acceptance` 原生 Workspace；
+2. 打开由已安装 `dsh-evolve-web` Client Module 注册的侧栏入口，读取
+   `原生 DSH / 运行中 / 0 待审查 / 自动晋升关闭`；
+3. 点击暂停，UI 显示“已暂停”和“动作已持久完成，权威状态已刷新”；
+4. 关闭并重启同一个隔离 DSH Host，重新打开面板后仍为“已暂停”；
+5. 点击恢复和刷新，权威状态回到“运行中”；
+6. 停止 Host 后点击刷新，面板原位保留最后状态并显示可见 alert：
+   `演化动作失败：... Failed to fetch`，没有假成功；
+7. 重启 Host 后再次刷新，错误消失并恢复“运行中”；浏览器 console error 为 `0`。
+
+验收没有发送用户消息、没有调用模型、没有读取 API key，也没有触碰真实用户 profile。最终状态恢复为运行中。
 
 ## KV Cache 与边界
 
@@ -38,7 +47,7 @@ Web Adapter 不注册 Tool、Prompt、Skill、System Message 或 Session Event�
 
 ## 回归门
 
-最终 workspace 回归为 156 passed、3 skipped：`dsh-evolve` 125、`dsh-software-delivery` 26、`dsh-evolve-web` 5。文档链接、三包 typecheck、三包 build、Typert source digest、8 个 Remote 方法及其 wire 参数、纯 Node artifact 语法、peer 完整性和 `git diff --check` 同时通过。最终 tarball 重新执行无 overlay Bundle 安装/启动/Client Module 检查，再执行 Bundle 卸载、零 EvoForge 配置行、原生 Web 重启与插件 URL `404`。
+历史 P0C.6 回归为 156 passed、3 skipped：`dsh-evolve` 125、`dsh-software-delivery` 26、`dsh-evolve-web` 5。v0.1 复验在十一包 clean-profile gate 与完整 composition Cache Contract gate 已通过后执行，并把真实 Workspace 浏览器夹具合同加入 `dsh-evolve-web`。提交前再次运行全仓 `pnpm check`；最终结果以当前提交记录为准。
 
 ## 未证明
 
