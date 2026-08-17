@@ -118,6 +118,10 @@ token 由启动 DSH 的环境提供。模型不能读取 token、修改 route、
     appSecretEnv: DSH_FEISHU_APP_SECRET
 ```
 
+飞书 Adapter 会自动采用启动 DSH 进程中的 `HTTPS_PROXY`/`https_proxy` 或
+`ALL_PROXY`/`all_proxy`，并遵守 `NO_PROXY`/`no_proxy`。该设置只作用于此飞书连接，
+不改写环境或 Node 全局 Agent。
+
 ## 4. 禁用、卸载与回退
 
 禁用单包时，在 profile patch 中覆盖稳定 row 的 `disabled: true`。完全移除：
@@ -146,4 +150,4 @@ pnpm benchmark:hermes
 
 clean-profile gate 从全部十一个用户包的 tarball 开始，通过一次官方 DSH CLI 安装、dump、boot，在注册后的原生 Workspace 与真实 Agent preset/Session/Goal 内触发 packed Tool，flush 原生持久化，再一次卸载全部十一包、重启并读回 Goal。它同时检查每个 tarball 无用户产品 bin、无 `node_modules`，且 production dependencies 不携带 DSH/Cordis。
 
-Resident 已有原生 Bundle、DSH Command、无 bin tarball以及 launchd/systemd 协议回归；Channel Router、Telegram 与飞书已通过原生 Bundle、持久 ingress/outbound、真实 DSH Host/Agent Loop、Command、Approval、continuation、429/uncertain、双 Workspace 双渠道重启隔离与 tarball lifecycle。Workspace-scoped evolution、Telegram/飞书进化注意力、十一包同一 clean-profile gate、完整 composition Cache Contract gate 和 v0.1 真实 DSH 浏览器 pause/restart/failure/recovery 复验已通过。EV-1、SD-1、LC-1 与 AS-1 approval 四个确定性 Hermes paired slice 已通过；真实渠道凭据、同模型编码/长任务和真实消息交付 epochs 仍缺失，这些完成前不能发布 v0.1。
+Resident 已有原生 Bundle、DSH Command、无 bin tarball以及 launchd/systemd 协议回归；Channel Router、Telegram 与飞书已通过原生 Bundle、持久 ingress/outbound、真实 DSH Host/Agent Loop、Command、Approval、continuation、429/uncertain、双 Workspace 双渠道重启隔离与 tarball lifecycle。Workspace-scoped evolution、Telegram/飞书进化注意力、十一包同一 clean-profile gate、完整 composition Cache Contract gate，以及包含零基础概览、Skills 和高级控制的 v0.1 真实 DSH 浏览器复验已通过；真实飞书 App 身份请求和标准代理环境 WebSocket 握手也已通过。EV-1、SD-1、LC-1 与 AS-1 approval 四个确定性 Hermes paired slice 已通过；exact 飞书 route 消息、同模型编码/长任务和真实消息交付 epochs 仍缺失，这些完成前不能发布 v0.1。本轮按项目所有者要求不验证 Telegram。

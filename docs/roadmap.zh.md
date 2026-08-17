@@ -33,14 +33,14 @@
 
 ## V2 — 飞书 Adapter
 
-实现状态：Adapter、可靠投递、真实 DSH 单 Workspace 组合、双 Workspace 双渠道同 Host 重启隔离、Telegram/飞书进化注意力、tarball lifecycle 与十一包总装已完成；真实凭据仍未达到退出门。
+实现状态：Adapter、可靠投递、真实 DSH 单 Workspace 组合、双 Workspace 双渠道同 Host 重启隔离、Telegram/飞书进化注意力、tarball lifecycle 与十一包总装已完成；真实飞书 App 身份请求及标准代理环境 WebSocket 握手已通过，exact route 消息仍未达到退出门。
 
 - 支持静态授权的私聊或群聊文本、原生 Command、一次性 Approval、最终回答、Goal/Schedule 与进化注意力；
 - 凭据、身份与 Workspace route 只能由部署配置决定；
 - 事件去重、限流、结果不确定状态和 Cordis dispose 完整；
 - Telegram 与飞书共同证明公共渠道接缝，不预建更多平台功能。
 
-退出门：fake API/协议测试、真实 DSH 双 Workspace assembled 测试，以及可用凭据下的飞书与 Telegram 冒烟。
+退出门：fake API/协议测试、真实 DSH 双 Workspace assembled 测试，以及 exact 飞书 chat/user 下的入站、回复、Command 与 Approval 冒烟。本轮按项目所有者要求不验证 Telegram。
 
 ## V3 — Workspace-scoped Evolution
 

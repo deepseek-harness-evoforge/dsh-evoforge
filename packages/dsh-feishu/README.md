@@ -48,6 +48,8 @@ dsh --profile web --dump-config
 
 - Router 持有 endpoint → Workspace/Session/Agent、原生 Command admission 和持久 ingress 幂等；
 - Adapter 只持有官方 WebSocket 协议、文本/卡片收发、一次性 DSH Approval UI 和有界 StorageDomain 出站 journal；
+- Adapter 自动采用部署进程的 `HTTPS_PROXY`/`https_proxy` 或 `ALL_PROXY`/`all_proxy`，并遵守
+  `NO_PROXY`/`no_proxy`；代理只绑定到该飞书连接，不修改环境变量或全局 Agent；
 - 发送意图先落盘；明确 429 才有界重试；传输失败或崩溃中的 `sending` 转为 `uncertain`，不自动重复发送；
 - 单 route Session 的 Goal/Schedule continuation 可主动投递；多 route Session 的主动目标不明确时 fail closed；host notice 必须显式指定 `routeId`；
 - `/feishu` 是原生 DSH Command；普通模型请求新增 0 Tool、0 Skill、0 Prompt section；

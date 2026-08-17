@@ -1,6 +1,6 @@
 # DeepSeek Harness EvoForge 项目需求基线
 
-> 状态：已确认；P0A–P1.21、P2A.1–P2D.1、P3.1、P3.2、LC-1、LC-2 和 Runtime Readiness 已有可复用实现，产品形态已纠正为“只安装并运行于 DSH 的原生 out-of-tree 插件套件”；十一包统一原生安装、多 Workspace 双渠道自动化隔离、Workspace-scoped evolution、真实浏览器复验与 EV-1、SD-1、LC-1、AS-1 approval 四个确定性 Hermes paired slice 已通过，真实渠道凭据、长期 outcome 与其余 Hermes paired epochs 等完整真实验收完成前仍不构成 v0.1 交付
+> 状态：已确认；P0A–P1.21、P2A.1–P2D.1、P3.1、P3.2、LC-1、LC-2 和 Runtime Readiness 已有可复用实现，产品形态已纠正为“只安装并运行于 DSH 的原生 out-of-tree 插件套件”；十一包统一原生安装、多 Workspace 双渠道自动化隔离、Workspace-scoped evolution、零基础浏览器复验、真实飞书 App 握手与 EV-1、SD-1、LC-1、AS-1 approval 四个确定性 Hermes paired slice 已通过，exact 飞书 route 消息、长期 outcome 与其余 Hermes paired epochs 等完整真实验收完成前仍不构成 v0.1 交付
 > 更新日期：2026-08-17
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。发生冲突时，下述“方向纠正”优先于旧里程碑文字。
 
@@ -287,8 +287,9 @@ workspace，输出可审查的 launchd/systemd unit。OS service manager 与 uni
 7. 用真实结果决定后续软件交付、个人助理、内容、消息和日程插件，不一次性全部实现。
 
 当前进度说明：软件交付、Runtime Readiness、Telegram、飞书第二 Adapter 与单用途 Evolve 注意力桥
-已分别以独立 `dsh-*` 包实现；两个渠道仍只到自动化 `implemented`，真实凭据/Hermes paired 证据完成以前不
-扩张为 Gateway，也不把其他消息、内容或日程需求视为已交付。该说明不改变以上需求顺序和权限边界。
+已分别以独立 `dsh-*` 包实现；飞书真实 App 身份请求与 WebSocket 握手已通过，但 exact route 消息和
+Hermes paired 证据完成以前仍只标记为 `implemented`，不扩张为 Gateway，也不把其他消息、内容或日程
+需求视为已交付。该说明不改变以上需求顺序和权限边界。
 
 在 P1.1 之后，先实现 `dsh-software-delivery` 的最小 objective outcome：稳定按需 Skill 与
 linked-worktree/commit/check 验证器。只有真实交付 outcome 可用后，才建设 future-session

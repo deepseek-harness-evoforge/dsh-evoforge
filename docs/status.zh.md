@@ -13,7 +13,7 @@
 
 ## 当前总判断
 
-EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。最新能力与 ADR-0041 原生插件修正已经进入同一集成分支；十一个用户包都已收敛为无产品 bin 的 DSH Bundle，并通过同一次 clean-profile add/dump/boot/remove/readback。Workspace Channel Router、Telegram 与飞书第二 Adapter 已通过同 Host 双 Workspace 重启隔离；Workspace-owned Evolution 及其 Telegram/飞书 attention 已通过真实双 Workspace Host 路径；[完整 Cache Contract 门](evidence/kv-2-suite-composition-gate.zh.md)和 [v0.1 真实浏览器复验](evidence/p0c-6-web-control-plane.zh.md)也已通过。逐条退出门见 [v0.1 完成条件审计](evidence/v0.1-completion-audit.zh.md)；当前外部阻塞是真实渠道/模型凭据与 exact 平台身份。
+EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。最新能力与 ADR-0041 原生插件修正已经进入同一集成分支；十一个用户包都已收敛为无产品 bin 的 DSH Bundle，并通过同一次 clean-profile add/dump/boot/remove/readback。Workspace Channel Router、Telegram 与飞书第二 Adapter 已通过同 Host 双 Workspace 重启隔离；Workspace-owned Evolution 及其 Telegram/飞书 attention 已通过真实双 Workspace Host 路径；[完整 Cache Contract 门](evidence/kv-2-suite-composition-gate.zh.md)和包含零基础概览、Skills 与高级控制的 [v0.1 真实浏览器复验](evidence/p0c-6-web-control-plane.zh.md)也已通过。真实飞书 App 的身份请求和 WebSocket 握手已在宿主标准代理环境中通过；逐条退出门见 [v0.1 完成条件审计](evidence/v0.1-completion-audit.zh.md)，当前仍缺 exact 飞书平台身份下的消息闭环、真实模型 paired 证据与长期数据。
 
 | 能力 | 当前状态 | 已有证据 | 仍缺 |
 |---|---|---|---|
@@ -27,8 +27,8 @@ EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。最新能�
 | Evolve Channel Attention | `implemented` | Telegram/飞书 actionable state、concrete routes、显式 Workspace、durable notice、request parity；进入十一包总装 | 真实渠道验证与多日移动端数据 |
 | Goal Continuity | `implemented` | JSONL cold resume、SIGKILL、原生 Goal round limit | 多 Workspace 绑定、生产 soak |
 | Resident OS unit | `implemented` | disabled Bundle、原生 `/resident`、exact hash/service-id 确认、无 bin tarball、十一包总装、launchd/systemd 与 macOS crash 测试 | Linux 真机和多日 soak |
-| Workspace Channel Router | `implemented` | exact endpoint deny-by-default；原生 Workspace/Session/Agent create/resume；持久幂等/uncertain 状态机；Telegram/飞书同一真实 Host 的双 Workspace、Command、Approval、continuation 与重启去重隔离；十一包总装 | 真实凭据 |
-| 飞书 Adapter | `implemented` | [AS-2](evidence/as-2-feishu-channel.zh.md)：官方 SDK WebSocket；exact allowlist；原生 Agent/Command/Approval/continuation；StorageDomain journal、429/uncertain、单渠道及双 Workspace 真实 Host、双 Agent 完整 composition parity、tarball add/dump/remove | 真实 App 凭据冒烟与多日重连 |
+| Workspace Channel Router | `implemented` | exact endpoint deny-by-default；原生 Workspace/Session/Agent create/resume；持久幂等/uncertain 状态机；Telegram/飞书同一真实 Host 的双 Workspace、Command、Approval、continuation 与重启去重隔离；十一包总装；真实飞书 App 握手 | exact 飞书 chat/user 消息闭环 |
+| 飞书 Adapter | `implemented` | [AS-2](evidence/as-2-feishu-channel.zh.md)：官方 SDK WebSocket；exact allowlist；原生 Agent/Command/Approval/continuation；StorageDomain journal、429/uncertain、单渠道及双 Workspace 真实 Host、双 Agent 完整 composition parity、tarball lifecycle；真实 App 身份请求与标准代理环境 WebSocket 握手 | exact route 入站/回复/Approval 与多日重连 |
 | Hermes paired benchmark | `implemented` | [EV-1](evidence/ev-1-hermes-paired-benchmark.zh.md)、[SD-1](evidence/sd-1-hermes-paired-benchmark.zh.md)、[LC-1](evidence/lc-1-hermes-paired-benchmark.zh.md) 与 [AS-1 approval](evidence/as-1-hermes-paired-benchmark.zh.md) 四个确定性 slice：前两项窄场景胜出；本机崩溃恢复与 Telegram 一次性审批均 0:0 平局 | 同模型真实编码、真实 Bot/App 消息交付、真实模型长任务、真实 provider 与长期 outcome 的 paired epochs |
 | Registry release | `planned` | 无 | 全部门禁、版本矩阵、用户授权 |
 
@@ -40,6 +40,6 @@ EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。最新能�
 
 - 固定 rc.5 源码是唯一支持证据；兼容范围不能由宽 peer range 推断；
 - v0.1 浏览器复验已完成；真实 provider cache-read/TTFT 仍需有预算的 paired soak；
-- 真实 Telegram/飞书凭据、真实 provider、陌生用户和生产多日证据仍缺失；
+- 真实飞书 exact route 消息、真实 provider、陌生用户和生产多日证据仍缺失；本轮按项目所有者要求不验证 Telegram；
 - 自动化 `implemented` 不能替代真实 outcome，也不能支持笼统的“优于 Hermes”；
 - 不 merge、不发布 registry、不部署生产，除非用户另行授权。
