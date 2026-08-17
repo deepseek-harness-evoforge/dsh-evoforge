@@ -13,7 +13,7 @@
 
 ## 当前总判断
 
-EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。最新能力与 ADR-0041 原生插件修正已经进入同一集成分支；十一个用户包都已收敛为无产品 bin 的 DSH Bundle，并通过同一次 clean-profile add/dump/boot/remove/readback。Workspace Channel Router、Telegram 与飞书第二 Adapter 已通过同 Host 双 Workspace 重启隔离；Workspace-owned Evolution 及其 Telegram/飞书 attention 已通过真实双 Workspace Host 路径；[完整 Cache Contract 门](evidence/kv-2-suite-composition-gate.zh.md)和 [v0.1 真实浏览器复验](evidence/p0c-6-web-control-plane.zh.md)也已通过。剩余门禁主要是真实渠道凭据、长期 outcome 与 Hermes paired benchmark。
+EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。最新能力与 ADR-0041 原生插件修正已经进入同一集成分支；十一个用户包都已收敛为无产品 bin 的 DSH Bundle，并通过同一次 clean-profile add/dump/boot/remove/readback。Workspace Channel Router、Telegram 与飞书第二 Adapter 已通过同 Host 双 Workspace 重启隔离；Workspace-owned Evolution 及其 Telegram/飞书 attention 已通过真实双 Workspace Host 路径；[完整 Cache Contract 门](evidence/kv-2-suite-composition-gate.zh.md)和 [v0.1 真实浏览器复验](evidence/p0c-6-web-control-plane.zh.md)也已通过。逐条退出门见 [v0.1 完成条件审计](evidence/v0.1-completion-audit.zh.md)；当前外部阻塞是真实渠道/模型凭据与 exact 平台身份。
 
 | 能力 | 当前状态 | 已有证据 | 仍缺 |
 |---|---|---|---|

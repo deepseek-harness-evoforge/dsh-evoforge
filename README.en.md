@@ -43,7 +43,7 @@ dsh --profile web
 
 Removal unregisters EvoForge effects while native DSH Session, Goal, and Workspace data remains readable. External effects that already occurred cannot be undone by uninstalling a plugin.
 
-The native Workspace Channel Router, Telegram and Feishu Adapters, Workspace-owned evolution, eleven-package clean-profile gate, full composition Cache Contract gate, and real DSH browser restart/failure/recovery acceptance are implemented. Deterministic EV-1 and SD-1 Hermes paired slices support narrow advantage claims for Skill-correction release control and checked Goal completion when Hermes' auxiliary judge is unavailable. v0.1 still requires real-channel credential smoke tests and the remaining same-model coding, channel, long-task, provider, and long-running paired evidence.
+The native Workspace Channel Router, Telegram and Feishu Adapters, Workspace-owned evolution, eleven-package clean-profile gate, full composition Cache Contract gate, and real DSH browser restart/failure/recovery acceptance are implemented. Four deterministic Hermes paired slices now cover EV-1, SD-1, LC-1, and Telegram approval: the first two support narrow control-plane advantage claims, while local crash recovery and allow-once replay control are ties. v0.1 still requires real-channel credential smoke tests plus same-model coding, real-message delivery, long-task, provider, and long-running paired evidence.
 
 See the [Chinese installation guide](docs/getting-started.zh.md), [status](docs/status.zh.md), [shape audit](docs/native-plugin-shape-audit.zh.md), and [plugin contract](docs/plugin-contract.zh.md).
 
