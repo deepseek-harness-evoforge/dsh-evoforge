@@ -1,0 +1,4 @@
+- insert:
+    - id: evoforge-channel-router
+      name: dsh-channel-router
+      disabled: true

@@ -52,6 +52,11 @@ const contracts = [
     entryId: 'evoforge-resident',
     disabled: true,
   },
+  {
+    name: 'dsh-channel-router',
+    entryId: 'evoforge-channel-router',
+    disabled: true,
+  },
 ] as const
 
 describe('EvoForge native DSH plugin suite contract', () => {

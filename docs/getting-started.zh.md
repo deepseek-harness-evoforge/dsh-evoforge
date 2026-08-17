@@ -8,7 +8,7 @@ EvoForge 只作为 DSH 原生 Bundle 套件运行。本页区分“开发者生�
 - DeepSeek Harness revision `47f943859bef60e4160492346772ded9b24f765a`（`0.1.0-rc.5`）；
 - 一个 DSH `web` profile。
 
-当前包尚未发布到 registry。先在本仓生成九个 `0.1.0-alpha.1.tgz`；这一步只生成 DSH 安装产物，不启动 EvoForge Runtime：
+当前包尚未发布到 registry。先在本仓生成十个 `0.1.0-alpha.1.tgz`；这一步只生成 DSH 安装产物，不启动 EvoForge Runtime：
 
 ```sh
 pnpm install --frozen-lockfile
@@ -16,7 +16,7 @@ PACK_DIR="$(mktemp -d)"
 for package in \
   dsh-evolve dsh-evolve-web dsh-software-delivery dsh-doctor \
   dsh-github-review dsh-telegram dsh-evolve-telegram dsh-goal-continuity \
-  dsh-resident
+  dsh-resident dsh-channel-router
 do
   pnpm --filter "$package" pack --pack-destination "$PACK_DIR"
 done
@@ -29,7 +29,7 @@ dsh plugin --profile web add "$PACK_DIR"/*.tgz
 dsh --profile web --dump-config
 ```
 
-有效配置应各出现一次：`dsh-evolve`、`dsh-evolve-web`、`dsh-software-delivery`、`dsh-doctor`、`dsh-github-review`、`dsh-telegram`、`dsh-evolve-telegram`、`dsh-goal-continuity`、`dsh-resident`。涉及外部身份、凭据、自动恢复或 OS 部署的 row 应保持 disabled，直到部署者提供完整静态配置。
+有效配置应各出现一次：`dsh-evolve`、`dsh-evolve-web`、`dsh-software-delivery`、`dsh-doctor`、`dsh-github-review`、`dsh-telegram`、`dsh-evolve-telegram`、`dsh-goal-continuity`、`dsh-resident`、`dsh-channel-router`。涉及外部身份、凭据、自动恢复或 OS 部署的 row 应保持 disabled，直到部署者提供完整静态配置。
 
 启动唯一的 DSH Host：
 
@@ -84,7 +84,7 @@ token 由启动 DSH 的环境提供。模型不能读取 token、修改 route、
 dsh plugin --profile web remove \
   dsh-evolve-web dsh-evolve dsh-software-delivery dsh-doctor \
   dsh-github-review dsh-evolve-telegram dsh-telegram dsh-goal-continuity \
-  dsh-resident
+  dsh-resident dsh-channel-router
 dsh --profile web --dump-config
 dsh --profile web
 ```
@@ -103,4 +103,4 @@ DSH_EVOLVE_DSH_SOURCE_DIR=/absolute/path/to/deepseek-harness \
 
 clean-profile gate 从 tarball 开始，通过官方 DSH CLI 安装、dump、boot，在真实 Agent preset/Session/Goal 内触发能力，flush 原生持久化，再卸载、重启并读回 Goal。它同时检查 tarball 无用户产品 bin、无 `node_modules`，且 production dependencies 不携带 DSH/Cordis。
 
-Resident 已有原生 Bundle、DSH Command、无 bin tarball 以及 launchd/systemd 协议回归；九包同一 clean-profile 的 assembled gate 尚未完成。Workspace Channel Router、飞书、双 Workspace evolution 隔离、真实渠道凭据和 Hermes paired benchmark 也仍缺失；这些全部完成前不能发布 v0.1。
+Resident 已有原生 Bundle、DSH Command、无 bin tarball 以及 launchd/systemd 协议回归；Channel Router 已有原生 Bundle、无 bin tarball、持久 ingress 状态机与双 Workspace 单元合同。十包同一 clean-profile 的 assembled gate、Telegram 迁移、飞书、双 Workspace evolution 隔离、真实渠道凭据和 Hermes paired benchmark 仍缺失；这些全部完成前不能发布 v0.1。

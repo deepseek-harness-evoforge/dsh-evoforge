@@ -17,6 +17,7 @@
 | `dsh-evolve-telegram` | 把进化待决事项投影到既有 Telegram route | disabled，需显式配置 |
 | `dsh-goal-continuity` | exact allowlist Session 的原生 Goal cold-resume policy | disabled，需显式配置 |
 | `dsh-resident` | `/resident` 管理 exact DSH profile 的 launchd/systemd user unit | disabled，需显式配置与逐次确认 |
+| `dsh-channel-router` | external endpoint 到原生 Workspace/Session/Agent 的静态、幂等绑定 | disabled，需显式配置 |
 
 现有进化实现覆盖 P0A–P1.21：sealed paired Trial、inactive Candidate、immutable Generation、Session pin、人工审查、极窄自动晋升、Retention、预算、反馈驱动 Shadow、反事实 canary 和 future-session rollback。它们仍处于 `implemented`，真实 provider、陌生用户、长期误晋升率和生产多日证据尚未完成。
 
@@ -30,7 +31,7 @@ PACK_DIR="$(mktemp -d)"
 for package in \
   dsh-evolve dsh-evolve-web dsh-software-delivery dsh-doctor \
   dsh-github-review dsh-telegram dsh-evolve-telegram dsh-goal-continuity \
-  dsh-resident
+  dsh-resident dsh-channel-router
 do
   pnpm --filter "$package" pack --pack-destination "$PACK_DIR"
 done
@@ -62,7 +63,7 @@ dsh --profile web
 dsh plugin --profile web remove \
   dsh-evolve-web dsh-evolve dsh-software-delivery dsh-doctor \
   dsh-github-review dsh-evolve-telegram dsh-telegram dsh-goal-continuity \
-  dsh-resident
+  dsh-resident dsh-channel-router
 dsh --profile web --dump-config
 dsh --profile web
 ```
@@ -71,7 +72,7 @@ dsh --profile web
 
 ## 当前 v0.1 工作
 
-下一交付面是：增加基于原生 `WorkspaceRegistry` 的 Channel Router、把 Telegram 迁为第一个 Adapter、增加飞书作为第二个 Adapter，并使 Evolution 的 Candidate/Generation/预算/审查严格按 Workspace 隔离。完成声明还需要九包 clean-profile tarball 装配、双 Workspace 真实链路、完整 composition cache gate、真实浏览器、可用凭据下的飞书/Telegram 冒烟以及 Hermes paired benchmark。
+Workspace Channel Router core 已实现：静态 exact endpoint、原生 Workspace/Session/Agent 绑定、持久 ingress 幂等与双 Workspace 隔离合同已通过。下一交付面是把 Telegram 迁为第一个 Adapter、增加飞书作为第二个 Adapter，并使 Evolution 的 Candidate/Generation/预算/审查严格按 Workspace 隔离。完成声明还需要十包 clean-profile tarball 装配、双 Workspace 真实渠道链路、完整 composition cache gate、真实浏览器、可用凭据下的飞书/Telegram 冒烟以及 Hermes paired benchmark。
 
 - [安装与验收](docs/getting-started.zh.md)
 - [当前状态](docs/status.zh.md)
