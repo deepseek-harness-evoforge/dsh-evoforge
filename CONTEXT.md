@@ -32,6 +32,10 @@ _Avoid_: High availability, distributed failover
 An opt-in deployment policy that lets an explicitly named persistent Session continue its still-active native Goal after cold resume, within that Goal's existing limits and permissions.
 _Avoid_: Mission, automatic Session discovery, unlimited retry
 
+**Resident Service**:
+A user-level OS service registration that starts one exact DSH CLI/profile at login and restarts it after process exit. The generated unit and launchd/systemd are authoritative; the adapter itself exits after plan, apply, status, or remove.
+_Avoid_: DSH daemon plugin, supervisor database, high availability
+
 **Runtime Readiness Report**:
 A point-in-time, read-only answer to whether the capabilities an operator explicitly requires are currently usable. Its outcome is `ready`, `not-ready`, or `unknown`; it names concrete blockers and next actions without repairing them, retaining health history, or becoming a second lifecycle authority.
 _Avoid_: Invariant result, plugin inventory, uptime monitor, auto-repair plan

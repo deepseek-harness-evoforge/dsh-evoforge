@@ -44,6 +44,7 @@ jobs:
           pnpm --filter dsh-doctor pack --pack-destination "$RUNNER_TEMP"
           pnpm --filter dsh-telegram pack --pack-destination "$RUNNER_TEMP"
           pnpm --filter dsh-goal-continuity pack --pack-destination "$RUNNER_TEMP"
+          pnpm --filter dsh-resident pack --pack-destination "$RUNNER_TEMP"
 
   assembled-darwin:
     name: macOS DSH Assembled Trial
@@ -116,6 +117,9 @@ jobs:
             test/cold-resume.e2e.test.ts \
             test/process-crash.e2e.test.ts \
             test/package-install-remove.e2e.test.ts
+          pnpm --filter dsh-resident exec vitest run \
+            test/launchd.e2e.test.ts \
+            test/package-boundary.e2e.test.ts
       - name: Run PA-1 protected-action hard gate
         env:
           DSH_EVOLVE_DSH_SOURCE_DIR: ${{ github.workspace }}/.evoforge/deepseek-harness

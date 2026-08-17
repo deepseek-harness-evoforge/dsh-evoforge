@@ -15,7 +15,7 @@ pnpm test:pa1
 ```
 
 `pnpm check` 依次执行 TypeScript 类型检查、全部测试和构建。生成目录 `dist/`、依赖目录和 `.evoforge/` 本地证据不会进入 Git。
-`pnpm test:pa1` 额外把分散在 Evolve、Delivery 和 Web 的 Protected Action 行为收敛为一个
+`pnpm test:pa1` 额外把分散在 Evolve、Delivery、Web、Telegram、Goal Continuity 和 Resident 的 Protected Action 行为收敛为一个
 可执行 hard gate；macOS 才能完整执行 Seatbelt secret/network/host-read 隔离 case。
 
 ## 2. 当前包
@@ -37,6 +37,18 @@ packages/dsh-doctor/
   src/          Runtime Readiness 三态分类与原生 Command
   test/         Loader/Commands、Bundle dump、打包安装/卸载测试
   README.md     安装、三态语义、缓存和非目标
+packages/dsh-telegram/
+  src/          单 Telegram 私聊 Adapter 与幂等投递 journal
+  test/         真实 Agent/Commands/Approval、429、Storage 与 package 测试
+  README.md     route、秘密、外部效果与限制
+packages/dsh-goal-continuity/
+  src/          exact Session 原生 Goal 冷恢复策略
+  test/         JSONL 恢复、SIGKILL、cache surface 与 package 测试
+  README.md     授权、费用、缓存与非目标
+packages/dsh-resident/
+  src/          launchd/systemd plan/apply/status/remove CLI
+  test/         真实 DSH crash-restart、manager、unit 与 packed CLI 测试
+  README.md     安装、删除、秘密、缓存和平台限制
 ```
 
 构建和检查单包：
@@ -61,6 +73,14 @@ pnpm --filter dsh-doctor typecheck
 pnpm --filter dsh-doctor test
 pnpm --filter dsh-doctor build
 pnpm --filter dsh-doctor pack --pack-destination "$PWD/.evoforge/pack"
+
+pnpm --filter dsh-telegram test
+pnpm --filter dsh-goal-continuity test
+
+pnpm --filter dsh-resident typecheck
+pnpm --filter dsh-resident test
+pnpm --filter dsh-resident build
+pnpm --filter dsh-resident pack --pack-destination "$PWD/.evoforge/pack"
 ```
 
 ### Runtime Readiness 装配

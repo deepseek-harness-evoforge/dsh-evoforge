@@ -17,7 +17,8 @@ EvoForge 可选能力
   ├─ Evolve：从真实结果产生、评测和发布能力候选
   ├─ Software Delivery：隔离、验证、commit、Draft PR
   ├─ Telegram Adapter：一个私聊持续使用一个稳定 DSH Agent
-  └─ Goal Continuity：授权固定 Session 在重启后继续原生 Goal
+  ├─ Goal Continuity：授权固定 Session 在重启后继续原生 Goal
+  └─ Resident：用户级 OS service 拉起 exact DSH profile
 ```
 
 DSH 始终拥有模型执行和基础服务；EvoForge 插件只增加用户结果。插件卸载后，原生 DSH Session 和 Goal 仍可恢复。
@@ -45,6 +46,14 @@ DSH 始终拥有模型执行和基础服务；EvoForge 插件只增加用户结�
 该 Session 时，插件仅 rearm 仍 active 且未耗尽的原生 Goal，后续完全交回原生
 `goal-round-driver`、轮次上限和 Approval。它不扫描 Session、不管理进程、不建 Mission、任务库或
 重试平台，0 Tool/Skill/Prompt。静态授权不能区分崩溃与有意重启，因此两者都会继续。
+
+### dsh-resident
+
+独立的进程层 Local Continuity CLI。一个只读 plan 把 exact absolute Node、DSH entry、profile、home 和
+workspace 变成完整 launchd/systemd unit；逐次确认后才 apply 或 remove。OS manager 和 unit 是唯一
+权威，CLI 随即退出。它不进入 DSH Loader，不建 daemon、状态库或公共 supervisor API，0
+Tool/Skill/Prompt/模型调用。与 Goal Continuity 组合时，Resident 只恢复进程，Goal Continuity 只决定
+exact Session 的原生 Goal 是否被授权继续。
 
 当前不创建独立的 Mission、Supervisor、Cache、Policy、Memory、Event Store 或通用 UI 平台插件。两个真实消费者出现前，共享接缝留在插件内部。
 
@@ -92,7 +101,7 @@ DSH 始终拥有模型执行和基础服务；EvoForge 插件只增加用户结�
 | 能力 | EvoForge 目标 | 当前证据 |
 |---|---|---|
 | 软件交付 | 原生 Goal 到 verified commit/Draft PR | verified commit、幂等 Draft PR、可选 exact-head checks 门、有界 active-call wait 与原生 Goal 受验证完成 implemented；真实任务数据 pending |
-| 单机持续运行 | crash-resume、幂等恢复、无半激活版本 | Generation release + Shadow journal + native Jobs supervisor 已通过 `SIGKILL`、关机取消和重复扫描；`dsh-goal-continuity` 又通过真实两进程/SIGKILL 继续 exact Session 原生 Goal；生产多日 soak pending |
+| 单机持续运行 | crash-resume、幂等恢复、无半激活版本 | Generation release + Shadow journal + native Jobs supervisor、`dsh-goal-continuity` Goal 冷恢复与 `dsh-resident` 真实 macOS DSH PID `SIGKILL` 拉起已实现；Linux 真机与生产多日 soak pending |
 | Memory/Skill | 复用 DSH/社区能力，不造第二套 Memory | 架构边界已确认 |
 | 消息与日程 | 按真实 workflow 提供可拆 Adapter | Telegram 单私聊首片 implemented；真实 Bot/Hermes paired 与其他场景 pending |
 | 人类控制 | 状态、证据、审批、暂停、回滚不阻塞会话 | P0C.1 release + P0C.2 review + P0C.3 durable pause/resume + P0C.4 exact bounded diff + P0C.5 protected-effect lexical projection + P0C.6 无 Session 可达 Web 控制面 implemented；语义 capability 审计与陌生用户可用性数据 pending |
@@ -128,5 +137,6 @@ GitHub 组织 `deepseek-harness-evoforge` 是所有 DSH 扩展设计与开发的
 5. **P2**：Software Delivery 正式产品化；代码 Candidate 只到 Draft PR。
 6. **P3**：Telegram 单私聊 Adapter implemented；下一门是实际 Bot soak、陌生安装与 Hermes paired benchmark，不是扩渠道。
 7. **LC-1**：exact Session 原生 Goal 冷恢复 implemented；下一门是生产多日恢复率/时延，不是扩成 daemon 或 HA 平台。
+8. **LC-2**：用户级 launchd/systemd service implemented；下一门是 Linux 真机与多日运行，不是再建第二 supervisor。
 
 每一阶段未达到可验证退出条件时停止扩张，不用更多插件或基础设施掩盖失败。

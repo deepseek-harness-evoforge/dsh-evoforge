@@ -1,0 +1,41 @@
+{
+  "name": "dsh-resident",
+  "version": "0.1.0-alpha.1",
+  "description": "User-level OS service adapter for a restartable DeepSeek Harness profile",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "bin": {
+    "dsh-resident": "./dist/cli.mjs"
+  },
+  "exports": {
+    "./package.json": "./package.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepseek-harness-evoforge/dsh-evoforge.git",
+    "directory": "packages/dsh-resident"
+  },
+  "homepage": "https://github.com/deepseek-harness-evoforge/dsh-evoforge#readme",
+  "bugs": {
+    "url": "https://github.com/deepseek-harness-evoforge/dsh-evoforge/issues"
+  },
+  "keywords": ["deepseek-harness", "dsh", "resident", "launchd", "systemd"],
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsdown src/cli.ts --format esm --clean",
+    "prepack": "pnpm run build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.0",
+    "tsdown": "^0.22.2",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  }
+}

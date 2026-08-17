@@ -4,7 +4,7 @@
 
 面向 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的 out-of-tree 开源扩展套件。EvoForge 只增加可独立安装、可删除的新能力，不 fork DSH，也不以插件修补 DSH Core Defect。
 
-> **Pre-alpha：不可用于生产自动激活。** `dsh-evolve` 的 P0A/P0B/P0C（含 exact diff、protected-effect 词法提示和真实 DSH Web 控制面）、P1.1 最窄自动晋升、P1.2 反事实 canary/自动回滚、P1.3 显式反馈入口、P1.4 私有 Feedback Case Draft、P1.5 反馈引导 Shadow、P1.6 proposer 前 Case Pack 校准、P1.7 evaluator authoring Skill、P1.8 显式 Feedback Shadow Launch、P1.9 私有 Evaluator Draft/人工资格验证、P1.10 Qualified Shadow Handoff、P1.11 exact Retention Gate、P1.12 opt-in Retention 自动晋升门、P1.13 静态 Automatic Retention Target、P1.14 opt-in Automatic Feedback Shadow、P1.15 持久自动进化日预算、P1.16 opt-in Automatic Evaluator Draft、P1.17 人工 Qualify-and-Shadow、P1.18 每 Skill 单未决自动进化门、P1.19 自动模糊审查过期处置、P1.20 自动审阅窗口可见性、P1.21 父版本交付结果对照和 P2D.1 交付 Outcome 已实现；`dsh-software-delivery` 的受验证交付闭环、`dsh-doctor` 的零 Token Runtime Readiness、`dsh-telegram` 的单私聊 Agent Adapter 与 `dsh-goal-continuity` 的 opt-in 原生 Goal 冷恢复也已实现。默认开启的后台 evaluator author、自动 evaluator qualification、真实任务误晋升/误回滚数据、陌生用户可用性门与生产多日证据仍未完成。详见[状态页](docs/status.zh.md)。
+> **Pre-alpha：不可用于生产自动激活。** `dsh-evolve` 的 P0A/P0B/P0C（含 exact diff、protected-effect 词法提示和真实 DSH Web 控制面）、P1.1 最窄自动晋升、P1.2 反事实 canary/自动回滚、P1.3 显式反馈入口、P1.4 私有 Feedback Case Draft、P1.5 反馈引导 Shadow、P1.6 proposer 前 Case Pack 校准、P1.7 evaluator authoring Skill、P1.8 显式 Feedback Shadow Launch、P1.9 私有 Evaluator Draft/人工资格验证、P1.10 Qualified Shadow Handoff、P1.11 exact Retention Gate、P1.12 opt-in Retention 自动晋升门、P1.13 静态 Automatic Retention Target、P1.14 opt-in Automatic Feedback Shadow、P1.15 持久自动进化日预算、P1.16 opt-in Automatic Evaluator Draft、P1.17 人工 Qualify-and-Shadow、P1.18 每 Skill 单未决自动进化门、P1.19 自动模糊审查过期处置、P1.20 自动审阅窗口可见性、P1.21 父版本交付结果对照和 P2D.1 交付 Outcome 已实现；`dsh-software-delivery` 的受验证交付闭环、`dsh-doctor` 的零 Token Runtime Readiness、`dsh-telegram` 的单私聊 Agent Adapter、`dsh-goal-continuity` 的 opt-in 原生 Goal 冷恢复与 `dsh-resident` 的用户级系统服务已实现。默认开启的后台 evaluator author、自动 evaluator qualification、真实任务误晋升/误回滚数据、陌生用户可用性门与生产多日证据仍未完成。详见[状态页](docs/status.zh.md)。
 
 ## 为什么做
 
@@ -24,7 +24,7 @@
 
 ## 现在已经有什么
 
-仓库目前包含六个可独立删除、仍在开发的包：
+仓库目前包含七个可独立删除、仍在开发的包：
 
 | 包 | 当前能力 | 状态 |
 |---|---|---|
@@ -34,6 +34,7 @@
 | [`dsh-doctor`](packages/dsh-doctor) | 一条可删除 Bundle；把当前原生 Loader 状态归约为三态 Runtime Readiness、具体阻塞插件和下一步动作；只诊断、不修复 | implemented；真实 tarball add/dump-config/boot/remove 已通过，陌生用户诊断成功率待验证 |
 | [`dsh-telegram`](packages/dsh-telegram) | 把一个静态授权的 Telegram 私聊连接到一个稳定 DSH Agent；复用原生 Commands/Approval/Goal/Schedule，以 durable journal 防止不确定发送盲目重试 | AS-1 implemented；真实 Loader/Agent Loop、429、Approval callback、Storage 重启和 tarball add/boot/remove 已通过，真实 Bot soak 与 Hermes paired benchmark 待验证 |
 | [`dsh-goal-continuity`](packages/dsh-goal-continuity) | 只为 exact 静态授权的持久 Session，在冷恢复时 rearm 仍 active 的原生 Goal；继续复用原生轮次上限、Goal driver 与 Approval | LC-1 implemented；真实 JSONL 冷恢复、`SIGKILL`、人工恢复 cache surface 等价和 tarball add/boot/remove 已通过，生产多日 soak 待验证 |
+| [`dsh-resident`](packages/dsh-resident) | 把一个 exact DSH CLI/profile 安装为用户级 `launchd`/`systemd` 服务；登录启动、退出后重启、显式查看和删除 | LC-2 implemented；真实 macOS `SIGKILL`→新 PID、卸载不再复活、systemd 生命周期协议、打包 CLI 已通过；Linux 真机 crash 与生产多日 soak 待验证 |
 
 Shadow 和未激活 Generation 的运行时模型表面为 `none`，额外 token 为 `0`。Generation 激活后只复用 DSH 原生 Skill catalog/body 路径：catalog 在 Session 开始时固定，正文按需加载；插件不增加 Tool 或 system prompt。[64 轮真实 Agent 对照](docs/evidence/kv-1-long-session-request-stability.zh.md)已证明：完整进化配置和中途 future-Generation pointer 变化下，当前 Session 的每一轮模型可见请求仍与未安装 EvoForge 的控制组序列化等价，且后一请求保留前一请求的完整前缀。默认只有用户显式调用才会请求进化模型；P1.14/P1.16 仅在部署者另行配置 exact 自动 Target 时分别允许 Shadow proposer 或 inactive evaluator author，并由 P1.15 的静态 UTC 日 cap、P1.18 的每 Skill 单未决门和 P1.19 的有界模糊审查共同限制；P1.20 只在 host/client 控制面解释该窗口。
 
@@ -128,6 +129,12 @@ P2D.1 被动观察 DSH 最终 `tools/result`，把 Software Delivery 的三态�
 任务库或预算账本。它注册 0 Tool/Skill/Prompt，人工恢复与自动恢复的 provider-facing cache surface
 相同；实际继续的剩余 Goal 轮次仍可能产生正常模型费用。
 
+`dsh-resident` 补齐更外层的进程断点：它把一个显式绝对路径的 DSH CLI、profile、`DSH_HOME` 与
+workspace 渲染为可审查 unit，再由用户级 `launchd` 或 `systemd` 负责登录启动和退出后拉起。它是独立
+运维 CLI，不是 DSH Bundle；没有 daemon、状态库、Tool/Skill/Prompt 或模型调用。`plan` 只读，`apply`
+与 `remove` 每次都要求 `--confirm-deployment`；unit 直接调用 exact Node/DSH 路径，不使用 shell、`PATH`
+或秘密环境变量。运行时 token 增量为 `0`。
+
 当前命令：
 
 ```text
@@ -137,6 +144,7 @@ dsh-evolve retain --run <completed-shadow-run> --case-pack <prior-case-pack-dir>
 /evolve [status|feedback [<64-char-signal-id> [draft <skill>|shadow <target>|author <evaluator-target>]]|evaluator [<64-char-draft-id> [approve|reject <note>|shadow]]|review [<64-char-review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]
 /doctor
 /telegram
+dsh-resident plan|apply|status|remove
 ```
 
 它可以可靠拒绝越出 owned Skill 的候选；带完整 Case Pack 时，在 proposer 前先用 known-bad/known-correction 校准 evaluator，再比较 baseline 与 Candidate，完整成功路径仍是四个相互独立的 macOS Sealed Trial。证据不足、预算超限、平台无隔离器或 active/Case Pack 漂移时返回 `2 + incomplete`。
@@ -154,6 +162,7 @@ pnpm --filter dsh-software-delivery pack --pack-destination "$PWD/.evoforge/pack
 pnpm --filter dsh-doctor pack --pack-destination "$PWD/.evoforge/pack"
 pnpm --filter dsh-telegram pack --pack-destination "$PWD/.evoforge/pack"
 pnpm --filter dsh-goal-continuity pack --pack-destination "$PWD/.evoforge/pack"
+pnpm --filter dsh-resident pack --pack-destination "$PWD/.evoforge/pack"
 ```
 
 当前测试跨越真实 CLI 子进程、HTTP 模型边界、文件系统效果、退出码和报告文件；macOS assembled lane 还会启动固定 revision 的真实 DSH Loader、Agent Loop、Skill、ToolRuntime、Storage 与 bash Tool。外部模型由无密钥固定 Adapter 替换，DSH 下游装配和文件效果不 mock。
@@ -164,7 +173,7 @@ pnpm --filter dsh-goal-continuity pack --pack-destination "$PWD/.evoforge/pack"
 
 - 多个独立真实 case、真实 provider 提案效果、Linux/Windows 隔离与 workspace 磁盘配额；
 - 真实人工 review/evaluator qualification 可用性数据、语义级 capability/权限差异审计和可选分页/图形 diff，以及真实任务上的 false-promotion/false-rollback/review rate；私有与 opt-in 自动生成的 inactive Evaluator Draft 已实现，但仍缺真实 provider 的 qualified rate、semantic rejection rate、成本与后续改善率；
-- 生产多日 soak、真实磁盘耗尽与大规模 run 性能数据（常驻 native Jobs supervisor、自动扫描、关机恢复和 exact Session Goal 冷恢复已实现）；`dsh-goal-continuity` 的静态授权不能区分崩溃与有意重启，也不负责启动 DSH 进程或扫描任意冷 Session；
+- 生产多日 soak、真实磁盘耗尽与大规模 run 性能数据（常驻 native Jobs supervisor、自动扫描、关机恢复、exact Session Goal 冷恢复和用户级进程拉起已实现）；`dsh-resident` 还缺 Linux 真机 crash/登录恢复证据，不提供 Windows、多机 HA、秘密配置或日志轮转；
 - `dsh-software-delivery` 不做全局 Goal 拦截；原生直接 `update_goal` 仍可用。Draft PR 首片只支持 GitHub.com 同仓分支；可选门能读取并在一次 active Tool 调用内有界等待 exact-head 全量 checks，但尚缺 fork/其他 forge、required-only 规则与 CI 日志诊断；Evolve canary 尚缺真实开发任务长期数据；消息侧只实现一个 Telegram 私聊，真实 Bot 多日 soak、其他渠道、内容和日程插件尚未实现；
 - TUI 控制面；Web 首版已实现，但尚无陌生用户 approve/promote/rollback 可用性数据、实时推送或分页/图形 diff。
 

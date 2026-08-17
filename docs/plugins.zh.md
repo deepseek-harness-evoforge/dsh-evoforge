@@ -11,6 +11,7 @@
 | `dsh-doctor` | 一次命令读取当前原生 Loader，把 Runtime Readiness 归约成三态、阻塞插件与下一步；只诊断不修复 | implemented；真实 tarball add/dump/boot/remove 已通过 | Commands、Loader | 一个 human Command；0 Tool/Skill/Prompt；无轮询 | `dsh-evoforge` |
 | `dsh-telegram` | 一个静态授权的 Telegram 私聊持续使用同一个稳定 DSH Agent，并收到所有完成 turn、Command 结果与一次性 Approval | AS-1 implemented；真实 Loader/Agent Loop、Storage 重启、429、callback、tarball add/boot/remove 已通过；真实 Bot/Hermes paired 待验证 | Agent、Session、Commands、Approval、Storage Domain、Goal/Schedule continuation | 0 Tool/Skill/Prompt；route、offset、approval 和 delivery 全在 host plane；空闲和普通 Session 0 token | `dsh-evoforge` |
 | `dsh-goal-continuity` | 进程重启后，exact 静态授权的持久 Session 可自动继续仍 active 的原生 Goal，不必每次人工 `/goal resume` | LC-1 implemented；真实 JSONL 冷恢复、`SIGKILL`、人工恢复 cache surface 等价与 tarball add/boot/remove 已通过；生产多日 soak 待验证 | Agent Session start、Goal、原生 Goal round driver | 0 Tool/Skill/Prompt/Command；只在 cold-resume 边沿 rearm；不扫描 Session、不新增状态库或预算账本 | `dsh-evoforge` |
+| `dsh-resident` | 一个 exact DSH CLI/profile 在用户登录后常驻，退出或崩溃后由 OS 自动拉起，并能显式查看和删除 | LC-2 implemented；macOS 真 `launchd` 启动/`SIGKILL`/新 PID/删除已测，systemd unit 与 manager 协议、打包 CLI 已测；Linux 真机 crash 和多日 soak 待验证 | 外部复用 `launchd`/`systemd`；DSH 只作为被启动的 CLI/profile | 不进入 DSH composition；0 Tool/Skill/Prompt/Command/模型调用；无 daemon 或状态库 | `dsh-evoforge`，成熟后可独立采用 |
 
 `dsh-evolve` 内部的 Observer、Candidate Lab、Trial Runner、Decision、Release、Monitor 和 Generation Binder 不是独立插件。它们只有组合起来才产生一个用户结果，拆开只会增加配置、版本和缓存理解成本。
 
@@ -37,6 +38,6 @@
 插件默认放在 Suite。只有独立发布/维护周期、独立信任边界、明显不同的重型依赖或许可证、或者无需 Suite 其余能力即可完整采用时才拆仓；详见 [ADR 0005](adr/0005-evoforge-repository-boundaries.md)。
 
 首个 GitHub 仓库名与当前包名已经冻结为 `dsh-evoforge`、`dsh-evolve`、
-`dsh-evolve-web`、`dsh-software-delivery`、`dsh-doctor`、`dsh-telegram` 和
-`dsh-goal-continuity`。可发布包的本地
+`dsh-evolve-web`、`dsh-software-delivery`、`dsh-doctor`、`dsh-telegram`、
+`dsh-goal-continuity` 和 `dsh-resident`。可发布包的本地
 打包安装/卸载边界已验证；npm 尚未发布，发布前仍需版本策略、第三方安装验收与发布授权。
