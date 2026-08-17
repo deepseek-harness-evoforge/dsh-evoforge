@@ -2,16 +2,10 @@ import {
   projectEvolutionAttention,
   type EvolutionAttentionOverview,
 } from './attention.js'
+import type { TelegramHostRoute } from 'dsh-telegram'
 
 export interface EvolutionAttentionSource {
-  overview(): Promise<EvolutionAttentionOverview>
-}
-
-export interface TelegramHostRoute {
-  notify(notice: { readonly id: string; readonly text: string }): Promise<{
-    readonly created: boolean
-    readonly status: 'prepared' | 'sending' | 'retrying' | 'delivered' | 'uncertain' | 'failed'
-  }>
+  overview(workspaceId: string): Promise<EvolutionAttentionOverview>
 }
 
 /** Serial host-only scanner. Durable duplicate suppression remains in dsh-telegram. */
@@ -21,7 +15,7 @@ export class EvolutionTelegramBridge {
 
   constructor(
     private readonly source: EvolutionAttentionSource,
-    private readonly route: Pick<TelegramHostRoute, 'notify'>,
+    private readonly route: Pick<TelegramHostRoute, 'workspaceId' | 'notify'>,
     private readonly onError: (error: unknown) => void = () => {},
   ) {}
 
@@ -29,7 +23,7 @@ export class EvolutionTelegramBridge {
     if (this.closed) return this.tail
     const scan = this.tail.then(async () => {
       if (this.closed) return
-      const overview = await this.source.overview()
+      const overview = await this.source.overview(this.route.workspaceId)
       for (const notice of projectEvolutionAttention(overview)) {
         await this.route.notify({ id: notice.id, text: notice.text })
       }

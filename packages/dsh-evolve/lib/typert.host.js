@@ -3,8 +3,10 @@ import { z } from 'zod'
 
 const dsh_evolve_evoforgeEvolution_approveAndStartEvaluatorShadow_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_approveAndStartEvaluatorShadow_parameter_1$schema = z.string()
+const dsh_evolve_evoforgeEvolution_approveAndStartEvaluatorShadow_parameter_2$schema = z.string()
 const dsh_evolve_evoforgeEvolution_approveAndStartEvaluatorShadow_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
+  'workspaceId': z.string().readonly(),
   'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("rollback"), z.literal("start-shadow"), z.literal("author-evaluator"), z.literal("approve-evaluator"), z.literal("reject-evaluator")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("rejected"), z.literal("approved")]).readonly().optional(),
@@ -22,8 +24,10 @@ const dsh_evolve_evoforgeEvolution_approveAndStartEvaluatorShadow_result$schema 
 })
 const dsh_evolve_evoforgeEvolution_approveEvaluator_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_approveEvaluator_parameter_1$schema = z.string()
+const dsh_evolve_evoforgeEvolution_approveEvaluator_parameter_2$schema = z.string()
 const dsh_evolve_evoforgeEvolution_approveEvaluator_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
+  'workspaceId': z.string().readonly(),
   'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("rollback"), z.literal("start-shadow"), z.literal("author-evaluator"), z.literal("approve-evaluator"), z.literal("reject-evaluator")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("rejected"), z.literal("approved")]).readonly().optional(),
@@ -41,8 +45,10 @@ const dsh_evolve_evoforgeEvolution_approveEvaluator_result$schema = z.object({
 })
 const dsh_evolve_evoforgeEvolution_approveReview_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_approveReview_parameter_1$schema = z.string()
+const dsh_evolve_evoforgeEvolution_approveReview_parameter_2$schema = z.string()
 const dsh_evolve_evoforgeEvolution_approveReview_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
+  'workspaceId': z.string().readonly(),
   'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("rollback"), z.literal("start-shadow"), z.literal("author-evaluator"), z.literal("approve-evaluator"), z.literal("reject-evaluator")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("rejected"), z.literal("approved")]).readonly().optional(),
@@ -60,8 +66,10 @@ const dsh_evolve_evoforgeEvolution_approveReview_result$schema = z.object({
 })
 const dsh_evolve_evoforgeEvolution_authorEvaluator_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_authorEvaluator_parameter_1$schema = z.string()
+const dsh_evolve_evoforgeEvolution_authorEvaluator_parameter_2$schema = z.string()
 const dsh_evolve_evoforgeEvolution_authorEvaluator_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
+  'workspaceId': z.string().readonly(),
   'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("rollback"), z.literal("start-shadow"), z.literal("author-evaluator"), z.literal("approve-evaluator"), z.literal("reject-evaluator")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("rejected"), z.literal("approved")]).readonly().optional(),
@@ -78,9 +86,11 @@ const dsh_evolve_evoforgeEvolution_authorEvaluator_result$schema = z.object({
   'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected"), z.literal("scheduled")]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_evaluatorDraft_parameter_0$schema = z.string()
+const dsh_evolve_evoforgeEvolution_evaluatorDraft_parameter_1$schema = z.string()
 const dsh_evolve_evoforgeEvolution_evaluatorDraft_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
   'draft': z.object({
+  'workspaceId': z.string().readonly(),
   'id': z.string().readonly(),
   'launchId': z.string().readonly(),
   'targetId': z.string().readonly(),
@@ -111,10 +121,13 @@ const dsh_evolve_evoforgeEvolution_evaluatorDraft_result$schema = z.object({
 })]).readonly().optional(),
   'reason': z.union([z.undefined(), z.string()]).readonly().optional(),
 })
+const dsh_evolve_evoforgeEvolution_overview_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
+  'workspaceId': z.string().readonly(),
   'active': z.union([z.undefined(), z.object({
   'id': z.string().readonly(),
+  'workspaceId': z.string().readonly(),
   'rollbackTargetId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'createdAt': z.number().readonly(),
   'evaluatorVersion': z.string().readonly(),
@@ -162,15 +175,18 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'available': z.boolean().readonly(),
   'warningCount': z.number().readonly(),
   'signals': z.array(z.object({
+  'workspaceId': z.string().readonly(),
   'id': z.string().readonly(),
   'sourceUpdatedAt': z.number().readonly(),
   'generationId': z.union([z.undefined(), z.string()]).readonly().optional(),
 })).readonly(),
   'targets': z.array(z.object({
+  'workspaceId': z.string().readonly(),
   'id': z.string().readonly(),
   'skillName': z.string().readonly(),
 })).readonly(),
   'runs': z.array(z.object({
+  'workspaceId': z.string().readonly(),
   'launchId': z.string().readonly(),
   'targetId': z.string().readonly(),
   'skillName': z.string().readonly(),
@@ -182,6 +198,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'automaticFeedbackBudget': z.union([z.undefined(), z.object({
   'warningCount': z.number().readonly(),
   'targets': z.array(z.object({
+  'workspaceId': z.string().readonly(),
   'targetId': z.string().readonly(),
   'skillName': z.string().readonly(),
   'utcDay': z.string().readonly(),
@@ -194,6 +211,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'automaticEvaluatorBudget': z.union([z.undefined(), z.object({
   'warningCount': z.number().readonly(),
   'targets': z.array(z.object({
+  'workspaceId': z.string().readonly(),
   'targetId': z.string().readonly(),
   'skillName': z.string().readonly(),
   'utcDay': z.string().readonly(),
@@ -208,15 +226,18 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'actionableCount': z.number().readonly(),
   'warningCount': z.number().readonly(),
   'signals': z.array(z.object({
+  'workspaceId': z.string().readonly(),
   'id': z.string().readonly(),
   'sourceUpdatedAt': z.number().readonly(),
   'generationId': z.union([z.undefined(), z.string()]).readonly().optional(),
 })).readonly(),
   'targets': z.array(z.object({
+  'workspaceId': z.string().readonly(),
   'id': z.string().readonly(),
   'skillName': z.string().readonly(),
 })).readonly(),
   'drafts': z.array(z.object({
+  'workspaceId': z.string().readonly(),
   'id': z.string().readonly(),
   'launchId': z.string().readonly(),
   'targetId': z.string().readonly(),
@@ -238,6 +259,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'warningCount': z.number().readonly(),
   'items': z.array(z.object({
   'id': z.string().readonly(),
+  'workspaceId': z.string().readonly(),
   'status': z.union([z.literal("rejected"), z.literal("pending"), z.literal("approved")]).readonly(),
   'recommendation': z.union([z.literal("promote"), z.literal("review")]).readonly(),
   'skillName': z.string().readonly(),
@@ -273,14 +295,17 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'activatedAt': z.union([z.undefined(), z.string()]).readonly().optional(),
 })).readonly(),
   'inactiveGenerations': z.array(z.object({
+  'workspaceId': z.string().readonly(),
   'generationId': z.string().readonly(),
   'reviewId': z.string().readonly(),
   'skillName': z.string().readonly(),
 })).readonly(),
 }).readonly(),
 })
+const dsh_evolve_evoforgeEvolution_pause_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_pause_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
+  'workspaceId': z.string().readonly(),
   'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("rollback"), z.literal("start-shadow"), z.literal("author-evaluator"), z.literal("approve-evaluator"), z.literal("reject-evaluator")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("rejected"), z.literal("approved")]).readonly().optional(),
@@ -297,8 +322,10 @@ const dsh_evolve_evoforgeEvolution_pause_result$schema = z.object({
   'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected"), z.literal("scheduled")]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_promote_parameter_0$schema = z.string()
+const dsh_evolve_evoforgeEvolution_promote_parameter_1$schema = z.string()
 const dsh_evolve_evoforgeEvolution_promote_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
+  'workspaceId': z.string().readonly(),
   'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("rollback"), z.literal("start-shadow"), z.literal("author-evaluator"), z.literal("approve-evaluator"), z.literal("reject-evaluator")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("rejected"), z.literal("approved")]).readonly().optional(),
@@ -316,8 +343,10 @@ const dsh_evolve_evoforgeEvolution_promote_result$schema = z.object({
 })
 const dsh_evolve_evoforgeEvolution_rejectEvaluator_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_rejectEvaluator_parameter_1$schema = z.string()
+const dsh_evolve_evoforgeEvolution_rejectEvaluator_parameter_2$schema = z.string()
 const dsh_evolve_evoforgeEvolution_rejectEvaluator_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
+  'workspaceId': z.string().readonly(),
   'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("rollback"), z.literal("start-shadow"), z.literal("author-evaluator"), z.literal("approve-evaluator"), z.literal("reject-evaluator")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("rejected"), z.literal("approved")]).readonly().optional(),
@@ -335,8 +364,10 @@ const dsh_evolve_evoforgeEvolution_rejectEvaluator_result$schema = z.object({
 })
 const dsh_evolve_evoforgeEvolution_rejectReview_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_rejectReview_parameter_1$schema = z.string()
+const dsh_evolve_evoforgeEvolution_rejectReview_parameter_2$schema = z.string()
 const dsh_evolve_evoforgeEvolution_rejectReview_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
+  'workspaceId': z.string().readonly(),
   'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("rollback"), z.literal("start-shadow"), z.literal("author-evaluator"), z.literal("approve-evaluator"), z.literal("reject-evaluator")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("rejected"), z.literal("approved")]).readonly().optional(),
@@ -352,8 +383,10 @@ const dsh_evolve_evoforgeEvolution_rejectReview_result$schema = z.object({
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected"), z.literal("scheduled")]).readonly().optional(),
 })
+const dsh_evolve_evoforgeEvolution_resume_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_resume_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
+  'workspaceId': z.string().readonly(),
   'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("rollback"), z.literal("start-shadow"), z.literal("author-evaluator"), z.literal("approve-evaluator"), z.literal("reject-evaluator")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("rejected"), z.literal("approved")]).readonly().optional(),
@@ -370,10 +403,12 @@ const dsh_evolve_evoforgeEvolution_resume_result$schema = z.object({
   'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected"), z.literal("scheduled")]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_review_parameter_0$schema = z.string()
+const dsh_evolve_evoforgeEvolution_review_parameter_1$schema = z.string()
 const dsh_evolve_evoforgeEvolution_review_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
   'review': z.object({
   'id': z.string().readonly(),
+  'workspaceId': z.string().readonly(),
   'status': z.union([z.literal("rejected"), z.literal("pending"), z.literal("approved")]).readonly(),
   'recommendation': z.union([z.literal("promote"), z.literal("review")]).readonly(),
   'skillName': z.string().readonly(),
@@ -425,8 +460,10 @@ const dsh_evolve_evoforgeEvolution_review_result$schema = z.object({
   'reasons': z.array(z.string()).readonly(),
 })]).readonly().optional(),
 })
+const dsh_evolve_evoforgeEvolution_rollback_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_rollback_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
+  'workspaceId': z.string().readonly(),
   'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("rollback"), z.literal("start-shadow"), z.literal("author-evaluator"), z.literal("approve-evaluator"), z.literal("reject-evaluator")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("rejected"), z.literal("approved")]).readonly().optional(),
@@ -443,8 +480,10 @@ const dsh_evolve_evoforgeEvolution_rollback_result$schema = z.object({
   'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected"), z.literal("scheduled")]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_startEvaluatorShadow_parameter_0$schema = z.string()
+const dsh_evolve_evoforgeEvolution_startEvaluatorShadow_parameter_1$schema = z.string()
 const dsh_evolve_evoforgeEvolution_startEvaluatorShadow_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
+  'workspaceId': z.string().readonly(),
   'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("rollback"), z.literal("start-shadow"), z.literal("author-evaluator"), z.literal("approve-evaluator"), z.literal("reject-evaluator")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("rejected"), z.literal("approved")]).readonly().optional(),
@@ -462,8 +501,10 @@ const dsh_evolve_evoforgeEvolution_startEvaluatorShadow_result$schema = z.object
 })
 const dsh_evolve_evoforgeEvolution_startFeedbackShadow_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_startFeedbackShadow_parameter_1$schema = z.string()
+const dsh_evolve_evoforgeEvolution_startFeedbackShadow_parameter_2$schema = z.string()
 const dsh_evolve_evoforgeEvolution_startFeedbackShadow_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
+  'workspaceId': z.string().readonly(),
   'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("rollback"), z.literal("start-shadow"), z.literal("author-evaluator"), z.literal("approve-evaluator"), z.literal("reject-evaluator")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("rejected"), z.literal("approved")]).readonly().optional(),
@@ -494,13 +535,23 @@ export const TYPERT = {
       invocation: { kind: 'direct' },
       parameters: [
         {
+          name: 'workspaceId',
+          wire: 'workspaceId',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/approveAndStartEvaluatorShadow:workspaceId',
+            schema: dsh_evolve_evoforgeEvolution_approveAndStartEvaluatorShadow_parameter_0$schema,
+          },
+        },
+        {
           name: 'id',
           wire: 'id',
           source: 'json',
           codec: {
             mode: 'strict',
             typeSymbol: 'dsh-evolve#evoforgeEvolution/approveAndStartEvaluatorShadow:id',
-            schema: dsh_evolve_evoforgeEvolution_approveAndStartEvaluatorShadow_parameter_0$schema,
+            schema: dsh_evolve_evoforgeEvolution_approveAndStartEvaluatorShadow_parameter_1$schema,
           },
         },
         {
@@ -510,7 +561,7 @@ export const TYPERT = {
           codec: {
             mode: 'strict',
             typeSymbol: 'dsh-evolve#evoforgeEvolution/approveAndStartEvaluatorShadow:note',
-            schema: dsh_evolve_evoforgeEvolution_approveAndStartEvaluatorShadow_parameter_1$schema,
+            schema: dsh_evolve_evoforgeEvolution_approveAndStartEvaluatorShadow_parameter_2$schema,
           },
         },
       ],
@@ -519,7 +570,7 @@ export const TYPERT = {
         typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
         schema: dsh_evolve_evoforgeEvolution_approveAndStartEvaluatorShadow_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":94,"column":3},
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":106,"column":3},
     },
     {
       id: 'dsh-evolve#evoforgeEvolution/approveEvaluator',
@@ -529,13 +580,23 @@ export const TYPERT = {
       invocation: { kind: 'direct' },
       parameters: [
         {
+          name: 'workspaceId',
+          wire: 'workspaceId',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/approveEvaluator:workspaceId',
+            schema: dsh_evolve_evoforgeEvolution_approveEvaluator_parameter_0$schema,
+          },
+        },
+        {
           name: 'id',
           wire: 'id',
           source: 'json',
           codec: {
             mode: 'strict',
             typeSymbol: 'dsh-evolve#evoforgeEvolution/approveEvaluator:id',
-            schema: dsh_evolve_evoforgeEvolution_approveEvaluator_parameter_0$schema,
+            schema: dsh_evolve_evoforgeEvolution_approveEvaluator_parameter_1$schema,
           },
         },
         {
@@ -545,7 +606,7 @@ export const TYPERT = {
           codec: {
             mode: 'strict',
             typeSymbol: 'dsh-evolve#evoforgeEvolution/approveEvaluator:note',
-            schema: dsh_evolve_evoforgeEvolution_approveEvaluator_parameter_1$schema,
+            schema: dsh_evolve_evoforgeEvolution_approveEvaluator_parameter_2$schema,
           },
         },
       ],
@@ -554,7 +615,7 @@ export const TYPERT = {
         typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
         schema: dsh_evolve_evoforgeEvolution_approveEvaluator_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":87,"column":3},
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":98,"column":3},
     },
     {
       id: 'dsh-evolve#evoforgeEvolution/approveReview',
@@ -564,13 +625,23 @@ export const TYPERT = {
       invocation: { kind: 'direct' },
       parameters: [
         {
+          name: 'workspaceId',
+          wire: 'workspaceId',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/approveReview:workspaceId',
+            schema: dsh_evolve_evoforgeEvolution_approveReview_parameter_0$schema,
+          },
+        },
+        {
           name: 'id',
           wire: 'id',
           source: 'json',
           codec: {
             mode: 'strict',
             typeSymbol: 'dsh-evolve#evoforgeEvolution/approveReview:id',
-            schema: dsh_evolve_evoforgeEvolution_approveReview_parameter_0$schema,
+            schema: dsh_evolve_evoforgeEvolution_approveReview_parameter_1$schema,
           },
         },
         {
@@ -580,7 +651,7 @@ export const TYPERT = {
           codec: {
             mode: 'strict',
             typeSymbol: 'dsh-evolve#evoforgeEvolution/approveReview:note',
-            schema: dsh_evolve_evoforgeEvolution_approveReview_parameter_1$schema,
+            schema: dsh_evolve_evoforgeEvolution_approveReview_parameter_2$schema,
           },
         },
       ],
@@ -589,7 +660,7 @@ export const TYPERT = {
         typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
         schema: dsh_evolve_evoforgeEvolution_approveReview_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":42,"column":3},
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":46,"column":3},
     },
     {
       id: 'dsh-evolve#evoforgeEvolution/authorEvaluator',
@@ -599,13 +670,23 @@ export const TYPERT = {
       invocation: { kind: 'direct' },
       parameters: [
         {
+          name: 'workspaceId',
+          wire: 'workspaceId',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/authorEvaluator:workspaceId',
+            schema: dsh_evolve_evoforgeEvolution_authorEvaluator_parameter_0$schema,
+          },
+        },
+        {
           name: 'signalId',
           wire: 'signalId',
           source: 'json',
           codec: {
             mode: 'strict',
             typeSymbol: 'dsh-evolve#evoforgeEvolution/authorEvaluator:signalId',
-            schema: dsh_evolve_evoforgeEvolution_authorEvaluator_parameter_0$schema,
+            schema: dsh_evolve_evoforgeEvolution_authorEvaluator_parameter_1$schema,
           },
         },
         {
@@ -615,7 +696,7 @@ export const TYPERT = {
           codec: {
             mode: 'strict',
             typeSymbol: 'dsh-evolve#evoforgeEvolution/authorEvaluator:targetId',
-            schema: dsh_evolve_evoforgeEvolution_authorEvaluator_parameter_1$schema,
+            schema: dsh_evolve_evoforgeEvolution_authorEvaluator_parameter_2$schema,
           },
         },
       ],
@@ -624,7 +705,7 @@ export const TYPERT = {
         typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
         schema: dsh_evolve_evoforgeEvolution_authorEvaluator_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":80,"column":3},
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":90,"column":3},
     },
     {
       id: 'dsh-evolve#evoforgeEvolution/evaluatorDraft',
@@ -634,13 +715,23 @@ export const TYPERT = {
       invocation: { kind: 'direct' },
       parameters: [
         {
+          name: 'workspaceId',
+          wire: 'workspaceId',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/evaluatorDraft:workspaceId',
+            schema: dsh_evolve_evoforgeEvolution_evaluatorDraft_parameter_0$schema,
+          },
+        },
+        {
           name: 'id',
           wire: 'id',
           source: 'json',
           codec: {
             mode: 'strict',
             typeSymbol: 'dsh-evolve#evoforgeEvolution/evaluatorDraft:id',
-            schema: dsh_evolve_evoforgeEvolution_evaluatorDraft_parameter_0$schema,
+            schema: dsh_evolve_evoforgeEvolution_evaluatorDraft_parameter_1$schema,
           },
         },
       ],
@@ -649,7 +740,7 @@ export const TYPERT = {
         typeSymbol: 'dsh-evolve/client#EvolutionEvaluatorDraftDetail',
         schema: dsh_evolve_evoforgeEvolution_evaluatorDraft_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":74,"column":3},
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":83,"column":3},
     },
     {
       id: 'dsh-evolve#evoforgeEvolution/overview',
@@ -658,6 +749,16 @@ export const TYPERT = {
       method: 'overview',
       invocation: { kind: 'direct' },
       parameters: [
+        {
+          name: 'workspaceId',
+          wire: 'workspaceId',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/overview:workspaceId',
+            schema: dsh_evolve_evoforgeEvolution_overview_parameter_0$schema,
+          },
+        },
       ],
       result: {
         mode: 'strict',
@@ -673,13 +774,23 @@ export const TYPERT = {
       method: 'pause',
       invocation: { kind: 'direct' },
       parameters: [
+        {
+          name: 'workspaceId',
+          wire: 'workspaceId',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/pause:workspaceId',
+            schema: dsh_evolve_evoforgeEvolution_pause_parameter_0$schema,
+          },
+        },
       ],
       result: {
         mode: 'strict',
         typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
         schema: dsh_evolve_evoforgeEvolution_pause_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":32,"column":3},
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":34,"column":3},
     },
     {
       id: 'dsh-evolve#evoforgeEvolution/promote',
@@ -689,13 +800,23 @@ export const TYPERT = {
       invocation: { kind: 'direct' },
       parameters: [
         {
+          name: 'workspaceId',
+          wire: 'workspaceId',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/promote:workspaceId',
+            schema: dsh_evolve_evoforgeEvolution_promote_parameter_0$schema,
+          },
+        },
+        {
           name: 'generationId',
           wire: 'generationId',
           source: 'json',
           codec: {
             mode: 'strict',
             typeSymbol: 'dsh-evolve#evoforgeEvolution/promote:generationId',
-            schema: dsh_evolve_evoforgeEvolution_promote_parameter_0$schema,
+            schema: dsh_evolve_evoforgeEvolution_promote_parameter_1$schema,
           },
         },
       ],
@@ -704,7 +825,7 @@ export const TYPERT = {
         typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
         schema: dsh_evolve_evoforgeEvolution_promote_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":56,"column":3},
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":62,"column":3},
     },
     {
       id: 'dsh-evolve#evoforgeEvolution/rejectEvaluator',
@@ -714,13 +835,23 @@ export const TYPERT = {
       invocation: { kind: 'direct' },
       parameters: [
         {
+          name: 'workspaceId',
+          wire: 'workspaceId',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/rejectEvaluator:workspaceId',
+            schema: dsh_evolve_evoforgeEvolution_rejectEvaluator_parameter_0$schema,
+          },
+        },
+        {
           name: 'id',
           wire: 'id',
           source: 'json',
           codec: {
             mode: 'strict',
             typeSymbol: 'dsh-evolve#evoforgeEvolution/rejectEvaluator:id',
-            schema: dsh_evolve_evoforgeEvolution_rejectEvaluator_parameter_0$schema,
+            schema: dsh_evolve_evoforgeEvolution_rejectEvaluator_parameter_1$schema,
           },
         },
         {
@@ -730,7 +861,7 @@ export const TYPERT = {
           codec: {
             mode: 'strict',
             typeSymbol: 'dsh-evolve#evoforgeEvolution/rejectEvaluator:note',
-            schema: dsh_evolve_evoforgeEvolution_rejectEvaluator_parameter_1$schema,
+            schema: dsh_evolve_evoforgeEvolution_rejectEvaluator_parameter_2$schema,
           },
         },
       ],
@@ -739,7 +870,7 @@ export const TYPERT = {
         typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
         schema: dsh_evolve_evoforgeEvolution_rejectEvaluator_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":101,"column":3},
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":114,"column":3},
     },
     {
       id: 'dsh-evolve#evoforgeEvolution/rejectReview',
@@ -749,13 +880,23 @@ export const TYPERT = {
       invocation: { kind: 'direct' },
       parameters: [
         {
+          name: 'workspaceId',
+          wire: 'workspaceId',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/rejectReview:workspaceId',
+            schema: dsh_evolve_evoforgeEvolution_rejectReview_parameter_0$schema,
+          },
+        },
+        {
           name: 'id',
           wire: 'id',
           source: 'json',
           codec: {
             mode: 'strict',
             typeSymbol: 'dsh-evolve#evoforgeEvolution/rejectReview:id',
-            schema: dsh_evolve_evoforgeEvolution_rejectReview_parameter_0$schema,
+            schema: dsh_evolve_evoforgeEvolution_rejectReview_parameter_1$schema,
           },
         },
         {
@@ -765,7 +906,7 @@ export const TYPERT = {
           codec: {
             mode: 'strict',
             typeSymbol: 'dsh-evolve#evoforgeEvolution/rejectReview:note',
-            schema: dsh_evolve_evoforgeEvolution_rejectReview_parameter_1$schema,
+            schema: dsh_evolve_evoforgeEvolution_rejectReview_parameter_2$schema,
           },
         },
       ],
@@ -774,7 +915,7 @@ export const TYPERT = {
         typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
         schema: dsh_evolve_evoforgeEvolution_rejectReview_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":49,"column":3},
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":54,"column":3},
     },
     {
       id: 'dsh-evolve#evoforgeEvolution/resume',
@@ -783,13 +924,23 @@ export const TYPERT = {
       method: 'resume',
       invocation: { kind: 'direct' },
       parameters: [
+        {
+          name: 'workspaceId',
+          wire: 'workspaceId',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/resume:workspaceId',
+            schema: dsh_evolve_evoforgeEvolution_resume_parameter_0$schema,
+          },
+        },
       ],
       result: {
         mode: 'strict',
         typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
         schema: dsh_evolve_evoforgeEvolution_resume_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":37,"column":3},
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":40,"column":3},
     },
     {
       id: 'dsh-evolve#evoforgeEvolution/review',
@@ -799,13 +950,23 @@ export const TYPERT = {
       invocation: { kind: 'direct' },
       parameters: [
         {
+          name: 'workspaceId',
+          wire: 'workspaceId',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/review:workspaceId',
+            schema: dsh_evolve_evoforgeEvolution_review_parameter_0$schema,
+          },
+        },
+        {
           name: 'id',
           wire: 'id',
           source: 'json',
           codec: {
             mode: 'strict',
             typeSymbol: 'dsh-evolve#evoforgeEvolution/review:id',
-            schema: dsh_evolve_evoforgeEvolution_review_parameter_0$schema,
+            schema: dsh_evolve_evoforgeEvolution_review_parameter_1$schema,
           },
         },
       ],
@@ -814,7 +975,7 @@ export const TYPERT = {
         typeSymbol: 'dsh-evolve/client#EvolutionReviewDetail',
         schema: dsh_evolve_evoforgeEvolution_review_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":26,"column":3},
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":27,"column":3},
     },
     {
       id: 'dsh-evolve#evoforgeEvolution/rollback',
@@ -823,13 +984,23 @@ export const TYPERT = {
       method: 'rollback',
       invocation: { kind: 'direct' },
       parameters: [
+        {
+          name: 'workspaceId',
+          wire: 'workspaceId',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/rollback:workspaceId',
+            schema: dsh_evolve_evoforgeEvolution_rollback_parameter_0$schema,
+          },
+        },
       ],
       result: {
         mode: 'strict',
         typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
         schema: dsh_evolve_evoforgeEvolution_rollback_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":62,"column":3},
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":69,"column":3},
     },
     {
       id: 'dsh-evolve#evoforgeEvolution/startEvaluatorShadow',
@@ -839,13 +1010,23 @@ export const TYPERT = {
       invocation: { kind: 'direct' },
       parameters: [
         {
+          name: 'workspaceId',
+          wire: 'workspaceId',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/startEvaluatorShadow:workspaceId',
+            schema: dsh_evolve_evoforgeEvolution_startEvaluatorShadow_parameter_0$schema,
+          },
+        },
+        {
           name: 'id',
           wire: 'id',
           source: 'json',
           codec: {
             mode: 'strict',
             typeSymbol: 'dsh-evolve#evoforgeEvolution/startEvaluatorShadow:id',
-            schema: dsh_evolve_evoforgeEvolution_startEvaluatorShadow_parameter_0$schema,
+            schema: dsh_evolve_evoforgeEvolution_startEvaluatorShadow_parameter_1$schema,
           },
         },
       ],
@@ -854,7 +1035,7 @@ export const TYPERT = {
         typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
         schema: dsh_evolve_evoforgeEvolution_startEvaluatorShadow_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":108,"column":3},
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":122,"column":3},
     },
     {
       id: 'dsh-evolve#evoforgeEvolution/startFeedbackShadow',
@@ -864,13 +1045,23 @@ export const TYPERT = {
       invocation: { kind: 'direct' },
       parameters: [
         {
+          name: 'workspaceId',
+          wire: 'workspaceId',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/startFeedbackShadow:workspaceId',
+            schema: dsh_evolve_evoforgeEvolution_startFeedbackShadow_parameter_0$schema,
+          },
+        },
+        {
           name: 'signalId',
           wire: 'signalId',
           source: 'json',
           codec: {
             mode: 'strict',
             typeSymbol: 'dsh-evolve#evoforgeEvolution/startFeedbackShadow:signalId',
-            schema: dsh_evolve_evoforgeEvolution_startFeedbackShadow_parameter_0$schema,
+            schema: dsh_evolve_evoforgeEvolution_startFeedbackShadow_parameter_1$schema,
           },
         },
         {
@@ -880,7 +1071,7 @@ export const TYPERT = {
           codec: {
             mode: 'strict',
             typeSymbol: 'dsh-evolve#evoforgeEvolution/startFeedbackShadow:targetId',
-            schema: dsh_evolve_evoforgeEvolution_startFeedbackShadow_parameter_1$schema,
+            schema: dsh_evolve_evoforgeEvolution_startFeedbackShadow_parameter_2$schema,
           },
         },
       ],
@@ -889,7 +1080,7 @@ export const TYPERT = {
         typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
         schema: dsh_evolve_evoforgeEvolution_startFeedbackShadow_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":67,"column":3},
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":75,"column":3},
     },
   ],
   model: {
@@ -912,17 +1103,17 @@ export const TYPERT = {
           {
             "kind": "method",
             "name": "getActiveGeneration",
-            "signature": "getActiveGeneration(): CapabilityGeneration | undefined"
+            "signature": "getActiveGeneration(workspaceId: string): CapabilityGeneration | undefined"
           },
           {
             "kind": "method",
             "name": "promoteGeneration",
-            "signature": "promoteGeneration(id: string): Promise<{ previousId: string | undefined generation: CapabilityGeneration }>"
+            "signature": "promoteGeneration(workspaceId: string, id: string): Promise<{ previousId: string | undefined generation: CapabilityGeneration }>"
           },
           {
             "kind": "method",
             "name": "rollbackGeneration",
-            "signature": "rollbackGeneration(): Promise<{ previousId: string generation: CapabilityGeneration | undefined }>"
+            "signature": "rollbackGeneration(workspaceId: string): Promise<{ previousId: string generation: CapabilityGeneration | undefined }>"
           },
           {
             "kind": "method",
@@ -942,12 +1133,12 @@ export const TYPERT = {
           {
             "kind": "method",
             "name": "isRecoveryPaused",
-            "signature": "isRecoveryPaused(): boolean"
+            "signature": "isRecoveryPaused(workspaceId: string): boolean"
           },
           {
             "kind": "method",
             "name": "setRecoveryPaused",
-            "signature": "setRecoveryPaused(paused: boolean): Promise<{ changed: boolean; paused: boolean }>"
+            "signature": "setRecoveryPaused(workspaceId: string, paused: boolean): Promise<{ changed: boolean; paused: boolean }>"
           },
           {
             "kind": "method",
@@ -958,15 +1149,15 @@ export const TYPERT = {
         "types": [
           {
             "name": "CapabilityGeneration",
-            "declaration": "export interface CapabilityGeneration extends GenerationInput {\n    id: string;\n    schemaVersion: 1;\n}"
+            "declaration": "export interface CapabilityGeneration extends GenerationInput {\n    id: string;\n    schemaVersion: 2;\n}"
           },
           {
             "name": "GenerationInput",
-            "declaration": "export interface GenerationInput {\n    parentId?: string | undefined;\n    createdAt: number;\n    artifacts: SkillGenerationArtifact[];\n    evaluatorVersion: string;\n    policyVersion: string;\n    compositionFingerprint: string;\n}"
+            "declaration": "export interface GenerationInput {\n    workspaceId: string;\n    parentId?: string | undefined;\n    createdAt: number;\n    artifacts: SkillGenerationArtifact[];\n    evaluatorVersion: string;\n    policyVersion: string;\n    compositionFingerprint: string;\n}"
           },
           {
             "name": "SessionIdentity",
-            "declaration": "export interface SessionIdentity {\n    sessionId: string;\n    createdAt: number;\n    cwd?: string | undefined;\n}"
+            "declaration": "export interface SessionIdentity {\n    workspaceId: string;\n    sessionId: string;\n    createdAt: number;\n    cwd?: string | undefined;\n}"
           },
           {
             "name": "SkillGenerationArtifact",
@@ -985,72 +1176,77 @@ export const TYPERT = {
           {
             "kind": "method",
             "name": "overview",
-            "signature": "overview(): Promise<EvolutionOverview>"
+            "signature": "overview(workspaceId: string): Promise<EvolutionOverview>"
           },
           {
             "kind": "method",
             "name": "review",
-            "signature": "review(id: string): Promise<EvolutionReviewDetail>"
+            "signature": "review(workspaceId: string, id: string): Promise<EvolutionReviewDetail>"
           },
           {
             "kind": "method",
             "name": "pause",
-            "signature": "pause(): Promise<EvolutionActionReceipt>"
+            "signature": "pause(workspaceId: string): Promise<EvolutionActionReceipt>"
           },
           {
             "kind": "method",
             "name": "resume",
-            "signature": "resume(): Promise<EvolutionActionReceipt>"
+            "signature": "resume(workspaceId: string): Promise<EvolutionActionReceipt>"
           },
           {
             "kind": "method",
             "name": "approveReview",
-            "signature": "approveReview(id: string, note: string): Promise<EvolutionActionReceipt>"
+            "signature": "approveReview(workspaceId: string, id: string, note: string): Promise<EvolutionActionReceipt>"
           },
           {
             "kind": "method",
             "name": "rejectReview",
-            "signature": "rejectReview(id: string, note: string): Promise<EvolutionActionReceipt>"
+            "signature": "rejectReview(workspaceId: string, id: string, note: string): Promise<EvolutionActionReceipt>"
           },
           {
             "kind": "method",
             "name": "promote",
-            "signature": "promote(generationId: string): Promise<EvolutionActionReceipt>"
+            "signature": "promote(workspaceId: string, generationId: string): Promise<EvolutionActionReceipt>"
           },
           {
             "kind": "method",
             "name": "rollback",
-            "signature": "rollback(): Promise<EvolutionActionReceipt>"
+            "signature": "rollback(workspaceId: string): Promise<EvolutionActionReceipt>"
           },
           {
             "kind": "method",
             "name": "startFeedbackShadow",
-            "signature": "startFeedbackShadow(signalId: string, targetId: string): Promise<EvolutionActionReceipt>"
+            "signature": "startFeedbackShadow(workspaceId: string, signalId: string, targetId: string): Promise<EvolutionActionReceipt>"
           },
           {
             "kind": "method",
             "name": "evaluatorDraft",
-            "signature": "evaluatorDraft(id: string): Promise<EvolutionEvaluatorDraftDetail>"
+            "signature": "evaluatorDraft(workspaceId: string, id: string): Promise<EvolutionEvaluatorDraftDetail>"
           },
           {
             "kind": "method",
             "name": "authorEvaluator",
-            "signature": "authorEvaluator(signalId: string, targetId: string): Promise<EvolutionActionReceipt>"
+            "signature": "authorEvaluator(workspaceId: string, signalId: string, targetId: string): Promise<EvolutionActionReceipt>"
           },
           {
             "kind": "method",
             "name": "approveEvaluator",
-            "signature": "approveEvaluator(id: string, note: string): Promise<EvolutionActionReceipt>"
+            "signature": "approveEvaluator(workspaceId: string, id: string, note: string): Promise<EvolutionActionReceipt>"
+          },
+          {
+            "kind": "method",
+            "name": "approveAndStartEvaluatorShadow",
+            "signature": "approveAndStartEvaluatorShadow(workspaceId: string, id: string, note: string): Promise<EvolutionActionReceipt>"
           },
           {
             "kind": "method",
             "name": "rejectEvaluator",
-            "signature": "rejectEvaluator(id: string, note: string): Promise<EvolutionActionReceipt>"
+            "signature": "rejectEvaluator(workspaceId: string, id: string, note: string): Promise<EvolutionActionReceipt>"
           },
           {
             "kind": "method",
             "name": "startEvaluatorShadow",
-            "signature": "startEvaluatorShadow(id: string): Promise<EvolutionActionReceipt>"
+            "signature": "startEvaluatorShadow(workspaceId: string, id: string): Promise<EvolutionActionReceipt>"
           }
         ],
         "types": [
@@ -1068,7 +1264,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionActionReceipt",
-            "declaration": "export interface EvolutionActionReceipt {\n    readonly schemaVersion: 1;\n    readonly action: 'pause' | 'resume' | 'approve-review' | 'reject-review' | 'promote' | 'rollback' | 'start-shadow' | 'author-evaluator' | 'approve-evaluator' | 'reject-evaluator';\n    readonly reviewId?: string;\n    readonly status?: 'approved' | 'rejected';\n    readonly generationId?: string;\n    readonly previousGenerationId?: string;\n    readonly activeGenerationId?: string;\n    readonly recoveryPaused?: boolean;\n    readonly launchId?: string;\n    readonly targetId?: string;\n    readonly skillName?: string;\n    readonly runStatus?: 'scheduled' | 'prepared' | 'proposal-pending' | 'candidate-ready' | 'trial-running' | 'complete' | 'incomplete';\n    readonly jobId?: string;\n    readonly draftId?: string;\n    readonly draftStatus?: 'scheduled' | 'authoring-pending' | 'uncertain' | 'draft-ready' | 'qualification-running' | 'qualified' | 'incomplete' | 'rejected';\n}"
+            "declaration": "export interface EvolutionActionReceipt {\n    readonly schemaVersion: 1;\n    readonly workspaceId: string;\n    readonly action: 'pause' | 'resume' | 'approve-review' | 'reject-review' | 'promote' | 'rollback' | 'start-shadow' | 'author-evaluator' | 'approve-evaluator' | 'reject-evaluator';\n    readonly reviewId?: string;\n    readonly status?: 'approved' | 'rejected';\n    readonly generationId?: string;\n    readonly previousGenerationId?: string;\n    readonly activeGenerationId?: string;\n    readonly recoveryPaused?: boolean;\n    readonly launchId?: string;\n    readonly targetId?: string;\n    readonly skillName?: string;\n    readonly runStatus?: 'scheduled' | 'prepared' | 'proposal-pending' | 'candidate-ready' | 'trial-running' | 'complete' | 'incomplete';\n    readonly jobId?: string;\n    readonly draftId?: string;\n    readonly draftStatus?: 'scheduled' | 'authoring-pending' | 'uncertain' | 'draft-ready' | 'qualification-running' | 'qualified' | 'incomplete' | 'rejected';\n}"
           },
           {
             "name": "EvolutionArtifactView",
@@ -1076,7 +1272,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionAutomaticBudgetView",
-            "declaration": "export interface EvolutionAutomaticBudgetView {\n    readonly targetId: string;\n    readonly skillName: string;\n    readonly utcDay: string;\n    readonly used: number;\n    readonly limit: number;\n    readonly remaining: number;\n    readonly status: 'ready' | 'unknown';\n}"
+            "declaration": "export interface EvolutionAutomaticBudgetView {\n    readonly workspaceId: string;\n    readonly targetId: string;\n    readonly skillName: string;\n    readonly utcDay: string;\n    readonly used: number;\n    readonly limit: number;\n    readonly remaining: number;\n    readonly status: 'ready' | 'unknown';\n}"
           },
           {
             "name": "EvolutionAutomaticReviewExpiryView",
@@ -1088,23 +1284,23 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionEvaluatorDraftView",
-            "declaration": "export interface EvolutionEvaluatorDraftView {\n    readonly id: string;\n    readonly launchId: string;\n    readonly targetId: string;\n    readonly skillName: string;\n    readonly status: 'authoring-pending' | 'uncertain' | 'draft-ready' | 'qualification-running' | 'qualified' | 'incomplete' | 'rejected';\n    readonly createdAt: string;\n    readonly updatedAt: string;\n    readonly cost: { readonly modelCalls: 0 | 1; readonly inputTokens: number; readonly outputTokens: number; };\n}"
+            "declaration": "export interface EvolutionEvaluatorDraftView {\n    readonly workspaceId: string;\n    readonly id: string;\n    readonly launchId: string;\n    readonly targetId: string;\n    readonly skillName: string;\n    readonly status: 'authoring-pending' | 'uncertain' | 'draft-ready' | 'qualification-running' | 'qualified' | 'incomplete' | 'rejected';\n    readonly createdAt: string;\n    readonly updatedAt: string;\n    readonly cost: { readonly modelCalls: 0 | 1; readonly inputTokens: number; readonly outputTokens: number; };\n}"
           },
           {
             "name": "EvolutionFeedbackSignalView",
-            "declaration": "export interface EvolutionFeedbackSignalView {\n    readonly id: string;\n    readonly sourceUpdatedAt: number;\n    readonly generationId?: string;\n}"
+            "declaration": "export interface EvolutionFeedbackSignalView {\n    readonly workspaceId: string;\n    readonly id: string;\n    readonly sourceUpdatedAt: number;\n    readonly generationId?: string;\n}"
           },
           {
             "name": "EvolutionGenerationView",
-            "declaration": "export interface EvolutionGenerationView {\n    readonly id: string;\n    readonly rollbackTargetId?: string;\n    readonly createdAt: number;\n    readonly evaluatorVersion: string;\n    readonly policyVersion: string;\n    readonly artifacts: readonly EvolutionArtifactView[];\n}"
+            "declaration": "export interface EvolutionGenerationView {\n    readonly id: string;\n    readonly workspaceId: string;\n    readonly rollbackTargetId?: string;\n    readonly createdAt: number;\n    readonly evaluatorVersion: string;\n    readonly policyVersion: string;\n    readonly artifacts: readonly EvolutionArtifactView[];\n}"
           },
           {
             "name": "EvolutionInactiveGenerationView",
-            "declaration": "export interface EvolutionInactiveGenerationView {\n    readonly generationId: string;\n    readonly reviewId: string;\n    readonly skillName: string;\n}"
+            "declaration": "export interface EvolutionInactiveGenerationView {\n    readonly workspaceId: string;\n    readonly generationId: string;\n    readonly reviewId: string;\n    readonly skillName: string;\n}"
           },
           {
             "name": "EvolutionOverview",
-            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly automaticPromotion: { readonly enabled: boolean; readonly skills: readonly string[]; };\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; readonly baseline?: DeliveryOutcomeCounts; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly feedbackShadow?: { readonly available: boolean; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly runs: readonly EvolutionShadowRunView[]; };\n    readonly automaticFeedbackBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly automaticEvaluatorBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly evaluatorAuthoring?: { readonly available: boolean; readonly actionableCount: number; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly drafts: readonly EvolutionEvaluatorDraftView[]; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
+            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly workspaceId: string;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly automaticPromotion: { readonly enabled: boolean; readonly skills: readonly string[]; };\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; readonly baseline?: DeliveryOutcomeCounts; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly feedbackShadow?: { readonly available: boolean; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly runs: readonly EvolutionShadowRunView[]; };\n    readonly automaticFeedbackBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly automaticEvaluatorBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly evaluatorAuthoring?: { readonly available: boolean; readonly actionableCount: number; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly drafts: readonly EvolutionEvaluatorDraftView[]; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
           },
           {
             "name": "EvolutionReviewCaseView",
@@ -1116,20 +1312,29 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionReviewView",
-            "declaration": "export interface EvolutionReviewView {\n    readonly id: string;\n    readonly status: 'pending' | 'approved' | 'rejected';\n    readonly recommendation: 'promote' | 'review';\n    readonly skillName: string;\n    readonly claim: string;\n    readonly changedFiles: readonly string[];\n    readonly candidateTreeHash: string;\n    readonly cases: readonly EvolutionReviewCaseView[];\n    readonly cost: { readonly inputTokens: number; readonly outputTokens: number; readonly trialCount: number; };\n    readonly reasons: readonly string[];\n    readonly limitations: readonly string[];\n    readonly evaluatorVersion: string;\n    readonly compositionFingerprint: string;\n    readonly compositionStable: boolean;\n    readonly startedAt: string;\n    readonly automaticReviewExpiry?: EvolutionAutomaticReviewExpiryView;\n    readonly decisionActor?: 'human' | 'auto-clear-instruction-v1' | 'auto-review-expiry-v1';\n    readonly decisionNote?: string;\n    readonly generationId?: string;\n    readonly activatedAt?: string;\n}"
+            "declaration": "export interface EvolutionReviewView {\n    readonly id: string;\n    readonly workspaceId: string;\n    readonly status: 'pending' | 'approved' | 'rejected';\n    readonly recommendation: 'promote' | 'review';\n    readonly skillName: string;\n    readonly claim: string;\n    readonly changedFiles: readonly string[];\n    readonly candidateTreeHash: string;\n    readonly cases: readonly EvolutionReviewCaseView[];\n    readonly cost: { readonly inputTokens: number; readonly outputTokens: number; readonly trialCount: number; };\n    readonly reasons: readonly string[];\n    readonly limitations: readonly string[];\n    readonly evaluatorVersion: string;\n    readonly compositionFingerprint: string;\n    readonly compositionStable: boolean;\n    readonly startedAt: string;\n    readonly automaticReviewExpiry?: EvolutionAutomaticReviewExpiryView;\n    readonly decisionActor?: 'human' | 'auto-clear-instruction-v1' | 'auto-review-expiry-v1';\n    readonly decisionNote?: string;\n    readonly generationId?: string;\n    readonly activatedAt?: string;\n}"
           },
           {
             "name": "EvolutionShadowRunView",
-            "declaration": "export interface EvolutionShadowRunView {\n    readonly launchId: string;\n    readonly targetId: string;\n    readonly skillName: string;\n    readonly phase: 'prepared' | 'proposal-pending' | 'candidate-ready' | 'trial-running' | 'complete' | 'incomplete';\n    readonly startedAt: string;\n    readonly updatedAt: string;\n}"
+            "declaration": "export interface EvolutionShadowRunView {\n    readonly workspaceId: string;\n    readonly launchId: string;\n    readonly targetId: string;\n    readonly skillName: string;\n    readonly phase: 'prepared' | 'proposal-pending' | 'candidate-ready' | 'trial-running' | 'complete' | 'incomplete';\n    readonly startedAt: string;\n    readonly updatedAt: string;\n}"
           },
           {
             "name": "EvolutionShadowTargetView",
-            "declaration": "export interface EvolutionShadowTargetView {\n    readonly id: string;\n    readonly skillName: string;\n}"
+            "declaration": "export interface EvolutionShadowTargetView {\n    readonly workspaceId: string;\n    readonly id: string;\n    readonly skillName: string;\n}"
           }
         ]
       }
     ],
-    "events": [],
+    "events": [
+      {
+        "description": "Host-only wakeup after the existing resident evolution scan has settled.",
+        "summary": "Host-only wakeup after the existing resident evolution scan has settled.",
+        "tags": [],
+        "jsDoc": "/** Host-only wakeup after the existing resident evolution scan has settled. */",
+        "name": "evoforge/evolution/settled",
+        "signature": "'evoforge/evolution/settled'(): void"
+      }
+    ],
     "objects": []
   },
 }

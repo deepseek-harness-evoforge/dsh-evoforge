@@ -11,6 +11,8 @@ const signalId = '8'.repeat(64)
 const draftId = 'e'.repeat(64)
 const launchId = 'd'.repeat(64)
 const reviewId = 'c'.repeat(64)
+const workspaceId = '11111111-1111-4111-8111-111111111111'
+const sessionId = 'browser-evolution-session'
 const search = new URLSearchParams(window.location.search)
 const qualifiedMode = search.has('qualified')
 const reviewMode = search.has('review')
@@ -20,6 +22,7 @@ const outcomeMode = search.has('outcomes')
 const calls = { author: 0, approve: 0, reject: 0, shadow: 0, reviewApprove: 0 }
 let reviewApproved = false
 const runs: Array<{
+  workspaceId: string
   launchId: string
   targetId: string
   skillName: string
@@ -29,6 +32,7 @@ const runs: Array<{
 }> = []
 
 const draft = {
+  workspaceId,
   id: draftId,
   launchId,
   targetId: 'plugin-delivery',
@@ -40,6 +44,7 @@ const draft = {
 }
 
 const review = {
+  workspaceId,
   id: reviewId,
   status: 'pending' as const,
   recommendation: 'review' as const,
@@ -72,10 +77,12 @@ const ok = <T,>(value: T) => Promise.resolve({ ok: true as const, value })
 const remote: EvolutionRemoteClient = {
   overview: () => ok({
     schemaVersion: 1,
+    workspaceId,
     ...(outcomeMode
       ? {
           active: {
             id: 'a'.repeat(64),
+            workspaceId,
             rollbackTargetId: 'b'.repeat(64),
             createdAt: 1_786_896_000_000,
             evaluatorVersion: 'browser-review-v1',
@@ -94,6 +101,7 @@ const remote: EvolutionRemoteClient = {
     automaticFeedbackBudget: {
       warningCount: 0,
       targets: [{
+        workspaceId,
         targetId: 'plugin-delivery',
         skillName: 'build-dsh-plugin',
         utcDay: '2026-08-17',
@@ -106,6 +114,7 @@ const remote: EvolutionRemoteClient = {
     automaticEvaluatorBudget: {
       warningCount: 0,
       targets: [{
+        workspaceId,
         targetId: 'novel-failure',
         skillName: 'build-dsh-plugin',
         utcDay: '2026-08-17',
@@ -126,8 +135,8 @@ const remote: EvolutionRemoteClient = {
       available: true,
       actionableCount: 1,
       warningCount: 0,
-      signals: [{ id: signalId, sourceUpdatedAt: 1_786_896_000_000 }],
-      targets: [{ id: 'plugin-delivery', skillName: 'build-dsh-plugin' }],
+      signals: [{ workspaceId, id: signalId, sourceUpdatedAt: 1_786_896_000_000 }],
+      targets: [{ workspaceId, id: 'plugin-delivery', skillName: 'build-dsh-plugin' }],
       drafts: [draft],
     },
     reviews: {
@@ -149,11 +158,13 @@ const remote: EvolutionRemoteClient = {
     limitations: ['inactive until exact-hash human qualification'],
     qualifiedShadowAvailable: true,
   }),
-  authorEvaluator: (selectedSignal, selectedTarget) => {
+  authorEvaluator: (selectedWorkspace, selectedSignal, selectedTarget) => {
+    if (selectedWorkspace !== workspaceId) throw new Error('wrong Workspace')
     if (selectedSignal !== signalId || selectedTarget !== 'plugin-delivery') throw new Error('wrong author selection')
     calls.author += 1
     return ok({
       schemaVersion: 1,
+      workspaceId,
       action: 'author-evaluator',
       launchId,
       targetId: 'plugin-delivery',
@@ -162,11 +173,13 @@ const remote: EvolutionRemoteClient = {
       jobId: 'evolution-2',
     })
   },
-  approveEvaluator: (selectedDraft, note) => {
+  approveEvaluator: (selectedWorkspace, selectedDraft, note) => {
+    if (selectedWorkspace !== workspaceId) throw new Error('wrong Workspace')
     if (selectedDraft !== draftId || note !== 'independent semantics reviewed') throw new Error('wrong approval')
     calls.approve += 1
     return ok({
       schemaVersion: 1,
+      workspaceId,
       action: 'approve-evaluator',
       launchId,
       draftId,
@@ -175,8 +188,9 @@ const remote: EvolutionRemoteClient = {
       draftStatus: 'qualified',
     })
   },
-  approveAndStartEvaluatorShadow: (selectedDraft, note) => {
-    if (qualifiedMode
+  approveAndStartEvaluatorShadow: (selectedWorkspace, selectedDraft, note) => {
+    if (selectedWorkspace !== workspaceId
+      || qualifiedMode
       || selectedDraft !== draftId
       || note !== 'independent semantics reviewed') {
       throw new Error('wrong combined qualification')
@@ -185,6 +199,7 @@ const remote: EvolutionRemoteClient = {
     calls.shadow += 1
     return ok({
       schemaVersion: 1,
+      workspaceId,
       action: 'start-shadow',
       launchId: '8'.repeat(64),
       targetId: 'plugin-delivery',
@@ -197,6 +212,7 @@ const remote: EvolutionRemoteClient = {
     calls.reject += 1
     return ok({
       schemaVersion: 1,
+      workspaceId,
       action: 'reject-evaluator',
       launchId,
       draftId,
@@ -205,10 +221,11 @@ const remote: EvolutionRemoteClient = {
       draftStatus: 'rejected',
     })
   },
-  startEvaluatorShadow: (selectedDraft) => {
-    if (!qualifiedMode || selectedDraft !== draftId) throw new Error('wrong qualified Shadow selection')
+  startEvaluatorShadow: (selectedWorkspace, selectedDraft) => {
+    if (selectedWorkspace !== workspaceId || !qualifiedMode || selectedDraft !== draftId) throw new Error('wrong qualified Shadow selection')
     calls.shadow += 1
     if (runs.length === 0) runs.push({
+      workspaceId,
       launchId: '9'.repeat(64),
       targetId: 'plugin-delivery',
       skillName: 'build-dsh-plugin',
@@ -218,6 +235,7 @@ const remote: EvolutionRemoteClient = {
     })
     return ok({
       schemaVersion: 1,
+      workspaceId,
       action: 'start-shadow',
       launchId: '9'.repeat(64),
       targetId: 'plugin-delivery',
@@ -226,8 +244,8 @@ const remote: EvolutionRemoteClient = {
       jobId: 'evolution-3',
     })
   },
-  review: (selectedReview) => {
-    if (!reviewMode || selectedReview !== reviewId) throw new Error('wrong review selection')
+  review: (selectedWorkspace, selectedReview) => {
+    if (selectedWorkspace !== workspaceId || !reviewMode || selectedReview !== reviewId) throw new Error('wrong review selection')
     if (staleReviewMode) return Promise.resolve({
       ok: false as const,
       error: {
@@ -259,14 +277,15 @@ const remote: EvolutionRemoteClient = {
   },
   pause: () => Promise.reject(new Error('not used')),
   resume: () => Promise.reject(new Error('not used')),
-  approveReview: (selectedReview, note) => {
-    if (!reviewMode || selectedReview !== reviewId || note !== 'evidence and limitation reviewed') {
+  approveReview: (selectedWorkspace, selectedReview, note) => {
+    if (selectedWorkspace !== workspaceId || !reviewMode || selectedReview !== reviewId || note !== 'evidence and limitation reviewed') {
       throw new Error('wrong review approval')
     }
     calls.reviewApprove += 1
     reviewApproved = true
     return ok({
       schemaVersion: 1,
+      workspaceId,
       action: 'approve-review',
       reviewId,
       status: 'approved',
@@ -349,6 +368,7 @@ const labels: Record<string, string> = {
   'confirm.qualifiedShadow': 'Start paid Qualified Shadow?',
   'confirm.rejectEvaluator': 'Reject without execution?',
   'notice.done': 'Done',
+  'error.workspaceRequired': 'Open a Session owned by a native Workspace first.',
   'error.prefix': 'Error: ',
 }
 
@@ -357,5 +377,13 @@ const productStyle = document.createElement('style')
 productStyle.textContent = cssText
 document.head.append(productStyle)
 createRoot(document.getElementById('root')!).render(
-  <EvolutionAction remote={remote} t={key => labels[key] ?? key} />,
+  <EvolutionAction
+    remote={remote}
+    t={key => labels[key] ?? key}
+    wide
+    useSessions={selector => selector({ current: sessionId } as never)}
+    useWorkspaces={selector => selector({
+      items: [{ workspaceId, sessionIds: [sessionId] }],
+    } as never)}
+  />,
 )

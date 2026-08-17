@@ -100,7 +100,9 @@ journal compaction removes only the oldest terminal outbound records and never a
 
 When the optional `dsh-evolve-telegram` bridge is enabled in the same profile, actionable Evolve
 Candidate and Evaluator Draft states use this package's existing exact chat route and delivery
-journal. The bridge does not read the Bot token, add another route, or turn a notice into Approval.
+journal. The suite-internal route service exposes the same static native Workspace id so every
+Evolve scan remains explicitly Workspace-scoped. The bridge does not read the Bot token, add
+another route, choose a recent Workspace, or turn a notice into Approval.
 See [`dsh-evolve-telegram`](../dsh-evolve-telegram/README.md) for its message and cache contract.
 
 ## Deliberate limits

@@ -86,9 +86,11 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-evolve-telegram packag
         .find(candidate => candidate.options.name === 'dsh-evolve-telegram')
       expect(entry?.fiber?.state).toBe(2)
       const route = ctx.get('evoforge.telegramRoute') as {
+        workspaceId: string
         notices: Array<{ id: string; text: string }>
       } | undefined
       if (route === undefined) throw new Error('fixture Telegram route service did not load')
+      expect(route.workspaceId).toBe(services.workspaceId)
       await expect.poll(() => route.notices.length).toBe(1)
       expect(route.notices[0]?.text).toContain(`/evolve review ${services.reviewId}`)
       ctx.emit('evoforge/evolution/settled')

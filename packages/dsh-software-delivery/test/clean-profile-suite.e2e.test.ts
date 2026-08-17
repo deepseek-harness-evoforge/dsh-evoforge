@@ -139,13 +139,15 @@ describe.skipIf(process.platform !== 'darwin')('clean-profile assembled EvoForge
       expect(await installedCtx.skills.get('software-delivery')).toBeDefined()
       expect(installedCtx.get('evoforge.evolution')).toBeDefined()
       const preset = await installedCtx.agentPresets.resolve()
+      const canonicalWorktree = await realpath(worktree)
+      const nativeWorkspace = await installedCtx.workspaceRegistry.create(canonicalWorktree)
       const llm = await import(
         pathToFileURL(join(dshSourceDir, 'packages', 'llm', 'llm', 'lib', 'index.js')).href
       )
       const callArguments: Record<string, unknown> = {
         goal_id: 'set-after-goal-creation',
         revision: 0,
-        worktree: await realpath(worktree),
+        worktree: canonicalWorktree,
         base_ref: 'main',
         checks: [{ name: 'node-smoke', argv: [process.execPath, '-e', 'process.exit(0)'] }],
       }
@@ -199,11 +201,12 @@ describe.skipIf(process.platform !== 'darwin')('clean-profile assembled EvoForge
       const handle = await installedCtx.agents.create({
         sessionId,
         agentOptions: { provider: 'evoforge-native-contract', model: 'fixture' },
-        meta: { cwd: await realpath(worktree), agentPreset: preset.id },
+        meta: { cwd: canonicalWorktree, agentPreset: preset.id },
         setup: async (agentCtx: unknown) => {
           await installedCtx.agentPresets.mount(agentCtx, preset.id)
         },
       })
+      await nativeWorkspace.attachSession(handle.agent.session.header.id)
       const agentToolNames = installedCtx.tools.schemas(handle.agent)
         .map((tool: { name: string }) => tool.name)
       expect(agentToolNames).toEqual(expect.arrayContaining([

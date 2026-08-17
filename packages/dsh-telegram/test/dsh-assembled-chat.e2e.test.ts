@@ -301,9 +301,14 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Telegram chat', ()
       })
 
       const route = ctx.get('evoforge.telegramRoute') as {
+        workspaceId: string
         notify(input: { id: string; text: string }): Promise<{ created: boolean; status: string }>
       } | undefined
       if (route === undefined) throw new Error('Telegram host route service did not load')
+      const router = ctx.get('evoforge.channelRouter') as {
+        route(id: string): { workspaceId: string } | undefined
+      }
+      expect(route.workspaceId).toBe(router.route('telegram-main')?.workspaceId)
       const notice = {
         id: 'f'.repeat(64),
         text: `EvoForge attention\nInspect: /evolve review ${'a'.repeat(64)}`,

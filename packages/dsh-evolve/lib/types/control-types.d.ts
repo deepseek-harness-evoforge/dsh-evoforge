@@ -15,6 +15,7 @@ export interface DeliveryOutcomeCounts {
 /** Client-safe immutable Generation projection. */
 export interface EvolutionGenerationView {
     readonly id: string;
+    readonly workspaceId: string;
     readonly rollbackTargetId?: string;
     readonly createdAt: number;
     readonly evaluatorVersion: string;
@@ -45,6 +46,7 @@ export interface EvolutionAutomaticReviewExpiryView {
 /** Bounded review metadata shared by the list and detail views. */
 export interface EvolutionReviewView {
     readonly id: string;
+    readonly workspaceId: string;
     readonly status: 'pending' | 'approved' | 'rejected';
     readonly recommendation: 'promote' | 'review';
     readonly skillName: string;
@@ -71,23 +73,27 @@ export interface EvolutionReviewView {
 }
 /** Durable approved Generation that is not the current active selection. */
 export interface EvolutionInactiveGenerationView {
+    readonly workspaceId: string;
     readonly generationId: string;
     readonly reviewId: string;
     readonly skillName: string;
 }
 /** Reference-only feedback row; Session/message ids and correction text stay on host. */
 export interface EvolutionFeedbackSignalView {
+    readonly workspaceId: string;
     readonly id: string;
     readonly sourceUpdatedAt: number;
     readonly generationId?: string;
 }
 /** Public name of one statically configured host-side Shadow Target. */
 export interface EvolutionShadowTargetView {
+    readonly workspaceId: string;
     readonly id: string;
     readonly skillName: string;
 }
 /** Bounded run projection; host paths, proposal and private draft stay excluded. */
 export interface EvolutionShadowRunView {
+    readonly workspaceId: string;
     readonly launchId: string;
     readonly targetId: string;
     readonly skillName: string;
@@ -97,6 +103,7 @@ export interface EvolutionShadowRunView {
 }
 /** Daily host-only reservation cap for one automatic paid evolution Target. */
 export interface EvolutionAutomaticBudgetView {
+    readonly workspaceId: string;
     readonly targetId: string;
     readonly skillName: string;
     readonly utcDay: string;
@@ -107,6 +114,7 @@ export interface EvolutionAutomaticBudgetView {
 }
 /** Bounded host-only evaluator proposal; generated code remains inactive. */
 export interface EvolutionEvaluatorDraftView {
+    readonly workspaceId: string;
     readonly id: string;
     readonly launchId: string;
     readonly targetId: string;
@@ -144,6 +152,7 @@ export interface EvolutionEvaluatorDraftDetail {
 /** Browser overview. Dynamic global state stays outside Session and model context. */
 export interface EvolutionOverview {
     readonly schemaVersion: 1;
+    readonly workspaceId: string;
     readonly active?: EvolutionGenerationView;
     readonly recovery: {
         readonly available: boolean;
@@ -214,6 +223,7 @@ export interface EvolutionReviewDetail {
 /** Durable action acknowledgement; UI refreshes the authoritative overview afterwards. */
 export interface EvolutionActionReceipt {
     readonly schemaVersion: 1;
+    readonly workspaceId: string;
     readonly action: 'pause' | 'resume' | 'approve-review' | 'reject-review' | 'promote' | 'rollback' | 'start-shadow' | 'author-evaluator' | 'approve-evaluator' | 'reject-evaluator';
     readonly reviewId?: string;
     readonly status?: 'approved' | 'rejected';

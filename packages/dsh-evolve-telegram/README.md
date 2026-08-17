@@ -40,6 +40,10 @@ dsh plugin add .evoforge/pack/dsh-evolve-telegram-0.1.0-alpha.1.tgz
 Enable all three rows in the same profile. The bridge consumes the existing Telegram token and
 route indirectly; it neither reads nor duplicates that secret.
 
+The exact native Workspace id comes from that same static `dsh-telegram` Router route. Every
+attention scan passes it explicitly to `dsh-evolve`; the bridge never scans another Workspace and
+does not fall back to a recent or arbitrary Workspace.
+
 After a notice arrives, inspect and act through the existing command surface:
 
 ```text

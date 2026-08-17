@@ -4,8 +4,8 @@ import type Schema from '@deepseek-ai/schemastery'
 import {
   EvolutionTelegramBridge,
   type EvolutionAttentionSource,
-  type TelegramHostRoute,
 } from './bridge.js'
+import type { TelegramHostRoute } from 'dsh-telegram'
 
 declare module '@deepseek-ai/cordis' {
   interface Events {

@@ -1,4 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
+import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type {} from '@deepseek-ai/dsh-client-runtime/client'
+import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {
   EvolutionActionReceipt,
   EvolutionEvaluatorDraftDetail,
@@ -7,16 +10,19 @@ import type {
 } from 'dsh-evolve/client'
 import { remoteValue, type EvolutionRemoteClient } from './remote.ts'
 
-export interface EvolutionActionProps {
+export type EvolutionActionProps = PropsRuntime<'sidebar.footer.action'> & {
   readonly remote: EvolutionRemoteClient
   readonly t: (key: string) => string
-  readonly wide?: boolean
 }
 
 type ConfirmAction = 'approve' | 'reject' | 'promote' | 'rollback' | 'shadow' | 'authorEvaluator' | 'approveEvaluator' | 'approveAndShadow' | 'rejectEvaluator' | 'qualifiedShadow'
 
 /** Sidebar trigger and bounded global evolution control panel. */
-export function EvolutionAction({ remote, t, wide = true }: EvolutionActionProps) {
+export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }: EvolutionActionProps) {
+  const currentSessionId = useSessions(state => state.current)
+  const workspaceId = useWorkspaces(state => currentSessionId === undefined
+    ? undefined
+    : state.items.find(workspace => workspace.sessionIds.includes(currentSessionId))?.workspaceId)
   const [open, setOpen] = useState(false)
   const [overview, setOverview] = useState<EvolutionOverview>()
   const [detail, setDetail] = useState<EvolutionReviewDetail>()
@@ -30,83 +36,157 @@ export function EvolutionAction({ remote, t, wide = true }: EvolutionActionProps
   const [notice, setNotice] = useState<string>()
   const [confirm, setConfirm] = useState<ConfirmAction>()
   const triggerRef = useRef<HTMLButtonElement>(null)
+  const workspaceRef = useRef(workspaceId)
+  workspaceRef.current = workspaceId
 
-  const loadOverview = async () => {
+  const resetWorkspaceState = () => {
+    setOverview(undefined)
+    setDetail(undefined)
+    setEvaluatorDetail(undefined)
+    setNote('')
+    setPromotionTarget(undefined)
+    setShadowSelection(undefined)
+    setEvaluatorSelection(undefined)
+    setNotice(undefined)
+    setConfirm(undefined)
+  }
+
+  const loadOverview = async (targetWorkspaceId = workspaceId) => {
+    if (targetWorkspaceId === undefined) {
+      setError(t('error.workspaceRequired'))
+      return
+    }
     setError(undefined)
     try {
-      setOverview(await remoteValue(remote.overview()))
+      const next = requireWorkspace(
+        targetWorkspaceId,
+        await remoteValue(remote.overview(targetWorkspaceId)),
+        value => value.workspaceId,
+      )
+      if (workspaceRef.current === targetWorkspaceId) setOverview(next)
     } catch (cause) {
-      setError(message(cause))
+      if (workspaceRef.current === targetWorkspaceId) setError(message(cause))
     }
   }
 
   const refreshVisibleState = async () => {
+    if (workspaceId === undefined) {
+      setError(t('error.workspaceRequired'))
+      return
+    }
+    const targetWorkspaceId = workspaceId
     setBusy(true)
     setError(undefined)
     try {
-      const nextOverview = await remoteValue(remote.overview())
+      const nextOverview = requireWorkspace(
+        targetWorkspaceId,
+        await remoteValue(remote.overview(targetWorkspaceId)),
+        value => value.workspaceId,
+      )
+      if (workspaceRef.current !== targetWorkspaceId) return
       setOverview(nextOverview)
       if (detail !== undefined) {
         try {
-          setDetail(await remoteValue(remote.review(detail.review.id)))
+          const nextDetail = requireWorkspace(
+            targetWorkspaceId,
+            await remoteValue(remote.review(targetWorkspaceId, detail.review.id)),
+            value => value.review.workspaceId,
+          )
+          if (workspaceRef.current === targetWorkspaceId) setDetail(nextDetail)
         } catch (cause) {
           setDetail(undefined)
           throw cause
         }
       } else if (evaluatorDetail !== undefined) {
         try {
-          setEvaluatorDetail(await remoteValue(remote.evaluatorDraft(evaluatorDetail.draft.id)))
+          const nextDetail = requireWorkspace(
+            targetWorkspaceId,
+            await remoteValue(remote.evaluatorDraft(targetWorkspaceId, evaluatorDetail.draft.id)),
+            value => value.draft.workspaceId,
+          )
+          if (workspaceRef.current === targetWorkspaceId) setEvaluatorDetail(nextDetail)
         } catch (cause) {
           setEvaluatorDetail(undefined)
           throw cause
         }
       }
     } catch (cause) {
-      setError(message(cause))
+      if (workspaceRef.current === targetWorkspaceId) setError(message(cause))
     } finally {
-      setBusy(false)
+      if (workspaceRef.current === targetWorkspaceId) setBusy(false)
     }
   }
 
-  useEffect(() => {
-    if (open && overview === undefined && error === undefined) void loadOverview()
-  }, [open])
+  useLayoutEffect(() => {
+    resetWorkspaceState()
+    setError(undefined)
+    setBusy(false)
+    if (open) void loadOverview(workspaceId)
+  }, [open, workspaceId])
 
   const inspect = async (id: string) => {
+    if (workspaceId === undefined) {
+      setError(t('error.workspaceRequired'))
+      return
+    }
+    const targetWorkspaceId = workspaceId
     setBusy(true)
     setError(undefined)
     try {
-      setDetail(await remoteValue(remote.review(id)))
+      const next = requireWorkspace(
+        targetWorkspaceId,
+        await remoteValue(remote.review(targetWorkspaceId, id)),
+        value => value.review.workspaceId,
+      )
+      if (workspaceRef.current !== targetWorkspaceId) return
+      setDetail(next)
       setEvaluatorDetail(undefined)
       setNote('')
     } catch (cause) {
-      setError(message(cause))
+      if (workspaceRef.current === targetWorkspaceId) setError(message(cause))
     } finally {
-      setBusy(false)
+      if (workspaceRef.current === targetWorkspaceId) setBusy(false)
     }
   }
 
   const inspectEvaluator = async (id: string) => {
+    if (workspaceId === undefined) {
+      setError(t('error.workspaceRequired'))
+      return
+    }
+    const targetWorkspaceId = workspaceId
     setBusy(true)
     setError(undefined)
     try {
-      setEvaluatorDetail(await remoteValue(remote.evaluatorDraft(id)))
+      const next = requireWorkspace(
+        targetWorkspaceId,
+        await remoteValue(remote.evaluatorDraft(targetWorkspaceId, id)),
+        value => value.draft.workspaceId,
+      )
+      if (workspaceRef.current !== targetWorkspaceId) return
+      setEvaluatorDetail(next)
       setDetail(undefined)
       setNote('')
     } catch (cause) {
-      setError(message(cause))
+      if (workspaceRef.current === targetWorkspaceId) setError(message(cause))
     } finally {
-      setBusy(false)
+      if (workspaceRef.current === targetWorkspaceId) setBusy(false)
     }
   }
 
   const run = async (request: () => Promise<EvolutionActionReceipt>) => {
+    if (workspaceId === undefined) {
+      setError(t('error.workspaceRequired'))
+      return
+    }
+    const targetWorkspaceId = workspaceId
     setBusy(true)
     setError(undefined)
     setNotice(undefined)
     setConfirm(undefined)
     try {
-      const receipt = await request()
+      const receipt = requireWorkspace(targetWorkspaceId, await request(), value => value.workspaceId)
+      if (workspaceRef.current !== targetWorkspaceId) return
       if (receipt.action === 'promote') setPromotionTarget(undefined)
       if (receipt.action === 'approve-review' || receipt.action === 'reject-review') {
         setDetail(undefined)
@@ -118,44 +198,52 @@ export function EvolutionAction({ remote, t, wide = true }: EvolutionActionProps
         setEvaluatorDetail(undefined)
       }
       setNotice(t('notice.done'))
-      await loadOverview()
+      await loadOverview(targetWorkspaceId)
     } catch (cause) {
-      setError(message(cause))
+      if (workspaceRef.current === targetWorkspaceId) setError(message(cause))
     } finally {
-      setBusy(false)
+      if (workspaceRef.current === targetWorkspaceId) setBusy(false)
     }
   }
 
   const executeConfirmed = () => {
+    if (workspaceId === undefined) {
+      setConfirm(undefined)
+      setError(t('error.workspaceRequired'))
+      return
+    }
     if (confirm === 'approve' && detail !== undefined) {
-      void run(() => remoteValue(remote.approveReview(detail.review.id, note.trim())))
+      void run(() => remoteValue(remote.approveReview(workspaceId, detail.review.id, note.trim())))
     } else if (confirm === 'reject' && detail !== undefined) {
-      void run(() => remoteValue(remote.rejectReview(detail.review.id, note.trim())))
+      void run(() => remoteValue(remote.rejectReview(workspaceId, detail.review.id, note.trim())))
     } else if (confirm === 'promote' && promotionTarget !== undefined) {
-      void run(() => remoteValue(remote.promote(promotionTarget)))
+      void run(() => remoteValue(remote.promote(workspaceId, promotionTarget)))
     } else if (confirm === 'rollback') {
-      void run(() => remoteValue(remote.rollback()))
+      void run(() => remoteValue(remote.rollback(workspaceId)))
     } else if (confirm === 'shadow' && shadowSelection !== undefined) {
       void run(() => remoteValue(remote.startFeedbackShadow(
+        workspaceId,
         shadowSelection.signalId,
         shadowSelection.targetId,
       )))
     } else if (confirm === 'authorEvaluator' && evaluatorSelection !== undefined) {
       void run(() => remoteValue(remote.authorEvaluator(
+        workspaceId,
         evaluatorSelection.signalId,
         evaluatorSelection.targetId,
       )))
     } else if (confirm === 'approveEvaluator' && evaluatorDetail !== undefined) {
-      void run(() => remoteValue(remote.approveEvaluator(evaluatorDetail.draft.id, note.trim())))
+      void run(() => remoteValue(remote.approveEvaluator(workspaceId, evaluatorDetail.draft.id, note.trim())))
     } else if (confirm === 'approveAndShadow' && evaluatorDetail !== undefined) {
       void run(() => remoteValue(remote.approveAndStartEvaluatorShadow(
+        workspaceId,
         evaluatorDetail.draft.id,
         note.trim(),
       )))
     } else if (confirm === 'rejectEvaluator' && evaluatorDetail !== undefined) {
-      void run(() => remoteValue(remote.rejectEvaluator(evaluatorDetail.draft.id, note.trim())))
+      void run(() => remoteValue(remote.rejectEvaluator(workspaceId, evaluatorDetail.draft.id, note.trim())))
     } else if (confirm === 'qualifiedShadow' && evaluatorDetail !== undefined) {
-      void run(() => remoteValue(remote.startEvaluatorShadow(evaluatorDetail.draft.id)))
+      void run(() => remoteValue(remote.startEvaluatorShadow(workspaceId, evaluatorDetail.draft.id)))
     }
   }
 
@@ -196,7 +284,7 @@ export function EvolutionAction({ remote, t, wide = true }: EvolutionActionProps
                   type="button"
                   className="dsh-evolve-button"
                   disabled={busy}
-                  onClick={() => { void run(() => remoteValue(overview.recovery.paused === true ? remote.resume() : remote.pause())) }}
+                  onClick={() => { void run(() => remoteValue(overview.recovery.paused === true ? remote.resume(workspaceId!) : remote.pause(workspaceId!))) }}
                 >
                   {t(overview.recovery.paused === true ? 'action.resume' : 'action.pause')}
                 </button>
@@ -289,6 +377,18 @@ function actionableCount(overview: EvolutionOverview | undefined): number {
   if (overview === undefined) return 0
   return overview.reviews.actionableCount
     + (overview.evaluatorAuthoring?.actionableCount ?? 0)
+}
+
+function requireWorkspace<T>(
+  expectedWorkspaceId: string,
+  value: T,
+  workspaceOf: (value: T) => string,
+): T {
+  const actualWorkspaceId = workspaceOf(value)
+  if (actualWorkspaceId !== expectedWorkspaceId) {
+    throw new Error(`Workspace authority mismatch: expected ${expectedWorkspaceId}, received ${actualWorkspaceId}`)
+  }
+  return value
 }
 
 function ReviewQueue({ overview, busy, inspect, promote, startShadow, authorEvaluator, inspectEvaluator, t }: {

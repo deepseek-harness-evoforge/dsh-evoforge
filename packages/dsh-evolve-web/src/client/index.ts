@@ -5,15 +5,15 @@ import type { EvolutionRemoteClient } from './remote.ts'
 import { en, NS, zh } from './locales.ts'
 import { cssText, STYLE_ID } from './style.ts'
 
-interface WebContext extends Context {
-  remote: {
+type WebContext = Context & {
+  remote: Context['remote'] & {
     $mount(contribution: unknown): Promise<() => Promise<void>>
     evoforgeEvolution: EvolutionRemoteClient
   }
   locale: {
     register(namespace: string, dictionaries: { zh: Record<string, string>; en: Record<string, string> }): () => void
   }
-  slots: {
+  slots: Context['slots'] & {
     inject(name: string, install: () => unknown): void
     register(options: Record<string, unknown>, component: unknown): () => void
   }

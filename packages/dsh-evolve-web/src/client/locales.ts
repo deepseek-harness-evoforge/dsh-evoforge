@@ -85,6 +85,7 @@ export const zh = {
   'confirm.rejectEvaluator': '确认拒绝这个 Evaluator Draft？生成代码不会执行。',
   'confirm.qualifiedShadow': '确认用这个 exact Qualified Case Pack 启动一次可能付费的 Shadow？受限用户文本和纠正会发送给配置模型；这不会修改 Skill 或授权晋升。',
   'notice.done': '动作已持久完成，权威状态已刷新。',
+  'error.workspaceRequired': '请先打开一个属于原生 Workspace 的 Session。',
   'error.prefix': '演化动作失败：',
 } as const
 
@@ -175,5 +176,6 @@ export const en: Record<EvolutionLocaleKey, string> = {
   'confirm.rejectEvaluator': 'Reject this Evaluator Draft? Generated code will not execute.',
   'confirm.qualifiedShadow': 'Start one potentially paid Shadow with this exact Qualified Case Pack? Bounded user text and correction will be sent to the configured model. This does not modify a Skill or authorize Promotion.',
   'notice.done': 'The durable action completed and authoritative state was refreshed.',
+  'error.workspaceRequired': 'Open a Session owned by a native Workspace first.',
   'error.prefix': 'Evolution action failed: ',
 }

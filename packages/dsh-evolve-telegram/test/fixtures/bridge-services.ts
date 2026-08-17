@@ -7,6 +7,7 @@ interface TelegramHostNotice {
 }
 
 export const reviewId = 'a'.repeat(64)
+export const workspaceId = '11111111-1111-4111-8111-111111111111'
 export const notices: TelegramHostNotice[] = []
 
 export function reset(): void {
@@ -25,9 +26,13 @@ export function apply(ctx: Context): void {
     },
   }
   ctx.provide('evoforge.evolutionControl', Object.freeze({
-    overview: () => Promise.resolve(overview),
+    overview: (requestedWorkspaceId: string) => {
+      if (requestedWorkspaceId !== workspaceId) throw new Error('unexpected Workspace')
+      return Promise.resolve(overview)
+    },
   }) as never)
   ctx.provide('evoforge.telegramRoute', Object.freeze({
+    workspaceId,
     notices,
     notify: (notice: TelegramHostNotice) => {
       notices.push(structuredClone(notice))

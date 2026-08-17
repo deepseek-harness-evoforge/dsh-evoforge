@@ -46,21 +46,21 @@ if (JSON.stringify(hostMethods) !== JSON.stringify(expectedMethods)
   throw new Error(`unexpected evoforgeEvolution Remote methods: ${JSON.stringify({ hostMethods, remoteMethods })}`)
 }
 const expectedParameters = {
-  approveAndStartEvaluatorShadow: ['id', 'note'],
-  approveEvaluator: ['id', 'note'],
-  approveReview: ['id', 'note'],
-  authorEvaluator: ['signalId', 'targetId'],
-  evaluatorDraft: ['id'],
-  overview: [],
-  pause: [],
-  promote: ['generationId'],
-  rejectEvaluator: ['id', 'note'],
-  rejectReview: ['id', 'note'],
-  resume: [],
-  review: ['id'],
-  rollback: [],
-  startEvaluatorShadow: ['id'],
-  startFeedbackShadow: ['signalId', 'targetId'],
+  approveAndStartEvaluatorShadow: ['workspaceId', 'id', 'note'],
+  approveEvaluator: ['workspaceId', 'id', 'note'],
+  approveReview: ['workspaceId', 'id', 'note'],
+  authorEvaluator: ['workspaceId', 'signalId', 'targetId'],
+  evaluatorDraft: ['workspaceId', 'id'],
+  overview: ['workspaceId'],
+  pause: ['workspaceId'],
+  promote: ['workspaceId', 'generationId'],
+  rejectEvaluator: ['workspaceId', 'id', 'note'],
+  rejectReview: ['workspaceId', 'id', 'note'],
+  resume: ['workspaceId'],
+  review: ['workspaceId', 'id'],
+  rollback: ['workspaceId'],
+  startEvaluatorShadow: ['workspaceId', 'id'],
+  startFeedbackShadow: ['workspaceId', 'signalId', 'targetId'],
 }
 const actualParameters = Object.fromEntries(
   remoteManifest.descriptors

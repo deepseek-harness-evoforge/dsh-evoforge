@@ -53,12 +53,15 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   ctx.effect(() => async () => runtime.dispose(), 'dsh-telegram runtime')
   try {
     await runtime.start()
-    const route: TelegramHostRoute = Object.freeze({
+    const hostRoute: TelegramHostRoute = Object.freeze({
+      workspaceId: route.workspaceId,
       notify: (notice: TelegramHostNotice) => runtime.notifyHost(notice),
     })
-    ctx.provide('evoforge.telegramRoute' as never, route as never)
+    ctx.provide('evoforge.telegramRoute' as never, hostRoute as never)
   } catch (error) {
     await runtime.dispose()
     throw error
   }
 }
+
+export type { TelegramHostNotice, TelegramHostNoticeReceipt, TelegramHostRoute } from './host-route.js'

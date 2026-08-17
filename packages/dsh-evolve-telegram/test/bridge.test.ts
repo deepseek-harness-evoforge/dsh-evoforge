@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
-import { EvolutionTelegramBridge, type TelegramHostRoute } from '../src/bridge.js'
+import type { TelegramHostRoute } from 'dsh-telegram'
+import { EvolutionTelegramBridge } from '../src/bridge.js'
 import type { EvolutionAttentionOverview } from '../src/attention.js'
+
+const workspaceId = '11111111-1111-4111-8111-111111111111'
 
 describe('Evolution Telegram bridge', () => {
   it('serializes catch-up and settled scans through the concrete Telegram route', async () => {
@@ -10,13 +13,15 @@ describe('Evolution Telegram bridge', () => {
       created: true,
       status: 'prepared',
     }))
-    const bridge = new EvolutionTelegramBridge(source, { notify })
+    const bridge = new EvolutionTelegramBridge(source, { workspaceId, notify })
 
     const first = bridge.scan()
     const second = bridge.scan()
     await Promise.all([first, second])
 
     expect(source.overview).toHaveBeenCalledTimes(2)
+    expect(source.overview).toHaveBeenNthCalledWith(1, workspaceId)
+    expect(source.overview).toHaveBeenNthCalledWith(2, workspaceId)
     expect(notify).toHaveBeenCalledTimes(2)
     expect(notify.mock.calls[0]?.[0].id).toBe(notify.mock.calls[1]?.[0].id)
   })
@@ -32,7 +37,7 @@ describe('Evolution Telegram bridge', () => {
       status: 'prepared',
     }))
     const errors: string[] = []
-    const bridge = new EvolutionTelegramBridge(source, { notify }, error => {
+    const bridge = new EvolutionTelegramBridge(source, { workspaceId, notify }, error => {
       errors.push(String(error))
     })
 

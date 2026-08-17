@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { SessionListState, WorkspaceListState } from '@deepseek-ai/dsh-client-runtime/client'
 import { EvolutionAction } from '../src/client/EvolutionAction.tsx'
 import { apply } from '../src/client/index.ts'
 import type { EvolutionRemoteClient } from '../src/client/remote.ts'
@@ -11,6 +12,9 @@ const reviewId = 'c'.repeat(64)
 const generationId = 'a'.repeat(64)
 const signalId = '8'.repeat(64)
 const evaluatorDraftId = 'e'.repeat(64)
+const workspaceId = '11111111-1111-4111-8111-111111111111'
+const otherWorkspaceId = '22222222-2222-4222-8222-222222222222'
+const sessionId = 'session-1'
 
 function success<T>(value: T) {
   return Promise.resolve({ ok: true as const, value })
@@ -25,11 +29,13 @@ function remote(
 ): EvolutionRemoteClient {
   const overview = {
     schemaVersion: 1 as const,
+    workspaceId,
     recovery: { available: true, paused: false },
     automaticPromotion: { enabled: false, skills: [] },
     automaticFeedbackBudget: {
       warningCount: 0,
       targets: [{
+        workspaceId,
         targetId: 'plugin-delivery',
         skillName: 'build-dsh-plugin',
         utcDay: '2026-08-17',
@@ -42,6 +48,7 @@ function remote(
     automaticEvaluatorBudget: {
       warningCount: 0,
       targets: [{
+        workspaceId,
         targetId: 'novel-failure',
         skillName: 'build-dsh-plugin',
         utcDay: '2026-08-17',
@@ -54,17 +61,18 @@ function remote(
     feedbackShadow: {
       available: true,
       warningCount: 0,
-      signals: [{ id: signalId, sourceUpdatedAt: 1_786_896_000_000, generationId }],
-      targets: [{ id: 'plugin-delivery', skillName: 'build-dsh-plugin' }],
+      signals: [{ workspaceId, id: signalId, sourceUpdatedAt: 1_786_896_000_000, generationId }],
+      targets: [{ workspaceId, id: 'plugin-delivery', skillName: 'build-dsh-plugin' }],
       runs: [],
     },
     evaluatorAuthoring: {
       available: true,
       actionableCount: 1,
       warningCount: 0,
-      signals: [{ id: signalId, sourceUpdatedAt: 1_786_896_000_000, generationId }],
-      targets: [{ id: 'plugin-delivery', skillName: 'build-dsh-plugin' }],
+      signals: [{ workspaceId, id: signalId, sourceUpdatedAt: 1_786_896_000_000, generationId }],
+      targets: [{ workspaceId, id: 'plugin-delivery', skillName: 'build-dsh-plugin' }],
       drafts: [{
+        workspaceId,
         id: evaluatorDraftId,
         launchId: 'd'.repeat(64),
         targetId: 'plugin-delivery',
@@ -81,9 +89,10 @@ function remote(
       actionableCount: 1,
       warningCount: 0,
       inactiveGenerations: withInactive
-        ? [{ generationId, reviewId, skillName: 'build-dsh-plugin' }]
+        ? [{ workspaceId, generationId, reviewId, skillName: 'build-dsh-plugin' }]
         : [],
       items: [{
+        workspaceId,
         id: reviewId,
         status: 'pending' as const,
         recommendation: 'review' as const,
@@ -110,6 +119,7 @@ function remote(
   if (withActive) Object.assign(overview, {
     active: {
       id: generationId,
+      workspaceId,
       rollbackTargetId: 'b'.repeat(64),
       createdAt: 1_786_896_000_000,
       evaluatorVersion: 'case-pack-v1',
@@ -123,7 +133,10 @@ function remote(
     },
   })
   return {
-    overview: vi.fn(() => success(overview)),
+    overview: vi.fn((requestedWorkspaceId: string) => success({
+      ...overview,
+      workspaceId: requestedWorkspaceId,
+    })),
     review: vi.fn(() => success({
       schemaVersion: 1 as const,
       review: overview.reviews.items[0]!,
@@ -136,20 +149,22 @@ function remote(
       },
       automatic: { eligible: false, policyVersion: 'auto-clear-instruction-v1' as const, reasons: ['manual review'] },
     })),
-    pause: vi.fn(() => success({ schemaVersion: 1 as const, action: 'pause' as const, recoveryPaused: true })),
-    resume: vi.fn(() => success({ schemaVersion: 1 as const, action: 'resume' as const, recoveryPaused: false })),
+    pause: vi.fn(() => success({ schemaVersion: 1 as const, workspaceId, action: 'pause' as const, recoveryPaused: true })),
+    resume: vi.fn(() => success({ schemaVersion: 1 as const, workspaceId, action: 'resume' as const, recoveryPaused: false })),
     approveReview: vi.fn(() => success({
       schemaVersion: 1 as const,
+      workspaceId,
       action: 'approve-review' as const,
       reviewId,
       status: 'approved' as const,
       generationId,
     })),
-    rejectReview: vi.fn(() => success({ schemaVersion: 1 as const, action: 'reject-review' as const, reviewId, status: 'rejected' as const })),
-    promote: vi.fn(() => success({ schemaVersion: 1 as const, action: 'promote' as const, activeGenerationId: generationId })),
-    rollback: vi.fn(() => success({ schemaVersion: 1 as const, action: 'rollback' as const, previousGenerationId: generationId })),
+    rejectReview: vi.fn(() => success({ schemaVersion: 1 as const, workspaceId, action: 'reject-review' as const, reviewId, status: 'rejected' as const })),
+    promote: vi.fn(() => success({ schemaVersion: 1 as const, workspaceId, action: 'promote' as const, activeGenerationId: generationId })),
+    rollback: vi.fn(() => success({ schemaVersion: 1 as const, workspaceId, action: 'rollback' as const, previousGenerationId: generationId })),
     startFeedbackShadow: vi.fn(() => success({
       schemaVersion: 1 as const,
+      workspaceId,
       action: 'start-shadow' as const,
       launchId: '9'.repeat(64),
       targetId: 'plugin-delivery',
@@ -169,6 +184,7 @@ function remote(
     })),
     authorEvaluator: vi.fn(() => success({
       schemaVersion: 1 as const,
+      workspaceId,
       action: 'author-evaluator' as const,
       launchId: 'd'.repeat(64),
       targetId: 'plugin-delivery',
@@ -178,6 +194,7 @@ function remote(
     })),
     approveEvaluator: vi.fn(() => success({
       schemaVersion: 1 as const,
+      workspaceId,
       action: 'approve-evaluator' as const,
       launchId: 'd'.repeat(64),
       draftId: evaluatorDraftId,
@@ -187,6 +204,7 @@ function remote(
     })),
     approveAndStartEvaluatorShadow: vi.fn(() => success({
       schemaVersion: 1 as const,
+      workspaceId,
       action: 'start-shadow' as const,
       launchId: '8'.repeat(64),
       targetId: 'plugin-delivery',
@@ -196,6 +214,7 @@ function remote(
     })),
     rejectEvaluator: vi.fn(() => success({
       schemaVersion: 1 as const,
+      workspaceId,
       action: 'reject-evaluator' as const,
       launchId: 'd'.repeat(64),
       draftId: evaluatorDraftId,
@@ -205,6 +224,7 @@ function remote(
     })),
     startEvaluatorShadow: vi.fn(() => success({
       schemaVersion: 1 as const,
+      workspaceId,
       action: 'start-shadow' as const,
       launchId: '9'.repeat(64),
       targetId: 'plugin-delivery',
@@ -254,17 +274,106 @@ const t = (key: string) => ({
   'outcomes.unknown': 'unknown',
   'outcomes.disclaimer': 'Observed counts are descriptive; they do not prove that a Generation caused the difference.',
   'status.budgetUnknown': 'Budget state unknown; automatic launch is blocked',
+  'error.workspaceRequired': 'Open a Session owned by a native Workspace first.',
 }[key] ?? key)
 
+function sessionHook(current: string | undefined = sessionId) {
+  return <S,>(selector: (state: SessionListState) => S): S => selector({ current } as SessionListState)
+}
+
+function workspaceHook(id: string = workspaceId, current: string = sessionId) {
+  return <S,>(selector: (state: WorkspaceListState) => S): S => selector({
+    items: [{ workspaceId: id, sessionIds: [current] }],
+  } as unknown as WorkspaceListState)
+}
+
+function renderEvolution(api: EvolutionRemoteClient) {
+  return render(<EvolutionAction
+    remote={api}
+    t={t}
+    wide
+    useSessions={sessionHook()}
+    useWorkspaces={workspaceHook()}
+  />)
+}
+
 describe('EvolutionAction', () => {
+  it('fails closed when the current Session is not owned by a native Workspace', async () => {
+    const api = remote()
+    render(<EvolutionAction
+      remote={api}
+      t={t}
+      wide
+      useSessions={sessionHook()}
+      useWorkspaces={selector => selector({
+        items: [{ workspaceId: otherWorkspaceId, sessionIds: [] }],
+        recentWorkspaceId: otherWorkspaceId,
+      } as unknown as WorkspaceListState)}
+    />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
+
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      'Open a Session owned by a native Workspace first.',
+    )
+    expect(api.overview).not.toHaveBeenCalled()
+  })
+
+  it('rebinds the panel to the exact Workspace of the newly selected Session', async () => {
+    const api = remote()
+    const view = render(<EvolutionAction
+      remote={api}
+      t={t}
+      wide
+      useSessions={sessionHook()}
+      useWorkspaces={workspaceHook()}
+    />)
+    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
+    await waitFor(() => expect(api.overview).toHaveBeenCalledWith(workspaceId))
+
+    view.rerender(<EvolutionAction
+      remote={api}
+      t={t}
+      wide
+      useSessions={sessionHook()}
+      useWorkspaces={workspaceHook(otherWorkspaceId)}
+    />)
+
+    await waitFor(() => expect(api.overview).toHaveBeenCalledWith(otherWorkspaceId))
+    expect(api.overview).toHaveBeenCalledTimes(2)
+  })
+
+  it('rejects a control-plane response owned by another Workspace', async () => {
+    const api = remote()
+    vi.mocked(api.overview).mockImplementationOnce(() => success({
+      schemaVersion: 1,
+      workspaceId: otherWorkspaceId,
+      recovery: { available: false },
+      automaticPromotion: { enabled: false, skills: [] },
+      reviews: {
+        available: true,
+        pendingCount: 0,
+        actionableCount: 0,
+        warningCount: 0,
+        items: [],
+        inactiveGenerations: [],
+      },
+    }))
+    renderEvolution(api)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
+
+    expect((await screen.findByRole('alert')).textContent).toContain('Workspace authority mismatch')
+  })
+
   it('loads only when opened, exposes the bounded review, and keeps approval separate from promotion', async () => {
     const api = remote()
-    render(<EvolutionAction remote={api} t={t} />)
+    renderEvolution(api)
     expect(api.overview).not.toHaveBeenCalled()
 
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
     await screen.findByRole('dialog', { name: 'Evolution control' })
-    expect(api.overview).toHaveBeenCalledOnce()
+    expect(api.overview).toHaveBeenCalledWith(workspaceId)
     expect(within(screen.getByRole('button', { name: 'Evolution' })).getByText('2')).toBeTruthy()
     expect(screen.getByText('Actionable')).toBeTruthy()
     expect(screen.getByText('Feedback Shadow · plugin-delivery · build-dsh-plugin')).toBeTruthy()
@@ -275,7 +384,7 @@ describe('EvolutionAction', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Inspect' }))
     await screen.findByText((_content, element) => element?.tagName === 'PRE' && element.textContent?.includes('-stop') === true)
-    expect(api.review).toHaveBeenCalledWith(reviewId)
+    expect(api.review).toHaveBeenCalledWith(workspaceId, reviewId)
     expect(screen.getByText('Continue safe work.')).toBeTruthy()
     expect(screen.getByText('SKILL.md')).toBeTruthy()
     expect(screen.getByText('passed')).toBeTruthy()
@@ -290,14 +399,14 @@ describe('EvolutionAction', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Publish inactive' }))
     const confirmation = await screen.findByRole('alertdialog')
     fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm' }))
-    await waitFor(() => expect(api.approveReview).toHaveBeenCalledWith(reviewId, 'checked evidence'))
+    await waitFor(() => expect(api.approveReview).toHaveBeenCalledWith(workspaceId, reviewId, 'checked evidence'))
     await waitFor(() => expect(screen.queryByLabelText('Decision note')).toBeNull())
     expect(api.promote).not.toHaveBeenCalled()
   })
 
   it('requires confirmation for rollback and refreshes after a durable action', async () => {
     const api = remote(true)
-    render(<EvolutionAction remote={api} t={t} />)
+    renderEvolution(api)
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
     await screen.findByRole('dialog')
 
@@ -311,7 +420,7 @@ describe('EvolutionAction', () => {
 
   it('shows active and parent delivery outcomes without making a causal claim', async () => {
     const api = remote(true)
-    render(<EvolutionAction remote={api} t={t} />)
+    renderEvolution(api)
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
 
     expect(await screen.findByText('Observed delivery outcomes')).toBeTruthy()
@@ -324,7 +433,7 @@ describe('EvolutionAction', () => {
 
   it('explains that automatic launch is blocked when the budget journal is unknown', async () => {
     const api = remote(false, false, 'draft-ready', 'unknown')
-    render(<EvolutionAction remote={api} t={t} />)
+    renderEvolution(api)
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
 
     expect(await screen.findByText('Budget state unknown; automatic launch is blocked')).toBeTruthy()
@@ -332,7 +441,7 @@ describe('EvolutionAction', () => {
 
   it('keeps an expiry-eligible review actionable and explains the next-Signal trigger', async () => {
     const api = remote(false, false, 'draft-ready', 'ready', true)
-    render(<EvolutionAction remote={api} t={t} />)
+    renderEvolution(api)
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
 
     expect(await screen.findByText('Expiry eligible since · 2026-08-23T00:00:00.000Z')).toBeTruthy()
@@ -344,8 +453,8 @@ describe('EvolutionAction', () => {
 
   it('refreshes the currently inspected review from host authority without polling', async () => {
     const api = remote()
-    const eligibleResult = await remote(false, false, 'draft-ready', 'ready', true).review(reviewId)
-    render(<EvolutionAction remote={api} t={t} />)
+    const eligibleResult = await remote(false, false, 'draft-ready', 'ready', true).review(workspaceId, reviewId)
+    renderEvolution(api)
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
     await screen.findByRole('dialog')
     fireEvent.click(screen.getByRole('button', { name: 'Inspect' }))
@@ -372,7 +481,7 @@ describe('EvolutionAction', () => {
         details: {},
       },
     })
-    render(<EvolutionAction remote={api} t={t} />)
+    renderEvolution(api)
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
     await screen.findByRole('dialog')
     fireEvent.click(screen.getByRole('button', { name: 'Inspect' }))
@@ -384,19 +493,19 @@ describe('EvolutionAction', () => {
 
   it('can promote a durably approved inactive Generation after the panel is reopened', async () => {
     const api = remote(false, true)
-    render(<EvolutionAction remote={api} t={t} />)
+    renderEvolution(api)
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
     await screen.findByRole('dialog')
 
     fireEvent.click(await screen.findByRole('button', { name: 'Promote' }))
     const confirmation = await screen.findByRole('alertdialog')
     fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm' }))
-    await waitFor(() => expect(api.promote).toHaveBeenCalledWith(generationId))
+    await waitFor(() => expect(api.promote).toHaveBeenCalledWith(workspaceId, generationId))
   })
 
   it('requires explicit confirmation before starting a paid feedback Shadow', async () => {
     const api = remote()
-    render(<EvolutionAction remote={api} t={t} />)
+    renderEvolution(api)
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
     await screen.findByRole('dialog')
 
@@ -404,12 +513,12 @@ describe('EvolutionAction', () => {
     expect(api.startFeedbackShadow).not.toHaveBeenCalled()
     const confirmation = await screen.findByRole('alertdialog')
     fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm' }))
-    await waitFor(() => expect(api.startFeedbackShadow).toHaveBeenCalledWith(signalId, 'plugin-delivery'))
+    await waitFor(() => expect(api.startFeedbackShadow).toHaveBeenCalledWith(workspaceId, signalId, 'plugin-delivery'))
   })
 
   it('keeps paid evaluator authoring cancellable and qualification behind a second confirmation', async () => {
     const api = remote()
-    render(<EvolutionAction remote={api} t={t} />)
+    renderEvolution(api)
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
     await screen.findByRole('dialog')
 
@@ -422,17 +531,18 @@ describe('EvolutionAction', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Author Evaluator · plugin-delivery' }))
     confirmation = await screen.findByRole('alertdialog')
     fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm' }))
-    await waitFor(() => expect(api.authorEvaluator).toHaveBeenCalledWith(signalId, 'plugin-delivery'))
+    await waitFor(() => expect(api.authorEvaluator).toHaveBeenCalledWith(workspaceId, signalId, 'plugin-delivery'))
 
     fireEvent.click(await screen.findByRole('button', { name: 'Inspect Evaluator' }))
     await screen.findByText('final-test/evaluator.mjs')
-    expect(api.evaluatorDraft).toHaveBeenCalledWith(evaluatorDraftId)
+    expect(api.evaluatorDraft).toHaveBeenCalledWith(workspaceId, evaluatorDraftId)
     fireEvent.change(screen.getByLabelText('Decision note'), { target: { value: 'independent semantics reviewed' } })
     fireEvent.click(screen.getByRole('button', { name: 'Qualify Evaluator' }))
     expect(api.approveEvaluator).not.toHaveBeenCalled()
     confirmation = await screen.findByRole('alertdialog')
     fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm' }))
     await waitFor(() => expect(api.approveEvaluator).toHaveBeenCalledWith(
+      workspaceId,
       evaluatorDraftId,
       'independent semantics reviewed',
     ))
@@ -442,7 +552,7 @@ describe('EvolutionAction', () => {
 
   it('allows only local sealed qualification to be retried for an incomplete exact draft', async () => {
     const api = remote(false, false, 'incomplete')
-    render(<EvolutionAction remote={api} t={t} />)
+    renderEvolution(api)
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
     await screen.findByRole('dialog')
 
@@ -454,6 +564,7 @@ describe('EvolutionAction', () => {
     fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm' }))
 
     await waitFor(() => expect(api.approveEvaluator).toHaveBeenCalledWith(
+      workspaceId,
       evaluatorDraftId,
       'retry exact local qualification',
     ))
@@ -462,7 +573,7 @@ describe('EvolutionAction', () => {
 
   it('requires a fresh paid-disclosure confirmation before a Qualified Pack enters Shadow', async () => {
     const api = remote(false, false, 'qualified')
-    render(<EvolutionAction remote={api} t={t} />)
+    renderEvolution(api)
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
     await screen.findByRole('dialog')
     fireEvent.click(await screen.findByRole('button', { name: 'Inspect Evaluator' }))
@@ -476,13 +587,13 @@ describe('EvolutionAction', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Start Qualified Shadow' }))
     confirmation = await screen.findByRole('alertdialog')
     fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm' }))
-    await waitFor(() => expect(api.startEvaluatorShadow).toHaveBeenCalledWith(evaluatorDraftId))
+    await waitFor(() => expect(api.startEvaluatorShadow).toHaveBeenCalledWith(workspaceId, evaluatorDraftId))
     expect(api.promote).not.toHaveBeenCalled()
   })
 
   it('combines human qualification and contingent paid Shadow behind one cancellable confirmation', async () => {
     const api = remote()
-    render(<EvolutionAction remote={api} t={t} />)
+    renderEvolution(api)
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
     await screen.findByRole('dialog')
     fireEvent.click(await screen.findByRole('button', { name: 'Inspect Evaluator' }))
@@ -501,6 +612,7 @@ describe('EvolutionAction', () => {
     confirmation = await screen.findByRole('alertdialog')
     fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm' }))
     await waitFor(() => expect(api.approveAndStartEvaluatorShadow).toHaveBeenCalledWith(
+      workspaceId,
       evaluatorDraftId,
       'reviewed exact evaluator and authorize paid Shadow',
     ))

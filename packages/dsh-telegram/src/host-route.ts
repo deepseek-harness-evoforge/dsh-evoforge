@@ -12,5 +12,7 @@ export interface TelegramHostNoticeReceipt {
 
 /** Suite-internal concrete route; this is not a public channel/provider SPI. */
 export interface TelegramHostRoute {
+  /** Exact native Workspace statically bound by the Router route. */
+  readonly workspaceId: string
   notify(notice: TelegramHostNotice): Promise<TelegramHostNoticeReceipt>
 }
