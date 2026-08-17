@@ -4,7 +4,7 @@
 
 An out-of-tree extension suite for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). EvoForge adds removable capabilities through supported DSH seams; it is not a DSH fork or a home for core-defect workarounds.
 
-> **Pre-alpha: do not use automatic activation in production.** The `dsh-evolve` P0A/P0B/P0C slices, including exact diffs, protected-effect lexical indicators, and the real-DSH Web control surface, narrow P1.1 auto-promotion, P1.2 counterfactual canary/rollback, P1.3 explicit-feedback intake, P1.4 private Feedback Case Drafts, P1.5 feedback-guided Shadow, P1.6 pre-proposal Case Pack calibration, P1.7 explicit evaluator-authoring Skill, P1.8 explicit target-bound Feedback Shadow Launch, P1.9 private Evaluator Draft/human qualification, P1.10 Qualified Shadow Handoff, P1.11 exact Candidate retention, P1.12 opt-in retention-gated auto-promotion, P1.13 one static Automatic Retention Target per Skill, P1.14 opt-in Automatic Feedback Shadow, P1.15 durable daily automatic budgets, P1.16 opt-in Automatic Evaluator Drafts, P1.17 human-approved Qualify-and-Shadow, P1.18 per-Skill automatic inflight gating, P1.19 bounded automatic ambiguous review, P1.20 automatic review-window visibility, P1.21 parent-generation delivery-outcome comparison, and P2D.1 delivery-outcome observation are implemented. The `dsh-software-delivery` verified-delivery path, `dsh-doctor` zero-token Runtime Readiness report, and `dsh-telegram` single-private-chat Agent adapter are also implemented. Default background evaluator qualification, real-task false-promotion/false-rollback data, independent usability evidence, and production multi-day evidence remain incomplete.
+> **Pre-alpha: do not use automatic activation in production.** The `dsh-evolve` P0A/P0B/P0C slices, including exact diffs, protected-effect lexical indicators, and the real-DSH Web control surface, narrow P1.1 auto-promotion, P1.2 counterfactual canary/rollback, P1.3 explicit-feedback intake, P1.4 private Feedback Case Drafts, P1.5 feedback-guided Shadow, P1.6 pre-proposal Case Pack calibration, P1.7 explicit evaluator-authoring Skill, P1.8 explicit target-bound Feedback Shadow Launch, P1.9 private Evaluator Draft/human qualification, P1.10 Qualified Shadow Handoff, P1.11 exact Candidate retention, P1.12 opt-in retention-gated auto-promotion, P1.13 one static Automatic Retention Target per Skill, P1.14 opt-in Automatic Feedback Shadow, P1.15 durable daily automatic budgets, P1.16 opt-in Automatic Evaluator Drafts, P1.17 human-approved Qualify-and-Shadow, P1.18 per-Skill automatic inflight gating, P1.19 bounded automatic ambiguous review, P1.20 automatic review-window visibility, P1.21 parent-generation delivery-outcome comparison, and P2D.1 delivery-outcome observation are implemented. The `dsh-software-delivery` verified-delivery path, `dsh-doctor` zero-token Runtime Readiness report, `dsh-telegram` single-private-chat Agent adapter, and opt-in `dsh-goal-continuity` native Goal cold resume are also implemented. Default background evaluator qualification, real-task false-promotion/false-rollback data, independent usability evidence, and production multi-day evidence remain incomplete.
 
 `dsh-evolve` aims to turn agent self-improvement into an evidence-backed release process:
 
@@ -78,6 +78,11 @@ Storage Domain journal persists send intent; only an explicit `429 + retry_after
 transport ambiguity or a crash during send becomes `uncertain` to avoid duplicate external effects.
 The Bundle installs disabled until its exact route and token-environment policy are configured.
 
+`dsh-goal-continuity` lets a deployment pre-authorize exact persisted Session ids to rearm a still-active
+native Goal after cold resume. It relies on native Goal revisioning, round limits, the Goal driver and
+Approval; it adds no Mission, Session scanner, daemon, Tool, Skill or prompt. It is installed disabled
+because an authorized continuation can spend the tokens of remaining Goal rounds.
+
 ## Verify locally
 
 Requires Node.js `^22.19.0 || >=24` and pnpm `11.7.0`:
@@ -89,6 +94,7 @@ pnpm --filter dsh-evolve pack --pack-destination "$PWD/.evoforge/pack"
 pnpm --filter dsh-software-delivery pack --pack-destination "$PWD/.evoforge/pack"
 pnpm --filter dsh-doctor pack --pack-destination "$PWD/.evoforge/pack"
 pnpm --filter dsh-telegram pack --pack-destination "$PWD/.evoforge/pack"
+pnpm --filter dsh-goal-continuity pack --pack-destination "$PWD/.evoforge/pack"
 ```
 
 Read the [Chinese status page](docs/status.zh.md) for the exact implemented/planned boundary, [CONTRIBUTING.md](CONTRIBUTING.md) before proposing a change, and [SECURITY.md](SECURITY.md) for private vulnerability reporting.

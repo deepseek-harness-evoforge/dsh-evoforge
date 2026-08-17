@@ -1,6 +1,6 @@
 # EvoForge 开发路线图
 
-> 状态：P0A–P1.21 已实现；P2A.1 验证、P2B.1 Goal 完成、P2C.1 Draft PR、P2C.2 exact checks 门、P2C.3 有界等待、P2D.1 Outcome 第二消费者、横切 Runtime Readiness 与 P3/AS-1 Telegram 首片已实现
+> 状态：P0A–P1.21 已实现；P2A.1 验证、P2B.1 Goal 完成、P2C.1 Draft PR、P2C.2 exact checks 门、P2C.3 有界等待、P2D.1 Outcome 第二消费者、LC-1 Goal 冷恢复、横切 Runtime Readiness 与 P3/AS-1 Telegram 首片已实现
 
 ## 当前状态
 
@@ -11,6 +11,7 @@
 | R2 开源仓库就绪 | 完成 | [公共仓库](https://github.com/deepseek-harness-evoforge/dsh-evoforge)、MIT、贡献/安全文档与 Linux CI；macOS CI 在独立 Draft PR 验证 |
 | P0A Shadow evaluator | 本地退出门通过 | 安全门、macOS Sealed Trial、真实 DSH bridge、3/3 公开产品 fixture 与[本地未见首测](evidence/p0a-8-private-heldout.zh.md)均转绿；真实 provider 与第三方独立复跑仍属更高等级证据 |
 | P0B Local Continuity | implemented | P0B.1 release kernel、P0B.2a durable resume 与 P0B.2b resident supervisor 已通过本地/pinned DSH 测试；生产多日 soak 仍属发布前证据 |
+| LC-1 Authorized Goal Continuation | implemented | `dsh-goal-continuity` 只为 exact allowlist Session 在 cold resume 时 rearm active 原生 Goal；真实 JSONL 两进程、`SIGKILL`、原生轮次上限、人工恢复 cache surface 等价与 package lifecycle 已测 |
 | P0C Human Control | Commands + Web 闭环、verified bounded diff 与 lexical effect projection implemented；陌生用户可用性门待验证 | P0C.1 release、P0C.2 review → inactive Generation、P0C.3 durable pause/resume、P0C.4 exact Git diff preview、P0C.5 protected-effect 词法提示、P0C.6 真实 DSH Web/RPC/跨重启控制已通过测试 |
 | P1 Bounded Autonomy | P1.1–P1.21 implemented；P2D.1 信号已接通；KV-1 长会话门通过 | 默认关闭的 allowlist + append-only policy、交付 outcome 与父版本观察对照、显式反馈 intake、私有 Case Draft、可信 Case Pack 下静态 Target 的显式或 opt-in 自动 Shadow、全新失败的 opt-in 自动 inactive Evaluator Draft、每 Target crash-safe UTC 日预算、每 Skill 单未决自动门、模糊自动 review 有界处置与窗口可见性、proposer 前零模型校准、人工 evaluator qualification 与可选一次 Qualify-and-Shadow、exact Candidate 历史能力保留门、单静态 prior Target 自动执行、exact parent/Candidate 反事实 canary 与 pointer-safe 自动回滚均已通过测试；64 轮当前 Session 请求与无插件控制组等价；真实 provider、陌生用户与真实任务长期率待验证 |
 | P2 Software Delivery | P2A.1 + P2B.1 + P2C.1–P2C.3 + P2D.1 consumer implemented | linked worktree/commit/check、原生 Bash policy → exact push/Draft PR → 可选 exact-head 远端 checks 门/有界 active-call wait → `update_goal`，并由 Evolve 异步记录最小三态信号；pinned DSH Agent/ToolRuntime/Storage 与 package 已测 |
@@ -55,6 +56,11 @@ P0B.2b 已完成：可选 supervisor 在 DSH 生命周期内扫描显式 run roo
 无网络的 Candidate/Trial 重新提交到原生 Jobs；关机取消完整 Trial 进程组，损坏 run 隔离，
 重复扫描不重复执行。Journal 是事实源，Job 不是。证据见
 [P0B.2b](evidence/p0b-2b-resident-shadow-supervisor.zh.md)与 [ADR-0009](adr/0009-journal-authority-native-jobs-observability.md)。
+
+LC-1 已完成：`dsh-goal-continuity` 让部署者以 exact Session allowlist 预授权冷恢复后的原生 active
+Goal 继续；默认 disabled，只复用 `GoalService.resume`、原生 `maxGoalRounds` 与
+`goal-round-driver`。它不扫描冷 Session、不启动进程、不建 Mission/任务库/预算账本，0
+Tool/Skill/Prompt。证据见 [LC-1](evidence/lc-1-goal-continuity.zh.md)。
 
 退出条件：所有注入崩溃点无半激活、无重复效果；活动 Session 不漂移；卸载后原生 DSH 可恢复。
 

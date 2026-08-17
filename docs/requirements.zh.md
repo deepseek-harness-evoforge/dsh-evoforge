@@ -1,6 +1,6 @@
 # DeepSeek Harness EvoForge 项目需求基线
 
-> 状态：已确认；研究与设计已完成，P0A–P1.21、P2A.1–P2D.1 与 Runtime Readiness 已实现；真实 provider、陌生用户与长期效果证据待积累
+> 状态：已确认；研究与设计已完成，P0A–P1.21、P2A.1–P2D.1、LC-1 Goal 冷恢复与 Runtime Readiness 已实现；真实 provider、陌生用户与长期效果证据待积累
 > 更新日期：2026-08-17
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。
 
@@ -198,7 +198,7 @@ EvoForge 是新增功能项目，不是 DSH Bug 修复项目。
 
 ## 6. 常驻运行与恢复
 
-第一阶段只要求单机常驻进程和崩溃恢复，正式称为 Local Continuity，不设计分布式调度、选主或多 Worker 平台。High Availability 留到存在明确可用性目标和多个故障域后再设计。
+第一阶段只要求单机常驻进程和崩溃恢复，正式称为 Local Continuity，不设计分布式调度、选主或多 Worker 平台。对 exact 持久 Session 的原生 active Goal，可由默认关闭的部署策略预授权 cold-resume continuation；仍复用原生轮次、权限和进程管理，不引入 Mission 或任务库。High Availability 留到存在明确可用性目标和多个故障域后再设计。
 
 常驻能力应：
 

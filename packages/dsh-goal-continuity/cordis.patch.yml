@@ -1,0 +1,4 @@
+- insert:
+    - id: evoforge-goal-continuity
+      name: dsh-goal-continuity
+      disabled: true

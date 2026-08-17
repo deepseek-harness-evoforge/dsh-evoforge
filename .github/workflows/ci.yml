@@ -43,6 +43,7 @@ jobs:
           pnpm --filter dsh-software-delivery pack --pack-destination "$RUNNER_TEMP"
           pnpm --filter dsh-doctor pack --pack-destination "$RUNNER_TEMP"
           pnpm --filter dsh-telegram pack --pack-destination "$RUNNER_TEMP"
+          pnpm --filter dsh-goal-continuity pack --pack-destination "$RUNNER_TEMP"
 
   assembled-darwin:
     name: macOS DSH Assembled Trial
@@ -110,6 +111,10 @@ jobs:
             test/cache-composition.e2e.test.ts \
             test/delivery-store-persistence.e2e.test.ts \
             test/dsh-assembled-chat.e2e.test.ts \
+            test/package-install-remove.e2e.test.ts
+          pnpm --filter dsh-goal-continuity exec vitest run \
+            test/cold-resume.e2e.test.ts \
+            test/process-crash.e2e.test.ts \
             test/package-install-remove.e2e.test.ts
       - name: Run PA-1 protected-action hard gate
         env:

@@ -28,6 +28,10 @@ _Avoid_: Perfect agent, feature-for-feature rewrite
 The first availability milestone: one host process may restart or crash without losing authoritative progress, duplicating protected effects, or corrupting active capability selection.
 _Avoid_: High availability, distributed failover
 
+**Authorized Goal Continuation**:
+An opt-in deployment policy that lets an explicitly named persistent Session continue its still-active native Goal after cold resume, within that Goal's existing limits and permissions.
+_Avoid_: Mission, automatic Session discovery, unlimited retry
+
 **Runtime Readiness Report**:
 A point-in-time, read-only answer to whether the capabilities an operator explicitly requires are currently usable. Its outcome is `ready`, `not-ready`, or `unknown`; it names concrete blockers and next actions without repairing them, retaining health history, or becoming a second lifecycle authority.
 _Avoid_: Invariant result, plugin inventory, uptime monitor, auto-repair plan
