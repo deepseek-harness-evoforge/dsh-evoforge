@@ -130,6 +130,7 @@ describe('EvolutionControlPlane', () => {
       outcomes: { summarize: () => ({
         all: { total: 3, passed: 2, failed: 1, unknown: 0 },
         selected: { total: 2, passed: 2, failed: 0, unknown: 0 },
+        baseline: { total: 1, passed: 0, failed: 1, unknown: 0 },
       }) },
       feedback: {
         summarize: () => ({ all: 4, selected: 1 }),
@@ -196,6 +197,11 @@ describe('EvolutionControlPlane', () => {
       active: { id: generationId, rollbackTargetId: parentId },
       recovery: { available: true, paused: false },
       automaticPromotion: { enabled: true, skills: ['build-dsh-plugin'] },
+      deliveryOutcomes: {
+        all: { total: 3, passed: 2, failed: 1, unknown: 0 },
+        selected: { total: 2, passed: 2, failed: 0, unknown: 0 },
+        baseline: { total: 1, passed: 0, failed: 1, unknown: 0 },
+      },
       feedbackShadow: {
         available: true,
         signals: [{ id: '8'.repeat(64), generationId }],

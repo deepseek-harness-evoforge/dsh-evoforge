@@ -315,6 +315,18 @@ function ReviewQueue({ overview, busy, inspect, promote, startShadow, authorEval
   ]
   const evaluatorAuthoring = overview.evaluatorAuthoring
   return <>
+    {overview.deliveryOutcomes?.baseline !== undefined && overview.active !== undefined && <section>
+      <h3 className="dsh-evolve-section-title">{t('section.outcomes')}</h3>
+      <ul className="dsh-evolve-list">
+        <li className="dsh-evolve-review">
+          <div className="dsh-evolve-review-skill">{t('outcomes.active')} · {shortId(overview.active.id)} · {renderOutcomeCounts(overview.deliveryOutcomes.selected, t)}</div>
+        </li>
+        <li className="dsh-evolve-review">
+          <div className="dsh-evolve-review-skill">{t('outcomes.parent')} · {overview.active.rollbackTargetId === undefined ? t('status.native') : shortId(overview.active.rollbackTargetId)} · {renderOutcomeCounts(overview.deliveryOutcomes.baseline, t)}</div>
+        </li>
+      </ul>
+      <p className="dsh-evolve-meta">{t('outcomes.disclaimer')}</p>
+    </section>}
     {automaticBudgets.length > 0 && <section>
       <h3 className="dsh-evolve-section-title">{t('section.budget')}</h3>
       <ul className="dsh-evolve-list">{automaticBudgets.map(({ workflow, target }) => (
@@ -444,6 +456,13 @@ function ReviewQueue({ overview, busy, inspect, promote, startShadow, authorEval
       ))}</ul>
     </section>}
   </>
+}
+
+function renderOutcomeCounts(
+  counts: { total: number; passed: number; failed: number; unknown: number },
+  t: (key: string) => string,
+): string {
+  return `${counts.total} ${t('outcomes.total')} · ${counts.passed} ${t('outcomes.passed')} · ${counts.failed} ${t('outcomes.failed')} · ${counts.unknown} ${t('outcomes.unknown')}`
 }
 
 function EvaluatorDetail({ detail, note, busy, setNote, back, confirm, t }: {

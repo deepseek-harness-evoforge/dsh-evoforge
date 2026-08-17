@@ -1,6 +1,6 @@
 # EvoForge 可证明自进化设计
 
-> 状态：P0A/P0B/P0C、P1.1–P1.20 与 P2D.1 implemented；包含最窄 opt-in 自动晋升、反事实 canary/回滚、显式反馈、私有 Draft、独立 evaluator、静态 Target、exact Retention、明确纠错自动 Shadow/自动 inactive evaluator Draft、人工 Qualify-and-Shadow、持久日预算、每 Skill 单未决自动门、模糊审查有界处置与窗口可见性；真实 provider 与真实任务长期证据待完成
+> 状态：P0A/P0B/P0C、P1.1–P1.21 与 P2D.1 implemented；包含最窄 opt-in 自动晋升、反事实 canary/回滚、显式反馈、私有 Draft、独立 evaluator、静态 Target、exact Retention、明确纠错自动 Shadow/自动 inactive evaluator Draft、人工 Qualify-and-Shadow、持久日预算、每 Skill 单未决自动门、模糊审查有界处置与窗口可见性、active/parent 交付观察对照；真实 provider 与真实任务长期证据待完成
 > 更新日期：2026-08-17
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 
@@ -704,3 +704,9 @@ P1.20 不改变 P1.19 state machine，只从 Review Inbox 的相同 policy/prove
 读取，详情刷新会清掉已失效表单。它没有 timer、polling、持久新字段、动作或模型表面。见
 [P1.20](p1-20-automatic-review-window-visibility.zh.md)与
 [ADR-0025](../adr/0025-web-is-a-thin-kv-safe-adapter.md)。
+
+P1.21 在 P2D.1 的同一有界 store 遍历中，为 active Generation 增加 exact parent/native DSH counter。
+Commands/Web 显示三态观察计数与固定因果免责声明；不计算提升率、不自动 release，也不增加采集字段、
+持久状态或模型表面。真正归因仍只由 P1.2 sealed counterfactual canary 给出。见
+[P1.21](p1-21-parent-generation-outcome-comparison.zh.md)与
+[ADR-0015](../adr/0015-delivery-outcomes-are-derived-signals.md)。

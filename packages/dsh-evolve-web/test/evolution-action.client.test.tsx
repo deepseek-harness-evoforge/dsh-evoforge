@@ -116,6 +116,11 @@ function remote(
       policyVersion: 'human-review-v1',
       artifacts: [],
     },
+    deliveryOutcomes: {
+      all: { total: 6, passed: 3, failed: 2, unknown: 1 },
+      selected: { total: 3, passed: 2, failed: 1, unknown: 0 },
+      baseline: { total: 3, passed: 1, failed: 1, unknown: 1 },
+    },
   })
   return {
     overview: vi.fn(() => success(overview)),
@@ -232,6 +237,7 @@ const t = (key: string) => ({
   'action.cancel': 'Cancel',
   'field.note': 'Decision note',
   'section.budget': 'Automatic evolution budget',
+  'section.outcomes': 'Observed delivery outcomes',
   'label.attemptsUsed': 'attempts used',
   'label.remaining': 'remaining',
   'label.feedbackShadow': 'Feedback Shadow',
@@ -240,6 +246,13 @@ const t = (key: string) => ({
   'review.expiryOpen': 'Open until',
   'review.expiryEligible': 'Expiry eligible since',
   'review.expiryTrigger': 'No background timer runs; rejection occurs only when the next same-Skill automatic Signal arrives.',
+  'outcomes.active': 'Active',
+  'outcomes.parent': 'Parent',
+  'outcomes.total': 'total',
+  'outcomes.passed': 'passed',
+  'outcomes.failed': 'failed',
+  'outcomes.unknown': 'unknown',
+  'outcomes.disclaimer': 'Observed counts are descriptive; they do not prove that a Generation caused the difference.',
   'status.budgetUnknown': 'Budget state unknown; automatic launch is blocked',
 }[key] ?? key)
 
@@ -294,6 +307,19 @@ describe('EvolutionAction', () => {
     fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm' }))
     await waitFor(() => expect(api.rollback).toHaveBeenCalledOnce())
     await waitFor(() => expect(api.overview).toHaveBeenCalledTimes(2))
+  })
+
+  it('shows active and parent delivery outcomes without making a causal claim', async () => {
+    const api = remote(true)
+    render(<EvolutionAction remote={api} t={t} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
+
+    expect(await screen.findByText('Observed delivery outcomes')).toBeTruthy()
+    expect(screen.getByText(/Active · aaaaaaaa… · 3 total · 2 passed · 1 failed · 0 unknown/)).toBeTruthy()
+    expect(screen.getByText(/Parent · bbbbbbbb… · 3 total · 1 passed · 1 failed · 1 unknown/)).toBeTruthy()
+    expect(screen.getByText(
+      'Observed counts are descriptive; they do not prove that a Generation caused the difference.',
+    )).toBeTruthy()
   })
 
   it('explains that automatic launch is blocked when the budget journal is unknown', async () => {

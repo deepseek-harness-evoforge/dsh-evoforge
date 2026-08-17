@@ -92,6 +92,10 @@ _Avoid_: CI daemon, background watcher, unbounded wait, workflow scheduler
 A compact Learning Signal observed from the final `complete_delivery` result and attributed to the Capability Generation pinned to that Session. It may trigger evaluation, but one outcome never proves regression or authorizes rollback.
 _Avoid_: Transcript archive, rollback vote, delivery event platform
 
+**Parent Generation Outcome Comparison**:
+A host-only, read-only comparison of bounded delivery outcome counts attributed to one active Generation and its exact parent or native DSH. It is descriptive evidence for a human, never causal proof or release authority.
+_Avoid_: A/B platform, automatic verdict, improvement percentage, task-normalized benchmark
+
 **Explicit Feedback Signal**:
 A retractable, reference-only projection of one current DSH message-feedback item that is negative and carries a non-blank human note. It stores the DSH feedback version and Session/message/Generation references, but never copies the note, note hash, cwd, Prompt, Transcript, or message body. It may justify later Candidate investigation; it never authorizes a mutation by itself.
 _Avoid_: `/learn` command, feedback memory, transcript copy, automatic Skill edit

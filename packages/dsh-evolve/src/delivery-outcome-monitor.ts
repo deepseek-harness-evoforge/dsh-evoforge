@@ -63,12 +63,16 @@ export interface DeliveryOutcomeCounts {
 export interface DeliveryOutcomeSummary {
   readonly all: DeliveryOutcomeCounts
   readonly selected: DeliveryOutcomeCounts
+  readonly baseline?: DeliveryOutcomeCounts
 }
 
 export interface DeliveryOutcomeStore {
   record(input: DeliveryOutcomeInput): Promise<{ created: boolean; outcome: DeliveryOutcome }>
   list(): DeliveryOutcome[]
-  summarize(selectedGenerationId?: string): DeliveryOutcomeSummary
+  summarize(
+    selectedGenerationId?: string,
+    options?: { readonly baselineGenerationId?: string },
+  ): DeliveryOutcomeSummary
   close(): Promise<void>
 }
 
@@ -119,14 +123,20 @@ class DomainDeliveryOutcomeStore implements DeliveryOutcomeStore {
     return result
   }
 
-  summarize(selectedGenerationId?: string): DeliveryOutcomeSummary {
+  summarize(
+    selectedGenerationId?: string,
+    options?: { readonly baselineGenerationId?: string },
+  ): DeliveryOutcomeSummary {
     const all = emptyCounts()
     const selected = emptyCounts()
+    const baseline = options === undefined ? undefined : emptyCounts()
     for (const [, outcome] of this.domain.table('outcomes').entries()) {
       increment(all, outcome.status)
       if (outcome.generationId === selectedGenerationId) increment(selected, outcome.status)
+      if (baseline !== undefined
+        && outcome.generationId === options?.baselineGenerationId) increment(baseline, outcome.status)
     }
-    return { all, selected }
+    return { all, selected, ...(baseline === undefined ? {} : { baseline }) }
   }
 
   list(): DeliveryOutcome[] {

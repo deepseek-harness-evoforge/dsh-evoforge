@@ -79,7 +79,14 @@ export class EvolutionControlPlane {
       },
       ...(this.modules.outcomes === undefined
         ? {}
-        : { deliveryOutcomes: cloneOutcomeSummary(this.modules.outcomes.summarize(active?.id)) }),
+        : {
+            deliveryOutcomes: cloneOutcomeSummary(this.modules.outcomes.summarize(
+              active?.id,
+              active === undefined
+                ? undefined
+                : active.parentId === undefined ? {} : { baselineGenerationId: active.parentId },
+            )),
+          }),
       ...(this.modules.feedback === undefined
         ? {}
         : { feedbackSignals: { ...this.modules.feedback.summarize(active?.id) } }),
@@ -383,5 +390,9 @@ function projectReview(candidate: ReviewCandidate): EvolutionReviewView {
 }
 
 function cloneOutcomeSummary(summary: ReturnType<DeliveryOutcomeStore['summarize']>) {
-  return { all: { ...summary.all }, selected: { ...summary.selected } }
+  return {
+    all: { ...summary.all },
+    selected: { ...summary.selected },
+    ...(summary.baseline === undefined ? {} : { baseline: { ...summary.baseline } }),
+  }
 }

@@ -74,7 +74,12 @@ export async function executeEvolutionCommand(
         active,
         resident?.isPaused(),
         automatic?.skills(),
-        outcomes?.summarize(active?.id),
+        outcomes?.summarize(
+          active?.id,
+          active === undefined
+            ? undefined
+            : active.parentId === undefined ? {} : { baselineGenerationId: active.parentId },
+        ),
         feedback?.summarize(active?.id),
         automaticFeedbackBudget,
         automaticEvaluatorBudget,
@@ -521,6 +526,12 @@ function renderStatus(
     : [
         `Delivery outcomes: ${renderOutcomeCounts(outcomeSummary.all)}`,
         `Active selection outcomes (${active?.id ?? 'native DSH'}): ${renderOutcomeCounts(outcomeSummary.selected)}`,
+        ...(outcomeSummary.baseline === undefined || active === undefined
+          ? []
+          : [
+              `Parent selection outcomes (${active.parentId ?? 'native DSH'}): ${renderOutcomeCounts(outcomeSummary.baseline)}`,
+              'Observed delivery counts are descriptive; they do not prove that a Generation caused the difference.',
+            ]),
       ]
   const feedback = feedbackSummary === undefined
     ? []

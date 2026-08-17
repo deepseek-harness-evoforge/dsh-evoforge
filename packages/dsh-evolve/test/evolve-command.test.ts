@@ -525,11 +525,12 @@ describe('/evolve host command', () => {
       summarize: vi.fn(() => ({
         all: { total: 4, passed: 2, failed: 1, unknown: 1 },
         selected: { total: 2, passed: 2, failed: 0, unknown: 0 },
+        baseline: { total: 2, passed: 0, failed: 1, unknown: 1 },
       })),
     } as unknown as DeliveryOutcomeStore
 
     await expect(executeEvolutionCommand(
-      fakeStore(generation(rootId)),
+      fakeStore(generation(rootId, childId)),
       'status',
       { outcomes },
     )).resolves.toMatchObject({
@@ -537,9 +538,11 @@ describe('/evolve host command', () => {
       text: expect.stringContaining([
         'Delivery outcomes: 4 total (2 passed, 1 failed, 1 unknown)',
         `Active selection outcomes (${rootId}): 2 total (2 passed, 0 failed, 0 unknown)`,
+        `Parent selection outcomes (${childId}): 2 total (0 passed, 1 failed, 1 unknown)`,
+        'Observed delivery counts are descriptive; they do not prove that a Generation caused the difference.',
       ].join('\n')),
     })
-    expect(outcomes.summarize).toHaveBeenCalledWith(rootId)
+    expect(outcomes.summarize).toHaveBeenCalledWith(rootId, { baselineGenerationId: childId })
   })
 
   it('returns an actionable host error instead of throwing an implementation stack', async () => {

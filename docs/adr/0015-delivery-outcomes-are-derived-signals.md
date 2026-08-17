@@ -19,3 +19,7 @@ host-only `/evolve status`，不进入模型 Prompt、Tool Schema 或 Skill cata
 单次失败可能来自业务代码、测试基础设施或外部服务，不能归因于当前 Skill Generation。因此
 P2D.1 只采集与展示，不自动回滚。后续自动回滚必须另有相同 sealed case 上“当前 Generation 失败、
 父 Generation 通过”的可重放反事实证据；达不到该门就保持当前版本并进入异步复核。
+
+P1.21 允许同一次有界聚合额外计算 active 与 exact parent/native DSH 的三态计数，并在 Commands/Web
+并列显示。因为两组任务可能不是同分布，界面必须同时显示因果免责声明，不计算提升率、不生成 verdict，
+也不触发 release 动作。该投影仍属于本 ADR 的“派生信号”，不需要新的持久 owner。

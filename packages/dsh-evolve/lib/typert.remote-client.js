@@ -147,6 +147,12 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'failed': z.number().readonly(),
   'unknown': z.number().readonly(),
 }).readonly(),
+  'baseline': z.union([z.undefined(), z.object({
+  'total': z.number().readonly(),
+  'passed': z.number().readonly(),
+  'failed': z.number().readonly(),
+  'unknown': z.number().readonly(),
+})]).readonly().optional(),
 })]).readonly().optional(),
   'feedbackSignals': z.union([z.undefined(), z.object({
   'all': z.number().readonly(),

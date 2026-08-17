@@ -1448,13 +1448,22 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     await ctx.fiber.dispose()
   })
 
-  it('observes a pinned native ToolRuntime result once and recovers it after plugin reload', async () => {
+  it('compares pinned active and native-parent delivery outcomes without another model request', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-delivery-result-'))
     temporaryRoots.push(root)
+    const repository = join(root, 'source')
+    const revision = await commitSkill(repository, 'Outcome comparison body.', 'outcome comparison reference')
     const configPath = await writeStorageConfig(root)
     const ctx = await bootStorage(configPath)
     const adapter = await installAgentRuntime(ctx)
-    const evolveFiber = await ctx.plugin(EvolvePlugin, { cacheRoot: join(root, 'cache') })
+    const evolveFiber = await ctx.plugin(EvolvePlugin, {
+      cacheRoot: join(root, 'cache'),
+      sources: [{
+        name: 'stable-evolved-skill',
+        repository,
+        path: 'skills/stable-evolved-skill',
+      }],
+    })
     const packages = (path: string) => pathToFileURL(
       join(dshSourceDir, 'packages', path, 'lib', 'index.js'),
     ).href
@@ -1464,6 +1473,8 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
       import(packages('interaction/commands')),
     ])
     await ctx.plugin(commands.default)
+    const store = ctx.get('evoforge.evolution') as EvolutionStore | undefined
+    if (store === undefined) throw new Error('evolution store did not load')
     const agent = await createAndRunAgent(ctx, 'delivery-outcome-session', root)
     const modelRequestsBeforeDelivery = adapter.requests.length
     const unregister = ctx.tools.register(tools.defineTool({
@@ -1498,13 +1509,38 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     expect(status).toContain('Active selection outcomes (native DSH): 1 total (1 passed, 0 failed, 0 unknown)')
     expect(adapter.requests).toHaveLength(modelRequestsBeforeDelivery)
 
+    const active = (await store.publishGeneration(generationInput(revision))).generation
+    await store.promoteGeneration(active.id)
+    const activeAgent = await createAndRunAgent(ctx, 'active-delivery-outcome-session', root)
+    const requestsBeforeActiveDelivery = adapter.requests.length
+    const activeExecution = {
+      ...execution,
+      callId: llm.CallId('active-delivery-outcome'),
+      agent: activeAgent,
+    }
+    await expect(ctx.tools.execute(activeExecution)).resolves.toMatchObject({ isError: false })
+    await expect(ctx.tools.execute(activeExecution)).resolves.toMatchObject({ isError: false })
+    const comparison = await waitForEvolutionStatus(ctx, activeAgent, 'Delivery outcomes: 2 total')
+    expect(comparison).toContain('Delivery outcomes: 2 total (2 passed, 0 failed, 0 unknown)')
+    expect(comparison).toContain(
+      `Active selection outcomes (${active.id}): 1 total (1 passed, 0 failed, 0 unknown)`,
+    )
+    expect(comparison).toContain(
+      'Parent selection outcomes (native DSH): 1 total (1 passed, 0 failed, 0 unknown)',
+    )
+    expect(comparison).toContain(
+      'Observed delivery counts are descriptive; they do not prove that a Generation caused the difference.',
+    )
+    expect(adapter.requests).toHaveLength(requestsBeforeActiveDelivery)
+
     unregister()
     await evolveFiber.dispose()
     const recovered = await openDeliveryOutcomeStore(ctx.storageDomain)
     try {
-      expect(recovered.summarize()).toEqual({
-        all: { total: 1, passed: 1, failed: 0, unknown: 0 },
+      expect(recovered.summarize(active.id, {})).toEqual({
+        all: { total: 2, passed: 2, failed: 0, unknown: 0 },
         selected: { total: 1, passed: 1, failed: 0, unknown: 0 },
+        baseline: { total: 1, passed: 1, failed: 0, unknown: 0 },
       })
     } finally {
       await recovered.close()

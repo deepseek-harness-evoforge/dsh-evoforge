@@ -29,9 +29,10 @@ describe.skipIf(process.platform !== 'darwin')('delivery outcome store', () => {
       expect((await firstStore.record(duplicate)).created).toBe(false)
       await firstStore.record(outcome('call-2', 2, 'failed'))
       await firstStore.record(outcome('call-3', 3, 'unknown', 'a'.repeat(64)))
-      expect(firstStore.summarize('a'.repeat(64))).toEqual({
+      expect(firstStore.summarize('a'.repeat(64), {})).toEqual({
         all: { total: 2, passed: 0, failed: 1, unknown: 1 },
         selected: { total: 1, passed: 0, failed: 0, unknown: 1 },
+        baseline: { total: 1, passed: 0, failed: 1, unknown: 0 },
       })
     } finally {
       await firstStore.close()

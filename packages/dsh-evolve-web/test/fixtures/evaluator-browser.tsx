@@ -16,6 +16,7 @@ const qualifiedMode = search.has('qualified')
 const reviewMode = search.has('review')
 const reviewExpiryEligibleMode = search.has('expired')
 const staleReviewMode = search.has('stale')
+const outcomeMode = search.has('outcomes')
 const calls = { author: 0, approve: 0, reject: 0, shadow: 0, reviewApprove: 0 }
 let reviewApproved = false
 const runs: Array<{
@@ -71,6 +72,23 @@ const ok = <T,>(value: T) => Promise.resolve({ ok: true as const, value })
 const remote: EvolutionRemoteClient = {
   overview: () => ok({
     schemaVersion: 1,
+    ...(outcomeMode
+      ? {
+          active: {
+            id: 'a'.repeat(64),
+            rollbackTargetId: 'b'.repeat(64),
+            createdAt: 1_786_896_000_000,
+            evaluatorVersion: 'browser-review-v1',
+            policyVersion: 'human-review-v1',
+            artifacts: [],
+          },
+          deliveryOutcomes: {
+            all: { total: 8, passed: 5, failed: 2, unknown: 1 },
+            selected: { total: 4, passed: 3, failed: 1, unknown: 0 },
+            baseline: { total: 4, passed: 2, failed: 1, unknown: 1 },
+          },
+        }
+      : {}),
     recovery: { available: false },
     automaticPromotion: { enabled: false, skills: [] },
     automaticFeedbackBudget: {
@@ -276,6 +294,7 @@ const labels: Record<string, string> = {
   'status.off': 'Off',
   'status.budgetUnknown': 'Budget state unknown; automatic action is blocked',
   'section.budget': 'Automatic evolution budget',
+  'section.outcomes': 'Observed delivery outcomes',
   'section.feedback': 'Explicit corrections',
   'section.evaluators': 'Evaluator drafts',
   'section.evaluatorDetail': 'Evaluator qualification review',
@@ -293,6 +312,7 @@ const labels: Record<string, string> = {
   'action.approveAndShadow': 'Qualify & start Shadow',
   'action.startQualifiedShadow': 'Start Qualified Shadow',
   'action.reject': 'Reject',
+  'action.rollback': 'Rollback',
   'action.back': 'Back',
   'action.cancel': 'Cancel',
   'action.confirm': 'Confirm',
@@ -315,6 +335,13 @@ const labels: Record<string, string> = {
   'review.expiryOpen': 'Open until',
   'review.expiryEligible': 'Expiry eligible since',
   'review.expiryTrigger': 'No background timer runs; rejection occurs only when the next same-Skill automatic Signal arrives.',
+  'outcomes.active': 'Active',
+  'outcomes.parent': 'Parent',
+  'outcomes.total': 'total',
+  'outcomes.passed': 'passed',
+  'outcomes.failed': 'failed',
+  'outcomes.unknown': 'unknown',
+  'outcomes.disclaimer': 'Observed counts are descriptive; they do not prove that a Generation caused the difference.',
   'confirm.approve': 'Publish an inactive Generation without changing current or future Sessions?',
   'confirm.authorEvaluator': 'Paid disclosure confirmation',
   'confirm.approveEvaluator': 'Execute generated code in sealed qualification?',

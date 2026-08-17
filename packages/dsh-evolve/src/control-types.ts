@@ -178,6 +178,7 @@ export interface EvolutionOverview {
   readonly deliveryOutcomes?: {
     readonly all: DeliveryOutcomeCounts
     readonly selected: DeliveryOutcomeCounts
+    readonly baseline?: DeliveryOutcomeCounts
   }
   readonly feedbackSignals?: {
     readonly all: number
