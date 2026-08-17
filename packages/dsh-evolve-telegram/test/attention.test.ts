@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
-import type { EvolutionOverview } from 'dsh-evolve'
-import { projectEvolutionAttention } from '../src/attention.js'
+import {
+  projectEvolutionAttention,
+  type EvolutionAttentionOverview,
+} from '../src/attention.js'
 
 const candidateId = 'a'.repeat(64)
 const evaluatorId = 'b'.repeat(64)
@@ -129,47 +131,27 @@ function overview(input: {
     status: 'authoring-pending' | 'uncertain' | 'draft-ready' | 'qualification-running' | 'qualified' | 'incomplete' | 'rejected'
     skillName: string
   }
-} = {}): EvolutionOverview {
+} = {}): EvolutionAttentionOverview {
   const review = input.review === undefined ? [] : [{
-    ...input.review,
-    changedFiles: ['SKILL.md'],
-    candidateTreeHash: 'd'.repeat(64),
-    cases: [],
-    cost: { inputTokens: 1, outputTokens: 1, trialCount: 1 },
-    reasons: [],
-    limitations: [],
-    evaluatorVersion: 'v1',
-    compositionFingerprint: 'e'.repeat(64),
-    compositionStable: true,
-    startedAt: '2026-08-17T00:00:00.000Z',
+    id: input.review.id,
+    status: input.review.status,
+    recommendation: input.review.recommendation,
+    skillName: input.review.skillName,
+    ...(input.review.decisionActor === undefined ? {} : { decisionActor: input.review.decisionActor }),
+    ...(input.review.generationId === undefined ? {} : { generationId: input.review.generationId }),
+    ...(input.review.activatedAt === undefined ? {} : { activatedAt: input.review.activatedAt }),
   }]
   const evaluator = input.evaluator === undefined ? [] : [{
-    ...input.evaluator,
-    launchId: 'launch-1',
-    targetId: 'target-1',
-    createdAt: '2026-08-17T00:00:00.000Z',
-    updatedAt: '2026-08-17T00:00:00.000Z',
-    cost: { modelCalls: 1 as const, inputTokens: 10, outputTokens: 2 },
+    id: input.evaluator.id,
+    status: input.evaluator.status,
+    skillName: input.evaluator.skillName,
   }]
   return {
-    schemaVersion: 1,
-    recovery: { available: true, paused: false },
-    automaticPromotion: { enabled: true, skills: ['delivery'] },
     evaluatorAuthoring: {
-      available: true,
-      actionableCount: evaluator.length,
-      warningCount: 0,
-      signals: [],
-      targets: [],
       drafts: evaluator,
     },
     reviews: {
-      available: true,
-      pendingCount: review.filter(item => item.status === 'pending').length,
-      actionableCount: review.length,
-      warningCount: 0,
       items: review,
-      inactiveGenerations: [],
     },
   }
 }

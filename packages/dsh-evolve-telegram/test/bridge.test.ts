@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { EvolutionOverview } from 'dsh-evolve'
 import { EvolutionTelegramBridge, type TelegramHostRoute } from '../src/bridge.js'
+import type { EvolutionAttentionOverview } from '../src/attention.js'
 
 describe('Evolution Telegram bridge', () => {
   it('serializes catch-up and settled scans through the concrete Telegram route', async () => {
@@ -44,33 +44,14 @@ describe('Evolution Telegram bridge', () => {
   })
 })
 
-function pendingOverview(): EvolutionOverview {
+function pendingOverview(): EvolutionAttentionOverview {
   return {
-    schemaVersion: 1,
-    recovery: { available: true, paused: false },
-    automaticPromotion: { enabled: false, skills: [] },
     reviews: {
-      available: true,
-      pendingCount: 1,
-      actionableCount: 1,
-      warningCount: 0,
-      inactiveGenerations: [],
       items: [{
         id: 'a'.repeat(64),
         status: 'pending',
         recommendation: 'review',
         skillName: 'delivery',
-        claim: 'Bounded improvement.',
-        changedFiles: ['SKILL.md'],
-        candidateTreeHash: 'b'.repeat(64),
-        cases: [],
-        cost: { inputTokens: 1, outputTokens: 1, trialCount: 1 },
-        reasons: [],
-        limitations: [],
-        evaluatorVersion: 'v1',
-        compositionFingerprint: 'c'.repeat(64),
-        compositionStable: true,
-        startedAt: '2026-08-17T00:00:00.000Z',
       }],
     },
   }

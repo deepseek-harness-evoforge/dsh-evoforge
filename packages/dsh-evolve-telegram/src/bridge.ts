@@ -1,7 +1,11 @@
-import type { EvolutionRemoteService } from 'dsh-evolve'
-import { projectEvolutionAttention } from './attention.js'
+import {
+  projectEvolutionAttention,
+  type EvolutionAttentionOverview,
+} from './attention.js'
 
-export type EvolutionAttentionSource = Pick<EvolutionRemoteService, 'overview'>
+export interface EvolutionAttentionSource {
+  overview(): Promise<EvolutionAttentionOverview>
+}
 
 export interface TelegramHostRoute {
   notify(notice: { readonly id: string; readonly text: string }): Promise<{
