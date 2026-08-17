@@ -28,6 +28,11 @@ const contracts = [
     disabled: false,
   },
   {
+    name: 'dsh-github-review',
+    entryId: 'evoforge-github-review',
+    disabled: true,
+  },
+  {
     name: 'dsh-telegram',
     entryId: 'evoforge-telegram',
     disabled: true,
@@ -35,6 +40,11 @@ const contracts = [
   {
     name: 'dsh-goal-continuity',
     entryId: 'evoforge-goal-continuity',
+    disabled: true,
+  },
+  {
+    name: 'dsh-evolve-telegram',
+    entryId: 'evoforge-evolve-telegram',
     disabled: true,
   },
   {

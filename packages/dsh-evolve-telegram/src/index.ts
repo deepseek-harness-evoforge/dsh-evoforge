@@ -1,4 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
+import z from '@deepseek-ai/schemastery'
+import type Schema from '@deepseek-ai/schemastery'
 import {
   EvolutionTelegramBridge,
   type EvolutionAttentionSource,
@@ -15,7 +17,11 @@ declare module '@deepseek-ai/cordis' {
 export const name = 'dsh-evolve-telegram'
 export const inject = ['evoforge.evolutionControl', 'evoforge.telegramRoute']
 
-export function apply(ctx: Context): void {
+export interface Config {}
+
+export const Config: Schema<Config> = z.object({})
+
+export function apply(ctx: Context, _config: Config = {}): void {
   const source = ctx.get('evoforge.evolutionControl' as never) as EvolutionAttentionSource | undefined
   const route = ctx.get('evoforge.telegramRoute' as never) as TelegramHostRoute | undefined
   if (source === undefined || route === undefined) {

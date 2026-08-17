@@ -14,7 +14,8 @@ describe('dsh-evolve-telegram package contract', () => {
       'dsh-evolve': '>=0.1.0-alpha.1 <0.2.0',
       'dsh-telegram': '>=0.1.0-alpha.1 <0.2.0',
     })
-    expect(manifest.dependencies).toBeUndefined()
+    expect(manifest.dependencies).toEqual({ '@deepseek-ai/schemastery': '3.18.1' })
+    expect(manifest.exports?.['./cordis.patch.yml']).toBe('./cordis.patch.yml')
     expect(manifest.files).toContain('cordis.patch.yml')
     expect(manifest.files).toContain('README.md')
     expect(await readFile(resolve(packageRoot, 'cordis.patch.yml'), 'utf8')).toBe(
