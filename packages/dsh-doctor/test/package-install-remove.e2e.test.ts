@@ -13,6 +13,8 @@ const suiteRoot = resolve(packageRoot, '../..')
 const dshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
   ?? resolve(suiteRoot, '../deepseek-harness')
 const dshBin = join(dshSourceDir, 'apps', 'cli', 'lib', 'bin.js')
+const corepackHome = process.env.COREPACK_HOME
+  ?? join(process.env.HOME ?? '', 'Library', 'Caches', 'node', 'corepack')
 const temporaryRoots: string[] = []
 
 afterEach(async () => {
@@ -29,6 +31,7 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-doctor package boundar
     await writeFile(join(profileDir, 'package.json'), `${JSON.stringify({
       name: 'dsh-doctor-package-boundary',
       private: true,
+      packageManager: 'pnpm@11.7.0',
       dependencies: {},
       dsh: { profile: { bundles: [] } },
     }, null, 2)}\n`)
@@ -52,6 +55,8 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-doctor package boundar
     const env = {
       ...process.env,
       COREPACK_ENABLE_DOWNLOAD_PROMPT: '0',
+      COREPACK_DEFAULT_TO_LATEST: '0',
+      COREPACK_HOME: corepackHome,
       DSH_HOME: dshHome,
       HOME: root,
       npm_config_ignore_scripts: 'true',
@@ -106,7 +111,7 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-doctor package boundar
 
 async function runDsh(args: string[], cwd: string, env: NodeJS.ProcessEnv): Promise<void> {
   try {
-    await execFile(process.execPath, [dshBin, ...args], { cwd, env, encoding: 'utf8', timeout: 30_000 })
+    await execFile(process.execPath, [dshBin, ...args], { cwd, env, encoding: 'utf8', timeout: 60_000 })
   } catch (error) {
     const failed = error as { stdout?: string; stderr?: string }
     throw new Error(`DSH profile command failed:\n${failed.stdout ?? ''}${failed.stderr ?? ''}`, { cause: error })

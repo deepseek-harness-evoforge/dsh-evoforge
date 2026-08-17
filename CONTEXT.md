@@ -2,6 +2,20 @@
 
 DeepSeek Harness EvoForge is the open-source home for out-of-tree DSH extensions. Its flagship is evidence-driven, reversible agent evolution; software delivery is the first measurable proving ground.
 
+## Product authority
+
+**DSH-native out-of-tree plugin suite**:
+The only supported product shape. Every released EvoForge package is installed as an official DSH Bundle/profile layer and executes inside the existing DSH Host, Agent, Session, Goal, Approval, Storage, Jobs, Skill, Tool, and Cordis lifecycle.
+_Avoid_: Standalone EvoForge application, alternate Runtime, companion daemon, required EvoForge CLI
+
+**DSH Authority**:
+The single source of truth for Agent identity, Session history, Goal state, permissions, persistence, jobs, and lifecycle. EvoForge may keep bounded plugin-owned domain records inside DSH Storage, but may not reinterpret them as a second Session, Goal, scheduler, or control plane.
+_Avoid_: Mirrored authority, side database, parallel agent loop
+
+**Assembled Plugin Contract**:
+The release gate that packs artifacts, installs them with the target DSH plugin command into an isolated shipped profile, inspects the effective config, boots the Host, exercises a capability from a real DSH Agent/Session/Goal, unloads/removes the packages, and proves native data and startup remain intact.
+_Avoid_: Source import test, repository-only test, CLI smoke test
+
 ## Language
 
 **EvoForge**:

@@ -1,8 +1,3 @@
 - insert:
-    - id: evoforge-evolution
-      name: dsh-evolve
-      config:
-        cacheRoot: !!js dshHomePath('evoforge', 'git-skills')
-
     - id: evoforge-evolution-web
       name: dsh-evolve-web

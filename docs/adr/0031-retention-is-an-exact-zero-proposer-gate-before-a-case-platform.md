@@ -2,7 +2,7 @@
 
 ## 状态
 
-Accepted，2026-08-17。
+Accepted，2026-08-17；standalone Retention 入口于同日被 [ADR-0041](0041-dsh-is-the-only-runtime-and-install-surface.md) 撤销，exact 零 proposer gate 继续作为插件内部能力。
 
 ## 背景
 
@@ -17,12 +17,16 @@ Jobs UI 展示 unowned EvoForge Job。再建通知中心会重复原生能力；
 
 ## 决策
 
-新增一个 host CLI 动作：
+本 ADR 当时新增一个 host CLI 动作：
 
 ```text
 dsh-evolve retain --run <completed-shadow-run> \
   --case-pack <trusted-prior-case-pack> --output <new-retention-run>
 ```
+
+以上命令是历史接口记录，当前包不发布该 executable。现在部署者在 Bundle row 配置 exact
+`autoPromote.retentionRoots` 与每 Skill 一个 `autoPromote.retentionTargets`；`dsh-evolve` 在既有
+Shadow/review 链内把 Retention 作为 native DSH Job 运行。没有通用手工 Retention CLI。
 
 首片只接受一个已经 `complete`、推荐为 `promote|review` 的 exact Shadow Candidate。它从 durable
 run 恢复 baseline Skill 与 proposal，重新验证 primary report、proposal hash、baseline tree 和原
@@ -36,8 +40,9 @@ paired Trial。
 - `incomplete`：输入漂移、calibration 失准、baseline 本来就不 pass、隔离不可用或证据不足。
 
 Retention 不调用 proposer、不生成第二个 Candidate、不修改原 run、active Skill、Generation 或 review。
-CLI 显式调用是本次 Trial 的授权；中断后不自动重试。报告包含 exact source run、Candidate、Pack
-hash、逐 check、Trial 数与可见的 evaluator model-call/usage 证据。
+历史 CLI 由显式调用授权；当前自动路径的权限来自 exact Bundle deployment policy，中断后仍不自动
+重试不确定效果。报告包含 exact source run、Candidate、Pack hash、逐 check、Trial 数与可见的
+evaluator model-call/usage 证据。
 
 ## 为什么先离线
 

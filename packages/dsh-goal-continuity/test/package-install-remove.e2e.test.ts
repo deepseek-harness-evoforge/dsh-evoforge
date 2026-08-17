@@ -12,6 +12,8 @@ const suiteRoot = resolve(packageRoot, '../..')
 const dshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
   ?? resolve(suiteRoot, '../deepseek-harness')
 const dshBin = join(dshSourceDir, 'apps', 'cli', 'lib', 'bin.js')
+const corepackHome = process.env.COREPACK_HOME
+  ?? join(process.env.HOME ?? '', 'Library', 'Caches', 'node', 'corepack')
 const temporaryRoots: string[] = []
 
 afterEach(async () => {
@@ -28,6 +30,7 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-goal-continuity packag
     await writeFile(join(profileDir, 'package.json'), `${JSON.stringify({
       name: 'dsh-goal-continuity-package-boundary',
       private: true,
+      packageManager: 'pnpm@11.7.0',
       dependencies: {},
       dsh: { profile: { bundles: [] } },
     }, null, 2)}\n`)
@@ -51,6 +54,8 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-goal-continuity packag
     const env = {
       ...process.env,
       COREPACK_ENABLE_DOWNLOAD_PROMPT: '0',
+      COREPACK_DEFAULT_TO_LATEST: '0',
+      COREPACK_HOME: corepackHome,
       DSH_HOME: dshHome,
       HOME: root,
       npm_config_ignore_scripts: 'true',

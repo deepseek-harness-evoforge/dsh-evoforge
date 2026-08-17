@@ -1,5 +1,7 @@
 # P0B.2a：Durable Shadow Resume 本地证据
 
+> 历史接口提示：下文命令是 2026-08-16 的已执行恢复证据；standalone 产品入口已由 [ADR-0041](../adr/0041-dsh-is-the-only-runtime-and-install-surface.md) 撤销，不能作为当前操作说明。当前恢复由 Bundle 的 Cordis lifecycle 与 native DSH Jobs 持有。
+>
 > 状态：`implemented`；本页只证明显式 resume，后续 resident supervisor 见 [P0B.2b](p0b-2b-resident-shadow-supervisor.zh.md)；仍不是自动晋升或生产长期运行证明
 > 日期：2026-08-16
 

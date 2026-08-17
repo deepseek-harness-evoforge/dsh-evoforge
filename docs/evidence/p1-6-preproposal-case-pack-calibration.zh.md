@@ -1,5 +1,7 @@
 # P1.6 证据：proposer 前 Case Pack 校准
 
+> 历史接口提示：下文命令是 2026-08-16 的已执行 standalone 证据；独立 binary 已由 [ADR-0041](../adr/0041-dsh-is-the-only-runtime-and-install-surface.md) 撤销，不能作为当前操作说明。当前校准由 `/evolve evaluator ... approve|qualify-shadow` 在 DSH Host 内执行，并由 Shadow native Job 在 proposer 前重跑。
+>
 > 日期：2026-08-16  
 > 声明等级：`implemented`；证明零模型校准和 proposer 前 fail-closed，不代表 evaluator 已覆盖未知失败
 

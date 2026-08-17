@@ -2,7 +2,7 @@
 
 ## 状态
 
-Accepted，2026-08-17。
+Accepted，2026-08-17；手工 standalone Retention 入口被 [ADR-0041](0041-dsh-is-the-only-runtime-and-install-surface.md) 撤销，并由 [ADR-0033](0033-automatic-retention-is-one-static-target-per-skill.md) 的 native Job Target 取代；`retentionRoots` 证据门继续有效。
 
 ## 背景
 
@@ -37,7 +37,8 @@ Shadow run、baseline、Candidate 和 recommendation 匹配的 `retained` P1.11 
 ## 边界
 
 - 只影响 `auto-clear-instruction-v1`；human approve/promote 不改变；
-- 不自动挑选 Case Pack、不自动运行 `retain`、不读取 provider secret、不新增模型调用；
+- 本 ADR 原始纵切不自动挑选 Case Pack 或运行 Retention；ADR-0033 后只允许部署者绑定的 exact
+  `retentionTargets` 通过 native Jobs 自动运行，不读取 provider secret；
 - report 只从静态 absolute roots 扫描，Remote/Web/Command 不提交 path；
 - normal Session 不新增 Tool、Prompt、Skill、system message 或动态状态；
 - malformed/symlink/tampered evidence fail closed，并投影有界 warning；
@@ -46,8 +47,8 @@ Shadow run、baseline、Candidate 和 recommendation 匹配的 `retained` P1.11 
 ## 后果
 
 启用该门的用户首次能让“旧能力未回归”成为 clear-win 自我晋升的机器可执行条件；未启用用户没有
-迁移成本。代价是当前仍需显式运行 P1.11 CLI，且自动晋升可能因缺证据留在 review。只有真实使用证明
-该门有价值后，才考虑用静态 Target + native Jobs 自动发起 Retention。
+迁移成本。本 ADR 当时仍需显式运行 P1.11 CLI；该历史入口现在已删除。当前可选路径由部署者配置静态
+exact Target，插件在 native Jobs 中发起 Retention；缺证据或不可信结果仍留在 review。
 
 ## 拒绝方案
 

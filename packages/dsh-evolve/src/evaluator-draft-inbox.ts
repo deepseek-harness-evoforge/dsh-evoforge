@@ -181,6 +181,7 @@ interface EvaluatorRunState {
   }
   readonly draftId?: string
   readonly packHash?: string
+  readonly shadowHandoff?: 'pending' | undefined
   readonly cost: {
     readonly modelCalls: 0 | 1
     readonly inputTokens: number
@@ -384,7 +385,8 @@ export class EvaluatorDraftInbox {
     const scan = await this.scanDrafts(skillName)
     if (scan.targetCount === 0) return 'clear'
     if (scan.warningCount > 0) return 'unknown'
-    return scan.drafts.some(row => row.view.status !== 'qualified'
+    return scan.drafts.some(row => (row.view.status !== 'qualified'
+      || row.shadowHandoff === 'pending')
       && row.view.status !== 'rejected'
       && row.signalId !== signalId)
       ? 'busy'
@@ -392,11 +394,19 @@ export class EvaluatorDraftInbox {
   }
 
   private async scanDrafts(skillName?: string): Promise<{
-    drafts: Array<{ view: EvaluatorDraftView; signalId: string }>
+    drafts: Array<{
+      view: EvaluatorDraftView
+      signalId: string
+      shadowHandoff?: 'pending'
+    }>
     warningCount: number
     targetCount: number
   }> {
-    const drafts: Array<{ view: EvaluatorDraftView; signalId: string }> = []
+    const drafts: Array<{
+      view: EvaluatorDraftView
+      signalId: string
+      shadowHandoff?: 'pending'
+    }> = []
     let warningCount = 0
     let targetCount = 0
     for (const target of this.targetsById.values()) {
@@ -422,6 +432,7 @@ export class EvaluatorDraftInbox {
           drafts.push({
             view: projectState(state, this.active.has(state.launchId)),
             signalId: state.identity.signalId,
+            ...(state.shadowHandoff === undefined ? {} : { shadowHandoff: state.shadowHandoff }),
           })
         } catch {
           warningCount += 1
@@ -463,10 +474,23 @@ export class EvaluatorDraftInbox {
   }
 
   async approve(draftId: string, note: string): Promise<EvaluatorDraftReceipt> {
+    return this.qualifyDraft(draftId, note, false)
+  }
+
+  private async qualifyDraft(
+    draftId: string,
+    note: string,
+    shadowHandoff: boolean,
+  ): Promise<EvaluatorDraftReceipt> {
     enforceNote(note)
     const located = await this.findById(draftId)
     let state = located.state
-    if (state.phase === 'qualified') return receiptFromState(state, located.target, 'qualified', 'approve-evaluator')
+    if (state.phase === 'qualified') {
+      if (shadowHandoff && state.shadowHandoff !== 'pending') {
+        state = await updateState(located.runDir, state, { shadowHandoff: 'pending' })
+      }
+      return receiptFromState(state, located.target, 'qualified', 'approve-evaluator')
+    }
     if (state.phase === 'rejected') throw new Error('rejected evaluator draft cannot be approved')
     if (!['draft-ready', 'qualification-running', 'incomplete'].includes(state.phase)) {
       throw new Error(`evaluator draft cannot be approved from ${state.phase}`)
@@ -530,6 +554,7 @@ export class EvaluatorDraftInbox {
       phase: 'qualified',
       qualification: { calibrated: true, attempt, reportPath: result.reportPath },
       reason: undefined,
+      shadowHandoff: shadowHandoff ? 'pending' : undefined,
     })
     return receiptFromState(state, located.target, 'qualified', 'approve-evaluator')
   }
@@ -554,31 +579,38 @@ export class EvaluatorDraftInbox {
 
   async startShadow(draftId: string): Promise<FeedbackShadowLaunchReceipt> {
     const located = await this.findById(draftId)
-    const state = located.state
+    let state = located.state
     if (state.phase !== 'qualified' || state.draftId === undefined || state.packHash === undefined) {
       throw new Error('Evaluator Draft must be qualified before starting Shadow')
     }
+    const draftIdExact = state.draftId
+    const packHashExact = state.packHash
     if (located.target.shadowRunRoot === undefined) {
       throw new Error(`evaluator target '${located.target.id}' has no qualified Shadow run root`)
     }
     if (this.shadow === undefined || !this.shadow.available()) {
       throw new Error('native Jobs and private Feedback Case Draft creation are unavailable for qualified Shadow')
     }
-    const draftDir = join(located.target.root, 'drafts', state.draftId)
-    if (await hashTree(draftDir) !== state.packHash) {
+    const draftDir = join(located.target.root, 'drafts', draftIdExact)
+    if (await hashTree(draftDir) !== packHashExact) {
       throw new Error('Evaluator Draft changed after qualification')
     }
-    const casePackDir = join(located.target.root, 'qualified', state.draftId)
-    if (await hashTree(casePackDir) !== state.packHash) {
+    const casePackDir = join(located.target.root, 'qualified', draftIdExact)
+    if (await hashTree(casePackDir) !== packHashExact) {
       throw new Error('Qualified Case Pack changed after publication')
     }
-    return this.shadow.launchExact(state.identity.signalId, {
+    if (state.shadowHandoff !== 'pending') {
+      state = await updateState(located.runDir, state, { shadowHandoff: 'pending' })
+    }
+    const receipt = await this.shadow.launchExact(state.identity.signalId, {
       id: located.target.id,
       skill: located.target.skill,
       casePackDir,
-      casePackHash: state.packHash,
+      casePackHash: packHashExact,
       runRoot: located.target.shadowRunRoot,
     })
+    await updateState(located.runDir, state, { shadowHandoff: undefined })
+    return receipt
   }
 
   /** Qualify one exact Draft, then start its paid Shadow only after calibration succeeds. */
@@ -586,7 +618,7 @@ export class EvaluatorDraftInbox {
     draftId: string,
     note: string,
   ): Promise<FeedbackShadowLaunchReceipt> {
-    await this.approve(draftId, note)
+    await this.qualifyDraft(draftId, note, true)
     return this.startShadow(draftId)
   }
 
@@ -922,7 +954,8 @@ async function loadState(runDir: string): Promise<EvaluatorRunState> {
     || typeof value.createdAt !== 'string'
     || typeof value.updatedAt !== 'string'
     || !isRecord(value.identity)
-    || !isRecord(value.cost)) {
+    || !isRecord(value.cost)
+    || (value.shadowHandoff !== undefined && value.shadowHandoff !== 'pending')) {
     throw new Error('evaluator authoring run state has an invalid shape')
   }
   return value as unknown as EvaluatorRunState

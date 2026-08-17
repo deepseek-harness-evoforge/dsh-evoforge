@@ -2,7 +2,7 @@
 
 ## 状态
 
-Accepted，2026-08-16。
+Accepted，2026-08-16；standalone 参数入口于 2026-08-17 被 [ADR-0041](0041-dsh-is-the-only-runtime-and-install-surface.md) 撤销，反馈只参与搜索的边界继续有效。
 
 ## 背景
 
@@ -16,11 +16,15 @@ crash-resume 和 future-session 发布边界。最小有用闭环应复用它，
 
 ## 决策
 
-`dsh-evolve shadow` 增加一个可选、显式的输入：
+本 ADR 当时为 standalone Shadow 增加一个可选、显式的输入：
 
 ```text
 --feedback-draft <private-draft.json>
 ```
+
+以上参数是历史接口记录，不是当前可运行说明。现在由 Bundle 配置的 `shadowTargets` 固定路径与
+Case Pack，用户通过 `/evolve feedback <signal-id> shadow <target-id>` 显式授权，插件再提交 native
+DSH Job；隐私、校准和独立评测边界不变。
 
 使用此参数同时表示两件事：调用者允许本次离线 Shadow 发起可能付费的 proposer 请求，并允许把
 草稿中的直接用户文本和 correction 发给所配置的模型提供方。后台观察、草稿创建和 resident

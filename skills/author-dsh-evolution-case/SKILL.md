@@ -7,6 +7,8 @@ description: Turn one reproducible, previously uncovered DSH Skill failure into 
 
 Produce one trusted evaluator for one observed failure. Treat evaluator authoring as test engineering: the correction may guide the Candidate, but it cannot grade itself.
 
+This Skill authors evidence only; it does not expose or invoke an EvoForge executable. Its operational handoff must enter a DSH session through the installed `dsh-evolve` Bundle's `/evolve` Command and native DSH Jobs.
+
 Read [references/evaluator-contract.md](references/evaluator-contract.md) before creating or changing a Case Pack.
 
 ## 1. Establish the case
@@ -43,34 +45,38 @@ Prefer real parse/typecheck/test, DSH Loader/Agent/Tool round trips, lifecycle d
 
 Complete when failure and success are attributable to the stated behavior and the evaluator emits the exact bounded JSON contract.
 
-## 4. Calibrate before proposing
+## 4. Calibrate through DSH
 
-Run a fresh zero-model calibration directory:
+Use the installed Bundle's configured `evaluatorTargets` flow. From a DSH session, inspect the exact inactive Evaluator Draft and approve it only after semantic review:
 
-```bash
-dsh-evolve calibrate \
-  --case-pack /absolute/private/case-pack \
-  --output /absolute/new-calibration-run
+```text
+/evolve evaluator <64-char-draft-id>
+/evolve evaluator <64-char-draft-id> approve <review-note>
 ```
 
-Require exit `0`, known-bad `fail`, known-correction `pass`, zero proposer calls/tokens, and an unchanged Case Pack hash. On exit `2`, repair the fixture or evaluator; changing the Candidate cannot repair a broken grading direction.
+The approval action runs the existing sealed calibration inside the DSH Host before publishing an immutable Qualified Case Pack. Require known-bad `fail`, known-correction `pass`, zero proposer calls during calibration, an unchanged Case Pack hash, and the pinned evaluator epoch. If qualification fails, repair the fixture or evaluator; changing the Candidate cannot repair a broken grading direction.
 
-Complete when `calibration-report.json` proves both directions and discloses the exact Case Pack hash and evaluator epoch.
+For a new explicit feedback failure, the preceding authoring action is also native:
+
+```text
+/evolve feedback <64-char-signal-id> author <evaluator-target>
+```
+
+It submits authoring as a native DSH Job and leaves the result private and non-executable until the separate approval above. Complete when the DSH evaluator inbox reports a qualified exact hash; do not treat a test fixture or direct module import as product calibration.
 
 ## 5. Run one bounded Shadow
 
-Only after explicit authorization for any provider disclosure or paid request, run:
+Only after explicit authorization for provider disclosure or a paid request, start the qualified pack through the DSH Command surface:
 
-```bash
-dsh-evolve shadow /absolute/target-skill \
-  --case-pack /absolute/private/case-pack \
-  --output /absolute/new-shadow-run \
-  [--feedback-draft /absolute/private/draft.json]
+```text
+/evolve evaluator <64-char-draft-id> shadow
 ```
 
-The Feedback Case Draft is untrusted search evidence. Keep it out of calibration and final-test inputs. Treat only calibrated `baseline=fail`, `candidate=pass`, unchanged active Skill/Case Pack, stable non-target composition, and passed hard gates as a promotion recommendation. Review or reject every ambiguous result.
+The command submits one content-addressed native DSH Job and returns immediately. When qualification and the paid Shadow are intentionally authorized as one reviewed action, use `/evolve evaluator <64-char-draft-id> qualify-shadow <review-note>` instead. For an already trusted static `shadowTargets` pack covering an exact feedback signal, use `/evolve feedback <64-char-signal-id> shadow <target-id>`.
 
-Complete when the report is reproducible from durable evidence and no current Session or active Skill changed.
+The Feedback Case Draft is untrusted search evidence. Keep it out of calibration and final-test inputs. Treat only calibrated `baseline=fail`, `candidate=pass`, unchanged active Skill/Case Pack, stable non-target composition, and passed hard gates as a promotion recommendation. Review or reject every ambiguous result through `/evolve review` or the DSH Web adapter.
+
+Complete when the native Job's durable report is reproducible and no current Session or active Skill changed.
 
 ## 6. Hand off
 
@@ -80,9 +86,8 @@ Report:
 - target Skill and pinned DSH/evaluator epoch;
 - partition contents and privacy location;
 - known-bad, negative-control, and known-correction results;
-- calibration and Shadow commands, exit status, report path, and hashes;
+- DSH Command receipts, native Job id/status, report path, and hashes;
 - model calls/tokens, cache/composition delta, permissions, and external effects;
 - recommendation, limitations, and the next protected action.
 
 Keep private prompts, corrections, secrets, evaluator fixtures, and held-out inputs out of public commits. Public evidence may contain bounded redacted metrics and hashes. Do not activate, merge, release, deploy, read secrets, or make paid calls without the authority already required for those actions.
-

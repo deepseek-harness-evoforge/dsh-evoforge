@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 const execFileAsync = promisify(execFile)
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const suiteRoot = resolve(packageRoot, '../..')
-const cliPath = join(packageRoot, 'src', 'cli.ts')
+const cliPath = join(packageRoot, 'test', 'fixtures', 'shadow-driver.ts')
 const temporaryRoots: string[] = []
 
 afterEach(async () => {

@@ -513,7 +513,6 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     await store.close()
   }, 'dsh-evolve.runtimeClose')
 }
-
 export type {
   CapabilityGeneration,
   EvolutionStore,

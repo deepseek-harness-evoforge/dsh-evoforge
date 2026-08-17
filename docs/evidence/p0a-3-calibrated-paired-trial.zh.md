@@ -1,10 +1,12 @@
 # P0A.3：校准后的 paired final-test 纵切
 
+> 历史接口提示：本页保留当时实际执行的 standalone CLI 证据；该产品入口已由 [ADR-0041](../adr/0041-dsh-is-the-only-runtime-and-install-surface.md) 撤销，命令不可作为当前使用说明。当前 Shadow 由已安装 Bundle 的 `/evolve` Command 提交为 native DSH Job。
+>
 > 状态：`implemented`，不是完整 P0A 的 `verified` 结论。
 
 ## 用户可见结果
 
-`dsh-evolve shadow` 可以读取显式 `search/evidence.md` 生成一个 inactive Skill
+当时的 standalone Shadow 可以读取显式 `search/evidence.md` 生成一个 inactive Skill
 Candidate，然后在 macOS 上执行四个相互独立的 Sealed Trial：known-bad、
 known-correction、active baseline 和 Candidate。只有校准方向正确，且 Candidate
 通过隐藏 final-test 而 baseline 失败，才输出 `promote` 建议；active Skill 从不改变。

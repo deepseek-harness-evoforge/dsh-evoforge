@@ -2,7 +2,7 @@
 
 ## 状态
 
-Accepted，2026-08-16。
+Accepted，2026-08-16；独立校准 binary 入口于 2026-08-17 被 [ADR-0041](0041-dsh-is-the-only-runtime-and-install-surface.md) 撤销，proposer 前校准决策继续有效。
 
 ## 背景
 
@@ -16,11 +16,16 @@ Trial 已拥有需要的隔离、预算、DSH revision 和输出验证，应把�
 
 ## 决策
 
-`dsh-evolve` 增加一个离线命令：
+本 ADR 当时为 `dsh-evolve` 增加一个离线命令：
 
 ```text
 dsh-evolve calibrate --case-pack <case-pack-dir> --output <new-run-dir>
 ```
+
+以上命令只记录 2026-08-16 的历史实现，当前包不发布该 executable。现在 sealed calibration 由
+`/evolve evaluator <draft-id> approve <note>`（只资格验证）或
+`/evolve evaluator <draft-id> qualify-shadow <note>`（资格验证通过后提交 Shadow）在 DSH Host 内
+执行；Shadow 本身也在 native Job 请求 proposer 前重新校准。
 
 它解析同一个 manifest，只运行 known-bad 与 known-correction 两次现有 Sealed Trial，写入
 `calibration-report.json`。命令不读取 proposer route/API key、不创建 Candidate、不修改 Case Pack，
@@ -51,4 +56,3 @@ exact hash 验证。
 - 一个 runner 同时服务校准与比较，没有新插件、Service、Schema、daemon 或正常 Session 表面；
 - `calibrated` 只证明两个声明 fixture 的方向和隔离执行成立，不证明 evaluator 覆盖所有真实失败；
 - 当前 sealed backend 仍只支持 macOS；Linux/Windows 返回 incomplete，不降级为不隔离执行。
-

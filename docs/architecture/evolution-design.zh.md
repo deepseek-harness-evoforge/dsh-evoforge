@@ -30,7 +30,7 @@ P0 只解决一个窄而真实的问题：
 
 个人助理、内容、消息和日程以后可以提供新的 Learning Signal 与 Trial case，但不能让 P0 预建通用自治平台。
 
-第一个交付物不是 Generation Binder，而是离线 `dsh-evolve shadow <skill-dir>`。它只读 active Skill，在一个真实 evaluator 上证明候选评价有用；证明失败就停止，不用发布基础设施掩盖价值缺口。
+第一个内部能力不是 Generation Binder，而是由 `dsh-evolve` 插件在 DSH 生命周期内提交的 Shadow evaluation。它只读 active Skill，在一个真实 evaluator 上证明候选评价有用；证明失败就停止，不用发布基础设施掩盖价值缺口。旧独立 CLI 已由 ADR-0041 撤销。
 
 ## 3. “完美”的可验证定义
 
@@ -247,7 +247,7 @@ P1.5 不生成 evaluator，也不新增 Case 平台。用户显式执行
 
 P1.6 把同一个 Trial Runner 深化为两个内部动作：`runCalibrationTrial` 运行 known-bad/correction，
 `runComparisonTrial` 运行 baseline/Candidate；完整 `runPairedTrial` 仍组合为四次执行。独立
-`dsh-evolve calibrate` 只调用前者并生成零模型报告。完整 Shadow 在 prepared 阶段也先调用前者，
+插件内部 calibration 只调用前者并生成零模型报告。完整 Shadow 在 prepared 阶段也先调用前者，
 只有方向正确才 durable 记录 proposer intent；当前进程随后只运行 comparison，因此总数不变。
 Candidate resume 为避免信任过期的内存结果，会重新运行完整 paired Trial，但不重复 proposer。见
 [ADR-0020](../adr/0020-calibrate-case-packs-before-proposals.md)。

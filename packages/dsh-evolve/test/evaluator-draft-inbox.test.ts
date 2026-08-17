@@ -462,6 +462,71 @@ describe('EvaluatorDraftInbox', () => {
     await expect(inbox.startShadow(draftId)).rejects.toThrow('Qualified Case Pack changed')
     expect(shadow.launchExact).toHaveBeenCalledTimes(2)
   })
+
+  it('keeps another Signal blocked throughout the qualify-and-Shadow handoff', async () => {
+    const fixture = await setup()
+    const shadowRunRoot = join(fixture.root, 'qualified-shadow-runs')
+    await mkdir(shadowRunRoot)
+    const target = { ...fixture.target, shadowRunRoot }
+    const jobs = fakeJobs()
+    let enterShadow!: () => void
+    let releaseShadow!: () => void
+    const shadowEntered = new Promise<void>(resolveEntered => {
+      enterShadow = resolveEntered
+    })
+    const shadowReleased = new Promise<void>(resolveReleased => {
+      releaseShadow = resolveReleased
+    })
+    const shadow = {
+      available: vi.fn(() => true),
+      launchExact: vi.fn(async () => {
+        enterShadow()
+        await shadowReleased
+        return {
+          schemaVersion: 1 as const,
+          action: 'start-shadow' as const,
+          launchId: '9'.repeat(64),
+          targetId: target.id,
+          skillName: target.skill,
+          runStatus: 'scheduled' as const,
+          jobId: 'evolution-shadow-1',
+        }
+      }),
+    }
+    const qualify = vi.fn(async ({ outputDir }: { outputDir: string }) => {
+      await mkdir(outputDir, { recursive: true })
+      await writeFile(join(outputDir, 'calibration-report.json'), '{}\n')
+      return {
+        status: 'calibrated' as const,
+        reportPath: join(outputDir, 'calibration-report.json'),
+        summary: 'calibrated',
+      }
+    })
+    const inbox = new EvaluatorDraftInbox({
+      targets: [target],
+      drafts: () => fixture.drafts,
+      source: fixture.source,
+      authorModel: vi.fn(async () => proposal()),
+      qualify,
+      modelIdentity: () => 'model-route-v1',
+      shadow,
+    })
+    inbox.attachJobs(jobs.registry)
+    await inbox.author(signalId, target.id)
+    await jobs.hooks[0]!.done
+    const draftId = (await inbox.scan()).drafts[0]!.id
+
+    const handoff = inbox.approveAndStartShadow(draftId, 'exact evaluator and paid Shadow reviewed')
+    await shadowEntered
+
+    const inflightDuringHandoff = await inbox.automaticInflightStatus(artifact.name, '9'.repeat(64))
+    releaseShadow()
+    await expect(handoff).resolves.toMatchObject({
+      action: 'start-shadow',
+      runStatus: 'scheduled',
+    })
+    expect(inflightDuringHandoff).toBe('busy')
+  })
 })
 
 async function setup(options: { originalSkill?: string } = {}) {

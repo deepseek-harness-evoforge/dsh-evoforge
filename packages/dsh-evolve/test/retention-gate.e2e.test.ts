@@ -12,7 +12,7 @@ import { runShadow } from '../src/shadow.ts'
 
 const suiteRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 const packageRoot = resolve(suiteRoot, 'packages', 'dsh-evolve')
-const cliPath = join(packageRoot, 'src', 'cli.ts')
+const cliPath = join(packageRoot, 'test', 'fixtures', 'shadow-driver.ts')
 const execFileAsync = promisify(execFile)
 const temporaryRoots: string[] = []
 

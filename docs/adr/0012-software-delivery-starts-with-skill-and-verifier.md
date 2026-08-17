@@ -2,7 +2,7 @@
 
 ## 状态
 
-Accepted，2026-08-16。
+Superseded in part by [ADR-0041](0041-dsh-is-the-only-runtime-and-install-surface.md)，2026-08-17。确定性验证逻辑保留为插件内部实现；独立 `dsh-delivery` CLI 决策已撤销。
 
 ## 背景
 

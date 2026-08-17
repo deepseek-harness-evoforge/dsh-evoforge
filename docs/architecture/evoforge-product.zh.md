@@ -138,7 +138,7 @@ GitHub 组织 `deepseek-harness-evoforge` 是所有 DSH 扩展设计与开发的
 
 ## 8. 最小路线
 
-1. **P0A**：`dsh-evolve shadow <skill-dir>`，一个真实 Skill、独立 final-test、已知坏 Candidate 和至少一个真实修正。
+1. **P0A（内部实现）**：由 DSH 内的 `dsh-evolve` 提交 Shadow，一个真实 Skill、独立 final-test、已知坏 Candidate 和至少一个真实修正；不发布独立入口。
 2. **P0B**：Generation、Session pin、原子 active pointer、crash recovery、composition fingerprint。
 3. **P0C**：host command/view、异步人工晋升和 rollback。
 4. **P1**：权限效果不变的纯指令 future-session canary 与窄自动晋升。

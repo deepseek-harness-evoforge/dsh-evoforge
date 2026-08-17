@@ -1,9 +1,10 @@
 # dsh-telegram
 
-`dsh-telegram` connects one deployment-authorized Telegram private chat to one existing,
-stable DeepSeek Harness Agent. It is deliberately not a multi-channel gateway.
+`dsh-telegram` is a disabled-by-default DSH Bundle connecting one exact private Telegram chat/user to one existing stable DSH Agent/Session. It is not a gateway, webhook server, daemon, or second Agent host.
 
-## What it adds
+```sh
+dsh plugin --profile web add /absolute/path/dsh-telegram-0.1.0-alpha.1.tgz
+```
 
 - exact `chat_id` + `user_id` filtering for private text messages;
 - deterministic DSH message identities, so Telegram update replay does not create a second turn;
@@ -35,6 +36,7 @@ and configure its row explicitly:
 ```yaml
 - id: evoforge-telegram
   name: dsh-telegram
+  disabled: false
   config:
     agentId: personal-main
     chatId: 100000001
@@ -42,14 +44,12 @@ and configure its row explicitly:
     tokenEnv: DSH_TELEGRAM_BOT_TOKEN
 ```
 
-The corresponding Agent must use the exact stable identity:
+The selected Agent must already exist under that exact stable DSH Session id. The token is read from the environment of the DSH Host. Native Commands and one-shot Approval buttons reuse DSH services; replay deduplication and bounded delivery records use DSH Storage Domain. The model cannot change the route or read the token.
 
-```yaml
-agents:
-  - id: personal
-    sessionId: personal-main
-    provider: deepseek-official
-    model: deepseek-v4-flash
+Telegram long polling and pending retry timers are owned by the Cordis fiber. Disable/unload aborts them and unregisters routing. Ambiguous sends become `uncertain` and are not retried automatically; already delivered external messages cannot be retracted.
+
+```sh
+dsh plugin --profile web remove dsh-telegram
 ```
 
 Set `DSH_TELEGRAM_BOT_TOKEN` in the process supervisor's secret environment. Naming that variable

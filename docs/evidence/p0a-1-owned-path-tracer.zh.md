@@ -1,11 +1,13 @@
 # P0A.1 Owned-path tracer 证据
 
+> 历史接口提示：本页保留 2026-08-15 实际执行的 standalone CLI 证据；该产品入口已由 [ADR-0041](../adr/0041-dsh-is-the-only-runtime-and-install-surface.md) 撤销，命令不可作为当前使用说明。当前 Shadow 由已安装 Bundle 的 `/evolve` Command 提交为 native DSH Job。
+>
 > 日期：2026-08-15
 > 结论：`implemented`，尚未达到完整 P0A 的 `verified`
 
 ## 用户结果
 
-`dsh-evolve shadow` 可以接收 owned Skill、版本化 case pack 和独立 run directory。若模型候选试图写出 owned Skill，系统在应用前给出 `reject`，保存证据，并证明 active Skill 的开始/结束 tree hash 一致。
+当时的 standalone Shadow 可以接收 owned Skill、版本化 case pack 和独立 run directory。若模型候选试图写出 owned Skill，系统在应用前给出 `reject`，保存证据，并证明 active Skill 的开始/结束 tree hash 一致。
 
 ## 当前验证
 

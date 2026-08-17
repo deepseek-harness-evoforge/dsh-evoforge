@@ -1,11 +1,13 @@
 # P2A.1 证据：Software Delivery Skill 与 Git 验证器
 
+> 历史接口提示：本页保留 2026-08-16 首个纵切的真实 CLI 证据；`dsh-delivery` binary 已由 [ADR-0041](../adr/0041-dsh-is-the-only-runtime-and-install-surface.md) 撤销，不能作为当前操作说明。验证逻辑现由 DSH Agent 的 `complete_delivery` Tool 经原生 shell policy 调用。
+>
 > 日期：2026-08-16  
 > 声明等级：`implemented`；P2 首个纵切，不等于完整软件交付产品
 
 ## 用户结果
 
-安装 `dsh-software-delivery` 后，DSH 获得一个按需 `software-delivery` Skill。它把原生 Goal 引导到 sibling linked worktree、仓库检查、clean commit 和可选 Draft PR。打包提供的 `dsh-delivery verify` 对 exact worktree/base/HEAD 运行声明的本地检查，并输出：
+当时安装 `dsh-software-delivery` 后，DSH 获得一个按需 `software-delivery` Skill；当时打包的 standalone verifier 对 exact worktree/base/HEAD 运行声明的本地检查，并输出：
 
 ```text
 passed | failed | unknown + reason + git-commit artifact + bounded check evidence
@@ -23,7 +25,7 @@ passed | failed | unknown + reason + git-commit artifact + bounded check evidenc
 - timeout 返回 `unknown`，并终止 POSIX check 进程组，不伪造成产品失败或遗留普通子进程；
 - check 即使退出 `0`，只要移动 Git 状态或写脏 worktree，最终仍为 `failed`；
 - 子进程不继承测试注入的 credential-bearing 环境变量；
-- built CLI 对真实 linked worktree 返回 exact commit artifact。
+- 当时的 built CLI 对真实 linked worktree 返回 exact commit artifact。
 
 ## DSH 与缓存证据
 

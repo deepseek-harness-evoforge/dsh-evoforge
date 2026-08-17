@@ -1,12 +1,13 @@
 #!/usr/bin/env node
+/** Test-only process driver for crash/exit-code coverage. It is not a shipped product CLI. */
 import { parseArgs } from 'node:util'
-import { calibrateCasePack } from './case-pack-calibration.js'
-import { evaluateRetention } from './retention.js'
-import { runShadow } from './shadow.js'
+import { calibrateCasePack } from '../../src/case-pack-calibration.js'
+import { evaluateRetention } from '../../src/retention.js'
+import { runShadow } from '../../src/shadow.js'
 
-const SHADOW_USAGE = 'usage: dsh-evolve shadow <skill-dir> --case-pack <case-pack-dir> --output <run-dir> [--feedback-draft <private-draft.json>] [--resume]'
-const CALIBRATE_USAGE = 'usage: dsh-evolve calibrate --case-pack <case-pack-dir> --output <run-dir>'
-const RETAIN_USAGE = 'usage: dsh-evolve retain --run <completed-shadow-run> --case-pack <prior-case-pack-dir> --output <new-run-dir>'
+const SHADOW_USAGE = 'usage: shadow-driver shadow <skill-dir> --case-pack <case-pack-dir> --output <run-dir> [--feedback-draft <private-draft.json>] [--resume]'
+const CALIBRATE_USAGE = 'usage: shadow-driver calibrate --case-pack <case-pack-dir> --output <run-dir>'
+const RETAIN_USAGE = 'usage: shadow-driver retain --run <completed-shadow-run> --case-pack <prior-case-pack-dir> --output <new-run-dir>'
 
 async function main(): Promise<number> {
   try {
@@ -25,33 +26,25 @@ async function main(): Promise<number> {
     const [command, ...positionals] = parsed.positionals
     const casePackDir = parsed.values['case-pack']
     const outputDir = parsed.values.output
-    if (!casePackDir || !outputDir) {
-      throw new Error('--case-pack and --output are required')
-    }
+    if (!casePackDir || !outputDir) throw new Error('--case-pack and --output are required')
     if (command === 'calibrate') {
       if (positionals.length > 0
         || parsed.values['feedback-draft'] !== undefined
         || parsed.values.run !== undefined
-        || parsed.values.resume) {
-        throw new Error(CALIBRATE_USAGE)
-      }
+        || parsed.values.resume) throw new Error(CALIBRATE_USAGE)
       const result = await calibrateCasePack({ casePackDir, outputDir })
       if (result.status === 'calibrated') {
         process.stdout.write(`calibrated: ${result.summary}\n`)
         return 0
       }
-      process.stderr.write(
-        `${result.status}: ${result.reason}; report: ${result.reportPath}\n`,
-      )
+      process.stderr.write(`${result.status}: ${result.reason}; report: ${result.reportPath}\n`)
       return 2
     }
     if (command === 'retain') {
       if (positionals.length > 0
         || parsed.values['feedback-draft'] !== undefined
         || parsed.values.resume
-        || parsed.values.run === undefined) {
-        throw new Error(RETAIN_USAGE)
-      }
+        || parsed.values.run === undefined) throw new Error(RETAIN_USAGE)
       const result = await evaluateRetention({
         casePackDir,
         outputDir,
@@ -66,9 +59,7 @@ async function main(): Promise<number> {
     }
     const [skillDir, ...extraPositionals] = positionals
     if (command !== 'shadow' || !skillDir || extraPositionals.length > 0
-      || parsed.values.run !== undefined) {
-      throw new Error(SHADOW_USAGE)
-    }
+      || parsed.values.run !== undefined) throw new Error(SHADOW_USAGE)
     const result = await runShadow({
       casePackDir,
       ...(parsed.values['feedback-draft'] === undefined

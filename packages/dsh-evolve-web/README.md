@@ -1,82 +1,20 @@
 # dsh-evolve-web
 
-`dsh-evolve-web` is the optional, removable DSH Web adapter for `dsh-evolve`. It installs as one DSH profile Bundle and adds a root-scoped **Evolution** action beside Settings. The action remains available when no Session exists.
+`dsh-evolve-web` is the browser client adapter for `dsh-evolve`. It is loaded by the existing DSH Web Host through official `dsh.client` metadata. It does not start a server, bind a port, run an Agent, or store a second copy of control state.
 
-The panel reads the authoritative host state only when opened or explicitly refreshed. It shows the active Generation, resident-recovery state, automatic-promotion policy, separately labelled Feedback Shadow and Evaluator Draft UTC-day budgets, current explicit-feedback signal ids, statically configured Shadow/Evaluator targets, private Evaluator Drafts, recent Shadow runs, pending reviews, bounded diffs, Trial counts, token evidence, and conservative protected-effect indicators. When an active Generation exists, it also shows bounded delivery counts beside the exact parent/native baseline and explicitly says the observation does not prove causation. Eligible automatic reviews show their exact open/eligible time and explain that no background timer runs: only the next same-Skill automatic Signal triggers rejection. A Candidate detail keeps its improvement claim beside the exact changed files, decision reasons, limitations, cases, cost, impact indicators, and verified diff. Explicit refresh re-reads that open detail and clears a stale form if host authority has already changed. Starting Feedback Shadow or authoring an Evaluator requires a confirmation that discloses the possible model charge and private correction transfer. Inspecting a Draft exposes only its bounded generated files. The reviewer may qualify it alone, or use one combined confirmation that executes sealed qualification and starts a paid Shadow only on success. The original fresh Qualified Shadow confirmation remains available. Approval publishes an inactive Generation and closes the stale review form; promotion is always a separate action. Author, qualify, combined qualify-and-Shadow, Shadow launch, reject, pause, resume, promote, and rollback preserve the same owners used by the host Commands surface.
+Install both Bundles into the same profile:
 
-The sidebar badge and top summary combine host-counted actionable Candidate reviews and Evaluator Drafts. This improves discoverability without adding polling or Session-visible state.
-
-Approved inactive Generations are projected from durable review evidence rather
-than browser memory, so a refresh or process restart between approval and
-promotion does not force the user back to the command line.
-
-## Install
-
-After both packages are published:
-
-```bash
-dsh plugin --profile web add dsh-evolve-web
-```
-
-The Bundle inserts exactly two rows: the `dsh-evolve` host runtime and this Web adapter. Its default configuration leaves resident recovery, Git Skill sources, private feedback copies, and automatic promotion disabled. Configure those explicitly in the profile's later `cordis.patch.yml` layer.
-
-For local tarballs from this repository, install both artifacts in one invocation because `dsh-evolve` is not available from a registry yet:
-
-```bash
-pnpm --filter dsh-evolve pack --pack-destination "$PWD/.evoforge/pack"
-pnpm --filter dsh-evolve-web pack --pack-destination "$PWD/.evoforge/pack"
-
+```sh
 dsh plugin --profile web add \
-  "$PWD/.evoforge/pack/dsh-evolve-0.1.0-alpha.1.tgz" \
-  "$PWD/.evoforge/pack/dsh-evolve-web-0.1.0-alpha.1.tgz"
+  /absolute/path/dsh-evolve-0.1.0-alpha.1.tgz \
+  /absolute/path/dsh-evolve-web-0.1.0-alpha.1.tgz
+dsh --profile web
 ```
 
-Remove the Bundle with:
+The Host half only waits for `evoforge.evolutionControl`; the browser module renders the global sidebar and calls the generated DSH Remote. Reads and actions therefore reach the same Host authority used by `/evolve` Commands. It adds no Tool, Skill, system prompt, watcher, polling loop, or persistent state.
 
-```bash
-dsh plugin --profile web remove dsh-evolve-web
+Unload/remove the adapter before its provider:
+
+```sh
+dsh plugin --profile web remove dsh-evolve-web dsh-evolve
 ```
-
-## Optional resident recovery
-
-The Bundle intentionally does not guess an owned run directory or enable automatic promotion. Add a later profile patch when the operator has selected the directories and Git sources:
-
-```yaml
-- id: evoforge-evolution
-  config:
-    cacheRoot: !!js dshHomePath('evoforge', 'git-skills')
-    supervisor:
-      runRoots:
-        - !!js dshHomePath('evoforge', 'plugin-delivery-runs')
-        - !!js dshHomePath('evoforge', 'plugin-delivery-qualified-runs')
-      scanIntervalMs: 30000
-    feedbackDraftRoot: !!js dshHomePath('evoforge', 'private-feedback-drafts')
-    shadowTargets:
-      - id: plugin-delivery
-        skill: build-dsh-plugin
-        casePackDir: /absolute/path/to/calibrated-plugin-delivery-cases
-        runRoot: !!js dshHomePath('evoforge', 'plugin-delivery-runs')
-    evaluatorTargets:
-      - id: plugin-delivery-evaluator
-        skill: build-dsh-plugin
-        root: !!js dshHomePath('evoforge', 'private-evaluator-drafts')
-        dshRevision: 47f943859bef60e4160492346772ded9b24f765a
-        shadowRunRoot: !!js dshHomePath('evoforge', 'plugin-delivery-qualified-runs')
-```
-
-Create both run roots before boot. The shipped Web profile already provides native Jobs, Storage Domain, Commands, and the browser runtime required by this configuration.
-
-## Cache and privacy contract
-
-- no Tool, Prompt, Skill, system message, or Session event is added;
-- normal model requests gain zero tokens and retain the native DSH request shape;
-- no background polling occurs; open, refresh, and completed actions cause reads;
-- automatic review windows are host-derived optional result fields, not browser timers or durable UI state;
-- parent outcome comparison is one optional aggregate counter, not individual outcomes, a browser history, or a verdict;
-- the Remote excludes run paths, proposal objects, feedback text, Prompt, cwd, and Session messages;
-- at most 20 feedback signals, 20 static targets, 20 recent Shadow runs, 20 actionable reviews, 20 approved inactive Generations, and one bounded diff cross the browser transport;
-- Shadow launch transports only a signal id and target id; host paths, feedback text, and model parameters never enter the browser;
-- Evaluator Author transports only a signal id and static target id; qualification and combined Qualify-and-Shadow transport only the exact draft id and human note; Qualified Shadow transports only the exact draft id;
-- the browser never becomes a second source of truth.
-
-See [ADR-0025](../../docs/adr/0025-web-is-a-thin-kv-safe-adapter.md), [ADR-0037](../../docs/adr/0037-one-human-action-may-qualify-and-start-shadow.md), the [base real-browser evidence](../../docs/evidence/p0c-6-web-control-plane.zh.md), the [explainable-review Chrome evidence](../../docs/evidence/ui-1-explainable-review.zh.md), the [P1.17 browser evidence](../../docs/evidence/p1-17-human-approved-qualify-and-shadow.zh.md), the [P1.20 review-window evidence](../../docs/evidence/p1-20-automatic-review-window-visibility.zh.md), and the [P1.21 outcome-comparison evidence](../../docs/evidence/p1-21-parent-generation-outcome-comparison.zh.md).

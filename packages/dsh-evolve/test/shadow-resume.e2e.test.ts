@@ -11,7 +11,7 @@ import { ShadowSupervisor } from '../src/shadow-supervisor.js'
 
 const execFile = promisify(execFileCallback)
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const cliPath = join(packageRoot, 'src', 'cli.ts')
+const cliPath = join(packageRoot, 'test', 'fixtures', 'shadow-driver.ts')
 const temporaryRoots: string[] = []
 
 afterEach(async () => {

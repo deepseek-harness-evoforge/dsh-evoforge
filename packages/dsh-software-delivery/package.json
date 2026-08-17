@@ -12,6 +12,7 @@
       "types": "./dist/index.d.mts",
       "default": "./dist/index.mjs"
     },
+    "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
   },
   "repository": {
@@ -30,14 +31,12 @@
     "git",
     "software-delivery"
   ],
-  "bin": {
-    "dsh-delivery": "./dist/cli.mjs"
-  },
   "files": [
-    "dist"
+    "dist",
+    "cordis.patch.yml"
   ],
   "scripts": {
-    "build": "tsdown src/cli.ts src/index.ts --format esm --clean",
+    "build": "tsdown src/index.ts --format esm --clean",
     "prepack": "pnpm run build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
@@ -46,10 +45,19 @@
     "node": "^22.19.0 || >=24.0.0"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": ">=4.0.0-rc.7 <5",
-    "@deepseek-ai/dsh-llm": ">=0.1.0-rc.5 <0.2.0",
-    "@deepseek-ai/dsh-skill": ">=0.1.0-rc.5 <0.2.0",
-    "@deepseek-ai/dsh-tools": ">=0.1.0-rc.5 <0.2.0"
+    "@deepseek-ai/cordis": "4.0.1",
+    "@deepseek-ai/dsh-goal": ">=0.1.0-rc.5 <0.1.0",
+    "@deepseek-ai/dsh-llm": ">=0.1.0-rc.5 <0.1.0",
+    "@deepseek-ai/dsh-skill": ">=0.1.0-rc.5 <0.1.0",
+    "@deepseek-ai/dsh-tools": ">=0.1.0-rc.5 <0.1.0"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh-goal": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.1",
@@ -75,5 +83,10 @@
     "tsdown": "^0.22.2",
     "typescript": "^6.0.3",
     "vitest": "^4.1.8"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
   }
 }

@@ -1,10 +1,12 @@
 # P0A.4：真实 DSH assembled Shadow 证据
 
+> 历史接口提示：本页保留当时实际执行的 standalone CLI 证据；该产品入口已由 [ADR-0041](../adr/0041-dsh-is-the-only-runtime-and-install-surface.md) 撤销，命令不可作为当前使用说明。当前 assembled 产品入口是 DSH Bundle/profile 与 native Job。
+>
 > 状态：`implemented`；证明一条无密钥真实装配路径，不等于 P0A 已退出，也不证明真实模型已经改善
 
 ## 用户结果
 
-`dsh-evolve shadow` 现在能把 known-bad、known-correction、baseline 和 Candidate 四棵 Skill 树分别放进 macOS Sealed Trial，并通过固定 revision 的真实 DeepSeek Harness 完成：
+当时的 standalone Shadow 能把 known-bad、known-correction、baseline 和 Candidate 四棵 Skill 树分别放进 macOS Sealed Trial，并通过固定 revision 的真实 DeepSeek Harness 完成：
 
 ```text
 Cordis Loader

@@ -25,7 +25,7 @@ describe('dsh-software-delivery Skill plugin', () => {
     const skill = await ctx.skills.get('software-delivery')
     expect(skill?.content).toContain('Use the native DSH Goal')
     expect(skill?.content).toContain('linked Git worktree')
-    expect(skill?.content).toContain('dsh-delivery verify')
+    expect(skill?.content).toContain('Do not bypass DSH')
     expect(skill?.content).toContain('Draft PR')
     expect(skill?.content).toContain('Never merge, release, deploy, read secrets')
 

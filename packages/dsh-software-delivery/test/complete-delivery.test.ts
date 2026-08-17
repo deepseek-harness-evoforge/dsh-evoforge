@@ -550,7 +550,7 @@ describe('complete_delivery Tool', () => {
     await test.ctx.fiber.dispose()
   })
 
-  it('binds late native Tool providers, then removes only its Tool and Skill on disposal', async () => {
+  it('registers one Agent-inherited Tool and resolves native dependencies at execution time', async () => {
     const ctx = new Context()
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
@@ -558,14 +558,14 @@ describe('complete_delivery Tool', () => {
     await ctx.plugin(GoalService)
     await ctx.plugin(SkillRegistry)
     const fiber = await ctx.plugin(DeliveryPlugin)
-    expect(ctx.tools.schemas().map(tool => tool.name)).not.toContain('complete_delivery')
+    expect(ctx.tools.schemas().map(tool => tool.name)).toContain('complete_delivery')
+    const completeSchema = ctx.tools.schemas().find(tool => tool.name === 'complete_delivery')
 
     installTestBash(ctx)
-    expect(ctx.tools.schemas().map(tool => tool.name)).not.toContain('complete_delivery')
+    expect(ctx.tools.schemas().find(tool => tool.name === 'complete_delivery')).toEqual(completeSchema)
     await ctx.plugin(ToolGoal, {})
     const nativeUpdate = ctx.tools.get('update_goal')
     expect(ctx.tools.schemas().map(tool => tool.name)).toContain('complete_delivery')
-    const completeSchema = ctx.tools.schemas().find(tool => tool.name === 'complete_delivery')
     expect(Buffer.byteLength(JSON.stringify(completeSchema))).toBeLessThanOrEqual(2_048)
     expect(Object.keys((completeSchema?.parameters as {
       properties?: Record<string, unknown>
