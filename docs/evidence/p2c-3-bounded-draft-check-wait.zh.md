@@ -28,8 +28,15 @@ Goal active，merge/ready/release 权限不变。
 - `dsh-software-delivery`：34 passed / 1 skipped；typecheck、build 通过；
 - pinned real DSH Goal/ToolGoal/native Bash/Agent assembled completion 通过；
 - packed tarball add/boot/remove、built CLI 与卸载后 native Skill composition 通过；
-- PA-1：`132 passed / 1 skipped`；全仓、真实公开 Draft PR pending→green 与 GitHub Actions
-  结果在最终提交后补记。
+- PA-1：`132 passed / 1 skipped`；串行全仓：`272 passed / 3 skipped`，docs、typecheck 与 build
+  全绿；标准本地并行门只命中未改动 Telegram package 的既有 `dist/index.mjs` clean 竞态，独立
+  重建后 Telegram 为 37/37；
+- exact commit `8ba18f3da4f6c65d017529e1abc773f00cb05b22` 的
+  [Draft PR #19](https://github.com/deepseek-harness-evoforge/dsh-evoforge/pull/19) 真实 live gate
+  从 `statusCheckRollup=[]` 开始，在同一个 `complete_delivery` 调用内经历 pending，215.28 秒后
+  三项全绿并完成 native Goal；artifact 为 `reused: true`，没有创建第二个 PR；
+- 同一 exact commit 的 GitHub Actions `31981275970`：Node 22、Node 24、macOS DSH Assembled
+  Trial 全部成功，PR 保持 Draft、base `feat/p1-qualify-and-shadow`、merge state `CLEAN`。
 
 ## Cache、权限与恢复
 
