@@ -60,6 +60,10 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   try {
     await runtime.start()
     const hostRoute: FeishuHostRoute = Object.freeze({
+      routes: Object.freeze(resolved.routes.map(route => Object.freeze({
+        routeId: route.id,
+        workspaceId: route.workspaceId,
+      }))),
       notify: (notice: FeishuHostNotice) => runtime.notifyHost(notice),
     })
     ctx.provide('evoforge.feishuRoute' as never, hostRoute as never)
@@ -86,7 +90,12 @@ export {
   type FeishuDeliveryStatus,
   type FeishuSendFailure,
 } from './delivery-state.js'
-export type { FeishuHostNotice, FeishuHostNoticeReceipt, FeishuHostRoute } from './host-route.js'
+export type {
+  FeishuHostNotice,
+  FeishuHostNoticeReceipt,
+  FeishuHostRoute,
+  FeishuHostRouteBinding,
+} from './host-route.js'
 export {
   createOfficialFeishuPlatform,
   FeishuPlatformSendError,

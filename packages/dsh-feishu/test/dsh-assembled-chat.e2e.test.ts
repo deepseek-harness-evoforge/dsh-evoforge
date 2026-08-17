@@ -152,6 +152,16 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
     if (service === undefined) throw new Error('Feishu test runtime service did not load')
     try {
       expect(service.platform.connected).toBe(true)
+      const hostRoute = ctx.get('evoforge.feishuRoute') as {
+        routes: readonly { routeId: string; workspaceId: string }[]
+      } | undefined
+      const router = ctx.get('evoforge.channelRouter') as {
+        route(id: string): { workspaceId: string } | undefined
+      }
+      expect(hostRoute?.routes).toEqual([{
+        routeId: 'feishu-main',
+        workspaceId: router.route('feishu-main')?.workspaceId,
+      }])
       await service.platform.emitMessage(message({ messageId: 'om_denied', senderId: 'ou_mallory' }))
       await new Promise(resolve => setTimeout(resolve, 50))
       expect(service.platform.texts).toHaveLength(0)

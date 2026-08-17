@@ -43,8 +43,8 @@ const contracts = [
     disabled: true,
   },
   {
-    name: 'dsh-evolve-telegram',
-    entryId: 'evoforge-evolve-telegram',
+    name: 'dsh-evolve-attention',
+    entryId: 'evoforge-evolve-attention',
     disabled: true,
   },
   {

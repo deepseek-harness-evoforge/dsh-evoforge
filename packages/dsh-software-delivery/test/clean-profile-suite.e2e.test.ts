@@ -20,7 +20,7 @@ const packageNames = [
   'dsh-channel-router',
   'dsh-doctor',
   'dsh-evolve',
-  'dsh-evolve-telegram',
+  'dsh-evolve-attention',
   'dsh-evolve-web',
   'dsh-feishu',
   'dsh-github-review',
@@ -91,7 +91,7 @@ describe.skipIf(process.platform !== 'darwin')('clean-profile assembled EvoForge
       'dsh-channel-router',
       'dsh-doctor',
       'dsh-evolve',
-      'dsh-evolve-telegram',
+      'dsh-evolve-attention',
       'dsh-evolve-web',
       'dsh-feishu',
       'dsh-github-review',
@@ -281,7 +281,7 @@ describe.skipIf(process.platform !== 'darwin')('clean-profile assembled EvoForge
 })
 
 function evoforgeRows(dump: string): string[] {
-  return [...dump.matchAll(/^\s*name:\s*(dsh-(?:channel-router|doctor|evolve(?:-telegram|-web)?|feishu|github-review|goal-continuity|resident|software-delivery|telegram))\s*$/gmu)]
+  return [...dump.matchAll(/^\s*name:\s*(dsh-(?:channel-router|doctor|evolve(?:-attention|-web)?|feishu|github-review|goal-continuity|resident|software-delivery|telegram))\s*$/gmu)]
     .map(match => match[1]!)
 }
 

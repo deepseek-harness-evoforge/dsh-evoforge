@@ -47,6 +47,10 @@ describe('Feishu protected deployment config', () => {
       maxTextChars: 4_000,
     })
     expect([...resolved.routeIds]).toEqual(['feishu-private', 'feishu-group'])
+    expect(resolved.routes.map(route => ({ id: route.id, workspaceId: route.workspaceId }))).toEqual([
+      { id: 'feishu-private', workspaceId: 'workspace-a' },
+      { id: 'feishu-group', workspaceId: 'workspace-b' },
+    ])
     expect(resolved.routes[1]?.endpoint).toEqual({
       adapter: 'feishu',
       accountId: 'cli_app_id',

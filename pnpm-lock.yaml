@@ -200,7 +200,7 @@ importers:
         specifier: ^4.1.8
         version: 4.1.10(@types/node@22.20.1)(esbuild@0.28.2)(jsdom@26.0.0)(tsx@4.23.12)(yaml@2.9.0)
 
-  packages/dsh-evolve-telegram:
+  packages/dsh-evolve-attention:
     dependencies:
       '@deepseek-ai/schemastery':
         specifier: 3.18.1
@@ -215,6 +215,9 @@ importers:
       dsh-evolve:
         specifier: workspace:*
         version: link:../dsh-evolve
+      dsh-feishu:
+        specifier: workspace:*
+        version: link:../dsh-feishu
       dsh-telegram:
         specifier: workspace:*
         version: link:../dsh-telegram

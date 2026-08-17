@@ -9,6 +9,13 @@ export interface FeishuHostNoticeReceipt {
   readonly status: 'prepared' | 'sending' | 'retrying' | 'delivered' | 'uncertain' | 'failed'
 }
 
+export interface FeishuHostRouteBinding {
+  readonly routeId: string
+  readonly workspaceId: string
+}
+
 export interface FeishuHostRoute {
+  /** Exact native Workspace ownership for each statically configured Router route. */
+  readonly routes: readonly FeishuHostRouteBinding[]
   notify(notice: FeishuHostNotice): Promise<FeishuHostNoticeReceipt>
 }

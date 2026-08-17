@@ -78,9 +78,9 @@ _Avoid_: Self-rewriting agent, autonomous platform
 A bounded host-only notice that an actionable Candidate or Evaluator Draft exists, delivered through an already authorized adapter while the originating Session continues. The notice points to the authoritative control command and never grants approval itself.
 _Avoid_: Notification platform, inline approval, dynamic prompt injection, second workflow engine
 
-**Evolve Telegram Bridge**:
-The removable `dsh-evolve-telegram` composition plugin that projects Evolution Attention onto the one exact private-chat route owned by `dsh-telegram`. It creates no timer, route configuration, public provider SPI, or second evolution state.
-_Avoid_: Generic notifier, channel routing core, Telegram approval bot
+**Evolution Attention Bridge**:
+The removable `dsh-evolve-attention` composition plugin that projects Evolution Attention onto exact Workspace routes already owned by `dsh-telegram` and/or `dsh-feishu`. It validates route-to-Workspace ownership and creates no timer, route configuration, public provider SPI, or second evolution state.
+_Avoid_: Generic notifier, channel routing core, channel approval bot
 
 **GitHub Review Follow-up**:
 A bounded, content-addressed follow-up created when an allowlisted reviewer requests changes on the exact Draft PR head produced by a Delivery Outcome. The review is trusted only to trigger attention; its text remains untrusted input and can never authorize a Protected Action.

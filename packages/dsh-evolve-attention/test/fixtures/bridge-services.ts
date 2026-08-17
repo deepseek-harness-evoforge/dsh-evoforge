@@ -16,6 +16,7 @@ export function reset(): void {
 
 export function apply(ctx: Context): void {
   const overview: EvolutionAttentionOverview = {
+    workspaceId,
     reviews: {
       items: [{
         id: reviewId,

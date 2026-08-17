@@ -7,8 +7,9 @@ import {
 
 const candidateId = 'a'.repeat(64)
 const evaluatorId = 'b'.repeat(64)
+const workspaceId = '11111111-1111-4111-8111-111111111111'
 
-describe('Evolve Telegram attention projection', () => {
+describe('Evolve channel attention projection', () => {
   it('projects only states that require a human action', () => {
     const notices = projectEvolutionAttention(overview({
       review: {
@@ -147,6 +148,7 @@ function overview(input: {
     skillName: input.evaluator.skillName,
   }]
   return {
+    workspaceId,
     evaluatorAuthoring: {
       drafts: evaluator,
     },

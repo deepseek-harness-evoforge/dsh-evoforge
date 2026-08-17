@@ -14,7 +14,7 @@
 | `dsh-doctor` | 原生 `/doctor` Loader readiness | enabled |
 | `dsh-github-review` | Draft PR exact-head 人类返修回到原 Session/Goal | disabled，需显式配置 |
 | `dsh-telegram` | 一个授权私聊经 Router 到原生 Workspace/Session/Agent 的 Adapter | disabled，需显式配置 |
-| `dsh-evolve-telegram` | 把进化待决事项投影到既有 Telegram route | disabled，需显式配置 |
+| `dsh-evolve-attention` | 把 Workspace-scoped 进化待决事项投影到既有 Telegram/飞书 route | disabled，需显式配置 |
 | `dsh-goal-continuity` | exact allowlist Session 的原生 Goal cold-resume policy | disabled，需显式配置 |
 | `dsh-resident` | `/resident` 管理 exact DSH profile 的 launchd/systemd user unit | disabled，需显式配置与逐次确认 |
 | `dsh-channel-router` | external endpoint 到原生 Workspace/Session/Agent 的静态、幂等绑定 | disabled，需显式配置 |
@@ -31,7 +31,7 @@ pnpm install --frozen-lockfile
 PACK_DIR="$(mktemp -d)"
 for package in \
   dsh-evolve dsh-evolve-web dsh-software-delivery dsh-doctor \
-  dsh-github-review dsh-telegram dsh-evolve-telegram dsh-goal-continuity \
+  dsh-github-review dsh-telegram dsh-evolve-attention dsh-goal-continuity \
   dsh-resident dsh-channel-router dsh-feishu
 do
   pnpm --filter "$package" pack --pack-destination "$PACK_DIR"
@@ -63,7 +63,7 @@ dsh --profile web
 ```sh
 dsh plugin --profile web remove \
   dsh-evolve-web dsh-evolve dsh-software-delivery dsh-doctor \
-  dsh-github-review dsh-evolve-telegram dsh-telegram dsh-goal-continuity \
+  dsh-github-review dsh-evolve-attention dsh-telegram dsh-goal-continuity \
   dsh-resident dsh-feishu dsh-channel-router
 dsh --profile web --dump-config
 dsh --profile web
@@ -73,7 +73,7 @@ dsh --profile web
 
 ## 当前 v0.1 工作
 
-Workspace Channel Router、Telegram 与飞书第二 Adapter 已实现：静态 exact endpoint、原生 Workspace/Session/Agent、原生 Command/Approval、持久 ingress/outbound、429/uncertain、Goal/Schedule continuation、真实 Host Agent Loop、双 Workspace 双渠道重启隔离与独立 tarball lifecycle 已通过。Evolution 的 Candidate、Case Pack、Generation、反馈、预算、审查、晋升与回滚也已显式绑定 Workspace，并由真实双 Workspace Host 路径证明 Session pin、future-session 生效与重启隔离。十一包同一次 clean-profile tarball add/dump/boot/remove/readback 门禁已通过。完成声明仍需要完整 composition cache gate、真实浏览器、飞书进化注意力、可用凭据下的飞书/Telegram 冒烟以及 Hermes paired benchmark。
+Workspace Channel Router、Telegram 与飞书第二 Adapter 已实现：静态 exact endpoint、原生 Workspace/Session/Agent、原生 Command/Approval、持久 ingress/outbound、429/uncertain、Goal/Schedule continuation、真实 Host Agent Loop、双 Workspace 双渠道重启隔离与独立 tarball lifecycle 已通过。Evolution 的 Candidate、Case Pack、Generation、反馈、预算、审查、晋升与回滚也已显式绑定 Workspace，并由真实双 Workspace Host 路径证明 Session pin、future-session 生效与重启隔离；Telegram/飞书 evolution attention 也已通过同一双 Workspace Host 的精确路由、重复事件与重启去重。十一包同一次 clean-profile tarball add/dump/boot/remove/readback 门禁已通过。完成声明仍需要完整 composition cache gate、真实浏览器、可用凭据下的飞书/Telegram 冒烟以及 Hermes paired benchmark。
 
 - [安装与验收](docs/getting-started.zh.md)
 - [当前状态](docs/status.zh.md)

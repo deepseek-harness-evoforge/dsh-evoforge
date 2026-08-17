@@ -9,6 +9,7 @@ const EVALUATOR_ACTIONS = new Set<EvolutionAttentionEvaluatorDraft['status']>([
 
 /** Minimal read contract projected from dsh-evolve; the bridge does not depend on its generated types. */
 export interface EvolutionAttentionOverview {
+  readonly workspaceId: string
   readonly reviews: { readonly items: readonly EvolutionAttentionReview[] }
   readonly evaluatorAuthoring?: { readonly drafts: readonly EvolutionAttentionEvaluatorDraft[] }
 }
@@ -42,7 +43,7 @@ export interface EvolutionAttentionNotice {
   readonly kind: 'candidate-review' | 'candidate-promotion' | 'evaluator-draft'
 }
 
-/** Project bounded host facts only; the Telegram message never becomes model input or approval. */
+/** Project bounded host facts only; a channel notice never becomes model input or approval. */
 export function projectEvolutionAttention(
   overview: EvolutionAttentionOverview,
 ): EvolutionAttentionNotice[] {

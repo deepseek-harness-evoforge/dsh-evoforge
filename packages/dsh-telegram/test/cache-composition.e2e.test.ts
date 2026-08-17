@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const suiteRoot = resolve(packageRoot, '../..')
-const bridgeRoot = resolve(packageRoot, '../dsh-evolve-telegram')
+const bridgeRoot = resolve(packageRoot, '../dsh-evolve-attention')
 const routerRoot = resolve(packageRoot, '../dsh-channel-router')
 const dshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR ?? resolve(suiteRoot, '../deepseek-harness')
 const temporaryRoots: string[] = []
@@ -171,8 +171,9 @@ async function captureComposition(
     ...mode === 'attention' ? [{
       id: 'evolution-source',
       name: join(bridgeRoot, 'test', 'fixtures', 'evolution-source.ts'),
+      config: { active: true },
     }, {
-      id: 'evolve-telegram',
+      id: 'evolve-attention',
       name: join(bridgeRoot, 'dist', 'index.mjs'),
     }] : [],
   ], null, 2))

@@ -1,7 +1,7 @@
 {
-  "name": "dsh-evolve-telegram",
+  "name": "dsh-evolve-attention",
   "version": "0.1.0-alpha.1",
-  "description": "Cache-safe Telegram attention for actionable EvoForge reviews",
+  "description": "Cache-safe Telegram and Feishu attention for actionable EvoForge reviews",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -18,13 +18,13 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/deepseek-harness-evoforge/dsh-evoforge.git",
-    "directory": "packages/dsh-evolve-telegram"
+    "directory": "packages/dsh-evolve-attention"
   },
   "homepage": "https://github.com/deepseek-harness-evoforge/dsh-evoforge#readme",
   "bugs": {
     "url": "https://github.com/deepseek-harness-evoforge/dsh-evoforge/issues"
   },
-  "keywords": ["deepseek-harness", "dsh", "evolution", "telegram", "attention"],
+  "keywords": ["deepseek-harness", "dsh", "evolution", "telegram", "feishu", "attention"],
   "files": ["dist", "cordis.patch.yml", "README.md"],
   "scripts": {
     "build": "tsdown src/index.ts --format esm --clean",
@@ -41,12 +41,18 @@
   "peerDependencies": {
     "@deepseek-ai/cordis": "4.0.1",
     "dsh-evolve": ">=0.1.0-alpha.1 <0.2.0",
+    "dsh-feishu": ">=0.1.0-alpha.1 <0.2.0",
     "dsh-telegram": ">=0.1.0-alpha.1 <0.2.0"
+  },
+  "peerDependenciesMeta": {
+    "dsh-feishu": { "optional": true },
+    "dsh-telegram": { "optional": true }
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.1",
     "@types/node": "^22.20.0",
     "dsh-evolve": "workspace:*",
+    "dsh-feishu": "workspace:*",
     "dsh-telegram": "workspace:*",
     "tsdown": "^0.22.2",
     "typescript": "^6.0.3",

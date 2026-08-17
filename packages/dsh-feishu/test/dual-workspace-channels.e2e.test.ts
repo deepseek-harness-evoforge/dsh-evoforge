@@ -17,6 +17,7 @@ const execFile = promisify(execFileCallback)
 const suiteRoot = resolve(packageRoot, '../..')
 const routerRoot = resolve(packageRoot, '../dsh-channel-router')
 const telegramRoot = resolve(packageRoot, '../dsh-telegram')
+const attentionRoot = resolve(packageRoot, '../dsh-evolve-attention')
 const dshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR ?? resolve(suiteRoot, '../deepseek-harness')
 const temporaryRoots: string[] = []
 
@@ -27,13 +28,14 @@ afterEach(async () => {
 
 describe.skipIf(process.platform !== 'darwin')('DSH assembled dual Workspace channels', () => {
   it('keeps Telegram and Feishu Sessions, Commands, Approvals, continuations, and restart state isolated', async () => {
-    for (const cwd of [routerRoot, telegramRoot, packageRoot]) {
+    for (const cwd of [routerRoot, telegramRoot, packageRoot, attentionRoot]) {
       await execFile('pnpm', ['run', 'build'], { cwd, encoding: 'utf8', timeout: 30_000 })
     }
     const root = await mkdtemp(join(tmpdir(), 'dsh-dual-workspace-channels-'))
     temporaryRoots.push(root)
     const telegramWorkspace = join(root, 'telegram-workspace')
     const feishuWorkspace = join(root, 'feishu-workspace')
+    const attentionActivationFile = join(root, 'attention-active')
     const presetRoot = join(root, 'agent-presets')
     await Promise.all([
       mkdir(telegramWorkspace, { recursive: true }),
@@ -101,6 +103,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled dual Workspace cha
       presetRoot,
       telegramWorkspace,
       feishuWorkspace,
+      attentionActivationFile,
       telegramApiBase: `http://127.0.0.1:${address.port}`,
     }), null, 2))
     vi.stubEnv('DSH_TELEGRAM_DUAL_TOKEN', 'test-token')
@@ -218,6 +221,30 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled dual Workspace cha
         await vi.waitFor(() => { expect(feishu.platform.texts).toHaveLength(3) }, { timeout: 15_000, interval: 25 })
         expect(telegramSends).toHaveLength(4)
 
+        const router = first.get('evoforge.channelRouter') as {
+          route(id: string): { workspaceId: string } | undefined
+        }
+        const telegramWorkspaceId = router.route('telegram-dual')?.workspaceId
+        const feishuWorkspaceId = router.route('feishu-dual')?.workspaceId
+        if (telegramWorkspaceId === undefined || feishuWorkspaceId === undefined) {
+          throw new Error('dual Workspace routes did not resolve')
+        }
+        expect(telegramWorkspaceId).not.toBe(feishuWorkspaceId)
+        await writeFile(attentionActivationFile, 'active\n')
+        first.emit('evoforge/evolution/settled')
+        await vi.waitFor(() => {
+          expect(telegramSends.filter(send => String(send.text).startsWith('EvoForge attention'))).toHaveLength(1)
+          expect(feishu.platform.texts.filter(send => send.text.startsWith('EvoForge attention'))).toHaveLength(1)
+        }, { timeout: 15_000, interval: 25 })
+        const telegramAttention = telegramSends.find(send => String(send.text).startsWith('EvoForge attention'))
+        const feishuAttention = feishu.platform.texts.find(send => send.text.startsWith('EvoForge attention'))
+        expect(telegramAttention?.text).toEqual(expect.stringContaining(`Skill: workspace-${telegramWorkspaceId.slice(0, 8)}`))
+        expect(telegramAttention?.text).not.toEqual(expect.stringContaining(feishuWorkspaceId.slice(0, 8)))
+        expect(feishuAttention?.text).toContain(`Skill: workspace-${feishuWorkspaceId.slice(0, 8)}`)
+        expect(feishuAttention?.text).not.toContain(telegramWorkspaceId.slice(0, 8))
+        const source = first.get('evoforge.attentionTestSource') as { calls: string[] } | undefined
+        expect(new Set(source?.calls)).toEqual(new Set([telegramWorkspaceId, feishuWorkspaceId]))
+
         firstTelegramExecution = executionCounts(telegramAgent?.session.events)
         firstFeishuExecution = executionCounts(feishuAgent?.session.events)
       } finally {
@@ -235,6 +262,19 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled dual Workspace cha
         await new Promise(resolve => setTimeout(resolve, 300))
         expect(telegramSends).toHaveLength(telegramSendCountBeforeRestart)
         expect(feishu.platform.texts).toHaveLength(0)
+        expect(telegramSends.filter(send => String(send.text).startsWith('EvoForge attention'))).toHaveLength(1)
+        const secondSource = second.get('evoforge.attentionTestSource') as { calls: string[] } | undefined
+        const secondRouter = second.get('evoforge.channelRouter') as {
+          route(id: string): { workspaceId: string } | undefined
+        }
+        const secondTelegramWorkspaceId = secondRouter.route('telegram-dual')?.workspaceId
+        const secondFeishuWorkspaceId = secondRouter.route('feishu-dual')?.workspaceId
+        expect(secondTelegramWorkspaceId).toBeDefined()
+        expect(secondFeishuWorkspaceId).toBeDefined()
+        expect(new Set(secondSource?.calls)).toEqual(new Set([
+          secondTelegramWorkspaceId,
+          secondFeishuWorkspaceId,
+        ]))
         expect(executionCounts(second.agents.get('telegram-session')?.session.events)).toEqual(firstTelegramExecution)
         expect(executionCounts(second.agents.get('feishu-session')?.session.events)).toEqual(firstFeishuExecution)
         expect(second.agents.get('telegram-session')?.session.header.cwd).toBe(canonicalTelegramWorkspace)
@@ -254,6 +294,7 @@ function hostConfig(input: {
   presetRoot: string
   telegramWorkspace: string
   feishuWorkspace: string
+  attentionActivationFile: string
   telegramApiBase: string
 }): unknown[] {
   return [
@@ -349,6 +390,15 @@ function hostConfig(input: {
         appIdEnv: 'DSH_FEISHU_DUAL_APP_ID',
         appSecretEnv: 'DSH_FEISHU_DUAL_APP_SECRET',
       },
+    },
+    {
+      id: 'evolution-source',
+      name: join(attentionRoot, 'test', 'fixtures', 'evolution-source.ts'),
+      config: { activationFile: input.attentionActivationFile },
+    },
+    {
+      id: 'evolve-attention',
+      name: join(attentionRoot, 'dist', 'index.mjs'),
     },
   ]
 }

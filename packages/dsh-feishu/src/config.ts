@@ -13,6 +13,7 @@ export interface FeishuConfigInput {
 
 export interface ResolvedFeishuRoute {
   readonly id: string
+  readonly workspaceId: string
   readonly sessionId: string
   readonly endpoint: ChannelEndpoint
 }
@@ -74,6 +75,7 @@ export function resolveFeishuConfig(
 
   const resolvedRoutes = routes.map(route => Object.freeze({
     id: route.id,
+    workspaceId: route.workspaceId,
     sessionId: route.sessionId,
     endpoint: Object.freeze({
       adapter: route.adapter,

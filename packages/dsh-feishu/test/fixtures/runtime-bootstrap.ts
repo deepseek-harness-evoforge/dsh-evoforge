@@ -3,6 +3,7 @@ import type { ChannelRouter, ResolvedChannelRoute } from 'dsh-channel-router'
 import type {
   FeishuDeliveryStore,
   FeishuApprovalAction,
+  FeishuHostNotice,
   FeishuInboundMessage,
   FeishuPlatform,
   FeishuSendOptions,
@@ -92,7 +93,11 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       router: ChannelRouter,
       store: FeishuDeliveryStore,
       platform: FeishuPlatform,
-    ) => { start(): Promise<void>; dispose(): Promise<void> }
+    ) => {
+      start(): Promise<void>
+      dispose(): Promise<void>
+      notifyHost(notice: FeishuHostNotice): Promise<unknown>
+    }
     openFeishuDeliveryStore(
       facility: Context['storageDomain'],
       options: { maxRecords: number },
@@ -108,5 +113,12 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   const runtime = new feishu.FeishuRuntime(ctx, resolved, router, store, platform)
   ctx.effect(() => async () => runtime.dispose(), 'dsh-feishu.test-runtime')
   await runtime.start()
+  ctx.provide('evoforge.feishuRoute' as never, Object.freeze({
+    routes: Object.freeze(resolved.routes.map(route => Object.freeze({
+      routeId: route.id,
+      workspaceId: route.workspaceId,
+    }))),
+    notify: (notice: FeishuHostNotice) => runtime.notifyHost(notice),
+  }) as never)
   ctx.provide('evoforge.feishuTest' as never, Object.freeze({ platform, runtime }) as never)
 }

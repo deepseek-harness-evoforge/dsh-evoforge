@@ -19,15 +19,15 @@ afterEach(async () => {
   await Promise.all(temporaryRoots.splice(0).map(path => rm(path, { recursive: true, force: true })))
 })
 
-describe.skipIf(process.platform !== 'darwin')('built dsh-evolve-telegram package boundary', () => {
+describe.skipIf(process.platform !== 'darwin')('built dsh-evolve-attention package boundary', () => {
   it('adds disabled, boots from the packed artifact, catches up once, and removes cleanly', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-telegram-package-'))
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-attention-package-'))
     temporaryRoots.push(root)
     const dshHome = join(root, 'dsh-home')
     const profileDir = join(dshHome, 'profiles', 'fixture')
     await mkdir(profileDir, { recursive: true })
     await writeFile(join(profileDir, 'package.json'), `${JSON.stringify({
-      name: 'dsh-evolve-telegram-package-boundary',
+      name: 'dsh-evolve-attention-package-boundary',
       private: true,
       dependencies: {},
       dsh: { profile: { bundles: [] } },
@@ -48,7 +48,7 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-evolve-telegram packag
       encoding: 'utf8',
       timeout: 10_000,
     })).stdout.trim()
-    const tarball = join(root, 'dsh-evolve-telegram-0.1.0-alpha.1.tgz')
+    const tarball = join(root, 'dsh-evolve-attention-0.1.0-alpha.1.tgz')
     const env = {
       ...process.env,
       COREPACK_ENABLE_DOWNLOAD_PROMPT: '0',
@@ -62,13 +62,13 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-evolve-telegram packag
       env,
     )
     const installedManifest = JSON.parse(await readFile(join(profileDir, 'package.json'), 'utf8'))
-    expect(installedManifest.dependencies?.['dsh-evolve-telegram']).toBeDefined()
-    expect(installedManifest.dsh.profile.bundles).toEqual(['dsh-evolve-telegram'])
+    expect(installedManifest.dependencies?.['dsh-evolve-attention']).toBeDefined()
+    expect(installedManifest.dsh.profile.bundles).toEqual(['dsh-evolve-attention'])
     const dumped = await execFile(process.execPath, [
       dshBin, '--profile', 'fixture', '--dump-config',
     ], { cwd: root, env, encoding: 'utf8', timeout: 30_000 })
-    expect(dumped.stdout).toContain('id: evoforge-evolve-telegram')
-    expect(dumped.stdout).toContain('name: dsh-evolve-telegram')
+    expect(dumped.stdout).toContain('id: evoforge-evolve-attention')
+    expect(dumped.stdout).toContain('name: dsh-evolve-attention')
     expect(dumped.stdout).toContain('disabled: true')
 
     services.reset()
@@ -78,12 +78,12 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-evolve-telegram packag
         id: 'services',
         name: join(packageRoot, 'test', 'fixtures', 'bridge-services.ts'),
       },
-      { id: 'bridge', name: 'dsh-evolve-telegram' },
+      { id: 'bridge', name: 'dsh-evolve-attention' },
     ], null, 2))
     const ctx = await boot(installedConfig)
     try {
       const entry = [...ctx.loader.entries()]
-        .find(candidate => candidate.options.name === 'dsh-evolve-telegram')
+        .find(candidate => candidate.options.name === 'dsh-evolve-attention')
       expect(entry?.fiber?.state).toBe(2)
       const route = ctx.get('evoforge.telegramRoute') as {
         workspaceId: string
@@ -100,9 +100,9 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-evolve-telegram packag
       await ctx.fiber.dispose()
     }
 
-    await runDsh(['plugin', '--profile', 'fixture', 'remove', 'dsh-evolve-telegram'], root, env)
+    await runDsh(['plugin', '--profile', 'fixture', 'remove', 'dsh-evolve-attention'], root, env)
     const removedManifest = JSON.parse(await readFile(join(profileDir, 'package.json'), 'utf8'))
-    expect(removedManifest.dependencies?.['dsh-evolve-telegram']).toBeUndefined()
+    expect(removedManifest.dependencies?.['dsh-evolve-attention']).toBeUndefined()
     expect(removedManifest.dsh.profile.bundles).toEqual([])
   }, 60_000)
 })
@@ -127,5 +127,5 @@ async function boot(configPath: string) {
   const appBoot = await import(
     pathToFileURL(join(dshSourceDir, 'packages', 'boot', 'app-boot', 'lib', 'index.js')).href
   )
-  return appBoot.boot('dsh-evolve-telegram-package-test', configPath)
+  return appBoot.boot('dsh-evolve-attention-package-test', configPath)
 }

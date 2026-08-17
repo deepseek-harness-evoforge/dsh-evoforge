@@ -3,10 +3,11 @@
 > 调研快照：2026-08-17
 > 代码基线：EvoForge `750b75fd62e65e6e302bebff1d63b3637b6ce1ef`；DSH `47f943859bef60e4160492346772ded9b24f765a`
 > 本文是需求排序，不是实现完成声明。
+> 后续实现将未发布的 Telegram 专用候选收窄并更名为 `dsh-evolve-attention`；它仍只适配 Suite 内已有的 Telegram/Feishu 具体 route，不是通用通知平台。
 
 ## 结论
 
-下一项只做 **`dsh-evolve-telegram`**：
+下一项只做 **`dsh-evolve-attention`**（调研时暂名 `dsh-evolve-telegram`）：
 
 > 当后台自进化产生新的待审 Candidate 或 Evaluator Draft 时，部署授权的现有 Telegram 私聊收到一条确定性、可去重的 attention 消息；用户在同一私聊里复用现有 `/evolve` Command 查看、拒绝或批准，原 Session 不等待。
 
@@ -66,11 +67,11 @@ DSH 早期 Discussion 对 CLI 和远程访问的互动明显；远程 Web 讨论
 
 | 排名 | 候选 | 场景频率与证据 | 现有替代 | 最小用户结果 | 复杂度 | KV / token 影响 | 验证方式 |
 |---:|---|---|---|---|---|---|---|
-| 1 | **`dsh-evolve-telegram`** | 对未启用自进化者为零；对启用自动 Candidate/Draft 的用户，每个模糊结果都可能触发。频率未测，但每次都对应一个必须处理或过期的高价值决定；当前仓库缺口是直接事实 | 手工打开 Web、反复运行 `/evolve status|review`、依赖记忆回来看 | 新 actionable review 出现后，固定 Telegram 私聊收到一次可解释提示，并在同一私聊复用现有 `/evolve` 命令处理；原 Session 不等待 | 小到中：一个窄集成包、耐久去重、重启恢复；不新建决策状态 | **普通 Session 0**；确定性消息 0 模型调用；`/evolve` Command 0 模型调用；不改变当前 Session composition | fake Bot API + assembled DSH；Candidate/Draft 两类 transition；重复/重启/uncertain delivery；exact route；stale command fail closed；composition parity；packed add/boot/remove；真实 Bot soak 后补 |
+| 1 | **`dsh-evolve-attention`**（原候选名 `dsh-evolve-telegram`） | 对未启用自进化者为零；对启用自动 Candidate/Draft 的用户，每个模糊结果都可能触发。频率未测，但每次都对应一个必须处理或过期的高价值决定；当前仓库缺口是直接事实 | 手工打开 Web、反复运行 `/evolve status|review`、依赖记忆回来看 | 新 actionable review 出现后，静态授权的 Telegram/Feishu route 收到一次可解释提示，并复用现有 `/evolve` 控制面处理；原 Session 不等待 | 小到中：一个窄集成包、耐久去重、重启恢复；不新建决策状态 | **普通 Session 0**；确定性消息 0 模型调用；`/evolve` Command 0 模型调用；不改变当前 Session composition | fake Telegram/Feishu 边界 + assembled DSH；Candidate/Draft 两类 transition；重复/重启/uncertain delivery；exact route；stale command fail closed；composition parity；packed add/boot/remove；真实渠道 soak 后补 |
 | 2 | `dsh-desktop-attention` | 长任务完成/需输入是高频通用场景，一方 Claude 文档与 Issue 证据强；但 EvoForge 已用 Telegram 覆盖 turn 完成和 DSH Approval | 终端 bell、OS 原生通知、Claude-style hook、现有 `dsh-telegram` | Goal complete/blocked 或 DSH Approval 时，本机弹出确定性通知 | 单平台小，macOS/Linux/Windows 一致实现与 E2E 为中；跨平台语义容易膨胀 | 0 Tool/Prompt/Skill；0 模型调用；只在 host event 后执行 | fake process adapter；三系统命令/转义；实际 macOS 通知冒烟；dispose 无遗留 |
 | 3 | `dsh-calendar-briefing` | 可能每天发生，个人助理价值直观；目前只有 Hermes 能力/Issue 样本，没有 DSH 直接需求或 EvoForge 用户数据 | Google Calendar 自带通知/Agenda、现有客户端、Hermes Google Workspace Skill | 只读未来 24 小时事件，生成固定格式摘要并投递 Telegram；不创建/修改事件 | 中到大：OAuth、refresh、scope、时区、重复事件、敏感数据、限流 | 固定格式可做到普通 Session 0；若让 Agent 总结会新增请求 token；若加 calendar Tool 则启用该插件的 Session 多一个稳定 schema | fake Calendar API；DST/全天/重复事件；最小 scope；token revoke；429/5xx；真实 OAuth 只读验收；写入另立 Protected Action 测试 |
 
-## 为什么唯一推荐 `dsh-evolve-telegram`
+## 为什么唯一推荐 `dsh-evolve-attention`
 
 ### 它完成的是现有产品结果，不是新平台
 

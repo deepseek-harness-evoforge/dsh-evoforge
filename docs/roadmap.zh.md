@@ -33,7 +33,7 @@
 
 ## V2 — 飞书 Adapter
 
-实现状态：Adapter、可靠投递、真实 DSH 单 Workspace 组合、双 Workspace 双渠道同 Host 重启隔离、tarball lifecycle 与十一包总装已完成；飞书进化注意力和真实凭据仍未达到退出门。
+实现状态：Adapter、可靠投递、真实 DSH 单 Workspace 组合、双 Workspace 双渠道同 Host 重启隔离、Telegram/飞书进化注意力、tarball lifecycle 与十一包总装已完成；真实凭据仍未达到退出门。
 
 - 支持静态授权的私聊或群聊文本、原生 Command、一次性 Approval、最终回答、Goal/Schedule 与进化注意力；
 - 凭据、身份与 Workspace route 只能由部署配置决定；

@@ -13,7 +13,7 @@ dsh plugin --profile web add /absolute/path/dsh-telegram-0.1.0-alpha.1.tgz
 - native slash Commands without a model call;
 - one-shot DSH Approval buttons (`allowed-once` or `rejected` only);
 - a durable Storage Domain delivery journal and `/telegram` status;
-- a suite-internal exact notice route used by `dsh-evolve-telegram` without exposing a generic
+- a suite-internal exact notice route used by `dsh-evolve-attention` without exposing a generic
   notification provider;
 - a 10,000-record hard bound for terminal outbound delivery history;
 - bounded retry only after Telegram explicitly returns `429 + retry_after`.
@@ -98,12 +98,12 @@ crash at an unprovable effect boundary becomes `uncertain`; replaying the same u
 it twice, and the user receives a bounded instruction to send a new Telegram message. Telegram
 journal compaction removes only the oldest terminal outbound records and never a live delivery.
 
-When the optional `dsh-evolve-telegram` bridge is enabled in the same profile, actionable Evolve
+When the optional `dsh-evolve-attention` bridge is enabled in the same profile, actionable Evolve
 Candidate and Evaluator Draft states use this package's existing exact chat route and delivery
 journal. The suite-internal route service exposes the same static native Workspace id so every
 Evolve scan remains explicitly Workspace-scoped. The bridge does not read the Bot token, add
 another route, choose a recent Workspace, or turn a notice into Approval.
-See [`dsh-evolve-telegram`](../dsh-evolve-telegram/README.md) for its message and cache contract.
+See [`dsh-evolve-attention`](../dsh-evolve-attention/README.md) for its message and cache contract.
 
 ## Deliberate limits
 
