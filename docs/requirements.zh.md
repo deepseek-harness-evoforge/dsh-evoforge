@@ -1,6 +1,6 @@
 # DeepSeek Harness EvoForge 项目需求基线
 
-> 状态：已确认；P0A–P1.21、P2A.1–P2D.1、P3.1、P3.2、LC-1、LC-2 和 Runtime Readiness 已有可复用实现，产品形态已纠正为“只安装并运行于 DSH 的原生 out-of-tree 插件套件”；十一包统一原生安装、多 Workspace 双渠道自动化隔离、Workspace-scoped evolution、真实浏览器复验与一个确定性 EV-1 Hermes paired slice 已通过，真实渠道凭据、长期 outcome 与其余 Hermes paired epochs 等完整真实验收完成前仍不构成 v0.1 交付
+> 状态：已确认；P0A–P1.21、P2A.1–P2D.1、P3.1、P3.2、LC-1、LC-2 和 Runtime Readiness 已有可复用实现，产品形态已纠正为“只安装并运行于 DSH 的原生 out-of-tree 插件套件”；十一包统一原生安装、多 Workspace 双渠道自动化隔离、Workspace-scoped evolution、真实浏览器复验与 EV-1、SD-1、LC-1 三个确定性 Hermes paired slice 已通过，真实渠道凭据、长期 outcome 与其余 Hermes paired epochs 等完整真实验收完成前仍不构成 v0.1 交付
 > 更新日期：2026-08-17
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。发生冲突时，下述“方向纠正”优先于旧里程碑文字。
 

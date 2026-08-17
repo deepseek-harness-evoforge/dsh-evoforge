@@ -29,7 +29,7 @@ EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。最新能�
 | Resident OS unit | `implemented` | disabled Bundle、原生 `/resident`、exact hash/service-id 确认、无 bin tarball、十一包总装、launchd/systemd 与 macOS crash 测试 | Linux 真机和多日 soak |
 | Workspace Channel Router | `implemented` | exact endpoint deny-by-default；原生 Workspace/Session/Agent create/resume；持久幂等/uncertain 状态机；Telegram/飞书同一真实 Host 的双 Workspace、Command、Approval、continuation 与重启去重隔离；十一包总装 | 真实凭据 |
 | 飞书 Adapter | `implemented` | [AS-2](evidence/as-2-feishu-channel.zh.md)：官方 SDK WebSocket；exact allowlist；原生 Agent/Command/Approval/continuation；StorageDomain journal、429/uncertain、单渠道及双 Workspace 真实 Host、双 Agent 完整 composition parity、tarball add/dump/remove | 真实 App 凭据冒烟与多日重连 |
-| Hermes paired benchmark | `implemented` | [EV-1](evidence/ev-1-hermes-paired-benchmark.zh.md) 与 [SD-1](evidence/sd-1-hermes-paired-benchmark.zh.md) 两个确定性 paired slice：Skill 修正 active mutation 0:1；failed-check completion 0:1 | 同模型真实编码、真实渠道/审批、长任务、真实 provider 与长期 outcome 的 paired epochs |
+| Hermes paired benchmark | `implemented` | [EV-1](evidence/ev-1-hermes-paired-benchmark.zh.md)、[SD-1](evidence/sd-1-hermes-paired-benchmark.zh.md) 与 [LC-1](evidence/lc-1-hermes-paired-benchmark.zh.md) 三个确定性 paired slice：Skill 修正 active mutation 0:1；failed-check completion 0:1；本机崩溃后丢失状态/重复恢复 0:0 平局 | 同模型真实编码、真实渠道/审批、真实模型长任务、真实 provider 与长期 outcome 的 paired epochs |
 | Registry release | `planned` | 无 | 全部门禁、版本矩阵、用户授权 |
 
 ## 当前可安装面
