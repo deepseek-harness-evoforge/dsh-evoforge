@@ -29,7 +29,7 @@ EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。最新能�
 | Resident OS unit | `implemented` | disabled Bundle、原生 `/resident`、exact hash/service-id 确认、无 bin tarball、十一包总装、launchd/systemd 与 macOS crash 测试 | Linux 真机和多日 soak |
 | Workspace Channel Router | `implemented` | exact endpoint deny-by-default；原生 Workspace/Session/Agent create/resume；持久幂等/uncertain 状态机；Telegram/飞书同一真实 Host 的双 Workspace、Command、Approval、continuation 与重启去重隔离；十一包总装 | 真实凭据 |
 | 飞书 Adapter | `implemented` | [AS-2](evidence/as-2-feishu-channel.zh.md)：官方 SDK WebSocket；exact allowlist；原生 Agent/Command/Approval/continuation；StorageDomain journal、429/uncertain、单渠道及双 Workspace 真实 Host、双 Agent 完整 composition parity、tarball add/dump/remove | 真实 App 凭据冒烟与多日重连 |
-| Hermes paired benchmark | `planned` | 历史架构记分卡 | 使用 v0.1 同一场景可复跑对照 |
+| Hermes paired benchmark | `implemented` | [EV-1 确定性 paired slice](evidence/ev-1-hermes-paired-benchmark.zh.md)：同 baseline/correction/sealed evaluator；两端 fail→pass，EvoForge active mutation 0、Hermes 1，Session pin/Workspace/rollback/restart hard gates 通过 | 软件交付、真实渠道/审批、真实 provider、长任务与长期 outcome 的 paired epochs |
 | Registry release | `planned` | 无 | 全部门禁、版本矩阵、用户授权 |
 
 ## 当前可安装面

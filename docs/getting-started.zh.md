@@ -141,8 +141,9 @@ DSH_EVOLVE_DSH_SOURCE_DIR=/absolute/path/to/deepseek-harness \
   pnpm --filter dsh-doctor exec vitest run test/suite-native-plugin-contract.test.ts
 DSH_EVOLVE_DSH_SOURCE_DIR=/absolute/path/to/deepseek-harness \
   pnpm --filter dsh-software-delivery exec vitest run test/clean-profile-suite.e2e.test.ts
+pnpm benchmark:hermes:ev1
 ```
 
 clean-profile gate 从全部十一个用户包的 tarball 开始，通过一次官方 DSH CLI 安装、dump、boot，在注册后的原生 Workspace 与真实 Agent preset/Session/Goal 内触发 packed Tool，flush 原生持久化，再一次卸载全部十一包、重启并读回 Goal。它同时检查每个 tarball 无用户产品 bin、无 `node_modules`，且 production dependencies 不携带 DSH/Cordis。
 
-Resident 已有原生 Bundle、DSH Command、无 bin tarball以及 launchd/systemd 协议回归；Channel Router、Telegram 与飞书已通过原生 Bundle、持久 ingress/outbound、真实 DSH Host/Agent Loop、Command、Approval、continuation、429/uncertain、双 Workspace 双渠道重启隔离与 tarball lifecycle。Workspace-scoped evolution、Telegram/飞书进化注意力、十一包同一 clean-profile gate、完整 composition Cache Contract gate 和 v0.1 真实 DSH 浏览器 pause/restart/failure/recovery 复验已通过。真实渠道凭据和 Hermes paired benchmark 仍缺失；这些全部完成前不能发布 v0.1。
+Resident 已有原生 Bundle、DSH Command、无 bin tarball以及 launchd/systemd 协议回归；Channel Router、Telegram 与飞书已通过原生 Bundle、持久 ingress/outbound、真实 DSH Host/Agent Loop、Command、Approval、continuation、429/uncertain、双 Workspace 双渠道重启隔离与 tarball lifecycle。Workspace-scoped evolution、Telegram/飞书进化注意力、十一包同一 clean-profile gate、完整 composition Cache Contract gate 和 v0.1 真实 DSH 浏览器 pause/restart/failure/recovery 复验已通过。EV-1 已有一个确定性的 Hermes paired release-control slice；真实渠道凭据和其余 Hermes paired epochs 仍缺失，这些全部完成前不能发布 v0.1。
