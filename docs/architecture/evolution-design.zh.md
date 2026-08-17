@@ -1,6 +1,6 @@
 # EvoForge 可证明自进化设计
 
-> 状态：P0A/P0B/P0C、P1.1–P1.18 与 P2D.1 implemented；包含最窄 opt-in 自动晋升、反事实 canary/回滚、显式反馈、私有 Draft、独立 evaluator、静态 Target、exact Retention、明确纠错自动 Shadow/自动 inactive evaluator Draft、人工 Qualify-and-Shadow、持久日预算与每 Skill 单未决自动门；真实 provider 与真实任务长期证据待完成
+> 状态：P0A/P0B/P0C、P1.1–P1.19 与 P2D.1 implemented；包含最窄 opt-in 自动晋升、反事实 canary/回滚、显式反馈、私有 Draft、独立 evaluator、静态 Target、exact Retention、明确纠错自动 Shadow/自动 inactive evaluator Draft、人工 Qualify-and-Shadow、持久日预算、每 Skill 单未决自动门与模糊审查有界处置；真实 provider 与真实任务长期证据待完成
 > 更新日期：2026-08-17
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 
@@ -692,3 +692,9 @@ Candidate。同一 Skill 尚有未决自动工作时，新 Signal 留在原 stor
 零；状态不可读 fail closed。它不新增 queue/lease/config，也不限制逐次人工动作。见
 [P1.18](p1-18-per-skill-automatic-inflight-gate.zh.md)与
 [ADR-0039](../adr/0039-automatic-evolution-keeps-one-unresolved-path-per-skill.md)。
+
+P1.19 为 P1.18 增加一个最小活性边界：Automatic Feedback Shadow 产生、且 evaluator 只能给出
+`review` 的 Candidate 默认保留 168 小时。下一条同 Skill Signal 才触发预算前 durable rejection；
+所有证据保留，人工、明确 `promote`、未激活或不可读状态仍 fail closed。它不增加 timer、通知、
+后台清理器或模型表面。见 [P1.19](p1-19-automatic-ambiguous-review-expiry.zh.md)与
+[ADR-0040](../adr/0040-automatic-ambiguous-review-has-a-bounded-window.md)。

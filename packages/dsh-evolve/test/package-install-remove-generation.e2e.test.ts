@@ -155,6 +155,7 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-evolve package boundar
           automaticFeedbackTargets: [{
             target: 'plugin-delivery-feedback',
             casePackHash: '7'.repeat(64),
+            maxPendingReviewAgeHours: 168,
           }],
           evaluatorTargets: [{
             id: 'plugin-delivery',

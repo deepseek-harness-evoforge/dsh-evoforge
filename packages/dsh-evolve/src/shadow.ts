@@ -27,6 +27,7 @@ export interface ShadowOptions {
   signal?: AbortSignal
   skillDir: string
   feedbackDraftPath?: string
+  feedbackLaunchMode?: 'human' | 'automatic'
 }
 
 export interface CasePackManifest {
@@ -183,6 +184,9 @@ export async function runShadow(options: ShadowOptions): Promise<
         updatedAt: startedAt,
         identity,
         ...(feedbackDraft === undefined ? {} : { feedbackSignalId: feedbackDraft.source.signalId }),
+        ...(feedbackDraft === undefined || options.feedbackLaunchMode === undefined
+          ? {}
+          : { feedbackLaunchMode: options.feedbackLaunchMode }),
         resumeInputs,
       }
       await saveShadowRunState(outputDir, state)

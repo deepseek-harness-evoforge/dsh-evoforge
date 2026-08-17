@@ -530,12 +530,21 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     const correctedSkill = `${originalSkill.trimEnd()}\n\n${correction}\n`
     const sessionsRoot = join(root, 'sessions')
     const feedbackDraftRoot = join(root, 'private-feedback')
-    const shadowRunRoot = join(root, 'feedback-shadow-runs')
+    const shadowRunRoot = await writeCompletedReviewRun(root, repository)
+    const staleRunDir = join(shadowRunRoot, 'sealed-candidate')
+    const staleState = JSON.parse(await readFile(join(staleRunDir, 'run-state.json'), 'utf8'))
+    staleState.updatedAt = '2000-01-01T00:00:00.000Z'
+    staleState.feedbackSignalId = 'f'.repeat(64)
+    staleState.feedbackLaunchMode = 'automatic'
+    await writeFile(join(staleRunDir, 'run-state.json'), `${JSON.stringify(staleState, null, 2)}\n`)
+    const staleReport = JSON.parse(await readFile(join(staleRunDir, 'report.json'), 'utf8'))
+    staleReport.decision.recommendation = 'review'
+    staleReport.decision.reasons = ['candidate did not improve the passing baseline']
+    await writeFile(join(staleRunDir, 'report.json'), `${JSON.stringify(staleReport, null, 2)}\n`)
     const retentionRoot = join(root, 'retention-runs')
     const casePackDir = join(root, 'feedback-case-pack')
     const priorCasePack = join(root, 'prior-case-pack')
     await Promise.all([
-      mkdir(shadowRunRoot),
       mkdir(retentionRoot),
       writeAutomaticFeedbackCasePack(casePackDir, correction),
       writeTextRetentionCasePack(priorCasePack, 'Preserve the existing capability.'),
@@ -595,6 +604,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
           target: 'stable-skill-fix',
           casePackHash,
           maxAttemptsPerUtcDay: 2,
+          maxPendingReviewAgeHours: 1,
         }],
         autoPromote: {
           skills: ['stable-evolved-skill'],
@@ -656,6 +666,12 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
       const active = await waitForGenerationChange(store, baseline.id, 45_000)
       expect(active.policyVersion).toBe('auto-clear-instruction-v1')
       expect(proposerRequests).toBe(1)
+      expect(JSON.parse(await readFile(join(staleRunDir, 'review-state.json'), 'utf8')))
+        .toMatchObject({
+          status: 'rejected',
+          actor: 'auto-review-expiry-v1',
+          decisionNote: 'automatic ambiguous review expired after 1 hour',
+        })
       expect(await readFile(join(
         shadowRunRoot,
         '.automatic-evolution-budget-v1',

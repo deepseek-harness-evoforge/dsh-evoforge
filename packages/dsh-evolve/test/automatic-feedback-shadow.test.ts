@@ -159,6 +159,10 @@ describe('automatic Feedback Shadow', () => {
       .toThrow('automatic Feedback Shadow permits exactly one target per Skill')
     expect(make([{ ...target(), maxAttemptsPerUtcDay: 21 }]))
       .toThrow('automatic Feedback Shadow daily attempt limits must be integers between 1 and 20')
+    expect(make([{ ...target(), maxPendingReviewAgeHours: 0 }]))
+      .toThrow('automatic Feedback Shadow pending review ages must be integer hours between 1 and 2160')
+    expect(make([{ ...target(), maxPendingReviewAgeHours: 2_161 }]))
+      .toThrow('automatic Feedback Shadow pending review ages must be integer hours between 1 and 2160')
   })
 
   it('defers a new signal without launching when the durable UTC-day budget is exhausted', async () => {
@@ -352,6 +356,7 @@ function target(): AutomaticFeedbackShadowTarget {
     casePackHash: '6'.repeat(64),
     runRoot: '/private/shadow-runs',
     maxAttemptsPerUtcDay: 1,
+    maxPendingReviewAgeHours: 168,
   }
 }
 

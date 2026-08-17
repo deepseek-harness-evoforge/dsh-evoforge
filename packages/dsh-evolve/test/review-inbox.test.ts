@@ -122,6 +122,103 @@ describe('Shadow review inbox', () => {
       .resolves.toBe('unknown')
   })
 
+  it('durably expires only a stale ambiguous Candidate from automatic feedback', async () => {
+    const root = await createRoot()
+    await writeCandidateRun(root, 'candidate', 'review', 'complete', {
+      feedbackLaunchMode: 'automatic',
+      updatedAt: '2026-08-16T00:00:00.000Z',
+    })
+    const inbox = new ReviewInbox([root], {
+      automaticReviewExpiry: [{
+        skillName: 'stable-skill',
+        maxPendingReviewMs: 7 * 24 * 60 * 60 * 1_000,
+      }],
+      now: () => Date.parse('2026-08-23T00:00:00.000Z'),
+    })
+
+    await expect(inbox.automaticInflightStatus('stable-skill', '2'.repeat(64)))
+      .resolves.toBe('clear')
+    expect((await inbox.scan()).candidates).toEqual([])
+    expect((await inbox.scanAll()).candidates).toEqual([
+      expect.objectContaining({
+        status: 'rejected',
+        decisionActor: 'auto-review-expiry-v1',
+        decisionNote: 'automatic ambiguous review expired after 168 hours',
+      }),
+    ])
+    expect(JSON.parse(await readFile(join(root, 'candidate', 'review-state.json'), 'utf8')))
+      .toMatchObject({
+        status: 'rejected',
+        actor: 'auto-review-expiry-v1',
+        decisionNote: 'automatic ambiguous review expired after 168 hours',
+      })
+    const restarted = new ReviewInbox([root], {
+      automaticReviewExpiry: [{
+        skillName: 'stable-skill',
+        maxPendingReviewMs: 7 * 24 * 60 * 60 * 1_000,
+      }],
+      now: () => Date.parse('2026-08-24T00:00:00.000Z'),
+    })
+    await expect(restarted.automaticInflightStatus('stable-skill', '3'.repeat(64)))
+      .resolves.toBe('clear')
+    expect((await restarted.scanAll()).candidates).toEqual([
+      expect.objectContaining({ decisionActor: 'auto-review-expiry-v1' }),
+    ])
+  })
+
+  it('never expires recent, promotable, or human-launched review work', async () => {
+    for (const fixture of [
+      { name: 'recent-auto-review', recommendation: 'review' as const, mode: 'automatic' as const,
+        updatedAt: '2026-08-22T23:59:59.999Z' },
+      { name: 'old-auto-promote', recommendation: 'promote' as const, mode: 'automatic' as const,
+        updatedAt: '2026-08-01T00:00:00.000Z' },
+      { name: 'old-human-review', recommendation: 'review' as const, mode: 'human' as const,
+        updatedAt: '2026-08-01T00:00:00.000Z' },
+    ]) {
+      const root = await createRoot()
+      await writeCandidateRun(root, fixture.name, fixture.recommendation, 'complete', {
+        feedbackLaunchMode: fixture.mode,
+        updatedAt: fixture.updatedAt,
+      })
+      const inbox = new ReviewInbox([root], {
+        automaticReviewExpiry: [{
+          skillName: 'stable-skill',
+          maxPendingReviewMs: 7 * 24 * 60 * 60 * 1_000,
+        }],
+        now: () => Date.parse('2026-08-23T00:00:00.000Z'),
+      })
+
+      await expect(inbox.automaticInflightStatus('stable-skill', '2'.repeat(64)))
+        .resolves.toBe('busy')
+      expect((await inbox.scanAll()).candidates).toEqual([
+        expect.objectContaining({ status: 'pending' }),
+      ])
+    }
+  })
+
+  it('fails closed instead of expiring an invalid launch provenance', async () => {
+    const root = await createRoot()
+    const runDir = await writeCandidateRun(root, 'candidate', 'review', 'complete', {
+      feedbackLaunchMode: 'automatic',
+      updatedAt: '2026-08-01T00:00:00.000Z',
+    })
+    const state = JSON.parse(await readFile(join(runDir, 'run-state.json'), 'utf8'))
+    state.feedbackLaunchMode = 'forged'
+    await writeFile(join(runDir, 'run-state.json'), `${JSON.stringify(state)}\n`)
+    const inbox = new ReviewInbox([root], {
+      automaticReviewExpiry: [{
+        skillName: 'stable-skill',
+        maxPendingReviewMs: 7 * 24 * 60 * 60 * 1_000,
+      }],
+      now: () => Date.parse('2026-08-23T00:00:00.000Z'),
+    })
+
+    await expect(inbox.automaticInflightStatus('stable-skill', '2'.repeat(64)))
+      .resolves.toBe('unknown')
+    await expect(readFile(join(runDir, 'review-state.json'), 'utf8'))
+      .rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
   it('publishes before durably approving and returns the inactive Generation id', async () => {
     const root = await createRoot()
     await writeCandidateRun(root, 'candidate', 'promote')
@@ -238,6 +335,10 @@ async function writeCandidateRun(
   name: string,
   recommendation: 'promote' | 'review' | 'reject',
   phase: 'complete' | 'incomplete' = 'complete',
+  options: {
+    feedbackLaunchMode?: 'human' | 'automatic'
+    updatedAt?: string
+  } = {},
 ): Promise<string> {
   const runDir = join(root, name)
   await mkdir(runDir)
@@ -253,7 +354,7 @@ async function writeCandidateRun(
     runId,
     phase,
     startedAt: '2026-08-16T00:00:00.000Z',
-    updatedAt: '2026-08-16T00:01:00.000Z',
+    updatedAt: options.updatedAt ?? '2026-08-16T00:01:00.000Z',
     identity: {
       baseTreeHash: 'a'.repeat(64),
       casePackHash: 'b'.repeat(64),
@@ -264,6 +365,12 @@ async function writeCandidateRun(
       skillName: 'stable-skill',
     },
     resumeInputs: { skillDir: join(root, 'skill'), casePackDir: join(root, 'case-pack') },
+    ...(options.feedbackLaunchMode === undefined
+      ? {}
+      : {
+          feedbackLaunchMode: options.feedbackLaunchMode,
+          feedbackSignalId: '1'.repeat(64),
+        }),
     proposal,
     proposalHash,
     modelUsage: { inputTokens: 120, outputTokens: 32 },

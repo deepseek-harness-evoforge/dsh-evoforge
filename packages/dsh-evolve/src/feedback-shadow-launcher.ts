@@ -274,6 +274,7 @@ export class FeedbackShadowLauncher {
       casePackDir,
       ...(expectedCasePackHash === undefined ? {} : { expectedCasePackHash }),
       feedbackDraftPath: draft.path,
+      feedbackLaunchMode: holdUncertainProposal ? 'automatic' : 'human',
       outputDir,
       resume,
       signal: controller.signal,

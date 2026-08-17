@@ -65,6 +65,7 @@ describe('FeedbackShadowLauncher', () => {
       skillDir: fixture.skillDir,
       casePackDir: await realpath(fixture.casePackDir),
       feedbackDraftPath: fixture.draftPath,
+      feedbackLaunchMode: 'human',
       outputDir: join(await realpath(fixture.runRoot), first.launchId),
       resume: false,
     }))
@@ -385,6 +386,9 @@ describe('FeedbackShadowLauncher', () => {
     })
     expect(jobs.starts).toHaveLength(1)
     expect(runner).toHaveBeenCalledOnce()
+    expect(runner).toHaveBeenCalledWith(expect.objectContaining({
+      feedbackLaunchMode: 'automatic',
+    }))
   })
 })
 

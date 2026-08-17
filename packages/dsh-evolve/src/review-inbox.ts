@@ -33,8 +33,11 @@ export interface ReviewCandidate {
   compositionFingerprint: string
   compositionStable: boolean
   startedAt: string
+  completedAt?: string
+  feedbackSignalId?: string
+  feedbackLaunchMode?: 'human' | 'automatic'
   evidenceHash: string
-  decisionActor?: 'human' | 'auto-clear-instruction-v1'
+  decisionActor?: ReviewDecisionActor
   decisionNote?: string
   generationId?: string
   activatedAt?: string
@@ -50,7 +53,7 @@ interface ReviewDisposition {
   reviewId: string
   evidenceHash: string
   status: 'approved' | 'rejected'
-  actor?: 'human' | 'auto-clear-instruction-v1'
+  actor?: ReviewDecisionActor
   decidedAt: string
   decisionNote?: string
   generationId?: string
@@ -58,14 +61,40 @@ interface ReviewDisposition {
 }
 
 const hashPattern = /^[a-f0-9]{64}$/
+const MAX_PENDING_REVIEW_MS = 2_160 * 60 * 60 * 1_000
+
+type ReviewDecisionActor = 'human' | 'auto-clear-instruction-v1' | 'auto-review-expiry-v1'
+
+export interface AutomaticReviewExpiryPolicy {
+  readonly skillName: string
+  readonly maxPendingReviewMs: number
+}
+
+export interface ReviewInboxOptions {
+  readonly automaticReviewExpiry?: readonly AutomaticReviewExpiryPolicy[]
+  readonly now?: () => number
+}
 
 /** Read and durably disposition completed Shadow evidence without copying it into a second database. */
 export class ReviewInbox {
   private readonly runRoots: string[]
   private readonly actionTails = new Map<string, Promise<void>>()
+  private readonly automaticReviewExpiry = new Map<string, number>()
+  private readonly now: () => number
 
-  constructor(runRoots: string[]) {
+  constructor(runRoots: string[], options: ReviewInboxOptions = {}) {
     this.runRoots = [...runRoots]
+    this.now = options.now ?? Date.now
+    for (const policy of options.automaticReviewExpiry ?? []) {
+      if (policy.skillName.trim() === ''
+        || !Number.isSafeInteger(policy.maxPendingReviewMs)
+        || policy.maxPendingReviewMs < 1
+        || policy.maxPendingReviewMs > MAX_PENDING_REVIEW_MS
+        || this.automaticReviewExpiry.has(policy.skillName)) {
+        throw new Error('automatic review expiry policies must have unique Skills and positive bounded ages')
+      }
+      this.automaticReviewExpiry.set(policy.skillName, policy.maxPendingReviewMs)
+    }
   }
 
   async scan(): Promise<ReviewScan> {
@@ -76,9 +105,38 @@ export class ReviewInbox {
     skillName: string,
     _signalId: string,
   ): Promise<AutomaticEvolutionInflightStatus> {
-    const scan = await this.scan()
+    let scan = await this.scan()
     if (scan.warnings.length > 0) return 'unknown'
+    const maxPendingReviewMs = this.automaticReviewExpiry.get(skillName)
+    if (maxPendingReviewMs !== undefined) {
+      for (const candidate of scan.candidates) {
+        if (!this.isExpiredAutomaticReview(candidate, skillName, maxPendingReviewMs)) continue
+        const hours = Math.floor(maxPendingReviewMs / (60 * 60 * 1_000))
+        await this.enqueue(candidate.id, () => this.rejectNow(
+          candidate.id,
+          `automatic ambiguous review expired after ${hours} ${hours === 1 ? 'hour' : 'hours'}`,
+          'auto-review-expiry-v1',
+        ))
+      }
+      scan = await this.scan()
+      if (scan.warnings.length > 0) return 'unknown'
+    }
     return scan.candidates.some(candidate => candidate.skillName === skillName) ? 'busy' : 'clear'
+  }
+
+  private isExpiredAutomaticReview(
+    candidate: ReviewCandidate,
+    skillName: string,
+    maxPendingReviewMs: number,
+  ): boolean {
+    if (candidate.skillName !== skillName
+      || candidate.status !== 'pending'
+      || candidate.recommendation !== 'review'
+      || candidate.feedbackSignalId === undefined
+      || candidate.feedbackLaunchMode !== 'automatic') return false
+    if (candidate.completedAt === undefined) return false
+    const completedAt = Date.parse(candidate.completedAt)
+    return Number.isFinite(completedAt) && this.now() - completedAt >= maxPendingReviewMs
   }
 
   /** Include terminal dispositions for crash recovery by trusted host policies. */
@@ -135,10 +193,14 @@ export class ReviewInbox {
   }
 
   async reject(id: string, note: string): Promise<ReviewCandidate> {
-    return this.enqueue(id, () => this.rejectNow(id, note))
+    return this.enqueue(id, () => this.rejectNow(id, note, 'human'))
   }
 
-  private async rejectNow(id: string, note: string): Promise<ReviewCandidate> {
+  private async rejectNow(
+    id: string,
+    note: string,
+    actor: Extract<ReviewDecisionActor, 'human' | 'auto-review-expiry-v1'>,
+  ): Promise<ReviewCandidate> {
     assertReviewId(id)
     const normalizedNote = note.trim()
     if (normalizedNote.length === 0 || normalizedNote.length > 500) {
@@ -152,15 +214,15 @@ export class ReviewInbox {
       reviewId: candidate.id,
       evidenceHash: candidate.evidenceHash,
       status: 'rejected',
-      actor: 'human',
-      decidedAt: new Date().toISOString(),
+      actor,
+      decidedAt: new Date(this.now()).toISOString(),
       decisionNote: normalizedNote,
     }
     await writeDurableJson(join(candidate.outputDir, 'review-state.json'), disposition)
     return {
       ...candidate,
       status: 'rejected',
-      decisionActor: 'human',
+      decisionActor: actor,
       decisionNote: normalizedNote,
     }
   }
@@ -333,6 +395,13 @@ export class ReviewInbox {
       compositionFingerprint: report.compositionFingerprint,
       compositionStable: report.compositionStable,
       startedAt: state.startedAt,
+      completedAt: state.updatedAt,
+      ...(state.feedbackSignalId === undefined
+        ? {}
+        : { feedbackSignalId: state.feedbackSignalId }),
+      ...(state.feedbackLaunchMode === undefined
+        ? {}
+        : { feedbackLaunchMode: state.feedbackLaunchMode }),
       evidenceHash,
       ...disposition === undefined
         ? {}
@@ -443,7 +512,8 @@ async function readDisposition(outputDir: string): Promise<ReviewDisposition | u
     if (!isRecord(value) || value.schemaVersion !== 1 || !hashPattern.test(String(value.reviewId))
       || !hashPattern.test(String(value.evidenceHash)) || !['approved', 'rejected'].includes(String(value.status))
       || typeof value.decidedAt !== 'string'
-      || (value.actor !== undefined && !['human', 'auto-clear-instruction-v1'].includes(String(value.actor)))
+      || (value.actor !== undefined
+        && !['human', 'auto-clear-instruction-v1', 'auto-review-expiry-v1'].includes(String(value.actor)))
       || (value.decisionNote !== undefined && typeof value.decisionNote !== 'string')
       || (value.generationId !== undefined && !hashPattern.test(String(value.generationId)))
       || (value.activatedAt !== undefined && typeof value.activatedAt !== 'string')) {
@@ -451,6 +521,7 @@ async function readDisposition(outputDir: string): Promise<ReviewDisposition | u
     }
     if ((value.status === 'approved') !== (value.generationId !== undefined)
       || (value.actor === 'auto-clear-instruction-v1' && value.status !== 'approved')
+      || (value.actor === 'auto-review-expiry-v1' && value.status !== 'rejected')
       || (value.activatedAt !== undefined && value.actor !== 'auto-clear-instruction-v1')) {
       throw new Error('review-state.json has an invalid terminal disposition')
     }

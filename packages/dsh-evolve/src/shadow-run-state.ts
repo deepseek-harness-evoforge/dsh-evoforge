@@ -32,6 +32,8 @@ export interface ShadowRunState {
   identity: ShadowRunIdentity
   /** Reference-only source id used to distinguish crash reentry from a newer automatic signal. */
   feedbackSignalId?: string
+  /** Host-only provenance used by conservative review-retention policy. */
+  feedbackLaunchMode?: 'human' | 'automatic'
   /** Exact, non-secret inputs required for a resident DSH process to resume a sealed Trial. */
   resumeInputs?: {
     skillDir: string
@@ -126,6 +128,10 @@ export async function loadShadowRunState(outputDir: string): Promise<ShadowRunSt
     && (typeof value.feedbackSignalId !== 'string'
       || !/^[a-f0-9]{64}$/.test(value.feedbackSignalId))) {
     throw new Error('Shadow run state has an invalid feedback Signal id')
+  }
+  if (value.feedbackLaunchMode !== undefined
+    && !['human', 'automatic'].includes(String(value.feedbackLaunchMode))) {
+    throw new Error('Shadow run state has an invalid feedback launch mode')
   }
   if (value.resumeInputs !== undefined
     && (!isRecord(value.resumeInputs)

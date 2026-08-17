@@ -136,6 +136,10 @@ _Avoid_: Automatic evaluator trust, self-grading, synchronous Session reflection
 A host-only preflight that lets P1.14/P1.16 reserve budget for a Skill only when its existing Evaluator Draft, Shadow journal, and Review Inbox contain no unresolved earlier automatic work. Deferred Signals stay in the existing Signal Store; explicit human actions remain available.
 _Avoid_: Evolution queue, distributed lease, duplicate state store, limit on human actions
 
+**Automatic Ambiguous Review Expiry**:
+An opt-in host policy that gives an ambiguous Candidate created by Automatic Feedback Shadow a bounded review window. When a later Signal arrives after that window, the existing Review Inbox durably rejects the old Candidate while retaining all evidence, then lets the Per-Skill Automatic Inflight Gate reconsider the new Signal.
+_Avoid_: Background TTL service, evidence deletion, expiration of human or promotable work
+
 **Human-approved Qualify-and-Shadow**:
 One explicit host action taken after a human reviews an exact Evaluator Draft. It authorizes sealed qualification and one contingent paid Shadow: qualification failure stops before the proposer, while success delegates to the existing content-addressed Qualified Shadow launcher. It does not authorize Promotion.
 _Avoid_: Automatic approval, qualify-and-promote, workflow engine, Session-visible review state

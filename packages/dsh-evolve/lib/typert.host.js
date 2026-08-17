@@ -256,7 +256,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'compositionFingerprint': z.string().readonly(),
   'compositionStable': z.boolean().readonly(),
   'startedAt': z.string().readonly(),
-  'decisionActor': z.union([z.undefined(), z.literal("human"), z.literal("auto-clear-instruction-v1")]).readonly().optional(),
+  'decisionActor': z.union([z.undefined(), z.literal("human"), z.literal("auto-clear-instruction-v1"), z.literal("auto-review-expiry-v1")]).readonly().optional(),
   'decisionNote': z.union([z.undefined(), z.string()]).readonly().optional(),
   'generationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'activatedAt': z.union([z.undefined(), z.string()]).readonly().optional(),
@@ -387,7 +387,7 @@ const dsh_evolve_evoforgeEvolution_review_result$schema = z.object({
   'compositionFingerprint': z.string().readonly(),
   'compositionStable': z.boolean().readonly(),
   'startedAt': z.string().readonly(),
-  'decisionActor': z.union([z.undefined(), z.literal("human"), z.literal("auto-clear-instruction-v1")]).readonly().optional(),
+  'decisionActor': z.union([z.undefined(), z.literal("human"), z.literal("auto-clear-instruction-v1"), z.literal("auto-review-expiry-v1")]).readonly().optional(),
   'decisionNote': z.union([z.undefined(), z.string()]).readonly().optional(),
   'generationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'activatedAt': z.union([z.undefined(), z.string()]).readonly().optional(),
@@ -1096,7 +1096,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionReviewView",
-            "declaration": "export interface EvolutionReviewView {\n    readonly id: string;\n    readonly status: 'pending' | 'approved' | 'rejected';\n    readonly recommendation: 'promote' | 'review';\n    readonly skillName: string;\n    readonly claim: string;\n    readonly changedFiles: readonly string[];\n    readonly candidateTreeHash: string;\n    readonly cases: readonly EvolutionReviewCaseView[];\n    readonly cost: { readonly inputTokens: number; readonly outputTokens: number; readonly trialCount: number; };\n    readonly reasons: readonly string[];\n    readonly limitations: readonly string[];\n    readonly evaluatorVersion: string;\n    readonly compositionFingerprint: string;\n    readonly compositionStable: boolean;\n    readonly startedAt: string;\n    readonly decisionActor?: 'human' | 'auto-clear-instruction-v1';\n    readonly decisionNote?: string;\n    readonly generationId?: string;\n    readonly activatedAt?: string;\n}"
+            "declaration": "export interface EvolutionReviewView {\n    readonly id: string;\n    readonly status: 'pending' | 'approved' | 'rejected';\n    readonly recommendation: 'promote' | 'review';\n    readonly skillName: string;\n    readonly claim: string;\n    readonly changedFiles: readonly string[];\n    readonly candidateTreeHash: string;\n    readonly cases: readonly EvolutionReviewCaseView[];\n    readonly cost: { readonly inputTokens: number; readonly outputTokens: number; readonly trialCount: number; };\n    readonly reasons: readonly string[];\n    readonly limitations: readonly string[];\n    readonly evaluatorVersion: string;\n    readonly compositionFingerprint: string;\n    readonly compositionStable: boolean;\n    readonly startedAt: string;\n    readonly decisionActor?: 'human' | 'auto-clear-instruction-v1' | 'auto-review-expiry-v1';\n    readonly decisionNote?: string;\n    readonly generationId?: string;\n    readonly activatedAt?: string;\n}"
           },
           {
             "name": "EvolutionShadowRunView",

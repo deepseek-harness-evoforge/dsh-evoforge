@@ -4,7 +4,7 @@
 
 An out-of-tree extension suite for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). EvoForge adds removable capabilities through supported DSH seams; it is not a DSH fork or a home for core-defect workarounds.
 
-> **Pre-alpha: do not use automatic activation in production.** The `dsh-evolve` P0A/P0B/P0C slices, including exact diffs, protected-effect lexical indicators, and the real-DSH Web control surface, narrow P1.1 auto-promotion, P1.2 counterfactual canary/rollback, P1.3 explicit-feedback intake, P1.4 private Feedback Case Drafts, P1.5 feedback-guided Shadow, P1.6 pre-proposal Case Pack calibration, P1.7 explicit evaluator-authoring Skill, P1.8 explicit target-bound Feedback Shadow Launch, P1.9 private Evaluator Draft/human qualification, P1.10 Qualified Shadow Handoff, P1.11 exact Candidate retention, P1.12 opt-in retention-gated auto-promotion, P1.13 one static Automatic Retention Target per Skill, P1.14 opt-in Automatic Feedback Shadow, and P2D.1 delivery-outcome observation are implemented. The `dsh-software-delivery` verified-delivery path, `dsh-doctor` zero-token Runtime Readiness report, and `dsh-telegram` single-private-chat Agent adapter are also implemented. Default background evaluator authoring/qualification, real-task false-promotion/false-rollback data, independent usability evidence, and production multi-day evidence remain incomplete.
+> **Pre-alpha: do not use automatic activation in production.** The `dsh-evolve` P0A/P0B/P0C slices, including exact diffs, protected-effect lexical indicators, and the real-DSH Web control surface, narrow P1.1 auto-promotion, P1.2 counterfactual canary/rollback, P1.3 explicit-feedback intake, P1.4 private Feedback Case Drafts, P1.5 feedback-guided Shadow, P1.6 pre-proposal Case Pack calibration, P1.7 explicit evaluator-authoring Skill, P1.8 explicit target-bound Feedback Shadow Launch, P1.9 private Evaluator Draft/human qualification, P1.10 Qualified Shadow Handoff, P1.11 exact Candidate retention, P1.12 opt-in retention-gated auto-promotion, P1.13 one static Automatic Retention Target per Skill, P1.14 opt-in Automatic Feedback Shadow, P1.15 durable daily automatic budgets, P1.16 opt-in Automatic Evaluator Drafts, P1.17 human-approved Qualify-and-Shadow, P1.18 per-Skill automatic inflight gating, P1.19 bounded automatic ambiguous review, and P2D.1 delivery-outcome observation are implemented. The `dsh-software-delivery` verified-delivery path, `dsh-doctor` zero-token Runtime Readiness report, and `dsh-telegram` single-private-chat Agent adapter are also implemented. Default background evaluator qualification, real-task false-promotion/false-rollback data, independent usability evidence, and production multi-day evidence remain incomplete.
 
 `dsh-evolve` aims to turn agent self-improvement into an evidence-backed release process:
 
@@ -51,6 +51,19 @@ matches exactly one authorized Skill. The policy authorizes that bounded disclos
 cost; zero or multiple matches remain manual. Existing Jobs, journal, review, Retention, promotion, and
 rollback paths remain authoritative. An uncertain `proposal-pending` effect is never retried, the source
 Session keeps its old Generation, and normal Session composition and token cost remain unchanged.
+
+P1.15 caps each automatic Target's durable reservations per UTC day before a potentially paid boundary.
+P1.18 also reads existing Draft, Shadow, and Review facts before reservation so one Skill has only one
+unresolved automatic path. P1.19 prevents an unattended ambiguous Candidate from freezing that path
+forever: an Automatic Feedback Target keeps its own `recommendation: review` Candidate for 168 hours by
+default, then a later Signal may durably reject it before spending budget. Human launches, `promote`
+recommendations, and approved-but-not-activated Generations never expire. The evidence remains auditable,
+and the policy adds no timer, model call, Tool, prompt, Skill catalog entry, or normal-Session token.
+
+P1.16 optionally creates one private inactive Evaluator Draft for an unambiguous correction under the
+same daily budget, while qualification, Shadow, and Promotion remain separate authorities. P1.17 lets a
+human who has reviewed the exact Draft combine sealed qualification and one contingent paid Shadow into
+one cancellable action; qualification failure spends zero proposer calls.
 
 `dsh-doctor` is a separate removable Bundle that reads the native Loader only when `/doctor` is invoked. It reports `READY`, `NOT READY`, or `UNKNOWN`, names missing/disabled/failed or still-changing required plugins, and suggests a next action without changing runtime state. It adds one native human Command, no model Tool/Prompt/Skill, no polling, and zero normal-Session tokens. Packed `dsh plugin add`, native config dump, real Loader boot, and removal are covered by the package test.
 

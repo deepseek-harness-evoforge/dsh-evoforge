@@ -57,7 +57,7 @@ export interface EvolutionReviewView {
     readonly compositionFingerprint: string;
     readonly compositionStable: boolean;
     readonly startedAt: string;
-    readonly decisionActor?: 'human' | 'auto-clear-instruction-v1';
+    readonly decisionActor?: 'human' | 'auto-clear-instruction-v1' | 'auto-review-expiry-v1';
     readonly decisionNote?: string;
     readonly generationId?: string;
     readonly activatedAt?: string;

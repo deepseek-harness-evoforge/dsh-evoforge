@@ -18,15 +18,18 @@ import {
 
 const CONTENT_ID = /^[a-f0-9]{64}$/
 const MAX_TARGETS = 20
+export const DEFAULT_PENDING_REVIEW_AGE_HOURS = 7 * 24
 
 export interface AutomaticFeedbackShadowTarget extends FeedbackShadowExactTargetConfig {
   readonly maxAttemptsPerUtcDay: number
+  readonly maxPendingReviewAgeHours: number
 }
 
 export interface AutomaticFeedbackShadowTargetReference {
   readonly target: string
   readonly casePackHash: string
   readonly maxAttemptsPerUtcDay?: number
+  readonly maxPendingReviewAgeHours?: number
 }
 
 export interface AutomaticFeedbackShadowOptions {
@@ -197,6 +200,11 @@ export function assertAutomaticFeedbackShadowTargets(
     || target.maxAttemptsPerUtcDay < 1
     || target.maxAttemptsPerUtcDay > 20)) {
     throw new Error('automatic Feedback Shadow daily attempt limits must be integers between 1 and 20')
+  }
+  if (targets.some(target => !Number.isInteger(target.maxPendingReviewAgeHours)
+      || target.maxPendingReviewAgeHours < 1
+      || target.maxPendingReviewAgeHours > 2_160)) {
+    throw new Error('automatic Feedback Shadow pending review ages must be integer hours between 1 and 2160')
   }
   if (targets.some(target => target.id.trim() === '' || target.skill.trim() === '')
     || new Set(targets.map(target => target.id)).size !== targets.length) {

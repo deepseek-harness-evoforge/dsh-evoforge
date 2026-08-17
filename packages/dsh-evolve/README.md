@@ -1,6 +1,6 @@
 # dsh-evolve
 
-`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains twenty-two deliberately separate lanes:
+`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains twenty-three deliberately separate lanes:
 
 - **P0A Shadow** compares an active Skill with an inactive Candidate without changing live DSH.
 - **P0B Local Continuity** records immutable Capability Generations, pins one Generation per Session, switches or rolls back only future Sessions, and resumes durable sealed work through an optional resident supervisor.
@@ -24,6 +24,7 @@
 - **P1.16 Automatic Evaluator Draft** optionally turns one unambiguous explicit correction into a private inactive evaluator proposal while keeping qualification, Shadow, and Promotion separately authorized.
 - **P1.17 Human-approved Qualify-and-Shadow** lets a reviewer authorize sealed qualification and one contingent paid Shadow in one cancellable action, without coupling either to Promotion.
 - **P1.18 Per-Skill Automatic Inflight Gate** defers new automatic work before budget while the same Skill still has an unresolved Draft, Shadow, or Review Candidate.
+- **P1.19 Automatic Ambiguous Review Expiry** durably rejects only stale automatic `review` Candidates before a later Signal may spend budget, while retaining their evidence.
 
 A 64-turn assembled DSH Agent parity test also verifies that installing the configured evolution host plane and changing the future-Session Generation pointer leaves every current-Session model-visible request byte-equivalent to the no-EvoForge control after removing DSH-internal message ids. It proves a zero request delta; real-provider cache-read and latency measurements still require an explicitly funded paired soak.
 
@@ -248,6 +249,7 @@ Skill that a Generation may activate:
       - target: plugin-delivery
         casePackHash: <64-char-sha256>
         maxAttemptsPerUtcDay: 2
+        maxPendingReviewAgeHours: 168
     evaluatorTargets:
       - id: plugin-delivery-evaluator
         skill: build-dsh-plugin
@@ -285,7 +287,8 @@ existing Shadow journal make retries idempotent and restart recovery conservativ
 `automaticFeedbackTargets` is optional and disabled when absent. Each entry
 references one existing `shadowTargets.id` and pins its calibrated Case Pack by
 full content hash; an authorized Skill may appear only once. `maxAttemptsPerUtcDay`
-defaults to `1` and is bounded to `1..20`. Declaring the entry is the
+defaults to `1` and is bounded to `1..20`. `maxPendingReviewAgeHours` defaults
+to `168` and is bounded to `1..2160`. Declaring the entry is the
 deployment policy authorization for automatic minimal Draft copy, one potentially
 paid proposer request per reserved attempt, bounded correction disclosure, and that exact evaluator.
 The supervisor handles at most one signal per scan. A signal must belong to an
@@ -338,6 +341,13 @@ before reserving daily budget, they read existing Draft, Shadow, and Review fact
 Unresolved or unreadable state defers the new Signal without a provider request;
 the Signal stays in the existing store for a later resident scan. This adds no
 queue, configuration, model-visible surface, or restriction on explicit human actions.
+P1.19 additionally lets the next Signal durably reject an older ambiguous
+`recommendation: review` after `maxPendingReviewAgeHours`, but only when the
+journal proves it came from Automatic Feedback Shadow. Human launches,
+`promote` recommendations, and automatic approvals awaiting activation never
+expire. Evidence remains available in the existing all-review scan; no timer,
+notification, model call, or extra Session surface is added. See the
+[P1.19 contract](../../docs/architecture/p1-19-automatic-ambiguous-review-expiry.zh.md).
 
 For a Skill that does not use Automatic Feedback Shadow, the minimal opt-in is:
 

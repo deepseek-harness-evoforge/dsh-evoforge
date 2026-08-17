@@ -48,6 +48,7 @@ import { createAutomaticRetentionJobRunner } from './automatic-retention-job.ts'
 import {
   assertAutomaticFeedbackShadowTargets,
   AutomaticFeedbackShadowService,
+  DEFAULT_PENDING_REVIEW_AGE_HOURS,
   type AutomaticFeedbackShadowTarget,
   type AutomaticFeedbackShadowTargetReference,
 } from './automatic-feedback-shadow.ts'
@@ -121,6 +122,8 @@ export const Config: Schema<Config> = z.object({
     target: z.string().required(),
     casePackHash: z.string().required(),
     maxAttemptsPerUtcDay: z.number().step(1).min(1).max(20).default(1),
+    maxPendingReviewAgeHours: z.number().step(1).min(1).max(2_160)
+      .default(DEFAULT_PENDING_REVIEW_AGE_HOURS),
   })).max(20).default([]),
   evaluatorTargets: z.array(z.object({
     id: z.string().required(),
@@ -146,17 +149,6 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const feedbackMonitor = installFeedbackSignalMonitor(ctx, feedbackSignals, store)
   let feedbackDraftBuilder: FeedbackCaseDraftBuilder | undefined
   const deliveryMonitors = new Set<DeliveryOutcomeMonitor>()
-  ctx.provide('evoforge.evolution', store)
-  const disposeBinder = installGenerationBinder(ctx, store, source)
-  const review = config.supervisor === undefined || config.supervisor.runRoots.length === 0
-    ? undefined
-    : {
-        inbox: new ReviewInbox(config.supervisor.runRoots),
-        publisher: new CandidatePublisher(store, source),
-      }
-  const resident = config.supervisor === undefined || config.supervisor.runRoots.length === 0
-    ? undefined
-    : new ResidentEvolutionControl(store)
   const automaticSkills = config.autoPromote?.skills ?? []
   const retentionRoots = config.autoPromote?.retentionRoots ?? []
   const retentionTargets = config.autoPromote?.retentionTargets ?? []
@@ -164,6 +156,40 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const automaticFeedbackTargetReferences = config.automaticFeedbackTargets ?? []
   const evaluatorTargets = config.evaluatorTargets ?? []
   const automaticEvaluatorTargetReferences = config.automaticEvaluatorTargets ?? []
+  const shadowTargetsById = new Map(shadowTargets.map(target => [target.id, target]))
+  const automaticFeedbackTargets: AutomaticFeedbackShadowTarget[] =
+    automaticFeedbackTargetReferences.map((reference) => {
+      const target = shadowTargetsById.get(reference.target)
+      if (target === undefined) {
+        throw new Error(`automatic Feedback Shadow references unknown target '${reference.target}'`)
+      }
+      return {
+        ...target,
+        casePackHash: reference.casePackHash,
+        maxAttemptsPerUtcDay: reference.maxAttemptsPerUtcDay ?? 1,
+        maxPendingReviewAgeHours:
+          reference.maxPendingReviewAgeHours ?? DEFAULT_PENDING_REVIEW_AGE_HOURS,
+      }
+    })
+  if (automaticFeedbackTargets.length > 0) {
+    assertAutomaticFeedbackShadowTargets(automaticFeedbackTargets)
+  }
+  ctx.provide('evoforge.evolution', store)
+  const disposeBinder = installGenerationBinder(ctx, store, source)
+  const review = config.supervisor === undefined || config.supervisor.runRoots.length === 0
+    ? undefined
+    : {
+        inbox: new ReviewInbox(config.supervisor.runRoots, {
+          automaticReviewExpiry: automaticFeedbackTargets.map(target => ({
+            skillName: target.skill,
+            maxPendingReviewMs: target.maxPendingReviewAgeHours * 60 * 60 * 1_000,
+          })),
+        }),
+        publisher: new CandidatePublisher(store, source),
+      }
+  const resident = config.supervisor === undefined || config.supervisor.runRoots.length === 0
+    ? undefined
+    : new ResidentEvolutionControl(store)
   if (retentionTargets.length > 0) assertAutomaticRetentionTargets(retentionTargets)
   if (automaticSkills.length > 0 && review === undefined) {
     throw new Error('automatic promotion requires configured supervisor.runRoots')
@@ -250,22 +276,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         drafts: () => feedbackDraftBuilder,
         source,
       })
-  const shadowTargetsById = new Map(shadowTargets.map(target => [target.id, target]))
-  const automaticFeedbackTargets: AutomaticFeedbackShadowTarget[] =
-    automaticFeedbackTargetReferences.map((reference) => {
-      const target = shadowTargetsById.get(reference.target)
-      if (target === undefined) {
-        throw new Error(`automatic Feedback Shadow references unknown target '${reference.target}'`)
-      }
-      return {
-        ...target,
-        casePackHash: reference.casePackHash,
-        maxAttemptsPerUtcDay: reference.maxAttemptsPerUtcDay ?? 1,
-      }
-    })
   const automaticEvolutionBudget = new AutomaticEvolutionBudget()
   if (automaticFeedbackTargets.length > 0) {
-    assertAutomaticFeedbackShadowTargets(automaticFeedbackTargets)
     automaticEvolutionBudget.assertTargets(automaticFeedbackTargets)
   }
   const automaticFeedback = automaticFeedbackTargets.length === 0
