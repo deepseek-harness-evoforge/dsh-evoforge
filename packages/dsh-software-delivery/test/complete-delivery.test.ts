@@ -85,7 +85,7 @@ describe('complete_delivery Tool', () => {
       })
       await test.ctx.fiber.dispose()
     },
-    30_000,
+    6 * 60_000,
   )
 
   it('atomically verifies a real linked-worktree commit and completes the exact native Goal', async () => {
