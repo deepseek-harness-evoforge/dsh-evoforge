@@ -621,10 +621,12 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
       const packages = (path: string) => pathToFileURL(
         join(dshSourceDir, 'packages', path, 'lib', 'index.js'),
       ).href
-      const [messageFeedbackModule, jobsModule] = await Promise.all([
+      const [commandsModule, messageFeedbackModule, jobsModule] = await Promise.all([
+        import(packages('interaction/commands')),
         import(packages('feedback/message-feedback')),
         import(packages('jobs/jobs-local')),
       ])
+      await ctx.plugin(commandsModule.default)
       await ctx.plugin(messageFeedbackModule.default, { maxNoteBytes: 1_024 })
       await ctx.plugin(jobsModule.default)
       const store = ctx.get('evoforge.evolution') as EvolutionStore | undefined
@@ -654,6 +656,15 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
       ) as { data: { message: { id: string } } } | undefined
       if (assistant === undefined) throw new Error('assistant message fixture missing')
       const normalRequests = adapter.requests.length
+
+      const pendingReview = await ctx.commands.execute(
+        agent,
+        '/evolve review',
+        new AbortController().signal,
+      )
+      expect(pendingReview?.result.text).toContain(
+        'automatic review expiry eligible since 2000-01-01T01:00:00.000Z',
+      )
 
       await expect(feedback.put({
         sessionId: String(agent.session.header.id),

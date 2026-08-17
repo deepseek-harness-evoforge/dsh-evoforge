@@ -21,6 +21,7 @@ function remote(
   withInactive = false,
   evaluatorStatus: 'draft-ready' | 'incomplete' | 'qualified' = 'draft-ready',
   budgetStatus: 'ready' | 'unknown' = 'ready',
+  expiryEligible = false,
 ): EvolutionRemoteClient {
   const overview = {
     schemaVersion: 1 as const,
@@ -98,6 +99,11 @@ function remote(
         compositionFingerprint: '2'.repeat(64),
         compositionStable: true,
         startedAt: '2026-08-16T00:00:00.000Z',
+        automaticReviewExpiry: {
+          eligibleAt: '2026-08-23T00:00:00.000Z',
+          eligible: expiryEligible,
+          trigger: 'next-same-skill-automatic-signal' as const,
+        },
       }],
     },
   }
@@ -230,6 +236,10 @@ const t = (key: string) => ({
   'label.remaining': 'remaining',
   'label.feedbackShadow': 'Feedback Shadow',
   'label.evaluatorDraft': 'Evaluator Draft',
+  'label.reviewExpiry': 'Automatic review window',
+  'review.expiryOpen': 'Open until',
+  'review.expiryEligible': 'Expiry eligible since',
+  'review.expiryTrigger': 'No background timer runs; rejection occurs only when the next same-Skill automatic Signal arrives.',
   'status.budgetUnknown': 'Budget state unknown; automatic launch is blocked',
 }[key] ?? key)
 
@@ -248,6 +258,7 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('1/2 attempts used · 1 remaining · 2026-08-17 UTC')).toBeTruthy()
     expect(screen.getByText('Evaluator Draft · novel-failure · build-dsh-plugin')).toBeTruthy()
     expect(screen.getByText('1/1 attempts used · 0 remaining · 2026-08-17 UTC')).toBeTruthy()
+    expect(screen.getByText('Open until · 2026-08-23T00:00:00.000Z')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Inspect' }))
     await screen.findByText((_content, element) => element?.tagName === 'PRE' && element.textContent?.includes('-stop') === true)
@@ -257,6 +268,10 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('passed')).toBeTruthy()
     expect(screen.getByText('bounded case')).toBeTruthy()
     expect(screen.getAllByText('label.tokens')).toHaveLength(1)
+    expect(screen.getByText('Automatic review window')).toBeTruthy()
+    expect(screen.getByText(
+      'Open until 2026-08-23T00:00:00.000Z. No background timer runs; rejection occurs only when the next same-Skill automatic Signal arrives.',
+    )).toBeTruthy()
 
     fireEvent.change(screen.getByLabelText('Decision note'), { target: { value: 'checked evidence' } })
     fireEvent.click(screen.getByRole('button', { name: 'Publish inactive' }))
@@ -287,6 +302,58 @@ describe('EvolutionAction', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
 
     expect(await screen.findByText('Budget state unknown; automatic launch is blocked')).toBeTruthy()
+  })
+
+  it('keeps an expiry-eligible review actionable and explains the next-Signal trigger', async () => {
+    const api = remote(false, false, 'draft-ready', 'ready', true)
+    render(<EvolutionAction remote={api} t={t} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
+
+    expect(await screen.findByText('Expiry eligible since · 2026-08-23T00:00:00.000Z')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Inspect' }))
+    expect(await screen.findByText(
+      'Expiry eligible since 2026-08-23T00:00:00.000Z. No background timer runs; rejection occurs only when the next same-Skill automatic Signal arrives.',
+    )).toBeTruthy()
+  })
+
+  it('refreshes the currently inspected review from host authority without polling', async () => {
+    const api = remote()
+    const eligibleResult = await remote(false, false, 'draft-ready', 'ready', true).review(reviewId)
+    render(<EvolutionAction remote={api} t={t} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
+    await screen.findByRole('dialog')
+    fireEvent.click(screen.getByRole('button', { name: 'Inspect' }))
+    await screen.findByText(
+      'Open until 2026-08-23T00:00:00.000Z. No background timer runs; rejection occurs only when the next same-Skill automatic Signal arrives.',
+    )
+    vi.mocked(api.review).mockResolvedValueOnce(eligibleResult)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+
+    expect(await screen.findByText(
+      'Expiry eligible since 2026-08-23T00:00:00.000Z. No background timer runs; rejection occurs only when the next same-Skill automatic Signal arrives.',
+    )).toBeTruthy()
+    expect(api.review).toHaveBeenCalledTimes(2)
+  })
+
+  it('shows the authoritative failure when a listed review expires before inspection', async () => {
+    const api = remote()
+    vi.mocked(api.review).mockResolvedValueOnce({
+      ok: false,
+      error: {
+        code: 'not_found',
+        message: 'Candidate was already rejected by the automatic review expiry policy; refresh authoritative state.',
+        details: {},
+      },
+    })
+    render(<EvolutionAction remote={api} t={t} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
+    await screen.findByRole('dialog')
+    fireEvent.click(screen.getByRole('button', { name: 'Inspect' }))
+
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      'Candidate was already rejected by the automatic review expiry policy; refresh authoritative state.',
+    )
   })
 
   it('can promote a durably approved inactive Generation after the panel is reopened', async () => {

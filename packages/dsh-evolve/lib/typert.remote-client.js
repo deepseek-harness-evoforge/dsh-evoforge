@@ -256,6 +256,11 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'compositionFingerprint': z.string().readonly(),
   'compositionStable': z.boolean().readonly(),
   'startedAt': z.string().readonly(),
+  'automaticReviewExpiry': z.union([z.undefined(), z.object({
+  'eligibleAt': z.string().readonly(),
+  'eligible': z.boolean().readonly(),
+  'trigger': z.literal("next-same-skill-automatic-signal").readonly(),
+})]).readonly().optional(),
   'decisionActor': z.union([z.undefined(), z.literal("human"), z.literal("auto-clear-instruction-v1"), z.literal("auto-review-expiry-v1")]).readonly().optional(),
   'decisionNote': z.union([z.undefined(), z.string()]).readonly().optional(),
   'generationId': z.union([z.undefined(), z.string()]).readonly().optional(),
@@ -387,6 +392,11 @@ const dsh_evolve_evoforgeEvolution_review_result$schema = z.object({
   'compositionFingerprint': z.string().readonly(),
   'compositionStable': z.boolean().readonly(),
   'startedAt': z.string().readonly(),
+  'automaticReviewExpiry': z.union([z.undefined(), z.object({
+  'eligibleAt': z.string().readonly(),
+  'eligible': z.boolean().readonly(),
+  'trigger': z.literal("next-same-skill-automatic-signal").readonly(),
+})]).readonly().optional(),
   'decisionActor': z.union([z.undefined(), z.literal("human"), z.literal("auto-clear-instruction-v1"), z.literal("auto-review-expiry-v1")]).readonly().optional(),
   'decisionNote': z.union([z.undefined(), z.string()]).readonly().optional(),
   'generationId': z.union([z.undefined(), z.string()]).readonly().optional(),

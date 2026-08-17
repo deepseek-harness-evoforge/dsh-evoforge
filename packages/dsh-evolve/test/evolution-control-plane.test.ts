@@ -47,6 +47,11 @@ function candidate(status: ReviewCandidate['status'] = 'pending'): ReviewCandida
     compositionFingerprint: '4'.repeat(64),
     compositionStable: true,
     startedAt: '2026-08-16T00:00:00.000Z',
+    automaticReviewExpiry: {
+      eligibleAt: '2026-08-23T00:00:00.000Z',
+      eligible: false,
+      trigger: 'next-same-skill-automatic-signal',
+    },
     evidenceHash: '5'.repeat(64),
   }
 }
@@ -212,11 +217,24 @@ describe('EvolutionControlPlane', () => {
       reviewId: '6'.repeat(64),
       skillName: 'build-dsh-plugin',
     }])
-    expect(overview.reviews.items[0]).toMatchObject({ id: reviewId, skillName: 'build-dsh-plugin' })
+    expect(overview.reviews.items[0]).toMatchObject({
+      id: reviewId,
+      skillName: 'build-dsh-plugin',
+      automaticReviewExpiry: {
+        eligibleAt: '2026-08-23T00:00:00.000Z',
+        eligible: false,
+        trigger: 'next-same-skill-automatic-signal',
+      },
+    })
 
     const detail = await control.review(reviewId)
     expect(detail.diff.patch).toBe('-old\n+new\n')
     expect(detail.automatic?.eligible).toBe(false)
+    expect(detail.review.automaticReviewExpiry).toEqual({
+      eligibleAt: '2026-08-23T00:00:00.000Z',
+      eligible: false,
+      trigger: 'next-same-skill-automatic-signal',
+    })
     expect(JSON.stringify({ overview, detail })).not.toContain('/private/evolution')
     expect(JSON.stringify({ overview, detail })).not.toContain('private content')
     expect(JSON.stringify(overview)).not.toContain('private-session')

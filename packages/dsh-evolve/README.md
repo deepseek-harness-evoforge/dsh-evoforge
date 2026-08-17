@@ -1,6 +1,6 @@
 # dsh-evolve
 
-`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains twenty-three deliberately separate lanes:
+`dsh-evolve` is an evidence-driven evolution extension for DeepSeek Harness. It currently contains twenty-four deliberately separate lanes:
 
 - **P0A Shadow** compares an active Skill with an inactive Candidate without changing live DSH.
 - **P0B Local Continuity** records immutable Capability Generations, pins one Generation per Session, switches or rolls back only future Sessions, and resumes durable sealed work through an optional resident supervisor.
@@ -25,6 +25,7 @@
 - **P1.17 Human-approved Qualify-and-Shadow** lets a reviewer authorize sealed qualification and one contingent paid Shadow in one cancellable action, without coupling either to Promotion.
 - **P1.18 Per-Skill Automatic Inflight Gate** defers new automatic work before budget while the same Skill still has an unresolved Draft, Shadow, or Review Candidate.
 - **P1.19 Automatic Ambiguous Review Expiry** durably rejects only stale automatic `review` Candidates before a later Signal may spend budget, while retaining their evidence.
+- **P1.20 Automatic Review Window Visibility** derives the exact window and next-same-Skill-Signal trigger once in the host plane for consistent Commands/Web display.
 
 A 64-turn assembled DSH Agent parity test also verifies that installing the configured evolution host plane and changing the future-Session Generation pointer leaves every current-Session model-visible request byte-equivalent to the no-EvoForge control after removing DSH-internal message ids. It proves a zero request delta; real-provider cache-read and latency measurements still require an explicitly funded paired soak.
 
@@ -348,6 +349,14 @@ journal proves it came from Automatic Feedback Shadow. Human launches,
 expire. Evidence remains available in the existing all-review scan; no timer,
 notification, model call, or extra Session surface is added. See the
 [P1.19 contract](../../docs/architecture/p1-19-automatic-ambiguous-review-expiry.zh.md).
+
+P1.20 exposes that exact window through the existing Review Inbox projection.
+Commands and Web distinguish `open until` from `expiry eligible since`, and
+state that only the next same-Skill automatic Signal triggers rejection. Human,
+`promote`, and unproven Candidate provenance remain unlabelled. The projection
+is reconstructed from existing facts and adds no state, timer, model call, or
+Session surface. See the
+[P1.20 contract](../../docs/architecture/p1-20-automatic-review-window-visibility.zh.md).
 
 For a Skill that does not use Automatic Feedback Shadow, the minimal opt-in is:
 

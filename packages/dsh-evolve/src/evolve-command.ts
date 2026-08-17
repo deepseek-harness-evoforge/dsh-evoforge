@@ -421,7 +421,7 @@ function renderReviewList(candidates: ReviewCandidate[], warningCount: number): 
     text: [
       `Pending evolution reviews: ${candidates.length}`,
       ...visible.map(candidate =>
-        `- ${candidate.id} [${candidate.status === 'pending' ? '' : `${candidate.status}/`}${candidate.recommendation}] ${candidate.skillName}: ${candidate.claim}`),
+        `- ${candidate.id} [${candidate.status === 'pending' ? '' : `${candidate.status}/`}${candidate.recommendation}] ${candidate.skillName}: ${candidate.claim}${renderReviewWindowSummary(candidate)}`),
       ...candidates.length > visible.length ? [`- … ${candidates.length - visible.length} more`] : [],
       ...warningCount === 0 ? [] : [`Skipped invalid runs: ${warningCount}`],
       '',
@@ -444,6 +444,7 @@ function renderReview(
     text: [
       `Evolution review ${candidate.id}`,
       `Status: ${candidate.status}${candidate.decisionActor === undefined ? '' : ` (${candidate.decisionActor})`}`,
+      ...renderReviewExpiry(candidate),
       `Recommendation: ${candidate.recommendation}`,
       `Skill: ${candidate.skillName}`,
       `Claim: ${candidate.claim}`,
@@ -482,6 +483,22 @@ function renderReview(
           : [],
     ].join('\n'),
   }
+}
+
+function renderReviewWindowSummary(candidate: ReviewCandidate): string {
+  const expiry = candidate.automaticReviewExpiry
+  if (expiry === undefined) return ''
+  return expiry.eligible
+    ? ` — automatic review expiry eligible since ${expiry.eligibleAt}`
+    : ` — automatic review window until ${expiry.eligibleAt}`
+}
+
+function renderReviewExpiry(candidate: ReviewCandidate): string[] {
+  const expiry = candidate.automaticReviewExpiry
+  if (expiry === undefined) return []
+  return [expiry.eligible
+    ? `Automatic review expiry: eligible since ${expiry.eligibleAt}; the next same-Skill automatic Signal rejects this Candidate.`
+    : `Automatic review expiry: open until ${expiry.eligibleAt}; after that, the next same-Skill automatic Signal rejects this Candidate.`]
 }
 
 function renderStatus(

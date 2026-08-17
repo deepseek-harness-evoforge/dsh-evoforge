@@ -376,7 +376,15 @@ describe('/evolve host command', () => {
 
   it('lists, explains, rejects, and publishes reviews through the host plane', async () => {
     const store = fakeStore()
-    const candidate = reviewCandidate()
+    const candidate: ReviewCandidate = {
+      ...reviewCandidate(),
+      recommendation: 'review',
+      automaticReviewExpiry: {
+        eligibleAt: '2026-08-23T00:00:00.000Z',
+        eligible: false,
+        trigger: 'next-same-skill-automatic-signal',
+      },
+    }
     const inbox = {
       scan: vi.fn(async () => ({ candidates: [candidate], warnings: [] })),
       get: vi.fn(async () => candidate),
@@ -420,13 +428,16 @@ describe('/evolve host command', () => {
 
     await expect(executeEvolutionCommand(store, 'review', { review })).resolves.toMatchObject({
       kind: 'success',
-      text: expect.stringContaining(`${candidate.id} [promote] stable-skill`),
+      text: expect.stringContaining(
+        `${candidate.id} [review] stable-skill: ${candidate.claim} — automatic review window until 2026-08-23T00:00:00.000Z`,
+      ),
     })
-    await expect(executeEvolutionCommand(
+    const detail = await executeEvolutionCommand(
       store,
       `review ${candidate.id}`,
       { review, automatic },
-    )).resolves.toMatchObject({
+    )
+    expect(detail).toMatchObject({
       kind: 'success',
       text: expect.stringContaining([
         'Protected-effect projection (lexical-protected-effects-v1; lexical only): scope append-only-skill; indicators production-change',
@@ -441,6 +452,9 @@ describe('/evolve host command', () => {
         'Automatic policy: manual review — instruction change mentions a protected effect',
       ].join('\n')),
     })
+    expect(detail.text).toContain(
+      'Automatic review expiry: open until 2026-08-23T00:00:00.000Z; after that, the next same-Skill automatic Signal rejects this Candidate.',
+    )
     expect(publisher.preview).toHaveBeenCalledWith(candidate)
     await expect(executeEvolutionCommand(
       store,

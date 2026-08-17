@@ -166,6 +166,46 @@ describe('Shadow review inbox', () => {
     ])
   })
 
+  it('projects the exact automatic review window without pretending that a timer disposes it', async () => {
+    const root = await createRoot()
+    await writeCandidateRun(root, 'candidate', 'review', 'complete', {
+      feedbackLaunchMode: 'automatic',
+      updatedAt: '2026-08-16T00:00:00.000Z',
+    })
+    const policy = [{
+      skillName: 'stable-skill',
+      maxPendingReviewMs: 7 * 24 * 60 * 60 * 1_000,
+    }]
+
+    expect((await new ReviewInbox([root], {
+      automaticReviewExpiry: policy,
+      now: () => Date.parse('2026-08-22T00:00:00.000Z'),
+    }).scan()).candidates).toEqual([
+      expect.objectContaining({
+        status: 'pending',
+        automaticReviewExpiry: {
+          eligibleAt: '2026-08-23T00:00:00.000Z',
+          eligible: false,
+          trigger: 'next-same-skill-automatic-signal',
+        },
+      }),
+    ])
+
+    expect((await new ReviewInbox([root], {
+      automaticReviewExpiry: policy,
+      now: () => Date.parse('2026-08-24T00:00:00.000Z'),
+    }).scan()).candidates).toEqual([
+      expect.objectContaining({
+        status: 'pending',
+        automaticReviewExpiry: {
+          eligibleAt: '2026-08-23T00:00:00.000Z',
+          eligible: true,
+          trigger: 'next-same-skill-automatic-signal',
+        },
+      }),
+    ])
+  })
+
   it('never expires recent, promotable, or human-launched review work', async () => {
     for (const fixture of [
       { name: 'recent-auto-review', recommendation: 'review' as const, mode: 'automatic' as const,
@@ -190,9 +230,13 @@ describe('Shadow review inbox', () => {
 
       await expect(inbox.automaticInflightStatus('stable-skill', '2'.repeat(64)))
         .resolves.toBe('busy')
-      expect((await inbox.scanAll()).candidates).toEqual([
-        expect.objectContaining({ status: 'pending' }),
-      ])
+      const candidate = (await inbox.scanAll()).candidates[0]
+      expect(candidate).toMatchObject({ status: 'pending' })
+      if (fixture.name === 'recent-auto-review') {
+        expect(candidate?.automaticReviewExpiry).toMatchObject({ eligible: false })
+      } else {
+        expect(candidate?.automaticReviewExpiry).toBeUndefined()
+      }
     }
   })
 

@@ -18,7 +18,12 @@ Commands 与 Web 委托同一组权威 owner。Web 通过一个 `EvolutionContro
 
 Remote 只投影 UI 必需的有界数据：活动 Generation、resident 状态、聚合统计、最多 20 条可处理审查、最多 20 条已批准未激活 Generation，以及单条审查的 bounded diff。后者使 approve 与 promote 之间发生页面刷新或进程重启时仍能继续，而不建立第二状态库。它不返回 `outputDir`、完整 proposal 对象、私有反馈正文、Prompt、cwd 或 Session 消息。
 
-Web 面板只在用户打开时读取，并在显式动作后刷新；没有后台轮询。批准只发布 inactive Generation，晋升是第二个显式动作。暂停、恢复、拒绝、批准、晋升和回滚都保留原有 durable/rollback 语义。
+Web 面板只在用户打开时读取，并在显式刷新或动作后重读；没有后台轮询。显式刷新会同时重读当前打开的
+review/evaluator detail，权威对象已变化时清除陈旧表单。批准只发布 inactive Generation，晋升是第二个
+显式动作。暂停、恢复、拒绝、批准、晋升和回滚都保留原有 durable/rollback 语义。
+
+P1.20 允许 Review Inbox 在同一 Remote 上投影 P1.19 的 exact 自动审阅窗口和唯一触发语义。该字段由
+host 的既有证据与 policy 派生，不是浏览器倒计时或第二份状态；Remote 方法与动作集合不变。
 
 ## KV Cache 契约
 

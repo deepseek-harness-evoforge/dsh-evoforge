@@ -40,6 +40,34 @@ export function EvolutionAction({ remote, t, wide = true }: EvolutionActionProps
     }
   }
 
+  const refreshVisibleState = async () => {
+    setBusy(true)
+    setError(undefined)
+    try {
+      const nextOverview = await remoteValue(remote.overview())
+      setOverview(nextOverview)
+      if (detail !== undefined) {
+        try {
+          setDetail(await remoteValue(remote.review(detail.review.id)))
+        } catch (cause) {
+          setDetail(undefined)
+          throw cause
+        }
+      } else if (evaluatorDetail !== undefined) {
+        try {
+          setEvaluatorDetail(await remoteValue(remote.evaluatorDraft(evaluatorDetail.draft.id)))
+        } catch (cause) {
+          setEvaluatorDetail(undefined)
+          throw cause
+        }
+      }
+    } catch (cause) {
+      setError(message(cause))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   useEffect(() => {
     if (open && overview === undefined && error === undefined) void loadOverview()
   }, [open])
@@ -162,7 +190,7 @@ export function EvolutionAction({ remote, t, wide = true }: EvolutionActionProps
             {overview === undefined && error === undefined && <div className="dsh-evolve-message">{t('status.loading')}</div>}
             {overview !== undefined && <Overview summary={overview} t={t} />}
             <div className="dsh-evolve-actions">
-              <button type="button" className="dsh-evolve-button" disabled={busy} onClick={() => { void loadOverview() }}>{t('action.refresh')}</button>
+              <button type="button" className="dsh-evolve-button" disabled={busy} onClick={() => { void refreshVisibleState() }}>{t('action.refresh')}</button>
               {overview?.recovery.available === true && (
                 <button
                   type="button"
@@ -392,6 +420,9 @@ function ReviewQueue({ overview, busy, inspect, promote, startShadow, authorEval
                 <div className="dsh-evolve-review-skill">{review.skillName}</div>
                 <p className="dsh-evolve-review-claim">{review.claim}</p>
                 <div className="dsh-evolve-meta">{review.recommendation} · {review.cases.length} cases · {shortId(review.id)}</div>
+                {review.automaticReviewExpiry !== undefined && <div className="dsh-evolve-meta">
+                  {t(review.automaticReviewExpiry.eligible ? 'review.expiryEligible' : 'review.expiryOpen')} · {review.automaticReviewExpiry.eligibleAt}
+                </div>}
               </div>
               <button type="button" className="dsh-evolve-button" disabled={busy} onClick={() => { void inspect(review.id) }}>{t('action.inspect')}</button>
             </div>
@@ -483,6 +514,10 @@ function ReviewDetail({ detail, note, busy, setNote, back, confirm, t }: {
       <dt>{t('label.limitations')}</dt><dd>{detail.review.limitations.join('; ')}</dd>
       <dt>{t('label.cases')}</dt><dd>{detail.review.cases.map(item => `${item.id}: ${item.baseline}→${item.candidate} ${item.passedChecks}/${item.totalChecks}`).join('; ')}</dd>
       <dt>{t('label.tokens')}</dt><dd>{detail.review.cost.inputTokens} in / {detail.review.cost.outputTokens} out</dd>
+      {detail.review.automaticReviewExpiry !== undefined && <>
+        <dt>{t('label.reviewExpiry')}</dt>
+        <dd>{t(detail.review.automaticReviewExpiry.eligible ? 'review.expiryEligible' : 'review.expiryOpen')} {detail.review.automaticReviewExpiry.eligibleAt}. {t('review.expiryTrigger')}</dd>
+      </>}
       <dt>{t('label.impact')}</dt><dd>{detail.diff.impact.indicators.length === 0 ? 'none' : detail.diff.impact.indicators.join(', ')}</dd>
     </dl>
     <h4 className="dsh-evolve-section-title">{t('label.diff')}</h4>

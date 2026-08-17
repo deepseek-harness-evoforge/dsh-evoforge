@@ -14,6 +14,8 @@ const reviewId = 'c'.repeat(64)
 const search = new URLSearchParams(window.location.search)
 const qualifiedMode = search.has('qualified')
 const reviewMode = search.has('review')
+const reviewExpiryEligibleMode = search.has('expired')
+const staleReviewMode = search.has('stale')
 const calls = { author: 0, approve: 0, reject: 0, shadow: 0, reviewApprove: 0 }
 let reviewApproved = false
 const runs: Array<{
@@ -58,6 +60,11 @@ const review = {
   compositionFingerprint: '2'.repeat(64),
   compositionStable: true,
   startedAt: '2026-08-16T00:00:00.000Z',
+  automaticReviewExpiry: {
+    eligibleAt: '2026-08-23T00:00:00.000Z',
+    eligible: reviewExpiryEligibleMode,
+    trigger: 'next-same-skill-automatic-signal' as const,
+  },
 }
 
 const ok = <T,>(value: T) => Promise.resolve({ ok: true as const, value })
@@ -203,6 +210,14 @@ const remote: EvolutionRemoteClient = {
   },
   review: (selectedReview) => {
     if (!reviewMode || selectedReview !== reviewId) throw new Error('wrong review selection')
+    if (staleReviewMode) return Promise.resolve({
+      ok: false as const,
+      error: {
+        code: 'not_found',
+        message: 'Candidate was already rejected by the automatic review expiry policy; refresh authoritative state.',
+        details: {},
+      },
+    })
     return ok({
       schemaVersion: 1,
       review,
@@ -296,6 +311,10 @@ const labels: Record<string, string> = {
   'label.remaining': 'remaining',
   'label.feedbackShadow': 'Feedback Shadow',
   'label.evaluatorDraft': 'Evaluator Draft',
+  'label.reviewExpiry': 'Automatic review window',
+  'review.expiryOpen': 'Open until',
+  'review.expiryEligible': 'Expiry eligible since',
+  'review.expiryTrigger': 'No background timer runs; rejection occurs only when the next same-Skill automatic Signal arrives.',
   'confirm.approve': 'Publish an inactive Generation without changing current or future Sessions?',
   'confirm.authorEvaluator': 'Paid disclosure confirmation',
   'confirm.approveEvaluator': 'Execute generated code in sealed qualification?',

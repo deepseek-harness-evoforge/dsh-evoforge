@@ -52,6 +52,13 @@ export interface EvolutionReviewCaseView {
   readonly totalChecks: number
 }
 
+/** Exact host-derived window for one ambiguous Candidate from automatic feedback. */
+export interface EvolutionAutomaticReviewExpiryView {
+  readonly eligibleAt: string
+  readonly eligible: boolean
+  readonly trigger: 'next-same-skill-automatic-signal'
+}
+
 /** Bounded review metadata shared by the list and detail views. */
 export interface EvolutionReviewView {
   readonly id: string
@@ -73,6 +80,7 @@ export interface EvolutionReviewView {
   readonly compositionFingerprint: string
   readonly compositionStable: boolean
   readonly startedAt: string
+  readonly automaticReviewExpiry?: EvolutionAutomaticReviewExpiryView
   readonly decisionActor?: 'human' | 'auto-clear-instruction-v1' | 'auto-review-expiry-v1'
   readonly decisionNote?: string
   readonly generationId?: string

@@ -13,3 +13,7 @@ P1.19 因此只对 Automatic Feedback Shadow 产生的 `recommendation: review` 
 
 该选择用“安全放弃一个长期无人确认的模糊候选”换取自动学习不会永久停摆。它不引入 timer、通知、
 新状态机或模型面；若真实 review 数据显示默认窗口不合适，应调整配置默认值，而不是扩张为通用队列。
+
+P1.20 从同一 durable evidence 与配置派生只读 `eligibleAt/eligible/trigger`，让 Commands/Web 明确展示
+窗口与“下一条同 Skill 自动 Signal”触发语义。投影不持久化、不推进时钟，也不改变处置条件；因此不需要
+新 ADR 或新的生命周期 owner。

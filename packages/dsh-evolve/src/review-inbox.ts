@@ -12,6 +12,12 @@ export interface ReviewCaseSummary {
   totalChecks: number
 }
 
+export interface AutomaticReviewExpiryProjection {
+  readonly eligibleAt: string
+  readonly eligible: boolean
+  readonly trigger: 'next-same-skill-automatic-signal'
+}
+
 export interface ReviewCandidate {
   id: string
   runId: string
@@ -36,6 +42,7 @@ export interface ReviewCandidate {
   completedAt?: string
   feedbackSignalId?: string
   feedbackLaunchMode?: 'human' | 'automatic'
+  automaticReviewExpiry?: AutomaticReviewExpiryProjection
   evidenceHash: string
   decisionActor?: ReviewDecisionActor
   decisionNote?: string
@@ -110,7 +117,7 @@ export class ReviewInbox {
     const maxPendingReviewMs = this.automaticReviewExpiry.get(skillName)
     if (maxPendingReviewMs !== undefined) {
       for (const candidate of scan.candidates) {
-        if (!this.isExpiredAutomaticReview(candidate, skillName, maxPendingReviewMs)) continue
+        if (!this.isExpiredAutomaticReview(candidate, skillName)) continue
         const hours = Math.floor(maxPendingReviewMs / (60 * 60 * 1_000))
         await this.enqueue(candidate.id, () => this.rejectNow(
           candidate.id,
@@ -127,16 +134,32 @@ export class ReviewInbox {
   private isExpiredAutomaticReview(
     candidate: ReviewCandidate,
     skillName: string,
-    maxPendingReviewMs: number,
   ): boolean {
-    if (candidate.skillName !== skillName
+    return candidate.skillName === skillName
+      && candidate.automaticReviewExpiry?.eligible === true
+  }
+
+  private projectAutomaticReviewExpiry(
+    candidate: ReviewCandidate,
+  ): AutomaticReviewExpiryProjection | undefined {
+    const maxPendingReviewMs = this.automaticReviewExpiry.get(candidate.skillName)
+    if (maxPendingReviewMs === undefined
       || candidate.status !== 'pending'
       || candidate.recommendation !== 'review'
       || candidate.feedbackSignalId === undefined
-      || candidate.feedbackLaunchMode !== 'automatic') return false
-    if (candidate.completedAt === undefined) return false
+      || candidate.feedbackLaunchMode !== 'automatic'
+      || candidate.completedAt === undefined) return undefined
     const completedAt = Date.parse(candidate.completedAt)
-    return Number.isFinite(completedAt) && this.now() - completedAt >= maxPendingReviewMs
+    if (!Number.isFinite(completedAt)) return undefined
+    const eligibleAtMs = completedAt + maxPendingReviewMs
+    const eligibleAt = new Date(eligibleAtMs)
+    if (Number.isNaN(eligibleAt.getTime())) return undefined
+    const observedAt = this.now()
+    return {
+      eligibleAt: eligibleAt.toISOString(),
+      eligible: Number.isFinite(observedAt) && observedAt >= eligibleAtMs,
+      trigger: 'next-same-skill-automatic-signal',
+    }
   }
 
   /** Include terminal dispositions for crash recovery by trusted host policies. */
@@ -370,7 +393,7 @@ export class ReviewInbox {
       && (disposition.reviewId !== id || disposition.evidenceHash !== evidenceHash)) {
       throw new Error('review-state.json does not match its Candidate evidence')
     }
-    return {
+    const candidate: ReviewCandidate = {
       id,
       runId: state.runId,
       status: disposition?.status ?? 'pending',
@@ -409,6 +432,11 @@ export class ReviewInbox {
       ...disposition?.decisionNote === undefined ? {} : { decisionNote: disposition.decisionNote },
       ...disposition?.generationId === undefined ? {} : { generationId: disposition.generationId },
       ...disposition?.activatedAt === undefined ? {} : { activatedAt: disposition.activatedAt },
+    }
+    const automaticReviewExpiry = this.projectAutomaticReviewExpiry(candidate)
+    return {
+      ...candidate,
+      ...(automaticReviewExpiry === undefined ? {} : { automaticReviewExpiry }),
     }
   }
 

@@ -140,6 +140,10 @@ _Avoid_: Evolution queue, distributed lease, duplicate state store, limit on hum
 An opt-in host policy that gives an ambiguous Candidate created by Automatic Feedback Shadow a bounded review window. When a later Signal arrives after that window, the existing Review Inbox durably rejects the old Candidate while retaining all evidence, then lets the Per-Skill Automatic Inflight Gate reconsider the new Signal.
 _Avoid_: Background TTL service, evidence deletion, expiration of human or promotable work
 
+**Automatic Review Window Projection**:
+A read-only host projection that tells Commands and Web when an Automatic Ambiguous Review Expiry becomes eligible and that only the next same-Skill automatic Signal can trigger rejection. It is derived from existing evidence and policy, not persisted or advanced by a timer.
+_Avoid_: Countdown service, browser authority, notification queue, claim that eligibility already means rejection
+
 **Human-approved Qualify-and-Shadow**:
 One explicit host action taken after a human reviews an exact Evaluator Draft. It authorizes sealed qualification and one contingent paid Shadow: qualification failure stops before the proposer, while success delegates to the existing content-addressed Qualified Shadow launcher. It does not authorize Promotion.
 _Avoid_: Automatic approval, qualify-and-promote, workflow engine, Session-visible review state

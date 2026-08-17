@@ -372,6 +372,9 @@ function projectReview(candidate: ReviewCandidate): EvolutionReviewView {
     compositionFingerprint: candidate.compositionFingerprint,
     compositionStable: candidate.compositionStable,
     startedAt: candidate.startedAt,
+    ...(candidate.automaticReviewExpiry === undefined
+      ? {}
+      : { automaticReviewExpiry: { ...candidate.automaticReviewExpiry } }),
     ...(candidate.decisionActor === undefined ? {} : { decisionActor: candidate.decisionActor }),
     ...(candidate.decisionNote === undefined ? {} : { decisionNote: candidate.decisionNote }),
     ...(candidate.generationId === undefined ? {} : { generationId: candidate.generationId }),

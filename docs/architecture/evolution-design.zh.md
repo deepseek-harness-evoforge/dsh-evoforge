@@ -1,6 +1,6 @@
 # EvoForge 可证明自进化设计
 
-> 状态：P0A/P0B/P0C、P1.1–P1.19 与 P2D.1 implemented；包含最窄 opt-in 自动晋升、反事实 canary/回滚、显式反馈、私有 Draft、独立 evaluator、静态 Target、exact Retention、明确纠错自动 Shadow/自动 inactive evaluator Draft、人工 Qualify-and-Shadow、持久日预算、每 Skill 单未决自动门与模糊审查有界处置；真实 provider 与真实任务长期证据待完成
+> 状态：P0A/P0B/P0C、P1.1–P1.20 与 P2D.1 implemented；包含最窄 opt-in 自动晋升、反事实 canary/回滚、显式反馈、私有 Draft、独立 evaluator、静态 Target、exact Retention、明确纠错自动 Shadow/自动 inactive evaluator Draft、人工 Qualify-and-Shadow、持久日预算、每 Skill 单未决自动门、模糊审查有界处置与窗口可见性；真实 provider 与真实任务长期证据待完成
 > 更新日期：2026-08-17
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 
@@ -698,3 +698,9 @@ P1.19 为 P1.18 增加一个最小活性边界：Automatic Feedback Shadow 产�
 所有证据保留，人工、明确 `promote`、未激活或不可读状态仍 fail closed。它不增加 timer、通知、
 后台清理器或模型表面。见 [P1.19](p1-19-automatic-ambiguous-review-expiry.zh.md)与
 [ADR-0040](../adr/0040-automatic-ambiguous-review-has-a-bounded-window.md)。
+
+P1.20 不改变 P1.19 state machine，只从 Review Inbox 的相同 policy/provenance/completion facts 派生
+`eligibleAt/eligible/trigger`。Commands 与 Web 读取同一 host projection；Web 只在打开、显式刷新或动作后
+读取，详情刷新会清掉已失效表单。它没有 timer、polling、持久新字段、动作或模型表面。见
+[P1.20](p1-20-automatic-review-window-visibility.zh.md)与
+[ADR-0025](../adr/0025-web-is-a-thin-kv-safe-adapter.md)。
