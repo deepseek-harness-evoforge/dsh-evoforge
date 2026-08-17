@@ -28,7 +28,7 @@ pnpm test:pa1
 | 付费 proposer 被隐式或重复调用 | `evolution-action.client.test.tsx` 在确认前不调用 Shadow；`feedback-shadow-launcher.test.ts` 只接受显式 signal/target；`shadow-resume.e2e.test.ts` 在 paid outcome 不确定时不重试 proposal | 背景付费与重复付费 |
 | Delivery 越过 Draft PR 或等待时证据漂移 | `complete-delivery.test.ts` 精确锁定 Tool 只有 Goal/worktree/base/checks/draft-PR 六类顶层参数，只发布/复用 Draft，认证失败时 push 为零，已 ready PR 不被修改；`draft-pr-check-wait.test.ts` 固定 failed/wrong-head/cancel/timeout/local drift 均不完成，恢复先查远端事实且不创建第二个 PR | Goal 完成与外部发布 |
 | secret 进入子进程或长期证据 | `verify-delivery.test.ts` 清理 credential-bearing environment；Shadow/Feedback 测试验证 API key、反馈正文与 note hash 不进入报告和 Signal | check/Trial 执行与持久化 |
-| 消息 Adapter 改写秘密或路由目标 | `protected-route.test.ts` 只允许 official Telegram HTTPS 或 loopback 测试端点，静态绑定 exact Agent/chat/user 与一个合法 token env 名；`telegram-api.test.ts` 验证 token 不进入失败结果；`inbound.test.ts` 拒绝非 private、错误 chat/user、过期或伪造 callback | Bot 启动、消息进入 DSH 与 Approval 回答 |
+| 消息 Adapter 改写秘密或路由目标 | Channel Router 只接受静态 exact endpoint→Workspace/Session/Agent preset/model，并拒绝未知用户、跨 Workspace Session、cwd/preset/model 漂移；`dsh-telegram` 配置只命名 exact routeId 与合法 token env，`protected-route.test.ts` 只允许 official Telegram HTTPS 或 loopback；`telegram-api.test.ts` 验证 token 不进入失败结果；`inbound.test.ts` 拒绝非 private、错误 chat/user、过期或伪造 callback | Bot 启动、消息进入 DSH 与 Approval 回答 |
 | 进程常驻未经部署批准 | `dsh-resident/runtime-command.test.ts` 验证 `/resident apply` 只接受当前完整 plan 的 SHA-256，remove 只接受 exact service id；错误或缺失确认不创建 unit、不调用 OS manager | 安装、启动、停止和删除用户级服务 |
 | 回滚虚称撤销现实副作用 | `generation-store.e2e.test.ts` 只原子切换 future-session Generation pointer，并保留 exact rollback target；外部 PR/消息/部署不属于 capability rollback | capability selection 更新 |
 

@@ -1,9 +1,8 @@
-import type { ResolvedTelegramConfig } from './runtime.js'
+import type { ChannelEndpoint, ResolvedChannelRoute } from 'dsh-channel-router'
+import type { TelegramRouteIdentity } from './inbound.js'
 
 export interface TelegramConfigInput {
-  readonly agentId: string
-  readonly chatId: number
-  readonly userId: number
+  readonly routeId: string
   readonly tokenEnv?: string
   readonly apiBase?: string
   readonly pollTimeoutSeconds?: number
@@ -11,11 +10,41 @@ export interface TelegramConfigInput {
   readonly maxTextChars?: number
 }
 
-export function resolveTelegramConfig(config: TelegramConfigInput): ResolvedTelegramConfig {
+export interface ResolvedTelegramConfig extends TelegramRouteIdentity {
+  readonly routeId: string
+  readonly sessionId: string
+  readonly endpoint: ChannelEndpoint
+  readonly apiBase: string
+  readonly maxSendAttempts: number
+  readonly maxTextChars: number
+  readonly pollTimeoutSeconds: number
+  readonly tokenEnv: string
+}
+
+export function resolveTelegramConfig(
+  config: TelegramConfigInput,
+  route: ResolvedChannelRoute,
+): ResolvedTelegramConfig {
+  if (config.routeId !== route.id) {
+    throw new Error(`dsh-telegram: routeId '${config.routeId}' does not resolve to route '${route.id}'`)
+  }
+  if (route.adapter !== 'telegram') {
+    throw new Error(`dsh-telegram: route '${route.id}' adapter must be telegram`)
+  }
+  if (route.threadId !== undefined) {
+    throw new Error(`dsh-telegram: route '${route.id}' threadId is unsupported for a private chat`)
+  }
   const resolved: ResolvedTelegramConfig = {
-    agentId: config.agentId,
-    chatId: config.chatId,
-    userId: config.userId,
+    routeId: route.id,
+    sessionId: route.sessionId,
+    endpoint: Object.freeze({
+      adapter: route.adapter,
+      accountId: route.accountId,
+      conversationId: route.conversationId,
+      userId: route.userId,
+    }),
+    chatId: telegramId(route.conversationId, 'conversationId'),
+    userId: telegramId(route.userId, 'userId'),
     tokenEnv: config.tokenEnv ?? 'DSH_TELEGRAM_BOT_TOKEN',
     apiBase: config.apiBase ?? 'https://api.telegram.org',
     pollTimeoutSeconds: config.pollTimeoutSeconds ?? 30,
@@ -25,19 +54,22 @@ export function resolveTelegramConfig(config: TelegramConfigInput): ResolvedTele
   if (!/^[A-Za-z_][A-Za-z0-9_]*$/u.test(resolved.tokenEnv)) {
     throw new Error('dsh-telegram: tokenEnv must be an environment-variable name')
   }
-  if (resolved.agentId.trim() !== resolved.agentId || resolved.agentId.length === 0) {
-    throw new Error('dsh-telegram: agentId must be a non-empty trimmed string')
-  }
-  for (const [key, value] of [['chatId', resolved.chatId], ['userId', resolved.userId]] as const) {
-    if (!Number.isSafeInteger(value) || value < 1) {
-      throw new Error(`dsh-telegram: ${key} must be a positive safe integer`)
-    }
-  }
   assertIntegerRange('pollTimeoutSeconds', resolved.pollTimeoutSeconds, 1, 50)
   assertIntegerRange('maxSendAttempts', resolved.maxSendAttempts, 1, 5)
   assertIntegerRange('maxTextChars', resolved.maxTextChars, 256, 4_096)
   assertApiBase(resolved.apiBase)
   return Object.freeze(resolved)
+}
+
+function telegramId(value: string, field: 'conversationId' | 'userId'): number {
+  if (!/^[1-9][0-9]*$/u.test(value)) {
+    throw new Error(`dsh-telegram: Router ${field} must be a canonical positive Telegram integer`)
+  }
+  const parsed = Number(value)
+  if (!Number.isSafeInteger(parsed) || parsed < 1 || String(parsed) !== value) {
+    throw new Error(`dsh-telegram: Router ${field} must be a canonical positive safe integer`)
+  }
+  return parsed
 }
 
 function assertIntegerRange(name: string, value: number, min: number, max: number): void {

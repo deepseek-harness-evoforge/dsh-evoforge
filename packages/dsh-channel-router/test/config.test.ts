@@ -10,6 +10,8 @@ const route = {
   workspaceId: 'workspace-a',
   sessionId: 'channel-session-a',
   agentPreset: 'standard',
+  provider: 'deepseek',
+  model: 'deepseek-chat',
 }
 
 describe('channel route configuration', () => {
@@ -45,5 +47,14 @@ describe('channel route configuration', () => {
         workspaceId: 'workspace-b',
       },
     ])).toThrow('cannot cross Workspaces')
+    expect(() => resolveChannelRoutes([
+      route,
+      {
+        ...route,
+        id: 'same-session-other-model',
+        conversationId: 'chat-b',
+        model: 'another-model',
+      },
+    ])).toThrow('multiple model routes')
   })
 })

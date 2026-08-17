@@ -23,7 +23,6 @@ describe.skipIf(process.platform !== 'darwin')('Telegram Storage Domain crash re
     const firstCtx = await boot(config)
     const first = await openTelegramDeliveryStore(firstCtx.storageDomain)
     const prepared = await first.prepareTurn({ now: 100, sessionId: 'main', turn: 1 })
-    await expect(first.acceptCommand(77)).resolves.toBe(true)
     await first.markSending(prepared.record.id, 200)
     await first.close()
     await firstCtx.fiber.dispose()
@@ -32,9 +31,6 @@ describe.skipIf(process.platform !== 'darwin')('Telegram Storage Domain crash re
     const resumed = await openTelegramDeliveryStore(resumedCtx.storageDomain)
     try {
       expect(resumed.get(prepared.record.id)).toMatchObject({ status: 'sending', attempts: 1 })
-      expect(resumed.hasAcceptedCommand(77)).toBe(true)
-      await expect(resumed.acceptCommand(76)).resolves.toBe(false)
-      await expect(resumed.acceptCommand(78)).resolves.toBe(true)
       await expect(resumed.recoverInflight(300)).resolves.toBe(1)
       expect(resumed.get(prepared.record.id)).toMatchObject({
         status: 'uncertain',

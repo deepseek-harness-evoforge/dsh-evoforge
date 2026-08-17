@@ -8,7 +8,7 @@
 - P2A.1–P2D.1：原生 Skill/Tool 软件交付、Draft PR、exact-head checks、交付 Outcome；
 - P3.1/P3.2：Telegram 进化注意力和 GitHub review follow-up；
 - LC-1/LC-2：Goal cold resume 与用户级 OS service unit；
-- DSH Web review、Runtime Readiness 和单 Telegram 私聊 Adapter。
+- DSH Web review、Runtime Readiness、Workspace Channel Router 和已迁移的单 Telegram 私聊 Adapter。
 
 这些条目表示内部实现和自动化证据存在，不等于当前发布形态已经满足 v0.1。
 
@@ -25,8 +25,8 @@
 ## V1 — Workspace Channel Router
 
 - 直接消费 DSH `WorkspaceRegistry`、Agent、Session、Commands、Approval 和 StorageDomain；
-- 静态、可审查、默认拒绝地把外部 tenant/chat/thread/user 绑定到既有 Workspace 与 Agent/Session；
-- 路由、幂等和投递状态有界持久化；
+- 静态、可审查、默认拒绝地把外部 tenant/chat/thread/user 绑定到既有 Workspace，并通过原生 API 创建或冷恢复稳定 Agent/Session；
+- Router ingress 幂等与各 Adapter outbound delivery 状态分别有界持久化；
 - Telegram 成为第一个 Adapter；路由核心不复制 DSH Session、Goal、Schedule 或权限。
 
 退出门：两个 Workspace 的输入、输出、Commands、Approval、Goal 和文件权限在重启前后无串线。

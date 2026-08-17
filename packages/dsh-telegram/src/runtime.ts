@@ -2,14 +2,13 @@ import { randomBytes } from 'node:crypto'
 import { setTimeout as wait } from 'node:timers/promises'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
-import { freezeMessage, MessageId } from '@deepseek-ai/dsh-llm'
-import type { Session, SessionEvent, UserMessage } from '@deepseek-ai/dsh-session'
+import type {} from '@deepseek-ai/dsh-commands'
+import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import type { ApprovalOutcome, ApprovalRequest } from '@deepseek-ai/dsh-user-approval'
-import type { CommandExecution } from '@deepseek-ai/dsh-commands'
+import { ChannelIngressUncertainError, type ChannelRouter } from 'dsh-channel-router'
 import {
   selectApprovalCallback,
   selectInboundUpdate,
-  type TelegramRouteIdentity,
 } from './inbound.js'
 import {
   openTelegramDeliveryStore,
@@ -19,19 +18,12 @@ import {
 import { outboundTextForTurn } from './outbound.js'
 import { TelegramApi, type TelegramUpdate } from './telegram-api.js'
 import type { TelegramHostNotice, TelegramHostNoticeReceipt } from './host-route.js'
+import type { ResolvedTelegramConfig } from './config.js'
 
 const EMPTY_POLL_DELAY_MS = 100
 const POLL_FAILURE_DELAY_MS = 1_000
 const MAX_RETRY_AFTER_SECONDS = 300
-
-export interface ResolvedTelegramConfig extends TelegramRouteIdentity {
-  readonly agentId: string
-  readonly apiBase: string
-  readonly maxSendAttempts: number
-  readonly maxTextChars: number
-  readonly pollTimeoutSeconds: number
-  readonly tokenEnv: string
-}
+const MAX_PENDING_REPLY_CORRELATIONS = 10_000
 
 interface PendingApproval {
   readonly resolve: (outcome: ApprovalOutcome) => void
@@ -42,7 +34,7 @@ interface PendingApproval {
 /** One thin, fixed-route Telegram adapter. It contributes no model-visible surface. */
 export class TelegramRuntime {
   private readonly lifecycle = new AbortController()
-  private readonly repliesByUpdate = new Map<number, number>()
+  private readonly repliesByMessage = new Map<string, number>()
   private readonly repliesByTurn = new Map<number, number>()
   private readonly pendingApprovals = new Map<string, PendingApproval>()
   private readonly scheduled = new Set<string>()
@@ -54,28 +46,34 @@ export class TelegramRuntime {
   constructor(
     private readonly ctx: Context,
     private readonly config: ResolvedTelegramConfig,
+    private readonly router: ChannelRouter,
     private readonly api: TelegramApi,
     private readonly store: TelegramDeliveryStore,
   ) {}
 
   async start(): Promise<void> {
     await this.store.recoverInflight(Date.now())
-    const existing = this.ctx.agents.get(this.config.agentId as never)
-    if (existing !== undefined) this.bind(existing)
+    this.bind(await this.router.resolve(this.config.routeId, this.lifecycle.signal))
 
     this.ctx.on('agent/created', ({ agent }) => {
-      if (String(agent.id) === this.config.agentId) this.bind(agent)
+      if (String(agent.id) !== this.config.sessionId) return
+      void this.router.resolve(this.config.routeId, this.lifecycle.signal).then((resolved) => {
+        if (resolved === agent) this.bind(resolved)
+      }).catch((error: unknown) => {
+        if (!this.lifecycle.signal.aborted) {
+          this.ctx.logger.warn(`dsh-telegram: rejected replacement Agent: ${safeMessage(error)}`)
+        }
+      })
     })
     this.ctx.on('agent/disposed', ({ agent }) => {
       if (this.agent === agent) this.agent = undefined
     })
     this.ctx.on('agent/inbox/claimed', ({ agent, message, turn }) => {
       if (agent !== this.agent) return
-      const updateId = telegramUpdateId(message.id)
-      if (updateId === undefined) return
-      const reply = this.repliesByUpdate.get(updateId)
+      const messageId = String(message.id)
+      const reply = this.repliesByMessage.get(messageId)
       if (reply !== undefined) {
-        this.repliesByUpdate.delete(updateId)
+        this.repliesByMessage.delete(messageId)
         this.repliesByTurn.set(turn, reply)
       }
     })
@@ -127,7 +125,7 @@ export class TelegramRuntime {
     const prepared = await this.store.prepareNotice({
       id: notice.id,
       now: Date.now(),
-      sessionId: this.config.agentId,
+      sessionId: this.config.sessionId,
       text: boundText(notice.text, this.config.maxTextChars),
     })
     this.enqueue(prepared.record.id)
@@ -149,7 +147,7 @@ export class TelegramRuntime {
           return {
             kind: 'success',
             text: [
-              `Telegram route: READY (agent ${this.config.agentId}, one private chat).`,
+              `Telegram route: READY (Router ${this.config.routeId}, session ${this.config.sessionId}, one private chat).`,
               `Retained delivery: ${counts.delivered} delivered; ${counts.prepared + counts.sending + counts.retrying} pending; ${counts.uncertain} uncertain; ${counts.failed} failed.`,
               'Model surface: 0 tools, 0 prompt sections, 0 skills.',
             ].join('\n'),
@@ -163,8 +161,14 @@ export class TelegramRuntime {
     let offset = 0
     while (!this.lifecycle.signal.aborted) {
       if (this.agent === undefined) {
-        await delay(250, this.lifecycle.signal)
-        continue
+        try {
+          this.bind(await this.router.resolve(this.config.routeId, this.lifecycle.signal))
+        } catch (error: unknown) {
+          if (this.lifecycle.signal.aborted) return
+          this.ctx.logger.warn(`dsh-telegram: native route unavailable: ${safeMessage(error)}`)
+          await delay(POLL_FAILURE_DELAY_MS, this.lifecycle.signal)
+          continue
+        }
       }
       try {
         const updates = await this.api.getUpdates(offset, this.config.pollTimeoutSeconds, this.lifecycle.signal)
@@ -198,61 +202,44 @@ export class TelegramRuntime {
 
     const selected = selectInboundUpdate(update, this.config)
     if (selected.kind === 'ignored') return
-    const agent = this.agent
-    if (agent === undefined) return
-    if (selected.kind === 'message') {
-      this.submitMessage(agent, selected.messageId, selected.text, selected.updateId, selected.replyToMessageId)
-      return
+    const eventId = `update:${selected.updateId}`
+    const messageId = this.router.messageIdFor(this.config.endpoint, eventId)
+    if (!this.repliesByMessage.has(messageId)
+      && this.repliesByMessage.size >= MAX_PENDING_REPLY_CORRELATIONS) {
+      throw new Error('dsh-telegram: pending reply correlation capacity is full')
     }
-    if (this.store.hasAcceptedCommand(selected.updateId)) return
-    if (!await this.store.acceptCommand(selected.updateId)) return
-    let execution: CommandExecution | undefined
+    this.repliesByMessage.set(messageId, selected.replyToMessageId)
+    let dispatch: Awaited<ReturnType<ChannelRouter['dispatch']>>
     try {
-      execution = await this.ctx.commands.execute(agent, selected.line, this.lifecycle.signal)
-    } catch (error) {
+      dispatch = await this.router.dispatch({
+        endpoint: this.config.endpoint,
+        eventId,
+        text: selected.text,
+        signal: this.lifecycle.signal,
+      })
+    } catch (error: unknown) {
+      this.repliesByMessage.delete(messageId)
+      if (!(error instanceof ChannelIngressUncertainError)) throw error
+      this.ctx.logger.warn(`dsh-telegram: refusing uncertain ingress replay: ${safeMessage(error)}`)
       await this.prepareCommandResponse(
-        agent,
         selected.updateId,
         selected.replyToMessageId,
-        `Command failed: ${safeMessage(error)}`,
+        'This Telegram request crossed an uncertain execution boundary and was not replayed. Send a new message to try again.',
       )
       return
     }
-    if (execution === undefined) {
-      this.submitMessage(
-        agent,
-        `telegram:update:${selected.updateId}`,
-        selected.line,
-        selected.updateId,
-        selected.replyToMessageId,
-      )
+    this.bind(dispatch.agent)
+    if (dispatch.kind === 'message') {
+      if (dispatch.duplicate) this.repliesByMessage.delete(messageId)
       return
     }
-    const text = execution.result.text
-      ?? (execution.result.kind === 'success' ? 'Command completed.' : 'Command failed.')
-    await this.prepareCommandResponse(agent, selected.updateId, selected.replyToMessageId, text)
-  }
-
-  private submitMessage(
-    agent: Agent,
-    messageId: string,
-    text: string,
-    updateId: number,
-    replyToMessageId: number,
-  ): void {
-    if (messageSeen(agent, messageId)) return
-    const message = freezeMessage({
-      id: MessageId(messageId),
-      role: 'user',
-      content: [{ type: 'text', text }],
-      source: { kind: 'user' },
-    } satisfies UserMessage)
-    this.repliesByUpdate.set(updateId, replyToMessageId)
-    agent.followup(message)
+    this.repliesByMessage.delete(messageId)
+    const text = dispatch.result.text
+      ?? (dispatch.result.kind === 'success' ? 'Command completed.' : 'Command failed.')
+    await this.prepareCommandResponse(selected.updateId, selected.replyToMessageId, text)
   }
 
   private async prepareCommandResponse(
-    agent: Agent,
     updateId: number,
     replyToMessageId: number,
     text: string,
@@ -261,7 +248,7 @@ export class TelegramRuntime {
     const prepared = await this.store.prepareCommand({
       now: Date.now(),
       replyToMessageId,
-      sessionId: String(agent.session.id),
+      sessionId: this.config.sessionId,
       text: bounded,
       updateId,
     })
@@ -376,23 +363,6 @@ export class TelegramRuntime {
       request.signal?.addEventListener('abort', onAbort, { once: true })
     })
   }
-}
-
-function messageSeen(agent: Agent, messageId: string): boolean {
-  if (agent.inbox.nextTurn.some(message => message.id === messageId)
-    || agent.inbox.nextStep.some(message => message.id === messageId)) return true
-  return agent.session.events.some((event) => {
-    if (event.type === 'user/message') return event.data.id === messageId
-    return event.type === 'agent/inbox/spliced'
-      && event.data.inserted.some(message => message.id === messageId)
-  })
-}
-
-function telegramUpdateId(messageId: string): number | undefined {
-  const match = /^telegram:update:(\d+)$/u.exec(messageId)
-  if (match === null) return undefined
-  const value = Number(match[1])
-  return Number.isSafeInteger(value) ? value : undefined
 }
 
 function boundText(value: string, maxChars: number): string {

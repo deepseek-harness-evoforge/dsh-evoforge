@@ -27,6 +27,8 @@ Bundle row 默认为 `disabled: true`。部署者需在同一个 DSH profile 中
         workspaceId: 11111111-1111-4111-8111-111111111111
         sessionId: channel-personal-main
         agentPreset: standard
+        provider: deepseek-official
+        model: deepseek-v4-flash
 ```
 
 `threadId` 只有平台事件确实有稳定 thread identity 时才配置。匹配是全字段精确匹配：没有通配、默认

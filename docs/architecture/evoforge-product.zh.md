@@ -16,7 +16,8 @@ DSH Runtime ─ Goal / Session / Tool / Approval / Storage / Jobs / Skill
 EvoForge 可选能力
   ├─ Evolve：从真实结果产生、评测和发布能力候选
   ├─ Software Delivery：隔离、验证、commit、Draft PR
-  ├─ Telegram Adapter：一个私聊持续使用一个稳定 DSH Agent
+  ├─ Channel Router：静态 endpoint 绑定原生 Workspace/Session/Agent
+  ├─ Telegram Adapter：一个私聊经 Router 持续使用原生 Agent
   ├─ Evolve Telegram：待处理进化决定发送到既有私聊
   ├─ Goal Continuity：授权固定 Session 在重启后继续原生 Goal
   └─ Resident：用户级 OS service 拉起 exact DSH profile
@@ -36,10 +37,12 @@ DSH 始终拥有模型执行和基础服务；EvoForge 插件只增加用户结�
 
 ### dsh-telegram
 
-首个 Assistant Adapter 已选择 Telegram 单私聊：一个 Bot、一个 exact private chat/user、一个带
-稳定 `sessionId` 的既有 DSH Agent。它复用原生 Commands、Approval、Goal 与 Schedule，不创建
-第二 Session 或 Gateway；0 Tool/Skill/Prompt。真实 Bot/Hermes paired benchmark 之前只标记为
-`implemented`。下一个消息、日程、内容或个人助理 Adapter 仍需独立用户需求与 outcome 证据。
+首个 Assistant Adapter 已选择 Telegram 单私聊：一个 Bot、一个 exact private chat/user、一个静态
+Channel Router route。Router 通过 WorkspaceRegistry、Agent preset 与 Session persistence 创建或冷恢复
+稳定 Agent；Telegram 只保留协议轮询、Approval UI 和 outbound delivery。它复用原生 Commands、Goal
+与 Schedule，不创建第二 Session 或 Gateway；0 Tool/Skill/Prompt。真实 Bot/Hermes paired benchmark
+之前只标记为 `implemented`。v0.1 的第二个 Adapter 已明确为飞书，必须复用同一 Router 并证明双
+Workspace 隔离，不能增加通用 Gateway Runtime。
 
 ### dsh-evolve-telegram
 
@@ -63,7 +66,7 @@ entry、profile、home 和 workspace 变成完整 launchd/systemd unit；只有 
 supervisor API，只有 1 human Command，0 Tool/Skill/Prompt/模型调用。与 Goal Continuity 组合时，
 Resident 只恢复进程，Goal Continuity 只决定 exact Session 的原生 Goal 是否被授权继续。
 
-当前不创建独立的 Mission、Supervisor、Cache、Policy、Memory、Event Store 或通用 UI 平台插件。两个真实消费者出现前，共享接缝留在插件内部。
+当前不创建独立的 Mission、Supervisor、Cache、Policy、Memory、Event Store 或通用 UI 平台插件。Channel Router 只抽取两个消息 Adapter 必需的 Workspace/Session/Agent/Command 入口接缝，不承载平台网络协议或第二控制面。
 
 ## 3. 交互契约
 

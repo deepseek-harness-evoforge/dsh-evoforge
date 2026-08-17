@@ -13,7 +13,7 @@
 | `dsh-software-delivery` | 原生 `software-delivery` Skill 与 `complete_delivery` Tool | enabled |
 | `dsh-doctor` | 原生 `/doctor` Loader readiness | enabled |
 | `dsh-github-review` | Draft PR exact-head 人类返修回到原 Session/Goal | disabled，需显式配置 |
-| `dsh-telegram` | 一个授权私聊到一个既有 DSH Agent/Session 的 Adapter | disabled，需显式配置 |
+| `dsh-telegram` | 一个授权私聊经 Router 到原生 Workspace/Session/Agent 的 Adapter | disabled，需显式配置 |
 | `dsh-evolve-telegram` | 把进化待决事项投影到既有 Telegram route | disabled，需显式配置 |
 | `dsh-goal-continuity` | exact allowlist Session 的原生 Goal cold-resume policy | disabled，需显式配置 |
 | `dsh-resident` | `/resident` 管理 exact DSH profile 的 launchd/systemd user unit | disabled，需显式配置与逐次确认 |
@@ -53,7 +53,7 @@ dsh --profile web
 - `/evolve status` 或 DSH Web 侧栏查看和处理进化状态；
 - 在原生 Goal 中按需加载 `software-delivery` Skill，由 `complete_delivery` 通过 DSH Bash/Sandbox/Approval 验证并调用原生 `update_goal`；
 - `/resident plan|status|apply <plan-sha256>|remove <service-id>` 通过 DSH Command 审查和管理 OS user unit；
-- Telegram、GitHub review、Goal continuity 和进化注意力只复用已有 DSH Agent、Session、Goal 与 Commands。
+- Telegram 经 Channel Router 只使用原生 Workspace、Agent、Session 与 Commands；GitHub review、Goal continuity 和进化注意力也不创建第二套权威。
 
 没有 `dsh-evolve`、`dsh-delivery` 或 `dsh-resident` 用户产品 CLI。测试驱动器不是打包入口。
 
@@ -72,7 +72,7 @@ dsh --profile web
 
 ## 当前 v0.1 工作
 
-Workspace Channel Router core 已实现：静态 exact endpoint、原生 Workspace/Session/Agent 绑定、持久 ingress 幂等与双 Workspace 隔离合同已通过。下一交付面是把 Telegram 迁为第一个 Adapter、增加飞书作为第二个 Adapter，并使 Evolution 的 Candidate/Generation/预算/审查严格按 Workspace 隔离。完成声明还需要十包 clean-profile tarball 装配、双 Workspace 真实渠道链路、完整 composition cache gate、真实浏览器、可用凭据下的飞书/Telegram 冒烟以及 Hermes paired benchmark。
+Workspace Channel Router core 与 Telegram 首个 Adapter 迁移已实现：静态 exact endpoint、原生 Workspace/Session/Agent 绑定、持久 ingress 幂等、真实 DSH Agent Loop/Command/Approval/回复链路与 cache parity 已通过。下一交付面是增加飞书作为第二个 Adapter，并使 Evolution 的 Candidate/Generation/预算/审查严格按 Workspace 隔离。完成声明还需要十包 clean-profile tarball 总装、双 Workspace 双渠道链路、完整 composition cache gate、真实浏览器、可用凭据下的飞书/Telegram 冒烟以及 Hermes paired benchmark。
 
 - [安装与验收](docs/getting-started.zh.md)
 - [当前状态](docs/status.zh.md)

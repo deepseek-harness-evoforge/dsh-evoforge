@@ -27,7 +27,7 @@
 |---|---|
 | 投影与桥接单元测试 | `dsh-evolve-telegram` 4 个测试文件、16 个测试通过；覆盖状态筛选、有界文案、确定性 id、串行扫描、失败隔离 |
 | 真实 Evolution 事件 | 固定 DSH Storage/Jobs 装配下，既有 supervisor scan settle 后发出一次 host-only signal |
-| 真实 Telegram route | 固定 DSH Agent/Loader 与假的 Telegram HTTP 边界下，notice 入 durable journal、完成一次发送，重复 id 不再发送 |
+| 真实 Telegram route | Channel Router 创建原生 Workspace Session/Agent，在假的 Telegram HTTP 边界下 notice 入 durable outbound journal、完成一次发送，重复 id 不再发送 |
 | 跨重启去重 | notice 与普通 turn 共用持久 delivery journal；终态重载后仍复用同一条记录 |
 | 发送不确定性 | `sending` 恢复为 `uncertain`，不盲目重发；只有显式 `429 + retry_after` 有界重试 |
 | KV Cache | native、只装 Telegram、再装 attention bridge 的完整模型请求序列化 byte-equivalent，且请求中无 Telegram/Evolve 动态内容 |
@@ -38,7 +38,7 @@
 1. 测试使用本地可控 Bot API 边界，不替代真实 Telegram Bot/公网/移动端故障演练。
 2. Telegram `sendMessage` 没有调用方幂等键；crash-in-send 只能保守标记 `uncertain`，无法证明对端一定未收。
 3. 当前只有一个 exact private chat/user，不支持多收件人、摘要、升级通知或其他渠道。
-4. Suite 内部 route 是具体依赖，不承诺公共通知 SPI；至少两个真实独立 Adapter 出现前不抽象。
+4. Suite 内部 notice route 仍是 Telegram 具体依赖；Channel Router 只共享入口身份与 native Agent 绑定，不等于公共通知 SPI。
 5. 自动提醒只减少轮询，不代表 Candidate 正确，也不会改变人工保护动作边界。
 
 ## 声明口径

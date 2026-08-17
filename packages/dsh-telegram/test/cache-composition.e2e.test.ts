@@ -1,5 +1,5 @@
 import { createServer } from 'node:http'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { pathToFileURL, fileURLToPath } from 'node:url'
@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const suiteRoot = resolve(packageRoot, '../..')
 const bridgeRoot = resolve(packageRoot, '../dsh-evolve-telegram')
+const routerRoot = resolve(packageRoot, '../dsh-channel-router')
 const dshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR ?? resolve(suiteRoot, '../deepseek-harness')
 const temporaryRoots: string[] = []
 
@@ -43,9 +44,9 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Telegram cache con
     vi.stubEnv('DSH_TELEMETRY_DISABLED', '1')
 
     try {
-      const native = await captureComposition(root, 'native', address.port)
-      const telegram = await captureComposition(root, 'telegram', address.port)
-      const attention = await captureComposition(root, 'attention', address.port)
+      const native = await captureComposition(root, 'native', address.port, sentTexts)
+      const telegram = await captureComposition(root, 'telegram', address.port, sentTexts)
+      const attention = await captureComposition(root, 'attention', address.port, sentTexts)
       expect(telegram).toEqual(native)
       expect(attention).toEqual(native)
       expect(JSON.stringify(attention)).not.toContain('telegram')
@@ -61,10 +62,15 @@ async function captureComposition(
   root: string,
   mode: 'native' | 'telegram' | 'attention',
   port: number,
+  sentTexts: readonly string[],
 ): Promise<unknown> {
   const label = mode
   const output = join(root, `${label}-composition.jsonl`)
   const config = join(root, `${label}-cordis.yml`)
+  const presetRoot = join(root, `${label}-agent-presets`)
+  await mkdir(join(presetRoot, 'telegram-test'), { recursive: true })
+  await writeFile(join(presetRoot, 'telegram-test', 'preset.yml'), 'name: Telegram Test\n')
+  await writeFile(join(presetRoot, 'telegram-test', 'agent.cordis.yml'), '[]\n')
   await writeFile(output, '')
   await writeFile(config, JSON.stringify([
     {
@@ -83,20 +89,24 @@ async function captureComposition(
             id: 'agent-spine',
             name: '@deepseek-ai/dsh-agent-spine-demo',
             config: {
-              agents: [{
+              agents: mode === 'native' ? [{
                 id: 'main',
                 sessionId: 'main',
                 provider: 'composition-recorder',
                 model: 'composition-recorder',
                 cwd: root,
-              }],
+              }] : [],
               workspaceContext: false,
               dshHome: join(root, '.dsh-home'),
               skills: { filesystem: { agentsHome: join(root, '.agents-home') } },
               persona: 'Stable Telegram composition fixture.',
             },
           },
-          { id: 'persistence', name: '@deepseek-ai/dsh-session-persistence-jsonl', disabled: true },
+          {
+            id: 'persistence',
+            name: '@deepseek-ai/dsh-session-persistence-jsonl',
+            config: { root: join(root, `${label}-sessions`), compression: 'none' },
+          },
           { id: 'checkpoint-policy', name: '@deepseek-ai/dsh-session-checkpoint-policy', disabled: true },
         ],
       },
@@ -119,16 +129,43 @@ async function captureComposition(
       id: 'commands',
       name: join(dshSourceDir, 'packages', 'interaction', 'commands', 'lib', 'index.js'),
     },
+    {
+      id: 'agent-presets',
+      name: join(dshSourceDir, 'packages', 'preset', 'agent-presets', 'lib', 'index.js'),
+      config: {
+        default: 'telegram-test',
+        roots: [{ path: presetRoot, trust: 'system' }],
+        includeUserRoot: false,
+      },
+    },
+    {
+      id: 'workspace',
+      name: join(dshSourceDir, 'packages', 'workspace', 'workspace', 'lib', 'index.js'),
+    },
+    ...mode === 'native' ? [] : [{
+      id: 'channel-router-bootstrap',
+      name: join(packageRoot, 'test', 'fixtures', 'router-bootstrap.ts'),
+      config: {
+        routerEntry: pathToFileURL(join(routerRoot, 'dist', 'index.mjs')).href,
+        workspacePath: root,
+        routeId: 'telegram-main',
+        accountId: 'test-bot',
+        conversationId: '1001',
+        userId: '2002',
+        sessionId: 'main',
+        agentPreset: 'telegram-test',
+        provider: 'composition-recorder',
+        model: 'composition-recorder',
+      },
+    }],
     ...mode === 'native' ? [] : [{
       id: 'telegram',
       name: join(packageRoot, 'dist', 'index.mjs'),
       config: {
-        agentId: 'main',
         apiBase: `http://127.0.0.1:${port}`,
-        chatId: 1001,
         pollTimeoutSeconds: 1,
+        routeId: 'telegram-main',
         tokenEnv: 'DSH_TELEGRAM_TEST_TOKEN',
-        userId: 2002,
       },
     }],
     ...mode === 'attention' ? [{
@@ -158,6 +195,11 @@ async function captureComposition(
     await vi.waitFor(async () => {
       expect((await readFile(output, 'utf8')).trim()).not.toBe('')
     }, { timeout: 10_000, interval: 25 })
+    if (mode === 'attention') {
+      await vi.waitFor(() => {
+        expect(sentTexts.filter(text => text.startsWith('EvoForge attention'))).toHaveLength(1)
+      }, { timeout: 10_000, interval: 25 })
+    }
     const lines = (await readFile(output, 'utf8')).trim().split('\n')
     expect(lines).toHaveLength(1)
     return JSON.parse(lines[0]!) as unknown

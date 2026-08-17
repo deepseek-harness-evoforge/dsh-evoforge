@@ -1,6 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type Schema from '@deepseek-ai/schemastery'
+import type { ChannelRouter } from 'dsh-channel-router'
 import { TelegramApi } from './telegram-api.js'
 import { openTelegramDeliveryStore } from './delivery-store.js'
 import { TelegramRuntime } from './runtime.js'
@@ -8,15 +9,11 @@ import { resolveTelegramConfig } from './config.js'
 import type { TelegramHostNotice, TelegramHostRoute } from './host-route.js'
 
 export const name = 'dsh-telegram'
-export const inject = ['agents', 'commands', 'sessions', 'storageDomain']
+export const inject = ['evoforge.channelRouter', 'storageDomain']
 
 export interface Config {
-  /** One existing root Agent; every completed turn on it routes to the fixed chat. */
-  readonly agentId: string
-  /** Exact Telegram private chat id authorized by deployment config. */
-  readonly chatId: number
-  /** Exact Telegram user id authorized to submit messages and approvals. */
-  readonly userId: number
+  /** Exact static dsh-channel-router route owned by this Bot adapter. */
+  readonly routeId: string
   /** Environment variable holding the Bot token. Reading it is an explicit deployment policy. */
   readonly tokenEnv?: string
   /** Official API endpoint, or a loopback endpoint for a local Bot API/test server. */
@@ -27,9 +24,7 @@ export interface Config {
 }
 
 export const Config: Schema<Config> = z.object({
-  agentId: z.string().required(),
-  chatId: z.number().required(),
-  userId: z.number().required(),
+  routeId: z.string().required(),
   tokenEnv: z.string().default('DSH_TELEGRAM_BOT_TOKEN'),
   apiBase: z.string().default('https://api.telegram.org'),
   pollTimeoutSeconds: z.number().step(1).min(1).max(50).default(30),
@@ -38,7 +33,11 @@ export const Config: Schema<Config> = z.object({
 })
 
 export async function apply(ctx: Context, config: Config): Promise<void> {
-  const resolved = resolveTelegramConfig(config)
+  const router = ctx.get('evoforge.channelRouter' as never) as ChannelRouter | undefined
+  if (router === undefined) throw new Error('dsh-telegram: dsh-channel-router service is unavailable')
+  const route = router.route(config.routeId)
+  if (route === undefined) throw new Error(`dsh-telegram: unknown Router route '${config.routeId}'`)
+  const resolved = resolveTelegramConfig(config, route)
   const token = process.env[resolved.tokenEnv]
   if (token === undefined || token.length === 0) {
     throw new Error(`dsh-telegram: configured token environment variable ${resolved.tokenEnv} is empty`)
@@ -47,6 +46,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   const runtime = new TelegramRuntime(
     ctx,
     resolved,
+    router,
     new TelegramApi({ token, apiBase: resolved.apiBase }),
     store,
   )

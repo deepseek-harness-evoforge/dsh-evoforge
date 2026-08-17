@@ -14,8 +14,8 @@ const endpointB: ChannelEndpoint = {
 }
 
 const routes = resolveChannelRoutes([
-  { id: 'telegram-a', ...endpointA, workspaceId: 'workspace-a', sessionId: 'session-a', agentPreset: 'standard' },
-  { id: 'feishu-b', ...endpointB, workspaceId: 'workspace-b', sessionId: 'session-b', agentPreset: 'minimal' },
+  { id: 'telegram-a', ...endpointA, workspaceId: 'workspace-a', sessionId: 'session-a', agentPreset: 'standard', provider: 'mock', model: 'mock-a' },
+  { id: 'feishu-b', ...endpointB, workspaceId: 'workspace-b', sessionId: 'session-b', agentPreset: 'minimal', provider: 'mock', model: 'mock-b' },
 ])
 
 describe('ChannelRouter', () => {
@@ -24,20 +24,22 @@ describe('ChannelRouter', () => {
     const store = await openChannelIngressStore(memoryFacility())
     const router = new ChannelRouter(host.ctx, routes, store)
     await router.start()
+    const messageId = router.messageIdFor(endpointA, 'update-7')
 
-    await Promise.all([
+    const [resultA] = await Promise.all([
       router.dispatch({ endpoint: endpointA, eventId: 'update-7', text: 'message a' }),
       router.dispatch({ endpoint: endpointB, eventId: 'event-7', text: 'message b' }),
     ])
     await router.dispatch({ endpoint: endpointA, eventId: 'update-7', text: 'message a' })
 
     expect(host.messages.get('session-a')).toEqual(['message a'])
+    expect(messageId).toBe(`channel:${resultA.ingressId}`)
     expect(host.messages.get('session-b')).toEqual(['message b'])
     expect(host.attached.get('workspace-a')).toEqual(['session-a'])
     expect(host.attached.get('workspace-b')).toEqual(['session-b'])
     expect(host.created).toEqual([
-      { sessionId: 'session-a', cwd: '/work/a', preset: 'standard' },
-      { sessionId: 'session-b', cwd: '/work/b', preset: 'minimal' },
+      { sessionId: 'session-a', cwd: '/work/a', preset: 'standard', provider: 'mock', model: 'mock-a' },
+      { sessionId: 'session-b', cwd: '/work/b', preset: 'minimal', provider: 'mock', model: 'mock-b' },
     ])
     await expect(router.dispatch({ endpoint: endpointA, eventId: 'update-7', text: 'altered' }))
       .rejects.toThrow('content changed')
@@ -81,7 +83,7 @@ function fakeNativeHost(): {
   ctx: Context
   attached: Map<string, string[]>
   messages: Map<string, string[]>
-  created: Array<{ sessionId: string; cwd: string; preset: string }>
+  created: Array<{ sessionId: string; cwd: string; preset: string; provider: string; model: string }>
   executed: Array<{ sessionId: string; line: string }>
   commandLines: Set<string>
   persisted: Map<string, { meta: Record<string, unknown>; events: unknown[] }>
@@ -89,7 +91,7 @@ function fakeNativeHost(): {
   const attached = new Map<string, string[]>()
   const messages = new Map<string, string[]>()
   const agents = new Map<string, Agent>()
-  const created: Array<{ sessionId: string; cwd: string; preset: string }> = []
+  const created: Array<{ sessionId: string; cwd: string; preset: string; provider: string; model: string }> = []
   const executed: Array<{ sessionId: string; line: string }> = []
   const commandLines = new Set<string>()
   const persisted = new Map<string, { meta: Record<string, unknown>; events: unknown[] }>()
@@ -98,14 +100,14 @@ function fakeNativeHost(): {
     ['workspace-b', workspace('workspace-b', '/work/b', attached)],
   ])
 
-  const createAgent = (sessionId: string, cwd: string, preset: string): AgentHandle => {
+  const createAgent = (sessionId: string, cwd: string, preset: string, provider: string, model: string): AgentHandle => {
     const inbox: { nextTurn: unknown[]; nextStep: unknown[] } = { nextTurn: [], nextStep: [] }
     const agent = {
       id: sessionId,
       session: { id: sessionId, header: { id: sessionId, cwd, agentPreset: preset }, events: [] },
       inbox,
       ctx: { preset },
-      options: {},
+      options: { provider, model },
       status: 'idle',
       followup(message: { content: Array<{ text?: string }> }) {
         inbox.nextTurn.push(message)
@@ -136,15 +138,15 @@ function fakeNativeHost(): {
     },
     agents: {
       get: (id: string) => agents.get(id),
-      async create(options: { sessionId: string; meta: { cwd: string; agentPreset: string }; setup: (ctx: Context) => Promise<void> }) {
+      async create(options: { sessionId: string; meta: { cwd: string; agentPreset: string }; agentOptions: { provider: string; model: string }; setup: (ctx: Context) => Promise<void> }) {
         await options.setup({} as Context)
-        created.push({ sessionId: options.sessionId, cwd: options.meta.cwd, preset: options.meta.agentPreset })
-        return createAgent(options.sessionId, options.meta.cwd, options.meta.agentPreset)
+        created.push({ sessionId: options.sessionId, cwd: options.meta.cwd, preset: options.meta.agentPreset, ...options.agentOptions })
+        return createAgent(options.sessionId, options.meta.cwd, options.meta.agentPreset, options.agentOptions.provider, options.agentOptions.model)
       },
-      async resume(options: { resumeSessionId: string; setup: (ctx: Context) => Promise<void> }) {
+      async resume(options: { resumeSessionId: string; agentOptions: { provider: string; model: string }; setup: (ctx: Context) => Promise<void> }) {
         const entry = persisted.get(options.resumeSessionId)!
         await options.setup({} as Context)
-        return createAgent(options.resumeSessionId, String(entry.meta.cwd), String(entry.meta.agentPreset))
+        return createAgent(options.resumeSessionId, String(entry.meta.cwd), String(entry.meta.agentPreset), options.agentOptions.provider, options.agentOptions.model)
       },
     },
     commands: {

@@ -32,6 +32,9 @@ const routeSchema = z.object({
   workspaceId: z.string().required(),
   sessionId: z.string().required(),
   agentPreset: z.string().required(),
+  provider: z.string().required(),
+  model: z.string().required(),
+  maxTokens: z.number().step(1).min(1),
 })
 
 export const Config: Schema<Config> = z.object({

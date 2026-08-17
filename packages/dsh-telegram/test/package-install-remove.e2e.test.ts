@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const execFile = promisify(execFileCallback)
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const routerRoot = resolve(packageRoot, '../dsh-channel-router')
 const suiteRoot = resolve(packageRoot, '../..')
 const dshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR ?? resolve(suiteRoot, '../deepseek-harness')
 const dshBin = join(dshSourceDir, 'apps', 'cli', 'lib', 'bin.js')
@@ -45,12 +46,18 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-telegram package bound
       encoding: 'utf8',
       timeout: 30_000,
     })
+    await execFile('pnpm', ['pack', '--pack-destination', root], {
+      cwd: routerRoot,
+      encoding: 'utf8',
+      timeout: 30_000,
+    })
     const storePath = (await execFile('pnpm', ['store', 'path'], {
       cwd: packageRoot,
       encoding: 'utf8',
       timeout: 10_000,
     })).stdout.trim()
     const tarball = join(root, 'dsh-telegram-0.1.0-alpha.1.tgz')
+    const routerTarball = join(root, 'dsh-channel-router-0.1.0-alpha.1.tgz')
     const env = {
       ...process.env,
       COREPACK_ENABLE_DOWNLOAD_PROMPT: '0',
@@ -62,18 +69,20 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-telegram package bound
       npm_config_store_dir: storePath,
     }
     await runDsh(
-      ['plugin', '--profile', 'fixture', 'add', tarball, '--prefer-offline', '--ignore-scripts'],
+      ['plugin', '--profile', 'fixture', 'add', routerTarball, tarball, '--prefer-offline', '--ignore-scripts'],
       root,
       env,
     )
     const installedManifest = JSON.parse(await readFile(join(profileDir, 'package.json'), 'utf8'))
     expect(installedManifest.dependencies?.['dsh-telegram']).toBeDefined()
-    expect(installedManifest.dsh.profile.bundles).toEqual(['dsh-telegram'])
+    expect(installedManifest.dependencies?.['dsh-channel-router']).toBeDefined()
+    expect(installedManifest.dsh.profile.bundles).toEqual(['dsh-channel-router', 'dsh-telegram'])
     const dumped = await execFile(process.execPath, [
       dshBin, '--profile', 'fixture', '--dump-config',
     ], { cwd: root, env, encoding: 'utf8', timeout: 30_000 })
     expect(dumped.stdout).toContain('id: evoforge-telegram')
     expect(dumped.stdout).toContain('name: dsh-telegram')
+    expect(dumped.stdout).toContain('id: evoforge-channel-router')
     expect(dumped.stdout).toContain('disabled: true')
 
     const packageScope = join(profileDir, 'node_modules', '@deepseek-ai')
@@ -86,6 +95,7 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-telegram package bound
       ['dsh-storage', join(dshSourceDir, 'packages', 'storage', 'storage')],
       ['dsh-storage-domain', join(dshSourceDir, 'packages', 'storage', 'storage-domain')],
       ['dsh-storage-json', join(dshSourceDir, 'packages', 'storage', 'storage-json')],
+      ['dsh-workspace', join(dshSourceDir, 'packages', 'workspace', 'workspace')],
     ] as const) {
       const target = join(packageScope, name)
       await rm(target, { force: true, recursive: true })
@@ -104,15 +114,17 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-telegram package bound
       },
       { id: 'storage-domain', name: '@deepseek-ai/dsh-storage-domain', config: { backend: 'json' } },
       {
+        id: 'channel-router-fixture',
+        name: join(packageRoot, 'test', 'fixtures', 'package-router-service.ts'),
+      },
+      {
         id: 'telegram',
         name: 'dsh-telegram',
         config: {
-          agentId: 'main',
           apiBase: 'http://127.0.0.1:1',
-          chatId: 1001,
           pollTimeoutSeconds: 1,
+          routeId: 'telegram-package',
           tokenEnv: 'DSH_TELEGRAM_PACKAGE_TEST_TOKEN',
-          userId: 2002,
         },
       },
     ], null, 2))
@@ -126,9 +138,12 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-telegram package bound
       await ctx.fiber.dispose()
     }
 
-    await runDsh(['plugin', '--profile', 'fixture', 'remove', 'dsh-telegram'], root, env)
+    await runDsh([
+      'plugin', '--profile', 'fixture', 'remove', 'dsh-telegram', 'dsh-channel-router',
+    ], root, env)
     const removedManifest = JSON.parse(await readFile(join(profileDir, 'package.json'), 'utf8'))
     expect(removedManifest.dependencies?.['dsh-telegram']).toBeUndefined()
+    expect(removedManifest.dependencies?.['dsh-channel-router']).toBeUndefined()
     expect(removedManifest.dsh.profile.bundles).toEqual([])
   }, 60_000)
 })

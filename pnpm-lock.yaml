@@ -554,6 +554,9 @@ importers:
       '@types/node':
         specifier: ^22.20.0
         version: 22.20.1
+      dsh-channel-router:
+        specifier: workspace:*
+        version: link:../dsh-channel-router
       tsdown:
         specifier: ^0.22.2
         version: 0.22.14(tsx@4.23.12)(typescript@6.0.3)

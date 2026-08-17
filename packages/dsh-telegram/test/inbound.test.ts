@@ -15,14 +15,13 @@ describe('Telegram inbound selection', () => {
       },
     }, route)).toEqual({
       kind: 'message',
-      messageId: 'telegram:update:77',
       replyToMessageId: 9,
       text: 'continue the native Goal',
       updateId: 77,
     })
   })
 
-  it('keeps known slash syntax separate for the host command plane', () => {
+  it('leaves slash-command admission to the shared native Router', () => {
     expect(selectInboundUpdate({
       update_id: 78,
       message: {
@@ -31,7 +30,7 @@ describe('Telegram inbound selection', () => {
         from: { id: 2002, is_bot: false },
         text: '/goal status',
       },
-    }, route)).toMatchObject({ kind: 'command', line: '/goal status', updateId: 78 })
+    }, route)).toMatchObject({ kind: 'message', text: '/goal status', updateId: 78 })
   })
 
   it.each([

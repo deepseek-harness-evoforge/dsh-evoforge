@@ -11,6 +11,10 @@ export interface ChannelRouteConfig extends ChannelEndpoint {
   readonly workspaceId: string
   readonly sessionId: string
   readonly agentPreset: string
+  /** Native DSH model route used for create and every cold resume. */
+  readonly provider: string
+  readonly model: string
+  readonly maxTokens?: number
 }
 
 export interface ResolvedChannelRoute extends ChannelRouteConfig {
@@ -32,7 +36,13 @@ export function resolveChannelRoutes(input: readonly ChannelRouteConfig[]): Reso
   if (input.length > MAX_ROUTES) throw new Error(`channel router supports at most ${MAX_ROUTES} routes`)
   const byId = new Map<string, ResolvedChannelRoute>()
   const byEndpoint = new Map<string, ResolvedChannelRoute>()
-  const sessionOwners = new Map<string, { workspaceId: string; agentPreset: string }>()
+  const sessionOwners = new Map<string, {
+    workspaceId: string
+    agentPreset: string
+    provider: string
+    model: string
+    maxTokens?: number
+  }>()
   const routes: ResolvedChannelRoute[] = []
   for (const candidate of input) {
     const route = normalizeRoute(candidate)
@@ -47,9 +57,16 @@ export function resolveChannelRoutes(input: readonly ChannelRouteConfig[]): Reso
     if (owner !== undefined && owner.agentPreset !== route.agentPreset) {
       throw new Error(`channel session '${route.sessionId}' cannot use multiple Agent presets`)
     }
+    if (owner !== undefined && (owner.provider !== route.provider || owner.model !== route.model
+      || owner.maxTokens !== route.maxTokens)) {
+      throw new Error(`channel session '${route.sessionId}' cannot use multiple model routes`)
+    }
     sessionOwners.set(route.sessionId, {
       workspaceId: route.workspaceId,
       agentPreset: route.agentPreset,
+      provider: route.provider,
+      model: route.model,
+      ...(route.maxTokens === undefined ? {} : { maxTokens: route.maxTokens }),
     })
     byId.set(route.id, route)
     byEndpoint.set(route.endpointKey, route)
@@ -78,12 +95,21 @@ function normalizeRoute(input: ChannelRouteConfig): ResolvedChannelRoute {
   const workspaceId = exactText(input.workspaceId, 'workspaceId', 512)
   const sessionId = exactText(input.sessionId, 'sessionId', 512)
   const agentPreset = exactText(input.agentPreset, 'agentPreset', 128)
+  const provider = exactText(input.provider, 'provider', 128)
+  const model = exactText(input.model, 'model', 256)
+  const maxTokens = input.maxTokens
+  if (maxTokens !== undefined && (!Number.isSafeInteger(maxTokens) || maxTokens < 1)) {
+    throw new Error('channel maxTokens must be a positive safe integer')
+  }
   return Object.freeze({
     id,
     ...endpoint,
     workspaceId,
     sessionId,
     agentPreset,
+    provider,
+    model,
+    ...(maxTokens === undefined ? {} : { maxTokens }),
     endpointKey: endpointKey(endpoint),
   })
 }

@@ -43,6 +43,8 @@ const deliverySchema = z.strictObject({
   error: z.string().min(1).optional(),
 })
 
+// Read compatibility for pre-Router domains; new command admission lives in
+// evoforge_channel_router and this value is never advanced by the Adapter.
 const checkpointSchema = z.strictObject({
   acceptedCommandUpdateId: z.number().int().nonnegative().optional(),
 })
@@ -104,8 +106,6 @@ export interface TelegramDeliveryStore {
   markFailure(id: string, failure: SendFailure, now: number, maxAttempts: number): Promise<TelegramDeliveryRecord>
   markLocallyFailed(id: string, error: string, now: number): Promise<TelegramDeliveryRecord>
   recoverInflight(now: number): Promise<number>
-  hasAcceptedCommand(updateId: number): boolean
-  acceptCommand(updateId: number): Promise<boolean>
   close(): Promise<void>
 }
 
@@ -222,21 +222,6 @@ class DomainTelegramDeliveryStore implements TelegramDeliveryStore {
     })
   }
 
-  hasAcceptedCommand(updateId: number): boolean {
-    exactUpdateId(updateId)
-    return updateId <= (this.domain.global.get().acceptedCommandUpdateId ?? -1)
-  }
-
-  acceptCommand(updateId: number): Promise<boolean> {
-    return this.write(async () => {
-      exactUpdateId(updateId)
-      const current = this.domain.global.get().acceptedCommandUpdateId
-      if (current !== undefined && updateId <= current) return false
-      await this.domain.global.set(checkpointSchema.parse({ acceptedCommandUpdateId: updateId }))
-      return true
-    })
-  }
-
   close(): Promise<void> {
     this.closing ??= this.tail.then(() => this.domain.close())
     return this.closing
@@ -338,11 +323,6 @@ function deliveryId(sessionId: string, source: TelegramDeliveryRecord['source'])
 
 function exactTime(value: number): number {
   if (!Number.isSafeInteger(value) || value < 0) throw new Error('time must be a non-negative safe integer')
-  return value
-}
-
-function exactUpdateId(value: number): number {
-  if (!Number.isSafeInteger(value) || value < 0) throw new Error('Telegram update id must be non-negative')
   return value
 }
 

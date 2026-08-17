@@ -1,6 +1,6 @@
 import { createServer } from 'node:http'
 import { execFile as execFileCallback } from 'node:child_process'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { promisify } from 'node:util'
@@ -13,6 +13,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const execFile = promisify(execFileCallback)
 const suiteRoot = resolve(packageRoot, '../..')
+const routerRoot = resolve(packageRoot, '../dsh-channel-router')
 const dshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR ?? resolve(suiteRoot, '../deepseek-harness')
 const temporaryRoots: string[] = []
 
@@ -26,6 +27,10 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Telegram chat', ()
     await execFile('pnpm', ['run', 'build'], { cwd: packageRoot, encoding: 'utf8', timeout: 30_000 })
     const root = await mkdtemp(join(tmpdir(), 'dsh-telegram-assembled-'))
     temporaryRoots.push(root)
+    const presetRoot = join(root, 'agent-presets')
+    await mkdir(join(presetRoot, 'telegram-test'), { recursive: true })
+    await writeFile(join(presetRoot, 'telegram-test', 'preset.yml'), 'name: Telegram Test\n')
+    await writeFile(join(presetRoot, 'telegram-test', 'agent.cordis.yml'), '[]\n')
     const sends: unknown[] = []
     const callbackAnswers: unknown[] = []
     let servedUpdate = false
@@ -121,7 +126,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Telegram chat', ()
               id: 'agent-spine',
               name: '@deepseek-ai/dsh-agent-spine-demo',
               config: {
-                agents: [{ id: 'main', sessionId: 'main', provider: 'cli-mock', model: 'cli-mock', cwd: root }],
+                agents: [],
                 workspaceContext: false,
                 dshHome: join(root, '.dsh-home'),
                 skills: { filesystem: { agentsHome: join(root, '.agents-home') } },
@@ -132,7 +137,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Telegram chat', ()
             {
               id: 'persistence',
               name: '@deepseek-ai/dsh-session-persistence-jsonl',
-              disabled: true,
+              config: { root: join(root, 'sessions'), compression: 'none' },
             },
             {
               id: 'checkpoint-policy',
@@ -161,15 +166,42 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Telegram chat', ()
         name: join(dshSourceDir, 'packages', 'interaction', 'commands', 'lib', 'index.js'),
       },
       {
+        id: 'agent-presets',
+        name: join(dshSourceDir, 'packages', 'preset', 'agent-presets', 'lib', 'index.js'),
+        config: {
+          default: 'telegram-test',
+          roots: [{ path: presetRoot, trust: 'system' }],
+          includeUserRoot: false,
+        },
+      },
+      {
+        id: 'workspace',
+        name: join(dshSourceDir, 'packages', 'workspace', 'workspace', 'lib', 'index.js'),
+      },
+      {
+        id: 'channel-router-bootstrap',
+        name: join(packageRoot, 'test', 'fixtures', 'router-bootstrap.ts'),
+        config: {
+          routerEntry: pathToFileURL(join(routerRoot, 'dist', 'index.mjs')).href,
+          workspacePath: root,
+          routeId: 'telegram-main',
+          accountId: 'test-bot',
+          conversationId: '1001',
+          userId: '2002',
+          sessionId: 'main',
+          agentPreset: 'telegram-test',
+          provider: 'cli-mock',
+          model: 'cli-mock',
+        },
+      },
+      {
         id: 'telegram',
         name: join(packageRoot, 'dist', 'index.mjs'),
         config: {
-          agentId: 'main',
           apiBase: `http://127.0.0.1:${address.port}`,
-          chatId: 1001,
           pollTimeoutSeconds: 1,
+          routeId: 'telegram-main',
           tokenEnv: 'DSH_TELEGRAM_TEST_TOKEN',
-          userId: 2002,
         },
       },
     ], null, 2))
@@ -221,7 +253,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Telegram chat', ()
       })
       const events = agent?.session.events as readonly SessionEvent[] | undefined
       expect(events?.some(event => event.type === 'user/message'
-        && event.data.id === 'telegram:update:77')).toBe(true)
+        && String(event.data.id).startsWith('channel:'))).toBe(true)
 
       // Goal and Schedule continuations use the same native Agent followup seam. Prove that a
       // completed turn which did not originate in Telegram is also routed, without reply metadata.

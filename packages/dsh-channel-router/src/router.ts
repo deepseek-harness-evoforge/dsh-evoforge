@@ -94,6 +94,15 @@ export class ChannelRouter {
     return this.configured.match(endpoint)
   }
 
+  /** Stable native MessageId an adapter can use to correlate inbox/turn events before dispatch. */
+  messageIdFor(endpoint: ChannelEndpoint, eventId: string): string {
+    const route = this.configured.match(endpoint)
+    if (route === undefined) throw new Error('no configured channel route for the exact external endpoint')
+    const exactEventId = exactIngressText(eventId, 'eventId', 1_024)
+    const eventHash = hash(`${route.endpointKey}\0${exactEventId}`)
+    return `channel:${hash(`${route.id}\0${eventHash}`)}`
+  }
+
   /** Resolve the exact configured native Agent without dispatching user input. */
   async resolve(routeOrId: ResolvedChannelRoute | string, signal?: AbortSignal): Promise<Agent> {
     this.assertRunning()
@@ -244,6 +253,7 @@ export class ChannelRouter {
         handle = await this.ctx.agents.create({
           sessionId,
           meta: { cwd: workspace.path, agentPreset: route.agentPreset },
+          agentOptions: routeAgentOptions(route),
           ...(signal === undefined ? {} : { signal }),
           setup: agentCtx => this.ctx.agentPresets.mount(agentCtx, route.agentPreset).then(() => undefined),
         })
@@ -252,6 +262,7 @@ export class ChannelRouter {
         this.assertPersistedIdentity(route, workspace, inspected.meta, inspected.events)
         handle = await this.ctx.agents.resume({
           resumeSessionId: sessionId,
+          agentOptions: routeAgentOptions(route),
           ...(signal === undefined ? {} : { signal }),
           setup: agentCtx => this.ctx.agentPresets.mount(agentCtx, route.agentPreset).then(() => undefined),
         })
@@ -293,6 +304,10 @@ export class ChannelRouter {
 
   private assertLiveIdentity(route: ResolvedChannelRoute, workspace: Workspace, agent: Agent): void {
     this.assertSessionIdentity(route, workspace, agent.session.header, agent.session.events)
+    if (agent.options.provider !== route.provider || agent.options.model !== route.model
+      || (route.maxTokens !== undefined && agent.options.maxTokens !== route.maxTokens)) {
+      throw new Error(`channel session '${route.sessionId}' live Agent model does not match route '${route.provider}/${route.model}'`)
+    }
     const composed = this.ctx.agentPresets.composedPreset(agent.ctx)
     if (composed !== route.agentPreset) {
       throw new Error(`channel session '${route.sessionId}' live Agent preset is '${String(composed)}', expected '${route.agentPreset}'`)
@@ -355,6 +370,18 @@ function boundedCommandResult(result: { kind: 'success' | 'error'; text?: string
     kind: result.kind,
     ...(result.text === undefined ? {} : { text: boundedText(result.text, 16_384) }),
   })
+}
+
+function routeAgentOptions(route: ResolvedChannelRoute): {
+  provider: string
+  model: string
+  maxTokens?: number
+} {
+  return {
+    provider: route.provider,
+    model: route.model,
+    ...(route.maxTokens === undefined ? {} : { maxTokens: route.maxTokens }),
+  }
 }
 
 function boundedText(value: string, maxChars: number): string {

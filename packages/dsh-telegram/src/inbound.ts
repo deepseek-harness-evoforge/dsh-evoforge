@@ -7,15 +7,8 @@ export type InboundSelection =
   | { readonly kind: 'ignored'; readonly updateId: number }
   | {
       readonly kind: 'message'
-      readonly messageId: string
       readonly replyToMessageId: number
       readonly text: string
-      readonly updateId: number
-    }
-  | {
-      readonly kind: 'command'
-      readonly line: string
-      readonly replyToMessageId: number
       readonly updateId: number
     }
 
@@ -39,8 +32,6 @@ interface TelegramCallbackUpdate {
   readonly callback_query?: unknown
 }
 
-const COMMAND = /^\/[a-z][a-z0-9_-]*(?=$|[\t\n\r ])/u
-
 /** Select only one deployment-authorized private-chat text update. */
 export function selectInboundUpdate(
   input: TelegramMessageUpdate,
@@ -63,17 +54,8 @@ export function selectInboundUpdate(
   if (!authorized || typeof message?.text !== 'string' || message.text.length === 0) {
     return { kind: 'ignored', updateId }
   }
-  if (COMMAND.test(message.text)) {
-    return {
-      kind: 'command',
-      line: message.text,
-      replyToMessageId: messageId as number,
-      updateId,
-    }
-  }
   return {
     kind: 'message',
-    messageId: `telegram:update:${updateId}`,
     replyToMessageId: messageId as number,
     text: message.text,
     updateId,

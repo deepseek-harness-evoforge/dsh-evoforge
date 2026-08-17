@@ -27,15 +27,8 @@ describe('Telegram durable delivery store', () => {
     })
   })
 
-  it('durably admits a command at most once and stores its direct response', async () => {
+  it('deduplicates the Router command result sent back to Telegram', async () => {
     const store = await openTelegramDeliveryStore(memoryFacility())
-    await expect(store.acceptCommand(77)).resolves.toBe(true)
-    await expect(store.acceptCommand(77)).resolves.toBe(false)
-    expect(store.hasAcceptedCommand(77)).toBe(true)
-    await expect(store.acceptCommand(79)).resolves.toBe(true)
-    await expect(store.acceptCommand(78)).resolves.toBe(false)
-    expect(store.hasAcceptedCommand(78)).toBe(true)
-
     const first = await store.prepareCommand({
       now: 102,
       replyToMessageId: 10,
@@ -106,7 +99,6 @@ describe('Telegram durable delivery store', () => {
     const store = await openTelegramDeliveryStore(memoryFacility(), { maxRecords: 2 })
 
     for (let updateId = 1; updateId <= 3; updateId += 1) {
-      await store.acceptCommand(updateId)
       const prepared = await store.prepareCommand({
         now: updateId,
         sessionId: 'main',

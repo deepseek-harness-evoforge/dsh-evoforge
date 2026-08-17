@@ -13,7 +13,7 @@
 
 ## 当前总判断
 
-EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。最新能力与 ADR-0041 原生插件修正已经进入同一集成分支；十个用户包都已收敛为无产品 bin 的 DSH Bundle。Workspace Channel Router core 已实现，仍需完成 Telegram 迁移、飞书、双 Workspace evolution 隔离和完整验收。
+EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。最新能力与 ADR-0041 原生插件修正已经进入同一集成分支；十个用户包都已收敛为无产品 bin 的 DSH Bundle。Workspace Channel Router core 与 Telegram 迁移已实现，仍需完成飞书、双 Workspace evolution 隔离和完整验收。
 
 | 能力 | 当前状态 | 已有证据 | 仍缺 |
 |---|---|---|---|
@@ -23,11 +23,11 @@ EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。最新能�
 | GitHub Review Follow-up P3.2 | `implemented` | exact-head allowlist、bounded follow-up、重启去重、cache parity | 真实 reviewer 返修闭环和多日 resident |
 | Web Control Plane | `implemented` | 真实 DSH Remote/Client Module、Chrome 审查与刷新 | v0.1 集成后的浏览器复验、陌生用户数据 |
 | Runtime Readiness | `implemented` | 原生 Loader/Command、tarball 生命周期 | v0.1 全包诊断和陌生安装数据 |
-| Telegram 单私聊 | `implemented` | Agent Loop、Commands、Approval、Goal/Schedule、durable delivery、cache parity | Workspace Router 迁移、真实 Bot 冒烟和多日证据 |
-| Evolve Telegram Attention | `implemented` | actionable state、durable notice、request parity | 公共 Channel Router 迁移和双 Adapter |
+| Telegram 单私聊 | `implemented` | 已迁移 Channel Router；真实 DSH Workspace/Agent Loop、Commands、Approval、Goal/Schedule、durable ingress/delivery、cache parity、联合 tarball lifecycle | 真实 Bot 冒烟和多日证据 |
+| Evolve Telegram Attention | `implemented` | actionable state、durable notice、request parity；复用已迁移 Router 的 Telegram route | 飞书注意力策略与双 Adapter 总装 |
 | Goal Continuity | `implemented` | JSONL cold resume、SIGKILL、原生 Goal round limit | 多 Workspace 绑定、生产 soak |
-| Resident OS unit | `implemented` | disabled Bundle、原生 `/resident`、exact hash/service-id 确认、无 bin tarball、launchd/systemd 与 macOS crash 测试 | 并入全九包 assembled gate、Linux 真机和多日 soak |
-| Workspace Channel Router | `implemented` | exact endpoint deny-by-default；原生 Workspace/Session/Agent create/resume；持久幂等/uncertain 状态机；双 Workspace、Command 一次执行与 tarball 合同测试 | Telegram/飞书 Adapter 迁移、真实 Host/渠道链路与 cache gate |
+| Resident OS unit | `implemented` | disabled Bundle、原生 `/resident`、exact hash/service-id 确认、无 bin tarball、launchd/systemd 与 macOS crash 测试 | 并入全十包 assembled gate、Linux 真机和多日 soak |
+| Workspace Channel Router | `implemented` | exact endpoint deny-by-default；原生 Workspace/Session/Agent create/resume；持久幂等/uncertain 状态机；双 Workspace、Telegram 真实 Host/Command/Approval/回复关联与 cache gate | 飞书 Adapter、双渠道真实链路与总装 gate |
 | 飞书 Adapter | `planned` | 无 | 协议实现、授权、Approval、投递恢复、真实冒烟 |
 | Hermes paired benchmark | `planned` | 历史架构记分卡 | 使用 v0.1 同一场景可复跑对照 |
 | Registry release | `planned` | 无 | 全部门禁、版本矩阵、用户授权 |
@@ -39,7 +39,7 @@ EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。最新能�
 ## 当前限制
 
 - 固定 rc.5 源码是唯一支持证据；兼容范围不能由宽 peer range 推断；
-- 飞书、Telegram Router 迁移和 Workspace-scoped evolution 尚未实现；
+- 飞书和 Workspace-scoped evolution 尚未实现；
 - 真实 Telegram/飞书凭据、真实 provider、陌生用户和生产多日证据仍缺失；
 - 自动化 `implemented` 不能替代真实 outcome，也不能支持笼统的“优于 Hermes”；
 - 不 merge、不发布 registry、不部署生产，除非用户另行授权。
