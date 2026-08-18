@@ -9,6 +9,7 @@ import {
   assertResearchSkillHoldoutRootSeparation,
   ResearchSkillHoldout,
   ResearchSkillHoldoutScheduler,
+  researchSkillHoldoutPassReceipt,
   type ResearchSkillHoldoutEvaluatorInput,
   type ResearchSkillHoldoutEvaluatorResult,
   type ResearchSkillHoldoutTargetConfig,
@@ -367,6 +368,26 @@ describe('independent research holdout', () => {
     expect(onPass).toHaveBeenCalledOnce()
     expect(onResult).toHaveBeenCalledWith(candidate({ id: '2'.repeat(64) }), fail)
     expect(onResult).toHaveBeenCalledTimes(2)
+  })
+
+  it('reduces a passing result to a frozen attribution-free admission receipt', () => {
+    const pass = result('pass')
+    const receipt = researchSkillHoldoutPassReceipt(pass)
+    expect(receipt).toEqual({
+      kind: 'research-holdout-pass-v1',
+      id: pass.id,
+      candidateId: pass.candidateId,
+      workspaceId: pass.workspaceId,
+      skillName: pass.skillName,
+      researchDigest: pass.researchDigest,
+      candidateTreeHash: pass.candidateTreeHash,
+      releaseAuthority: 'none',
+    })
+    expect(Object.isFrozen(receipt)).toBe(true)
+    expect(JSON.stringify(receipt)).not.toContain('Bounded.')
+    expect(JSON.stringify(receipt)).not.toContain(pass.evaluatorIdentityHash)
+    expect(() => researchSkillHoldoutPassReceipt(result('fail')))
+      .toThrow('requires one exact passing Holdout result')
   })
 })
 

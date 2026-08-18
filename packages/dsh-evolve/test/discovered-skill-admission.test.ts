@@ -14,6 +14,10 @@ import type {
   MaterializedSkillCandidate,
 } from '../src/trusted-skill-discovery.ts'
 import { runPairedTrial, type PairedTrialResult } from '../src/trial.ts'
+import {
+  researchSkillHoldoutPassReceipt,
+  type ResearchSkillHoldoutResult,
+} from '../src/research-skill-holdout.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const roots: string[] = []
@@ -77,6 +81,79 @@ describe('discovered whole-Skill deterministic admission', () => {
       configuredTargetCount: 1,
       warningCount: 1,
       results: [],
+    })
+  })
+
+  it('binds each research Candidate admission to one exact passing Holdout result', async () => {
+    const fixture = await admissionFixture()
+    const research = researchCandidate()
+    const materialize = vi.fn(async (value: DiscoveredSkillCandidate, path: string) => {
+      await mkdir(path)
+      await writeFile(join(path, 'SKILL.md'), '---\nname: missing-release-skill\ndescription: Candidate.\n---\n')
+      return {
+        candidateId: value.id,
+        path,
+        contentHash: value.contentHash,
+        treeHash: value.version.treeHash,
+        files: [{ path: 'SKILL.md', mode: '100644' as const, size: 80 }],
+      }
+    })
+    const runTrial = vi.fn(async (options): Promise<PairedTrialResult> => ({
+      ...paired(false, true),
+      candidate: {
+        ...paired(false, true).candidate,
+        treeHash: await hashTree(options.candidateSkillDir!),
+      },
+    }))
+    const admission = new DiscoveredSkillAdmission([fixture.target], { materialize }, { runTrial })
+
+    await expect(admission.evaluate(research)).resolves.toMatchObject({
+      status: 'incomplete',
+      reasons: ['research-holdout-pass-required'],
+      releaseAuthority: 'none',
+    })
+    const wrongCandidateReceipt = researchSkillHoldoutPassReceipt({
+      ...researchHoldoutPass(research),
+      candidateId: '0'.repeat(64),
+    })
+    await expect(admission.evaluate(research, {
+      researchHoldout: wrongCandidateReceipt,
+    })).resolves.toMatchObject({
+      status: 'incomplete',
+      reasons: ['research-holdout-pass-required'],
+    })
+    expect(() => researchSkillHoldoutPassReceipt({
+        ...researchHoldoutPass(research),
+        status: 'fail',
+        reason: 'verification-anchor-failed',
+      })).toThrow('requires one exact passing Holdout result')
+    expect(materialize).not.toHaveBeenCalled()
+    expect(runTrial).not.toHaveBeenCalled()
+
+    const holdoutResult = researchHoldoutPass(research)
+    const holdout = researchSkillHoldoutPassReceipt(holdoutResult)
+    const qualified = await admission.evaluate(research, { researchHoldout: holdout })
+    expect(qualified).toMatchObject({
+      status: 'qualified-for-shadow',
+      candidateId: research.id,
+      researchHoldoutResultId: holdoutResult.id,
+      evidence: { baseline: 'fail', candidate: 'pass' },
+    })
+    expect(materialize).toHaveBeenCalledOnce()
+    expect(runTrial).toHaveBeenCalledOnce()
+    await expect(admission.evaluate(research, { researchHoldout: holdout })).resolves.toEqual(qualified)
+    expect(materialize).toHaveBeenCalledOnce()
+    await expect(admission.qualifiedShadowInput(research, qualified)).resolves.toMatchObject({
+      admissionTargetId: fixture.target.id,
+      candidateDir: expect.stringContaining('/candidate'),
+    })
+    await expect(admission.qualifiedShadowInput(research, {
+      ...qualified,
+      researchHoldoutResultId: 'c'.repeat(64),
+    })).rejects.toThrow('no matching qualified admission evidence')
+    await expect(admission.scan(WORKSPACE_ID)).resolves.toMatchObject({
+      warningCount: 0,
+      results: [expect.objectContaining({ researchHoldoutResultId: holdoutResult.id })],
     })
   })
 
@@ -280,7 +357,8 @@ describe('discovered whole-Skill deterministic admission', () => {
 
   it('uses native Jobs for restart candidates and newly discovered candidates without a timer', async () => {
     const existing = candidate()
-    const next = { ...candidate(), id: '8'.repeat(64), gapId: '9'.repeat(64) }
+    const next = researchCandidate()
+    const holdout = researchSkillHoldoutPassReceipt(researchHoldoutPass(next))
     const evaluate = vi.fn(async (value: DiscoveredSkillCandidate) => ({
       schemaVersion: 1 as const,
       id: value.id,
@@ -309,10 +387,13 @@ describe('discovered whole-Skill deterministic admission', () => {
     expect(evaluate).toHaveBeenCalledWith(existing, expect.objectContaining({ signal: expect.any(AbortSignal) }))
     expect(onResult).toHaveBeenCalledWith(existing, expect.objectContaining({ candidateId: existing.id }))
 
-    scheduler.observe(next)
+    scheduler.observe(next, { researchHoldout: holdout })
     expect(jobs.starts).toHaveLength(2)
     await jobs.hooks[1]!.done
-    expect(evaluate).toHaveBeenCalledWith(next, expect.objectContaining({ signal: expect.any(AbortSignal) }))
+    expect(evaluate).toHaveBeenCalledWith(next, expect.objectContaining({
+      signal: expect.any(AbortSignal),
+      researchHoldout: holdout,
+    }))
     detach()
   })
 
@@ -437,6 +518,70 @@ function candidate(options: { executableContent?: boolean } = {}): DiscoveredSki
     lifecycle: 'inactive',
     verification: 'unevaluated',
     execution: 'never',
+  }
+}
+
+function researchCandidate(): DiscoveredSkillCandidate {
+  return {
+    ...candidate(),
+    id: 'a'.repeat(64),
+    demand: {
+      kind: 'cross-goal-cluster-v1',
+      clusterId: 'b'.repeat(64),
+      gapIds: ['2'.repeat(64), 'c'.repeat(64)],
+      goalCount: 2,
+    },
+    source: {
+      id: 'missing-release-author',
+      kind: 'slow-loop-author',
+      trust: 'bounded-host-authoring',
+    },
+    version: {
+      kind: 'slow-loop-research-revision-v3',
+      revision: 1,
+      modelIdentityHash: 'd'.repeat(64),
+      inputDigest: 'e'.repeat(64),
+      researchDigest: 'f'.repeat(64),
+      parentCandidateId: '1'.repeat(64),
+      parentTreeHash: '4'.repeat(64),
+      holdoutResultId: '8'.repeat(64),
+      artifactDigest: '5'.repeat(64),
+      treeHash: '7'.repeat(64),
+    },
+    distribution: { kind: 'archive', format: 'tar.gz' },
+    package: {
+      path: 'missing-release-skill',
+      fileCount: 1,
+      totalBytes: 80,
+      hasScripts: false,
+      hasReferences: true,
+    },
+  }
+}
+
+function researchHoldoutPass(value: DiscoveredSkillCandidate): ResearchSkillHoldoutResult {
+  if (value.version.kind !== 'slow-loop-research-revision-v3') {
+    throw new Error('expected one revised research Candidate')
+  }
+  return {
+    schemaVersion: 1,
+    id: '9'.repeat(64),
+    candidateId: value.id,
+    workspaceId: value.workspaceId,
+    skillName: value.requestedSkill,
+    targetId: 'missing-release-holdout',
+    status: 'pass',
+    reason: 'all-verification-anchors-satisfied',
+    researchDigest: value.version.researchDigest,
+    candidateTreeHash: value.version.treeHash,
+    evaluatorIdentityHash: '6'.repeat(64),
+    cost: { modelCalls: 1, inputTokens: 10, outputTokens: 5 },
+    findings: [{
+      anchorDigest: '3'.repeat(64),
+      assessment: 'satisfied',
+      attribution: 'The revised workflow satisfies the independent anchor.',
+    }],
+    releaseAuthority: 'none',
   }
 }
 

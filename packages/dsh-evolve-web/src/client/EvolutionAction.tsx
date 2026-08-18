@@ -627,6 +627,9 @@ function SkillAdmission({ summary, t }: { summary: EvolutionOverview; t: (key: s
             {value.targetId !== undefined && <div className="dsh-evolve-meta">
               {t('skills.admission.target')} · {value.targetId}
             </div>}
+            {value.researchHoldoutResultId !== undefined && <div className="dsh-evolve-meta">
+              {t('skills.admission.research-holdout')} · {value.researchHoldoutResultId.slice(0, 12)}
+            </div>}
             {value.evidence !== undefined && <>
               <div className="dsh-evolve-meta">{admissionComparison(value.evidence, t)}</div>
               <div className="dsh-evolve-meta">{t('skills.admission.governance')}</div>

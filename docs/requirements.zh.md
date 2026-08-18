@@ -345,7 +345,11 @@ discovery 已结算且任一成员 Gap 都没有 Candidate 时，只有部署者
 才能用原生 Jobs 和持久 UTC 日预算启动研究驱动 authoring。DSH Web research 将 knowledge 与扣留 verification
 分轨；author 只能看到跨 Goal 证据和 knowledge，并返回 root `SKILL.md + references/*.md` 的完整 instruction-only
 manifest。宿主确定性组装 archive、绑定 research/artifact/tree/model/input 血缘，再进入 quarantine、独立
-Holdout、确定性 admission 与既有 Shadow 链。可能已经付费但结果未知时持久化 `uncertain` 并拒绝盲重试。
+Holdout、确定性 admission 与既有 Shadow 链。research-v2/v3 只能携带与精确 Candidate/research/tree
+一致的持久 `pass` Holdout receipt 进入 admission；receipt 只保留身份字段，不携带 findings、
+evaluator identity、attribution 或成本。该 Holdout result id 必须参与 admission 内容寻址
+身份、持久状态和 Web 投影，缺失、失败、旧产物或错 Candidate receipt 在物化前 fail closed。
+可能已经付费但结果未知时持久化 `uncertain` 并拒绝盲重试。
 真实 provider 的正确缺口判断、完整 paired 全链和长期迁移证据仍未完成，不能据此宣称 V4 退出门通过。
 
 慢环已增加第一条不调用模型的跨 Goal 需求聚类：只使用同一 Workspace 的 durable、Goal-linked Gap；至少

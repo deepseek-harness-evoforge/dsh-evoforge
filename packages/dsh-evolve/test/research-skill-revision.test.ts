@@ -15,6 +15,8 @@ import {
 } from '../src/research-skill-revision.ts'
 import {
   ResearchSkillHoldoutScheduler,
+  researchSkillHoldoutPassReceipt,
+  type ResearchSkillHoldoutPassReceipt,
   type ResearchSkillHoldoutResult,
 } from '../src/research-skill-holdout.ts'
 import type {
@@ -25,6 +27,7 @@ import type {
 } from '../src/trusted-skill-discovery.ts'
 import { TrustedSkillDiscovery } from '../src/trusted-skill-discovery.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
+import { DiscoveredSkillAdmissionScheduler } from '../src/discovered-skill-admission.ts'
 
 const roots: string[] = []
 
@@ -265,7 +268,6 @@ describe('one-shot research Skill revision', () => {
   it('routes one failed v2 through one v3 Holdout before deterministic admission', async () => {
     const fixture = await setup()
     const jobs = fakeJobs()
-    const admission = vi.fn()
     const revisionHandoffs: boolean[] = []
     let routingEnabled = false
     let revisedObserved: DiscoveredSkillCandidate | undefined
@@ -286,7 +288,7 @@ describe('one-shot research Skill revision', () => {
       onCandidate: candidate => {
         if (!routingEnabled) return
         if (candidate.version.kind === 'slow-loop-research-revision-v3') revisedObserved = candidate
-        if (holdoutScheduler?.observe(candidate) !== true) admission(candidate)
+        if (holdoutScheduler?.observe(candidate) !== true) admissionScheduler.observe(candidate)
       },
     })
     const recorded = await discovery.quarantineAuthoredBundle({
@@ -352,6 +354,24 @@ describe('one-shot research Skill revision', () => {
       now: () => 1_787_000_000_000,
     })
     const revisionScheduler = new ResearchSkillRevisionScheduler(revision)
+    const admissionEvaluate = vi.fn(async (
+      candidate: DiscoveredSkillCandidate,
+      _options: { signal?: AbortSignal; researchHoldout?: ResearchSkillHoldoutPassReceipt },
+    ) => ({
+      schemaVersion: 1 as const,
+      id: 'c'.repeat(64),
+      candidateId: candidate.id,
+      workspaceId: candidate.workspaceId,
+      skillName: candidate.requestedSkill,
+      status: 'qualified-for-shadow' as const,
+      reasons: ['candidate-improves-deterministic-admission' as const],
+      targetId: 'missing-release-admission',
+      releaseAuthority: 'none' as const,
+    }))
+    const admissionScheduler = new DiscoveredSkillAdmissionScheduler(
+      { matches: () => true, evaluate: admissionEvaluate },
+      { listCandidates: () => [] },
+    )
     const evaluate = vi.fn(async (candidate: DiscoveredSkillCandidate): Promise<ResearchSkillHoldoutResult> => {
       if (candidate.version.kind === 'slow-loop-research-bundle-v2') return failed
       return {
@@ -376,7 +396,9 @@ describe('one-shot research Skill revision', () => {
       },
       { listCandidates: () => [] },
       {
-        onPass: (candidate, result) => admission(candidate, result),
+        onPass: (candidate, result) => admissionScheduler.observe(candidate, {
+          researchHoldout: researchSkillHoldoutPassReceipt(result),
+        }),
         onResult: (candidate, result) => {
           revisionHandoffs.push(revisionScheduler.observe(candidate, result))
         },
@@ -385,6 +407,7 @@ describe('one-shot research Skill revision', () => {
 
     holdoutScheduler.attachJobs(jobs.registry)
     revisionScheduler.attachJobs(jobs.registry)
+    admissionScheduler.attachJobs(jobs.registry)
     expect(holdoutScheduler.observe(parent)).toBe(true)
 
     await expect(jobs.hooks[0]!.done).resolves.toMatchObject({ detail: 'fail' })
@@ -392,20 +415,23 @@ describe('one-shot research Skill revision', () => {
     await expect(jobs.hooks[1]!.done).resolves.toMatchObject({
       detail: 'candidate-ready: revised-candidate-ready',
     })
-    await vi.waitFor(() => expect(jobs.starts).toHaveLength(3))
+    await vi.waitFor(() => expect(jobs.starts.length).toBeGreaterThanOrEqual(3))
     await expect(jobs.hooks[2]!.done).resolves.toMatchObject({ detail: 'pass' })
+    await vi.waitFor(() => expect(jobs.starts).toHaveLength(4))
+    await expect(jobs.hooks[3]!.done).resolves.toMatchObject({ detail: 'qualified-for-shadow' })
 
     expect(jobs.starts.map(start => start.label)).toEqual([
       'independent research Holdout: missing-release-skill',
       'one-shot research Skill revision: missing-release-skill',
       'independent research Holdout: missing-release-skill',
+      'deterministic Skill admission: missing-release-skill',
     ])
     expect(revisionHandoffs).toEqual([true, false])
     expect(reviser).toHaveBeenCalledOnce()
     expect(evaluate).toHaveBeenCalledTimes(2)
-    expect(admission).toHaveBeenCalledOnce()
     expect(revisedObserved).toBeDefined()
-    expect(admission.mock.calls[0]![0]).toMatchObject({
+    expect(admissionEvaluate).toHaveBeenCalledOnce()
+    expect(admissionEvaluate.mock.calls[0]![0]).toMatchObject({
       version: {
         kind: 'slow-loop-research-revision-v3',
         revision: 1,
@@ -413,9 +439,12 @@ describe('one-shot research Skill revision', () => {
         holdoutResultId: failed.id,
       },
     })
-    expect(admission.mock.calls[0]![1]).toMatchObject({
-      candidateId: revisedObserved!.id,
-      status: 'pass',
+    expect(admissionEvaluate.mock.calls[0]![1]).toMatchObject({
+      researchHoldout: {
+        kind: 'research-holdout-pass-v1',
+        id: 'b'.repeat(64),
+        candidateId: revisedObserved!.id,
+      },
     })
   })
 })

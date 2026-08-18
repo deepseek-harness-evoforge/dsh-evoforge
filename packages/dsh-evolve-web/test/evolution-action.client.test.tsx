@@ -375,6 +375,7 @@ const t = (key: string) => ({
   'skills.admission.status.review': 'Admission needs review',
   'skills.admission.status.qualified-for-shadow': 'Qualified for later Shadow',
   'skills.admission.target': 'Evaluation target',
+  'skills.admission.research-holdout': 'Bound research Holdout pass',
   'skills.admission.targets': 'targets',
   'skills.admission.baseline': 'Baseline',
   'skills.admission.candidate': 'Candidate',
@@ -869,6 +870,7 @@ describe('EvolutionAction', () => {
             status: 'qualified-for-shadow' as const,
             reasons: ['candidate-improves-deterministic-admission' as const],
             targetId: 'missing-release-admission',
+            researchHoldoutResultId: '9'.repeat(64),
             releaseAuthority: 'none' as const,
             evidence: {
               baseline: 'fail' as const,
@@ -951,6 +953,7 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('Deterministic admission')).toBeTruthy()
     expect(screen.getByText('Qualified for later Shadow')).toBeTruthy()
     expect(screen.getByText('Evaluation target · missing-release-admission')).toBeTruthy()
+    expect(screen.getByText(`Bound research Holdout pass · ${'9'.repeat(12)}`)).toBeTruthy()
     expect(screen.getByText('Baseline fail → Candidate pass · 4 trials')).toBeTruthy()
     expect(screen.getByText('Deterministic filesystem · Candidate code not executed')).toBeTruthy()
     expect(screen.getByText('No release authority · Not installed or activated')).toBeTruthy()

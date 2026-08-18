@@ -78,6 +78,38 @@ export interface ResearchSkillHoldoutResult {
   readonly releaseAuthority: 'none'
 }
 
+/** Minimal Host-only handoff; private findings, evaluator identity, and cost stay in Holdout. */
+export interface ResearchSkillHoldoutPassReceipt {
+  readonly kind: 'research-holdout-pass-v1'
+  readonly id: string
+  readonly candidateId: string
+  readonly workspaceId: string
+  readonly skillName: string
+  readonly researchDigest: string
+  readonly candidateTreeHash: string
+  readonly releaseAuthority: 'none'
+}
+
+export function researchSkillHoldoutPassReceipt(
+  result: ResearchSkillHoldoutResult,
+): ResearchSkillHoldoutPassReceipt {
+  if (!isHoldoutResult(result)
+    || result.status !== 'pass'
+    || result.reason !== 'all-verification-anchors-satisfied') {
+    throw new Error('research Skill admission receipt requires one exact passing Holdout result')
+  }
+  return deepFreeze({
+    kind: 'research-holdout-pass-v1' as const,
+    id: result.id,
+    candidateId: result.candidateId,
+    workspaceId: result.workspaceId,
+    skillName: result.skillName,
+    researchDigest: result.researchDigest,
+    candidateTreeHash: result.candidateTreeHash,
+    releaseAuthority: 'none' as const,
+  })
+}
+
 export interface ResearchSkillRevisionInput {
   readonly holdoutResultId: string
   readonly researchDigest: string

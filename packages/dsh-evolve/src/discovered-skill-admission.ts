@@ -9,6 +9,7 @@ import type {
   DiscoveredSkillCandidate,
   MaterializedSkillCandidate,
 } from './trusted-skill-discovery.ts'
+import type { ResearchSkillHoldoutPassReceipt } from './research-skill-holdout.ts'
 import { runPairedTrial, type PairedTrialResult } from './trial.ts'
 
 const CONTENT_ID = /^[a-f0-9]{64}$/
@@ -31,6 +32,7 @@ export type DiscoveredSkillAdmissionReason =
   | 'no-exact-evaluation-target'
   | 'candidate-has-executable-content'
   | 'candidate-is-not-instruction-only'
+  | 'research-holdout-pass-required'
   | 'baseline-identity-mismatch'
   | 'case-pack-identity-mismatch'
   | 'assembled-evaluator-not-governance-separated'
@@ -51,6 +53,7 @@ export interface DiscoveredSkillAdmissionResult {
   readonly status: 'abstained' | 'protected' | 'incomplete' | 'rejected' | 'review' | 'qualified-for-shadow'
   readonly reasons: readonly DiscoveredSkillAdmissionReason[]
   readonly targetId?: string
+  readonly researchHoldoutResultId?: string
   readonly releaseAuthority: 'none'
   readonly evidence?: {
     readonly baseline: 'pass' | 'fail'
@@ -149,7 +152,8 @@ export class DiscoveredSkillAdmission {
       || admission.workspaceId !== candidate.workspaceId
       || admission.skillName !== candidate.requestedSkill
       || admission.targetId !== target.id
-      || admission.id !== admissionId(candidate, target)
+      || admission.id !== admissionId(candidate, target, admission.researchHoldoutResultId)
+      || researchHoldoutBindingRequired(candidate) !== (admission.researchHoldoutResultId !== undefined)
       || admission.evidence === undefined) {
       throw new Error('exact Candidate has no matching qualified admission evidence')
     }
@@ -183,7 +187,7 @@ export class DiscoveredSkillAdmission {
 
   async evaluate(
     candidate: DiscoveredSkillCandidate,
-    options: { signal?: AbortSignal } = {},
+    options: { signal?: AbortSignal; researchHoldout?: ResearchSkillHoldoutPassReceipt } = {},
   ): Promise<DiscoveredSkillAdmissionResult> {
     options.signal?.throwIfAborted()
     const target = this.targets.get(targetKey(candidate.workspaceId, candidate.requestedSkill))
@@ -191,7 +195,26 @@ export class DiscoveredSkillAdmission {
       return result(candidate, 'abstained', ['no-exact-evaluation-target'])
     }
 
-    const id = admissionId(candidate, target)
+    const researchHoldoutResultId = exactResearchHoldoutPass(candidate, options.researchHoldout)
+    const id = admissionId(candidate, target, researchHoldoutResultId)
+    const makeResult = (
+      status: DiscoveredSkillAdmissionResult['status'],
+      reasons: readonly DiscoveredSkillAdmissionReason[],
+      evidence?: DiscoveredSkillAdmissionResult['evidence'],
+    ): DiscoveredSkillAdmissionResult => result(
+      candidate,
+      status,
+      reasons,
+      target.id,
+      id,
+      evidence,
+      researchHoldoutResultId,
+    )
+    if (researchHoldoutBindingRequired(candidate)
+      ? researchHoldoutResultId === undefined
+      : options.researchHoldout !== undefined) {
+      return makeResult('incomplete', ['research-holdout-pass-required'])
+    }
     const prepared = {
       schemaVersion: 1,
       id,
@@ -201,6 +224,7 @@ export class DiscoveredSkillAdmission {
       targetId: target.id,
       baselineHash: target.baselineHash,
       casePackHash: target.casePackHash,
+      ...(researchHoldoutResultId === undefined ? {} : { researchHoldoutResultId }),
     } as const
 
     let baselineDir: string
@@ -213,12 +237,12 @@ export class DiscoveredSkillAdmission {
         realpath(target.runRoot),
       ])
     } catch {
-      return result(candidate, 'incomplete', ['evaluation-failed'], target.id, id)
+      return makeResult('incomplete', ['evaluation-failed'])
     }
     if (!separateRoots(runRoot, baselineDir)
       || !separateRoots(runRoot, casePackDir)
       || !separateRoots(baselineDir, casePackDir)) {
-      return result(candidate, 'incomplete', ['governance-roots-overlap'], target.id, id)
+      return makeResult('incomplete', ['governance-roots-overlap'])
     }
 
     const outputDir = join(runRoot, id)
@@ -227,19 +251,16 @@ export class DiscoveredSkillAdmission {
     const existing = await readExistingResult(outputDir, prepared)
     if (existing !== undefined) return existing
     if (!await prepareOutput(outputDir, prepared)) {
-      return result(candidate, 'incomplete', ['evaluation-failed'], target.id, id)
+      return makeResult('incomplete', ['evaluation-failed'])
     }
     const releaseLock = await acquireShadowRunLock(outputDir)
     try {
       const afterLock = await readExistingResult(outputDir, prepared)
       if (afterLock !== undefined) return afterLock
       if (candidate.permissions.executableContent || candidate.package.hasScripts) {
-        return await finish(outputDir, result(
-          candidate,
+        return await finish(outputDir, makeResult(
           'protected',
           ['candidate-has-executable-content'],
-          target.id,
-          id,
         ))
       }
       let baselineHash: string
@@ -250,42 +271,29 @@ export class DiscoveredSkillAdmission {
           hashTree(casePackDir),
         ])
       } catch {
-        return await finish(outputDir, result(
-          candidate, 'incomplete', ['evaluation-failed'], target.id, id,
-        ))
+        return await finish(outputDir, makeResult('incomplete', ['evaluation-failed']))
       }
       if (baselineHash !== target.baselineHash) {
-        return await finish(outputDir, result(
-          candidate, 'incomplete', ['baseline-identity-mismatch'], target.id, id,
-        ))
+        return await finish(outputDir, makeResult('incomplete', ['baseline-identity-mismatch']))
       }
       if (casePackHash !== target.casePackHash) {
-        return await finish(outputDir, result(
-          candidate, 'incomplete', ['case-pack-identity-mismatch'], target.id, id,
-        ))
+        return await finish(outputDir, makeResult('incomplete', ['case-pack-identity-mismatch']))
       }
       let manifest
       try {
         manifest = parseCasePackManifest(await readFile(join(casePackDir, 'manifest.json'), 'utf8'))
       } catch {
-        return await finish(outputDir, result(
-          candidate, 'incomplete', ['evaluation-failed'], target.id, id,
-        ))
+        return await finish(outputDir, makeResult('incomplete', ['evaluation-failed']))
       }
       if (manifest.workspaceId !== candidate.workspaceId
         || manifest.trial === undefined
         || manifest.calibration === undefined) {
-        return await finish(outputDir, result(
-          candidate, 'incomplete', ['evaluation-failed'], target.id, id,
-        ))
+        return await finish(outputDir, makeResult('incomplete', ['evaluation-failed']))
       }
       if (manifest.trial.dshAssembled === true) {
-        return await finish(outputDir, result(
-          candidate,
+        return await finish(outputDir, makeResult(
           'incomplete',
           ['assembled-evaluator-not-governance-separated'],
-          target.id,
-          id,
         ))
       }
       await rm(candidateDir, { force: true, recursive: true })
@@ -296,23 +304,20 @@ export class DiscoveredSkillAdmission {
       try {
         materialized = await this.materializer.materialize(candidate, candidateDir)
       } catch {
-        return await finish(outputDir, result(candidate, 'incomplete', ['evaluation-failed'], target.id, id))
+        return await finish(outputDir, makeResult('incomplete', ['evaluation-failed']))
       }
       if (materialized.candidateId !== candidate.id
         || materialized.contentHash !== candidate.contentHash
         || materialized.treeHash !== candidate.version.treeHash
         || await realpath(materialized.path) !== await realpath(candidateDir)) {
-        return await finish(outputDir, result(candidate, 'incomplete', ['evaluation-failed'], target.id, id))
+        return await finish(outputDir, makeResult('incomplete', ['evaluation-failed']))
       }
       if (materialized.files.some(file => file.mode !== '100644'
         || !isOwnedRelativePath(file.path)
         || !INSTRUCTION_FILE.test(file.path))) {
-        return await finish(outputDir, result(
-          candidate,
+        return await finish(outputDir, makeResult(
           'protected',
           ['candidate-is-not-instruction-only'],
-          target.id,
-          id,
         ))
       }
 
@@ -331,25 +336,19 @@ export class DiscoveredSkillAdmission {
         })
       } catch (error) {
         if (options.signal?.aborted) throw options.signal.reason
-        return await finish(outputDir, result(candidate, 'incomplete', ['evaluation-failed'], target.id, id))
+        return await finish(outputDir, makeResult('incomplete', ['evaluation-failed']))
       }
       if (await hashTree(baselineDir) !== target.baselineHash
         || await hashTree(casePackDir) !== target.casePackHash) {
-        return await finish(outputDir, result(
-          candidate,
+        return await finish(outputDir, makeResult(
           'incomplete',
           ['governance-input-mutated'],
-          target.id,
-          id,
         ))
       }
       if (paired.assembled) {
-        return await finish(outputDir, result(
-          candidate,
+        return await finish(outputDir, makeResult(
           'incomplete',
           ['assembled-evaluator-not-governance-separated'],
-          target.id,
-          id,
         ))
       }
       const calibrationPassed = paired.calibration.every(row => row.passed)
@@ -364,26 +363,23 @@ export class DiscoveredSkillAdmission {
         candidateTreeHash: paired.candidate.treeHash,
       }
       if (!calibrationPassed) {
-        return await finish(outputDir, result(
-          candidate, 'rejected', ['case-pack-calibration-failed'], target.id, id, evidence,
+        return await finish(outputDir, makeResult(
+          'rejected', ['case-pack-calibration-failed'], evidence,
         ))
       }
       if (!paired.candidate.passed) {
-        return await finish(outputDir, result(
-          candidate, 'rejected', ['candidate-failed-admission'], target.id, id, evidence,
+        return await finish(outputDir, makeResult(
+          'rejected', ['candidate-failed-admission'], evidence,
         ))
       }
       if (paired.baseline.passed) {
-        return await finish(outputDir, result(
-          candidate, 'review', ['baseline-already-passes'], target.id, id, evidence,
+        return await finish(outputDir, makeResult(
+          'review', ['baseline-already-passes'], evidence,
         ))
       }
-      return await finish(outputDir, result(
-        candidate,
+      return await finish(outputDir, makeResult(
         'qualified-for-shadow',
         ['candidate-improves-deterministic-admission'],
-        target.id,
-        id,
         evidence,
       ))
     } finally {
@@ -417,7 +413,11 @@ export class DiscoveredSkillAdmission {
             || prepared.skillName !== target.skill
             || prepared.baselineHash !== target.baselineHash
             || prepared.casePackHash !== target.casePackHash
-            || prepared.id !== admissionIdentityId(prepared.candidateId, target)) {
+            || prepared.id !== admissionIdentityId(
+              prepared.candidateId,
+              target,
+              prepared.researchHoldoutResultId,
+            )) {
             warningCount += 1
             continue
           }
@@ -454,7 +454,10 @@ export class DiscoveredSkillAdmissionScheduler {
     candidate: DiscoveredSkillCandidate,
     result: DiscoveredSkillAdmissionResult,
   ) => void) | undefined
-  private readonly pending = new Map<string, DiscoveredSkillCandidate>()
+  private readonly pending = new Map<string, {
+    readonly candidate: DiscoveredSkillCandidate
+    readonly researchHoldout?: ResearchSkillHoldoutPassReceipt
+  }>()
   private readonly active = new Set<string>()
   private jobs: Pick<JobRegistry, 'start'> | undefined
 
@@ -482,16 +485,23 @@ export class DiscoveredSkillAdmissionScheduler {
     }
   }
 
-  observe(candidate: DiscoveredSkillCandidate): void {
+  observe(
+    candidate: DiscoveredSkillCandidate,
+    options: { readonly researchHoldout?: ResearchSkillHoldoutPassReceipt } = {},
+  ): void {
     if (!this.admission.matches(candidate) || this.active.has(candidate.id)) return
-    this.pending.set(candidate.id, candidate)
+    this.pending.set(candidate.id, {
+      candidate,
+      ...(options.researchHoldout === undefined ? {} : { researchHoldout: options.researchHoldout }),
+    })
     this.schedule(candidate.id)
   }
 
   private schedule(candidateId: string): void {
     const jobs = this.jobs
-    const candidate = this.pending.get(candidateId)
-    if (jobs === undefined || candidate === undefined || this.active.has(candidateId)) return
+    const pending = this.pending.get(candidateId)
+    if (jobs === undefined || pending === undefined || this.active.has(candidateId)) return
+    const { candidate, researchHoldout } = pending
     this.pending.delete(candidateId)
     this.active.add(candidateId)
     const controller = new AbortController()
@@ -501,7 +511,10 @@ export class DiscoveredSkillAdmissionScheduler {
         label: `deterministic Skill admission: ${candidate.requestedSkill}`,
         outputLimitBytes: 2_048,
         run: () => {
-          const task = this.admission.evaluate(candidate, { signal: controller.signal })
+          const task = this.admission.evaluate(candidate, {
+            signal: controller.signal,
+            ...(researchHoldout === undefined ? {} : { researchHoldout }),
+          })
           return {
             cancel: (reason?: string) => controller.abort(new Error(reason ?? 'Skill admission cancelled')),
             done: task.then(value => {
@@ -529,7 +542,7 @@ export class DiscoveredSkillAdmissionScheduler {
       })
     } catch {
       this.active.delete(candidateId)
-      this.pending.set(candidateId, candidate)
+      this.pending.set(candidateId, pending)
     }
   }
 }
@@ -541,6 +554,7 @@ function result(
   targetId?: string,
   id = admissionId(candidate, targetId),
   evidence?: DiscoveredSkillAdmissionResult['evidence'],
+  researchHoldoutResultId?: string,
 ): DiscoveredSkillAdmissionResult {
   return Object.freeze({
     schemaVersion: 1,
@@ -551,6 +565,7 @@ function result(
     status,
     reasons: Object.freeze([...reasons]),
     ...(targetId === undefined ? {} : { targetId }),
+    ...(researchHoldoutResultId === undefined ? {} : { researchHoldoutResultId }),
     releaseAuthority: 'none',
     ...(evidence === undefined ? {} : { evidence: Object.freeze({ ...evidence }) }),
   })
@@ -559,8 +574,11 @@ function result(
 function admissionId(
   candidate: DiscoveredSkillCandidate,
   target: Pick<ResolvedTarget, 'id' | 'baselineHash' | 'casePackHash'> | string | undefined,
+  researchHoldoutResultId?: string,
 ): string {
-  if (typeof target === 'object') return admissionIdentityId(candidate.id, target)
+  if (typeof target === 'object') {
+    return admissionIdentityId(candidate.id, target, researchHoldoutResultId)
+  }
   const identity = [target ?? 'no-target']
   return createHash('sha256').update(JSON.stringify([
     'deterministic-skill-admission-v1',
@@ -572,18 +590,48 @@ function admissionId(
 function admissionIdentityId(
   candidateId: string,
   target: Pick<ResolvedTarget, 'id' | 'baselineHash' | 'casePackHash'>,
+  researchHoldoutResultId?: string,
 ): string {
   return createHash('sha256').update(JSON.stringify([
-    'deterministic-skill-admission-v1',
+    researchHoldoutResultId === undefined
+      ? 'deterministic-skill-admission-v1'
+      : 'deterministic-skill-admission-research-pass-v2',
     candidateId,
     target.id,
     target.baselineHash,
     target.casePackHash,
+    ...(researchHoldoutResultId === undefined ? [] : [researchHoldoutResultId]),
   ])).digest('hex')
 }
 
 function targetKey(workspaceId: string, skill: string): string {
   return `${workspaceId}\0${skill}`
+}
+
+function researchHoldoutBindingRequired(candidate: DiscoveredSkillCandidate): boolean {
+  return candidate.version.kind === 'slow-loop-research-bundle-v2'
+    || candidate.version.kind === 'slow-loop-research-revision-v3'
+}
+
+function exactResearchHoldoutPass(
+  candidate: DiscoveredSkillCandidate,
+  holdout: ResearchSkillHoldoutPassReceipt | undefined,
+): string | undefined {
+  if (!researchHoldoutBindingRequired(candidate) || holdout === undefined) return undefined
+  const version = candidate.version
+  if ((version.kind !== 'slow-loop-research-bundle-v2'
+      && version.kind !== 'slow-loop-research-revision-v3')
+    || holdout.kind !== 'research-holdout-pass-v1'
+    || !CONTENT_ID.test(holdout.id)
+    || holdout.candidateId !== candidate.id
+    || holdout.workspaceId !== candidate.workspaceId
+    || holdout.skillName !== candidate.requestedSkill
+    || holdout.researchDigest !== version.researchDigest
+    || holdout.candidateTreeHash !== version.treeHash
+    || holdout.releaseAuthority !== 'none'
+    || (version.kind === 'slow-loop-research-revision-v3'
+      && holdout.id === version.holdoutResultId)) return undefined
+  return holdout.id
 }
 
 function assertTarget(target: DiscoveredSkillAdmissionTargetConfig): void {
@@ -616,6 +664,7 @@ interface AdmissionPreparedState {
   readonly targetId: string
   readonly baselineHash: string
   readonly casePackHash: string
+  readonly researchHoldoutResultId?: string
 }
 
 async function prepareOutput(outputDir: string, expected: AdmissionPreparedState): Promise<boolean> {
@@ -657,7 +706,10 @@ async function readPreparedState(outputDir: string): Promise<AdmissionPreparedSt
     || typeof actual.baselineHash !== 'string'
     || !CONTENT_ID.test(actual.baselineHash)
     || typeof actual.casePackHash !== 'string'
-    || !CONTENT_ID.test(actual.casePackHash)) {
+    || !CONTENT_ID.test(actual.casePackHash)
+    || (actual.researchHoldoutResultId !== undefined
+      && (typeof actual.researchHoldoutResultId !== 'string'
+        || !CONTENT_ID.test(actual.researchHoldoutResultId)))) {
     throw new Error('Skill admission state has an invalid shape')
   }
   return actual as unknown as AdmissionPreparedState
@@ -676,6 +728,7 @@ async function readExistingResult(
       && value.workspaceId === expected.workspaceId
       && value.skillName === expected.skillName
       && value.targetId === expected.targetId
+      && value.researchHoldoutResultId === expected.researchHoldoutResultId
       ? Object.freeze(structuredClone(value))
       : undefined
   } catch {
@@ -706,6 +759,9 @@ function isAdmissionResult(value: unknown): value is DiscoveredSkillAdmissionRes
     || !Array.isArray(value.reasons)
     || value.reasons.some(reason => typeof reason !== 'string' || !ADMISSION_REASONS.has(reason))
     || (value.targetId !== undefined && (typeof value.targetId !== 'string' || !PUBLIC_ID.test(value.targetId)))
+    || (value.researchHoldoutResultId !== undefined
+      && (typeof value.researchHoldoutResultId !== 'string'
+        || !CONTENT_ID.test(value.researchHoldoutResultId)))
     || value.releaseAuthority !== 'none') return false
   if (!ADMISSION_STATUSES.has(String(value.status))) return false
   const evidenceValid = value.evidence !== undefined
@@ -807,6 +863,7 @@ const ADMISSION_REASONS: ReadonlySet<string> = new Set<DiscoveredSkillAdmissionR
   'no-exact-evaluation-target',
   'candidate-has-executable-content',
   'candidate-is-not-instruction-only',
+  'research-holdout-pass-required',
   'baseline-identity-mismatch',
   'case-pack-identity-mismatch',
   'assembled-evaluator-not-governance-separated',
@@ -820,6 +877,7 @@ const ADMISSION_REASONS: ReadonlySet<string> = new Set<DiscoveredSkillAdmissionR
 ])
 
 const INCOMPLETE_REASONS: ReadonlySet<string> = new Set<DiscoveredSkillAdmissionReason>([
+  'research-holdout-pass-required',
   'baseline-identity-mismatch',
   'case-pack-identity-mismatch',
   'assembled-evaluator-not-governance-separated',

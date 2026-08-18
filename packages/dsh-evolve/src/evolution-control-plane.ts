@@ -570,6 +570,9 @@ function projectSkillAdmission(
       status: value.status,
       reasons: [...value.reasons],
       ...(value.targetId === undefined ? {} : { targetId: value.targetId }),
+      ...(value.researchHoldoutResultId === undefined
+        ? {}
+        : { researchHoldoutResultId: value.researchHoldoutResultId }),
       releaseAuthority: value.releaseAuthority,
       ...(value.evidence === undefined ? {} : { evidence: {
         baseline: value.evidence.baseline,

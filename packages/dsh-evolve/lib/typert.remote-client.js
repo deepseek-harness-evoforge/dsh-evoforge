@@ -408,8 +408,9 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'candidateId': z.string().readonly(),
   'skillName': z.string().readonly(),
   'status': z.union([z.literal("incomplete"), z.literal("abstained"), z.literal("protected"), z.literal("rejected"), z.literal("review"), z.literal("qualified-for-shadow")]).readonly(),
-  'reasons': z.array(z.union([z.literal("no-exact-evaluation-target"), z.literal("candidate-has-executable-content"), z.literal("candidate-is-not-instruction-only"), z.literal("baseline-identity-mismatch"), z.literal("case-pack-identity-mismatch"), z.literal("assembled-evaluator-not-governance-separated"), z.literal("case-pack-calibration-failed"), z.literal("candidate-failed-admission"), z.literal("baseline-already-passes"), z.literal("candidate-improves-deterministic-admission"), z.literal("governance-input-mutated"), z.literal("governance-roots-overlap"), z.literal("evaluation-failed")])).readonly(),
+  'reasons': z.array(z.union([z.literal("no-exact-evaluation-target"), z.literal("candidate-has-executable-content"), z.literal("candidate-is-not-instruction-only"), z.literal("research-holdout-pass-required"), z.literal("baseline-identity-mismatch"), z.literal("case-pack-identity-mismatch"), z.literal("assembled-evaluator-not-governance-separated"), z.literal("case-pack-calibration-failed"), z.literal("candidate-failed-admission"), z.literal("baseline-already-passes"), z.literal("candidate-improves-deterministic-admission"), z.literal("governance-input-mutated"), z.literal("governance-roots-overlap"), z.literal("evaluation-failed")])).readonly(),
   'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'researchHoldoutResultId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'releaseAuthority': z.literal("none").readonly(),
   'evidence': z.union([z.undefined(), z.object({
   'baseline': z.union([z.literal("pass"), z.literal("fail")]).readonly(),

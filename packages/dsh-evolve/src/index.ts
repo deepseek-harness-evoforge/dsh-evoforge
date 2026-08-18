@@ -94,6 +94,7 @@ import {
   assertResearchSkillHoldoutRootSeparation,
   ResearchSkillHoldout,
   ResearchSkillHoldoutScheduler,
+  researchSkillHoldoutPassReceipt,
   type ResearchSkillHoldoutTargetConfig,
 } from './research-skill-holdout.ts'
 import {
@@ -447,7 +448,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       researchHoldouts,
       skillDiscoveryStore,
       {
-        onPass: candidate => skillAdmissionScheduler?.observe(candidate),
+        onPass: (candidate, result) => skillAdmissionScheduler?.observe(candidate, {
+          researchHoldout: researchSkillHoldoutPassReceipt(result),
+        }),
         onResult: (candidate, result) => researchRevisionScheduler?.observe(candidate, result),
       },
     )
