@@ -65,7 +65,8 @@ Web 文案和映射可见。提交门还包括两个 package 全量测试、Type
 
 ## 尚未证明
 
-- 未搜索市场、官方资料、论文、GitHub 或其他网络/外部 catalog，也没有下载或建立来源信誉。
+- 本 slice 未搜索网络；后续 [V4-4](v4-4-agent-skills-index-discovery.zh.md) 已加入显式授信 Agent Skills v0.2
+  单文件制品获取，但任意市场/官方资料/论文/GitHub 搜索与来源信誉仍未建立。
 - 该算法是保守的确定性词法语义检索，不是 embedding、LLM rerank 或完整语义理解；它会主动漏掉证据不足
   的候选，以避免静默误选。
 - 没有现成 whole-Skill 时仍不能自主生成或组合新 Skill。

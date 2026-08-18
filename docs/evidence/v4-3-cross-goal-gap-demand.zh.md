@@ -20,7 +20,7 @@ identity，系统才把它们放进同一 cluster。DSH Web 展示独立 Goal �
 3. 相同 proposed Skill name 可形成重复需求，但至少要有两个不同 Goal id。同一 Goal 的多 Session/revision
    retry 只增加观测次数，不增加独立 Goal 数，也不能独自成立 cluster。
 4. 对每个 Gap，只接受零个或一个唯一 quarantined candidate package identity。identity 同时绑定 Skill name、
-   source id/kind、commit、tree hash 与 content hash；只有完整元组相同才去重。出现多个不同 identity 时，
+   source id/kind、来源版本 identity（Git commit，或 Agent Skills index/artifact digest）、tree hash 与 content hash；只有完整元组相同才去重。出现多个不同 identity 时，
    该 Gap 作为冲突证据被排除，不靠名称或排序猜一个。
 5. 不同 proposed name 只有解析到同一完整 package identity 时才合并；同名但不同来源/版本/内容不会冒充
    同一解析结果，未解析的不同名字也不会做模糊聚类。
@@ -56,7 +56,8 @@ Install/Activate 按钮，console warning/error 为 0，限制文本具有可见
 
 ## 尚未证明
 
-- cluster 不会主动搜索本地之外的市场、官方资料、论文或开源仓库。
+- cluster 本身不会主动搜索任何来源；后续 [V4-4](v4-4-agent-skills-index-discovery.zh.md) 已让每个 Gap 可查询
+  显式授信 Agent Skills v0.2 索引，但尚未由 cluster 驱动市场、官方资料、论文或开源仓库搜索。
 - cluster 不会启动 Skill 生成/组合，也没有预算、队列、退避、来源信誉或用户审查调度。
 - 不同未解析 Gap name 之间不做 embedding/LLM 模糊聚类；这会主动漏合并，目的是避免错误需求污染。
 - 没有真实模型误缺口率、跨任务 transfer、negative transfer、遗忘或长期 retention 数据。

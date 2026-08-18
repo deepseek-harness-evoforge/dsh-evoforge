@@ -8,6 +8,23 @@ import { en } from '../../src/client/locales.ts'
 import type { EvolutionRemoteClient } from '../../src/client/remote.ts'
 import { cssText } from '../../src/client/style.ts'
 
+const browserDiagnostics: string[] = []
+const recordBrowserDiagnostic = (value: string) => {
+  browserDiagnostics.push(value)
+  document.documentElement.dataset.evoforgeBrowserDiagnostics = JSON.stringify(browserDiagnostics)
+}
+document.documentElement.dataset.evoforgeBrowserDiagnostics = '[]'
+for (const level of ['warn', 'error'] as const) {
+  const original = console[level].bind(console)
+  console[level] = (...values: unknown[]) => {
+    recordBrowserDiagnostic(`${level}: ${values.map(String).join(' ')}`)
+    original(...values)
+  }
+}
+window.addEventListener('error', event => recordBrowserDiagnostic(`page-error: ${event.message}`))
+window.addEventListener('unhandledrejection', event =>
+  recordBrowserDiagnostic(`unhandled-rejection: ${String(event.reason)}`))
+
 const signalId = '8'.repeat(64)
 const draftId = 'e'.repeat(64)
 const launchId = 'd'.repeat(64)
@@ -159,15 +176,17 @@ const remote: EvolutionRemoteClient = {
                 queryHash: 'f'.repeat(64),
               },
               source: {
-                id: 'local-curated',
-                kind: 'local-git' as const,
+                id: 'public-agent-skills',
+                kind: 'agent-skills-index' as const,
                 trust: 'explicit-deployer-config' as const,
+                origin: 'https://skills.example.com',
               },
               scope: 'workspace' as const,
               version: {
-                kind: 'git-tree' as const,
-                commit: '8'.repeat(40),
-                treeHash: '9'.repeat(40),
+                kind: 'agent-skills-index-v0.2' as const,
+                indexDigest: '8'.repeat(64),
+                artifactDigest: '9'.repeat(64),
+                treeHash: 'b'.repeat(64),
               },
               contentHash: 'a'.repeat(64),
               package: {
@@ -182,10 +201,11 @@ const remote: EvolutionRemoteClient = {
                 executableContent: false,
                 externalEffects: 'unknown' as const,
               },
+              license: { status: 'declared' as const, value: 'MIT' },
               safety: {
                 status: 'quarantined' as const,
                 checks: [
-                  { name: 'git-object-integrity' as const, status: 'passed' as const },
+                  { name: 'artifact-digest-integrity' as const, status: 'passed' as const },
                   { name: 'regular-files-only' as const, status: 'passed' as const },
                   { name: 'skill-identity' as const, status: 'passed' as const },
                   { name: 'effect-review' as const, status: 'required' as const },
@@ -205,9 +225,9 @@ const remote: EvolutionRemoteClient = {
               candidateIds: ['7'.repeat(64)],
               reasons: [],
               sources: [{
-                id: 'local-curated',
+                id: 'public-agent-skills',
                 status: 'candidate' as const,
-                revision: '8'.repeat(40),
+                revision: '8'.repeat(64),
               }],
             }],
           },
@@ -494,7 +514,7 @@ const labels: Record<string, string> = {
   'error.prefix': 'Error: ',
 }
 
-Object.assign(window, { __EVOFORGE_E2E__: calls })
+Object.assign(window, { __EVOFORGE_E2E__: calls, __EVOFORGE_BROWSER_DIAGNOSTICS__: browserDiagnostics })
 const productStyle = document.createElement('style')
 productStyle.textContent = cssText
 document.head.append(productStyle)

@@ -157,13 +157,19 @@ function candidateIdentity(candidate: Pick<
   DiscoveredSkillCandidate,
   'requestedSkill' | 'source' | 'version' | 'contentHash'
 >): string {
+  const versionIdentity = candidate.version.kind === 'git-tree'
+    ? [candidate.version.commit, candidate.version.treeHash]
+    : [
+        candidate.version.indexDigest,
+        candidate.version.artifactDigest,
+        candidate.version.treeHash,
+      ]
   return JSON.stringify([
     candidate.requestedSkill,
     candidate.source.id,
     candidate.source.kind,
     candidate.version.kind,
-    candidate.version.commit,
-    candidate.version.treeHash,
+    ...versionIdentity,
     candidate.contentHash,
   ])
 }

@@ -226,15 +226,21 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
 })]).readonly().optional(),
   'source': z.object({
   'id': z.string().readonly(),
-  'kind': z.literal("local-git").readonly(),
+  'kind': z.union([z.literal("local-git"), z.literal("agent-skills-index")]).readonly(),
   'trust': z.literal("explicit-deployer-config").readonly(),
+  'origin': z.union([z.undefined(), z.string()]).readonly().optional(),
 }).readonly(),
   'scope': z.literal("workspace").readonly(),
-  'version': z.object({
+  'version': z.union([z.object({
   'kind': z.literal("git-tree").readonly(),
   'commit': z.string().readonly(),
   'treeHash': z.string().readonly(),
-}).readonly(),
+}), z.object({
+  'kind': z.literal("agent-skills-index-v0.2").readonly(),
+  'indexDigest': z.string().readonly(),
+  'artifactDigest': z.string().readonly(),
+  'treeHash': z.string().readonly(),
+})]).readonly(),
   'contentHash': z.string().readonly(),
   'package': z.object({
   'path': z.string().readonly(),
@@ -248,10 +254,16 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'executableContent': z.boolean().readonly(),
   'externalEffects': z.literal("unknown").readonly(),
 }).readonly(),
+  'license': z.union([z.undefined(), z.object({
+  'status': z.literal("declared").readonly(),
+  'value': z.string().readonly(),
+}), z.object({
+  'status': z.literal("unknown").readonly(),
+})]).readonly().optional(),
   'safety': z.object({
   'status': z.literal("quarantined").readonly(),
   'checks': z.array(z.object({
-  'name': z.union([z.literal("git-object-integrity"), z.literal("regular-files-only"), z.literal("skill-identity"), z.literal("effect-review")]).readonly(),
+  'name': z.union([z.literal("git-object-integrity"), z.literal("artifact-digest-integrity"), z.literal("regular-files-only"), z.literal("skill-identity"), z.literal("effect-review")]).readonly(),
   'status': z.union([z.literal("passed"), z.literal("required")]).readonly(),
 })).readonly(),
 }).readonly(),
@@ -267,10 +279,10 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'completedAt': z.number().readonly(),
   'status': z.union([z.literal("candidate-found"), z.literal("abstained"), z.literal("partial")]).readonly(),
   'candidateIds': z.array(z.string()).readonly(),
-  'reasons': z.array(z.union([z.literal("no-trusted-sources"), z.literal("no-exact-skill"), z.literal("no-semantic-match"), z.literal("ambiguous-semantic-match"), z.literal("invalid-skill-package"), z.literal("source-unavailable")])).readonly(),
+  'reasons': z.array(z.union([z.literal("no-trusted-sources"), z.literal("no-exact-skill"), z.literal("no-semantic-match"), z.literal("ambiguous-semantic-match"), z.literal("invalid-skill-package"), z.literal("source-unavailable"), z.literal("unsupported-index-schema"), z.literal("unsupported-artifact-type"), z.literal("untrusted-artifact-origin"), z.literal("artifact-digest-mismatch")])).readonly(),
   'sources': z.array(z.object({
   'id': z.string().readonly(),
-  'status': z.union([z.literal("candidate"), z.literal("absent"), z.literal("no-match"), z.literal("ambiguous"), z.literal("invalid"), z.literal("unavailable")]).readonly(),
+  'status': z.union([z.literal("candidate"), z.literal("absent"), z.literal("no-match"), z.literal("ambiguous"), z.literal("invalid"), z.literal("unavailable"), z.literal("unsupported-schema"), z.literal("unsupported-artifact"), z.literal("untrusted-origin"), z.literal("digest-mismatch")]).readonly(),
   'revision': z.union([z.undefined(), z.string()]).readonly().optional(),
 })).readonly(),
 })).readonly(),

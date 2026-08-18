@@ -39,7 +39,34 @@ HanaAgent（官方仓库仍名 `openhanako`）面向普通用户，支持主动�
 
 应学习它的无术语入口、拖拽安装、图形化、桥接与两级权限；同时为每个 Skill 明确稳定 identity、来源、scope、版本、优先级、冲突和去重，避免“目录里存在多个同名 Skill，却无法解释实际使用哪一个”。
 
-## 5. 前沿实现带来的新增硬要求
+## 5. 外部 Skill 市场与开放发现协议的增量核验
+
+OpenClaw 当前已经把 ClawHub 明确为公开 Skill/插件 registry：原生命令支持 search/install/update，安装会
+记录来源，用户可在安装前查看版本、changelog 与 scan 状态；`verify` 还能读取 registry 的 trust envelope。
+这说明“市场发现、来源锁定、安全分析、安装”应是四个可区分阶段，不能把搜索命中直接等价为可执行能力。
+[ClawHub quickstart](https://docs.openclaw.ai/clawhub/quickstart) ·
+[OpenClaw Skills](https://docs.openclaw.ai/skills)
+
+ClawHub 的 Skill 仍是含 `SKILL.md` 与可选支持文件的目录，并通过 origin/lock metadata 追踪来源；其官方
+格式要求声明 runtime/env/bin 等需求，完整 bundle 进入安全扫描，当前公开 Skill 统一为 MIT-0。这是一个
+具体市场的产品契约，不是 DSH 的通用安装接口，也不能用 scan 状态证明任务效果。
+[ClawHub Skill format](https://docs.openclaw.ai/clawhub/skill-format) ·
+[ClawHub CLI](https://docs.openclaw.ai/clawhub/cli)
+
+Cloudflare 发起的 Agent Skills Discovery via Well-Known URIs 当前状态是 **draft v0.2.0**，规定
+`/.well-known/agent-skills/index.json`、固定 `$schema`、`skill-md | archive`、artifact URL 与原始字节
+`sha256:<hex>`。客户端必须按 digest 校验下载内容，并应对来源 allowlist、prompt injection、script 默认不
+执行及 archive traversal/link/decompression bomb 做防护。它提供的是可移植 discovery index，不提供
+质量、许可证适用性或 release eligibility。
+[Agent Skills Discovery draft v0.2](https://github.com/cloudflare/agent-skills-discovery-rfc/blob/main/README.md) ·
+[Agent Skills specification](https://agentskills.io/specification)
+
+**设计推断：** EvoForge 首个网络纵切应优先采用这个开放、digest-pinned 的 index，而不是绑定 ClawHub
+私有 API 或 popularity 排名；但只能把它当供应链输入。当前实现固定 v0.2、显式配置、HTTPS、同源、
+bounded UTF-8 和 SHA-256，只接收单文件 `skill-md` 并进入 durable quarantine。Archive 在安全解包门完整
+之前拒绝；ClawHub adapter、任意 Web/GitHub 搜索和候选生成仍分开排期。
+
+## 6. 前沿实现带来的新增硬要求
 
 - **EvoSkill**：从失败轨迹发现/修改 Skill，用 Pareto frontier 和 held-out validation 选择，并报告跨任务迁移；说明“发现能力”与“保留能力”必须分开。[论文](https://arxiv.org/abs/2603.02766) · [代码](https://github.com/sentient-agi/EvoSkill)
 - **SkillHone**：进化单位是整个 Skill folder（`SKILL.md + scripts + references`），eval 与 Skill 通过代码路径/文件权限隔离，每个决策有 Git 审计；DSH 应做整包原子版本，而非只改 prompt。[官方仓库](https://github.com/Tencent/SkillHone) · [论文](https://arxiv.org/abs/2606.08671)
@@ -51,7 +78,7 @@ HanaAgent（官方仓库仍名 `openhanako`）面向普通用户，支持主动�
 
 由此得到不可缩减的评测维度：任务成功率、首次成功率、人工选路/干预次数、失败恢复、Skill 发现召回与错误调用、跨任务复用/迁移、负迁移、保留与遗忘、安全回归、成本、时延、cache-read、回滚正确性；并记录每个 signal→gap→candidate→trial→decision→generation 的完整证据链。
 
-## 6. 插件组与交付约束
+## 7. 插件组与交付约束
 
 最小合理拆分是：`evolution-core`（闭环、版本与治理）、`skill-discovery`（本地/市场/官方资料与开源证据）、`eval-lab`（隔离评测）、`integrations-feishu`（双向消息、文件、卡片、通知、身份/会话映射、幂等与审批）、`evolution-web`（DSH Web 页面/API）。它们共享一个版本化事件/存储契约，但各自可安装、禁用、卸载；其他消息、日历、内容等 Adapter 按证据增量加入，不做巨型 Gateway。
 

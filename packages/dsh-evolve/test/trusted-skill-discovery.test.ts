@@ -424,12 +424,14 @@ function fakeStore() {
 }
 
 function discoveredCandidateId(input: Parameters<SkillDiscoveryStore['recordCandidate']>[0]): string {
+  const versionIdentity = input.version.kind === 'git-tree'
+    ? [input.version.commit, input.version.treeHash]
+    : [input.version.indexDigest, input.version.artifactDigest, input.version.treeHash]
   return createHash('sha256').update(JSON.stringify([
     input.workspaceId,
     input.gapId,
     input.source.id,
-    input.version.commit,
-    input.version.treeHash,
+    ...versionIdentity,
     input.contentHash,
   ])).digest('hex')
 }

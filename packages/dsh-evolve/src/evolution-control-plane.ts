@@ -428,6 +428,7 @@ function projectSkillDiscovery(
       contentHash: candidate.contentHash,
       package: { ...candidate.package },
       permissions: { ...candidate.permissions },
+      ...(candidate.license === undefined ? {} : { license: { ...candidate.license } }),
       safety: {
         status: candidate.safety.status,
         checks: candidate.safety.checks.map(check => ({ ...check })),

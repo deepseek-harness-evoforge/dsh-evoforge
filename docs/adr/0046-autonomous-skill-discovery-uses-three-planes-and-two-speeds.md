@@ -34,12 +34,15 @@ cache 评测，再 promote/review/reject/abstain。晋升只影响未来 Session
 
 该 Tool 只报告缺口，不接收用户选路，不读取网络，不生成、执行、安装或激活候选。它是 Cache Contract
 中明确列出的单一稳定增量；当前 Session 内名称、描述、Schema 与顺序不随发现、评测或 future
-Generation 变化。现阶段发现支持部署者明确授信的本地 Git 源：exact 查询优先，exact 不存在时可在同一
-固定 revision 上对合法 Skill name/description 做有界、确定性的词法语义回退；弱匹配、歧义和非法 exact
-package 均 fail closed。Host 还会从 durable Gap 与隔离候选身份派生同一 Workspace、至少两个不同 Goal 的
+Generation 变化。现阶段发现支持部署者明确授信的本地 Git 源，以及显式配置的 Agent Skills Discovery
+draft v0.2 well-known 索引：exact 查询优先，exact 不存在时可在同一固定 catalog 上对合法 Skill
+name/description 做有界、确定性的词法语义回退；弱匹配、歧义和非法 exact package 均 fail closed。外部
+纵切仅接收同源、SHA-256 验证且 identity 一致的单文件 `skill-md`，verified body 进入 Host 私有 durable
+quarantine，后续物化不重新信任网络；未知 schema、跨域、摘要不符和 archive 均拒绝。Host 还会从 durable
+Gap 与隔离候选身份派生同一 Workspace、至少两个不同 Goal 的
 重复需求聚类；同一 Goal 的 retry 不构成跨 Goal 证据，有冲突候选的 Gap 不进入聚类。聚类只有慢环优先级
-证据权，不会触发生成、安装、激活或发布。外部来源搜索/获取、候选生成、cluster-driven 调度和真实模型
-路由质量仍是后续门禁，不能从本实现推断已经完成整个 ADR。
+证据权，不会触发生成、安装、激活或发布。任意市场/ClawHub 专有 API、archive、候选生成、cluster-driven
+调度和真实模型路由质量仍是后续门禁，不能从本实现推断已经完成整个 ADR。
 
 ## 结果
 

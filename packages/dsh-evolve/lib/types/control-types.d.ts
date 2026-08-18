@@ -115,13 +115,19 @@ export interface EvolutionDiscoveredSkillCandidateView {
     };
     readonly source: {
         readonly id: string;
-        readonly kind: 'local-git';
+        readonly kind: 'local-git' | 'agent-skills-index';
         readonly trust: 'explicit-deployer-config';
+        readonly origin?: string;
     };
     readonly scope: 'workspace';
     readonly version: {
         readonly kind: 'git-tree';
         readonly commit: string;
+        readonly treeHash: string;
+    } | {
+        readonly kind: 'agent-skills-index-v0.2';
+        readonly indexDigest: string;
+        readonly artifactDigest: string;
         readonly treeHash: string;
     };
     readonly contentHash: string;
@@ -137,10 +143,16 @@ export interface EvolutionDiscoveredSkillCandidateView {
         readonly executableContent: boolean;
         readonly externalEffects: 'unknown';
     };
+    readonly license?: {
+        readonly status: 'declared';
+        readonly value: string;
+    } | {
+        readonly status: 'unknown';
+    };
     readonly safety: {
         readonly status: 'quarantined';
         readonly checks: readonly {
-            readonly name: 'git-object-integrity' | 'regular-files-only' | 'skill-identity' | 'effect-review';
+            readonly name: 'git-object-integrity' | 'artifact-digest-integrity' | 'regular-files-only' | 'skill-identity' | 'effect-review';
             readonly status: 'passed' | 'required';
         }[];
     };
@@ -156,10 +168,10 @@ export interface EvolutionSkillDiscoveryAttemptView {
     readonly completedAt: number;
     readonly status: 'candidate-found' | 'abstained' | 'partial';
     readonly candidateIds: readonly string[];
-    readonly reasons: readonly ('no-trusted-sources' | 'no-exact-skill' | 'no-semantic-match' | 'ambiguous-semantic-match' | 'invalid-skill-package' | 'source-unavailable')[];
+    readonly reasons: readonly ('no-trusted-sources' | 'no-exact-skill' | 'no-semantic-match' | 'ambiguous-semantic-match' | 'invalid-skill-package' | 'source-unavailable' | 'unsupported-index-schema' | 'unsupported-artifact-type' | 'untrusted-artifact-origin' | 'artifact-digest-mismatch')[];
     readonly sources: readonly {
         readonly id: string;
-        readonly status: 'candidate' | 'absent' | 'no-match' | 'ambiguous' | 'invalid' | 'unavailable';
+        readonly status: 'candidate' | 'absent' | 'no-match' | 'ambiguous' | 'invalid' | 'unavailable' | 'unsupported-schema' | 'unsupported-artifact' | 'untrusted-origin' | 'digest-mismatch';
         readonly revision?: string;
     }[];
 }

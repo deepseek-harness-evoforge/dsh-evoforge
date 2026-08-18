@@ -226,15 +226,21 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
 })]).readonly().optional(),
   'source': z.object({
   'id': z.string().readonly(),
-  'kind': z.literal("local-git").readonly(),
+  'kind': z.union([z.literal("local-git"), z.literal("agent-skills-index")]).readonly(),
   'trust': z.literal("explicit-deployer-config").readonly(),
+  'origin': z.union([z.undefined(), z.string()]).readonly().optional(),
 }).readonly(),
   'scope': z.literal("workspace").readonly(),
-  'version': z.object({
+  'version': z.union([z.object({
   'kind': z.literal("git-tree").readonly(),
   'commit': z.string().readonly(),
   'treeHash': z.string().readonly(),
-}).readonly(),
+}), z.object({
+  'kind': z.literal("agent-skills-index-v0.2").readonly(),
+  'indexDigest': z.string().readonly(),
+  'artifactDigest': z.string().readonly(),
+  'treeHash': z.string().readonly(),
+})]).readonly(),
   'contentHash': z.string().readonly(),
   'package': z.object({
   'path': z.string().readonly(),
@@ -248,10 +254,16 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'executableContent': z.boolean().readonly(),
   'externalEffects': z.literal("unknown").readonly(),
 }).readonly(),
+  'license': z.union([z.undefined(), z.object({
+  'status': z.literal("declared").readonly(),
+  'value': z.string().readonly(),
+}), z.object({
+  'status': z.literal("unknown").readonly(),
+})]).readonly().optional(),
   'safety': z.object({
   'status': z.literal("quarantined").readonly(),
   'checks': z.array(z.object({
-  'name': z.union([z.literal("git-object-integrity"), z.literal("regular-files-only"), z.literal("skill-identity"), z.literal("effect-review")]).readonly(),
+  'name': z.union([z.literal("git-object-integrity"), z.literal("artifact-digest-integrity"), z.literal("regular-files-only"), z.literal("skill-identity"), z.literal("effect-review")]).readonly(),
   'status': z.union([z.literal("passed"), z.literal("required")]).readonly(),
 })).readonly(),
 }).readonly(),
@@ -267,10 +279,10 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'completedAt': z.number().readonly(),
   'status': z.union([z.literal("candidate-found"), z.literal("abstained"), z.literal("partial")]).readonly(),
   'candidateIds': z.array(z.string()).readonly(),
-  'reasons': z.array(z.union([z.literal("no-trusted-sources"), z.literal("no-exact-skill"), z.literal("no-semantic-match"), z.literal("ambiguous-semantic-match"), z.literal("invalid-skill-package"), z.literal("source-unavailable")])).readonly(),
+  'reasons': z.array(z.union([z.literal("no-trusted-sources"), z.literal("no-exact-skill"), z.literal("no-semantic-match"), z.literal("ambiguous-semantic-match"), z.literal("invalid-skill-package"), z.literal("source-unavailable"), z.literal("unsupported-index-schema"), z.literal("unsupported-artifact-type"), z.literal("untrusted-artifact-origin"), z.literal("artifact-digest-mismatch")])).readonly(),
   'sources': z.array(z.object({
   'id': z.string().readonly(),
-  'status': z.union([z.literal("candidate"), z.literal("absent"), z.literal("no-match"), z.literal("ambiguous"), z.literal("invalid"), z.literal("unavailable")]).readonly(),
+  'status': z.union([z.literal("candidate"), z.literal("absent"), z.literal("no-match"), z.literal("ambiguous"), z.literal("invalid"), z.literal("unavailable"), z.literal("unsupported-schema"), z.literal("unsupported-artifact"), z.literal("untrusted-origin"), z.literal("digest-mismatch")]).readonly(),
   'revision': z.union([z.undefined(), z.string()]).readonly().optional(),
 })).readonly(),
 })).readonly(),
@@ -1466,7 +1478,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionDiscoveredSkillCandidateView",
-            "declaration": "export interface EvolutionDiscoveredSkillCandidateView {\n    readonly id: string;\n    readonly discoveredAt: number;\n    readonly gapId: string;\n    readonly requestedSkill: string;\n    readonly description: string;\n    readonly match?: { readonly kind: 'deterministic-lexical-v1'; readonly requestedSkill: string; readonly score: number; readonly runnerUpScore: number; readonly queryHash: string; };\n    readonly source: { readonly id: string; readonly kind: 'local-git'; readonly trust: 'explicit-deployer-config'; };\n    readonly scope: 'workspace';\n    readonly version: { readonly kind: 'git-tree'; readonly commit: string; readonly treeHash: string; };\n    readonly contentHash: string;\n    readonly package: { readonly path: string; readonly fileCount: number; readonly totalBytes: number; readonly hasScripts: boolean; readonly hasReferences: boolean; };\n    readonly permissions: { readonly declared: boolean; readonly executableContent: boolean; readonly externalEffects: 'unknown'; };\n    readonly safety: { readonly status: 'quarantined'; readonly checks: readonly { readonly name: 'git-object-integrity' | 'regular-files-only' | 'skill-identity' | 'effect-review'; readonly status: 'passed' | 'required'; }[]; };\n    readonly lifecycle: 'inactive';\n    readonly verification: 'unevaluated';\n    readonly execution: 'never';\n}"
+            "declaration": "export interface EvolutionDiscoveredSkillCandidateView {\n    readonly id: string;\n    readonly discoveredAt: number;\n    readonly gapId: string;\n    readonly requestedSkill: string;\n    readonly description: string;\n    readonly match?: { readonly kind: 'deterministic-lexical-v1'; readonly requestedSkill: string; readonly score: number; readonly runnerUpScore: number; readonly queryHash: string; };\n    readonly source: { readonly id: string; readonly kind: 'local-git' | 'agent-skills-index'; readonly trust: 'explicit-deployer-config'; readonly origin?: string; };\n    readonly scope: 'workspace';\n    readonly version: { readonly kind: 'git-tree'; readonly commit: string; readonly treeHash: string; } | { readonly kind: 'agent-skills-index-v0.2'; readonly indexDigest: string; readonly artifactDigest: string; readonly treeHash: string; };\n    readonly contentHash: string;\n    readonly package: { readonly path: string; readonly fileCount: number; readonly totalBytes: number; readonly hasScripts: boolean; readonly hasReferences: boolean; };\n    readonly permissions: { readonly declared: boolean; readonly executableContent: boolean; readonly externalEffects: 'unknown'; };\n    readonly license?: { readonly status: 'declared'; readonly value: string; } | { readonly status: 'unknown'; };\n    readonly safety: { readonly status: 'quarantined'; readonly checks: readonly { readonly name: 'git-object-integrity' | 'artifact-digest-integrity' | 'regular-files-only' | 'skill-identity' | 'effect-review'; readonly status: 'passed' | 'required'; }[]; };\n    readonly lifecycle: 'inactive';\n    readonly verification: 'unevaluated';\n    readonly execution: 'never';\n}"
           },
           {
             "name": "EvolutionEvaluatorDraftDetail",
@@ -1518,7 +1530,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionSkillDiscoveryAttemptView",
-            "declaration": "export interface EvolutionSkillDiscoveryAttemptView {\n    readonly id: string;\n    readonly gapId: string;\n    readonly requestedSkill: string;\n    readonly startedAt: number;\n    readonly completedAt: number;\n    readonly status: 'candidate-found' | 'abstained' | 'partial';\n    readonly candidateIds: readonly string[];\n    readonly reasons: readonly ('no-trusted-sources' | 'no-exact-skill' | 'no-semantic-match' | 'ambiguous-semantic-match' | 'invalid-skill-package' | 'source-unavailable')[];\n    readonly sources: readonly { readonly id: string; readonly status: 'candidate' | 'absent' | 'no-match' | 'ambiguous' | 'invalid' | 'unavailable'; readonly revision?: string; }[];\n}"
+            "declaration": "export interface EvolutionSkillDiscoveryAttemptView {\n    readonly id: string;\n    readonly gapId: string;\n    readonly requestedSkill: string;\n    readonly startedAt: number;\n    readonly completedAt: number;\n    readonly status: 'candidate-found' | 'abstained' | 'partial';\n    readonly candidateIds: readonly string[];\n    readonly reasons: readonly ('no-trusted-sources' | 'no-exact-skill' | 'no-semantic-match' | 'ambiguous-semantic-match' | 'invalid-skill-package' | 'source-unavailable' | 'unsupported-index-schema' | 'unsupported-artifact-type' | 'untrusted-artifact-origin' | 'artifact-digest-mismatch')[];\n    readonly sources: readonly { readonly id: string; readonly status: 'candidate' | 'absent' | 'no-match' | 'ambiguous' | 'invalid' | 'unavailable' | 'unsupported-schema' | 'unsupported-artifact' | 'untrusted-origin' | 'digest-mismatch'; readonly revision?: string; }[];\n}"
           },
           {
             "name": "EvolutionSkillDiscoveryView",

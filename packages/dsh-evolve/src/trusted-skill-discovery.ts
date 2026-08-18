@@ -21,6 +21,10 @@ const MAX_PACKAGE_BYTES = 16 * 1024 * 1024
 const MAX_GIT_OUTPUT_BYTES = MAX_PACKAGE_BYTES * 2
 const MAX_CATALOG_SKILLS = 512
 const MAX_SKILL_HEADER_BYTES = 64 * 1024
+const MAX_DISCOVERY_INDEX_BYTES = 1024 * 1024
+const MAX_DISCOVERY_REDIRECTS = 3
+const DISCOVERY_FETCH_TIMEOUT_MS = 10_000
+const AGENT_SKILLS_INDEX_SCHEMA = 'https://schemas.agentskills.io/discovery/0.2.0/schema.json'
 const SEMANTIC_MIN_SCORE = 8
 const SEMANTIC_MARGIN_PERCENT = 125
 const SEMANTIC_STOP_WORDS = new Set([
@@ -34,16 +38,48 @@ const hashSchema = z.string().regex(/^[a-f0-9]{64}$/)
 const gitHashSchema = z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/)
 const safeInteger = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
 
-const sourceSchema = z.strictObject({
-  id: z.string().regex(SOURCE_ID),
-  kind: z.literal('local-git'),
-  trust: z.literal('explicit-deployer-config'),
-})
+const sourceSchema = z.union([
+  z.strictObject({
+    id: z.string().regex(SOURCE_ID),
+    kind: z.literal('local-git'),
+    trust: z.literal('explicit-deployer-config'),
+  }),
+  z.strictObject({
+    id: z.string().regex(SOURCE_ID),
+    kind: z.literal('agent-skills-index'),
+    trust: z.literal('explicit-deployer-config'),
+    origin: z.url().max(2_048),
+  }),
+])
 const sourceObservationSchema = z.strictObject({
   id: z.string().regex(SOURCE_ID),
-  status: z.enum(['candidate', 'absent', 'no-match', 'ambiguous', 'invalid', 'unavailable']),
+  status: z.enum([
+    'candidate',
+    'absent',
+    'no-match',
+    'ambiguous',
+    'invalid',
+    'unavailable',
+    'unsupported-schema',
+    'unsupported-artifact',
+    'untrusted-origin',
+    'digest-mismatch',
+  ]),
   revision: gitHashSchema.optional(),
 })
+const versionSchema = z.union([
+  z.strictObject({
+    kind: z.literal('git-tree'),
+    commit: gitHashSchema,
+    treeHash: gitHashSchema,
+  }),
+  z.strictObject({
+    kind: z.literal('agent-skills-index-v0.2'),
+    indexDigest: hashSchema,
+    artifactDigest: hashSchema,
+    treeHash: hashSchema,
+  }),
+])
 const candidateSchema = z.strictObject({
   schemaVersion: z.literal(1),
   id: hashSchema,
@@ -61,11 +97,7 @@ const candidateSchema = z.strictObject({
   }).optional(),
   source: sourceSchema,
   scope: z.literal('workspace'),
-  version: z.strictObject({
-    kind: z.literal('git-tree'),
-    commit: gitHashSchema,
-    treeHash: gitHashSchema,
-  }),
+  version: versionSchema,
   contentHash: hashSchema,
   package: z.strictObject({
     path: z.string().min(1).max(1_024),
@@ -79,13 +111,27 @@ const candidateSchema = z.strictObject({
     executableContent: z.boolean(),
     externalEffects: z.literal('unknown'),
   }),
+  license: z.union([
+    z.strictObject({ status: z.literal('declared'), value: z.string().min(1).max(256) }),
+    z.strictObject({ status: z.literal('unknown') }),
+  ]).optional(),
   safety: z.strictObject({
     status: z.literal('quarantined'),
     checks: z.array(z.strictObject({
-      name: z.enum(['git-object-integrity', 'regular-files-only', 'skill-identity', 'effect-review']),
+      name: z.enum([
+        'git-object-integrity',
+        'artifact-digest-integrity',
+        'regular-files-only',
+        'skill-identity',
+        'effect-review',
+      ]),
       status: z.enum(['passed', 'required']),
     })).length(4),
   }),
+  artifact: z.strictObject({
+    kind: z.literal('skill-md'),
+    content: z.string().min(1).max(MAX_SKILL_HEADER_BYTES),
+  }).optional(),
   lifecycle: z.literal('inactive'),
   verification: z.literal('unevaluated'),
   execution: z.literal('never'),
@@ -107,6 +153,10 @@ const attemptSchema = z.strictObject({
     'ambiguous-semantic-match',
     'invalid-skill-package',
     'source-unavailable',
+    'unsupported-index-schema',
+    'unsupported-artifact-type',
+    'untrusted-artifact-origin',
+    'artifact-digest-mismatch',
   ])).max(100),
   sources: z.array(sourceObservationSchema).max(100),
 })
@@ -120,6 +170,11 @@ export interface TrustedSkillDiscoverySourceConfig {
   readonly id: string
   readonly repository: string
   readonly skillsRoot: string
+}
+
+export interface AgentSkillsIndexSourceConfig {
+  readonly id: string
+  readonly indexUrl: string
 }
 
 export interface SkillDiscoveryStore {
@@ -167,8 +222,7 @@ class DomainSkillDiscoveryStore implements SkillDiscoveryStore {
         input.workspaceId,
         input.gapId,
         input.source.id,
-        input.version.commit,
-        input.version.treeHash,
+        ...versionIdentity(input.version),
         input.contentHash,
       ])
       const table = this.domain.table('candidates')
@@ -251,6 +305,11 @@ interface ResolvedSource {
   readonly skillsRoot: string
 }
 
+interface ResolvedAgentSkillsIndexSource {
+  readonly id: string
+  readonly indexUrl: URL
+}
+
 interface GitEntry {
   readonly mode: '100644' | '100755'
   readonly object: string
@@ -282,9 +341,10 @@ export interface TrustedSkillDiscoveryLoop {
   dispose(): Promise<void>
 }
 
-/** Exact-first deterministic acquisition from deployer-trusted local Git mirrors; never a task router. */
+/** Exact-first deterministic acquisition from explicitly trusted sources; never a task router. */
 export class TrustedSkillDiscovery {
   private readonly sources: readonly ResolvedSource[]
+  private readonly indexSources: readonly ResolvedAgentSkillsIndexSource[]
   private readonly store: Pick<SkillDiscoveryStore, 'recordCandidate' | 'recordAttempt'>
   private readonly now: () => number
   private readonly onCandidate: ((candidate: DiscoveredSkillCandidate) => void) | undefined
@@ -295,9 +355,12 @@ export class TrustedSkillDiscovery {
     options: {
       now?: () => number
       onCandidate?: (candidate: DiscoveredSkillCandidate) => void
+      agentSkillIndexes?: readonly AgentSkillsIndexSourceConfig[]
     } = {},
   ) {
-    this.sources = resolveSources(sources)
+    const sourceIds = new Set<string>()
+    this.sources = resolveSources(sources, sourceIds)
+    this.indexSources = resolveAgentSkillsIndexSources(options.agentSkillIndexes ?? [], sourceIds)
     this.store = store
     this.now = options.now ?? Date.now
     this.onCandidate = options.onCandidate
@@ -309,11 +372,34 @@ export class TrustedSkillDiscovery {
     const reasons: SkillDiscoveryAttempt['reasons'][number][] = []
     const sourceObservations: SkillDiscoveryAttempt['sources'][number][] = []
 
-    if (this.sources.length === 0) reasons.push('no-trusted-sources')
+    if (this.sources.length === 0 && this.indexSources.length === 0) reasons.push('no-trusted-sources')
     for (const source of this.sources) {
       const inspected: Awaited<ReturnType<typeof inspectSource>> = await inspectSource(source, gap).catch(() => ({
         status: 'unavailable' as const,
       }))
+      if (inspected.status === 'candidate') {
+        const recorded = await this.store.recordCandidate({
+          discoveredAt: startedAt,
+          gapId: gap.id,
+          workspaceId: gap.workspaceId,
+          requestedSkill: inspected.skillName,
+          ...inspected.candidate,
+        })
+        this.onCandidate?.(recorded.candidate)
+        candidateIds.push(recorded.candidate.id)
+        sourceObservations.push({ id: source.id, status: 'candidate', revision: inspected.revision })
+      } else {
+        sourceObservations.push({
+          id: source.id,
+          status: inspected.status,
+          ...(inspected.revision === undefined ? {} : { revision: inspected.revision }),
+        })
+        reasons.push(discoveryReason(inspected.status))
+      }
+    }
+    for (const source of this.indexSources) {
+      const inspected: Awaited<ReturnType<typeof inspectAgentSkillsIndex>> =
+        await inspectAgentSkillsIndex(source, gap).catch(() => ({ status: 'unavailable' as const }))
       if (inspected.status === 'candidate') {
         const recorded = await this.store.recordCandidate({
           discoveredAt: startedAt,
@@ -363,6 +449,12 @@ export class TrustedSkillDiscovery {
     requestedOutputDir: string,
   ): Promise<MaterializedSkillCandidate> {
     const candidate = candidateSchema.parse(input)
+    if (candidate.source.kind === 'agent-skills-index') {
+      return this.materializeAgentSkillsIndexCandidate(candidate, requestedOutputDir)
+    }
+    if (candidate.version.kind !== 'git-tree') {
+      throw new Error('local Git Skill candidate has an invalid version kind')
+    }
     const source = this.sources.find(item => item.id === candidate.source.id)
     if (source === undefined) throw new Error(`trusted Skill source '${candidate.source.id}' is not configured`)
     const skillPath = `${source.skillsRoot}/${candidate.requestedSkill}`
@@ -373,8 +465,7 @@ export class TrustedSkillDiscovery {
       candidate.workspaceId,
       candidate.gapId,
       candidate.source.id,
-      candidate.version.commit,
-      candidate.version.treeHash,
+      ...versionIdentity(candidate.version),
       candidate.contentHash,
     ])
     if (candidate.id !== expectedId) throw new Error('trusted Skill candidate id does not match its identity')
@@ -424,6 +515,78 @@ export class TrustedSkillDiscovery {
           mode: entry.mode,
           size: entry.size,
         }))),
+      })
+    } catch (error) {
+      await rm(outputDir, { force: true, recursive: true }).catch(() => undefined)
+      throw error
+    }
+  }
+
+  private async materializeAgentSkillsIndexCandidate(
+    candidate: DiscoveredSkillCandidate,
+    requestedOutputDir: string,
+  ): Promise<MaterializedSkillCandidate> {
+    if (candidate.source.kind !== 'agent-skills-index'
+      || candidate.version.kind !== 'agent-skills-index-v0.2'
+      || candidate.artifact?.kind !== 'skill-md') {
+      throw new Error('Agent Skills index candidate has an invalid pinned artifact')
+    }
+    const source = this.indexSources.find(item => item.id === candidate.source.id)
+    if (source === undefined || source.indexUrl.origin !== candidate.source.origin) {
+      throw new Error(`trusted Agent Skills index '${candidate.source.id}' is not configured`)
+    }
+    const expectedId = contentId([
+      candidate.workspaceId,
+      candidate.gapId,
+      candidate.source.id,
+      ...versionIdentity(candidate.version),
+      candidate.contentHash,
+    ])
+    if (candidate.id !== expectedId) throw new Error('Agent Skills index candidate id does not match its identity')
+    const content = Buffer.from(candidate.artifact.content)
+    const artifactDigest = sha256Bytes(content)
+    const treeHash = singleSkillTreeHash(content)
+    if (artifactDigest !== candidate.version.artifactDigest
+      || artifactDigest !== candidate.contentHash
+      || treeHash !== candidate.version.treeHash) {
+      throw new Error('Agent Skills index candidate content does not match its pinned identity')
+    }
+    const skill = parseSkillHeader(candidate.artifact.content)
+    const expectedLicense = skill.license === undefined
+      ? { status: 'unknown' as const }
+      : { status: 'declared' as const, value: skill.license }
+    if (candidate.requestedSkill !== skill.name
+      || candidate.description !== skill.description
+      || candidate.package.path !== `${skill.name}/SKILL.md`
+      || candidate.package.fileCount !== 1
+      || candidate.package.totalBytes !== content.byteLength
+      || candidate.package.hasScripts
+      || candidate.package.hasReferences
+      || candidate.permissions.executableContent
+      || candidate.permissions.declared !== skill.permissionsDeclared
+      || JSON.stringify(candidate.license) !== JSON.stringify(expectedLicense)) {
+      throw new Error('Agent Skills index candidate metadata does not match its SKILL.md')
+    }
+
+    const requested = resolve(requestedOutputDir)
+    if (dirname(requested) === requested) {
+      throw new Error('Agent Skills index candidate output must not be a filesystem root')
+    }
+    const parent = await realpath(dirname(requested))
+    const outputDir = resolve(parent, basename(requested))
+    await mkdir(outputDir, { mode: 0o700 })
+    try {
+      await writeFile(resolve(outputDir, 'SKILL.md'), content, { flag: 'wx', mode: 0o600 })
+      return Object.freeze({
+        candidateId: candidate.id,
+        path: outputDir,
+        contentHash: artifactDigest,
+        treeHash,
+        files: Object.freeze([Object.freeze({
+          path: 'SKILL.md',
+          mode: '100644' as const,
+          size: content.byteLength,
+        })]),
       })
     } catch (error) {
       await rm(outputDir, { force: true, recursive: true }).catch(() => undefined)
@@ -485,6 +648,188 @@ export function installTrustedSkillDiscoveryLoop(
 
 type InspectedCandidate = Omit<DiscoveredSkillCandidateInput,
   'discoveredAt' | 'gapId' | 'workspaceId' | 'requestedSkill'>
+
+const agentSkillsIndexSchema = z.object({
+  $schema: z.literal(AGENT_SKILLS_INDEX_SCHEMA),
+  skills: z.array(z.object({
+    name: z.string().regex(SKILL_NAME).max(64),
+    type: z.string().min(1).max(32),
+    description: z.string().min(1).max(1_024),
+    url: z.string().min(1).max(2_048),
+    digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  })).max(MAX_CATALOG_SKILLS),
+})
+
+type AgentSkillsIndexEntry = z.infer<typeof agentSkillsIndexSchema>['skills'][number]
+
+async function inspectAgentSkillsIndex(
+  source: ResolvedAgentSkillsIndexSource,
+  gap: CapabilityGap,
+): Promise<{
+  readonly status: 'candidate'
+  readonly revision: string
+  readonly skillName: string
+  readonly candidate: InspectedCandidate
+} | {
+  readonly status:
+    | 'absent'
+    | 'no-match'
+    | 'ambiguous'
+    | 'invalid'
+    | 'unavailable'
+    | 'unsupported-schema'
+    | 'unsupported-artifact'
+    | 'untrusted-origin'
+    | 'digest-mismatch'
+  readonly revision?: string
+}> {
+  let fetchedIndex: Awaited<ReturnType<typeof fetchBounded>>
+  try {
+    fetchedIndex = await fetchBounded(
+      source.indexUrl,
+      source.indexUrl.origin,
+      MAX_DISCOVERY_INDEX_BYTES,
+      ['application/json'],
+    )
+  } catch (error) {
+    return { status: fetchFailureStatus(error) }
+  }
+  const indexBytes = fetchedIndex.bytes
+  const revision = sha256Bytes(indexBytes)
+  let raw: unknown
+  try {
+    raw = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(indexBytes))
+  } catch {
+    return { status: 'invalid', revision }
+  }
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)
+    || (raw as Readonly<Record<string, unknown>>).$schema !== AGENT_SKILLS_INDEX_SCHEMA) {
+    return { status: 'unsupported-schema', revision }
+  }
+  const parsed = agentSkillsIndexSchema.safeParse(raw)
+  if (!parsed.success || new Set(parsed.data.skills.map(skill => skill.name)).size !== parsed.data.skills.length) {
+    return { status: 'invalid', revision }
+  }
+
+  let selected = parsed.data.skills.find(skill => skill.name === gap.requestedSkill)
+  let match: NonNullable<DiscoveredSkillCandidateInput['match']> | undefined
+  if (selected === undefined) {
+    if (gap.goal === undefined) return { status: 'absent', revision }
+    const semantic = selectSemanticCandidateFromCatalog(
+      parsed.data.skills.map(skill => ({ name: skill.name, description: skill.description })),
+      gap.requestedSkill,
+      gap.goal,
+    )
+    if (semantic.status !== 'selected') return { status: semantic.status, revision }
+    selected = parsed.data.skills.find(skill => skill.name === semantic.skill.name)
+    if (selected === undefined) return { status: 'invalid', revision }
+    match = {
+      kind: 'deterministic-lexical-v1',
+      requestedSkill: gap.requestedSkill,
+      score: semantic.score,
+      runnerUpScore: semantic.runnerUpScore,
+      queryHash: contentId([
+        gap.requestedSkill,
+        gap.goal.id,
+        gap.goal.revision,
+        gap.goal.objective,
+      ]),
+    }
+  }
+  if (selected.type !== 'skill-md') return { status: 'unsupported-artifact', revision }
+
+  let artifactUrl: URL
+  try {
+    artifactUrl = new URL(selected.url, fetchedIndex.finalUrl)
+  } catch {
+    return { status: 'invalid', revision }
+  }
+  if (artifactUrl.origin !== source.indexUrl.origin
+    || artifactUrl.username.length > 0
+    || artifactUrl.password.length > 0) {
+    return { status: 'untrusted-origin', revision }
+  }
+  let fetchedArtifact: Awaited<ReturnType<typeof fetchBounded>>
+  try {
+    fetchedArtifact = await fetchBounded(
+      artifactUrl,
+      source.indexUrl.origin,
+      MAX_SKILL_HEADER_BYTES,
+      ['text/markdown', 'text/plain'],
+    )
+  } catch (error) {
+    return { status: fetchFailureStatus(error), revision }
+  }
+  const artifactBytes = fetchedArtifact.bytes
+  const artifactDigest = sha256Bytes(artifactBytes)
+  if (selected.digest !== `sha256:${artifactDigest}`) {
+    return { status: 'digest-mismatch', revision }
+  }
+  let content: string
+  let skill: ReturnType<typeof parseSkillHeader>
+  try {
+    content = new TextDecoder('utf-8', { fatal: true }).decode(artifactBytes)
+    if (!Buffer.from(content).equals(artifactBytes)) throw new Error('Skill is not canonical UTF-8 text')
+    skill = parseSkillHeader(content)
+  } catch {
+    return { status: 'invalid', revision }
+  }
+  if (skill.name !== selected.name || skill.description !== selected.description) {
+    return { status: 'invalid', revision }
+  }
+  const treeHash = singleSkillTreeHash(artifactBytes)
+  return {
+    status: 'candidate',
+    revision,
+    skillName: skill.name,
+    candidate: {
+      description: skill.description,
+      ...(match === undefined ? {} : { match }),
+      source: {
+        id: source.id,
+        kind: 'agent-skills-index',
+        trust: 'explicit-deployer-config',
+        origin: source.indexUrl.origin,
+      },
+      scope: 'workspace',
+      version: {
+        kind: 'agent-skills-index-v0.2',
+        indexDigest: revision,
+        artifactDigest,
+        treeHash,
+      },
+      contentHash: artifactDigest,
+      package: {
+        path: `${skill.name}/SKILL.md`,
+        fileCount: 1,
+        totalBytes: artifactBytes.byteLength,
+        hasScripts: false,
+        hasReferences: false,
+      },
+      permissions: {
+        declared: skill.permissionsDeclared,
+        executableContent: false,
+        externalEffects: 'unknown',
+      },
+      license: skill.license === undefined
+        ? { status: 'unknown' }
+        : { status: 'declared', value: skill.license },
+      safety: {
+        status: 'quarantined',
+        checks: [
+          { name: 'artifact-digest-integrity', status: 'passed' },
+          { name: 'regular-files-only', status: 'passed' },
+          { name: 'skill-identity', status: 'passed' },
+          { name: 'effect-review', status: 'required' },
+        ],
+      },
+      artifact: { kind: 'skill-md', content },
+      lifecycle: 'inactive',
+      verification: 'unevaluated',
+      execution: 'never',
+    },
+  }
+}
 
 async function inspectSource(source: ResolvedSource, gap: CapabilityGap): Promise<{
   readonly status: 'candidate'
@@ -629,6 +974,14 @@ async function selectSemanticCandidate(
   goal: NonNullable<CapabilityGap['goal']>,
 ): Promise<SemanticSelection> {
   const catalog = await listCatalogSkills(source.repository, revision, source.skillsRoot)
+  return selectSemanticCandidateFromCatalog(catalog, requestedSkill, goal)
+}
+
+function selectSemanticCandidateFromCatalog(
+  catalog: readonly CatalogSkill[],
+  requestedSkill: string,
+  goal: NonNullable<CapabilityGap['goal']>,
+): SemanticSelection {
   const requestedTerms = lexicalTerms(requestedSkill)
   const goalTerms = lexicalTerms(goal.objective)
   const ranked = catalog.map(skill => ({
@@ -682,8 +1035,10 @@ function semanticScore(
   return { score, requestedMatches, goalMatches }
 }
 
-function resolveSources(input: readonly TrustedSkillDiscoverySourceConfig[]): ResolvedSource[] {
-  const seen = new Set<string>()
+function resolveSources(
+  input: readonly TrustedSkillDiscoverySourceConfig[],
+  seen: Set<string> = new Set<string>(),
+): ResolvedSource[] {
   return input.map((source) => {
     const id = source.id.trim()
     if (!SOURCE_ID.test(id)) throw new Error(`invalid trusted discovery source id '${source.id}'`)
@@ -697,8 +1052,50 @@ function resolveSources(input: readonly TrustedSkillDiscoverySourceConfig[]): Re
   })
 }
 
+function resolveAgentSkillsIndexSources(
+  input: readonly AgentSkillsIndexSourceConfig[],
+  seen: Set<string>,
+): ResolvedAgentSkillsIndexSource[] {
+  return input.map((source) => {
+    const id = source.id.trim()
+    if (!SOURCE_ID.test(id)) throw new Error(`invalid trusted discovery source id '${source.id}'`)
+    if (seen.has(id)) throw new Error(`duplicate trusted discovery source '${id}'`)
+    seen.add(id)
+    let indexUrl: URL
+    try {
+      indexUrl = new URL(source.indexUrl)
+    } catch {
+      throw new Error(`trusted Agent Skills index '${id}' has an invalid URL`)
+    }
+    const loopback = indexUrl.hostname === '127.0.0.1'
+      || indexUrl.hostname === 'localhost'
+      || indexUrl.hostname === '[::1]'
+    if (indexUrl.protocol !== 'https:' && !(indexUrl.protocol === 'http:' && loopback)) {
+      throw new Error(`trusted Agent Skills index '${id}' must use HTTPS (plain HTTP is loopback-only)`)
+    }
+    if (indexUrl.username.length > 0 || indexUrl.password.length > 0) {
+      throw new Error(`trusted Agent Skills index '${id}' must not contain credentials`)
+    }
+    if (indexUrl.pathname !== '/.well-known/agent-skills/index.json'
+      || indexUrl.search.length > 0
+      || indexUrl.hash.length > 0) {
+      throw new Error(`trusted Agent Skills index '${id}' must use the v0.2 well-known index path`)
+    }
+    return { id, indexUrl }
+  })
+}
+
 function discoveryReason(
-  status: 'absent' | 'no-match' | 'ambiguous' | 'invalid' | 'unavailable',
+  status:
+    | 'absent'
+    | 'no-match'
+    | 'ambiguous'
+    | 'invalid'
+    | 'unavailable'
+    | 'unsupported-schema'
+    | 'unsupported-artifact'
+    | 'untrusted-origin'
+    | 'digest-mismatch',
 ): SkillDiscoveryAttempt['reasons'][number] {
   switch (status) {
     case 'absent': return 'no-exact-skill'
@@ -706,6 +1103,10 @@ function discoveryReason(
     case 'ambiguous': return 'ambiguous-semantic-match'
     case 'invalid': return 'invalid-skill-package'
     case 'unavailable': return 'source-unavailable'
+    case 'unsupported-schema': return 'unsupported-index-schema'
+    case 'unsupported-artifact': return 'unsupported-artifact-type'
+    case 'untrusted-origin': return 'untrusted-artifact-origin'
+    case 'digest-mismatch': return 'artifact-digest-mismatch'
   }
 }
 
@@ -814,6 +1215,7 @@ function parseSkillHeader(raw: string): {
   readonly name: string
   readonly description: string
   readonly permissionsDeclared: boolean
+  readonly license?: string
 } {
   const normalized = raw.replaceAll('\r\n', '\n')
   if (!normalized.startsWith('---\n')) throw new Error('Skill is missing YAML frontmatter')
@@ -831,11 +1233,98 @@ function parseSkillHeader(raw: string): {
     || data.description.trim().length > 2_048) {
     throw new Error('Skill has an invalid description')
   }
+  if (data.license !== undefined && (typeof data.license !== 'string'
+    || data.license.trim().length === 0
+    || data.license.trim().length > 256)) {
+    throw new Error('Skill has an invalid license')
+  }
   return {
     name: data.name,
     description: data.description.trim(),
-    permissionsDeclared: Object.hasOwn(data, 'permissions'),
+    permissionsDeclared: Object.hasOwn(data, 'permissions') || Object.hasOwn(data, 'allowed-tools'),
+    ...(typeof data.license === 'string' ? { license: data.license.trim() } : {}),
   }
+}
+
+class DiscoveryFetchError extends Error {
+  readonly status: 'unavailable' | 'untrusted-origin'
+
+  constructor(status: 'unavailable' | 'untrusted-origin', message: string) {
+    super(message)
+    this.status = status
+  }
+}
+
+async function fetchBounded(
+  initialUrl: URL,
+  expectedOrigin: string,
+  maxBytes: number,
+  acceptedMediaTypes: readonly string[],
+): Promise<{ readonly bytes: Buffer; readonly finalUrl: URL }> {
+  let current = new URL(initialUrl)
+  for (let redirects = 0; redirects <= MAX_DISCOVERY_REDIRECTS; redirects += 1) {
+    let response: Response
+    try {
+      response = await fetch(current, {
+        method: 'GET',
+        redirect: 'manual',
+        credentials: 'omit',
+        signal: AbortSignal.timeout(DISCOVERY_FETCH_TIMEOUT_MS),
+        headers: { accept: acceptedMediaTypes.join(', ') },
+      })
+    } catch {
+      throw new DiscoveryFetchError('unavailable', 'trusted Agent Skills endpoint is unavailable')
+    }
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get('location')
+      if (location === null || redirects === MAX_DISCOVERY_REDIRECTS) {
+        throw new DiscoveryFetchError('unavailable', 'trusted Agent Skills endpoint has an invalid redirect')
+      }
+      const next = new URL(location, current)
+      if (next.origin !== expectedOrigin || next.username.length > 0 || next.password.length > 0) {
+        throw new DiscoveryFetchError('untrusted-origin', 'trusted Agent Skills endpoint redirected across origins')
+      }
+      current = next
+      continue
+    }
+    if (!response.ok || response.body === null) {
+      throw new DiscoveryFetchError('unavailable', 'trusted Agent Skills endpoint returned an error')
+    }
+    const mediaType = response.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase()
+    if (mediaType === undefined || !acceptedMediaTypes.includes(mediaType)) {
+      await response.body.cancel().catch(() => undefined)
+      throw new DiscoveryFetchError('unavailable', 'trusted Agent Skills endpoint returned an invalid media type')
+    }
+    const contentLength = response.headers.get('content-length')
+    if (contentLength !== null && Number(contentLength) > maxBytes) {
+      await response.body.cancel().catch(() => undefined)
+      throw new DiscoveryFetchError('unavailable', 'trusted Agent Skills artifact exceeds the byte limit')
+    }
+    const reader = response.body.getReader()
+    const chunks: Buffer[] = []
+    let total = 0
+    try {
+      while (true) {
+        const next = await reader.read()
+        if (next.done) break
+        total += next.value.byteLength
+        if (total > maxBytes) {
+          await reader.cancel().catch(() => undefined)
+          throw new DiscoveryFetchError('unavailable', 'trusted Agent Skills artifact exceeds the byte limit')
+        }
+        chunks.push(Buffer.from(next.value))
+      }
+    } finally {
+      reader.releaseLock()
+    }
+    if (total === 0) throw new DiscoveryFetchError('unavailable', 'trusted Agent Skills artifact is empty')
+    return { bytes: Buffer.concat(chunks, total), finalUrl: current }
+  }
+  throw new DiscoveryFetchError('unavailable', 'trusted Agent Skills endpoint exceeded its redirect limit')
+}
+
+function fetchFailureStatus(error: unknown): 'unavailable' | 'untrusted-origin' {
+  return error instanceof DiscoveryFetchError ? error.status : 'unavailable'
 }
 
 async function gitText(repository: string, ...args: string[]): Promise<string> {
@@ -907,6 +1396,19 @@ function packageContentHash(entries: readonly GitEntry[]): string {
   ]))
 }
 
+function singleSkillTreeHash(content: Uint8Array): string {
+  return createHash('sha256')
+    .update('SKILL.md')
+    .update('\0')
+    .update(content)
+    .update('\0')
+    .digest('hex')
+}
+
+function sha256Bytes(content: Uint8Array): string {
+  return createHash('sha256').update(content).digest('hex')
+}
+
 async function assertCandidatePackage(
   repository: string,
   candidate: DiscoveredSkillCandidate,
@@ -970,6 +1472,12 @@ async function evictOldest<T>(
 
 function contentId(value: unknown): string {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex')
+}
+
+function versionIdentity(version: DiscoveredSkillCandidate['version']): readonly string[] {
+  return version.kind === 'git-tree'
+    ? [version.commit, version.treeHash]
+    : [version.indexDigest, version.artifactDigest, version.treeHash]
 }
 
 function immutableCopy<T>(value: T): T {

@@ -284,10 +284,17 @@ const t = (key: string) => ({
   'skills.discovery': 'Discovered Skill candidates',
   'skills.discovery.quarantined': 'Quarantined candidate',
   'skills.discovery.source.local-git': 'Local Git',
+  'skills.discovery.source.agent-skills-index': 'Agent Skills index',
   'skills.discovery.trust.explicit-deployer-config': 'Explicit deployer trust',
-  'skills.discovery.version': 'Git commit',
+  'skills.discovery.origin': 'Source origin',
+  'skills.discovery.version.git': 'Git commit',
+  'skills.discovery.version.index': 'Agent Skills v0.2',
+  'skills.discovery.index': 'index digest',
+  'skills.discovery.artifact': 'artifact digest',
   'skills.discovery.tree': 'tree',
   'skills.discovery.content': 'Content hash',
+  'skills.discovery.license': 'Declared license',
+  'skills.discovery.license.unknown': 'License not declared',
   'skills.discovery.package': 'Whole package',
   'skills.discovery.files': 'files',
   'skills.discovery.bytes': 'bytes',
@@ -620,15 +627,17 @@ describe('EvolutionAction', () => {
               queryHash: 'f'.repeat(64),
             },
             source: {
-              id: 'local-curated',
-              kind: 'local-git' as const,
+              id: 'public-agent-skills',
+              kind: 'agent-skills-index' as const,
               trust: 'explicit-deployer-config' as const,
+              origin: 'https://skills.example.com',
             },
             scope: 'workspace' as const,
             version: {
-              kind: 'git-tree' as const,
-              commit: '8'.repeat(40),
-              treeHash: '9'.repeat(40),
+              kind: 'agent-skills-index-v0.2' as const,
+              indexDigest: '8'.repeat(64),
+              artifactDigest: '9'.repeat(64),
+              treeHash: 'b'.repeat(64),
             },
             contentHash: 'a'.repeat(64),
             package: {
@@ -643,10 +652,11 @@ describe('EvolutionAction', () => {
               executableContent: false,
               externalEffects: 'unknown' as const,
             },
+            license: { status: 'declared' as const, value: 'MIT' },
             safety: {
               status: 'quarantined' as const,
               checks: [
-                { name: 'git-object-integrity' as const, status: 'passed' as const },
+                { name: 'artifact-digest-integrity' as const, status: 'passed' as const },
                 { name: 'regular-files-only' as const, status: 'passed' as const },
                 { name: 'skill-identity' as const, status: 'passed' as const },
                 { name: 'effect-review' as const, status: 'required' as const },
@@ -666,9 +676,9 @@ describe('EvolutionAction', () => {
             candidateIds: ['7'.repeat(64)],
             reasons: [],
             sources: [{
-              id: 'local-curated',
+              id: 'public-agent-skills',
               status: 'candidate' as const,
-              revision: '8'.repeat(40),
+              revision: '8'.repeat(64),
             }],
           }, {
             id: 'c'.repeat(64),
@@ -731,9 +741,11 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('Deterministic semantic match · missing-release-skill → release-native-extension')).toBeTruthy()
     expect(screen.getByText('lexical evidence score (not confidence) 18 · runner-up 0')).toBeTruthy()
     expect(screen.getByText('Quarantined candidate')).toBeTruthy()
-    expect(screen.getByText('local-curated · Local Git · Explicit deployer trust')).toBeTruthy()
-    expect(screen.getByText(`Git commit · ${'8'.repeat(12)} · tree ${'9'.repeat(12)}`)).toBeTruthy()
+    expect(screen.getByText('public-agent-skills · Agent Skills index · Explicit deployer trust')).toBeTruthy()
+    expect(screen.getByText('Source origin · https://skills.example.com')).toBeTruthy()
+    expect(screen.getByText(`Agent Skills v0.2 · index digest ${'8'.repeat(12)} · artifact digest ${'9'.repeat(12)} · tree ${'b'.repeat(12)}`)).toBeTruthy()
     expect(screen.getByText(`Content hash · ${'a'.repeat(12)}`)).toBeTruthy()
+    expect(screen.getByText('Declared license · MIT')).toBeTruthy()
     expect(screen.getByText('Whole package · 2 files · 640 bytes · references')).toBeTruthy()
     expect(screen.getByText('Permissions not declared · External effects unknown')).toBeTruthy()
     expect(screen.getByText('Quarantined · Inactive · Never executed · Unevaluated')).toBeTruthy()

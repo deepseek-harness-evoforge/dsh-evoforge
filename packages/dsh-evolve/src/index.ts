@@ -14,6 +14,7 @@ import {
   installTrustedSkillDiscoveryLoop,
   openSkillDiscoveryStore,
   TrustedSkillDiscovery,
+  type AgentSkillsIndexSourceConfig,
   type TrustedSkillDiscoverySourceConfig,
 } from './trusted-skill-discovery.ts'
 import {
@@ -101,6 +102,7 @@ export interface Config {
   feedbackDraftRoot?: string
   sources?: GitSkillSourceConfig[]
   trustedDiscoverySources?: TrustedSkillDiscoverySourceConfig[]
+  trustedAgentSkillIndexes?: AgentSkillsIndexSourceConfig[]
   discoveryAdmissionTargets?: DiscoveredSkillAdmissionTargetConfig[]
   discoveryShadowTargets?: DiscoveredSkillShadowTargetConfig[]
   supervisor?: {
@@ -130,6 +132,10 @@ export const Config: Schema<Config> = z.object({
     id: z.string().required(),
     repository: z.string().required(),
     skillsRoot: z.string().required(),
+  })).max(100).default([]),
+  trustedAgentSkillIndexes: z.array(z.object({
+    id: z.string().required(),
+    indexUrl: z.string().required(),
   })).max(100).default([]),
   discoveryAdmissionTargets: z.array(z.object({
     id: z.string().required(),
@@ -255,7 +261,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const skillDiscovery = new TrustedSkillDiscovery(
     config.trustedDiscoverySources ?? [],
     skillDiscoveryStore,
-    { onCandidate: candidate => skillAdmissionScheduler?.observe(candidate) },
+    {
+      agentSkillIndexes: config.trustedAgentSkillIndexes ?? [],
+      onCandidate: candidate => skillAdmissionScheduler?.observe(candidate),
+    },
   )
   const discoveryAdmissionTargets = config.discoveryAdmissionTargets ?? []
   let skillAdmission: DiscoveredSkillAdmission | undefined
@@ -675,7 +684,10 @@ export type {
   SkillGenerationArtifact,
 } from './generation-store.ts'
 export type { GitSkillSourceConfig } from './git-skill-source.ts'
-export type { TrustedSkillDiscoverySourceConfig } from './trusted-skill-discovery.ts'
+export type {
+  AgentSkillsIndexSourceConfig,
+  TrustedSkillDiscoverySourceConfig,
+} from './trusted-skill-discovery.ts'
 export type { DiscoveredSkillAdmissionTargetConfig } from './discovered-skill-admission.ts'
 export type { DiscoveredSkillShadowTargetConfig } from './discovered-skill-shadow.ts'
 export type { FeedbackShadowTargetConfig } from './feedback-shadow-launcher.ts'

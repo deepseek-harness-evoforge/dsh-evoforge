@@ -571,12 +571,20 @@ function SkillDiscovery({ summary, t }: { summary: EvolutionOverview; t: (key: s
               <div className="dsh-evolve-meta">
                 {candidate.source.id} · {t(`skills.discovery.source.${candidate.source.kind}`)} · {t(`skills.discovery.trust.${candidate.source.trust}`)}
               </div>
+              {candidate.source.origin !== undefined && <div className="dsh-evolve-meta">
+                {t('skills.discovery.origin')} · {candidate.source.origin}
+              </div>}
               <div className="dsh-evolve-meta">
-                {t('skills.discovery.version')} · {candidate.version.commit.slice(0, 12)} · {t('skills.discovery.tree')} {candidate.version.treeHash.slice(0, 12)}
+                {skillVersionSummary(candidate.version, t)}
               </div>
               <div className="dsh-evolve-meta">
                 {t('skills.discovery.content')} · {candidate.contentHash.slice(0, 12)}
               </div>
+              {candidate.license !== undefined && <div className="dsh-evolve-meta">
+                {candidate.license.status === 'declared'
+                  ? `${t('skills.discovery.license')} · ${candidate.license.value}`
+                  : t('skills.discovery.license.unknown')}
+              </div>}
               <div className="dsh-evolve-meta">
                 {skillPackageSummary(candidate.package, t)}
               </div>
@@ -607,6 +615,19 @@ function SkillDiscovery({ summary, t }: { summary: EvolutionOverview; t: (key: s
           ))}</ul>}
     </section>
   </>
+}
+
+function skillVersionSummary(
+  value: NonNullable<EvolutionOverview['skillDiscovery']>['candidates'][number]['version'],
+  t: (key: string) => string,
+): string {
+  if (value.kind === 'git-tree') {
+    return `${t('skills.discovery.version.git')} · ${value.commit.slice(0, 12)}`
+      + ` · ${t('skills.discovery.tree')} ${value.treeHash.slice(0, 12)}`
+  }
+  return `${t('skills.discovery.version.index')} · ${t('skills.discovery.index')} ${value.indexDigest.slice(0, 12)}`
+    + ` · ${t('skills.discovery.artifact')} ${value.artifactDigest.slice(0, 12)}`
+    + ` · ${t('skills.discovery.tree')} ${value.treeHash.slice(0, 12)}`
 }
 
 function skillPackageSummary(
