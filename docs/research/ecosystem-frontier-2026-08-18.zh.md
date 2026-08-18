@@ -2,7 +2,7 @@
 
 > 调研日期：2026-08-18  
 > 用途：约束 EvoForge 产品需求、架构与后续实现；不是既有实现完成声明。  
-> 一手基线：DeepSeek Harness `47f943859bef60e4160492346772ded9b24f765a`（本仓当前兼容基线）；Hermes Agent `7a81dd9efdaa1d27a98815df6aecc26d849ca084`；Hermes Self-Evolution `0a929e3aa20e15cf04dc7c28492a7d41a5139125`；OpenClaw `1c3e512096bc57b34f9379b1992912c3d18729c7`；HanaAgent 仓库 `openhanako` `c6d0405294be67cb134c2758f6472748ee73e2be`。开发前仍须重新固定 DSH 当前官方 revision，不能把本文记忆当 API。
+> 一手基线：DeepSeek Harness 兼容检出 `47f943859bef60e4160492346772ded9b24f765a`，2026-08-18 官方 `master` 已观测到 `99f6f02fecdb7dff40c3fbc9470f5907c29f74ca`；Hermes Agent `e02d1e41fc6104187e20af9eac8b2820566e3508`；Hermes Self-Evolution `0a929e3aa20e15cf04dc7c28492a7d41a5139125`；OpenClaw `d412c6b284e4e000d27b9d4a849fc46b05f54546`；HanaAgent 仓库 `openhanako` `c6d0405294be67cb134c2758f6472748ee73e2be`。whole-Skill 增量审计见 [V4-7 研究与组合审计](v4-7-whole-skill-grounding-audit.zh.md)。开发前仍须重新固定 DSH 当前官方 revision，不能把本文记忆当 API。
 
 ## 结论
 
