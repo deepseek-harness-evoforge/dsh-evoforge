@@ -495,6 +495,10 @@ export class ResearchSkillHoldoutScheduler {
     candidate: DiscoveredSkillCandidate,
     result: ResearchSkillHoldoutResult,
   ) => void) | undefined
+  private readonly onResult: ((
+    candidate: DiscoveredSkillCandidate,
+    result: ResearchSkillHoldoutResult,
+  ) => void) | undefined
   private readonly pending = new Map<string, DiscoveredSkillCandidate>()
   private readonly active = new Set<string>()
   private readonly activeTargets = new Set<string>()
@@ -508,11 +512,16 @@ export class ResearchSkillHoldoutScheduler {
         candidate: DiscoveredSkillCandidate,
         result: ResearchSkillHoldoutResult,
       ) => void
+      readonly onResult?: (
+        candidate: DiscoveredSkillCandidate,
+        result: ResearchSkillHoldoutResult,
+      ) => void
     } = {},
   ) {
     this.holdout = holdout
     this.candidates = candidates
     this.onPass = options.onPass
+    this.onResult = options.onResult
   }
 
   attachJobs(jobs: Pick<JobRegistry, 'start'>): () => void {
@@ -557,6 +566,13 @@ export class ResearchSkillHoldoutScheduler {
               if (!controller.signal.aborted && value.status === 'pass') {
                 try {
                   this.onPass?.(candidate, value)
+                } catch {
+                  // Durable Candidate + Holdout report are the restart queue.
+                }
+              }
+              if (!controller.signal.aborted) {
+                try {
+                  this.onResult?.(candidate, value)
                 } catch {
                   // Durable Candidate + Holdout report are the restart queue.
                 }

@@ -96,6 +96,13 @@ import {
   ResearchSkillHoldoutScheduler,
   type ResearchSkillHoldoutTargetConfig,
 } from './research-skill-holdout.ts'
+import {
+  assertResearchSkillRevisionCoverage,
+  assertResearchSkillRevisionRootSeparation,
+  ResearchSkillRevision,
+  ResearchSkillRevisionScheduler,
+  type ResearchSkillRevisionTargetConfig,
+} from './research-skill-revision.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -118,6 +125,7 @@ export interface Config {
   trustedAgentSkillIndexes?: AgentSkillsIndexSourceConfig[]
   slowLoopAuthorTargets?: SlowLoopSkillAuthoringTargetConfig[]
   researchHoldoutTargets?: ResearchSkillHoldoutTargetConfig[]
+  researchRevisionTargets?: ResearchSkillRevisionTargetConfig[]
   discoveryAdmissionTargets?: DiscoveredSkillAdmissionTargetConfig[]
   discoveryShadowTargets?: DiscoveredSkillShadowTargetConfig[]
   supervisor?: {
@@ -160,6 +168,13 @@ export const Config: Schema<Config> = z.object({
     maxAttemptsPerUtcDay: z.number().step(1).min(1).max(20).default(1),
   })).max(20).default([]),
   researchHoldoutTargets: z.array(z.object({
+    id: z.string().required(),
+    workspaceId: z.string().required(),
+    skill: z.string().required(),
+    runRoot: z.string().required(),
+    maxAttemptsPerUtcDay: z.number().step(1).min(1).max(20).default(1),
+  })).max(20).default([]),
+  researchRevisionTargets: z.array(z.object({
     id: z.string().required(),
     workspaceId: z.string().required(),
     skill: z.string().required(),
@@ -257,6 +272,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const discoveryShadowTargets = config.discoveryShadowTargets ?? []
   const slowLoopAuthorTargets = config.slowLoopAuthorTargets ?? []
   const researchHoldoutTargets = config.researchHoldoutTargets ?? []
+  const researchRevisionTargets = config.researchRevisionTargets ?? []
   const shadowTargetsById = new Map(shadowTargets.map(target => [target.id, target]))
   const automaticFeedbackTargets: AutomaticFeedbackShadowTarget[] =
     automaticFeedbackTargetReferences.map((reference) => {
@@ -291,6 +307,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   let skillShadowScheduler: DiscoveredSkillShadowScheduler | undefined
   let researchHoldoutScheduler: ResearchSkillHoldoutScheduler | undefined
   let researchHoldouts: ResearchSkillHoldout | undefined
+  let researchRevisionScheduler: ResearchSkillRevisionScheduler | undefined
+  let researchRevisions: ResearchSkillRevision | undefined
   const skillDiscovery = new TrustedSkillDiscovery(
     config.trustedDiscoverySources ?? [],
     skillDiscoveryStore,
@@ -344,6 +362,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       ...evaluatorTargets.flatMap(value => [value.root, ...(value.shadowRunRoot === undefined
         ? []
         : [value.shadowRunRoot])]),
+      ...researchRevisionTargets.map(value => value.runRoot),
     ])
     slowLoopAuthoringBudget.assertTargets(slowLoopAuthorTargets)
   }
@@ -380,6 +399,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       ...evaluatorTargets.flatMap(value => [value.root, ...(value.shadowRunRoot === undefined
         ? []
         : [value.shadowRunRoot])]),
+      ...researchRevisionTargets.map(value => value.runRoot),
     ])
     researchHoldoutBudget.assertTargets(researchHoldoutTargets)
     if (slowLoopAuthoring === undefined || skillAdmissionScheduler === undefined) {
@@ -391,10 +411,45 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       candidates: skillDiscovery,
       budget: researchHoldoutBudget,
     })
+  }
+  assertResearchSkillRevisionCoverage(researchRevisionTargets, researchHoldoutTargets)
+  const researchRevisionBudget = new AutomaticEvolutionBudget()
+  if (researchRevisionTargets.length > 0) {
+    assertResearchSkillRevisionRootSeparation(researchRevisionTargets, [
+      ...(config.cacheRoot === undefined ? [] : [config.cacheRoot]),
+      ...(config.feedbackDraftRoot === undefined ? [] : [config.feedbackDraftRoot]),
+      ...(config.sources ?? []).map(value => value.repository),
+      ...(config.trustedDiscoverySources ?? []).map(value => value.repository),
+      ...slowLoopAuthorTargets.map(value => value.runRoot),
+      ...researchHoldoutTargets.map(value => value.runRoot),
+      ...discoveryAdmissionTargets.flatMap(value => [value.baselineDir, value.casePackDir, value.runRoot]),
+      ...discoveryShadowTargets.flatMap(value => [value.casePackDir, value.runRoot]),
+      ...(config.supervisor?.runRoots ?? []).map(value => value.path),
+      ...shadowTargets.flatMap(value => [value.casePackDir, value.runRoot]),
+      ...evaluatorTargets.flatMap(value => [value.root, ...(value.shadowRunRoot === undefined
+        ? []
+        : [value.shadowRunRoot])]),
+    ])
+    researchRevisionBudget.assertTargets(researchRevisionTargets)
+    if (researchHoldouts === undefined) {
+      throw new Error('research Skill revision requires independent research Holdout')
+    }
+    researchRevisions = new ResearchSkillRevision({
+      targets: researchRevisionTargets,
+      holdout: researchHoldouts,
+      candidates: skillDiscovery,
+      budget: researchRevisionBudget,
+    })
+    researchRevisionScheduler = new ResearchSkillRevisionScheduler(researchRevisions)
+  }
+  if (researchHoldouts !== undefined) {
     researchHoldoutScheduler = new ResearchSkillHoldoutScheduler(
       researchHoldouts,
       skillDiscoveryStore,
-      { onPass: candidate => skillAdmissionScheduler?.observe(candidate) },
+      {
+        onPass: candidate => skillAdmissionScheduler?.observe(candidate),
+        onResult: (candidate, result) => researchRevisionScheduler?.observe(candidate, result),
+      },
     )
   }
   const skillDiscoveryLoop = installTrustedSkillDiscoveryLoop(
@@ -604,6 +659,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     ...(skillAdmission === undefined ? {} : { admissions: skillAdmission }),
     ...(slowLoopAuthoring === undefined ? {} : { slowLoopAuthoring }),
     ...(researchHoldouts === undefined ? {} : { researchHoldouts }),
+    ...(researchRevisions === undefined ? {} : { researchRevisions }),
     ...(review === undefined ? {} : { review }),
     ...(resident === undefined ? {} : { resident }),
     ...(automaticPolicy === undefined ? {} : { automatic: automaticPolicy }),
@@ -657,14 +713,17 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   })
   if (skillAdmissionScheduler !== undefined
     || skillShadowScheduler !== undefined
-    || researchHoldoutScheduler !== undefined) {
+    || researchHoldoutScheduler !== undefined
+    || researchRevisionScheduler !== undefined) {
     ctx.inject(['jobs'], (jobCtx) => {
       jobCtx.effect(() => {
         const detachController = jobCtx.jobs.attachController('dsh-evolve-skill-admission')
         const detachShadow = skillShadowScheduler?.attachJobs(jobCtx.jobs)
         const detachAdmission = skillAdmissionScheduler?.attachJobs(jobCtx.jobs)
         const detachResearchHoldout = researchHoldoutScheduler?.attachJobs(jobCtx.jobs)
+        const detachResearchRevision = researchRevisionScheduler?.attachJobs(jobCtx.jobs)
         return () => {
+          detachResearchRevision?.()
           detachResearchHoldout?.()
           detachAdmission?.()
           detachShadow?.()
@@ -849,6 +908,7 @@ export type { AutomaticFeedbackShadowTargetReference } from './automatic-feedbac
 export type { AutomaticEvaluatorDraftTargetReference } from './automatic-evaluator-draft.ts'
 export type { SlowLoopSkillAuthoringTargetConfig } from './slow-loop-skill-authoring.ts'
 export type { ResearchSkillHoldoutTargetConfig } from './research-skill-holdout.ts'
+export type { ResearchSkillRevisionTargetConfig } from './research-skill-revision.ts'
 export type { AutomaticRetentionTargetConfig } from './automatic-retention.ts'
 export type { ShadowResumeInvocation, ShadowSupervisorOptions } from './shadow-supervisor.ts'
 export type {
@@ -873,6 +933,7 @@ export type {
   EvolutionInactiveGenerationView,
   EvolutionOverview,
   EvolutionResearchSkillHoldoutView,
+  EvolutionResearchSkillRevisionView,
   EvolutionReviewCaseView,
   EvolutionReviewDetail,
   EvolutionReviewView,

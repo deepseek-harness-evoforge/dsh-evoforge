@@ -12,6 +12,7 @@ import { clusterCapabilityGaps } from './capability-gap-cluster.ts'
 import type { DiscoveredSkillAdmission } from './discovered-skill-admission.ts'
 import type { SlowLoopSkillAuthoring } from './slow-loop-skill-authoring.ts'
 import type { ResearchSkillHoldout } from './research-skill-holdout.ts'
+import type { ResearchSkillRevision } from './research-skill-revision.ts'
 import type { EvolutionStore } from './generation-store.ts'
 import type { ResidentEvolutionControl } from './resident-evolution-control.ts'
 import type { ReviewCandidate, ReviewInbox } from './review-inbox.ts'
@@ -58,6 +59,7 @@ export interface EvolutionControlPlaneModules {
   readonly admissions?: Pick<DiscoveredSkillAdmission, 'scan'>
   readonly slowLoopAuthoring?: Pick<SlowLoopSkillAuthoring, 'scan'>
   readonly researchHoldouts?: Pick<ResearchSkillHoldout, 'scan'>
+  readonly researchRevisions?: Pick<ResearchSkillRevision, 'scan'>
 }
 
 /** A structured adapter surface that delegates to the same owners as Commands. */
@@ -79,6 +81,7 @@ export class EvolutionControlPlane {
       admissionScan,
       slowLoopAuthoringScan,
       researchHoldoutScan,
+      researchRevisionScan,
     ] = await Promise.all([
       this.modules.review === undefined ? undefined : this.modules.review.inbox.scanAll(),
       this.modules.feedbackShadow === undefined ? undefined : this.modules.feedbackShadow.scan(workspaceId),
@@ -96,6 +99,9 @@ export class EvolutionControlPlane {
       this.modules.researchHoldouts === undefined
         ? undefined
         : this.modules.researchHoldouts.scan(workspaceId),
+      this.modules.researchRevisions === undefined
+        ? undefined
+        : this.modules.researchRevisions.scan(workspaceId),
     ])
     const automaticSkills = this.modules.automatic?.skills(workspaceId) ?? []
     return {
@@ -169,6 +175,33 @@ export class EvolutionControlPlane {
               })),
               ...(result.retryAt === undefined ? {} : { retryAt: result.retryAt }),
               releaseAuthority: result.releaseAuthority,
+            })),
+          } }),
+      ...(researchRevisionScan === undefined
+        ? {}
+        : { researchRevision: {
+            configuredTargetCount: researchRevisionScan.configuredTargetCount,
+            warningCount: researchRevisionScan.warningCount,
+            runs: researchRevisionScan.runs.map(run => ({
+              id: run.id,
+              parentCandidateId: run.parentCandidateId,
+              skillName: run.skillName,
+              targetId: run.targetId,
+              status: run.status,
+              reason: run.reason,
+              holdoutResultId: run.holdoutResultId,
+              researchDigest: run.researchDigest,
+              parentTreeHash: run.parentTreeHash,
+              inputDigest: run.inputDigest,
+              reviserIdentityHash: run.reviserIdentityHash,
+              createdAt: run.createdAt,
+              updatedAt: run.updatedAt,
+              modelCalls: run.cost.modelCalls,
+              inputTokens: run.cost.inputTokens,
+              outputTokens: run.cost.outputTokens,
+              ...(run.candidateId === undefined ? {} : { candidateId: run.candidateId }),
+              ...(run.retryAt === undefined ? {} : { retryAt: run.retryAt }),
+              releaseAuthority: run.releaseAuthority,
             })),
           } }),
       ...(admissionScan === undefined

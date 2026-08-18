@@ -482,6 +482,7 @@ function SkillsView({ summary, t }: { summary: EvolutionOverview; t: (key: strin
     <SlowLoopAuthoring summary={summary} t={t} />
     <SkillDiscovery summary={summary} t={t} />
     <ResearchSkillHoldout summary={summary} t={t} />
+    <ResearchSkillRevision summary={summary} t={t} />
     <SkillAdmission summary={summary} t={t} />
     {empty && <div className="dsh-evolve-message">{t('skills.empty')}</div>}
     {active.length > 0 && <SkillGroup label={t('skills.active')} items={active.map(artifact => ({
@@ -546,6 +547,57 @@ function ResearchSkillHoldout({ summary, t }: { summary: EvolutionOverview; t: (
             </div>}
             <div className="dsh-evolve-meta">{t('skills.research-holdout.governance')}</div>
             <div className="dsh-evolve-discovery-state">{t('skills.research-holdout.release.none')}</div>
+          </li>
+        ))}</ul>}
+  </section>
+}
+
+function ResearchSkillRevision({ summary, t }: { summary: EvolutionOverview; t: (key: string) => string }) {
+  const revision = summary.researchRevision
+  if (revision === undefined) return null
+  return <section>
+    <div className="dsh-evolve-capability-head">
+      <h3 className="dsh-evolve-section-title">{t('skills.research-revision')}</h3>
+      <span className="dsh-evolve-catalog-status">
+        {revision.configuredTargetCount} {t('skills.research-revision.targets')}
+      </span>
+    </div>
+    {revision.warningCount > 0 && <div className="dsh-evolve-message dsh-evolve-error">
+      {revision.warningCount} {t('skills.research-revision.warnings')}
+    </div>}
+    {revision.runs.length === 0
+      ? <div className="dsh-evolve-message">{t('skills.research-revision.empty')}</div>
+      : <ul className="dsh-evolve-list">{revision.runs.map(run => (
+          <li className="dsh-evolve-skill-card" key={run.id}>
+            <div className="dsh-evolve-review-skill">{run.skillName}</div>
+            <div className="dsh-evolve-capability-route">
+              {t(`skills.research-revision.status.${run.status}`)}
+            </div>
+            <div className="dsh-evolve-meta">
+              {t('skills.research-revision.target')} · {run.targetId}
+            </div>
+            <div className="dsh-evolve-meta">
+              {t('skills.research-revision.lineage')}
+              {' · '}{run.researchDigest.slice(0, 12)}
+              {' → '}{run.parentTreeHash.slice(0, 12)}
+              {' → '}{run.holdoutResultId.slice(0, 12)}
+              {' → '}{run.reviserIdentityHash.slice(0, 12)}
+            </div>
+            <div className="dsh-evolve-meta">
+              {t('skills.research-revision.input')} · {run.inputDigest.slice(0, 12)}
+            </div>
+            {run.candidateId !== undefined && <div className="dsh-evolve-meta">
+              {t('skills.research-revision.candidate')} · {run.candidateId.slice(0, 12)}
+            </div>}
+            <div className="dsh-evolve-meta">
+              {t('skills.research-revision.cost')} · {run.modelCalls} · {run.inputTokens}/{run.outputTokens}
+            </div>
+            <div className="dsh-evolve-meta">{t(`skills.research-revision.reason.${run.reason}`)}</div>
+            {run.retryAt !== undefined && <div className="dsh-evolve-meta">
+              {t('skills.research-revision.retry')} · {new Date(run.retryAt).toLocaleString()}
+            </div>}
+            <div className="dsh-evolve-meta">{t('skills.research-revision.governance')}</div>
+            <div className="dsh-evolve-discovery-state">{t('skills.research-revision.release.none')}</div>
           </li>
         ))}</ul>}
   </section>

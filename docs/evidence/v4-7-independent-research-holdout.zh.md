@@ -42,5 +42,7 @@ route、evaluator attribution、Skill 正文和私有路径，也没有 Install/
   evaluator attribution、Skill 正文和 model route 泄漏均为 false。视觉检查确认三段 digest 血缘自然换行，
   逐锚 assessment 与“无发布权限”状态在窄面板内清晰可读。
 
-本切片仍不等于核心完成：Holdout fail/inconclusive 尚未驱动“一次、受预算约束、绑定旧 tree 的 revision”；真实
-provider、真实飞书配对和真实 Hermes 对照验证仍待外部条件满足。因此不打 tag。
+后续的一次性修订闭环已经落在
+[`v4-7-one-shot-research-revision.zh.md`](v4-7-one-shot-research-revision.zh.md)：原始 v2 的
+fail/inconclusive 可在脱敏交接后生成一次 v3，v3 重新进入本 Holdout 且不能递归修订。真实 provider、真实飞书
+配对和真实 Hermes 对照验证仍待外部条件满足，因此仍不打 tag。

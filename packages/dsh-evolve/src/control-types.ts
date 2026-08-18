@@ -348,6 +348,45 @@ export interface EvolutionResearchSkillHoldoutView {
   }[]
 }
 
+/** One-shot revision journal; Skill bodies, findings, model routes, and private paths stay host-only. */
+export interface EvolutionResearchSkillRevisionView {
+  readonly configuredTargetCount: number
+  readonly warningCount: number
+  readonly runs: readonly {
+    readonly id: string
+    readonly parentCandidateId: string
+    readonly skillName: string
+    readonly targetId: string
+    readonly status:
+      | 'cancelled'
+      | 'budget-deferred'
+      | 'uncertain'
+      | 'incomplete'
+      | 'candidate-ready'
+    readonly reason:
+      | 'cancelled-before-dispatch'
+      | 'daily-revision-budget-exhausted'
+      | 'local-validation-failed'
+      | 'paid-revision-outcome-uncertain'
+      | 'invalid-reviser-response'
+      | 'candidate-quarantine-failed'
+      | 'revised-candidate-ready'
+    readonly holdoutResultId: string
+    readonly researchDigest: string
+    readonly parentTreeHash: string
+    readonly inputDigest: string
+    readonly reviserIdentityHash: string
+    readonly createdAt: string
+    readonly updatedAt: string
+    readonly modelCalls: 0 | 1
+    readonly inputTokens: number
+    readonly outputTokens: number
+    readonly candidateId?: string
+    readonly retryAt?: number
+    readonly releaseAuthority: 'none'
+  }[]
+}
+
 /** Deterministic, zero-model admission evidence; it never carries release authority. */
 export interface EvolutionSkillAdmissionView {
   readonly configuredTargetCount: number
@@ -532,6 +571,7 @@ export interface EvolutionOverview {
   readonly skillDiscovery?: EvolutionSkillDiscoveryView
   readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView
   readonly researchHoldout?: EvolutionResearchSkillHoldoutView
+  readonly researchRevision?: EvolutionResearchSkillRevisionView
   readonly skillAdmission?: EvolutionSkillAdmissionView
   readonly deliveryOutcomes?: {
     readonly all: DeliveryOutcomeCounts

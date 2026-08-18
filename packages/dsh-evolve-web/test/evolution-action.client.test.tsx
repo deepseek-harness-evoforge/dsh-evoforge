@@ -305,6 +305,20 @@ const t = (key: string) => ({
   'skills.research-holdout.retry': 'Earliest retry',
   'skills.research-holdout.governance': 'Withheld anchors · Independent evaluator · Candidate not executed',
   'skills.research-holdout.release.none': 'Evidence only · No install, activation, or release authority',
+  'skills.research-revision': 'One-shot research revision',
+  'skills.research-revision.targets': 'revision targets',
+  'skills.research-revision.warnings': 'invalid durable revision records',
+  'skills.research-revision.empty': 'No one-shot research revision has completed.',
+  'skills.research-revision.status.candidate-ready': 'Quarantined v3 ready',
+  'skills.research-revision.target': 'Revision target',
+  'skills.research-revision.lineage': 'Research → parent tree → Holdout → reviser identity',
+  'skills.research-revision.input': 'Bounded revision input digest',
+  'skills.research-revision.candidate': 'v3 Candidate',
+  'skills.research-revision.cost': 'Model calls · input/output tokens',
+  'skills.research-revision.reason.revised-candidate-ready': 'One revision completed; v3 will re-enter independent Holdout',
+  'skills.research-revision.retry': 'Earliest retry',
+  'skills.research-revision.governance': 'Original v2 only · One call · No recursive v3 revision · Candidate not executed',
+  'skills.research-revision.release.none': 'Quarantined Candidate only · No install, activation, or release authority',
   'skills.discovery': 'Discovered Skill candidates',
   'skills.discovery.quarantined': 'Quarantined candidate',
   'skills.discovery.source.local-git': 'Local Git',
@@ -686,6 +700,30 @@ describe('EvolutionAction', () => {
             releaseAuthority: 'none' as const,
           }],
         },
+        researchRevision: {
+          configuredTargetCount: 1,
+          warningCount: 0,
+          runs: [{
+            id: 'a'.repeat(64),
+            parentCandidateId: '3'.repeat(64),
+            skillName: 'missing-release-skill',
+            targetId: 'missing-release-revision',
+            status: 'candidate-ready' as const,
+            reason: 'revised-candidate-ready' as const,
+            holdoutResultId: '2'.repeat(64),
+            researchDigest: '8'.repeat(64),
+            parentTreeHash: '7'.repeat(64),
+            inputDigest: '6'.repeat(64),
+            reviserIdentityHash: '5'.repeat(64),
+            createdAt: '2026-08-18T01:00:02.000Z',
+            updatedAt: '2026-08-18T01:00:03.000Z',
+            modelCalls: 1 as const,
+            inputTokens: 144,
+            outputTokens: 55,
+            candidateId: '4'.repeat(64),
+            releaseAuthority: 'none' as const,
+          }],
+        },
         skillDiscovery: {
           quarantinedCount: 2,
           candidates: [{
@@ -901,6 +939,15 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('All withheld verification anchors are satisfied')).toBeTruthy()
     expect(screen.getByText('Withheld anchors · Independent evaluator · Candidate not executed')).toBeTruthy()
     expect(screen.getByText('Evidence only · No install, activation, or release authority')).toBeTruthy()
+    expect(screen.getByText('One-shot research revision')).toBeTruthy()
+    expect(screen.getByText('Quarantined v3 ready')).toBeTruthy()
+    expect(screen.getByText('Revision target · missing-release-revision')).toBeTruthy()
+    expect(screen.getByText(`Research → parent tree → Holdout → reviser identity · ${'8'.repeat(12)} → ${'7'.repeat(12)} → ${'2'.repeat(12)} → ${'5'.repeat(12)}`)).toBeTruthy()
+    expect(screen.getByText(`Bounded revision input digest · ${'6'.repeat(12)}`)).toBeTruthy()
+    expect(screen.getByText(`v3 Candidate · ${'4'.repeat(12)}`)).toBeTruthy()
+    expect(screen.getByText('One revision completed; v3 will re-enter independent Holdout')).toBeTruthy()
+    expect(screen.getByText('Original v2 only · One call · No recursive v3 revision · Candidate not executed')).toBeTruthy()
+    expect(screen.getByText('Quarantined Candidate only · No install, activation, or release authority')).toBeTruthy()
     expect(screen.getByText('Deterministic admission')).toBeTruthy()
     expect(screen.getByText('Qualified for later Shadow')).toBeTruthy()
     expect(screen.getByText('Evaluation target · missing-release-admission')).toBeTruthy()

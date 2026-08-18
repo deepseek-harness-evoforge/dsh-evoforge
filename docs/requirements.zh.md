@@ -331,28 +331,40 @@ catalog 的 name/description 自主语义路由，并由原生 `skill` Tool 加�
 工作流或 Skill。该稳定 Tool 是有意声明的模型表面增量；64 轮门禁证明它的名称/Schema/顺序不随 host
 状态或 future Generation 漂移，移除该 Tool 后其余请求与原生控制组逐字节相同。
 
-后台目前只扫描部署者显式授信的本地 Git 来源：先按提议的 exact Skill name 查询；exact 路径不存在且
-Gap 绑定 active Goal 时，再对同一固定 revision 中合法 `SKILL.md` 的 name/description 做有界、确定性的
-词法语义检索。只有达到最低证据且相对次名有明确间隔的唯一候选才固定 commit/tree/content hash；弱匹配、
-歧义或非法 exact package 均持久记录 abstain，不允许借近似项绕过 exact 身份错误。完整目录仍作为
+后台只扫描部署者显式授信的本地 Git 来源与 Agent Skills Discovery v0.2 index：先按提议的 exact Skill name
+查询；exact 路径不存在且 Gap 绑定 active Goal 时，再对同一固定 revision 中合法 `SKILL.md` 的
+name/description 做有界、确定性的词法语义检索。只有达到最低证据且相对次名有明确间隔的唯一候选才固定
+commit/tree/content hash；弱匹配、歧义、跨源 artifact、digest 不符或非法 exact package 均持久记录 abstain，
+不允许借近似项绕过 exact 身份错误。完整目录仍作为
 quarantined、inactive、unevaluated、never-executed 候选。确定性
 whole-Skill admission 与独立 assembled holdout Shadow 已接入，清晰胜出仍只形成 inactive 人工审查
 Candidate，不获得发布权。Web 已展示有界 Capability Map、Gap、候选、来源、权限和状态，不提供模型
 选路、安装或激活按钮，并明确展示原始 Gap→实际 Skill 的匹配与“词法证据分数（非置信度）”。外部市场/
 首个无候选生成纵切已接通：同一 Workspace、同一 exact Skill 至少两个不同 Goal 的重复 Gap，在可信
 discovery 已结算且任一成员 Gap 都没有 Candidate 时，只有部署者静态配置的 `slowLoopAuthorTargets`
-才能用原生 Jobs 和持久 UTC 日预算调用一次模型；结果仅允许单文件 instruction-only `SKILL.md`，随后进入
-原有 quarantine/admission 链。可能已经付费但结果未知时持久化 `uncertain` 并拒绝盲重试。官方资料/论文/
-开源网络检索、任意市场、archive 组合、真实模型的正确缺口判断及完整跨任务慢环证据仍未完成，不能据此
-宣称完整自主 Skill 获取或 V4 退出门通过。
+才能用原生 Jobs 和持久 UTC 日预算启动研究驱动 authoring。DSH Web research 将 knowledge 与扣留 verification
+分轨；author 只能看到跨 Goal 证据和 knowledge，并返回 root `SKILL.md + references/*.md` 的完整 instruction-only
+manifest。宿主确定性组装 archive、绑定 research/artifact/tree/model/input 血缘，再进入 quarantine、独立
+Holdout、确定性 admission 与既有 Shadow 链。可能已经付费但结果未知时持久化 `uncertain` 并拒绝盲重试。
+真实 provider 的正确缺口判断、完整 paired 全链和长期迁移证据仍未完成，不能据此宣称 V4 退出门通过。
 
 慢环已增加第一条不调用模型的跨 Goal 需求聚类：只使用同一 Workspace 的 durable、Goal-linked Gap；至少
 两个不同 Goal id 才成立，同一 Goal 的 retry 不会放大需求。不同 Gap name 只有在发现链路已把它们各自
 固定到同一 quarantined Skill identity 时才合并；一个 Gap 出现多个冲突候选时直接排除。聚类由原始证据
 确定性派生，在 Web 显示次数、独立 Goal 数、原始提议和收敛 Skill，cluster 本身仍只有
 `evidence-only` 与 `releaseAuthority: none`。部署者可另行静态授权 exact Skill 的慢环 author target；
-该消费者有界生成隔离 Candidate，但没有安装、激活或发布接口。cluster-driven 指令型生成调度已形成首个
-纵切；官方搜索、整包组合、真实 provider 和长期迁移证据仍未完成。
+该消费者有界生成隔离 Candidate，但没有安装、激活或发布接口。cluster-driven、研究分轨、whole-Skill 组装与
+独立 Holdout 已形成可验证纵切；真实 provider paired run 和长期迁移证据仍未完成。
+
+研究驱动 whole-Skill 的迭代必须是宿主约束的一次性修订，不是 author 自评分或无限反思循环。部署者需要为
+每个独立 Holdout 配置同一 Workspace+Skill 的 `researchRevisionTargets`，且 revision journal、Holdout、
+authoring、admission、Shadow 与其他治理根不得重叠。只有原始 research-v2 Candidate 的持久化
+`fail/inconclusive` 才能进入单独日预算和 native Job；宿主重新核对 Candidate/tree/research/Holdout 身份，只把
+失败或未决锚的 digest、assessment 和有界 attribution 交给 reviser，不交出 verification excerpt、URL、
+knowledge、模型 route 或私有路径。模型必须返回完整 text-only Skill 包，宿主拒绝无变化 tree、非法 manifest
+或伪造 lineage，并将结果写成 inactive/quarantined/unevaluated/never-executed 的 revision-v3。v3 必须重新经过
+独立 Holdout；即使再次失败也不得递归生成 v4。付费调用结果不确定时禁止盲重试，Web 只显示摘要血缘、状态与
+成本，不提供安装、激活或发布入口。
 
 在 P1.1 之后，先实现 `dsh-software-delivery` 的最小 objective outcome：稳定按需 Skill 与
 linked-worktree/commit/check 验证器。只有真实交付 outcome 可用后，才建设 future-session

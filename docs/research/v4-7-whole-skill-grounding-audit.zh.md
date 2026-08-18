@@ -40,5 +40,7 @@
 [whole-Skill composition](../evidence/v4-7-whole-skill-composition.zh.md)、
 [research-grounded handoff](../evidence/v4-7-research-grounded-whole-skill-handoff.zh.md) 与
 [independent Holdout](../evidence/v4-7-independent-research-holdout.zh.md) 证据。Candidate 仍不可执行、不可发布；
-当前下一个可证伪纵切是：让 `fail/inconclusive` 的逐锚归因最多触发一次、绑定旧 tree hash 的受限 whole-Skill
-revision，并确保修订仍重新走完整 Holdout → admission → assembled Shadow → Retention 链。
+受限 whole-Skill revision 已形成
+[one-shot revision](../evidence/v4-7-one-shot-research-revision.zh.md) 证据：`fail/inconclusive` 的逐锚归因最多触发
+一次绑定旧 tree hash 的修订，v3 自动回到 Holdout 且不允许递归 revision。尚待真实 provider paired run 证明
+v3 通过后继续进入 admission → assembled Shadow → Retention 的全链结果；该外部验证完成前不宣称 V4-7 退出。

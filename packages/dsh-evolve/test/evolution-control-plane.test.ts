@@ -433,6 +433,32 @@ describe('EvolutionControlPlane', () => {
           }],
         })),
       },
+      researchRevisions: {
+        scan: vi.fn(async () => ({
+          configuredTargetCount: 1,
+          warningCount: 0,
+          runs: [{
+            schemaVersion: 1 as const,
+            id: 'f'.repeat(64),
+            parentCandidateId: '7'.repeat(64),
+            workspaceId: WORKSPACE_ID,
+            skillName: 'missing-release-skill',
+            targetId: 'missing-release-revision',
+            status: 'candidate-ready' as const,
+            reason: 'revised-candidate-ready' as const,
+            holdoutResultId: 'a'.repeat(64),
+            researchDigest: 'b'.repeat(64),
+            parentTreeHash: 'c'.repeat(64),
+            inputDigest: '1'.repeat(64),
+            reviserIdentityHash: '2'.repeat(64),
+            createdAt: '2026-08-18T00:00:02.000Z',
+            updatedAt: '2026-08-18T00:00:03.000Z',
+            cost: { modelCalls: 1 as const, inputTokens: 144, outputTokens: 55 },
+            candidateId: '3'.repeat(64),
+            releaseAuthority: 'none' as const,
+          }],
+        })),
+      },
     })
 
     const overview = await control.overview(WORKSPACE_ID, 'session-1')
@@ -601,9 +627,32 @@ describe('EvolutionControlPlane', () => {
           releaseAuthority: 'none',
         }],
       },
+      researchRevision: {
+        configuredTargetCount: 1,
+        warningCount: 0,
+        runs: [{
+          id: 'f'.repeat(64),
+          parentCandidateId: '7'.repeat(64),
+          skillName: 'missing-release-skill',
+          targetId: 'missing-release-revision',
+          status: 'candidate-ready',
+          reason: 'revised-candidate-ready',
+          holdoutResultId: 'a'.repeat(64),
+          researchDigest: 'b'.repeat(64),
+          parentTreeHash: 'c'.repeat(64),
+          inputDigest: '1'.repeat(64),
+          reviserIdentityHash: '2'.repeat(64),
+          modelCalls: 1,
+          inputTokens: 144,
+          outputTokens: 55,
+          candidateId: '3'.repeat(64),
+          releaseAuthority: 'none',
+        }],
+      },
       reviews: { available: true, pendingCount: 1, warningCount: 1 },
     })
     expect(JSON.stringify(overview)).not.toContain('Private evaluator attribution')
+    expect(JSON.stringify(overview)).not.toContain('revision/provider-model')
     expect(overview.reviews.inactiveGenerations).toEqual([{
       workspaceId: WORKSPACE_ID,
       generationId: '7'.repeat(64),

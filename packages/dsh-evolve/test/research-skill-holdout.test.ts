@@ -349,20 +349,24 @@ describe('independent research holdout', () => {
       .mockResolvedValueOnce(pass)
       .mockResolvedValueOnce(fail)
     const onPass = vi.fn()
+    const onResult = vi.fn()
     const scheduler = new ResearchSkillHoldoutScheduler(
       { matches: () => true, evaluate },
       { listCandidates: () => [candidate(), candidate({ id: '2'.repeat(64) })] },
-      { onPass },
+      { onPass, onResult },
     )
 
     scheduler.attachJobs(jobs.registry)
     expect(jobs.starts).toHaveLength(1)
     await expect(jobs.hooks[0]!.done).resolves.toMatchObject({ status: 'completed', detail: 'pass' })
     expect(onPass).toHaveBeenCalledWith(candidate(), pass)
+    expect(onResult).toHaveBeenCalledWith(candidate(), pass)
 
     await vi.waitFor(() => expect(jobs.starts).toHaveLength(2))
     await expect(jobs.hooks[1]!.done).resolves.toMatchObject({ status: 'completed', detail: 'fail' })
     expect(onPass).toHaveBeenCalledOnce()
+    expect(onResult).toHaveBeenCalledWith(candidate({ id: '2'.repeat(64) }), fail)
+    expect(onResult).toHaveBeenCalledTimes(2)
   })
 })
 
