@@ -63,7 +63,7 @@ function store(active: CapabilityGeneration | undefined = generation()): Evoluti
   let current: CapabilityGeneration | undefined = active
   return {
     publishGeneration: vi.fn(),
-    getGeneration: vi.fn(),
+    getGeneration: vi.fn((id: string) => id === current?.id ? current : undefined),
     getActiveGeneration: vi.fn(() => current),
     promoteGeneration: vi.fn(async (_workspaceId: string, id: string) => {
       const previousId = current?.id
@@ -211,7 +211,7 @@ describe('EvolutionControlPlane', () => {
       },
       feedbackShadow: {
         available: true,
-        signals: [{ id: '8'.repeat(64), generationId }],
+        signals: [{ id: '8'.repeat(64), generationId, eligibleTargetIds: ['plugin-delivery'] }],
         targets: [{ id: 'plugin-delivery', skillName: 'build-dsh-plugin' }],
         runs: [{ launchId: '9'.repeat(64), phase: 'trial-running' }],
       },
@@ -253,6 +253,37 @@ describe('EvolutionControlPlane', () => {
     expect(JSON.stringify({ overview, detail })).not.toContain('private content')
     expect(JSON.stringify(overview)).not.toContain('private-session')
     expect(JSON.stringify(overview)).not.toContain('private-message')
+  })
+
+  it('does not advertise configured targets for feedback without an exact evolved Skill generation', async () => {
+    const control = new EvolutionControlPlane({
+      store: store(undefined),
+      feedback: {
+        summarize: () => ({ all: 1, selected: 1 }),
+        list: () => [{
+          schemaVersion: 2 as const,
+          workspaceId: WORKSPACE_ID,
+          id: '8'.repeat(64),
+          observedAt: 1_786_896_000_000,
+          sessionId: 'private-session',
+          messageId: 'private-message',
+          feedbackVersion: '00000000-0000-4000-8000-000000000001',
+          sourceUpdatedAt: 1_786_896_000_001,
+        }],
+      },
+      feedbackShadow: {
+        available: () => true,
+        targets: () => [{ id: 'plugin-delivery', workspaceId: WORKSPACE_ID, skillName: 'build-dsh-plugin' }],
+        scan: vi.fn(async () => ({ warningCount: 0, runs: [] })),
+        launch: vi.fn(),
+      },
+    })
+
+    const overview = await control.overview(WORKSPACE_ID)
+    expect(overview.feedbackShadow?.signals).toEqual([expect.objectContaining({
+      id: '8'.repeat(64),
+      eligibleTargetIds: [],
+    })])
   })
 
   it('keeps approval inactive and requires a separate promotion action', async () => {

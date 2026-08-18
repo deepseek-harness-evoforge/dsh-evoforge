@@ -1,7 +1,7 @@
 import type { AutoPromotionPolicy } from './auto-promotion.ts'
 import type { CandidatePublisher } from './candidate-publisher.ts'
 import type { DeliveryOutcomeStore } from './delivery-outcome-monitor.ts'
-import type { FeedbackSignalStore } from './feedback-signal-monitor.ts'
+import type { FeedbackSignal, FeedbackSignalStore } from './feedback-signal-monitor.ts'
 import type { FeedbackShadowLauncher } from './feedback-shadow-launcher.ts'
 import type { EvaluatorDraftInbox } from './evaluator-draft-inbox.ts'
 import type { AutomaticFeedbackShadowService } from './automatic-feedback-shadow.ts'
@@ -12,6 +12,7 @@ import type { ReviewCandidate, ReviewInbox } from './review-inbox.ts'
 import type {
   EvolutionActionReceipt,
   EvolutionEvaluatorDraftView,
+  EvolutionFeedbackSignalView,
   EvolutionGenerationView,
   EvolutionEvaluatorDraftDetail,
   EvolutionOverview,
@@ -98,15 +99,11 @@ export class EvolutionControlPlane {
             feedbackShadow: {
               available: this.modules.feedbackShadow.available(),
               warningCount: shadowScan?.warningCount ?? 0,
-              signals: (this.modules.feedback?.list(workspaceId) ?? [])
-                .slice(-MAX_FEEDBACK_ROWS)
-                .reverse()
-                .map(signal => ({
-                  id: signal.id,
-                  workspaceId: signal.workspaceId,
-                  sourceUpdatedAt: signal.sourceUpdatedAt,
-                  ...(signal.generationId === undefined ? {} : { generationId: signal.generationId }),
-                })),
+              signals: projectFeedbackSignals(
+                this.modules.feedback?.list(workspaceId) ?? [],
+                this.modules.feedbackShadow.targets(),
+                this.modules.store,
+              ),
               targets: this.modules.feedbackShadow.targets()
                 .filter(target => target.workspaceId === workspaceId)
                 .map(target => ({ ...target })),
@@ -139,15 +136,11 @@ export class EvolutionControlPlane {
               actionableCount: (evaluatorScan?.drafts ?? [])
                 .filter(draft => isActionableEvaluatorStatus(draft.status)).length,
               warningCount: evaluatorScan?.warningCount ?? 0,
-              signals: (this.modules.feedback?.list(workspaceId) ?? [])
-                .slice(-MAX_FEEDBACK_ROWS)
-                .reverse()
-                .map(signal => ({
-                  id: signal.id,
-                  workspaceId: signal.workspaceId,
-                  sourceUpdatedAt: signal.sourceUpdatedAt,
-                  ...(signal.generationId === undefined ? {} : { generationId: signal.generationId }),
-                })),
+              signals: projectFeedbackSignals(
+                this.modules.feedback?.list(workspaceId) ?? [],
+                this.modules.evaluatorDrafts.targets(),
+                this.modules.store,
+              ),
               targets: this.modules.evaluatorDrafts.targets()
                 .filter(target => target.workspaceId === workspaceId)
                 .map(target => ({ ...target })),
@@ -334,6 +327,33 @@ export class EvolutionControlPlane {
     }
     return this.modules.evaluatorDrafts
   }
+}
+
+function projectFeedbackSignals(
+  signals: readonly FeedbackSignal[],
+  targets: readonly { readonly id: string; readonly workspaceId: string; readonly skillName: string }[],
+  store: Pick<EvolutionStore, 'getGeneration'>,
+): EvolutionFeedbackSignalView[] {
+  return signals
+    .slice(-MAX_FEEDBACK_ROWS)
+    .reverse()
+    .map((signal) => {
+      const generation = signal.generationId === undefined
+        ? undefined
+        : store.getGeneration(signal.generationId)
+      const skillNames = generation === undefined || generation.workspaceId !== signal.workspaceId
+        ? new Set<string>()
+        : new Set(generation.artifacts.map(artifact => artifact.name))
+      return {
+        id: signal.id,
+        workspaceId: signal.workspaceId,
+        sourceUpdatedAt: signal.sourceUpdatedAt,
+        ...(signal.generationId === undefined ? {} : { generationId: signal.generationId }),
+        eligibleTargetIds: targets
+          .filter(target => target.workspaceId === signal.workspaceId && skillNames.has(target.skillName))
+          .map(target => target.id),
+      }
+    })
 }
 
 function isActionableEvaluatorStatus(status: EvolutionEvaluatorDraftView['status']): boolean {

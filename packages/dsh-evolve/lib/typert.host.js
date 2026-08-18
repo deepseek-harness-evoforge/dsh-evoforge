@@ -179,6 +179,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'id': z.string().readonly(),
   'sourceUpdatedAt': z.number().readonly(),
   'generationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'eligibleTargetIds': z.array(z.string()).readonly(),
 })).readonly(),
   'targets': z.array(z.object({
   'workspaceId': z.string().readonly(),
@@ -230,6 +231,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'id': z.string().readonly(),
   'sourceUpdatedAt': z.number().readonly(),
   'generationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'eligibleTargetIds': z.array(z.string()).readonly(),
 })).readonly(),
   'targets': z.array(z.object({
   'workspaceId': z.string().readonly(),
@@ -1288,7 +1290,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionFeedbackSignalView",
-            "declaration": "export interface EvolutionFeedbackSignalView {\n    readonly workspaceId: string;\n    readonly id: string;\n    readonly sourceUpdatedAt: number;\n    readonly generationId?: string;\n}"
+            "declaration": "export interface EvolutionFeedbackSignalView {\n    readonly workspaceId: string;\n    readonly id: string;\n    readonly sourceUpdatedAt: number;\n    readonly generationId?: string;\n    readonly eligibleTargetIds: readonly string[];\n}"
           },
           {
             "name": "EvolutionGenerationView",

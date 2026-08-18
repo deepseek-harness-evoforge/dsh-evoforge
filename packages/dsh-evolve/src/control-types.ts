@@ -103,6 +103,8 @@ export interface EvolutionFeedbackSignalView {
   readonly id: string
   readonly sourceUpdatedAt: number
   readonly generationId?: string
+  /** Exact configured targets whose Skill exists in the Signal's immutable Generation. */
+  readonly eligibleTargetIds: readonly string[]
 }
 
 /** Public name of one statically configured host-side Shadow Target. */

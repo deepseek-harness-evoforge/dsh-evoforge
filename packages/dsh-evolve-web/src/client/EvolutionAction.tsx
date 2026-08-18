@@ -391,18 +391,23 @@ function BeginnerOverview({ summary, openAdvanced, t }: {
   const pending = actionableCount(summary)
   const activeSkills = summary.active?.artifacts.filter(artifact => artifact.kind === 'skill').length ?? 0
   const corrections = recordedCorrectionCount(summary)
-  const verificationReady = hasVerificationTarget(summary)
+  const verificationConfigured = hasVerificationTarget(summary)
+  const verificationReady = hasEligibleVerificationTarget(summary)
   const headline = pending > 0
     ? `${pending} ${t('onboarding.actionable')}`
     : corrections > 0
-      ? t(verificationReady ? 'onboarding.feedbackReady' : 'onboarding.feedbackBlocked')
-      : verificationReady
+      ? t(verificationReady
+          ? 'onboarding.feedbackReady'
+          : verificationConfigured ? 'onboarding.feedbackIneligible' : 'onboarding.feedbackBlocked')
+      : verificationConfigured
         ? t('onboarding.idle')
         : t('onboarding.verificationMissing')
-  const explanation = pending > 0 || (corrections === 0 && verificationReady)
+  const explanation = pending > 0 || (corrections === 0 && verificationConfigured)
     ? t('onboarding.intro')
     : corrections > 0
-      ? t(verificationReady ? 'onboarding.feedbackReadyHelp' : 'onboarding.feedbackBlockedHelp')
+      ? t(verificationReady
+          ? 'onboarding.feedbackReadyHelp'
+          : verificationConfigured ? 'onboarding.feedbackIneligibleHelp' : 'onboarding.feedbackBlockedHelp')
       : t('onboarding.verificationMissingHelp')
   return <>
     <section className="dsh-evolve-welcome">
@@ -448,6 +453,11 @@ function recordedCorrectionCount(summary: EvolutionOverview): number {
 function hasVerificationTarget(summary: EvolutionOverview): boolean {
   return (summary.feedbackShadow?.available === true && summary.feedbackShadow.targets.length > 0)
     || (summary.evaluatorAuthoring?.available === true && summary.evaluatorAuthoring.targets.length > 0)
+}
+
+function hasEligibleVerificationTarget(summary: EvolutionOverview): boolean {
+  return [...(summary.feedbackShadow?.signals ?? []), ...(summary.evaluatorAuthoring?.signals ?? [])]
+    .some(signal => signal.eligibleTargetIds.length > 0)
 }
 
 function SkillsView({ summary, t }: { summary: EvolutionOverview; t: (key: string) => string }) {
@@ -589,7 +599,9 @@ function ReviewQueue({ overview, busy, inspect, promote, startShadow, authorEval
                 <div className="dsh-evolve-meta">{signal.generationId === undefined ? t('status.native') : shortId(signal.generationId)}</div>
               </div>
               <div className="dsh-evolve-actions">
-                {feedbackShadow.targets.map(target => (
+                {feedbackShadow.targets
+                  .filter(target => signal.eligibleTargetIds.includes(target.id))
+                  .map(target => (
                   <button
                     type="button"
                     className="dsh-evolve-button dsh-evolve-primary"
@@ -600,7 +612,7 @@ function ReviewQueue({ overview, busy, inspect, promote, startShadow, authorEval
                   >
                     {t('action.startShadow')} · {target.id}
                   </button>
-                ))}
+                  ))}
               </div>
             </div>
           </li>
@@ -625,7 +637,9 @@ function ReviewQueue({ overview, busy, inspect, promote, startShadow, authorEval
               <div className="dsh-evolve-meta">{signal.generationId === undefined ? t('status.native') : shortId(signal.generationId)}</div>
             </div>
             <div className="dsh-evolve-actions">
-              {evaluatorAuthoring.targets.map(target => (
+              {evaluatorAuthoring.targets
+                .filter(target => signal.eligibleTargetIds.includes(target.id))
+                .map(target => (
                 <button
                   type="button"
                   className="dsh-evolve-button dsh-evolve-primary"
@@ -636,7 +650,7 @@ function ReviewQueue({ overview, busy, inspect, promote, startShadow, authorEval
                 >
                   {t('action.authorEvaluator')} · {target.id}
                 </button>
-              ))}
+                ))}
             </div>
           </div>
         </li>

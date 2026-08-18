@@ -61,7 +61,7 @@ function remote(
     feedbackShadow: {
       available: true,
       warningCount: 0,
-      signals: [{ workspaceId, id: signalId, sourceUpdatedAt: 1_786_896_000_000, generationId }],
+      signals: [{ workspaceId, id: signalId, sourceUpdatedAt: 1_786_896_000_000, generationId, eligibleTargetIds: ['plugin-delivery'] }],
       targets: [{ workspaceId, id: 'plugin-delivery', skillName: 'build-dsh-plugin' }],
       runs: [],
     },
@@ -69,7 +69,7 @@ function remote(
       available: true,
       actionableCount: 1,
       warningCount: 0,
-      signals: [{ workspaceId, id: signalId, sourceUpdatedAt: 1_786_896_000_000, generationId }],
+      signals: [{ workspaceId, id: signalId, sourceUpdatedAt: 1_786_896_000_000, generationId, eligibleTargetIds: ['plugin-delivery'] }],
       targets: [{ workspaceId, id: 'plugin-delivery', skillName: 'build-dsh-plugin' }],
       drafts: [{
         workspaceId,
@@ -253,6 +253,8 @@ const t = (key: string) => ({
   'onboarding.verificationMissingHelp': 'You can still leave a correction under an answer. Until one bounded verification target is configured, EvoForge records feedback without pretending that evolution ran.',
   'onboarding.feedbackBlocked': 'A correction is recorded, but verification is not configured',
   'onboarding.feedbackBlockedHelp': 'Your correction remains safely in this Workspace. One bounded verification target must be configured before EvoForge can test a change.',
+  'onboarding.feedbackIneligible': 'A correction is recorded, but this answer has no verifiable evolved Skill',
+  'onboarding.feedbackIneligibleHelp': 'The answer came from native DSH or its evolved Skill does not match a configured target. The correction is retained and no invalid task is started.',
   'onboarding.feedbackReady': 'A recorded correction can be processed',
   'onboarding.feedbackReadyHelp': 'Open the advanced view to choose a configured verification path. Nothing changes in this Session.',
   'onboarding.processFeedback': 'Process recorded correction',
@@ -415,6 +417,47 @@ describe('EvolutionAction', () => {
 
     expect(screen.getByRole('tab', { name: 'Advanced' }).getAttribute('aria-selected')).toBe('true')
     expect(screen.getByRole('button', { name: /^Start Shadow/u })).toBeTruthy()
+  })
+
+  it('does not offer a target that the Host marks ineligible for native feedback', async () => {
+    const api = remote()
+    const configured = remote()
+    vi.mocked(api.overview).mockImplementationOnce(async (requestedWorkspaceId: string) => {
+      const result = await configured.overview(requestedWorkspaceId)
+      if (!result.ok) return result
+      const nativeSignal = {
+        workspaceId,
+        id: signalId,
+        sourceUpdatedAt: 1_786_896_000_000,
+        eligibleTargetIds: [],
+      }
+      return success({
+        ...result.value,
+        feedbackSignals: { all: 1, selected: 1 },
+        feedbackShadow: { ...result.value.feedbackShadow!, signals: [nativeSignal] },
+        evaluatorAuthoring: {
+          ...result.value.evaluatorAuthoring!,
+          actionableCount: 0,
+          signals: [nativeSignal],
+          drafts: [],
+        },
+        reviews: {
+          ...result.value.reviews,
+          pendingCount: 0,
+          actionableCount: 0,
+          items: [],
+        },
+      })
+    })
+    renderEvolution(api)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
+    expect(await screen.findByText('A correction is recorded, but this answer has no verifiable evolved Skill')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Process recorded correction' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Advanced' }))
+    expect(screen.queryByRole('button', { name: /^Start Shadow/u })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Author Evaluator/u })).toBeNull()
   })
 
   it('projects active, approved, and reviewing Skill states without another catalog', async () => {
