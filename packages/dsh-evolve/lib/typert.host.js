@@ -340,6 +340,30 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'releaseAuthority': z.literal("none").readonly(),
 })).readonly(),
 })]).readonly().optional(),
+  'researchHoldout': z.union([z.undefined(), z.object({
+  'configuredTargetCount': z.number().readonly(),
+  'warningCount': z.number().readonly(),
+  'results': z.array(z.object({
+  'id': z.string().readonly(),
+  'candidateId': z.string().readonly(),
+  'skillName': z.string().readonly(),
+  'targetId': z.string().readonly(),
+  'status': z.union([z.literal("incomplete"), z.literal("budget-deferred"), z.literal("cancelled"), z.literal("uncertain"), z.literal("pass"), z.literal("fail"), z.literal("inconclusive")]).readonly(),
+  'reason': z.union([z.literal("cancelled-before-dispatch"), z.literal("daily-evaluation-budget-exhausted"), z.literal("evaluator-not-independent"), z.literal("local-validation-failed"), z.literal("paid-evaluation-outcome-uncertain"), z.literal("invalid-evaluator-response"), z.literal("all-verification-anchors-satisfied"), z.literal("verification-anchor-failed"), z.literal("verification-anchor-unresolved")]).readonly(),
+  'researchDigest': z.string().readonly(),
+  'candidateTreeHash': z.string().readonly(),
+  'evaluatorIdentityHash': z.string().readonly(),
+  'modelCalls': z.union([z.literal(0), z.literal(1)]).readonly(),
+  'inputTokens': z.number().readonly(),
+  'outputTokens': z.number().readonly(),
+  'findings': z.array(z.object({
+  'anchorDigest': z.string().readonly(),
+  'assessment': z.union([z.literal("satisfied"), z.literal("violated"), z.literal("unresolved")]).readonly(),
+})).readonly(),
+  'retryAt': z.union([z.undefined(), z.number()]).readonly().optional(),
+  'releaseAuthority': z.literal("none").readonly(),
+})).readonly(),
+})]).readonly().optional(),
   'skillAdmission': z.union([z.undefined(), z.object({
   'configuredTargetCount': z.number().readonly(),
   'warningCount': z.number().readonly(),
@@ -1555,7 +1579,11 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionOverview",
-            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly workspaceId: string;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly automaticPromotion: { readonly enabled: boolean; readonly skills: readonly string[]; };\n    readonly capabilityMap?: EvolutionCapabilityMapView;\n    readonly capabilityGaps?: EvolutionCapabilityGapQueueView;\n    readonly skillDiscovery?: EvolutionSkillDiscoveryView;\n    readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView;\n    readonly skillAdmission?: EvolutionSkillAdmissionView;\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; readonly baseline?: DeliveryOutcomeCounts; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly feedbackShadow?: { readonly available: boolean; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly runs: readonly EvolutionShadowRunView[]; };\n    readonly automaticFeedbackBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly automaticEvaluatorBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly evaluatorAuthoring?: { readonly available: boolean; readonly actionableCount: number; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly drafts: readonly EvolutionEvaluatorDraftView[]; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
+            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly workspaceId: string;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly automaticPromotion: { readonly enabled: boolean; readonly skills: readonly string[]; };\n    readonly capabilityMap?: EvolutionCapabilityMapView;\n    readonly capabilityGaps?: EvolutionCapabilityGapQueueView;\n    readonly skillDiscovery?: EvolutionSkillDiscoveryView;\n    readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView;\n    readonly researchHoldout?: EvolutionResearchSkillHoldoutView;\n    readonly skillAdmission?: EvolutionSkillAdmissionView;\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; readonly baseline?: DeliveryOutcomeCounts; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly feedbackShadow?: { readonly available: boolean; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly runs: readonly EvolutionShadowRunView[]; };\n    readonly automaticFeedbackBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly automaticEvaluatorBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly evaluatorAuthoring?: { readonly available: boolean; readonly actionableCount: number; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly drafts: readonly EvolutionEvaluatorDraftView[]; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
+          },
+          {
+            "name": "EvolutionResearchSkillHoldoutView",
+            "declaration": "export interface EvolutionResearchSkillHoldoutView {\n    readonly configuredTargetCount: number;\n    readonly warningCount: number;\n    readonly results: readonly { readonly id: string; readonly candidateId: string; readonly skillName: string; readonly targetId: string; readonly status: 'cancelled' | 'budget-deferred' | 'uncertain' | 'incomplete' | 'pass' | 'fail' | 'inconclusive'; readonly reason: 'cancelled-before-dispatch' | 'daily-evaluation-budget-exhausted' | 'evaluator-not-independent' | 'local-validation-failed' | 'paid-evaluation-outcome-uncertain' | 'invalid-evaluator-response' | 'all-verification-anchors-satisfied' | 'verification-anchor-failed' | 'verification-anchor-unresolved'; readonly researchDigest: string; readonly candidateTreeHash: string; readonly evaluatorIdentityHash: string; readonly modelCalls: 0 | 1; readonly inputTokens: number; readonly outputTokens: number; readonly findings: readonly { readonly anchorDigest: string; readonly assessment: 'satisfied' | 'violated' | 'unresolved'; }[]; readonly retryAt?: number; readonly releaseAuthority: 'none'; }[];\n}"
           },
           {
             "name": "EvolutionReviewCaseView",

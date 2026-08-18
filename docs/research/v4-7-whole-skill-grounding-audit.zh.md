@@ -34,11 +34,11 @@
 5. **候选不能自证**：整包按 artifact digest + tree hash + model/input/research lineage 内容寻址，始终 `quarantined/inactive/unevaluated/never-executed`。现有 admission、assembled Shadow、holdout、Retention、review 和 future-Session promotion 规则不降级。
 6. **有界迭代而非自改死循环**：每个 exact Candidate revision 最多一次 proposer 调用；后续修订必须绑定 exact 旧 tree hash 和新的归因证据，仍受每日预算、单 Skill inflight 门与不确定结果禁止盲重试的约束。
 
-## 下一个可证伪纵切
+## 实现进展与下一纵切
 
-“确定性 text-only whole-Skill 组装器”现已作为
-[V4-7 第一个实现证据](../evidence/v4-7-whole-skill-composition.zh.md)交付：输入是经 Host 校验的
-`SKILL.md + references/*.md` manifest，输出是可由现有 archive decoder 反向重放并得到同一 tree hash
-的内容寻址 Candidate。该切片本身不使用 Web 证据、不运行脚本、不触发 admission/release，
-只封死“模型产生什么形状、Host 如何原子封装”的供应链边界。下一个纵切将 DSH Web 研究证据包、
-独立 verification anchors 与 whole-Skill manifest author 接入，同时保持 Candidate 不可执行、不发布。
+确定性 text-only whole-Skill 组装、DSH Web 研究交接和独立 verification Holdout 已分别形成
+[whole-Skill composition](../evidence/v4-7-whole-skill-composition.zh.md)、
+[research-grounded handoff](../evidence/v4-7-research-grounded-whole-skill-handoff.zh.md) 与
+[independent Holdout](../evidence/v4-7-independent-research-holdout.zh.md) 证据。Candidate 仍不可执行、不可发布；
+当前下一个可证伪纵切是：让 `fail/inconclusive` 的逐锚归因最多触发一次、绑定旧 tree hash 的受限 whole-Skill
+revision，并确保修订仍重新走完整 Holdout → admission → assembled Shadow → Retention 链。

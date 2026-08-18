@@ -1,8 +1,8 @@
 # V4-7：DSH 原生 Web 研究证据边界
 
 > 状态：`implemented`。本文件记录独立研究采集深模块的原子提交；后续慢环接线见
-> `v4-7-research-grounded-whole-skill-handoff.zh.md`。holdout 执行和 Retention 仍未完成，因此不打 tag，
-> 也不声明核心目标完成。
+> `v4-7-research-grounded-whole-skill-handoff.zh.md`；后续独立验证接线见
+> `v4-7-independent-research-holdout.zh.md`。Retention 仍未完成，因此不打 tag，也不声明核心目标完成。
 
 ## 本次交付
 
@@ -40,4 +40,4 @@ DeepSeek、Perplexity 或 HTTP fetch provider。它建立以下 Host 所有的�
 
 该模块已经在后续原子切片中通过可选 `ctx.web` 注入慢环：同一日预算内先生成私有
 `research.json`，只把 knowledge 交给模型，并要求模型返回 Host schema 约束的 whole-Skill
-manifest；verification 锚继续只供后续独立评估器使用。
+manifest；verification 锚已在后续 `v4-7-independent-research-holdout.zh.md` 中交给独立评估器。

@@ -481,6 +481,7 @@ function SkillsView({ summary, t }: { summary: EvolutionOverview; t: (key: strin
     <CapabilityGapQueue summary={summary} t={t} />
     <SlowLoopAuthoring summary={summary} t={t} />
     <SkillDiscovery summary={summary} t={t} />
+    <ResearchSkillHoldout summary={summary} t={t} />
     <SkillAdmission summary={summary} t={t} />
     {empty && <div className="dsh-evolve-message">{t('skills.empty')}</div>}
     {active.length > 0 && <SkillGroup label={t('skills.active')} items={active.map(artifact => ({
@@ -500,6 +501,54 @@ function SkillsView({ summary, t }: { summary: EvolutionOverview; t: (key: strin
     }))} />}
     <p className="dsh-evolve-guidance">{t('skills.native')}</p>
   </>
+}
+
+function ResearchSkillHoldout({ summary, t }: { summary: EvolutionOverview; t: (key: string) => string }) {
+  const holdout = summary.researchHoldout
+  if (holdout === undefined) return null
+  return <section>
+    <div className="dsh-evolve-capability-head">
+      <h3 className="dsh-evolve-section-title">{t('skills.research-holdout')}</h3>
+      <span className="dsh-evolve-catalog-status">
+        {holdout.configuredTargetCount} {t('skills.research-holdout.targets')}
+      </span>
+    </div>
+    {holdout.warningCount > 0 && <div className="dsh-evolve-message dsh-evolve-error">
+      {holdout.warningCount} {t('skills.research-holdout.warnings')}
+    </div>}
+    {holdout.results.length === 0
+      ? <div className="dsh-evolve-message">{t('skills.research-holdout.empty')}</div>
+      : <ul className="dsh-evolve-list">{holdout.results.map(value => (
+          <li className="dsh-evolve-skill-card" key={value.id}>
+            <div className="dsh-evolve-review-skill">{value.skillName}</div>
+            <div className="dsh-evolve-capability-route">
+              {t(`skills.research-holdout.status.${value.status}`)}
+            </div>
+            <div className="dsh-evolve-meta">
+              {t('skills.research-holdout.target')} · {value.targetId}
+            </div>
+            <div className="dsh-evolve-meta">
+              {t('skills.research-holdout.lineage')}
+              {' · '}{value.researchDigest.slice(0, 12)}
+              {' → '}{value.candidateTreeHash.slice(0, 12)}
+              {' → '}{value.evaluatorIdentityHash.slice(0, 12)}
+            </div>
+            <div className="dsh-evolve-meta">
+              {t('skills.research-holdout.cost')} · {value.modelCalls} · {value.inputTokens}/{value.outputTokens}
+            </div>
+            {value.findings.map(finding => <div className="dsh-evolve-meta" key={finding.anchorDigest}>
+              {t('skills.research-holdout.anchor')} · {finding.anchorDigest.slice(0, 12)}
+              {' · '}{t(`skills.research-holdout.assessment.${finding.assessment}`)}
+            </div>)}
+            <div className="dsh-evolve-meta">{t(`skills.research-holdout.reason.${value.reason}`)}</div>
+            {value.retryAt !== undefined && <div className="dsh-evolve-meta">
+              {t('skills.research-holdout.retry')} · {new Date(value.retryAt).toLocaleString()}
+            </div>}
+            <div className="dsh-evolve-meta">{t('skills.research-holdout.governance')}</div>
+            <div className="dsh-evolve-discovery-state">{t('skills.research-holdout.release.none')}</div>
+          </li>
+        ))}</ul>}
+  </section>
 }
 
 function SkillAdmission({ summary, t }: { summary: EvolutionOverview; t: (key: string) => string }) {

@@ -171,6 +171,27 @@ export function assertResearchSkillHoldoutRootSeparation(
   }
 }
 
+/** No research-grounded authoring target may reach admission by skipping its exact Holdout. */
+export function assertResearchSkillHoldoutCoverage(
+  holdouts: readonly Pick<ResearchSkillHoldoutTargetConfig, 'workspaceId' | 'skill'>[],
+  authors: readonly { readonly workspaceId: string; readonly skill: string }[],
+  admissions: readonly { readonly workspaceId: string; readonly skill: string }[],
+): void {
+  const authored = new Set(authors.map(value => targetKey(value.workspaceId, value.skill)))
+  const admitted = new Set(admissions.map(value => targetKey(value.workspaceId, value.skill)))
+  const held = new Set(holdouts.map(value => targetKey(value.workspaceId, value.skill)))
+  for (const key of held) {
+    if (!authored.has(key) || !admitted.has(key)) {
+      throw new Error('research Skill Holdout targets require exact authoring and admission targets')
+    }
+  }
+  for (const key of authored) {
+    if (admitted.has(key) && !held.has(key)) {
+      throw new Error('research Skill Holdout must gate every authored Candidate that can enter admission')
+    }
+  }
+}
+
 /**
  * Governance-separated semantic holdout for research-grounded whole-Skill Candidates.
  * It can only emit evidence. It cannot install, activate, publish, or execute a Candidate.
@@ -413,6 +434,7 @@ export class ResearchSkillHoldoutScheduler {
   ) => void) | undefined
   private readonly pending = new Map<string, DiscoveredSkillCandidate>()
   private readonly active = new Set<string>()
+  private readonly activeTargets = new Set<string>()
   private jobs: Pick<JobRegistry, 'start'> | undefined
 
   constructor(
@@ -453,8 +475,11 @@ export class ResearchSkillHoldoutScheduler {
     const jobs = this.jobs
     const candidate = this.pending.get(candidateId)
     if (jobs === undefined || candidate === undefined || this.active.has(candidateId)) return
+    const key = targetKey(candidate.workspaceId, candidate.requestedSkill)
+    if (this.activeTargets.has(key)) return
     this.pending.delete(candidateId)
     this.active.add(candidateId)
+    this.activeTargets.add(key)
     const controller = new AbortController()
     try {
       jobs.start({
@@ -483,13 +508,17 @@ export class ResearchSkillHoldoutScheduler {
               detail: errorDetail(controller.signal.aborted ? controller.signal.reason : error),
             })).finally(() => {
               this.active.delete(candidateId)
-              this.schedule(candidateId)
+              this.activeTargets.delete(key)
+              const next = [...this.pending.values()].find(value =>
+                targetKey(value.workspaceId, value.requestedSkill) === key)
+              if (next !== undefined) this.schedule(next.id)
             }),
           }
         },
       })
     } catch {
       this.active.delete(candidateId)
+      this.activeTargets.delete(key)
       this.pending.set(candidateId, candidate)
     }
   }

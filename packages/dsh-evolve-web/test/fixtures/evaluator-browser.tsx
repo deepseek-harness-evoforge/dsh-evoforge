@@ -181,6 +181,26 @@ const remote: EvolutionRemoteClient = {
               releaseAuthority: 'none' as const,
             }],
           },
+          researchHoldout: {
+            configuredTargetCount: 1,
+            warningCount: 0,
+            results: [{
+              id: '2'.repeat(64),
+              candidateId: '3'.repeat(64),
+              skillName: 'publish-dsh-plugin',
+              targetId: 'publish-research-holdout',
+              status: 'pass' as const,
+              reason: 'all-verification-anchors-satisfied' as const,
+              researchDigest: '8'.repeat(64),
+              candidateTreeHash: '7'.repeat(64),
+              evaluatorIdentityHash: '9'.repeat(64),
+              modelCalls: 1 as const,
+              inputTokens: 211,
+              outputTokens: 37,
+              findings: [{ anchorDigest: 'f'.repeat(64), assessment: 'satisfied' as const }],
+              releaseAuthority: 'none' as const,
+            }],
+          },
           skillDiscovery: {
             quarantinedCount: 2,
             candidates: [{

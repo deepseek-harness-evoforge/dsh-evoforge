@@ -407,6 +407,32 @@ describe('EvolutionControlPlane', () => {
           }],
         })),
       },
+      researchHoldouts: {
+        scan: vi.fn(async () => ({
+          configuredTargetCount: 1,
+          warningCount: 0,
+          results: [{
+            schemaVersion: 1 as const,
+            id: 'a'.repeat(64),
+            candidateId: '7'.repeat(64),
+            workspaceId: WORKSPACE_ID,
+            skillName: 'missing-release-skill',
+            targetId: 'missing-release-holdout',
+            status: 'pass' as const,
+            reason: 'all-verification-anchors-satisfied' as const,
+            researchDigest: 'b'.repeat(64),
+            candidateTreeHash: 'c'.repeat(64),
+            evaluatorIdentityHash: 'd'.repeat(64),
+            cost: { modelCalls: 1 as const, inputTokens: 211, outputTokens: 37 },
+            findings: [{
+              anchorDigest: 'e'.repeat(64),
+              assessment: 'satisfied' as const,
+              attribution: 'Private evaluator attribution must not enter the overview.',
+            }],
+            releaseAuthority: 'none' as const,
+          }],
+        })),
+      },
     })
 
     const overview = await control.overview(WORKSPACE_ID, 'session-1')
@@ -555,8 +581,29 @@ describe('EvolutionControlPlane', () => {
           releaseAuthority: 'none',
         }],
       },
+      researchHoldout: {
+        configuredTargetCount: 1,
+        warningCount: 0,
+        results: [{
+          id: 'a'.repeat(64),
+          candidateId: '7'.repeat(64),
+          skillName: 'missing-release-skill',
+          targetId: 'missing-release-holdout',
+          status: 'pass',
+          reason: 'all-verification-anchors-satisfied',
+          researchDigest: 'b'.repeat(64),
+          candidateTreeHash: 'c'.repeat(64),
+          evaluatorIdentityHash: 'd'.repeat(64),
+          modelCalls: 1,
+          inputTokens: 211,
+          outputTokens: 37,
+          findings: [{ anchorDigest: 'e'.repeat(64), assessment: 'satisfied' }],
+          releaseAuthority: 'none',
+        }],
+      },
       reviews: { available: true, pendingCount: 1, warningCount: 1 },
     })
+    expect(JSON.stringify(overview)).not.toContain('Private evaluator attribution')
     expect(overview.reviews.inactiveGenerations).toEqual([{
       workspaceId: WORKSPACE_ID,
       generationId: '7'.repeat(64),

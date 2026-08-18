@@ -89,6 +89,13 @@ import {
   type SlowLoopSkillAuthoringTargetConfig,
 } from './slow-loop-skill-authoring.ts'
 import { createDshWebSkillResearch, type SkillResearchWeb } from './skill-research.ts'
+import {
+  assertResearchSkillHoldoutCoverage,
+  assertResearchSkillHoldoutRootSeparation,
+  ResearchSkillHoldout,
+  ResearchSkillHoldoutScheduler,
+  type ResearchSkillHoldoutTargetConfig,
+} from './research-skill-holdout.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -110,6 +117,7 @@ export interface Config {
   trustedDiscoverySources?: TrustedSkillDiscoverySourceConfig[]
   trustedAgentSkillIndexes?: AgentSkillsIndexSourceConfig[]
   slowLoopAuthorTargets?: SlowLoopSkillAuthoringTargetConfig[]
+  researchHoldoutTargets?: ResearchSkillHoldoutTargetConfig[]
   discoveryAdmissionTargets?: DiscoveredSkillAdmissionTargetConfig[]
   discoveryShadowTargets?: DiscoveredSkillShadowTargetConfig[]
   supervisor?: {
@@ -145,6 +153,13 @@ export const Config: Schema<Config> = z.object({
     indexUrl: z.string().required(),
   })).max(100).default([]),
   slowLoopAuthorTargets: z.array(z.object({
+    id: z.string().required(),
+    workspaceId: z.string().required(),
+    skill: z.string().required(),
+    runRoot: z.string().required(),
+    maxAttemptsPerUtcDay: z.number().step(1).min(1).max(20).default(1),
+  })).max(20).default([]),
+  researchHoldoutTargets: z.array(z.object({
     id: z.string().required(),
     workspaceId: z.string().required(),
     skill: z.string().required(),
@@ -241,6 +256,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const automaticEvaluatorTargetReferences = config.automaticEvaluatorTargets ?? []
   const discoveryShadowTargets = config.discoveryShadowTargets ?? []
   const slowLoopAuthorTargets = config.slowLoopAuthorTargets ?? []
+  const researchHoldoutTargets = config.researchHoldoutTargets ?? []
   const shadowTargetsById = new Map(shadowTargets.map(target => [target.id, target]))
   const automaticFeedbackTargets: AutomaticFeedbackShadowTarget[] =
     automaticFeedbackTargetReferences.map((reference) => {
@@ -273,12 +289,18 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   })
   let skillAdmissionScheduler: DiscoveredSkillAdmissionScheduler | undefined
   let skillShadowScheduler: DiscoveredSkillShadowScheduler | undefined
+  let researchHoldoutScheduler: ResearchSkillHoldoutScheduler | undefined
+  let researchHoldouts: ResearchSkillHoldout | undefined
   const skillDiscovery = new TrustedSkillDiscovery(
     config.trustedDiscoverySources ?? [],
     skillDiscoveryStore,
     {
       agentSkillIndexes: config.trustedAgentSkillIndexes ?? [],
-      onCandidate: candidate => skillAdmissionScheduler?.observe(candidate),
+      onCandidate: candidate => {
+        if (researchHoldoutScheduler?.observe(candidate) !== true) {
+          skillAdmissionScheduler?.observe(candidate)
+        }
+      },
     },
   )
   const discoveryAdmissionTargets = config.discoveryAdmissionTargets ?? []
@@ -299,7 +321,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     }
     skillAdmissionScheduler = new DiscoveredSkillAdmissionScheduler(
       skillAdmission,
-      skillDiscoveryStore,
+      {
+        listCandidates: workspaceId => skillDiscoveryStore.listCandidates(workspaceId)
+          .filter(candidate => researchHoldouts?.matches(candidate) !== true),
+      },
       { onResult: (candidate, result) => skillShadowScheduler?.observe(candidate, result) },
     )
   } else if (discoveryShadowTargets.length > 0) {
@@ -335,6 +360,43 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         },
         budget: slowLoopAuthoringBudget,
       })
+  assertResearchSkillHoldoutCoverage(
+    researchHoldoutTargets,
+    slowLoopAuthorTargets,
+    discoveryAdmissionTargets,
+  )
+  const researchHoldoutBudget = new AutomaticEvolutionBudget()
+  if (researchHoldoutTargets.length > 0) {
+    assertResearchSkillHoldoutRootSeparation(researchHoldoutTargets, [
+      ...(config.cacheRoot === undefined ? [] : [config.cacheRoot]),
+      ...(config.feedbackDraftRoot === undefined ? [] : [config.feedbackDraftRoot]),
+      ...(config.sources ?? []).map(value => value.repository),
+      ...(config.trustedDiscoverySources ?? []).map(value => value.repository),
+      ...slowLoopAuthorTargets.map(value => value.runRoot),
+      ...discoveryAdmissionTargets.flatMap(value => [value.baselineDir, value.casePackDir, value.runRoot]),
+      ...discoveryShadowTargets.flatMap(value => [value.casePackDir, value.runRoot]),
+      ...(config.supervisor?.runRoots ?? []).map(value => value.path),
+      ...shadowTargets.flatMap(value => [value.casePackDir, value.runRoot]),
+      ...evaluatorTargets.flatMap(value => [value.root, ...(value.shadowRunRoot === undefined
+        ? []
+        : [value.shadowRunRoot])]),
+    ])
+    researchHoldoutBudget.assertTargets(researchHoldoutTargets)
+    if (slowLoopAuthoring === undefined || skillAdmissionScheduler === undefined) {
+      throw new Error('research Skill Holdout requires slow-loop authoring and deterministic admission')
+    }
+    researchHoldouts = new ResearchSkillHoldout({
+      targets: researchHoldoutTargets,
+      evidence: slowLoopAuthoring,
+      candidates: skillDiscovery,
+      budget: researchHoldoutBudget,
+    })
+    researchHoldoutScheduler = new ResearchSkillHoldoutScheduler(
+      researchHoldouts,
+      skillDiscoveryStore,
+      { onPass: candidate => skillAdmissionScheduler?.observe(candidate) },
+    )
+  }
   const skillDiscoveryLoop = installTrustedSkillDiscoveryLoop(
     ctx,
     capabilityGaps,
@@ -541,6 +603,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     discovery: skillDiscoveryStore,
     ...(skillAdmission === undefined ? {} : { admissions: skillAdmission }),
     ...(slowLoopAuthoring === undefined ? {} : { slowLoopAuthoring }),
+    ...(researchHoldouts === undefined ? {} : { researchHoldouts }),
     ...(review === undefined ? {} : { review }),
     ...(resident === undefined ? {} : { resident }),
     ...(automaticPolicy === undefined ? {} : { automatic: automaticPolicy }),
@@ -592,13 +655,17 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       }
     }, 'dsh-evolve.deliveryOutcomeMonitor')
   })
-  if (skillAdmissionScheduler !== undefined || skillShadowScheduler !== undefined) {
+  if (skillAdmissionScheduler !== undefined
+    || skillShadowScheduler !== undefined
+    || researchHoldoutScheduler !== undefined) {
     ctx.inject(['jobs'], (jobCtx) => {
       jobCtx.effect(() => {
         const detachController = jobCtx.jobs.attachController('dsh-evolve-skill-admission')
         const detachShadow = skillShadowScheduler?.attachJobs(jobCtx.jobs)
         const detachAdmission = skillAdmissionScheduler?.attachJobs(jobCtx.jobs)
+        const detachResearchHoldout = researchHoldoutScheduler?.attachJobs(jobCtx.jobs)
         return () => {
+          detachResearchHoldout?.()
           detachAdmission?.()
           detachShadow?.()
           detachController()
@@ -781,6 +848,7 @@ export type { FeedbackShadowTargetConfig } from './feedback-shadow-launcher.ts'
 export type { AutomaticFeedbackShadowTargetReference } from './automatic-feedback-shadow.ts'
 export type { AutomaticEvaluatorDraftTargetReference } from './automatic-evaluator-draft.ts'
 export type { SlowLoopSkillAuthoringTargetConfig } from './slow-loop-skill-authoring.ts'
+export type { ResearchSkillHoldoutTargetConfig } from './research-skill-holdout.ts'
 export type { AutomaticRetentionTargetConfig } from './automatic-retention.ts'
 export type { ShadowResumeInvocation, ShadowSupervisorOptions } from './shadow-supervisor.ts'
 export type {
@@ -804,6 +872,7 @@ export type {
   EvolutionGenerationView,
   EvolutionInactiveGenerationView,
   EvolutionOverview,
+  EvolutionResearchSkillHoldoutView,
   EvolutionReviewCaseView,
   EvolutionReviewDetail,
   EvolutionReviewView,

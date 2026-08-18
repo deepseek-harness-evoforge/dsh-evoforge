@@ -51,9 +51,10 @@ Skills 页新增：
 - Typert 由锁定 DSH `47f943859bef60e4160492346772ded9b24f765a` 重新生成并通过 freshness gate；
 - 根级完整门禁以本原子提交前最终执行结果为准。
 
-## 仍未完成
+## 后续状态
 
-- verification anchors 还没有被独立评估器消费，不能宣称 holdout 已完成；
+- verification anchors 已由
+  [`v4-7-independent-research-holdout.zh.md`](v4-7-independent-research-holdout.zh.md) 的独立评估器消费；
 - 尚未把失败归因反馈为 bounded whole-Skill revision；
 - 尚未完成长期 Retention、真实 provider、真实飞书消息和同条件 Hermes paired run；
 - 因此不打 tag，不宣称 Hermes 核心功能的上位替代已经完成。

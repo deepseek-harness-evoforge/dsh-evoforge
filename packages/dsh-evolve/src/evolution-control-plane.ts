@@ -11,6 +11,7 @@ import type { SkillDiscoveryStore } from './trusted-skill-discovery.ts'
 import { clusterCapabilityGaps } from './capability-gap-cluster.ts'
 import type { DiscoveredSkillAdmission } from './discovered-skill-admission.ts'
 import type { SlowLoopSkillAuthoring } from './slow-loop-skill-authoring.ts'
+import type { ResearchSkillHoldout } from './research-skill-holdout.ts'
 import type { EvolutionStore } from './generation-store.ts'
 import type { ResidentEvolutionControl } from './resident-evolution-control.ts'
 import type { ReviewCandidate, ReviewInbox } from './review-inbox.ts'
@@ -56,6 +57,7 @@ export interface EvolutionControlPlaneModules {
   readonly discovery?: Pick<SkillDiscoveryStore, 'listCandidates' | 'listAttempts'>
   readonly admissions?: Pick<DiscoveredSkillAdmission, 'scan'>
   readonly slowLoopAuthoring?: Pick<SlowLoopSkillAuthoring, 'scan'>
+  readonly researchHoldouts?: Pick<ResearchSkillHoldout, 'scan'>
 }
 
 /** A structured adapter surface that delegates to the same owners as Commands. */
@@ -76,6 +78,7 @@ export class EvolutionControlPlane {
       automaticEvaluatorBudget,
       admissionScan,
       slowLoopAuthoringScan,
+      researchHoldoutScan,
     ] = await Promise.all([
       this.modules.review === undefined ? undefined : this.modules.review.inbox.scanAll(),
       this.modules.feedbackShadow === undefined ? undefined : this.modules.feedbackShadow.scan(workspaceId),
@@ -90,6 +93,9 @@ export class EvolutionControlPlane {
       this.modules.slowLoopAuthoring === undefined
         ? undefined
         : this.modules.slowLoopAuthoring.scan(workspaceId),
+      this.modules.researchHoldouts === undefined
+        ? undefined
+        : this.modules.researchHoldouts.scan(workspaceId),
     ])
     const automaticSkills = this.modules.automatic?.skills(workspaceId) ?? []
     return {
@@ -137,6 +143,32 @@ export class EvolutionControlPlane {
               ...(run.candidateId === undefined ? {} : { candidateId: run.candidateId }),
               ...(run.retryAt === undefined ? {} : { retryAt: run.retryAt }),
               releaseAuthority: run.releaseAuthority,
+            })),
+          } }),
+      ...(researchHoldoutScan === undefined
+        ? {}
+        : { researchHoldout: {
+            configuredTargetCount: researchHoldoutScan.configuredTargetCount,
+            warningCount: researchHoldoutScan.warningCount,
+            results: researchHoldoutScan.results.map(result => ({
+              id: result.id,
+              candidateId: result.candidateId,
+              skillName: result.skillName,
+              targetId: result.targetId,
+              status: result.status,
+              reason: result.reason,
+              researchDigest: result.researchDigest,
+              candidateTreeHash: result.candidateTreeHash,
+              evaluatorIdentityHash: result.evaluatorIdentityHash,
+              modelCalls: result.cost.modelCalls,
+              inputTokens: result.cost.inputTokens,
+              outputTokens: result.cost.outputTokens,
+              findings: result.findings.map(finding => ({
+                anchorDigest: finding.anchorDigest,
+                assessment: finding.assessment,
+              })),
+              ...(result.retryAt === undefined ? {} : { retryAt: result.retryAt }),
+              releaseAuthority: result.releaseAuthority,
             })),
           } }),
       ...(admissionScan === undefined

@@ -291,6 +291,20 @@ const t = (key: string) => ({
   'skills.slow-loop.candidate': 'Candidate',
   'skills.slow-loop.retry': 'Earliest retry',
   'skills.slow-loop.release.none': 'Quarantined Candidate only · No install, activation, or release',
+  'skills.research-holdout': 'Independent research Holdout',
+  'skills.research-holdout.targets': 'verification targets',
+  'skills.research-holdout.warnings': 'invalid durable evidence records',
+  'skills.research-holdout.empty': 'No independent research Holdout has completed.',
+  'skills.research-holdout.status.pass': 'Independent verification passed',
+  'skills.research-holdout.target': 'Holdout target',
+  'skills.research-holdout.lineage': 'Research → Candidate tree → evaluator identity',
+  'skills.research-holdout.cost': 'Model calls · input/output tokens',
+  'skills.research-holdout.anchor': 'Verification anchor digest',
+  'skills.research-holdout.assessment.satisfied': 'satisfied',
+  'skills.research-holdout.reason.all-verification-anchors-satisfied': 'All withheld verification anchors are satisfied',
+  'skills.research-holdout.retry': 'Earliest retry',
+  'skills.research-holdout.governance': 'Withheld anchors · Independent evaluator · Candidate not executed',
+  'skills.research-holdout.release.none': 'Evidence only · No install, activation, or release authority',
   'skills.discovery': 'Discovered Skill candidates',
   'skills.discovery.quarantined': 'Quarantined candidate',
   'skills.discovery.source.local-git': 'Local Git',
@@ -652,6 +666,26 @@ describe('EvolutionAction', () => {
             releaseAuthority: 'none' as const,
           }],
         },
+        researchHoldout: {
+          configuredTargetCount: 1,
+          warningCount: 0,
+          results: [{
+            id: '2'.repeat(64),
+            candidateId: '3'.repeat(64),
+            skillName: 'missing-release-skill',
+            targetId: 'missing-release-holdout',
+            status: 'pass' as const,
+            reason: 'all-verification-anchors-satisfied' as const,
+            researchDigest: '8'.repeat(64),
+            candidateTreeHash: '7'.repeat(64),
+            evaluatorIdentityHash: '9'.repeat(64),
+            modelCalls: 1 as const,
+            inputTokens: 211,
+            outputTokens: 37,
+            findings: [{ anchorDigest: 'f'.repeat(64), assessment: 'satisfied' as const }],
+            releaseAuthority: 'none' as const,
+          }],
+        },
         skillDiscovery: {
           quarantinedCount: 2,
           candidates: [{
@@ -859,6 +893,14 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('Discovery attempts')).toBeTruthy()
     expect(screen.getByText('Candidate found')).toBeTruthy()
     expect(screen.getByText('No trusted sources configured')).toBeTruthy()
+    expect(screen.getByText('Independent research Holdout')).toBeTruthy()
+    expect(screen.getByText('Independent verification passed')).toBeTruthy()
+    expect(screen.getByText('Holdout target · missing-release-holdout')).toBeTruthy()
+    expect(screen.getByText(`Research → Candidate tree → evaluator identity · ${'8'.repeat(12)} → ${'7'.repeat(12)} → ${'9'.repeat(12)}`)).toBeTruthy()
+    expect(screen.getByText(`Verification anchor digest · ${'f'.repeat(12)} · satisfied`)).toBeTruthy()
+    expect(screen.getByText('All withheld verification anchors are satisfied')).toBeTruthy()
+    expect(screen.getByText('Withheld anchors · Independent evaluator · Candidate not executed')).toBeTruthy()
+    expect(screen.getByText('Evidence only · No install, activation, or release authority')).toBeTruthy()
     expect(screen.getByText('Deterministic admission')).toBeTruthy()
     expect(screen.getByText('Qualified for later Shadow')).toBeTruthy()
     expect(screen.getByText('Evaluation target · missing-release-admission')).toBeTruthy()

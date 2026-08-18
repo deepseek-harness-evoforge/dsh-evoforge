@@ -294,6 +294,48 @@ export interface EvolutionSlowLoopAuthoringView {
   }[]
 }
 
+/** Independent research evidence gate; excerpts, source URLs, routes, and attributions stay private. */
+export interface EvolutionResearchSkillHoldoutView {
+  readonly configuredTargetCount: number
+  readonly warningCount: number
+  readonly results: readonly {
+    readonly id: string
+    readonly candidateId: string
+    readonly skillName: string
+    readonly targetId: string
+    readonly status:
+      | 'cancelled'
+      | 'budget-deferred'
+      | 'uncertain'
+      | 'incomplete'
+      | 'pass'
+      | 'fail'
+      | 'inconclusive'
+    readonly reason:
+      | 'cancelled-before-dispatch'
+      | 'daily-evaluation-budget-exhausted'
+      | 'evaluator-not-independent'
+      | 'local-validation-failed'
+      | 'paid-evaluation-outcome-uncertain'
+      | 'invalid-evaluator-response'
+      | 'all-verification-anchors-satisfied'
+      | 'verification-anchor-failed'
+      | 'verification-anchor-unresolved'
+    readonly researchDigest: string
+    readonly candidateTreeHash: string
+    readonly evaluatorIdentityHash: string
+    readonly modelCalls: 0 | 1
+    readonly inputTokens: number
+    readonly outputTokens: number
+    readonly findings: readonly {
+      readonly anchorDigest: string
+      readonly assessment: 'satisfied' | 'violated' | 'unresolved'
+    }[]
+    readonly retryAt?: number
+    readonly releaseAuthority: 'none'
+  }[]
+}
+
 /** Deterministic, zero-model admission evidence; it never carries release authority. */
 export interface EvolutionSkillAdmissionView {
   readonly configuredTargetCount: number
@@ -477,6 +519,7 @@ export interface EvolutionOverview {
   readonly capabilityGaps?: EvolutionCapabilityGapQueueView
   readonly skillDiscovery?: EvolutionSkillDiscoveryView
   readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView
+  readonly researchHoldout?: EvolutionResearchSkillHoldoutView
   readonly skillAdmission?: EvolutionSkillAdmissionView
   readonly deliveryOutcomes?: {
     readonly all: DeliveryOutcomeCounts

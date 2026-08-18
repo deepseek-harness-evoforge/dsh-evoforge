@@ -5,6 +5,7 @@ import type { JobHooks, JobStart } from '@deepseek-ai/dsh-jobs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { sha256 } from '../src/hash.ts'
 import {
+  assertResearchSkillHoldoutCoverage,
   assertResearchSkillHoldoutRootSeparation,
   ResearchSkillHoldout,
   ResearchSkillHoldoutScheduler,
@@ -287,6 +288,16 @@ describe('independent research holdout', () => {
       [fixture.target],
       [join(fixture.target.runRoot, 'governance')],
     )).toThrow('must not overlap')
+    expect(() => assertResearchSkillHoldoutCoverage(
+      [],
+      [{ workspaceId: WORKSPACE_ID, skill: fixture.target.skill }],
+      [{ workspaceId: WORKSPACE_ID, skill: fixture.target.skill }],
+    )).toThrow('must gate every authored Candidate')
+    expect(() => assertResearchSkillHoldoutCoverage(
+      [fixture.target],
+      [{ workspaceId: WORKSPACE_ID, skill: fixture.target.skill }],
+      [{ workspaceId: WORKSPACE_ID, skill: fixture.target.skill }],
+    )).not.toThrow()
   })
 
   it('forwards only a durable pass to deterministic admission through native Jobs', async () => {
@@ -299,7 +310,7 @@ describe('independent research holdout', () => {
     const onPass = vi.fn()
     const scheduler = new ResearchSkillHoldoutScheduler(
       { matches: () => true, evaluate },
-      { listCandidates: () => [candidate()] },
+      { listCandidates: () => [candidate(), candidate({ id: '2'.repeat(64) })] },
       { onPass },
     )
 
@@ -308,8 +319,7 @@ describe('independent research holdout', () => {
     await expect(jobs.hooks[0]!.done).resolves.toMatchObject({ status: 'completed', detail: 'pass' })
     expect(onPass).toHaveBeenCalledWith(candidate(), pass)
 
-    scheduler.observe(candidate({ id: '2'.repeat(64) }))
-    expect(jobs.starts).toHaveLength(2)
+    await vi.waitFor(() => expect(jobs.starts).toHaveLength(2))
     await expect(jobs.hooks[1]!.done).resolves.toMatchObject({ status: 'completed', detail: 'fail' })
     expect(onPass).toHaveBeenCalledOnce()
   })
