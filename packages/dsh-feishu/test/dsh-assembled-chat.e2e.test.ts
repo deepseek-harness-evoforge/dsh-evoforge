@@ -9,6 +9,7 @@ import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import type { ApprovalOutcome } from '@deepseek-ai/dsh-user-approval'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { FeishuPlatformSendError } from '../src/platform.js'
+import { parseFeishuHealthCommand } from '../src/health.js'
 import type { FeishuApprovalAction, FeishuInboundMessage, FeishuSendOptions } from '../src/platform.js'
 import type { FeishuRuntime } from '../src/runtime.js'
 
@@ -145,6 +146,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
         cards: Array<{ chatId: string; card: object }>
         emitMessage(message: FeishuInboundMessage): Promise<void>
         emitApproval(action: FeishuApprovalAction): Promise<void>
+        emitError(error: unknown): void
         queueFailure(error: unknown): void
       }
       runtime: FeishuRuntime
@@ -192,6 +194,11 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
       await new Promise(resolve => setTimeout(resolve, 100))
       expect(service.platform.texts).toHaveLength(1)
 
+      service.platform.emitError(new Error('simulated socket interruption'))
+      expect(service.runtime.healthSnapshot()).toMatchObject({ status: 'degraded', modelCalls: 0 })
+      await service.platform.emitMessage(inbound)
+      expect(service.runtime.healthSnapshot()).toMatchObject({ status: 'ready', modelCalls: 0 })
+
       await service.platform.emitMessage(message({
         messageId: 'om_command',
         senderId: 'ou_alice',
@@ -199,6 +206,19 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
       }))
       await vi.waitFor(() => { expect(service.platform.texts).toHaveLength(2) })
       expect(service.platform.texts[1]?.text).toContain('Feishu: READY')
+      const health = parseFeishuHealthCommand(service.platform.texts[1]!.text)
+      expect(health).toMatchObject({
+        status: 'ready',
+        accountId: 'cli_test_app',
+        transport: { state: 'ready', kind: 'official-feishu-websocket' },
+        sessionId: 'main',
+        routeCount: 1,
+        routes: [{ id: 'feishu-main', threadScoped: false }],
+        modelCalls: 0,
+      })
+      expect(service.platform.texts[1]?.text).not.toContain('test-secret')
+      expect(service.platform.texts[1]?.text).not.toContain('ou_alice')
+      expect(service.platform.texts[1]?.text).not.toContain('oc_main')
       expect(agent?.session.events.some((event: SessionEvent) => event.type === 'command/run'
         && event.data.name === 'feishu')).toBe(true)
 

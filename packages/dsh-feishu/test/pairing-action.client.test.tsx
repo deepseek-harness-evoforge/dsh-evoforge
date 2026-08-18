@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import type { SessionListState, WorkspaceListState } from '@deepseek-ai/dsh-client-runtime/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PairingAction, type PairingCommandsClient } from '../src/client/PairingAction.tsx'
+import { renderFeishuHealthCommand, summarizeFeishuHealth } from '../src/health.ts'
 import { zh } from '../src/client/locales.ts'
 
 const sessionId = 'feishu-setup-session'
@@ -93,6 +94,45 @@ describe('Feishu pairing action', () => {
     await waitFor(() => expect(commands.list).toHaveBeenCalledWith(sessionId))
     expect(screen.queryByRole('button', { name: '连接飞书' })).toBeNull()
     expect(commands.execute).not.toHaveBeenCalled()
+  })
+
+  it('shows routes-mode health and recovers an initial Remote failure without a model call', async () => {
+    const snapshot = summarizeFeishuHealth({
+      now: 900,
+      accountId: 'cli_test_app',
+      transport: { state: 'ready', connectedAt: 100, lastActivityAt: 800 },
+      routes: [{ id: 'feishu-main', workspaceId: 'workspace-a', sessionId, threadScoped: false }],
+      records: [],
+      scheduled: 0,
+      pendingApprovals: 0,
+    })
+    const commands = {
+      list: vi.fn(() => success([
+        { name: 'feishu-pair', description: 'global setup' },
+        { name: 'feishu', description: 'bound route health' },
+      ])),
+      execute: vi.fn()
+        .mockResolvedValueOnce({ ok: false, error: { code: 'gateway_unavailable', message: 'offline' } })
+        .mockResolvedValueOnce({ ok: true, value: execution(renderFeishuHealthCommand(snapshot)) })
+        .mockResolvedValueOnce({ ok: false, error: { code: 'gateway_unavailable', message: 'offline again' } }),
+    } as unknown as PairingCommandsClient
+    renderPairing(commands)
+
+    fireEvent.click(await screen.findByRole('button', { name: '飞书健康' }))
+    expect((await screen.findByRole('alert')).textContent).toContain('gateway_unavailable: offline')
+    fireEvent.click(screen.getByRole('button', { name: '刷新状态' }))
+
+    expect(await screen.findByText('就绪')).toBeTruthy()
+    expect(screen.getByText('official-feishu-websocket')).toBeTruthy()
+    expect(screen.getByText('feishu-main')).toBeTruthy()
+    expect(screen.getAllByText('0')).toHaveLength(5)
+    expect(screen.getByText(/不调用模型/u)).toBeTruthy()
+    expect(commands.execute).toHaveBeenNthCalledWith(1, sessionId, '/feishu')
+    expect(commands.execute).toHaveBeenNthCalledWith(2, sessionId, '/feishu')
+
+    fireEvent.click(screen.getByRole('button', { name: '刷新状态' }))
+    expect((await screen.findByRole('alert')).textContent).toContain('offline again')
+    expect(screen.queryByText('就绪')).toBeNull()
   })
 
   it('falls back to a selected textarea when the Web clipboard is denied', async () => {

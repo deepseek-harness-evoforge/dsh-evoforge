@@ -77,6 +77,11 @@ class FakeFeishuPlatform implements FeishuPlatform {
     await this.approvalHandler(action)
   }
 
+  emitError(error: unknown): void {
+    if (this.errorHandler === undefined) throw new Error('Feishu error handler is not registered')
+    this.errorHandler(error)
+  }
+
   queueFailure(error: unknown): void { this.failures.push(error) }
 }
 
@@ -97,6 +102,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       start(): Promise<void>
       dispose(): Promise<void>
       notifyHost(notice: FeishuHostNotice): Promise<unknown>
+      healthSnapshot(): unknown
     }
     openFeishuDeliveryStore(
       facility: Context['storageDomain'],

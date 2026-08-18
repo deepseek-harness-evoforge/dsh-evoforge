@@ -87,8 +87,9 @@
 退出门：最终 tarball 在全新 profile 的真实浏览器与真实飞书 App 上覆盖成功、刷新、权限拒绝、身份错误、
 429、网络不确定、重启、dispose 和卸载路径；UI 不新增 Session 模型工具/Prompt/token。
 
-实现状态：既有 Evolve review、飞书配对 UI 和渠道底座已实现；完整 capability/gap/eval 视图与 exact
-route 消息 **pending**。
+实现状态：既有 Evolve review、Capability Map/Gap/whole-Skill admission/Shadow 视图、飞书配对 UI、
+routes-mode 脱敏健康投影和渠道底座已实现；健康面最终 tarball 的真实浏览器读取/刷新/Host 停机与恢复
+已通过，完整评测演进视图与真实飞书 exact route 消息 **pending**。
 
 ## V6 — v0.1 验收与首个 tag
 

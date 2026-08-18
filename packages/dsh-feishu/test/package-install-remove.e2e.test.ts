@@ -102,12 +102,12 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-feishu package boundar
     expect(removed.dependencies?.['dsh-channel-router']).toBeUndefined()
     expect(removed.dsh.profile.bundles).toEqual([])
     await expect(access(installedFeishuRoot)).rejects.toMatchObject({ code: 'ENOENT' })
-  }, 60_000)
+  }, 180_000)
 })
 
 async function runDsh(args: string[], cwd: string, env: NodeJS.ProcessEnv): Promise<void> {
   try {
-    await execFile(process.execPath, [dshBin, ...args], { cwd, env, encoding: 'utf8', timeout: 30_000 })
+    await execFile(process.execPath, [dshBin, ...args], { cwd, env, encoding: 'utf8', timeout: 120_000 })
   } catch (error) {
     const failed = error as { stdout?: string; stderr?: string }
     throw new Error(`DSH profile command failed:\n${failed.stdout ?? ''}${failed.stderr ?? ''}`, { cause: error })

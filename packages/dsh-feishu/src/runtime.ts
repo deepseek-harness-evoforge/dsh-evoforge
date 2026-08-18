@@ -13,6 +13,12 @@ import type { ResolvedFeishuConfig, ResolvedFeishuRoute } from './config.js'
 import type { FeishuDeliveryRecord, FeishuDeliveryStore } from './delivery-store.js'
 import type { FeishuSendFailure } from './delivery-state.js'
 import type { FeishuHostNotice, FeishuHostNoticeReceipt } from './host-route.js'
+import {
+  renderFeishuHealthCommand,
+  summarizeFeishuHealth,
+  type FeishuHealthSnapshot,
+  type FeishuTransportState,
+} from './health.js'
 import { boundText, outboundTextForTurn } from './outbound.js'
 import { FeishuPlatformSendError } from './platform.js'
 import type {
@@ -54,6 +60,10 @@ export class FeishuRuntime {
   private readonly unsubscribers: Array<() => void> = []
   private deliveryTail: Promise<void> = Promise.resolve()
   private started = false
+  private transportState: FeishuTransportState = 'connecting'
+  private connectedAt?: number
+  private lastActivityAt?: number
+  private lastPlatformErrorAt?: number
 
   constructor(
     private readonly ctx: Context,
@@ -144,11 +154,15 @@ export class FeishuRuntime {
       this.platform.onMessage(message => this.handleMessage(message)),
       this.platform.onApprovalAction(action => this.handleApprovalAction(action)),
       this.platform.onError(error => {
+        this.transportState = 'degraded'
+        this.lastPlatformErrorAt = Date.now()
         if (!this.lifecycle.signal.aborted) this.ctx.logger.warn(`dsh-feishu: platform error: ${safeMessage(error)}`)
       }),
     )
     try {
       await this.platform.connect()
+      this.connectedAt = Date.now()
+      this.transportState = 'ready'
       this.enqueuePending()
     } catch (error) {
       await this.dispose()
@@ -157,6 +171,7 @@ export class FeishuRuntime {
   }
 
   async dispose(): Promise<void> {
+    this.transportState = 'stopping'
     if (!this.lifecycle.signal.aborted) this.lifecycle.abort(new Error('dsh-feishu disposed'))
     while (this.unsubscribers.length > 0) this.unsubscribers.pop()?.()
     for (const [nonce, pending] of this.pendingApprovals) {
@@ -188,6 +203,34 @@ export class FeishuRuntime {
     return Object.freeze({ created: prepared.created, status: prepared.record.status })
   }
 
+  /** Redacted projection of the exact Host state; it performs no model or platform call. */
+  healthSnapshot(routes: readonly ResolvedFeishuRoute[] = this.config.routes): FeishuHealthSnapshot {
+    const routeIds = new Set(routes.map(route => route.id))
+    return summarizeFeishuHealth({
+      now: Date.now(),
+      accountId: this.config.appId,
+      transport: {
+        state: this.transportState,
+        ...(this.connectedAt === undefined ? {} : { connectedAt: this.connectedAt }),
+        ...(this.lastActivityAt === undefined ? {} : { lastActivityAt: this.lastActivityAt }),
+        ...(this.lastPlatformErrorAt === undefined ? {} : { lastErrorAt: this.lastPlatformErrorAt }),
+      },
+      routes: routes.map(route => ({
+        id: route.id,
+        workspaceId: route.workspaceId,
+        sessionId: route.sessionId,
+        threadScoped: route.endpoint.threadId !== undefined,
+      })),
+      records: this.store.list(),
+      scheduled: [...this.scheduled].filter(id => {
+        const record = this.store.get(id)
+        return record !== undefined && routeIds.has(record.routeId)
+      }).length,
+      pendingApprovals: [...this.pendingApprovals.values()]
+        .filter(pending => routeIds.has(pending.destination.route.id)).length,
+    })
+  }
+
   private bind(agent: Agent): void {
     const sessionId = String(agent.session.id)
     const routes = this.routesBySession.get(sessionId)
@@ -201,20 +244,14 @@ export class FeishuRuntime {
       recordInput: false,
       handler: ({ rawInput }) => {
         if (rawInput.trim() !== '') return { kind: 'error', text: 'Usage: /feishu' }
-        return {
-          kind: 'success',
-          text: [
-            `Feishu: READY (${routes.map(route => route.id).join(', ')}; session ${sessionId}).`,
-            'Transport: official Feishu WebSocket held by the DSH Cordis lifecycle.',
-            'Model surface: 0 tools, 0 prompt sections, 0 skills.',
-          ].join('\n'),
-        }
+        return { kind: 'success', text: renderFeishuHealthCommand(this.healthSnapshot(routes)) }
       },
     }))
   }
 
   private async handleMessage(message: FeishuInboundMessage): Promise<void> {
     if (this.lifecycle.signal.aborted) return
+    this.observeTransportActivity()
     if (message.rawContentType !== 'text' && message.rawContentType !== 'post') return
     const endpoint: ChannelEndpoint = Object.freeze({
       adapter: 'feishu',
@@ -269,6 +306,7 @@ export class FeishuRuntime {
   }
 
   private async handleApprovalAction(action: FeishuApprovalAction): Promise<void> {
+    this.observeTransportActivity()
     const selected = selectApprovalValue(action.value)
     if (selected === undefined) return
     const pending = this.pendingApprovals.get(selected.nonce)
@@ -347,6 +385,7 @@ export class FeishuRuntime {
         sending.source.text,
         deliverySendOptions(sending),
       )
+      this.observeTransportActivity()
       await this.store.markDelivered(id, sent.messageId, Date.now())
     } catch (error: unknown) {
       await this.store.markFailure(
@@ -404,6 +443,11 @@ export class FeishuRuntime {
       store.set(agent, map)
     }
     return map
+  }
+
+  private observeTransportActivity(): void {
+    this.lastActivityAt = Date.now()
+    if (!this.lifecycle.signal.aborted) this.transportState = 'ready'
   }
 }
 

@@ -180,6 +180,18 @@ export type {
   FeishuHostRouteBinding,
 } from './host-route.js'
 export {
+  FEISHU_HEALTH_PREFIX,
+  parseFeishuHealthCommand,
+  renderFeishuHealthCommand,
+  summarizeFeishuHealth,
+  type FeishuHealthRoute,
+  type FeishuHealthRouteInput,
+  type FeishuHealthSnapshot,
+  type FeishuHealthStatus,
+  type FeishuTransportState,
+  type SummarizeFeishuHealthInput,
+} from './health.js'
+export {
   createOfficialFeishuPairingPlatform,
   createOfficialFeishuPlatform,
   FeishuPlatformSendError,

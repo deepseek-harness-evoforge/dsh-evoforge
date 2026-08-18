@@ -4,6 +4,7 @@ import type { SessionId } from '@deepseek-ai/dsh-api-remotes/client'
 import type { CommandDescriptor, CommandExecution } from '@deepseek-ai/dsh-commands/types'
 import type {} from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
+import { parseFeishuHealthCommand, type FeishuHealthSnapshot } from '../health.js'
 
 type RemoteResult<T> =
   | { readonly ok: true; readonly value: T }
@@ -28,7 +29,7 @@ export function PairingAction({ commands, t, useSessions, wide }: PairingActionP
   const sessionRef = useRef(sessionId)
   sessionRef.current = sessionId
   const triggerRef = useRef<HTMLButtonElement>(null)
-  const [available, setAvailable] = useState(false)
+  const [surface, setSurface] = useState<'pairing' | 'health'>()
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [text, setText] = useState<string>()
@@ -36,23 +37,28 @@ export function PairingAction({ commands, t, useSessions, wide }: PairingActionP
   const [notice, setNotice] = useState<string>()
   const [expiresAt, setExpiresAt] = useState<number>()
   const [now, setNow] = useState(Date.now())
+  const [health, setHealth] = useState<FeishuHealthSnapshot>()
 
   useEffect(() => {
     let current = true
-    setAvailable(false)
+    setSurface(undefined)
     setOpen(false)
     setBusy(false)
     setText(undefined)
     setError(undefined)
     setNotice(undefined)
     setExpiresAt(undefined)
+    setHealth(undefined)
     if (sessionId === undefined) return () => { current = false }
     void commands.list(sessionId).then((result) => {
       if (current && sessionRef.current === sessionId) {
-        setAvailable(result.ok && result.value.some(command => command.name === 'feishu-pair'))
+        if (!result.ok) setSurface(undefined)
+        else if (result.value.some(command => command.name === 'feishu')) setSurface('health')
+        else if (result.value.some(command => command.name === 'feishu-pair')) setSurface('pairing')
+        else setSurface(undefined)
       }
     }, () => {
-      if (current && sessionRef.current === sessionId) setAvailable(false)
+      if (current && sessionRef.current === sessionId) setSurface(undefined)
     })
     return () => { current = false }
   }, [commands, sessionId])
@@ -64,7 +70,7 @@ export function PairingAction({ commands, t, useSessions, wide }: PairingActionP
     return () => window.clearInterval(timer)
   }, [expiresAt, open])
 
-  if (!available || sessionId === undefined) return null
+  if (surface === undefined || sessionId === undefined) return null
 
   const run = async (action: 'start' | 'status' | 'cancel') => {
     const target = sessionId
@@ -89,6 +95,28 @@ export function PairingAction({ commands, t, useSessions, wide }: PairingActionP
     }
   }
 
+  const refreshHealth = async () => {
+    const target = sessionId
+    setBusy(true)
+    setError(undefined)
+    try {
+      const response = await commands.execute(target, '/feishu')
+      if (!response.ok) throw new Error(`${response.error.code}: ${response.error.message}`)
+      if (response.value === undefined) throw new Error('feishu command is unavailable')
+      if (sessionRef.current !== target) return
+      const result = response.value.result
+      if (result.kind === 'error') throw new Error(result.text)
+      setHealth(parseFeishuHealthCommand(result.text ?? ''))
+    } catch (cause) {
+      if (sessionRef.current === target) {
+        setHealth(undefined)
+        setError(message(cause))
+      }
+    } finally {
+      if (sessionRef.current === target) setBusy(false)
+    }
+  }
+
   const phrase = text?.match(PHRASE)?.[0]
   const config = text?.match(YAML)?.[1]
   const remaining = expiresAt === undefined ? undefined : Math.max(0, Math.ceil((expiresAt - now) / 1_000))
@@ -105,24 +133,76 @@ export function PairingAction({ commands, t, useSessions, wide }: PairingActionP
     setOpen(false)
     triggerRef.current?.focus()
   }
+  const toggle = () => {
+    const next = !open
+    setOpen(next)
+    if (next && surface === 'health') void refreshHealth()
+  }
+  const title = surface === 'health' ? t('health.title') : t('panel.title')
 
   return <>
     <button
       ref={triggerRef}
       type="button"
       className="dsh-feishu-trigger"
-      aria-label={t('trigger.label')}
+      aria-label={surface === 'health' ? t('health.trigger') : t('trigger.label')}
       aria-expanded={open}
-      onClick={() => setOpen(current => !current)}
+      onClick={toggle}
     >
-      <span aria-hidden="true">⇄</span>
-      {wide && <span>{t('trigger.label')}</span>}
+      <span aria-hidden="true">{surface === 'health' ? '◉' : '⇄'}</span>
+      {wide && <span>{surface === 'health' ? t('health.trigger') : t('trigger.label')}</span>}
     </button>
-    {open && <section className="dsh-feishu-panel" role="dialog" aria-label={t('panel.title')}>
+    {open && <section className="dsh-feishu-panel" role="dialog" aria-label={title}>
       <header className="dsh-feishu-head">
-        <h2 className="dsh-feishu-title">{t('panel.title')}</h2>
+        <h2 className="dsh-feishu-title">{title}</h2>
         <button type="button" className="dsh-feishu-close" aria-label={t('panel.close')} onClick={close}>×</button>
       </header>
+      {surface === 'health'
+        ? <div className="dsh-feishu-body">
+          <div className="dsh-feishu-health-head">
+            <div>
+              <h3>{t('health.hostTitle')}</h3>
+              <p>{t('health.readOnly')}</p>
+            </div>
+            {health !== undefined && <span className={`dsh-feishu-health-status is-${health.status}`}>
+              {t(`health.status.${health.status}`)}
+            </span>}
+          </div>
+          {error !== undefined && <div className="dsh-feishu-message dsh-feishu-error" role="alert">{t('error.prefix')}{error}</div>}
+          {health === undefined && error === undefined && <div className="dsh-feishu-message" role="status">{t('health.loading')}</div>}
+          {health !== undefined && <>
+            <dl className="dsh-feishu-health-grid">
+              <div><dt>{t('health.account')}</dt><dd>{health.accountId}</dd></div>
+              <div><dt>{t('health.transport')}</dt><dd>{health.transport.kind}</dd></div>
+              <div><dt>{t('health.lifecycle')}</dt><dd>{health.transport.state}</dd></div>
+              <div><dt>{t('health.routes')}</dt><dd>{health.routeCount}</dd></div>
+              <div><dt>{t('health.deliveries')}</dt><dd>{health.deliveries.total}</dd></div>
+              <div><dt>{t('health.retrying')}</dt><dd>{health.deliveries.retrying}</dd></div>
+              <div><dt>{t('health.uncertain')}</dt><dd>{health.deliveries.uncertain}</dd></div>
+              <div><dt>{t('health.failed')}</dt><dd>{health.deliveries.failed}</dd></div>
+              <div><dt>{t('health.approvals')}</dt><dd>{health.pendingApprovals}</dd></div>
+            </dl>
+            <div className="dsh-feishu-health-routes">
+              <h3>{t('health.routeTitle')}</h3>
+              {health.routes.map(route => <div key={route.id} className="dsh-feishu-health-route">
+                <code>{route.id}</code><span>{route.threadScoped ? t('health.thread') : t('health.chat')}</span>
+              </div>)}
+              {health.routesTruncated && <p className="dsh-feishu-health-foot">{t('health.routesTruncated')}</p>}
+            </div>
+            {health.deliveries.last !== undefined && <div className="dsh-feishu-message">
+              {t('health.lastDelivery')} <code>{health.deliveries.last.status}</code> · {health.deliveries.last.attempts} {t('health.attempts')}
+            </div>}
+            <p className="dsh-feishu-health-foot">
+              {t('health.observed')} {new Date(health.observedAt).toLocaleString()} · {t('health.noModel')}
+            </p>
+          </>}
+          <div className="dsh-feishu-actions">
+            <button type="button" className="dsh-feishu-button dsh-feishu-primary" disabled={busy} onClick={() => { void refreshHealth() }}>
+              {busy ? t('health.refreshing') : t('health.refresh')}
+            </button>
+          </div>
+        </div>
+        :
       <div className="dsh-feishu-body">
         <div className="dsh-feishu-intro">
           <h3>{t('intro.title')}</h3>
@@ -160,7 +240,7 @@ export function PairingAction({ commands, t, useSessions, wide }: PairingActionP
             {t('action.cancel')}
           </button>
         </div>
-      </div>
+      </div>}
     </section>}
   </>
 }

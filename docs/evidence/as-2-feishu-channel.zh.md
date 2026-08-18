@@ -1,6 +1,6 @@
 # AS-2 飞书 Channel Adapter 实现证据
 
-> 日期：2026-08-17；固定 DSH revision：`47f943859bef60e4160492346772ded9b24f765a`；状态：implemented；真实 App 凭据、机器人身份请求、WebSocket 握手与原生 DSH Web 配对向导已验证，exact route 消息闭环和 Hermes paired benchmark 尚未完成
+> 日期：2026-08-18；固定 DSH revision：`47f943859bef60e4160492346772ded9b24f765a`；状态：implemented；真实 App 凭据、机器人身份请求、WebSocket 握手与原生 DSH Web 配对向导已验证，routes mode 权威健康面已实现并通过 assembled/browser-component 门禁，exact route 消息闭环和 Hermes paired benchmark 尚未完成
 
 `dsh-feishu` 是 `dsh-channel-router` 上的第二个薄 Adapter，不是独立机器人 Runtime。它使用飞书官方 Node SDK `1.73.0` 的 WebSocket 长连接；Router 持有 endpoint → Workspace/Session/Agent、原生 Command admission 和 ingress 幂等，Adapter 只持有协议、Approval 卡片与出站 journal。
 
@@ -16,7 +16,7 @@
 
 联合门禁还在**同一个真实 DSH Host** 中注册两个真实目录为两个 Workspace，加载实际 Router、Telegram Bundle 与飞书 runtime：Telegram 与飞书分别创建 `telegram-session`/`feishu-session`，其原生 `session.header.cwd`、WorkspaceRegistry `sessionIds`、User Message、Command、Approval 和 continuation 全部保持分离；错误飞书 operator 不能消费另一个 Workspace 的 Approval。Host dispose 后以同一 persistence/StorageDomain/config 冷启动，两个 Agent 各自恢复，重放同一 Telegram update 和飞书 message 不新增 turn 或对外投递。另一条完整 composition 门同时启用 Router、Telegram、飞书与 evolution attention，将两个 Workspace 的 provider request 分别与原生双 Agent 控制组逐字段比较，结果均 byte-equivalent；route、App 与 attention 动态值未进入请求。
 
-当前包回归为 `14 files / 38 tests`（包含 setup-only 配对、Client Module/组件、剪贴板拒绝降级、连接失败清理、取消后重开、单渠道、代理选择、双 Workspace macOS assembled、完整渠道 composition 与 package lifecycle）；Router 的独立合同与 Telegram cache parity 继续通过。官方协议依据是[事件订阅概述](https://open.feishu.cn/document/server-docs/event-subscription-guide/overview)、[官方 Node SDK](https://github.com/larksuite/node-sdk)与[发送消息 API](https://open.feishu.cn/document/server-docs/im-v1/message/create)。
+当前包回归为 `15 files / 41 tests`（包含 setup-only 配对、routes-mode 健康快照、Client Module/组件、Web 首次读取失败后刷新恢复、剪贴板拒绝降级、连接失败清理、取消后重开、单渠道、代理选择、双 Workspace macOS assembled、完整渠道 composition 与 package lifecycle）；Router 的独立合同与 Telegram cache parity 继续通过。官方协议依据是[事件订阅概述](https://open.feishu.cn/document/server-docs/event-subscription-guide/overview)、[官方 Node SDK](https://github.com/larksuite/node-sdk)与[发送消息 API](https://open.feishu.cn/document/server-docs/im-v1/message/create)。
 
 ## 真实 App 连接复验
 
@@ -30,7 +30,7 @@ Adapter 随后增加进程局部的标准 HTTPS proxy 适配：选择 `HTTPS_PRO
 同一局部 Agent，并关闭 Axios 的隐式环境代理；它不修改进程环境或全局 Agent。单元测试覆盖小写代理、
 空小写变量向有效大写变量回退、`NO_PROXY` 直连和不支持协议的 fail-fast。保留宿主原有代理环境的真实
 Adapter 首次重跑约 `2.8s` 成功；整仓回归后的最终复验约 `0.8s` 成功，随后完成 typecheck、build、
-packed tarball 内容检查；加入原生 Web 配对后的当前回归是 `14 files / 38 tests`。exact 凭据对全部
+packed tarball 内容检查；加入 routes-mode 健康面后的当前回归是 `15 files / 41 tests`。exact 凭据对全部
 tracked/untracked 仓库文件的
 不回显扫描匹配数为 `0`。
 
@@ -71,6 +71,36 @@ profile；安装测试同时核对 `dist/client.js`、Module Loader wrapper、�
 
 浏览器验收没有向飞书发送用户消息，也没有写入 route/profile；它证明新手配对操作已成为原生 DSH
 插件体验，但不能替代下一步由用户在窗口内发送短语所产生的 exact 平台身份与消息闭环证据。
+
+## Routes mode 权威健康面
+
+正常 routes mode 不再只有静态 `READY` 文本。当前 Session 的 `/feishu` 从同一个 Host runtime、
+`evoforge_feishu` StorageDomain journal、worker queue 和 pending Approval map 构造版本化快照；不访问平台、
+不调用模型。快照按该 Session 的 exact routes 过滤，只保留非秘密 App account、route 名称/Workspace/Session 归属、是否
+thread-scoped、WebSocket lifecycle、投递状态计数、最近投递的状态/尝试/时间与 pending Approval 数；
+App Secret、chat id、open id、消息正文和错误正文均不进入投影。
+
+同包 Client Module 在当前 Session 含 `/feishu` descriptor 时将原侧栏入口切换为“飞书健康”，仅在打开
+或人工刷新时读取，不建立新 API/Remote、后台轮询或写权限；若全局 setup-only Command 与已绑定 route
+同时存在，`/feishu` 健康优先，避免重复配对。组件门禁固定了首次 Remote 失败保持 alert、再次刷新才
+恢复，以及刷新失败必须清除旧快照、不得继续显示历史 `ready` 的行为。macOS assembled DSH 门禁以 fake platform error 将 Host 状态变为 `degraded`，
+随后只有下一条实际平台消息才恢复 `ready`；经 Router 从飞书执行 `/feishu` 后，回复中的 v1 快照可解析且
+`modelCalls=0`，并断言不含测试 secret、exact chat id 与 user id。clean-profile 官方 add/dump/remove 在
+一次 npm `ECONNRESET` 后以放宽联网安装超时重跑通过。
+
+最终 `dsh-feishu-0.1.0-alpha.1.tgz` 和 Router tarball 随后通过官方命令安装到测试自有的全新 web profile；
+Host 侧用 test-only fake platform 提供 routes runtime，另启用 setup-only Bundle 使 DSH 按正式 active-Bundle
+合同加载 tarball 内 Client Module，但不启动配对连接、不给模型发送输入。真实 DSH Web 浏览器验证：
+
+1. 新建空白 Session 显示“连接飞书”，选择已有 exact route Session 后同一 slot 切换为“飞书健康”；
+2. 面板显示 `cli_browser_health`、`feishu-browser-health`、官方 WebSocket lifecycle、route/journal/Approval
+   计数与零模型声明，人工刷新使 `observedAt` 前进；测试 secret、chat id、user id 均不在 DOM；
+3. 停止独立 Host 后点击刷新，页面只保留 `Failed to fetch`，旧 `ready`、App 和 route 快照全部移除；
+4. 同端口重启 Host、浏览器不 reload，再次人工刷新恢复新 `ready` 快照；最终 console error 为 `0`，只有
+   故障窗口内预期的 connection retry warning。
+
+这证明最终 tarball 的 routes-mode Web 健康面、刷新、失败与恢复；fake transport 仍不能替代真实飞书
+exact route 消息、移动端或多日重连证据。
 
 ## 尚未证明
 
