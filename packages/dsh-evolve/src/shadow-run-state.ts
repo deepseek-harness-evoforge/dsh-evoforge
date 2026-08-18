@@ -39,6 +39,7 @@ export interface ShadowRunState {
   resumeInputs?: {
     skillDir: string
     casePackDir: string
+    candidateSkillDir?: string
     feedbackDraftPath?: string
   }
   proposalEffect?: {
@@ -144,6 +145,9 @@ export async function loadShadowRunState(outputDir: string): Promise<ShadowRunSt
       || !isAbsolute(value.resumeInputs.skillDir)
       || typeof value.resumeInputs.casePackDir !== 'string'
       || !isAbsolute(value.resumeInputs.casePackDir)
+      || (value.resumeInputs.candidateSkillDir !== undefined
+        && (typeof value.resumeInputs.candidateSkillDir !== 'string'
+          || !isAbsolute(value.resumeInputs.candidateSkillDir)))
       || (value.resumeInputs.feedbackDraftPath !== undefined
         && (typeof value.resumeInputs.feedbackDraftPath !== 'string'
           || !isAbsolute(value.resumeInputs.feedbackDraftPath))))) {

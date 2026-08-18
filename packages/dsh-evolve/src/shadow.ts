@@ -1,5 +1,5 @@
-import { mkdir, readFile, realpath } from 'node:fs/promises'
-import { basename, dirname, isAbsolute, relative, resolve } from 'node:path'
+import { lstat, mkdir, readFile, readdir, realpath } from 'node:fs/promises'
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { hashTree, sha256 } from './hash.ts'
 import {
   acquireShadowRunLock,
@@ -21,6 +21,10 @@ import { readPrivateFeedbackCaseDraft } from './feedback-case-draft.ts'
 
 export interface ShadowOptions {
   casePackDir: string
+  exactCandidate?: {
+    claim: string
+    skillDir: string
+  }
   expectedCasePackHash?: string
   outputDir: string
   resume?: boolean
@@ -77,11 +81,24 @@ export async function runShadow(options: ShadowOptions): Promise<
   options.signal?.throwIfAborted()
   const skillDir = await realpath(options.skillDir)
   const casePackDir = await realpath(options.casePackDir)
+  const exactCandidateDir = options.exactCandidate === undefined
+    ? undefined
+    : await realpath(options.exactCandidate.skillDir)
   const requestedOutputDir = resolve(options.outputDir)
   const outputDir = resolve(await realpath(dirname(requestedOutputDir)), basename(requestedOutputDir))
-  assertSeparateOutput(outputDir, skillDir, casePackDir)
+  assertSeparateOutput(outputDir, skillDir, casePackDir, exactCandidateDir)
+  if (exactCandidateDir !== undefined) {
+    assertSeparateTrees(exactCandidateDir, skillDir, 'exact Candidate', 'baseline Skill')
+    assertSeparateTrees(exactCandidateDir, casePackDir, 'exact Candidate', 'Case Pack')
+    if (options.feedbackDraftPath !== undefined || options.feedbackLaunchMode !== undefined) {
+      throw new Error('exact Candidate Shadow cannot use Feedback proposer inputs')
+    }
+  }
 
   const manifest = parseCasePackManifest(await readFile(resolve(casePackDir, 'manifest.json'), 'utf8'))
+  if (exactCandidateDir !== undefined && manifest.trial?.dshAssembled !== true) {
+    throw new Error('exact Candidate Shadow requires an assembled DSH Trial')
+  }
   const searchEvidence = manifest.search
     ? await readOwnedCasePackFile(casePackDir, manifest.search.evidence)
     : undefined
@@ -119,10 +136,30 @@ export async function runShadow(options: ShadowOptions): Promise<
   if (options.expectedCasePackHash !== undefined && casePackHash !== options.expectedCasePackHash) {
     throw new Error('Shadow Case Pack does not match the expected qualified hash')
   }
-  const modelBaseUrl = requireEnvironment('DSH_EVOLVE_MODEL_BASE_URL')
-  const modelRoute = requireEnvironment('DSH_EVOLVE_MODEL_NAME')
-  const apiKey = process.env.DSH_EVOLVE_MODEL_API_KEY
-  const modelConfigHash = sha256(JSON.stringify({ baseUrl: modelBaseUrl, model: modelRoute }))
+  const exactCandidateTreeHash = exactCandidateDir === undefined
+    ? undefined
+    : await hashTree(exactCandidateDir)
+  const exactProposal = exactCandidateDir === undefined
+    ? undefined
+    : await proposalFromExactCandidate(
+        skillDir,
+        exactCandidateDir,
+        normalizeExactClaim(options.exactCandidate!.claim),
+      )
+  const modelBaseUrl = exactCandidateDir === undefined
+    ? requireEnvironment('DSH_EVOLVE_MODEL_BASE_URL')
+    : undefined
+  const modelRoute = exactCandidateDir === undefined
+    ? requireEnvironment('DSH_EVOLVE_MODEL_NAME')
+    : 'external-exact-candidate-v1'
+  const apiKey = exactCandidateDir === undefined ? process.env.DSH_EVOLVE_MODEL_API_KEY : undefined
+  const modelConfigHash = sha256(JSON.stringify(exactCandidateDir === undefined
+    ? { baseUrl: modelBaseUrl, model: modelRoute }
+    : {
+        candidateTreeHash: exactCandidateTreeHash,
+        claim: exactProposal!.claim,
+        model: modelRoute,
+      }))
   const baselineFingerprint = sha256(
     JSON.stringify({ baseTreeHash, casePackHash, modelConfigHash }),
   )
@@ -143,6 +180,7 @@ export async function runShadow(options: ShadowOptions): Promise<
     skillDir,
     casePackDir,
     ...(feedbackDraftPath === undefined ? {} : { feedbackDraftPath }),
+    ...(exactCandidateDir === undefined ? {} : { candidateSkillDir: exactCandidateDir }),
   }
   const runId = sha256(JSON.stringify(identity))
   if (options.resume === true) {
@@ -330,6 +368,18 @@ export async function runShadow(options: ShadowOptions): Promise<
           },
         }
         validateModelUsage(modelResponse, manifest.budget)
+      } else if (exactCandidateDir !== undefined) {
+        proposal = structuredClone(exactProposal!)
+        if (await hashTree(exactCandidateDir) !== exactCandidateTreeHash) {
+          throw new Error('exact Candidate changed while its proposal was derived')
+        }
+        modelResponse = { usage: { prompt_tokens: 0, completion_tokens: 0 } }
+        await updateState({
+          phase: 'candidate-ready',
+          proposal,
+          proposalHash: sha256(JSON.stringify(proposal)),
+          modelUsage: { inputTokens: 0, outputTokens: 0 },
+        })
       } else {
         const proposalEffect = {
           id: sha256(`${runId}:proposal:1`),
@@ -338,7 +388,7 @@ export async function runShadow(options: ShadowOptions): Promise<
         await updateState({ phase: 'proposal-pending', proposalEffect })
         modelResponse = await requestProposal({
           apiKey,
-          baseUrl: modelBaseUrl,
+          baseUrl: modelBaseUrl!,
           idempotencyKey: proposalEffect.id,
           inputTokenLimit: manifest.budget.inputTokenLimit,
           model: modelRoute,
@@ -634,6 +684,41 @@ export async function runShadow(options: ShadowOptions): Promise<
       return finishIncomplete(reportPath, reason)
     }
 
+    if (exactCandidateDir !== undefined) {
+      let exactCandidateTreeHashAfterTrial: string
+      try {
+        exactCandidateTreeHashAfterTrial = await hashTree(exactCandidateDir)
+      } catch {
+        exactCandidateTreeHashAfterTrial = 'unreadable'
+      }
+      if (exactCandidateTreeHashAfterTrial !== exactCandidateTreeHash
+        || pairedTrial.candidate.treeHash !== exactCandidateTreeHash) {
+        const reason = exactCandidateTreeHashAfterTrial !== exactCandidateTreeHash
+          ? 'exact Candidate changed during sealed Trial'
+          : 'exact Candidate proposal did not reproduce its pinned tree'
+        await writeJson(reportPath, {
+          ...reportBase,
+          run: { ...reportBase.run, finishedAt: new Date().toISOString() },
+          subject: {
+            ...reportBase.subject,
+            finalTreeHash: treeHashAfterTrial,
+            unchanged: true,
+          },
+          epoch: {
+            ...reportBase.epoch,
+            casePackFinalHash: casePackHashAfterTrial,
+            casePackUnchanged: true,
+          },
+          candidate: {
+            ...reportBase.candidate,
+            treeHash: pairedTrial.candidate.treeHash,
+          },
+          calibration: pairedTrial.calibration,
+        })
+        return finishIncomplete(reportPath, reason)
+      }
+    }
+
     const calibrationPassed = pairedTrial.calibration.every((result) => result.passed)
     const baselineComposition = pairedTrial.baseline.composition
     const candidateComposition = pairedTrial.candidate.composition
@@ -705,9 +790,11 @@ export async function runShadow(options: ShadowOptions): Promise<
       decision: {
         recommendation: decision.recommendation,
         reasons: [decision.reason],
-        limitations: [pairedTrial.assembled
-          ? 'P0A.3 uses a keyless scripted model through one real assembled DSH path on macOS'
-          : 'P0A.2 evaluates one deterministic sealed final-test on macOS'],
+        limitations: [exactCandidateDir !== undefined
+          ? 'Externally discovered exact Candidate requires human provenance review'
+          : pairedTrial.assembled
+            ? 'P0A.3 uses a keyless scripted model through one real assembled DSH path on macOS'
+            : 'P0A.2 evaluates one deterministic sealed final-test on macOS'],
       },
     })
     return finishComplete(
@@ -777,8 +864,14 @@ function validateModelUsage(response: ModelResponse, budget: CasePackManifest['b
   }
 }
 
-function assertSeparateOutput(outputDir: string, skillDir: string, casePackDir: string): void {
-  for (const protectedDir of [skillDir, casePackDir]) {
+function assertSeparateOutput(
+  outputDir: string,
+  skillDir: string,
+  casePackDir: string,
+  exactCandidateDir?: string,
+): void {
+  for (const protectedDir of [skillDir, casePackDir, exactCandidateDir]) {
+    if (protectedDir === undefined) continue
     const fromProtected = relative(protectedDir, outputDir)
     const fromOutput = relative(outputDir, protectedDir)
     if (fromProtected === '' || (!fromProtected.startsWith('..') && !isAbsolute(fromProtected))) {
@@ -788,6 +881,77 @@ function assertSeparateOutput(outputDir: string, skillDir: string, casePackDir: 
       throw new Error('output directory must not contain the Skill or case pack')
     }
   }
+}
+
+function assertSeparateTrees(left: string, right: string, leftLabel: string, rightLabel: string): void {
+  const fromLeft = relative(left, right)
+  const fromRight = relative(right, left)
+  const contains = (value: string): boolean => value === ''
+    || (value !== '..' && !value.startsWith(`..${sep}`) && !isAbsolute(value))
+  if (contains(fromLeft) || contains(fromRight)) {
+    throw new Error(`${leftLabel} and ${rightLabel} must use separate roots`)
+  }
+}
+
+function normalizeExactClaim(value: string): string {
+  const claim = value.replaceAll(/[\r\n]+/g, ' ').trim()
+  if (claim.length === 0 || claim.length > 500) {
+    throw new Error('exact Candidate claim must be 1-500 characters')
+  }
+  return claim
+}
+
+async function proposalFromExactCandidate(
+  baselineDir: string,
+  candidateDir: string,
+  claim: string,
+): Promise<Proposal> {
+  const [baseline, candidate] = await Promise.all([
+    readRegularTree(baselineDir),
+    readRegularTree(candidateDir),
+  ])
+  for (const path of baseline.keys()) {
+    if (!candidate.has(path)) {
+      throw new Error(`exact Candidate removes baseline file '${path}'; deletion is not publishable`)
+    }
+  }
+  const files: Proposal['files'] = []
+  for (const [path, content] of candidate) {
+    if (baseline.get(path)?.equals(content)) continue
+    const text = content.toString('utf8')
+    if (!Buffer.from(text).equals(content)) {
+      throw new Error(`exact Candidate file '${path}' is not UTF-8 text`)
+    }
+    files.push({ path, content: text })
+  }
+  if (files.length === 0) throw new Error('exact Candidate has no change from its baseline')
+  return { claim, files }
+}
+
+async function readRegularTree(root: string): Promise<Map<string, Buffer>> {
+  const files = new Map<string, Buffer>()
+  const visit = async (directory: string): Promise<void> => {
+    const entries = await readdir(directory, { withFileTypes: true })
+    entries.sort((left, right) => left.name.localeCompare(right.name))
+    for (const entry of entries) {
+      const path = join(directory, entry.name)
+      if (entry.isDirectory()) {
+        await visit(path)
+        continue
+      }
+      const info = await lstat(path)
+      if (!info.isFile() || info.isSymbolicLink()) {
+        throw new Error(`exact Candidate comparison found unsupported entry '${entry.name}'`)
+      }
+      const ownedPath = relative(root, path).split(sep).join('/')
+      if (!isOwnedRelativePath(ownedPath)) {
+        throw new Error(`exact Candidate comparison path is not owned: '${ownedPath}'`)
+      }
+      files.set(ownedPath, await readFile(path))
+    }
+  }
+  await visit(root)
+  return files
 }
 
 export function parseCasePackManifest(source: string): CasePackManifest {
