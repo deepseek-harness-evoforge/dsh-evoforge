@@ -4,6 +4,7 @@ import type {} from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {
   EvolutionActionReceipt,
+  EvolutionCapabilityView,
   EvolutionEvaluatorDraftDetail,
   EvolutionOverview,
   EvolutionReviewDetail,
@@ -39,7 +40,9 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
   const [confirm, setConfirm] = useState<ConfirmAction>()
   const triggerRef = useRef<HTMLButtonElement>(null)
   const workspaceRef = useRef(workspaceId)
+  const sessionRef = useRef(currentSessionId)
   workspaceRef.current = workspaceId
+  sessionRef.current = currentSessionId
 
   const resetWorkspaceState = () => {
     setView('overview')
@@ -54,8 +57,11 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
     setConfirm(undefined)
   }
 
-  const loadOverview = async (targetWorkspaceId = workspaceId) => {
-    if (targetWorkspaceId === undefined) {
+  const loadOverview = async (
+    targetWorkspaceId = workspaceId,
+    targetSessionId = currentSessionId,
+  ) => {
+    if (targetWorkspaceId === undefined || targetSessionId === undefined) {
       setError(t('error.workspaceRequired'))
       return
     }
@@ -63,30 +69,31 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
     try {
       const next = requireWorkspace(
         targetWorkspaceId,
-        await remoteValue(remote.overview(targetWorkspaceId)),
+        await remoteValue(remote.overview(targetWorkspaceId, targetSessionId)),
         value => value.workspaceId,
       )
-      if (workspaceRef.current === targetWorkspaceId) setOverview(next)
+      if (workspaceRef.current === targetWorkspaceId && sessionRef.current === targetSessionId) setOverview(next)
     } catch (cause) {
-      if (workspaceRef.current === targetWorkspaceId) setError(message(cause))
+      if (workspaceRef.current === targetWorkspaceId && sessionRef.current === targetSessionId) setError(message(cause))
     }
   }
 
   const refreshVisibleState = async () => {
-    if (workspaceId === undefined) {
+    if (workspaceId === undefined || currentSessionId === undefined) {
       setError(t('error.workspaceRequired'))
       return
     }
     const targetWorkspaceId = workspaceId
+    const targetSessionId = currentSessionId
     setBusy(true)
     setError(undefined)
     try {
       const nextOverview = requireWorkspace(
         targetWorkspaceId,
-        await remoteValue(remote.overview(targetWorkspaceId)),
+        await remoteValue(remote.overview(targetWorkspaceId, targetSessionId)),
         value => value.workspaceId,
       )
-      if (workspaceRef.current !== targetWorkspaceId) return
+      if (workspaceRef.current !== targetWorkspaceId || sessionRef.current !== targetSessionId) return
       setOverview(nextOverview)
       if (detail !== undefined) {
         try {
@@ -114,9 +121,9 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
         }
       }
     } catch (cause) {
-      if (workspaceRef.current === targetWorkspaceId) setError(message(cause))
+      if (workspaceRef.current === targetWorkspaceId && sessionRef.current === targetSessionId) setError(message(cause))
     } finally {
-      if (workspaceRef.current === targetWorkspaceId) setBusy(false)
+      if (workspaceRef.current === targetWorkspaceId && sessionRef.current === targetSessionId) setBusy(false)
     }
   }
 
@@ -124,8 +131,8 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
     resetWorkspaceState()
     setError(undefined)
     setBusy(false)
-    if (open) void loadOverview(workspaceId)
-  }, [open, workspaceId])
+    if (open) void loadOverview(workspaceId, currentSessionId)
+  }, [open, workspaceId, currentSessionId])
 
   const inspect = async (id: string) => {
     if (workspaceId === undefined) {
@@ -470,6 +477,7 @@ function SkillsView({ summary, t }: { summary: EvolutionOverview; t: (key: strin
       <h3>{t('skills.title')}</h3>
       <p>{t('skills.description')}</p>
     </section>
+    <CapabilityMap summary={summary} t={t} />
     {empty && <div className="dsh-evolve-message">{t('skills.empty')}</div>}
     {active.length > 0 && <SkillGroup label={t('skills.active')} items={active.map(artifact => ({
       key: `active:${artifact.gitCommit}:${artifact.name}`,
@@ -488,6 +496,40 @@ function SkillsView({ summary, t }: { summary: EvolutionOverview; t: (key: strin
     }))} />}
     <p className="dsh-evolve-guidance">{t('skills.native')}</p>
   </>
+}
+
+function CapabilityMap({ summary, t }: { summary: EvolutionOverview; t: (key: string) => string }) {
+  const map = summary.capabilityMap ?? { status: 'unobserved' as const, capabilities: [] }
+  return <section>
+    <div className="dsh-evolve-capability-head">
+      <h3 className="dsh-evolve-section-title">{t('skills.catalog')}</h3>
+      <span className={`dsh-evolve-catalog-status dsh-evolve-catalog-${map.status}`}>
+        {t(`skills.catalog.${map.status}`)}
+      </span>
+    </div>
+    {map.capabilities.length > 0 && <ul className="dsh-evolve-list">{map.capabilities.map(capability => (
+      <li className="dsh-evolve-skill-card" key={`${capability.name}:${capability.version ?? capability.provider}`}>
+        <div className="dsh-evolve-review-skill">{capability.name}</div>
+        <p>{capability.description}</p>
+        <div className="dsh-evolve-capability-route">{t(`skills.route.${capability.route}`)}</div>
+        <div className="dsh-evolve-meta">{capability.source} · {capability.provider}</div>
+        <div className="dsh-evolve-meta">{capabilityVersion(capability, t)}</div>
+        <div className="dsh-evolve-meta">{capabilityInvocation(capability, t)}</div>
+      </li>
+    ))}</ul>}
+  </section>
+}
+
+function capabilityVersion(capability: EvolutionCapabilityView, t: (key: string) => string): string {
+  const label = t(`skills.version.${capability.versionKind}`)
+  return capability.version === undefined ? label : `${label} · ${capability.version.slice(0, 12)}`
+}
+
+function capabilityInvocation(capability: EvolutionCapabilityView, t: (key: string) => string): string {
+  if (capability.invocation.model && capability.invocation.user) return t('skills.invocation.both')
+  if (capability.invocation.model) return t('skills.invocation.model')
+  if (capability.invocation.user) return t('skills.invocation.user')
+  return t('skills.invocation.none')
 }
 
 function SkillGroup({ label, items }: {

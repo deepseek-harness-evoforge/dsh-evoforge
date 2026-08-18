@@ -51,7 +51,7 @@ const expectedParameters = {
   approveReview: ['workspaceId', 'id', 'note'],
   authorEvaluator: ['workspaceId', 'signalId', 'targetId'],
   evaluatorDraft: ['workspaceId', 'id'],
-  overview: ['workspaceId'],
+  overview: ['workspaceId', 'sessionId'],
   pause: ['workspaceId'],
   promote: ['workspaceId', 'generationId'],
   rejectEvaluator: ['workspaceId', 'id', 'note'],

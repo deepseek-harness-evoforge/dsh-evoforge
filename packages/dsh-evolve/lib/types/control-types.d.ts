@@ -29,6 +29,29 @@ export interface EvolutionArtifactView {
     readonly gitCommit: string;
     readonly treeHash: string;
 }
+export type EvolutionCapabilityRoute = 'available' | 'model-selected' | 'user-selected';
+/** One exact Skill summary observed through the native DSH Skill registry. */
+export interface EvolutionCapabilityView {
+    readonly name: string;
+    readonly description: string;
+    readonly source: string;
+    readonly provider: string;
+    readonly scope: 'workspace-session';
+    readonly invocation: {
+        readonly model: boolean;
+        readonly user: boolean;
+    };
+    readonly versionKind: 'provider-managed' | 'evolved-tree';
+    readonly version?: string;
+    readonly generationId?: string;
+    readonly route: EvolutionCapabilityRoute;
+}
+/** Latest bounded native catalog observation for one exact Workspace Session. */
+export interface EvolutionCapabilityMapView {
+    readonly status: 'unobserved' | 'complete' | 'incomplete';
+    readonly catalogHash?: string;
+    readonly capabilities: readonly EvolutionCapabilityView[];
+}
 /** One sealed evaluator result shown in review. */
 export interface EvolutionReviewCaseView {
     readonly id: string;
@@ -164,6 +187,7 @@ export interface EvolutionOverview {
         readonly enabled: boolean;
         readonly skills: readonly string[];
     };
+    readonly capabilityMap?: EvolutionCapabilityMapView;
     readonly deliveryOutcomes?: {
         readonly all: DeliveryOutcomeCounts;
         readonly selected: DeliveryOutcomeCounts;

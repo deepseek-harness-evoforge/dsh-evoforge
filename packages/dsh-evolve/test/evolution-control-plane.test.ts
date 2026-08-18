@@ -102,6 +102,22 @@ describe('EvolutionControlPlane', () => {
       approve: vi.fn(),
       reject: vi.fn(),
     }
+    const capabilitySnapshot = vi.fn(() => ({
+      status: 'complete' as const,
+      catalogHash: '6'.repeat(64),
+      capabilities: [{
+        name: 'build-dsh-plugin',
+        description: 'Build one native DSH plugin.',
+        source: 'project-agents',
+        provider: 'filesystem',
+        scope: 'workspace-session' as const,
+        invocation: { model: true, user: true },
+        versionKind: 'evolved-tree' as const,
+        version: 'e'.repeat(40),
+        generationId,
+        route: 'model-selected' as const,
+      }],
+    }))
     const control = new EvolutionControlPlane({
       store: store(),
       resident: { isPaused: () => false, pause: vi.fn(), resume: vi.fn() },
@@ -196,9 +212,13 @@ describe('EvolutionControlPlane', () => {
           }],
         })),
       },
+      capabilities: {
+        snapshot: capabilitySnapshot,
+      },
     })
 
-    const overview = await control.overview(WORKSPACE_ID)
+    const overview = await control.overview(WORKSPACE_ID, 'session-1')
+    expect(capabilitySnapshot).toHaveBeenCalledWith(WORKSPACE_ID, 'session-1')
     expect(overview).toMatchObject({
       schemaVersion: 1,
       active: { id: generationId, rollbackTargetId: parentId },
@@ -222,6 +242,19 @@ describe('EvolutionControlPlane', () => {
       automaticEvaluatorBudget: {
         warningCount: 0,
         targets: [{ targetId: 'novel-failure', used: 1, limit: 1, remaining: 0 }],
+      },
+      capabilityMap: {
+        status: 'complete',
+        catalogHash: '6'.repeat(64),
+        capabilities: [{
+          name: 'build-dsh-plugin',
+          source: 'project-agents',
+          provider: 'filesystem',
+          versionKind: 'evolved-tree',
+          version: 'e'.repeat(40),
+          generationId,
+          route: 'model-selected',
+        }],
       },
       reviews: { available: true, pendingCount: 1, warningCount: 1 },
     })
@@ -253,6 +286,8 @@ describe('EvolutionControlPlane', () => {
     expect(JSON.stringify({ overview, detail })).not.toContain('private content')
     expect(JSON.stringify(overview)).not.toContain('private-session')
     expect(JSON.stringify(overview)).not.toContain('private-message')
+    expect(JSON.stringify(overview)).not.toContain('private content')
+    expect(JSON.stringify(overview)).not.toContain('/Users/')
   })
 
   it('does not advertise configured targets for feedback without an exact evolved Skill generation', async () => {

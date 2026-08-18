@@ -18,8 +18,9 @@ export class EvolutionRemoteTypertContract extends TypertRemoteService {
   }
 
   @Remote
-  overview(workspaceId: string): Promise<EvolutionOverview> {
+  overview(workspaceId: string, sessionId?: string): Promise<EvolutionOverview> {
     void workspaceId
+    void sessionId
     throw new Error('static Typert contract')
   }
 

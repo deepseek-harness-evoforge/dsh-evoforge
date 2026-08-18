@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path'
 import z from '@deepseek-ai/schemastery'
 import type Schema from '@deepseek-ai/schemastery'
 import { installGenerationBinder } from './generation-binder.ts'
+import { CapabilityMap, installCapabilityMapObserver } from './capability-map.ts'
 import { installEvolutionCommand } from './evolve-command.ts'
 import { CandidatePublisher } from './candidate-publisher.ts'
 import { GitSkillSource, type GitSkillSourceConfig } from './git-skill-source.ts'
@@ -189,6 +190,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   }
   ctx.provide('evoforge.evolution', store)
   const disposeBinder = installGenerationBinder(ctx, store, source)
+  const capabilities = new CapabilityMap()
+  const capabilityMonitor = installCapabilityMapObserver(ctx, capabilities, store)
   const review = config.supervisor === undefined || config.supervisor.runRoots.length === 0
     ? undefined
     : {
@@ -361,6 +364,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       })
   const control = new EvolutionControlPlane({
     store,
+    capabilities,
     ...(review === undefined ? {} : { review }),
     ...(resident === undefined ? {} : { resident }),
     ...(automaticPolicy === undefined ? {} : { automatic: automaticPolicy }),
@@ -524,6 +528,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   }
   ctx.effect(() => async () => {
     await Promise.all([...deliveryMonitors].map(monitor => monitor.dispose()))
+    await capabilityMonitor.dispose()
     await feedbackMonitor.dispose()
     await deliveryOutcomes.close()
     await feedbackSignals.close()

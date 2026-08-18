@@ -11,6 +11,7 @@ import type { ResidentEvolutionControl } from './resident-evolution-control.ts'
 import type { ReviewCandidate, ReviewInbox } from './review-inbox.ts'
 import type {
   EvolutionActionReceipt,
+  EvolutionCapabilityMapView,
   EvolutionEvaluatorDraftView,
   EvolutionFeedbackSignalView,
   EvolutionGenerationView,
@@ -38,6 +39,9 @@ export interface EvolutionControlPlaneModules {
   readonly automaticFeedback?: Pick<AutomaticFeedbackShadowService, 'budgetStatus'>
   readonly automaticEvaluator?: Pick<AutomaticEvaluatorDraftService, 'budgetStatus'>
   readonly evaluatorDrafts?: Pick<EvaluatorDraftInbox, 'available' | 'targets' | 'scan' | 'get' | 'author' | 'approve' | 'approveAndStartShadow' | 'reject' | 'startShadow'>
+  readonly capabilities?: {
+    readonly snapshot: (workspaceId: string, sessionId?: string) => EvolutionCapabilityMapView
+  }
 }
 
 /** A structured adapter surface that delegates to the same owners as Commands. */
@@ -48,7 +52,7 @@ export class EvolutionControlPlane {
     this.modules = modules
   }
 
-  async overview(workspaceId: string): Promise<EvolutionOverview> {
+  async overview(workspaceId: string, sessionId?: string): Promise<EvolutionOverview> {
     const active = this.modules.store.getActiveGeneration(workspaceId)
     const [
       scan,
@@ -79,6 +83,9 @@ export class EvolutionControlPlane {
         enabled: automaticSkills.length > 0,
         skills: [...automaticSkills],
       },
+      ...(this.modules.capabilities === undefined
+        ? {}
+        : { capabilityMap: cloneCapabilityMap(this.modules.capabilities.snapshot(workspaceId, sessionId)) }),
       ...(this.modules.outcomes === undefined
         ? {}
         : {
@@ -326,6 +333,17 @@ export class EvolutionControlPlane {
       throw new Error('evaluator authoring is not configured')
     }
     return this.modules.evaluatorDrafts
+  }
+}
+
+function cloneCapabilityMap(map: EvolutionCapabilityMapView): EvolutionCapabilityMapView {
+  return {
+    status: map.status,
+    ...(map.catalogHash === undefined ? {} : { catalogHash: map.catalogHash }),
+    capabilities: map.capabilities.map(capability => ({
+      ...capability,
+      invocation: { ...capability.invocation },
+    })),
   }
 }
 

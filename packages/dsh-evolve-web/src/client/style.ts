@@ -32,6 +32,11 @@ export const cssText = `
 .dsh-evolve-skill-intro p{margin-bottom:0}
 .dsh-evolve-skill-card{padding:10px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px}
 .dsh-evolve-skill-card p{margin:3px 0 0}
+.dsh-evolve-capability-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.dsh-evolve-capability-head .dsh-evolve-section-title{margin-bottom:8px}
+.dsh-evolve-catalog-status{margin-bottom:8px;padding:2px 7px;border-radius:9px;background:var(--dsw-alias-fill-l2);color:var(--dsw-alias-label-tertiary);font-size:10px}
+.dsh-evolve-catalog-complete{color:var(--dsw-alias-label-secondary)}
+.dsh-evolve-capability-route{display:inline-flex;margin-top:6px;padding:2px 7px;border-radius:8px;background:var(--dsw-alias-fill-l2);font-size:10px;font-weight:600}
 .dsh-evolve-summary{align-items:stretch;flex-wrap:wrap}
 .dsh-evolve-stat{min-width:112px;flex:1;padding:10px;border-radius:10px;background:var(--dsw-alias-fill-l1)}
 .dsh-evolve-stat-label{display:block;color:var(--dsw-alias-label-tertiary);font-size:11px}

@@ -12,7 +12,7 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     approveReview: (workspaceId: string, id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     authorEvaluator: (workspaceId: string, signalId: string, targetId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     evaluatorDraft: (workspaceId: string, id: string) => Promise<RemoteResult<EvolutionEvaluatorDraftDetail>>
-    overview: (workspaceId: string) => Promise<RemoteResult<EvolutionOverview>>
+    overview: (workspaceId: string, sessionId?: string) => Promise<RemoteResult<EvolutionOverview>>
     pause: (workspaceId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     promote: (workspaceId: string, generationId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     rejectEvaluator: (workspaceId: string, id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
@@ -29,7 +29,7 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     'evoforgeEvolution/approveReview': (workspaceId: string, id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     'evoforgeEvolution/authorEvaluator': (workspaceId: string, signalId: string, targetId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     'evoforgeEvolution/evaluatorDraft': (workspaceId: string, id: string) => Promise<RemoteResult<EvolutionEvaluatorDraftDetail>>
-    'evoforgeEvolution/overview': (workspaceId: string) => Promise<RemoteResult<EvolutionOverview>>
+    'evoforgeEvolution/overview': (workspaceId: string, sessionId?: string) => Promise<RemoteResult<EvolutionOverview>>
     'evoforgeEvolution/pause': (workspaceId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     'evoforgeEvolution/promote': (workspaceId: string, generationId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     'evoforgeEvolution/rejectEvaluator': (workspaceId: string, id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>

@@ -29,7 +29,8 @@ describe('EvolutionRemoteService', () => {
     const ctx = new Context()
     const remote = new EvolutionRemoteService(ctx, control)
 
-    await expect(remote.overview(WORKSPACE_ID)).resolves.toBe(overview)
+    await expect(remote.overview(WORKSPACE_ID, 'session-1')).resolves.toBe(overview)
+    expect(control.overview).toHaveBeenCalledWith(WORKSPACE_ID, 'session-1')
     await expect(remote.pause(WORKSPACE_ID)).resolves.toBe(receipt)
     await remote.startFeedbackShadow(WORKSPACE_ID, 'signal', 'target')
     await remote.authorEvaluator(WORKSPACE_ID, 'signal', 'target')

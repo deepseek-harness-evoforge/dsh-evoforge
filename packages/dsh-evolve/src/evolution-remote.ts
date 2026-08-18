@@ -25,8 +25,8 @@ export class EvolutionRemoteService extends TypertRemoteService {
     for (const initialize of remoteInitializers) initialize.call(this)
   }
 
-  overview(workspaceId: string): Promise<EvolutionOverview> {
-    return this.control.overview(workspaceId)
+  overview(workspaceId: string, sessionId?: string): Promise<EvolutionOverview> {
+    return this.control.overview(workspaceId, sessionId)
   }
 
   review(workspaceId: string, id: string): Promise<EvolutionReviewDetail> {

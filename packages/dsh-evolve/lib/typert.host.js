@@ -17,7 +17,7 @@ const dsh_evolve_evoforgeEvolution_approveAndStartEvaluatorShadow_result$schema 
   'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'runStatus': z.union([z.undefined(), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("complete"), z.literal("incomplete"), z.literal("scheduled")]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected"), z.literal("scheduled")]).readonly().optional(),
@@ -38,7 +38,7 @@ const dsh_evolve_evoforgeEvolution_approveEvaluator_result$schema = z.object({
   'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'runStatus': z.union([z.undefined(), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("complete"), z.literal("incomplete"), z.literal("scheduled")]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected"), z.literal("scheduled")]).readonly().optional(),
@@ -59,7 +59,7 @@ const dsh_evolve_evoforgeEvolution_approveReview_result$schema = z.object({
   'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'runStatus': z.union([z.undefined(), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("complete"), z.literal("incomplete"), z.literal("scheduled")]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected"), z.literal("scheduled")]).readonly().optional(),
@@ -80,7 +80,7 @@ const dsh_evolve_evoforgeEvolution_authorEvaluator_result$schema = z.object({
   'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'runStatus': z.union([z.undefined(), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("complete"), z.literal("incomplete"), z.literal("scheduled")]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected"), z.literal("scheduled")]).readonly().optional(),
@@ -122,6 +122,7 @@ const dsh_evolve_evoforgeEvolution_evaluatorDraft_result$schema = z.object({
   'reason': z.union([z.undefined(), z.string()]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_overview_parameter_0$schema = z.string()
+const dsh_evolve_evoforgeEvolution_overview_parameter_1$schema = z.union([z.undefined(), z.string()])
 const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
   'workspaceId': z.string().readonly(),
@@ -147,6 +148,25 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'enabled': z.boolean().readonly(),
   'skills': z.array(z.string()).readonly(),
 }).readonly(),
+  'capabilityMap': z.union([z.undefined(), z.object({
+  'status': z.union([z.literal("unobserved"), z.literal("complete"), z.literal("incomplete")]).readonly(),
+  'catalogHash': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'capabilities': z.array(z.object({
+  'name': z.string().readonly(),
+  'description': z.string().readonly(),
+  'source': z.string().readonly(),
+  'provider': z.string().readonly(),
+  'scope': z.literal("workspace-session").readonly(),
+  'invocation': z.object({
+  'model': z.boolean().readonly(),
+  'user': z.boolean().readonly(),
+}).readonly(),
+  'versionKind': z.union([z.literal("provider-managed"), z.literal("evolved-tree")]).readonly(),
+  'version': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'generationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'route': z.union([z.literal("available"), z.literal("model-selected"), z.literal("user-selected")]).readonly(),
+})).readonly(),
+})]).readonly().optional(),
   'deliveryOutcomes': z.union([z.undefined(), z.object({
   'all': z.object({
   'total': z.number().readonly(),
@@ -191,7 +211,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'launchId': z.string().readonly(),
   'targetId': z.string().readonly(),
   'skillName': z.string().readonly(),
-  'phase': z.union([z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("complete"), z.literal("incomplete")]).readonly(),
+  'phase': z.union([z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running")]).readonly(),
   'startedAt': z.string().readonly(),
   'updatedAt': z.string().readonly(),
 })).readonly(),
@@ -318,7 +338,7 @@ const dsh_evolve_evoforgeEvolution_pause_result$schema = z.object({
   'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'runStatus': z.union([z.undefined(), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("complete"), z.literal("incomplete"), z.literal("scheduled")]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected"), z.literal("scheduled")]).readonly().optional(),
@@ -338,7 +358,7 @@ const dsh_evolve_evoforgeEvolution_promote_result$schema = z.object({
   'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'runStatus': z.union([z.undefined(), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("complete"), z.literal("incomplete"), z.literal("scheduled")]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected"), z.literal("scheduled")]).readonly().optional(),
@@ -359,7 +379,7 @@ const dsh_evolve_evoforgeEvolution_rejectEvaluator_result$schema = z.object({
   'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'runStatus': z.union([z.undefined(), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("complete"), z.literal("incomplete"), z.literal("scheduled")]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected"), z.literal("scheduled")]).readonly().optional(),
@@ -380,7 +400,7 @@ const dsh_evolve_evoforgeEvolution_rejectReview_result$schema = z.object({
   'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'runStatus': z.union([z.undefined(), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("complete"), z.literal("incomplete"), z.literal("scheduled")]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected"), z.literal("scheduled")]).readonly().optional(),
@@ -399,7 +419,7 @@ const dsh_evolve_evoforgeEvolution_resume_result$schema = z.object({
   'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'runStatus': z.union([z.undefined(), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("complete"), z.literal("incomplete"), z.literal("scheduled")]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected"), z.literal("scheduled")]).readonly().optional(),
@@ -476,7 +496,7 @@ const dsh_evolve_evoforgeEvolution_rollback_result$schema = z.object({
   'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'runStatus': z.union([z.undefined(), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("complete"), z.literal("incomplete"), z.literal("scheduled")]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected"), z.literal("scheduled")]).readonly().optional(),
@@ -496,7 +516,7 @@ const dsh_evolve_evoforgeEvolution_startEvaluatorShadow_result$schema = z.object
   'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'runStatus': z.union([z.undefined(), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("complete"), z.literal("incomplete"), z.literal("scheduled")]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected"), z.literal("scheduled")]).readonly().optional(),
@@ -517,7 +537,7 @@ const dsh_evolve_evoforgeEvolution_startFeedbackShadow_result$schema = z.object(
   'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'runStatus': z.union([z.undefined(), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("complete"), z.literal("incomplete"), z.literal("scheduled")]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected"), z.literal("scheduled")]).readonly().optional(),
@@ -572,7 +592,7 @@ export const TYPERT = {
         typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
         schema: dsh_evolve_evoforgeEvolution_approveAndStartEvaluatorShadow_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":106,"column":3},
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":107,"column":3},
     },
     {
       id: 'dsh-evolve#evoforgeEvolution/approveEvaluator',
@@ -617,7 +637,7 @@ export const TYPERT = {
         typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
         schema: dsh_evolve_evoforgeEvolution_approveEvaluator_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":98,"column":3},
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":99,"column":3},
     },
     {
       id: 'dsh-evolve#evoforgeEvolution/approveReview',
@@ -662,7 +682,7 @@ export const TYPERT = {
         typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
         schema: dsh_evolve_evoforgeEvolution_approveReview_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":46,"column":3},
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":47,"column":3},
     },
     {
       id: 'dsh-evolve#evoforgeEvolution/authorEvaluator',
@@ -707,7 +727,7 @@ export const TYPERT = {
         typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
         schema: dsh_evolve_evoforgeEvolution_authorEvaluator_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":90,"column":3},
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":91,"column":3},
     },
     {
       id: 'dsh-evolve#evoforgeEvolution/evaluatorDraft',
@@ -742,7 +762,7 @@ export const TYPERT = {
         typeSymbol: 'dsh-evolve/client#EvolutionEvaluatorDraftDetail',
         schema: dsh_evolve_evoforgeEvolution_evaluatorDraft_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":83,"column":3},
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":84,"column":3},
     },
     {
       id: 'dsh-evolve#evoforgeEvolution/overview',
@@ -759,6 +779,17 @@ export const TYPERT = {
             mode: 'strict',
             typeSymbol: 'dsh-evolve#evoforgeEvolution/overview:workspaceId',
             schema: dsh_evolve_evoforgeEvolution_overview_parameter_0$schema,
+          },
+        },
+        {
+          name: 'sessionId',
+          wire: 'sessionId',
+          source: 'json',
+          acceptsUndefined: true,
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/overview:sessionId',
+            schema: dsh_evolve_evoforgeEvolution_overview_parameter_1$schema,
           },
         },
       ],
@@ -792,7 +823,7 @@ export const TYPERT = {
         typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
         schema: dsh_evolve_evoforgeEvolution_pause_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":34,"column":3},
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":35,"column":3},
     },
     {
       id: 'dsh-evolve#evoforgeEvolution/promote',
@@ -827,7 +858,7 @@ export const TYPERT = {
         typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
         schema: dsh_evolve_evoforgeEvolution_promote_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":62,"column":3},
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":63,"column":3},
     },
     {
       id: 'dsh-evolve#evoforgeEvolution/rejectEvaluator',
@@ -872,7 +903,7 @@ export const TYPERT = {
         typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
         schema: dsh_evolve_evoforgeEvolution_rejectEvaluator_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":114,"column":3},
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":115,"column":3},
     },
     {
       id: 'dsh-evolve#evoforgeEvolution/rejectReview',
@@ -917,7 +948,7 @@ export const TYPERT = {
         typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
         schema: dsh_evolve_evoforgeEvolution_rejectReview_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":54,"column":3},
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":55,"column":3},
     },
     {
       id: 'dsh-evolve#evoforgeEvolution/resume',
@@ -942,7 +973,7 @@ export const TYPERT = {
         typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
         schema: dsh_evolve_evoforgeEvolution_resume_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":40,"column":3},
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":41,"column":3},
     },
     {
       id: 'dsh-evolve#evoforgeEvolution/review',
@@ -977,7 +1008,7 @@ export const TYPERT = {
         typeSymbol: 'dsh-evolve/client#EvolutionReviewDetail',
         schema: dsh_evolve_evoforgeEvolution_review_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":27,"column":3},
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":28,"column":3},
     },
     {
       id: 'dsh-evolve#evoforgeEvolution/rollback',
@@ -1002,7 +1033,7 @@ export const TYPERT = {
         typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
         schema: dsh_evolve_evoforgeEvolution_rollback_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":69,"column":3},
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":70,"column":3},
     },
     {
       id: 'dsh-evolve#evoforgeEvolution/startEvaluatorShadow',
@@ -1037,7 +1068,7 @@ export const TYPERT = {
         typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
         schema: dsh_evolve_evoforgeEvolution_startEvaluatorShadow_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":122,"column":3},
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":123,"column":3},
     },
     {
       id: 'dsh-evolve#evoforgeEvolution/startFeedbackShadow',
@@ -1082,7 +1113,7 @@ export const TYPERT = {
         typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
         schema: dsh_evolve_evoforgeEvolution_startFeedbackShadow_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":75,"column":3},
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":76,"column":3},
     },
   ],
   model: {
@@ -1178,7 +1209,7 @@ export const TYPERT = {
           {
             "kind": "method",
             "name": "overview",
-            "signature": "overview(workspaceId: string): Promise<EvolutionOverview>"
+            "signature": "overview(workspaceId: string, sessionId?: string): Promise<EvolutionOverview>"
           },
           {
             "kind": "method",
@@ -1281,6 +1312,18 @@ export const TYPERT = {
             "declaration": "export interface EvolutionAutomaticReviewExpiryView {\n    readonly eligibleAt: string;\n    readonly eligible: boolean;\n    readonly trigger: 'next-same-skill-automatic-signal';\n}"
           },
           {
+            "name": "EvolutionCapabilityMapView",
+            "declaration": "export interface EvolutionCapabilityMapView {\n    readonly status: 'unobserved' | 'complete' | 'incomplete';\n    readonly catalogHash?: string;\n    readonly capabilities: readonly EvolutionCapabilityView[];\n}"
+          },
+          {
+            "name": "EvolutionCapabilityRoute",
+            "declaration": "export type EvolutionCapabilityRoute = 'available' | 'model-selected' | 'user-selected';"
+          },
+          {
+            "name": "EvolutionCapabilityView",
+            "declaration": "export interface EvolutionCapabilityView {\n    readonly name: string;\n    readonly description: string;\n    readonly source: string;\n    readonly provider: string;\n    readonly scope: 'workspace-session';\n    readonly invocation: { readonly model: boolean; readonly user: boolean; };\n    readonly versionKind: 'provider-managed' | 'evolved-tree';\n    readonly version?: string;\n    readonly generationId?: string;\n    readonly route: EvolutionCapabilityRoute;\n}"
+          },
+          {
             "name": "EvolutionEvaluatorDraftDetail",
             "declaration": "export interface EvolutionEvaluatorDraftDetail {\n    readonly schemaVersion: 1;\n    readonly draft: EvolutionEvaluatorDraftView;\n    readonly files: readonly { readonly path: string; readonly content: string; }[];\n    readonly limitations: readonly string[];\n    readonly qualifiedShadowAvailable: boolean;\n    readonly decision?: { readonly actor: 'human'; readonly note: string; readonly decidedAt: string; };\n    readonly qualification?: { readonly calibrated: boolean; readonly attempt: number; };\n    readonly reason?: string;\n}"
           },
@@ -1302,7 +1345,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionOverview",
-            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly workspaceId: string;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly automaticPromotion: { readonly enabled: boolean; readonly skills: readonly string[]; };\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; readonly baseline?: DeliveryOutcomeCounts; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly feedbackShadow?: { readonly available: boolean; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly runs: readonly EvolutionShadowRunView[]; };\n    readonly automaticFeedbackBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly automaticEvaluatorBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly evaluatorAuthoring?: { readonly available: boolean; readonly actionableCount: number; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly drafts: readonly EvolutionEvaluatorDraftView[]; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
+            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly workspaceId: string;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly automaticPromotion: { readonly enabled: boolean; readonly skills: readonly string[]; };\n    readonly capabilityMap?: EvolutionCapabilityMapView;\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; readonly baseline?: DeliveryOutcomeCounts; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly feedbackShadow?: { readonly available: boolean; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly runs: readonly EvolutionShadowRunView[]; };\n    readonly automaticFeedbackBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly automaticEvaluatorBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly evaluatorAuthoring?: { readonly available: boolean; readonly actionableCount: number; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly drafts: readonly EvolutionEvaluatorDraftView[]; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
           },
           {
             "name": "EvolutionReviewCaseView",

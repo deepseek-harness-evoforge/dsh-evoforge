@@ -8,7 +8,7 @@ import type {
 
 /** Generated Remote namespace projected as the small surface the component consumes. */
 export interface EvolutionRemoteClient {
-  overview(workspaceId: string): Promise<RemoteResult<EvolutionOverview>>
+  overview(workspaceId: string, sessionId?: string): Promise<RemoteResult<EvolutionOverview>>
   review(workspaceId: string, id: string): Promise<RemoteResult<EvolutionReviewDetail>>
   pause(workspaceId: string): Promise<RemoteResult<EvolutionActionReceipt>>
   resume(workspaceId: string): Promise<RemoteResult<EvolutionActionReceipt>>

@@ -260,6 +260,15 @@ const t = (key: string) => ({
   'onboarding.processFeedback': 'Process recorded correction',
   'onboarding.recorded': 'recorded corrections',
   'skills.empty': 'No evolved Skills yet.',
+  'skills.catalog': 'Session capability map',
+  'skills.catalog.complete': 'Catalog observed',
+  'skills.catalog.incomplete': 'Catalog incomplete',
+  'skills.catalog.unobserved': 'Waiting for this Session to run',
+  'skills.route.available': 'Available to DSH',
+  'skills.route.model-selected': 'Selected automatically by the model',
+  'skills.route.user-selected': 'Explicitly invoked by the user',
+  'skills.version.provider-managed': 'Provider-managed',
+  'skills.version.evolved-tree': 'Evolved version',
   'skills.active': 'In use',
   'skills.ready': 'Verified, waiting to be enabled',
   'skills.reviewing': 'Waiting for review',
@@ -474,6 +483,45 @@ describe('EvolutionAction', () => {
     expect(api.overview).toHaveBeenCalledTimes(1)
   })
 
+  it('explains the exact Session capability map without offering a route menu', async () => {
+    const api = remote()
+    const configured = remote()
+    vi.mocked(api.overview).mockImplementationOnce(async (requestedWorkspaceId, requestedSessionId) => {
+      const result = await configured.overview(requestedWorkspaceId, requestedSessionId)
+      if (!result.ok) return result
+      return success({
+        ...result.value,
+        capabilityMap: {
+          status: 'complete' as const,
+          catalogHash: '6'.repeat(64),
+          capabilities: [{
+            name: 'build-dsh-plugin',
+            description: 'Build one native DSH plugin.',
+            source: 'project-agents',
+            provider: 'filesystem',
+            scope: 'workspace-session' as const,
+            invocation: { model: true, user: true },
+            versionKind: 'evolved-tree' as const,
+            version: 'e'.repeat(40),
+            generationId,
+            route: 'model-selected' as const,
+          }],
+        },
+      })
+    })
+    renderEvolution(api)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
+    fireEvent.click(await screen.findByRole('tab', { name: 'Skills' }))
+
+    expect(screen.getByText('Session capability map')).toBeTruthy()
+    expect(screen.getByText('Catalog observed')).toBeTruthy()
+    expect(screen.getByText('Selected automatically by the model')).toBeTruthy()
+    expect(screen.getByText('project-agents · filesystem')).toBeTruthy()
+    expect(screen.getByText(`Evolved version · ${'e'.repeat(12)}`)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /build-dsh-plugin/u })).toBeNull()
+  })
+
   it('fails closed when the current Session is not owned by a native Workspace', async () => {
     const api = remote()
     render(<EvolutionAction
@@ -505,7 +553,7 @@ describe('EvolutionAction', () => {
       useWorkspaces={workspaceHook()}
     />)
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
-    await waitFor(() => expect(api.overview).toHaveBeenCalledWith(workspaceId))
+    await waitFor(() => expect(api.overview).toHaveBeenCalledWith(workspaceId, sessionId))
 
     view.rerender(<EvolutionAction
       remote={api}
@@ -515,7 +563,7 @@ describe('EvolutionAction', () => {
       useWorkspaces={workspaceHook(otherWorkspaceId)}
     />)
 
-    await waitFor(() => expect(api.overview).toHaveBeenCalledWith(otherWorkspaceId))
+    await waitFor(() => expect(api.overview).toHaveBeenCalledWith(otherWorkspaceId, sessionId))
     expect(api.overview).toHaveBeenCalledTimes(2)
   })
 
@@ -550,7 +598,7 @@ describe('EvolutionAction', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
     await screen.findByRole('dialog', { name: 'Evolution control' })
     await selectAdvanced()
-    expect(api.overview).toHaveBeenCalledWith(workspaceId)
+    expect(api.overview).toHaveBeenCalledWith(workspaceId, sessionId)
     expect(within(screen.getByRole('button', { name: 'Evolution' })).getByText('2')).toBeTruthy()
     expect(screen.getByText('Actionable')).toBeTruthy()
     expect(screen.getByText('Feedback Shadow · plugin-delivery · build-dsh-plugin')).toBeTruthy()
