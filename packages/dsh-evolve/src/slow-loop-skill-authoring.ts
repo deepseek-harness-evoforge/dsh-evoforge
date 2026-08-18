@@ -116,6 +116,12 @@ export interface SlowLoopSkillAuthoringScan {
   readonly runs: readonly SlowLoopSkillAuthoringRunView[]
 }
 
+/** Verification-only view; author knowledge and private journal paths never cross this seam. */
+export interface SlowLoopSkillVerificationHandoff {
+  readonly researchDigest: string
+  readonly verification: readonly SkillResearchEvidence[]
+}
+
 interface SlowLoopSkillAuthoringOptions {
   readonly targets: readonly SlowLoopSkillAuthoringTargetConfig[]
   readonly gaps: Pick<CapabilityGapStore, 'list'>
@@ -290,6 +296,78 @@ export class SlowLoopSkillAuthoring {
       warningCount,
       runs: Object.freeze(runs.sort((left, right) =>
         right.updatedAt.localeCompare(left.updatedAt) || left.id.localeCompare(right.id))),
+    })
+  }
+
+  /**
+   * Recover the independently withheld evidence for one exact durable Candidate.
+   * The Candidate id, author identity, research digest, and cross-Goal demand must
+   * all match the authoring journal before any holdout evidence leaves this module.
+   */
+  async verificationFor(
+    candidate: DiscoveredSkillCandidate,
+  ): Promise<SlowLoopSkillVerificationHandoff> {
+    if (candidate.source.kind !== 'slow-loop-author'
+      || candidate.version.kind !== 'slow-loop-research-bundle-v2'
+      || candidate.demand === undefined) {
+      throw new Error('exact research-grounded Candidate is required for verification')
+    }
+    const target = this.targets.get(targetKey(candidate.workspaceId, candidate.requestedSkill))
+    if (target === undefined || candidate.source.id !== target.id) {
+      throw new Error('exact research-grounded Candidate has no configured authoring target')
+    }
+
+    let entries
+    try {
+      entries = await readdir(join(target.runRoot, 'runs'), { withFileTypes: true })
+    } catch {
+      throw new Error('exact research-grounded Candidate has no durable authoring journal')
+    }
+    const matches: Array<{ readonly state: SlowLoopRunState; readonly runDir: string }> = []
+    for (const entry of entries) {
+      if (!entry.isDirectory() || !CONTENT_ID.test(entry.name)) continue
+      const runDir = join(target.runRoot, 'runs', entry.name)
+      let state: SlowLoopRunState
+      try {
+        state = await loadState(runDir)
+      } catch {
+        continue
+      }
+      if (state.phase === 'candidate-ready'
+        && state.candidateId === candidate.id
+        && state.researchDigest === candidate.version.researchDigest
+        && state.identity.targetId === candidate.source.id
+        && state.identity.workspaceId === candidate.workspaceId
+        && state.identity.skillName === candidate.requestedSkill
+        && state.identity.clusterId === candidate.demand.clusterId
+        && JSON.stringify(state.identity.gapIds) === JSON.stringify(candidate.demand.gapIds)
+        && state.identity.goalCount === candidate.demand.goalCount
+        && state.identity.inputDigest === candidate.version.inputDigest
+        && sha256(state.identity.modelIdentity) === candidate.version.modelIdentityHash) {
+        matches.push({ state, runDir })
+      }
+    }
+    if (matches.length !== 1) {
+      throw new Error('exact research-grounded Candidate has no unique durable authoring journal')
+    }
+    const match = matches[0]!
+    const researchPath = join(match.runDir, 'research.json')
+    let corpus: SkillResearchCorpus
+    try {
+      if ((await stat(researchPath)).size > MAX_RESEARCH_CORPUS_BYTES) throw new Error('oversized')
+      corpus = assertResearchHandoff(
+        JSON.parse(await readFile(researchPath, 'utf8')) as SkillResearchCorpus,
+        candidate.requestedSkill,
+      )
+    } catch {
+      throw new Error('exact research-grounded Candidate research evidence is invalid')
+    }
+    if (corpus.digest !== candidate.version.researchDigest) {
+      throw new Error('exact research-grounded Candidate research digest changed')
+    }
+    return deepFreeze({
+      researchDigest: corpus.digest,
+      verification: corpus.verification,
     })
   }
 

@@ -137,6 +137,17 @@ describe('cross-Goal slow-loop Skill authoring', () => {
     const researchPath = join(fixture.target.runRoot, 'runs', run.id, 'research.json')
     expect(JSON.parse(await readFile(researchPath, 'utf8'))).toEqual(researchCorpus())
     expect((await stat(researchPath)).mode & 0o777).toBe(0o600)
+
+    const holdout = await service.verificationFor(generatedCandidate(authored))
+    expect(holdout).toEqual({
+      researchDigest: researchCorpus().digest,
+      verification: researchCorpus().verification,
+    })
+    expect(holdout).not.toHaveProperty('knowledge')
+    await expect(service.verificationFor({
+      ...generatedCandidate(authored),
+      id: '8'.repeat(64),
+    })).rejects.toThrow('exact research-grounded Candidate')
   })
 
   it('requires distinct Goals and suppresses authoring when any cluster Gap already has a candidate', async () => {
@@ -659,7 +670,7 @@ function generatedCandidate(input: AuthoredSkillBundleCandidateInput): Discovere
     scope: 'workspace',
     version: {
       kind: 'slow-loop-research-bundle-v2',
-      modelIdentityHash: '5'.repeat(64),
+      modelIdentityHash: sha256(input.modelIdentity),
       inputDigest: input.inputDigest,
       researchDigest: input.researchDigest,
       artifactDigest: '7'.repeat(64),
