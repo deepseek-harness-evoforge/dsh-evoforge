@@ -9,6 +9,12 @@ import {
   installCapabilityGapMonitor,
   openCapabilityGapStore,
 } from './capability-gap-store.ts'
+import {
+  installTrustedSkillDiscoveryLoop,
+  openSkillDiscoveryStore,
+  TrustedSkillDiscovery,
+  type TrustedSkillDiscoverySourceConfig,
+} from './trusted-skill-discovery.ts'
 import { installEvolutionCommand } from './evolve-command.ts'
 import { CandidatePublisher } from './candidate-publisher.ts'
 import { GitSkillSource, type GitSkillSourceConfig } from './git-skill-source.ts'
@@ -83,6 +89,7 @@ export interface Config {
   cacheRoot?: string
   feedbackDraftRoot?: string
   sources?: GitSkillSourceConfig[]
+  trustedDiscoverySources?: TrustedSkillDiscoverySourceConfig[]
   supervisor?: {
     runRoots: Array<{ workspaceId: string; path: string }>
     scanIntervalMs?: number
@@ -106,6 +113,11 @@ export const Config: Schema<Config> = z.object({
     repository: z.string().required(),
     path: z.string().required(),
   })).default([]),
+  trustedDiscoverySources: z.array(z.object({
+    id: z.string().required(),
+    repository: z.string().required(),
+    skillsRoot: z.string().required(),
+  })).max(100).default([]),
   supervisor: z.object({
     runRoots: z.array(z.object({
       workspaceId: z.string().required(),
@@ -165,6 +177,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const deliveryOutcomes = await openDeliveryOutcomeStore(ctx.storageDomain)
   const feedbackSignals = await openFeedbackSignalStore(ctx.storageDomain)
   const capabilityGaps = await openCapabilityGapStore(ctx.storageDomain)
+  const skillDiscoveryStore = await openSkillDiscoveryStore(ctx.storageDomain)
   const feedbackMonitor = installFeedbackSignalMonitor(ctx, feedbackSignals, store)
   let feedbackDraftBuilder: FeedbackCaseDraftBuilder | undefined
   const deliveryMonitors = new Set<DeliveryOutcomeMonitor>()
@@ -197,11 +210,21 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const disposeBinder = installGenerationBinder(ctx, store, source)
   const capabilities = new CapabilityMap()
   const capabilityMonitor = installCapabilityMapObserver(ctx, capabilities, store)
+  const skillDiscovery = new TrustedSkillDiscovery(
+    config.trustedDiscoverySources ?? [],
+    skillDiscoveryStore,
+  )
+  const skillDiscoveryLoop = installTrustedSkillDiscoveryLoop(
+    ctx,
+    capabilityGaps,
+    skillDiscovery,
+  )
   const capabilityGapMonitor = installCapabilityGapMonitor(
     ctx,
     capabilityGaps,
     capabilities,
     store,
+    { onGap: gap => skillDiscoveryLoop.observe(gap) },
   )
   const review = config.supervisor === undefined || config.supervisor.runRoots.length === 0
     ? undefined
@@ -377,6 +400,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     store,
     capabilities,
     gaps: capabilityGaps,
+    discovery: skillDiscoveryStore,
     ...(review === undefined ? {} : { review }),
     ...(resident === undefined ? {} : { resident }),
     ...(automaticPolicy === undefined ? {} : { automatic: automaticPolicy }),
@@ -542,10 +566,12 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     await Promise.all([...deliveryMonitors].map(monitor => monitor.dispose()))
     await capabilityMonitor.dispose()
     await capabilityGapMonitor.dispose()
+    await skillDiscoveryLoop.dispose()
     await feedbackMonitor.dispose()
     await deliveryOutcomes.close()
     await feedbackSignals.close()
     await capabilityGaps.close()
+    await skillDiscoveryStore.close()
     await disposeBinder()
     await store.close()
   }, 'dsh-evolve.runtimeClose')
@@ -558,6 +584,7 @@ export type {
   SkillGenerationArtifact,
 } from './generation-store.ts'
 export type { GitSkillSourceConfig } from './git-skill-source.ts'
+export type { TrustedSkillDiscoverySourceConfig } from './trusted-skill-discovery.ts'
 export type { FeedbackShadowTargetConfig } from './feedback-shadow-launcher.ts'
 export type { AutomaticFeedbackShadowTargetReference } from './automatic-feedback-shadow.ts'
 export type { AutomaticEvaluatorDraftTargetReference } from './automatic-evaluator-draft.ts'

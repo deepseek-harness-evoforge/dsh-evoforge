@@ -12,6 +12,8 @@ dsh --profile web
 
 The Bundle inserts exactly one `evoforge-evolution` row and defaults `cacheRoot` under `DSH_HOME`. Configure the row in the profile's `cordis.patch.yml` when Git Skill sources, private feedback roots, bounded supervisor roots, or explicit automatic policies are required.
 
+`trustedDiscoverySources` is an optional list of `{ id, repository, skillsRoot }` entries. Each entry explicitly trusts one existing local Git checkout or mirror as a discovery source. After an exact native Skill miss, EvoForge reads the matching whole-Skill folder from the pinned Git commit into quarantine metadata; it does not checkout, execute, install, or activate the package. The default empty list records an explicit abstention instead of searching an untrusted source.
+
 Inside a DSH session, use `/evolve status`, review/release Commands, or the separately installed `dsh-evolve-web` client adapter. Active Generation selection is future-session-only; live Session history, Goal state, Approval, Jobs, and Storage remain DSH authoritative.
 
 When the Bundle row declares exact `shadowTargets` or `evaluatorTargets`, protected authoring and Shadow actions also stay on the DSH Command surface:

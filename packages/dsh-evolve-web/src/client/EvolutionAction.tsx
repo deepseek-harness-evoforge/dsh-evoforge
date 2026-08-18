@@ -479,6 +479,7 @@ function SkillsView({ summary, t }: { summary: EvolutionOverview; t: (key: strin
     </section>
     <CapabilityMap summary={summary} t={t} />
     <CapabilityGapQueue summary={summary} t={t} />
+    <SkillDiscovery summary={summary} t={t} />
     {empty && <div className="dsh-evolve-message">{t('skills.empty')}</div>}
     {active.length > 0 && <SkillGroup label={t('skills.active')} items={active.map(artifact => ({
       key: `active:${artifact.gitCommit}:${artifact.name}`,
@@ -497,6 +498,86 @@ function SkillsView({ summary, t }: { summary: EvolutionOverview; t: (key: strin
     }))} />}
     <p className="dsh-evolve-guidance">{t('skills.native')}</p>
   </>
+}
+
+function SkillDiscovery({ summary, t }: { summary: EvolutionOverview; t: (key: string) => string }) {
+  const discovery = summary.skillDiscovery
+  if (discovery === undefined) return null
+  return <>
+    <section>
+      <h3 className="dsh-evolve-section-title">{t('skills.discovery')}</h3>
+      {discovery.candidates.length === 0
+        ? <div className="dsh-evolve-message">{t('skills.discovery.empty')}</div>
+        : <ul className="dsh-evolve-list">{discovery.candidates.map(candidate => (
+            <li className="dsh-evolve-skill-card" key={candidate.id}>
+              <div className="dsh-evolve-review-skill">{candidate.requestedSkill}</div>
+              <p>{candidate.description}</p>
+              <div className="dsh-evolve-capability-route">{t('skills.discovery.quarantined')}</div>
+              <div className="dsh-evolve-meta">
+                {candidate.source.id} · {t(`skills.discovery.source.${candidate.source.kind}`)} · {t(`skills.discovery.trust.${candidate.source.trust}`)}
+              </div>
+              <div className="dsh-evolve-meta">
+                {t('skills.discovery.version')} · {candidate.version.commit.slice(0, 12)} · {t('skills.discovery.tree')} {candidate.version.treeHash.slice(0, 12)}
+              </div>
+              <div className="dsh-evolve-meta">
+                {t('skills.discovery.content')} · {candidate.contentHash.slice(0, 12)}
+              </div>
+              <div className="dsh-evolve-meta">
+                {skillPackageSummary(candidate.package, t)}
+              </div>
+              <div className="dsh-evolve-meta">
+                {skillPermissionSummary(candidate.permissions, t)}
+              </div>
+              <div className="dsh-evolve-discovery-state">{t('skills.discovery.state')}</div>
+            </li>
+          ))}</ul>}
+    </section>
+    <section>
+      <h3 className="dsh-evolve-section-title">{t('skills.discovery.attempts')}</h3>
+      {discovery.attempts.length === 0
+        ? <div className="dsh-evolve-message">{t('skills.discovery.attempts.empty')}</div>
+        : <ul className="dsh-evolve-list">{discovery.attempts.map(attempt => (
+            <li className="dsh-evolve-skill-card" key={attempt.id}>
+              <div className="dsh-evolve-review-skill">{attempt.requestedSkill}</div>
+              <div className="dsh-evolve-capability-route">
+                {t(`skills.discovery.attempt.${attempt.status}`)}
+              </div>
+              {attempt.sources.length > 0 && <div className="dsh-evolve-meta">
+                {attempt.sources.map(source => `${source.id} · ${t(`skills.discovery.source-status.${source.status}`)}`).join(' · ')}
+              </div>}
+              {attempt.reasons.map(reason => (
+                <div className="dsh-evolve-meta" key={reason}>{t(`skills.discovery.reason.${reason}`)}</div>
+              ))}
+            </li>
+          ))}</ul>}
+    </section>
+  </>
+}
+
+function skillPackageSummary(
+  value: NonNullable<EvolutionOverview['skillDiscovery']>['candidates'][number]['package'],
+  t: (key: string) => string,
+): string {
+  return [
+    t('skills.discovery.package'),
+    `${value.fileCount} ${t('skills.discovery.files')}`,
+    `${value.totalBytes} ${t('skills.discovery.bytes')}`,
+    ...(value.hasScripts ? [t('skills.discovery.scripts')] : []),
+    ...(value.hasReferences ? [t('skills.discovery.references')] : []),
+  ].join(' · ')
+}
+
+function skillPermissionSummary(
+  value: NonNullable<EvolutionOverview['skillDiscovery']>['candidates'][number]['permissions'],
+  t: (key: string) => string,
+): string {
+  return [
+    t(value.declared
+      ? 'skills.discovery.permissions.declared'
+      : 'skills.discovery.permissions.undeclared'),
+    ...(value.executableContent ? [t('skills.discovery.executable')] : []),
+    t(`skills.discovery.effects.${value.externalEffects}`),
+  ].join(' · ')
 }
 
 function CapabilityGapQueue({ summary, t }: { summary: EvolutionOverview; t: (key: string) => string }) {

@@ -37,6 +37,7 @@ export const cssText = `
 .dsh-evolve-catalog-status{margin-bottom:8px;padding:2px 7px;border-radius:9px;background:var(--dsw-alias-fill-l2);color:var(--dsw-alias-label-tertiary);font-size:10px}
 .dsh-evolve-catalog-complete{color:var(--dsw-alias-label-secondary)}
 .dsh-evolve-capability-route{display:inline-flex;margin-top:6px;padding:2px 7px;border-radius:8px;background:var(--dsw-alias-fill-l2);font-size:10px;font-weight:600}
+.dsh-evolve-discovery-state{margin-top:8px;padding:7px 8px;border-left:3px solid var(--dsw-alias-brand-primary);border-radius:4px;background:var(--dsw-alias-fill-l1);font-size:11px;font-weight:600;line-height:17px}
 .dsh-evolve-summary{align-items:stretch;flex-wrap:wrap}
 .dsh-evolve-stat{min-width:112px;flex:1;padding:10px;border-radius:10px;background:var(--dsw-alias-fill-l1)}
 .dsh-evolve-stat-label{display:block;color:var(--dsw-alias-label-tertiary);font-size:11px}

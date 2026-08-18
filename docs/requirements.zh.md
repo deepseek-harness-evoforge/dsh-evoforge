@@ -321,6 +321,13 @@ workspace，输出可审查的 launchd/systemd unit。OS service manager 与 uni
 exact route 消息和 Hermes paired 证据完成以前仍只标记为 `implemented`，不扩张为 Gateway，也不把
 其他消息、内容或日程需求视为已交付。该说明不改变以上需求顺序和权限边界。
 
+自主 Skill 发现已经完成第一条可验证纵切：复用 DSH 原生 Skill registry 与 `skill` Tool 记录当前
+Workspace + Session 的完整目录和模型实际路由；只有完整目录中的同名 Skill 确认不存在时才形成
+Capability Gap。后台只扫描部署者显式授信的本地 Git 来源，固定 commit/tree/content hash，并把含
+`SKILL.md`、scripts、references 的完整目录记录为 quarantined、inactive、unevaluated、never-executed
+候选；没有可信来源或精确 Skill 时持久记录 abstain。Web 只展示有界身份、权限与状态，不提供选路、
+安装或激活按钮。外部市场/官方资料/论文/开源组合、候选生成和 Trial/治理接线尚未完成。
+
 在 P1.1 之后，先实现 `dsh-software-delivery` 的最小 objective outcome：稳定按需 Skill 与
 linked-worktree/commit/check 验证器。只有真实交付 outcome 可用后，才建设 future-session
 canary 和 outcome-triggered rollback，避免先造没有可信信号的自动路由系统。

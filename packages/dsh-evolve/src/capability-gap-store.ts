@@ -159,7 +159,10 @@ export function installCapabilityGapMonitor(
   gaps: Pick<CapabilityGapStore, 'record'>,
   capabilities: Pick<CapabilityMap, 'snapshot'>,
   evolution: Pick<EvolutionStore, 'getSessionGeneration'>,
-  options: { now?: () => number } = {},
+  options: {
+    now?: () => number
+    onGap?: (gap: CapabilityGap) => Promise<void> | void
+  } = {},
 ): CapabilityGapMonitor {
   const now = options.now ?? Date.now
   let disposed = false
@@ -177,7 +180,7 @@ export function installCapabilityGapMonitor(
           || catalog.capabilities.some(capability => capability.name === requestedSkill)) return
         const generationId = evolution.getSessionGeneration(identity)?.id
         const goal = currentGoal(ctx, execution.agent!)
-        await gaps.record({
+        const recorded = await gaps.record({
           observedAt: now(),
           workspaceId: identity.workspaceId,
           sessionId: identity.sessionId,
@@ -193,6 +196,7 @@ export function installCapabilityGapMonitor(
             providers: 'settled',
           },
         })
+        if (recorded.created) await options.onGap?.(recorded.gap)
       } catch (error) {
         ctx.logger.warn(`dsh-evolve skipped one Capability Gap observation: ${errorMessage(error)}`)
       }

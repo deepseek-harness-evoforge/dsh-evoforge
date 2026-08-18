@@ -274,6 +274,31 @@ const t = (key: string) => ({
   'skills.gaps.confirmed': 'Confirmed by complete DSH catalog',
   'skills.gaps.catalog': 'Catalog evidence',
   'skills.gaps.inactive': 'No external Skill was installed or executed.',
+  'skills.discovery': 'Discovered Skill candidates',
+  'skills.discovery.quarantined': 'Quarantined candidate',
+  'skills.discovery.source.local-git': 'Local Git',
+  'skills.discovery.trust.explicit-deployer-config': 'Explicit deployer trust',
+  'skills.discovery.version': 'Git commit',
+  'skills.discovery.tree': 'tree',
+  'skills.discovery.content': 'Content hash',
+  'skills.discovery.package': 'Whole package',
+  'skills.discovery.files': 'files',
+  'skills.discovery.bytes': 'bytes',
+  'skills.discovery.scripts': 'scripts',
+  'skills.discovery.references': 'references',
+  'skills.discovery.permissions.undeclared': 'Permissions not declared',
+  'skills.discovery.permissions.declared': 'Permissions declared',
+  'skills.discovery.executable': 'Executable content',
+  'skills.discovery.effects.unknown': 'External effects unknown',
+  'skills.discovery.state': 'Quarantined · Inactive · Never executed · Unevaluated',
+  'skills.discovery.attempts': 'Discovery attempts',
+  'skills.discovery.attempt.candidate-found': 'Candidate found',
+  'skills.discovery.attempt.abstained': 'Discovery abstained',
+  'skills.discovery.attempt.partial': 'Partial discovery',
+  'skills.discovery.reason.no-trusted-sources': 'No trusted sources configured',
+  'skills.discovery.reason.no-exact-skill': 'No exact Skill found',
+  'skills.discovery.reason.invalid-skill-package': 'Invalid Skill package',
+  'skills.discovery.reason.source-unavailable': 'Source unavailable',
   'skills.active': 'In use',
   'skills.ready': 'Verified, waiting to be enabled',
   'skills.reviewing': 'Waiting for review',
@@ -535,6 +560,77 @@ describe('EvolutionAction', () => {
             },
           }],
         },
+        skillDiscovery: {
+          quarantinedCount: 1,
+          candidates: [{
+            id: '7'.repeat(64),
+            discoveredAt: 1_786_896_000_100,
+            gapId: '5'.repeat(64),
+            requestedSkill: 'missing-release-skill',
+            description: 'Prepare and verify a native DSH release.',
+            source: {
+              id: 'local-curated',
+              kind: 'local-git' as const,
+              trust: 'explicit-deployer-config' as const,
+            },
+            scope: 'workspace' as const,
+            version: {
+              kind: 'git-tree' as const,
+              commit: '8'.repeat(40),
+              treeHash: '9'.repeat(40),
+            },
+            contentHash: 'a'.repeat(64),
+            package: {
+              path: 'skills/missing-release-skill',
+              fileCount: 3,
+              totalBytes: 640,
+              hasScripts: true,
+              hasReferences: true,
+            },
+            permissions: {
+              declared: false,
+              executableContent: true,
+              externalEffects: 'unknown' as const,
+            },
+            safety: {
+              status: 'quarantined' as const,
+              checks: [
+                { name: 'git-object-integrity' as const, status: 'passed' as const },
+                { name: 'regular-files-only' as const, status: 'passed' as const },
+                { name: 'skill-identity' as const, status: 'passed' as const },
+                { name: 'effect-review' as const, status: 'required' as const },
+              ],
+            },
+            lifecycle: 'inactive' as const,
+            verification: 'unevaluated' as const,
+            execution: 'never' as const,
+          }],
+          attempts: [{
+            id: 'b'.repeat(64),
+            gapId: '5'.repeat(64),
+            requestedSkill: 'missing-release-skill',
+            startedAt: 1_786_896_000_000,
+            completedAt: 1_786_896_000_100,
+            status: 'candidate-found' as const,
+            candidateIds: ['7'.repeat(64)],
+            reasons: [],
+            sources: [{
+              id: 'local-curated',
+              status: 'candidate' as const,
+              revision: '8'.repeat(40),
+            }],
+          }, {
+            id: 'c'.repeat(64),
+            gapId: 'd'.repeat(64),
+            requestedSkill: 'another-missing-skill',
+            startedAt: 1_786_896_000_200,
+            completedAt: 1_786_896_000_200,
+            status: 'abstained' as const,
+            candidateIds: [],
+            reasons: ['no-trusted-sources' as const],
+            sources: [],
+          }],
+        },
       })
     })
     renderEvolution(api)
@@ -548,12 +644,24 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('project-agents · filesystem')).toBeTruthy()
     expect(screen.getByText(`Evolved version · ${'e'.repeat(12)}`)).toBeTruthy()
     expect(screen.getByText('Capability gap queue')).toBeTruthy()
-    expect(screen.getByText('missing-release-skill')).toBeTruthy()
+    expect(screen.getAllByText('missing-release-skill').length).toBeGreaterThan(1)
     expect(screen.getByText('Publish a verified native DSH plugin.')).toBeTruthy()
     expect(screen.getByText('Confirmed by complete DSH catalog')).toBeTruthy()
     expect(screen.getByText('No external Skill was installed or executed.')).toBeTruthy()
+    expect(screen.getByText('Discovered Skill candidates')).toBeTruthy()
+    expect(screen.getByText('Prepare and verify a native DSH release.')).toBeTruthy()
+    expect(screen.getByText('Quarantined candidate')).toBeTruthy()
+    expect(screen.getByText('local-curated · Local Git · Explicit deployer trust')).toBeTruthy()
+    expect(screen.getByText(`Git commit · ${'8'.repeat(12)} · tree ${'9'.repeat(12)}`)).toBeTruthy()
+    expect(screen.getByText(`Content hash · ${'a'.repeat(12)}`)).toBeTruthy()
+    expect(screen.getByText('Whole package · 3 files · 640 bytes · scripts · references')).toBeTruthy()
+    expect(screen.getByText('Permissions not declared · Executable content · External effects unknown')).toBeTruthy()
+    expect(screen.getByText('Quarantined · Inactive · Never executed · Unevaluated')).toBeTruthy()
+    expect(screen.getByText('Discovery attempts')).toBeTruthy()
+    expect(screen.getByText('Candidate found')).toBeTruthy()
+    expect(screen.getByText('No trusted sources configured')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /build-dsh-plugin/u })).toBeNull()
-    expect(screen.queryByRole('button', { name: /install|missing-release-skill/u })).toBeNull()
+    expect(screen.queryByRole('button', { name: /install|activate|missing-release-skill/u })).toBeNull()
   })
 
   it('fails closed when the current Session is not owned by a native Workspace', async () => {

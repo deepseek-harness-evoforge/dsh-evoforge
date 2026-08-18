@@ -78,6 +78,68 @@ export interface EvolutionCapabilityGapQueueView {
     readonly confirmedCount: number;
     readonly items: readonly EvolutionCapabilityGapView[];
 }
+/** Quarantined whole-Skill package; source repository paths and bodies stay host-private. */
+export interface EvolutionDiscoveredSkillCandidateView {
+    readonly id: string;
+    readonly discoveredAt: number;
+    readonly gapId: string;
+    readonly requestedSkill: string;
+    readonly description: string;
+    readonly source: {
+        readonly id: string;
+        readonly kind: 'local-git';
+        readonly trust: 'explicit-deployer-config';
+    };
+    readonly scope: 'workspace';
+    readonly version: {
+        readonly kind: 'git-tree';
+        readonly commit: string;
+        readonly treeHash: string;
+    };
+    readonly contentHash: string;
+    readonly package: {
+        readonly path: string;
+        readonly fileCount: number;
+        readonly totalBytes: number;
+        readonly hasScripts: boolean;
+        readonly hasReferences: boolean;
+    };
+    readonly permissions: {
+        readonly declared: boolean;
+        readonly executableContent: boolean;
+        readonly externalEffects: 'unknown';
+    };
+    readonly safety: {
+        readonly status: 'quarantined';
+        readonly checks: readonly {
+            readonly name: 'git-object-integrity' | 'regular-files-only' | 'skill-identity' | 'effect-review';
+            readonly status: 'passed' | 'required';
+        }[];
+    };
+    readonly lifecycle: 'inactive';
+    readonly verification: 'unevaluated';
+    readonly execution: 'never';
+}
+export interface EvolutionSkillDiscoveryAttemptView {
+    readonly id: string;
+    readonly gapId: string;
+    readonly requestedSkill: string;
+    readonly startedAt: number;
+    readonly completedAt: number;
+    readonly status: 'candidate-found' | 'abstained' | 'partial';
+    readonly candidateIds: readonly string[];
+    readonly reasons: readonly ('no-trusted-sources' | 'no-exact-skill' | 'invalid-skill-package' | 'source-unavailable')[];
+    readonly sources: readonly {
+        readonly id: string;
+        readonly status: 'candidate' | 'absent' | 'invalid' | 'unavailable';
+        readonly revision?: string;
+    }[];
+}
+export interface EvolutionSkillDiscoveryView {
+    readonly quarantinedCount: number;
+    readonly candidates: readonly EvolutionDiscoveredSkillCandidateView[];
+    readonly attempts: readonly EvolutionSkillDiscoveryAttemptView[];
+}
 /** One sealed evaluator result shown in review. */
 export interface EvolutionReviewCaseView {
     readonly id: string;
@@ -215,6 +277,7 @@ export interface EvolutionOverview {
     };
     readonly capabilityMap?: EvolutionCapabilityMapView;
     readonly capabilityGaps?: EvolutionCapabilityGapQueueView;
+    readonly skillDiscovery?: EvolutionSkillDiscoveryView;
     readonly deliveryOutcomes?: {
         readonly all: DeliveryOutcomeCounts;
         readonly selected: DeliveryOutcomeCounts;

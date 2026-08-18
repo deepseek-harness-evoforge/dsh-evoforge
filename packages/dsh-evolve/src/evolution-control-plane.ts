@@ -7,6 +7,7 @@ import type { EvaluatorDraftInbox } from './evaluator-draft-inbox.ts'
 import type { AutomaticFeedbackShadowService } from './automatic-feedback-shadow.ts'
 import type { AutomaticEvaluatorDraftService } from './automatic-evaluator-draft.ts'
 import type { CapabilityGapStore } from './capability-gap-store.ts'
+import type { SkillDiscoveryStore } from './trusted-skill-discovery.ts'
 import type { EvolutionStore } from './generation-store.ts'
 import type { ResidentEvolutionControl } from './resident-evolution-control.ts'
 import type { ReviewCandidate, ReviewInbox } from './review-inbox.ts'
@@ -14,6 +15,7 @@ import type {
   EvolutionActionReceipt,
   EvolutionCapabilityMapView,
   EvolutionCapabilityGapQueueView,
+  EvolutionSkillDiscoveryView,
   EvolutionEvaluatorDraftView,
   EvolutionFeedbackSignalView,
   EvolutionGenerationView,
@@ -26,6 +28,7 @@ import type {
 const MAX_REVIEW_ROWS = 20
 const MAX_FEEDBACK_ROWS = 20
 const MAX_CAPABILITY_GAP_ROWS = 20
+const MAX_DISCOVERY_ROWS = 20
 
 /** Existing authoritative owners used by Commands and structured adapters. */
 export interface EvolutionControlPlaneModules {
@@ -46,6 +49,7 @@ export interface EvolutionControlPlaneModules {
     readonly snapshot: (workspaceId: string, sessionId?: string) => EvolutionCapabilityMapView
   }
   readonly gaps?: Pick<CapabilityGapStore, 'list'>
+  readonly discovery?: Pick<SkillDiscoveryStore, 'listCandidates' | 'listAttempts'>
 }
 
 /** A structured adapter surface that delegates to the same owners as Commands. */
@@ -93,6 +97,9 @@ export class EvolutionControlPlane {
       ...(this.modules.gaps === undefined
         ? {}
         : { capabilityGaps: projectCapabilityGaps(this.modules.gaps.list(workspaceId)) }),
+      ...(this.modules.discovery === undefined
+        ? {}
+        : { skillDiscovery: projectSkillDiscovery(this.modules.discovery, workspaceId) }),
       ...(this.modules.outcomes === undefined
         ? {}
         : {
@@ -369,6 +376,52 @@ function projectCapabilityGaps(
       ...(gap.goal === undefined ? {} : { goal: { ...gap.goal } }),
       status: gap.status,
       evidence: { ...gap.evidence },
+    })),
+  }
+}
+
+function projectSkillDiscovery(
+  discovery: NonNullable<EvolutionControlPlaneModules['discovery']>,
+  workspaceId: string,
+): EvolutionSkillDiscoveryView {
+  const candidates = discovery.listCandidates(workspaceId)
+  const attempts = discovery.listAttempts(workspaceId)
+  return {
+    quarantinedCount: candidates.filter(candidate => candidate.safety.status === 'quarantined').length,
+    candidates: candidates.slice(0, MAX_DISCOVERY_ROWS).map(candidate => ({
+      id: candidate.id,
+      discoveredAt: candidate.discoveredAt,
+      gapId: candidate.gapId,
+      requestedSkill: candidate.requestedSkill,
+      description: candidate.description,
+      source: { ...candidate.source },
+      scope: candidate.scope,
+      version: { ...candidate.version },
+      contentHash: candidate.contentHash,
+      package: { ...candidate.package },
+      permissions: { ...candidate.permissions },
+      safety: {
+        status: candidate.safety.status,
+        checks: candidate.safety.checks.map(check => ({ ...check })),
+      },
+      lifecycle: candidate.lifecycle,
+      verification: candidate.verification,
+      execution: candidate.execution,
+    })),
+    attempts: attempts.slice(0, MAX_DISCOVERY_ROWS).map(attempt => ({
+      id: attempt.id,
+      gapId: attempt.gapId,
+      requestedSkill: attempt.requestedSkill,
+      startedAt: attempt.startedAt,
+      completedAt: attempt.completedAt,
+      status: attempt.status,
+      candidateIds: [...attempt.candidateIds],
+      reasons: [...attempt.reasons],
+      sources: attempt.sources.map(source => ({
+        id: source.id,
+        status: source.status,
+        ...(source.revision === undefined ? {} : { revision: source.revision }),
+      })),
     })),
   }
 }

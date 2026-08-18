@@ -39,8 +39,10 @@ describe('Capability Gap monitor', () => {
     const evolution = {
       getSessionGeneration: vi.fn(() => ({ id: 'a'.repeat(64) })),
     } as unknown as EvolutionStore
+    const onGap = vi.fn()
     const monitor = installCapabilityGapMonitor(ctx, gaps, capabilities, evolution, {
       now: () => 1_786_896_000_000,
+      onGap,
     })
 
     emitSkillResult(ctx, 'session-1', 'missing-skill', true)
@@ -71,6 +73,11 @@ describe('Capability Gap monitor', () => {
         providers: 'settled',
       },
     })
+    expect(onGap).toHaveBeenCalledOnce()
+    expect(onGap).toHaveBeenCalledWith(expect.objectContaining({
+      id: '5'.repeat(64),
+      requestedSkill: 'missing-skill',
+    }))
 
     await monitor.dispose()
     await ctx.fiber.dispose()
@@ -109,7 +116,10 @@ describe('Capability Gap monitor', () => {
 
 function fakeGaps() {
   return {
-    record: vi.fn<CapabilityGapStore['record']>(async () => ({ created: true, gap: {} as never })),
+    record: vi.fn<CapabilityGapStore['record']>(async input => ({
+      created: true,
+      gap: { schemaVersion: 1, id: '5'.repeat(64), ...input, status: 'confirmed' as const },
+    })),
     list: vi.fn(() => []),
     close: vi.fn(),
   }

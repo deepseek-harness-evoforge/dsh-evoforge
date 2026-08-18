@@ -4,6 +4,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { openCapabilityGapStore } from '../src/capability-gap-store.ts'
+import { openSkillDiscoveryStore } from '../src/trusted-skill-discovery.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -51,6 +52,39 @@ describe.skipIf(process.platform !== 'darwin')('Capability Gap durable queue', (
       await resumed.fiber.dispose()
     }
   })
+
+  it('recovers quarantined whole-Skill candidates and abstention evidence', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-skill-discovery-store-'))
+    temporaryRoots.push(root)
+    const configPath = await writeStorageConfig(root)
+    const first = await bootStorage(configPath)
+    const store = await openSkillDiscoveryStore(first.storageDomain)
+    let candidateId = ''
+    let attemptId = ''
+    try {
+      const candidate = await store.recordCandidate(discoveryCandidateInput())
+      const duplicate = await store.recordCandidate(discoveryCandidateInput())
+      expect(duplicate).toEqual({ created: false, candidate: candidate.candidate })
+      candidateId = candidate.candidate.id
+      const attempt = await store.recordAttempt(discoveryAttemptInput(candidateId))
+      attemptId = attempt.attempt.id
+      expect(store.listCandidates(WORKSPACE_ID, '5'.repeat(64))).toEqual([candidate.candidate])
+      expect(store.listAttempts(WORKSPACE_ID, '5'.repeat(64))).toEqual([attempt.attempt])
+    } finally {
+      await store.close()
+      await first.fiber.dispose()
+    }
+
+    const resumed = await bootStorage(configPath)
+    const recovered = await openSkillDiscoveryStore(resumed.storageDomain)
+    try {
+      expect(recovered.listCandidates(WORKSPACE_ID).map(candidate => candidate.id)).toEqual([candidateId])
+      expect(recovered.listAttempts(WORKSPACE_ID).map(attempt => attempt.id)).toEqual([attemptId])
+    } finally {
+      await recovered.close()
+      await resumed.fiber.dispose()
+    }
+  })
 })
 
 function gapInput(observedAt: number, requestedSkill: string) {
@@ -72,6 +106,70 @@ function gapInput(observedAt: number, requestedSkill: string) {
       routing: 'requested-skill-absent' as const,
       providers: 'settled' as const,
     },
+  }
+}
+
+function discoveryCandidateInput() {
+  return {
+    discoveredAt: 1_786_896_100_000,
+    gapId: '5'.repeat(64),
+    workspaceId: WORKSPACE_ID,
+    requestedSkill: 'missing-release-skill',
+    description: 'Publish a verified release.',
+    source: {
+      id: 'local-curated',
+      kind: 'local-git' as const,
+      trust: 'explicit-deployer-config' as const,
+    },
+    scope: 'workspace' as const,
+    version: {
+      kind: 'git-tree' as const,
+      commit: 'a'.repeat(40),
+      treeHash: 'b'.repeat(40),
+    },
+    contentHash: 'c'.repeat(64),
+    package: {
+      path: 'skills/missing-release-skill',
+      fileCount: 3,
+      totalBytes: 512,
+      hasScripts: true,
+      hasReferences: true,
+    },
+    permissions: {
+      declared: false,
+      executableContent: true,
+      externalEffects: 'unknown' as const,
+    },
+    safety: {
+      status: 'quarantined' as const,
+      checks: [
+        { name: 'git-object-integrity' as const, status: 'passed' as const },
+        { name: 'regular-files-only' as const, status: 'passed' as const },
+        { name: 'skill-identity' as const, status: 'passed' as const },
+        { name: 'effect-review' as const, status: 'required' as const },
+      ],
+    },
+    lifecycle: 'inactive' as const,
+    verification: 'unevaluated' as const,
+    execution: 'never' as const,
+  }
+}
+
+function discoveryAttemptInput(candidateId: string) {
+  return {
+    gapId: '5'.repeat(64),
+    workspaceId: WORKSPACE_ID,
+    requestedSkill: 'missing-release-skill',
+    startedAt: 1_786_896_100_000,
+    completedAt: 1_786_896_100_001,
+    status: 'candidate-found' as const,
+    candidateIds: [candidateId],
+    reasons: [],
+    sources: [{
+      id: 'local-curated',
+      status: 'candidate' as const,
+      revision: 'a'.repeat(40),
+    }],
   }
 }
 
