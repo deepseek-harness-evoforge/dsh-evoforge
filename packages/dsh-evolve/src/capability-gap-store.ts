@@ -16,6 +16,20 @@ import type { EvolutionStore } from './generation-store.ts'
 const DEFAULT_MAX_RECORDS = 1_000
 const hashSchema = z.string().regex(/^[a-f0-9]{64}$/)
 const safeInteger = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
+const evidenceSchema = z.discriminatedUnion('kind', [
+  z.strictObject({
+    kind: z.literal('native-skill-miss'),
+    catalog: z.literal('complete'),
+    routing: z.literal('requested-skill-absent'),
+    providers: z.literal('settled'),
+  }),
+  z.strictObject({
+    kind: z.literal('model-declared-skill-gap'),
+    catalog: z.literal('complete'),
+    routing: z.literal('model-declared-no-applicable-skill'),
+    providers: z.literal('settled'),
+  }),
+])
 
 const gapSchema = z.strictObject({
   schemaVersion: z.literal(1),
@@ -33,12 +47,7 @@ const gapSchema = z.strictObject({
     objective: z.string().min(1).max(8_192),
   }).optional(),
   status: z.literal('confirmed'),
-  evidence: z.strictObject({
-    kind: z.literal('native-skill-miss'),
-    catalog: z.literal('complete'),
-    routing: z.literal('requested-skill-absent'),
-    providers: z.literal('settled'),
-  }),
+  evidence: evidenceSchema,
 })
 
 export type CapabilityGap = z.infer<typeof gapSchema>

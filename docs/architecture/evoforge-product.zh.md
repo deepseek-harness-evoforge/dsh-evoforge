@@ -31,8 +31,10 @@ DSH 始终拥有模型执行和基础服务；EvoForge 插件只增加用户结�
 ### dsh-evolve
 
 旗舰插件。现有 P0A–P1.21 已提供 Shadow、Generation、Session pin、反馈、晋升、监测和回滚底座；
-下一阶段在同一个深模块内增加 Capability Map、Capability Gap 和自主 Skill Discovery。用户只提交自然语言
-Goal，host 先选择已验证的现有能力；确有缺口时才从部署者信任的来源形成完整 Skill 包候选。在线快环
+Capability Map、两种可区分的 Capability Gap、exact-name 可信本地 Git whole-Skill discovery、隔离准入
+和独立 assembled holdout Shadow 已进入同一个深模块。用户只提交自然语言 Goal；已有能力由 DSH 原生
+catalog/`skill` Tool 路由，确无适用能力时模型通过一个固定 `report_capability_gap` Tool 报告，Host 复核
+并先落盘，后台再形成 inactive 候选。外部来源语义搜索、无候选时生成和跨 Goal 慢环仍待实现。在线快环
 只收集可归因信号和小步候选，离线慢环执行跨任务搜索、独立评测、保留和发布。Discovery、Observer、
 Trial Runner、Decision 与 Release 在证明有两个独立消费者或信任边界以前都保持内部模块，不为了名称
 数量拆成浅插件。
@@ -115,7 +117,8 @@ Resident 只恢复进程，Goal Continuity 只决定 exact Session 的原生 Goa
 ## 5. KV Cache 不变量
 
 1. 同一 Session 固定 Capability Generation。
-2. 默认不增加常驻 Evolve system prompt 或模型工具。
+2. 不增加常驻 Evolve system prompt；模型 Tool 只允许少量、显式声明且跨 Session 轮次稳定的任务动作，
+   当前为固定 `report_capability_gap`。
 3. 工具名、Schema、顺序和 Skill catalog 在 Session 内稳定。
 4. 动态状态、审批、时间线和 UI 投影位于 host plane。
 5. Skill body 只在原生 Skill 加载路径按需进入后缀。

@@ -84,12 +84,19 @@ export interface EvolutionCapabilityGapView {
     readonly objective: string
   }
   readonly status: 'confirmed'
-  readonly evidence: {
-    readonly kind: 'native-skill-miss'
-    readonly catalog: 'complete'
-    readonly routing: 'requested-skill-absent'
-    readonly providers: 'settled'
-  }
+  readonly evidence:
+    | {
+        readonly kind: 'native-skill-miss'
+        readonly catalog: 'complete'
+        readonly routing: 'requested-skill-absent'
+        readonly providers: 'settled'
+      }
+    | {
+        readonly kind: 'model-declared-skill-gap'
+        readonly catalog: 'complete'
+        readonly routing: 'model-declared-no-applicable-skill'
+        readonly providers: 'settled'
+      }
 }
 
 /** Workspace queue; exact Session ids remain host-private. */

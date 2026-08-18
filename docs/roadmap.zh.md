@@ -1,6 +1,6 @@
 # EvoForge v0.1 路线图
 
-> 当前状态：已验证历史已统一到 `main` 并同步 `origin/main`；DSH 原生十一包全检查通过，但自主 Skill 发现、双速评测治理、exact 飞书消息与最终 paired 验收仍未完成，v0.1 尚未发布或部署。
+> 当前状态：已验证历史已统一到 `main` 并同步 `origin/main`；DSH 原生十一包全检查通过，自然 Goal 到持久 Capability Gap、exact-name 本地 Git whole-Skill 发现及隔离评测纵切已实现，但外部语义搜索/生成、完整双速治理、exact 飞书消息与最终 paired 验收仍未完成，v0.1 尚未发布或部署。
 > 更新日期：2026-08-18
 
 ## 开发与发布纪律
@@ -74,7 +74,16 @@
 候选越界和负迁移均被 hard gate 拒绝；同一任务 paired baseline 证明首次成功率或人工选路显著改善，且
 当前 Session、权限和 cache prefix 不漂移。
 
-实现状态：领域、需求、ADR 与验收维度已冻结；代码与真实数据 **pending**。
+实现状态：**partial implementation**。DSH 原生 catalog 负责已有 Skill 的语义选择；一个固定
+`report_capability_gap(name)` Tool 已通过真实 Agent Loop，把自然语言 active Goal 中模型确认的无匹配
+情况经 Host 复核后持久化，并投影到既有 Web Gap queue。exact-name、显式授信的本地 Git whole-Skill
+发现、quarantine、确定性 admission 和独立 assembled holdout Shadow 已接通；清晰胜出仍只进入 inactive
+人工 review，当前 Session 不漂移。64 轮请求证明该 Tool Schema 稳定，去掉声明的单一 Tool 后其余请求
+与原生控制组逐字节相同。
+
+仍待实现/验证：可信外部 catalog/市场/官方资料/开源来源的语义检索，找不到包时的完整 Skill 生成或组合，
+跨 Goal gap 聚类与慢环调度，真实模型的正/负路由质量、误缺口率、迁移/遗忘/长期保留，以及同条件 Hermes
+paired outcome。因此本阶段不能描述为“自主 Skill 发现已完成”，退出门仍未通过。
 
 ## V5 — 可解释 Web 与飞书闭环
 

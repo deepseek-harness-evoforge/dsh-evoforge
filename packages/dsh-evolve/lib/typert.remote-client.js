@@ -182,12 +182,17 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'objective': z.string().readonly(),
 })]).readonly().optional(),
   'status': z.literal("confirmed").readonly(),
-  'evidence': z.object({
+  'evidence': z.union([z.object({
   'kind': z.literal("native-skill-miss").readonly(),
   'catalog': z.literal("complete").readonly(),
   'routing': z.literal("requested-skill-absent").readonly(),
   'providers': z.literal("settled").readonly(),
-}).readonly(),
+}), z.object({
+  'kind': z.literal("model-declared-skill-gap").readonly(),
+  'catalog': z.literal("complete").readonly(),
+  'routing': z.literal("model-declared-no-applicable-skill").readonly(),
+  'providers': z.literal("settled").readonly(),
+})]).readonly(),
 })).readonly(),
 })]).readonly().optional(),
   'skillDiscovery': z.union([z.undefined(), z.object({

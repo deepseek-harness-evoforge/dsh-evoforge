@@ -30,7 +30,7 @@ afterEach(async () => {
 })
 
 describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () => {
-  it('keeps 64 native turns byte-equivalent while the configured evolution host plane changes', async () => {
+  it('keeps one autonomous Gap Tool stable across 64 turns while the evolution host plane changes', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-evaluator-composition-'))
     temporaryRoots.push(root)
     const repository = join(root, 'source')
@@ -124,10 +124,25 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     }
     expect(control).toHaveLength(64)
     expect(experiment).toHaveLength(64)
-    expect(experiment).toEqual(control)
-    expect(experiment.map(request => JSON.stringify(request)))
-      .toEqual(control.map(request => JSON.stringify(request)))
     const firstEnabled = requestView(experiment[0])
+    const capabilityGapTool = firstEnabled.tools.find(tool => toolName(tool) === 'report_capability_gap')
+    expect(capabilityGapTool).toEqual({
+      name: 'report_capability_gap',
+      description: 'Report a missing reusable capability only after reviewing the complete Session Skill catalog and finding that no available Skill applies. Propose one kebab-case Skill name; EvoForge records the gap and searches explicitly trusted sources asynchronously without changing the current Session.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: {
+            type: 'string',
+            description: 'Proposed kebab-case name for the missing reusable Skill capability.',
+          },
+        },
+        required: ['name'],
+      },
+    })
+    expect(experiment.map(request => removeCapabilityGapTool(request))).toEqual(control)
+    expect(experiment.map(request => JSON.stringify(removeCapabilityGapTool(request))))
+      .toEqual(control.map(request => JSON.stringify(request)))
     for (let index = 1; index < experiment.length; index += 1) {
       const previous = requestView(experiment[index - 1])
       const current = requestView(experiment[index])
@@ -140,6 +155,70 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     expect(JSON.stringify(experiment)).not.toContain('automatic-evaluator-only-skill')
     expect(JSON.stringify(experiment)).not.toContain('stable-feedback-fix')
     expect(JSON.stringify(experiment)).not.toContain('stable-prior-capability')
+  })
+
+  it('turns a natural-language native Goal into a durable model-declared Capability Gap through the real Agent Loop', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-model-gap-'))
+    temporaryRoots.push(root)
+    const ctx = await bootStorage(await writeStorageConfig(root))
+    const adapter = await installAgentRuntime(ctx, undefined, {
+      firstCapabilityGap: 'publish-dsh-plugin',
+    })
+    await ctx.plugin(EvolvePlugin, { cacheRoot: join(root, 'cache') })
+    const packages = (path: string) => pathToFileURL(
+      join(dshSourceDir, 'packages', path, 'lib', 'index.js'),
+    ).href
+    const [llm, session] = await Promise.all([
+      import(packages('llm/llm')),
+      import(packages('core/session')),
+    ])
+    const handle = await ctx.agents.create({
+      sessionId: session.SessionId('model-gap-session'),
+      agentOptions: { provider: 'fixed', model: 'fixed' },
+      meta: { cwd: root },
+    })
+    const goals = ctx.get('goals') as {
+      create(agent: object, request: { objective: string }): { objective: string }
+    } | undefined
+    const control = ctx.get('evoforge.evolutionControl') as {
+      overview(workspaceId: string, sessionId?: string): Promise<{
+        capabilityGaps?: {
+          confirmedCount: number
+          items: Array<Record<string, unknown>>
+        }
+      }>
+    } | undefined
+    if (goals === undefined || control === undefined) throw new Error('Goal or evolution control service did not load')
+    const objective = 'Publish this repository as a verified native DSH plugin without asking me to choose a workflow.'
+    goals.create(handle.agent, { objective })
+
+    handle.agent.followup(llm.createUserMessage({
+      content: [{ type: 'text', text: objective }],
+      source: { kind: 'user' },
+    }))
+    await handle.agent.whenIdle()
+
+    expect(adapter.requests).toHaveLength(2)
+    const overview = await control.overview(WORKSPACE_ID, 'model-gap-session')
+    expect(overview).toMatchObject({ capabilityMap: { status: 'complete' } })
+    expect(overview.capabilityGaps).toMatchObject({
+      confirmedCount: 1,
+      items: [{
+        requestedSkill: 'publish-dsh-plugin',
+        catalogSize: 0,
+        status: 'confirmed',
+        goal: { revision: 1, objective },
+        evidence: {
+          kind: 'model-declared-skill-gap',
+          catalog: 'complete',
+          routing: 'model-declared-no-applicable-skill',
+          providers: 'settled',
+        },
+      }],
+    })
+    expect(JSON.stringify(adapter.requests[1])).toContain('trusted discovery continues asynchronously')
+
+    await ctx.fiber.dispose()
   })
 
   it('authors a private inactive evaluator through real DSH Feedback, Commands, and Jobs', async () => {
@@ -2284,6 +2363,7 @@ async function waitForCanaryDecision(
 async function installAgentRuntime(
   ctx: Awaited<ReturnType<typeof bootStorage>>,
   persistenceRoot?: string,
+  options: { readonly firstCapabilityGap?: string } = {},
 ) {
   const packages = (path: string) => pathToFileURL(join(dshSourceDir, 'packages', path, 'lib', 'index.js')).href
   const [llm, session, systemPrompt, tools, skill, toolSkill, agent, goal, agentLoop, persistence] = await Promise.all([
@@ -2313,6 +2393,7 @@ async function installAgentRuntime(
   ctx.provide('workspaceRegistry', {
     resolveByPath: async () => ({ id: WORKSPACE_ID }),
   } as never)
+  const scriptedCapabilityGap = options.firstCapabilityGap
 
   class FixedAdapter extends llm.LlmAdapter {
     requests: unknown[] = []
@@ -2321,8 +2402,33 @@ async function installAgentRuntime(
       return Promise.resolve({ provider, id: model, name: model })
     }
 
-    async * stream(options: unknown) {
-      this.requests.push(structuredClone(options))
+    async * stream(request: unknown) {
+      this.requests.push(structuredClone(request))
+      if (this.requests.length === 1 && scriptedCapabilityGap !== undefined) {
+        const callId = llm.CallId('model-declared-capability-gap')
+        const argumentsJson = JSON.stringify({ name: scriptedCapabilityGap })
+        yield { type: 'block-start', index: 0, blockType: 'tool-call' }
+        yield {
+          type: 'tool-call-delta',
+          index: 0,
+          id: callId,
+          name: 'report_capability_gap',
+          argumentsDelta: argumentsJson,
+        }
+        yield {
+          type: 'block-end',
+          index: 0,
+          block: {
+            type: 'tool-call',
+            id: callId,
+            name: 'report_capability_gap',
+            arguments: argumentsJson,
+          },
+        }
+        yield { type: 'usage', usage: { inputTokens: 1, outputTokens: 1 } }
+        yield { type: 'finish', reason: { kind: 'tool-calls' } }
+        return
+      }
       yield { type: 'block-start', index: 0, blockType: 'text' }
       yield { type: 'text-delta', index: 0, text: 'ok' }
       yield { type: 'block-end', index: 0, block: { type: 'text', text: 'ok' } }
@@ -2413,6 +2519,20 @@ function modelVisibleRequest(value: unknown): unknown {
   const request = structuredClone(value) as { messages?: Array<Record<string, unknown>> }
   for (const message of request.messages ?? []) delete message.id
   return request
+}
+
+function removeCapabilityGapTool(value: unknown): unknown {
+  const request = structuredClone(value) as { tools?: unknown[] }
+  if (!Array.isArray(request.tools)) throw new Error('adapter request has no tools array')
+  request.tools = request.tools.filter(tool => toolName(tool) !== 'report_capability_gap')
+  return request
+}
+
+function toolName(value: unknown): string | undefined {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    && typeof (value as Readonly<Record<string, unknown>>).name === 'string'
+    ? (value as Readonly<Record<string, string>>).name
+    : undefined
 }
 
 function identityOf(agent: {

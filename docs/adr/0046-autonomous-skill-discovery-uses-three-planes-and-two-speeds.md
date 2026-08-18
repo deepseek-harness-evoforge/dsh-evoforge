@@ -23,6 +23,20 @@ Governance Plane 拥有 evaluator、holdout、gold、hard gates 与 release elig
 证据，搜索或组合完整 Skill 包，执行 baseline/candidate、holdout、回归、迁移、安全、成本、时延和
 cache 评测，再 promote/review/reject/abstain。晋升只影响未来 Session。
 
+## 当前实现接缝
+
+已有能力的语义选择继续由 DSH 原生 Session Skill catalog 与 `skill` Tool 承担，EvoForge 不建立路由菜单
+或第二个 Skill registry。为了让“目录里没有适用能力”成为可追踪事件，`dsh-evolve` 只增加一个稳定的
+模型 Tool：`report_capability_gap(name)`。模型只能在读过完整目录且没有 Skill 适用时调用；Host 会再次
+验证 exact Workspace/Session、active native Goal、settled catalog、name 长度/语法及 exact name 缺失，
+以 `model-declared-skill-gap` 区分于原生 `skill` 的 `native-skill-miss`，并先持久化再非阻塞唤醒发现循环。
+调度失败不能撤销已经成立的 Gap 回执。
+
+该 Tool 只报告缺口，不接收用户选路，不读取网络，不生成、执行、安装或激活候选。它是 Cache Contract
+中明确列出的单一稳定增量；当前 Session 内名称、描述、Schema 与顺序不随发现、评测或 future
+Generation 变化。现阶段发现仅支持部署者明确授信的本地 Git 源和 exact-name whole-Skill 包；外部来源
+语义搜索、候选生成和真实模型路由质量仍是后续门禁，不能从本实现推断已经完成整个 ADR。
+
 ## 结果
 
 - 用户不需要预先理解 Skill 目录或工作流分类；Web 可解释实际路由和未满足缺口；

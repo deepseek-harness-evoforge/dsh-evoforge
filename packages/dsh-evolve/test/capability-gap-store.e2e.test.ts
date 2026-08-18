@@ -32,9 +32,23 @@ describe.skipIf(process.platform !== 'darwin')('Capability Gap durable queue', (
       expect(Object.isFrozen(firstResult.gap)).toBe(true)
 
       await store.record(gapInput(2, 'second-missing'))
-      await store.record(gapInput(3, 'third-missing'))
+      await store.record({
+        ...gapInput(3, 'third-missing'),
+        evidence: {
+          kind: 'model-declared-skill-gap' as const,
+          catalog: 'complete' as const,
+          routing: 'model-declared-no-applicable-skill' as const,
+          providers: 'settled' as const,
+        },
+      })
       const retained = store.list(WORKSPACE_ID)
       expect(retained.map(gap => gap.requestedSkill)).toEqual(['third-missing', 'second-missing'])
+      expect(retained[0]?.evidence).toEqual({
+        kind: 'model-declared-skill-gap',
+        catalog: 'complete',
+        routing: 'model-declared-no-applicable-skill',
+        providers: 'settled',
+      })
       expect(retained.every(gap => /^[a-f0-9]{64}$/.test(gap.id))).toBe(true)
       expect(retained.every(gap => gap.status === 'confirmed')).toBe(true)
       retainedIds = retained.map(gap => gap.id)
@@ -50,6 +64,28 @@ describe.skipIf(process.platform !== 'darwin')('Capability Gap durable queue', (
     } finally {
       await recovered.close()
       await resumed.fiber.dispose()
+    }
+  })
+
+  it('rejects a Capability Gap whose evidence kind and routing provenance disagree', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-capability-gap-evidence-'))
+    temporaryRoots.push(root)
+    const configPath = await writeStorageConfig(root)
+    const ctx = await bootStorage(configPath)
+    const store = await openCapabilityGapStore(ctx.storageDomain)
+    try {
+      const input = gapInput(1, 'mismatched-gap')
+      await expect(store.record({
+        ...input,
+        evidence: {
+          ...input.evidence,
+          routing: 'model-declared-no-applicable-skill',
+        },
+      } as never)).rejects.toThrow()
+      expect(store.list(WORKSPACE_ID)).toEqual([])
+    } finally {
+      await store.close()
+      await ctx.fiber.dispose()
     }
   })
 

@@ -320,7 +320,7 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
     }
   })
 
-  it('loads as a removable host-only DSH plugin without changing model composition', async () => {
+  it('loads with one stable autonomous Gap Tool and removal restores native model composition', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-runtime-plugin-'))
     temporaryRoots.push(root)
     const { evolvedConfig, nativeConfig } = await writeRuntimeConfigs(root)
@@ -343,6 +343,20 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
     expect(service).toBeDefined()
     if (service === undefined) throw new Error('evolution service did not load')
     const before = await evolvedCtx.systemPrompt.assemble()
+    expect(before.tools).toEqual([{
+      name: 'report_capability_gap',
+      description: 'Report a missing reusable capability only after reviewing the complete Session Skill catalog and finding that no available Skill applies. Propose one kebab-case Skill name; EvoForge records the gap and searches explicitly trusted sources asynchronously without changing the current Session.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: {
+            type: 'string',
+            description: 'Proposed kebab-case name for the missing reusable Skill capability.',
+          },
+        },
+        required: ['name'],
+      },
+    }])
     const evolvedJobs = evolvedCtx.get('jobs') as JobRegistry | undefined
     expect(evolvedJobs).toBeDefined()
     expect(() => evolvedJobs?.start({
@@ -358,7 +372,9 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
 
     const nativeCtx = await bootStorage(nativeConfig)
     try {
-      expect(await nativeCtx.systemPrompt.assemble()).toEqual(before)
+      const native = await nativeCtx.systemPrompt.assemble()
+      expect(native.tools).toEqual([])
+      expect({ ...native, tools: before.tools }).toEqual(before)
     } finally {
       await nativeCtx.fiber.dispose()
     }
@@ -475,7 +491,10 @@ async function writeRuntimeConfigs(root: string): Promise<{
     ['dsh-storage', join(dshSourceDir, 'packages', 'storage', 'storage')],
     ['dsh-storage-json', join(dshSourceDir, 'packages', 'storage', 'storage-json')],
     ['dsh-storage-domain', join(dshSourceDir, 'packages', 'storage', 'storage-domain')],
+    ['dsh-agent', join(dshSourceDir, 'packages', 'core', 'agent')],
+    ['dsh-goal', join(dshSourceDir, 'packages', 'goal', 'goal')],
     ['dsh-system-prompt', join(dshSourceDir, 'packages', 'core', 'system-prompt')],
+    ['dsh-tools', join(dshSourceDir, 'packages', 'core', 'tools')],
     ['dsh-session', join(dshSourceDir, 'packages', 'core', 'session')],
     ['dsh-jobs-local', join(dshSourceDir, 'packages', 'jobs', 'jobs-local')],
     ['dsh-session-persistence-jsonl', join(dshSourceDir, 'packages', 'session', 'session-persistence-jsonl')],
@@ -490,7 +509,10 @@ async function writeRuntimeConfigs(root: string): Promise<{
       name: '@deepseek-ai/dsh-system-prompt',
       config: { persona: 'Stable P0B composition fixture.' },
     },
+    { id: 'tools', name: '@deepseek-ai/dsh-tools' },
     { id: 'session', name: '@deepseek-ai/dsh-session' },
+    { id: 'agent', name: '@deepseek-ai/dsh-agent' },
+    { id: 'goal', name: '@deepseek-ai/dsh-goal' },
     { id: 'storage', name: '@deepseek-ai/dsh-storage' },
     {
       id: 'storage-json',

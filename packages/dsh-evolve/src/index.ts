@@ -9,6 +9,7 @@ import {
   installCapabilityGapMonitor,
   openCapabilityGapStore,
 } from './capability-gap-store.ts'
+import { installCapabilityGapTool } from './capability-gap-tool.ts'
 import {
   installTrustedSkillDiscoveryLoop,
   openSkillDiscoveryStore,
@@ -240,7 +241,15 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   ctx.provide('evoforge.evolution', store)
   const disposeBinder = installGenerationBinder(ctx, store, source)
   const capabilities = new CapabilityMap()
-  const capabilityMonitor = installCapabilityMapObserver(ctx, capabilities, store)
+  const capabilityMonitors = new Set<ReturnType<typeof installCapabilityMapObserver>>()
+  ctx.inject(['skills'], (skillCtx) => {
+    const monitor = installCapabilityMapObserver(skillCtx, capabilities, store)
+    capabilityMonitors.add(monitor)
+    skillCtx.effect(() => async () => {
+      await monitor.dispose()
+      capabilityMonitors.delete(monitor)
+    }, 'dsh-evolve.capabilityMapObserver')
+  })
   let skillAdmissionScheduler: DiscoveredSkillAdmissionScheduler | undefined
   let skillShadowScheduler: DiscoveredSkillShadowScheduler | undefined
   const skillDiscovery = new TrustedSkillDiscovery(
@@ -284,6 +293,15 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     store,
     { onGap: gap => skillDiscoveryLoop.observe(gap) },
   )
+  ctx.inject(['tools', 'goals'], (toolCtx) => {
+    installCapabilityGapTool(
+      toolCtx,
+      capabilityGaps,
+      capabilities,
+      store,
+      { onGap: gap => skillDiscoveryLoop.observe(gap) },
+    )
+  })
   const review = config.supervisor === undefined || config.supervisor.runRoots.length === 0
     ? undefined
     : {
@@ -637,7 +655,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   }
   ctx.effect(() => async () => {
     await Promise.all([...deliveryMonitors].map(monitor => monitor.dispose()))
-    await capabilityMonitor.dispose()
+    await Promise.all([...capabilityMonitors].map(monitor => monitor.dispose()))
     await capabilityGapMonitor.dispose()
     await skillDiscoveryLoop.dispose()
     await feedbackMonitor.dispose()

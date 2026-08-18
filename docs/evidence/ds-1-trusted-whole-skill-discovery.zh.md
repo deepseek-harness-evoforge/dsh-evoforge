@@ -5,10 +5,12 @@
 
 ## 已证明的用户结果
 
-用户只给自然语言 Goal，DSH 模型仍通过原生 Skill registry 和 `skill` Tool 自主选择能力，不出现
-EvoForge 路由菜单。只有 exact Workspace + Session 的目录观测完整、模型请求的合法 Skill 名确实
-不存在时，才记录可证伪 Capability Gap；普通 Tool 失败、目录不完整、非法名称和已有 Skill 的运行
-失败都不会被冒充为缺口。
+用户只给自然语言 Goal，DSH 模型仍通过原生 Skill registry 和 `skill` Tool 自主选择已有能力，不出现
+EvoForge 路由菜单。可证伪 Capability Gap 有两个明确区分的来源：原生 `skill` Tool 请求的合法 exact
+name 在完整 catalog 中确实不存在；或模型检查完整 catalog 后通过固定 `report_capability_gap` 声明没有
+任何适用 Skill，Host 再核对 active Goal、exact identity、settled catalog 和提议 name 不存在。普通 Tool
+失败、目录不完整、非法名称和已有 Skill 的运行失败都不会被冒充为缺口。后者的真实 Agent Loop 证据见
+[V4-1](v4-1-autonomous-capability-gap.zh.md)。
 
 对已确认 Gap，常驻 host 循环在后台扫描 `trustedDiscoverySources` 中由部署者显式配置的本地 Git
 仓库。发现以整个 Skill 文件夹为原子单位，固定 commit、tree hash、SHA-256 content hash、相对包路径、
@@ -48,16 +50,17 @@ Web 不暴露绝对仓库路径、Skill 正文或私有 Session ID，也没有�
 
 ## 验证
 
-- `dsh-evolve`：`227 passed / 2 skipped`，覆盖 Git 整包身份、固定版本物化、脚本不执行、无来源
-  abstain、启动恢复、新 Gap 非阻塞观察、Storage 重启、真实 macOS sealed deterministic admission、
-  无 proposer 的 exact-Candidate assembled Shadow、现有 ReviewInbox 兼容、治理输入漂移和控制面脱敏投影；
+- `dsh-evolve` 全套测试，覆盖 Git 整包身份、固定版本物化、脚本不执行、无来源 abstain、启动恢复、
+  两种 Gap provenance、真实 Agent Loop 模型声明、新 Gap 非阻塞观察、Storage 重启、真实 macOS sealed
+  deterministic admission、无 proposer 的 exact-Candidate assembled Shadow、现有 ReviewInbox 兼容、
+  治理输入漂移和控制面脱敏投影；
 - `dsh-evolve-web`：`25 passed`，覆盖候选/abstain 解释和无安装/激活动作；
 - 全仓 `pnpm check`：docs、types、tests、build 全部通过；Telegram `39 passed`，飞书 `38 passed`。
 
 ## 尚未证明
 
-当前没有联网市场、官方文档、论文或通用开源索引；没有从资料生成新 Skill；确定性准入不是完整
-assembled DSH rollout；确定性准入到独立 assembled holdout 已自动接线，但候选尚未完成迁移、安全、
+当前没有联网市场、官方文档、论文或通用开源索引；没有从资料生成新 Skill；确定性准入到独立
+assembled holdout 已自动接线，但候选尚未完成迁移、安全、
 成本、时延和 KV Cache 全部门禁，也不会自动批准或进入活动 Generation。真实 provider、陌生用户和
 Hermes 同任务 paired benchmark 仍缺失。因此本纵切是可信 acquisition + 双速评测链，不是自动安装，
 更不是完整自我进化闭环。

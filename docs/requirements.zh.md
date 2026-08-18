@@ -1,6 +1,6 @@
 # DeepSeek Harness EvoForge 项目需求基线
 
-> 状态：已确认；P0A–P1.21、P2A.1–P2D.1、P3.1、P3.2、LC-1、LC-2 和 Runtime Readiness 已有可复用实现，产品形态已纠正为“只安装并运行于 DSH 的原生 out-of-tree 插件套件”；十一包统一原生安装、多 Workspace 双渠道自动化隔离、Workspace-scoped evolution、零基础浏览器复验、真实飞书 App 握手/setup-only 配对与 EV-1、SD-1、LC-1、AS-1 approval 四个确定性 Hermes paired slice 已通过。自主 Skill 发现/获取、独立评测治理、完整双速进化闭环、exact 飞书 route 消息、长期 outcome 与其余 Hermes paired epochs 等完整真实验收完成前仍不构成 v0.1 交付
+> 状态：已确认；P0A–P1.21、P2A.1–P2D.1、P3.1、P3.2、LC-1、LC-2 和 Runtime Readiness 已有可复用实现，产品形态已纠正为“只安装并运行于 DSH 的原生 out-of-tree 插件套件”；十一包统一原生安装、多 Workspace 双渠道自动化隔离、Workspace-scoped evolution、零基础浏览器复验、真实飞书 App 握手/setup-only 配对与 EV-1、SD-1、LC-1、AS-1 approval 四个确定性 Hermes paired slice 已通过。自然 Goal→可复核 Gap→exact-name 本地 whole-Skill 隔离候选已有第一条纵切；外部来源语义搜索/获取、无候选时生成、完整独立评测治理、双速进化闭环、exact 飞书 route 消息、长期 outcome 与其余 Hermes paired epochs 等完整真实验收完成前仍不构成 v0.1 交付
 > 更新日期：2026-08-18
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。发生冲突时，下述“方向纠正”优先于旧里程碑文字。
 
@@ -263,7 +263,8 @@ workspace，输出可审查的 launchd/systemd unit。OS service manager 与 uni
 - 动态状态通过已有稳定工具按需读取，或存储在模型上下文之外；
 - 无事发生的 Hook 真正 no-op；
 - 不反复注入时间、UUID、全量历史和运行状态；
-- 后台观察和持续进化默认不增加模型工具与系统提示；
+- 后台观察和持续进化不增加动态模型工具或系统提示；确有 Goal 执行动作价值的固定 Tool 必须逐项声明、
+  跨轮稳定，并证明移除该声明项后其余完整请求与原生控制组等价；
 - UI、审批、时间线和运行状态从 host/control plane 读取，不通过每轮 Prompt 注入同步；
 - 能力晋升在会话边界生效，活动会话固定版本；
 - 对完整 composition 测量缓存影响，而不是用局部插件自证；
@@ -321,12 +322,22 @@ workspace，输出可审查的 launchd/systemd unit。OS service manager 与 uni
 exact route 消息和 Hermes paired 证据完成以前仍只标记为 `implemented`，不扩张为 Gateway，也不把
 其他消息、内容或日程需求视为已交付。该说明不改变以上需求顺序和权限边界。
 
-自主 Skill 发现已经完成第一条可验证纵切：复用 DSH 原生 Skill registry 与 `skill` Tool 记录当前
-Workspace + Session 的完整目录和模型实际路由；只有完整目录中的同名 Skill 确认不存在时才形成
-Capability Gap。后台只扫描部署者显式授信的本地 Git 来源，固定 commit/tree/content hash，并把含
-`SKILL.md`、scripts、references 的完整目录记录为 quarantined、inactive、unevaluated、never-executed
-候选；没有可信来源或精确 Skill 时持久记录 abstain。Web 只展示有界身份、权限与状态，不提供选路、
-安装或激活按钮。外部市场/官方资料/论文/开源组合、候选生成和 Trial/治理接线尚未完成。
+自主 Skill 发现已经完成一条更完整的可验证纵切：已有能力继续由模型依据 DSH 原生完整 Session Skill
+catalog 的 name/description 自主语义路由，并由原生 `skill` Tool 加载；没有适用 Skill 时，模型可在同一
+自然语言 Goal 中调用唯一稳定的 `report_capability_gap` Tool 提议一个有界 kebab-case 能力名。Host 会
+重新核对 exact Workspace/Session、active native Goal、完整 settled catalog 和 exact name 不存在，先将
+`model-declared-skill-gap` 证据持久化，再异步唤醒可信发现；既有原生 `skill` exact miss 仍作为不同证据
+来源保留。真实 DSH Agent Loop 已证明 Goal→Tool→持久 Gap→控制面投影，不需要用户选择路径、Agent、
+工作流或 Skill。该稳定 Tool 是有意声明的模型表面增量；64 轮门禁证明它的名称/Schema/顺序不随 host
+状态或 future Generation 漂移，移除该 Tool 后其余请求与原生控制组逐字节相同。
+
+后台目前只扫描部署者显式授信的本地 Git 来源，按提议的 exact Skill name 固定
+commit/tree/content hash，并把含 `SKILL.md`、scripts、references 的完整目录记录为 quarantined、
+inactive、unevaluated、never-executed 候选；没有可信来源或精确 Skill 时持久记录 abstain。确定性
+whole-Skill admission 与独立 assembled holdout Shadow 已接入，清晰胜出仍只形成 inactive 人工审查
+Candidate，不获得发布权。Web 已展示有界 Capability Map、Gap、候选、来源、权限和状态，不提供模型
+选路、安装或激活按钮。外部市场/官方资料/论文/开源的语义检索与组合、无候选时的 Skill 生成、真实
+模型的正确缺口判断及跨任务慢环证据仍未完成，不能据此宣称完整自主 Skill 获取或 V4 退出门通过。
 
 在 P1.1 之后，先实现 `dsh-software-delivery` 的最小 objective outcome：稳定按需 Skill 与
 linked-worktree/commit/check 验证器。只有真实交付 outcome 可用后，才建设 future-session
