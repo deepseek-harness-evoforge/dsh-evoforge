@@ -78,6 +78,18 @@ export interface ResearchSkillHoldoutResult {
   readonly releaseAuthority: 'none'
 }
 
+export interface ResearchSkillRevisionInput {
+  readonly holdoutResultId: string
+  readonly researchDigest: string
+  readonly parentCandidateId: string
+  readonly parentTreeHash: string
+  readonly findings: readonly {
+    readonly anchorDigest: string
+    readonly assessment: 'violated' | 'unresolved'
+    readonly attribution: string
+  }[]
+}
+
 export interface ResearchSkillHoldoutEvaluatorInput {
   readonly idempotencyKey: string
   readonly targetId: string
@@ -231,6 +243,66 @@ export class ResearchSkillHoldout {
       && this.targets.has(targetKey(candidate.workspaceId, candidate.requestedSkill))
   }
 
+  /**
+   * Revalidate a durable failed original Holdout and expose only bounded findings to a reviser.
+   * Withheld excerpts, titles, URLs, and research knowledge never cross this seam.
+   */
+  async revisionInput(
+    candidate: DiscoveredSkillCandidate,
+    result: ResearchSkillHoldoutResult,
+  ): Promise<ResearchSkillRevisionInput> {
+    const target = this.targets.get(targetKey(candidate.workspaceId, candidate.requestedSkill))
+    if (target === undefined
+      || candidate.version.kind !== 'slow-loop-research-bundle-v2'
+      || candidate.source.kind !== 'slow-loop-author'
+      || candidate.demand === undefined) {
+      throw new Error('research Skill revision requires one original research-grounded Candidate')
+    }
+    if (!isHoldoutResult(result)
+      || (result.status !== 'fail' && result.status !== 'inconclusive')
+      || result.candidateId !== candidate.id
+      || result.workspaceId !== candidate.workspaceId
+      || result.skillName !== candidate.requestedSkill
+      || result.targetId !== target.id
+      || result.researchDigest !== candidate.version.researchDigest
+      || result.candidateTreeHash !== candidate.version.treeHash) {
+      throw new Error('research Skill revision requires the exact durable Holdout result')
+    }
+    const identity = holdoutIdentity({
+      id: candidate.id,
+      workspaceId: candidate.workspaceId,
+      requestedSkill: candidate.requestedSkill,
+      researchDigest: candidate.version.researchDigest,
+      treeHash: candidate.version.treeHash,
+    }, target, result.evaluatorIdentityHash)
+    if (result.id !== identity.id) {
+      throw new Error('research Skill revision requires the exact durable Holdout result')
+    }
+    const durable = await readExistingResult(join(target.runRoot, 'runs', identity.id), identity)
+    if (durable === undefined || JSON.stringify(durable) !== JSON.stringify(result)) {
+      throw new Error('research Skill revision requires the exact durable Holdout result')
+    }
+    const findings = durable.findings
+      .filter((finding): finding is ResearchSkillHoldoutFinding & {
+        readonly assessment: 'violated' | 'unresolved'
+      } => finding.assessment !== 'satisfied')
+      .map(finding => Object.freeze({
+        anchorDigest: finding.anchorDigest,
+        assessment: finding.assessment,
+        attribution: finding.attribution,
+      }))
+    if (findings.length === 0) {
+      throw new Error('research Skill revision requires failed or unresolved Holdout findings')
+    }
+    return deepFreeze({
+      holdoutResultId: durable.id,
+      researchDigest: durable.researchDigest,
+      parentCandidateId: candidate.id,
+      parentTreeHash: candidate.version.treeHash,
+      findings,
+    })
+  }
+
   async evaluate(
     candidate: DiscoveredSkillCandidate,
     options: { readonly signal?: AbortSignal } = {},
@@ -248,25 +320,14 @@ export class ResearchSkillHoldout {
       throw new Error('research Skill Holdout evaluator identity is invalid')
     }
     const evaluatorIdentityHash = sha256(evaluatorIdentity)
-    const id = sha256(JSON.stringify({
-      policyVersion: POLICY_VERSION,
-      targetId: target.id,
-      candidateId: candidate.id,
-      researchDigest: candidate.version.researchDigest,
-      candidateTreeHash: candidate.version.treeHash,
-      evaluatorIdentityHash,
-    }))
-    const stateIdentity = {
-      schemaVersion: 1 as const,
-      id,
-      candidateId: candidate.id,
+    const stateIdentity = holdoutIdentity({
+      id: candidate.id,
       workspaceId: candidate.workspaceId,
-      skillName: candidate.requestedSkill,
-      targetId: target.id,
+      requestedSkill: candidate.requestedSkill,
       researchDigest: candidate.version.researchDigest,
-      candidateTreeHash: candidate.version.treeHash,
-      evaluatorIdentityHash,
-    }
+      treeHash: candidate.version.treeHash,
+    }, target, evaluatorIdentityHash)
+    const { id } = stateIdentity
     const runDir = join(target.runRoot, 'runs', id)
     let state = await prepareState(runDir, stateIdentity, this.now())
     const existing = await readExistingResult(runDir, stateIdentity)
@@ -841,6 +902,38 @@ function projectIdentity(state: HoldoutState): Omit<HoldoutState, 'phase' | 'cre
     researchDigest: state.researchDigest,
     candidateTreeHash: state.candidateTreeHash,
     evaluatorIdentityHash: state.evaluatorIdentityHash,
+  }
+}
+
+function holdoutIdentity(
+  candidate: {
+    readonly id: string
+    readonly workspaceId: string
+    readonly requestedSkill: string
+    readonly researchDigest: string
+    readonly treeHash: string
+  },
+  target: ResolvedTarget,
+  evaluatorIdentityHash: string,
+): Omit<HoldoutState, 'phase' | 'createdAt' | 'updatedAt'> {
+  const id = sha256(JSON.stringify({
+    policyVersion: POLICY_VERSION,
+    targetId: target.id,
+    candidateId: candidate.id,
+    researchDigest: candidate.researchDigest,
+    candidateTreeHash: candidate.treeHash,
+    evaluatorIdentityHash,
+  }))
+  return {
+    schemaVersion: 1,
+    id,
+    candidateId: candidate.id,
+    workspaceId: candidate.workspaceId,
+    skillName: candidate.requestedSkill,
+    targetId: target.id,
+    researchDigest: candidate.researchDigest,
+    candidateTreeHash: candidate.treeHash,
+    evaluatorIdentityHash,
   }
 }
 

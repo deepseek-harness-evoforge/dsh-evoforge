@@ -277,6 +277,36 @@ describe('independent research holdout', () => {
     expect(evaluator).toHaveBeenCalledOnce()
   })
 
+  it('revalidates one durable failed original Holdout as bounded revision input', async () => {
+    const fixture = await setup()
+    const holdout = service(fixture.target, async () => ({
+      findings: [{
+        anchorDigest: ANCHOR_DIGEST,
+        assessment: 'violated',
+        attribution: 'The parent workflow omits an explicit rollback checkpoint.',
+      }],
+      usage: { inputTokens: 10, outputTokens: 5 },
+    }))
+    const parent = candidate()
+    const failed = await holdout.evaluate(parent)
+
+    await expect(holdout.revisionInput(parent, failed)).resolves.toEqual({
+      holdoutResultId: failed.id,
+      researchDigest: RESEARCH_DIGEST,
+      parentCandidateId: parent.id,
+      parentTreeHash: TREE_HASH,
+      findings: [{
+        anchorDigest: ANCHOR_DIGEST,
+        assessment: 'violated',
+        attribution: 'The parent workflow omits an explicit rollback checkpoint.',
+      }],
+    })
+    await expect(holdout.revisionInput(revisedCandidate(), failed))
+      .rejects.toThrow('one original research-grounded Candidate')
+    await expect(holdout.revisionInput(parent, { ...failed, id: '0'.repeat(64) }))
+      .rejects.toThrow('exact durable Holdout result')
+  })
+
   it('rejects executable Candidate metadata before materialization and refuses overlapping roots', async () => {
     const fixture = await setup()
     const materializeCandidate = vi.fn()
