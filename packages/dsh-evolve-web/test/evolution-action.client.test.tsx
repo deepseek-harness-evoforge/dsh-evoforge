@@ -292,6 +292,8 @@ const t = (key: string) => ({
   'skills.discovery.index': 'index digest',
   'skills.discovery.artifact': 'artifact digest',
   'skills.discovery.tree': 'tree',
+  'skills.discovery.distribution': 'Distribution',
+  'skills.discovery.distribution.archive': 'Archive',
   'skills.discovery.content': 'Content hash',
   'skills.discovery.license': 'Declared license',
   'skills.discovery.license.unknown': 'License not declared',
@@ -639,6 +641,7 @@ describe('EvolutionAction', () => {
               artifactDigest: '9'.repeat(64),
               treeHash: 'b'.repeat(64),
             },
+            distribution: { kind: 'archive' as const, format: 'zip' as const },
             contentHash: 'a'.repeat(64),
             package: {
               path: 'skills/release-native-extension',
@@ -744,6 +747,7 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('public-agent-skills · Agent Skills index · Explicit deployer trust')).toBeTruthy()
     expect(screen.getByText('Source origin · https://skills.example.com')).toBeTruthy()
     expect(screen.getByText(`Agent Skills v0.2 · index digest ${'8'.repeat(12)} · artifact digest ${'9'.repeat(12)} · tree ${'b'.repeat(12)}`)).toBeTruthy()
+    expect(screen.getByText('Distribution · Archive · zip')).toBeTruthy()
     expect(screen.getByText(`Content hash · ${'a'.repeat(12)}`)).toBeTruthy()
     expect(screen.getByText('Declared license · MIT')).toBeTruthy()
     expect(screen.getByText('Whole package · 2 files · 640 bytes · references')).toBeTruthy()

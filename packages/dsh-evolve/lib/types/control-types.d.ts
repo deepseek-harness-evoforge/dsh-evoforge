@@ -130,6 +130,12 @@ export interface EvolutionDiscoveredSkillCandidateView {
         readonly artifactDigest: string;
         readonly treeHash: string;
     };
+    readonly distribution?: {
+        readonly kind: 'skill-md';
+    } | {
+        readonly kind: 'archive';
+        readonly format: 'tar.gz' | 'zip';
+    };
     readonly contentHash: string;
     readonly package: {
         readonly path: string;

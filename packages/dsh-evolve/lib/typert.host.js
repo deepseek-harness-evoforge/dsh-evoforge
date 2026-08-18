@@ -241,6 +241,12 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'artifactDigest': z.string().readonly(),
   'treeHash': z.string().readonly(),
 })]).readonly(),
+  'distribution': z.union([z.undefined(), z.object({
+  'kind': z.literal("skill-md").readonly(),
+}), z.object({
+  'kind': z.literal("archive").readonly(),
+  'format': z.union([z.literal("tar.gz"), z.literal("zip")]).readonly(),
+})]).readonly().optional(),
   'contentHash': z.string().readonly(),
   'package': z.object({
   'path': z.string().readonly(),
@@ -1478,7 +1484,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionDiscoveredSkillCandidateView",
-            "declaration": "export interface EvolutionDiscoveredSkillCandidateView {\n    readonly id: string;\n    readonly discoveredAt: number;\n    readonly gapId: string;\n    readonly requestedSkill: string;\n    readonly description: string;\n    readonly match?: { readonly kind: 'deterministic-lexical-v1'; readonly requestedSkill: string; readonly score: number; readonly runnerUpScore: number; readonly queryHash: string; };\n    readonly source: { readonly id: string; readonly kind: 'local-git' | 'agent-skills-index'; readonly trust: 'explicit-deployer-config'; readonly origin?: string; };\n    readonly scope: 'workspace';\n    readonly version: { readonly kind: 'git-tree'; readonly commit: string; readonly treeHash: string; } | { readonly kind: 'agent-skills-index-v0.2'; readonly indexDigest: string; readonly artifactDigest: string; readonly treeHash: string; };\n    readonly contentHash: string;\n    readonly package: { readonly path: string; readonly fileCount: number; readonly totalBytes: number; readonly hasScripts: boolean; readonly hasReferences: boolean; };\n    readonly permissions: { readonly declared: boolean; readonly executableContent: boolean; readonly externalEffects: 'unknown'; };\n    readonly license?: { readonly status: 'declared'; readonly value: string; } | { readonly status: 'unknown'; };\n    readonly safety: { readonly status: 'quarantined'; readonly checks: readonly { readonly name: 'git-object-integrity' | 'artifact-digest-integrity' | 'regular-files-only' | 'skill-identity' | 'effect-review'; readonly status: 'passed' | 'required'; }[]; };\n    readonly lifecycle: 'inactive';\n    readonly verification: 'unevaluated';\n    readonly execution: 'never';\n}"
+            "declaration": "export interface EvolutionDiscoveredSkillCandidateView {\n    readonly id: string;\n    readonly discoveredAt: number;\n    readonly gapId: string;\n    readonly requestedSkill: string;\n    readonly description: string;\n    readonly match?: { readonly kind: 'deterministic-lexical-v1'; readonly requestedSkill: string; readonly score: number; readonly runnerUpScore: number; readonly queryHash: string; };\n    readonly source: { readonly id: string; readonly kind: 'local-git' | 'agent-skills-index'; readonly trust: 'explicit-deployer-config'; readonly origin?: string; };\n    readonly scope: 'workspace';\n    readonly version: { readonly kind: 'git-tree'; readonly commit: string; readonly treeHash: string; } | { readonly kind: 'agent-skills-index-v0.2'; readonly indexDigest: string; readonly artifactDigest: string; readonly treeHash: string; };\n    readonly distribution?: { readonly kind: 'skill-md'; } | { readonly kind: 'archive'; readonly format: 'tar.gz' | 'zip'; };\n    readonly contentHash: string;\n    readonly package: { readonly path: string; readonly fileCount: number; readonly totalBytes: number; readonly hasScripts: boolean; readonly hasReferences: boolean; };\n    readonly permissions: { readonly declared: boolean; readonly executableContent: boolean; readonly externalEffects: 'unknown'; };\n    readonly license?: { readonly status: 'declared'; readonly value: string; } | { readonly status: 'unknown'; };\n    readonly safety: { readonly status: 'quarantined'; readonly checks: readonly { readonly name: 'git-object-integrity' | 'artifact-digest-integrity' | 'regular-files-only' | 'skill-identity' | 'effect-review'; readonly status: 'passed' | 'required'; }[]; };\n    readonly lifecycle: 'inactive';\n    readonly verification: 'unevaluated';\n    readonly execution: 'never';\n}"
           },
           {
             "name": "EvolutionEvaluatorDraftDetail",

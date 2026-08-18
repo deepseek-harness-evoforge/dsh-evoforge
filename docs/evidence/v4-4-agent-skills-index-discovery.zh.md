@@ -62,7 +62,9 @@ typecheck/test/build 全部通过。
 ## 尚未证明
 
 - Agent Skills Discovery RFC 当前仍是 draft；本实现固定 v0.2，不把它表述为最终标准。
-- 不支持 archive、ClawHub 私有 API、任意搜索引擎、GitHub 自动克隆或凭 popularity 自动选包。
+- 本证据冻结时不支持 archive；后续 [V4-5](v4-5-agent-skills-archive-quarantine.zh.md) 已补齐
+  `.tar.gz`/`.zip` 的摘要先验与安全整包隔离。ClawHub 私有 API、任意搜索引擎、GitHub 自动克隆或凭
+  popularity 自动选包仍不支持。
 - 来源被部署者信任且摘要一致，只能证明 provenance/integrity，不能证明指令安全、任务效果或许可证适用性。
 - 候选仍须经过确定性 admission、独立 assembled holdout、人工或明确策略晋升；当前实现没有 release authority。
 - 找不到候选时的生成/组合、cluster-driven 调度、迁移/负迁移/成本门禁及 Hermes paired outcome 仍未完成。

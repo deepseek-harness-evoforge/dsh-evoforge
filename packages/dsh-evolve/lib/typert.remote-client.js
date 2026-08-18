@@ -241,6 +241,12 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'artifactDigest': z.string().readonly(),
   'treeHash': z.string().readonly(),
 })]).readonly(),
+  'distribution': z.union([z.undefined(), z.object({
+  'kind': z.literal("skill-md").readonly(),
+}), z.object({
+  'kind': z.literal("archive").readonly(),
+  'format': z.union([z.literal("tar.gz"), z.literal("zip")]).readonly(),
+})]).readonly().optional(),
   'contentHash': z.string().readonly(),
   'package': z.object({
   'path': z.string().readonly(),

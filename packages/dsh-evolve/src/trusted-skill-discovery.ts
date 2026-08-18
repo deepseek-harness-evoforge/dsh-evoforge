@@ -12,6 +12,11 @@ import {
 } from '@deepseek-ai/dsh-storage-domain'
 import { parse as parseYaml } from 'yaml'
 import { z } from 'zod'
+import {
+  decodeAgentSkillArchive,
+  type AgentSkillArchiveFile,
+  type AgentSkillArchiveFormat,
+} from './agent-skill-archive.ts'
 import type { CapabilityGap, CapabilityGapStore } from './capability-gap-store.ts'
 
 const execFile = promisify(execFileCallback)
@@ -24,6 +29,7 @@ const MAX_SKILL_HEADER_BYTES = 64 * 1024
 const MAX_DISCOVERY_INDEX_BYTES = 1024 * 1024
 const MAX_DISCOVERY_REDIRECTS = 3
 const DISCOVERY_FETCH_TIMEOUT_MS = 10_000
+const MAX_ARCHIVE_BASE64_BYTES = Math.ceil(MAX_PACKAGE_BYTES / 3) * 4
 const AGENT_SKILLS_INDEX_SCHEMA = 'https://schemas.agentskills.io/discovery/0.2.0/schema.json'
 const SEMANTIC_MIN_SCORE = 8
 const SEMANTIC_MARGIN_PERCENT = 125
@@ -98,6 +104,13 @@ const candidateSchema = z.strictObject({
   source: sourceSchema,
   scope: z.literal('workspace'),
   version: versionSchema,
+  distribution: z.union([
+    z.strictObject({ kind: z.literal('skill-md') }),
+    z.strictObject({
+      kind: z.literal('archive'),
+      format: z.enum(['tar.gz', 'zip']),
+    }),
+  ]).optional(),
   contentHash: hashSchema,
   package: z.strictObject({
     path: z.string().min(1).max(1_024),
@@ -128,13 +141,40 @@ const candidateSchema = z.strictObject({
       status: z.enum(['passed', 'required']),
     })).length(4),
   }),
-  artifact: z.strictObject({
-    kind: z.literal('skill-md'),
-    content: z.string().min(1).max(MAX_SKILL_HEADER_BYTES),
-  }).optional(),
+  artifact: z.union([
+    z.strictObject({
+      kind: z.literal('skill-md'),
+      content: z.string().min(1).max(MAX_SKILL_HEADER_BYTES),
+    }),
+    z.strictObject({
+      kind: z.literal('archive'),
+      format: z.enum(['tar.gz', 'zip']),
+      contentBase64: z.string().base64().min(1).max(MAX_ARCHIVE_BASE64_BYTES),
+    }),
+  ]).optional(),
   lifecycle: z.literal('inactive'),
   verification: z.literal('unevaluated'),
   execution: z.literal('never'),
+}).superRefine((candidate, context) => {
+  if (candidate.source.kind === 'local-git') {
+    if (candidate.version.kind !== 'git-tree'
+      || candidate.artifact !== undefined
+      || candidate.distribution !== undefined) {
+      context.addIssue({ code: 'custom', message: 'local Git candidate has inconsistent provenance' })
+    }
+    return
+  }
+  if (candidate.version.kind !== 'agent-skills-index-v0.2' || candidate.artifact === undefined) {
+    context.addIssue({ code: 'custom', message: 'Agent Skills candidate has inconsistent provenance' })
+    return
+  }
+  if (candidate.distribution === undefined) return // Backward-compatible V4-4 durable record.
+  if (candidate.artifact.kind !== candidate.distribution.kind
+    || (candidate.artifact.kind === 'archive'
+      && candidate.distribution.kind === 'archive'
+      && candidate.artifact.format !== candidate.distribution.format)) {
+    context.addIssue({ code: 'custom', message: 'Agent Skills candidate distribution does not match its artifact' })
+  }
 })
 const attemptSchema = z.strictObject({
   schemaVersion: z.literal(1),
@@ -528,7 +568,7 @@ export class TrustedSkillDiscovery {
   ): Promise<MaterializedSkillCandidate> {
     if (candidate.source.kind !== 'agent-skills-index'
       || candidate.version.kind !== 'agent-skills-index-v0.2'
-      || candidate.artifact?.kind !== 'skill-md') {
+      || candidate.artifact === undefined) {
       throw new Error('Agent Skills index candidate has an invalid pinned artifact')
     }
     const source = this.indexSources.find(item => item.id === candidate.source.id)
@@ -543,27 +583,46 @@ export class TrustedSkillDiscovery {
       candidate.contentHash,
     ])
     if (candidate.id !== expectedId) throw new Error('Agent Skills index candidate id does not match its identity')
-    const content = Buffer.from(candidate.artifact.content)
+    const content = candidate.artifact.kind === 'skill-md'
+      ? Buffer.from(candidate.artifact.content)
+      : Buffer.from(candidate.artifact.contentBase64, 'base64')
     const artifactDigest = sha256Bytes(content)
-    const treeHash = singleSkillTreeHash(content)
+    const decoded = candidate.artifact.kind === 'skill-md'
+      ? singleSkillPackage(content)
+      : await decodeAgentSkillArchive(content, candidate.artifact.format)
+    const treeHash = decoded.treeHash
     if (artifactDigest !== candidate.version.artifactDigest
       || artifactDigest !== candidate.contentHash
       || treeHash !== candidate.version.treeHash) {
       throw new Error('Agent Skills index candidate content does not match its pinned identity')
     }
-    const skill = parseSkillHeader(candidate.artifact.content)
+    const skillFile = decoded.files.find(file => file.path === 'SKILL.md')
+    if (skillFile === undefined) throw new Error('Agent Skills archive candidate has no root SKILL.md')
+    const skillContent = decodeCanonicalUtf8(skillFile.content)
+    const skill = parseSkillHeader(skillContent)
     const expectedLicense = skill.license === undefined
       ? { status: 'unknown' as const }
       : { status: 'declared' as const, value: skill.license }
+    const expectedDistribution = candidate.artifact.kind === 'skill-md'
+      ? { kind: 'skill-md' as const }
+      : { kind: 'archive' as const, format: candidate.artifact.format }
+    const hasScripts = packageHasDirectory(decoded.files, 'scripts')
+    const hasReferences = packageHasDirectory(decoded.files, 'references')
+    const executableContent = hasScripts || decoded.files.some(file => file.mode === '100755')
+    const expectedPackagePath = candidate.artifact.kind === 'skill-md'
+      ? `${skill.name}/SKILL.md`
+      : skill.name
     if (candidate.requestedSkill !== skill.name
       || candidate.description !== skill.description
-      || candidate.package.path !== `${skill.name}/SKILL.md`
-      || candidate.package.fileCount !== 1
-      || candidate.package.totalBytes !== content.byteLength
-      || candidate.package.hasScripts
-      || candidate.package.hasReferences
-      || candidate.permissions.executableContent
+      || candidate.package.path !== expectedPackagePath
+      || candidate.package.fileCount !== decoded.files.length
+      || candidate.package.totalBytes !== decoded.totalBytes
+      || candidate.package.hasScripts !== hasScripts
+      || candidate.package.hasReferences !== hasReferences
+      || candidate.permissions.executableContent !== executableContent
       || candidate.permissions.declared !== skill.permissionsDeclared
+      || (candidate.distribution !== undefined
+        && JSON.stringify(candidate.distribution) !== JSON.stringify(expectedDistribution))
       || JSON.stringify(candidate.license) !== JSON.stringify(expectedLicense)) {
       throw new Error('Agent Skills index candidate metadata does not match its SKILL.md')
     }
@@ -576,17 +635,22 @@ export class TrustedSkillDiscovery {
     const outputDir = resolve(parent, basename(requested))
     await mkdir(outputDir, { mode: 0o700 })
     try {
-      await writeFile(resolve(outputDir, 'SKILL.md'), content, { flag: 'wx', mode: 0o600 })
+      for (const file of decoded.files) {
+        const target = resolve(outputDir, ...file.path.split('/'))
+        assertInside(outputDir, target, 'Agent Skills archive candidate file')
+        await mkdir(dirname(target), { mode: 0o700, recursive: true })
+        await writeFile(target, file.content, { flag: 'wx', mode: 0o600 })
+      }
       return Object.freeze({
         candidateId: candidate.id,
         path: outputDir,
         contentHash: artifactDigest,
         treeHash,
-        files: Object.freeze([Object.freeze({
-          path: 'SKILL.md',
-          mode: '100644' as const,
-          size: content.byteLength,
-        })]),
+        files: Object.freeze(decoded.files.map(file => Object.freeze({
+          path: file.path,
+          mode: file.mode,
+          size: file.content.byteLength,
+        }))),
       })
     } catch (error) {
       await rm(outputDir, { force: true, recursive: true }).catch(() => undefined)
@@ -736,7 +800,9 @@ async function inspectAgentSkillsIndex(
       ]),
     }
   }
-  if (selected.type !== 'skill-md') return { status: 'unsupported-artifact', revision }
+  if (selected.type !== 'skill-md' && selected.type !== 'archive') {
+    return { status: 'unsupported-artifact', revision }
+  }
 
   let artifactUrl: URL
   try {
@@ -754,8 +820,11 @@ async function inspectAgentSkillsIndex(
     fetchedArtifact = await fetchBounded(
       artifactUrl,
       source.indexUrl.origin,
-      MAX_SKILL_HEADER_BYTES,
-      ['text/markdown', 'text/plain'],
+      selected.type === 'skill-md' ? MAX_SKILL_HEADER_BYTES : MAX_PACKAGE_BYTES,
+      selected.type === 'skill-md'
+        ? ['text/markdown', 'text/plain']
+        : ['application/gzip', 'application/x-gzip', 'application/zip', 'application/octet-stream'],
+      selected.type === 'archive',
     )
   } catch (error) {
     return { status: fetchFailureStatus(error), revision }
@@ -767,9 +836,33 @@ async function inspectAgentSkillsIndex(
   }
   let content: string
   let skill: ReturnType<typeof parseSkillHeader>
+  let distribution: NonNullable<DiscoveredSkillCandidateInput['distribution']>
+  let artifact: NonNullable<DiscoveredSkillCandidateInput['artifact']>
+  let files: readonly AgentSkillArchiveFile[]
+  let treeHash: string
+  let totalBytes: number
   try {
-    content = new TextDecoder('utf-8', { fatal: true }).decode(artifactBytes)
-    if (!Buffer.from(content).equals(artifactBytes)) throw new Error('Skill is not canonical UTF-8 text')
+    if (selected.type === 'skill-md') {
+      content = decodeCanonicalUtf8(artifactBytes)
+      const decoded = singleSkillPackage(artifactBytes)
+      files = decoded.files
+      treeHash = decoded.treeHash
+      totalBytes = decoded.totalBytes
+      distribution = { kind: 'skill-md' }
+      artifact = { kind: 'skill-md', content }
+    } else {
+      const format = agentSkillArchiveFormat(fetchedArtifact.finalUrl, fetchedArtifact.mediaType)
+      if (format === undefined) throw new Error('Agent Skills archive has an unsupported format')
+      const decoded = await decodeAgentSkillArchive(artifactBytes, format)
+      const skillFile = decoded.files.find(file => file.path === 'SKILL.md')
+      if (skillFile === undefined) throw new Error('Agent Skills archive has no root SKILL.md')
+      content = decodeCanonicalUtf8(skillFile.content)
+      files = decoded.files
+      treeHash = decoded.treeHash
+      totalBytes = decoded.totalBytes
+      distribution = { kind: 'archive', format }
+      artifact = { kind: 'archive', format, contentBase64: artifactBytes.toString('base64') }
+    }
     skill = parseSkillHeader(content)
   } catch {
     return { status: 'invalid', revision }
@@ -777,7 +870,9 @@ async function inspectAgentSkillsIndex(
   if (skill.name !== selected.name || skill.description !== selected.description) {
     return { status: 'invalid', revision }
   }
-  const treeHash = singleSkillTreeHash(artifactBytes)
+  const hasScripts = packageHasDirectory(files, 'scripts')
+  const hasReferences = packageHasDirectory(files, 'references')
+  const executableContent = hasScripts || files.some(file => file.mode === '100755')
   return {
     status: 'candidate',
     revision,
@@ -798,17 +893,18 @@ async function inspectAgentSkillsIndex(
         artifactDigest,
         treeHash,
       },
+      distribution,
       contentHash: artifactDigest,
       package: {
-        path: `${skill.name}/SKILL.md`,
-        fileCount: 1,
-        totalBytes: artifactBytes.byteLength,
-        hasScripts: false,
-        hasReferences: false,
+        path: selected.type === 'skill-md' ? `${skill.name}/SKILL.md` : skill.name,
+        fileCount: files.length,
+        totalBytes,
+        hasScripts,
+        hasReferences,
       },
       permissions: {
         declared: skill.permissionsDeclared,
-        executableContent: false,
+        executableContent,
         externalEffects: 'unknown',
       },
       license: skill.license === undefined
@@ -823,7 +919,7 @@ async function inspectAgentSkillsIndex(
           { name: 'effect-review', status: 'required' },
         ],
       },
-      artifact: { kind: 'skill-md', content },
+      artifact,
       lifecycle: 'inactive',
       verification: 'unevaluated',
       execution: 'never',
@@ -1260,7 +1356,8 @@ async function fetchBounded(
   expectedOrigin: string,
   maxBytes: number,
   acceptedMediaTypes: readonly string[],
-): Promise<{ readonly bytes: Buffer; readonly finalUrl: URL }> {
+  allowMissingMediaType = false,
+): Promise<{ readonly bytes: Buffer; readonly finalUrl: URL; readonly mediaType?: string }> {
   let current = new URL(initialUrl)
   for (let redirects = 0; redirects <= MAX_DISCOVERY_REDIRECTS; redirects += 1) {
     let response: Response
@@ -1291,7 +1388,8 @@ async function fetchBounded(
       throw new DiscoveryFetchError('unavailable', 'trusted Agent Skills endpoint returned an error')
     }
     const mediaType = response.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase()
-    if (mediaType === undefined || !acceptedMediaTypes.includes(mediaType)) {
+    if ((mediaType === undefined && !allowMissingMediaType)
+      || (mediaType !== undefined && !acceptedMediaTypes.includes(mediaType))) {
       await response.body.cancel().catch(() => undefined)
       throw new DiscoveryFetchError('unavailable', 'trusted Agent Skills endpoint returned an invalid media type')
     }
@@ -1318,7 +1416,11 @@ async function fetchBounded(
       reader.releaseLock()
     }
     if (total === 0) throw new DiscoveryFetchError('unavailable', 'trusted Agent Skills artifact is empty')
-    return { bytes: Buffer.concat(chunks, total), finalUrl: current }
+    return {
+      bytes: Buffer.concat(chunks, total),
+      finalUrl: current,
+      ...(mediaType === undefined ? {} : { mediaType }),
+    }
   }
   throw new DiscoveryFetchError('unavailable', 'trusted Agent Skills endpoint exceeded its redirect limit')
 }
@@ -1396,6 +1498,22 @@ function packageContentHash(entries: readonly GitEntry[]): string {
   ]))
 }
 
+function singleSkillPackage(content: Buffer): {
+  readonly files: readonly AgentSkillArchiveFile[]
+  readonly treeHash: string
+  readonly totalBytes: number
+} {
+  return Object.freeze({
+    files: Object.freeze([Object.freeze({
+      path: 'SKILL.md',
+      mode: '100644' as const,
+      content,
+    })]),
+    treeHash: singleSkillTreeHash(content),
+    totalBytes: content.byteLength,
+  })
+}
+
 function singleSkillTreeHash(content: Uint8Array): string {
   return createHash('sha256')
     .update('SKILL.md')
@@ -1403,6 +1521,29 @@ function singleSkillTreeHash(content: Uint8Array): string {
     .update(content)
     .update('\0')
     .digest('hex')
+}
+
+function decodeCanonicalUtf8(content: Buffer): string {
+  const decoded = new TextDecoder('utf-8', { fatal: true }).decode(content)
+  if (!Buffer.from(decoded).equals(content)) throw new Error('Skill is not canonical UTF-8 text')
+  return decoded
+}
+
+function packageHasDirectory(files: readonly AgentSkillArchiveFile[], directory: string): boolean {
+  return files.some(file => file.path === directory || file.path.startsWith(`${directory}/`))
+}
+
+function agentSkillArchiveFormat(
+  url: URL,
+  mediaType: string | undefined,
+): AgentSkillArchiveFormat | undefined {
+  if (mediaType === 'application/gzip' || mediaType === 'application/x-gzip') return 'tar.gz'
+  if (mediaType === 'application/zip') return 'zip'
+  if (mediaType !== undefined && mediaType !== 'application/octet-stream') return undefined
+  const path = url.pathname.toLocaleLowerCase('en-US')
+  if (path.endsWith('.tar.gz') || path.endsWith('.tgz')) return 'tar.gz'
+  if (path.endsWith('.zip')) return 'zip'
+  return undefined
 }
 
 function sha256Bytes(content: Uint8Array): string {

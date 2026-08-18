@@ -1,6 +1,6 @@
 # EvoForge v0.1 路线图
 
-> 当前状态：已验证历史已统一到 `main` 并同步 `origin/main`；DSH 原生十一包全检查通过，自然 Goal 到持久 Capability Gap、本地可信 Git whole-Skill 的 exact-first 确定性语义发现，以及 Agent Skills Discovery v0.2 单文件制品的同源/摘要验证、持久隔离和后续评测纵切已实现；任意市场与 archive 搜索、候选生成、完整双速治理、exact 飞书消息与最终 paired 验收仍未完成，v0.1 尚未发布或部署。
+> 当前状态：已验证历史已统一到 `main` 并同步 `origin/main`；DSH 原生十一包全检查通过，自然 Goal 到持久 Capability Gap、本地可信 Git whole-Skill 的 exact-first 确定性语义发现，以及 Agent Skills Discovery v0.2 单文件与 `.tar.gz`/`.zip` 整包制品的同源、摘要先验、安全解包、持久隔离和后续评测纵切已实现；任意市场搜索、候选生成、完整双速治理、exact 飞书消息与最终 paired 验收仍未完成，v0.1 尚未发布或部署。
 > 更新日期：2026-08-18
 
 ## 开发与发布纪律
@@ -78,15 +78,17 @@
 `report_capability_gap(name)` Tool 已通过真实 Agent Loop，把自然语言 active Goal 中模型确认的无匹配
 情况经 Host 复核后持久化，并投影到既有 Web Gap queue。显式授信的本地 Git whole-Skill 已支持
 exact-first 查询与对 name/description 的有界确定性语义回退；弱匹配、歧义和非法 exact package 均
-fail closed。显式配置的 Agent Skills Discovery draft v0.2 索引也已支持单文件 `skill-md`：只接受 HTTPS
-（loopback 测试除外）、同源 URL/redirect、精确 schema、bounded UTF-8 与原始字节 SHA-256，verified body
-持久隔离且 Web 不暴露；未知 schema、archive、跨域和摘要不符均 abstain。quarantine、确定性 admission 和独立 assembled holdout Shadow 已接通；清晰胜出仍只进入 inactive
+fail closed。显式配置的 Agent Skills Discovery draft v0.2 索引已支持 `skill-md` 与 `archive`：只接受 HTTPS
+（loopback 测试除外）、同源 URL/redirect、精确 schema 与原始字节 SHA-256；archive 在摘要匹配后才按
+`.tar.gz`/`.zip` 解码，并拒绝 traversal、绝对路径、重复/冲突路径、symlink/hardlink/特殊文件、超文件数、
+超单文件和超解压总量。verified 原始制品进入 Host 私有 durable quarantine，Web 只投影格式/摘要/整包
+元数据而不暴露正文；未知 schema/制品类型、跨域、摘要不符和不安全 archive 均 abstain。quarantine、确定性 admission 和独立 assembled holdout Shadow 已接通；清晰胜出仍只进入 inactive
 人工 review，当前 Session 不漂移。64 轮请求证明该 Tool Schema 稳定，去掉声明的单一 Tool 后其余请求
 与原生控制组逐字节相同。durable Gap 还能在同一 Workspace 内按不同 Goal 聚合重复需求；不同 Gap 名称
 只有共同解析到同一隔离候选时才收敛，同 Goal retry 和冲突候选均不能制造聚类。Web 只把它显示为慢环
 优先级证据，不触发任何生成或发布动作。
 
-仍待实现/验证：Agent Skills v0.2 `skill-md` 之外的可信市场/ClawHub 专有 API、archive、官方资料/论文/开源仓库搜索，找不到包时的完整 Skill 生成或组合，
+仍待实现/验证：Agent Skills v0.2 well-known 索引之外的可信市场/ClawHub 专有 API、官方资料/论文/开源仓库搜索，找不到包时的完整 Skill 生成或组合，
 cluster-driven 慢环调度，真实模型的正/负路由质量、误缺口率、迁移/遗忘/长期保留，以及同条件 Hermes
 paired outcome。因此本阶段不能描述为“自主 Skill 发现已完成”，退出门仍未通过。
 

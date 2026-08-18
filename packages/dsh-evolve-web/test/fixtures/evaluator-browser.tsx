@@ -188,6 +188,7 @@ const remote: EvolutionRemoteClient = {
                 artifactDigest: '9'.repeat(64),
                 treeHash: 'b'.repeat(64),
               },
+              distribution: { kind: 'archive' as const, format: 'tar.gz' as const },
               contentHash: 'a'.repeat(64),
               package: {
                 path: 'skills/release-native-extension',

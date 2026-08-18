@@ -3,6 +3,9 @@ import { createServer, type Server } from 'node:http'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { gzipSync } from 'node:zlib'
+import { pack } from 'tar-stream'
+import { ZipFile } from 'yazl'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { CapabilityGap } from '../src/capability-gap-store.ts'
 import {
@@ -159,6 +162,146 @@ describe('Agent Skills well-known index discovery', () => {
     expect(endpoint.requests).toHaveLength(beforeMaterialize)
   })
 
+  it('verifies, safely expands, and privately persists one whole archive candidate', async () => {
+    const skill = [
+      '---',
+      'name: missing-release-skill',
+      'description: Release safely with packaged evidence.',
+      'license: Apache-2.0',
+      '---',
+      '',
+      'Read references/checks.md. Never run scripts by default.',
+      '',
+    ].join('\n')
+    const files = [
+      { path: 'SKILL.md', content: skill, mode: '100644' as const },
+      { path: 'references/checks.md', content: 'Verify the exact artifact digest.\n', mode: '100644' as const },
+      { path: 'scripts/verify.sh', content: '#!/bin/sh\nexit 0\n', mode: '100755' as const },
+    ]
+    const archive = await makeTarGzip(files)
+    const artifactDigest = sha256(archive)
+    let index = ''
+    const endpoint = await serve((path) => {
+      if (path.endsWith('index.json')) return { type: 'application/json', body: index }
+      if (path.endsWith('.tar.gz')) return { type: 'application/gzip', body: archive }
+      return undefined
+    })
+    index = JSON.stringify({
+      $schema: SCHEMA,
+      skills: [{
+        name: 'missing-release-skill',
+        type: 'archive',
+        description: 'Release safely with packaged evidence.',
+        url: '/skills/missing-release-skill.tar.gz',
+        digest: `sha256:${artifactDigest}`,
+      }],
+    })
+    const store = fakeStore()
+    const discovery = new TrustedSkillDiscovery([], store, {
+      agentSkillIndexes: [{ id: 'archive-test', indexUrl: `${endpoint.origin}/.well-known/agent-skills/index.json` }],
+    })
+
+    await expect(discovery.discover(gap())).resolves.toEqual({
+      status: 'candidate-found',
+      candidateCount: 1,
+    })
+    const input = store.recordCandidate.mock.calls[0]?.[0]
+    expect(input).toMatchObject({
+      requestedSkill: 'missing-release-skill',
+      description: 'Release safely with packaged evidence.',
+      distribution: { kind: 'archive', format: 'tar.gz' },
+      version: {
+        kind: 'agent-skills-index-v0.2',
+        artifactDigest,
+        treeHash: archiveTreeHash(files),
+      },
+      contentHash: artifactDigest,
+      package: {
+        path: 'missing-release-skill',
+        fileCount: 3,
+        totalBytes: files.reduce((total, file) => total + Buffer.byteLength(file.content), 0),
+        hasScripts: true,
+        hasReferences: true,
+      },
+      permissions: {
+        declared: false,
+        executableContent: true,
+        externalEffects: 'unknown',
+      },
+      license: { status: 'declared', value: 'Apache-2.0' },
+      artifact: {
+        kind: 'archive',
+        format: 'tar.gz',
+        contentBase64: archive.toString('base64'),
+      },
+      lifecycle: 'inactive',
+      verification: 'unevaluated',
+      execution: 'never',
+    })
+
+    const outputParent = await mkdtemp(join(tmpdir(), 'dsh-evolve-agent-archive-'))
+    temporaryRoots.push(outputParent)
+    const candidate = {
+      ...input!,
+      schemaVersion: 1 as const,
+      id: discoveredCandidateId(input!),
+    }
+    const beforeMaterialize = endpoint.requests.length
+    const materialized = await discovery.materialize(candidate, join(outputParent, 'candidate'))
+    expect(materialized).toMatchObject({
+      candidateId: candidate.id,
+      contentHash: artifactDigest,
+      treeHash: archiveTreeHash(files),
+      files: files.map(file => ({
+        path: file.path,
+        mode: file.mode,
+        size: Buffer.byteLength(file.content),
+      })).sort((left, right) => left.path.localeCompare(right.path)),
+    })
+    expect(await readFile(join(materialized.path, 'SKILL.md'), 'utf8')).toBe(skill)
+    expect(await readFile(join(materialized.path, 'references/checks.md'), 'utf8'))
+      .toBe('Verify the exact artifact digest.\n')
+    expect(endpoint.requests).toHaveLength(beforeMaterialize)
+  })
+
+  it('falls back to a zip URL extension for a generic archive media type', async () => {
+    const skill = '---\nname: missing-release-skill\ndescription: Release safely from zip.\n---\n\nRead references/checks.md.\n'
+    const files = [
+      { path: 'SKILL.md', content: skill, mode: '100644' as const },
+      { path: 'references/checks.md', content: 'Check it.\n', mode: '100644' as const },
+    ]
+    const archive = await makeZip(files)
+    let index = ''
+    const endpoint = await serve(path => path.endsWith('index.json')
+      ? { type: 'application/json', body: index }
+      : { type: 'application/octet-stream', body: archive })
+    index = JSON.stringify({
+      $schema: SCHEMA,
+      skills: [{
+        name: 'missing-release-skill',
+        type: 'archive',
+        description: 'Release safely from zip.',
+        url: '/skills/missing-release-skill.zip',
+        digest: `sha256:${sha256(archive)}`,
+      }],
+    })
+    const store = fakeStore()
+    const discovery = new TrustedSkillDiscovery([], store, {
+      agentSkillIndexes: [{ id: 'zip-fallback', indexUrl: `${endpoint.origin}/.well-known/agent-skills/index.json` }],
+    })
+
+    await expect(discovery.discover(gap())).resolves.toEqual({
+      status: 'candidate-found',
+      candidateCount: 1,
+    })
+    expect(store.recordCandidate.mock.calls[0]?.[0]).toMatchObject({
+      distribution: { kind: 'archive', format: 'zip' },
+      version: { treeHash: archiveTreeHash(files) },
+      package: { fileCount: 2, hasReferences: true },
+      artifact: { kind: 'archive', format: 'zip', contentBase64: archive.toString('base64') },
+    })
+  })
+
   it('rejects a digest mismatch and never records a candidate', async () => {
     const skill = '---\nname: missing-release-skill\ndescription: Release safely.\n---\n\nDo it.\n'
     let index = ''
@@ -191,6 +334,52 @@ describe('Agent Skills well-known index discovery', () => {
     }))
   })
 
+  it('checks archive digests before decoding and rejects a verified unsafe archive', async () => {
+    let artifact: Buffer<ArrayBufferLike> = Buffer.from('not an archive')
+    let index = ''
+    const endpoint = await serve(path => path.endsWith('index.json')
+      ? { type: 'application/json', body: index }
+      : { type: 'application/gzip', body: artifact })
+    const store = fakeStore()
+    const discovery = new TrustedSkillDiscovery([], store, {
+      agentSkillIndexes: [{ id: 'archive-safety', indexUrl: `${endpoint.origin}/.well-known/agent-skills/index.json` }],
+    })
+    index = JSON.stringify({
+      $schema: SCHEMA,
+      skills: [{
+        name: 'missing-release-skill',
+        type: 'archive',
+        description: 'Release safely.',
+        url: '/skills/missing-release-skill.tar.gz',
+        digest: `sha256:${'0'.repeat(64)}`,
+      }],
+    })
+
+    await expect(discovery.discover(gap())).resolves.toEqual({
+      status: 'abstained',
+      candidateCount: 0,
+      reasons: ['artifact-digest-mismatch'],
+    })
+
+    artifact = await makeTarGzip([{ path: '../escape', content: 'bad', mode: '100644' }])
+    index = JSON.stringify({
+      $schema: SCHEMA,
+      skills: [{
+        name: 'missing-release-skill',
+        type: 'archive',
+        description: 'Release safely.',
+        url: '/skills/missing-release-skill.tar.gz',
+        digest: `sha256:${sha256(artifact)}`,
+      }],
+    })
+    await expect(discovery.discover(gap())).resolves.toEqual({
+      status: 'abstained',
+      candidateCount: 0,
+      reasons: ['invalid-skill-package'],
+    })
+    expect(store.recordCandidate).not.toHaveBeenCalled()
+  })
+
   it('rejects cross-origin artifacts without contacting their server', async () => {
     const attacker = await serve(() => ({ type: 'text/markdown', body: 'must not be fetched' }))
     let index = ''
@@ -220,7 +409,7 @@ describe('Agent Skills well-known index discovery', () => {
     expect(attacker.requests).toEqual([])
   })
 
-  it('fails closed on unknown schemas, archives, and non-loopback plain HTTP configuration', async () => {
+  it('fails closed on unknown schemas, artifact types, and non-loopback plain HTTP configuration', async () => {
     expect(() => new TrustedSkillDiscovery([], fakeStore(), {
       agentSkillIndexes: [{
         id: 'unsafe-http',
@@ -247,7 +436,7 @@ describe('Agent Skills well-known index discovery', () => {
       $schema: SCHEMA,
       skills: [{
         name: 'missing-release-skill',
-        type: 'archive',
+        type: 'future-bundle',
         description: 'Release safely.',
         url: '/skills/missing-release-skill.tar.gz',
         digest: `sha256:${'0'.repeat(64)}`,
@@ -324,7 +513,7 @@ function gap(): CapabilityGap {
 }
 
 async function serve(
-  route: (path: string) => { readonly type: string; readonly body: string } | undefined,
+  route: (path: string) => { readonly type: string; readonly body: string | Buffer } | undefined,
 ): Promise<{ readonly origin: string; readonly requests: string[] }> {
   const requests: string[] = []
   const server = createServer((request, response) => {
@@ -346,4 +535,62 @@ async function serve(
   const address = server.address()
   if (address === null || typeof address === 'string') throw new Error('test server has no TCP address')
   return { origin: `http://127.0.0.1:${address.port}`, requests }
+}
+
+async function makeTarGzip(
+  files: readonly { readonly path: string; readonly content: string; readonly mode: '100644' | '100755' }[],
+): Promise<Buffer> {
+  const archive = pack()
+  const output = collect(archive)
+  for (const file of files) {
+    await new Promise<void>((resolve, reject) => {
+      archive.entry({
+        name: file.path,
+        type: 'file',
+        mode: file.mode === '100755' ? 0o755 : 0o644,
+      }, file.content, error => error === null ? resolve() : reject(error))
+    })
+  }
+  archive.finalize()
+  return gzipSync(await output)
+}
+
+async function makeZip(
+  files: readonly { readonly path: string; readonly content: string; readonly mode: '100644' | '100755' }[],
+): Promise<Buffer> {
+  const archive = new ZipFile()
+  const output = collect(archive.outputStream)
+  for (const file of files) {
+    archive.addBuffer(Buffer.from(file.content), file.path, {
+      mode: file.mode === '100755' ? 0o100755 : 0o100644,
+    })
+  }
+  archive.end()
+  return output
+}
+
+async function collect(stream: NodeJS.ReadableStream): Promise<Buffer> {
+  const chunks: Buffer[] = []
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk))
+  return Buffer.concat(chunks)
+}
+
+function archiveTreeHash(
+  files: readonly { readonly path: string; readonly content: string }[],
+): string {
+  const hash = createHash('sha256')
+  for (const file of [...files].sort((left, right) => comparePaths(left.path, right.path))) {
+    hash.update(file.path).update('\0').update(file.content).update('\0')
+  }
+  return hash.digest('hex')
+}
+
+function comparePaths(left: string, right: string): number {
+  const leftParts = left.split('/')
+  const rightParts = right.split('/')
+  for (let index = 0; index < Math.min(leftParts.length, rightParts.length); index += 1) {
+    const order = leftParts[index]!.localeCompare(rightParts[index]!)
+    if (order !== 0) return order
+  }
+  return leftParts.length - rightParts.length
 }

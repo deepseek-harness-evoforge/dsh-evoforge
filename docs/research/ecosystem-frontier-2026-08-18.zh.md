@@ -62,9 +62,12 @@ Cloudflare 发起的 Agent Skills Discovery via Well-Known URIs 当前状态是 
 [Agent Skills specification](https://agentskills.io/specification)
 
 **设计推断：** EvoForge 首个网络纵切应优先采用这个开放、digest-pinned 的 index，而不是绑定 ClawHub
-私有 API 或 popularity 排名；但只能把它当供应链输入。当前实现固定 v0.2、显式配置、HTTPS、同源、
-bounded UTF-8 和 SHA-256，只接收单文件 `skill-md` 并进入 durable quarantine。Archive 在安全解包门完整
-之前拒绝；ClawHub adapter、任意 Web/GitHub 搜索和候选生成仍分开排期。
+私有 API 或 popularity 排名；但只能把它当供应链输入。当前实现固定 v0.2、显式配置、HTTPS、同源和
+SHA-256；`skill-md` 经过 bounded UTF-8 校验，archive 在验证原始制品摘要后才以 `.tar.gz`/`.zip` 进入
+纯内存解码，并对 traversal、绝对路径、重复/冲突路径、symlink/hardlink/特殊文件、文件数、单文件与
+解压总量 fail closed。两者都只进入 durable quarantine，不执行、不安装、不激活。ClawHub adapter、任意
+Web/GitHub 搜索和候选生成仍分开排期。实现所用流式解析器以官方项目文档为准：
+[tar-stream](https://github.com/mafintosh/tar-stream) · [yauzl](https://github.com/thejoshwolfe/yauzl)。
 
 ## 6. 前沿实现带来的新增硬要求
 

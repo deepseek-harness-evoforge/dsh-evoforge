@@ -425,6 +425,7 @@ function projectSkillDiscovery(
       source: { ...candidate.source },
       scope: candidate.scope,
       version: { ...candidate.version },
+      ...(candidate.distribution === undefined ? {} : { distribution: { ...candidate.distribution } }),
       contentHash: candidate.contentHash,
       package: { ...candidate.package },
       permissions: { ...candidate.permissions },

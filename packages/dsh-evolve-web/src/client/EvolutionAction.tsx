@@ -577,6 +577,10 @@ function SkillDiscovery({ summary, t }: { summary: EvolutionOverview; t: (key: s
               <div className="dsh-evolve-meta">
                 {skillVersionSummary(candidate.version, t)}
               </div>
+              {candidate.distribution !== undefined && <div className="dsh-evolve-meta">
+                {t('skills.discovery.distribution')} · {t(`skills.discovery.distribution.${candidate.distribution.kind}`)}
+                {candidate.distribution.kind === 'archive' ? ` · ${candidate.distribution.format}` : ''}
+              </div>}
               <div className="dsh-evolve-meta">
                 {t('skills.discovery.content')} · {candidate.contentHash.slice(0, 12)}
               </div>

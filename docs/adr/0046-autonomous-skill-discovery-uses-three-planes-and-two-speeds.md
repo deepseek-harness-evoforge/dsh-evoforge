@@ -37,11 +37,13 @@ cache 评测，再 promote/review/reject/abstain。晋升只影响未来 Session
 Generation 变化。现阶段发现支持部署者明确授信的本地 Git 源，以及显式配置的 Agent Skills Discovery
 draft v0.2 well-known 索引：exact 查询优先，exact 不存在时可在同一固定 catalog 上对合法 Skill
 name/description 做有界、确定性的词法语义回退；弱匹配、歧义和非法 exact package 均 fail closed。外部
-纵切仅接收同源、SHA-256 验证且 identity 一致的单文件 `skill-md`，verified body 进入 Host 私有 durable
-quarantine，后续物化不重新信任网络；未知 schema、跨域、摘要不符和 archive 均拒绝。Host 还会从 durable
+纵切接收同源、SHA-256 验证且 identity 一致的 `skill-md` 与 `.tar.gz`/`.zip` archive；archive 必须先通过
+原始制品摘要，再通过 traversal、绝对路径、重复/冲突路径、link/特殊文件、文件数、单文件和解压总量门。
+verified 原始制品进入 Host 私有 durable quarantine，后续物化不重新信任网络；未知 schema/制品类型、
+跨域、摘要不符和不安全 archive 均拒绝。Host 还会从 durable
 Gap 与隔离候选身份派生同一 Workspace、至少两个不同 Goal 的
 重复需求聚类；同一 Goal 的 retry 不构成跨 Goal 证据，有冲突候选的 Gap 不进入聚类。聚类只有慢环优先级
-证据权，不会触发生成、安装、激活或发布。任意市场/ClawHub 专有 API、archive、候选生成、cluster-driven
+证据权，不会触发生成、安装、激活或发布。任意市场/ClawHub 专有 API、候选生成、cluster-driven
 调度和真实模型路由质量仍是后续门禁，不能从本实现推断已经完成整个 ADR。
 
 ## 结果

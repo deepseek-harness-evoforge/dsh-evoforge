@@ -102,7 +102,8 @@ describe.skipIf(process.platform !== 'darwin')('Capability Gap durable queue', (
       const duplicate = await store.recordCandidate(discoveryCandidateInput())
       expect(duplicate).toEqual({ created: false, candidate: candidate.candidate })
       const external = await store.recordCandidate(agentSkillsIndexCandidateInput())
-      candidateIds = [external.candidate.id, candidate.candidate.id]
+      const externalArchive = await store.recordCandidate(agentSkillsArchiveCandidateInput())
+      candidateIds = [externalArchive.candidate.id, external.candidate.id, candidate.candidate.id]
       const attempt = await store.recordAttempt(discoveryAttemptInput(candidate.candidate.id))
       const ambiguous = await store.recordAttempt({
         gapId: '6'.repeat(64),
@@ -126,6 +127,10 @@ describe.skipIf(process.platform !== 'darwin')('Capability Gap durable queue', (
         artifact: { kind: 'skill-md', content: expect.stringContaining('name: indexed-release-skill') },
         license: { status: 'declared', value: 'MIT' },
       })
+      expect(store.listCandidates(WORKSPACE_ID, '8'.repeat(64))[0]).toMatchObject({
+        distribution: { kind: 'archive', format: 'tar.gz' },
+        artifact: { kind: 'archive', format: 'tar.gz', contentBase64: 'YXJjaGl2ZS1ieXRlcw==' },
+      })
       expect(store.listAttempts(WORKSPACE_ID, '5'.repeat(64))).toEqual([attempt.attempt])
     } finally {
       await store.close()
@@ -136,8 +141,10 @@ describe.skipIf(process.platform !== 'darwin')('Capability Gap durable queue', (
     const recovered = await openSkillDiscoveryStore(resumed.storageDomain)
     try {
       expect(recovered.listCandidates(WORKSPACE_ID).map(candidate => candidate.id)).toEqual(candidateIds)
-      expect(recovered.listCandidates(WORKSPACE_ID)[0]?.artifact?.content)
-        .toContain('name: indexed-release-skill')
+      const recoveredArchive = recovered.listCandidates(WORKSPACE_ID, '8'.repeat(64))[0]?.artifact
+      expect(recoveredArchive?.kind).toBe('archive')
+      expect(recoveredArchive?.kind === 'archive' ? recoveredArchive.contentBase64 : undefined)
+        .toBe('YXJjaGl2ZS1ieXRlcw==')
       expect(recovered.listAttempts(WORKSPACE_ID).map(attempt => attempt.id)).toEqual(attemptIds)
     } finally {
       await recovered.close()
@@ -293,6 +300,61 @@ function agentSkillsIndexCandidateInput() {
       ],
     },
     artifact: { kind: 'skill-md' as const, content },
+    lifecycle: 'inactive' as const,
+    verification: 'unevaluated' as const,
+    execution: 'never' as const,
+  }
+}
+
+function agentSkillsArchiveCandidateInput() {
+  return {
+    discoveredAt: 1_786_896_100_002,
+    gapId: '8'.repeat(64),
+    workspaceId: WORKSPACE_ID,
+    requestedSkill: 'archived-release-skill',
+    description: 'Publish one archived release.',
+    source: {
+      id: 'public-agent-skills-archive',
+      kind: 'agent-skills-index' as const,
+      trust: 'explicit-deployer-config' as const,
+      origin: 'https://archives.example.com',
+    },
+    scope: 'workspace' as const,
+    version: {
+      kind: 'agent-skills-index-v0.2' as const,
+      indexDigest: '1'.repeat(64),
+      artifactDigest: '2'.repeat(64),
+      treeHash: '3'.repeat(64),
+    },
+    distribution: { kind: 'archive' as const, format: 'tar.gz' as const },
+    contentHash: '2'.repeat(64),
+    package: {
+      path: 'archived-release-skill',
+      fileCount: 2,
+      totalBytes: 13,
+      hasScripts: false,
+      hasReferences: true,
+    },
+    permissions: {
+      declared: false,
+      executableContent: false,
+      externalEffects: 'unknown' as const,
+    },
+    license: { status: 'unknown' as const },
+    safety: {
+      status: 'quarantined' as const,
+      checks: [
+        { name: 'artifact-digest-integrity' as const, status: 'passed' as const },
+        { name: 'regular-files-only' as const, status: 'passed' as const },
+        { name: 'skill-identity' as const, status: 'passed' as const },
+        { name: 'effect-review' as const, status: 'required' as const },
+      ],
+    },
+    artifact: {
+      kind: 'archive' as const,
+      format: 'tar.gz' as const,
+      contentBase64: 'YXJjaGl2ZS1ieXRlcw==',
+    },
     lifecycle: 'inactive' as const,
     verification: 'unevaluated' as const,
     execution: 'never' as const,
