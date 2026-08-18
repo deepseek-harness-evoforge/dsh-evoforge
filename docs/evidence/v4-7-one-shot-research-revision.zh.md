@@ -36,7 +36,8 @@ Holdout → reviser identity 摘要、脱敏 input digest、v3 Candidate id 和�
 
 - `research-skill-holdout.test.ts`：durable 失败结果的精确重验证和脱敏交接。
 - `research-skill-revision.test.ts`：whole-Skill 成功修订、v3 非递归、单独预算、no-blind-retry、no-op 拒绝、根隔离及
-  native Jobs 同 Skill 串行。
+  native Jobs 同 Skill 串行；额外组合测试由真实 `TrustedSkillDiscovery` quarantine/materialize 生成 v2/v3，
+  证明调度顺序严格为 `v2 Holdout fail → one-shot revision → v3 Holdout pass`，且 admission 只收到 v3。
 - `evolution-control-plane.test.ts`：revision run 的只读摘要投影和私有字段隔离。
 - `dsh-evolve-web` 客户端测试：revision lineage、成本、治理提示可见，安装/激活操作不存在。
 - 真实应用内 Browser 在 `?semantic` 产品 fixture 上验证：revision section 为 `526 × 280`，控制对话框为
@@ -44,5 +45,6 @@ Holdout → reviser identity 摘要、脱敏 input digest、v3 Candidate id 和�
   attribution、Skill 正文和 reviser route 泄漏均为 false。视觉检查确认四段 lineage 在窄栏自然换行，成本、
   v3 回 Holdout 和“不可递归/无发布权”提示清晰可读。
 
-本切片仍不是发布完成声明。真实 provider 的 v2 fail → v3 revision → Holdout pass → admission → Shadow → Retention
+本切片仍不是发布完成声明。确定性组合测试已覆盖到 admission 交接，但真实 provider 的
+v2 fail → v3 revision → Holdout pass → admission → Shadow → Retention
 paired run、真实飞书消息和真实 Hermes 对照仍待外部条件满足；完成前不打 tag。

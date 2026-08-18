@@ -13,12 +13,17 @@ import {
   type ResearchSkillRevisionModelInput,
   type ResearchSkillRevisionTargetConfig,
 } from '../src/research-skill-revision.ts'
-import type { ResearchSkillHoldoutResult } from '../src/research-skill-holdout.ts'
+import {
+  ResearchSkillHoldoutScheduler,
+  type ResearchSkillHoldoutResult,
+} from '../src/research-skill-holdout.ts'
 import type {
   DiscoveredSkillCandidate,
   MaterializedSkillCandidate,
   RevisedSkillBundleCandidateInput,
+  SkillDiscoveryStore,
 } from '../src/trusted-skill-discovery.ts'
+import { TrustedSkillDiscovery } from '../src/trusted-skill-discovery.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const roots: string[] = []
@@ -255,6 +260,163 @@ describe('one-shot research Skill revision', () => {
     await vi.waitFor(() => expect(jobs.starts).toHaveLength(2))
     await jobs.hooks[1]!.done
     expect(revise).toHaveBeenCalledTimes(2)
+  })
+
+  it('routes one failed v2 through one v3 Holdout before deterministic admission', async () => {
+    const fixture = await setup()
+    const jobs = fakeJobs()
+    const admission = vi.fn()
+    const revisionHandoffs: boolean[] = []
+    let routingEnabled = false
+    let revisedObserved: DiscoveredSkillCandidate | undefined
+    const store: Pick<SkillDiscoveryStore, 'recordCandidate' | 'recordAttempt'> = {
+      async recordCandidate(input) {
+        return {
+          created: true,
+          candidate: durableSlowLoopCandidate(input),
+        }
+      },
+      async recordAttempt() {
+        throw new Error('not used by revised Candidate quarantine')
+      },
+    }
+    let holdoutScheduler: ResearchSkillHoldoutScheduler | undefined
+    const discovery = new TrustedSkillDiscovery([], store, {
+      now: () => 1_787_000_000_000,
+      onCandidate: candidate => {
+        if (!routingEnabled) return
+        if (candidate.version.kind === 'slow-loop-research-revision-v3') revisedObserved = candidate
+        if (holdoutScheduler?.observe(candidate) !== true) admission(candidate)
+      },
+    })
+    const recorded = await discovery.quarantineAuthoredBundle({
+      discoveredAt: fixture.parent.discoveredAt,
+      workspaceId: fixture.parent.workspaceId,
+      requestedSkill: fixture.parent.requestedSkill,
+      sourceId: fixture.parent.source.id,
+      clusterId: fixture.parent.demand!.clusterId,
+      gapIds: fixture.parent.demand!.gapIds,
+      goalCount: fixture.parent.demand!.goalCount,
+      modelIdentity: 'author/provider-model',
+      inputDigest: fixture.parent.version.inputDigest,
+      researchDigest: RESEARCH_DIGEST,
+      files: fixture.originalFiles,
+    })
+    const parent = recorded.candidate
+    if (parent.version.kind !== 'slow-loop-research-bundle-v2') {
+      throw new Error('expected one real v2 quarantine Candidate')
+    }
+    const failed: ResearchSkillHoldoutResult = {
+      ...fixture.failed,
+      candidateId: parent.id,
+      candidateTreeHash: parent.version.treeHash,
+    }
+    routingEnabled = true
+    const reviser = vi.fn(async () => ({
+      files: revisedFiles(),
+      usage: { inputTokens: 12, outputTokens: 8 },
+    }))
+    const revision = new ResearchSkillRevision({
+      targets: [fixture.target],
+      holdout: {
+        revisionInput: async () => ({
+          holdoutResultId: failed.id,
+          researchDigest: RESEARCH_DIGEST,
+          parentCandidateId: parent.id,
+          parentTreeHash: parent.version.treeHash,
+          findings: failed.findings.map(finding => ({
+            anchorDigest: finding.anchorDigest,
+            assessment: finding.assessment === 'satisfied' ? 'violated' as const : finding.assessment,
+            attribution: finding.attribution,
+          })),
+        }),
+      },
+      candidates: discovery,
+      budget: {
+        reserve: async target => ({
+          allowed: true,
+          newlyReserved: true,
+          snapshot: {
+            targetId: target.id,
+            workspaceId: target.workspaceId,
+            skillName: target.skill,
+            utcDay: '2026-08-18',
+            used: 1,
+            limit: 1,
+            remaining: 0,
+          },
+        }),
+      },
+      reviser,
+      modelIdentity: () => 'revision/provider-model',
+      now: () => 1_787_000_000_000,
+    })
+    const revisionScheduler = new ResearchSkillRevisionScheduler(revision)
+    const evaluate = vi.fn(async (candidate: DiscoveredSkillCandidate): Promise<ResearchSkillHoldoutResult> => {
+      if (candidate.version.kind === 'slow-loop-research-bundle-v2') return failed
+      return {
+        ...fixture.failed,
+        id: 'b'.repeat(64),
+        candidateId: candidate.id,
+        status: 'pass',
+        reason: 'all-verification-anchors-satisfied',
+        candidateTreeHash: candidate.version.treeHash,
+        findings: [{
+          anchorDigest: ANCHOR_DIGEST,
+          assessment: 'satisfied',
+          attribution: 'The revised workflow now includes the required rollback checkpoint.',
+        }],
+      }
+    })
+    holdoutScheduler = new ResearchSkillHoldoutScheduler(
+      {
+        matches: candidate => candidate.version.kind === 'slow-loop-research-bundle-v2'
+          || candidate.version.kind === 'slow-loop-research-revision-v3',
+        evaluate,
+      },
+      { listCandidates: () => [] },
+      {
+        onPass: (candidate, result) => admission(candidate, result),
+        onResult: (candidate, result) => {
+          revisionHandoffs.push(revisionScheduler.observe(candidate, result))
+        },
+      },
+    )
+
+    holdoutScheduler.attachJobs(jobs.registry)
+    revisionScheduler.attachJobs(jobs.registry)
+    expect(holdoutScheduler.observe(parent)).toBe(true)
+
+    await expect(jobs.hooks[0]!.done).resolves.toMatchObject({ detail: 'fail' })
+    await vi.waitFor(() => expect(jobs.starts).toHaveLength(2))
+    await expect(jobs.hooks[1]!.done).resolves.toMatchObject({
+      detail: 'candidate-ready: revised-candidate-ready',
+    })
+    await vi.waitFor(() => expect(jobs.starts).toHaveLength(3))
+    await expect(jobs.hooks[2]!.done).resolves.toMatchObject({ detail: 'pass' })
+
+    expect(jobs.starts.map(start => start.label)).toEqual([
+      'independent research Holdout: missing-release-skill',
+      'one-shot research Skill revision: missing-release-skill',
+      'independent research Holdout: missing-release-skill',
+    ])
+    expect(revisionHandoffs).toEqual([true, false])
+    expect(reviser).toHaveBeenCalledOnce()
+    expect(evaluate).toHaveBeenCalledTimes(2)
+    expect(admission).toHaveBeenCalledOnce()
+    expect(revisedObserved).toBeDefined()
+    expect(admission.mock.calls[0]![0]).toMatchObject({
+      version: {
+        kind: 'slow-loop-research-revision-v3',
+        revision: 1,
+        parentCandidateId: parent.id,
+        holdoutResultId: failed.id,
+      },
+    })
+    expect(admission.mock.calls[0]![1]).toMatchObject({
+      candidateId: revisedObserved!.id,
+      status: 'pass',
+    })
   })
 })
 
@@ -505,4 +667,43 @@ function fakeJobs() {
       },
     } as never,
   }
+}
+
+function durableSlowLoopCandidate(
+  input: Parameters<SkillDiscoveryStore['recordCandidate']>[0],
+): DiscoveredSkillCandidate {
+  const version = input.version
+  const versionIdentity = version.kind === 'slow-loop-research-bundle-v2'
+    ? [
+        version.modelIdentityHash,
+        version.inputDigest,
+        version.researchDigest,
+        version.artifactDigest,
+        version.treeHash,
+      ]
+    : version.kind === 'slow-loop-research-revision-v3'
+      ? [
+          String(version.revision),
+          version.modelIdentityHash,
+          version.inputDigest,
+          version.researchDigest,
+          version.parentCandidateId,
+          version.parentTreeHash,
+          version.holdoutResultId,
+          version.artifactDigest,
+          version.treeHash,
+        ]
+      : undefined
+  if (versionIdentity === undefined) throw new Error('expected one research whole-Skill Candidate')
+  return Object.freeze({
+    ...input,
+    schemaVersion: 1 as const,
+    id: sha256(JSON.stringify([
+      input.workspaceId,
+      input.gapId,
+      input.source.id,
+      ...versionIdentity,
+      input.contentHash,
+    ])),
+  }) as DiscoveredSkillCandidate
 }
