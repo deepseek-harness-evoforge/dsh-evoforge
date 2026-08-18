@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import { link, open, readFile, rename, rm } from 'node:fs/promises'
 import { dirname, isAbsolute, join } from 'node:path'
+import {
+  parseDiscoveredSkillLineage,
+  type DiscoveredSkillLineage,
+} from './discovered-skill-lineage.ts'
 
 export interface ShadowRunIdentity {
   workspaceId: string
@@ -12,6 +16,7 @@ export interface ShadowRunIdentity {
   modelRoute: string
   skillName: string
   feedbackDraftId?: string
+  discoveredSkillLineage?: DiscoveredSkillLineage
 }
 
 export interface PersistedProposal {
@@ -138,6 +143,13 @@ export async function loadShadowRunState(outputDir: string): Promise<ShadowRunSt
   if (value.feedbackLaunchMode !== undefined
     && !['human', 'automatic'].includes(String(value.feedbackLaunchMode))) {
     throw new Error('Shadow run state has an invalid feedback launch mode')
+  }
+  if (value.identity.discoveredSkillLineage !== undefined) {
+    const lineage = parseDiscoveredSkillLineage(value.identity.discoveredSkillLineage)
+    if (lineage.workspaceId !== value.identity.workspaceId
+      || lineage.skillName !== value.identity.skillName) {
+      throw new Error('Shadow run state discovered Skill lineage does not match its identity')
+    }
   }
   if (value.resumeInputs !== undefined
     && (!isRecord(value.resumeInputs)

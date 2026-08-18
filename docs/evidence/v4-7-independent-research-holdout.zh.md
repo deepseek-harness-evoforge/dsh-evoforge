@@ -26,6 +26,12 @@
 7. 付费调用前持久化 `evaluation-pending`；未观察到响应的异常或重启成为 `uncertain`，禁止盲重试。调用前取消、预算延后、本地完整性失败分别持久化，且不会伪报模型调用。
 8. 启动拓扑强制每个同时配置 authoring 与 admission 的 Workspace+Skill 都有精确 Holdout，防止 research-v2
    Candidate 绕过验证；Holdout 根不得与 authoring、admission、Shadow、supervisor 或其他治理根重叠。
+9. admission → assembled Shadow 交接新增宿主派生的 identity-only `DiscoveredSkillLineage`。它把精确
+   Candidate/version/source/content/tree、admission id 和通过 Holdout id 纳入 Shadow run identity；v3 同时绑定
+   research digest、父 Candidate/tree 和先前失败 Holdout id。journal、terminal report、resume 与 Review Inbox
+   逐层比对同一对象；额外私有字段、缺失 ancestry、错 Workspace/Skill/tree 或 report 篡改均 fail closed。
+10. 对 sha256 tree 身份的外部/研究包，admission 在 Trial 前重新散列 materialized directory；它与 Holdout
+    绑定的 Candidate tree 不一致时返回 `incomplete`，不会把不同内容标成 qualified。
 
 ## DSH Web 投影
 
@@ -38,7 +44,10 @@ route、evaluator attribution、Skill 正文和私有路径，也没有 Install/
 ## 验证
 
 - TDD 红灯先证明 Holdout 模块不存在、控制面尚未投影结果；实现后转绿。
-- `research-skill-holdout.test.ts` 覆盖精确逐锚通过、宿主派生 fail/inconclusive、非法覆盖失败关闭、作者/评估者身份冲突、预算延后恢复、不确定调用不盲重试、可执行内容拒绝、根隔离和仅 pass 下传；`discovered-skill-admission.test.ts` 额外覆盖 receipt 缺失/失败/错 Candidate 拒绝、内容寻址绑定及 Shadow 前持久复验。
+- `research-skill-holdout.test.ts` 覆盖精确逐锚通过、宿主派生 fail/inconclusive、非法覆盖失败关闭、作者/评估者身份冲突、预算延后恢复、不确定调用不盲重试、可执行内容拒绝、根隔离和仅 pass 下传；`discovered-skill-admission.test.ts` 额外覆盖 receipt 缺失/失败/错 Candidate 拒绝、内容寻址绑定、materialized tree 漂移及 Shadow 前持久复验。
+- `discovered-skill-lineage.test.ts`、`discovered-skill-shadow.test.ts`、`exact-candidate-shadow.test.ts` 与
+  `review-inbox.test.ts` 覆盖最小字段白名单、私有字段拒绝、run-id/journal/report/resume 绑定、错 tree 拒绝和
+  Review report 篡改隔离。该切片不改 Web，因此没有把既有 receipt Browser 证据冒充为 lineage UI 验收。
 - `slow-loop-skill-authoring.test.ts` 覆盖 verification-only 精确交接及 knowledge 隔离。
 - `evolution-control-plane.test.ts` 证明私有 evaluator attribution 不进入浏览器快照。
 - `dsh-evolve-web` 客户端测试证明摘要链和治理状态可见且不存在安装/激活按钮。
@@ -55,4 +64,4 @@ route、evaluator attribution、Skill 正文和私有路径，也没有 Install/
 后续的一次性修订闭环已经落在
 [`v4-7-one-shot-research-revision.zh.md`](v4-7-one-shot-research-revision.zh.md)：原始 v2 的
 fail/inconclusive 可在脱敏交接后生成一次 v3，v3 重新进入本 Holdout 且不能递归修订。真实 provider、真实飞书
-配对和真实 Hermes 对照验证仍待外部条件满足，因此仍不打 tag。
+exact route、Hermes paired 与长期 outcome 仍待外部条件满足，因此仍不打 tag。

@@ -120,7 +120,11 @@ export class DiscoveredSkillShadowLauncher {
     }
     return this.runner({
       casePackDir,
-      exactCandidate: { claim: candidate.description, skillDir: source.candidateDir },
+      exactCandidate: {
+        claim: candidate.description,
+        lineage: source.lineage,
+        skillDir: source.candidateDir,
+      },
       expectedCasePackHash: target.casePackHash,
       outputDir,
       resume,

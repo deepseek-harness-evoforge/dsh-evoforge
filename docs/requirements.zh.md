@@ -349,6 +349,12 @@ Holdout、确定性 admission 与既有 Shadow 链。research-v2/v3 只能携带
 一致的持久 `pass` Holdout receipt 进入 admission；receipt 只保留身份字段，不携带 findings、
 evaluator identity、attribution 或成本。该 Holdout result id 必须参与 admission 内容寻址
 身份、持久状态和 Web 投影，缺失、失败、旧产物或错 Candidate receipt 在物化前 fail closed。
+admission 向 assembled Shadow 交接时还必须由宿主生成 identity-only `Discovered Skill Lineage`：绑定
+Candidate/version/source/content/tree、admission，以及 research-v2/v3 的 research、父 revision、失败 Holdout
+和通过 Holdout 身份。它进入 Shadow run id、journal、report 与 Review evidence；Skill 正文、宿主路径、
+research attribution 及 author/evaluator/provider identity 不进入。研究包物化 tree 与其 Holdout tree 不一致时在
+Trial 前 fail closed，resume 或 report 篡改不得降级为无血缘 Candidate。该血缘进入最终 Generation 与 Web 的
+投影仍是后续独立切片，不能由当前 Shadow/Review 绑定推断已完成。
 可能已经付费但结果未知时持久化 `uncertain` 并拒绝盲重试。
 真实 provider 的正确缺口判断、完整 paired 全链和长期迁移证据仍未完成，不能据此宣称 V4 退出门通过。
 

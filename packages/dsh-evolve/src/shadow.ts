@@ -18,11 +18,16 @@ import {
   type PairedTrialResult,
 } from './trial.ts'
 import { readPrivateFeedbackCaseDraft } from './feedback-case-draft.ts'
+import {
+  parseDiscoveredSkillLineage,
+  type DiscoveredSkillLineage,
+} from './discovered-skill-lineage.ts'
 
 export interface ShadowOptions {
   casePackDir: string
   exactCandidate?: {
     claim: string
+    lineage?: DiscoveredSkillLineage
     skillDir: string
   }
   expectedCasePackHash?: string
@@ -139,6 +144,15 @@ export async function runShadow(options: ShadowOptions): Promise<
   const exactCandidateTreeHash = exactCandidateDir === undefined
     ? undefined
     : await hashTree(exactCandidateDir)
+  const discoveredSkillLineage = options.exactCandidate?.lineage === undefined
+    ? undefined
+    : parseDiscoveredSkillLineage(options.exactCandidate.lineage)
+  if (discoveredSkillLineage !== undefined
+    && (discoveredSkillLineage.workspaceId !== manifest.workspaceId
+      || discoveredSkillLineage.skillName !== skillName
+      || discoveredSkillLineage.candidateTreeHash !== exactCandidateTreeHash)) {
+    throw new Error('discovered Skill lineage does not match the exact Shadow inputs')
+  }
   const exactProposal = exactCandidateDir === undefined
     ? undefined
     : await proposalFromExactCandidate(
@@ -175,6 +189,7 @@ export async function runShadow(options: ShadowOptions): Promise<
     modelRoute,
     skillName,
     ...(feedbackDraft === undefined ? {} : { feedbackDraftId: feedbackDraft.id }),
+    ...(discoveredSkillLineage === undefined ? {} : { discoveredSkillLineage }),
   }
   const resumeInputs = {
     skillDir,
@@ -301,6 +316,7 @@ export async function runShadow(options: ShadowOptions): Promise<
           inputTokens: 0,
           outputTokens: 0,
         },
+        ...(discoveredSkillLineage === undefined ? {} : { lineage: discoveredSkillLineage }),
       })
       return finishIncomplete(reportPath, reason)
     }
@@ -451,6 +467,7 @@ export async function runShadow(options: ShadowOptions): Promise<
           inputTokens: modelResponse?.usage?.prompt_tokens ?? 0,
           outputTokens: modelResponse?.usage?.completion_tokens ?? 0,
         },
+        ...(discoveredSkillLineage === undefined ? {} : { lineage: discoveredSkillLineage }),
       })
       return finishIncomplete(reportPath, reason)
     }
@@ -535,6 +552,7 @@ export async function runShadow(options: ShadowOptions): Promise<
         inputTokens: modelResponse.usage?.prompt_tokens ?? 0,
         outputTokens: modelResponse.usage?.completion_tokens ?? 0,
       },
+      ...(discoveredSkillLineage === undefined ? {} : { lineage: discoveredSkillLineage }),
     } as const
     const reportPath = resolve(outputDir, 'report.json')
     if (!activeSkillUnchanged) {

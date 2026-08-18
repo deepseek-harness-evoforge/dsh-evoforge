@@ -122,6 +122,10 @@ _Avoid_: Full transcript copy, model reflection
 An inactive, versioned diff owned by exactly one registered DSH Workspace, accompanied by a falsifiable improvement claim and a trial plan. Candidate creation cannot alter any active session or be reviewed, promoted, or reused from another Workspace.
 _Avoid_: Live patch, learned rule
 
+**Discovered Skill Lineage**:
+The bounded, host-derived identity that follows one exact discovered whole-Skill Candidate from deterministic admission into Shadow and human review. It binds Candidate/version/source/content/tree, admission, and—when applicable—research, parent revision, failed Holdout, and passing Holdout ids into the Shadow run identity while excluding Skill bodies, host paths, research attribution, and author/evaluator/provider identity.
+_Avoid_: Copied Candidate record, private provenance dump, self-asserted lineage
+
 **Trial**:
 A paired comparison that runs the active version and one Evolution Candidate against the same representative cases and hard safety checks. Deterministic outcomes lead; model judgment is supplementary.
 _Avoid_: Self-review, usage count

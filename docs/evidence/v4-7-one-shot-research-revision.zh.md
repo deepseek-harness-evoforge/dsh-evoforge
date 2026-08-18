@@ -25,6 +25,10 @@
    禁止盲重试；预算耗尽只允许到达 durable `retryAt` 后再尝试。每个 Workspace+Skill 维持 single-flight。
 8. 默认 route 优先使用 `DSH_EVOLVE_REVISION_MODEL_BASE_URL/NAME/API_KEY`，缺省时复用 authoring route；这不削弱
    Holdout evaluator 的独立身份约束。revision 模块没有 install、activate、execute、publish 或 release 接口。
+9. v3 通过 Holdout 和 deterministic admission 后，宿主生成只含公开内容身份的
+   `DiscoveredSkillLineage`，把 v3 Candidate/tree、parent Candidate/tree、触发修订的失败 Holdout、重新验证的
+   通过 Holdout 与 admission id 一起绑定进 assembled Shadow run id、journal、report 和 Review evidence。
+   ancestry 缺失、两次 Holdout id 相同、materialized tree 漂移、resume 输入变化或 report 血缘篡改均失败关闭。
 
 ## DSH Web 投影
 
@@ -39,6 +43,9 @@ Holdout → reviser identity 摘要、脱敏 input digest、v3 Candidate id 和�
   native Jobs 同 Skill 串行；额外组合测试由真实 `TrustedSkillDiscovery` quarantine/materialize 生成 v2/v3，
   证明调度顺序严格为 `v2 Holdout fail → one-shot revision → v3 Holdout pass → admission`，
   admission 只收到 v3 与那个精确 pass receipt，v3 的 pass 不会再触发 revision。
+- `discovered-skill-lineage.test.ts`、`exact-candidate-shadow.test.ts` 与 `review-inbox.test.ts`：验证一次修订 ancestry
+  的字段白名单、run identity 持久化、resume 精确匹配、report/Review 一致性和篡改隔离；不保存 reviser route、
+  model/input/artifact digest、finding attribution、Skill body 或私有路径。
 - `evolution-control-plane.test.ts`：revision run 的只读摘要投影和私有字段隔离。
 - `dsh-evolve-web` 客户端测试：revision lineage、成本、治理提示可见，安装/激活操作不存在。
 - 真实应用内 Browser 在 `?semantic` 产品 fixture 上验证：revision section 为 `526 × 280`，控制对话框为
@@ -46,6 +53,6 @@ Holdout → reviser identity 摘要、脱敏 input digest、v3 Candidate id 和�
   attribution、Skill 正文和 reviser route 泄漏均为 false。视觉检查确认四段 lineage 在窄栏自然换行，成本、
   v3 回 Holdout 和“不可递归/无发布权”提示清晰可读。
 
-本切片仍不是发布完成声明。确定性组合测试已覆盖到 admission 交接，但真实 provider 的
+本切片仍不是发布完成声明。确定性组合测试已覆盖到 admission，且 exact lineage 已绑定 Shadow/Review；但真实 provider 的
 v2 fail → v3 revision → Holdout pass → admission → Shadow → Retention
-paired run、真实飞书消息和真实 Hermes 对照仍待外部条件满足；完成前不打 tag。
+paired run、最终 Generation/Web 血缘、真实飞书消息、长期 outcome 和真实 Hermes 对照仍待外部条件满足；完成前不打 tag。

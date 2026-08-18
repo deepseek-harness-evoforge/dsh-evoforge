@@ -10,6 +10,7 @@ import {
 import { hashTree } from '../src/hash.ts'
 import type { DiscoveredSkillAdmissionResult } from '../src/discovered-skill-admission.ts'
 import type { DiscoveredSkillCandidate } from '../src/trusted-skill-discovery.ts'
+import type { DiscoveredSkillLineage } from '../src/discovered-skill-lineage.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const roots: string[] = []
@@ -29,6 +30,7 @@ describe('qualified discovered Skill Shadow handoff', () => {
         admissionCasePackDir: await realpath(fixture.admissionCasePackDir),
         admissionCasePackHash: await hashTree(fixture.admissionCasePackDir),
         admissionRunRoot: await realpath(fixture.admissionRunRoot),
+        lineage: lineage(),
       })),
     }
     const runShadow = vi.fn(async () => ({
@@ -45,6 +47,7 @@ describe('qualified discovered Skill Shadow handoff', () => {
       expectedCasePackHash: fixture.target.casePackHash,
       exactCandidate: {
         claim: candidate().description,
+        lineage: lineage(),
         skillDir: await realpath(fixture.candidateDir),
       },
       outputDir: expect.stringMatching(new RegExp(`^${await realpath(fixture.shadowRunRoot)}/[a-f0-9]{64}$`, 'u')),
@@ -173,6 +176,22 @@ function qualified(): DiscoveredSkillAdmissionResult {
       baselineTreeHash: '7'.repeat(64),
       candidateTreeHash: '8'.repeat(64),
     },
+  }
+}
+
+function lineage(): DiscoveredSkillLineage {
+  return {
+    kind: 'discovered-skill-lineage-v1',
+    candidateId: candidate().id,
+    workspaceId: WORKSPACE_ID,
+    skillName: candidate().requestedSkill,
+    versionKind: 'git-tree',
+    source: candidate().source,
+    contentHash: candidate().contentHash,
+    candidateTreeHash: qualified().evidence!.candidateTreeHash,
+    admissionId: qualified().id,
+    admissionTargetId: qualified().targetId!,
+    releaseAuthority: 'none',
   }
 }
 

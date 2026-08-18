@@ -7,6 +7,7 @@ import {
   ReviewInbox as NativeReviewInbox,
   type AutomaticReviewExpiryPolicy,
 } from '../src/review-inbox.js'
+import type { DiscoveredSkillLineage } from '../src/discovered-skill-lineage.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 interface FixtureReviewOptions {
@@ -76,6 +77,25 @@ describe('Shadow review inbox', () => {
     expect(scan.candidates).toHaveLength(1)
     expect(scan.warnings).toHaveLength(1)
     expect(scan.warnings[0]).toMatch(/broken: Shadow resume requires a readable run-state\.json/)
+  })
+
+  it('projects exact discovery and one-shot revision lineage only when journal and report agree', async () => {
+    const root = await createRoot()
+    const runDir = await writeCandidateRun(root, 'lineage', 'promote', 'complete', {
+      lineage: discoveredLineage(),
+    })
+
+    await expect(new ReviewInbox([root]).scan()).resolves.toMatchObject({
+      warnings: [],
+      candidates: [{ lineage: discoveredLineage() }],
+    })
+
+    const report = JSON.parse(await readFile(join(runDir, 'report.json'), 'utf8'))
+    report.lineage.admissionId = '0'.repeat(64)
+    await writeFile(join(runDir, 'report.json'), `${JSON.stringify(report)}\n`)
+    const tampered = await new ReviewInbox([root]).scan()
+    expect(tampered.candidates).toEqual([])
+    expect(tampered.warnings.join('\n')).toContain('Shadow report lineage does not match its durable run identity')
   })
 
   it('refuses to follow a run-state symlink outside the owned run directory', async () => {
@@ -407,6 +427,7 @@ async function writeCandidateRun(
   phase: 'complete' | 'incomplete' = 'complete',
   options: {
     feedbackLaunchMode?: 'human' | 'automatic'
+    lineage?: DiscoveredSkillLineage
     updatedAt?: string
   } = {},
 ): Promise<string> {
@@ -434,6 +455,7 @@ async function writeCandidateRun(
       modelConfigHash: 'c'.repeat(64),
       modelRoute: 'fixture-model',
       skillName: 'stable-skill',
+      ...(options.lineage === undefined ? {} : { discoveredSkillLineage: options.lineage }),
     },
     resumeInputs: { skillDir: join(root, 'skill'), casePackDir: join(root, 'case-pack') },
     ...(options.feedbackLaunchMode === undefined
@@ -477,8 +499,36 @@ async function writeCandidateRun(
       reasons: ['candidate passed the final-test'],
       limitations: ['one deterministic final-test'],
     },
+    ...(options.lineage === undefined ? {} : { lineage: options.lineage }),
   }
   await writeFile(join(runDir, 'run-state.json'), `${JSON.stringify(state)}\n`)
   await writeFile(reportPath, `${JSON.stringify(report)}\n`)
   return runDir
+}
+
+function discoveredLineage(): DiscoveredSkillLineage {
+  return {
+    kind: 'discovered-skill-lineage-v1',
+    candidateId: '1'.repeat(64),
+    workspaceId: WORKSPACE_ID,
+    skillName: 'stable-skill',
+    versionKind: 'slow-loop-research-revision-v3',
+    source: {
+      id: 'stable-skill-author',
+      kind: 'slow-loop-author',
+      trust: 'bounded-host-authoring',
+    },
+    contentHash: '2'.repeat(64),
+    candidateTreeHash: 'e'.repeat(64),
+    admissionId: '3'.repeat(64),
+    admissionTargetId: 'stable-skill-admission',
+    research: {
+      researchDigest: '4'.repeat(64),
+      parentCandidateId: '5'.repeat(64),
+      parentTreeHash: '6'.repeat(64),
+      revisionHoldoutResultId: '7'.repeat(64),
+      researchHoldoutResultId: '8'.repeat(64),
+    },
+    releaseAuthority: 'none',
+  }
 }

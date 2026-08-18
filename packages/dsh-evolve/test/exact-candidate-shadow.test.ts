@@ -1,8 +1,10 @@
-import { access, cp, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { access, cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { runShadow } from '../src/shadow.ts'
+import { hashTree } from '../src/hash.ts'
+import type { DiscoveredSkillLineage } from '../src/discovered-skill-lineage.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const roots: string[] = []
@@ -34,6 +36,52 @@ describe('exact Candidate Shadow gates', () => {
       outputDir: fixture.outputDir,
       skillDir: fixture.baselineDir,
     })).rejects.toThrow("exact Candidate removes baseline file 'SKILL.md'; deletion is not publishable")
+    await expect(access(fixture.outputDir)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('binds exact discovery lineage into run identity, report, and resume identity', async () => {
+    const fixture = await createFixture(true)
+    const lineage = discoveredLineage(await hashTree(fixture.candidateDir))
+
+    const result = await runShadow({
+      casePackDir: fixture.casePackDir,
+      exactCandidate: { claim: 'Pinned discovery Candidate', lineage, skillDir: fixture.candidateDir },
+      outputDir: fixture.outputDir,
+      skillDir: fixture.baselineDir,
+    })
+
+    expect(result.status).toBe('incomplete')
+    const state = JSON.parse(await readFile(join(fixture.outputDir, 'run-state.json'), 'utf8'))
+    const report = JSON.parse(await readFile(join(fixture.outputDir, 'report.json'), 'utf8'))
+    expect(state.identity.discoveredSkillLineage).toEqual(lineage)
+    expect(report.lineage).toEqual(lineage)
+    expect(state.runId).toMatch(/^[a-f0-9]{64}$/u)
+    await expect(runShadow({
+      casePackDir: fixture.casePackDir,
+      exactCandidate: {
+        claim: 'Pinned discovery Candidate',
+        lineage: { ...lineage, admissionId: '9'.repeat(64) },
+        skillDir: fixture.candidateDir,
+      },
+      outputDir: fixture.outputDir,
+      resume: true,
+      skillDir: fixture.baselineDir,
+    })).rejects.toThrow('Shadow resume inputs do not match the durable run identity')
+  })
+
+  it('refuses lineage for a different exact Candidate tree before creating a run', async () => {
+    const fixture = await createFixture(true)
+
+    await expect(runShadow({
+      casePackDir: fixture.casePackDir,
+      exactCandidate: {
+        claim: 'Pinned discovery Candidate',
+        lineage: discoveredLineage('9'.repeat(64)),
+        skillDir: fixture.candidateDir,
+      },
+      outputDir: fixture.outputDir,
+      skillDir: fixture.baselineDir,
+    })).rejects.toThrow('discovered Skill lineage does not match the exact Shadow inputs')
     await expect(access(fixture.outputDir)).rejects.toMatchObject({ code: 'ENOENT' })
   })
 })
@@ -82,4 +130,20 @@ async function createFixture(assembled: boolean): Promise<{
     calibration: { knownBad: 'known-bad', knownCorrection: 'known-correction' },
   }, null, 2)}\n`)
   return { baselineDir, candidateDir, casePackDir, outputDir }
+}
+
+function discoveredLineage(candidateTreeHash: string): DiscoveredSkillLineage {
+  return {
+    kind: 'discovered-skill-lineage-v1',
+    candidateId: '1'.repeat(64),
+    workspaceId: WORKSPACE_ID,
+    skillName: 'exact-shadow-test',
+    versionKind: 'git-tree',
+    source: { id: 'local-curated', kind: 'local-git', trust: 'explicit-deployer-config' },
+    contentHash: '2'.repeat(64),
+    candidateTreeHash,
+    admissionId: '3'.repeat(64),
+    admissionTargetId: 'exact-shadow-admission',
+    releaseAuthority: 'none',
+  }
 }

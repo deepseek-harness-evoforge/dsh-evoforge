@@ -86,10 +86,15 @@ describe('discovered whole-Skill deterministic admission', () => {
 
   it('binds each research Candidate admission to one exact passing Holdout result', async () => {
     const fixture = await admissionFixture()
-    const research = researchCandidate()
+    const researchSource = '---\nname: missing-release-skill\ndescription: Candidate.\n---\n'
+    const pinnedCandidateDir = join(fixture.target.runRoot, 'pinned-research-candidate')
+    await mkdir(pinnedCandidateDir)
+    await writeFile(join(pinnedCandidateDir, 'SKILL.md'), researchSource)
+    const research = researchCandidate(await hashTree(pinnedCandidateDir))
+    await rm(pinnedCandidateDir, { recursive: true })
     const materialize = vi.fn(async (value: DiscoveredSkillCandidate, path: string) => {
       await mkdir(path)
-      await writeFile(join(path, 'SKILL.md'), '---\nname: missing-release-skill\ndescription: Candidate.\n---\n')
+      await writeFile(join(path, 'SKILL.md'), researchSource)
       return {
         candidateId: value.id,
         path,
@@ -133,6 +138,9 @@ describe('discovered whole-Skill deterministic admission', () => {
     const holdoutResult = researchHoldoutPass(research)
     const holdout = researchSkillHoldoutPassReceipt(holdoutResult)
     const qualified = await admission.evaluate(research, { researchHoldout: holdout })
+    if (research.version.kind !== 'slow-loop-research-revision-v3') {
+      throw new Error('expected revised research Candidate')
+    }
     expect(qualified).toMatchObject({
       status: 'qualified-for-shadow',
       candidateId: research.id,
@@ -146,6 +154,26 @@ describe('discovered whole-Skill deterministic admission', () => {
     await expect(admission.qualifiedShadowInput(research, qualified)).resolves.toMatchObject({
       admissionTargetId: fixture.target.id,
       candidateDir: expect.stringContaining('/candidate'),
+      lineage: {
+        kind: 'discovered-skill-lineage-v1',
+        candidateId: research.id,
+        workspaceId: WORKSPACE_ID,
+        skillName: research.requestedSkill,
+        versionKind: 'slow-loop-research-revision-v3',
+        source: research.source,
+        contentHash: research.contentHash,
+        candidateTreeHash: qualified.evidence?.candidateTreeHash,
+        admissionId: qualified.id,
+        admissionTargetId: fixture.target.id,
+        research: {
+          researchDigest: research.version.researchDigest,
+          parentCandidateId: research.version.parentCandidateId,
+          parentTreeHash: research.version.parentTreeHash,
+          revisionHoldoutResultId: research.version.holdoutResultId,
+          researchHoldoutResultId: holdoutResult.id,
+        },
+        releaseAuthority: 'none',
+      },
     })
     await expect(admission.qualifiedShadowInput(research, {
       ...qualified,
@@ -155,6 +183,33 @@ describe('discovered whole-Skill deterministic admission', () => {
       warningCount: 0,
       results: [expect.objectContaining({ researchHoldoutResultId: holdoutResult.id })],
     })
+  })
+
+  it('fails closed before Trial when a research package materializes to a different tree than its Holdout', async () => {
+    const fixture = await admissionFixture()
+    const research = researchCandidate()
+    const materialize = vi.fn(async (value: DiscoveredSkillCandidate, path: string) => {
+      await mkdir(path)
+      await writeFile(join(path, 'SKILL.md'), 'different materialized tree\n')
+      return {
+        candidateId: value.id,
+        path,
+        contentHash: value.contentHash,
+        treeHash: value.version.treeHash,
+        files: [{ path: 'SKILL.md', mode: '100644' as const, size: 28 }],
+      }
+    })
+    const runTrial = vi.fn()
+    const admission = new DiscoveredSkillAdmission([fixture.target], { materialize }, { runTrial })
+
+    await expect(admission.evaluate(research, {
+      researchHoldout: researchSkillHoldoutPassReceipt(researchHoldoutPass(research)),
+    })).resolves.toMatchObject({
+      status: 'incomplete',
+      reasons: ['evaluation-failed'],
+      researchHoldoutResultId: '9'.repeat(64),
+    })
+    expect(runTrial).not.toHaveBeenCalled()
   })
 
   it.skipIf(process.platform !== 'darwin')('runs the real sealed deterministic admission without executing Candidate code', async () => {
@@ -521,7 +576,7 @@ function candidate(options: { executableContent?: boolean } = {}): DiscoveredSki
   }
 }
 
-function researchCandidate(): DiscoveredSkillCandidate {
+function researchCandidate(treeHash = '7'.repeat(64)): DiscoveredSkillCandidate {
   return {
     ...candidate(),
     id: 'a'.repeat(64),
@@ -546,7 +601,7 @@ function researchCandidate(): DiscoveredSkillCandidate {
       parentTreeHash: '4'.repeat(64),
       holdoutResultId: '8'.repeat(64),
       artifactDigest: '5'.repeat(64),
-      treeHash: '7'.repeat(64),
+      treeHash,
     },
     distribution: { kind: 'archive', format: 'tar.gz' },
     package: {

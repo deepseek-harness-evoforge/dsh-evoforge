@@ -10,6 +10,10 @@ import type {
   MaterializedSkillCandidate,
 } from './trusted-skill-discovery.ts'
 import type { ResearchSkillHoldoutPassReceipt } from './research-skill-holdout.ts'
+import {
+  createDiscoveredSkillLineage,
+  type DiscoveredSkillLineage,
+} from './discovered-skill-lineage.ts'
 import { runPairedTrial, type PairedTrialResult } from './trial.ts'
 
 const CONTENT_ID = /^[a-f0-9]{64}$/
@@ -74,6 +78,7 @@ export interface QualifiedDiscoveredSkillShadowInput {
   readonly admissionCasePackDir: string
   readonly admissionCasePackHash: string
   readonly admissionRunRoot: string
+  readonly lineage: DiscoveredSkillLineage
 }
 
 export interface DiscoveredSkillAdmissionScan {
@@ -182,6 +187,7 @@ export class DiscoveredSkillAdmission {
       admissionCasePackDir,
       admissionCasePackHash: target.casePackHash,
       admissionRunRoot,
+      lineage: createDiscoveredSkillLineage(candidate, admission),
     })
   }
 
@@ -310,6 +316,10 @@ export class DiscoveredSkillAdmission {
         || materialized.contentHash !== candidate.contentHash
         || materialized.treeHash !== candidate.version.treeHash
         || await realpath(materialized.path) !== await realpath(candidateDir)) {
+        return await finish(outputDir, makeResult('incomplete', ['evaluation-failed']))
+      }
+      if (candidate.version.kind !== 'git-tree'
+        && await hashTree(materialized.path) !== candidate.version.treeHash) {
         return await finish(outputDir, makeResult('incomplete', ['evaluation-failed']))
       }
       if (materialized.files.some(file => file.mode !== '100644'

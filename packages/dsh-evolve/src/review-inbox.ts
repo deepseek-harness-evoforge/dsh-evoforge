@@ -3,6 +3,10 @@ import { lstat, readFile, readdir, realpath } from 'node:fs/promises'
 import { basename, isAbsolute, join, relative } from 'node:path'
 import { loadShadowRunState, writeDurableJson } from './shadow-run-state.ts'
 import type { AutomaticEvolutionInflightStatus } from './automatic-evolution-inflight.ts'
+import {
+  parseDiscoveredSkillLineage,
+  type DiscoveredSkillLineage,
+} from './discovered-skill-lineage.ts'
 
 export interface ReviewCaseSummary {
   id: string
@@ -43,6 +47,7 @@ export interface ReviewCandidate {
   completedAt?: string
   feedbackSignalId?: string
   feedbackLaunchMode?: 'human' | 'automatic'
+  lineage?: DiscoveredSkillLineage
   automaticReviewExpiry?: AutomaticReviewExpiryProjection
   evidenceHash: string
   decisionActor?: ReviewDecisionActor
@@ -402,6 +407,13 @@ export class ReviewInbox {
       || report.evaluatorVersion !== state.identity.evaluatorVersion) {
       throw new Error('Shadow report does not match its durable run identity')
     }
+    if (JSON.stringify(report.lineage) !== JSON.stringify(state.identity.discoveredSkillLineage)) {
+      throw new Error('Shadow report lineage does not match its durable run identity')
+    }
+    if (report.lineage !== undefined
+      && report.lineage.candidateTreeHash !== report.candidateTreeHash) {
+      throw new Error('Shadow report lineage does not match its exact Candidate tree')
+    }
     const proposalPaths = state.proposal.files.map(file => file.path)
     if (JSON.stringify(report.changedFiles) !== JSON.stringify(proposalPaths)) {
       throw new Error('Shadow report changed files do not match its durable proposal')
@@ -417,6 +429,7 @@ export class ReviewInbox {
       cases: report.cases,
       compositionFingerprint: report.compositionFingerprint,
       compositionStable: report.compositionStable,
+      ...(report.lineage === undefined ? {} : { lineage: report.lineage }),
     }
     const evidenceHash = sha256(JSON.stringify(evidence))
     const id = sha256(JSON.stringify({ runId: state.runId, proposalHash: state.proposalHash }))
@@ -460,6 +473,7 @@ export class ReviewInbox {
       ...(state.feedbackLaunchMode === undefined
         ? {}
         : { feedbackLaunchMode: state.feedbackLaunchMode }),
+      ...(report.lineage === undefined ? {} : { lineage: report.lineage }),
       evidenceHash,
       ...disposition === undefined
         ? {}
@@ -502,6 +516,7 @@ function parseReport(value: unknown): {
   evaluatorVersion: string
   compositionFingerprint: string
   compositionStable: boolean
+  lineage?: DiscoveredSkillLineage
 } {
   if (!isRecord(value) || value.schemaVersion !== 1
     || !isRecord(value.run) || typeof value.run.id !== 'string'
@@ -548,6 +563,9 @@ function parseReport(value: unknown): {
       totalChecks: checks.length,
     }
   })
+  const lineage = value.lineage === undefined
+    ? undefined
+    : parseDiscoveredSkillLineage(value.lineage)
   return {
     runId: value.run.id,
     skillName: value.subject.skillName,
@@ -563,6 +581,7 @@ function parseReport(value: unknown): {
     evaluatorVersion: value.epoch.evaluatorVersion,
     compositionFingerprint: String(value.composition.candidateFingerprint),
     compositionStable: value.composition.stable === true,
+    ...(lineage === undefined ? {} : { lineage }),
   }
 }
 
