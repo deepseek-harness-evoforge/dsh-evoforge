@@ -299,6 +299,24 @@ const t = (key: string) => ({
   'skills.discovery.reason.no-exact-skill': 'No exact Skill found',
   'skills.discovery.reason.invalid-skill-package': 'Invalid Skill package',
   'skills.discovery.reason.source-unavailable': 'Source unavailable',
+  'skills.admission': 'Deterministic admission',
+  'skills.admission.empty': 'No completed deterministic admission.',
+  'skills.admission.status.abstained': 'Admission abstained',
+  'skills.admission.status.protected': 'Protected candidate',
+  'skills.admission.status.incomplete': 'Admission incomplete',
+  'skills.admission.status.rejected': 'Admission rejected',
+  'skills.admission.status.review': 'Admission needs review',
+  'skills.admission.status.qualified-for-shadow': 'Qualified for later Shadow',
+  'skills.admission.target': 'Evaluation target',
+  'skills.admission.targets': 'targets',
+  'skills.admission.baseline': 'Baseline',
+  'skills.admission.candidate': 'Candidate',
+  'skills.admission.outcome.pass': 'pass',
+  'skills.admission.outcome.fail': 'fail',
+  'skills.admission.trials': 'trials',
+  'skills.admission.governance': 'Deterministic filesystem · Candidate code not executed',
+  'skills.admission.release.none': 'No release authority · Not installed or activated',
+  'skills.admission.reason.candidate-improves-deterministic-admission': 'Candidate improved the deterministic admission case',
   'skills.active': 'In use',
   'skills.ready': 'Verified, waiting to be enabled',
   'skills.reviewing': 'Waiting for review',
@@ -582,14 +600,14 @@ describe('EvolutionAction', () => {
             contentHash: 'a'.repeat(64),
             package: {
               path: 'skills/missing-release-skill',
-              fileCount: 3,
+              fileCount: 2,
               totalBytes: 640,
-              hasScripts: true,
+              hasScripts: false,
               hasReferences: true,
             },
             permissions: {
               declared: false,
-              executableContent: true,
+              executableContent: false,
               externalEffects: 'unknown' as const,
             },
             safety: {
@@ -631,6 +649,27 @@ describe('EvolutionAction', () => {
             sources: [],
           }],
         },
+        skillAdmission: {
+          configuredTargetCount: 1,
+          warningCount: 0,
+          results: [{
+            id: 'e'.repeat(64),
+            candidateId: '7'.repeat(64),
+            skillName: 'missing-release-skill',
+            status: 'qualified-for-shadow' as const,
+            reasons: ['candidate-improves-deterministic-admission' as const],
+            targetId: 'missing-release-admission',
+            releaseAuthority: 'none' as const,
+            evidence: {
+              baseline: 'fail' as const,
+              candidate: 'pass' as const,
+              calibrationPassed: true,
+              candidateExecuted: false as const,
+              evaluatorClass: 'deterministic-filesystem' as const,
+              trialCount: 4 as const,
+            },
+          }],
+        },
       })
     })
     renderEvolution(api)
@@ -654,12 +693,18 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('local-curated · Local Git · Explicit deployer trust')).toBeTruthy()
     expect(screen.getByText(`Git commit · ${'8'.repeat(12)} · tree ${'9'.repeat(12)}`)).toBeTruthy()
     expect(screen.getByText(`Content hash · ${'a'.repeat(12)}`)).toBeTruthy()
-    expect(screen.getByText('Whole package · 3 files · 640 bytes · scripts · references')).toBeTruthy()
-    expect(screen.getByText('Permissions not declared · Executable content · External effects unknown')).toBeTruthy()
+    expect(screen.getByText('Whole package · 2 files · 640 bytes · references')).toBeTruthy()
+    expect(screen.getByText('Permissions not declared · External effects unknown')).toBeTruthy()
     expect(screen.getByText('Quarantined · Inactive · Never executed · Unevaluated')).toBeTruthy()
     expect(screen.getByText('Discovery attempts')).toBeTruthy()
     expect(screen.getByText('Candidate found')).toBeTruthy()
     expect(screen.getByText('No trusted sources configured')).toBeTruthy()
+    expect(screen.getByText('Deterministic admission')).toBeTruthy()
+    expect(screen.getByText('Qualified for later Shadow')).toBeTruthy()
+    expect(screen.getByText('Evaluation target · missing-release-admission')).toBeTruthy()
+    expect(screen.getByText('Baseline fail → Candidate pass · 4 trials')).toBeTruthy()
+    expect(screen.getByText('Deterministic filesystem · Candidate code not executed')).toBeTruthy()
+    expect(screen.getByText('No release authority · Not installed or activated')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /build-dsh-plugin/u })).toBeNull()
     expect(screen.queryByRole('button', { name: /install|activate|missing-release-skill/u })).toBeNull()
   })

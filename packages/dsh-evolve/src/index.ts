@@ -15,6 +15,11 @@ import {
   TrustedSkillDiscovery,
   type TrustedSkillDiscoverySourceConfig,
 } from './trusted-skill-discovery.ts'
+import {
+  DiscoveredSkillAdmission,
+  DiscoveredSkillAdmissionScheduler,
+  type DiscoveredSkillAdmissionTargetConfig,
+} from './discovered-skill-admission.ts'
 import { installEvolutionCommand } from './evolve-command.ts'
 import { CandidatePublisher } from './candidate-publisher.ts'
 import { GitSkillSource, type GitSkillSourceConfig } from './git-skill-source.ts'
@@ -90,6 +95,7 @@ export interface Config {
   feedbackDraftRoot?: string
   sources?: GitSkillSourceConfig[]
   trustedDiscoverySources?: TrustedSkillDiscoverySourceConfig[]
+  discoveryAdmissionTargets?: DiscoveredSkillAdmissionTargetConfig[]
   supervisor?: {
     runRoots: Array<{ workspaceId: string; path: string }>
     scanIntervalMs?: number
@@ -117,6 +123,16 @@ export const Config: Schema<Config> = z.object({
     id: z.string().required(),
     repository: z.string().required(),
     skillsRoot: z.string().required(),
+  })).max(100).default([]),
+  discoveryAdmissionTargets: z.array(z.object({
+    id: z.string().required(),
+    workspaceId: z.string().required(),
+    skill: z.string().required(),
+    baselineDir: z.string().required(),
+    baselineHash: z.string().required(),
+    casePackDir: z.string().required(),
+    casePackHash: z.string().required(),
+    runRoot: z.string().required(),
   })).max(100).default([]),
   supervisor: z.object({
     runRoots: z.array(z.object({
@@ -210,10 +226,21 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const disposeBinder = installGenerationBinder(ctx, store, source)
   const capabilities = new CapabilityMap()
   const capabilityMonitor = installCapabilityMapObserver(ctx, capabilities, store)
+  let skillAdmissionScheduler: DiscoveredSkillAdmissionScheduler | undefined
   const skillDiscovery = new TrustedSkillDiscovery(
     config.trustedDiscoverySources ?? [],
     skillDiscoveryStore,
+    { onCandidate: candidate => skillAdmissionScheduler?.observe(candidate) },
   )
+  const discoveryAdmissionTargets = config.discoveryAdmissionTargets ?? []
+  let skillAdmission: DiscoveredSkillAdmission | undefined
+  if (discoveryAdmissionTargets.length > 0) {
+    skillAdmission = new DiscoveredSkillAdmission(discoveryAdmissionTargets, skillDiscovery)
+    skillAdmissionScheduler = new DiscoveredSkillAdmissionScheduler(
+      skillAdmission,
+      skillDiscoveryStore,
+    )
+  }
   const skillDiscoveryLoop = installTrustedSkillDiscoveryLoop(
     ctx,
     capabilityGaps,
@@ -401,6 +428,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     capabilities,
     gaps: capabilityGaps,
     discovery: skillDiscoveryStore,
+    ...(skillAdmission === undefined ? {} : { admissions: skillAdmission }),
     ...(review === undefined ? {} : { review }),
     ...(resident === undefined ? {} : { resident }),
     ...(automaticPolicy === undefined ? {} : { automatic: automaticPolicy }),
@@ -452,6 +480,18 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       }
     }, 'dsh-evolve.deliveryOutcomeMonitor')
   })
+  if (skillAdmissionScheduler !== undefined) {
+    ctx.inject(['jobs'], (jobCtx) => {
+      jobCtx.effect(() => {
+        const detachController = jobCtx.jobs.attachController('dsh-evolve-skill-admission')
+        const detachScheduler = skillAdmissionScheduler!.attachJobs(jobCtx.jobs)
+        return () => {
+          detachScheduler()
+          detachController()
+        }
+      }, 'dsh-evolve.skillAdmissionJobs')
+    })
+  }
   if (evaluatorDrafts !== undefined) {
     ctx.inject(['jobs'], (jobCtx) => {
       jobCtx.effect(() => {
@@ -585,6 +625,7 @@ export type {
 } from './generation-store.ts'
 export type { GitSkillSourceConfig } from './git-skill-source.ts'
 export type { TrustedSkillDiscoverySourceConfig } from './trusted-skill-discovery.ts'
+export type { DiscoveredSkillAdmissionTargetConfig } from './discovered-skill-admission.ts'
 export type { FeedbackShadowTargetConfig } from './feedback-shadow-launcher.ts'
 export type { AutomaticFeedbackShadowTargetReference } from './automatic-feedback-shadow.ts'
 export type { AutomaticEvaluatorDraftTargetReference } from './automatic-evaluator-draft.ts'

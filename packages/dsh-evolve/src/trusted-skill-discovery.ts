@@ -251,6 +251,11 @@ export interface MaterializedSkillCandidate {
   readonly path: string
   readonly contentHash: string
   readonly treeHash: string
+  readonly files: readonly {
+    readonly path: string
+    readonly mode: '100644' | '100755'
+    readonly size: number
+  }[]
 }
 
 export interface TrustedSkillDiscoveryLoop {
@@ -264,15 +269,20 @@ export class TrustedSkillDiscovery {
   private readonly sources: readonly ResolvedSource[]
   private readonly store: Pick<SkillDiscoveryStore, 'recordCandidate' | 'recordAttempt'>
   private readonly now: () => number
+  private readonly onCandidate: ((candidate: DiscoveredSkillCandidate) => void) | undefined
 
   constructor(
     sources: readonly TrustedSkillDiscoverySourceConfig[],
     store: Pick<SkillDiscoveryStore, 'recordCandidate' | 'recordAttempt'>,
-    options: { now?: () => number } = {},
+    options: {
+      now?: () => number
+      onCandidate?: (candidate: DiscoveredSkillCandidate) => void
+    } = {},
   ) {
     this.sources = resolveSources(sources)
     this.store = store
     this.now = options.now ?? Date.now
+    this.onCandidate = options.onCandidate
   }
 
   async discover(gap: CapabilityGap): Promise<SkillDiscoveryResult> {
@@ -294,6 +304,7 @@ export class TrustedSkillDiscovery {
           requestedSkill: gap.requestedSkill,
           ...inspected.candidate,
         })
+        this.onCandidate?.(recorded.candidate)
         candidateIds.push(recorded.candidate.id)
         sourceObservations.push({ id: source.id, status: 'candidate', revision: inspected.revision })
       } else {
@@ -392,6 +403,11 @@ export class TrustedSkillDiscovery {
         path: outputDir,
         contentHash,
         treeHash,
+        files: Object.freeze(entries.map(entry => Object.freeze({
+          path: entry.relativePath,
+          mode: entry.mode,
+          size: entry.size,
+        }))),
       })
     } catch (error) {
       await rm(outputDir, { force: true, recursive: true }).catch(() => undefined)

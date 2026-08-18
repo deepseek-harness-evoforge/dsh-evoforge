@@ -20,7 +20,7 @@ const dsh_evolve_evoforgeEvolution_approveAndStartEvaluatorShadow_result$schema 
   'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected"), z.literal("scheduled")]).readonly().optional(),
+  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("rejected"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_approveEvaluator_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_approveEvaluator_parameter_1$schema = z.string()
@@ -41,7 +41,7 @@ const dsh_evolve_evoforgeEvolution_approveEvaluator_result$schema = z.object({
   'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected"), z.literal("scheduled")]).readonly().optional(),
+  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("rejected"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_approveReview_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_approveReview_parameter_1$schema = z.string()
@@ -62,7 +62,7 @@ const dsh_evolve_evoforgeEvolution_approveReview_result$schema = z.object({
   'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected"), z.literal("scheduled")]).readonly().optional(),
+  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("rejected"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_authorEvaluator_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_authorEvaluator_parameter_1$schema = z.string()
@@ -83,7 +83,7 @@ const dsh_evolve_evoforgeEvolution_authorEvaluator_result$schema = z.object({
   'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected"), z.literal("scheduled")]).readonly().optional(),
+  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("rejected"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_evaluatorDraft_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_evaluatorDraft_parameter_1$schema = z.string()
@@ -95,7 +95,7 @@ const dsh_evolve_evoforgeEvolution_evaluatorDraft_result$schema = z.object({
   'launchId': z.string().readonly(),
   'targetId': z.string().readonly(),
   'skillName': z.string().readonly(),
-  'status': z.union([z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected")]).readonly(),
+  'status': z.union([z.literal("incomplete"), z.literal("rejected"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified")]).readonly(),
   'createdAt': z.string().readonly(),
   'updatedAt': z.string().readonly(),
   'cost': z.object({
@@ -249,6 +249,27 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
 })).readonly(),
 })).readonly(),
 })]).readonly().optional(),
+  'skillAdmission': z.union([z.undefined(), z.object({
+  'configuredTargetCount': z.number().readonly(),
+  'warningCount': z.number().readonly(),
+  'results': z.array(z.object({
+  'id': z.string().readonly(),
+  'candidateId': z.string().readonly(),
+  'skillName': z.string().readonly(),
+  'status': z.union([z.literal("incomplete"), z.literal("abstained"), z.literal("protected"), z.literal("rejected"), z.literal("review"), z.literal("qualified-for-shadow")]).readonly(),
+  'reasons': z.array(z.union([z.literal("no-exact-evaluation-target"), z.literal("candidate-has-executable-content"), z.literal("candidate-is-not-instruction-only"), z.literal("baseline-identity-mismatch"), z.literal("case-pack-identity-mismatch"), z.literal("assembled-evaluator-not-governance-separated"), z.literal("case-pack-calibration-failed"), z.literal("candidate-failed-admission"), z.literal("baseline-already-passes"), z.literal("candidate-improves-deterministic-admission"), z.literal("governance-input-mutated"), z.literal("governance-roots-overlap"), z.literal("evaluation-failed")])).readonly(),
+  'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'releaseAuthority': z.literal("none").readonly(),
+  'evidence': z.union([z.undefined(), z.object({
+  'baseline': z.union([z.literal("pass"), z.literal("fail")]).readonly(),
+  'candidate': z.union([z.literal("pass"), z.literal("fail")]).readonly(),
+  'calibrationPassed': z.boolean().readonly(),
+  'candidateExecuted': z.literal(false).readonly(),
+  'evaluatorClass': z.literal("deterministic-filesystem").readonly(),
+  'trialCount': z.literal(4).readonly(),
+})]).readonly().optional(),
+})).readonly(),
+})]).readonly().optional(),
   'deliveryOutcomes': z.union([z.undefined(), z.object({
   'all': z.object({
   'total': z.number().readonly(),
@@ -346,7 +367,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'launchId': z.string().readonly(),
   'targetId': z.string().readonly(),
   'skillName': z.string().readonly(),
-  'status': z.union([z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected")]).readonly(),
+  'status': z.union([z.literal("incomplete"), z.literal("rejected"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified")]).readonly(),
   'createdAt': z.string().readonly(),
   'updatedAt': z.string().readonly(),
   'cost': z.object({
@@ -365,7 +386,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'id': z.string().readonly(),
   'workspaceId': z.string().readonly(),
   'status': z.union([z.literal("rejected"), z.literal("pending"), z.literal("approved")]).readonly(),
-  'recommendation': z.union([z.literal("promote"), z.literal("review")]).readonly(),
+  'recommendation': z.union([z.literal("review"), z.literal("promote")]).readonly(),
   'skillName': z.string().readonly(),
   'claim': z.string().readonly(),
   'changedFiles': z.array(z.string()).readonly(),
@@ -423,7 +444,7 @@ const dsh_evolve_evoforgeEvolution_pause_result$schema = z.object({
   'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected"), z.literal("scheduled")]).readonly().optional(),
+  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("rejected"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_promote_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_promote_parameter_1$schema = z.string()
@@ -443,7 +464,7 @@ const dsh_evolve_evoforgeEvolution_promote_result$schema = z.object({
   'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected"), z.literal("scheduled")]).readonly().optional(),
+  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("rejected"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_rejectEvaluator_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_rejectEvaluator_parameter_1$schema = z.string()
@@ -464,7 +485,7 @@ const dsh_evolve_evoforgeEvolution_rejectEvaluator_result$schema = z.object({
   'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected"), z.literal("scheduled")]).readonly().optional(),
+  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("rejected"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_rejectReview_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_rejectReview_parameter_1$schema = z.string()
@@ -485,7 +506,7 @@ const dsh_evolve_evoforgeEvolution_rejectReview_result$schema = z.object({
   'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected"), z.literal("scheduled")]).readonly().optional(),
+  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("rejected"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_resume_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_resume_result$schema = z.object({
@@ -504,7 +525,7 @@ const dsh_evolve_evoforgeEvolution_resume_result$schema = z.object({
   'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected"), z.literal("scheduled")]).readonly().optional(),
+  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("rejected"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_review_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_review_parameter_1$schema = z.string()
@@ -514,7 +535,7 @@ const dsh_evolve_evoforgeEvolution_review_result$schema = z.object({
   'id': z.string().readonly(),
   'workspaceId': z.string().readonly(),
   'status': z.union([z.literal("rejected"), z.literal("pending"), z.literal("approved")]).readonly(),
-  'recommendation': z.union([z.literal("promote"), z.literal("review")]).readonly(),
+  'recommendation': z.union([z.literal("review"), z.literal("promote")]).readonly(),
   'skillName': z.string().readonly(),
   'claim': z.string().readonly(),
   'changedFiles': z.array(z.string()).readonly(),
@@ -581,7 +602,7 @@ const dsh_evolve_evoforgeEvolution_rollback_result$schema = z.object({
   'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected"), z.literal("scheduled")]).readonly().optional(),
+  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("rejected"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_startEvaluatorShadow_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_startEvaluatorShadow_parameter_1$schema = z.string()
@@ -601,7 +622,7 @@ const dsh_evolve_evoforgeEvolution_startEvaluatorShadow_result$schema = z.object
   'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected"), z.literal("scheduled")]).readonly().optional(),
+  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("rejected"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_startFeedbackShadow_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_startFeedbackShadow_parameter_1$schema = z.string()
@@ -622,7 +643,7 @@ const dsh_evolve_evoforgeEvolution_startFeedbackShadow_result$schema = z.object(
   'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("rejected"), z.literal("scheduled")]).readonly().optional(),
+  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("rejected"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
 })
 
 export const TYPERT_REMOTE = {

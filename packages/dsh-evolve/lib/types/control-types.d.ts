@@ -140,6 +140,28 @@ export interface EvolutionSkillDiscoveryView {
     readonly candidates: readonly EvolutionDiscoveredSkillCandidateView[];
     readonly attempts: readonly EvolutionSkillDiscoveryAttemptView[];
 }
+/** Deterministic, zero-model admission evidence; it never carries release authority. */
+export interface EvolutionSkillAdmissionView {
+    readonly configuredTargetCount: number;
+    readonly warningCount: number;
+    readonly results: readonly {
+        readonly id: string;
+        readonly candidateId: string;
+        readonly skillName: string;
+        readonly status: 'abstained' | 'protected' | 'incomplete' | 'rejected' | 'review' | 'qualified-for-shadow';
+        readonly reasons: readonly ('no-exact-evaluation-target' | 'candidate-has-executable-content' | 'candidate-is-not-instruction-only' | 'baseline-identity-mismatch' | 'case-pack-identity-mismatch' | 'assembled-evaluator-not-governance-separated' | 'case-pack-calibration-failed' | 'candidate-failed-admission' | 'baseline-already-passes' | 'candidate-improves-deterministic-admission' | 'governance-input-mutated' | 'governance-roots-overlap' | 'evaluation-failed')[];
+        readonly targetId?: string;
+        readonly releaseAuthority: 'none';
+        readonly evidence?: {
+            readonly baseline: 'pass' | 'fail';
+            readonly candidate: 'pass' | 'fail';
+            readonly calibrationPassed: boolean;
+            readonly candidateExecuted: false;
+            readonly evaluatorClass: 'deterministic-filesystem';
+            readonly trialCount: 4;
+        };
+    }[];
+}
 /** One sealed evaluator result shown in review. */
 export interface EvolutionReviewCaseView {
     readonly id: string;
@@ -278,6 +300,7 @@ export interface EvolutionOverview {
     readonly capabilityMap?: EvolutionCapabilityMapView;
     readonly capabilityGaps?: EvolutionCapabilityGapQueueView;
     readonly skillDiscovery?: EvolutionSkillDiscoveryView;
+    readonly skillAdmission?: EvolutionSkillAdmissionView;
     readonly deliveryOutcomes?: {
         readonly all: DeliveryOutcomeCounts;
         readonly selected: DeliveryOutcomeCounts;

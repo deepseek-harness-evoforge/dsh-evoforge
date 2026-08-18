@@ -292,6 +292,31 @@ describe('EvolutionControlPlane', () => {
           sources: [{ id: 'local-curated', status: 'candidate' as const, revision: 'a'.repeat(40) }],
         }],
       },
+      admissions: {
+        scan: vi.fn(async () => ({
+          configuredTargetCount: 1,
+          warningCount: 0,
+          results: [{
+            schemaVersion: 1 as const,
+            id: '2'.repeat(64),
+            candidateId: '4'.repeat(64),
+            workspaceId: WORKSPACE_ID,
+            skillName: 'missing-release-skill',
+            status: 'qualified-for-shadow' as const,
+            reasons: ['candidate-improves-deterministic-admission' as const],
+            targetId: 'missing-release-admission',
+            releaseAuthority: 'none' as const,
+            evidence: {
+              baseline: 'fail' as const,
+              candidate: 'pass' as const,
+              calibrationPassed: true,
+              candidateExecuted: false as const,
+              evaluatorClass: 'deterministic-filesystem' as const,
+              trialCount: 4 as const,
+            },
+          }],
+        })),
+      },
     })
 
     const overview = await control.overview(WORKSPACE_ID, 'session-1')
@@ -364,6 +389,25 @@ describe('EvolutionControlPlane', () => {
           status: 'candidate-found',
           candidateIds: ['4'.repeat(64)],
           sources: [{ id: 'local-curated', status: 'candidate' }],
+        }],
+      },
+      skillAdmission: {
+        configuredTargetCount: 1,
+        warningCount: 0,
+        results: [{
+          id: '2'.repeat(64),
+          candidateId: '4'.repeat(64),
+          skillName: 'missing-release-skill',
+          status: 'qualified-for-shadow',
+          reasons: ['candidate-improves-deterministic-admission'],
+          targetId: 'missing-release-admission',
+          releaseAuthority: 'none',
+          evidence: {
+            baseline: 'fail',
+            candidate: 'pass',
+            candidateExecuted: false,
+            evaluatorClass: 'deterministic-filesystem',
+          },
         }],
       },
       reviews: { available: true, pendingCount: 1, warningCount: 1 },

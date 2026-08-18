@@ -480,6 +480,7 @@ function SkillsView({ summary, t }: { summary: EvolutionOverview; t: (key: strin
     <CapabilityMap summary={summary} t={t} />
     <CapabilityGapQueue summary={summary} t={t} />
     <SkillDiscovery summary={summary} t={t} />
+    <SkillAdmission summary={summary} t={t} />
     {empty && <div className="dsh-evolve-message">{t('skills.empty')}</div>}
     {active.length > 0 && <SkillGroup label={t('skills.active')} items={active.map(artifact => ({
       key: `active:${artifact.gitCommit}:${artifact.name}`,
@@ -498,6 +499,52 @@ function SkillsView({ summary, t }: { summary: EvolutionOverview; t: (key: strin
     }))} />}
     <p className="dsh-evolve-guidance">{t('skills.native')}</p>
   </>
+}
+
+function SkillAdmission({ summary, t }: { summary: EvolutionOverview; t: (key: string) => string }) {
+  const admission = summary.skillAdmission
+  if (admission === undefined) return null
+  return <section>
+    <div className="dsh-evolve-capability-head">
+      <h3 className="dsh-evolve-section-title">{t('skills.admission')}</h3>
+      <span className="dsh-evolve-catalog-status">
+        {admission.configuredTargetCount} {t('skills.admission.targets')}
+      </span>
+    </div>
+    {admission.warningCount > 0 && <div className="dsh-evolve-message dsh-evolve-error">
+      {admission.warningCount} {t('skills.admission.warnings')}
+    </div>}
+    {admission.results.length === 0
+      ? <div className="dsh-evolve-message">{t('skills.admission.empty')}</div>
+      : <ul className="dsh-evolve-list">{admission.results.map(value => (
+          <li className="dsh-evolve-skill-card" key={value.id}>
+            <div className="dsh-evolve-review-skill">{value.skillName}</div>
+            <div className="dsh-evolve-capability-route">
+              {t(`skills.admission.status.${value.status}`)}
+            </div>
+            {value.targetId !== undefined && <div className="dsh-evolve-meta">
+              {t('skills.admission.target')} · {value.targetId}
+            </div>}
+            {value.evidence !== undefined && <>
+              <div className="dsh-evolve-meta">{admissionComparison(value.evidence, t)}</div>
+              <div className="dsh-evolve-meta">{t('skills.admission.governance')}</div>
+            </>}
+            {value.reasons.map(reason => (
+              <div className="dsh-evolve-meta" key={reason}>{t(`skills.admission.reason.${reason}`)}</div>
+            ))}
+            <div className="dsh-evolve-discovery-state">{t('skills.admission.release.none')}</div>
+          </li>
+        ))}</ul>}
+  </section>
+}
+
+function admissionComparison(
+  value: NonNullable<EvolutionOverview['skillAdmission']>['results'][number]['evidence'] & {},
+  t: (key: string) => string,
+): string {
+  return `${t('skills.admission.baseline')} ${t(`skills.admission.outcome.${value.baseline}`)}`
+    + ` → ${t('skills.admission.candidate')} ${t(`skills.admission.outcome.${value.candidate}`)}`
+    + ` · ${value.trialCount} ${t('skills.admission.trials')}`
 }
 
 function SkillDiscovery({ summary, t }: { summary: EvolutionOverview; t: (key: string) => string }) {

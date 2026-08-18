@@ -8,6 +8,7 @@ import type { AutomaticFeedbackShadowService } from './automatic-feedback-shadow
 import type { AutomaticEvaluatorDraftService } from './automatic-evaluator-draft.ts'
 import type { CapabilityGapStore } from './capability-gap-store.ts'
 import type { SkillDiscoveryStore } from './trusted-skill-discovery.ts'
+import type { DiscoveredSkillAdmission } from './discovered-skill-admission.ts'
 import type { EvolutionStore } from './generation-store.ts'
 import type { ResidentEvolutionControl } from './resident-evolution-control.ts'
 import type { ReviewCandidate, ReviewInbox } from './review-inbox.ts'
@@ -16,6 +17,7 @@ import type {
   EvolutionCapabilityMapView,
   EvolutionCapabilityGapQueueView,
   EvolutionSkillDiscoveryView,
+  EvolutionSkillAdmissionView,
   EvolutionEvaluatorDraftView,
   EvolutionFeedbackSignalView,
   EvolutionGenerationView,
@@ -50,6 +52,7 @@ export interface EvolutionControlPlaneModules {
   }
   readonly gaps?: Pick<CapabilityGapStore, 'list'>
   readonly discovery?: Pick<SkillDiscoveryStore, 'listCandidates' | 'listAttempts'>
+  readonly admissions?: Pick<DiscoveredSkillAdmission, 'scan'>
 }
 
 /** A structured adapter surface that delegates to the same owners as Commands. */
@@ -68,6 +71,7 @@ export class EvolutionControlPlane {
       evaluatorScan,
       automaticFeedbackBudget,
       automaticEvaluatorBudget,
+      admissionScan,
     ] = await Promise.all([
       this.modules.review === undefined ? undefined : this.modules.review.inbox.scanAll(),
       this.modules.feedbackShadow === undefined ? undefined : this.modules.feedbackShadow.scan(workspaceId),
@@ -78,6 +82,7 @@ export class EvolutionControlPlane {
       this.modules.automaticEvaluator === undefined
         ? undefined
         : this.modules.automaticEvaluator.budgetStatus(workspaceId),
+      this.modules.admissions === undefined ? undefined : this.modules.admissions.scan(workspaceId),
     ])
     const automaticSkills = this.modules.automatic?.skills(workspaceId) ?? []
     return {
@@ -100,6 +105,9 @@ export class EvolutionControlPlane {
       ...(this.modules.discovery === undefined
         ? {}
         : { skillDiscovery: projectSkillDiscovery(this.modules.discovery, workspaceId) }),
+      ...(admissionScan === undefined
+        ? {}
+        : { skillAdmission: projectSkillAdmission(admissionScan) }),
       ...(this.modules.outcomes === undefined
         ? {}
         : {
@@ -422,6 +430,25 @@ function projectSkillDiscovery(
         status: source.status,
         ...(source.revision === undefined ? {} : { revision: source.revision }),
       })),
+    })),
+  }
+}
+
+function projectSkillAdmission(
+  scan: Awaited<ReturnType<NonNullable<EvolutionControlPlaneModules['admissions']>['scan']>>,
+): EvolutionSkillAdmissionView {
+  return {
+    configuredTargetCount: scan.configuredTargetCount,
+    warningCount: scan.warningCount,
+    results: scan.results.slice(0, MAX_DISCOVERY_ROWS).map(value => ({
+      id: value.id,
+      candidateId: value.candidateId,
+      skillName: value.skillName,
+      status: value.status,
+      reasons: [...value.reasons],
+      ...(value.targetId === undefined ? {} : { targetId: value.targetId }),
+      releaseAuthority: value.releaseAuthority,
+      ...(value.evidence === undefined ? {} : { evidence: { ...value.evidence } }),
     })),
   }
 }

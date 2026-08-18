@@ -14,6 +14,8 @@ The Bundle inserts exactly one `evoforge-evolution` row and defaults `cacheRoot`
 
 `trustedDiscoverySources` is an optional list of `{ id, repository, skillsRoot }` entries. Each entry explicitly trusts one existing local Git checkout or mirror as a discovery source. After an exact native Skill miss, EvoForge reads the matching whole-Skill folder from the pinned Git commit into quarantine metadata; it does not checkout, execute, install, or activate the package. The default empty list records an explicit abstention instead of searching an untrusted source.
 
+`discoveryAdmissionTargets` optionally binds one exact Workspace and Skill to fixed baseline/Case Pack hashes and an owned run root. New quarantined candidates enter a native DSH Job for a zero-model deterministic admission Trial. This path rejects assembled evaluators and executable/non-instruction package files; a baseline-fail/candidate-pass result is only `qualified-for-shadow` and carries `releaseAuthority: none`. It never installs, activates, publishes, or auto-promotes a discovered Skill.
+
 Inside a DSH session, use `/evolve status`, review/release Commands, or the separately installed `dsh-evolve-web` client adapter. Active Generation selection is future-session-only; live Session history, Goal state, Approval, Jobs, and Storage remain DSH authoritative.
 
 When the Bundle row declares exact `shadowTargets` or `evaluatorTargets`, protected authoring and Shadow actions also stay on the DSH Command surface:

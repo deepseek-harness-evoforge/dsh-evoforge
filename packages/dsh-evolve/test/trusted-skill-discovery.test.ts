@@ -145,6 +145,10 @@ describe('trusted whole-Skill discovery', () => {
       path: await realpath(materializedRoot),
       contentHash: input?.contentHash,
       treeHash: input?.version.treeHash,
+      files: expect.arrayContaining([
+        { path: 'SKILL.md', mode: '100644', size: expect.any(Number) },
+        { path: 'scripts/run.sh', mode: '100755', size: expect.any(Number) },
+      ]),
     })
     expect(await readFile(join(materializedRoot, 'SKILL.md'), 'utf8')).toContain('Pinned instructions.')
     expect((await stat(join(materializedRoot, 'scripts', 'run.sh'))).mode & 0o111).toBe(0)

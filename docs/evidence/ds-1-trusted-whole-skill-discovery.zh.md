@@ -19,6 +19,13 @@ frontmatter、名称不一致、超过 256 文件或 16 MiB 的包均 fail close
 Git object，不 checkout、不运行脚本、不安装 Skill，也不改变当前 Session 或活动 Generation。无可信
 来源、无同名 Skill、来源不可用和无效包会形成有界、幂等的 abstain/partial 记录。
 
+配置 exact `discoveryAdmissionTargets` 后，候选按原 commit/tree/content hash 重放到来源仓库之外、权限
+收紧且不可执行的隔离副本，并通过原生 DSH Job 进入零模型确定性准入。baseline 与 Case Pack 必须匹配
+部署时固定哈希；执行型或非纯指令文件、assembled evaluator、评测期间治理输入漂移均 fail closed。
+该阶段的 candidate 代码不会执行，baseline fail / candidate pass 也只得到 `qualified-for-shadow`，结果固定
+`releaseAuthority: none`，不能安装、激活、发布或自动晋升。重启会从 durable Candidate 重建 Job，完成
+报告按 candidate + target + baseline/Case Pack identity 幂等复用。
+
 ## DSH Web 可解释性
 
 Skills 视图现在同时展示：
@@ -27,18 +34,21 @@ Skills 视图现在同时展示：
 - 已确认 Capability Gap 及目录证据；
 - whole-Skill 候选的来源信任、Git/content identity、包组成、权限与隔离状态；
 - 每次发现的 candidate/partial/abstain 结果及原因。
+- 确定性准入的 target、baseline/candidate、Trial 数、治理隔离和零发布权限。
 
 Web 不暴露绝对仓库路径、Skill 正文或私有 Session ID，也没有安装、激活、选路按钮。
 
 ## 验证
 
-- `dsh-evolve`：`210 passed / 2 skipped`，覆盖 Git 整包身份、脚本不执行、无来源 abstain、启动恢复、
-  新 Gap 非阻塞观察、Storage 重启和控制面脱敏投影；
+- `dsh-evolve`：覆盖 Git 整包身份、固定版本物化、脚本不执行、无来源 abstain、启动恢复、新 Gap
+  非阻塞观察、Storage 重启、真实 macOS sealed deterministic admission、治理输入漂移和控制面脱敏投影；
 - `dsh-evolve-web`：`25 passed`，覆盖候选/abstain 解释和无安装/激活动作；
 - 全仓 `pnpm check`：docs、types、tests、build 全部通过；Telegram `39 passed`，飞书 `38 passed`。
 
 ## 尚未证明
 
-当前没有联网市场、官方文档、论文或通用开源索引；没有从资料生成新 Skill；候选尚未接入隔离
-baseline/candidate、holdout、回归、安全、成本和时延 Trial；也没有真实 provider、陌生用户或 Hermes
-同任务 paired benchmark。因此本纵切是可信 acquisition 起点，不是自动安装，更不是完整自我进化闭环。
+当前没有联网市场、官方文档、论文或通用开源索引；没有从资料生成新 Skill；确定性准入不是完整
+assembled DSH rollout，候选尚未通过 governance-separated holdout、回归、迁移、安全、成本、时延和
+KV Cache 门禁，也没有进入 Generation/Promotion。真实 provider、陌生用户和 Hermes 同任务 paired
+benchmark 仍缺失。因此本纵切是可信 acquisition + pre-admission 起点，不是自动安装，更不是完整自我
+进化闭环。
