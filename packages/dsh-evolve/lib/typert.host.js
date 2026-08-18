@@ -17,10 +17,10 @@ const dsh_evolve_evoforgeEvolution_approveAndStartEvaluatorShadow_result$schema 
   'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("candidate-ready"), z.literal("proposal-pending"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("rejected"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
+  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("rejected"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_approveEvaluator_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_approveEvaluator_parameter_1$schema = z.string()
@@ -38,10 +38,10 @@ const dsh_evolve_evoforgeEvolution_approveEvaluator_result$schema = z.object({
   'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("candidate-ready"), z.literal("proposal-pending"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("rejected"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
+  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("rejected"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_approveReview_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_approveReview_parameter_1$schema = z.string()
@@ -59,10 +59,10 @@ const dsh_evolve_evoforgeEvolution_approveReview_result$schema = z.object({
   'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("candidate-ready"), z.literal("proposal-pending"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("rejected"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
+  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("rejected"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_authorEvaluator_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_authorEvaluator_parameter_1$schema = z.string()
@@ -80,10 +80,10 @@ const dsh_evolve_evoforgeEvolution_authorEvaluator_result$schema = z.object({
   'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("candidate-ready"), z.literal("proposal-pending"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("rejected"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
+  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("rejected"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_evaluatorDraft_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_evaluatorDraft_parameter_1$schema = z.string()
@@ -95,7 +95,7 @@ const dsh_evolve_evoforgeEvolution_evaluatorDraft_result$schema = z.object({
   'launchId': z.string().readonly(),
   'targetId': z.string().readonly(),
   'skillName': z.string().readonly(),
-  'status': z.union([z.literal("incomplete"), z.literal("rejected"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified")]).readonly(),
+  'status': z.union([z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("rejected"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified")]).readonly(),
   'createdAt': z.string().readonly(),
   'updatedAt': z.string().readonly(),
   'cost': z.object({
@@ -217,6 +217,12 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'gapId': z.string().readonly(),
   'requestedSkill': z.string().readonly(),
   'description': z.string().readonly(),
+  'demand': z.union([z.undefined(), z.object({
+  'kind': z.literal("cross-goal-cluster-v1").readonly(),
+  'clusterId': z.string().readonly(),
+  'gapIds': z.array(z.string()).readonly(),
+  'goalCount': z.number().readonly(),
+})]).readonly().optional(),
   'match': z.union([z.undefined(), z.object({
   'kind': z.literal("deterministic-lexical-v1").readonly(),
   'requestedSkill': z.string().readonly(),
@@ -226,8 +232,8 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
 })]).readonly().optional(),
   'source': z.object({
   'id': z.string().readonly(),
-  'kind': z.union([z.literal("local-git"), z.literal("agent-skills-index")]).readonly(),
-  'trust': z.literal("explicit-deployer-config").readonly(),
+  'kind': z.union([z.literal("local-git"), z.literal("agent-skills-index"), z.literal("slow-loop-author")]).readonly(),
+  'trust': z.union([z.literal("explicit-deployer-config"), z.literal("bounded-host-authoring")]).readonly(),
   'origin': z.union([z.undefined(), z.string()]).readonly().optional(),
 }).readonly(),
   'scope': z.literal("workspace").readonly(),
@@ -238,6 +244,12 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
 }), z.object({
   'kind': z.literal("agent-skills-index-v0.2").readonly(),
   'indexDigest': z.string().readonly(),
+  'artifactDigest': z.string().readonly(),
+  'treeHash': z.string().readonly(),
+}), z.object({
+  'kind': z.literal("slow-loop-author-v1").readonly(),
+  'modelIdentityHash': z.string().readonly(),
+  'inputDigest': z.string().readonly(),
   'artifactDigest': z.string().readonly(),
   'treeHash': z.string().readonly(),
 })]).readonly(),
@@ -291,6 +303,27 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'status': z.union([z.literal("candidate"), z.literal("absent"), z.literal("no-match"), z.literal("ambiguous"), z.literal("invalid"), z.literal("unavailable"), z.literal("unsupported-schema"), z.literal("unsupported-artifact"), z.literal("untrusted-origin"), z.literal("digest-mismatch")]).readonly(),
   'revision': z.union([z.undefined(), z.string()]).readonly().optional(),
 })).readonly(),
+})).readonly(),
+})]).readonly().optional(),
+  'slowLoopAuthoring': z.union([z.undefined(), z.object({
+  'configuredTargetCount': z.number().readonly(),
+  'warningCount': z.number().readonly(),
+  'runs': z.array(z.object({
+  'id': z.string().readonly(),
+  'targetId': z.string().readonly(),
+  'skillName': z.string().readonly(),
+  'clusterId': z.string().readonly(),
+  'gapCount': z.number().readonly(),
+  'goalCount': z.number().readonly(),
+  'phase': z.union([z.literal("incomplete"), z.literal("prepared"), z.literal("budget-deferred"), z.literal("cancelled"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("candidate-ready")]).readonly(),
+  'createdAt': z.string().readonly(),
+  'updatedAt': z.string().readonly(),
+  'modelCalls': z.union([z.literal(0), z.literal(1)]).readonly(),
+  'inputTokens': z.number().readonly(),
+  'outputTokens': z.number().readonly(),
+  'candidateId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'retryAt': z.union([z.undefined(), z.number()]).readonly().optional(),
+  'releaseAuthority': z.literal("none").readonly(),
 })).readonly(),
 })]).readonly().optional(),
   'skillAdmission': z.union([z.undefined(), z.object({
@@ -358,7 +391,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'launchId': z.string().readonly(),
   'targetId': z.string().readonly(),
   'skillName': z.string().readonly(),
-  'phase': z.union([z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running")]).readonly(),
+  'phase': z.union([z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("candidate-ready"), z.literal("proposal-pending"), z.literal("trial-running")]).readonly(),
   'startedAt': z.string().readonly(),
   'updatedAt': z.string().readonly(),
 })).readonly(),
@@ -411,7 +444,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'launchId': z.string().readonly(),
   'targetId': z.string().readonly(),
   'skillName': z.string().readonly(),
-  'status': z.union([z.literal("incomplete"), z.literal("rejected"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified")]).readonly(),
+  'status': z.union([z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("rejected"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified")]).readonly(),
   'createdAt': z.string().readonly(),
   'updatedAt': z.string().readonly(),
   'cost': z.object({
@@ -485,10 +518,10 @@ const dsh_evolve_evoforgeEvolution_pause_result$schema = z.object({
   'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("candidate-ready"), z.literal("proposal-pending"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("rejected"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
+  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("rejected"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_promote_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_promote_parameter_1$schema = z.string()
@@ -505,10 +538,10 @@ const dsh_evolve_evoforgeEvolution_promote_result$schema = z.object({
   'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("candidate-ready"), z.literal("proposal-pending"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("rejected"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
+  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("rejected"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_rejectEvaluator_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_rejectEvaluator_parameter_1$schema = z.string()
@@ -526,10 +559,10 @@ const dsh_evolve_evoforgeEvolution_rejectEvaluator_result$schema = z.object({
   'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("candidate-ready"), z.literal("proposal-pending"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("rejected"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
+  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("rejected"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_rejectReview_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_rejectReview_parameter_1$schema = z.string()
@@ -547,10 +580,10 @@ const dsh_evolve_evoforgeEvolution_rejectReview_result$schema = z.object({
   'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("candidate-ready"), z.literal("proposal-pending"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("rejected"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
+  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("rejected"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_resume_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_resume_result$schema = z.object({
@@ -566,10 +599,10 @@ const dsh_evolve_evoforgeEvolution_resume_result$schema = z.object({
   'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("candidate-ready"), z.literal("proposal-pending"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("rejected"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
+  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("rejected"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_review_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_review_parameter_1$schema = z.string()
@@ -643,10 +676,10 @@ const dsh_evolve_evoforgeEvolution_rollback_result$schema = z.object({
   'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("candidate-ready"), z.literal("proposal-pending"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("rejected"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
+  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("rejected"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_startEvaluatorShadow_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_startEvaluatorShadow_parameter_1$schema = z.string()
@@ -663,10 +696,10 @@ const dsh_evolve_evoforgeEvolution_startEvaluatorShadow_result$schema = z.object
   'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("candidate-ready"), z.literal("proposal-pending"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("rejected"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
+  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("rejected"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_startFeedbackShadow_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_startFeedbackShadow_parameter_1$schema = z.string()
@@ -684,10 +717,10 @@ const dsh_evolve_evoforgeEvolution_startFeedbackShadow_result$schema = z.object(
   'launchId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'skillName': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("proposal-pending"), z.literal("candidate-ready"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
+  'runStatus': z.union([z.undefined(), z.literal("complete"), z.literal("incomplete"), z.literal("prepared"), z.literal("candidate-ready"), z.literal("proposal-pending"), z.literal("trial-running"), z.literal("scheduled")]).readonly().optional(),
   'jobId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("rejected"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
+  'draftStatus': z.union([z.undefined(), z.literal("incomplete"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("rejected"), z.literal("draft-ready"), z.literal("qualification-running"), z.literal("qualified"), z.literal("scheduled")]).readonly().optional(),
 })
 
 export const TYPERT = {
@@ -1484,7 +1517,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionDiscoveredSkillCandidateView",
-            "declaration": "export interface EvolutionDiscoveredSkillCandidateView {\n    readonly id: string;\n    readonly discoveredAt: number;\n    readonly gapId: string;\n    readonly requestedSkill: string;\n    readonly description: string;\n    readonly match?: { readonly kind: 'deterministic-lexical-v1'; readonly requestedSkill: string; readonly score: number; readonly runnerUpScore: number; readonly queryHash: string; };\n    readonly source: { readonly id: string; readonly kind: 'local-git' | 'agent-skills-index'; readonly trust: 'explicit-deployer-config'; readonly origin?: string; };\n    readonly scope: 'workspace';\n    readonly version: { readonly kind: 'git-tree'; readonly commit: string; readonly treeHash: string; } | { readonly kind: 'agent-skills-index-v0.2'; readonly indexDigest: string; readonly artifactDigest: string; readonly treeHash: string; };\n    readonly distribution?: { readonly kind: 'skill-md'; } | { readonly kind: 'archive'; readonly format: 'tar.gz' | 'zip'; };\n    readonly contentHash: string;\n    readonly package: { readonly path: string; readonly fileCount: number; readonly totalBytes: number; readonly hasScripts: boolean; readonly hasReferences: boolean; };\n    readonly permissions: { readonly declared: boolean; readonly executableContent: boolean; readonly externalEffects: 'unknown'; };\n    readonly license?: { readonly status: 'declared'; readonly value: string; } | { readonly status: 'unknown'; };\n    readonly safety: { readonly status: 'quarantined'; readonly checks: readonly { readonly name: 'git-object-integrity' | 'artifact-digest-integrity' | 'regular-files-only' | 'skill-identity' | 'effect-review'; readonly status: 'passed' | 'required'; }[]; };\n    readonly lifecycle: 'inactive';\n    readonly verification: 'unevaluated';\n    readonly execution: 'never';\n}"
+            "declaration": "export interface EvolutionDiscoveredSkillCandidateView {\n    readonly id: string;\n    readonly discoveredAt: number;\n    readonly gapId: string;\n    readonly requestedSkill: string;\n    readonly description: string;\n    readonly demand?: { readonly kind: 'cross-goal-cluster-v1'; readonly clusterId: string; readonly gapIds: readonly string[]; readonly goalCount: number; };\n    readonly match?: { readonly kind: 'deterministic-lexical-v1'; readonly requestedSkill: string; readonly score: number; readonly runnerUpScore: number; readonly queryHash: string; };\n    readonly source: { readonly id: string; readonly kind: 'local-git' | 'agent-skills-index' | 'slow-loop-author'; readonly trust: 'explicit-deployer-config' | 'bounded-host-authoring'; readonly origin?: string; };\n    readonly scope: 'workspace';\n    readonly version: { readonly kind: 'git-tree'; readonly commit: string; readonly treeHash: string; } | { readonly kind: 'agent-skills-index-v0.2'; readonly indexDigest: string; readonly artifactDigest: string; readonly treeHash: string; } | { readonly kind: 'slow-loop-author-v1'; readonly modelIdentityHash: string; readonly inputDigest: string; readonly artifactDigest: string; readonly treeHash: string; };\n    readonly distribution?: { readonly kind: 'skill-md'; } | { readonly kind: 'archive'; readonly format: 'tar.gz' | 'zip'; };\n    readonly contentHash: string;\n    readonly package: { readonly path: string; readonly fileCount: number; readonly totalBytes: number; readonly hasScripts: boolean; readonly hasReferences: boolean; };\n    readonly permissions: { readonly declared: boolean; readonly executableContent: boolean; readonly externalEffects: 'unknown'; };\n    readonly license?: { readonly status: 'declared'; readonly value: string; } | { readonly status: 'unknown'; };\n    readonly safety: { readonly status: 'quarantined'; readonly checks: readonly { readonly name: 'git-object-integrity' | 'artifact-digest-integrity' | 'regular-files-only' | 'skill-identity' | 'effect-review'; readonly status: 'passed' | 'required'; }[]; };\n    readonly lifecycle: 'inactive';\n    readonly verification: 'unevaluated';\n    readonly execution: 'never';\n}"
           },
           {
             "name": "EvolutionEvaluatorDraftDetail",
@@ -1508,7 +1541,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionOverview",
-            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly workspaceId: string;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly automaticPromotion: { readonly enabled: boolean; readonly skills: readonly string[]; };\n    readonly capabilityMap?: EvolutionCapabilityMapView;\n    readonly capabilityGaps?: EvolutionCapabilityGapQueueView;\n    readonly skillDiscovery?: EvolutionSkillDiscoveryView;\n    readonly skillAdmission?: EvolutionSkillAdmissionView;\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; readonly baseline?: DeliveryOutcomeCounts; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly feedbackShadow?: { readonly available: boolean; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly runs: readonly EvolutionShadowRunView[]; };\n    readonly automaticFeedbackBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly automaticEvaluatorBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly evaluatorAuthoring?: { readonly available: boolean; readonly actionableCount: number; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly drafts: readonly EvolutionEvaluatorDraftView[]; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
+            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly workspaceId: string;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly automaticPromotion: { readonly enabled: boolean; readonly skills: readonly string[]; };\n    readonly capabilityMap?: EvolutionCapabilityMapView;\n    readonly capabilityGaps?: EvolutionCapabilityGapQueueView;\n    readonly skillDiscovery?: EvolutionSkillDiscoveryView;\n    readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView;\n    readonly skillAdmission?: EvolutionSkillAdmissionView;\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; readonly baseline?: DeliveryOutcomeCounts; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly feedbackShadow?: { readonly available: boolean; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly runs: readonly EvolutionShadowRunView[]; };\n    readonly automaticFeedbackBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly automaticEvaluatorBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly evaluatorAuthoring?: { readonly available: boolean; readonly actionableCount: number; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly drafts: readonly EvolutionEvaluatorDraftView[]; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
           },
           {
             "name": "EvolutionReviewCaseView",
@@ -1541,6 +1574,10 @@ export const TYPERT = {
           {
             "name": "EvolutionSkillDiscoveryView",
             "declaration": "export interface EvolutionSkillDiscoveryView {\n    readonly quarantinedCount: number;\n    readonly candidates: readonly EvolutionDiscoveredSkillCandidateView[];\n    readonly attempts: readonly EvolutionSkillDiscoveryAttemptView[];\n}"
+          },
+          {
+            "name": "EvolutionSlowLoopAuthoringView",
+            "declaration": "export interface EvolutionSlowLoopAuthoringView {\n    readonly configuredTargetCount: number;\n    readonly warningCount: number;\n    readonly runs: readonly { readonly id: string; readonly targetId: string; readonly skillName: string; readonly clusterId: string; readonly gapCount: number; readonly goalCount: number; readonly phase: 'prepared' | 'budget-deferred' | 'cancelled' | 'authoring-pending' | 'uncertain' | 'incomplete' | 'candidate-ready'; readonly createdAt: string; readonly updatedAt: string; readonly modelCalls: 0 | 1; readonly inputTokens: number; readonly outputTokens: number; readonly candidateId?: string; readonly retryAt?: number; readonly releaseAuthority: 'none'; }[];\n}"
           }
         ]
       }

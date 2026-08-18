@@ -281,14 +281,28 @@ const t = (key: string) => ({
   'skills.gap-clusters.evidence.shared-resolved-candidate': 'Different Gaps converge on one quarantined candidate',
   'skills.gap-clusters.proposals': 'Original proposals',
   'skills.gap-clusters.state': 'Slow-loop priority evidence only · No generation, install, activation, or release',
+  'skills.slow-loop': 'Cross-Goal slow-loop authoring',
+  'skills.slow-loop.targets': 'explicit targets',
+  'skills.slow-loop.warnings': 'unreadable durable states',
+  'skills.slow-loop.empty': 'No authoring run has met the threshold.',
+  'skills.slow-loop.phase.candidate-ready': 'Quarantined candidate ready',
+  'skills.slow-loop.cost': 'Model calls · input/output tokens',
+  'skills.slow-loop.candidate': 'Candidate',
+  'skills.slow-loop.retry': 'Earliest retry',
+  'skills.slow-loop.release.none': 'Quarantined Candidate only · No install, activation, or release',
   'skills.discovery': 'Discovered Skill candidates',
   'skills.discovery.quarantined': 'Quarantined candidate',
   'skills.discovery.source.local-git': 'Local Git',
   'skills.discovery.source.agent-skills-index': 'Agent Skills index',
+  'skills.discovery.source.slow-loop-author': 'Cross-Goal slow-loop author',
   'skills.discovery.trust.explicit-deployer-config': 'Explicit deployer trust',
+  'skills.discovery.trust.bounded-host-authoring': 'Bounded host authoring',
   'skills.discovery.origin': 'Source origin',
   'skills.discovery.version.git': 'Git commit',
   'skills.discovery.version.index': 'Agent Skills v0.2',
+  'skills.discovery.version.slow-loop': 'Slow-loop author v1',
+  'skills.discovery.input': 'input digest',
+  'skills.discovery.demand': 'Cross-Goal demand evidence',
   'skills.discovery.index': 'index digest',
   'skills.discovery.artifact': 'artifact digest',
   'skills.discovery.tree': 'tree',
@@ -613,8 +627,28 @@ describe('EvolutionAction', () => {
             releaseAuthority: 'none' as const,
           }],
         },
+        slowLoopAuthoring: {
+          configuredTargetCount: 1,
+          warningCount: 0,
+          runs: [{
+            id: '4'.repeat(64),
+            targetId: 'missing-release-author',
+            skillName: 'missing-release-skill',
+            clusterId: '1'.repeat(64),
+            gapCount: 3,
+            goalCount: 2,
+            phase: 'candidate-ready' as const,
+            createdAt: '2026-08-18T01:00:00.000Z',
+            updatedAt: '2026-08-18T01:00:01.000Z',
+            modelCalls: 1 as const,
+            inputTokens: 320,
+            outputTokens: 120,
+            candidateId: '3'.repeat(64),
+            releaseAuthority: 'none' as const,
+          }],
+        },
         skillDiscovery: {
-          quarantinedCount: 1,
+          quarantinedCount: 2,
           candidates: [{
             id: '7'.repeat(64),
             discoveredAt: 1_786_896_000_100,
@@ -656,6 +690,58 @@ describe('EvolutionAction', () => {
               externalEffects: 'unknown' as const,
             },
             license: { status: 'declared' as const, value: 'MIT' },
+            safety: {
+              status: 'quarantined' as const,
+              checks: [
+                { name: 'artifact-digest-integrity' as const, status: 'passed' as const },
+                { name: 'regular-files-only' as const, status: 'passed' as const },
+                { name: 'skill-identity' as const, status: 'passed' as const },
+                { name: 'effect-review' as const, status: 'required' as const },
+              ],
+            },
+            lifecycle: 'inactive' as const,
+            verification: 'unevaluated' as const,
+            execution: 'never' as const,
+          }, {
+            id: '3'.repeat(64),
+            discoveredAt: 1_786_896_000_200,
+            gapId: '5'.repeat(64),
+            requestedSkill: 'missing-release-skill',
+            description: 'Handle repeated release gaps.',
+            demand: {
+              kind: 'cross-goal-cluster-v1' as const,
+              clusterId: '1'.repeat(64),
+              gapIds: ['5'.repeat(64), '6'.repeat(64), '7'.repeat(64)],
+              goalCount: 2,
+            },
+            source: {
+              id: 'missing-release-author',
+              kind: 'slow-loop-author' as const,
+              trust: 'bounded-host-authoring' as const,
+            },
+            scope: 'workspace' as const,
+            version: {
+              kind: 'slow-loop-author-v1' as const,
+              modelIdentityHash: '4'.repeat(64),
+              inputDigest: '5'.repeat(64),
+              artifactDigest: '6'.repeat(64),
+              treeHash: '7'.repeat(64),
+            },
+            distribution: { kind: 'skill-md' as const },
+            contentHash: '6'.repeat(64),
+            package: {
+              path: 'missing-release-skill/SKILL.md',
+              fileCount: 1,
+              totalBytes: 320,
+              hasScripts: false,
+              hasReferences: false,
+            },
+            permissions: {
+              declared: false,
+              executableContent: false,
+              externalEffects: 'unknown' as const,
+            },
+            license: { status: 'unknown' as const },
             safety: {
               status: 'quarantined' as const,
               checks: [
@@ -734,25 +820,33 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('Confirmed by complete DSH catalog')).toBeTruthy()
     expect(screen.getByText('No external Skill was installed or executed.')).toBeTruthy()
     expect(screen.getByText('Cross-Goal gap clusters')).toBeTruthy()
-    expect(screen.getByText('2 distinct Goals · 3 Gap observations')).toBeTruthy()
+    expect(screen.getAllByText('2 distinct Goals · 3 Gap observations')).toHaveLength(2)
     expect(screen.getByText('Different Gaps converge on one quarantined candidate')).toBeTruthy()
     expect(screen.getByText('Original proposals · missing-release-skill · publish-dsh-plugin → release-native-extension')).toBeTruthy()
     expect(screen.getByText('Slow-loop priority evidence only · No generation, install, activation, or release')).toBeTruthy()
+    expect(screen.getByText('Cross-Goal slow-loop authoring')).toBeTruthy()
+    expect(screen.getByText('Quarantined candidate ready')).toBeTruthy()
+    expect(screen.getByText('Model calls · input/output tokens · 1 · 320/120')).toBeTruthy()
+    expect(screen.getByText(`Candidate · ${'3'.repeat(12)}`)).toBeTruthy()
+    expect(screen.getByText('Quarantined Candidate only · No install, activation, or release')).toBeTruthy()
     expect(screen.getByText('Discovered Skill candidates')).toBeTruthy()
     expect(screen.getAllByText('release-native-extension').length).toBeGreaterThan(1)
     expect(screen.getByText('Prepare and verify a native DSH release.')).toBeTruthy()
     expect(screen.getByText('Deterministic semantic match · missing-release-skill → release-native-extension')).toBeTruthy()
     expect(screen.getByText('lexical evidence score (not confidence) 18 · runner-up 0')).toBeTruthy()
-    expect(screen.getByText('Quarantined candidate')).toBeTruthy()
+    expect(screen.getAllByText('Quarantined candidate')).toHaveLength(2)
     expect(screen.getByText('public-agent-skills · Agent Skills index · Explicit deployer trust')).toBeTruthy()
     expect(screen.getByText('Source origin · https://skills.example.com')).toBeTruthy()
     expect(screen.getByText(`Agent Skills v0.2 · index digest ${'8'.repeat(12)} · artifact digest ${'9'.repeat(12)} · tree ${'b'.repeat(12)}`)).toBeTruthy()
     expect(screen.getByText('Distribution · Archive · zip')).toBeTruthy()
+    expect(screen.getByText('Cross-Goal demand evidence · 2 distinct Goals · 3 Gap observations')).toBeTruthy()
+    expect(screen.getByText('missing-release-author · Cross-Goal slow-loop author · Bounded host authoring')).toBeTruthy()
+    expect(screen.getByText(`Slow-loop author v1 · input digest ${'5'.repeat(12)} · artifact digest ${'6'.repeat(12)} · tree ${'7'.repeat(12)}`)).toBeTruthy()
     expect(screen.getByText(`Content hash · ${'a'.repeat(12)}`)).toBeTruthy()
     expect(screen.getByText('Declared license · MIT')).toBeTruthy()
     expect(screen.getByText('Whole package · 2 files · 640 bytes · references')).toBeTruthy()
-    expect(screen.getByText('Permissions not declared · External effects unknown')).toBeTruthy()
-    expect(screen.getByText('Quarantined · Inactive · Never executed · Unevaluated')).toBeTruthy()
+    expect(screen.getAllByText('Permissions not declared · External effects unknown')).toHaveLength(2)
+    expect(screen.getAllByText('Quarantined · Inactive · Never executed · Unevaluated')).toHaveLength(2)
     expect(screen.getByText('Discovery attempts')).toBeTruthy()
     expect(screen.getByText('Candidate found')).toBeTruthy()
     expect(screen.getByText('No trusted sources configured')).toBeTruthy()

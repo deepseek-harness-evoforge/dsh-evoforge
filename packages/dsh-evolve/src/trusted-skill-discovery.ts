@@ -1,7 +1,7 @@
 import { execFile as execFileCallback } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdir, realpath, rm, writeFile } from 'node:fs/promises'
-import { basename, dirname, isAbsolute, relative, resolve, sep } from 'node:path'
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { promisify } from 'node:util'
 import type { Context } from '@deepseek-ai/cordis'
 import {
@@ -56,6 +56,11 @@ const sourceSchema = z.union([
     trust: z.literal('explicit-deployer-config'),
     origin: z.url().max(2_048),
   }),
+  z.strictObject({
+    id: z.string().regex(SOURCE_ID),
+    kind: z.literal('slow-loop-author'),
+    trust: z.literal('bounded-host-authoring'),
+  }),
 ])
 const sourceObservationSchema = z.strictObject({
   id: z.string().regex(SOURCE_ID),
@@ -85,6 +90,13 @@ const versionSchema = z.union([
     artifactDigest: hashSchema,
     treeHash: hashSchema,
   }),
+  z.strictObject({
+    kind: z.literal('slow-loop-author-v1'),
+    modelIdentityHash: hashSchema,
+    inputDigest: hashSchema,
+    artifactDigest: hashSchema,
+    treeHash: hashSchema,
+  }),
 ])
 const candidateSchema = z.strictObject({
   schemaVersion: z.literal(1),
@@ -94,6 +106,12 @@ const candidateSchema = z.strictObject({
   workspaceId: z.uuid(),
   requestedSkill: z.string().regex(SKILL_NAME),
   description: z.string().min(1).max(2_048),
+  demand: z.strictObject({
+    kind: z.literal('cross-goal-cluster-v1'),
+    clusterId: hashSchema,
+    gapIds: z.array(hashSchema).min(2).max(1_000),
+    goalCount: safeInteger.min(2).max(1_000),
+  }).optional(),
   match: z.strictObject({
     kind: z.literal('deterministic-lexical-v1'),
     requestedSkill: z.string().regex(SKILL_NAME),
@@ -159,12 +177,26 @@ const candidateSchema = z.strictObject({
   if (candidate.source.kind === 'local-git') {
     if (candidate.version.kind !== 'git-tree'
       || candidate.artifact !== undefined
-      || candidate.distribution !== undefined) {
+      || candidate.distribution !== undefined
+      || candidate.demand !== undefined) {
       context.addIssue({ code: 'custom', message: 'local Git candidate has inconsistent provenance' })
     }
     return
   }
-  if (candidate.version.kind !== 'agent-skills-index-v0.2' || candidate.artifact === undefined) {
+  if (candidate.source.kind === 'slow-loop-author') {
+    if (candidate.version.kind !== 'slow-loop-author-v1'
+      || candidate.artifact?.kind !== 'skill-md'
+      || candidate.distribution?.kind !== 'skill-md'
+      || candidate.demand === undefined
+      || candidate.gapId !== candidate.demand.gapIds[0]
+      || new Set(candidate.demand.gapIds).size !== candidate.demand.gapIds.length) {
+      context.addIssue({ code: 'custom', message: 'slow-loop authored candidate has inconsistent provenance' })
+    }
+    return
+  }
+  if (candidate.version.kind !== 'agent-skills-index-v0.2'
+    || candidate.artifact === undefined
+    || candidate.demand !== undefined) {
     context.addIssue({ code: 'custom', message: 'Agent Skills candidate has inconsistent provenance' })
     return
   }
@@ -215,6 +247,20 @@ export interface TrustedSkillDiscoverySourceConfig {
 export interface AgentSkillsIndexSourceConfig {
   readonly id: string
   readonly indexUrl: string
+}
+
+/** Private authoring handoff; raw generated content never enters the Web projection. */
+export interface AuthoredSkillCandidateInput {
+  readonly discoveredAt: number
+  readonly workspaceId: string
+  readonly requestedSkill: string
+  readonly sourceId: string
+  readonly clusterId: string
+  readonly gapIds: readonly string[]
+  readonly goalCount: number
+  readonly modelIdentity: string
+  readonly inputDigest: string
+  readonly skillMd: string
 }
 
 export interface SkillDiscoveryStore {
@@ -388,6 +434,7 @@ export class TrustedSkillDiscovery {
   private readonly store: Pick<SkillDiscoveryStore, 'recordCandidate' | 'recordAttempt'>
   private readonly now: () => number
   private readonly onCandidate: ((candidate: DiscoveredSkillCandidate) => void) | undefined
+  private readonly settledGapIds = new Set<string>()
 
   constructor(
     sources: readonly TrustedSkillDiscoverySourceConfig[],
@@ -476,11 +523,109 @@ export class TrustedSkillDiscovery {
       reasons: uniqueReasons,
       sources: sourceObservations,
     })
+    if (uniqueReasons.includes('source-unavailable')) this.settledGapIds.delete(gap.id)
+    else this.settledGapIds.add(gap.id)
     return {
       status,
       candidateCount: candidateIds.length,
       ...(uniqueReasons.length === 0 ? {} : { reasons: uniqueReasons }),
     }
+  }
+
+  /** Current-process proof that this Gap was checked against the current configured sources. */
+  isSettled(gapId: string): boolean {
+    return this.settledGapIds.has(gapId)
+  }
+
+  /** Validate and persist one generated SKILL.md as inactive quarantined content. */
+  async quarantineAuthored(input: AuthoredSkillCandidateInput): Promise<{
+    readonly created: boolean
+    readonly candidate: DiscoveredSkillCandidate
+  }> {
+    if (!SOURCE_ID.test(input.sourceId)
+      || !SKILL_NAME.test(input.requestedSkill)
+      || !hashSchema.safeParse(input.clusterId).success
+      || !hashSchema.safeParse(input.inputDigest).success
+      || input.gapIds.length < 2
+      || input.gapIds.length > 1_000
+      || new Set(input.gapIds).size !== input.gapIds.length
+      || input.gapIds.some(id => !hashSchema.safeParse(id).success)
+      || !Number.isSafeInteger(input.goalCount)
+      || input.goalCount < 2
+      || input.goalCount > 1_000
+      || input.modelIdentity.trim() === ''
+      || Buffer.byteLength(input.modelIdentity) > 2_048) {
+      throw new Error('slow-loop authored Skill provenance is invalid')
+    }
+    const content = Buffer.from(input.skillMd)
+    if (content.byteLength === 0 || content.byteLength > MAX_SKILL_HEADER_BYTES) {
+      throw new Error('slow-loop authored SKILL.md exceeds its byte limit')
+    }
+    const canonical = decodeCanonicalUtf8(content)
+    const skill = parseSkillHeader(canonical)
+    if (skill.name !== input.requestedSkill) {
+      throw new Error('slow-loop authored SKILL.md name does not match its exact target')
+    }
+    const decoded = singleSkillPackage(content)
+    const artifactDigest = sha256Bytes(content)
+    const recorded = await this.store.recordCandidate({
+      discoveredAt: input.discoveredAt,
+      gapId: input.gapIds[0]!,
+      workspaceId: input.workspaceId,
+      requestedSkill: input.requestedSkill,
+      description: skill.description,
+      demand: {
+        kind: 'cross-goal-cluster-v1',
+        clusterId: input.clusterId,
+        gapIds: [...input.gapIds],
+        goalCount: input.goalCount,
+      },
+      source: {
+        id: input.sourceId,
+        kind: 'slow-loop-author',
+        trust: 'bounded-host-authoring',
+      },
+      scope: 'workspace',
+      version: {
+        kind: 'slow-loop-author-v1',
+        modelIdentityHash: sha256Bytes(Buffer.from(input.modelIdentity)),
+        inputDigest: input.inputDigest,
+        artifactDigest,
+        treeHash: decoded.treeHash,
+      },
+      distribution: { kind: 'skill-md' },
+      contentHash: artifactDigest,
+      package: {
+        path: `${input.requestedSkill}/SKILL.md`,
+        fileCount: 1,
+        totalBytes: decoded.totalBytes,
+        hasScripts: false,
+        hasReferences: false,
+      },
+      permissions: {
+        declared: skill.permissionsDeclared,
+        executableContent: false,
+        externalEffects: 'unknown',
+      },
+      license: skill.license === undefined
+        ? { status: 'unknown' }
+        : { status: 'declared', value: skill.license },
+      safety: {
+        status: 'quarantined',
+        checks: [
+          { name: 'artifact-digest-integrity', status: 'passed' },
+          { name: 'regular-files-only', status: 'passed' },
+          { name: 'skill-identity', status: 'passed' },
+          { name: 'effect-review', status: 'required' },
+        ],
+      },
+      artifact: { kind: 'skill-md', content: canonical },
+      lifecycle: 'inactive',
+      verification: 'unevaluated',
+      execution: 'never',
+    })
+    this.onCandidate?.(recorded.candidate)
+    return recorded
   }
 
   /** Reconstruct one exact candidate from pinned Git objects into a new non-executable directory. */
@@ -489,6 +634,9 @@ export class TrustedSkillDiscovery {
     requestedOutputDir: string,
   ): Promise<MaterializedSkillCandidate> {
     const candidate = candidateSchema.parse(input)
+    if (candidate.source.kind === 'slow-loop-author') {
+      return this.materializeSlowLoopCandidate(candidate, requestedOutputDir)
+    }
     if (candidate.source.kind === 'agent-skills-index') {
       return this.materializeAgentSkillsIndexCandidate(candidate, requestedOutputDir)
     }
@@ -555,6 +703,68 @@ export class TrustedSkillDiscovery {
           mode: entry.mode,
           size: entry.size,
         }))),
+      })
+    } catch (error) {
+      await rm(outputDir, { force: true, recursive: true }).catch(() => undefined)
+      throw error
+    }
+  }
+
+  private async materializeSlowLoopCandidate(
+    candidate: DiscoveredSkillCandidate,
+    requestedOutputDir: string,
+  ): Promise<MaterializedSkillCandidate> {
+    if (candidate.source.kind !== 'slow-loop-author'
+      || candidate.version.kind !== 'slow-loop-author-v1'
+      || candidate.artifact?.kind !== 'skill-md'
+      || candidate.demand === undefined) {
+      throw new Error('slow-loop authored candidate has invalid pinned content')
+    }
+    const expectedId = contentId([
+      candidate.workspaceId,
+      candidate.gapId,
+      candidate.source.id,
+      ...versionIdentity(candidate.version),
+      candidate.contentHash,
+    ])
+    if (candidate.id !== expectedId) throw new Error('slow-loop authored candidate id does not match its identity')
+    const content = Buffer.from(candidate.artifact.content)
+    const artifactDigest = sha256Bytes(content)
+    const decoded = singleSkillPackage(content)
+    const skill = parseSkillHeader(decodeCanonicalUtf8(content))
+    if (artifactDigest !== candidate.version.artifactDigest
+      || artifactDigest !== candidate.contentHash
+      || decoded.treeHash !== candidate.version.treeHash
+      || skill.name !== candidate.requestedSkill
+      || skill.description !== candidate.description
+      || candidate.package.path !== `${skill.name}/SKILL.md`
+      || candidate.package.fileCount !== 1
+      || candidate.package.totalBytes !== content.byteLength
+      || candidate.package.hasScripts
+      || candidate.package.hasReferences
+      || candidate.permissions.executableContent
+      || candidate.permissions.declared !== skill.permissionsDeclared) {
+      throw new Error('slow-loop authored candidate metadata does not match its pinned SKILL.md')
+    }
+    const requested = resolve(requestedOutputDir)
+    if (dirname(requested) === requested) {
+      throw new Error('slow-loop authored candidate output must not be a filesystem root')
+    }
+    const parent = await realpath(dirname(requested))
+    const outputDir = resolve(parent, basename(requested))
+    await mkdir(outputDir, { mode: 0o700 })
+    try {
+      await writeFile(join(outputDir, 'SKILL.md'), content, { flag: 'wx', mode: 0o600 })
+      return Object.freeze({
+        candidateId: candidate.id,
+        path: outputDir,
+        contentHash: artifactDigest,
+        treeHash: decoded.treeHash,
+        files: Object.freeze([Object.freeze({
+          path: 'SKILL.md',
+          mode: '100644' as const,
+          size: content.byteLength,
+        })]),
       })
     } catch (error) {
       await rm(outputDir, { force: true, recursive: true }).catch(() => undefined)
@@ -664,6 +874,9 @@ export function installTrustedSkillDiscoveryLoop(
   ctx: Context,
   gaps: Pick<CapabilityGapStore, 'list'>,
   discovery: Pick<TrustedSkillDiscovery, 'discover'>,
+  options: {
+    readonly onSettled?: (gap: CapabilityGap) => Promise<void> | void
+  } = {},
 ): TrustedSkillDiscoveryLoop {
   const pending = new Map<string, CapabilityGap>()
   let scanAll = true
@@ -683,6 +896,12 @@ export function installTrustedSkillDiscoveryLoop(
             await discovery.discover(gap)
           } catch (error) {
             ctx.logger.warn(`dsh-evolve skipped one trusted Skill discovery: ${errorMessage(error)}`)
+          } finally {
+            try {
+              await options.onSettled?.(gap)
+            } catch (error) {
+              ctx.logger.warn(`dsh-evolve skipped one slow-loop Skill authoring reconciliation: ${errorMessage(error)}`)
+            }
           }
         }
       }
@@ -1616,9 +1835,16 @@ function contentId(value: unknown): string {
 }
 
 function versionIdentity(version: DiscoveredSkillCandidate['version']): readonly string[] {
-  return version.kind === 'git-tree'
-    ? [version.commit, version.treeHash]
-    : [version.indexDigest, version.artifactDigest, version.treeHash]
+  if (version.kind === 'git-tree') return [version.commit, version.treeHash]
+  if (version.kind === 'agent-skills-index-v0.2') {
+    return [version.indexDigest, version.artifactDigest, version.treeHash]
+  }
+  return [
+    version.modelIdentityHash,
+    version.inputDigest,
+    version.artifactDigest,
+    version.treeHash,
+  ]
 }
 
 function immutableCopy<T>(value: T): T {

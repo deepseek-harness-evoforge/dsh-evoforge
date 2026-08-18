@@ -10,6 +10,7 @@ import type { CapabilityGapStore } from './capability-gap-store.ts'
 import type { SkillDiscoveryStore } from './trusted-skill-discovery.ts'
 import { clusterCapabilityGaps } from './capability-gap-cluster.ts'
 import type { DiscoveredSkillAdmission } from './discovered-skill-admission.ts'
+import type { SlowLoopSkillAuthoring } from './slow-loop-skill-authoring.ts'
 import type { EvolutionStore } from './generation-store.ts'
 import type { ResidentEvolutionControl } from './resident-evolution-control.ts'
 import type { ReviewCandidate, ReviewInbox } from './review-inbox.ts'
@@ -54,6 +55,7 @@ export interface EvolutionControlPlaneModules {
   readonly gaps?: Pick<CapabilityGapStore, 'list'>
   readonly discovery?: Pick<SkillDiscoveryStore, 'listCandidates' | 'listAttempts'>
   readonly admissions?: Pick<DiscoveredSkillAdmission, 'scan'>
+  readonly slowLoopAuthoring?: Pick<SlowLoopSkillAuthoring, 'scan'>
 }
 
 /** A structured adapter surface that delegates to the same owners as Commands. */
@@ -73,6 +75,7 @@ export class EvolutionControlPlane {
       automaticFeedbackBudget,
       automaticEvaluatorBudget,
       admissionScan,
+      slowLoopAuthoringScan,
     ] = await Promise.all([
       this.modules.review === undefined ? undefined : this.modules.review.inbox.scanAll(),
       this.modules.feedbackShadow === undefined ? undefined : this.modules.feedbackShadow.scan(workspaceId),
@@ -84,6 +87,9 @@ export class EvolutionControlPlane {
         ? undefined
         : this.modules.automaticEvaluator.budgetStatus(workspaceId),
       this.modules.admissions === undefined ? undefined : this.modules.admissions.scan(workspaceId),
+      this.modules.slowLoopAuthoring === undefined
+        ? undefined
+        : this.modules.slowLoopAuthoring.scan(workspaceId),
     ])
     const automaticSkills = this.modules.automatic?.skills(workspaceId) ?? []
     return {
@@ -109,6 +115,29 @@ export class EvolutionControlPlane {
       ...(this.modules.discovery === undefined
         ? {}
         : { skillDiscovery: projectSkillDiscovery(this.modules.discovery, workspaceId) }),
+      ...(slowLoopAuthoringScan === undefined
+        ? {}
+        : { slowLoopAuthoring: {
+            configuredTargetCount: slowLoopAuthoringScan.configuredTargetCount,
+            warningCount: slowLoopAuthoringScan.warningCount,
+            runs: slowLoopAuthoringScan.runs.map(run => ({
+              id: run.id,
+              targetId: run.targetId,
+              skillName: run.skillName,
+              clusterId: run.clusterId,
+              gapCount: run.gapCount,
+              goalCount: run.goalCount,
+              phase: run.phase,
+              createdAt: run.createdAt,
+              updatedAt: run.updatedAt,
+              modelCalls: run.modelCalls,
+              inputTokens: run.inputTokens,
+              outputTokens: run.outputTokens,
+              ...(run.candidateId === undefined ? {} : { candidateId: run.candidateId }),
+              ...(run.retryAt === undefined ? {} : { retryAt: run.retryAt }),
+              releaseAuthority: run.releaseAuthority,
+            })),
+          } }),
       ...(admissionScan === undefined
         ? {}
         : { skillAdmission: projectSkillAdmission(admissionScan) }),
@@ -421,6 +450,12 @@ function projectSkillDiscovery(
       gapId: candidate.gapId,
       requestedSkill: candidate.requestedSkill,
       description: candidate.description,
+      ...(candidate.demand === undefined ? {} : { demand: {
+        kind: candidate.demand.kind,
+        clusterId: candidate.demand.clusterId,
+        gapIds: [...candidate.demand.gapIds],
+        goalCount: candidate.demand.goalCount,
+      } }),
       ...(candidate.match === undefined ? {} : { match: { ...candidate.match } }),
       source: { ...candidate.source },
       scope: candidate.scope,

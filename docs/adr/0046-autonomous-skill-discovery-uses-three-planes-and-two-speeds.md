@@ -43,8 +43,11 @@ verified 原始制品进入 Host 私有 durable quarantine，后续物化不重�
 跨域、摘要不符和不安全 archive 均拒绝。Host 还会从 durable
 Gap 与隔离候选身份派生同一 Workspace、至少两个不同 Goal 的
 重复需求聚类；同一 Goal 的 retry 不构成跨 Goal 证据，有冲突候选的 Gap 不进入聚类。聚类只有慢环优先级
-证据权，不会触发生成、安装、激活或发布。任意市场/ClawHub 专有 API、候选生成、cluster-driven
-调度和真实模型路由质量仍是后续门禁，不能从本实现推断已经完成整个 ADR。
+证据权。部署者可以用 exact Workspace+Skill target、私有 run root 与 UTC 日预算授权一个独立消费者：它只在
+可信 discovery 结算且 cluster 任一 Gap 都没有 Candidate 时，通过原生 Jobs 生成一个 instruction-only
+`SKILL.md`，持久化模型/输入/制品/tree 谱系，并交给已有 quarantine/admission；付费结果不确定时不自动
+重试。这个消费者没有 install/activate/publish seam。任意市场/ClawHub 专有 API、官方资料检索、archive
+组合、真实 provider 路由质量仍是后续门禁，不能从本实现推断已经完成整个 ADR。
 
 ## 结果
 

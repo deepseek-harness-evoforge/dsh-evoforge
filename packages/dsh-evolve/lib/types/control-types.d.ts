@@ -106,6 +106,12 @@ export interface EvolutionDiscoveredSkillCandidateView {
     readonly gapId: string;
     readonly requestedSkill: string;
     readonly description: string;
+    readonly demand?: {
+        readonly kind: 'cross-goal-cluster-v1';
+        readonly clusterId: string;
+        readonly gapIds: readonly string[];
+        readonly goalCount: number;
+    };
     readonly match?: {
         readonly kind: 'deterministic-lexical-v1';
         readonly requestedSkill: string;
@@ -115,8 +121,8 @@ export interface EvolutionDiscoveredSkillCandidateView {
     };
     readonly source: {
         readonly id: string;
-        readonly kind: 'local-git' | 'agent-skills-index';
-        readonly trust: 'explicit-deployer-config';
+        readonly kind: 'local-git' | 'agent-skills-index' | 'slow-loop-author';
+        readonly trust: 'explicit-deployer-config' | 'bounded-host-authoring';
         readonly origin?: string;
     };
     readonly scope: 'workspace';
@@ -127,6 +133,12 @@ export interface EvolutionDiscoveredSkillCandidateView {
     } | {
         readonly kind: 'agent-skills-index-v0.2';
         readonly indexDigest: string;
+        readonly artifactDigest: string;
+        readonly treeHash: string;
+    } | {
+        readonly kind: 'slow-loop-author-v1';
+        readonly modelIdentityHash: string;
+        readonly inputDigest: string;
         readonly artifactDigest: string;
         readonly treeHash: string;
     };
@@ -185,6 +197,28 @@ export interface EvolutionSkillDiscoveryView {
     readonly quarantinedCount: number;
     readonly candidates: readonly EvolutionDiscoveredSkillCandidateView[];
     readonly attempts: readonly EvolutionSkillDiscoveryAttemptView[];
+}
+/** Durable slow-loop authoring state; generated bodies and private paths stay host-only. */
+export interface EvolutionSlowLoopAuthoringView {
+    readonly configuredTargetCount: number;
+    readonly warningCount: number;
+    readonly runs: readonly {
+        readonly id: string;
+        readonly targetId: string;
+        readonly skillName: string;
+        readonly clusterId: string;
+        readonly gapCount: number;
+        readonly goalCount: number;
+        readonly phase: 'prepared' | 'budget-deferred' | 'cancelled' | 'authoring-pending' | 'uncertain' | 'incomplete' | 'candidate-ready';
+        readonly createdAt: string;
+        readonly updatedAt: string;
+        readonly modelCalls: 0 | 1;
+        readonly inputTokens: number;
+        readonly outputTokens: number;
+        readonly candidateId?: string;
+        readonly retryAt?: number;
+        readonly releaseAuthority: 'none';
+    }[];
 }
 /** Deterministic, zero-model admission evidence; it never carries release authority. */
 export interface EvolutionSkillAdmissionView {
@@ -346,6 +380,7 @@ export interface EvolutionOverview {
     readonly capabilityMap?: EvolutionCapabilityMapView;
     readonly capabilityGaps?: EvolutionCapabilityGapQueueView;
     readonly skillDiscovery?: EvolutionSkillDiscoveryView;
+    readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView;
     readonly skillAdmission?: EvolutionSkillAdmissionView;
     readonly deliveryOutcomes?: {
         readonly all: DeliveryOutcomeCounts;

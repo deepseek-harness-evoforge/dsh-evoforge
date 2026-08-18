@@ -28,7 +28,13 @@ describe('packed dsh-resident Bundle boundary', () => {
       timeout: 30_000,
     })
     const tarball = join(root, 'dsh-resident-0.1.0-alpha.1.tgz')
-    await execFile('pnpm', ['add', tarball, '--ignore-scripts', '--offline'], {
+    await execFile('pnpm', [
+      'add',
+      tarball,
+      '--ignore-scripts',
+      '--offline',
+      '--config.auto-install-peers=false',
+    ], {
       cwd: installRoot,
       encoding: 'utf8',
       timeout: 30_000,

@@ -83,6 +83,11 @@ import {
   type AutomaticEvaluatorDraftTarget,
   type AutomaticEvaluatorDraftTargetReference,
 } from './automatic-evaluator-draft.ts'
+import {
+  assertSlowLoopSkillAuthoringRootSeparation,
+  SlowLoopSkillAuthoring,
+  type SlowLoopSkillAuthoringTargetConfig,
+} from './slow-loop-skill-authoring.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -103,6 +108,7 @@ export interface Config {
   sources?: GitSkillSourceConfig[]
   trustedDiscoverySources?: TrustedSkillDiscoverySourceConfig[]
   trustedAgentSkillIndexes?: AgentSkillsIndexSourceConfig[]
+  slowLoopAuthorTargets?: SlowLoopSkillAuthoringTargetConfig[]
   discoveryAdmissionTargets?: DiscoveredSkillAdmissionTargetConfig[]
   discoveryShadowTargets?: DiscoveredSkillShadowTargetConfig[]
   supervisor?: {
@@ -137,6 +143,13 @@ export const Config: Schema<Config> = z.object({
     id: z.string().required(),
     indexUrl: z.string().required(),
   })).max(100).default([]),
+  slowLoopAuthorTargets: z.array(z.object({
+    id: z.string().required(),
+    workspaceId: z.string().required(),
+    skill: z.string().required(),
+    runRoot: z.string().required(),
+    maxAttemptsPerUtcDay: z.number().step(1).min(1).max(20).default(1),
+  })).max(20).default([]),
   discoveryAdmissionTargets: z.array(z.object({
     id: z.string().required(),
     workspaceId: z.string().required(),
@@ -226,6 +239,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const evaluatorTargets = config.evaluatorTargets ?? []
   const automaticEvaluatorTargetReferences = config.automaticEvaluatorTargets ?? []
   const discoveryShadowTargets = config.discoveryShadowTargets ?? []
+  const slowLoopAuthorTargets = config.slowLoopAuthorTargets ?? []
   const shadowTargetsById = new Map(shadowTargets.map(target => [target.id, target]))
   const automaticFeedbackTargets: AutomaticFeedbackShadowTarget[] =
     automaticFeedbackTargetReferences.map((reference) => {
@@ -290,10 +304,48 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   } else if (discoveryShadowTargets.length > 0) {
     throw new Error('discovered Skill Shadow targets require deterministic admission targets')
   }
+  const slowLoopAuthoringBudget = new AutomaticEvolutionBudget()
+  if (slowLoopAuthorTargets.length > 0) {
+    assertSlowLoopSkillAuthoringRootSeparation(slowLoopAuthorTargets, [
+      ...(config.cacheRoot === undefined ? [] : [config.cacheRoot]),
+      ...(config.feedbackDraftRoot === undefined ? [] : [config.feedbackDraftRoot]),
+      ...(config.sources ?? []).map(value => value.repository),
+      ...(config.trustedDiscoverySources ?? []).map(value => value.repository),
+      ...discoveryAdmissionTargets.flatMap(value => [value.baselineDir, value.casePackDir, value.runRoot]),
+      ...discoveryShadowTargets.flatMap(value => [value.casePackDir, value.runRoot]),
+      ...(config.supervisor?.runRoots ?? []).map(value => value.path),
+      ...shadowTargets.flatMap(value => [value.casePackDir, value.runRoot]),
+      ...evaluatorTargets.flatMap(value => [value.root, ...(value.shadowRunRoot === undefined
+        ? []
+        : [value.shadowRunRoot])]),
+    ])
+    slowLoopAuthoringBudget.assertTargets(slowLoopAuthorTargets)
+  }
+  const slowLoopAuthoring = slowLoopAuthorTargets.length === 0
+    ? undefined
+    : new SlowLoopSkillAuthoring({
+        targets: slowLoopAuthorTargets,
+        gaps: capabilityGaps,
+        candidates: {
+          listCandidates: (workspaceId, gapId) =>
+            skillDiscoveryStore.listCandidates(workspaceId, gapId),
+          isDiscoverySettled: gapId => skillDiscovery.isSettled(gapId),
+          quarantineAuthored: input => skillDiscovery.quarantineAuthored(input),
+        },
+        budget: slowLoopAuthoringBudget,
+      })
   const skillDiscoveryLoop = installTrustedSkillDiscoveryLoop(
     ctx,
     capabilityGaps,
     skillDiscovery,
+    {
+      onSettled: async gap => {
+        const result = await slowLoopAuthoring?.reconcile(gap.workspaceId)
+        for (const warning of result?.warnings ?? []) {
+          ctx.logger.warn(`dsh-evolve slow-loop Skill authoring skipped work: ${warning}`)
+        }
+      },
+    },
   )
   const capabilityGapMonitor = installCapabilityGapMonitor(
     ctx,
@@ -487,6 +539,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     gaps: capabilityGaps,
     discovery: skillDiscoveryStore,
     ...(skillAdmission === undefined ? {} : { admissions: skillAdmission }),
+    ...(slowLoopAuthoring === undefined ? {} : { slowLoopAuthoring }),
     ...(review === undefined ? {} : { review }),
     ...(resident === undefined ? {} : { resident }),
     ...(automaticPolicy === undefined ? {} : { automatic: automaticPolicy }),
@@ -550,6 +603,25 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           detachController()
         }
       }, 'dsh-evolve.skillAdmissionJobs')
+    })
+  }
+  if (slowLoopAuthoring !== undefined) {
+    ctx.inject(['jobs'], (jobCtx) => {
+      jobCtx.effect(() => {
+        const detachController = jobCtx.jobs.attachController('dsh-evolve-slow-loop-authoring')
+        const detachAuthoring = slowLoopAuthoring.attachJobs(jobCtx.jobs)
+        void slowLoopAuthoring.reconcile().then((result) => {
+          for (const warning of result.warnings) {
+            jobCtx.logger.warn(`dsh-evolve slow-loop Skill authoring skipped work: ${warning}`)
+          }
+        }, error => {
+          jobCtx.logger.warn(`dsh-evolve slow-loop Skill authoring startup failed: ${String(error)}`)
+        })
+        return () => {
+          detachAuthoring()
+          detachController()
+        }
+      }, 'dsh-evolve.slowLoopAuthoringJobs')
     })
   }
   if (evaluatorDrafts !== undefined) {
@@ -693,6 +765,7 @@ export type { DiscoveredSkillShadowTargetConfig } from './discovered-skill-shado
 export type { FeedbackShadowTargetConfig } from './feedback-shadow-launcher.ts'
 export type { AutomaticFeedbackShadowTargetReference } from './automatic-feedback-shadow.ts'
 export type { AutomaticEvaluatorDraftTargetReference } from './automatic-evaluator-draft.ts'
+export type { SlowLoopSkillAuthoringTargetConfig } from './slow-loop-skill-authoring.ts'
 export type { AutomaticRetentionTargetConfig } from './automatic-retention.ts'
 export type { ShadowResumeInvocation, ShadowSupervisorOptions } from './shadow-supervisor.ts'
 export type {

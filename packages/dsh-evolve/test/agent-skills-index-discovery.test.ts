@@ -469,7 +469,14 @@ function fakeStore() {
 function discoveredCandidateId(input: DiscoveredSkillCandidateInput): string {
   const versionIdentity = input.version.kind === 'git-tree'
     ? [input.version.commit, input.version.treeHash]
-    : [input.version.indexDigest, input.version.artifactDigest, input.version.treeHash]
+    : input.version.kind === 'agent-skills-index-v0.2'
+      ? [input.version.indexDigest, input.version.artifactDigest, input.version.treeHash]
+      : [
+          input.version.modelIdentityHash,
+          input.version.inputDigest,
+          input.version.artifactDigest,
+          input.version.treeHash,
+        ]
   return createHash('sha256').update(JSON.stringify([
     input.workspaceId,
     input.gapId,

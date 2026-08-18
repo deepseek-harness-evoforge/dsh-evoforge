@@ -160,6 +160,26 @@ const remote: EvolutionRemoteClient = {
               releaseAuthority: 'none' as const,
             }],
           },
+          slowLoopAuthoring: {
+            configuredTargetCount: 1,
+            warningCount: 0,
+            runs: [{
+              id: '4'.repeat(64),
+              targetId: 'publish-author',
+              skillName: 'publish-dsh-plugin',
+              clusterId: '1'.repeat(64),
+              gapCount: 3,
+              goalCount: 2,
+              phase: 'candidate-ready' as const,
+              createdAt: '2026-08-18T01:00:00.000Z',
+              updatedAt: '2026-08-18T01:00:01.000Z',
+              modelCalls: 1 as const,
+              inputTokens: 320,
+              outputTokens: 120,
+              candidateId: '3'.repeat(64),
+              releaseAuthority: 'none' as const,
+            }],
+          },
           skillDiscovery: {
             quarantinedCount: 1,
             candidates: [{

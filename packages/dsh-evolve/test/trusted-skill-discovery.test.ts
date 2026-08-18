@@ -23,6 +23,88 @@ afterEach(async () => {
 })
 
 describe('trusted whole-Skill discovery', () => {
+  it('quarantines and materializes a bounded slow-loop SKILL.md without exposing author content', async () => {
+    const store = fakeStore()
+    const onCandidate = vi.fn()
+    const discovery = new TrustedSkillDiscovery([], store, { onCandidate })
+    const skillMd = [
+      '---',
+      'name: missing-release-skill',
+      'description: Handle repeated release gaps from multiple Goals.',
+      'license: MIT',
+      '---',
+      '',
+      'Follow the bounded evidence-driven workflow.',
+      '',
+    ].join('\n')
+
+    const recorded = await discovery.quarantineAuthored({
+      discoveredAt: 1_786_896_100_000,
+      workspaceId: WORKSPACE_ID,
+      requestedSkill: 'missing-release-skill',
+      sourceId: 'slow-author-one',
+      clusterId: '1'.repeat(64),
+      gapIds: ['2'.repeat(64), '3'.repeat(64)],
+      goalCount: 2,
+      modelIdentity: 'private-provider-route',
+      inputDigest: '4'.repeat(64),
+      skillMd,
+    })
+
+    expect(store.recordCandidate).toHaveBeenCalledWith(expect.objectContaining({
+      gapId: '2'.repeat(64),
+      requestedSkill: 'missing-release-skill',
+      demand: {
+        kind: 'cross-goal-cluster-v1',
+        clusterId: '1'.repeat(64),
+        gapIds: ['2'.repeat(64), '3'.repeat(64)],
+        goalCount: 2,
+      },
+      source: {
+        id: 'slow-author-one',
+        kind: 'slow-loop-author',
+        trust: 'bounded-host-authoring',
+      },
+      version: {
+        kind: 'slow-loop-author-v1',
+        modelIdentityHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+        inputDigest: '4'.repeat(64),
+        artifactDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
+        treeHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      },
+      distribution: { kind: 'skill-md' },
+      lifecycle: 'inactive',
+      verification: 'unevaluated',
+      execution: 'never',
+    }))
+    expect(JSON.stringify(recorded.candidate.version)).not.toContain('private-provider-route')
+    expect(onCandidate).toHaveBeenCalledWith(recorded.candidate)
+
+    const parent = await mkdtemp(join(tmpdir(), 'dsh-evolve-authored-materialized-'))
+    temporaryRoots.push(parent)
+    const output = join(await realpath(parent), 'candidate')
+    await expect(discovery.materialize(recorded.candidate, output)).resolves.toMatchObject({
+      candidateId: recorded.candidate.id,
+      path: output,
+      files: [{ path: 'SKILL.md', mode: '100644', size: Buffer.byteLength(skillMd) }],
+    })
+    await expect(readFile(join(output, 'SKILL.md'), 'utf8')).resolves.toBe(skillMd)
+    expect((await stat(join(output, 'SKILL.md'))).mode & 0o777).toBe(0o600)
+
+    await expect(discovery.quarantineAuthored({
+      discoveredAt: 1,
+      workspaceId: WORKSPACE_ID,
+      requestedSkill: 'missing-release-skill',
+      sourceId: 'slow-author-one',
+      clusterId: '1'.repeat(64),
+      gapIds: ['2'.repeat(64), '3'.repeat(64)],
+      goalCount: 2,
+      modelIdentity: 'private-provider-route',
+      inputDigest: '4'.repeat(64),
+      skillMd: skillMd.replace('name: missing-release-skill', 'name: other-skill'),
+    })).rejects.toThrow('name does not match')
+  })
+
   it('archives an exact Skill folder from an explicit local Git source without executing it', async () => {
     const repository = await gitRepository()
     const skillRoot = join(repository, 'skills', 'missing-release-skill')
@@ -374,6 +456,8 @@ describe('trusted whole-Skill discovery', () => {
     const store = fakeStore()
     const discovery = new TrustedSkillDiscovery([], store, { now: () => 1_786_896_100_000 })
 
+    expect(discovery.isSettled(gap().id)).toBe(false)
+
     await expect(discovery.discover(gap())).resolves.toEqual({
       status: 'abstained',
       candidateCount: 0,
@@ -386,14 +470,34 @@ describe('trusted whole-Skill discovery', () => {
       reasons: ['no-trusted-sources'],
       sources: [],
     }))
+    expect(discovery.isSettled(gap().id)).toBe(true)
+  })
+
+  it('does not authorize generation when a configured discovery source is unavailable', async () => {
+    const store = fakeStore()
+    const discovery = new TrustedSkillDiscovery([{
+      id: 'unavailable-source',
+      repository: '/definitely/missing/dsh-evolve-source',
+      skillsRoot: 'skills',
+    }], store, { now: () => 1_786_896_100_000 })
+
+    await expect(discovery.discover(gap())).resolves.toEqual({
+      status: 'abstained',
+      candidateCount: 0,
+      reasons: ['source-unavailable'],
+    })
+    expect(discovery.isSettled(gap().id)).toBe(false)
   })
 
   it('resumes durable gaps and accepts new observations without a timer', async () => {
     const ctx = new Context()
     const existing = gap()
     const next = { ...gap(), id: '7'.repeat(64), requestedSkill: 'another-missing-skill' }
+    const settled: string[] = []
     const discovery = { discover: vi.fn(async () => ({ status: 'abstained' as const, candidateCount: 0 })) }
-    const loop = installTrustedSkillDiscoveryLoop(ctx, { list: () => [existing] }, discovery)
+    const loop = installTrustedSkillDiscoveryLoop(ctx, { list: () => [existing] }, discovery, {
+      onSettled: async value => { settled.push(value.id) },
+    })
 
     await loop.flush()
     expect(discovery.discover).toHaveBeenCalledWith(existing)
@@ -401,6 +505,7 @@ describe('trusted whole-Skill discovery', () => {
     await loop.flush()
     expect(discovery.discover).toHaveBeenCalledWith(next)
     expect(discovery.discover).toHaveBeenCalledTimes(2)
+    expect(settled).toEqual([existing.id, next.id])
 
     await loop.dispose()
     await ctx.fiber.dispose()
@@ -426,7 +531,14 @@ function fakeStore() {
 function discoveredCandidateId(input: Parameters<SkillDiscoveryStore['recordCandidate']>[0]): string {
   const versionIdentity = input.version.kind === 'git-tree'
     ? [input.version.commit, input.version.treeHash]
-    : [input.version.indexDigest, input.version.artifactDigest, input.version.treeHash]
+    : input.version.kind === 'agent-skills-index-v0.2'
+      ? [input.version.indexDigest, input.version.artifactDigest, input.version.treeHash]
+      : [
+          input.version.modelIdentityHash,
+          input.version.inputDigest,
+          input.version.artifactDigest,
+          input.version.treeHash,
+        ]
   return createHash('sha256').update(JSON.stringify([
     input.workspaceId,
     input.gapId,

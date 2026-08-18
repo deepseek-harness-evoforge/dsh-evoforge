@@ -479,6 +479,7 @@ function SkillsView({ summary, t }: { summary: EvolutionOverview; t: (key: strin
     </section>
     <CapabilityMap summary={summary} t={t} />
     <CapabilityGapQueue summary={summary} t={t} />
+    <SlowLoopAuthoring summary={summary} t={t} />
     <SkillDiscovery summary={summary} t={t} />
     <SkillAdmission summary={summary} t={t} />
     {empty && <div className="dsh-evolve-message">{t('skills.empty')}</div>}
@@ -567,6 +568,10 @@ function SkillDiscovery({ summary, t }: { summary: EvolutionOverview; t: (key: s
                   {t('skills.discovery.match.score')} {candidate.match.score} · {t('skills.discovery.match.runner-up')} {candidate.match.runnerUpScore}
                 </div>
               </>}
+              {candidate.demand !== undefined && <div className="dsh-evolve-meta">
+                {t('skills.discovery.demand')} · {candidate.demand.goalCount} {t('skills.gap-clusters.goals')}
+                {' · '}{candidate.demand.gapIds.length} {t('skills.gap-clusters.observations')}
+              </div>}
               <div className="dsh-evolve-capability-route">{t('skills.discovery.quarantined')}</div>
               <div className="dsh-evolve-meta">
                 {candidate.source.id} · {t(`skills.discovery.source.${candidate.source.kind}`)} · {t(`skills.discovery.trust.${candidate.source.trust}`)}
@@ -629,9 +634,53 @@ function skillVersionSummary(
     return `${t('skills.discovery.version.git')} · ${value.commit.slice(0, 12)}`
       + ` · ${t('skills.discovery.tree')} ${value.treeHash.slice(0, 12)}`
   }
+  if (value.kind === 'slow-loop-author-v1') {
+    return `${t('skills.discovery.version.slow-loop')} · ${t('skills.discovery.input')} ${value.inputDigest.slice(0, 12)}`
+      + ` · ${t('skills.discovery.artifact')} ${value.artifactDigest.slice(0, 12)}`
+      + ` · ${t('skills.discovery.tree')} ${value.treeHash.slice(0, 12)}`
+  }
   return `${t('skills.discovery.version.index')} · ${t('skills.discovery.index')} ${value.indexDigest.slice(0, 12)}`
     + ` · ${t('skills.discovery.artifact')} ${value.artifactDigest.slice(0, 12)}`
     + ` · ${t('skills.discovery.tree')} ${value.treeHash.slice(0, 12)}`
+}
+
+function SlowLoopAuthoring({ summary, t }: { summary: EvolutionOverview; t: (key: string) => string }) {
+  const authoring = summary.slowLoopAuthoring
+  if (authoring === undefined) return null
+  return <section>
+    <div className="dsh-evolve-capability-head">
+      <h3 className="dsh-evolve-section-title">{t('skills.slow-loop')}</h3>
+      <span className="dsh-evolve-catalog-status">
+        {authoring.configuredTargetCount} {t('skills.slow-loop.targets')}
+      </span>
+    </div>
+    {authoring.warningCount > 0 && <div className="dsh-evolve-message dsh-evolve-error">
+      {authoring.warningCount} {t('skills.slow-loop.warnings')}
+    </div>}
+    {authoring.runs.length === 0
+      ? <div className="dsh-evolve-message">{t('skills.slow-loop.empty')}</div>
+      : <ul className="dsh-evolve-list">{authoring.runs.map(run => (
+          <li className="dsh-evolve-skill-card" key={run.id}>
+            <div className="dsh-evolve-review-skill">{run.skillName}</div>
+            <div className="dsh-evolve-capability-route">
+              {t(`skills.slow-loop.phase.${run.phase}`)}
+            </div>
+            <div className="dsh-evolve-meta">
+              {run.goalCount} {t('skills.gap-clusters.goals')} · {run.gapCount} {t('skills.gap-clusters.observations')}
+            </div>
+            <div className="dsh-evolve-meta">
+              {t('skills.slow-loop.cost')} · {run.modelCalls} · {run.inputTokens}/{run.outputTokens}
+            </div>
+            {run.candidateId !== undefined && <div className="dsh-evolve-meta">
+              {t('skills.slow-loop.candidate')} · {run.candidateId.slice(0, 12)}
+            </div>}
+            {run.retryAt !== undefined && <div className="dsh-evolve-meta">
+              {t('skills.slow-loop.retry')} · {new Date(run.retryAt).toLocaleString()}
+            </div>}
+            <div className="dsh-evolve-discovery-state">{t('skills.slow-loop.release.none')}</div>
+          </li>
+        ))}</ul>}
+  </section>
 }
 
 function skillPackageSummary(
