@@ -27,9 +27,13 @@
   "keywords": ["deepseek-harness", "dsh", "evolution", "telegram", "feishu", "attention"],
   "files": ["dist", "cordis.patch.yml", "README.md"],
   "scripts": {
+    "build:channel-peers": "pnpm --filter dsh-channel-router --filter dsh-telegram --filter dsh-feishu build",
+    "prebuild": "pnpm run build:channel-peers",
     "build": "tsdown src/index.ts --format esm --clean",
     "prepack": "pnpm run build",
+    "pretypecheck": "pnpm run build:channel-peers",
     "typecheck": "tsc --noEmit",
+    "pretest": "pnpm run build:channel-peers",
     "test": "vitest run"
   },
   "engines": {
