@@ -16,6 +16,8 @@ The Bundle inserts exactly one `evoforge-evolution` row and defaults `cacheRoot`
 
 `discoveryAdmissionTargets` optionally binds one exact Workspace and Skill to fixed baseline/Case Pack hashes and an owned run root. New quarantined candidates enter a native DSH Job for a zero-model deterministic admission Trial. This path rejects assembled evaluators and executable/non-instruction package files; a baseline-fail/candidate-pass result is only `qualified-for-shadow` and carries `releaseAuthority: none`. It never installs, activates, publishes, or auto-promotes a discovered Skill.
 
+`discoveryShadowTargets` optionally binds that qualified Workspace+Skill to a different fixed `dshAssembled: true` holdout Case Pack and a run root that must also appear exactly in `supervisor.runRoots`. After the admission Job settles, native DSH Jobs revalidate the durable admission report and Candidate tree, then run the existing Shadow/ReviewInbox path without a proposer model. A clear win remains an inactive human-review Candidate; external provenance is deliberately outside automatic-promotion policy.
+
 Inside a DSH session, use `/evolve status`, review/release Commands, or the separately installed `dsh-evolve-web` client adapter. Active Generation selection is future-session-only; live Session history, Goal state, Approval, Jobs, and Storage remain DSH authoritative.
 
 When the Bundle row declares exact `shadowTargets` or `evaluatorTargets`, protected authoring and Shadow actions also stay on the DSH Command surface:

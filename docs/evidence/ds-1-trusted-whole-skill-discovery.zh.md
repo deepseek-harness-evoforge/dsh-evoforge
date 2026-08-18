@@ -30,7 +30,9 @@ Git object，不 checkout、不运行脚本、不安装 Skill，也不改变当�
 Baseline 的文本差异转换成现有 Publisher 可精确重放的 proposal，再强制通过 `dshAssembled: true` 的
 真实 DSH sealed Trial。候选删除 Baseline 文件、非 assembled Case Pack、候选或治理输入漂移均 fail
 closed。成功报告直接兼容既有 ReviewInbox，但携带“外部来源必须人工审核”的 limitation，因此不能命中
-自动晋升策略。`qualified-for-shadow` 到该内核的自动 Job handoff 尚未接线。
+自动晋升策略。配置独立 `discoveryShadowTargets` 后，`qualified-for-shadow` 会在原 admission Job 结束后
+经原生 DSH Jobs 自动进入该内核；若 Jobs 容量暂时拒绝，候选保持 durable pending，并在下一次 Job
+settlement 或进程重启时重试。
 
 ## DSH Web 可解释性
 
@@ -46,7 +48,7 @@ Web 不暴露绝对仓库路径、Skill 正文或私有 Session ID，也没有�
 
 ## 验证
 
-- `dsh-evolve`：`225 passed / 2 skipped`，覆盖 Git 整包身份、固定版本物化、脚本不执行、无来源
+- `dsh-evolve`：`227 passed / 2 skipped`，覆盖 Git 整包身份、固定版本物化、脚本不执行、无来源
   abstain、启动恢复、新 Gap 非阻塞观察、Storage 重启、真实 macOS sealed deterministic admission、
   无 proposer 的 exact-Candidate assembled Shadow、现有 ReviewInbox 兼容、治理输入漂移和控制面脱敏投影；
 - `dsh-evolve-web`：`25 passed`，覆盖候选/abstain 解释和无安装/激活动作；
@@ -55,7 +57,7 @@ Web 不暴露绝对仓库路径、Skill 正文或私有 Session ID，也没有�
 ## 尚未证明
 
 当前没有联网市场、官方文档、论文或通用开源索引；没有从资料生成新 Skill；确定性准入不是完整
-assembled DSH rollout；exact-Candidate runner 已存在，但准入结果尚未自动交给独立 holdout target，候选
-也尚未完成迁移、安全、成本、时延和 KV Cache 全部门禁或进入 Generation/Promotion。真实 provider、
-陌生用户和 Hermes 同任务 paired benchmark 仍缺失。因此本纵切是可信 acquisition + pre-admission 与
-Shadow 内核起点，不是自动安装，更不是完整自我进化闭环。
+assembled DSH rollout；确定性准入到独立 assembled holdout 已自动接线，但候选尚未完成迁移、安全、
+成本、时延和 KV Cache 全部门禁，也不会自动批准或进入活动 Generation。真实 provider、陌生用户和
+Hermes 同任务 paired benchmark 仍缺失。因此本纵切是可信 acquisition + 双速评测链，不是自动安装，
+更不是完整自我进化闭环。

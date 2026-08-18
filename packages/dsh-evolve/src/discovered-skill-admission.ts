@@ -59,7 +59,18 @@ export interface DiscoveredSkillAdmissionResult {
     readonly candidateExecuted: false
     readonly evaluatorClass: 'deterministic-filesystem'
     readonly trialCount: 4
+    readonly baselineTreeHash: string
+    readonly candidateTreeHash: string
   }
+}
+
+export interface QualifiedDiscoveredSkillShadowInput {
+  readonly admissionTargetId: string
+  readonly baselineDir: string
+  readonly candidateDir: string
+  readonly admissionCasePackDir: string
+  readonly admissionCasePackHash: string
+  readonly admissionRunRoot: string
 }
 
 export interface DiscoveredSkillAdmissionScan {
@@ -124,6 +135,50 @@ export class DiscoveredSkillAdmission {
   /** Jobs are created only when governance configured this exact Workspace+Skill pair. */
   matches(candidate: Pick<DiscoveredSkillCandidate, 'workspaceId' | 'requestedSkill'>): boolean {
     return this.targets.has(targetKey(candidate.workspaceId, candidate.requestedSkill))
+  }
+
+  /** Revalidate the exact durable admission evidence before a later Shadow reads its Candidate. */
+  async qualifiedShadowInput(
+    candidate: DiscoveredSkillCandidate,
+    admission: DiscoveredSkillAdmissionResult,
+  ): Promise<QualifiedDiscoveredSkillShadowInput> {
+    const target = this.targets.get(targetKey(candidate.workspaceId, candidate.requestedSkill))
+    if (target === undefined
+      || admission.status !== 'qualified-for-shadow'
+      || admission.candidateId !== candidate.id
+      || admission.workspaceId !== candidate.workspaceId
+      || admission.skillName !== candidate.requestedSkill
+      || admission.targetId !== target.id
+      || admission.id !== admissionId(candidate, target)
+      || admission.evidence === undefined) {
+      throw new Error('exact Candidate has no matching qualified admission evidence')
+    }
+    const [baselineDir, admissionCasePackDir, admissionRunRoot] = await Promise.all([
+      realpath(target.baselineDir),
+      realpath(target.casePackDir),
+      realpath(target.runRoot),
+    ])
+    const outputDir = join(admissionRunRoot, admission.id)
+    const prepared = await readPreparedState(outputDir)
+    const stored = await readExistingResult(outputDir, prepared)
+    if (stored === undefined || JSON.stringify(stored) !== JSON.stringify(admission)) {
+      throw new Error('qualified admission evidence is not the exact durable result')
+    }
+    const candidateDir = await realpath(join(outputDir, 'candidate'))
+    if (candidateDir !== join(outputDir, 'candidate')
+      || await hashTree(candidateDir) !== admission.evidence.candidateTreeHash
+      || await hashTree(baselineDir) !== target.baselineHash
+      || await hashTree(admissionCasePackDir) !== target.casePackHash) {
+      throw new Error('qualified admission inputs changed before Shadow handoff')
+    }
+    return Object.freeze({
+      admissionTargetId: target.id,
+      baselineDir,
+      candidateDir,
+      admissionCasePackDir,
+      admissionCasePackHash: target.casePackHash,
+      admissionRunRoot,
+    })
   }
 
   async evaluate(
@@ -305,6 +360,8 @@ export class DiscoveredSkillAdmission {
         candidateExecuted: false,
         evaluatorClass: 'deterministic-filesystem',
         trialCount: 4,
+        baselineTreeHash: paired.baseline.treeHash,
+        candidateTreeHash: paired.candidate.treeHash,
       }
       if (!calibrationPassed) {
         return await finish(outputDir, result(
@@ -393,6 +450,10 @@ export class DiscoveredSkillAdmission {
 export class DiscoveredSkillAdmissionScheduler {
   private readonly admission: Pick<DiscoveredSkillAdmission, 'evaluate' | 'matches'>
   private readonly candidates: CandidateReader
+  private readonly onResult: ((
+    candidate: DiscoveredSkillCandidate,
+    result: DiscoveredSkillAdmissionResult,
+  ) => void) | undefined
   private readonly pending = new Map<string, DiscoveredSkillCandidate>()
   private readonly active = new Set<string>()
   private jobs: Pick<JobRegistry, 'start'> | undefined
@@ -400,9 +461,16 @@ export class DiscoveredSkillAdmissionScheduler {
   constructor(
     admission: Pick<DiscoveredSkillAdmission, 'evaluate' | 'matches'>,
     candidates: CandidateReader,
+    options: {
+      onResult?: (
+        candidate: DiscoveredSkillCandidate,
+        result: DiscoveredSkillAdmissionResult,
+      ) => void
+    } = {},
   ) {
     this.admission = admission
     this.candidates = candidates
+    this.onResult = options.onResult
   }
 
   attachJobs(jobs: Pick<JobRegistry, 'start'>): () => void {
@@ -436,11 +504,20 @@ export class DiscoveredSkillAdmissionScheduler {
           const task = this.admission.evaluate(candidate, { signal: controller.signal })
           return {
             cancel: (reason?: string) => controller.abort(new Error(reason ?? 'Skill admission cancelled')),
-            done: task.then(value => ({
-              status: controller.signal.aborted ? 'killed' as const : 'completed' as const,
-              detail: controller.signal.aborted ? errorDetail(controller.signal.reason) : value.status,
-              ...controller.signal.aborted ? {} : { output: admissionOutput(value) },
-            }), (error: unknown) => ({
+            done: task.then(value => {
+              if (!controller.signal.aborted) {
+                try {
+                  this.onResult?.(candidate, value)
+                } catch {
+                  // Durable Candidate + admission report are the restart queue.
+                }
+              }
+              return {
+                status: controller.signal.aborted ? 'killed' as const : 'completed' as const,
+                detail: controller.signal.aborted ? errorDetail(controller.signal.reason) : value.status,
+                ...controller.signal.aborted ? {} : { output: admissionOutput(value) },
+              }
+            }, (error: unknown) => ({
               status: controller.signal.aborted ? 'killed' as const : 'failed' as const,
               detail: errorDetail(controller.signal.aborted ? controller.signal.reason : error),
             })).finally(() => {
@@ -639,6 +716,10 @@ function isAdmissionResult(value: unknown): value is DiscoveredSkillAdmissionRes
     && value.evidence.candidateExecuted === false
     && value.evidence.evaluatorClass === 'deterministic-filesystem'
     && value.evidence.trialCount === 4
+    && typeof value.evidence.baselineTreeHash === 'string'
+    && CONTENT_ID.test(value.evidence.baselineTreeHash)
+    && typeof value.evidence.candidateTreeHash === 'string'
+    && CONTENT_ID.test(value.evidence.candidateTreeHash)
   const evidence = evidenceValid ? value.evidence as Record<string, unknown> : undefined
   const targetBound = typeof value.targetId === 'string'
   const reasons = value.reasons as string[]

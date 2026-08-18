@@ -20,6 +20,11 @@ import {
   DiscoveredSkillAdmissionScheduler,
   type DiscoveredSkillAdmissionTargetConfig,
 } from './discovered-skill-admission.ts'
+import {
+  DiscoveredSkillShadowLauncher,
+  DiscoveredSkillShadowScheduler,
+  type DiscoveredSkillShadowTargetConfig,
+} from './discovered-skill-shadow.ts'
 import { installEvolutionCommand } from './evolve-command.ts'
 import { CandidatePublisher } from './candidate-publisher.ts'
 import { GitSkillSource, type GitSkillSourceConfig } from './git-skill-source.ts'
@@ -96,6 +101,7 @@ export interface Config {
   sources?: GitSkillSourceConfig[]
   trustedDiscoverySources?: TrustedSkillDiscoverySourceConfig[]
   discoveryAdmissionTargets?: DiscoveredSkillAdmissionTargetConfig[]
+  discoveryShadowTargets?: DiscoveredSkillShadowTargetConfig[]
   supervisor?: {
     runRoots: Array<{ workspaceId: string; path: string }>
     scanIntervalMs?: number
@@ -130,6 +136,14 @@ export const Config: Schema<Config> = z.object({
     skill: z.string().required(),
     baselineDir: z.string().required(),
     baselineHash: z.string().required(),
+    casePackDir: z.string().required(),
+    casePackHash: z.string().required(),
+    runRoot: z.string().required(),
+  })).max(100).default([]),
+  discoveryShadowTargets: z.array(z.object({
+    id: z.string().required(),
+    workspaceId: z.string().required(),
+    skill: z.string().required(),
     casePackDir: z.string().required(),
     casePackHash: z.string().required(),
     runRoot: z.string().required(),
@@ -204,6 +218,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const automaticFeedbackTargetReferences = config.automaticFeedbackTargets ?? []
   const evaluatorTargets = config.evaluatorTargets ?? []
   const automaticEvaluatorTargetReferences = config.automaticEvaluatorTargets ?? []
+  const discoveryShadowTargets = config.discoveryShadowTargets ?? []
   const shadowTargetsById = new Map(shadowTargets.map(target => [target.id, target]))
   const automaticFeedbackTargets: AutomaticFeedbackShadowTarget[] =
     automaticFeedbackTargetReferences.map((reference) => {
@@ -227,6 +242,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const capabilities = new CapabilityMap()
   const capabilityMonitor = installCapabilityMapObserver(ctx, capabilities, store)
   let skillAdmissionScheduler: DiscoveredSkillAdmissionScheduler | undefined
+  let skillShadowScheduler: DiscoveredSkillShadowScheduler | undefined
   const skillDiscovery = new TrustedSkillDiscovery(
     config.trustedDiscoverySources ?? [],
     skillDiscoveryStore,
@@ -236,10 +252,25 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   let skillAdmission: DiscoveredSkillAdmission | undefined
   if (discoveryAdmissionTargets.length > 0) {
     skillAdmission = new DiscoveredSkillAdmission(discoveryAdmissionTargets, skillDiscovery)
+    if (discoveryShadowTargets.length > 0) {
+      if (config.supervisor === undefined || config.supervisor.runRoots.length === 0) {
+        throw new Error('discovered Skill Shadow targets require configured supervisor.runRoots')
+      }
+      if (discoveryShadowTargets.some(target => !config.supervisor!.runRoots.some(root =>
+        root.workspaceId === target.workspaceId && resolve(root.path) === resolve(target.runRoot)))) {
+        throw new Error('discovered Skill Shadow run roots must be exact review supervisor roots')
+      }
+      skillShadowScheduler = new DiscoveredSkillShadowScheduler(
+        new DiscoveredSkillShadowLauncher(discoveryShadowTargets, skillAdmission),
+      )
+    }
     skillAdmissionScheduler = new DiscoveredSkillAdmissionScheduler(
       skillAdmission,
       skillDiscoveryStore,
+      { onResult: (candidate, result) => skillShadowScheduler?.observe(candidate, result) },
     )
+  } else if (discoveryShadowTargets.length > 0) {
+    throw new Error('discovered Skill Shadow targets require deterministic admission targets')
   }
   const skillDiscoveryLoop = installTrustedSkillDiscoveryLoop(
     ctx,
@@ -480,13 +511,15 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       }
     }, 'dsh-evolve.deliveryOutcomeMonitor')
   })
-  if (skillAdmissionScheduler !== undefined) {
+  if (skillAdmissionScheduler !== undefined || skillShadowScheduler !== undefined) {
     ctx.inject(['jobs'], (jobCtx) => {
       jobCtx.effect(() => {
         const detachController = jobCtx.jobs.attachController('dsh-evolve-skill-admission')
-        const detachScheduler = skillAdmissionScheduler!.attachJobs(jobCtx.jobs)
+        const detachShadow = skillShadowScheduler?.attachJobs(jobCtx.jobs)
+        const detachAdmission = skillAdmissionScheduler?.attachJobs(jobCtx.jobs)
         return () => {
-          detachScheduler()
+          detachAdmission?.()
+          detachShadow?.()
           detachController()
         }
       }, 'dsh-evolve.skillAdmissionJobs')
@@ -626,6 +659,7 @@ export type {
 export type { GitSkillSourceConfig } from './git-skill-source.ts'
 export type { TrustedSkillDiscoverySourceConfig } from './trusted-skill-discovery.ts'
 export type { DiscoveredSkillAdmissionTargetConfig } from './discovered-skill-admission.ts'
+export type { DiscoveredSkillShadowTargetConfig } from './discovered-skill-shadow.ts'
 export type { FeedbackShadowTargetConfig } from './feedback-shadow-launcher.ts'
 export type { AutomaticFeedbackShadowTargetReference } from './automatic-feedback-shadow.ts'
 export type { AutomaticEvaluatorDraftTargetReference } from './automatic-evaluator-draft.ts'

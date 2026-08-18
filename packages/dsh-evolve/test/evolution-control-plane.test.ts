@@ -313,6 +313,8 @@ describe('EvolutionControlPlane', () => {
               candidateExecuted: false as const,
               evaluatorClass: 'deterministic-filesystem' as const,
               trialCount: 4 as const,
+              baselineTreeHash: '6'.repeat(64),
+              candidateTreeHash: '7'.repeat(64),
             },
           }],
         })),

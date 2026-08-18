@@ -1,4 +1,4 @@
-import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { access, mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { JobHooks, JobStart } from '@deepseek-ai/dsh-jobs'
@@ -131,6 +131,13 @@ describe('discovered whole-Skill deterministic admission', () => {
       status: 'qualified-for-shadow',
       releaseAuthority: 'none',
       evidence: { candidateExecuted: false, evaluatorClass: 'deterministic-filesystem' },
+    })
+    const shadowInput = await admission.qualifiedShadowInput(candidate(), realResult)
+    expect(shadowInput).toMatchObject({
+      admissionTargetId: 'missing-release-admission',
+      baselineDir: await realpath(fixture.baselineDir),
+      admissionCasePackDir: await realpath(fixture.casePackDir),
+      candidateDir: expect.stringContaining('/candidate'),
     })
     await expect(access(marker)).rejects.toMatchObject({ code: 'ENOENT' })
   })
@@ -284,9 +291,11 @@ describe('discovered whole-Skill deterministic admission', () => {
       reasons: ['no-exact-evaluation-target' as const],
       releaseAuthority: 'none' as const,
     }))
+    const onResult = vi.fn()
     const scheduler = new DiscoveredSkillAdmissionScheduler(
       { evaluate, matches: () => true },
       { listCandidates: () => [existing] },
+      { onResult },
     )
     const jobs = fakeJobs()
 
@@ -298,6 +307,7 @@ describe('discovered whole-Skill deterministic admission', () => {
     })
     await jobs.hooks[0]!.done
     expect(evaluate).toHaveBeenCalledWith(existing, expect.objectContaining({ signal: expect.any(AbortSignal) }))
+    expect(onResult).toHaveBeenCalledWith(existing, expect.objectContaining({ candidateId: existing.id }))
 
     scheduler.observe(next)
     expect(jobs.starts).toHaveLength(2)

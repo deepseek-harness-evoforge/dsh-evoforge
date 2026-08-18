@@ -448,7 +448,14 @@ function projectSkillAdmission(
       reasons: [...value.reasons],
       ...(value.targetId === undefined ? {} : { targetId: value.targetId }),
       releaseAuthority: value.releaseAuthority,
-      ...(value.evidence === undefined ? {} : { evidence: { ...value.evidence } }),
+      ...(value.evidence === undefined ? {} : { evidence: {
+        baseline: value.evidence.baseline,
+        candidate: value.evidence.candidate,
+        calibrationPassed: value.evidence.calibrationPassed,
+        candidateExecuted: value.evidence.candidateExecuted,
+        evaluatorClass: value.evidence.evaluatorClass,
+        trialCount: value.evidence.trialCount,
+      } }),
     })),
   }
 }
