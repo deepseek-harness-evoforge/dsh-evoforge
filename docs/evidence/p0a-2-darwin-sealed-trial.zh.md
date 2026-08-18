@@ -31,6 +31,8 @@ pnpm check
 2026-08-15 首个原语切片的本机结果为 2 个测试文件、9 条测试全部通过，
 随后 typecheck、build 与完整 `pnpm check` 通过。后续 P0A.3 纵切把该原语接入
 四次独立的可信 evaluator Trial，见 [P0A.3 证据](p0a-3-calibrated-paired-trial.zh.md)。
+公开 `assembled-darwin` CI job 在 macOS 上执行 sealed、assembled 与连续性测试，
+避免平台测试因 Linux 跳过而获得假绿色。
 
 ## 尚不能声称什么
 
