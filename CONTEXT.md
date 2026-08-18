@@ -71,8 +71,36 @@ A case where native DSH behavior violates its documented contract or fails insid
 _Avoid_: Plugin opportunity, compatibility feature
 
 **Evolution Loop**:
-The optional capability that turns repeated real-task outcomes into inactive candidate versions, evaluates them independently, and—only after offline value is proven—promotes or rejects them without blocking the originating session. Candidate search may reuse an external optimizer; EvoForge owns the DSH-native evaluation and release control plane.
+The optional capability that turns real-task outcomes and capability gaps into inactive candidate versions, evaluates them independently, and—only after offline value is proven—promotes or rejects them without blocking the originating session. It contains a bounded Fast Evolution Loop and an evidence-accumulating Slow Evolution Loop; candidate search may reuse an external optimizer, while EvoForge owns the DSH-native evaluation and release control plane.
 _Avoid_: Self-rewriting agent, autonomous platform
+
+**Capability Map**:
+A host-visible inventory of the exact capabilities available to one DSH Workspace, including stable identity, source, scope, version, verification state, and selected Generation. It explains what may be routed without becoming a user-facing menu or a second Skill registry.
+_Avoid_: Startup questionnaire, workflow catalog, mutable prompt inventory
+
+**Capability Gap**:
+A falsifiable statement that an active Goal needs a capability not supplied by any verified, applicable Skill or Tool in the current Capability Map. A failed attempt alone is not a gap until routing, permissions, configuration, and existing capability applicability have been checked.
+_Avoid_: Generic failure, model uncertainty, excuse to generate a new Skill
+
+**Skill Discovery**:
+The host-side activity that maps a natural-language Goal to verified existing capabilities or records a Capability Gap, then may search explicitly trusted local, marketplace, official-documentation, and open-source sources for a candidate Skill package. It is internal routing and acquisition; the user is not asked to choose a path, Agent, workflow, or Skill before execution.
+_Avoid_: User menu, unverified auto-install, keyword-only router
+
+**Fast Evolution Loop**:
+A bounded online loop that attributes an explicit correction, verified outcome, repeated failure, or measured cost to the exact Session Generation and records an inactive signal, gap, or small candidate for later evaluation. It never rewrites an active capability or publishes from the originating Session.
+_Avoid_: Learn-once activation, synchronous reflection, retry-as-learning
+
+**Slow Evolution Loop**:
+An offline loop that aggregates evidence across tasks, explores existing or generated whole-Skill packages, runs isolated paired and holdout evaluation, checks transfer and regressions, and makes a retained release decision for future Sessions. It may abstain when evidence is weak or conflicting.
+_Avoid_: Nightly prompt rewrite, self-scoring batch job, greedy latest-wins
+
+**Evaluation Governance Plane**:
+The independent authority that owns protected cases, gold expectations, evaluator policy, hard gates, comparison results, and release eligibility. A Candidate and its proposer cannot read hidden cases or mutate this plane; boundary failure makes a Trial incomplete rather than passed.
+_Avoid_: Candidate-authored judge, writable final-test, model confidence gate
+
+**Verified Release Tag**:
+An annotated semantic Git tag on `main` that identifies a repository state whose declared core capability set passed its frozen release gates. It is not an Evolution Candidate version, does not replace content-addressed runtime Generations, and is never created merely because code was committed.
+_Avoid_: Feature branch, progress marker, unverified release label
 
 **Evolution Attention**:
 A bounded host-only notice that an actionable Candidate or Evaluator Draft exists, delivered through an already authorized adapter while the originating Session continues. The notice points to the authoritative control command and never grants approval itself.

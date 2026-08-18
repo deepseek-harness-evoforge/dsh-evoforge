@@ -1,8 +1,9 @@
 # Hermes 上位目标验收记分卡
 
 > 状态：长期验收基线；不是功能清单，也不是当前完成声明
-> 更新日期：2026-08-17
-> 比较基线：Hermes Agent `29d0cc2602e01943ab300c0382fc9d97efb376da`
+> 更新日期：2026-08-18
+> 已有 paired epoch 比较基线：Hermes Agent `29d0cc2602e01943ab300c0382fc9d97efb376da`
+> 新一轮生态审计基线：Hermes Agent `7a81dd9efdaa1d27a98815df6aecc26d849ca084`、Hermes Self-Evolution `0a929e3aa20e15cf04dc7c28492a7d41a5139125`、OpenClaw `1c3e512096bc57b34f9379b1992912c3d18729c7`、HanaAgent/openhanako `c6d0405294be67cb134c2758f6472748ee73e2be`
 
 ## 1. “上位”到底是什么意思
 
@@ -41,11 +42,15 @@ Bot/Hermes paired benchmark 前不能声称胜出。全局宣传必须由下面�
 - 完整 composition fingerprint 和会话内变化点；
 - 产生的 artifact、commit、Draft PR、消息或日程引用；
 - 安装、禁用和卸载后的残留。
+- Goal 到 Skill 的自动路由结果、候选集合、abstain 与人工选路/纠正次数；
+- Skill 发现召回、错误调用、首次成功、跨任务复用/迁移、负迁移、保留与遗忘；
+- signal → gap → candidate → trial → decision → generation 的完整谱系和内容哈希。
 
 ## 3. 必选验收场景
 
 | ID | 用户结果 | 必须证明 | 主要比较指标 | 当前状态 |
 |---|---|---|---|---|
+| `DS-1` 自主能力发现 | 用户只给自然语言 Goal，系统无需开场菜单即可调用正确的现有 Skill，或形成真实缺口并发现/生成可评测候选 | Capability Map 可解释；现有能力优先；来源/scope/version/hash/权限可追踪；whole-Skill 候选 inactive；错误路由和未知代码 fail closed；候选无法读取治理面 | 首次成功率、Skill discovery recall/precision、错误调用、人工选路/纠正、transfer、negative transfer、token/时延 | 需求、领域与 ADR 已冻结；实现和 paired benchmark pending |
 | `SD-1` 软件交付 | 一个原生 Goal 变成隔离、验证过的 commit 和可选 Draft PR，并能在 exact-head 人类审查后返修 | 读取仓库规范；worktree 隔离；运行仓库检查；可选 exact-head 远端 checks 门/有界等待；allowlist review 回到原 Session；diff 可审查；Protected Action 未越权 | 完成率、人工返工、错误提交、从 review 到 verified push 的时长、token/时间 | [确定性 Hermes paired completion-control slice](../evidence/sd-1-hermes-paired-benchmark.zh.md) 达到“辅助 judge unavailable 时 checked Goal completion control 更优”；verified commit、Draft PR、checks、review follow-up 均 implemented；同模型真实编码任务、远端 reviewer 数据 pending |
 | `LC-1` 单机连续性 | 进程意外退出后继续同一 Goal/Session/后台状态 | 在关键 durable transition 前后 kill；OS manager 拉起 exact profile；无丢失 Goal、半激活版本或重复外部效果 | 自动恢复率、恢复时间、人工修复数 | [确定性 Hermes paired crash-recovery slice](../evidence/lc-1-hermes-paired-benchmark.zh.md) 在“权威工作不丢、单次恢复、无重复记录”上 `0:0` 打平；Generation/Shadow `SIGKILL`、Goal 冷恢复与真实 macOS DSH PID restart 均 implemented；真实模型长任务、Linux 真机与生产多日 soak pending |
 | `EV-1` 可证明进化 | 重复错误被 Skill Candidate 修正并通过未见 case | known-bad 被拒；真实修正通过 final-test；原 Session 与 active Skill 不变；Decision 可重放 | final-test 改善、false promotion、每次减少返工的成本 | [一个确定性 Hermes paired release-control slice](../evidence/ev-1-hermes-paired-benchmark.zh.md) 已达到 `better for deterministic Skill-correction release control`；P0A–P1.21 其余实现不变；真实 provider、同任务分布的长期改善/误晋升/单位成本数据 pending |
@@ -65,7 +70,7 @@ Bot/Hermes paired benchmark 前不能声称胜出。全局宣传必须由下面�
 | `implemented` | 对应代码存在并通过仓库测试，但尚无真实 paired run |
 | `verified` | deterministic gate、故障注入和未见 case 全部通过，报告可复核 |
 | `better for <workflow>` | 与 Hermes 的 paired benchmark 达到非劣门槛，并在预声明主指标胜出 |
-| `Hermes upper alternative` | `SD-1`、`LC-1`、`EV-1`、`UI-1`、`KV-1`、`PA-1`、`RM-1` 全部 verified；至少一个 `AS-1` 工作流达到 `better` |
+| `Hermes upper alternative` | `DS-1`、`SD-1`、`LC-1`、`EV-1`、`UI-1`、`KV-1`、`PA-1`、`RM-1` 全部 verified；至少一个 `AS-1` 工作流达到 `better` |
 | `high availability` | 在上述基础上另有多故障域 SLO 和长期故障数据；单机重启不算 |
 
 “完美”“无限进化”“零人工”“永不失败”等不可证伪表述不进入 README、release note 或 benchmark 结论。
@@ -80,18 +85,20 @@ Bot/Hermes paired benchmark 前不能声称胜出。全局宣传必须由下面�
 - active artifact 被原地修改，或 rollback 不能恢复精确内容哈希；
 - crash/retry 产生重复外部效果或半完成权威状态；
 - Candidate 读取或修改 evaluator、selection/final-test 或 policy；
+- 开场要求用户选择任务类别、工作流、Agent 或 Skill，或在已有适用能力时把路由责任退回用户；
+- 来源、scope、version、内容哈希或权限不明的 Skill 被静默安装、执行或晋升；
 - 禁用插件后原生 DSH 无法启动、恢复 Session 或读取 Goal；
 - 报告遗漏 token、cache-read、权限变化、失败 case 或人工介入；
 - benchmark 配置在看到结果后被修改且未开启新 epoch。
 
 ## 6. 当前最短证据路径
 
-1. 用 [P0A Shadow 契约](p0a-shadow-contract.zh.md)完成 `EV-1`，先证明 evaluator 有价值；
-2. 通过后实现 P0B，同时验证 `LC-1`、`KV-1` 和 `RM-1` 的在线部分；
-3. 用 P0C 验证 `UI-1`，确认审批始终旁路；
-4. P1 用真实数据测 false promotion、false rollback、review rate 与成本；
-5. P2 完成 `SD-1`，并与 Hermes 做第一组 paired benchmark；
-6. 用真实 Bot soak 与 Hermes paired benchmark 验证已选择的 Telegram `AS-1`；证据不足时不扩成
-   巨型 Gateway，也不提前开发第二渠道。
+1. 保持 `main` clean checkout 的全包检查、十一包 assembled 与 KV parity 持续绿色；
+2. 先实现 `DS-1` 的现有 Skill 自动命中、真实 Gap、可信获取和 whole-Skill inactive candidate；
+3. 用 sealed holdout 和权限故障注入证明 Candidate 无法影响 evaluator/policy，再把快环与慢环接入现有 `EV-1`；
+4. 补齐 DSH Web capability/gap/lineage/eval/Feishu 视图，并以真实浏览器验证 `UI-1`；
+5. 完成 exact 飞书 route 的 `AS-1` 消息、Command、Approval、重启与 uncertain 路径；
+6. 以当前固定 Hermes revision 执行 `DS-1`、`EV-1`、`SD-1`、`LC-1`、`UI-1`、`KV-1`、`PA-1`、`AS-1`、`RM-1` paired epoch，并补真实 provider 长期 retention/transfer/cost；
+7. 仅在声明范围全部过门后为 `main` 创建 annotated semantic tag。
 
 这份记分卡是验收文档，不是新的插件、公共 Interface、数据平台或运行时模块。每个阶段直接输出一份可版本化报告即可；出现两个真实报告消费者以前，不建设通用 benchmark 服务。

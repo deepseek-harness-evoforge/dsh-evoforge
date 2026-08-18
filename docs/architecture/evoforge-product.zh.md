@@ -1,7 +1,7 @@
 # EvoForge 产品架构
 
-> 状态：产品边界已确认；Telegram、飞书两个 Assistant Adapter 与进化注意力桥已实现
-> 更新日期：2026-08-17
+> 状态：产品边界已确认；Telegram、飞书两个 Assistant Adapter 与进化注意力桥已实现；自主 Skill 发现、双速进化和完整可视化仍待实现与验收
+> 更新日期：2026-08-18
 
 ## 1. 产品结果
 
@@ -14,7 +14,7 @@ EvoForge 不是第四套 Agent Runtime。它让 DSH 在选定真实工作流中�
 DSH Runtime ─ Goal / Session / Tool / Approval / Storage / Jobs / Skill
                          │
 EvoForge 可选能力
-  ├─ Evolve：从真实结果产生、评测和发布能力候选
+  ├─ Evolve：自主能力路由、缺口发现、双速候选生成、评测和发布
   ├─ Software Delivery：隔离、验证、commit、Draft PR
   ├─ Channel Router：静态 endpoint 绑定原生 Workspace/Session/Agent
   ├─ Telegram Adapter：一个私聊经 Router 持续使用原生 Agent
@@ -30,7 +30,12 @@ DSH 始终拥有模型执行和基础服务；EvoForge 插件只增加用户结�
 
 ### dsh-evolve
 
-旗舰插件。P0A 只提供离线 Shadow；证明 evaluator 有价值后，才增加 Generation、Session pin、晋升、监测和回滚。Observer、Trial Runner、Decision 和 Release 都是内部模块，不拆成浅插件。
+旗舰插件。现有 P0A–P1.21 已提供 Shadow、Generation、Session pin、反馈、晋升、监测和回滚底座；
+下一阶段在同一个深模块内增加 Capability Map、Capability Gap 和自主 Skill Discovery。用户只提交自然语言
+Goal，host 先选择已验证的现有能力；确有缺口时才从部署者信任的来源形成完整 Skill 包候选。在线快环
+只收集可归因信号和小步候选，离线慢环执行跨任务搜索、独立评测、保留和发布。Discovery、Observer、
+Trial Runner、Decision 与 Release 在证明有两个独立消费者或信任边界以前都保持内部模块，不为了名称
+数量拆成浅插件。
 
 ### dsh-software-delivery
 
@@ -85,8 +90,11 @@ Resident 只恢复进程，Goal Continuity 只决定 exact Session 的原生 Goa
 所有界面 Adapter 投影同一组权威状态：
 
 - Goal、阶段、进度、阻塞原因和下一步；
+- Capability Map、Capability Gap queue、实际路由及 Skill identity/source/scope/version/verification；
 - Candidate claim、diff、case、baseline/candidate 结果；
+- whole-Skill 候选谱系、holdout/回归、失败归因、安全扫描、quarantine 与 release tag；
 - token、latency、完整 composition cache 指标；
+- 飞书连接身份、exact route、入站去重、出站 journal 与 uncertain 状态；
 - 当前权限、请求的权限变化和 Protected Action；
 - active Generation、parent、canary、rollback target；
 - approve、reject、pause、resume、promote、rollback 动作结果。
@@ -124,6 +132,7 @@ Resident 只恢复进程，Goal Continuity 只决定 exact Session 的原生 Goa
 | 软件交付 | 原生 Goal 到 verified commit/Draft PR | verified commit、幂等 Draft PR、可选 exact-head checks 门、有界 active-call wait 与原生 Goal 受验证完成 implemented；真实任务数据 pending |
 | 单机持续运行 | crash-resume、幂等恢复、无半激活版本 | Generation release + Shadow journal + native Jobs supervisor、`dsh-goal-continuity` Goal 冷恢复与 `dsh-resident` 真实 macOS DSH PID `SIGKILL` 拉起已实现；Linux 真机与生产多日 soak pending |
 | Memory/Skill | 复用 DSH/社区能力，不造第二套 Memory | 架构边界已确认 |
+| 自主 Skill 发现 | 自然语言 Goal 自动命中已验证能力；无能力时形成缺口并从可信来源产生完整候选 | 领域与验收约束已冻结；实现 pending |
 | 消息与日程 | 按真实 workflow 提供可拆 Adapter | Telegram、飞书与 Evolve 注意力桥 implemented；真实飞书 App 握手与 setup-only 配对通过，exact route 消息/Hermes paired 与其他场景 pending |
 | 人类控制 | 状态、证据、审批、暂停、回滚不阻塞会话 | P0C Commands/Web + P3.1 非阻塞 Telegram attention + P3.2 Draft PR review follow-up implemented；语义 capability 审计与陌生用户可用性数据 pending |
 | 自进化 | 独立 final-test、inactive Candidate、可证明晋升 | P0A `fail → pass` + P0B verified-Git/resident resume + P0C inactive publication + P1.1 opt-in auto policy + P2D.1 Outcome + P1.2 exact-parent 反事实回滚 + P1.3 feedback intake + P1.4 private Case Draft + P1.5 feedback-guided Shadow + P1.6 pre-proposal calibration + P1.7 explicit evaluator authoring + P1.8 target-bound launch + P1.9 private Evaluator Draft/human qualification + P1.15 crash-safe automatic budget + P1.16 opt-in automatic inactive Evaluator Draft + P1.17 human-approved Qualify-and-Shadow + P1.18 per-Skill automatic inflight gate + P1.19 bounded automatic ambiguous review + P1.20 review-window visibility + P1.21 parent outcome comparison；真实 provider、陌生用户与长期效果 pending |
@@ -149,15 +158,20 @@ GitHub 组织 `deepseek-harness-evoforge` 是所有 DSH 扩展设计与开发的
 
 首个公开仓库为 `deepseek-harness-evoforge/dsh-evoforge`，首个插件包为 `dsh-evolve`。相关插件默认留在该 Suite；只有 ADR 0005 的拆仓条件成立时才创建新的 `dsh-*` 仓库。
 
+本仓库自己的交付线固定为 `main`：维护 Agent 以小步测试提交持续 push 到 `origin/main`，不新建 feature
+或 release branch，不重写已推送历史。运行时 Skill/Candidate/Generation 使用内容寻址存储而不是 Git
+branch。只有冻结的核心能力集合通过 clean-profile、全包检查、故障注入、真实浏览器/渠道和 paired
+benchmark 门禁后，才在 `main` 创建 annotated semantic tag。该规则不限制 `dsh-software-delivery`
+为用户的其他仓库生成 worktree、commit 或 Draft PR。
+
 ## 8. 最小路线
 
-1. **P0A（内部实现）**：由 DSH 内的 `dsh-evolve` 提交 Shadow，一个真实 Skill、独立 final-test、已知坏 Candidate 和至少一个真实修正；不发布独立入口。
-2. **P0B**：Generation、Session pin、原子 active pointer、crash recovery、composition fingerprint。
-3. **P0C**：host command/view、异步人工晋升和 rollback。
-4. **P1**：权限效果不变的纯指令 future-session canary 与窄自动晋升。
-5. **P2**：Software Delivery 正式产品化；代码 Candidate 只到 Draft PR。
-6. **P3**：Telegram、飞书、P3.1 跨渠道 Evolve 注意力桥与 P3.2 Draft PR 审查返修 implemented；双 Workspace 双渠道同 Host、Workspace-scoped evolution、精确 attention 路由、十一包总装、真实飞书 App 握手与 setup-only 配对已通过，下一门是用户触发后的 exact 飞书 route 消息闭环、reviewer soak、陌生安装与 Hermes paired benchmark，不是继续扩渠道或建通知/Review 平台。
-7. **LC-1**：exact Session 原生 Goal 冷恢复 implemented；下一门是生产多日恢复率/时延，不是扩成 daemon 或 HA 平台。
-8. **LC-2**：用户级 launchd/systemd service implemented；下一门是 Linux 真机与多日运行，不是再建第二 supervisor。
+1. **统一基线**：保持 `main` 与 `origin/main` 同步，clean checkout 的全包 docs/typecheck/test/build 必须持续绿色。
+2. **自主发现**：自然语言 Goal 自动完成 Capability Map 匹配；没有适用能力时产生可复核 Gap，并从可信来源形成 inactive whole-Skill 候选。
+3. **双速治理**：把快环 signal/gap 与慢环搜索/迁移/保留接入现有 Candidate/Trial/Generation；封死 Candidate 到 evaluator/holdout/policy 的写读路径。
+4. **可解释控制**：DSH Web 展示能力、缺口、路由、谱系、评测、成本、缓存、安全、回滚和飞书状态，动作复用原生 Approval。
+5. **真实集成**：完成 exact 飞书 route 消息/Command/Approval、真实 provider、故障注入、陌生安装与长期 outcome。
+6. **上位证据**：按冻结 revision 与 Hermes 进行 discovery、evolution、delivery、continuity、UI、KV、permission、assistant 和 removal paired benchmark。
+7. **验证发布**：全部声明范围通过后才创建首个 annotated semantic tag；未通过项继续标为 designed/implemented/pending。
 
 每一阶段未达到可验证退出条件时停止扩张，不用更多插件或基础设施掩盖失败。

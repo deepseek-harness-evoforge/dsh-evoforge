@@ -1,7 +1,7 @@
 # DeepSeek Harness EvoForge 项目需求基线
 
-> 状态：已确认；P0A–P1.21、P2A.1–P2D.1、P3.1、P3.2、LC-1、LC-2 和 Runtime Readiness 已有可复用实现，产品形态已纠正为“只安装并运行于 DSH 的原生 out-of-tree 插件套件”；十一包统一原生安装、多 Workspace 双渠道自动化隔离、Workspace-scoped evolution、零基础浏览器复验、真实飞书 App 握手/setup-only 配对与 EV-1、SD-1、LC-1、AS-1 approval 四个确定性 Hermes paired slice 已通过，exact 飞书 route 消息、长期 outcome 与其余 Hermes paired epochs 等完整真实验收完成前仍不构成 v0.1 交付
-> 更新日期：2026-08-17
+> 状态：已确认；P0A–P1.21、P2A.1–P2D.1、P3.1、P3.2、LC-1、LC-2 和 Runtime Readiness 已有可复用实现，产品形态已纠正为“只安装并运行于 DSH 的原生 out-of-tree 插件套件”；十一包统一原生安装、多 Workspace 双渠道自动化隔离、Workspace-scoped evolution、零基础浏览器复验、真实飞书 App 握手/setup-only 配对与 EV-1、SD-1、LC-1、AS-1 approval 四个确定性 Hermes paired slice 已通过。自主 Skill 发现/获取、独立评测治理、完整双速进化闭环、exact 飞书 route 消息、长期 outcome 与其余 Hermes paired epochs 等完整真实验收完成前仍不构成 v0.1 交付
+> 更新日期：2026-08-18
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。发生冲突时，下述“方向纠正”优先于旧里程碑文字。
 
 ## 0. 方向纠正：DSH 是唯一 Runtime 与安装入口
@@ -15,6 +15,7 @@
 5. Web 只能是随 DSH Web profile 组合加载、读取 DSH Host 权威状态的 client adapter；不得成为第二控制面。用户核心能力不得依赖 EvoForge CLI；开发夹具不得发布为产品入口。
 6. 在 roadmap 恢复前，必须用固定目标 DSH 源码完成 clean-profile 的 tarball 安装、官方 Bundle 启用、`--dump-config`、Host 启动、真实 Agent/Session/Goal 能力、原生持久化、卸载后原生启动/读回以及无残留资源的 assembled 硬门禁。
 7. 不 fork、不 monkey patch DSH。若门禁暴露 DSH Core Defect，只保留最小复现并上游报告。
+8. 用户入口是自然语言 Goal、材料、约束与验收条件。系统必须在内部完成能力识别、Skill 路由和执行路径选择；开头不得要求用户从任务类别、工作流、Agent 或 Skill 菜单中选路。
 
 截至本次纠正，目标源码为 DeepSeek Harness commit `47f943859bef60e4160492346772ded9b24f765a`（包版本 `0.1.0-rc.5`）。开发依赖可为获得已发布类型而使用兼容的 rc.6 包，但这不扩大支持声明；支持证据只来自上述固定源码 assembled gate。
 
@@ -101,6 +102,14 @@ DSH 继续作为 Agent Runtime，拥有 Session、Goal、工具、权限、存�
 
 比较必须区分源码事实、合理推断、用户需求证据和项目所有者的战略选择。
 
+### 2.6 生态与前沿增量调研
+
+在进入自主 Skill 发现和下一代进化闭环实现前，必须以固定 revision 继续审计 Hermes Agent、Hermes
+Self-Evolution、OpenClaw、HanaAgent，以及有公开论文或源码的 Skill 发现、Skill 进化和 Agent 评测实现。
+调研不是照搬任一项目，而是形成可证伪的设计选择：哪些交互与治理值得吸收，哪些必须因 DSH 权威、
+KV Cache、权限、隔离和可回滚要求而拒绝。每个 benchmark epoch 必须单独固定当时 revision；旧 paired
+结果继续绑定旧 revision，不能被新审计 revision 静默改写。
+
 ## 3. 产品定位
 
 ### 3.1 核心用户结果
@@ -128,17 +137,25 @@ EvoForge 首先服务软件开发交付，同时允许个人助理、内容、�
 最小闭环为：
 
 ```text
-真实任务结果
-→ Learning Signal
-→ 隔离候选版本
-→ active/candidate 配对试验
-→ promote / review / reject
-→ 新会话生效
-→ 持续监测与回滚
+自然语言 Goal
+→ Capability Map 内自主路由，或形成可证伪 Capability Gap
+→ 在线快环记录可归因的 Learning Signal / 小步候选
+→ 离线慢环发现、获取、组合或生成完整 Skill 包候选
+→ 独立治理面执行 active/candidate、holdout、回归和安全评测
+→ promote / review / reject / abstain
+→ 只对未来 Session 生效
+→ 持续监测、保留与精确回滚
 ```
 
 必须满足：
 
+- 先检查当前 Workspace 中可用、适用且已验证的 Skill/Tool；有现成能力时自主调用，不把选路责任转交用户；
+- 没有适用能力时记录可复核的 Capability Gap，并可按部署者显式信任范围搜索本地包、已安装来源、官方市场、官方文档、论文与开源实现；
+- 外部发现只产生带稳定 identity、来源、scope、版本、内容哈希、权限与安全状态的非活动候选；不得静默安装、启用或执行未知代码；
+- 进化单位可以是完整 Skill folder（`SKILL.md`、scripts、references 与清单），必须原子版本化，不能只优化一段 prompt 就宣称能力进化；
+- 在线快环只捕获可归因信号、缺口和小步候选；离线慢环负责跨任务聚类、搜索、迁移、遗忘、负迁移和长期保留判断；
+- evaluator、holdout、gold、hard gate 与发布资格由 Candidate 不可读写的独立 Evaluation Governance Plane 持有；隔离无法证明时 Trial 为 `incomplete`；
+- 无法证明改善时允许 `abstain`；一次成功、模型自评、使用次数、重试成功或安全扫描通过均不能单独晋升；
 - 原会话不等待后台学习或人工审批；
 - 反思只能提出候选，不能证明改进；
 - 调用次数、复用次数、模型信心和新鲜度不能单独决定晋升；
@@ -158,7 +175,10 @@ EvoForge 首先服务软件开发交付，同时允许个人助理、内容、�
 EvoForge 不能只在后台“自主运行”。DSH Command、DSH TUI、随 Host 组合的 Web client 或消息 Adapter 可以投影同一组 DSH 权威状态，使用户能够：
 
 - 查看当前 Goal、执行阶段、最近动作、阻塞原因和下一步；
+- 查看 Capability Map、Capability Gap queue、实际路由结果，以及 Skill 的来源、scope、版本、内容哈希、验证状态、使用与效用证据；
 - 查看 Candidate 的主张、diff、评测证据、token、缓存影响和权限变化；
+- 查看候选谱系、baseline/candidate/holdout 分数、失败归因、安全扫描、quarantine、成本、时延和当前 Generation/release tag；
+- 查看飞书连接身份、route、健康、入站去重、出站投递与 uncertain 状态，但不在浏览器中绕过静态 route 与 DSH Approval；
 - 执行 approve、reject、pause、resume、promote 和 rollback；
 - 明确区分建议、等待人工、已授权执行和 Protected Action；
 - 在不回复进化审批时继续正常会话和其他 Goal。
@@ -209,6 +229,12 @@ EvoForge 是新增功能项目，不是 DSH Bug 修复项目。
 - 不可逆外部动作。
 
 持续进化不能绕过上述边界。模糊候选的审批与正常会话分离，审批等待不能阻塞原任务。
+
+本仓库自身的产品开发与上述“软件交付插件可为用户仓库创建 worktree/Draft PR”是两个不同边界。
+`dsh-evoforge` 开发只在 `main` 上进行小步、可验证的 commit，并在每批验证后实时 push 到
+`origin/main`；不得为功能或发布创建新分支，不得 force-push 或重写已推送历史。运行时 Evolution
+Candidate 使用隔离、内容寻址存储，不使用 Git branch 表示。只有冻结的核心能力集合通过完整 release
+gate 后，才在 `main` 创建 annotated semantic tag；普通进度提交不得打发布 tag。
 
 ## 6. 常驻运行与恢复
 
@@ -276,15 +302,17 @@ workspace，输出可审查的 launchd/systemd unit。OS service manager 与 uni
 
 ## 10. 工作顺序和完成条件
 
-研究阶段已经完成。后续按以下顺序推进：
+基础研究与既有 P0A–P3 实现已经形成，但 2026-08-18 的生态增量调研和产品方向纠正带来新的现行顺序：
 
-1. 收敛架构、领域模型、ADR、接口规范、路线图和开发 Skill；
-2. 删除重复、过重和无法说明用户价值的设计；
-3. 项目所有者已授权实现方式与技术取舍，由维护 Agent 按冻结的公开接缝，以 test-first 方式实现离线 P0A Shadow；
-4. P0A 必须先证明 evaluator 能拒绝坏 Candidate，并至少找到一个通过未开放 final-test 的真实改善；
-5. P0A 有价值后，才实现 P0B Generation Binder、Session pin、原子晋升、崩溃恢复和回滚；
-6. P0C 提供异步人工晋升；P1 才允许极窄、可证明的纯指令自动晋升；
-7. 用真实结果决定后续软件交付、个人助理、内容、消息和日程插件，不一次性全部实现。
+1. 只在 `main` 收拢并持续推送可验证现状；先修复 clean checkout、全包检查和 DSH 原生安装基线，禁止用新分支掩盖集成状态；
+2. 同步更新需求、领域模型、增量调研、ADR、产品架构、路线图和验收记分卡，冻结“无开场选路、三平面、双速进化、独立评测、main/tag”约束；
+3. 以 test-first 方式补齐自然语言 Goal 到 Capability Map/Gap 的自主 Skill 发现、可信来源获取、稳定 identity/scope/version 与整包候选；
+4. 把在线快环与离线慢环接入现有 Candidate/Trial/Generation，并证明 Candidate 无法影响 evaluator、holdout、gold 和晋升规则；
+5. 在 DSH Web 中形成可解释的能力、缺口、候选、评测、回滚和飞书健康视图；关键动作继续走原生 Command/Approval；
+6. 完成 exact 飞书 route 的消息/Command/Approval/投递闭环与故障注入，不扩张为第二 Gateway；
+7. 用干净 profile、真实浏览器、真实飞书、真实 provider、长期 outcome 和与当前固定 Hermes revision 的 paired benchmark 验收；只有核心集合全部通过才创建首个 annotated semantic tag。
+
+旧阶段产生的报告和测试仍是有效历史证据，但不再凌驾于上述现行顺序，也不能把既有实现数量当作新目标完成。
 
 当前进度说明：软件交付、Runtime Readiness、Telegram、飞书第二 Adapter 与单用途 Evolve 注意力桥
 已分别以独立 `dsh-*` 包实现；飞书真实 App 身份请求、WebSocket 握手与 setup-only 配对 transport 已
@@ -353,6 +381,11 @@ Case Pack authoring 先提供零模型校准命令，不创建新 Service 或 SD
 - 项目所有者只负责最终产品验收；命名、开发方式和验证路径由维护 Agent 按本需求基线自主决定。
 - 涉及前端时必须补充真实浏览器端到端验证，并保留可复核结果。
 - 设计基线已经确认，按 P0A Shadow 契约 test-first 实现。
+- 用户只提供自然语言 Goal、材料、约束和验收条件；系统内部自主发现并选择 Skill/路径，不提供开场路由菜单。
+- 自进化采用稳定执行面、隔离进化面、独立评测治理面，以及在线快环/离线慢环；没有充分证据时必须 abstain。
+- 自主获取的能力只能先成为可追踪、可隔离、可评测的完整 Skill 包候选，不能静默安装到活动 Session。
+- `dsh-evoforge` 自身只在 `main` 小步提交并实时同步 `origin/main`；核心门禁通过后才用 annotated semantic tag 标记迭代。
+- 飞书是首批正式集成能力，Web 必须可视化能力图、缺口、候选谱系、评测/成本/安全/回滚与飞书健康，但不得成为第二权威控制面。
 
 ## 12. 相关设计文档
 
@@ -367,9 +400,12 @@ Case Pack authoring 先提供零模型校准命令，不创建新 Service 或 SD
 - [全新失败 evaluator authoring Skill](../skills/author-dsh-evolution-case/SKILL.md)
 - [用户痛点证据](research/user-pain-evidence.md)
 - [公开自进化项目证据审计](research/public-self-evolving-agents.zh.md)
+- [DSH 插件组、自进化与个人 Agent 生态增量调研](research/ecosystem-frontier-2026-08-18.zh.md)
 - [ADR：只增强原生 Goal](adr/0002-extend-native-goal.md)
 - [ADR：只做扩展，不修核心](adr/0003-extensions-not-core-repairs.md)
 - [ADR：持续进化作为旗舰](adr/0004-evidence-driven-evolution-is-the-flagship.md)
 - [ADR：EvoForge 仓库边界](adr/0005-evoforge-repository-boundaries.md)
+- [ADR：自主 Skill 发现采用三平面双速闭环](adr/0046-autonomous-skill-discovery-uses-three-planes-and-two-speeds.md)
+- [ADR：main 是实时开发线，tag 只标记验证发布](adr/0047-main-is-the-live-development-line-and-tags-mark-verified-releases.md)
 
 若后续对话改变已确认要求，应在同一轮更新本文相应章节；历史架构文档不得凌驾于本需求基线。
