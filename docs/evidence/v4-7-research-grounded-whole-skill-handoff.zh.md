@@ -1,7 +1,8 @@
 # V4-7：研究驱动的 whole-Skill 慢环交接
 
-> 状态：`implemented / in progress`。本切片完成研究采集到隔离 Candidate 的纵向主链；独立 holdout
-> 执行、基于失败归因的 revision、Retention 和真实 provider 验证仍未完成，因此不打 tag。
+> 状态：`implemented`。本切片完成研究采集到隔离 Candidate 的纵向主链；后续独立 Holdout 与
+> 一次性 revision 已分别在 `v4-7-independent-research-holdout.zh.md` 和
+> `v4-7-one-shot-research-revision.zh.md` 完成。真实 provider 下的整链 Retention 仍未完成，因此不打 tag。
 
 ## 主链
 
@@ -55,6 +56,7 @@ Skills 页新增：
 
 - verification anchors 已由
   [`v4-7-independent-research-holdout.zh.md`](v4-7-independent-research-holdout.zh.md) 的独立评估器消费；
-- 尚未把失败归因反馈为 bounded whole-Skill revision；
-- 尚未完成长期 Retention、真实 provider、真实飞书消息和同条件 Hermes paired run；
+- 失败/不确定的原始 v2 已能触发一次 bounded whole-Skill v3 revision；精确 parent tree、
+  holdout result 和 research digest 进入谱系，v3 必须重新 Holdout 且不能再次修订；
+- 尚未完成真实 provider 下的长期 Retention、真实飞书消息和同条件 Hermes paired run；
 - 因此不打 tag，不宣称 Hermes 核心功能的上位替代已经完成。

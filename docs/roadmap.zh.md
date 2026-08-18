@@ -1,6 +1,6 @@
 # EvoForge v0.1 路线图
 
-> 当前状态：已验证历史已统一到 `main` 并同步 `origin/main`；DSH 原生十一包全检查通过，自然 Goal 到持久 Capability Gap、本地可信 Git whole-Skill 与 Agent Skills v0.2 单文件/归档发现已实现；跨 Goal 重复 Gap 还能在 exact 静态授权、持久日预算和原生 Jobs 下生成一个 instruction-only 隔离 Candidate。官方/论文/开源检索、任意市场、整包组合、真实 provider、exact 飞书消息与最终 paired 验收仍未完成，v0.1 尚未发布或部署。
+> 当前状态：已验证历史已统一到 `main` 并同步 `origin/main`；DSH 原生十一包全检查通过，自然 Goal 到持久 Capability Gap、可信 whole-Skill 发现、跨 Goal 需求聚类、DSH Web 三轨研究、text-only whole-Skill v2 组合、独立私有 Holdout 与一次性 v3 修订已实现。任意市场/ClawHub 专有接入、真实 provider 下的整链路 outcome、exact 飞书消息与最终 Hermes paired 验收仍未完成，v0.1 尚未发布或部署。
 > 更新日期：2026-08-18
 
 ## 开发与发布纪律
@@ -88,11 +88,16 @@ fail closed。显式配置的 Agent Skills Discovery draft v0.2 索引已支持 
 只有共同解析到同一隔离候选时才收敛，同 Goal retry 和冲突候选均不能制造聚类。cluster 本身仍只有证据权；
 对同名 unresolved cluster，部署者显式配置的 exact author target 可通过原生 Jobs、持久日预算和崩溃状态机
 生成一个单文件 instruction-only Candidate。正文留在 Host 私有存储，Web 只显示运行阶段、成本与摘要；
-该路径没有安装、激活或发布接口。
+该路径没有安装、激活或发布接口。后续 V4-7 已把 DSH 原生 Web 抽象接入
+official/open-source/frontier 三轨研究，在隔离的 knowledge/verification 边界下组合
+text-only whole-Skill v2；独立 Holdout 只读取私有 verification anchors，v2 失败或不确定时
+最多生成一个绑定 parent tree/holdout result/research digest 的 v3，v3 必须重新进入 Holdout
+且不能递归修订；只有通过后才会交给确定性 admission。
 
-仍待实现/验证：Agent Skills v0.2 well-known 索引之外的可信市场/ClawHub 专有 API、官方资料/论文/开源仓库搜索，archive/多文件 Skill 生成或组合，
-真实 provider 下的 cluster-driven 慢环、模型正/负路由质量、误缺口率、迁移/遗忘/长期保留，以及同条件 Hermes
-paired outcome。因此本阶段不能描述为“自主 Skill 发现已完成”，退出门仍未通过。
+仍待实现/验证：Agent Skills v0.2 well-known 索引之外的可信市场/ClawHub 专有 API；
+真实 provider 下的 v2 失败→v3→Holdout pass→admission→Shadow→Retention 整链路；模型正/负路由
+质量、误缺口率、迁移/遗忘/长期保留，以及同条件 Hermes paired outcome。因此本阶段
+不能描述为“自主 Skill 进化已完成”，退出门仍未通过。
 
 ## V5 — 可解释 Web 与飞书闭环
 
@@ -105,7 +110,7 @@ paired outcome。因此本阶段不能描述为“自主 Skill 发现已完成�
 退出门：最终 tarball 在全新 profile 的真实浏览器与真实飞书 App 上覆盖成功、刷新、权限拒绝、身份错误、
 429、网络不确定、重启、dispose 和卸载路径；UI 不新增 Session 模型工具/Prompt/token。
 
-实现状态：既有 Evolve review、Capability Map/Gap/whole-Skill admission/Shadow 视图、飞书配对 UI、
+实现状态：既有 Evolve review、Capability Map/Gap/whole-Skill admission/Shadow、研究证据边界/独立 Holdout/一次性 v3 修订视图、飞书配对 UI、
 routes-mode 脱敏健康投影和渠道底座已实现；健康面最终 tarball 的真实浏览器读取/刷新/Host 停机与恢复
 已通过，完整评测演进视图与真实飞书 exact route 消息 **pending**。
 

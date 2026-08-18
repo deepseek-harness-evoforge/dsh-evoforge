@@ -13,12 +13,12 @@
 
 ## 当前总判断
 
-EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。所有最新能力都在权威 `main`；十一个用户包都已收敛为无产品 bin 的 DSH Bundle，并通过同一次 clean-profile add/dump/boot/remove/readback。Workspace Channel Router、Telegram 与飞书第二 Adapter 已通过同 Host 双 Workspace 重启隔离；Workspace-owned Evolution 及其 Telegram/飞书 attention 已通过真实双 Workspace Host 路径。最新自主能力纵切已让模型在自然语言 active Goal 内、检查完整原生 Skill catalog 后，用一个稳定 Tool 声明可复核 Capability Gap，Host 先持久化再唤醒发现；本地 Git exact-first 确定性语义搜索、Agent Skills Discovery v0.2 单文件与 `.tar.gz`/`.zip` 整包制品、whole-Skill admission/Shadow、跨 Goal 需求聚类，以及 exact target + 日预算 + 原生 Jobs 驱动的 instruction-only 隔离 Candidate 生成已接通，详见 [V4-1](evidence/v4-1-autonomous-capability-gap.zh.md) 至 [V4-6](evidence/v4-6-cross-goal-skill-authoring.zh.md)。[完整 Cache Contract 门](evidence/kv-2-suite-composition-gate.zh.md)证明稳定 Gap Tool 在 64 轮内不漂移；真实浏览器控制面也已有复验。真实飞书 App 的身份请求、WebSocket 握手和 setup-only pairing transport 已通过。逐条退出门见 [v0.1 完成条件审计](evidence/v0.1-completion-audit.zh.md)；当前仍需用户发送配对短语完成 exact 飞书消息闭环，另缺官方/论文/开源检索、任意市场、整包组合、真实 provider/Hermes paired 证据及长期数据。
+EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。所有最新能力都在权威 `main`；十一个用户包都已收敛为无产品 bin 的 DSH Bundle，并通过同一次 clean-profile add/dump/boot/remove/readback。Workspace Channel Router、Telegram 与飞书第二 Adapter 已通过同 Host 双 Workspace 重启隔离；Workspace-owned Evolution 及其 Telegram/飞书 attention 已通过真实双 Workspace Host 路径。自主能力纵切已从自然语言 Goal 延伸到 Host 复核/持久 Capability Gap、本地 Git 与 Agent Skills v0.2 whole-Skill 发现、跨 Goal 需求聚类、DSH Web official/open-source/frontier 三轨研究、text-only whole-Skill v2 组合、独立私有 Holdout 与最多一次的 v3 修订；只有 Holdout pass 才会进入确定性 admission，v3 不能递归修订。详见 [V4-1](evidence/v4-1-autonomous-capability-gap.zh.md) 至 [V4-7 一次性修订](evidence/v4-7-one-shot-research-revision.zh.md)。[完整 Cache Contract 门](evidence/kv-2-suite-composition-gate.zh.md)证明稳定 Gap Tool 在 64 轮内不漂移；研究/Holdout/修订的原生 DSH Web 投影也已完成真实应用内浏览器复验。真实飞书 App 的身份请求、WebSocket 握手和 setup-only pairing transport 已通过。逐条退出门见 [v0.1 完成条件审计](evidence/v0.1-completion-audit.zh.md)；当前仍需用户发送配对短语完成 exact 飞书消息闭环，另缺任意市场/ClawHub 专有接入、真实 provider 下的整链路 outcome、Hermes paired 证据及长期数据。
 
 | 能力 | 当前状态 | 已有证据 | 仍缺 |
 |---|---|---|---|
 | 原生 DSH 插件产品形态 | `implemented` | 十一包均有 `name/inject/Config/apply`、Bundle patch、无 bin 合同；同一次 clean-profile tarball add/dump/boot/remove/readback 通过 | 陌生安装与 registry release 门禁 |
-| Evidence-driven Evolution P0A–P1.21 + V4-1–V4-6 | `implemented` | paired Trial、Workspace-owned Generation/feedback/review/budget、Session pin、Retention、canary；自然 Goal→Host 复核/持久 Gap；local Git/Agent Skills v0.2 `skill-md`/archive 可信发现；whole-Skill admission/assembled Shadow；跨 Goal 聚类；无候选同名 cluster 经 exact 静态 target、持久日预算、原生 Jobs、崩溃状态机生成 instruction-only 隔离 Candidate，并在 Web 展示 phase/cost/provenance；64 轮稳定 Tool 与原生其余请求 parity | 官方资料/论文/开源搜索、ClawHub/任意市场、archive/多文件生成组合、真实 provider、路由质量及长期误晋升/回滚数据 |
+| Evidence-driven Evolution P0A–P1.21 + V4-1–V4-7 | `implemented` | paired Trial、Workspace-owned Generation/feedback/review/budget、Session pin、Retention、canary；自然 Goal→Host 复核/持久 Gap；local Git/Agent Skills v0.2 `skill-md`/archive 可信发现；跨 Goal 聚类；DSH Web 三轨研究、text-only whole-Skill v2、私有 Holdout、一次性 v3、admission/assembled Shadow 与 Web lineage；64 轮稳定 Tool 与原生其余请求 parity | ClawHub/任意市场专有接入、真实 provider 整链路、路由质量及长期误晋升/回滚数据 |
 | Software Delivery P2A–P2D | `implemented` | 真实 Git、原生 Tool/Goal、Draft PR、checks 与 Outcome；十一包 clean-profile 内从 packed Tool 完成原生 Goal | 真实长期任务 |
 | GitHub Review Follow-up P3.2 | `implemented` | exact-head allowlist、bounded follow-up、重启去重、cache parity | 真实 reviewer 返修闭环和多日 resident |
 | Web Control Plane | `verified` | packed artifact、真实 DSH Workspace/Host/Client Module；浏览器 pause→Host restart→persisted pause→resume/refresh；断线 fail visible 与恢复，console error 0 | 陌生用户可用性与长期数据 |
@@ -40,7 +40,7 @@ EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。所有最�
 
 - 固定 rc.5 源码是唯一支持证据；兼容范围不能由宽 peer range 推断；
 - v0.1 浏览器复验已完成；真实 provider cache-read/TTFT 仍需有预算的 paired soak；
-- 自主 Skill Discovery 当前支持显式授信本地 Git，以及 Agent Skills Discovery draft v0.2 的 `skill-md` 和 `.tar.gz`/`.zip` archive 同源、摘要先验、安全解包与隔离获取；跨 Goal cluster 本身只有证据权，但 exact 静态 target 已能有界调度 instruction-only Candidate 生成；ClawHub/任意市场、官方资料/论文/开源搜索、archive/多文件组合、真实 provider 和模型缺口质量仍缺失；
+- 自主 Skill Discovery 当前支持显式授信本地 Git，以及 Agent Skills Discovery draft v0.2 的 `skill-md` 和 `.tar.gz`/`.zip` archive 同源、摘要先验、安全解包与隔离获取；跨 Goal cluster 可触发 DSH Web 研究和 text-only whole-Skill 组合，但 cluster 本身只有证据权，v2/v3 均不能自行安装或激活；ClawHub/任意市场专有接入、真实 provider 整链 outcome 和模型缺口质量仍缺失；
 - 真实飞书 exact route 消息、真实 provider、陌生用户和生产多日证据仍缺失；本轮按项目所有者要求不验证 Telegram；
 - 自动化 `implemented` 不能替代真实 outcome，也不能支持笼统的“优于 Hermes”；
 - 不 merge、不发布 registry、不部署生产，除非用户另行授权。

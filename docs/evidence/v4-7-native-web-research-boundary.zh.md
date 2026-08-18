@@ -2,7 +2,8 @@
 
 > 状态：`implemented`。本文件记录独立研究采集深模块的原子提交；后续慢环接线见
 > `v4-7-research-grounded-whole-skill-handoff.zh.md`；后续独立验证接线见
-> `v4-7-independent-research-holdout.zh.md`。Retention 仍未完成，因此不打 tag，也不声明核心目标完成。
+> `v4-7-independent-research-holdout.zh.md`；一次性修订见
+> `v4-7-one-shot-research-revision.zh.md`。真实 provider 下的整链 Retention 仍未完成，因此不打 tag，也不声明核心目标完成。
 
 ## 本次交付
 
