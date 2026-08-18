@@ -12,7 +12,8 @@ name 在完整 catalog 中确实不存在；或模型检查完整 catalog 后通
 失败、目录不完整、非法名称和已有 Skill 的运行失败都不会被冒充为缺口。后者的真实 Agent Loop 证据见
 [V4-1](v4-1-autonomous-capability-gap.zh.md)。在 exact package 不存在且 Gap 绑定 active Goal 时，同一可信
 revision 上的确定性词法语义回退见 [V4-2](v4-2-trusted-semantic-skill-search.zh.md)；它不改变本证据中的
-whole-Skill 隔离、准入与 release-authority 边界。
+whole-Skill 隔离、准入与 release-authority 边界。durable Gap 与隔离 identity 的跨 Goal 聚合见
+[V4-3](v4-3-cross-goal-gap-demand.zh.md)；聚类同样没有生成或发布权。
 
 对已确认 Gap，常驻 host 循环在后台扫描 `trustedDiscoverySources` 中由部署者显式配置的本地 Git
 仓库。发现以整个 Skill 文件夹为原子单位，固定 commit、tree hash、SHA-256 content hash、相对包路径、

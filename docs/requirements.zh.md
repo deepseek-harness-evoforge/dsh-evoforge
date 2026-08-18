@@ -339,8 +339,15 @@ quarantined、inactive、unevaluated、never-executed 候选。确定性
 whole-Skill admission 与独立 assembled holdout Shadow 已接入，清晰胜出仍只形成 inactive 人工审查
 Candidate，不获得发布权。Web 已展示有界 Capability Map、Gap、候选、来源、权限和状态，不提供模型
 选路、安装或激活按钮，并明确展示原始 Gap→实际 Skill 的匹配与“词法证据分数（非置信度）”。外部市场/
-官方资料/论文/开源的网络检索与组合、无候选时的 Skill 生成、真实
-模型的正确缺口判断及跨任务慢环证据仍未完成，不能据此宣称完整自主 Skill 获取或 V4 退出门通过。
+官方资料/论文/开源的网络检索与组合、无候选时的 Skill 生成、真实模型的正确缺口判断及完整跨任务慢环
+证据仍未完成，不能据此宣称完整自主 Skill 获取或 V4 退出门通过。
+
+慢环已增加第一条不调用模型的跨 Goal 需求聚类：只使用同一 Workspace 的 durable、Goal-linked Gap；至少
+两个不同 Goal id 才成立，同一 Goal 的 retry 不会放大需求。不同 Gap name 只有在发现链路已把它们各自
+固定到同一 quarantined Skill identity 时才合并；一个 Gap 出现多个冲突候选时直接排除。聚类由原始证据
+确定性派生，在 Web 显示次数、独立 Goal 数、原始提议和收敛 Skill，但仅有 `evidence-only` 与
+`releaseAuthority: none`，不会自动搜索网络、生成、安装、激活或发布。cluster-driven 搜索/生成调度与
+长期迁移证据仍未完成。
 
 在 P1.1 之后，先实现 `dsh-software-delivery` 的最小 objective outcome：稳定按需 Skill 与
 linked-worktree/commit/check 验证器。只有真实交付 outcome 可用后，才建设 future-session

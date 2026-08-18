@@ -637,22 +637,43 @@ function skillPermissionSummary(
 
 function CapabilityGapQueue({ summary, t }: { summary: EvolutionOverview; t: (key: string) => string }) {
   const items = summary.capabilityGaps?.items ?? []
-  return <section>
-    <h3 className="dsh-evolve-section-title">{t('skills.gaps')}</h3>
-    {items.length === 0
-      ? <div className="dsh-evolve-message">{t('skills.gaps.empty')}</div>
-      : <ul className="dsh-evolve-list">{items.map(gap => (
-          <li className="dsh-evolve-skill-card" key={gap.id}>
-            <div className="dsh-evolve-review-skill">{gap.requestedSkill}</div>
-            {gap.goal !== undefined && <p>{gap.goal.objective}</p>}
-            <div className="dsh-evolve-capability-route">{t('skills.gaps.confirmed')}</div>
-            <div className="dsh-evolve-meta">
-              {t('skills.gaps.catalog')} · {gap.catalogSize} · {gap.catalogHash.slice(0, 12)}
-            </div>
-            <div className="dsh-evolve-meta">{t('skills.gaps.inactive')}</div>
-          </li>
-        ))}</ul>}
-  </section>
+  const clusters = summary.capabilityGaps?.clusters ?? []
+  return <>
+    <section>
+      <h3 className="dsh-evolve-section-title">{t('skills.gaps')}</h3>
+      {items.length === 0
+        ? <div className="dsh-evolve-message">{t('skills.gaps.empty')}</div>
+        : <ul className="dsh-evolve-list">{items.map(gap => (
+            <li className="dsh-evolve-skill-card" key={gap.id}>
+              <div className="dsh-evolve-review-skill">{gap.requestedSkill}</div>
+              {gap.goal !== undefined && <p>{gap.goal.objective}</p>}
+              <div className="dsh-evolve-capability-route">{t('skills.gaps.confirmed')}</div>
+              <div className="dsh-evolve-meta">
+                {t('skills.gaps.catalog')} · {gap.catalogSize} · {gap.catalogHash.slice(0, 12)}
+              </div>
+              <div className="dsh-evolve-meta">{t('skills.gaps.inactive')}</div>
+            </li>
+          ))}</ul>}
+    </section>
+    {clusters.length > 0 && <section>
+      <h3 className="dsh-evolve-section-title">{t('skills.gap-clusters')}</h3>
+      <ul className="dsh-evolve-list">{clusters.map(cluster => (
+        <li className="dsh-evolve-skill-card" key={cluster.id}>
+          <div className="dsh-evolve-review-skill">{cluster.canonicalSkill}</div>
+          <div className="dsh-evolve-capability-route">
+            {cluster.goalCount} {t('skills.gap-clusters.goals')} · {cluster.gapCount} {t('skills.gap-clusters.observations')}
+          </div>
+          <div className="dsh-evolve-meta">
+            {t(`skills.gap-clusters.evidence.${cluster.evidence}`)}
+          </div>
+          {cluster.resolvedSkill !== undefined && <div className="dsh-evolve-meta">
+            {t('skills.gap-clusters.proposals')} · {cluster.requestedSkills.join(' · ')} → {cluster.resolvedSkill}
+          </div>}
+          <div className="dsh-evolve-discovery-state">{t('skills.gap-clusters.state')}</div>
+        </li>
+      ))}</ul>
+    </section>}
+  </>
 }
 
 function CapabilityMap({ summary, t }: { summary: EvolutionOverview; t: (key: string) => string }) {

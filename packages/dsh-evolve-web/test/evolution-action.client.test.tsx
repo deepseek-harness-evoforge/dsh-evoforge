@@ -274,6 +274,13 @@ const t = (key: string) => ({
   'skills.gaps.confirmed': 'Confirmed by complete DSH catalog',
   'skills.gaps.catalog': 'Catalog evidence',
   'skills.gaps.inactive': 'No external Skill was installed or executed.',
+  'skills.gap-clusters': 'Cross-Goal gap clusters',
+  'skills.gap-clusters.goals': 'distinct Goals',
+  'skills.gap-clusters.observations': 'Gap observations',
+  'skills.gap-clusters.evidence.repeated-skill-demand': 'Repeated capability demand',
+  'skills.gap-clusters.evidence.shared-resolved-candidate': 'Different Gaps converge on one quarantined candidate',
+  'skills.gap-clusters.proposals': 'Original proposals',
+  'skills.gap-clusters.state': 'Slow-loop priority evidence only · No generation, install, activation, or release',
   'skills.discovery': 'Discovered Skill candidates',
   'skills.discovery.quarantined': 'Quarantined candidate',
   'skills.discovery.source.local-git': 'Local Git',
@@ -582,6 +589,20 @@ describe('EvolutionAction', () => {
               providers: 'settled' as const,
             },
           }],
+          clusters: [{
+            id: '1'.repeat(64),
+            canonicalSkill: 'release-native-extension',
+            resolvedSkill: 'release-native-extension',
+            requestedSkillCount: 2,
+            requestedSkills: ['missing-release-skill', 'publish-dsh-plugin'],
+            gapCount: 3,
+            goalCount: 2,
+            firstObservedAt: 1_786_895_900_000,
+            lastObservedAt: 1_786_896_000_000,
+            evidence: 'shared-resolved-candidate' as const,
+            status: 'evidence-only' as const,
+            releaseAuthority: 'none' as const,
+          }],
         },
         skillDiscovery: {
           quarantinedCount: 1,
@@ -699,6 +720,11 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('Publish a verified native DSH plugin.')).toBeTruthy()
     expect(screen.getByText('Confirmed by complete DSH catalog')).toBeTruthy()
     expect(screen.getByText('No external Skill was installed or executed.')).toBeTruthy()
+    expect(screen.getByText('Cross-Goal gap clusters')).toBeTruthy()
+    expect(screen.getByText('2 distinct Goals · 3 Gap observations')).toBeTruthy()
+    expect(screen.getByText('Different Gaps converge on one quarantined candidate')).toBeTruthy()
+    expect(screen.getByText('Original proposals · missing-release-skill · publish-dsh-plugin → release-native-extension')).toBeTruthy()
+    expect(screen.getByText('Slow-loop priority evidence only · No generation, install, activation, or release')).toBeTruthy()
     expect(screen.getByText('Discovered Skill candidates')).toBeTruthy()
     expect(screen.getAllByText('release-native-extension').length).toBeGreaterThan(1)
     expect(screen.getByText('Prepare and verify a native DSH release.')).toBeTruthy()

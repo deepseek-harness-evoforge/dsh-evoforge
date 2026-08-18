@@ -8,6 +8,7 @@ import type { AutomaticFeedbackShadowService } from './automatic-feedback-shadow
 import type { AutomaticEvaluatorDraftService } from './automatic-evaluator-draft.ts'
 import type { CapabilityGapStore } from './capability-gap-store.ts'
 import type { SkillDiscoveryStore } from './trusted-skill-discovery.ts'
+import { clusterCapabilityGaps } from './capability-gap-cluster.ts'
 import type { DiscoveredSkillAdmission } from './discovered-skill-admission.ts'
 import type { EvolutionStore } from './generation-store.ts'
 import type { ResidentEvolutionControl } from './resident-evolution-control.ts'
@@ -101,7 +102,10 @@ export class EvolutionControlPlane {
         : { capabilityMap: cloneCapabilityMap(this.modules.capabilities.snapshot(workspaceId, sessionId)) }),
       ...(this.modules.gaps === undefined
         ? {}
-        : { capabilityGaps: projectCapabilityGaps(this.modules.gaps.list(workspaceId)) }),
+        : { capabilityGaps: projectCapabilityGaps(
+            this.modules.gaps.list(workspaceId),
+            this.modules.discovery?.listCandidates(workspaceId) ?? [],
+          ) }),
       ...(this.modules.discovery === undefined
         ? {}
         : { skillDiscovery: projectSkillDiscovery(this.modules.discovery, workspaceId) }),
@@ -371,6 +375,7 @@ function cloneCapabilityMap(map: EvolutionCapabilityMapView): EvolutionCapabilit
 
 function projectCapabilityGaps(
   gaps: ReturnType<CapabilityGapStore['list']>,
+  candidates: ReturnType<SkillDiscoveryStore['listCandidates']>,
 ): EvolutionCapabilityGapQueueView {
   return {
     confirmedCount: gaps.filter(gap => gap.status === 'confirmed').length,
@@ -384,6 +389,20 @@ function projectCapabilityGaps(
       ...(gap.goal === undefined ? {} : { goal: { ...gap.goal } }),
       status: gap.status,
       evidence: { ...gap.evidence },
+    })),
+    clusters: clusterCapabilityGaps(gaps, candidates).map(cluster => ({
+      id: cluster.id,
+      canonicalSkill: cluster.canonicalSkill,
+      ...(cluster.resolvedSkill === undefined ? {} : { resolvedSkill: cluster.resolvedSkill }),
+      requestedSkillCount: cluster.requestedSkills.length,
+      requestedSkills: cluster.requestedSkills.slice(0, MAX_CAPABILITY_GAP_ROWS),
+      gapCount: cluster.gapCount,
+      goalCount: cluster.goalCount,
+      firstObservedAt: cluster.firstObservedAt,
+      lastObservedAt: cluster.lastObservedAt,
+      evidence: cluster.evidence,
+      status: cluster.status,
+      releaseAuthority: cluster.releaseAuthority,
     })),
   }
 }

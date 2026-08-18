@@ -58,7 +58,8 @@
 
 - Tool 不搜索网络；后台目前仅支持显式授信本地 Git 源的 exact-first 查询与确定性词法语义回退，不支持
   市场/官方资料/论文/开源 catalog 的网络搜索或获取。
-- 找不到现成 whole-Skill 时尚不能自主生成或组合新 Skill，也没有跨 Goal gap 聚类调度。
+- 找不到现成 whole-Skill 时尚不能自主生成或组合新 Skill；跨 Goal 需求已能形成 evidence-only 聚类，但
+  尚不能驱动受预算约束的搜索/生成调度，详见 [V4-3](v4-3-cross-goal-gap-demand.zh.md)。
 - 固定 Adapter 证明原生 Agent Loop 组合，不证明真实模型总能判断“无适用 Skill”、提出正确名称或避免
   误报；需要真实模型正例、已有近似 Skill 负例与对抗 Goal 的 paired benchmark。
 - 现有 admission/Shadow 证明候选不能直接激活，不等于已经有足够长期 transfer、retention、

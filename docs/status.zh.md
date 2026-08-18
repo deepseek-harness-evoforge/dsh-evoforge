@@ -13,12 +13,12 @@
 
 ## 当前总判断
 
-EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。所有最新能力都在权威 `main`；十一个用户包都已收敛为无产品 bin 的 DSH Bundle，并通过同一次 clean-profile add/dump/boot/remove/readback。Workspace Channel Router、Telegram 与飞书第二 Adapter 已通过同 Host 双 Workspace 重启隔离；Workspace-owned Evolution 及其 Telegram/飞书 attention 已通过真实双 Workspace Host 路径。最新自主能力纵切已让模型在自然语言 active Goal 内、检查完整原生 Skill catalog 后，用一个稳定 Tool 声明可复核 Capability Gap，Host 先持久化再唤醒可信本地发现；本地 Git exact-first 确定性语义搜索、whole-Skill quarantine/admission/Shadow 和 Web Gap queue 已接通，详见 [V4-1](evidence/v4-1-autonomous-capability-gap.zh.md) 与 [V4-2](evidence/v4-2-trusted-semantic-skill-search.zh.md) 证据。[完整 Cache Contract 门](evidence/kv-2-suite-composition-gate.zh.md)证明该 Tool 在 64 轮内稳定且其余请求与原生控制组等价；包含零基础概览、Skills 与高级控制的 [v0.1 真实浏览器复验](evidence/p0c-6-web-control-plane.zh.md)也已通过。真实飞书 App 的身份请求、WebSocket 握手和 setup-only pairing transport 已在宿主标准代理环境中通过；`dsh-feishu` 同包 Client Module 也已由最终 tarball 安装进全新 profile，并在原生 DSH Web 完成生成、复制、取消与零 console error 的真实浏览器验收。逐条退出门见 [v0.1 完成条件审计](evidence/v0.1-completion-audit.zh.md)，当前仍需用户发送一次有界配对短语才能完成 exact 飞书消息闭环，另缺外部来源 Skill 搜索/获取与生成、真实模型 paired 证据及长期数据。
+EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。所有最新能力都在权威 `main`；十一个用户包都已收敛为无产品 bin 的 DSH Bundle，并通过同一次 clean-profile add/dump/boot/remove/readback。Workspace Channel Router、Telegram 与飞书第二 Adapter 已通过同 Host 双 Workspace 重启隔离；Workspace-owned Evolution 及其 Telegram/飞书 attention 已通过真实双 Workspace Host 路径。最新自主能力纵切已让模型在自然语言 active Goal 内、检查完整原生 Skill catalog 后，用一个稳定 Tool 声明可复核 Capability Gap，Host 先持久化再唤醒可信本地发现；本地 Git exact-first 确定性语义搜索、whole-Skill quarantine/admission/Shadow、跨 Goal 需求聚类和 Web 解释已接通，详见 [V4-1](evidence/v4-1-autonomous-capability-gap.zh.md)、[V4-2](evidence/v4-2-trusted-semantic-skill-search.zh.md) 与 [V4-3](evidence/v4-3-cross-goal-gap-demand.zh.md) 证据。[完整 Cache Contract 门](evidence/kv-2-suite-composition-gate.zh.md)证明该 Tool 在 64 轮内稳定且其余请求与原生控制组等价；包含零基础概览、Skills 与高级控制的 [v0.1 真实浏览器复验](evidence/p0c-6-web-control-plane.zh.md)也已通过。真实飞书 App 的身份请求、WebSocket 握手和 setup-only pairing transport 已在宿主标准代理环境中通过；`dsh-feishu` 同包 Client Module 也已由最终 tarball 安装进全新 profile，并在原生 DSH Web 完成生成、复制、取消与零 console error 的真实浏览器验收。逐条退出门见 [v0.1 完成条件审计](evidence/v0.1-completion-audit.zh.md)，当前仍需用户发送一次有界配对短语才能完成 exact 飞书消息闭环，另缺外部来源 Skill 搜索/获取与生成、cluster-driven 调度、真实模型 paired 证据及长期数据。
 
 | 能力 | 当前状态 | 已有证据 | 仍缺 |
 |---|---|---|---|
 | 原生 DSH 插件产品形态 | `implemented` | 十一包均有 `name/inject/Config/apply`、Bundle patch、无 bin 合同；同一次 clean-profile tarball add/dump/boot/remove/readback 通过 | 陌生安装与 registry release 门禁 |
-| Evidence-driven Evolution P0A–P1.21 + V4-1/V4-2 | `implemented` | paired Trial、Workspace-owned Generation/feedback/review/budget、Session pin、Retention、canary；自然 Goal→真实 Agent Loop 模型 Tool→Host 复核/持久 Gap→Web 投影；trusted local-Git exact-first 确定性语义发现、whole-Skill quarantine/admission/assembled Shadow；64 轮稳定 Tool 与原生其余请求 parity；真实双 Workspace Host 重启隔离 | 外部来源搜索/获取、无候选时 Skill 生成、真实模型路由质量、真实 provider 与长期误晋升/回滚数据 |
+| Evidence-driven Evolution P0A–P1.21 + V4-1/V4-2/V4-3 | `implemented` | paired Trial、Workspace-owned Generation/feedback/review/budget、Session pin、Retention、canary；自然 Goal→真实 Agent Loop 模型 Tool→Host 复核/持久 Gap→Web 投影；trusted local-Git exact-first 确定性语义发现、whole-Skill quarantine/admission/assembled Shadow；同 Workspace 跨 Goal 重复需求聚类与 evidence-only Web；64 轮稳定 Tool 与原生其余请求 parity；真实双 Workspace Host 重启隔离 | 外部来源搜索/获取、无候选时 Skill 生成、cluster-driven 调度、真实模型路由质量、真实 provider 与长期误晋升/回滚数据 |
 | Software Delivery P2A–P2D | `implemented` | 真实 Git、原生 Tool/Goal、Draft PR、checks 与 Outcome；十一包 clean-profile 内从 packed Tool 完成原生 Goal | 真实长期任务 |
 | GitHub Review Follow-up P3.2 | `implemented` | exact-head allowlist、bounded follow-up、重启去重、cache parity | 真实 reviewer 返修闭环和多日 resident |
 | Web Control Plane | `verified` | packed artifact、真实 DSH Workspace/Host/Client Module；浏览器 pause→Host restart→persisted pause→resume/refresh；断线 fail visible 与恢复，console error 0 | 陌生用户可用性与长期数据 |
@@ -40,7 +40,7 @@ EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。所有最�
 
 - 固定 rc.5 源码是唯一支持证据；兼容范围不能由宽 peer range 推断；
 - v0.1 浏览器复验已完成；真实 provider cache-read/TTFT 仍需有预算的 paired soak；
-- 自主 Skill Discovery 当前只对显式授信本地 Git 做 exact-first、有界确定性词法语义搜索；外部 catalog/市场/官方资料/开源的网络搜索与获取、Skill 生成和真实模型缺口判断仍缺失；
+- 自主 Skill Discovery 当前只对显式授信本地 Git 做 exact-first、有界确定性词法语义搜索；跨 Goal 聚类只有优先级证据权；外部 catalog/市场/官方资料/开源的网络搜索与获取、Skill 生成、cluster-driven 调度和真实模型缺口判断仍缺失；
 - 真实飞书 exact route 消息、真实 provider、陌生用户和生产多日证据仍缺失；本轮按项目所有者要求不验证 Telegram；
 - 自动化 `implemented` 不能替代真实 outcome，也不能支持笼统的“优于 Hermes”；
 - 不 merge、不发布 registry、不部署生产，除非用户另行授权。

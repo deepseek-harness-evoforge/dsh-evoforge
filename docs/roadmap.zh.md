@@ -80,10 +80,12 @@
 exact-first 查询与对 name/description 的有界确定性语义回退；弱匹配、歧义和非法 exact package 均
 fail closed。quarantine、确定性 admission 和独立 assembled holdout Shadow 已接通；清晰胜出仍只进入 inactive
 人工 review，当前 Session 不漂移。64 轮请求证明该 Tool Schema 稳定，去掉声明的单一 Tool 后其余请求
-与原生控制组逐字节相同。
+与原生控制组逐字节相同。durable Gap 还能在同一 Workspace 内按不同 Goal 聚合重复需求；不同 Gap 名称
+只有共同解析到同一隔离候选时才收敛，同 Goal retry 和冲突候选均不能制造聚类。Web 只把它显示为慢环
+优先级证据，不触发任何生成或发布动作。
 
 仍待实现/验证：可信外部 catalog/市场/官方资料/开源来源的网络搜索与获取，找不到包时的完整 Skill 生成或组合，
-跨 Goal gap 聚类与慢环调度，真实模型的正/负路由质量、误缺口率、迁移/遗忘/长期保留，以及同条件 Hermes
+cluster-driven 慢环调度，真实模型的正/负路由质量、误缺口率、迁移/遗忘/长期保留，以及同条件 Hermes
 paired outcome。因此本阶段不能描述为“自主 Skill 发现已完成”，退出门仍未通过。
 
 ## V5 — 可解释 Web 与飞书闭环

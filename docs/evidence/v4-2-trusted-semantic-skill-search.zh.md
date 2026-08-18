@@ -69,7 +69,8 @@ Web 文案和映射可见。提交门还包括两个 package 全量测试、Type
 - 该算法是保守的确定性词法语义检索，不是 embedding、LLM rerank 或完整语义理解；它会主动漏掉证据不足
   的候选，以避免静默误选。
 - 没有现成 whole-Skill 时仍不能自主生成或组合新 Skill。
-- 尚未完成跨 Goal Gap 聚类、慢环调度、真实模型正负路由质量与迁移/遗忘长期数据。
+- 跨 Goal Gap 已能形成 evidence-only 需求聚类，但尚未完成 cluster-driven 慢环调度、真实模型正负路由
+  质量与迁移/遗忘长期数据，详见 [V4-3](v4-3-cross-goal-gap-demand.zh.md)。
 - 尚未完成同模型、同任务、同权限、同预算下与固定 Hermes revision 的完整 paired outcome。
 
 因此 V4-2 只关闭“模型必须猜中本地可信 Skill exact name”这一窄缺口，不能支持“完整自我进化已完成”或

@@ -194,6 +194,20 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'providers': z.literal("settled").readonly(),
 })]).readonly(),
 })).readonly(),
+  'clusters': z.array(z.object({
+  'id': z.string().readonly(),
+  'canonicalSkill': z.string().readonly(),
+  'resolvedSkill': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'requestedSkillCount': z.number().readonly(),
+  'requestedSkills': z.array(z.string()).readonly(),
+  'gapCount': z.number().readonly(),
+  'goalCount': z.number().readonly(),
+  'firstObservedAt': z.number().readonly(),
+  'lastObservedAt': z.number().readonly(),
+  'evidence': z.union([z.literal("repeated-skill-demand"), z.literal("shared-resolved-candidate")]).readonly(),
+  'status': z.literal("evidence-only").readonly(),
+  'releaseAuthority': z.literal("none").readonly(),
+})).readonly(),
 })]).readonly().optional(),
   'skillDiscovery': z.union([z.undefined(), z.object({
   'quarantinedCount': z.number().readonly(),
@@ -1427,8 +1441,12 @@ export const TYPERT = {
             "declaration": "export interface EvolutionAutomaticReviewExpiryView {\n    readonly eligibleAt: string;\n    readonly eligible: boolean;\n    readonly trigger: 'next-same-skill-automatic-signal';\n}"
           },
           {
+            "name": "EvolutionCapabilityGapClusterView",
+            "declaration": "export interface EvolutionCapabilityGapClusterView {\n    readonly id: string;\n    readonly canonicalSkill: string;\n    readonly resolvedSkill?: string;\n    readonly requestedSkillCount: number;\n    readonly requestedSkills: readonly string[];\n    readonly gapCount: number;\n    readonly goalCount: number;\n    readonly firstObservedAt: number;\n    readonly lastObservedAt: number;\n    readonly evidence: 'repeated-skill-demand' | 'shared-resolved-candidate';\n    readonly status: 'evidence-only';\n    readonly releaseAuthority: 'none';\n}"
+          },
+          {
             "name": "EvolutionCapabilityGapQueueView",
-            "declaration": "export interface EvolutionCapabilityGapQueueView {\n    readonly confirmedCount: number;\n    readonly items: readonly EvolutionCapabilityGapView[];\n}"
+            "declaration": "export interface EvolutionCapabilityGapQueueView {\n    readonly confirmedCount: number;\n    readonly items: readonly EvolutionCapabilityGapView[];\n    readonly clusters: readonly EvolutionCapabilityGapClusterView[];\n}"
           },
           {
             "name": "EvolutionCapabilityGapView",
