@@ -246,9 +246,9 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'releaseAuthority': z.literal("none").readonly(),
 })).readonly(),
 })]).readonly().optional(),
-  'skillDiscovery': z.union([z.undefined(), z.object({
+  'skillCandidates': z.union([z.undefined(), z.object({
   'quarantinedCount': z.number().readonly(),
-  'candidates': z.array(z.object({
+  'items': z.array(z.object({
   'id': z.string().readonly(),
   'discoveredAt': z.number().readonly(),
   'gapId': z.string().readonly(),
@@ -350,24 +350,9 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'verification': z.literal("unevaluated").readonly(),
   'execution': z.literal("never").readonly(),
 })).readonly(),
-  'attempts': z.array(z.object({
-  'id': z.string().readonly(),
-  'gapId': z.string().readonly(),
-  'requestedSkill': z.string().readonly(),
-  'startedAt': z.number().readonly(),
-  'completedAt': z.number().readonly(),
-  'status': z.union([z.literal("candidate-found"), z.literal("abstained"), z.literal("partial")]).readonly(),
-  'candidateIds': z.array(z.string()).readonly(),
-  'reasons': z.array(z.union([z.literal("no-trusted-sources"), z.literal("no-exact-skill"), z.literal("no-semantic-match"), z.literal("ambiguous-semantic-match"), z.literal("invalid-skill-package"), z.literal("source-unavailable"), z.literal("unsupported-index-schema"), z.literal("unsupported-artifact-type"), z.literal("untrusted-artifact-origin"), z.literal("artifact-digest-mismatch")])).readonly(),
-  'sources': z.array(z.object({
-  'id': z.string().readonly(),
-  'status': z.union([z.literal("candidate"), z.literal("absent"), z.literal("no-match"), z.literal("ambiguous"), z.literal("invalid"), z.literal("unavailable"), z.literal("unsupported-schema"), z.literal("unsupported-artifact"), z.literal("untrusted-origin"), z.literal("digest-mismatch")]).readonly(),
-  'revision': z.union([z.undefined(), z.string()]).readonly().optional(),
-})).readonly(),
-})).readonly(),
 })]).readonly().optional(),
   'slowLoopAuthoring': z.union([z.undefined(), z.object({
-  'configuredTargetCount': z.number().readonly(),
+  'configuredPolicyCount': z.number().readonly(),
   'warningCount': z.number().readonly(),
   'runs': z.array(z.object({
   'id': z.string().readonly(),
@@ -376,57 +361,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'clusterId': z.string().readonly(),
   'gapCount': z.number().readonly(),
   'goalCount': z.number().readonly(),
-  'phase': z.union([z.literal("incomplete"), z.literal("prepared"), z.literal("budget-deferred"), z.literal("cancelled"), z.literal("research-pending"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("candidate-ready")]).readonly(),
-  'createdAt': z.string().readonly(),
-  'updatedAt': z.string().readonly(),
-  'modelCalls': z.union([z.literal(0), z.literal(1)]).readonly(),
-  'inputTokens': z.number().readonly(),
-  'outputTokens': z.number().readonly(),
-  'researchDigest': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'candidateId': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'retryAt': z.union([z.undefined(), z.number()]).readonly().optional(),
-  'releaseAuthority': z.literal("none").readonly(),
-})).readonly(),
-})]).readonly().optional(),
-  'researchHoldout': z.union([z.undefined(), z.object({
-  'configuredTargetCount': z.number().readonly(),
-  'warningCount': z.number().readonly(),
-  'results': z.array(z.object({
-  'id': z.string().readonly(),
-  'candidateId': z.string().readonly(),
-  'skillName': z.string().readonly(),
-  'targetId': z.string().readonly(),
-  'status': z.union([z.literal("incomplete"), z.literal("budget-deferred"), z.literal("cancelled"), z.literal("uncertain"), z.literal("pass"), z.literal("fail"), z.literal("inconclusive")]).readonly(),
-  'reason': z.union([z.literal("cancelled-before-dispatch"), z.literal("daily-evaluation-budget-exhausted"), z.literal("evaluator-not-independent"), z.literal("local-validation-failed"), z.literal("paid-evaluation-outcome-uncertain"), z.literal("invalid-evaluator-response"), z.literal("all-verification-anchors-satisfied"), z.literal("verification-anchor-failed"), z.literal("verification-anchor-unresolved")]).readonly(),
-  'researchDigest': z.string().readonly(),
-  'candidateTreeHash': z.string().readonly(),
-  'evaluatorIdentityHash': z.string().readonly(),
-  'modelCalls': z.union([z.literal(0), z.literal(1)]).readonly(),
-  'inputTokens': z.number().readonly(),
-  'outputTokens': z.number().readonly(),
-  'findings': z.array(z.object({
-  'anchorDigest': z.string().readonly(),
-  'assessment': z.union([z.literal("satisfied"), z.literal("violated"), z.literal("unresolved")]).readonly(),
-})).readonly(),
-  'retryAt': z.union([z.undefined(), z.number()]).readonly().optional(),
-  'releaseAuthority': z.literal("none").readonly(),
-})).readonly(),
-})]).readonly().optional(),
-  'researchRevision': z.union([z.undefined(), z.object({
-  'configuredTargetCount': z.number().readonly(),
-  'warningCount': z.number().readonly(),
-  'runs': z.array(z.object({
-  'id': z.string().readonly(),
-  'parentCandidateId': z.string().readonly(),
-  'skillName': z.string().readonly(),
-  'targetId': z.string().readonly(),
-  'status': z.union([z.literal("incomplete"), z.literal("budget-deferred"), z.literal("cancelled"), z.literal("uncertain"), z.literal("candidate-ready")]).readonly(),
-  'reason': z.union([z.literal("cancelled-before-dispatch"), z.literal("local-validation-failed"), z.literal("daily-revision-budget-exhausted"), z.literal("paid-revision-outcome-uncertain"), z.literal("invalid-reviser-response"), z.literal("candidate-quarantine-failed"), z.literal("revised-candidate-ready")]).readonly(),
-  'holdoutResultId': z.string().readonly(),
-  'researchDigest': z.string().readonly(),
-  'parentTreeHash': z.string().readonly(),
-  'inputDigest': z.string().readonly(),
-  'reviserIdentityHash': z.string().readonly(),
+  'phase': z.union([z.literal("incomplete"), z.literal("prepared"), z.literal("budget-deferred"), z.literal("cancelled"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("candidate-ready")]).readonly(),
   'createdAt': z.string().readonly(),
   'updatedAt': z.string().readonly(),
   'modelCalls': z.union([z.literal(0), z.literal(1)]).readonly(),
@@ -1774,15 +1709,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionOverview",
-            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly workspaceId: string;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly automaticPromotion: { readonly enabled: boolean; readonly skills: readonly string[]; };\n    readonly capabilityMap?: EvolutionCapabilityMapView;\n    readonly capabilityGaps?: EvolutionCapabilityGapQueueView;\n    readonly skillOpportunities?: EvolutionSkillOpportunityQueueView;\n    readonly skillDiscovery?: EvolutionSkillDiscoveryView;\n    readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView;\n    readonly researchHoldout?: EvolutionResearchSkillHoldoutView;\n    readonly researchRevision?: EvolutionResearchSkillRevisionView;\n    readonly skillAdmission?: EvolutionSkillAdmissionView;\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; readonly baseline?: DeliveryOutcomeCounts; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly feedbackShadow?: { readonly available: boolean; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly runs: readonly EvolutionShadowRunView[]; };\n    readonly automaticFeedbackBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly automaticEvaluatorBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly evaluatorAuthoring?: { readonly available: boolean; readonly actionableCount: number; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly drafts: readonly EvolutionEvaluatorDraftView[]; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
-          },
-          {
-            "name": "EvolutionResearchSkillHoldoutView",
-            "declaration": "export interface EvolutionResearchSkillHoldoutView {\n    readonly configuredTargetCount: number;\n    readonly warningCount: number;\n    readonly results: readonly { readonly id: string; readonly candidateId: string; readonly skillName: string; readonly targetId: string; readonly status: 'cancelled' | 'budget-deferred' | 'uncertain' | 'incomplete' | 'pass' | 'fail' | 'inconclusive'; readonly reason: 'cancelled-before-dispatch' | 'daily-evaluation-budget-exhausted' | 'evaluator-not-independent' | 'local-validation-failed' | 'paid-evaluation-outcome-uncertain' | 'invalid-evaluator-response' | 'all-verification-anchors-satisfied' | 'verification-anchor-failed' | 'verification-anchor-unresolved'; readonly researchDigest: string; readonly candidateTreeHash: string; readonly evaluatorIdentityHash: string; readonly modelCalls: 0 | 1; readonly inputTokens: number; readonly outputTokens: number; readonly findings: readonly { readonly anchorDigest: string; readonly assessment: 'satisfied' | 'violated' | 'unresolved'; }[]; readonly retryAt?: number; readonly releaseAuthority: 'none'; }[];\n}"
-          },
-          {
-            "name": "EvolutionResearchSkillRevisionView",
-            "declaration": "export interface EvolutionResearchSkillRevisionView {\n    readonly configuredTargetCount: number;\n    readonly warningCount: number;\n    readonly runs: readonly { readonly id: string; readonly parentCandidateId: string; readonly skillName: string; readonly targetId: string; readonly status: 'cancelled' | 'budget-deferred' | 'uncertain' | 'incomplete' | 'candidate-ready'; readonly reason: 'cancelled-before-dispatch' | 'daily-revision-budget-exhausted' | 'local-validation-failed' | 'paid-revision-outcome-uncertain' | 'invalid-reviser-response' | 'candidate-quarantine-failed' | 'revised-candidate-ready'; readonly holdoutResultId: string; readonly researchDigest: string; readonly parentTreeHash: string; readonly inputDigest: string; readonly reviserIdentityHash: string; readonly createdAt: string; readonly updatedAt: string; readonly modelCalls: 0 | 1; readonly inputTokens: number; readonly outputTokens: number; readonly candidateId?: string; readonly retryAt?: number; readonly releaseAuthority: 'none'; }[];\n}"
+            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly workspaceId: string;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly automaticPromotion: { readonly enabled: boolean; readonly skills: readonly string[]; };\n    readonly capabilityMap?: EvolutionCapabilityMapView;\n    readonly capabilityGaps?: EvolutionCapabilityGapQueueView;\n    readonly skillOpportunities?: EvolutionSkillOpportunityQueueView;\n    readonly skillCandidates?: EvolutionSkillCandidateQueueView;\n    readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView;\n    readonly skillAdmission?: EvolutionSkillAdmissionView;\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; readonly baseline?: DeliveryOutcomeCounts; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly feedbackShadow?: { readonly available: boolean; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly runs: readonly EvolutionShadowRunView[]; };\n    readonly automaticFeedbackBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly automaticEvaluatorBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly evaluatorAuthoring?: { readonly available: boolean; readonly actionableCount: number; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly drafts: readonly EvolutionEvaluatorDraftView[]; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
           },
           {
             "name": "EvolutionReviewCaseView",
@@ -1809,12 +1736,8 @@ export const TYPERT = {
             "declaration": "export interface EvolutionSkillAdmissionView {\n    readonly configuredTargetCount: number;\n    readonly warningCount: number;\n    readonly results: readonly { readonly id: string; readonly candidateId: string; readonly skillName: string; readonly status: 'abstained' | 'protected' | 'incomplete' | 'rejected' | 'review' | 'qualified-for-shadow'; readonly reasons: readonly ('no-exact-evaluation-target' | 'candidate-has-executable-content' | 'candidate-is-not-instruction-only' | 'research-holdout-pass-required' | 'baseline-identity-mismatch' | 'case-pack-identity-mismatch' | 'assembled-evaluator-not-governance-separated' | 'case-pack-calibration-failed' | 'candidate-failed-admission' | 'baseline-already-passes' | 'candidate-improves-deterministic-admission' | 'governance-input-mutated' | 'governance-roots-overlap' | 'evaluation-failed')[]; readonly targetId?: string; readonly researchHoldoutResultId?: string; readonly releaseAuthority: 'none'; readonly evidence?: { readonly baseline: 'pass' | 'fail'; readonly candidate: 'pass' | 'fail'; readonly calibrationPassed: boolean; readonly candidateExecuted: false; readonly evaluatorClass: 'deterministic-filesystem'; readonly trialCount: 4; }; }[];\n}"
           },
           {
-            "name": "EvolutionSkillDiscoveryAttemptView",
-            "declaration": "export interface EvolutionSkillDiscoveryAttemptView {\n    readonly id: string;\n    readonly gapId: string;\n    readonly requestedSkill: string;\n    readonly startedAt: number;\n    readonly completedAt: number;\n    readonly status: 'candidate-found' | 'abstained' | 'partial';\n    readonly candidateIds: readonly string[];\n    readonly reasons: readonly ('no-trusted-sources' | 'no-exact-skill' | 'no-semantic-match' | 'ambiguous-semantic-match' | 'invalid-skill-package' | 'source-unavailable' | 'unsupported-index-schema' | 'unsupported-artifact-type' | 'untrusted-artifact-origin' | 'artifact-digest-mismatch')[];\n    readonly sources: readonly { readonly id: string; readonly status: 'candidate' | 'absent' | 'no-match' | 'ambiguous' | 'invalid' | 'unavailable' | 'unsupported-schema' | 'unsupported-artifact' | 'untrusted-origin' | 'digest-mismatch'; readonly revision?: string; }[];\n}"
-          },
-          {
-            "name": "EvolutionSkillDiscoveryView",
-            "declaration": "export interface EvolutionSkillDiscoveryView {\n    readonly quarantinedCount: number;\n    readonly candidates: readonly EvolutionDiscoveredSkillCandidateView[];\n    readonly attempts: readonly EvolutionSkillDiscoveryAttemptView[];\n}"
+            "name": "EvolutionSkillCandidateQueueView",
+            "declaration": "export interface EvolutionSkillCandidateQueueView {\n    readonly quarantinedCount: number;\n    readonly items: readonly EvolutionDiscoveredSkillCandidateView[];\n}"
           },
           {
             "name": "EvolutionSkillOpportunityQueueView",
@@ -1826,7 +1749,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionSlowLoopAuthoringView",
-            "declaration": "export interface EvolutionSlowLoopAuthoringView {\n    readonly configuredTargetCount: number;\n    readonly warningCount: number;\n    readonly runs: readonly { readonly id: string; readonly targetId: string; readonly skillName: string; readonly clusterId: string; readonly gapCount: number; readonly goalCount: number; readonly phase: 'prepared' | 'budget-deferred' | 'cancelled' | 'research-pending' | 'authoring-pending' | 'uncertain' | 'incomplete' | 'candidate-ready'; readonly createdAt: string; readonly updatedAt: string; readonly modelCalls: 0 | 1; readonly inputTokens: number; readonly outputTokens: number; readonly researchDigest?: string; readonly candidateId?: string; readonly retryAt?: number; readonly releaseAuthority: 'none'; }[];\n}"
+            "declaration": "export interface EvolutionSlowLoopAuthoringView {\n    readonly configuredPolicyCount: number;\n    readonly warningCount: number;\n    readonly runs: readonly { readonly id: string; readonly targetId: string; readonly skillName: string; readonly clusterId: string; readonly gapCount: number; readonly goalCount: number; readonly phase: 'prepared' | 'budget-deferred' | 'cancelled' | 'authoring-pending' | 'uncertain' | 'incomplete' | 'candidate-ready'; readonly createdAt: string; readonly updatedAt: string; readonly modelCalls: 0 | 1; readonly inputTokens: number; readonly outputTokens: number; readonly candidateId?: string; readonly retryAt?: number; readonly releaseAuthority: 'none'; }[];\n}"
           }
         ]
       }

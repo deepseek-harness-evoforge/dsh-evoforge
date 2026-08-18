@@ -1,6 +1,6 @@
 # DeepSeek Harness EvoForge 项目需求基线
 
-> 状态：已确认；P0A–P1.21、P2A.1–P2D.1、P3.1、P3.2、LC-1、LC-2 和 Runtime Readiness 已有可复用实现，产品形态已纠正为“只安装并运行于 DSH 的原生 out-of-tree 插件套件”；十一包统一原生安装、多 Workspace 双渠道自动化隔离、Workspace-scoped evolution、零基础浏览器复验、真实飞书 App 握手/setup-only 配对与 EV-1、SD-1、LC-1、AS-1 approval 四个确定性 Hermes paired slice 已通过。自然 Goal→可复核 Gap→本地可信 Git whole-Skill 的 exact-first 确定性语义发现，以及 Agent Skills Discovery v0.2 `skill-md`/`.tar.gz`/`.zip` 的同源、摘要先验、安全解包与隔离候选已有纵切；任意市场搜索、无候选时生成、完整独立评测治理、双速进化闭环、exact 飞书 route 消息、长期 outcome 与其余 Hermes paired epochs 等完整真实验收完成前仍不构成 v0.1 交付
+> 状态：已确认；P0A–P1.21、P2A.1–P2D.1、P3.1、P3.2、LC-1、LC-2 和 Runtime Readiness 已有可复用实现，产品形态已纠正为“只安装并运行于 DSH 的原生 out-of-tree 插件套件”；十一包统一原生安装、多 Workspace 双渠道自动化隔离、Workspace-scoped evolution、零基础浏览器复验、真实飞书 App 握手/setup-only 配对与 EV-1、SD-1、LC-1、AS-1 approval 四个确定性 Hermes paired slice 已通过。自然 Goal→可复核 Capability Gap→跨 Goal 内部经验聚合→Skill Opportunity→隔离 whole-Skill Candidate 已形成纵切；完整独立评测治理、双速进化闭环、exact 飞书 route 消息、长期 outcome 与其余 Hermes paired epochs 等真实验收完成前仍不构成 v0.1 交付
 > 更新日期：2026-08-18
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。发生冲突时，下述“方向纠正”优先于旧里程碑文字。
 
@@ -150,10 +150,11 @@ EvoForge 首先服务软件开发交付，同时允许个人助理、内容、�
 必须满足：
 
 - 先检查当前 Workspace 中可用、适用且已验证的 Skill/Tool；有现成能力时自主调用，不把选路责任转交用户；
-- 没有适用能力时记录可复核的 Capability Gap，并可按部署者显式信任范围搜索本地包、已安装来源、官方市场、官方文档、论文与开源实现；
-- 外部发现只产生带稳定 identity、来源、scope、版本、内容哈希、权限与安全状态的非活动候选；不得静默安装、启用或执行未知代码；
+- 没有适用能力时记录可复核的 Capability Gap；“自我发现 Skill”只从 DSH 自身 Goal、失败、纠正、交付结果、复用与保留证据中发现应形成或改进的可复用能力，不以运行时外部搜索代替自我发现；
+- Hermes、OpenClaw、HanaAgent、论文、市场与开源实现只用于设计期调研和固定 revision benchmark；若未来提供外部包获取，必须是与自我发现解耦的显式受信候选导入能力，不得改变本条语义；
+- 内部发现和生成只产生带稳定 identity、Workspace、版本、内容哈希、权限与安全状态的非活动候选；不得静默安装、启用或执行未知代码；
 - 进化单位可以是完整 Skill folder（`SKILL.md`、scripts、references 与清单），必须原子版本化，不能只优化一段 prompt 就宣称能力进化；
-- 在线快环只捕获可归因信号、缺口和小步候选；离线慢环负责跨任务聚类、搜索、迁移、遗忘、负迁移和长期保留判断；
+- 在线快环只捕获可归因信号、缺口和小步候选；离线慢环负责跨任务机会发现、候选生成、迁移、遗忘、负迁移和长期保留判断；
 - evaluator、holdout、gold、hard gate 与发布资格由 Candidate 不可读写的独立 Evaluation Governance Plane 持有；隔离无法证明时 Trial 为 `incomplete`；
 - 无法证明改善时允许 `abstain`；一次成功、模型自评、使用次数、重试成功或安全扫描通过均不能单独晋升；
 - 原会话不等待后台学习或人工审批；
@@ -307,7 +308,7 @@ workspace，输出可审查的 launchd/systemd unit。OS service manager 与 uni
 
 1. 只在 `main` 收拢并持续推送可验证现状；先修复 clean checkout、全包检查和 DSH 原生安装基线，禁止用新分支掩盖集成状态；
 2. 同步更新需求、领域模型、增量调研、ADR、产品架构、路线图和验收记分卡，冻结“无开场选路、三平面、双速进化、独立评测、main/tag”约束；
-3. 以 test-first 方式补齐自然语言 Goal 到 Capability Map/Gap 的自主 Skill 发现、可信来源获取、稳定 identity/scope/version 与整包候选；
+3. 以 test-first 方式补齐自然语言 Goal 到 Capability Map/Gap/Skill Opportunity 的内部经验自我发现、稳定 identity/scope/version 与整包候选；运行时不搜索市场、ClawHub 或外部 Skill 来源；
 4. 把在线快环与离线慢环接入现有 Candidate/Trial/Generation，并证明 Candidate 无法影响 evaluator、holdout、gold 和晋升规则；
 5. 在 DSH Web 中形成可解释的能力、缺口、候选、评测、回滚和飞书健康视图；关键动作继续走原生 Command/Approval；
 6. 完成 exact 飞书 route 的消息/Command/Approval/投递闭环与故障注入，不扩张为第二 Gateway；
@@ -322,63 +323,31 @@ workspace，输出可审查的 launchd/systemd unit。OS service manager 与 uni
 exact route 消息和 Hermes paired 证据完成以前仍只标记为 `implemented`，不扩张为 Gateway，也不把
 其他消息、内容或日程需求视为已交付。该说明不改变以上需求顺序和权限边界。
 
-自主 Skill 发现已经完成一条更完整的可验证纵切：已有能力继续由模型依据 DSH 原生完整 Session Skill
-catalog 的 name/description 自主语义路由，并由原生 `skill` Tool 加载；没有适用 Skill 时，模型可在同一
-自然语言 Goal 中调用唯一稳定的 `report_capability_gap` Tool 提议一个有界 kebab-case 能力名。Host 会
-重新核对 exact Workspace/Session、active native Goal、完整 settled catalog 和 exact name 不存在，先将
-`model-declared-skill-gap` 证据持久化，再异步唤醒可信发现；既有原生 `skill` exact miss 仍作为不同证据
-来源保留。真实 DSH Agent Loop 已证明 Goal→Tool→持久 Gap→控制面投影，不需要用户选择路径、Agent、
-工作流或 Skill。该稳定 Tool 是有意声明的模型表面增量；64 轮门禁证明它的名称/Schema/顺序不随 host
-状态或 future Generation 漂移，移除该 Tool 后其余请求与原生控制组逐字节相同。
+自主 Skill 发现的现行纵切只使用 DSH 内部经验。已有能力继续由模型依据原生完整 Session Skill catalog
+自主路由并由原生 `skill` Tool 加载；没有适用 Skill 时，模型可在同一自然语言 Goal 中调用唯一稳定的
+`report_capability_gap` Tool 提议一个有界 kebab-case 能力名。Host 重新核对 exact Workspace/Session、active
+Goal、完整 settled catalog 和 exact name 不存在，再持久化 `model-declared-skill-gap`；原生 `skill` exact miss
+仍作为另一类内部证据。用户不选择路径、Agent、工作流、Skill 或来源。该 Tool 的名称、描述、Schema 和顺序
+在 Session 内稳定，移除它后其余请求保持原生 composition 等价。
 
-后台只扫描部署者显式授信的本地 Git 来源与 Agent Skills Discovery v0.2 index：先按提议的 exact Skill name
-查询；exact 路径不存在且 Gap 绑定 active Goal 时，再对同一固定 revision 中合法 `SKILL.md` 的
-name/description 做有界、确定性的词法语义检索。只有达到最低证据且相对次名有明确间隔的唯一候选才固定
-commit/tree/content hash；弱匹配、歧义、跨源 artifact、digest 不符或非法 exact package 均持久记录 abstain，
-不允许借近似项绕过 exact 身份错误。完整目录仍作为
-quarantined、inactive、unevaluated、never-executed 候选。确定性
-whole-Skill admission 与独立 assembled holdout Shadow 已接入，清晰胜出仍只形成 inactive 人工审查
-Candidate，不获得发布权。Web 已展示有界 Capability Map、Gap、候选、来源、权限和状态，不提供模型
-选路、安装或激活按钮，并明确展示原始 Gap→实际 Skill 的匹配与“词法证据分数（非置信度）”。外部市场/
-首个无候选生成纵切已接通：同一 Workspace、同一 exact Skill 至少两个不同 Goal 的重复 Gap，在可信
-discovery 已结算且任一成员 Gap 都没有 Candidate 时，只有部署者静态配置的 `slowLoopAuthorTargets`
-才能用原生 Jobs 和持久 UTC 日预算启动研究驱动 authoring。DSH Web research 将 knowledge 与扣留 verification
-分轨；author 只能看到跨 Goal 证据和 knowledge，并返回 root `SKILL.md + references/*.md` 的完整 instruction-only
-manifest。宿主确定性组装 archive、绑定 research/artifact/tree/model/input 血缘，再进入 quarantine、独立
-Holdout、确定性 admission 与既有 Shadow 链。research-v2/v3 只能携带与精确 Candidate/research/tree
-一致的持久 `pass` Holdout receipt 进入 admission；receipt 只保留身份字段，不携带 findings、
-evaluator identity、attribution 或成本。该 Holdout result id 必须参与 admission 内容寻址
-身份、持久状态和 Web 投影，缺失、失败、旧产物或错 Candidate receipt 在物化前 fail closed。
-admission 向 assembled Shadow 交接时还必须由宿主生成 identity-only `Discovered Skill Lineage`：绑定
-Candidate/version/source/content/tree、admission，以及 research-v2/v3 的 research、父 revision、失败 Holdout
-和通过 Holdout 身份。它进入 Shadow run id、journal、report 与 Review evidence；Skill 正文、宿主路径、
-research attribution 及 author/evaluator/provider identity 不进入。研究包物化 tree 与其 Holdout tree 不一致时在
-Trial 前 fail closed，resume 或 report 篡改不得降级为无血缘 Candidate。该血缘进入最终 Generation 与 Web 的
-投影已经实现：Publisher 必须再次核对 Review 的 Workspace、Skill 与 sealed Candidate tree，随后把严格解析的
-identity-only lineage 写入 immutable Skill Generation artifact；lineage 参与 Generation 内容寻址身份，重启后仍
-不可变。活动、待启用和待审核状态均由同一 Host 控制面投影；其中“待启用”只信任已发布 Generation artifact，
-artifact 与 Review tree 不一致时不显示血缘。Web 只显示截断 id、来源种类和证据顺序，不显示 Skill 正文、私有
-路径、模型 route、provider 或 evaluator attribution，也不由 lineage 增加安装、激活或发布接口。
-可能已经付费但结果未知时持久化 `uncertain` 并拒绝盲重试。
-真实 provider 的正确缺口判断、完整 paired 全链和长期迁移证据仍未完成，不能据此宣称 V4 退出门通过。
+`ExperienceDrivenSkillOpportunityDiscovery` 只读取同一 Workspace 的 durable、Goal-linked Gap。至少两个不同
+Goal 对同一能力形成重复证据才派生一个 `eligible-for-authoring` Skill Opportunity；同一 Goal retry、无 Goal、
+跨 Workspace 或证据不足都 abstain。Workspace 级 `selfDiscoveryPolicies` 只授权 owned run root 与日预算，
+不接受 Skill 名、路径、来源或工作流；Skill 名只能来自 Opportunity。原生 Jobs 中的 author 只接收有界 Goal/
+Gap 证据，不能执行外部搜索，返回 root `SKILL.md + references/*.md` 的 instruction-only whole-Skill manifest。
+Host 确定性组装 archive、绑定 opportunity/gap/goal/model/input/artifact/tree 血缘，并只写入 quarantined、
+inactive、unevaluated、never-executed Candidate。可能已经付费但结果未知时持久化 `uncertain` 并拒绝盲重试；
+取消后的迟到响应不得落候选。该模块没有安装、激活或发布接口。
 
-慢环已增加第一条不调用模型的跨 Goal 需求聚类：只使用同一 Workspace 的 durable、Goal-linked Gap；至少
-两个不同 Goal id 才成立，同一 Goal 的 retry 不会放大需求。不同 Gap name 只有在发现链路已把它们各自
-固定到同一 quarantined Skill identity 时才合并；一个 Gap 出现多个冲突候选时直接排除。聚类由原始证据
-确定性派生，在 Web 显示次数、独立 Goal 数、原始提议和收敛 Skill，cluster 本身仍只有
-`evidence-only` 与 `releaseAuthority: none`。部署者可另行静态授权 exact Skill 的慢环 author target；
-该消费者有界生成隔离 Candidate，但没有安装、激活或发布接口。cluster-driven、研究分轨、whole-Skill 组装与
-独立 Holdout 已形成可验证纵切；真实 provider paired run 和长期迁移证据仍未完成。
+DSH Web 已投影 `Capability Gap → Skill Opportunity → Candidate → authoring state`，展示证据 Goal 数、Gap 数、
+Candidate id、预算/调用和隔离状态，不提供路线、来源、安装或激活菜单。旧的本地 Git/Agent Skills index/
+ClawHub/运行时 Web research 方案不再是现行自我发现路径；相关历史 evidence 只说明过去实现，不构成当前产品
+声明。Hermes、OpenClaw、HanaAgent、市场、论文与开源实现继续用于设计期固定 revision 调研与 paired benchmark。
 
-研究驱动 whole-Skill 的迭代必须是宿主约束的一次性修订，不是 author 自评分或无限反思循环。部署者需要为
-每个独立 Holdout 配置同一 Workspace+Skill 的 `researchRevisionTargets`，且 revision journal、Holdout、
-authoring、admission、Shadow 与其他治理根不得重叠。只有原始 research-v2 Candidate 的持久化
-`fail/inconclusive` 才能进入单独日预算和 native Job；宿主重新核对 Candidate/tree/research/Holdout 身份，只把
-失败或未决锚的 digest、assessment 和有界 attribution 交给 reviser，不交出 verification excerpt、URL、
-knowledge、模型 route 或私有路径。模型必须返回完整 text-only Skill 包，宿主拒绝无变化 tree、非法 manifest
-或伪造 lineage，并将结果写成 inactive/quarantined/unevaluated/never-executed 的 revision-v3。v3 必须重新经过
-独立 Holdout；即使再次失败也不得递归生成 v4。付费调用结果不确定时禁止盲重试，Web 只显示摘要血缘、状态与
-成本，不提供安装、激活或发布入口。
+确定性 admission、assembled Shadow、Review、immutable Generation、future-Session promotion 与 rollback 的既有
+治理路径仍保留，但新 Opportunity Candidate 尚未完成一条真实 provider 的独立 case/holdout→admission→Shadow→
+Retention 纵切。下一阶段必须从 Goal outcome、explicit correction、失败类和回归样本构造 Candidate 不可读写的
+Evaluation Governance Plane；没有独立证据时 abstain，不能回退到外部搜索、author 自评或一次成功即晋升。
 
 在 P1.1 之后，先实现 `dsh-software-delivery` 的最小 objective outcome：稳定按需 Skill 与
 linked-worktree/commit/check 验证器。只有真实交付 outcome 可用后，才建设 future-session
@@ -443,6 +412,7 @@ Case Pack authoring 先提供零模型校准命令，不创建新 Service 或 SD
 - 用户只提供自然语言 Goal、材料、约束和验收条件；系统内部自主发现并选择 Skill/路径，不提供开场路由菜单。
 - 自进化采用稳定执行面、隔离进化面、独立评测治理面，以及在线快环/离线慢环；没有充分证据时必须 abstain。
 - 自主获取的能力只能先成为可追踪、可隔离、可评测的完整 Skill 包候选，不能静默安装到活动 Session。
+- “自我发现 Skill”只指从 DSH 内部 Goal/失败/纠正/outcome/复用与保留证据发现应形成或改进的能力；外部生态调研是设计期输入，不是运行时自我发现。
 - `dsh-evoforge` 自身只在 `main` 小步提交并实时同步 `origin/main`；核心门禁通过后才用 annotated semantic tag 标记迭代。
 - 飞书是首批正式集成能力，Web 必须可视化能力图、缺口、候选谱系、评测/成本/安全/回滚与飞书健康，但不得成为第二权威控制面。
 
@@ -466,5 +436,6 @@ Case Pack authoring 先提供零模型校准命令，不创建新 Service 或 SD
 - [ADR：EvoForge 仓库边界](adr/0005-evoforge-repository-boundaries.md)
 - [ADR：自主 Skill 发现采用三平面双速闭环](adr/0046-autonomous-skill-discovery-uses-three-planes-and-two-speeds.md)
 - [ADR：main 是实时开发线，tag 只标记验证发布](adr/0047-main-is-the-live-development-line-and-tags-mark-verified-releases.md)
+- [ADR：自我发现只从 DSH 自身经验学习](adr/0048-self-discovery-learns-from-dsh-experience.md)
 
 若后续对话改变已确认要求，应在同一轮更新本文相应章节；历史架构文档不得凌驾于本需求基线。

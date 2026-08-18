@@ -1,5 +1,7 @@
 # V4-6 跨 Goal 有界 Skill 生成调度证据
 
+> 历史证据：本页记录过往实现，不代表当前产品主链路或能力声明。运行时外部发现/研究方案已撤销；当前自我发现语义与实现见 [V4-8](v4-8-internal-skill-opportunity-discovery.zh.md)。
+
 > 日期：2026-08-18
 > 状态：implemented and locally verified
 > 边界：证明 unresolved 同名跨 Goal Gap 可通过 DSH 原生 Jobs、持久预算和崩溃状态机生成一个

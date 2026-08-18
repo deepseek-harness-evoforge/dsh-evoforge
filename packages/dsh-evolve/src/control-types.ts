@@ -273,52 +273,14 @@ export interface EvolutionDiscoveredSkillCandidateView {
   readonly execution: 'never'
 }
 
-export interface EvolutionSkillDiscoveryAttemptView {
-  readonly id: string
-  readonly gapId: string
-  readonly requestedSkill: string
-  readonly startedAt: number
-  readonly completedAt: number
-  readonly status: 'candidate-found' | 'abstained' | 'partial'
-  readonly candidateIds: readonly string[]
-  readonly reasons: readonly (
-    | 'no-trusted-sources'
-    | 'no-exact-skill'
-    | 'no-semantic-match'
-    | 'ambiguous-semantic-match'
-    | 'invalid-skill-package'
-    | 'source-unavailable'
-    | 'unsupported-index-schema'
-    | 'unsupported-artifact-type'
-    | 'untrusted-artifact-origin'
-    | 'artifact-digest-mismatch'
-  )[]
-  readonly sources: readonly {
-    readonly id: string
-    readonly status:
-      | 'candidate'
-      | 'absent'
-      | 'no-match'
-      | 'ambiguous'
-      | 'invalid'
-      | 'unavailable'
-      | 'unsupported-schema'
-      | 'unsupported-artifact'
-      | 'untrusted-origin'
-      | 'digest-mismatch'
-    readonly revision?: string
-  }[]
-}
-
-export interface EvolutionSkillDiscoveryView {
+export interface EvolutionSkillCandidateQueueView {
   readonly quarantinedCount: number
-  readonly candidates: readonly EvolutionDiscoveredSkillCandidateView[]
-  readonly attempts: readonly EvolutionSkillDiscoveryAttemptView[]
+  readonly items: readonly EvolutionDiscoveredSkillCandidateView[]
 }
 
 /** Durable slow-loop authoring state; generated bodies and private paths stay host-only. */
 export interface EvolutionSlowLoopAuthoringView {
-  readonly configuredTargetCount: number
+  readonly configuredPolicyCount: number
   readonly warningCount: number
   readonly runs: readonly {
     readonly id: string
@@ -331,93 +293,10 @@ export interface EvolutionSlowLoopAuthoringView {
       | 'prepared'
       | 'budget-deferred'
       | 'cancelled'
-      | 'research-pending'
       | 'authoring-pending'
       | 'uncertain'
       | 'incomplete'
       | 'candidate-ready'
-    readonly createdAt: string
-    readonly updatedAt: string
-    readonly modelCalls: 0 | 1
-    readonly inputTokens: number
-    readonly outputTokens: number
-    readonly researchDigest?: string
-    readonly candidateId?: string
-    readonly retryAt?: number
-    readonly releaseAuthority: 'none'
-  }[]
-}
-
-/** Independent research evidence gate; excerpts, source URLs, routes, and attributions stay private. */
-export interface EvolutionResearchSkillHoldoutView {
-  readonly configuredTargetCount: number
-  readonly warningCount: number
-  readonly results: readonly {
-    readonly id: string
-    readonly candidateId: string
-    readonly skillName: string
-    readonly targetId: string
-    readonly status:
-      | 'cancelled'
-      | 'budget-deferred'
-      | 'uncertain'
-      | 'incomplete'
-      | 'pass'
-      | 'fail'
-      | 'inconclusive'
-    readonly reason:
-      | 'cancelled-before-dispatch'
-      | 'daily-evaluation-budget-exhausted'
-      | 'evaluator-not-independent'
-      | 'local-validation-failed'
-      | 'paid-evaluation-outcome-uncertain'
-      | 'invalid-evaluator-response'
-      | 'all-verification-anchors-satisfied'
-      | 'verification-anchor-failed'
-      | 'verification-anchor-unresolved'
-    readonly researchDigest: string
-    readonly candidateTreeHash: string
-    readonly evaluatorIdentityHash: string
-    readonly modelCalls: 0 | 1
-    readonly inputTokens: number
-    readonly outputTokens: number
-    readonly findings: readonly {
-      readonly anchorDigest: string
-      readonly assessment: 'satisfied' | 'violated' | 'unresolved'
-    }[]
-    readonly retryAt?: number
-    readonly releaseAuthority: 'none'
-  }[]
-}
-
-/** One-shot revision journal; Skill bodies, findings, model routes, and private paths stay host-only. */
-export interface EvolutionResearchSkillRevisionView {
-  readonly configuredTargetCount: number
-  readonly warningCount: number
-  readonly runs: readonly {
-    readonly id: string
-    readonly parentCandidateId: string
-    readonly skillName: string
-    readonly targetId: string
-    readonly status:
-      | 'cancelled'
-      | 'budget-deferred'
-      | 'uncertain'
-      | 'incomplete'
-      | 'candidate-ready'
-    readonly reason:
-      | 'cancelled-before-dispatch'
-      | 'daily-revision-budget-exhausted'
-      | 'local-validation-failed'
-      | 'paid-revision-outcome-uncertain'
-      | 'invalid-reviser-response'
-      | 'candidate-quarantine-failed'
-      | 'revised-candidate-ready'
-    readonly holdoutResultId: string
-    readonly researchDigest: string
-    readonly parentTreeHash: string
-    readonly inputDigest: string
-    readonly reviserIdentityHash: string
     readonly createdAt: string
     readonly updatedAt: string
     readonly modelCalls: 0 | 1
@@ -615,10 +494,8 @@ export interface EvolutionOverview {
   readonly capabilityMap?: EvolutionCapabilityMapView
   readonly capabilityGaps?: EvolutionCapabilityGapQueueView
   readonly skillOpportunities?: EvolutionSkillOpportunityQueueView
-  readonly skillDiscovery?: EvolutionSkillDiscoveryView
+  readonly skillCandidates?: EvolutionSkillCandidateQueueView
   readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView
-  readonly researchHoldout?: EvolutionResearchSkillHoldoutView
-  readonly researchRevision?: EvolutionResearchSkillRevisionView
   readonly skillAdmission?: EvolutionSkillAdmissionView
   readonly deliveryOutcomes?: {
     readonly all: DeliveryOutcomeCounts

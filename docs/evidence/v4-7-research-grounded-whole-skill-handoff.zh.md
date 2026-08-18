@@ -1,5 +1,7 @@
 # V4-7：研究驱动的 whole-Skill 慢环交接
 
+> 历史证据：本页记录过往实现，不代表当前产品主链路或能力声明。运行时外部发现/研究方案已撤销；当前自我发现语义与实现见 [V4-8](v4-8-internal-skill-opportunity-discovery.zh.md)。
+
 > 状态：`implemented`。本切片完成研究采集到隔离 Candidate 的纵向主链；后续独立 Holdout 与
 > 一次性 revision 已分别在 `v4-7-independent-research-holdout.zh.md` 和
 > `v4-7-one-shot-research-revision.zh.md` 完成。真实 provider 下的整链 Retention 仍未完成，因此不打 tag。

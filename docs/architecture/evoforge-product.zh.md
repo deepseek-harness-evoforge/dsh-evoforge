@@ -1,6 +1,6 @@
 # EvoForge 产品架构
 
-> 状态：产品边界已确认；Telegram、飞书两个 Assistant Adapter 与进化注意力桥已实现；自主 Skill 发现、双速进化和完整可视化仍待实现与验收
+> 状态：产品边界已确认；Telegram、飞书两个 Assistant Adapter 与进化注意力桥已实现；内部经验驱动的 Skill Opportunity 纵切与 Web 可视化已实现，自主评估闭环仍待完成与验收
 > 更新日期：2026-08-18
 
 ## 1. 产品结果
@@ -30,17 +30,15 @@ DSH 始终拥有模型执行和基础服务；EvoForge 插件只增加用户结�
 
 ### dsh-evolve
 
-旗舰插件。现有 P0A–P1.21 已提供 Shadow、Generation、Session pin、反馈、晋升、监测和回滚底座；
-Capability Map、两种可区分的 Capability Gap、可信本地 Git whole-Skill 的 exact-first 确定性语义发现、
-evidence-only 跨 Goal 需求聚类、隔离准入和独立 assembled holdout Shadow 已进入同一个深模块。用户只
-提交自然语言 Goal；已有能力由 DSH 原生
-catalog/`skill` Tool 路由，确无适用能力时模型通过一个固定 `report_capability_gap` Tool 报告，Host 复核
-并先落盘，后台再形成 inactive 候选。聚类只从 durable Gap 和隔离候选 identity 派生，不自动行动。外部
-来源搜索/获取以及 cluster-driven Candidate 生成已进入 V4-7：DSH Web 提供
-official/open-source/frontier 三轨研究，Host 物理分离 knowledge 与 verification，组合
-text-only whole-Skill v2，再经独立私有 Holdout 和最多一次的 v3 修订；任意市场/
-ClawHub 专有接入与真实 provider 整链 outcome 仍待验证。在线快环只收集可归因信号和小步候选，
-离线慢环执行跨任务搜索、独立评测、保留和发布。Discovery、Observer、
+旗舰插件。现有 P0A–P1.21 已提供 Shadow、Generation、Session pin、反馈、晋升、监测和回滚底座。
+用户只提交自然语言 Goal；已有能力由 DSH 原生 catalog/`skill` Tool 路由，确无适用能力时模型通过固定
+`report_capability_gap` Tool 报告，Host 复核并持久化。`ExperienceDrivenSkillOpportunityDiscovery`
+只从 DSH 自身 Goal-linked Gap 中找重复模式：同一 Workspace、同一 Skill、至少两个独立 Goal 才形成
+Opportunity；同 Goal retry、无 Goal 和跨 Workspace 均 abstain。`selfDiscoveryPolicies` 只授权 Workspace、
+run root 与日预算，不预选 Skill、路径、来源、Agent 或 workflow。原生 Job author 只读取有界内部证据，
+Host 将 instruction-only whole-Skill v1 内容寻址并隔离为 inactive Candidate。在线快环收集可归因
+signal/gap/outcome，离线慢环负责跨 Goal 归纳、候选生成、独立评测、保留和发布。外部生态研究只用于
+设计期和冻结 benchmark；运行时外部搜索不是自我发现。Discovery、Observer、
 Trial Runner、Decision 与 Release 在证明有两个独立消费者或信任边界以前都保持内部模块，不为了名称
 数量拆成浅插件。
 
@@ -140,7 +138,7 @@ Resident 只恢复进程，Goal Continuity 只决定 exact Session 的原生 Goa
 | 软件交付 | 原生 Goal 到 verified commit/Draft PR | verified commit、幂等 Draft PR、可选 exact-head checks 门、有界 active-call wait 与原生 Goal 受验证完成 implemented；真实任务数据 pending |
 | 单机持续运行 | crash-resume、幂等恢复、无半激活版本 | Generation release + Shadow journal + native Jobs supervisor、`dsh-goal-continuity` Goal 冷恢复与 `dsh-resident` 真实 macOS DSH PID `SIGKILL` 拉起已实现；Linux 真机与生产多日 soak pending |
 | Memory/Skill | 复用 DSH/社区能力，不造第二套 Memory | 架构边界已确认 |
-| 自主 Skill 发现 | 自然语言 Goal 自动命中已验证能力；无能力时形成缺口并从可信来源产生完整候选 | 原生目录/路由证据、可证伪 Gap、local Git/Agent Skills v0.2 可信发现与安全 quarantine、跨 Goal 聚类、DSH Web 三轨研究、text-only whole-Skill v2、私有 Holdout、一次性 v3、确定性准入、独立 assembled Shadow 与 Web 解释 implemented；任意市场/ClawHub 专有接入、真实 provider 整链路、迁移/成本门禁与 paired benchmark pending |
+| 自主 Skill 发现 | 自然语言 Goal 自动命中已验证能力；无能力时从自身经验形成可复核 Opportunity 和完整候选 | 原生目录/路由证据、可证伪 Gap、至少两个独立 Goal 的内部 Opportunity、无 Skill 预配置的 Workspace policy、instruction-only whole-Skill v1 quarantine 与 Web Gap→Opportunity→Candidate implemented；独立 final-test/Shadow/Retention、真实 provider、迁移/成本门禁与 paired benchmark pending |
 | 消息与日程 | 按真实 workflow 提供可拆 Adapter | Telegram、飞书与 Evolve 注意力桥 implemented；真实飞书 App 握手与 setup-only 配对通过，exact route 消息/Hermes paired 与其他场景 pending |
 | 人类控制 | 状态、证据、审批、暂停、回滚不阻塞会话 | P0C Commands/Web + P3.1 非阻塞 Telegram attention + P3.2 Draft PR review follow-up implemented；语义 capability 审计与陌生用户可用性数据 pending |
 | 自进化 | 独立 final-test、inactive Candidate、可证明晋升 | P0A `fail → pass` + P0B verified-Git/resident resume + P0C inactive publication + P1.1 opt-in auto policy + P2D.1 Outcome + P1.2 exact-parent 反事实回滚 + P1.3 feedback intake + P1.4 private Case Draft + P1.5 feedback-guided Shadow + P1.6 pre-proposal calibration + P1.7 explicit evaluator authoring + P1.8 target-bound launch + P1.9 private Evaluator Draft/human qualification + P1.15 crash-safe automatic budget + P1.16 opt-in automatic inactive Evaluator Draft + P1.17 human-approved Qualify-and-Shadow + P1.18 per-Skill automatic inflight gate + P1.19 bounded automatic ambiguous review + P1.20 review-window visibility + P1.21 parent outcome comparison；真实 provider、陌生用户与长期效果 pending |
@@ -175,8 +173,8 @@ benchmark 门禁后，才在 `main` 创建 annotated semantic tag。该规则不
 ## 8. 最小路线
 
 1. **统一基线**：保持 `main` 与 `origin/main` 同步，clean checkout 的全包 docs/typecheck/test/build 必须持续绿色。
-2. **自主发现**：自然语言 Goal 自动完成 Capability Map 匹配；没有适用能力时产生可复核 Gap，并从可信来源形成 inactive whole-Skill 候选。
-3. **双速治理**：把快环 signal/gap 与慢环搜索/迁移/保留接入现有 Candidate/Trial/Generation；封死 Candidate 到 evaluator/holdout/policy 的写读路径。
+2. **自主发现**：自然语言 Goal 自动完成 Capability Map 匹配；没有适用能力时产生可复核 Gap，并从跨 Goal 内部经验形成 Opportunity 与 inactive whole-Skill 候选。
+3. **双速治理**：把快环 signal/gap/outcome 与慢环归纳/生成/迁移/保留接入现有 Candidate/Trial/Generation；封死 Candidate 到 evaluator/holdout/policy 的写读路径。
 4. **可解释控制**：DSH Web 展示能力、缺口、路由、谱系、评测、成本、缓存、安全、回滚和飞书状态，动作复用原生 Approval。
 5. **真实集成**：完成 exact 飞书 route 消息/Command/Approval、真实 provider、故障注入、陌生安装与长期 outcome。
 6. **上位证据**：按冻结 revision 与 Hermes 进行 discovery、evolution、delivery、continuity、UI、KV、permission、assistant 和 removal paired benchmark。

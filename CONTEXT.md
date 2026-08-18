@@ -71,7 +71,7 @@ A case where native DSH behavior violates its documented contract or fails insid
 _Avoid_: Plugin opportunity, compatibility feature
 
 **Evolution Loop**:
-The optional capability that turns real-task outcomes and capability gaps into inactive candidate versions, evaluates them independently, and—only after offline value is proven—promotes or rejects them without blocking the originating session. It contains a bounded Fast Evolution Loop and an evidence-accumulating Slow Evolution Loop; candidate search may reuse an external optimizer, while EvoForge owns the DSH-native evaluation and release control plane.
+The optional capability that turns DSH-owned Goals, failures, corrections, outcomes, reuse, and retention evidence into inactive candidate versions, evaluates them independently, and—only after offline value is proven—promotes or rejects them without blocking the originating session. It contains a bounded Fast Evolution Loop and an evidence-accumulating Slow Evolution Loop; runtime external search is not self-discovery.
 _Avoid_: Self-rewriting agent, autonomous platform
 
 **Capability Map**:
@@ -83,8 +83,12 @@ A falsifiable statement that an active Goal needs a capability not supplied by a
 _Avoid_: Generic failure, model uncertainty, excuse to generate a new Skill
 
 **Skill Discovery**:
-The host-side activity that maps a natural-language Goal to verified existing capabilities or records a Capability Gap, then may search explicitly trusted local, marketplace, official-documentation, and open-source sources for a candidate Skill package. It is internal routing and acquisition; the user is not asked to choose a path, Agent, workflow, or Skill before execution.
-_Avoid_: User menu, unverified auto-install, keyword-only router
+The host-side activity that maps a natural-language Goal to verified existing capabilities or records a Capability Gap, then derives a reusable Skill Opportunity from repeated DSH-owned Goal evidence. The user is not asked to choose a path, Agent, workflow, Skill, source, or package. Market, paper, and open-source research informs design-time architecture and fixed-revision benchmarks, not runtime self-discovery.
+_Avoid_: User menu, runtime marketplace search, unverified auto-install, keyword-only router
+
+**Skill Opportunity**:
+A deterministic, Workspace-scoped conclusion that repeated capability gaps across at least two distinct native DSH Goals justify bounded whole-Skill authoring. Its Skill name comes from verified Gap evidence, never an operator-configured authoring target; same-Goal retries and weak evidence abstain. It has no install, activation, or release authority.
+_Avoid_: Gap cluster, search result, user-selected Skill, authoring permission
 
 **Fast Evolution Loop**:
 A bounded online loop that attributes an explicit correction, verified outcome, repeated failure, or measured cost to the exact Session Generation and records an inactive signal, gap, or small candidate for later evaluation. It never rewrites an active capability or publishes from the originating Session.

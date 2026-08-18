@@ -312,11 +312,14 @@ export interface AuthoredSkillCandidateInput extends AuthoredSkillProvenanceInpu
 }
 
 export interface AuthoredSkillBundleCandidateInput extends AuthoredSkillProvenanceInput {
-  readonly researchDigest: string
   readonly files: readonly AgentSkillTextManifestFile[]
 }
 
-export interface RevisedSkillBundleCandidateInput extends AuthoredSkillBundleCandidateInput {
+export interface ResearchAuthoredSkillBundleCandidateInput extends AuthoredSkillBundleCandidateInput {
+  readonly researchDigest: string
+}
+
+export interface RevisedSkillBundleCandidateInput extends ResearchAuthoredSkillBundleCandidateInput {
   readonly parentCandidateId: string
   readonly parentTreeHash: string
   readonly holdoutResultId: string
@@ -673,8 +676,23 @@ export class TrustedSkillDiscovery {
     return recorded
   }
 
-  /** Assemble and persist one text-only whole-Skill package as inactive quarantined content. */
-  async quarantineAuthoredBundle(input: AuthoredSkillBundleCandidateInput): Promise<{
+  /** Persist one experience-authored whole-Skill as inactive quarantined content. */
+  async quarantineExperienceAuthoredBundle(input: AuthoredSkillBundleCandidateInput): Promise<{
+    readonly created: boolean
+    readonly candidate: DiscoveredSkillCandidate
+  }> {
+    assertAuthoredSkillProvenance(input)
+    return this.quarantineWholeSkillBundle(input, assembled => ({
+      kind: 'slow-loop-author-bundle-v1',
+      modelIdentityHash: sha256Bytes(Buffer.from(input.modelIdentity)),
+      inputDigest: input.inputDigest,
+      artifactDigest: assembled.artifactDigest,
+      treeHash: assembled.treeHash,
+    }))
+  }
+
+  /** Assemble and persist one research-grounded package for legacy Holdout compatibility. */
+  async quarantineAuthoredBundle(input: ResearchAuthoredSkillBundleCandidateInput): Promise<{
     readonly created: boolean
     readonly candidate: DiscoveredSkillCandidate
   }> {
@@ -727,7 +745,7 @@ export class TrustedSkillDiscovery {
     input: AuthoredSkillBundleCandidateInput,
     version: (assembled: Awaited<ReturnType<typeof assembleAgentSkillTextArchive>>) =>
       Extract<DiscoveredSkillCandidate['version'], {
-        kind: 'slow-loop-research-bundle-v2' | 'slow-loop-research-revision-v3'
+        kind: 'slow-loop-author-bundle-v1' | 'slow-loop-research-bundle-v2' | 'slow-loop-research-revision-v3'
       }>,
   ): Promise<{
     readonly created: boolean

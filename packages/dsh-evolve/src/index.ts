@@ -12,11 +12,8 @@ import {
 import { installCapabilityGapTool } from './capability-gap-tool.ts'
 import { ExperienceDrivenSkillOpportunityDiscovery } from './skill-opportunity-discovery.ts'
 import {
-  installTrustedSkillDiscoveryLoop,
   openSkillDiscoveryStore,
   TrustedSkillDiscovery,
-  type AgentSkillsIndexSourceConfig,
-  type TrustedSkillDiscoverySourceConfig,
 } from './trusted-skill-discovery.ts'
 import {
   DiscoveredSkillAdmission,
@@ -87,24 +84,8 @@ import {
 import {
   assertSlowLoopSkillAuthoringRootSeparation,
   SlowLoopSkillAuthoring,
-  type SlowLoopSkillAuthoringTargetConfig,
+  type SkillOpportunityAuthoringPolicyConfig,
 } from './slow-loop-skill-authoring.ts'
-import { createDshWebSkillResearch, type SkillResearchWeb } from './skill-research.ts'
-import {
-  assertResearchSkillHoldoutCoverage,
-  assertResearchSkillHoldoutRootSeparation,
-  ResearchSkillHoldout,
-  ResearchSkillHoldoutScheduler,
-  researchSkillHoldoutPassReceipt,
-  type ResearchSkillHoldoutTargetConfig,
-} from './research-skill-holdout.ts'
-import {
-  assertResearchSkillRevisionCoverage,
-  assertResearchSkillRevisionRootSeparation,
-  ResearchSkillRevision,
-  ResearchSkillRevisionScheduler,
-  type ResearchSkillRevisionTargetConfig,
-} from './research-skill-revision.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -123,11 +104,7 @@ export interface Config {
   cacheRoot?: string
   feedbackDraftRoot?: string
   sources?: GitSkillSourceConfig[]
-  trustedDiscoverySources?: TrustedSkillDiscoverySourceConfig[]
-  trustedAgentSkillIndexes?: AgentSkillsIndexSourceConfig[]
-  slowLoopAuthorTargets?: SlowLoopSkillAuthoringTargetConfig[]
-  researchHoldoutTargets?: ResearchSkillHoldoutTargetConfig[]
-  researchRevisionTargets?: ResearchSkillRevisionTargetConfig[]
+  selfDiscoveryPolicies?: SkillOpportunityAuthoringPolicyConfig[]
   discoveryAdmissionTargets?: DiscoveredSkillAdmissionTargetConfig[]
   discoveryShadowTargets?: DiscoveredSkillShadowTargetConfig[]
   supervisor?: {
@@ -153,33 +130,9 @@ export const Config: Schema<Config> = z.object({
     repository: z.string().required(),
     path: z.string().required(),
   })).default([]),
-  trustedDiscoverySources: z.array(z.object({
-    id: z.string().required(),
-    repository: z.string().required(),
-    skillsRoot: z.string().required(),
-  })).max(100).default([]),
-  trustedAgentSkillIndexes: z.array(z.object({
-    id: z.string().required(),
-    indexUrl: z.string().required(),
-  })).max(100).default([]),
-  slowLoopAuthorTargets: z.array(z.object({
+  selfDiscoveryPolicies: z.array(z.object({
     id: z.string().required(),
     workspaceId: z.string().required(),
-    skill: z.string().required(),
-    runRoot: z.string().required(),
-    maxAttemptsPerUtcDay: z.number().step(1).min(1).max(20).default(1),
-  })).max(20).default([]),
-  researchHoldoutTargets: z.array(z.object({
-    id: z.string().required(),
-    workspaceId: z.string().required(),
-    skill: z.string().required(),
-    runRoot: z.string().required(),
-    maxAttemptsPerUtcDay: z.number().step(1).min(1).max(20).default(1),
-  })).max(20).default([]),
-  researchRevisionTargets: z.array(z.object({
-    id: z.string().required(),
-    workspaceId: z.string().required(),
-    skill: z.string().required(),
     runRoot: z.string().required(),
     maxAttemptsPerUtcDay: z.number().step(1).min(1).max(20).default(1),
   })).max(20).default([]),
@@ -261,7 +214,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const feedbackSignals = await openFeedbackSignalStore(ctx.storageDomain)
   const capabilityGaps = await openCapabilityGapStore(ctx.storageDomain)
   const skillOpportunities = new ExperienceDrivenSkillOpportunityDiscovery(capabilityGaps)
-  const skillDiscoveryStore = await openSkillDiscoveryStore(ctx.storageDomain)
+  const skillCandidateStore = await openSkillDiscoveryStore(ctx.storageDomain)
   const feedbackMonitor = installFeedbackSignalMonitor(ctx, feedbackSignals, store)
   let feedbackDraftBuilder: FeedbackCaseDraftBuilder | undefined
   const deliveryMonitors = new Set<DeliveryOutcomeMonitor>()
@@ -273,9 +226,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const evaluatorTargets = config.evaluatorTargets ?? []
   const automaticEvaluatorTargetReferences = config.automaticEvaluatorTargets ?? []
   const discoveryShadowTargets = config.discoveryShadowTargets ?? []
-  const slowLoopAuthorTargets = config.slowLoopAuthorTargets ?? []
-  const researchHoldoutTargets = config.researchHoldoutTargets ?? []
-  const researchRevisionTargets = config.researchRevisionTargets ?? []
+  const selfDiscoveryPolicies = config.selfDiscoveryPolicies ?? []
   const shadowTargetsById = new Map(shadowTargets.map(target => [target.id, target]))
   const automaticFeedbackTargets: AutomaticFeedbackShadowTarget[] =
     automaticFeedbackTargetReferences.map((reference) => {
@@ -308,26 +259,19 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   })
   let skillAdmissionScheduler: DiscoveredSkillAdmissionScheduler | undefined
   let skillShadowScheduler: DiscoveredSkillShadowScheduler | undefined
-  let researchHoldoutScheduler: ResearchSkillHoldoutScheduler | undefined
-  let researchHoldouts: ResearchSkillHoldout | undefined
-  let researchRevisionScheduler: ResearchSkillRevisionScheduler | undefined
-  let researchRevisions: ResearchSkillRevision | undefined
-  const skillDiscovery = new TrustedSkillDiscovery(
-    config.trustedDiscoverySources ?? [],
-    skillDiscoveryStore,
+  // Legacy storage/parser implementation retained for existing durable records;
+  // current composition exposes only experience-authored candidate repository methods.
+  const skillCandidates = new TrustedSkillDiscovery(
+    [],
+    skillCandidateStore,
     {
-      agentSkillIndexes: config.trustedAgentSkillIndexes ?? [],
-      onCandidate: candidate => {
-        if (researchHoldoutScheduler?.observe(candidate) !== true) {
-          skillAdmissionScheduler?.observe(candidate)
-        }
-      },
+      onCandidate: candidate => skillAdmissionScheduler?.observe(candidate),
     },
   )
   const discoveryAdmissionTargets = config.discoveryAdmissionTargets ?? []
   let skillAdmission: DiscoveredSkillAdmission | undefined
   if (discoveryAdmissionTargets.length > 0) {
-    skillAdmission = new DiscoveredSkillAdmission(discoveryAdmissionTargets, skillDiscovery)
+    skillAdmission = new DiscoveredSkillAdmission(discoveryAdmissionTargets, skillCandidates)
     if (discoveryShadowTargets.length > 0) {
       if (config.supervisor === undefined || config.supervisor.runRoots.length === 0) {
         throw new Error('discovered Skill Shadow targets require configured supervisor.runRoots')
@@ -343,8 +287,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     skillAdmissionScheduler = new DiscoveredSkillAdmissionScheduler(
       skillAdmission,
       {
-        listCandidates: workspaceId => skillDiscoveryStore.listCandidates(workspaceId)
-          .filter(candidate => researchHoldouts?.matches(candidate) !== true),
+        listCandidates: workspaceId => skillCandidateStore.listCandidates(workspaceId)
+          .filter(candidate => candidate.version.kind === 'slow-loop-author-bundle-v1'),
       },
       { onResult: (candidate, result) => skillShadowScheduler?.observe(candidate, result) },
     )
@@ -352,12 +296,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     throw new Error('discovered Skill Shadow targets require deterministic admission targets')
   }
   const slowLoopAuthoringBudget = new AutomaticEvolutionBudget()
-  if (slowLoopAuthorTargets.length > 0) {
-    assertSlowLoopSkillAuthoringRootSeparation(slowLoopAuthorTargets, [
+  if (selfDiscoveryPolicies.length > 0) {
+    assertSlowLoopSkillAuthoringRootSeparation(selfDiscoveryPolicies, [
       ...(config.cacheRoot === undefined ? [] : [config.cacheRoot]),
       ...(config.feedbackDraftRoot === undefined ? [] : [config.feedbackDraftRoot]),
       ...(config.sources ?? []).map(value => value.repository),
-      ...(config.trustedDiscoverySources ?? []).map(value => value.repository),
       ...discoveryAdmissionTargets.flatMap(value => [value.baselineDir, value.casePackDir, value.runRoot]),
       ...discoveryShadowTargets.flatMap(value => [value.casePackDir, value.runRoot]),
       ...(config.supervisor?.runRoots ?? []).map(value => value.path),
@@ -365,117 +308,34 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       ...evaluatorTargets.flatMap(value => [value.root, ...(value.shadowRunRoot === undefined
         ? []
         : [value.shadowRunRoot])]),
-      ...researchRevisionTargets.map(value => value.runRoot),
     ])
-    slowLoopAuthoringBudget.assertTargets(slowLoopAuthorTargets)
   }
-  const slowLoopAuthoring = slowLoopAuthorTargets.length === 0
+  const slowLoopAuthoring = selfDiscoveryPolicies.length === 0
     ? undefined
     : new SlowLoopSkillAuthoring({
-        targets: slowLoopAuthorTargets,
+        policies: selfDiscoveryPolicies,
         gaps: capabilityGaps,
+        opportunities: skillOpportunities,
         candidates: {
           listCandidates: (workspaceId, gapId) =>
-            skillDiscoveryStore.listCandidates(workspaceId, gapId),
-          isDiscoverySettled: gapId => skillDiscovery.isSettled(gapId),
-          quarantineAuthoredBundle: input => skillDiscovery.quarantineAuthoredBundle(input),
+            skillCandidateStore.listCandidates(workspaceId, gapId),
+          quarantineExperienceAuthoredBundle: input =>
+            skillCandidates.quarantineExperienceAuthoredBundle(input),
         },
         budget: slowLoopAuthoringBudget,
       })
-  assertResearchSkillHoldoutCoverage(
-    researchHoldoutTargets,
-    slowLoopAuthorTargets,
-    discoveryAdmissionTargets,
-  )
-  const researchHoldoutBudget = new AutomaticEvolutionBudget()
-  if (researchHoldoutTargets.length > 0) {
-    assertResearchSkillHoldoutRootSeparation(researchHoldoutTargets, [
-      ...(config.cacheRoot === undefined ? [] : [config.cacheRoot]),
-      ...(config.feedbackDraftRoot === undefined ? [] : [config.feedbackDraftRoot]),
-      ...(config.sources ?? []).map(value => value.repository),
-      ...(config.trustedDiscoverySources ?? []).map(value => value.repository),
-      ...slowLoopAuthorTargets.map(value => value.runRoot),
-      ...discoveryAdmissionTargets.flatMap(value => [value.baselineDir, value.casePackDir, value.runRoot]),
-      ...discoveryShadowTargets.flatMap(value => [value.casePackDir, value.runRoot]),
-      ...(config.supervisor?.runRoots ?? []).map(value => value.path),
-      ...shadowTargets.flatMap(value => [value.casePackDir, value.runRoot]),
-      ...evaluatorTargets.flatMap(value => [value.root, ...(value.shadowRunRoot === undefined
-        ? []
-        : [value.shadowRunRoot])]),
-      ...researchRevisionTargets.map(value => value.runRoot),
-    ])
-    researchHoldoutBudget.assertTargets(researchHoldoutTargets)
-    if (slowLoopAuthoring === undefined || skillAdmissionScheduler === undefined) {
-      throw new Error('research Skill Holdout requires slow-loop authoring and deterministic admission')
+  const reconcileSkillOpportunities = async (workspaceId: string): Promise<void> => {
+    const result = await slowLoopAuthoring?.reconcile(workspaceId)
+    for (const warning of result?.warnings ?? []) {
+      ctx.logger.warn(`dsh-evolve internal Skill authoring skipped work: ${warning}`)
     }
-    researchHoldouts = new ResearchSkillHoldout({
-      targets: researchHoldoutTargets,
-      evidence: slowLoopAuthoring,
-      candidates: skillDiscovery,
-      budget: researchHoldoutBudget,
-    })
   }
-  assertResearchSkillRevisionCoverage(researchRevisionTargets, researchHoldoutTargets)
-  const researchRevisionBudget = new AutomaticEvolutionBudget()
-  if (researchRevisionTargets.length > 0) {
-    assertResearchSkillRevisionRootSeparation(researchRevisionTargets, [
-      ...(config.cacheRoot === undefined ? [] : [config.cacheRoot]),
-      ...(config.feedbackDraftRoot === undefined ? [] : [config.feedbackDraftRoot]),
-      ...(config.sources ?? []).map(value => value.repository),
-      ...(config.trustedDiscoverySources ?? []).map(value => value.repository),
-      ...slowLoopAuthorTargets.map(value => value.runRoot),
-      ...researchHoldoutTargets.map(value => value.runRoot),
-      ...discoveryAdmissionTargets.flatMap(value => [value.baselineDir, value.casePackDir, value.runRoot]),
-      ...discoveryShadowTargets.flatMap(value => [value.casePackDir, value.runRoot]),
-      ...(config.supervisor?.runRoots ?? []).map(value => value.path),
-      ...shadowTargets.flatMap(value => [value.casePackDir, value.runRoot]),
-      ...evaluatorTargets.flatMap(value => [value.root, ...(value.shadowRunRoot === undefined
-        ? []
-        : [value.shadowRunRoot])]),
-    ])
-    researchRevisionBudget.assertTargets(researchRevisionTargets)
-    if (researchHoldouts === undefined) {
-      throw new Error('research Skill revision requires independent research Holdout')
-    }
-    researchRevisions = new ResearchSkillRevision({
-      targets: researchRevisionTargets,
-      holdout: researchHoldouts,
-      candidates: skillDiscovery,
-      budget: researchRevisionBudget,
-    })
-    researchRevisionScheduler = new ResearchSkillRevisionScheduler(researchRevisions)
-  }
-  if (researchHoldouts !== undefined) {
-    researchHoldoutScheduler = new ResearchSkillHoldoutScheduler(
-      researchHoldouts,
-      skillDiscoveryStore,
-      {
-        onPass: (candidate, result) => skillAdmissionScheduler?.observe(candidate, {
-          researchHoldout: researchSkillHoldoutPassReceipt(result),
-        }),
-        onResult: (candidate, result) => researchRevisionScheduler?.observe(candidate, result),
-      },
-    )
-  }
-  const skillDiscoveryLoop = installTrustedSkillDiscoveryLoop(
-    ctx,
-    capabilityGaps,
-    skillDiscovery,
-    {
-      onSettled: async gap => {
-        const result = await slowLoopAuthoring?.reconcile(gap.workspaceId)
-        for (const warning of result?.warnings ?? []) {
-          ctx.logger.warn(`dsh-evolve slow-loop Skill authoring skipped work: ${warning}`)
-        }
-      },
-    },
-  )
   const capabilityGapMonitor = installCapabilityGapMonitor(
     ctx,
     capabilityGaps,
     capabilities,
     store,
-    { onGap: gap => skillDiscoveryLoop.observe(gap) },
+    { onGap: gap => reconcileSkillOpportunities(gap.workspaceId) },
   )
   ctx.inject(['tools', 'goals'], (toolCtx) => {
     installCapabilityGapTool(
@@ -483,7 +343,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       capabilityGaps,
       capabilities,
       store,
-      { onGap: gap => skillDiscoveryLoop.observe(gap) },
+      { onGap: gap => reconcileSkillOpportunities(gap.workspaceId) },
     )
   })
   const review = config.supervisor === undefined || config.supervisor.runRoots.length === 0
@@ -661,11 +521,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     capabilities,
     gaps: capabilityGaps,
     opportunities: skillOpportunities,
-    discovery: skillDiscoveryStore,
+    candidates: skillCandidateStore,
     ...(skillAdmission === undefined ? {} : { admissions: skillAdmission }),
     ...(slowLoopAuthoring === undefined ? {} : { slowLoopAuthoring }),
-    ...(researchHoldouts === undefined ? {} : { researchHoldouts }),
-    ...(researchRevisions === undefined ? {} : { researchRevisions }),
     ...(review === undefined ? {} : { review }),
     ...(resident === undefined ? {} : { resident }),
     ...(automaticPolicy === undefined ? {} : { automatic: automaticPolicy }),
@@ -718,19 +576,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     }, 'dsh-evolve.deliveryOutcomeMonitor')
   })
   if (skillAdmissionScheduler !== undefined
-    || skillShadowScheduler !== undefined
-    || researchHoldoutScheduler !== undefined
-    || researchRevisionScheduler !== undefined) {
+    || skillShadowScheduler !== undefined) {
     ctx.inject(['jobs'], (jobCtx) => {
       jobCtx.effect(() => {
         const detachController = jobCtx.jobs.attachController('dsh-evolve-skill-admission')
         const detachShadow = skillShadowScheduler?.attachJobs(jobCtx.jobs)
         const detachAdmission = skillAdmissionScheduler?.attachJobs(jobCtx.jobs)
-        const detachResearchHoldout = researchHoldoutScheduler?.attachJobs(jobCtx.jobs)
-        const detachResearchRevision = researchRevisionScheduler?.attachJobs(jobCtx.jobs)
         return () => {
-          detachResearchRevision?.()
-          detachResearchHoldout?.()
           detachAdmission?.()
           detachShadow?.()
           detachController()
@@ -739,20 +591,6 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     })
   }
   if (slowLoopAuthoring !== undefined) {
-    ctx.inject(['web'], (webCtx) => {
-      const web = (webCtx as typeof webCtx & { readonly web: SkillResearchWeb }).web
-      webCtx.effect(() => {
-        const detachResearch = slowLoopAuthoring.attachResearch(createDshWebSkillResearch(web))
-        void slowLoopAuthoring.reconcile().then((result) => {
-          for (const warning of result.warnings) {
-            webCtx.logger.warn(`dsh-evolve slow-loop Skill authoring skipped work: ${warning}`)
-          }
-        }, error => {
-          webCtx.logger.warn(`dsh-evolve slow-loop Skill research startup failed: ${String(error)}`)
-        })
-        return detachResearch
-      }, 'dsh-evolve.slowLoopAuthoringResearch')
-    })
     ctx.inject(['jobs'], (jobCtx) => {
       jobCtx.effect(() => {
         const detachController = jobCtx.jobs.attachController('dsh-evolve-slow-loop-authoring')
@@ -885,12 +723,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     await Promise.all([...deliveryMonitors].map(monitor => monitor.dispose()))
     await Promise.all([...capabilityMonitors].map(monitor => monitor.dispose()))
     await capabilityGapMonitor.dispose()
-    await skillDiscoveryLoop.dispose()
     await feedbackMonitor.dispose()
     await deliveryOutcomes.close()
     await feedbackSignals.close()
     await capabilityGaps.close()
-    await skillDiscoveryStore.close()
+    await skillCandidateStore.close()
     await disposeBinder()
     await store.close()
   }, 'dsh-evolve.runtimeClose')
@@ -903,18 +740,12 @@ export type {
   SkillGenerationArtifact,
 } from './generation-store.ts'
 export type { GitSkillSourceConfig } from './git-skill-source.ts'
-export type {
-  AgentSkillsIndexSourceConfig,
-  TrustedSkillDiscoverySourceConfig,
-} from './trusted-skill-discovery.ts'
 export type { DiscoveredSkillAdmissionTargetConfig } from './discovered-skill-admission.ts'
 export type { DiscoveredSkillShadowTargetConfig } from './discovered-skill-shadow.ts'
 export type { FeedbackShadowTargetConfig } from './feedback-shadow-launcher.ts'
 export type { AutomaticFeedbackShadowTargetReference } from './automatic-feedback-shadow.ts'
 export type { AutomaticEvaluatorDraftTargetReference } from './automatic-evaluator-draft.ts'
-export type { SlowLoopSkillAuthoringTargetConfig } from './slow-loop-skill-authoring.ts'
-export type { ResearchSkillHoldoutTargetConfig } from './research-skill-holdout.ts'
-export type { ResearchSkillRevisionTargetConfig } from './research-skill-revision.ts'
+export type { SkillOpportunityAuthoringPolicyConfig } from './slow-loop-skill-authoring.ts'
 export type { AutomaticRetentionTargetConfig } from './automatic-retention.ts'
 export type { ShadowResumeInvocation, ShadowSupervisorOptions } from './shadow-supervisor.ts'
 export type {
@@ -938,8 +769,6 @@ export type {
   EvolutionGenerationView,
   EvolutionInactiveGenerationView,
   EvolutionOverview,
-  EvolutionResearchSkillHoldoutView,
-  EvolutionResearchSkillRevisionView,
   EvolutionReviewCaseView,
   EvolutionReviewDetail,
   EvolutionReviewView,

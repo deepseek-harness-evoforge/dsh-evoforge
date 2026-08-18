@@ -1,5 +1,7 @@
 # DS-1 可信 whole-Skill 发现纵切
 
+> 历史证据：本页记录过往实现，不代表当前产品主链路或能力声明。运行时外部发现/研究方案已撤销；当前自我发现语义与实现见 [V4-8](v4-8-internal-skill-opportunity-discovery.zh.md)。
+
 > 日期：2026-08-18  
 > 结论：implemented；只证明部署者显式授信的本地 Git 来源，不声称完整 DS-1 或优于 Hermes
 

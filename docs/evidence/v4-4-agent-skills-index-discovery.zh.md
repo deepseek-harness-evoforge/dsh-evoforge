@@ -1,5 +1,7 @@
 # V4-4 Agent Skills 外部索引发现证据
 
+> 历史证据：本页记录过往实现，不代表当前产品主链路或能力声明。运行时外部发现/研究方案已撤销；当前自我发现语义与实现见 [V4-8](v4-8-internal-skill-opportunity-discovery.zh.md)。
+
 > 状态：implemented evidence  
 > 日期：2026-08-18  
 > 边界：证明已确认 Capability Gap 可从部署者显式授信的 Agent Skills Discovery v0.2 索引获取、校验并持久隔离一个单文件 `SKILL.md` 候选；不证明任意市场、归档 Skill、候选生成、自动安装或完整慢环。

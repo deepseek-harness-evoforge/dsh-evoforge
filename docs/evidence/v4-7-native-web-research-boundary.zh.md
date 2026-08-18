@@ -1,5 +1,7 @@
 # V4-7：DSH 原生 Web 研究证据边界
 
+> 历史证据：本页记录过往实现，不代表当前产品主链路或能力声明。运行时外部发现/研究方案已撤销；当前自我发现语义与实现见 [V4-8](v4-8-internal-skill-opportunity-discovery.zh.md)。
+
 > 状态：`implemented`。本文件记录独立研究采集深模块的原子提交；后续慢环接线见
 > `v4-7-research-grounded-whole-skill-handoff.zh.md`；后续独立验证接线见
 > `v4-7-independent-research-holdout.zh.md`；一次性修订见

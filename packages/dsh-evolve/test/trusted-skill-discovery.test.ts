@@ -283,6 +283,44 @@ describe('trusted whole-Skill discovery', () => {
       .rejects.toThrow('canonical archive')
   })
 
+  it('quarantines an experience-authored bundle without external research provenance', async () => {
+    const store = fakeStore()
+    const discovery = new TrustedSkillDiscovery([], store)
+    const candidate = await discovery.quarantineExperienceAuthoredBundle({
+      discoveredAt: 1_786_896_200_000,
+      workspaceId: WORKSPACE_ID,
+      requestedSkill: 'missing-release-skill',
+      sourceId: 'workspace-self-discovery',
+      clusterId: '1'.repeat(64),
+      gapIds: ['2'.repeat(64), '3'.repeat(64)],
+      goalCount: 2,
+      modelIdentity: 'private-provider-route',
+      inputDigest: '4'.repeat(64),
+      files: [{
+        path: 'SKILL.md',
+        content: [
+          '---',
+          'name: missing-release-skill',
+          'description: Handle repeated internal Goal capability gaps.',
+          '---',
+          '',
+          'Follow the recurring [Goal evidence](references/evidence.md).',
+          '',
+        ].join('\n'),
+      }, {
+        path: 'references/evidence.md',
+        content: '# Evidence\n\nUse only the supplied DSH Goal evidence.\n',
+      }],
+    })
+
+    expect(candidate.candidate.version).toMatchObject({
+      kind: 'slow-loop-author-bundle-v1',
+      inputDigest: '4'.repeat(64),
+    })
+    expect(candidate.candidate.version).not.toHaveProperty('researchDigest')
+    expect(JSON.stringify(candidate.candidate)).not.toContain('private-provider-route')
+  })
+
   it('archives an exact Skill folder from an explicit local Git source without executing it', async () => {
     const repository = await gitRepository()
     const skillRoot = join(repository, 'skills', 'missing-release-skill')

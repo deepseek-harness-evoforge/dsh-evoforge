@@ -1,9 +1,11 @@
 # ADR-0046：自主 Skill 发现采用三平面双速闭环
 
-- 状态：accepted
+- 状态：superseded by [ADR-0048](0048-self-discovery-learns-from-dsh-experience.md)
 - 日期：2026-08-18
 
 ## 背景
+
+> 历史说明：三平面、双速、Goal-only 和隔离治理仍成立；本 ADR 将运行时外部来源搜索混入“自我发现”的决定已被撤销。当前语义以 ADR-0048 为准。
 
 用户希望只给出自然语言 Goal、材料、约束与验收条件，由系统自己发现和调用 Skill；开场要求用户选择
 任务类别、Agent、工作流或 Skill 会把系统内部路由责任转嫁给用户。Hermes 已提供 Skill 创建和后台

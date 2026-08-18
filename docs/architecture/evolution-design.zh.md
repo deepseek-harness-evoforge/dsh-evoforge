@@ -1,7 +1,7 @@
 # EvoForge 可证明自进化设计
 
-> 状态：P0A/P0B/P0C、P1.1–P1.21 与 P2D.1 implemented；包含最窄 opt-in 自动晋升、反事实 canary/回滚、显式反馈、私有 Draft、独立 evaluator、静态 Target、exact Retention、明确纠错自动 Shadow/自动 inactive evaluator Draft、人工 Qualify-and-Shadow、持久日预算、每 Skill 单未决自动门、模糊审查有界处置与窗口可见性、active/parent 交付观察对照；真实 provider 与真实任务长期证据待完成
-> 更新日期：2026-08-17
+> 状态：P0A/P0B/P0C、P1.1–P1.21、P2D.1 与内部 Goal→Gap→Skill Opportunity→quarantined Candidate 纵切 implemented；独立内部 Candidate 评估、真实 provider 与真实任务长期证据待完成
+> 更新日期：2026-08-18
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 
 ## 1. 结论
@@ -219,6 +219,38 @@ interface LearningSignal {
 - 一条明确用户纠正可以生成候选，但仍必须通过 Trial；
 - 非明确反馈需要同类信号跨至少两个独立 Session 重复，才值得花模型预算生成候选；
 - Project signal 默认只能改进 project-scoped Skill；跨至少两个项目证明通用后才能提议上移到 user/global scope。
+
+### 9.1 自我发现 Skill 的唯一运行时语义
+
+自我发现不是去市场、ClawHub、GitHub、文档站或 Agent Skills 索引搜索包。它是 DSH 对自身工作经验的
+归纳：Goal、Capability Gap、失败、用户纠正、真实 outcome、重复劳动、复用效果和 Retention 证据是
+输入；Skill Opportunity 和隔离 Candidate 是输出。Hermes、OpenClaw、HanaAgent、论文与开源实现只在
+设计期调研或冻结 benchmark 中使用。
+
+当前最小闭环：
+
+```text
+自然语言 Goal
+  → DSH 原生能力路由
+  → Host 复核并持久化 Capability Gap
+  → 同 Workspace / 同 Skill / 至少两个独立 Goal
+  → deterministic Skill Opportunity
+  → Workspace selfDiscoveryPolicy（无 Skill 字段）
+  → 原生 Job author（只读有界内部证据）
+  → instruction-only whole-Skill v1
+  → inactive / quarantined / unevaluated / never-executed Candidate
+```
+
+硬约束：
+
+- 用户只给 Goal，不选路径、Agent、workflow、Skill 或来源；
+- 同 Goal 重试、无 Goal、跨 Workspace 或证据不足必须 abstain；
+- policy 只授权 Workspace、私有 run root、日预算和可能的模型调用，不预定要发现哪个 Skill；
+- author 看不到外部搜索结果、验证答案、测试结果或 release 权限；
+- Opportunity 只有生成资格，Candidate 只有隔离身份，二者都不能安装、激活、晋升或发布；
+- 独立 final-test、Shadow、Retention、负迁移和长期 outcome 仍是后续治理门，不能由 author 自证。
+
+未来若提供外部包获取，必须建成显式 trusted-import 功能，并与本节的自我发现状态、UI 和声明严格分离。
 
 P1.3 只落地这个设计中的一个具体 Adapter，不实现上面的通用 runtime interface：监听 DSH
 `message_feedback/sessions`，把当前 `negative + non-blank note` 投影到专用

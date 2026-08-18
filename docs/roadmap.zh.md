@@ -1,6 +1,6 @@
 # EvoForge v0.1 路线图
 
-> 当前状态：已验证历史已统一到 `main` 并同步 `origin/main`；DSH 原生十一包全检查通过，自然 Goal 到持久 Capability Gap、可信 whole-Skill 发现、跨 Goal 需求聚类、DSH Web 三轨研究、text-only whole-Skill v2 组合、独立私有 Holdout 与一次性 v3 修订已实现。任意市场/ClawHub 专有接入、真实 provider 下的整链路 outcome、exact 飞书消息与最终 Hermes paired 验收仍未完成，v0.1 尚未发布或部署。
+> 当前状态：已验证历史统一在 `main` 并同步 `origin/main`；DSH 原生十一包全检查通过。当前自主纵切是自然语言 Goal → Host 复核的 Capability Gap → DSH 内部跨 Goal Skill Opportunity → 隔离 whole-Skill Candidate；运行时外部市场、ClawHub、Agent Skills 索引和 Web 研究已退出自我发现主链路。内部 Candidate 的真实 provider 独立评估、exact 飞书消息与最终 Hermes paired 验收仍未完成，v0.1 尚未发布或部署。
 > 更新日期：2026-08-18
 
 ## 开发与发布纪律
@@ -64,40 +64,32 @@
 ## V4 — 自主 Skill Discovery 与双速进化
 
 - 用户只提交自然语言 Goal；系统从 Capability Map 自主命中适用、已验证能力，不显示开场选路菜单；
-- 无适用能力时产生可复核 Capability Gap，并只从部署者信任的本地/市场/官方资料/开源来源形成候选；
+- 无适用能力时产生可复核 Capability Gap；同一 Workspace 内至少两个独立 Goal 的重复缺口才形成 Skill Opportunity；
+- Skill 名和候选方向由内部 Goal、失败、纠正、结果、复用与保留证据推导，不由用户或部署者预选 exact Skill；
 - Skill 的 identity、source、scope、version、content hash、权限和 verification state 可追踪；
 - 候选按 whole-Skill folder 原子版本化，始终 inactive、Workspace-scoped、内容寻址；
-- 在线快环只捕获可归因 signal/gap/小步候选，离线慢环负责跨任务搜索、迁移、保留与遗忘；
+- 在线快环只捕获可归因 signal/gap/outcome，离线慢环负责跨 Goal 归纳、候选生成、迁移、保留与遗忘；
 - evaluator、holdout、gold、hard gate 和 release eligibility 位于 Candidate 不可读写的治理面；证据不足允许 abstain。
+
+外部生态、论文、Hermes/OpenClaw/HanaAgent 和开源实现用于**设计期调研与冻结 benchmark**，不属于运行时“自我发现”。未来若提供外部 Skill 导入，必须是独立、显式授权的 trusted-import 能力，不能混入自我发现语义。
 
 退出门：在未见 Goal 上自动命中已有 Skill；在确实缺失时找到或生成正确候选；错误路由、未授权获取、
 候选越界和负迁移均被 hard gate 拒绝；同一任务 paired baseline 证明首次成功率或人工选路显著改善，且
 当前 Session、权限和 cache prefix 不漂移。
 
-实现状态：**partial implementation**。DSH 原生 catalog 负责已有 Skill 的语义选择；一个固定
-`report_capability_gap(name)` Tool 已通过真实 Agent Loop，把自然语言 active Goal 中模型确认的无匹配
-情况经 Host 复核后持久化，并投影到既有 Web Gap queue。显式授信的本地 Git whole-Skill 已支持
-exact-first 查询与对 name/description 的有界确定性语义回退；弱匹配、歧义和非法 exact package 均
-fail closed。显式配置的 Agent Skills Discovery draft v0.2 索引已支持 `skill-md` 与 `archive`：只接受 HTTPS
-（loopback 测试除外）、同源 URL/redirect、精确 schema 与原始字节 SHA-256；archive 在摘要匹配后才按
-`.tar.gz`/`.zip` 解码，并拒绝 traversal、绝对路径、重复/冲突路径、symlink/hardlink/特殊文件、超文件数、
-超单文件和超解压总量。verified 原始制品进入 Host 私有 durable quarantine，Web 只投影格式/摘要/整包
-元数据而不暴露正文；未知 schema/制品类型、跨域、摘要不符和不安全 archive 均 abstain。quarantine、确定性 admission 和独立 assembled holdout Shadow 已接通；清晰胜出仍只进入 inactive
-人工 review，当前 Session 不漂移。64 轮请求证明该 Tool Schema 稳定，去掉声明的单一 Tool 后其余请求
-与原生控制组逐字节相同。durable Gap 还能在同一 Workspace 内按不同 Goal 聚合重复需求；不同 Gap 名称
-只有共同解析到同一隔离候选时才收敛，同 Goal retry 和冲突候选均不能制造聚类。cluster 本身仍只有证据权；
-对同名 unresolved cluster，部署者显式配置的 exact author target 可通过原生 Jobs、持久日预算和崩溃状态机
-生成一个单文件 instruction-only Candidate。正文留在 Host 私有存储，Web 只显示运行阶段、成本与摘要；
-该路径没有安装、激活或发布接口。后续 V4-7 已把 DSH 原生 Web 抽象接入
-official/open-source/frontier 三轨研究，在隔离的 knowledge/verification 边界下组合
-text-only whole-Skill v2；独立 Holdout 只读取私有 verification anchors，v2 失败或不确定时
-最多生成一个绑定 parent tree/holdout result/research digest 的 v3，v3 必须重新进入 Holdout
-且不能递归修订；只有通过后才会交给确定性 admission。
+实现状态：**partial implementation**。DSH 原生 catalog 负责已有 Skill 的语义选择；固定
+`report_capability_gap(name)` Tool 已通过真实 Agent Loop，把 active Goal 中模型确认的无匹配情况经 Host
+复核后持久化。`ExperienceDrivenSkillOpportunityDiscovery` 只读取这些 durable Gap：同 Workspace、同一
+Skill、至少两个不同 Goal 才产出确定性 Opportunity；同 Goal retry、无 Goal、跨 Workspace 和证据不足均
+abstain。`selfDiscoveryPolicies` 只配置 Workspace、run root 和日预算，不接受 Skill、路径、来源、Agent 或
+workflow 选择。原生 Job author 只接收有界内部 Goal/Gap 证据，输出 instruction-only whole-Skill v1，Host
+校验、内容寻址并写入 inactive/quarantined/unevaluated/never-executed Candidate。DSH Web 展示
+Gap → Opportunity → Candidate 及运行状态、成本和治理边界，不显示外部发现尝试。
 
-仍待实现/验证：Agent Skills v0.2 well-known 索引之外的可信市场/ClawHub 专有 API；
-真实 provider 下的 v2 失败→v3→Holdout pass→admission→Shadow→Retention 整链路；模型正/负路由
-质量、误缺口率、迁移/遗忘/长期保留，以及同条件 Hermes paired outcome。因此本阶段
-不能描述为“自主 Skill 进化已完成”，退出门仍未通过。
+当前主链路已经删除外部来源配置、Agent Skills 索引配置、运行时 Web research、research Holdout/revision
+配置与 Job 编排；这些旧实现只作为历史证据或迁移解析残留，不是产品能力声明。仍待实现/验证：内部
+Candidate 的独立 final-test/Shadow/Retention 整链路、真实 provider outcome、模型缺口质量、迁移/遗忘/
+长期保留，以及同条件 Hermes paired outcome。因此不能描述为“自主 Skill 进化已完成”。
 
 ## V5 — 可解释 Web 与飞书闭环
 
@@ -110,7 +102,7 @@ text-only whole-Skill v2；独立 Holdout 只读取私有 verification anchors�
 退出门：最终 tarball 在全新 profile 的真实浏览器与真实飞书 App 上覆盖成功、刷新、权限拒绝、身份错误、
 429、网络不确定、重启、dispose 和卸载路径；UI 不新增 Session 模型工具/Prompt/token。
 
-实现状态：既有 Evolve review、Capability Map/Gap/whole-Skill admission/Shadow、研究证据边界/独立 Holdout/一次性 v3 修订视图、飞书配对 UI、
+实现状态：既有 Evolve review、Capability Map/Gap、内部 Skill Opportunity、隔离 whole-Skill Candidate、admission/Shadow、飞书配对 UI、
 routes-mode 脱敏健康投影和渠道底座已实现；健康面最终 tarball 的真实浏览器读取/刷新/Host 停机与恢复
 已通过，完整评测演进视图与真实飞书 exact route 消息 **pending**。
 

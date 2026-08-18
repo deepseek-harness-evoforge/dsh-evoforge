@@ -11,8 +11,6 @@ import type { SkillDiscoveryStore } from './trusted-skill-discovery.ts'
 import type { ExperienceDrivenSkillOpportunityDiscovery } from './skill-opportunity-discovery.ts'
 import type { DiscoveredSkillAdmission } from './discovered-skill-admission.ts'
 import type { SlowLoopSkillAuthoring } from './slow-loop-skill-authoring.ts'
-import type { ResearchSkillHoldout } from './research-skill-holdout.ts'
-import type { ResearchSkillRevision } from './research-skill-revision.ts'
 import type { DiscoveredSkillLineage } from './discovered-skill-lineage.ts'
 import type { EvolutionStore } from './generation-store.ts'
 import type { ResidentEvolutionControl } from './resident-evolution-control.ts'
@@ -21,7 +19,7 @@ import type {
   EvolutionActionReceipt,
   EvolutionCapabilityMapView,
   EvolutionCapabilityGapQueueView,
-  EvolutionSkillDiscoveryView,
+  EvolutionSkillCandidateQueueView,
   EvolutionSkillAdmissionView,
   EvolutionEvaluatorDraftView,
   EvolutionFeedbackSignalView,
@@ -58,11 +56,9 @@ export interface EvolutionControlPlaneModules {
   }
   readonly gaps?: Pick<CapabilityGapStore, 'list'>
   readonly opportunities?: Pick<ExperienceDrivenSkillOpportunityDiscovery, 'discover'>
-  readonly discovery?: Pick<SkillDiscoveryStore, 'listCandidates' | 'listAttempts'>
+  readonly candidates?: Pick<SkillDiscoveryStore, 'listCandidates'>
   readonly admissions?: Pick<DiscoveredSkillAdmission, 'scan'>
   readonly slowLoopAuthoring?: Pick<SlowLoopSkillAuthoring, 'scan'>
-  readonly researchHoldouts?: Pick<ResearchSkillHoldout, 'scan'>
-  readonly researchRevisions?: Pick<ResearchSkillRevision, 'scan'>
 }
 
 /** A structured adapter surface that delegates to the same owners as Commands. */
@@ -83,8 +79,6 @@ export class EvolutionControlPlane {
       automaticEvaluatorBudget,
       admissionScan,
       slowLoopAuthoringScan,
-      researchHoldoutScan,
-      researchRevisionScan,
     ] = await Promise.all([
       this.modules.review === undefined ? undefined : this.modules.review.inbox.scanAll(),
       this.modules.feedbackShadow === undefined ? undefined : this.modules.feedbackShadow.scan(workspaceId),
@@ -99,12 +93,6 @@ export class EvolutionControlPlane {
       this.modules.slowLoopAuthoring === undefined
         ? undefined
         : this.modules.slowLoopAuthoring.scan(workspaceId),
-      this.modules.researchHoldouts === undefined
-        ? undefined
-        : this.modules.researchHoldouts.scan(workspaceId),
-      this.modules.researchRevisions === undefined
-        ? undefined
-        : this.modules.researchRevisions.scan(workspaceId),
     ])
     const automaticSkills = this.modules.automatic?.skills(workspaceId) ?? []
     const skillOpportunities = this.modules.opportunities?.discover(workspaceId)
@@ -143,13 +131,13 @@ export class EvolutionControlPlane {
               releaseAuthority: opportunity.releaseAuthority,
             })),
           } }),
-      ...(this.modules.discovery === undefined
+      ...(this.modules.candidates === undefined
         ? {}
-        : { skillDiscovery: projectSkillDiscovery(this.modules.discovery, workspaceId) }),
+        : { skillCandidates: projectSkillCandidates(this.modules.candidates, workspaceId) }),
       ...(slowLoopAuthoringScan === undefined
         ? {}
         : { slowLoopAuthoring: {
-            configuredTargetCount: slowLoopAuthoringScan.configuredTargetCount,
+            configuredPolicyCount: slowLoopAuthoringScan.configuredPolicyCount,
             warningCount: slowLoopAuthoringScan.warningCount,
             runs: slowLoopAuthoringScan.runs.map(run => ({
               id: run.id,
@@ -158,66 +146,12 @@ export class EvolutionControlPlane {
               clusterId: run.clusterId,
               gapCount: run.gapCount,
               goalCount: run.goalCount,
-              phase: run.phase,
+              phase: run.phase === 'research-pending' ? 'incomplete' : run.phase,
               createdAt: run.createdAt,
               updatedAt: run.updatedAt,
               modelCalls: run.modelCalls,
               inputTokens: run.inputTokens,
               outputTokens: run.outputTokens,
-              ...(run.researchDigest === undefined ? {} : { researchDigest: run.researchDigest }),
-              ...(run.candidateId === undefined ? {} : { candidateId: run.candidateId }),
-              ...(run.retryAt === undefined ? {} : { retryAt: run.retryAt }),
-              releaseAuthority: run.releaseAuthority,
-            })),
-          } }),
-      ...(researchHoldoutScan === undefined
-        ? {}
-        : { researchHoldout: {
-            configuredTargetCount: researchHoldoutScan.configuredTargetCount,
-            warningCount: researchHoldoutScan.warningCount,
-            results: researchHoldoutScan.results.map(result => ({
-              id: result.id,
-              candidateId: result.candidateId,
-              skillName: result.skillName,
-              targetId: result.targetId,
-              status: result.status,
-              reason: result.reason,
-              researchDigest: result.researchDigest,
-              candidateTreeHash: result.candidateTreeHash,
-              evaluatorIdentityHash: result.evaluatorIdentityHash,
-              modelCalls: result.cost.modelCalls,
-              inputTokens: result.cost.inputTokens,
-              outputTokens: result.cost.outputTokens,
-              findings: result.findings.map(finding => ({
-                anchorDigest: finding.anchorDigest,
-                assessment: finding.assessment,
-              })),
-              ...(result.retryAt === undefined ? {} : { retryAt: result.retryAt }),
-              releaseAuthority: result.releaseAuthority,
-            })),
-          } }),
-      ...(researchRevisionScan === undefined
-        ? {}
-        : { researchRevision: {
-            configuredTargetCount: researchRevisionScan.configuredTargetCount,
-            warningCount: researchRevisionScan.warningCount,
-            runs: researchRevisionScan.runs.map(run => ({
-              id: run.id,
-              parentCandidateId: run.parentCandidateId,
-              skillName: run.skillName,
-              targetId: run.targetId,
-              status: run.status,
-              reason: run.reason,
-              holdoutResultId: run.holdoutResultId,
-              researchDigest: run.researchDigest,
-              parentTreeHash: run.parentTreeHash,
-              inputDigest: run.inputDigest,
-              reviserIdentityHash: run.reviserIdentityHash,
-              createdAt: run.createdAt,
-              updatedAt: run.updatedAt,
-              modelCalls: run.cost.modelCalls,
-              inputTokens: run.cost.inputTokens,
-              outputTokens: run.cost.outputTokens,
               ...(run.candidateId === undefined ? {} : { candidateId: run.candidateId }),
               ...(run.retryAt === undefined ? {} : { retryAt: run.retryAt }),
               releaseAuthority: run.releaseAuthority,
@@ -506,15 +440,14 @@ function projectCapabilityGaps(
   }
 }
 
-function projectSkillDiscovery(
-  discovery: NonNullable<EvolutionControlPlaneModules['discovery']>,
+function projectSkillCandidates(
+  candidates: NonNullable<EvolutionControlPlaneModules['candidates']>,
   workspaceId: string,
-): EvolutionSkillDiscoveryView {
-  const candidates = discovery.listCandidates(workspaceId)
-  const attempts = discovery.listAttempts(workspaceId)
+): EvolutionSkillCandidateQueueView {
+  const values = candidates.listCandidates(workspaceId)
   return {
-    quarantinedCount: candidates.filter(candidate => candidate.safety.status === 'quarantined').length,
-    candidates: candidates.slice(0, MAX_DISCOVERY_ROWS).map(candidate => ({
+    quarantinedCount: values.filter(candidate => candidate.safety.status === 'quarantined').length,
+    items: values.slice(0, MAX_DISCOVERY_ROWS).map(candidate => ({
       id: candidate.id,
       discoveredAt: candidate.discoveredAt,
       gapId: candidate.gapId,
@@ -542,21 +475,6 @@ function projectSkillDiscovery(
       lifecycle: candidate.lifecycle,
       verification: candidate.verification,
       execution: candidate.execution,
-    })),
-    attempts: attempts.slice(0, MAX_DISCOVERY_ROWS).map(attempt => ({
-      id: attempt.id,
-      gapId: attempt.gapId,
-      requestedSkill: attempt.requestedSkill,
-      startedAt: attempt.startedAt,
-      completedAt: attempt.completedAt,
-      status: attempt.status,
-      candidateIds: [...attempt.candidateIds],
-      reasons: [...attempt.reasons],
-      sources: attempt.sources.map(source => ({
-        id: source.id,
-        status: source.status,
-        ...(source.revision === undefined ? {} : { revision: source.revision }),
-      })),
     })),
   }
 }
