@@ -226,7 +226,8 @@ export class ResearchSkillHoldout {
   }
 
   matches(candidate: Pick<DiscoveredSkillCandidate, 'workspaceId' | 'requestedSkill' | 'version'>): boolean {
-    return candidate.version.kind === 'slow-loop-research-bundle-v2'
+    return (candidate.version.kind === 'slow-loop-research-bundle-v2'
+        || candidate.version.kind === 'slow-loop-research-revision-v3')
       && this.targets.has(targetKey(candidate.workspaceId, candidate.requestedSkill))
   }
 
@@ -236,7 +237,8 @@ export class ResearchSkillHoldout {
   ): Promise<ResearchSkillHoldoutResult> {
     const target = this.targets.get(targetKey(candidate.workspaceId, candidate.requestedSkill))
     if (target === undefined
-      || candidate.version.kind !== 'slow-loop-research-bundle-v2'
+      || (candidate.version.kind !== 'slow-loop-research-bundle-v2'
+        && candidate.version.kind !== 'slow-loop-research-revision-v3')
       || candidate.source.kind !== 'slow-loop-author'
       || candidate.demand === undefined) {
       throw new Error('research Skill Holdout requires one exact configured research-grounded Candidate')

@@ -114,6 +114,18 @@ const versionSchema = z.union([
     artifactDigest: hashSchema,
     treeHash: hashSchema,
   }),
+  z.strictObject({
+    kind: z.literal('slow-loop-research-revision-v3'),
+    revision: z.literal(1),
+    modelIdentityHash: hashSchema,
+    inputDigest: hashSchema,
+    researchDigest: hashSchema,
+    parentCandidateId: hashSchema,
+    parentTreeHash: hashSchema,
+    holdoutResultId: hashSchema,
+    artifactDigest: hashSchema,
+    treeHash: hashSchema,
+  }),
 ])
 const candidateSchema = z.strictObject({
   schemaVersion: z.literal(1),
@@ -214,7 +226,12 @@ const candidateSchema = z.strictObject({
       && candidate.artifact.format === 'tar.gz'
       && candidate.distribution?.kind === 'archive'
       && candidate.distribution.format === 'tar.gz'
-    if ((!singleFile && !wholeBundle && !researchBundle)
+    const researchRevision = candidate.version.kind === 'slow-loop-research-revision-v3'
+      && candidate.artifact?.kind === 'archive'
+      && candidate.artifact.format === 'tar.gz'
+      && candidate.distribution?.kind === 'archive'
+      && candidate.distribution.format === 'tar.gz'
+    if ((!singleFile && !wholeBundle && !researchBundle && !researchRevision)
       || candidate.demand === undefined
       || candidate.gapId !== candidate.demand.gapIds[0]
       || new Set(candidate.demand.gapIds).size !== candidate.demand.gapIds.length) {
@@ -297,6 +314,12 @@ export interface AuthoredSkillCandidateInput extends AuthoredSkillProvenanceInpu
 export interface AuthoredSkillBundleCandidateInput extends AuthoredSkillProvenanceInput {
   readonly researchDigest: string
   readonly files: readonly AgentSkillTextManifestFile[]
+}
+
+export interface RevisedSkillBundleCandidateInput extends AuthoredSkillBundleCandidateInput {
+  readonly parentCandidateId: string
+  readonly parentTreeHash: string
+  readonly holdoutResultId: string
 }
 
 export interface SkillDiscoveryStore {
@@ -659,6 +682,57 @@ export class TrustedSkillDiscovery {
     if (!hashSchema.safeParse(input.researchDigest).success) {
       throw new Error('slow-loop authored whole-Skill research provenance is invalid')
     }
+    return this.quarantineWholeSkillBundle(input, assembled => ({
+      kind: 'slow-loop-research-bundle-v2',
+      modelIdentityHash: sha256Bytes(Buffer.from(input.modelIdentity)),
+      inputDigest: input.inputDigest,
+      researchDigest: input.researchDigest,
+      artifactDigest: assembled.artifactDigest,
+      treeHash: assembled.treeHash,
+    }))
+  }
+
+  /** Persist exactly one bounded revision bound to its parent tree and failed Holdout evidence. */
+  async quarantineRevisedBundle(input: RevisedSkillBundleCandidateInput): Promise<{
+    readonly created: boolean
+    readonly candidate: DiscoveredSkillCandidate
+  }> {
+    assertAuthoredSkillProvenance(input)
+    if (!hashSchema.safeParse(input.researchDigest).success
+      || !hashSchema.safeParse(input.parentCandidateId).success
+      || !hashSchema.safeParse(input.parentTreeHash).success
+      || !hashSchema.safeParse(input.holdoutResultId).success) {
+      throw new Error('slow-loop revised whole-Skill provenance is invalid')
+    }
+    return this.quarantineWholeSkillBundle(input, assembled => {
+      if (assembled.treeHash === input.parentTreeHash) {
+        throw new Error('slow-loop revised whole-Skill must change its exact parent tree')
+      }
+      return {
+        kind: 'slow-loop-research-revision-v3',
+        revision: 1,
+        modelIdentityHash: sha256Bytes(Buffer.from(input.modelIdentity)),
+        inputDigest: input.inputDigest,
+        researchDigest: input.researchDigest,
+        parentCandidateId: input.parentCandidateId,
+        parentTreeHash: input.parentTreeHash,
+        holdoutResultId: input.holdoutResultId,
+        artifactDigest: assembled.artifactDigest,
+        treeHash: assembled.treeHash,
+      }
+    })
+  }
+
+  private async quarantineWholeSkillBundle(
+    input: AuthoredSkillBundleCandidateInput,
+    version: (assembled: Awaited<ReturnType<typeof assembleAgentSkillTextArchive>>) =>
+      Extract<DiscoveredSkillCandidate['version'], {
+        kind: 'slow-loop-research-bundle-v2' | 'slow-loop-research-revision-v3'
+      }>,
+  ): Promise<{
+    readonly created: boolean
+    readonly candidate: DiscoveredSkillCandidate
+  }> {
     const assembled = await assembleAgentSkillTextArchive(input.files)
     const skillFile = assembled.files.find(file => file.path === 'SKILL.md')
     if (skillFile === undefined) throw new Error('slow-loop authored whole-Skill has no root SKILL.md')
@@ -684,14 +758,7 @@ export class TrustedSkillDiscovery {
         trust: 'bounded-host-authoring',
       },
       scope: 'workspace',
-      version: {
-        kind: 'slow-loop-research-bundle-v2',
-        modelIdentityHash: sha256Bytes(Buffer.from(input.modelIdentity)),
-        inputDigest: input.inputDigest,
-        researchDigest: input.researchDigest,
-        artifactDigest: assembled.artifactDigest,
-        treeHash: assembled.treeHash,
-      },
+      version: version(assembled),
       distribution: { kind: 'archive', format: 'tar.gz' },
       contentHash: assembled.artifactDigest,
       package: {
@@ -833,6 +900,7 @@ export class TrustedSkillDiscovery {
       ? await validateAuthoredSingleFileCandidate(candidate)
       : candidate.version.kind === 'slow-loop-author-bundle-v1'
         || candidate.version.kind === 'slow-loop-research-bundle-v2'
+        || candidate.version.kind === 'slow-loop-research-revision-v3'
         ? await validateAuthoredBundleCandidate(candidate)
         : undefined
     if (pinned === undefined) throw new Error('slow-loop authored candidate has invalid pinned content')
@@ -1875,7 +1943,8 @@ async function validateAuthoredBundleCandidate(
   candidate: DiscoveredSkillCandidate,
 ): Promise<ValidatedAuthoredPackage> {
   if ((candidate.version.kind !== 'slow-loop-author-bundle-v1'
-      && candidate.version.kind !== 'slow-loop-research-bundle-v2')
+      && candidate.version.kind !== 'slow-loop-research-bundle-v2'
+      && candidate.version.kind !== 'slow-loop-research-revision-v3')
     || candidate.artifact?.kind !== 'archive'
     || candidate.artifact.format !== 'tar.gz'
     || candidate.distribution?.kind !== 'archive'
@@ -2047,6 +2116,19 @@ function versionIdentity(version: DiscoveredSkillCandidate['version']): readonly
       version.modelIdentityHash,
       version.inputDigest,
       version.researchDigest,
+      version.artifactDigest,
+      version.treeHash,
+    ]
+  }
+  if (version.kind === 'slow-loop-research-revision-v3') {
+    return [
+      String(version.revision),
+      version.modelIdentityHash,
+      version.inputDigest,
+      version.researchDigest,
+      version.parentCandidateId,
+      version.parentTreeHash,
+      version.holdoutResultId,
       version.artifactDigest,
       version.treeHash,
     ]

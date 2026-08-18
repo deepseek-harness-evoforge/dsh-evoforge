@@ -194,6 +194,57 @@ describe('trusted whole-Skill discovery', () => {
     expect((await stat(join(output, 'SKILL.md'))).mode & 0o777).toBe(0o600)
     expect((await stat(join(output, 'references/verification.md'))).mode & 0o777).toBe(0o600)
 
+    const revisedReference = `${reference}\nRequire explicit rollback before retry.\n`
+    const revised = await discovery.quarantineRevisedBundle({
+      ...common,
+      discoveredAt: common.discoveredAt + 1,
+      modelIdentity: 'private-reviser-route',
+      inputDigest: '9'.repeat(64),
+      parentCandidateId: first.candidate.id,
+      parentTreeHash: first.candidate.version.treeHash,
+      holdoutResultId: 'a'.repeat(64),
+      files: [
+        { path: 'SKILL.md', content: skillMd },
+        { path: 'references/verification.md', content: revisedReference },
+      ],
+    })
+    expect(revised.candidate).toMatchObject({
+      lifecycle: 'inactive',
+      verification: 'unevaluated',
+      execution: 'never',
+      version: {
+        kind: 'slow-loop-research-revision-v3',
+        revision: 1,
+        modelIdentityHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+        inputDigest: '9'.repeat(64),
+        researchDigest: '5'.repeat(64),
+        parentCandidateId: first.candidate.id,
+        parentTreeHash: first.candidate.version.treeHash,
+        holdoutResultId: 'a'.repeat(64),
+        artifactDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
+        treeHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      },
+    })
+    expect(revised.candidate.id).not.toBe(first.candidate.id)
+    const revisedOutput = join(await realpath(parent), 'revised-candidate')
+    await expect(discovery.materialize(revised.candidate, revisedOutput)).resolves.toMatchObject({
+      candidateId: revised.candidate.id,
+      treeHash: revised.candidate.version.treeHash,
+    })
+    await expect(readFile(join(revisedOutput, 'references/verification.md'), 'utf8'))
+      .resolves.toBe(revisedReference)
+    await expect(discovery.quarantineRevisedBundle({
+      ...common,
+      inputDigest: '9'.repeat(64),
+      parentCandidateId: first.candidate.id,
+      parentTreeHash: first.candidate.version.treeHash,
+      holdoutResultId: 'a'.repeat(64),
+      files: [
+        { path: 'SKILL.md', content: skillMd },
+        { path: 'references/verification.md', content: reference },
+      ],
+    })).rejects.toThrow('must change its exact parent tree')
+
     if (first.candidate.artifact?.kind !== 'archive'
       || first.candidate.version.kind !== 'slow-loop-research-bundle-v2') {
       throw new Error('expected an authored archive candidate')
@@ -668,6 +719,18 @@ function discoveredCandidateId(input: Parameters<SkillDiscoveryStore['recordCand
             input.version.artifactDigest,
             input.version.treeHash,
           ]
+        : input.version.kind === 'slow-loop-research-revision-v3'
+          ? [
+              String(input.version.revision),
+              input.version.modelIdentityHash,
+              input.version.inputDigest,
+              input.version.researchDigest,
+              input.version.parentCandidateId,
+              input.version.parentTreeHash,
+              input.version.holdoutResultId,
+              input.version.artifactDigest,
+              input.version.treeHash,
+            ]
       : [
           input.version.modelIdentityHash,
           input.version.inputDigest,

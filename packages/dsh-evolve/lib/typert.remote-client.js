@@ -265,6 +265,17 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'researchDigest': z.string().readonly(),
   'artifactDigest': z.string().readonly(),
   'treeHash': z.string().readonly(),
+}), z.object({
+  'kind': z.literal("slow-loop-research-revision-v3").readonly(),
+  'revision': z.literal(1).readonly(),
+  'modelIdentityHash': z.string().readonly(),
+  'inputDigest': z.string().readonly(),
+  'researchDigest': z.string().readonly(),
+  'parentCandidateId': z.string().readonly(),
+  'parentTreeHash': z.string().readonly(),
+  'holdoutResultId': z.string().readonly(),
+  'artifactDigest': z.string().readonly(),
+  'treeHash': z.string().readonly(),
 })]).readonly(),
   'distribution': z.union([z.undefined(), z.object({
   'kind': z.literal("skill-md").readonly(),

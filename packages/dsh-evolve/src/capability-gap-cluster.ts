@@ -165,6 +165,26 @@ function candidateIdentity(candidate: Pick<
         candidate.version.artifactDigest,
         candidate.version.treeHash,
       ]
+      : candidate.version.kind === 'slow-loop-research-bundle-v2'
+        ? [
+            candidate.version.modelIdentityHash,
+            candidate.version.inputDigest,
+            candidate.version.researchDigest,
+            candidate.version.artifactDigest,
+            candidate.version.treeHash,
+          ]
+        : candidate.version.kind === 'slow-loop-research-revision-v3'
+          ? [
+              String(candidate.version.revision),
+              candidate.version.modelIdentityHash,
+              candidate.version.inputDigest,
+              candidate.version.researchDigest,
+              candidate.version.parentCandidateId,
+              candidate.version.parentTreeHash,
+              candidate.version.holdoutResultId,
+              candidate.version.artifactDigest,
+              candidate.version.treeHash,
+            ]
       : [
           candidate.version.modelIdentityHash,
           candidate.version.inputDigest,

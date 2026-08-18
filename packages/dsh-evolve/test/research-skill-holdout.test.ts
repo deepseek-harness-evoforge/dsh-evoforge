@@ -125,6 +125,17 @@ describe('independent research holdout', () => {
       warningCount: 0,
       results: [result],
     })
+
+    const revised = revisedCandidate()
+    expect(holdout.matches(revised)).toBe(true)
+    await expect(holdout.evaluate(revised)).resolves.toMatchObject({
+      status: 'pass',
+      candidateId: revised.id,
+      candidateTreeHash: revised.version.treeHash,
+      researchDigest: RESEARCH_DIGEST,
+      releaseAuthority: 'none',
+    })
+    expect(evaluator).toHaveBeenCalledTimes(2)
   })
 
   it('refuses an evaluator that can match the Candidate author identity before budget or model use', async () => {
@@ -471,6 +482,26 @@ function candidate(overrides: {
     lifecycle: 'inactive',
     verification: 'unevaluated',
     execution: 'never',
+  }
+}
+
+function revisedCandidate(): DiscoveredSkillCandidate {
+  const parent = candidate()
+  return {
+    ...parent,
+    id: '9'.repeat(64),
+    version: {
+      kind: 'slow-loop-research-revision-v3',
+      revision: 1,
+      modelIdentityHash: sha256('revision/provider-model'),
+      inputDigest: '0'.repeat(64),
+      researchDigest: RESEARCH_DIGEST,
+      parentCandidateId: parent.id,
+      parentTreeHash: 'f'.repeat(64),
+      holdoutResultId: '8'.repeat(64),
+      artifactDigest: parent.contentHash,
+      treeHash: TREE_HASH,
+    },
   }
 }
 

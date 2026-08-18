@@ -144,6 +144,24 @@ describe('cross-Goal slow-loop Skill authoring', () => {
       verification: researchCorpus().verification,
     })
     expect(holdout).not.toHaveProperty('knowledge')
+    const parentCandidate = generatedCandidate(authored)
+    await expect(service.verificationFor({
+      ...parentCandidate,
+      id: 'a'.repeat(64),
+      version: {
+        kind: 'slow-loop-research-revision-v3',
+        revision: 1,
+        modelIdentityHash: sha256('private-reviser-route'),
+        inputDigest: 'b'.repeat(64),
+        researchDigest: researchCorpus().digest,
+        parentCandidateId: parentCandidate.id,
+        parentTreeHash: parentCandidate.version.treeHash,
+        holdoutResultId: 'c'.repeat(64),
+        artifactDigest: 'd'.repeat(64),
+        treeHash: 'e'.repeat(64),
+      },
+      contentHash: 'd'.repeat(64),
+    })).resolves.toEqual(holdout)
     await expect(service.verificationFor({
       ...generatedCandidate(authored),
       id: '8'.repeat(64),

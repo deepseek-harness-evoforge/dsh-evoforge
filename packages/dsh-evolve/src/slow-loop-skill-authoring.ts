@@ -308,10 +308,15 @@ export class SlowLoopSkillAuthoring {
     candidate: DiscoveredSkillCandidate,
   ): Promise<SlowLoopSkillVerificationHandoff> {
     if (candidate.source.kind !== 'slow-loop-author'
-      || candidate.version.kind !== 'slow-loop-research-bundle-v2'
+      || (candidate.version.kind !== 'slow-loop-research-bundle-v2'
+        && candidate.version.kind !== 'slow-loop-research-revision-v3')
       || candidate.demand === undefined) {
       throw new Error('exact research-grounded Candidate is required for verification')
     }
+    const version = candidate.version
+    const parentCandidateId = version.kind === 'slow-loop-research-bundle-v2'
+      ? candidate.id
+      : version.parentCandidateId
     const target = this.targets.get(targetKey(candidate.workspaceId, candidate.requestedSkill))
     if (target === undefined || candidate.source.id !== target.id) {
       throw new Error('exact research-grounded Candidate has no configured authoring target')
@@ -334,16 +339,17 @@ export class SlowLoopSkillAuthoring {
         continue
       }
       if (state.phase === 'candidate-ready'
-        && state.candidateId === candidate.id
-        && state.researchDigest === candidate.version.researchDigest
+        && state.candidateId === parentCandidateId
+        && state.researchDigest === version.researchDigest
         && state.identity.targetId === candidate.source.id
         && state.identity.workspaceId === candidate.workspaceId
         && state.identity.skillName === candidate.requestedSkill
         && state.identity.clusterId === candidate.demand.clusterId
         && JSON.stringify(state.identity.gapIds) === JSON.stringify(candidate.demand.gapIds)
         && state.identity.goalCount === candidate.demand.goalCount
-        && state.identity.inputDigest === candidate.version.inputDigest
-        && sha256(state.identity.modelIdentity) === candidate.version.modelIdentityHash) {
+        && (version.kind === 'slow-loop-research-revision-v3'
+          || (state.identity.inputDigest === version.inputDigest
+            && sha256(state.identity.modelIdentity) === version.modelIdentityHash))) {
         matches.push({ state, runDir })
       }
     }
@@ -362,7 +368,7 @@ export class SlowLoopSkillAuthoring {
     } catch {
       throw new Error('exact research-grounded Candidate research evidence is invalid')
     }
-    if (corpus.digest !== candidate.version.researchDigest) {
+    if (corpus.digest !== version.researchDigest) {
       throw new Error('exact research-grounded Candidate research digest changed')
     }
     return deepFreeze({
