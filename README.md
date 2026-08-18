@@ -20,7 +20,7 @@
 | `dsh-channel-router` | external endpoint 到原生 Workspace/Session/Agent 的静态、幂等绑定 | disabled，需显式配置 |
 | `dsh-feishu` | 一个飞书 App 的 exact 私聊/群聊经 Router 进入原生 Workspace/Session/Agent；同包提供 DSH Web 首次连接向导 | disabled，需显式配置 |
 
-现有进化实现覆盖 P0A–P1.21：sealed paired Trial、inactive Candidate、immutable Generation、Session pin、人工审查、极窄自动晋升、Retention、预算、反馈驱动 Shadow、反事实 canary 和 future-session rollback。它们仍处于 `implemented`，真实 provider、陌生用户、长期误晋升率和生产多日证据尚未完成。
+现有进化实现覆盖 P0A–P1.21：sealed paired Trial、inactive Candidate、immutable Generation、Session pin、人工审查、极窄自动晋升、Retention、预算、反馈驱动 Shadow、反事实 canary 和 future-session rollback。自主发现的 whole-Skill 血缘已从 admission/Shadow/Review 延伸到不可变 Generation，并在 DSH Web 以活动、待启用和待审核三种状态显示精确的 Candidate→Holdout→revision→admission 链。它们仍处于 `implemented`，真实 provider、陌生用户、长期误晋升率和生产多日证据尚未完成。
 
 ## 安装到一个 DSH profile
 

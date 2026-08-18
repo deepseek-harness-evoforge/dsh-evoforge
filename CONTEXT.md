@@ -123,7 +123,7 @@ An inactive, versioned diff owned by exactly one registered DSH Workspace, accom
 _Avoid_: Live patch, learned rule
 
 **Discovered Skill Lineage**:
-The bounded, host-derived identity that follows one exact discovered whole-Skill Candidate from deterministic admission into Shadow and human review. It binds Candidate/version/source/content/tree, admission, and—when applicable—research, parent revision, failed Holdout, and passing Holdout ids into the Shadow run identity while excluding Skill bodies, host paths, research attribution, and author/evaluator/provider identity.
+The bounded, host-derived identity that follows one exact discovered whole-Skill Candidate from deterministic admission into Shadow, human review, and its immutable Capability Generation artifact. It participates in Shadow, Review, and Generation content identity and is projected to DSH Web as shortened identifiers for active, pending, or published-inactive state. It binds Candidate/version/source/content/tree, admission, and—when applicable—research, parent revision, failed Holdout, and passing Holdout ids while excluding Skill bodies, host paths, research attribution, and author/evaluator/provider identity.
 _Avoid_: Copied Candidate record, private provenance dump, self-asserted lineage
 
 **Trial**:

@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { JobRegistry } from '@deepseek-ai/dsh-jobs'
 import { openEvolutionStore, type EvolutionStore } from '../src/generation-store.js'
+import type { DiscoveredSkillLineage } from '../src/discovered-skill-lineage.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -31,6 +32,7 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
         name: 'build-dsh-plugin',
         gitCommit: '0123456789abcdef0123456789abcdef01234567',
         treeHash: 'a'.repeat(64),
+        lineage: discoveredLineage('a'.repeat(64)),
       }],
       evaluatorVersion: 'private-host-runtime-package-boundary-v1',
       policyVersion: 'p0b.1',
@@ -46,11 +48,18 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
       expect(published).toEqual({ created: true, generation: expected })
       expect(expected).toMatchObject({ schemaVersion: 2, ...input })
       expect(await firstStore.publishGeneration(input)).toEqual({ created: false, generation: expected })
+      const withoutLineage = await firstStore.publishGeneration({
+        ...input,
+        artifacts: input.artifacts.map(({ lineage: _lineage, ...artifact }) => artifact),
+      })
+      expect(withoutLineage.generation.id).not.toBe(expected.id)
       const loaded = firstStore.getGeneration(expected.id)
       expect(loaded).toEqual(expected)
       expect(Object.isFrozen(loaded)).toBe(true)
       expect(Object.isFrozen(loaded?.artifacts)).toBe(true)
       expect(Object.isFrozen(loaded?.artifacts[0])).toBe(true)
+      expect(Object.isFrozen(loaded?.artifacts[0]?.lineage)).toBe(true)
+      expect(Object.isFrozen(loaded?.artifacts[0]?.lineage?.research)).toBe(true)
     } finally {
       await firstStore.close()
       await firstCtx.fiber.dispose()
@@ -443,6 +452,33 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
     }
   })
 })
+
+function discoveredLineage(candidateTreeHash: string): DiscoveredSkillLineage {
+  return {
+    kind: 'discovered-skill-lineage-v1',
+    candidateId: '1'.repeat(64),
+    workspaceId: WORKSPACE_ID,
+    skillName: 'build-dsh-plugin',
+    versionKind: 'slow-loop-research-revision-v3',
+    source: {
+      id: 'build-dsh-plugin-author',
+      kind: 'slow-loop-author',
+      trust: 'bounded-host-authoring',
+    },
+    contentHash: '2'.repeat(64),
+    candidateTreeHash,
+    admissionId: '3'.repeat(64),
+    admissionTargetId: 'build-dsh-plugin-admission',
+    research: {
+      researchDigest: '4'.repeat(64),
+      parentCandidateId: '5'.repeat(64),
+      parentTreeHash: '6'.repeat(64),
+      revisionHoldoutResultId: '7'.repeat(64),
+      researchHoldoutResultId: '8'.repeat(64),
+    },
+    releaseAuthority: 'none',
+  }
+}
 
 function session(sessionId: string, createdAt: number) {
   return {

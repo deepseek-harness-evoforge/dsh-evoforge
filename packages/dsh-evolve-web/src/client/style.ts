@@ -32,6 +32,17 @@ export const cssText = `
 .dsh-evolve-skill-intro p{margin-bottom:0}
 .dsh-evolve-skill-card{padding:10px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px}
 .dsh-evolve-skill-card p{margin:3px 0 0}
+.dsh-evolve-lineage{margin-top:9px;padding:9px;border-radius:8px;background:var(--dsw-alias-fill-l1)}
+.dsh-evolve-lineage-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px}
+.dsh-evolve-lineage-head span,.dsh-evolve-lineage-meta{color:var(--dsw-alias-label-tertiary);font-size:10px}
+.dsh-evolve-lineage-meta{margin-top:4px;overflow-wrap:anywhere}
+.dsh-evolve-lineage-flow{display:flex;flex-direction:column;gap:0;margin:8px 0 0;padding:0;list-style:none}
+.dsh-evolve-lineage-flow li{position:relative;display:flex;gap:7px;min-height:29px;padding:0 0 6px;font-size:10px}
+.dsh-evolve-lineage-flow li:not(:last-child)::before{position:absolute;top:8px;bottom:-2px;left:3px;width:1px;background:var(--dsw-alias-border-l2);content:""}
+.dsh-evolve-lineage-flow li>span{position:relative;z-index:1;width:7px;height:7px;flex:0 0 7px;margin-top:4px;border-radius:50%;background:var(--dsw-alias-brand-primary)}
+.dsh-evolve-lineage-flow strong{display:block;font:600 10px/15px var(--dsw-font-mono)}
+.dsh-evolve-lineage-flow small{display:block;color:var(--dsw-alias-label-tertiary);font:10px/14px var(--dsw-font-mono)}
+.dsh-evolve-lineage-release{display:inline-flex;padding:2px 6px;border-radius:7px;background:var(--dsw-alias-fill-l2);color:var(--dsw-alias-label-secondary);font-size:10px;font-weight:600}
 .dsh-evolve-capability-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .dsh-evolve-capability-head .dsh-evolve-section-title{margin-bottom:8px}
 .dsh-evolve-catalog-status{margin-bottom:8px;padding:2px 7px;border-radius:9px;background:var(--dsw-alias-fill-l2);color:var(--dsw-alias-label-tertiary);font-size:10px}

@@ -8,6 +8,33 @@ const generationId = 'a'.repeat(64)
 const parentId = 'b'.repeat(64)
 const reviewId = 'c'.repeat(64)
 
+function lineage(candidateTreeHash = '1'.repeat(64)) {
+  return {
+    kind: 'discovered-skill-lineage-v1' as const,
+    candidateId: '8'.repeat(64),
+    workspaceId: WORKSPACE_ID,
+    skillName: 'build-dsh-plugin',
+    versionKind: 'slow-loop-research-revision-v3' as const,
+    source: {
+      id: 'bounded-author',
+      kind: 'slow-loop-author' as const,
+      trust: 'bounded-host-authoring' as const,
+    },
+    contentHash: '9'.repeat(64),
+    candidateTreeHash,
+    admissionId: 'a'.repeat(64),
+    admissionTargetId: 'plugin-delivery',
+    research: {
+      researchDigest: 'b'.repeat(64),
+      parentCandidateId: 'c'.repeat(64),
+      parentTreeHash: 'd'.repeat(64),
+      revisionHoldoutResultId: 'e'.repeat(64),
+      researchHoldoutResultId: 'f'.repeat(64),
+    },
+    releaseAuthority: 'none' as const,
+  }
+}
+
 function generation(id = generationId): CapabilityGeneration {
   return {
     id,
@@ -20,6 +47,7 @@ function generation(id = generationId): CapabilityGeneration {
       name: 'build-dsh-plugin',
       gitCommit: 'd'.repeat(40),
       treeHash: 'e'.repeat(40),
+      lineage: lineage(),
     }],
     evaluatorVersion: 'case-pack-v1',
     policyVersion: 'human-review-v1',
@@ -39,6 +67,7 @@ function candidate(status: ReviewCandidate['status'] = 'pending'): ReviewCandida
     claim: 'Continue safe authorized work after a progress update.',
     changedFiles: ['SKILL.md'],
     candidateTreeHash: '1'.repeat(64),
+    lineage: lineage(),
     baseTreeHash: '2'.repeat(64),
     proposalHash: '3'.repeat(64),
     proposal: { claim: 'private proposal', files: [{ path: 'SKILL.md', content: 'private content' }] },
@@ -59,11 +88,16 @@ function candidate(status: ReviewCandidate['status'] = 'pending'): ReviewCandida
   }
 }
 
-function store(active: CapabilityGeneration | undefined = generation()): EvolutionStore {
+function store(
+  active: CapabilityGeneration | undefined = generation(),
+  inactive: readonly CapabilityGeneration[] = [],
+): EvolutionStore {
   let current: CapabilityGeneration | undefined = active
   return {
     publishGeneration: vi.fn(),
-    getGeneration: vi.fn((id: string) => id === current?.id ? current : undefined),
+    getGeneration: vi.fn((id: string) => id === current?.id
+      ? current
+      : inactive.find(item => item.id === id)),
     getActiveGeneration: vi.fn(() => current),
     promoteGeneration: vi.fn(async (_workspaceId: string, id: string) => {
       const previousId = current?.id
@@ -119,7 +153,7 @@ describe('EvolutionControlPlane', () => {
       }],
     }))
     const control = new EvolutionControlPlane({
-      store: store(),
+      store: store(generation(), [generation('7'.repeat(64))]),
       resident: { isPaused: () => false, pause: vi.fn(), resume: vi.fn() },
       review: {
         inbox,
@@ -658,10 +692,13 @@ describe('EvolutionControlPlane', () => {
       generationId: '7'.repeat(64),
       reviewId: '6'.repeat(64),
       skillName: 'build-dsh-plugin',
+      lineage: lineage(),
     }])
+    expect(overview.active?.artifacts[0]?.lineage).toEqual(lineage())
     expect(overview.reviews.items[0]).toMatchObject({
       id: reviewId,
       skillName: 'build-dsh-plugin',
+      lineage: lineage(),
       automaticReviewExpiry: {
         eligibleAt: '2026-08-23T00:00:00.000Z',
         eligible: false,
@@ -677,6 +714,7 @@ describe('EvolutionControlPlane', () => {
       eligible: false,
       trigger: 'next-same-skill-automatic-signal',
     })
+    expect(detail.review.lineage).toEqual(lineage())
     expect(JSON.stringify({ overview, detail })).not.toContain('/private/evolution')
     expect(JSON.stringify({ overview, detail })).not.toContain('private content')
     expect(JSON.stringify(overview)).not.toContain('private-session')

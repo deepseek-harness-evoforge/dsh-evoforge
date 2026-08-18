@@ -49,6 +49,11 @@ Gap 与隔离候选身份派生同一 Workspace、至少两个不同 Goal 的
 重试。这个消费者没有 install/activate/publish seam。任意市场/ClawHub 专有 API、官方资料检索、archive
 组合、真实 provider 路由质量仍是后续门禁，不能从本实现推断已经完成整个 ADR。
 
+研究 v2/v3 Candidate 通过独立 Holdout 与 deterministic admission 后，由 Host 派生严格白名单的
+identity-only lineage；它逐层绑定 Shadow run、Review evidence 和 immutable Generation artifact，并参与
+各层内容身份。DSH Web 只把该 lineage 投影为缩短后的 source/Candidate/failed Holdout/admission/passing
+Holdout 时间线；待启用视图必须回读真实 Generation artifact，不从 Review 自行补造发布事实。
+
 ## 结果
 
 - 用户不需要预先理解 Skill 目录或工作流分类；Web 可解释实际路由和未满足缺口；

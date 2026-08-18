@@ -13,6 +13,7 @@ import type {
   GenerationInput,
 } from '../src/generation-store.js'
 import type { ReviewCandidate } from '../src/review-inbox.js'
+import type { DiscoveredSkillLineage } from '../src/discovered-skill-lineage.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const execFile = promisify(execFileCallback)
@@ -87,12 +88,14 @@ describe('approved Candidate publisher', () => {
       claim: 'Add a large verified instruction',
       files: [{ path: 'SKILL.md', content: proposed }],
     }
+    const candidateTreeHash = await hashTree(candidateTree)
     const candidate = {
       ...fixture.candidate,
       claim: proposal.claim,
       proposal,
       proposalHash: sha256(JSON.stringify(proposal)),
-      candidateTreeHash: await hashTree(candidateTree),
+      candidateTreeHash,
+      lineage: discoveredLineage(candidateTreeHash),
     }
 
     const preview = await new CandidatePublisher(store, source).preview(candidate)
@@ -124,12 +127,14 @@ describe('approved Candidate publisher', () => {
       claim: 'Render controls safely',
       files: [{ path: 'SKILL.md', content: proposed }],
     }
+    const candidateTreeHash = await hashTree(candidateTree)
     const candidate = {
       ...fixture.candidate,
       claim: proposal.claim,
       proposal,
       proposalHash: sha256(JSON.stringify(proposal)),
-      candidateTreeHash: await hashTree(candidateTree),
+      candidateTreeHash,
+      lineage: discoveredLineage(candidateTreeHash),
     }
 
     const preview = await new CandidatePublisher(store, source).preview(candidate)
@@ -172,7 +177,7 @@ describe('approved Candidate publisher', () => {
       evaluatorVersion: 'fixture-v1',
       policyVersion: 'human-review-v1',
       compositionFingerprint: fixture.candidate.compositionFingerprint,
-      artifacts: [{ kind: 'skill', name: 'stable-skill' }],
+      artifacts: [{ kind: 'skill', name: 'stable-skill', lineage: fixture.candidate.lineage }],
     })
     expect(first).not.toHaveProperty('parentId')
     await expect(source.providerFor(first)).resolves.toBeDefined()
@@ -239,6 +244,33 @@ describe('approved Candidate publisher', () => {
       `refs/evoforge/generations/${fixture.candidate.id}`,
     )).rejects.toThrow()
   })
+
+  it('refuses a Review lineage that names a different sealed Candidate tree', async () => {
+    const fixture = await createFixture()
+    const store = fakeStore()
+    const source = new GitSkillSource(join(fixture.root, 'cache'), [{
+      name: 'stable-skill',
+      repository: fixture.repository,
+      path: 'skills/stable-skill',
+    }])
+    const publisher = new CandidatePublisher(store, source)
+    const mismatched = {
+      ...fixture.candidate,
+      lineage: {
+        ...fixture.candidate.lineage!,
+        candidateTreeHash: '0'.repeat(64),
+      },
+    }
+
+    await expect(publisher.preview(mismatched)).rejects.toThrow('Review lineage does not match its exact Candidate')
+    await expect(publisher.publish(mismatched)).rejects.toThrow('Review lineage does not match its exact Candidate')
+    expect(store.publishGeneration).not.toHaveBeenCalled()
+    await expect(git(
+      fixture.repository,
+      'rev-parse',
+      `refs/evoforge/generations/${fixture.candidate.id}`,
+    )).rejects.toThrow()
+  })
 })
 
 async function createFixture(): Promise<{
@@ -288,6 +320,7 @@ async function createFixture(): Promise<{
   }
   const reviewId = 'a'.repeat(64)
   const compositionFingerprint = 'c'.repeat(64)
+  const candidateTreeHash = await hashTree(candidateDir)
   const candidate: ReviewCandidate = {
     id: reviewId,
     workspaceId: WORKSPACE_ID,
@@ -298,7 +331,7 @@ async function createFixture(): Promise<{
     recommendation: 'promote',
     claim: proposal.claim,
     changedFiles: ['SKILL.md'],
-    candidateTreeHash: await hashTree(candidateDir),
+    candidateTreeHash,
     baseTreeHash: await hashTree(skillDir),
     proposalHash: sha256(JSON.stringify(proposal)),
     proposal,
@@ -310,9 +343,37 @@ async function createFixture(): Promise<{
     compositionFingerprint,
     compositionStable: false,
     startedAt: '2026-08-16T00:00:00.000Z',
+    lineage: discoveredLineage(candidateTreeHash),
     evidenceHash: 'd'.repeat(64),
   }
   return { root, repository, baseCommit, baseGitTree, otherGitTree, baseline, candidate }
+}
+
+function discoveredLineage(candidateTreeHash: string): DiscoveredSkillLineage {
+  return {
+    kind: 'discovered-skill-lineage-v1',
+    candidateId: '1'.repeat(64),
+    workspaceId: WORKSPACE_ID,
+    skillName: 'stable-skill',
+    versionKind: 'slow-loop-research-revision-v3',
+    source: {
+      id: 'stable-skill-author',
+      kind: 'slow-loop-author',
+      trust: 'bounded-host-authoring',
+    },
+    contentHash: '2'.repeat(64),
+    candidateTreeHash,
+    admissionId: '3'.repeat(64),
+    admissionTargetId: 'stable-skill-admission',
+    research: {
+      researchDigest: '4'.repeat(64),
+      parentCandidateId: '5'.repeat(64),
+      parentTreeHash: '6'.repeat(64),
+      revisionHoldoutResultId: '7'.repeat(64),
+      researchHoldoutResultId: '8'.repeat(64),
+    },
+    releaseAuthority: 'none',
+  }
 }
 
 function fakeStore(active?: CapabilityGeneration): EvolutionStore & {

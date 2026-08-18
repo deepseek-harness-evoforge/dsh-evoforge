@@ -13,6 +13,7 @@ import type { DiscoveredSkillAdmission } from './discovered-skill-admission.ts'
 import type { SlowLoopSkillAuthoring } from './slow-loop-skill-authoring.ts'
 import type { ResearchSkillHoldout } from './research-skill-holdout.ts'
 import type { ResearchSkillRevision } from './research-skill-revision.ts'
+import type { DiscoveredSkillLineage } from './discovered-skill-lineage.ts'
 import type { EvolutionStore } from './generation-store.ts'
 import type { ResidentEvolutionControl } from './resident-evolution-control.ts'
 import type { ReviewCandidate, ReviewInbox } from './review-inbox.ts'
@@ -24,6 +25,7 @@ import type {
   EvolutionSkillAdmissionView,
   EvolutionEvaluatorDraftView,
   EvolutionFeedbackSignalView,
+  EvolutionDiscoveredSkillLineageView,
   EvolutionGenerationView,
   EvolutionEvaluatorDraftDetail,
   EvolutionOverview,
@@ -288,7 +290,7 @@ export class EvolutionControlPlane {
             inactiveGenerations: [],
           }
         : {
-            ...projectReviews(scan, active?.id, workspaceId),
+            ...projectReviews(scan, active?.id, workspaceId, this.modules.store),
           },
     }
   }
@@ -621,6 +623,7 @@ function projectReviews(
   all: Awaited<ReturnType<ReviewInbox['scanAll']>>,
   activeGenerationId: string | undefined,
   workspaceId: string,
+  store: EvolutionStore,
 ): EvolutionOverview['reviews'] {
   const workspaceCandidates = all.candidates.filter(candidate => candidate.workspaceId === workspaceId)
   const actionable = workspaceCandidates.filter(candidate => candidate.status === 'pending'
@@ -633,12 +636,23 @@ function projectReviews(
       && candidate.generationId !== activeGenerationId)
     .slice(-MAX_REVIEW_ROWS)
     .reverse()
-    .map(candidate => ({
-      workspaceId: candidate.workspaceId,
-      generationId: candidate.generationId!,
-      reviewId: candidate.id,
-      skillName: candidate.skillName,
-    }))
+    .map(candidate => {
+      const generation = store.getGeneration(candidate.generationId!)
+      const artifact = generation?.workspaceId === candidate.workspaceId
+        ? generation.artifacts.find(value => value.kind === 'skill'
+          && value.name === candidate.skillName
+          && value.lineage?.candidateTreeHash === candidate.candidateTreeHash)
+        : undefined
+      return {
+        workspaceId: candidate.workspaceId,
+        generationId: candidate.generationId!,
+        reviewId: candidate.id,
+        skillName: candidate.skillName,
+        ...(artifact?.lineage === undefined
+          ? {}
+          : { lineage: projectDiscoveredSkillLineage(artifact.lineage) }),
+      }
+    })
   return {
     available: true,
     pendingCount: actionable.filter(item => item.status === 'pending').length,
@@ -657,7 +671,15 @@ function projectGeneration(generation: ReturnType<EvolutionStore['getActiveGener
     createdAt: generation.createdAt,
     evaluatorVersion: generation.evaluatorVersion,
     policyVersion: generation.policyVersion,
-    artifacts: generation.artifacts.map(artifact => ({ ...artifact })),
+    artifacts: generation.artifacts.map(artifact => ({
+      kind: artifact.kind,
+      name: artifact.name,
+      gitCommit: artifact.gitCommit,
+      treeHash: artifact.treeHash,
+      ...(artifact.lineage === undefined
+        ? {}
+        : { lineage: projectDiscoveredSkillLineage(artifact.lineage) }),
+    })),
   }
 }
 
@@ -671,6 +693,9 @@ function projectReview(candidate: ReviewCandidate): EvolutionReviewView {
     claim: candidate.claim,
     changedFiles: [...candidate.changedFiles],
     candidateTreeHash: candidate.candidateTreeHash,
+    ...(candidate.lineage === undefined
+      ? {}
+      : { lineage: projectDiscoveredSkillLineage(candidate.lineage) }),
     cases: candidate.cases.map(item => ({ ...item })),
     cost: { ...candidate.cost },
     reasons: [...candidate.reasons],
@@ -686,6 +711,25 @@ function projectReview(candidate: ReviewCandidate): EvolutionReviewView {
     ...(candidate.decisionNote === undefined ? {} : { decisionNote: candidate.decisionNote }),
     ...(candidate.generationId === undefined ? {} : { generationId: candidate.generationId }),
     ...(candidate.activatedAt === undefined ? {} : { activatedAt: candidate.activatedAt }),
+  }
+}
+
+function projectDiscoveredSkillLineage(
+  lineage: DiscoveredSkillLineage,
+): EvolutionDiscoveredSkillLineageView {
+  return {
+    kind: lineage.kind,
+    candidateId: lineage.candidateId,
+    workspaceId: lineage.workspaceId,
+    skillName: lineage.skillName,
+    versionKind: lineage.versionKind,
+    source: { ...lineage.source },
+    contentHash: lineage.contentHash,
+    candidateTreeHash: lineage.candidateTreeHash,
+    admissionId: lineage.admissionId,
+    admissionTargetId: lineage.admissionTargetId,
+    ...(lineage.research === undefined ? {} : { research: { ...lineage.research } }),
+    releaseAuthority: lineage.releaseAuthority,
   }
 }
 

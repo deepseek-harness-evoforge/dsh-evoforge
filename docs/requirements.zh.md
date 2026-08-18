@@ -354,7 +354,11 @@ Candidate/version/source/content/tree、admission，以及 research-v2/v3 的 re
 和通过 Holdout 身份。它进入 Shadow run id、journal、report 与 Review evidence；Skill 正文、宿主路径、
 research attribution 及 author/evaluator/provider identity 不进入。研究包物化 tree 与其 Holdout tree 不一致时在
 Trial 前 fail closed，resume 或 report 篡改不得降级为无血缘 Candidate。该血缘进入最终 Generation 与 Web 的
-投影仍是后续独立切片，不能由当前 Shadow/Review 绑定推断已完成。
+投影已经实现：Publisher 必须再次核对 Review 的 Workspace、Skill 与 sealed Candidate tree，随后把严格解析的
+identity-only lineage 写入 immutable Skill Generation artifact；lineage 参与 Generation 内容寻址身份，重启后仍
+不可变。活动、待启用和待审核状态均由同一 Host 控制面投影；其中“待启用”只信任已发布 Generation artifact，
+artifact 与 Review tree 不一致时不显示血缘。Web 只显示截断 id、来源种类和证据顺序，不显示 Skill 正文、私有
+路径、模型 route、provider 或 evaluator attribution，也不由 lineage 增加安装、激活或发布接口。
 可能已经付费但结果未知时持久化 `uncertain` 并拒绝盲重试。
 真实 provider 的正确缺口判断、完整 paired 全链和长期迁移证据仍未完成，不能据此宣称 V4 退出门通过。
 

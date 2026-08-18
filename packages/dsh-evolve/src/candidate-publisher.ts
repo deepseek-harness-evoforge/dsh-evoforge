@@ -18,6 +18,10 @@ import { projectCandidateImpact, type CandidateImpactProjection } from './candid
 import type { GitSkillSource } from './git-skill-source.ts'
 import { hashTree } from './hash.ts'
 import type { ReviewCandidate } from './review-inbox.ts'
+import {
+  parseDiscoveredSkillLineage,
+  type DiscoveredSkillLineage,
+} from './discovered-skill-lineage.ts'
 
 const execFile = promisify(execFileCallback)
 const MAX_DIFF_PREVIEW_BYTES = 16 * 1024
@@ -66,7 +70,7 @@ export class CandidatePublisher {
     options: { policyVersion?: 'human-review-v1' | 'auto-clear-instruction-v1' } = {},
   ) {
     if (candidate.status !== 'pending') throw new Error('only a pending review Candidate can be published')
-    assertProposal(candidate)
+    const lineage = assertProposal(candidate)
     const { active, activeArtifacts, base } = await this.resolveBaseline(candidate)
 
     const stage = await mkdtemp(join(tmpdir(), 'dsh-evolve-approved-'))
@@ -79,6 +83,7 @@ export class CandidatePublisher {
         candidate,
         candidateTree,
         repository: base.repository,
+        ...(lineage === undefined ? {} : { lineage }),
         sourcePath: base.path,
         stage,
       })
@@ -127,11 +132,24 @@ export class CandidatePublisher {
   }
 }
 
-function assertProposal(candidate: ReviewCandidate): void {
+function assertProposal(candidate: ReviewCandidate): DiscoveredSkillLineage | undefined {
   if (candidate.proposal.files.length === 0) throw new Error('review Candidate proposes no files')
   if (new Set(candidate.proposal.files.map(file => file.path)).size !== candidate.proposal.files.length) {
     throw new Error('review Candidate proposes the same path more than once')
   }
+  if (candidate.lineage === undefined) return undefined
+  let lineage: DiscoveredSkillLineage
+  try {
+    lineage = parseDiscoveredSkillLineage(candidate.lineage)
+  } catch {
+    throw new Error('Review lineage does not match its exact Candidate')
+  }
+  if (lineage.workspaceId !== candidate.workspaceId
+    || lineage.skillName !== candidate.skillName
+    || lineage.candidateTreeHash !== candidate.candidateTreeHash) {
+    throw new Error('Review lineage does not match its exact Candidate')
+  }
+  return lineage
 }
 
 async function materializeCandidate(candidateTree: string, candidate: ReviewCandidate): Promise<void> {
@@ -214,6 +232,7 @@ async function writeImmutableCommit(input: {
   candidate: ReviewCandidate
   candidateTree: string
   repository: string
+  lineage?: DiscoveredSkillLineage
   sourcePath: string
   stage: string
 }): Promise<SkillGenerationArtifact> {
@@ -281,6 +300,7 @@ async function writeImmutableCommit(input: {
     name: input.candidate.skillName,
     gitCommit: commit,
     treeHash,
+    ...(input.lineage === undefined ? {} : { lineage: input.lineage }),
   }
 }
 

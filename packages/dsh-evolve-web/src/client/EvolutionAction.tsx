@@ -5,6 +5,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {
   EvolutionActionReceipt,
   EvolutionCapabilityView,
+  EvolutionDiscoveredSkillLineageView,
   EvolutionEvaluatorDraftDetail,
   EvolutionOverview,
   EvolutionReviewDetail,
@@ -485,20 +486,23 @@ function SkillsView({ summary, t }: { summary: EvolutionOverview; t: (key: strin
     <ResearchSkillRevision summary={summary} t={t} />
     <SkillAdmission summary={summary} t={t} />
     {empty && <div className="dsh-evolve-message">{t('skills.empty')}</div>}
-    {active.length > 0 && <SkillGroup label={t('skills.active')} items={active.map(artifact => ({
+    {active.length > 0 && <SkillGroup t={t} label={t('skills.active')} items={active.map(artifact => ({
       key: `active:${artifact.gitCommit}:${artifact.name}`,
       name: artifact.name,
       detail: t('skills.activeHelp'),
+      ...(artifact.lineage === undefined ? {} : { lineage: artifact.lineage }),
     }))} />}
-    {ready.length > 0 && <SkillGroup label={t('skills.ready')} items={ready.map(item => ({
+    {ready.length > 0 && <SkillGroup t={t} label={t('skills.ready')} items={ready.map(item => ({
       key: `ready:${item.generationId}:${item.skillName}`,
       name: item.skillName,
       detail: t('skills.readyHelp'),
+      ...(item.lineage === undefined ? {} : { lineage: item.lineage }),
     }))} />}
-    {reviewing.length > 0 && <SkillGroup label={t('skills.reviewing')} items={reviewing.map(item => ({
+    {reviewing.length > 0 && <SkillGroup t={t} label={t('skills.reviewing')} items={reviewing.map(item => ({
       key: `review:${item.id}:${item.skillName}`,
       name: item.skillName,
       detail: item.claim,
+      ...(item.lineage === undefined ? {} : { lineage: item.lineage }),
     }))} />}
     <p className="dsh-evolve-guidance">{t('skills.native')}</p>
   </>
@@ -909,9 +913,15 @@ function capabilityInvocation(capability: EvolutionCapabilityView, t: (key: stri
   return t('skills.invocation.none')
 }
 
-function SkillGroup({ label, items }: {
+function SkillGroup({ label, items, t }: {
   label: string
-  items: readonly { key: string; name: string; detail: string }[]
+  t: (key: string) => string
+  items: readonly {
+    key: string
+    name: string
+    detail: string
+    lineage?: EvolutionDiscoveredSkillLineageView
+  }[]
 }) {
   return <section>
     <h3 className="dsh-evolve-section-title">{label}</h3>
@@ -919,9 +929,73 @@ function SkillGroup({ label, items }: {
       <li className="dsh-evolve-skill-card" key={item.key}>
         <div className="dsh-evolve-review-skill">{item.name}</div>
         <p>{item.detail}</p>
+        {item.lineage !== undefined && <DiscoveredSkillLineage lineage={item.lineage} t={t} />}
       </li>
     ))}</ul>
   </section>
+}
+
+function DiscoveredSkillLineage({ lineage, t }: {
+  lineage: EvolutionDiscoveredSkillLineageView
+  t: (key: string) => string
+}) {
+  const research = lineage.research
+  const revision = research !== undefined && 'parentCandidateId' in research ? research : undefined
+  const versionKey = {
+    'git-tree': 'skills.discovery.version.git',
+    'agent-skills-index-v0.2': 'skills.discovery.version.index',
+    'slow-loop-author-v1': 'skills.discovery.version.slow-loop',
+    'slow-loop-author-bundle-v1': 'skills.discovery.version.slow-loop-bundle',
+    'slow-loop-research-bundle-v2': 'skills.discovery.version.slow-loop-research-bundle',
+    'slow-loop-research-revision-v3': 'skills.discovery.version.slow-loop-research-revision',
+  }[lineage.versionKind]
+  return <div className="dsh-evolve-lineage">
+    <div className="dsh-evolve-lineage-head">
+      <strong>{t('skills.lineage.title')}</strong>
+      <span>{t(versionKey)}</span>
+    </div>
+    <div className="dsh-evolve-lineage-meta">
+      {t('skills.lineage.source')} · {lineage.source.id} · {lineage.source.kind}
+    </div>
+    {research !== undefined && <div className="dsh-evolve-lineage-meta">
+      {t('skills.lineage.research')} · {shortId(research.researchDigest)}
+    </div>}
+    <ol className="dsh-evolve-lineage-flow">
+      {revision !== undefined && <>
+        <LineageStep
+          label={t('skills.lineage.parentCandidate')}
+          id={revision.parentCandidateId}
+          detail={shortId(revision.parentTreeHash)}
+        />
+        <LineageStep label={t('skills.lineage.failedHoldout')} id={revision.revisionHoldoutResultId} />
+      </>}
+      <LineageStep
+        label={t('skills.lineage.candidate')}
+        id={lineage.candidateId}
+        detail={shortId(lineage.candidateTreeHash)}
+      />
+      <LineageStep
+        label={t('skills.lineage.admission')}
+        id={lineage.admissionId}
+        detail={lineage.admissionTargetId}
+      />
+      {research !== undefined && <LineageStep
+        label={t('skills.lineage.passingHoldout')}
+        id={research.researchHoldoutResultId}
+      />}
+    </ol>
+    <div className="dsh-evolve-lineage-release">{t('skills.lineage.release.none')}</div>
+  </div>
+}
+
+function LineageStep({ label, id, detail }: { label: string; id: string; detail?: string }) {
+  return <li>
+    <span aria-hidden="true" />
+    <div>
+      <strong>{label} · {shortId(id)}</strong>
+      {detail !== undefined && <small>{detail}</small>}
+    </div>
+  </li>
 }
 
 function Overview({ summary, t }: { summary: EvolutionOverview; t: (key: string) => string }) {

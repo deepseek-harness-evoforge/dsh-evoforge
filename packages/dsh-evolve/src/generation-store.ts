@@ -6,12 +6,17 @@ import {
   type DomainFacility,
 } from '@deepseek-ai/dsh-storage-domain'
 import { z } from 'zod'
+import {
+  parseDiscoveredSkillLineage,
+  type DiscoveredSkillLineage,
+} from './discovered-skill-lineage.ts'
 
 export interface SkillGenerationArtifact {
   kind: 'skill'
   name: string
   gitCommit: string
   treeHash: string
+  lineage?: DiscoveredSkillLineage | undefined
 }
 
 export interface GenerationInput {
@@ -66,11 +71,20 @@ const hashSchema = z.string().regex(/^[a-f0-9]{64}$/)
 const workspaceIdSchema = z.uuid()
 const gitObjectSchema = z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/)
 const gitCommitSchema = z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/)
+const lineageSchema = z.custom<DiscoveredSkillLineage>((value) => {
+  try {
+    parseDiscoveredSkillLineage(value)
+    return true
+  } catch {
+    return false
+  }
+}, 'invalid discovered Skill lineage').transform(value => parseDiscoveredSkillLineage(value))
 const artifactSchema = z.strictObject({
   kind: z.literal('skill'),
   name: z.string().min(1),
   gitCommit: gitCommitSchema,
   treeHash: gitObjectSchema,
+  lineage: lineageSchema.optional(),
 })
 const generationContentSchema = z.strictObject({
   schemaVersion: z.literal(2),

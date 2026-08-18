@@ -28,6 +28,44 @@ export interface EvolutionArtifactView {
     readonly name: string;
     readonly gitCommit: string;
     readonly treeHash: string;
+    readonly lineage?: EvolutionDiscoveredSkillLineageView;
+}
+export type EvolutionDiscoveredSkillVersionKind = 'git-tree' | 'agent-skills-index-v0.2' | 'slow-loop-author-v1' | 'slow-loop-author-bundle-v1' | 'slow-loop-research-bundle-v2' | 'slow-loop-research-revision-v3';
+/** Browser-safe, identity-only lineage for one admitted discovered Skill. */
+export interface EvolutionDiscoveredSkillLineageView {
+    readonly kind: 'discovered-skill-lineage-v1';
+    readonly candidateId: string;
+    readonly workspaceId: string;
+    readonly skillName: string;
+    readonly versionKind: EvolutionDiscoveredSkillVersionKind;
+    readonly source: {
+        readonly id: string;
+        readonly kind: 'local-git';
+        readonly trust: 'explicit-deployer-config';
+    } | {
+        readonly id: string;
+        readonly kind: 'agent-skills-index';
+        readonly trust: 'explicit-deployer-config';
+    } | {
+        readonly id: string;
+        readonly kind: 'slow-loop-author';
+        readonly trust: 'bounded-host-authoring';
+    };
+    readonly contentHash: string;
+    readonly candidateTreeHash: string;
+    readonly admissionId: string;
+    readonly admissionTargetId: string;
+    readonly research?: {
+        readonly researchDigest: string;
+        readonly researchHoldoutResultId: string;
+    } | {
+        readonly researchDigest: string;
+        readonly parentCandidateId: string;
+        readonly parentTreeHash: string;
+        readonly revisionHoldoutResultId: string;
+        readonly researchHoldoutResultId: string;
+    };
+    readonly releaseAuthority: 'none';
 }
 export type EvolutionCapabilityRoute = 'available' | 'model-selected' | 'user-selected';
 /** One exact Skill summary observed through the native DSH Skill registry. */
@@ -343,6 +381,7 @@ export interface EvolutionReviewView {
     readonly claim: string;
     readonly changedFiles: readonly string[];
     readonly candidateTreeHash: string;
+    readonly lineage?: EvolutionDiscoveredSkillLineageView;
     readonly cases: readonly EvolutionReviewCaseView[];
     readonly cost: {
         readonly inputTokens: number;
@@ -367,6 +406,7 @@ export interface EvolutionInactiveGenerationView {
     readonly generationId: string;
     readonly reviewId: string;
     readonly skillName: string;
+    readonly lineage?: EvolutionDiscoveredSkillLineageView;
 }
 /** Reference-only feedback row; Session/message ids and correction text stay on host. */
 export interface EvolutionFeedbackSignalView {

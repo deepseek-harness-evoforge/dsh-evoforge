@@ -16,6 +16,31 @@ const workspaceId = '11111111-1111-4111-8111-111111111111'
 const otherWorkspaceId = '22222222-2222-4222-8222-222222222222'
 const sessionId = 'session-1'
 
+const discoveredLineage = {
+  kind: 'discovered-skill-lineage-v1' as const,
+  candidateId: '8'.repeat(64),
+  workspaceId,
+  skillName: 'build-dsh-plugin',
+  versionKind: 'slow-loop-research-revision-v3' as const,
+  source: {
+    id: 'bounded-author',
+    kind: 'slow-loop-author' as const,
+    trust: 'bounded-host-authoring' as const,
+  },
+  contentHash: '9'.repeat(64),
+  candidateTreeHash: '1'.repeat(64),
+  admissionId: 'a'.repeat(64),
+  admissionTargetId: 'plugin-delivery',
+  research: {
+    researchDigest: 'b'.repeat(64),
+    parentCandidateId: 'c'.repeat(64),
+    parentTreeHash: 'd'.repeat(64),
+    revisionHoldoutResultId: 'e'.repeat(64),
+    researchHoldoutResultId: 'f'.repeat(64),
+  },
+  releaseAuthority: 'none' as const,
+}
+
 function success<T>(value: T) {
   return Promise.resolve({ ok: true as const, value })
 }
@@ -89,7 +114,7 @@ function remote(
       actionableCount: 1,
       warningCount: 0,
       inactiveGenerations: withInactive
-        ? [{ workspaceId, generationId, reviewId, skillName: 'build-dsh-plugin' }]
+        ? [{ workspaceId, generationId, reviewId, skillName: 'build-dsh-plugin', lineage: discoveredLineage }]
         : [],
       items: [{
         workspaceId,
@@ -100,6 +125,7 @@ function remote(
         claim: 'Continue safe work.',
         changedFiles: ['SKILL.md'],
         candidateTreeHash: '1'.repeat(64),
+        lineage: discoveredLineage,
         cases: [{ id: 'case-1', baseline: 'fail' as const, candidate: 'pass' as const, passedChecks: 10, totalChecks: 10 }],
         cost: { inputTokens: 0, outputTokens: 0, trialCount: 1 },
         reasons: ['passed'],
@@ -129,6 +155,7 @@ function remote(
         name: 'build-dsh-plugin',
         gitCommit: 'f'.repeat(40),
         treeHash: '3'.repeat(64),
+        lineage: discoveredLineage,
       }],
     },
     deliveryOutcomes: {
@@ -388,6 +415,15 @@ const t = (key: string) => ({
   'skills.active': 'In use',
   'skills.ready': 'Verified, waiting to be enabled',
   'skills.reviewing': 'Waiting for review',
+  'skills.lineage.title': 'Exact evolution lineage',
+  'skills.lineage.source': 'Source',
+  'skills.lineage.research': 'Research evidence',
+  'skills.lineage.parentCandidate': 'Parent Candidate',
+  'skills.lineage.failedHoldout': 'Failed Holdout',
+  'skills.lineage.candidate': 'Candidate',
+  'skills.lineage.admission': 'Admission',
+  'skills.lineage.passingHoldout': 'Passing Holdout',
+  'skills.lineage.release.none': 'Candidate had no release authority',
   'status.actions': 'Actionable',
   'action.refresh': 'Refresh',
   'action.pause': 'Pause',
@@ -596,6 +632,12 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('Verified, waiting to be enabled')).toBeTruthy()
     expect(screen.getByText('Waiting for review')).toBeTruthy()
     expect(screen.getAllByText('build-dsh-plugin')).toHaveLength(3)
+    expect(screen.getAllByText('Exact evolution lineage')).toHaveLength(3)
+    expect(screen.getAllByText(/Parent Candidate · c{8}…/u)).toHaveLength(3)
+    expect(screen.getAllByText(/Failed Holdout · e{8}…/u)).toHaveLength(3)
+    expect(screen.getAllByText(/Passing Holdout · f{8}…/u)).toHaveLength(3)
+    expect(screen.getAllByText('Candidate had no release authority')).toHaveLength(3)
+    expect(screen.queryByText('8'.repeat(64))).toBeNull()
     expect(api.overview).toHaveBeenCalledTimes(1)
   })
 

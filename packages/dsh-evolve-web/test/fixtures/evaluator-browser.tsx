@@ -50,6 +50,31 @@ const runs: Array<{
   updatedAt: string
 }> = []
 
+const semanticLineage = {
+  kind: 'discovered-skill-lineage-v1' as const,
+  candidateId: '4'.repeat(64),
+  workspaceId,
+  skillName: 'publish-dsh-plugin',
+  versionKind: 'slow-loop-research-revision-v3' as const,
+  source: {
+    id: 'publish-author',
+    kind: 'slow-loop-author' as const,
+    trust: 'bounded-host-authoring' as const,
+  },
+  contentHash: 'a'.repeat(64),
+  candidateTreeHash: 'c'.repeat(64),
+  admissionId: 'e'.repeat(64),
+  admissionTargetId: 'publish-dsh-plugin-admission',
+  research: {
+    researchDigest: '8'.repeat(64),
+    parentCandidateId: '3'.repeat(64),
+    parentTreeHash: '7'.repeat(64),
+    revisionHoldoutResultId: '2'.repeat(64),
+    researchHoldoutResultId: 'd'.repeat(64),
+  },
+  releaseAuthority: 'none' as const,
+}
+
 const draft = {
   workspaceId,
   id: draftId,
@@ -97,7 +122,7 @@ const remote: EvolutionRemoteClient = {
   overview: () => ok({
     schemaVersion: 1,
     workspaceId,
-    ...(outcomeMode
+    ...(outcomeMode || semanticMode
       ? {
           active: {
             id: 'a'.repeat(64),
@@ -106,13 +131,21 @@ const remote: EvolutionRemoteClient = {
             createdAt: 1_786_896_000_000,
             evaluatorVersion: 'browser-review-v1',
             policyVersion: 'human-review-v1',
-            artifacts: [],
+            artifacts: semanticMode
+              ? [{
+                  kind: 'skill' as const,
+                  name: 'publish-dsh-plugin',
+                  gitCommit: 'f'.repeat(40),
+                  treeHash: 'e'.repeat(40),
+                  lineage: semanticLineage,
+                }]
+              : [],
           },
-          deliveryOutcomes: {
+          ...(outcomeMode ? { deliveryOutcomes: {
             all: { total: 8, passed: 5, failed: 2, unknown: 1 },
             selected: { total: 4, passed: 3, failed: 1, unknown: 0 },
             baseline: { total: 4, passed: 2, failed: 1, unknown: 1 },
-          },
+          } } : {}),
         }
       : {}),
     recovery: { available: false },

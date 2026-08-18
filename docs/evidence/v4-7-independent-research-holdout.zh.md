@@ -32,6 +32,10 @@
    逐层比对同一对象；额外私有字段、缺失 ancestry、错 Workspace/Skill/tree 或 report 篡改均 fail closed。
 10. 对 sha256 tree 身份的外部/研究包，admission 在 Trial 前重新散列 materialized directory；它与 Holdout
     绑定的 Candidate tree 不一致时返回 `incomplete`，不会把不同内容标成 qualified。
+11. Publisher 在 preview/publish 前再次严格解析 Review lineage，并核对 Workspace、Skill 与 sealed
+    Candidate tree；错 tree 会在创建 Git ref 或发布 Generation 前 fail closed。通过后 lineage 写入 immutable
+    Skill Generation artifact，并参与 Generation 内容寻址，因此同一 Git Skill tree 的有/无 lineage 是不同
+    Generation identity。Storage 重启恢复后 lineage 及嵌套 research 仍被冻结。
 
 ## DSH Web 投影
 
@@ -40,14 +44,22 @@ Candidate tree → evaluator identity 摘要、模型成本和逐锚 assessment�
 route、evaluator attribution、Skill 正文和私有路径，也没有 Install/Activate 操作。
 确定性 admission 卡片同时显示截断的 `Bound research Holdout pass` id，让用户能区分
 “Holdout 曾经通过”和“这一次 admission 已绑定哪个 pass”。
+同一 Host 控制面现在还把 identity-only lineage 投影到待审核 Review、已发布待启用 Generation 和活动
+Generation；待启用状态从真实 Generation artifact 读取，并要求 artifact lineage tree 与 Review tree 一致。
+Skills 页用一条小型时间线显示 source、父 Candidate/tree、失败 Holdout、v3 Candidate/tree、admission target
+与通过 Holdout。所有 content id 都截断显示，候选卡明确标记其自身没有发布权限；没有新增 Install、Activate
+或绕过现有 Promote 的动作。
 
 ## 验证
 
 - TDD 红灯先证明 Holdout 模块不存在、控制面尚未投影结果；实现后转绿。
+- 当前全包门禁：`dsh-evolve` 为 302 passed / 2 skipped，`dsh-evolve-web` 为 25/25；根级
+  `pnpm check` 的 docs、全部 Workspace typecheck/tests/build 均通过。
 - `research-skill-holdout.test.ts` 覆盖精确逐锚通过、宿主派生 fail/inconclusive、非法覆盖失败关闭、作者/评估者身份冲突、预算延后恢复、不确定调用不盲重试、可执行内容拒绝、根隔离和仅 pass 下传；`discovered-skill-admission.test.ts` 额外覆盖 receipt 缺失/失败/错 Candidate 拒绝、内容寻址绑定、materialized tree 漂移及 Shadow 前持久复验。
 - `discovered-skill-lineage.test.ts`、`discovered-skill-shadow.test.ts`、`exact-candidate-shadow.test.ts` 与
   `review-inbox.test.ts` 覆盖最小字段白名单、私有字段拒绝、run-id/journal/report/resume 绑定、错 tree 拒绝和
-  Review report 篡改隔离。该切片不改 Web，因此没有把既有 receipt Browser 证据冒充为 lineage UI 验收。
+  Review report 篡改隔离；`candidate-publisher.test.ts` 与 `generation-store.e2e.test.ts` 继续证明发布前精确核对、
+  Generation identity 绑定、嵌套冻结和重启恢复。
 - `slow-loop-skill-authoring.test.ts` 覆盖 verification-only 精确交接及 knowledge 隔离。
 - `evolution-control-plane.test.ts` 证明私有 evaluator attribution 不进入浏览器快照。
 - `dsh-evolve-web` 客户端测试证明摘要链和治理状态可见且不存在安装/激活按钮。
@@ -60,6 +72,11 @@ route、evaluator attribution、Skill 正文和私有路径，也没有 Install/
   Install/Activate 按钮为 0，verification URL、私有 attribution、Skill 正文和 provider route 泄漏
   均为 false，browser diagnostics 为 `[]`。目视确认 receipt 位于 target 和 baseline/candidate 结果之间，
   无遮挡或横向溢出。
+- Generation lineage UI 新增后第三次用真实应用内 Browser 在 `?semantic` 验收：活动 artifact 的 lineage
+  卡片宽 `504`、面板宽 `560`，两者均无横向溢出；完整 v3 时间线与上下游 Holdout/admission id 一致。
+  页面刷新后 `Exact evolution lineage` 仍精确出现一次，完整 64 位 Candidate id 与 `/private/evolution` 均为
+  0，browser diagnostics 和 warn/error console 均为空。另在 `?review&stale` 触发过期 Review，Web 显示
+  Host `not_found` 的权威刷新提示且 diagnostics 仍为空，证明失败状态没有被本地 UI 吞掉或伪装成成功。
 
 后续的一次性修订闭环已经落在
 [`v4-7-one-shot-research-revision.zh.md`](v4-7-one-shot-research-revision.zh.md)：原始 v2 的
