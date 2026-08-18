@@ -1,18 +1,20 @@
-import { mkdir, mkdtemp, readFile, realpath, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, realpath, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { JobHooks, JobStart } from '@deepseek-ai/dsh-jobs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { CapabilityGap } from '../src/capability-gap-store.ts'
+import { sha256 } from '../src/hash.ts'
 import {
   assertSlowLoopSkillAuthoringRootSeparation,
   SlowLoopSkillAuthoring,
   type SlowLoopSkillAuthoringTargetConfig,
 } from '../src/slow-loop-skill-authoring.ts'
 import type {
-  AuthoredSkillCandidateInput,
+  AuthoredSkillBundleCandidateInput,
   DiscoveredSkillCandidate,
 } from '../src/trusted-skill-discovery.ts'
+import type { SkillResearchCorpus } from '../src/skill-research.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const temporaryRoots: string[] = []
@@ -26,21 +28,29 @@ describe('cross-Goal slow-loop Skill authoring', () => {
     const fixture = await setup()
     const jobs = fakeJobs()
     const effects: string[] = []
-    const quarantineAuthored = vi.fn(async (input: AuthoredSkillCandidateInput) => {
+    const quarantineAuthoredBundle = vi.fn(async (input: AuthoredSkillBundleCandidateInput) => {
       effects.push('quarantine')
       return { created: true, candidate: generatedCandidate(input) }
+    })
+    const research = vi.fn(async () => {
+      effects.push('research')
+      return researchCorpus()
     })
     const authorModel = vi.fn(async () => {
       effects.push('author')
       return {
-        skillMd: skillMd('missing-release-skill'),
+        files: skillFiles('missing-release-skill'),
         usage: { inputTokens: 321, outputTokens: 123 },
       }
     })
     const service = new SlowLoopSkillAuthoring({
       targets: [fixture.target],
       gaps: { list: () => [gap('1', 'goal-a', 10), gap('2', 'goal-b', 20)] },
-      candidates: { listCandidates: () => [], isDiscoverySettled: () => true, quarantineAuthored },
+      candidates: {
+        listCandidates: () => [],
+        isDiscoverySettled: () => true,
+        quarantineAuthoredBundle,
+      },
       budget: {
         reserve: vi.fn(async target => {
           effects.push('budget')
@@ -59,6 +69,7 @@ describe('cross-Goal slow-loop Skill authoring', () => {
           }
         }),
       },
+      research,
       authorModel,
       modelIdentity: () => 'provider/model@contract-v1',
       now: () => 1_787_000_000_000,
@@ -76,7 +87,7 @@ describe('cross-Goal slow-loop Skill authoring', () => {
       detail: 'candidate-ready',
     })
 
-    expect(effects).toEqual(['budget', 'author', 'quarantine'])
+    expect(effects).toEqual(['budget', 'research', 'author', 'quarantine'])
     expect(authorModel).toHaveBeenCalledWith(expect.objectContaining({
       targetId: 'missing-release-skill-author',
       workspaceId: WORKSPACE_ID,
@@ -85,9 +96,14 @@ describe('cross-Goal slow-loop Skill authoring', () => {
         expect.objectContaining({ id: 'goal-a', objective: 'Goal goal-a needs missing-release-skill' }),
         expect.objectContaining({ id: 'goal-b', objective: 'Goal goal-b needs missing-release-skill' }),
       ],
+      research: {
+        digest: researchCorpus().digest,
+        knowledge: researchCorpus().knowledge,
+      },
       signal: expect.any(AbortSignal),
     }))
-    const authored = quarantineAuthored.mock.calls[0]![0]
+    expect(JSON.stringify(authorModel.mock.calls)).not.toContain('verify.example')
+    const authored = quarantineAuthoredBundle.mock.calls[0]![0]
     expect(authored).toMatchObject({
       workspaceId: WORKSPACE_ID,
       requestedSkill: 'missing-release-skill',
@@ -97,7 +113,8 @@ describe('cross-Goal slow-loop Skill authoring', () => {
       goalCount: 2,
       modelIdentity: 'provider/model@contract-v1',
       inputDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
-      skillMd: skillMd('missing-release-skill'),
+      researchDigest: researchCorpus().digest,
+      files: expect.arrayContaining([...skillFiles('missing-release-skill')]),
     })
     expect(authored).not.toHaveProperty('releaseAuthority')
 
@@ -111,10 +128,15 @@ describe('cross-Goal slow-loop Skill authoring', () => {
         modelCalls: 1,
         inputTokens: 321,
         outputTokens: 123,
+        researchDigest: researchCorpus().digest,
         candidateId: '9'.repeat(64),
         releaseAuthority: 'none',
       }],
     })
+    const run = (await service.scan()).runs[0]!
+    const researchPath = join(fixture.target.runRoot, 'runs', run.id, 'research.json')
+    expect(JSON.parse(await readFile(researchPath, 'utf8'))).toEqual(researchCorpus())
+    expect((await stat(researchPath)).mode & 0o777).toBe(0o600)
   })
 
   it('requires distinct Goals and suppresses authoring when any cluster Gap already has a candidate', async () => {
@@ -129,7 +151,7 @@ describe('cross-Goal slow-loop Skill authoring', () => {
       candidates: {
         listCandidates: () => candidates,
         isDiscoverySettled: () => true,
-        quarantineAuthored: vi.fn(),
+        quarantineAuthoredBundle: vi.fn(),
       },
       budget: {
         reserve: vi.fn(async target => ({
@@ -147,6 +169,7 @@ describe('cross-Goal slow-loop Skill authoring', () => {
           },
         })),
       },
+      research: successfulResearch,
       authorModel,
       modelIdentity: () => 'provider/model@contract-v1',
     })
@@ -170,7 +193,7 @@ describe('cross-Goal slow-loop Skill authoring', () => {
       candidates: {
         listCandidates: () => [],
         isDiscoverySettled: id => settled.has(id),
-        quarantineAuthored: vi.fn(),
+        quarantineAuthoredBundle: vi.fn(),
       },
       budget: {
         reserve: vi.fn(async target => ({
@@ -188,6 +211,7 @@ describe('cross-Goal slow-loop Skill authoring', () => {
           },
         })),
       },
+      research: successfulResearch,
       authorModel: vi.fn(),
       modelIdentity: () => 'provider/model@contract-v1',
     })
@@ -210,7 +234,7 @@ describe('cross-Goal slow-loop Skill authoring', () => {
       candidates: {
         listCandidates: () => [],
         isDiscoverySettled: () => true,
-        quarantineAuthored: vi.fn(),
+        quarantineAuthoredBundle: vi.fn(),
       },
       budget: {
         reserve: vi.fn(async target => ({
@@ -228,6 +252,7 @@ describe('cross-Goal slow-loop Skill authoring', () => {
           },
         })),
       },
+      research: successfulResearch,
       authorModel,
       modelIdentity: () => 'provider/model@contract-v1',
     })
@@ -244,6 +269,52 @@ describe('cross-Goal slow-loop Skill authoring', () => {
     })
   })
 
+  it('persists failed research without exposing holdout anchors or calling the author', async () => {
+    const fixture = await setup()
+    const jobs = fakeJobs()
+    const authorModel = vi.fn()
+    const quarantineAuthoredBundle = vi.fn()
+    const service = new SlowLoopSkillAuthoring({
+      targets: [fixture.target],
+      gaps: { list: () => [gap('1', 'goal-a', 10), gap('2', 'goal-b', 20)] },
+      candidates: {
+        listCandidates: () => [],
+        isDiscoverySettled: () => true,
+        quarantineAuthoredBundle,
+      },
+      budget: {
+        reserve: vi.fn(async target => ({
+          allowed: true,
+          newlyReserved: true,
+          snapshot: {
+            targetId: target.id,
+            workspaceId: target.workspaceId,
+            skillName: target.skill,
+            utcDay: '2026-08-18',
+            used: 1,
+            limit: 1,
+            remaining: 0,
+          },
+        })),
+      },
+      research: vi.fn(async () => { throw new Error('independent evidence unavailable') }),
+      authorModel,
+      modelIdentity: () => 'provider/model@contract-v1',
+    })
+    service.attachJobs(jobs.registry)
+
+    await service.reconcile()
+    await expect(jobs.hooks[0]!.done).resolves.toMatchObject({
+      status: 'failed',
+      detail: expect.stringContaining('research incomplete'),
+    })
+    await expect(service.scan()).resolves.toMatchObject({
+      runs: [{ phase: 'incomplete', modelCalls: 0, releaseAuthority: 'none' }],
+    })
+    expect(authorModel).not.toHaveBeenCalled()
+    expect(quarantineAuthoredBundle).not.toHaveBeenCalled()
+  })
+
   it('marks an observed paid-call failure uncertain and refuses automatic retry after restart', async () => {
     const fixture = await setup()
     const firstJobs = fakeJobs()
@@ -254,7 +325,7 @@ describe('cross-Goal slow-loop Skill authoring', () => {
       candidates: {
         listCandidates: () => [],
         isDiscoverySettled: () => true,
-        quarantineAuthored: vi.fn(),
+        quarantineAuthoredBundle: vi.fn(),
       },
       budget: { reserve: vi.fn(async (target: SlowLoopSkillAuthoringTargetConfig) => ({
         allowed: true,
@@ -269,6 +340,7 @@ describe('cross-Goal slow-loop Skill authoring', () => {
           remaining: 0,
         },
       })) },
+      research: successfulResearch,
       modelIdentity: () => 'provider/model@contract-v1',
     }
     const first = new SlowLoopSkillAuthoring({ ...options, authorModel: firstAuthor })
@@ -304,7 +376,7 @@ describe('cross-Goal slow-loop Skill authoring', () => {
       candidates: {
         listCandidates: () => [],
         isDiscoverySettled: () => true,
-        quarantineAuthored: vi.fn(),
+        quarantineAuthoredBundle: vi.fn(),
       },
       budget: {
         reserve: vi.fn(async target => ({
@@ -321,6 +393,7 @@ describe('cross-Goal slow-loop Skill authoring', () => {
           },
         })),
       },
+      research: successfulResearch,
       authorModel,
       modelIdentity: () => 'provider/model@contract-v1',
     })
@@ -337,24 +410,22 @@ describe('cross-Goal slow-loop Skill authoring', () => {
     expect(authorModel).not.toHaveBeenCalled()
   })
 
-  it('does not quarantine a late provider response after native Job cancellation', async () => {
+  it('cancels in-flight research as a zero-model run and never writes a Candidate', async () => {
     const fixture = await setup()
     const jobs = fakeJobs()
-    let resolveAuthor!: (value: { skillMd: string; usage: { inputTokens: number; outputTokens: number } }) => void
-    const authorModel = vi.fn(() => new Promise<{
-      skillMd: string
-      usage: { inputTokens: number; outputTokens: number }
-    }>(resolve => {
-      resolveAuthor = resolve
+    let resolveResearch!: (value: SkillResearchCorpus) => void
+    const research = vi.fn(() => new Promise<SkillResearchCorpus>(resolve => {
+      resolveResearch = resolve
     }))
-    const quarantineAuthored = vi.fn()
+    const authorModel = vi.fn()
+    const quarantineAuthoredBundle = vi.fn()
     const service = new SlowLoopSkillAuthoring({
       targets: [fixture.target],
       gaps: { list: () => [gap('1', 'goal-a', 10), gap('2', 'goal-b', 20)] },
       candidates: {
         listCandidates: () => [],
         isDiscoverySettled: () => true,
-        quarantineAuthored,
+        quarantineAuthoredBundle,
       },
       budget: {
         reserve: vi.fn(async target => ({
@@ -371,6 +442,63 @@ describe('cross-Goal slow-loop Skill authoring', () => {
           },
         })),
       },
+      research,
+      authorModel,
+      modelIdentity: () => 'provider/model@contract-v1',
+    })
+    service.attachJobs(jobs.registry)
+    await service.reconcile()
+    await vi.waitFor(() => expect(research).toHaveBeenCalledOnce())
+
+    jobs.hooks[0]!.cancel?.('operator cancelled research')
+    resolveResearch(researchCorpus())
+
+    await expect(jobs.hooks[0]!.done).resolves.toMatchObject({ status: 'killed' })
+    await expect(service.scan()).resolves.toMatchObject({
+      runs: [{ phase: 'cancelled', modelCalls: 0, releaseAuthority: 'none' }],
+    })
+    expect(authorModel).not.toHaveBeenCalled()
+    expect(quarantineAuthoredBundle).not.toHaveBeenCalled()
+  })
+
+  it('does not quarantine a late provider response after native Job cancellation', async () => {
+    const fixture = await setup()
+    const jobs = fakeJobs()
+    let resolveAuthor!: (value: {
+      files: ReturnType<typeof skillFiles>
+      usage: { inputTokens: number; outputTokens: number }
+    }) => void
+    const authorModel = vi.fn(() => new Promise<{
+      files: ReturnType<typeof skillFiles>
+      usage: { inputTokens: number; outputTokens: number }
+    }>(resolve => {
+      resolveAuthor = resolve
+    }))
+    const quarantineAuthoredBundle = vi.fn()
+    const service = new SlowLoopSkillAuthoring({
+      targets: [fixture.target],
+      gaps: { list: () => [gap('1', 'goal-a', 10), gap('2', 'goal-b', 20)] },
+      candidates: {
+        listCandidates: () => [],
+        isDiscoverySettled: () => true,
+        quarantineAuthoredBundle,
+      },
+      budget: {
+        reserve: vi.fn(async target => ({
+          allowed: true,
+          newlyReserved: true,
+          snapshot: {
+            targetId: target.id,
+            workspaceId: target.workspaceId,
+            skillName: target.skill,
+            utcDay: '2026-08-18',
+            used: 1,
+            limit: 1,
+            remaining: 0,
+          },
+        })),
+      },
+      research: successfulResearch,
       authorModel,
       modelIdentity: () => 'provider/model@contract-v1',
     })
@@ -380,7 +508,7 @@ describe('cross-Goal slow-loop Skill authoring', () => {
 
     jobs.hooks[0]!.cancel?.('operator cancelled in flight')
     resolveAuthor({
-      skillMd: skillMd('missing-release-skill'),
+      files: skillFiles('missing-release-skill'),
       usage: { inputTokens: 10, outputTokens: 5 },
     })
 
@@ -388,7 +516,7 @@ describe('cross-Goal slow-loop Skill authoring', () => {
     await expect(service.scan()).resolves.toMatchObject({
       runs: [{ phase: 'uncertain', modelCalls: 1, releaseAuthority: 'none' }],
     })
-    expect(quarantineAuthored).not.toHaveBeenCalled()
+    expect(quarantineAuthoredBundle).not.toHaveBeenCalled()
     await expect(service.reconcile()).resolves.toEqual({ scheduled: 0, warnings: [] })
     expect(jobs.starts).toHaveLength(1)
   })
@@ -408,9 +536,10 @@ describe('cross-Goal slow-loop Skill authoring', () => {
       candidates: {
         listCandidates: () => [],
         isDiscoverySettled: () => true,
-        quarantineAuthored: vi.fn(),
+        quarantineAuthoredBundle: vi.fn(),
       },
       budget,
+      research: successfulResearch,
       authorModel,
       modelIdentity: () => 'provider/model@contract-v1',
     })
@@ -432,9 +561,10 @@ describe('cross-Goal slow-loop Skill authoring', () => {
       candidates: {
         listCandidates: () => [],
         isDiscoverySettled: () => true,
-        quarantineAuthored: vi.fn(),
+        quarantineAuthoredBundle: vi.fn(),
       },
       budget: { reserve: vi.fn() },
+      research: successfulResearch,
       authorModel: vi.fn(),
       modelIdentity: () => 'provider/model@contract-v1',
     })
@@ -497,11 +627,20 @@ function gap(seed: string, goalId: string, observedAt: number): CapabilityGap {
   }
 }
 
-function skillMd(name: string): string {
-  return `---\nname: ${name}\ndescription: Handle repeated release capability gaps.\n---\n\nFollow the bounded evidence-driven workflow.\n`
+function skillFiles(name: string) {
+  return [
+    {
+      path: 'SKILL.md',
+      content: `---\nname: ${name}\ndescription: Handle repeated release capability gaps.\n---\n\nFollow the bounded evidence-driven workflow in [the reference](references/workflow.md).\n`,
+    },
+    {
+      path: 'references/workflow.md',
+      content: '# Workflow\n\nUse observed evidence and preserve release isolation.\n',
+    },
+  ] as const
 }
 
-function generatedCandidate(input: AuthoredSkillCandidateInput): DiscoveredSkillCandidate {
+function generatedCandidate(input: AuthoredSkillBundleCandidateInput): DiscoveredSkillCandidate {
   return {
     schemaVersion: 1,
     id: '9'.repeat(64),
@@ -519,20 +658,21 @@ function generatedCandidate(input: AuthoredSkillCandidateInput): DiscoveredSkill
     source: { id: input.sourceId, kind: 'slow-loop-author', trust: 'bounded-host-authoring' },
     scope: 'workspace',
     version: {
-      kind: 'slow-loop-author-v1',
+      kind: 'slow-loop-research-bundle-v2',
       modelIdentityHash: '5'.repeat(64),
       inputDigest: input.inputDigest,
+      researchDigest: input.researchDigest,
       artifactDigest: '7'.repeat(64),
       treeHash: '6'.repeat(64),
     },
-    distribution: { kind: 'skill-md' },
+    distribution: { kind: 'archive', format: 'tar.gz' },
     contentHash: '7'.repeat(64),
     package: {
-      path: `${input.requestedSkill}/SKILL.md`,
-      fileCount: 1,
-      totalBytes: Buffer.byteLength(input.skillMd),
+      path: input.requestedSkill,
+      fileCount: input.files.length,
+      totalBytes: input.files.reduce((total, file) => total + Buffer.byteLength(file.content), 0),
       hasScripts: false,
-      hasReferences: false,
+      hasReferences: true,
     },
     permissions: { declared: false, executableContent: false, externalEffects: 'unknown' },
     license: { status: 'unknown' },
@@ -545,7 +685,7 @@ function generatedCandidate(input: AuthoredSkillCandidateInput): DiscoveredSkill
         { name: 'effect-review', status: 'required' },
       ],
     },
-    artifact: { kind: 'skill-md', content: input.skillMd },
+    artifact: { kind: 'archive', format: 'tar.gz', contentBase64: 'AA==' },
     lifecycle: 'inactive',
     verification: 'unevaluated',
     execution: 'never',
@@ -563,8 +703,46 @@ function existingCandidate(sourceGap: CapabilityGap): DiscoveredSkillCandidate {
     goalCount: 1,
     modelIdentity: 'provider/model@contract-v1',
     inputDigest: '3'.repeat(64),
-    skillMd: skillMd(sourceGap.requestedSkill),
+    researchDigest: researchCorpus().digest,
+    files: skillFiles(sourceGap.requestedSkill),
   })
+}
+
+const successfulResearch = async (): Promise<SkillResearchCorpus> => researchCorpus()
+
+function researchCorpus(): SkillResearchCorpus {
+  const unsigned = {
+    schemaVersion: 1,
+    skillName: 'missing-release-skill',
+    queryDigest: 'b'.repeat(64),
+    knowledge: [
+      researchEvidence('knowledge', 'official', 'https://docs.example/skill'),
+      researchEvidence('knowledge', 'open-source', 'https://code.example/skill'),
+    ],
+    verification: [
+      researchEvidence('verification', 'holdout', 'https://verify.example/skill'),
+    ],
+    truncated: false,
+  } as const
+  return { ...unsigned, digest: sha256(JSON.stringify(unsigned)) }
+}
+
+function researchEvidence(
+  role: 'knowledge' | 'verification',
+  track: 'official' | 'open-source' | 'holdout',
+  url: string,
+) {
+  return {
+    role,
+    track,
+    queryHash: 'c'.repeat(64),
+    requestedUrl: url,
+    finalUrl: url,
+    statusCode: 200,
+    excerpt: `Evidence from ${url}`,
+    contentDigest: 'd'.repeat(64),
+    truncated: false,
+  } as const
 }
 
 function fakeJobs() {

@@ -287,6 +287,7 @@ const t = (key: string) => ({
   'skills.slow-loop.empty': 'No authoring run has met the threshold.',
   'skills.slow-loop.phase.candidate-ready': 'Quarantined candidate ready',
   'skills.slow-loop.cost': 'Model calls · input/output tokens',
+  'skills.slow-loop.research': 'Research evidence digest',
   'skills.slow-loop.candidate': 'Candidate',
   'skills.slow-loop.retry': 'Earliest retry',
   'skills.slow-loop.release.none': 'Quarantined Candidate only · No install, activation, or release',
@@ -302,7 +303,9 @@ const t = (key: string) => ({
   'skills.discovery.version.index': 'Agent Skills v0.2',
   'skills.discovery.version.slow-loop': 'Slow-loop author v1',
   'skills.discovery.version.slow-loop-bundle': 'Slow-loop whole-Skill bundle v1',
+  'skills.discovery.version.slow-loop-research-bundle': 'Research-grounded whole-Skill bundle v2',
   'skills.discovery.input': 'input digest',
+  'skills.discovery.research': 'research digest',
   'skills.discovery.demand': 'Cross-Goal demand evidence',
   'skills.discovery.index': 'index digest',
   'skills.discovery.artifact': 'artifact digest',
@@ -644,6 +647,7 @@ describe('EvolutionAction', () => {
             modelCalls: 1 as const,
             inputTokens: 320,
             outputTokens: 120,
+            researchDigest: '8'.repeat(64),
             candidateId: '3'.repeat(64),
             releaseAuthority: 'none' as const,
           }],
@@ -722,9 +726,10 @@ describe('EvolutionAction', () => {
             },
             scope: 'workspace' as const,
             version: {
-              kind: 'slow-loop-author-bundle-v1' as const,
+              kind: 'slow-loop-research-bundle-v2' as const,
               modelIdentityHash: '4'.repeat(64),
               inputDigest: '5'.repeat(64),
+              researchDigest: '8'.repeat(64),
               artifactDigest: '6'.repeat(64),
               treeHash: '7'.repeat(64),
             },
@@ -828,6 +833,7 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('Cross-Goal slow-loop authoring')).toBeTruthy()
     expect(screen.getByText('Quarantined candidate ready')).toBeTruthy()
     expect(screen.getByText('Model calls · input/output tokens · 1 · 320/120')).toBeTruthy()
+    expect(screen.getByText(`Research evidence digest · ${'8'.repeat(12)}`)).toBeTruthy()
     expect(screen.getByText(`Candidate · ${'3'.repeat(12)}`)).toBeTruthy()
     expect(screen.getByText('Quarantined Candidate only · No install, activation, or release')).toBeTruthy()
     expect(screen.getByText('Discovered Skill candidates')).toBeTruthy()
@@ -842,7 +848,7 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('Distribution · Archive · zip')).toBeTruthy()
     expect(screen.getByText('Cross-Goal demand evidence · 2 distinct Goals · 3 Gap observations')).toBeTruthy()
     expect(screen.getByText('missing-release-author · Cross-Goal slow-loop author · Bounded host authoring')).toBeTruthy()
-    expect(screen.getByText(`Slow-loop whole-Skill bundle v1 · input digest ${'5'.repeat(12)} · artifact digest ${'6'.repeat(12)} · tree ${'7'.repeat(12)}`)).toBeTruthy()
+    expect(screen.getByText(`Research-grounded whole-Skill bundle v2 · input digest ${'5'.repeat(12)} · research digest ${'8'.repeat(12)} · artifact digest ${'6'.repeat(12)} · tree ${'7'.repeat(12)}`)).toBeTruthy()
     expect(screen.getByText('Distribution · Archive · tar.gz')).toBeTruthy()
     expect(screen.getByText(`Content hash · ${'a'.repeat(12)}`)).toBeTruthy()
     expect(screen.getByText('Declared license · MIT')).toBeTruthy()

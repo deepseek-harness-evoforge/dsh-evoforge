@@ -642,6 +642,13 @@ function skillVersionSummary(
       + ` · ${t('skills.discovery.artifact')} ${value.artifactDigest.slice(0, 12)}`
       + ` · ${t('skills.discovery.tree')} ${value.treeHash.slice(0, 12)}`
   }
+  if (value.kind === 'slow-loop-research-bundle-v2') {
+    return `${t('skills.discovery.version.slow-loop-research-bundle')}`
+      + ` · ${t('skills.discovery.input')} ${value.inputDigest.slice(0, 12)}`
+      + ` · ${t('skills.discovery.research')} ${value.researchDigest.slice(0, 12)}`
+      + ` · ${t('skills.discovery.artifact')} ${value.artifactDigest.slice(0, 12)}`
+      + ` · ${t('skills.discovery.tree')} ${value.treeHash.slice(0, 12)}`
+  }
   return `${t('skills.discovery.version.index')} · ${t('skills.discovery.index')} ${value.indexDigest.slice(0, 12)}`
     + ` · ${t('skills.discovery.artifact')} ${value.artifactDigest.slice(0, 12)}`
     + ` · ${t('skills.discovery.tree')} ${value.treeHash.slice(0, 12)}`
@@ -674,6 +681,9 @@ function SlowLoopAuthoring({ summary, t }: { summary: EvolutionOverview; t: (key
             <div className="dsh-evolve-meta">
               {t('skills.slow-loop.cost')} · {run.modelCalls} · {run.inputTokens}/{run.outputTokens}
             </div>
+            {run.researchDigest !== undefined && <div className="dsh-evolve-meta">
+              {t('skills.slow-loop.research')} · {run.researchDigest.slice(0, 12)}
+            </div>}
             {run.candidateId !== undefined && <div className="dsh-evolve-meta">
               {t('skills.slow-loop.candidate')} · {run.candidateId.slice(0, 12)}
             </div>}

@@ -133,6 +133,7 @@ export class EvolutionControlPlane {
               modelCalls: run.modelCalls,
               inputTokens: run.inputTokens,
               outputTokens: run.outputTokens,
+              ...(run.researchDigest === undefined ? {} : { researchDigest: run.researchDigest }),
               ...(run.candidateId === undefined ? {} : { candidateId: run.candidateId }),
               ...(run.retryAt === undefined ? {} : { retryAt: run.retryAt }),
               releaseAuthority: run.releaseAuthority,

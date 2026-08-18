@@ -47,8 +47,9 @@ Install/Activate 按钮 0，私有 model identity 0，Skill 正文 0，页面 di
 
 ## 未完成
 
-- 默认慢环 author 仍只产单文件 `SKILL.md`，尚未改为研究驱动的 whole-Skill manifest；
-- DSH `ctx.web` 的有界 search/fetch、knowledge/verification anchor 分离与研究 lineage 尚未接入；
+- 默认慢环 author 已在后续切片升级为研究驱动的 whole-Skill manifest；
+- DSH `ctx.web` 的有界 search/fetch、knowledge/verification anchor 分离与研究 lineage 已接入，
+  但 verification anchor 尚未进入独立 holdout 执行器；
 - 尚未实现基于新归因证据和 exact old tree 的有界 revision；
 - 尚未完成真实 provider、飞书消息、独立 holdout、长期 Retention 与同条件 Hermes paired 验证；
 - 因此不打 tag，不声明核心目标或“上位替代”完成。

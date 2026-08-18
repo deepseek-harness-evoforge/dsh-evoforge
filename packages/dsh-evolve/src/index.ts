@@ -88,6 +88,7 @@ import {
   SlowLoopSkillAuthoring,
   type SlowLoopSkillAuthoringTargetConfig,
 } from './slow-loop-skill-authoring.ts'
+import { createDshWebSkillResearch, type SkillResearchWeb } from './skill-research.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -330,7 +331,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           listCandidates: (workspaceId, gapId) =>
             skillDiscoveryStore.listCandidates(workspaceId, gapId),
           isDiscoverySettled: gapId => skillDiscovery.isSettled(gapId),
-          quarantineAuthored: input => skillDiscovery.quarantineAuthored(input),
+          quarantineAuthoredBundle: input => skillDiscovery.quarantineAuthoredBundle(input),
         },
         budget: slowLoopAuthoringBudget,
       })
@@ -606,6 +607,20 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     })
   }
   if (slowLoopAuthoring !== undefined) {
+    ctx.inject(['web'], (webCtx) => {
+      const web = (webCtx as typeof webCtx & { readonly web: SkillResearchWeb }).web
+      webCtx.effect(() => {
+        const detachResearch = slowLoopAuthoring.attachResearch(createDshWebSkillResearch(web))
+        void slowLoopAuthoring.reconcile().then((result) => {
+          for (const warning of result.warnings) {
+            webCtx.logger.warn(`dsh-evolve slow-loop Skill authoring skipped work: ${warning}`)
+          }
+        }, error => {
+          webCtx.logger.warn(`dsh-evolve slow-loop Skill research startup failed: ${String(error)}`)
+        })
+        return detachResearch
+      }, 'dsh-evolve.slowLoopAuthoringResearch')
+    })
     ctx.inject(['jobs'], (jobCtx) => {
       jobCtx.effect(() => {
         const detachController = jobCtx.jobs.attachController('dsh-evolve-slow-loop-authoring')

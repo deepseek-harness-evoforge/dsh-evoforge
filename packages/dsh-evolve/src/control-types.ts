@@ -175,6 +175,14 @@ export interface EvolutionDiscoveredSkillCandidateView {
         readonly artifactDigest: string
         readonly treeHash: string
       }
+    | {
+        readonly kind: 'slow-loop-research-bundle-v2'
+        readonly modelIdentityHash: string
+        readonly inputDigest: string
+        readonly researchDigest: string
+        readonly artifactDigest: string
+        readonly treeHash: string
+      }
   readonly distribution?:
     | { readonly kind: 'skill-md' }
     | { readonly kind: 'archive'; readonly format: 'tar.gz' | 'zip' }
@@ -269,6 +277,7 @@ export interface EvolutionSlowLoopAuthoringView {
       | 'prepared'
       | 'budget-deferred'
       | 'cancelled'
+      | 'research-pending'
       | 'authoring-pending'
       | 'uncertain'
       | 'incomplete'
@@ -278,6 +287,7 @@ export interface EvolutionSlowLoopAuthoringView {
     readonly modelCalls: 0 | 1
     readonly inputTokens: number
     readonly outputTokens: number
+    readonly researchDigest?: string
     readonly candidateId?: string
     readonly retryAt?: number
     readonly releaseAuthority: 'none'

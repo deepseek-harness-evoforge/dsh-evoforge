@@ -118,6 +118,7 @@ describe('trusted whole-Skill discovery', () => {
       goalCount: 2,
       modelIdentity: 'private-provider-route',
       inputDigest: '4'.repeat(64),
+      researchDigest: '5'.repeat(64),
     } as const
     const skillMd = [
       '---',
@@ -149,9 +150,10 @@ describe('trusted whole-Skill discovery', () => {
     expect(store.recordCandidate).toHaveBeenCalledWith(expect.objectContaining({
       requestedSkill: 'missing-release-skill',
       version: {
-        kind: 'slow-loop-author-bundle-v1',
+        kind: 'slow-loop-research-bundle-v2',
         modelIdentityHash: expect.stringMatching(/^[a-f0-9]{64}$/),
         inputDigest: '4'.repeat(64),
+        researchDigest: '5'.repeat(64),
         artifactDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
         treeHash: expect.stringMatching(/^[a-f0-9]{64}$/),
       },
@@ -193,9 +195,26 @@ describe('trusted whole-Skill discovery', () => {
     expect((await stat(join(output, 'references/verification.md'))).mode & 0o777).toBe(0o600)
 
     if (first.candidate.artifact?.kind !== 'archive'
-      || first.candidate.version.kind !== 'slow-loop-author-bundle-v1') {
+      || first.candidate.version.kind !== 'slow-loop-research-bundle-v2') {
       throw new Error('expected an authored archive candidate')
     }
+    const { id: _candidateId, ...candidateWithoutId } = first.candidate
+    const {
+      kind: _researchKind,
+      researchDigest: _researchDigest,
+      ...legacyVersionFields
+    } = first.candidate.version
+    const legacyWithoutId = {
+      ...candidateWithoutId,
+      version: { kind: 'slow-loop-author-bundle-v1' as const, ...legacyVersionFields },
+    }
+    const legacy = {
+      ...legacyWithoutId,
+      id: discoveredCandidateId(legacyWithoutId),
+    }
+    await expect(discovery.materialize(legacy, join(await realpath(parent), 'legacy-candidate')))
+      .resolves.toMatchObject({ treeHash: first.candidate.version.treeHash })
+
     const nonCanonicalBytes = Buffer.from(first.candidate.artifact.contentBase64, 'base64')
     nonCanonicalBytes[9] = nonCanonicalBytes[9] === 3 ? 0 : 3 // Gzip OS field; payload stays identical.
     const tamperedDigest = createHash('sha256').update(nonCanonicalBytes).digest('hex')
@@ -641,6 +660,14 @@ function discoveredCandidateId(input: Parameters<SkillDiscoveryStore['recordCand
     ? [input.version.commit, input.version.treeHash]
     : input.version.kind === 'agent-skills-index-v0.2'
       ? [input.version.indexDigest, input.version.artifactDigest, input.version.treeHash]
+      : input.version.kind === 'slow-loop-research-bundle-v2'
+        ? [
+            input.version.modelIdentityHash,
+            input.version.inputDigest,
+            input.version.researchDigest,
+            input.version.artifactDigest,
+            input.version.treeHash,
+          ]
       : [
           input.version.modelIdentityHash,
           input.version.inputDigest,

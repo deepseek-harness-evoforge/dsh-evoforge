@@ -258,6 +258,13 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'inputDigest': z.string().readonly(),
   'artifactDigest': z.string().readonly(),
   'treeHash': z.string().readonly(),
+}), z.object({
+  'kind': z.literal("slow-loop-research-bundle-v2").readonly(),
+  'modelIdentityHash': z.string().readonly(),
+  'inputDigest': z.string().readonly(),
+  'researchDigest': z.string().readonly(),
+  'artifactDigest': z.string().readonly(),
+  'treeHash': z.string().readonly(),
 })]).readonly(),
   'distribution': z.union([z.undefined(), z.object({
   'kind': z.literal("skill-md").readonly(),
@@ -321,12 +328,13 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'clusterId': z.string().readonly(),
   'gapCount': z.number().readonly(),
   'goalCount': z.number().readonly(),
-  'phase': z.union([z.literal("incomplete"), z.literal("prepared"), z.literal("budget-deferred"), z.literal("cancelled"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("candidate-ready")]).readonly(),
+  'phase': z.union([z.literal("incomplete"), z.literal("prepared"), z.literal("budget-deferred"), z.literal("cancelled"), z.literal("research-pending"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("candidate-ready")]).readonly(),
   'createdAt': z.string().readonly(),
   'updatedAt': z.string().readonly(),
   'modelCalls': z.union([z.literal(0), z.literal(1)]).readonly(),
   'inputTokens': z.number().readonly(),
   'outputTokens': z.number().readonly(),
+  'researchDigest': z.union([z.undefined(), z.string()]).readonly().optional(),
   'candidateId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'retryAt': z.union([z.undefined(), z.number()]).readonly().optional(),
   'releaseAuthority': z.literal("none").readonly(),
@@ -1523,7 +1531,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionDiscoveredSkillCandidateView",
-            "declaration": "export interface EvolutionDiscoveredSkillCandidateView {\n    readonly id: string;\n    readonly discoveredAt: number;\n    readonly gapId: string;\n    readonly requestedSkill: string;\n    readonly description: string;\n    readonly demand?: { readonly kind: 'cross-goal-cluster-v1'; readonly clusterId: string; readonly gapIds: readonly string[]; readonly goalCount: number; };\n    readonly match?: { readonly kind: 'deterministic-lexical-v1'; readonly requestedSkill: string; readonly score: number; readonly runnerUpScore: number; readonly queryHash: string; };\n    readonly source: { readonly id: string; readonly kind: 'local-git' | 'agent-skills-index' | 'slow-loop-author'; readonly trust: 'explicit-deployer-config' | 'bounded-host-authoring'; readonly origin?: string; };\n    readonly scope: 'workspace';\n    readonly version: { readonly kind: 'git-tree'; readonly commit: string; readonly treeHash: string; } | { readonly kind: 'agent-skills-index-v0.2'; readonly indexDigest: string; readonly artifactDigest: string; readonly treeHash: string; } | { readonly kind: 'slow-loop-author-v1'; readonly modelIdentityHash: string; readonly inputDigest: string; readonly artifactDigest: string; readonly treeHash: string; } | { readonly kind: 'slow-loop-author-bundle-v1'; readonly modelIdentityHash: string; readonly inputDigest: string; readonly artifactDigest: string; readonly treeHash: string; };\n    readonly distribution?: { readonly kind: 'skill-md'; } | { readonly kind: 'archive'; readonly format: 'tar.gz' | 'zip'; };\n    readonly contentHash: string;\n    readonly package: { readonly path: string; readonly fileCount: number; readonly totalBytes: number; readonly hasScripts: boolean; readonly hasReferences: boolean; };\n    readonly permissions: { readonly declared: boolean; readonly executableContent: boolean; readonly externalEffects: 'unknown'; };\n    readonly license?: { readonly status: 'declared'; readonly value: string; } | { readonly status: 'unknown'; };\n    readonly safety: { readonly status: 'quarantined'; readonly checks: readonly { readonly name: 'git-object-integrity' | 'artifact-digest-integrity' | 'regular-files-only' | 'skill-identity' | 'effect-review'; readonly status: 'passed' | 'required'; }[]; };\n    readonly lifecycle: 'inactive';\n    readonly verification: 'unevaluated';\n    readonly execution: 'never';\n}"
+            "declaration": "export interface EvolutionDiscoveredSkillCandidateView {\n    readonly id: string;\n    readonly discoveredAt: number;\n    readonly gapId: string;\n    readonly requestedSkill: string;\n    readonly description: string;\n    readonly demand?: { readonly kind: 'cross-goal-cluster-v1'; readonly clusterId: string; readonly gapIds: readonly string[]; readonly goalCount: number; };\n    readonly match?: { readonly kind: 'deterministic-lexical-v1'; readonly requestedSkill: string; readonly score: number; readonly runnerUpScore: number; readonly queryHash: string; };\n    readonly source: { readonly id: string; readonly kind: 'local-git' | 'agent-skills-index' | 'slow-loop-author'; readonly trust: 'explicit-deployer-config' | 'bounded-host-authoring'; readonly origin?: string; };\n    readonly scope: 'workspace';\n    readonly version: { readonly kind: 'git-tree'; readonly commit: string; readonly treeHash: string; } | { readonly kind: 'agent-skills-index-v0.2'; readonly indexDigest: string; readonly artifactDigest: string; readonly treeHash: string; } | { readonly kind: 'slow-loop-author-v1'; readonly modelIdentityHash: string; readonly inputDigest: string; readonly artifactDigest: string; readonly treeHash: string; } | { readonly kind: 'slow-loop-author-bundle-v1'; readonly modelIdentityHash: string; readonly inputDigest: string; readonly artifactDigest: string; readonly treeHash: string; } | { readonly kind: 'slow-loop-research-bundle-v2'; readonly modelIdentityHash: string; readonly inputDigest: string; readonly researchDigest: string; readonly artifactDigest: string; readonly treeHash: string; };\n    readonly distribution?: { readonly kind: 'skill-md'; } | { readonly kind: 'archive'; readonly format: 'tar.gz' | 'zip'; };\n    readonly contentHash: string;\n    readonly package: { readonly path: string; readonly fileCount: number; readonly totalBytes: number; readonly hasScripts: boolean; readonly hasReferences: boolean; };\n    readonly permissions: { readonly declared: boolean; readonly executableContent: boolean; readonly externalEffects: 'unknown'; };\n    readonly license?: { readonly status: 'declared'; readonly value: string; } | { readonly status: 'unknown'; };\n    readonly safety: { readonly status: 'quarantined'; readonly checks: readonly { readonly name: 'git-object-integrity' | 'artifact-digest-integrity' | 'regular-files-only' | 'skill-identity' | 'effect-review'; readonly status: 'passed' | 'required'; }[]; };\n    readonly lifecycle: 'inactive';\n    readonly verification: 'unevaluated';\n    readonly execution: 'never';\n}"
           },
           {
             "name": "EvolutionEvaluatorDraftDetail",
@@ -1583,7 +1591,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionSlowLoopAuthoringView",
-            "declaration": "export interface EvolutionSlowLoopAuthoringView {\n    readonly configuredTargetCount: number;\n    readonly warningCount: number;\n    readonly runs: readonly { readonly id: string; readonly targetId: string; readonly skillName: string; readonly clusterId: string; readonly gapCount: number; readonly goalCount: number; readonly phase: 'prepared' | 'budget-deferred' | 'cancelled' | 'authoring-pending' | 'uncertain' | 'incomplete' | 'candidate-ready'; readonly createdAt: string; readonly updatedAt: string; readonly modelCalls: 0 | 1; readonly inputTokens: number; readonly outputTokens: number; readonly candidateId?: string; readonly retryAt?: number; readonly releaseAuthority: 'none'; }[];\n}"
+            "declaration": "export interface EvolutionSlowLoopAuthoringView {\n    readonly configuredTargetCount: number;\n    readonly warningCount: number;\n    readonly runs: readonly { readonly id: string; readonly targetId: string; readonly skillName: string; readonly clusterId: string; readonly gapCount: number; readonly goalCount: number; readonly phase: 'prepared' | 'budget-deferred' | 'cancelled' | 'research-pending' | 'authoring-pending' | 'uncertain' | 'incomplete' | 'candidate-ready'; readonly createdAt: string; readonly updatedAt: string; readonly modelCalls: 0 | 1; readonly inputTokens: number; readonly outputTokens: number; readonly researchDigest?: string; readonly candidateId?: string; readonly retryAt?: number; readonly releaseAuthority: 'none'; }[];\n}"
           }
         ]
       }

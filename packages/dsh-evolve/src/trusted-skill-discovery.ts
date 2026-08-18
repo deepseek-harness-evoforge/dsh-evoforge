@@ -106,6 +106,14 @@ const versionSchema = z.union([
     artifactDigest: hashSchema,
     treeHash: hashSchema,
   }),
+  z.strictObject({
+    kind: z.literal('slow-loop-research-bundle-v2'),
+    modelIdentityHash: hashSchema,
+    inputDigest: hashSchema,
+    researchDigest: hashSchema,
+    artifactDigest: hashSchema,
+    treeHash: hashSchema,
+  }),
 ])
 const candidateSchema = z.strictObject({
   schemaVersion: z.literal(1),
@@ -201,7 +209,12 @@ const candidateSchema = z.strictObject({
       && candidate.artifact.format === 'tar.gz'
       && candidate.distribution?.kind === 'archive'
       && candidate.distribution.format === 'tar.gz'
-    if ((!singleFile && !wholeBundle)
+    const researchBundle = candidate.version.kind === 'slow-loop-research-bundle-v2'
+      && candidate.artifact?.kind === 'archive'
+      && candidate.artifact.format === 'tar.gz'
+      && candidate.distribution?.kind === 'archive'
+      && candidate.distribution.format === 'tar.gz'
+    if ((!singleFile && !wholeBundle && !researchBundle)
       || candidate.demand === undefined
       || candidate.gapId !== candidate.demand.gapIds[0]
       || new Set(candidate.demand.gapIds).size !== candidate.demand.gapIds.length) {
@@ -282,6 +295,7 @@ export interface AuthoredSkillCandidateInput extends AuthoredSkillProvenanceInpu
 }
 
 export interface AuthoredSkillBundleCandidateInput extends AuthoredSkillProvenanceInput {
+  readonly researchDigest: string
   readonly files: readonly AgentSkillTextManifestFile[]
 }
 
@@ -642,6 +656,9 @@ export class TrustedSkillDiscovery {
     readonly candidate: DiscoveredSkillCandidate
   }> {
     assertAuthoredSkillProvenance(input)
+    if (!hashSchema.safeParse(input.researchDigest).success) {
+      throw new Error('slow-loop authored whole-Skill research provenance is invalid')
+    }
     const assembled = await assembleAgentSkillTextArchive(input.files)
     const skillFile = assembled.files.find(file => file.path === 'SKILL.md')
     if (skillFile === undefined) throw new Error('slow-loop authored whole-Skill has no root SKILL.md')
@@ -668,9 +685,10 @@ export class TrustedSkillDiscovery {
       },
       scope: 'workspace',
       version: {
-        kind: 'slow-loop-author-bundle-v1',
+        kind: 'slow-loop-research-bundle-v2',
         modelIdentityHash: sha256Bytes(Buffer.from(input.modelIdentity)),
         inputDigest: input.inputDigest,
+        researchDigest: input.researchDigest,
         artifactDigest: assembled.artifactDigest,
         treeHash: assembled.treeHash,
       },
@@ -814,6 +832,7 @@ export class TrustedSkillDiscovery {
     const pinned = candidate.version.kind === 'slow-loop-author-v1'
       ? await validateAuthoredSingleFileCandidate(candidate)
       : candidate.version.kind === 'slow-loop-author-bundle-v1'
+        || candidate.version.kind === 'slow-loop-research-bundle-v2'
         ? await validateAuthoredBundleCandidate(candidate)
         : undefined
     if (pinned === undefined) throw new Error('slow-loop authored candidate has invalid pinned content')
@@ -1855,7 +1874,8 @@ async function validateAuthoredSingleFileCandidate(
 async function validateAuthoredBundleCandidate(
   candidate: DiscoveredSkillCandidate,
 ): Promise<ValidatedAuthoredPackage> {
-  if (candidate.version.kind !== 'slow-loop-author-bundle-v1'
+  if ((candidate.version.kind !== 'slow-loop-author-bundle-v1'
+      && candidate.version.kind !== 'slow-loop-research-bundle-v2')
     || candidate.artifact?.kind !== 'archive'
     || candidate.artifact.format !== 'tar.gz'
     || candidate.distribution?.kind !== 'archive'
@@ -2021,6 +2041,15 @@ function versionIdentity(version: DiscoveredSkillCandidate['version']): readonly
   if (version.kind === 'git-tree') return [version.commit, version.treeHash]
   if (version.kind === 'agent-skills-index-v0.2') {
     return [version.indexDigest, version.artifactDigest, version.treeHash]
+  }
+  if (version.kind === 'slow-loop-research-bundle-v2') {
+    return [
+      version.modelIdentityHash,
+      version.inputDigest,
+      version.researchDigest,
+      version.artifactDigest,
+      version.treeHash,
+    ]
   }
   return [
     version.modelIdentityHash,

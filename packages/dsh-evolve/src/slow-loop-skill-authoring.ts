@@ -3,12 +3,14 @@ import { lstat, mkdir, readFile, readdir, realpath, stat } from 'node:fs/promise
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import type { JobRegistry } from '@deepseek-ai/dsh-jobs'
 import { z } from 'zod'
+import { assembleAgentSkillTextArchive, type AgentSkillTextManifestFile } from './agent-skill-archive.ts'
 import type { AutomaticEvolutionBudget } from './automatic-evolution-budget.ts'
 import { clusterCapabilityGaps, type CapabilityGapCluster } from './capability-gap-cluster.ts'
 import type { CapabilityGap, CapabilityGapStore } from './capability-gap-store.ts'
 import { writeDurableJson } from './shadow-run-state.ts'
+import type { SkillResearchCorpus, SkillResearchEvidence } from './skill-research.ts'
 import type {
-  AuthoredSkillCandidateInput,
+  AuthoredSkillBundleCandidateInput,
   DiscoveredSkillCandidate,
 } from './trusted-skill-discovery.ts'
 
@@ -18,11 +20,13 @@ const MAX_TARGETS = 20
 const MAX_GOALS = 8
 const MAX_GOAL_OBJECTIVE_BYTES = 4 * 1024
 const MAX_AUTHOR_INPUT_BYTES = 48 * 1024
-const MAX_SKILL_BYTES = 64 * 1024
+const MAX_AUTHOR_CONTEXT_BYTES = 96 * 1024
+const MAX_RESEARCH_CORPUS_BYTES = 48 * 1024
 const MAX_AUTHOR_RESPONSE_BYTES = 128 * 1024
 const MAX_STATE_BYTES = 64 * 1024
 const AUTHOR_OUTPUT_TOKEN_LIMIT = 6_000
-const POLICY_VERSION = 'cross-goal-skill-author-v1'
+const POLICY_VERSION = 'research-grounded-whole-skill-author-v2'
+const LEGACY_POLICY_VERSION = 'cross-goal-skill-author-v1'
 
 export interface SlowLoopSkillAuthoringTargetConfig {
   readonly id: string
@@ -61,11 +65,15 @@ export interface SlowLoopSkillAuthorInput {
     readonly revision: number
     readonly objective: string
   }[]
+  readonly research: {
+    readonly digest: string
+    readonly knowledge: readonly SkillResearchEvidence[]
+  }
   readonly signal?: AbortSignal
 }
 
 export interface SlowLoopSkillAuthorResult {
-  readonly skillMd: string
+  readonly files: readonly AgentSkillTextManifestFile[]
   readonly usage: {
     readonly inputTokens: number
     readonly outputTokens: number
@@ -76,6 +84,7 @@ export type SlowLoopSkillAuthoringPhase =
   | 'prepared'
   | 'budget-deferred'
   | 'cancelled'
+  | 'research-pending'
   | 'authoring-pending'
   | 'uncertain'
   | 'incomplete'
@@ -95,6 +104,7 @@ export interface SlowLoopSkillAuthoringRunView {
   readonly modelCalls: 0 | 1
   readonly inputTokens: number
   readonly outputTokens: number
+  readonly researchDigest?: string
   readonly candidateId?: string
   readonly retryAt?: number
   readonly releaseAuthority: 'none'
@@ -112,12 +122,16 @@ interface SlowLoopSkillAuthoringOptions {
   readonly candidates: {
     listCandidates(workspaceId?: string, gapId?: string): DiscoveredSkillCandidate[]
     isDiscoverySettled(gapId: string): boolean
-    quarantineAuthored(input: AuthoredSkillCandidateInput): Promise<{
+    quarantineAuthoredBundle(input: AuthoredSkillBundleCandidateInput): Promise<{
       readonly created: boolean
       readonly candidate: DiscoveredSkillCandidate
     }>
   }
   readonly budget: Pick<AutomaticEvolutionBudget, 'reserve'>
+  readonly research?: (input: {
+    readonly skillName: string
+    readonly signal?: AbortSignal
+  }) => Promise<SkillResearchCorpus>
   readonly authorModel?: (input: SlowLoopSkillAuthorInput) => Promise<SlowLoopSkillAuthorResult>
   readonly modelIdentity?: () => string
   readonly now?: () => number
@@ -130,6 +144,7 @@ const stateSchema = z.strictObject({
     'prepared',
     'budget-deferred',
     'cancelled',
+    'research-pending',
     'authoring-pending',
     'uncertain',
     'incomplete',
@@ -138,7 +153,7 @@ const stateSchema = z.strictObject({
   createdAt: z.iso.datetime({ offset: true }),
   updatedAt: z.iso.datetime({ offset: true }),
   identity: z.strictObject({
-    policyVersion: z.literal(POLICY_VERSION),
+    policyVersion: z.enum([LEGACY_POLICY_VERSION, POLICY_VERSION]),
     targetId: z.string().regex(PUBLIC_ID),
     workspaceId: z.uuid(),
     skillName: z.string().regex(PUBLIC_ID),
@@ -154,8 +169,27 @@ const stateSchema = z.strictObject({
     outputTokens: z.number().int().nonnegative(),
   }),
   candidateId: z.string().regex(CONTENT_ID).optional(),
+  researchDigest: z.string().regex(CONTENT_ID).optional(),
   retryAt: z.number().int().nonnegative().optional(),
   reason: z.string().min(1).max(512).optional(),
+}).superRefine((state, context) => {
+  if (state.identity.policyVersion === LEGACY_POLICY_VERSION
+    && (state.phase === 'research-pending' || state.researchDigest !== undefined)) {
+    context.addIssue({ code: 'custom', message: 'legacy slow-loop state has research-only fields' })
+  }
+  if (state.identity.policyVersion === POLICY_VERSION
+    && ['authoring-pending', 'uncertain', 'candidate-ready'].includes(state.phase)
+    && state.researchDigest === undefined) {
+    context.addIssue({ code: 'custom', message: 'post-research slow-loop state has no research digest' })
+  }
+  if (['prepared', 'budget-deferred', 'cancelled', 'research-pending'].includes(state.phase)
+    && state.cost.modelCalls !== 0) {
+    context.addIssue({ code: 'custom', message: 'pre-authoring slow-loop state records a model call' })
+  }
+  if (['authoring-pending', 'uncertain', 'candidate-ready'].includes(state.phase)
+    && state.cost.modelCalls !== 1) {
+    context.addIssue({ code: 'custom', message: 'post-dispatch slow-loop state omits its model call' })
+  }
 })
 
 type SlowLoopRunState = z.infer<typeof stateSchema>
@@ -172,6 +206,7 @@ export class SlowLoopSkillAuthoring {
   private readonly authorModel: NonNullable<SlowLoopSkillAuthoringOptions['authorModel']>
   private readonly modelIdentity: NonNullable<SlowLoopSkillAuthoringOptions['modelIdentity']>
   private readonly now: NonNullable<SlowLoopSkillAuthoringOptions['now']>
+  private research: SlowLoopSkillAuthoringOptions['research']
   private readonly active = new Set<string>()
   private reconcileTail: Promise<void> = Promise.resolve()
   private jobs: Pick<JobRegistry, 'start'> | undefined
@@ -187,6 +222,7 @@ export class SlowLoopSkillAuthoring {
     this.gaps = options.gaps
     this.candidates = options.candidates
     this.budget = options.budget
+    this.research = options.research
     this.authorModel = options.authorModel ?? requestSlowLoopSkillAuthor
     this.modelIdentity = options.modelIdentity ?? configuredModelIdentity
     this.now = options.now ?? Date.now
@@ -197,6 +233,14 @@ export class SlowLoopSkillAuthoring {
     this.jobs = jobs
     return () => {
       if (this.jobs === jobs) this.jobs = undefined
+    }
+  }
+
+  attachResearch(research: NonNullable<SlowLoopSkillAuthoringOptions['research']>): () => void {
+    if (this.research !== undefined) throw new Error('slow-loop Skill research seam is already attached')
+    this.research = research
+    return () => {
+      if (this.research === research) this.research = undefined
     }
   }
 
@@ -254,6 +298,8 @@ export class SlowLoopSkillAuthoring {
   ): Promise<{ readonly scheduled: number; readonly warnings: string[] }> {
     const jobs = this.jobs
     if (jobs === undefined) return { scheduled: 0, warnings: ['native Jobs unavailable'] }
+    const research = this.research
+    if (research === undefined) return { scheduled: 0, warnings: ['native Web research unavailable'] }
     const gaps = this.gaps.list(workspaceId)
     const candidates = this.candidates.listCandidates(workspaceId)
     const clusters = clusterCapabilityGaps(gaps, candidates)
@@ -282,6 +328,12 @@ export class SlowLoopSkillAuthoring {
             reason: 'paid authoring outcome is uncertain after restart; refusing automatic retry',
           }, this.now())
         }
+        if (state.phase === 'research-pending') {
+          state = await updateState(runDir, state, {
+            phase: 'incomplete',
+            reason: 'research was interrupted before durable completion; refusing automatic retry',
+          }, this.now())
+        }
         if (state.phase === 'budget-deferred'
           && state.retryAt !== undefined
           && state.retryAt <= this.now()) {
@@ -292,7 +344,7 @@ export class SlowLoopSkillAuthoring {
           }, this.now())
         }
         if (state.phase !== 'prepared' || this.active.has(state.id)) continue
-        this.schedule(jobs, target, cluster, goalEvidence, state, runDir)
+        this.schedule(jobs, research, target, cluster, goalEvidence, state, runDir)
         scheduled += 1
       } catch (error) {
         warnings.push(`slow-loop Skill authoring skipped ${cluster.canonicalSkill}: ${errorDetail(error)}`)
@@ -334,6 +386,7 @@ export class SlowLoopSkillAuthoring {
 
   private schedule(
     jobs: Pick<JobRegistry, 'start'>,
+    research: NonNullable<SlowLoopSkillAuthoringOptions['research']>,
     target: SlowLoopSkillAuthoringTargetConfig,
     cluster: CapabilityGapCluster,
     goalEvidence: SlowLoopSkillAuthorInput['goalEvidence'],
@@ -348,7 +401,15 @@ export class SlowLoopSkillAuthoring {
         label: `slow-loop Skill authoring: ${target.skill}`,
         outputLimitBytes: 2_048,
         run: () => {
-          const task = this.runAuthoring(target, cluster, goalEvidence, state, runDir, controller)
+          const task = this.runAuthoring(
+            research,
+            target,
+            cluster,
+            goalEvidence,
+            state,
+            runDir,
+            controller,
+          )
           return {
             cancel: (reason?: string) => controller.abort(
               new Error(reason ?? 'slow-loop Skill authoring cancelled'),
@@ -378,6 +439,7 @@ export class SlowLoopSkillAuthoring {
   }
 
   private async runAuthoring(
+    research: NonNullable<SlowLoopSkillAuthoringOptions['research']>,
     target: SlowLoopSkillAuthoringTargetConfig,
     cluster: CapabilityGapCluster,
     goalEvidence: SlowLoopSkillAuthorInput['goalEvidence'],
@@ -400,10 +462,38 @@ export class SlowLoopSkillAuthoring {
       }, this.now())
     }
     let state = await updateState(runDir, initial, {
-      phase: 'authoring-pending',
-      cost: { modelCalls: 1, inputTokens: 0, outputTokens: 0 },
+      phase: 'research-pending',
+      cost: { modelCalls: 0, inputTokens: 0, outputTokens: 0 },
       retryAt: undefined,
       reason: undefined,
+    }, this.now())
+    if (controller.signal.aborted) {
+      return persistCancellation(runDir, state, controller.signal.reason, this.now())
+    }
+    let corpus: SkillResearchCorpus
+    try {
+      corpus = assertResearchHandoff(
+        await research({ skillName: target.skill, signal: controller.signal }),
+        target.skill,
+      )
+      if (controller.signal.aborted) {
+        return persistCancellation(runDir, state, controller.signal.reason, this.now())
+      }
+      await writeDurableJson(join(runDir, 'research.json'), corpus)
+      assertAuthorContextBudget(target, cluster, goalEvidence, corpus)
+    } catch (error) {
+      if (controller.signal.aborted) {
+        return persistCancellation(runDir, state, controller.signal.reason, this.now())
+      }
+      return updateState(runDir, state, {
+        phase: 'incomplete',
+        reason: `research incomplete: ${errorDetail(error)}`,
+      }, this.now())
+    }
+    state = await updateState(runDir, state, {
+      phase: 'authoring-pending',
+      cost: { modelCalls: 1, inputTokens: 0, outputTokens: 0 },
+      researchDigest: corpus.digest,
     }, this.now())
     if (controller.signal.aborted) {
       return persistCancellation(runDir, state, controller.signal.reason, this.now())
@@ -418,6 +508,10 @@ export class SlowLoopSkillAuthoring {
         clusterId: cluster.id,
         gapIds: cluster.gapIds,
         goalEvidence,
+        research: {
+          digest: corpus.digest,
+          knowledge: corpus.knowledge,
+        },
         signal: controller.signal,
       })
       received = true
@@ -427,8 +521,8 @@ export class SlowLoopSkillAuthoring {
           reason: 'paid authoring was cancelled after request dispatch; refusing automatic retry',
         }, this.now())
       }
-      const proposal = validateAuthorResult(result, target.skill)
-      const quarantined = await this.candidates.quarantineAuthored({
+      const proposal = await validateAuthorResult(result, target.skill)
+      const quarantined = await this.candidates.quarantineAuthoredBundle({
         discoveredAt: this.now(),
         workspaceId: target.workspaceId,
         requestedSkill: target.skill,
@@ -438,7 +532,8 @@ export class SlowLoopSkillAuthoring {
         goalCount: cluster.goalCount,
         modelIdentity: state.identity.modelIdentity,
         inputDigest: state.identity.inputDigest,
-        skillMd: proposal.skillMd,
+        researchDigest: corpus.digest,
+        files: proposal.files,
       })
       state = await updateState(runDir, state, {
         phase: 'candidate-ready',
@@ -557,25 +652,132 @@ function assertAuthorInputBudget(
   }
 }
 
-function validateAuthorResult(
+function assertAuthorContextBudget(
+  target: SlowLoopSkillAuthoringTargetConfig,
+  cluster: CapabilityGapCluster,
+  goalEvidence: SlowLoopSkillAuthorInput['goalEvidence'],
+  research: SkillResearchCorpus,
+): void {
+  const modelInput = JSON.stringify({
+    targetId: target.id,
+    workspaceId: target.workspaceId,
+    skillName: target.skill,
+    clusterId: cluster.id,
+    gapIds: cluster.gapIds,
+    goals: goalEvidence,
+    research: {
+      digest: research.digest,
+      knowledge: research.knowledge,
+    },
+  })
+  if (Buffer.byteLength(modelInput) > MAX_AUTHOR_CONTEXT_BYTES) {
+    throw new Error('slow-loop research-grounded author context exceeds its input budget')
+  }
+}
+
+function assertResearchHandoff(input: SkillResearchCorpus, skillName: string): SkillResearchCorpus {
+  if (!isRecord(input)
+    || input.schemaVersion !== 1
+    || input.skillName !== skillName
+    || typeof input.queryDigest !== 'string'
+    || !CONTENT_ID.test(input.queryDigest)
+    || !Array.isArray(input.knowledge)
+    || input.knowledge.length < 2
+    || input.knowledge.length > 3
+    || !Array.isArray(input.verification)
+    || input.verification.length !== 1
+    || typeof input.truncated !== 'boolean'
+    || typeof input.digest !== 'string'
+    || !CONTENT_ID.test(input.digest)
+    || !input.knowledge.every(value => isResearchEvidence(value, 'knowledge'))
+    || !input.verification.every(value => isResearchEvidence(value, 'verification'))
+    || new Set(input.knowledge.map(value => value.track)).size < 2
+    || input.verification.some(value => input.knowledge.some(item => item.finalUrl === value.finalUrl))
+    || Buffer.byteLength(JSON.stringify(input)) > MAX_RESEARCH_CORPUS_BYTES) {
+    throw new Error('slow-loop Skill research handoff is invalid')
+  }
+  const unsigned = {
+    schemaVersion: input.schemaVersion,
+    skillName: input.skillName,
+    queryDigest: input.queryDigest,
+    knowledge: input.knowledge,
+    verification: input.verification,
+    truncated: input.truncated,
+  }
+  if (sha256(JSON.stringify(unsigned)) !== input.digest) {
+    throw new Error('slow-loop Skill research digest does not match its evidence')
+  }
+  return deepFreeze(structuredClone(input))
+}
+
+function isResearchEvidence(input: unknown, role: 'knowledge' | 'verification'): input is SkillResearchEvidence {
+  if (!isRecord(input)
+    || input.role !== role
+    || typeof input.track !== 'string'
+    || (role === 'knowledge'
+      ? !['official', 'open-source', 'frontier'].includes(input.track)
+      : input.track !== 'holdout')
+    || typeof input.queryHash !== 'string'
+    || !CONTENT_ID.test(input.queryHash)
+    || typeof input.requestedUrl !== 'string'
+    || !isSafeResearchUrl(input.requestedUrl)
+    || typeof input.finalUrl !== 'string'
+    || !isSafeResearchUrl(input.finalUrl)
+    || !Number.isSafeInteger(input.statusCode)
+    || (input.statusCode as number) < 200
+    || (input.statusCode as number) >= 300
+    || (input.title !== undefined && typeof input.title !== 'string')
+    || typeof input.excerpt !== 'string'
+    || typeof input.contentDigest !== 'string'
+    || !CONTENT_ID.test(input.contentDigest)
+    || typeof input.truncated !== 'boolean') return false
+  const expectedKeys = [
+    'contentDigest',
+    'excerpt',
+    'finalUrl',
+    'queryHash',
+    'requestedUrl',
+    'role',
+    'statusCode',
+    'track',
+    'truncated',
+    ...(input.title === undefined ? [] : ['title']),
+  ].sort()
+  return Object.keys(input).sort().join(',') === expectedKeys.join(',')
+}
+
+function isSafeResearchUrl(value: string): boolean {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' && !url.username && !url.password && url.hash === ''
+  } catch {
+    return false
+  }
+}
+
+async function validateAuthorResult(
   input: SlowLoopSkillAuthorResult,
   skillName: string,
-): SlowLoopSkillAuthorResult {
+): Promise<SlowLoopSkillAuthorResult> {
   if (typeof input !== 'object' || input === null
-    || Object.keys(input).sort().join(',') !== 'skillMd,usage'
-    || typeof input.skillMd !== 'string'
-    || Buffer.byteLength(input.skillMd) === 0
-    || Buffer.byteLength(input.skillMd) > MAX_SKILL_BYTES
+    || Object.keys(input).sort().join(',') !== 'files,usage'
+    || !Array.isArray(input.files)
     || !isUsage(input.usage)) {
     throw new Error('slow-loop Skill author response has an invalid shape')
   }
-  const normalized = input.skillMd.replaceAll('\r\n', '\n')
-  if (!normalized.startsWith('---\n')
-    || !new RegExp(`(?:^|\\n)name:[ \\t]*${escapeRegExp(skillName)}[ \\t]*(?:\\n|$)`, 'u').test(normalized)) {
+  const assembled = await assembleAgentSkillTextArchive(input.files)
+  const skillFile = assembled.files.find(file => file.path === 'SKILL.md')
+  const skillMd = skillFile?.content.toString('utf8')
+  if (skillMd === undefined
+    || !skillMd.startsWith('---\n')
+    || !new RegExp(`(?:^|\\n)name:[ \\t]*${escapeRegExp(skillName)}[ \\t]*(?:\\n|$)`, 'u').test(skillMd)) {
     throw new Error('slow-loop authored SKILL.md name does not match its exact target')
   }
   return Object.freeze({
-    skillMd: input.skillMd,
+    files: Object.freeze(assembled.files.map(file => Object.freeze({
+      path: file.path,
+      content: file.content.toString('utf8'),
+    }))),
     usage: Object.freeze({ ...input.usage }),
   })
 }
@@ -648,6 +850,7 @@ async function updateState(
   patch: Partial<Pick<
     SlowLoopRunState,
     'phase' | 'cost' | 'candidateId' | 'retryAt' | 'reason'
+    | 'researchDigest'
   >>,
   now: number,
 ): Promise<SlowLoopRunState> {
@@ -698,6 +901,7 @@ function projectState(state: SlowLoopRunState): SlowLoopSkillAuthoringRunView {
     modelCalls: state.cost.modelCalls,
     inputTokens: state.cost.inputTokens,
     outputTokens: state.cost.outputTokens,
+    ...(state.researchDigest === undefined ? {} : { researchDigest: state.researchDigest }),
     ...(state.candidateId === undefined ? {} : { candidateId: state.candidateId }),
     ...(state.retryAt === undefined ? {} : { retryAt: state.retryAt }),
     releaseAuthority: 'none',
@@ -726,11 +930,14 @@ async function requestSlowLoopSkillAuthor(
         {
           role: 'system',
           content: [
-            'Author one complete instruction-only Agent Skill as a single SKILL.md.',
-            'Return JSON only with exactly one field: skillMd.',
+            'Author one complete instruction-only Agent Skill bundle.',
+            'Return JSON only with exactly one field: files.',
+            'files must contain root SKILL.md plus 1-31 one-level references/*.md entries as {path, content}.',
+            'SKILL.md must link every supplied reference; references must not link other local files.',
             'The YAML frontmatter name must exactly match the requested Skill name.',
             'Do not include scripts, executable content, credentials, network calls, or release instructions.',
-            'Use only the supplied cross-Goal evidence. Do not invent research, sources, outcomes, or permissions.',
+            'Use only the supplied cross-Goal evidence and knowledge research.',
+            'Independent verification anchors are intentionally withheld; do not invent tests, sources, outcomes, or permissions.',
             'The result is an inactive quarantined proposal; it has no install, activation, or release authority.',
           ].join(' '),
         },
@@ -743,6 +950,7 @@ async function requestSlowLoopSkillAuthor(
             clusterId: input.clusterId,
             gapIds: input.gapIds,
             goals: input.goalEvidence,
+            research: input.research,
           }),
         },
       ],
@@ -891,4 +1099,12 @@ function sha256(value: string): string {
 function errorDetail(error: unknown): string {
   const text = error instanceof Error ? error.message : String(error)
   return text.replaceAll(/[\r\n]+/g, ' ').slice(0, 512) || 'unknown error'
+}
+
+function deepFreeze<T>(value: T): T {
+  if (value && typeof value === 'object' && !Object.isFrozen(value)) {
+    Object.freeze(value)
+    for (const child of Object.values(value)) deepFreeze(child)
+  }
+  return value
 }
