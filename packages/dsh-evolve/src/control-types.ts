@@ -70,6 +70,34 @@ export interface EvolutionCapabilityMapView {
   readonly capabilities: readonly EvolutionCapabilityView[]
 }
 
+/** One bounded, evidence-backed absence observed through DSH's native Skill seam. */
+export interface EvolutionCapabilityGapView {
+  readonly id: string
+  readonly observedAt: number
+  readonly requestedSkill: string
+  readonly catalogHash: string
+  readonly catalogSize: number
+  readonly generationId?: string
+  readonly goal?: {
+    readonly id: string
+    readonly revision: number
+    readonly objective: string
+  }
+  readonly status: 'confirmed'
+  readonly evidence: {
+    readonly kind: 'native-skill-miss'
+    readonly catalog: 'complete'
+    readonly routing: 'requested-skill-absent'
+    readonly providers: 'settled'
+  }
+}
+
+/** Workspace queue; exact Session ids remain host-private. */
+export interface EvolutionCapabilityGapQueueView {
+  readonly confirmedCount: number
+  readonly items: readonly EvolutionCapabilityGapView[]
+}
+
 /** One sealed evaluator result shown in review. */
 export interface EvolutionReviewCaseView {
   readonly id: string
@@ -213,6 +241,7 @@ export interface EvolutionOverview {
     readonly skills: readonly string[]
   }
   readonly capabilityMap?: EvolutionCapabilityMapView
+  readonly capabilityGaps?: EvolutionCapabilityGapQueueView
   readonly deliveryOutcomes?: {
     readonly all: DeliveryOutcomeCounts
     readonly selected: DeliveryOutcomeCounts

@@ -478,6 +478,7 @@ function SkillsView({ summary, t }: { summary: EvolutionOverview; t: (key: strin
       <p>{t('skills.description')}</p>
     </section>
     <CapabilityMap summary={summary} t={t} />
+    <CapabilityGapQueue summary={summary} t={t} />
     {empty && <div className="dsh-evolve-message">{t('skills.empty')}</div>}
     {active.length > 0 && <SkillGroup label={t('skills.active')} items={active.map(artifact => ({
       key: `active:${artifact.gitCommit}:${artifact.name}`,
@@ -496,6 +497,26 @@ function SkillsView({ summary, t }: { summary: EvolutionOverview; t: (key: strin
     }))} />}
     <p className="dsh-evolve-guidance">{t('skills.native')}</p>
   </>
+}
+
+function CapabilityGapQueue({ summary, t }: { summary: EvolutionOverview; t: (key: string) => string }) {
+  const items = summary.capabilityGaps?.items ?? []
+  return <section>
+    <h3 className="dsh-evolve-section-title">{t('skills.gaps')}</h3>
+    {items.length === 0
+      ? <div className="dsh-evolve-message">{t('skills.gaps.empty')}</div>
+      : <ul className="dsh-evolve-list">{items.map(gap => (
+          <li className="dsh-evolve-skill-card" key={gap.id}>
+            <div className="dsh-evolve-review-skill">{gap.requestedSkill}</div>
+            {gap.goal !== undefined && <p>{gap.goal.objective}</p>}
+            <div className="dsh-evolve-capability-route">{t('skills.gaps.confirmed')}</div>
+            <div className="dsh-evolve-meta">
+              {t('skills.gaps.catalog')} · {gap.catalogSize} · {gap.catalogHash.slice(0, 12)}
+            </div>
+            <div className="dsh-evolve-meta">{t('skills.gaps.inactive')}</div>
+          </li>
+        ))}</ul>}
+  </section>
 }
 
 function CapabilityMap({ summary, t }: { summary: EvolutionOverview; t: (key: string) => string }) {

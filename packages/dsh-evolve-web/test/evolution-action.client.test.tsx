@@ -269,6 +269,11 @@ const t = (key: string) => ({
   'skills.route.user-selected': 'Explicitly invoked by the user',
   'skills.version.provider-managed': 'Provider-managed',
   'skills.version.evolved-tree': 'Evolved version',
+  'skills.gaps': 'Capability gap queue',
+  'skills.gaps.empty': 'No confirmed capability gap.',
+  'skills.gaps.confirmed': 'Confirmed by complete DSH catalog',
+  'skills.gaps.catalog': 'Catalog evidence',
+  'skills.gaps.inactive': 'No external Skill was installed or executed.',
   'skills.active': 'In use',
   'skills.ready': 'Verified, waiting to be enabled',
   'skills.reviewing': 'Waiting for review',
@@ -507,6 +512,29 @@ describe('EvolutionAction', () => {
             route: 'model-selected' as const,
           }],
         },
+        capabilityGaps: {
+          confirmedCount: 1,
+          items: [{
+            id: '5'.repeat(64),
+            observedAt: 1_786_896_000_000,
+            requestedSkill: 'missing-release-skill',
+            catalogHash: '6'.repeat(64),
+            catalogSize: 1,
+            generationId,
+            goal: {
+              id: 'goal-1',
+              revision: 3,
+              objective: 'Publish a verified native DSH plugin.',
+            },
+            status: 'confirmed' as const,
+            evidence: {
+              kind: 'native-skill-miss' as const,
+              catalog: 'complete' as const,
+              routing: 'requested-skill-absent' as const,
+              providers: 'settled' as const,
+            },
+          }],
+        },
       })
     })
     renderEvolution(api)
@@ -519,7 +547,13 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('Selected automatically by the model')).toBeTruthy()
     expect(screen.getByText('project-agents · filesystem')).toBeTruthy()
     expect(screen.getByText(`Evolved version · ${'e'.repeat(12)}`)).toBeTruthy()
+    expect(screen.getByText('Capability gap queue')).toBeTruthy()
+    expect(screen.getByText('missing-release-skill')).toBeTruthy()
+    expect(screen.getByText('Publish a verified native DSH plugin.')).toBeTruthy()
+    expect(screen.getByText('Confirmed by complete DSH catalog')).toBeTruthy()
+    expect(screen.getByText('No external Skill was installed or executed.')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /build-dsh-plugin/u })).toBeNull()
+    expect(screen.queryByRole('button', { name: /install|missing-release-skill/u })).toBeNull()
   })
 
   it('fails closed when the current Session is not owned by a native Workspace', async () => {

@@ -5,6 +5,10 @@ import z from '@deepseek-ai/schemastery'
 import type Schema from '@deepseek-ai/schemastery'
 import { installGenerationBinder } from './generation-binder.ts'
 import { CapabilityMap, installCapabilityMapObserver } from './capability-map.ts'
+import {
+  installCapabilityGapMonitor,
+  openCapabilityGapStore,
+} from './capability-gap-store.ts'
 import { installEvolutionCommand } from './evolve-command.ts'
 import { CandidatePublisher } from './candidate-publisher.ts'
 import { GitSkillSource, type GitSkillSourceConfig } from './git-skill-source.ts'
@@ -160,6 +164,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const store = new VerifiedEvolutionStore(await openEvolutionStore(ctx.storageDomain), source)
   const deliveryOutcomes = await openDeliveryOutcomeStore(ctx.storageDomain)
   const feedbackSignals = await openFeedbackSignalStore(ctx.storageDomain)
+  const capabilityGaps = await openCapabilityGapStore(ctx.storageDomain)
   const feedbackMonitor = installFeedbackSignalMonitor(ctx, feedbackSignals, store)
   let feedbackDraftBuilder: FeedbackCaseDraftBuilder | undefined
   const deliveryMonitors = new Set<DeliveryOutcomeMonitor>()
@@ -192,6 +197,12 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const disposeBinder = installGenerationBinder(ctx, store, source)
   const capabilities = new CapabilityMap()
   const capabilityMonitor = installCapabilityMapObserver(ctx, capabilities, store)
+  const capabilityGapMonitor = installCapabilityGapMonitor(
+    ctx,
+    capabilityGaps,
+    capabilities,
+    store,
+  )
   const review = config.supervisor === undefined || config.supervisor.runRoots.length === 0
     ? undefined
     : {
@@ -365,6 +376,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const control = new EvolutionControlPlane({
     store,
     capabilities,
+    gaps: capabilityGaps,
     ...(review === undefined ? {} : { review }),
     ...(resident === undefined ? {} : { resident }),
     ...(automaticPolicy === undefined ? {} : { automatic: automaticPolicy }),
@@ -529,9 +541,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   ctx.effect(() => async () => {
     await Promise.all([...deliveryMonitors].map(monitor => monitor.dispose()))
     await capabilityMonitor.dispose()
+    await capabilityGapMonitor.dispose()
     await feedbackMonitor.dispose()
     await deliveryOutcomes.close()
     await feedbackSignals.close()
+    await capabilityGaps.close()
     await disposeBinder()
     await store.close()
   }, 'dsh-evolve.runtimeClose')

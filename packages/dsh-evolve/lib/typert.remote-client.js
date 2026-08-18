@@ -167,6 +167,29 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'route': z.union([z.literal("available"), z.literal("model-selected"), z.literal("user-selected")]).readonly(),
 })).readonly(),
 })]).readonly().optional(),
+  'capabilityGaps': z.union([z.undefined(), z.object({
+  'confirmedCount': z.number().readonly(),
+  'items': z.array(z.object({
+  'id': z.string().readonly(),
+  'observedAt': z.number().readonly(),
+  'requestedSkill': z.string().readonly(),
+  'catalogHash': z.string().readonly(),
+  'catalogSize': z.number().readonly(),
+  'generationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'goal': z.union([z.undefined(), z.object({
+  'id': z.string().readonly(),
+  'revision': z.number().readonly(),
+  'objective': z.string().readonly(),
+})]).readonly().optional(),
+  'status': z.literal("confirmed").readonly(),
+  'evidence': z.object({
+  'kind': z.literal("native-skill-miss").readonly(),
+  'catalog': z.literal("complete").readonly(),
+  'routing': z.literal("requested-skill-absent").readonly(),
+  'providers': z.literal("settled").readonly(),
+}).readonly(),
+})).readonly(),
+})]).readonly().optional(),
   'deliveryOutcomes': z.union([z.undefined(), z.object({
   'all': z.object({
   'total': z.number().readonly(),

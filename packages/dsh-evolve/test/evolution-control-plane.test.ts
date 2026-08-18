@@ -215,6 +215,31 @@ describe('EvolutionControlPlane', () => {
       capabilities: {
         snapshot: capabilitySnapshot,
       },
+      gaps: {
+        list: () => [{
+          schemaVersion: 1 as const,
+          id: '5'.repeat(64),
+          observedAt: 1_786_896_000_000,
+          workspaceId: WORKSPACE_ID,
+          sessionId: 'private-gap-session',
+          requestedSkill: 'missing-release-skill',
+          catalogHash: '6'.repeat(64),
+          catalogSize: 1,
+          generationId,
+          goal: {
+            id: 'goal-1',
+            revision: 3,
+            objective: 'Publish a verified native DSH plugin.',
+          },
+          status: 'confirmed' as const,
+          evidence: {
+            kind: 'native-skill-miss' as const,
+            catalog: 'complete' as const,
+            routing: 'requested-skill-absent' as const,
+            providers: 'settled' as const,
+          },
+        }],
+      },
     })
 
     const overview = await control.overview(WORKSPACE_ID, 'session-1')
@@ -256,6 +281,17 @@ describe('EvolutionControlPlane', () => {
           route: 'model-selected',
         }],
       },
+      capabilityGaps: {
+        confirmedCount: 1,
+        items: [{
+          id: '5'.repeat(64),
+          requestedSkill: 'missing-release-skill',
+          catalogHash: '6'.repeat(64),
+          goal: { id: 'goal-1', objective: 'Publish a verified native DSH plugin.' },
+          status: 'confirmed',
+          evidence: { kind: 'native-skill-miss' },
+        }],
+      },
       reviews: { available: true, pendingCount: 1, warningCount: 1 },
     })
     expect(overview.reviews.inactiveGenerations).toEqual([{
@@ -286,6 +322,7 @@ describe('EvolutionControlPlane', () => {
     expect(JSON.stringify({ overview, detail })).not.toContain('private content')
     expect(JSON.stringify(overview)).not.toContain('private-session')
     expect(JSON.stringify(overview)).not.toContain('private-message')
+    expect(JSON.stringify(overview)).not.toContain('private-gap-session')
     expect(JSON.stringify(overview)).not.toContain('private content')
     expect(JSON.stringify(overview)).not.toContain('/Users/')
   })

@@ -6,12 +6,14 @@ import type { FeedbackShadowLauncher } from './feedback-shadow-launcher.ts'
 import type { EvaluatorDraftInbox } from './evaluator-draft-inbox.ts'
 import type { AutomaticFeedbackShadowService } from './automatic-feedback-shadow.ts'
 import type { AutomaticEvaluatorDraftService } from './automatic-evaluator-draft.ts'
+import type { CapabilityGapStore } from './capability-gap-store.ts'
 import type { EvolutionStore } from './generation-store.ts'
 import type { ResidentEvolutionControl } from './resident-evolution-control.ts'
 import type { ReviewCandidate, ReviewInbox } from './review-inbox.ts'
 import type {
   EvolutionActionReceipt,
   EvolutionCapabilityMapView,
+  EvolutionCapabilityGapQueueView,
   EvolutionEvaluatorDraftView,
   EvolutionFeedbackSignalView,
   EvolutionGenerationView,
@@ -23,6 +25,7 @@ import type {
 
 const MAX_REVIEW_ROWS = 20
 const MAX_FEEDBACK_ROWS = 20
+const MAX_CAPABILITY_GAP_ROWS = 20
 
 /** Existing authoritative owners used by Commands and structured adapters. */
 export interface EvolutionControlPlaneModules {
@@ -42,6 +45,7 @@ export interface EvolutionControlPlaneModules {
   readonly capabilities?: {
     readonly snapshot: (workspaceId: string, sessionId?: string) => EvolutionCapabilityMapView
   }
+  readonly gaps?: Pick<CapabilityGapStore, 'list'>
 }
 
 /** A structured adapter surface that delegates to the same owners as Commands. */
@@ -86,6 +90,9 @@ export class EvolutionControlPlane {
       ...(this.modules.capabilities === undefined
         ? {}
         : { capabilityMap: cloneCapabilityMap(this.modules.capabilities.snapshot(workspaceId, sessionId)) }),
+      ...(this.modules.gaps === undefined
+        ? {}
+        : { capabilityGaps: projectCapabilityGaps(this.modules.gaps.list(workspaceId)) }),
       ...(this.modules.outcomes === undefined
         ? {}
         : {
@@ -343,6 +350,25 @@ function cloneCapabilityMap(map: EvolutionCapabilityMapView): EvolutionCapabilit
     capabilities: map.capabilities.map(capability => ({
       ...capability,
       invocation: { ...capability.invocation },
+    })),
+  }
+}
+
+function projectCapabilityGaps(
+  gaps: ReturnType<CapabilityGapStore['list']>,
+): EvolutionCapabilityGapQueueView {
+  return {
+    confirmedCount: gaps.filter(gap => gap.status === 'confirmed').length,
+    items: gaps.slice(0, MAX_CAPABILITY_GAP_ROWS).map(gap => ({
+      id: gap.id,
+      observedAt: gap.observedAt,
+      requestedSkill: gap.requestedSkill,
+      catalogHash: gap.catalogHash,
+      catalogSize: gap.catalogSize,
+      ...(gap.generationId === undefined ? {} : { generationId: gap.generationId }),
+      ...(gap.goal === undefined ? {} : { goal: { ...gap.goal } }),
+      status: gap.status,
+      evidence: { ...gap.evidence },
     })),
   }
 }
