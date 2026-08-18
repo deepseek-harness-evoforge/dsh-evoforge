@@ -55,14 +55,16 @@ native Goal
 - `researchHoldoutTargets` / `researchRevisionTargets` 及对应 Job 编排；
 - Web 外部发现 attempts、research Holdout 和 research revision 当前投影。
 
-历史 schema/证据文件可能仍被代码读取以便审计旧状态，但不会进入当前产品主链路或能力声明。未来外部包
-获取只能成为独立 trusted-import 功能，不能命名为自我发现。
+历史 candidate/attempt schema 仍由同一 Storage Domain 读取以便审计旧状态；当前 composition 改用
+`ExperienceAuthoredSkillCandidates`，只允许 internal-experience v1 quarantine/materialization，旧的外部
+acquisition class、fetch loop 和 research Jobs 不进入打包运行路径。未来外部包获取只能成为独立
+trusted-import 功能，不能命名为自我发现。
 
 ## 关键实现
 
 - `packages/dsh-evolve/src/skill-opportunity-discovery.ts`
 - `packages/dsh-evolve/src/slow-loop-skill-authoring.ts`
-- `packages/dsh-evolve/src/trusted-skill-discovery.ts` 中的 experience-authored v1 quarantine 写入
+- `packages/dsh-evolve/src/trusted-skill-discovery.ts` 中独立的 `ExperienceAuthoredSkillCandidates`
 - `packages/dsh-evolve/src/index.ts`
 - `packages/dsh-evolve/src/evolution-control-plane.ts`
 - `packages/dsh-evolve-web/src/client/EvolutionAction.tsx`

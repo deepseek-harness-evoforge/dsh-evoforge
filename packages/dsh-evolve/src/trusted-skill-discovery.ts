@@ -489,6 +489,148 @@ export interface TrustedSkillDiscoveryLoop {
   dispose(): Promise<void>
 }
 
+/** Current runtime repository: accepts only whole-Skills authored from internal DSH experience. */
+export class ExperienceAuthoredSkillCandidates {
+  private readonly store: Pick<SkillDiscoveryStore, 'recordCandidate'>
+  private readonly onCandidate: ((candidate: DiscoveredSkillCandidate) => void) | undefined
+
+  constructor(
+    store: Pick<SkillDiscoveryStore, 'recordCandidate'>,
+    options: { onCandidate?: (candidate: DiscoveredSkillCandidate) => void } = {},
+  ) {
+    this.store = store
+    this.onCandidate = options.onCandidate
+  }
+
+  async quarantineExperienceAuthoredBundle(input: AuthoredSkillBundleCandidateInput): Promise<{
+    readonly created: boolean
+    readonly candidate: DiscoveredSkillCandidate
+  }> {
+    assertAuthoredSkillProvenance(input)
+    const assembled = await assembleAgentSkillTextArchive(input.files)
+    const skillFile = assembled.files.find(file => file.path === 'SKILL.md')
+    if (skillFile === undefined) throw new Error('experience-authored whole-Skill has no root SKILL.md')
+    const skill = parseSkillHeader(decodeCanonicalUtf8(skillFile.content))
+    if (skill.name !== input.requestedSkill) {
+      throw new Error('experience-authored whole-Skill name does not match its Opportunity')
+    }
+    const recorded = await this.store.recordCandidate({
+      discoveredAt: input.discoveredAt,
+      gapId: input.gapIds[0]!,
+      workspaceId: input.workspaceId,
+      requestedSkill: input.requestedSkill,
+      description: skill.description,
+      demand: {
+        kind: 'cross-goal-cluster-v1',
+        clusterId: input.clusterId,
+        gapIds: [...input.gapIds],
+        goalCount: input.goalCount,
+      },
+      source: {
+        id: input.sourceId,
+        kind: 'slow-loop-author',
+        trust: 'bounded-host-authoring',
+      },
+      scope: 'workspace',
+      version: {
+        kind: 'slow-loop-author-bundle-v1',
+        modelIdentityHash: sha256Bytes(Buffer.from(input.modelIdentity)),
+        inputDigest: input.inputDigest,
+        artifactDigest: assembled.artifactDigest,
+        treeHash: assembled.treeHash,
+      },
+      distribution: { kind: 'archive', format: 'tar.gz' },
+      contentHash: assembled.artifactDigest,
+      package: {
+        path: input.requestedSkill,
+        fileCount: assembled.files.length,
+        totalBytes: assembled.totalBytes,
+        hasScripts: false,
+        hasReferences: assembled.files.some(file => file.path.startsWith('references/')),
+      },
+      permissions: {
+        declared: skill.permissionsDeclared,
+        executableContent: false,
+        externalEffects: 'unknown',
+      },
+      license: skill.license === undefined
+        ? { status: 'unknown' }
+        : { status: 'declared', value: skill.license },
+      safety: {
+        status: 'quarantined',
+        checks: [
+          { name: 'artifact-digest-integrity', status: 'passed' },
+          { name: 'regular-files-only', status: 'passed' },
+          { name: 'skill-identity', status: 'passed' },
+          { name: 'effect-review', status: 'required' },
+        ],
+      },
+      artifact: {
+        kind: 'archive',
+        format: 'tar.gz',
+        contentBase64: assembled.content.toString('base64'),
+      },
+      lifecycle: 'inactive',
+      verification: 'unevaluated',
+      execution: 'never',
+    })
+    this.onCandidate?.(recorded.candidate)
+    return recorded
+  }
+
+  async materialize(
+    input: DiscoveredSkillCandidate,
+    requestedOutputDir: string,
+  ): Promise<MaterializedSkillCandidate> {
+    const candidate = candidateSchema.parse(input)
+    if (candidate.source.kind !== 'slow-loop-author'
+      || candidate.version.kind !== 'slow-loop-author-bundle-v1'
+      || candidate.demand === undefined) {
+      throw new Error('current Skill candidate repository accepts only internal experience bundles')
+    }
+    const expectedId = contentId([
+      candidate.workspaceId,
+      candidate.gapId,
+      candidate.source.id,
+      ...versionIdentity(candidate.version),
+      candidate.contentHash,
+    ])
+    if (candidate.id !== expectedId) {
+      throw new Error('experience-authored candidate id does not match its identity')
+    }
+    const pinned = await validateAuthoredBundleCandidate(candidate)
+    const requested = resolve(requestedOutputDir)
+    if (dirname(requested) === requested) {
+      throw new Error('experience-authored candidate output must not be a filesystem root')
+    }
+    const parent = await realpath(dirname(requested))
+    const outputDir = resolve(parent, basename(requested))
+    await mkdir(outputDir, { mode: 0o700 })
+    try {
+      for (const file of pinned.files) {
+        const target = resolve(outputDir, ...file.path.split('/'))
+        assertInside(outputDir, target, 'experience-authored candidate file')
+        await mkdir(dirname(target), { mode: 0o700, recursive: true })
+        await writeFile(target, file.content, { flag: 'wx', mode: 0o600 })
+      }
+      return Object.freeze({
+        candidateId: candidate.id,
+        path: outputDir,
+        contentHash: pinned.artifactDigest,
+        treeHash: pinned.treeHash,
+        files: Object.freeze(pinned.files.map(file => Object.freeze({
+          path: file.path,
+          mode: file.mode,
+          size: file.content.byteLength,
+        }))),
+      })
+    } catch (error) {
+      await rm(outputDir, { force: true, recursive: true }).catch(() => undefined)
+      throw error
+    }
+  }
+}
+
 /** Exact-first deterministic acquisition from explicitly trusted sources; never a task router. */
 export class TrustedSkillDiscovery {
   private readonly sources: readonly ResolvedSource[]

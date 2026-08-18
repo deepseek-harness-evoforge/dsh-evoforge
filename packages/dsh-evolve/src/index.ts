@@ -12,8 +12,8 @@ import {
 import { installCapabilityGapTool } from './capability-gap-tool.ts'
 import { ExperienceDrivenSkillOpportunityDiscovery } from './skill-opportunity-discovery.ts'
 import {
+  ExperienceAuthoredSkillCandidates,
   openSkillDiscoveryStore,
-  TrustedSkillDiscovery,
 } from './trusted-skill-discovery.ts'
 import {
   DiscoveredSkillAdmission,
@@ -259,10 +259,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   })
   let skillAdmissionScheduler: DiscoveredSkillAdmissionScheduler | undefined
   let skillShadowScheduler: DiscoveredSkillShadowScheduler | undefined
-  // Legacy storage/parser implementation retained for existing durable records;
-  // current composition exposes only experience-authored candidate repository methods.
-  const skillCandidates = new TrustedSkillDiscovery(
-    [],
+  const skillCandidates = new ExperienceAuthoredSkillCandidates(
     skillCandidateStore,
     {
       onCandidate: candidate => skillAdmissionScheduler?.observe(candidate),

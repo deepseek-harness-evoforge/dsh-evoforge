@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import type { CapabilityGap } from '../src/capability-gap-store.ts'
 import {
+  ExperienceAuthoredSkillCandidates,
   TrustedSkillDiscovery,
   installTrustedSkillDiscoveryLoop,
   type DiscoveredSkillCandidate,
@@ -285,7 +286,7 @@ describe('trusted whole-Skill discovery', () => {
 
   it('quarantines an experience-authored bundle without external research provenance', async () => {
     const store = fakeStore()
-    const discovery = new TrustedSkillDiscovery([], store)
+    const discovery = new ExperienceAuthoredSkillCandidates(store)
     const candidate = await discovery.quarantineExperienceAuthoredBundle({
       discoveredAt: 1_786_896_200_000,
       workspaceId: WORKSPACE_ID,
@@ -319,6 +320,18 @@ describe('trusted whole-Skill discovery', () => {
     })
     expect(candidate.candidate.version).not.toHaveProperty('researchDigest')
     expect(JSON.stringify(candidate.candidate)).not.toContain('private-provider-route')
+
+    const parent = await mkdtemp(join(tmpdir(), 'dsh-evolve-experience-candidate-'))
+    temporaryRoots.push(parent)
+    const output = join(await realpath(parent), 'candidate')
+    await expect(discovery.materialize(candidate.candidate, output)).resolves.toMatchObject({
+      candidateId: candidate.candidate.id,
+      path: output,
+      files: [
+        { path: 'references/evidence.md', mode: '100644' },
+        { path: 'SKILL.md', mode: '100644' },
+      ],
+    })
   })
 
   it('archives an exact Skill folder from an explicit local Git source without executing it', async () => {
