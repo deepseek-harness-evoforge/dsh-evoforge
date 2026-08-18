@@ -27,7 +27,7 @@ export function installCapabilityGapTool(
   const now = options.now ?? Date.now
   return ctx.tools.register(defineTool({
     name: 'report_capability_gap',
-    description: 'Report a missing reusable capability only after reviewing the complete Session Skill catalog and finding that no available Skill applies. Propose one kebab-case Skill name; EvoForge records the gap and searches explicitly trusted sources asynchronously without changing the current Session.',
+    description: 'Report a missing reusable capability only after reviewing the complete Session Skill catalog and finding that no available Skill applies. Propose one kebab-case capability name; EvoForge retains it as internal Goal experience and looks for repeated evidence across Goals without changing the current Session.',
     parameters: {
       name: {
         type: 'string',
@@ -48,7 +48,7 @@ export function installCapabilityGapTool(
       render: (_args, value) => [{
         type: 'text',
         text: value.status === 'queued'
-          ? `Capability Gap ${value.gapId} recorded for ${value.requestedSkill}; trusted discovery continues asynchronously.`
+          ? `Capability Gap ${value.gapId} recorded for ${value.requestedSkill}; internal Skill opportunity discovery continues asynchronously.`
           : `Capability Gap ${value.gapId} was already recorded for ${value.requestedSkill}.`,
       }],
     },
@@ -88,10 +88,10 @@ export function installCapabilityGapTool(
       if (recorded.created && options.onGap !== undefined) {
         try {
           void Promise.resolve(options.onGap(recorded.gap)).catch((error: unknown) => {
-            ctx.logger.warn(`dsh-evolve failed to schedule trusted discovery for Capability Gap '${recorded.gap.id}': ${String(error)}`)
+            ctx.logger.warn(`dsh-evolve failed to reconcile internal Skill opportunities for Capability Gap '${recorded.gap.id}': ${String(error)}`)
           })
         } catch (error) {
-          ctx.logger.warn(`dsh-evolve failed to schedule trusted discovery for Capability Gap '${recorded.gap.id}': ${String(error)}`)
+          ctx.logger.warn(`dsh-evolve failed to reconcile internal Skill opportunities for Capability Gap '${recorded.gap.id}': ${String(error)}`)
         }
       }
       return {

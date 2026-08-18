@@ -10,6 +10,7 @@ import {
   openCapabilityGapStore,
 } from './capability-gap-store.ts'
 import { installCapabilityGapTool } from './capability-gap-tool.ts'
+import { ExperienceDrivenSkillOpportunityDiscovery } from './skill-opportunity-discovery.ts'
 import {
   installTrustedSkillDiscoveryLoop,
   openSkillDiscoveryStore,
@@ -259,6 +260,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const deliveryOutcomes = await openDeliveryOutcomeStore(ctx.storageDomain)
   const feedbackSignals = await openFeedbackSignalStore(ctx.storageDomain)
   const capabilityGaps = await openCapabilityGapStore(ctx.storageDomain)
+  const skillOpportunities = new ExperienceDrivenSkillOpportunityDiscovery(capabilityGaps)
   const skillDiscoveryStore = await openSkillDiscoveryStore(ctx.storageDomain)
   const feedbackMonitor = installFeedbackSignalMonitor(ctx, feedbackSignals, store)
   let feedbackDraftBuilder: FeedbackCaseDraftBuilder | undefined
@@ -658,6 +660,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     store,
     capabilities,
     gaps: capabilityGaps,
+    opportunities: skillOpportunities,
     discovery: skillDiscoveryStore,
     ...(skillAdmission === undefined ? {} : { admissions: skillAdmission }),
     ...(slowLoopAuthoring === undefined ? {} : { slowLoopAuthoring }),

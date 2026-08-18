@@ -301,13 +301,13 @@ const t = (key: string) => ({
   'skills.gaps.confirmed': 'Confirmed by complete DSH catalog',
   'skills.gaps.catalog': 'Catalog evidence',
   'skills.gaps.inactive': 'No external Skill was installed or executed.',
-  'skills.gap-clusters': 'Cross-Goal gap clusters',
-  'skills.gap-clusters.goals': 'distinct Goals',
-  'skills.gap-clusters.observations': 'Gap observations',
-  'skills.gap-clusters.evidence.repeated-skill-demand': 'Repeated capability demand',
-  'skills.gap-clusters.evidence.shared-resolved-candidate': 'Different Gaps converge on one quarantined candidate',
-  'skills.gap-clusters.proposals': 'Original proposals',
-  'skills.gap-clusters.state': 'Slow-loop priority evidence only · No generation, install, activation, or release',
+  'skills.opportunities': 'Self-discovered Skill opportunities',
+  'skills.opportunities.empty': 'Internal experience has not produced a reliable Skill opportunity yet.',
+  'skills.opportunities.goals': 'distinct Goals',
+  'skills.opportunities.observations': 'Gap observations',
+  'skills.opportunities.evidence': 'Discovered from repeated capability gaps across DSH Goals',
+  'skills.opportunities.flow': 'Evidence Goals',
+  'skills.opportunities.state': 'Eligible for quarantined authoring · No install, activation, or release authority',
   'skills.slow-loop': 'Cross-Goal slow-loop authoring',
   'skills.slow-loop.targets': 'explicit targets',
   'skills.slow-loop.warnings': 'unreadable durable states',
@@ -687,18 +687,20 @@ describe('EvolutionAction', () => {
               providers: 'settled' as const,
             },
           }],
-          clusters: [{
+        },
+        skillOpportunities: {
+          eligibleCount: 1,
+          items: [{
             id: '1'.repeat(64),
-            canonicalSkill: 'release-native-extension',
-            resolvedSkill: 'release-native-extension',
-            requestedSkillCount: 2,
-            requestedSkills: ['missing-release-skill', 'publish-dsh-plugin'],
+            skillName: 'release-native-extension',
+            gapIds: ['5'.repeat(64), '6'.repeat(64), '7'.repeat(64)],
+            goalIds: ['goal-1', 'goal-2'],
             gapCount: 3,
             goalCount: 2,
             firstObservedAt: 1_786_895_900_000,
             lastObservedAt: 1_786_896_000_000,
-            evidence: 'shared-resolved-candidate' as const,
-            status: 'evidence-only' as const,
+            evidence: 'repeated-goal-capability-gap' as const,
+            status: 'eligible-for-authoring' as const,
             releaseAuthority: 'none' as const,
           }],
         },
@@ -941,11 +943,11 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('Publish a verified native DSH plugin.')).toBeTruthy()
     expect(screen.getByText('Confirmed by complete DSH catalog')).toBeTruthy()
     expect(screen.getByText('No external Skill was installed or executed.')).toBeTruthy()
-    expect(screen.getByText('Cross-Goal gap clusters')).toBeTruthy()
+    expect(screen.getByText('Self-discovered Skill opportunities')).toBeTruthy()
     expect(screen.getAllByText('2 distinct Goals · 3 Gap observations')).toHaveLength(2)
-    expect(screen.getByText('Different Gaps converge on one quarantined candidate')).toBeTruthy()
-    expect(screen.getByText('Original proposals · missing-release-skill · publish-dsh-plugin → release-native-extension')).toBeTruthy()
-    expect(screen.getByText('Slow-loop priority evidence only · No generation, install, activation, or release')).toBeTruthy()
+    expect(screen.getByText('Discovered from repeated capability gaps across DSH Goals')).toBeTruthy()
+    expect(screen.getByText('Evidence Goals · goal-1 · goal-2')).toBeTruthy()
+    expect(screen.getByText('Eligible for quarantined authoring · No install, activation, or release authority')).toBeTruthy()
     expect(screen.getByText('Cross-Goal slow-loop authoring')).toBeTruthy()
     expect(screen.getByText('Quarantined candidate ready')).toBeTruthy()
     expect(screen.getByText('Model calls · input/output tokens · 1 · 320/120')).toBeTruthy()

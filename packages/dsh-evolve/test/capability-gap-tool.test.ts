@@ -9,7 +9,7 @@ import type { EvolutionStore } from '../src/generation-store.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 describe('autonomous Capability Gap Tool', () => {
-  it('queues trusted discovery from a natural-language Goal after the complete catalog has no suitable Skill', async () => {
+  it('records internal Goal experience after the complete catalog has no suitable Skill', async () => {
     const ctx = new Context()
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(Tools)

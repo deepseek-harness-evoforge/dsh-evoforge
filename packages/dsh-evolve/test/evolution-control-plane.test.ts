@@ -296,6 +296,23 @@ describe('EvolutionControlPlane', () => {
           },
         }],
       },
+      opportunities: {
+        discover: () => [{
+          schemaVersion: 1 as const,
+          id: '8'.repeat(64),
+          workspaceId: WORKSPACE_ID,
+          skillName: 'release-native-extension',
+          gapIds: ['5'.repeat(64), 'd'.repeat(64)],
+          goalIds: ['goal-1', 'goal-2'],
+          gapCount: 2,
+          goalCount: 2,
+          firstObservedAt: 1_786_896_000_000,
+          lastObservedAt: 1_786_896_000_200,
+          evidence: 'repeated-goal-capability-gap' as const,
+          status: 'eligible-for-authoring' as const,
+          releaseAuthority: 'none' as const,
+        }],
+      },
       discovery: {
         listCandidates: () => [{
           schemaVersion: 1 as const,
@@ -536,18 +553,6 @@ describe('EvolutionControlPlane', () => {
       },
       capabilityGaps: {
         confirmedCount: 2,
-        clusters: [{
-          id: expect.stringMatching(/^[a-f0-9]{64}$/),
-          canonicalSkill: 'release-native-extension',
-          resolvedSkill: 'release-native-extension',
-          requestedSkillCount: 2,
-          requestedSkills: ['missing-release-skill', 'release-native-extension'],
-          gapCount: 2,
-          goalCount: 2,
-          evidence: 'shared-resolved-candidate',
-          status: 'evidence-only',
-          releaseAuthority: 'none',
-        }],
         items: [{
           id: '5'.repeat(64),
           requestedSkill: 'missing-release-skill',
@@ -562,6 +567,20 @@ describe('EvolutionControlPlane', () => {
           goal: { id: 'goal-2', objective: 'Ship the verified extension from another Goal.' },
           status: 'confirmed',
           evidence: { kind: 'model-declared-skill-gap' },
+        }],
+      },
+      skillOpportunities: {
+        eligibleCount: 1,
+        items: [{
+          id: '8'.repeat(64),
+          skillName: 'release-native-extension',
+          gapIds: ['5'.repeat(64), 'd'.repeat(64)],
+          goalIds: ['goal-1', 'goal-2'],
+          gapCount: 2,
+          goalCount: 2,
+          evidence: 'repeated-goal-capability-gap',
+          status: 'eligible-for-authoring',
+          releaseAuthority: 'none',
         }],
       },
       skillDiscovery: {

@@ -229,18 +229,20 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'providers': z.literal("settled").readonly(),
 })]).readonly(),
 })).readonly(),
-  'clusters': z.array(z.object({
+})]).readonly().optional(),
+  'skillOpportunities': z.union([z.undefined(), z.object({
+  'eligibleCount': z.number().readonly(),
+  'items': z.array(z.object({
   'id': z.string().readonly(),
-  'canonicalSkill': z.string().readonly(),
-  'resolvedSkill': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'requestedSkillCount': z.number().readonly(),
-  'requestedSkills': z.array(z.string()).readonly(),
+  'skillName': z.string().readonly(),
+  'gapIds': z.array(z.string()).readonly(),
+  'goalIds': z.array(z.string()).readonly(),
   'gapCount': z.number().readonly(),
   'goalCount': z.number().readonly(),
   'firstObservedAt': z.number().readonly(),
   'lastObservedAt': z.number().readonly(),
-  'evidence': z.union([z.literal("repeated-skill-demand"), z.literal("shared-resolved-candidate")]).readonly(),
-  'status': z.literal("evidence-only").readonly(),
+  'evidence': z.literal("repeated-goal-capability-gap").readonly(),
+  'status': z.literal("eligible-for-authoring").readonly(),
   'releaseAuthority': z.literal("none").readonly(),
 })).readonly(),
 })]).readonly().optional(),
@@ -1719,12 +1721,8 @@ export const TYPERT = {
             "declaration": "export interface EvolutionAutomaticReviewExpiryView {\n    readonly eligibleAt: string;\n    readonly eligible: boolean;\n    readonly trigger: 'next-same-skill-automatic-signal';\n}"
           },
           {
-            "name": "EvolutionCapabilityGapClusterView",
-            "declaration": "export interface EvolutionCapabilityGapClusterView {\n    readonly id: string;\n    readonly canonicalSkill: string;\n    readonly resolvedSkill?: string;\n    readonly requestedSkillCount: number;\n    readonly requestedSkills: readonly string[];\n    readonly gapCount: number;\n    readonly goalCount: number;\n    readonly firstObservedAt: number;\n    readonly lastObservedAt: number;\n    readonly evidence: 'repeated-skill-demand' | 'shared-resolved-candidate';\n    readonly status: 'evidence-only';\n    readonly releaseAuthority: 'none';\n}"
-          },
-          {
             "name": "EvolutionCapabilityGapQueueView",
-            "declaration": "export interface EvolutionCapabilityGapQueueView {\n    readonly confirmedCount: number;\n    readonly items: readonly EvolutionCapabilityGapView[];\n    readonly clusters: readonly EvolutionCapabilityGapClusterView[];\n}"
+            "declaration": "export interface EvolutionCapabilityGapQueueView {\n    readonly confirmedCount: number;\n    readonly items: readonly EvolutionCapabilityGapView[];\n}"
           },
           {
             "name": "EvolutionCapabilityGapView",
@@ -1776,7 +1774,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionOverview",
-            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly workspaceId: string;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly automaticPromotion: { readonly enabled: boolean; readonly skills: readonly string[]; };\n    readonly capabilityMap?: EvolutionCapabilityMapView;\n    readonly capabilityGaps?: EvolutionCapabilityGapQueueView;\n    readonly skillDiscovery?: EvolutionSkillDiscoveryView;\n    readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView;\n    readonly researchHoldout?: EvolutionResearchSkillHoldoutView;\n    readonly researchRevision?: EvolutionResearchSkillRevisionView;\n    readonly skillAdmission?: EvolutionSkillAdmissionView;\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; readonly baseline?: DeliveryOutcomeCounts; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly feedbackShadow?: { readonly available: boolean; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly runs: readonly EvolutionShadowRunView[]; };\n    readonly automaticFeedbackBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly automaticEvaluatorBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly evaluatorAuthoring?: { readonly available: boolean; readonly actionableCount: number; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly drafts: readonly EvolutionEvaluatorDraftView[]; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
+            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly workspaceId: string;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly automaticPromotion: { readonly enabled: boolean; readonly skills: readonly string[]; };\n    readonly capabilityMap?: EvolutionCapabilityMapView;\n    readonly capabilityGaps?: EvolutionCapabilityGapQueueView;\n    readonly skillOpportunities?: EvolutionSkillOpportunityQueueView;\n    readonly skillDiscovery?: EvolutionSkillDiscoveryView;\n    readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView;\n    readonly researchHoldout?: EvolutionResearchSkillHoldoutView;\n    readonly researchRevision?: EvolutionResearchSkillRevisionView;\n    readonly skillAdmission?: EvolutionSkillAdmissionView;\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; readonly baseline?: DeliveryOutcomeCounts; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly feedbackShadow?: { readonly available: boolean; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly runs: readonly EvolutionShadowRunView[]; };\n    readonly automaticFeedbackBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly automaticEvaluatorBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly evaluatorAuthoring?: { readonly available: boolean; readonly actionableCount: number; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly drafts: readonly EvolutionEvaluatorDraftView[]; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
           },
           {
             "name": "EvolutionResearchSkillHoldoutView",
@@ -1817,6 +1815,14 @@ export const TYPERT = {
           {
             "name": "EvolutionSkillDiscoveryView",
             "declaration": "export interface EvolutionSkillDiscoveryView {\n    readonly quarantinedCount: number;\n    readonly candidates: readonly EvolutionDiscoveredSkillCandidateView[];\n    readonly attempts: readonly EvolutionSkillDiscoveryAttemptView[];\n}"
+          },
+          {
+            "name": "EvolutionSkillOpportunityQueueView",
+            "declaration": "export interface EvolutionSkillOpportunityQueueView {\n    readonly eligibleCount: number;\n    readonly items: readonly EvolutionSkillOpportunityView[];\n}"
+          },
+          {
+            "name": "EvolutionSkillOpportunityView",
+            "declaration": "export interface EvolutionSkillOpportunityView {\n    readonly id: string;\n    readonly skillName: string;\n    readonly gapIds: readonly string[];\n    readonly goalIds: readonly string[];\n    readonly gapCount: number;\n    readonly goalCount: number;\n    readonly firstObservedAt: number;\n    readonly lastObservedAt: number;\n    readonly evidence: 'repeated-goal-capability-gap';\n    readonly status: 'eligible-for-authoring';\n    readonly releaseAuthority: 'none';\n}"
           },
           {
             "name": "EvolutionSlowLoopAuthoringView",

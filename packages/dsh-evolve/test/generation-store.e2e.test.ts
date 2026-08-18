@@ -354,7 +354,7 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
     const before = await evolvedCtx.systemPrompt.assemble()
     expect(before.tools).toEqual([{
       name: 'report_capability_gap',
-      description: 'Report a missing reusable capability only after reviewing the complete Session Skill catalog and finding that no available Skill applies. Propose one kebab-case Skill name; EvoForge records the gap and searches explicitly trusted sources asynchronously without changing the current Session.',
+      description: 'Report a missing reusable capability only after reviewing the complete Session Skill catalog and finding that no available Skill applies. Propose one kebab-case capability name; EvoForge retains it as internal Goal experience and looks for repeated evidence across Goals without changing the current Session.',
       parameters: {
         type: 'object',
         properties: {

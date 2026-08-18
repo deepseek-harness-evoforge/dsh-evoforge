@@ -142,23 +142,26 @@ export interface EvolutionCapabilityGapView {
 export interface EvolutionCapabilityGapQueueView {
   readonly confirmedCount: number
   readonly items: readonly EvolutionCapabilityGapView[]
-  readonly clusters: readonly EvolutionCapabilityGapClusterView[]
 }
 
-/** Cross-Goal demand evidence; it cannot generate, install, activate, or release a Skill. */
-export interface EvolutionCapabilityGapClusterView {
+/** Experience-derived opportunity; it cannot install, activate, or release a Skill. */
+export interface EvolutionSkillOpportunityView {
   readonly id: string
-  readonly canonicalSkill: string
-  readonly resolvedSkill?: string
-  readonly requestedSkillCount: number
-  readonly requestedSkills: readonly string[]
+  readonly skillName: string
+  readonly gapIds: readonly string[]
+  readonly goalIds: readonly string[]
   readonly gapCount: number
   readonly goalCount: number
   readonly firstObservedAt: number
   readonly lastObservedAt: number
-  readonly evidence: 'repeated-skill-demand' | 'shared-resolved-candidate'
-  readonly status: 'evidence-only'
+  readonly evidence: 'repeated-goal-capability-gap'
+  readonly status: 'eligible-for-authoring'
   readonly releaseAuthority: 'none'
+}
+
+export interface EvolutionSkillOpportunityQueueView {
+  readonly eligibleCount: number
+  readonly items: readonly EvolutionSkillOpportunityView[]
 }
 
 /** Quarantined whole-Skill package; source repository paths and bodies stay host-private. */
@@ -611,6 +614,7 @@ export interface EvolutionOverview {
   }
   readonly capabilityMap?: EvolutionCapabilityMapView
   readonly capabilityGaps?: EvolutionCapabilityGapQueueView
+  readonly skillOpportunities?: EvolutionSkillOpportunityQueueView
   readonly skillDiscovery?: EvolutionSkillDiscoveryView
   readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView
   readonly researchHoldout?: EvolutionResearchSkillHoldoutView

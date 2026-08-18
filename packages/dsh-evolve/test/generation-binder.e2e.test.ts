@@ -128,7 +128,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     const capabilityGapTool = firstEnabled.tools.find(tool => toolName(tool) === 'report_capability_gap')
     expect(capabilityGapTool).toEqual({
       name: 'report_capability_gap',
-      description: 'Report a missing reusable capability only after reviewing the complete Session Skill catalog and finding that no available Skill applies. Propose one kebab-case Skill name; EvoForge records the gap and searches explicitly trusted sources asynchronously without changing the current Session.',
+      description: 'Report a missing reusable capability only after reviewing the complete Session Skill catalog and finding that no available Skill applies. Propose one kebab-case capability name; EvoForge retains it as internal Goal experience and looks for repeated evidence across Goals without changing the current Session.',
       parameters: {
         type: 'object',
         properties: {
@@ -216,7 +216,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
         },
       }],
     })
-    expect(JSON.stringify(adapter.requests[1])).toContain('trusted discovery continues asynchronously')
+    expect(JSON.stringify(adapter.requests[1])).toContain('internal Skill opportunity discovery continues asynchronously')
 
     await ctx.fiber.dispose()
   })

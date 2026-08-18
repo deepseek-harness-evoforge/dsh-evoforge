@@ -8,7 +8,7 @@ import type { AutomaticFeedbackShadowService } from './automatic-feedback-shadow
 import type { AutomaticEvaluatorDraftService } from './automatic-evaluator-draft.ts'
 import type { CapabilityGapStore } from './capability-gap-store.ts'
 import type { SkillDiscoveryStore } from './trusted-skill-discovery.ts'
-import { clusterCapabilityGaps } from './capability-gap-cluster.ts'
+import type { ExperienceDrivenSkillOpportunityDiscovery } from './skill-opportunity-discovery.ts'
 import type { DiscoveredSkillAdmission } from './discovered-skill-admission.ts'
 import type { SlowLoopSkillAuthoring } from './slow-loop-skill-authoring.ts'
 import type { ResearchSkillHoldout } from './research-skill-holdout.ts'
@@ -57,6 +57,7 @@ export interface EvolutionControlPlaneModules {
     readonly snapshot: (workspaceId: string, sessionId?: string) => EvolutionCapabilityMapView
   }
   readonly gaps?: Pick<CapabilityGapStore, 'list'>
+  readonly opportunities?: Pick<ExperienceDrivenSkillOpportunityDiscovery, 'discover'>
   readonly discovery?: Pick<SkillDiscoveryStore, 'listCandidates' | 'listAttempts'>
   readonly admissions?: Pick<DiscoveredSkillAdmission, 'scan'>
   readonly slowLoopAuthoring?: Pick<SlowLoopSkillAuthoring, 'scan'>
@@ -106,6 +107,7 @@ export class EvolutionControlPlane {
         : this.modules.researchRevisions.scan(workspaceId),
     ])
     const automaticSkills = this.modules.automatic?.skills(workspaceId) ?? []
+    const skillOpportunities = this.modules.opportunities?.discover(workspaceId)
     return {
       schemaVersion: 1,
       ...(active === undefined ? {} : { active: projectGeneration(active) }),
@@ -122,10 +124,25 @@ export class EvolutionControlPlane {
         : { capabilityMap: cloneCapabilityMap(this.modules.capabilities.snapshot(workspaceId, sessionId)) }),
       ...(this.modules.gaps === undefined
         ? {}
-        : { capabilityGaps: projectCapabilityGaps(
-            this.modules.gaps.list(workspaceId),
-            this.modules.discovery?.listCandidates(workspaceId) ?? [],
-          ) }),
+        : { capabilityGaps: projectCapabilityGaps(this.modules.gaps.list(workspaceId)) }),
+      ...(skillOpportunities === undefined
+        ? {}
+        : { skillOpportunities: {
+            eligibleCount: skillOpportunities.length,
+            items: skillOpportunities.map(opportunity => ({
+              id: opportunity.id,
+              skillName: opportunity.skillName,
+              gapIds: [...opportunity.gapIds],
+              goalIds: [...opportunity.goalIds],
+              gapCount: opportunity.gapCount,
+              goalCount: opportunity.goalCount,
+              firstObservedAt: opportunity.firstObservedAt,
+              lastObservedAt: opportunity.lastObservedAt,
+              evidence: opportunity.evidence,
+              status: opportunity.status,
+              releaseAuthority: opportunity.releaseAuthority,
+            })),
+          } }),
       ...(this.modules.discovery === undefined
         ? {}
         : { skillDiscovery: projectSkillDiscovery(this.modules.discovery, workspaceId) }),
@@ -472,7 +489,6 @@ function cloneCapabilityMap(map: EvolutionCapabilityMapView): EvolutionCapabilit
 
 function projectCapabilityGaps(
   gaps: ReturnType<CapabilityGapStore['list']>,
-  candidates: ReturnType<SkillDiscoveryStore['listCandidates']>,
 ): EvolutionCapabilityGapQueueView {
   return {
     confirmedCount: gaps.filter(gap => gap.status === 'confirmed').length,
@@ -486,20 +502,6 @@ function projectCapabilityGaps(
       ...(gap.goal === undefined ? {} : { goal: { ...gap.goal } }),
       status: gap.status,
       evidence: { ...gap.evidence },
-    })),
-    clusters: clusterCapabilityGaps(gaps, candidates).map(cluster => ({
-      id: cluster.id,
-      canonicalSkill: cluster.canonicalSkill,
-      ...(cluster.resolvedSkill === undefined ? {} : { resolvedSkill: cluster.resolvedSkill }),
-      requestedSkillCount: cluster.requestedSkills.length,
-      requestedSkills: cluster.requestedSkills.slice(0, MAX_CAPABILITY_GAP_ROWS),
-      gapCount: cluster.gapCount,
-      goalCount: cluster.goalCount,
-      firstObservedAt: cluster.firstObservedAt,
-      lastObservedAt: cluster.lastObservedAt,
-      evidence: cluster.evidence,
-      status: cluster.status,
-      releaseAuthority: cluster.releaseAuthority,
     })),
   }
 }

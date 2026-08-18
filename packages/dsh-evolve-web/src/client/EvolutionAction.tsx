@@ -480,6 +480,7 @@ function SkillsView({ summary, t }: { summary: EvolutionOverview; t: (key: strin
     </section>
     <CapabilityMap summary={summary} t={t} />
     <CapabilityGapQueue summary={summary} t={t} />
+    <SkillOpportunities summary={summary} t={t} />
     <SlowLoopAuthoring summary={summary} t={t} />
     <SkillDiscovery summary={summary} t={t} />
     <ResearchSkillHoldout summary={summary} t={t} />
@@ -677,8 +678,8 @@ function SkillDiscovery({ summary, t }: { summary: EvolutionOverview; t: (key: s
                 </div>
               </>}
               {candidate.demand !== undefined && <div className="dsh-evolve-meta">
-                {t('skills.discovery.demand')} · {candidate.demand.goalCount} {t('skills.gap-clusters.goals')}
-                {' · '}{candidate.demand.gapIds.length} {t('skills.gap-clusters.observations')}
+                {t('skills.discovery.demand')} · {candidate.demand.goalCount} {t('skills.opportunities.goals')}
+                {' · '}{candidate.demand.gapIds.length} {t('skills.opportunities.observations')}
               </div>}
               <div className="dsh-evolve-capability-route">{t('skills.discovery.quarantined')}</div>
               <div className="dsh-evolve-meta">
@@ -792,7 +793,7 @@ function SlowLoopAuthoring({ summary, t }: { summary: EvolutionOverview; t: (key
               {t(`skills.slow-loop.phase.${run.phase}`)}
             </div>
             <div className="dsh-evolve-meta">
-              {run.goalCount} {t('skills.gap-clusters.goals')} · {run.gapCount} {t('skills.gap-clusters.observations')}
+              {run.goalCount} {t('skills.opportunities.goals')} · {run.gapCount} {t('skills.opportunities.observations')}
             </div>
             <div className="dsh-evolve-meta">
               {t('skills.slow-loop.cost')} · {run.modelCalls} · {run.inputTokens}/{run.outputTokens}
@@ -840,9 +841,7 @@ function skillPermissionSummary(
 
 function CapabilityGapQueue({ summary, t }: { summary: EvolutionOverview; t: (key: string) => string }) {
   const items = summary.capabilityGaps?.items ?? []
-  const clusters = summary.capabilityGaps?.clusters ?? []
-  return <>
-    <section>
+  return <section>
       <h3 className="dsh-evolve-section-title">{t('skills.gaps')}</h3>
       {items.length === 0
         ? <div className="dsh-evolve-message">{t('skills.gaps.empty')}</div>
@@ -858,25 +857,28 @@ function CapabilityGapQueue({ summary, t }: { summary: EvolutionOverview; t: (ke
             </li>
           ))}</ul>}
     </section>
-    {clusters.length > 0 && <section>
-      <h3 className="dsh-evolve-section-title">{t('skills.gap-clusters')}</h3>
-      <ul className="dsh-evolve-list">{clusters.map(cluster => (
-        <li className="dsh-evolve-skill-card" key={cluster.id}>
-          <div className="dsh-evolve-review-skill">{cluster.canonicalSkill}</div>
+}
+
+function SkillOpportunities({ summary, t }: { summary: EvolutionOverview; t: (key: string) => string }) {
+  const opportunities = summary.skillOpportunities?.items ?? []
+  return <section>
+    <h3 className="dsh-evolve-section-title">{t('skills.opportunities')}</h3>
+    {opportunities.length === 0
+      ? <div className="dsh-evolve-message">{t('skills.opportunities.empty')}</div>
+      : <ul className="dsh-evolve-list">{opportunities.map(opportunity => (
+        <li className="dsh-evolve-skill-card" key={opportunity.id}>
+          <div className="dsh-evolve-review-skill">{opportunity.skillName}</div>
           <div className="dsh-evolve-capability-route">
-            {cluster.goalCount} {t('skills.gap-clusters.goals')} · {cluster.gapCount} {t('skills.gap-clusters.observations')}
+            {opportunity.goalCount} {t('skills.opportunities.goals')} · {opportunity.gapCount} {t('skills.opportunities.observations')}
           </div>
+          <div className="dsh-evolve-meta">{t('skills.opportunities.evidence')}</div>
           <div className="dsh-evolve-meta">
-            {t(`skills.gap-clusters.evidence.${cluster.evidence}`)}
+            {t('skills.opportunities.flow')} · {opportunity.goalIds.join(' · ')}
           </div>
-          {cluster.resolvedSkill !== undefined && <div className="dsh-evolve-meta">
-            {t('skills.gap-clusters.proposals')} · {cluster.requestedSkills.join(' · ')} → {cluster.resolvedSkill}
-          </div>}
-          <div className="dsh-evolve-discovery-state">{t('skills.gap-clusters.state')}</div>
+          <div className="dsh-evolve-discovery-state">{t('skills.opportunities.state')}</div>
         </li>
-      ))}</ul>
-    </section>}
-  </>
+      ))}</ul>}
+  </section>
 }
 
 function CapabilityMap({ summary, t }: { summary: EvolutionOverview; t: (key: string) => string }) {
