@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { Readable } from 'node:stream'
-import { gunzipSync } from 'node:zlib'
-import { extract } from 'tar-stream'
+import { gunzipSync, gzipSync } from 'node:zlib'
+import { extract, pack } from 'tar-stream'
 import { fromBufferPromise, type Entry as ZipEntry } from 'yauzl'
 
 export type AgentSkillArchiveFormat = 'tar.gz' | 'zip'
@@ -19,6 +19,17 @@ export interface DecodedAgentSkillArchive {
   readonly totalBytes: number
 }
 
+export interface AgentSkillTextManifestFile {
+  readonly path: string
+  readonly content: string
+}
+
+export interface AssembledAgentSkillTextArchive extends DecodedAgentSkillArchive {
+  readonly format: 'tar.gz'
+  readonly content: Buffer
+  readonly artifactDigest: string
+}
+
 export const AGENT_SKILL_ARCHIVE_LIMITS = Object.freeze({
   maxEntries: 512,
   maxFiles: 256,
@@ -26,10 +37,52 @@ export const AGENT_SKILL_ARCHIVE_LIMITS = Object.freeze({
   maxTotalBytes: 16 * 1024 * 1024,
 })
 
+export const AUTHORED_AGENT_SKILL_TEXT_LIMITS = Object.freeze({
+  maxFiles: 32,
+  maxFileBytes: 64 * 1024,
+  maxTotalBytes: 256 * 1024,
+})
+
 const TAR_CONTAINER_OVERHEAD = (AGENT_SKILL_ARCHIVE_LIMITS.maxEntries + 4) * 1024
 const UNIX_FILE_TYPE_MASK = 0o170000
 const UNIX_REGULAR_FILE = 0o100000
 const UNIX_DIRECTORY = 0o040000
+
+/**
+ * Assemble one canonical, text-only whole-Skill package. The caller supplies
+ * text files, never archive bytes; this host-owned codec fixes paths, modes,
+ * ordering, tar metadata, and gzip output before the candidate is hashed.
+ */
+export async function assembleAgentSkillTextArchive(
+  input: readonly AgentSkillTextManifestFile[],
+): Promise<AssembledAgentSkillTextArchive> {
+  const files = validateAuthoredTextManifest(input)
+  const decoded = finalize(files)
+  const archive = pack()
+  const output = collect(archive)
+  for (const file of decoded.files) {
+    await new Promise<void>((resolve, reject) => {
+      archive.entry({
+        name: file.path,
+        type: 'file',
+        mode: 0o644,
+        uid: 0,
+        gid: 0,
+        uname: '',
+        gname: '',
+        mtime: new Date(0),
+      }, file.content, error => error === null ? resolve() : reject(error))
+    })
+  }
+  archive.finalize()
+  const content = gzipSync(await output, { level: 9 })
+  return Object.freeze({
+    ...decoded,
+    format: 'tar.gz',
+    content,
+    artifactDigest: createHash('sha256').update(content).digest('hex'),
+  })
+}
 
 export async function decodeAgentSkillArchive(
   content: Uint8Array,
@@ -40,6 +93,87 @@ export async function decodeAgentSkillArchive(
     ? await decodeTarGzip(bytes)
     : await decodeZip(bytes)
   return finalize(files)
+}
+
+function validateAuthoredTextManifest(
+  input: readonly AgentSkillTextManifestFile[],
+): AgentSkillArchiveFile[] {
+  if (input.length < 2 || input.length > AUTHORED_AGENT_SKILL_TEXT_LIMITS.maxFiles) {
+    throw new Error('authored whole-Skill requires SKILL.md and 1-31 one-level references')
+  }
+  const files: AgentSkillArchiveFile[] = []
+  const paths = new Set<string>()
+  let totalBytes = 0
+  for (const item of input) {
+    if (typeof item !== 'object' || item === null
+      || Object.keys(item).sort().join(',') !== 'content,path'
+      || typeof item.path !== 'string'
+      || typeof item.content !== 'string') {
+      throw new Error('authored whole-Skill text manifest has an invalid shape')
+    }
+    const path = validateArchivePath(item.path, false)
+    if (path !== 'SKILL.md' && !/^references\/[^/]+\.md$/u.test(path)) {
+      throw new Error('authored whole-Skill is text-only and permits only one-level references/*.md')
+    }
+    if (paths.has(path)) throw new Error(`duplicate path in authored whole-Skill: ${path}`)
+    paths.add(path)
+    if (item.content.includes('\0') || /\r(?!\n)/u.test(item.content)) {
+      throw new Error(`authored whole-Skill file is not canonical text: ${path}`)
+    }
+    const normalized = item.content.replaceAll('\r\n', '\n')
+    const content = Buffer.from(normalized)
+    if (content.toString('utf8') !== normalized) {
+      throw new Error(`authored whole-Skill file is not canonical UTF-8 text: ${path}`)
+    }
+    if (content.byteLength === 0
+      || content.byteLength > AUTHORED_AGENT_SKILL_TEXT_LIMITS.maxFileBytes
+      || totalBytes + content.byteLength > AUTHORED_AGENT_SKILL_TEXT_LIMITS.maxTotalBytes) {
+      throw new Error('authored whole-Skill text exceeds its byte budget')
+    }
+    totalBytes += content.byteLength
+    files.push(Object.freeze({ path, mode: '100644', content }))
+  }
+  const skill = files.find(file => file.path === 'SKILL.md')
+  if (skill === undefined) throw new Error('authored whole-Skill has no root SKILL.md')
+  const referencePaths = new Set(files
+    .filter(file => file.path.startsWith('references/'))
+    .map(file => file.path))
+  const linked = new Set<string>()
+  for (const target of markdownLinkTargets(skill.content.toString('utf8'))) {
+    if (isExternalOrFragmentLink(target)) continue
+    const path = target.split('#', 1)[0]!
+    if (!referencePaths.has(path)) {
+      throw new Error(`authored whole-Skill has a missing reference: ${path}`)
+    }
+    linked.add(path)
+  }
+  for (const file of files) {
+    if (file.path === 'SKILL.md') continue
+    if (markdownLinkTargets(file.content.toString('utf8'))
+      .some(target => !isExternalOrFragmentLink(target))) {
+      throw new Error('authored whole-Skill reference chains are not allowed')
+    }
+  }
+  const unreferenced = [...referencePaths].find(path => !linked.has(path))
+  if (unreferenced !== undefined) {
+    throw new Error(`authored whole-Skill has an unreferenced file: ${unreferenced}`)
+  }
+  return files
+}
+
+function markdownLinkTargets(content: string): string[] {
+  return [...content.matchAll(/\[[^\]\r\n]*\]\(([^\s)]+)(?:\s+"[^"]*")?\)/gu)]
+    .map(match => match[1]!)
+}
+
+function isExternalOrFragmentLink(target: string): boolean {
+  return target.startsWith('#') || /^[a-z][a-z0-9+.-]*:/iu.test(target)
+}
+
+async function collect(stream: NodeJS.ReadableStream): Promise<Buffer> {
+  const chunks: Buffer[] = []
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk))
+  return Buffer.concat(chunks)
 }
 
 async function decodeTarGzip(content: Buffer): Promise<AgentSkillArchiveFile[]> {

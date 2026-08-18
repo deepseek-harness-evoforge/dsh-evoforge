@@ -13,9 +13,11 @@ import {
 import { parse as parseYaml } from 'yaml'
 import { z } from 'zod'
 import {
+  assembleAgentSkillTextArchive,
   decodeAgentSkillArchive,
   type AgentSkillArchiveFile,
   type AgentSkillArchiveFormat,
+  type AgentSkillTextManifestFile,
 } from './agent-skill-archive.ts'
 import type { CapabilityGap, CapabilityGapStore } from './capability-gap-store.ts'
 
@@ -92,6 +94,13 @@ const versionSchema = z.union([
   }),
   z.strictObject({
     kind: z.literal('slow-loop-author-v1'),
+    modelIdentityHash: hashSchema,
+    inputDigest: hashSchema,
+    artifactDigest: hashSchema,
+    treeHash: hashSchema,
+  }),
+  z.strictObject({
+    kind: z.literal('slow-loop-author-bundle-v1'),
     modelIdentityHash: hashSchema,
     inputDigest: hashSchema,
     artifactDigest: hashSchema,
@@ -184,9 +193,15 @@ const candidateSchema = z.strictObject({
     return
   }
   if (candidate.source.kind === 'slow-loop-author') {
-    if (candidate.version.kind !== 'slow-loop-author-v1'
-      || candidate.artifact?.kind !== 'skill-md'
-      || candidate.distribution?.kind !== 'skill-md'
+    const singleFile = candidate.version.kind === 'slow-loop-author-v1'
+      && candidate.artifact?.kind === 'skill-md'
+      && candidate.distribution?.kind === 'skill-md'
+    const wholeBundle = candidate.version.kind === 'slow-loop-author-bundle-v1'
+      && candidate.artifact?.kind === 'archive'
+      && candidate.artifact.format === 'tar.gz'
+      && candidate.distribution?.kind === 'archive'
+      && candidate.distribution.format === 'tar.gz'
+    if ((!singleFile && !wholeBundle)
       || candidate.demand === undefined
       || candidate.gapId !== candidate.demand.gapIds[0]
       || new Set(candidate.demand.gapIds).size !== candidate.demand.gapIds.length) {
@@ -250,7 +265,7 @@ export interface AgentSkillsIndexSourceConfig {
 }
 
 /** Private authoring handoff; raw generated content never enters the Web projection. */
-export interface AuthoredSkillCandidateInput {
+interface AuthoredSkillProvenanceInput {
   readonly discoveredAt: number
   readonly workspaceId: string
   readonly requestedSkill: string
@@ -260,7 +275,14 @@ export interface AuthoredSkillCandidateInput {
   readonly goalCount: number
   readonly modelIdentity: string
   readonly inputDigest: string
+}
+
+export interface AuthoredSkillCandidateInput extends AuthoredSkillProvenanceInput {
   readonly skillMd: string
+}
+
+export interface AuthoredSkillBundleCandidateInput extends AuthoredSkillProvenanceInput {
+  readonly files: readonly AgentSkillTextManifestFile[]
 }
 
 export interface SkillDiscoveryStore {
@@ -542,21 +564,7 @@ export class TrustedSkillDiscovery {
     readonly created: boolean
     readonly candidate: DiscoveredSkillCandidate
   }> {
-    if (!SOURCE_ID.test(input.sourceId)
-      || !SKILL_NAME.test(input.requestedSkill)
-      || !hashSchema.safeParse(input.clusterId).success
-      || !hashSchema.safeParse(input.inputDigest).success
-      || input.gapIds.length < 2
-      || input.gapIds.length > 1_000
-      || new Set(input.gapIds).size !== input.gapIds.length
-      || input.gapIds.some(id => !hashSchema.safeParse(id).success)
-      || !Number.isSafeInteger(input.goalCount)
-      || input.goalCount < 2
-      || input.goalCount > 1_000
-      || input.modelIdentity.trim() === ''
-      || Buffer.byteLength(input.modelIdentity) > 2_048) {
-      throw new Error('slow-loop authored Skill provenance is invalid')
-    }
+    assertAuthoredSkillProvenance(input)
     const content = Buffer.from(input.skillMd)
     if (content.byteLength === 0 || content.byteLength > MAX_SKILL_HEADER_BYTES) {
       throw new Error('slow-loop authored SKILL.md exceeds its byte limit')
@@ -620,6 +628,83 @@ export class TrustedSkillDiscovery {
         ],
       },
       artifact: { kind: 'skill-md', content: canonical },
+      lifecycle: 'inactive',
+      verification: 'unevaluated',
+      execution: 'never',
+    })
+    this.onCandidate?.(recorded.candidate)
+    return recorded
+  }
+
+  /** Assemble and persist one text-only whole-Skill package as inactive quarantined content. */
+  async quarantineAuthoredBundle(input: AuthoredSkillBundleCandidateInput): Promise<{
+    readonly created: boolean
+    readonly candidate: DiscoveredSkillCandidate
+  }> {
+    assertAuthoredSkillProvenance(input)
+    const assembled = await assembleAgentSkillTextArchive(input.files)
+    const skillFile = assembled.files.find(file => file.path === 'SKILL.md')
+    if (skillFile === undefined) throw new Error('slow-loop authored whole-Skill has no root SKILL.md')
+    const skill = parseSkillHeader(decodeCanonicalUtf8(skillFile.content))
+    if (skill.name !== input.requestedSkill) {
+      throw new Error('slow-loop authored whole-Skill name does not match its exact target')
+    }
+    const recorded = await this.store.recordCandidate({
+      discoveredAt: input.discoveredAt,
+      gapId: input.gapIds[0]!,
+      workspaceId: input.workspaceId,
+      requestedSkill: input.requestedSkill,
+      description: skill.description,
+      demand: {
+        kind: 'cross-goal-cluster-v1',
+        clusterId: input.clusterId,
+        gapIds: [...input.gapIds],
+        goalCount: input.goalCount,
+      },
+      source: {
+        id: input.sourceId,
+        kind: 'slow-loop-author',
+        trust: 'bounded-host-authoring',
+      },
+      scope: 'workspace',
+      version: {
+        kind: 'slow-loop-author-bundle-v1',
+        modelIdentityHash: sha256Bytes(Buffer.from(input.modelIdentity)),
+        inputDigest: input.inputDigest,
+        artifactDigest: assembled.artifactDigest,
+        treeHash: assembled.treeHash,
+      },
+      distribution: { kind: 'archive', format: 'tar.gz' },
+      contentHash: assembled.artifactDigest,
+      package: {
+        path: input.requestedSkill,
+        fileCount: assembled.files.length,
+        totalBytes: assembled.totalBytes,
+        hasScripts: false,
+        hasReferences: true,
+      },
+      permissions: {
+        declared: skill.permissionsDeclared,
+        executableContent: false,
+        externalEffects: 'unknown',
+      },
+      license: skill.license === undefined
+        ? { status: 'unknown' }
+        : { status: 'declared', value: skill.license },
+      safety: {
+        status: 'quarantined',
+        checks: [
+          { name: 'artifact-digest-integrity', status: 'passed' },
+          { name: 'regular-files-only', status: 'passed' },
+          { name: 'skill-identity', status: 'passed' },
+          { name: 'effect-review', status: 'required' },
+        ],
+      },
+      artifact: {
+        kind: 'archive',
+        format: 'tar.gz',
+        contentBase64: assembled.content.toString('base64'),
+      },
       lifecycle: 'inactive',
       verification: 'unevaluated',
       execution: 'never',
@@ -715,8 +800,6 @@ export class TrustedSkillDiscovery {
     requestedOutputDir: string,
   ): Promise<MaterializedSkillCandidate> {
     if (candidate.source.kind !== 'slow-loop-author'
-      || candidate.version.kind !== 'slow-loop-author-v1'
-      || candidate.artifact?.kind !== 'skill-md'
       || candidate.demand === undefined) {
       throw new Error('slow-loop authored candidate has invalid pinned content')
     }
@@ -728,24 +811,12 @@ export class TrustedSkillDiscovery {
       candidate.contentHash,
     ])
     if (candidate.id !== expectedId) throw new Error('slow-loop authored candidate id does not match its identity')
-    const content = Buffer.from(candidate.artifact.content)
-    const artifactDigest = sha256Bytes(content)
-    const decoded = singleSkillPackage(content)
-    const skill = parseSkillHeader(decodeCanonicalUtf8(content))
-    if (artifactDigest !== candidate.version.artifactDigest
-      || artifactDigest !== candidate.contentHash
-      || decoded.treeHash !== candidate.version.treeHash
-      || skill.name !== candidate.requestedSkill
-      || skill.description !== candidate.description
-      || candidate.package.path !== `${skill.name}/SKILL.md`
-      || candidate.package.fileCount !== 1
-      || candidate.package.totalBytes !== content.byteLength
-      || candidate.package.hasScripts
-      || candidate.package.hasReferences
-      || candidate.permissions.executableContent
-      || candidate.permissions.declared !== skill.permissionsDeclared) {
-      throw new Error('slow-loop authored candidate metadata does not match its pinned SKILL.md')
-    }
+    const pinned = candidate.version.kind === 'slow-loop-author-v1'
+      ? await validateAuthoredSingleFileCandidate(candidate)
+      : candidate.version.kind === 'slow-loop-author-bundle-v1'
+        ? await validateAuthoredBundleCandidate(candidate)
+        : undefined
+    if (pinned === undefined) throw new Error('slow-loop authored candidate has invalid pinned content')
     const requested = resolve(requestedOutputDir)
     if (dirname(requested) === requested) {
       throw new Error('slow-loop authored candidate output must not be a filesystem root')
@@ -754,17 +825,22 @@ export class TrustedSkillDiscovery {
     const outputDir = resolve(parent, basename(requested))
     await mkdir(outputDir, { mode: 0o700 })
     try {
-      await writeFile(join(outputDir, 'SKILL.md'), content, { flag: 'wx', mode: 0o600 })
+      for (const file of pinned.files) {
+        const target = resolve(outputDir, ...file.path.split('/'))
+        assertInside(outputDir, target, 'slow-loop authored candidate file')
+        await mkdir(dirname(target), { mode: 0o700, recursive: true })
+        await writeFile(target, file.content, { flag: 'wx', mode: 0o600 })
+      }
       return Object.freeze({
         candidateId: candidate.id,
         path: outputDir,
-        contentHash: artifactDigest,
-        treeHash: decoded.treeHash,
-        files: Object.freeze([Object.freeze({
-          path: 'SKILL.md',
-          mode: '100644' as const,
-          size: content.byteLength,
-        })]),
+        contentHash: pinned.artifactDigest,
+        treeHash: pinned.treeHash,
+        files: Object.freeze(pinned.files.map(file => Object.freeze({
+          path: file.path,
+          mode: file.mode,
+          size: file.content.byteLength,
+        }))),
       })
     } catch (error) {
       await rm(outputDir, { force: true, recursive: true }).catch(() => undefined)
@@ -1733,6 +1809,95 @@ function singleSkillPackage(content: Buffer): {
   })
 }
 
+interface ValidatedAuthoredPackage {
+  readonly files: readonly AgentSkillArchiveFile[]
+  readonly artifactDigest: string
+  readonly treeHash: string
+}
+
+async function validateAuthoredSingleFileCandidate(
+  candidate: DiscoveredSkillCandidate,
+): Promise<ValidatedAuthoredPackage> {
+  if (candidate.version.kind !== 'slow-loop-author-v1'
+    || candidate.artifact?.kind !== 'skill-md'
+    || candidate.distribution?.kind !== 'skill-md') {
+    throw new Error('slow-loop authored candidate has invalid pinned SKILL.md')
+  }
+  const content = Buffer.from(candidate.artifact.content)
+  const artifactDigest = sha256Bytes(content)
+  const decoded = singleSkillPackage(content)
+  const skill = parseSkillHeader(decodeCanonicalUtf8(content))
+  const expectedLicense = skill.license === undefined
+    ? { status: 'unknown' as const }
+    : { status: 'declared' as const, value: skill.license }
+  if (artifactDigest !== candidate.version.artifactDigest
+    || artifactDigest !== candidate.contentHash
+    || decoded.treeHash !== candidate.version.treeHash
+    || skill.name !== candidate.requestedSkill
+    || skill.description !== candidate.description
+    || candidate.package.path !== `${skill.name}/SKILL.md`
+    || candidate.package.fileCount !== 1
+    || candidate.package.totalBytes !== content.byteLength
+    || candidate.package.hasScripts
+    || candidate.package.hasReferences
+    || candidate.permissions.executableContent
+    || candidate.permissions.declared !== skill.permissionsDeclared
+    || JSON.stringify(candidate.license) !== JSON.stringify(expectedLicense)) {
+    throw new Error('slow-loop authored candidate metadata does not match its pinned SKILL.md')
+  }
+  return Object.freeze({
+    files: decoded.files,
+    artifactDigest,
+    treeHash: decoded.treeHash,
+  })
+}
+
+async function validateAuthoredBundleCandidate(
+  candidate: DiscoveredSkillCandidate,
+): Promise<ValidatedAuthoredPackage> {
+  if (candidate.version.kind !== 'slow-loop-author-bundle-v1'
+    || candidate.artifact?.kind !== 'archive'
+    || candidate.artifact.format !== 'tar.gz'
+    || candidate.distribution?.kind !== 'archive'
+    || candidate.distribution.format !== 'tar.gz') {
+    throw new Error('slow-loop authored whole-Skill has invalid pinned content')
+  }
+  const content = Buffer.from(candidate.artifact.contentBase64, 'base64')
+  const artifactDigest = sha256Bytes(content)
+  const decoded = await decodeAgentSkillArchive(content, 'tar.gz')
+  const assembled = await assembleAgentSkillTextArchive(decoded.files.map(file => ({
+    path: file.path,
+    content: decodeCanonicalUtf8(file.content),
+  })))
+  const skillFile = assembled.files.find(file => file.path === 'SKILL.md')
+  if (skillFile === undefined) throw new Error('slow-loop authored whole-Skill has no root SKILL.md')
+  const skill = parseSkillHeader(decodeCanonicalUtf8(skillFile.content))
+  const expectedLicense = skill.license === undefined
+    ? { status: 'unknown' as const }
+    : { status: 'declared' as const, value: skill.license }
+  if (!assembled.content.equals(content)
+    || artifactDigest !== candidate.version.artifactDigest
+    || artifactDigest !== candidate.contentHash
+    || assembled.treeHash !== candidate.version.treeHash
+    || skill.name !== candidate.requestedSkill
+    || skill.description !== candidate.description
+    || candidate.package.path !== skill.name
+    || candidate.package.fileCount !== assembled.files.length
+    || candidate.package.totalBytes !== assembled.totalBytes
+    || candidate.package.hasScripts
+    || !candidate.package.hasReferences
+    || candidate.permissions.executableContent
+    || candidate.permissions.declared !== skill.permissionsDeclared
+    || JSON.stringify(candidate.license) !== JSON.stringify(expectedLicense)) {
+    throw new Error('slow-loop authored whole-Skill metadata does not match its canonical archive')
+  }
+  return Object.freeze({
+    files: assembled.files,
+    artifactDigest,
+    treeHash: assembled.treeHash,
+  })
+}
+
 function singleSkillTreeHash(content: Uint8Array): string {
   return createHash('sha256')
     .update('SKILL.md')
@@ -1832,6 +1997,24 @@ async function evictOldest<T>(
 
 function contentId(value: unknown): string {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex')
+}
+
+function assertAuthoredSkillProvenance(input: AuthoredSkillProvenanceInput): void {
+  if (!SOURCE_ID.test(input.sourceId)
+    || !SKILL_NAME.test(input.requestedSkill)
+    || !hashSchema.safeParse(input.clusterId).success
+    || !hashSchema.safeParse(input.inputDigest).success
+    || input.gapIds.length < 2
+    || input.gapIds.length > 1_000
+    || new Set(input.gapIds).size !== input.gapIds.length
+    || input.gapIds.some(id => !hashSchema.safeParse(id).success)
+    || !Number.isSafeInteger(input.goalCount)
+    || input.goalCount < 2
+    || input.goalCount > 1_000
+    || input.modelIdentity.trim() === ''
+    || Buffer.byteLength(input.modelIdentity) > 2_048) {
+    throw new Error('slow-loop authored Skill provenance is invalid')
+  }
 }
 
 function versionIdentity(version: DiscoveredSkillCandidate['version']): readonly string[] {

@@ -634,8 +634,11 @@ function skillVersionSummary(
     return `${t('skills.discovery.version.git')} · ${value.commit.slice(0, 12)}`
       + ` · ${t('skills.discovery.tree')} ${value.treeHash.slice(0, 12)}`
   }
-  if (value.kind === 'slow-loop-author-v1') {
-    return `${t('skills.discovery.version.slow-loop')} · ${t('skills.discovery.input')} ${value.inputDigest.slice(0, 12)}`
+  if (value.kind === 'slow-loop-author-v1' || value.kind === 'slow-loop-author-bundle-v1') {
+    const label = value.kind === 'slow-loop-author-bundle-v1'
+      ? t('skills.discovery.version.slow-loop-bundle')
+      : t('skills.discovery.version.slow-loop')
+    return `${label} · ${t('skills.discovery.input')} ${value.inputDigest.slice(0, 12)}`
       + ` · ${t('skills.discovery.artifact')} ${value.artifactDigest.slice(0, 12)}`
       + ` · ${t('skills.discovery.tree')} ${value.treeHash.slice(0, 12)}`
   }

@@ -181,7 +181,7 @@ const remote: EvolutionRemoteClient = {
             }],
           },
           skillDiscovery: {
-            quarantinedCount: 1,
+            quarantinedCount: 2,
             candidates: [{
               id: '7'.repeat(64),
               discoveredAt: 1_786_896_000_100,
@@ -223,6 +223,58 @@ const remote: EvolutionRemoteClient = {
                 externalEffects: 'unknown' as const,
               },
               license: { status: 'declared' as const, value: 'MIT' },
+              safety: {
+                status: 'quarantined' as const,
+                checks: [
+                  { name: 'artifact-digest-integrity' as const, status: 'passed' as const },
+                  { name: 'regular-files-only' as const, status: 'passed' as const },
+                  { name: 'skill-identity' as const, status: 'passed' as const },
+                  { name: 'effect-review' as const, status: 'required' as const },
+                ],
+              },
+              lifecycle: 'inactive' as const,
+              verification: 'unevaluated' as const,
+              execution: 'never' as const,
+            }, {
+              id: '3'.repeat(64),
+              discoveredAt: 1_786_896_000_200,
+              gapId: '5'.repeat(64),
+              requestedSkill: 'publish-dsh-plugin',
+              description: 'Publish a native DSH plugin with grounded verification references.',
+              demand: {
+                kind: 'cross-goal-cluster-v1' as const,
+                clusterId: '1'.repeat(64),
+                gapIds: ['5'.repeat(64), '6'.repeat(64), '7'.repeat(64)],
+                goalCount: 2,
+              },
+              source: {
+                id: 'publish-author',
+                kind: 'slow-loop-author' as const,
+                trust: 'bounded-host-authoring' as const,
+              },
+              scope: 'workspace' as const,
+              version: {
+                kind: 'slow-loop-author-bundle-v1' as const,
+                modelIdentityHash: '4'.repeat(64),
+                inputDigest: '5'.repeat(64),
+                artifactDigest: '6'.repeat(64),
+                treeHash: '7'.repeat(64),
+              },
+              distribution: { kind: 'archive' as const, format: 'tar.gz' as const },
+              contentHash: '6'.repeat(64),
+              package: {
+                path: 'publish-dsh-plugin',
+                fileCount: 2,
+                totalBytes: 512,
+                hasScripts: false,
+                hasReferences: true,
+              },
+              permissions: {
+                declared: false,
+                executableContent: false,
+                externalEffects: 'unknown' as const,
+              },
+              license: { status: 'unknown' as const },
               safety: {
                 status: 'quarantined' as const,
                 checks: [

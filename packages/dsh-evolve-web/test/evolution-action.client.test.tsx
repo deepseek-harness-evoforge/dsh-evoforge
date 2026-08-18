@@ -301,6 +301,7 @@ const t = (key: string) => ({
   'skills.discovery.version.git': 'Git commit',
   'skills.discovery.version.index': 'Agent Skills v0.2',
   'skills.discovery.version.slow-loop': 'Slow-loop author v1',
+  'skills.discovery.version.slow-loop-bundle': 'Slow-loop whole-Skill bundle v1',
   'skills.discovery.input': 'input digest',
   'skills.discovery.demand': 'Cross-Goal demand evidence',
   'skills.discovery.index': 'index digest',
@@ -721,20 +722,20 @@ describe('EvolutionAction', () => {
             },
             scope: 'workspace' as const,
             version: {
-              kind: 'slow-loop-author-v1' as const,
+              kind: 'slow-loop-author-bundle-v1' as const,
               modelIdentityHash: '4'.repeat(64),
               inputDigest: '5'.repeat(64),
               artifactDigest: '6'.repeat(64),
               treeHash: '7'.repeat(64),
             },
-            distribution: { kind: 'skill-md' as const },
+            distribution: { kind: 'archive' as const, format: 'tar.gz' as const },
             contentHash: '6'.repeat(64),
             package: {
-              path: 'missing-release-skill/SKILL.md',
-              fileCount: 1,
-              totalBytes: 320,
+              path: 'missing-release-skill',
+              fileCount: 2,
+              totalBytes: 512,
               hasScripts: false,
-              hasReferences: false,
+              hasReferences: true,
             },
             permissions: {
               declared: false,
@@ -841,10 +842,12 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('Distribution · Archive · zip')).toBeTruthy()
     expect(screen.getByText('Cross-Goal demand evidence · 2 distinct Goals · 3 Gap observations')).toBeTruthy()
     expect(screen.getByText('missing-release-author · Cross-Goal slow-loop author · Bounded host authoring')).toBeTruthy()
-    expect(screen.getByText(`Slow-loop author v1 · input digest ${'5'.repeat(12)} · artifact digest ${'6'.repeat(12)} · tree ${'7'.repeat(12)}`)).toBeTruthy()
+    expect(screen.getByText(`Slow-loop whole-Skill bundle v1 · input digest ${'5'.repeat(12)} · artifact digest ${'6'.repeat(12)} · tree ${'7'.repeat(12)}`)).toBeTruthy()
+    expect(screen.getByText('Distribution · Archive · tar.gz')).toBeTruthy()
     expect(screen.getByText(`Content hash · ${'a'.repeat(12)}`)).toBeTruthy()
     expect(screen.getByText('Declared license · MIT')).toBeTruthy()
     expect(screen.getByText('Whole package · 2 files · 640 bytes · references')).toBeTruthy()
+    expect(screen.getByText('Whole package · 2 files · 512 bytes · references')).toBeTruthy()
     expect(screen.getAllByText('Permissions not declared · External effects unknown')).toHaveLength(2)
     expect(screen.getAllByText('Quarantined · Inactive · Never executed · Unevaluated')).toHaveLength(2)
     expect(screen.getByText('Discovery attempts')).toBeTruthy()

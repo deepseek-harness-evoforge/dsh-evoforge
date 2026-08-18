@@ -105,6 +105,114 @@ describe('trusted whole-Skill discovery', () => {
     })).rejects.toThrow('name does not match')
   })
 
+  it('quarantines a canonical whole-Skill archive and materializes only inert text files', async () => {
+    const store = fakeStore()
+    const discovery = new TrustedSkillDiscovery([], store)
+    const common = {
+      discoveredAt: 1_786_896_200_000,
+      workspaceId: WORKSPACE_ID,
+      requestedSkill: 'missing-release-skill',
+      sourceId: 'slow-author-one',
+      clusterId: '1'.repeat(64),
+      gapIds: ['2'.repeat(64), '3'.repeat(64)],
+      goalCount: 2,
+      modelIdentity: 'private-provider-route',
+      inputDigest: '4'.repeat(64),
+    } as const
+    const skillMd = [
+      '---',
+      'name: missing-release-skill',
+      'description: Handle repeated release gaps with grounded checks.',
+      'license: MIT',
+      '---',
+      '',
+      'Use the [verification protocol](references/verification.md).',
+      '',
+    ].join('\n')
+    const reference = '# Verification protocol\n\nRequire independent evidence before promotion.\n'
+
+    const first = await discovery.quarantineAuthoredBundle({
+      ...common,
+      files: [
+        { path: 'references/verification.md', content: reference },
+        { path: 'SKILL.md', content: skillMd },
+      ],
+    })
+    const second = await discovery.quarantineAuthoredBundle({
+      ...common,
+      files: [
+        { path: 'SKILL.md', content: skillMd },
+        { path: 'references/verification.md', content: reference },
+      ],
+    })
+
+    expect(store.recordCandidate).toHaveBeenCalledWith(expect.objectContaining({
+      requestedSkill: 'missing-release-skill',
+      version: {
+        kind: 'slow-loop-author-bundle-v1',
+        modelIdentityHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+        inputDigest: '4'.repeat(64),
+        artifactDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
+        treeHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      },
+      distribution: { kind: 'archive', format: 'tar.gz' },
+      package: {
+        path: 'missing-release-skill',
+        fileCount: 2,
+        totalBytes: Buffer.byteLength(skillMd) + Buffer.byteLength(reference),
+        hasScripts: false,
+        hasReferences: true,
+      },
+      permissions: {
+        declared: false,
+        executableContent: false,
+        externalEffects: 'unknown',
+      },
+      lifecycle: 'inactive',
+      verification: 'unevaluated',
+      execution: 'never',
+    }))
+    expect(first.candidate.id).toBe(second.candidate.id)
+    expect(first.candidate.artifact).toEqual(second.candidate.artifact)
+    expect(JSON.stringify(first.candidate)).not.toContain('private-provider-route')
+
+    const parent = await mkdtemp(join(tmpdir(), 'dsh-evolve-authored-bundle-'))
+    temporaryRoots.push(parent)
+    const output = join(await realpath(parent), 'candidate')
+    await expect(discovery.materialize(first.candidate, output)).resolves.toMatchObject({
+      candidateId: first.candidate.id,
+      path: output,
+      files: [
+        { path: 'references/verification.md', mode: '100644', size: Buffer.byteLength(reference) },
+        { path: 'SKILL.md', mode: '100644', size: Buffer.byteLength(skillMd) },
+      ],
+    })
+    await expect(readFile(join(output, 'SKILL.md'), 'utf8')).resolves.toBe(skillMd)
+    await expect(readFile(join(output, 'references/verification.md'), 'utf8')).resolves.toBe(reference)
+    expect((await stat(join(output, 'SKILL.md'))).mode & 0o777).toBe(0o600)
+    expect((await stat(join(output, 'references/verification.md'))).mode & 0o777).toBe(0o600)
+
+    if (first.candidate.artifact?.kind !== 'archive'
+      || first.candidate.version.kind !== 'slow-loop-author-bundle-v1') {
+      throw new Error('expected an authored archive candidate')
+    }
+    const nonCanonicalBytes = Buffer.from(first.candidate.artifact.contentBase64, 'base64')
+    nonCanonicalBytes[9] = nonCanonicalBytes[9] === 3 ? 0 : 3 // Gzip OS field; payload stays identical.
+    const tamperedDigest = createHash('sha256').update(nonCanonicalBytes).digest('hex')
+    const withoutId = {
+      ...first.candidate,
+      version: { ...first.candidate.version, artifactDigest: tamperedDigest },
+      contentHash: tamperedDigest,
+      artifact: { ...first.candidate.artifact, contentBase64: nonCanonicalBytes.toString('base64') },
+    }
+    const tampered = {
+      ...withoutId,
+      id: discoveredCandidateId(withoutId),
+    }
+    await expect(discovery.materialize(tampered, join(await realpath(parent), 'non-canonical')))
+      .rejects.toThrow('canonical archive')
+  })
+
   it('archives an exact Skill folder from an explicit local Git source without executing it', async () => {
     const repository = await gitRepository()
     const skillRoot = join(repository, 'skills', 'missing-release-skill')

@@ -36,8 +36,9 @@
 
 ## 下一个可证伪纵切
 
-先交付“确定性 text-only whole-Skill 组装器”：输入是经 Host 校验的
+“确定性 text-only whole-Skill 组装器”现已作为
+[V4-7 第一个实现证据](../evidence/v4-7-whole-skill-composition.zh.md)交付：输入是经 Host 校验的
 `SKILL.md + references/*.md` manifest，输出是可由现有 archive decoder 反向重放并得到同一 tree hash
-的内容寻址 Candidate。该切片本身不使用 Web 证据、不运行脚本、不触发 admission/release；
-它只先封死“模型产生什么形状、Host 如何原子封装”的供应链边界。紧接着的切片再将
-DSH Web 研究证据包与独立 verification anchors 接入。
+的内容寻址 Candidate。该切片本身不使用 Web 证据、不运行脚本、不触发 admission/release，
+只封死“模型产生什么形状、Host 如何原子封装”的供应链边界。下一个纵切将 DSH Web 研究证据包、
+独立 verification anchors 与 whole-Skill manifest author 接入，同时保持 Candidate 不可执行、不发布。

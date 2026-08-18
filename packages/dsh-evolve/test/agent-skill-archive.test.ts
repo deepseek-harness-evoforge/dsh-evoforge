@@ -4,11 +4,95 @@ import { pack } from 'tar-stream'
 import { ZipFile } from 'yazl'
 import { describe, expect, it } from 'vitest'
 import {
+  assembleAgentSkillTextArchive,
   decodeAgentSkillArchive,
   type AgentSkillArchiveFormat,
 } from '../src/agent-skill-archive.ts'
 
 describe('Agent Skill archive safety', () => {
+  it('assembles one deterministic host-owned text-only whole-Skill archive', async () => {
+    const files = [
+      { path: 'references/checks.md', content: '# Checks\r\n\r\nVerify the exact result.\r\n' },
+      {
+        path: 'SKILL.md',
+        content: [
+          '---',
+          'name: archived-skill',
+          'description: Use one archived Skill.',
+          '---',
+          '',
+          'Read [the checks](references/checks.md).',
+          '',
+        ].join('\r\n'),
+      },
+    ]
+
+    const first = await assembleAgentSkillTextArchive(files)
+    const second = await assembleAgentSkillTextArchive([...files].reverse())
+
+    expect(first.format).toBe('tar.gz')
+    expect(first.content.equals(second.content)).toBe(true)
+    expect(first.artifactDigest).toMatch(/^[a-f0-9]{64}$/)
+    expect(first.treeHash).toMatch(/^[a-f0-9]{64}$/)
+    expect(first.files).toEqual([
+      {
+        path: 'references/checks.md',
+        mode: '100644',
+        content: Buffer.from('# Checks\n\nVerify the exact result.\n'),
+      },
+      {
+        path: 'SKILL.md',
+        mode: '100644',
+        content: Buffer.from([
+          '---',
+          'name: archived-skill',
+          'description: Use one archived Skill.',
+          '---',
+          '',
+          'Read [the checks](references/checks.md).',
+          '',
+        ].join('\n')),
+      },
+    ])
+    await expect(decodeAgentSkillArchive(first.content, 'tar.gz')).resolves.toMatchObject({
+      files: first.files,
+      treeHash: first.treeHash,
+      totalBytes: first.totalBytes,
+    })
+  })
+
+  it('rejects executable, deep, dangling, and unreferenced authored bundle content', async () => {
+    const skill = (link: string) => ({
+      path: 'SKILL.md',
+      content: `---\nname: archived-skill\ndescription: Use one archived Skill.\n---\n\n${link}\n`,
+    })
+    await expect(assembleAgentSkillTextArchive([
+      skill('Run scripts/verify.sh.'),
+      { path: 'scripts/verify.sh', content: '#!/bin/sh\n' },
+    ])).rejects.toThrow('text-only')
+    await expect(assembleAgentSkillTextArchive([
+      skill('Read [checks](references/nested/checks.md).'),
+      { path: 'references/nested/checks.md', content: 'Check.\n' },
+    ])).rejects.toThrow('one-level references')
+    await expect(assembleAgentSkillTextArchive([
+      skill('Read [checks](references/missing.md).'),
+      { path: 'references/checks.md', content: 'Check.\n' },
+    ])).rejects.toThrow('missing reference')
+    await expect(assembleAgentSkillTextArchive([
+      skill('No reference link.'),
+      { path: 'references/checks.md', content: 'Check.\n' },
+    ])).rejects.toThrow('unreferenced file')
+    await expect(assembleAgentSkillTextArchive([
+      skill('Read [checks](references/checks.md).'),
+      { path: 'references/checks.md', content: 'Read [more](references/more.md).\n' },
+      { path: 'references/more.md', content: 'More.\n' },
+    ])).rejects.toThrow('reference chains')
+    await expect(assembleAgentSkillTextArchive([
+      skill('Read [checks](references/checks.md).'),
+      { path: 'references/checks.md', content: 'Invalid surrogate: \uD800\n' },
+    ])).rejects.toThrow('canonical UTF-8')
+  })
+
   it('uses the same component-wise order as a materialized DSH file tree', async () => {
     const decoded = await decodeAgentSkillArchive(await makeTar([
       { path: 'a/z', content: 'nested' },

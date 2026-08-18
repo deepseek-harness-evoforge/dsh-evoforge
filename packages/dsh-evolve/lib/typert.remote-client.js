@@ -252,6 +252,12 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'inputDigest': z.string().readonly(),
   'artifactDigest': z.string().readonly(),
   'treeHash': z.string().readonly(),
+}), z.object({
+  'kind': z.literal("slow-loop-author-bundle-v1").readonly(),
+  'modelIdentityHash': z.string().readonly(),
+  'inputDigest': z.string().readonly(),
+  'artifactDigest': z.string().readonly(),
+  'treeHash': z.string().readonly(),
 })]).readonly(),
   'distribution': z.union([z.undefined(), z.object({
   'kind': z.literal("skill-md").readonly(),

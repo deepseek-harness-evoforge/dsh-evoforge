@@ -141,6 +141,12 @@ export interface EvolutionDiscoveredSkillCandidateView {
         readonly inputDigest: string;
         readonly artifactDigest: string;
         readonly treeHash: string;
+    } | {
+        readonly kind: 'slow-loop-author-bundle-v1';
+        readonly modelIdentityHash: string;
+        readonly inputDigest: string;
+        readonly artifactDigest: string;
+        readonly treeHash: string;
     };
     readonly distribution?: {
         readonly kind: 'skill-md';
