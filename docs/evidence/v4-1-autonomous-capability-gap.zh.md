@@ -26,8 +26,9 @@
    exact name 当前不存在；模型的自述本身不是证据。
 4. `CapabilityGapStore` 先持久化 `model-declared-skill-gap`、Goal revision 与 catalog evidence，再返回回执并
    非阻塞唤醒 trusted discovery。调度器同步抛错或异步拒绝不能撤销已持久化回执。
-5. 发现循环目前只读取显式配置的本地 Git checkout/mirror，并按 exact name 固定 commit、tree hash、
-   content hash 与 whole-Skill package metadata；无可信源或无 exact package 时持久记录 abstain。
+5. 发现循环只读取显式配置的本地 Git checkout/mirror。V4-1 首先证明 exact-name 固定 commit、tree hash、
+   content hash 与 whole-Skill package metadata；其后的 exact-first 确定性语义回退见
+   [V4-2](v4-2-trusted-semantic-skill-search.zh.md)。
 6. 已接通的 deterministic admission 与独立 assembled holdout Shadow 都不给候选 release authority；清晰
    胜出也只形成 inactive human-review Candidate，晋升只可能影响未来 Session。
 7. `dsh-evolve-web` 复用同一权威 control service 展示 Capability Map、Gap queue、Goal、catalog evidence、
@@ -55,8 +56,8 @@
 
 ## 没有被证明的内容
 
-- Tool 不搜索网络；当前发现仅支持 exact-name、显式授信本地 Git 源，不支持市场/官方资料/论文/开源
-  catalog 的语义检索。
+- Tool 不搜索网络；后台目前仅支持显式授信本地 Git 源的 exact-first 查询与确定性词法语义回退，不支持
+  市场/官方资料/论文/开源 catalog 的网络搜索或获取。
 - 找不到现成 whole-Skill 时尚不能自主生成或组合新 Skill，也没有跨 Goal gap 聚类调度。
 - 固定 Adapter 证明原生 Agent Loop 组合，不证明真实模型总能判断“无适用 Skill”、提出正确名称或避免
   误报；需要真实模型正例、已有近似 Skill 负例与对抗 Goal 的 paired benchmark。

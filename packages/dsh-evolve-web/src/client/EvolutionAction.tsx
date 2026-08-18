@@ -559,6 +559,14 @@ function SkillDiscovery({ summary, t }: { summary: EvolutionOverview; t: (key: s
             <li className="dsh-evolve-skill-card" key={candidate.id}>
               <div className="dsh-evolve-review-skill">{candidate.requestedSkill}</div>
               <p>{candidate.description}</p>
+              {candidate.match !== undefined && <>
+                <div className="dsh-evolve-meta">
+                  {t('skills.discovery.match.semantic')} · {candidate.match.requestedSkill} → {candidate.requestedSkill}
+                </div>
+                <div className="dsh-evolve-meta">
+                  {t('skills.discovery.match.score')} {candidate.match.score} · {t('skills.discovery.match.runner-up')} {candidate.match.runnerUpScore}
+                </div>
+              </>}
               <div className="dsh-evolve-capability-route">{t('skills.discovery.quarantined')}</div>
               <div className="dsh-evolve-meta">
                 {candidate.source.id} · {t(`skills.discovery.source.${candidate.source.kind}`)} · {t(`skills.discovery.trust.${candidate.source.trust}`)}

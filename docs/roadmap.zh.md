@@ -1,6 +1,6 @@
 # EvoForge v0.1 路线图
 
-> 当前状态：已验证历史已统一到 `main` 并同步 `origin/main`；DSH 原生十一包全检查通过，自然 Goal 到持久 Capability Gap、exact-name 本地 Git whole-Skill 发现及隔离评测纵切已实现，但外部语义搜索/生成、完整双速治理、exact 飞书消息与最终 paired 验收仍未完成，v0.1 尚未发布或部署。
+> 当前状态：已验证历史已统一到 `main` 并同步 `origin/main`；DSH 原生十一包全检查通过，自然 Goal 到持久 Capability Gap、本地可信 Git whole-Skill 的 exact-first 确定性语义发现及隔离评测纵切已实现，但外部来源搜索/生成、完整双速治理、exact 飞书消息与最终 paired 验收仍未完成，v0.1 尚未发布或部署。
 > 更新日期：2026-08-18
 
 ## 开发与发布纪律
@@ -76,12 +76,13 @@
 
 实现状态：**partial implementation**。DSH 原生 catalog 负责已有 Skill 的语义选择；一个固定
 `report_capability_gap(name)` Tool 已通过真实 Agent Loop，把自然语言 active Goal 中模型确认的无匹配
-情况经 Host 复核后持久化，并投影到既有 Web Gap queue。exact-name、显式授信的本地 Git whole-Skill
-发现、quarantine、确定性 admission 和独立 assembled holdout Shadow 已接通；清晰胜出仍只进入 inactive
+情况经 Host 复核后持久化，并投影到既有 Web Gap queue。显式授信的本地 Git whole-Skill 已支持
+exact-first 查询与对 name/description 的有界确定性语义回退；弱匹配、歧义和非法 exact package 均
+fail closed。quarantine、确定性 admission 和独立 assembled holdout Shadow 已接通；清晰胜出仍只进入 inactive
 人工 review，当前 Session 不漂移。64 轮请求证明该 Tool Schema 稳定，去掉声明的单一 Tool 后其余请求
 与原生控制组逐字节相同。
 
-仍待实现/验证：可信外部 catalog/市场/官方资料/开源来源的语义检索，找不到包时的完整 Skill 生成或组合，
+仍待实现/验证：可信外部 catalog/市场/官方资料/开源来源的网络搜索与获取，找不到包时的完整 Skill 生成或组合，
 跨 Goal gap 聚类与慢环调度，真实模型的正/负路由质量、误缺口率、迁移/遗忘/长期保留，以及同条件 Hermes
 paired outcome。因此本阶段不能描述为“自主 Skill 发现已完成”，退出门仍未通过。
 

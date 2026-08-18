@@ -19,6 +19,15 @@ const DEFAULT_MAX_RECORDS = 1_000
 const MAX_PACKAGE_FILES = 256
 const MAX_PACKAGE_BYTES = 16 * 1024 * 1024
 const MAX_GIT_OUTPUT_BYTES = MAX_PACKAGE_BYTES * 2
+const MAX_CATALOG_SKILLS = 512
+const MAX_SKILL_HEADER_BYTES = 64 * 1024
+const SEMANTIC_MIN_SCORE = 8
+const SEMANTIC_MARGIN_PERCENT = 125
+const SEMANTIC_STOP_WORDS = new Set([
+  'a', 'an', 'and', 'as', 'at', 'be', 'by', 'for', 'from', 'in', 'into', 'is', 'it',
+  'of', 'on', 'or', 'the', 'this', 'to', 'use', 'using', 'with', 'without',
+  'dsh', 'skill', 'skills', 'plugin', 'plugins', 'native',
+])
 const SOURCE_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const SKILL_NAME = SOURCE_ID
 const hashSchema = z.string().regex(/^[a-f0-9]{64}$/)
@@ -32,7 +41,7 @@ const sourceSchema = z.strictObject({
 })
 const sourceObservationSchema = z.strictObject({
   id: z.string().regex(SOURCE_ID),
-  status: z.enum(['candidate', 'absent', 'invalid', 'unavailable']),
+  status: z.enum(['candidate', 'absent', 'no-match', 'ambiguous', 'invalid', 'unavailable']),
   revision: gitHashSchema.optional(),
 })
 const candidateSchema = z.strictObject({
@@ -43,6 +52,13 @@ const candidateSchema = z.strictObject({
   workspaceId: z.uuid(),
   requestedSkill: z.string().regex(SKILL_NAME),
   description: z.string().min(1).max(2_048),
+  match: z.strictObject({
+    kind: z.literal('deterministic-lexical-v1'),
+    requestedSkill: z.string().regex(SKILL_NAME),
+    score: safeInteger,
+    runnerUpScore: safeInteger,
+    queryHash: hashSchema,
+  }).optional(),
   source: sourceSchema,
   scope: z.literal('workspace'),
   version: z.strictObject({
@@ -87,6 +103,8 @@ const attemptSchema = z.strictObject({
   reasons: z.array(z.enum([
     'no-trusted-sources',
     'no-exact-skill',
+    'no-semantic-match',
+    'ambiguous-semantic-match',
     'invalid-skill-package',
     'source-unavailable',
   ])).max(100),
@@ -264,7 +282,7 @@ export interface TrustedSkillDiscoveryLoop {
   dispose(): Promise<void>
 }
 
-/** Exact-name acquisition from deployer-trusted local Git mirrors; never a task router. */
+/** Exact-first deterministic acquisition from deployer-trusted local Git mirrors; never a task router. */
 export class TrustedSkillDiscovery {
   private readonly sources: readonly ResolvedSource[]
   private readonly store: Pick<SkillDiscoveryStore, 'recordCandidate' | 'recordAttempt'>
@@ -301,7 +319,7 @@ export class TrustedSkillDiscovery {
           discoveredAt: startedAt,
           gapId: gap.id,
           workspaceId: gap.workspaceId,
-          requestedSkill: gap.requestedSkill,
+          requestedSkill: inspected.skillName,
           ...inspected.candidate,
         })
         this.onCandidate?.(recorded.candidate)
@@ -313,9 +331,7 @@ export class TrustedSkillDiscovery {
           status: inspected.status,
           ...(inspected.revision === undefined ? {} : { revision: inspected.revision }),
         })
-        reasons.push(inspected.status === 'absent'
-          ? 'no-exact-skill'
-          : inspected.status === 'invalid' ? 'invalid-skill-package' : 'source-unavailable')
+        reasons.push(discoveryReason(inspected.status))
       }
     }
     const uniqueReasons = [...new Set(reasons)]
@@ -467,13 +483,16 @@ export function installTrustedSkillDiscoveryLoop(
   }
 }
 
+type InspectedCandidate = Omit<DiscoveredSkillCandidateInput,
+  'discoveredAt' | 'gapId' | 'workspaceId' | 'requestedSkill'>
+
 async function inspectSource(source: ResolvedSource, gap: CapabilityGap): Promise<{
   readonly status: 'candidate'
   readonly revision: string
-  readonly candidate: Omit<DiscoveredSkillCandidateInput,
-    'discoveredAt' | 'gapId' | 'workspaceId' | 'requestedSkill'>
+  readonly skillName: string
+  readonly candidate: InspectedCandidate
 } | {
-  readonly status: 'absent' | 'invalid' | 'unavailable'
+  readonly status: 'absent' | 'no-match' | 'ambiguous' | 'invalid' | 'unavailable'
   readonly revision?: string
 }> {
   let revision: string
@@ -483,8 +502,53 @@ async function inspectSource(source: ResolvedSource, gap: CapabilityGap): Promis
     return { status: 'unavailable' }
   }
   const skillPath = `${source.skillsRoot}/${gap.requestedSkill}`
+  if (await gitObjectExists(source.repository, `${revision}:${skillPath}`)) {
+    return inspectCandidate(source, revision, gap.requestedSkill)
+  }
+  if (gap.goal === undefined) return { status: 'absent', revision }
+  let semantic: SemanticSelection
+  try {
+    semantic = await selectSemanticCandidate(
+      source,
+      revision,
+      gap.requestedSkill,
+      gap.goal,
+    )
+  } catch {
+    return { status: 'unavailable', revision }
+  }
+  if (semantic.status !== 'selected') return { status: semantic.status, revision }
+  return inspectCandidate(source, revision, semantic.skill.name, {
+    kind: 'deterministic-lexical-v1',
+    requestedSkill: gap.requestedSkill,
+    score: semantic.score,
+    runnerUpScore: semantic.runnerUpScore,
+    queryHash: contentId([
+      gap.requestedSkill,
+      gap.goal.id,
+      gap.goal.revision,
+      gap.goal.objective,
+    ]),
+  })
+}
+
+async function inspectCandidate(
+  source: ResolvedSource,
+  revision: string,
+  skillName: string,
+  match?: NonNullable<DiscoveredSkillCandidateInput['match']>,
+): Promise<{
+  readonly status: 'candidate'
+  readonly revision: string
+  readonly skillName: string
+  readonly candidate: InspectedCandidate
+} | {
+  readonly status: 'invalid'
+  readonly revision: string
+}> {
+  const skillPath = `${source.skillsRoot}/${skillName}`
   if (!await gitObjectExists(source.repository, `${revision}:${skillPath}`)) {
-    return { status: 'absent', revision }
+    return { status: 'invalid', revision }
   }
   try {
     const treeHash = await gitText(source.repository, 'rev-parse', `${revision}:${skillPath}`)
@@ -492,7 +556,7 @@ async function inspectSource(source: ResolvedSource, gap: CapabilityGap): Promis
     const skillEntry = entries.find(entry => entry.relativePath === 'SKILL.md')
     if (skillEntry === undefined) return { status: 'invalid', revision }
     const skill = parseSkillHeader(await gitBlobText(source.repository, skillEntry.object))
-    if (skill.name !== gap.requestedSkill) return { status: 'invalid', revision }
+    if (skill.name !== skillName) return { status: 'invalid', revision }
     const hasScripts = entries.some(entry => entry.relativePath === 'scripts'
       || entry.relativePath.startsWith('scripts/'))
     const hasReferences = entries.some(entry => entry.relativePath === 'references'
@@ -501,8 +565,10 @@ async function inspectSource(source: ResolvedSource, gap: CapabilityGap): Promis
     return {
       status: 'candidate',
       revision,
+      skillName,
       candidate: {
         description: skill.description,
+        ...(match === undefined ? {} : { match }),
         source: {
           id: source.id,
           kind: 'local-git',
@@ -542,6 +608,80 @@ async function inspectSource(source: ResolvedSource, gap: CapabilityGap): Promis
   }
 }
 
+type SemanticSelection = {
+  readonly status: 'selected'
+  readonly skill: CatalogSkill
+  readonly score: number
+  readonly runnerUpScore: number
+} | {
+  readonly status: 'no-match' | 'ambiguous'
+}
+
+interface CatalogSkill {
+  readonly name: string
+  readonly description: string
+}
+
+async function selectSemanticCandidate(
+  source: ResolvedSource,
+  revision: string,
+  requestedSkill: string,
+  goal: NonNullable<CapabilityGap['goal']>,
+): Promise<SemanticSelection> {
+  const catalog = await listCatalogSkills(source.repository, revision, source.skillsRoot)
+  const requestedTerms = lexicalTerms(requestedSkill)
+  const goalTerms = lexicalTerms(goal.objective)
+  const ranked = catalog.map(skill => ({
+    skill,
+    ...semanticScore(skill, requestedTerms, goalTerms),
+  })).sort((left, right) => right.score - left.score || left.skill.name.localeCompare(right.skill.name))
+  const winner = ranked[0]
+  if (winner === undefined || winner.score < SEMANTIC_MIN_SCORE
+    || (winner.requestedMatches === 0 && winner.goalMatches < 2)) {
+    return { status: 'no-match' }
+  }
+  const runnerUp = ranked[1]
+  const runnerUpScore = runnerUp?.score ?? 0
+  if (runnerUp !== undefined
+    && runnerUp.score >= SEMANTIC_MIN_SCORE
+    && (runnerUp.requestedMatches > 0 || runnerUp.goalMatches >= 2)
+    && winner.score * 100 < runnerUp.score * SEMANTIC_MARGIN_PERCENT) {
+    return { status: 'ambiguous' }
+  }
+  return {
+    status: 'selected',
+    skill: winner.skill,
+    score: winner.score,
+    runnerUpScore,
+  }
+}
+
+function semanticScore(
+  skill: CatalogSkill,
+  requestedTerms: ReadonlySet<string>,
+  goalTerms: ReadonlySet<string>,
+): { readonly score: number; readonly requestedMatches: number; readonly goalMatches: number } {
+  const nameTerms = lexicalTerms(skill.name)
+  const descriptionTerms = lexicalTerms(skill.description)
+  const candidateWeight = (term: string): number => nameTerms.has(term) ? 4 : descriptionTerms.has(term) ? 1 : 0
+  let score = 0
+  let requestedMatches = 0
+  let goalMatches = 0
+  for (const term of requestedTerms) {
+    const weight = candidateWeight(term)
+    if (weight === 0) continue
+    requestedMatches += 1
+    score += 4 * weight
+  }
+  for (const term of goalTerms) {
+    const weight = candidateWeight(term)
+    if (weight === 0) continue
+    goalMatches += 1
+    score += weight
+  }
+  return { score, requestedMatches, goalMatches }
+}
+
 function resolveSources(input: readonly TrustedSkillDiscoverySourceConfig[]): ResolvedSource[] {
   const seen = new Set<string>()
   return input.map((source) => {
@@ -555,6 +695,85 @@ function resolveSources(input: readonly TrustedSkillDiscoverySourceConfig[]): Re
     }
     return { id, repository, skillsRoot: normalizeGitPath(source.skillsRoot) }
   })
+}
+
+function discoveryReason(
+  status: 'absent' | 'no-match' | 'ambiguous' | 'invalid' | 'unavailable',
+): SkillDiscoveryAttempt['reasons'][number] {
+  switch (status) {
+    case 'absent': return 'no-exact-skill'
+    case 'no-match': return 'no-semantic-match'
+    case 'ambiguous': return 'ambiguous-semantic-match'
+    case 'invalid': return 'invalid-skill-package'
+    case 'unavailable': return 'source-unavailable'
+  }
+}
+
+async function listCatalogSkills(
+  repository: string,
+  revision: string,
+  skillsRoot: string,
+): Promise<CatalogSkill[]> {
+  const { stdout } = await execFile(
+    'git',
+    ['-C', repository, 'ls-tree', '-l', '-r', '-z', revision, '--', skillsRoot],
+    { encoding: 'buffer', maxBuffer: MAX_GIT_OUTPUT_BYTES },
+  )
+  const prefix = `${skillsRoot}/`
+  const headers: Array<{ readonly name: string; readonly object: string }> = []
+  for (const record of Buffer.from(stdout).toString('utf8').split('\0').filter(Boolean)) {
+    const match = /^(\d+) (\w+) ([a-f0-9]+)\s+(\d+)\t(.+)$/.exec(record)
+    if (match === null) throw new Error('unsupported trusted Skill catalog tree record')
+    const [, mode, type, object, rawSize, path] = match
+    if (mode !== '100644' || type !== 'blob' || object === undefined
+      || rawSize === undefined || path === undefined || !path.startsWith(prefix)) continue
+    const parts = path.slice(prefix.length).split('/')
+    if (parts.length !== 2 || parts[1] !== 'SKILL.md' || !SKILL_NAME.test(parts[0]!)) continue
+    const size = Number(rawSize)
+    if (!Number.isSafeInteger(size) || size < 1 || size > MAX_SKILL_HEADER_BYTES) continue
+    headers.push({ name: parts[0]!, object })
+    if (headers.length > MAX_CATALOG_SKILLS) {
+      throw new Error('trusted Skill catalog exceeds the Skill limit')
+    }
+  }
+  const catalog: CatalogSkill[] = []
+  for (const header of headers.sort((left, right) => left.name.localeCompare(right.name))) {
+    try {
+      const skill = parseSkillHeader(await gitBlobText(repository, header.object))
+      if (skill.name === header.name) catalog.push({ name: skill.name, description: skill.description })
+    } catch {
+      // Invalid catalog entries cannot become candidates and do not poison other trusted packages.
+    }
+  }
+  return catalog
+}
+
+function lexicalTerms(value: string): Set<string> {
+  const terms = new Set<string>()
+  const normalized = value.normalize('NFKC').toLocaleLowerCase('en-US').replaceAll('-', ' ')
+  for (const raw of normalized.match(/[\p{L}\p{N}]+/gu) ?? []) {
+    if (/^\p{Script=Han}+$/u.test(raw)) {
+      const characters = [...raw]
+      if (characters.length === 1) terms.add(raw)
+      else for (let index = 0; index < characters.length - 1; index += 1) {
+        terms.add(`${characters[index]}${characters[index + 1]}`)
+      }
+      continue
+    }
+    if (SEMANTIC_STOP_WORDS.has(raw)) continue
+    const term = normalizeEnglishTerm(raw)
+    if (term.length > 1 && !SEMANTIC_STOP_WORDS.has(term)) terms.add(term)
+  }
+  return terms
+}
+
+function normalizeEnglishTerm(value: string): string {
+  if (value.length > 5 && value.endsWith('ing')) return value.slice(0, -3)
+  if (value.length > 4 && value.endsWith('ied')) return `${value.slice(0, -3)}y`
+  if (value.length > 4 && value.endsWith('ed')) return value.slice(0, -2)
+  if (value.length > 4 && value.endsWith('es')) return value.slice(0, -2)
+  if (value.length > 3 && value.endsWith('s')) return value.slice(0, -1)
+  return value
 }
 
 async function listTree(repository: string, commit: string, sourcePath: string): Promise<GitEntry[]> {
@@ -608,7 +827,8 @@ function parseSkillHeader(raw: string): {
   if (typeof data.name !== 'string' || !SKILL_NAME.test(data.name)) {
     throw new Error('Skill has an invalid name')
   }
-  if (typeof data.description !== 'string' || data.description.trim().length === 0) {
+  if (typeof data.description !== 'string' || data.description.trim().length === 0
+    || data.description.trim().length > 2_048) {
     throw new Error('Skill has an invalid description')
   }
   return {

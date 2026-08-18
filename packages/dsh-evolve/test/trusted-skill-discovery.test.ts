@@ -54,6 +54,7 @@ describe('trusted whole-Skill discovery', () => {
     expect(result).toMatchObject({ status: 'candidate-found', candidateCount: 1 })
     expect(store.recordCandidate).toHaveBeenCalledOnce()
     const candidate = store.recordCandidate.mock.calls[0]?.[0]
+    expect(candidate).not.toHaveProperty('match')
     expect(candidate).toMatchObject({
       discoveredAt: 1_786_896_100_000,
       gapId: '5'.repeat(64),
@@ -105,6 +106,182 @@ describe('trusted whole-Skill discovery', () => {
       candidateIds: [expect.stringMatching(/^[a-f0-9]{64}$/)],
       sources: [{ id: 'local-curated', status: 'candidate', revision: expect.stringMatching(/^[a-f0-9]{40}$/) }],
     }))
+  })
+
+  it('archives one uniquely matched whole-Skill when the model proposal differs from the trusted catalog name', async () => {
+    const repository = await gitRepository()
+    await writeSkill(
+      repository,
+      'release-native-extension',
+      'Publish and verify a native extension release.',
+    )
+    await writeSkill(
+      repository,
+      'summarize-document',
+      'Summarize a document into concise notes.',
+    )
+    await git(repository, 'add', '.')
+    await git(repository, 'commit', '-m', 'add semantic catalog')
+    const store = fakeStore()
+    const discovery = new TrustedSkillDiscovery([{
+      id: 'local-curated',
+      repository,
+      skillsRoot: 'skills',
+    }], store, { now: () => 1_786_896_100_000 })
+
+    const result = await discovery.discover(gap())
+
+    expect(result).toEqual({ status: 'candidate-found', candidateCount: 1 })
+    expect(store.recordCandidate).toHaveBeenCalledWith(expect.objectContaining({
+      gapId: '5'.repeat(64),
+      requestedSkill: 'release-native-extension',
+      description: 'Publish and verify a native extension release.',
+      package: expect.objectContaining({ path: 'skills/release-native-extension' }),
+      match: {
+        kind: 'deterministic-lexical-v1',
+        requestedSkill: 'missing-release-skill',
+        score: expect.any(Number),
+        runnerUpScore: 0,
+        queryHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      },
+    }))
+    expect(store.recordAttempt).toHaveBeenCalledWith(expect.objectContaining({
+      requestedSkill: 'missing-release-skill',
+      status: 'candidate-found',
+      reasons: [],
+      sources: [{
+        id: 'local-curated',
+        status: 'candidate',
+        revision: expect.stringMatching(/^[a-f0-9]{40}$/),
+      }],
+    }))
+    const input = store.recordCandidate.mock.calls[0]![0]
+    const materializationParent = await mkdtemp(join(tmpdir(), 'dsh-evolve-semantic-materialized-'))
+    temporaryRoots.push(materializationParent)
+    const materialized = await discovery.materialize({
+      ...input,
+      schemaVersion: 1,
+      id: discoveredCandidateId(input),
+    } as DiscoveredSkillCandidate, join(materializationParent, 'candidate'))
+    expect(materialized.files).toContainEqual({
+      path: 'SKILL.md',
+      mode: '100644',
+      size: expect.any(Number),
+    })
+    expect(await readFile(join(materialized.path, 'SKILL.md'), 'utf8'))
+      .toContain('name: release-native-extension')
+  })
+
+  it('matches a Chinese natural-language Goal without sending the query to a model', async () => {
+    const repository = await gitRepository()
+    await writeSkill(repository, 'native-release-workflow', '发布并验证一个可安装的扩展版本。')
+    await writeSkill(repository, 'image-editor', '裁剪图片并调整颜色。')
+    await git(repository, 'add', '.')
+    await git(repository, 'commit', '-m', 'add Chinese catalog descriptions')
+    const store = fakeStore()
+    const discovery = new TrustedSkillDiscovery([{
+      id: 'local-curated', repository, skillsRoot: 'skills',
+    }], store, { now: () => 1_786_896_100_000 })
+    const chineseGap = {
+      ...gap(),
+      requestedSkill: 'publish-dsh-plugin',
+      goal: {
+        id: 'goal-cn',
+        revision: 1,
+        objective: '发布并验证一个可以安装到 DSH 的插件。',
+      },
+    }
+
+    await expect(discovery.discover(chineseGap)).resolves.toEqual({
+      status: 'candidate-found',
+      candidateCount: 1,
+    })
+    expect(store.recordCandidate).toHaveBeenCalledWith(expect.objectContaining({
+      requestedSkill: 'native-release-workflow',
+      match: expect.objectContaining({
+        kind: 'deterministic-lexical-v1',
+        requestedSkill: 'publish-dsh-plugin',
+      }),
+    }))
+  })
+
+  it('abstains when two semantic catalog matches are indistinguishable', async () => {
+    const repository = await gitRepository()
+    await writeSkill(repository, 'publish-alpha', 'Publish a verified native release.')
+    await writeSkill(repository, 'publish-beta', 'Publish a verified native release.')
+    await git(repository, 'add', '.')
+    await git(repository, 'commit', '-m', 'add ambiguous catalog')
+    const store = fakeStore()
+    const discovery = new TrustedSkillDiscovery([{
+      id: 'local-curated', repository, skillsRoot: 'skills',
+    }], store, { now: () => 1_786_896_100_000 })
+
+    await expect(discovery.discover(gap())).resolves.toEqual({
+      status: 'abstained',
+      candidateCount: 0,
+      reasons: ['ambiguous-semantic-match'],
+    })
+    expect(store.recordCandidate).not.toHaveBeenCalled()
+    expect(store.recordAttempt).toHaveBeenCalledWith(expect.objectContaining({
+      sources: [{
+        id: 'local-curated',
+        status: 'ambiguous',
+        revision: expect.stringMatching(/^[a-f0-9]{40}$/),
+      }],
+    }))
+  })
+
+  it('abstains when the trusted catalog has no strong semantic match', async () => {
+    const repository = await gitRepository()
+    await writeSkill(repository, 'summarize-document', 'Summarize a document into concise notes.')
+    await writeSkill(repository, 'inspect-weather', 'Inspect a local weather forecast.')
+    await git(repository, 'add', '.')
+    await git(repository, 'commit', '-m', 'add unrelated catalog')
+    const store = fakeStore()
+    const discovery = new TrustedSkillDiscovery([{
+      id: 'local-curated', repository, skillsRoot: 'skills',
+    }], store, { now: () => 1_786_896_100_000 })
+
+    await expect(discovery.discover(gap())).resolves.toEqual({
+      status: 'abstained',
+      candidateCount: 0,
+      reasons: ['no-semantic-match'],
+    })
+    expect(store.recordCandidate).not.toHaveBeenCalled()
+    expect(store.recordAttempt).toHaveBeenCalledWith(expect.objectContaining({
+      sources: [{
+        id: 'local-curated',
+        status: 'no-match',
+        revision: expect.stringMatching(/^[a-f0-9]{40}$/),
+      }],
+    }))
+  })
+
+  it('does not bypass an invalid exact-name package with a different semantic candidate', async () => {
+    const repository = await gitRepository()
+    const exactRoot = join(repository, 'skills', 'missing-release-skill')
+    await mkdir(exactRoot, { recursive: true })
+    await writeFile(join(exactRoot, 'SKILL.md'), [
+      '---',
+      'name: wrong-release-skill',
+      'description: Invalid identity shadow.',
+      '---',
+      '',
+    ].join('\n'))
+    await writeSkill(repository, 'release-native-extension', 'Publish and verify a native extension release.')
+    await git(repository, 'add', '.')
+    await git(repository, 'commit', '-m', 'add invalid exact package')
+    const store = fakeStore()
+    const discovery = new TrustedSkillDiscovery([{
+      id: 'local-curated', repository, skillsRoot: 'skills',
+    }], store, { now: () => 1_786_896_100_000 })
+
+    await expect(discovery.discover(gap())).resolves.toEqual({
+      status: 'abstained',
+      candidateCount: 0,
+      reasons: ['invalid-skill-package'],
+    })
+    expect(store.recordCandidate).not.toHaveBeenCalled()
   })
 
   it('materializes the pinned whole-Skill candidate without following a newer source HEAD', async () => {
@@ -289,6 +466,20 @@ async function gitRepository(): Promise<string> {
   await git(root, 'config', 'user.email', 'test@example.com')
   await git(root, 'config', 'user.name', 'EvoForge Test')
   return root
+}
+
+async function writeSkill(repository: string, name: string, description: string): Promise<void> {
+  const root = join(repository, 'skills', name)
+  await mkdir(root, { recursive: true })
+  await writeFile(join(root, 'SKILL.md'), [
+    '---',
+    `name: ${name}`,
+    `description: ${description}`,
+    '---',
+    '',
+    'Follow the bounded instructions.',
+    '',
+  ].join('\n'))
 }
 
 async function git(repository: string, ...args: string[]): Promise<void> {

@@ -96,14 +96,29 @@ describe.skipIf(process.platform !== 'darwin')('Capability Gap durable queue', (
     const first = await bootStorage(configPath)
     const store = await openSkillDiscoveryStore(first.storageDomain)
     let candidateId = ''
-    let attemptId = ''
+    let attemptIds: string[] = []
     try {
       const candidate = await store.recordCandidate(discoveryCandidateInput())
       const duplicate = await store.recordCandidate(discoveryCandidateInput())
       expect(duplicate).toEqual({ created: false, candidate: candidate.candidate })
       candidateId = candidate.candidate.id
       const attempt = await store.recordAttempt(discoveryAttemptInput(candidateId))
-      attemptId = attempt.attempt.id
+      const ambiguous = await store.recordAttempt({
+        gapId: '6'.repeat(64),
+        workspaceId: WORKSPACE_ID,
+        requestedSkill: 'publish-dsh-plugin',
+        startedAt: 1_786_896_100_002,
+        completedAt: 1_786_896_100_003,
+        status: 'abstained',
+        candidateIds: [],
+        reasons: ['ambiguous-semantic-match'],
+        sources: [{
+          id: 'local-curated',
+          status: 'ambiguous',
+          revision: 'a'.repeat(40),
+        }],
+      })
+      attemptIds = [ambiguous.attempt.id, attempt.attempt.id]
       expect(store.listCandidates(WORKSPACE_ID, '5'.repeat(64))).toEqual([candidate.candidate])
       expect(store.listAttempts(WORKSPACE_ID, '5'.repeat(64))).toEqual([attempt.attempt])
     } finally {
@@ -115,7 +130,7 @@ describe.skipIf(process.platform !== 'darwin')('Capability Gap durable queue', (
     const recovered = await openSkillDiscoveryStore(resumed.storageDomain)
     try {
       expect(recovered.listCandidates(WORKSPACE_ID).map(candidate => candidate.id)).toEqual([candidateId])
-      expect(recovered.listAttempts(WORKSPACE_ID).map(attempt => attempt.id)).toEqual([attemptId])
+      expect(recovered.listAttempts(WORKSPACE_ID).map(attempt => attempt.id)).toEqual(attemptIds)
     } finally {
       await recovered.close()
       await resumed.fiber.dispose()
@@ -152,6 +167,13 @@ function discoveryCandidateInput() {
     workspaceId: WORKSPACE_ID,
     requestedSkill: 'missing-release-skill',
     description: 'Publish a verified release.',
+    match: {
+      kind: 'deterministic-lexical-v1' as const,
+      requestedSkill: 'publish-dsh-plugin',
+      score: 18,
+      runnerUpScore: 0,
+      queryHash: 'f'.repeat(64),
+    },
     source: {
       id: 'local-curated',
       kind: 'local-git' as const,

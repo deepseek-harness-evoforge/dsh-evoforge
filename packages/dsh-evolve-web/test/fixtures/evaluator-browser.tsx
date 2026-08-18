@@ -4,6 +4,7 @@ import React from 'react'
 // @ts-expect-error browser fixture runtime import
 import { createRoot } from 'react-dom/client'
 import { EvolutionAction } from '../../src/client/EvolutionAction.tsx'
+import { en } from '../../src/client/locales.ts'
 import type { EvolutionRemoteClient } from '../../src/client/remote.ts'
 import { cssText } from '../../src/client/style.ts'
 
@@ -19,6 +20,7 @@ const reviewMode = search.has('review')
 const reviewExpiryEligibleMode = search.has('expired')
 const staleReviewMode = search.has('stale')
 const outcomeMode = search.has('outcomes')
+const semanticMode = search.has('semantic')
 const calls = { author: 0, approve: 0, reject: 0, shadow: 0, reviewApprove: 0 }
 let reviewApproved = false
 const runs: Array<{
@@ -98,6 +100,105 @@ const remote: EvolutionRemoteClient = {
       : {}),
     recovery: { available: false },
     automaticPromotion: { enabled: false, skills: [] },
+    ...(semanticMode
+      ? {
+          capabilityMap: {
+            status: 'complete' as const,
+            catalogHash: '6'.repeat(64),
+            capabilities: [],
+          },
+          capabilityGaps: {
+            confirmedCount: 1,
+            items: [{
+              id: '5'.repeat(64),
+              observedAt: 1_786_896_000_000,
+              requestedSkill: 'publish-dsh-plugin',
+              catalogHash: '6'.repeat(64),
+              catalogSize: 0,
+              goal: {
+                id: 'goal-semantic-browser',
+                revision: 1,
+                objective: 'Publish a verified native DSH extension.',
+              },
+              status: 'confirmed' as const,
+              evidence: {
+                kind: 'model-declared-skill-gap' as const,
+                catalog: 'complete' as const,
+                routing: 'model-declared-no-applicable-skill' as const,
+                providers: 'settled' as const,
+              },
+            }],
+          },
+          skillDiscovery: {
+            quarantinedCount: 1,
+            candidates: [{
+              id: '7'.repeat(64),
+              discoveredAt: 1_786_896_000_100,
+              gapId: '5'.repeat(64),
+              requestedSkill: 'release-native-extension',
+              description: 'Publish and verify a native extension release.',
+              match: {
+                kind: 'deterministic-lexical-v1' as const,
+                requestedSkill: 'publish-dsh-plugin',
+                score: 18,
+                runnerUpScore: 0,
+                queryHash: 'f'.repeat(64),
+              },
+              source: {
+                id: 'local-curated',
+                kind: 'local-git' as const,
+                trust: 'explicit-deployer-config' as const,
+              },
+              scope: 'workspace' as const,
+              version: {
+                kind: 'git-tree' as const,
+                commit: '8'.repeat(40),
+                treeHash: '9'.repeat(40),
+              },
+              contentHash: 'a'.repeat(64),
+              package: {
+                path: 'skills/release-native-extension',
+                fileCount: 1,
+                totalBytes: 320,
+                hasScripts: false,
+                hasReferences: false,
+              },
+              permissions: {
+                declared: false,
+                executableContent: false,
+                externalEffects: 'unknown' as const,
+              },
+              safety: {
+                status: 'quarantined' as const,
+                checks: [
+                  { name: 'git-object-integrity' as const, status: 'passed' as const },
+                  { name: 'regular-files-only' as const, status: 'passed' as const },
+                  { name: 'skill-identity' as const, status: 'passed' as const },
+                  { name: 'effect-review' as const, status: 'required' as const },
+                ],
+              },
+              lifecycle: 'inactive' as const,
+              verification: 'unevaluated' as const,
+              execution: 'never' as const,
+            }],
+            attempts: [{
+              id: 'b'.repeat(64),
+              gapId: '5'.repeat(64),
+              requestedSkill: 'publish-dsh-plugin',
+              startedAt: 1_786_896_000_000,
+              completedAt: 1_786_896_000_100,
+              status: 'candidate-found' as const,
+              candidateIds: ['7'.repeat(64)],
+              reasons: [],
+              sources: [{
+                id: 'local-curated',
+                status: 'candidate' as const,
+                revision: '8'.repeat(40),
+              }],
+            }],
+          },
+        }
+      : {}),
     automaticFeedbackBudget: {
       warningCount: 0,
       targets: [{
@@ -305,6 +406,7 @@ const remote: EvolutionRemoteClient = {
 }
 
 const labels: Record<string, string> = {
+  ...en,
   'trigger.label': 'Evolution',
   'panel.title': 'Evolution control',
   'panel.close': 'Close',

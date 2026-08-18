@@ -112,6 +112,13 @@ export interface EvolutionDiscoveredSkillCandidateView {
   readonly gapId: string
   readonly requestedSkill: string
   readonly description: string
+  readonly match?: {
+    readonly kind: 'deterministic-lexical-v1'
+    readonly requestedSkill: string
+    readonly score: number
+    readonly runnerUpScore: number
+    readonly queryHash: string
+  }
   readonly source: {
     readonly id: string
     readonly kind: 'local-git'
@@ -159,12 +166,14 @@ export interface EvolutionSkillDiscoveryAttemptView {
   readonly reasons: readonly (
     | 'no-trusted-sources'
     | 'no-exact-skill'
+    | 'no-semantic-match'
+    | 'ambiguous-semantic-match'
     | 'invalid-skill-package'
     | 'source-unavailable'
   )[]
   readonly sources: readonly {
     readonly id: string
-    readonly status: 'candidate' | 'absent' | 'invalid' | 'unavailable'
+    readonly status: 'candidate' | 'absent' | 'no-match' | 'ambiguous' | 'invalid' | 'unavailable'
     readonly revision?: string
   }[]
 }

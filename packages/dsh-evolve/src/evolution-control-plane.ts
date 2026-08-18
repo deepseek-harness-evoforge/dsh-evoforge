@@ -402,6 +402,7 @@ function projectSkillDiscovery(
       gapId: candidate.gapId,
       requestedSkill: candidate.requestedSkill,
       description: candidate.description,
+      ...(candidate.match === undefined ? {} : { match: { ...candidate.match } }),
       source: { ...candidate.source },
       scope: candidate.scope,
       version: { ...candidate.version },

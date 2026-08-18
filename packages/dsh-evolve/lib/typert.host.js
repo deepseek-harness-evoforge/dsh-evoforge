@@ -203,6 +203,13 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'gapId': z.string().readonly(),
   'requestedSkill': z.string().readonly(),
   'description': z.string().readonly(),
+  'match': z.union([z.undefined(), z.object({
+  'kind': z.literal("deterministic-lexical-v1").readonly(),
+  'requestedSkill': z.string().readonly(),
+  'score': z.number().readonly(),
+  'runnerUpScore': z.number().readonly(),
+  'queryHash': z.string().readonly(),
+})]).readonly().optional(),
   'source': z.object({
   'id': z.string().readonly(),
   'kind': z.literal("local-git").readonly(),
@@ -246,10 +253,10 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'completedAt': z.number().readonly(),
   'status': z.union([z.literal("candidate-found"), z.literal("abstained"), z.literal("partial")]).readonly(),
   'candidateIds': z.array(z.string()).readonly(),
-  'reasons': z.array(z.union([z.literal("no-trusted-sources"), z.literal("no-exact-skill"), z.literal("invalid-skill-package"), z.literal("source-unavailable")])).readonly(),
+  'reasons': z.array(z.union([z.literal("no-trusted-sources"), z.literal("no-exact-skill"), z.literal("no-semantic-match"), z.literal("ambiguous-semantic-match"), z.literal("invalid-skill-package"), z.literal("source-unavailable")])).readonly(),
   'sources': z.array(z.object({
   'id': z.string().readonly(),
-  'status': z.union([z.literal("candidate"), z.literal("absent"), z.literal("invalid"), z.literal("unavailable")]).readonly(),
+  'status': z.union([z.literal("candidate"), z.literal("absent"), z.literal("no-match"), z.literal("ambiguous"), z.literal("invalid"), z.literal("unavailable")]).readonly(),
   'revision': z.union([z.undefined(), z.string()]).readonly().optional(),
 })).readonly(),
 })).readonly(),
@@ -1441,7 +1448,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionDiscoveredSkillCandidateView",
-            "declaration": "export interface EvolutionDiscoveredSkillCandidateView {\n    readonly id: string;\n    readonly discoveredAt: number;\n    readonly gapId: string;\n    readonly requestedSkill: string;\n    readonly description: string;\n    readonly source: { readonly id: string; readonly kind: 'local-git'; readonly trust: 'explicit-deployer-config'; };\n    readonly scope: 'workspace';\n    readonly version: { readonly kind: 'git-tree'; readonly commit: string; readonly treeHash: string; };\n    readonly contentHash: string;\n    readonly package: { readonly path: string; readonly fileCount: number; readonly totalBytes: number; readonly hasScripts: boolean; readonly hasReferences: boolean; };\n    readonly permissions: { readonly declared: boolean; readonly executableContent: boolean; readonly externalEffects: 'unknown'; };\n    readonly safety: { readonly status: 'quarantined'; readonly checks: readonly { readonly name: 'git-object-integrity' | 'regular-files-only' | 'skill-identity' | 'effect-review'; readonly status: 'passed' | 'required'; }[]; };\n    readonly lifecycle: 'inactive';\n    readonly verification: 'unevaluated';\n    readonly execution: 'never';\n}"
+            "declaration": "export interface EvolutionDiscoveredSkillCandidateView {\n    readonly id: string;\n    readonly discoveredAt: number;\n    readonly gapId: string;\n    readonly requestedSkill: string;\n    readonly description: string;\n    readonly match?: { readonly kind: 'deterministic-lexical-v1'; readonly requestedSkill: string; readonly score: number; readonly runnerUpScore: number; readonly queryHash: string; };\n    readonly source: { readonly id: string; readonly kind: 'local-git'; readonly trust: 'explicit-deployer-config'; };\n    readonly scope: 'workspace';\n    readonly version: { readonly kind: 'git-tree'; readonly commit: string; readonly treeHash: string; };\n    readonly contentHash: string;\n    readonly package: { readonly path: string; readonly fileCount: number; readonly totalBytes: number; readonly hasScripts: boolean; readonly hasReferences: boolean; };\n    readonly permissions: { readonly declared: boolean; readonly executableContent: boolean; readonly externalEffects: 'unknown'; };\n    readonly safety: { readonly status: 'quarantined'; readonly checks: readonly { readonly name: 'git-object-integrity' | 'regular-files-only' | 'skill-identity' | 'effect-review'; readonly status: 'passed' | 'required'; }[]; };\n    readonly lifecycle: 'inactive';\n    readonly verification: 'unevaluated';\n    readonly execution: 'never';\n}"
           },
           {
             "name": "EvolutionEvaluatorDraftDetail",
@@ -1493,7 +1500,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionSkillDiscoveryAttemptView",
-            "declaration": "export interface EvolutionSkillDiscoveryAttemptView {\n    readonly id: string;\n    readonly gapId: string;\n    readonly requestedSkill: string;\n    readonly startedAt: number;\n    readonly completedAt: number;\n    readonly status: 'candidate-found' | 'abstained' | 'partial';\n    readonly candidateIds: readonly string[];\n    readonly reasons: readonly ('no-trusted-sources' | 'no-exact-skill' | 'invalid-skill-package' | 'source-unavailable')[];\n    readonly sources: readonly { readonly id: string; readonly status: 'candidate' | 'absent' | 'invalid' | 'unavailable'; readonly revision?: string; }[];\n}"
+            "declaration": "export interface EvolutionSkillDiscoveryAttemptView {\n    readonly id: string;\n    readonly gapId: string;\n    readonly requestedSkill: string;\n    readonly startedAt: number;\n    readonly completedAt: number;\n    readonly status: 'candidate-found' | 'abstained' | 'partial';\n    readonly candidateIds: readonly string[];\n    readonly reasons: readonly ('no-trusted-sources' | 'no-exact-skill' | 'no-semantic-match' | 'ambiguous-semantic-match' | 'invalid-skill-package' | 'source-unavailable')[];\n    readonly sources: readonly { readonly id: string; readonly status: 'candidate' | 'absent' | 'no-match' | 'ambiguous' | 'invalid' | 'unavailable'; readonly revision?: string; }[];\n}"
           },
           {
             "name": "EvolutionSkillDiscoveryView",

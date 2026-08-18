@@ -297,8 +297,13 @@ const t = (key: string) => ({
   'skills.discovery.attempt.partial': 'Partial discovery',
   'skills.discovery.reason.no-trusted-sources': 'No trusted sources configured',
   'skills.discovery.reason.no-exact-skill': 'No exact Skill found',
+  'skills.discovery.reason.no-semantic-match': 'No strong semantic match',
+  'skills.discovery.reason.ambiguous-semantic-match': 'Semantic match is ambiguous',
   'skills.discovery.reason.invalid-skill-package': 'Invalid Skill package',
   'skills.discovery.reason.source-unavailable': 'Source unavailable',
+  'skills.discovery.match.semantic': 'Deterministic semantic match',
+  'skills.discovery.match.score': 'lexical evidence score (not confidence)',
+  'skills.discovery.match.runner-up': 'runner-up',
   'skills.admission': 'Deterministic admission',
   'skills.admission.empty': 'No completed deterministic admission.',
   'skills.admission.status.abstained': 'Admission abstained',
@@ -584,8 +589,15 @@ describe('EvolutionAction', () => {
             id: '7'.repeat(64),
             discoveredAt: 1_786_896_000_100,
             gapId: '5'.repeat(64),
-            requestedSkill: 'missing-release-skill',
+            requestedSkill: 'release-native-extension',
             description: 'Prepare and verify a native DSH release.',
+            match: {
+              kind: 'deterministic-lexical-v1' as const,
+              requestedSkill: 'missing-release-skill',
+              score: 18,
+              runnerUpScore: 0,
+              queryHash: 'f'.repeat(64),
+            },
             source: {
               id: 'local-curated',
               kind: 'local-git' as const,
@@ -599,7 +611,7 @@ describe('EvolutionAction', () => {
             },
             contentHash: 'a'.repeat(64),
             package: {
-              path: 'skills/missing-release-skill',
+              path: 'skills/release-native-extension',
               fileCount: 2,
               totalBytes: 640,
               hasScripts: false,
@@ -655,7 +667,7 @@ describe('EvolutionAction', () => {
           results: [{
             id: 'e'.repeat(64),
             candidateId: '7'.repeat(64),
-            skillName: 'missing-release-skill',
+            skillName: 'release-native-extension',
             status: 'qualified-for-shadow' as const,
             reasons: ['candidate-improves-deterministic-admission' as const],
             targetId: 'missing-release-admission',
@@ -688,7 +700,10 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('Confirmed by complete DSH catalog')).toBeTruthy()
     expect(screen.getByText('No external Skill was installed or executed.')).toBeTruthy()
     expect(screen.getByText('Discovered Skill candidates')).toBeTruthy()
+    expect(screen.getAllByText('release-native-extension').length).toBeGreaterThan(1)
     expect(screen.getByText('Prepare and verify a native DSH release.')).toBeTruthy()
+    expect(screen.getByText('Deterministic semantic match · missing-release-skill → release-native-extension')).toBeTruthy()
+    expect(screen.getByText('lexical evidence score (not confidence) 18 · runner-up 0')).toBeTruthy()
     expect(screen.getByText('Quarantined candidate')).toBeTruthy()
     expect(screen.getByText('local-curated · Local Git · Explicit deployer trust')).toBeTruthy()
     expect(screen.getByText(`Git commit · ${'8'.repeat(12)} · tree ${'9'.repeat(12)}`)).toBeTruthy()

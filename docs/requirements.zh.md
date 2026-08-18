@@ -1,6 +1,6 @@
 # DeepSeek Harness EvoForge 项目需求基线
 
-> 状态：已确认；P0A–P1.21、P2A.1–P2D.1、P3.1、P3.2、LC-1、LC-2 和 Runtime Readiness 已有可复用实现，产品形态已纠正为“只安装并运行于 DSH 的原生 out-of-tree 插件套件”；十一包统一原生安装、多 Workspace 双渠道自动化隔离、Workspace-scoped evolution、零基础浏览器复验、真实飞书 App 握手/setup-only 配对与 EV-1、SD-1、LC-1、AS-1 approval 四个确定性 Hermes paired slice 已通过。自然 Goal→可复核 Gap→exact-name 本地 whole-Skill 隔离候选已有第一条纵切；外部来源语义搜索/获取、无候选时生成、完整独立评测治理、双速进化闭环、exact 飞书 route 消息、长期 outcome 与其余 Hermes paired epochs 等完整真实验收完成前仍不构成 v0.1 交付
+> 状态：已确认；P0A–P1.21、P2A.1–P2D.1、P3.1、P3.2、LC-1、LC-2 和 Runtime Readiness 已有可复用实现，产品形态已纠正为“只安装并运行于 DSH 的原生 out-of-tree 插件套件”；十一包统一原生安装、多 Workspace 双渠道自动化隔离、Workspace-scoped evolution、零基础浏览器复验、真实飞书 App 握手/setup-only 配对与 EV-1、SD-1、LC-1、AS-1 approval 四个确定性 Hermes paired slice 已通过。自然 Goal→可复核 Gap→本地可信 Git whole-Skill 的 exact-first、确定性语义发现与隔离候选已有纵切；外部来源搜索/获取、无候选时生成、完整独立评测治理、双速进化闭环、exact 飞书 route 消息、长期 outcome 与其余 Hermes paired epochs 等完整真实验收完成前仍不构成 v0.1 交付
 > 更新日期：2026-08-18
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。发生冲突时，下述“方向纠正”优先于旧里程碑文字。
 
@@ -331,12 +331,15 @@ catalog 的 name/description 自主语义路由，并由原生 `skill` Tool 加�
 工作流或 Skill。该稳定 Tool 是有意声明的模型表面增量；64 轮门禁证明它的名称/Schema/顺序不随 host
 状态或 future Generation 漂移，移除该 Tool 后其余请求与原生控制组逐字节相同。
 
-后台目前只扫描部署者显式授信的本地 Git 来源，按提议的 exact Skill name 固定
-commit/tree/content hash，并把含 `SKILL.md`、scripts、references 的完整目录记录为 quarantined、
-inactive、unevaluated、never-executed 候选；没有可信来源或精确 Skill 时持久记录 abstain。确定性
+后台目前只扫描部署者显式授信的本地 Git 来源：先按提议的 exact Skill name 查询；exact 路径不存在且
+Gap 绑定 active Goal 时，再对同一固定 revision 中合法 `SKILL.md` 的 name/description 做有界、确定性的
+词法语义检索。只有达到最低证据且相对次名有明确间隔的唯一候选才固定 commit/tree/content hash；弱匹配、
+歧义或非法 exact package 均持久记录 abstain，不允许借近似项绕过 exact 身份错误。完整目录仍作为
+quarantined、inactive、unevaluated、never-executed 候选。确定性
 whole-Skill admission 与独立 assembled holdout Shadow 已接入，清晰胜出仍只形成 inactive 人工审查
 Candidate，不获得发布权。Web 已展示有界 Capability Map、Gap、候选、来源、权限和状态，不提供模型
-选路、安装或激活按钮。外部市场/官方资料/论文/开源的语义检索与组合、无候选时的 Skill 生成、真实
+选路、安装或激活按钮，并明确展示原始 Gap→实际 Skill 的匹配与“词法证据分数（非置信度）”。外部市场/
+官方资料/论文/开源的网络检索与组合、无候选时的 Skill 生成、真实
 模型的正确缺口判断及跨任务慢环证据仍未完成，不能据此宣称完整自主 Skill 获取或 V4 退出门通过。
 
 在 P1.1 之后，先实现 `dsh-software-delivery` 的最小 objective outcome：稳定按需 Skill 与
