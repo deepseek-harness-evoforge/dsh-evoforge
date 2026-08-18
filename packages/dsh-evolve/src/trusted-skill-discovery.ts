@@ -1,6 +1,7 @@
 import { execFile as execFileCallback } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
+import { mkdir, realpath, rm, writeFile } from 'node:fs/promises'
+import { basename, dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { promisify } from 'node:util'
 import type { Context } from '@deepseek-ai/cordis'
 import {
@@ -245,6 +246,13 @@ export interface SkillDiscoveryResult {
   readonly reasons?: readonly SkillDiscoveryAttempt['reasons'][number][]
 }
 
+export interface MaterializedSkillCandidate {
+  readonly candidateId: string
+  readonly path: string
+  readonly contentHash: string
+  readonly treeHash: string
+}
+
 export interface TrustedSkillDiscoveryLoop {
   observe(gap: CapabilityGap): void
   flush(): Promise<void>
@@ -319,6 +327,75 @@ export class TrustedSkillDiscovery {
       status,
       candidateCount: candidateIds.length,
       ...(uniqueReasons.length === 0 ? {} : { reasons: uniqueReasons }),
+    }
+  }
+
+  /** Reconstruct one exact candidate from pinned Git objects into a new non-executable directory. */
+  async materialize(
+    input: DiscoveredSkillCandidate,
+    requestedOutputDir: string,
+  ): Promise<MaterializedSkillCandidate> {
+    const candidate = candidateSchema.parse(input)
+    const source = this.sources.find(item => item.id === candidate.source.id)
+    if (source === undefined) throw new Error(`trusted Skill source '${candidate.source.id}' is not configured`)
+    const skillPath = `${source.skillsRoot}/${candidate.requestedSkill}`
+    if (candidate.package.path !== skillPath) {
+      throw new Error('trusted Skill candidate package path does not match its source')
+    }
+    const expectedId = contentId([
+      candidate.workspaceId,
+      candidate.gapId,
+      candidate.source.id,
+      candidate.version.commit,
+      candidate.version.treeHash,
+      candidate.contentHash,
+    ])
+    if (candidate.id !== expectedId) throw new Error('trusted Skill candidate id does not match its identity')
+    const repository = await realpath(source.repository)
+
+    const treeHash = await gitText(
+      repository,
+      'rev-parse',
+      `${candidate.version.commit}:${skillPath}`,
+    )
+    if (treeHash !== candidate.version.treeHash) {
+      throw new Error('trusted Skill candidate tree no longer matches its pinned identity')
+    }
+    const entries = await listTree(repository, candidate.version.commit, skillPath)
+    const contentHash = packageContentHash(entries)
+    if (contentHash !== candidate.contentHash) {
+      throw new Error('trusted Skill candidate content no longer matches its pinned identity')
+    }
+    await assertCandidatePackage(repository, candidate, entries)
+
+    const requested = resolve(requestedOutputDir)
+    if (dirname(requested) === requested) {
+      throw new Error('trusted Skill candidate output must not be a filesystem root')
+    }
+    const parent = await realpath(dirname(requested))
+    const outputDir = resolve(parent, basename(requested))
+    assertSeparateMaterialization(outputDir, repository)
+    await mkdir(outputDir, { mode: 0o700 })
+    try {
+      for (const entry of entries) {
+        const target = resolve(outputDir, ...entry.relativePath.split('/'))
+        assertInside(outputDir, target, 'trusted Skill candidate file')
+        await mkdir(dirname(target), { mode: 0o700, recursive: true })
+        const content = await gitBlob(repository, entry.object)
+        if (content.byteLength !== entry.size) {
+          throw new Error('trusted Skill candidate blob size does not match its Git tree')
+        }
+        await writeFile(target, content, { flag: 'wx', mode: 0o600 })
+      }
+      return Object.freeze({
+        candidateId: candidate.id,
+        path: outputDir,
+        contentHash,
+        treeHash,
+      })
+    } catch (error) {
+      await rm(outputDir, { force: true, recursive: true }).catch(() => undefined)
+      throw error
     }
   }
 }
@@ -417,12 +494,7 @@ async function inspectSource(source: ResolvedSource, gap: CapabilityGap): Promis
         },
         scope: 'workspace',
         version: { kind: 'git-tree', commit: revision, treeHash },
-        contentHash: contentId(entries.map(entry => [
-          entry.relativePath,
-          entry.mode,
-          entry.object,
-          entry.size,
-        ])),
+        contentHash: packageContentHash(entries),
         package: {
           path: skillPath,
           fileCount: entries.length,
@@ -546,6 +618,14 @@ async function gitBlobText(repository: string, object: string): Promise<string> 
   return stdout
 }
 
+async function gitBlob(repository: string, object: string): Promise<Buffer> {
+  const { stdout } = await execFile('git', ['-C', repository, 'cat-file', 'blob', object], {
+    encoding: 'buffer',
+    maxBuffer: MAX_PACKAGE_BYTES + 1,
+  })
+  return Buffer.from(stdout)
+}
+
 async function gitObjectExists(repository: string, object: string): Promise<boolean> {
   try {
     await execFile('git', ['-C', repository, 'cat-file', '-e', object], {
@@ -580,6 +660,60 @@ function relativeGitPath(sourcePath: string, path: string): string {
     throw new Error('Skill tree path is not contained')
   }
   return value
+}
+
+function packageContentHash(entries: readonly GitEntry[]): string {
+  return contentId(entries.map(entry => [
+    entry.relativePath,
+    entry.mode,
+    entry.object,
+    entry.size,
+  ]))
+}
+
+async function assertCandidatePackage(
+  repository: string,
+  candidate: DiscoveredSkillCandidate,
+  entries: readonly GitEntry[],
+): Promise<void> {
+  const fileCount = entries.length
+  const totalBytes = entries.reduce((total, entry) => total + entry.size, 0)
+  const hasScripts = entries.some(entry => entry.relativePath === 'scripts'
+    || entry.relativePath.startsWith('scripts/'))
+  const hasReferences = entries.some(entry => entry.relativePath === 'references'
+    || entry.relativePath.startsWith('references/'))
+  const executableContent = hasScripts || entries.some(entry => entry.mode === '100755')
+  if (candidate.package.fileCount !== fileCount
+    || candidate.package.totalBytes !== totalBytes
+    || candidate.package.hasScripts !== hasScripts
+    || candidate.package.hasReferences !== hasReferences
+    || candidate.permissions.executableContent !== executableContent) {
+    throw new Error('trusted Skill candidate package metadata does not match its pinned tree')
+  }
+  const skillEntry = entries.find(entry => entry.relativePath === 'SKILL.md')
+  if (skillEntry === undefined) throw new Error('trusted Skill candidate has no SKILL.md')
+  const skill = parseSkillHeader(await gitBlobText(repository, skillEntry.object))
+  if (skill.name !== candidate.requestedSkill
+    || skill.description !== candidate.description
+    || skill.permissionsDeclared !== candidate.permissions.declared) {
+    throw new Error('trusted Skill candidate metadata does not match its SKILL.md')
+  }
+}
+
+function assertSeparateMaterialization(outputDir: string, repository: string): void {
+  const source = resolve(repository)
+  if (contains(source, outputDir) || contains(outputDir, source)) {
+    throw new Error('trusted Skill candidate output and source repository must be separate')
+  }
+}
+
+function assertInside(root: string, path: string, label: string): void {
+  if (!contains(root, path) || root === path) throw new Error(`${label} escapes its output root`)
+}
+
+function contains(root: string, path: string): boolean {
+  const fromRoot = relative(root, path)
+  return fromRoot === '' || (!fromRoot.startsWith(`..${sep}`) && fromRoot !== '..' && !isAbsolute(fromRoot))
 }
 
 async function evictOldest<T>(

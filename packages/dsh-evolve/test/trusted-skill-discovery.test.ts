@@ -1,5 +1,6 @@
 import { execFile as execFileCallback } from 'node:child_process'
-import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
+import { access, mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
@@ -9,6 +10,7 @@ import type { CapabilityGap } from '../src/capability-gap-store.ts'
 import {
   TrustedSkillDiscovery,
   installTrustedSkillDiscoveryLoop,
+  type DiscoveredSkillCandidate,
   type SkillDiscoveryStore,
 } from '../src/trusted-skill-discovery.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
@@ -105,6 +107,88 @@ describe('trusted whole-Skill discovery', () => {
     }))
   })
 
+  it('materializes the pinned whole-Skill candidate without following a newer source HEAD', async () => {
+    const repository = await gitRepository()
+    const skillRoot = join(repository, 'skills', 'missing-release-skill')
+    await mkdir(join(skillRoot, 'scripts'), { recursive: true })
+    await writeFile(join(skillRoot, 'SKILL.md'), [
+      '---',
+      'name: missing-release-skill',
+      'description: Publish the pinned release.',
+      '---',
+      '',
+      'Pinned instructions.',
+      '',
+    ].join('\n'))
+    await writeFile(join(skillRoot, 'scripts', 'run.sh'), '#!/bin/sh\nexit 0\n', { mode: 0o755 })
+    await git(repository, 'add', '.')
+    await git(repository, 'commit', '-m', 'add pinned skill')
+    const store = fakeStore()
+    const discovery = new TrustedSkillDiscovery([{
+      id: 'local-curated',
+      repository,
+      skillsRoot: 'skills',
+    }], store, { now: () => 1_786_896_100_000 })
+    await discovery.discover(gap())
+    const input = store.recordCandidate.mock.calls[0]?.[0]
+    const id = discoveredCandidateId(input!)
+    const candidate = { ...input, schemaVersion: 1 as const, id } as DiscoveredSkillCandidate
+
+    await writeFile(join(skillRoot, 'SKILL.md'), 'new uncommitted source content\n')
+    const materializationParent = await mkdtemp(join(tmpdir(), 'dsh-evolve-materialized-'))
+    temporaryRoots.push(materializationParent)
+    const materializedRoot = join(materializationParent, 'candidate')
+    const resolved = await discovery.materialize(candidate, materializedRoot)
+
+    expect(resolved).toEqual({
+      candidateId: id,
+      path: await realpath(materializedRoot),
+      contentHash: input?.contentHash,
+      treeHash: input?.version.treeHash,
+    })
+    expect(await readFile(join(materializedRoot, 'SKILL.md'), 'utf8')).toContain('Pinned instructions.')
+    expect((await stat(join(materializedRoot, 'scripts', 'run.sh'))).mode & 0o111).toBe(0)
+  })
+
+  it('refuses metadata drift and any materialization inside the trusted source repository', async () => {
+    const repository = await gitRepository()
+    const skillRoot = join(repository, 'skills', 'missing-release-skill')
+    await mkdir(skillRoot, { recursive: true })
+    await writeFile(join(skillRoot, 'SKILL.md'), [
+      '---',
+      'name: missing-release-skill',
+      'description: Publish a verified release.',
+      '---',
+      '',
+      'Follow the release checks.',
+      '',
+    ].join('\n'))
+    await git(repository, 'add', '.')
+    await git(repository, 'commit', '-m', 'add safe skill')
+    const store = fakeStore()
+    const discovery = new TrustedSkillDiscovery([{
+      id: 'local-curated', repository, skillsRoot: 'skills',
+    }], store, { now: () => 1_786_896_100_000 })
+    await discovery.discover(gap())
+    const input = store.recordCandidate.mock.calls[0]![0]
+    const candidate = {
+      ...input,
+      schemaVersion: 1 as const,
+      id: discoveredCandidateId(input),
+    } as DiscoveredSkillCandidate
+    const outputParent = await mkdtemp(join(tmpdir(), 'dsh-evolve-materialized-'))
+    temporaryRoots.push(outputParent)
+    const driftedOutput = join(outputParent, 'drifted')
+
+    await expect(discovery.materialize({
+      ...candidate,
+      package: { ...candidate.package, fileCount: candidate.package.fileCount + 1 },
+    }, driftedOutput)).rejects.toThrow('package metadata does not match')
+    await expect(access(driftedOutput)).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(discovery.materialize(candidate, join(repository, 'quarantine')))
+      .rejects.toThrow('output and source repository must be separate')
+  })
+
   it('abstains durably when no trusted source is configured', async () => {
     const store = fakeStore()
     const discovery = new TrustedSkillDiscovery([], store, { now: () => 1_786_896_100_000 })
@@ -146,7 +230,7 @@ function fakeStore() {
   return {
     recordCandidate: vi.fn<SkillDiscoveryStore['recordCandidate']>(async input => ({
       created: true,
-      candidate: { ...input, schemaVersion: 1, id: 'c'.repeat(64) } as never,
+      candidate: { ...input, schemaVersion: 1, id: discoveredCandidateId(input) } as never,
     })),
     recordAttempt: vi.fn<SkillDiscoveryStore['recordAttempt']>(async input => ({
       created: true,
@@ -156,6 +240,17 @@ function fakeStore() {
     listAttempts: vi.fn(() => []),
     close: vi.fn(),
   }
+}
+
+function discoveredCandidateId(input: Parameters<SkillDiscoveryStore['recordCandidate']>[0]): string {
+  return createHash('sha256').update(JSON.stringify([
+    input.workspaceId,
+    input.gapId,
+    input.source.id,
+    input.version.commit,
+    input.version.treeHash,
+    input.contentHash,
+  ])).digest('hex')
 }
 
 function gap(): CapabilityGap {
