@@ -2,7 +2,7 @@
 
 `dsh-gateway` 是默认关闭的 DeepSeek Harness 原生 Cordis Bundle，也是 Telegram、飞书等渠道
 Adapter 共用的 Host 接缝。它把部署者声明的 external account/conversation/thread/user 精确绑定到一个
-原生 DSH Workspace、Session 和 Agent preset，并负责进入 DSH 前的标准化、路由、幂等，以及普通文本
+原生 DSH Workspace、Session 和 Agent preset，并负责进入 DSH 前的文本/原生图片引用标准化、路由、幂等，以及普通文本
 出站意图的持久化、串行投递和崩溃不确定性。
 它不实现网络 Bot，不拥有 Goal、Session、Agent Runtime、Schedule 或 Approval，也不是独立网关进程。
 
@@ -40,9 +40,12 @@ Bundle row 默认为 `disabled: true`。部署者在同一个 DSH profile 中配
 
 - 启动时完整验证 route、Workspace、Session、Agent preset 和模型归属，错误配置 fail closed；
 - 新建或恢复原生 DSH Agent，并由 Workspace `attachSession()` 校验 cwd；
-- 已注册 slash command 只走 DSH `commands.execute()`，普通文本以稳定 MessageId 进入原生 Agent inbox；
+- 已注册 slash command 只走 DSH `commands.execute()`；普通文本、图片或图文以稳定 MessageId 进入原生 Agent inbox；
+- Gateway 只接收已经由 Adapter 下载、经 `ctx.attachments` 完整校验并持久化的 `ImageAttachmentRef`；平台
+  `fileKey`、URL、base64 和本地路径不得跨越该接缝；含图片的输入永不解释为 slash command；
 - 以 DSH Storage Domain 保存有界 ingress identity/status/Command 结果，不保存消息正文；
-- 同一外部事件只执行一次；内容或归属漂移被拒绝；effect 边界崩溃标记为 `uncertain`，不盲目重放；
+- 同一外部事件只执行一次；内容或归属漂移被拒绝；纯文本沿用既有摘要，图文使用包含每个原生附件引用的
+  版本化 canonical 摘要，升级不会把已完成纯文本事件误判为漂移；effect 边界崩溃标记为 `uncertain`，不盲目重放；
 - Adapter 通过小型 `registerTextAdapter()` 接口注册 exact platform account 和显式 routeIds；Gateway 逐条
   校验 route 归属后先持久化
   route-scoped `turn/response/notice` 意图，再按 Adapter/account 串行调用平台发送；
@@ -65,6 +68,10 @@ exactly-once。Telegram long-poll 与飞书 WebSocket 的 transport 聚合已完
 通过只读生成式 Remote 在原生侧栏统一展示 lifecycle、route、live Session、transport 与投递聚合。面板
 只在打开/人工刷新时读取 Host；读取失败清除旧快照，Host 恢复后可重新读取。Gateway 快照不包含
 account/chat/user、消息正文、外部 message id、错误正文或凭据，也不调用模型或平台。
+
+当前固定的 DSH attachment v1 只定义 PNG/JPEG/WebP/GIF 栅格图片。Gateway 不发明通用 file block；飞书
+普通文件、音频和视频必须等待 DSH 官方持久附件/消息契约或由独立、明确授权的内容能力处理，不能以图片
+引用或消息正文占位冒充已经交付。
 
 ## 卸载
 

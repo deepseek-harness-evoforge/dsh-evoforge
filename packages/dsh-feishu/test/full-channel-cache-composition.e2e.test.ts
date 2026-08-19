@@ -213,6 +213,11 @@ function hostConfig(input: {
       name: join(dshSourceDir, 'packages', 'storage', 'storage-domain', 'lib', 'index.js'),
       config: { backend: 'json' },
     },
+    {
+      id: 'attachment-local',
+      name: join(dshSourceDir, 'packages', 'attachment', 'attachment-local', 'lib', 'index.js'),
+      config: { dshHome: join(input.root, '.dsh-home') },
+    },
     { id: 'commands', name: join(dshSourceDir, 'packages', 'interaction', 'commands', 'lib', 'index.js') },
     {
       id: 'agent-presets',

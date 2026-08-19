@@ -86,6 +86,9 @@ setup-only pairing 只输出待审查配置，重启进入 routes 模式后才�
 ## 运行合同
 
 - Gateway 持有 endpoint → Workspace/Session/Agent、原生 Command admission 和持久 ingress 幂等；
+- Adapter 从官方 message-resource API 下载入站图片，先对整批执行 DSH 数量、单图、总字节、格式和像素
+  校验，再由 `ctx.attachments` 保存为内容寻址 `ImageAttachmentRef`；只有原生引用进入 Gateway/Session，
+  飞书 `fileKey` 不进入模型可见消息或 Session event；图片消息不会被当作 slash command；
 - Gateway 持有普通文本 `turn/response/notice` 的有界出站 journal、幂等键、按 App account 串行、
   明确 429 有界重试和保守崩溃恢复；
 - Adapter 只持有官方 WebSocket/HTTP 协议、平台发送映射、卡片和一次性 DSH Approval UI，不再维护第二套
@@ -102,4 +105,9 @@ setup-only pairing 只输出待审查配置，重启进入 routes 模式后才�
 - disable、reload 或 remove 会注销 handler、取消 pending Approval、释放 Gateway outbound registration
   并断开官方长连接；Gateway 自己负责关闭公共 Storage Domain。
 
-官方协议依据：[飞书事件订阅概述](https://open.feishu.cn/document/server-docs/event-subscription-guide/overview)、[官方 Node SDK](https://github.com/larksuite/node-sdk)、[发送消息 API](https://open.feishu.cn/document/server-docs/im-v1/message/create)。
+固定 DSH revision `47f943859bef60e4160492346772ded9b24f765a` 的 attachment v1 目前只支持
+PNG/JPEG/WebP/GIF 栅格图片。因此本插件当前没有把飞书普通文件、音频或视频宣称为已完成：不得把外部
+`fileKey`、URL、base64 或伪造 file block 写入 Session。通用文件以及文档、知识库、云盘、多维表格仍按
+独立权限和官方 DSH 内容契约继续实现与验收。
+
+官方协议依据：[飞书事件订阅概述](https://open.feishu.cn/document/server-docs/event-subscription-guide/overview)、[官方 Node SDK](https://github.com/larksuite/node-sdk)、[发送消息 API](https://open.feishu.cn/document/server-docs/im-v1/message/create)、[获取消息中的资源文件](https://open.feishu.cn/api-explorer?from=op_doc_tab&apiName=get&project=im&resource=message.resource&version=v1)。

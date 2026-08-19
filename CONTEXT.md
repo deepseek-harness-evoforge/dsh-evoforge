@@ -58,6 +58,10 @@ _Avoid_: Invariant result, plugin inventory, uptime monitor, auto-repair plan
 The removable Host module that normalizes exact external channel identities, binds them to native DSH Workspace/Session ownership, and governs transport-neutral routing, delivery intent, deduplication, rate limits, and health. Channel Adapters own platform protocols and credentials; DSH remains authoritative for Agent, Goal, Schedule, Approval, permissions, and persistence.
 _Avoid_: Channel Router, bot host, second Agent Runtime, dynamic workflow gateway, platform SDK wrapper
 
+**Native Channel Image**:
+An Adapter-owned external image resource that is downloaded through the platform's exact message-resource API, batch-validated and durably saved by the DSH AttachmentStore, then crosses DSH Gateway only as an immutable `ImageAttachmentRef`. The external resource key is transport input, never Session content.
+_Avoid_: external URL/key in Session, base64 message block, generic file disguised as image, Adapter-owned attachment store
+
 **Transport Observation**:
 A redacted, point-in-time Adapter report registered with DSH Gateway for exact owned routes: transport kind, `connecting/ready/degraded/stopping`, observation time, and optional connection/activity/error times. The Adapter still owns protocol and recovery; the observation contains no account, endpoint, content, error text, external id, or credential.
 _Avoid_: transport runtime, connection manager, error log, heartbeat daemon

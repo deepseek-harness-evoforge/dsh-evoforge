@@ -1,4 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
+import type {} from '@deepseek-ai/dsh-attachment'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-commands'
 import type {} from '@deepseek-ai/dsh-workspace'
@@ -20,7 +21,7 @@ import {
 import { FeishuRuntime } from './runtime.js'
 
 export const name = 'dsh-feishu'
-export const inject = ['commands', 'evoforge.gateway', 'workspaceRegistry']
+export const inject = ['attachments', 'commands', 'evoforge.gateway', 'workspaceRegistry']
 
 export interface Config {
   readonly mode?: 'routes' | 'pairing'
@@ -176,6 +177,7 @@ export {
   FeishuPlatformSendError,
   type FeishuApprovalAction,
   type FeishuInboundMessage,
+  type FeishuInboundResource,
   type FeishuPlatform,
   type FeishuPairingPlatformOptions,
   type FeishuPlatformOptions,

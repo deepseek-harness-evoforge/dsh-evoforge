@@ -67,6 +67,9 @@ Workspace/Session/Agent 绑定、持久 ingress/outbound journal、幂等、按 
 uncertain 恢复和脱敏 transport 聚合；平台协议、凭据、实际发送、卡片与重连继续属于 Adapter。同包官方
 DSH Client Module 通过无参数只读 Remote 展示 lifecycle、route、live Session、transport 和投递状态，
 失败刷新必须清除旧快照。它不创建网络 server、第二 Runtime、Session、Goal、Approval 或权限体系。
+入站内容边界只接受 exact 文本和 DSH 原生 `ImageAttachmentRef`。Adapter 必须先下载平台资源、按当前
+`ctx.attachments` 限制验证整批并持久保存；平台 key、URL、base64 和本地路径不得进入 Gateway 或 Session。
+纯文本保留旧幂等摘要，图文使用带版本的 canonical 摘要；当前不发明 DSH 尚未定义的通用 file block。
 
 ### dsh-telegram
 
@@ -85,6 +88,10 @@ uncertain。双 Workspace 双渠道同 Host 重启隔离、真实 App 身份请�
 WebSocket 握手已经通过；setup-only `/feishu-pair` 用两分钟一次性消息从当前 DSH Workspace/Session
 生成待审查静态 route，不 dispatch Agent 或自动授权。exact chat/user 消息闭环完成前仍只标记为
 `implemented`，不能增加通用 Gateway Runtime。
+入站图片使用飞书官方 message-resource API 下载，再经 DSH AttachmentStore 内容寻址保存；assembled
+DSH 已证明原生 image block、exact bytes 回读和外部 `fileKey` 不进入 Session。该证据不等于真实用户
+exact route 或真实多模态 provider 验收。固定 DSH attachment v1 只有栅格图片；普通文件、音视频以及
+文档、知识库、云盘、多维表格必须走后续独立权限能力，不能由 Adapter 私有存储或 Gateway 占位消息冒充。
 
 ### dsh-evolve-attention
 
@@ -161,7 +168,7 @@ Resident 只恢复进程，Goal Continuity 只决定 exact Session 的原生 Goa
 | 单机持续运行 | crash-resume、幂等恢复、无半激活版本 | Generation release + Shadow journal + native Jobs supervisor、`dsh-goal-continuity` Goal 冷恢复与 `dsh-resident` 真实 macOS DSH PID `SIGKILL` 拉起已实现；Linux 真机与生产多日 soak pending |
 | Memory/Skill | 复用 DSH/社区能力，不造第二套 Memory | 架构边界已确认 |
 | 内部经验自我发现 | 自然语言 Goal 自动使用已安装的适用能力；反复出现真实缺口时从自身经验形成可复核 Opportunity 和完整候选 | 原生目录/路由证据、可证伪 Gap、至少两个独立 Goal 的 Opportunity、至少四个 Goal 后的 authoring/admission/holdout 预密封、无 Skill 预配置的 Workspace policy、seal-bound Candidate v2、Candidate-independent governance Case Pack authoring/zero-proposer calibration、Envelope v4/Lineage v3 与 Web readiness implemented；真实 provider assembled 整链、迁移/成本门禁与 paired benchmark pending |
-| 消息与日程 | 按真实 workflow 提供可拆 Adapter | Telegram、飞书与 Evolve 注意力桥 implemented；真实飞书 App 握手与 setup-only 配对通过，exact route 消息/Hermes paired 与其他场景 pending |
+| 消息与日程 | 按真实 workflow 提供可拆 Adapter | Telegram、飞书与 Evolve 注意力桥 implemented；真实飞书 App 握手与 setup-only 配对通过，assembled 原生图片入站通过；exact route 用户消息/Hermes paired、普通文件/音视频和内容能力 pending |
 | 人类控制 | 状态、证据、审批、暂停、回滚不阻塞会话 | P0C Commands/Web + P3.1 非阻塞 Telegram attention + P3.2 Draft PR review follow-up implemented；语义 capability 审计与陌生用户可用性数据 pending |
 | 自进化 | 内部经验发现、独立治理、inactive Candidate、可证明晋升 | Goal-linked Gap → cross-Goal Opportunity → evidence seal → Candidate-independent admission/holdout → exact-Candidate assembled Shadow → review → content-addressed inactive Generation → future-Session promotion/root rollback 已形成活动纵切；历史 Feedback/Evaluator Draft、static target、Shadow proposer、自动过期和旧 Retention/canary 已撤销；existing-Skill 完整 Bundle、Retention/canary/outcome、真实 provider、陌生用户与长期效果 pending |
 | 权限 | 代码和外部效果不自动激活 | 需求与测试门已定义 |

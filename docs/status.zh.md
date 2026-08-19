@@ -13,7 +13,7 @@
 
 ## 当前总判断
 
-EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。所有已提交成果都在权威 `main`；`dsh-gateway` 已直接替换 `dsh-channel-router`。ClawHub、市场和 runtime research Candidate 已删除；`dsh-evolve` 的 Git source/ref、预选 Skill、静态 Case Pack/Feedback/Evaluator target、Feedback/Evaluator Draft、Shadow 内 proposer、自动 review expiry、旧 Retention/canary 和对应 Control/Web/attention 表面也已从活动源码物理删除。公开 Config 只包含内容寻址缓存、Workspace 自发现/评测 policy 和通用 supervisor；`GenerationBundleRepository`/`CandidatePublisher` 只解析内部 whole-Skill Bundle，legacy artifact 明确 quarantine；packed artifact 与 Shadow 源码均有负向回归契约。
+EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。所有已提交成果都在权威 `main`；`dsh-gateway` 已直接替换 `dsh-channel-router`。ClawHub、市场和 runtime research Candidate 已删除；`dsh-evolve` 的 Git source/ref、预选 Skill、静态 Case Pack/Feedback/Evaluator target、Feedback/Evaluator Draft、Shadow 内 proposer、自动 review expiry、旧 Retention/canary 和对应 Control/Web/attention 表面也已从活动源码物理删除。公开 Config 只包含内容寻址缓存、Workspace 自发现/评测 policy 和通用 supervisor；`GenerationBundleRepository`/`CandidatePublisher` 只解析内部 whole-Skill Bundle，legacy artifact 明确 quarantine；packed artifact 与 Shadow 源码均有负向回归契约。Gateway 的入站边界现支持文本和 DSH 原生图片引用；飞书外部图片 key 在 Adapter 内下载并经 AttachmentStore 内容寻址保存，不进入 Session。固定 DSH attachment v1 不支持通用文件，普通文件/音视频仍明确 pending。
 
 当前 Candidate seam 只接受内部 Skill Opportunity 生成的 canonical text bundle。两个独立 Goal 形成 Opportunity；至少四个 Goal 后才预密封 authoring/admission/holdout 证据，Candidate v2、Lineage v3 与 Envelope v4 绑定 exact seal。真实 assembled baseline 不安装目标 Skill，Candidate 侧才安装 exact whole-Skill；Shadow 必须由调用方提供同一 exact Candidate、内容哈希、tree、lineage 与 `dshAssembled` Trial，自身不调用 proposer。经复核的新 Skill可形成内容寻址 inactive Generation，真实 DSH 已验证 future-Session-only、重启固定和 root rollback。Retention/canary 必须直接重建在内部 Opportunity/Candidate/Envelope/Outcome 上后才能算活动能力。
 
@@ -37,15 +37,15 @@ V4.21 按 [ADR-0065](adr/0065-existing-skill-improvement-requires-exact-invocati
 | Evolve Channel Attention | `implemented` | Telegram/飞书 Candidate review/inactive promotion decision、concrete routes、显式 Workspace、durable notice、request parity；Evaluator Draft 表面已删除；进入十一包总装 | 真实渠道验证与多日移动端数据 |
 | Goal Continuity | `implemented` | JSONL cold resume、SIGKILL、原生 Goal round limit | 多 Workspace 绑定、生产 soak |
 | Resident OS unit | `implemented` | disabled Bundle、原生 `/resident`、exact hash/service-id 确认、无 bin tarball、十一包总装、launchd/systemd 与 macOS crash 测试 | Linux 真机和多日 soak |
-| Workspace DSH Gateway | `implemented` | `dsh-gateway` 直接替换旧包且无兼容层；exact endpoint/Adapter account/routeIds deny-by-default；原生 Workspace/Session/Agent create/resume；持久 ingress/outbound 幂等与 uncertain 状态机；按 account 串行、明确限流重试、turn/end 门、重启后原生 turn/end 唤醒、畸形 success 保守降级；[V5.1](evidence/v5-1-gateway-transport-health.zh.md) 聚合 Telegram/飞书脱敏 transport observation；[V5.2](evidence/v5-2-gateway-web-health.zh.md) 以同包只读 Remote/Client 在真实 DSH 浏览器验证读取、刷新、失败清空旧快照与恢复 | exact 飞书 chat/user 消息闭环、真实渠道长期运行与 paired benchmark |
-| 飞书 Adapter | `implemented` | [AS-2](evidence/as-2-feishu-channel.zh.md)：官方 SDK WebSocket；exact allowlist；原生 Agent/Command/Approval/continuation；Gateway outbound journal、429/uncertain、单渠道及双 Workspace 真实 Host、双 Agent完整 composition parity、tarball lifecycle；私有 Delivery Store/worker 已删除；真实 App 身份请求、标准代理 WebSocket 与 setup-only pairing transport；同包原生 DSH Web 从最终 tarball完成配对生成/复制/取消及 routes-mode Gateway 权威 transport/outbound 健康读取/刷新/Host 停机失败/同端口恢复，console error 0；assembled transport error→`degraded`→message→`ready` | 用户发送一次配对短语后的 exact route 入站/回复/Approval 与多日重连 |
+| Workspace DSH Gateway | `implemented` | `dsh-gateway` 直接替换旧包且无兼容层；exact endpoint/Adapter account/routeIds deny-by-default；原生 Workspace/Session/Agent create/resume；持久 ingress/outbound 幂等与 uncertain 状态机；按 account 串行、明确限流重试、turn/end 门、重启后原生 turn/end 唤醒、畸形 success 保守降级；[V5.1](evidence/v5-1-gateway-transport-health.zh.md) 聚合 Telegram/飞书脱敏 transport observation；[V5.2](evidence/v5-2-gateway-web-health.zh.md) 以同包只读 Remote/Client 在真实 DSH 浏览器验证读取、刷新、失败清空旧快照与恢复；[V5.3](evidence/v5-3-feishu-native-image-ingress.zh.md) 固定文本摘要兼容并把 exact 原生图片引用纳入幂等/漂移判断 | exact 飞书 chat/user 消息闭环、真实渠道长期运行与 paired benchmark；通用文件需官方 DSH 内容契约 |
+| 飞书 Adapter | `implemented` | [AS-2](evidence/as-2-feishu-channel.zh.md)：官方 SDK WebSocket；exact allowlist；原生 Agent/Command/Approval/continuation；Gateway outbound journal、429/uncertain、单渠道及双 Workspace 真实 Host、双 Agent完整 composition parity、tarball lifecycle；私有 Delivery Store/worker 已删除；真实 App 身份请求、标准代理 WebSocket 与 setup-only pairing transport；同包原生 DSH Web 从最终 tarball完成配对生成/复制/取消及 routes-mode Gateway 权威 transport/outbound 健康读取/刷新/Host 停机失败/同端口恢复，console error 0；assembled transport error→`degraded`→message→`ready`；[V5.3](evidence/v5-3-feishu-native-image-ingress.zh.md) 以官方 message-resource 端口下载图片、整批校验、DSH AttachmentStore 保存和 assembled Session exact readback 证明外部 `fileKey` 不进入 Session | 用户发送一次配对短语后的 exact route 入站/回复/Approval 与多日重连；普通文件/音视频、文档/知识库/云盘/多维表格仍 pending |
 | Hermes paired benchmark | `implemented` | [EV-1](evidence/ev-1-hermes-paired-benchmark.zh.md)、[SD-1](evidence/sd-1-hermes-paired-benchmark.zh.md)、[LC-1](evidence/lc-1-hermes-paired-benchmark.zh.md) 与 [AS-1 approval](evidence/as-1-hermes-paired-benchmark.zh.md) 四个确定性 slice：前两项窄场景胜出；本机崩溃恢复与 Telegram 一次性审批均 0:0 平局 | 同模型真实编码、真实 Bot/App 消息交付、真实模型长任务、真实 provider 与长期 outcome 的 paired epochs |
 | Registry release | `planned` | 无 | 全部门禁、版本矩阵、用户授权 |
 
 ## 当前可安装面
 
-最新 V4.24 增量通过根级 `pnpm check`（文档、全包 typecheck、测试和构建）；其中
-`dsh-gateway` 7 files/23 tests、`dsh-evolve-web` 2 files/18 tests、`dsh-evolve-attention` 4 files/11 tests，
+最新 V5.3 增量通过根级 `pnpm check`（文档、全包 typecheck、测试和构建）；其中
+`dsh-gateway` 7 files/24 tests、`dsh-evolve-web` 2 files/18 tests、`dsh-evolve-attention` 4 files/11 tests，
 `dsh-evolve` 48 files/177 tests passed、1 file/1 test skipped。此前 Cache Contract 全通过；Doctor 十一包
 原生合同 22/22，十一包 clean-profile 最终 tarball 的 add/dump/boot/真实
 Session+Goal+Storage+Tool/dispose/remove/reboot/readback 1/1（60.96 秒）；独立 Doctor packed
@@ -60,6 +60,7 @@ add/Loader/command/remove 1/1（10.35 秒）。V4.24 删除旧浏览器 acceptan
 - v0.1 浏览器复验已完成；真实 provider cache-read/TTFT 仍需有预算的 paired soak；
 - 自我发现只允许从 DSH 内部 Goal、Gap、失败、纠正、结果与复用证据学习；同 Goal retry 不计独立证据，任何 Opportunity/Candidate 自身都没有安装、激活或发布权；配置已不能预选 Candidate Skill，作者与 admission/holdout 样本已在调用前隔离，Candidate v2/Lineage v3/Envelope v4 显式绑定 seal，Shadow 只消费 exact Candidate 且零 proposer，缺失 Skill baseline 不再伪造占位 Skill，review 后的新 Skill Publisher/future Session/root rollback 已实现；内部 Retention/canary/outcome、真实 provider assembled 评估、长期负迁移率和模型缺口质量仍缺；
 - Hermes/OpenClaw/HanaAgent、论文、市场和开源实现只用于设计期调研与冻结 benchmark；运行时外部 Skill 搜索、获取、下载、导入或市场功能不属于本项目；
-- 真实飞书 exact route 消息、真实 Telegram/飞书 paired、真实 provider、陌生用户和生产多日证据仍缺失；
+- 真实飞书 exact route 用户消息/回复/Approval、真实 Telegram/飞书 paired、真实 provider、陌生用户和生产多日证据仍缺失；assembled 图片链路不替代这些真实门禁；
+- 固定 DSH attachment v1 只有栅格图片契约；飞书普通文件、音视频及文档/知识库/云盘/多维表格尚未完成；
 - 自动化 `implemented` 不能替代真实 outcome，也不能支持笼统的“优于 Hermes”；
 - 不 merge、不发布 registry、不部署生产，除非用户另行授权。

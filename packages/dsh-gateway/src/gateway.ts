@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent, AgentHandle } from '@deepseek-ai/dsh-agent'
+import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import type {} from '@deepseek-ai/dsh-agent-presets'
 import { parseCommand } from '@deepseek-ai/dsh-commands'
 import { freezeMessage, MessageId } from '@deepseek-ai/dsh-llm'
@@ -35,8 +36,17 @@ export interface GatewayDispatchInput {
   readonly endpoint: GatewayEndpoint
   /** Adapter-owned stable id for one inbound event. */
   readonly eventId: string
-  readonly text: string
+  /** Optional exact user text. Image-only messages deliberately omit it. */
+  readonly text?: string
+  /** Durable native DSH image references; external resource keys never cross this seam. */
+  readonly images?: readonly ImageAttachmentRef[]
   readonly signal?: AbortSignal
+}
+
+interface GatewayUserContent {
+  readonly blocks: Readonly<UserMessage['content']>
+  readonly commandText?: string
+  readonly contentHash: string
 }
 
 interface GatewayDispatchBase {
@@ -235,13 +245,12 @@ export class DshGateway {
     const route = this.configured.match(input.endpoint)
     if (route === undefined) return Promise.reject(new Error('no configured gateway route for the exact external endpoint'))
     const eventId = exactIngressText(input.eventId, 'eventId', 1_024)
-    const text = exactIngressText(input.text, 'text', 1_048_576)
+    const content = normalizeUserContent(input.text, input.images)
     const eventHash = hash(`${route.endpointKey}\0${eventId}`)
     const ingressId = hash(`${route.id}\0${eventHash}`)
-    const contentHash = hash(text)
     const prior = this.ingressTails.get(ingressId) ?? Promise.resolve()
     const operation = prior.then(() => this.dispatchSerial({
-      route, eventHash, ingressId, contentHash, text,
+      route, eventHash, ingressId, content,
       ...(input.signal === undefined ? {} : { signal: input.signal }),
     }))
     const tail = operation.then(() => {}, () => {})
@@ -269,20 +278,20 @@ export class DshGateway {
     route: ResolvedGatewayRoute
     eventHash: string
     ingressId: string
-    contentHash: string
-    text: string
+    content: GatewayUserContent
     signal?: AbortSignal
   }): Promise<GatewayDispatchResult> {
     input.signal?.throwIfAborted()
     const agent = await this.resolve(input.route, input.signal)
-    const kind = this.commandIsRegistered(agent, input.text) ? 'command' : 'message'
+    const kind = input.content.commandText !== undefined
+      && this.commandIsRegistered(agent, input.content.commandText) ? 'command' : 'message'
     const prepared = await this.ingressJournal.prepare({
       id: input.ingressId,
       routeId: input.route.id,
       workspaceId: input.route.workspaceId,
       sessionId: input.route.sessionId,
       eventHash: input.eventHash,
-      contentHash: input.contentHash,
+      contentHash: input.content.contentHash,
       kind,
       now: Date.now(),
     })
@@ -296,7 +305,7 @@ export class DshGateway {
           agent.followup(freezeMessage({
             id: MessageId(messageId),
             role: 'user',
-            content: [{ type: 'text', text: input.text }],
+            content: [...input.content.blocks],
             source: { kind: 'user' },
           } satisfies UserMessage))
         }
@@ -312,7 +321,11 @@ export class DshGateway {
 
     let result: GatewayCommandResult
     try {
-      const execution = await this.ctx.commands.execute(agent, input.text, input.signal ?? new AbortController().signal)
+      const execution = await this.ctx.commands.execute(
+        agent,
+        input.content.commandText!,
+        input.signal ?? new AbortController().signal,
+      )
       result = execution === undefined
         ? { kind: 'error', text: 'The command is no longer registered.' }
         : boundedCommandResult(execution.result)
@@ -521,6 +534,77 @@ function routeAgentOptions(route: ResolvedGatewayRoute): {
 
 function boundedText(value: string, maxChars: number): string {
   return value.length <= maxChars ? value : `${value.slice(0, maxChars - 1)}…`
+}
+
+function normalizeUserContent(
+  text: string | undefined,
+  rawImages: readonly ImageAttachmentRef[] | undefined,
+): GatewayUserContent {
+  const exactText = text === undefined || text.length === 0
+    ? undefined
+    : exactIngressText(text, 'text', 1_048_576)
+  if (rawImages !== undefined && !Array.isArray(rawImages)) {
+    throw new Error('channel images must be an array of native DSH attachment references')
+  }
+  const images = (rawImages ?? []).map(normalizeImageReference)
+  if (images.length > 100) throw new Error('channel content supports at most 100 image references')
+  if (exactText === undefined && images.length === 0) {
+    throw new Error('channel content must contain text or a native DSH image reference')
+  }
+  const blocks: UserMessage['content'] = [
+    ...(exactText === undefined ? [] : [{ type: 'text' as const, text: exactText }]),
+    ...images.map(attachment => ({ type: 'image' as const, attachment })),
+  ]
+  return Object.freeze({
+    blocks: Object.freeze(blocks),
+    ...(images.length === 0 && exactText !== undefined ? { commandText: exactText } : {}),
+    // Preserve the v1 text-only digest so an upgrade cannot turn a settled
+    // external event into false intent drift. Multimodal input uses a tagged
+    // canonical shape that includes every durable native image reference.
+    contentHash: images.length === 0 && exactText !== undefined
+      ? hash(exactText)
+      : hash(JSON.stringify({ schemaVersion: 2, text: exactText ?? null, images })),
+  })
+}
+
+function normalizeImageReference(input: ImageAttachmentRef): ImageAttachmentRef {
+  if (typeof input !== 'object' || input === null || Array.isArray(input)) {
+    throw new Error('channel image reference must be an object')
+  }
+  if (typeof input.attachmentId !== 'string') {
+    throw new Error('channel image attachmentId must be a native content-addressed reference')
+  }
+  const attachmentId = input.attachmentId
+  if (!/^sha256:[a-f0-9]{64}$/u.test(attachmentId)) {
+    throw new Error('channel image attachmentId must be a native content-addressed reference')
+  }
+  if (!['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(input.mediaType)) {
+    throw new Error('channel image mediaType is unsupported by native DSH attachments')
+  }
+  for (const [label, value] of [
+    ['bytes', input.bytes], ['width', input.width], ['height', input.height],
+  ] as const) {
+    if (!Number.isSafeInteger(value) || value < 1) {
+      throw new Error(`channel image ${label} must be a positive safe integer`)
+    }
+  }
+  const name = input.name === undefined ? undefined : exactImageName(input.name)
+  return Object.freeze({
+    attachmentId,
+    mediaType: input.mediaType,
+    bytes: input.bytes,
+    width: input.width,
+    height: input.height,
+    ...(name === undefined ? {} : { name }),
+  })
+}
+
+function exactImageName(value: string): string {
+  if (typeof value !== 'string' || value.length === 0 || value.trim() !== value
+    || value.length > 255 || /[/\\\u0000-\u001f\u007f]/u.test(value)) {
+    throw new Error('channel image name must be a safe path-free display name')
+  }
+  return value
 }
 
 function exactIngressText(value: string, label: string, maxBytes: number): string {

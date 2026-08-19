@@ -59,6 +59,10 @@ class PairingPlatform implements FeishuPlatform {
     throw new Error('pairing never sends a card')
   }
 
+  async downloadMessageResource(): Promise<Uint8Array> {
+    throw new Error('pairing never downloads a message resource')
+  }
+
   async emit(message: Partial<FeishuInboundMessage>): Promise<void> {
     if (this.messageHandler === undefined) throw new Error('message handler missing')
     await this.messageHandler({
@@ -68,6 +72,7 @@ class PairingPlatform implements FeishuPlatform {
       senderId: 'ou_exact_user',
       content: 'ignored',
       rawContentType: 'text',
+      resources: [],
       ...message,
     })
   }

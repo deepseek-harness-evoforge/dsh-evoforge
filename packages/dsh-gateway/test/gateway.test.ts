@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent, AgentHandle } from '@deepseek-ai/dsh-agent'
 import type { DomainFacility, KvTable } from '@deepseek-ai/dsh-storage-domain'
@@ -204,11 +205,55 @@ describe('DshGateway', () => {
       { sessionId: 'session-a', cwd: '/work/a', preset: 'standard', provider: 'mock', model: 'mock-a' },
       { sessionId: 'session-b', cwd: '/work/b', preset: 'minimal', provider: 'mock', model: 'mock-b' },
     ])
+    expect(journal.list().find(record => record.routeId === 'telegram-a')?.contentHash)
+      .toBe(createHash('sha256').update('message a').digest('hex'))
     await expect(gateway.dispatch({ endpoint: endpointA, eventId: 'update-7', text: 'altered' }))
       .rejects.toThrow('content changed')
     await expect(gateway.dispatch({
       endpoint: { ...endpointA, userId: 'someone-else' }, eventId: 'update-8', text: 'denied',
     })).rejects.toThrow('no configured gateway route')
+  })
+
+  it('publishes exact native image references without exposing an Adapter resource key', async () => {
+    const host = fakeNativeHost()
+    const facility = memoryFacility()
+    const gateway = new DshGateway(
+      host.ctx,
+      routes,
+      await openGatewayIngressJournal(facility),
+      await openGatewayOutboundJournal(facility),
+    )
+    await gateway.start()
+    const image = Object.freeze({
+      attachmentId: `sha256:${'a'.repeat(64)}` as never,
+      mediaType: 'image/png' as const,
+      bytes: 68,
+      width: 1,
+      height: 1,
+      name: 'diagram.png',
+    })
+
+    await gateway.dispatch({
+      endpoint: endpointB,
+      eventId: 'image-1',
+      text: 'Please inspect this image.',
+      images: [image],
+    })
+
+    expect(host.contents.get('session-b')).toEqual([[
+      { type: 'text', text: 'Please inspect this image.' },
+      { type: 'image', attachment: image },
+    ]])
+    expect(JSON.stringify(host.contents)).not.toContain('feishu-image-key')
+    await expect(gateway.dispatch({
+      endpoint: endpointB,
+      eventId: 'image-1',
+      text: 'Please inspect this image.',
+      images: [{ ...image, bytes: 69 }],
+    })).rejects.toThrow('content changed')
+    expect(() => gateway.dispatch({ endpoint: endpointB, eventId: 'empty', text: '', images: [] }))
+      .toThrow(/content/u)
+    await gateway.stop()
   })
 
   it('executes a native command once and replays only its retained result', async () => {
@@ -248,6 +293,7 @@ function fakeNativeHost(): {
   ctx: Context
   attached: Map<string, string[]>
   messages: Map<string, string[]>
+  contents: Map<string, unknown[][]>
   created: Array<{ sessionId: string; cwd: string; preset: string; provider: string; model: string }>
   executed: Array<{ sessionId: string; line: string }>
   commandLines: Set<string>
@@ -255,6 +301,7 @@ function fakeNativeHost(): {
 } {
   const attached = new Map<string, string[]>()
   const messages = new Map<string, string[]>()
+  const contents = new Map<string, unknown[][]>()
   const agents = new Map<string, Agent>()
   const created: Array<{ sessionId: string; cwd: string; preset: string; provider: string; model: string }> = []
   const executed: Array<{ sessionId: string; line: string }> = []
@@ -279,6 +326,9 @@ function fakeNativeHost(): {
         const list = messages.get(sessionId) ?? []
         list.push(message.content[0]?.text ?? '')
         messages.set(sessionId, list)
+        const exact = contents.get(sessionId) ?? []
+        exact.push(structuredClone(message.content))
+        contents.set(sessionId, exact)
       },
       steer: vi.fn(), inject: vi.fn(), send: vi.fn(), cancel: vi.fn(), whenIdle: vi.fn(), runMaintenance: vi.fn(),
     } as unknown as Agent
@@ -323,7 +373,7 @@ function fakeNativeHost(): {
     },
     on() {},
   } as unknown as Context
-  return { ctx, attached, messages, created, executed, commandLines, persisted }
+  return { ctx, attached, messages, contents, created, executed, commandLines, persisted }
 }
 
 function workspace(id: string, path: string, attached: Map<string, string[]>): object {

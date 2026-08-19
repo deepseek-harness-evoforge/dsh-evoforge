@@ -5,6 +5,7 @@ import { dirname, join, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { pathToFileURL, fileURLToPath } from 'node:url'
 import { freezeMessage, MessageId } from '@deepseek-ai/dsh-llm'
+import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import type { ApprovalOutcome } from '@deepseek-ai/dsh-user-approval'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -83,6 +84,11 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
         config: { backend: 'json' },
       },
       {
+        id: 'attachment-local',
+        name: join(dshSourceDir, 'packages', 'attachment', 'attachment-local', 'lib', 'index.js'),
+        config: { dshHome: join(root, '.dsh-home') },
+      },
+      {
         id: 'commands',
         name: join(dshSourceDir, 'packages', 'interaction', 'commands', 'lib', 'index.js'),
       },
@@ -148,6 +154,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
         emitApproval(action: FeishuApprovalAction): Promise<void>
         emitError(error: unknown): void
         queueFailure(error: unknown): void
+        setResource(messageId: string, fileKey: string, value: Uint8Array): void
       }
       runtime: FeishuRuntime
     } | undefined
@@ -280,6 +287,36 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
         routeId: 'feishu-main',
         text: 'EvoForge attention: inspect one Workspace-scoped review.',
       })).resolves.toMatchObject({ created: false, status: 'delivered' })
+
+      const imageBytes = new Uint8Array(Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+        'base64',
+      ))
+      service.platform.setResource('om_image', 'img_external_secret', imageBytes)
+      await service.platform.emitMessage(message({
+        messageId: 'om_image',
+        rawContentType: 'image',
+        content: '![image](img_external_secret)',
+        resources: [{ type: 'image', fileKey: 'img_external_secret', fileName: 'one.png' }],
+      }))
+      let attachment: ImageAttachmentRef | undefined
+      await vi.waitFor(() => {
+        const messages = [
+          ...agent!.inbox.nextTurn,
+          ...agent!.inbox.nextStep,
+          ...agent!.session.events
+            .filter((event: SessionEvent) => event.type === 'user/message')
+            .map((event: SessionEvent & { type: 'user/message' }) => event.data),
+        ]
+        const block = messages.flatMap(value => value.content)
+          .find(value => value.type === 'image')
+        expect(block?.type).toBe('image')
+        if (block?.type === 'image') attachment = block.attachment
+      }, { timeout: 5_000, interval: 10 })
+      expect(String(attachment?.attachmentId)).toMatch(/^sha256:[a-f0-9]{64}$/u)
+      expect(JSON.stringify(agent?.session.events)).not.toContain('img_external_secret')
+      const stored = await ctx.attachments.readImage(attachment!)
+      expect(Buffer.from(stored.data)).toEqual(Buffer.from(imageBytes))
     } finally {
       await ctx.fiber.dispose()
       process.chdir(previousCwd)
@@ -296,6 +333,7 @@ function message(overrides: Partial<FeishuInboundMessage>): FeishuInboundMessage
     senderId: 'ou_alice',
     content: 'verify the real DSH Feishu path',
     rawContentType: 'text',
+    resources: [],
     ...overrides,
   })
 }

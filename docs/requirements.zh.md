@@ -322,7 +322,11 @@ workspace，输出可审查的 launchd/systemd unit。OS service manager 与 uni
 并只复用当前 Session 的 `/feishu-pair` 生成待审查静态 route，消除手工查 ID 和拼命令的负担。
 exact route 消息和 Hermes paired 证据完成以前仍只标记为 `implemented`；公共渠道可靠性中的 ingress、
 普通文本 outbound intent/journal、幂等、按 account 串行、明确限流重试和脱敏状态已经收敛到
-`dsh-gateway`。平台协议、凭据、实际发送、卡片和 transport lifecycle 留在 Adapter；Adapter 只把
+`dsh-gateway`。Gateway 入站现接受 exact 文本与 DSH 原生 `ImageAttachmentRef`；飞书 Adapter 通过官方
+message-resource 端口下载图片，整批按 `ctx.attachments` 限制校验并内容寻址持久化，外部 `fileKey` 不进入
+Session。assembled DSH 已证明原生 image block 和 exact bytes 回读，但尚未证明真实用户消息或真实多模态
+provider。固定 DSH attachment v1 没有通用文件契约，普通文件、音视频以及文档/知识库/云盘/多维表格仍
+必须按独立权限实现，不能发明 Gateway file block。平台协议、凭据、实际发送、卡片和 transport lifecycle 留在 Adapter；Adapter 只把
 exact route 所属的脱敏 transport observation 注册到 Gateway 权威健康投影，也不把
 其他消息、内容或日程需求视为已交付。该说明不改变以上需求顺序和权限边界。
 
@@ -460,6 +464,7 @@ Retention、反事实 canary、持续监测和低风险自动晋升必须直接�
 - [ADR：main 是实时开发线，tag 只标记验证发布](adr/0047-main-is-the-live-development-line-and-tags-mark-verified-releases.md)
 - [ADR：自我发现只从 DSH 自身经验学习](adr/0048-self-discovery-learns-from-dsh-experience.md)
 - [ADR：渠道 Adapter 共享一个薄型 DSH Gateway](adr/0049-channel-adapters-share-one-thin-dsh-gateway.md)
+- [ADR：渠道图片只以 DSH 原生附件引用进入 Session](adr/0069-channel-images-enter-dsh-as-native-attachments.md)
 - [ADR：Gateway Web 是只读 Host 权威投影](adr/0060-gateway-web-is-a-read-only-host-projection.md)
 - [2026-08-19 目标重新对齐审计](audits/2026-08-19-goal-realignment.zh.md)
 

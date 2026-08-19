@@ -14,6 +14,7 @@ import {
   type GatewayTransportRegistration,
 } from 'dsh-gateway'
 import type { ResolvedFeishuConfig, ResolvedFeishuRoute } from './config.js'
+import { materializeFeishuInbound } from './inbound-images.js'
 import type { FeishuHostNotice, FeishuHostNoticeReceipt } from './host-route.js'
 import {
   renderFeishuHealthCommand,
@@ -276,7 +277,8 @@ export class FeishuRuntime {
   private async handleMessage(message: FeishuInboundMessage): Promise<void> {
     if (this.lifecycle.signal.aborted) return
     this.observeTransportActivity()
-    if (message.rawContentType !== 'text' && message.rawContentType !== 'post') return
+    if (message.rawContentType !== 'text' && message.rawContentType !== 'post'
+      && message.rawContentType !== 'image') return
     const endpoint: GatewayEndpoint = Object.freeze({
       adapter: 'feishu',
       accountId: this.config.appId,
@@ -288,6 +290,12 @@ export class FeishuRuntime {
     if (route === undefined || !this.configuredRouteIds.has(route.id)) return
     const selected = this.routesById.get(route.id)
     if (selected === undefined) return
+    const materialized = await materializeFeishuInbound(
+      message,
+      this.platform,
+      this.ctx.attachments,
+      this.lifecycle.signal,
+    )
     const eventId = `message:${message.messageId}`
     const messageId = this.gateway.messageIdFor(endpoint, eventId)
     if (!this.repliesByMessage.has(messageId)
@@ -305,7 +313,8 @@ export class FeishuRuntime {
       dispatch = await this.gateway.dispatch({
         endpoint,
         eventId,
-        text: message.content,
+        ...(materialized.text === undefined ? {} : { text: materialized.text }),
+        images: materialized.images,
         signal: this.lifecycle.signal,
       })
     } catch (error: unknown) {

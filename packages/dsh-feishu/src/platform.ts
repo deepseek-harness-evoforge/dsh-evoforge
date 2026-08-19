@@ -6,6 +6,7 @@ import {
   type CardActionEvent,
   type HttpInstance,
   type NormalizedMessage,
+  type ResourceDescriptor,
 } from '@larksuiteoapi/node-sdk'
 import axios, { type AxiosInstance } from 'axios'
 import { HttpsProxyAgent } from 'https-proxy-agent'
@@ -19,8 +20,14 @@ export interface FeishuInboundMessage {
   readonly senderId: string
   readonly content: string
   readonly rawContentType: string
+  readonly resources: readonly FeishuInboundResource[]
   readonly threadId?: string
 }
+
+export type FeishuInboundResource = Pick<
+  ResourceDescriptor,
+  'type' | 'fileKey' | 'fileName' | 'durationMs' | 'coverImageKey'
+>
 
 export interface FeishuApprovalAction {
   readonly messageId: string
@@ -42,6 +49,13 @@ export interface FeishuPlatform {
   disconnect(): Promise<void>
   sendText(chatId: string, text: string, options?: FeishuSendOptions): Promise<{ readonly messageId: string }>
   sendCard(chatId: string, card: object): Promise<{ readonly messageId: string }>
+  downloadMessageResource(
+    messageId: string,
+    fileKey: string,
+    type: 'image' | 'file',
+    maxBytes: number,
+    signal?: AbortSignal,
+  ): Promise<Uint8Array>
 }
 
 export interface FeishuPlatformOptions {
@@ -145,6 +159,22 @@ function createOfficialPlatform(
         },
       )),
     sendCard: (chatId, card) => translateSendFailure(() => channel.send(chatId, { card })),
+    downloadMessageResource: async (messageId, fileKey, type, maxBytes, signal) => {
+      signal?.throwIfAborted()
+      if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > 100 * 1024 * 1024) {
+        throw new Error('dsh-feishu: message resource byte limit is invalid')
+      }
+      try {
+        const response = await channel.rawClient.im.v1.messageResource.get({
+          params: { type },
+          path: { message_id: messageId, file_key: fileKey },
+        })
+        return await readBoundedResource(response.getReadableStream(), maxBytes, signal)
+      } catch (error: unknown) {
+        signal?.throwIfAborted()
+        throw new Error('dsh-feishu: unable to download the exact message resource', { cause: error })
+      }
+    },
   }
   return Object.freeze(platform)
 }
@@ -252,8 +282,42 @@ function selectMessage(message: NormalizedMessage): FeishuInboundMessage {
     senderId: message.senderId,
     content: message.content,
     rawContentType: message.rawContentType,
+    resources: Object.freeze(message.resources.map(resource => Object.freeze({
+      type: resource.type,
+      fileKey: resource.fileKey,
+      ...(resource.fileName === undefined ? {} : { fileName: resource.fileName }),
+      ...(resource.durationMs === undefined ? {} : { durationMs: resource.durationMs }),
+      ...(resource.coverImageKey === undefined ? {} : { coverImageKey: resource.coverImageKey }),
+    }))),
     ...(message.threadId === undefined ? {} : { threadId: message.threadId }),
   })
+}
+
+async function readBoundedResource(
+  stream: NodeJS.ReadableStream & AsyncIterable<unknown> & { destroy(error?: Error): void },
+  maxBytes: number,
+  signal?: AbortSignal,
+): Promise<Uint8Array> {
+  const chunks: Buffer[] = []
+  let bytes = 0
+  const onAbort = (): void => stream.destroy(signal?.reason instanceof Error ? signal.reason : new Error('aborted'))
+  signal?.addEventListener('abort', onAbort, { once: true })
+  try {
+    for await (const value of stream) {
+      signal?.throwIfAborted()
+      const chunk = Buffer.isBuffer(value) ? value : Buffer.from(value as unknown as Uint8Array)
+      bytes += chunk.byteLength
+      if (bytes > maxBytes) {
+        stream.destroy(new Error('dsh-feishu: message resource exceeds the configured byte limit'))
+        throw new Error('dsh-feishu: message resource exceeds the configured byte limit')
+      }
+      chunks.push(chunk)
+    }
+    signal?.throwIfAborted()
+    return new Uint8Array(Buffer.concat(chunks, bytes))
+  } finally {
+    signal?.removeEventListener('abort', onAbort)
+  }
 }
 
 function selectAction(action: CardActionEvent): FeishuApprovalAction {

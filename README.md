@@ -73,7 +73,7 @@ dsh --profile web
 
 ## 当前 v0.1 工作
 
-`dsh-gateway` 已直接替换旧 Router 包且没有兼容转发层；Gateway、Telegram、飞书、Evolve Attention、全仓类型/构建和十一包 clean-profile add/dump/boot/remove/readback 均已回归通过。静态 exact endpoint、原生 Workspace/Session/Agent、Command、持久 ingress 与双 Workspace 双渠道隔离保持；Gateway 现已统一 Telegram/飞书普通文本的持久 outbound intent、幂等、按 account 串行、明确 429 有界重试、uncertain 恢复、脱敏 transport observation，并由同包 DSH Client Module 提供只读渠道健康视图。最终 tarball 的真实 DSH 浏览器已验证读取、刷新、Host 停机清除旧快照和同端口恢复。飞书 exact 消息闭环、内部 Candidate 独立评测、真实 provider、同模型编码/长任务和真实消息交付 Hermes paired epochs 仍是完成门禁；这些完成前不得发布或宣称整体上位。
+`dsh-gateway` 已直接替换旧 Router 包且没有兼容转发层；Gateway、Telegram、飞书、Evolve Attention、全仓类型/构建和十一包 clean-profile add/dump/boot/remove/readback 均已回归通过。静态 exact endpoint、原生 Workspace/Session/Agent、Command、持久 ingress 与双 Workspace 双渠道隔离保持；Gateway 现已统一 Telegram/飞书普通文本的持久 outbound intent、幂等、按 account 串行、明确 429 有界重试、uncertain 恢复、脱敏 transport observation，并由同包 DSH Client Module 提供只读渠道健康视图。飞书图片已在 assembled DSH 中经官方 message-resource 端口下载、整批校验、原生 AttachmentStore 内容寻址保存并以 `ImageAttachmentRef` 进入 Agent，外部 `fileKey` 不进入 Session；固定 DSH attachment v1 尚无通用文件契约，因此普通文件、音视频及飞书内容能力仍明确 pending。最终 tarball 的真实 DSH 浏览器已验证读取、刷新、Host 停机清除旧快照和同端口恢复。真实飞书 exact 用户消息/回复/Approval、内部 Candidate 独立评测、真实 provider、同模型编码/长任务和真实消息交付 Hermes paired epochs 仍是完成门禁；这些完成前不得发布或宣称整体上位。
 
 - [安装与验收](docs/getting-started.zh.md)
 - [当前状态](docs/status.zh.md)
@@ -88,5 +88,6 @@ dsh --profile web
 - [ADR-0060](docs/adr/0060-gateway-web-is-a-read-only-host-projection.md)
 - [ADR-0067](docs/adr/0067-generations-resolve-only-internal-content-addressed-bundles.md)
 - [ADR-0068](docs/adr/0068-shadow-consumes-one-exact-internal-candidate.md)
+- [ADR-0069](docs/adr/0069-channel-images-enter-dsh-as-native-attachments.md)
 
 License: MIT.

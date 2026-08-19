@@ -10,7 +10,7 @@ import type {
 } from '../../src/index.ts'
 
 export const name = 'dsh-feishu-test-runtime-bootstrap'
-export const inject = ['evoforge.gateway']
+export const inject = ['attachments', 'evoforge.gateway']
 
 interface Config {
   readonly feishuEntry: string
@@ -30,6 +30,7 @@ class FakeFeishuPlatform implements FeishuPlatform {
   readonly cards: Array<{ chatId: string; card: object }> = []
   readonly sendAttempts: string[] = []
   private readonly failures: unknown[] = []
+  private readonly resources = new Map<string, Uint8Array>()
   connected = false
   private messageHandler: ((message: FeishuInboundMessage) => Promise<void>) | undefined
   private approvalHandler: ((action: FeishuApprovalAction) => Promise<void>) | undefined
@@ -64,6 +65,22 @@ class FakeFeishuPlatform implements FeishuPlatform {
   async sendCard(chatId: string, card: object): Promise<{ messageId: string }> {
     this.cards.push(Object.freeze({ chatId, card }))
     return { messageId: `om_card_${this.cards.length}` }
+  }
+
+  async downloadMessageResource(
+    messageId: string,
+    fileKey: string,
+    _type: 'image' | 'file',
+    maxBytes: number,
+  ): Promise<Uint8Array> {
+    const value = this.resources.get(`${messageId}\0${fileKey}`)
+    if (value === undefined) throw new Error('test Feishu message resource is unavailable')
+    if (value.byteLength > maxBytes) throw new Error('test Feishu message resource exceeds maxBytes')
+    return new Uint8Array(value)
+  }
+
+  setResource(messageId: string, fileKey: string, value: Uint8Array): void {
+    this.resources.set(`${messageId}\0${fileKey}`, new Uint8Array(value))
   }
 
   async emitMessage(message: FeishuInboundMessage): Promise<void> {

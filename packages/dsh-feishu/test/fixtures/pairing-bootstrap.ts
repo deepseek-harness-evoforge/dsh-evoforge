@@ -50,6 +50,10 @@ class FakePairingPlatform implements FeishuPlatform {
     throw new Error('pairing never sends a card')
   }
 
+  async downloadMessageResource(): Promise<Uint8Array> {
+    throw new Error('pairing never downloads a message resource')
+  }
+
   async emitMessage(message: FeishuInboundMessage): Promise<void> {
     if (this.messageHandler === undefined) throw new Error('pairing message handler is unavailable')
     await this.messageHandler(message)

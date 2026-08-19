@@ -13,3 +13,7 @@ send 调用、卡片/Approval UI 与 transport `ready/degraded` 仍留在 Adapte
 `healthSnapshot()` 现在按 exact route 子集投影静态 route、原生 live Session、生命周期、持久 ingress 和
 公共 outbound 元数据；外部 account/chat/user、正文、external message id、错误正文和凭据不出现在快照中。
 统一 DSH Web 渠道视图和 Adapter transport 聚合仍是后续门禁。
+
+入站二进制边界由 [ADR-0069](0069-channel-images-enter-dsh-as-native-attachments.md) 进一步收紧：平台资源
+必须在 Adapter 内转换为 DSH 原生内容寻址图片引用后才能进入 Gateway；Gateway 不拥有下载、平台 key、
+私有附件库或 DSH 尚未定义的通用 file block。

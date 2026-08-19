@@ -1,6 +1,6 @@
 # EvoForge v0.1 路线图
 
-> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已替换旧 Router 并完成公共 outbound/健康 Web 的真实浏览器失败恢复验收。ClawHub/市场/research Candidate、公开 source/target 配置、活动 Git materializer/ref、Feedback/Evaluator Draft、Shadow 内 proposer、自动 review expiry、旧 Retention/canary 编排和对应 Control/Web/attention 表面均已删除，packed runtime 只解析内部内容寻址 Bundle。缺失 Skill Candidate 已绑定四 Goal 证据 seal、独立 admission/holdout、exact-Candidate Shadow 与 future-only Generation；现有 Skill 仍只形成等待完整 baseline Bundle 的调查。下一阶段建立 DSH 已安装 Skill 的完整基线快照，并在内部 Opportunity/Candidate/Envelope/Outcome 上重建 Retention/canary。真实 provider、exact 飞书消息与 Hermes paired 仍未完成，v0.1 未发布。
+> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已替换旧 Router 并完成公共 outbound/健康 Web 的真实浏览器失败恢复验收，飞书图片已在 assembled DSH 中经官方资源下载、整批校验、原生 AttachmentStore 保存并以内容寻址引用进入 Agent。ClawHub/市场/research Candidate、公开 source/target 配置、活动 Git materializer/ref、Feedback/Evaluator Draft、Shadow 内 proposer、自动 review expiry、旧 Retention/canary 编排和对应 Control/Web/attention 表面均已删除，packed runtime 只解析内部内容寻址 Bundle。缺失 Skill Candidate 已绑定四 Goal 证据 seal、独立 admission/holdout、exact-Candidate Shadow 与 future-only Generation；现有 Skill 仍只形成等待完整 baseline Bundle 的调查。下一阶段建立 DSH 已安装 Skill 的完整基线快照，并在内部 Opportunity/Candidate/Envelope/Outcome 上重建 Retention/canary。真实 provider、exact 飞书用户消息与 Hermes paired 仍未完成；固定 DSH attachment v1 不支持通用文件，普通文件/音视频和飞书内容能力仍 pending，v0.1 未发布。
 > 更新日期：2026-08-19
 
 ## 开发与发布纪律
@@ -41,7 +41,7 @@
 
 ## V2 — 飞书 Adapter
 
-实现状态：Adapter、Gateway 公共可靠投递、真实 DSH 单 Workspace 组合、双 Workspace 双渠道同 Host 重启隔离、Telegram/飞书进化注意力、tarball lifecycle 与十一包总装已完成；真实飞书 App 身份请求、标准代理环境 WebSocket 和 setup-only pairing transport 已通过。同包 DSH Web Client Module 已从最终 tarball 安装到干净 profile，真实浏览器证明其在当前 Session 内生成/复制/取消配对且零 console error；用户尚未发送配对短语，exact route 消息仍未达到退出门。
+实现状态：Adapter、Gateway 公共可靠投递、真实 DSH 单 Workspace 组合、双 Workspace 双渠道同 Host 重启隔离、Telegram/飞书进化注意力、tarball lifecycle 与十一包总装已完成；真实飞书 App 身份请求、标准代理环境 WebSocket 和 setup-only pairing transport 已通过。assembled 图片纵切已经证明外部 key 只停留在 Adapter，原生引用进入 Session 且 exact bytes 可由 AttachmentStore 回读；它不是用户真实飞书消息或真实多模态 provider 证据。同包 DSH Web Client Module 已从最终 tarball 安装到干净 profile，真实浏览器证明其在当前 Session 内生成/复制/取消配对且零 console error；用户尚未发送配对短语，exact route 消息仍未达到退出门。普通文件、音视频及飞书内容能力继续作为独立权限增量，不发明 Gateway file block。
 
 - 支持静态授权的私聊或群聊文本、原生 Command、一次性 Approval、最终回答、Goal/Schedule 与进化注意力；
 - 凭据、身份与 Workspace route 只能由部署配置决定；

@@ -183,6 +183,7 @@ function message(overrides: Partial<FeishuInboundMessage>): FeishuInboundMessage
     senderId: 'ou_discovered',
     content: 'ignored',
     rawContentType: 'text',
+    resources: [],
     ...overrides,
   }
 }
