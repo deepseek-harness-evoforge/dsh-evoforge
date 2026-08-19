@@ -223,11 +223,12 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'firstObservedAt': z.number().readonly(),
   'lastObservedAt': z.number().readonly(),
   'evidence': z.object({
-  'kind': z.literal("internal-experience-v2").readonly(),
+  'kind': z.literal("internal-experience-v3").readonly(),
   'eligibilityBasis': z.literal("two-or-more-distinct-goals").readonly(),
   'correctionSignals': z.object({
-  'association': z.literal("same-session-single-skill-gap").readonly(),
+  'association': z.literal("exact-durable-skill-invocation").readonly(),
   'count': z.number().readonly(),
+  'goalCount': z.number().readonly(),
   'ids': z.array(z.string()).readonly(),
   'referencesTruncated': z.boolean().readonly(),
 }).readonly(),

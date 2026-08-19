@@ -33,11 +33,12 @@ const workspaceId = '11111111-1111-4111-8111-111111111111'
 const sessionId = 'browser-evolution-session'
 
 const internalOpportunityEvidence = {
-  kind: 'internal-experience-v2' as const,
+  kind: 'internal-experience-v3' as const,
   eligibilityBasis: 'two-or-more-distinct-goals' as const,
   correctionSignals: {
-    association: 'same-session-single-skill-gap' as const,
+    association: 'exact-durable-skill-invocation' as const,
     count: 1,
+    goalCount: 1,
     ids: ['2'.repeat(64)],
     referencesTruncated: false,
   },

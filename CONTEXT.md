@@ -102,6 +102,10 @@ _Avoid_: Gap cluster, search result, user-selected Skill, authoring permission, 
 A conservative, non-causal link from one compact Delivery Outcome to one stable native Goal identity whose known Gap evidence names exactly one Skill. The Outcome must follow a matching Gap in time and may carry the same or a later native Goal revision; an older revision, another Skill, or another Workspace abstains. This context never contributes another Goal to Opportunity eligibility or proves rework, reuse, or improvement.
 _Avoid_: Exact-revision equality, retry evidence, causal attribution, success vote
 
+**Exact Skill Correction Attribution**:
+A fail-closed, non-causal link from one Explicit Feedback Signal to the target assistant turn's only successful durable Skill invocation and the native Goal identity folded through that turn. Missing or ambiguous turns, invocations, or Goals abstain; same-Session Gap proximity is not attribution.
+_Avoid_: Same-Session inference, Gap proximity, Skill blame, causal proof
+
 **Fast Evolution Loop**:
 A bounded online loop that attributes an explicit correction, verified outcome, repeated failure, or measured cost to the exact Session Generation and records an inactive signal, gap, or small candidate for later evaluation. It never rewrites an active capability or publishes from the originating Session.
 _Avoid_: Learn-once activation, synchronous reflection, retry-as-learning
@@ -211,7 +215,7 @@ A host-only, read-only comparison of bounded delivery outcome counts attributed 
 _Avoid_: A/B platform, automatic verdict, improvement percentage, task-normalized benchmark
 
 **Explicit Feedback Signal**:
-A retractable, reference-only projection owned by the same Evolution Workspace as one current negative DSH message-feedback item with a non-blank human note. It stores the Workspace, DSH feedback version and Session/message/Generation references, but never copies the note, note hash, cwd, Prompt, Transcript, or message body. It may justify later Candidate investigation; it never authorizes a mutation by itself.
+A retractable, reference-only projection owned by the same Evolution Workspace as one current negative DSH message-feedback item with a non-blank human note. It may carry Exact Skill Correction Attribution, but never copies the note, note hash, cwd, Prompt, Transcript, message body, or Skill body; it may justify investigation but never authorizes mutation.
 _Avoid_: `/learn` command, feedback memory, transcript copy, automatic Skill edit
 
 **Feedback Case Draft**:

@@ -7,6 +7,10 @@ import {
   type DomainFacility,
 } from '@deepseek-ai/dsh-storage-domain'
 import { z } from 'zod'
+import type {
+  DurableFeedbackAttribution,
+  ExactSkillInvocationAttribution,
+} from './durable-feedback-attribution.ts'
 import type { EvolutionStore, SessionIdentity } from './generation-store.ts'
 import { workspaceIdForCwd } from './workspace-identity.ts'
 
@@ -14,6 +18,18 @@ const DEFAULT_MAX_SESSIONS = 1_000
 const MAX_SIGNALS_PER_SESSION = 100
 const hashSchema = z.string().regex(/^[a-f0-9]{64}$/)
 const nonNegativeSafeInteger = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
+const exactSkillInvocationAttributionSchema = z.strictObject({
+  kind: z.literal('exact-skill-invocation-v1'),
+  skillName: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+  route: z.enum(['user-explicit', 'model-tool']),
+  invocationSeq: nonNegativeSafeInteger,
+  assistantSeq: nonNegativeSafeInteger,
+  turn: nonNegativeSafeInteger,
+  goal: z.strictObject({
+    id: z.string().min(1).max(512),
+    revision: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+  }),
+})
 
 const sourceFeedbackItemSchema = z.object({
   messageId: z.string().min(1).max(512),
@@ -37,6 +53,7 @@ const storedSignalItemSchema = z.strictObject({
   messageId: z.string().min(1).max(512),
   feedbackVersion: z.uuid(),
   sourceUpdatedAt: nonNegativeSafeInteger,
+  attribution: exactSkillInvocationAttributionSchema.optional(),
 })
 
 const storedSignalSessionSchema = z.strictObject({
@@ -70,6 +87,7 @@ export interface FeedbackSignal {
   readonly feedbackVersion: string
   readonly sourceUpdatedAt: number
   readonly generationId?: string | undefined
+  readonly attribution?: ExactSkillInvocationAttribution | undefined
 }
 
 export interface FeedbackSignalSummary {
@@ -161,6 +179,7 @@ class DomainFeedbackSignalStore implements FeedbackSignalStore {
         feedbackVersion: item.feedbackVersion,
         sourceUpdatedAt: item.sourceUpdatedAt,
         ...(session.generationId === undefined ? {} : { generationId: session.generationId }),
+        ...(item.attribution === undefined ? {} : { attribution: item.attribution }),
       })
     }
     return undefined
@@ -179,6 +198,7 @@ class DomainFeedbackSignalStore implements FeedbackSignalStore {
         feedbackVersion: item.feedbackVersion,
         sourceUpdatedAt: item.sourceUpdatedAt,
         ...(session.generationId === undefined ? {} : { generationId: session.generationId }),
+        ...(item.attribution === undefined ? {} : { attribution: item.attribution }),
       })))
       .sort((left, right) => left.sourceUpdatedAt - right.sourceUpdatedAt
         || left.id.localeCompare(right.id))
@@ -230,7 +250,10 @@ export function installFeedbackSignalMonitor(
   ctx: Context,
   signals: FeedbackSignalStore,
   evolution: Pick<EvolutionStore, 'getSessionGeneration'>,
-  options: { now?: () => number } = {},
+  options: {
+    now?: () => number
+    attribution?: Pick<DurableFeedbackAttribution, 'resolve'>
+  } = {},
 ): FeedbackSignalMonitor {
   const now = options.now ?? Date.now
   let disposed = false
@@ -264,15 +287,23 @@ export function installFeedbackSignalMonitor(
         ...(parsed.data.session.cwd === undefined ? {} : { cwd: parsed.data.session.cwd }),
       }
       const generationId = evolution.getSessionGeneration(identity)?.id
-      const items = parsed.data.items.flatMap((item) => {
-        if (item.rating !== 'negative' || item.note === undefined || item.note.trim() === '') return []
-        return [{
+      const items: FeedbackSignalSessionInput['items'][number][] = []
+      for (const item of parsed.data.items) {
+        if (item.rating !== 'negative' || item.note === undefined || item.note.trim() === '') continue
+        let attribution: ExactSkillInvocationAttribution | undefined
+        try {
+          attribution = await options.attribution?.resolve(identity.sessionId, String(item.messageId))
+        } catch {
+          ctx.logger.warn('dsh-evolve could not attribute one feedback signal; it remains non-causal')
+        }
+        items.push({
           id: hashJson([workspaceId, identity.sessionId, item.messageId, item.version]),
           messageId: item.messageId,
           feedbackVersion: item.version,
           sourceUpdatedAt: item.updatedAt,
-        }]
-      })
+          ...(attribution === undefined ? {} : { attribution }),
+        })
+      }
       await signals.replaceSession({
         observedAt: now(),
         workspaceId,

@@ -123,6 +123,15 @@ describe.skipIf(process.platform !== 'darwin')('Capability Gap durable queue', (
           messageId: 'feedback-message-a',
           feedbackVersion: '00000000-0000-4000-8000-000000000001',
           sourceUpdatedAt: 120,
+          attribution: {
+            kind: 'exact-skill-invocation-v1',
+            skillName: 'release-dsh-plugin',
+            route: 'model-tool',
+            invocationSeq: 3,
+            assistantSeq: 5,
+            turn: 1,
+            goal: { id: 'goal-a', revision: 1 },
+          },
         }],
       })
       await outcomes.record({

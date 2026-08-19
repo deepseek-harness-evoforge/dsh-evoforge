@@ -193,11 +193,12 @@ export interface EvolutionSkillOpportunityView {
   readonly firstObservedAt: number
   readonly lastObservedAt: number
   readonly evidence: {
-    readonly kind: 'internal-experience-v2'
+    readonly kind: 'internal-experience-v3'
     readonly eligibilityBasis: 'two-or-more-distinct-goals'
     readonly correctionSignals: {
-      readonly association: 'same-session-single-skill-gap'
+      readonly association: 'exact-durable-skill-invocation'
       readonly count: number
+      readonly goalCount: number
       readonly ids: readonly string[]
       readonly referencesTruncated: boolean
     }

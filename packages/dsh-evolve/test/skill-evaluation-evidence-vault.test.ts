@@ -266,7 +266,7 @@ function gap(id: string, goalId: string, observedAt: number): CapabilityGap {
 
 function skillOpportunity(gaps: readonly CapabilityGap[]): SkillOpportunity {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     id: 'f'.repeat(64),
     workspaceId: WORKSPACE_ID,
     skillName: 'missing-release-skill',
@@ -277,11 +277,12 @@ function skillOpportunity(gaps: readonly CapabilityGap[]): SkillOpportunity {
     firstObservedAt: 10,
     lastObservedAt: 40,
     evidence: {
-      kind: 'internal-experience-v2',
+      kind: 'internal-experience-v3',
       eligibilityBasis: 'two-or-more-distinct-goals',
       correctionSignals: {
-        association: 'same-session-single-skill-gap',
+        association: 'exact-durable-skill-invocation',
         count: 0,
+        goalCount: 0,
         ids: [],
         referencesTruncated: false,
       },

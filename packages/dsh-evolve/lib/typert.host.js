@@ -223,11 +223,12 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'firstObservedAt': z.number().readonly(),
   'lastObservedAt': z.number().readonly(),
   'evidence': z.object({
-  'kind': z.literal("internal-experience-v2").readonly(),
+  'kind': z.literal("internal-experience-v3").readonly(),
   'eligibilityBasis': z.literal("two-or-more-distinct-goals").readonly(),
   'correctionSignals': z.object({
-  'association': z.literal("same-session-single-skill-gap").readonly(),
+  'association': z.literal("exact-durable-skill-invocation").readonly(),
   'count': z.number().readonly(),
+  'goalCount': z.number().readonly(),
   'ids': z.array(z.string()).readonly(),
   'referencesTruncated': z.boolean().readonly(),
 }).readonly(),
@@ -1821,7 +1822,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionSkillOpportunityView",
-            "declaration": "export interface EvolutionSkillOpportunityView {\n    readonly id: string;\n    readonly skillName: string;\n    readonly gapIds: readonly string[];\n    readonly goalIds: readonly string[];\n    readonly gapCount: number;\n    readonly goalCount: number;\n    readonly firstObservedAt: number;\n    readonly lastObservedAt: number;\n    readonly evidence: { readonly kind: 'internal-experience-v2'; readonly eligibilityBasis: 'two-or-more-distinct-goals'; readonly correctionSignals: { readonly association: 'same-session-single-skill-gap'; readonly count: number; readonly ids: readonly string[]; readonly referencesTruncated: boolean; }; readonly deliveryOutcomes: { readonly association: 'same-goal-single-skill-gap'; readonly total: number; readonly passed: number; readonly failed: number; readonly unknown: number; readonly ids: readonly string[]; readonly referencesTruncated: boolean; }; readonly causalClaim: 'none'; };\n    readonly evaluationReadiness: { readonly status: 'ready-to-seal' | 'sealed'; readonly evidenceId: string; readonly observedGoalCount: number; readonly authoringGoalCount: number; readonly admissionGoalCount: number; readonly holdoutGoalCount: number; readonly proposerCanReadProtectedSamples: false; readonly releaseAuthority: 'none'; } | { readonly status: 'waiting'; readonly reason: 'fewer-than-four-independent-goals'; readonly observedGoalCount: number; readonly requiredGoalCount: 4; readonly releaseAuthority: 'none'; } | { readonly status: 'unavailable'; readonly reason: 'governance-policy-unavailable'; readonly observedGoalCount: number; readonly releaseAuthority: 'none'; } | { readonly status: 'invalid'; readonly reason: 'opportunity-evidence-invalid'; readonly observedGoalCount: number; readonly releaseAuthority: 'none'; };\n    readonly status: 'eligible-for-authoring';\n    readonly releaseAuthority: 'none';\n}"
+            "declaration": "export interface EvolutionSkillOpportunityView {\n    readonly id: string;\n    readonly skillName: string;\n    readonly gapIds: readonly string[];\n    readonly goalIds: readonly string[];\n    readonly gapCount: number;\n    readonly goalCount: number;\n    readonly firstObservedAt: number;\n    readonly lastObservedAt: number;\n    readonly evidence: { readonly kind: 'internal-experience-v3'; readonly eligibilityBasis: 'two-or-more-distinct-goals'; readonly correctionSignals: { readonly association: 'exact-durable-skill-invocation'; readonly count: number; readonly goalCount: number; readonly ids: readonly string[]; readonly referencesTruncated: boolean; }; readonly deliveryOutcomes: { readonly association: 'same-goal-single-skill-gap'; readonly total: number; readonly passed: number; readonly failed: number; readonly unknown: number; readonly ids: readonly string[]; readonly referencesTruncated: boolean; }; readonly causalClaim: 'none'; };\n    readonly evaluationReadiness: { readonly status: 'ready-to-seal' | 'sealed'; readonly evidenceId: string; readonly observedGoalCount: number; readonly authoringGoalCount: number; readonly admissionGoalCount: number; readonly holdoutGoalCount: number; readonly proposerCanReadProtectedSamples: false; readonly releaseAuthority: 'none'; } | { readonly status: 'waiting'; readonly reason: 'fewer-than-four-independent-goals'; readonly observedGoalCount: number; readonly requiredGoalCount: 4; readonly releaseAuthority: 'none'; } | { readonly status: 'unavailable'; readonly reason: 'governance-policy-unavailable'; readonly observedGoalCount: number; readonly releaseAuthority: 'none'; } | { readonly status: 'invalid'; readonly reason: 'opportunity-evidence-invalid'; readonly observedGoalCount: number; readonly releaseAuthority: 'none'; };\n    readonly status: 'eligible-for-authoring';\n    readonly releaseAuthority: 'none';\n}"
           },
           {
             "name": "EvolutionSlowLoopAuthoringView",

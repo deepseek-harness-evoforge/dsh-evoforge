@@ -1,5 +1,7 @@
 # V4-9 内部 Skill Candidate 边界重建证据
 
+> 历史证据：其中 correction 的弱关联限制已由 [V4.20](v4-20-exact-durable-feedback-attribution.zh.md) 替代；Candidate 无安装、激活和发布权限的边界继续有效。
+
 > 声明等级：`implemented`，不是 `verified/released`。本文证明活动源码已移除运行时能力获取与研究 Candidate 契约，并把 Candidate ingress、持久化、Admission、Lineage、Shadow 和 Web 收敛到内部 Skill Opportunity；它不证明完整自我进化或 Hermes 上位。
 
 ## 已实现的唯一 Candidate 数据流

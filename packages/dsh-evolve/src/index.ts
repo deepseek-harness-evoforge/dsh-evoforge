@@ -54,6 +54,7 @@ import {
   installFeedbackSignalMonitor,
   openFeedbackSignalStore,
 } from './feedback-signal-monitor.ts'
+import { DurableFeedbackAttribution } from './durable-feedback-attribution.ts'
 import { FeedbackCaseDraftBuilder } from './feedback-case-draft.ts'
 import { EvolutionControlPlane } from './evolution-control-plane.ts'
 import { EvolutionRemoteService } from './evolution-remote.ts'
@@ -213,7 +214,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     outcomes: deliveryOutcomes,
   })
   const skillCandidateStore = await openSkillCandidateStore(ctx.storageDomain)
-  const feedbackMonitor = installFeedbackSignalMonitor(ctx, feedbackSignals, store)
+  let durableFeedbackAttribution: DurableFeedbackAttribution | undefined
+  const feedbackMonitor = installFeedbackSignalMonitor(ctx, feedbackSignals, store, {
+    attribution: {
+      resolve: (sessionId, assistantMessageId) => durableFeedbackAttribution
+        ?.resolve(sessionId, assistantMessageId) ?? Promise.resolve(undefined),
+    },
+  })
   const deliveryMonitor = installDeliveryOutcomeMonitor(ctx, deliveryOutcomes, store)
   let feedbackDraftBuilder: FeedbackCaseDraftBuilder | undefined
   const automaticTargets = config.autoPromote?.targets ?? []
@@ -569,6 +576,15 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     ...(automaticEvaluator === undefined ? {} : { automaticEvaluator }),
     ...(evaluatorDrafts === undefined ? {} : { evaluatorDrafts }),
   })
+  ctx.inject(['sessionPersistence'], (attributionCtx) => {
+    const attribution = new DurableFeedbackAttribution(attributionCtx.sessionPersistence)
+    attributionCtx.effect(() => {
+      durableFeedbackAttribution = attribution
+      return () => {
+        if (durableFeedbackAttribution === attribution) durableFeedbackAttribution = undefined
+      }
+    }, 'dsh-evolve.durableFeedbackAttribution')
+  })
   if (config.feedbackDraftRoot !== undefined) {
     ctx.inject(['messageFeedback', 'sessionPersistence'], (draftCtx) => {
       const builder = new FeedbackCaseDraftBuilder(
@@ -761,6 +777,7 @@ export type {
   SkillEvaluationGovernanceRunView,
   SkillEvaluationGovernanceScan,
 } from './skill-evaluation-governance.ts'
+export type { ExactSkillInvocationAttribution } from './durable-feedback-attribution.ts'
 export type { FeedbackShadowTargetConfig } from './feedback-shadow-launcher.ts'
 export type { AutomaticFeedbackShadowTargetReference } from './automatic-feedback-shadow.ts'
 export type { AutomaticEvaluatorDraftTargetReference } from './automatic-evaluator-draft.ts'

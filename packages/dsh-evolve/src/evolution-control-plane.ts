@@ -153,6 +153,7 @@ export class EvolutionControlPlane {
                 correctionSignals: {
                   association: opportunity.evidence.correctionSignals.association,
                   count: opportunity.evidence.correctionSignals.count,
+                  goalCount: opportunity.evidence.correctionSignals.goalCount,
                   ids: [...opportunity.evidence.correctionSignals.ids],
                   referencesTruncated: opportunity.evidence.correctionSignals.referencesTruncated,
                 },

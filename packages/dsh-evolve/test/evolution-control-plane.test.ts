@@ -11,11 +11,12 @@ const reviewId = 'c'.repeat(64)
 
 function opportunityEvidence() {
   return {
-    kind: 'internal-experience-v2' as const,
+    kind: 'internal-experience-v3' as const,
     eligibilityBasis: 'two-or-more-distinct-goals' as const,
     correctionSignals: {
-      association: 'same-session-single-skill-gap' as const,
+      association: 'exact-durable-skill-invocation' as const,
       count: 1,
+      goalCount: 1,
       ids: ['3'.repeat(64)],
       referencesTruncated: false,
     },
@@ -337,7 +338,7 @@ describe('EvolutionControlPlane', () => {
       },
       opportunities: {
         discover: () => [{
-          schemaVersion: 2 as const,
+          schemaVersion: 3 as const,
           id: '8'.repeat(64),
           workspaceId: WORKSPACE_ID,
           skillName: 'release-native-extension',

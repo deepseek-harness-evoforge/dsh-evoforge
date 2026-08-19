@@ -1,5 +1,7 @@
 # V4-8 DSH 内部 Skill Opportunity 发现与隔离生成证据
 
+> 历史证据：其中 correction 的 same-Session/unique-Gap 关联已由 [V4.20](v4-20-exact-durable-feedback-attribution.zh.md) 和 [ADR-0064](../adr/0064-corrections-require-exact-durable-skill-invocation.md) 替代；Opportunity 资格的跨 Goal Gap 规则继续有效。
+
 > 声明等级：`implemented`，不是 `verified/released`。本文只证明内部经验纵切的代码、状态和自动化门；真实 provider 的独立评估与长期 outcome 尚未闭合。
 
 ## 用户结果

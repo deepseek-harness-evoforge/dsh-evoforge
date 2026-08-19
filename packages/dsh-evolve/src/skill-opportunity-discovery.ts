@@ -7,11 +7,12 @@ const DEFAULT_MAX_OPPORTUNITIES = 20
 const MAX_EVIDENCE_REFERENCES = 100
 
 export interface SkillOpportunityEvidence {
-  readonly kind: 'internal-experience-v2'
+  readonly kind: 'internal-experience-v3'
   readonly eligibilityBasis: 'two-or-more-distinct-goals'
   readonly correctionSignals: {
-    readonly association: 'same-session-single-skill-gap'
+    readonly association: 'exact-durable-skill-invocation'
     readonly count: number
+    readonly goalCount: number
     readonly ids: readonly string[]
     readonly referencesTruncated: boolean
   }
@@ -24,12 +25,12 @@ export interface SkillOpportunityEvidence {
     readonly ids: readonly string[]
     readonly referencesTruncated: boolean
   }
-  /** Associated context is not evidence that the missing Skill caused the result. */
+  /** Exact invocation association still does not prove that the Skill caused the result. */
   readonly causalClaim: 'none'
 }
 
 export interface SkillOpportunity {
-  readonly schemaVersion: 2
+  readonly schemaVersion: 3
   readonly id: string
   readonly workspaceId: string
   readonly skillName: string
@@ -104,7 +105,7 @@ export class ExperienceDrivenSkillOpportunityDiscovery {
         left.observedAt - right.observedAt || left.id.localeCompare(right.id))
       const first = sorted[0]!
       opportunities.push(Object.freeze({
-        schemaVersion: 2,
+        schemaVersion: 3,
         id: opportunityId(first.workspaceId, first.requestedSkill),
         workspaceId: first.workspaceId,
         skillName: first.requestedSkill,
@@ -130,8 +131,6 @@ export class ExperienceDrivenSkillOpportunityDiscovery {
 }
 
 interface AttributionIndex {
-  readonly sessionSkills: ReadonlyMap<string, ReadonlySet<string>>
-  readonly sessionSkillFirstGapAt: ReadonlyMap<string, number>
   readonly goalSkills: ReadonlyMap<string, ReadonlySet<string>>
   readonly goalSkillGaps: ReadonlyMap<string, readonly GoalGapRef[]>
 }
@@ -144,17 +143,9 @@ interface GoalGapRef {
 function buildAttributionIndex(
   gaps: readonly CapabilityGap[],
 ): AttributionIndex {
-  const sessionSkills = new Map<string, Set<string>>()
-  const sessionSkillFirstGapAt = new Map<string, number>()
   const goalSkills = new Map<string, Set<string>>()
   const goalSkillGaps = new Map<string, GoalGapRef[]>()
   for (const gap of gaps) {
-    addSkill(sessionSkills, sessionKey(gap.workspaceId, gap.sessionId), gap.requestedSkill)
-    setEarliest(
-      sessionSkillFirstGapAt,
-      sessionSkillKey(gap.workspaceId, gap.sessionId, gap.requestedSkill),
-      gap.observedAt,
-    )
     if (gap.goal !== undefined) {
       addSkill(
         goalSkills,
@@ -167,7 +158,7 @@ function buildAttributionIndex(
       goalSkillGaps.set(key, refs)
     }
   }
-  return { sessionSkills, sessionSkillFirstGapAt, goalSkills, goalSkillGaps }
+  return { goalSkills, goalSkillGaps }
 }
 
 function opportunityEvidence(
@@ -179,14 +170,8 @@ function opportunityEvidence(
 ): SkillOpportunityEvidence {
   const exactFeedback = uniqueById(feedback.filter((signal) => {
     if (signal.workspaceId !== workspaceId) return false
-    const skills = attribution.sessionSkills.get(sessionKey(workspaceId, signal.sessionId))
-    const firstGapAt = attribution.sessionSkillFirstGapAt.get(
-      sessionSkillKey(workspaceId, signal.sessionId, skillName),
-    )
-    return skills?.size === 1
-      && skills.has(skillName)
-      && firstGapAt !== undefined
-      && signal.sourceUpdatedAt >= firstGapAt
+    return signal.attribution?.kind === 'exact-skill-invocation-v1'
+      && signal.attribution.skillName === skillName
   })).sort((left, right) => left.sourceUpdatedAt - right.sourceUpdatedAt || left.id.localeCompare(right.id))
 
   const exactOutcomes = uniqueById(outcomes.filter((outcome) => {
@@ -200,15 +185,17 @@ function opportunityEvidence(
   })).sort((left, right) => left.observedAt - right.observedAt || left.id.localeCompare(right.id))
 
   const correctionIds = referenceIds(exactFeedback)
+  const correctionGoalCount = new Set(exactFeedback.map(signal => signal.attribution!.goal.id)).size
   const outcomeIds = referenceIds(exactOutcomes)
   const counts = { passed: 0, failed: 0, unknown: 0 }
   for (const outcome of exactOutcomes) counts[outcome.status] += 1
   return Object.freeze({
-    kind: 'internal-experience-v2',
+    kind: 'internal-experience-v3',
     eligibilityBasis: 'two-or-more-distinct-goals',
     correctionSignals: Object.freeze({
-      association: 'same-session-single-skill-gap',
+      association: 'exact-durable-skill-invocation',
       count: exactFeedback.length,
+      goalCount: correctionGoalCount,
       ids: correctionIds,
       referencesTruncated: exactFeedback.length > correctionIds.length,
     }),
@@ -235,19 +222,6 @@ function addSkill(target: Map<string, Set<string>>, key: string, skill: string):
   const skills = target.get(key) ?? new Set<string>()
   skills.add(skill)
   target.set(key, skills)
-}
-
-function setEarliest(target: Map<string, number>, key: string, observedAt: number): void {
-  const current = target.get(key)
-  if (current === undefined || observedAt < current) target.set(key, observedAt)
-}
-
-function sessionKey(workspaceId: string, sessionId: string): string {
-  return `${workspaceId}\0${sessionId}`
-}
-
-function sessionSkillKey(workspaceId: string, sessionId: string, skillName: string): string {
-  return `${sessionKey(workspaceId, sessionId)}\0${skillName}`
 }
 
 function goalKey(workspaceId: string, goalId: string): string {

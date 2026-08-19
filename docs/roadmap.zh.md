@@ -82,8 +82,9 @@
 `report_capability_gap(name)` Tool 已通过真实 Agent Loop，把 active Goal 中模型确认的无匹配情况经 Host
 复核后持久化。`ExperienceDrivenSkillOpportunityDiscovery` 以 durable Gap 决定资格：同 Workspace、同一
 Skill、至少两个不同 Goal 才产出确定性 Opportunity；同 Goal retry、无 Goal、跨 Workspace 和证据不足均
-abstain。Opportunity v2 另按同 Session 唯一 Gap Skill 关联明确纠正引用，按 stable Goal identity 跨 revision 的唯一 Gap
-Skill 关联 compact delivery outcome；事件必须晚于对应 Gap、revision 不得倒退、歧义 fail closed，固定 `causalClaim: none`，且不
+abstain。Opportunity v3 只关联 feedback 目标回答同一 durable turn 中唯一成功 Skill 调用及其 exact Goal id/revision，
+不再按同 Session Gap 猜测；同时按 stable Goal identity 跨 revision 的唯一 Gap Skill 关联 compact delivery outcome。Outcome
+必须晚于对应 Gap、revision 不得倒退、歧义 fail closed；两类上下文固定 `causalClaim: none`，且不
 改变资格/排序或 author 输入。`selfDiscoveryPolicies` 只配置 Workspace、run root 和日预算，不接受 Skill、路径、来源、Agent 或
 workflow 选择。原生 Job author 只接收有界内部 Goal/Gap 证据，输出 instruction-only whole-Skill v1，Host
 校验、内容寻址并写入 inactive/quarantined/unevaluated/never-executed Candidate。DSH Web 展示

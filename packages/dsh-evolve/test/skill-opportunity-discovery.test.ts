@@ -15,7 +15,7 @@ describe('experience-driven Skill opportunity discovery', () => {
     const discovery = new ExperienceDrivenSkillOpportunityDiscovery({ list: () => gaps })
 
     expect(discovery.discover(WORKSPACE)).toEqual([{
-      schemaVersion: 2,
+      schemaVersion: 3,
       id: expect.stringMatching(/^[a-f0-9]{64}$/),
       workspaceId: WORKSPACE,
       skillName: 'release-dsh-plugin',
@@ -26,11 +26,12 @@ describe('experience-driven Skill opportunity discovery', () => {
       firstObservedAt: 100,
       lastObservedAt: 200,
       evidence: {
-        kind: 'internal-experience-v2',
+        kind: 'internal-experience-v3',
         eligibilityBasis: 'two-or-more-distinct-goals',
         correctionSignals: {
-          association: 'same-session-single-skill-gap',
+          association: 'exact-durable-skill-invocation',
           count: 0,
+          goalCount: 0,
           ids: [],
           referencesTruncated: false,
         },
@@ -57,7 +58,7 @@ describe('experience-driven Skill opportunity discovery', () => {
       gap('3', 'goal-b', 'another-skill', 210, 2, WORKSPACE, 'session-b'),
     ]
     const feedback = [
-      signal('4', 'session-a', 110),
+      attributedSignal('4', 'session-a', 110, 'release-dsh-plugin', 'goal-a'),
       signal('5', 'session-a', 90),
       signal('6', 'session-b', 220),
     ]
@@ -73,11 +74,12 @@ describe('experience-driven Skill opportunity discovery', () => {
 
     const [opportunity] = discovery.discover(WORKSPACE)
     expect(opportunity?.evidence).toEqual({
-      kind: 'internal-experience-v2',
+      kind: 'internal-experience-v3',
       eligibilityBasis: 'two-or-more-distinct-goals',
       correctionSignals: {
-        association: 'same-session-single-skill-gap',
+        association: 'exact-durable-skill-invocation',
         count: 1,
+        goalCount: 1,
         ids: ['4'.repeat(64)],
         referencesTruncated: false,
       },
@@ -90,6 +92,36 @@ describe('experience-driven Skill opportunity discovery', () => {
         ids: ['7'.repeat(64), '8'.repeat(64)],
         referencesTruncated: false,
       },
+      causalClaim: 'none',
+    })
+  })
+
+  it('attributes corrections only through one exact durable Skill invocation and Goal', () => {
+    const gaps = [
+      gap('1', 'goal-a', 'release-dsh-plugin', 100, 1, WORKSPACE, 'session-a'),
+      gap('2', 'goal-b', 'release-dsh-plugin', 200, 1, WORKSPACE, 'session-b'),
+    ]
+    const weakSameSession = signal('3', 'session-a', 110)
+    const exactInvocation = attributedSignal(
+      '4',
+      'session-c',
+      310,
+      'release-dsh-plugin',
+      'goal-c',
+    )
+    const discovery = new ExperienceDrivenSkillOpportunityDiscovery(
+      { list: () => gaps },
+      { feedback: { list: () => [weakSameSession, exactInvocation] } },
+    )
+
+    expect(discovery.discover(WORKSPACE)[0]?.evidence.correctionSignals).toEqual({
+      association: 'exact-durable-skill-invocation',
+      count: 1,
+      goalCount: 1,
+      ids: ['4'.repeat(64)],
+      referencesTruncated: false,
+    })
+    expect(discovery.discover(WORKSPACE)[0]?.evidence).toMatchObject({
       causalClaim: 'none',
     })
   })
@@ -129,7 +161,7 @@ describe('experience-driven Skill opportunity discovery', () => {
     expect(discovery.discover(WORKSPACE)).toEqual([])
   })
 
-  it('refuses Session correction attribution when any second Skill gap makes the Session ambiguous', () => {
+  it('ignores feedback without an exact invocation even when its Session has one Gap Skill', () => {
     const unrelated = { ...gap(
       '3',
       'goal-c',
@@ -218,6 +250,37 @@ function signal(marker: string, sessionId: string, sourceUpdatedAt: number): Fee
     messageId: `message-${marker}`,
     feedbackVersion: `${marker.repeat(8)}-${marker.repeat(4)}-4${marker.repeat(3)}-8${marker.repeat(3)}-${marker.repeat(12)}`,
     sourceUpdatedAt,
+  }
+}
+
+function attributedSignal(
+  marker: string,
+  sessionId: string,
+  sourceUpdatedAt: number,
+  skillName: string,
+  goalId: string,
+): FeedbackSignal & {
+  readonly attribution: {
+    readonly kind: 'exact-skill-invocation-v1'
+    readonly skillName: string
+    readonly route: 'model-tool'
+    readonly invocationSeq: number
+    readonly assistantSeq: number
+    readonly turn: number
+    readonly goal: { readonly id: string; readonly revision: number }
+  }
+} {
+  return {
+    ...signal(marker, sessionId, sourceUpdatedAt),
+    attribution: {
+      kind: 'exact-skill-invocation-v1',
+      skillName,
+      route: 'model-tool',
+      invocationSeq: 12,
+      assistantSeq: 15,
+      turn: 3,
+      goal: { id: goalId, revision: 2 },
+    },
   }
 }
 

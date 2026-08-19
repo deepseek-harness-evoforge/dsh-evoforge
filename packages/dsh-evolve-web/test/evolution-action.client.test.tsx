@@ -18,11 +18,12 @@ const sessionId = 'session-1'
 
 function internalOpportunityEvidence() {
   return {
-    kind: 'internal-experience-v2' as const,
+    kind: 'internal-experience-v3' as const,
     eligibilityBasis: 'two-or-more-distinct-goals' as const,
     correctionSignals: {
-      association: 'same-session-single-skill-gap' as const,
+      association: 'exact-durable-skill-invocation' as const,
       count: 1,
+      goalCount: 1,
       ids: ['2'.repeat(64)],
       referencesTruncated: false,
     },
@@ -337,11 +338,14 @@ const t = (key: string) => ({
   'skills.opportunities.flow': 'Evidence Goals',
   'skills.opportunities.context': 'Associated internal evidence',
   'skills.opportunities.corrections': 'explicit corrections',
+  'skills.opportunities.correctionGoals': 'exactly attributed Goals',
   'skills.opportunities.delivery': 'delivery outcomes',
   'skills.opportunities.passed': 'passed',
   'skills.opportunities.failed': 'failed',
   'skills.opportunities.unknown': 'unknown',
-  'skills.opportunities.attribution': 'Exact Session/Goal-revision association only · No causal or authoring-eligibility claim',
+  'skills.opportunities.correctionAttribution': 'Correction attribution · exact durable Session Skill invocation and Goal revision',
+  'skills.opportunities.deliveryAssociation': 'Delivery association · same-Goal single-gap-Skill context',
+  'skills.opportunities.causalBoundary': 'No causal claim · no Opportunity or authoring-eligibility effect',
   'skills.opportunities.references': 'Evidence references',
   'skills.opportunities.reference.correction': 'correction',
   'skills.opportunities.reference.outcome': 'outcome',
@@ -867,8 +871,10 @@ describe('EvolutionAction', () => {
     expect(screen.getAllByText('4 distinct Goals · 4 Gap observations')).toHaveLength(2)
     expect(screen.getByText('Discovered from repeated capability gaps across DSH Goals')).toBeTruthy()
     expect(screen.getByText('Evidence Goals · goal-1 · goal-2 · goal-3 · goal-4')).toBeTruthy()
-    expect(screen.getByText('Associated internal evidence · explicit corrections: 1 · delivery outcomes: 2 (passed 1 / failed 1 / unknown 0)')).toBeTruthy()
-    expect(screen.getByText('Exact Session/Goal-revision association only · No causal or authoring-eligibility claim')).toBeTruthy()
+    expect(screen.getByText('Associated internal evidence · explicit corrections: 1 · 1 exactly attributed Goals · delivery outcomes: 2 (passed 1 / failed 1 / unknown 0)')).toBeTruthy()
+    expect(screen.getByText('Correction attribution · exact durable Session Skill invocation and Goal revision')).toBeTruthy()
+    expect(screen.getByText('Delivery association · same-Goal single-gap-Skill context')).toBeTruthy()
+    expect(screen.getByText('No causal claim · no Opportunity or authoring-eligibility effect')).toBeTruthy()
     expect(screen.getByText(`Evidence references · correction ${'2'.repeat(8)}… · outcome ${'3'.repeat(8)}… · outcome ${'4'.repeat(8)}…`)).toBeTruthy()
     expect(screen.getByText(/Independent evaluation evidence sealed · author-visible 2 \/ admission 1 \/ holdout 1/u)).toBeTruthy()
     expect(screen.getByText('Candidate proposer cannot read protected samples')).toBeTruthy()

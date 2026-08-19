@@ -293,7 +293,7 @@ async function envelopeFixture(options: {
 
 function opportunity(): SkillOpportunity {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     id: '2'.repeat(64),
     workspaceId: WORKSPACE_ID,
     skillName: 'release-proof',
@@ -304,11 +304,12 @@ function opportunity(): SkillOpportunity {
     firstObservedAt: 1,
     lastObservedAt: 4,
     evidence: {
-      kind: 'internal-experience-v2',
+      kind: 'internal-experience-v3',
       eligibilityBasis: 'two-or-more-distinct-goals',
       correctionSignals: {
-        association: 'same-session-single-skill-gap',
+        association: 'exact-durable-skill-invocation',
         count: 0,
+        goalCount: 0,
         ids: [],
         referencesTruncated: false,
       },

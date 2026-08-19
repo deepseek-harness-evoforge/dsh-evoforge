@@ -778,12 +778,15 @@ function SkillOpportunities({ summary, t }: { summary: EvolutionOverview; t: (ke
             <div className="dsh-evolve-meta">
               {t('skills.opportunities.context')}
               {' · '}{t('skills.opportunities.corrections')}: {opportunity.evidence.correctionSignals.count}
+              {' · '}{opportunity.evidence.correctionSignals.goalCount} {t('skills.opportunities.correctionGoals')}
               {' · '}{t('skills.opportunities.delivery')}: {opportunity.evidence.deliveryOutcomes.total}
               {' ('}{t('skills.opportunities.passed')} {opportunity.evidence.deliveryOutcomes.passed}
               {' / '}{t('skills.opportunities.failed')} {opportunity.evidence.deliveryOutcomes.failed}
               {' / '}{t('skills.opportunities.unknown')} {opportunity.evidence.deliveryOutcomes.unknown}{')'}
             </div>
-            <div className="dsh-evolve-meta">{t('skills.opportunities.attribution')}</div>
+            <div className="dsh-evolve-meta">{t('skills.opportunities.correctionAttribution')}</div>
+            <div className="dsh-evolve-meta">{t('skills.opportunities.deliveryAssociation')}</div>
+            <div className="dsh-evolve-meta">{t('skills.opportunities.causalBoundary')}</div>
             {references.length > 0 && <div className="dsh-evolve-meta">
               {t('skills.opportunities.references')} · {references.join(' · ')}
               {referencesTruncated && <> · {t('skills.opportunities.references.truncated')}</>}

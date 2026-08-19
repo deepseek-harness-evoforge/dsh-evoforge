@@ -6,6 +6,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { defineDomain, domainTable } from '@deepseek-ai/dsh-storage-domain'
 import { z } from 'zod'
+import { SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
+import { DurableFeedbackAttribution } from '../src/durable-feedback-attribution.js'
 import {
   installFeedbackSignalMonitor,
   openFeedbackSignalStore,
@@ -48,7 +50,20 @@ describe.skipIf(process.platform !== 'darwin')('explicit feedback learning signa
     const generation = (await evolution.publishGeneration(generationInput())).generation
     await evolution.promoteGeneration(WORKSPACE_ID, generation.id)
     await evolution.pinSession(lifecycle)
-    const monitor = installFeedbackSignalMonitor(ctx, signals, evolution, { now: () => 42 })
+    const monitor = installFeedbackSignalMonitor(ctx, signals, evolution, {
+      now: () => 42,
+      attribution: new DurableFeedbackAttribution({
+        inspect: async () => ({
+          meta: {
+            version: 0,
+            id: SessionId(lifecycle.sessionId),
+            createdAt: lifecycle.createdAt,
+            cwd: lifecycle.cwd,
+          },
+          events: attributedFeedbackEvents('assistant-negative'),
+        }),
+      }),
+    })
     const negativeVersion = '11111111-1111-4111-8111-111111111111'
     const secretNote = ' API key leaked in logs '
 
@@ -99,6 +114,15 @@ describe.skipIf(process.platform !== 'darwin')('explicit feedback learning signa
         feedbackVersion: negativeVersion,
         sourceUpdatedAt: 21,
         generationId: generation.id,
+        attribution: {
+          kind: 'exact-skill-invocation-v1',
+          skillName: 'build-dsh-plugin',
+          route: 'user-explicit',
+          invocationSeq: 3,
+          assistantSeq: 4,
+          turn: 1,
+          goal: { id: 'goal-feedback', revision: 1 },
+        },
       }])
       expect(signals.summarize(WORKSPACE_ID, generation.id)).toEqual({ all: 1, selected: 1 })
       expect(JSON.stringify(signals.list(WORKSPACE_ID))).not.toContain(secretNote.trim())
@@ -160,6 +184,15 @@ describe.skipIf(process.platform !== 'darwin')('explicit feedback learning signa
             messageId: `message-${index}`,
             feedbackVersion: `00000000-0000-4000-8000-00000000000${index}`,
             sourceUpdatedAt: index,
+            attribution: {
+              kind: 'exact-skill-invocation-v1',
+              skillName: 'release-dsh-plugin',
+              route: 'model-tool',
+              invocationSeq: 3,
+              assistantSeq: 5,
+              turn: 1,
+              goal: { id: `goal-${index}`, revision: 1 },
+            },
           }],
         })
       }
@@ -173,6 +206,16 @@ describe.skipIf(process.platform !== 'darwin')('explicit feedback learning signa
     const recovered = await openFeedbackSignalStore(resumed.storageDomain, { maxSessions: 2 })
     try {
       expect(recovered.list(WORKSPACE_ID).map(signal => signal.sessionId)).toEqual(['session-2', 'session-3'])
+      expect(recovered.list(WORKSPACE_ID).map(signal => signal.attribution)).toEqual([
+        expect.objectContaining({
+          skillName: 'release-dsh-plugin',
+          goal: { id: 'goal-2', revision: 1 },
+        }),
+        expect.objectContaining({
+          skillName: 'release-dsh-plugin',
+          goal: { id: 'goal-3', revision: 1 },
+        }),
+      ])
       expect(recovered.summarize(WORKSPACE_ID, 'a'.repeat(64))).toEqual({ all: 2, selected: 2 })
     } finally {
       await recovered.close()
@@ -199,6 +242,53 @@ function generationInput() {
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex')
+}
+
+function attributedFeedbackEvents(assistantMessageId: string): SessionEvent[] {
+  return [
+    sessionEvent('goal/change', 0, {
+      kind: 'goal/change',
+      version: 1,
+      operation: 'create',
+      goal: {
+        id: 'goal-feedback',
+        revision: 1,
+        objective: 'Build and verify one native DSH plugin.',
+        phase: 'active',
+        maxGoalRounds: 8,
+      },
+      roundsStarted: 0,
+      createdAt: 1,
+      updatedAt: 1,
+    }),
+    sessionEvent('turn/start', 1, { turn: 1 }),
+    sessionEvent('user/message', 2, {
+      id: 'direct-user',
+      role: 'user',
+      source: { kind: 'user' },
+      content: [{ type: 'text', text: 'Build it.' }],
+    }),
+    sessionEvent('user/message', 3, {
+      id: 'invoked-skill',
+      role: 'user',
+      source: { kind: 'skill-invocation', name: 'build-dsh-plugin', form: 'instructions' },
+      content: [{ type: 'text', text: '<skill_content />' }],
+    }),
+    sessionEvent('assistant/message', 4, {
+      turn: 1,
+      step: 1,
+      message: {
+        id: assistantMessageId,
+        role: 'assistant',
+        source: { kind: 'model', provider: 'fixture', model: 'fixture' },
+        content: [{ type: 'text', text: 'Built.' }],
+      },
+    }),
+  ] as SessionEvent[]
+}
+
+function sessionEvent(type: string, seq: number, data: unknown): Record<string, unknown> {
+  return { type, seq, time: seq + 1, data }
 }
 
 function installWorkspaceFixture(ctx: object): void {

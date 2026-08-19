@@ -342,7 +342,8 @@ Goal、完整 settled catalog 和 exact name 不存在，再持久化 `model-dec
 
 `ExperienceDrivenSkillOpportunityDiscovery` 以同一 Workspace 的 durable、Goal-linked Gap 决定资格。至少两个不同
 Goal 对同一能力形成重复证据才派生一个 `eligible-for-authoring` Skill Opportunity；同一 Goal retry、无 Goal、
-跨 Workspace 或证据不足都 abstain。Opportunity v2 可额外关联同 Session 唯一 Gap Skill 的明确纠正引用和
+跨 Workspace 或证据不足都 abstain。Opportunity v3 只关联能够从 feedback 目标回答的 durable Session turn 中
+证明唯一成功 Skill 调用并折叠出 exact Goal id/revision 的明确纠正；同 Session Gap 接近关系不构成归因。它还可关联
 同一稳定 Goal id 跨 revision 的唯一 Gap Skill compact delivery outcome；Outcome 必须不早于对应 Gap 且 revision 不得倒退，歧义事件不关联，固定
 `causalClaim: none`，也不能改变资格、排序或 author 输入。Workspace 级 `selfDiscoveryPolicies` 只授权 owned run root 与日预算，
 不接受 Skill 名、路径、来源或工作流；Skill 名只能来自 Opportunity。Opportunity 本身不等于 Candidate readiness：

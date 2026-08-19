@@ -235,7 +235,7 @@ interface LearningSignal {
   → Host 复核并持久化 Capability Gap
   → 同 Workspace / 同 Skill / 至少两个独立 Goal
   → deterministic Skill Opportunity
-  → 保守关联同 Session 明确纠正 / stable Goal identity 跨 revision 交付结果（context only）
+  → 精确关联目标回答的 durable Skill 调用 / stable Goal identity 跨 revision 交付结果（context only）
   → Workspace selfDiscoveryPolicy（无 Skill 字段）
   → 至少四个独立 Goal 后形成 governance-owned Skill Evaluation Evidence Seal
       authoring / admission / holdout 三组不重叠
@@ -256,7 +256,7 @@ interface LearningSignal {
 
 - 用户只给 Goal，不选路径、Agent、workflow、Skill 或来源；
 - 同 Goal 重试、无 Goal、跨 Workspace 或证据不足必须 abstain；
-- 纠正只有在同 Session 仅有一种 Gap Skill 且发生于 Gap 之后才关联；Outcome 只有在同一 Goal 的全部已知 Gap 仅有一种 Skill、发生于对应 Gap 之后且 revision 不倒退时才关联；歧义一律丢弃；
+- 纠正只在 feedback 目标回答的同一 durable turn 中存在唯一成功 Skill 调用、唯一直接用户消息且能折叠出 exact Goal id/revision 时关联；同 Session Gap 接近关系不构成归因，歧义一律 abstain；Outcome 仍只在同一 Goal 的全部已知 Gap 仅有一种 Skill、发生于对应 Gap 之后且 revision 不倒退时关联；
 - 关联上下文固定 `causalClaim: none`，不能单独产生 Opportunity、改变生成资格/排序、进入 author 输入或证明 Skill 导致结果；
 - Outcome metrics 只在 exact active Goal revision 拥有该 turn 时投影，截止 immutable delivery result seq；缺 unit、旧 revision、歧义或计数倒退一律 abstain，且不参与上述资格或治理决定；
 - Web 不另建 metrics endpoint/store；`DeliveryOutcomeStore.summarize → EvolutionControlPlane.overview → generated Remote → EvolutionAction` 是唯一浏览器投影链，只暴露聚合和至多 20 条最新已测证据，不暴露 Session/call/reason/path；

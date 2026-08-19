@@ -1,5 +1,7 @@
 # V4-10 Skill Opportunity 内部上下文归因证据
 
+> 历史证据：其中 correction 的 same-Session/unique-Gap 规则已由 [V4.20](v4-20-exact-durable-feedback-attribution.zh.md) 和 [ADR-0064](../adr/0064-corrections-require-exact-durable-skill-invocation.md) 替代；Delivery Outcome 的非因果 Goal 上下文仍适用。
+
 > 声明等级：`implemented`，不是 `verified/released`。本文证明 Opportunity 能保守关联 DSH 自己持久化的明确纠正引用和真实交付结果；它不证明这些结果由缺失 Skill 导致，也不证明完整自我进化。
 
 ## 当前数据流
