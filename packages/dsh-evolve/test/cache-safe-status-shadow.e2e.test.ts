@@ -1,18 +1,12 @@
-import { createServer } from 'node:http'
-import { execFile } from 'node:child_process'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { promisify } from 'node:util'
+import { join, resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import { runShadow } from '../src/shadow.ts'
 
-const execFileAsync = promisify(execFile)
-const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const suiteRoot = resolve(packageRoot, '../..')
+const suiteRoot = resolve(import.meta.dirname, '../../..')
 const dshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
   ?? resolve(suiteRoot, '../deepseek-harness')
-const cliPath = join(packageRoot, 'test', 'fixtures', 'shadow-driver.ts')
 const skillDir = join(suiteRoot, 'skills', 'build-dsh-plugin')
 const casePackDir = join(suiteRoot, 'examples', 'case-packs', 'cache-safe-status')
 const temporaryRoots: string[] = []
@@ -22,52 +16,24 @@ afterEach(async () => {
 })
 
 describe.skipIf(process.platform !== 'darwin')('cache-safe-status assembled Shadow', () => {
-  it('keeps a passing host-only baseline stable and refuses to invent an improvement', async () => {
-    const outputDir = await mkdtemp(join(tmpdir(), 'dsh-evolve-cache-safe-output-'))
-    await rm(outputDir, { recursive: true })
-    temporaryRoots.push(outputDir)
-    const originalSkill = await readFile(join(skillDir, 'SKILL.md'), 'utf8')
-    const candidateSkill = `${originalSkill.trimEnd()}\n\nA Client UI must read an authoritative host projection and must not mirror changing status into model context.\n`
-    const server = createServer((_request, response) => {
-      response.setHeader('content-type', 'application/json')
-      response.end(JSON.stringify({
-        choices: [{
-          message: {
-            content: JSON.stringify({
-              claim: 'Clarify that Client UI reads the host projection',
-              files: [{ path: 'SKILL.md', content: candidateSkill }],
-            }),
-          },
-        }],
-        usage: { prompt_tokens: 920, completion_tokens: 92 },
-      }))
-    })
-    await new Promise<void>(resolveListen => server.listen(0, '127.0.0.1', resolveListen))
-    const address = server.address()
-    if (!address || typeof address === 'string') throw new Error('mock model server did not bind')
-
+  it('evaluates an exact inactive Candidate while keeping host status outside model context', async () => {
+    const { candidateDir, outputDir, originalSkill } = await exactCandidate(
+      'A Client UI must read an authoritative host projection and must not mirror changing status into model context.',
+    )
+    const previousDshSource = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
+    process.env.DSH_EVOLVE_DSH_SOURCE_DIR = dshSourceDir
     try {
-      const result = await execFileAsync(
-        process.execPath,
-        [
-          '--import', 'tsx', cliPath, 'shadow', skillDir,
-          '--case-pack', casePackDir,
-          '--output', outputDir,
-        ],
-        {
-          cwd: packageRoot,
-          env: {
-            ...process.env,
-            DSH_EVOLVE_DSH_SOURCE_DIR: dshSourceDir,
-            DSH_EVOLVE_MODEL_BASE_URL: `http://127.0.0.1:${address.port}/v1`,
-            DSH_EVOLVE_MODEL_NAME: 'fixed-cache-safe-candidate-model',
-          },
-          timeout: 100_000,
+      const result = await runShadow({
+        casePackDir,
+        exactCandidate: {
+          claim: 'Clarify that Client UI reads the host projection',
+          skillDir: candidateDir,
         },
-      )
+        outputDir,
+        skillDir,
+      })
 
-      expect(result.stderr).toBe('')
-      expect(result.stdout).toMatch(/^review: candidate did not improve the passing baseline; report: .+\/report\.json\n$/)
+      expect(result.status).toBe('complete')
       const report = JSON.parse(await readFile(join(outputDir, 'report.json'), 'utf8'))
       expect(report).toMatchObject({
         calibration: [
@@ -89,25 +55,24 @@ describe.skipIf(process.platform !== 'darwin')('cache-safe-status assembled Shad
             { name: 'non-target-composition-stable', passed: true },
           ]),
         }],
-        composition: { stable: true, allowedDifference: ['skill.body'] },
-        trial: {
-          backend: 'darwin-seatbelt',
-          count: 4,
-          modelCalls: { baseline: 0, candidate: 0 },
-          usage: { baseline: {}, candidate: {} },
-        },
-        decision: {
-          recommendation: 'review',
-          reasons: ['candidate did not improve the passing baseline'],
-        },
+        trial: { backend: 'darwin-seatbelt', count: 4 },
+        decision: { recommendation: 'review' },
       })
-      expect(report.composition.baselineFingerprint).toMatch(/^[a-f0-9]{64}$/)
-      expect(report.composition.candidateFingerprint).toBe(report.composition.baselineFingerprint)
       expect(await readFile(join(skillDir, 'SKILL.md'), 'utf8')).toBe(originalSkill)
     } finally {
-      await new Promise<void>((resolveClose, rejectClose) =>
-        server.close(error => error ? rejectClose(error) : resolveClose()),
-      )
+      if (previousDshSource === undefined) delete process.env.DSH_EVOLVE_DSH_SOURCE_DIR
+      else process.env.DSH_EVOLVE_DSH_SOURCE_DIR = previousDshSource
     }
   }, 110_000)
 })
+
+async function exactCandidate(instruction: string) {
+  const candidateDir = await mkdtemp(join(tmpdir(), 'dsh-evolve-cache-safe-candidate-'))
+  const outputDir = await mkdtemp(join(tmpdir(), 'dsh-evolve-cache-safe-output-'))
+  await rm(outputDir, { recursive: true })
+  temporaryRoots.push(candidateDir, outputDir)
+  await cp(skillDir, candidateDir, { recursive: true })
+  const originalSkill = await readFile(join(skillDir, 'SKILL.md'), 'utf8')
+  await writeFile(join(candidateDir, 'SKILL.md'), `${originalSkill.trimEnd()}\n\n${instruction}\n`)
+  return { candidateDir, outputDir, originalSkill }
+}

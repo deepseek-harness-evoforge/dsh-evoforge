@@ -1,5 +1,7 @@
 # P1.8 证据：显式、目标绑定的 Feedback Shadow Launch
 
+> 历史证据：显式 target-bound launch 已在 V4.24 删除，不是当前产品合同。
+
 > 声明等级：`implemented`；闭合现有反馈到后台 Shadow 的可用性断点，不声明自动生成 evaluator、真实任务改善率或生产可靠性。
 
 ## 用户结果

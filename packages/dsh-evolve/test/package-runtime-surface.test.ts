@@ -9,7 +9,10 @@ describe('packed dsh-evolve runtime surface', () => {
     const runtime = await readFile(resolve(packageRoot, 'dist/index.mjs'), 'utf8')
 
     expect(runtime).not.toMatch(
-      /GitSkillSource|no configured Git source|refs\/evoforge\/generations|feedbackDraftRoot|shadowTargets|evaluatorTargets/u,
+      /GitSkillSource|no configured Git source|refs\/evoforge\/generations|feedbackDraftRoot|shadowTargets|evaluatorTargets|feedback-guided Shadow|Feedback Case Draft/u,
     )
+
+    const shadow = await readFile(resolve(packageRoot, 'src/shadow.ts'), 'utf8')
+    expect(shadow).not.toMatch(/DSH_EVOLVE_MODEL_|requestProposal|fetch\(/u)
   })
 })

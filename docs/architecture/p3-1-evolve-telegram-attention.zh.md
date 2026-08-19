@@ -2,7 +2,7 @@
 
 ## 用户结果
 
-当后台自进化第一次产生一个需要人类决定的 Candidate 或 Evaluator Draft 阶段时，既有固定 Telegram
+当后台自进化第一次产生一个需要人类决定的 Candidate review 或 inactive promotion decision 时，既有固定 Telegram
 私聊收到一条耐久、可去重的 attention。用户在同一私聊里执行既有 `/evolve` Command 查看和处理；
 产生结果的原 Session 不等待，也不会增加一次模型调用。
 
@@ -47,12 +47,8 @@ Notice 投影：
 |---|---|---|---|
 | Candidate | `pending` | `review` | `/evolve review <id>` |
 | Candidate | auto-approved、未激活 | `promotion` | `/evolve review <id>` |
-| Evaluator Draft | `draft-ready` | `draft-ready` | `/evolve evaluator <id>` |
-| Evaluator Draft | `uncertain` | `uncertain` | `/evolve evaluator <id>` |
-| Evaluator Draft | `incomplete` | `incomplete` | `/evolve evaluator <id>` |
 
-Candidate rejected、人工 approved 且已处理、Evaluator `authoring-pending | qualification-running | qualified |
-rejected` 不发送。notice 文本不得复制私有 correction、生成文件、diff、路径、Prompt 或 secret。
+Candidate rejected、人工 approved 且已处理的状态不发送。notice 文本不得复制私有 correction、生成文件、diff、路径、Prompt 或 secret。Evaluator Draft 已从活动 Evolution 合同删除，attention 不再解析或提醒它。
 
 ## 生命周期与恢复
 
@@ -66,7 +62,7 @@ rejected` 不发送。notice 文本不得复制私有 correction、生成文件�
 
 ## 验收门
 
-- Candidate review、auto-approved promotion 与三种 Evaluator 人工阶段投影正确；其它状态为零 notice；
+- Candidate review 与 auto-approved inactive promotion 投影正确；其它状态为零 notice；
 - 相同 scan、热重载、重启和重复 settled signal 只产生一个 exact delivery intent；
 - `prepared`、`sending`、`uncertain` crash 语义沿用并通过现有 Telegram 故障测试；
 - 假 Bot API 的 assembled DSH 路径能收到 notice，再用同一私聊的 `/evolve` Command 读取权威状态；

@@ -1,5 +1,7 @@
 # V4-16 Capability-Absent Retention 与 Sealed Canary 证据
 
+> 历史证据：该旧 Retention/canary 编排已在 V4.24 物理删除，exact subject/composition 结论只作为内部 Envelope/Outcome 重建要求。
+
 > 声明等级：`implemented`，不是 `released`。本文证明全新内部 Skill 能以原 Shadow 的 exact
 > capability-absent subject 为父级完成独立 Retention 与 sealed canary；不证明自主治理包、自动晋升、真实
 > provider 长期效果或 Hermes 上位替代已经完成。

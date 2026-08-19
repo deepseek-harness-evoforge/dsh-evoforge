@@ -1,5 +1,7 @@
 # P1.17 Human-approved Qualify-and-Shadow 验证记录
 
+> 历史证据：Evaluator qualification/Shadow handoff 已在 V4.24 删除，不是当前产品合同。
+
 > 日期：2026-08-17
 > 结论：implemented；不能据此声称 evaluator 已可信或优于 Hermes
 

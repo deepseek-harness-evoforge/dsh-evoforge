@@ -1,7 +1,6 @@
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 import type {
   EvolutionActionReceipt,
-  EvolutionEvaluatorDraftDetail,
   EvolutionOverview,
   EvolutionReviewDetail,
 } from 'dsh-evolve/client'
@@ -16,13 +15,6 @@ export interface EvolutionRemoteClient {
   rejectReview(workspaceId: string, id: string, note: string): Promise<RemoteResult<EvolutionActionReceipt>>
   promote(workspaceId: string, generationId: string): Promise<RemoteResult<EvolutionActionReceipt>>
   rollback(workspaceId: string): Promise<RemoteResult<EvolutionActionReceipt>>
-  startFeedbackShadow(workspaceId: string, signalId: string, targetId: string): Promise<RemoteResult<EvolutionActionReceipt>>
-  evaluatorDraft(workspaceId: string, id: string): Promise<RemoteResult<EvolutionEvaluatorDraftDetail>>
-  authorEvaluator(workspaceId: string, signalId: string, targetId: string): Promise<RemoteResult<EvolutionActionReceipt>>
-  approveEvaluator(workspaceId: string, id: string, note: string): Promise<RemoteResult<EvolutionActionReceipt>>
-  approveAndStartEvaluatorShadow(workspaceId: string, id: string, note: string): Promise<RemoteResult<EvolutionActionReceipt>>
-  rejectEvaluator(workspaceId: string, id: string, note: string): Promise<RemoteResult<EvolutionActionReceipt>>
-  startEvaluatorShadow(workspaceId: string, id: string): Promise<RemoteResult<EvolutionActionReceipt>>
 }
 
 /** Turn the Remote result union into the component's ordinary success/error flow. */

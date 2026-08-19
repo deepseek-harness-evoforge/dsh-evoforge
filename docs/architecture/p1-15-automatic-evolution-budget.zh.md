@@ -1,5 +1,7 @@
 # P1.15 Automatic Evolution Budget 契约
 
+> 当前状态：**旧 target 预算已撤销**。内部 author/governance 仍有各自有界预算；本页描述的 P1.14/P1.16 target 预算仅保留历史记录。
+
 > 状态：implemented；默认关闭随 P1.14/P1.16，启用自动 Target 后默认每个 Target 每 UTC 日最多预留 1 次自动尝试
 
 ## 用户结果

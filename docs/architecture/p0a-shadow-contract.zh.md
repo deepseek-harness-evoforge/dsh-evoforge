@@ -1,5 +1,7 @@
 # P0A Shadow 契约
 
+> 当前修正：本页的 evaluator 隔离与 fail-closed 原则保留；运行时 proposer、静态 target 和用户提交路径已由 [ADR-0068](../adr/0068-shadow-consumes-one-exact-internal-candidate.md) 撤销。当前 Shadow 只消费内部慢环已经形成的 exact Candidate，自身不调用模型。
+
 > 状态：本地退出门已通过；证据只允许开始 P0B，不等于自动晋升、持续进化或真实 provider 效果已经完成
 > 更新日期：2026-08-16
 > 目标：用最小离线实验证明 evaluator 值得信任，而不是先建设在线自进化平台

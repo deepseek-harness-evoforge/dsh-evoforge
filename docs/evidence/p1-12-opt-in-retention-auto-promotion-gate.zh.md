@@ -1,5 +1,7 @@
 # P1.12 Opt-in Retention Auto-Promotion Gate 实现证据
 
+> 历史证据：旧 Retention/自动晋升编排已在 V4.24 删除，待按内部 Outcome 门禁重建。
+
 > 声明等级：`implemented`。本页证明 exact P1.11 retention evidence 可选约束既有 clear-win 自动
 > 晋升；不声明自动 Case 选择/执行、完整抗遗忘、真实 provider 效果或生产可用。
 

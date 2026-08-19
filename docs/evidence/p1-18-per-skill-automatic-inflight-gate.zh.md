@@ -1,5 +1,7 @@
 # P1.18 每 Skill 单未决自动进化门实现证据
 
+> 历史证据：依赖旧 target/Draft 的 inflight gate 已在 V4.24 删除，不是当前产品合同。
+
 > 日期：2026-08-17
 > 状态：`implemented`；真实 provider、多日 review-rate/成本数据 pending
 

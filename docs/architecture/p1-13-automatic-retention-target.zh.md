@@ -1,5 +1,7 @@
 # P1.13 Automatic Retention Target 契约
 
+> 当前状态：**已撤销**。静态 Retention target 已删除；本页仅保留历史记录，当前边界见 [ADR-0068](../adr/0068-shadow-consumes-one-exact-internal-candidate.md)。
+
 > 状态：implemented；首片只消除 clear-win 自动晋升前的手工 `retain` 步骤
 
 ## 唯一用户结果

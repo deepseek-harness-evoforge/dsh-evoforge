@@ -1,5 +1,7 @@
 # P1.9 私有 Evaluator Draft 与人工资格验证证据
 
+> 历史证据：Evaluator Draft/qualification 已在 V4.24 删除，不是当前产品合同。
+
 > 结论：`implemented`，不是“自动 evaluator 已解决”，也不是生产可用声明
 > 日期：2026-08-17
 

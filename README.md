@@ -20,7 +20,7 @@
 | `dsh-gateway` | external endpoint 到原生 Workspace/Session/Agent 的静态、幂等绑定；同包提供统一只读渠道健康视图 | disabled，需显式配置 |
 | `dsh-feishu` | 一个飞书 App 的 exact 私聊/群聊经 Gateway 进入原生 Workspace/Session/Agent；同包提供 DSH Web 首次连接向导 | disabled，需显式配置 |
 
-当前活动进化纵切只保留 DSH 内部经验路径：Goal-linked Gap、跨 Goal Skill Opportunity、隔离 Candidate、独立评测、内容寻址 Generation、future-session pin 与精确回滚。`dsh-evolve` 公开配置已经删除 Git repository/source、预选 Skill、静态 Case Pack、Feedback/Evaluator target 和按 Skill自动晋升；活动 Provider/Publisher 又进一步删除 Git source、隐藏 Git ref 和 repository fallback，只解析内部 whole-Skill Bundle，legacy artifact 明确 quarantine。旧静态纵切不能作为产品能力重新开启。明确纠正只从 feedback 目标回答的唯一 durable Skill invocation、模型当时看到的 invocation-content hash 与 exact Goal id/revision 归因；同一 Skill 内容版本跨至少两个 Goal 的纠正只形成 investigation，完整 baseline Bundle 尚未封存，因此不会生成 Candidate。用户不选路径、Agent、workflow、Skill 或来源；产品不建设运行时外部 Skill 搜索、获取、下载、导入或市场。该纵切仍只标记为 `implemented`，因为历史未装配模块尚待物理删除，existing-Skill 完整 Bundle baseline/Candidate、内部 Retention/回滚归因、独立真实 provider 评估、陌生用户、长期误晋升率和生产多日证据尚未完成。
+当前活动进化纵切只保留 DSH 内部经验路径：Goal-linked Gap、跨 Goal Skill Opportunity、隔离 Candidate、独立评测、内容寻址 Generation、future-session pin 与精确回滚。公开配置与活动源码均已删除 Git repository/source、预选 Skill、静态 Case Pack/Feedback/Evaluator target、Feedback/Evaluator Draft、Shadow 内临时 proposer、自动 review expiry 和旧 Retention/canary 编排；Shadow 现在只消费治理完成的 exact、内容寻址、DSH-assembled Candidate，且自身模型调用为零。旧静态纵切不能作为产品能力重新开启。明确纠正只从 feedback 目标回答的唯一 durable Skill invocation、模型当时看到的 invocation-content hash 与 exact Goal id/revision 归因；同一 Skill 内容版本跨至少两个 Goal 的纠正只形成 investigation，完整 baseline Bundle 尚未封存，因此不会生成 Candidate。用户不选路径、Agent、workflow、Skill 或来源；产品不建设运行时外部 Skill 搜索、获取、下载、导入或市场。该纵切仍只标记为 `implemented`，因为 existing-Skill 完整 Bundle baseline/Candidate、按内部证据重建的 Retention/canary/回滚归因、独立真实 provider 评估、陌生用户、长期误晋升率和生产多日证据尚未完成。
 
 ## 安装到一个 DSH profile
 
@@ -87,5 +87,6 @@ dsh --profile web
 - [ADR-0050](docs/adr/0050-internal-candidates-replace-runtime-skill-acquisition.md)
 - [ADR-0060](docs/adr/0060-gateway-web-is-a-read-only-host-projection.md)
 - [ADR-0067](docs/adr/0067-generations-resolve-only-internal-content-addressed-bundles.md)
+- [ADR-0068](docs/adr/0068-shadow-consumes-one-exact-internal-candidate.md)
 
 License: MIT.

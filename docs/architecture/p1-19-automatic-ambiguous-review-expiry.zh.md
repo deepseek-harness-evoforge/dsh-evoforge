@@ -1,5 +1,7 @@
 # P1.19 自动模糊审查过期处置
 
+> 当前状态：**已撤销**。自动 review expiry actor/policy 已删除；本页仅保留历史记录，当前 review 必须由权威状态和明确治理动作决定。
+
 ## 用户结果
 
 对已经启用 Automatic Feedback Shadow 的 Skill，一个长期无人处理的模糊 Candidate 不再永久冻结后续

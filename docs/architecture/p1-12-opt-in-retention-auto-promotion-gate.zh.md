@@ -1,5 +1,7 @@
 # P1.12 Opt-in Retention Auto-Promotion Gate 契约
 
+> 当前状态：**已撤销并待重建**。旧 Retention/自动晋升编排已删除；本页仅保留历史记录，当前边界见 [ADR-0068](../adr/0068-shadow-consumes-one-exact-internal-candidate.md)。
+
 > 状态：implemented；首片只约束既有 clear-instruction 自动晋升
 
 ## 唯一用户结果

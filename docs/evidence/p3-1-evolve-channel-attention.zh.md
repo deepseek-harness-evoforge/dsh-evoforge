@@ -5,7 +5,7 @@
 
 ## 用户结果
 
-`dsh-evolve` 在后台产生需要处理的 Candidate 或 Evaluator Draft 后，用户不再必须反复查询
+`dsh-evolve` 在后台产生需要处理的 Candidate review 或 inactive promotion decision 后，用户不再必须反复查询
 `/evolve status`。`dsh-evolve-attention` 将有界、可复制命令的提醒发送到已经静态授权且精确绑定
 Workspace 的 Telegram/飞书 route；原 Session 不等待，所有审批、资格验证和晋升仍走既有 `/evolve`
 权威命令。
@@ -16,7 +16,7 @@ Workspace 的 Telegram/飞书 route；原 Session 不等待，所有审批、资
 - 复用 supervisor 完成事件并在加载时补扫一次，不建 timer、queue、daemon 或通用 Gateway；
 - 每次重读权威 overview，不保存第二份 Evolution 状态；
 - Candidate 仅提醒 `pending review` 和 `auto-approved but inactive promotion`；
-- Evaluator Draft 仅提醒 `uncertain`、`draft-ready`、`incomplete`；
+- Evaluator Draft 表面已随旧 target/draft 架构删除，attention 不读取历史字段；
 - 消息只含类型、安全截断后的 Skill 名、状态或建议、exact id 和 inspection command；
 - 不含 Prompt、反馈正文、claim、路径、diff、凭证或模型输出；
 - 通知不是 Approval，不提供 inline approve/promote/qualify；
@@ -26,7 +26,7 @@ Workspace 的 Telegram/飞书 route；原 Session 不等待，所有审批、资
 
 | 证据 | 当前结果 |
 |---|---|
-| 投影与桥接单元测试 | `dsh-evolve-attention` 4 个测试文件、18 个测试通过；覆盖状态筛选、有界文案、确定性 id、串行扫描、失败隔离、Workspace 权威校验和 Feishu 多路由 |
+| 投影与桥接单元测试 | `dsh-evolve-attention` 4 个测试文件、11 个测试通过；覆盖 Candidate 状态筛选、有界文案、确定性 id、串行扫描、失败隔离、Workspace 权威校验和 Feishu 多路由 |
 | 真实 Evolution 事件 | 固定 DSH Storage/Jobs 装配下，既有 supervisor scan settle 后发出一次 host-only signal |
 | 真实 Telegram route | DSH Gateway 创建原生 Workspace Session/Agent，在假的 Telegram HTTP 边界下 notice 进入 Gateway durable outbound journal、完成一次发送，重复 id 不再发送 |
 | 双 Workspace 双渠道 | 同一真实 DSH Host 中，Telegram 与飞书 route 各只读取自身 Workspace overview 并各发送一次；重复 settled event 和重启均不重发，既有 Session、Command、Approval 与 continuation 隔离回归仍通过 |

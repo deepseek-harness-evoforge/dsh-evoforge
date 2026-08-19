@@ -1,6 +1,6 @@
 # EvoForge v0.1 路线图
 
-> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已替换旧 Router 并完成公共 outbound/健康 Web 的真实浏览器失败恢复验收。ClawHub/市场/research Candidate 已删除；`dsh-evolve` 公开 source/target 配置、活动 Git materializer、隐藏 Git ref、repository fallback 和旧 Commands target action 均已删除，packed runtime 只解析内部内容寻址 Bundle。缺失 Skill Candidate 已绑定四 Goal 证据 seal、独立 admission/holdout 与 future-only Generation；现有 Skill 仍只形成等待完整 baseline Bundle 的调查。下一阶段物理删除未装配的历史模块和 `Shadow` 旧 proposer，收紧 Control/Web 类型，并建立 DSH 已安装 Skill 的完整基线快照。真实 provider、exact 飞书消息与 Hermes paired 仍未完成，v0.1 未发布。
+> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已替换旧 Router 并完成公共 outbound/健康 Web 的真实浏览器失败恢复验收。ClawHub/市场/research Candidate、公开 source/target 配置、活动 Git materializer/ref、Feedback/Evaluator Draft、Shadow 内 proposer、自动 review expiry、旧 Retention/canary 编排和对应 Control/Web/attention 表面均已删除，packed runtime 只解析内部内容寻址 Bundle。缺失 Skill Candidate 已绑定四 Goal 证据 seal、独立 admission/holdout、exact-Candidate Shadow 与 future-only Generation；现有 Skill 仍只形成等待完整 baseline Bundle 的调查。下一阶段建立 DSH 已安装 Skill 的完整基线快照，并在内部 Opportunity/Candidate/Envelope/Outcome 上重建 Retention/canary。真实 provider、exact 飞书消息与 Hermes paired 仍未完成，v0.1 未发布。
 > 更新日期：2026-08-19
 
 ## 开发与发布纪律
@@ -12,7 +12,7 @@
 
 ## 已有实现
 
-- P0A–P1.21：证据驱动 Shadow、Generation、Session pin、review、Retention、预算、反馈学习、canary 和 rollback；
+- 当前活动 Evolution：内部 Gap/Opportunity/Candidate、独立治理、exact-Candidate Shadow、Generation、Session pin、review 和 rollback；历史 P1 静态 target/Draft/Retention/canary 编排已撤销，待按内部证据重建；
 - P2A.1–P2D.1：原生 Skill/Tool 软件交付、Draft PR、exact-head checks、交付 Outcome；
 - P3.1/P3.2：Telegram/飞书进化注意力和 GitHub review follow-up；
 - LC-1/LC-2：Goal cold resume 与用户级 OS service unit；
@@ -100,9 +100,7 @@ baseline、deterministic admission 和不同的 assembled holdout。真实 assem
 Candidate 侧才安装 exact whole-Skill；Envelope id 和 seal id 贯穿 admission、Candidate Lineage v3、Shadow 与 crash resume；
 内容漂移、symlink、根重叠和 admission/holdout 同 hash 都 fail closed，缺包则 abstain。新 Skill Publisher
 已不再假设既有 Git source：explicit review 后生成 canonical `skill-bundle` inactive Generation，Storage/Provider
-重验 exact 内容，真实 DSH Session证明 future-only、root rollback 和重启恢复。Capability-absent Retention 与
-sealed canary 已使用原 Shadow 的 exact absent subject、exact Candidate/lineage 和真实 assembled DSH composition；
-治理包自动形成、原子安装和 paid-call uncertain restart 已通过注入式自动化测试；V4.19 的贯穿红测发现并修复了“admission/holdout 都被标成 assembled，导致确定性 Admission 永远拒绝”的生产断点：现在 admission 为不执行 Candidate 的 deterministic filesystem 门，只有独立 holdout 为 assembled DSH。Host/Web 还会脱敏展示治理 0–2 次调用、token、budget-deferred、uncertain 与校准失败分类。下一步用两套独立真实 provider 对内部 Goal 样本运行 author→admission→assembled holdout，并补长期 outcome。
+重验 exact 内容，真实 DSH Session 证明 future-only、root rollback 和重启恢复。Shadow 只执行 exact Candidate/lineage 与真实 assembled DSH composition，自身不调用 proposer；旧 capability-absent Retention/sealed-canary 编排已删除，待直接绑定内部 Envelope 与 Outcome 重建。治理包自动形成、原子安装和 paid-call uncertain restart 已通过注入式自动化测试；V4.19 的贯穿红测发现并修复了“admission/holdout 都被标成 assembled，导致确定性 Admission 永远拒绝”的生产断点：现在 admission 为不执行 Candidate 的 deterministic filesystem 门，只有独立 holdout 为 assembled DSH。Host/Web 还会脱敏展示治理 0–2 次调用、token、budget-deferred、uncertain 与校准失败分类。下一步用两套独立真实 provider 对内部 Goal 样本运行 author→admission→assembled holdout，并补 Retention/canary/长期 outcome。
 
 当前活动源码已经删除外部来源发现、Agent Skills 索引/archive、运行时 Web research、research Holdout/revision
 及其 Job 编排、依赖、持久化变体和 Web 类型；Candidate Repository、Admission、Lineage、Shadow 只接受

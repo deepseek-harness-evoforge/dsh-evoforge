@@ -1,6 +1,6 @@
 # DeepSeek Harness EvoForge 项目需求基线
 
-> 状态：已确认；目标是只安装并运行于 DSH 的原生 out-of-tree 插件套件。现有实现只作为可重审资产，不能限制重构；`dsh-gateway` 已替换旧 Router。ClawHub、市场、运行时 research Candidate、公开 Git Skill source、预选 Skill、静态 Case Pack/Feedback/Evaluator target 和按 Skill AutoPromotion 均已从 `dsh-evolve` 配置及活动装配删除。自然 Goal→Capability Gap→跨 Goal 内部经验→Skill Opportunity→隔离 whole-Skill Candidate 已形成部分纵切；现有 Skill 同版本跨 Goal 纠正只形成等待完整基线 Bundle 的调查。缺失 Skill 使用不安装目标 Skill的 assembled baseline，明确复核后形成内容寻址 inactive bundle，固定未来 Session 并精确 rollback。私有 Git materializer、旧 target 模块、Commands/Control 类型和 legacy persistence shape 仍需清理；Retention/canary 必须重绑内部证据。真实 provider、exact 飞书消息、长期 outcome 与 Hermes paired 完成前不构成 v0.1 交付。
+> 状态：已确认；目标是只安装并运行于 DSH 的原生 out-of-tree 插件套件。现有实现只作为可重审资产，不能限制重构；`dsh-gateway` 已替换旧 Router。ClawHub、市场、运行时 research Candidate、Git Skill source/ref、预选 Skill、静态 Case Pack/Feedback/Evaluator target、Feedback/Evaluator Draft、Shadow 内 proposer、自动 review expiry、旧 Retention/canary 和对应 Commands/Control/Web/attention 表面均已从活动源码删除。自然 Goal→Capability Gap→跨 Goal 内部经验→Skill Opportunity→隔离 whole-Skill Candidate 已形成部分纵切；Shadow 只消费 exact DSH-assembled Candidate且零 proposer；现有 Skill 同版本跨 Goal 纠正只形成等待完整基线 Bundle 的调查。缺失 Skill 使用不安装目标 Skill 的 assembled baseline，明确复核后形成内容寻址 inactive bundle，固定未来 Session 并精确 rollback。Retention/canary 必须直接重建在内部 Opportunity/Candidate/Envelope/Outcome 上。真实 provider、exact 飞书消息、长期 outcome 与 Hermes paired 完成前不构成 v0.1 交付。
 > 更新日期：2026-08-19
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。发生冲突时，下述“方向纠正”优先于旧里程碑文字。
 
@@ -386,15 +386,12 @@ whole-Skill，任何占位 `SKILL.md` 都 fail closed；
 Opportunity/内容/路径不一致、admission 与 holdout 同 hash 或符号链接均 fail closed。同一 Envelope id 进入
 admission、Candidate Lineage v3 和 Shadow handoff；lineage 另显式携带 seal id，结果仍无 release authority。治理作者请求 dispatch 后结果不可确认时持久化 `uncertain`，重启不得盲重试。
 
-该实现已消除人工预定进化方向，并完成生成前的独立证据密封、新 Skill 的内容寻址发布、future-Session 固定、root rollback，及
-capability-absent Shadow→独立 Retention→sealed canary 的 exact 父/Candidate 执行语义；已实现把已密封 admission/holdout
+该实现已消除人工预定进化方向，并完成生成前的独立证据密封、新 Skill 的内容寻址发布、future-Session 固定、root rollback 与 exact-Candidate assembled Shadow。旧静态 Retention/canary 编排已删除，尚未在内部 Envelope/Outcome 上重建。已实现把已密封 admission/holdout
 Goal 样本交给 Candidate-independent 治理作者、零 proposer 校准并形成 Envelope v4 的源码和自动化纵切，但尚未用真实 provider 与真实 assembled Goal 样本证明生成包可用，也未在长期任务中
-完成 admission→holdout→Retention→outcome 的整链归因。下一阶段必须让
+完成 admission→holdout→Retention/canary→outcome 的整链归因。下一阶段必须让
 Candidate 不可读写的 Evaluation Governance Plane 在真实 provider 下证明 baseline、未见样本和 hard gates 有效；没有合格治理包时 abstain，不能回退到外部搜索、author 自评、Mock 结果或一次成功即晋升。
 
-`dsh-software-delivery` 的最小 objective outcome 已作为 canary 触发事实。失败 Outcome 只触发对原 sealed
-Case Pack 的 exact 复测；它本身不证明 Skill 回归。自动 rollback 继续受 `auto-clear-instruction-v1` 的窄权限
-约束，人工复核的新 Skill 不会被实验性 policy 静默改写。
+`dsh-software-delivery` 的最小 objective outcome 已作为内部交付事实。失败 Outcome 本身不证明 Skill 回归；只有未来重建的 exact Candidate/Envelope canary 才能形成回滚依据。自动 rollback 继续受 `auto-clear-instruction-v1` 的窄权限约束，人工复核的新 Skill 不会被实验性 policy 静默改写。
 
 验证器之后只增加一个最小原子 `complete_delivery` Tool：复用原生 shell policy 和
 `update_goal`，通过才完成 exact native Goal。它不是 Mission、全局 Goal 拦截或第二套 policy；
@@ -409,30 +406,11 @@ Draft PR 继续复用同一个 Tool 的可选参数，不再增加模型动作�
 active-call wait，只对 pending/缺失 checks 重读，不保存 CI journal、不复制日志，也不启动后台
 watcher。failed、无法读取或 head 漂移立即保持 Goal active；timeout 后显式重试仍复用同一个 PR。
 
-反馈进化先复用原生 Message Feedback 保存 reference-only Signal。只有管理者配置私有复制目录，且
-用户逐条授权一个 signal 或部署者绑定一个静态 exact evaluator/成本策略，才保存未评分 Case Draft；
-目标 Skill 必须由 durable Session 中唯一 `skill-invocation` 推导，命令不得让用户指定；
-它必须重新核对 exact feedback version、Session-pinned Generation、单一 Skill invocation 和 whole-Skill
-content hash。已有可信 Case Pack 覆盖该失败类型时，用户可逐次显式授权一次 Shadow，或由上述默认关闭
-的部署策略每轮最多启动一个；草稿只作为 proposer 搜索证据，既有 evaluator 仍是独立裁判，草稿输入
-字段不直接进入长期 run evidence（proposer 回显仍可随 Candidate 持久化）。
-全新失败允许一次显式、可能付费的 evaluator authoring：结果先成为私有、不可执行的 Evaluator
-Draft；host 固定生成 manifest，并用 exact active Skill 形成 known-bad，模型只能提议 evidence、
-known-correction 与 evaluator。只有另一项人工决定批准 exact hash，且 sealed calibration 方向成立，
-才发布 immutable Qualified Case Pack。资格成立不等于 Candidate 改善或晋升证据；后续 Shadow 仍需
-另一次显式动作。不预建通用 Memory、Signal Bus 或 Case SDK。
+反馈进化只复用原生 Message Feedback 保存 reference-only Signal。目标 Skill 只能从 durable Session 的唯一成功 `skill-invocation`、exact Goal id/revision 与 invocation-content hash 归因，用户不能指定 Skill 或处理路径；歧义、同 Goal 重复和 legacy 无 hash 一律 abstain。Signal 与 Gap、Outcome 进入内部经验聚类，达到跨 Goal 门槛后才形成 Opportunity、Evidence Seal 和隔离 Candidate。
 
-P1.14/P1.16 的自动入口在消费日预算前，还必须复用既有 Evaluator Draft、Shadow journal 与 Review
-Inbox，保证受支持的单 resident 拓扑下，同一 Skill 只有一条未决自动路径。状态不可读时 fail closed；
-其余 Signal 保留在现有 Signal Store 后续再查，不新建队列或 lease，也不限制逐次人工动作。
+Candidate 作者、评测治理面和执行面必须分离。作者只读 authoring 子集；治理作者分别只读 admission/holdout，且不能读取 Candidate；Shadow 只接收 exact Candidate、lineage、Envelope 和 `dshAssembled` Trial，不调用 proposer、不选择 target、不生成任何 Draft。评测或持久状态不完整时 fail closed，不以自动过期替代明确治理决定。
 
-为避免一个长期无人处理的模糊 Candidate 永久冻结同一 Skill，Automatic Feedback Target 对其自己启动、
-且 evaluator 结论为 `review` 的 Candidate 提供默认 168 小时的有界窗口。只在下一条 Signal 的既有预算前
-检查中复用 durable rejection；人工或明确 `promote` 候选不自动过期，不增加 timer、通知或新状态机。
-
-Case Pack authoring 先提供零模型校准命令，不创建新 Service 或 SDK。完整 Shadow 必须在 proposer
-之前用同一个 sealed evaluator 拒绝 known-bad、接受 known-correction；方向不成立时不发送付费
-请求。成功路径仍是四次 Trial，校准不是额外的第 5/6 次执行。
+Retention、反事实 canary、持续监测和低风险自动晋升必须直接绑定内部 Candidate/Envelope/Outcome，使用 baseline/candidate 对照、未见样本、负迁移、安全、权限、成本、时延、cache、故障恢复和精确回滚证据。它们在重新实现并通过这些门禁前属于 pending，不能复用已删除的静态 target、Feedback Draft、Evaluator Draft 或旧 journal。
 
 研究完成的标准是“当前 revision 的每一个原生插件都有归类和作用说明，三个项目的关键结论都有源码证据”。设计完成的标准是“每个计划插件都有用户结果、DSH 接缝、缓存影响、权限边界、验证方法和回滚方案”。实现完成的标准由相应 P0 测试规格定义。
 

@@ -1,12 +1,12 @@
 ---
-status: accepted; standalone entry surface superseded by ADR-0041
+status: accepted isolation principle; proposer/target operation superseded by ADR-0068
 ---
 
 # Fail closed until Trial execution is sealed
 
-DSH `sandbox-local` is a same-world file-effect boundary: it can constrain writes, but its public contract does not promise that candidate code cannot read the case pack, evaluator, other host files, or use the network. EvoForge therefore treats a Trial as sealed only when its execution path can attest the declared read, write, process, and network boundaries; otherwise the Shadow run yields `incomplete` and never executes candidate-generated code or emits a recommendation. The proposer remains a no-tools model call over explicitly selected data, while Trial orchestration stays in the installed `dsh-evolve` Bundle and reuses DSH capability seams; executor variation remains private until two real adapters justify a public seam.
+DSH `sandbox-local` is a same-world file-effect boundary: it can constrain writes, but its public contract does not promise that candidate code cannot read the case pack, evaluator, other host files, or use the network. EvoForge therefore treats a Trial as sealed only when its execution path can attest the declared read, write, process, and network boundaries; otherwise the Shadow run yields `incomplete` and never executes candidate-generated code or emits a recommendation. Candidate authoring may use a bounded no-tools model call in the separate internal author plane. Shadow itself no longer calls a proposer or accepts selected targets; it only executes one exact internally authored Candidate under the installed `dsh-evolve` Bundle. Executor variation remains private until two real adapters justify a public seam.
 
-ADR-0041 superseded the original standalone `dsh-evolve shadow` process/exit-code entry surface. The fail-closed Trial decision remains accepted; current operational submission is a `/evolve` host Command that creates a native DSH Job.
+ADR-0041 superseded the original standalone process/exit-code entry surface. ADR-0068 later removed the target Command/proposer path. The fail-closed Trial decision remains accepted; current operational submission is internal supervisor/Job orchestration with an exact Candidate.
 
 ## Considered options
 

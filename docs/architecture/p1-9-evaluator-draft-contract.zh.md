@@ -1,5 +1,7 @@
 # P1.9 Evaluator Draft 契约
 
+> 当前状态：**已撤销**。Evaluator Draft 运行时、控制面和测试已删除；本页仅保留历史记录，当前合同见 [ADR-0068](../adr/0068-shadow-consumes-one-exact-internal-candidate.md)。
+
 > 状态：implemented；自动化实现门已通过，真实 provider/陌生用户效果证据仍待积累
 
 ## 用户结果

@@ -2,7 +2,6 @@ import { createHash } from 'node:crypto'
 import { lstat, readFile, readdir, realpath } from 'node:fs/promises'
 import { basename, isAbsolute, join, relative } from 'node:path'
 import { loadShadowRunState, writeDurableJson } from './shadow-run-state.ts'
-import type { AutomaticEvolutionInflightStatus } from './automatic-evolution-inflight.ts'
 import {
   parseSkillCandidateLineage,
   type SkillCandidateLineage,
@@ -14,12 +13,6 @@ export interface ReviewCaseSummary {
   candidate: 'pass' | 'fail' | 'incomplete'
   passedChecks: number
   totalChecks: number
-}
-
-export interface AutomaticReviewExpiryProjection {
-  readonly eligibleAt: string
-  readonly eligible: boolean
-  readonly trigger: 'next-same-skill-automatic-signal'
 }
 
 export interface ReviewCandidate {
@@ -46,10 +39,7 @@ export interface ReviewCandidate {
   compositionStable: boolean
   startedAt: string
   completedAt?: string
-  feedbackSignalId?: string
-  feedbackLaunchMode?: 'human' | 'automatic'
   lineage?: SkillCandidateLineage
-  automaticReviewExpiry?: AutomaticReviewExpiryProjection
   evidenceHash: string
   decisionActor?: ReviewDecisionActor
   decisionNote?: string
@@ -76,15 +66,7 @@ interface ReviewDisposition {
 }
 
 const hashPattern = /^[a-f0-9]{64}$/
-const MAX_PENDING_REVIEW_MS = 2_160 * 60 * 60 * 1_000
-
-type ReviewDecisionActor = 'human' | 'auto-clear-instruction-v1' | 'auto-review-expiry-v1'
-
-export interface AutomaticReviewExpiryPolicy {
-  readonly workspaceId: string
-  readonly skillName: string
-  readonly maxPendingReviewMs: number
-}
+type ReviewDecisionActor = 'human' | 'auto-clear-instruction-v1'
 
 export interface ReviewRunRoot {
   readonly workspaceId: string
@@ -92,7 +74,6 @@ export interface ReviewRunRoot {
 }
 
 export interface ReviewInboxOptions {
-  readonly automaticReviewExpiry?: readonly AutomaticReviewExpiryPolicy[]
   readonly now?: () => number
 }
 
@@ -100,7 +81,6 @@ export interface ReviewInboxOptions {
 export class ReviewInbox {
   private readonly runRoots: ReviewRunRoot[]
   private readonly actionTails = new Map<string, Promise<void>>()
-  private readonly automaticReviewExpiry = new Map<string, number>()
   private readonly now: () => number
 
   constructor(runRoots: ReviewRunRoot[], options: ReviewInboxOptions = {}) {
@@ -112,81 +92,10 @@ export class ReviewInbox {
     }
     this.runRoots = runRoots.map(root => ({ ...root }))
     this.now = options.now ?? Date.now
-    for (const policy of options.automaticReviewExpiry ?? []) {
-      if (!isWorkspaceId(policy.workspaceId)
-        || policy.skillName.trim() === ''
-        || !Number.isSafeInteger(policy.maxPendingReviewMs)
-        || policy.maxPendingReviewMs < 1
-        || policy.maxPendingReviewMs > MAX_PENDING_REVIEW_MS
-        || this.automaticReviewExpiry.has(targetKey(policy.workspaceId, policy.skillName))) {
-        throw new Error('automatic review expiry policies must have unique Workspace/Skill pairs and positive bounded ages')
-      }
-      this.automaticReviewExpiry.set(targetKey(policy.workspaceId, policy.skillName), policy.maxPendingReviewMs)
-    }
   }
 
   async scan(): Promise<ReviewScan> {
     return this.scanCandidates(true)
-  }
-
-  async automaticInflightStatus(
-    workspaceId: string,
-    skillName: string,
-    _signalId: string,
-  ): Promise<AutomaticEvolutionInflightStatus> {
-    let scan = await this.scan()
-    if (scan.warnings.length > 0) return 'unknown'
-    const maxPendingReviewMs = this.automaticReviewExpiry.get(targetKey(workspaceId, skillName))
-    if (maxPendingReviewMs !== undefined) {
-      for (const candidate of scan.candidates) {
-        if (!this.isExpiredAutomaticReview(candidate, workspaceId, skillName)) continue
-        const hours = Math.floor(maxPendingReviewMs / (60 * 60 * 1_000))
-        await this.enqueue(candidate.id, () => this.rejectNow(
-          candidate.id,
-          `automatic ambiguous review expired after ${hours} ${hours === 1 ? 'hour' : 'hours'}`,
-          'auto-review-expiry-v1',
-        ))
-      }
-      scan = await this.scan()
-      if (scan.warnings.length > 0) return 'unknown'
-    }
-    return scan.candidates.some(candidate => candidate.workspaceId === workspaceId
-      && candidate.skillName === skillName) ? 'busy' : 'clear'
-  }
-
-  private isExpiredAutomaticReview(
-    candidate: ReviewCandidate,
-    workspaceId: string,
-    skillName: string,
-  ): boolean {
-    return candidate.workspaceId === workspaceId
-      && candidate.skillName === skillName
-      && candidate.automaticReviewExpiry?.eligible === true
-  }
-
-  private projectAutomaticReviewExpiry(
-    candidate: ReviewCandidate,
-  ): AutomaticReviewExpiryProjection | undefined {
-    const maxPendingReviewMs = this.automaticReviewExpiry.get(
-      targetKey(candidate.workspaceId, candidate.skillName),
-    )
-    if (maxPendingReviewMs === undefined
-      || candidate.status !== 'pending'
-      || candidate.recommendation !== 'review'
-      || candidate.feedbackSignalId === undefined
-      || candidate.feedbackLaunchMode !== 'automatic'
-      || candidate.completedAt === undefined) return undefined
-    const completedAt = Date.parse(candidate.completedAt)
-    if (!Number.isFinite(completedAt)) return undefined
-    const eligibleAtMs = completedAt + maxPendingReviewMs
-    const eligibleAt = new Date(eligibleAtMs)
-    if (Number.isNaN(eligibleAt.getTime())) return undefined
-    const observedAt = this.now()
-    return {
-      eligibleAt: eligibleAt.toISOString(),
-      eligible: Number.isFinite(observedAt) && observedAt >= eligibleAtMs,
-      trigger: 'next-same-skill-automatic-signal',
-    }
   }
 
   /** Include terminal dispositions for crash recovery by trusted host policies. */
@@ -249,7 +158,7 @@ export class ReviewInbox {
   private async rejectNow(
     id: string,
     note: string,
-    actor: Extract<ReviewDecisionActor, 'human' | 'auto-review-expiry-v1'>,
+    actor: Extract<ReviewDecisionActor, 'human'>,
   ): Promise<ReviewCandidate> {
     assertReviewId(id)
     const normalizedNote = note.trim()
@@ -473,12 +382,6 @@ export class ReviewInbox {
       compositionStable: report.compositionStable,
       startedAt: state.startedAt,
       completedAt: state.updatedAt,
-      ...(state.feedbackSignalId === undefined
-        ? {}
-        : { feedbackSignalId: state.feedbackSignalId }),
-      ...(state.feedbackLaunchMode === undefined
-        ? {}
-        : { feedbackLaunchMode: state.feedbackLaunchMode }),
       ...(report.lineage === undefined ? {} : { lineage: report.lineage }),
       evidenceHash,
       ...disposition === undefined
@@ -488,11 +391,7 @@ export class ReviewInbox {
       ...disposition?.generationId === undefined ? {} : { generationId: disposition.generationId },
       ...disposition?.activatedAt === undefined ? {} : { activatedAt: disposition.activatedAt },
     }
-    const automaticReviewExpiry = this.projectAutomaticReviewExpiry(candidate)
-    return {
-      ...candidate,
-      ...(automaticReviewExpiry === undefined ? {} : { automaticReviewExpiry }),
-    }
+    return candidate
   }
 
   private enqueue<T>(id: string, action: () => Promise<T>): Promise<T> {
@@ -608,7 +507,7 @@ async function readDisposition(outputDir: string): Promise<ReviewDisposition | u
       || !hashPattern.test(String(value.evidenceHash)) || !['approved', 'rejected'].includes(String(value.status))
       || typeof value.decidedAt !== 'string'
       || (value.actor !== undefined
-        && !['human', 'auto-clear-instruction-v1', 'auto-review-expiry-v1'].includes(String(value.actor)))
+        && !['human', 'auto-clear-instruction-v1'].includes(String(value.actor)))
       || (value.decisionNote !== undefined && typeof value.decisionNote !== 'string')
       || (value.generationId !== undefined && !hashPattern.test(String(value.generationId)))
       || (value.activatedAt !== undefined && typeof value.activatedAt !== 'string')) {
@@ -616,7 +515,6 @@ async function readDisposition(outputDir: string): Promise<ReviewDisposition | u
     }
     if ((value.status === 'approved') !== (value.generationId !== undefined)
       || (value.actor === 'auto-clear-instruction-v1' && value.status !== 'approved')
-      || (value.actor === 'auto-review-expiry-v1' && value.status !== 'rejected')
       || (value.activatedAt !== undefined && value.actor !== 'auto-clear-instruction-v1')) {
       throw new Error('review-state.json has an invalid terminal disposition')
     }
@@ -629,10 +527,6 @@ async function readDisposition(outputDir: string): Promise<ReviewDisposition | u
 
 function assertReviewId(id: string): void {
   if (!hashPattern.test(id)) throw new Error('review action requires the full 64-character review id')
-}
-
-function targetKey(workspaceId: string, skill: string): string {
-  return `${workspaceId}\0${skill}`
 }
 
 function isWorkspaceId(value: string): boolean {

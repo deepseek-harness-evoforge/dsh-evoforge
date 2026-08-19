@@ -2,6 +2,7 @@ import { readdir, realpath } from 'node:fs/promises'
 import { isAbsolute, join, resolve } from 'node:path'
 import { loadShadowRunState } from './shadow-run-state.ts'
 import { runShadow } from './shadow.ts'
+import type { SkillCandidateLineage } from './skill-candidate-lineage.ts'
 
 export interface ShadowResumeInvocation {
   casePackDir: string
@@ -9,7 +10,11 @@ export interface ShadowResumeInvocation {
   resume: true
   signal: AbortSignal
   skillDir: string
-  feedbackDraftPath?: string
+  exactCandidate: {
+    claim: string
+    lineage?: SkillCandidateLineage
+    skillDir: string
+  }
 }
 
 export interface ShadowSupervisorOptions {
@@ -153,20 +158,13 @@ export class ShadowSupervisor {
                   baselineSkillName: state.resumeInputs.baselineSkillName!,
                 }),
             casePackDir: state.resumeInputs.casePackDir,
-            ...(state.resumeInputs.candidateSkillDir === undefined
-              ? {}
-              : {
-                  exactCandidate: {
-                    claim: state.proposal?.claim ?? 'resume pinned exact Candidate',
-                    ...(state.identity.skillCandidateLineage === undefined
-                      ? {}
-                      : { lineage: state.identity.skillCandidateLineage }),
-                    skillDir: state.resumeInputs.candidateSkillDir,
-                  },
-                }),
-            ...(state.resumeInputs.feedbackDraftPath === undefined
-              ? {}
-              : { feedbackDraftPath: state.resumeInputs.feedbackDraftPath }),
+            exactCandidate: {
+              claim: state.proposal?.claim ?? 'resume pinned exact Candidate',
+              ...(state.identity.skillCandidateLineage === undefined
+                ? {}
+                : { lineage: state.identity.skillCandidateLineage }),
+              skillDir: state.resumeInputs.candidateSkillDir,
+            },
             outputDir,
             resume: true,
             signal: controller.signal,
@@ -200,9 +198,9 @@ export class ShadowSupervisor {
       this.activeWorkspaceId = workspaceId
       try {
         await this.options.afterScan(controller.signal, workspaceId)
-        this.reportedErrors.delete(`automatic-promotion:${workspaceId}`)
+        this.reportedErrors.delete(`continuity:${workspaceId}`)
       } catch (error) {
-        if (!controller.signal.aborted) this.report(error, `automatic-promotion:${workspaceId}`)
+        if (!controller.signal.aborted) this.report(error, `continuity:${workspaceId}`)
       } finally {
         if (this.activeAbort === controller) this.activeAbort = undefined
         if (this.activeWorkspaceId === workspaceId) this.activeWorkspaceId = undefined

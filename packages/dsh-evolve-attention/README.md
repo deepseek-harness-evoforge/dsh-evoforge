@@ -1,7 +1,7 @@
 # dsh-evolve-attention
 
 `dsh-evolve-attention` sends durable Telegram and/or Feishu notices when `dsh-evolve` has an
-actionable Candidate or Evaluator Draft. It reuses concrete route services already owned by
+actionable Candidate review or inactive promotion decision. It reuses concrete route services already owned by
 `dsh-telegram` and `dsh-feishu`; it does not create a notification platform, another scheduler,
 inline approval protocol, or second source of truth.
 
@@ -9,8 +9,7 @@ inline approval protocol, or second source of truth.
 
 - a pending Candidate that needs review;
 - an automatically approved but still inactive Candidate that needs an explicit promotion
-  decision;
-- an Evaluator Draft in `uncertain`, `draft-ready`, or `incomplete` state.
+  decision.
 
 Each message contains only a bounded type, safe Skill label, status or recommendation, exact
 content id, and the copyable `/evolve` inspection command. It excludes prompts, feedback, claims,
@@ -41,7 +40,6 @@ After a notice arrives, inspect and act through the existing command surface:
 
 ```text
 /evolve review <candidate-id>
-/evolve evaluator <draft-id>
 ```
 
 There are deliberately no inline approve, promote, or qualify buttons.

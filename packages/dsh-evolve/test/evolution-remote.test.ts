@@ -18,13 +18,6 @@ describe('EvolutionRemoteService', () => {
       rejectReview: vi.fn(),
       promote: vi.fn(),
       rollback: vi.fn(),
-      startFeedbackShadow: vi.fn(async () => ({ ...receipt, action: 'start-shadow' })),
-      evaluatorDraft: vi.fn(),
-      authorEvaluator: vi.fn(async () => ({ ...receipt, action: 'author-evaluator' })),
-      approveEvaluator: vi.fn(),
-      approveAndStartEvaluatorShadow: vi.fn(),
-      rejectEvaluator: vi.fn(),
-      startEvaluatorShadow: vi.fn(),
     } as unknown as EvolutionControlPlane
     const ctx = new Context()
     const remote = new EvolutionRemoteService(ctx, control)
@@ -32,12 +25,6 @@ describe('EvolutionRemoteService', () => {
     await expect(remote.overview(WORKSPACE_ID, 'session-1')).resolves.toBe(overview)
     expect(control.overview).toHaveBeenCalledWith(WORKSPACE_ID, 'session-1')
     await expect(remote.pause(WORKSPACE_ID)).resolves.toBe(receipt)
-    await remote.startFeedbackShadow(WORKSPACE_ID, 'signal', 'target')
-    await remote.authorEvaluator(WORKSPACE_ID, 'signal', 'target')
-    await remote.startEvaluatorShadow(WORKSPACE_ID, 'draft')
-    expect(control.startFeedbackShadow).toHaveBeenCalledWith(WORKSPACE_ID, 'signal', 'target')
-    expect(control.authorEvaluator).toHaveBeenCalledWith(WORKSPACE_ID, 'signal', 'target')
-    expect(control.startEvaluatorShadow).toHaveBeenCalledWith(WORKSPACE_ID, 'draft')
     expect(ctx.get('evoforge.evolutionControl')).toMatchObject({ name: 'evoforge.evolutionControl' })
     expect(remote.typertRemote).toMatchObject({
       serviceKey: 'evoforge.evolutionControl',
@@ -52,13 +39,6 @@ describe('EvolutionRemoteService', () => {
       'rejectReview',
       'promote',
       'rollback',
-      'startFeedbackShadow',
-      'evaluatorDraft',
-      'authorEvaluator',
-      'approveEvaluator',
-      'approveAndStartEvaluatorShadow',
-      'rejectEvaluator',
-      'startEvaluatorShadow',
     ])
   })
 })

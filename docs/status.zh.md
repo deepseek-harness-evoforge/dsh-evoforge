@@ -13,9 +13,9 @@
 
 ## 当前总判断
 
-EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。所有已提交成果都在权威 `main`；`dsh-gateway` 已直接替换 `dsh-channel-router`。ClawHub、市场和 runtime research Candidate 已删除；`dsh-evolve` 公开 Git repository/source、目标 Skill、静态 Case Pack、Feedback/Evaluator target 和按 Skill AutoPromotion 配置及活动装配也已删除。公开 Config 只包含内容寻址缓存、Workspace 自发现/评测 policy 和通用 supervisor；活动 `GenerationBundleRepository`/`CandidatePublisher` 又删除了 Git source、隐藏 ref 和 repository fallback，只解析内部 whole-Skill Bundle，legacy artifact 明确 quarantine；packed artifact 有负向回归契约。源码树仍有未装配的历史 target/Git 模块、`Shadow` 旧 proposer 和 Control 类型，尚待物理删除。
+EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。所有已提交成果都在权威 `main`；`dsh-gateway` 已直接替换 `dsh-channel-router`。ClawHub、市场和 runtime research Candidate 已删除；`dsh-evolve` 的 Git source/ref、预选 Skill、静态 Case Pack/Feedback/Evaluator target、Feedback/Evaluator Draft、Shadow 内 proposer、自动 review expiry、旧 Retention/canary 和对应 Control/Web/attention 表面也已从活动源码物理删除。公开 Config 只包含内容寻址缓存、Workspace 自发现/评测 policy 和通用 supervisor；`GenerationBundleRepository`/`CandidatePublisher` 只解析内部 whole-Skill Bundle，legacy artifact 明确 quarantine；packed artifact 与 Shadow 源码均有负向回归契约。
 
-当前 Candidate seam 只接受内部 Skill Opportunity 生成的 canonical text bundle。两个独立 Goal 形成 Opportunity；至少四个 Goal 后才预密封 authoring/admission/holdout 证据，Candidate v2、Lineage v3 与 Envelope v4 绑定 exact seal。真实 assembled baseline 不安装目标 Skill，Candidate 侧才安装 exact whole-Skill；经复核的新 Skill 可形成内容寻址 inactive Generation，真实 DSH 已验证 future-Session-only、重启固定和 root rollback。原先静态 Retention/canary 编排不再由插件装配，必须重新绑定内部 Opportunity/Candidate 证据后才能算活动能力。
+当前 Candidate seam 只接受内部 Skill Opportunity 生成的 canonical text bundle。两个独立 Goal 形成 Opportunity；至少四个 Goal 后才预密封 authoring/admission/holdout 证据，Candidate v2、Lineage v3 与 Envelope v4 绑定 exact seal。真实 assembled baseline 不安装目标 Skill，Candidate 侧才安装 exact whole-Skill；Shadow 必须由调用方提供同一 exact Candidate、内容哈希、tree、lineage 与 `dshAssembled` Trial，自身不调用 proposer。经复核的新 Skill可形成内容寻址 inactive Generation，真实 DSH 已验证 future-Session-only、重启固定和 root rollback。Retention/canary 必须直接重建在内部 Opportunity/Candidate/Envelope/Outcome 上后才能算活动能力。
 
 Gateway 已统一 Telegram/飞书普通文本 outbound、幂等、限流、uncertain 恢复、transport observation 和健康快照；Web 已做真实浏览器读取/刷新/断连恢复。现有 Skill 的同版本跨 Goal 精确纠正只形成等待完整 baseline Bundle 的 investigation。existing-Skill Candidate、完整返工/成本/复用/Retention/负迁移/回滚归因、真实飞书 exact 消息、真实 provider、Hermes paired 和长期数据仍未达标。
 
@@ -28,13 +28,13 @@ V4.21 按 [ADR-0065](adr/0065-existing-skill-improvement-requires-exact-invocati
 | 能力 | 当前状态 | 已有证据 | 仍缺 |
 |---|---|---|---|
 | 原生 DSH 插件产品形态 | `implemented` | 十一包均有 `name/inject/Config/apply`、Bundle patch、无 bin 合同；同一次 clean-profile tarball add/dump/boot/remove/readback 通过 | 陌生安装与 registry release 门禁 |
-| Evidence-driven Evolution + internal Skill Opportunity | `implemented` | 自然 Goal→Host 复核/持久 Gap；跨 Goal Opportunity；预密封 authoring/admission/holdout；Candidate v2/Lineage v3/Envelope v4；capability-absent assembled evaluation；内容寻址 Generation、future Session pin、restart 与 rollback；[V4.22](evidence/v4-22-runtime-source-target-removal.zh.md) 删除公开配置，[V4.23](evidence/v4-23-content-addressed-generation-runtime.zh.md) 删除活动 Git source/ref/repository fallback 并 quarantine legacy | 未装配历史模块/Shadow 旧 proposer/Control 类型继续清理；existing-Skill 完整 baseline Bundle/Candidate、内部 Retention/canary 重接、真实 provider、长期误晋升/回滚数据缺失 |
+| Evidence-driven Evolution + internal Skill Opportunity | `implemented` | 自然 Goal→Host 复核/持久 Gap；跨 Goal Opportunity；预密封 authoring/admission/holdout；Candidate v2/Lineage v3/Envelope v4；exact-Candidate assembled Shadow；内容寻址 Generation、future Session pin、restart 与 rollback；[V4.22](evidence/v4-22-runtime-source-target-removal.zh.md) 删除公开配置，[V4.23](evidence/v4-23-content-addressed-generation-runtime.zh.md) 删除活动 Git source/ref，[V4.24](evidence/v4-24-exact-candidate-shadow-cleanup.zh.md) 物理删除历史 target/draft/proposer/Retention/canary/control 表面 | existing-Skill 完整 baseline Bundle/Candidate、内部 Retention/canary/outcome 重建、真实 provider、长期误晋升/回滚数据缺失 |
 | Software Delivery P2A–P2D | `implemented` | 真实 Git、原生 Tool/Goal、Draft PR、checks；Outcome 只从 source-linked Session call/result pair 读取，经官方 durability checkpoint 后投影，并可在 cold Session start 幂等补记；十一包 clean-profile 内从 packed Tool 完成原生 Goal | 真实长期任务与 checkpoint 前 hard kill、checkpoint 后投影前 kill 的跨进程故障注入 |
 | GitHub Review Follow-up P3.2 | `implemented` | exact-head allowlist、bounded follow-up、重启去重、cache parity | 真实 reviewer 返修闭环和多日 resident |
 | Web Control Plane | `verified` | packed artifact、真实 DSH Workspace/Host/Client Module；浏览器 pause→Host restart→persisted pause→resume/refresh；Goal metrics 的 Workspace/current/baseline 聚合和最近证据来自 Host 权威 Remote；最终 tarball clean-profile 中以四个原生 DSH Session/Goal 形成 Opportunity，显示 `ready-to-seal`、2/1/1 分割、目标正文保护和零 Candidate；在线刷新、断线保留最后快照并 fail visible、同 profile 恢复、Outcome 幂等 1→1，console error 0 | 陌生用户可用性、真实 provider 价格与长期数据 |
 | Runtime Readiness | `implemented` | 原生 Loader/Command、tarball 生命周期 | v0.1 全包诊断和陌生安装数据 |
 | Telegram 单私聊 | `implemented` | 已迁移 DSH Gateway；真实 DSH Workspace/Agent Loop、Commands、Approval、Goal/Schedule、Gateway durable ingress/outbound、cache parity、联合 tarball lifecycle；私有 Delivery Store 已删除；真实 assembled long-poll failure→Gateway `degraded`→成功 poll→`ready` | 真实 Bot 冒烟和多日证据 |
-| Evolve Channel Attention | `implemented` | Telegram/飞书 actionable state、concrete routes、显式 Workspace、durable notice、request parity；进入十一包总装 | 真实渠道验证与多日移动端数据 |
+| Evolve Channel Attention | `implemented` | Telegram/飞书 Candidate review/inactive promotion decision、concrete routes、显式 Workspace、durable notice、request parity；Evaluator Draft 表面已删除；进入十一包总装 | 真实渠道验证与多日移动端数据 |
 | Goal Continuity | `implemented` | JSONL cold resume、SIGKILL、原生 Goal round limit | 多 Workspace 绑定、生产 soak |
 | Resident OS unit | `implemented` | disabled Bundle、原生 `/resident`、exact hash/service-id 确认、无 bin tarball、十一包总装、launchd/systemd 与 macOS crash 测试 | Linux 真机和多日 soak |
 | Workspace DSH Gateway | `implemented` | `dsh-gateway` 直接替换旧包且无兼容层；exact endpoint/Adapter account/routeIds deny-by-default；原生 Workspace/Session/Agent create/resume；持久 ingress/outbound 幂等与 uncertain 状态机；按 account 串行、明确限流重试、turn/end 门、重启后原生 turn/end 唤醒、畸形 success 保守降级；[V5.1](evidence/v5-1-gateway-transport-health.zh.md) 聚合 Telegram/飞书脱敏 transport observation；[V5.2](evidence/v5-2-gateway-web-health.zh.md) 以同包只读 Remote/Client 在真实 DSH 浏览器验证读取、刷新、失败清空旧快照与恢复 | exact 飞书 chat/user 消息闭环、真实渠道长期运行与 paired benchmark |
@@ -44,12 +44,13 @@ V4.21 按 [ADR-0065](adr/0065-existing-skill-improvement-requires-exact-invocati
 
 ## 当前可安装面
 
-最新 V4.23 增量通过根级 `pnpm check`（文档、全包 typecheck、测试和构建）；其中
-`dsh-gateway` 7 files/23 tests、`dsh-evolve-web` 2 files/26 tests，`dsh-evolve` 65 files、279 tests passed、
-2 skipped。Cache Contract 全通过；Doctor 十一包原生合同 22/22，十一包 clean-profile 最终 tarball 的
-add/dump/boot/真实 Session+Goal+Storage+Tool/dispose/remove/reboot/readback 1/1（31.32 秒）；独立 Doctor
-packed add/Loader/command/remove 1/1（4.07 秒）。V4.23 没有新增浏览器功能；此前真实浏览器显示 exact
-existing-Skill version 调查、跨 Goal 证据、无因果与等待完整 Bundle，刷新后保持，diagnostics 为 `[]`。
+最新 V4.24 增量通过根级 `pnpm check`（文档、全包 typecheck、测试和构建）；其中
+`dsh-gateway` 7 files/23 tests、`dsh-evolve-web` 2 files/18 tests、`dsh-evolve-attention` 4 files/11 tests，
+`dsh-evolve` 48 files/177 tests passed、1 file/1 test skipped。此前 Cache Contract 全通过；Doctor 十一包
+原生合同 22/22，十一包 clean-profile 最终 tarball 的 add/dump/boot/真实
+Session+Goal+Storage+Tool/dispose/remove/reboot/readback 1/1（60.96 秒）；独立 Doctor packed
+add/Loader/command/remove 1/1（10.35 秒）。V4.24 删除旧浏览器 acceptance fixture，并用 DSH Web 组件测试固定“纠正进入
+自主内部治理、不出现路线选择”；下一次真实浏览器门禁必须在完整评测演进视图完成后重跑。
 
 十一个包可生成 tarball 并通过 `dsh plugin --profile web add` 安装：`dsh-evolve`、`dsh-evolve-web`、`dsh-software-delivery`、`dsh-doctor`、`dsh-github-review`、`dsh-telegram`、`dsh-evolve-attention`、`dsh-goal-continuity`、`dsh-resident`、`dsh-gateway`、`dsh-feishu`。外部路由、自动恢复和 OS 部署默认关闭。没有任何 EvoForge 独立 Runtime、网站、daemon 或产品 CLI 是受支持入口。
 
@@ -57,7 +58,7 @@ existing-Skill version 调查、跨 Goal 证据、无因果与等待完整 Bundl
 
 - 固定 rc.5 源码是唯一支持证据；兼容范围不能由宽 peer range 推断；
 - v0.1 浏览器复验已完成；真实 provider cache-read/TTFT 仍需有预算的 paired soak；
-- 自我发现只允许从 DSH 内部 Goal、Gap、失败、纠正、结果、复用与保留证据学习；同 Goal retry 不计独立证据，任何 Opportunity/Candidate 自身都没有安装、激活或发布权；配置已不能预选内部 Candidate Skill，作者与 admission/holdout 样本已在调用前隔离，Candidate v2/Lineage v3/Envelope v4 显式绑定 seal，Candidate-independent 治理包形成与 uncertain crash 门已实现，缺失 Skill baseline 不再伪造占位 Skill，review 后的新 Skill Publisher/future Session/root rollback/absent-parent Retention/canary 已实现，但当前仍缺治理包真实 provider assembled 独立评估整链 outcome、长期负迁移率和模型缺口质量；
+- 自我发现只允许从 DSH 内部 Goal、Gap、失败、纠正、结果与复用证据学习；同 Goal retry 不计独立证据，任何 Opportunity/Candidate 自身都没有安装、激活或发布权；配置已不能预选 Candidate Skill，作者与 admission/holdout 样本已在调用前隔离，Candidate v2/Lineage v3/Envelope v4 显式绑定 seal，Shadow 只消费 exact Candidate 且零 proposer，缺失 Skill baseline 不再伪造占位 Skill，review 后的新 Skill Publisher/future Session/root rollback 已实现；内部 Retention/canary/outcome、真实 provider assembled 评估、长期负迁移率和模型缺口质量仍缺；
 - Hermes/OpenClaw/HanaAgent、论文、市场和开源实现只用于设计期调研与冻结 benchmark；运行时外部 Skill 搜索、获取、下载、导入或市场功能不属于本项目；
 - 真实飞书 exact route 消息、真实 Telegram/飞书 paired、真实 provider、陌生用户和生产多日证据仍缺失；
 - 自动化 `implemented` 不能替代真实 outcome，也不能支持笼统的“优于 Hermes”；

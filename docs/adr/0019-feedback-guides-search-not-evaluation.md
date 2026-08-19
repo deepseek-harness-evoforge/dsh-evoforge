@@ -2,7 +2,7 @@
 
 ## 状态
 
-Accepted，2026-08-16；standalone 参数入口于 2026-08-17 被 [ADR-0041](0041-dsh-is-the-only-runtime-and-install-surface.md) 撤销，反馈只参与搜索的边界继续有效。
+历史决定，2026-08-16；standalone 参数入口于 2026-08-17 被 [ADR-0041](0041-dsh-is-the-only-runtime-and-install-surface.md) 撤销，Feedback Draft/target search 又被 [ADR-0068](0068-shadow-consumes-one-exact-internal-candidate.md) 撤销。当前仅保留“纠正不能成为评测真相、proposer 不能兼任裁判”的分离原则。
 
 ## 背景
 

@@ -20,15 +20,12 @@ describe('Shadow supervisor', () => {
     const runRoot = await createRunRoot()
     const phases = [
       'prepared',
-      'proposal-pending',
       'candidate-ready',
       'trial-running',
       'complete',
       'incomplete',
     ] as const
     for (const phase of phases) await writeRun(runRoot, phase, phase)
-    const feedbackDraftPath = join(runRoot, 'private-feedback-draft.json')
-    await writeRun(runRoot, 'feedback-ready', 'candidate-ready', true, feedbackDraftPath)
     await writeRun(runRoot, 'missing-inputs', 'candidate-ready', false)
     const outside = await createRunRoot()
     await writeRun(outside, 'outside', 'candidate-ready')
@@ -51,12 +48,11 @@ describe('Shadow supervisor', () => {
     const exactRunRoot = await realpath(runRoot)
     expect(invocations.map(invocation => invocation.outputDir).sort()).toEqual([
       join(exactRunRoot, 'candidate-ready'),
-      join(exactRunRoot, 'feedback-ready'),
       join(exactRunRoot, 'trial-running'),
     ])
     expect(invocations.every(invocation => invocation.resume)).toBe(true)
-    expect(invocations.find(invocation => invocation.outputDir.endsWith('/feedback-ready')))
-      .toMatchObject({ feedbackDraftPath })
+    expect(invocations.every(invocation => invocation.exactCandidate.skillDir.endsWith('/candidate')))
+      .toBe(true)
   })
 
   it('restores an exact Candidate and capability-absent identity during crash recovery', async () => {
@@ -247,7 +243,7 @@ describe('Shadow supervisor', () => {
     const runRoot = await createRunRoot()
     const errors: string[] = []
     const afterScan = vi.fn()
-      .mockRejectedValueOnce(new Error('automatic policy unavailable'))
+      .mockRejectedValueOnce(new Error('continuity hook unavailable'))
       .mockResolvedValueOnce(undefined)
     const supervisor = new ShadowSupervisor({
       runRoots: [ownedRunRoot(WORKSPACE_ID, runRoot)],
@@ -260,7 +256,7 @@ describe('Shadow supervisor', () => {
     await supervisor.scanOnce()
 
     expect(afterScan).toHaveBeenCalledTimes(2)
-    expect(errors).toEqual([`automatic-promotion:${WORKSPACE_ID}:Error: automatic policy unavailable`])
+    expect(errors).toEqual([`continuity:${WORKSPACE_ID}:Error: continuity hook unavailable`])
   })
 
   it('aborts active post-scan evolution work when the resident supervisor stops', async () => {
@@ -298,9 +294,8 @@ async function createRunRoot(): Promise<string> {
 async function writeRun(
   runRoot: string,
   name: string,
-  phase: 'prepared' | 'proposal-pending' | 'candidate-ready' | 'trial-running' | 'complete' | 'incomplete',
+  phase: 'prepared' | 'candidate-ready' | 'trial-running' | 'complete' | 'incomplete',
   withInputs = true,
-  feedbackDraftPath?: string,
 ): Promise<void> {
   const outputDir = join(runRoot, name)
   await mkdir(outputDir)
@@ -324,7 +319,7 @@ async function writeRun(
       resumeInputs: {
         skillDir: join(runRoot, 'skill'),
         casePackDir: join(runRoot, 'case-pack'),
-        ...(feedbackDraftPath === undefined ? {} : { feedbackDraftPath }),
+        candidateSkillDir: join(runRoot, 'candidate'),
       },
     } : {}),
   }

@@ -1,5 +1,7 @@
 # P1.20 自动审阅窗口可见性实现证据
 
+> 历史证据：自动 review window/Web 投影已在 V4.24 删除，不是当前产品合同。
+
 > 日期：2026-08-17；分支：`feat/p1-review-window-visibility`
 
 ## 结果

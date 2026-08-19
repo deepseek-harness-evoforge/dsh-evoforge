@@ -1,5 +1,7 @@
 # P1.11 Exact Candidate Retention Gate 契约
 
+> 当前状态：**已撤销并待重建**。旧 Retention 编排已删除；本页仅保留历史语义，后续实现必须绑定内部 Candidate/Envelope/Outcome，见 [ADR-0068](../adr/0068-shadow-consumes-one-exact-internal-candidate.md)。
+
 > 状态：历史实现契约；standalone Interface 已由 [ADR-0041](../adr/0041-dsh-is-the-only-runtime-and-install-surface.md) 撤销，exact Retention primitive 保留在 `dsh-evolve` Bundle 内
 
 ## 唯一用户结果

@@ -1,5 +1,7 @@
 # P1.7 证据：全新失败 evaluator authoring Skill
 
+> 历史证据：Evaluator Draft/authoring 表面已在 V4.24 删除，不是当前产品合同。
+
 > 日期：2026-08-16  
 > 声明等级：`implemented` authoring workflow；不代表任意反馈已能自动生成 evaluator
 

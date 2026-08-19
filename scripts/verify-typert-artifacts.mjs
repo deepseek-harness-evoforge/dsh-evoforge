@@ -6,21 +6,14 @@ import { pathToFileURL } from 'node:url'
 const workspace = resolve(import.meta.dirname, '..')
 const output = join(workspace, 'packages/dsh-evolve/lib')
 const expectedMethods = [
-  'approveAndStartEvaluatorShadow',
-  'approveEvaluator',
   'approveReview',
-  'authorEvaluator',
-  'evaluatorDraft',
   'overview',
   'pause',
   'promote',
-  'rejectEvaluator',
   'rejectReview',
   'resume',
   'review',
   'rollback',
-  'startEvaluatorShadow',
-  'startFeedbackShadow',
 ]
 
 const recorded = (await readFile(join(output, 'typert.source.sha256'), 'utf8')).trim()
@@ -46,21 +39,14 @@ if (JSON.stringify(hostMethods) !== JSON.stringify(expectedMethods)
   throw new Error(`unexpected evoforgeEvolution Remote methods: ${JSON.stringify({ hostMethods, remoteMethods })}`)
 }
 const expectedParameters = {
-  approveAndStartEvaluatorShadow: ['workspaceId', 'id', 'note'],
-  approveEvaluator: ['workspaceId', 'id', 'note'],
   approveReview: ['workspaceId', 'id', 'note'],
-  authorEvaluator: ['workspaceId', 'signalId', 'targetId'],
-  evaluatorDraft: ['workspaceId', 'id'],
   overview: ['workspaceId', 'sessionId'],
   pause: ['workspaceId'],
   promote: ['workspaceId', 'generationId'],
-  rejectEvaluator: ['workspaceId', 'id', 'note'],
   rejectReview: ['workspaceId', 'id', 'note'],
   resume: ['workspaceId'],
   review: ['workspaceId', 'id'],
   rollback: ['workspaceId'],
-  startEvaluatorShadow: ['workspaceId', 'id'],
-  startFeedbackShadow: ['workspaceId', 'signalId', 'targetId'],
 }
 const actualParameters = Object.fromEntries(
   remoteManifest.descriptors

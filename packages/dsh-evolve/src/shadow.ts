@@ -18,7 +18,6 @@ import {
   type PairedTrialResult,
   type TrialBaselineKind,
 } from './trial.ts'
-import { readPrivateFeedbackCaseDraft } from './feedback-case-draft.ts'
 import {
   parseSkillCandidateLineage,
   type SkillCandidateLineage,
@@ -28,7 +27,7 @@ export interface ShadowOptions {
   baselineKind?: TrialBaselineKind
   baselineSkillName?: string
   casePackDir: string
-  exactCandidate?: {
+  exactCandidate: {
     claim: string
     lineage?: SkillCandidateLineage
     skillDir: string
@@ -38,8 +37,6 @@ export interface ShadowOptions {
   resume?: boolean
   signal?: AbortSignal
   skillDir: string
-  feedbackDraftPath?: string
-  feedbackLaunchMode?: 'human' | 'automatic'
 }
 
 export interface CasePackManifest {
@@ -68,19 +65,11 @@ export interface CasePackManifest {
     knownBad: string
     knownCorrection: string
   }
-  search?: {
-    evidence: string
-  }
 }
 
 interface Proposal {
   claim: string
   files: Array<{ path: string; content: string }>
-}
-
-interface ModelResponse {
-  choices?: Array<{ message?: { content?: string } }>
-  usage?: { prompt_tokens?: number; completion_tokens?: number }
 }
 
 export async function runShadow(options: ShadowOptions): Promise<
@@ -91,28 +80,18 @@ export async function runShadow(options: ShadowOptions): Promise<
   const baselineKind = options.baselineKind ?? 'skill-tree'
   const skillDir = await realpath(options.skillDir)
   const casePackDir = await realpath(options.casePackDir)
-  const exactCandidateDir = options.exactCandidate === undefined
-    ? undefined
-    : await realpath(options.exactCandidate.skillDir)
+  const exactCandidateDir = await realpath(options.exactCandidate.skillDir)
   const requestedOutputDir = resolve(options.outputDir)
   const outputDir = resolve(await realpath(dirname(requestedOutputDir)), basename(requestedOutputDir))
   assertSeparateOutput(outputDir, skillDir, casePackDir, exactCandidateDir)
-  if (exactCandidateDir !== undefined) {
-    assertSeparateTrees(exactCandidateDir, skillDir, 'exact Candidate', 'baseline Skill')
-    assertSeparateTrees(exactCandidateDir, casePackDir, 'exact Candidate', 'Case Pack')
-    if (options.feedbackDraftPath !== undefined || options.feedbackLaunchMode !== undefined) {
-      throw new Error('exact Candidate Shadow cannot use Feedback proposer inputs')
-    }
-  }
+  assertSeparateTrees(exactCandidateDir, skillDir, 'exact Candidate', 'baseline Skill')
+  assertSeparateTrees(exactCandidateDir, casePackDir, 'exact Candidate', 'Case Pack')
 
   const manifest = parseCasePackManifest(await readFile(resolve(casePackDir, 'manifest.json'), 'utf8'))
-  if (exactCandidateDir !== undefined && manifest.trial?.dshAssembled !== true) {
+  if (manifest.trial?.dshAssembled !== true) {
     throw new Error('exact Candidate Shadow requires an assembled DSH Trial')
   }
   if (baselineKind === 'capability-absent') {
-    if (exactCandidateDir === undefined) {
-      throw new Error('capability-absent Shadow requires an exact Candidate Skill tree')
-    }
     if (!isPublicSkillName(options.baselineSkillName)) {
       throw new Error('capability-absent Shadow requires an exact Skill name')
     }
@@ -122,11 +101,8 @@ export async function runShadow(options: ShadowOptions): Promise<
   } else if (options.baselineSkillName !== undefined) {
     throw new Error('baseline Skill name is only valid for a capability-absent Shadow')
   }
-  const searchEvidence = manifest.search
-    ? await readOwnedCasePackFile(casePackDir, manifest.search.evidence)
-    : undefined
   const skillSource = await readFile(resolve(
-    baselineKind === 'capability-absent' ? exactCandidateDir! : skillDir,
+    baselineKind === 'capability-absent' ? exactCandidateDir : skillDir,
     'SKILL.md',
   ), 'utf8')
   const skillName = parseSkillName(skillSource)
@@ -134,41 +110,12 @@ export async function runShadow(options: ShadowOptions): Promise<
     throw new Error('capability-absent Shadow Candidate does not match the missing Skill name')
   }
   const baseTreeHash = await hashTree(skillDir)
-  const feedbackDraftPath = options.feedbackDraftPath === undefined
-    ? undefined
-    : resolve(options.feedbackDraftPath)
-  const feedbackDraft = feedbackDraftPath === undefined
-    ? undefined
-    : await readPrivateFeedbackCaseDraft(feedbackDraftPath)
-  if (feedbackDraft !== undefined && feedbackDraft.target.name !== skillName) {
-    throw new Error(
-      `feedback draft targets Skill '${feedbackDraft.target.name}', not active Skill '${skillName}'`,
-    )
-  }
-  if (feedbackDraft !== undefined && feedbackDraft.source.workspaceId !== manifest.workspaceId) {
-    throw new Error('feedback draft and Case Pack belong to different Workspaces')
-  }
-  if (feedbackDraft !== undefined && feedbackDraft.target.contentHash !== baseTreeHash) {
-    throw new Error('feedback draft does not match the exact active Skill content')
-  }
-  if (feedbackDraft !== undefined && (manifest.trial === undefined || manifest.calibration === undefined)) {
-    throw new Error('feedback-guided Shadow requires a calibrated Case Pack')
-  }
-  const feedbackEvidence = feedbackDraft === undefined
-    ? undefined
-    : [
-        'Explicit user correction (untrusted search evidence, not evaluator truth):',
-        `Direct user request:\n${feedbackDraft.sample.userText}`,
-        `Human correction:\n${feedbackDraft.sample.correction}`,
-      ].join('\n\n')
   const casePackHash = await hashTree(casePackDir)
   if (options.expectedCasePackHash !== undefined && casePackHash !== options.expectedCasePackHash) {
     throw new Error('Shadow Case Pack does not match the expected qualified hash')
   }
-  const exactCandidateTreeHash = exactCandidateDir === undefined
-    ? undefined
-    : await hashTree(exactCandidateDir)
-  const skillCandidateLineage = options.exactCandidate?.lineage === undefined
+  const exactCandidateTreeHash = await hashTree(exactCandidateDir)
+  const skillCandidateLineage = options.exactCandidate.lineage === undefined
     ? undefined
     : parseSkillCandidateLineage(options.exactCandidate.lineage)
   if (skillCandidateLineage !== undefined
@@ -177,28 +124,18 @@ export async function runShadow(options: ShadowOptions): Promise<
       || skillCandidateLineage.candidateTreeHash !== exactCandidateTreeHash)) {
     throw new Error('Skill Candidate lineage does not match the exact Shadow inputs')
   }
-  const exactProposal = exactCandidateDir === undefined
-    ? undefined
-    : await proposalFromExactCandidate(
-        skillDir,
-        exactCandidateDir,
-        normalizeExactClaim(options.exactCandidate!.claim),
-        baselineKind,
-      )
-  const modelBaseUrl = exactCandidateDir === undefined
-    ? requireEnvironment('DSH_EVOLVE_MODEL_BASE_URL')
-    : undefined
-  const modelRoute = exactCandidateDir === undefined
-    ? requireEnvironment('DSH_EVOLVE_MODEL_NAME')
-    : 'pinned-internal-candidate-v1'
-  const apiKey = exactCandidateDir === undefined ? process.env.DSH_EVOLVE_MODEL_API_KEY : undefined
-  const modelConfigHash = sha256(JSON.stringify(exactCandidateDir === undefined
-    ? { baseUrl: modelBaseUrl, model: modelRoute }
-    : {
-        candidateTreeHash: exactCandidateTreeHash,
-        claim: exactProposal!.claim,
-        model: modelRoute,
-      }))
+  const exactProposal = await proposalFromExactCandidate(
+    skillDir,
+    exactCandidateDir,
+    normalizeExactClaim(options.exactCandidate.claim),
+    baselineKind,
+  )
+  const modelRoute = 'pinned-internal-candidate-v1'
+  const modelConfigHash = sha256(JSON.stringify({
+    candidateTreeHash: exactCandidateTreeHash,
+    claim: exactProposal.claim,
+    model: modelRoute,
+  }))
   const baselineFingerprint = sha256(
     JSON.stringify({ baselineKind, baseTreeHash, casePackHash, modelConfigHash }),
   )
@@ -214,7 +151,6 @@ export async function runShadow(options: ShadowOptions): Promise<
     modelRoute,
     skillName,
     ...(baselineKind === 'skill-tree' ? {} : { baselineKind }),
-    ...(feedbackDraft === undefined ? {} : { feedbackDraftId: feedbackDraft.id }),
     ...(skillCandidateLineage === undefined ? {} : { skillCandidateLineage }),
   }
   const resumeInputs = {
@@ -224,8 +160,7 @@ export async function runShadow(options: ShadowOptions): Promise<
       baselineKind,
       baselineSkillName: options.baselineSkillName!,
     }),
-    ...(feedbackDraftPath === undefined ? {} : { feedbackDraftPath }),
-    ...(exactCandidateDir === undefined ? {} : { candidateSkillDir: exactCandidateDir }),
+    candidateSkillDir: exactCandidateDir,
   }
   const runId = sha256(JSON.stringify(identity))
   if (options.resume === true) {
@@ -271,10 +206,6 @@ export async function runShadow(options: ShadowOptions): Promise<
         startedAt,
         updatedAt: startedAt,
         identity,
-        ...(feedbackDraft === undefined ? {} : { feedbackSignalId: feedbackDraft.source.signalId }),
-        ...(feedbackDraft === undefined || options.feedbackLaunchMode === undefined
-          ? {}
-          : { feedbackLaunchMode: options.feedbackLaunchMode }),
         resumeInputs,
       }
       await saveShadowRunState(outputDir, state)
@@ -332,7 +263,6 @@ export async function runShadow(options: ShadowOptions): Promise<
           casePackHash,
           casePackFinalHash: finalCasePackHash,
           casePackUnchanged: finalCasePackHash === casePackHash,
-          ...(feedbackDraft === undefined ? {} : { feedbackDraftId: feedbackDraft.id }),
         },
         calibration,
         cases: [],
@@ -392,12 +322,8 @@ export async function runShadow(options: ShadowOptions): Promise<
       }
     }
 
-    let modelResponse: ModelResponse | undefined
     let proposal: Proposal
     try {
-      if (state.phase === 'proposal-pending') {
-        throw new Error('proposal outcome is uncertain after interruption; refusing automatic retry')
-      }
       if (state.phase !== 'prepared') {
         if (state.proposal === undefined
           || state.proposalHash === undefined
@@ -406,56 +332,21 @@ export async function runShadow(options: ShadowOptions): Promise<
         }
         proposal = parsePersistedProposal(state.proposal)
         if (state.proposalHash !== sha256(JSON.stringify(proposal))) {
-          throw new Error('durable model proposal does not match its recorded hash')
+          throw new Error('durable Candidate does not match its recorded hash')
         }
-        modelResponse = {
-          usage: {
-            prompt_tokens: state.modelUsage.inputTokens,
-            completion_tokens: state.modelUsage.outputTokens,
-          },
+        if (state.modelUsage.inputTokens !== 0 || state.modelUsage.outputTokens !== 0) {
+          throw new Error('exact Candidate checkpoint contains forbidden Shadow model usage')
         }
-        validateModelUsage(modelResponse, manifest.budget)
-      } else if (exactCandidateDir !== undefined) {
-        proposal = structuredClone(exactProposal!)
+      } else {
+        proposal = structuredClone(exactProposal)
         if (await hashTree(exactCandidateDir) !== exactCandidateTreeHash) {
           throw new Error('exact Candidate changed while its proposal was derived')
         }
-        modelResponse = { usage: { prompt_tokens: 0, completion_tokens: 0 } }
         await updateState({
           phase: 'candidate-ready',
           proposal,
           proposalHash: sha256(JSON.stringify(proposal)),
           modelUsage: { inputTokens: 0, outputTokens: 0 },
-        })
-      } else {
-        const proposalEffect = {
-          id: sha256(`${runId}:proposal:1`),
-          requestedAt: new Date().toISOString(),
-        }
-        await updateState({ phase: 'proposal-pending', proposalEffect })
-        modelResponse = await requestProposal({
-          apiKey,
-          baseUrl: modelBaseUrl!,
-          idempotencyKey: proposalEffect.id,
-          inputTokenLimit: manifest.budget.inputTokenLimit,
-          model: modelRoute,
-          outputTokenLimit: manifest.budget.outputTokenLimit,
-          ...options.signal === undefined ? {} : { signal: options.signal },
-          searchEvidence,
-          feedbackEvidence,
-          skillName,
-          skillSource,
-        })
-        validateModelUsage(modelResponse, manifest.budget)
-        proposal = parseProposal(modelResponse)
-        await updateState({
-          phase: 'candidate-ready',
-          proposal,
-          proposalHash: sha256(JSON.stringify(proposal)),
-          modelUsage: {
-            inputTokens: modelResponse.usage?.prompt_tokens ?? 0,
-            outputTokens: modelResponse.usage?.completion_tokens ?? 0,
-          },
         })
       }
     } catch (error) {
@@ -484,7 +375,6 @@ export async function runShadow(options: ShadowOptions): Promise<
           modelConfigHash,
           evaluatorVersion: manifest.epoch.evaluatorVersion,
           casePackHash,
-          ...(feedbackDraft === undefined ? {} : { feedbackDraftId: feedbackDraft.id }),
         },
         calibration: [],
         cases: [],
@@ -496,8 +386,8 @@ export async function runShadow(options: ShadowOptions): Promise<
         budget: {
           candidateLimit: manifest.budget.candidateLimit,
           trialLimit: manifest.budget.trialLimit,
-          inputTokens: modelResponse?.usage?.prompt_tokens ?? 0,
-          outputTokens: modelResponse?.usage?.completion_tokens ?? 0,
+          inputTokens: 0,
+          outputTokens: 0,
         },
         ...(skillCandidateLineage === undefined ? {} : { lineage: skillCandidateLineage }),
       })
@@ -513,7 +403,7 @@ export async function runShadow(options: ShadowOptions): Promise<
         byteLength: Buffer.byteLength(file.content),
       })),
       modelRoute,
-      usage: modelResponse.usage ?? {},
+      usage: { prompt_tokens: 0, completion_tokens: 0 },
     }
     await writeJson(resolve(outputDir, 'evidence', 'proposal.json'), proposalEvidence)
 
@@ -542,7 +432,6 @@ export async function runShadow(options: ShadowOptions): Promise<
         modelConfigHash,
         evaluatorVersion: manifest.epoch.evaluatorVersion,
         casePackHash,
-        ...(feedbackDraft === undefined ? {} : { feedbackDraftId: feedbackDraft.id }),
       },
       candidate: {
         id: candidateTreeHash.slice(0, 16),
@@ -585,8 +474,8 @@ export async function runShadow(options: ShadowOptions): Promise<
       budget: {
         candidateLimit: manifest.budget.candidateLimit,
         trialLimit: manifest.budget.trialLimit,
-        inputTokens: modelResponse.usage?.prompt_tokens ?? 0,
-        outputTokens: modelResponse.usage?.completion_tokens ?? 0,
+        inputTokens: 0,
+        outputTokens: 0,
       },
       ...(skillCandidateLineage === undefined ? {} : { lineage: skillCandidateLineage }),
     } as const
@@ -669,9 +558,7 @@ export async function runShadow(options: ShadowOptions): Promise<
           casePackDir,
           dshRevision: manifest.epoch.dshRevision,
           outputDir,
-          ...exactCandidateDir === undefined
-            ? { proposal }
-            : { candidateSkillDir: exactCandidateDir },
+          candidateSkillDir: exactCandidateDir,
           ...options.signal === undefined ? {} : { signal: options.signal },
           skillDir,
           trial: manifest.trial,
@@ -686,9 +573,7 @@ export async function runShadow(options: ShadowOptions): Promise<
           casePackDir,
           dshRevision: manifest.epoch.dshRevision,
           outputDir,
-          ...exactCandidateDir === undefined
-            ? { proposal }
-            : { candidateSkillDir: exactCandidateDir },
+          candidateSkillDir: exactCandidateDir,
           ...options.signal === undefined ? {} : { signal: options.signal },
           skillDir,
           trial: manifest.trial,
@@ -750,39 +635,37 @@ export async function runShadow(options: ShadowOptions): Promise<
       return finishIncomplete(reportPath, reason)
     }
 
-    if (exactCandidateDir !== undefined) {
-      let exactCandidateTreeHashAfterTrial: string
-      try {
-        exactCandidateTreeHashAfterTrial = await hashTree(exactCandidateDir)
-      } catch {
-        exactCandidateTreeHashAfterTrial = 'unreadable'
-      }
-      if (exactCandidateTreeHashAfterTrial !== exactCandidateTreeHash
-        || pairedTrial.candidate.treeHash !== exactCandidateTreeHash) {
-        const reason = exactCandidateTreeHashAfterTrial !== exactCandidateTreeHash
-          ? 'exact Candidate changed during sealed Trial'
-          : 'exact Candidate proposal did not reproduce its pinned tree'
-        await writeJson(reportPath, {
-          ...reportBase,
-          run: { ...reportBase.run, finishedAt: new Date().toISOString() },
-          subject: {
-            ...reportBase.subject,
-            finalTreeHash: treeHashAfterTrial,
-            unchanged: true,
-          },
-          epoch: {
-            ...reportBase.epoch,
-            casePackFinalHash: casePackHashAfterTrial,
-            casePackUnchanged: true,
-          },
-          candidate: {
-            ...reportBase.candidate,
-            treeHash: pairedTrial.candidate.treeHash,
-          },
-          calibration: pairedTrial.calibration,
-        })
-        return finishIncomplete(reportPath, reason)
-      }
+    let exactCandidateTreeHashAfterTrial: string
+    try {
+      exactCandidateTreeHashAfterTrial = await hashTree(exactCandidateDir)
+    } catch {
+      exactCandidateTreeHashAfterTrial = 'unreadable'
+    }
+    if (exactCandidateTreeHashAfterTrial !== exactCandidateTreeHash
+      || pairedTrial.candidate.treeHash !== exactCandidateTreeHash) {
+      const reason = exactCandidateTreeHashAfterTrial !== exactCandidateTreeHash
+        ? 'exact Candidate changed during sealed Trial'
+        : 'exact Candidate proposal did not reproduce its pinned tree'
+      await writeJson(reportPath, {
+        ...reportBase,
+        run: { ...reportBase.run, finishedAt: new Date().toISOString() },
+        subject: {
+          ...reportBase.subject,
+          finalTreeHash: treeHashAfterTrial,
+          unchanged: true,
+        },
+        epoch: {
+          ...reportBase.epoch,
+          casePackFinalHash: casePackHashAfterTrial,
+          casePackUnchanged: true,
+        },
+        candidate: {
+          ...reportBase.candidate,
+          treeHash: pairedTrial.candidate.treeHash,
+        },
+        calibration: pairedTrial.calibration,
+      })
+      return finishIncomplete(reportPath, reason)
     }
 
     const calibrationPassed = pairedTrial.calibration.every((result) => result.passed)
@@ -856,13 +739,9 @@ export async function runShadow(options: ShadowOptions): Promise<
       decision: {
         recommendation: decision.recommendation,
         reasons: [decision.reason],
-        limitations: [exactCandidateDir !== undefined
-          ? skillCandidateLineage !== undefined
-            ? 'Internal Opportunity-bound Candidate; Shadow has no release authority'
-            : 'Externally discovered exact Candidate requires human provenance review'
-          : pairedTrial.assembled
-            ? 'P0A.3 uses a keyless scripted model through one real assembled DSH path on macOS'
-            : 'P0A.2 evaluates one deterministic sealed final-test on macOS'],
+        limitations: [skillCandidateLineage !== undefined
+          ? 'Internal Opportunity-bound Candidate; Shadow has no release authority'
+          : 'Exact Candidate without internal lineage requires human provenance review'],
       },
     })
     return finishComplete(
@@ -917,29 +796,13 @@ function decidePairedTrial(input: {
   return { recommendation: 'review', reason: 'candidate did not improve the passing baseline' }
 }
 
-function validateModelUsage(response: ModelResponse, budget: CasePackManifest['budget']): void {
-  const inputTokens = response.usage?.prompt_tokens
-  const outputTokens = response.usage?.completion_tokens
-  if (!Number.isSafeInteger(inputTokens) || (inputTokens as number) < 0
-    || !Number.isSafeInteger(outputTokens) || (outputTokens as number) < 0) {
-    throw new Error('model response has no valid token usage')
-  }
-  if ((inputTokens as number) > budget.inputTokenLimit) {
-    throw new Error(`model input token budget exceeded: ${inputTokens} > ${budget.inputTokenLimit}`)
-  }
-  if ((outputTokens as number) > budget.outputTokenLimit) {
-    throw new Error(`model output token budget exceeded: ${outputTokens} > ${budget.outputTokenLimit}`)
-  }
-}
-
 function assertSeparateOutput(
   outputDir: string,
   skillDir: string,
   casePackDir: string,
-  exactCandidateDir?: string,
+  exactCandidateDir: string,
 ): void {
   for (const protectedDir of [skillDir, casePackDir, exactCandidateDir]) {
-    if (protectedDir === undefined) continue
     const fromProtected = relative(protectedDir, outputDir)
     const fromOutput = relative(outputDir, protectedDir)
     if (fromProtected === '' || (!fromProtected.startsWith('..') && !isAbsolute(fromProtected))) {
@@ -1083,13 +946,6 @@ export function parseCasePackManifest(source: string): CasePackManifest {
       throw new Error('case pack has an invalid calibration definition')
     }
   }
-  if (value.search !== undefined) {
-    if (!isRecord(value.search)
-      || typeof value.search.evidence !== 'string'
-      || !isOwnedRelativePath(value.search.evidence)) {
-      throw new Error('case pack has an invalid search evidence definition')
-    }
-  }
   return value as unknown as CasePackManifest
 }
 
@@ -1103,92 +959,13 @@ function parseSkillName(source: string): string {
   return match[1].trim()
 }
 
-async function requestProposal(options: {
-  apiKey: string | undefined
-  baseUrl: string
-  idempotencyKey: string
-  inputTokenLimit: number
-  model: string
-  outputTokenLimit: number
-  signal?: AbortSignal
-  searchEvidence: string | undefined
-  feedbackEvidence: string | undefined
-  skillName: string
-  skillSource: string
-}): Promise<ModelResponse> {
-  const estimatedInputTokens = Math.ceil(
-    (options.skillSource.length
-      + (options.searchEvidence?.length ?? 0)
-      + (options.feedbackEvidence?.length ?? 0)) / 4,
-  )
-  if (estimatedInputTokens > options.inputTokenLimit) {
-    throw new Error('Shadow proposer input exceeds the case pack input token budget')
-  }
-  const headers: Record<string, string> = {
-    'content-type': 'application/json',
-    'idempotency-key': options.idempotencyKey,
-  }
-  if (options.apiKey) headers.authorization = `Bearer ${options.apiKey}`
-  const response = await fetch(`${options.baseUrl.replace(/\/$/, '')}/chat/completions`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      model: options.model,
-      max_tokens: options.outputTokenLimit,
-      temperature: 0,
-      messages: [
-        {
-          role: 'system',
-          content: 'Propose one minimal Skill change. Return JSON only: {"claim":string,"files":[{"path":string,"content":string}]}. Paths must stay inside the owned Skill directory.',
-        },
-        {
-          role: 'user',
-          content: [
-            `Owned Skill: ${options.skillName}`,
-            options.skillSource,
-            ...options.searchEvidence
-              ? [`Observed search evidence:\n${options.searchEvidence}`]
-              : [],
-            ...options.feedbackEvidence === undefined ? [] : [options.feedbackEvidence],
-          ].join('\n\n'),
-        },
-      ],
-    }),
-    signal: options.signal === undefined
-      ? AbortSignal.timeout(60_000)
-      : AbortSignal.any([options.signal, AbortSignal.timeout(60_000)]),
-  })
-  if (!response.ok) throw new Error(`model request failed with HTTP ${response.status}`)
-  return await response.json() as ModelResponse
-}
-
-function parseProposal(response: ModelResponse): Proposal {
-  const content = response.choices?.[0]?.message?.content
-  if (typeof content !== 'string') throw new Error('model response has no proposal content')
-  let value: unknown
-  try {
-    value = JSON.parse(content)
-  } catch {
-    throw new Error('model proposal is not valid JSON')
-  }
-  if (!isRecord(value) || typeof value.claim !== 'string' || !Array.isArray(value.files)) {
-    throw new Error('model proposal has an invalid shape')
-  }
-  for (const file of value.files) {
-    if (!isRecord(file) || typeof file.path !== 'string' || typeof file.content !== 'string') {
-      throw new Error('model proposal file has an invalid shape')
-    }
-  }
-  return value as unknown as Proposal
-}
-
 function parsePersistedProposal(value: unknown): Proposal {
   if (!isRecord(value) || typeof value.claim !== 'string' || !Array.isArray(value.files)) {
-    throw new Error('durable model proposal has an invalid shape')
+    throw new Error('durable Candidate has an invalid shape')
   }
   for (const file of value.files) {
     if (!isRecord(file) || typeof file.path !== 'string' || typeof file.content !== 'string') {
-      throw new Error('durable model proposal file has an invalid shape')
+      throw new Error('durable Candidate file has an invalid shape')
     }
   }
   return structuredClone(value) as unknown as Proposal
@@ -1198,21 +975,6 @@ function isOwnedRelativePath(path: string): boolean {
   if (path.length === 0 || path.includes('\\') || isAbsolute(path)) return false
   const normalized = path.split('/')
   return normalized.every((segment) => segment !== '' && segment !== '.' && segment !== '..')
-}
-
-async function readOwnedCasePackFile(casePackDir: string, entry: string): Promise<string> {
-  const path = await realpath(resolve(casePackDir, entry))
-  const fromRoot = relative(casePackDir, path)
-  if (fromRoot !== '' && (fromRoot.startsWith('..') || isAbsolute(fromRoot))) {
-    throw new Error(`case pack entry escapes its root: ${entry}`)
-  }
-  return await readFile(path, 'utf8')
-}
-
-function requireEnvironment(name: string): string {
-  const value = process.env[name]?.trim()
-  if (!value) throw new Error(`${name} is required`)
-  return value
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

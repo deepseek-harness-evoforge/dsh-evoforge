@@ -10,8 +10,6 @@ afterEach(cleanup)
 
 const reviewId = 'c'.repeat(64)
 const generationId = 'a'.repeat(64)
-const signalId = '8'.repeat(64)
-const evaluatorDraftId = 'e'.repeat(64)
 const workspaceId = '11111111-1111-4111-8111-111111111111'
 const otherWorkspaceId = '22222222-2222-4222-8222-222222222222'
 const sessionId = 'session-1'
@@ -63,65 +61,15 @@ function success<T>(value: T) {
 function remote(
   withActive = false,
   withInactive = false,
-  evaluatorStatus: 'draft-ready' | 'incomplete' | 'qualified' = 'draft-ready',
-  budgetStatus: 'ready' | 'unknown' = 'ready',
-  expiryEligible = false,
 ): EvolutionRemoteClient {
   const overview = {
     schemaVersion: 1 as const,
     workspaceId,
     recovery: { available: true, paused: false },
-    automaticPromotion: { enabled: false, skills: [] },
-    automaticFeedbackBudget: {
+    skillEvaluationGovernance: {
+      configuredPolicyCount: 1,
       warningCount: 0,
-      targets: [{
-        workspaceId,
-        targetId: 'plugin-delivery',
-        skillName: 'build-dsh-plugin',
-        utcDay: '2026-08-17',
-        used: budgetStatus === 'ready' ? 1 : 0,
-        limit: 2,
-        remaining: budgetStatus === 'ready' ? 1 : 0,
-        status: budgetStatus,
-      }],
-    },
-    automaticEvaluatorBudget: {
-      warningCount: 0,
-      targets: [{
-        workspaceId,
-        targetId: 'novel-failure',
-        skillName: 'build-dsh-plugin',
-        utcDay: '2026-08-17',
-        used: 1,
-        limit: 1,
-        remaining: 0,
-        status: 'ready' as const,
-      }],
-    },
-    feedbackShadow: {
-      available: true,
-      warningCount: 0,
-      signals: [{ workspaceId, id: signalId, sourceUpdatedAt: 1_786_896_000_000, generationId, eligibleTargetIds: ['plugin-delivery'] }],
-      targets: [{ workspaceId, id: 'plugin-delivery', skillName: 'build-dsh-plugin' }],
       runs: [],
-    },
-    evaluatorAuthoring: {
-      available: true,
-      actionableCount: 1,
-      warningCount: 0,
-      signals: [{ workspaceId, id: signalId, sourceUpdatedAt: 1_786_896_000_000, generationId, eligibleTargetIds: ['plugin-delivery'] }],
-      targets: [{ workspaceId, id: 'plugin-delivery', skillName: 'build-dsh-plugin' }],
-      drafts: [{
-        workspaceId,
-        id: evaluatorDraftId,
-        launchId: 'd'.repeat(64),
-        targetId: 'plugin-delivery',
-        skillName: 'build-dsh-plugin',
-        status: evaluatorStatus,
-        createdAt: '2026-08-17T00:00:00.000Z',
-        updatedAt: '2026-08-17T00:00:01.000Z',
-        cost: { modelCalls: 1 as const, inputTokens: 100, outputTokens: 50 },
-      }],
     },
     reviews: {
       available: true,
@@ -149,11 +97,6 @@ function remote(
         compositionFingerprint: '2'.repeat(64),
         compositionStable: true,
         startedAt: '2026-08-16T00:00:00.000Z',
-        automaticReviewExpiry: {
-          eligibleAt: '2026-08-23T00:00:00.000Z',
-          eligible: expiryEligible,
-          trigger: 'next-same-skill-automatic-signal' as const,
-        },
       }],
     },
   }
@@ -207,7 +150,6 @@ function remote(
         truncated: false,
         impact: { version: 'lexical-protected-effects-v1' as const, scope: 'append-only-skill' as const, indicators: [] },
       },
-      automatic: { eligible: false, policyVersion: 'auto-clear-instruction-v1' as const, reasons: ['manual review'] },
     })),
     pause: vi.fn(() => success({ schemaVersion: 1 as const, workspaceId, action: 'pause' as const, recoveryPaused: true })),
     resume: vi.fn(() => success({ schemaVersion: 1 as const, workspaceId, action: 'resume' as const, recoveryPaused: false })),
@@ -222,76 +164,6 @@ function remote(
     rejectReview: vi.fn(() => success({ schemaVersion: 1 as const, workspaceId, action: 'reject-review' as const, reviewId, status: 'rejected' as const })),
     promote: vi.fn(() => success({ schemaVersion: 1 as const, workspaceId, action: 'promote' as const, activeGenerationId: generationId })),
     rollback: vi.fn(() => success({ schemaVersion: 1 as const, workspaceId, action: 'rollback' as const, previousGenerationId: generationId })),
-    startFeedbackShadow: vi.fn(() => success({
-      schemaVersion: 1 as const,
-      workspaceId,
-      action: 'start-shadow' as const,
-      launchId: '9'.repeat(64),
-      targetId: 'plugin-delivery',
-      skillName: 'build-dsh-plugin',
-      runStatus: 'scheduled' as const,
-      jobId: 'evolution-1',
-    })),
-    evaluatorDraft: vi.fn(() => success({
-      schemaVersion: 1 as const,
-      draft: overview.evaluatorAuthoring.drafts[0]!,
-      files: [
-        { path: 'final-test/evaluator.mjs', content: 'process.stdout.write("bounded")\n' },
-        { path: 'search/evidence.md', content: 'independent observable\n' },
-      ],
-      limitations: ['inactive until human qualification'],
-      qualifiedShadowAvailable: true,
-    })),
-    authorEvaluator: vi.fn(() => success({
-      schemaVersion: 1 as const,
-      workspaceId,
-      action: 'author-evaluator' as const,
-      launchId: 'd'.repeat(64),
-      targetId: 'plugin-delivery',
-      skillName: 'build-dsh-plugin',
-      draftStatus: 'scheduled' as const,
-      jobId: 'evolution-2',
-    })),
-    approveEvaluator: vi.fn(() => success({
-      schemaVersion: 1 as const,
-      workspaceId,
-      action: 'approve-evaluator' as const,
-      launchId: 'd'.repeat(64),
-      draftId: evaluatorDraftId,
-      targetId: 'plugin-delivery',
-      skillName: 'build-dsh-plugin',
-      draftStatus: 'qualified' as const,
-    })),
-    approveAndStartEvaluatorShadow: vi.fn(() => success({
-      schemaVersion: 1 as const,
-      workspaceId,
-      action: 'start-shadow' as const,
-      launchId: '8'.repeat(64),
-      targetId: 'plugin-delivery',
-      skillName: 'build-dsh-plugin',
-      runStatus: 'scheduled' as const,
-      jobId: 'evolution-4',
-    })),
-    rejectEvaluator: vi.fn(() => success({
-      schemaVersion: 1 as const,
-      workspaceId,
-      action: 'reject-evaluator' as const,
-      launchId: 'd'.repeat(64),
-      draftId: evaluatorDraftId,
-      targetId: 'plugin-delivery',
-      skillName: 'build-dsh-plugin',
-      draftStatus: 'rejected' as const,
-    })),
-    startEvaluatorShadow: vi.fn(() => success({
-      schemaVersion: 1 as const,
-      workspaceId,
-      action: 'start-shadow' as const,
-      launchId: '9'.repeat(64),
-      targetId: 'plugin-delivery',
-      skillName: 'build-dsh-plugin',
-      runStatus: 'scheduled' as const,
-      jobId: 'evolution-3',
-    })),
   }
 }
 
@@ -304,15 +176,12 @@ const t = (key: string) => ({
   'onboarding.idle': 'Nothing needs your attention',
   'onboarding.step.correct': 'Mark the assistant answer as problematic',
   'onboarding.step.correctHelp': 'Under the answer, select “Bad response”, then “Add a note”; explain what was wrong and the correct result, and save it.',
-  'onboarding.verificationMissing': 'Corrections are available, but verification is not configured',
-  'onboarding.verificationMissingHelp': 'You can still leave a correction under an answer. Until one bounded verification target is configured, EvoForge records feedback without pretending that evolution ran.',
+  'onboarding.verificationMissing': 'Corrections are available, but independent evaluation governance is not configured',
+  'onboarding.verificationMissingHelp': 'You can still leave a correction under an answer. Until independent evaluation governance is configured, EvoForge records internal evidence without pretending that evolution ran.',
   'onboarding.feedbackBlocked': 'A correction is recorded, but verification is not configured',
-  'onboarding.feedbackBlockedHelp': 'Your correction remains safely in this Workspace. One bounded verification target must be configured before EvoForge can test a change.',
-  'onboarding.feedbackIneligible': 'A correction is recorded, but this answer has no verifiable evolved Skill',
-  'onboarding.feedbackIneligibleHelp': 'The answer came from native DSH or its evolved Skill does not match a configured target. The correction is retained and no invalid task is started.',
-  'onboarding.feedbackReady': 'A recorded correction can be processed',
-  'onboarding.feedbackReadyHelp': 'Open the advanced view to choose a configured verification path. Nothing changes in this Session.',
-  'onboarding.processFeedback': 'Process recorded correction',
+  'onboarding.feedbackBlockedHelp': 'Your correction remains safely in this Workspace. Independent evaluation governance must be configured before the system can author and isolate a Candidate from internal experience.',
+  'onboarding.feedbackReady': 'Correction recorded for autonomous evaluation',
+  'onboarding.feedbackReadyHelp': 'EvoForge will attribute and cluster this evidence internally. It will surface a review only after an isolated Candidate passes governance.',
   'onboarding.recorded': 'recorded corrections',
   'skills.empty': 'No evolved Skills yet.',
   'skills.catalog': 'Session capability map',
@@ -443,25 +312,10 @@ const t = (key: string) => ({
   'action.reject': 'Reject',
   'action.promote': 'Promote',
   'action.rollback': 'Rollback',
-  'action.startShadow': 'Start Shadow',
-  'action.authorEvaluator': 'Author Evaluator',
-  'action.inspectEvaluator': 'Inspect Evaluator',
-  'action.approveEvaluator': 'Qualify Evaluator',
-  'action.approveAndShadow': 'Qualify & start Shadow',
-  'action.startQualifiedShadow': 'Start Qualified Shadow',
   'action.confirm': 'Confirm',
   'action.cancel': 'Cancel',
   'field.note': 'Decision note',
-  'section.budget': 'Automatic evolution budget',
   'section.outcomes': 'Observed delivery outcomes',
-  'label.attemptsUsed': 'attempts used',
-  'label.remaining': 'remaining',
-  'label.feedbackShadow': 'Feedback Shadow',
-  'label.evaluatorDraft': 'Evaluator Draft',
-  'label.reviewExpiry': 'Automatic review window',
-  'review.expiryOpen': 'Open until',
-  'review.expiryEligible': 'Expiry eligible since',
-  'review.expiryTrigger': 'No background timer runs; rejection occurs only when the next same-Skill automatic Signal arrives.',
   'outcomes.active': 'Active',
   'outcomes.current': 'Current selection',
   'outcomes.parent': 'Parent',
@@ -491,7 +345,6 @@ const t = (key: string) => ({
   'outcomes.metrics.event': 'event',
   'outcomes.metrics.priceUnavailable': 'Provider price is unavailable; monetary cost is not inferred.',
   'outcomes.disclaimer': 'Observed counts are descriptive; they do not prove that a Generation caused the difference.',
-  'status.budgetUnknown': 'Budget state unknown; automatic launch is blocked',
   'error.workspaceRequired': 'Open a Session owned by a native Workspace first.',
 }[key] ?? key)
 
@@ -526,7 +379,6 @@ describe('EvolutionAction', () => {
       schemaVersion: 1,
       workspaceId,
       recovery: { available: true, paused: false },
-      automaticPromotion: { enabled: false, skills: [] },
       reviews: {
         available: true,
         pendingCount: 0,
@@ -543,7 +395,7 @@ describe('EvolutionAction', () => {
     expect((await screen.findByRole('tab', { name: 'Overview' })).getAttribute('aria-selected')).toBe('true')
     expect(screen.getByRole('tab', { name: 'Skills' })).toBeTruthy()
     expect(screen.getByRole('tab', { name: 'Advanced' })).toBeTruthy()
-    expect(screen.getByText('Corrections are available, but verification is not configured')).toBeTruthy()
+    expect(screen.getByText('Corrections are available, but independent evaluation governance is not configured')).toBeTruthy()
     expect(screen.getByText(/without pretending that evolution ran/u)).toBeTruthy()
     expect(screen.getByText('Mark the assistant answer as problematic')).toBeTruthy()
     expect(screen.getByText(/select “Bad response”, then “Add a note”/u)).toBeTruthy()
@@ -553,13 +405,12 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('No evolved Skills yet.')).toBeTruthy()
   })
 
-  it('does not hide a recorded correction when verification targets are missing', async () => {
+  it('does not hide a recorded correction when evaluation governance is missing', async () => {
     const api = remote()
     vi.mocked(api.overview).mockImplementationOnce(() => success({
       schemaVersion: 1,
       workspaceId,
       recovery: { available: true, paused: false },
-      automaticPromotion: { enabled: false, skills: [] },
       feedbackSignals: { all: 1, selected: 1 },
       reviews: {
         available: true,
@@ -575,65 +426,21 @@ describe('EvolutionAction', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
 
     expect(await screen.findByText('A correction is recorded, but verification is not configured')).toBeTruthy()
-    expect(screen.getByText(/must be configured before EvoForge can test/u)).toBeTruthy()
+    expect(screen.getByText(/governance must be configured before the system can author/u)).toBeTruthy()
     expect(screen.getByText('recorded corrections').parentElement?.textContent).toBe('1recorded corrections')
     expect(screen.queryByText('Nothing needs your attention')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Process recorded correction' })).toBeNull()
   })
 
-  it('routes a recorded correction with configured targets to the existing advanced controls', async () => {
+  it('records a correction for autonomous internal evaluation without offering a route', async () => {
     const api = remote()
     const configured = remote()
     vi.mocked(api.overview).mockImplementationOnce(async (requestedWorkspaceId: string) => {
       const result = await configured.overview(requestedWorkspaceId)
       if (!result.ok) return result
-      return success({
-        ...result.value,
-        reviews: {
-          ...result.value.reviews,
-          pendingCount: 0,
-          actionableCount: 0,
-          items: [],
-        },
-        evaluatorAuthoring: {
-          ...result.value.evaluatorAuthoring!,
-          actionableCount: 0,
-          drafts: [],
-        },
-      })
-    })
-    renderEvolution(api)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
-    expect(await screen.findByText('A recorded correction can be processed')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Process recorded correction' }))
-
-    expect(screen.getByRole('tab', { name: 'Advanced' }).getAttribute('aria-selected')).toBe('true')
-    expect(screen.getByRole('button', { name: /^Start Shadow/u })).toBeTruthy()
-  })
-
-  it('does not offer a target that the Host marks ineligible for native feedback', async () => {
-    const api = remote()
-    const configured = remote()
-    vi.mocked(api.overview).mockImplementationOnce(async (requestedWorkspaceId: string) => {
-      const result = await configured.overview(requestedWorkspaceId)
-      if (!result.ok) return result
-      const nativeSignal = {
-        workspaceId,
-        id: signalId,
-        sourceUpdatedAt: 1_786_896_000_000,
-        eligibleTargetIds: [],
-      }
       return success({
         ...result.value,
         feedbackSignals: { all: 1, selected: 1 },
-        feedbackShadow: { ...result.value.feedbackShadow!, signals: [nativeSignal] },
-        evaluatorAuthoring: {
-          ...result.value.evaluatorAuthoring!,
-          actionableCount: 0,
-          signals: [nativeSignal],
-          drafts: [],
-        },
         reviews: {
           ...result.value.reviews,
           pendingCount: 0,
@@ -645,12 +452,13 @@ describe('EvolutionAction', () => {
     renderEvolution(api)
 
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
-    expect(await screen.findByText('A correction is recorded, but this answer has no verifiable evolved Skill')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Process recorded correction' })).toBeNull()
+    expect(await screen.findByText('Correction recorded for autonomous evaluation')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Process|Shadow|Evaluator/u })).toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: 'Skills' }))
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Advanced' }))
+    expect(screen.getByRole('tab', { name: 'Skills' }).getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByText('Independent evaluation governance')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /^Start Shadow/u })).toBeNull()
-    expect(screen.queryByRole('button', { name: /^Author Evaluator/u })).toBeNull()
   })
 
   it('projects active, approved, and reviewing Skill states without another catalog', async () => {
@@ -1002,7 +810,6 @@ describe('EvolutionAction', () => {
       schemaVersion: 1,
       workspaceId: otherWorkspaceId,
       recovery: { available: false },
-      automaticPromotion: { enabled: false, skills: [] },
       reviews: {
         available: true,
         pendingCount: 0,
@@ -1028,13 +835,8 @@ describe('EvolutionAction', () => {
     await screen.findByRole('dialog', { name: 'Evolution control' })
     await selectAdvanced()
     expect(api.overview).toHaveBeenCalledWith(workspaceId, sessionId)
-    expect(within(screen.getByRole('button', { name: 'Evolution' })).getByText('2')).toBeTruthy()
+    expect(within(screen.getByRole('button', { name: 'Evolution' })).getByText('1')).toBeTruthy()
     expect(screen.getByText('Actionable')).toBeTruthy()
-    expect(screen.getByText('Feedback Shadow · plugin-delivery · build-dsh-plugin')).toBeTruthy()
-    expect(screen.getByText('1/2 attempts used · 1 remaining · 2026-08-17 UTC')).toBeTruthy()
-    expect(screen.getByText('Evaluator Draft · novel-failure · build-dsh-plugin')).toBeTruthy()
-    expect(screen.getByText('1/1 attempts used · 0 remaining · 2026-08-17 UTC')).toBeTruthy()
-    expect(screen.getByText('Open until · 2026-08-23T00:00:00.000Z')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Inspect' }))
     await screen.findByText((_content, element) => element?.tagName === 'PRE' && element.textContent?.includes('-stop') === true)
@@ -1044,10 +846,6 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('passed')).toBeTruthy()
     expect(screen.getByText('bounded case')).toBeTruthy()
     expect(screen.getAllByText('label.tokens')).toHaveLength(1)
-    expect(screen.getByText('Automatic review window')).toBeTruthy()
-    expect(screen.getByText(
-      'Open until 2026-08-23T00:00:00.000Z. No background timer runs; rejection occurs only when the next same-Skill automatic Signal arrives.',
-    )).toBeTruthy()
 
     fireEvent.change(screen.getByLabelText('Decision note'), { target: { value: 'checked evidence' } })
     fireEvent.click(screen.getByRole('button', { name: 'Publish inactive' }))
@@ -1122,56 +920,30 @@ describe('EvolutionAction', () => {
     expect(screen.getByRole('group', { name: 'Current selection metrics' })).toBeTruthy()
   })
 
-  it('explains that automatic launch is blocked when the budget journal is unknown', async () => {
-    const api = remote(false, false, 'draft-ready', 'unknown')
-    renderEvolution(api)
-    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
-    await selectAdvanced()
-
-    expect(await screen.findByText('Budget state unknown; automatic launch is blocked')).toBeTruthy()
-  })
-
-  it('keeps an expiry-eligible review actionable and explains the next-Signal trigger', async () => {
-    const api = remote(false, false, 'draft-ready', 'ready', true)
-    renderEvolution(api)
-    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
-    await selectAdvanced()
-
-    expect(await screen.findByText('Expiry eligible since · 2026-08-23T00:00:00.000Z')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Inspect' }))
-    expect(await screen.findByText(
-      'Expiry eligible since 2026-08-23T00:00:00.000Z. No background timer runs; rejection occurs only when the next same-Skill automatic Signal arrives.',
-    )).toBeTruthy()
-  })
-
   it('refreshes the currently inspected review from host authority without polling', async () => {
     const api = remote()
-    const eligibleResult = await remote(false, false, 'draft-ready', 'ready', true).review(workspaceId, reviewId)
+    const refreshedResult = await remote().review(workspaceId, reviewId)
     renderEvolution(api)
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
     await screen.findByRole('dialog')
     await selectAdvanced()
     fireEvent.click(screen.getByRole('button', { name: 'Inspect' }))
-    await screen.findByText(
-      'Open until 2026-08-23T00:00:00.000Z. No background timer runs; rejection occurs only when the next same-Skill automatic Signal arrives.',
-    )
-    vi.mocked(api.review).mockResolvedValueOnce(eligibleResult)
+    await screen.findByText('Continue safe work.')
+    vi.mocked(api.review).mockResolvedValueOnce(refreshedResult)
 
     fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
 
-    expect(await screen.findByText(
-      'Expiry eligible since 2026-08-23T00:00:00.000Z. No background timer runs; rejection occurs only when the next same-Skill automatic Signal arrives.',
-    )).toBeTruthy()
+    expect(await screen.findByText('Continue safe work.')).toBeTruthy()
     expect(api.review).toHaveBeenCalledTimes(2)
   })
 
-  it('shows the authoritative failure when a listed review expires before inspection', async () => {
+  it('shows the authoritative failure when a listed review is no longer pending before inspection', async () => {
     const api = remote()
     vi.mocked(api.review).mockResolvedValueOnce({
       ok: false,
       error: {
         code: 'not_found',
-        message: 'Candidate was already rejected by the automatic review expiry policy; refresh authoritative state.',
+        message: 'Candidate is no longer pending; refresh authoritative state.',
         details: {},
       },
     })
@@ -1182,7 +954,7 @@ describe('EvolutionAction', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Inspect' }))
 
     expect((await screen.findByRole('alert')).textContent).toContain(
-      'Candidate was already rejected by the automatic review expiry policy; refresh authoritative state.',
+      'Candidate is no longer pending; refresh authoritative state.',
     )
   })
 
@@ -1199,128 +971,6 @@ describe('EvolutionAction', () => {
     await waitFor(() => expect(api.promote).toHaveBeenCalledWith(workspaceId, generationId))
   })
 
-  it('requires explicit confirmation before starting a paid feedback Shadow', async () => {
-    const api = remote()
-    renderEvolution(api)
-    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
-    await screen.findByRole('dialog')
-    await selectAdvanced()
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Start Shadow · plugin-delivery' }))
-    expect(api.startFeedbackShadow).not.toHaveBeenCalled()
-    const confirmation = await screen.findByRole('alertdialog')
-    fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm' }))
-    await waitFor(() => expect(api.startFeedbackShadow).toHaveBeenCalledWith(workspaceId, signalId, 'plugin-delivery'))
-  })
-
-  it('keeps paid evaluator authoring cancellable and qualification behind a second confirmation', async () => {
-    const api = remote()
-    renderEvolution(api)
-    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
-    await screen.findByRole('dialog')
-    await selectAdvanced()
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Author Evaluator · plugin-delivery' }))
-    expect(api.authorEvaluator).not.toHaveBeenCalled()
-    let confirmation = await screen.findByRole('alertdialog')
-    fireEvent.click(within(confirmation).getByRole('button', { name: 'Cancel' }))
-    expect(api.authorEvaluator).not.toHaveBeenCalled()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Author Evaluator · plugin-delivery' }))
-    confirmation = await screen.findByRole('alertdialog')
-    fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm' }))
-    await waitFor(() => expect(api.authorEvaluator).toHaveBeenCalledWith(workspaceId, signalId, 'plugin-delivery'))
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Inspect Evaluator' }))
-    await screen.findByText('final-test/evaluator.mjs')
-    expect(api.evaluatorDraft).toHaveBeenCalledWith(workspaceId, evaluatorDraftId)
-    fireEvent.change(screen.getByLabelText('Decision note'), { target: { value: 'independent semantics reviewed' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Qualify Evaluator' }))
-    expect(api.approveEvaluator).not.toHaveBeenCalled()
-    confirmation = await screen.findByRole('alertdialog')
-    fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm' }))
-    await waitFor(() => expect(api.approveEvaluator).toHaveBeenCalledWith(
-      workspaceId,
-      evaluatorDraftId,
-      'independent semantics reviewed',
-    ))
-    expect(api.startFeedbackShadow).not.toHaveBeenCalled()
-    expect(api.promote).not.toHaveBeenCalled()
-  })
-
-  it('allows only local sealed qualification to be retried for an incomplete exact draft', async () => {
-    const api = remote(false, false, 'incomplete')
-    renderEvolution(api)
-    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
-    await screen.findByRole('dialog')
-    await selectAdvanced()
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Inspect Evaluator' }))
-    await screen.findByText('final-test/evaluator.mjs')
-    fireEvent.change(screen.getByLabelText('Decision note'), { target: { value: 'retry exact local qualification' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Qualify Evaluator' }))
-    const confirmation = await screen.findByRole('alertdialog')
-    fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm' }))
-
-    await waitFor(() => expect(api.approveEvaluator).toHaveBeenCalledWith(
-      workspaceId,
-      evaluatorDraftId,
-      'retry exact local qualification',
-    ))
-    expect(api.authorEvaluator).not.toHaveBeenCalled()
-  })
-
-  it('requires a fresh paid-disclosure confirmation before a Qualified Pack enters Shadow', async () => {
-    const api = remote(false, false, 'qualified')
-    renderEvolution(api)
-    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
-    await screen.findByRole('dialog')
-    await selectAdvanced()
-    fireEvent.click(await screen.findByRole('button', { name: 'Inspect Evaluator' }))
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Start Qualified Shadow' }))
-    let confirmation = await screen.findByRole('alertdialog')
-    expect(api.startEvaluatorShadow).not.toHaveBeenCalled()
-    fireEvent.click(within(confirmation).getByRole('button', { name: 'Cancel' }))
-    expect(api.startEvaluatorShadow).not.toHaveBeenCalled()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Start Qualified Shadow' }))
-    confirmation = await screen.findByRole('alertdialog')
-    fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm' }))
-    await waitFor(() => expect(api.startEvaluatorShadow).toHaveBeenCalledWith(workspaceId, evaluatorDraftId))
-    expect(api.promote).not.toHaveBeenCalled()
-  })
-
-  it('combines human qualification and contingent paid Shadow behind one cancellable confirmation', async () => {
-    const api = remote()
-    renderEvolution(api)
-    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
-    await screen.findByRole('dialog')
-    await selectAdvanced()
-    fireEvent.click(await screen.findByRole('button', { name: 'Inspect Evaluator' }))
-    await screen.findByText('final-test/evaluator.mjs')
-    fireEvent.change(screen.getByLabelText('Decision note'), {
-      target: { value: 'reviewed exact evaluator and authorize paid Shadow' },
-    })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Qualify & start Shadow' }))
-    let confirmation = await screen.findByRole('alertdialog')
-    expect(api.approveAndStartEvaluatorShadow).not.toHaveBeenCalled()
-    fireEvent.click(within(confirmation).getByRole('button', { name: 'Cancel' }))
-    expect(api.approveAndStartEvaluatorShadow).not.toHaveBeenCalled()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Qualify & start Shadow' }))
-    confirmation = await screen.findByRole('alertdialog')
-    fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm' }))
-    await waitFor(() => expect(api.approveAndStartEvaluatorShadow).toHaveBeenCalledWith(
-      workspaceId,
-      evaluatorDraftId,
-      'reviewed exact evaluator and authorize paid Shadow',
-    ))
-    expect(api.approveEvaluator).not.toHaveBeenCalled()
-    expect(api.startEvaluatorShadow).not.toHaveBeenCalled()
-    expect(api.promote).not.toHaveBeenCalled()
-  })
 })
 
 function webGoalMetrics() {

@@ -47,8 +47,8 @@ internal Opportunity + exact lineage
 
 ## 未完成边界
 
-本页提交时尚缺的 capability-absent Retention/canary 已由
-[V4-16](v4-16-capability-absent-retention-canary.zh.md) 补齐：baseline profile 保持目标 Skill absent，Candidate
-profile 使用 exact whole-Skill tree，并验证非目标 composition 与篡改 fail-closed。Evaluation Envelope
+本页提交时尚缺的 capability-absent Retention/canary 曾由
+[V4-16](v4-16-capability-absent-retention-canary.zh.md) 以旧编排补齐；该编排后来在 [V4-24](v4-24-exact-candidate-shadow-cleanup.zh.md) 随静态 target 架构删除，待按内部 Envelope/Outcome 重建。V4-16 的 baseline profile 保持目标 Skill absent、Candidate
+profile 使用 exact whole-Skill tree和非目标 composition/篡改 fail-closed 结论只作为后续重建要求。Evaluation Envelope
 自主生成、existing bundle 的后续再进化、真实 provider 长期 outcome、飞书闭环和 Hermes paired benchmark
 仍未完成；不得打 tag或宣布自我进化闭环完成。

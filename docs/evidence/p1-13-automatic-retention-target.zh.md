@@ -1,5 +1,7 @@
 # P1.13 Automatic Retention Target 实现证据
 
+> 历史证据：静态 Retention target 已在 V4.24 删除，不是当前产品合同。
+
 > 声明等级：`implemented`。本页证明一个静态 exact Target 能自动闭合 P1.11 → P1.12；不声明完整
 > 抗遗忘、Case 平台、真实 provider 净收益或生产可用。
 

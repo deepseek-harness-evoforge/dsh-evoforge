@@ -1,5 +1,7 @@
 # P1.17 Human-approved Qualify-and-Shadow 契约
 
+> 当前状态：**已撤销**。Evaluator Draft qualification/handoff 已删除；本页仅保留历史记录，当前 Shadow 边界见 [ADR-0068](../adr/0068-shadow-consumes-one-exact-internal-candidate.md)。
+
 > 状态：implemented；真实用户可用性和 provider outcome 尚未完成
 
 ## 用户结果

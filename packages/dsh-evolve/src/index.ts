@@ -403,7 +403,6 @@ export type { EvolutionRemoteTypertContract } from './evolution-remote.typert.ts
 export type {
   EvolutionActionReceipt,
   EvolutionArtifactView,
-  EvolutionEvaluatorDraftView,
   EvolutionGenerationView,
   EvolutionInactiveGenerationView,
   EvolutionOverview,

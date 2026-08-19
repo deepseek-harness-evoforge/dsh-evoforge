@@ -1,5 +1,7 @@
 # P1.16 Automatic Evaluator Draft 契约
 
+> 当前状态：**已撤销**。Automatic Evaluator Draft 已删除；本页仅保留历史记录，当前边界见 [ADR-0068](../adr/0068-shadow-consumes-one-exact-internal-candidate.md)。
+
 > 状态：implemented；真实 provider、陌生用户效果与多日证据尚未完成
 
 ## 用户结果

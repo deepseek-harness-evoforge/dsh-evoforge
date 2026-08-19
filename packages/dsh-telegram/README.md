@@ -103,7 +103,7 @@ it twice, and the user receives a bounded instruction to send a new Telegram mes
 compaction removes only the oldest terminal outbound records and never a live delivery.
 
 When the optional `dsh-evolve-attention` bridge is enabled in the same profile, actionable Evolve
-Candidate and Evaluator Draft states use this package's existing exact chat route and Gateway delivery
+Candidate review and inactive promotion decisions use this package's existing exact chat route and Gateway delivery
 journal. The suite-internal route service exposes the same static native Workspace id so every
 Evolve scan remains explicitly Workspace-scoped. The bridge does not read the Bot token, add
 another route, choose a recent Workspace, or turn a notice into Approval.

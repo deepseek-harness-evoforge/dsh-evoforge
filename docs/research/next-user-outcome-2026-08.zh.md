@@ -9,7 +9,7 @@
 
 下一项只做 **`dsh-evolve-attention`**（调研时暂名 `dsh-evolve-telegram`）：
 
-> 当后台自进化产生新的待审 Candidate 或 Evaluator Draft 时，部署授权的现有 Telegram 私聊收到一条确定性、可去重的 attention 消息；用户在同一私聊里复用现有 `/evolve` Command 查看、拒绝或批准，原 Session 不等待。
+> 当后台自进化产生新的 Candidate review 或 inactive promotion decision 时，部署授权的现有 Telegram 私聊收到一条确定性、可去重的 attention 消息；用户在同一私聊里复用现有 `/evolve` Command 查看、拒绝或批准，原 Session 不等待。
 
 它解决的是现有闭环里最后一段真实断点：EvoForge 已经能把模糊改进放入旁路审阅，也已经有 Web/Commands 和 Telegram 单私聊，但用户仍需主动轮询才知道“现在有事要处理”。[当前 `dsh-evolve` README](../../packages/dsh-evolve/README.md)列出了审阅命令；[P1.17 契约](../architecture/p1-17-human-approved-qualify-and-shadow.zh.md)明确 Web 不轮询；[当前 `dsh-telegram` README](../../packages/dsh-telegram/README.md)只承诺完成 turn、原生 Command 与 DSH Approval，没有 Evolve attention。
 
@@ -79,7 +79,7 @@ DSH 早期 Discussion 对 CLI 和远程访问的互动明显；远程 Web 讨论
 
 ```text
 后台反馈/Shadow
-  -> Candidate 或 Evaluator Draft 成为 actionable
+  -> Candidate review 或 inactive promotion decision 成为 actionable
   -> Commands/Web 已可审阅
   -> 用户必须自己想起来查看
 ```

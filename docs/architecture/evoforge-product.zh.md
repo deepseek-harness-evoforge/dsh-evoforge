@@ -1,6 +1,6 @@
 # EvoForge 产品架构
 
-> 状态：产品边界已确认；Telegram、飞书两个 Assistant Adapter 与进化注意力桥已实现；内部经验驱动的 Skill Opportunity、existing-Skill exact-version improvement investigation、生成前独立 Goal 证据密封、seal-bound Candidate v2、Candidate-independent Governance Case Pack Authoring、Envelope v4、Lineage v3、capability-absent assembled Shadow/Retention/canary 与内容寻址 future-Session Generation 已实现；现有 Skill 完整 baseline Bundle/Candidate 与治理包真实 provider assembled 评估闭环仍待完成与验收
+> 状态：产品边界已确认；Telegram、飞书两个 Assistant Adapter 与进化注意力桥已实现；内部经验驱动的 Skill Opportunity、existing-Skill exact-version improvement investigation、生成前独立 Goal 证据密封、seal-bound Candidate v2、Candidate-independent Governance Case Pack Authoring、Envelope v4、Lineage v3、exact-Candidate assembled Shadow 与内容寻址 future-Session Generation 已实现；旧静态 Retention/canary 编排已删除，现有 Skill 完整 baseline Bundle/Candidate、内部 Retention/canary 重建与治理包真实 provider assembled 评估闭环仍待完成与验收
 > 更新日期：2026-08-19
 
 ## 1. 产品结果
@@ -88,7 +88,7 @@ WebSocket 握手已经通过；setup-only `/feishu-pair` 用两分钟一次性�
 
 ### dsh-evolve-attention
 
-单用途组合插件。它只在 Evolve 已有 Candidate 或 Evaluator Draft 需要处理时，经 `dsh-telegram` 和/或
+单用途组合插件。它只在 Evolve 已有 Candidate review 或 inactive promotion decision 需要处理时，经 `dsh-telegram` 和/或
 `dsh-feishu` 已静态授权的 exact Workspace route 发送一条有界提醒；重启与重复扫描复用各 Adapter
 durable journal。消息不是 Approval，动作仍走 `/evolve`，原 Session 不等待。它不创建 timer、第二
 状态机、通知平台或公开 Adapter SPI，0 Tool/Skill/Prompt/Command/模型调用，普通 Session token 增量为 0。
@@ -163,7 +163,7 @@ Resident 只恢复进程，Goal Continuity 只决定 exact Session 的原生 Goa
 | 内部经验自我发现 | 自然语言 Goal 自动使用已安装的适用能力；反复出现真实缺口时从自身经验形成可复核 Opportunity 和完整候选 | 原生目录/路由证据、可证伪 Gap、至少两个独立 Goal 的 Opportunity、至少四个 Goal 后的 authoring/admission/holdout 预密封、无 Skill 预配置的 Workspace policy、seal-bound Candidate v2、Candidate-independent governance Case Pack authoring/zero-proposer calibration、Envelope v4/Lineage v3 与 Web readiness implemented；真实 provider assembled 整链、迁移/成本门禁与 paired benchmark pending |
 | 消息与日程 | 按真实 workflow 提供可拆 Adapter | Telegram、飞书与 Evolve 注意力桥 implemented；真实飞书 App 握手与 setup-only 配对通过，exact route 消息/Hermes paired 与其他场景 pending |
 | 人类控制 | 状态、证据、审批、暂停、回滚不阻塞会话 | P0C Commands/Web + P3.1 非阻塞 Telegram attention + P3.2 Draft PR review follow-up implemented；语义 capability 审计与陌生用户可用性数据 pending |
-| 自进化 | 独立 final-test、inactive Candidate、可证明晋升 | P0A `fail → pass` + P0B verified-Git/resident resume + P0C inactive publication + P1.1 opt-in auto policy + P2D.1 Outcome + P1.2 exact-parent 反事实回滚 + P1.3 feedback intake + P1.4 private Case Draft + P1.5 feedback-guided Shadow + P1.6 pre-proposal calibration + P1.7 explicit evaluator authoring + P1.8 target-bound launch + P1.9 private Evaluator Draft/human qualification + P1.15 crash-safe automatic budget + P1.16 opt-in automatic inactive Evaluator Draft + P1.17 human-approved Qualify-and-Shadow + P1.18 per-Skill automatic inflight gate + P1.19 bounded automatic ambiguous review + P1.20 review-window visibility + P1.21 parent outcome comparison；真实 provider、陌生用户与长期效果 pending |
+| 自进化 | 内部经验发现、独立治理、inactive Candidate、可证明晋升 | Goal-linked Gap → cross-Goal Opportunity → evidence seal → Candidate-independent admission/holdout → exact-Candidate assembled Shadow → review → content-addressed inactive Generation → future-Session promotion/root rollback 已形成活动纵切；历史 Feedback/Evaluator Draft、static target、Shadow proposer、自动过期和旧 Retention/canary 已撤销；existing-Skill 完整 Bundle、Retention/canary/outcome、真实 provider、陌生用户与长期效果 pending |
 | 权限 | 代码和外部效果不自动激活 | 需求与测试门已定义 |
 | KV Cache | Session 内完整 composition 稳定 | 64 轮 Evolution、GitHub review、Goal Continuity、Software Delivery 固定 surface，以及双 Workspace 双渠道全组合门禁通过；真实 provider cache-read/TTFT soak pending |
 | 回滚 | future Session 精确恢复 artifact；外部效果不虚假承诺 | exact parent Git tree 与 live Session 不漂移已实现；外部效果仍不在回滚范围 |

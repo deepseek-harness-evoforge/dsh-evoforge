@@ -1,5 +1,7 @@
 # V4.11 证据：Feedback Skill 由 durable Session 自主归因
 
+> 当前保留：durable invocation 归因。历史 Feedback Draft/target 消费者已在 V4.24 删除；本页对应段落不构成当前运行时合同。
+
 > 日期：2026-08-19
 >
 > 声明等级：`implemented`；只证明私有反馈样本的 Skill identity 不由用户或下游静态 target 选择

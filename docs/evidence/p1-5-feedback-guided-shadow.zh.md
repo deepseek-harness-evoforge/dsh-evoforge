@@ -1,5 +1,7 @@
 # P1.5 证据：反馈引导、独立评测的 Shadow
 
+> 历史证据：feedback-guided proposer/target 路径已在 V4.24 删除；当前 Shadow 只消费内部 exact Candidate，见 [ADR-0068](../adr/0068-shadow-consumes-one-exact-internal-candidate.md)。
+
 > 历史接口提示：下文命令是 2026-08-16 的已执行 standalone 证据；该产品入口已由 [ADR-0041](../adr/0041-dsh-is-the-only-runtime-and-install-surface.md) 撤销，不能作为当前操作说明。当前等价授权是 `/evolve feedback <signal-id> shadow <target-id>`，并提交 native DSH Job。
 >
 > 日期：2026-08-16  

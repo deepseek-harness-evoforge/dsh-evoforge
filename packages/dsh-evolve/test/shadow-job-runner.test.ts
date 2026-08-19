@@ -93,6 +93,10 @@ function invocation() {
     resume: true as const,
     signal: new AbortController().signal,
     skillDir: '/private/skill',
+    exactCandidate: {
+      claim: 'resume exact internal Candidate',
+      skillDir: '/private/candidate',
+    },
   }
 }
 

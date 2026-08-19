@@ -1,6 +1,6 @@
 # EvoForge 可证明自进化设计
 
-> 状态：P0A/P0B/P0C、P1.1–P1.21、P2D.1 与内部 Goal→Gap→Skill Opportunity→生成前 Skill Evaluation Evidence Seal→seal-bound Candidate v2→Candidate-independent Governance Case Pack Authoring→Evaluation Envelope v4→Lineage v3→capability-absent assembled Shadow/Retention/canary→content-addressed inactive Generation→future Session/root rollback 纵切 implemented；existing-Skill 同版本跨 Goal 纠正调查已实现，但完整 baseline Bundle/Candidate 未实现；治理包真实 provider assembled 验证与真实任务长期证据待完成
+> 状态：当前活动纵切为内部 Goal→Gap→Skill Opportunity→生成前 Skill Evaluation Evidence Seal→seal-bound Candidate v2→Candidate-independent Governance Case Pack Authoring→Evaluation Envelope v4→Lineage v3→exact-Candidate assembled Shadow→content-addressed inactive Generation→future Session/root rollback；历史 P1 静态 target、Feedback/Evaluator Draft、Shadow 内 proposer、自动 review expiry 与旧 Retention/canary 编排已删除，仅保留历史说明。existing-Skill 同版本跨 Goal 纠正调查已实现，但完整 baseline Bundle/Candidate、内部 Retention/canary 重建、治理包真实 provider assembled 验证与真实任务长期证据待完成。
 > 更新日期：2026-08-19
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 
@@ -247,7 +247,7 @@ interface LearningSignal {
   → 当前 Opportunity + evidence seal 对应的 governance-owned Evaluation Envelope v4
       baseline = capability-absent（无 SKILL.md）
   → deterministic admission → independent assembled holdout
-  → independent absent-parent Retention / sealed canary
+  → exact-Candidate assembled Shadow（零 proposer）
   → explicit review → inactive content-addressed skill-bundle Generation
   → promotion affects future Sessions only / root rollback restores native DSH
 ```
@@ -271,10 +271,12 @@ interface LearningSignal {
 - 一个内容寻址 Evaluation Envelope v4 必须绑定当前 Opportunity 快照、evidence seal、author-input digest、治理作者/受保护输入 digest、只含 `subject.json` 的 capability-absent baseline、calibrated admission 与不同的 assembled holdout，任何占位 Skill、漂移、符号链接、根重叠或身份不一致都 fail closed；
 - assembled baseline 不安装目标 Skill，Candidate 侧才安装 exact whole-Skill；两侧必须保持非目标 composition 相同；
 - Candidate v2、Lineage v3 和 Web 谱系显式携带 seal id；当前实现能解析、验证并贯穿 Envelope v4 到 Admission、Shadow、Review 和 crash resume；通过复核的新 Skill 可形成不依赖 Git source 的 inactive `skill-bundle` Generation，Storage 与 DSH Skill Provider 重验 exact archive，晋升只影响未来 Session，root rollback 恢复后续 Session 的 native DSH；
-- capability-absent Retention/canary 使用原 Shadow 的 exact subject、Candidate tree/lineage 与 sealed Case Pack，不查 Git/网络，并要求非目标 DSH composition 相同；污染、漂移和父 Generation 已有同名 Skill 均 fail closed；
+- Shadow 只接收 exact Candidate、tree/lineage、Envelope 与 `dshAssembled` Trial，不查 Git/网络、不调用 proposer、不选择 target；污染、漂移和父 Generation 已有同名 Skill均 fail closed；Retention/canary 待直接绑定内部 Envelope/Outcome 重建；
 - 独立 Goal 样本已能在 author 前自动密封，并能通过 Candidate-independent 作者、零 proposer 校准和原子安装形成 Case Pack/Envelope；这条路径目前只有注入式自动化证据，真实 provider、真实 assembled 任务、负迁移率和长期 outcome 仍是后续治理门，不能由 author 或 Mock 自证。
 
 本项目不提供运行时外部包搜索、获取、下载、导入或市场功能；设计期研究不得进入本节的自我发现状态、UI 或声明。
+
+> 以下 P1.3–P1.20 段落只保留为历史实现记录。其 Feedback Case Draft、Evaluator Draft、静态 target、Shadow 内 proposer、automatic review expiry、Retention/canary 编排和相关命令/控制面已由 [ADR-0068](../adr/0068-shadow-consumes-one-exact-internal-candidate.md) 撤销并从活动源码删除，不是当前可配置或可恢复的产品合同。
 
 P1.3 只落地这个设计中的一个具体 Adapter，不实现上面的通用 runtime interface：监听 DSH
 `message_feedback/sessions`，把当前 `negative + non-blank note` 投影到专用

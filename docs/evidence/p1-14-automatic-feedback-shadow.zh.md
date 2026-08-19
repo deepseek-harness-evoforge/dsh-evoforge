@@ -1,5 +1,7 @@
 # P1.14 Automatic Feedback Shadow 实现证据
 
+> 历史证据：Automatic Feedback Shadow 已在 V4.24 删除，不是当前产品合同。
+
 > 声明等级：`implemented`。本页证明一条明确纠错可在静态授权下自动进入既有证据链；不声明真实
 > provider 净收益、全新 evaluator 自动可信、生产自治或“永远自我改进”。
 

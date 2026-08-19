@@ -6,7 +6,6 @@ import {
 } from '../src/attention.js'
 
 const candidateId = 'a'.repeat(64)
-const evaluatorId = 'b'.repeat(64)
 const workspaceId = '11111111-1111-4111-8111-111111111111'
 
 describe('Evolve channel attention projection', () => {
@@ -19,46 +18,16 @@ describe('Evolve channel attention projection', () => {
         skillName: 'software-delivery',
         claim: 'Keep the delivery verifier deterministic.',
       },
-      evaluator: {
-        id: evaluatorId,
-        status: 'draft-ready',
-        skillName: 'software-delivery',
-      },
     }))
 
-    expect(notices).toHaveLength(2)
+    expect(notices).toHaveLength(1)
     expect(notices[0]).toMatchObject({
       id: digest(`candidate\0${candidateId}\0review`),
       kind: 'candidate-review',
     })
     expect(notices[0]?.text).toContain(`/evolve review ${candidateId}`)
     expect(notices[0]?.text).toContain('This message is not approval')
-    expect(notices[1]).toMatchObject({
-      id: digest(`evaluator\0${evaluatorId}\0draft-ready`),
-      kind: 'evaluator-draft',
-    })
-    expect(notices[1]?.text).toContain(`/evolve evaluator ${evaluatorId}`)
   })
-
-  it.each(['uncertain', 'draft-ready', 'incomplete'] as const)(
-    'notifies the evaluator %s decision stage with a distinct durable id',
-    (status) => {
-      const notices = projectEvolutionAttention(overview({
-        evaluator: { id: evaluatorId, status, skillName: 'delivery' },
-      }))
-      expect(notices).toHaveLength(1)
-      expect(notices[0]?.id).toBe(digest(`evaluator\0${evaluatorId}\0${status}`))
-    },
-  )
-
-  it.each(['authoring-pending', 'qualification-running', 'qualified', 'rejected'] as const)(
-    'does not notify evaluator state %s because no immediate human action is available',
-    (status) => {
-      expect(projectEvolutionAttention(overview({
-        evaluator: { id: evaluatorId, status, skillName: 'delivery' },
-      }))).toEqual([])
-    },
-  )
 
   it('distinguishes an auto-approved inactive Candidate from a pending review', () => {
     const notices = projectEvolutionAttention(overview({
@@ -123,14 +92,9 @@ function overview(input: {
     recommendation: 'promote' | 'review'
     skillName: string
     claim: string
-    decisionActor?: 'human' | 'auto-clear-instruction-v1' | 'auto-review-expiry-v1'
+    decisionActor?: 'human' | 'auto-clear-instruction-v1'
     generationId?: string
     activatedAt?: string
-  }
-  evaluator?: {
-    id: string
-    status: 'authoring-pending' | 'uncertain' | 'draft-ready' | 'qualification-running' | 'qualified' | 'incomplete' | 'rejected'
-    skillName: string
   }
 } = {}): EvolutionAttentionOverview {
   const review = input.review === undefined ? [] : [{
@@ -142,16 +106,8 @@ function overview(input: {
     ...(input.review.generationId === undefined ? {} : { generationId: input.review.generationId }),
     ...(input.review.activatedAt === undefined ? {} : { activatedAt: input.review.activatedAt }),
   }]
-  const evaluator = input.evaluator === undefined ? [] : [{
-    id: input.evaluator.id,
-    status: input.evaluator.status,
-    skillName: input.evaluator.skillName,
-  }]
   return {
     workspaceId,
-    evaluatorAuthoring: {
-      drafts: evaluator,
-    },
     reviews: {
       items: review,
     },

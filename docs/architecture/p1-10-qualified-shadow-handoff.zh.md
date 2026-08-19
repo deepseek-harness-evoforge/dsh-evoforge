@@ -1,5 +1,7 @@
 # P1.10 Qualified Shadow Handoff 契约
 
+> 当前状态：**已撤销**。静态 Qualified Case Pack handoff 已删除；本页仅保留历史记录，Shadow 现在只消费内部 exact Candidate，见 [ADR-0068](../adr/0068-shadow-consumes-one-exact-internal-candidate.md)。
+
 > 状态：implemented；真实 provider、陌生用户可用性与多日 soak 尚未验证
 
 ## 唯一用户结果

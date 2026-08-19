@@ -16,7 +16,6 @@ export interface ShadowRunIdentity {
   modelRoute: string
   skillName: string
   baselineKind?: 'capability-absent'
-  feedbackDraftId?: string
   skillCandidateLineage?: SkillCandidateLineage
 }
 
@@ -33,26 +32,17 @@ export interface PersistedModelUsage {
 export interface ShadowRunState {
   schemaVersion: 1
   runId: string
-  phase: 'prepared' | 'proposal-pending' | 'candidate-ready' | 'trial-running' | 'complete' | 'incomplete'
+  phase: 'prepared' | 'candidate-ready' | 'trial-running' | 'complete' | 'incomplete'
   startedAt: string
   updatedAt: string
   identity: ShadowRunIdentity
-  /** Reference-only source id used to distinguish crash reentry from a newer automatic signal. */
-  feedbackSignalId?: string
-  /** Host-only provenance used by conservative review-retention policy. */
-  feedbackLaunchMode?: 'human' | 'automatic'
   /** Exact, non-secret inputs required for a resident DSH process to resume a sealed Trial. */
   resumeInputs?: {
     skillDir: string
     casePackDir: string
     baselineKind?: 'capability-absent'
     baselineSkillName?: string
-    candidateSkillDir?: string
-    feedbackDraftPath?: string
-  }
-  proposalEffect?: {
-    id: string
-    requestedAt: string
+    candidateSkillDir: string
   }
   proposal?: PersistedProposal
   proposalHash?: string
@@ -134,18 +124,15 @@ export async function loadShadowRunState(outputDir: string): Promise<ShadowRunSt
     || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(value.identity.workspaceId)) {
     throw new Error('Shadow run state has an invalid Workspace id')
   }
-  if (!['prepared', 'proposal-pending', 'candidate-ready', 'trial-running', 'complete', 'incomplete']
+  if (!['prepared', 'candidate-ready', 'trial-running', 'complete', 'incomplete']
     .includes(value.phase)) {
     throw new Error(`Shadow run state has unsupported phase '${value.phase}'`)
   }
   if (value.feedbackSignalId !== undefined
-    && (typeof value.feedbackSignalId !== 'string'
-      || !/^[a-f0-9]{64}$/.test(value.feedbackSignalId))) {
-    throw new Error('Shadow run state has an invalid feedback Signal id')
-  }
-  if (value.feedbackLaunchMode !== undefined
-    && !['human', 'automatic'].includes(String(value.feedbackLaunchMode))) {
-    throw new Error('Shadow run state has an invalid feedback launch mode')
+    || value.feedbackLaunchMode !== undefined
+    || value.proposalEffect !== undefined
+    || value.identity.feedbackDraftId !== undefined) {
+    throw new Error('legacy Shadow proposer state is not resumable')
   }
   if (value.identity.skillCandidateLineage !== undefined) {
     const lineage = parseSkillCandidateLineage(value.identity.skillCandidateLineage)
@@ -171,12 +158,9 @@ export async function loadShadowRunState(outputDir: string): Promise<ShadowRunSt
           || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value.resumeInputs.baselineSkillName)))
       || ((value.resumeInputs.baselineKind === 'capability-absent')
         !== (value.resumeInputs.baselineSkillName !== undefined))
-      || (value.resumeInputs.candidateSkillDir !== undefined
-        && (typeof value.resumeInputs.candidateSkillDir !== 'string'
-          || !isAbsolute(value.resumeInputs.candidateSkillDir)))
-      || (value.resumeInputs.feedbackDraftPath !== undefined
-        && (typeof value.resumeInputs.feedbackDraftPath !== 'string'
-          || !isAbsolute(value.resumeInputs.feedbackDraftPath))))) {
+      || typeof value.resumeInputs.candidateSkillDir !== 'string'
+      || !isAbsolute(value.resumeInputs.candidateSkillDir)
+      || value.resumeInputs.feedbackDraftPath !== undefined)) {
     throw new Error('Shadow run state has invalid resume inputs')
   }
   return value as unknown as ShadowRunState

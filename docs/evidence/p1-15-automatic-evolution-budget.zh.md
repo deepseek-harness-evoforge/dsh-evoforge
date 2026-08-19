@@ -1,5 +1,7 @@
 # P1.15 Automatic Evolution Budget 实现证据
 
+> 历史证据：本页的静态 target 预算已在 V4.24 删除；内部 author/governance 预算是另一当前合同。
+
 - 日期：2026-08-17
 - 状态：`implemented`；本地 deterministic、真实固定 DSH 组合与真实 Chrome 已通过，真实 provider 长期成本仍待验证
 

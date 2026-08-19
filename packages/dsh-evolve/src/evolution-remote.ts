@@ -2,7 +2,6 @@ import type { Context } from '@deepseek-ai/cordis'
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import type {
   EvolutionActionReceipt,
-  EvolutionEvaluatorDraftDetail,
   EvolutionOverview,
   EvolutionReviewDetail,
 } from './control-types.ts'
@@ -57,33 +56,6 @@ export class EvolutionRemoteService extends TypertRemoteService {
     return this.control.rollback(workspaceId)
   }
 
-  startFeedbackShadow(workspaceId: string, signalId: string, targetId: string): Promise<EvolutionActionReceipt> {
-    return this.control.startFeedbackShadow(workspaceId, signalId, targetId)
-  }
-
-  evaluatorDraft(workspaceId: string, id: string): Promise<EvolutionEvaluatorDraftDetail> {
-    return this.control.evaluatorDraft(workspaceId, id)
-  }
-
-  authorEvaluator(workspaceId: string, signalId: string, targetId: string): Promise<EvolutionActionReceipt> {
-    return this.control.authorEvaluator(workspaceId, signalId, targetId)
-  }
-
-  approveEvaluator(workspaceId: string, id: string, note: string): Promise<EvolutionActionReceipt> {
-    return this.control.approveEvaluator(workspaceId, id, note)
-  }
-
-  approveAndStartEvaluatorShadow(workspaceId: string, id: string, note: string): Promise<EvolutionActionReceipt> {
-    return this.control.approveAndStartEvaluatorShadow(workspaceId, id, note)
-  }
-
-  rejectEvaluator(workspaceId: string, id: string, note: string): Promise<EvolutionActionReceipt> {
-    return this.control.rejectEvaluator(workspaceId, id, note)
-  }
-
-  startEvaluatorShadow(workspaceId: string, id: string): Promise<EvolutionActionReceipt> {
-    return this.control.startEvaluatorShadow(workspaceId, id)
-  }
 }
 
 export const EVOLUTION_REMOTE_METHODS = [
@@ -95,13 +67,6 @@ export const EVOLUTION_REMOTE_METHODS = [
   'rejectReview',
   'promote',
   'rollback',
-  'startFeedbackShadow',
-  'evaluatorDraft',
-  'authorEvaluator',
-  'approveEvaluator',
-  'approveAndStartEvaluatorShadow',
-  'rejectEvaluator',
-  'startEvaluatorShadow',
 ] as const satisfies readonly (keyof EvolutionRemoteService)[]
 
 type RemoteInitializer = (this: EvolutionRemoteService) => void

@@ -1,5 +1,7 @@
 # P1.16 Automatic Evaluator Draft 验证记录
 
+> 历史证据：Automatic Evaluator Draft 已在 V4.24 删除，不是当前产品合同。
+
 > 日期：2026-08-17；结论：`implemented`，不等于真实 provider 或长期效果已验证
 
 ## 用户结果

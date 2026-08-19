@@ -3,42 +3,28 @@ import type {
   RemoteResult,
   TypertRemoteContribution,
 } from '@deepseek-ai/dsh-typert-protocol'
-import type { EvolutionActionReceipt, EvolutionEvaluatorDraftDetail, EvolutionOverview, EvolutionReviewDetail } from 'dsh-evolve/client'
+import type { EvolutionActionReceipt, EvolutionOverview, EvolutionReviewDetail } from 'dsh-evolve/client'
 
 declare module '@deepseek-ai/dsh-typert-protocol' {
   interface TypertRemoteNamespace$65766f666f72676545766f6c7574696f6e {
-    approveAndStartEvaluatorShadow: (workspaceId: string, id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
-    approveEvaluator: (workspaceId: string, id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     approveReview: (workspaceId: string, id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
-    authorEvaluator: (workspaceId: string, signalId: string, targetId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
-    evaluatorDraft: (workspaceId: string, id: string) => Promise<RemoteResult<EvolutionEvaluatorDraftDetail>>
     overview: (workspaceId: string, sessionId?: string) => Promise<RemoteResult<EvolutionOverview>>
     pause: (workspaceId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     promote: (workspaceId: string, generationId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
-    rejectEvaluator: (workspaceId: string, id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     rejectReview: (workspaceId: string, id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     resume: (workspaceId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     review: (workspaceId: string, id: string) => Promise<RemoteResult<EvolutionReviewDetail>>
     rollback: (workspaceId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
-    startEvaluatorShadow: (workspaceId: string, id: string) => Promise<RemoteResult<EvolutionActionReceipt>>
-    startFeedbackShadow: (workspaceId: string, signalId: string, targetId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
   }
   interface TypertRemoteMap {
-    'evoforgeEvolution/approveAndStartEvaluatorShadow': (workspaceId: string, id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
-    'evoforgeEvolution/approveEvaluator': (workspaceId: string, id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     'evoforgeEvolution/approveReview': (workspaceId: string, id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
-    'evoforgeEvolution/authorEvaluator': (workspaceId: string, signalId: string, targetId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
-    'evoforgeEvolution/evaluatorDraft': (workspaceId: string, id: string) => Promise<RemoteResult<EvolutionEvaluatorDraftDetail>>
     'evoforgeEvolution/overview': (workspaceId: string, sessionId?: string) => Promise<RemoteResult<EvolutionOverview>>
     'evoforgeEvolution/pause': (workspaceId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     'evoforgeEvolution/promote': (workspaceId: string, generationId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
-    'evoforgeEvolution/rejectEvaluator': (workspaceId: string, id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     'evoforgeEvolution/rejectReview': (workspaceId: string, id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     'evoforgeEvolution/resume': (workspaceId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     'evoforgeEvolution/review': (workspaceId: string, id: string) => Promise<RemoteResult<EvolutionReviewDetail>>
     'evoforgeEvolution/rollback': (workspaceId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
-    'evoforgeEvolution/startEvaluatorShadow': (workspaceId: string, id: string) => Promise<RemoteResult<EvolutionActionReceipt>>
-    'evoforgeEvolution/startFeedbackShadow': (workspaceId: string, signalId: string, targetId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
   }
   interface TypertRemoteNamespaceMap {
     'evoforgeEvolution': TypertRemoteNamespace$65766f666f72676545766f6c7574696f6e

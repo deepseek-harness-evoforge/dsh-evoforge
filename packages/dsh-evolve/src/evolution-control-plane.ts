@@ -1,11 +1,6 @@
-import type { AutoPromotionPolicy } from './auto-promotion.ts'
 import type { CandidatePublisher } from './candidate-publisher.ts'
 import type { DeliveryOutcomeStore } from './delivery-outcome-monitor.ts'
-import type { FeedbackSignal, FeedbackSignalStore } from './feedback-signal-monitor.ts'
-import type { FeedbackShadowLauncher } from './feedback-shadow-launcher.ts'
-import type { EvaluatorDraftInbox } from './evaluator-draft-inbox.ts'
-import type { AutomaticFeedbackShadowService } from './automatic-feedback-shadow.ts'
-import type { AutomaticEvaluatorDraftService } from './automatic-evaluator-draft.ts'
+import type { FeedbackSignalStore } from './feedback-signal-monitor.ts'
 import type { CapabilityGapStore } from './capability-gap-store.ts'
 import type { SkillCandidateStore } from './skill-candidate-repository.ts'
 import type { ExperienceDrivenSkillOpportunityDiscovery } from './skill-opportunity-discovery.ts'
@@ -23,18 +18,14 @@ import type {
   EvolutionCapabilityGapQueueView,
   EvolutionSkillCandidateQueueView,
   EvolutionSkillAdmissionView,
-  EvolutionEvaluatorDraftView,
-  EvolutionFeedbackSignalView,
   EvolutionSkillCandidateLineageView,
   EvolutionGenerationView,
-  EvolutionEvaluatorDraftDetail,
   EvolutionOverview,
   EvolutionReviewDetail,
   EvolutionReviewView,
 } from './control-types.ts'
 
 const MAX_REVIEW_ROWS = 20
-const MAX_FEEDBACK_ROWS = 20
 const MAX_CAPABILITY_GAP_ROWS = 20
 const MAX_DISCOVERY_ROWS = 20
 
@@ -46,13 +37,8 @@ export interface EvolutionControlPlaneModules {
     readonly publisher: Pick<CandidatePublisher, 'preview' | 'publish'>
   }
   readonly resident?: Pick<ResidentEvolutionControl, 'isPaused' | 'pause' | 'resume'>
-  readonly automatic?: Pick<AutoPromotionPolicy, 'evaluate' | 'skills'>
   readonly outcomes?: Pick<DeliveryOutcomeStore, 'summarize'>
-  readonly feedback?: Pick<FeedbackSignalStore, 'list' | 'summarize'>
-  readonly feedbackShadow?: Pick<FeedbackShadowLauncher, 'available' | 'targets' | 'scan' | 'launch'>
-  readonly automaticFeedback?: Pick<AutomaticFeedbackShadowService, 'budgetStatus'>
-  readonly automaticEvaluator?: Pick<AutomaticEvaluatorDraftService, 'budgetStatus'>
-  readonly evaluatorDrafts?: Pick<EvaluatorDraftInbox, 'available' | 'targets' | 'scan' | 'get' | 'author' | 'approve' | 'approveAndStartShadow' | 'reject' | 'startShadow'>
+  readonly feedback?: Pick<FeedbackSignalStore, 'summarize'>
   readonly capabilities?: {
     readonly snapshot: (workspaceId: string, sessionId?: string) => EvolutionCapabilityMapView
   }
@@ -78,23 +64,11 @@ export class EvolutionControlPlane {
     const active = this.modules.store.getActiveGeneration(workspaceId)
     const [
       scan,
-      shadowScan,
-      evaluatorScan,
-      automaticFeedbackBudget,
-      automaticEvaluatorBudget,
       admissionScan,
       slowLoopAuthoringScan,
       evaluationGovernanceScan,
     ] = await Promise.all([
       this.modules.review === undefined ? undefined : this.modules.review.inbox.scanAll(),
-      this.modules.feedbackShadow === undefined ? undefined : this.modules.feedbackShadow.scan(workspaceId),
-      this.modules.evaluatorDrafts === undefined ? undefined : this.modules.evaluatorDrafts.scan(workspaceId),
-      this.modules.automaticFeedback === undefined
-        ? undefined
-        : this.modules.automaticFeedback.budgetStatus(workspaceId),
-      this.modules.automaticEvaluator === undefined
-        ? undefined
-        : this.modules.automaticEvaluator.budgetStatus(workspaceId),
       this.modules.admissions === undefined ? undefined : this.modules.admissions.scan(workspaceId),
       this.modules.slowLoopAuthoring === undefined
         ? undefined
@@ -103,7 +77,6 @@ export class EvolutionControlPlane {
         ? undefined
         : this.modules.evaluationGovernance.scan(workspaceId),
     ])
-    const automaticSkills = this.modules.automatic?.skills(workspaceId) ?? []
     const skillOpportunities = this.modules.opportunities?.discover(workspaceId)
     const skillImprovementOpportunities = this.modules.opportunities?.discoverImprovements?.(workspaceId)
     const opportunityGapIds = new Set(skillOpportunities?.flatMap(opportunity => opportunity.gapIds) ?? [])
@@ -123,10 +96,6 @@ export class EvolutionControlPlane {
       recovery: this.modules.resident === undefined
         ? { available: false }
         : { available: true, paused: this.modules.resident.isPaused(workspaceId) },
-      automaticPromotion: {
-        enabled: automaticSkills.length > 0,
-        skills: [...automaticSkills],
-      },
       ...(this.modules.capabilities === undefined
         ? {}
         : { capabilityMap: cloneCapabilityMap(this.modules.capabilities.snapshot(workspaceId, sessionId)) }),
@@ -260,63 +229,6 @@ export class EvolutionControlPlane {
       ...(this.modules.feedback === undefined
         ? {}
         : { feedbackSignals: { ...this.modules.feedback.summarize(workspaceId, active?.id) } }),
-      ...(this.modules.feedbackShadow === undefined
-        ? {}
-        : {
-            feedbackShadow: {
-              available: this.modules.feedbackShadow.available(),
-              warningCount: shadowScan?.warningCount ?? 0,
-              signals: projectFeedbackSignals(
-                this.modules.feedback?.list(workspaceId) ?? [],
-                this.modules.feedbackShadow.targets(),
-                this.modules.store,
-              ),
-              targets: this.modules.feedbackShadow.targets()
-                .filter(target => target.workspaceId === workspaceId)
-                .map(target => ({ ...target })),
-              runs: (shadowScan?.runs ?? [])
-                .filter(run => run.workspaceId === workspaceId)
-                .map(run => ({ ...run })),
-            },
-          }),
-      ...(automaticFeedbackBudget === undefined
-        ? {}
-        : {
-            automaticFeedbackBudget: {
-              warningCount: automaticFeedbackBudget.warningCount,
-              targets: automaticFeedbackBudget.targets.map(target => ({ ...target })),
-            },
-          }),
-      ...(automaticEvaluatorBudget === undefined
-        ? {}
-        : {
-            automaticEvaluatorBudget: {
-              warningCount: automaticEvaluatorBudget.warningCount,
-              targets: automaticEvaluatorBudget.targets.map(target => ({ ...target })),
-            },
-          }),
-      ...(this.modules.evaluatorDrafts === undefined
-        ? {}
-        : {
-            evaluatorAuthoring: {
-              available: this.modules.evaluatorDrafts.available(),
-              actionableCount: (evaluatorScan?.drafts ?? [])
-                .filter(draft => isActionableEvaluatorStatus(draft.status)).length,
-              warningCount: evaluatorScan?.warningCount ?? 0,
-              signals: projectFeedbackSignals(
-                this.modules.feedback?.list(workspaceId) ?? [],
-                this.modules.evaluatorDrafts.targets(),
-                this.modules.store,
-              ),
-              targets: this.modules.evaluatorDrafts.targets()
-                .filter(target => target.workspaceId === workspaceId)
-                .map(target => ({ ...target })),
-              drafts: (evaluatorScan?.drafts ?? []).map(draft => ({
-                ...draft,
-                cost: { ...draft.cost },
-              })),
-            },
-          }),
       reviews: scan === undefined
         ? {
             available: false,
@@ -337,9 +249,6 @@ export class EvolutionControlPlane {
     const candidate = await review.inbox.get(id)
     assertWorkspace(candidate.workspaceId, workspaceId, 'Review Candidate')
     const diff = await review.publisher.preview(candidate)
-    const automatic = this.modules.automatic === undefined
-      ? undefined
-      : await this.modules.automatic.evaluate(candidate)
     return {
       schemaVersion: 1,
       review: projectReview(candidate),
@@ -354,13 +263,6 @@ export class EvolutionControlPlane {
           indicators: [...diff.impact.indicators],
         },
       },
-      ...(automatic === undefined
-        ? {}
-        : { automatic: {
-            eligible: automatic.eligible,
-            policyVersion: automatic.policyVersion,
-            reasons: [...automatic.reasons],
-          } }),
     }
   }
 
@@ -432,48 +334,6 @@ export class EvolutionControlPlane {
     }
   }
 
-  async startFeedbackShadow(workspaceId: string, signalId: string, targetId: string): Promise<EvolutionActionReceipt> {
-    if (this.modules.feedbackShadow === undefined) {
-      throw new Error('feedback Shadow is not configured')
-    }
-    return this.modules.feedbackShadow.launch(workspaceId, signalId, targetId)
-  }
-
-  async evaluatorDraft(workspaceId: string, id: string): Promise<EvolutionEvaluatorDraftDetail> {
-    const draft = await this.requireEvaluatorDrafts().get(workspaceId, id)
-    const { files, limitations, qualifiedShadowAvailable, decision, qualification, reason, ...view } = draft
-    return {
-      schemaVersion: 1,
-      draft: { ...view, cost: { ...view.cost } },
-      files: files.map(file => ({ ...file })),
-      limitations: [...limitations],
-      qualifiedShadowAvailable,
-      ...(decision === undefined ? {} : { decision: { ...decision } }),
-      ...(qualification === undefined ? {} : { qualification: { ...qualification } }),
-      ...(reason === undefined ? {} : { reason }),
-    }
-  }
-
-  async authorEvaluator(workspaceId: string, signalId: string, targetId: string): Promise<EvolutionActionReceipt> {
-    return this.requireEvaluatorDrafts().author(workspaceId, signalId, targetId)
-  }
-
-  async approveEvaluator(workspaceId: string, id: string, note: string): Promise<EvolutionActionReceipt> {
-    return this.requireEvaluatorDrafts().approve(workspaceId, id, note)
-  }
-
-  async approveAndStartEvaluatorShadow(workspaceId: string, id: string, note: string): Promise<EvolutionActionReceipt> {
-    return this.requireEvaluatorDrafts().approveAndStartShadow(workspaceId, id, note)
-  }
-
-  async rejectEvaluator(workspaceId: string, id: string, note: string): Promise<EvolutionActionReceipt> {
-    return this.requireEvaluatorDrafts().reject(workspaceId, id, note)
-  }
-
-  async startEvaluatorShadow(workspaceId: string, id: string): Promise<EvolutionActionReceipt> {
-    return this.requireEvaluatorDrafts().startShadow(workspaceId, id)
-  }
-
   private requireReview(): NonNullable<EvolutionControlPlaneModules['review']> {
     if (this.modules.review === undefined) {
       throw new Error('review inbox is not configured')
@@ -488,12 +348,6 @@ export class EvolutionControlPlane {
     return this.modules.resident
   }
 
-  private requireEvaluatorDrafts(): NonNullable<EvolutionControlPlaneModules['evaluatorDrafts']> {
-    if (this.modules.evaluatorDrafts === undefined) {
-      throw new Error('evaluator authoring is not configured')
-    }
-    return this.modules.evaluatorDrafts
-  }
 }
 
 function cloneCapabilityMap(map: EvolutionCapabilityMapView): EvolutionCapabilityMapView {
@@ -593,37 +447,6 @@ function projectSkillAdmission(
   }
 }
 
-function projectFeedbackSignals(
-  signals: readonly FeedbackSignal[],
-  targets: readonly { readonly id: string; readonly workspaceId: string; readonly skillName: string }[],
-  store: Pick<EvolutionStore, 'getGeneration'>,
-): EvolutionFeedbackSignalView[] {
-  return signals
-    .slice(-MAX_FEEDBACK_ROWS)
-    .reverse()
-    .map((signal) => {
-      const generation = signal.generationId === undefined
-        ? undefined
-        : store.getGeneration(signal.generationId)
-      const skillNames = generation === undefined || generation.workspaceId !== signal.workspaceId
-        ? new Set<string>()
-        : new Set(generation.artifacts.map(artifact => artifact.name))
-      return {
-        id: signal.id,
-        workspaceId: signal.workspaceId,
-        sourceUpdatedAt: signal.sourceUpdatedAt,
-        ...(signal.generationId === undefined ? {} : { generationId: signal.generationId }),
-        eligibleTargetIds: targets
-          .filter(target => target.workspaceId === signal.workspaceId && skillNames.has(target.skillName))
-          .map(target => target.id),
-      }
-    })
-}
-
-function isActionableEvaluatorStatus(status: EvolutionEvaluatorDraftView['status']): boolean {
-  return ['uncertain', 'draft-ready', 'qualification-running', 'incomplete'].includes(status)
-}
-
 function projectReviews(
   all: Awaited<ReturnType<ReviewInbox['scanAll']>>,
   activeGenerationId: string | undefined,
@@ -710,9 +533,6 @@ function projectReview(candidate: ReviewCandidate): EvolutionReviewView {
     compositionFingerprint: candidate.compositionFingerprint,
     compositionStable: candidate.compositionStable,
     startedAt: candidate.startedAt,
-    ...(candidate.automaticReviewExpiry === undefined
-      ? {}
-      : { automaticReviewExpiry: { ...candidate.automaticReviewExpiry } }),
     ...(candidate.decisionActor === undefined ? {} : { decisionActor: candidate.decisionActor }),
     ...(candidate.decisionNote === undefined ? {} : { decisionNote: candidate.decisionNote }),
     ...(candidate.generationId === undefined ? {} : { generationId: candidate.generationId }),

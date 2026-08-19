@@ -1,5 +1,7 @@
 # P1.10 Qualified Shadow Handoff 实现证据
 
+> 历史证据：Qualified Draft handoff 已在 V4.24 删除；当前 Shadow 只消费内部 exact Candidate。
+
 > 声明等级：`implemented`。本页证明 Qualified Case Pack 可以在新的显式授权后进入既有 Shadow；
 > 不声明真实 provider 改善率、陌生用户可用性或生产多日可靠性。
 

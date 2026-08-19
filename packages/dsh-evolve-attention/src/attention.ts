@@ -1,17 +1,11 @@
 import { createHash } from 'node:crypto'
 
 const CONTENT_ID = /^[a-f0-9]{64}$/u
-const EVALUATOR_ACTIONS = new Set<EvolutionAttentionEvaluatorDraft['status']>([
-  'uncertain',
-  'draft-ready',
-  'incomplete',
-])
 
 /** Minimal read contract projected from dsh-evolve; the bridge does not depend on its generated types. */
 export interface EvolutionAttentionOverview {
   readonly workspaceId: string
   readonly reviews: { readonly items: readonly EvolutionAttentionReview[] }
-  readonly evaluatorAuthoring?: { readonly drafts: readonly EvolutionAttentionEvaluatorDraft[] }
 }
 
 export interface EvolutionAttentionReview {
@@ -19,28 +13,15 @@ export interface EvolutionAttentionReview {
   readonly status: 'pending' | 'approved' | 'rejected'
   readonly recommendation: 'promote' | 'review'
   readonly skillName: string
-  readonly decisionActor?: 'human' | 'auto-clear-instruction-v1' | 'auto-review-expiry-v1'
+  readonly decisionActor?: 'human' | 'auto-clear-instruction-v1'
   readonly generationId?: string
   readonly activatedAt?: string
-}
-
-export interface EvolutionAttentionEvaluatorDraft {
-  readonly id: string
-  readonly status:
-    | 'authoring-pending'
-    | 'uncertain'
-    | 'draft-ready'
-    | 'qualification-running'
-    | 'qualified'
-    | 'incomplete'
-    | 'rejected'
-  readonly skillName: string
 }
 
 export interface EvolutionAttentionNotice {
   readonly id: string
   readonly text: string
-  readonly kind: 'candidate-review' | 'candidate-promotion' | 'evaluator-draft'
+  readonly kind: 'candidate-review' | 'candidate-promotion'
 }
 
 /** Project bounded host facts only; a channel notice never becomes model input or approval. */
@@ -50,10 +31,6 @@ export function projectEvolutionAttention(
   const notices: EvolutionAttentionNotice[] = []
   for (const review of overview.reviews.items) {
     const notice = candidateNotice(review)
-    if (notice !== undefined) notices.push(notice)
-  }
-  for (const draft of overview.evaluatorAuthoring?.drafts ?? []) {
-    const notice = evaluatorNotice(draft)
     if (notice !== undefined) notices.push(notice)
   }
   return notices
@@ -83,25 +60,6 @@ function candidateNotice(review: EvolutionAttentionReview): EvolutionAttentionNo
       `Recommendation: ${review.recommendation}`,
       `ID: ${review.id}`,
       `Inspect: /evolve review ${review.id}`,
-      'The original Session continues. This message is not approval.',
-    ].join('\n'),
-  }
-}
-
-function evaluatorNotice(
-  draft: EvolutionAttentionEvaluatorDraft,
-): EvolutionAttentionNotice | undefined {
-  if (!CONTENT_ID.test(draft.id) || !EVALUATOR_ACTIONS.has(draft.status)) return undefined
-  return {
-    id: noticeId('evaluator', draft.id, draft.status),
-    kind: 'evaluator-draft',
-    text: [
-      'EvoForge attention',
-      'An Evaluator Draft needs your decision.',
-      `Skill: ${safeLabel(draft.skillName)}`,
-      `Status: ${draft.status}`,
-      `ID: ${draft.id}`,
-      `Inspect: /evolve evaluator ${draft.id}`,
       'The original Session continues. This message is not approval.',
     ].join('\n'),
   }

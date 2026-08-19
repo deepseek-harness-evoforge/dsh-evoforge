@@ -13,7 +13,7 @@ dsh --profile web
 
 The Host half only waits for `evoforge.evolutionControl`; the browser module renders the global sidebar and calls the generated DSH Remote. Reads and actions therefore reach the same Host authority used by `/evolve` Commands. It adds no Tool, Skill, system prompt, watcher, polling loop, or persistent state.
 
-The beginner view points to DSH's native answer-feedback controls: mark an answer as bad, add a note explaining the error and correct result, then save. Feedback is counted separately from actionable reviews. If no bounded Shadow or Evaluator target is configured, the panel says that verification is unavailable and keeps the correction recorded instead of presenting a false idle or success state.
+The beginner view points to DSH's native answer-feedback controls: mark an answer as bad, add a note explaining the error and correct result, then save. Feedback is counted separately from actionable reviews. The system attributes and clusters that internal evidence autonomously; it never asks the user to choose a Shadow, evaluator, Skill, Agent, or route. If independent evaluation governance is unavailable, the panel keeps the correction recorded and reports the missing governance instead of presenting false progress.
 
 The panel derives its exact Workspace only from the currently selected native DSH Session through
 the standard `useSessions` and `useWorkspaces` slot hooks. It passes that Workspace id on every

@@ -1,5 +1,7 @@
 # P1.4 证据：私有 Feedback Case Draft
 
+> 历史证据：该运行时能力已在 V4.24 删除，不是当前产品合同；见 [ADR-0068](../adr/0068-shadow-consumes-one-exact-internal-candidate.md)。
+
 > 日期：2026-08-16  
 > 声明等级：`implemented`；完成最小授权草稿，不代表可重放 Case、Candidate 生成或持续进化闭环
 

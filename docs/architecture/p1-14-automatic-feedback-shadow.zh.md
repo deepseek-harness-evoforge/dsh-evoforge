@@ -1,5 +1,7 @@
 # P1.14 Automatic Feedback Shadow 契约
 
+> 当前状态：**已撤销**。Automatic Feedback Shadow 与静态 target 已删除；本页仅保留历史记录，当前边界见 [ADR-0068](../adr/0068-shadow-consumes-one-exact-internal-candidate.md)。
+
 > 状态：implemented；默认关闭，只自动消除“已知失败 + 已有可信 evaluator”路径中的机械启动步骤
 
 ## 唯一用户结果
