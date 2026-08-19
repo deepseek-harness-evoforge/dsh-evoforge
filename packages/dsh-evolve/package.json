@@ -102,9 +102,6 @@
     },
     "@deepseek-ai/dsh-session-persistence": {
       "optional": true
-    },
-    "@deepseek-ai/dsh-session": {
-      "optional": true
     }
   },
   "devDependencies": {

@@ -39,7 +39,6 @@ import { AutoPromotionPolicy, AutoPromotionService, type AutoPromotionTarget } f
 import {
   installDeliveryOutcomeMonitor,
   openDeliveryOutcomeStore,
-  type DeliveryOutcomeMonitor,
 } from './delivery-outcome-monitor.ts'
 import { CounterfactualCanary } from './counterfactual-canary.ts'
 import { createCanaryJobRunner } from './counterfactual-canary-job.ts'
@@ -98,7 +97,7 @@ declare module '@deepseek-ai/cordis' {
 }
 
 export const name = 'dsh-evolve'
-export const inject = ['storageDomain', 'workspaceRegistry']
+export const inject = ['sessions', 'storageDomain', 'workspaceRegistry']
 
 export interface Config {
   cacheRoot?: string
@@ -219,8 +218,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   })
   const skillCandidateStore = await openSkillCandidateStore(ctx.storageDomain)
   const feedbackMonitor = installFeedbackSignalMonitor(ctx, feedbackSignals, store)
+  const deliveryMonitor = installDeliveryOutcomeMonitor(ctx, deliveryOutcomes, store)
   let feedbackDraftBuilder: FeedbackCaseDraftBuilder | undefined
-  const deliveryMonitors = new Set<DeliveryOutcomeMonitor>()
   const automaticTargets = config.autoPromote?.targets ?? []
   const retentionRoots = config.autoPromote?.retentionRoots ?? []
   const retentionTargets = config.autoPromote?.retentionTargets ?? []
@@ -562,16 +561,6 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       }, 'dsh-evolve.feedbackCaseDraftBuilder')
     })
   }
-  ctx.inject(['tools'], (toolCtx) => {
-    toolCtx.effect(() => {
-      const monitor = installDeliveryOutcomeMonitor(toolCtx, deliveryOutcomes, store)
-      deliveryMonitors.add(monitor)
-      return async () => {
-        await monitor.dispose()
-        deliveryMonitors.delete(monitor)
-      }
-    }, 'dsh-evolve.deliveryOutcomeMonitor')
-  })
   if (skillAdmissionScheduler !== undefined
     || skillShadowScheduler !== undefined) {
     ctx.inject(['jobs'], (jobCtx) => {
@@ -717,7 +706,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     })
   }
   ctx.effect(() => async () => {
-    await Promise.all([...deliveryMonitors].map(monitor => monitor.dispose()))
+    await deliveryMonitor.dispose()
     await Promise.all([...capabilityMonitors].map(monitor => monitor.dispose()))
     await capabilityGapMonitor.dispose()
     await feedbackMonitor.dispose()

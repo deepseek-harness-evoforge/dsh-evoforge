@@ -7,6 +7,7 @@ import { promisify } from 'node:util'
 import { pathToFileURL } from 'node:url'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
+import type { ToolExecutionInput, ToolExecutionResult } from '@deepseek-ai/dsh-tools'
 import * as EvolvePlugin from '../src/index.js'
 import type { EvolutionStore } from '../src/generation-store.js'
 import { openDeliveryOutcomeStore } from '../src/delivery-outcome-monitor.js'
@@ -813,7 +814,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     const revision = await commitSkill(repository, 'Baseline body.', 'baseline reference')
     const runRoot = await writeCompletedReviewRun(root, repository, true)
     const ctx = await bootStorage(await writeStorageConfig(root))
-    const adapter = await installAgentRuntime(ctx)
+    const adapter = await installAgentRuntime(ctx, join(root, 'sessions'))
     await ctx.plugin(EvolvePlugin, {
       cacheRoot: join(root, 'cache'),
       sources: [{
@@ -874,7 +875,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
         checks: [],
       }),
     }))
-    await expect(ctx.tools.execute({
+    await expect(executeDurableTool(ctx, llm, {
       callId: llm.CallId('canary-delivery-outcome'),
       name: 'complete_delivery',
       arguments: {},
@@ -1545,7 +1546,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     const revision = await commitSkill(repository, 'Outcome comparison body.', 'outcome comparison reference')
     const configPath = await writeStorageConfig(root)
     const ctx = await bootStorage(configPath)
-    const adapter = await installAgentRuntime(ctx)
+    const adapter = await installAgentRuntime(ctx, join(root, 'sessions'))
     const evolveFiber = await ctx.plugin(EvolvePlugin, {
       cacheRoot: join(root, 'cache'),
       sources: [{
@@ -1593,8 +1594,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
       signal: new AbortController().signal,
     }
 
-    await expect(ctx.tools.execute(execution)).resolves.toMatchObject({ isError: false })
-    await expect(ctx.tools.execute(execution)).resolves.toMatchObject({ isError: false })
+    await expect(executeDurableTool(ctx, llm, execution)).resolves.toMatchObject({ isError: false })
     const status = await waitForEvolutionStatus(ctx, agent, 'Delivery outcomes: 1 total')
     expect(status).toContain('Active selection outcomes (native DSH): 1 total (1 passed, 0 failed, 0 unknown)')
     expect(adapter.requests).toHaveLength(modelRequestsBeforeDelivery)
@@ -1608,8 +1608,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
       callId: llm.CallId('active-delivery-outcome'),
       agent: activeAgent,
     }
-    await expect(ctx.tools.execute(activeExecution)).resolves.toMatchObject({ isError: false })
-    await expect(ctx.tools.execute(activeExecution)).resolves.toMatchObject({ isError: false })
+    await expect(executeDurableTool(ctx, llm, activeExecution)).resolves.toMatchObject({ isError: false })
     const comparison = await waitForEvolutionStatus(ctx, activeAgent, 'Delivery outcomes: 2 total')
     expect(comparison).toContain('Delivery outcomes: 2 total (2 passed, 0 failed, 0 unknown)')
     expect(comparison).toContain(
@@ -2320,6 +2319,50 @@ async function waitForEvolutionStatus(
     await new Promise(resolve => setTimeout(resolve, 10))
   }
   throw new Error(`evolution status did not contain '${expected}'`)
+}
+
+/** Commit one direct Tool execution through the same durable call/result vocabulary the Agent Loop owns. */
+async function executeDurableTool(
+  ctx: Awaited<ReturnType<typeof bootStorage>>,
+  llm: {
+    createToolResultMessage(input: {
+      callId: ToolExecutionInput['callId']
+      content: ToolExecutionResult['content']
+      isError: boolean
+    }): unknown
+  },
+  input: ToolExecutionInput,
+): Promise<ToolExecutionResult> {
+  const agent = input.agent
+  if (agent === undefined) throw new Error('durable Tool test execution requires an Agent')
+  const { session } = agent
+  const turn = session.events.filter(event => event.type === 'turn/start').length + 1
+  const step = 1
+  session.append('turn/start', { turn })
+  session.append('step/start', { turn, step })
+  const call = session.append('tool/call', {
+    turn,
+    step,
+    callId: input.callId,
+    name: input.name,
+    arguments: JSON.stringify(input.arguments ?? {}),
+  })
+  const result = await ctx.tools.execute(input)
+  session.append('tool/result', {
+    turn,
+    step,
+    message: llm.createToolResultMessage({
+      callId: input.callId,
+      content: result.content,
+      isError: result.isError,
+    }) as never,
+    ...result.error?.info === undefined ? {} : { error: result.error.info },
+    ...result.meta === undefined ? {} : { meta: result.meta },
+  }, { surfaceOp: 'append', sourceEventSeqs: [call.seq] })
+  session.append('step/end', { turn, step })
+  session.append('turn/end', { turn, reason: { kind: 'completed' } })
+  await ctx.sessions.flush(session)
+  return result
 }
 
 async function waitForCommandText(

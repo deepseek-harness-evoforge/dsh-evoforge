@@ -42,6 +42,10 @@ describe.skipIf(process.platform !== 'darwin')('resident evolution settled signa
       join(dshSourceDir, 'packages', 'boot', 'app-boot', 'lib', 'index.js'),
     ).href)
     const ctx = await boot('dsh-evolution-settled-test', config)
+    const sessions = await import(pathToFileURL(
+      join(dshSourceDir, 'packages', 'core', 'session', 'lib', 'index.js'),
+    ).href)
+    await ctx.plugin(sessions.default)
     ctx.provide('workspaceRegistry', {
       resolveByPath: async () => ({ id: WORKSPACE_ID }),
     } as never)

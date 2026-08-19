@@ -453,7 +453,7 @@ DSH 关闭时 Job 取消信号杀死完整 Sealed Trial 进程组，但不把该
 
 ## 16. 持久状态的最小形状
 
-权威 Generation 和可丢失的派生 Outcome 故意分域，长证据留在 owned run 目录：
+权威 Generation 和可从原生 Session 日志重建的派生 Outcome 故意分域，长证据留在 owned run 目录：
 
 ```text
 Evolution Domain
@@ -660,8 +660,10 @@ protected-effect 词法类别，并与 P1.1 复用 detector；它不是语义安
 [P0C.5](../evidence/p0c-5-protected-effect-projection.zh.md)。P0C 不增加模型 Tool，也不让审批等待
 阻塞产生信号的原会话。P1.1 已实现默认关闭、allowlist、append-only 的
 clear-instruction 自动晋升，证据见
-[P1.1](../evidence/p1-1-opt-in-clear-instruction-auto-promotion.zh.md)。P2D.1 已通过最终
-`tools/result` 接入真实 Software Delivery 三态 outcome，并关联 Session-pinned Generation；
+[P1.1](../evidence/p1-1-opt-in-clear-instruction-auto-promotion.zh.md)。P2D.1 已从原生 Session 中
+source-sequence-linked 的 `tool/call → tool/result` 接入真实 Software Delivery 三态 outcome，
+只在官方 awaited Session durability checkpoint 成功后投影，在 cold Session start 幂等补记，并关联
+Session-pinned Generation；
 该信号异步、host-only、零模型表面，见
 [P2D.1](../evidence/p2d-1-delivery-outcome-signal.zh.md)。P1.2 已实现 exact Git
 active-vs-parent sealed canary、原生 Jobs 与 crash-safe rollback，见

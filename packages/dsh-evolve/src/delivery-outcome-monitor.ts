@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
-import type { ToolExecutionResult } from '@deepseek-ai/dsh-tools'
+import type { Session, SessionEvent } from '@deepseek-ai/dsh-session'
 import {
   defineDomain,
   domainTable,
@@ -8,8 +8,8 @@ import {
   type DomainFacility,
 } from '@deepseek-ai/dsh-storage-domain'
 import { z } from 'zod'
-import { sessionIdentityOf } from './generation-binder.ts'
 import type { EvolutionStore } from './generation-store.ts'
+import { workspaceIdForCwd } from './workspace-identity.ts'
 
 const DEFAULT_MAX_RECORDS = 1_000
 const MAX_REASON_LENGTH = 160
@@ -191,29 +191,41 @@ export async function openDeliveryOutcomeStore(
   return new DomainDeliveryOutcomeStore(await facility.open(deliveryOutcomeDomainSpec), maxRecords)
 }
 
-/** Observe only the compact canonical result; never delay or reshape the Tool execution. */
+/**
+ * Project compact delivery outcomes only from durable Session call/result
+ * pairs. The projection first crosses DSH's awaited Session durability
+ * checkpoint. Cold Session start can then replay a persisted pair after a
+ * crash between that checkpoint and the StorageDomain projection.
+ */
 export function installDeliveryOutcomeMonitor(
   ctx: Context,
   outcomes: DeliveryOutcomeStore,
   evolution: Pick<EvolutionStore, 'getSessionGeneration'>,
-  options: { now?: () => number } = {},
 ): DeliveryOutcomeMonitor {
-  const now = options.now ?? Date.now
   let disposed = false
   let tail: Promise<void> = Promise.resolve()
-  const remove = ctx.on('tools/result', (execution, result) => {
-    if (disposed || execution.name !== 'complete_delivery' || execution.agent === undefined) return
-    const parsed = parseDeliveryResult(result)
+  const enqueue = (session: Session, event: SessionEvent<'tool/result'>) => {
+    if (disposed) return
+    const parsed = parseDurableDeliveryResult(session, event)
     if (parsed === undefined) return
     tail = tail.then(async () => {
       try {
-        const identity = await sessionIdentityOf(ctx, execution.agent!)
+        if (!(await ctx.sessions.flush(session))) {
+          throw new Error('native Session has no durability checkpoint listener')
+        }
+        const { id, createdAt, cwd } = session.header
+        const identity = {
+          workspaceId: await workspaceIdForCwd(ctx, cwd),
+          sessionId: String(id),
+          createdAt,
+          ...(cwd === undefined ? {} : { cwd }),
+        }
         const generationId = evolution.getSessionGeneration(identity)?.id
         await outcomes.record({
-          observedAt: now(),
+          observedAt: event.time,
           workspaceId: identity.workspaceId,
           sessionId: identity.sessionId,
-          callId: String(execution.callId),
+          callId: parsed.callId,
           goal: parsed.goal,
           status: parsed.status,
           reason: parsed.reason,
@@ -225,6 +237,14 @@ export function installDeliveryOutcomeMonitor(
         ctx.logger.warn(`dsh-evolve skipped one delivery outcome: ${errorMessage(error)}`)
       }
     })
+  }
+  const removeEvent = ctx.on('session/event', (session, event) => {
+    if (event.type === 'tool/result') enqueue(session, event)
+  })
+  const removeStart = ctx.on('agent/session-start', ({ agent }) => {
+    for (const event of agent.session.events) {
+      if (event.type === 'tool/result') enqueue(agent.session, event)
+    }
   })
 
   return {
@@ -234,22 +254,44 @@ export function installDeliveryOutcomeMonitor(
     async dispose() {
       if (!disposed) {
         disposed = true
-        remove()
+        removeEvent()
+        removeStart()
       }
       await tail
     },
   }
 }
 
-function parseDeliveryResult(result: Readonly<ToolExecutionResult>): {
+function parseDurableDeliveryResult(
+  session: Session,
+  event: SessionEvent<'tool/result'>,
+): {
+  callId: string
   goal: DeliveryOutcomeInput['goal']
   status: DeliveryOutcomeInput['status']
   reason: string
   commit?: string
   draftPrNumber?: number
 } | undefined {
-  if (result.isError) return undefined
-  const parsed = deliveryResultSchema.safeParse(result.value)
+  const sourceSeqs = event.sourceEventSeqs
+  if (sourceSeqs?.length !== 1) return undefined
+  const call = session.events[sourceSeqs[0]!]
+  if (call?.type !== 'tool/call'
+    || call.data.name !== 'complete_delivery'
+    || String(call.data.callId) !== String(event.data.message.source.callId)) return undefined
+  const block = event.data.message.content[0]
+  if (block.type !== 'tool-result'
+    || block.isError === true
+    || String(block.toolCallId) !== String(call.data.callId)
+    || block.content.length !== 1
+    || block.content[0]?.type !== 'text') return undefined
+  let value: unknown
+  try {
+    value = JSON.parse(block.content[0].text)
+  } catch {
+    return undefined
+  }
+  const parsed = deliveryResultSchema.safeParse(value)
   if (!parsed.success) return undefined
   if (parsed.data.status === 'passed' && parsed.data.goal.phase !== 'complete') return undefined
   const reason = compactReason(parsed.data.reason)
@@ -258,6 +300,7 @@ function parseDeliveryResult(result: Readonly<ToolExecutionResult>): {
     ? parsed.data.draftPr.artifact?.number
     : undefined
   return {
+    callId: String(call.data.callId),
     goal: parsed.data.goal,
     status: parsed.data.status,
     reason,
