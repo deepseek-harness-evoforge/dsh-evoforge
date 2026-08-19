@@ -11,7 +11,7 @@
 ```text
 /evolve feedback
 /evolve feedback <64-char-signal-id>
-/evolve feedback <64-char-signal-id> draft <skill-name>
+/evolve feedback <64-char-signal-id> draft
 ```
 
 草稿可供人检查或交给后续 evaluator 编译器，不会自动改 Skill、创建 Candidate 或触发发布。
@@ -24,13 +24,16 @@
 - 固定 revision DSH 的真实 Agent/Skill/ToolSkill/Session Persistence/Message Feedback/Commands
   组合生成一个直接用户输入、一次显式 Generation Skill invocation 和 assistant message；
 - 官方 `MessageFeedbackService.put` 写入带备注负反馈，随后 host command 创建一个内容寻址 JSON；
+- 命令不接收 Skill；Builder 从 durable turn 的唯一 `skill-invocation` 自动推导目标，再核对 pinned
+  Generation 中恰好一个同名 artifact；
 - JSON 绑定同一 feedback version、Session、message、turn、assistant seq、Generation、exact Git
   commit/tree 和 whole-Skill content hash，只复制直接用户文本与 correction；
 - JSON 不含 fixture Skill body、Tool output 或 assistant response；文件权限不向 group/world 开放；
 - 相同命令重试返回 `already exists` 且目录不新增文件；
 - feedback 改成正向并撤回 P1.3 Signal 后，旧 signal id 立即报
   `feedback signal is no longer current`；
-- 多 Skill invocation、反馈版本漂移和权限过宽目录均 fail closed；
+- 零个/多个 Skill invocation、非法或不属于 pinned Generation 的 Skill、反馈版本漂移和权限过宽目录
+  均 fail closed；
 - 创建、重试和撤回全程没有新增模型请求。
 
 本地完整 `pnpm check` 通过：`dsh-evolve` 105 passed / 2 个显式 skip，
@@ -51,6 +54,16 @@ DSH command-level 验收，并继续复跑 sealed Shadow/canary、Jobs、Generat
 安装/卸载与 Software Delivery 边界。
 `dsh-evolve` tarball 只含声明的 `dist` 文件、README、LICENSE 和 package manifest。
 
+上述数字是 P1.4 首次交付时的历史证据。2026-08-19 的自主归因修正先以 6 个失败测试证明旧 API/命令
+仍要求 caller 提供 Skill，再改为由 durable invocation 唯一推导。当前 revision 的直接 Builder/Command/
+Shadow/Evaluator 回归为 42/42；固定 DSH assembled command path 为 1/1（其余 19 项按过滤条件跳过）；
+全仓 `pnpm check` 中 `dsh-evolve` 为 262 passed / 2 skipped。Cache Contract、Doctor 22/22 与十一包
+clean-profile add/dump/boot/remove/readback 同时通过，后者耗时 27.10 秒。Shadow 或 Evaluator 的静态授权
+target 若与草案的 durable 归因不一致，会在 Skill materialization、Job 和模型调用前 fail closed。
+
+这份追加证据只证明“用户不再选择反馈对应的 Skill”和下游 target 不能覆盖该事实；它没有让 correction
+获得 Opportunity 资格，也没有消除独立评测仍需预配置 evaluator/Case Pack 的缺口。
+
 ## Cache、授权与未完成边界
 
 - 正常 Session、反馈 intake 和草稿命令都不增加 Tool、system prompt、Skill catalog 项或模型调用；
@@ -62,4 +75,5 @@ DSH command-level 验收，并继续复跑 sealed Shadow/canary、Jobs、Generat
   充当 Trial 真相。P1.5 已允许它在 exact Skill 匹配时只引导 proposer，并继续使用既有可信 Case
   Pack 独立评测；全新失败类型仍需要一个具体 evaluator，不建设通用 Case SDK。
 
-设计取舍见 [ADR-0018](../adr/0018-feedback-case-drafts-require-explicit-private-copy.md)。
+设计取舍见 [ADR-0018](../adr/0018-feedback-case-drafts-require-explicit-private-copy.md) 与
+[ADR-0051](../adr/0051-feedback-draft-derives-skill-from-durable-invocation.md)。

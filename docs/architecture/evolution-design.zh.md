@@ -266,12 +266,14 @@ whole-row 更新允许用户把负反馈改正、删掉或移除 note 后撤回 
 Candidate；见 [ADR-0017](../adr/0017-explicit-feedback-stays-reference-only.md)。
 
 P1.4 仍不实现通用接口。配置 `feedbackDraftRoot` 只表示允许复制最小原文，用户还必须通过
-host-only `/evolve feedback <signal-id> draft <skill>` 逐条选择。一个私有 Builder 重新读取原生
-Message Feedback 与 Session Persistence，要求 exact feedback version、同一生命周期的 pinned
-Generation、一个直接纯文本用户消息和恰好一次目标 Skill invocation。它保存用户文本、correction、
+host-only `/evolve feedback <signal-id> draft` 逐条授权复制，但不再选择目标 Skill。一个私有 Builder
+重新读取原生 Message Feedback 与 Session Persistence，从 durable turn 中推导唯一 Skill invocation，
+并要求 exact feedback version、同一生命周期的 pinned Generation、一个直接纯文本用户消息和恰好
+一次合法 invocation。它保存用户文本、correction、
 exact Git artifact、whole-Skill content hash 与 prefix hash，不保存 assistant response、Tool output、Skill body、cwd 或完整
 Transcript。输出状态固定为 `draft`，没有 evaluator score，不生成 Candidate。见
-[ADR-0018](../adr/0018-feedback-case-drafts-require-explicit-private-copy.md)。
+[ADR-0018](../adr/0018-feedback-case-drafts-require-explicit-private-copy.md) 与
+[ADR-0051](../adr/0051-feedback-draft-derives-skill-from-durable-invocation.md)。
 
 P1.5 不生成 evaluator，也不新增 Case 平台。用户显式执行
 `shadow ... --feedback-draft <private-draft.json>`，即授权一次可能付费的 proposer 请求和该草稿最小

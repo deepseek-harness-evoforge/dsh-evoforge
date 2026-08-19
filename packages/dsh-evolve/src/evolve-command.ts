@@ -24,7 +24,7 @@ import type {
 } from './automatic-evaluator-draft.ts'
 import { workspaceIdForCwd } from './workspace-identity.ts'
 
-const USAGE = 'Usage: /evolve [status|feedback [<signal-id> [draft <skill>|shadow <target>|author <evaluator-target>]]|evaluator [<draft-id> [shadow|qualify-shadow <note>|approve|reject <note>]]|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]'
+const USAGE = 'Usage: /evolve [status|feedback [<signal-id> [draft|shadow <target>|author <evaluator-target>]]|evaluator [<draft-id> [shadow|qualify-shadow <note>|approve|reject <note>]]|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]'
 const generationIdPattern = /^[a-f0-9]{64}$/
 
 export interface EvolutionCommandModules {
@@ -143,23 +143,24 @@ export async function executeEvolutionCommand(
             ].join('\n'),
       }
     }
-    const feedbackAction = /^feedback\s+([a-f0-9]{64})(?:\s+draft\s+([a-z0-9]+(?:-[a-z0-9]+)*))?$/u.exec(input)
-    if (feedbackAction?.[1] !== undefined) {
+    const feedbackDraftAction = /^feedback\s+([a-f0-9]{64})\s+draft$/u.exec(input)
+    if (feedbackDraftAction?.[1] !== undefined) {
       if (feedback === undefined) return feedbackUnavailable()
-      const [, id, skillName] = feedbackAction
-      if (skillName === undefined) {
-        const signal = feedback.list(workspaceId).find(candidate => candidate.id === id)
-        if (signal === undefined) throw new Error('feedback signal is no longer current')
-        return renderFeedback(signal)
-      }
       if (feedbackDraft === undefined) return feedbackDraftUnavailable()
-      const result = await feedbackDraft.create(workspaceId, id, skillName)
+      const result = await feedbackDraft.create(workspaceId, feedbackDraftAction[1])
       return {
         kind: 'success',
         text: result.created
-          ? `Feedback Case Draft created.\nDraft: ${result.draft.id}\nStatus: draft; no replay score or Candidate was created.`
-          : `Feedback Case Draft already exists.\nDraft: ${result.draft.id}\nStatus: draft; no replay score or Candidate was created.`,
+          ? `Feedback Case Draft created.\nDraft: ${result.draft.id}\nSkill: ${result.draft.target.name} (derived from the exact durable invocation).\nStatus: draft; no replay score or Candidate was created.`
+          : `Feedback Case Draft already exists.\nDraft: ${result.draft.id}\nSkill: ${result.draft.target.name} (derived from the exact durable invocation).\nStatus: draft; no replay score or Candidate was created.`,
       }
+    }
+    const feedbackAction = /^feedback\s+([a-f0-9]{64})$/u.exec(input)
+    if (feedbackAction?.[1] !== undefined) {
+      if (feedback === undefined) return feedbackUnavailable()
+      const signal = feedback.list(workspaceId).find(candidate => candidate.id === feedbackAction[1])
+      if (signal === undefined) throw new Error('feedback signal is no longer current')
+      return renderFeedback(signal)
     }
     if (input === 'review') {
       if (review === undefined) return reviewUnavailable()
@@ -426,7 +427,7 @@ function renderFeedback(signal: FeedbackSignal): CommandResult {
       `Feedback version: ${signal.feedbackVersion}`,
       `Generation: ${signal.generationId ?? 'native DSH'}`,
       'The correction text remains in native DSH feedback authority.',
-      'Create a private draft: /evolve feedback <signal-id> draft <skill>',
+      'Create a private draft with its Skill derived from durable Session evidence: /evolve feedback <signal-id> draft',
     ].join('\n'),
   }
 }

@@ -117,9 +117,8 @@ export class FeedbackCaseDraftBuilder {
     }
   }
 
-  async create(workspaceId: string, signalId: string, skillName: string): Promise<FeedbackCaseDraftResult> {
+  async create(workspaceId: string, signalId: string): Promise<FeedbackCaseDraftResult> {
     if (!CONTENT_ID.test(signalId)) throw new Error('feedback signal id must be a full 64-character id')
-    if (!SKILL_NAME.test(skillName)) throw new Error(`invalid Skill name '${skillName}'`)
 
     const signal = this.signals.get(signalId, workspaceId)
     if (signal === undefined) throw staleSignal()
@@ -141,13 +140,6 @@ export class FeedbackCaseDraftBuilder {
     if (generation?.id !== signal.generationId) {
       throw new Error('feedback signal no longer resolves to its exact pinned Generation')
     }
-    const artifacts = generation.artifacts.filter(artifact => artifact.name === skillName)
-    if (artifacts.length !== 1) {
-      throw new Error(`pinned Generation does not contain exactly one Skill '${skillName}'`)
-    }
-    const artifact = artifacts[0]!
-    const resolvedArtifact = await this.source.resolveArtifact(skillName, artifact)
-
     const assistantEvents = stored.events.filter((event): event is SessionEvent<'assistant/message'> =>
       event.type === 'assistant/message' && String(event.data.message.id) === signal.messageId)
     if (assistantEvents.length !== 1) throw new Error('feedback target is ambiguous in durable Session history')
@@ -166,9 +158,16 @@ export class FeedbackCaseDraftBuilder {
     const userText = singleTextBlock(direct[0]!.data.content)
     const invoked = turnEvents.filter((event): event is SessionEvent<'user/message'> =>
       event.type === 'user/message' && sourceKind(event.data.source) === 'skill-invocation')
-    if (invoked.length !== 1 || sourceName(invoked[0]!.data.source) !== skillName) {
-      throw new Error(`feedback target turn must contain exactly one explicit invocation of Skill '${skillName}'`)
+    const skillName = invoked.length === 1 ? sourceName(invoked[0]!.data.source) : undefined
+    if (skillName === undefined || !SKILL_NAME.test(skillName)) {
+      throw new Error('feedback target turn must contain exactly one explicit Skill invocation')
     }
+    const artifacts = generation.artifacts.filter(artifact => artifact.name === skillName)
+    if (artifacts.length !== 1) {
+      throw new Error(`pinned Generation does not contain exactly one Skill '${skillName}'`)
+    }
+    const artifact = artifacts[0]!
+    const resolvedArtifact = await this.source.resolveArtifact(skillName, artifact)
     enforceBound('direct user text', userText, MAX_USER_TEXT_BYTES)
     enforceBound('feedback correction', current.note, MAX_CORRECTION_BYTES)
 

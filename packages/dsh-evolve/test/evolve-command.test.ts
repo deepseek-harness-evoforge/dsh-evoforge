@@ -150,7 +150,7 @@ describe('/evolve host command', () => {
     const feedbackDraft = {
       create: vi.fn(async () => ({
         created: true,
-        draft: { id: childId },
+        draft: { id: childId, target: { name: 'stable-skill' } },
         path: '/private/draft.json',
       })),
     }
@@ -162,13 +162,13 @@ describe('/evolve host command', () => {
       })
     await expect(executeEvolutionCommand(
       fakeStore(),
-      `feedback ${signal.id} draft stable-skill`,
+      `feedback ${signal.id} draft`,
       { feedback, feedbackDraft: feedbackDraft as never },
     )).resolves.toMatchObject({
       kind: 'success',
-      text: expect.stringContaining('Feedback Case Draft created.'),
+      text: expect.stringContaining('Skill: stable-skill (derived from the exact durable invocation).'),
     })
-    expect(feedbackDraft.create).toHaveBeenCalledWith(WORKSPACE_ID, signal.id, 'stable-skill')
+    expect(feedbackDraft.create).toHaveBeenCalledWith(WORKSPACE_ID, signal.id)
   })
 
   it('does not create a draft without explicit private-root composition', async () => {
@@ -180,7 +180,7 @@ describe('/evolve host command', () => {
 
     await expect(executeEvolutionCommand(
       fakeStore(),
-      `feedback ${id} draft stable-skill`,
+      `feedback ${id} draft`,
       { feedback },
     )).resolves.toMatchObject({
       kind: 'error',
@@ -384,7 +384,7 @@ describe('/evolve host command', () => {
     for (const input of ['promote', 'promote abc', `promote ${rootId} extra`, 'unknown']) {
       await expect(executeEvolutionCommand(store, input)).resolves.toMatchObject({
         kind: 'error',
-      text: 'Usage: /evolve [status|feedback [<signal-id> [draft <skill>|shadow <target>|author <evaluator-target>]]|evaluator [<draft-id> [shadow|qualify-shadow <note>|approve|reject <note>]]|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]',
+      text: 'Usage: /evolve [status|feedback [<signal-id> [draft|shadow <target>|author <evaluator-target>]]|evaluator [<draft-id> [shadow|qualify-shadow <note>|approve|reject <note>]]|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]',
       })
     }
     expect(store.promoteGeneration).not.toHaveBeenCalled()

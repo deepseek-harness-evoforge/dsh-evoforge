@@ -293,7 +293,10 @@ export class EvaluatorDraftInbox {
     if (drafts === undefined) throw new Error('private Feedback Case Draft creation is unavailable')
 
     await ensureOwnedRoot(target.root)
-    const sourceDraft = await drafts.create(target.workspaceId, signalId, target.skill)
+    const sourceDraft = await drafts.create(target.workspaceId, signalId)
+    if (sourceDraft.draft.target.name !== target.skill) {
+      throw new Error('durably attributed feedback Skill does not match the authorized evaluator target')
+    }
     const resolved = await this.source.resolveArtifact(target.skill, sourceDraft.draft.target.artifact)
     if (resolved.artifact.treeHash !== sourceDraft.draft.target.artifact.treeHash) {
       throw new Error('resolved evaluator target Skill does not match its private draft')

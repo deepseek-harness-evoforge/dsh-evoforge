@@ -388,7 +388,8 @@ active-call wait，只对 pending/缺失 checks 重读，不保存 CI journal、
 watcher。failed、无法读取或 head 漂移立即保持 Goal active；timeout 后显式重试仍复用同一个 PR。
 
 反馈进化先复用原生 Message Feedback 保存 reference-only Signal。只有管理者配置私有复制目录，且
-用户逐条选择 signal/Skill 或部署者绑定一个静态 exact evaluator/成本策略，才保存未评分 Case Draft；
+用户逐条授权一个 signal 或部署者绑定一个静态 exact evaluator/成本策略，才保存未评分 Case Draft；
+目标 Skill 必须由 durable Session 中唯一 `skill-invocation` 推导，命令不得让用户指定；
 它必须重新核对 exact feedback version、Session-pinned Generation、单一 Skill invocation 和 whole-Skill
 content hash。已有可信 Case Pack 覆盖该失败类型时，用户可逐次显式授权一次 Shadow，或由上述默认关闭
 的部署策略每轮最多启动一个；草稿只作为 proposer 搜索证据，既有 evaluator 仍是独立裁判，草稿输入

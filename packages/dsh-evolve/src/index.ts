@@ -426,13 +426,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const feedbackDraft = config.feedbackDraftRoot === undefined
     ? undefined
     : {
-        create: (workspaceId: string, signalId: string, skillName: string) => {
+        create: (workspaceId: string, signalId: string) => {
           if (feedbackDraftBuilder === undefined) {
             throw new Error(
               'native message feedback and Session persistence are not composed for Feedback Case Draft creation',
             )
           }
-          return feedbackDraftBuilder.create(workspaceId, signalId, skillName)
+          return feedbackDraftBuilder.create(workspaceId, signalId)
         },
       }
   const feedbackShadow = shadowTargets.length === 0 && evaluatorShadowTargets.length === 0

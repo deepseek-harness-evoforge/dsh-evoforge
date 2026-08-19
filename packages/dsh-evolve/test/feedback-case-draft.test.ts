@@ -20,6 +20,17 @@ afterEach(async () => {
 })
 
 describe('FeedbackCaseDraftBuilder rejection gates', () => {
+  it('rejects a target turn without an explicitly invoked Skill', async () => {
+    const root = await temporaryRoot()
+    const builder = await fixtureBuilder(root, join(root, 'drafts'), [
+      directUser('do the work'),
+    ])
+
+    await expect(builder.create(WORKSPACE_ID, signalId)).rejects.toThrow(
+      'feedback target turn must contain exactly one explicit Skill invocation',
+    )
+  })
+
   it('rejects a turn with more than one explicitly invoked Skill', async () => {
     const root = await temporaryRoot()
     const builder = await fixtureBuilder(root, join(root, 'drafts'), [
@@ -28,8 +39,20 @@ describe('FeedbackCaseDraftBuilder rejection gates', () => {
       invokedSkill('other-skill', 3),
     ])
 
-    await expect(builder.create(WORKSPACE_ID, signalId, 'stable-skill')).rejects.toThrow(
-      "feedback target turn must contain exactly one explicit invocation of Skill 'stable-skill'",
+    await expect(builder.create(WORKSPACE_ID, signalId)).rejects.toThrow(
+      'feedback target turn must contain exactly one explicit Skill invocation',
+    )
+  })
+
+  it('rejects a durably invoked Skill that is absent from the pinned Generation', async () => {
+    const root = await temporaryRoot()
+    const builder = await fixtureBuilder(root, join(root, 'drafts'), [
+      directUser('/other-skill do the work'),
+      invokedSkill('other-skill', 2),
+    ])
+
+    await expect(builder.create(WORKSPACE_ID, signalId)).rejects.toThrow(
+      "pinned Generation does not contain exactly one Skill 'other-skill'",
     )
   })
 
@@ -43,7 +66,7 @@ describe('FeedbackCaseDraftBuilder rejection gates', () => {
       invokedSkill('stable-skill', 2),
     ])
 
-    await expect(builder.create(WORKSPACE_ID, signalId, 'stable-skill')).rejects.toThrow(
+    await expect(builder.create(WORKSPACE_ID, signalId)).rejects.toThrow(
       'feedbackDraftRoot must not grant group or world permissions',
     )
   })
@@ -55,7 +78,7 @@ describe('FeedbackCaseDraftBuilder rejection gates', () => {
       invokedSkill('stable-skill', 2),
     ], { currentVersion: '6836c43f-721a-4be8-9fca-89403b39095b' })
 
-    await expect(builder.create(WORKSPACE_ID, signalId, 'stable-skill')).rejects.toThrow(
+    await expect(builder.create(WORKSPACE_ID, signalId)).rejects.toThrow(
       'feedback signal is no longer current',
     )
   })
@@ -66,7 +89,7 @@ describe('FeedbackCaseDraftBuilder rejection gates', () => {
       directUser('/stable-skill do the work'),
       invokedSkill('stable-skill', 2),
     ])
-    const created = await builder.create(WORKSPACE_ID, signalId, 'stable-skill')
+    const created = await builder.create(WORKSPACE_ID, signalId)
 
     await expect(readPrivateFeedbackCaseDraft(created.path)).resolves.toEqual(created.draft)
     const tampered = JSON.parse(JSON.stringify(created.draft))

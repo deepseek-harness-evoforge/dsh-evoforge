@@ -112,6 +112,34 @@ describe('EvaluatorDraftInbox', () => {
     })
   })
 
+  it('refuses an evaluator target that disagrees with the durably attributed Skill', async () => {
+    const fixture = await setup()
+    const attributed = await fixture.drafts.create()
+    fixture.drafts.create.mockReset()
+    fixture.drafts.create.mockResolvedValue({
+      ...attributed,
+      draft: {
+        ...attributed.draft,
+        target: { ...attributed.draft.target, name: 'different-skill' },
+      },
+    })
+    const jobs = fakeJobs()
+    const inbox = new EvaluatorDraftInbox({
+      targets: [fixture.target],
+      drafts: () => fixture.drafts,
+      source: fixture.source,
+      authorModel: vi.fn(),
+      qualify: vi.fn(),
+      modelIdentity: () => 'model-route-v1',
+    })
+    inbox.attachJobs(jobs.registry)
+
+    await expect(inbox.author(WORKSPACE_ID, signalId, fixture.target.id))
+      .rejects.toThrow('durably attributed feedback Skill does not match the authorized evaluator target')
+    expect(fixture.source.resolveArtifact).not.toHaveBeenCalled()
+    expect(jobs.starts).toEqual([])
+  })
+
   it('publishes only the exact unchanged draft after human approval and sealed calibration', async () => {
     const fixture = await setup()
     const jobs = fakeJobs()

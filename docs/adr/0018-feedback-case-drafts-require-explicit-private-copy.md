@@ -2,7 +2,8 @@
 
 ## 状态
 
-Accepted，2026-08-16。
+Accepted，2026-08-16。关于“用户同时指定目标 Skill”的部分已由
+[ADR-0051](0051-feedback-draft-derives-skill-from-durable-invocation.md) 替代；逐条私有复制授权仍有效。
 
 ## 背景
 

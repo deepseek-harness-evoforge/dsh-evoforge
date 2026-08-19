@@ -1829,7 +1829,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     })
     const created = await ctx.commands.execute(
       agent,
-      `/evolve feedback ${signalId} draft stable-evolved-skill`,
+      `/evolve feedback ${signalId} draft`,
       new AbortController().signal,
     )
     expect(created?.result).toMatchObject({
@@ -1877,7 +1877,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
 
     const repeated = await ctx.commands.execute(
       agent,
-      `/evolve feedback ${signalId} draft stable-evolved-skill`,
+      `/evolve feedback ${signalId} draft`,
       new AbortController().signal,
     )
     expect(repeated?.result.text).toContain('Feedback Case Draft already exists.')
@@ -1895,7 +1895,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     await waitForEvolutionStatus(ctx, agent, 'Explicit feedback signals: 0 retained (0 active selection)')
     const stale = await ctx.commands.execute(
       agent,
-      `/evolve feedback ${signalId} draft stable-evolved-skill`,
+      `/evolve feedback ${signalId} draft`,
       new AbortController().signal,
     )
     expect(stale?.result).toMatchObject({

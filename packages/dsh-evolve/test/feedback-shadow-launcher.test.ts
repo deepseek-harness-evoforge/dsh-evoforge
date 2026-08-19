@@ -71,7 +71,7 @@ describe('FeedbackShadowLauncher', () => {
       outputDir: join(await realpath(fixture.runRoot), first.launchId),
       resume: false,
     }))
-    expect(fixture.drafts.create).toHaveBeenCalledWith(WORKSPACE_ID, signalId, artifact.name)
+    expect(fixture.drafts.create).toHaveBeenCalledWith(WORKSPACE_ID, signalId)
     expect(fixture.source.resolveArtifact).toHaveBeenCalledWith(artifact.name, artifact)
     await expect(launcher.automaticInflightStatus(
       WORKSPACE_ID,
@@ -81,6 +81,34 @@ describe('FeedbackShadowLauncher', () => {
 
     release()
     await jobs.hooks[0]!.done
+  })
+
+  it('refuses a Shadow target that disagrees with the durably attributed Skill', async () => {
+    const fixture = await setup()
+    const attributed = await fixture.drafts.create()
+    fixture.drafts.create.mockReset()
+    fixture.drafts.create.mockResolvedValue({
+      ...attributed,
+      draft: {
+        ...attributed.draft,
+        target: { ...attributed.draft.target, name: 'different-skill' },
+      },
+    })
+    const jobs = fakeJobs()
+    const launcher = new FeedbackShadowLauncher({
+      targets: [fixture.target],
+      supervisorRunRoots: [ownedRunRoot(WORKSPACE_ID, fixture.runRoot)],
+      drafts: () => fixture.drafts,
+      source: fixture.source,
+      runner: vi.fn(),
+      modelIdentity: () => 'fixed-route-v1',
+    })
+    launcher.attachJobs(jobs.registry)
+
+    await expect(launcher.launch(WORKSPACE_ID, signalId, fixture.target.id))
+      .rejects.toThrow('durably attributed feedback Skill does not match the authorized Shadow target')
+    expect(fixture.source.resolveArtifact).not.toHaveBeenCalled()
+    expect(jobs.starts).toEqual([])
   })
 
   it('reuses terminal durable evidence without starting or paying twice', async () => {

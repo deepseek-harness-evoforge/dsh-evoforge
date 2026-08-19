@@ -247,7 +247,10 @@ export class FeedbackShadowLauncher {
     if (expectedCasePackHash !== undefined && casePackHash !== expectedCasePackHash) {
       throw new Error('feedback Shadow Case Pack does not match its qualified hash')
     }
-    const draft = await drafts.create(target.workspaceId, signalId, target.skill)
+    const draft = await drafts.create(target.workspaceId, signalId)
+    if (draft.draft.target.name !== target.skill) {
+      throw new Error('durably attributed feedback Skill does not match the authorized Shadow target')
+    }
     const resolvedSkill = await this.source.resolveArtifact(target.skill, draft.draft.target.artifact)
     if (resolvedSkill.artifact.treeHash !== draft.draft.target.artifact.treeHash) {
       throw new Error('resolved feedback Shadow Skill does not match its private draft')
