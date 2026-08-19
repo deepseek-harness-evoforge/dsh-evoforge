@@ -20,7 +20,7 @@
 | `dsh-gateway` | external endpoint 到原生 Workspace/Session/Agent 的静态、幂等绑定 | disabled，需显式配置 |
 | `dsh-feishu` | 一个飞书 App 的 exact 私聊/群聊经 Gateway 进入原生 Workspace/Session/Agent；同包提供 DSH Web 首次连接向导 | disabled，需显式配置 |
 
-现有进化实现覆盖 P0A–P1.21：sealed paired Trial、inactive Candidate、immutable Generation、Session pin、人工审查、极窄自动晋升、Retention、预算、反馈驱动 Shadow、反事实 canary 和 future-session rollback。当前自主纵切以 DSH 自身 Goal-linked Gap 推导 Skill Opportunity：同一 Workspace 至少两个独立 Goal 才允许原生 Job 生成 instruction-only whole-Skill v1 并进入隔离区；Opportunity v2 还能保守关联同 Session 唯一 Gap Skill 的明确纠正和 exact Goal revision 唯一 Gap Skill 的真实交付结果，但固定不宣称因果或资格影响。用户不选路径、Agent、workflow、Skill 或来源；产品不建设运行时外部 Skill 搜索、获取、下载、导入或市场。旧 trusted/local/Agent Skills 获取、运行时 research、research Holdout/revision 实现、持久化变体和 Web 投影已从活动源码删除；该纵切仍只标记为 `implemented`，因为 exact invocation、返工/成本/复用/Retention/回滚归因、独立真实 provider 评估、陌生用户、长期误晋升率和生产多日证据尚未完成。
+现有进化实现覆盖 P0A–P1.21：sealed paired Trial、inactive Candidate、immutable Generation、Session pin、人工审查、极窄自动晋升、Retention、预算、反馈驱动 Shadow、反事实 canary 和 future-session rollback。当前自主纵切以 DSH 自身 Goal-linked Gap 推导 Skill Opportunity：同一 Workspace 至少两个独立 Goal 才允许原生 Job 生成 instruction-only whole-Skill v1 并进入隔离区；Opportunity v2 还能保守关联同 Session 唯一 Gap Skill 的明确纠正，以及同一稳定 Goal id、跨原生 revision 且不早于 Gap 的真实交付结果，但固定不宣称因果或资格影响。用户不选路径、Agent、workflow、Skill 或来源；产品不建设运行时外部 Skill 搜索、获取、下载、导入或市场。旧 trusted/local/Agent Skills 获取、运行时 research、research Holdout/revision 实现、持久化变体和 Web 投影已从活动源码删除；该纵切仍只标记为 `implemented`，因为 exact invocation、返工/成本/复用/Retention/回滚归因、独立真实 provider 评估、陌生用户、长期误晋升率和生产多日证据尚未完成。
 
 ## 安装到一个 DSH profile
 

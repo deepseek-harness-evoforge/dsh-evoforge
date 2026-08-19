@@ -94,6 +94,10 @@ _Avoid_: Skill Discovery, capability acquisition, user menu, runtime marketplace
 A deterministic, Workspace-scoped conclusion that repeated capability gaps across at least two distinct native DSH Goals justify bounded whole-Skill authoring. Its Skill name comes from verified Gap evidence, never an operator-configured authoring target; same-Goal retries and weak evidence abstain. It has no install, activation, or release authority.
 _Avoid_: Gap cluster, search result, user-selected Skill, authoring permission
 
+**Goal Outcome Context Association**:
+A conservative, non-causal link from one compact Delivery Outcome to one stable native Goal identity whose known Gap evidence names exactly one Skill. The Outcome must follow a matching Gap in time and may carry the same or a later native Goal revision; an older revision, another Skill, or another Workspace abstains. This context never contributes another Goal to Opportunity eligibility or proves rework, reuse, or improvement.
+_Avoid_: Exact-revision equality, retry evidence, causal attribution, success vote
+
 **Fast Evolution Loop**:
 A bounded online loop that attributes an explicit correction, verified outcome, repeated failure, or measured cost to the exact Session Generation and records an inactive signal, gap, or small candidate for later evaluation. It never rewrites an active capability or publishes from the originating Session.
 _Avoid_: Learn-once activation, synchronous reflection, retry-as-learning

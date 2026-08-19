@@ -120,7 +120,7 @@ export interface EvolutionSkillOpportunityView {
             readonly referencesTruncated: boolean;
         };
         readonly deliveryOutcomes: {
-            readonly association: 'same-goal-revision-single-skill-gap';
+            readonly association: 'same-goal-single-skill-gap';
             readonly total: number;
             readonly passed: number;
             readonly failed: number;

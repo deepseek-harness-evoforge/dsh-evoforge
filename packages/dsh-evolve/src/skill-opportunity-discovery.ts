@@ -16,7 +16,7 @@ export interface SkillOpportunityEvidence {
     readonly referencesTruncated: boolean
   }
   readonly deliveryOutcomes: {
-    readonly association: 'same-goal-revision-single-skill-gap'
+    readonly association: 'same-goal-single-skill-gap'
     readonly total: number
     readonly passed: number
     readonly failed: number
@@ -132,8 +132,13 @@ export class ExperienceDrivenSkillOpportunityDiscovery {
 interface AttributionIndex {
   readonly sessionSkills: ReadonlyMap<string, ReadonlySet<string>>
   readonly sessionSkillFirstGapAt: ReadonlyMap<string, number>
-  readonly goalRevisionSkills: ReadonlyMap<string, ReadonlySet<string>>
-  readonly goalRevisionSkillFirstGapAt: ReadonlyMap<string, number>
+  readonly goalSkills: ReadonlyMap<string, ReadonlySet<string>>
+  readonly goalSkillGaps: ReadonlyMap<string, readonly GoalGapRef[]>
+}
+
+interface GoalGapRef {
+  readonly revision: number
+  readonly observedAt: number
 }
 
 function buildAttributionIndex(
@@ -141,8 +146,8 @@ function buildAttributionIndex(
 ): AttributionIndex {
   const sessionSkills = new Map<string, Set<string>>()
   const sessionSkillFirstGapAt = new Map<string, number>()
-  const goalRevisionSkills = new Map<string, Set<string>>()
-  const goalRevisionSkillFirstGapAt = new Map<string, number>()
+  const goalSkills = new Map<string, Set<string>>()
+  const goalSkillGaps = new Map<string, GoalGapRef[]>()
   for (const gap of gaps) {
     addSkill(sessionSkills, sessionKey(gap.workspaceId, gap.sessionId), gap.requestedSkill)
     setEarliest(
@@ -152,18 +157,17 @@ function buildAttributionIndex(
     )
     if (gap.goal !== undefined) {
       addSkill(
-        goalRevisionSkills,
-        goalRevisionKey(gap.workspaceId, gap.goal.id, gap.goal.revision),
+        goalSkills,
+        goalKey(gap.workspaceId, gap.goal.id),
         gap.requestedSkill,
       )
-      setEarliest(
-        goalRevisionSkillFirstGapAt,
-        goalRevisionSkillKey(gap.workspaceId, gap.goal.id, gap.goal.revision, gap.requestedSkill),
-        gap.observedAt,
-      )
+      const key = goalSkillKey(gap.workspaceId, gap.goal.id, gap.requestedSkill)
+      const refs = goalSkillGaps.get(key) ?? []
+      refs.push({ revision: gap.goal.revision, observedAt: gap.observedAt })
+      goalSkillGaps.set(key, refs)
     }
   }
-  return { sessionSkills, sessionSkillFirstGapAt, goalRevisionSkills, goalRevisionSkillFirstGapAt }
+  return { sessionSkills, sessionSkillFirstGapAt, goalSkills, goalSkillGaps }
 }
 
 function opportunityEvidence(
@@ -187,15 +191,12 @@ function opportunityEvidence(
 
   const exactOutcomes = uniqueById(outcomes.filter((outcome) => {
     if (outcome.workspaceId !== workspaceId) return false
-    const key = goalRevisionKey(workspaceId, outcome.goal.id, outcome.goal.revision)
-    const skills = attribution.goalRevisionSkills.get(key)
-    const firstGapAt = attribution.goalRevisionSkillFirstGapAt.get(
-      goalRevisionSkillKey(workspaceId, outcome.goal.id, outcome.goal.revision, skillName),
-    )
+    const skills = attribution.goalSkills.get(goalKey(workspaceId, outcome.goal.id))
+    const gaps = attribution.goalSkillGaps.get(goalSkillKey(workspaceId, outcome.goal.id, skillName))
     return skills?.size === 1
       && skills.has(skillName)
-      && firstGapAt !== undefined
-      && outcome.observedAt >= firstGapAt
+      && gaps?.some(gap => outcome.observedAt >= gap.observedAt
+        && outcome.goal.revision >= gap.revision) === true
   })).sort((left, right) => left.observedAt - right.observedAt || left.id.localeCompare(right.id))
 
   const correctionIds = referenceIds(exactFeedback)
@@ -212,7 +213,7 @@ function opportunityEvidence(
       referencesTruncated: exactFeedback.length > correctionIds.length,
     }),
     deliveryOutcomes: Object.freeze({
-      association: 'same-goal-revision-single-skill-gap',
+      association: 'same-goal-single-skill-gap',
       total: exactOutcomes.length,
       ...counts,
       ids: outcomeIds,
@@ -249,17 +250,16 @@ function sessionSkillKey(workspaceId: string, sessionId: string, skillName: stri
   return `${sessionKey(workspaceId, sessionId)}\0${skillName}`
 }
 
-function goalRevisionKey(workspaceId: string, goalId: string, revision: number): string {
-  return `${workspaceId}\0${goalId}\0${revision}`
+function goalKey(workspaceId: string, goalId: string): string {
+  return `${workspaceId}\0${goalId}`
 }
 
-function goalRevisionSkillKey(
+function goalSkillKey(
   workspaceId: string,
   goalId: string,
-  revision: number,
   skillName: string,
 ): string {
-  return `${goalRevisionKey(workspaceId, goalId, revision)}\0${skillName}`
+  return `${goalKey(workspaceId, goalId)}\0${skillName}`
 }
 
 function opportunityId(workspaceId: string, skillName: string): string {

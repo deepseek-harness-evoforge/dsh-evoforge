@@ -230,7 +230,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'referencesTruncated': z.boolean().readonly(),
 }).readonly(),
   'deliveryOutcomes': z.object({
-  'association': z.literal("same-goal-revision-single-skill-gap").readonly(),
+  'association': z.literal("same-goal-single-skill-gap").readonly(),
   'total': z.number().readonly(),
   'passed': z.number().readonly(),
   'failed': z.number().readonly(),
@@ -1626,7 +1626,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionSkillOpportunityView",
-            "declaration": "export interface EvolutionSkillOpportunityView {\n    readonly id: string;\n    readonly skillName: string;\n    readonly gapIds: readonly string[];\n    readonly goalIds: readonly string[];\n    readonly gapCount: number;\n    readonly goalCount: number;\n    readonly firstObservedAt: number;\n    readonly lastObservedAt: number;\n    readonly evidence: { readonly kind: 'internal-experience-v2'; readonly eligibilityBasis: 'two-or-more-distinct-goals'; readonly correctionSignals: { readonly association: 'same-session-single-skill-gap'; readonly count: number; readonly ids: readonly string[]; readonly referencesTruncated: boolean; }; readonly deliveryOutcomes: { readonly association: 'same-goal-revision-single-skill-gap'; readonly total: number; readonly passed: number; readonly failed: number; readonly unknown: number; readonly ids: readonly string[]; readonly referencesTruncated: boolean; }; readonly causalClaim: 'none'; };\n    readonly status: 'eligible-for-authoring';\n    readonly releaseAuthority: 'none';\n}"
+            "declaration": "export interface EvolutionSkillOpportunityView {\n    readonly id: string;\n    readonly skillName: string;\n    readonly gapIds: readonly string[];\n    readonly goalIds: readonly string[];\n    readonly gapCount: number;\n    readonly goalCount: number;\n    readonly firstObservedAt: number;\n    readonly lastObservedAt: number;\n    readonly evidence: { readonly kind: 'internal-experience-v2'; readonly eligibilityBasis: 'two-or-more-distinct-goals'; readonly correctionSignals: { readonly association: 'same-session-single-skill-gap'; readonly count: number; readonly ids: readonly string[]; readonly referencesTruncated: boolean; }; readonly deliveryOutcomes: { readonly association: 'same-goal-single-skill-gap'; readonly total: number; readonly passed: number; readonly failed: number; readonly unknown: number; readonly ids: readonly string[]; readonly referencesTruncated: boolean; }; readonly causalClaim: 'none'; };\n    readonly status: 'eligible-for-authoring';\n    readonly releaseAuthority: 'none';\n}"
           },
           {
             "name": "EvolutionSlowLoopAuthoringView",

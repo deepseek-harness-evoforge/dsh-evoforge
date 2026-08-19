@@ -230,7 +230,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'referencesTruncated': z.boolean().readonly(),
 }).readonly(),
   'deliveryOutcomes': z.object({
-  'association': z.literal("same-goal-revision-single-skill-gap").readonly(),
+  'association': z.literal("same-goal-single-skill-gap").readonly(),
   'total': z.number().readonly(),
   'passed': z.number().readonly(),
   'failed': z.number().readonly(),

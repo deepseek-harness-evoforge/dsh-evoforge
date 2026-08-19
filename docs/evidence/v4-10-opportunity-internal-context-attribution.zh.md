@@ -9,7 +9,8 @@ Host-confirmed Goal-linked Capability Gap × 至少两个不同 Goal
   → eligible Skill Opportunity
   ├─ same Workspace + same Session + Session 内唯一 Gap Skill + event after Gap
   │    → reference-only explicit correction context
-  └─ same Workspace + exact Goal id/revision + revision 内唯一 Gap Skill + event after Gap
+  └─ same Workspace + stable Goal id + Goal 内唯一 Gap Skill
+       + event after Gap + Outcome revision >= matching Gap revision
        → passed / failed / unknown delivery outcome context
 ```
 
@@ -24,25 +25,25 @@ Host-confirmed Goal-linked Capability Gap × 至少两个不同 Goal
 ## Fail-closed 边界
 
 - 一个 Session 出现第二种 Gap Skill，即使第二条 Gap 没有 Goal，也不把该 Session 的纠正关联到任何 Opportunity；
-- 一个 Goal revision 出现第二种 Gap Skill，不关联该 revision 的交付结果；
-- 早于首条对应 Gap 的纠正或 Outcome 不关联；
+- 同一个 Goal 的任一已知 revision 出现第二种 Gap Skill，不关联该 Goal 的交付结果；
+- 早于首条对应 Gap，或 revision 早于匹配 Gap 的 Outcome 不关联；正常的 `gap@N → complete@N+1` 可以关联；
 - 同 Goal retry、纠正数量、Outcome 数量或一次成功不能替代“两个不同 Goal”的资格门，也不参与 Opportunity 排序；
 - 上下文不进入 bounded author 输入，不给 Candidate、Admission、Shadow、Promotion 或 release 增加权限。
 
 ## 自动化证据
 
-- `skill-opportunity-discovery.test.ts` 覆盖跨 Goal 资格、同 Goal abstain、Workspace 隔离、精确关联、时间顺序、Session/Goal Skill 歧义和上下文不得替代资格；
+- `skill-opportunity-discovery.test.ts` 覆盖跨 Goal 资格、同 Goal abstain、Workspace 隔离、stable Goal identity 跨 revision 关联、时间/revision 单调、Session/Goal Skill 歧义和上下文不得替代资格；
 - `capability-gap-store.e2e.test.ts` 在固定 DSH StorageDomain 上写入 Gap、Feedback Signal 和 Delivery Outcome，重启后恢复同一 Opportunity v2 证据；
 - `evolution-control-plane.test.ts` 证明 Web contract 只投影有界引用和 `causalClaim: none`；
 - `dsh-evolve-web` 组件测试验证关联计数、短引用和“无因果/无资格影响”说明。
 
 固定 DSH 源码 `47f943859bef60e4160492346772ded9b24f765a` 上的当前门禁结果：
 
-- `dsh-evolve` typecheck 通过；全量 Vitest 为 55 files、251 tests 通过、2 skipped、0 failed；
+- `dsh-evolve` typecheck 通过；全量 Vitest 为 55 files、252 tests 通过、2 skipped、0 failed；
 - 真实 DSH StorageDomain 的 `capability-gap-store.e2e.test.ts` 为 5 tests 通过，其中 Opportunity context 在 Host dispose/boot 后精确恢复；
 - `dsh-evolve-web` typecheck 通过；2 files、25 tests 通过；
 - 根级 typecheck/build 覆盖 11 个用户包并通过，docs checker 通过；
-- 十一包 native contract 为 22 tests 通过；clean-profile 最终 tarball add/dump/boot、真实 Session/Goal/Storage、dispose/remove/readback 为 1 test 通过（27.55 秒）。
+- 十一包 native contract 为 22 tests 通过；clean-profile 最终 tarball add/dump/boot、真实 Session/Goal/Storage、dispose/remove/readback 为 1 test 通过（26.56 秒）。
 
 真实浏览器重新构建并打开 `evaluator-browser` acceptance bundle 后：
 

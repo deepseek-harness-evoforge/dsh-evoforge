@@ -35,7 +35,7 @@ describe('experience-driven Skill opportunity discovery', () => {
           referencesTruncated: false,
         },
         deliveryOutcomes: {
-          association: 'same-goal-revision-single-skill-gap',
+          association: 'same-goal-single-skill-gap',
           total: 0,
           passed: 0,
           failed: 0,
@@ -50,7 +50,7 @@ describe('experience-driven Skill opportunity discovery', () => {
     }])
   })
 
-  it('associates only unambiguous later correction and exact Goal-revision outcome context', () => {
+  it('associates later outcomes across revisions only for one unambiguous Goal Skill', () => {
     const gaps = [
       gap('1', 'goal-a', 'release-dsh-plugin', 100, 1, WORKSPACE, 'session-a'),
       gap('2', 'goal-b', 'release-dsh-plugin', 200, 2, WORKSPACE, 'session-b'),
@@ -82,15 +82,37 @@ describe('experience-driven Skill opportunity discovery', () => {
         referencesTruncated: false,
       },
       deliveryOutcomes: {
-        association: 'same-goal-revision-single-skill-gap',
-        total: 1,
-        passed: 0,
+        association: 'same-goal-single-skill-gap',
+        total: 2,
+        passed: 1,
         failed: 1,
         unknown: 0,
-        ids: ['7'.repeat(64)],
+        ids: ['7'.repeat(64), '8'.repeat(64)],
         referencesTruncated: false,
       },
       causalClaim: 'none',
+    })
+  })
+
+  it('rejects an outcome from a Goal revision older than its first matching gap', () => {
+    const gaps = [
+      gap('1', 'goal-a', 'release-dsh-plugin', 100, 2, WORKSPACE, 'session-a'),
+      gap('2', 'goal-b', 'release-dsh-plugin', 200, 1, WORKSPACE, 'session-b'),
+    ]
+    const discovery = new ExperienceDrivenSkillOpportunityDiscovery(
+      { list: () => gaps },
+      { outcomes: { list: () => [
+        outcome('3', 'goal-a', 1, 'failed', 120),
+        outcome('4', 'goal-a', 2, 'passed', 130),
+      ] } },
+    )
+
+    expect(discovery.discover(WORKSPACE)[0]?.evidence.deliveryOutcomes).toMatchObject({
+      association: 'same-goal-single-skill-gap',
+      total: 1,
+      passed: 1,
+      failed: 0,
+      ids: ['4'.repeat(64)],
     })
   })
 

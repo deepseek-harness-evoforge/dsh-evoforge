@@ -20,7 +20,7 @@ function opportunityEvidence() {
       referencesTruncated: false,
     },
     deliveryOutcomes: {
-      association: 'same-goal-revision-single-skill-gap' as const,
+      association: 'same-goal-single-skill-gap' as const,
       total: 2,
       passed: 1,
       failed: 1,
