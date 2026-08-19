@@ -35,6 +35,8 @@ describe('internal Skill Candidate deterministic admission', () => {
         skillName: candidate.skillName,
         opportunityId: candidate.opportunity.id,
         gapIds: candidate.opportunity.gapIds,
+        baselineKind: 'capability-absent' as const,
+        baselineSkillName: candidate.skillName,
         baselineDir: fixture.target.baselineDir,
         baselineHash: fixture.target.baselineHash,
         admissionCasePackDir: fixture.target.casePackDir,
@@ -184,7 +186,7 @@ async function admissionFixture() {
   await mkdir(baselineDir)
   await mkdir(casePackDir)
   await mkdir(runRoot)
-  await writeFile(join(baselineDir, 'SKILL.md'), 'baseline\n')
+  await writeFile(join(baselineDir, 'subject.json'), '{"kind":"internal-capability-absent-subject-v1"}\n')
   await writeFile(join(casePackDir, 'evaluator.mjs'), 'process.stdout.write("{}")\n')
   await mkdir(join(casePackDir, 'known-bad'))
   await mkdir(join(casePackDir, 'known-correction'))
@@ -201,6 +203,7 @@ async function admissionFixture() {
       timeoutMs: 1_000,
       outputLimitBytes: 4_096,
       dshAssembled: false,
+      capabilityAbsentBaseline: true,
     },
     calibration: { knownBad: 'known-bad', knownCorrection: 'known-correction' },
   })}\n`)
@@ -231,6 +234,8 @@ function evaluationEnvelopes(
       skillName: candidate.skillName,
       opportunityId: candidate.opportunity.id,
       gapIds: candidate.opportunity.gapIds,
+      baselineKind: 'capability-absent' as const,
+      baselineSkillName: candidate.skillName,
       baselineDir: fixture.target.baselineDir,
       baselineHash: fixture.target.baselineHash,
       admissionCasePackDir: fixture.target.casePackDir,

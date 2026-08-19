@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { lstat, mkdir, readFile, realpath } from 'node:fs/promises'
+import { lstat, mkdir, readFile, readdir, realpath } from 'node:fs/promises'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { z } from 'zod'
 import { hashTree } from './hash.ts'
@@ -25,6 +25,8 @@ export interface ResolvedSkillEvaluationEnvelope {
   readonly skillName: string
   readonly opportunityId: string
   readonly gapIds: readonly string[]
+  readonly baselineKind: 'capability-absent'
+  readonly baselineSkillName: string
   readonly baselineDir: string
   readonly baselineHash: string
   readonly admissionCasePackDir: string
@@ -51,8 +53,8 @@ interface ResolvedPolicy extends SkillCandidateEvaluationPolicyConfig {
 }
 
 const manifestSchema = z.strictObject({
-  schemaVersion: z.literal(1),
-  kind: z.literal('internal-skill-evaluation-envelope-v1'),
+  schemaVersion: z.literal(2),
+  kind: z.literal('internal-skill-evaluation-envelope-v2'),
   workspaceId: z.uuid(),
   opportunity: z.strictObject({
     id: z.string().regex(CONTENT_ID),
@@ -60,7 +62,10 @@ const manifestSchema = z.strictObject({
     gapIds: z.array(z.string().regex(CONTENT_ID)).min(2).max(1_000),
     goalCount: z.number().int().min(2).max(1_000),
   }),
-  baselineTreeHash: z.string().regex(CONTENT_ID),
+  baseline: z.strictObject({
+    kind: z.literal('capability-absent'),
+    descriptorTreeHash: z.string().regex(CONTENT_ID),
+  }),
   admissionCasePackHash: z.string().regex(CONTENT_ID),
   holdoutCasePackHash: z.string().regex(CONTENT_ID),
 }).superRefine((manifest, context) => {
@@ -70,6 +75,14 @@ const manifestSchema = z.strictObject({
 })
 
 type SkillEvaluationEnvelopeManifest = z.infer<typeof manifestSchema>
+
+const absentSubjectSchema = z.strictObject({
+  schemaVersion: z.literal(1),
+  kind: z.literal('internal-capability-absent-subject-v1'),
+  workspaceId: z.uuid(),
+  opportunityId: z.string().regex(CONTENT_ID),
+  skillName: z.string().regex(PUBLIC_ID),
+})
 
 /**
  * Resolve immutable evaluator inputs from a Candidate's Host-authored internal
@@ -169,6 +182,12 @@ export class SkillEvaluationEnvelopeResolver {
     }
 
     const baselineDir = await exactChildDirectory(envelopeRoot, 'baseline')
+    const baselineSubject = await readAbsentSubject(baselineDir)
+    if (baselineSubject.workspaceId !== candidate.workspaceId
+      || baselineSubject.opportunityId !== candidate.opportunity.id
+      || baselineSubject.skillName !== candidate.skillName) {
+      throw new Error('capability-absent baseline does not match its internal Opportunity')
+    }
     const admissionCasePackDir = await exactChildDirectory(envelopeRoot, 'admission')
     const holdoutCasePackDir = await exactChildDirectory(envelopeRoot, 'holdout')
     const [baselineHash, admissionCasePackHash, holdoutCasePackHash] = await Promise.all([
@@ -176,7 +195,7 @@ export class SkillEvaluationEnvelopeResolver {
       hashTree(admissionCasePackDir),
       hashTree(holdoutCasePackDir),
     ])
-    if (baselineHash !== manifest.baselineTreeHash
+    if (baselineHash !== manifest.baseline.descriptorTreeHash
       || admissionCasePackHash !== manifest.admissionCasePackHash
       || holdoutCasePackHash !== manifest.holdoutCasePackHash) {
       throw new Error('Skill Evaluation Envelope content identity mismatch')
@@ -203,6 +222,8 @@ export class SkillEvaluationEnvelopeResolver {
       skillName: candidate.skillName,
       opportunityId: candidate.opportunity.id,
       gapIds: Object.freeze(gapIds),
+      baselineKind: 'capability-absent',
+      baselineSkillName: candidate.skillName,
       baselineDir,
       baselineHash,
       admissionCasePackDir,
@@ -217,17 +238,31 @@ export class SkillEvaluationEnvelopeResolver {
 
 function evaluationEnvelopeId(policyId: string, manifest: SkillEvaluationEnvelopeManifest): string {
   return createHash('sha256').update(JSON.stringify([
-    'internal-skill-evaluation-envelope-v1',
+    'internal-skill-evaluation-envelope-v2',
     policyId,
     manifest.workspaceId,
     manifest.opportunity.id,
     manifest.opportunity.skillName,
     [...manifest.opportunity.gapIds].sort(),
     manifest.opportunity.goalCount,
-    manifest.baselineTreeHash,
+    manifest.baseline.kind,
+    manifest.baseline.descriptorTreeHash,
     manifest.admissionCasePackHash,
     manifest.holdoutCasePackHash,
   ])).digest('hex')
+}
+
+async function readAbsentSubject(root: string): Promise<z.infer<typeof absentSubjectSchema>> {
+  const entries = await readdir(root, { withFileTypes: true })
+  if (entries.length !== 1 || entries[0]?.name !== 'subject.json' || !entries[0].isFile()) {
+    throw new Error('capability-absent baseline must contain only subject.json')
+  }
+  const path = join(root, 'subject.json')
+  const [info, actual] = await Promise.all([lstat(path), realpath(path)])
+  if (!info.isFile() || info.isSymbolicLink() || actual !== path) {
+    throw new Error('capability-absent baseline subject must be an exact real file')
+  }
+  return absentSubjectSchema.parse(JSON.parse(await readFile(path, 'utf8')))
 }
 
 function uniqueOpportunity(

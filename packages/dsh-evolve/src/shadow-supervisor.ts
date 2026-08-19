@@ -146,7 +146,24 @@ export class ShadowSupervisor {
         this.activeWorkspaceId = requestedRoot.workspaceId
         try {
           await (this.options.runner ?? runShadow)({
+            ...(state.resumeInputs.baselineKind === undefined
+              ? {}
+              : {
+                  baselineKind: state.resumeInputs.baselineKind,
+                  baselineSkillName: state.resumeInputs.baselineSkillName!,
+                }),
             casePackDir: state.resumeInputs.casePackDir,
+            ...(state.resumeInputs.candidateSkillDir === undefined
+              ? {}
+              : {
+                  exactCandidate: {
+                    claim: state.proposal?.claim ?? 'resume pinned exact Candidate',
+                    ...(state.identity.skillCandidateLineage === undefined
+                      ? {}
+                      : { lineage: state.identity.skillCandidateLineage }),
+                    skillDir: state.resumeInputs.candidateSkillDir,
+                  },
+                }),
             ...(state.resumeInputs.feedbackDraftPath === undefined
               ? {}
               : { feedbackDraftPath: state.resumeInputs.feedbackDraftPath }),

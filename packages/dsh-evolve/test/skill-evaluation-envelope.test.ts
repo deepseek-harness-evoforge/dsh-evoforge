@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, realpath, rm, symlink, unlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, realpath, rm, symlink, unlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -35,8 +35,10 @@ describe('internal Skill Evaluation Envelope', () => {
       skillName: candidate.skillName,
       opportunityId: candidate.opportunity.id,
       gapIds: candidate.opportunity.gapIds,
+      baselineKind: 'capability-absent',
+      baselineSkillName: candidate.skillName,
       baselineDir: fixture.baselineDir,
-      baselineHash: fixture.manifest.baselineTreeHash,
+      baselineHash: fixture.manifest.baseline.descriptorTreeHash,
       admissionCasePackDir: fixture.admissionCasePackDir,
       admissionCasePackHash: fixture.manifest.admissionCasePackHash,
       holdoutCasePackDir: fixture.holdoutCasePackDir,
@@ -65,10 +67,23 @@ describe('internal Skill Evaluation Envelope', () => {
       [fixture.policy],
       { discover: () => [opportunity()] },
     )
-    await writeFile(join(fixture.baselineDir, 'SKILL.md'), 'mutated baseline\n')
+    const subjectPath = join(fixture.baselineDir, 'subject.json')
+    await writeFile(subjectPath, `${await readFile(subjectPath, 'utf8')}\n`)
 
     await expect(resolver.resolve(experienceSkillCandidate()))
       .rejects.toThrow('Skill Evaluation Envelope content identity mismatch')
+  })
+
+  it('rejects a placeholder Skill in a capability-absent baseline', async () => {
+    const fixture = await envelopeFixture()
+    await writeFile(join(fixture.baselineDir, 'SKILL.md'), 'placeholder\n')
+    const resolver = new SkillEvaluationEnvelopeResolver(
+      [fixture.policy],
+      { discover: () => [opportunity()] },
+    )
+
+    await expect(resolver.resolve(experienceSkillCandidate()))
+      .rejects.toThrow('capability-absent baseline must contain only subject.json')
   })
 
   it('fails closed when admission and holdout are not independent', async () => {
@@ -117,7 +132,7 @@ async function envelopeFixture(options: {
   readonly admissionCasePackDir: string
   readonly holdoutCasePackDir: string
   readonly manifest: {
-    readonly baselineTreeHash: string
+    readonly baseline: { readonly descriptorTreeHash: string }
     readonly admissionCasePackHash: string
     readonly holdoutCasePackHash: string
   }
@@ -136,7 +151,13 @@ async function envelopeFixture(options: {
     holdoutCasePackDir,
     runRoot,
   ].map(path => mkdir(path, { recursive: true })))
-  await writeFile(join(baselineDir, 'SKILL.md'), 'baseline\n')
+  await writeFile(join(baselineDir, 'subject.json'), `${JSON.stringify({
+    schemaVersion: 1,
+    kind: 'internal-capability-absent-subject-v1',
+    workspaceId: WORKSPACE_ID,
+    opportunityId: '2'.repeat(64),
+    skillName: 'release-proof',
+  }, null, 2)}\n`)
   await writeFile(
     join(admissionCasePackDir, 'manifest.json'),
     options.admissionContent ?? '{"admission":true}\n',
@@ -146,8 +167,8 @@ async function envelopeFixture(options: {
     options.holdoutContent ?? '{"holdout":true}\n',
   )
   const manifest = {
-    schemaVersion: 1 as const,
-    kind: 'internal-skill-evaluation-envelope-v1' as const,
+    schemaVersion: 2 as const,
+    kind: 'internal-skill-evaluation-envelope-v2' as const,
     workspaceId: WORKSPACE_ID,
     opportunity: {
       id: '2'.repeat(64),
@@ -155,7 +176,10 @@ async function envelopeFixture(options: {
       gapIds: ['3'.repeat(64), '4'.repeat(64)],
       goalCount: 2,
     },
-    baselineTreeHash: await hashTree(baselineDir),
+    baseline: {
+      kind: 'capability-absent' as const,
+      descriptorTreeHash: await hashTree(baselineDir),
+    },
     admissionCasePackHash: await hashTree(admissionCasePackDir),
     holdoutCasePackHash: await hashTree(holdoutCasePackDir),
   }

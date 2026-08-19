@@ -30,6 +30,8 @@ describe('qualified Skill Candidate Shadow handoff', () => {
     const admission = {
       qualifiedShadowInput: vi.fn(async () => ({
         evaluationEnvelopeId: qualified().envelopeId!,
+        baselineKind: 'capability-absent' as const,
+        baselineSkillName: candidate().skillName,
         baselineDir: await realpath(fixture.baselineDir),
         candidateDir: await realpath(fixture.candidateDir),
         admissionCasePackDir: await realpath(fixture.admissionCasePackDir),
@@ -59,6 +61,8 @@ describe('qualified Skill Candidate Shadow handoff', () => {
         skillDir: await realpath(fixture.candidateDir),
       },
       outputDir: expect.stringMatching(new RegExp(`^${await realpath(fixture.shadowRunRoot)}/[a-f0-9]{64}$`, 'u')),
+      baselineKind: 'capability-absent',
+      baselineSkillName: candidate().skillName,
       skillDir: await realpath(fixture.baselineDir),
     }))
   })
@@ -104,7 +108,7 @@ async function shadowFixture() {
     shadowRunRoot,
   ].map(path => mkdir(path)))
   await mkdir(candidateDir, { recursive: true })
-  await writeFile(join(baselineDir, 'SKILL.md'), 'baseline\n')
+  await writeFile(join(baselineDir, 'subject.json'), '{"kind":"internal-capability-absent-subject-v1"}\n')
   await writeFile(join(candidateDir, 'SKILL.md'), 'candidate\n')
   await writeFile(join(admissionCasePackDir, 'manifest.json'), '{"admission":true}\n')
   await writeFile(join(shadowCasePackDir, 'manifest.json'), `${JSON.stringify({
@@ -118,6 +122,7 @@ async function shadowFixture() {
       timeoutMs: 1_000,
       outputLimitBytes: 4_096,
       dshAssembled: true,
+      capabilityAbsentBaseline: true,
     },
     calibration: { knownBad: 'known-bad', knownCorrection: 'known-correction' },
   }, null, 2)}\n`)

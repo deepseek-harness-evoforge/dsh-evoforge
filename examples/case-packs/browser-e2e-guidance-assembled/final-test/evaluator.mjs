@@ -3,24 +3,36 @@ import { cp, mkdir, readFile, realpath } from 'node:fs/promises'
 import { spawn } from 'node:child_process'
 import { dirname, join } from 'node:path'
 
-const [candidateInput, dshInput] = process.argv.slice(2)
+const evaluatorArgs = process.argv.slice(2)
+const [candidateInput, dshInput] = evaluatorArgs
 if (candidateInput === undefined || dshInput === undefined) {
   throw new Error('assembled evaluator requires <candidate-dir> <dsh-source-dir>')
+}
+
+const subjectKind = flagValue(evaluatorArgs, '--dsh-evolve-subject-kind') ?? 'skill-tree'
+const targetSkillName = flagValue(evaluatorArgs, '--dsh-evolve-skill-name') ?? 'browser-e2e-baseline'
+if (!['skill-tree', 'capability-absent'].includes(subjectKind)) {
+  throw new Error(`unsupported Trial subject kind '${subjectKind}'`)
 }
 
 const candidateDir = await realpath(candidateInput)
 const dshDir = await realpath(dshInput)
 const workspace = dirname(candidateDir)
-const skillSource = await readFile(join(candidateDir, 'SKILL.md'), 'utf8')
-const skillHome = join(workspace, '.agents-home', 'skills', 'browser-e2e-baseline')
-await mkdir(skillHome, { recursive: true })
-await cp(join(candidateDir, 'SKILL.md'), join(skillHome, 'SKILL.md'))
+const skillPresent = subjectKind === 'skill-tree'
+const skillSource = skillPresent
+  ? await readFile(join(candidateDir, 'SKILL.md'), 'utf8')
+  : ''
+if (skillPresent) {
+  const skillHome = join(workspace, '.agents-home', 'skills', targetSkillName)
+  await mkdir(skillHome, { recursive: true })
+  await cp(join(candidateDir, 'SKILL.md'), join(skillHome, 'SKILL.md'))
+}
 
 const driver = join(dshDir, 'examples', 'headless-agent', 'tests', 'fixtures', 'headless-driver.ts')
 const config = join(dshDir, 'examples', 'headless-agent', 'tests', 'fixtures', 'cli.cordis.yml')
 const execution = await runBounded(
   process.execPath,
-  [driver, config, '/browser-e2e-baseline', 'verify', 'the', 'real', 'GUI', 'flow'],
+  [driver, config, `/${targetSkillName}`, 'verify', 'the', 'real', 'GUI', 'flow'],
   {
     cwd: workspace,
     env: {
@@ -47,7 +59,7 @@ const events = records.flatMap(record => record.type === 'session_event' ? [reco
 const result = records.findLast(record => record.type === 'result')
 const invocation = events.find(event => event.type === 'user/message'
   && event.data?.source?.kind === 'skill-invocation'
-  && event.data.source.name === 'browser-e2e-baseline')
+  && event.data.source.name === targetSkillName)
 const invocationText = invocation?.data?.content
   ?.filter(block => block.type === 'text')
   .map(block => block.text)
@@ -63,12 +75,9 @@ const normalizedComposition = firstRequestEvents.flatMap(event => {
     return [{ type: event.type, header: event.data.header }]
   }
   if (event.type === 'user/message') {
-    if (event.data?.source?.kind === 'skill-invocation') {
-      return [{
-        type: event.type,
-        source: event.data.source,
-        content: '<ALLOWED_SKILL_BODY>',
-      }]
+    if (event.data?.source?.kind === 'skill-invocation'
+      && event.data.source.name === targetSkillName) {
+      return []
     }
     return [{ type: event.type, source: event.data?.source, content: event.data?.content }]
   }
@@ -85,6 +94,7 @@ const toolRoundTrip = events.some(event => event.type === 'tool/result'
 const requiredGuidance = invocationText.includes('verify the real flow in a controlled browser')
 const checks = [
   { name: 'real-loader-agent-turn', passed: result?.type === 'result' },
+  { name: 'target-skill-present', passed: skillPresent && invocation !== undefined },
   { name: 'skill-on-demand-injected', passed: invocationText.includes('# Develop a DSH Plugin') },
   { name: 'real-tool-round-trip', passed: toolRoundTrip },
   { name: 'guidance-reaches-model-history', passed: requiredGuidance },
@@ -106,6 +116,16 @@ process.stdout.write(JSON.stringify({
     usage: result?.usage ?? {},
   },
 }))
+
+function flagValue(args, name) {
+  const index = args.indexOf(name)
+  if (index === -1) return undefined
+  const value = args[index + 1]
+  if (value === undefined || value.startsWith('--')) {
+    throw new Error(`missing value for ${name}`)
+  }
+  return value
+}
 
 function runBounded(command, args, options) {
   return new Promise((resolve, reject) => {

@@ -111,8 +111,12 @@ The independent authority that owns protected cases, gold expectations, evaluato
 _Avoid_: Candidate-authored judge, writable final-test, model confidence gate
 
 **Skill Evaluation Envelope**:
-A content-addressed, governance-owned binding from one exact current Skill Opportunity snapshot to its baseline tree, deterministic admission Case Pack, independent assembled holdout Case Pack, and isolated run roots. Deployment policy selects only the Workspace governance and run roots; it cannot select the Skill, baseline, Case Pack, or Candidate direction. Any Opportunity mismatch, content drift, shared admission/holdout identity, symlink, or root overlap fails closed.
+A content-addressed, governance-owned binding from one exact current Skill Opportunity snapshot to a `capability-absent` subject descriptor, deterministic admission Case Pack, independent assembled holdout Case Pack, and isolated run roots. Because an Opportunity starts from an exact native-catalog miss, its baseline contains no `SKILL.md`; a placeholder Skill is forbidden. Deployment policy selects only the Workspace governance and run roots; it cannot select the Skill, baseline, Case Pack, or Candidate direction. Any Opportunity mismatch, content drift, shared admission/holdout identity, symlink, extra baseline file, or root overlap fails closed.
 _Avoid_: Evaluation Target, operator-selected Skill, Candidate-authored test plan, mutable Case Pack, release authority
+
+**Capability-Absent Baseline**:
+The exact DSH comparison subject for a missing-Skill Opportunity: the target Skill is not installed in the baseline profile and the exact whole-Skill Candidate is installed only in the Candidate profile. Both sides use the same DSH revision, task path, evaluator, permissions, and budget; only target Skill presence/body may differ in normalized composition.
+_Avoid_: No-op Skill, placeholder `SKILL.md`, old-Skill baseline for a missing capability
 
 **Verified Release Tag**:
 An annotated semantic Git tag on `main` that identifies a repository state whose declared core capability set passed its frozen release gates. It is not an Evolution Candidate version, does not replace content-addressed runtime Generations, and is never created merely because code was committed.

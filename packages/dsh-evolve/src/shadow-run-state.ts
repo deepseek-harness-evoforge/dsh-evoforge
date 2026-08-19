@@ -15,6 +15,7 @@ export interface ShadowRunIdentity {
   modelConfigHash: string
   modelRoute: string
   skillName: string
+  baselineKind?: 'capability-absent'
   feedbackDraftId?: string
   skillCandidateLineage?: SkillCandidateLineage
 }
@@ -44,6 +45,8 @@ export interface ShadowRunState {
   resumeInputs?: {
     skillDir: string
     casePackDir: string
+    baselineKind?: 'capability-absent'
+    baselineSkillName?: string
     candidateSkillDir?: string
     feedbackDraftPath?: string
   }
@@ -151,12 +154,23 @@ export async function loadShadowRunState(outputDir: string): Promise<ShadowRunSt
       throw new Error('Shadow run state Skill Candidate lineage does not match its identity')
     }
   }
+  if (value.identity.baselineKind !== undefined
+    && value.identity.baselineKind !== 'capability-absent') {
+    throw new Error('Shadow run state has an invalid baseline kind')
+  }
   if (value.resumeInputs !== undefined
     && (!isRecord(value.resumeInputs)
       || typeof value.resumeInputs.skillDir !== 'string'
       || !isAbsolute(value.resumeInputs.skillDir)
       || typeof value.resumeInputs.casePackDir !== 'string'
       || !isAbsolute(value.resumeInputs.casePackDir)
+      || (value.resumeInputs.baselineKind !== undefined
+        && value.resumeInputs.baselineKind !== 'capability-absent')
+      || (value.resumeInputs.baselineSkillName !== undefined
+        && (typeof value.resumeInputs.baselineSkillName !== 'string'
+          || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value.resumeInputs.baselineSkillName)))
+      || ((value.resumeInputs.baselineKind === 'capability-absent')
+        !== (value.resumeInputs.baselineSkillName !== undefined))
       || (value.resumeInputs.candidateSkillDir !== undefined
         && (typeof value.resumeInputs.candidateSkillDir !== 'string'
           || !isAbsolute(value.resumeInputs.candidateSkillDir)))

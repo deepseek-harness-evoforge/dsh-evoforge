@@ -90,10 +90,11 @@ Gap → Opportunity → Candidate 及运行状态、成本和治理边界，不�
 
 内部 Candidate 评测已删除 `candidateAdmissionTargets`/`candidateShadowTargets` 这两套预选 exact Skill 的配置。
 `candidateEvaluationPolicies` 只声明 Workspace、governance root 和 run root；Host 用当前 Opportunity id 解析
-内容寻址 Evaluation Envelope，并验证其 exact Opportunity 快照、baseline、deterministic admission 和不同的
-assembled holdout。Envelope id 贯穿 admission、Candidate Lineage 与 Shadow handoff；内容漂移、symlink、根重叠
-和 admission/holdout 同 hash 都 fail closed，缺包则 abstain。这证明部署者不再预定候选方向，不等于治理面
-已能自主从内部证据形成 Envelope。
+内容寻址 Evaluation Envelope v2，并验证其 exact Opportunity 快照、禁止占位 Skill 的 capability-absent
+baseline、deterministic admission 和不同的 assembled holdout。真实 assembled DSH baseline 不安装目标 Skill，
+Candidate 侧才安装 exact whole-Skill；Envelope id 贯穿 admission、Candidate Lineage、Shadow 与 crash resume；
+内容漂移、symlink、根重叠和 admission/holdout 同 hash 都 fail closed，缺包则 abstain。下一步先替换既有 Skill
+假设的 Git Publisher/Retention，再由内部证据自主形成 Envelope。
 
 当前活动源码已经删除外部来源发现、Agent Skills 索引/archive、运行时 Web research、research Holdout/revision
 及其 Job 编排、依赖、持久化变体和 Web 类型；Candidate Repository、Admission、Lineage、Shadow 只接受

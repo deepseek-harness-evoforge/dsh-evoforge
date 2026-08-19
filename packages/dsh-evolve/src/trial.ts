@@ -13,7 +13,11 @@ export interface TrialDefinition {
   outputLimitBytes: number
   dshAssembled?: boolean
   dshProfileInstall?: boolean
+  /** Evaluator implements the explicit capability-absent subject protocol. */
+  capabilityAbsentBaseline?: boolean
 }
+
+export type TrialBaselineKind = 'skill-tree' | 'capability-absent'
 
 export interface CalibrationDefinition {
   knownBad: string
@@ -89,6 +93,8 @@ export interface ComparisonTrialResult {
 }
 
 export async function runPairedTrial(options: {
+  baselineKind?: TrialBaselineKind
+  baselineSkillName?: string
   calibration: CalibrationDefinition
   casePackDir: string
   dshRevision: string
@@ -159,6 +165,8 @@ export async function runCalibrationTrial(options: {
 
 /** Compare baseline and Candidate after calibration has established evaluator direction. */
 export async function runComparisonTrial(options: {
+  baselineKind?: TrialBaselineKind
+  baselineSkillName?: string
   casePackDir: string
   dshRevision: string
   outputDir: string
@@ -173,11 +181,36 @@ export async function runComparisonTrial(options: {
   if ((options.proposal === undefined) === (options.candidateSkillDir === undefined)) {
     throw new Error('comparison Trial requires exactly one proposed or exact Candidate Skill tree')
   }
+  const baselineKind = options.baselineKind ?? 'skill-tree'
+  if (baselineKind === 'capability-absent') {
+    if (options.trial.capabilityAbsentBaseline !== true) {
+      throw new Error('capability-absent baseline requires an evaluator that declares protocol support')
+    }
+    if (!isPublicSkillName(options.baselineSkillName)) {
+      throw new Error('capability-absent baseline requires an exact Skill name')
+    }
+    if (options.candidateSkillDir === undefined) {
+      throw new Error('capability-absent baseline requires an exact Candidate Skill tree')
+    }
+    await assertNoSkillPackage(options.skillDir)
+  } else if (options.baselineSkillName !== undefined) {
+    throw new Error('baseline Skill name is only valid for a capability-absent baseline')
+  }
   const trialOptions = await prepareTrialRuntime(options)
-  const baseline = await evaluateTree({ ...trialOptions, sourceDir: options.skillDir })
+  const baseline = await evaluateTree({
+    ...trialOptions,
+    sourceDir: options.skillDir,
+    subjectKind: baselineKind,
+    ...options.baselineSkillName === undefined ? {} : { subjectSkillName: options.baselineSkillName },
+  })
   const candidate = await evaluateTree(options.candidateSkillDir === undefined
     ? { ...trialOptions, proposal: options.proposal!, sourceDir: options.skillDir }
-    : { ...trialOptions, sourceDir: options.candidateSkillDir })
+    : {
+        ...trialOptions,
+        sourceDir: options.candidateSkillDir,
+        subjectKind: 'skill-tree',
+        ...options.baselineSkillName === undefined ? {} : { subjectSkillName: options.baselineSkillName },
+      })
   return {
     backend: 'darwin-seatbelt',
     count: 2,
@@ -239,6 +272,8 @@ async function evaluateTree(options: {
   proposal?: Proposal
   signal?: AbortSignal
   sourceDir: string
+  subjectKind?: TrialBaselineKind
+  subjectSkillName?: string
   trial: TrialDefinition
 }): Promise<EvaluatorOutcome> {
   options.signal?.throwIfAborted()
@@ -266,6 +301,11 @@ async function evaluateTree(options: {
         ...options.dshSource === undefined
           ? []
           : [options.dshSource.dir, ...packageManagerCommand === undefined ? [] : [packageManagerCommand]],
+        '--dsh-evolve-subject-kind',
+        options.subjectKind ?? 'skill-tree',
+        ...options.subjectSkillName === undefined
+          ? []
+          : ['--dsh-evolve-skill-name', options.subjectSkillName],
       ],
       ...options.dshSource === undefined
         ? {}
@@ -298,6 +338,20 @@ async function evaluateTree(options: {
   } finally {
     await rm(trialRoot, { force: true, recursive: true })
   }
+}
+
+async function assertNoSkillPackage(subjectDir: string): Promise<void> {
+  try {
+    await lstat(join(subjectDir, 'SKILL.md'))
+  } catch (error) {
+    if (isMissingPathError(error)) return
+    throw error
+  }
+  throw new Error('capability-absent baseline cannot contain a SKILL.md package')
+}
+
+function isPublicSkillName(value: unknown): value is string {
+  return typeof value === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value)
 }
 
 async function makeTreeWritable(root: string): Promise<void> {

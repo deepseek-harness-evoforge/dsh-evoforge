@@ -62,6 +62,8 @@ export interface SkillCandidateAdmissionResult {
 
 export interface QualifiedSkillCandidateShadowInput {
   readonly evaluationEnvelopeId: string
+  readonly baselineKind: 'capability-absent'
+  readonly baselineSkillName: string
   readonly baselineDir: string
   readonly candidateDir: string
   readonly admissionCasePackDir: string
@@ -157,6 +159,8 @@ export class SkillCandidateAdmission {
     }
     return Object.freeze({
       evaluationEnvelopeId: target.id,
+      baselineKind: target.baselineKind,
+      baselineSkillName: target.baselineSkillName,
       baselineDir,
       candidateDir,
       admissionCasePackDir,
@@ -268,7 +272,8 @@ export class SkillCandidateAdmission {
       }
       if (manifest.workspaceId !== candidate.workspaceId
         || manifest.trial === undefined
-        || manifest.calibration === undefined) {
+        || manifest.calibration === undefined
+        || manifest.trial.capabilityAbsentBaseline !== true) {
         return await finish(outputDir, makeResult('incomplete', ['evaluation-failed']))
       }
       if (manifest.trial.dshAssembled === true) {
@@ -308,6 +313,8 @@ export class SkillCandidateAdmission {
       let paired: PairedTrialResult
       try {
         paired = await this.runTrial({
+          baselineKind: target.baselineKind,
+          baselineSkillName: target.baselineSkillName,
           calibration: manifest.calibration,
           casePackDir,
           candidateSkillDir: materialized.path,

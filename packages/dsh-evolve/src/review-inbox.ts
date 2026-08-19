@@ -34,6 +34,7 @@ export interface ReviewCandidate {
   changedFiles: string[]
   candidateTreeHash: string
   baseTreeHash: string
+  baselineKind?: 'capability-absent'
   proposalHash: string
   proposal: { claim: string; files: Array<{ path: string; content: string }> }
   cases: ReviewCaseSummary[]
@@ -407,6 +408,9 @@ export class ReviewInbox {
       || report.evaluatorVersion !== state.identity.evaluatorVersion) {
       throw new Error('Shadow report does not match its durable run identity')
     }
+    if (report.baselineKind !== state.identity.baselineKind) {
+      throw new Error('Shadow report baseline kind does not match its durable run identity')
+    }
     if (JSON.stringify(report.lineage) !== JSON.stringify(state.identity.skillCandidateLineage)) {
       throw new Error('Shadow report lineage does not match its durable run identity')
     }
@@ -429,6 +433,7 @@ export class ReviewInbox {
       cases: report.cases,
       compositionFingerprint: report.compositionFingerprint,
       compositionStable: report.compositionStable,
+      ...(report.baselineKind === undefined ? {} : { baselineKind: report.baselineKind }),
       ...(report.lineage === undefined ? {} : { lineage: report.lineage }),
     }
     const evidenceHash = sha256(JSON.stringify(evidence))
@@ -452,6 +457,7 @@ export class ReviewInbox {
       changedFiles: report.changedFiles,
       candidateTreeHash: report.candidateTreeHash,
       baseTreeHash: report.baseTreeHash,
+      ...(report.baselineKind === undefined ? {} : { baselineKind: report.baselineKind }),
       proposalHash: state.proposalHash,
       proposal: state.proposal,
       cases: report.cases,
@@ -505,6 +511,7 @@ function parseReport(value: unknown): {
   runId: string
   skillName: string
   baseTreeHash: string
+  baselineKind?: 'capability-absent'
   candidateTreeHash: string
   claim: string
   changedFiles: string[]
@@ -522,6 +529,8 @@ function parseReport(value: unknown): {
     || !isRecord(value.run) || typeof value.run.id !== 'string'
     || !isRecord(value.subject) || typeof value.subject.skillName !== 'string'
     || typeof value.subject.baseTreeHash !== 'string'
+    || (value.subject.baselineKind !== undefined
+      && !['skill-tree', 'capability-absent'].includes(String(value.subject.baselineKind)))
     || !isRecord(value.candidate) || typeof value.candidate.treeHash !== 'string'
     || typeof value.candidate.claim !== 'string' || !Array.isArray(value.candidate.changedFiles)
     || !isRecord(value.decision) || !['promote', 'review', 'reject'].includes(String(value.decision.recommendation))
@@ -570,6 +579,9 @@ function parseReport(value: unknown): {
     runId: value.run.id,
     skillName: value.subject.skillName,
     baseTreeHash: value.subject.baseTreeHash,
+    ...(value.subject.baselineKind === 'capability-absent'
+      ? { baselineKind: 'capability-absent' as const }
+      : {}),
     candidateTreeHash: value.candidate.treeHash,
     claim: value.candidate.claim,
     changedFiles: changedFiles as string[],

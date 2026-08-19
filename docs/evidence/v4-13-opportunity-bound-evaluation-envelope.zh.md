@@ -15,7 +15,7 @@ DSH internal Goal evidence
   → current Skill Opportunity
   → quarantined Candidate
   → governanceRoot/envelopes/<opportunity-id>
-      ├─ exact baseline
+      ├─ exact baseline identity
       ├─ deterministic admission Case Pack
       └─ independent assembled holdout Case Pack
   → qualified-for-shadow only
@@ -80,3 +80,6 @@ control 的 Skills 视图。首次打开和页面 reload 后均满足：
 只消费治理面已经提供的合格内容。它也没有完成真实 provider、真实 DSH assembled holdout、Retention、
 negative transfer、false promotion、精确回滚和同条件 Hermes paired benchmark。因此不能据此宣称完整自我
 进化、自动晋升或 Hermes 上位替代已经完成。
+
+后继 [V4-14](v4-14-capability-absent-baseline.zh.md) 已把缺失 Skill 的 baseline 从占位 Skill tree 修正为
+不安装目标 Skill 的 `capability-absent` subject；本文中的 v1 baseline 布局不再是当前合同。

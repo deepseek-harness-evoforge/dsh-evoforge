@@ -1,6 +1,6 @@
 # EvoForge 产品架构
 
-> 状态：产品边界已确认；Telegram、飞书两个 Assistant Adapter 与进化注意力桥已实现；内部经验驱动的 Skill Opportunity、Candidate 与 Opportunity-bound Evaluation Envelope 纵切已实现，治理包自主形成和真实评估闭环仍待完成与验收
+> 状态：产品边界已确认；Telegram、飞书两个 Assistant Adapter 与进化注意力桥已实现；内部经验驱动的 Skill Opportunity、Candidate、Opportunity-bound Envelope v2 与 capability-absent assembled Shadow 纵切已实现，治理包自主形成、新 Skill 发布/Retention 和真实评估闭环仍待完成与验收
 > 更新日期：2026-08-19
 
 ## 1. 产品结果
@@ -44,8 +44,10 @@ Trial Runner、Decision 与 Release 在证明有两个独立消费者或信任�
 
 内部 Candidate 评测的 profile 只允许 Workspace 级 governance/run roots，不再指定 Skill、baseline 或
 Case Pack。Host 以当前 Opportunity id 解析严格、内容寻址的 Evaluation Envelope，由同一 Envelope 同时
-约束 deterministic admission 与独立 assembled holdout，并把 identity 写入 Candidate Lineage。该路径已
-实现 fail-closed 解析与 handoff，但 Envelope 自身尚未由内部 outcome/纠正/回归证据自主构造。
+约束 deterministic admission 与独立 assembled holdout，并把 identity 写入 Candidate Lineage。baseline 只
+允许 Opportunity-bound `subject.json`，不安装目标 Skill；Candidate 侧才安装 exact whole-Skill，禁止用占位
+`SKILL.md` 冒充能力缺失。该路径已实现 fail-closed 解析、真实 DSH Shadow、Review projection 与 crash resume，
+但 Envelope 尚未由内部 outcome/纠正/回归证据自主构造，新 Skill Publisher/Retention 也尚未完成。
 
 ### dsh-software-delivery
 

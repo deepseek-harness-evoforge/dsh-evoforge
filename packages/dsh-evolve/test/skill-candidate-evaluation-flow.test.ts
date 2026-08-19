@@ -68,6 +68,11 @@ describe('Opportunity-bound internal Candidate evaluation flow', () => {
       envelopeId: expect.stringMatching(/^[a-f0-9]{64}$/u),
       releaseAuthority: 'none',
     })
+    expect(runTrial).toHaveBeenCalledWith(expect.objectContaining({
+      baselineKind: 'capability-absent',
+      baselineSkillName: candidate.skillName,
+      skillDir: fixture.baselineDir,
+    }))
     const runShadow = vi.fn(async () => ({
       status: 'complete' as const,
       reportPath: join(fixture.runRoot, 'shadow-report.json'),
@@ -88,6 +93,8 @@ describe('Opportunity-bound internal Candidate evaluation flow', () => {
         }),
       }),
       skillDir: fixture.baselineDir,
+      baselineKind: 'capability-absent',
+      baselineSkillName: candidate.skillName,
     }))
     expect(Object.keys(envelopes.policyViews()[0]!)).toEqual([
       'id',
@@ -113,20 +120,18 @@ async function flowFixture(): Promise<{
   const holdoutDir = join(envelopeRoot, 'holdout')
   await Promise.all([baselineDir, admissionDir, holdoutDir, runRoot]
     .map(path => mkdir(path, { recursive: true })))
-  await writeFile(join(baselineDir, 'SKILL.md'), [
-    '---',
-    'name: release-proof',
-    'description: Existing baseline.',
-    '---',
-    '',
-    'No release proof yet.',
-    '',
-  ].join('\n'))
+  await writeFile(join(baselineDir, 'subject.json'), `${JSON.stringify({
+    schemaVersion: 1,
+    kind: 'internal-capability-absent-subject-v1',
+    workspaceId: WORKSPACE_ID,
+    opportunityId: '2'.repeat(64),
+    skillName: 'release-proof',
+  }, null, 2)}\n`)
   await writeCasePack(admissionDir, 'internal-admission', false)
   await writeCasePack(holdoutDir, 'internal-holdout', true)
   await writeFile(join(envelopeRoot, 'manifest.json'), `${JSON.stringify({
-    schemaVersion: 1,
-    kind: 'internal-skill-evaluation-envelope-v1',
+    schemaVersion: 2,
+    kind: 'internal-skill-evaluation-envelope-v2',
     workspaceId: WORKSPACE_ID,
     opportunity: {
       id: '2'.repeat(64),
@@ -134,7 +139,10 @@ async function flowFixture(): Promise<{
       gapIds: ['3'.repeat(64), '4'.repeat(64)],
       goalCount: 2,
     },
-    baselineTreeHash: await hashTree(baselineDir),
+    baseline: {
+      kind: 'capability-absent',
+      descriptorTreeHash: await hashTree(baselineDir),
+    },
     admissionCasePackHash: await hashTree(admissionDir),
     holdoutCasePackHash: await hashTree(holdoutDir),
   }, null, 2)}\n`)
@@ -153,6 +161,7 @@ async function writeCasePack(path: string, id: string, assembled: boolean): Prom
       timeoutMs: 1_000,
       outputLimitBytes: 4_096,
       dshAssembled: assembled,
+      capabilityAbsentBaseline: true,
     },
     calibration: { knownBad: 'known-bad', knownCorrection: 'known-correction' },
   }, null, 2)}\n`)

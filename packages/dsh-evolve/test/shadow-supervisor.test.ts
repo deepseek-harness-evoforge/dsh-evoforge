@@ -59,6 +59,34 @@ describe('Shadow supervisor', () => {
       .toMatchObject({ feedbackDraftPath })
   })
 
+  it('restores an exact Candidate and capability-absent identity during crash recovery', async () => {
+    const runRoot = await createRunRoot()
+    const candidateSkillDir = join(runRoot, 'candidate-skill')
+    await writeAbsentRun(runRoot, candidateSkillDir)
+    const runner = vi.fn(async () => ({
+      status: 'complete' as const,
+      reportPath: 'report.json',
+      summary: 'done',
+    }))
+    const supervisor = new ShadowSupervisor({
+      runRoots: [ownedRunRoot(WORKSPACE_ID, runRoot)],
+      scanIntervalMs: 10_000,
+      runner,
+    })
+
+    await supervisor.scanOnce()
+
+    expect(runner).toHaveBeenCalledWith(expect.objectContaining({
+      baselineKind: 'capability-absent',
+      baselineSkillName: 'missing-skill',
+      exactCandidate: {
+        claim: 'Add the missing Skill',
+        skillDir: candidateSkillDir,
+      },
+      resume: true,
+    }))
+  })
+
   it('coalesces overlapping scans and aborts active recovery on stop', async () => {
     const runRoot = await createRunRoot()
     await writeRun(runRoot, 'candidate-ready', 'candidate-ready')
@@ -301,4 +329,38 @@ async function writeRun(
     } : {}),
   }
   await writeFile(join(outputDir, 'run-state.json'), `${JSON.stringify(state)}\n`)
+}
+
+async function writeAbsentRun(runRoot: string, candidateSkillDir: string): Promise<void> {
+  const outputDir = join(runRoot, 'absent-candidate-ready')
+  await mkdir(outputDir)
+  await writeFile(join(outputDir, 'run-state.json'), `${JSON.stringify({
+    schemaVersion: 1,
+    runId: 'a'.repeat(64),
+    phase: 'candidate-ready',
+    startedAt: '2026-08-16T00:00:00.000Z',
+    updatedAt: '2026-08-16T00:00:00.000Z',
+    identity: {
+      workspaceId: WORKSPACE_ID,
+      baseTreeHash: 'b'.repeat(64),
+      casePackHash: 'c'.repeat(64),
+      dshRevision: 'fixture',
+      evaluatorVersion: 'fixture',
+      modelConfigHash: 'd'.repeat(64),
+      modelRoute: 'pinned-internal-candidate-v1',
+      skillName: 'missing-skill',
+      baselineKind: 'capability-absent',
+    },
+    resumeInputs: {
+      skillDir: join(runRoot, 'baseline-subject'),
+      casePackDir: join(runRoot, 'case-pack'),
+      baselineKind: 'capability-absent',
+      baselineSkillName: 'missing-skill',
+      candidateSkillDir,
+    },
+    proposal: {
+      claim: 'Add the missing Skill',
+      files: [{ path: 'SKILL.md', content: 'candidate' }],
+    },
+  })}\n`)
 }

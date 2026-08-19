@@ -1,6 +1,6 @@
 # EvoForge 可证明自进化设计
 
-> 状态：P0A/P0B/P0C、P1.1–P1.21、P2D.1 与内部 Goal→Gap→Skill Opportunity→quarantined Candidate→Opportunity-bound Evaluation Envelope 纵切 implemented；治理包自主形成、真实 provider 与真实任务长期证据待完成
+> 状态：P0A/P0B/P0C、P1.1–P1.21、P2D.1 与内部 Goal→Gap→Skill Opportunity→quarantined Candidate→Opportunity-bound Evaluation Envelope v2→capability-absent assembled Shadow 纵切 implemented；治理包自主形成、新 Skill 发布/Retention、真实 provider 与真实任务长期证据待完成
 > 更新日期：2026-08-19
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 
@@ -240,7 +240,8 @@ interface LearningSignal {
   → 原生 Job author（只读有界内部证据）
   → instruction-only whole-Skill v1
   → inactive / quarantined / unevaluated / never-executed Candidate
-  → 当前 Opportunity 对应的 governance-owned Evaluation Envelope
+  → 当前 Opportunity 对应的 governance-owned Evaluation Envelope v2
+      baseline = capability-absent（无 SKILL.md）
   → deterministic admission → independent assembled holdout
 ```
 
@@ -256,8 +257,9 @@ interface LearningSignal {
 - author 看不到外部搜索结果、验证答案、测试结果或 release 权限；
 - Opportunity 只有生成资格，Candidate 只有隔离身份，二者都不能安装、激活、晋升或发布；
 - Candidate evaluation policy 同样只选择 Workspace 的 governance/run roots，不能配置 Skill、baseline、Case Pack 或 Candidate 方向；
-- 一个内容寻址 Evaluation Envelope 必须绑定当前 Opportunity 快照、baseline、deterministic admission 与不同的 assembled holdout，任何漂移、符号链接、根重叠或身份不一致都 fail closed；
-- 当前实现能解析、验证并贯穿该 Envelope，但还不能从内部证据自主生成它；真实 final-test、Shadow、Retention、负迁移和长期 outcome 仍是后续治理门，不能由 author 自证。
+- 一个内容寻址 Evaluation Envelope 必须绑定当前 Opportunity 快照、只含 `subject.json` 的 capability-absent baseline、deterministic admission 与不同的 assembled holdout，任何占位 Skill、漂移、符号链接、根重叠或身份不一致都 fail closed；
+- assembled baseline 不安装目标 Skill，Candidate 侧才安装 exact whole-Skill；两侧必须保持非目标 composition 相同；
+- 当前实现能解析、验证并贯穿该 Envelope 到 Admission、Shadow、Review 和 crash resume，但还不能从内部证据自主生成它；现有 Publisher/Retention 也不能发布 brand-new Skill，真实 provider、负迁移和长期 outcome 仍是后续治理门，不能由 author 自证。
 
 本项目不提供运行时外部包搜索、获取、下载、导入或市场功能；设计期研究不得进入本节的自我发现状态、UI 或声明。
 

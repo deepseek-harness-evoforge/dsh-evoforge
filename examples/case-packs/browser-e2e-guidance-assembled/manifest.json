@@ -4,7 +4,7 @@
   "workspaceId": "11111111-1111-4111-8111-111111111111",
   "epoch": {
     "dshRevision": "47f943859bef60e4160492346772ded9b24f765a",
-    "evaluatorVersion": "browser-e2e-guidance-assembled-v1"
+    "evaluatorVersion": "browser-e2e-guidance-assembled-v2"
   },
   "budget": {
     "candidateLimit": 1,
@@ -19,7 +19,8 @@
     "evaluator": "final-test/evaluator.mjs",
     "timeoutMs": 15000,
     "outputLimitBytes": 65536,
-    "dshAssembled": true
+    "dshAssembled": true,
+    "capabilityAbsentBaseline": true
   },
   "calibration": {
     "knownBad": "calibration/known-bad",

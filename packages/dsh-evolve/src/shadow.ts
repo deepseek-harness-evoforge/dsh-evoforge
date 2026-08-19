@@ -16,6 +16,7 @@ import {
   runPairedTrial,
   type CalibrationTrialResult,
   type PairedTrialResult,
+  type TrialBaselineKind,
 } from './trial.ts'
 import { readPrivateFeedbackCaseDraft } from './feedback-case-draft.ts'
 import {
@@ -24,6 +25,8 @@ import {
 } from './skill-candidate-lineage.ts'
 
 export interface ShadowOptions {
+  baselineKind?: TrialBaselineKind
+  baselineSkillName?: string
   casePackDir: string
   exactCandidate?: {
     claim: string
@@ -59,6 +62,7 @@ export interface CasePackManifest {
     outputLimitBytes: number
     dshAssembled?: boolean
     dshProfileInstall?: boolean
+    capabilityAbsentBaseline?: boolean
   }
   calibration?: {
     knownBad: string
@@ -84,6 +88,7 @@ export async function runShadow(options: ShadowOptions): Promise<
   | { status: 'incomplete'; reportPath: string; reason: string }
 > {
   options.signal?.throwIfAborted()
+  const baselineKind = options.baselineKind ?? 'skill-tree'
   const skillDir = await realpath(options.skillDir)
   const casePackDir = await realpath(options.casePackDir)
   const exactCandidateDir = options.exactCandidate === undefined
@@ -104,11 +109,30 @@ export async function runShadow(options: ShadowOptions): Promise<
   if (exactCandidateDir !== undefined && manifest.trial?.dshAssembled !== true) {
     throw new Error('exact Candidate Shadow requires an assembled DSH Trial')
   }
+  if (baselineKind === 'capability-absent') {
+    if (exactCandidateDir === undefined) {
+      throw new Error('capability-absent Shadow requires an exact Candidate Skill tree')
+    }
+    if (!isPublicSkillName(options.baselineSkillName)) {
+      throw new Error('capability-absent Shadow requires an exact Skill name')
+    }
+    if (manifest.trial?.capabilityAbsentBaseline !== true) {
+      throw new Error('capability-absent Shadow evaluator does not declare protocol support')
+    }
+  } else if (options.baselineSkillName !== undefined) {
+    throw new Error('baseline Skill name is only valid for a capability-absent Shadow')
+  }
   const searchEvidence = manifest.search
     ? await readOwnedCasePackFile(casePackDir, manifest.search.evidence)
     : undefined
-  const skillSource = await readFile(resolve(skillDir, 'SKILL.md'), 'utf8')
+  const skillSource = await readFile(resolve(
+    baselineKind === 'capability-absent' ? exactCandidateDir! : skillDir,
+    'SKILL.md',
+  ), 'utf8')
   const skillName = parseSkillName(skillSource)
+  if (baselineKind === 'capability-absent' && skillName !== options.baselineSkillName) {
+    throw new Error('capability-absent Shadow Candidate does not match the missing Skill name')
+  }
   const baseTreeHash = await hashTree(skillDir)
   const feedbackDraftPath = options.feedbackDraftPath === undefined
     ? undefined
@@ -159,6 +183,7 @@ export async function runShadow(options: ShadowOptions): Promise<
         skillDir,
         exactCandidateDir,
         normalizeExactClaim(options.exactCandidate!.claim),
+        baselineKind,
       )
   const modelBaseUrl = exactCandidateDir === undefined
     ? requireEnvironment('DSH_EVOLVE_MODEL_BASE_URL')
@@ -175,7 +200,7 @@ export async function runShadow(options: ShadowOptions): Promise<
         model: modelRoute,
       }))
   const baselineFingerprint = sha256(
-    JSON.stringify({ baseTreeHash, casePackHash, modelConfigHash }),
+    JSON.stringify({ baselineKind, baseTreeHash, casePackHash, modelConfigHash }),
   )
   let startedAt = new Date().toISOString()
 
@@ -188,12 +213,17 @@ export async function runShadow(options: ShadowOptions): Promise<
     modelConfigHash,
     modelRoute,
     skillName,
+    ...(baselineKind === 'skill-tree' ? {} : { baselineKind }),
     ...(feedbackDraft === undefined ? {} : { feedbackDraftId: feedbackDraft.id }),
     ...(skillCandidateLineage === undefined ? {} : { skillCandidateLineage }),
   }
   const resumeInputs = {
     skillDir,
     casePackDir,
+    ...(baselineKind === 'skill-tree' ? {} : {
+      baselineKind,
+      baselineSkillName: options.baselineSkillName!,
+    }),
     ...(feedbackDraftPath === undefined ? {} : { feedbackDraftPath }),
     ...(exactCandidateDir === undefined ? {} : { candidateSkillDir: exactCandidateDir }),
   }
@@ -289,6 +319,7 @@ export async function runShadow(options: ShadowOptions): Promise<
         },
         subject: {
           skillName,
+          baselineKind,
           baseTreeHash,
           finalTreeHash,
           unchanged: finalTreeHash === baseTreeHash,
@@ -442,6 +473,7 @@ export async function runShadow(options: ShadowOptions): Promise<
         },
         subject: {
           skillName,
+          baselineKind,
           baseTreeHash,
           finalTreeHash,
           unchanged: finalTreeHash === baseTreeHash,
@@ -499,6 +531,7 @@ export async function runShadow(options: ShadowOptions): Promise<
       },
       subject: {
         skillName,
+        baselineKind,
         baseTreeHash,
         finalTreeHash,
         unchanged: activeSkillUnchanged,
@@ -515,6 +548,7 @@ export async function runShadow(options: ShadowOptions): Promise<
         id: candidateTreeHash.slice(0, 16),
         treeHash: candidateTreeHash,
         parentTreeHash: baseTreeHash,
+        parentKind: baselineKind,
         claim: proposal.claim,
         changedFiles,
       },
@@ -544,7 +578,9 @@ export async function runShadow(options: ShadowOptions): Promise<
       composition: {
         baselineFingerprint,
         candidateFingerprint: sha256(`${baselineFingerprint}:${candidateTreeHash}`),
-        allowedDifference: ['skill.body'],
+        allowedDifference: baselineKind === 'capability-absent'
+          ? ['skill.presence', 'skill.body']
+          : ['skill.body'],
       },
       budget: {
         candidateLimit: manifest.budget.candidateLimit,
@@ -625,11 +661,17 @@ export async function runShadow(options: ShadowOptions): Promise<
       await updateState({ phase: 'trial-running' })
       if (preflightCalibration === undefined) {
         pairedTrial = await runPairedTrial({
+          baselineKind,
+          ...options.baselineSkillName === undefined
+            ? {}
+            : { baselineSkillName: options.baselineSkillName },
           calibration: manifest.calibration,
           casePackDir,
           dshRevision: manifest.epoch.dshRevision,
           outputDir,
-          proposal,
+          ...exactCandidateDir === undefined
+            ? { proposal }
+            : { candidateSkillDir: exactCandidateDir },
           ...options.signal === undefined ? {} : { signal: options.signal },
           skillDir,
           trial: manifest.trial,
@@ -637,10 +679,16 @@ export async function runShadow(options: ShadowOptions): Promise<
         })
       } else {
         const comparison = await runComparisonTrial({
+          baselineKind,
+          ...options.baselineSkillName === undefined
+            ? {}
+            : { baselineSkillName: options.baselineSkillName },
           casePackDir,
           dshRevision: manifest.epoch.dshRevision,
           outputDir,
-          proposal,
+          ...exactCandidateDir === undefined
+            ? { proposal }
+            : { candidateSkillDir: exactCandidateDir },
           ...options.signal === undefined ? {} : { signal: options.signal },
           skillDir,
           trial: manifest.trial,
@@ -809,7 +857,9 @@ export async function runShadow(options: ShadowOptions): Promise<
         recommendation: decision.recommendation,
         reasons: [decision.reason],
         limitations: [exactCandidateDir !== undefined
-          ? 'Externally discovered exact Candidate requires human provenance review'
+          ? skillCandidateLineage !== undefined
+            ? 'Internal Opportunity-bound Candidate; Shadow has no release authority'
+            : 'Externally discovered exact Candidate requires human provenance review'
           : pairedTrial.assembled
             ? 'P0A.3 uses a keyless scripted model through one real assembled DSH path on macOS'
             : 'P0A.2 evaluates one deterministic sealed final-test on macOS'],
@@ -923,9 +973,12 @@ async function proposalFromExactCandidate(
   baselineDir: string,
   candidateDir: string,
   claim: string,
+  baselineKind: TrialBaselineKind = 'skill-tree',
 ): Promise<Proposal> {
   const [baseline, candidate] = await Promise.all([
-    readRegularTree(baselineDir),
+    baselineKind === 'capability-absent'
+      ? Promise.resolve(new Map<string, Buffer>())
+      : readRegularTree(baselineDir),
     readRegularTree(candidateDir),
   ])
   for (const path of baseline.keys()) {
@@ -944,6 +997,10 @@ async function proposalFromExactCandidate(
   }
   if (files.length === 0) throw new Error('exact Candidate has no change from its baseline')
   return { claim, files }
+}
+
+function isPublicSkillName(value: unknown): value is string {
+  return typeof value === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value)
 }
 
 async function readRegularTree(root: string): Promise<Map<string, Buffer>> {
@@ -1013,6 +1070,10 @@ export function parseCasePackManifest(source: string): CasePackManifest {
     }
     if (value.trial.dshProfileInstall === true && value.trial.dshAssembled !== true) {
       throw new Error('case pack Trial dshProfileInstall requires dshAssembled')
+    }
+    if (value.trial.capabilityAbsentBaseline !== undefined
+      && typeof value.trial.capabilityAbsentBaseline !== 'boolean') {
+      throw new Error('case pack Trial capabilityAbsentBaseline must be boolean')
     }
     if (!isRecord(value.calibration)
       || typeof value.calibration.knownBad !== 'string'

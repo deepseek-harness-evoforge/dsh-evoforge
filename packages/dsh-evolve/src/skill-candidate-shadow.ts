@@ -67,6 +67,7 @@ export class SkillCandidateShadowLauncher {
     const manifest = parseCasePackManifest(await readFile(join(casePackDir, 'manifest.json'), 'utf8'))
     if (manifest.workspaceId !== candidate.workspaceId
       || manifest.trial?.dshAssembled !== true
+      || manifest.trial.capabilityAbsentBaseline !== true
       || manifest.calibration === undefined) {
       throw new Error('Skill Candidate Shadow requires its exact assembled holdout manifest')
     }
@@ -83,6 +84,8 @@ export class SkillCandidateShadowLauncher {
       if (!isMissing(error)) throw error
     }
     return this.runner({
+      baselineKind: source.baselineKind,
+      baselineSkillName: source.baselineSkillName,
       casePackDir,
       exactCandidate: {
         claim: candidate.description,
