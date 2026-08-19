@@ -545,6 +545,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     candidates: skillCandidateStore,
     ...(skillAdmission === undefined ? {} : { admissions: skillAdmission }),
     ...(slowLoopAuthoring === undefined ? {} : { slowLoopAuthoring }),
+    ...(skillEvaluationGovernance === undefined ? {} : { evaluationGovernance: skillEvaluationGovernance }),
     ...(review === undefined ? {} : { review }),
     ...(resident === undefined ? {} : { resident }),
     ...(automaticPolicy === undefined ? {} : { automatic: automaticPolicy }),
@@ -757,6 +758,8 @@ export type {
   SkillEvaluationCaseAuthorResult,
   SkillEvaluationGovernancePolicyConfig,
   SkillEvaluationGovernanceResult,
+  SkillEvaluationGovernanceRunView,
+  SkillEvaluationGovernanceScan,
 } from './skill-evaluation-governance.ts'
 export type { FeedbackShadowTargetConfig } from './feedback-shadow-launcher.ts'
 export type { AutomaticFeedbackShadowTargetReference } from './automatic-feedback-shadow.ts'

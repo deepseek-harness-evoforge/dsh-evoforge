@@ -365,6 +365,14 @@ const t = (key: string) => ({
   'skills.slow-loop.candidate': 'Candidate',
   'skills.slow-loop.retry': 'Earliest retry',
   'skills.slow-loop.release.none': 'Quarantined Candidate only · No install, activation, or release',
+  'skills.governance': 'Independent evaluation governance',
+  'skills.governance.policies': 'Workspace governance policies',
+  'skills.governance.warnings': 'unreadable governance states',
+  'skills.governance.empty': 'No independent admission/holdout governance record yet.',
+  'skills.governance.phase.ready': 'Admission and assembled holdout ready',
+  'skills.governance.cost': 'Governance model calls · input/output tokens',
+  'skills.governance.separation': 'Candidate proposer separated · protected samples only',
+  'skills.governance.release.none': 'No promotion or release authority',
   'skills.discovery': 'Internally authored Skill candidates',
   'skills.discovery.quarantined': 'Quarantined candidate',
   'skills.discovery.author': 'Internal author policy',
@@ -745,6 +753,24 @@ describe('EvolutionAction', () => {
             releaseAuthority: 'none' as const,
           }],
         },
+        skillEvaluationGovernance: {
+          configuredPolicyCount: 1,
+          warningCount: 0,
+          runs: [{
+            id: '2'.repeat(64),
+            policyId: 'workspace-governance',
+            skillName: 'release-native-extension',
+            opportunityId: '1'.repeat(64),
+            evaluationEvidenceId: 'e'.repeat(64),
+            phase: 'ready' as const,
+            createdAt: '2026-08-18T01:00:01.000Z',
+            updatedAt: '2026-08-18T01:00:02.000Z',
+            modelCalls: 2,
+            inputTokens: 640,
+            outputTokens: 240,
+            releaseAuthority: 'none' as const,
+          }],
+        },
         skillCandidates: {
           quarantinedCount: 1,
           items: [{
@@ -858,13 +884,18 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('Quarantined candidate')).toBeTruthy()
     expect(screen.getByText(`Internal Skill opportunity evidence · 4 distinct Goals · 4 Gap observations · ${'1'.repeat(8)}…`)).toBeTruthy()
     expect(screen.getByText(`Internal author policy · internal-experience-author · input digest ${'5'.repeat(8)}…`)).toBeTruthy()
-    expect(screen.getByText(`Evaluation evidence seal · ${'e'.repeat(12)}`)).toBeTruthy()
+    expect(screen.getAllByText(`Evaluation evidence seal · ${'e'.repeat(12)}`)).toHaveLength(2)
     expect(screen.getByText(`Internal-experience whole-Skill bundle v1 · artifact digest ${'9'.repeat(12)} · tree ${'b'.repeat(12)}`)).toBeTruthy()
     expect(screen.getByText(`Content hash · ${'a'.repeat(12)}`)).toBeTruthy()
     expect(screen.getByText('Declared license · MIT')).toBeTruthy()
     expect(screen.getByText('Whole package · 2 files · 640 bytes · references')).toBeTruthy()
     expect(screen.getByText('Permissions not declared · External effects unknown')).toBeTruthy()
     expect(screen.getByText('Quarantined · Inactive · Never executed · Unevaluated')).toBeTruthy()
+    expect(screen.getByText('Independent evaluation governance')).toBeTruthy()
+    expect(screen.getByText('Admission and assembled holdout ready')).toBeTruthy()
+    expect(screen.getByText('Governance model calls · input/output tokens · 2 · 640/240')).toBeTruthy()
+    expect(screen.getByText('Candidate proposer separated · protected samples only')).toBeTruthy()
+    expect(screen.getByText('No promotion or release authority')).toBeTruthy()
     expect(screen.queryByText(/Agent Skills|Local Git|Distribution|research Holdout|research revision/u)).toBeNull()
     expect(screen.getByText('Deterministic admission')).toBeTruthy()
     expect(screen.getByText('Qualified for later Shadow')).toBeTruthy()

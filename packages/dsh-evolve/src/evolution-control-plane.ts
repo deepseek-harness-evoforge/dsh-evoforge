@@ -13,6 +13,7 @@ import type { SkillCandidateAdmission } from './skill-candidate-admission.ts'
 import type { SlowLoopSkillAuthoring } from './slow-loop-skill-authoring.ts'
 import type { SkillCandidateLineage } from './skill-candidate-lineage.ts'
 import type { SkillEvaluationEvidenceVault } from './skill-evaluation-evidence-vault.ts'
+import type { SkillEvaluationGovernance } from './skill-evaluation-governance.ts'
 import type { EvolutionStore } from './generation-store.ts'
 import type { ResidentEvolutionControl } from './resident-evolution-control.ts'
 import type { ReviewCandidate, ReviewInbox } from './review-inbox.ts'
@@ -61,6 +62,7 @@ export interface EvolutionControlPlaneModules {
   readonly candidates?: Pick<SkillCandidateStore, 'listCandidates'>
   readonly admissions?: Pick<SkillCandidateAdmission, 'scan'>
   readonly slowLoopAuthoring?: Pick<SlowLoopSkillAuthoring, 'scan'>
+  readonly evaluationGovernance?: Pick<SkillEvaluationGovernance, 'scan'>
 }
 
 /** A structured adapter surface that delegates to the same owners as Commands. */
@@ -81,6 +83,7 @@ export class EvolutionControlPlane {
       automaticEvaluatorBudget,
       admissionScan,
       slowLoopAuthoringScan,
+      evaluationGovernanceScan,
     ] = await Promise.all([
       this.modules.review === undefined ? undefined : this.modules.review.inbox.scanAll(),
       this.modules.feedbackShadow === undefined ? undefined : this.modules.feedbackShadow.scan(workspaceId),
@@ -95,6 +98,9 @@ export class EvolutionControlPlane {
       this.modules.slowLoopAuthoring === undefined
         ? undefined
         : this.modules.slowLoopAuthoring.scan(workspaceId),
+      this.modules.evaluationGovernance === undefined
+        ? undefined
+        : this.modules.evaluationGovernance.scan(workspaceId),
     ])
     const automaticSkills = this.modules.automatic?.skills(workspaceId) ?? []
     const skillOpportunities = this.modules.opportunities?.discover(workspaceId)
@@ -195,6 +201,29 @@ export class EvolutionControlPlane {
       ...(admissionScan === undefined
         ? {}
         : { skillAdmission: projectSkillAdmission(admissionScan) }),
+      ...(evaluationGovernanceScan === undefined
+        ? {}
+        : { skillEvaluationGovernance: {
+            configuredPolicyCount: evaluationGovernanceScan.configuredPolicyCount,
+            warningCount: evaluationGovernanceScan.warningCount,
+            runs: evaluationGovernanceScan.runs.slice(0, MAX_DISCOVERY_ROWS).map(run => ({
+              id: run.id,
+              policyId: run.policyId,
+              skillName: run.skillName,
+              opportunityId: run.opportunityId,
+              evaluationEvidenceId: run.evaluationEvidenceId,
+              phase: run.phase,
+              ...(run.pendingRole === undefined ? {} : { pendingRole: run.pendingRole }),
+              createdAt: run.createdAt,
+              updatedAt: run.updatedAt,
+              modelCalls: run.modelCalls,
+              inputTokens: run.inputTokens,
+              outputTokens: run.outputTokens,
+              ...(run.retryAt === undefined ? {} : { retryAt: run.retryAt }),
+              ...(run.failure === undefined ? {} : { failure: run.failure }),
+              releaseAuthority: run.releaseAuthority,
+            })),
+          } }),
       ...(this.modules.outcomes === undefined
         ? {}
         : {

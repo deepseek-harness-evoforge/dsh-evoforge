@@ -445,6 +445,27 @@ describe('EvolutionControlPlane', () => {
           }],
         })),
       },
+      evaluationGovernance: {
+        scan: vi.fn(async () => ({
+          configuredPolicyCount: 1,
+          warningCount: 0,
+          runs: [{
+            id: 'a'.repeat(64),
+            policyId: 'workspace-governance',
+            workspaceId: WORKSPACE_ID,
+            skillName: 'release-native-extension',
+            opportunityId: '8'.repeat(64),
+            evaluationEvidenceId: '9'.repeat(64),
+            phase: 'ready' as const,
+            createdAt: '2026-08-18T00:00:01.000Z',
+            updatedAt: '2026-08-18T00:00:02.000Z',
+            modelCalls: 2,
+            inputTokens: 640,
+            outputTokens: 240,
+            releaseAuthority: 'none' as const,
+          }],
+        })),
+      },
     })
 
     const overview = await control.overview(WORKSPACE_ID, 'session-1')
@@ -606,6 +627,22 @@ describe('EvolutionControlPlane', () => {
           inputTokens: 320,
           outputTokens: 120,
           candidateId: '7'.repeat(64),
+          releaseAuthority: 'none',
+        }],
+      },
+      skillEvaluationGovernance: {
+        configuredPolicyCount: 1,
+        warningCount: 0,
+        runs: [{
+          id: 'a'.repeat(64),
+          policyId: 'workspace-governance',
+          skillName: 'release-native-extension',
+          opportunityId: '8'.repeat(64),
+          evaluationEvidenceId: '9'.repeat(64),
+          phase: 'ready',
+          modelCalls: 2,
+          inputTokens: 640,
+          outputTokens: 240,
           releaseAuthority: 'none',
         }],
       },

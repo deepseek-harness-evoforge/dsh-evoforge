@@ -485,6 +485,7 @@ function SkillsView({ summary, t }: { summary: EvolutionOverview; t: (key: strin
     <SkillOpportunities summary={summary} t={t} />
     <SlowLoopAuthoring summary={summary} t={t} />
     <SkillCandidates summary={summary} t={t} />
+    <SkillEvaluationGovernance summary={summary} t={t} />
     <SkillAdmission summary={summary} t={t} />
     {empty && <div className="dsh-evolve-message">{t('skills.empty')}</div>}
     {active.length > 0 && <SkillGroup t={t} label={t('skills.active')} items={active.map(artifact => ({
@@ -541,6 +542,55 @@ function SkillAdmission({ summary, t }: { summary: EvolutionOverview; t: (key: s
               <div className="dsh-evolve-meta" key={reason}>{t(`skills.admission.reason.${reason}`)}</div>
             ))}
             <div className="dsh-evolve-discovery-state">{t('skills.admission.release.none')}</div>
+          </li>
+        ))}</ul>}
+  </section>
+}
+
+function SkillEvaluationGovernance({
+  summary,
+  t,
+}: {
+  summary: EvolutionOverview
+  t: (key: string) => string
+}) {
+  const governance = summary.skillEvaluationGovernance
+  if (governance === undefined) return null
+  return <section>
+    <div className="dsh-evolve-capability-head">
+      <h3 className="dsh-evolve-section-title">{t('skills.governance')}</h3>
+      <span className="dsh-evolve-catalog-status">
+        {governance.configuredPolicyCount} {t('skills.governance.policies')}
+      </span>
+    </div>
+    {governance.warningCount > 0 && <div className="dsh-evolve-message dsh-evolve-error">
+      {governance.warningCount} {t('skills.governance.warnings')}
+    </div>}
+    {governance.runs.length === 0
+      ? <div className="dsh-evolve-message">{t('skills.governance.empty')}</div>
+      : <ul className="dsh-evolve-list">{governance.runs.map(run => (
+          <li className="dsh-evolve-skill-card" key={run.id}>
+            <div className="dsh-evolve-review-skill">{run.skillName}</div>
+            <div className="dsh-evolve-capability-route">
+              {t(`skills.governance.phase.${run.phase}`)}
+            </div>
+            <div className="dsh-evolve-meta">
+              {t('skills.governance.cost')} · {run.modelCalls} · {run.inputTokens}/{run.outputTokens}
+            </div>
+            <div className="dsh-evolve-meta">
+              {t('skills.lineage.evidence')} · {run.evaluationEvidenceId.slice(0, 12)}
+            </div>
+            <div className="dsh-evolve-meta">{t('skills.governance.separation')}</div>
+            {run.pendingRole !== undefined && <div className="dsh-evolve-meta">
+              {t('skills.governance.pending')} · {t(`skills.governance.role.${run.pendingRole}`)}
+            </div>}
+            {run.retryAt !== undefined && <div className="dsh-evolve-meta">
+              {t('skills.governance.retry')} · {new Date(run.retryAt).toLocaleString()}
+            </div>}
+            {run.failure !== undefined && <div className="dsh-evolve-meta">
+              {t(`skills.governance.failure.${run.failure}`)}
+            </div>}
+            <div className="dsh-evolve-discovery-state">{t('skills.governance.release.none')}</div>
           </li>
         ))}</ul>}
   </section>

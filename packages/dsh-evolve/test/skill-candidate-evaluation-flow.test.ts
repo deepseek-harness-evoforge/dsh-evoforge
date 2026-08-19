@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -11,6 +11,10 @@ import {
   SkillEvaluationEvidenceVault,
   skillEvaluationProtectedInputDigest,
 } from '../src/skill-evaluation-evidence-vault.ts'
+import {
+  SkillEvaluationGovernance,
+  type SkillEvaluationCaseAuthorInput,
+} from '../src/skill-evaluation-governance.ts'
 import type {
   ExperienceSkillCandidate,
   MaterializedSkillCandidate,
@@ -36,6 +40,110 @@ afterEach(async () => {
 })
 
 describe('Opportunity-bound internal Candidate evaluation flow', () => {
+  it('qualifies governance-authored deterministic admission before assembled holdout', async () => {
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-evolve-governed-evaluation-flow-')))
+    roots.push(root)
+    const policy = {
+      id: 'workspace-governance',
+      workspaceId: WORKSPACE_ID,
+      governanceRoot: join(root, 'governance'),
+      runRoot: join(root, 'runs'),
+      dshRevision: 'a'.repeat(40),
+      maxAttemptsPerUtcDay: 1,
+    }
+    const gaps = opportunityGaps()
+    const opportunity = internalOpportunity()
+    const vault = new SkillEvaluationEvidenceVault([policy], { list: () => gaps })
+    const prepared = await vault.prepare(opportunity)
+    if (prepared.status !== 'ready') throw new Error('expected evaluation evidence')
+    const candidate = await candidateFixture(
+      prepared.evidence.id,
+      prepared.evidence.authoringInputDigest,
+      gaps,
+    )
+    const governance = new SkillEvaluationGovernance({
+      policies: [policy],
+      evidence: vault,
+      budget: {
+        reserve: async () => ({
+          allowed: true,
+          newlyReserved: true,
+          snapshot: {
+            targetId: policy.id,
+            workspaceId: WORKSPACE_ID,
+            skillName: candidate.skillName,
+            utcDay: '2026-08-19',
+            used: 1,
+            limit: 1,
+            remaining: 0,
+          },
+        }),
+      },
+      authorModel: async (input: SkillEvaluationCaseAuthorInput) => ({
+        knownCorrectionSkill: [
+          '---',
+          `name: ${input.skillName}`,
+          `description: Independent ${input.role} correction.`,
+          '---',
+          '',
+          'Require a clean install and durable evidence.',
+          '',
+        ].join('\n'),
+        evaluatorSource: 'process.stdout.write("not used by the injected sealed executor")\n',
+        searchEvidence: `Protected ${input.role} Goal evidence.`,
+        usage: { inputTokens: 20, outputTokens: 10 },
+      }),
+      calibrate: async () => ({
+        status: 'calibrated',
+        reportPath: join(root, 'calibration-report.json'),
+        summary: 'known-bad failed and known-correction passed',
+      }),
+      modelIdentity: () => 'independent-governance/model-v1',
+    })
+    const envelopes = new SkillEvaluationEnvelopeResolver(
+      [policy],
+      { discover: () => [opportunity] },
+      vault,
+      governance,
+    )
+    const runTrial = vi.fn(async (options): Promise<PairedTrialResult> => ({
+      backend: 'darwin-seatbelt',
+      count: 4,
+      assembled: false,
+      calibration: [
+        { id: 'known-bad', expected: 'fail', actual: 'fail', passed: true },
+        { id: 'known-correction', expected: 'pass', actual: 'pass', passed: true },
+      ],
+      baseline: { passed: false, checks: [], treeHash: await hashTree(options.skillDir) },
+      candidate: { passed: true, checks: [], treeHash: candidate.version.treeHash },
+    }))
+    const admission = new SkillCandidateAdmission(
+      envelopes,
+      { materialize: materializer(candidate) },
+      { runTrial },
+    )
+
+    const admitted = await admission.evaluate(candidate)
+
+    expect(admitted).toMatchObject({
+      status: 'qualified-for-shadow',
+      reasons: ['candidate-improves-deterministic-admission'],
+    })
+    expect(runTrial).toHaveBeenCalledOnce()
+    const envelope = await envelopes.resolve(candidate)
+    if (envelope === undefined) throw new Error('expected evaluation Envelope')
+    const admissionManifest = JSON.parse(await readFile(
+      join(envelope.admissionCasePackDir, 'manifest.json'),
+      'utf8',
+    ))
+    const holdoutManifest = JSON.parse(await readFile(
+      join(envelope.holdoutCasePackDir, 'manifest.json'),
+      'utf8',
+    ))
+    expect(admissionManifest.trial.dshAssembled).toBe(false)
+    expect(holdoutManifest.trial.dshAssembled).toBe(true)
+  })
+
   it('hands one governance-owned Envelope from admission to assembled holdout without a configured Skill', async () => {
     const fixture = await flowFixture()
     const candidate = fixture.candidate

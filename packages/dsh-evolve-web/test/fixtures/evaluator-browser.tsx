@@ -296,6 +296,24 @@ const remote: EvolutionRemoteClient = {
               releaseAuthority: 'none' as const,
             }],
           },
+          skillEvaluationGovernance: {
+            configuredPolicyCount: 1,
+            warningCount: 0,
+            runs: [{
+              id: '2'.repeat(64),
+              policyId: 'workspace-governance',
+              skillName: 'publish-dsh-plugin',
+              opportunityId: '1'.repeat(64),
+              evaluationEvidenceId: 'e'.repeat(64),
+              phase: 'ready' as const,
+              createdAt: '2026-08-18T01:00:01.000Z',
+              updatedAt: '2026-08-18T01:00:02.000Z',
+              modelCalls: 2,
+              inputTokens: 640,
+              outputTokens: 240,
+              releaseAuthority: 'none' as const,
+            }],
+          },
           skillCandidates: {
             quarantinedCount: 1,
             items: [{

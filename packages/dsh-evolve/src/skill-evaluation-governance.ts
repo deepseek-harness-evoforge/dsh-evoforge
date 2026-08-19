@@ -4,6 +4,7 @@ import {
   lstat,
   mkdir,
   readFile,
+  readdir,
   realpath,
   rename,
   rm,
@@ -37,6 +38,7 @@ const MAX_SKILL_BYTES = 64 * 1024
 const MAX_EVIDENCE_BYTES = 32 * 1024
 const MAX_STATE_BYTES = 64 * 1024
 const AUTHOR_OUTPUT_TOKEN_LIMIT = 6_000
+const MAX_SCAN_ROWS = 1_000
 
 export interface SkillEvaluationGovernancePolicyConfig
   extends SkillCandidateEvaluationPolicyConfig {
@@ -75,6 +77,43 @@ export type SkillEvaluationGovernanceResult =
   | { readonly status: 'ready'; readonly evaluationEvidenceId: string }
   | { readonly status: 'budget-deferred'; readonly evaluationEvidenceId: string; readonly retryAt: number }
 
+export interface SkillEvaluationGovernanceRunView {
+  readonly id: string
+  readonly policyId: string
+  readonly workspaceId: string
+  readonly skillName: string
+  readonly opportunityId: string
+  readonly evaluationEvidenceId: string
+  readonly phase:
+    | 'prepared'
+    | 'budget-deferred'
+    | 'authoring-pending'
+    | 'admission-ready'
+    | 'authored'
+    | 'uncertain'
+    | 'incomplete'
+    | 'ready'
+  readonly pendingRole?: 'admission' | 'holdout'
+  readonly createdAt: string
+  readonly updatedAt: string
+  readonly modelCalls: number
+  readonly inputTokens: number
+  readonly outputTokens: number
+  readonly retryAt?: number
+  readonly failure?:
+    | 'paid-authoring-uncertain'
+    | 'admission-calibration-failed'
+    | 'holdout-calibration-failed'
+    | 'governance-incomplete'
+  readonly releaseAuthority: 'none'
+}
+
+export interface SkillEvaluationGovernanceScan {
+  readonly configuredPolicyCount: number
+  readonly warningCount: number
+  readonly runs: readonly SkillEvaluationGovernanceRunView[]
+}
+
 interface SkillEvaluationGovernanceOptions {
   readonly policies: readonly SkillEvaluationGovernancePolicyConfig[]
   readonly evidence: Pick<SkillEvaluationEvidenceVault, 'readForGovernance' | 'verifyCandidateBinding'>
@@ -97,6 +136,7 @@ const stateSchema = z.strictObject({
   id: z.string().regex(CONTENT_ID),
   phase: z.enum([
     'prepared',
+    'budget-deferred',
     'authoring-pending',
     'admission-ready',
     'authored',
@@ -105,6 +145,7 @@ const stateSchema = z.strictObject({
     'ready',
   ]),
   pendingRole: z.enum(['admission', 'holdout']).optional(),
+  retryAt: z.number().int().nonnegative().optional(),
   createdAt: z.iso.datetime({ offset: true }),
   updatedAt: z.iso.datetime({ offset: true }),
   identity: z.strictObject({
@@ -128,6 +169,9 @@ const stateSchema = z.strictObject({
 }).superRefine((state, context) => {
   if ((state.phase === 'authoring-pending') !== (state.pendingRole !== undefined)) {
     context.addIssue({ code: 'custom', message: 'governance pending role does not match its phase' })
+  }
+  if ((state.phase === 'budget-deferred') !== (state.retryAt !== undefined)) {
+    context.addIssue({ code: 'custom', message: 'governance retry time does not match its phase' })
   }
 })
 
@@ -172,6 +216,65 @@ export class SkillEvaluationGovernance {
     })
     this.tail = task.then(() => {}, () => {})
     return task.then(() => result!)
+  }
+
+  /** Bounded, redacted durable state for the authoritative Host/Web control plane. */
+  async scan(workspaceId?: string): Promise<SkillEvaluationGovernanceScan> {
+    const runs: SkillEvaluationGovernanceRunView[] = []
+    let warningCount = 0
+    let configuredPolicyCount = 0
+    for (const policy of this.policies.values()) {
+      if (workspaceId !== undefined && policy.workspaceId !== workspaceId) continue
+      configuredPolicyCount += 1
+      const authoringRoot = join(policy.runRoot, 'envelope-authoring')
+      let skillEntries
+      try {
+        skillEntries = await readdir(authoringRoot, { withFileTypes: true })
+      } catch (error) {
+        if (!isMissing(error)) warningCount += 1
+        continue
+      }
+      if (skillEntries.length > MAX_SCAN_ROWS) warningCount += 1
+      for (const skillEntry of skillEntries.slice(0, MAX_SCAN_ROWS)) {
+        if (runs.length >= MAX_SCAN_ROWS) break
+        if (!skillEntry.isDirectory() || !PUBLIC_ID.test(skillEntry.name)) continue
+        let runEntries
+        try {
+          runEntries = await readdir(join(authoringRoot, skillEntry.name, 'runs'), {
+            withFileTypes: true,
+          })
+        } catch (error) {
+          if (!isMissing(error)) warningCount += 1
+          continue
+        }
+        if (runEntries.length > MAX_SCAN_ROWS) warningCount += 1
+        for (const runEntry of runEntries.slice(0, MAX_SCAN_ROWS)) {
+          if (runs.length >= MAX_SCAN_ROWS) break
+          if (!runEntry.isDirectory() || !CONTENT_ID.test(runEntry.name)) continue
+          try {
+            const state = await loadState(join(authoringRoot, skillEntry.name, 'runs', runEntry.name))
+            if (state.id !== runEntry.name
+              || state.identity.policyId !== policy.id
+              || state.identity.workspaceId !== policy.workspaceId
+              || state.identity.skillName !== skillEntry.name
+              || state.identity.dshRevision !== policy.dshRevision) {
+              warningCount += 1
+              continue
+            }
+            runs.push(projectState(state))
+          } catch {
+            warningCount += 1
+          }
+        }
+      }
+    }
+    return Object.freeze({
+      configuredPolicyCount,
+      warningCount,
+      runs: Object.freeze(runs
+        .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt) || left.id.localeCompare(right.id))
+        .slice(0, MAX_SCAN_ROWS)),
+    })
   }
 
   private async ensureNow(candidate: CandidateIdentity): Promise<SkillEvaluationGovernanceResult> {
@@ -222,6 +325,20 @@ export class SkillEvaluationGovernance {
         reason: `paid ${state.pendingRole} evaluator authoring outcome is uncertain; refusing automatic retry`,
       }, this.now())
     }
+    if (state.phase === 'budget-deferred') {
+      if (state.retryAt! > this.now()) {
+        return Object.freeze({
+          status: 'budget-deferred',
+          evaluationEvidenceId: evidence.id,
+          retryAt: state.retryAt!,
+        })
+      }
+      state = await updateState(journalRoot, state, {
+        phase: 'prepared',
+        retryAt: undefined,
+        reason: undefined,
+      }, this.now())
+    }
     if (state.phase === 'uncertain' || state.phase === 'incomplete') {
       throw new Error(state.reason ?? `Skill evaluation governance is ${state.phase}`)
     }
@@ -242,6 +359,11 @@ export class SkillEvaluationGovernance {
       }, evidence.id)
       if (!reservation.allowed) {
         if (reservation.retryAt === undefined) throw new Error('governance budget denied without retry time')
+        state = await updateState(journalRoot, state, {
+          phase: 'budget-deferred',
+          retryAt: reservation.retryAt,
+          reason: 'daily paid governance-authoring budget exhausted',
+        }, this.now())
         return Object.freeze({
           status: 'budget-deferred',
           evaluationEvidenceId: evidence.id,
@@ -288,29 +410,40 @@ export class SkillEvaluationGovernance {
     let state = await updateState(journalRoot, initial, {
       phase: 'authoring-pending',
       pendingRole: role,
+      retryAt: undefined,
       cost: { ...initial.cost, modelCalls: initial.cost.modelCalls + 1 },
       reason: undefined,
     }, this.now())
     const samples = evidence.samples.filter(sample => sample.role === role)
-    const result = await this.authorModel({
-      idempotencyKey: sha256(JSON.stringify([
-        'internal-skill-evaluation-case-author-v1',
-        identity.id,
+    let result: SkillEvaluationCaseAuthorResult
+    try {
+      result = await this.authorModel({
+        idempotencyKey: sha256(JSON.stringify([
+          'internal-skill-evaluation-case-author-v1',
+          identity.id,
+          role,
+        ])),
         role,
-      ])),
-      role,
-      workspaceId: evidence.workspaceId,
-      skillName: evidence.opportunity.skillName,
-      opportunityId: evidence.opportunity.id,
-      evaluationEvidenceId: evidence.id,
-      goalEvidence: samples.map(sample => Object.freeze({
-        id: sample.goalId,
-        revision: sample.revision,
-        objective: sample.objective,
-        gapIds: Object.freeze([...sample.gapIds]),
-      })),
-      dshRevision: policy.dshRevision,
-    })
+        workspaceId: evidence.workspaceId,
+        skillName: evidence.opportunity.skillName,
+        opportunityId: evidence.opportunity.id,
+        evaluationEvidenceId: evidence.id,
+        goalEvidence: samples.map(sample => Object.freeze({
+          id: sample.goalId,
+          revision: sample.revision,
+          objective: sample.objective,
+          gapIds: Object.freeze([...sample.gapIds]),
+        })),
+        dshRevision: policy.dshRevision,
+      })
+    } catch (error) {
+      await updateState(journalRoot, state, {
+        phase: 'uncertain',
+        pendingRole: undefined,
+        reason: `paid ${role} evaluator authoring outcome is uncertain; refusing automatic retry`,
+      }, this.now())
+      throw error
+    }
     const validated = validateAuthorResult(result, evidence.opportunity.skillName)
     const packDir = join(journalRoot, 'drafts', role)
     await writeCasePack(packDir, policy, evidence, identity, role, validated)
@@ -350,6 +483,36 @@ function governanceIdentity(
   })
 }
 
+function projectState(state: GovernanceState): SkillEvaluationGovernanceRunView {
+  const failure = state.phase === 'uncertain'
+    ? 'paid-authoring-uncertain' as const
+    : state.phase !== 'incomplete'
+      ? undefined
+      : state.reason?.startsWith('admission Case Pack calibration')
+        ? 'admission-calibration-failed' as const
+        : state.reason?.startsWith('holdout Case Pack calibration')
+          ? 'holdout-calibration-failed' as const
+          : 'governance-incomplete' as const
+  return Object.freeze({
+    id: state.id,
+    policyId: state.identity.policyId,
+    workspaceId: state.identity.workspaceId,
+    skillName: state.identity.skillName,
+    opportunityId: state.identity.opportunityId,
+    evaluationEvidenceId: state.identity.evaluationEvidenceId,
+    phase: state.phase,
+    ...(state.pendingRole === undefined ? {} : { pendingRole: state.pendingRole }),
+    createdAt: state.createdAt,
+    updatedAt: state.updatedAt,
+    modelCalls: state.cost.modelCalls,
+    inputTokens: state.cost.inputTokens,
+    outputTokens: state.cost.outputTokens,
+    ...(state.retryAt === undefined ? {} : { retryAt: state.retryAt }),
+    ...(failure === undefined ? {} : { failure }),
+    releaseAuthority: 'none',
+  })
+}
+
 async function writeCasePack(
   path: string,
   policy: SkillEvaluationGovernancePolicyConfig,
@@ -384,7 +547,7 @@ async function writeCasePack(
       evaluator: 'final-test/evaluator.mjs',
       timeoutMs: 30_000,
       outputLimitBytes: 256 * 1024,
-      dshAssembled: true,
+      dshAssembled: role === 'holdout',
       capabilityAbsentBaseline: true,
     },
     calibration: {
@@ -589,7 +752,7 @@ async function loadState(root: string): Promise<GovernanceState> {
 async function updateState(
   root: string,
   current: GovernanceState,
-  patch: Partial<Pick<GovernanceState, 'phase' | 'pendingRole' | 'cost' | 'reason'>>,
+  patch: Partial<Pick<GovernanceState, 'phase' | 'pendingRole' | 'retryAt' | 'cost' | 'reason'>>,
   now: number,
 ): Promise<GovernanceState> {
   const next = stateSchema.parse({
@@ -690,7 +853,9 @@ async function requestCaseAuthor(
             'You author an independent hidden evaluator for one missing DSH Skill.',
             'Use only the supplied protected DSH Goal evidence; do not assume or inspect any Candidate.',
             'Return JSON with knownCorrectionSkill, evaluatorSource, and searchEvidence.',
-            'The evaluator must run as evaluator.mjs in the DSH EvoForge assembled capability-absent protocol.',
+            input.role === 'admission'
+              ? 'For admission, evaluatorSource must be a deterministic filesystem-only evaluator.mjs: read the Candidate Skill tree from argv[2], support the capability-absent flags, do not start DSH, spawn processes, call a model, or use network, and emit the required JSON outcome.'
+              : 'For holdout, evaluatorSource must run as evaluator.mjs in the DSH EvoForge assembled capability-absent protocol: use the Candidate tree at argv[2], DSH source at argv[3], exercise the real DSH Skill/Agent path, support the capability-absent flags, and emit outcome plus composition evidence.',
             'It must reject an incomplete calibration Skill and accept the independent known correction.',
             'It has no promotion or release authority.',
           ].join(' '),

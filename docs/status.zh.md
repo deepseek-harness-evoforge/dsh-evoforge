@@ -15,6 +15,8 @@
 
 EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。所有已提交成果都在权威 `main`；`dsh-gateway` 已直接替换 `dsh-channel-router`，不保留兼容转发包。旧能力获取/运行时 research Candidate 的活动源码、依赖、持久化变体和 Web 投影已删除，构建还会清理这些已删除模块遗留的孤儿声明，避免旧 acquisition API 继续出现在 tarball。当前 Candidate seam 只接受内部 Skill Opportunity 生成的 canonical text bundle。内部 Candidate 的两套配置式 Skill targets 也已删除：Workspace policy 不接受 Skill、baseline、Case Pack 或 Candidate 方向。两个独立 Goal 仍形成 Opportunity；至少四个 Goal 后，`SkillEvaluationEvidenceVault` 才在作者调用前内容寻址密封 authoring/admission/holdout，作者只收到前者，样本不足不花预算、不生成 Candidate。Candidate v2 将 exact seal id 纳入内容身份；Candidate-independent 治理模块分别向 admission/holdout 作者只提供对应受保护样本，不提供 Candidate 文件、正文或 id，零 proposer 校准后按 `Opportunity/evidence-seal` 原子安装 Envelope v4。治理 paid call 在 dispatch 后结果不可确认时持久化 `uncertain` 且重启不盲重试。Host 在 seal 尚未落盘时准确投影 `ready-to-seal`，落盘且复核一致后才投影 `sealed`；凡参与 Opportunity 的 Gap，Web 投影保守移除 Goal objective，Lineage v3/Web 显式展示 seal id。Envelope v4 绑定 seal、author-input、治理作者和 admission/holdout input digest，并使用不含 `SKILL.md` 的 capability-absent descriptor；真实 assembled baseline 不安装目标 Skill，Candidate 侧才安装 exact whole-Skill，身份贯穿 Admission、Lineage、Shadow、Review 与 crash resume。经复核的新 Skill 可形成不依赖 Git source 的内容寻址 inactive `skill-bundle` Generation；真实 DSH Agent 已验证晋升只影响未来 Session、root rollback 恢复后续 native Session、旧 Session 与重启恢复均保持 exact bundle。独立 Retention 与 sealed canary 现可使用原 Shadow 的 exact absent subject 和 exact whole-Skill Candidate，在无 Git source 情况下完成真实 assembled DSH paired replay；污染 subject、Candidate 篡改、lineage/parent 身份错配均 fail closed。治理包自动形成目前只有注入式独立作者/校准自动化证据，尚未通过真实 provider assembled Goal 验收，自动 clear-win policy 也没有扩权到全新 Skill。Gateway 现已统一 Telegram/飞书普通文本 outbound intent/journal、幂等、按 account 串行、明确限流重试、turn/end 门、uncertain 恢复、脱敏 transport observation 和健康快照，两个 Adapter 的重复 Delivery Store/worker 已删除；同包官方 DSH Client Module 的统一只读健康视图已从最终 tarball 在真实浏览器验证读取、刷新、Host 停机清除旧快照和同端口恢复。当前 Opportunity 资格仍只来自重复 Goal-linked Gap，并已保守关联同 Session 的明确纠正引用，以及同一稳定 Goal id 下不早于 Gap、revision 不倒退的真实交付结果；这些上下文固定无因果、无资格影响。私有 Feedback Draft 的逐条复制仍需用户授权，但命令已不再接受目标 Skill，Builder 必须从 durable Session 的唯一真实 `skill-invocation` 自主推导并核对 pinned Generation；这尚未打通 correction 到 Opportunity 的因果资格。Delivery Outcome 已可附带 exact Goal-owned turn 的官方 token/cache/latency facts，Host 权威聚合和有界最近证据也已进入 DSH Web，并通过真实 Host 的刷新、断连、同 profile 重启恢复与幂等重放；但货币成本、返工、复用、长期 Retention/负迁移和回滚完整归因仍缺。真实飞书 exact 消息、真实 provider、Hermes paired 和长期数据均未达标。
 
+V4.19 贯穿红测发现 V4.18 把治理生成的 admission/holdout 都标成 assembled，导致确定性 Admission 固定返回 `assembled-evaluator-not-governance-separated`；现已按 [ADR-0063](adr/0063-governance-splits-deterministic-admission-from-assembled-holdout.md) 修成“不执行 Candidate 的 deterministic admission → 独立 assembled holdout”。治理 budget deny 持久化为 `budget-deferred`，作者调用异常后立即持久化 `uncertain`；Host/Web 只读展示 phase、0–2 次调用、token、retry 与脱敏失败分类，仍不暴露 protected Goal、evaluator、provider identity 或路径。详见 [V4.19 证据](evidence/v4-19-governance-admission-handoff.zh.md)。本机没有两套独立真实 provider 配置，因此状态仍是 `implemented`，不能升级为真实 provider `verified`。
+
 | 能力 | 当前状态 | 已有证据 | 仍缺 |
 |---|---|---|---|
 | 原生 DSH 插件产品形态 | `implemented` | 十一包均有 `name/inject/Config/apply`、Bundle patch、无 bin 合同；同一次 clean-profile tarball add/dump/boot/remove/readback 通过 | 陌生安装与 registry release 门禁 |
@@ -34,11 +36,12 @@ EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。所有已�
 
 ## 当前可安装面
 
-最新 V4-17 增量通过根级 `pnpm check`；其中 `dsh-gateway` 7 files/23 tests、
-`dsh-telegram` 7 files/26 tests、`dsh-feishu` 13 files/31 tests，`dsh-evolve` 60 files passed、
-1 file skipped，290 tests passed、2 skipped。Cache Contract 全通过，Doctor 原生合同 22/22；十一包
-clean-profile tarball add/dump/boot/真实 Session+Goal+Tool/dispose/remove/reboot/readback 1/1（29.78 秒），
-独立 Doctor packed add/Loader/command/remove 生命周期 1/1（4.08 秒）。
+最新 V4.19 增量通过根级 `pnpm check`（文档、全包 typecheck、测试和构建）；其中
+`dsh-gateway` 7 files/23 tests、`dsh-telegram` 7 files/26 tests、`dsh-evolve-web` 2 files/26 tests，
+`dsh-evolve` 62 files passed、1 file skipped，297 tests passed、2 skipped。Cache Contract 全通过；Doctor
+clean-profile 单包生命周期与十一包原生合同合计 23/23，十一包 clean-profile tarball
+add/dump/boot/真实 Session+Goal+Tool/dispose/remove/reboot/readback 1/1（37.38 秒）。V4.17 的独立 Doctor
+packed add/Loader/command/remove 生命周期证据仍为 1/1（4.08 秒）。
 
 十一个包可生成 tarball 并通过 `dsh plugin --profile web add` 安装：`dsh-evolve`、`dsh-evolve-web`、`dsh-software-delivery`、`dsh-doctor`、`dsh-github-review`、`dsh-telegram`、`dsh-evolve-attention`、`dsh-goal-continuity`、`dsh-resident`、`dsh-gateway`、`dsh-feishu`。外部路由、自动恢复和 OS 部署默认关闭。没有任何 EvoForge 独立 Runtime、网站、daemon 或产品 CLI 是受支持入口。
 

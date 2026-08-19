@@ -99,7 +99,7 @@ Candidate 侧才安装 exact whole-Skill；Envelope id 和 seal id 贯穿 admiss
 已不再假设既有 Git source：explicit review 后生成 canonical `skill-bundle` inactive Generation，Storage/Provider
 重验 exact 内容，真实 DSH Session证明 future-only、root rollback 和重启恢复。Capability-absent Retention 与
 sealed canary 已使用原 Shadow 的 exact absent subject、exact Candidate/lineage 和真实 assembled DSH composition；
-治理包自动形成、原子安装和 paid-call uncertain restart 已通过注入式自动化测试；下一步用真实 provider 对内部 Goal 样本运行 assembled admission/holdout，并补长期 outcome。
+治理包自动形成、原子安装和 paid-call uncertain restart 已通过注入式自动化测试；V4.19 的贯穿红测发现并修复了“admission/holdout 都被标成 assembled，导致确定性 Admission 永远拒绝”的生产断点：现在 admission 为不执行 Candidate 的 deterministic filesystem 门，只有独立 holdout 为 assembled DSH。Host/Web 还会脱敏展示治理 0–2 次调用、token、budget-deferred、uncertain 与校准失败分类。下一步用两套独立真实 provider 对内部 Goal 样本运行 author→admission→assembled holdout，并补长期 outcome。
 
 当前活动源码已经删除外部来源发现、Agent Skills 索引/archive、运行时 Web research、research Holdout/revision
 及其 Job 编排、依赖、持久化变体和 Web 类型；Candidate Repository、Admission、Lineage、Shadow 只接受

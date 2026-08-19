@@ -189,6 +189,21 @@ describe('internal Skill Evaluation Governance', () => {
         holdoutInputDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
       },
     })
+    await expect(governance.scan(WORKSPACE_ID)).resolves.toMatchObject({
+      configuredPolicyCount: 1,
+      warningCount: 0,
+      runs: [{
+        workspaceId: WORKSPACE_ID,
+        skillName: candidate.skillName,
+        opportunityId: opportunity.id,
+        evaluationEvidenceId: sealed.evidence.id,
+        phase: 'ready',
+        modelCalls: 2,
+        inputTokens: 40,
+        outputTokens: 20,
+        releaseAuthority: 'none',
+      }],
+    })
   })
 
   it('marks a dispatched evaluator request uncertain on restart and never retries it blindly', async () => {
@@ -257,6 +272,16 @@ describe('internal Skill Evaluation Governance', () => {
 
     await expect(firstResolver.resolve(candidate)).rejects.toThrow('connection reset')
     expect(firstAuthor).toHaveBeenCalledOnce()
+    await expect(firstGovernance.scan(WORKSPACE_ID)).resolves.toMatchObject({
+      warningCount: 0,
+      runs: [{
+        skillName: candidate.skillName,
+        phase: 'uncertain',
+        modelCalls: 1,
+        failure: 'paid-authoring-uncertain',
+        releaseAuthority: 'none',
+      }],
+    })
 
     const retryAuthor = vi.fn(async () => ({
       knownCorrectionSkill: correctionSkill(candidate.skillName, 'admission'),
@@ -283,6 +308,90 @@ describe('internal Skill Evaluation Governance', () => {
       .rejects.toThrow('outcome is uncertain; refusing automatic retry')
     expect(retryAuthor).not.toHaveBeenCalled()
     expect(budget.reserve).toHaveBeenCalledOnce()
+    await expect(restarted.scan(WORKSPACE_ID)).resolves.toMatchObject({
+      warningCount: 0,
+      runs: [{
+        skillName: candidate.skillName,
+        phase: 'uncertain',
+        modelCalls: 1,
+        failure: 'paid-authoring-uncertain',
+        releaseAuthority: 'none',
+      }],
+    })
+  })
+
+  it('retains a denied governance budget as an explainable retry state', async () => {
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-evolve-evaluation-governance-budget-')))
+    roots.push(root)
+    const policy = {
+      id: 'workspace-governance',
+      workspaceId: WORKSPACE_ID,
+      governanceRoot: join(root, 'governance'),
+      runRoot: join(root, 'runs'),
+      dshRevision: 'a'.repeat(40),
+      maxAttemptsPerUtcDay: 1,
+    }
+    const gaps = opportunityGaps()
+    const opportunity = internalOpportunity(gaps)
+    const vault = new SkillEvaluationEvidenceVault([policy], { list: () => gaps })
+    const sealed = await vault.prepare(opportunity)
+    if (sealed.status !== 'ready') throw new Error('expected sealed evaluation evidence')
+    const candidate = experienceSkillCandidate({
+      opportunity: {
+        kind: 'internal-experience-v1',
+        id: opportunity.id,
+        gapIds: [...opportunity.gapIds],
+        goalCount: opportunity.goalCount,
+      },
+      authorship: {
+        kind: 'bounded-model-authoring-v1',
+        policyId: 'workspace-experience-author',
+        modelIdentityHash: '5'.repeat(64),
+        evaluationEvidenceId: sealed.evidence.id,
+        inputDigest: sealed.evidence.authoringInputDigest,
+      },
+    })
+    const retryAt = 1_787_186_400_000
+    const authorModel = vi.fn()
+    const governance = new SkillEvaluationGovernance({
+      policies: [policy],
+      evidence: vault,
+      budget: {
+        reserve: vi.fn(async () => ({
+          allowed: false,
+          newlyReserved: false,
+          retryAt,
+          snapshot: {
+            targetId: policy.id,
+            workspaceId: WORKSPACE_ID,
+            skillName: candidate.skillName,
+            utcDay: '2026-08-19',
+            used: 1,
+            limit: 1,
+            remaining: 0,
+          },
+        })),
+      },
+      authorModel,
+      modelIdentity: () => 'independent-governance/model-v1',
+      now: () => 1_787_100_000_000,
+    })
+
+    await expect(governance.ensure(candidate)).resolves.toEqual({
+      status: 'budget-deferred',
+      evaluationEvidenceId: sealed.evidence.id,
+      retryAt,
+    })
+    expect(authorModel).not.toHaveBeenCalled()
+    await expect(governance.scan(WORKSPACE_ID)).resolves.toMatchObject({
+      warningCount: 0,
+      runs: [{
+        phase: 'budget-deferred',
+        modelCalls: 0,
+        retryAt,
+        releaseAuthority: 'none',
+      }],
+    })
   })
 })
 

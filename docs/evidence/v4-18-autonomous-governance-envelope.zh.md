@@ -10,7 +10,7 @@
 ## 实现证据
 
 - Candidate schema/store 升级为 v2，`evaluationEvidenceId` 进入持久 authorship 与 Candidate 内容 id；Vault 校验只读取 Candidate 自身绑定的 seal，不允许调用方另传一个替代 id。
-- `SkillEvaluationGovernance` 是治理深模块：公开 seam 只有 `ensure(candidate metadata)`；内部读取 exact seal，分别构造 admission/holdout author 输入，两份输入均不包含 Candidate 文件、正文或 id。
+- `SkillEvaluationGovernance` 是治理深模块：唯一写入 seam 是 `ensure(candidate metadata)`；另有有界脱敏只读 `scan` 供 Host/Web 解释状态。内部读取 exact seal，分别构造 admission/holdout author 输入，两份输入均不包含 Candidate 文件、正文或 id。V4.19 进一步修正两种执行协议，见 [后续证据](v4-19-governance-admission-handoff.zh.md)。
 - proposer 与治理面用同一 secret-free、endpoint/model 规范化函数计算 provider identity；治理作者与 Candidate proposer 的 model identity hash 相同时，在预算预留和作者调用前 fail closed，不能让 proposer 兼任自己的评测作者。
 - 每个治理作者调用前先持久化 `authoring-pending`；dispatch 后结果不可确认时，下一次启动写入 `uncertain` 并拒绝模型重试。
 - 两份 Case Pack 必须分别通过现有 zero-proposer `calibrateCasePack`；任一 `not-calibrated`/`incomplete` 都阻止 Envelope。

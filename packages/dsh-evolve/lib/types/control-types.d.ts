@@ -301,6 +301,28 @@ export interface EvolutionSlowLoopAuthoringView {
         readonly releaseAuthority: 'none';
     }[];
 }
+/** Redacted governance-authoring journal; protected cases, model identity, and paths stay host-only. */
+export interface EvolutionSkillEvaluationGovernanceView {
+    readonly configuredPolicyCount: number;
+    readonly warningCount: number;
+    readonly runs: readonly {
+        readonly id: string;
+        readonly policyId: string;
+        readonly skillName: string;
+        readonly opportunityId: string;
+        readonly evaluationEvidenceId: string;
+        readonly phase: 'prepared' | 'budget-deferred' | 'authoring-pending' | 'admission-ready' | 'authored' | 'uncertain' | 'incomplete' | 'ready';
+        readonly pendingRole?: 'admission' | 'holdout';
+        readonly createdAt: string;
+        readonly updatedAt: string;
+        readonly modelCalls: number;
+        readonly inputTokens: number;
+        readonly outputTokens: number;
+        readonly retryAt?: number;
+        readonly failure?: 'paid-authoring-uncertain' | 'admission-calibration-failed' | 'holdout-calibration-failed' | 'governance-incomplete';
+        readonly releaseAuthority: 'none';
+    }[];
+}
 /** Deterministic, zero-model admission evidence; it never carries release authority. */
 export interface EvolutionSkillAdmissionView {
     readonly configuredPolicyCount: number;
@@ -465,6 +487,7 @@ export interface EvolutionOverview {
     readonly skillOpportunities?: EvolutionSkillOpportunityQueueView;
     readonly skillCandidates?: EvolutionSkillCandidateQueueView;
     readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView;
+    readonly skillEvaluationGovernance?: EvolutionSkillEvaluationGovernanceView;
     readonly skillAdmission?: EvolutionSkillAdmissionView;
     readonly deliveryOutcomes?: {
         readonly all: DeliveryOutcomeCounts;
