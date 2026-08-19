@@ -2,7 +2,8 @@
 
 > 日期：2026-08-19
 > 声明等级：`implemented`；本页只证明当时的 route、原生 Session 与 ingress 投影。公共 outbound
-> 后续已由 [GW-3](gw-3-gateway-outbound-delivery.zh.md) 实现；平台 transport 健康和统一 Web 仍未完成。
+> 后续已由 [GW-3](gw-3-gateway-outbound-delivery.zh.md)、[V5.1](v5-1-gateway-transport-health.zh.md)
+> 和 [V5.2](v5-2-gateway-web-health.zh.md) 分别补齐公共 outbound、transport 与统一只读 Web。
 
 ## 实现事实
 
@@ -30,5 +31,5 @@
 - Telegram 与飞书 outbound journal、send worker、明确 429 policy 已在 GW-3 迁入 Gateway；本页原始
   自动化数量只记录 GW-2 当时事实，不改写历史；
 - 平台连接状态仍由 Adapter 权威持有，Gateway 不伪造 transport ready/degraded；
-- Gateway health 尚未生成 DSH Client Remote 或统一 Web 视图；
-- 尚未用 packed clean profile 的真实 Host 调用该新 seam，因此声明保持 `implemented`，不升级为 `verified`。
+- 本页原始切片当时尚未生成 DSH Client Remote，也未从 packed profile 调用；后续只读 Remote/统一 Web 与
+  真实浏览器证据见 [V5.2](v5-2-gateway-web-health.zh.md)，不改写本页历史测试数量。

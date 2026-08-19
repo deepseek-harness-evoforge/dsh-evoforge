@@ -41,6 +41,28 @@ if (emitted === undefined || emitted.remote === undefined) {
   throw new Error('pinned DSH generator produced no dsh-evolve Host Remote artifact')
 }
 
+const gatewayAggregate = join(analysisRoot, 'tsconfig.gateway-host.json')
+await writeFile(gatewayAggregate, `${JSON.stringify({
+  files: [],
+  references: [
+    { path: join(workspace, 'packages/dsh-gateway/tsconfig.typert.json') },
+    { path: join(exactDshRoot, 'packages/typert/protocol') },
+  ],
+}, null, 2)}\n`)
+const gatewayModel = new WorkspaceAnalyzer({
+  root: workspace,
+  hostConfig: gatewayAggregate,
+  packages: ['dsh-gateway', '@deepseek-ai/dsh-typert-protocol'],
+  faces: ['host'],
+}).analyze()
+const gatewayFace = gatewayModel.faces.find(candidate => candidate.face === 'host')
+const gatewayEmitted = gatewayFace === undefined
+  ? undefined
+  : new FaceModelEmitter(gatewayFace).emit('dsh-gateway')
+if (gatewayEmitted === undefined || gatewayEmitted.remote === undefined) {
+  throw new Error('pinned DSH generator produced no dsh-gateway Host Remote artifact')
+}
+
 const output = join(workspace, 'packages/dsh-evolve/lib')
 await mkdir(output, { recursive: true })
 await Promise.all([
@@ -49,10 +71,21 @@ await Promise.all([
   writeFile(join(output, 'typert.remote-client.js'), emitted.remote.js),
   writeFile(join(output, 'typert.remote-client.d.ts'), emitted.remote.dts),
   writeFile(join(output, 'typert.remote-client.d.ts.map'), emitted.remote.dtsMap),
-  writeFile(join(output, 'typert.source.sha256'), `${await sourceDigest()}\n`),
+  writeFile(join(output, 'typert.source.sha256'), `${await evolutionSourceDigest()}\n`),
 ])
 
-async function sourceDigest() {
+const gatewayOutput = join(workspace, 'packages/dsh-gateway/lib')
+await mkdir(gatewayOutput, { recursive: true })
+await Promise.all([
+  writeFile(join(gatewayOutput, 'typert.host.js'), gatewayEmitted.js),
+  writeFile(join(gatewayOutput, 'typert.host.d.ts'), gatewayEmitted.dts),
+  writeFile(join(gatewayOutput, 'typert.remote-client.js'), gatewayEmitted.remote.js),
+  writeFile(join(gatewayOutput, 'typert.remote-client.d.ts'), gatewayEmitted.remote.dts),
+  writeFile(join(gatewayOutput, 'typert.remote-client.d.ts.map'), gatewayEmitted.remote.dtsMap),
+  writeFile(join(gatewayOutput, 'typert.source.sha256'), `${await gatewaySourceDigest()}\n`),
+])
+
+async function evolutionSourceDigest() {
   const sources = [
     'packages/dsh-evolve/src/candidate-impact.ts',
     'packages/dsh-evolve/src/control-types.ts',
@@ -61,6 +94,24 @@ async function sourceDigest() {
     'packages/dsh-evolve/src/evolution-remote.typert.ts',
     'packages/dsh-evolve/typert-generator-compat.d.ts',
     'packages/dsh-evolve/tsconfig.typert.json',
+  ]
+  const hash = createHash('sha256')
+  for (const source of sources) {
+    hash.update(source).update('\0').update(await readFile(join(workspace, source))).update('\0')
+  }
+  return hash.digest('hex')
+}
+
+async function gatewaySourceDigest() {
+  const sources = [
+    'packages/dsh-gateway/src/client-types.ts',
+    'packages/dsh-gateway/src/gateway.ts',
+    'packages/dsh-gateway/src/gateway-remote.ts',
+    'packages/dsh-gateway/src/gateway-remote.typert.ts',
+    'packages/dsh-gateway/src/outbound.ts',
+    'packages/dsh-gateway/src/transport-health.ts',
+    'packages/dsh-gateway/typert-generator-compat.d.ts',
+    'packages/dsh-gateway/tsconfig.typert.json',
   ]
   const hash = createHash('sha256')
   for (const source of sources) {

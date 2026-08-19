@@ -57,6 +57,14 @@ subject、whole-Skill tree/lineage 和 sealed Case Pack做无 Git paired replay�
 
 独立插件。它把一个原生 Goal 交付为隔离 worktree、仓库检查、可审查 diff、commit 和可选 Draft PR；仓库也可选择 exact-head 远端 checks 全绿后才完成 Goal，并可在一次 active Tool 调用内有界零模型等待。即使不启用 Evolve，它仍有完整用户价值；启用后，它提供第一组强 outcome signal。
 
+### dsh-gateway
+
+Telegram 与飞书共用的薄 Host 深模块。它拥有静态 exact route、进入 DSH 前的身份标准化、原生
+Workspace/Session/Agent 绑定、持久 ingress/outbound journal、幂等、按 account 串行、明确限流响应、
+uncertain 恢复和脱敏 transport 聚合；平台协议、凭据、实际发送、卡片与重连继续属于 Adapter。同包官方
+DSH Client Module 通过无参数只读 Remote 展示 lifecycle、route、live Session、transport 和投递状态，
+失败刷新必须清除旧快照。它不创建网络 server、第二 Runtime、Session、Goal、Approval 或权限体系。
+
 ### dsh-telegram
 
 首个 Assistant Adapter 已选择 Telegram 单私聊：一个 Bot、一个 exact private chat/user、一个静态
@@ -69,7 +77,7 @@ DSH Gateway route。Gateway 通过 WorkspaceRegistry、Agent preset 与 Session 
 
 第二个 Assistant Adapter 已实现为飞书官方 SDK WebSocket 长连接。一个 App 可绑定多个静态 exact
 route，但 App ID 必须与 Gateway account 一致；Gateway 继续拥有 Workspace/Session/Agent/Command，
-Adapter 只保存有界出站 journal、平台协议和一次性 Approval 卡片。明确 429 才重试，模糊发送进入
+Adapter 只保留平台协议、实际发送和一次性 Approval 卡片；有界出站 journal 位于 Gateway。明确 429 才重试，模糊发送进入
 uncertain。双 Workspace 双渠道同 Host 重启隔离、真实 App 身份请求及标准 HTTPS proxy 环境中的
 WebSocket 握手已经通过；setup-only `/feishu-pair` 用两分钟一次性消息从当前 DSH Workspace/Session
 生成待审查静态 route，不 dispatch Agent 或自动授权。exact chat/user 消息闭环完成前仍只标记为

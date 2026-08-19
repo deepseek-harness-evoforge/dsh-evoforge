@@ -4,6 +4,7 @@ import type Schema from '@deepseek-ai/schemastery'
 import { openGatewayIngressJournal } from './ingress-journal.js'
 import { openGatewayOutboundJournal, type GatewayOutboundJournal } from './outbound-journal.js'
 import { DshGateway } from './gateway.js'
+import { GatewayRemoteService } from './gateway-remote.js'
 import { resolveGatewayRoutes, type GatewayRouteConfig } from './routing.js'
 
 export const name = 'dsh-gateway'
@@ -63,6 +64,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const gateway = new DshGateway(ctx, resolveGatewayRoutes(config.routes ?? []), journal, outbound)
   try {
     await gateway.start()
+    new GatewayRemoteService(ctx, gateway)
     ctx.effect(() => () => gateway.stop(), 'dsh-gateway.runtime')
     ctx.provide('evoforge.gateway' as never, gateway as never)
   } catch (error: unknown) {
@@ -121,3 +123,5 @@ export {
   type GatewayHealthRoute,
   type GatewayHealthSnapshot,
 } from './gateway.js'
+export { GatewayRemoteService } from './gateway-remote.js'
+export type { GatewayRemoteTypertContract } from './gateway-remote.typert.js'

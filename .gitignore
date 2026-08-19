@@ -13,6 +13,14 @@ packages/dsh-evolve/lib/*
 packages/dsh-evolve/lib/types/*
 !packages/dsh-evolve/lib/types/client.d.ts
 !packages/dsh-evolve/lib/types/control-types.d.ts
+!packages/dsh-gateway/lib/
+packages/dsh-gateway/lib/*
+!packages/dsh-gateway/lib/typert.host.js
+!packages/dsh-gateway/lib/typert.host.d.ts
+!packages/dsh-gateway/lib/typert.remote-client.js
+!packages/dsh-gateway/lib/typert.remote-client.d.ts
+!packages/dsh-gateway/lib/typert.remote-client.d.ts.map
+!packages/dsh-gateway/lib/typert.source.sha256
 dist/
 coverage/
 .evoforge/

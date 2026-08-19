@@ -1,0 +1,39 @@
+# Template for the real-DSH Gateway browser acceptance overlay. Replace the
+# __...__ values with absolute test-owned paths. The published Bundle stays
+# unchanged. The Workspace id placeholder must be the id returned by the native
+# WorkspaceRegistry in this isolated acceptance profile.
+- id: typert-loader
+  name: '@deepseek-ai/dsh-typert-loader'
+  config:
+    packages:
+      - dsh-gateway
+
+- id: evoforge-gateway
+  name: dsh-gateway
+  disabled: false
+  config:
+    routes:
+      - id: feishu-browser
+        adapter: feishu
+        accountId: feishu-browser-account
+        conversationId: feishu-browser-conversation
+        userId: feishu-browser-user
+        workspaceId: __EVOFORGE_GATEWAY_WORKSPACE_ID__
+        sessionId: feishu-browser-session
+        agentPreset: standard
+        provider: deepseek-official
+        model: deepseek-chat
+      - id: telegram-browser
+        adapter: telegram
+        accountId: telegram-browser-account
+        conversationId: telegram-browser-conversation
+        userId: telegram-browser-user
+        workspaceId: __EVOFORGE_GATEWAY_WORKSPACE_ID__
+        sessionId: telegram-browser-session
+        agentPreset: standard
+        provider: deepseek-official
+        model: deepseek-chat
+
+- insert:
+    - id: evoforge-gateway-browser
+      name: __EVOFORGE_GATEWAY_BROWSER_BOOTSTRAP__

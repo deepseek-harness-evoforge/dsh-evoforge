@@ -6,11 +6,24 @@
   "type": "module",
   "sideEffects": false,
   "main": "./dist/index.mjs",
-  "types": "./dist/index.d.mts",
+  "types": "./lib/types/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.mts",
+      "types": "./lib/types/index.d.ts",
       "default": "./dist/index.mjs"
+    },
+    "./client": "./dist/client.js",
+    "./client-types": {
+      "types": "./lib/types/client-types.d.ts",
+      "default": "./dist/client-types.mjs"
+    },
+    "./typert": {
+      "types": "./lib/typert.host.d.ts",
+      "default": "./lib/typert.host.js"
+    },
+    "./remote": {
+      "types": "./lib/typert.remote-client.d.ts",
+      "default": "./lib/typert.remote-client.js"
     },
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
@@ -25,11 +38,21 @@
     "url": "https://github.com/deepseek-harness-evoforge/dsh-evoforge/issues"
   },
   "keywords": ["deepseek-harness", "dsh", "workspace", "channel", "gateway"],
-  "files": ["dist", "cordis.patch.yml"],
+  "files": [
+    "dist",
+    "lib/types/**/*.d.ts",
+    "lib/typert.host.js",
+    "lib/typert.host.d.ts",
+    "lib/typert.remote-client.js",
+    "lib/typert.remote-client.d.ts",
+    "lib/typert.remote-client.d.ts.map",
+    "lib/typert.source.sha256",
+    "cordis.patch.yml"
+  ],
   "scripts": {
-    "build": "tsdown src/index.ts --format esm --clean",
+    "build": "tsc -b ../../tsconfig.host.json --force && tsdown && node ../../scripts/verify-gateway-typert-artifacts.mjs && node ../../scripts/verify-node-artifacts.mjs packages/dsh-gateway/dist/index.mjs packages/dsh-gateway/dist/client.js",
     "prepack": "pnpm run build",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json",
     "test": "vitest run"
   },
   "engines": {
@@ -43,18 +66,27 @@
     "@deepseek-ai/cordis": "4.0.1",
     "@deepseek-ai/dsh-agent": ">=0.1.0-rc.5 <0.1.0",
     "@deepseek-ai/dsh-agent-presets": ">=0.1.0-rc.5 <0.1.0",
+    "@deepseek-ai/dsh-api-remotes": ">=0.1.0-rc.5 <0.1.0",
+    "@deepseek-ai/dsh-client-locale": ">=0.1.0-rc.5 <0.1.0",
+    "@deepseek-ai/dsh-client-ui-sidebar": ">=0.1.0-rc.5 <0.1.0",
+    "@deepseek-ai/dsh-client-ui-slots": ">=0.1.0-rc.5 <0.1.0",
     "@deepseek-ai/dsh-commands": ">=0.1.0-rc.5 <0.1.0",
     "@deepseek-ai/dsh-llm": ">=0.1.0-rc.5 <0.1.0",
     "@deepseek-ai/dsh-session": ">=0.1.0-rc.5 <0.1.0",
     "@deepseek-ai/dsh-session-persistence": ">=0.1.0-rc.5 <0.1.0",
     "@deepseek-ai/dsh-storage-domain": ">=0.1.0-rc.5 <0.1.0",
-    "@deepseek-ai/dsh-workspace": ">=0.1.0-rc.5 <0.1.0"
+    "@deepseek-ai/dsh-workspace": ">=0.1.0-rc.5 <0.1.0",
+    "react": ">=18.2.0 <19"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.1",
     "@deepseek-ai/dsh-agent": "0.1.0-rc.6",
     "@deepseek-ai/dsh-agent-presets": "0.1.0-rc.6",
+    "@deepseek-ai/dsh-api-remotes": "0.1.0-rc.6",
     "@deepseek-ai/dsh-brand": "0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-locale": "0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-ui-sidebar": "0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-ui-slots": "0.1.0-rc.6",
     "@deepseek-ai/dsh-commands": "0.1.0-rc.6",
     "@deepseek-ai/dsh-invariants": "0.1.0-rc.6",
     "@deepseek-ai/dsh-llm": "0.1.0-rc.6",
@@ -65,6 +97,12 @@
     "@deepseek-ai/dsh-typert-protocol": "0.1.0-rc.6",
     "@deepseek-ai/dsh-workspace": "0.1.0-rc.6",
     "@types/node": "^22.20.0",
+    "@types/react": "~18.3.1",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/react": "^16.1.0",
+    "jsdom": "^26.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "tsdown": "^0.22.2",
     "typescript": "^6.0.3",
     "vitest": "^4.1.8"
@@ -72,6 +110,14 @@
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-sidebar"
+      ],
+      "platform": "web"
     }
   }
 }

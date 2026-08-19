@@ -2,8 +2,11 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "allowImportingTsExtensions": true,
-    "rootDir": ".",
-    "types": ["node", "vitest/globals"]
+    "composite": true,
+    "outDir": "lib/types",
+    "rewriteRelativeImportExtensions": true,
+    "rootDir": "src",
+    "types": ["node"]
   },
-  "include": ["src/**/*.ts", "test/**/*.ts"]
+  "include": ["src/*.ts"]
 }

@@ -1,0 +1,23 @@
+import { Context } from '@deepseek-ai/cordis'
+import { remoteMethods } from '@deepseek-ai/dsh-typert-protocol'
+import { describe, expect, it, vi } from 'vitest'
+import type { DshGateway, GatewayHealthSnapshot } from '../src/index.ts'
+import { GatewayRemoteService } from '../src/gateway-remote.ts'
+
+describe('GatewayRemoteService', () => {
+  it('projects the existing redacted Gateway authority through one read-only Remote', async () => {
+    const snapshot = { schemaVersion: 1, observedAt: 10 } as GatewayHealthSnapshot
+    const gateway = { healthSnapshot: vi.fn(() => snapshot) } as unknown as DshGateway
+    const ctx = new Context()
+    const remote = new GatewayRemoteService(ctx, gateway)
+
+    await expect(remote.overview()).resolves.toBe(snapshot)
+    expect(gateway.healthSnapshot).toHaveBeenCalledOnce()
+    expect(ctx.get('evoforge.gatewayHealth')).toMatchObject({ name: 'evoforge.gatewayHealth' })
+    expect(remote.typertRemote).toMatchObject({
+      serviceKey: 'evoforge.gatewayHealth',
+      namespace: 'evoforgeGateway',
+    })
+    expect(remoteMethods(remote).map(marker => marker.method)).toEqual(['overview'])
+  })
+})

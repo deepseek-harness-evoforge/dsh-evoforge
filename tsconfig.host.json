@@ -2,6 +2,7 @@
   "extends": "./tsconfig.base.json",
   "files": [],
   "references": [
-    { "path": "./packages/dsh-evolve" }
+    { "path": "./packages/dsh-evolve" },
+    { "path": "./packages/dsh-gateway" }
   ]
 }

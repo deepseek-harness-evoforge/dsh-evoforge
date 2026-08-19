@@ -49,6 +49,7 @@ remove/reboot/readback 1/1 通过；exact routeIds、畸形 Adapter success 保�
 ## 未完成门禁
 
 - 尚未用真实 Telegram Bot 或真实飞书 exact route 验证公网发送、平台限流和多日重连；
-- Gateway transport 聚合与 DSH Web 统一渠道视图尚未实现；
+- Gateway transport 聚合与 DSH Web 统一渠道视图后续已由 [V5.1](v5-1-gateway-transport-health.zh.md)
+  和 [V5.2](v5-2-gateway-web-health.zh.md) 补齐；
 - 飞书文件、文档、知识库、云盘和多维表格的独立权限能力仍未交付；
 - 本增量不证明内部 Candidate 独立评测、真实 provider 或 Hermes paired 上位结果，不允许打 tag。

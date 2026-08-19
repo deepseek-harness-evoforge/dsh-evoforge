@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "lib/typert-types"
+  },
+  "include": [
+    "src/*.ts",
+    "typert-generator-compat.d.ts"
+  ]
+}

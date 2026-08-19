@@ -19,4 +19,4 @@ tarball add/dump/boot/真实 Session+Goal+Tool/dispose/remove/reboot/readback 1/
 
 ## 未覆盖
 
-统一 Gateway DSH Web、真实 Telegram Bot、真实飞书用户消息、移动端、多日断线重连和 Hermes 同条件消息 paired benchmark 仍未完成。本证据只支持“transport 聚合 implemented”，不支持发布或上位替代声明。
+统一 Gateway DSH Web 后续已由 [V5.2](v5-2-gateway-web-health.zh.md) 完成只读健康视图和真实浏览器验收；真实 Telegram Bot、真实飞书用户消息、移动端、多日断线重连和 Hermes 同条件消息 paired benchmark 仍未完成。本证据只支持“transport 聚合 implemented”，不支持发布或上位替代声明。

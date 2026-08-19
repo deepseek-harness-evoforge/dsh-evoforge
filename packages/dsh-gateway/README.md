@@ -61,7 +61,9 @@ Bundle row 默认为 `disabled: true`。部署者在同一个 DSH profile 中配
 Telegram 和飞书已经迁入同一个 outbound 接缝，并删除了各自重复的 Delivery Store/worker。网络鉴权、
 SDK/WebSocket/polling、平台事件解析、实际平台发送、卡片和 Approval UI 仍属于 Adapter。Gateway 当前提供
 共同的持久意图、幂等、按 account 串行和明确限流响应策略，不声称全局 token bucket、平台配额推断或
-exactly-once。Telegram long-poll 与飞书 WebSocket 的 transport 聚合已完成；统一 DSH Web 展示仍未完成。Gateway 快照不包含
+exactly-once。Telegram long-poll 与飞书 WebSocket 的 transport 聚合已完成；同包官方 DSH Client Module
+通过只读生成式 Remote 在原生侧栏统一展示 lifecycle、route、live Session、transport 与投递聚合。面板
+只在打开/人工刷新时读取 Host；读取失败清除旧快照，Host 恢复后可重新读取。Gateway 快照不包含
 account/chat/user、消息正文、外部 message id、错误正文或凭据，也不调用模型或平台。
 
 ## 卸载

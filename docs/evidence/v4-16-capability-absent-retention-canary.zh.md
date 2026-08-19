@@ -47,5 +47,6 @@ Candidate tree 与 Skill identity，用不同的 prior Case Pack 在真实 DSH �
 ## 未完成边界
 
 Evaluation Envelope 仍由部署治理目录提供，尚未从内部 Outcome/纠正/回归证据自主形成；新 whole-Skill 仍需
-明确人工 review，自动 clear-win policy 没有扩权。真实 provider outcome、长期 Retention/负迁移率、Gateway
-transport/Web 聚合、真实飞书闭环和同条件 Hermes paired benchmark 仍是发布门禁，因此不打 tag。
+明确人工 review，自动 clear-win policy 没有扩权。Gateway transport/Web 聚合后续已由 V5.1/V5.2 补齐；
+真实 provider outcome、长期 Retention/负迁移率、真实飞书闭环和同条件 Hermes paired benchmark 仍是发布
+门禁，因此不打 tag。

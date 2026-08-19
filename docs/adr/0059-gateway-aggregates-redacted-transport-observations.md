@@ -4,5 +4,4 @@ Telegram 长轮询和飞书官方 WebSocket 都需要向运维面回答同一组
 
 因此 `dsh-gateway` 增加独立 `GatewayTransportRegistry`。Adapter 仍拥有平台协议、连接、重连、凭据和错误处理，只以 exact adapter/account/routeIds 注册一个 transport kind，并上报 `connecting/ready/degraded/stopping` 与脱敏时间事实。Gateway 校验该 account 对 route 的静态所有权、拒绝重复注册和时间倒退，`healthSnapshot()` 只按调用者选择的 exact routes 返回相交 route id、transport kind/state 和时间；不返回 account/chat/user、错误正文、消息、external id 或凭据。
 
-Telegram 已在真实 assembled DSH 长轮询中验证一次失败进入 `degraded`、下一次成功恢复 `ready`；飞书已验证官方 transport error 进入 `degraded`、后续平台消息恢复 `ready`。飞书 `/feishu` 与既有 DSH Web 健康视图改为读取 Gateway transport/outbound 权威投影，不再直接把 Adapter 私有状态作为读模型。统一 Gateway Web 仍需单独实现和真实浏览器验证；本决策不因此声明 Gateway 或真实渠道闭环完成。
-
+Telegram 已在真实 assembled DSH 长轮询中验证一次失败进入 `degraded`、下一次成功恢复 `ready`；飞书已验证官方 transport error 进入 `degraded`、后续平台消息恢复 `ready`。飞书 `/feishu` 与既有 DSH Web 健康视图改为读取 Gateway transport/outbound 权威投影，不再直接把 Adapter 私有状态作为读模型。统一 Gateway Web 后续已由 [ADR-0060](0060-gateway-web-is-a-read-only-host-projection.md) 实现和真实浏览器验证；本决策不因此声明真实渠道闭环完成。

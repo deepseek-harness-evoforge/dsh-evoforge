@@ -329,8 +329,9 @@ exact route 所属的脱敏 transport observation 注册到 Gateway 权威健康
 Gateway 权威 `healthSnapshot()` 只能从静态 route、原生 Agent 注册表、Gateway ingress/outbound journal
 和 Adapter registrations 读取，按 exact route 子集返回生命周期、live Session、ingress、transport 与 outbound 状态；
 不得输出 account/chat/user、正文、external message id、错误正文或凭据，不得调用模型或平台。公共
-outbound 和 Adapter transport observation 已由 Telegram/飞书共同验证并迁入；统一 Gateway Web 展示仍是独立门禁，
-不能因存在 Gateway 自身快照而标记完成。平台 SDK、重连策略和错误正文不得进入 Gateway。
+outbound 和 Adapter transport observation 已由 Telegram/飞书共同验证并迁入；统一 Gateway Web 已由同包
+官方 Client Module + 只读生成式 Remote 实现，并从最终 tarball 在真实 DSH 浏览器验证读取、刷新、Host
+停机清除旧快照和同端口恢复。该门通过不代表 exact 平台消息已完成。平台 SDK、重连策略和错误正文不得进入 Gateway。
 
 内部经验自我发现的现行纵切只使用 DSH 内部经验。已有能力继续由模型依据原生完整 Session Skill catalog
 自主路由并由原生 `skill` Tool 加载；没有适用 Skill 时，模型可在同一自然语言 Goal 中调用唯一稳定的
@@ -472,6 +473,7 @@ Case Pack authoring 先提供零模型校准命令，不创建新 Service 或 SD
 - [ADR：main 是实时开发线，tag 只标记验证发布](adr/0047-main-is-the-live-development-line-and-tags-mark-verified-releases.md)
 - [ADR：自我发现只从 DSH 自身经验学习](adr/0048-self-discovery-learns-from-dsh-experience.md)
 - [ADR：渠道 Adapter 共享一个薄型 DSH Gateway](adr/0049-channel-adapters-share-one-thin-dsh-gateway.md)
+- [ADR：Gateway Web 是只读 Host 权威投影](adr/0060-gateway-web-is-a-read-only-host-projection.md)
 - [2026-08-19 目标重新对齐审计](audits/2026-08-19-goal-realignment.zh.md)
 
 若后续对话改变已确认要求，应在同一轮更新本文相应章节；历史架构文档不得凌驾于本需求基线。
