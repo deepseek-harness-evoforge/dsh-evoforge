@@ -87,7 +87,7 @@ export interface EvolutionArtifactView {
 export type EvolutionSkillCandidateVersionKind = 'experience-authored-bundle-v1';
 /** Browser-safe identity of one internally discovered and admitted Candidate. */
 export interface EvolutionSkillCandidateLineageView {
-    readonly kind: 'internal-skill-candidate-lineage-v1';
+    readonly kind: 'internal-skill-candidate-lineage-v2';
     readonly candidateId: string;
     readonly workspaceId: string;
     readonly skillName: string;
@@ -97,7 +97,7 @@ export interface EvolutionSkillCandidateLineageView {
     readonly contentHash: string;
     readonly candidateTreeHash: string;
     readonly admissionId: string;
-    readonly admissionTargetId: string;
+    readonly evaluationEnvelopeId: string;
     readonly releaseAuthority: 'none';
 }
 export type EvolutionCapabilityRoute = 'available' | 'model-selected' | 'user-selected';
@@ -273,15 +273,15 @@ export interface EvolutionSlowLoopAuthoringView {
 }
 /** Deterministic, zero-model admission evidence; it never carries release authority. */
 export interface EvolutionSkillAdmissionView {
-    readonly configuredTargetCount: number;
+    readonly configuredPolicyCount: number;
     readonly warningCount: number;
     readonly results: readonly {
         readonly id: string;
         readonly candidateId: string;
         readonly skillName: string;
         readonly status: 'abstained' | 'protected' | 'incomplete' | 'rejected' | 'review' | 'qualified-for-shadow';
-        readonly reasons: readonly ('no-exact-evaluation-target' | 'candidate-has-executable-content' | 'candidate-is-not-instruction-only' | 'baseline-identity-mismatch' | 'case-pack-identity-mismatch' | 'assembled-evaluator-not-governance-separated' | 'case-pack-calibration-failed' | 'candidate-failed-admission' | 'baseline-already-passes' | 'candidate-improves-deterministic-admission' | 'governance-input-mutated' | 'governance-roots-overlap' | 'evaluation-failed')[];
-        readonly targetId?: string;
+        readonly reasons: readonly ('no-current-evaluation-envelope' | 'candidate-has-executable-content' | 'candidate-is-not-instruction-only' | 'baseline-identity-mismatch' | 'case-pack-identity-mismatch' | 'assembled-evaluator-not-governance-separated' | 'case-pack-calibration-failed' | 'candidate-failed-admission' | 'baseline-already-passes' | 'candidate-improves-deterministic-admission' | 'governance-input-mutated' | 'governance-roots-overlap' | 'evaluation-failed')[];
+        readonly envelopeId?: string;
         readonly releaseAuthority: 'none';
         readonly evidence?: {
             readonly baseline: 'pass' | 'fail';

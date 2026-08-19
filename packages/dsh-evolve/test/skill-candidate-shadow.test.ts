@@ -25,16 +25,19 @@ afterEach(async () => {
 })
 
 describe('qualified Skill Candidate Shadow handoff', () => {
-  it('launches only the exact qualified Candidate through an independent assembled target', async () => {
+  it('launches only the exact qualified Candidate through its independent assembled holdout', async () => {
     const fixture = await shadowFixture()
     const admission = {
       qualifiedShadowInput: vi.fn(async () => ({
-        admissionTargetId: qualified().targetId!,
+        evaluationEnvelopeId: qualified().envelopeId!,
         baselineDir: await realpath(fixture.baselineDir),
         candidateDir: await realpath(fixture.candidateDir),
         admissionCasePackDir: await realpath(fixture.admissionCasePackDir),
         admissionCasePackHash: await hashTree(fixture.admissionCasePackDir),
         admissionRunRoot: await realpath(fixture.admissionRunRoot),
+        holdoutCasePackDir: await realpath(fixture.shadowCasePackDir),
+        holdoutCasePackHash: fixture.target.casePackHash,
+        shadowRunRoot: await realpath(fixture.shadowRunRoot),
         lineage: lineage(),
       })),
     }
@@ -43,7 +46,7 @@ describe('qualified Skill Candidate Shadow handoff', () => {
       reportPath: join(fixture.shadowRunRoot, 'report.json'),
       summary: 'promote: exact Candidate passed assembled holdout',
     }))
-    const launcher = new SkillCandidateShadowLauncher([fixture.target], admission, { runShadow })
+    const launcher = new SkillCandidateShadowLauncher(admission, { runShadow })
 
     expect(launcher.matches(candidate(), qualified())).toBe(true)
     await expect(launcher.launch(candidate(), qualified())).resolves.toMatchObject({ status: 'complete' })
@@ -160,7 +163,7 @@ function lineage(): SkillCandidateLineage {
     contentHash: candidate().contentHash,
     candidateTreeHash: qualified().evidence!.candidateTreeHash,
     admissionId: qualified().id,
-    admissionTargetId: qualified().targetId!,
+    evaluationEnvelopeId: qualified().envelopeId!,
   })
 }
 

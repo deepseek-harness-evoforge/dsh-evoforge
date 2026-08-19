@@ -14,7 +14,7 @@ describe('internal Skill Candidate lineage', () => {
     const lineage = createSkillCandidateLineage(candidate, admission)
 
     expect(lineage).toEqual({
-      kind: 'internal-skill-candidate-lineage-v1',
+      kind: 'internal-skill-candidate-lineage-v2',
       candidateId: candidate.id,
       workspaceId: WORKSPACE_ID,
       skillName: 'release-proof',
@@ -24,7 +24,7 @@ describe('internal Skill Candidate lineage', () => {
       contentHash: candidate.contentHash,
       candidateTreeHash: candidate.version.treeHash,
       admissionId: admission.id,
-      admissionTargetId: 'release-proof-admission',
+      evaluationEnvelopeId: 'e'.repeat(64),
       releaseAuthority: 'none',
     })
     expect(JSON.stringify(lineage)).not.toMatch(/source|index|research|external|git/iu)
@@ -42,7 +42,7 @@ describe('internal Skill Candidate lineage', () => {
       contentHash: '2'.repeat(64),
       candidateTreeHash: '3'.repeat(64),
       admissionId: '4'.repeat(64),
-      admissionTargetId: 'release-proof-admission',
+      evaluationEnvelopeId: 'e'.repeat(64),
       releaseAuthority: 'none',
     })).toThrow('invalid internal Skill Candidate lineage')
   })
@@ -106,14 +106,14 @@ function fixtureCandidate(): ExperienceSkillCandidate {
 
 function fixtureAdmission(candidate: ExperienceSkillCandidate): SkillCandidateAdmissionResult {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: '9'.repeat(64),
     candidateId: candidate.id,
     workspaceId: candidate.workspaceId,
     skillName: candidate.skillName,
     status: 'qualified-for-shadow',
     reasons: ['candidate-improves-deterministic-admission'],
-    targetId: 'release-proof-admission',
+    envelopeId: 'e'.repeat(64),
     releaseAuthority: 'none',
     evidence: {
       baseline: 'fail',

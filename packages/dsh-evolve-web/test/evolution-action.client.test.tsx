@@ -40,7 +40,7 @@ function internalOpportunityEvidence() {
 }
 
 const discoveredLineage = {
-  kind: 'internal-skill-candidate-lineage-v1' as const,
+  kind: 'internal-skill-candidate-lineage-v2' as const,
   candidateId: '8'.repeat(64),
   workspaceId,
   skillName: 'build-dsh-plugin',
@@ -50,7 +50,7 @@ const discoveredLineage = {
   contentHash: '9'.repeat(64),
   candidateTreeHash: '1'.repeat(64),
   admissionId: 'a'.repeat(64),
-  admissionTargetId: 'plugin-delivery',
+  evaluationEnvelopeId: 'e'.repeat(64),
   releaseAuthority: 'none' as const,
 }
 
@@ -383,8 +383,8 @@ const t = (key: string) => ({
   'skills.admission.status.rejected': 'Admission rejected',
   'skills.admission.status.review': 'Admission needs review',
   'skills.admission.status.qualified-for-shadow': 'Qualified for later Shadow',
-  'skills.admission.target': 'Evaluation target',
-  'skills.admission.targets': 'targets',
+  'skills.admission.envelope': 'Evaluation Envelope',
+  'skills.admission.policies': 'Workspace governance policies',
   'skills.admission.baseline': 'Baseline',
   'skills.admission.candidate': 'Candidate',
   'skills.admission.outcome.pass': 'pass',
@@ -778,7 +778,7 @@ describe('EvolutionAction', () => {
           }],
         },
         skillAdmission: {
-          configuredTargetCount: 1,
+          configuredPolicyCount: 1,
           warningCount: 0,
           results: [{
             id: 'e'.repeat(64),
@@ -786,7 +786,7 @@ describe('EvolutionAction', () => {
             skillName: 'release-native-extension',
             status: 'qualified-for-shadow' as const,
             reasons: ['candidate-improves-deterministic-admission' as const],
-            targetId: 'missing-release-admission',
+            envelopeId: 'e'.repeat(64),
             releaseAuthority: 'none' as const,
             evidence: {
               baseline: 'fail' as const,
@@ -843,7 +843,7 @@ describe('EvolutionAction', () => {
     expect(screen.queryByText(/Agent Skills|Local Git|Distribution|research Holdout|research revision/u)).toBeNull()
     expect(screen.getByText('Deterministic admission')).toBeTruthy()
     expect(screen.getByText('Qualified for later Shadow')).toBeTruthy()
-    expect(screen.getByText('Evaluation target · missing-release-admission')).toBeTruthy()
+    expect(screen.getByText(`Evaluation Envelope · ${'e'.repeat(64)}`)).toBeTruthy()
     expect(screen.getByText('Baseline fail → Candidate pass · 4 trials')).toBeTruthy()
     expect(screen.getByText('Deterministic filesystem · Candidate code not executed')).toBeTruthy()
     expect(screen.getByText('No release authority · Not installed or activated')).toBeTruthy()

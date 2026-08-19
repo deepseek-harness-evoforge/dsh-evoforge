@@ -110,6 +110,10 @@ _Avoid_: Nightly prompt rewrite, self-scoring batch job, greedy latest-wins
 The independent authority that owns protected cases, gold expectations, evaluator policy, hard gates, comparison results, and release eligibility. A Candidate and its proposer cannot read hidden cases or mutate this plane; boundary failure makes a Trial incomplete rather than passed.
 _Avoid_: Candidate-authored judge, writable final-test, model confidence gate
 
+**Skill Evaluation Envelope**:
+A content-addressed, governance-owned binding from one exact current Skill Opportunity snapshot to its baseline tree, deterministic admission Case Pack, independent assembled holdout Case Pack, and isolated run roots. Deployment policy selects only the Workspace governance and run roots; it cannot select the Skill, baseline, Case Pack, or Candidate direction. Any Opportunity mismatch, content drift, shared admission/holdout identity, symlink, or root overlap fails closed.
+_Avoid_: Evaluation Target, operator-selected Skill, Candidate-authored test plan, mutable Case Pack, release authority
+
 **Verified Release Tag**:
 An annotated semantic Git tag on `main` that identifies a repository state whose declared core capability set passed its frozen release gates. It is not an Evolution Candidate version, does not replace content-addressed runtime Generations, and is never created merely because code was committed.
 _Avoid_: Feature branch, progress marker, unverified release label
@@ -135,7 +139,7 @@ An inactive, versioned diff owned by exactly one registered DSH Workspace, accom
 _Avoid_: Live patch, learned rule
 
 **Evolution Candidate Lineage**:
-The bounded, host-derived identity that follows one exact internally authored whole-Skill Candidate from its Skill Opportunity through admission, Shadow, Retention, review, and immutable Capability Generation. It binds internal evidence, Candidate version/content/tree, independent evaluation, and release decisions while excluding Skill bodies, host paths, hidden cases, and proposer-private state.
+The bounded, host-derived identity that follows one exact internally authored whole-Skill Candidate from its Skill Opportunity through one Skill Evaluation Envelope, admission, Shadow, Retention, review, and immutable Capability Generation. It binds internal evidence, Candidate version/content/tree, evaluation-envelope identity, independent evaluation, and release decisions while excluding Skill bodies, host paths, hidden cases, and proposer-private state.
 _Avoid_: Discovered Skill Lineage, external source provenance, copied Candidate record, private evidence dump, self-asserted lineage
 
 **Trial**:
@@ -202,9 +206,9 @@ _Avoid_: Proven evaluator, self-certified test, active Skill, promotion evidence
 A Shadow run that supplies one exact private Feedback Case Draft only to the proposer as untrusted search evidence, while an existing calibrated Case Pack remains the independent evaluator. The draft id and private resume path are durable; its input fields are not directly copied into Shadow evidence, although proposer output that echoes them remains durable Candidate evidence. One explicit host invocation or Automatic Feedback Shadow deployment policy authorizes the potentially paid provider request and disclosure.
 _Avoid_: Generated evaluator, self-scoring Candidate, background paid proposal, feedback text in report/journal
 
-**Shadow Target**:
-A statically configured binding from a public operator-chosen id to one exact Skill name, calibrated Case Pack, and owned run root. A target makes an explicit Feedback Shadow Launch repeatable without exposing host paths or accepting browser-supplied execution paths.
-_Avoid_: Workflow, arbitrary run request, dynamic evaluator
+**Feedback Shadow Target**:
+A statically configured binding from a public operator-chosen id to one exact Skill name, calibrated Case Pack, and owned run root, used only by explicit or opt-in Feedback-guided Shadow. It is not the evaluation authority for internally discovered Skill Candidates, which use an Opportunity-bound Skill Evaluation Envelope instead.
+_Avoid_: Internal Candidate Evaluation Target, workflow, arbitrary run request, dynamic evaluator
 
 **Feedback Shadow Launch**:
 A human-initiated Protected Action that turns one still-current Explicit Feedback Signal into a private draft and submits one configured Feedback-guided Shadow to native Jobs. It returns immediately to the caller and originating Session; it creates evidence for later review but does not prove improvement or authorize promotion.

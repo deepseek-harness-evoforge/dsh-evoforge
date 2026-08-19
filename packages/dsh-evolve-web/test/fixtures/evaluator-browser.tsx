@@ -72,7 +72,7 @@ const runs: Array<{
 }> = []
 
 const semanticLineage = {
-  kind: 'internal-skill-candidate-lineage-v1' as const,
+  kind: 'internal-skill-candidate-lineage-v2' as const,
   candidateId: '4'.repeat(64),
   workspaceId,
   skillName: 'publish-dsh-plugin',
@@ -82,7 +82,7 @@ const semanticLineage = {
   contentHash: 'a'.repeat(64),
   candidateTreeHash: 'c'.repeat(64),
   admissionId: 'e'.repeat(64),
-  admissionTargetId: 'publish-dsh-plugin-admission',
+  evaluationEnvelopeId: 'e'.repeat(64),
   releaseAuthority: 'none' as const,
 }
 
@@ -339,7 +339,7 @@ const remote: EvolutionRemoteClient = {
             }],
           },
           skillAdmission: {
-            configuredTargetCount: 1,
+            configuredPolicyCount: 1,
             warningCount: 0,
             results: [{
               id: 'e'.repeat(64),
@@ -347,7 +347,7 @@ const remote: EvolutionRemoteClient = {
               skillName: 'publish-dsh-plugin',
               status: 'qualified-for-shadow' as const,
               reasons: ['candidate-improves-deterministic-admission' as const],
-              targetId: 'publish-dsh-plugin-admission',
+              envelopeId: 'e'.repeat(64),
               releaseAuthority: 'none' as const,
               evidence: {
                 baseline: 'fail' as const,

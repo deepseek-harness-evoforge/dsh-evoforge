@@ -66,14 +66,14 @@ export function qualifiedSkillCandidateAdmission(
   candidate = experienceSkillCandidate(),
 ): SkillCandidateAdmissionResult {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: '9'.repeat(64),
     candidateId: candidate.id,
     workspaceId: candidate.workspaceId,
     skillName: candidate.skillName,
     status: 'qualified-for-shadow',
     reasons: ['candidate-improves-deterministic-admission'],
-    targetId: 'release-proof-admission',
+    envelopeId: 'e'.repeat(64),
     releaseAuthority: 'none',
     evidence: {
       baseline: 'fail',
@@ -93,7 +93,7 @@ export function internalSkillCandidateLineage(
 ): SkillCandidateLineage {
   const candidate = experienceSkillCandidate()
   return {
-    kind: 'internal-skill-candidate-lineage-v1',
+    kind: 'internal-skill-candidate-lineage-v2',
     candidateId: candidate.id,
     workspaceId: candidate.workspaceId,
     skillName: candidate.skillName,
@@ -103,7 +103,7 @@ export function internalSkillCandidateLineage(
     contentHash: candidate.contentHash,
     candidateTreeHash: candidate.version.treeHash,
     admissionId: '9'.repeat(64),
-    admissionTargetId: 'release-proof-admission',
+    evaluationEnvelopeId: 'e'.repeat(64),
     releaseAuthority: 'none',
     ...overrides,
   }

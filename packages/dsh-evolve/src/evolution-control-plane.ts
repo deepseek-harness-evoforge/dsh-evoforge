@@ -499,7 +499,7 @@ function projectSkillAdmission(
   scan: Awaited<ReturnType<NonNullable<EvolutionControlPlaneModules['admissions']>['scan']>>,
 ): EvolutionSkillAdmissionView {
   return {
-    configuredTargetCount: scan.configuredTargetCount,
+    configuredPolicyCount: scan.configuredPolicyCount,
     warningCount: scan.warningCount,
     results: scan.results.slice(0, MAX_DISCOVERY_ROWS).map(value => ({
       id: value.id,
@@ -507,7 +507,7 @@ function projectSkillAdmission(
       skillName: value.skillName,
       status: value.status,
       reasons: [...value.reasons],
-      ...(value.targetId === undefined ? {} : { targetId: value.targetId }),
+      ...(value.envelopeId === undefined ? {} : { envelopeId: value.envelopeId }),
       releaseAuthority: value.releaseAuthority,
       ...(value.evidence === undefined ? {} : { evidence: {
         baseline: value.evidence.baseline,
@@ -661,7 +661,7 @@ function projectSkillCandidateLineage(
     contentHash: lineage.contentHash,
     candidateTreeHash: lineage.candidateTreeHash,
     admissionId: lineage.admissionId,
-    admissionTargetId: lineage.admissionTargetId,
+    evaluationEnvelopeId: lineage.evaluationEnvelopeId,
     releaseAuthority: lineage.releaseAuthority,
   }
 }

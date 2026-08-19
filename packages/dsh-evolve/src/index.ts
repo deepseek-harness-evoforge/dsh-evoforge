@@ -18,13 +18,15 @@ import {
 import {
   SkillCandidateAdmission,
   SkillCandidateAdmissionScheduler,
-  type SkillCandidateAdmissionTargetConfig,
 } from './skill-candidate-admission.ts'
 import {
   SkillCandidateShadowLauncher,
   SkillCandidateShadowScheduler,
-  type SkillCandidateShadowTargetConfig,
 } from './skill-candidate-shadow.ts'
+import {
+  SkillEvaluationEnvelopeResolver,
+  type SkillCandidateEvaluationPolicyConfig,
+} from './skill-evaluation-envelope.ts'
 import { installEvolutionCommand } from './evolve-command.ts'
 import { CandidatePublisher } from './candidate-publisher.ts'
 import { GitSkillSource, type GitSkillSourceConfig } from './git-skill-source.ts'
@@ -104,8 +106,7 @@ export interface Config {
   feedbackDraftRoot?: string
   sources?: GitSkillSourceConfig[]
   selfDiscoveryPolicies?: SkillOpportunityAuthoringPolicyConfig[]
-  candidateAdmissionTargets?: SkillCandidateAdmissionTargetConfig[]
-  candidateShadowTargets?: SkillCandidateShadowTargetConfig[]
+  candidateEvaluationPolicies?: SkillCandidateEvaluationPolicyConfig[]
   supervisor?: {
     runRoots: Array<{ workspaceId: string; path: string }>
     scanIntervalMs?: number
@@ -135,22 +136,10 @@ export const Config: Schema<Config> = z.object({
     runRoot: z.string().required(),
     maxAttemptsPerUtcDay: z.number().step(1).min(1).max(20).default(1),
   })).max(20).default([]),
-  candidateAdmissionTargets: z.array(z.object({
+  candidateEvaluationPolicies: z.array(z.object({
     id: z.string().required(),
     workspaceId: z.string().required(),
-    skill: z.string().required(),
-    baselineDir: z.string().required(),
-    baselineHash: z.string().required(),
-    casePackDir: z.string().required(),
-    casePackHash: z.string().required(),
-    runRoot: z.string().required(),
-  })).max(100).default([]),
-  candidateShadowTargets: z.array(z.object({
-    id: z.string().required(),
-    workspaceId: z.string().required(),
-    skill: z.string().required(),
-    casePackDir: z.string().required(),
-    casePackHash: z.string().required(),
+    governanceRoot: z.string().required(),
     runRoot: z.string().required(),
   })).max(100).default([]),
   supervisor: z.object({
@@ -227,7 +216,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const automaticFeedbackTargetReferences = config.automaticFeedbackTargets ?? []
   const evaluatorTargets = config.evaluatorTargets ?? []
   const automaticEvaluatorTargetReferences = config.automaticEvaluatorTargets ?? []
-  const candidateShadowTargets = config.candidateShadowTargets ?? []
+  const candidateEvaluationPolicies = config.candidateEvaluationPolicies ?? []
   const selfDiscoveryPolicies = config.selfDiscoveryPolicies ?? []
   const shadowTargetsById = new Map(shadowTargets.map(target => [target.id, target]))
   const automaticFeedbackTargets: AutomaticFeedbackShadowTarget[] =
@@ -265,22 +254,24 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     skillCandidateStore,
     candidate => skillAdmissionScheduler?.observe(candidate),
   )
-  const candidateAdmissionTargets = config.candidateAdmissionTargets ?? []
   let skillAdmission: SkillCandidateAdmission | undefined
-  if (candidateAdmissionTargets.length > 0) {
-    skillAdmission = new SkillCandidateAdmission(candidateAdmissionTargets, skillCandidates)
-    if (candidateShadowTargets.length > 0) {
-      if (config.supervisor === undefined || config.supervisor.runRoots.length === 0) {
-        throw new Error('Skill Candidate Shadow targets require configured supervisor.runRoots')
-      }
-      if (candidateShadowTargets.some(target => !config.supervisor!.runRoots.some(root =>
-        root.workspaceId === target.workspaceId && resolve(root.path) === resolve(target.runRoot)))) {
-        throw new Error('Skill Candidate Shadow run roots must be exact review supervisor roots')
-      }
-      skillShadowScheduler = new SkillCandidateShadowScheduler(
-        new SkillCandidateShadowLauncher(candidateShadowTargets, skillAdmission),
-      )
+  if (candidateEvaluationPolicies.length > 0) {
+    if (config.supervisor === undefined || config.supervisor.runRoots.length === 0) {
+      throw new Error('Skill Candidate evaluation policies require configured supervisor.runRoots')
     }
+    if (candidateEvaluationPolicies.some(policy => !config.supervisor!.runRoots.some(root =>
+      root.workspaceId === policy.workspaceId
+      && resolve(root.path) === resolve(policy.runRoot, 'shadow')))) {
+      throw new Error('Skill Candidate evaluation Shadow roots must be exact review supervisor roots')
+    }
+    const evaluationEnvelopes = new SkillEvaluationEnvelopeResolver(
+      candidateEvaluationPolicies,
+      skillOpportunities,
+    )
+    skillAdmission = new SkillCandidateAdmission(evaluationEnvelopes, skillCandidates)
+    skillShadowScheduler = new SkillCandidateShadowScheduler(
+      new SkillCandidateShadowLauncher(skillAdmission),
+    )
     skillAdmissionScheduler = new SkillCandidateAdmissionScheduler(
       skillAdmission,
       {
@@ -288,8 +279,6 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       },
       { onResult: (candidate, result) => skillShadowScheduler?.observe(candidate, result) },
     )
-  } else if (candidateShadowTargets.length > 0) {
-    throw new Error('Skill Candidate Shadow targets require deterministic admission targets')
   }
   const slowLoopAuthoringBudget = new AutomaticEvolutionBudget()
   if (selfDiscoveryPolicies.length > 0) {
@@ -297,8 +286,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       ...(config.cacheRoot === undefined ? [] : [config.cacheRoot]),
       ...(config.feedbackDraftRoot === undefined ? [] : [config.feedbackDraftRoot]),
       ...(config.sources ?? []).map(value => value.repository),
-      ...candidateAdmissionTargets.flatMap(value => [value.baselineDir, value.casePackDir, value.runRoot]),
-      ...candidateShadowTargets.flatMap(value => [value.casePackDir, value.runRoot]),
+      ...candidateEvaluationPolicies.flatMap(value => [value.governanceRoot, value.runRoot]),
       ...(config.supervisor?.runRoots ?? []).map(value => value.path),
       ...shadowTargets.flatMap(value => [value.casePackDir, value.runRoot]),
       ...evaluatorTargets.flatMap(value => [value.root, ...(value.shadowRunRoot === undefined
@@ -726,8 +714,7 @@ export type {
   SkillGenerationArtifact,
 } from './generation-store.ts'
 export type { GitSkillSourceConfig } from './git-skill-source.ts'
-export type { SkillCandidateAdmissionTargetConfig } from './skill-candidate-admission.ts'
-export type { SkillCandidateShadowTargetConfig } from './skill-candidate-shadow.ts'
+export type { SkillCandidateEvaluationPolicyConfig } from './skill-evaluation-envelope.ts'
 export type { FeedbackShadowTargetConfig } from './feedback-shadow-launcher.ts'
 export type { AutomaticFeedbackShadowTargetReference } from './automatic-feedback-shadow.ts'
 export type { AutomaticEvaluatorDraftTargetReference } from './automatic-evaluator-draft.ts'

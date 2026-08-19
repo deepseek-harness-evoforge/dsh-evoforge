@@ -6,7 +6,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   SkillCandidateAdmission,
   SkillCandidateAdmissionScheduler,
-  type SkillCandidateAdmissionTargetConfig,
 } from '../src/skill-candidate-admission.ts'
 import { hashTree } from '../src/hash.ts'
 import type { ExperienceSkillCandidate, MaterializedSkillCandidate } from '../src/skill-candidate-repository.ts'
@@ -22,19 +21,61 @@ afterEach(async () => {
 })
 
 describe('internal Skill Candidate deterministic admission', () => {
+  it('uses an Opportunity-bound Envelope reader instead of a configured Skill target', async () => {
+    const fixture = await admissionFixture()
+    const candidate = await candidateFixture()
+    const runTrial = vi.fn(async (): Promise<PairedTrialResult> => paired(false, true))
+    const materialize = materializer(candidate)
+    const envelopes = {
+      hasPolicy: vi.fn(() => true),
+      resolve: vi.fn(async () => ({
+        id: 'e'.repeat(64),
+        policyId: 'workspace-governance',
+        workspaceId: candidate.workspaceId,
+        skillName: candidate.skillName,
+        opportunityId: candidate.opportunity.id,
+        gapIds: candidate.opportunity.gapIds,
+        baselineDir: fixture.target.baselineDir,
+        baselineHash: fixture.target.baselineHash,
+        admissionCasePackDir: fixture.target.casePackDir,
+        admissionCasePackHash: fixture.target.casePackHash,
+        holdoutCasePackDir: fixture.target.casePackDir,
+        holdoutCasePackHash: 'f'.repeat(64),
+        admissionRunRoot: fixture.target.runRoot,
+        shadowRunRoot: join(fixture.target.runRoot, 'shadow'),
+      })),
+      policyViews: vi.fn(() => [{
+        id: 'workspace-governance',
+        workspaceId: candidate.workspaceId,
+        admissionRunRoot: fixture.target.runRoot,
+      }]),
+    }
+    const admission = new SkillCandidateAdmission(envelopes as never, { materialize }, { runTrial })
+
+    await expect(admission.evaluate(candidate)).resolves.toMatchObject({
+      status: 'qualified-for-shadow',
+      envelopeId: 'e'.repeat(64),
+    })
+    expect(envelopes.resolve).toHaveBeenCalledWith(candidate)
+  })
+
   it('qualifies a baseline-fail/candidate-pass package for later Shadow without release authority', async () => {
     const fixture = await admissionFixture()
     const candidate = await candidateFixture()
     const runTrial = vi.fn(async (): Promise<PairedTrialResult> => paired(false, true))
     const materialize = materializer(candidate)
-    const admission = new SkillCandidateAdmission([fixture.target], { materialize }, { runTrial })
+    const admission = new SkillCandidateAdmission(
+      evaluationEnvelopes(fixture, candidate),
+      { materialize },
+      { runTrial },
+    )
 
     const result = await admission.evaluate(candidate)
 
     expect(result).toMatchObject({
       status: 'qualified-for-shadow',
       candidateId: candidate.id,
-      targetId: 'release-proof-admission',
+      envelopeId: 'e'.repeat(64),
       reasons: ['candidate-improves-deterministic-admission'],
       releaseAuthority: 'none',
       evidence: {
@@ -50,7 +91,7 @@ describe('internal Skill Candidate deterministic admission', () => {
     await expect(admission.evaluate(candidate)).resolves.toEqual(result)
     expect(materialize).toHaveBeenCalledOnce()
     await expect(admission.scan(WORKSPACE_ID)).resolves.toMatchObject({
-      configuredTargetCount: 1,
+      configuredPolicyCount: 1,
       warningCount: 0,
       results: [result],
     })
@@ -74,7 +115,11 @@ describe('internal Skill Candidate deterministic admission', () => {
     })
     const materialize = vi.fn()
     const runTrial = vi.fn()
-    const admission = new SkillCandidateAdmission([fixture.target], { materialize }, { runTrial })
+    const admission = new SkillCandidateAdmission(
+      evaluationEnvelopes(fixture, candidate),
+      { materialize },
+      { runTrial },
+    )
 
     await expect(admission.evaluate(candidate)).resolves.toMatchObject({
       status: 'protected',
@@ -84,11 +129,15 @@ describe('internal Skill Candidate deterministic admission', () => {
     expect(runTrial).not.toHaveBeenCalled()
   })
 
-  it('abstains when governance has no exact Workspace and Skill target', async () => {
-    const admission = new SkillCandidateAdmission([], { materialize: vi.fn() }, { runTrial: vi.fn() })
+  it('abstains when governance has no current Opportunity-bound Envelope', async () => {
+    const admission = new SkillCandidateAdmission({
+      hasPolicy: () => true,
+      resolve: async () => undefined,
+      policyViews: () => [],
+    }, { materialize: vi.fn() }, { runTrial: vi.fn() })
     await expect(admission.evaluate(await candidateFixture())).resolves.toMatchObject({
       status: 'abstained',
-      reasons: ['no-exact-evaluation-target'],
+      reasons: ['no-current-evaluation-envelope'],
       releaseAuthority: 'none',
     })
   })
@@ -96,13 +145,13 @@ describe('internal Skill Candidate deterministic admission', () => {
   it('uses native Jobs as its only scheduler and resumes durable Candidates', async () => {
     const existing = await candidateFixture()
     const evaluate = vi.fn(async (candidate: ExperienceSkillCandidate) => ({
-      schemaVersion: 1 as const,
+      schemaVersion: 2 as const,
       id: candidate.id,
       candidateId: candidate.id,
       workspaceId: candidate.workspaceId,
       skillName: candidate.skillName,
       status: 'abstained' as const,
-      reasons: ['no-exact-evaluation-target' as const],
+      reasons: ['no-current-evaluation-envelope' as const],
       releaseAuthority: 'none' as const,
     }))
     const onResult = vi.fn()
@@ -126,7 +175,7 @@ describe('internal Skill Candidate deterministic admission', () => {
   })
 })
 
-async function admissionFixture(): Promise<{ readonly target: SkillCandidateAdmissionTargetConfig }> {
+async function admissionFixture() {
   const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-admission-'))
   roots.push(root)
   const baselineDir = join(root, 'baseline')
@@ -166,6 +215,36 @@ async function admissionFixture(): Promise<{ readonly target: SkillCandidateAdmi
       casePackHash: await hashTree(casePackDir),
       runRoot,
     },
+  }
+}
+
+function evaluationEnvelopes(
+  fixture: Awaited<ReturnType<typeof admissionFixture>>,
+  candidate: ExperienceSkillCandidate,
+) {
+  return {
+    hasPolicy: () => true,
+    resolve: vi.fn(async () => ({
+      id: 'e'.repeat(64),
+      policyId: 'workspace-governance',
+      workspaceId: candidate.workspaceId,
+      skillName: candidate.skillName,
+      opportunityId: candidate.opportunity.id,
+      gapIds: candidate.opportunity.gapIds,
+      baselineDir: fixture.target.baselineDir,
+      baselineHash: fixture.target.baselineHash,
+      admissionCasePackDir: fixture.target.casePackDir,
+      admissionCasePackHash: fixture.target.casePackHash,
+      holdoutCasePackDir: fixture.target.casePackDir,
+      holdoutCasePackHash: 'f'.repeat(64),
+      admissionRunRoot: fixture.target.runRoot,
+      shadowRunRoot: join(fixture.target.runRoot, 'shadow'),
+    })),
+    policyViews: () => [{
+      id: 'workspace-governance',
+      workspaceId: candidate.workspaceId,
+      admissionRunRoot: fixture.target.runRoot,
+    }],
   }
 }
 

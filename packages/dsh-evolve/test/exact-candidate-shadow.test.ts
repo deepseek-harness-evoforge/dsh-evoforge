@@ -134,7 +134,7 @@ async function createFixture(assembled: boolean): Promise<{
 
 function discoveredLineage(candidateTreeHash: string): SkillCandidateLineage {
   return {
-    kind: 'internal-skill-candidate-lineage-v1',
+    kind: 'internal-skill-candidate-lineage-v2',
     candidateId: '1'.repeat(64),
     workspaceId: WORKSPACE_ID,
     skillName: 'exact-shadow-test',
@@ -144,7 +144,7 @@ function discoveredLineage(candidateTreeHash: string): SkillCandidateLineage {
     contentHash: '2'.repeat(64),
     candidateTreeHash,
     admissionId: '3'.repeat(64),
-    admissionTargetId: 'exact-shadow-admission',
+    evaluationEnvelopeId: 'e'.repeat(64),
     releaseAuthority: 'none',
   }
 }

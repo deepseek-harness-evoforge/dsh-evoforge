@@ -9,7 +9,7 @@ export type SkillCandidateVersionKind = 'experience-authored-bundle-v1'
 
 /** Durable identity of one internally discovered, independently admitted Candidate. */
 export interface SkillCandidateLineage {
-  readonly kind: 'internal-skill-candidate-lineage-v1'
+  readonly kind: 'internal-skill-candidate-lineage-v2'
   readonly candidateId: string
   readonly workspaceId: string
   readonly skillName: string
@@ -19,7 +19,7 @@ export interface SkillCandidateLineage {
   readonly contentHash: string
   readonly candidateTreeHash: string
   readonly admissionId: string
-  readonly admissionTargetId: string
+  readonly evaluationEnvelopeId: string
   readonly releaseAuthority: 'none'
 }
 
@@ -31,14 +31,14 @@ export function createSkillCandidateLineage(
     || admission.candidateId !== candidate.id
     || admission.workspaceId !== candidate.workspaceId
     || admission.skillName !== candidate.skillName
-    || admission.targetId === undefined
+    || admission.envelopeId === undefined
     || admission.evidence === undefined
     || admission.evidence.candidate !== 'pass'
     || admission.evidence.candidateTreeHash !== candidate.version.treeHash) {
     throw new Error('qualified admission cannot produce exact internal Skill Candidate lineage')
   }
   return parseSkillCandidateLineage({
-    kind: 'internal-skill-candidate-lineage-v1',
+    kind: 'internal-skill-candidate-lineage-v2',
     candidateId: candidate.id,
     workspaceId: candidate.workspaceId,
     skillName: candidate.skillName,
@@ -48,7 +48,7 @@ export function createSkillCandidateLineage(
     contentHash: candidate.contentHash,
     candidateTreeHash: admission.evidence.candidateTreeHash,
     admissionId: admission.id,
-    admissionTargetId: admission.targetId,
+    evaluationEnvelopeId: admission.envelopeId,
     releaseAuthority: 'none',
   })
 }
@@ -58,10 +58,10 @@ export function parseSkillCandidateLineage(value: unknown): SkillCandidateLineag
   if (!isRecord(value)
     || Object.keys(value).sort().join(',') !== [
       'admissionId',
-      'admissionTargetId',
       'candidateId',
       'candidateTreeHash',
       'contentHash',
+      'evaluationEnvelopeId',
       'kind',
       'opportunityId',
       'policyId',
@@ -70,7 +70,7 @@ export function parseSkillCandidateLineage(value: unknown): SkillCandidateLineag
       'versionKind',
       'workspaceId',
     ].join(',')
-    || value.kind !== 'internal-skill-candidate-lineage-v1'
+    || value.kind !== 'internal-skill-candidate-lineage-v2'
     || !contentId(value.candidateId)
     || typeof value.workspaceId !== 'string'
     || !WORKSPACE_ID.test(value.workspaceId)
@@ -83,8 +83,8 @@ export function parseSkillCandidateLineage(value: unknown): SkillCandidateLineag
     || !contentId(value.contentHash)
     || !contentId(value.candidateTreeHash)
     || !contentId(value.admissionId)
-    || typeof value.admissionTargetId !== 'string'
-    || !PUBLIC_ID.test(value.admissionTargetId)
+    || typeof value.evaluationEnvelopeId !== 'string'
+    || !CONTENT_ID.test(value.evaluationEnvelopeId)
     || value.releaseAuthority !== 'none') {
     throw new Error('invalid internal Skill Candidate lineage')
   }
@@ -99,7 +99,7 @@ export function parseSkillCandidateLineage(value: unknown): SkillCandidateLineag
     contentHash: value.contentHash,
     candidateTreeHash: value.candidateTreeHash,
     admissionId: value.admissionId,
-    admissionTargetId: value.admissionTargetId,
+    evaluationEnvelopeId: value.evaluationEnvelopeId,
     releaseAuthority: value.releaseAuthority,
   })
 }

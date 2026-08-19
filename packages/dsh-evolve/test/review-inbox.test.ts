@@ -508,7 +508,7 @@ async function writeCandidateRun(
 
 function discoveredLineage(): SkillCandidateLineage {
   return {
-    kind: 'internal-skill-candidate-lineage-v1',
+    kind: 'internal-skill-candidate-lineage-v2',
     candidateId: '1'.repeat(64),
     workspaceId: WORKSPACE_ID,
     skillName: 'stable-skill',
@@ -518,7 +518,7 @@ function discoveredLineage(): SkillCandidateLineage {
     contentHash: '2'.repeat(64),
     candidateTreeHash: 'e'.repeat(64),
     admissionId: '3'.repeat(64),
-    admissionTargetId: 'stable-skill-admission',
+    evaluationEnvelopeId: 'e'.repeat(64),
     releaseAuthority: 'none',
   }
 }

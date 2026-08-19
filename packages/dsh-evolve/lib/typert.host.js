@@ -139,7 +139,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'gitCommit': z.string().readonly(),
   'treeHash': z.string().readonly(),
   'lineage': z.union([z.undefined(), z.object({
-  'kind': z.literal("internal-skill-candidate-lineage-v1").readonly(),
+  'kind': z.literal("internal-skill-candidate-lineage-v2").readonly(),
   'candidateId': z.string().readonly(),
   'workspaceId': z.string().readonly(),
   'skillName': z.string().readonly(),
@@ -149,7 +149,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'contentHash': z.string().readonly(),
   'candidateTreeHash': z.string().readonly(),
   'admissionId': z.string().readonly(),
-  'admissionTargetId': z.string().readonly(),
+  'evaluationEnvelopeId': z.string().readonly(),
   'releaseAuthority': z.literal("none").readonly(),
 })]).readonly().optional(),
 })).readonly(),
@@ -322,15 +322,15 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
 })).readonly(),
 })]).readonly().optional(),
   'skillAdmission': z.union([z.undefined(), z.object({
-  'configuredTargetCount': z.number().readonly(),
+  'configuredPolicyCount': z.number().readonly(),
   'warningCount': z.number().readonly(),
   'results': z.array(z.object({
   'id': z.string().readonly(),
   'candidateId': z.string().readonly(),
   'skillName': z.string().readonly(),
   'status': z.union([z.literal("incomplete"), z.literal("abstained"), z.literal("protected"), z.literal("rejected"), z.literal("review"), z.literal("qualified-for-shadow")]).readonly(),
-  'reasons': z.array(z.union([z.literal("no-exact-evaluation-target"), z.literal("candidate-has-executable-content"), z.literal("candidate-is-not-instruction-only"), z.literal("baseline-identity-mismatch"), z.literal("case-pack-identity-mismatch"), z.literal("assembled-evaluator-not-governance-separated"), z.literal("case-pack-calibration-failed"), z.literal("candidate-failed-admission"), z.literal("baseline-already-passes"), z.literal("candidate-improves-deterministic-admission"), z.literal("governance-input-mutated"), z.literal("governance-roots-overlap"), z.literal("evaluation-failed")])).readonly(),
-  'targetId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'reasons': z.array(z.union([z.literal("no-current-evaluation-envelope"), z.literal("candidate-has-executable-content"), z.literal("candidate-is-not-instruction-only"), z.literal("baseline-identity-mismatch"), z.literal("case-pack-identity-mismatch"), z.literal("assembled-evaluator-not-governance-separated"), z.literal("case-pack-calibration-failed"), z.literal("candidate-failed-admission"), z.literal("baseline-already-passes"), z.literal("candidate-improves-deterministic-admission"), z.literal("governance-input-mutated"), z.literal("governance-roots-overlap"), z.literal("evaluation-failed")])).readonly(),
+  'envelopeId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'releaseAuthority': z.literal("none").readonly(),
   'evidence': z.union([z.undefined(), z.object({
   'baseline': z.union([z.literal("pass"), z.literal("fail")]).readonly(),
@@ -578,7 +578,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'changedFiles': z.array(z.string()).readonly(),
   'candidateTreeHash': z.string().readonly(),
   'lineage': z.union([z.undefined(), z.object({
-  'kind': z.literal("internal-skill-candidate-lineage-v1").readonly(),
+  'kind': z.literal("internal-skill-candidate-lineage-v2").readonly(),
   'candidateId': z.string().readonly(),
   'workspaceId': z.string().readonly(),
   'skillName': z.string().readonly(),
@@ -588,7 +588,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'contentHash': z.string().readonly(),
   'candidateTreeHash': z.string().readonly(),
   'admissionId': z.string().readonly(),
-  'admissionTargetId': z.string().readonly(),
+  'evaluationEnvelopeId': z.string().readonly(),
   'releaseAuthority': z.literal("none").readonly(),
 })]).readonly().optional(),
   'cases': z.array(z.object({
@@ -625,7 +625,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'reviewId': z.string().readonly(),
   'skillName': z.string().readonly(),
   'lineage': z.union([z.undefined(), z.object({
-  'kind': z.literal("internal-skill-candidate-lineage-v1").readonly(),
+  'kind': z.literal("internal-skill-candidate-lineage-v2").readonly(),
   'candidateId': z.string().readonly(),
   'workspaceId': z.string().readonly(),
   'skillName': z.string().readonly(),
@@ -635,7 +635,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'contentHash': z.string().readonly(),
   'candidateTreeHash': z.string().readonly(),
   'admissionId': z.string().readonly(),
-  'admissionTargetId': z.string().readonly(),
+  'evaluationEnvelopeId': z.string().readonly(),
   'releaseAuthority': z.literal("none").readonly(),
 })]).readonly().optional(),
 })).readonly(),
@@ -755,7 +755,7 @@ const dsh_evolve_evoforgeEvolution_review_result$schema = z.object({
   'changedFiles': z.array(z.string()).readonly(),
   'candidateTreeHash': z.string().readonly(),
   'lineage': z.union([z.undefined(), z.object({
-  'kind': z.literal("internal-skill-candidate-lineage-v1").readonly(),
+  'kind': z.literal("internal-skill-candidate-lineage-v2").readonly(),
   'candidateId': z.string().readonly(),
   'workspaceId': z.string().readonly(),
   'skillName': z.string().readonly(),
@@ -765,7 +765,7 @@ const dsh_evolve_evoforgeEvolution_review_result$schema = z.object({
   'contentHash': z.string().readonly(),
   'candidateTreeHash': z.string().readonly(),
   'admissionId': z.string().readonly(),
-  'admissionTargetId': z.string().readonly(),
+  'evaluationEnvelopeId': z.string().readonly(),
   'releaseAuthority': z.literal("none").readonly(),
 })]).readonly().optional(),
   'cases': z.array(z.object({
@@ -1525,7 +1525,7 @@ export const TYPERT = {
           },
           {
             "name": "SkillCandidateLineage",
-            "declaration": "export interface SkillCandidateLineage {\n    readonly kind: 'internal-skill-candidate-lineage-v1';\n    readonly candidateId: string;\n    readonly workspaceId: string;\n    readonly skillName: string;\n    readonly opportunityId: string;\n    readonly policyId: string;\n    readonly versionKind: SkillCandidateVersionKind;\n    readonly contentHash: string;\n    readonly candidateTreeHash: string;\n    readonly admissionId: string;\n    readonly admissionTargetId: string;\n    readonly releaseAuthority: 'none';\n}"
+            "declaration": "export interface SkillCandidateLineage {\n    readonly kind: 'internal-skill-candidate-lineage-v2';\n    readonly candidateId: string;\n    readonly workspaceId: string;\n    readonly skillName: string;\n    readonly opportunityId: string;\n    readonly policyId: string;\n    readonly versionKind: SkillCandidateVersionKind;\n    readonly contentHash: string;\n    readonly candidateTreeHash: string;\n    readonly admissionId: string;\n    readonly evaluationEnvelopeId: string;\n    readonly releaseAuthority: 'none';\n}"
           },
           {
             "name": "SkillCandidateVersionKind",
@@ -1732,11 +1732,11 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionSkillAdmissionView",
-            "declaration": "export interface EvolutionSkillAdmissionView {\n    readonly configuredTargetCount: number;\n    readonly warningCount: number;\n    readonly results: readonly { readonly id: string; readonly candidateId: string; readonly skillName: string; readonly status: 'abstained' | 'protected' | 'incomplete' | 'rejected' | 'review' | 'qualified-for-shadow'; readonly reasons: readonly ('no-exact-evaluation-target' | 'candidate-has-executable-content' | 'candidate-is-not-instruction-only' | 'baseline-identity-mismatch' | 'case-pack-identity-mismatch' | 'assembled-evaluator-not-governance-separated' | 'case-pack-calibration-failed' | 'candidate-failed-admission' | 'baseline-already-passes' | 'candidate-improves-deterministic-admission' | 'governance-input-mutated' | 'governance-roots-overlap' | 'evaluation-failed')[]; readonly targetId?: string; readonly releaseAuthority: 'none'; readonly evidence?: { readonly baseline: 'pass' | 'fail'; readonly candidate: 'pass' | 'fail'; readonly calibrationPassed: boolean; readonly candidateExecuted: false; readonly evaluatorClass: 'deterministic-filesystem'; readonly trialCount: 4; }; }[];\n}"
+            "declaration": "export interface EvolutionSkillAdmissionView {\n    readonly configuredPolicyCount: number;\n    readonly warningCount: number;\n    readonly results: readonly { readonly id: string; readonly candidateId: string; readonly skillName: string; readonly status: 'abstained' | 'protected' | 'incomplete' | 'rejected' | 'review' | 'qualified-for-shadow'; readonly reasons: readonly ('no-current-evaluation-envelope' | 'candidate-has-executable-content' | 'candidate-is-not-instruction-only' | 'baseline-identity-mismatch' | 'case-pack-identity-mismatch' | 'assembled-evaluator-not-governance-separated' | 'case-pack-calibration-failed' | 'candidate-failed-admission' | 'baseline-already-passes' | 'candidate-improves-deterministic-admission' | 'governance-input-mutated' | 'governance-roots-overlap' | 'evaluation-failed')[]; readonly envelopeId?: string; readonly releaseAuthority: 'none'; readonly evidence?: { readonly baseline: 'pass' | 'fail'; readonly candidate: 'pass' | 'fail'; readonly calibrationPassed: boolean; readonly candidateExecuted: false; readonly evaluatorClass: 'deterministic-filesystem'; readonly trialCount: 4; }; }[];\n}"
           },
           {
             "name": "EvolutionSkillCandidateLineageView",
-            "declaration": "export interface EvolutionSkillCandidateLineageView {\n    readonly kind: 'internal-skill-candidate-lineage-v1';\n    readonly candidateId: string;\n    readonly workspaceId: string;\n    readonly skillName: string;\n    readonly opportunityId: string;\n    readonly policyId: string;\n    readonly versionKind: EvolutionSkillCandidateVersionKind;\n    readonly contentHash: string;\n    readonly candidateTreeHash: string;\n    readonly admissionId: string;\n    readonly admissionTargetId: string;\n    readonly releaseAuthority: 'none';\n}"
+            "declaration": "export interface EvolutionSkillCandidateLineageView {\n    readonly kind: 'internal-skill-candidate-lineage-v2';\n    readonly candidateId: string;\n    readonly workspaceId: string;\n    readonly skillName: string;\n    readonly opportunityId: string;\n    readonly policyId: string;\n    readonly versionKind: EvolutionSkillCandidateVersionKind;\n    readonly contentHash: string;\n    readonly candidateTreeHash: string;\n    readonly admissionId: string;\n    readonly evaluationEnvelopeId: string;\n    readonly releaseAuthority: 'none';\n}"
           },
           {
             "name": "EvolutionSkillCandidateQueueView",

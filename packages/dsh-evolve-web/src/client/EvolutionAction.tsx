@@ -516,7 +516,7 @@ function SkillAdmission({ summary, t }: { summary: EvolutionOverview; t: (key: s
     <div className="dsh-evolve-capability-head">
       <h3 className="dsh-evolve-section-title">{t('skills.admission')}</h3>
       <span className="dsh-evolve-catalog-status">
-        {admission.configuredTargetCount} {t('skills.admission.targets')}
+        {admission.configuredPolicyCount} {t('skills.admission.policies')}
       </span>
     </div>
     {admission.warningCount > 0 && <div className="dsh-evolve-message dsh-evolve-error">
@@ -530,8 +530,8 @@ function SkillAdmission({ summary, t }: { summary: EvolutionOverview; t: (key: s
             <div className="dsh-evolve-capability-route">
               {t(`skills.admission.status.${value.status}`)}
             </div>
-            {value.targetId !== undefined && <div className="dsh-evolve-meta">
-              {t('skills.admission.target')} · {value.targetId}
+            {value.envelopeId !== undefined && <div className="dsh-evolve-meta">
+              {t('skills.admission.envelope')} · {value.envelopeId}
             </div>}
             {value.evidence !== undefined && <>
               <div className="dsh-evolve-meta">{admissionComparison(value.evidence, t)}</div>
@@ -817,7 +817,7 @@ function SkillCandidateLineage({ lineage, t }: {
       <LineageStep
         label={t('skills.lineage.admission')}
         id={lineage.admissionId}
-        detail={lineage.admissionTargetId}
+        detail={lineage.evaluationEnvelopeId}
       />
     </ol>
     <div className="dsh-evolve-lineage-release">{t('skills.lineage.release.none')}</div>

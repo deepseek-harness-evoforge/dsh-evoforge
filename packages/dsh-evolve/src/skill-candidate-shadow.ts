@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { isAbsolute, join, relative, sep } from 'node:path'
 import { lstat, readFile, realpath } from 'node:fs/promises'
 import type { JobRegistry } from '@deepseek-ai/dsh-jobs'
 import { hashTree } from './hash.ts'
@@ -10,24 +10,6 @@ import type {
 } from './skill-candidate-admission.ts'
 import { parseCasePackManifest, runShadow } from './shadow.ts'
 import type { ExperienceSkillCandidate } from './skill-candidate-repository.ts'
-
-const CONTENT_ID = /^[a-f0-9]{64}$/
-const PUBLIC_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
-const MAX_TARGETS = 100
-
-export interface SkillCandidateShadowTargetConfig {
-  readonly id: string
-  readonly workspaceId: string
-  readonly skill: string
-  readonly casePackDir: string
-  readonly casePackHash: string
-  readonly runRoot: string
-}
-
-interface ResolvedTarget extends SkillCandidateShadowTargetConfig {
-  readonly casePackDir: string
-  readonly runRoot: string
-}
 
 type ShadowResult = Awaited<ReturnType<typeof runShadow>>
 
@@ -40,30 +22,13 @@ interface QualifiedAdmissionReader {
 
 /** Governance-separated assembled holdout for one exact pre-admitted internal Candidate. */
 export class SkillCandidateShadowLauncher {
-  private readonly targets = new Map<string, ResolvedTarget>()
   private readonly admission: QualifiedAdmissionReader
   private readonly runner: typeof runShadow
 
   constructor(
-    targets: readonly SkillCandidateShadowTargetConfig[],
     admission: Pick<SkillCandidateAdmission, 'qualifiedShadowInput'>,
     options: { runShadow?: typeof runShadow } = {},
   ) {
-    if (targets.length > MAX_TARGETS) {
-      throw new Error(`Skill Candidate Shadow supports at most ${MAX_TARGETS} targets`)
-    }
-    for (const input of targets) {
-      assertTarget(input)
-      const key = targetKey(input.workspaceId, input.skill)
-      if (this.targets.has(key)) {
-        throw new Error(`duplicate Skill Candidate Shadow target for '${input.skill}'`)
-      }
-      this.targets.set(key, Object.freeze({
-        ...input,
-        casePackDir: resolve(input.casePackDir),
-        runRoot: resolve(input.runRoot),
-      }))
-    }
     this.admission = admission
     this.runner = options.runShadow ?? runShadow
   }
@@ -74,7 +39,8 @@ export class SkillCandidateShadowLauncher {
   ): boolean {
     return admission.status === 'qualified-for-shadow'
       && admission.candidateId === candidate.id
-      && this.targets.has(targetKey(candidate.workspaceId, candidate.skillName))
+      && admission.workspaceId === candidate.workspaceId
+      && admission.skillName === candidate.skillName
   }
 
   async launch(
@@ -83,30 +49,28 @@ export class SkillCandidateShadowLauncher {
     options: { signal?: AbortSignal } = {},
   ): Promise<ShadowResult> {
     options.signal?.throwIfAborted()
-    const target = this.targets.get(targetKey(candidate.workspaceId, candidate.skillName))
-    if (target === undefined || !this.matches(candidate, admission)) {
-      throw new Error('qualified Candidate has no exact Skill Candidate Shadow target')
+    if (!this.matches(candidate, admission)) {
+      throw new Error('Candidate has no exact qualified admission for Shadow')
     }
     const source = await this.admission.qualifiedShadowInput(candidate, admission)
     const [casePackDir, runRoot] = await Promise.all([
-      realpath(target.casePackDir),
-      realpath(target.runRoot),
+      realpath(source.holdoutCasePackDir),
+      realpath(source.shadowRunRoot),
     ])
     assertIndependentRoots(source, casePackDir, runRoot)
-    if (target.casePackHash === source.admissionCasePackHash) {
+    if (source.holdoutCasePackHash === source.admissionCasePackHash) {
       throw new Error('Skill Candidate Shadow must use an independent holdout Case Pack')
     }
-    if (await hashTree(casePackDir) !== target.casePackHash) {
+    if (await hashTree(casePackDir) !== source.holdoutCasePackHash) {
       throw new Error('Skill Candidate Shadow Case Pack identity mismatch')
     }
     const manifest = parseCasePackManifest(await readFile(join(casePackDir, 'manifest.json'), 'utf8'))
-    if (manifest.id !== target.id
-      || manifest.workspaceId !== candidate.workspaceId
+    if (manifest.workspaceId !== candidate.workspaceId
       || manifest.trial?.dshAssembled !== true
       || manifest.calibration === undefined) {
       throw new Error('Skill Candidate Shadow requires its exact assembled holdout manifest')
     }
-    const id = shadowId(candidate, admission, target)
+    const id = shadowId(candidate, admission, manifest.id, source.holdoutCasePackHash)
     const outputDir = join(runRoot, id)
     let resume = false
     try {
@@ -125,7 +89,7 @@ export class SkillCandidateShadowLauncher {
         lineage: source.lineage,
         skillDir: source.candidateDir,
       },
-      expectedCasePackHash: target.casePackHash,
+      expectedCasePackHash: source.holdoutCasePackHash,
       outputDir,
       resume,
       ...options.signal === undefined ? {} : { signal: options.signal },
@@ -211,19 +175,6 @@ export class SkillCandidateShadowScheduler {
   }
 }
 
-function assertTarget(target: SkillCandidateShadowTargetConfig): void {
-  if (!PUBLIC_ID.test(target.id) || !PUBLIC_ID.test(target.skill)
-    || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
-      .test(target.workspaceId)
-    || !CONTENT_ID.test(target.casePackHash)) {
-    throw new Error(`invalid Skill Candidate Shadow target '${target.id}'`)
-  }
-  if (!isAbsolute(target.casePackDir) || !isAbsolute(target.runRoot)
-    || dirname(resolve(target.runRoot)) === resolve(target.runRoot)) {
-    throw new Error(`Skill Candidate Shadow target '${target.id}' requires absolute non-root paths`)
-  }
-}
-
 function assertIndependentRoots(
   source: QualifiedSkillCandidateShadowInput,
   casePackDir: string,
@@ -258,19 +209,16 @@ function separate(left: string, right: string): boolean {
 function shadowId(
   candidate: ExperienceSkillCandidate,
   admission: SkillCandidateAdmissionResult,
-  target: ResolvedTarget,
+  holdoutId: string,
+  holdoutCasePackHash: string,
 ): string {
   return createHash('sha256').update(JSON.stringify([
-    'skill-candidate-shadow-v1',
+    'opportunity-bound-skill-candidate-shadow-v2',
     candidate.id,
     admission.id,
-    target.id,
-    target.casePackHash,
+    holdoutId,
+    holdoutCasePackHash,
   ])).digest('hex')
-}
-
-function targetKey(workspaceId: string, skill: string): string {
-  return `${workspaceId}\0${skill}`
 }
 
 function isMissing(error: unknown): boolean {

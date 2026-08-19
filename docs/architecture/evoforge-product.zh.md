@@ -1,7 +1,7 @@
 # EvoForge 产品架构
 
-> 状态：产品边界已确认；Telegram、飞书两个 Assistant Adapter 与进化注意力桥已实现；内部经验驱动的 Skill Opportunity 纵切与 Web 可视化已实现，自主评估闭环仍待完成与验收
-> 更新日期：2026-08-18
+> 状态：产品边界已确认；Telegram、飞书两个 Assistant Adapter 与进化注意力桥已实现；内部经验驱动的 Skill Opportunity、Candidate 与 Opportunity-bound Evaluation Envelope 纵切已实现，治理包自主形成和真实评估闭环仍待完成与验收
+> 更新日期：2026-08-19
 
 ## 1. 产品结果
 
@@ -41,6 +41,11 @@ signal/gap/outcome，离线慢环负责跨 Goal 归纳、候选生成、独立�
 设计期和冻结 benchmark；运行时外部搜索不是自我发现。Self-Discovery、Observer、
 Trial Runner、Decision 与 Release 在证明有两个独立消费者或信任边界以前都保持内部模块，不为了名称
 数量拆成浅插件。
+
+内部 Candidate 评测的 profile 只允许 Workspace 级 governance/run roots，不再指定 Skill、baseline 或
+Case Pack。Host 以当前 Opportunity id 解析严格、内容寻址的 Evaluation Envelope，由同一 Envelope 同时
+约束 deterministic admission 与独立 assembled holdout，并把 identity 写入 Candidate Lineage。该路径已
+实现 fail-closed 解析与 handoff，但 Envelope 自身尚未由内部 outcome/纠正/回归证据自主构造。
 
 ### dsh-software-delivery
 

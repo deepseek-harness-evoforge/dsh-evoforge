@@ -1,6 +1,6 @@
 # DeepSeek Harness EvoForge 项目需求基线
 
-> 状态：已确认；目标是只安装并运行于 DSH 的原生 out-of-tree 插件套件。现有 P0A–P1.21 等实现只作为可重审资产，不能限制重构；`dsh-gateway` 已替换旧 Router 包并通过总装回归，能力获取/运行时研究 Candidate 的活动实现已删除。自然 Goal→可复核 Capability Gap→跨 Goal 内部经验→Skill Opportunity→隔离 whole-Skill Candidate 已形成部分纵切；完整内部证据、独立评测治理、Gateway、exact 飞书 route 消息、长期 outcome 与 Hermes paired epochs 完成前不构成 v0.1 交付
+> 状态：已确认；目标是只安装并运行于 DSH 的原生 out-of-tree 插件套件。现有 P0A–P1.21 等实现只作为可重审资产，不能限制重构；`dsh-gateway` 已替换旧 Router 包并通过总装回归，能力获取/运行时研究 Candidate 的活动实现已删除。自然 Goal→可复核 Capability Gap→跨 Goal 内部经验→Skill Opportunity→隔离 whole-Skill Candidate 已形成部分纵切；内部 Candidate 的配置式 Skill/Case Pack target 已被 Workspace policy + Opportunity-bound Evaluation Envelope 取代，但治理包尚不能从内部证据自主生成。完整内部证据、真实独立评测、Gateway、exact 飞书 route 消息、长期 outcome 与 Hermes paired epochs 完成前不构成 v0.1 交付
 > 更新日期：2026-08-19
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。发生冲突时，下述“方向纠正”优先于旧里程碑文字。
 
@@ -366,9 +366,16 @@ Web research 方案必须从当前实现删除；相关历史 evidence 只说明
 声明。Hermes、OpenClaw、HanaAgent、市场、论文与开源实现继续用于设计期固定 revision 调研与 paired benchmark。
 
 确定性 admission、assembled Shadow、Review、immutable Generation、future-Session promotion 与 rollback 的既有
-治理路径仍保留，但新 Opportunity Candidate 尚未完成一条真实 provider 的独立 case/holdout→admission→Shadow→
-Retention 纵切。下一阶段必须从 Goal outcome、explicit correction、失败类和回归样本构造 Candidate 不可读写的
-Evaluation Governance Plane；没有独立证据时 abstain，不能回退到外部搜索、author 自评或一次成功即晋升。
+治理路径仍保留。内部 Candidate 不再由 profile 预选 exact Skill、baseline 或两套 Case Pack；Workspace 级
+`candidateEvaluationPolicies` 只声明治理根与运行根，Host 根据当前 Opportunity id 读取内容寻址 Evaluation
+Envelope。Envelope 严格绑定 Opportunity 快照、baseline、deterministic admission 和不同的 assembled holdout；
+Opportunity/内容/路径不一致、admission 与 holdout 同 hash 或符号链接均 fail closed。同一 Envelope id 进入
+admission、Candidate Lineage 和 Shadow handoff，结果仍无 release authority。
+
+该实现只消除了人工预定进化方向，尚不会从 Goal outcome、explicit correction、失败类和回归样本自主构造并
+封存 Evaluation Envelope，也未完成真实 provider 的 admission→holdout Shadow→Retention 纵切。下一阶段必须让
+Candidate 不可读写的 Evaluation Governance Plane 从内部证据独立形成 baseline、未见样本和 hard gates；没有
+合格治理包时 abstain，不能回退到外部搜索、author 自评或一次成功即晋升。
 
 在 P1.1 之后，先实现 `dsh-software-delivery` 的最小 objective outcome：稳定按需 Skill 与
 linked-worktree/commit/check 验证器。只有真实交付 outcome 可用后，才建设 future-session

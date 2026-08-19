@@ -34,7 +34,7 @@ function opportunityEvidence() {
 
 function lineage(candidateTreeHash = '1'.repeat(64)) {
   return {
-    kind: 'internal-skill-candidate-lineage-v1' as const,
+    kind: 'internal-skill-candidate-lineage-v2' as const,
     candidateId: '8'.repeat(64),
     workspaceId: WORKSPACE_ID,
     skillName: 'build-dsh-plugin',
@@ -44,7 +44,7 @@ function lineage(candidateTreeHash = '1'.repeat(64)) {
     contentHash: '9'.repeat(64),
     candidateTreeHash,
     admissionId: 'a'.repeat(64),
-    admissionTargetId: 'plugin-delivery',
+    evaluationEnvelopeId: 'e'.repeat(64),
     releaseAuthority: 'none' as const,
   }
 }
@@ -375,17 +375,17 @@ describe('EvolutionControlPlane', () => {
       },
       admissions: {
         scan: vi.fn(async () => ({
-          configuredTargetCount: 1,
+          configuredPolicyCount: 1,
           warningCount: 0,
           results: [{
-            schemaVersion: 1 as const,
+            schemaVersion: 2 as const,
             id: '2'.repeat(64),
             candidateId: '4'.repeat(64),
             workspaceId: WORKSPACE_ID,
             skillName: 'release-native-extension',
             status: 'qualified-for-shadow' as const,
             reasons: ['candidate-improves-deterministic-admission' as const],
-            targetId: 'missing-release-admission',
+            envelopeId: 'e'.repeat(64),
             releaseAuthority: 'none' as const,
             evidence: {
               baseline: 'fail' as const,
@@ -539,7 +539,7 @@ describe('EvolutionControlPlane', () => {
         }],
       },
       skillAdmission: {
-        configuredTargetCount: 1,
+        configuredPolicyCount: 1,
         warningCount: 0,
         results: [{
           id: '2'.repeat(64),
@@ -547,7 +547,7 @@ describe('EvolutionControlPlane', () => {
           skillName: 'release-native-extension',
           status: 'qualified-for-shadow',
           reasons: ['candidate-improves-deterministic-admission'],
-          targetId: 'missing-release-admission',
+          envelopeId: 'e'.repeat(64),
           releaseAuthority: 'none',
           evidence: {
             baseline: 'fail',

@@ -104,7 +104,7 @@ export type EvolutionSkillCandidateVersionKind = 'experience-authored-bundle-v1'
 
 /** Browser-safe identity of one internally discovered and admitted Candidate. */
 export interface EvolutionSkillCandidateLineageView {
-  readonly kind: 'internal-skill-candidate-lineage-v1'
+  readonly kind: 'internal-skill-candidate-lineage-v2'
   readonly candidateId: string
   readonly workspaceId: string
   readonly skillName: string
@@ -114,7 +114,7 @@ export interface EvolutionSkillCandidateLineageView {
   readonly contentHash: string
   readonly candidateTreeHash: string
   readonly admissionId: string
-  readonly admissionTargetId: string
+  readonly evaluationEnvelopeId: string
   readonly releaseAuthority: 'none'
 }
 
@@ -311,7 +311,7 @@ export interface EvolutionSlowLoopAuthoringView {
 
 /** Deterministic, zero-model admission evidence; it never carries release authority. */
 export interface EvolutionSkillAdmissionView {
-  readonly configuredTargetCount: number
+  readonly configuredPolicyCount: number
   readonly warningCount: number
   readonly results: readonly {
     readonly id: string
@@ -319,7 +319,7 @@ export interface EvolutionSkillAdmissionView {
     readonly skillName: string
     readonly status: 'abstained' | 'protected' | 'incomplete' | 'rejected' | 'review' | 'qualified-for-shadow'
     readonly reasons: readonly (
-      | 'no-exact-evaluation-target'
+      | 'no-current-evaluation-envelope'
       | 'candidate-has-executable-content'
       | 'candidate-is-not-instruction-only'
       | 'baseline-identity-mismatch'
@@ -333,7 +333,7 @@ export interface EvolutionSkillAdmissionView {
       | 'governance-roots-overlap'
       | 'evaluation-failed'
     )[]
-    readonly targetId?: string
+    readonly envelopeId?: string
     readonly releaseAuthority: 'none'
     readonly evidence?: {
       readonly baseline: 'pass' | 'fail'

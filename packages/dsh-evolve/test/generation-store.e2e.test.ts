@@ -454,7 +454,7 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
 
 function discoveredLineage(candidateTreeHash: string): SkillCandidateLineage {
   return {
-    kind: 'internal-skill-candidate-lineage-v1',
+    kind: 'internal-skill-candidate-lineage-v2',
     candidateId: '1'.repeat(64),
     workspaceId: WORKSPACE_ID,
     skillName: 'build-dsh-plugin',
@@ -464,7 +464,7 @@ function discoveredLineage(candidateTreeHash: string): SkillCandidateLineage {
     contentHash: '2'.repeat(64),
     candidateTreeHash,
     admissionId: '3'.repeat(64),
-    admissionTargetId: 'build-dsh-plugin-admission',
+    evaluationEnvelopeId: 'e'.repeat(64),
     releaseAuthority: 'none',
   }
 }
