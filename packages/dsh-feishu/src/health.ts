@@ -1,8 +1,13 @@
-import type { GatewayOutboundHealth, GatewayOutboundStatus } from 'dsh-gateway'
+import type {
+  GatewayOutboundHealth,
+  GatewayOutboundStatus,
+  GatewayTransportHealthItem,
+  GatewayTransportState,
+} from 'dsh-gateway'
 
 export const FEISHU_HEALTH_PREFIX = 'EVOFORGE_FEISHU_HEALTH_V1 '
 
-export type FeishuTransportState = 'connecting' | 'ready' | 'degraded' | 'stopping'
+export type FeishuTransportState = GatewayTransportState
 export type FeishuHealthStatus = 'ready' | 'busy' | 'attention' | 'degraded' | 'stopping'
 
 export interface FeishuHealthRoute {
@@ -58,12 +63,7 @@ export interface FeishuHealthSnapshot {
 export interface SummarizeFeishuHealthInput {
   readonly now: number
   readonly accountId: string
-  readonly transport: {
-    readonly state: FeishuTransportState
-    readonly connectedAt?: number
-    readonly lastActivityAt?: number
-    readonly lastErrorAt?: number
-  }
+  readonly transport: GatewayTransportHealthItem
   readonly routes: readonly FeishuHealthRouteInput[]
   readonly outbound: GatewayOutboundHealth
   readonly pendingApprovals: number
@@ -78,6 +78,11 @@ export function summarizeFeishuHealth(input: SummarizeFeishuHealthInput): Feishu
     throw new Error('Feishu health routes must belong to one native Workspace and Session')
   }
   const routeIds = new Set(input.routes.map(route => route.id))
+  if (input.transport.adapter !== 'feishu' || input.transport.kind !== 'official-feishu-websocket'
+    || input.transport.routeIds.length !== routeIds.size
+    || input.transport.routeIds.some(routeId => !routeIds.has(routeId))) {
+    throw new Error('Feishu health transport facts must belong to its exact Gateway routes')
+  }
   if (input.outbound.last !== undefined && !routeIds.has(input.outbound.last.routeId)) {
     throw new Error('Feishu health outbound facts must belong to one of its exact routes')
   }

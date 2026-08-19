@@ -65,7 +65,8 @@ Telegram polling, protocol mapping, platform sending, and one-shot Approval UI. 
 the route or read the token.
 
 Telegram long polling is owned by the Cordis fiber; Gateway owns the serialized outbound registration
-and retry timers. Disable/unload aborts both. Ambiguous sends become `uncertain` and are not retried
+and retry timers. The Adapter reports only redacted `connecting/ready/degraded/stopping` observations
+for its exact route into Gateway health; protocol errors and reconnect policy stay here. Disable/unload aborts both. Ambiguous sends become `uncertain` and are not retried
 automatically; already delivered external messages cannot be retracted.
 
 ```sh

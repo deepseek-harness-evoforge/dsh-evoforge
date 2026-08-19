@@ -1,6 +1,6 @@
 # EvoForge v0.1 路线图
 
-> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已直接替换错误命名的 `dsh-channel-router`，并统一 Telegram/飞书普通文本 outbound 后通过渠道回归；旧能力获取/运行时研究 Candidate 的活动源码、依赖、持久化变体和 Web 投影已删除。缺失 Skill 的内部 Candidate 已能以内容寻址 bundle 进入 inactive Generation，并由真实 DSH Session验证 future-only、root rollback、exact absent-parent Retention 与 sealed canary；完整内部经验归因、治理包自主形成、Candidate 的真实 provider 独立评估、Gateway transport/Web 聚合、exact 飞书消息与最终 Hermes paired 验收仍未完成，v0.1 尚未发布或部署。
+> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已直接替换错误命名的 `dsh-channel-router`，并统一 Telegram/飞书普通文本 outbound 与脱敏 transport observation 后通过渠道回归；旧能力获取/运行时研究 Candidate 的活动源码、依赖、持久化变体和 Web 投影已删除。缺失 Skill 的内部 Candidate 已能以内容寻址 bundle 进入 inactive Generation，并由真实 DSH Session验证 future-only、root rollback、exact absent-parent Retention 与 sealed canary；完整内部经验归因、治理包自主形成、Candidate 的真实 provider 独立评估、Gateway 统一 Web、exact 飞书消息与最终 Hermes paired 验收仍未完成，v0.1 尚未发布或部署。
 > 更新日期：2026-08-19
 
 ## 开发与发布纪律
@@ -37,7 +37,7 @@
 - Gateway 统一有界持久化 ingress 与普通文本 outbound delivery；Adapter 只保留平台协议、实际发送与平台特有 UI；
 - Telegram 成为第一个 Adapter；路由核心不复制 DSH Session、Goal、Schedule 或权限。
 
-退出门：两个 Workspace 的输入、输出、Commands、Approval、Goal 和文件权限在重启前后无串线。**现有 ingress/route 内核已由 Telegram + 飞书同一真实 Host assembled gate 完成；公共 outbound intent/journal、幂等、按 account 串行、明确 rate-limit 有界重试、turn/end 门、uncertain 恢复和脱敏健康已进入 Gateway，两个 Adapter 的重复 Delivery Store/worker 已删除。Gateway 包替换也已通过十一包 clean-profile 回归；transport 健康聚合和统一 Web 展示仍属于后续门禁。**
+退出门：两个 Workspace 的输入、输出、Commands、Approval、Goal 和文件权限在重启前后无串线。**现有 ingress/route 内核已由 Telegram + 飞书同一真实 Host assembled gate 完成；公共 outbound intent/journal、幂等、按 account 串行、明确 rate-limit 有界重试、turn/end 门、uncertain 恢复和脱敏健康已进入 Gateway，两个 Adapter 的重复 Delivery Store/worker 已删除。Gateway 已校验并聚合 Telegram long-poll 与飞书 WebSocket 的 exact-route transport observation，覆盖 degraded→ready 恢复；统一 Gateway Web 展示仍属于后续门禁。**
 
 ## V2 — 飞书 Adapter
 

@@ -100,7 +100,10 @@ describe('Feishu pairing action', () => {
     const snapshot = summarizeFeishuHealth({
       now: 900,
       accountId: 'cli_test_app',
-      transport: { state: 'ready', connectedAt: 100, lastActivityAt: 800 },
+      transport: {
+        adapter: 'feishu', kind: 'official-feishu-websocket', routeIds: ['feishu-main'],
+        state: 'ready', observedAt: 850, connectedAt: 100, lastActivityAt: 800,
+      },
       routes: [{ id: 'feishu-main', workspaceId: 'workspace-a', sessionId, threadScoped: false }],
       outbound: {
         registrations: 1,

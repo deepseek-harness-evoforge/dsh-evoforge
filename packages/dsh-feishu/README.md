@@ -94,8 +94,8 @@ setup-only pairing 只输出待审查配置，重启进入 routes 模式后才�
   `NO_PROXY`/`no_proxy`；代理只绑定到该飞书连接，不修改环境变量或全局 Agent；
 - 发送意图先落盘；明确 429 才有界重试；传输失败或崩溃中的 `sending` 转为 `uncertain`，不自动重复发送；
 - 单 route Session 的 Goal/Schedule continuation 可主动投递；多 route Session 的主动目标不明确时 fail closed；host notice 必须显式指定 `routeId`；
-- `/feishu` 是原生 DSH Command；它从当前 Session 的 Adapter transport lifecycle 与 Gateway 权威
-  outbound 投影生成带版本、脱敏的健康快照。DSH Web 打开面板或人工点击刷新时复用这个 Command，
+- `/feishu` 是原生 DSH Command；Adapter 把 transport lifecycle 的脱敏 observation 注册到 Gateway，它再与
+  当前 Session 的权威 outbound 投影共同生成带版本的健康快照。DSH Web 打开面板或人工点击刷新时复用这个 Command，
   不后台轮询，不调用模型，也不显示凭据、chat/user identity、外部 message id 或消息正文；
 - 若同一部署暂时并存 setup-only 与 routes 实例，已绑定 Session 的 `/feishu` 健康入口优先于全局 `/feishu-pair`；读取失败会清除旧快照，避免历史 `ready` 冒充当前状态；
 - 健康视图区分 `ready`、`busy`、`attention`、`degraded` 与 `stopping`，展示 exact route 名称、官方 WebSocket lifecycle、投递/重试/uncertain/failed 与 pending Approval 计数；普通模型请求仍新增 0 Tool、0 Skill、0 Prompt section；

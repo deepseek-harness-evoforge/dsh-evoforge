@@ -24,6 +24,12 @@ import {
   type GatewayTextAdapterRegistration,
 } from './outbound.js'
 import type { GatewayOutboundJournal } from './outbound-journal.js'
+import {
+  GatewayTransportRegistry,
+  type GatewayTransportConfig,
+  type GatewayTransportHealth,
+  type GatewayTransportRegistration,
+} from './transport-health.js'
 
 export interface GatewayDispatchInput {
   readonly endpoint: GatewayEndpoint
@@ -69,6 +75,7 @@ export interface GatewayHealthSnapshot {
     readonly settled: number
     readonly uncertain: number
   }
+  readonly transports: GatewayTransportHealth
   readonly outbound: GatewayOutboundHealth
 }
 
@@ -93,6 +100,7 @@ export class DshGateway {
   private sessionEventsBound = false
   private stopping?: Promise<void>
   private readonly outbound: GatewayOutboundCoordinator
+  private readonly transports: GatewayTransportRegistry
 
   constructor(
     private readonly ctx: Context,
@@ -105,6 +113,7 @@ export class DshGateway {
       outboundJournal,
       (route, turn, signal) => this.nativeTurnEnded(route, turn, signal),
     )
+    this.transports = new GatewayTransportRegistry(configured)
   }
 
   /** Validate the complete static binding table before any adapter accepts traffic. */
@@ -151,6 +160,11 @@ export class DshGateway {
     return this.outbound.register(config)
   }
 
+  registerTransport(config: GatewayTransportConfig): GatewayTransportRegistration {
+    this.assertRunning()
+    return this.transports.register(config)
+  }
+
   /**
    * Redacted point-in-time projection of facts owned by this Gateway. External
    * account, conversation and user identities never cross this seam.
@@ -186,6 +200,7 @@ export class DshGateway {
       lifecycle: this.stopping !== undefined ? 'stopping' : this.started ? 'ready' : 'starting',
       routes: { total: items.length, liveSessions: liveSessions.size, items },
       ingress,
+      transports: this.transports.health(selectedIds),
       outbound: this.outbound.health(selectedIds),
     })
   }
@@ -241,6 +256,7 @@ export class DshGateway {
     this.stopping ??= (async () => {
       await Promise.allSettled(this.ingressTails.values())
       await this.outbound.stop()
+      this.transports.stop()
       const handles = [...this.ownedHandles.values()]
       this.ownedHandles.clear()
       await Promise.allSettled(handles.map(handle => handle.dispose()))

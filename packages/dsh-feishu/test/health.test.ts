@@ -11,7 +11,11 @@ describe('Feishu authoritative health snapshot', () => {
       now: 900,
       accountId: 'cli_test_app',
       transport: {
+        adapter: 'feishu',
+        kind: 'official-feishu-websocket',
+        routeIds: ['feishu-main'],
         state: 'ready',
+        observedAt: 850,
         connectedAt: 100,
         lastActivityAt: 800,
         lastErrorAt: 700,
@@ -73,7 +77,7 @@ describe('Feishu authoritative health snapshot', () => {
     const connecting = summarizeFeishuHealth({
       now: 99,
       accountId: 'cli_test_app',
-      transport: { state: 'connecting' },
+      transport: gatewayTransport('connecting', ['main'], 98),
       routes: [{ id: 'main', workspaceId: 'workspace-a', sessionId: 'session-a', threadScoped: true }],
       outbound: outbound(),
       pendingApprovals: 0,
@@ -83,7 +87,7 @@ describe('Feishu authoritative health snapshot', () => {
     const attention = summarizeFeishuHealth({
       now: 1_000,
       accountId: 'cli_test_app',
-      transport: { state: 'ready', connectedAt: 100 },
+      transport: { ...gatewayTransport('ready', ['main'], 998), connectedAt: 100 },
       routes: [{ id: 'main', workspaceId: 'workspace-a', sessionId: 'session-a', threadScoped: true }],
       outbound: outbound({
         total: 1,
@@ -97,7 +101,7 @@ describe('Feishu authoritative health snapshot', () => {
     const degraded = summarizeFeishuHealth({
       now: 1_001,
       accountId: 'cli_test_app',
-      transport: { state: 'degraded', connectedAt: 100, lastErrorAt: 1_000 },
+      transport: { ...gatewayTransport('degraded', ['main'], 1_000), connectedAt: 100, lastErrorAt: 1_000 },
       routes: [{ id: 'main', workspaceId: 'workspace-a', sessionId: 'session-a', threadScoped: true }],
       outbound: outbound(),
       pendingApprovals: 0,
@@ -108,7 +112,7 @@ describe('Feishu authoritative health snapshot', () => {
     expect(() => summarizeFeishuHealth({
       now: 1_002,
       accountId: 'cli_test_app',
-      transport: { state: 'ready' },
+      transport: gatewayTransport('ready', ['one', 'two'], 1_001),
       routes: [
         { id: 'one', workspaceId: 'workspace-a', sessionId: 'session-a', threadScoped: false },
         { id: 'two', workspaceId: 'workspace-b', sessionId: 'session-a', threadScoped: false },
@@ -131,5 +135,15 @@ function outbound(overrides: Record<string, unknown> = {}) {
     uncertain: 0,
     failed: 0,
     ...overrides,
+  }
+}
+
+function gatewayTransport(state: 'connecting' | 'ready' | 'degraded' | 'stopping', routeIds: string[], observedAt: number) {
+  return {
+    adapter: 'feishu',
+    kind: 'official-feishu-websocket',
+    routeIds,
+    state,
+    observedAt,
   }
 }

@@ -11,6 +11,8 @@ import {
   type GatewayOutboundSendResult,
   type GatewayTextAdapterRegistration,
   type GatewayTextDeliveryIntent,
+  type GatewayTransportRegistration,
+  type GatewayTransportState,
 } from 'dsh-gateway'
 import {
   selectApprovalCallback,
@@ -42,6 +44,11 @@ export class TelegramRuntime {
   private readonly bound = new WeakSet<Agent>()
   private pollTask?: Promise<void>
   private outbound?: GatewayTextAdapterRegistration
+  private transport: GatewayTransportRegistration | undefined
+  private transportState: GatewayTransportState = 'connecting'
+  private connectedAt?: number
+  private lastActivityAt?: number
+  private lastErrorAt?: number
   private agent: Agent | undefined
 
   constructor(
@@ -53,6 +60,13 @@ export class TelegramRuntime {
 
   async start(): Promise<void> {
     const agent = await this.gateway.resolve(this.config.routeId, this.lifecycle.signal)
+    this.transport = this.gateway.registerTransport({
+      adapter: 'telegram',
+      accountId: this.config.endpoint.accountId,
+      kind: 'telegram-long-poll',
+      routeIds: [this.config.routeId],
+      initial: { state: 'connecting', observedAt: Date.now() },
+    })
     this.outbound = this.gateway.registerTextAdapter({
       adapter: 'telegram',
       accountId: this.config.endpoint.accountId,
@@ -122,6 +136,8 @@ export class TelegramRuntime {
   }
 
   async dispose(): Promise<void> {
+    this.transportState = 'stopping'
+    this.reportTransport(Date.now())
     this.lifecycle.abort(new Error('dsh-telegram disposed'))
     for (const [nonce, pending] of this.pendingApprovals) {
       this.pendingApprovals.delete(nonce)
@@ -129,6 +145,8 @@ export class TelegramRuntime {
       pending.resolve('cancelled')
     }
     await Promise.allSettled([this.pollTask, this.outbound?.dispose()])
+    this.transport?.dispose()
+    this.transport = undefined
   }
 
   async notifyHost(notice: TelegramHostNotice): Promise<TelegramHostNoticeReceipt> {
@@ -157,11 +175,14 @@ export class TelegramRuntime {
         recordInput: false,
         handler: ({ rawInput }) => {
           if (rawInput.trim() !== '') return { kind: 'error', text: 'Usage: /telegram' }
-          const counts = this.gateway.healthSnapshot(Date.now(), [this.config.routeId]).outbound
+          const health = this.gateway.healthSnapshot(Date.now(), [this.config.routeId])
+          const counts = health.outbound
+          const transport = health.transports.items[0]
           return {
             kind: 'success',
             text: [
-              `Telegram route: READY (Gateway ${this.config.routeId}, session ${this.config.sessionId}, one private chat).`,
+              `Telegram route: ${(transport?.state ?? 'unavailable').toUpperCase()} (Gateway ${this.config.routeId}, session ${this.config.sessionId}, one private chat).`,
+              `Transport: ${transport?.kind ?? 'unavailable'}; lifecycle ${transport?.state ?? 'unavailable'}.`,
               `Retained delivery: ${counts.delivered} delivered; ${counts.prepared + counts.sending + counts.retrying} pending; ${counts.uncertain} uncertain; ${counts.failed} failed.`,
               'Model surface: 0 tools, 0 prompt sections, 0 skills.',
             ].join('\n'),
@@ -185,6 +206,7 @@ export class TelegramRuntime {
       }
       try {
         const updates = await this.api.getUpdates(offset, this.config.pollTimeoutSeconds, this.lifecycle.signal)
+        this.observeTransportActivity(updates.length > 0)
         for (const update of updates) {
           await this.handleUpdate(update)
           if (Number.isSafeInteger(update.update_id) && update.update_id >= offset) {
@@ -194,6 +216,9 @@ export class TelegramRuntime {
         if (updates.length === 0) await delay(EMPTY_POLL_DELAY_MS, this.lifecycle.signal)
       } catch {
         if (this.lifecycle.signal.aborted) return
+        this.transportState = 'degraded'
+        this.lastErrorAt = Date.now()
+        this.reportTransport(this.lastErrorAt)
         this.ctx.logger.warn('dsh-telegram: long poll failed; retrying after a bounded delay')
         await delay(POLL_FAILURE_DELAY_MS, this.lifecycle.signal)
       }
@@ -278,11 +303,19 @@ export class TelegramRuntime {
     if (input.replyToExternalId !== undefined && replyToMessageId === undefined) {
       return { kind: 'rejected', code: 'invalid_reply_identity' }
     }
-    const result = await this.api.sendText({
-      chatId: this.config.chatId,
-      text: input.text,
-      ...(replyToMessageId === undefined ? {} : { replyToMessageId }),
-    }, signal)
+    let result: Awaited<ReturnType<TelegramApi['sendText']>>
+    try {
+      result = await this.api.sendText({
+        chatId: this.config.chatId,
+        text: input.text,
+        ...(replyToMessageId === undefined ? {} : { replyToMessageId }),
+      }, signal)
+      if (result.ok || result.failure.kind === 'telegram-rejected') this.observeTransportActivity(true)
+      else this.observeTransportFailure()
+    } catch (error) {
+      if (!signal.aborted) this.observeTransportFailure()
+      throw error
+    }
     if (result.ok) return { kind: 'delivered', externalMessageId: String(result.messageId) }
     if (result.failure.kind !== 'telegram-rejected') return { kind: 'uncertain' }
     const retryAfterSeconds = result.failure.retryAfterSeconds
@@ -300,6 +333,30 @@ export class TelegramRuntime {
   private requireOutbound(): GatewayTextAdapterRegistration {
     if (this.outbound === undefined) throw new Error('dsh-telegram: Gateway outbound is unavailable')
     return this.outbound
+  }
+
+  private observeTransportActivity(activity: boolean): void {
+    const observedAt = Date.now()
+    this.connectedAt ??= observedAt
+    if (activity) this.lastActivityAt = observedAt
+    this.transportState = 'ready'
+    this.reportTransport(observedAt)
+  }
+
+  private reportTransport(observedAt: number): void {
+    this.transport?.report({
+      state: this.transportState,
+      observedAt,
+      ...(this.connectedAt === undefined ? {} : { connectedAt: this.connectedAt }),
+      ...(this.lastActivityAt === undefined ? {} : { lastActivityAt: this.lastActivityAt }),
+      ...(this.lastErrorAt === undefined ? {} : { lastErrorAt: this.lastErrorAt }),
+    })
+  }
+
+  private observeTransportFailure(): void {
+    this.transportState = 'degraded'
+    this.lastErrorAt = Date.now()
+    this.reportTransport(this.lastErrorAt)
   }
 
   private async requestApproval(

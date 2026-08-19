@@ -105,6 +105,15 @@ export {
   type GatewayOutboundStatus,
 } from './outbound-journal.js'
 export {
+  GatewayTransportRegistry,
+  type GatewayTransportConfig,
+  type GatewayTransportHealth,
+  type GatewayTransportHealthItem,
+  type GatewayTransportObservation,
+  type GatewayTransportRegistration,
+  type GatewayTransportState,
+} from './transport-health.js'
+export {
   GatewayIngressUncertainError,
   DshGateway,
   type GatewayDispatchInput,

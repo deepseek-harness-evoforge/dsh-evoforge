@@ -54,12 +54,14 @@ Bundle row 默认为 `disabled: true`。部署者在同一个 DSH profile 中配
   message id 留在 Gateway Storage Domain，健康投影不暴露这些内容；
 - `healthSnapshot()` 从 Gateway 自有 route、原生 Agent 注册表和 ingress journal 生成脱敏权威快照，支持
   exact route 子集、生命周期、live Session、ingress 状态，以及 outbound 注册、排队、投递状态和最近意图元数据；
+- Adapter 通过独立 `registerTransport()` 上报 exact route 所属的 transport kind、`connecting/ready/degraded/stopping`
+  和有界时间事实；Gateway 校验 account/route 所有权、拒绝重复注册与时间倒退，并按 route 子集聚合；
 - Cordis dispose 等待在途入站、释放 Gateway 创建的 Agent handle，并关闭自己的日志。
 
 Telegram 和飞书已经迁入同一个 outbound 接缝，并删除了各自重复的 Delivery Store/worker。网络鉴权、
 SDK/WebSocket/polling、平台事件解析、实际平台发送、卡片和 Approval UI 仍属于 Adapter。Gateway 当前提供
 共同的持久意图、幂等、按 account 串行和明确限流响应策略，不声称全局 token bucket、平台配额推断或
-exactly-once。平台 transport 健康聚合和统一 DSH Web 展示仍未完成。Gateway 快照不包含
+exactly-once。Telegram long-poll 与飞书 WebSocket 的 transport 聚合已完成；统一 DSH Web 展示仍未完成。Gateway 快照不包含
 account/chat/user、消息正文、外部 message id、错误正文或凭据，也不调用模型或平台。
 
 ## 卸载

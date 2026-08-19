@@ -34,7 +34,12 @@ export function apply(ctx: Context): void {
       submit: async () => ({ id: 'b'.repeat(64), created: true, status: 'prepared' }),
       dispose: async () => {},
     }),
+    registerTransport: () => ({ report() {}, dispose() {} }),
     healthSnapshot: () => ({
+      transports: {
+        registrations: 1, connecting: 0, ready: 1, degraded: 0, stopping: 0,
+        items: [{ adapter: 'telegram', kind: 'telegram-long-poll', state: 'ready', routeIds: [route.id], observedAt: 1 }],
+      },
       outbound: {
         registrations: 1, scheduled: 0, total: 0, prepared: 0, sending: 0, retrying: 0,
         delivered: 0, uncertain: 0, failed: 0,

@@ -322,14 +322,15 @@ workspace，输出可审查的 launchd/systemd unit。OS service manager 与 uni
 并只复用当前 Session 的 `/feishu-pair` 生成待审查静态 route，消除手工查 ID 和拼命令的负担。
 exact route 消息和 Hermes paired 证据完成以前仍只标记为 `implemented`；公共渠道可靠性中的 ingress、
 普通文本 outbound intent/journal、幂等、按 account 串行、明确限流重试和脱敏状态已经收敛到
-`dsh-gateway`，平台协议、凭据、实际发送、卡片和 transport health 留在 Adapter，也不把
+`dsh-gateway`。平台协议、凭据、实际发送、卡片和 transport lifecycle 留在 Adapter；Adapter 只把
+exact route 所属的脱敏 transport observation 注册到 Gateway 权威健康投影，也不把
 其他消息、内容或日程需求视为已交付。该说明不改变以上需求顺序和权限边界。
 
 Gateway 权威 `healthSnapshot()` 只能从静态 route、原生 Agent 注册表、Gateway ingress/outbound journal
-和 Adapter registrations 读取，按 exact route 子集返回生命周期、live Session、ingress 与 outbound 状态；
+和 Adapter registrations 读取，按 exact route 子集返回生命周期、live Session、ingress、transport 与 outbound 状态；
 不得输出 account/chat/user、正文、external message id、错误正文或凭据，不得调用模型或平台。公共
-outbound 已由 Telegram/飞书共同验证并迁入；Adapter transport 健康聚合和统一 Web 展示仍是独立门禁，
-不能因存在 Gateway 自身快照而标记完成。
+outbound 和 Adapter transport observation 已由 Telegram/飞书共同验证并迁入；统一 Gateway Web 展示仍是独立门禁，
+不能因存在 Gateway 自身快照而标记完成。平台 SDK、重连策略和错误正文不得进入 Gateway。
 
 内部经验自我发现的现行纵切只使用 DSH 内部经验。已有能力继续由模型依据原生完整 Session Skill catalog
 自主路由并由原生 `skill` Tool 加载；没有适用 Skill 时，模型可在同一自然语言 Goal 中调用唯一稳定的

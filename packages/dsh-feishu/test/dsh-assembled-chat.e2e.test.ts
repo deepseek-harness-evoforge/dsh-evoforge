@@ -159,6 +159,9 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
       } | undefined
       const gateway = ctx.get('evoforge.gateway') as {
         route(id: string): { workspaceId: string } | undefined
+        healthSnapshot(now?: number, routeIds?: readonly string[]): {
+          transports: { registrations: number; ready: number; degraded: number; items: readonly { adapter: string; kind: string; state: string }[] }
+        }
       }
       expect(hostRoute?.routes).toEqual([{
         routeId: 'feishu-main',
@@ -197,8 +200,19 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
 
       service.platform.emitError(new Error('simulated socket interruption'))
       expect(service.runtime.healthSnapshot()).toMatchObject({ status: 'degraded', modelCalls: 0 })
+      expect(gateway.healthSnapshot(Date.now(), ['feishu-main']).transports).toMatchObject({
+        registrations: 1,
+        ready: 0,
+        degraded: 1,
+        items: [{ adapter: 'feishu', kind: 'official-feishu-websocket', state: 'degraded' }],
+      })
       await service.platform.emitMessage(inbound)
       expect(service.runtime.healthSnapshot()).toMatchObject({ status: 'ready', modelCalls: 0 })
+      expect(gateway.healthSnapshot(Date.now(), ['feishu-main']).transports).toMatchObject({
+        registrations: 1,
+        ready: 1,
+        degraded: 0,
+      })
 
       await service.platform.emitMessage(message({
         messageId: 'om_command',

@@ -45,6 +45,9 @@ describe('DshGateway', () => {
         ],
       },
       ingress: { total: 0, prepared: 0, executing: 0, settled: 0, uncertain: 0 },
+      transports: {
+        registrations: 0, connecting: 0, ready: 0, degraded: 0, stopping: 0, items: [],
+      },
       outbound: {
         registrations: 0, scheduled: 0, total: 0, prepared: 0, sending: 0, retrying: 0,
         delivered: 0, uncertain: 0, failed: 0,
@@ -74,6 +77,83 @@ describe('DshGateway', () => {
     const stopping = gateway.stop()
     expect(gateway.healthSnapshot(130).lifecycle).toBe('stopping')
     await stopping
+  })
+
+  it('aggregates redacted Adapter transport facts and filters them by exact routes', async () => {
+    const host = fakeNativeHost()
+    const facility = memoryFacility()
+    const gateway = new DshGateway(
+      host.ctx,
+      routes,
+      await openGatewayIngressJournal(facility),
+      await openGatewayOutboundJournal(facility),
+    )
+    await gateway.start()
+
+    const telegram = gateway.registerTransport({
+      adapter: 'telegram',
+      accountId: 'bot-a',
+      kind: 'telegram-long-poll',
+      routeIds: ['telegram-a'],
+      initial: { state: 'connecting', observedAt: 70 },
+    })
+    const feishu = gateway.registerTransport({
+      adapter: 'feishu',
+      accountId: 'app-b',
+      kind: 'official-feishu-websocket',
+      routeIds: ['feishu-b'],
+      initial: { state: 'connecting', observedAt: 70 },
+    })
+    telegram.report({ state: 'ready', observedAt: 100, connectedAt: 90, lastActivityAt: 99 })
+    feishu.report({ state: 'degraded', observedAt: 110, connectedAt: 80, lastErrorAt: 109 })
+
+    expect(gateway.healthSnapshot(120).transports).toEqual({
+      registrations: 2,
+      connecting: 0,
+      ready: 1,
+      degraded: 1,
+      stopping: 0,
+      items: [
+        {
+          adapter: 'feishu', kind: 'official-feishu-websocket', state: 'degraded',
+          routeIds: ['feishu-b'], observedAt: 110, connectedAt: 80, lastErrorAt: 109,
+        },
+        {
+          adapter: 'telegram', kind: 'telegram-long-poll', state: 'ready',
+          routeIds: ['telegram-a'], observedAt: 100, connectedAt: 90, lastActivityAt: 99,
+        },
+      ],
+    })
+    expect(gateway.healthSnapshot(121, ['telegram-a']).transports).toEqual({
+      registrations: 1,
+      connecting: 0,
+      ready: 1,
+      degraded: 0,
+      stopping: 0,
+      items: [{
+        adapter: 'telegram', kind: 'telegram-long-poll', state: 'ready',
+        routeIds: ['telegram-a'], observedAt: 100, connectedAt: 90, lastActivityAt: 99,
+      }],
+    })
+    expect(JSON.stringify(gateway.healthSnapshot(121))).not.toContain('bot-a')
+    expect(JSON.stringify(gateway.healthSnapshot(121))).not.toContain('app-b')
+    expect(() => gateway.registerTransport({
+      adapter: 'telegram', accountId: 'bot-a', kind: 'telegram-long-poll', routeIds: ['telegram-a'],
+      initial: { state: 'connecting', observedAt: 121 },
+    })).toThrow(/already registered/u)
+    expect(() => telegram.report({ state: 'ready', observedAt: 98, lastActivityAt: 99 }))
+      .toThrow(/after observation time/u)
+    expect(() => gateway.registerTransport({
+      adapter: 'telegram', accountId: 'wrong', kind: 'telegram-long-poll', routeIds: ['telegram-a'],
+      initial: { state: 'connecting', observedAt: 70 },
+    })).toThrow(/does not own route/u)
+
+    feishu.report({ state: 'stopping', observedAt: 130 })
+    expect(gateway.healthSnapshot(131, ['feishu-b']).transports.stopping).toBe(1)
+    feishu.dispose()
+    expect(gateway.healthSnapshot(132, ['feishu-b']).transports.registrations).toBe(0)
+    telegram.dispose()
+    await gateway.stop()
   })
 
   it('surfaces recovered ingress uncertainty without replaying the effect', async () => {

@@ -38,6 +38,8 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Telegram chat', ()
     let servedCallback = false
     let commandRequested = false
     let servedCommand = false
+    let failNextPoll = false
+    let failedPoll = false
     const server = createServer((request, response) => {
       const chunks: Buffer[] = []
       request.on('data', chunk => { chunks.push(chunk) })
@@ -45,6 +47,11 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Telegram chat', ()
         const body = chunks.length === 0 ? {} : JSON.parse(Buffer.concat(chunks).toString('utf8'))
         response.setHeader('content-type', 'application/json')
         if (request.url?.endsWith('/getUpdates')) {
+          if (failNextPoll && !failedPoll) {
+            failedPoll = true
+            response.end(JSON.stringify({ ok: false, error_code: 503 }))
+            return
+          }
           const result = !servedUpdate
             ? [{
                 update_id: 77,
@@ -216,6 +223,12 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Telegram chat', ()
     const previousCwd = process.cwd()
     process.chdir(root)
     const ctx = await boot('dsh-telegram-assembled-test', config)
+    const gateway = ctx.get('evoforge.gateway') as {
+      route(id: string): { workspaceId: string } | undefined
+      healthSnapshot(now?: number, routeIds?: readonly string[]): {
+        transports: { registrations: number; ready: number; degraded: number; items: readonly { adapter: string; kind: string; state: string }[] }
+      }
+    }
     try {
       try {
         await vi.waitFor(() => {
@@ -255,6 +268,15 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Telegram chat', ()
       const events = agent?.session.events as readonly SessionEvent[] | undefined
       expect(events?.some(event => event.type === 'user/message'
         && String(event.data.id).startsWith('channel:'))).toBe(true)
+
+      failNextPoll = true
+      await vi.waitFor(() => {
+        expect(failedPoll).toBe(true)
+        expect(gateway.healthSnapshot(Date.now(), ['telegram-main']).transports.degraded).toBe(1)
+      }, { timeout: 5_000, interval: 25 })
+      await vi.waitFor(() => {
+        expect(gateway.healthSnapshot(Date.now(), ['telegram-main']).transports.ready).toBe(1)
+      }, { timeout: 5_000, interval: 25 })
 
       // Goal and Schedule continuations use the same native Agent followup seam. Prove that a
       // completed turn which did not originate in Telegram is also routed, without reply metadata.
@@ -306,10 +328,13 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Telegram chat', ()
         notify(input: { id: string; text: string }): Promise<{ created: boolean; status: string }>
       } | undefined
       if (route === undefined) throw new Error('Telegram host route service did not load')
-      const gateway = ctx.get('evoforge.gateway') as {
-        route(id: string): { workspaceId: string } | undefined
-      }
       expect(route.workspaceId).toBe(gateway.route('telegram-main')?.workspaceId)
+      expect(gateway.healthSnapshot(Date.now(), ['telegram-main']).transports).toMatchObject({
+        registrations: 1,
+        ready: 1,
+        degraded: 0,
+        items: [{ adapter: 'telegram', kind: 'telegram-long-poll', state: 'ready' }],
+      })
       const notice = {
         id: 'f'.repeat(64),
         text: `EvoForge attention\nInspect: /evolve review ${'a'.repeat(64)}`,

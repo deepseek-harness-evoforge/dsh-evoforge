@@ -11,6 +11,7 @@ import {
   type GatewayOutboundSendResult,
   type GatewayTextAdapterRegistration,
   type GatewayTextDeliveryIntent,
+  type GatewayTransportRegistration,
 } from 'dsh-gateway'
 import type { ResolvedFeishuConfig, ResolvedFeishuRoute } from './config.js'
 import type { FeishuHostNotice, FeishuHostNoticeReceipt } from './host-route.js'
@@ -59,6 +60,7 @@ export class FeishuRuntime {
   private readonly pendingApprovals = new Map<string, PendingApproval>()
   private readonly unsubscribers: Array<() => void> = []
   private outbound?: GatewayTextAdapterRegistration
+  private transport: GatewayTransportRegistration | undefined
   private started = false
   private transportState: FeishuTransportState = 'connecting'
   private connectedAt?: number
@@ -85,6 +87,14 @@ export class FeishuRuntime {
   async start(): Promise<void> {
     if (this.started) return
     this.started = true
+    const startingAt = Date.now()
+    this.transport = this.gateway.registerTransport({
+      adapter: 'feishu',
+      accountId: this.config.appId,
+      kind: 'official-feishu-websocket',
+      routeIds: this.config.routes.map(route => route.id),
+      initial: { state: 'connecting', observedAt: startingAt },
+    })
     for (const route of this.config.routes) this.bind(await this.gateway.resolve(route.id, this.lifecycle.signal))
     this.outbound = this.gateway.registerTextAdapter({
       adapter: 'feishu',
@@ -174,6 +184,7 @@ export class FeishuRuntime {
       this.platform.onError(error => {
         this.transportState = 'degraded'
         this.lastPlatformErrorAt = Date.now()
+        this.reportTransport(this.lastPlatformErrorAt)
         if (!this.lifecycle.signal.aborted) this.ctx.logger.warn(`dsh-feishu: platform error: ${safeMessage(error)}`)
       }),
     )
@@ -181,6 +192,7 @@ export class FeishuRuntime {
       await this.platform.connect()
       this.connectedAt = Date.now()
       this.transportState = 'ready'
+      this.reportTransport(this.connectedAt)
     } catch (error) {
       await this.dispose()
       throw error
@@ -189,6 +201,7 @@ export class FeishuRuntime {
 
   async dispose(): Promise<void> {
     this.transportState = 'stopping'
+    this.reportTransport(Date.now())
     if (!this.lifecycle.signal.aborted) this.lifecycle.abort(new Error('dsh-feishu disposed'))
     while (this.unsubscribers.length > 0) this.unsubscribers.pop()?.()
     for (const [nonce, pending] of this.pendingApprovals) {
@@ -198,6 +211,8 @@ export class FeishuRuntime {
     }
     await this.outbound?.dispose()
     await this.platform.disconnect()
+    this.transport?.dispose()
+    this.transport = undefined
   }
 
   async notifyHost(notice: FeishuHostNotice): Promise<FeishuHostNoticeReceipt> {
@@ -219,22 +234,22 @@ export class FeishuRuntime {
   /** Redacted projection of the exact Host state; it performs no model or platform call. */
   healthSnapshot(routes: readonly ResolvedFeishuRoute[] = this.config.routes): FeishuHealthSnapshot {
     const routeIds = new Set(routes.map(route => route.id))
+    const observedAt = Date.now()
+    const gateway = this.gateway.healthSnapshot(observedAt, [...routeIds])
+    if (gateway.transports.items.length !== 1) {
+      throw new Error('dsh-feishu: exact Gateway transport health is unavailable')
+    }
     return summarizeFeishuHealth({
-      now: Date.now(),
+      now: observedAt,
       accountId: this.config.appId,
-      transport: {
-        state: this.transportState,
-        ...(this.connectedAt === undefined ? {} : { connectedAt: this.connectedAt }),
-        ...(this.lastActivityAt === undefined ? {} : { lastActivityAt: this.lastActivityAt }),
-        ...(this.lastPlatformErrorAt === undefined ? {} : { lastErrorAt: this.lastPlatformErrorAt }),
-      },
+      transport: gateway.transports.items[0]!,
       routes: routes.map(route => ({
         id: route.id,
         workspaceId: route.workspaceId,
         sessionId: route.sessionId,
         threadScoped: route.endpoint.threadId !== undefined,
       })),
-      outbound: this.gateway.healthSnapshot(Date.now(), [...routeIds]).outbound,
+      outbound: gateway.outbound,
       pendingApprovals: [...this.pendingApprovals.values()]
         .filter(pending => routeIds.has(pending.destination.route.id)).length,
     })
@@ -359,7 +374,13 @@ export class FeishuRuntime {
       this.observeTransportActivity()
       return { kind: 'delivered', externalMessageId: sent.messageId }
     } catch (error: unknown) {
-      return classifyPlatformFailure(error)
+      const result = classifyPlatformFailure(error)
+      if (result.kind === 'uncertain') {
+        this.transportState = 'degraded'
+        this.lastPlatformErrorAt = Date.now()
+        this.reportTransport(this.lastPlatformErrorAt)
+      }
+      return result
     }
   }
 
@@ -418,6 +439,17 @@ export class FeishuRuntime {
   private observeTransportActivity(): void {
     this.lastActivityAt = Date.now()
     if (!this.lifecycle.signal.aborted) this.transportState = 'ready'
+    this.reportTransport(this.lastActivityAt)
+  }
+
+  private reportTransport(observedAt: number): void {
+    this.transport?.report({
+      state: this.transportState,
+      observedAt,
+      ...(this.connectedAt === undefined ? {} : { connectedAt: this.connectedAt }),
+      ...(this.lastActivityAt === undefined ? {} : { lastActivityAt: this.lastActivityAt }),
+      ...(this.lastPlatformErrorAt === undefined ? {} : { lastErrorAt: this.lastPlatformErrorAt }),
+    })
   }
 }
 
