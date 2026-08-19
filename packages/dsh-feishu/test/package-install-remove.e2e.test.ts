@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 const execFile = promisify(execFileCallback)
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const routerRoot = resolve(packageRoot, '../dsh-channel-router')
+const gatewayRoot = resolve(packageRoot, '../dsh-gateway')
 const suiteRoot = resolve(packageRoot, '../..')
 const dshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR ?? resolve(suiteRoot, '../deepseek-harness')
 const dshBin = join(dshSourceDir, 'apps', 'cli', 'lib', 'bin.js')
@@ -41,7 +41,7 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-feishu package boundar
     )
 
     await execFile('pnpm', ['pack', '--pack-destination', root], {
-      cwd: routerRoot, encoding: 'utf8', timeout: 30_000,
+      cwd: gatewayRoot, encoding: 'utf8', timeout: 30_000,
     })
     await execFile('pnpm', ['pack', '--pack-destination', root], {
       cwd: packageRoot, encoding: 'utf8', timeout: 30_000,
@@ -61,15 +61,15 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-feishu package boundar
     }
     await runDsh([
       'plugin', '--profile', 'fixture', 'add',
-      join(root, 'dsh-channel-router-0.1.0-alpha.1.tgz'),
+      join(root, 'dsh-gateway-0.1.0-alpha.1.tgz'),
       join(root, 'dsh-feishu-0.1.0-alpha.1.tgz'),
       '--prefer-offline', '--ignore-scripts',
     ], root, env)
 
     const manifest = JSON.parse(await readFile(join(profileDir, 'package.json'), 'utf8'))
-    expect(manifest.dependencies?.['dsh-channel-router']).toBeDefined()
+    expect(manifest.dependencies?.['dsh-gateway']).toBeDefined()
     expect(manifest.dependencies?.['dsh-feishu']).toBeDefined()
-    expect(manifest.dsh.profile.bundles).toEqual(['dsh-channel-router', 'dsh-feishu'])
+    expect(manifest.dsh.profile.bundles).toEqual(['dsh-feishu', 'dsh-gateway'])
     const installedFeishuRoot = join(profileDir, 'node_modules', 'dsh-feishu')
     const installedFeishuManifest = JSON.parse(await readFile(join(installedFeishuRoot, 'package.json'), 'utf8'))
     expect(installedFeishuManifest.dsh).toMatchObject({
@@ -89,17 +89,17 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-feishu package boundar
     const dumped = await execFile(process.execPath, [dshBin, '--profile', 'fixture', '--dump-config'], {
       cwd: root, env, encoding: 'utf8', timeout: 30_000,
     })
-    expect(dumped.stdout).toContain('id: evoforge-channel-router')
+    expect(dumped.stdout).toContain('id: evoforge-gateway')
     expect(dumped.stdout).toContain('id: evoforge-feishu')
     expect(dumped.stdout).toContain('name: dsh-feishu')
     expect(dumped.stdout).toContain('disabled: true')
 
     await runDsh([
-      'plugin', '--profile', 'fixture', 'remove', 'dsh-feishu', 'dsh-channel-router',
+      'plugin', '--profile', 'fixture', 'remove', 'dsh-feishu', 'dsh-gateway',
     ], root, env)
     const removed = JSON.parse(await readFile(join(profileDir, 'package.json'), 'utf8'))
     expect(removed.dependencies?.['dsh-feishu']).toBeUndefined()
-    expect(removed.dependencies?.['dsh-channel-router']).toBeUndefined()
+    expect(removed.dependencies?.['dsh-gateway']).toBeUndefined()
     expect(removed.dsh.profile.bundles).toEqual([])
     await expect(access(installedFeishuRoot)).rejects.toMatchObject({ code: 'ENOENT' })
   }, 180_000)

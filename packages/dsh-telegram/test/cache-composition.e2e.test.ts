@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const suiteRoot = resolve(packageRoot, '../..')
 const bridgeRoot = resolve(packageRoot, '../dsh-evolve-attention')
-const routerRoot = resolve(packageRoot, '../dsh-channel-router')
+const gatewayRoot = resolve(packageRoot, '../dsh-gateway')
 const dshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR ?? resolve(suiteRoot, '../deepseek-harness')
 const temporaryRoots: string[] = []
 
@@ -143,10 +143,10 @@ async function captureComposition(
       name: join(dshSourceDir, 'packages', 'workspace', 'workspace', 'lib', 'index.js'),
     },
     ...mode === 'native' ? [] : [{
-      id: 'channel-router-bootstrap',
-      name: join(packageRoot, 'test', 'fixtures', 'router-bootstrap.ts'),
+      id: 'channel-gateway-bootstrap',
+      name: join(packageRoot, 'test', 'fixtures', 'gateway-bootstrap.ts'),
       config: {
-        routerEntry: pathToFileURL(join(routerRoot, 'dist', 'index.mjs')).href,
+        gatewayEntry: pathToFileURL(join(gatewayRoot, 'dist', 'index.mjs')).href,
         workspacePath: root,
         routeId: 'telegram-main',
         accountId: 'test-bot',

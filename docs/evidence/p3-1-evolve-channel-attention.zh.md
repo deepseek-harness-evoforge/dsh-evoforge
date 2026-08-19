@@ -28,7 +28,7 @@ Workspace 的 Telegram/飞书 route；原 Session 不等待，所有审批、资
 |---|---|
 | 投影与桥接单元测试 | `dsh-evolve-attention` 4 个测试文件、18 个测试通过；覆盖状态筛选、有界文案、确定性 id、串行扫描、失败隔离、Workspace 权威校验和 Feishu 多路由 |
 | 真实 Evolution 事件 | 固定 DSH Storage/Jobs 装配下，既有 supervisor scan settle 后发出一次 host-only signal |
-| 真实 Telegram route | Channel Router 创建原生 Workspace Session/Agent，在假的 Telegram HTTP 边界下 notice 入 durable outbound journal、完成一次发送，重复 id 不再发送 |
+| 真实 Telegram route | DSH Gateway 创建原生 Workspace Session/Agent，在假的 Telegram HTTP 边界下 notice 入 durable outbound journal、完成一次发送，重复 id 不再发送 |
 | 双 Workspace 双渠道 | 同一真实 DSH Host 中，Telegram 与飞书 route 各只读取自身 Workspace overview 并各发送一次；重复 settled event 和重启均不重发，既有 Session、Command、Approval 与 continuation 隔离回归仍通过 |
 | 跨重启去重 | notice 与普通 turn 共用持久 delivery journal；终态重载后仍复用同一条记录 |
 | 发送不确定性 | `sending` 恢复为 `uncertain`，不盲目重发；只有显式 `429 + retry_after` 有界重试 |
@@ -40,7 +40,7 @@ Workspace 的 Telegram/飞书 route；原 Session 不等待，所有审批、资
 1. 测试使用本地可控 Bot API 边界，不替代真实 Telegram Bot/公网/移动端故障演练。
 2. Telegram `sendMessage` 没有调用方幂等键；crash-in-send 只能保守标记 `uncertain`，无法证明对端一定未收。
 3. Telegram 当前只有一个 exact private chat/user；Feishu 支持多条静态 route，但都必须显式绑定 Workspace；两者都不支持摘要或升级通知。
-4. Suite 内部只适配 Telegram/Feishu 两个具体 route service；Channel Router 只共享入口身份与 native Agent 绑定，不等于公共通知 SPI。
+4. Suite 内部只适配 Telegram/Feishu 两个具体 route service；DSH Gateway 只共享入口身份与 native Agent 绑定，不等于公共通知 SPI。
 5. 自动提醒只减少轮询，不代表 Candidate 正确，也不会改变人工保护动作边界。
 
 ## 声明口径

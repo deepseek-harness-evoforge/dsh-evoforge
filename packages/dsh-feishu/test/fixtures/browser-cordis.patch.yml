@@ -1,7 +1,7 @@
 # Real DSH Web acceptance overlay. Replace __...__ placeholders with absolute
 # test-owned paths; the shipped Bundle and tarball remain unchanged.
-- id: evoforge-channel-router
-  name: dsh-channel-router
+- id: evoforge-gateway
+  name: dsh-gateway
   disabled: false
   config:
     routes: []

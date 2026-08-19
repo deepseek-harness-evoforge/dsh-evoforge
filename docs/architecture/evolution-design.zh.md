@@ -222,7 +222,7 @@ interface LearningSignal {
 
 ### 9.1 自我发现 Skill 的唯一运行时语义
 
-自我发现不是去市场、ClawHub、GitHub、文档站或 Agent Skills 索引搜索包。它是 DSH 对自身工作经验的
+自我发现不是运行时搜索、下载、获取、导入或安装任何外部 Skill。它是 DSH 对自身工作经验的
 归纳：Goal、Capability Gap、失败、用户纠正、真实 outcome、重复劳动、复用效果和 Retention 证据是
 输入；Skill Opportunity 和隔离 Candidate 是输出。Hermes、OpenClaw、HanaAgent、论文与开源实现只在
 设计期调研或冻结 benchmark 中使用。
@@ -250,7 +250,7 @@ interface LearningSignal {
 - Opportunity 只有生成资格，Candidate 只有隔离身份，二者都不能安装、激活、晋升或发布；
 - 独立 final-test、Shadow、Retention、负迁移和长期 outcome 仍是后续治理门，不能由 author 自证。
 
-未来若提供外部包获取，必须建成显式 trusted-import 功能，并与本节的自我发现状态、UI 和声明严格分离。
+本项目不提供运行时外部包搜索、获取、下载、导入或市场功能；设计期研究不得进入本节的自我发现状态、UI 或声明。
 
 P1.3 只落地这个设计中的一个具体 Adapter，不实现上面的通用 runtime interface：监听 DSH
 `message_feedback/sessions`，把当前 `negative + non-blank note` 投影到专用

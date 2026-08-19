@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { resolveChannelRoutes } from '../src/index.js'
+import { resolveGatewayRoutes } from '../src/index.js'
 
 const route = {
   id: 'telegram-a',
@@ -14,9 +14,9 @@ const route = {
   model: 'deepseek-chat',
 }
 
-describe('channel route configuration', () => {
+describe('gateway route configuration', () => {
   it('builds exact endpoint and id indexes without accepting implicit wildcards', () => {
-    const resolved = resolveChannelRoutes([route])
+    const resolved = resolveGatewayRoutes([route])
     expect(resolved.byId.get('telegram-a')).toMatchObject(route)
     expect(resolved.match({
       adapter: 'telegram',
@@ -33,9 +33,9 @@ describe('channel route configuration', () => {
   })
 
   it('rejects endpoint ambiguity and one session crossing Workspace ownership', () => {
-    expect(() => resolveChannelRoutes([route, { ...route, id: 'duplicate-endpoint' }]))
+    expect(() => resolveGatewayRoutes([route, { ...route, id: 'duplicate-endpoint' }]))
       .toThrow('same external endpoint')
-    expect(() => resolveChannelRoutes([
+    expect(() => resolveGatewayRoutes([
       route,
       {
         ...route,
@@ -47,7 +47,7 @@ describe('channel route configuration', () => {
         workspaceId: 'workspace-b',
       },
     ])).toThrow('cannot cross Workspaces')
-    expect(() => resolveChannelRoutes([
+    expect(() => resolveGatewayRoutes([
       route,
       {
         ...route,

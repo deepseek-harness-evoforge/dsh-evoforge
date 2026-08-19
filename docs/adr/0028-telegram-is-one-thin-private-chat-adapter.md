@@ -1,5 +1,7 @@
 # ADR-0028：Telegram 是一个薄型单私聊 Adapter
 
+> Gateway 接缝相关决策已由 ADR-0049 取代；平台协议、保守外部效果和不另造 DSH 权威的决定继续有效。
+
 ## 背景
 
 Hermes 的个人助理优势来自常驻消息入口、Cron 回送和渠道内审批。DSH 已拥有 Agent、Session、

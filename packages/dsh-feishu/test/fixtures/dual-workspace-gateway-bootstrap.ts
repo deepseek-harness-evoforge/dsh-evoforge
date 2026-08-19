@@ -1,6 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 
-export const name = 'dsh-dual-workspace-router-bootstrap'
+export const name = 'dsh-dual-workspace-gateway-bootstrap'
 export const inject = [
   'agents',
   'agentPresets',
@@ -24,11 +24,11 @@ interface RouteConfig {
 }
 
 interface Config {
-  readonly routerEntry: string
+  readonly gatewayEntry: string
   readonly routes: readonly RouteConfig[]
 }
 
-/** Real-Host fixture: register each directory, then pass only native Workspace ids to the Router. */
+/** Real-Host fixture: register each directory, then pass only native Workspace ids to the Gateway. */
 export async function apply(ctx: Context, config: Config): Promise<void> {
   const registry = (ctx as unknown as {
     workspaceRegistry: { create(path: string): Promise<{ id: unknown }> }
@@ -39,8 +39,8 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     const { workspacePath: _workspacePath, ...binding } = route
     routes.push({ ...binding, workspaceId: String(workspace.id) })
   }
-  const router = await import(config.routerEntry) as {
+  const gateway = await import(config.gatewayEntry) as {
     apply(ctx: Context, config: unknown): Promise<void>
   }
-  await router.apply(ctx, { routes })
+  await gateway.apply(ctx, { routes })
 }

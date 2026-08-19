@@ -1,7 +1,7 @@
 # EvoForge v0.1 路线图
 
-> 当前状态：已验证历史统一在 `main` 并同步 `origin/main`；DSH 原生十一包全检查通过。当前自主纵切是自然语言 Goal → Host 复核的 Capability Gap → DSH 内部跨 Goal Skill Opportunity → 隔离 whole-Skill Candidate；运行时外部市场、ClawHub、Agent Skills 索引和 Web 研究已退出自我发现主链路。内部 Candidate 的真实 provider 独立评估、exact 飞书消息与最终 Hermes paired 验收仍未完成，v0.1 尚未发布或部署。
-> 更新日期：2026-08-18
+> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已直接替换错误命名的 `dsh-channel-router` 并通过渠道及十一包 clean-profile 回归，旧能力获取/研究 Candidate 残留正在删除。内部 Candidate 的真实 provider 独立评估、完整 Gateway、exact 飞书消息与最终 Hermes paired 验收仍未完成，v0.1 尚未发布或部署。
+> 更新日期：2026-08-19
 
 ## 开发与发布纪律
 
@@ -16,7 +16,7 @@
 - P2A.1–P2D.1：原生 Skill/Tool 软件交付、Draft PR、exact-head checks、交付 Outcome；
 - P3.1/P3.2：Telegram/飞书进化注意力和 GitHub review follow-up；
 - LC-1/LC-2：Goal cold resume 与用户级 OS service unit；
-- DSH Web review、Runtime Readiness、Workspace Channel Router、已迁移的 Telegram 与飞书 Adapter。
+- DSH Web review、Runtime Readiness、Workspace DSH Gateway、已迁移的 Telegram 与飞书 Adapter。
 
 这些条目表示内部实现和自动化证据存在，不等于当前发布形态已经满足 v0.1。
 
@@ -30,14 +30,14 @@
 
 退出门：仓库只有一个权威集成分支和一套真实用户安装路径，原生 DSH 数据在卸载后仍可读取。**十一包统一 clean-profile gate 已完成，已收拢并推送到 `main`。**
 
-## V1 — Workspace Channel Router
+## V1 — Workspace DSH Gateway
 
 - 直接消费 DSH `WorkspaceRegistry`、Agent、Session、Commands、Approval 和 StorageDomain；
 - 静态、可审查、默认拒绝地把外部 tenant/chat/thread/user 绑定到既有 Workspace，并通过原生 API 创建或冷恢复稳定 Agent/Session；
-- Router ingress 幂等与各 Adapter outbound delivery 状态分别有界持久化；
+- Gateway ingress 幂等与各 Adapter outbound delivery 状态分别有界持久化；
 - Telegram 成为第一个 Adapter；路由核心不复制 DSH Session、Goal、Schedule 或权限。
 
-退出门：两个 Workspace 的输入、输出、Commands、Approval、Goal 和文件权限在重启前后无串线。**已由 Telegram + 飞书同一真实 Host assembled gate 完成。**
+退出门：两个 Workspace 的输入、输出、Commands、Approval、Goal 和文件权限在重启前后无串线。**现有 ingress/route 内核已由 Telegram + 飞书同一真实 Host assembled gate 完成；`dsh-gateway` 包替换也已通过十一包 clean-profile 回归。公共 outbound、限流和统一健康仍属于后续 Gateway 门禁。**
 
 ## V2 — 飞书 Adapter
 
@@ -61,7 +61,7 @@
 
 实现状态：上述链路已由固定 DSH 源码的真实 Host 双 Workspace assembled test 完成，并覆盖重启持久化；真实 provider outcome 仍属于 V4。
 
-## V4 — 自主 Skill Discovery 与双速进化
+## V4 — 内部经验自我发现与双速进化
 
 - 用户只提交自然语言 Goal；系统从 Capability Map 自主命中适用、已验证能力，不显示开场选路菜单；
 - 无适用能力时产生可复核 Capability Gap；同一 Workspace 内至少两个独立 Goal 的重复缺口才形成 Skill Opportunity；
@@ -71,7 +71,7 @@
 - 在线快环只捕获可归因 signal/gap/outcome，离线慢环负责跨 Goal 归纳、候选生成、迁移、保留与遗忘；
 - evaluator、holdout、gold、hard gate 和 release eligibility 位于 Candidate 不可读写的治理面；证据不足允许 abstain。
 
-外部生态、论文、Hermes/OpenClaw/HanaAgent 和开源实现用于**设计期调研与冻结 benchmark**，不属于运行时“自我发现”。未来若提供外部 Skill 导入，必须是独立、显式授权的 trusted-import 能力，不能混入自我发现语义。
+外部生态、论文、Hermes/OpenClaw/HanaAgent 和开源实现只用于**设计期调研与冻结 benchmark**。本项目不建设运行时外部 Skill 搜索、下载、导入、市场或“能力获取”功能。
 
 退出门：在未见 Goal 上自动命中已有 Skill；在确实缺失时找到或生成正确候选；错误路由、未授权获取、
 候选越界和负迁移均被 hard gate 拒绝；同一任务 paired baseline 证明首次成功率或人工选路显著改善，且
@@ -87,7 +87,8 @@ workflow 选择。原生 Job author 只接收有界内部 Goal/Gap 证据，输�
 Gap → Opportunity → Candidate 及运行状态、成本和治理边界，不显示外部发现尝试。
 
 当前主链路已经删除外部来源配置、Agent Skills 索引配置、运行时 Web research、research Holdout/revision
-配置与 Job 编排；这些旧实现只作为历史证据或迁移解析残留，不是产品能力声明。仍待实现/验证：内部
+配置与 Job 编排；源码、持久化类型、Web 类型和测试中仍有旧实现残留，必须直接删除或由内部经验契约
+替换，不能作为兼容能力保留。仍待实现/验证：内部
 Candidate 的独立 final-test/Shadow/Retention 整链路、真实 provider outcome、模型缺口质量、迁移/遗忘/
 长期保留，以及同条件 Hermes paired outcome。因此不能描述为“自主 Skill 进化已完成”。
 
@@ -112,7 +113,7 @@ routes-mode 脱敏健康投影和渠道底座已实现；健康面最终 tarball
 - dependency loss、reload、dispose、崩溃、重复事件、429、网络不确定和身份拒绝；
 - 完整 composition cache parity；**已完成，见 `pnpm test:cache-contract`**
 - DSH Web 真实浏览器成功、刷新和失败路径；
-- 多 Workspace、Skill Discovery、自进化、消息、审批、崩溃恢复和软件交付的 Hermes paired benchmark；
+- 多 Workspace、自我发现、自进化、Gateway、消息、审批、崩溃恢复和软件交付的 Hermes paired benchmark；
 - 真实 provider 的长期 retention/transfer/negative-transfer/false-promotion/false-rollback 与成本数据。
 
 只有证据覆盖的场景可以声明优于 Hermes。所有核心门禁通过后在 `main` 创建首个 annotated semantic

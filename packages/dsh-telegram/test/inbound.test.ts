@@ -21,7 +21,7 @@ describe('Telegram inbound selection', () => {
     })
   })
 
-  it('leaves slash-command admission to the shared native Router', () => {
+  it('leaves slash-command admission to the shared native Gateway', () => {
     expect(selectInboundUpdate({
       update_id: 78,
       message: {

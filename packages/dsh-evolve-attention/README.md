@@ -20,7 +20,7 @@ originating Session continues.
 ## Requirements and installation
 
 Run `dsh-evolve`, this package, and at least one supported channel Adapter in the same DSH profile.
-Configure each Adapter first with exact static Router routes.
+Configure each Adapter first with exact static Gateway routes.
 
 ```bash
 PACK_DIR="$(mktemp -d)"
@@ -56,7 +56,7 @@ Adapter contract.
 
 Concrete channel dependencies are optional peers. Cordis injection owns each bridge independently:
 installing only Telegram or only Feishu works, adding/removing either Adapter activates/disposes
-only its child bridge, and removing this package leaves the native Session and channel routes
+only its child bridge, and removing this package leaves the native Session and gateway routes
 intact.
 
 This package registers no Tool, Skill, Prompt, or Command. It performs no model call and does not

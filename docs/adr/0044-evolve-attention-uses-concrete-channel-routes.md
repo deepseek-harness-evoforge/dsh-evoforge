@@ -1,5 +1,7 @@
 # ADR-0044：Evolution Attention 只组合具体渠道路由
 
+> “不建立共享 Gateway”的判断已由 ADR-0049 取代；Attention 只投递到具体已授权 route、且不建设通知平台的决定继续有效。
+
 ## 背景
 
 `dsh-evolve` 已把需要人类决定的 Candidate 与 Evaluator Draft 放入旁路审阅，Commands/Web 能读取并
@@ -23,7 +25,7 @@ Telegram 与飞书是 optional peers；部署者可以只安装其一。Bridge �
 注册、规则 DSL 或用户可变 destination。新增第三个平台必须先实现自己的真实 Adapter 与 route
 service，再单独评审是否值得扩展这个具体组合。
 
-每个 route 的 Workspace id 都来自 `dsh-channel-router` 的静态配置。Bridge 把该 id 显式传给 Evolve
+每个 route 的 Workspace id 都来自 `dsh-gateway` 的静态配置。Bridge 把该 id 显式传给 Evolve
 overview，并验证返回对象属于同一 Workspace；缺失或不匹配时 fail closed。多个 Feishu route 指向
 同一 Workspace 时只读取一次 overview，但仍分别进入各 route 的持久投递 journal。Bridge 不使用
 recent Workspace，也不扫描全局 Evolution 状态。

@@ -5,7 +5,7 @@ import type { Agent } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-commands'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import type { ApprovalOutcome, ApprovalRequest } from '@deepseek-ai/dsh-user-approval'
-import { ChannelIngressUncertainError, type ChannelRouter } from 'dsh-channel-router'
+import { GatewayIngressUncertainError, type DshGateway } from 'dsh-gateway'
 import {
   selectApprovalCallback,
   selectInboundUpdate,
@@ -46,18 +46,18 @@ export class TelegramRuntime {
   constructor(
     private readonly ctx: Context,
     private readonly config: ResolvedTelegramConfig,
-    private readonly router: ChannelRouter,
+    private readonly gateway: DshGateway,
     private readonly api: TelegramApi,
     private readonly store: TelegramDeliveryStore,
   ) {}
 
   async start(): Promise<void> {
     await this.store.recoverInflight(Date.now())
-    this.bind(await this.router.resolve(this.config.routeId, this.lifecycle.signal))
+    this.bind(await this.gateway.resolve(this.config.routeId, this.lifecycle.signal))
 
     this.ctx.on('agent/created', ({ agent }) => {
       if (String(agent.id) !== this.config.sessionId) return
-      void this.router.resolve(this.config.routeId, this.lifecycle.signal).then((resolved) => {
+      void this.gateway.resolve(this.config.routeId, this.lifecycle.signal).then((resolved) => {
         if (resolved === agent) this.bind(resolved)
       }).catch((error: unknown) => {
         if (!this.lifecycle.signal.aborted) {
@@ -147,7 +147,7 @@ export class TelegramRuntime {
           return {
             kind: 'success',
             text: [
-              `Telegram route: READY (Router ${this.config.routeId}, session ${this.config.sessionId}, one private chat).`,
+              `Telegram route: READY (Gateway ${this.config.routeId}, session ${this.config.sessionId}, one private chat).`,
               `Retained delivery: ${counts.delivered} delivered; ${counts.prepared + counts.sending + counts.retrying} pending; ${counts.uncertain} uncertain; ${counts.failed} failed.`,
               'Model surface: 0 tools, 0 prompt sections, 0 skills.',
             ].join('\n'),
@@ -162,7 +162,7 @@ export class TelegramRuntime {
     while (!this.lifecycle.signal.aborted) {
       if (this.agent === undefined) {
         try {
-          this.bind(await this.router.resolve(this.config.routeId, this.lifecycle.signal))
+          this.bind(await this.gateway.resolve(this.config.routeId, this.lifecycle.signal))
         } catch (error: unknown) {
           if (this.lifecycle.signal.aborted) return
           this.ctx.logger.warn(`dsh-telegram: native route unavailable: ${safeMessage(error)}`)
@@ -203,15 +203,15 @@ export class TelegramRuntime {
     const selected = selectInboundUpdate(update, this.config)
     if (selected.kind === 'ignored') return
     const eventId = `update:${selected.updateId}`
-    const messageId = this.router.messageIdFor(this.config.endpoint, eventId)
+    const messageId = this.gateway.messageIdFor(this.config.endpoint, eventId)
     if (!this.repliesByMessage.has(messageId)
       && this.repliesByMessage.size >= MAX_PENDING_REPLY_CORRELATIONS) {
       throw new Error('dsh-telegram: pending reply correlation capacity is full')
     }
     this.repliesByMessage.set(messageId, selected.replyToMessageId)
-    let dispatch: Awaited<ReturnType<ChannelRouter['dispatch']>>
+    let dispatch: Awaited<ReturnType<DshGateway['dispatch']>>
     try {
-      dispatch = await this.router.dispatch({
+      dispatch = await this.gateway.dispatch({
         endpoint: this.config.endpoint,
         eventId,
         text: selected.text,
@@ -219,7 +219,7 @@ export class TelegramRuntime {
       })
     } catch (error: unknown) {
       this.repliesByMessage.delete(messageId)
-      if (!(error instanceof ChannelIngressUncertainError)) throw error
+      if (!(error instanceof GatewayIngressUncertainError)) throw error
       this.ctx.logger.warn(`dsh-telegram: refusing uncertain ingress replay: ${safeMessage(error)}`)
       await this.prepareCommandResponse(
         selected.updateId,

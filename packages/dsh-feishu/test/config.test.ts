@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { resolveChannelRoutes } from 'dsh-channel-router'
+import { resolveGatewayRoutes } from 'dsh-gateway'
 import { resolveFeishuConfig, resolveFeishuPairingConfig } from '../src/config.js'
 
-const routes = resolveChannelRoutes([{
+const routes = resolveGatewayRoutes([{
   id: 'feishu-private',
   adapter: 'feishu',
   accountId: 'cli_app_id',
@@ -33,7 +33,7 @@ const environment = {
 }
 
 describe('Feishu protected deployment config', () => {
-  it('binds exact static Router routes to one credential-selected app', () => {
+  it('binds exact static Gateway routes to one credential-selected app', () => {
     const resolved = resolveFeishuConfig({
       routeIds: ['feishu-private', 'feishu-group'],
       appIdEnv: 'FEISHU_ID',
@@ -93,7 +93,7 @@ describe('Feishu protected deployment config', () => {
       .toThrow(/maxTextChars/u)
   })
 
-  it('resolves explicit pairing mode without inventing a Router route', () => {
+  it('resolves explicit pairing mode without inventing a Gateway route', () => {
     const resolved = resolveFeishuPairingConfig({
       mode: 'pairing',
       routeIds: [],

@@ -43,8 +43,8 @@ const deliverySchema = z.strictObject({
   error: z.string().min(1).optional(),
 })
 
-// Read compatibility for pre-Router domains; new command admission lives in
-// evoforge_channel_router and this value is never advanced by the Adapter.
+// Read compatibility for pre-Gateway domains; new command admission lives in
+// evoforge_gateway and this value is never advanced by the Adapter.
 const checkpointSchema = z.strictObject({
   acceptedCommandUpdateId: z.number().int().nonnegative().optional(),
 })

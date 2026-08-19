@@ -4,7 +4,7 @@ import type {} from '@deepseek-ai/dsh-commands'
 import type {} from '@deepseek-ai/dsh-workspace'
 import z from '@deepseek-ai/schemastery'
 import type Schema from '@deepseek-ai/schemastery'
-import type { ChannelRouter, ResolvedChannelRoute } from 'dsh-channel-router'
+import type { DshGateway, ResolvedGatewayRoute } from 'dsh-gateway'
 import {
   resolveFeishuConfig,
   resolveFeishuPairingConfig,
@@ -21,7 +21,7 @@ import {
 import { FeishuRuntime } from './runtime.js'
 
 export const name = 'dsh-feishu'
-export const inject = ['commands', 'evoforge.channelRouter', 'storageDomain', 'workspaceRegistry']
+export const inject = ['commands', 'evoforge.gateway', 'storageDomain', 'workspaceRegistry']
 
 export interface Config {
   readonly mode?: 'routes' | 'pairing'
@@ -58,11 +58,11 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     }))
     return
   }
-  const router = ctx.get('evoforge.channelRouter' as never) as ChannelRouter | undefined
-  if (router === undefined) throw new Error('dsh-feishu: dsh-channel-router service is unavailable')
-  const routes: ResolvedChannelRoute[] = []
+  const gateway = ctx.get('evoforge.gateway' as never) as DshGateway | undefined
+  if (gateway === undefined) throw new Error('dsh-feishu: dsh-gateway service is unavailable')
+  const routes: ResolvedGatewayRoute[] = []
   for (const id of routeIds) {
-    const route = router.route(id)
+    const route = gateway.route(id)
     if (route !== undefined) routes.push(route)
   }
   const resolved = resolveFeishuConfig({ ...config, mode: 'routes', routeIds }, routes)
@@ -70,7 +70,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   const runtime = new FeishuRuntime(
     ctx,
     resolved,
-    router,
+    gateway,
     store,
     createOfficialFeishuPlatform({
       appId: resolved.appId,

@@ -10,7 +10,7 @@ import type { FeishuInboundMessage, FeishuSendOptions } from '../src/platform.js
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const suiteRoot = resolve(packageRoot, '../..')
-const routerRoot = resolve(packageRoot, '../dsh-channel-router')
+const gatewayRoot = resolve(packageRoot, '../dsh-gateway')
 const dshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR ?? resolve(suiteRoot, '../deepseek-harness')
 const execFile = promisify(execFileCallback)
 const temporaryRoots: string[] = []
@@ -82,10 +82,10 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', (
       },
       { id: 'workspace', name: join(dshSourceDir, 'packages', 'workspace', 'workspace', 'lib', 'index.js') },
       {
-        id: 'channel-router-bootstrap',
-        name: join(packageRoot, 'test', 'fixtures', 'router-bootstrap.ts'),
+        id: 'channel-gateway-bootstrap',
+        name: join(packageRoot, 'test', 'fixtures', 'gateway-bootstrap.ts'),
         config: {
-          routerEntry: pathToFileURL(join(routerRoot, 'dist', 'index.mjs')).href,
+          gatewayEntry: pathToFileURL(join(gatewayRoot, 'dist', 'index.mjs')).href,
           workspacePath: root,
           routeId: 'existing-test-route',
           accountId: 'cli_test_app',
@@ -129,11 +129,11 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', (
     } | undefined
     if (service === undefined) throw new Error('pairing test service unavailable')
     try {
-      const router = ctx.get('evoforge.channelRouter') as {
+      const gateway = ctx.get('evoforge.gateway') as {
         resolve(id: string): Promise<{ session: { events: readonly SessionEvent[] } }>
         route(id: string): { workspaceId: string } | undefined
       }
-      const agent = await router.resolve('existing-test-route')
+      const agent = await gateway.resolve('existing-test-route')
       const beforeMessages = agent.session.events.filter(event => event.type === 'user/message').length
       expect(ctx.commands.list(agent as never).map((command: { name: string }) => command.name))
         .toContain('feishu-pair')
@@ -157,7 +157,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', (
       const status = await ctx.commands.execute(agent as never, '/feishu-pair status', new AbortController().signal)
       expect(status?.result.text).toContain('conversationId: "oc_discovered"')
       expect(status?.result.text).toContain('userId: "ou_discovered"')
-      expect(status?.result.text).toContain(`workspaceId: "${router.route('existing-test-route')?.workspaceId}"`)
+      expect(status?.result.text).toContain(`workspaceId: "${gateway.route('existing-test-route')?.workspaceId}"`)
       expect(status?.result.text).toContain('sessionId: "pairing-session"')
       expect(status?.result.text).toContain('agentPreset: "pairing-test"')
       expect(status?.result.text).toContain('provider: "cli-mock"')

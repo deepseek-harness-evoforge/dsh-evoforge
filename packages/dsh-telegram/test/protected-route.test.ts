@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { resolveChannelRoutes } from 'dsh-channel-router'
+import { resolveGatewayRoutes } from 'dsh-gateway'
 import { resolveTelegramConfig } from '../src/config.js'
 
 const base = {
   routeId: 'telegram-main',
 }
-const route = resolveChannelRoutes([{
+const route = resolveGatewayRoutes([{
   id: 'telegram-main',
   adapter: 'telegram',
   accountId: 'bot-main',

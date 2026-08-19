@@ -17,7 +17,7 @@
     "packages/*"
   ],
   "scripts": {
-    "prebuild": "pnpm --filter dsh-channel-router run build",
+    "prebuild": "pnpm --filter dsh-gateway run build",
     "build": "pnpm -r build",
     "generate:typert": "pnpm --filter dsh-evolve exec tsc -b ../../tsconfig.host.json --force && node scripts/generate-typert.mjs",
     "check:docs": "node scripts/check-docs.mjs",
@@ -28,9 +28,9 @@
     "benchmark:hermes:lc1": "pnpm --filter dsh-goal-continuity exec tsx ../../benchmarks/hermes-v0.1/lc1-crash-recovery/run.ts",
     "benchmark:hermes:as1": "pnpm --filter dsh-telegram exec tsx ../../benchmarks/hermes-v0.1/as1-telegram-approval/run.ts",
     "benchmark:hermes": "pnpm benchmark:hermes:ev1 && pnpm benchmark:hermes:sd1 && pnpm benchmark:hermes:lc1 && pnpm benchmark:hermes:as1",
-    "pretypecheck": "pnpm --filter dsh-channel-router run build",
+    "pretypecheck": "pnpm --filter dsh-gateway run build",
     "typecheck": "pnpm -r typecheck",
-    "pretest": "pnpm --filter dsh-channel-router run build",
+    "pretest": "pnpm --filter dsh-gateway run build",
     "test": "pnpm -r --filter '!dsh-telegram' --filter '!dsh-feishu' test && pnpm --filter dsh-telegram test && pnpm --filter dsh-feishu test",
     "check": "pnpm run check:docs && pnpm run typecheck && pnpm run test && pnpm run build"
   }

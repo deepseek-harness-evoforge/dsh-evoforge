@@ -54,6 +54,10 @@ _Avoid_: DSH daemon plugin, supervisor database, high availability
 A point-in-time, read-only answer to whether the capabilities an operator explicitly requires are currently usable. Its outcome is `ready`, `not-ready`, or `unknown`; it names concrete blockers and next actions without repairing them, retaining health history, or becoming a second lifecycle authority.
 _Avoid_: Invariant result, plugin inventory, uptime monitor, auto-repair plan
 
+**DSH Gateway**:
+The removable Host module that normalizes exact external channel identities, binds them to native DSH Workspace/Session ownership, and governs transport-neutral routing, delivery intent, deduplication, rate limits, and health. Channel Adapters own platform protocols and credentials; DSH remains authoritative for Agent, Goal, Schedule, Approval, permissions, and persistence.
+_Avoid_: Channel Router, bot host, second Agent Runtime, dynamic workflow gateway, platform SDK wrapper
+
 **Uncertain External Effect**:
 An effect whose durable intent exists and may have reached an external service, but whose result was not durably recorded before interruption. Recovery must not claim success or retry automatically when repetition could cost money or duplicate a user-visible action.
 _Avoid_: Failed request, safe retry, exactly-once
@@ -82,9 +86,9 @@ _Avoid_: Startup questionnaire, workflow catalog, mutable prompt inventory
 A falsifiable statement that an active Goal needs a capability not supplied by any verified, applicable Skill or Tool in the current Capability Map. A failed attempt alone is not a gap until routing, permissions, configuration, and existing capability applicability have been checked.
 _Avoid_: Generic failure, model uncertainty, excuse to generate a new Skill
 
-**Skill Discovery**:
-The host-side activity that maps a natural-language Goal to verified existing capabilities or records a Capability Gap, then derives a reusable Skill Opportunity from repeated DSH-owned Goal evidence. The user is not asked to choose a path, Agent, workflow, Skill, source, or package. Market, paper, and open-source research informs design-time architecture and fixed-revision benchmarks, not runtime self-discovery.
-_Avoid_: User menu, runtime marketplace search, unverified auto-install, keyword-only router
+**Self-Discovery**:
+The host-side activity that derives a reusable Skill Opportunity only from attributable DSH-owned Goal experience, then authors an inactive Evolution Candidate for independent evaluation. Inspecting already installed capabilities is normal Goal execution; external search, import, download, marketplace access, and design-time research are not Self-Discovery.
+_Avoid_: Skill Discovery, capability acquisition, user menu, runtime marketplace search, external Skill import, retry-as-learning
 
 **Skill Opportunity**:
 A deterministic, Workspace-scoped conclusion that repeated capability gaps across at least two distinct native DSH Goals justify bounded whole-Skill authoring. Its Skill name comes from verified Gap evidence, never an operator-configured authoring target; same-Goal retries and weak evidence abstain. It has no install, activation, or release authority.
@@ -95,7 +99,7 @@ A bounded online loop that attributes an explicit correction, verified outcome, 
 _Avoid_: Learn-once activation, synchronous reflection, retry-as-learning
 
 **Slow Evolution Loop**:
-An offline loop that aggregates evidence across tasks, explores existing or generated whole-Skill packages, runs isolated paired and holdout evaluation, checks transfer and regressions, and makes a retained release decision for future Sessions. It may abstain when evidence is weak or conflicting.
+An offline loop that aggregates evidence across DSH Goals, authors whole-Skill Candidates from that internal evidence, runs isolated paired and holdout evaluation, checks transfer and regressions, and makes a retained release decision for future Sessions. It may abstain when evidence is weak or conflicting.
 _Avoid_: Nightly prompt rewrite, self-scoring batch job, greedy latest-wins
 
 **Evaluation Governance Plane**:
@@ -111,7 +115,7 @@ A bounded host-only notice that an actionable Candidate or Evaluator Draft exist
 _Avoid_: Notification platform, inline approval, dynamic prompt injection, second workflow engine
 
 **Evolution Attention Bridge**:
-The removable `dsh-evolve-attention` composition plugin that projects Evolution Attention onto exact Workspace routes already owned by `dsh-telegram` and/or `dsh-feishu`. It validates route-to-Workspace ownership and creates no timer, route configuration, public provider SPI, or second evolution state.
+The removable `dsh-evolve-attention` composition plugin that projects Evolution Attention onto exact Workspace routes governed by `dsh-gateway` and delivered by `dsh-telegram` and/or `dsh-feishu`. It validates route-to-Workspace ownership and creates no timer, route configuration, public provider SPI, or second evolution state.
 _Avoid_: Generic notifier, channel routing core, channel approval bot
 
 **GitHub Review Follow-up**:
@@ -126,9 +130,9 @@ _Avoid_: Full transcript copy, model reflection
 An inactive, versioned diff owned by exactly one registered DSH Workspace, accompanied by a falsifiable improvement claim and a trial plan. Candidate creation cannot alter any active session or be reviewed, promoted, or reused from another Workspace.
 _Avoid_: Live patch, learned rule
 
-**Discovered Skill Lineage**:
-The bounded, host-derived identity that follows one exact discovered whole-Skill Candidate from deterministic admission into Shadow, human review, and its immutable Capability Generation artifact. It participates in Shadow, Review, and Generation content identity and is projected to DSH Web as shortened identifiers for active, pending, or published-inactive state. It binds Candidate/version/source/content/tree, admission, and—when applicable—research, parent revision, failed Holdout, and passing Holdout ids while excluding Skill bodies, host paths, research attribution, and author/evaluator/provider identity.
-_Avoid_: Copied Candidate record, private provenance dump, self-asserted lineage
+**Evolution Candidate Lineage**:
+The bounded, host-derived identity that follows one exact internally authored whole-Skill Candidate from its Skill Opportunity through admission, Shadow, Retention, review, and immutable Capability Generation. It binds internal evidence, Candidate version/content/tree, independent evaluation, and release decisions while excluding Skill bodies, host paths, hidden cases, and proposer-private state.
+_Avoid_: Discovered Skill Lineage, external source provenance, copied Candidate record, private evidence dump, self-asserted lineage
 
 **Trial**:
 A paired comparison that runs the active version and one Evolution Candidate against the same representative cases and hard safety checks. Deterministic outcomes lead; model judgment is supplementary.

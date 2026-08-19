@@ -19,7 +19,7 @@ describe('dsh-feishu package contract', () => {
       client: { platform: 'web' },
     })
     expect(manifest.dependencies?.['@larksuiteoapi/node-sdk']).toBe('1.73.0')
-    expect(manifest.peerDependencies?.['dsh-channel-router']).toBe('0.1.0-alpha.1')
+    expect(manifest.peerDependencies?.['dsh-gateway']).toBe('0.1.0-alpha.1')
     expect(Object.keys(manifest.dependencies ?? {})).not.toContain('@deepseek-ai/cordis')
     expect(await readFile(resolve(packageRoot, 'cordis.patch.yml'), 'utf8')).toBe(
       '- insert:\n    - id: evoforge-feishu\n      name: dsh-feishu\n      disabled: true\n',

@@ -1,11 +1,11 @@
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type Schema from '@deepseek-ai/schemastery'
-import { openChannelIngressStore } from './ingress-store.js'
-import { ChannelRouter } from './router.js'
-import { resolveChannelRoutes, type ChannelRouteConfig } from './routes.js'
+import { openGatewayIngressJournal } from './ingress-journal.js'
+import { DshGateway } from './gateway.js'
+import { resolveGatewayRoutes, type GatewayRouteConfig } from './routing.js'
 
-export const name = 'dsh-channel-router'
+export const name = 'dsh-gateway'
 export const inject = [
   'agents',
   'agentPresets',
@@ -17,7 +17,7 @@ export const inject = [
 
 export interface Config {
   /** Complete deny-by-default table. No endpoint is inferred or wildcarded. */
-  readonly routes?: readonly ChannelRouteConfig[]
+  readonly routes?: readonly GatewayRouteConfig[]
   /** Retained ingress journal bound; active effects are never pruned. */
   readonly maxIngressRecords?: number
 }
@@ -42,41 +42,41 @@ export const Config: Schema<Config> = z.object({
   maxIngressRecords: z.number().step(1).min(1).max(100_000).default(10_000),
 }) as Schema<Config>
 
-/** Install one shared Host router for transport-only channel adapters. */
+/** Install one shared Host Gateway for transport-only channel Adapters. */
 export async function apply(ctx: Context, config: Config = {}): Promise<void> {
-  const store = await openChannelIngressStore(ctx.storageDomain, {
+  const journal = await openGatewayIngressJournal(ctx.storageDomain, {
     maxRecords: config.maxIngressRecords ?? 10_000,
   })
-  const router = new ChannelRouter(ctx, resolveChannelRoutes(config.routes ?? []), store)
+  const gateway = new DshGateway(ctx, resolveGatewayRoutes(config.routes ?? []), journal)
   try {
-    await router.start()
-    ctx.effect(() => () => router.stop(), 'dsh-channel-router.runtime')
-    ctx.provide('evoforge.channelRouter' as never, router as never)
+    await gateway.start()
+    ctx.effect(() => () => gateway.stop(), 'dsh-gateway.runtime')
+    ctx.provide('evoforge.gateway' as never, gateway as never)
   } catch (error: unknown) {
-    await router.stop()
+    await gateway.stop()
     throw error
   }
 }
 
 export {
   endpointKey,
-  resolveChannelRoutes,
-  type ChannelEndpoint,
-  type ChannelRouteConfig,
-  type ResolvedChannelRoute,
-  type ResolvedChannelRoutes,
-} from './routes.js'
+  resolveGatewayRoutes,
+  type GatewayEndpoint,
+  type GatewayRouteConfig,
+  type ResolvedGatewayRoute,
+  type ResolvedGatewayRoutes,
+} from './routing.js'
 export {
-  openChannelIngressStore,
-  type ChannelCommandResult,
-  type ChannelIngressRecord,
-  type ChannelIngressStore,
-  type ChannelIngressStoreOptions,
-  type PrepareChannelIngressInput,
-} from './ingress-store.js'
+  openGatewayIngressJournal,
+  type GatewayCommandResult,
+  type GatewayIngressRecord,
+  type GatewayIngressJournal,
+  type GatewayIngressJournalOptions,
+  type PrepareGatewayIngressInput,
+} from './ingress-journal.js'
 export {
-  ChannelIngressUncertainError,
-  ChannelRouter,
-  type ChannelDispatchInput,
-  type ChannelDispatchResult,
-} from './router.js'
+  GatewayIngressUncertainError,
+  DshGateway,
+  type GatewayDispatchInput,
+  type GatewayDispatchResult,
+} from './gateway.js'

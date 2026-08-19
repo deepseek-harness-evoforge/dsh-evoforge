@@ -31,7 +31,7 @@ export class EvolutionTelegramBridge {
   dispose(): Promise<void> { return this.scanner.dispose() }
 }
 
-/** Scan only the exact Workspaces exported by the configured Feishu Router routes. */
+/** Scan only the exact Workspaces exported by the configured Feishu Gateway routes. */
 export class EvolutionFeishuBridge {
   private readonly scanner: SerialAttentionScanner
 

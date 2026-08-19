@@ -2,7 +2,7 @@
 
 > 日期：2026-08-18；固定 DSH revision：`47f943859bef60e4160492346772ded9b24f765a`；状态：implemented；真实 App 凭据、机器人身份请求、WebSocket 握手与原生 DSH Web 配对向导已验证，routes mode 权威健康面已实现并通过 assembled/browser-component 门禁，exact route 消息闭环和 Hermes paired benchmark 尚未完成
 
-`dsh-feishu` 是 `dsh-channel-router` 上的第二个薄 Adapter，不是独立机器人 Runtime。它使用飞书官方 Node SDK `1.73.0` 的 WebSocket 长连接；Router 持有 endpoint → Workspace/Session/Agent、原生 Command admission 和 ingress 幂等，Adapter 只持有协议、Approval 卡片与出站 journal。
+`dsh-feishu` 是 `dsh-gateway` 上的第二个薄 Adapter，不是独立机器人 Runtime。它使用飞书官方 Node SDK `1.73.0` 的 WebSocket 长连接；Router 持有 endpoint → Workspace/Session/Agent、原生 Command admission 和 ingress 幂等，Adapter 只持有协议、Approval 卡片与出站 journal。
 
 ## 已执行链路
 
@@ -12,7 +12,7 @@
 - DSH `approval/request` 生成一次性飞书卡片 nonce，只有 exact chat/operator 的首个 action 可返回 `allowed-once`/`rejected`；
 - 发送意图先写 `evoforge_feishu` StorageDomain；明确 rate-limit 先记录 `sending`，有界重试后 `delivered`；传输模糊失败和 crash-recovered `sending` 均为 `uncertain`；
 - Cordis dispose 注销平台 handler、取消 pending Approval、停止 worker、关闭 domain 并断开连接；
-- packed `dsh-channel-router` + `dsh-feishu` 通过干净 profile 的官方 add、dump-config、官方 SDK 依赖解析与 remove。
+- packed `dsh-gateway` + `dsh-feishu` 通过干净 profile 的官方 add、dump-config、官方 SDK 依赖解析与 remove。
 
 联合门禁还在**同一个真实 DSH Host** 中注册两个真实目录为两个 Workspace，加载实际 Router、Telegram Bundle 与飞书 runtime：Telegram 与飞书分别创建 `telegram-session`/`feishu-session`，其原生 `session.header.cwd`、WorkspaceRegistry `sessionIds`、User Message、Command、Approval 和 continuation 全部保持分离；错误飞书 operator 不能消费另一个 Workspace 的 Approval。Host dispose 后以同一 persistence/StorageDomain/config 冷启动，两个 Agent 各自恢复，重放同一 Telegram update 和飞书 message 不新增 turn 或对外投递。另一条完整 composition 门同时启用 Router、Telegram、飞书与 evolution attention，将两个 Workspace 的 provider request 分别与原生双 Agent 控制组逐字段比较，结果均 byte-equivalent；route、App 与 attention 动态值未进入请求。
 

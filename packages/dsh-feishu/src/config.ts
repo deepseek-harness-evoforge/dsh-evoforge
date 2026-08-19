@@ -1,4 +1,4 @@
-import type { ChannelEndpoint, ResolvedChannelRoute } from 'dsh-channel-router'
+import type { GatewayEndpoint, ResolvedGatewayRoute } from 'dsh-gateway'
 
 export interface FeishuConfigInput {
   readonly mode?: 'routes' | 'pairing'
@@ -26,7 +26,7 @@ export interface ResolvedFeishuRoute {
   readonly id: string
   readonly workspaceId: string
   readonly sessionId: string
-  readonly endpoint: ChannelEndpoint
+  readonly endpoint: GatewayEndpoint
 }
 
 export interface ResolvedFeishuConfig {
@@ -45,27 +45,27 @@ export interface ResolvedFeishuConfig {
 
 export function resolveFeishuConfig(
   config: FeishuConfigInput,
-  routes: readonly ResolvedChannelRoute[],
+  routes: readonly ResolvedGatewayRoute[],
   environment: NodeJS.ProcessEnv = process.env,
 ): ResolvedFeishuConfig {
   if (config.mode === 'pairing') throw new Error('dsh-feishu: routes config cannot use pairing mode')
   if (!Array.isArray(config.routeIds) || config.routeIds.length === 0 || config.routeIds.length > 100) {
-    throw new Error('dsh-feishu: routeIds must contain 1 to 100 exact Router route ids')
+    throw new Error('dsh-feishu: routeIds must contain 1 to 100 exact Gateway route ids')
   }
   const routeIds = new Set(config.routeIds)
   if (routeIds.size !== config.routeIds.length) throw new Error('dsh-feishu: routeIds must be unique')
   if (routes.length !== routeIds.size || routes.some(route => !routeIds.has(route.id))) {
-    throw new Error('dsh-feishu: every routeId must resolve to exactly one Router route')
+    throw new Error('dsh-feishu: every routeId must resolve to exactly one Gateway route')
   }
   if (routes.some(route => route.adapter !== 'feishu')) {
-    throw new Error('dsh-feishu: every configured Router route adapter must be feishu')
+    throw new Error('dsh-feishu: every configured Gateway route adapter must be feishu')
   }
   const accountIds = new Set(routes.map(route => route.accountId))
   if (accountIds.size !== 1) throw new Error('dsh-feishu: one Adapter instance can bind only one Feishu app account')
 
   const { appId, appIdEnv, appSecret, appSecretEnv } = resolveCredentials(config, environment)
   if (appId !== routes[0]!.accountId) {
-    throw new Error('dsh-feishu: credential app id does not match the Router accountId')
+    throw new Error('dsh-feishu: credential app id does not match the Gateway accountId')
   }
 
   const handshakeTimeoutMs = config.handshakeTimeoutMs ?? 15_000
@@ -106,7 +106,7 @@ export function resolveFeishuConfig(
   })
 }
 
-/** Resolve explicit setup-only mode; it discovers identity but never creates or mutates a Router route. */
+/** Resolve explicit setup-only mode; it discovers identity but never creates or mutates a Gateway route. */
 export function resolveFeishuPairingConfig(
   config: FeishuConfigInput,
   environment: NodeJS.ProcessEnv = process.env,

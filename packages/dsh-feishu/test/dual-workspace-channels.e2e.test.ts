@@ -15,7 +15,7 @@ import type { FeishuRuntime } from '../src/runtime.js'
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const execFile = promisify(execFileCallback)
 const suiteRoot = resolve(packageRoot, '../..')
-const routerRoot = resolve(packageRoot, '../dsh-channel-router')
+const gatewayRoot = resolve(packageRoot, '../dsh-gateway')
 const telegramRoot = resolve(packageRoot, '../dsh-telegram')
 const attentionRoot = resolve(packageRoot, '../dsh-evolve-attention')
 const dshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR ?? resolve(suiteRoot, '../deepseek-harness')
@@ -28,7 +28,7 @@ afterEach(async () => {
 
 describe.skipIf(process.platform !== 'darwin')('DSH assembled dual Workspace channels', () => {
   it('keeps Telegram and Feishu Sessions, Commands, Approvals, continuations, and restart state isolated', async () => {
-    for (const cwd of [routerRoot, telegramRoot, packageRoot, attentionRoot]) {
+    for (const cwd of [gatewayRoot, telegramRoot, packageRoot, attentionRoot]) {
       await execFile('pnpm', ['run', 'build'], { cwd, encoding: 'utf8', timeout: 30_000 })
     }
     const root = await mkdtemp(join(tmpdir(), 'dsh-dual-workspace-channels-'))
@@ -221,11 +221,11 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled dual Workspace cha
         await vi.waitFor(() => { expect(feishu.platform.texts).toHaveLength(3) }, { timeout: 15_000, interval: 25 })
         expect(telegramSends).toHaveLength(4)
 
-        const router = first.get('evoforge.channelRouter') as {
+        const gateway = first.get('evoforge.gateway') as {
           route(id: string): { workspaceId: string } | undefined
         }
-        const telegramWorkspaceId = router.route('telegram-dual')?.workspaceId
-        const feishuWorkspaceId = router.route('feishu-dual')?.workspaceId
+        const telegramWorkspaceId = gateway.route('telegram-dual')?.workspaceId
+        const feishuWorkspaceId = gateway.route('feishu-dual')?.workspaceId
         if (telegramWorkspaceId === undefined || feishuWorkspaceId === undefined) {
           throw new Error('dual Workspace routes did not resolve')
         }
@@ -264,11 +264,11 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled dual Workspace cha
         expect(feishu.platform.texts).toHaveLength(0)
         expect(telegramSends.filter(send => String(send.text).startsWith('EvoForge attention'))).toHaveLength(1)
         const secondSource = second.get('evoforge.attentionTestSource') as { calls: string[] } | undefined
-        const secondRouter = second.get('evoforge.channelRouter') as {
+        const secondGateway = second.get('evoforge.gateway') as {
           route(id: string): { workspaceId: string } | undefined
         }
-        const secondTelegramWorkspaceId = secondRouter.route('telegram-dual')?.workspaceId
-        const secondFeishuWorkspaceId = secondRouter.route('feishu-dual')?.workspaceId
+        const secondTelegramWorkspaceId = secondGateway.route('telegram-dual')?.workspaceId
+        const secondFeishuWorkspaceId = secondGateway.route('feishu-dual')?.workspaceId
         expect(secondTelegramWorkspaceId).toBeDefined()
         expect(secondFeishuWorkspaceId).toBeDefined()
         expect(new Set(secondSource?.calls)).toEqual(new Set([
@@ -353,10 +353,10 @@ function hostConfig(input: {
     },
     { id: 'workspace', name: join(dshSourceDir, 'packages', 'workspace', 'workspace', 'lib', 'index.js') },
     {
-      id: 'channel-router-bootstrap',
-      name: join(packageRoot, 'test', 'fixtures', 'dual-workspace-router-bootstrap.ts'),
+      id: 'channel-gateway-bootstrap',
+      name: join(packageRoot, 'test', 'fixtures', 'dual-workspace-gateway-bootstrap.ts'),
       config: {
-        routerEntry: pathToFileURL(join(routerRoot, 'dist', 'index.mjs')).href,
+        gatewayEntry: pathToFileURL(join(gatewayRoot, 'dist', 'index.mjs')).href,
         routes: [
           {
             id: 'telegram-dual', adapter: 'telegram', accountId: 'test-bot',

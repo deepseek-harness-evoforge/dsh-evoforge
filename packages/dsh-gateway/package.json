@@ -1,7 +1,7 @@
 {
-  "name": "dsh-channel-router",
+  "name": "dsh-gateway",
   "version": "0.1.0-alpha.1",
-  "description": "Workspace-isolated channel routing for DeepSeek Harness adapters",
+  "description": "Fail-closed channel ingress gateway for native DeepSeek Harness adapters",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -18,13 +18,13 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/deepseek-harness-evoforge/dsh-evoforge.git",
-    "directory": "packages/dsh-channel-router"
+    "directory": "packages/dsh-gateway"
   },
   "homepage": "https://github.com/deepseek-harness-evoforge/dsh-evoforge#readme",
   "bugs": {
     "url": "https://github.com/deepseek-harness-evoforge/dsh-evoforge/issues"
   },
-  "keywords": ["deepseek-harness", "dsh", "workspace", "channel", "router"],
+  "keywords": ["deepseek-harness", "dsh", "workspace", "channel", "gateway"],
   "files": ["dist", "cordis.patch.yml"],
   "scripts": {
     "build": "tsdown src/index.ts --format esm --clean",

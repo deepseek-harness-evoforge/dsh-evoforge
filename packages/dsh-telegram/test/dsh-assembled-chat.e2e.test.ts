@@ -13,7 +13,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const execFile = promisify(execFileCallback)
 const suiteRoot = resolve(packageRoot, '../..')
-const routerRoot = resolve(packageRoot, '../dsh-channel-router')
+const gatewayRoot = resolve(packageRoot, '../dsh-gateway')
 const dshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR ?? resolve(suiteRoot, '../deepseek-harness')
 const temporaryRoots: string[] = []
 
@@ -179,10 +179,10 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Telegram chat', ()
         name: join(dshSourceDir, 'packages', 'workspace', 'workspace', 'lib', 'index.js'),
       },
       {
-        id: 'channel-router-bootstrap',
-        name: join(packageRoot, 'test', 'fixtures', 'router-bootstrap.ts'),
+        id: 'channel-gateway-bootstrap',
+        name: join(packageRoot, 'test', 'fixtures', 'gateway-bootstrap.ts'),
         config: {
-          routerEntry: pathToFileURL(join(routerRoot, 'dist', 'index.mjs')).href,
+          gatewayEntry: pathToFileURL(join(gatewayRoot, 'dist', 'index.mjs')).href,
           workspacePath: root,
           routeId: 'telegram-main',
           accountId: 'test-bot',
@@ -305,10 +305,10 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Telegram chat', ()
         notify(input: { id: string; text: string }): Promise<{ created: boolean; status: string }>
       } | undefined
       if (route === undefined) throw new Error('Telegram host route service did not load')
-      const router = ctx.get('evoforge.channelRouter') as {
+      const gateway = ctx.get('evoforge.gateway') as {
         route(id: string): { workspaceId: string } | undefined
       }
-      expect(route.workspaceId).toBe(router.route('telegram-main')?.workspaceId)
+      expect(route.workspaceId).toBe(gateway.route('telegram-main')?.workspaceId)
       const notice = {
         id: 'f'.repeat(64),
         text: `EvoForge attention\nInspect: /evolve review ${'a'.repeat(64)}`,

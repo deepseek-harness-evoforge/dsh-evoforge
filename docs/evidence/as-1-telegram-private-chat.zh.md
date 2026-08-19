@@ -4,7 +4,7 @@
 
 ## 用户结果
 
-一个离开浏览器的用户可在一个明确允许的 Telegram 私聊中，经 Channel Router 继续原生 Workspace
+一个离开浏览器的用户可在一个明确允许的 Telegram 私聊中，经 DSH Gateway 继续原生 Workspace
 里的同一个稳定 DSH Agent；该 Agent
 的普通回答、原生 Goal 后续轮次和原生 Schedule 轮次回到同一私聊。Slash Command 走 DSH 原生
 Commands，受保护动作可用一次性 Telegram 按钮回答。

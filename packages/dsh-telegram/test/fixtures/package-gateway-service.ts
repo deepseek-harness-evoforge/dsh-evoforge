@@ -1,8 +1,8 @@
 import type { Context } from '@deepseek-ai/cordis'
 
-export const name = 'dsh-telegram-package-router-service'
+export const name = 'dsh-telegram-package-gateway-service'
 
-/** Package-boundary-only service; real Router/Agent behavior is covered by assembled-chat. */
+/** Package-boundary-only service; real Gateway/Agent behavior is covered by assembled-chat. */
 export function apply(ctx: Context): void {
   const route = Object.freeze({
     id: 'telegram-package',
@@ -25,7 +25,7 @@ export function apply(ctx: Context): void {
     status: 'idle',
     ctx,
   })
-  ctx.provide('evoforge.channelRouter' as never, Object.freeze({
+  ctx.provide('evoforge.gateway' as never, Object.freeze({
     route: (id: string) => id === route.id ? route : undefined,
     resolve: () => Promise.resolve(agent),
     messageIdFor: () => `channel:${'a'.repeat(64)}`,

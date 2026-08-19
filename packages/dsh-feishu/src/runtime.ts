@@ -5,10 +5,10 @@ import type { Agent } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-commands'
 import type { ApprovalOutcome, ApprovalRequest } from '@deepseek-ai/dsh-user-approval'
 import {
-  ChannelIngressUncertainError,
-  type ChannelEndpoint,
-  type ChannelRouter,
-} from 'dsh-channel-router'
+  GatewayIngressUncertainError,
+  type GatewayEndpoint,
+  type DshGateway,
+} from 'dsh-gateway'
 import type { ResolvedFeishuConfig, ResolvedFeishuRoute } from './config.js'
 import type { FeishuDeliveryRecord, FeishuDeliveryStore } from './delivery-store.js'
 import type { FeishuSendFailure } from './delivery-state.js'
@@ -43,7 +43,7 @@ interface PendingApproval {
   readonly onAbort?: () => void
 }
 
-/** Thin Feishu transport over native DSH Router, Agent, Session, Command, and Approval. */
+/** Thin Feishu transport over native DSH Gateway, Agent, Session, Command, and Approval. */
 export class FeishuRuntime {
   private readonly lifecycle = new AbortController()
   private readonly configuredRouteIds: ReadonlySet<string>
@@ -68,7 +68,7 @@ export class FeishuRuntime {
   constructor(
     private readonly ctx: Context,
     private readonly config: ResolvedFeishuConfig,
-    private readonly router: ChannelRouter,
+    private readonly gateway: DshGateway,
     private readonly store: FeishuDeliveryStore,
     private readonly platform: FeishuPlatform,
   ) {
@@ -87,12 +87,12 @@ export class FeishuRuntime {
     if (this.started) return
     this.started = true
     await this.store.recoverInflight(Date.now())
-    for (const route of this.config.routes) this.bind(await this.router.resolve(route.id, this.lifecycle.signal))
+    for (const route of this.config.routes) this.bind(await this.gateway.resolve(route.id, this.lifecycle.signal))
 
     this.ctx.on('agent/created', ({ agent }) => {
       const routes = this.routesBySession.get(String(agent.id))
       if (routes === undefined) return
-      void Promise.all(routes.map(route => this.router.resolve(route.id, this.lifecycle.signal)))
+      void Promise.all(routes.map(route => this.gateway.resolve(route.id, this.lifecycle.signal)))
         .then((resolved) => {
           if (resolved.includes(agent)) this.bind(agent)
         })
@@ -253,19 +253,19 @@ export class FeishuRuntime {
     if (this.lifecycle.signal.aborted) return
     this.observeTransportActivity()
     if (message.rawContentType !== 'text' && message.rawContentType !== 'post') return
-    const endpoint: ChannelEndpoint = Object.freeze({
+    const endpoint: GatewayEndpoint = Object.freeze({
       adapter: 'feishu',
       accountId: this.config.appId,
       conversationId: message.chatId,
       ...(message.threadId === undefined ? {} : { threadId: message.threadId }),
       userId: message.senderId,
     })
-    const route = this.router.match(endpoint)
+    const route = this.gateway.match(endpoint)
     if (route === undefined || !this.configuredRouteIds.has(route.id)) return
     const selected = this.routesById.get(route.id)
     if (selected === undefined) return
     const eventId = `message:${message.messageId}`
-    const messageId = this.router.messageIdFor(endpoint, eventId)
+    const messageId = this.gateway.messageIdFor(endpoint, eventId)
     if (!this.repliesByMessage.has(messageId)
       && this.repliesByMessage.size >= MAX_PENDING_REPLY_CORRELATIONS) {
       throw new Error('dsh-feishu: pending reply correlation capacity is full')
@@ -276,9 +276,9 @@ export class FeishuRuntime {
       replyInThread: message.threadId !== undefined,
     })
     this.repliesByMessage.set(messageId, destination)
-    let dispatch: Awaited<ReturnType<ChannelRouter['dispatch']>>
+    let dispatch: Awaited<ReturnType<DshGateway['dispatch']>>
     try {
-      dispatch = await this.router.dispatch({
+      dispatch = await this.gateway.dispatch({
         endpoint,
         eventId,
         text: message.content,
@@ -286,7 +286,7 @@ export class FeishuRuntime {
       })
     } catch (error: unknown) {
       this.repliesByMessage.delete(messageId)
-      if (!(error instanceof ChannelIngressUncertainError)) throw error
+      if (!(error instanceof GatewayIngressUncertainError)) throw error
       await this.prepareResponse(
         destination,
         eventId,

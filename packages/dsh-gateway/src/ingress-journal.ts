@@ -28,63 +28,63 @@ const ingressSchema = z.strictObject({
   error: z.string().min(1).max(16_384).optional(),
 })
 
-const channelIngressDomainSpec = defineDomain({
-  name: 'evoforge_channel_router',
+const gatewayIngressDomainSpec = defineDomain({
+  name: 'evoforge_gateway',
   version: 1,
   global: {
     schema: z.strictObject({}),
     initial: {},
   },
   tables: {
-    ingress: domainTable<string, ChannelIngressRecord>(ingressSchema),
+    ingress: domainTable<string, GatewayIngressRecord>(ingressSchema),
   },
 })
 
-export type ChannelIngressRecord = z.infer<typeof ingressSchema>
-export type ChannelCommandResult = z.infer<typeof commandResultSchema>
-type ChannelIngressDomain = Domain<typeof channelIngressDomainSpec>
+export type GatewayIngressRecord = z.infer<typeof ingressSchema>
+export type GatewayCommandResult = z.infer<typeof commandResultSchema>
+type GatewayIngressDomain = Domain<typeof gatewayIngressDomainSpec>
 
-export interface PrepareChannelIngressInput {
+export interface PrepareGatewayIngressInput {
   readonly id: string
   readonly routeId: string
   readonly workspaceId: string
   readonly sessionId: string
   readonly eventHash: string
   readonly contentHash: string
-  readonly kind: ChannelIngressRecord['kind']
+  readonly kind: GatewayIngressRecord['kind']
   readonly now: number
 }
 
-export interface ChannelIngressStoreOptions {
+export interface GatewayIngressJournalOptions {
   /** Hard journal bound. Prepared and executing effects are never pruned. */
   readonly maxRecords?: number
 }
 
-export interface ChannelIngressStore {
-  prepare(input: PrepareChannelIngressInput): Promise<{ created: boolean; record: ChannelIngressRecord }>
-  get(id: string): ChannelIngressRecord | undefined
-  list(): ChannelIngressRecord[]
-  begin(id: string, now: number): Promise<ChannelIngressRecord>
-  settleMessage(id: string, now: number): Promise<ChannelIngressRecord>
-  settleCommand(id: string, result: ChannelCommandResult, now: number): Promise<ChannelIngressRecord>
-  markUncertain(id: string, error: string, now: number): Promise<ChannelIngressRecord>
+export interface GatewayIngressJournal {
+  prepare(input: PrepareGatewayIngressInput): Promise<{ created: boolean; record: GatewayIngressRecord }>
+  get(id: string): GatewayIngressRecord | undefined
+  list(): GatewayIngressRecord[]
+  begin(id: string, now: number): Promise<GatewayIngressRecord>
+  settleMessage(id: string, now: number): Promise<GatewayIngressRecord>
+  settleCommand(id: string, result: GatewayCommandResult, now: number): Promise<GatewayIngressRecord>
+  markUncertain(id: string, error: string, now: number): Promise<GatewayIngressRecord>
   recoverInflight(now: number): Promise<number>
   close(): Promise<void>
 }
 
 const DEFAULT_MAX_RECORDS = 10_000
-const RECOVERY_ERROR = 'Prior channel action outcome is unknown and must not be retried automatically.'
+const RECOVERY_ERROR = 'Prior gateway action outcome is unknown and must not be retried automatically.'
 
-class DomainChannelIngressStore implements ChannelIngressStore {
+class DomainGatewayIngressJournal implements GatewayIngressJournal {
   private tail: Promise<void> = Promise.resolve()
   private closing?: Promise<void>
 
   constructor(
-    private readonly domain: ChannelIngressDomain,
+    private readonly domain: GatewayIngressDomain,
     private readonly maxRecords: number,
   ) {}
 
-  prepare(input: PrepareChannelIngressInput): Promise<{ created: boolean; record: ChannelIngressRecord }> {
+  prepare(input: PrepareGatewayIngressInput): Promise<{ created: boolean; record: GatewayIngressRecord }> {
     return this.write(async () => {
       exactTime(input.now)
       const { now, ...identity } = input
@@ -103,53 +103,53 @@ class DomainChannelIngressStore implements ChannelIngressStore {
       }
       await pruneOldestSettled(table, this.maxRecords - 1)
       if (table.size >= this.maxRecords) {
-        throw new Error('channel ingress journal is full of non-terminal effects; refusing new ingress')
+        throw new Error('gateway ingress journal is full of non-terminal effects; refusing new ingress')
       }
       await table.put(candidate.id, candidate)
       return { created: true, record: copy(candidate) }
     })
   }
 
-  get(id: string): ChannelIngressRecord | undefined {
+  get(id: string): GatewayIngressRecord | undefined {
     const value = this.domain.table('ingress').get(id)
     return value === undefined ? undefined : copy(value)
   }
 
-  list(): ChannelIngressRecord[] {
+  list(): GatewayIngressRecord[] {
     return [...this.domain.table('ingress').entries()]
       .map(([, record]) => record)
       .sort((left, right) => left.createdAt - right.createdAt || left.id.localeCompare(right.id))
       .map(copy)
   }
 
-  begin(id: string, now: number): Promise<ChannelIngressRecord> {
+  begin(id: string, now: number): Promise<GatewayIngressRecord> {
     return this.update(id, now, (current) => {
-      if (current.status !== 'prepared') throw new Error(`cannot begin channel ingress from ${current.status}`)
+      if (current.status !== 'prepared') throw new Error(`cannot begin gateway ingress from ${current.status}`)
       return { ...current, status: 'executing' }
     })
   }
 
-  settleMessage(id: string, now: number): Promise<ChannelIngressRecord> {
+  settleMessage(id: string, now: number): Promise<GatewayIngressRecord> {
     return this.update(id, now, (current) => {
       if (current.kind !== 'message') throw new Error('cannot settle command ingress as a message')
-      if (current.status !== 'executing') throw new Error(`cannot settle channel ingress from ${current.status}`)
+      if (current.status !== 'executing') throw new Error(`cannot settle gateway ingress from ${current.status}`)
       return { ...current, status: 'settled' }
     })
   }
 
-  settleCommand(id: string, result: ChannelCommandResult, now: number): Promise<ChannelIngressRecord> {
+  settleCommand(id: string, result: GatewayCommandResult, now: number): Promise<GatewayIngressRecord> {
     const commandResult = commandResultSchema.parse(result)
     return this.update(id, now, (current) => {
       if (current.kind !== 'command') throw new Error('cannot settle message ingress as a command')
-      if (current.status !== 'executing') throw new Error(`cannot settle channel ingress from ${current.status}`)
+      if (current.status !== 'executing') throw new Error(`cannot settle gateway ingress from ${current.status}`)
       return { ...current, status: 'settled', commandResult }
     })
   }
 
-  markUncertain(id: string, error: string, now: number): Promise<ChannelIngressRecord> {
-    if (error.length === 0) return Promise.reject(new Error('uncertain channel ingress requires an error'))
+  markUncertain(id: string, error: string, now: number): Promise<GatewayIngressRecord> {
+    if (error.length === 0) return Promise.reject(new Error('uncertain gateway ingress requires an error'))
     return this.update(id, now, (current) => {
-      if (current.status !== 'executing') throw new Error(`cannot mark channel ingress uncertain from ${current.status}`)
+      if (current.status !== 'executing') throw new Error(`cannot mark gateway ingress uncertain from ${current.status}`)
       return { ...current, status: 'uncertain', error }
     })
   }
@@ -182,8 +182,8 @@ class DomainChannelIngressStore implements ChannelIngressStore {
   private update(
     id: string,
     now: number,
-    transform: (current: ChannelIngressRecord) => ChannelIngressRecord,
-  ): Promise<ChannelIngressRecord> {
+    transform: (current: GatewayIngressRecord) => GatewayIngressRecord,
+  ): Promise<GatewayIngressRecord> {
     return this.write(async () => {
       exactTime(now)
       const table = this.domain.table('ingress')
@@ -199,37 +199,37 @@ class DomainChannelIngressStore implements ChannelIngressStore {
   }
 
   private write<T>(job: () => Promise<T>): Promise<T> {
-    if (this.closing !== undefined) return Promise.reject(new Error('channel ingress store is closing'))
+    if (this.closing !== undefined) return Promise.reject(new Error('gateway ingress journal is closing'))
     const result = this.tail.then(job)
     this.tail = result.then(() => {}, () => {})
     return result
   }
 }
 
-export async function openChannelIngressStore(
+export async function openGatewayIngressJournal(
   facility: DomainFacility,
-  options: ChannelIngressStoreOptions = {},
-): Promise<ChannelIngressStore> {
+  options: GatewayIngressJournalOptions = {},
+): Promise<GatewayIngressJournal> {
   const maxRecords = options.maxRecords ?? DEFAULT_MAX_RECORDS
   if (!Number.isSafeInteger(maxRecords) || maxRecords < 1) {
-    throw new Error('channel ingress store maxRecords must be a positive safe integer')
+    throw new Error('gateway ingress journal maxRecords must be a positive safe integer')
   }
-  return new DomainChannelIngressStore(await facility.open(channelIngressDomainSpec), maxRecords)
+  return new DomainGatewayIngressJournal(await facility.open(gatewayIngressDomainSpec), maxRecords)
 }
 
-function assertSameIntent(existing: ChannelIngressRecord, candidate: ChannelIngressRecord): void {
+function assertSameIntent(existing: GatewayIngressRecord, candidate: GatewayIngressRecord): void {
   if (existing.contentHash !== candidate.contentHash) {
-    throw new Error(`channel ingress '${existing.id}' content changed for the same external event`)
+    throw new Error(`gateway ingress '${existing.id}' content changed for the same external event`)
   }
   for (const field of ['routeId', 'workspaceId', 'sessionId', 'eventHash', 'kind'] as const) {
     if (existing[field] !== candidate[field]) {
-      throw new Error(`channel ingress '${existing.id}' ${field} changed for the same external event`)
+      throw new Error(`gateway ingress '${existing.id}' ${field} changed for the same external event`)
     }
   }
 }
 
 async function pruneOldestSettled(
-  table: KvTable<string, ChannelIngressRecord>,
+  table: KvTable<string, GatewayIngressRecord>,
   maxSize: number,
 ): Promise<void> {
   if (table.size <= maxSize) return

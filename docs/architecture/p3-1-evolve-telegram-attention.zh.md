@@ -38,7 +38,7 @@ interface TelegramHostRoute {
 ```
 
 该 service 是具体 `dsh-telegram` route，不是可替换 Provider。Bridge 没有配置：加载该默认禁用插件行
-本身就是 opt-in；chat/user/Workspace/Session/Agent 只在 Channel Router route 中出现，token env 与
+本身就是 opt-in；chat/user/Workspace/Session/Agent 只在 DSH Gateway route 中出现，token env 与
 routeId 只在 `dsh-telegram` 配置中出现。
 
 Notice 投影：
@@ -76,6 +76,6 @@ rejected` 不发送。notice 文本不得复制私有 correction、生成文件�
 
 ## 明确停止线
 
-首版不加按钮、催办、优先级、模板系统、订阅或日程。飞书作为 v0.1 第二渠道只复用 Channel Router
+首版不加按钮、催办、优先级、模板系统、订阅或日程。飞书作为 v0.1 第二渠道只复用 DSH Gateway
 入口，不自动把 Evolution notice 扩成公共 notification SPI；先测 discovered rate、time-to-first-review、
 stale review count 与真实 Bot 多日投递，再决定是否需要跨 Adapter 的注意力投影。

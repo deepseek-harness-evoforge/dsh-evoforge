@@ -27,7 +27,7 @@ describe('Telegram durable delivery store', () => {
     })
   })
 
-  it('deduplicates the Router command result sent back to Telegram', async () => {
+  it('deduplicates the Gateway command result sent back to Telegram', async () => {
     const store = await openTelegramDeliveryStore(memoryFacility())
     const first = await store.prepareCommand({
       now: 102,

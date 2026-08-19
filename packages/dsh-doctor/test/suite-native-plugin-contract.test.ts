@@ -53,8 +53,8 @@ const contracts = [
     disabled: true,
   },
   {
-    name: 'dsh-channel-router',
-    entryId: 'evoforge-channel-router',
+    name: 'dsh-gateway',
+    entryId: 'evoforge-gateway',
     disabled: true,
   },
   {

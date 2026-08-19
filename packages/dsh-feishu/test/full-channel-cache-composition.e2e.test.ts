@@ -11,7 +11,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 const execFile = promisify(execFileCallback)
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const suiteRoot = resolve(packageRoot, '../..')
-const routerRoot = resolve(packageRoot, '../dsh-channel-router')
+const gatewayRoot = resolve(packageRoot, '../dsh-gateway')
 const telegramRoot = resolve(packageRoot, '../dsh-telegram')
 const attentionRoot = resolve(packageRoot, '../dsh-evolve-attention')
 const dshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR ?? resolve(suiteRoot, '../deepseek-harness')
@@ -23,8 +23,8 @@ afterEach(async () => {
 })
 
 describe.skipIf(process.platform !== 'darwin')('complete channel composition cache contract', () => {
-  it('keeps both Workspace requests byte-equivalent with Router, Telegram, Feishu, and attention active', async () => {
-    for (const cwd of [routerRoot, telegramRoot, packageRoot, attentionRoot]) {
+  it('keeps both Workspace requests byte-equivalent with Gateway, Telegram, Feishu, and attention active', async () => {
+    for (const cwd of [gatewayRoot, telegramRoot, packageRoot, attentionRoot]) {
       await execFile('pnpm', ['run', 'build'], { cwd, encoding: 'utf8', timeout: 30_000 })
     }
     const root = await mkdtemp(join(tmpdir(), 'dsh-full-channel-composition-'))
@@ -235,10 +235,10 @@ function channelPlugins(input: {
 }): unknown[] {
   return [
     {
-      id: 'channel-router-bootstrap',
-      name: join(packageRoot, 'test', 'fixtures', 'dual-workspace-router-bootstrap.ts'),
+      id: 'channel-gateway-bootstrap',
+      name: join(packageRoot, 'test', 'fixtures', 'dual-workspace-gateway-bootstrap.ts'),
       config: {
-        routerEntry: pathToFileURL(join(routerRoot, 'dist', 'index.mjs')).href,
+        gatewayEntry: pathToFileURL(join(gatewayRoot, 'dist', 'index.mjs')).href,
         routes: [
           {
             id: 'telegram-cache', adapter: 'telegram', accountId: 'test-bot',

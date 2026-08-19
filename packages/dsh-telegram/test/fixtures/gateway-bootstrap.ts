@@ -1,6 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 
-export const name = 'dsh-telegram-router-bootstrap'
+export const name = 'dsh-telegram-gateway-bootstrap'
 export const inject = [
   'agents',
   'agentPresets',
@@ -11,7 +11,7 @@ export const inject = [
 ]
 
 interface Config {
-  readonly routerEntry: string
+  readonly gatewayEntry: string
   readonly workspacePath: string
   readonly routeId: string
   readonly accountId: string
@@ -23,16 +23,16 @@ interface Config {
   readonly model: string
 }
 
-/** Real-Host test bootstrap: create the stable Workspace before loading the actual Router plugin. */
+/** Real-Host test bootstrap: create the stable Workspace before loading the actual Gateway plugin. */
 export async function apply(ctx: Context, config: Config): Promise<void> {
   const registry = (ctx as unknown as {
     workspaceRegistry: { create(path: string): Promise<{ id: unknown }> }
   }).workspaceRegistry
   const workspace = await registry.create(config.workspacePath)
-  const router = await import(config.routerEntry) as {
+  const gateway = await import(config.gatewayEntry) as {
     apply(ctx: Context, config: unknown): Promise<void>
   }
-  await router.apply(ctx, {
+  await gateway.apply(ctx, {
     routes: [{
       id: config.routeId,
       adapter: 'telegram',

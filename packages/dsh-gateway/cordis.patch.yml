@@ -1,0 +1,4 @@
+- insert:
+    - id: evoforge-gateway
+      name: dsh-gateway
+      disabled: true

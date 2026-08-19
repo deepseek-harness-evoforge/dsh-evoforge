@@ -6,7 +6,7 @@ Compatibility evidence is pinned to DeepSeek Harness `47f943859bef60e41604923467
 
 ## Current suite
 
-The repository contains eleven native DSH Bundles: evidence-driven evolution and its Web adapter, verified software delivery, runtime diagnosis, GitHub review follow-up, Workspace Channel Router, Telegram, Feishu, cross-channel evolution attention, native Goal cold resume, and `/resident` control for one exact launchd/systemd user unit. External routes, recovery, and deployment control are disabled until an operator provides exact configuration.
+The repository contains eleven native DSH Bundles: evidence-driven evolution and its Web adapter, verified software delivery, runtime diagnosis, GitHub review follow-up, Workspace DSH Gateway, Telegram, Feishu, cross-channel evolution attention, native Goal cold resume, and `/resident` control for one exact launchd/systemd user unit. External routes, recovery, and deployment control are disabled until an operator provides exact configuration.
 
 ## Install into DSH
 
@@ -15,7 +15,7 @@ pnpm install --frozen-lockfile
 PACK_DIR="$(mktemp -d)"
 for package in \
   dsh-evolve dsh-evolve-web dsh-software-delivery dsh-doctor \
-  dsh-github-review dsh-channel-router dsh-telegram dsh-feishu \
+  dsh-github-review dsh-gateway dsh-telegram dsh-feishu \
   dsh-evolve-attention dsh-goal-continuity dsh-resident
 do
   pnpm --filter "$package" pack --pack-destination "$PACK_DIR"
@@ -36,14 +36,14 @@ There is no supported `dsh-evolve`, `dsh-delivery`, or `dsh-resident` product CL
 dsh plugin --profile web remove \
   dsh-evolve-web dsh-evolve dsh-software-delivery dsh-doctor \
   dsh-github-review dsh-evolve-attention dsh-feishu dsh-telegram \
-  dsh-channel-router dsh-goal-continuity dsh-resident
+  dsh-gateway dsh-goal-continuity dsh-resident
 dsh --profile web --dump-config
 dsh --profile web
 ```
 
 Removal unregisters EvoForge effects while native DSH Session, Goal, and Workspace data remains readable. External effects that already occurred cannot be undone by uninstalling a plugin.
 
-The native Workspace Channel Router, Telegram and Feishu Adapters, Workspace-owned evolution, eleven-package clean-profile gate, full composition Cache Contract gate, and real DSH browser restart/failure/recovery acceptance are implemented. Four deterministic Hermes paired slices now cover EV-1, SD-1, LC-1, and Telegram approval: the first two support narrow control-plane advantage claims, while local crash recovery and allow-once replay control are ties. v0.1 still requires real-channel credential smoke tests plus same-model coding, real-message delivery, long-task, provider, and long-running paired evidence.
+The native Workspace DSH Gateway, Telegram and Feishu Adapters, Workspace-owned evolution, eleven-package clean-profile gate, full composition Cache Contract gate, and real DSH browser restart/failure/recovery acceptance are implemented. Four deterministic Hermes paired slices now cover EV-1, SD-1, LC-1, and Telegram approval: the first two support narrow control-plane advantage claims, while local crash recovery and allow-once replay control are ties. v0.1 still requires real-channel credential smoke tests plus same-model coding, real-message delivery, long-task, provider, and long-running paired evidence.
 
 See the [Chinese installation guide](docs/getting-started.zh.md), [status](docs/status.zh.md), [shape audit](docs/native-plugin-shape-audit.zh.md), and [plugin contract](docs/plugin-contract.zh.md).
 

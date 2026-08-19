@@ -1,7 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type Schema from '@deepseek-ai/schemastery'
-import type { ChannelRouter } from 'dsh-channel-router'
+import type { DshGateway } from 'dsh-gateway'
 import { TelegramApi } from './telegram-api.js'
 import { openTelegramDeliveryStore } from './delivery-store.js'
 import { TelegramRuntime } from './runtime.js'
@@ -9,10 +9,10 @@ import { resolveTelegramConfig } from './config.js'
 import type { TelegramHostNotice, TelegramHostRoute } from './host-route.js'
 
 export const name = 'dsh-telegram'
-export const inject = ['evoforge.channelRouter', 'storageDomain']
+export const inject = ['evoforge.gateway', 'storageDomain']
 
 export interface Config {
-  /** Exact static dsh-channel-router route owned by this Bot adapter. */
+  /** Exact static dsh-gateway route owned by this Bot adapter. */
   readonly routeId: string
   /** Environment variable holding the Bot token. Reading it is an explicit deployment policy. */
   readonly tokenEnv?: string
@@ -33,10 +33,10 @@ export const Config: Schema<Config> = z.object({
 })
 
 export async function apply(ctx: Context, config: Config): Promise<void> {
-  const router = ctx.get('evoforge.channelRouter' as never) as ChannelRouter | undefined
-  if (router === undefined) throw new Error('dsh-telegram: dsh-channel-router service is unavailable')
-  const route = router.route(config.routeId)
-  if (route === undefined) throw new Error(`dsh-telegram: unknown Router route '${config.routeId}'`)
+  const gateway = ctx.get('evoforge.gateway' as never) as DshGateway | undefined
+  if (gateway === undefined) throw new Error('dsh-telegram: dsh-gateway service is unavailable')
+  const route = gateway.route(config.routeId)
+  if (route === undefined) throw new Error(`dsh-telegram: unknown Gateway route '${config.routeId}'`)
   const resolved = resolveTelegramConfig(config, route)
   const token = process.env[resolved.tokenEnv]
   if (token === undefined || token.length === 0) {
@@ -46,7 +46,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   const runtime = new TelegramRuntime(
     ctx,
     resolved,
-    router,
+    gateway,
     new TelegramApi({ token, apiBase: resolved.apiBase }),
     store,
   )

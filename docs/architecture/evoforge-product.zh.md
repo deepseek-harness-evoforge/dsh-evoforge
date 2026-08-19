@@ -16,9 +16,9 @@ DSH Runtime ─ Goal / Session / Tool / Approval / Storage / Jobs / Skill
 EvoForge 可选能力
   ├─ Evolve：自主能力路由、缺口发现、双速候选生成、评测和发布
   ├─ Software Delivery：隔离、验证、commit、Draft PR
-  ├─ Channel Router：静态 endpoint 绑定原生 Workspace/Session/Agent
-  ├─ Telegram Adapter：一个私聊经 Router 持续使用原生 Agent
-  ├─ Feishu Adapter：一个 App 的 exact 私聊/群聊经 Router 使用原生 Agent
+  ├─ DSH Gateway：静态 endpoint 绑定原生 Workspace/Session/Agent
+  ├─ Telegram Adapter：一个私聊经 Gateway 持续使用原生 Agent
+  ├─ Feishu Adapter：一个 App 的 exact 私聊/群聊经 Gateway 使用原生 Agent
   ├─ Evolve Attention：待处理进化决定发送到既有 Telegram/飞书 route
   ├─ Goal Continuity：授权固定 Session 在重启后继续原生 Goal
   └─ Resident：用户级 OS service 拉起 exact DSH profile
@@ -38,7 +38,7 @@ Opportunity；同 Goal retry、无 Goal 和跨 Workspace 均 abstain。`selfDisc
 run root 与日预算，不预选 Skill、路径、来源、Agent 或 workflow。原生 Job author 只读取有界内部证据，
 Host 将 instruction-only whole-Skill v1 内容寻址并隔离为 inactive Candidate。在线快环收集可归因
 signal/gap/outcome，离线慢环负责跨 Goal 归纳、候选生成、独立评测、保留和发布。外部生态研究只用于
-设计期和冻结 benchmark；运行时外部搜索不是自我发现。Discovery、Observer、
+设计期和冻结 benchmark；运行时外部搜索不是自我发现。Self-Discovery、Observer、
 Trial Runner、Decision 与 Release 在证明有两个独立消费者或信任边界以前都保持内部模块，不为了名称
 数量拆成浅插件。
 
@@ -49,7 +49,7 @@ Trial Runner、Decision 与 Release 在证明有两个独立消费者或信任�
 ### dsh-telegram
 
 首个 Assistant Adapter 已选择 Telegram 单私聊：一个 Bot、一个 exact private chat/user、一个静态
-Channel Router route。Router 通过 WorkspaceRegistry、Agent preset 与 Session persistence 创建或冷恢复
+DSH Gateway route。Gateway 通过 WorkspaceRegistry、Agent preset 与 Session persistence 创建或冷恢复
 稳定 Agent；Telegram 只保留协议轮询、Approval UI 和 outbound delivery。它复用原生 Commands、Goal
 与 Schedule，不创建第二 Session 或 Gateway；0 Tool/Skill/Prompt。真实 Bot/Hermes paired benchmark
 之前只标记为 `implemented`。
@@ -57,7 +57,7 @@ Channel Router route。Router 通过 WorkspaceRegistry、Agent preset 与 Sessio
 ### dsh-feishu
 
 第二个 Assistant Adapter 已实现为飞书官方 SDK WebSocket 长连接。一个 App 可绑定多个静态 exact
-route，但 App ID 必须与 Router account 一致；Router 继续拥有 Workspace/Session/Agent/Command，
+route，但 App ID 必须与 Gateway account 一致；Gateway 继续拥有 Workspace/Session/Agent/Command，
 Adapter 只保存有界出站 journal、平台协议和一次性 Approval 卡片。明确 429 才重试，模糊发送进入
 uncertain。双 Workspace 双渠道同 Host 重启隔离、真实 App 身份请求及标准 HTTPS proxy 环境中的
 WebSocket 握手已经通过；setup-only `/feishu-pair` 用两分钟一次性消息从当前 DSH Workspace/Session
@@ -86,7 +86,7 @@ entry、profile、home 和 workspace 变成完整 launchd/systemd unit；只有 
 supervisor API，只有 1 human Command，0 Tool/Skill/Prompt/模型调用。与 Goal Continuity 组合时，
 Resident 只恢复进程，Goal Continuity 只决定 exact Session 的原生 Goal 是否被授权继续。
 
-当前不创建独立的 Mission、Supervisor、Cache、Policy、Memory、Event Store 或通用 UI 平台插件。Channel Router 只抽取两个消息 Adapter 必需的 Workspace/Session/Agent/Command 入口接缝，不承载平台网络协议或第二控制面。
+当前不创建独立的 Mission、Supervisor、Cache、Policy、Memory、Event Store 或通用 UI 平台插件。DSH Gateway 只抽取两个消息 Adapter 必需的 Workspace/Session/Agent/Command 入口接缝，不承载平台网络协议或第二控制面。
 
 ## 3. 交互契约
 
@@ -138,7 +138,7 @@ Resident 只恢复进程，Goal Continuity 只决定 exact Session 的原生 Goa
 | 软件交付 | 原生 Goal 到 verified commit/Draft PR | verified commit、幂等 Draft PR、可选 exact-head checks 门、有界 active-call wait 与原生 Goal 受验证完成 implemented；真实任务数据 pending |
 | 单机持续运行 | crash-resume、幂等恢复、无半激活版本 | Generation release + Shadow journal + native Jobs supervisor、`dsh-goal-continuity` Goal 冷恢复与 `dsh-resident` 真实 macOS DSH PID `SIGKILL` 拉起已实现；Linux 真机与生产多日 soak pending |
 | Memory/Skill | 复用 DSH/社区能力，不造第二套 Memory | 架构边界已确认 |
-| 自主 Skill 发现 | 自然语言 Goal 自动命中已验证能力；无能力时从自身经验形成可复核 Opportunity 和完整候选 | 原生目录/路由证据、可证伪 Gap、至少两个独立 Goal 的内部 Opportunity、无 Skill 预配置的 Workspace policy、instruction-only whole-Skill v1 quarantine 与 Web Gap→Opportunity→Candidate implemented；独立 final-test/Shadow/Retention、真实 provider、迁移/成本门禁与 paired benchmark pending |
+| 内部经验自我发现 | 自然语言 Goal 自动使用已安装的适用能力；反复出现真实缺口时从自身经验形成可复核 Opportunity 和完整候选 | 原生目录/路由证据、可证伪 Gap、至少两个独立 Goal 的内部 Opportunity、无 Skill 预配置的 Workspace policy、instruction-only whole-Skill v1 quarantine 与 Web Gap→Opportunity→Candidate implemented；完整内部证据、独立 final-test/Shadow/Retention、真实 provider、迁移/成本门禁与 paired benchmark pending |
 | 消息与日程 | 按真实 workflow 提供可拆 Adapter | Telegram、飞书与 Evolve 注意力桥 implemented；真实飞书 App 握手与 setup-only 配对通过，exact route 消息/Hermes paired 与其他场景 pending |
 | 人类控制 | 状态、证据、审批、暂停、回滚不阻塞会话 | P0C Commands/Web + P3.1 非阻塞 Telegram attention + P3.2 Draft PR review follow-up implemented；语义 capability 审计与陌生用户可用性数据 pending |
 | 自进化 | 独立 final-test、inactive Candidate、可证明晋升 | P0A `fail → pass` + P0B verified-Git/resident resume + P0C inactive publication + P1.1 opt-in auto policy + P2D.1 Outcome + P1.2 exact-parent 反事实回滚 + P1.3 feedback intake + P1.4 private Case Draft + P1.5 feedback-guided Shadow + P1.6 pre-proposal calibration + P1.7 explicit evaluator authoring + P1.8 target-bound launch + P1.9 private Evaluator Draft/human qualification + P1.15 crash-safe automatic budget + P1.16 opt-in automatic inactive Evaluator Draft + P1.17 human-approved Qualify-and-Shadow + P1.18 per-Skill automatic inflight gate + P1.19 bounded automatic ambiguous review + P1.20 review-window visibility + P1.21 parent outcome comparison；真实 provider、陌生用户与长期效果 pending |

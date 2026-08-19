@@ -11,7 +11,7 @@ const phrase = 'EVOFORGE PAIR ABCDEFGHJKLM2345'
 const route = [
   '配对成功。下面只是待审查配置，不会自动生效：',
   '```yaml',
-  '- id: evoforge-channel-router',
+  '- id: evoforge-gateway',
   '  config:',
   '    routes: []',
   '```',
@@ -78,10 +78,10 @@ describe('Feishu pairing action', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '我已发送，检查连接' }))
     expect(await screen.findByText('连接信息已收到')).toBeTruthy()
-    expect(screen.getByText(/evoforge-channel-router/u)).toBeTruthy()
+    expect(screen.getByText(/evoforge-gateway/u)).toBeTruthy()
     expect(commands.execute).toHaveBeenCalledWith(sessionId, '/feishu-pair status')
     fireEvent.click(screen.getByRole('button', { name: '复制配置' }))
-    await waitFor(() => expect(writeText).toHaveBeenCalledWith(expect.stringContaining('evoforge-channel-router')))
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(expect.stringContaining('evoforge-gateway')))
   })
 
   it('does not add a setup surface when this Session has no pairing command', async () => {
@@ -160,7 +160,7 @@ describe('Feishu pairing action', () => {
     const commands = {
       list: vi.fn(() => success([{ name: 'feishu-pair', description: 'pair' }])),
       execute: vi.fn((_session: unknown, line: string) => line.endsWith('cancel')
-        ? success(execution('飞书配对已取消；没有创建或修改任何 Router route。'))
+        ? success(execution('飞书配对已取消；没有创建或修改任何 Gateway route。'))
         : success({ commandId: 'command-error', result: { kind: 'error' as const, text: '飞书连接失败。' } })),
     } as unknown as PairingCommandsClient
     renderPairing(commands)
@@ -169,6 +169,6 @@ describe('Feishu pairing action', () => {
     fireEvent.click(screen.getByRole('button', { name: '生成一次性短语' }))
     expect((await screen.findByRole('alert')).textContent).toContain('飞书连接失败。')
     fireEvent.click(screen.getByRole('button', { name: '取消本次连接' }))
-    expect(await screen.findByText(/没有创建或修改任何 Router route/u)).toBeTruthy()
+    expect(await screen.findByText(/没有创建或修改任何 Gateway route/u)).toBeTruthy()
   })
 })

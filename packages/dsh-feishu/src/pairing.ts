@@ -45,7 +45,7 @@ type PairingState =
 
 /**
  * Setup-only pairing module. It accepts one high-entropy phrase, returns a static
- * config draft, and deliberately has no Agent or Router dispatch interface.
+ * config draft, and deliberately has no Agent or Gateway dispatch interface.
  */
 export class FeishuPairingRuntime {
   private state: PairingState = Object.freeze({ kind: 'idle' })
@@ -142,7 +142,7 @@ export class FeishuPairingRuntime {
     this.clearExpiry()
     this.state = Object.freeze({ kind: 'cancelled', target: Object.freeze({ ...target }) })
     await this.disconnect()
-    return commandSuccess('飞书配对已取消；没有创建或修改任何 Router route。')
+    return commandSuccess('飞书配对已取消；没有创建或修改任何 Gateway route。')
   }
 
   private async accept(message: FeishuInboundMessage): Promise<void> {
@@ -229,8 +229,8 @@ function renderPaired(options: FeishuPairingRuntimeOptions, state: PairedState):
   const lines = [
     '配对成功。下面只是待审查配置，不会自动生效：',
     '```yaml',
-    '- id: evoforge-channel-router',
-    '  name: dsh-channel-router',
+    '- id: evoforge-gateway',
+    '  name: dsh-gateway',
     '  disabled: false',
     '  config:',
     '    routes:',
@@ -255,7 +255,7 @@ function renderPaired(options: FeishuPairingRuntimeOptions, state: PairedState):
     `    appSecretEnv: ${options.appSecretEnv}`,
     '```',
     `真实回执：${state.acknowledgement === 'delivered' ? '已送达' : '结果不确定，请先人工确认'}。`,
-    '审查并写入 DSH profile 后，关闭 pairing mode 并重启 DSH；Router 仍按 exact identity 默认拒绝。',
+    '审查并写入 DSH profile 后，关闭 pairing mode 并重启 DSH；Gateway 仍按 exact identity 默认拒绝。',
   ]
   return lines.join('\n')
 }

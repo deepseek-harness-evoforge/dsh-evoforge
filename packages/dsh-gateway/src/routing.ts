@@ -1,4 +1,4 @@
-export interface ChannelEndpoint {
+export interface GatewayEndpoint {
   readonly adapter: string
   readonly accountId: string
   readonly conversationId: string
@@ -6,7 +6,7 @@ export interface ChannelEndpoint {
   readonly userId: string
 }
 
-export interface ChannelRouteConfig extends ChannelEndpoint {
+export interface GatewayRouteConfig extends GatewayEndpoint {
   readonly id: string
   readonly workspaceId: string
   readonly sessionId: string
@@ -17,14 +17,14 @@ export interface ChannelRouteConfig extends ChannelEndpoint {
   readonly maxTokens?: number
 }
 
-export interface ResolvedChannelRoute extends ChannelRouteConfig {
+export interface ResolvedGatewayRoute extends GatewayRouteConfig {
   readonly endpointKey: string
 }
 
-export interface ResolvedChannelRoutes {
-  readonly byId: ReadonlyMap<string, ResolvedChannelRoute>
-  readonly routes: readonly ResolvedChannelRoute[]
-  match(endpoint: ChannelEndpoint): ResolvedChannelRoute | undefined
+export interface ResolvedGatewayRoutes {
+  readonly byId: ReadonlyMap<string, ResolvedGatewayRoute>
+  readonly routes: readonly ResolvedGatewayRoute[]
+  match(endpoint: GatewayEndpoint): ResolvedGatewayRoute | undefined
 }
 
 const ROUTE_ID = /^[a-z][a-z0-9_-]{0,63}$/u
@@ -32,10 +32,10 @@ const ADAPTER_ID = /^[a-z][a-z0-9_-]{0,31}$/u
 const MAX_ROUTES = 100
 
 /** Validate the complete static routing table before any Adapter can receive traffic. */
-export function resolveChannelRoutes(input: readonly ChannelRouteConfig[]): ResolvedChannelRoutes {
-  if (input.length > MAX_ROUTES) throw new Error(`channel router supports at most ${MAX_ROUTES} routes`)
-  const byId = new Map<string, ResolvedChannelRoute>()
-  const byEndpoint = new Map<string, ResolvedChannelRoute>()
+export function resolveGatewayRoutes(input: readonly GatewayRouteConfig[]): ResolvedGatewayRoutes {
+  if (input.length > MAX_ROUTES) throw new Error(`DSH gateway supports at most ${MAX_ROUTES} routes`)
+  const byId = new Map<string, ResolvedGatewayRoute>()
+  const byEndpoint = new Map<string, ResolvedGatewayRoute>()
   const sessionOwners = new Map<string, {
     workspaceId: string
     agentPreset: string
@@ -43,12 +43,12 @@ export function resolveChannelRoutes(input: readonly ChannelRouteConfig[]): Reso
     model: string
     maxTokens?: number
   }>()
-  const routes: ResolvedChannelRoute[] = []
+  const routes: ResolvedGatewayRoute[] = []
   for (const candidate of input) {
     const route = normalizeRoute(candidate)
-    if (byId.has(route.id)) throw new Error(`channel route id '${route.id}' is duplicated`)
+    if (byId.has(route.id)) throw new Error(`gateway route id '${route.id}' is duplicated`)
     if (byEndpoint.has(route.endpointKey)) {
-      throw new Error(`channel routes '${byEndpoint.get(route.endpointKey)!.id}' and '${route.id}' claim the same external endpoint`)
+      throw new Error(`gateway routes '${byEndpoint.get(route.endpointKey)!.id}' and '${route.id}' claim the same external endpoint`)
     }
     const owner = sessionOwners.get(route.sessionId)
     if (owner !== undefined && owner.workspaceId !== route.workspaceId) {
@@ -75,11 +75,11 @@ export function resolveChannelRoutes(input: readonly ChannelRouteConfig[]): Reso
   return Object.freeze({
     byId,
     routes: Object.freeze(routes),
-    match: (endpoint: ChannelEndpoint) => byEndpoint.get(endpointKey(normalizeEndpoint(endpoint))),
+    match: (endpoint: GatewayEndpoint) => byEndpoint.get(endpointKey(normalizeEndpoint(endpoint))),
   })
 }
 
-export function endpointKey(endpoint: ChannelEndpoint): string {
+export function endpointKey(endpoint: GatewayEndpoint): string {
   return JSON.stringify([
     endpoint.adapter,
     endpoint.accountId,
@@ -89,7 +89,7 @@ export function endpointKey(endpoint: ChannelEndpoint): string {
   ])
 }
 
-function normalizeRoute(input: ChannelRouteConfig): ResolvedChannelRoute {
+function normalizeRoute(input: GatewayRouteConfig): ResolvedGatewayRoute {
   const endpoint = normalizeEndpoint(input)
   const id = exactId(input.id, 'route id', ROUTE_ID)
   const workspaceId = exactText(input.workspaceId, 'workspaceId', 512)
@@ -114,7 +114,7 @@ function normalizeRoute(input: ChannelRouteConfig): ResolvedChannelRoute {
   })
 }
 
-function normalizeEndpoint(input: ChannelEndpoint): ChannelEndpoint {
+function normalizeEndpoint(input: GatewayEndpoint): GatewayEndpoint {
   const adapter = exactId(input.adapter, 'adapter', ADAPTER_ID)
   const accountId = exactText(input.accountId, 'accountId', 256)
   const conversationId = exactText(input.conversationId, 'conversationId', 512)

@@ -13,14 +13,14 @@
 | `dsh-software-delivery` | 原生 `software-delivery` Skill 与 `complete_delivery` Tool | enabled |
 | `dsh-doctor` | 原生 `/doctor` Loader readiness | enabled |
 | `dsh-github-review` | Draft PR exact-head 人类返修回到原 Session/Goal | disabled，需显式配置 |
-| `dsh-telegram` | 一个授权私聊经 Router 到原生 Workspace/Session/Agent 的 Adapter | disabled，需显式配置 |
+| `dsh-telegram` | 一个授权私聊经 Gateway 到原生 Workspace/Session/Agent 的 Adapter | disabled，需显式配置 |
 | `dsh-evolve-attention` | 把 Workspace-scoped 进化待决事项投影到既有 Telegram/飞书 route | disabled，需显式配置 |
 | `dsh-goal-continuity` | exact allowlist Session 的原生 Goal cold-resume policy | disabled，需显式配置 |
 | `dsh-resident` | `/resident` 管理 exact DSH profile 的 launchd/systemd user unit | disabled，需显式配置与逐次确认 |
-| `dsh-channel-router` | external endpoint 到原生 Workspace/Session/Agent 的静态、幂等绑定 | disabled，需显式配置 |
-| `dsh-feishu` | 一个飞书 App 的 exact 私聊/群聊经 Router 进入原生 Workspace/Session/Agent；同包提供 DSH Web 首次连接向导 | disabled，需显式配置 |
+| `dsh-gateway` | external endpoint 到原生 Workspace/Session/Agent 的静态、幂等绑定 | disabled，需显式配置 |
+| `dsh-feishu` | 一个飞书 App 的 exact 私聊/群聊经 Gateway 进入原生 Workspace/Session/Agent；同包提供 DSH Web 首次连接向导 | disabled，需显式配置 |
 
-现有进化实现覆盖 P0A–P1.21：sealed paired Trial、inactive Candidate、immutable Generation、Session pin、人工审查、极窄自动晋升、Retention、预算、反馈驱动 Shadow、反事实 canary 和 future-session rollback。新增自主纵切只从 DSH 自身 Goal-linked Gap 推导 Skill Opportunity：同一 Workspace 至少两个独立 Goal 才允许原生 Job 生成 instruction-only whole-Skill v1 并进入隔离区。用户不选路径、Agent、workflow、Skill 或来源；运行时外部市场/ClawHub/Agent Skills/Web 研究不是自我发现。DSH Web 展示 Gap→Opportunity→Candidate 及其治理状态。该纵切仍为 `implemented`，内部 Candidate 的独立真实 provider 评估、陌生用户、长期误晋升率和生产多日证据尚未完成。
+现有进化实现覆盖 P0A–P1.21：sealed paired Trial、inactive Candidate、immutable Generation、Session pin、人工审查、极窄自动晋升、Retention、预算、反馈驱动 Shadow、反事实 canary 和 future-session rollback。当前自主纵切只从 DSH 自身 Goal-linked Gap 推导 Skill Opportunity：同一 Workspace 至少两个独立 Goal 才允许原生 Job 生成 instruction-only whole-Skill v1 并进入隔离区。用户不选路径、Agent、workflow、Skill 或来源；产品不建设运行时外部 Skill 搜索、获取、下载、导入或市场。该纵切仍为 `implemented`，旧能力获取/研究 Candidate 源码正在删除，内部 Candidate 的独立真实 provider 评估、陌生用户、长期误晋升率和生产多日证据尚未完成。
 
 ## 安装到一个 DSH profile
 
@@ -32,7 +32,7 @@ PACK_DIR="$(mktemp -d)"
 for package in \
   dsh-evolve dsh-evolve-web dsh-software-delivery dsh-doctor \
   dsh-github-review dsh-telegram dsh-evolve-attention dsh-goal-continuity \
-  dsh-resident dsh-channel-router dsh-feishu
+  dsh-resident dsh-gateway dsh-feishu
 do
   pnpm --filter "$package" pack --pack-destination "$PACK_DIR"
 done
@@ -54,7 +54,7 @@ dsh --profile web
 - `/evolve status` 或 DSH Web 侧栏查看和处理进化状态；
 - 在原生 Goal 中按需加载 `software-delivery` Skill，由 `complete_delivery` 通过 DSH Bash/Sandbox/Approval 验证并调用原生 `update_goal`；
 - `/resident plan|status|apply <plan-sha256>|remove <service-id>` 通过 DSH Command 审查和管理 OS user unit；
-- Telegram 与飞书经 Channel Router 只使用原生 Workspace、Agent、Session 与 Commands；飞书首次连接也只在原生 DSH Web 内调用 Session Command；GitHub review、Goal continuity 和进化注意力同样不创建第二套权威。
+- Telegram 与飞书经 DSH Gateway 只使用原生 Workspace、Agent、Session 与 Commands；飞书首次连接也只在原生 DSH Web 内调用 Session Command；GitHub review、Goal continuity 和进化注意力同样不创建第二套权威。
 
 没有 `dsh-evolve`、`dsh-delivery` 或 `dsh-resident` 用户产品 CLI。测试驱动器不是打包入口。
 
@@ -64,7 +64,7 @@ dsh --profile web
 dsh plugin --profile web remove \
   dsh-evolve-web dsh-evolve dsh-software-delivery dsh-doctor \
   dsh-github-review dsh-evolve-attention dsh-telegram dsh-goal-continuity \
-  dsh-resident dsh-feishu dsh-channel-router
+  dsh-resident dsh-feishu dsh-gateway
 dsh --profile web --dump-config
 dsh --profile web
 ```
@@ -73,14 +73,16 @@ dsh --profile web
 
 ## 当前 v0.1 工作
 
-Workspace Channel Router、Telegram 与飞书第二 Adapter 已实现：静态 exact endpoint、原生 Workspace/Session/Agent、原生 Command/Approval、持久 ingress/outbound、429/uncertain、Goal/Schedule continuation、真实 Host Agent Loop、双 Workspace 双渠道重启隔离与独立 tarball lifecycle 已通过。Evolution 的 Candidate、Case Pack、Generation、反馈、预算、审查、晋升与回滚也已显式绑定 Workspace，并由真实双 Workspace Host 路径证明 Session pin、future-session 生效与重启隔离；Telegram/飞书 evolution attention 也已通过同一双 Workspace Host 的精确路由、重复事件与重启去重。十一包同一次 clean-profile tarball add/dump/boot/remove/readback、完整 composition Cache Contract，以及包含零基础概览、Skills 和高级控制的真实 DSH 浏览器门禁均已通过；真实飞书 App 的身份请求、官方 WebSocket 握手和 setup-only pairing transport 也已在宿主标准代理环境中通过。`dsh-feishu` 的同包 Client Module 已从最终 tarball 安装进干净 profile，并在原生 DSH Web 中完成生成、复制、取消与零 console error 的真实浏览器验收；它复用 `/feishu-pair`，不要求新手手工查 ID，也不建立第二网站或 API。EV-1、SD-1、LC-1 与 AS-1 approval 四个确定性 Hermes paired slice 已完成，其中前两项分别证明 Skill 修正发布控制和无辅助 judge 时的检查完成控制优势，后两项在有界本机崩溃恢复与 Telegram 一次性审批上 `0:0` 打平。完成声明仍需要用户在有界窗口发送一次飞书配对短语后完成真实消息闭环，以及同模型编码、真实消息交付、真实模型长任务等其余 Hermes paired epochs；本轮按项目所有者要求不验证 Telegram。
+`dsh-gateway` 已直接替换旧 Router 包且没有兼容转发层；Gateway、Telegram、飞书、Evolve Attention、全仓类型/构建和十一包 clean-profile add/dump/boot/remove/readback 均已回归通过。现有静态 exact endpoint、原生 Workspace/Session/Agent、Command、持久 ingress、uncertain 恢复和双 Workspace 双渠道隔离行为保持；公共 outbound、限流与统一健康投影尚未完成。飞书 exact 消息闭环、内部 Candidate 独立评测、真实 provider、同模型编码/长任务和真实消息交付 Hermes paired epochs 仍是完成门禁；这些完成前不得发布或宣称整体上位。
 
 - [安装与验收](docs/getting-started.zh.md)
 - [当前状态](docs/status.zh.md)
 - [产品形态审计](docs/native-plugin-shape-audit.zh.md)
 - [插件合同](docs/plugin-contract.zh.md)
 - [需求基线](docs/requirements.zh.md)
+- [目标重新对齐审计](docs/audits/2026-08-19-goal-realignment.zh.md)
 - [ADR-0041](docs/adr/0041-dsh-is-the-only-runtime-and-install-surface.md)
 - [ADR-0045](docs/adr/0045-feishu-pairing-ui-reuses-session-commands.md)
+- [ADR-0049](docs/adr/0049-channel-adapters-share-one-thin-dsh-gateway.md)
 
 License: MIT.

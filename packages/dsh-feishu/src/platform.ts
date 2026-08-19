@@ -121,7 +121,7 @@ function createOfficialPlatform(
     includeRawEvent: false,
     policy,
     safety: {
-      // Router StorageDomain ingress is the durable idempotency authority.
+      // Gateway StorageDomain ingress is the durable idempotency authority.
       dedup: { ttl: 0, maxEntries: 1, sweepIntervalMs: 60_000 },
       staleMessageWindowMs: Number.MAX_SAFE_INTEGER,
       chatQueue: { enabled: true },

@@ -1,5 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
-import type { ChannelRouter, ResolvedChannelRoute } from 'dsh-channel-router'
+import type { DshGateway, ResolvedGatewayRoute } from 'dsh-gateway'
 import type {
   FeishuDeliveryStore,
   FeishuApprovalAction,
@@ -11,7 +11,7 @@ import type {
 } from '../../src/index.ts'
 
 export const name = 'dsh-feishu-test-runtime-bootstrap'
-export const inject = ['evoforge.channelRouter', 'storageDomain']
+export const inject = ['evoforge.gateway', 'storageDomain']
 
 interface Config {
   readonly feishuEntry: string
@@ -86,16 +86,16 @@ class FakeFeishuPlatform implements FeishuPlatform {
 }
 
 export async function apply(ctx: Context, config: Config): Promise<void> {
-  const router = ctx.get('evoforge.channelRouter' as never) as ChannelRouter | undefined
-  if (router === undefined) throw new Error('test Router is unavailable')
+  const gateway = ctx.get('evoforge.gateway' as never) as DshGateway | undefined
+  if (gateway === undefined) throw new Error('test Gateway is unavailable')
   const routes = config.routeIds
-    .map(id => router.route(id))
-    .filter((route): route is ResolvedChannelRoute => route !== undefined)
+    .map(id => gateway.route(id))
+    .filter((route): route is ResolvedGatewayRoute => route !== undefined)
   const feishu = await import(config.feishuEntry) as {
     FeishuRuntime: new(
       ctx: Context,
       config: ResolvedFeishuConfig,
-      router: ChannelRouter,
+      gateway: DshGateway,
       store: FeishuDeliveryStore,
       platform: FeishuPlatform,
     ) => {
@@ -110,13 +110,13 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     ): Promise<FeishuDeliveryStore>
     resolveFeishuConfig(
       config: Config,
-      routes: readonly ResolvedChannelRoute[],
+      routes: readonly ResolvedGatewayRoute[],
     ): ResolvedFeishuConfig
   }
   const resolved = feishu.resolveFeishuConfig(config, routes)
   const platform = new FakeFeishuPlatform()
   const store = await feishu.openFeishuDeliveryStore(ctx.storageDomain, { maxRecords: resolved.maxDeliveryRecords })
-  const runtime = new feishu.FeishuRuntime(ctx, resolved, router, store, platform)
+  const runtime = new feishu.FeishuRuntime(ctx, resolved, gateway, store, platform)
   ctx.effect(() => async () => runtime.dispose(), 'dsh-feishu.test-runtime')
   await runtime.start()
   ctx.provide('evoforge.feishuRoute' as never, Object.freeze({

@@ -16,7 +16,7 @@ import type { FeishuRuntime } from '../src/runtime.js'
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const execFile = promisify(execFileCallback)
 const suiteRoot = resolve(packageRoot, '../..')
-const routerRoot = resolve(packageRoot, '../dsh-channel-router')
+const gatewayRoot = resolve(packageRoot, '../dsh-gateway')
 const dshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR ?? resolve(suiteRoot, '../deepseek-harness')
 const temporaryRoots: string[] = []
 
@@ -100,10 +100,10 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
         name: join(dshSourceDir, 'packages', 'workspace', 'workspace', 'lib', 'index.js'),
       },
       {
-        id: 'channel-router-bootstrap',
-        name: join(packageRoot, 'test', 'fixtures', 'router-bootstrap.ts'),
+        id: 'channel-gateway-bootstrap',
+        name: join(packageRoot, 'test', 'fixtures', 'gateway-bootstrap.ts'),
         config: {
-          routerEntry: pathToFileURL(join(routerRoot, 'dist', 'index.mjs')).href,
+          gatewayEntry: pathToFileURL(join(gatewayRoot, 'dist', 'index.mjs')).href,
           workspacePath: root,
           routeId: 'feishu-main',
           accountId: 'cli_test_app',
@@ -157,12 +157,12 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
       const hostRoute = ctx.get('evoforge.feishuRoute') as {
         routes: readonly { routeId: string; workspaceId: string }[]
       } | undefined
-      const router = ctx.get('evoforge.channelRouter') as {
+      const gateway = ctx.get('evoforge.gateway') as {
         route(id: string): { workspaceId: string } | undefined
       }
       expect(hostRoute?.routes).toEqual([{
         routeId: 'feishu-main',
-        workspaceId: router.route('feishu-main')?.workspaceId,
+        workspaceId: gateway.route('feishu-main')?.workspaceId,
       }])
       await service.platform.emitMessage(message({ messageId: 'om_denied', senderId: 'ou_mallory' }))
       await new Promise(resolve => setTimeout(resolve, 50))

@@ -15,7 +15,7 @@ export interface FeishuHostRouteBinding {
 }
 
 export interface FeishuHostRoute {
-  /** Exact native Workspace ownership for each statically configured Router route. */
+  /** Exact native Workspace ownership for each statically configured Gateway route. */
   readonly routes: readonly FeishuHostRouteBinding[]
   notify(notice: FeishuHostNotice): Promise<FeishuHostNoticeReceipt>
 }

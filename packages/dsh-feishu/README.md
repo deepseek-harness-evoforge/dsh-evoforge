@@ -1,16 +1,16 @@
 # dsh-feishu
 
-`dsh-feishu` 是 DeepSeek Harness 的飞书薄 Adapter Bundle。它不创建 Agent Runtime、Session、Goal、权限系统、网站、Webhook server 或 daemon；官方飞书 SDK 的 WebSocket 长连接由 DSH Cordis lifecycle 持有，所有入站身份和会话归属由 `dsh-channel-router` 静态决定。同一个 npm 包还带一个 DSH Web Client Module：pairing mode 显示首次连接向导，routes mode 显示当前 Session 的只读飞书健康视图。
+`dsh-feishu` 是 DeepSeek Harness 的飞书薄 Adapter Bundle。它不创建 Agent Runtime、Session、Goal、权限系统、网站、Webhook server 或 daemon；官方飞书 SDK 的 WebSocket 长连接由 DSH Cordis lifecycle 持有，所有入站身份和会话归属由 `dsh-gateway` 静态决定。同一个 npm 包还带一个 DSH Web Client Module：pairing mode 显示首次连接向导，routes mode 显示当前 Session 的只读飞书健康视图。
 
 ## 安装
 
-当前未发布 registry 版本。先打包 Router 与 Adapter，再使用 DSH 官方 profile 命令安装：
+当前未发布 registry 版本。先打包 Gateway 与 Adapter，再使用 DSH 官方 profile 命令安装：
 
 ```sh
 PACK_DIR="$(mktemp -d)"
-pnpm --filter dsh-channel-router pack --pack-destination "$PACK_DIR"
+pnpm --filter dsh-gateway pack --pack-destination "$PACK_DIR"
 pnpm --filter dsh-feishu pack --pack-destination "$PACK_DIR"
-dsh plugin --profile web add "$PACK_DIR"/dsh-channel-router-*.tgz "$PACK_DIR"/dsh-feishu-*.tgz
+dsh plugin --profile web add "$PACK_DIR"/dsh-gateway-*.tgz "$PACK_DIR"/dsh-feishu-*.tgz
 dsh --profile web --dump-config
 ```
 
@@ -18,11 +18,11 @@ dsh --profile web --dump-config
 
 ## 第一次连接：不手工查 ID
 
-不知道 `chat_id`/`open_id` 时，先在 profile 中启用空 Router 和 setup-only pairing mode：
+不知道 `chat_id`/`open_id` 时，先在 profile 中启用空 Gateway 和 setup-only pairing mode：
 
 ```yaml
-- id: evoforge-channel-router
-  name: dsh-channel-router
+- id: evoforge-gateway
+  name: dsh-gateway
   disabled: false
   config:
     routes: []
@@ -51,11 +51,11 @@ remove 也会断开。
 
 ## 正常运行配置
 
-配对输出等价于以下 exact Router route 结构：
+配对输出等价于以下 exact Gateway route 结构：
 
 ```yaml
-- id: evoforge-channel-router
-  name: dsh-channel-router
+- id: evoforge-gateway
+  name: dsh-gateway
   disabled: false
   config:
     routes:
@@ -85,7 +85,7 @@ setup-only pairing 只输出待审查配置，重启进入 routes 模式后才�
 
 ## 运行合同
 
-- Router 持有 endpoint → Workspace/Session/Agent、原生 Command admission 和持久 ingress 幂等；
+- Gateway 持有 endpoint → Workspace/Session/Agent、原生 Command admission 和持久 ingress 幂等；
 - Adapter 只持有官方 WebSocket 协议、文本/卡片收发、一次性 DSH Approval UI 和有界 StorageDomain 出站 journal；
 - Adapter 自动采用部署进程的 `HTTPS_PROXY`/`https_proxy` 或 `ALL_PROXY`/`all_proxy`，并遵守
   `NO_PROXY`/`no_proxy`；代理只绑定到该飞书连接，不修改环境变量或全局 Agent；

@@ -1,13 +1,13 @@
 # dsh-telegram
 
-`dsh-telegram` is a disabled-by-default DSH Bundle connecting one exact private Telegram chat/user through `dsh-channel-router` to a native Workspace/Session/Agent. It is not a gateway, webhook server, daemon, or second Agent host.
+`dsh-telegram` is a disabled-by-default DSH Bundle connecting one exact private Telegram chat/user through `dsh-gateway` to a native Workspace/Session/Agent. It is not a gateway, webhook server, daemon, or second Agent host.
 
 ```sh
 dsh plugin --profile web add /absolute/path/dsh-telegram-0.1.0-alpha.1.tgz
 ```
 
 - exact `chat_id` + `user_id` filtering for private text messages;
-- Router-owned deterministic DSH message identities and ingress journal, so Telegram update replay does not create a second turn or repeat a native Command;
+- Gateway-owned deterministic DSH message identities and ingress journal, so Telegram update replay does not create a second turn or repeat a native Command;
 - final-answer delivery for every completed turn on the selected Agent, including native Goal and
   Schedule continuations;
 - native slash Commands without a model call;
@@ -23,18 +23,18 @@ Session token overhead is zero; the selected Agent's existing model composition 
 
 ## Requirements
 
-- DSH `>=0.1.0-rc.5 <0.1.0` with `dsh-channel-router`, Agent, Agent presets, Commands, Session persistence, Workspace, Storage and Storage Domain composed;
+- DSH `>=0.1.0-rc.5 <0.1.0` with `dsh-gateway`, Agent, Agent presets, Commands, Session persistence, Workspace, Storage and Storage Domain composed;
 - Node.js `^22.19.0 || >=24`;
 - one Telegram Bot token, one private chat id, one Telegram user id;
-- one existing native Workspace plus a static Router route naming its stable Session id, Agent preset,
-  provider and model. The Router alone creates or cold-resumes that Agent.
+- one existing native Workspace plus a static Gateway route naming its stable Session id, Agent preset,
+  provider and model. The Gateway alone creates or cold-resumes that Agent.
 
 The Bundle installs disabled because the route and token policy are deployment-specific. Enable
 and configure its row explicitly:
 
 ```yaml
-- id: evoforge-channel-router
-  name: dsh-channel-router
+- id: evoforge-gateway
+  name: dsh-gateway
   disabled: false
   config:
     routes:
@@ -57,10 +57,10 @@ and configure its row explicitly:
     tokenEnv: DSH_TELEGRAM_BOT_TOKEN
 ```
 
-The Router route is the only chat/user/Workspace/Session/Agent authority. `conversationId` and `userId`
+The Gateway route is the only chat/user/Workspace/Session/Agent authority. `conversationId` and `userId`
 must be canonical positive Telegram integer strings; private topics are not accepted. The token is read
 from the environment of the DSH Host. Native Commands and one-shot Approval buttons reuse DSH services;
-ingress deduplication belongs to the Router and outbound delivery records use Telegram's DSH Storage
+ingress deduplication belongs to the Gateway and outbound delivery records use Telegram's DSH Storage
 Domain. The model cannot change the route or read the token.
 
 Telegram long polling and pending retry timers are owned by the Cordis fiber. Disable/unload aborts them and unregisters routing. Ambiguous sends become `uncertain` and are not retried automatically; already delivered external messages cannot be retracted.
@@ -93,7 +93,7 @@ exactly-once delivery:
 stops future routing and leaves native DSH Session/Goal state usable. It cannot retract messages
 already accepted by Telegram.
 
-Native Command admission is at-most-once per Telegram update through the shared Router journal. A
+Native Command admission is at-most-once per Telegram update through the shared Gateway journal. A
 crash at an unprovable effect boundary becomes `uncertain`; replaying the same update never executes
 it twice, and the user receives a bounded instruction to send a new Telegram message. Telegram
 journal compaction removes only the oldest terminal outbound records and never a live delivery.

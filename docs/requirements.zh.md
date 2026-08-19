@@ -1,7 +1,7 @@
 # DeepSeek Harness EvoForge 项目需求基线
 
-> 状态：已确认；P0A–P1.21、P2A.1–P2D.1、P3.1、P3.2、LC-1、LC-2 和 Runtime Readiness 已有可复用实现，产品形态已纠正为“只安装并运行于 DSH 的原生 out-of-tree 插件套件”；十一包统一原生安装、多 Workspace 双渠道自动化隔离、Workspace-scoped evolution、零基础浏览器复验、真实飞书 App 握手/setup-only 配对与 EV-1、SD-1、LC-1、AS-1 approval 四个确定性 Hermes paired slice 已通过。自然 Goal→可复核 Capability Gap→跨 Goal 内部经验聚合→Skill Opportunity→隔离 whole-Skill Candidate 已形成纵切；完整独立评测治理、双速进化闭环、exact 飞书 route 消息、长期 outcome 与其余 Hermes paired epochs 等真实验收完成前仍不构成 v0.1 交付
-> 更新日期：2026-08-18
+> 状态：已确认；目标是只安装并运行于 DSH 的原生 out-of-tree 插件套件。现有 P0A–P1.21 等实现只作为可重审资产，不能限制重构；`dsh-gateway` 已替换旧 Router 包并通过总装回归，能力获取/研究 Candidate 偏差仍在删除。自然 Goal→可复核 Capability Gap→跨 Goal 内部经验→Skill Opportunity→隔离 whole-Skill Candidate 已形成部分纵切；完整内部证据、独立评测治理、Gateway、exact 飞书 route 消息、长期 outcome 与 Hermes paired epochs 完成前不构成 v0.1 交付
+> 更新日期：2026-08-19
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。发生冲突时，下述“方向纠正”优先于旧里程碑文字。
 
 ## 0. 方向纠正：DSH 是唯一 Runtime 与安装入口
@@ -104,7 +104,7 @@ DSH 继续作为 Agent Runtime，拥有 Session、Goal、工具、权限、存�
 
 ### 2.6 生态与前沿增量调研
 
-在进入自主 Skill 发现和下一代进化闭环实现前，必须以固定 revision 继续审计 Hermes Agent、Hermes
+在进入内部经验自我发现和下一代进化闭环实现前，必须以固定 revision 继续审计 Hermes Agent、Hermes
 Self-Evolution、OpenClaw、HanaAgent，以及有公开论文或源码的 Skill 发现、Skill 进化和 Agent 评测实现。
 调研不是照搬任一项目，而是形成可证伪的设计选择：哪些交互与治理值得吸收，哪些必须因 DSH 权威、
 KV Cache、权限、隔离和可回滚要求而拒绝。每个 benchmark epoch 必须单独固定当时 revision；旧 paired
@@ -151,7 +151,7 @@ EvoForge 首先服务软件开发交付，同时允许个人助理、内容、�
 
 - 先检查当前 Workspace 中可用、适用且已验证的 Skill/Tool；有现成能力时自主调用，不把选路责任转交用户；
 - 没有适用能力时记录可复核的 Capability Gap；“自我发现 Skill”只从 DSH 自身 Goal、失败、纠正、交付结果、复用与保留证据中发现应形成或改进的可复用能力，不以运行时外部搜索代替自我发现；
-- Hermes、OpenClaw、HanaAgent、论文、市场与开源实现只用于设计期调研和固定 revision benchmark；若未来提供外部包获取，必须是与自我发现解耦的显式受信候选导入能力，不得改变本条语义；
+- Hermes、OpenClaw、HanaAgent、论文、市场与开源实现只用于设计期调研和固定 revision benchmark；运行时不得搜索、下载、获取、导入或安装外部 Skill；
 - 内部发现和生成只产生带稳定 identity、Workspace、版本、内容哈希、权限与安全状态的非活动候选；不得静默安装、启用或执行未知代码；
 - 进化单位可以是完整 Skill folder（`SKILL.md`、scripts、references 与清单），必须原子版本化，不能只优化一段 prompt 就宣称能力进化；
 - 在线快环只捕获可归因信号、缺口和小步候选；离线慢环负责跨任务机会发现、候选生成、迁移、遗忘、负迁移和长期保留判断；
@@ -308,10 +308,10 @@ workspace，输出可审查的 launchd/systemd unit。OS service manager 与 uni
 
 1. 只在 `main` 收拢并持续推送可验证现状；先修复 clean checkout、全包检查和 DSH 原生安装基线，禁止用新分支掩盖集成状态；
 2. 同步更新需求、领域模型、增量调研、ADR、产品架构、路线图和验收记分卡，冻结“无开场选路、三平面、双速进化、独立评测、main/tag”约束；
-3. 以 test-first 方式补齐自然语言 Goal 到 Capability Map/Gap/Skill Opportunity 的内部经验自我发现、稳定 identity/scope/version 与整包候选；运行时不搜索市场、ClawHub 或外部 Skill 来源；
+3. 以 test-first 方式补齐自然语言 Goal 到 Capability Map/Gap/Skill Opportunity 的内部经验自我发现、稳定 identity/scope/version 与整包候选；运行时不搜索、下载、获取、导入或安装外部 Skill；
 4. 把在线快环与离线慢环接入现有 Candidate/Trial/Generation，并证明 Candidate 无法影响 evaluator、holdout、gold 和晋升规则；
 5. 在 DSH Web 中形成可解释的能力、缺口、候选、评测、回滚和飞书健康视图；关键动作继续走原生 Command/Approval；
-6. 完成 exact 飞书 route 的消息/Command/Approval/投递闭环与故障注入，不扩张为第二 Gateway；
+6. 完成 `dsh-gateway` 的 Adapter 生命周期、标准化、身份/Session 映射、持久投递、幂等重试、去重、路由、限流和诊断，并完成 exact 飞书 route 的消息/Command/Approval/投递闭环；Gateway 不得成为第二 Agent Runtime 或巨型业务平台；
 7. 用干净 profile、真实浏览器、真实飞书、真实 provider、长期 outcome 和与当前固定 Hermes revision 的 paired benchmark 验收；只有核心集合全部通过才创建首个 annotated semantic tag。
 
 旧阶段产生的报告和测试仍是有效历史证据，但不再凌驾于上述现行顺序，也不能把既有实现数量当作新目标完成。
@@ -320,10 +320,11 @@ workspace，输出可审查的 launchd/systemd unit。OS service manager 与 uni
 已分别以独立 `dsh-*` 包实现；飞书真实 App 身份请求、WebSocket 握手与 setup-only 配对 transport 已
 通过；同包 DSH Web Client Module 已从最终 tarball 在全新 profile 完成生成/复制/取消的真实浏览器验收，
 并只复用当前 Session 的 `/feishu-pair` 生成待审查静态 route，消除手工查 ID 和拼命令的负担。
-exact route 消息和 Hermes paired 证据完成以前仍只标记为 `implemented`，不扩张为 Gateway，也不把
+exact route 消息和 Hermes paired 证据完成以前仍只标记为 `implemented`；公共渠道可靠性收敛到
+`dsh-gateway`，平台协议和凭据留在 Adapter，也不把
 其他消息、内容或日程需求视为已交付。该说明不改变以上需求顺序和权限边界。
 
-自主 Skill 发现的现行纵切只使用 DSH 内部经验。已有能力继续由模型依据原生完整 Session Skill catalog
+内部经验自我发现的现行纵切只使用 DSH 内部经验。已有能力继续由模型依据原生完整 Session Skill catalog
 自主路由并由原生 `skill` Tool 加载；没有适用 Skill 时，模型可在同一自然语言 Goal 中调用唯一稳定的
 `report_capability_gap` Tool 提议一个有界 kebab-case 能力名。Host 重新核对 exact Workspace/Session、active
 Goal、完整 settled catalog 和 exact name 不存在，再持久化 `model-declared-skill-gap`；原生 `skill` exact miss
@@ -340,8 +341,8 @@ inactive、unevaluated、never-executed Candidate。可能已经付费但结果�
 取消后的迟到响应不得落候选。该模块没有安装、激活或发布接口。
 
 DSH Web 已投影 `Capability Gap → Skill Opportunity → Candidate → authoring state`，展示证据 Goal 数、Gap 数、
-Candidate id、预算/调用和隔离状态，不提供路线、来源、安装或激活菜单。旧的本地 Git/Agent Skills index/
-ClawHub/运行时 Web research 方案不再是现行自我发现路径；相关历史 evidence 只说明过去实现，不构成当前产品
+Candidate id、预算/调用和隔离状态，不提供路线、来源、安装或激活菜单。旧的本地 Git、外部索引和运行时
+Web research 方案必须从当前实现删除；相关历史 evidence 只说明过去实现，不构成当前产品
 声明。Hermes、OpenClaw、HanaAgent、市场、论文与开源实现继续用于设计期固定 revision 调研与 paired benchmark。
 
 确定性 admission、assembled Shadow、Review、immutable Generation、future-Session promotion 与 rollback 的既有
@@ -411,7 +412,7 @@ Case Pack authoring 先提供零模型校准命令，不创建新 Service 或 SD
 - 设计基线已经确认，按 P0A Shadow 契约 test-first 实现。
 - 用户只提供自然语言 Goal、材料、约束和验收条件；系统内部自主发现并选择 Skill/路径，不提供开场路由菜单。
 - 自进化采用稳定执行面、隔离进化面、独立评测治理面，以及在线快环/离线慢环；没有充分证据时必须 abstain。
-- 自主获取的能力只能先成为可追踪、可隔离、可评测的完整 Skill 包候选，不能静默安装到活动 Session。
+- 从内部证据归纳生成的能力只能先成为可追踪、可隔离、可评测的完整 Skill 包 Candidate，不能静默安装到活动 Session。
 - “自我发现 Skill”只指从 DSH 内部 Goal/失败/纠正/outcome/复用与保留证据发现应形成或改进的能力；外部生态调研是设计期输入，不是运行时自我发现。
 - `dsh-evoforge` 自身只在 `main` 小步提交并实时同步 `origin/main`；核心门禁通过后才用 annotated semantic tag 标记迭代。
 - 飞书是首批正式集成能力，Web 必须可视化能力图、缺口、候选谱系、评测/成本/安全/回滚与飞书健康，但不得成为第二权威控制面。
@@ -434,8 +435,10 @@ Case Pack authoring 先提供零模型校准命令，不创建新 Service 或 SD
 - [ADR：只做扩展，不修核心](adr/0003-extensions-not-core-repairs.md)
 - [ADR：持续进化作为旗舰](adr/0004-evidence-driven-evolution-is-the-flagship.md)
 - [ADR：EvoForge 仓库边界](adr/0005-evoforge-repository-boundaries.md)
-- [ADR：自主 Skill 发现采用三平面双速闭环](adr/0046-autonomous-skill-discovery-uses-three-planes-and-two-speeds.md)
+- [ADR：自我发现采用三平面双速闭环](adr/0046-autonomous-skill-discovery-uses-three-planes-and-two-speeds.md)
 - [ADR：main 是实时开发线，tag 只标记验证发布](adr/0047-main-is-the-live-development-line-and-tags-mark-verified-releases.md)
 - [ADR：自我发现只从 DSH 自身经验学习](adr/0048-self-discovery-learns-from-dsh-experience.md)
+- [ADR：渠道 Adapter 共享一个薄型 DSH Gateway](adr/0049-channel-adapters-share-one-thin-dsh-gateway.md)
+- [2026-08-19 目标重新对齐审计](audits/2026-08-19-goal-realignment.zh.md)
 
 若后续对话改变已确认要求，应在同一轮更新本文相应章节；历史架构文档不得凌驾于本需求基线。

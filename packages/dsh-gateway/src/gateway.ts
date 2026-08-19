@@ -8,40 +8,40 @@ import { SessionId, type SessionEvent, type SessionHeader, type UserMessage } fr
 import type {} from '@deepseek-ai/dsh-session-persistence'
 import { WorkspaceId, type Workspace } from '@deepseek-ai/dsh-workspace'
 import type {
-  ChannelCommandResult,
-  ChannelIngressRecord,
-  ChannelIngressStore,
-} from './ingress-store.js'
+  GatewayCommandResult,
+  GatewayIngressRecord,
+  GatewayIngressJournal,
+} from './ingress-journal.js'
 import type {
-  ChannelEndpoint,
-  ResolvedChannelRoute,
-  ResolvedChannelRoutes,
-} from './routes.js'
+  GatewayEndpoint,
+  ResolvedGatewayRoute,
+  ResolvedGatewayRoutes,
+} from './routing.js'
 
-export interface ChannelDispatchInput {
-  readonly endpoint: ChannelEndpoint
+export interface GatewayDispatchInput {
+  readonly endpoint: GatewayEndpoint
   /** Adapter-owned stable id for one inbound event. */
   readonly eventId: string
   readonly text: string
   readonly signal?: AbortSignal
 }
 
-interface ChannelDispatchBase {
-  readonly route: ResolvedChannelRoute
+interface GatewayDispatchBase {
+  readonly route: ResolvedGatewayRoute
   readonly agent: Agent
   readonly duplicate: boolean
   readonly ingressId: string
 }
 
-export type ChannelDispatchResult =
-  | (ChannelDispatchBase & { readonly kind: 'message' })
-  | (ChannelDispatchBase & { readonly kind: 'command'; readonly result: ChannelCommandResult })
+export type GatewayDispatchResult =
+  | (GatewayDispatchBase & { readonly kind: 'message' })
+  | (GatewayDispatchBase & { readonly kind: 'command'; readonly result: GatewayCommandResult })
 
 /** An accepted external event crossed an effect boundary whose outcome cannot be proven. */
-export class ChannelIngressUncertainError extends Error {
+export class GatewayIngressUncertainError extends Error {
   constructor(readonly ingressId: string, message: string) {
-    super(`channel ingress '${ingressId}' is uncertain: ${message}`)
-    this.name = 'ChannelIngressUncertainError'
+    super(`gateway ingress '${ingressId}' is uncertain: ${message}`)
+    this.name = 'GatewayIngressUncertainError'
   }
 }
 
@@ -50,7 +50,7 @@ export class ChannelIngressUncertainError extends Error {
  * network transport: adapters authenticate and poll, then submit an exact
  * endpoint tuple here for native Workspace/Session/Agent dispatch.
  */
-export class ChannelRouter {
+export class DshGateway {
   private readonly ownedHandles = new Map<string, AgentHandle>()
   private readonly resolutions = new Map<string, Promise<Agent>>()
   private readonly ingressTails = new Map<string, Promise<void>>()
@@ -59,15 +59,15 @@ export class ChannelRouter {
 
   constructor(
     private readonly ctx: Context,
-    private readonly configured: ResolvedChannelRoutes,
-    private readonly ingress: ChannelIngressStore,
+    private readonly configured: ResolvedGatewayRoutes,
+    private readonly ingressJournal: GatewayIngressJournal,
   ) {}
 
   /** Validate the complete static binding table before any adapter accepts traffic. */
   async start(): Promise<void> {
     if (this.started) return
-    if (this.stopping !== undefined) throw new Error('channel router is stopping')
-    await this.ingress.recoverInflight(Date.now())
+    if (this.stopping !== undefined) throw new Error('DSH gateway is stopping')
+    await this.ingressJournal.recoverInflight(Date.now())
     const persisted = await this.ctx.sessionPersistence.list()
     const persistedById = new Map(persisted.map(header => [String(header.id), header]))
     for (const route of this.configured.routes) {
@@ -86,28 +86,28 @@ export class ChannelRouter {
     this.started = true
   }
 
-  route(id: string): ResolvedChannelRoute | undefined {
+  route(id: string): ResolvedGatewayRoute | undefined {
     return this.configured.byId.get(id)
   }
 
-  match(endpoint: ChannelEndpoint): ResolvedChannelRoute | undefined {
+  match(endpoint: GatewayEndpoint): ResolvedGatewayRoute | undefined {
     return this.configured.match(endpoint)
   }
 
   /** Stable native MessageId an adapter can use to correlate inbox/turn events before dispatch. */
-  messageIdFor(endpoint: ChannelEndpoint, eventId: string): string {
+  messageIdFor(endpoint: GatewayEndpoint, eventId: string): string {
     const route = this.configured.match(endpoint)
-    if (route === undefined) throw new Error('no configured channel route for the exact external endpoint')
+    if (route === undefined) throw new Error('no configured gateway route for the exact external endpoint')
     const exactEventId = exactIngressText(eventId, 'eventId', 1_024)
     const eventHash = hash(`${route.endpointKey}\0${exactEventId}`)
     return `channel:${hash(`${route.id}\0${eventHash}`)}`
   }
 
   /** Resolve the exact configured native Agent without dispatching user input. */
-  async resolve(routeOrId: ResolvedChannelRoute | string, signal?: AbortSignal): Promise<Agent> {
+  async resolve(routeOrId: ResolvedGatewayRoute | string, signal?: AbortSignal): Promise<Agent> {
     this.assertRunning()
     const route = typeof routeOrId === 'string' ? this.configured.byId.get(routeOrId) : routeOrId
-    if (route === undefined) throw new Error(`unknown channel route '${String(routeOrId)}'`)
+    if (route === undefined) throw new Error(`unknown gateway route '${String(routeOrId)}'`)
     signal?.throwIfAborted()
     let pending = this.resolutions.get(route.sessionId)
     if (pending === undefined) {
@@ -119,10 +119,10 @@ export class ChannelRouter {
     return await pending
   }
 
-  dispatch(input: ChannelDispatchInput): Promise<ChannelDispatchResult> {
+  dispatch(input: GatewayDispatchInput): Promise<GatewayDispatchResult> {
     this.assertRunning()
     const route = this.configured.match(input.endpoint)
-    if (route === undefined) return Promise.reject(new Error('no configured channel route for the exact external endpoint'))
+    if (route === undefined) return Promise.reject(new Error('no configured gateway route for the exact external endpoint'))
     const eventId = exactIngressText(input.eventId, 'eventId', 1_024)
     const text = exactIngressText(input.text, 'text', 1_048_576)
     const eventHash = hash(`${route.endpointKey}\0${eventId}`)
@@ -147,23 +147,23 @@ export class ChannelRouter {
       const handles = [...this.ownedHandles.values()]
       this.ownedHandles.clear()
       await Promise.allSettled(handles.map(handle => handle.dispose()))
-      await this.ingress.close()
+      await this.ingressJournal.close()
     })()
     return this.stopping
   }
 
   private async dispatchSerial(input: {
-    route: ResolvedChannelRoute
+    route: ResolvedGatewayRoute
     eventHash: string
     ingressId: string
     contentHash: string
     text: string
     signal?: AbortSignal
-  }): Promise<ChannelDispatchResult> {
+  }): Promise<GatewayDispatchResult> {
     input.signal?.throwIfAborted()
     const agent = await this.resolve(input.route, input.signal)
     const kind = this.commandIsRegistered(agent, input.text) ? 'command' : 'message'
-    const prepared = await this.ingress.prepare({
+    const prepared = await this.ingressJournal.prepare({
       id: input.ingressId,
       routeId: input.route.id,
       workspaceId: input.route.workspaceId,
@@ -175,7 +175,7 @@ export class ChannelRouter {
     })
     if (!prepared.created) return this.replaySettled(input.route, agent, prepared.record)
 
-    await this.ingress.begin(input.ingressId, Date.now())
+    await this.ingressJournal.begin(input.ingressId, Date.now())
     if (kind === 'message') {
       const messageId = `channel:${input.ingressId}`
       try {
@@ -188,16 +188,16 @@ export class ChannelRouter {
           } satisfies UserMessage))
         }
       } catch (error: unknown) {
-        await this.ingress.markUncertain(input.ingressId, safeMessage(error), Date.now())
+        await this.ingressJournal.markUncertain(input.ingressId, safeMessage(error), Date.now())
         throw error
       }
-      await this.ingress.settleMessage(input.ingressId, Date.now())
+      await this.ingressJournal.settleMessage(input.ingressId, Date.now())
       return Object.freeze({
         kind: 'message', route: input.route, agent, duplicate: false, ingressId: input.ingressId,
       })
     }
 
-    let result: ChannelCommandResult
+    let result: GatewayCommandResult
     try {
       const execution = await this.ctx.commands.execute(agent, input.text, input.signal ?? new AbortController().signal)
       result = execution === undefined
@@ -206,22 +206,22 @@ export class ChannelRouter {
     } catch (error: unknown) {
       result = { kind: 'error', text: boundedText(safeMessage(error), 16_384) }
     }
-    await this.ingress.settleCommand(input.ingressId, result, Date.now())
+    await this.ingressJournal.settleCommand(input.ingressId, result, Date.now())
     return Object.freeze({
       kind: 'command', route: input.route, agent, duplicate: false, ingressId: input.ingressId, result,
     })
   }
 
   private replaySettled(
-    route: ResolvedChannelRoute,
+    route: ResolvedGatewayRoute,
     agent: Agent,
-    record: ChannelIngressRecord,
-  ): ChannelDispatchResult {
+    record: GatewayIngressRecord,
+  ): GatewayDispatchResult {
     if (record.status === 'uncertain') {
-      throw new ChannelIngressUncertainError(record.id, record.error ?? 'outcome is unknown')
+      throw new GatewayIngressUncertainError(record.id, record.error ?? 'outcome is unknown')
     }
     if (record.status !== 'settled') {
-      throw new ChannelIngressUncertainError(record.id, `retained state is ${record.status}`)
+      throw new GatewayIngressUncertainError(record.id, `retained state is ${record.status}`)
     }
     if (record.kind === 'command') {
       if (record.commandResult === undefined) throw new Error(`settled command ingress '${record.id}' has no result`)
@@ -235,7 +235,7 @@ export class ChannelRouter {
     return parsed !== undefined && this.ctx.commands.list(agent).some(command => command.name === parsed.name)
   }
 
-  private async resolveNativeAgent(route: ResolvedChannelRoute, signal?: AbortSignal): Promise<Agent> {
+  private async resolveNativeAgent(route: ResolvedGatewayRoute, signal?: AbortSignal): Promise<Agent> {
     const workspace = await this.requireWorkspace(route)
     await this.requirePreset(route)
     const sessionId = SessionId(route.sessionId)
@@ -286,23 +286,23 @@ export class ChannelRouter {
     return handle.agent
   }
 
-  private async requireWorkspace(route: ResolvedChannelRoute): Promise<Workspace> {
+  private async requireWorkspace(route: ResolvedGatewayRoute): Promise<Workspace> {
     const workspace = this.ctx.workspaceRegistry.get(WorkspaceId(route.workspaceId))
-    if (workspace === undefined) throw new Error(`channel route '${route.id}' names unknown Workspace '${route.workspaceId}'`)
+    if (workspace === undefined) throw new Error(`gateway route '${route.id}' names unknown Workspace '${route.workspaceId}'`)
     if (await workspace.status() !== 'ok') {
-      throw new Error(`channel route '${route.id}' Workspace '${route.workspaceId}' directory is missing`)
+      throw new Error(`gateway route '${route.id}' Workspace '${route.workspaceId}' directory is missing`)
     }
     return workspace
   }
 
-  private async requirePreset(route: ResolvedChannelRoute): Promise<void> {
+  private async requirePreset(route: ResolvedGatewayRoute): Promise<void> {
     const preset = await this.ctx.agentPresets.resolve(route.agentPreset)
     if (preset.broken !== undefined) {
-      throw new Error(`channel route '${route.id}' Agent preset '${route.agentPreset}' is broken: ${preset.broken}`)
+      throw new Error(`gateway route '${route.id}' Agent preset '${route.agentPreset}' is broken: ${preset.broken}`)
     }
   }
 
-  private assertLiveIdentity(route: ResolvedChannelRoute, workspace: Workspace, agent: Agent): void {
+  private assertLiveIdentity(route: ResolvedGatewayRoute, workspace: Workspace, agent: Agent): void {
     this.assertSessionIdentity(route, workspace, agent.session.header, agent.session.events)
     if (agent.options.provider !== route.provider || agent.options.model !== route.model
       || (route.maxTokens !== undefined && agent.options.maxTokens !== route.maxTokens)) {
@@ -315,7 +315,7 @@ export class ChannelRouter {
   }
 
   private assertPersistedIdentity(
-    route: ResolvedChannelRoute,
+    route: ResolvedGatewayRoute,
     workspace: Workspace,
     header: SessionHeader,
     events: readonly SessionEvent[],
@@ -324,7 +324,7 @@ export class ChannelRouter {
   }
 
   private assertSessionIdentity(
-    route: ResolvedChannelRoute,
+    route: ResolvedGatewayRoute,
     workspace: Workspace,
     header: SessionHeader,
     events: readonly SessionEvent[],
@@ -342,8 +342,8 @@ export class ChannelRouter {
   }
 
   private assertRunning(): void {
-    if (!this.started) throw new Error('channel router has not started')
-    if (this.stopping !== undefined) throw new Error('channel router is stopping')
+    if (!this.started) throw new Error('DSH gateway has not started')
+    if (this.stopping !== undefined) throw new Error('DSH gateway is stopping')
   }
 }
 
@@ -365,14 +365,14 @@ function sessionPreset(header: SessionHeader, events: readonly SessionEvent[]): 
   return header.agentPreset
 }
 
-function boundedCommandResult(result: { kind: 'success' | 'error'; text?: string }): ChannelCommandResult {
+function boundedCommandResult(result: { kind: 'success' | 'error'; text?: string }): GatewayCommandResult {
   return Object.freeze({
     kind: result.kind,
     ...(result.text === undefined ? {} : { text: boundedText(result.text, 16_384) }),
   })
 }
 
-function routeAgentOptions(route: ResolvedChannelRoute): {
+function routeAgentOptions(route: ResolvedGatewayRoute): {
   provider: string
   model: string
   maxTokens?: number

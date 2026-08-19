@@ -1,4 +1,4 @@
-import type { ChannelEndpoint, ResolvedChannelRoute } from 'dsh-channel-router'
+import type { GatewayEndpoint, ResolvedGatewayRoute } from 'dsh-gateway'
 import type { TelegramRouteIdentity } from './inbound.js'
 
 export interface TelegramConfigInput {
@@ -13,7 +13,7 @@ export interface TelegramConfigInput {
 export interface ResolvedTelegramConfig extends TelegramRouteIdentity {
   readonly routeId: string
   readonly sessionId: string
-  readonly endpoint: ChannelEndpoint
+  readonly endpoint: GatewayEndpoint
   readonly apiBase: string
   readonly maxSendAttempts: number
   readonly maxTextChars: number
@@ -23,7 +23,7 @@ export interface ResolvedTelegramConfig extends TelegramRouteIdentity {
 
 export function resolveTelegramConfig(
   config: TelegramConfigInput,
-  route: ResolvedChannelRoute,
+  route: ResolvedGatewayRoute,
 ): ResolvedTelegramConfig {
   if (config.routeId !== route.id) {
     throw new Error(`dsh-telegram: routeId '${config.routeId}' does not resolve to route '${route.id}'`)
@@ -63,11 +63,11 @@ export function resolveTelegramConfig(
 
 function telegramId(value: string, field: 'conversationId' | 'userId'): number {
   if (!/^[1-9][0-9]*$/u.test(value)) {
-    throw new Error(`dsh-telegram: Router ${field} must be a canonical positive Telegram integer`)
+    throw new Error(`dsh-telegram: Gateway ${field} must be a canonical positive Telegram integer`)
   }
   const parsed = Number(value)
   if (!Number.isSafeInteger(parsed) || parsed < 1 || String(parsed) !== value) {
-    throw new Error(`dsh-telegram: Router ${field} must be a canonical positive safe integer`)
+    throw new Error(`dsh-telegram: Gateway ${field} must be a canonical positive safe integer`)
   }
   return parsed
 }

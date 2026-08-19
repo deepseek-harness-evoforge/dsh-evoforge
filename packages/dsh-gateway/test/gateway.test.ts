@@ -2,35 +2,35 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { Agent, AgentHandle } from '@deepseek-ai/dsh-agent'
 import type { DomainFacility, KvTable } from '@deepseek-ai/dsh-storage-domain'
 import { describe, expect, it, vi } from 'vitest'
-import { openChannelIngressStore } from '../src/ingress-store.js'
-import { ChannelRouter } from '../src/router.js'
-import { resolveChannelRoutes, type ChannelEndpoint } from '../src/routes.js'
+import { openGatewayIngressJournal } from '../src/ingress-journal.js'
+import { DshGateway } from '../src/gateway.js'
+import { resolveGatewayRoutes, type GatewayEndpoint } from '../src/routing.js'
 
-const endpointA: ChannelEndpoint = {
+const endpointA: GatewayEndpoint = {
   adapter: 'telegram', accountId: 'bot-a', conversationId: 'chat-a', userId: 'user-a',
 }
-const endpointB: ChannelEndpoint = {
+const endpointB: GatewayEndpoint = {
   adapter: 'feishu', accountId: 'app-b', conversationId: 'chat-b', threadId: 'root-b', userId: 'user-b',
 }
 
-const routes = resolveChannelRoutes([
+const routes = resolveGatewayRoutes([
   { id: 'telegram-a', ...endpointA, workspaceId: 'workspace-a', sessionId: 'session-a', agentPreset: 'standard', provider: 'mock', model: 'mock-a' },
   { id: 'feishu-b', ...endpointB, workspaceId: 'workspace-b', sessionId: 'session-b', agentPreset: 'minimal', provider: 'mock', model: 'mock-b' },
 ])
 
-describe('ChannelRouter', () => {
+describe('DshGateway', () => {
   it('routes exact endpoints into isolated native Workspace sessions and deduplicates ingress', async () => {
     const host = fakeNativeHost()
-    const store = await openChannelIngressStore(memoryFacility())
-    const router = new ChannelRouter(host.ctx, routes, store)
-    await router.start()
-    const messageId = router.messageIdFor(endpointA, 'update-7')
+    const journal = await openGatewayIngressJournal(memoryFacility())
+    const gateway = new DshGateway(host.ctx, routes, journal)
+    await gateway.start()
+    const messageId = gateway.messageIdFor(endpointA, 'update-7')
 
     const [resultA] = await Promise.all([
-      router.dispatch({ endpoint: endpointA, eventId: 'update-7', text: 'message a' }),
-      router.dispatch({ endpoint: endpointB, eventId: 'event-7', text: 'message b' }),
+      gateway.dispatch({ endpoint: endpointA, eventId: 'update-7', text: 'message a' }),
+      gateway.dispatch({ endpoint: endpointB, eventId: 'event-7', text: 'message b' }),
     ])
-    await router.dispatch({ endpoint: endpointA, eventId: 'update-7', text: 'message a' })
+    await gateway.dispatch({ endpoint: endpointA, eventId: 'update-7', text: 'message a' })
 
     expect(host.messages.get('session-a')).toEqual(['message a'])
     expect(messageId).toBe(`channel:${resultA.ingressId}`)
@@ -41,22 +41,22 @@ describe('ChannelRouter', () => {
       { sessionId: 'session-a', cwd: '/work/a', preset: 'standard', provider: 'mock', model: 'mock-a' },
       { sessionId: 'session-b', cwd: '/work/b', preset: 'minimal', provider: 'mock', model: 'mock-b' },
     ])
-    await expect(router.dispatch({ endpoint: endpointA, eventId: 'update-7', text: 'altered' }))
+    await expect(gateway.dispatch({ endpoint: endpointA, eventId: 'update-7', text: 'altered' }))
       .rejects.toThrow('content changed')
-    await expect(router.dispatch({
+    await expect(gateway.dispatch({
       endpoint: { ...endpointA, userId: 'someone-else' }, eventId: 'update-8', text: 'denied',
-    })).rejects.toThrow('no configured channel route')
+    })).rejects.toThrow('no configured gateway route')
   })
 
   it('executes a native command once and replays only its retained result', async () => {
     const host = fakeNativeHost()
     host.commandLines.add('/goal status')
-    const store = await openChannelIngressStore(memoryFacility())
-    const router = new ChannelRouter(host.ctx, routes, store)
-    await router.start()
+    const journal = await openGatewayIngressJournal(memoryFacility())
+    const gateway = new DshGateway(host.ctx, routes, journal)
+    await gateway.start()
 
-    const first = await router.dispatch({ endpoint: endpointA, eventId: 'update-8', text: '/goal status' })
-    const duplicate = await router.dispatch({ endpoint: endpointA, eventId: 'update-8', text: '/goal status' })
+    const first = await gateway.dispatch({ endpoint: endpointA, eventId: 'update-8', text: '/goal status' })
+    const duplicate = await gateway.dispatch({ endpoint: endpointA, eventId: 'update-8', text: '/goal status' })
 
     expect(first).toMatchObject({ kind: 'command', duplicate: false, result: { kind: 'success', text: 'goal active' } })
     expect(duplicate).toMatchObject({ kind: 'command', duplicate: true, result: { kind: 'success', text: 'goal active' } })
@@ -70,10 +70,10 @@ describe('ChannelRouter', () => {
       meta: { id: 'session-a', cwd: '/work/b', agentPreset: 'standard', version: 0, createdAt: 1 },
       events: [],
     })
-    const store = await openChannelIngressStore(memoryFacility())
-    const router = new ChannelRouter(host.ctx, routes, store)
+    const journal = await openGatewayIngressJournal(memoryFacility())
+    const gateway = new DshGateway(host.ctx, routes, journal)
 
-    await expect(router.start()).rejects.toThrow("session 'session-a' cwd")
+    await expect(gateway.start()).rejects.toThrow("session 'session-a' cwd")
     expect(host.created).toEqual([])
     expect(host.attached.size).toBe(0)
   })
@@ -177,7 +177,7 @@ function memoryFacility(): DomainFacility {
   return {
     async open() {
       return {
-        name: 'evoforge_channel_router',
+        name: 'evoforge_gateway',
         global: { get: () => ({}), async set() {} },
         table(name: string) {
           let table = tables.get(name)
