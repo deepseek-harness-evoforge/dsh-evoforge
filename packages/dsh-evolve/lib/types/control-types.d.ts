@@ -135,7 +135,8 @@ export interface EvolutionCapabilityGapView {
     readonly goal?: {
         readonly id: string;
         readonly revision: number;
-        readonly objective: string;
+        /** Omitted once the Gap contributes to an evaluation-bearing Opportunity. */
+        readonly objective?: string;
     };
     readonly status: 'confirmed';
     readonly evidence: {
@@ -184,6 +185,32 @@ export interface EvolutionSkillOpportunityView {
             readonly referencesTruncated: boolean;
         };
         readonly causalClaim: 'none';
+    };
+    readonly evaluationReadiness: {
+        readonly status: 'ready-to-seal' | 'sealed';
+        readonly evidenceId: string;
+        readonly observedGoalCount: number;
+        readonly authoringGoalCount: number;
+        readonly admissionGoalCount: number;
+        readonly holdoutGoalCount: number;
+        readonly proposerCanReadProtectedSamples: false;
+        readonly releaseAuthority: 'none';
+    } | {
+        readonly status: 'waiting';
+        readonly reason: 'fewer-than-four-independent-goals';
+        readonly observedGoalCount: number;
+        readonly requiredGoalCount: 4;
+        readonly releaseAuthority: 'none';
+    } | {
+        readonly status: 'unavailable';
+        readonly reason: 'governance-policy-unavailable';
+        readonly observedGoalCount: number;
+        readonly releaseAuthority: 'none';
+    } | {
+        readonly status: 'invalid';
+        readonly reason: 'opportunity-evidence-invalid';
+        readonly observedGoalCount: number;
+        readonly releaseAuthority: 'none';
     };
     readonly status: 'eligible-for-authoring';
     readonly releaseAuthority: 'none';

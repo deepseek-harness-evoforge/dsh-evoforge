@@ -351,6 +351,15 @@ describe('EvolutionControlPlane', () => {
           releaseAuthority: 'none' as const,
         }],
       },
+      evaluationEvidence: {
+        readiness: async () => ({
+          status: 'waiting' as const,
+          reason: 'fewer-than-four-independent-goals' as const,
+          observedGoalCount: 2,
+          requiredGoalCount: 4 as const,
+          releaseAuthority: 'none' as const,
+        }),
+      },
       candidates: {
         listCandidates: () => [experienceSkillCandidate({
           id: '4'.repeat(64),
@@ -438,6 +447,10 @@ describe('EvolutionControlPlane', () => {
 
     const overview = await control.overview(WORKSPACE_ID, 'session-1')
     expect(capabilitySnapshot).toHaveBeenCalledWith(WORKSPACE_ID, 'session-1')
+    expect(overview.capabilityGaps?.items.map(gap => gap.goal)).toEqual([
+      { id: 'goal-1', revision: 3 },
+      { id: 'goal-2', revision: 1 },
+    ])
     expect(overview).toMatchObject({
       schemaVersion: 1,
       active: { id: generationId, rollbackTargetId: parentId },
@@ -500,14 +513,14 @@ describe('EvolutionControlPlane', () => {
           id: '5'.repeat(64),
           requestedSkill: 'missing-release-skill',
           catalogHash: '6'.repeat(64),
-          goal: { id: 'goal-1', objective: 'Publish a verified native DSH plugin.' },
+          goal: { id: 'goal-1' },
           status: 'confirmed',
           evidence: { kind: 'native-skill-miss' },
         }, {
           id: 'd'.repeat(64),
           requestedSkill: 'release-native-extension',
           catalogHash: '6'.repeat(64),
-          goal: { id: 'goal-2', objective: 'Ship the verified extension from another Goal.' },
+          goal: { id: 'goal-2' },
           status: 'confirmed',
           evidence: { kind: 'model-declared-skill-gap' },
         }],
@@ -522,6 +535,13 @@ describe('EvolutionControlPlane', () => {
           gapCount: 2,
           goalCount: 2,
           evidence: opportunityEvidence(),
+          evaluationReadiness: {
+            status: 'waiting',
+            reason: 'fewer-than-four-independent-goals',
+            observedGoalCount: 2,
+            requiredGoalCount: 4,
+            releaseAuthority: 'none',
+          },
           status: 'eligible-for-authoring',
           releaseAuthority: 'none',
         }],

@@ -25,6 +25,7 @@ export interface ResolvedSkillEvaluationEnvelope {
   readonly workspaceId: string
   readonly skillName: string
   readonly opportunityId: string
+  readonly evaluationEvidenceId: string
   readonly gapIds: readonly string[]
   readonly baselineKind: 'capability-absent'
   readonly baselineSkillName: string
@@ -48,20 +49,29 @@ interface OpportunityReader {
   discover(workspaceId?: string): SkillOpportunity[]
 }
 
+interface EvaluationEvidenceReader {
+  verifyCandidateBinding(
+    candidate: Pick<ExperienceSkillCandidate,
+      'workspaceId' | 'skillName' | 'opportunity' | 'authorship'>,
+    evidenceId: string,
+  ): Promise<void>
+}
+
 interface ResolvedPolicy extends SkillCandidateEvaluationPolicyConfig {
   readonly governanceRoot: string
   readonly runRoot: string
 }
 
 const manifestSchema = z.strictObject({
-  schemaVersion: z.literal(2),
-  kind: z.literal('internal-skill-evaluation-envelope-v2'),
+  schemaVersion: z.literal(3),
+  kind: z.literal('internal-skill-evaluation-envelope-v3'),
   workspaceId: z.uuid(),
+  evaluationEvidenceId: z.string().regex(CONTENT_ID),
   opportunity: z.strictObject({
     id: z.string().regex(CONTENT_ID),
     skillName: z.string().regex(PUBLIC_ID),
-    gapIds: z.array(z.string().regex(CONTENT_ID)).min(2).max(1_000),
-    goalCount: z.number().int().min(2).max(1_000),
+    gapIds: z.array(z.string().regex(CONTENT_ID)).min(4).max(1_000),
+    goalCount: z.number().int().min(4).max(1_000),
   }),
   baseline: z.strictObject({
     kind: z.literal('capability-absent'),
@@ -85,12 +95,14 @@ type SkillEvaluationEnvelopeManifest = z.infer<typeof manifestSchema>
 export class SkillEvaluationEnvelopeResolver {
   private readonly policies = new Map<string, ResolvedPolicy>()
   private readonly opportunities: OpportunityReader
+  private readonly evidence: EvaluationEvidenceReader
 
   constructor(
     policies: readonly SkillCandidateEvaluationPolicyConfig[],
     opportunities: OpportunityReader,
+    evidence: EvaluationEvidenceReader,
   ) {
-    assertPolicies(policies)
+    assertSkillCandidateEvaluationPolicies(policies)
     for (const policy of policies) {
       this.policies.set(policy.workspaceId, Object.freeze({
         ...policy,
@@ -99,6 +111,7 @@ export class SkillEvaluationEnvelopeResolver {
       }))
     }
     this.opportunities = opportunities
+    this.evidence = evidence
   }
 
   hasPolicy(workspaceId: string): boolean {
@@ -117,7 +130,7 @@ export class SkillEvaluationEnvelopeResolver {
 
   async resolve(
     candidate: Pick<ExperienceSkillCandidate,
-      'workspaceId' | 'skillName' | 'opportunity'>,
+      'workspaceId' | 'skillName' | 'opportunity' | 'authorship'>,
   ): Promise<ResolvedSkillEvaluationEnvelope | undefined> {
     const policy = this.policies.get(candidate.workspaceId)
     if (policy === undefined) return undefined
@@ -173,6 +186,7 @@ export class SkillEvaluationEnvelopeResolver {
       || JSON.stringify([...manifest.opportunity.gapIds].sort()) !== JSON.stringify(gapIds)) {
       throw new Error('Skill Evaluation Envelope does not match its internal Opportunity snapshot')
     }
+    await this.evidence.verifyCandidateBinding(candidate, manifest.evaluationEvidenceId)
 
     const baselineDir = await exactChildDirectory(envelopeRoot, 'baseline')
     const baselineSubject = await readCapabilityAbsentSubject(baselineDir)
@@ -214,6 +228,7 @@ export class SkillEvaluationEnvelopeResolver {
       workspaceId: candidate.workspaceId,
       skillName: candidate.skillName,
       opportunityId: candidate.opportunity.id,
+      evaluationEvidenceId: manifest.evaluationEvidenceId,
       gapIds: Object.freeze(gapIds),
       baselineKind: 'capability-absent',
       baselineSkillName: candidate.skillName,
@@ -231,9 +246,10 @@ export class SkillEvaluationEnvelopeResolver {
 
 function evaluationEnvelopeId(policyId: string, manifest: SkillEvaluationEnvelopeManifest): string {
   return createHash('sha256').update(JSON.stringify([
-    'internal-skill-evaluation-envelope-v2',
+    'internal-skill-evaluation-envelope-v3',
     policyId,
     manifest.workspaceId,
+    manifest.evaluationEvidenceId,
     manifest.opportunity.id,
     manifest.opportunity.skillName,
     [...manifest.opportunity.gapIds].sort(),
@@ -259,7 +275,9 @@ function sameSetSubset(subset: readonly string[], values: readonly string[]): bo
     && subset.every(value => values.includes(value))
 }
 
-function assertPolicies(policies: readonly SkillCandidateEvaluationPolicyConfig[]): void {
+export function assertSkillCandidateEvaluationPolicies(
+  policies: readonly SkillCandidateEvaluationPolicyConfig[],
+): void {
   if (policies.length > MAX_POLICIES) {
     throw new Error(`Skill evaluation supports at most ${MAX_POLICIES} Workspace policies`)
   }

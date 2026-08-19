@@ -1,6 +1,6 @@
 # EvoForge 可证明自进化设计
 
-> 状态：P0A/P0B/P0C、P1.1–P1.21、P2D.1 与内部 Goal→Gap→Skill Opportunity→quarantined Candidate→Opportunity-bound Evaluation Envelope v2→capability-absent assembled Shadow/Retention/canary→content-addressed inactive Generation→future Session/root rollback 纵切 implemented；治理包自主形成、真实 provider 与真实任务长期证据待完成
+> 状态：P0A/P0B/P0C、P1.1–P1.21、P2D.1 与内部 Goal→Gap→Skill Opportunity→生成前 Skill Evaluation Evidence Seal→quarantined Candidate→Opportunity-bound Evaluation Envelope v3→capability-absent assembled Shadow/Retention/canary→content-addressed inactive Generation→future Session/root rollback 纵切 implemented；从密封样本自主生成并校准 Case Pack、真实 provider 与真实任务长期证据待完成
 > 更新日期：2026-08-19
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 
@@ -237,10 +237,12 @@ interface LearningSignal {
   → deterministic Skill Opportunity
   → 保守关联同 Session 明确纠正 / stable Goal identity 跨 revision 交付结果（context only）
   → Workspace selfDiscoveryPolicy（无 Skill 字段）
-  → 原生 Job author（只读有界内部证据）
+  → 至少四个独立 Goal 后形成 governance-owned Skill Evaluation Evidence Seal
+      authoring / admission / holdout 三组不重叠
+  → 原生 Job author（只读有界 authoring 子集；看不到 admission/holdout）
   → instruction-only whole-Skill v1
   → inactive / quarantined / unevaluated / never-executed Candidate
-  → 当前 Opportunity 对应的 governance-owned Evaluation Envelope v2
+  → 当前 Opportunity + evidence seal 对应的 governance-owned Evaluation Envelope v3
       baseline = capability-absent（无 SKILL.md）
   → deterministic admission → independent assembled holdout
   → independent absent-parent Retention / sealed canary
@@ -259,12 +261,14 @@ interface LearningSignal {
 - policy 只授权 Workspace、私有 run root、日预算和可能的模型调用，不预定要发现哪个 Skill；
 - author 看不到外部搜索结果、验证答案、测试结果或 release 权限；
 - Opportunity 只有生成资格，Candidate 只有隔离身份，二者都不能安装、激活、晋升或发布；
+- 两个不同 Goal 只形成 Opportunity；至少四个不同 Goal 才能在作者调用前密封 authoring/admission/holdout。证据不足不花预算、不调用模型、不生成 Candidate；
+- evidence seal 对 exact Opportunity 快照、三组角色和 author-input digest 内容寻址；Candidate proposer 只收到 authoring 子集，治理目录篡改和作者输入错配均 fail closed；
 - Candidate evaluation policy 同样只选择 Workspace 的 governance/run roots，不能配置 Skill、baseline、Case Pack 或 Candidate 方向；
-- 一个内容寻址 Evaluation Envelope 必须绑定当前 Opportunity 快照、只含 `subject.json` 的 capability-absent baseline、deterministic admission 与不同的 assembled holdout，任何占位 Skill、漂移、符号链接、根重叠或身份不一致都 fail closed；
+- 一个内容寻址 Evaluation Envelope 必须绑定当前 Opportunity 快照、evidence seal、author-input digest、只含 `subject.json` 的 capability-absent baseline、deterministic admission 与不同的 assembled holdout，任何占位 Skill、漂移、符号链接、根重叠或身份不一致都 fail closed；
 - assembled baseline 不安装目标 Skill，Candidate 侧才安装 exact whole-Skill；两侧必须保持非目标 composition 相同；
 - 当前实现能解析、验证并贯穿该 Envelope 到 Admission、Shadow、Review 和 crash resume；通过复核的新 Skill 可形成不依赖 Git source 的 inactive `skill-bundle` Generation，Storage 与 DSH Skill Provider 重验 exact archive，晋升只影响未来 Session，root rollback 恢复后续 Session 的 native DSH；
 - capability-absent Retention/canary 使用原 Shadow 的 exact subject、Candidate tree/lineage 与 sealed Case Pack，不查 Git/网络，并要求非目标 DSH composition 相同；污染、漂移和父 Generation 已有同名 Skill 均 fail closed；
-- Envelope 还不能从内部证据自主生成；真实 provider、负迁移率和长期 outcome 仍是后续治理门，不能由 author 自证。
+- 独立 Goal 样本已能在 author 前自动密封，但 admission/holdout Case Pack 与完整 Envelope 还不能由这些密封样本自主生成并校准；真实 provider、负迁移率和长期 outcome 仍是后续治理门，不能由 author 自证。
 
 本项目不提供运行时外部包搜索、获取、下载、导入或市场功能；设计期研究不得进入本节的自我发现状态、UI 或声明。
 

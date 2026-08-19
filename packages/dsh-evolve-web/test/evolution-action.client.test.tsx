@@ -327,6 +327,7 @@ const t = (key: string) => ({
   'skills.gaps.confirmed': 'Confirmed by complete DSH catalog',
   'skills.gaps.catalog': 'Catalog evidence',
   'skills.gaps.inactive': 'No Skill was installed or executed.',
+  'skills.gaps.goalProtected': 'Goal content withheld from browser',
   'skills.opportunities': 'Self-Skill Candidate opportunities',
   'skills.opportunities.empty': 'Internal experience has not produced a reliable Skill opportunity yet.',
   'skills.opportunities.goals': 'distinct Goals',
@@ -344,6 +345,15 @@ const t = (key: string) => ({
   'skills.opportunities.reference.correction': 'correction',
   'skills.opportunities.reference.outcome': 'outcome',
   'skills.opportunities.references.truncated': 'more references retained by the Host',
+  'skills.opportunities.evaluation.readyToSeal': 'Independent evaluation evidence ready to seal',
+  'skills.opportunities.evaluation.sealed': 'Independent evaluation evidence sealed',
+  'skills.opportunities.evaluation.authoring': 'author-visible',
+  'skills.opportunities.evaluation.admission': 'admission',
+  'skills.opportunities.evaluation.holdout': 'holdout',
+  'skills.opportunities.evaluation.protected': 'Candidate proposer cannot read protected samples',
+  'skills.opportunities.evaluation.waiting': 'Waiting for independent Goals; no Candidate authored',
+  'skills.opportunities.evaluation.invalid': 'Invalid internal evidence',
+  'skills.opportunities.evaluation.unavailable': 'Evaluation governance not configured',
   'skills.opportunities.state': 'Eligible for quarantined authoring · No install, activation, or release authority',
   'skills.slow-loop': 'Internal experience-driven Skill authoring',
   'skills.slow-loop.policies': 'Workspace safety policies',
@@ -677,7 +687,6 @@ describe('EvolutionAction', () => {
             goal: {
               id: 'goal-1',
               revision: 3,
-              objective: 'Publish a verified native DSH plugin.',
             },
             status: 'confirmed' as const,
             evidence: {
@@ -693,13 +702,23 @@ describe('EvolutionAction', () => {
           items: [{
             id: '1'.repeat(64),
             skillName: 'release-native-extension',
-            gapIds: ['5'.repeat(64), '6'.repeat(64), '7'.repeat(64)],
-            goalIds: ['goal-1', 'goal-2'],
-            gapCount: 3,
-            goalCount: 2,
+            gapIds: ['5'.repeat(64), '6'.repeat(64), '7'.repeat(64), '8'.repeat(64)],
+            goalIds: ['goal-1', 'goal-2', 'goal-3', 'goal-4'],
+            gapCount: 4,
+            goalCount: 4,
             firstObservedAt: 1_786_895_900_000,
             lastObservedAt: 1_786_896_000_000,
             evidence: internalOpportunityEvidence(),
+            evaluationReadiness: {
+              status: 'sealed' as const,
+              evidenceId: 'e'.repeat(64),
+              observedGoalCount: 4,
+              authoringGoalCount: 2,
+              admissionGoalCount: 1,
+              holdoutGoalCount: 1,
+              proposerCanReadProtectedSamples: false as const,
+              releaseAuthority: 'none' as const,
+            },
             status: 'eligible-for-authoring' as const,
             releaseAuthority: 'none' as const,
           }],
@@ -712,8 +731,8 @@ describe('EvolutionAction', () => {
             targetId: 'missing-release-author',
             skillName: 'missing-release-skill',
             opportunityId: '1'.repeat(64),
-            gapCount: 3,
-            goalCount: 2,
+            gapCount: 4,
+            goalCount: 4,
             phase: 'candidate-ready' as const,
             createdAt: '2026-08-18T01:00:00.000Z',
             updatedAt: '2026-08-18T01:00:01.000Z',
@@ -734,8 +753,8 @@ describe('EvolutionAction', () => {
             opportunity: {
               kind: 'internal-experience-v1' as const,
               id: '1'.repeat(64),
-              gapIds: ['5'.repeat(64), '6'.repeat(64), '7'.repeat(64)],
-              goalCount: 2,
+              gapIds: ['5'.repeat(64), '6'.repeat(64), '7'.repeat(64), '8'.repeat(64)],
+              goalCount: 4,
             },
             authorship: {
               kind: 'bounded-model-authoring-v1' as const,
@@ -812,16 +831,18 @@ describe('EvolutionAction', () => {
     expect(screen.getByText(`Evolved version · ${'e'.repeat(12)}`)).toBeTruthy()
     expect(screen.getByText('Capability gap queue')).toBeTruthy()
     expect(screen.getAllByText('missing-release-skill').length).toBeGreaterThan(1)
-    expect(screen.getByText('Publish a verified native DSH plugin.')).toBeTruthy()
+    expect(screen.getByText('goal-1 r3 · Goal content withheld from browser')).toBeTruthy()
     expect(screen.getByText('Confirmed by complete DSH catalog')).toBeTruthy()
     expect(screen.getByText('No Skill was installed or executed.')).toBeTruthy()
     expect(screen.getByText('Self-Skill Candidate opportunities')).toBeTruthy()
-    expect(screen.getAllByText('2 distinct Goals · 3 Gap observations')).toHaveLength(2)
+    expect(screen.getAllByText('4 distinct Goals · 4 Gap observations')).toHaveLength(2)
     expect(screen.getByText('Discovered from repeated capability gaps across DSH Goals')).toBeTruthy()
-    expect(screen.getByText('Evidence Goals · goal-1 · goal-2')).toBeTruthy()
+    expect(screen.getByText('Evidence Goals · goal-1 · goal-2 · goal-3 · goal-4')).toBeTruthy()
     expect(screen.getByText('Associated internal evidence · explicit corrections: 1 · delivery outcomes: 2 (passed 1 / failed 1 / unknown 0)')).toBeTruthy()
     expect(screen.getByText('Exact Session/Goal-revision association only · No causal or authoring-eligibility claim')).toBeTruthy()
     expect(screen.getByText(`Evidence references · correction ${'2'.repeat(8)}… · outcome ${'3'.repeat(8)}… · outcome ${'4'.repeat(8)}…`)).toBeTruthy()
+    expect(screen.getByText(/Independent evaluation evidence sealed · author-visible 2 \/ admission 1 \/ holdout 1/u)).toBeTruthy()
+    expect(screen.getByText('Candidate proposer cannot read protected samples')).toBeTruthy()
     expect(screen.getByText('Eligible for quarantined authoring · No install, activation, or release authority')).toBeTruthy()
     expect(screen.getByText('Internal experience-driven Skill authoring')).toBeTruthy()
     expect(screen.getByText('Quarantined candidate ready')).toBeTruthy()
@@ -832,7 +853,7 @@ describe('EvolutionAction', () => {
     expect(screen.getAllByText('release-native-extension').length).toBeGreaterThan(1)
     expect(screen.getByText('Prepare and verify a native DSH release.')).toBeTruthy()
     expect(screen.getByText('Quarantined candidate')).toBeTruthy()
-    expect(screen.getByText(`Internal Skill opportunity evidence · 2 distinct Goals · 3 Gap observations · ${'1'.repeat(8)}…`)).toBeTruthy()
+    expect(screen.getByText(`Internal Skill opportunity evidence · 4 distinct Goals · 4 Gap observations · ${'1'.repeat(8)}…`)).toBeTruthy()
     expect(screen.getByText(`Internal author policy · internal-experience-author · input digest ${'5'.repeat(8)}…`)).toBeTruthy()
     expect(screen.getByText(`Internal-experience whole-Skill bundle v1 · artifact digest ${'9'.repeat(12)} · tree ${'b'.repeat(12)}`)).toBeTruthy()
     expect(screen.getByText(`Content hash · ${'a'.repeat(12)}`)).toBeTruthy()

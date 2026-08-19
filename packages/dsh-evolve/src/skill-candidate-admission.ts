@@ -94,7 +94,7 @@ type TrialRunner = typeof runPairedTrial
 interface EvaluationEnvelopeReader {
   hasPolicy(workspaceId: string): boolean
   resolve(candidate: Pick<ExperienceSkillCandidate,
-    'workspaceId' | 'skillName' | 'opportunity'>): Promise<ResolvedSkillEvaluationEnvelope | undefined>
+    'workspaceId' | 'skillName' | 'opportunity' | 'authorship'>): Promise<ResolvedSkillEvaluationEnvelope | undefined>
   policyViews(workspaceId?: string): SkillEvaluationPolicyView[]
 }
 
@@ -388,8 +388,8 @@ export class SkillCandidateAdmission {
       try {
         runRoot = await realpath(policy.admissionRunRoot)
         entries = await readdir(runRoot, { withFileTypes: true })
-      } catch {
-        warningCount += 1
+      } catch (error) {
+        if (!isRecord(error) || error.code !== 'ENOENT') warningCount += 1
         continue
       }
       if (entries.length > 1_000) warningCount += 1

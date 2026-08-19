@@ -95,8 +95,8 @@ The host-side activity that derives a reusable Skill Opportunity only from attri
 _Avoid_: Skill Discovery, capability acquisition, user menu, runtime marketplace search, external Skill import, retry-as-learning
 
 **Skill Opportunity**:
-A deterministic, Workspace-scoped conclusion that repeated capability gaps across at least two distinct native DSH Goals justify bounded whole-Skill authoring. Its Skill name comes from verified Gap evidence, never an operator-configured authoring target; same-Goal retries and weak evidence abstain. It has no install, activation, or release authority.
-_Avoid_: Gap cluster, search result, user-selected Skill, authoring permission
+A deterministic, Workspace-scoped conclusion that repeated capability gaps across at least two distinct native DSH Goals identify reusable demand. Its Skill name comes from verified Gap evidence, never an operator-configured authoring target; same-Goal retries and weak evidence abstain. It does not itself authorize paid authoring, install, activation, or release.
+_Avoid_: Gap cluster, search result, user-selected Skill, authoring permission, Candidate readiness
 
 **Goal Outcome Context Association**:
 A conservative, non-causal link from one compact Delivery Outcome to one stable native Goal identity whose known Gap evidence names exactly one Skill. The Outcome must follow a matching Gap in time and may carry the same or a later native Goal revision; an older revision, another Skill, or another Workspace abstains. This context never contributes another Goal to Opportunity eligibility or proves rework, reuse, or improvement.
@@ -114,8 +114,12 @@ _Avoid_: Nightly prompt rewrite, self-scoring batch job, greedy latest-wins
 The independent authority that owns protected cases, gold expectations, evaluator policy, hard gates, comparison results, and release eligibility. A Candidate and its proposer cannot read hidden cases or mutate this plane; boundary failure makes a Trial incomplete rather than passed.
 _Avoid_: Candidate-authored judge, writable final-test, model confidence gate
 
+**Skill Evaluation Evidence Seal**:
+A content-addressed, governance-owned partition made before Candidate authoring from one exact Skill Opportunity snapshot. At least four distinct native Goals are required: an author sees only the bounded authoring subset, while independent admission and holdout subsets remain protected; fewer or inconsistent samples abstain without a model call.
+_Avoid_: Random train/test split, Candidate-authored cases, post-hoc evaluator target, external Skill research
+
 **Skill Evaluation Envelope**:
-A content-addressed, governance-owned binding from one exact current Skill Opportunity snapshot to a `capability-absent` subject descriptor, deterministic admission Case Pack, independent assembled holdout Case Pack, and isolated run roots. Because an Opportunity starts from an exact native-catalog miss, its baseline contains no `SKILL.md`; a placeholder Skill is forbidden. Deployment policy selects only the Workspace governance and run roots; it cannot select the Skill, baseline, Case Pack, or Candidate direction. Any Opportunity mismatch, content drift, shared admission/holdout identity, symlink, extra baseline file, or root overlap fails closed.
+A content-addressed, governance-owned binding from one exact current Skill Opportunity and Skill Evaluation Evidence Seal to a `capability-absent` subject descriptor, deterministic admission Case Pack, independent assembled holdout Case Pack, and isolated run roots. Because an Opportunity starts from an exact native-catalog miss, its baseline contains no `SKILL.md`; a placeholder Skill is forbidden. Deployment policy selects only the Workspace governance and run roots; it cannot select the Skill, baseline, Case Pack, or Candidate direction. Any author-input mismatch, Opportunity mismatch, content drift, shared admission/holdout identity, symlink, extra baseline file, or root overlap fails closed.
 _Avoid_: Evaluation Target, operator-selected Skill, Candidate-authored test plan, mutable Case Pack, release authority
 
 **Capability-Absent Baseline**:

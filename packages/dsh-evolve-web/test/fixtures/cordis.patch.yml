@@ -22,7 +22,10 @@
         workspacePath: __EVOFORGE_BROWSER_WORKSPACE__
         sessionId: evoforge-browser-session
         agentPreset: standard
+        agentEntry: __EVOFORGE_DSH_AGENT_ENTRY__
         evolveEntry: __EVOFORGE_INSTALLED_ENTRY__
         cacheRoot: __EVOFORGE_CACHE_ROOT__
         runRoot: __EVOFORGE_RUN_ROOT__
+        governanceRoot: __EVOFORGE_GOVERNANCE_ROOT__
         seedGoalMetrics: true
+        seedCapabilityGaps: true

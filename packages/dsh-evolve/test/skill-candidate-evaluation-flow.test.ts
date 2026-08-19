@@ -2,10 +2,12 @@ import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { CapabilityGap } from '../src/capability-gap-store.ts'
 import { hashTree } from '../src/hash.ts'
 import { SkillCandidateAdmission } from '../src/skill-candidate-admission.ts'
 import { SkillCandidateShadowLauncher } from '../src/skill-candidate-shadow.ts'
 import { SkillEvaluationEnvelopeResolver } from '../src/skill-evaluation-envelope.ts'
+import { SkillEvaluationEvidenceVault } from '../src/skill-evaluation-evidence-vault.ts'
 import type {
   ExperienceSkillCandidate,
   MaterializedSkillCandidate,
@@ -33,8 +35,8 @@ afterEach(async () => {
 describe('Opportunity-bound internal Candidate evaluation flow', () => {
   it('hands one governance-owned Envelope from admission to assembled holdout without a configured Skill', async () => {
     const fixture = await flowFixture()
-    const candidate = await candidateFixture()
-    const opportunity = internalOpportunity()
+    const candidate = fixture.candidate
+    const opportunity = fixture.opportunity
     const envelopes = new SkillEvaluationEnvelopeResolver(
       [{
         id: 'workspace-governance',
@@ -43,6 +45,7 @@ describe('Opportunity-bound internal Candidate evaluation flow', () => {
         runRoot: fixture.runRoot,
       }],
       { discover: () => [opportunity] },
+      fixture.vault,
     )
     const runTrial = vi.fn(async (): Promise<PairedTrialResult> => ({
       backend: 'darwin-seatbelt',
@@ -109,11 +112,26 @@ async function flowFixture(): Promise<{
   readonly runRoot: string
   readonly baselineDir: string
   readonly holdoutDir: string
+  readonly vault: SkillEvaluationEvidenceVault
+  readonly opportunity: SkillOpportunity
+  readonly candidate: ExperienceSkillCandidate
 }> {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-evolve-evaluation-flow-')))
   roots.push(root)
   const governanceRoot = join(root, 'governance')
   const runRoot = join(root, 'runs')
+  const policy = {
+    id: 'workspace-governance',
+    workspaceId: WORKSPACE_ID,
+    governanceRoot,
+    runRoot,
+  }
+  const gaps = opportunityGaps()
+  const opportunity = internalOpportunity()
+  const vault = new SkillEvaluationEvidenceVault([policy], { list: () => gaps })
+  const prepared = await vault.prepare(opportunity)
+  if (prepared.status !== 'ready') throw new Error('expected evaluation evidence')
+  const candidate = await candidateFixture(prepared.evidence.authoringInputDigest, gaps)
   const envelopeRoot = join(governanceRoot, 'envelopes', '2'.repeat(64))
   const baselineDir = join(envelopeRoot, 'baseline')
   const admissionDir = join(envelopeRoot, 'admission')
@@ -130,14 +148,15 @@ async function flowFixture(): Promise<{
   await writeCasePack(admissionDir, 'internal-admission', false)
   await writeCasePack(holdoutDir, 'internal-holdout', true)
   await writeFile(join(envelopeRoot, 'manifest.json'), `${JSON.stringify({
-    schemaVersion: 2,
-    kind: 'internal-skill-evaluation-envelope-v2',
+    schemaVersion: 3,
+    kind: 'internal-skill-evaluation-envelope-v3',
     workspaceId: WORKSPACE_ID,
+    evaluationEvidenceId: prepared.evidence.id,
     opportunity: {
       id: '2'.repeat(64),
       skillName: 'release-proof',
-      gapIds: ['3'.repeat(64), '4'.repeat(64)],
-      goalCount: 2,
+      gapIds: gaps.map(gap => gap.id),
+      goalCount: 4,
     },
     baseline: {
       kind: 'capability-absent',
@@ -146,7 +165,7 @@ async function flowFixture(): Promise<{
     admissionCasePackHash: await hashTree(admissionDir),
     holdoutCasePackHash: await hashTree(holdoutDir),
   }, null, 2)}\n`)
-  return { governanceRoot, runRoot, baselineDir, holdoutDir }
+  return { governanceRoot, runRoot, baselineDir, holdoutDir, vault, opportunity, candidate }
 }
 
 async function writeCasePack(path: string, id: string, assembled: boolean): Promise<void> {
@@ -167,11 +186,26 @@ async function writeCasePack(path: string, id: string, assembled: boolean): Prom
   }, null, 2)}\n`)
 }
 
-async function candidateFixture(): Promise<ExperienceSkillCandidate> {
+async function candidateFixture(
+  inputDigest: string,
+  gaps: readonly CapabilityGap[],
+): Promise<ExperienceSkillCandidate> {
   const source = await realpath(await mkdtemp(join(tmpdir(), 'dsh-evolve-evaluation-candidate-')))
   roots.push(source)
   await writeFile(join(source, 'SKILL.md'), CANDIDATE_SKILL)
   return experienceSkillCandidate({
+    opportunity: {
+      kind: 'internal-experience-v1',
+      id: '2'.repeat(64),
+      gapIds: gaps.map(gap => gap.id),
+      goalCount: 4,
+    },
+    authorship: {
+      kind: 'bounded-model-authoring-v1',
+      policyId: 'workspace-experience-author',
+      modelIdentityHash: '5'.repeat(64),
+      inputDigest,
+    },
     version: {
       kind: 'experience-authored-bundle-v1',
       artifactDigest: '7'.repeat(64),
@@ -210,12 +244,12 @@ function internalOpportunity(): SkillOpportunity {
     id: '2'.repeat(64),
     workspaceId: WORKSPACE_ID,
     skillName: 'release-proof',
-    gapIds: ['3'.repeat(64), '4'.repeat(64)],
-    goalIds: ['goal-a', 'goal-b'],
-    gapCount: 2,
-    goalCount: 2,
+    gapIds: opportunityGaps().map(gap => gap.id),
+    goalIds: ['goal-a', 'goal-b', 'goal-c', 'goal-d'],
+    gapCount: 4,
+    goalCount: 4,
     firstObservedAt: 1,
-    lastObservedAt: 2,
+    lastObservedAt: 4,
     evidence: {
       kind: 'internal-experience-v2',
       eligibilityBasis: 'two-or-more-distinct-goals',
@@ -239,4 +273,25 @@ function internalOpportunity(): SkillOpportunity {
     status: 'eligible-for-authoring',
     releaseAuthority: 'none',
   }
+}
+
+function opportunityGaps(): CapabilityGap[] {
+  return ['a', 'b', 'c', 'd'].map((seed, index) => ({
+    schemaVersion: 1,
+    id: String(index + 3).repeat(64),
+    observedAt: index + 1,
+    workspaceId: WORKSPACE_ID,
+    sessionId: `session-${seed}`,
+    requestedSkill: 'release-proof',
+    catalogHash: 'a'.repeat(64),
+    catalogSize: 1,
+    goal: { id: `goal-${seed}`, revision: 1, objective: `Prove release workflow ${seed}` },
+    status: 'confirmed',
+    evidence: {
+      kind: 'native-skill-miss',
+      catalog: 'complete',
+      routing: 'requested-skill-absent',
+      providers: 'settled',
+    },
+  }))
 }

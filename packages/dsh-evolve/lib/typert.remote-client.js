@@ -194,7 +194,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'goal': z.union([z.undefined(), z.object({
   'id': z.string().readonly(),
   'revision': z.number().readonly(),
-  'objective': z.string().readonly(),
+  'objective': z.union([z.undefined(), z.string()]).readonly().optional(),
 })]).readonly().optional(),
   'status': z.literal("confirmed").readonly(),
   'evidence': z.union([z.object({
@@ -241,6 +241,32 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
 }).readonly(),
   'causalClaim': z.literal("none").readonly(),
 }).readonly(),
+  'evaluationReadiness': z.union([z.object({
+  'status': z.union([z.literal("ready-to-seal"), z.literal("sealed")]).readonly(),
+  'evidenceId': z.string().readonly(),
+  'observedGoalCount': z.number().readonly(),
+  'authoringGoalCount': z.number().readonly(),
+  'admissionGoalCount': z.number().readonly(),
+  'holdoutGoalCount': z.number().readonly(),
+  'proposerCanReadProtectedSamples': z.literal(false).readonly(),
+  'releaseAuthority': z.literal("none").readonly(),
+}), z.object({
+  'status': z.literal("waiting").readonly(),
+  'reason': z.literal("fewer-than-four-independent-goals").readonly(),
+  'observedGoalCount': z.number().readonly(),
+  'requiredGoalCount': z.literal(4).readonly(),
+  'releaseAuthority': z.literal("none").readonly(),
+}), z.object({
+  'status': z.literal("unavailable").readonly(),
+  'reason': z.literal("governance-policy-unavailable").readonly(),
+  'observedGoalCount': z.number().readonly(),
+  'releaseAuthority': z.literal("none").readonly(),
+}), z.object({
+  'status': z.literal("invalid").readonly(),
+  'reason': z.literal("opportunity-evidence-invalid").readonly(),
+  'observedGoalCount': z.number().readonly(),
+  'releaseAuthority': z.literal("none").readonly(),
+})]).readonly(),
   'status': z.literal("eligible-for-authoring").readonly(),
   'releaseAuthority': z.literal("none").readonly(),
 })).readonly(),

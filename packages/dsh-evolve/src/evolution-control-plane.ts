@@ -12,6 +12,7 @@ import type { ExperienceDrivenSkillOpportunityDiscovery } from './skill-opportun
 import type { SkillCandidateAdmission } from './skill-candidate-admission.ts'
 import type { SlowLoopSkillAuthoring } from './slow-loop-skill-authoring.ts'
 import type { SkillCandidateLineage } from './skill-candidate-lineage.ts'
+import type { SkillEvaluationEvidenceVault } from './skill-evaluation-evidence-vault.ts'
 import type { EvolutionStore } from './generation-store.ts'
 import type { ResidentEvolutionControl } from './resident-evolution-control.ts'
 import type { ReviewCandidate, ReviewInbox } from './review-inbox.ts'
@@ -56,6 +57,7 @@ export interface EvolutionControlPlaneModules {
   }
   readonly gaps?: Pick<CapabilityGapStore, 'list'>
   readonly opportunities?: Pick<ExperienceDrivenSkillOpportunityDiscovery, 'discover'>
+  readonly evaluationEvidence?: Pick<SkillEvaluationEvidenceVault, 'readiness'>
   readonly candidates?: Pick<SkillCandidateStore, 'listCandidates'>
   readonly admissions?: Pick<SkillCandidateAdmission, 'scan'>
   readonly slowLoopAuthoring?: Pick<SlowLoopSkillAuthoring, 'scan'>
@@ -96,6 +98,16 @@ export class EvolutionControlPlane {
     ])
     const automaticSkills = this.modules.automatic?.skills(workspaceId) ?? []
     const skillOpportunities = this.modules.opportunities?.discover(workspaceId)
+    const opportunityGapIds = new Set(skillOpportunities?.flatMap(opportunity => opportunity.gapIds) ?? [])
+    const opportunityReadiness = skillOpportunities === undefined
+      ? []
+      : await Promise.all(skillOpportunities.map(opportunity =>
+          this.modules.evaluationEvidence?.readiness(opportunity) ?? Promise.resolve({
+            status: 'unavailable' as const,
+            reason: 'governance-policy-unavailable' as const,
+            observedGoalCount: opportunity.goalCount,
+            releaseAuthority: 'none' as const,
+          })))
     return {
       schemaVersion: 1,
       ...(active === undefined ? {} : { active: projectGeneration(active) }),
@@ -112,12 +124,15 @@ export class EvolutionControlPlane {
         : { capabilityMap: cloneCapabilityMap(this.modules.capabilities.snapshot(workspaceId, sessionId)) }),
       ...(this.modules.gaps === undefined
         ? {}
-        : { capabilityGaps: projectCapabilityGaps(this.modules.gaps.list(workspaceId)) }),
+        : { capabilityGaps: projectCapabilityGaps(
+            this.modules.gaps.list(workspaceId),
+            opportunityGapIds,
+          ) }),
       ...(skillOpportunities === undefined
         ? {}
         : { skillOpportunities: {
             eligibleCount: skillOpportunities.length,
-            items: skillOpportunities.map(opportunity => ({
+            items: skillOpportunities.map((opportunity, index) => ({
               id: opportunity.id,
               skillName: opportunity.skillName,
               gapIds: [...opportunity.gapIds],
@@ -146,6 +161,7 @@ export class EvolutionControlPlane {
                 },
                 causalClaim: opportunity.evidence.causalClaim,
               },
+              evaluationReadiness: opportunityReadiness[index]!,
               status: opportunity.status,
               releaseAuthority: opportunity.releaseAuthority,
             })),
@@ -442,6 +458,7 @@ function cloneCapabilityMap(map: EvolutionCapabilityMapView): EvolutionCapabilit
 
 function projectCapabilityGaps(
   gaps: ReturnType<CapabilityGapStore['list']>,
+  redactObjectiveFor: ReadonlySet<string>,
 ): EvolutionCapabilityGapQueueView {
   return {
     confirmedCount: gaps.filter(gap => gap.status === 'confirmed').length,
@@ -452,7 +469,11 @@ function projectCapabilityGaps(
       catalogHash: gap.catalogHash,
       catalogSize: gap.catalogSize,
       ...(gap.generationId === undefined ? {} : { generationId: gap.generationId }),
-      ...(gap.goal === undefined ? {} : { goal: { ...gap.goal } }),
+      ...(gap.goal === undefined ? {} : { goal: {
+        id: gap.goal.id,
+        revision: gap.goal.revision,
+        ...(redactObjectiveFor.has(gap.id) ? {} : { objective: gap.goal.objective }),
+      } }),
       status: gap.status,
       evidence: { ...gap.evidence },
     })),

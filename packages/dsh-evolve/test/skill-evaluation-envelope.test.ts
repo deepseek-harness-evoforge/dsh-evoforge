@@ -2,7 +2,9 @@ import { mkdir, mkdtemp, readFile, realpath, rm, symlink, unlink, writeFile } fr
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import type { CapabilityGap } from '../src/capability-gap-store.ts'
 import { hashTree } from '../src/hash.ts'
+import { SkillEvaluationEvidenceVault } from '../src/skill-evaluation-evidence-vault.ts'
 import {
   SkillEvaluationEnvelopeResolver,
   type SkillCandidateEvaluationPolicyConfig,
@@ -20,10 +22,11 @@ afterEach(async () => {
 describe('internal Skill Evaluation Envelope', () => {
   it('resolves governance inputs from the Candidate internal Opportunity without a configured Skill target', async () => {
     const fixture = await envelopeFixture()
-    const candidate = experienceSkillCandidate()
+    const candidate = fixture.candidate
     const resolver = new SkillEvaluationEnvelopeResolver(
       [fixture.policy],
       { discover: () => [opportunity()] },
+      fixture.vault,
     )
 
     const resolved = await resolver.resolve(candidate)
@@ -34,6 +37,7 @@ describe('internal Skill Evaluation Envelope', () => {
       workspaceId: WORKSPACE_ID,
       skillName: candidate.skillName,
       opportunityId: candidate.opportunity.id,
+      evaluationEvidenceId: fixture.manifest.evaluationEvidenceId,
       gapIds: candidate.opportunity.gapIds,
       baselineKind: 'capability-absent',
       baselineSkillName: candidate.skillName,
@@ -51,10 +55,11 @@ describe('internal Skill Evaluation Envelope', () => {
 
   it('abstains when the Candidate direction is not a current internal Opportunity', async () => {
     const fixture = await envelopeFixture()
-    const candidate = experienceSkillCandidate()
+    const candidate = fixture.candidate
     const resolver = new SkillEvaluationEnvelopeResolver(
       [fixture.policy],
       { discover: () => [opportunity()] },
+      fixture.vault,
     )
 
     await expect(resolver.resolve({ ...candidate, skillName: 'operator-selected-skill' }))
@@ -66,11 +71,12 @@ describe('internal Skill Evaluation Envelope', () => {
     const resolver = new SkillEvaluationEnvelopeResolver(
       [fixture.policy],
       { discover: () => [opportunity()] },
+      fixture.vault,
     )
     const subjectPath = join(fixture.baselineDir, 'subject.json')
     await writeFile(subjectPath, `${await readFile(subjectPath, 'utf8')}\n`)
 
-    await expect(resolver.resolve(experienceSkillCandidate()))
+    await expect(resolver.resolve(fixture.candidate))
       .rejects.toThrow('Skill Evaluation Envelope content identity mismatch')
   })
 
@@ -80,9 +86,10 @@ describe('internal Skill Evaluation Envelope', () => {
     const resolver = new SkillEvaluationEnvelopeResolver(
       [fixture.policy],
       { discover: () => [opportunity()] },
+      fixture.vault,
     )
 
-    await expect(resolver.resolve(experienceSkillCandidate()))
+    await expect(resolver.resolve(fixture.candidate))
       .rejects.toThrow('capability-absent baseline must contain only subject.json')
   })
 
@@ -95,9 +102,10 @@ describe('internal Skill Evaluation Envelope', () => {
     const resolver = new SkillEvaluationEnvelopeResolver(
       [fixture.policy],
       { discover: () => [opportunity()] },
+      fixture.vault,
     )
 
-    await expect(resolver.resolve(experienceSkillCandidate()))
+    await expect(resolver.resolve(fixture.candidate))
       .rejects.toThrow('Skill Evaluation Envelope requires an independent holdout Case Pack')
   })
 
@@ -106,7 +114,7 @@ describe('internal Skill Evaluation Envelope', () => {
     const envelopeRoot = join(
       fixture.policy.governanceRoot,
       'envelopes',
-      experienceSkillCandidate().opportunity.id,
+      fixture.candidate.opportunity.id,
     )
     const manifestPath = join(envelopeRoot, 'manifest.json')
     const targetPath = join(envelopeRoot, 'manifest-target.json')
@@ -116,10 +124,25 @@ describe('internal Skill Evaluation Envelope', () => {
     const resolver = new SkillEvaluationEnvelopeResolver(
       [fixture.policy],
       { discover: () => [opportunity()] },
+      fixture.vault,
     )
 
-    await expect(resolver.resolve(experienceSkillCandidate()))
+    await expect(resolver.resolve(fixture.candidate))
       .rejects.toThrow('Skill Evaluation Envelope manifest must be an exact real file')
+  })
+
+  it('rejects a Candidate whose author input is not the sealed evaluation evidence subset', async () => {
+    const fixture = await envelopeFixture()
+    const resolver = new SkillEvaluationEnvelopeResolver(
+      [fixture.policy],
+      { discover: () => [opportunity()] },
+      fixture.vault,
+    )
+
+    await expect(resolver.resolve({
+      ...fixture.candidate,
+      authorship: { ...fixture.candidate.authorship, inputDigest: 'f'.repeat(64) },
+    })).rejects.toThrow('Candidate authoring does not match its sealed evaluation evidence')
   })
 })
 
@@ -128,10 +151,13 @@ async function envelopeFixture(options: {
   readonly holdoutContent?: string
 } = {}): Promise<{
   readonly policy: SkillCandidateEvaluationPolicyConfig
+  readonly vault: SkillEvaluationEvidenceVault
+  readonly candidate: ReturnType<typeof experienceSkillCandidate>
   readonly baselineDir: string
   readonly admissionCasePackDir: string
   readonly holdoutCasePackDir: string
   readonly manifest: {
+    readonly evaluationEvidenceId: string
     readonly baseline: { readonly descriptorTreeHash: string }
     readonly admissionCasePackHash: string
     readonly holdoutCasePackHash: string
@@ -141,6 +167,25 @@ async function envelopeFixture(options: {
   roots.push(root)
   const governanceRoot = join(root, 'governance')
   const runRoot = join(root, 'runs')
+  const policy = { id: 'workspace-governance', workspaceId: WORKSPACE_ID, governanceRoot, runRoot }
+  const gaps = opportunityGaps()
+  const vault = new SkillEvaluationEvidenceVault([policy], { list: () => gaps })
+  const prepared = await vault.prepare(opportunity())
+  if (prepared.status !== 'ready') throw new Error('expected evaluation evidence')
+  const candidate = experienceSkillCandidate({
+    opportunity: {
+      kind: 'internal-experience-v1',
+      id: '2'.repeat(64),
+      gapIds: gaps.map(gap => gap.id),
+      goalCount: 4,
+    },
+    authorship: {
+      kind: 'bounded-model-authoring-v1',
+      policyId: 'workspace-experience-author',
+      modelIdentityHash: '5'.repeat(64),
+      inputDigest: prepared.evidence.authoringInputDigest,
+    },
+  })
   const envelopeRoot = join(governanceRoot, 'envelopes', '2'.repeat(64))
   const baselineDir = join(envelopeRoot, 'baseline')
   const admissionCasePackDir = join(envelopeRoot, 'admission')
@@ -167,14 +212,15 @@ async function envelopeFixture(options: {
     options.holdoutContent ?? '{"holdout":true}\n',
   )
   const manifest = {
-    schemaVersion: 2 as const,
-    kind: 'internal-skill-evaluation-envelope-v2' as const,
+    schemaVersion: 3 as const,
+    kind: 'internal-skill-evaluation-envelope-v3' as const,
     workspaceId: WORKSPACE_ID,
+    evaluationEvidenceId: prepared.evidence.id,
     opportunity: {
       id: '2'.repeat(64),
       skillName: 'release-proof',
-      gapIds: ['3'.repeat(64), '4'.repeat(64)],
-      goalCount: 2,
+      gapIds: gaps.map(gap => gap.id),
+      goalCount: 4,
     },
     baseline: {
       kind: 'capability-absent' as const,
@@ -185,7 +231,9 @@ async function envelopeFixture(options: {
   }
   await writeFile(join(envelopeRoot, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`)
   return {
-    policy: { id: 'workspace-governance', workspaceId: WORKSPACE_ID, governanceRoot, runRoot },
+    policy,
+    vault,
+    candidate,
     baselineDir,
     admissionCasePackDir,
     holdoutCasePackDir,
@@ -199,12 +247,12 @@ function opportunity(): SkillOpportunity {
     id: '2'.repeat(64),
     workspaceId: WORKSPACE_ID,
     skillName: 'release-proof',
-    gapIds: ['3'.repeat(64), '4'.repeat(64)],
-    goalIds: ['goal-a', 'goal-b'],
-    gapCount: 2,
-    goalCount: 2,
+    gapIds: opportunityGaps().map(gap => gap.id),
+    goalIds: ['goal-a', 'goal-b', 'goal-c', 'goal-d'],
+    gapCount: 4,
+    goalCount: 4,
     firstObservedAt: 1,
-    lastObservedAt: 2,
+    lastObservedAt: 4,
     evidence: {
       kind: 'internal-experience-v2',
       eligibilityBasis: 'two-or-more-distinct-goals',
@@ -228,4 +276,29 @@ function opportunity(): SkillOpportunity {
     status: 'eligible-for-authoring',
     releaseAuthority: 'none',
   }
+}
+
+function opportunityGaps(): CapabilityGap[] {
+  return ['a', 'b', 'c', 'd'].map((seed, index) => ({
+    schemaVersion: 1,
+    id: String(index + 3).repeat(64),
+    observedAt: index + 1,
+    workspaceId: WORKSPACE_ID,
+    sessionId: `session-${seed}`,
+    requestedSkill: 'release-proof',
+    catalogHash: 'a'.repeat(64),
+    catalogSize: 1,
+    goal: {
+      id: `goal-${seed}`,
+      revision: 1,
+      objective: `Prove release workflow ${seed}`,
+    },
+    status: 'confirmed',
+    evidence: {
+      kind: 'native-skill-miss',
+      catalog: 'complete',
+      routing: 'requested-skill-absent',
+      providers: 'settled',
+    },
+  }))
 }

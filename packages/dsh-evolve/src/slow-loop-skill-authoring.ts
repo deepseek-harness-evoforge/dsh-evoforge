@@ -5,8 +5,11 @@ import type { JobRegistry } from '@deepseek-ai/dsh-jobs'
 import { z } from 'zod'
 import { assembleSkillBundleArchive, type SkillBundleTextFile } from './skill-bundle-archive.ts'
 import type { AutomaticEvolutionBudget } from './automatic-evolution-budget.ts'
-import type { CapabilityGap, CapabilityGapStore } from './capability-gap-store.ts'
 import type { ExperienceDrivenSkillOpportunityDiscovery, SkillOpportunity } from './skill-opportunity-discovery.ts'
+import type {
+  SkillAuthoringEvidence,
+  SkillEvaluationEvidenceVault,
+} from './skill-evaluation-evidence-vault.ts'
 import { writeDurableJson } from './shadow-run-state.ts'
 import type {
   SkillCandidateProposal,
@@ -16,13 +19,11 @@ import type {
 const CONTENT_ID = /^[a-f0-9]{64}$/
 const PUBLIC_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const MAX_TARGETS = 20
-const MAX_GOALS = 8
-const MAX_GOAL_OBJECTIVE_BYTES = 4 * 1024
 const MAX_AUTHOR_INPUT_BYTES = 48 * 1024
 const MAX_AUTHOR_RESPONSE_BYTES = 128 * 1024
 const MAX_STATE_BYTES = 64 * 1024
 const AUTHOR_OUTPUT_TOKEN_LIMIT = 6_000
-const POLICY_VERSION = 'internal-experience-whole-skill-author-v1'
+const POLICY_VERSION = 'internal-experience-whole-skill-author-v2'
 
 export interface SkillOpportunityAuthoringPolicyConfig {
   readonly id: string
@@ -58,6 +59,7 @@ export interface SlowLoopSkillAuthorInput {
   readonly workspaceId: string
   readonly skillName: string
   readonly opportunityId: string
+  readonly evaluationEvidenceId: string
   readonly gapIds: readonly string[]
   readonly goalEvidence: readonly {
     readonly id: string
@@ -111,8 +113,8 @@ export interface SlowLoopSkillAuthoringScan {
 
 interface SlowLoopSkillAuthoringOptions {
   readonly policies: readonly SkillOpportunityAuthoringPolicyConfig[]
-  readonly gaps: Pick<CapabilityGapStore, 'list'>
   readonly opportunities: Pick<ExperienceDrivenSkillOpportunityDiscovery, 'discover'>
+  readonly evaluationEvidence: Pick<SkillEvaluationEvidenceVault, 'prepare'>
   readonly candidates: {
     listCandidates(workspaceId?: string, opportunityId?: string): ExperienceSkillCandidate[]
     quarantine(input: SkillCandidateProposal): Promise<{
@@ -127,7 +129,7 @@ interface SlowLoopSkillAuthoringOptions {
 }
 
 const stateSchema = z.strictObject({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(2),
   id: z.string().regex(CONTENT_ID),
   phase: z.enum([
     'prepared',
@@ -146,6 +148,7 @@ const stateSchema = z.strictObject({
     workspaceId: z.uuid(),
     skillName: z.string().regex(PUBLIC_ID),
     opportunityId: z.string().regex(CONTENT_ID),
+    evaluationEvidenceId: z.string().regex(CONTENT_ID),
     gapIds: z.array(z.string().regex(CONTENT_ID)).min(2).max(1_000),
     goalCount: z.number().int().min(2).max(1_000),
     inputDigest: z.string().regex(CONTENT_ID),
@@ -178,8 +181,8 @@ type SlowLoopRunState = z.infer<typeof stateSchema>
  */
 export class SlowLoopSkillAuthoring {
   private readonly policies = new Map<string, SkillOpportunityAuthoringPolicyConfig>()
-  private readonly gaps: SlowLoopSkillAuthoringOptions['gaps']
   private readonly opportunities: SlowLoopSkillAuthoringOptions['opportunities']
+  private readonly evaluationEvidence: SlowLoopSkillAuthoringOptions['evaluationEvidence']
   private readonly candidates: SlowLoopSkillAuthoringOptions['candidates']
   private readonly budget: SlowLoopSkillAuthoringOptions['budget']
   private readonly authorModel: NonNullable<SlowLoopSkillAuthoringOptions['authorModel']>
@@ -197,8 +200,8 @@ export class SlowLoopSkillAuthoring {
         runRoot: resolve(input.runRoot),
       }))
     }
-    this.gaps = options.gaps
     this.opportunities = options.opportunities
+    this.evaluationEvidence = options.evaluationEvidence
     this.candidates = options.candidates
     this.budget = options.budget
     this.authorModel = options.authorModel ?? requestSlowLoopSkillAuthor
@@ -279,10 +282,8 @@ export class SlowLoopSkillAuthoring {
   ): Promise<{ readonly scheduled: number; readonly warnings: string[] }> {
     const jobs = this.jobs
     if (jobs === undefined) return { scheduled: 0, warnings: ['native Jobs unavailable'] }
-    const gaps = this.gaps.list(workspaceId)
     const candidates = this.candidates.listCandidates(workspaceId)
     const opportunities = this.opportunities.discover(workspaceId)
-    const gapsById = new Map(gaps.map(gap => [gap.id, gap]))
     const warnings: string[] = []
     let scheduled = 0
 
@@ -294,9 +295,11 @@ export class SlowLoopSkillAuthoring {
       if (policy === undefined || (workspaceId !== undefined && policy.workspaceId !== workspaceId)) continue
       const target = resolveTarget(policy, opportunity.skillName)
       try {
-        const goalEvidence = buildGoalEvidence(opportunity, gapsById)
-        assertAuthorInputBudget(target, opportunity, goalEvidence)
-        const identity = this.buildIdentity(target, opportunity, goalEvidence)
+        const prepared = await this.evaluationEvidence.prepare(opportunity)
+        if (prepared.status === 'abstained') continue
+        const evidence = prepared.evidence
+        assertAuthorInputBudget(target, opportunity, evidence)
+        const identity = this.buildIdentity(target, opportunity, evidence)
         const runDir = join(target.runRoot, 'runs', identity.id)
         let state = await prepareState(runDir, identity, this.now())
         if (state.phase === 'authoring-pending') {
@@ -315,7 +318,7 @@ export class SlowLoopSkillAuthoring {
           }, this.now())
         }
         if (state.phase !== 'prepared' || this.active.has(state.id)) continue
-        this.schedule(jobs, target, opportunity, goalEvidence, state, runDir)
+        this.schedule(jobs, target, opportunity, evidence, state, runDir)
         scheduled += 1
       } catch (error) {
         warnings.push(`slow-loop Skill authoring skipped ${opportunity.skillName}: ${errorDetail(error)}`)
@@ -327,26 +330,22 @@ export class SlowLoopSkillAuthoring {
   private buildIdentity(
     target: ResolvedAuthoringTarget,
     opportunity: SkillOpportunity,
-    goalEvidence: SlowLoopSkillAuthorInput['goalEvidence'],
+    evidence: SkillAuthoringEvidence,
   ): SlowLoopRunState['identity'] & { readonly id: string } {
     const modelIdentity = this.modelIdentity()
     if (modelIdentity.trim() === '' || Buffer.byteLength(modelIdentity) > 2_048) {
       throw new Error('slow-loop Skill authoring model identity is invalid')
     }
-    const inputDigest = sha256(JSON.stringify({
-      opportunityId: opportunity.id,
-      gapIds: opportunity.gapIds,
-      goalEvidence,
-    }))
     const identity = {
       policyVersion: POLICY_VERSION,
       targetId: target.id,
       workspaceId: target.workspaceId,
       skillName: target.skill,
       opportunityId: opportunity.id,
+      evaluationEvidenceId: evidence.id,
       gapIds: [...opportunity.gapIds].sort(),
       goalCount: opportunity.goalCount,
-      inputDigest,
+      inputDigest: evidence.authoringInputDigest,
       modelIdentity,
     } as const
     return Object.freeze({
@@ -359,7 +358,7 @@ export class SlowLoopSkillAuthoring {
     jobs: Pick<JobRegistry, 'start'>,
     target: ResolvedAuthoringTarget,
     opportunity: SkillOpportunity,
-    goalEvidence: SlowLoopSkillAuthorInput['goalEvidence'],
+    evidence: SkillAuthoringEvidence,
     state: SlowLoopRunState,
     runDir: string,
   ): void {
@@ -374,7 +373,7 @@ export class SlowLoopSkillAuthoring {
           const task = this.runAuthoring(
             target,
             opportunity,
-            goalEvidence,
+            evidence,
             state,
             runDir,
             controller,
@@ -410,7 +409,7 @@ export class SlowLoopSkillAuthoring {
   private async runAuthoring(
     target: ResolvedAuthoringTarget,
     opportunity: SkillOpportunity,
-    goalEvidence: SlowLoopSkillAuthorInput['goalEvidence'],
+    evidence: SkillAuthoringEvidence,
     initial: SlowLoopRunState,
     runDir: string,
     controller: AbortController,
@@ -446,8 +445,9 @@ export class SlowLoopSkillAuthoring {
         workspaceId: target.workspaceId,
         skillName: target.skill,
         opportunityId: opportunity.id,
-        gapIds: opportunity.gapIds,
-        goalEvidence,
+        evaluationEvidenceId: evidence.id,
+        gapIds: evidence.authoringGapIds,
+        goalEvidence: evidence.authoringGoalEvidence,
         signal: controller.signal,
       })
       received = true
@@ -538,46 +538,19 @@ function assertPolicies(policies: readonly SkillOpportunityAuthoringPolicyConfig
   }
 }
 
-function buildGoalEvidence(
-  opportunity: SkillOpportunity,
-  gapsById: ReadonlyMap<string, CapabilityGap>,
-): SlowLoopSkillAuthorInput['goalEvidence'] {
-  const goals = new Map<string, NonNullable<CapabilityGap['goal']> & { observedAt: number }>()
-  for (const gapId of opportunity.gapIds) {
-    const gap = gapsById.get(gapId)
-    if (gap?.goal === undefined) throw new Error('Skill Opportunity Gap evidence changed before authoring')
-    const current = goals.get(gap.goal.id)
-    if (current === undefined || gap.goal.revision > current.revision) {
-      goals.set(gap.goal.id, { ...gap.goal, observedAt: gap.observedAt })
-    }
-  }
-  const evidence = [...goals.values()]
-    .sort((left, right) => left.observedAt - right.observedAt || left.id.localeCompare(right.id))
-    .slice(0, MAX_GOALS)
-    .map(goal => Object.freeze({
-      id: goal.id,
-      revision: goal.revision,
-      objective: truncateUtf8(goal.objective, MAX_GOAL_OBJECTIVE_BYTES),
-    }))
-  if (evidence.length < 2) throw new Error('slow-loop authoring requires at least two distinct Goals')
-  if (Buffer.byteLength(JSON.stringify(evidence)) > MAX_AUTHOR_INPUT_BYTES) {
-    throw new Error('slow-loop authoring evidence exceeds its input budget')
-  }
-  return Object.freeze(evidence)
-}
-
 function assertAuthorInputBudget(
   target: ResolvedAuthoringTarget,
   opportunity: SkillOpportunity,
-  goalEvidence: SlowLoopSkillAuthorInput['goalEvidence'],
+  evidence: SkillAuthoringEvidence,
 ): void {
   const modelInput = JSON.stringify({
     targetId: target.id,
     workspaceId: target.workspaceId,
     skillName: target.skill,
     opportunityId: opportunity.id,
-    gapIds: opportunity.gapIds,
-    goals: goalEvidence,
+    evaluationEvidenceId: evidence.id,
+    gapIds: evidence.authoringGapIds,
+    goals: evidence.authoringGoalEvidence,
   })
   if (Buffer.byteLength(modelInput) > MAX_AUTHOR_INPUT_BYTES) {
     throw new Error('slow-loop authoring evidence exceeds its input budget')
@@ -627,7 +600,7 @@ async function prepareState(
   await mkdir(runDir, { recursive: true, mode: 0o700 })
   const instant = isoTime(now)
   const state = stateSchema.parse({
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: identity.id,
     phase: 'prepared',
     createdAt: instant,
@@ -638,6 +611,7 @@ async function prepareState(
       workspaceId: identity.workspaceId,
       skillName: identity.skillName,
       opportunityId: identity.opportunityId,
+      evaluationEvidenceId: identity.evaluationEvidenceId,
       gapIds: identity.gapIds,
       goalCount: identity.goalCount,
       inputDigest: identity.inputDigest,
@@ -701,6 +675,7 @@ function assertIdentity(
     workspaceId: identity.workspaceId,
     skillName: identity.skillName,
     opportunityId: identity.opportunityId,
+    evaluationEvidenceId: identity.evaluationEvidenceId,
     gapIds: identity.gapIds,
     goalCount: identity.goalCount,
     inputDigest: identity.inputDigest,
@@ -889,13 +864,6 @@ function containsPath(root: string, input: string): boolean {
 function isoTime(value: number): string {
   if (!Number.isSafeInteger(value) || value < 0) throw new Error('slow-loop Skill authoring clock is invalid')
   return new Date(value).toISOString()
-}
-
-function truncateUtf8(value: string, maxBytes: number): string {
-  if (Buffer.byteLength(value) <= maxBytes) return value
-  let end = value.length
-  while (end > 0 && Buffer.byteLength(value.slice(0, end)) > maxBytes) end -= 1
-  return value.slice(0, end)
 }
 
 function isUsage(value: unknown): value is SlowLoopSkillAuthorResult['usage'] {

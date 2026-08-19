@@ -27,6 +27,7 @@ import {
   SkillEvaluationEnvelopeResolver,
   type SkillCandidateEvaluationPolicyConfig,
 } from './skill-evaluation-envelope.ts'
+import { SkillEvaluationEvidenceVault } from './skill-evaluation-evidence-vault.ts'
 import { installEvolutionCommand } from './evolve-command.ts'
 import { CandidatePublisher } from './candidate-publisher.ts'
 import { GitSkillSource, type GitSkillSourceConfig } from './git-skill-source.ts'
@@ -218,6 +219,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const automaticEvaluatorTargetReferences = config.automaticEvaluatorTargets ?? []
   const candidateEvaluationPolicies = config.candidateEvaluationPolicies ?? []
   const selfDiscoveryPolicies = config.selfDiscoveryPolicies ?? []
+  if (selfDiscoveryPolicies.some(policy => !candidateEvaluationPolicies.some(evaluation =>
+    evaluation.workspaceId === policy.workspaceId))) {
+    throw new Error('internal Skill authoring requires an evaluation governance policy for every Workspace')
+  }
+  const skillEvaluationEvidence = new SkillEvaluationEvidenceVault(
+    candidateEvaluationPolicies,
+    capabilityGaps,
+  )
   const shadowTargetsById = new Map(shadowTargets.map(target => [target.id, target]))
   const automaticFeedbackTargets: AutomaticFeedbackShadowTarget[] =
     automaticFeedbackTargetReferences.map((reference) => {
@@ -267,6 +276,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     const evaluationEnvelopes = new SkillEvaluationEnvelopeResolver(
       candidateEvaluationPolicies,
       skillOpportunities,
+      skillEvaluationEvidence,
     )
     skillAdmission = new SkillCandidateAdmission(evaluationEnvelopes, skillCandidates)
     skillShadowScheduler = new SkillCandidateShadowScheduler(
@@ -298,8 +308,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     ? undefined
     : new SlowLoopSkillAuthoring({
         policies: selfDiscoveryPolicies,
-        gaps: capabilityGaps,
         opportunities: skillOpportunities,
+        evaluationEvidence: skillEvaluationEvidence,
         candidates: {
           listCandidates: (workspaceId, opportunityId) =>
             skillCandidateStore.listCandidates(workspaceId, opportunityId),
@@ -505,6 +515,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     capabilities,
     gaps: capabilityGaps,
     opportunities: skillOpportunities,
+    evaluationEvidence: skillEvaluationEvidence,
     candidates: skillCandidateStore,
     ...(skillAdmission === undefined ? {} : { admissions: skillAdmission }),
     ...(slowLoopAuthoring === undefined ? {} : { slowLoopAuthoring }),

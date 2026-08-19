@@ -34,6 +34,7 @@ describe('internal Skill Candidate deterministic admission', () => {
         workspaceId: candidate.workspaceId,
         skillName: candidate.skillName,
         opportunityId: candidate.opportunity.id,
+        evaluationEvidenceId: 'd'.repeat(64),
         gapIds: candidate.opportunity.gapIds,
         baselineKind: 'capability-absent' as const,
         baselineSkillName: candidate.skillName,
@@ -144,6 +145,26 @@ describe('internal Skill Candidate deterministic admission', () => {
     })
   })
 
+  it('treats an uncreated admission run root as an empty queue, not invalid evidence', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-empty-admission-'))
+    roots.push(root)
+    const admission = new SkillCandidateAdmission({
+      hasPolicy: () => true,
+      resolve: async () => undefined,
+      policyViews: () => [{
+        id: 'workspace-governance',
+        workspaceId: WORKSPACE_ID,
+        admissionRunRoot: join(root, 'not-created'),
+      }],
+    }, { materialize: vi.fn() }, { runTrial: vi.fn() })
+
+    await expect(admission.scan(WORKSPACE_ID)).resolves.toEqual({
+      configuredPolicyCount: 1,
+      warningCount: 0,
+      results: [],
+    })
+  })
+
   it('uses native Jobs as its only scheduler and resumes durable Candidates', async () => {
     const existing = await candidateFixture()
     const evaluate = vi.fn(async (candidate: ExperienceSkillCandidate) => ({
@@ -233,6 +254,7 @@ function evaluationEnvelopes(
       workspaceId: candidate.workspaceId,
       skillName: candidate.skillName,
       opportunityId: candidate.opportunity.id,
+      evaluationEvidenceId: 'd'.repeat(64),
       gapIds: candidate.opportunity.gapIds,
       baselineKind: 'capability-absent' as const,
       baselineSkillName: candidate.skillName,

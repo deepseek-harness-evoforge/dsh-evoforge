@@ -1,6 +1,6 @@
 # EvoForge v0.1 路线图
 
-> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已直接替换错误命名的 `dsh-channel-router`，统一 Telegram/飞书普通文本 outbound、脱敏 transport observation，并由同包官方 DSH Client Module 完成统一只读健康视图的真实浏览器失败/恢复验收；旧能力获取/运行时研究 Candidate 的活动源码、依赖、持久化变体和 Web 投影已删除。缺失 Skill 的内部 Candidate 已能以内容寻址 bundle 进入 inactive Generation，并由真实 DSH Session验证 future-only、root rollback、exact absent-parent Retention 与 sealed canary；完整内部经验归因、治理包自主形成、Candidate 的真实 provider 独立评估、exact 飞书消息与最终 Hermes paired 验收仍未完成，v0.1 尚未发布或部署。
+> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已直接替换错误命名的 `dsh-channel-router`，统一 Telegram/飞书普通文本 outbound、脱敏 transport observation，并由同包官方 DSH Client Module 完成统一只读健康视图的真实浏览器失败/恢复验收；旧能力获取/运行时研究 Candidate 的活动源码、依赖、持久化变体和 Web 投影已删除。缺失 Skill 的内部 Candidate 在生成前已要求治理面从至少四个独立 Goal 密封 authoring/admission/holdout，并能以内容寻址 bundle 进入 inactive Generation，由真实 DSH Session验证 future-only、root rollback、exact absent-parent Retention 与 sealed canary；从密封样本自主生成/校准 Case Pack、完整内部经验归因、真实 provider 独立评估、exact 飞书消息与最终 Hermes paired 验收仍未完成，v0.1 尚未发布或部署。
 > 更新日期：2026-08-19
 
 ## 开发与发布纪律
@@ -65,6 +65,7 @@
 
 - 用户只提交自然语言 Goal；系统从 Capability Map 自主命中适用、已验证能力，不显示开场选路菜单；
 - 无适用能力时产生可复核 Capability Gap；同一 Workspace 内至少两个独立 Goal 的重复缺口才形成 Skill Opportunity；
+- Opportunity 达到至少四个独立 Goal 后，先由治理面密封 authoring/admission/holdout；作者看不到后两组，样本不足不花预算或生成 Candidate；
 - Skill 名和候选方向由内部 Goal、失败、纠正、结果、复用与保留证据推导，不由用户或部署者预选 exact Skill；
 - Skill 的 identity、source、scope、version、content hash、权限和 verification state 可追踪；
 - 候选按 whole-Skill folder 原子版本化，始终 inactive、Workspace-scoped、内容寻址；
@@ -89,15 +90,16 @@ workflow 选择。原生 Job author 只接收有界内部 Goal/Gap 证据，输�
 Gap → Opportunity → Candidate 及运行状态、成本和治理边界，不显示外部发现尝试。
 
 内部 Candidate 评测已删除 `candidateAdmissionTargets`/`candidateShadowTargets` 这两套预选 exact Skill 的配置。
-`candidateEvaluationPolicies` 只声明 Workspace、governance root 和 run root；Host 用当前 Opportunity id 解析
-内容寻址 Evaluation Envelope v2，并验证其 exact Opportunity 快照、禁止占位 Skill 的 capability-absent
+`candidateEvaluationPolicies` 只声明 Workspace、governance root 和 run root；Host 先从 exact Opportunity
+自动形成内容寻址的 `Skill Evaluation Evidence Seal`，Envelope v3 再绑定该 seal、author-input digest、
+exact Opportunity 快照和禁止占位 Skill 的 capability-absent
 baseline、deterministic admission 和不同的 assembled holdout。真实 assembled DSH baseline 不安装目标 Skill，
 Candidate 侧才安装 exact whole-Skill；Envelope id 贯穿 admission、Candidate Lineage、Shadow 与 crash resume；
 内容漂移、symlink、根重叠和 admission/holdout 同 hash 都 fail closed，缺包则 abstain。新 Skill Publisher
 已不再假设既有 Git source：explicit review 后生成 canonical `skill-bundle` inactive Generation，Storage/Provider
 重验 exact 内容，真实 DSH Session证明 future-only、root rollback 和重启恢复。Capability-absent Retention 与
 sealed canary 已使用原 Shadow 的 exact absent subject、exact Candidate/lineage 和真实 assembled DSH composition；
-下一步由内部证据自主形成 Envelope，并补真实 provider/长期 outcome。
+下一步把已密封 admission/holdout 样本自主转换成可校准 Case Pack 与完整 Envelope，并补真实 provider/长期 outcome。
 
 当前活动源码已经删除外部来源发现、Agent Skills 索引/archive、运行时 Web research、research Holdout/revision
 及其 Job 编排、依赖、持久化变体和 Web 类型；Candidate Repository、Admission、Lineage、Shadow 只接受
@@ -107,7 +109,7 @@ cache-read/write 和 latency projection，货币成本明确 unavailable，且�
 generated Remote 与 DSH Web 已展示 Workspace/current/baseline 聚合和至多 20 条最近已测 Outcome；真实浏览器已验证
 在线刷新、Host 断连保留最后快照并显式报错、同 profile 重启恢复和幂等重放。仍待实现/验证：
 correction/outcome 的 exact invocation 因果链接，以及 rework/currency-cost/reuse/retention/negative-transfer/rollback 的完整归因、内部 Candidate 的
-治理包自主形成、真实 provider outcome、模型缺口质量、迁移/遗忘/
+Case Pack/Envelope 自主形成、真实 provider outcome、模型缺口质量、迁移/遗忘/
 长期保留，以及同条件 Hermes paired outcome。因此不能描述为“自主 Skill 进化已完成”。
 
 ## V5 — 可解释 Web 与飞书闭环

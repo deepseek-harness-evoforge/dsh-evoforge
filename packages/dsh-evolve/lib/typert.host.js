@@ -194,7 +194,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'goal': z.union([z.undefined(), z.object({
   'id': z.string().readonly(),
   'revision': z.number().readonly(),
-  'objective': z.string().readonly(),
+  'objective': z.union([z.undefined(), z.string()]).readonly().optional(),
 })]).readonly().optional(),
   'status': z.literal("confirmed").readonly(),
   'evidence': z.union([z.object({
@@ -241,6 +241,32 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
 }).readonly(),
   'causalClaim': z.literal("none").readonly(),
 }).readonly(),
+  'evaluationReadiness': z.union([z.object({
+  'status': z.union([z.literal("ready-to-seal"), z.literal("sealed")]).readonly(),
+  'evidenceId': z.string().readonly(),
+  'observedGoalCount': z.number().readonly(),
+  'authoringGoalCount': z.number().readonly(),
+  'admissionGoalCount': z.number().readonly(),
+  'holdoutGoalCount': z.number().readonly(),
+  'proposerCanReadProtectedSamples': z.literal(false).readonly(),
+  'releaseAuthority': z.literal("none").readonly(),
+}), z.object({
+  'status': z.literal("waiting").readonly(),
+  'reason': z.literal("fewer-than-four-independent-goals").readonly(),
+  'observedGoalCount': z.number().readonly(),
+  'requiredGoalCount': z.literal(4).readonly(),
+  'releaseAuthority': z.literal("none").readonly(),
+}), z.object({
+  'status': z.literal("unavailable").readonly(),
+  'reason': z.literal("governance-policy-unavailable").readonly(),
+  'observedGoalCount': z.number().readonly(),
+  'releaseAuthority': z.literal("none").readonly(),
+}), z.object({
+  'status': z.literal("invalid").readonly(),
+  'reason': z.literal("opportunity-evidence-invalid").readonly(),
+  'observedGoalCount': z.number().readonly(),
+  'releaseAuthority': z.literal("none").readonly(),
+})]).readonly(),
   'status': z.literal("eligible-for-authoring").readonly(),
   'releaseAuthority': z.literal("none").readonly(),
 })).readonly(),
@@ -1665,7 +1691,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionCapabilityGapView",
-            "declaration": "export interface EvolutionCapabilityGapView {\n    readonly id: string;\n    readonly observedAt: number;\n    readonly requestedSkill: string;\n    readonly catalogHash: string;\n    readonly catalogSize: number;\n    readonly generationId?: string;\n    readonly goal?: { readonly id: string; readonly revision: number; readonly objective: string; };\n    readonly status: 'confirmed';\n    readonly evidence: { readonly kind: 'native-skill-miss'; readonly catalog: 'complete'; readonly routing: 'requested-skill-absent'; readonly providers: 'settled'; } | { readonly kind: 'model-declared-skill-gap'; readonly catalog: 'complete'; readonly routing: 'model-declared-no-applicable-skill'; readonly providers: 'settled'; };\n}"
+            "declaration": "export interface EvolutionCapabilityGapView {\n    readonly id: string;\n    readonly observedAt: number;\n    readonly requestedSkill: string;\n    readonly catalogHash: string;\n    readonly catalogSize: number;\n    readonly generationId?: string;\n    readonly goal?: { readonly id: string; readonly revision: number; readonly objective?: string; };\n    readonly status: 'confirmed';\n    readonly evidence: { readonly kind: 'native-skill-miss'; readonly catalog: 'complete'; readonly routing: 'requested-skill-absent'; readonly providers: 'settled'; } | { readonly kind: 'model-declared-skill-gap'; readonly catalog: 'complete'; readonly routing: 'model-declared-no-applicable-skill'; readonly providers: 'settled'; };\n}"
           },
           {
             "name": "EvolutionCapabilityMapView",
@@ -1765,7 +1791,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionSkillOpportunityView",
-            "declaration": "export interface EvolutionSkillOpportunityView {\n    readonly id: string;\n    readonly skillName: string;\n    readonly gapIds: readonly string[];\n    readonly goalIds: readonly string[];\n    readonly gapCount: number;\n    readonly goalCount: number;\n    readonly firstObservedAt: number;\n    readonly lastObservedAt: number;\n    readonly evidence: { readonly kind: 'internal-experience-v2'; readonly eligibilityBasis: 'two-or-more-distinct-goals'; readonly correctionSignals: { readonly association: 'same-session-single-skill-gap'; readonly count: number; readonly ids: readonly string[]; readonly referencesTruncated: boolean; }; readonly deliveryOutcomes: { readonly association: 'same-goal-single-skill-gap'; readonly total: number; readonly passed: number; readonly failed: number; readonly unknown: number; readonly ids: readonly string[]; readonly referencesTruncated: boolean; }; readonly causalClaim: 'none'; };\n    readonly status: 'eligible-for-authoring';\n    readonly releaseAuthority: 'none';\n}"
+            "declaration": "export interface EvolutionSkillOpportunityView {\n    readonly id: string;\n    readonly skillName: string;\n    readonly gapIds: readonly string[];\n    readonly goalIds: readonly string[];\n    readonly gapCount: number;\n    readonly goalCount: number;\n    readonly firstObservedAt: number;\n    readonly lastObservedAt: number;\n    readonly evidence: { readonly kind: 'internal-experience-v2'; readonly eligibilityBasis: 'two-or-more-distinct-goals'; readonly correctionSignals: { readonly association: 'same-session-single-skill-gap'; readonly count: number; readonly ids: readonly string[]; readonly referencesTruncated: boolean; }; readonly deliveryOutcomes: { readonly association: 'same-goal-single-skill-gap'; readonly total: number; readonly passed: number; readonly failed: number; readonly unknown: number; readonly ids: readonly string[]; readonly referencesTruncated: boolean; }; readonly causalClaim: 'none'; };\n    readonly evaluationReadiness: { readonly status: 'ready-to-seal' | 'sealed'; readonly evidenceId: string; readonly observedGoalCount: number; readonly authoringGoalCount: number; readonly admissionGoalCount: number; readonly holdoutGoalCount: number; readonly proposerCanReadProtectedSamples: false; readonly releaseAuthority: 'none'; } | { readonly status: 'waiting'; readonly reason: 'fewer-than-four-independent-goals'; readonly observedGoalCount: number; readonly requiredGoalCount: 4; readonly releaseAuthority: 'none'; } | { readonly status: 'unavailable'; readonly reason: 'governance-policy-unavailable'; readonly observedGoalCount: number; readonly releaseAuthority: 'none'; } | { readonly status: 'invalid'; readonly reason: 'opportunity-evidence-invalid'; readonly observedGoalCount: number; readonly releaseAuthority: 'none'; };\n    readonly status: 'eligible-for-authoring';\n    readonly releaseAuthority: 'none';\n}"
           },
           {
             "name": "EvolutionSlowLoopAuthoringView",

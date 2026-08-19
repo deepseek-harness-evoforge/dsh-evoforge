@@ -1,10 +1,11 @@
 import { mkdir, mkdtemp, readFile, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import type { JobHooks, JobStart } from '@deepseek-ai/dsh-jobs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AutomaticEvolutionBudgetTarget } from '../src/automatic-evolution-budget.ts'
 import type { CapabilityGap } from '../src/capability-gap-store.ts'
+import { SkillEvaluationEvidenceVault } from '../src/skill-evaluation-evidence-vault.ts'
 import { ExperienceDrivenSkillOpportunityDiscovery } from '../src/skill-opportunity-discovery.ts'
 import {
   assertSlowLoopSkillAuthoringRootSeparation,
@@ -30,7 +31,12 @@ describe('experience-driven slow-loop Skill authoring', () => {
   it('derives the Skill from internal Goal experience and authors without external research', async () => {
     const fixture = await setup()
     const jobs = fakeJobs()
-    const gaps = [gap('1', 'goal-a', 10), gap('2', 'goal-b', 20)]
+    const gaps = [
+      gap('1', 'goal-a', 10),
+      gap('2', 'goal-b', 20),
+      gap('3', 'goal-c', 30),
+      gap('4', 'goal-d', 40),
+    ]
     const effects: string[] = []
     const quarantine = vi.fn(async (input: SkillCandidateProposal) => {
       effects.push('quarantine')
@@ -45,7 +51,6 @@ describe('experience-driven slow-loop Skill authoring', () => {
     })
     const service = new SlowLoopSkillAuthoring({
       policies: [fixture.policy],
-      gaps: { list: () => gaps },
       opportunities: new ExperienceDrivenSkillOpportunityDiscovery({ list: () => gaps }),
       candidates: {
         listCandidates: () => [],
@@ -57,6 +62,10 @@ describe('experience-driven slow-loop Skill authoring', () => {
           return allowedReservation(target)
         }),
       },
+      evaluationEvidence: new SkillEvaluationEvidenceVault(
+        [fixture.evaluationPolicy],
+        { list: () => gaps },
+      ),
       authorModel,
       modelIdentity: () => 'provider/model@contract-v1',
       now: () => 1_787_000_000_000,
@@ -78,12 +87,13 @@ describe('experience-driven slow-loop Skill authoring', () => {
       targetId: 'workspace-self-discovery',
       workspaceId: WORKSPACE_ID,
       skillName: 'missing-release-skill',
-      goalEvidence: [
-        expect.objectContaining({ id: 'goal-a', objective: 'Goal goal-a needs missing-release-skill' }),
-        expect.objectContaining({ id: 'goal-b', objective: 'Goal goal-b needs missing-release-skill' }),
-      ],
+      evaluationEvidenceId: expect.stringMatching(/^[a-f0-9]{64}$/),
+      goalEvidence: expect.arrayContaining([
+        expect.objectContaining({ objective: expect.stringContaining('needs missing-release-skill') }),
+      ]),
       signal: expect.any(AbortSignal),
     }))
+    expect(authorModel.mock.calls[0]![0].goalEvidence).toHaveLength(2)
     expect(authorModel.mock.calls[0]![0]).not.toHaveProperty('research')
     const authored = quarantine.mock.calls[0]![0]
     expect(authored).toMatchObject({
@@ -91,8 +101,8 @@ describe('experience-driven slow-loop Skill authoring', () => {
       skillName: 'missing-release-skill',
       policyId: 'workspace-self-discovery',
       opportunityId: expect.stringMatching(/^[a-f0-9]{64}$/),
-      gapIds: ['1'.repeat(64), '2'.repeat(64)],
-      goalCount: 2,
+      gapIds: ['1'.repeat(64), '2'.repeat(64), '3'.repeat(64), '4'.repeat(64)],
+      goalCount: 4,
       modelIdentity: 'provider/model@contract-v1',
       inputDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
       files: expect.arrayContaining([...skillFiles('missing-release-skill')]),
@@ -123,12 +133,13 @@ describe('experience-driven slow-loop Skill authoring', () => {
       'state.json',
     ), 'utf8'))
     expect(state.identity).toMatchObject({
-      policyVersion: 'internal-experience-whole-skill-author-v1',
+      policyVersion: 'internal-experience-whole-skill-author-v2',
       skillName: 'missing-release-skill',
+      evaluationEvidenceId: expect.stringMatching(/^[a-f0-9]{64}$/),
     })
   })
 
-  it('abstains for same-Goal retries and starts when a second distinct Goal supplies evidence', async () => {
+  it('keeps a two-Goal Opportunity but waits for independent admission and holdout evidence', async () => {
     const fixture = await setup()
     const jobs = fakeJobs()
     const gaps = [gap('1', 'same-goal', 10), gap('2', 'same-goal', 20)]
@@ -141,6 +152,8 @@ describe('experience-driven slow-loop Skill authoring', () => {
 
     await expect(service.reconcile()).resolves.toEqual({ scheduled: 0, warnings: [] })
     gaps[1] = gap('2', 'other-goal', 20)
+    await expect(service.reconcile()).resolves.toEqual({ scheduled: 0, warnings: [] })
+    gaps.push(gap('3', 'third-goal', 30), gap('4', 'fourth-goal', 40))
     await expect(service.reconcile()).resolves.toEqual({ scheduled: 1, warnings: [] })
     await jobs.hooks[0]!.done
     expect(authorModel).toHaveBeenCalledOnce()
@@ -149,7 +162,7 @@ describe('experience-driven slow-loop Skill authoring', () => {
   it('suppresses an opportunity when that internally Skill Candidate already has a candidate', async () => {
     const fixture = await setup()
     const jobs = fakeJobs()
-    const gaps = [gap('1', 'goal-a', 10), gap('2', 'goal-b', 20)]
+    const gaps = fourGaps()
     const authorModel = vi.fn()
     const service = serviceFor(fixture.policy, gaps, jobs, {
       candidates: [existingCandidate(gaps)],
@@ -165,7 +178,7 @@ describe('experience-driven slow-loop Skill authoring', () => {
   it('fails closed when daily budget is exhausted and never reaches the author model', async () => {
     const fixture = await setup()
     const jobs = fakeJobs()
-    const gaps = [gap('1', 'goal-a', 10), gap('2', 'goal-b', 20)]
+    const gaps = fourGaps()
     const authorModel = vi.fn()
     const service = serviceFor(fixture.policy, gaps, jobs, {
       authorModel,
@@ -196,7 +209,7 @@ describe('experience-driven slow-loop Skill authoring', () => {
 
   it('marks an unobserved paid-call outcome uncertain and refuses blind restart retry', async () => {
     const fixture = await setup()
-    const gaps = [gap('1', 'goal-a', 10), gap('2', 'goal-b', 20)]
+    const gaps = fourGaps()
     const firstJobs = fakeJobs()
     const firstAuthor = vi.fn(async () => { throw new Error('connection reset before response') })
     const first = serviceFor(fixture.policy, gaps, firstJobs, { authorModel: firstAuthor })
@@ -218,7 +231,7 @@ describe('experience-driven slow-loop Skill authoring', () => {
 
   it('does not quarantine a provider response that arrives after native Job cancellation', async () => {
     const fixture = await setup()
-    const gaps = [gap('1', 'goal-a', 10), gap('2', 'goal-b', 20)]
+    const gaps = fourGaps()
     const jobs = fakeJobs()
     let resolveAuthor!: (value: {
       files: ReturnType<typeof skillFiles>
@@ -247,10 +260,10 @@ describe('experience-driven slow-loop Skill authoring', () => {
     })
   })
 
-  it('bounds complete opportunity evidence before budget reservation', async () => {
+  it('bounds complete opportunity evidence before the author request', async () => {
     const fixture = await setup()
     const jobs = fakeJobs()
-    const reserve = vi.fn()
+    const reserve = vi.fn(async target => allowedReservation(target))
     const gaps = Array.from({ length: 900 }, (_, index) => ({
       ...gap('1', `goal-${index}`, index),
       id: (index + 1).toString(16).padStart(64, '0'),
@@ -258,19 +271,17 @@ describe('experience-driven slow-loop Skill authoring', () => {
     const service = serviceFor(fixture.policy, gaps, jobs, { reserve })
     service.attachJobs(jobs.registry)
 
-    await expect(service.reconcile()).resolves.toMatchObject({
-      scheduled: 0,
-      warnings: [expect.stringContaining('evidence exceeds its input budget')],
-    })
-    expect(reserve).not.toHaveBeenCalled()
-    expect(jobs.starts).toHaveLength(0)
+    await expect(service.reconcile()).resolves.toEqual({ scheduled: 1, warnings: [] })
+    await jobs.hooks[0]!.done
+    expect(reserve).toHaveBeenCalledOnce()
+    expect(jobs.starts).toHaveLength(1)
   })
 
   it('accepts only one path-isolated policy per Workspace and never asks for a Skill name', () => {
     const build = (policies: SkillOpportunityAuthoringPolicyConfig[]) => () => new SlowLoopSkillAuthoring({
       policies,
-      gaps: { list: () => [] },
       opportunities: { discover: () => [] },
+      evaluationEvidence: new SkillEvaluationEvidenceVault([], { list: () => [] }),
       candidates: {
         listCandidates: () => [],
         quarantine: vi.fn(),
@@ -297,7 +308,15 @@ describe('experience-driven slow-loop Skill authoring', () => {
   })
 })
 
-async function setup(): Promise<{ policy: SkillOpportunityAuthoringPolicyConfig }> {
+async function setup(): Promise<{
+  policy: SkillOpportunityAuthoringPolicyConfig
+  evaluationPolicy: {
+    id: string
+    workspaceId: string
+    governanceRoot: string
+    runRoot: string
+  }
+}> {
   const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-slow-author-'))
   temporaryRoots.push(root)
   const runRoot = join(await realpath(root), 'authoring')
@@ -308,6 +327,12 @@ async function setup(): Promise<{ policy: SkillOpportunityAuthoringPolicyConfig 
       workspaceId: WORKSPACE_ID,
       runRoot,
       maxAttemptsPerUtcDay: 1,
+    },
+    evaluationPolicy: {
+      id: 'workspace-governance',
+      workspaceId: WORKSPACE_ID,
+      governanceRoot: join(await realpath(root), 'governance'),
+      runRoot: join(await realpath(root), 'evaluation-runs'),
     },
   }
 }
@@ -325,8 +350,13 @@ function serviceFor(
 ): SlowLoopSkillAuthoring {
   const service = new SlowLoopSkillAuthoring({
     policies: [policy],
-    gaps: { list: () => gaps },
     opportunities: new ExperienceDrivenSkillOpportunityDiscovery({ list: () => gaps }),
+    evaluationEvidence: new SkillEvaluationEvidenceVault([{
+      id: 'workspace-governance',
+      workspaceId: WORKSPACE_ID,
+      governanceRoot: join(dirname(policy.runRoot), 'governance'),
+      runRoot: join(dirname(policy.runRoot), 'evaluation-runs'),
+    }], { list: () => gaps }),
     candidates: {
       listCandidates: () => options.candidates ?? [],
       quarantine: options.quarantine ?? (async input => ({
@@ -385,6 +415,15 @@ function gap(seed: string, goalId: string, observedAt: number): CapabilityGap {
       providers: 'settled',
     },
   }
+}
+
+function fourGaps(): CapabilityGap[] {
+  return [
+    gap('1', 'goal-a', 10),
+    gap('2', 'goal-b', 20),
+    gap('3', 'goal-c', 30),
+    gap('4', 'goal-d', 40),
+  ]
 }
 
 function skillFiles(name: string) {
@@ -460,7 +499,7 @@ function existingCandidate(gaps: CapabilityGap[]): ExperienceSkillCandidate {
     policyId: 'workspace-self-discovery',
     opportunityId: '4'.repeat(64),
     gapIds: gaps.map(value => value.id),
-    goalCount: 2,
+    goalCount: new Set(gaps.map(value => value.goal?.id)).size,
     modelIdentity: 'provider/model@contract-v1',
     inputDigest: '3'.repeat(64),
     files: skillFiles('missing-release-skill'),

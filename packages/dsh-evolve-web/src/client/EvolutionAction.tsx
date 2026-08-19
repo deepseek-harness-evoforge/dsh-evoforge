@@ -684,7 +684,8 @@ function CapabilityGapQueue({ summary, t }: { summary: EvolutionOverview; t: (ke
         : <ul className="dsh-evolve-list">{items.map(gap => (
             <li className="dsh-evolve-skill-card" key={gap.id}>
               <div className="dsh-evolve-review-skill">{gap.requestedSkill}</div>
-              {gap.goal !== undefined && <p>{gap.goal.objective}</p>}
+              {gap.goal !== undefined && <p>{gap.goal.objective
+                ?? `${gap.goal.id} r${gap.goal.revision} · ${t('skills.gaps.goalProtected')}`}</p>}
               <div className="dsh-evolve-capability-route">{t('skills.gaps.confirmed')}</div>
               <div className="dsh-evolve-meta">
                 {t('skills.gaps.catalog')} · {gap.catalogSize} · {gap.catalogHash.slice(0, 12)}
@@ -711,6 +712,7 @@ function SkillOpportunities({ summary, t }: { summary: EvolutionOverview; t: (ke
             || opportunity.evidence.deliveryOutcomes.referencesTruncated
             || opportunity.evidence.correctionSignals.ids.length > correctionReferences.length
             || opportunity.evidence.deliveryOutcomes.ids.length > outcomeReferences.length
+          const readiness = opportunity.evaluationReadiness
           return <li className="dsh-evolve-skill-card" key={opportunity.id}>
             <div className="dsh-evolve-review-skill">{opportunity.skillName}</div>
             <div className="dsh-evolve-capability-route">
@@ -733,6 +735,31 @@ function SkillOpportunities({ summary, t }: { summary: EvolutionOverview; t: (ke
               {t('skills.opportunities.references')} · {references.join(' · ')}
               {referencesTruncated && <> · {t('skills.opportunities.references.truncated')}</>}
             </div>}
+            {readiness.status === 'sealed' || readiness.status === 'ready-to-seal'
+              ? <>
+                  <div className="dsh-evolve-discovery-state">
+                    {t(readiness.status === 'sealed'
+                      ? 'skills.opportunities.evaluation.sealed'
+                      : 'skills.opportunities.evaluation.readyToSeal')}
+                    {' · '}{t('skills.opportunities.evaluation.authoring')} {readiness.authoringGoalCount}
+                    {' / '}{t('skills.opportunities.evaluation.admission')} {readiness.admissionGoalCount}
+                    {' / '}{t('skills.opportunities.evaluation.holdout')} {readiness.holdoutGoalCount}
+                    {' · '}{shortId(readiness.evidenceId)}
+                  </div>
+                  <div className="dsh-evolve-meta">{t('skills.opportunities.evaluation.protected')}</div>
+                </>
+              : readiness.status === 'waiting'
+                ? <div className="dsh-evolve-discovery-state">
+                    {t('skills.opportunities.evaluation.waiting')}
+                    {' · '}{readiness.observedGoalCount}/{readiness.requiredGoalCount}
+                  </div>
+                : readiness.status === 'invalid'
+                  ? <div className="dsh-evolve-discovery-state">
+                      {t('skills.opportunities.evaluation.invalid')}
+                    </div>
+                  : <div className="dsh-evolve-discovery-state">
+                      {t('skills.opportunities.evaluation.unavailable')}
+                    </div>}
             <div className="dsh-evolve-discovery-state">{t('skills.opportunities.state')}</div>
           </li>
         })}</ul>}
