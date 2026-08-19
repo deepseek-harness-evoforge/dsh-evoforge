@@ -4,13 +4,18 @@ import { join } from 'node:path'
 import type { JobDoneListener, JobHooks, JobStart } from '@deepseek-ai/dsh-jobs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  DiscoveredSkillShadowLauncher,
-  DiscoveredSkillShadowScheduler,
-} from '../src/discovered-skill-shadow.ts'
+  SkillCandidateShadowLauncher,
+  SkillCandidateShadowScheduler,
+} from '../src/skill-candidate-shadow.ts'
 import { hashTree } from '../src/hash.ts'
-import type { DiscoveredSkillAdmissionResult } from '../src/discovered-skill-admission.ts'
-import type { DiscoveredSkillCandidate } from '../src/trusted-skill-discovery.ts'
-import type { DiscoveredSkillLineage } from '../src/discovered-skill-lineage.ts'
+import type { SkillCandidateAdmissionResult } from '../src/skill-candidate-admission.ts'
+import type { ExperienceSkillCandidate } from '../src/skill-candidate-repository.ts'
+import type { SkillCandidateLineage } from '../src/skill-candidate-lineage.ts'
+import {
+  experienceSkillCandidate,
+  internalSkillCandidateLineage,
+  qualifiedSkillCandidateAdmission,
+} from './skill-candidate-fixture.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const roots: string[] = []
@@ -19,12 +24,12 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map(path => rm(path, { force: true, recursive: true })))
 })
 
-describe('qualified discovered Skill Shadow handoff', () => {
+describe('qualified Skill Candidate Shadow handoff', () => {
   it('launches only the exact qualified Candidate through an independent assembled target', async () => {
     const fixture = await shadowFixture()
     const admission = {
       qualifiedShadowInput: vi.fn(async () => ({
-        admissionTargetId: 'discovery-admission',
+        admissionTargetId: qualified().targetId!,
         baselineDir: await realpath(fixture.baselineDir),
         candidateDir: await realpath(fixture.candidateDir),
         admissionCasePackDir: await realpath(fixture.admissionCasePackDir),
@@ -38,7 +43,7 @@ describe('qualified discovered Skill Shadow handoff', () => {
       reportPath: join(fixture.shadowRunRoot, 'report.json'),
       summary: 'promote: exact Candidate passed assembled holdout',
     }))
-    const launcher = new DiscoveredSkillShadowLauncher([fixture.target], admission, { runShadow })
+    const launcher = new SkillCandidateShadowLauncher([fixture.target], admission, { runShadow })
 
     expect(launcher.matches(candidate(), qualified())).toBe(true)
     await expect(launcher.launch(candidate(), qualified())).resolves.toMatchObject({ status: 'complete' })
@@ -62,7 +67,7 @@ describe('qualified discovered Skill Shadow handoff', () => {
       summary: 'complete',
     }))
     const launcher = { matches: vi.fn(() => true), launch }
-    const scheduler = new DiscoveredSkillShadowScheduler(launcher)
+    const scheduler = new SkillCandidateShadowScheduler(launcher)
     const jobs = fakeJobs(true)
     scheduler.attachJobs(jobs.registry)
 
@@ -80,7 +85,7 @@ describe('qualified discovered Skill Shadow handoff', () => {
 })
 
 async function shadowFixture() {
-  const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-discovery-shadow-'))
+  const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-candidate-shadow-'))
   roots.push(root)
   const baselineDir = join(root, 'baseline')
   const admissionCasePackDir = join(root, 'admission-case')
@@ -101,7 +106,7 @@ async function shadowFixture() {
   await writeFile(join(admissionCasePackDir, 'manifest.json'), '{"admission":true}\n')
   await writeFile(join(shadowCasePackDir, 'manifest.json'), `${JSON.stringify({
     schemaVersion: 1,
-    id: 'discovered-skill-holdout',
+    id: 'internal-candidate-holdout',
     workspaceId: WORKSPACE_ID,
     epoch: { dshRevision: 'a'.repeat(40), evaluatorVersion: 'holdout-v1' },
     budget: { candidateLimit: 1, trialLimit: 4, inputTokenLimit: 1, outputTokenLimit: 1 },
@@ -114,7 +119,7 @@ async function shadowFixture() {
     calibration: { knownBad: 'known-bad', knownCorrection: 'known-correction' },
   }, null, 2)}\n`)
   const target = {
-    id: 'discovered-skill-holdout',
+    id: 'internal-candidate-holdout',
     workspaceId: WORKSPACE_ID,
     skill: 'missing-release-skill',
     casePackDir: shadowCasePackDir,
@@ -133,66 +138,30 @@ async function shadowFixture() {
   }
 }
 
-function candidate(): DiscoveredSkillCandidate {
-  return {
-    schemaVersion: 1,
-    id: '1'.repeat(64),
-    discoveredAt: 1,
-    gapId: '2'.repeat(64),
-    workspaceId: WORKSPACE_ID,
-    requestedSkill: 'missing-release-skill',
-    description: 'Adopt the pinned discovered Skill package',
-    source: { id: 'local-curated', kind: 'local-git', trust: 'explicit-deployer-config' },
-    scope: 'workspace',
-    version: { kind: 'git-tree', commit: '3'.repeat(40), treeHash: '4'.repeat(40) },
-    contentHash: '5'.repeat(64),
-    package: { path: 'skills/missing-release-skill', fileCount: 1, totalBytes: 10, hasScripts: false, hasReferences: false },
-    permissions: { declared: false, executableContent: false, externalEffects: 'unknown' },
-    safety: { status: 'quarantined', checks: [] },
-    lifecycle: 'inactive',
-    verification: 'unevaluated',
-    execution: 'never',
-  }
+function candidate(): ExperienceSkillCandidate {
+  return experienceSkillCandidate({
+    skillName: 'missing-release-skill',
+    description: 'Adopt the pinned Skill Candidate package',
+    package: { path: 'missing-release-skill', fileCount: 2, totalBytes: 10, hasScripts: false, hasReferences: true },
+  })
 }
 
-function qualified(): DiscoveredSkillAdmissionResult {
-  return {
-    schemaVersion: 1,
-    id: '6'.repeat(64),
-    candidateId: candidate().id,
-    workspaceId: WORKSPACE_ID,
-    skillName: candidate().requestedSkill,
-    status: 'qualified-for-shadow',
-    reasons: ['candidate-improves-deterministic-admission'],
-    targetId: 'discovery-admission',
-    releaseAuthority: 'none',
-    evidence: {
-      baseline: 'fail',
-      candidate: 'pass',
-      calibrationPassed: true,
-      candidateExecuted: false,
-      evaluatorClass: 'deterministic-filesystem',
-      trialCount: 4,
-      baselineTreeHash: '7'.repeat(64),
-      candidateTreeHash: '8'.repeat(64),
-    },
-  }
+function qualified(): SkillCandidateAdmissionResult {
+  return qualifiedSkillCandidateAdmission(candidate()) satisfies SkillCandidateAdmissionResult
 }
 
-function lineage(): DiscoveredSkillLineage {
-  return {
-    kind: 'discovered-skill-lineage-v1',
+function lineage(): SkillCandidateLineage {
+  return internalSkillCandidateLineage({
     candidateId: candidate().id,
-    workspaceId: WORKSPACE_ID,
-    skillName: candidate().requestedSkill,
-    versionKind: 'git-tree',
-    source: candidate().source,
+    skillName: candidate().skillName,
+    opportunityId: candidate().opportunity.id,
+    policyId: candidate().authorship.policyId,
+    versionKind: candidate().version.kind,
     contentHash: candidate().contentHash,
     candidateTreeHash: qualified().evidence!.candidateTreeHash,
     admissionId: qualified().id,
     admissionTargetId: qualified().targetId!,
-    releaseAuthority: 'none',
-  }
+  })
 }
 
 function fakeJobs(rejectFirst: boolean) {

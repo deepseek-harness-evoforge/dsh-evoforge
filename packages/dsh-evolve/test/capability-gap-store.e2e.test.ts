@@ -4,7 +4,10 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { openCapabilityGapStore } from '../src/capability-gap-store.ts'
-import { openSkillDiscoveryStore } from '../src/trusted-skill-discovery.ts'
+import {
+  openSkillCandidateStore,
+  type ExperienceSkillCandidateInput,
+} from '../src/skill-candidate-repository.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -89,68 +92,68 @@ describe.skipIf(process.platform !== 'darwin')('Capability Gap durable queue', (
     }
   })
 
-  it('recovers quarantined whole-Skill candidates and abstention evidence', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-skill-discovery-store-'))
+  it('recovers only internally authored quarantined whole-Skill Candidates', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-skill-candidate-store-'))
     temporaryRoots.push(root)
     const configPath = await writeStorageConfig(root)
     const first = await bootStorage(configPath)
-    const store = await openSkillDiscoveryStore(first.storageDomain)
+    const store = await openSkillCandidateStore(first.storageDomain)
     let candidateIds: string[] = []
-    let attemptIds: string[] = []
     try {
-      const candidate = await store.recordCandidate(discoveryCandidateInput())
-      const duplicate = await store.recordCandidate(discoveryCandidateInput())
+      const candidate = await store.recordCandidate(skillCandidateInput('1', 1))
+      const duplicate = await store.recordCandidate(skillCandidateInput('1', 1))
       expect(duplicate).toEqual({ created: false, candidate: candidate.candidate })
-      const external = await store.recordCandidate(agentSkillsIndexCandidateInput())
-      const externalArchive = await store.recordCandidate(agentSkillsArchiveCandidateInput())
-      candidateIds = [externalArchive.candidate.id, external.candidate.id, candidate.candidate.id]
-      const attempt = await store.recordAttempt(discoveryAttemptInput(candidate.candidate.id))
-      const ambiguous = await store.recordAttempt({
-        gapId: '6'.repeat(64),
-        workspaceId: WORKSPACE_ID,
-        requestedSkill: 'publish-dsh-plugin',
-        startedAt: 1_786_896_100_002,
-        completedAt: 1_786_896_100_003,
-        status: 'abstained',
-        candidateIds: [],
-        reasons: ['ambiguous-semantic-match'],
-        sources: [{
-          id: 'local-curated',
-          status: 'ambiguous',
-          revision: 'a'.repeat(40),
-        }],
-      })
-      attemptIds = [ambiguous.attempt.id, attempt.attempt.id]
-      expect(store.listCandidates(WORKSPACE_ID, '5'.repeat(64))).toEqual([candidate.candidate])
-      expect(store.listCandidates(WORKSPACE_ID, '7'.repeat(64))[0]).toMatchObject({
-        source: { kind: 'agent-skills-index', origin: 'https://skills.example.com' },
-        artifact: { kind: 'skill-md', content: expect.stringContaining('name: indexed-release-skill') },
-        license: { status: 'declared', value: 'MIT' },
-      })
-      expect(store.listCandidates(WORKSPACE_ID, '8'.repeat(64))[0]).toMatchObject({
-        distribution: { kind: 'archive', format: 'tar.gz' },
-        artifact: { kind: 'archive', format: 'tar.gz', contentBase64: 'YXJjaGl2ZS1ieXRlcw==' },
-      })
-      expect(store.listAttempts(WORKSPACE_ID, '5'.repeat(64))).toEqual([attempt.attempt])
+      const second = await store.recordCandidate(skillCandidateInput('2', 2))
+      candidateIds = [second.candidate.id, candidate.candidate.id]
+      expect(store.listCandidates(WORKSPACE_ID, '1'.repeat(64))).toEqual([candidate.candidate])
+      expect(JSON.stringify(store.listCandidates(WORKSPACE_ID))).not.toMatch(
+        /agent-skills|local-git|research|trusted-source/iu,
+      )
     } finally {
       await store.close()
       await first.fiber.dispose()
     }
 
     const resumed = await bootStorage(configPath)
-    const recovered = await openSkillDiscoveryStore(resumed.storageDomain)
+    const recovered = await openSkillCandidateStore(resumed.storageDomain)
     try {
       expect(recovered.listCandidates(WORKSPACE_ID).map(candidate => candidate.id)).toEqual(candidateIds)
-      const recoveredArchive = recovered.listCandidates(WORKSPACE_ID, '8'.repeat(64))[0]?.artifact
-      expect(recoveredArchive?.kind).toBe('archive')
-      expect(recoveredArchive?.kind === 'archive' ? recoveredArchive.contentBase64 : undefined)
-        .toBe('YXJjaGl2ZS1ieXRlcw==')
-      expect(recovered.listAttempts(WORKSPACE_ID).map(attempt => attempt.id)).toEqual(attemptIds)
+      expect(recovered.listCandidates(WORKSPACE_ID)[0]).toMatchObject({
+        opportunity: { kind: 'internal-experience-v1' },
+        authorship: { kind: 'bounded-model-authoring-v1' },
+        version: { kind: 'experience-authored-bundle-v1' },
+        artifact: { kind: 'canonical-text-bundle', format: 'tar.gz' },
+      })
     } finally {
       await recovered.close()
       await resumed.fiber.dispose()
     }
   })
+
+  it('retains every content-addressed Candidate until an explicit governance decision', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-skill-candidate-retention-'))
+    temporaryRoots.push(root)
+    const configPath = await writeStorageConfig(root)
+    const ctx = await bootStorage(configPath)
+    const store = await openSkillCandidateStore(ctx.storageDomain)
+    try {
+      const base = skillCandidateInput('1', 0)
+      for (let index = 0; index < 1_001; index += 1) {
+        await store.recordCandidate({
+          ...base,
+          createdAt: index,
+          authorship: {
+            ...base.authorship,
+            inputDigest: index.toString(16).padStart(64, '0'),
+          },
+        })
+      }
+      expect(store.listCandidates(WORKSPACE_ID)).toHaveLength(1_001)
+    } finally {
+      await store.close()
+      await ctx.fiber.dispose()
+    }
+  }, 30_000)
 })
 
 function gapInput(observedAt: number, requestedSkill: string) {
@@ -175,169 +178,41 @@ function gapInput(observedAt: number, requestedSkill: string) {
   }
 }
 
-function discoveryCandidateInput() {
+function skillCandidateInput(marker: string, createdAt: number): ExperienceSkillCandidateInput {
   return {
-    discoveredAt: 1_786_896_100_000,
-    gapId: '5'.repeat(64),
+    createdAt,
     workspaceId: WORKSPACE_ID,
-    requestedSkill: 'missing-release-skill',
+    skillName: `release-proof-${marker}`,
     description: 'Publish a verified release.',
-    match: {
-      kind: 'deterministic-lexical-v1' as const,
-      requestedSkill: 'publish-dsh-plugin',
-      score: 18,
-      runnerUpScore: 0,
-      queryHash: 'f'.repeat(64),
+    opportunity: {
+      kind: 'internal-experience-v1' as const,
+      id: marker.repeat(64),
+      gapIds: ['a'.repeat(64), 'b'.repeat(64)],
+      goalCount: 2,
     },
-    source: {
-      id: 'local-curated',
-      kind: 'local-git' as const,
-      trust: 'explicit-deployer-config' as const,
-    },
-    scope: 'workspace' as const,
-    version: {
-      kind: 'git-tree' as const,
-      commit: 'a'.repeat(40),
-      treeHash: 'b'.repeat(40),
-    },
-    contentHash: 'c'.repeat(64),
-    package: {
-      path: 'skills/missing-release-skill',
-      fileCount: 3,
-      totalBytes: 512,
-      hasScripts: true,
-      hasReferences: true,
-    },
-    permissions: {
-      declared: false,
-      executableContent: true,
-      externalEffects: 'unknown' as const,
-    },
-    safety: {
-      status: 'quarantined' as const,
-      checks: [
-        { name: 'git-object-integrity' as const, status: 'passed' as const },
-        { name: 'regular-files-only' as const, status: 'passed' as const },
-        { name: 'skill-identity' as const, status: 'passed' as const },
-        { name: 'effect-review' as const, status: 'required' as const },
-      ],
-    },
-    lifecycle: 'inactive' as const,
-    verification: 'unevaluated' as const,
-    execution: 'never' as const,
-  }
-}
-
-function discoveryAttemptInput(candidateId: string) {
-  return {
-    gapId: '5'.repeat(64),
-    workspaceId: WORKSPACE_ID,
-    requestedSkill: 'missing-release-skill',
-    startedAt: 1_786_896_100_000,
-    completedAt: 1_786_896_100_001,
-    status: 'candidate-found' as const,
-    candidateIds: [candidateId],
-    reasons: [],
-    sources: [{
-      id: 'local-curated',
-      status: 'candidate' as const,
-      revision: 'a'.repeat(40),
-    }],
-  }
-}
-
-function agentSkillsIndexCandidateInput() {
-  const content = [
-    '---',
-    'name: indexed-release-skill',
-    'description: Publish a verified indexed release.',
-    'license: MIT',
-    '---',
-    '',
-    'Follow the bounded checks.',
-    '',
-  ].join('\n')
-  return {
-    discoveredAt: 1_786_896_100_001,
-    gapId: '7'.repeat(64),
-    workspaceId: WORKSPACE_ID,
-    requestedSkill: 'indexed-release-skill',
-    description: 'Publish a verified indexed release.',
-    source: {
-      id: 'public-agent-skills',
-      kind: 'agent-skills-index' as const,
-      trust: 'explicit-deployer-config' as const,
-      origin: 'https://skills.example.com',
+    authorship: {
+      kind: 'bounded-model-authoring-v1' as const,
+      policyId: 'workspace-experience-author',
+      modelIdentityHash: 'c'.repeat(64),
+      inputDigest: 'd'.repeat(64),
     },
     scope: 'workspace' as const,
     version: {
-      kind: 'agent-skills-index-v0.2' as const,
-      indexDigest: 'd'.repeat(64),
+      kind: 'experience-authored-bundle-v1' as const,
       artifactDigest: 'e'.repeat(64),
       treeHash: 'f'.repeat(64),
     },
     contentHash: 'e'.repeat(64),
     package: {
-      path: 'indexed-release-skill/SKILL.md',
-      fileCount: 1,
-      totalBytes: Buffer.byteLength(content),
-      hasScripts: false,
-      hasReferences: false,
-    },
-    permissions: {
-      declared: false,
-      executableContent: false,
-      externalEffects: 'unknown' as const,
-    },
-    license: { status: 'declared' as const, value: 'MIT' },
-    safety: {
-      status: 'quarantined' as const,
-      checks: [
-        { name: 'artifact-digest-integrity' as const, status: 'passed' as const },
-        { name: 'regular-files-only' as const, status: 'passed' as const },
-        { name: 'skill-identity' as const, status: 'passed' as const },
-        { name: 'effect-review' as const, status: 'required' as const },
-      ],
-    },
-    artifact: { kind: 'skill-md' as const, content },
-    lifecycle: 'inactive' as const,
-    verification: 'unevaluated' as const,
-    execution: 'never' as const,
-  }
-}
-
-function agentSkillsArchiveCandidateInput() {
-  return {
-    discoveredAt: 1_786_896_100_002,
-    gapId: '8'.repeat(64),
-    workspaceId: WORKSPACE_ID,
-    requestedSkill: 'archived-release-skill',
-    description: 'Publish one archived release.',
-    source: {
-      id: 'public-agent-skills-archive',
-      kind: 'agent-skills-index' as const,
-      trust: 'explicit-deployer-config' as const,
-      origin: 'https://archives.example.com',
-    },
-    scope: 'workspace' as const,
-    version: {
-      kind: 'agent-skills-index-v0.2' as const,
-      indexDigest: '1'.repeat(64),
-      artifactDigest: '2'.repeat(64),
-      treeHash: '3'.repeat(64),
-    },
-    distribution: { kind: 'archive' as const, format: 'tar.gz' as const },
-    contentHash: '2'.repeat(64),
-    package: {
-      path: 'archived-release-skill',
+      path: `release-proof-${marker}`,
       fileCount: 2,
-      totalBytes: 13,
-      hasScripts: false,
-      hasReferences: true,
+      totalBytes: 512,
+      hasScripts: false as const,
+      hasReferences: true as const,
     },
     permissions: {
       declared: false,
-      executableContent: false,
+      executableContent: false as const,
       externalEffects: 'unknown' as const,
     },
     license: { status: 'unknown' as const },
@@ -351,9 +226,9 @@ function agentSkillsArchiveCandidateInput() {
       ],
     },
     artifact: {
-      kind: 'archive' as const,
+      kind: 'canonical-text-bundle' as const,
       format: 'tar.gz' as const,
-      contentBase64: 'YXJjaGl2ZS1ieXRlcw==',
+      contentBase64: 'YQ==',
     },
     lifecycle: 'inactive' as const,
     verification: 'unevaluated' as const,

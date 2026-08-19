@@ -82,7 +82,6 @@
     "@deepseek-ai/schemastery": "3.18.1",
     "tar-stream": "3.2.0",
     "yaml": "2.9.0",
-    "yauzl": "3.4.0",
     "zod": "4.4.3"
   },
   "peerDependenciesMeta": {
@@ -132,13 +131,10 @@
     "@deepseek-ai/dsh-workspace": "0.1.0-rc.6",
     "@types/node": "^22.20.0",
     "@types/tar-stream": "3.1.4",
-    "@types/yauzl": "3.4.0",
-    "@types/yazl": "3.3.1",
     "tsdown": "^0.22.2",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.8",
-    "yazl": "3.3.1"
+    "vitest": "^4.1.8"
   },
   "dsh": {
     "bundle": {

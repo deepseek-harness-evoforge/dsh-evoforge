@@ -7,11 +7,11 @@ import type { EvaluatorDraftInbox } from './evaluator-draft-inbox.ts'
 import type { AutomaticFeedbackShadowService } from './automatic-feedback-shadow.ts'
 import type { AutomaticEvaluatorDraftService } from './automatic-evaluator-draft.ts'
 import type { CapabilityGapStore } from './capability-gap-store.ts'
-import type { SkillDiscoveryStore } from './trusted-skill-discovery.ts'
+import type { SkillCandidateStore } from './skill-candidate-repository.ts'
 import type { ExperienceDrivenSkillOpportunityDiscovery } from './skill-opportunity-discovery.ts'
-import type { DiscoveredSkillAdmission } from './discovered-skill-admission.ts'
+import type { SkillCandidateAdmission } from './skill-candidate-admission.ts'
 import type { SlowLoopSkillAuthoring } from './slow-loop-skill-authoring.ts'
-import type { DiscoveredSkillLineage } from './discovered-skill-lineage.ts'
+import type { SkillCandidateLineage } from './skill-candidate-lineage.ts'
 import type { EvolutionStore } from './generation-store.ts'
 import type { ResidentEvolutionControl } from './resident-evolution-control.ts'
 import type { ReviewCandidate, ReviewInbox } from './review-inbox.ts'
@@ -23,7 +23,7 @@ import type {
   EvolutionSkillAdmissionView,
   EvolutionEvaluatorDraftView,
   EvolutionFeedbackSignalView,
-  EvolutionDiscoveredSkillLineageView,
+  EvolutionSkillCandidateLineageView,
   EvolutionGenerationView,
   EvolutionEvaluatorDraftDetail,
   EvolutionOverview,
@@ -56,8 +56,8 @@ export interface EvolutionControlPlaneModules {
   }
   readonly gaps?: Pick<CapabilityGapStore, 'list'>
   readonly opportunities?: Pick<ExperienceDrivenSkillOpportunityDiscovery, 'discover'>
-  readonly candidates?: Pick<SkillDiscoveryStore, 'listCandidates'>
-  readonly admissions?: Pick<DiscoveredSkillAdmission, 'scan'>
+  readonly candidates?: Pick<SkillCandidateStore, 'listCandidates'>
+  readonly admissions?: Pick<SkillCandidateAdmission, 'scan'>
   readonly slowLoopAuthoring?: Pick<SlowLoopSkillAuthoring, 'scan'>
 }
 
@@ -143,10 +143,10 @@ export class EvolutionControlPlane {
               id: run.id,
               targetId: run.targetId,
               skillName: run.skillName,
-              clusterId: run.clusterId,
+              opportunityId: run.opportunityId,
               gapCount: run.gapCount,
               goalCount: run.goalCount,
-              phase: run.phase === 'research-pending' ? 'incomplete' : run.phase,
+              phase: run.phase,
               createdAt: run.createdAt,
               updatedAt: run.updatedAt,
               modelCalls: run.modelCalls,
@@ -449,21 +449,18 @@ function projectSkillCandidates(
     quarantinedCount: values.filter(candidate => candidate.safety.status === 'quarantined').length,
     items: values.slice(0, MAX_DISCOVERY_ROWS).map(candidate => ({
       id: candidate.id,
-      discoveredAt: candidate.discoveredAt,
-      gapId: candidate.gapId,
-      requestedSkill: candidate.requestedSkill,
+      createdAt: candidate.createdAt,
+      skillName: candidate.skillName,
       description: candidate.description,
-      ...(candidate.demand === undefined ? {} : { demand: {
-        kind: candidate.demand.kind,
-        clusterId: candidate.demand.clusterId,
-        gapIds: [...candidate.demand.gapIds],
-        goalCount: candidate.demand.goalCount,
-      } }),
-      ...(candidate.match === undefined ? {} : { match: { ...candidate.match } }),
-      source: { ...candidate.source },
+      opportunity: {
+        kind: candidate.opportunity.kind,
+        id: candidate.opportunity.id,
+        gapIds: [...candidate.opportunity.gapIds],
+        goalCount: candidate.opportunity.goalCount,
+      },
+      authorship: { ...candidate.authorship },
       scope: candidate.scope,
       version: { ...candidate.version },
-      ...(candidate.distribution === undefined ? {} : { distribution: { ...candidate.distribution } }),
       contentHash: candidate.contentHash,
       package: { ...candidate.package },
       permissions: { ...candidate.permissions },
@@ -492,9 +489,6 @@ function projectSkillAdmission(
       status: value.status,
       reasons: [...value.reasons],
       ...(value.targetId === undefined ? {} : { targetId: value.targetId }),
-      ...(value.researchHoldoutResultId === undefined
-        ? {}
-        : { researchHoldoutResultId: value.researchHoldoutResultId }),
       releaseAuthority: value.releaseAuthority,
       ...(value.evidence === undefined ? {} : { evidence: {
         baseline: value.evidence.baseline,
@@ -570,7 +564,7 @@ function projectReviews(
         skillName: candidate.skillName,
         ...(artifact?.lineage === undefined
           ? {}
-          : { lineage: projectDiscoveredSkillLineage(artifact.lineage) }),
+          : { lineage: projectSkillCandidateLineage(artifact.lineage) }),
       }
     })
   return {
@@ -598,7 +592,7 @@ function projectGeneration(generation: ReturnType<EvolutionStore['getActiveGener
       treeHash: artifact.treeHash,
       ...(artifact.lineage === undefined
         ? {}
-        : { lineage: projectDiscoveredSkillLineage(artifact.lineage) }),
+        : { lineage: projectSkillCandidateLineage(artifact.lineage) }),
     })),
   }
 }
@@ -615,7 +609,7 @@ function projectReview(candidate: ReviewCandidate): EvolutionReviewView {
     candidateTreeHash: candidate.candidateTreeHash,
     ...(candidate.lineage === undefined
       ? {}
-      : { lineage: projectDiscoveredSkillLineage(candidate.lineage) }),
+      : { lineage: projectSkillCandidateLineage(candidate.lineage) }),
     cases: candidate.cases.map(item => ({ ...item })),
     cost: { ...candidate.cost },
     reasons: [...candidate.reasons],
@@ -634,21 +628,21 @@ function projectReview(candidate: ReviewCandidate): EvolutionReviewView {
   }
 }
 
-function projectDiscoveredSkillLineage(
-  lineage: DiscoveredSkillLineage,
-): EvolutionDiscoveredSkillLineageView {
+function projectSkillCandidateLineage(
+  lineage: SkillCandidateLineage,
+): EvolutionSkillCandidateLineageView {
   return {
     kind: lineage.kind,
     candidateId: lineage.candidateId,
     workspaceId: lineage.workspaceId,
     skillName: lineage.skillName,
+    opportunityId: lineage.opportunityId,
+    policyId: lineage.policyId,
     versionKind: lineage.versionKind,
-    source: { ...lineage.source },
     contentHash: lineage.contentHash,
     candidateTreeHash: lineage.candidateTreeHash,
     admissionId: lineage.admissionId,
     admissionTargetId: lineage.admissionTargetId,
-    ...(lineage.research === undefined ? {} : { research: { ...lineage.research } }),
     releaseAuthority: lineage.releaseAuthority,
   }
 }

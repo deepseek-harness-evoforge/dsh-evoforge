@@ -1,5 +1,7 @@
 # V4-2 可信本地 Skill 确定性语义发现证据
 
+> 历史撤销证据：本页记录已删除的运行时本地 Skill 搜索方案，不代表当前产品能力。当前实现见 [V4-8](v4-8-internal-skill-opportunity-discovery.zh.md) 与 [V4-9](v4-9-internal-skill-candidate-boundary.zh.md)。
+
 > 状态：implemented evidence
 > 日期：2026-08-18
 > 边界：证明 accepted Capability Gap 可在显式授信的本地 Git Skill catalog 中从 exact 查询安全回退到有界、确定性的词法语义发现；不证明网络来源搜索、Skill 生成或完整 V4 退出门。

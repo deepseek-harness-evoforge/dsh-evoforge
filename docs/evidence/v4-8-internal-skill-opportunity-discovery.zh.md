@@ -44,7 +44,7 @@ native Goal
   大小超限和 unchanged/invalid output。
 - Candidate 固定为 inactive/quarantined/unevaluated/never-executed；本纵切没有安装、激活、晋升或发布接口。
 
-## 删除的偏差公共面
+## 已删除的偏差公共面
 
 当前插件 Config 和 composition 已移除：
 
@@ -55,16 +55,20 @@ native Goal
 - `researchHoldoutTargets` / `researchRevisionTargets` 及对应 Job 编排；
 - Web 外部发现 attempts、research Holdout 和 research revision 当前投影。
 
-历史 candidate/attempt schema 仍由同一 Storage Domain 读取以便审计旧状态；当前 composition 改用
-`ExperienceAuthoredSkillCandidates`，只允许 internal-experience v1 quarantine/materialization，旧的外部
-acquisition class、fetch loop 和 research Jobs 不进入打包运行路径。未来外部包获取只能成为独立
-trusted-import 功能，不能命名为自我发现。
+旧 candidate/attempt schema 不再由当前 Storage Domain 读取或迁移。当前 composition 改用独立
+`evoforge_skill_candidates` Domain 和 `SkillCandidateRepository`，只允许 internal-experience v1
+quarantine/materialization；旧 acquisition class、fetch loop、research Jobs、zip 获取依赖及 Web 投影已从
+活动源码删除。本项目不预留未来外部包获取产品接口。
 
 ## 关键实现
 
 - `packages/dsh-evolve/src/skill-opportunity-discovery.ts`
 - `packages/dsh-evolve/src/slow-loop-skill-authoring.ts`
-- `packages/dsh-evolve/src/trusted-skill-discovery.ts` 中独立的 `ExperienceAuthoredSkillCandidates`
+- `packages/dsh-evolve/src/skill-candidate-repository.ts`
+- `packages/dsh-evolve/src/skill-bundle-archive.ts`
+- `packages/dsh-evolve/src/skill-candidate-admission.ts`
+- `packages/dsh-evolve/src/skill-candidate-lineage.ts`
+- `packages/dsh-evolve/src/skill-candidate-shadow.ts`
 - `packages/dsh-evolve/src/index.ts`
 - `packages/dsh-evolve/src/evolution-control-plane.ts`
 - `packages/dsh-evolve-web/src/client/EvolutionAction.tsx`
@@ -79,16 +83,17 @@ trusted-import 功能，不能命名为自我发现。
 - `DSH_SOURCE_ROOT=<pinned-dsh-source> pnpm generate:typert`：通过；
 - `pnpm --filter dsh-evolve-web typecheck`：通过；
 - `pnpm --filter dsh-evolve-web test`：2 files、25 tests 通过；
-- `pnpm --filter dsh-evolve exec vitest run --reporter=dot`：59 files 通过、1 skipped；303 tests 通过、2 skipped；退出码 0；
+- `pnpm --filter dsh-evolve exec vitest run --reporter=json`：重构后的当前全量为 55 files、247 tests 通过、2 skipped、0 failed；退出码 0；
 - `slow-loop-skill-authoring.test.ts`：8 个内部经验生成、abstain、预算、取消、uncertain、证据边界和无 Skill policy 场景通过；
 - `skill-opportunity-discovery.test.ts`：跨 Goal 资格、同 Goal retry、Workspace 隔离与证据不足场景通过；
-- `trusted-skill-discovery.test.ts`：experience-authored v1 whole-Skill quarantine、引用文件、无 research provenance 场景通过。
+- `skill-candidate-repository.test.ts` 与 `capability-gap-store.e2e.test.ts`：internal-experience v1 whole-Skill quarantine、独立持久化 Domain、旧 external/source/research shape 不进入记录；
+- `skill-candidate-admission.test.ts`、`skill-candidate-lineage.test.ts`、`skill-candidate-shadow.test.ts`：确定性 admission、内部 lineage、独立 assembled holdout 与旧 lineage shape 拒绝。
 
 ## 未完成
 
 - 内部 Candidate 的独立 final-test/Shadow/Retention 真实 provider 整链路；
 - Goal outcome、用户 correction、复用收益和 Retention 信号共同参与 Opportunity 排序/抑制；
-- 真实浏览器对本次新投影的最终 tarball 复验；
+- 源码构建的新投影已通过真实浏览器复验；最终 tarball 安装进 clean-profile 后仍需复验同一路径；
 - 同模型 Hermes paired discovery/evolution outcome 与长期负迁移数据；
 - 用户配对短语触发的 exact 飞书消息闭环。
 

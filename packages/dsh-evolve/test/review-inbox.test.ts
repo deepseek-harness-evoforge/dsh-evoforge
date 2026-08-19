@@ -7,7 +7,7 @@ import {
   ReviewInbox as NativeReviewInbox,
   type AutomaticReviewExpiryPolicy,
 } from '../src/review-inbox.js'
-import type { DiscoveredSkillLineage } from '../src/discovered-skill-lineage.ts'
+import type { SkillCandidateLineage } from '../src/skill-candidate-lineage.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 interface FixtureReviewOptions {
@@ -79,7 +79,7 @@ describe('Shadow review inbox', () => {
     expect(scan.warnings[0]).toMatch(/broken: Shadow resume requires a readable run-state\.json/)
   })
 
-  it('projects exact discovery and one-shot revision lineage only when journal and report agree', async () => {
+  it('projects exact internal Candidate lineage only when journal and report agree', async () => {
     const root = await createRoot()
     const runDir = await writeCandidateRun(root, 'lineage', 'promote', 'complete', {
       lineage: discoveredLineage(),
@@ -427,7 +427,7 @@ async function writeCandidateRun(
   phase: 'complete' | 'incomplete' = 'complete',
   options: {
     feedbackLaunchMode?: 'human' | 'automatic'
-    lineage?: DiscoveredSkillLineage
+    lineage?: SkillCandidateLineage
     updatedAt?: string
   } = {},
 ): Promise<string> {
@@ -455,7 +455,7 @@ async function writeCandidateRun(
       modelConfigHash: 'c'.repeat(64),
       modelRoute: 'fixture-model',
       skillName: 'stable-skill',
-      ...(options.lineage === undefined ? {} : { discoveredSkillLineage: options.lineage }),
+      ...(options.lineage === undefined ? {} : { skillCandidateLineage: options.lineage }),
     },
     resumeInputs: { skillDir: join(root, 'skill'), casePackDir: join(root, 'case-pack') },
     ...(options.feedbackLaunchMode === undefined
@@ -506,29 +506,19 @@ async function writeCandidateRun(
   return runDir
 }
 
-function discoveredLineage(): DiscoveredSkillLineage {
+function discoveredLineage(): SkillCandidateLineage {
   return {
-    kind: 'discovered-skill-lineage-v1',
+    kind: 'internal-skill-candidate-lineage-v1',
     candidateId: '1'.repeat(64),
     workspaceId: WORKSPACE_ID,
     skillName: 'stable-skill',
-    versionKind: 'slow-loop-research-revision-v3',
-    source: {
-      id: 'stable-skill-author',
-      kind: 'slow-loop-author',
-      trust: 'bounded-host-authoring',
-    },
+    opportunityId: '4'.repeat(64),
+    policyId: 'stable-skill-author',
+    versionKind: 'experience-authored-bundle-v1',
     contentHash: '2'.repeat(64),
     candidateTreeHash: 'e'.repeat(64),
     admissionId: '3'.repeat(64),
     admissionTargetId: 'stable-skill-admission',
-    research: {
-      researchDigest: '4'.repeat(64),
-      parentCandidateId: '5'.repeat(64),
-      parentTreeHash: '6'.repeat(64),
-      revisionHoldoutResultId: '7'.repeat(64),
-      researchHoldoutResultId: '8'.repeat(64),
-    },
     releaseAuthority: 'none',
   }
 }

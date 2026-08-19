@@ -2,9 +2,9 @@ import { randomUUID } from 'node:crypto'
 import { link, open, readFile, rename, rm } from 'node:fs/promises'
 import { dirname, isAbsolute, join } from 'node:path'
 import {
-  parseDiscoveredSkillLineage,
-  type DiscoveredSkillLineage,
-} from './discovered-skill-lineage.ts'
+  parseSkillCandidateLineage,
+  type SkillCandidateLineage,
+} from './skill-candidate-lineage.ts'
 
 export interface ShadowRunIdentity {
   workspaceId: string
@@ -16,7 +16,7 @@ export interface ShadowRunIdentity {
   modelRoute: string
   skillName: string
   feedbackDraftId?: string
-  discoveredSkillLineage?: DiscoveredSkillLineage
+  skillCandidateLineage?: SkillCandidateLineage
 }
 
 export interface PersistedProposal {
@@ -144,11 +144,11 @@ export async function loadShadowRunState(outputDir: string): Promise<ShadowRunSt
     && !['human', 'automatic'].includes(String(value.feedbackLaunchMode))) {
     throw new Error('Shadow run state has an invalid feedback launch mode')
   }
-  if (value.identity.discoveredSkillLineage !== undefined) {
-    const lineage = parseDiscoveredSkillLineage(value.identity.discoveredSkillLineage)
+  if (value.identity.skillCandidateLineage !== undefined) {
+    const lineage = parseSkillCandidateLineage(value.identity.skillCandidateLineage)
     if (lineage.workspaceId !== value.identity.workspaceId
       || lineage.skillName !== value.identity.skillName) {
-      throw new Error('Shadow run state discovered Skill lineage does not match its identity')
+      throw new Error('Shadow run state Skill Candidate lineage does not match its identity')
     }
   }
   if (value.resumeInputs !== undefined

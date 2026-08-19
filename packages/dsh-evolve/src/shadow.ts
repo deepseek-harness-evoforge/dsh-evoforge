@@ -19,15 +19,15 @@ import {
 } from './trial.ts'
 import { readPrivateFeedbackCaseDraft } from './feedback-case-draft.ts'
 import {
-  parseDiscoveredSkillLineage,
-  type DiscoveredSkillLineage,
-} from './discovered-skill-lineage.ts'
+  parseSkillCandidateLineage,
+  type SkillCandidateLineage,
+} from './skill-candidate-lineage.ts'
 
 export interface ShadowOptions {
   casePackDir: string
   exactCandidate?: {
     claim: string
-    lineage?: DiscoveredSkillLineage
+    lineage?: SkillCandidateLineage
     skillDir: string
   }
   expectedCasePackHash?: string
@@ -144,14 +144,14 @@ export async function runShadow(options: ShadowOptions): Promise<
   const exactCandidateTreeHash = exactCandidateDir === undefined
     ? undefined
     : await hashTree(exactCandidateDir)
-  const discoveredSkillLineage = options.exactCandidate?.lineage === undefined
+  const skillCandidateLineage = options.exactCandidate?.lineage === undefined
     ? undefined
-    : parseDiscoveredSkillLineage(options.exactCandidate.lineage)
-  if (discoveredSkillLineage !== undefined
-    && (discoveredSkillLineage.workspaceId !== manifest.workspaceId
-      || discoveredSkillLineage.skillName !== skillName
-      || discoveredSkillLineage.candidateTreeHash !== exactCandidateTreeHash)) {
-    throw new Error('discovered Skill lineage does not match the exact Shadow inputs')
+    : parseSkillCandidateLineage(options.exactCandidate.lineage)
+  if (skillCandidateLineage !== undefined
+    && (skillCandidateLineage.workspaceId !== manifest.workspaceId
+      || skillCandidateLineage.skillName !== skillName
+      || skillCandidateLineage.candidateTreeHash !== exactCandidateTreeHash)) {
+    throw new Error('Skill Candidate lineage does not match the exact Shadow inputs')
   }
   const exactProposal = exactCandidateDir === undefined
     ? undefined
@@ -165,7 +165,7 @@ export async function runShadow(options: ShadowOptions): Promise<
     : undefined
   const modelRoute = exactCandidateDir === undefined
     ? requireEnvironment('DSH_EVOLVE_MODEL_NAME')
-    : 'external-exact-candidate-v1'
+    : 'pinned-internal-candidate-v1'
   const apiKey = exactCandidateDir === undefined ? process.env.DSH_EVOLVE_MODEL_API_KEY : undefined
   const modelConfigHash = sha256(JSON.stringify(exactCandidateDir === undefined
     ? { baseUrl: modelBaseUrl, model: modelRoute }
@@ -189,7 +189,7 @@ export async function runShadow(options: ShadowOptions): Promise<
     modelRoute,
     skillName,
     ...(feedbackDraft === undefined ? {} : { feedbackDraftId: feedbackDraft.id }),
-    ...(discoveredSkillLineage === undefined ? {} : { discoveredSkillLineage }),
+    ...(skillCandidateLineage === undefined ? {} : { skillCandidateLineage }),
   }
   const resumeInputs = {
     skillDir,
@@ -316,7 +316,7 @@ export async function runShadow(options: ShadowOptions): Promise<
           inputTokens: 0,
           outputTokens: 0,
         },
-        ...(discoveredSkillLineage === undefined ? {} : { lineage: discoveredSkillLineage }),
+        ...(skillCandidateLineage === undefined ? {} : { lineage: skillCandidateLineage }),
       })
       return finishIncomplete(reportPath, reason)
     }
@@ -467,7 +467,7 @@ export async function runShadow(options: ShadowOptions): Promise<
           inputTokens: modelResponse?.usage?.prompt_tokens ?? 0,
           outputTokens: modelResponse?.usage?.completion_tokens ?? 0,
         },
-        ...(discoveredSkillLineage === undefined ? {} : { lineage: discoveredSkillLineage }),
+        ...(skillCandidateLineage === undefined ? {} : { lineage: skillCandidateLineage }),
       })
       return finishIncomplete(reportPath, reason)
     }
@@ -552,7 +552,7 @@ export async function runShadow(options: ShadowOptions): Promise<
         inputTokens: modelResponse.usage?.prompt_tokens ?? 0,
         outputTokens: modelResponse.usage?.completion_tokens ?? 0,
       },
-      ...(discoveredSkillLineage === undefined ? {} : { lineage: discoveredSkillLineage }),
+      ...(skillCandidateLineage === undefined ? {} : { lineage: skillCandidateLineage }),
     } as const
     const reportPath = resolve(outputDir, 'report.json')
     if (!activeSkillUnchanged) {

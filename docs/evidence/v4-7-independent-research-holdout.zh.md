@@ -1,5 +1,7 @@
 # V4-7：独立 Research Holdout 纵切证据
 
+> 历史撤销证据：本页记录已删除的运行时 research Candidate/Holdout 方案，不代表当前产品能力。当前独立治理从内部 Candidate 进入，见 [V4-9](v4-9-internal-skill-candidate-boundary.zh.md)。
+
 日期：2026-08-18
 
 本切片把此前“保留 verification、但尚未消费”的研究语料变成 DSH 原生治理门。设计依据与竞品/前沿审计见

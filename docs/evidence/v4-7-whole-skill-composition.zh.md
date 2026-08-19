@@ -1,5 +1,7 @@
 # V4-7：Host 所有的 text-only whole-Skill 组合与隔离
 
+> 历史演进证据：原 research 输入边界已撤销；Host-owned canonical text bundle codec 已保留并收敛到内部 Skill Opportunity Candidate，当前证据见 [V4-9](v4-9-internal-skill-candidate-boundary.zh.md)。
+
 > 状态：`implemented / in progress`；本切片只完成完整 Skill 包的供应链边界，不等于研究生成、
 > holdout、Retention 或最终上位替代已经完成。
 

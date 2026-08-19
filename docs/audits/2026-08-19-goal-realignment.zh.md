@@ -4,15 +4,15 @@
 
 ## 结论
 
-当前实现不是目标完成态。主运行组合已经停止外部 Skill 搜索和 Web research，但领域模型、持久化契约、源码、测试及部分权威文档仍被旧“能力获取/研究生成 Candidate”方案污染；`dsh-channel-router` 只覆盖了 Gateway 的入站内核；飞书 exact 消息、内部 Candidate 的独立评测整链、真实 provider 和 Hermes 同条件 paired evidence 仍缺失。
+当前实现不是目标完成态。`dsh-gateway` 已直接替换旧 Router；旧“能力获取/运行时研究生成 Candidate”的活动源码、依赖、持久化变体、Web 类型和当前测试已经删除，历史证据已隔离为撤销记录。当前自我发现仍只从重复 Goal-linked Gap 形成 Opportunity，尚未覆盖完整内部归因；Gateway 公共 outbound/限流/健康、飞书 exact 消息、内部 Candidate 的独立评测整链、真实 provider 和 Hermes 同条件 paired evidence 仍缺失。
 
 ## 偏差与处置
 
 | 范围 | 当前证据 | 判断 | 处置与完成证据 |
 |---|---|---|---|
-| 运行时能力获取 | `trusted-skill-discovery.ts`、Agent Skills archive/index、local trusted source、`skill-research.ts`、research Holdout/revision 及对应测试仍存在；当前 `index.ts` 已不再组合网络发现 | **偏差；未删除** | 新建只接受内部 DSH 经验的 Candidate 模块和存储；重写 admission/lineage/Web 类型；删除上述获取/研究实现、依赖和当前测试；源码与打包产物不得再出现运行时外部获取接口 |
+| 运行时能力获取 | `trusted-skill-discovery.ts`、Agent Skills archive/index、local trusted source、`skill-research.ts`、research Holdout/revision、zip 获取依赖及对应活动测试已删除；新 `evoforge_skill_candidates` Domain 只接受内部 Opportunity 生成的 canonical text bundle | **偏差已清除；需持续防回归** | Candidate Repository 无 search/import/install/activate/release interface；旧存储变体不读取、不迁移；负向契约测试拒绝旧 external/source/research shape；历史报告明确标记撤销 |
 | 自我发现证据 | 当前 Opportunity 只要求同 Workspace、同 Skill、两个不同 Goal-linked Gap | **部分实现** | 把纠正、真实 outcome、返工、成本、跨 Goal 复用、Retention、负迁移和回滚纳入可归因 evidence；同 Goal retry、一次成功、模型自评继续 abstain；用跨 Goal fixtures 与真实 provider outcome 证明 |
-| Candidate 治理 | whole-Skill v1 已 inactive/quarantined/unevaluated/never-executed；但类型仍允许 local Git、Agent Skills、research v2/v3 | **偏差；契约过宽** | Candidate schema 只允许 `dsh-experience` 来源和内部 evidence identity；治理面只接收 content-addressed bundle；独立 final test、Shadow、Retention、future-Session promotion/rollback 全链验证 |
+| Candidate 治理 | Candidate schema 只允许 `internal-experience-v1` Opportunity、`bounded-model-authoring-v1`、`experience-authored-bundle-v1`；Admission/Lineage/Shadow 和 Web 已收敛到同一内部契约 | **边界已重建；整链验证未完成** | Candidate 保持 inactive/quarantined/unevaluated/never-executed；继续完成独立 final test、Shadow、Retention、future-Session promotion/rollback 与真实 provider 验证 |
 | Gateway | `dsh-channel-router` 已有 exact route、Workspace/Session/Agent 绑定、入站日志、去重和 uncertain 恢复，Telegram/飞书均消费 | **模块命名与深度不足** | 本增量直接替换为 `dsh-gateway`，不保留转发包；后续把确属跨 Adapter 的 outbound intent、限流、诊断/健康投影收敛进 Gateway，同时把平台 SDK/凭据/UI 留在 Adapter；clean-profile add/dump/boot/remove 和双渠道真实路径证明 |
 | 飞书 | SDK WebSocket、pairing transport、DSH Web pairing/health 和测试路径存在 | **真实闭环未完成** | 完成 exact chat/user 入站、回复、文件/卡片、Command、Goal/Schedule/Approval、重启去重与最小权限真实验证 |
 | DSH Web | Evolve 与飞书现有页面已能显示部分状态 | **覆盖不完整** | 增加权威 Gateway、内部 evidence、Candidate lineage/diff、baseline/holdout/Retention、成本/时延/cache、安全、晋升/隔离/回滚；真实浏览器验证刷新、失败和恢复 |
@@ -23,7 +23,7 @@
 ## 当前重构顺序
 
 1. 用 `dsh-gateway` 替换旧 Router 包和所有消费者，保持已验证的 exact route/ingress 行为。
-2. 用内部经验 Candidate 契约替换混合 Discovery 存储，删除能力获取、Agent Skills 和 research Candidate 代码路径。
+2. **已完成：**用内部经验 Candidate 契约替换混合 Discovery 存储，删除能力获取、Agent Skills 和 research Candidate 活动代码路径。
 3. 将内部 evidence 扩展为 outcome/correction/rework/cost/reuse/retention，并打通独立评测、Shadow、Retention、晋升与回滚。
 4. 补 Gateway 公共投递/限流/健康、飞书真实消息闭环和 DSH Web 权威控制面。
 5. 完成真实 provider 与 Hermes paired 验收；未达门禁前不打 tag、不宣布完成。

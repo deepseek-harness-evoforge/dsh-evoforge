@@ -19,9 +19,9 @@ import type { GitSkillSource } from './git-skill-source.ts'
 import { hashTree } from './hash.ts'
 import type { ReviewCandidate } from './review-inbox.ts'
 import {
-  parseDiscoveredSkillLineage,
-  type DiscoveredSkillLineage,
-} from './discovered-skill-lineage.ts'
+  parseSkillCandidateLineage,
+  type SkillCandidateLineage,
+} from './skill-candidate-lineage.ts'
 
 const execFile = promisify(execFileCallback)
 const MAX_DIFF_PREVIEW_BYTES = 16 * 1024
@@ -132,15 +132,15 @@ export class CandidatePublisher {
   }
 }
 
-function assertProposal(candidate: ReviewCandidate): DiscoveredSkillLineage | undefined {
+function assertProposal(candidate: ReviewCandidate): SkillCandidateLineage | undefined {
   if (candidate.proposal.files.length === 0) throw new Error('review Candidate proposes no files')
   if (new Set(candidate.proposal.files.map(file => file.path)).size !== candidate.proposal.files.length) {
     throw new Error('review Candidate proposes the same path more than once')
   }
   if (candidate.lineage === undefined) return undefined
-  let lineage: DiscoveredSkillLineage
+  let lineage: SkillCandidateLineage
   try {
-    lineage = parseDiscoveredSkillLineage(candidate.lineage)
+    lineage = parseSkillCandidateLineage(candidate.lineage)
   } catch {
     throw new Error('Review lineage does not match its exact Candidate')
   }
@@ -232,7 +232,7 @@ async function writeImmutableCommit(input: {
   candidate: ReviewCandidate
   candidateTree: string
   repository: string
-  lineage?: DiscoveredSkillLineage
+  lineage?: SkillCandidateLineage
   sourcePath: string
   stage: string
 }): Promise<SkillGenerationArtifact> {

@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { JobRegistry } from '@deepseek-ai/dsh-jobs'
 import { openEvolutionStore, type EvolutionStore } from '../src/generation-store.js'
-import type { DiscoveredSkillLineage } from '../src/discovered-skill-lineage.ts'
+import type { SkillCandidateLineage } from '../src/skill-candidate-lineage.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -59,7 +59,6 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
       expect(Object.isFrozen(loaded?.artifacts)).toBe(true)
       expect(Object.isFrozen(loaded?.artifacts[0])).toBe(true)
       expect(Object.isFrozen(loaded?.artifacts[0]?.lineage)).toBe(true)
-      expect(Object.isFrozen(loaded?.artifacts[0]?.lineage?.research)).toBe(true)
     } finally {
       await firstStore.close()
       await firstCtx.fiber.dispose()
@@ -453,29 +452,19 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
   })
 })
 
-function discoveredLineage(candidateTreeHash: string): DiscoveredSkillLineage {
+function discoveredLineage(candidateTreeHash: string): SkillCandidateLineage {
   return {
-    kind: 'discovered-skill-lineage-v1',
+    kind: 'internal-skill-candidate-lineage-v1',
     candidateId: '1'.repeat(64),
     workspaceId: WORKSPACE_ID,
     skillName: 'build-dsh-plugin',
-    versionKind: 'slow-loop-research-revision-v3',
-    source: {
-      id: 'build-dsh-plugin-author',
-      kind: 'slow-loop-author',
-      trust: 'bounded-host-authoring',
-    },
+    opportunityId: '4'.repeat(64),
+    policyId: 'build-dsh-plugin-author',
+    versionKind: 'experience-authored-bundle-v1',
     contentHash: '2'.repeat(64),
     candidateTreeHash,
     admissionId: '3'.repeat(64),
     admissionTargetId: 'build-dsh-plugin-admission',
-    research: {
-      researchDigest: '4'.repeat(64),
-      parentCandidateId: '5'.repeat(64),
-      parentTreeHash: '6'.repeat(64),
-      revisionHoldoutResultId: '7'.repeat(64),
-      researchHoldoutResultId: '8'.repeat(64),
-    },
     releaseAuthority: 'none',
   }
 }

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { EvolutionControlPlane } from '../src/evolution-control-plane.ts'
 import type { CapabilityGeneration, EvolutionStore } from '../src/generation-store.ts'
 import type { ReviewCandidate } from '../src/review-inbox.ts'
+import { experienceSkillCandidate } from './skill-candidate-fixture.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const generationId = 'a'.repeat(64)
@@ -10,16 +11,13 @@ const reviewId = 'c'.repeat(64)
 
 function lineage(candidateTreeHash = '1'.repeat(64)) {
   return {
-    kind: 'discovered-skill-lineage-v1' as const,
+    kind: 'internal-skill-candidate-lineage-v1' as const,
     candidateId: '8'.repeat(64),
     workspaceId: WORKSPACE_ID,
     skillName: 'build-dsh-plugin',
-    versionKind: 'slow-loop-author-bundle-v1' as const,
-    source: {
-      id: 'bounded-author',
-      kind: 'slow-loop-author' as const,
-      trust: 'bounded-host-authoring' as const,
-    },
+    opportunityId: '7'.repeat(64),
+    policyId: 'bounded-author',
+    versionKind: 'experience-authored-bundle-v1' as const,
     contentHash: '9'.repeat(64),
     candidateTreeHash,
     admissionId: 'a'.repeat(64),
@@ -307,54 +305,37 @@ describe('EvolutionControlPlane', () => {
         }],
       },
       candidates: {
-        listCandidates: () => [{
-          schemaVersion: 1 as const,
+        listCandidates: () => [experienceSkillCandidate({
           id: '4'.repeat(64),
-          discoveredAt: 1_786_896_100_000,
-          gapId: '5'.repeat(64),
-          workspaceId: WORKSPACE_ID,
-          requestedSkill: 'release-native-extension',
+          createdAt: 1_786_896_100_000,
+          skillName: 'release-native-extension',
           description: 'Publish a verified release.',
-          demand: {
-            kind: 'cross-goal-cluster-v1' as const,
-            clusterId: '8'.repeat(64),
+          opportunity: {
+            kind: 'internal-experience-v1' as const,
+            id: '8'.repeat(64),
             gapIds: ['5'.repeat(64), 'd'.repeat(64)],
             goalCount: 2,
           },
-          source: {
-            id: 'internal-experience-author',
-            kind: 'slow-loop-author' as const,
-            trust: 'bounded-host-authoring' as const,
-          },
-          scope: 'workspace' as const,
-          version: {
-            kind: 'slow-loop-author-bundle-v1' as const,
+          authorship: {
+            kind: 'bounded-model-authoring-v1' as const,
+            policyId: 'internal-experience-author',
             modelIdentityHash: 'a'.repeat(64),
             inputDigest: 'b'.repeat(64),
+          },
+          version: {
+            kind: 'experience-authored-bundle-v1' as const,
             artifactDigest: 'c'.repeat(64),
             treeHash: 'd'.repeat(64),
           },
           contentHash: 'c'.repeat(64),
           package: {
-            path: 'quarantine/release-native-extension',
+            path: 'release-native-extension',
             fileCount: 2,
             totalBytes: 512,
             hasScripts: false,
             hasReferences: true,
           },
-          permissions: { declared: false, executableContent: false, externalEffects: 'unknown' as const },
-          safety: {
-            status: 'quarantined' as const,
-            checks: [
-              { name: 'regular-files-only' as const, status: 'passed' as const },
-              { name: 'skill-identity' as const, status: 'passed' as const },
-              { name: 'effect-review' as const, status: 'required' as const },
-            ],
-          },
-          lifecycle: 'inactive' as const,
-          verification: 'unevaluated' as const,
-          execution: 'never' as const,
-        }],
+        })],
       },
       admissions: {
         scan: vi.fn(async () => ({
@@ -392,7 +373,7 @@ describe('EvolutionControlPlane', () => {
             targetId: 'missing-release-author',
             workspaceId: WORKSPACE_ID,
             skillName: 'missing-release-skill',
-            clusterId: '8'.repeat(64),
+            opportunityId: '8'.repeat(64),
             gapCount: 2,
             goalCount: 2,
             phase: 'candidate-ready' as const,
@@ -483,16 +464,18 @@ describe('EvolutionControlPlane', () => {
         quarantinedCount: 1,
         items: [{
           id: '4'.repeat(64),
-          gapId: '5'.repeat(64),
-          requestedSkill: 'release-native-extension',
-          demand: {
-            kind: 'cross-goal-cluster-v1',
-            clusterId: '8'.repeat(64),
+          skillName: 'release-native-extension',
+          opportunity: {
+            kind: 'internal-experience-v1',
+            id: '8'.repeat(64),
             gapIds: ['5'.repeat(64), 'd'.repeat(64)],
             goalCount: 2,
           },
-          source: { id: 'internal-experience-author', kind: 'slow-loop-author' },
-          version: { kind: 'slow-loop-author-bundle-v1', treeHash: 'd'.repeat(64) },
+          authorship: {
+            kind: 'bounded-model-authoring-v1',
+            policyId: 'internal-experience-author',
+          },
+          version: { kind: 'experience-authored-bundle-v1', treeHash: 'd'.repeat(64) },
           contentHash: 'c'.repeat(64),
           safety: { status: 'quarantined' },
           lifecycle: 'inactive',
@@ -526,7 +509,7 @@ describe('EvolutionControlPlane', () => {
           id: '9'.repeat(64),
           targetId: 'missing-release-author',
           skillName: 'missing-release-skill',
-          clusterId: '8'.repeat(64),
+          opportunityId: '8'.repeat(64),
           gapCount: 2,
           goalCount: 2,
           phase: 'candidate-ready',

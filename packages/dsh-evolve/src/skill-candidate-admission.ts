@@ -6,14 +6,13 @@ import { hashTree } from './hash.ts'
 import { parseCasePackManifest } from './shadow.ts'
 import { acquireShadowRunLock, writeDurableJson } from './shadow-run-state.ts'
 import type {
-  DiscoveredSkillCandidate,
+  ExperienceSkillCandidate,
   MaterializedSkillCandidate,
-} from './trusted-skill-discovery.ts'
-import type { ResearchSkillHoldoutPassReceipt } from './research-skill-holdout.ts'
+} from './skill-candidate-repository.ts'
 import {
-  createDiscoveredSkillLineage,
-  type DiscoveredSkillLineage,
-} from './discovered-skill-lineage.ts'
+  createSkillCandidateLineage,
+  type SkillCandidateLineage,
+} from './skill-candidate-lineage.ts'
 import { runPairedTrial, type PairedTrialResult } from './trial.ts'
 
 const CONTENT_ID = /^[a-f0-9]{64}$/
@@ -21,7 +20,7 @@ const PUBLIC_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const MAX_TARGETS = 100
 const INSTRUCTION_FILE = /(?:^SKILL\.md$|\.(?:json|md|txt|ya?ml)$)/iu
 
-export interface DiscoveredSkillAdmissionTargetConfig {
+export interface SkillCandidateAdmissionTargetConfig {
   readonly id: string
   readonly workspaceId: string
   readonly skill: string
@@ -32,11 +31,10 @@ export interface DiscoveredSkillAdmissionTargetConfig {
   readonly runRoot: string
 }
 
-export type DiscoveredSkillAdmissionReason =
+export type SkillCandidateAdmissionReason =
   | 'no-exact-evaluation-target'
   | 'candidate-has-executable-content'
   | 'candidate-is-not-instruction-only'
-  | 'research-holdout-pass-required'
   | 'baseline-identity-mismatch'
   | 'case-pack-identity-mismatch'
   | 'assembled-evaluator-not-governance-separated'
@@ -48,16 +46,15 @@ export type DiscoveredSkillAdmissionReason =
   | 'governance-roots-overlap'
   | 'evaluation-failed'
 
-export interface DiscoveredSkillAdmissionResult {
+export interface SkillCandidateAdmissionResult {
   readonly schemaVersion: 1
   readonly id: string
   readonly candidateId: string
   readonly workspaceId: string
   readonly skillName: string
   readonly status: 'abstained' | 'protected' | 'incomplete' | 'rejected' | 'review' | 'qualified-for-shadow'
-  readonly reasons: readonly DiscoveredSkillAdmissionReason[]
+  readonly reasons: readonly SkillCandidateAdmissionReason[]
   readonly targetId?: string
-  readonly researchHoldoutResultId?: string
   readonly releaseAuthority: 'none'
   readonly evidence?: {
     readonly baseline: 'pass' | 'fail'
@@ -71,34 +68,34 @@ export interface DiscoveredSkillAdmissionResult {
   }
 }
 
-export interface QualifiedDiscoveredSkillShadowInput {
+export interface QualifiedSkillCandidateShadowInput {
   readonly admissionTargetId: string
   readonly baselineDir: string
   readonly candidateDir: string
   readonly admissionCasePackDir: string
   readonly admissionCasePackHash: string
   readonly admissionRunRoot: string
-  readonly lineage: DiscoveredSkillLineage
+  readonly lineage: SkillCandidateLineage
 }
 
-export interface DiscoveredSkillAdmissionScan {
+export interface SkillCandidateAdmissionScan {
   readonly configuredTargetCount: number
   readonly warningCount: number
-  readonly results: readonly DiscoveredSkillAdmissionResult[]
+  readonly results: readonly SkillCandidateAdmissionResult[]
 }
 
-interface ResolvedTarget extends DiscoveredSkillAdmissionTargetConfig {
+interface ResolvedTarget extends SkillCandidateAdmissionTargetConfig {
   readonly baselineDir: string
   readonly casePackDir: string
   readonly runRoot: string
 }
 
 interface CandidateMaterializer {
-  materialize(candidate: DiscoveredSkillCandidate, outputDir: string): Promise<MaterializedSkillCandidate>
+  materialize(candidate: ExperienceSkillCandidate, outputDir: string): Promise<MaterializedSkillCandidate>
 }
 
 interface CandidateReader {
-  listCandidates(workspaceId?: string): DiscoveredSkillCandidate[]
+  listCandidates(workspaceId?: string): ExperienceSkillCandidate[]
 }
 
 type TrialRunner = typeof runPairedTrial
@@ -108,14 +105,14 @@ type TrialRunner = typeof runPairedTrial
  * assembled/model evaluator is refused; a win can request later Shadow review
  * but can never publish or activate a Skill.
  */
-export class DiscoveredSkillAdmission {
+export class SkillCandidateAdmission {
   private readonly targets = new Map<string, ResolvedTarget>()
   private readonly targetsById = new Map<string, ResolvedTarget>()
   private readonly materializer: CandidateMaterializer
   private readonly runTrial: TrialRunner
 
   constructor(
-    targets: readonly DiscoveredSkillAdmissionTargetConfig[],
+    targets: readonly SkillCandidateAdmissionTargetConfig[],
     materializer: CandidateMaterializer,
     options: { runTrial?: TrialRunner } = {},
   ) {
@@ -141,24 +138,23 @@ export class DiscoveredSkillAdmission {
   }
 
   /** Jobs are created only when governance configured this exact Workspace+Skill pair. */
-  matches(candidate: Pick<DiscoveredSkillCandidate, 'workspaceId' | 'requestedSkill'>): boolean {
-    return this.targets.has(targetKey(candidate.workspaceId, candidate.requestedSkill))
+  matches(candidate: Pick<ExperienceSkillCandidate, 'workspaceId' | 'skillName'>): boolean {
+    return this.targets.has(targetKey(candidate.workspaceId, candidate.skillName))
   }
 
   /** Revalidate the exact durable admission evidence before a later Shadow reads its Candidate. */
   async qualifiedShadowInput(
-    candidate: DiscoveredSkillCandidate,
-    admission: DiscoveredSkillAdmissionResult,
-  ): Promise<QualifiedDiscoveredSkillShadowInput> {
-    const target = this.targets.get(targetKey(candidate.workspaceId, candidate.requestedSkill))
+    candidate: ExperienceSkillCandidate,
+    admission: SkillCandidateAdmissionResult,
+  ): Promise<QualifiedSkillCandidateShadowInput> {
+    const target = this.targets.get(targetKey(candidate.workspaceId, candidate.skillName))
     if (target === undefined
       || admission.status !== 'qualified-for-shadow'
       || admission.candidateId !== candidate.id
       || admission.workspaceId !== candidate.workspaceId
-      || admission.skillName !== candidate.requestedSkill
+      || admission.skillName !== candidate.skillName
       || admission.targetId !== target.id
-      || admission.id !== admissionId(candidate, target, admission.researchHoldoutResultId)
-      || researchHoldoutBindingRequired(candidate) !== (admission.researchHoldoutResultId !== undefined)
+      || admission.id !== admissionId(candidate, target)
       || admission.evidence === undefined) {
       throw new Error('exact Candidate has no matching qualified admission evidence')
     }
@@ -187,50 +183,42 @@ export class DiscoveredSkillAdmission {
       admissionCasePackDir,
       admissionCasePackHash: target.casePackHash,
       admissionRunRoot,
-      lineage: createDiscoveredSkillLineage(candidate, admission),
+      lineage: createSkillCandidateLineage(candidate, admission),
     })
   }
 
   async evaluate(
-    candidate: DiscoveredSkillCandidate,
-    options: { signal?: AbortSignal; researchHoldout?: ResearchSkillHoldoutPassReceipt } = {},
-  ): Promise<DiscoveredSkillAdmissionResult> {
+    candidate: ExperienceSkillCandidate,
+    options: { signal?: AbortSignal } = {},
+  ): Promise<SkillCandidateAdmissionResult> {
     options.signal?.throwIfAborted()
-    const target = this.targets.get(targetKey(candidate.workspaceId, candidate.requestedSkill))
+    const target = this.targets.get(targetKey(candidate.workspaceId, candidate.skillName))
     if (target === undefined) {
       return result(candidate, 'abstained', ['no-exact-evaluation-target'])
     }
 
-    const researchHoldoutResultId = exactResearchHoldoutPass(candidate, options.researchHoldout)
-    const id = admissionId(candidate, target, researchHoldoutResultId)
+    const id = admissionId(candidate, target)
     const makeResult = (
-      status: DiscoveredSkillAdmissionResult['status'],
-      reasons: readonly DiscoveredSkillAdmissionReason[],
-      evidence?: DiscoveredSkillAdmissionResult['evidence'],
-    ): DiscoveredSkillAdmissionResult => result(
+      status: SkillCandidateAdmissionResult['status'],
+      reasons: readonly SkillCandidateAdmissionReason[],
+      evidence?: SkillCandidateAdmissionResult['evidence'],
+    ): SkillCandidateAdmissionResult => result(
       candidate,
       status,
       reasons,
       target.id,
       id,
       evidence,
-      researchHoldoutResultId,
     )
-    if (researchHoldoutBindingRequired(candidate)
-      ? researchHoldoutResultId === undefined
-      : options.researchHoldout !== undefined) {
-      return makeResult('incomplete', ['research-holdout-pass-required'])
-    }
     const prepared = {
       schemaVersion: 1,
       id,
       candidateId: candidate.id,
       workspaceId: candidate.workspaceId,
-      skillName: candidate.requestedSkill,
+      skillName: candidate.skillName,
       targetId: target.id,
       baselineHash: target.baselineHash,
       casePackHash: target.casePackHash,
-      ...(researchHoldoutResultId === undefined ? {} : { researchHoldoutResultId }),
     } as const
 
     let baselineDir: string
@@ -318,8 +306,7 @@ export class DiscoveredSkillAdmission {
         || await realpath(materialized.path) !== await realpath(candidateDir)) {
         return await finish(outputDir, makeResult('incomplete', ['evaluation-failed']))
       }
-      if (candidate.version.kind !== 'git-tree'
-        && await hashTree(materialized.path) !== candidate.version.treeHash) {
+      if (await hashTree(materialized.path) !== candidate.version.treeHash) {
         return await finish(outputDir, makeResult('incomplete', ['evaluation-failed']))
       }
       if (materialized.files.some(file => file.mode !== '100644'
@@ -362,7 +349,7 @@ export class DiscoveredSkillAdmission {
         ))
       }
       const calibrationPassed = paired.calibration.every(row => row.passed)
-      const evidence: NonNullable<DiscoveredSkillAdmissionResult['evidence']> = {
+      const evidence: NonNullable<SkillCandidateAdmissionResult['evidence']> = {
         baseline: paired.baseline.passed ? 'pass' : 'fail',
         candidate: paired.candidate.passed ? 'pass' : 'fail',
         calibrationPassed,
@@ -397,8 +384,8 @@ export class DiscoveredSkillAdmission {
     }
   }
 
-  async scan(workspaceId?: string): Promise<DiscoveredSkillAdmissionScan> {
-    const results = new Map<string, DiscoveredSkillAdmissionResult>()
+  async scan(workspaceId?: string): Promise<SkillCandidateAdmissionScan> {
+    const results = new Map<string, SkillCandidateAdmissionResult>()
     let warningCount = 0
     for (const target of this.targetsById.values()) {
       if (workspaceId !== undefined && target.workspaceId !== workspaceId) continue
@@ -423,11 +410,7 @@ export class DiscoveredSkillAdmission {
             || prepared.skillName !== target.skill
             || prepared.baselineHash !== target.baselineHash
             || prepared.casePackHash !== target.casePackHash
-            || prepared.id !== admissionIdentityId(
-              prepared.candidateId,
-              target,
-              prepared.researchHoldoutResultId,
-            )) {
+            || prepared.id !== admissionIdentityId(prepared.candidateId, target)) {
             warningCount += 1
             continue
           }
@@ -457,27 +440,26 @@ export class DiscoveredSkillAdmission {
 }
 
 /** Native Jobs bridge; durable Candidates remain the restart queue and reports remain idempotent. */
-export class DiscoveredSkillAdmissionScheduler {
-  private readonly admission: Pick<DiscoveredSkillAdmission, 'evaluate' | 'matches'>
+export class SkillCandidateAdmissionScheduler {
+  private readonly admission: Pick<SkillCandidateAdmission, 'evaluate' | 'matches'>
   private readonly candidates: CandidateReader
   private readonly onResult: ((
-    candidate: DiscoveredSkillCandidate,
-    result: DiscoveredSkillAdmissionResult,
+    candidate: ExperienceSkillCandidate,
+    result: SkillCandidateAdmissionResult,
   ) => void) | undefined
   private readonly pending = new Map<string, {
-    readonly candidate: DiscoveredSkillCandidate
-    readonly researchHoldout?: ResearchSkillHoldoutPassReceipt
+    readonly candidate: ExperienceSkillCandidate
   }>()
   private readonly active = new Set<string>()
   private jobs: Pick<JobRegistry, 'start'> | undefined
 
   constructor(
-    admission: Pick<DiscoveredSkillAdmission, 'evaluate' | 'matches'>,
+    admission: Pick<SkillCandidateAdmission, 'evaluate' | 'matches'>,
     candidates: CandidateReader,
     options: {
       onResult?: (
-        candidate: DiscoveredSkillCandidate,
-        result: DiscoveredSkillAdmissionResult,
+        candidate: ExperienceSkillCandidate,
+        result: SkillCandidateAdmissionResult,
       ) => void
     } = {},
   ) {
@@ -495,15 +477,9 @@ export class DiscoveredSkillAdmissionScheduler {
     }
   }
 
-  observe(
-    candidate: DiscoveredSkillCandidate,
-    options: { readonly researchHoldout?: ResearchSkillHoldoutPassReceipt } = {},
-  ): void {
+  observe(candidate: ExperienceSkillCandidate): void {
     if (!this.admission.matches(candidate) || this.active.has(candidate.id)) return
-    this.pending.set(candidate.id, {
-      candidate,
-      ...(options.researchHoldout === undefined ? {} : { researchHoldout: options.researchHoldout }),
-    })
+    this.pending.set(candidate.id, { candidate })
     this.schedule(candidate.id)
   }
 
@@ -511,20 +487,17 @@ export class DiscoveredSkillAdmissionScheduler {
     const jobs = this.jobs
     const pending = this.pending.get(candidateId)
     if (jobs === undefined || pending === undefined || this.active.has(candidateId)) return
-    const { candidate, researchHoldout } = pending
+    const { candidate } = pending
     this.pending.delete(candidateId)
     this.active.add(candidateId)
     const controller = new AbortController()
     try {
       jobs.start({
         kind: 'evolution',
-        label: `deterministic Skill admission: ${candidate.requestedSkill}`,
+        label: `deterministic Skill admission: ${candidate.skillName}`,
         outputLimitBytes: 2_048,
         run: () => {
-          const task = this.admission.evaluate(candidate, {
-            signal: controller.signal,
-            ...(researchHoldout === undefined ? {} : { researchHoldout }),
-          })
+          const task = this.admission.evaluate(candidate, { signal: controller.signal })
           return {
             cancel: (reason?: string) => controller.abort(new Error(reason ?? 'Skill admission cancelled')),
             done: task.then(value => {
@@ -558,36 +531,33 @@ export class DiscoveredSkillAdmissionScheduler {
 }
 
 function result(
-  candidate: DiscoveredSkillCandidate,
-  status: DiscoveredSkillAdmissionResult['status'],
-  reasons: readonly DiscoveredSkillAdmissionReason[],
+  candidate: ExperienceSkillCandidate,
+  status: SkillCandidateAdmissionResult['status'],
+  reasons: readonly SkillCandidateAdmissionReason[],
   targetId?: string,
   id = admissionId(candidate, targetId),
-  evidence?: DiscoveredSkillAdmissionResult['evidence'],
-  researchHoldoutResultId?: string,
-): DiscoveredSkillAdmissionResult {
+  evidence?: SkillCandidateAdmissionResult['evidence'],
+): SkillCandidateAdmissionResult {
   return Object.freeze({
     schemaVersion: 1,
     id,
     candidateId: candidate.id,
     workspaceId: candidate.workspaceId,
-    skillName: candidate.requestedSkill,
+    skillName: candidate.skillName,
     status,
     reasons: Object.freeze([...reasons]),
     ...(targetId === undefined ? {} : { targetId }),
-    ...(researchHoldoutResultId === undefined ? {} : { researchHoldoutResultId }),
     releaseAuthority: 'none',
     ...(evidence === undefined ? {} : { evidence: Object.freeze({ ...evidence }) }),
   })
 }
 
 function admissionId(
-  candidate: DiscoveredSkillCandidate,
+  candidate: ExperienceSkillCandidate,
   target: Pick<ResolvedTarget, 'id' | 'baselineHash' | 'casePackHash'> | string | undefined,
-  researchHoldoutResultId?: string,
 ): string {
   if (typeof target === 'object') {
-    return admissionIdentityId(candidate.id, target, researchHoldoutResultId)
+    return admissionIdentityId(candidate.id, target)
   }
   const identity = [target ?? 'no-target']
   return createHash('sha256').update(JSON.stringify([
@@ -600,17 +570,13 @@ function admissionId(
 function admissionIdentityId(
   candidateId: string,
   target: Pick<ResolvedTarget, 'id' | 'baselineHash' | 'casePackHash'>,
-  researchHoldoutResultId?: string,
 ): string {
   return createHash('sha256').update(JSON.stringify([
-    researchHoldoutResultId === undefined
-      ? 'deterministic-skill-admission-v1'
-      : 'deterministic-skill-admission-research-pass-v2',
+    'deterministic-skill-admission-v1',
     candidateId,
     target.id,
     target.baselineHash,
     target.casePackHash,
-    ...(researchHoldoutResultId === undefined ? [] : [researchHoldoutResultId]),
   ])).digest('hex')
 }
 
@@ -618,33 +584,7 @@ function targetKey(workspaceId: string, skill: string): string {
   return `${workspaceId}\0${skill}`
 }
 
-function researchHoldoutBindingRequired(candidate: DiscoveredSkillCandidate): boolean {
-  return candidate.version.kind === 'slow-loop-research-bundle-v2'
-    || candidate.version.kind === 'slow-loop-research-revision-v3'
-}
-
-function exactResearchHoldoutPass(
-  candidate: DiscoveredSkillCandidate,
-  holdout: ResearchSkillHoldoutPassReceipt | undefined,
-): string | undefined {
-  if (!researchHoldoutBindingRequired(candidate) || holdout === undefined) return undefined
-  const version = candidate.version
-  if ((version.kind !== 'slow-loop-research-bundle-v2'
-      && version.kind !== 'slow-loop-research-revision-v3')
-    || holdout.kind !== 'research-holdout-pass-v1'
-    || !CONTENT_ID.test(holdout.id)
-    || holdout.candidateId !== candidate.id
-    || holdout.workspaceId !== candidate.workspaceId
-    || holdout.skillName !== candidate.requestedSkill
-    || holdout.researchDigest !== version.researchDigest
-    || holdout.candidateTreeHash !== version.treeHash
-    || holdout.releaseAuthority !== 'none'
-    || (version.kind === 'slow-loop-research-revision-v3'
-      && holdout.id === version.holdoutResultId)) return undefined
-  return holdout.id
-}
-
-function assertTarget(target: DiscoveredSkillAdmissionTargetConfig): void {
+function assertTarget(target: SkillCandidateAdmissionTargetConfig): void {
   if (!PUBLIC_ID.test(target.id) || !PUBLIC_ID.test(target.skill)) {
     throw new Error(`invalid Skill admission target '${target.id}'`)
   }
@@ -674,7 +614,6 @@ interface AdmissionPreparedState {
   readonly targetId: string
   readonly baselineHash: string
   readonly casePackHash: string
-  readonly researchHoldoutResultId?: string
 }
 
 async function prepareOutput(outputDir: string, expected: AdmissionPreparedState): Promise<boolean> {
@@ -716,10 +655,7 @@ async function readPreparedState(outputDir: string): Promise<AdmissionPreparedSt
     || typeof actual.baselineHash !== 'string'
     || !CONTENT_ID.test(actual.baselineHash)
     || typeof actual.casePackHash !== 'string'
-    || !CONTENT_ID.test(actual.casePackHash)
-    || (actual.researchHoldoutResultId !== undefined
-      && (typeof actual.researchHoldoutResultId !== 'string'
-        || !CONTENT_ID.test(actual.researchHoldoutResultId)))) {
+    || !CONTENT_ID.test(actual.casePackHash)) {
     throw new Error('Skill admission state has an invalid shape')
   }
   return actual as unknown as AdmissionPreparedState
@@ -728,7 +664,7 @@ async function readPreparedState(outputDir: string): Promise<AdmissionPreparedSt
 async function readExistingResult(
   outputDir: string,
   expected: AdmissionPreparedState,
-): Promise<DiscoveredSkillAdmissionResult | undefined> {
+): Promise<SkillCandidateAdmissionResult | undefined> {
   if (!await readPrepared(outputDir, expected)) return undefined
   try {
     const value = JSON.parse(await readFile(join(outputDir, 'admission-result.json'), 'utf8')) as unknown
@@ -738,7 +674,6 @@ async function readExistingResult(
       && value.workspaceId === expected.workspaceId
       && value.skillName === expected.skillName
       && value.targetId === expected.targetId
-      && value.researchHoldoutResultId === expected.researchHoldoutResultId
       ? Object.freeze(structuredClone(value))
       : undefined
   } catch {
@@ -748,13 +683,13 @@ async function readExistingResult(
 
 async function finish(
   outputDir: string,
-  value: DiscoveredSkillAdmissionResult,
-): Promise<DiscoveredSkillAdmissionResult> {
+  value: SkillCandidateAdmissionResult,
+): Promise<SkillCandidateAdmissionResult> {
   await writeDurableJson(join(outputDir, 'admission-result.json'), value)
   return value
 }
 
-function isAdmissionResult(value: unknown): value is DiscoveredSkillAdmissionResult {
+function isAdmissionResult(value: unknown): value is SkillCandidateAdmissionResult {
   if (!isRecord(value)
     || value.schemaVersion !== 1
     || typeof value.id !== 'string'
@@ -769,9 +704,6 @@ function isAdmissionResult(value: unknown): value is DiscoveredSkillAdmissionRes
     || !Array.isArray(value.reasons)
     || value.reasons.some(reason => typeof reason !== 'string' || !ADMISSION_REASONS.has(reason))
     || (value.targetId !== undefined && (typeof value.targetId !== 'string' || !PUBLIC_ID.test(value.targetId)))
-    || (value.researchHoldoutResultId !== undefined
-      && (typeof value.researchHoldoutResultId !== 'string'
-        || !CONTENT_ID.test(value.researchHoldoutResultId)))
     || value.releaseAuthority !== 'none') return false
   if (!ADMISSION_STATUSES.has(String(value.status))) return false
   const evidenceValid = value.evidence !== undefined
@@ -789,7 +721,7 @@ function isAdmissionResult(value: unknown): value is DiscoveredSkillAdmissionRes
   const evidence = evidenceValid ? value.evidence as Record<string, unknown> : undefined
   const targetBound = typeof value.targetId === 'string'
   const reasons = value.reasons as string[]
-  const hasReason = (reason: DiscoveredSkillAdmissionReason): boolean =>
+  const hasReason = (reason: SkillCandidateAdmissionReason): boolean =>
     reasons.length === 1 && reasons[0] === reason
   switch (value.status) {
     case 'abstained':
@@ -846,7 +778,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function admissionOutput(value: DiscoveredSkillAdmissionResult): string {
+function admissionOutput(value: SkillCandidateAdmissionResult): string {
   return JSON.stringify({
     candidateId: value.candidateId,
     status: value.status,
@@ -869,11 +801,10 @@ const ADMISSION_STATUSES = new Set([
   'qualified-for-shadow',
 ])
 
-const ADMISSION_REASONS: ReadonlySet<string> = new Set<DiscoveredSkillAdmissionReason>([
+const ADMISSION_REASONS: ReadonlySet<string> = new Set<SkillCandidateAdmissionReason>([
   'no-exact-evaluation-target',
   'candidate-has-executable-content',
   'candidate-is-not-instruction-only',
-  'research-holdout-pass-required',
   'baseline-identity-mismatch',
   'case-pack-identity-mismatch',
   'assembled-evaluator-not-governance-separated',
@@ -886,8 +817,7 @@ const ADMISSION_REASONS: ReadonlySet<string> = new Set<DiscoveredSkillAdmissionR
   'evaluation-failed',
 ])
 
-const INCOMPLETE_REASONS: ReadonlySet<string> = new Set<DiscoveredSkillAdmissionReason>([
-  'research-holdout-pass-required',
+const INCOMPLETE_REASONS: ReadonlySet<string> = new Set<SkillCandidateAdmissionReason>([
   'baseline-identity-mismatch',
   'case-pack-identity-mismatch',
   'assembled-evaluator-not-governance-separated',

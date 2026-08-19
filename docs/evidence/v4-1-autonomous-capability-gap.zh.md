@@ -2,7 +2,7 @@
 
 > 状态：implemented evidence
 > 日期：2026-08-18
-> 边界：证明 DSH 原生自然语言 Goal 到可追踪 Gap 与隔离发现的第一条纵切；不证明完整自主 Skill 获取、生成或长期进化。
+> 边界：证明 DSH 原生自然语言 Goal 到可追踪 Gap 与内部 Skill Opportunity 的第一条纵切；不证明完整候选生成、评测或长期进化。
 
 ## 用户结果
 
@@ -14,8 +14,8 @@
 {"name":"report_capability_gap","arguments":{"name":"publish-dsh-plugin"}}
 ```
 
-该调用不是安装命令。Host 接受后会记录一个可复核 Gap，当前 Session 继续正常运行；后台只在部署者
-显式授信范围内搜索，候选始终 inactive、quarantined、never-executed。
+该调用不是安装命令。Host 接受后会记录一个可复核 Gap，当前 Session 继续正常运行；后台只从同一
+Workspace 的 DSH-owned Goal 经验归纳 Skill Opportunity，不搜索、获取、下载、导入或安装外部 Skill。
 
 ## 权威链路
 
@@ -25,21 +25,21 @@
 3. Host 重新核对 native Agent、Workspace/Session identity、active native Goal、完整 catalog/hash，以及
    exact name 当前不存在；模型的自述本身不是证据。
 4. `CapabilityGapStore` 先持久化 `model-declared-skill-gap`、Goal revision 与 catalog evidence，再返回回执并
-   非阻塞唤醒 trusted discovery。调度器同步抛错或异步拒绝不能撤销已持久化回执。
-5. 发现循环只读取显式配置的本地 Git checkout/mirror。V4-1 首先证明 exact-name 固定 commit、tree hash、
-   content hash 与 whole-Skill package metadata；其后的 exact-first 确定性语义回退见
-   [V4-2](v4-2-trusted-semantic-skill-search.zh.md)。
-6. 已接通的 deterministic admission 与独立 assembled holdout Shadow 都不给候选 release authority；清晰
+   非阻塞唤醒内部 Opportunity reconciliation。调度器同步抛错或异步拒绝不能撤销已持久化回执。
+5. `ExperienceDrivenSkillOpportunityDiscovery` 只读取 durable Goal-linked Gap；同 Workspace、同 Skill 且
+   至少两个不同 Goal 才形成 Opportunity，同 Goal retry 和证据不足 abstain。
+6. 内部 Candidate 的 deterministic admission 与独立 assembled holdout Shadow 都不给候选 release authority；清晰
    胜出也只形成 inactive human-review Candidate，晋升只可能影响未来 Session。
 7. `dsh-evolve-web` 复用同一权威 control service 展示 Capability Map、Gap queue、Goal、catalog evidence、
-   Skill 候选、来源、权限与 inactive 状态，不调用模型，也不提供选路、安装或静默激活按钮。
+   Skill Opportunity、Candidate 内部谱系、权限与 inactive 状态，不调用模型，也不提供选路、安装或静默激活按钮。
 
 ## 可复核实现
 
 - Tool 与 Host 门禁：`packages/dsh-evolve/src/capability-gap-tool.ts`
 - catalog 生命周期：`packages/dsh-evolve/src/capability-map.ts`、`packages/dsh-evolve/src/index.ts`
 - durable evidence：`packages/dsh-evolve/src/capability-gap-store.ts`
-- trusted discovery/quarantine：`packages/dsh-evolve/src/trusted-skill-discovery.ts`
+- 内部 Opportunity：`packages/dsh-evolve/src/skill-opportunity-discovery.ts`
+- Candidate quarantine：`packages/dsh-evolve/src/skill-candidate-repository.ts`
 - 控制面投影：`packages/dsh-evolve/src/evolution-control-plane.ts`
 - Web Gap queue：`packages/dsh-evolve-web/src/client/EvolutionAction.tsx`
 
@@ -56,11 +56,8 @@
 
 ## 没有被证明的内容
 
-- Tool 自身不搜索网络；本证据冻结时后台只支持显式授信本地 Git。后续 [V4-4](v4-4-agent-skills-index-discovery.zh.md)
-  与 [V4-5](v4-5-agent-skills-archive-quarantine.zh.md) 已增加 Agent Skills v0.2 单文件/整包制品的显式授信
-  获取，但任意市场/官方资料/论文/开源搜索仍不在本条内。
-- 找不到现成 whole-Skill 时尚不能自主生成或组合新 Skill；跨 Goal 需求已能形成 evidence-only 聚类，但
-  尚不能驱动受预算约束的搜索/生成调度，详见 [V4-3](v4-3-cross-goal-gap-demand.zh.md)。
+- 旧 trusted-local、Agent Skills 与 runtime research 路径已经撤销并删除；本证据不支持任何运行时能力获取声明。
+- 当前至少两个 Goal-linked Gap 可驱动受预算约束的内部 whole-Skill author，见 [V4-8](v4-8-internal-skill-opportunity-discovery.zh.md) 与 [V4-9](v4-9-internal-skill-candidate-boundary.zh.md)；完整 correction/outcome/cost/reuse/retention 归因仍未实现。
 - 固定 Adapter 证明原生 Agent Loop 组合，不证明真实模型总能判断“无适用 Skill”、提出正确名称或避免
   误报；需要真实模型正例、已有近似 Skill 负例与对抗 Goal 的 paired benchmark。
 - 现有 admission/Shadow 证明候选不能直接激活，不等于已经有足够长期 transfer、retention、

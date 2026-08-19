@@ -13,7 +13,7 @@ import type {
   GenerationInput,
 } from '../src/generation-store.js'
 import type { ReviewCandidate } from '../src/review-inbox.js'
-import type { DiscoveredSkillLineage } from '../src/discovered-skill-lineage.ts'
+import type { SkillCandidateLineage } from '../src/skill-candidate-lineage.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const execFile = promisify(execFileCallback)
@@ -349,29 +349,19 @@ async function createFixture(): Promise<{
   return { root, repository, baseCommit, baseGitTree, otherGitTree, baseline, candidate }
 }
 
-function discoveredLineage(candidateTreeHash: string): DiscoveredSkillLineage {
+function discoveredLineage(candidateTreeHash: string): SkillCandidateLineage {
   return {
-    kind: 'discovered-skill-lineage-v1',
+    kind: 'internal-skill-candidate-lineage-v1',
     candidateId: '1'.repeat(64),
     workspaceId: WORKSPACE_ID,
     skillName: 'stable-skill',
-    versionKind: 'slow-loop-research-revision-v3',
-    source: {
-      id: 'stable-skill-author',
-      kind: 'slow-loop-author',
-      trust: 'bounded-host-authoring',
-    },
+    opportunityId: '4'.repeat(64),
+    policyId: 'stable-skill-author',
+    versionKind: 'experience-authored-bundle-v1',
     contentHash: '2'.repeat(64),
     candidateTreeHash,
     admissionId: '3'.repeat(64),
     admissionTargetId: 'stable-skill-admission',
-    research: {
-      researchDigest: '4'.repeat(64),
-      parentCandidateId: '5'.repeat(64),
-      parentTreeHash: '6'.repeat(64),
-      revisionHoldoutResultId: '7'.repeat(64),
-      researchHoldoutResultId: '8'.repeat(64),
-    },
     releaseAuthority: 'none',
   }
 }

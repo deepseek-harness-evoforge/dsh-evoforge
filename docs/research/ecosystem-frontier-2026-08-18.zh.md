@@ -1,14 +1,14 @@
 # DSH 插件组、自进化与个人 Agent 生态增量调研
 
 > 调研日期：2026-08-18  
-> 用途：约束 EvoForge 产品需求、架构与后续实现；不是既有实现完成声明。  
+> 用途：保留 2026-08-18 的生态事实与备选方案审计；不是既有实现完成声明，也不是当前产品需求。2026-08-19 目标纠正已经否决运行时能力获取、外部 Skill 搜索/下载/导入和 ClawHub 工作流；当前决策见 [目标重新对齐审计](../audits/2026-08-19-goal-realignment.zh.md)、[ADR-0048](../adr/0048-self-discovery-learns-from-dsh-experience.md) 与 [ADR-0050](../adr/0050-internal-candidates-replace-runtime-skill-acquisition.md)。
 > 一手基线：DeepSeek Harness 兼容检出 `47f943859bef60e4160492346772ded9b24f765a`，2026-08-18 官方 `master` 已观测到 `99f6f02fecdb7dff40c3fbc9470f5907c29f74ca`；Hermes Agent `e02d1e41fc6104187e20af9eac8b2820566e3508`；Hermes Self-Evolution `0a929e3aa20e15cf04dc7c28492a7d41a5139125`；OpenClaw `d412c6b284e4e000d27b9d4a849fc46b05f54546`；HanaAgent 仓库 `openhanako` `c6d0405294be67cb134c2758f6472748ee73e2be`。whole-Skill 增量审计见 [V4-7 研究与组合审计](v4-7-whole-skill-grounding-audit.zh.md)。开发前仍须重新固定 DSH 当前官方 revision，不能把本文记忆当 API。
 
 ## 结论
 
-目标应是“一组可直接安装到 deepseek-harness 的 DSH 插件”，不能写成 Codex 插件，也不能把 Hermes 的实现原样搬进 DSH。用户只提交自然语言 Goal、材料、约束与验收条件；系统内部自主完成能力检索、路径选择、执行、缺口发现、Skill 发现/生成/组合、验证、晋升和复用，开头不得要求用户选择任务类别、工作流、Agent 或 Skill。
+目标应是“一组可直接安装到 deepseek-harness 的 DSH 插件”，不能写成 Codex 插件，也不能把 Hermes 的实现原样搬进 DSH。用户只提交自然语言 Goal、材料、约束与验收条件；系统自主盘点和组合 DSH 已安装能力、规划执行，并从 DSH 自己的真实运行经历形成 Skill Opportunity、内部 Candidate、验证、晋升和复用，开头不得要求用户选择任务类别、工作流、Agent、Skill、来源或路径。
 
-真正有竞争力的形态是三平面、双速闭环：稳定执行面负责当前任务；隔离进化面生成候选；候选不可修改的治理/评测面掌握 holdout、gold、权限和晋升。在线快环捕获可归因的纠正、成功步骤、返工和成本信号，只形成小步候选；离线慢环聚类能力缺口，搜索本地与市场 Skill、官方资料、论文和开源实现，生成完整 Skill 包候选，经隔离多任务 rollout、baseline/candidate 对照、未见样本、回归、安全、成本与时延门禁后，才对未来 Session 晋升。没有证据时允许 abstain；一次成功、模型自评、使用次数或普通 retry 都不等于进化。
+真正有竞争力的形态是三平面、双速闭环：稳定执行面负责当前任务；隔离进化面生成候选；候选不可修改的治理/评测面掌握 holdout、gold、权限和晋升。在线快环捕获可归因的纠正、真实结果、返工、复用和成本信号；离线慢环只从这些内部证据聚类机会、生成完整内部 Skill Candidate，并经隔离多任务 rollout、baseline/candidate 对照、未见样本、回归、安全、成本与时延门禁后，才对未来 Session 晋升。开发者可在设计阶段研究论文和开源实现，但运行时不得借此搜索或获取 Skill。没有证据时允许 abstain；一次成功、模型自评、使用次数或普通 retry 都不等于进化。
 
 ## 1. DSH 官方边界
 
@@ -39,7 +39,9 @@ HanaAgent（官方仓库仍名 `openhanako`）面向普通用户，支持主动�
 
 应学习它的无术语入口、拖拽安装、图形化、桥接与两级权限；同时为每个 Skill 明确稳定 identity、来源、scope、版本、优先级、冲突和去重，避免“目录里存在多个同名 Skill，却无法解释实际使用哪一个”。
 
-## 5. 外部 Skill 市场与开放发现协议的增量核验
+## 5. 外部 Skill 市场与开放发现协议的事实核验（运行时方案已否决）
+
+本节保留竞品和供应链事实，用于解释为什么不能把外部获取冒充自我发现。它不构成 EvoForge 的运行时需求，相关旧实现已经删除。
 
 OpenClaw 当前已经把 ClawHub 明确为公开 Skill/插件 registry：原生命令支持 search/install/update，安装会
 记录来源，用户可在安装前查看版本、changelog 与 scan 状态；`verify` 还能读取 registry 的 trust envelope。
@@ -61,30 +63,28 @@ Cloudflare 发起的 Agent Skills Discovery via Well-Known URIs 当前状态是 
 [Agent Skills Discovery draft v0.2](https://github.com/cloudflare/agent-skills-discovery-rfc/blob/main/README.md) ·
 [Agent Skills specification](https://agentskills.io/specification)
 
-**设计推断：** EvoForge 首个网络纵切应优先采用这个开放、digest-pinned 的 index，而不是绑定 ClawHub
-私有 API 或 popularity 排名；但只能把它当供应链输入。当前实现固定 v0.2、显式配置、HTTPS、同源和
-SHA-256；`skill-md` 经过 bounded UTF-8 校验，archive 在验证原始制品摘要后才以 `.tar.gz`/`.zip` 进入
-纯内存解码，并对 traversal、绝对路径、重复/冲突路径、symlink/hardlink/特殊文件、文件数、单文件与
-解压总量 fail closed。两者都只进入 durable quarantine，不执行、不安装、不激活。ClawHub adapter、任意
-Web/GitHub 搜索和候选生成仍分开排期。实现所用流式解析器以官方项目文档为准：
-[tar-stream](https://github.com/mafintosh/tar-stream) · [yauzl](https://github.com/thejoshwolfe/yauzl)。
+**已否决的历史推断：** 早期方案曾建议采用 digest-pinned index 作为首个网络纵切，并实现显式配置、
+HTTPS、同源、SHA-256、bounded 解码和 quarantine。该取舍与当前“内部经验自我发现”目标冲突，活动
+源码、zip 依赖、存储变体和 Web 投影均已删除；不再排期 ClawHub、Agent Skills、任意 Web/GitHub 搜索
+或外部 Skill 获取。`tar-stream` 现在只用于 Host 自己生成并核验 canonical text-only Candidate 包，
+不解析网络获取制品。[tar-stream](https://github.com/mafintosh/tar-stream)
 
 ## 6. 前沿实现带来的新增硬要求
 
 - **EvoSkill**：从失败轨迹发现/修改 Skill，用 Pareto frontier 和 held-out validation 选择，并报告跨任务迁移；说明“发现能力”与“保留能力”必须分开。[论文](https://arxiv.org/abs/2603.02766) · [代码](https://github.com/sentient-agi/EvoSkill)
 - **SkillHone**：进化单位是整个 Skill folder（`SKILL.md + scripts + references`），eval 与 Skill 通过代码路径/文件权限隔离，每个决策有 Git 审计；DSH 应做整包原子版本，而非只改 prompt。[官方仓库](https://github.com/Tencent/SkillHone) · [论文](https://arxiv.org/abs/2606.08671)
-- **OpenSkill**：当没有现成 Skill、成功轨迹或 verifier 时，从官方文档、仓库和 Web 获取知识与 verification anchors，构造虚拟任务，再把真实目标保留给 final evaluation；这给“自我发现 Skill”一个可实现定义。[论文](https://arxiv.org/abs/2606.06741) · [代码](https://github.com/OpenLAIR/OpenSkill)
+- **OpenSkill**：当没有现成 Skill、成功轨迹或 verifier 时，从官方文档、仓库和 Web 获取知识与 verification anchors，构造虚拟任务，再把真实目标保留给 final evaluation；这是值得研究的外部 grounding 方案，但不作为 EvoForge 运行时自我发现定义或能力获取入口。[论文](https://arxiv.org/abs/2606.06741) · [代码](https://github.com/OpenLAIR/OpenSkill)
 - **Adaptive Auto-Harness**：开放任务流下，一个反复密集改写的单体 harness 会变脆；应保留专门化能力树并在 solve-time 自动路由，缺失信号时允许人类 steering。[论文](https://arxiv.org/abs/2606.01770) · [代码](https://github.com/A-EVO-Lab/AdaptiveHarness)
 - **PAST-Bench**：用按顺序的新 Session、retention on/off 匹配对照，同时测后续收益和 save→retrieve→update 路径证据；说明验收不能只看最终正确率。[论文](https://arxiv.org/abs/2608.04003) · [代码](https://github.com/Gen-Verse/PAST-Bench)
 - **EvoAgentBench**：自动方法没有在所有设置持续获得正收益；应测跨任务/模型 transfer、error avoidance、Skill routing/uptake，而非发布一次分数。[论文](https://arxiv.org/abs/2607.05202) · [代码](https://github.com/EverMind-AI/EvoAgentBench)
 - **DGM**：候选 archive 和谱系比贪心保留单一冠军更能避免局部最优；但模型生成代码必须被强隔离，不能获得 evaluator、gold、权限或发布面的写权。[论文](https://arxiv.org/abs/2505.22954) · [代码](https://github.com/jennyzzt/dgm)
 
-由此得到不可缩减的评测维度：任务成功率、首次成功率、人工选路/干预次数、失败恢复、Skill 发现召回与错误调用、跨任务复用/迁移、负迁移、保留与遗忘、安全回归、成本、时延、cache-read、回滚正确性；并记录每个 signal→gap→candidate→trial→decision→generation 的完整证据链。
+由此得到不可缩减的评测维度：任务成功率、首次成功率、人工选路/干预次数、失败恢复、已安装 Skill 路由与 Opportunity precision/recall、错误调用、跨任务复用/迁移、负迁移、保留与遗忘、安全回归、成本、时延、cache-read、回滚正确性；并记录每个 signal→gap→opportunity→candidate→trial→decision→generation 的完整证据链。
 
 ## 7. 插件组与交付约束
 
-最小合理拆分是：`evolution-core`（闭环、版本与治理）、`skill-discovery`（本地/市场/官方资料与开源证据）、`eval-lab`（隔离评测）、`integrations-feishu`（双向消息、文件、卡片、通知、身份/会话映射、幂等与审批）、`evolution-web`（DSH Web 页面/API）。它们共享一个版本化事件/存储契约，但各自可安装、禁用、卸载；其他消息、日历、内容等 Adapter 按证据增量加入，不做巨型 Gateway。
+当前插件边界是：`dsh-evolve`（内部经验、Opportunity、Candidate、隔离评测、晋升与回滚）、`dsh-evolve-web`（权威 DSH Web 控制面）、`dsh-gateway`（Adapter 生命周期、标准化、身份/Session/Goal 映射、持久投递、幂等、重试、去重、路由、诊断、限流与最小权限）、`dsh-feishu` 与 `dsh-telegram`（薄 Adapter）、`dsh-software-delivery`（真实交付验证）和 `dsh-doctor`（安装、配置、连接与运行诊断）。它们各自可安装、禁用和卸载；Gateway 不拥有第二 Agent Runtime、Session、Goal 或 Approval，也不演变为巨型业务网关。
 
-DSH Web 至少展示 capability map、gap queue、Skill 来源/scope/version/utility、候选谱系和 diff、基线/候选/holdout 分数、失败归因、证据、成本/时延/cache、安全扫描、quarantine/promotion/rollback、当前 Generation/tag，以及飞书连接健康与投递状态。UI 只读投影权威 host 状态，关键动作走 DSH Approval，并做真实浏览器端到端验证。
+DSH Web 至少展示 capability map、内部 evidence/gap/Opportunity、Candidate scope/version/content/tree、谱系和 diff、基线/候选/holdout 分数、失败归因、证据、成本/时延/cache、安全权限、Shadow/Retention、quarantine/promotion/rollback，以及 Gateway/飞书/Telegram 连接和投递健康。UI 投影权威 Host 状态，关键受保护动作走 DSH Approval，并做真实浏览器端到端验证。
 
 仓库工作流按用户约束：只在 `main` 小步 commit/push 实时同步，不创建功能分支或发布分支；核心功能整体验证通过后才打 annotated semantic tag，之后每个可验证迭代继续以 tag 标记。运行时 Candidate 不等于代码分支，必须进入隔离、内容寻址的候选存储；只有通过门禁的受测资产才能晋升，不能污染 `main` 或活动 Session。

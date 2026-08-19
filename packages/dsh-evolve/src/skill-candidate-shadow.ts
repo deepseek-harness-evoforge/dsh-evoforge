@@ -4,18 +4,18 @@ import { lstat, readFile, realpath } from 'node:fs/promises'
 import type { JobRegistry } from '@deepseek-ai/dsh-jobs'
 import { hashTree } from './hash.ts'
 import type {
-  DiscoveredSkillAdmission,
-  DiscoveredSkillAdmissionResult,
-  QualifiedDiscoveredSkillShadowInput,
-} from './discovered-skill-admission.ts'
+  SkillCandidateAdmission,
+  SkillCandidateAdmissionResult,
+  QualifiedSkillCandidateShadowInput,
+} from './skill-candidate-admission.ts'
 import { parseCasePackManifest, runShadow } from './shadow.ts'
-import type { DiscoveredSkillCandidate } from './trusted-skill-discovery.ts'
+import type { ExperienceSkillCandidate } from './skill-candidate-repository.ts'
 
 const CONTENT_ID = /^[a-f0-9]{64}$/
 const PUBLIC_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const MAX_TARGETS = 100
 
-export interface DiscoveredSkillShadowTargetConfig {
+export interface SkillCandidateShadowTargetConfig {
   readonly id: string
   readonly workspaceId: string
   readonly skill: string
@@ -24,7 +24,7 @@ export interface DiscoveredSkillShadowTargetConfig {
   readonly runRoot: string
 }
 
-interface ResolvedTarget extends DiscoveredSkillShadowTargetConfig {
+interface ResolvedTarget extends SkillCandidateShadowTargetConfig {
   readonly casePackDir: string
   readonly runRoot: string
 }
@@ -33,30 +33,30 @@ type ShadowResult = Awaited<ReturnType<typeof runShadow>>
 
 interface QualifiedAdmissionReader {
   qualifiedShadowInput(
-    candidate: DiscoveredSkillCandidate,
-    admission: DiscoveredSkillAdmissionResult,
-  ): Promise<QualifiedDiscoveredSkillShadowInput>
+    candidate: ExperienceSkillCandidate,
+    admission: SkillCandidateAdmissionResult,
+  ): Promise<QualifiedSkillCandidateShadowInput>
 }
 
-/** Governance-separated assembled holdout for one exact pre-admitted discovery Candidate. */
-export class DiscoveredSkillShadowLauncher {
+/** Governance-separated assembled holdout for one exact pre-admitted internal Candidate. */
+export class SkillCandidateShadowLauncher {
   private readonly targets = new Map<string, ResolvedTarget>()
   private readonly admission: QualifiedAdmissionReader
   private readonly runner: typeof runShadow
 
   constructor(
-    targets: readonly DiscoveredSkillShadowTargetConfig[],
-    admission: Pick<DiscoveredSkillAdmission, 'qualifiedShadowInput'>,
+    targets: readonly SkillCandidateShadowTargetConfig[],
+    admission: Pick<SkillCandidateAdmission, 'qualifiedShadowInput'>,
     options: { runShadow?: typeof runShadow } = {},
   ) {
     if (targets.length > MAX_TARGETS) {
-      throw new Error(`discovered Skill Shadow supports at most ${MAX_TARGETS} targets`)
+      throw new Error(`Skill Candidate Shadow supports at most ${MAX_TARGETS} targets`)
     }
     for (const input of targets) {
       assertTarget(input)
       const key = targetKey(input.workspaceId, input.skill)
       if (this.targets.has(key)) {
-        throw new Error(`duplicate discovered Skill Shadow target for '${input.skill}'`)
+        throw new Error(`duplicate Skill Candidate Shadow target for '${input.skill}'`)
       }
       this.targets.set(key, Object.freeze({
         ...input,
@@ -69,23 +69,23 @@ export class DiscoveredSkillShadowLauncher {
   }
 
   matches(
-    candidate: DiscoveredSkillCandidate,
-    admission: DiscoveredSkillAdmissionResult,
+    candidate: ExperienceSkillCandidate,
+    admission: SkillCandidateAdmissionResult,
   ): boolean {
     return admission.status === 'qualified-for-shadow'
       && admission.candidateId === candidate.id
-      && this.targets.has(targetKey(candidate.workspaceId, candidate.requestedSkill))
+      && this.targets.has(targetKey(candidate.workspaceId, candidate.skillName))
   }
 
   async launch(
-    candidate: DiscoveredSkillCandidate,
-    admission: DiscoveredSkillAdmissionResult,
+    candidate: ExperienceSkillCandidate,
+    admission: SkillCandidateAdmissionResult,
     options: { signal?: AbortSignal } = {},
   ): Promise<ShadowResult> {
     options.signal?.throwIfAborted()
-    const target = this.targets.get(targetKey(candidate.workspaceId, candidate.requestedSkill))
+    const target = this.targets.get(targetKey(candidate.workspaceId, candidate.skillName))
     if (target === undefined || !this.matches(candidate, admission)) {
-      throw new Error('qualified Candidate has no exact discovered Skill Shadow target')
+      throw new Error('qualified Candidate has no exact Skill Candidate Shadow target')
     }
     const source = await this.admission.qualifiedShadowInput(candidate, admission)
     const [casePackDir, runRoot] = await Promise.all([
@@ -94,17 +94,17 @@ export class DiscoveredSkillShadowLauncher {
     ])
     assertIndependentRoots(source, casePackDir, runRoot)
     if (target.casePackHash === source.admissionCasePackHash) {
-      throw new Error('discovered Skill Shadow must use an independent holdout Case Pack')
+      throw new Error('Skill Candidate Shadow must use an independent holdout Case Pack')
     }
     if (await hashTree(casePackDir) !== target.casePackHash) {
-      throw new Error('discovered Skill Shadow Case Pack identity mismatch')
+      throw new Error('Skill Candidate Shadow Case Pack identity mismatch')
     }
     const manifest = parseCasePackManifest(await readFile(join(casePackDir, 'manifest.json'), 'utf8'))
     if (manifest.id !== target.id
       || manifest.workspaceId !== candidate.workspaceId
       || manifest.trial?.dshAssembled !== true
       || manifest.calibration === undefined) {
-      throw new Error('discovered Skill Shadow requires its exact assembled holdout manifest')
+      throw new Error('Skill Candidate Shadow requires its exact assembled holdout manifest')
     }
     const id = shadowId(candidate, admission, target)
     const outputDir = join(runRoot, id)
@@ -112,7 +112,7 @@ export class DiscoveredSkillShadowLauncher {
     try {
       const info = await lstat(outputDir)
       if (!info.isDirectory() || info.isSymbolicLink() || await realpath(outputDir) !== outputDir) {
-        throw new Error('discovered Skill Shadow output is not an exact owned directory')
+        throw new Error('Skill Candidate Shadow output is not an exact owned directory')
       }
       resume = true
     } catch (error) {
@@ -135,21 +135,21 @@ export class DiscoveredSkillShadowLauncher {
 }
 
 /** Native Jobs handoff; a rejected start stays pending until the next Job settlement. */
-export class DiscoveredSkillShadowScheduler {
-  private readonly launcher: Pick<DiscoveredSkillShadowLauncher, 'launch' | 'matches'>
+export class SkillCandidateShadowScheduler {
+  private readonly launcher: Pick<SkillCandidateShadowLauncher, 'launch' | 'matches'>
   private readonly pending = new Map<string, {
-    candidate: DiscoveredSkillCandidate
-    admission: DiscoveredSkillAdmissionResult
+    candidate: ExperienceSkillCandidate
+    admission: SkillCandidateAdmissionResult
   }>()
   private readonly active = new Set<string>()
   private jobs: Pick<JobRegistry, 'start' | 'onJobDone'> | undefined
 
-  constructor(launcher: Pick<DiscoveredSkillShadowLauncher, 'launch' | 'matches'>) {
+  constructor(launcher: Pick<SkillCandidateShadowLauncher, 'launch' | 'matches'>) {
     this.launcher = launcher
   }
 
   attachJobs(jobs: Pick<JobRegistry, 'start' | 'onJobDone'>): () => void {
-    if (this.jobs !== undefined) throw new Error('discovered Skill Shadow Jobs seam is already attached')
+    if (this.jobs !== undefined) throw new Error('Skill Candidate Shadow Jobs seam is already attached')
     this.jobs = jobs
     const detachDone = jobs.onJobDone(() => this.drain())
     this.drain()
@@ -159,7 +159,7 @@ export class DiscoveredSkillShadowScheduler {
     }
   }
 
-  observe(candidate: DiscoveredSkillCandidate, admission: DiscoveredSkillAdmissionResult): void {
+  observe(candidate: ExperienceSkillCandidate, admission: SkillCandidateAdmissionResult): void {
     if (!this.launcher.matches(candidate, admission)
       || admission.status !== 'qualified-for-shadow'
       || this.active.has(admission.id)) return
@@ -178,14 +178,14 @@ export class DiscoveredSkillShadowScheduler {
       try {
         jobs.start({
           kind: 'evolution',
-          label: `assembled discovered Skill Shadow: ${input.candidate.requestedSkill}`,
+          label: `assembled Skill Candidate Shadow: ${input.candidate.skillName}`,
           outputLimitBytes: 2_048,
           run: () => {
             const task = this.launcher.launch(input.candidate, input.admission, {
               signal: controller.signal,
             })
             return {
-              cancel: (reason?: string) => controller.abort(new Error(reason ?? 'discovered Skill Shadow cancelled')),
+              cancel: (reason?: string) => controller.abort(new Error(reason ?? 'Skill Candidate Shadow cancelled')),
               done: task.then(value => ({
                 status: controller.signal.aborted ? 'killed' as const : 'completed' as const,
                 detail: controller.signal.aborted ? errorDetail(controller.signal.reason) : value.status,
@@ -211,21 +211,21 @@ export class DiscoveredSkillShadowScheduler {
   }
 }
 
-function assertTarget(target: DiscoveredSkillShadowTargetConfig): void {
+function assertTarget(target: SkillCandidateShadowTargetConfig): void {
   if (!PUBLIC_ID.test(target.id) || !PUBLIC_ID.test(target.skill)
     || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
       .test(target.workspaceId)
     || !CONTENT_ID.test(target.casePackHash)) {
-    throw new Error(`invalid discovered Skill Shadow target '${target.id}'`)
+    throw new Error(`invalid Skill Candidate Shadow target '${target.id}'`)
   }
   if (!isAbsolute(target.casePackDir) || !isAbsolute(target.runRoot)
     || dirname(resolve(target.runRoot)) === resolve(target.runRoot)) {
-    throw new Error(`discovered Skill Shadow target '${target.id}' requires absolute non-root paths`)
+    throw new Error(`Skill Candidate Shadow target '${target.id}' requires absolute non-root paths`)
   }
 }
 
 function assertIndependentRoots(
-  source: QualifiedDiscoveredSkillShadowInput,
+  source: QualifiedSkillCandidateShadowInput,
   casePackDir: string,
   runRoot: string,
 ): void {
@@ -238,12 +238,12 @@ function assertIndependentRoots(
   for (const shadowRoot of [casePackDir, runRoot]) {
     for (const admissionRoot of admissionRoots) {
       if (!separate(shadowRoot, admissionRoot)) {
-        throw new Error('discovered Skill Shadow governance roots must be isolated from admission inputs')
+        throw new Error('Skill Candidate Shadow governance roots must be isolated from admission inputs')
       }
     }
   }
   if (!separate(casePackDir, runRoot)) {
-    throw new Error('discovered Skill Shadow Case Pack and run root must be isolated')
+    throw new Error('Skill Candidate Shadow Case Pack and run root must be isolated')
   }
 }
 
@@ -256,12 +256,12 @@ function separate(left: string, right: string): boolean {
 }
 
 function shadowId(
-  candidate: DiscoveredSkillCandidate,
-  admission: DiscoveredSkillAdmissionResult,
+  candidate: ExperienceSkillCandidate,
+  admission: SkillCandidateAdmissionResult,
   target: ResolvedTarget,
 ): string {
   return createHash('sha256').update(JSON.stringify([
-    'discovered-skill-shadow-v1',
+    'skill-candidate-shadow-v1',
     candidate.id,
     admission.id,
     target.id,

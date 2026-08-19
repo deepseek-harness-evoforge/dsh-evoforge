@@ -1,5 +1,7 @@
 # V4-3 跨 Goal Capability Gap 需求聚类证据
 
+> 历史演进证据：本页的 external Candidate resolution/cluster 算法已删除，不代表当前产品状态。当前同 Workspace、同 Skill、跨 Goal 规则由 `SkillOpportunity` 表达，见 [V4-8](v4-8-internal-skill-opportunity-discovery.zh.md) 与 [V4-9](v4-9-internal-skill-candidate-boundary.zh.md)。
+
 > 状态：implemented evidence
 > 日期：2026-08-18
 > 边界：证明 durable Gap 可以在不调用模型、不污染当前 Session 的情况下形成保守、可解释的跨 Goal 需求证据；不证明聚类已经能自动搜索网络、生成 Skill 或完成慢环。

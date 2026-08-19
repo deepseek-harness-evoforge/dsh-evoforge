@@ -1,5 +1,7 @@
 # V4-7：一次性 Research Skill 修订纵切证据
 
+> 历史撤销证据：本页记录已删除的运行时 research revision 方案，不代表当前产品能力。当前慢环不读取外部研究或旧 revision shape，见 [V4-9](v4-9-internal-skill-candidate-boundary.zh.md)。
+
 日期：2026-08-18
 
 本切片实现独立 Holdout 失败后的唯一受控反馈边，不把 Hermes/OpenClaw 的自改循环照搬进 DSH。设计原则来自

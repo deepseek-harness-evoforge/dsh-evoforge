@@ -17,16 +17,13 @@ const otherWorkspaceId = '22222222-2222-4222-8222-222222222222'
 const sessionId = 'session-1'
 
 const discoveredLineage = {
-  kind: 'discovered-skill-lineage-v1' as const,
+  kind: 'internal-skill-candidate-lineage-v1' as const,
   candidateId: '8'.repeat(64),
   workspaceId,
   skillName: 'build-dsh-plugin',
-  versionKind: 'slow-loop-author-bundle-v1' as const,
-  source: {
-    id: 'bounded-author',
-    kind: 'slow-loop-author' as const,
-    trust: 'bounded-host-authoring' as const,
-  },
+  opportunityId: '7'.repeat(64),
+  policyId: 'bounded-author',
+  versionKind: 'experience-authored-bundle-v1' as const,
   contentHash: '9'.repeat(64),
   candidateTreeHash: '1'.repeat(64),
   admissionId: 'a'.repeat(64),
@@ -294,7 +291,7 @@ const t = (key: string) => ({
   'skills.gaps.confirmed': 'Confirmed by complete DSH catalog',
   'skills.gaps.catalog': 'Catalog evidence',
   'skills.gaps.inactive': 'No Skill was installed or executed.',
-  'skills.opportunities': 'Self-discovered Skill opportunities',
+  'skills.opportunities': 'Self-Skill Candidate opportunities',
   'skills.opportunities.empty': 'Internal experience has not produced a reliable Skill opportunity yet.',
   'skills.opportunities.goals': 'distinct Goals',
   'skills.opportunities.observations': 'Gap observations',
@@ -307,59 +304,17 @@ const t = (key: string) => ({
   'skills.slow-loop.empty': 'No authoring run has met the threshold.',
   'skills.slow-loop.phase.candidate-ready': 'Quarantined candidate ready',
   'skills.slow-loop.cost': 'Model calls · input/output tokens',
-  'skills.slow-loop.research': 'Research evidence digest',
   'skills.slow-loop.candidate': 'Candidate',
   'skills.slow-loop.retry': 'Earliest retry',
   'skills.slow-loop.release.none': 'Quarantined Candidate only · No install, activation, or release',
-  'skills.research-holdout': 'Independent research Holdout',
-  'skills.research-holdout.targets': 'verification targets',
-  'skills.research-holdout.warnings': 'invalid durable evidence records',
-  'skills.research-holdout.empty': 'No independent research Holdout has completed.',
-  'skills.research-holdout.status.pass': 'Independent verification passed',
-  'skills.research-holdout.target': 'Holdout target',
-  'skills.research-holdout.lineage': 'Research → Candidate tree → evaluator identity',
-  'skills.research-holdout.cost': 'Model calls · input/output tokens',
-  'skills.research-holdout.anchor': 'Verification anchor digest',
-  'skills.research-holdout.assessment.satisfied': 'satisfied',
-  'skills.research-holdout.reason.all-verification-anchors-satisfied': 'All withheld verification anchors are satisfied',
-  'skills.research-holdout.retry': 'Earliest retry',
-  'skills.research-holdout.governance': 'Withheld anchors · Independent evaluator · Candidate not executed',
-  'skills.research-holdout.release.none': 'Evidence only · No install, activation, or release authority',
-  'skills.research-revision': 'One-shot research revision',
-  'skills.research-revision.targets': 'revision targets',
-  'skills.research-revision.warnings': 'invalid durable revision records',
-  'skills.research-revision.empty': 'No one-shot research revision has completed.',
-  'skills.research-revision.status.candidate-ready': 'Quarantined v3 ready',
-  'skills.research-revision.target': 'Revision target',
-  'skills.research-revision.lineage': 'Research → parent tree → Holdout → reviser identity',
-  'skills.research-revision.input': 'Bounded revision input digest',
-  'skills.research-revision.candidate': 'v3 Candidate',
-  'skills.research-revision.cost': 'Model calls · input/output tokens',
-  'skills.research-revision.reason.revised-candidate-ready': 'One revision completed; v3 will re-enter independent Holdout',
-  'skills.research-revision.retry': 'Earliest retry',
-  'skills.research-revision.governance': 'Original v2 only · One call · No recursive v3 revision · Candidate not executed',
-  'skills.research-revision.release.none': 'Quarantined Candidate only · No install, activation, or release authority',
   'skills.discovery': 'Internally authored Skill candidates',
   'skills.discovery.quarantined': 'Quarantined candidate',
-  'skills.discovery.source.local-git': 'Local Git',
-  'skills.discovery.source.agent-skills-index': 'Agent Skills index',
-  'skills.discovery.source.slow-loop-author': 'Internal experience author',
-  'skills.discovery.trust.explicit-deployer-config': 'Explicit deployer trust',
-  'skills.discovery.trust.bounded-host-authoring': 'Bounded host authoring',
-  'skills.discovery.origin': 'Source origin',
-  'skills.discovery.version.git': 'Git commit',
-  'skills.discovery.version.index': 'Agent Skills v0.2',
-  'skills.discovery.version.slow-loop': 'Slow-loop author v1',
-  'skills.discovery.version.slow-loop-bundle': 'Slow-loop whole-Skill bundle v1',
-  'skills.discovery.version.slow-loop-research-bundle': 'Research-grounded whole-Skill bundle v2',
+  'skills.discovery.author': 'Internal author policy',
+  'skills.discovery.version.experience-bundle': 'Internal-experience whole-Skill bundle v1',
   'skills.discovery.input': 'input digest',
-  'skills.discovery.research': 'research digest',
   'skills.discovery.demand': 'Internal Skill opportunity evidence',
-  'skills.discovery.index': 'index digest',
   'skills.discovery.artifact': 'artifact digest',
   'skills.discovery.tree': 'tree',
-  'skills.discovery.distribution': 'Distribution',
-  'skills.discovery.distribution.archive': 'Archive',
   'skills.discovery.content': 'Content hash',
   'skills.discovery.license': 'Declared license',
   'skills.discovery.license.unknown': 'License not declared',
@@ -373,19 +328,6 @@ const t = (key: string) => ({
   'skills.discovery.executable': 'Executable content',
   'skills.discovery.effects.unknown': 'External effects unknown',
   'skills.discovery.state': 'Quarantined · Inactive · Never executed · Unevaluated',
-  'skills.discovery.attempts': 'Discovery attempts',
-  'skills.discovery.attempt.candidate-found': 'Candidate found',
-  'skills.discovery.attempt.abstained': 'Discovery abstained',
-  'skills.discovery.attempt.partial': 'Partial discovery',
-  'skills.discovery.reason.no-trusted-sources': 'No trusted sources configured',
-  'skills.discovery.reason.no-exact-skill': 'No exact Skill found',
-  'skills.discovery.reason.no-semantic-match': 'No strong semantic match',
-  'skills.discovery.reason.ambiguous-semantic-match': 'Semantic match is ambiguous',
-  'skills.discovery.reason.invalid-skill-package': 'Invalid Skill package',
-  'skills.discovery.reason.source-unavailable': 'Source unavailable',
-  'skills.discovery.match.semantic': 'Deterministic semantic match',
-  'skills.discovery.match.score': 'lexical evidence score (not confidence)',
-  'skills.discovery.match.runner-up': 'runner-up',
   'skills.admission': 'Deterministic admission',
   'skills.admission.empty': 'No completed deterministic admission.',
   'skills.admission.status.abstained': 'Admission abstained',
@@ -395,7 +337,6 @@ const t = (key: string) => ({
   'skills.admission.status.review': 'Admission needs review',
   'skills.admission.status.qualified-for-shadow': 'Qualified for later Shadow',
   'skills.admission.target': 'Evaluation target',
-  'skills.admission.research-holdout': 'Bound research Holdout pass',
   'skills.admission.targets': 'targets',
   'skills.admission.baseline': 'Baseline',
   'skills.admission.candidate': 'Candidate',
@@ -409,13 +350,10 @@ const t = (key: string) => ({
   'skills.ready': 'Verified, waiting to be enabled',
   'skills.reviewing': 'Waiting for review',
   'skills.lineage.title': 'Exact evolution lineage',
-  'skills.lineage.source': 'Source',
-  'skills.lineage.research': 'Research evidence',
-  'skills.lineage.parentCandidate': 'Parent Candidate',
-  'skills.lineage.failedHoldout': 'Failed Holdout',
+  'skills.lineage.policy': 'Internal author policy',
+  'skills.lineage.opportunity': 'Skill Opportunity',
   'skills.lineage.candidate': 'Candidate',
   'skills.lineage.admission': 'Admission',
-  'skills.lineage.passingHoldout': 'Passing Holdout',
   'skills.lineage.release.none': 'Candidate had no release authority',
   'status.actions': 'Actionable',
   'action.refresh': 'Refresh',
@@ -703,7 +641,7 @@ describe('EvolutionAction', () => {
             id: '4'.repeat(64),
             targetId: 'missing-release-author',
             skillName: 'missing-release-skill',
-            clusterId: '1'.repeat(64),
+            opportunityId: '1'.repeat(64),
             gapCount: 3,
             goalCount: 2,
             phase: 'candidate-ready' as const,
@@ -720,33 +658,30 @@ describe('EvolutionAction', () => {
           quarantinedCount: 1,
           items: [{
             id: '7'.repeat(64),
-            discoveredAt: 1_786_896_000_100,
-            gapId: '5'.repeat(64),
-            requestedSkill: 'release-native-extension',
+            createdAt: 1_786_896_000_100,
+            skillName: 'release-native-extension',
             description: 'Prepare and verify a native DSH release.',
-            demand: {
-              kind: 'cross-goal-cluster-v1' as const,
-              clusterId: '1'.repeat(64),
+            opportunity: {
+              kind: 'internal-experience-v1' as const,
+              id: '1'.repeat(64),
               gapIds: ['5'.repeat(64), '6'.repeat(64), '7'.repeat(64)],
               goalCount: 2,
             },
-            source: {
-              id: 'internal-experience-author',
-              kind: 'slow-loop-author' as const,
-              trust: 'bounded-host-authoring' as const,
+            authorship: {
+              kind: 'bounded-model-authoring-v1' as const,
+              policyId: 'internal-experience-author',
+              modelIdentityHash: '4'.repeat(64),
+              inputDigest: '5'.repeat(64),
             },
             scope: 'workspace' as const,
             version: {
-              kind: 'slow-loop-author-bundle-v1' as const,
-              modelIdentityHash: '4'.repeat(64),
-              inputDigest: '5'.repeat(64),
+              kind: 'experience-authored-bundle-v1' as const,
               artifactDigest: '9'.repeat(64),
               treeHash: 'b'.repeat(64),
             },
-            distribution: { kind: 'archive' as const, format: 'zip' as const },
             contentHash: 'a'.repeat(64),
             package: {
-              path: 'skills/release-native-extension',
+              path: 'release-native-extension',
               fileCount: 2,
               totalBytes: 640,
               hasScripts: false,
@@ -810,7 +745,7 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('Publish a verified native DSH plugin.')).toBeTruthy()
     expect(screen.getByText('Confirmed by complete DSH catalog')).toBeTruthy()
     expect(screen.getByText('No Skill was installed or executed.')).toBeTruthy()
-    expect(screen.getByText('Self-discovered Skill opportunities')).toBeTruthy()
+    expect(screen.getByText('Self-Skill Candidate opportunities')).toBeTruthy()
     expect(screen.getAllByText('2 distinct Goals · 3 Gap observations')).toHaveLength(2)
     expect(screen.getByText('Discovered from repeated capability gaps across DSH Goals')).toBeTruthy()
     expect(screen.getByText('Evidence Goals · goal-1 · goal-2')).toBeTruthy()
@@ -824,18 +759,15 @@ describe('EvolutionAction', () => {
     expect(screen.getAllByText('release-native-extension').length).toBeGreaterThan(1)
     expect(screen.getByText('Prepare and verify a native DSH release.')).toBeTruthy()
     expect(screen.getByText('Quarantined candidate')).toBeTruthy()
-    expect(screen.getByText('internal-experience-author · Internal experience author · Bounded host authoring')).toBeTruthy()
-    expect(screen.getByText(`Slow-loop whole-Skill bundle v1 · input digest ${'5'.repeat(12)} · artifact digest ${'9'.repeat(12)} · tree ${'b'.repeat(12)}`)).toBeTruthy()
-    expect(screen.getByText('Distribution · Archive · zip')).toBeTruthy()
-    expect(screen.getByText('Internal Skill opportunity evidence · 2 distinct Goals · 3 Gap observations')).toBeTruthy()
+    expect(screen.getByText(`Internal Skill opportunity evidence · 2 distinct Goals · 3 Gap observations · ${'1'.repeat(8)}…`)).toBeTruthy()
+    expect(screen.getByText(`Internal author policy · internal-experience-author · input digest ${'5'.repeat(8)}…`)).toBeTruthy()
+    expect(screen.getByText(`Internal-experience whole-Skill bundle v1 · artifact digest ${'9'.repeat(12)} · tree ${'b'.repeat(12)}`)).toBeTruthy()
     expect(screen.getByText(`Content hash · ${'a'.repeat(12)}`)).toBeTruthy()
     expect(screen.getByText('Declared license · MIT')).toBeTruthy()
     expect(screen.getByText('Whole package · 2 files · 640 bytes · references')).toBeTruthy()
     expect(screen.getByText('Permissions not declared · External effects unknown')).toBeTruthy()
     expect(screen.getByText('Quarantined · Inactive · Never executed · Unevaluated')).toBeTruthy()
-    expect(screen.queryByText('Discovery attempts')).toBeNull()
-    expect(screen.queryByText('Independent research Holdout')).toBeNull()
-    expect(screen.queryByText('One-shot research revision')).toBeNull()
+    expect(screen.queryByText(/Agent Skills|Local Git|Distribution|research Holdout|research revision/u)).toBeNull()
     expect(screen.getByText('Deterministic admission')).toBeTruthy()
     expect(screen.getByText('Qualified for later Shadow')).toBeTruthy()
     expect(screen.getByText('Evaluation target · missing-release-admission')).toBeTruthy()

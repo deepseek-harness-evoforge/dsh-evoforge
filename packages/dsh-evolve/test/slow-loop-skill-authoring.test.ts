@@ -15,9 +15,9 @@ import type {
   SlowLoopSkillAuthorInput,
 } from '../src/slow-loop-skill-authoring.ts'
 import type {
-  AuthoredSkillBundleCandidateInput,
-  DiscoveredSkillCandidate,
-} from '../src/trusted-skill-discovery.ts'
+  SkillCandidateProposal,
+  ExperienceSkillCandidate,
+} from '../src/skill-candidate-repository.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const temporaryRoots: string[] = []
@@ -32,7 +32,7 @@ describe('experience-driven slow-loop Skill authoring', () => {
     const jobs = fakeJobs()
     const gaps = [gap('1', 'goal-a', 10), gap('2', 'goal-b', 20)]
     const effects: string[] = []
-    const quarantineExperienceAuthoredBundle = vi.fn(async (input: AuthoredSkillBundleCandidateInput) => {
+    const quarantine = vi.fn(async (input: SkillCandidateProposal) => {
       effects.push('quarantine')
       return { created: true, candidate: generatedCandidate(input) }
     })
@@ -49,7 +49,7 @@ describe('experience-driven slow-loop Skill authoring', () => {
       opportunities: new ExperienceDrivenSkillOpportunityDiscovery({ list: () => gaps }),
       candidates: {
         listCandidates: () => [],
-        quarantineExperienceAuthoredBundle,
+        quarantine,
       },
       budget: {
         reserve: vi.fn(async target => {
@@ -85,12 +85,12 @@ describe('experience-driven slow-loop Skill authoring', () => {
       signal: expect.any(AbortSignal),
     }))
     expect(authorModel.mock.calls[0]![0]).not.toHaveProperty('research')
-    const authored = quarantineExperienceAuthoredBundle.mock.calls[0]![0]
+    const authored = quarantine.mock.calls[0]![0]
     expect(authored).toMatchObject({
       workspaceId: WORKSPACE_ID,
-      requestedSkill: 'missing-release-skill',
-      sourceId: 'workspace-self-discovery',
-      clusterId: expect.stringMatching(/^[a-f0-9]{64}$/),
+      skillName: 'missing-release-skill',
+      policyId: 'workspace-self-discovery',
+      opportunityId: expect.stringMatching(/^[a-f0-9]{64}$/),
       gapIds: ['1'.repeat(64), '2'.repeat(64)],
       goalCount: 2,
       modelIdentity: 'provider/model@contract-v1',
@@ -123,7 +123,7 @@ describe('experience-driven slow-loop Skill authoring', () => {
       'state.json',
     ), 'utf8'))
     expect(state.identity).toMatchObject({
-      policyVersion: 'experience-driven-whole-skill-author-v3',
+      policyVersion: 'internal-experience-whole-skill-author-v1',
       skillName: 'missing-release-skill',
     })
   })
@@ -146,7 +146,7 @@ describe('experience-driven slow-loop Skill authoring', () => {
     expect(authorModel).toHaveBeenCalledOnce()
   })
 
-  it('suppresses an opportunity when that internally discovered Skill already has a candidate', async () => {
+  it('suppresses an opportunity when that internally Skill Candidate already has a candidate', async () => {
     const fixture = await setup()
     const jobs = fakeJobs()
     const gaps = [gap('1', 'goal-a', 10), gap('2', 'goal-b', 20)]
@@ -273,7 +273,7 @@ describe('experience-driven slow-loop Skill authoring', () => {
       opportunities: { discover: () => [] },
       candidates: {
         listCandidates: () => [],
-        quarantineExperienceAuthoredBundle: vi.fn(),
+        quarantine: vi.fn(),
       },
       budget: { reserve: vi.fn() },
       authorModel: vi.fn(),
@@ -292,7 +292,7 @@ describe('experience-driven slow-loop Skill authoring', () => {
     expect(() => assertSlowLoopSkillAuthoringRootSeparation(
       [policy],
       ['/private/author-one/governance'],
-    )).toThrow('must not overlap discovery or governance roots')
+    )).toThrow('must not overlap Candidate or governance roots')
     expect(policy).not.toHaveProperty('skill')
   })
 })
@@ -317,9 +317,9 @@ function serviceFor(
   gaps: CapabilityGap[],
   jobs: ReturnType<typeof fakeJobs>,
   options: {
-    candidates?: DiscoveredSkillCandidate[]
+    candidates?: ExperienceSkillCandidate[]
     authorModel?: ConstructorParameters<typeof SlowLoopSkillAuthoring>[0]['authorModel']
-    quarantine?: ConstructorParameters<typeof SlowLoopSkillAuthoring>[0]['candidates']['quarantineExperienceAuthoredBundle']
+    quarantine?: ConstructorParameters<typeof SlowLoopSkillAuthoring>[0]['candidates']['quarantine']
     reserve?: ConstructorParameters<typeof SlowLoopSkillAuthoring>[0]['budget']['reserve']
   } = {},
 ): SlowLoopSkillAuthoring {
@@ -329,7 +329,7 @@ function serviceFor(
     opportunities: new ExperienceDrivenSkillOpportunityDiscovery({ list: () => gaps }),
     candidates: {
       listCandidates: () => options.candidates ?? [],
-      quarantineExperienceAuthoredBundle: options.quarantine ?? (async input => ({
+      quarantine: options.quarantine ?? (async input => ({
         created: true,
         candidate: generatedCandidate(input),
       })),
@@ -400,34 +400,35 @@ function skillFiles(name: string) {
   ] as const
 }
 
-function generatedCandidate(input: AuthoredSkillBundleCandidateInput): DiscoveredSkillCandidate {
+function generatedCandidate(input: SkillCandidateProposal): ExperienceSkillCandidate {
   return {
     schemaVersion: 1,
     id: '9'.repeat(64),
-    discoveredAt: input.discoveredAt,
-    gapId: input.gapIds[0]!,
+    createdAt: input.createdAt,
     workspaceId: input.workspaceId,
-    requestedSkill: input.requestedSkill,
+    skillName: input.skillName,
     description: 'Handle repeated release capability gaps.',
-    demand: {
-      kind: 'cross-goal-cluster-v1',
-      clusterId: input.clusterId,
+    opportunity: {
+      kind: 'internal-experience-v1',
+      id: input.opportunityId,
       gapIds: [...input.gapIds],
       goalCount: input.goalCount,
     },
-    source: { id: input.sourceId, kind: 'slow-loop-author', trust: 'bounded-host-authoring' },
-    scope: 'workspace',
-    version: {
-      kind: 'slow-loop-author-bundle-v1',
+    authorship: {
+      kind: 'bounded-model-authoring-v1',
+      policyId: input.policyId,
       modelIdentityHash: '5'.repeat(64),
       inputDigest: input.inputDigest,
+    },
+    scope: 'workspace',
+    version: {
+      kind: 'experience-authored-bundle-v1',
       artifactDigest: '7'.repeat(64),
       treeHash: '6'.repeat(64),
     },
-    distribution: { kind: 'archive', format: 'tar.gz' },
     contentHash: '7'.repeat(64),
     package: {
-      path: input.requestedSkill,
+      path: input.skillName,
       fileCount: input.files.length,
       totalBytes: input.files.reduce((total, file) => total + Buffer.byteLength(file.content), 0),
       hasScripts: false,
@@ -444,20 +445,20 @@ function generatedCandidate(input: AuthoredSkillBundleCandidateInput): Discovere
         { name: 'effect-review', status: 'required' },
       ],
     },
-    artifact: { kind: 'archive', format: 'tar.gz', contentBase64: 'AA==' },
+    artifact: { kind: 'canonical-text-bundle', format: 'tar.gz', contentBase64: 'AA==' },
     lifecycle: 'inactive',
     verification: 'unevaluated',
     execution: 'never',
   }
 }
 
-function existingCandidate(gaps: CapabilityGap[]): DiscoveredSkillCandidate {
+function existingCandidate(gaps: CapabilityGap[]): ExperienceSkillCandidate {
   return generatedCandidate({
-    discoveredAt: 30,
+    createdAt: 30,
     workspaceId: WORKSPACE_ID,
-    requestedSkill: 'missing-release-skill',
-    sourceId: 'workspace-self-discovery',
-    clusterId: '4'.repeat(64),
+    skillName: 'missing-release-skill',
+    policyId: 'workspace-self-discovery',
+    opportunityId: '4'.repeat(64),
     gapIds: gaps.map(value => value.id),
     goalCount: 2,
     modelIdentity: 'provider/model@contract-v1',

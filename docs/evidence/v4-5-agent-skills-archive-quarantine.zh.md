@@ -1,5 +1,7 @@
 # V4-5 Agent Skills archive 安全整包隔离证据
 
+> 历史撤销证据：本页记录已删除的 Agent Skills 获取方案，不代表当前产品能力。当前 Candidate 只来自 DSH 内部 Skill Opportunity，见 [V4-9](v4-9-internal-skill-candidate-boundary.zh.md)。
+
 > 日期：2026-08-18
 >
 > 状态：implemented；真实 loopback HTTP、DSH Storage、无网络物化和 DSH Web 纵切已验证。它证明

@@ -1,6 +1,6 @@
 # EvoForge v0.1 路线图
 
-> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已直接替换错误命名的 `dsh-channel-router` 并通过渠道及十一包 clean-profile 回归，旧能力获取/研究 Candidate 残留正在删除。内部 Candidate 的真实 provider 独立评估、完整 Gateway、exact 飞书消息与最终 Hermes paired 验收仍未完成，v0.1 尚未发布或部署。
+> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已直接替换错误命名的 `dsh-channel-router` 并通过渠道及十一包 clean-profile 回归；旧能力获取/运行时研究 Candidate 的活动源码、依赖、持久化变体和 Web 投影已删除。完整内部经验归因、Candidate 的真实 provider 独立评估、完整 Gateway、exact 飞书消息与最终 Hermes paired 验收仍未完成，v0.1 尚未发布或部署。
 > 更新日期：2026-08-19
 
 ## 开发与发布纪律
@@ -86,10 +86,11 @@ workflow 选择。原生 Job author 只接收有界内部 Goal/Gap 证据，输�
 校验、内容寻址并写入 inactive/quarantined/unevaluated/never-executed Candidate。DSH Web 展示
 Gap → Opportunity → Candidate 及运行状态、成本和治理边界，不显示外部发现尝试。
 
-当前主链路已经删除外部来源配置、Agent Skills 索引配置、运行时 Web research、research Holdout/revision
-配置与 Job 编排；源码、持久化类型、Web 类型和测试中仍有旧实现残留，必须直接删除或由内部经验契约
-替换，不能作为兼容能力保留。仍待实现/验证：内部
-Candidate 的独立 final-test/Shadow/Retention 整链路、真实 provider outcome、模型缺口质量、迁移/遗忘/
+当前活动源码已经删除外部来源发现、Agent Skills 索引/archive、运行时 Web research、research Holdout/revision
+及其 Job 编排、依赖、持久化变体和 Web 类型；Candidate Repository、Admission、Lineage、Shadow 只接受
+内部 Skill Opportunity 与 canonical text bundle，不读取旧字段或提供兼容入口。历史证据页仅用于解释已撤销决策。
+仍待实现/验证：outcome/correction/rework/cost/reuse/retention 的完整归因、内部 Candidate 的独立
+final-test/Shadow/Retention 整链路、真实 provider outcome、模型缺口质量、迁移/遗忘/
 长期保留，以及同条件 Hermes paired outcome。因此不能描述为“自主 Skill 进化已完成”。
 
 ## V5 — 可解释 Web 与飞书闭环

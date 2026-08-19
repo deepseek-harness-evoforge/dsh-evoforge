@@ -5,7 +5,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {
   EvolutionActionReceipt,
   EvolutionCapabilityView,
-  EvolutionDiscoveredSkillLineageView,
+  EvolutionSkillCandidateLineageView,
   EvolutionEvaluatorDraftDetail,
   EvolutionOverview,
   EvolutionReviewDetail,
@@ -531,9 +531,6 @@ function SkillAdmission({ summary, t }: { summary: EvolutionOverview; t: (key: s
             {value.targetId !== undefined && <div className="dsh-evolve-meta">
               {t('skills.admission.target')} · {value.targetId}
             </div>}
-            {value.researchHoldoutResultId !== undefined && <div className="dsh-evolve-meta">
-              {t('skills.admission.research-holdout')} · {value.researchHoldoutResultId.slice(0, 12)}
-            </div>}
             {value.evidence !== undefined && <>
               <div className="dsh-evolve-meta">{admissionComparison(value.evidence, t)}</div>
               <div className="dsh-evolve-meta">{t('skills.admission.governance')}</div>
@@ -566,34 +563,21 @@ function SkillCandidates({ summary, t }: { summary: EvolutionOverview; t: (key: 
         ? <div className="dsh-evolve-message">{t('skills.discovery.empty')}</div>
         : <ul className="dsh-evolve-list">{candidates.items.map(candidate => (
             <li className="dsh-evolve-skill-card" key={candidate.id}>
-              <div className="dsh-evolve-review-skill">{candidate.requestedSkill}</div>
+              <div className="dsh-evolve-review-skill">{candidate.skillName}</div>
               <p>{candidate.description}</p>
-              {candidate.match !== undefined && <>
-                <div className="dsh-evolve-meta">
-                  {t('skills.discovery.match.semantic')} · {candidate.match.requestedSkill} → {candidate.requestedSkill}
-                </div>
-                <div className="dsh-evolve-meta">
-                  {t('skills.discovery.match.score')} {candidate.match.score} · {t('skills.discovery.match.runner-up')} {candidate.match.runnerUpScore}
-                </div>
-              </>}
-              {candidate.demand !== undefined && <div className="dsh-evolve-meta">
-                {t('skills.discovery.demand')} · {candidate.demand.goalCount} {t('skills.opportunities.goals')}
-                {' · '}{candidate.demand.gapIds.length} {t('skills.opportunities.observations')}
-              </div>}
+              <div className="dsh-evolve-meta">
+                {t('skills.discovery.demand')} · {candidate.opportunity.goalCount} {t('skills.opportunities.goals')}
+                {' · '}{candidate.opportunity.gapIds.length} {t('skills.opportunities.observations')}
+                {' · '}{shortId(candidate.opportunity.id)}
+              </div>
               <div className="dsh-evolve-capability-route">{t('skills.discovery.quarantined')}</div>
               <div className="dsh-evolve-meta">
-                {candidate.source.id} · {t(`skills.discovery.source.${candidate.source.kind}`)} · {t(`skills.discovery.trust.${candidate.source.trust}`)}
+                {t('skills.discovery.author')} · {candidate.authorship.policyId}
+                {' · '}{t('skills.discovery.input')} {shortId(candidate.authorship.inputDigest)}
               </div>
-              {candidate.source.origin !== undefined && <div className="dsh-evolve-meta">
-                {t('skills.discovery.origin')} · {candidate.source.origin}
-              </div>}
               <div className="dsh-evolve-meta">
                 {skillVersionSummary(candidate.version, t)}
               </div>
-              {candidate.distribution !== undefined && <div className="dsh-evolve-meta">
-                {t('skills.discovery.distribution')} · {t(`skills.discovery.distribution.${candidate.distribution.kind}`)}
-                {candidate.distribution.kind === 'archive' ? ` · ${candidate.distribution.format}` : ''}
-              </div>}
               <div className="dsh-evolve-meta">
                 {t('skills.discovery.content')} · {candidate.contentHash.slice(0, 12)}
               </div>
@@ -619,34 +603,7 @@ function skillVersionSummary(
   value: NonNullable<EvolutionOverview['skillCandidates']>['items'][number]['version'],
   t: (key: string) => string,
 ): string {
-  if (value.kind === 'git-tree') {
-    return `${t('skills.discovery.version.git')} · ${value.commit.slice(0, 12)}`
-      + ` · ${t('skills.discovery.tree')} ${value.treeHash.slice(0, 12)}`
-  }
-  if (value.kind === 'slow-loop-author-v1' || value.kind === 'slow-loop-author-bundle-v1') {
-    const label = value.kind === 'slow-loop-author-bundle-v1'
-      ? t('skills.discovery.version.slow-loop-bundle')
-      : t('skills.discovery.version.slow-loop')
-    return `${label} · ${t('skills.discovery.input')} ${value.inputDigest.slice(0, 12)}`
-      + ` · ${t('skills.discovery.artifact')} ${value.artifactDigest.slice(0, 12)}`
-      + ` · ${t('skills.discovery.tree')} ${value.treeHash.slice(0, 12)}`
-  }
-  if (value.kind === 'slow-loop-research-bundle-v2') {
-    return `${t('skills.discovery.version.slow-loop-research-bundle')}`
-      + ` · ${t('skills.discovery.input')} ${value.inputDigest.slice(0, 12)}`
-      + ` · ${t('skills.discovery.research')} ${value.researchDigest.slice(0, 12)}`
-      + ` · ${t('skills.discovery.artifact')} ${value.artifactDigest.slice(0, 12)}`
-      + ` · ${t('skills.discovery.tree')} ${value.treeHash.slice(0, 12)}`
-  }
-  if (value.kind === 'slow-loop-research-revision-v3') {
-    return `${t('skills.discovery.version.slow-loop-research-revision')}`
-      + ` · ${t('skills.discovery.parent')} ${value.parentTreeHash.slice(0, 12)}`
-      + ` · ${t('skills.discovery.holdout')} ${value.holdoutResultId.slice(0, 12)}`
-      + ` · ${t('skills.discovery.research')} ${value.researchDigest.slice(0, 12)}`
-      + ` · ${t('skills.discovery.artifact')} ${value.artifactDigest.slice(0, 12)}`
-      + ` · ${t('skills.discovery.tree')} ${value.treeHash.slice(0, 12)}`
-  }
-  return `${t('skills.discovery.version.index')} · ${t('skills.discovery.index')} ${value.indexDigest.slice(0, 12)}`
+  return `${t('skills.discovery.version.experience-bundle')}`
     + ` · ${t('skills.discovery.artifact')} ${value.artifactDigest.slice(0, 12)}`
     + ` · ${t('skills.discovery.tree')} ${value.treeHash.slice(0, 12)}`
 }
@@ -799,7 +756,7 @@ function SkillGroup({ label, items, t }: {
     key: string
     name: string
     detail: string
-    lineage?: EvolutionDiscoveredSkillLineageView
+    lineage?: EvolutionSkillCandidateLineageView
   }[]
 }) {
   return <section>
@@ -808,46 +765,26 @@ function SkillGroup({ label, items, t }: {
       <li className="dsh-evolve-skill-card" key={item.key}>
         <div className="dsh-evolve-review-skill">{item.name}</div>
         <p>{item.detail}</p>
-        {item.lineage !== undefined && <DiscoveredSkillLineage lineage={item.lineage} t={t} />}
+        {item.lineage !== undefined && <SkillCandidateLineage lineage={item.lineage} t={t} />}
       </li>
     ))}</ul>
   </section>
 }
 
-function DiscoveredSkillLineage({ lineage, t }: {
-  lineage: EvolutionDiscoveredSkillLineageView
+function SkillCandidateLineage({ lineage, t }: {
+  lineage: EvolutionSkillCandidateLineageView
   t: (key: string) => string
 }) {
-  const research = lineage.research
-  const revision = research !== undefined && 'parentCandidateId' in research ? research : undefined
-  const versionKey = {
-    'git-tree': 'skills.discovery.version.git',
-    'agent-skills-index-v0.2': 'skills.discovery.version.index',
-    'slow-loop-author-v1': 'skills.discovery.version.slow-loop',
-    'slow-loop-author-bundle-v1': 'skills.discovery.version.slow-loop-bundle',
-    'slow-loop-research-bundle-v2': 'skills.discovery.version.slow-loop-research-bundle',
-    'slow-loop-research-revision-v3': 'skills.discovery.version.slow-loop-research-revision',
-  }[lineage.versionKind]
   return <div className="dsh-evolve-lineage">
     <div className="dsh-evolve-lineage-head">
       <strong>{t('skills.lineage.title')}</strong>
-      <span>{t(versionKey)}</span>
+      <span>{t('skills.discovery.version.experience-bundle')}</span>
     </div>
     <div className="dsh-evolve-lineage-meta">
-      {t('skills.lineage.source')} · {lineage.source.id} · {lineage.source.kind}
+      {t('skills.lineage.policy')} · {lineage.policyId}
     </div>
-    {research !== undefined && <div className="dsh-evolve-lineage-meta">
-      {t('skills.lineage.research')} · {shortId(research.researchDigest)}
-    </div>}
     <ol className="dsh-evolve-lineage-flow">
-      {revision !== undefined && <>
-        <LineageStep
-          label={t('skills.lineage.parentCandidate')}
-          id={revision.parentCandidateId}
-          detail={shortId(revision.parentTreeHash)}
-        />
-        <LineageStep label={t('skills.lineage.failedHoldout')} id={revision.revisionHoldoutResultId} />
-      </>}
+      <LineageStep label={t('skills.lineage.opportunity')} id={lineage.opportunityId} />
       <LineageStep
         label={t('skills.lineage.candidate')}
         id={lineage.candidateId}
@@ -858,10 +795,6 @@ function DiscoveredSkillLineage({ lineage, t }: {
         id={lineage.admissionId}
         detail={lineage.admissionTargetId}
       />
-      {research !== undefined && <LineageStep
-        label={t('skills.lineage.passingHoldout')}
-        id={research.researchHoldoutResultId}
-      />}
     </ol>
     <div className="dsh-evolve-lineage-release">{t('skills.lineage.release.none')}</div>
   </div>

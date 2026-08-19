@@ -4,9 +4,9 @@ import { basename, isAbsolute, join, relative } from 'node:path'
 import { loadShadowRunState, writeDurableJson } from './shadow-run-state.ts'
 import type { AutomaticEvolutionInflightStatus } from './automatic-evolution-inflight.ts'
 import {
-  parseDiscoveredSkillLineage,
-  type DiscoveredSkillLineage,
-} from './discovered-skill-lineage.ts'
+  parseSkillCandidateLineage,
+  type SkillCandidateLineage,
+} from './skill-candidate-lineage.ts'
 
 export interface ReviewCaseSummary {
   id: string
@@ -47,7 +47,7 @@ export interface ReviewCandidate {
   completedAt?: string
   feedbackSignalId?: string
   feedbackLaunchMode?: 'human' | 'automatic'
-  lineage?: DiscoveredSkillLineage
+  lineage?: SkillCandidateLineage
   automaticReviewExpiry?: AutomaticReviewExpiryProjection
   evidenceHash: string
   decisionActor?: ReviewDecisionActor
@@ -407,7 +407,7 @@ export class ReviewInbox {
       || report.evaluatorVersion !== state.identity.evaluatorVersion) {
       throw new Error('Shadow report does not match its durable run identity')
     }
-    if (JSON.stringify(report.lineage) !== JSON.stringify(state.identity.discoveredSkillLineage)) {
+    if (JSON.stringify(report.lineage) !== JSON.stringify(state.identity.skillCandidateLineage)) {
       throw new Error('Shadow report lineage does not match its durable run identity')
     }
     if (report.lineage !== undefined
@@ -516,7 +516,7 @@ function parseReport(value: unknown): {
   evaluatorVersion: string
   compositionFingerprint: string
   compositionStable: boolean
-  lineage?: DiscoveredSkillLineage
+  lineage?: SkillCandidateLineage
 } {
   if (!isRecord(value) || value.schemaVersion !== 1
     || !isRecord(value.run) || typeof value.run.id !== 'string'
@@ -565,7 +565,7 @@ function parseReport(value: unknown): {
   })
   const lineage = value.lineage === undefined
     ? undefined
-    : parseDiscoveredSkillLineage(value.lineage)
+    : parseSkillCandidateLineage(value.lineage)
   return {
     runId: value.run.id,
     skillName: value.subject.skillName,

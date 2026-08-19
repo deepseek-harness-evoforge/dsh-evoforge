@@ -2,60 +2,55 @@ import { createHash } from 'node:crypto'
 import { Readable } from 'node:stream'
 import { gunzipSync, gzipSync } from 'node:zlib'
 import { extract, pack } from 'tar-stream'
-import { fromBufferPromise, type Entry as ZipEntry } from 'yauzl'
 
-export type AgentSkillArchiveFormat = 'tar.gz' | 'zip'
-export type AgentSkillArchiveFileMode = '100644' | '100755'
+export type SkillBundleArchiveFileMode = '100644'
 
-export interface AgentSkillArchiveFile {
+export interface SkillBundleArchiveFile {
   readonly path: string
-  readonly mode: AgentSkillArchiveFileMode
+  readonly mode: SkillBundleArchiveFileMode
   readonly content: Buffer
 }
 
-export interface DecodedAgentSkillArchive {
-  readonly files: readonly AgentSkillArchiveFile[]
+export interface DecodedSkillBundleArchive {
+  readonly files: readonly SkillBundleArchiveFile[]
   readonly treeHash: string
   readonly totalBytes: number
 }
 
-export interface AgentSkillTextManifestFile {
+export interface SkillBundleTextFile {
   readonly path: string
   readonly content: string
 }
 
-export interface AssembledAgentSkillTextArchive extends DecodedAgentSkillArchive {
+export interface AssembledSkillBundleArchive extends DecodedSkillBundleArchive {
   readonly format: 'tar.gz'
   readonly content: Buffer
   readonly artifactDigest: string
 }
 
-export const AGENT_SKILL_ARCHIVE_LIMITS = Object.freeze({
+export const SKILL_BUNDLE_ARCHIVE_LIMITS = Object.freeze({
   maxEntries: 512,
   maxFiles: 256,
   maxFileBytes: 8 * 1024 * 1024,
   maxTotalBytes: 16 * 1024 * 1024,
 })
 
-export const AUTHORED_AGENT_SKILL_TEXT_LIMITS = Object.freeze({
+export const AUTHORED_SKILL_BUNDLE_LIMITS = Object.freeze({
   maxFiles: 32,
   maxFileBytes: 64 * 1024,
   maxTotalBytes: 256 * 1024,
 })
 
-const TAR_CONTAINER_OVERHEAD = (AGENT_SKILL_ARCHIVE_LIMITS.maxEntries + 4) * 1024
-const UNIX_FILE_TYPE_MASK = 0o170000
-const UNIX_REGULAR_FILE = 0o100000
-const UNIX_DIRECTORY = 0o040000
+const TAR_CONTAINER_OVERHEAD = (SKILL_BUNDLE_ARCHIVE_LIMITS.maxEntries + 4) * 1024
 
 /**
  * Assemble one canonical, text-only whole-Skill package. The caller supplies
  * text files, never archive bytes; this host-owned codec fixes paths, modes,
  * ordering, tar metadata, and gzip output before the candidate is hashed.
  */
-export async function assembleAgentSkillTextArchive(
-  input: readonly AgentSkillTextManifestFile[],
-): Promise<AssembledAgentSkillTextArchive> {
+export async function assembleSkillBundleArchive(
+  input: readonly SkillBundleTextFile[],
+): Promise<AssembledSkillBundleArchive> {
   const files = validateAuthoredTextManifest(input)
   const decoded = finalize(files)
   const archive = pack()
@@ -84,24 +79,19 @@ export async function assembleAgentSkillTextArchive(
   })
 }
 
-export async function decodeAgentSkillArchive(
+export async function decodeSkillBundleArchive(
   content: Uint8Array,
-  format: AgentSkillArchiveFormat,
-): Promise<DecodedAgentSkillArchive> {
-  const bytes = Buffer.from(content)
-  const files = format === 'tar.gz'
-    ? await decodeTarGzip(bytes)
-    : await decodeZip(bytes)
-  return finalize(files)
+): Promise<DecodedSkillBundleArchive> {
+  return finalize(await decodeTarGzip(Buffer.from(content)))
 }
 
 function validateAuthoredTextManifest(
-  input: readonly AgentSkillTextManifestFile[],
-): AgentSkillArchiveFile[] {
-  if (input.length < 2 || input.length > AUTHORED_AGENT_SKILL_TEXT_LIMITS.maxFiles) {
+  input: readonly SkillBundleTextFile[],
+): SkillBundleArchiveFile[] {
+  if (input.length < 2 || input.length > AUTHORED_SKILL_BUNDLE_LIMITS.maxFiles) {
     throw new Error('authored whole-Skill requires SKILL.md and 1-31 one-level references')
   }
-  const files: AgentSkillArchiveFile[] = []
+  const files: SkillBundleArchiveFile[] = []
   const paths = new Set<string>()
   let totalBytes = 0
   for (const item of input) {
@@ -126,8 +116,8 @@ function validateAuthoredTextManifest(
       throw new Error(`authored whole-Skill file is not canonical UTF-8 text: ${path}`)
     }
     if (content.byteLength === 0
-      || content.byteLength > AUTHORED_AGENT_SKILL_TEXT_LIMITS.maxFileBytes
-      || totalBytes + content.byteLength > AUTHORED_AGENT_SKILL_TEXT_LIMITS.maxTotalBytes) {
+      || content.byteLength > AUTHORED_SKILL_BUNDLE_LIMITS.maxFileBytes
+      || totalBytes + content.byteLength > AUTHORED_SKILL_BUNDLE_LIMITS.maxTotalBytes) {
       throw new Error('authored whole-Skill text exceeds its byte budget')
     }
     totalBytes += content.byteLength
@@ -176,11 +166,11 @@ async function collect(stream: NodeJS.ReadableStream): Promise<Buffer> {
   return Buffer.concat(chunks)
 }
 
-async function decodeTarGzip(content: Buffer): Promise<AgentSkillArchiveFile[]> {
+async function decodeTarGzip(content: Buffer): Promise<SkillBundleArchiveFile[]> {
   let tar: Buffer
   try {
     tar = gunzipSync(content, {
-      maxOutputLength: AGENT_SKILL_ARCHIVE_LIMITS.maxTotalBytes + TAR_CONTAINER_OVERHEAD,
+      maxOutputLength: SKILL_BUNDLE_ARCHIVE_LIMITS.maxTotalBytes + TAR_CONTAINER_OVERHEAD,
     })
   } catch (error) {
     throw new Error(`invalid or excessive tar.gz archive: ${errorMessage(error)}`)
@@ -188,14 +178,14 @@ async function decodeTarGzip(content: Buffer): Promise<AgentSkillArchiveFile[]> 
 
   const parser = extract()
   Readable.from(tar).pipe(parser)
-  const files: AgentSkillArchiveFile[] = []
+  const files: SkillBundleArchiveFile[] = []
   let entryCount = 0
   let totalBytes = 0
 
   try {
     for await (const entry of parser) {
       entryCount += 1
-      if (entryCount > AGENT_SKILL_ARCHIVE_LIMITS.maxEntries) {
+      if (entryCount > SKILL_BUNDLE_ARCHIVE_LIMITS.maxEntries) {
         throw new Error('archive entry count exceeds safety limit')
       }
       const header = entry.header
@@ -210,6 +200,9 @@ async function decodeTarGzip(content: Buffer): Promise<AgentSkillArchiveFile[]> 
       if (type !== 'file' && type !== 'contiguous-file') {
         throw new Error(`non-regular entry is not allowed: ${header.name}`)
       }
+      if (header.mode !== undefined && (header.mode & 0o111) !== 0) {
+        throw new Error(`executable entry is not allowed: ${header.name}`)
+      }
 
       const path = validateArchivePath(header.name, false)
       const declaredSize = header.size ?? 0
@@ -218,7 +211,7 @@ async function decodeTarGzip(content: Buffer): Promise<AgentSkillArchiveFile[]> 
       totalBytes += file.length
       files.push(Object.freeze({
         path,
-        mode: normalizeMode(header.mode),
+        mode: '100644',
         content: file,
       }))
     }
@@ -230,57 +223,9 @@ async function decodeTarGzip(content: Buffer): Promise<AgentSkillArchiveFile[]> 
   return files
 }
 
-async function decodeZip(content: Buffer): Promise<AgentSkillArchiveFile[]> {
-  const archive = await fromBufferPromise(content, {
-    autoClose: true,
-    decodeStrings: true,
-    lazyEntries: true,
-    strictFileNames: true,
-    validateEntrySizes: true,
-  })
-  const files: AgentSkillArchiveFile[] = []
-  let totalBytes = 0
-
-  try {
-    if (archive.entryCount > AGENT_SKILL_ARCHIVE_LIMITS.maxEntries) {
-      throw new Error('archive entry count exceeds safety limit')
-    }
-    for await (const entry of archive.eachEntry()) {
-      const directory = entry.fileName.endsWith('/')
-      const unixType = zipUnixFileType(entry)
-      if (directory) {
-        validateArchivePath(entry.fileName, true)
-        if (unixType !== 0 && unixType !== UNIX_DIRECTORY) {
-          throw new Error(`non-regular entry is not allowed: ${entry.fileName}`)
-        }
-        continue
-      }
-      if (entry.isEncrypted()) throw new Error(`encrypted entry is not allowed: ${entry.fileName}`)
-      if (unixType !== 0 && unixType !== UNIX_REGULAR_FILE) {
-        throw new Error(`non-regular entry is not allowed: ${entry.fileName}`)
-      }
-
-      const path = validateArchivePath(entry.fileName, false)
-      assertFileBudget(path, entry.uncompressedSize, totalBytes, files.length)
-      const stream = await archive.openReadStreamPromise(entry)
-      const file = await readBounded(stream, path, entry.uncompressedSize, totalBytes)
-      totalBytes += file.length
-      files.push(Object.freeze({
-        path,
-        mode: normalizeMode(zipUnixMode(entry)),
-        content: file,
-      }))
-    }
-  } finally {
-    archive.close()
-  }
-
-  return files
-}
-
-function finalize(input: AgentSkillArchiveFile[]): DecodedAgentSkillArchive {
+function finalize(input: SkillBundleArchiveFile[]): DecodedSkillBundleArchive {
   if (input.length === 0) throw new Error('archive contains no regular files')
-  if (input.length > AGENT_SKILL_ARCHIVE_LIMITS.maxFiles) {
+  if (input.length > SKILL_BUNDLE_ARCHIVE_LIMITS.maxFiles) {
     throw new Error('archive file count exceeds safety limit')
   }
 
@@ -361,13 +306,13 @@ function compareTreePaths(left: string, right: string): number {
 
 function assertFileBudget(path: string, size: number, totalBytes: number, fileCount: number): void {
   if (!Number.isSafeInteger(size) || size < 0) throw new Error(`invalid file size in archive: ${path}`)
-  if (fileCount >= AGENT_SKILL_ARCHIVE_LIMITS.maxFiles) {
+  if (fileCount >= SKILL_BUNDLE_ARCHIVE_LIMITS.maxFiles) {
     throw new Error('archive file count exceeds safety limit')
   }
-  if (size > AGENT_SKILL_ARCHIVE_LIMITS.maxFileBytes) {
+  if (size > SKILL_BUNDLE_ARCHIVE_LIMITS.maxFileBytes) {
     throw new Error(`archive file exceeds safety limit: ${path}`)
   }
-  if (totalBytes + size > AGENT_SKILL_ARCHIVE_LIMITS.maxTotalBytes) {
+  if (totalBytes + size > SKILL_BUNDLE_ARCHIVE_LIMITS.maxTotalBytes) {
     throw new Error('archive total bytes exceed safety limit')
   }
 }
@@ -384,27 +329,14 @@ async function readBounded(
     const bytes = Buffer.from(chunk)
     length += bytes.length
     if (length > declaredSize
-      || length > AGENT_SKILL_ARCHIVE_LIMITS.maxFileBytes
-      || priorTotalBytes + length > AGENT_SKILL_ARCHIVE_LIMITS.maxTotalBytes) {
+      || length > SKILL_BUNDLE_ARCHIVE_LIMITS.maxFileBytes
+      || priorTotalBytes + length > SKILL_BUNDLE_ARCHIVE_LIMITS.maxTotalBytes) {
       throw new Error(`archive file exceeds declared or safety limit: ${path}`)
     }
     chunks.push(bytes)
   }
   if (length !== declaredSize) throw new Error(`archive file size mismatch: ${path}`)
   return Buffer.concat(chunks, length)
-}
-
-function normalizeMode(mode: number | undefined): AgentSkillArchiveFileMode {
-  return mode !== undefined && (mode & 0o111) !== 0 ? '100755' : '100644'
-}
-
-function zipUnixMode(entry: ZipEntry): number {
-  return (entry.externalFileAttributes >>> 16) & 0xffff
-}
-
-function zipUnixFileType(entry: ZipEntry): number {
-  const creatorSystem = entry.versionMadeBy >>> 8
-  return creatorSystem === 3 ? zipUnixMode(entry) & UNIX_FILE_TYPE_MASK : 0
 }
 
 function errorMessage(error: unknown): string {
