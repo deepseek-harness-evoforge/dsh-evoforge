@@ -205,6 +205,74 @@ describe('experience-driven Skill opportunity discovery', () => {
     expect(discovery.discover(WORKSPACE)).toEqual([])
     expect(Object.keys(ExperienceDrivenSkillOpportunityDiscovery.prototype)).not.toContain('discoverBySkill')
   })
+
+  it('discovers an existing-Skill investigation only from repeated exact-content corrections across Goals', () => {
+    const contentHash = 'a'.repeat(64)
+    const discovery = new ExperienceDrivenSkillOpportunityDiscovery(
+      { list: () => [] },
+      { feedback: { list: () => [
+        attributedSignal('1', 'session-a', 100, 'release-dsh-plugin', 'goal-a', contentHash),
+        attributedSignal('2', 'session-b', 200, 'release-dsh-plugin', 'goal-b', contentHash),
+      ] } },
+    )
+
+    expect(discovery.discoverImprovements(WORKSPACE)).toEqual([{
+      schemaVersion: 1,
+      id: expect.stringMatching(/^[a-f0-9]{64}$/),
+      workspaceId: WORKSPACE,
+      skillName: 'release-dsh-plugin',
+      invocationContentHash: contentHash,
+      feedbackSignalIds: ['1'.repeat(64), '2'.repeat(64)],
+      goalIds: ['goal-a', 'goal-b'],
+      signalCount: 2,
+      goalCount: 2,
+      firstObservedAt: 100,
+      lastObservedAt: 200,
+      evidence: {
+        kind: 'internal-exact-skill-corrections-v1',
+        association: 'exact-durable-skill-invocation-content',
+        eligibilityBasis: 'two-or-more-distinct-goals-same-invocation-content',
+        referencesTruncated: false,
+        causalClaim: 'none',
+      },
+      status: 'waiting-for-baseline-bundle',
+      releaseAuthority: 'none',
+    }])
+  })
+
+  it('does not merge existing-Skill corrections across content versions or one Goal', () => {
+    const discovery = new ExperienceDrivenSkillOpportunityDiscovery(
+      { list: () => [] },
+      { feedback: { list: () => [
+        attributedSignal('1', 'session-a', 100, 'release-dsh-plugin', 'goal-a', 'a'.repeat(64)),
+        attributedSignal('2', 'session-b', 200, 'release-dsh-plugin', 'goal-b', 'b'.repeat(64)),
+        attributedSignal('3', 'session-c', 300, 'release-dsh-plugin', 'goal-a', 'a'.repeat(64)),
+      ] } },
+    )
+
+    expect(discovery.discoverImprovements(WORKSPACE)).toEqual([])
+  })
+
+  it('abstains from existing-Skill improvement when attribution is legacy or duplicated', () => {
+    const exact = attributedSignal(
+      '1',
+      'session-a',
+      100,
+      'release-dsh-plugin',
+      'goal-a',
+      'a'.repeat(64),
+    )
+    const discovery = new ExperienceDrivenSkillOpportunityDiscovery(
+      { list: () => [] },
+      { feedback: { list: () => [
+        exact,
+        { ...exact },
+        attributedSignal('2', 'session-b', 200, 'release-dsh-plugin', 'goal-b'),
+      ] } },
+    )
+
+    expect(discovery.discoverImprovements(WORKSPACE)).toEqual([])
+  })
 })
 
 function gap(
@@ -259,12 +327,14 @@ function attributedSignal(
   sourceUpdatedAt: number,
   skillName: string,
   goalId: string,
+  invocationContentHash?: string,
 ): FeedbackSignal & {
   readonly attribution: {
     readonly kind: 'exact-skill-invocation-v1'
     readonly skillName: string
     readonly route: 'model-tool'
     readonly invocationSeq: number
+    readonly invocationContentHash?: string
     readonly assistantSeq: number
     readonly turn: number
     readonly goal: { readonly id: string; readonly revision: number }
@@ -277,6 +347,7 @@ function attributedSignal(
       skillName,
       route: 'model-tool',
       invocationSeq: 12,
+      ...(invocationContentHash === undefined ? {} : { invocationContentHash }),
       assistantSeq: 15,
       turn: 3,
       goal: { id: goalId, revision: 2 },

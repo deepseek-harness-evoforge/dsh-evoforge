@@ -23,6 +23,8 @@ const exactSkillInvocationAttributionSchema = z.strictObject({
   skillName: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
   route: z.enum(['user-explicit', 'model-tool']),
   invocationSeq: nonNegativeSafeInteger,
+  // Optional only for backward compatibility with v2 rows written before V4.21.
+  invocationContentHash: hashSchema.optional(),
   assistantSeq: nonNegativeSafeInteger,
   turn: nonNegativeSafeInteger,
   goal: z.strictObject({

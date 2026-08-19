@@ -1,5 +1,7 @@
 # V4.20 精确 durable feedback Skill 归因证据
 
+> 后继 [V4.21](v4-21-existing-skill-improvement-investigation.zh.md) 已在该身份上增加 exact invocation-content hash，并允许同一内容版本的跨 Goal 纠正形成独立等待调查；本文“不能创建 existing-Skill Opportunity”和持久字段清单只描述 V4.20 当时边界。
+
 ## 结论
 
 Opportunity 不再把“同 Session 唯一 Gap Skill”当作纠正归因。`dsh-evolve` 现在从 feedback 目标回答对应的原生持久化 Session 日志中，fail closed 地解析唯一成功 Skill 调用和当时的 Goal id/revision；无法精确解析的反馈仍可作为普通非因果信号保留，但不会进入某个 Skill Opportunity 的 correction context。

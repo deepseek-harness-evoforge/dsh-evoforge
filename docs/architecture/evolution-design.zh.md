@@ -1,6 +1,6 @@
 # EvoForge 可证明自进化设计
 
-> 状态：P0A/P0B/P0C、P1.1–P1.21、P2D.1 与内部 Goal→Gap→Skill Opportunity→生成前 Skill Evaluation Evidence Seal→seal-bound Candidate v2→Candidate-independent Governance Case Pack Authoring→Evaluation Envelope v4→Lineage v3→capability-absent assembled Shadow/Retention/canary→content-addressed inactive Generation→future Session/root rollback 纵切 implemented；治理包真实 provider assembled 验证与真实任务长期证据待完成
+> 状态：P0A/P0B/P0C、P1.1–P1.21、P2D.1 与内部 Goal→Gap→Skill Opportunity→生成前 Skill Evaluation Evidence Seal→seal-bound Candidate v2→Candidate-independent Governance Case Pack Authoring→Evaluation Envelope v4→Lineage v3→capability-absent assembled Shadow/Retention/canary→content-addressed inactive Generation→future Session/root rollback 纵切 implemented；existing-Skill 同版本跨 Goal 纠正调查已实现，但完整 baseline Bundle/Candidate 未实现；治理包真实 provider assembled 验证与真实任务长期证据待完成
 > 更新日期：2026-08-19
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 
@@ -216,7 +216,7 @@ interface LearningSignal {
 - 默认不复制完整 prompt、transcript、代码或秘密；
 - fingerprint 只用于去重和聚类，不能作为训练事实；
 - 单次模型反思、Skill 使用次数、工具调用次数、模型 confidence 和 recency 不能单独触发晋升；
-- 一条明确用户纠正可以生成候选，但仍必须通过 Trial；
+- 一条明确用户纠正只能形成非因果调查信号，不能单独生成候选；
 - 非明确反馈需要同类信号跨至少两个独立 Session 重复，才值得花模型预算生成候选；
 - Project signal 默认只能改进 project-scoped Skill；跨至少两个项目证明通用后才能提议上移到 user/global scope。
 
@@ -235,7 +235,7 @@ interface LearningSignal {
   → Host 复核并持久化 Capability Gap
   → 同 Workspace / 同 Skill / 至少两个独立 Goal
   → deterministic Skill Opportunity
-  → 精确关联目标回答的 durable Skill 调用 / stable Goal identity 跨 revision 交付结果（context only）
+  → 精确关联目标回答的 durable Skill 调用、invocation-content hash / stable Goal identity 跨 revision 交付结果（context only）
   → Workspace selfDiscoveryPolicy（无 Skill 字段）
   → 至少四个独立 Goal 后形成 governance-owned Skill Evaluation Evidence Seal
       authoring / admission / holdout 三组不重叠
@@ -257,6 +257,7 @@ interface LearningSignal {
 - 用户只给 Goal，不选路径、Agent、workflow、Skill 或来源；
 - 同 Goal 重试、无 Goal、跨 Workspace 或证据不足必须 abstain；
 - 纠正只在 feedback 目标回答的同一 durable turn 中存在唯一成功 Skill 调用、唯一直接用户消息且能折叠出 exact Goal id/revision 时关联；同 Session Gap 接近关系不构成归因，歧义一律 abstain；Outcome 仍只在同一 Goal 的全部已知 Gap 仅有一种 Skill、发生于对应 Gap 之后且 revision 不倒退时关联；
+- existing-Skill 改进按 Workspace/Skill/invocation-content hash 分组，至少两个不同 Goal 的去重纠正才形成 `waiting-for-baseline-bundle` 调查；同名内容变化、legacy、同 Goal 或重复 Signal abstain；hash 不是完整 Bundle，调查不得进入 missing-Skill Slow Loop/Envelope/Candidate；
 - 关联上下文固定 `causalClaim: none`，不能单独产生 Opportunity、改变生成资格/排序、进入 author 输入或证明 Skill 导致结果；
 - Outcome metrics 只在 exact active Goal revision 拥有该 turn 时投影，截止 immutable delivery result seq；缺 unit、旧 revision、歧义或计数倒退一律 abstain，且不参与上述资格或治理决定；
 - Web 不另建 metrics endpoint/store；`DeliveryOutcomeStore.summarize → EvolutionControlPlane.overview → generated Remote → EvolutionAction` 是唯一浏览器投影链，只暴露聚合和至多 20 条最新已测证据，不暴露 Session/call/reason/path；

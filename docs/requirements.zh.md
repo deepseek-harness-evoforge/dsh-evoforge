@@ -1,6 +1,6 @@
 # DeepSeek Harness EvoForge 项目需求基线
 
-> 状态：已确认；目标是只安装并运行于 DSH 的原生 out-of-tree 插件套件。现有 P0A–P1.21 等实现只作为可重审资产，不能限制重构；`dsh-gateway` 已替换旧 Router 包并通过总装回归，能力获取/运行时研究 Candidate 的活动实现已删除。自然 Goal→可复核 Capability Gap→跨 Goal 内部经验→Skill Opportunity→隔离 whole-Skill Candidate 已形成部分纵切；两个独立 Goal 形成 Opportunity，但 Candidate 生成前现要求至少四个独立 Goal，并由治理面预先密封作者可见/admission/holdout 三组不重叠证据。配置式 Candidate target 已由 Workspace policy + seal-bound Candidate v2 + Candidate-independent Governance Case Pack Authoring + Envelope v4 取代；Lineage v3 显式贯穿 seal。缺失 Skill 使用不安装目标 Skill 的真实 capability-absent baseline；明确复核后可形成不依赖 Git source 的 inactive bundle，固定到未来 Session并精确 root rollback；独立 Retention 和 sealed canary 现可用 exact absent subject 与 exact whole-Skill Candidate 做真实 DSH paired replay。治理包自动形成已有注入式自动化证据，真实 provider assembled 整链和长期归因仍未完成。完整内部证据、Gateway、exact 飞书 route 消息、长期 outcome 与 Hermes paired epochs 完成前不构成 v0.1 交付
+> 状态：已确认；目标是只安装并运行于 DSH 的原生 out-of-tree 插件套件。现有 P0A–P1.21 等实现只作为可重审资产，不能限制重构；`dsh-gateway` 已替换旧 Router 包并通过总装回归，能力获取/运行时研究 Candidate 的活动实现已删除。自然 Goal→可复核 Capability Gap→跨 Goal 内部经验→Skill Opportunity→隔离 whole-Skill Candidate 已形成部分纵切；现有 Skill 的同一调用内容版本也可从跨 Goal 精确纠正形成独立调查，但完整基线 Bundle 尚未封存，因此不得进入 Candidate。两个独立 Goal 形成 missing-Skill Opportunity，但 Candidate 生成前现要求至少四个独立 Goal，并由治理面预先密封作者可见/admission/holdout 三组不重叠证据。配置式 Candidate target 已由 Workspace policy + seal-bound Candidate v2 + Candidate-independent Governance Case Pack Authoring + Envelope v4 取代；Lineage v3 显式贯穿 seal。缺失 Skill 使用不安装目标 Skill 的真实 capability-absent baseline；明确复核后可形成不依赖 Git source 的 inactive bundle，固定到未来 Session并精确 root rollback；独立 Retention 和 sealed canary 现可用 exact absent subject 与 exact whole-Skill Candidate 做真实 DSH paired replay。治理包自动形成已有注入式自动化证据，existing-Skill 完整 Bundle 基线、真实 provider assembled 整链和长期归因仍未完成。完整内部证据、Gateway、exact 飞书 route 消息、长期 outcome 与 Hermes paired epochs 完成前不构成 v0.1 交付
 > 更新日期：2026-08-19
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。发生冲突时，下述“方向纠正”优先于旧里程碑文字。
 
@@ -355,6 +355,8 @@ Host 确定性组装 archive；Candidate v2 将 exact evaluation-evidence seal i
 inactive、unevaluated、never-executed Candidate。可能已经付费但结果未知时持久化 `uncertain` 并拒绝盲重试；
 取消后的迟到响应不得落候选。该模块没有安装、激活或发布接口。
 
+现有 Skill 改进与上述缺失能力路径分轨。feedback 目标回答的唯一成功 Skill 调用必须从 durable Session 计算模型实际看到的 invocation content-block hash；只有同 Workspace、同 Skill 名、同 hash 在至少两个不同 Goal 中收到去重负向纠正，才形成 `waiting-for-baseline-bundle` 调查。历史无 hash、同 Goal retry、重复 Signal、同名不同内容版本或歧义全部 abstain。该 hash 不是完整 Skill package/tree/version，固定 `causalClaim: none` 且不能被 Slow Loop、Evidence Vault、capability-absent Envelope 或 Candidate Repository 消费；只有后继在调用时封存完整受信 Bundle 并证明与 invocation identity 一致，才允许设计 skill-tree baseline 和独立评测。
+
 Delivery Outcome 可附带同一 Session、同一稳定 Goal id 的 `GoalExecutionMetrics`。Host 只统计首条 admitted
 message 属于当时最新 active Goal revision 的 turn，并在 exact `complete_delivery` result event 截止；token、
 cache-read/write、LLM/tool/TTFT/decode 时间来自 DSH 官方 `tokenUsage`/`sessionStats` projection cut 的差值，
@@ -364,7 +366,7 @@ active wall time 来自同一原生 turn 边界。手工 turn、其他 Goal、�
 `EvolutionControlPlane.overview` 只输出 browser-safe 聚合与至多 20 条最新已测 Outcome；不输出 Session/call/reason/path，
 不建立第二 metrics API 或浏览器状态权威。缺失 metrics 必须显示为未测，不能折算为零。
 
-DSH Web 已投影 `Capability Gap → Skill Opportunity → Candidate → authoring state`，展示证据 Goal 数、Gap 数、
+DSH Web 已投影 `Capability Gap → Skill Opportunity → Candidate → authoring state`，并将 existing-Skill improvement investigation 作为独立等待队列展示。页面显示证据 Goal 数、Gap/纠正数、
 关联纠正/Outcome 计数、有界短引用、无因果声明、Candidate id、预算/调用和隔离状态，并展示 Host 权威的
 Workspace/current/baseline Goal 执行聚合、最近已测 Outcome、token/cache/latency/active-wall facts 与价格 unavailable；
 Opportunity 另显示评测证据是等待、无策略、无效、具备密封条件或已密封；凡 Gap 已进入 Opportunity，浏览器

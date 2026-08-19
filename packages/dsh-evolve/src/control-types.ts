@@ -252,6 +252,33 @@ export interface EvolutionSkillOpportunityQueueView {
   readonly items: readonly EvolutionSkillOpportunityView[]
 }
 
+/** Existing-Skill investigation queue; no Candidate exists without an exact baseline bundle. */
+export interface EvolutionSkillImprovementOpportunityView {
+  readonly id: string
+  readonly skillName: string
+  readonly invocationContentHash: string
+  readonly feedbackSignalIds: readonly string[]
+  readonly goalIds: readonly string[]
+  readonly signalCount: number
+  readonly goalCount: number
+  readonly firstObservedAt: number
+  readonly lastObservedAt: number
+  readonly evidence: {
+    readonly kind: 'internal-exact-skill-corrections-v1'
+    readonly association: 'exact-durable-skill-invocation-content'
+    readonly eligibilityBasis: 'two-or-more-distinct-goals-same-invocation-content'
+    readonly referencesTruncated: boolean
+    readonly causalClaim: 'none'
+  }
+  readonly status: 'waiting-for-baseline-bundle'
+  readonly releaseAuthority: 'none'
+}
+
+export interface EvolutionSkillImprovementOpportunityQueueView {
+  readonly waitingCount: number
+  readonly items: readonly EvolutionSkillImprovementOpportunityView[]
+}
+
 /** Quarantined whole-Skill package authored only from internal DSH experience. */
 export interface EvolutionSkillCandidateView {
   readonly id: string
@@ -563,6 +590,7 @@ export interface EvolutionOverview {
   readonly capabilityMap?: EvolutionCapabilityMapView
   readonly capabilityGaps?: EvolutionCapabilityGapQueueView
   readonly skillOpportunities?: EvolutionSkillOpportunityQueueView
+  readonly skillImprovementOpportunities?: EvolutionSkillImprovementOpportunityQueueView
   readonly skillCandidates?: EvolutionSkillCandidateQueueView
   readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView
   readonly skillEvaluationGovernance?: EvolutionSkillEvaluationGovernanceView

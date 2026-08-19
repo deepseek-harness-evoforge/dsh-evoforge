@@ -58,6 +58,7 @@ export interface EvolutionControlPlaneModules {
   }
   readonly gaps?: Pick<CapabilityGapStore, 'list'>
   readonly opportunities?: Pick<ExperienceDrivenSkillOpportunityDiscovery, 'discover'>
+    & Partial<Pick<ExperienceDrivenSkillOpportunityDiscovery, 'discoverImprovements'>>
   readonly evaluationEvidence?: Pick<SkillEvaluationEvidenceVault, 'readiness'>
   readonly candidates?: Pick<SkillCandidateStore, 'listCandidates'>
   readonly admissions?: Pick<SkillCandidateAdmission, 'scan'>
@@ -104,6 +105,7 @@ export class EvolutionControlPlane {
     ])
     const automaticSkills = this.modules.automatic?.skills(workspaceId) ?? []
     const skillOpportunities = this.modules.opportunities?.discover(workspaceId)
+    const skillImprovementOpportunities = this.modules.opportunities?.discoverImprovements?.(workspaceId)
     const opportunityGapIds = new Set(skillOpportunities?.flatMap(opportunity => opportunity.gapIds) ?? [])
     const opportunityReadiness = skillOpportunities === undefined
       ? []
@@ -169,6 +171,25 @@ export class EvolutionControlPlane {
                 causalClaim: opportunity.evidence.causalClaim,
               },
               evaluationReadiness: opportunityReadiness[index]!,
+              status: opportunity.status,
+              releaseAuthority: opportunity.releaseAuthority,
+            })),
+          } }),
+      ...(skillImprovementOpportunities === undefined
+        ? {}
+        : { skillImprovementOpportunities: {
+            waitingCount: skillImprovementOpportunities.length,
+            items: skillImprovementOpportunities.map(opportunity => ({
+              id: opportunity.id,
+              skillName: opportunity.skillName,
+              invocationContentHash: opportunity.invocationContentHash,
+              feedbackSignalIds: [...opportunity.feedbackSignalIds],
+              goalIds: [...opportunity.goalIds],
+              signalCount: opportunity.signalCount,
+              goalCount: opportunity.goalCount,
+              firstObservedAt: opportunity.firstObservedAt,
+              lastObservedAt: opportunity.lastObservedAt,
+              evidence: { ...opportunity.evidence },
               status: opportunity.status,
               releaseAuthority: opportunity.releaseAuthority,
             })),

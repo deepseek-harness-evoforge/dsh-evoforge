@@ -45,6 +45,32 @@ export interface SkillOpportunity {
   readonly releaseAuthority: 'none'
 }
 
+/** Existing installed Skill repeatedly corrected against one exact model-visible version. */
+export interface SkillImprovementOpportunity {
+  readonly schemaVersion: 1
+  readonly id: string
+  readonly workspaceId: string
+  readonly skillName: string
+  readonly invocationContentHash: string
+  readonly feedbackSignalIds: readonly string[]
+  readonly goalIds: readonly string[]
+  readonly signalCount: number
+  readonly goalCount: number
+  readonly firstObservedAt: number
+  readonly lastObservedAt: number
+  readonly evidence: {
+    readonly kind: 'internal-exact-skill-corrections-v1'
+    readonly association: 'exact-durable-skill-invocation-content'
+    readonly eligibilityBasis: 'two-or-more-distinct-goals-same-invocation-content'
+    readonly referencesTruncated: boolean
+    /** Exact invocation association still does not prove that the Skill caused the result. */
+    readonly causalClaim: 'none'
+  }
+  /** Candidate authoring must wait for an exact complete installed-bundle baseline. */
+  readonly status: 'waiting-for-baseline-bundle'
+  readonly releaseAuthority: 'none'
+}
+
 /**
  * Derive reusable Skill opportunities only from durable DSH experience.
  * Callers may scope by Workspace, but cannot provide a Skill name, path,
@@ -128,6 +154,88 @@ export class ExperienceDrivenSkillOpportunityDiscovery {
       || left.skillName.localeCompare(right.skillName)
       || left.workspaceId.localeCompare(right.workspaceId)).slice(0, maxOpportunities)
   }
+
+  /**
+   * Discover investigation-only opportunities for an existing Skill version.
+   * Name-only, same-Goal, duplicate, and legacy no-content-hash feedback abstains.
+   */
+  discoverImprovements(workspaceId?: string): SkillImprovementOpportunity[] {
+    const maxOpportunities = this.options.maxOpportunities ?? DEFAULT_MAX_OPPORTUNITIES
+    if (!Number.isInteger(maxOpportunities) || maxOpportunities < 1) {
+      throw new Error('Skill opportunity maxOpportunities must be a positive integer')
+    }
+    const exact = uniqueById(this.options.feedback?.list(workspaceId) ?? [])
+      .filter(isExactContentCorrection)
+      .filter(signal => workspaceId === undefined || signal.workspaceId === workspaceId)
+    const groups = new Map<string, typeof exact>()
+    for (const signal of exact) {
+      const key = improvementKey(
+        signal.workspaceId,
+        signal.attribution.skillName,
+        signal.attribution.invocationContentHash,
+      )
+      const values = groups.get(key) ?? []
+      values.push(signal)
+      groups.set(key, values)
+    }
+
+    const opportunities: SkillImprovementOpportunity[] = []
+    for (const values of groups.values()) {
+      const sorted = [...values].sort((left, right) =>
+        left.sourceUpdatedAt - right.sourceUpdatedAt || left.id.localeCompare(right.id))
+      const first = sorted[0]!
+      const attribution = first.attribution
+      const allGoalIds = [...new Set(sorted.map(signal => signal.attribution.goal.id))].sort()
+      if (allGoalIds.length < 2) continue
+      const signalIds = referenceIds(sorted)
+      const goalIds = Object.freeze(allGoalIds.slice(-MAX_EVIDENCE_REFERENCES))
+      opportunities.push(Object.freeze({
+        schemaVersion: 1,
+        id: improvementOpportunityId(
+          first.workspaceId,
+          attribution.skillName,
+          attribution.invocationContentHash,
+        ),
+        workspaceId: first.workspaceId,
+        skillName: attribution.skillName,
+        invocationContentHash: attribution.invocationContentHash,
+        feedbackSignalIds: signalIds,
+        goalIds,
+        signalCount: sorted.length,
+        goalCount: allGoalIds.length,
+        firstObservedAt: first.sourceUpdatedAt,
+        lastObservedAt: sorted.at(-1)!.sourceUpdatedAt,
+        evidence: Object.freeze({
+          kind: 'internal-exact-skill-corrections-v1',
+          association: 'exact-durable-skill-invocation-content',
+          eligibilityBasis: 'two-or-more-distinct-goals-same-invocation-content',
+          referencesTruncated: sorted.length > signalIds.length || allGoalIds.length > goalIds.length,
+          causalClaim: 'none',
+        }),
+        status: 'waiting-for-baseline-bundle',
+        releaseAuthority: 'none',
+      }))
+    }
+    return opportunities.sort((left, right) =>
+      right.goalCount - left.goalCount
+      || right.signalCount - left.signalCount
+      || right.lastObservedAt - left.lastObservedAt
+      || left.skillName.localeCompare(right.skillName)
+      || left.invocationContentHash.localeCompare(right.invocationContentHash)
+      || left.workspaceId.localeCompare(right.workspaceId)).slice(0, maxOpportunities)
+  }
+}
+
+type ExactContentCorrection = FeedbackSignal & {
+  readonly attribution: NonNullable<FeedbackSignal['attribution']> & {
+    readonly invocationContentHash: string
+  }
+}
+
+function isExactContentCorrection(signal: FeedbackSignal): signal is ExactContentCorrection {
+  return signal.attribution?.kind === 'exact-skill-invocation-v1'
+    && typeof signal.attribution.invocationContentHash === 'string'
+    && /^[a-f0-9]{64}$/u.test(signal.attribution.invocationContentHash)
 }
 
 interface AttributionIndex {
@@ -241,5 +349,22 @@ function opportunityId(workspaceId: string, skillName: string): string {
     'evoforge-skill-opportunity-v1',
     workspaceId,
     skillName,
+  ])).digest('hex')
+}
+
+function improvementKey(workspaceId: string, skillName: string, contentHash: string): string {
+  return `${workspaceId}\0${skillName}\0${contentHash}`
+}
+
+function improvementOpportunityId(
+  workspaceId: string,
+  skillName: string,
+  contentHash: string,
+): string {
+  return createHash('sha256').update(JSON.stringify([
+    'evoforge-skill-improvement-opportunity-v1',
+    workspaceId,
+    skillName,
+    contentHash,
   ])).digest('hex')
 }

@@ -273,6 +273,29 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'releaseAuthority': z.literal("none").readonly(),
 })).readonly(),
 })]).readonly().optional(),
+  'skillImprovementOpportunities': z.union([z.undefined(), z.object({
+  'waitingCount': z.number().readonly(),
+  'items': z.array(z.object({
+  'id': z.string().readonly(),
+  'skillName': z.string().readonly(),
+  'invocationContentHash': z.string().readonly(),
+  'feedbackSignalIds': z.array(z.string()).readonly(),
+  'goalIds': z.array(z.string()).readonly(),
+  'signalCount': z.number().readonly(),
+  'goalCount': z.number().readonly(),
+  'firstObservedAt': z.number().readonly(),
+  'lastObservedAt': z.number().readonly(),
+  'evidence': z.object({
+  'kind': z.literal("internal-exact-skill-corrections-v1").readonly(),
+  'association': z.literal("exact-durable-skill-invocation-content").readonly(),
+  'eligibilityBasis': z.literal("two-or-more-distinct-goals-same-invocation-content").readonly(),
+  'referencesTruncated': z.boolean().readonly(),
+  'causalClaim': z.literal("none").readonly(),
+}).readonly(),
+  'status': z.literal("waiting-for-baseline-bundle").readonly(),
+  'releaseAuthority': z.literal("none").readonly(),
+})).readonly(),
+})]).readonly().optional(),
   'skillCandidates': z.union([z.undefined(), z.object({
   'quarantinedCount': z.number().readonly(),
   'items': z.array(z.object({

@@ -119,6 +119,10 @@ describe.skipIf(process.platform !== 'darwin')('explicit feedback learning signa
           skillName: 'build-dsh-plugin',
           route: 'user-explicit',
           invocationSeq: 3,
+          invocationContentHash: sha256(JSON.stringify([{
+            type: 'text',
+            text: '<skill_content />',
+          }])),
           assistantSeq: 4,
           turn: 1,
           goal: { id: 'goal-feedback', revision: 1 },

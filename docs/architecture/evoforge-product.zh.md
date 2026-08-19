@@ -1,6 +1,6 @@
 # EvoForge 产品架构
 
-> 状态：产品边界已确认；Telegram、飞书两个 Assistant Adapter 与进化注意力桥已实现；内部经验驱动的 Skill Opportunity、生成前独立 Goal 证据密封、seal-bound Candidate v2、Candidate-independent Governance Case Pack Authoring、Envelope v4、Lineage v3、capability-absent assembled Shadow/Retention/canary 与内容寻址 future-Session Generation 已实现；治理包真实 provider assembled 评估闭环仍待完成与验收
+> 状态：产品边界已确认；Telegram、飞书两个 Assistant Adapter 与进化注意力桥已实现；内部经验驱动的 Skill Opportunity、existing-Skill exact-version improvement investigation、生成前独立 Goal 证据密封、seal-bound Candidate v2、Candidate-independent Governance Case Pack Authoring、Envelope v4、Lineage v3、capability-absent assembled Shadow/Retention/canary 与内容寻址 future-Session Generation 已实现；现有 Skill 完整 baseline Bundle/Candidate 与治理包真实 provider assembled 评估闭环仍待完成与验收
 > 更新日期：2026-08-19
 
 ## 1. 产品结果

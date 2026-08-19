@@ -360,6 +360,13 @@ const t = (key: string) => ({
   'skills.opportunities.evaluation.invalid': 'Invalid internal evidence',
   'skills.opportunities.evaluation.unavailable': 'Evaluation governance not configured',
   'skills.opportunities.state': 'Eligible for quarantined authoring · No install, activation, or release authority',
+  'skills.improvements': 'Existing-Skill improvement investigations',
+  'skills.improvements.empty': 'No repeated exact-version corrections.',
+  'skills.improvements.corrections': 'exact corrections',
+  'skills.improvements.version': 'Invocation content version',
+  'skills.improvements.attribution': 'Exact association · durable Session invocation-content hash and Goal revision',
+  'skills.improvements.causalBoundary': 'No causal claim · same-name different-content versions never merge',
+  'skills.improvements.waiting': 'Waiting for a sealed complete baseline bundle · no Candidate, install, or release',
   'skills.slow-loop': 'Internal experience-driven Skill authoring',
   'skills.slow-loop.policies': 'Workspace safety policies',
   'skills.slow-loop.warnings': 'unreadable durable states',
@@ -737,6 +744,29 @@ describe('EvolutionAction', () => {
             releaseAuthority: 'none' as const,
           }],
         },
+        skillImprovementOpportunities: {
+          waitingCount: 1,
+          items: [{
+            id: 'c'.repeat(64),
+            skillName: 'build-dsh-plugin',
+            invocationContentHash: 'd'.repeat(64),
+            feedbackSignalIds: ['a'.repeat(64), 'b'.repeat(64)],
+            goalIds: ['goal-fix-1', 'goal-fix-2'],
+            signalCount: 2,
+            goalCount: 2,
+            firstObservedAt: 1_786_895_950_000,
+            lastObservedAt: 1_786_896_000_000,
+            evidence: {
+              kind: 'internal-exact-skill-corrections-v1' as const,
+              association: 'exact-durable-skill-invocation-content' as const,
+              eligibilityBasis: 'two-or-more-distinct-goals-same-invocation-content' as const,
+              referencesTruncated: false,
+              causalClaim: 'none' as const,
+            },
+            status: 'waiting-for-baseline-bundle' as const,
+            releaseAuthority: 'none' as const,
+          }],
+        },
         slowLoopAuthoring: {
           configuredPolicyCount: 1,
           warningCount: 0,
@@ -879,6 +909,14 @@ describe('EvolutionAction', () => {
     expect(screen.getByText(/Independent evaluation evidence sealed · author-visible 2 \/ admission 1 \/ holdout 1/u)).toBeTruthy()
     expect(screen.getByText('Candidate proposer cannot read protected samples')).toBeTruthy()
     expect(screen.getByText('Eligible for quarantined authoring · No install, activation, or release authority')).toBeTruthy()
+    expect(screen.getByText('Existing-Skill improvement investigations')).toBeTruthy()
+    expect(screen.getByText('2 distinct Goals · 2 exact corrections')).toBeTruthy()
+    expect(screen.getByText(`Invocation content version · ${'d'.repeat(12)}`)).toBeTruthy()
+    expect(screen.getByText('Evidence Goals · goal-fix-1 · goal-fix-2')).toBeTruthy()
+    expect(screen.getByText('Exact association · durable Session invocation-content hash and Goal revision')).toBeTruthy()
+    expect(screen.getByText('No causal claim · same-name different-content versions never merge')).toBeTruthy()
+    expect(screen.getByText(`Evidence references · correction ${'a'.repeat(8)}… · correction ${'b'.repeat(8)}…`)).toBeTruthy()
+    expect(screen.getByText('Waiting for a sealed complete baseline bundle · no Candidate, install, or release')).toBeTruthy()
     expect(screen.getByText('Internal experience-driven Skill authoring')).toBeTruthy()
     expect(screen.getByText('Quarantined candidate ready')).toBeTruthy()
     expect(screen.getByText('Model calls · input/output tokens · 1 · 320/120')).toBeTruthy()

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
 import { DurableFeedbackAttribution } from '../src/durable-feedback-attribution.ts'
@@ -9,10 +10,57 @@ describe('DurableFeedbackAttribution', () => {
       skillName: 'release-dsh-plugin',
       route: 'model-tool',
       invocationSeq: 3,
+      invocationContentHash: contentHash('<skill_content />'),
       assistantSeq: 5,
       turn: 1,
       goal: { id: 'goal-release', revision: 1 },
     })
+  })
+
+  it('hashes the exact durable content shown by a user-explicit Skill invocation', async () => {
+    const events: SessionEvent[] = validEvents().filter(candidate =>
+      candidate.type !== 'tool/call' && candidate.type !== 'tool/result')
+    events.splice(3, 0, event('user/message', 3, {
+      id: 'skill-explicit',
+      role: 'user',
+      source: { kind: 'skill-invocation', name: 'release-dsh-plugin' },
+      content: [{ type: 'text', text: '<skill_content>exact user route</skill_content>' }],
+    }) as SessionEvent)
+    const assistant = events.at(-1)!
+    events[events.length - 1] = { ...assistant, seq: 4, time: 5 }
+
+    await expect(resolve(events, 'assistant-1')).resolves.toMatchObject({
+      route: 'user-explicit',
+      invocationSeq: 3,
+      invocationContentHash: contentHash('<skill_content>exact user route</skill_content>'),
+    })
+  })
+
+  it('separates same-name invocations whose durable model-visible content changed', async () => {
+    const changed = validEvents().map(candidate => candidate.type !== 'tool/result'
+      ? candidate
+      : {
+          ...candidate,
+          data: {
+            ...candidate.data,
+            message: {
+              ...candidate.data.message,
+              content: [{
+                type: 'tool-result',
+                toolCallId: 'call-skill',
+                content: [{ type: 'text', text: '<skill_content>changed</skill_content>' }],
+                isError: false,
+              }],
+            },
+          },
+        } as SessionEvent)
+
+    const [original, revised] = await Promise.all([
+      resolve(validEvents(), 'assistant-1'),
+      resolve(changed, 'assistant-1'),
+    ])
+    expect(original?.skillName).toBe(revised?.skillName)
+    expect(original?.invocationContentHash).not.toBe(revised?.invocationContentHash)
   })
 
   it('abstains when a model Skill call has no source-linked successful result', async () => {
@@ -117,4 +165,10 @@ function validEvents(): SessionEvent[] {
 
 function event(type: string, seq: number, data: unknown): Record<string, unknown> {
   return { type, seq, time: seq + 1, data }
+}
+
+function contentHash(text: string): string {
+  return createHash('sha256')
+    .update(JSON.stringify([{ type: 'text', text }]))
+    .digest('hex')
 }

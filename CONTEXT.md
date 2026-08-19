@@ -103,8 +103,12 @@ A conservative, non-causal link from one compact Delivery Outcome to one stable 
 _Avoid_: Exact-revision equality, retry evidence, causal attribution, success vote
 
 **Exact Skill Correction Attribution**:
-A fail-closed, non-causal link from one Explicit Feedback Signal to the target assistant turn's only successful durable Skill invocation and the native Goal identity folded through that turn. Missing or ambiguous turns, invocations, or Goals abstain; same-Session Gap proximity is not attribution.
+A fail-closed, non-causal link from one Explicit Feedback Signal to the target assistant turn's only successful durable Skill invocation, the exact hash of the invocation content blocks the model saw, and the native Goal identity folded through that turn. Missing or ambiguous turns, invocations, content, or Goals abstain; same-Session Gap proximity and same-name Skill identity are not attribution. Legacy records without the content hash remain readable but are ineligible for Existing Skill Improvement Opportunity discovery.
 _Avoid_: Same-Session inference, Gap proximity, Skill blame, causal proof
+
+**Existing Skill Improvement Opportunity**:
+A deterministic, Workspace-scoped investigation created only when one exact Skill name and invocation-content hash receives explicit negative corrections across at least two distinct native Goals. Duplicate signals, same-Goal retries, legacy no-hash attribution, and same-name different-content versions do not merge. It is not a Skill Opportunity for missing capability and remains `waiting-for-baseline-bundle`; it cannot enter authoring, evaluation, installation, activation, or release until the complete invoked Skill package is independently sealed and matched to the observed invocation identity.
+_Avoid_: Name-only clustering, correction-as-causality, capability-absent baseline, partial Skill snapshot, Candidate permission
 
 **Fast Evolution Loop**:
 A bounded online loop that attributes an explicit correction, verified outcome, repeated failure, or measured cost to the exact Session Generation and records an inactive signal, gap, or small candidate for later evaluation. It never rewrites an active capability or publishes from the originating Session.

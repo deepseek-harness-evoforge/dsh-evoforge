@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { foldGoal } from '@deepseek-ai/dsh-goal'
 import type { SessionEvent, SessionId } from '@deepseek-ai/dsh-session'
 import type { SessionPersistence } from '@deepseek-ai/dsh-session-persistence'
@@ -8,6 +9,8 @@ export interface ExactSkillInvocationAttribution {
   readonly skillName: string
   readonly route: 'user-explicit' | 'model-tool'
   readonly invocationSeq: number
+  /** Exact hash of the durable content blocks the model saw for this invocation. */
+  readonly invocationContentHash?: string | undefined
   readonly assistantSeq: number
   readonly turn: number
   readonly goal: {
@@ -70,6 +73,7 @@ export class DurableFeedbackAttribution {
       skillName: invocation.skillName,
       route: invocation.route,
       invocationSeq: invocation.seq,
+      invocationContentHash: invocation.contentHash,
       assistantSeq: assistant.seq,
       turn: assistant.data.turn,
       goal: Object.freeze({ id: String(goal.id), revision: goal.revision }),
@@ -81,6 +85,7 @@ interface Invocation {
   readonly skillName: string
   readonly route: ExactSkillInvocationAttribution['route']
   readonly seq: number
+  readonly contentHash: string
 }
 
 function explicitInvocations(events: readonly SessionEvent[]): Invocation[] {
@@ -88,7 +93,12 @@ function explicitInvocations(events: readonly SessionEvent[]): Invocation[] {
     if (event.type !== 'user/message' || sourceKind(event.data.source) !== 'skill-invocation') return []
     const skillName = sourceName(event.data.source)
     return skillName !== undefined && isSkillName(skillName)
-      ? [{ skillName, route: 'user-explicit' as const, seq: event.seq }]
+      ? [{
+          skillName,
+          route: 'user-explicit' as const,
+          seq: event.seq,
+          contentHash: hashContent(event.data.content),
+        }]
       : []
   })
 }
@@ -100,17 +110,29 @@ function successfulToolInvocations(events: readonly SessionEvent[]): Invocation[
     if (event.type !== 'tool/call' || event.data.name !== 'skill') return []
     const skillName = toolSkillName(event.data.arguments)
     if (skillName === undefined) return []
-    const result = results.find(candidate =>
-      candidate.sourceEventSeqs?.includes(event.seq) === true
-      && candidate.data.error === undefined
-      && candidate.data.message.content.some(block =>
-        block.type === 'tool-result'
-        && String(block.toolCallId) === String(event.data.callId)
-        && block.isError !== true))
-    return result === undefined
+    const matches = results.flatMap(candidate => {
+      if (candidate.sourceEventSeqs?.includes(event.seq) === true
+        && candidate.data.error === undefined) {
+        return candidate.data.message.content.filter(block =>
+          block.type === 'tool-result'
+          && String(block.toolCallId) === String(event.data.callId)
+          && block.isError !== true)
+      }
+      return []
+    })
+    return matches.length !== 1
       ? []
-      : [{ skillName, route: 'model-tool' as const, seq: event.seq }]
+      : [{
+          skillName,
+          route: 'model-tool' as const,
+          seq: event.seq,
+          contentHash: hashContent(matches[0]!.content),
+        }]
   })
+}
+
+function hashContent(content: unknown): string {
+  return createHash('sha256').update(JSON.stringify(content)).digest('hex')
 }
 
 function toolSkillName(raw: string): string | undefined {
