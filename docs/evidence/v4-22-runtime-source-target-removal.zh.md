@@ -13,7 +13,7 @@
 - 内部 Bundle 仍只影响未来 Session，重启后固定版本可恢复，root rollback 精确回到 native DSH；
 - 旧文件中 19 条以 Git source/静态 target 为前提的集成规格及其 Git fixture 已删除而非跳过。
 
-当前限制：私有 `GitSkillSource` 类暂时仍承担零 source 的内容寻址 Bundle materialization；旧 target 模块、Commands/Control 类型和 legacy Git persistence variant 尚未全部删除。它们不能由 profile 重新启用，也不构成本增量完成声明；后续必须以已安装 Skill 完整基线 Bundle 和内部证据链替换。
+后续状态：V4.23 已把活动 `GitSkillSource` materializer/Publisher 替换为只接收 exact internal Bundle 的 repository，并删除 packed runtime 中的隐藏 ref 与旧 Command target action。未装配历史模块、`Shadow` 旧 proposer、Control 类型和 legacy persistence quarantine 仍继续清理；详见 [V4.23](v4-23-content-addressed-generation-runtime.zh.md)。
 
 ## 已执行验证
 

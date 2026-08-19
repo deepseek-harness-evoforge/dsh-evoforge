@@ -4,13 +4,13 @@
 
 ## 结论
 
-当前实现不是目标完成态。`dsh-gateway` 已直接替换旧 Router；旧 ClawHub/市场/运行时 research Candidate 已删除。本轮进一步确认公开 `dsh-evolve` 仍残留 Git repository/source、静态 Skill/Case Pack target 与按 Skill 自动晋升配置，先前“偏差已清除”的判断不完整；这些公开入口和活动装配现已删除，Git resolver 仅以零 source 的私有内容寻址 Bundle materializer 暂时隔离，仍须被完整 Bundle repository 替换。自我发现仍只以重复 Goal-linked Gap 决定 Opportunity 资格；纠正只从 feedback 目标回答的唯一 durable Skill invocation 和 exact Goal id/revision 精确关联，不宣称因果或资格影响。Gateway 公共普通文本 outbound/限流响应/健康、transport 聚合和统一只读 Web 已收敛；飞书 exact 消息、existing-Skill 再进化、完整内部归因、真实 provider 和 Hermes 同条件 paired evidence 仍缺失。
+当前实现不是目标完成态。`dsh-gateway` 已直接替换旧 Router；旧 ClawHub/市场/运行时 research Candidate 已删除。公开 `dsh-evolve` 的 Git repository/source、静态 Skill/Case Pack target 与按 Skill自动晋升配置和活动装配已删除；活动 Git resolver/Publisher 也已由只接收内部 exact Bundle 的 `GenerationBundleRepository` 替换，隐藏 Git ref 与 repository fallback 不再进入 packed runtime，legacy artifact 在 Provider 边界 quarantine。源码树仍有未装配的历史 Feedback/target 模块和 `Shadow` 旧 proposer 分支，必须继续物理删除。自我发现仍只以重复 Goal-linked Gap 决定 Opportunity 资格；纠正只从 feedback 目标回答的唯一 durable Skill invocation 和 exact Goal id/revision 精确关联，不宣称因果或资格影响。Gateway 公共普通文本 outbound/限流响应/健康、transport 聚合和统一只读 Web 已收敛；飞书 exact 消息、existing-Skill 再进化、完整内部归因、真实 provider 和 Hermes 同条件 paired evidence 仍缺失。
 
 ## 偏差与处置
 
 | 范围 | 当前证据 | 判断 | 处置与完成证据 |
 |---|---|---|---|
-| 运行时能力获取与预选方向 | ClawHub、Agent Skills、research Candidate 已删除；本轮又删除公开 `sources[].repository/path`、`shadowTargets`、`evaluatorTargets`、`autoPromote.targets` 等配置及其活动装配；真实 Workspace/Session 测试已改用内部内容寻址 Bundle | **公开偏差已清除；私有遗留待删** | Config 负向契约固定只剩 cache/Workspace policy/supervisor；旧 Git resolver 现在硬编码零 source 且不能由 profile 重开，但源码、旧模块和历史 persistence shape 仍需继续删除/隔离 |
+| 运行时能力获取与预选方向 | ClawHub、Agent Skills、research Candidate、公开 source/target 配置均已删除；活动 Provider/Publisher 只接收 exact internal Bundle，packed artifact 负向契约拒绝 Git source/ref 与旧 target 字符串 | **活动路径已清除；历史源码待物理删除** | Config 和 packed runtime 双重负向契约已固定；legacy persistence 只读 quarantine；继续删除未装配 Feedback/target/Git 模块及 `Shadow` 旧 proposer 分支 |
 | 自我发现证据 | Opportunity 资格要求同 Workspace、同 Skill、两个不同 Goal-linked Gap；Opportunity v3 只按目标回答的唯一 durable Skill invocation/exact Goal 关联 correction，弱 same-Session 信号 abstain；delivery outcome 仍按 stable Goal identity 跨 revision 保守关联，固定 `causalClaim: none` | **部分实现** | 补 Delivery Outcome exact Skill invocation、existing-Skill improvement Opportunity/Candidate，以及返工、成本、跨 Goal 复用、Retention、负迁移和回滚 evidence；同 Goal retry、一次成功、模型自评继续 abstain；用真实 provider outcome 证明 |
 | Candidate 治理 | Candidate schema 只允许 `internal-experience-v1` Opportunity、`bounded-model-authoring-v1`、`experience-authored-bundle-v1`；Admission/Lineage/Shadow 和 Web 已收敛到同一内部契约 | **边界已重建；整链验证未完成** | Candidate 保持 inactive/quarantined/unevaluated/never-executed；继续完成独立 final test、Shadow、Retention、future-Session promotion/rollback 与真实 provider 验证 |
 | Gateway | `dsh-gateway` 已有 exact route、Workspace/Session/Agent 绑定、入站日志，以及 Telegram/飞书共用的普通文本 outbound intent/journal、按 account 串行、明确限流重试、uncertain 恢复、脱敏 transport observation 和同包只读 Web | **公共可靠性与 Web 已收敛；真实平台未完成** | 私有 Adapter Delivery Store/worker 已删除；平台 SDK/凭据/发送/卡片留在 Adapter；最终 tarball 的真实浏览器已覆盖刷新、Host 停机清空旧快照和恢复，本增量 clean-profile 已复验；继续补真实 exact 消息 |
@@ -23,7 +23,7 @@
 ## 当前重构顺序
 
 1. 用 `dsh-gateway` 替换旧 Router 包和所有消费者，保持已验证的 exact route/ingress 行为。
-2. **进行中：**内部经验 Candidate 已替换混合 Discovery 存储；ClawHub/Agent Skills/research Candidate 和公开 Git/static-target 配置已删除，私有 Git resolver、旧 target 模块、Commands/Control 类型和历史 persistence shape 继续清理。
+2. **进行中：**内部经验 Candidate 已替换混合 Discovery 存储；ClawHub/Agent Skills/research Candidate、公开 Git/static-target 配置、活动 Git resolver/hidden ref 和旧 Commands target action 已删除；继续物理删除未装配模块、`Shadow` 旧 proposer、Control/Web 旧类型并把 legacy persistence 固定为只读 quarantine。
 3. **部分完成：**Opportunity 已精确关联 durable correction invocation，并保守关联无因果声明的 outcome context；继续补 Delivery Outcome exact invocation、existing-Skill improvement、rework/cost/reuse/retention/negative-transfer/rollback，并打通真实 provider 独立评测、Shadow、Retention、晋升与回滚。
 4. **部分完成：**Gateway 公共普通文本投递/限流响应/健康、transport 聚合和统一只读 Web 已收敛；继续补飞书真实消息闭环和完整 DSH Web 进化权威控制面。
 5. 完成真实 provider 与 Hermes paired 验收；未达门禁前不打 tag、不宣布完成。

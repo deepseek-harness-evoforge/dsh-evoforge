@@ -1,11 +1,9 @@
 import { execFile as execFileCallback } from 'node:child_process'
 import {
   chmod,
-  cp,
   lstat,
   mkdir,
   mkdtemp,
-  readFile,
   readdir,
   rm,
   writeFile,
@@ -16,16 +14,13 @@ import { promisify } from 'node:util'
 import type {
   CapabilityGeneration,
   EvolutionStore,
-  GitSkillGenerationArtifact,
   SkillGenerationArtifact,
 } from './generation-store.ts'
+import type { GenerationBundleRepository } from './generation-bundle-repository.ts'
 import {
-  projectCandidateImpact,
   projectNewSkillCandidateImpact,
   type CandidateImpactProjection,
 } from './candidate-impact.ts'
-import type { GitSkillSource } from './git-skill-source.ts'
-import { hashTree } from './hash.ts'
 import type { ReviewCandidate } from './review-inbox.ts'
 import { assembleSkillBundleArchive } from './skill-bundle-archive.ts'
 import {
@@ -44,53 +39,41 @@ export interface CandidateDiffPreview {
   impact: CandidateImpactProjection
 }
 
-/** Verify, preview, and publish one evaluated Skill proposal without moving a user branch. */
+/**
+ * Verify and publish a complete, internally authored Skill bundle.
+ *
+ * Updating an already installed Skill is deliberately fail-closed until DSH can
+ * seal a complete baseline bundle through its native Skill provider contract.
+ * This module never reads a source repository or writes a Git object/ref.
+ */
 export class CandidatePublisher {
   private readonly store: EvolutionStore
-  private readonly source: GitSkillSource
+  private readonly bundles: Pick<GenerationBundleRepository, 'providerFor'>
 
-  constructor(store: EvolutionStore, source: GitSkillSource) {
+  constructor(
+    store: EvolutionStore,
+    bundles: Pick<GenerationBundleRepository, 'providerFor'>,
+  ) {
     this.store = store
-    this.source = source
+    this.bundles = bundles
   }
 
-  /** Render a bounded diff from the exact Skill tree or capability-absent publication baseline. */
   async preview(candidate: ReviewCandidate): Promise<CandidateDiffPreview> {
-    const lineage = assertProposal(candidate)
-    if (candidate.baselineKind === 'capability-absent') {
-      if (lineage === undefined) {
-        throw new Error('a brand-new internal Skill requires exact Candidate lineage')
-      }
-      await this.resolveAbsentBaseline(candidate)
-      const stage = await mkdtemp(join(tmpdir(), 'dsh-evolve-preview-'))
-      try {
-        const baselineTree = join(stage, 'a')
-        const candidateTree = join(stage, 'b')
-        await mkdir(baselineTree)
-        await mkdir(candidateTree)
-        await materializeCandidate(candidateTree, candidate)
-        const patch = await diffTrees(stage)
-        return {
-          ...boundDiffPreview(patch),
-          impact: projectNewSkillCandidateImpact(candidate.proposal.files),
-        }
-      } finally {
-        await makeWritable(stage).catch(() => undefined)
-        await rm(stage, { recursive: true, force: true })
-      }
-    }
-    const { base } = await this.resolveBaseline(candidate)
-    const baselineSkill = await readFile(join(base.resourceBase, 'SKILL.md'), 'utf8')
-    const impact = projectCandidateImpact(baselineSkill, candidate.proposal.files)
+    const lineage = requireNewSkillProposal(candidate)
+    await this.resolveAbsentBaseline(candidate)
     const stage = await mkdtemp(join(tmpdir(), 'dsh-evolve-preview-'))
     try {
-      const baselineTree = join(stage, 'a')
+      await mkdir(join(stage, 'a'))
       const candidateTree = join(stage, 'b')
-      await cp(base.resourceBase, baselineTree, { recursive: true })
-      await cp(base.resourceBase, candidateTree, { recursive: true })
+      await mkdir(candidateTree)
       await materializeCandidate(candidateTree, candidate)
+      const assembled = await assembleSkillBundleArchive(candidate.proposal.files)
+      assertBundleIdentity(candidate, lineage, assembled.treeHash, assembled.artifactDigest)
       const patch = await diffTrees(stage)
-      return { ...boundDiffPreview(patch), impact }
+      return {
+        ...boundDiffPreview(patch),
+        impact: projectNewSkillCandidateImpact(candidate.proposal.files),
+      }
     } finally {
       await makeWritable(stage).catch(() => undefined)
       await rm(stage, { recursive: true, force: true })
@@ -100,76 +83,14 @@ export class CandidatePublisher {
   async publish(
     candidate: ReviewCandidate,
     options: { policyVersion?: 'human-review-v1' | 'auto-clear-instruction-v1' } = {},
-  ) {
-    if (candidate.status !== 'pending') throw new Error('only a pending review Candidate can be published')
-    const lineage = assertProposal(candidate)
-    if (candidate.baselineKind === 'capability-absent') {
-      if (lineage === undefined) {
-        throw new Error('a brand-new internal Skill requires exact Candidate lineage')
-      }
-      return this.publishNewSkill(candidate, lineage, options)
-    }
-    const { active, activeArtifacts, base } = await this.resolveBaseline(candidate)
-    if (base.artifact.kind !== 'skill'
-      || base.repository === undefined
-      || base.path === undefined) {
-      throw new Error(`existing Skill '${candidate.skillName}' has no exact Git publication baseline`)
-    }
-
-    const stage = await mkdtemp(join(tmpdir(), 'dsh-evolve-approved-'))
-    try {
-      const candidateTree = join(stage, 'candidate')
-      await cp(base.resourceBase, candidateTree, { recursive: true })
-      await materializeCandidate(candidateTree, candidate)
-      const artifact = await writeImmutableCommit({
-        baseCommit: base.artifact.gitCommit,
-        candidate,
-        candidateTree,
-        repository: base.repository,
-        ...(lineage === undefined ? {} : { lineage }),
-        sourcePath: base.path,
-        stage,
-      })
-      const artifacts = active === undefined
-        ? [artifact]
-        : activeArtifacts.map(item => item.name === candidate.skillName ? artifact : item)
-      const createdAt = Date.parse(candidate.startedAt)
-      if (!Number.isSafeInteger(createdAt) || createdAt < 0) {
-        throw new Error('review Candidate has an invalid startedAt timestamp')
-      }
-      const input = {
-        workspaceId: candidate.workspaceId,
-        ...active === undefined ? {} : { parentId: active.id },
-        createdAt,
-        artifacts,
-        evaluatorVersion: candidate.evaluatorVersion,
-        policyVersion: options.policyVersion ?? 'human-review-v1',
-        compositionFingerprint: candidate.compositionFingerprint,
-      }
-      // Fail before Storage publication if the exact Git tree or Skill definition is invalid.
-      await this.source.providerFor({ id: '0'.repeat(64), schemaVersion: 2, ...input })
-      const published = await this.store.publishGeneration(input)
-      if (this.store.getActiveGeneration(candidate.workspaceId)?.id !== active?.id) {
-        throw new Error('active Generation changed while the reviewed Candidate was being published')
-      }
-      return published.generation
-    } finally {
-      await makeWritable(stage).catch(() => undefined)
-      await rm(stage, { recursive: true, force: true })
-    }
-  }
-
-  private async publishNewSkill(
-    candidate: ReviewCandidate,
-    lineage: SkillCandidateLineage,
-    options: { policyVersion?: 'human-review-v1' | 'auto-clear-instruction-v1' },
   ): Promise<CapabilityGeneration> {
+    if (candidate.status !== 'pending') {
+      throw new Error('only a pending review Candidate can be published')
+    }
+    const lineage = requireNewSkillProposal(candidate)
     const { active, activeArtifacts } = await this.resolveAbsentBaseline(candidate)
     const assembled = await assembleSkillBundleArchive(candidate.proposal.files)
-    if (assembled.treeHash !== candidate.candidateTreeHash
-      || assembled.artifactDigest !== lineage.contentHash) {
-      throw new Error('brand-new Skill bundle does not match its sealed Candidate identity')
-    }
+    assertBundleIdentity(candidate, lineage, assembled.treeHash, assembled.artifactDigest)
     const artifact = {
       kind: 'skill-bundle' as const,
       name: candidate.skillName,
@@ -184,8 +105,8 @@ export class CandidatePublisher {
       [...activeArtifacts, artifact],
       options.policyVersion ?? 'human-review-v1',
     )
-    // Fail before Storage publication if the canonical bundle or Skill definition is invalid.
-    await this.source.providerFor({ id: '0'.repeat(64), schemaVersion: 2, ...input })
+    // Validate the exact immutable Bundle before any Storage publication.
+    await this.bundles.providerFor({ id: '0'.repeat(64), schemaVersion: 2, ...input })
     const published = await this.store.publishGeneration(input)
     if (this.store.getActiveGeneration(candidate.workspaceId)?.id !== active?.id) {
       throw new Error('active Generation changed while the reviewed Candidate was being published')
@@ -193,10 +114,13 @@ export class CandidatePublisher {
     return published.generation
   }
 
-  private async resolveAbsentBaseline(candidate: ReviewCandidate) {
+  private async resolveAbsentBaseline(candidate: ReviewCandidate): Promise<{
+    active: CapabilityGeneration | undefined
+    activeArtifacts: SkillGenerationArtifact[]
+  }> {
     const active = this.store.getActiveGeneration(candidate.workspaceId)
     const activeArtifacts = active?.artifacts ?? []
-    if (active !== undefined) await this.source.providerFor(active)
+    if (active !== undefined) await this.bundles.providerFor(active)
     if (activeArtifacts.some(artifact => artifact.name === candidate.skillName)) {
       throw new Error(
         `capability-absent review conflicts with active Skill '${candidate.skillName}'`,
@@ -204,29 +128,21 @@ export class CandidatePublisher {
     }
     return { active, activeArtifacts }
   }
-
-  private async resolveBaseline(candidate: ReviewCandidate) {
-    const active = this.store.getActiveGeneration(candidate.workspaceId)
-    const activeArtifacts = active?.artifacts ?? []
-    if (active !== undefined) await this.source.providerFor(active)
-    const prior = activeArtifacts.find(artifact => artifact.name === candidate.skillName)
-    if (active !== undefined && prior === undefined) {
-      throw new Error(`active Generation has no artifact for Skill '${candidate.skillName}'`)
-    }
-    const base = await this.source.resolveArtifact(candidate.skillName, prior)
-    if (await hashTree(base.resourceBase) !== candidate.baseTreeHash) {
-      throw new Error('reviewed baseline does not match the exact Git Skill tree')
-    }
-    return { active, activeArtifacts, base }
-  }
 }
 
-function assertProposal(candidate: ReviewCandidate): SkillCandidateLineage | undefined {
+function requireNewSkillProposal(candidate: ReviewCandidate): SkillCandidateLineage {
+  if (candidate.baselineKind !== 'capability-absent') {
+    throw new Error(
+      `existing Skill '${candidate.skillName}' cannot be published without a sealed complete baseline Bundle`,
+    )
+  }
   if (candidate.proposal.files.length === 0) throw new Error('review Candidate proposes no files')
   if (new Set(candidate.proposal.files.map(file => file.path)).size !== candidate.proposal.files.length) {
     throw new Error('review Candidate proposes the same path more than once')
   }
-  if (candidate.lineage === undefined) return undefined
+  if (candidate.lineage === undefined) {
+    throw new Error('a brand-new internal Skill requires exact Candidate lineage')
+  }
   let lineage: SkillCandidateLineage
   try {
     lineage = parseSkillCandidateLineage(candidate.lineage)
@@ -239,6 +155,17 @@ function assertProposal(candidate: ReviewCandidate): SkillCandidateLineage | und
     throw new Error('Review lineage does not match its exact Candidate')
   }
   return lineage
+}
+
+function assertBundleIdentity(
+  candidate: ReviewCandidate,
+  lineage: SkillCandidateLineage,
+  treeHash: string,
+  artifactDigest: string,
+): void {
+  if (treeHash !== candidate.candidateTreeHash || artifactDigest !== lineage.contentHash) {
+    throw new Error('brand-new Skill bundle does not match its sealed Candidate identity')
+  }
 }
 
 async function materializeCandidate(candidateTree: string, candidate: ReviewCandidate): Promise<void> {
@@ -255,9 +182,6 @@ async function materializeCandidate(candidateTree: string, candidate: ReviewCand
       if (!isMissing(error)) throw error
     }
     await writeFile(target, file.content, { mode: 0o644 })
-  }
-  if (await hashTree(candidateTree) !== candidate.candidateTreeHash) {
-    throw new Error('approved proposal does not reproduce the sealed Candidate tree')
   }
 }
 
@@ -316,83 +240,6 @@ function escapeDiffControls(value: string): string {
   )
 }
 
-async function writeImmutableCommit(input: {
-  baseCommit: string
-  candidate: ReviewCandidate
-  candidateTree: string
-  repository: string
-  lineage?: SkillCandidateLineage
-  sourcePath: string
-  stage: string
-}): Promise<GitSkillGenerationArtifact> {
-  const indexPath = join(input.stage, 'git-index')
-  const gitEnv = {
-    ...process.env,
-    GIT_INDEX_FILE: indexPath,
-    GIT_AUTHOR_NAME: 'DSH EvoForge',
-    GIT_AUTHOR_EMAIL: 'evoforge@users.noreply.github.com',
-    GIT_COMMITTER_NAME: 'DSH EvoForge',
-    GIT_COMMITTER_EMAIL: 'evoforge@users.noreply.github.com',
-    GIT_AUTHOR_DATE: input.candidate.startedAt,
-    GIT_COMMITTER_DATE: input.candidate.startedAt,
-  }
-  await git(input.repository, gitEnv, 'read-tree', input.baseCommit)
-  for (const file of input.candidate.proposal.files) {
-    const blob = await git(
-      input.repository,
-      gitEnv,
-      'hash-object',
-      '-w',
-      containedPath(input.candidateTree, file.path),
-    )
-    await git(
-      input.repository,
-      gitEnv,
-      'update-index',
-      '--add',
-      '--cacheinfo',
-      '100644',
-      blob,
-      `${input.sourcePath}/${file.path}`,
-    )
-  }
-  const repositoryTree = await git(input.repository, gitEnv, 'write-tree')
-  const claim = input.candidate.claim.replaceAll(/[\r\n]+/g, ' ').trim().slice(0, 120)
-  const commit = await git(
-    input.repository,
-    gitEnv,
-    'commit-tree',
-    repositoryTree,
-    '-p',
-    input.baseCommit,
-    '-m',
-    `dsh-evolve: ${claim || 'approved Skill Candidate'}`,
-  )
-  const reference = `refs/evoforge/generations/${input.candidate.id}`
-  const existing = await gitOptional(input.repository, gitEnv, 'rev-parse', '--verify', reference)
-  if (existing !== undefined && existing !== commit) {
-    throw new Error(`immutable EvoForge Git ref '${reference}' already points to different evidence`)
-  }
-  if (existing === undefined) {
-    await git(
-      input.repository,
-      gitEnv,
-      'update-ref',
-      reference,
-      commit,
-      '0'.repeat(input.baseCommit.length),
-    )
-  }
-  const treeHash = await git(input.repository, gitEnv, 'rev-parse', `${commit}:${input.sourcePath}`)
-  return {
-    kind: 'skill',
-    name: input.candidate.skillName,
-    gitCommit: commit,
-    treeHash,
-    ...(input.lineage === undefined ? {} : { lineage: input.lineage }),
-  }
-}
-
 function generationInput(
   candidate: ReviewCandidate,
   active: CapabilityGeneration | undefined,
@@ -411,32 +258,6 @@ function generationInput(
     evaluatorVersion: candidate.evaluatorVersion,
     policyVersion,
     compositionFingerprint: candidate.compositionFingerprint,
-  }
-}
-
-async function git(
-  repository: string,
-  env: NodeJS.ProcessEnv,
-  ...args: string[]
-): Promise<string> {
-  const { stdout } = await execFile('git', ['-C', repository, ...args], {
-    encoding: 'utf8',
-    env,
-    maxBuffer: 1024 * 1024,
-  })
-  return stdout.trim()
-}
-
-async function gitOptional(
-  repository: string,
-  env: NodeJS.ProcessEnv,
-  ...args: string[]
-): Promise<string | undefined> {
-  try {
-    return await git(repository, env, ...args)
-  } catch (error) {
-    if (isRecord(error) && error.code === 128) return undefined
-    throw error
   }
 }
 

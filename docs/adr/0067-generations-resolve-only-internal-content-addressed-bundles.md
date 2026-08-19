@@ -1,0 +1,5 @@
+# Generations resolve only internal content-addressed Bundles
+
+The active `dsh-evolve` runtime replaces `GitSkillSource` with a `GenerationBundleRepository` that accepts only exact `skill-bundle` artifacts produced from reviewed internal Candidates. It has no source catalog, repository fallback, name-only resolution, network path, or Git publication method. Materialization reassembles and verifies archive digest, tree hash, Candidate lineage, paths, bytes, and an owned cache manifest before exposing one read-only DSH `SkillProvider`. Persisted legacy Git artifacts remain readable only as historical Storage shape and are quarantined at the provider boundary.
+
+`CandidatePublisher` now publishes only a complete capability-absent Candidate Bundle. Existing-Skill changes abstain until DSH can seal a complete native provider Bundle baseline; invocation text hashes and repository trees are not accepted as substitutes. Preview and publication share the same exact Candidate identity, publication creates an inactive Generation, and activation remains a separate future-Session action.

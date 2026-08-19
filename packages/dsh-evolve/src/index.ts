@@ -34,7 +34,7 @@ import {
 } from './skill-evaluation-governance.ts'
 import { installEvolutionCommand } from './evolve-command.ts'
 import { CandidatePublisher } from './candidate-publisher.ts'
-import { GitSkillSource } from './git-skill-source.ts'
+import { GenerationBundleRepository } from './generation-bundle-repository.ts'
 import { openEvolutionStore, type EvolutionStore } from './generation-store.ts'
 import { ShadowSupervisor } from './shadow-supervisor.ts'
 import { createShadowJobRunner } from './shadow-job-runner.ts'
@@ -114,12 +114,8 @@ export const Config: Schema<Config> = z.object({
 })
 
 export async function apply(ctx: Context, config: Config = {}): Promise<void> {
-  // The legacy Git resolver is deliberately sealed with zero sources. The public
-  // Bundle interface cannot reopen repository-backed acquisition; it is retained
-  // temporarily only as the materializer for internal content-addressed bundles.
-  const source = new GitSkillSource(
+  const source = new GenerationBundleRepository(
     config.cacheRoot ?? join(homedir(), '.dsh', 'evoforge', 'generation-cache'),
-    [],
   )
   const store = new VerifiedEvolutionStore(await openEvolutionStore(ctx.storageDomain), source)
   const deliveryOutcomes = await openDeliveryOutcomeStore(ctx.storageDomain)

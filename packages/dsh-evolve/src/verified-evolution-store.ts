@@ -1,4 +1,4 @@
-import type { GitSkillSource } from './git-skill-source.ts'
+import type { GenerationBundleRepository } from './generation-bundle-repository.ts'
 import type {
   CapabilityGeneration,
   EvolutionStore,
@@ -14,9 +14,9 @@ import type {
  */
 export class VerifiedEvolutionStore implements EvolutionStore {
   private readonly store: EvolutionStore
-  private readonly source: GitSkillSource
+  private readonly source: Pick<GenerationBundleRepository, 'providerFor'>
 
-  constructor(store: EvolutionStore, source: GitSkillSource) {
+  constructor(store: EvolutionStore, source: Pick<GenerationBundleRepository, 'providerFor'>) {
     this.store = store
     this.source = source
   }

@@ -1,6 +1,6 @@
 import type { Context, Fiber } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
-import type { GitSkillSource } from './git-skill-source.ts'
+import type { GenerationBundleRepository } from './generation-bundle-repository.ts'
 import type { CapabilityGeneration, EvolutionStore, SessionIdentity } from './generation-store.ts'
 import { workspaceIdForCwd } from './workspace-identity.ts'
 
@@ -13,7 +13,7 @@ interface BindingState {
 export function installGenerationBinder(
   ctx: Context,
   store: EvolutionStore,
-  source: GitSkillSource,
+  source: Pick<GenerationBundleRepository, 'providerFor'>,
 ): () => Promise<void> {
   const bindings = new WeakMap<Agent, BindingState>()
   const states = new Set<BindingState>()
@@ -52,7 +52,7 @@ export function installGenerationBinder(
 async function bindAgent(
   ctx: Context,
   store: EvolutionStore,
-  source: GitSkillSource,
+  source: Pick<GenerationBundleRepository, 'providerFor'>,
   agent: Agent,
   state: BindingState,
 ): Promise<CapabilityGeneration | undefined> {

@@ -1,6 +1,6 @@
 # EvoForge v0.1 路线图
 
-> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已替换旧 Router 并完成公共 outbound/健康 Web 的真实浏览器失败恢复验收。ClawHub/市场/research Candidate 已删除；`dsh-evolve` 公开 Git source、预选 Skill、静态 Case Pack、Feedback/Evaluator target 与按 Skill AutoPromotion 也已删除并停止装配，真实 Session 测试改用内部内容寻址 Bundle。缺失 Skill Candidate 已绑定四 Goal 证据 seal、独立 admission/holdout 与 future-only Generation；现有 Skill 仍只形成等待完整 baseline Bundle 的调查。下一阶段先删除私有 Git materializer/旧 target 模块并建立 DSH 已安装 Skill 的完整基线快照，再重接内部 Retention/canary。真实 provider、exact 飞书消息与 Hermes paired 仍未完成，v0.1 未发布。
+> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已替换旧 Router 并完成公共 outbound/健康 Web 的真实浏览器失败恢复验收。ClawHub/市场/research Candidate 已删除；`dsh-evolve` 公开 source/target 配置、活动 Git materializer、隐藏 Git ref、repository fallback 和旧 Commands target action 均已删除，packed runtime 只解析内部内容寻址 Bundle。缺失 Skill Candidate 已绑定四 Goal 证据 seal、独立 admission/holdout 与 future-only Generation；现有 Skill 仍只形成等待完整 baseline Bundle 的调查。下一阶段物理删除未装配的历史模块和 `Shadow` 旧 proposer，收紧 Control/Web 类型，并建立 DSH 已安装 Skill 的完整基线快照。真实 provider、exact 飞书消息与 Hermes paired 仍未完成，v0.1 未发布。
 > 更新日期：2026-08-19
 
 ## 开发与发布纪律

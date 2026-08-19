@@ -13,7 +13,7 @@
 
 ## 当前总判断
 
-EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。所有已提交成果都在权威 `main`；`dsh-gateway` 已直接替换 `dsh-channel-router`。ClawHub、市场和 runtime research Candidate 已删除；本轮又删除了 `dsh-evolve` 公开 Git repository/source、目标 Skill、静态 Case Pack、Feedback/Evaluator target 和按 Skill AutoPromotion 配置及其活动装配。公开 Config 现在只包含内容寻址缓存、Workspace 自发现/评测 policy 和通用 supervisor；真实 Workspace/Session 测试也已从 Git fixture 改为内部 `skill-bundle`。私有 Git-named materializer 仍以硬编码零 source 暂时隔离，旧 target 模块、Commands/Control 类型和 legacy persistence variant 尚待继续清理。
+EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。所有已提交成果都在权威 `main`；`dsh-gateway` 已直接替换 `dsh-channel-router`。ClawHub、市场和 runtime research Candidate 已删除；`dsh-evolve` 公开 Git repository/source、目标 Skill、静态 Case Pack、Feedback/Evaluator target 和按 Skill AutoPromotion 配置及活动装配也已删除。公开 Config 只包含内容寻址缓存、Workspace 自发现/评测 policy 和通用 supervisor；活动 `GenerationBundleRepository`/`CandidatePublisher` 又删除了 Git source、隐藏 ref 和 repository fallback，只解析内部 whole-Skill Bundle，legacy artifact 明确 quarantine；packed artifact 有负向回归契约。源码树仍有未装配的历史 target/Git 模块、`Shadow` 旧 proposer 和 Control 类型，尚待物理删除。
 
 当前 Candidate seam 只接受内部 Skill Opportunity 生成的 canonical text bundle。两个独立 Goal 形成 Opportunity；至少四个 Goal 后才预密封 authoring/admission/holdout 证据，Candidate v2、Lineage v3 与 Envelope v4 绑定 exact seal。真实 assembled baseline 不安装目标 Skill，Candidate 侧才安装 exact whole-Skill；经复核的新 Skill 可形成内容寻址 inactive Generation，真实 DSH 已验证 future-Session-only、重启固定和 root rollback。原先静态 Retention/canary 编排不再由插件装配，必须重新绑定内部 Opportunity/Candidate 证据后才能算活动能力。
 
@@ -28,7 +28,7 @@ V4.21 按 [ADR-0065](adr/0065-existing-skill-improvement-requires-exact-invocati
 | 能力 | 当前状态 | 已有证据 | 仍缺 |
 |---|---|---|---|
 | 原生 DSH 插件产品形态 | `implemented` | 十一包均有 `name/inject/Config/apply`、Bundle patch、无 bin 合同；同一次 clean-profile tarball add/dump/boot/remove/readback 通过 | 陌生安装与 registry release 门禁 |
-| Evidence-driven Evolution + internal Skill Opportunity | `implemented` | 自然 Goal→Host 复核/持久 Gap；跨 Goal Opportunity；预密封 authoring/admission/holdout；Candidate v2/Lineage v3/Envelope v4；内部 whole-Skill quarantine；capability-absent assembled evaluation；内容寻址 Generation、future Session pin、restart 与 rollback；[V4.22](evidence/v4-22-runtime-source-target-removal.zh.md) 已移除公开 source/target/Case Pack/per-Skill promotion 配置和旧活动装配 | 私有 Git materializer 与旧模块继续清理；existing-Skill 完整 baseline Bundle/Candidate、内部 Retention/canary 重接、真实 provider、长期误晋升/回滚数据缺失 |
+| Evidence-driven Evolution + internal Skill Opportunity | `implemented` | 自然 Goal→Host 复核/持久 Gap；跨 Goal Opportunity；预密封 authoring/admission/holdout；Candidate v2/Lineage v3/Envelope v4；capability-absent assembled evaluation；内容寻址 Generation、future Session pin、restart 与 rollback；[V4.22](evidence/v4-22-runtime-source-target-removal.zh.md) 删除公开配置，[V4.23](evidence/v4-23-content-addressed-generation-runtime.zh.md) 删除活动 Git source/ref/repository fallback 并 quarantine legacy | 未装配历史模块/Shadow 旧 proposer/Control 类型继续清理；existing-Skill 完整 baseline Bundle/Candidate、内部 Retention/canary 重接、真实 provider、长期误晋升/回滚数据缺失 |
 | Software Delivery P2A–P2D | `implemented` | 真实 Git、原生 Tool/Goal、Draft PR、checks；Outcome 只从 source-linked Session call/result pair 读取，经官方 durability checkpoint 后投影，并可在 cold Session start 幂等补记；十一包 clean-profile 内从 packed Tool 完成原生 Goal | 真实长期任务与 checkpoint 前 hard kill、checkpoint 后投影前 kill 的跨进程故障注入 |
 | GitHub Review Follow-up P3.2 | `implemented` | exact-head allowlist、bounded follow-up、重启去重、cache parity | 真实 reviewer 返修闭环和多日 resident |
 | Web Control Plane | `verified` | packed artifact、真实 DSH Workspace/Host/Client Module；浏览器 pause→Host restart→persisted pause→resume/refresh；Goal metrics 的 Workspace/current/baseline 聚合和最近证据来自 Host 权威 Remote；最终 tarball clean-profile 中以四个原生 DSH Session/Goal 形成 Opportunity，显示 `ready-to-seal`、2/1/1 分割、目标正文保护和零 Candidate；在线刷新、断线保留最后快照并 fail visible、同 profile 恢复、Outcome 幂等 1→1，console error 0 | 陌生用户可用性、真实 provider 价格与长期数据 |
@@ -44,12 +44,12 @@ V4.21 按 [ADR-0065](adr/0065-existing-skill-improvement-requires-exact-invocati
 
 ## 当前可安装面
 
-最新 V4.21 增量通过根级 `pnpm check`（文档、全包 typecheck、测试和构建）；其中
-`dsh-gateway` 7 files/23 tests、`dsh-evolve-web` 2 files/26 tests，`dsh-evolve` 64 files、308 tests passed、
+最新 V4.23 增量通过根级 `pnpm check`（文档、全包 typecheck、测试和构建）；其中
+`dsh-gateway` 7 files/23 tests、`dsh-evolve-web` 2 files/26 tests，`dsh-evolve` 65 files、279 tests passed、
 2 skipped。Cache Contract 全通过；Doctor 十一包原生合同 22/22，十一包 clean-profile 最终 tarball 的
-add/dump/boot/真实 Session+Goal+Storage+Tool/dispose/remove/reboot/readback 1/1（32.68 秒）；独立 Doctor
-packed add/Loader/command/remove 1/1（3.55 秒）。真实浏览器显示 exact existing-Skill version 调查、跨 Goal
-证据、无因果与等待完整 Bundle，刷新后保持，diagnostics 为 `[]`。
+add/dump/boot/真实 Session+Goal+Storage+Tool/dispose/remove/reboot/readback 1/1（31.32 秒）；独立 Doctor
+packed add/Loader/command/remove 1/1（4.07 秒）。V4.23 没有新增浏览器功能；此前真实浏览器显示 exact
+existing-Skill version 调查、跨 Goal 证据、无因果与等待完整 Bundle，刷新后保持，diagnostics 为 `[]`。
 
 十一个包可生成 tarball 并通过 `dsh plugin --profile web add` 安装：`dsh-evolve`、`dsh-evolve-web`、`dsh-software-delivery`、`dsh-doctor`、`dsh-github-review`、`dsh-telegram`、`dsh-evolve-attention`、`dsh-goal-continuity`、`dsh-resident`、`dsh-gateway`、`dsh-feishu`。外部路由、自动恢复和 OS 部署默认关闭。没有任何 EvoForge 独立 Runtime、网站、daemon 或产品 CLI 是受支持入口。
 
