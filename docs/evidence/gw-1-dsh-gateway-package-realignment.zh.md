@@ -24,6 +24,7 @@
 
 ## 未证明
 
-- Gateway 尚未统一两个 Adapter 的 outbound intent/journal、限流和权威健康投影；
+- Gateway 自有 route/Session/ingress 权威健康投影已由 [GW-2](gw-2-gateway-authoritative-health.zh.md) 补齐；
+  两个 Adapter 的 outbound intent/journal、跨 Adapter 限流、transport 健康和统一 Web 展示仍未统一；
 - 尚未完成真实飞书 exact chat/user 消息、文件/卡片、Approval 和多日重连；
 - 本证据不涉及内部 Candidate 重构、真实 provider、Hermes paired 或发布 tag。

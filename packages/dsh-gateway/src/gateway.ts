@@ -37,6 +37,33 @@ export type GatewayDispatchResult =
   | (GatewayDispatchBase & { readonly kind: 'message' })
   | (GatewayDispatchBase & { readonly kind: 'command'; readonly result: GatewayCommandResult })
 
+export interface GatewayHealthRoute {
+  readonly id: string
+  readonly adapter: string
+  readonly workspaceId: string
+  readonly sessionId: string
+  readonly threadScoped: boolean
+  readonly live: boolean
+}
+
+export interface GatewayHealthSnapshot {
+  readonly schemaVersion: 1
+  readonly observedAt: number
+  readonly lifecycle: 'starting' | 'ready' | 'stopping'
+  readonly routes: {
+    readonly total: number
+    readonly liveSessions: number
+    readonly items: readonly GatewayHealthRoute[]
+  }
+  readonly ingress: {
+    readonly total: number
+    readonly prepared: number
+    readonly executing: number
+    readonly settled: number
+    readonly uncertain: number
+  }
+}
+
 /** An accepted external event crossed an effect boundary whose outcome cannot be proven. */
 export class GatewayIngressUncertainError extends Error {
   constructor(readonly ingressId: string, message: string) {
@@ -92,6 +119,44 @@ export class DshGateway {
 
   match(endpoint: GatewayEndpoint): ResolvedGatewayRoute | undefined {
     return this.configured.match(endpoint)
+  }
+
+  /**
+   * Redacted point-in-time projection of facts owned by this Gateway. External
+   * account, conversation and user identities never cross this seam.
+   */
+  healthSnapshot(observedAt = Date.now(), routeIds?: readonly string[]): GatewayHealthSnapshot {
+    exactHealthTime(observedAt)
+    const selected = this.selectHealthRoutes(routeIds)
+    const selectedIds = new Set(selected.map(route => route.id))
+    const liveSessions = new Set<string>()
+    const items = selected
+      .map((route): GatewayHealthRoute => {
+        const live = this.ctx.agents.get(SessionId(route.sessionId)) !== undefined
+        if (live) liveSessions.add(route.sessionId)
+        return {
+          id: route.id,
+          adapter: route.adapter,
+          workspaceId: route.workspaceId,
+          sessionId: route.sessionId,
+          threadScoped: route.threadId !== undefined,
+          live,
+        }
+      })
+      .sort((left, right) => left.id.localeCompare(right.id))
+    const ingress = { total: 0, prepared: 0, executing: 0, settled: 0, uncertain: 0 }
+    for (const record of this.ingressJournal.list()) {
+      if (!selectedIds.has(record.routeId)) continue
+      ingress.total += 1
+      ingress[record.status] += 1
+    }
+    return immutableHealth({
+      schemaVersion: 1,
+      observedAt,
+      lifecycle: this.stopping !== undefined ? 'stopping' : this.started ? 'ready' : 'starting',
+      routes: { total: items.length, liveSessions: liveSessions.size, items },
+      ingress,
+    })
   }
 
   /** Stable native MessageId an adapter can use to correlate inbox/turn events before dispatch. */
@@ -345,6 +410,18 @@ export class DshGateway {
     if (!this.started) throw new Error('DSH gateway has not started')
     if (this.stopping !== undefined) throw new Error('DSH gateway is stopping')
   }
+
+  private selectHealthRoutes(routeIds: readonly string[] | undefined): readonly ResolvedGatewayRoute[] {
+    if (routeIds === undefined) return this.configured.routes
+    const seen = new Set<string>()
+    return routeIds.map((id) => {
+      if (seen.has(id)) throw new Error(`duplicate gateway route '${id}'`)
+      seen.add(id)
+      const route = this.configured.byId.get(id)
+      if (route === undefined) throw new Error(`unknown gateway route '${id}'`)
+      return route
+    })
+  }
 }
 
 function messageSeen(agent: Agent, messageId: string): boolean {
@@ -402,4 +479,19 @@ function hash(value: string): string {
 
 function safeMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'unknown channel failure'
+}
+
+function exactHealthTime(value: number): number {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new Error('gateway health observation time must be a non-negative safe integer')
+  }
+  return value
+}
+
+function immutableHealth<T>(value: T): T {
+  if (value !== null && typeof value === 'object') {
+    for (const child of Object.values(value)) immutableHealth(child)
+    Object.freeze(value)
+  }
+  return value
 }

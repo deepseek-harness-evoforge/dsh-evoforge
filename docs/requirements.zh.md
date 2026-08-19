@@ -324,6 +324,11 @@ exact route 消息和 Hermes paired 证据完成以前仍只标记为 `implement
 `dsh-gateway`，平台协议和凭据留在 Adapter，也不把
 其他消息、内容或日程需求视为已交付。该说明不改变以上需求顺序和权限边界。
 
+Gateway 自有健康权威必须先于跨 Adapter 聚合：`healthSnapshot()` 只能从静态 route、原生 Agent 注册表和
+Gateway ingress journal 读取，按 exact route 子集返回生命周期、live Session 与 ingress 状态计数；不得输出
+account/chat/user、正文或凭据，不得调用模型或平台。公共 outbound、限流、Adapter transport 健康和统一 Web
+展示仍是独立门禁，不能因存在 Gateway 自身快照而标记完成。
+
 内部经验自我发现的现行纵切只使用 DSH 内部经验。已有能力继续由模型依据原生完整 Session Skill catalog
 自主路由并由原生 `skill` Tool 加载；没有适用 Skill 时，模型可在同一自然语言 Goal 中调用唯一稳定的
 `report_capability_gap` Tool 提议一个有界 kebab-case 能力名。Host 重新核对 exact Workspace/Session、active

@@ -37,7 +37,7 @@
 - Gateway ingress 幂等与各 Adapter outbound delivery 状态分别有界持久化；
 - Telegram 成为第一个 Adapter；路由核心不复制 DSH Session、Goal、Schedule 或权限。
 
-退出门：两个 Workspace 的输入、输出、Commands、Approval、Goal 和文件权限在重启前后无串线。**现有 ingress/route 内核已由 Telegram + 飞书同一真实 Host assembled gate 完成；`dsh-gateway` 包替换也已通过十一包 clean-profile 回归。公共 outbound、限流和统一健康仍属于后续 Gateway 门禁。**
+退出门：两个 Workspace 的输入、输出、Commands、Approval、Goal 和文件权限在重启前后无串线。**现有 ingress/route 内核已由 Telegram + 飞书同一真实 Host assembled gate 完成；`dsh-gateway` 包替换也已通过十一包 clean-profile 回归。Gateway 自有 route/Session/ingress 脱敏健康快照已经实现并覆盖 uncertain 恢复；公共 outbound、跨 Adapter 限流、transport 健康聚合和统一 Web 展示仍属于后续 Gateway 门禁。**
 
 ## V2 — 飞书 Adapter
 

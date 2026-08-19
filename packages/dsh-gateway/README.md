@@ -42,11 +42,14 @@ Bundle row 默认为 `disabled: true`。部署者在同一个 DSH profile 中配
 - 已注册 slash command 只走 DSH `commands.execute()`，普通文本以稳定 MessageId 进入原生 Agent inbox；
 - 以 DSH Storage Domain 保存有界 ingress identity/status/Command 结果，不保存消息正文；
 - 同一外部事件只执行一次；内容或归属漂移被拒绝；effect 边界崩溃标记为 `uncertain`，不盲目重放；
+- `healthSnapshot()` 从 Gateway 自有 route、原生 Agent 注册表和 ingress journal 生成脱敏权威快照，支持
+  exact route 子集、生命周期、live Session 与 prepared/executing/settled/uncertain 计数；
 - Cordis dispose 等待在途入站、释放 Gateway 创建的 Agent handle，并关闭自己的日志。
 
 Telegram 和飞书已经通过这个接缝运行。网络鉴权、SDK/WebSocket/polling、平台事件解析、Approval UI 与
-平台发送目前仍在各 Adapter；公共 outbound delivery、限流和统一健康投影尚未迁入 Gateway，因此不得把
-当前增量描述成完整 Gateway。
+平台发送目前仍在各 Adapter；公共 outbound delivery、跨 Adapter 限流、平台 transport 健康聚合和统一 Web
+展示尚未迁入 Gateway，因此不得把当前增量描述成完整 Gateway。Gateway 快照不包含 account/chat/user、
+消息正文或凭据，也不调用模型或平台。
 
 ## 卸载
 

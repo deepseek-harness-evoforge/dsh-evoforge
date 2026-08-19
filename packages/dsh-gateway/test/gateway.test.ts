@@ -19,6 +19,81 @@ const routes = resolveGatewayRoutes([
 ])
 
 describe('DshGateway', () => {
+  it('projects redacted route, native Session, and ingress health from the Gateway authority', async () => {
+    const host = fakeNativeHost()
+    const journal = await openGatewayIngressJournal(memoryFacility())
+    const gateway = new DshGateway(host.ctx, routes, journal)
+
+    expect(gateway.healthSnapshot(90)).toEqual({
+      schemaVersion: 1,
+      observedAt: 90,
+      lifecycle: 'starting',
+      routes: {
+        total: 2,
+        liveSessions: 0,
+        items: [
+          {
+            id: 'feishu-b', adapter: 'feishu', workspaceId: 'workspace-b',
+            sessionId: 'session-b', threadScoped: true, live: false,
+          },
+          {
+            id: 'telegram-a', adapter: 'telegram', workspaceId: 'workspace-a',
+            sessionId: 'session-a', threadScoped: false, live: false,
+          },
+        ],
+      },
+      ingress: { total: 0, prepared: 0, executing: 0, settled: 0, uncertain: 0 },
+    })
+
+    await gateway.start()
+    await gateway.dispatch({ endpoint: endpointA, eventId: 'update-health', text: 'health check' })
+    const snapshot = gateway.healthSnapshot(120, ['telegram-a'])
+    expect(snapshot).toMatchObject({
+      lifecycle: 'ready',
+      routes: {
+        total: 1,
+        liveSessions: 1,
+        items: [{ id: 'telegram-a', adapter: 'telegram', live: true }],
+      },
+      ingress: { total: 1, prepared: 0, executing: 0, settled: 1, uncertain: 0 },
+    })
+    expect(JSON.stringify(snapshot)).not.toContain('chat-a')
+    expect(JSON.stringify(snapshot)).not.toContain('user-a')
+    expect(Object.isFrozen(snapshot.routes.items)).toBe(true)
+    expect(() => gateway.healthSnapshot(121, ['missing'])).toThrow("unknown gateway route 'missing'")
+    expect(() => gateway.healthSnapshot(121, ['telegram-a', 'telegram-a']))
+      .toThrow("duplicate gateway route 'telegram-a'")
+    expect(() => gateway.healthSnapshot(-1)).toThrow('observation time')
+
+    const stopping = gateway.stop()
+    expect(gateway.healthSnapshot(130).lifecycle).toBe('stopping')
+    await stopping
+  })
+
+  it('surfaces recovered ingress uncertainty without replaying the effect', async () => {
+    const host = fakeNativeHost()
+    const journal = await openGatewayIngressJournal(memoryFacility())
+    await journal.prepare({
+      id: 'a'.repeat(64),
+      routeId: 'telegram-a',
+      workspaceId: 'workspace-a',
+      sessionId: 'session-a',
+      eventHash: 'b'.repeat(64),
+      contentHash: 'c'.repeat(64),
+      kind: 'message',
+      now: 100,
+    })
+    await journal.begin('a'.repeat(64), 110)
+    const gateway = new DshGateway(host.ctx, routes, journal)
+
+    await gateway.start()
+
+    expect(gateway.healthSnapshot(120, ['telegram-a']).ingress).toEqual({
+      total: 1, prepared: 0, executing: 0, settled: 0, uncertain: 1,
+    })
+    expect(host.messages.size).toBe(0)
+  })
+
   it('routes exact endpoints into isolated native Workspace sessions and deduplicates ingress', async () => {
     const host = fakeNativeHost()
     const journal = await openGatewayIngressJournal(memoryFacility())

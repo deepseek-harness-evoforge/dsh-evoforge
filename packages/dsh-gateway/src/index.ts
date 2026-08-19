@@ -79,4 +79,6 @@ export {
   DshGateway,
   type GatewayDispatchInput,
   type GatewayDispatchResult,
+  type GatewayHealthRoute,
+  type GatewayHealthSnapshot,
 } from './gateway.js'
