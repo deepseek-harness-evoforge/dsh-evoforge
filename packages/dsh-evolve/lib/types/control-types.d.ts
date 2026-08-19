@@ -5,12 +5,66 @@ export interface CandidateImpactProjection {
     readonly scope: 'append-only-skill' | 'broader-change';
     readonly indicators: readonly CandidateImpactIndicator[];
 }
-/** Minimal delivery aggregate; individual outcomes never cross the adapter. */
+/** Minimal delivery status aggregate. */
 export interface DeliveryOutcomeCounts {
     readonly total: number;
     readonly passed: number;
     readonly failed: number;
     readonly unknown: number;
+}
+export interface EvolutionProviderUsageView {
+    readonly uncachedInputTokens: number;
+    readonly outputTokens: number;
+    readonly cacheReadTokens: number;
+    readonly cacheWriteTokens: number;
+}
+export interface EvolutionLatencyView {
+    readonly llmMs: number;
+    readonly toolMs: number;
+    readonly ttftMs: number;
+    readonly ttftSteps: number;
+    readonly decodeMs: number;
+    readonly decodeTokens: number;
+}
+/** Browser-safe aggregate of exact Goal metrics; missing measurements stay explicit. */
+export interface EvolutionDeliveryMetricRollupView {
+    readonly measured: number;
+    readonly unmeasured: number;
+    readonly attributedTurns: number;
+    readonly closedSteps: number;
+    readonly activeWallMs: number;
+    readonly providerUsage: EvolutionProviderUsageView;
+    readonly latency: EvolutionLatencyView;
+    readonly monetaryCost: {
+        readonly status: 'unavailable';
+        readonly reason: 'provider-price-not-projected';
+    };
+}
+/** One bounded Outcome evidence row without Session, call, reason, content, or host path. */
+export interface EvolutionDeliveryMetricEvidenceView {
+    readonly outcomeId: string;
+    readonly observedAt: number;
+    readonly generationId?: string;
+    readonly status: 'passed' | 'failed' | 'unknown';
+    readonly goal: {
+        readonly id: string;
+        readonly revision: number;
+    };
+    readonly metrics: {
+        readonly schemaVersion: 1;
+        readonly source: 'dsh-session-projections';
+        readonly goalId: string;
+        readonly throughEventSeq: number;
+        readonly attributedTurns: number;
+        readonly closedSteps: number;
+        readonly activeWallMs: number;
+        readonly providerUsage: EvolutionProviderUsageView;
+        readonly latency: EvolutionLatencyView;
+        readonly monetaryCost: {
+            readonly status: 'unavailable';
+            readonly reason: 'provider-price-not-projected';
+        };
+    };
 }
 /** Client-safe immutable Generation projection. */
 export interface EvolutionGenerationView {
@@ -386,6 +440,12 @@ export interface EvolutionOverview {
         readonly all: DeliveryOutcomeCounts;
         readonly selected: DeliveryOutcomeCounts;
         readonly baseline?: DeliveryOutcomeCounts;
+        readonly metrics: {
+            readonly all: EvolutionDeliveryMetricRollupView;
+            readonly selected: EvolutionDeliveryMetricRollupView;
+            readonly baseline?: EvolutionDeliveryMetricRollupView;
+            readonly recent: readonly EvolutionDeliveryMetricEvidenceView[];
+        };
     };
     readonly feedbackSignals?: {
         readonly all: number;

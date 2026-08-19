@@ -21,6 +21,15 @@ Remote read and action, clears state when selection moves between Workspaces, re
 responses, and fails closed when the current Session has no registered Workspace. It never falls
 back to the recent Workspace.
 
+The advanced view also renders the Host-authoritative Delivery Outcome summary. It shows bounded
+Workspace/current/baseline rollups plus at most 20 recent measured outcomes: measured versus
+unmeasured counts, uncached input/output, cache read/write, LLM/tool/TTFT latency, active
+wall time, attributed turns, and closed steps. Missing measurements stay explicitly unmeasured.
+When DSH does not project provider prices, the UI reports monetary cost as unavailable instead of
+estimating it. These observations are non-causal and do not affect Opportunity eligibility,
+evaluation, promotion, or rollback. A failed refresh keeps the last successful snapshot visible,
+shows the transport failure, and replaces it only after a later successful Host read.
+
 Unload/remove the adapter before its provider:
 
 ```sh

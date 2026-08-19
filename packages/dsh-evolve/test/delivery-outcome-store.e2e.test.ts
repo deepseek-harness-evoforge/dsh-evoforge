@@ -17,6 +17,34 @@ afterEach(async () => {
 })
 
 describe.skipIf(process.platform !== 'darwin')('delivery outcome store', () => {
+  it('bounds recent measured evidence to the newest twenty outcomes', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-delivery-outcome-metrics-'))
+    temporaryRoots.push(root)
+    const configPath = await writeStorageConfig(root)
+
+    const ctx = await bootStorage(configPath)
+    const store = await openDeliveryOutcomeStore(ctx.storageDomain, { maxRecords: 30 })
+    try {
+      for (let index = 1; index <= 25; index += 1) {
+        const callId = `metric-${String(index).padStart(2, '0')}`
+        await store.record({
+          ...outcome(callId, index, 'passed'),
+          goalMetrics: goalMetrics(`goal-${callId}`, index + 10),
+        })
+      }
+
+      const summary = store.summarize(WORKSPACE_ID)
+      expect(summary.metrics.all).toMatchObject({ measured: 25, unmeasured: 0 })
+      expect(summary.metrics.recent).toHaveLength(20)
+      expect(summary.metrics.recent.map(item => item.observedAt)).toEqual(
+        Array.from({ length: 20 }, (_, offset) => 25 - offset),
+      )
+    } finally {
+      await store.close()
+      await ctx.fiber.dispose()
+    }
+  })
+
   it('deduplicates calls, bounds retained evidence, and recovers it after restart', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-delivery-outcomes-'))
     temporaryRoots.push(root)
@@ -30,10 +58,24 @@ describe.skipIf(process.platform !== 'darwin')('delivery outcome store', () => {
       expect((await firstStore.record(duplicate)).created).toBe(false)
       await firstStore.record(outcome('call-2', 2, 'failed'))
       await firstStore.record(outcome('call-3', 3, 'unknown', 'a'.repeat(64)))
-      expect(firstStore.summarize(WORKSPACE_ID, 'a'.repeat(64), {})).toEqual({
+      const summary = firstStore.summarize(WORKSPACE_ID, 'a'.repeat(64), {})
+      expect(summary).toMatchObject({
         all: { total: 2, passed: 0, failed: 1, unknown: 1 },
         selected: { total: 1, passed: 0, failed: 0, unknown: 1 },
         baseline: { total: 1, passed: 0, failed: 1, unknown: 0 },
+      })
+      expect(summary.metrics).toEqual({
+        all: metricRollup(1, 1),
+        selected: metricRollup(1, 0),
+        baseline: metricRollup(0, 1, true),
+        recent: [{
+          outcomeId: expect.stringMatching(/^[a-f0-9]{64}$/),
+          observedAt: 3,
+          generationId: 'a'.repeat(64),
+          status: 'unknown',
+          goal: { id: 'goal-call-3', revision: 1 },
+          metrics: goalMetrics('goal-call-3', 12),
+        }],
       })
     } finally {
       await firstStore.close()
@@ -43,7 +85,7 @@ describe.skipIf(process.platform !== 'darwin')('delivery outcome store', () => {
     const resumedCtx = await bootStorage(configPath)
     const resumedStore = await openDeliveryOutcomeStore(resumedCtx.storageDomain, { maxRecords: 2 })
     try {
-      expect(resumedStore.summarize(WORKSPACE_ID)).toEqual({
+      expect(resumedStore.summarize(WORKSPACE_ID)).toMatchObject({
         all: { total: 2, passed: 0, failed: 1, unknown: 1 },
         selected: { total: 1, passed: 0, failed: 1, unknown: 0 },
       })
@@ -102,6 +144,32 @@ function goalMetrics(goalId: string, throughEventSeq: number) {
       decodeTokens: 9,
     },
     monetaryCost: { status: 'unavailable' as const, reason: 'provider-price-not-projected' as const },
+  }
+}
+
+function metricRollup(measured: number, unmeasured: number, empty = false) {
+  const factor = empty ? 0 : measured
+  return {
+    measured,
+    unmeasured,
+    attributedTurns: 2 * factor,
+    closedSteps: factor,
+    activeWallMs: 300 * factor,
+    providerUsage: {
+      uncachedInputTokens: 30 * factor,
+      outputTokens: 9 * factor,
+      cacheReadTokens: 70 * factor,
+      cacheWriteTokens: 5 * factor,
+    },
+    latency: {
+      llmMs: 180 * factor,
+      toolMs: 50 * factor,
+      ttftMs: 45 * factor,
+      ttftSteps: 2 * factor,
+      decodeMs: 135 * factor,
+      decodeTokens: 9 * factor,
+    },
+    monetaryCost: { status: 'unavailable', reason: 'provider-price-not-projected' },
   }
 }
 

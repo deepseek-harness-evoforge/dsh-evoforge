@@ -249,6 +249,7 @@ interface LearningSignal {
 - 纠正只有在同 Session 仅有一种 Gap Skill 且发生于 Gap 之后才关联；Outcome 只有在同一 Goal 的全部已知 Gap 仅有一种 Skill、发生于对应 Gap 之后且 revision 不倒退时才关联；歧义一律丢弃；
 - 关联上下文固定 `causalClaim: none`，不能单独产生 Opportunity、改变生成资格/排序、进入 author 输入或证明 Skill 导致结果；
 - Outcome metrics 只在 exact active Goal revision 拥有该 turn 时投影，截止 immutable delivery result seq；缺 unit、旧 revision、歧义或计数倒退一律 abstain，且不参与上述资格或治理决定；
+- Web 不另建 metrics endpoint/store；`DeliveryOutcomeStore.summarize → EvolutionControlPlane.overview → generated Remote → EvolutionAction` 是唯一浏览器投影链，只暴露聚合和至多 20 条最新已测证据，不暴露 Session/call/reason/path；
 - policy 只授权 Workspace、私有 run root、日预算和可能的模型调用，不预定要发现哪个 Skill；
 - author 看不到外部搜索结果、验证答案、测试结果或 release 权限；
 - Opportunity 只有生成资格，Candidate 只有隔离身份，二者都不能安装、激活、晋升或发布；
@@ -464,6 +465,10 @@ Evolution Domain
 Delivery Outcome Domain
   tables: outcomes (bounded compact derived signals + optional exact Goal projection metrics)
 
+browser-safe overview projection
+  rollups: all, selected, optional baseline
+  recent: at most 20 measured outcomes, newest first
+
 owned Shadow run directory
   run-state.json, report.json, review-state.json, canary/<outcome>/state.json
 ```
@@ -480,6 +485,9 @@ owned Shadow run directory
 
 `review` inbox 直接投影已完成的 Shadow evidence 和旁置 disposition，不复制 Candidate 数据库。
 Canary journal 与原 evidence 共址；原 Case Pack 丢失或漂移时 fail closed。
+
+浏览器只保存当前渲染快照。Remote 刷新失败时界面显式显示错误并保留最后一次成功快照；Host 恢复后的下一次
+成功读取原子替换该快照。这个行为用于可诊断恢复，不把浏览器变成事实来源，也不把缺失 metrics 解释为零。
 
 ## 17. KV Cache 约束
 

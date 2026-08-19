@@ -129,6 +129,52 @@ const review = {
 }
 
 const ok = <T,>(value: T) => Promise.resolve({ ok: true as const, value })
+const browserGoalMetrics = {
+  schemaVersion: 1 as const,
+  source: 'dsh-session-projections' as const,
+  goalId: 'goal-browser-metrics',
+  throughEventSeq: 12,
+  attributedTurns: 2,
+  closedSteps: 1,
+  activeWallMs: 300,
+  providerUsage: {
+    uncachedInputTokens: 30,
+    outputTokens: 9,
+    cacheReadTokens: 70,
+    cacheWriteTokens: 5,
+  },
+  latency: {
+    llmMs: 180,
+    toolMs: 50,
+    ttftMs: 45,
+    ttftSteps: 2,
+    decodeMs: 135,
+    decodeTokens: 9,
+  },
+  monetaryCost: { status: 'unavailable' as const, reason: 'provider-price-not-projected' as const },
+}
+const browserMetricRollup = (measured: number, unmeasured: number, factor: number) => ({
+  measured,
+  unmeasured,
+  attributedTurns: browserGoalMetrics.attributedTurns * factor,
+  closedSteps: browserGoalMetrics.closedSteps * factor,
+  activeWallMs: browserGoalMetrics.activeWallMs * factor,
+  providerUsage: {
+    uncachedInputTokens: browserGoalMetrics.providerUsage.uncachedInputTokens * factor,
+    outputTokens: browserGoalMetrics.providerUsage.outputTokens * factor,
+    cacheReadTokens: browserGoalMetrics.providerUsage.cacheReadTokens * factor,
+    cacheWriteTokens: browserGoalMetrics.providerUsage.cacheWriteTokens * factor,
+  },
+  latency: {
+    llmMs: browserGoalMetrics.latency.llmMs * factor,
+    toolMs: browserGoalMetrics.latency.toolMs * factor,
+    ttftMs: browserGoalMetrics.latency.ttftMs * factor,
+    ttftSteps: browserGoalMetrics.latency.ttftSteps * factor,
+    decodeMs: browserGoalMetrics.latency.decodeMs * factor,
+    decodeTokens: browserGoalMetrics.latency.decodeTokens * factor,
+  },
+  monetaryCost: browserGoalMetrics.monetaryCost,
+})
 const remote: EvolutionRemoteClient = {
   overview: () => ok({
     schemaVersion: 1,
@@ -156,6 +202,19 @@ const remote: EvolutionRemoteClient = {
             all: { total: 8, passed: 5, failed: 2, unknown: 1 },
             selected: { total: 4, passed: 3, failed: 1, unknown: 0 },
             baseline: { total: 4, passed: 2, failed: 1, unknown: 1 },
+            metrics: {
+              all: browserMetricRollup(2, 6, 2),
+              selected: browserMetricRollup(1, 3, 1),
+              baseline: browserMetricRollup(1, 3, 1),
+              recent: [{
+                outcomeId: '0'.repeat(64),
+                observedAt: 1_786_896_000_200,
+                generationId: 'a'.repeat(64),
+                status: 'passed' as const,
+                goal: { id: 'goal-browser-metrics', revision: 2 },
+                metrics: browserGoalMetrics,
+              }],
+            },
           } } : {}),
         }
       : {}),

@@ -5,3 +5,9 @@
 `dsh-evolve` 对一个 Delivery Outcome 只统计 exact result event seq 之前的 native Goal-owned turn。一个 turn 的首条 admitted `user/message` 必须指向当时最新且 active 的同一 Goal id/revision；手工 turn、其他 Goal、旧 revision、后续混入另一 Goal revision或缺少 durable Goal change 均不归属。对每个选中 turn，Host 使用 `SessionProjectionRegistry.restore` 沿原生日志单向推进，在 turn 前一 seq 与 turn end/result cutoff 读取官方累计 projection，再做非负差值并合计。active wall time只使用相同 turn 的原生 event time 边界。
 
 可选结果随 compact Delivery Outcome 保存在既有 v2 Domain schema 中；旧记录仍可读取，不建立 transcript、usage event bus 或第二 metrics store。缺少 projection unit、schema 异常、counter 倒退或归属歧义时整个 metrics abstain，Outcome 本身仍可记录。metrics 固定 host-only、非因果，不改变 Opportunity 资格/排序、author 输入、评测 verdict、晋升或回滚。货币成本以 `unavailable/provider-price-not-projected` 明示，后续只能由同 provider、同 route、同预算的真实价格证据补齐。
+
+这里的 `host-only` 指 Host 是唯一计算与持久化权威，不表示浏览器不能读取安全投影。
+`DeliveryOutcomeStore.summarize → EvolutionControlPlane.overview → generated Remote → EvolutionAction`
+提供唯一 Web 链路：输出 all/selected/optional baseline 聚合与至多 20 条最新已测 Outcome，不暴露
+Session、call、reason、路径或完整证据。缺失 metrics 计入 unmeasured，不能伪装为零。浏览器刷新失败时
+保留最后成功快照并显示 transport error；恢复后的成功 overview 原子替换快照，不建立第二权威状态。

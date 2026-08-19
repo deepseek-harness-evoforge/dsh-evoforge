@@ -25,3 +25,4 @@
         evolveEntry: __EVOFORGE_INSTALLED_ENTRY__
         cacheRoot: __EVOFORGE_CACHE_ROOT__
         runRoot: __EVOFORGE_RUN_ROOT__
+        seedGoalMetrics: true

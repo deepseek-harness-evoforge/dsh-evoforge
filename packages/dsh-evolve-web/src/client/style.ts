@@ -62,6 +62,10 @@ export const cssText = `
 .dsh-evolve-section-title{margin:0 0 8px;font-size:12px;color:var(--dsw-alias-label-secondary)}
 .dsh-evolve-list{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
 .dsh-evolve-review{padding:10px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px}
+.dsh-evolve-outcome-metrics{margin-top:12px}
+.dsh-evolve-metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:6px}
+.dsh-evolve-metric-card{padding:10px;border-radius:10px;background:var(--dsw-alias-fill-l1)}
+.dsh-evolve-subsection-title{margin-top:12px}
 .dsh-evolve-review-head{align-items:flex-start}
 .dsh-evolve-review-copy{min-width:0;flex:1}
 .dsh-evolve-review-skill{font:600 12px var(--dsw-font-mono)}

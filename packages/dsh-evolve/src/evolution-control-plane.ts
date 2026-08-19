@@ -671,6 +671,37 @@ function cloneOutcomeSummary(summary: ReturnType<DeliveryOutcomeStore['summarize
     all: { ...summary.all },
     selected: { ...summary.selected },
     ...(summary.baseline === undefined ? {} : { baseline: { ...summary.baseline } }),
+    metrics: {
+      all: cloneMetricRollup(summary.metrics.all),
+      selected: cloneMetricRollup(summary.metrics.selected),
+      ...(summary.metrics.baseline === undefined
+        ? {}
+        : { baseline: cloneMetricRollup(summary.metrics.baseline) }),
+      recent: summary.metrics.recent.map(item => ({
+        outcomeId: item.outcomeId,
+        observedAt: item.observedAt,
+        ...(item.generationId === undefined ? {} : { generationId: item.generationId }),
+        status: item.status,
+        goal: { ...item.goal },
+        metrics: {
+          ...item.metrics,
+          providerUsage: { ...item.metrics.providerUsage },
+          latency: { ...item.metrics.latency },
+          monetaryCost: { ...item.metrics.monetaryCost },
+        },
+      })),
+    },
+  }
+}
+
+function cloneMetricRollup(
+  value: ReturnType<DeliveryOutcomeStore['summarize']>['metrics']['all'],
+) {
+  return {
+    ...value,
+    providerUsage: { ...value.providerUsage },
+    latency: { ...value.latency },
+    monetaryCost: { ...value.monetaryCost },
   }
 }
 

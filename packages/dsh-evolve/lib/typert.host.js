@@ -361,6 +361,120 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'failed': z.number().readonly(),
   'unknown': z.number().readonly(),
 })]).readonly().optional(),
+  'metrics': z.object({
+  'all': z.object({
+  'measured': z.number().readonly(),
+  'unmeasured': z.number().readonly(),
+  'attributedTurns': z.number().readonly(),
+  'closedSteps': z.number().readonly(),
+  'activeWallMs': z.number().readonly(),
+  'providerUsage': z.object({
+  'uncachedInputTokens': z.number().readonly(),
+  'outputTokens': z.number().readonly(),
+  'cacheReadTokens': z.number().readonly(),
+  'cacheWriteTokens': z.number().readonly(),
+}).readonly(),
+  'latency': z.object({
+  'llmMs': z.number().readonly(),
+  'toolMs': z.number().readonly(),
+  'ttftMs': z.number().readonly(),
+  'ttftSteps': z.number().readonly(),
+  'decodeMs': z.number().readonly(),
+  'decodeTokens': z.number().readonly(),
+}).readonly(),
+  'monetaryCost': z.object({
+  'status': z.literal("unavailable").readonly(),
+  'reason': z.literal("provider-price-not-projected").readonly(),
+}).readonly(),
+}).readonly(),
+  'selected': z.object({
+  'measured': z.number().readonly(),
+  'unmeasured': z.number().readonly(),
+  'attributedTurns': z.number().readonly(),
+  'closedSteps': z.number().readonly(),
+  'activeWallMs': z.number().readonly(),
+  'providerUsage': z.object({
+  'uncachedInputTokens': z.number().readonly(),
+  'outputTokens': z.number().readonly(),
+  'cacheReadTokens': z.number().readonly(),
+  'cacheWriteTokens': z.number().readonly(),
+}).readonly(),
+  'latency': z.object({
+  'llmMs': z.number().readonly(),
+  'toolMs': z.number().readonly(),
+  'ttftMs': z.number().readonly(),
+  'ttftSteps': z.number().readonly(),
+  'decodeMs': z.number().readonly(),
+  'decodeTokens': z.number().readonly(),
+}).readonly(),
+  'monetaryCost': z.object({
+  'status': z.literal("unavailable").readonly(),
+  'reason': z.literal("provider-price-not-projected").readonly(),
+}).readonly(),
+}).readonly(),
+  'baseline': z.union([z.undefined(), z.object({
+  'measured': z.number().readonly(),
+  'unmeasured': z.number().readonly(),
+  'attributedTurns': z.number().readonly(),
+  'closedSteps': z.number().readonly(),
+  'activeWallMs': z.number().readonly(),
+  'providerUsage': z.object({
+  'uncachedInputTokens': z.number().readonly(),
+  'outputTokens': z.number().readonly(),
+  'cacheReadTokens': z.number().readonly(),
+  'cacheWriteTokens': z.number().readonly(),
+}).readonly(),
+  'latency': z.object({
+  'llmMs': z.number().readonly(),
+  'toolMs': z.number().readonly(),
+  'ttftMs': z.number().readonly(),
+  'ttftSteps': z.number().readonly(),
+  'decodeMs': z.number().readonly(),
+  'decodeTokens': z.number().readonly(),
+}).readonly(),
+  'monetaryCost': z.object({
+  'status': z.literal("unavailable").readonly(),
+  'reason': z.literal("provider-price-not-projected").readonly(),
+}).readonly(),
+})]).readonly().optional(),
+  'recent': z.array(z.object({
+  'outcomeId': z.string().readonly(),
+  'observedAt': z.number().readonly(),
+  'generationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'status': z.union([z.literal("unknown"), z.literal("passed"), z.literal("failed")]).readonly(),
+  'goal': z.object({
+  'id': z.string().readonly(),
+  'revision': z.number().readonly(),
+}).readonly(),
+  'metrics': z.object({
+  'schemaVersion': z.literal(1).readonly(),
+  'source': z.literal("dsh-session-projections").readonly(),
+  'goalId': z.string().readonly(),
+  'throughEventSeq': z.number().readonly(),
+  'attributedTurns': z.number().readonly(),
+  'closedSteps': z.number().readonly(),
+  'activeWallMs': z.number().readonly(),
+  'providerUsage': z.object({
+  'uncachedInputTokens': z.number().readonly(),
+  'outputTokens': z.number().readonly(),
+  'cacheReadTokens': z.number().readonly(),
+  'cacheWriteTokens': z.number().readonly(),
+}).readonly(),
+  'latency': z.object({
+  'llmMs': z.number().readonly(),
+  'toolMs': z.number().readonly(),
+  'ttftMs': z.number().readonly(),
+  'ttftSteps': z.number().readonly(),
+  'decodeMs': z.number().readonly(),
+  'decodeTokens': z.number().readonly(),
+}).readonly(),
+  'monetaryCost': z.object({
+  'status': z.literal("unavailable").readonly(),
+  'reason': z.literal("provider-price-not-projected").readonly(),
+}).readonly(),
+}).readonly(),
+})).readonly(),
+}).readonly(),
 })]).readonly().optional(),
   'feedbackSignals': z.union([z.undefined(), z.object({
   'all': z.number().readonly(),
@@ -1557,6 +1671,14 @@ export const TYPERT = {
             "declaration": "export interface EvolutionCapabilityView {\n    readonly name: string;\n    readonly description: string;\n    readonly source: string;\n    readonly provider: string;\n    readonly scope: 'workspace-session';\n    readonly invocation: { readonly model: boolean; readonly user: boolean; };\n    readonly versionKind: 'provider-managed' | 'evolved-tree';\n    readonly version?: string;\n    readonly generationId?: string;\n    readonly route: EvolutionCapabilityRoute;\n}"
           },
           {
+            "name": "EvolutionDeliveryMetricEvidenceView",
+            "declaration": "export interface EvolutionDeliveryMetricEvidenceView {\n    readonly outcomeId: string;\n    readonly observedAt: number;\n    readonly generationId?: string;\n    readonly status: 'passed' | 'failed' | 'unknown';\n    readonly goal: { readonly id: string; readonly revision: number; };\n    readonly metrics: { readonly schemaVersion: 1; readonly source: 'dsh-session-projections'; readonly goalId: string; readonly throughEventSeq: number; readonly attributedTurns: number; readonly closedSteps: number; readonly activeWallMs: number; readonly providerUsage: EvolutionProviderUsageView; readonly latency: EvolutionLatencyView; readonly monetaryCost: { readonly status: 'unavailable'; readonly reason: 'provider-price-not-projected'; }; };\n}"
+          },
+          {
+            "name": "EvolutionDeliveryMetricRollupView",
+            "declaration": "export interface EvolutionDeliveryMetricRollupView {\n    readonly measured: number;\n    readonly unmeasured: number;\n    readonly attributedTurns: number;\n    readonly closedSteps: number;\n    readonly activeWallMs: number;\n    readonly providerUsage: EvolutionProviderUsageView;\n    readonly latency: EvolutionLatencyView;\n    readonly monetaryCost: { readonly status: 'unavailable'; readonly reason: 'provider-price-not-projected'; };\n}"
+          },
+          {
             "name": "EvolutionEvaluatorDraftDetail",
             "declaration": "export interface EvolutionEvaluatorDraftDetail {\n    readonly schemaVersion: 1;\n    readonly draft: EvolutionEvaluatorDraftView;\n    readonly files: readonly { readonly path: string; readonly content: string; }[];\n    readonly limitations: readonly string[];\n    readonly qualifiedShadowAvailable: boolean;\n    readonly decision?: { readonly actor: 'human'; readonly note: string; readonly decidedAt: string; };\n    readonly qualification?: { readonly calibrated: boolean; readonly attempt: number; };\n    readonly reason?: string;\n}"
           },
@@ -1577,8 +1699,16 @@ export const TYPERT = {
             "declaration": "export interface EvolutionInactiveGenerationView {\n    readonly workspaceId: string;\n    readonly generationId: string;\n    readonly reviewId: string;\n    readonly skillName: string;\n    readonly lineage?: EvolutionSkillCandidateLineageView;\n}"
           },
           {
+            "name": "EvolutionLatencyView",
+            "declaration": "export interface EvolutionLatencyView {\n    readonly llmMs: number;\n    readonly toolMs: number;\n    readonly ttftMs: number;\n    readonly ttftSteps: number;\n    readonly decodeMs: number;\n    readonly decodeTokens: number;\n}"
+          },
+          {
             "name": "EvolutionOverview",
-            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly workspaceId: string;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly automaticPromotion: { readonly enabled: boolean; readonly skills: readonly string[]; };\n    readonly capabilityMap?: EvolutionCapabilityMapView;\n    readonly capabilityGaps?: EvolutionCapabilityGapQueueView;\n    readonly skillOpportunities?: EvolutionSkillOpportunityQueueView;\n    readonly skillCandidates?: EvolutionSkillCandidateQueueView;\n    readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView;\n    readonly skillAdmission?: EvolutionSkillAdmissionView;\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; readonly baseline?: DeliveryOutcomeCounts; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly feedbackShadow?: { readonly available: boolean; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly runs: readonly EvolutionShadowRunView[]; };\n    readonly automaticFeedbackBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly automaticEvaluatorBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly evaluatorAuthoring?: { readonly available: boolean; readonly actionableCount: number; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly drafts: readonly EvolutionEvaluatorDraftView[]; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
+            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly workspaceId: string;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly automaticPromotion: { readonly enabled: boolean; readonly skills: readonly string[]; };\n    readonly capabilityMap?: EvolutionCapabilityMapView;\n    readonly capabilityGaps?: EvolutionCapabilityGapQueueView;\n    readonly skillOpportunities?: EvolutionSkillOpportunityQueueView;\n    readonly skillCandidates?: EvolutionSkillCandidateQueueView;\n    readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView;\n    readonly skillAdmission?: EvolutionSkillAdmissionView;\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; readonly baseline?: DeliveryOutcomeCounts; readonly metrics: { readonly all: EvolutionDeliveryMetricRollupView; readonly selected: EvolutionDeliveryMetricRollupView; readonly baseline?: EvolutionDeliveryMetricRollupView; readonly recent: readonly EvolutionDeliveryMetricEvidenceView[]; }; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly feedbackShadow?: { readonly available: boolean; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly runs: readonly EvolutionShadowRunView[]; };\n    readonly automaticFeedbackBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly automaticEvaluatorBudget?: { readonly warningCount: number; readonly targets: readonly EvolutionAutomaticBudgetView[]; };\n    readonly evaluatorAuthoring?: { readonly available: boolean; readonly actionableCount: number; readonly warningCount: number; readonly signals: readonly EvolutionFeedbackSignalView[]; readonly targets: readonly EvolutionShadowTargetView[]; readonly drafts: readonly EvolutionEvaluatorDraftView[]; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
+          },
+          {
+            "name": "EvolutionProviderUsageView",
+            "declaration": "export interface EvolutionProviderUsageView {\n    readonly uncachedInputTokens: number;\n    readonly outputTokens: number;\n    readonly cacheReadTokens: number;\n    readonly cacheWriteTokens: number;\n}"
           },
           {
             "name": "EvolutionReviewCaseView",

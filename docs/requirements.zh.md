@@ -347,10 +347,14 @@ message 属于当时最新 active Goal revision 的 turn，并在 exact `complet
 cache-read/write、LLM/tool/TTFT/decode 时间来自 DSH 官方 `tokenUsage`/`sessionStats` projection cut 的差值，
 active wall time 来自同一原生 turn 边界。手工 turn、其他 Goal、旧 revision、归属歧义、缺少 projection unit
 或计数倒退全部 abstain。DSH 没有提供 provider price 时货币成本必须明确为 unavailable，禁止自行估价。
-这些 metrics 只进入 host-only Outcome 事实，不改变 Opportunity 资格/排序、author 输入、评测 verdict 或晋升。
+这些 metrics 只进入 Host 权威 compact Outcome 事实，不改变 Opportunity 资格/排序、author 输入、评测 verdict 或晋升。
+`EvolutionControlPlane.overview` 只输出 browser-safe 聚合与至多 20 条最新已测 Outcome；不输出 Session/call/reason/path，
+不建立第二 metrics API 或浏览器状态权威。缺失 metrics 必须显示为未测，不能折算为零。
 
 DSH Web 已投影 `Capability Gap → Skill Opportunity → Candidate → authoring state`，展示证据 Goal 数、Gap 数、
-关联纠正/Outcome 计数、有界短引用、无因果声明、Candidate id、预算/调用和隔离状态，不提供路线、来源、安装或激活菜单。旧的本地 Git、外部索引和运行时
+关联纠正/Outcome 计数、有界短引用、无因果声明、Candidate id、预算/调用和隔离状态，并展示 Host 权威的
+Workspace/current/baseline Goal 执行聚合、最近已测 Outcome、token/cache/latency/active-wall facts 与价格 unavailable；
+不提供路线、来源、安装或激活菜单。刷新失败必须显式报错并保留最后一次成功快照，恢复后从同一 Host 权威重新读取。旧的本地 Git、外部索引和运行时
 Web research 方案必须从当前实现删除；相关历史 evidence 只说明过去实现，不构成当前产品
 声明。Hermes、OpenClaw、HanaAgent、市场、论文与开源实现继续用于设计期固定 revision 调研与 paired benchmark。
 

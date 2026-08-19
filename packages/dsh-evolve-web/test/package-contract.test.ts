@@ -33,6 +33,11 @@ describe('installable DSH bundle', () => {
     expect(overlay).toContain('packages:\n      - dsh-evolve')
     expect(overlay).toContain('name: __EVOFORGE_BROWSER_BOOTSTRAP__')
     expect(overlay).toContain('evolveEntry: __EVOFORGE_INSTALLED_ENTRY__')
+    expect(overlay).toContain('seedGoalMetrics: true')
     expect(overlay).not.toContain('name: !!js')
+
+    expect(bootstrap).toContain('if (config.seedGoalMetrics === true)')
+    expect(bootstrap).toContain("ctx.get('evoforge.evolutionControl')")
+    expect(bootstrap).toContain('ctx.agents.resume({ resumeSessionId: config.sessionId')
   })
 })

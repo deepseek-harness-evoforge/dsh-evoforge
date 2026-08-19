@@ -175,6 +175,19 @@ function remote(
       all: { total: 6, passed: 3, failed: 2, unknown: 1 },
       selected: { total: 3, passed: 2, failed: 1, unknown: 0 },
       baseline: { total: 3, passed: 1, failed: 1, unknown: 1 },
+      metrics: {
+        all: webMetricRollup(2, 4, 2),
+        selected: webMetricRollup(1, 2, 1),
+        baseline: webMetricRollup(1, 2, 1),
+        recent: [{
+          outcomeId: '0'.repeat(64),
+          observedAt: 1_786_896_000_200,
+          generationId,
+          status: 'passed' as const,
+          goal: { id: 'goal-metrics', revision: 2 },
+          metrics: webGoalMetrics(),
+        }],
+      },
     },
   })
   return {
@@ -389,6 +402,7 @@ const t = (key: string) => ({
   'skills.lineage.candidate': 'Candidate',
   'skills.lineage.admission': 'Admission',
   'skills.lineage.release.none': 'Candidate had no release authority',
+  'status.native': 'Native DSH',
   'status.actions': 'Actionable',
   'action.refresh': 'Refresh',
   'action.pause': 'Pause',
@@ -418,11 +432,33 @@ const t = (key: string) => ({
   'review.expiryEligible': 'Expiry eligible since',
   'review.expiryTrigger': 'No background timer runs; rejection occurs only when the next same-Skill automatic Signal arrives.',
   'outcomes.active': 'Active',
+  'outcomes.current': 'Current selection',
   'outcomes.parent': 'Parent',
   'outcomes.total': 'total',
   'outcomes.passed': 'passed',
   'outcomes.failed': 'failed',
   'outcomes.unknown': 'unknown',
+  'outcomes.metrics.title': 'Measured Goal execution',
+  'outcomes.metrics.workspace': 'Workspace metrics',
+  'outcomes.metrics.active': 'Active metrics',
+  'outcomes.metrics.current': 'Current selection metrics',
+  'outcomes.metrics.baseline': 'Parent metrics',
+  'outcomes.metrics.measured': 'measured',
+  'outcomes.metrics.unmeasured': 'unmeasured',
+  'outcomes.metrics.uncachedInput': 'uncached input',
+  'outcomes.metrics.output': 'output',
+  'outcomes.metrics.cacheRead': 'cache read',
+  'outcomes.metrics.cacheWrite': 'cache write',
+  'outcomes.metrics.llm': 'LLM',
+  'outcomes.metrics.tools': 'tools',
+  'outcomes.metrics.ttft': 'TTFT',
+  'outcomes.metrics.activeWall': 'active wall',
+  'outcomes.metrics.turns': 'attributed turns',
+  'outcomes.metrics.closedSteps': 'closed steps',
+  'outcomes.metrics.recent': 'Recent measured Outcomes',
+  'outcomes.metrics.outcome': 'outcome',
+  'outcomes.metrics.event': 'event',
+  'outcomes.metrics.priceUnavailable': 'Provider price is unavailable; monetary cost is not inferred.',
   'outcomes.disclaimer': 'Observed counts are descriptive; they do not prove that a Generation caused the difference.',
   'status.budgetUnknown': 'Budget state unknown; automatic launch is blocked',
   'error.workspaceRequired': 'Open a Session owned by a native Workspace first.',
@@ -946,9 +982,44 @@ describe('EvolutionAction', () => {
     expect(await screen.findByText('Observed delivery outcomes')).toBeTruthy()
     expect(screen.getByText(/Active · aaaaaaaa… · 3 total · 2 passed · 1 failed · 0 unknown/)).toBeTruthy()
     expect(screen.getByText(/Parent · bbbbbbbb… · 3 total · 1 passed · 1 failed · 1 unknown/)).toBeTruthy()
+    expect(screen.getByText('Measured Goal execution')).toBeTruthy()
+    const activeMetrics = screen.getByRole('group', { name: 'Active metrics' })
+    expect(within(activeMetrics).getByText(/Active metrics · 1 measured · 2 unmeasured/)).toBeTruthy()
+    expect(within(activeMetrics).getByText(/30 uncached input · 9 output · cache read 70 · cache write 5/)).toBeTruthy()
+    expect(within(activeMetrics).getByText(/LLM 180 ms · tools 50 ms · TTFT 45 ms · active wall 300 ms/)).toBeTruthy()
+    const recent = screen.getByText(/goal-metrics r2 · passed · outcome 00000000… · event 12/).closest('li')!
+    expect(within(recent).getByText(/30 uncached input · 9 output · cache read 70 · cache write 5/)).toBeTruthy()
+    expect(screen.getByText('Provider price is unavailable; monetary cost is not inferred.')).toBeTruthy()
     expect(screen.getByText(
       'Observed counts are descriptive; they do not prove that a Generation caused the difference.',
     )).toBeTruthy()
+  })
+
+  it('shows measured native-DSH outcomes before any evolved Generation exists', async () => {
+    const configured = remote(true)
+    const api = remote(false)
+    vi.mocked(api.overview).mockImplementation(async (requestedWorkspaceId, requestedSessionId) => {
+      const result = await configured.overview(requestedWorkspaceId, requestedSessionId)
+      if (!result.ok) return result
+      const { active: _active, ...value } = result.value
+      const { baseline: _baselineCounts, metrics: configuredMetrics, ...deliveryOutcomes } =
+        value.deliveryOutcomes!
+      const { baseline: _baselineMetrics, ...metrics } = configuredMetrics
+      return success({
+        ...value,
+        deliveryOutcomes: {
+          ...deliveryOutcomes,
+          metrics,
+        },
+      })
+    })
+    renderEvolution(api)
+    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
+    await selectAdvanced()
+
+    expect(await screen.findByText('Observed delivery outcomes')).toBeTruthy()
+    expect(screen.getByText(/Current selection · Native DSH · 3 total/)).toBeTruthy()
+    expect(screen.getByRole('group', { name: 'Current selection metrics' })).toBeTruthy()
   })
 
   it('explains that automatic launch is blocked when the budget journal is unknown', async () => {
@@ -1151,6 +1222,51 @@ describe('EvolutionAction', () => {
     expect(api.promote).not.toHaveBeenCalled()
   })
 })
+
+function webGoalMetrics() {
+  return {
+    schemaVersion: 1 as const,
+    source: 'dsh-session-projections' as const,
+    goalId: 'goal-metrics',
+    throughEventSeq: 12,
+    attributedTurns: 2,
+    closedSteps: 1,
+    activeWallMs: 300,
+    providerUsage: {
+      uncachedInputTokens: 30,
+      outputTokens: 9,
+      cacheReadTokens: 70,
+      cacheWriteTokens: 5,
+    },
+    latency: {
+      llmMs: 180,
+      toolMs: 50,
+      ttftMs: 45,
+      ttftSteps: 2,
+      decodeMs: 135,
+      decodeTokens: 9,
+    },
+    monetaryCost: { status: 'unavailable' as const, reason: 'provider-price-not-projected' as const },
+  }
+}
+
+function webMetricRollup(measured: number, unmeasured: number, factor: number) {
+  const metrics = webGoalMetrics()
+  return {
+    measured,
+    unmeasured,
+    attributedTurns: metrics.attributedTurns * factor,
+    closedSteps: metrics.closedSteps * factor,
+    activeWallMs: metrics.activeWallMs * factor,
+    providerUsage: Object.fromEntries(
+      Object.entries(metrics.providerUsage).map(([key, value]) => [key, value * factor]),
+    ) as typeof metrics.providerUsage,
+    latency: Object.fromEntries(
+      Object.entries(metrics.latency).map(([key, value]) => [key, value * factor]),
+    ) as typeof metrics.latency,
+    monetaryCost: metrics.monetaryCost,
+  }
+}
 
 describe('client plugin lifecycle', () => {
   it('mounts one Remote and binds its unmount to the plugin lifecycle', async () => {

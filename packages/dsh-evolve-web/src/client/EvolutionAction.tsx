@@ -5,6 +5,8 @@ import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {
   EvolutionActionReceipt,
   EvolutionCapabilityView,
+  EvolutionDeliveryMetricEvidenceView,
+  EvolutionDeliveryMetricRollupView,
   EvolutionSkillCandidateLineageView,
   EvolutionEvaluatorDraftDetail,
   EvolutionOverview,
@@ -891,16 +893,25 @@ function ReviewQueue({ overview, busy, inspect, promote, startShadow, authorEval
   ]
   const evaluatorAuthoring = overview.evaluatorAuthoring
   return <>
-    {overview.deliveryOutcomes?.baseline !== undefined && overview.active !== undefined && <section>
+    {overview.deliveryOutcomes !== undefined && <section>
       <h3 className="dsh-evolve-section-title">{t('section.outcomes')}</h3>
       <ul className="dsh-evolve-list">
         <li className="dsh-evolve-review">
-          <div className="dsh-evolve-review-skill">{t('outcomes.active')} · {shortId(overview.active.id)} · {renderOutcomeCounts(overview.deliveryOutcomes.selected, t)}</div>
+          <div className="dsh-evolve-review-skill">
+            {t(overview.active === undefined ? 'outcomes.current' : 'outcomes.active')}
+            {' · '}{overview.active === undefined ? t('status.native') : shortId(overview.active.id)}
+            {' · '}{renderOutcomeCounts(overview.deliveryOutcomes.selected, t)}
+          </div>
         </li>
-        <li className="dsh-evolve-review">
+        {overview.deliveryOutcomes.baseline !== undefined && overview.active !== undefined && <li className="dsh-evolve-review">
           <div className="dsh-evolve-review-skill">{t('outcomes.parent')} · {overview.active.rollbackTargetId === undefined ? t('status.native') : shortId(overview.active.rollbackTargetId)} · {renderOutcomeCounts(overview.deliveryOutcomes.baseline, t)}</div>
-        </li>
+        </li>}
       </ul>
+      <OutcomeMetrics
+        metrics={overview.deliveryOutcomes.metrics}
+        selectedLabel={t(overview.active === undefined ? 'outcomes.metrics.current' : 'outcomes.metrics.active')}
+        t={t}
+      />
       <p className="dsh-evolve-meta">{t('outcomes.disclaimer')}</p>
     </section>}
     {automaticBudgets.length > 0 && <section>
@@ -1043,6 +1054,83 @@ function renderOutcomeCounts(
   t: (key: string) => string,
 ): string {
   return `${counts.total} ${t('outcomes.total')} · ${counts.passed} ${t('outcomes.passed')} · ${counts.failed} ${t('outcomes.failed')} · ${counts.unknown} ${t('outcomes.unknown')}`
+}
+
+function OutcomeMetrics({ metrics, selectedLabel, t }: {
+  metrics: NonNullable<EvolutionOverview['deliveryOutcomes']>['metrics']
+  selectedLabel: string
+  t: (key: string) => string
+}) {
+  const rollups: Array<{ key: string; label: string; value: EvolutionDeliveryMetricRollupView }> = [
+    { key: 'workspace', label: t('outcomes.metrics.workspace'), value: metrics.all },
+    { key: 'active', label: selectedLabel, value: metrics.selected },
+    ...(metrics.baseline === undefined
+      ? []
+      : [{ key: 'baseline', label: t('outcomes.metrics.baseline'), value: metrics.baseline }]),
+  ]
+  return <div className="dsh-evolve-outcome-metrics">
+    <h4 className="dsh-evolve-section-title">{t('outcomes.metrics.title')}</h4>
+    <div className="dsh-evolve-metric-grid">{rollups.map(rollup => (
+      <OutcomeMetricRollup key={rollup.key} label={rollup.label} value={rollup.value} t={t} />
+    ))}</div>
+    {metrics.recent.length > 0 && <>
+      <h4 className="dsh-evolve-section-title dsh-evolve-subsection-title">{t('outcomes.metrics.recent')}</h4>
+      <ul className="dsh-evolve-list">{metrics.recent.map(item => (
+        <OutcomeMetricEvidence key={item.outcomeId} value={item} t={t} />
+      ))}</ul>
+    </>}
+    <p className="dsh-evolve-meta">{t('outcomes.metrics.priceUnavailable')}</p>
+  </div>
+}
+
+function OutcomeMetricRollup({ label, value, t }: {
+  label: string
+  value: EvolutionDeliveryMetricRollupView
+  t: (key: string) => string
+}) {
+  return <div className="dsh-evolve-metric-card" role="group" aria-label={label}>
+    <div className="dsh-evolve-review-skill">
+      {label} · {value.measured} {t('outcomes.metrics.measured')} · {value.unmeasured} {t('outcomes.metrics.unmeasured')}
+    </div>
+    <div className="dsh-evolve-meta">{renderProviderUsage(value.providerUsage, t)}</div>
+    <div className="dsh-evolve-meta">{renderLatency(value, t)}</div>
+    <div className="dsh-evolve-meta">
+      {value.attributedTurns} {t('outcomes.metrics.turns')} · {value.closedSteps} {t('outcomes.metrics.closedSteps')}
+    </div>
+  </div>
+}
+
+function OutcomeMetricEvidence({ value, t }: {
+  value: EvolutionDeliveryMetricEvidenceView
+  t: (key: string) => string
+}) {
+  return <li className="dsh-evolve-review">
+    <div className="dsh-evolve-review-skill">
+      {value.goal.id} r{value.goal.revision} · {t(`outcomes.${value.status}`)} · {t('outcomes.metrics.outcome')} {shortId(value.outcomeId)} · {t('outcomes.metrics.event')} {value.metrics.throughEventSeq}
+    </div>
+    <div className="dsh-evolve-meta">{renderProviderUsage(value.metrics.providerUsage, t)}</div>
+    <div className="dsh-evolve-meta">{renderLatency(value.metrics, t)}</div>
+  </li>
+}
+
+function renderProviderUsage(
+  value: EvolutionDeliveryMetricRollupView['providerUsage'],
+  t: (key: string) => string,
+): string {
+  return `${value.uncachedInputTokens} ${t('outcomes.metrics.uncachedInput')}`
+    + ` · ${value.outputTokens} ${t('outcomes.metrics.output')}`
+    + ` · ${t('outcomes.metrics.cacheRead')} ${value.cacheReadTokens}`
+    + ` · ${t('outcomes.metrics.cacheWrite')} ${value.cacheWriteTokens}`
+}
+
+function renderLatency(
+  value: Pick<EvolutionDeliveryMetricRollupView, 'activeWallMs' | 'latency'>,
+  t: (key: string) => string,
+): string {
+  return `${t('outcomes.metrics.llm')} ${value.latency.llmMs} ms`
+    + ` · ${t('outcomes.metrics.tools')} ${value.latency.toolMs} ms`
+    + ` · ${t('outcomes.metrics.ttft')} ${value.latency.ttftMs} ms`
+    + ` · ${t('outcomes.metrics.activeWall')} ${value.activeWallMs} ms`
 }
 
 function EvaluatorDetail({ detail, note, busy, setNote, back, confirm, t }: {

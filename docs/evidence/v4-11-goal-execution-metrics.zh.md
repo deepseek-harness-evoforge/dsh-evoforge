@@ -1,7 +1,7 @@
 # V4-11：Goal 执行 metrics 使用 DSH 官方投影
 
 > 日期：2026-08-19
-> 声明等级：`implemented`；只证明 compact Delivery Outcome 可携带非因果 provider usage/cache/latency facts，不代表完整成本归因、Web 可视化或自进化完成
+> 声明等级：`verified`（仅限官方 projection、compact Outcome 与 Web 安全投影）；不代表完整成本归因、真实 provider paired 或自进化完成
 
 ## 已实现事实
 
@@ -25,9 +25,11 @@ revision 的 turn 被合计；真实完成顺序中的 `goal/change(complete rev
 
 ## 2026-08-19 验证记录
 
-- `dsh-evolve` 完整测试：55 files 通过、1 个显式环境文件跳过；257 tests 通过、2 tests 跳过；
+- `dsh-evolve` 完整测试：55 files 通过、1 个显式环境文件跳过；258 tests 通过、2 tests 跳过；
 - `dsh-evolve` Host/Test TypeScript 均通过；十一包整仓 typecheck 与 build 通过；
 - Typert 由固定 DSH source 重新生成并通过 artifact 校验；文档链接与公开路径检查通过；
+- Host 权威 summary、generated Remote 与 Web 渲染的真实安装/浏览器/断连/恢复证据见
+  [V4-12](v4-12-goal-metrics-web.zh.md)；
 - `dsh-doctor` 原生插件契约 22/22 通过；
 - 十一份最终 tarball 的 clean-profile add/dump/boot/原生 Goal+Tool/dispose/remove/readback 为 1/1 通过，
   用时 25.14 秒。该门证明装配与卸载回归，不冒充 metrics 数值断言；metrics 数值由上述官方 projection
@@ -35,7 +37,6 @@ revision 的 turn 被合计；真实完成顺序中的 `goal/change(complete rev
 
 ## 未完成门禁
 
-- DSH Web 尚未展示 per-Outcome/聚合 token、cache 与 latency；
 - 没有真实 provider price，因此没有货币成本；
 - 没有 exact Skill invocation 因果链接，metrics 不能证明某 Skill 降本或提速；
 - 同模型/权限/预算的 Hermes paired provider cost、TTFT、cache-read 与长期负迁移数据仍未完成。

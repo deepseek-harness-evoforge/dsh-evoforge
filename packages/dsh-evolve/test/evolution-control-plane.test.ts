@@ -198,6 +198,19 @@ describe('EvolutionControlPlane', () => {
         all: { total: 3, passed: 2, failed: 1, unknown: 0 },
         selected: { total: 2, passed: 2, failed: 0, unknown: 0 },
         baseline: { total: 1, passed: 0, failed: 1, unknown: 0 },
+        metrics: {
+          all: metricRollup(2, 1, 2),
+          selected: metricRollup(1, 1, 1),
+          baseline: metricRollup(1, 0, 1),
+          recent: [{
+            outcomeId: '0'.repeat(64),
+            observedAt: 1_786_896_000_200,
+            generationId,
+            status: 'passed' as const,
+            goal: { id: 'goal-metrics', revision: 2 },
+            metrics: projectedGoalMetrics(),
+          }],
+        },
       }) },
       feedback: {
         summarize: () => ({ all: 4, selected: 1 }),
@@ -423,6 +436,25 @@ describe('EvolutionControlPlane', () => {
         all: { total: 3, passed: 2, failed: 1, unknown: 0 },
         selected: { total: 2, passed: 2, failed: 0, unknown: 0 },
         baseline: { total: 1, passed: 0, failed: 1, unknown: 0 },
+        metrics: {
+          all: {
+            measured: 2,
+            unmeasured: 1,
+            providerUsage: {
+              uncachedInputTokens: 60,
+              outputTokens: 18,
+              cacheReadTokens: 140,
+              cacheWriteTokens: 10,
+            },
+          },
+          selected: { measured: 1, unmeasured: 1 },
+          baseline: { measured: 1, unmeasured: 0 },
+          recent: [{
+            outcomeId: '0'.repeat(64),
+            goal: { id: 'goal-metrics', revision: 2 },
+            metrics: { throughEventSeq: 12, activeWallMs: 300 },
+          }],
+        },
       },
       feedbackShadow: {
         available: true,
@@ -819,3 +851,55 @@ describe('EvolutionControlPlane', () => {
     })
   })
 })
+
+function projectedGoalMetrics() {
+  return {
+    schemaVersion: 1 as const,
+    source: 'dsh-session-projections' as const,
+    goalId: 'goal-metrics',
+    throughEventSeq: 12,
+    attributedTurns: 2,
+    closedSteps: 1,
+    activeWallMs: 300,
+    providerUsage: {
+      uncachedInputTokens: 30,
+      outputTokens: 9,
+      cacheReadTokens: 70,
+      cacheWriteTokens: 5,
+    },
+    latency: {
+      llmMs: 180,
+      toolMs: 50,
+      ttftMs: 45,
+      ttftSteps: 2,
+      decodeMs: 135,
+      decodeTokens: 9,
+    },
+    monetaryCost: { status: 'unavailable' as const, reason: 'provider-price-not-projected' as const },
+  }
+}
+
+function metricRollup(measured: number, unmeasured: number, factor: number) {
+  return {
+    measured,
+    unmeasured,
+    attributedTurns: 2 * factor,
+    closedSteps: factor,
+    activeWallMs: 300 * factor,
+    providerUsage: {
+      uncachedInputTokens: 30 * factor,
+      outputTokens: 9 * factor,
+      cacheReadTokens: 70 * factor,
+      cacheWriteTokens: 5 * factor,
+    },
+    latency: {
+      llmMs: 180 * factor,
+      toolMs: 50 * factor,
+      ttftMs: 45 * factor,
+      ttftSteps: 2 * factor,
+      decodeMs: 135 * factor,
+      decodeTokens: 9 * factor,
+    },
+    monetaryCost: { status: 'unavailable' as const, reason: 'provider-price-not-projected' as const },
+  }
+}

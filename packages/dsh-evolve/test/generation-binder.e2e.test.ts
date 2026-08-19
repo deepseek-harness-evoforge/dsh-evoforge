@@ -1626,10 +1626,17 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     await evolveFiber.dispose()
     const recovered = await openDeliveryOutcomeStore(ctx.storageDomain)
     try {
-      expect(recovered.summarize(WORKSPACE_ID, active.id, {})).toEqual({
+      const summary = recovered.summarize(WORKSPACE_ID, active.id, {})
+      expect(summary).toMatchObject({
         all: { total: 2, passed: 2, failed: 0, unknown: 0 },
         selected: { total: 1, passed: 1, failed: 0, unknown: 0 },
         baseline: { total: 1, passed: 1, failed: 0, unknown: 0 },
+      })
+      expect(summary.metrics).toMatchObject({
+        all: { measured: 0, unmeasured: 2 },
+        selected: { measured: 0, unmeasured: 1 },
+        baseline: { measured: 0, unmeasured: 1 },
+        recent: [],
       })
     } finally {
       await recovered.close()
