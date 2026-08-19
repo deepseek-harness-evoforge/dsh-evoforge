@@ -27,6 +27,7 @@ base64、archive、digest、tree、lineage、frontmatter name 和缓存 manifest
 Generation bundle 都不使用 Git branch。自动晋升的窄策略仍只允许既有 Skill 的单文件 append，因此新
 Skill 不会因本 ADR 自动晋升。
 
-本决策只完成全新内部 Skill 的发布、加载、Session 固定和 root rollback。`capability-absent` Retention 与
-反事实 canary 尚未获得“无目标 Skill”父级执行语义，当前继续 fail closed；Evaluation Envelope 自主生成、
-真实长期 provider outcome、负迁移和 Hermes paired benchmark 也仍是发布门禁。
+本决策只完成全新内部 Skill 的发布、加载、Session 固定和 root rollback。后续
+[ADR-0058](0058-capability-absent-retention-and-canary-use-exact-subjects.md) 已补齐 `capability-absent`
+Retention 与 sealed canary 的“无目标 Skill”父级执行语义；Evaluation Envelope 自主生成、真实长期 provider
+outcome、负迁移率和 Hermes paired benchmark 仍是发布门禁。

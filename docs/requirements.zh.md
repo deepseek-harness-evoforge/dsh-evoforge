@@ -1,6 +1,6 @@
 # DeepSeek Harness EvoForge 项目需求基线
 
-> 状态：已确认；目标是只安装并运行于 DSH 的原生 out-of-tree 插件套件。现有 P0A–P1.21 等实现只作为可重审资产，不能限制重构；`dsh-gateway` 已替换旧 Router 包并通过总装回归，能力获取/运行时研究 Candidate 的活动实现已删除。自然 Goal→可复核 Capability Gap→跨 Goal 内部经验→Skill Opportunity→隔离 whole-Skill Candidate 已形成部分纵切；配置式 Candidate target 已由 Workspace policy + Opportunity-bound Envelope 取代，缺失 Skill 已使用不安装目标 Skill 的真实 capability-absent baseline，并能在明确复核后形成不依赖 Git source 的 inactive bundle、固定到未来 Session并精确 root rollback；治理包自主生成和 capability-absent Retention/canary 仍未完成。完整内部证据、真实独立评测、Gateway、exact 飞书 route 消息、长期 outcome 与 Hermes paired epochs 完成前不构成 v0.1 交付
+> 状态：已确认；目标是只安装并运行于 DSH 的原生 out-of-tree 插件套件。现有 P0A–P1.21 等实现只作为可重审资产，不能限制重构；`dsh-gateway` 已替换旧 Router 包并通过总装回归，能力获取/运行时研究 Candidate 的活动实现已删除。自然 Goal→可复核 Capability Gap→跨 Goal 内部经验→Skill Opportunity→隔离 whole-Skill Candidate 已形成部分纵切；配置式 Candidate target 已由 Workspace policy + Opportunity-bound Envelope 取代。缺失 Skill 使用不安装目标 Skill 的真实 capability-absent baseline；明确复核后可形成不依赖 Git source 的 inactive bundle，固定到未来 Session并精确 root rollback；独立 Retention 和 sealed canary 现可用 exact absent subject 与 exact whole-Skill Candidate 做真实 DSH paired replay。治理包自主生成、真实 provider 整链和长期归因仍未完成。完整内部证据、Gateway、exact 飞书 route 消息、长期 outcome 与 Hermes paired epochs 完成前不构成 v0.1 交付
 > 更新日期：2026-08-19
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。发生冲突时，下述“方向纠正”优先于旧里程碑文字。
 
@@ -374,14 +374,16 @@ whole-Skill，任何占位 `SKILL.md` 都 fail closed；
 Opportunity/内容/路径不一致、admission 与 holdout 同 hash 或符号链接均 fail closed。同一 Envelope id 进入
 admission、Candidate Lineage 和 Shadow handoff，结果仍无 release authority。
 
-该实现只消除了人工预定进化方向，尚不会从 Goal outcome、explicit correction、失败类和回归样本自主构造并
-封存 Evaluation Envelope，也未完成新 Skill 的内容寻址发布、真实 provider 的 admission→holdout Shadow→Retention 纵切。下一阶段必须让
+该实现已消除人工预定进化方向，并完成新 Skill 的内容寻址发布、future-Session 固定、root rollback，及
+capability-absent Shadow→独立 Retention→sealed canary 的 exact 父/Candidate 执行语义；但尚不会从 Goal outcome、
+explicit correction、失败类和回归样本自主构造并封存 Evaluation Envelope，也未在真实 provider 与长期任务中
+完成 admission→holdout→Retention→outcome 的整链归因。下一阶段必须让
 Candidate 不可读写的 Evaluation Governance Plane 从内部证据独立形成 baseline、未见样本和 hard gates；没有
 合格治理包时 abstain，不能回退到外部搜索、author 自评或一次成功即晋升。
 
-在 P1.1 之后，先实现 `dsh-software-delivery` 的最小 objective outcome：稳定按需 Skill 与
-linked-worktree/commit/check 验证器。只有真实交付 outcome 可用后，才建设 future-session
-canary 和 outcome-triggered rollback，避免先造没有可信信号的自动路由系统。
+`dsh-software-delivery` 的最小 objective outcome 已作为 canary 触发事实。失败 Outcome 只触发对原 sealed
+Case Pack 的 exact 复测；它本身不证明 Skill 回归。自动 rollback 继续受 `auto-clear-instruction-v1` 的窄权限
+约束，人工复核的新 Skill 不会被实验性 policy 静默改写。
 
 验证器之后只增加一个最小原子 `complete_delivery` Tool：复用原生 shell policy 和
 `update_goal`，通过才完成 exact native Goal。它不是 Mission、全局 Goal 拦截或第二套 policy；

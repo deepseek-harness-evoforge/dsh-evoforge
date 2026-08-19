@@ -28,6 +28,7 @@ interface ParsedRetentionEvidence {
   sourceRunId: string
   recommendation: 'promote' | 'review'
   skillName: string
+  baselineKind: 'skill-tree' | 'capability-absent'
   baseTreeHash: string
   candidateTreeHash: string
   outcome: Exclude<RetentionEvidenceStatus, 'missing'>
@@ -146,6 +147,8 @@ async function readEvidence(outputDir: string): Promise<ParsedRetentionEvidence>
     || value.source.primaryCasePackUnchanged !== true
     || !['promote', 'review'].includes(String(value.source.recommendation))
     || !isRecord(value.subject) || typeof value.subject.skillName !== 'string'
+    || (value.subject.baselineKind !== undefined
+      && !['skill-tree', 'capability-absent'].includes(String(value.subject.baselineKind)))
     || !HASH.test(String(value.subject.baseTreeHash))
     || !HASH.test(String(value.subject.candidateTreeHash))
     || !HASH.test(String(value.subject.finalTreeHash)) || value.subject.unchanged !== true
@@ -169,8 +172,18 @@ async function readEvidence(outputDir: string): Promise<ParsedRetentionEvidence>
     || value.casePack.hash === value.source.primaryCasePackHash) {
     throw new Error('retention report exact input identity changed')
   }
+  const baselineKind = value.subject.baselineKind === 'capability-absent'
+    ? 'capability-absent'
+    : 'skill-tree'
+  if (baselineKind === 'capability-absent'
+    && (!HASH.test(String(value.subject.finalCandidateTreeHash))
+      || value.subject.finalCandidateTreeHash !== value.subject.candidateTreeHash
+      || value.subject.candidateUnchanged !== true)) {
+    throw new Error('capability-absent Retention Candidate identity changed')
+  }
   const expectedRunId = sha256(JSON.stringify({
     sourceRunId: value.source.shadowRunId,
+    ...baselineKind === 'skill-tree' ? {} : { baselineKind },
     candidateTreeHash: value.subject.candidateTreeHash,
     casePackHash: value.casePack.hash,
     dshRevision: value.epoch.dshRevision,
@@ -184,6 +197,7 @@ async function readEvidence(outputDir: string): Promise<ParsedRetentionEvidence>
     sourceRunId: String(value.source.shadowRunId),
     recommendation: value.source.recommendation as 'promote' | 'review',
     skillName: value.subject.skillName,
+    baselineKind,
     baseTreeHash: String(value.subject.baseTreeHash),
     candidateTreeHash: String(value.subject.candidateTreeHash),
     outcome,
@@ -262,6 +276,7 @@ function matches(evidence: ParsedRetentionEvidence, candidate: ReviewCandidate):
   return evidence.sourceRunId === candidate.runId
     && evidence.recommendation === candidate.recommendation
     && evidence.skillName === candidate.skillName
+    && evidence.baselineKind === (candidate.baselineKind ?? 'skill-tree')
     && evidence.baseTreeHash === candidate.baseTreeHash
     && evidence.candidateTreeHash === candidate.candidateTreeHash
 }

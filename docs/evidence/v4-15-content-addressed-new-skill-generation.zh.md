@@ -47,8 +47,8 @@ internal Opportunity + exact lineage
 
 ## 未完成边界
 
-当前 sealed canary 对 root `skill-bundle` 明确拒绝，因为其父级是 capability-absent subject 而非 Git
-first-parent tree。下一增量必须让 Retention/canary 在 baseline profile 中保持目标 Skill absent、Candidate
-profile 使用 exact bundle，并验证非目标 composition、回归和失败恢复。Evaluation Envelope 自主生成、
-existing bundle 的后续再进化、真实 provider 长期 outcome、飞书闭环和 Hermes paired benchmark 仍未完成；
-不得打 tag或宣布自我进化闭环完成。
+本页提交时尚缺的 capability-absent Retention/canary 已由
+[V4-16](v4-16-capability-absent-retention-canary.zh.md) 补齐：baseline profile 保持目标 Skill absent，Candidate
+profile 使用 exact whole-Skill tree，并验证非目标 composition 与篡改 fail-closed。Evaluation Envelope
+自主生成、existing bundle 的后续再进化、真实 provider 长期 outcome、飞书闭环和 Hermes paired benchmark
+仍未完成；不得打 tag或宣布自我进化闭环完成。

@@ -1,7 +1,17 @@
 import { mkdir, readFile, realpath } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, relative, resolve } from 'node:path'
+import { readCapabilityAbsentSubject } from './capability-absent-subject.ts'
 import { hashTree, sha256 } from './hash.ts'
-import { loadShadowRunState, writeDurableJson, type PersistedProposal } from './shadow-run-state.ts'
+import {
+  parseSkillCandidateLineage,
+  type SkillCandidateLineage,
+} from './skill-candidate-lineage.ts'
+import {
+  loadShadowRunState,
+  writeDurableJson,
+  type PersistedProposal,
+  type ShadowRunState,
+} from './shadow-run-state.ts'
 import { parseCasePackManifest } from './shadow.ts'
 import { runPairedTrial, type PairedTrialResult } from './trial.ts'
 
@@ -23,9 +33,11 @@ export type RetentionResult =
 interface SourceReport {
   runId: string
   skillName: string
+  baselineKind: 'skill-tree' | 'capability-absent'
   baseTreeHash: string
   candidateTreeHash: string
   recommendation: 'promote' | 'review'
+  lineage?: SkillCandidateLineage
 }
 
 /** Replay one exact completed Shadow Candidate against one trusted prior Case Pack. */
@@ -60,7 +72,9 @@ export async function evaluateRetention(options: RetentionOptions): Promise<Rete
   )
   if (sourceReport.runId !== state.runId
     || sourceReport.skillName !== state.identity.skillName
-    || sourceReport.baseTreeHash !== state.identity.baseTreeHash) {
+    || sourceReport.baselineKind !== (state.identity.baselineKind ?? 'skill-tree')
+    || sourceReport.baseTreeHash !== state.identity.baseTreeHash
+    || JSON.stringify(sourceReport.lineage) !== JSON.stringify(state.identity.skillCandidateLineage)) {
     throw new Error('retention source report does not match its durable identity')
   }
   if (!state.outcome.summary.startsWith(`${sourceReport.recommendation}:`)) {
@@ -69,17 +83,47 @@ export async function evaluateRetention(options: RetentionOptions): Promise<Rete
 
   const skillDir = await realpath(state.resumeInputs.skillDir)
   const primaryCasePackDir = await realpath(state.resumeInputs.casePackDir)
+  const baselineKind = state.identity.baselineKind ?? 'skill-tree'
+  if ((state.resumeInputs.baselineKind ?? 'skill-tree') !== baselineKind
+    || (baselineKind === 'skill-tree'
+      && (state.resumeInputs.baselineSkillName !== undefined
+        || state.resumeInputs.candidateSkillDir !== undefined))) {
+    throw new Error('retention baseline kind does not match its exact resume inputs')
+  }
+  const candidateSkillDir = baselineKind === 'capability-absent'
+    ? await resolveAbsentCandidate(state.resumeInputs, state.identity.skillName)
+    : undefined
   if (primaryCasePackDir === casePackDir) {
     throw new Error('retention Case Pack must be independent from the source Case Pack')
   }
-  assertSeparateOutput(outputDir, [sourceRunDir, skillDir, primaryCasePackDir, casePackDir])
+  assertSeparateOutput(outputDir, [
+    sourceRunDir,
+    skillDir,
+    ...candidateSkillDir === undefined ? [] : [candidateSkillDir],
+    primaryCasePackDir,
+    casePackDir,
+  ])
   if (await hashTree(skillDir) !== state.identity.baseTreeHash) {
-    throw new Error('retention baseline Skill changed after the source Shadow')
+    throw new Error('retention baseline subject changed after the source Shadow')
   }
   if (await hashTree(primaryCasePackDir) !== state.identity.casePackHash) {
     throw new Error('retention source Case Pack changed after the source Shadow')
   }
-  if (parseSkillName(await readFile(resolve(skillDir, 'SKILL.md'), 'utf8')) !== state.identity.skillName) {
+  if (baselineKind === 'capability-absent') {
+    const subject = await readCapabilityAbsentSubject(skillDir)
+    if (subject.workspaceId !== state.identity.workspaceId
+      || subject.opportunityId !== state.identity.skillCandidateLineage!.opportunityId
+      || subject.skillName !== state.identity.skillName) {
+      throw new Error('retention capability-absent subject does not match the source Shadow')
+    }
+    if (await hashTree(candidateSkillDir!) !== sourceReport.candidateTreeHash) {
+      throw new Error('retention exact Candidate changed after the source Shadow')
+    }
+    if (parseSkillName(await readFile(resolve(candidateSkillDir!, 'SKILL.md'), 'utf8'))
+      !== state.identity.skillName) {
+      throw new Error('retention exact Candidate names a different Skill')
+    }
+  } else if (parseSkillName(await readFile(resolve(skillDir, 'SKILL.md'), 'utf8')) !== state.identity.skillName) {
     throw new Error('retention baseline Skill identity changed after the source Shadow')
   }
 
@@ -103,6 +147,7 @@ export async function evaluateRetention(options: RetentionOptions): Promise<Rete
   }
   const runId = sha256(JSON.stringify({
     sourceRunId: state.runId,
+    ...baselineKind === 'skill-tree' ? {} : { baselineKind },
     candidateTreeHash: sourceReport.candidateTreeHash,
     casePackHash,
     dshRevision: manifest.epoch.dshRevision,
@@ -121,6 +166,7 @@ export async function evaluateRetention(options: RetentionOptions): Promise<Rete
     },
     subject: {
       skillName: state.identity.skillName,
+      ...baselineKind === 'skill-tree' ? {} : { baselineKind },
       baseTreeHash: state.identity.baseTreeHash,
       candidateTreeHash: sourceReport.candidateTreeHash,
     },
@@ -132,11 +178,17 @@ export async function evaluateRetention(options: RetentionOptions): Promise<Rete
   let trial: PairedTrialResult
   try {
     trial = await runPairedTrial({
+      baselineKind,
+      ...baselineKind === 'capability-absent'
+        ? {
+            baselineSkillName: state.identity.skillName,
+            candidateSkillDir: candidateSkillDir!,
+          }
+        : { proposal },
       calibration: manifest.calibration,
       casePackDir,
       dshRevision: manifest.epoch.dshRevision,
       outputDir,
-      proposal,
       ...options.signal === undefined ? {} : { signal: options.signal },
       skillDir,
       trial: manifest.trial,
@@ -146,6 +198,9 @@ export async function evaluateRetention(options: RetentionOptions): Promise<Rete
     if (options.signal?.aborted) throw options.signal.reason
     const reason = error instanceof Error ? error.message : String(error)
     const finalTreeHash = await hashTree(skillDir)
+    const finalCandidateTreeHash = candidateSkillDir === undefined
+      ? undefined
+      : await hashTree(candidateSkillDir)
     const finalPrimaryCasePackHash = await hashTree(primaryCasePackDir)
     const finalCasePackHash = await hashTree(casePackDir)
     await writeDurableJson(reportPath, {
@@ -160,6 +215,10 @@ export async function evaluateRetention(options: RetentionOptions): Promise<Rete
         ...reportBase.subject,
         finalTreeHash,
         unchanged: finalTreeHash === state.identity.baseTreeHash,
+        ...finalCandidateTreeHash === undefined ? {} : {
+          finalCandidateTreeHash,
+          candidateUnchanged: finalCandidateTreeHash === sourceReport.candidateTreeHash,
+        },
       },
       casePack: {
         ...reportBase.casePack,
@@ -173,31 +232,41 @@ export async function evaluateRetention(options: RetentionOptions): Promise<Rete
   }
 
   const finalTreeHash = await hashTree(skillDir)
+  const finalCandidateTreeHash = candidateSkillDir === undefined
+    ? undefined
+    : await hashTree(candidateSkillDir)
   const finalPrimaryCasePackHash = await hashTree(primaryCasePackDir)
   const finalCasePackHash = await hashTree(casePackDir)
   const calibrationPassed = trial.calibration.every(item => item.passed)
-  const compositionStable = trial.baseline.composition === undefined
-    && trial.candidate.composition === undefined
-    || trial.baseline.composition !== undefined
+  const compositionStable = baselineKind === 'capability-absent'
+    ? trial.baseline.composition !== undefined
       && trial.candidate.composition !== undefined
       && trial.baseline.composition.fingerprint === trial.candidate.composition.fingerprint
+    : trial.baseline.composition === undefined
+      && trial.candidate.composition === undefined
+      || trial.baseline.composition !== undefined
+        && trial.candidate.composition !== undefined
+        && trial.baseline.composition.fingerprint === trial.candidate.composition.fingerprint
   const integrityReason = finalTreeHash !== state.identity.baseTreeHash
-    ? 'baseline Skill changed during retention Trial'
+    ? 'baseline subject changed during retention Trial'
     : finalPrimaryCasePackHash !== state.identity.casePackHash
       ? 'source Case Pack changed during retention Trial'
       : finalCasePackHash !== casePackHash
         ? 'retention Case Pack changed during retention Trial'
-        : trial.baseline.treeHash !== state.identity.baseTreeHash
-          ? 'retention Trial baseline does not match the source Shadow baseline'
-          : trial.candidate.treeHash !== sourceReport.candidateTreeHash
-            ? 'retention Trial Candidate does not match the source Shadow Candidate'
-            : !calibrationPassed
-              ? 'retention Case Pack calibration failed'
-              : !trial.baseline.passed
-                ? 'prior Case Pack does not pass on the source baseline'
-                : !compositionStable
-                  ? 'retention Candidate changed non-target DSH composition'
-                  : undefined
+        : finalCandidateTreeHash !== undefined
+            && finalCandidateTreeHash !== sourceReport.candidateTreeHash
+          ? 'exact Candidate changed during retention Trial'
+          : trial.baseline.treeHash !== state.identity.baseTreeHash
+            ? 'retention Trial baseline does not match the source Shadow baseline'
+            : trial.candidate.treeHash !== sourceReport.candidateTreeHash
+              ? 'retention Trial Candidate does not match the source Shadow Candidate'
+              : !calibrationPassed
+                ? 'retention Case Pack calibration failed'
+                : !trial.baseline.passed
+                  ? 'prior Case Pack does not pass on the source baseline'
+                  : !compositionStable
+                    ? 'retention Candidate changed non-target DSH composition'
+                    : undefined
   const modelEvidence = trial.baseline.composition === undefined
     || trial.candidate.composition === undefined
     ? {}
@@ -216,7 +285,15 @@ export async function evaluateRetention(options: RetentionOptions): Promise<Rete
       primaryCasePackFinalHash: finalPrimaryCasePackHash,
       primaryCasePackUnchanged: finalPrimaryCasePackHash === state.identity.casePackHash,
     },
-    subject: { ...reportBase.subject, finalTreeHash, unchanged: finalTreeHash === state.identity.baseTreeHash },
+    subject: {
+      ...reportBase.subject,
+      finalTreeHash,
+      unchanged: finalTreeHash === state.identity.baseTreeHash,
+      ...finalCandidateTreeHash === undefined ? {} : {
+        finalCandidateTreeHash,
+        candidateUnchanged: finalCandidateTreeHash === sourceReport.candidateTreeHash,
+      },
+    },
     casePack: { ...reportBase.casePack, finalHash: finalCasePackHash, unchanged: finalCasePackHash === casePackHash },
     calibration: trial.calibration,
     comparison: {
@@ -270,22 +347,56 @@ function parseProposal(value: unknown): PersistedProposal {
 }
 
 function parseSourceReport(value: unknown): SourceReport {
+  const baselineKind = isRecord(value) && isRecord(value.subject)
+    && value.subject.baselineKind === 'capability-absent'
+    ? 'capability-absent'
+    : 'skill-tree'
   if (!isRecord(value) || value.schemaVersion !== 1
     || !isRecord(value.run) || !HASH.test(String(value.run.id)) || value.run.status !== 'complete'
     || !isRecord(value.subject) || typeof value.subject.skillName !== 'string'
+    || (value.subject.baselineKind !== undefined
+      && !['skill-tree', 'capability-absent'].includes(String(value.subject.baselineKind)))
     || !HASH.test(String(value.subject.baseTreeHash)) || value.subject.unchanged !== true
     || !isRecord(value.candidate) || !HASH.test(String(value.candidate.treeHash))
     || value.candidate.parentTreeHash !== value.subject.baseTreeHash
+    || value.candidate.parentKind !== baselineKind
     || !isRecord(value.decision) || !['promote', 'review'].includes(String(value.decision.recommendation))) {
     throw new Error('retention source report has no complete reviewable Candidate evidence')
+  }
+  const lineage = value.lineage === undefined
+    ? undefined
+    : parseSkillCandidateLineage(value.lineage)
+  if (baselineKind === 'capability-absent'
+    && (lineage === undefined
+      || lineage.skillName !== value.subject.skillName
+      || lineage.candidateTreeHash !== value.candidate.treeHash)) {
+    throw new Error('retention capability-absent source has no exact internal Candidate lineage')
   }
   return {
     runId: String(value.run.id),
     skillName: value.subject.skillName,
+    baselineKind,
     baseTreeHash: String(value.subject.baseTreeHash),
     candidateTreeHash: String(value.candidate.treeHash),
     recommendation: value.decision.recommendation as 'promote' | 'review',
+    ...(lineage === undefined ? {} : { lineage }),
   }
+}
+
+async function resolveAbsentCandidate(
+  resumeInputs: NonNullable<ShadowRunState['resumeInputs']>,
+  skillName: string,
+): Promise<string> {
+  if (resumeInputs.baselineKind !== 'capability-absent'
+    || resumeInputs.baselineSkillName !== skillName
+    || resumeInputs.candidateSkillDir === undefined) {
+    throw new Error('retention capability-absent source has incomplete exact inputs')
+  }
+  const path = await realpath(resumeInputs.candidateSkillDir)
+  if (path !== resolve(resumeInputs.candidateSkillDir)) {
+    throw new Error('retention exact Candidate path is not exact')
+  }
+  return path
 }
 
 function parseSkillName(source: string): string {

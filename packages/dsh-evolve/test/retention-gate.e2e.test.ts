@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { evaluateRetention } from '../src/retention.ts'
 import { hashTree, sha256 } from '../src/hash.ts'
 import { runShadow } from '../src/shadow.ts'
+import { assembleSkillBundleArchive } from '../src/skill-bundle-archive.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const suiteRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
@@ -88,9 +89,244 @@ describe('retention source integrity', () => {
     await expect(access(unsafeOutput)).rejects.toMatchObject({ code: 'ENOENT' })
     await expect(access(join(root, 'escaped.txt'))).rejects.toMatchObject({ code: 'ENOENT' })
   })
+
+  it('rejects a contaminated capability-absent subject and a mutated exact Candidate before Trial', async () => {
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-evolve-absent-retention-integrity-')))
+    temporaryRoots.push(root)
+    const sourceRun = join(root, 'source-run')
+    const baselineDir = join(root, 'absent-subject')
+    const candidateDir = join(root, 'candidate')
+    const primaryCasePack = join(root, 'primary-case-pack')
+    const priorCasePack = join(root, 'prior-case-pack')
+    await Promise.all([
+      mkdir(sourceRun),
+      mkdir(baselineDir),
+      mkdir(candidateDir),
+      mkdir(primaryCasePack),
+      mkdir(priorCasePack),
+    ])
+    const skillName = 'internally-discovered-skill'
+    const skill = [
+      '---',
+      `name: ${skillName}`,
+      'description: Internal evidence fixture.',
+      '---',
+      '',
+      '# Internal evidence fixture',
+      '',
+    ].join('\n')
+    await writeFile(join(baselineDir, 'subject.json'), `${JSON.stringify({
+      schemaVersion: 1,
+      kind: 'internal-capability-absent-subject-v1',
+      workspaceId: WORKSPACE_ID,
+      opportunityId: '2'.repeat(64),
+      skillName,
+    })}\n`)
+    await writeFile(join(baselineDir, 'SKILL.md'), 'contamination')
+    await writeFile(join(candidateDir, 'SKILL.md'), skill)
+    const proposal = { claim: 'internal Candidate', files: [{ path: 'SKILL.md', content: skill }] }
+    const candidateTreeHash = await hashTree(candidateDir)
+    const lineage = {
+      kind: 'internal-skill-candidate-lineage-v2',
+      candidateId: '1'.repeat(64),
+      workspaceId: WORKSPACE_ID,
+      skillName,
+      opportunityId: '2'.repeat(64),
+      policyId: 'internal-skill-author',
+      versionKind: 'experience-authored-bundle-v1',
+      contentHash: '3'.repeat(64),
+      candidateTreeHash,
+      admissionId: '4'.repeat(64),
+      evaluationEnvelopeId: '5'.repeat(64),
+      releaseAuthority: 'none',
+    }
+    const runId = '6'.repeat(64)
+    const reportPath = join(sourceRun, 'report.json')
+    const state = {
+      schemaVersion: 1,
+      runId,
+      phase: 'complete',
+      startedAt: '2026-08-19T00:00:00.000Z',
+      updatedAt: '2026-08-19T00:01:00.000Z',
+      identity: {
+        workspaceId: WORKSPACE_ID,
+        baseTreeHash: await hashTree(baselineDir),
+        baselineKind: 'capability-absent',
+        casePackHash: await hashTree(primaryCasePack),
+        dshRevision: '7'.repeat(40),
+        evaluatorVersion: 'integrity-v1',
+        modelConfigHash: '8'.repeat(64),
+        modelRoute: 'fixture',
+        skillName,
+        skillCandidateLineage: lineage,
+      },
+      resumeInputs: {
+        skillDir: baselineDir,
+        casePackDir: primaryCasePack,
+        baselineKind: 'capability-absent',
+        baselineSkillName: skillName,
+        candidateSkillDir: candidateDir,
+      },
+      proposal,
+      proposalHash: sha256(JSON.stringify(proposal)),
+      modelUsage: { inputTokens: 0, outputTokens: 0 },
+      outcome: { kind: 'complete', reportPath, summary: 'promote: fixture' },
+    }
+    const report = {
+      schemaVersion: 1,
+      run: { id: runId, status: 'complete' },
+      subject: {
+        skillName,
+        baselineKind: 'capability-absent',
+        baseTreeHash: state.identity.baseTreeHash,
+        unchanged: true,
+      },
+      candidate: {
+        treeHash: candidateTreeHash,
+        parentTreeHash: state.identity.baseTreeHash,
+        parentKind: 'capability-absent',
+      },
+      lineage,
+      decision: { recommendation: 'promote' },
+    }
+    await writeFile(join(sourceRun, 'run-state.json'), JSON.stringify(state, null, 2))
+    await writeFile(reportPath, JSON.stringify(report, null, 2))
+
+    const contaminatedOutput = join(root, 'contaminated-output')
+    await expect(evaluateRetention({
+      casePackDir: priorCasePack,
+      outputDir: contaminatedOutput,
+      sourceRunDir: sourceRun,
+    })).rejects.toThrow('capability-absent baseline must contain only subject.json')
+    await expect(access(contaminatedOutput)).rejects.toMatchObject({ code: 'ENOENT' })
+
+    await rm(join(baselineDir, 'SKILL.md'))
+    state.identity.baseTreeHash = await hashTree(baselineDir)
+    report.subject.baseTreeHash = state.identity.baseTreeHash
+    report.candidate.parentTreeHash = state.identity.baseTreeHash
+    await writeFile(join(candidateDir, 'unexpected.md'), 'mutated after the source Shadow')
+    await writeFile(join(sourceRun, 'run-state.json'), JSON.stringify(state, null, 2))
+    await writeFile(reportPath, JSON.stringify(report, null, 2))
+    const mutatedOutput = join(root, 'mutated-output')
+    await expect(evaluateRetention({
+      casePackDir: priorCasePack,
+      outputDir: mutatedOutput,
+      sourceRunDir: sourceRun,
+    })).rejects.toThrow('exact Candidate changed after the source Shadow')
+    await expect(access(mutatedOutput)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
 })
 
 describe.skipIf(process.platform !== 'darwin')('exact Candidate retention gate', () => {
+  it('retains a new Skill only when an exact capability-absent parent and Candidate both pass a real DSH prior case', async () => {
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-evolve-absent-retention-')))
+    temporaryRoots.push(root)
+    const baselineDir = join(root, 'absent-subject')
+    const candidateDir = join(root, 'candidate')
+    const sourceRun = join(root, 'source-shadow')
+    const retentionRun = join(root, 'retention')
+    const primaryCasePack = join(suiteRoot, 'examples', 'case-packs', 'browser-e2e-guidance-assembled')
+    const priorCasePack = join(root, 'prior-case-pack')
+    await Promise.all([
+      mkdir(baselineDir),
+      mkdir(join(candidateDir, 'references'), { recursive: true }),
+      writeAbsentRetentionCasePack(primaryCasePack, priorCasePack),
+    ])
+    await writeFile(join(baselineDir, 'subject.json'), `${JSON.stringify({
+      schemaVersion: 1,
+      kind: 'internal-capability-absent-subject-v1',
+      workspaceId: WORKSPACE_ID,
+      opportunityId: '2'.repeat(64),
+      skillName: 'browser-e2e-baseline',
+    })}\n`)
+    const skill = [
+      '---',
+      'name: browser-e2e-baseline',
+      'description: Develop a DSH plugin from a user request.',
+      '---',
+      '',
+      '# Develop a DSH Plugin',
+      '',
+      'For Web or GUI work, verify the real flow in a controlled browser, refresh once, and inspect the visible failure path.',
+      'Follow the [verification contract](references/verification.md).',
+      '',
+    ].join('\n')
+    await writeFile(join(candidateDir, 'SKILL.md'), skill)
+    await writeFile(
+      join(candidateDir, 'references', 'verification.md'),
+      '# Verification\n\nPreserve unrelated native DSH behavior.\n',
+    )
+    const bundle = await assembleSkillBundleArchive([
+      { path: 'SKILL.md', content: skill },
+      {
+        path: 'references/verification.md',
+        content: '# Verification\n\nPreserve unrelated native DSH behavior.\n',
+      },
+    ])
+    const lineage = {
+      kind: 'internal-skill-candidate-lineage-v2' as const,
+      candidateId: '1'.repeat(64),
+      workspaceId: WORKSPACE_ID,
+      skillName: 'browser-e2e-baseline',
+      opportunityId: '2'.repeat(64),
+      policyId: 'browser-skill-author',
+      versionKind: 'experience-authored-bundle-v1' as const,
+      contentHash: bundle.artifactDigest,
+      candidateTreeHash: bundle.treeHash,
+      admissionId: '3'.repeat(64),
+      evaluationEnvelopeId: '4'.repeat(64),
+      releaseAuthority: 'none' as const,
+    }
+    const previousDshSource = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
+    process.env.DSH_EVOLVE_DSH_SOURCE_DIR = resolve(suiteRoot, '../deepseek-harness')
+    try {
+      const source = await runShadow({
+        baselineKind: 'capability-absent',
+        baselineSkillName: 'browser-e2e-baseline',
+        casePackDir: primaryCasePack,
+        exactCandidate: {
+          claim: 'Add the missing browser verification Skill',
+          lineage,
+          skillDir: candidateDir,
+        },
+        outputDir: sourceRun,
+        skillDir: baselineDir,
+      })
+      expect(source.status, JSON.stringify(source)).toBe('complete')
+
+      const retained = await evaluateRetention({
+        casePackDir: priorCasePack,
+        outputDir: retentionRun,
+        sourceRunDir: sourceRun,
+      })
+
+      const report = JSON.parse(await readFile(join(retentionRun, 'retention-report.json'), 'utf8'))
+      expect(retained, JSON.stringify({ retained, report })).toMatchObject({ status: 'retained' })
+      expect(report).toMatchObject({
+        subject: {
+          skillName: 'browser-e2e-baseline',
+          baselineKind: 'capability-absent',
+          unchanged: true,
+          candidateUnchanged: true,
+        },
+        comparison: {
+          baseline: { passed: true },
+          candidate: { passed: true },
+          compositionStable: true,
+        },
+        trial: { assembled: true, count: 4 },
+        model: { proposerCalls: 0 },
+        decision: { outcome: 'retained' },
+      })
+      await expect(readFile(join(baselineDir, 'SKILL.md'), 'utf8'))
+        .rejects.toMatchObject({ code: 'ENOENT' })
+      expect(await hashTree(candidateDir)).toBe(report.subject.candidateTreeHash)
+    } finally {
+      if (previousDshSource === undefined) delete process.env.DSH_EVOLVE_DSH_SOURCE_DIR
+      else process.env.DSH_EVOLVE_DSH_SOURCE_DIR = previousDshSource
+    }
+  }, 100_000)
+
   it('proves a new-case win regressed a previously passing capability with zero additional proposer calls', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-retention-'))
     temporaryRoots.push(root)
@@ -308,7 +544,7 @@ describe.skipIf(process.platform !== 'darwin')('exact Candidate retention gate',
       schemaVersion: 1,
       run: { id: runId, status: 'complete' },
       subject: { skillName: 'retention-crash-skill', baseTreeHash, unchanged: true },
-      candidate: { treeHash: candidateTreeHash, parentTreeHash: baseTreeHash },
+      candidate: { treeHash: candidateTreeHash, parentTreeHash: baseTreeHash, parentKind: 'skill-tree' },
       decision: { recommendation: 'promote' },
     }, null, 2))
     await writeFile(join(sourceRun, 'run-state.json'), JSON.stringify({
@@ -372,6 +608,38 @@ describe.skipIf(process.platform !== 'darwin')('exact Candidate retention gate',
     }
   }, 15_000)
 })
+
+async function writeAbsentRetentionCasePack(
+  primaryCasePack: string,
+  outputDir: string,
+): Promise<void> {
+  await mkdir(outputDir)
+  await cp(join(primaryCasePack, 'calibration'), join(outputDir, 'calibration'), { recursive: true })
+  const source = await readFile(join(primaryCasePack, 'final-test', 'evaluator.mjs'), 'utf8')
+  const neutral = source.replace(
+    "[driver, config, `/${targetSkillName}`, 'verify', 'the', 'real', 'GUI', 'flow']",
+    "[driver, config, 'continue', 'the', 'generic', 'DSH', 'workflow']",
+  )
+  const checksStart = neutral.indexOf('const checks = [')
+  const checksEnd = neutral.indexOf('\n\nprocess.stdout.write', checksStart)
+  if (checksStart < 0 || checksEnd < 0) throw new Error('assembled evaluator fixture shape changed')
+  const evaluator = `${neutral.slice(0, checksStart)}${[
+    'const checks = [',
+    "  { name: 'real-loader-agent-turn', passed: result?.type === 'result' },",
+    "  { name: 'generic-turn-does-not-invoke-target', passed: invocation === undefined },",
+    "  { name: 'real-tool-round-trip', passed: toolRoundTrip },",
+    "  { name: 'guidance-or-absent-parent', passed: !skillPresent || skillSource.includes('verify the real flow in a controlled browser') },",
+    "  { name: 'skill-body-outside-request-prefix', passed: !skillPresent || !serializedHeaders.includes(skillSource.trim()) },",
+    ']',
+  ].join('\n')}${neutral.slice(checksEnd)}`
+  await mkdir(join(outputDir, 'final-test'))
+  await writeFile(join(outputDir, 'final-test', 'evaluator.mjs'), evaluator)
+  const manifest = JSON.parse(await readFile(join(primaryCasePack, 'manifest.json'), 'utf8'))
+  manifest.id = 'capability-absent-negative-transfer-retention'
+  manifest.epoch.evaluatorVersion = 'capability-absent-retention-v1'
+  delete manifest.search
+  await writeFile(join(outputDir, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`)
+}
 
 async function writePriorCasePack(casePackDir: string, correction: string, delayMs = 0): Promise<void> {
   await Promise.all([

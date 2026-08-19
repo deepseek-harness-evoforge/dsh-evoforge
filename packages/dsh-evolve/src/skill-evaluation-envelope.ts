@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto'
-import { lstat, mkdir, readFile, readdir, realpath } from 'node:fs/promises'
+import { lstat, mkdir, readFile, realpath } from 'node:fs/promises'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { z } from 'zod'
+import { readCapabilityAbsentSubject } from './capability-absent-subject.ts'
 import { hashTree } from './hash.ts'
 import type { ExperienceSkillCandidate } from './skill-candidate-repository.ts'
 import type { SkillOpportunity } from './skill-opportunity-discovery.ts'
@@ -75,14 +76,6 @@ const manifestSchema = z.strictObject({
 })
 
 type SkillEvaluationEnvelopeManifest = z.infer<typeof manifestSchema>
-
-const absentSubjectSchema = z.strictObject({
-  schemaVersion: z.literal(1),
-  kind: z.literal('internal-capability-absent-subject-v1'),
-  workspaceId: z.uuid(),
-  opportunityId: z.string().regex(CONTENT_ID),
-  skillName: z.string().regex(PUBLIC_ID),
-})
 
 /**
  * Resolve immutable evaluator inputs from a Candidate's Host-authored internal
@@ -182,7 +175,7 @@ export class SkillEvaluationEnvelopeResolver {
     }
 
     const baselineDir = await exactChildDirectory(envelopeRoot, 'baseline')
-    const baselineSubject = await readAbsentSubject(baselineDir)
+    const baselineSubject = await readCapabilityAbsentSubject(baselineDir)
     if (baselineSubject.workspaceId !== candidate.workspaceId
       || baselineSubject.opportunityId !== candidate.opportunity.id
       || baselineSubject.skillName !== candidate.skillName) {
@@ -250,19 +243,6 @@ function evaluationEnvelopeId(policyId: string, manifest: SkillEvaluationEnvelop
     manifest.admissionCasePackHash,
     manifest.holdoutCasePackHash,
   ])).digest('hex')
-}
-
-async function readAbsentSubject(root: string): Promise<z.infer<typeof absentSubjectSchema>> {
-  const entries = await readdir(root, { withFileTypes: true })
-  if (entries.length !== 1 || entries[0]?.name !== 'subject.json' || !entries[0].isFile()) {
-    throw new Error('capability-absent baseline must contain only subject.json')
-  }
-  const path = join(root, 'subject.json')
-  const [info, actual] = await Promise.all([lstat(path), realpath(path)])
-  if (!info.isFile() || info.isSymbolicLink() || actual !== path) {
-    throw new Error('capability-absent baseline subject must be an exact real file')
-  }
-  return absentSubjectSchema.parse(JSON.parse(await readFile(path, 'utf8')))
 }
 
 function uniqueOpportunity(

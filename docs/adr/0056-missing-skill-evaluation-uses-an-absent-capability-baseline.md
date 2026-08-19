@@ -19,4 +19,5 @@ projection 都携带该 baseline kind。Candidate 仍无 release authority，当
 这是对 ADR-0055 中“baseline tree”的语义收紧，不提供 v1 Envelope 兼容读取。旧布局应被治理面重新生成，不能
 自动翻译成缺失能力。本 ADR 落地时只完成真实 absent baseline 的消费与 assembled DSH 证明；当时的
 Git-backed Publisher、Retention 和 canary 仍假设既有 Skill。后继 ADR-0057 已建立 whole-Skill Candidate
-的内容寻址 publication/future-Session 路径；capability-absent Retention/canary 仍保持 fail closed。
+的内容寻址 publication/future-Session 路径，ADR-0058 又让 Retention/canary 使用 exact absent subject 与
+whole-Skill Candidate，而没有重新引入 Git baseline。

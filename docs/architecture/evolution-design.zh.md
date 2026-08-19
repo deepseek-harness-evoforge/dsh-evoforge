@@ -1,6 +1,6 @@
 # EvoForge 可证明自进化设计
 
-> 状态：P0A/P0B/P0C、P1.1–P1.21、P2D.1 与内部 Goal→Gap→Skill Opportunity→quarantined Candidate→Opportunity-bound Evaluation Envelope v2→capability-absent assembled Shadow→content-addressed inactive Generation→future Session/root rollback 纵切 implemented；治理包自主形成、capability-absent Retention/canary、真实 provider 与真实任务长期证据待完成
+> 状态：P0A/P0B/P0C、P1.1–P1.21、P2D.1 与内部 Goal→Gap→Skill Opportunity→quarantined Candidate→Opportunity-bound Evaluation Envelope v2→capability-absent assembled Shadow/Retention/canary→content-addressed inactive Generation→future Session/root rollback 纵切 implemented；治理包自主形成、真实 provider 与真实任务长期证据待完成
 > 更新日期：2026-08-19
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 
@@ -243,6 +243,7 @@ interface LearningSignal {
   → 当前 Opportunity 对应的 governance-owned Evaluation Envelope v2
       baseline = capability-absent（无 SKILL.md）
   → deterministic admission → independent assembled holdout
+  → independent absent-parent Retention / sealed canary
   → explicit review → inactive content-addressed skill-bundle Generation
   → promotion affects future Sessions only / root rollback restores native DSH
 ```
@@ -262,7 +263,8 @@ interface LearningSignal {
 - 一个内容寻址 Evaluation Envelope 必须绑定当前 Opportunity 快照、只含 `subject.json` 的 capability-absent baseline、deterministic admission 与不同的 assembled holdout，任何占位 Skill、漂移、符号链接、根重叠或身份不一致都 fail closed；
 - assembled baseline 不安装目标 Skill，Candidate 侧才安装 exact whole-Skill；两侧必须保持非目标 composition 相同；
 - 当前实现能解析、验证并贯穿该 Envelope 到 Admission、Shadow、Review 和 crash resume；通过复核的新 Skill 可形成不依赖 Git source 的 inactive `skill-bundle` Generation，Storage 与 DSH Skill Provider 重验 exact archive，晋升只影响未来 Session，root rollback 恢复后续 Session 的 native DSH；
-- Envelope 还不能从内部证据自主生成，capability-absent Retention/canary 仍 fail closed；真实 provider、负迁移和长期 outcome 仍是后续治理门，不能由 author 自证。
+- capability-absent Retention/canary 使用原 Shadow 的 exact subject、Candidate tree/lineage 与 sealed Case Pack，不查 Git/网络，并要求非目标 DSH composition 相同；污染、漂移和父 Generation 已有同名 Skill 均 fail closed；
+- Envelope 还不能从内部证据自主生成；真实 provider、负迁移率和长期 outcome 仍是后续治理门，不能由 author 自证。
 
 本项目不提供运行时外部包搜索、获取、下载、导入或市场功能；设计期研究不得进入本节的自我发现状态、UI 或声明。
 

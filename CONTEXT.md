@@ -118,6 +118,10 @@ _Avoid_: Evaluation Target, operator-selected Skill, Candidate-authored test pla
 The exact DSH comparison subject for a missing-Skill Opportunity: the target Skill is not installed in the baseline profile and the exact whole-Skill Candidate is installed only in the Candidate profile. Both sides use the same DSH revision, task path, evaluator, permissions, and budget; only target Skill presence/body may differ in normalized composition.
 _Avoid_: No-op Skill, placeholder `SKILL.md`, old-Skill baseline for a missing capability
 
+**Capability-Absent Retention**:
+An independent prior-case replay that compares the exact capability-absent subject from a completed Shadow with the exact internally authored whole-Skill Candidate. The absent side must still contain only its bound `subject.json`; the Candidate must retain its tree, Skill identity, and lineage; both profiles must preserve the same non-target DSH composition. It records retained, regressed, or incomplete evidence and grants no release authority.
+_Avoid_: Placeholder baseline, Git first-parent, Candidate reconstruction, self-judged retention, automatic promotion
+
 **Verified Release Tag**:
 An annotated semantic Git tag on `main` that identifies a repository state whose declared core capability set passed its frozen release gates. It is not an Evolution Candidate version, does not replace content-addressed runtime Generations, and is never created merely because code was committed.
 _Avoid_: Feature branch, progress marker, unverified release label

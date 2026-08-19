@@ -39,6 +39,22 @@ describe('retention evidence index', () => {
     expect(JSON.stringify(result)).not.toContain(root)
   })
 
+  it('binds capability-absent evidence to an unchanged exact Candidate tree', async () => {
+    const root = await createRoot()
+    const candidate = { ...fixtureCandidate(), baselineKind: 'capability-absent' as const }
+    await writeEvidence(root, 'retained', candidate)
+
+    await expect(new RetentionEvidenceIndex([root]).evaluate(candidate)).resolves.toMatchObject({
+      status: 'retained',
+      matchedReports: 1,
+      warnings: [],
+    })
+    await expect(new RetentionEvidenceIndex([root]).evaluate(fixtureCandidate())).resolves.toMatchObject({
+      status: 'missing',
+      matchedReports: 0,
+    })
+  })
+
   it('lets exact regression dominate retained evidence', async () => {
     const root = await createRoot()
     const candidate = fixtureCandidate()
@@ -134,6 +150,7 @@ async function writeEvidence(
   const epoch = { dshRevision: '7'.repeat(40), evaluatorVersion: 'prior-v1' }
   const runId = sha256(JSON.stringify({
     sourceRunId: candidate.runId,
+    ...candidate.baselineKind === undefined ? {} : { baselineKind: candidate.baselineKind },
     candidateTreeHash: candidate.candidateTreeHash,
     casePackHash,
     ...epoch,
@@ -152,10 +169,15 @@ async function writeEvidence(
     },
     subject: {
       skillName: candidate.skillName,
+      ...candidate.baselineKind === undefined ? {} : { baselineKind: candidate.baselineKind },
       baseTreeHash: candidate.baseTreeHash,
       candidateTreeHash: candidate.candidateTreeHash,
       finalTreeHash: candidate.baseTreeHash,
       unchanged: true,
+      ...candidate.baselineKind === undefined ? {} : {
+        finalCandidateTreeHash: candidate.candidateTreeHash,
+        candidateUnchanged: true,
+      },
     },
     casePack: { id: 'prior-capability', hash: casePackHash, finalHash: casePackHash, unchanged: true },
     epoch,

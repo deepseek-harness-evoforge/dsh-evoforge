@@ -2140,6 +2140,7 @@ async function writeCompletedReviewRun(
       id: candidateTreeHash.slice(0, 16),
       treeHash: candidateTreeHash,
       parentTreeHash: baseTreeHash,
+      parentKind: 'skill-tree',
       claim: proposal.claim,
       changedFiles: ['SKILL.md'],
     },
