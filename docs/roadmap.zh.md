@@ -91,7 +91,9 @@ Gap → Opportunity → Candidate 及运行状态、成本和治理边界，不�
 当前活动源码已经删除外部来源发现、Agent Skills 索引/archive、运行时 Web research、research Holdout/revision
 及其 Job 编排、依赖、持久化变体和 Web 类型；Candidate Repository、Admission、Lineage、Shadow 只接受
 内部 Skill Opportunity 与 canonical text bundle，不读取旧字段或提供兼容入口。历史证据页仅用于解释已撤销决策。
-仍待实现/验证：correction/outcome 的 exact invocation 因果链接，以及 rework/cost/reuse/retention/negative-transfer/rollback 的完整归因、内部 Candidate 的独立
+已先补齐一层非因果 cost fact：Delivery Outcome 可保存 exact Goal-owned turn 的官方 provider usage、
+cache-read/write 和 latency projection，货币成本明确 unavailable，且不影响资格/author。仍待实现/验证：
+correction/outcome 的 exact invocation 因果链接，以及 rework/currency-cost/reuse/retention/negative-transfer/rollback 的完整归因、内部 Candidate 的独立
 final-test/Shadow/Retention 整链路、真实 provider outcome、模型缺口质量、迁移/遗忘/
 长期保留，以及同条件 Hermes paired outcome。因此不能描述为“自主 Skill 进化已完成”。
 

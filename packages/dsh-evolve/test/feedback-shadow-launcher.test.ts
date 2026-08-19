@@ -73,6 +73,11 @@ describe('FeedbackShadowLauncher', () => {
     }))
     expect(fixture.drafts.create).toHaveBeenCalledWith(WORKSPACE_ID, signalId, artifact.name)
     expect(fixture.source.resolveArtifact).toHaveBeenCalledWith(artifact.name, artifact)
+    await expect(launcher.automaticInflightStatus(
+      WORKSPACE_ID,
+      artifact.name,
+      '9'.repeat(64),
+    )).resolves.toBe('busy')
 
     release()
     await jobs.hooks[0]!.done

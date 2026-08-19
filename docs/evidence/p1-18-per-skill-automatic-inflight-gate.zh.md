@@ -8,6 +8,8 @@
 - `automatic-evolution-inflight.ts` 用一个三态纯函数组合既有 durable authority，没有新 store/queue；
 - `EvaluatorDraftInbox`、`FeedbackShadowLauncher` 与 `ReviewInbox` 各自投影自己拥有的全量状态；显示用
   的 20 行上限不会隐藏旧的未决工作；
+- `FeedbackShadowLauncher` 同时把自己已提交给原生 Jobs、尚未写出首个 durable journal 的 active receipt
+  投影为 `busy`，关闭人工 Qualify-and-Shadow 交接中的 pre-journal 付费并发空窗；
 - `AutomaticFeedbackShadowService` 与 `AutomaticEvaluatorDraftService` 都在 P1.15 预算预留前检查；
   `busy/unknown` 不创建 Draft、不占额度、不调用 provider；
 - evaluator/Shadow 的同一 Signal crash reentry 被豁免，继续复用原 launch/reservation 与 reference-only
@@ -25,6 +27,9 @@
   自动生成 inactive Draft 后，第二条在 Draft、qualified Shadow 和 pending Review 整段期间都没有产生
   第二次 author。最终 provider 序列严格为 `author → proposer`，不是 `author → author → proposer`；
   普通 Agent 请求数只随两个用户 Session 增加，host gate 本身没有模型请求。
+- 2026-08-19 增补确定性竞态回归：runner 被闸门暂停、`launch()` 已返回 `scheduled` 且 run root 尚无
+  journal 时，另一同 Skill Signal 的 `automaticInflightStatus()` 必须为 `busy`；修复前该 126ms seam
+  稳定得到 `clear`，修复后转绿，原 fixed-DSH 双 Signal Qualify-and-Shadow 纵向测试也保持通过。
 
 ## Cache、权限与限制
 

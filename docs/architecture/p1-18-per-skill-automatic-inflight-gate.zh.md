@@ -16,7 +16,7 @@
 | 事实源 | `busy` | `clear` |
 |---|---|---|
 | Evaluator Draft | 非当前 Signal 的 `authoring-pending/uncertain/draft-ready/qualification-running/incomplete` | `qualified/rejected`；当前 Signal 允许幂等 crash reentry |
-| Shadow journal | 非当前 Signal 的全部非终态，以及任意 `candidate-ready/trial-running` | `complete/incomplete`；当前 Signal 的 `prepared/proposal-pending` 允许内容寻址 crash reentry，其无网络 Trial 仍由既有 supervisor 恢复 |
+| Shadow launch/journal | 同进程已 `scheduled` 但 journal 尚未落盘的 active Job；非当前 Signal 的全部 durable 非终态；以及任意 `candidate-ready/trial-running` | `complete/incomplete`；当前 Signal 的 `prepared/proposal-pending` 允许内容寻址 crash reentry，其无网络 Trial 仍由既有 supervisor 恢复 |
 | Review Inbox | `pending`，或已自动批准但 future-Session activation 尚未 durable | 人工/自动 disposition 已完成，或没有 actionable Candidate |
 
 管理该 Skill 的来源不可读时为 `unknown`；不管理该 Skill 的可选来源视为无关。组合规则为
@@ -42,6 +42,8 @@ existing Draft + Shadow + Review facts
 
 - 不复制 Draft、run、Candidate 或 Signal 状态，也不写新的 gate journal；新 Shadow 只在原 journal 增加
   一个 reference-only Signal id，供崩溃后区分“同一工作重入”和“新纠正”；
+- `FeedbackShadowLauncher` 自己的 process-local active receipt 覆盖 `Jobs.start()` 已返回但 `run-state.json`
+  尚未 durable 的启动空窗；Job 终结后该 receipt 被删除，原 Shadow journal 随即成为唯一事实源；
 - 不创建 durable queue：Signal Store 已经保存待处理引用，resident 每轮仍最多启动一个；
 - 同一进程只在 `busy/unknown` 状态变化时记录一次 warning，避免每轮日志刷屏；
 - evaluator 与 Shadow 同一 Signal 的 pre-proposal 状态在重启后仍可进入既有内容寻址路径，读取 durable

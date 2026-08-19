@@ -346,6 +346,8 @@ export class FeedbackShadowLauncher {
     skillName: string,
     signalId: string,
   ): Promise<AutomaticEvolutionInflightStatus> {
+    if ([...this.active.values()].some(receipt => receipt.workspaceId === workspaceId
+      && receipt.skillName === skillName)) return 'busy'
     const scan = await this.scanRuns(workspaceId, skillName)
     if (scan.targetCount === 0) return 'clear'
     if (scan.warningCount > 0) return 'unknown'

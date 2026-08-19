@@ -342,6 +342,13 @@ Host 确定性组装 archive、绑定 opportunity/gap/goal/model/input/artifact/
 inactive、unevaluated、never-executed Candidate。可能已经付费但结果未知时持久化 `uncertain` 并拒绝盲重试；
 取消后的迟到响应不得落候选。该模块没有安装、激活或发布接口。
 
+Delivery Outcome 可附带同一 Session、同一稳定 Goal id 的 `GoalExecutionMetrics`。Host 只统计首条 admitted
+message 属于当时最新 active Goal revision 的 turn，并在 exact `complete_delivery` result event 截止；token、
+cache-read/write、LLM/tool/TTFT/decode 时间来自 DSH 官方 `tokenUsage`/`sessionStats` projection cut 的差值，
+active wall time 来自同一原生 turn 边界。手工 turn、其他 Goal、旧 revision、归属歧义、缺少 projection unit
+或计数倒退全部 abstain。DSH 没有提供 provider price 时货币成本必须明确为 unavailable，禁止自行估价。
+这些 metrics 只进入 host-only Outcome 事实，不改变 Opportunity 资格/排序、author 输入、评测 verdict 或晋升。
+
 DSH Web 已投影 `Capability Gap → Skill Opportunity → Candidate → authoring state`，展示证据 Goal 数、Gap 数、
 关联纠正/Outcome 计数、有界短引用、无因果声明、Candidate id、预算/调用和隔离状态，不提供路线、来源、安装或激活菜单。旧的本地 Git、外部索引和运行时
 Web research 方案必须从当前实现删除；相关历史 evidence 只说明过去实现，不构成当前产品

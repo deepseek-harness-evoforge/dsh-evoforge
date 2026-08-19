@@ -9,6 +9,11 @@ import {
 } from '@deepseek-ai/dsh-storage-domain'
 import { z } from 'zod'
 import type { EvolutionStore } from './generation-store.ts'
+import {
+  goalExecutionMetricsSchema,
+  projectGoalExecutionMetrics,
+  type GoalExecutionMetrics,
+} from './goal-execution-metrics.ts'
 import { workspaceIdForCwd } from './workspace-identity.ts'
 
 const DEFAULT_MAX_RECORDS = 1_000
@@ -47,6 +52,7 @@ export interface DeliveryOutcomeInput {
   readonly reason: string
   readonly commit?: string | undefined
   readonly draftPrNumber?: number | undefined
+  readonly goalMetrics?: GoalExecutionMetrics | undefined
 }
 
 export interface DeliveryOutcome extends DeliveryOutcomeInput {
@@ -95,6 +101,7 @@ const outcomeContentSchema = z.strictObject({
   reason: z.string().min(1).max(MAX_REASON_LENGTH),
   commit: gitCommitSchema.optional(),
   draftPrNumber: z.number().int().positive().optional(),
+  goalMetrics: goalExecutionMetricsSchema.optional(),
 })
 const outcomeSchema = outcomeContentSchema.extend({ id: hashSchema })
 
@@ -221,6 +228,10 @@ export function installDeliveryOutcomeMonitor(
           ...(cwd === undefined ? {} : { cwd }),
         }
         const generationId = evolution.getSessionGeneration(identity)?.id
+        const projections = ctx.get('sessionProjections')
+        const goalMetrics = projections === undefined
+          ? undefined
+          : projectGoalExecutionMetrics(session, parsed.goal.id, event.seq, projections)
         await outcomes.record({
           observedAt: event.time,
           workspaceId: identity.workspaceId,
@@ -232,6 +243,7 @@ export function installDeliveryOutcomeMonitor(
           ...(parsed.commit === undefined ? {} : { commit: parsed.commit }),
           ...(parsed.draftPrNumber === undefined ? {} : { draftPrNumber: parsed.draftPrNumber }),
           ...(generationId === undefined ? {} : { generationId }),
+          ...(goalMetrics === undefined ? {} : { goalMetrics }),
         })
       } catch (error) {
         ctx.logger.warn(`dsh-evolve skipped one delivery outcome: ${errorMessage(error)}`)

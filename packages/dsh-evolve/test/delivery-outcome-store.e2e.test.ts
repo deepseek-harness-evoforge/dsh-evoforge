@@ -49,6 +49,8 @@ describe.skipIf(process.platform !== 'darwin')('delivery outcome store', () => {
       })
       expect((await resumedStore.record(outcome('call-3', 3, 'unknown', 'a'.repeat(64)))).created)
         .toBe(false)
+      expect(resumedStore.list(WORKSPACE_ID).find(item => item.callId === 'call-3')?.goalMetrics)
+        .toEqual(goalMetrics('goal-call-3', 12))
     } finally {
       await resumedStore.close()
       await resumedCtx.fiber.dispose()
@@ -72,6 +74,34 @@ function outcome(
     status,
     reason: status === 'passed' ? 'verified' : 'check-result',
     commit: 'b'.repeat(40),
+    ...(callId === 'call-3' ? { goalMetrics: goalMetrics(`goal-${callId}`, 12) } : {}),
+  }
+}
+
+function goalMetrics(goalId: string, throughEventSeq: number) {
+  return {
+    schemaVersion: 1 as const,
+    source: 'dsh-session-projections' as const,
+    goalId,
+    throughEventSeq,
+    attributedTurns: 2,
+    closedSteps: 1,
+    activeWallMs: 300,
+    providerUsage: {
+      uncachedInputTokens: 30,
+      outputTokens: 9,
+      cacheReadTokens: 70,
+      cacheWriteTokens: 5,
+    },
+    latency: {
+      llmMs: 180,
+      toolMs: 50,
+      ttftMs: 45,
+      ttftSteps: 2,
+      decodeMs: 135,
+      decodeTokens: 9,
+    },
+    monetaryCost: { status: 'unavailable' as const, reason: 'provider-price-not-projected' as const },
   }
 }
 

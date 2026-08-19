@@ -94,7 +94,7 @@ Evolution Store
 | 重启恢复 | Shadow journal / Evolution Store 扫描 | 只把可安全恢复的未终结状态重新提交给 Jobs |
 | 隔离执行 | DSH FS、Shell、Sandbox | 创建候选 worktree 和成对 Trial 环境 |
 | 会话事实读取 | Session Persistence / Query | 只在授权的候选生成或评测中按引用读取需要的片段 |
-| 成本和缓存 | Token Meter、LLM usage | 记录 token、cache-read、耗时和完整 composition 指纹 |
+| 成本和缓存 | Token Meter、Session Stats、LLM usage | 对 exact Goal-owned turn 做官方 projection cut 差值；记录 provider token、cache-read/write 与耗时，不虚构货币价格 |
 | 权限 | Approval、Permission Preset | 可执行变化和 Protected Action 继续走原生权限管线 |
 
 DSH 的 Skill Registry 本身支持分层 Provider、Agent scope 和 lifecycle disposer：[Skill Registry](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/packages/skill/skill/src/index.ts#L1)。Skill body 不被 registry 缓存，每次 `get()` 重新读取，因此 P0 不能让 Provider 指向一个会原地变化的目录；必须让它读取 immutable Generation。
@@ -248,6 +248,7 @@ interface LearningSignal {
 - 同 Goal 重试、无 Goal、跨 Workspace 或证据不足必须 abstain；
 - 纠正只有在同 Session 仅有一种 Gap Skill 且发生于 Gap 之后才关联；Outcome 只有在同一 Goal 的全部已知 Gap 仅有一种 Skill、发生于对应 Gap 之后且 revision 不倒退时才关联；歧义一律丢弃；
 - 关联上下文固定 `causalClaim: none`，不能单独产生 Opportunity、改变生成资格/排序、进入 author 输入或证明 Skill 导致结果；
+- Outcome metrics 只在 exact active Goal revision 拥有该 turn 时投影，截止 immutable delivery result seq；缺 unit、旧 revision、歧义或计数倒退一律 abstain，且不参与上述资格或治理决定；
 - policy 只授权 Workspace、私有 run root、日预算和可能的模型调用，不预定要发现哪个 Skill；
 - author 看不到外部搜索结果、验证答案、测试结果或 release 权限；
 - Opportunity 只有生成资格，Candidate 只有隔离身份，二者都不能安装、激活、晋升或发布；
@@ -461,7 +462,7 @@ Evolution Domain
   tables: generations, sessionPins
 
 Delivery Outcome Domain
-  tables: outcomes (bounded compact derived signals)
+  tables: outcomes (bounded compact derived signals + optional exact Goal projection metrics)
 
 owned Shadow run directory
   run-state.json, report.json, review-state.json, canary/<outcome>/state.json
