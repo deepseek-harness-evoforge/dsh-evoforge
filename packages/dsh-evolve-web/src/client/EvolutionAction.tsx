@@ -699,19 +699,41 @@ function SkillOpportunities({ summary, t }: { summary: EvolutionOverview; t: (ke
     <h3 className="dsh-evolve-section-title">{t('skills.opportunities')}</h3>
     {opportunities.length === 0
       ? <div className="dsh-evolve-message">{t('skills.opportunities.empty')}</div>
-      : <ul className="dsh-evolve-list">{opportunities.map(opportunity => (
-        <li className="dsh-evolve-skill-card" key={opportunity.id}>
-          <div className="dsh-evolve-review-skill">{opportunity.skillName}</div>
-          <div className="dsh-evolve-capability-route">
-            {opportunity.goalCount} {t('skills.opportunities.goals')} · {opportunity.gapCount} {t('skills.opportunities.observations')}
-          </div>
-          <div className="dsh-evolve-meta">{t('skills.opportunities.evidence')}</div>
-          <div className="dsh-evolve-meta">
-            {t('skills.opportunities.flow')} · {opportunity.goalIds.join(' · ')}
-          </div>
-          <div className="dsh-evolve-discovery-state">{t('skills.opportunities.state')}</div>
-        </li>
-      ))}</ul>}
+      : <ul className="dsh-evolve-list">{opportunities.map((opportunity) => {
+          const correctionReferences = opportunity.evidence.correctionSignals.ids.slice(-3)
+            .map(id => `${t('skills.opportunities.reference.correction')} ${shortId(id)}`)
+          const outcomeReferences = opportunity.evidence.deliveryOutcomes.ids.slice(-3)
+            .map(id => `${t('skills.opportunities.reference.outcome')} ${shortId(id)}`)
+          const references = [...correctionReferences, ...outcomeReferences]
+          const referencesTruncated = opportunity.evidence.correctionSignals.referencesTruncated
+            || opportunity.evidence.deliveryOutcomes.referencesTruncated
+            || opportunity.evidence.correctionSignals.ids.length > correctionReferences.length
+            || opportunity.evidence.deliveryOutcomes.ids.length > outcomeReferences.length
+          return <li className="dsh-evolve-skill-card" key={opportunity.id}>
+            <div className="dsh-evolve-review-skill">{opportunity.skillName}</div>
+            <div className="dsh-evolve-capability-route">
+              {opportunity.goalCount} {t('skills.opportunities.goals')} · {opportunity.gapCount} {t('skills.opportunities.observations')}
+            </div>
+            <div className="dsh-evolve-meta">{t('skills.opportunities.evidence')}</div>
+            <div className="dsh-evolve-meta">
+              {t('skills.opportunities.flow')} · {opportunity.goalIds.join(' · ')}
+            </div>
+            <div className="dsh-evolve-meta">
+              {t('skills.opportunities.context')}
+              {' · '}{t('skills.opportunities.corrections')}: {opportunity.evidence.correctionSignals.count}
+              {' · '}{t('skills.opportunities.delivery')}: {opportunity.evidence.deliveryOutcomes.total}
+              {' ('}{t('skills.opportunities.passed')} {opportunity.evidence.deliveryOutcomes.passed}
+              {' / '}{t('skills.opportunities.failed')} {opportunity.evidence.deliveryOutcomes.failed}
+              {' / '}{t('skills.opportunities.unknown')} {opportunity.evidence.deliveryOutcomes.unknown}{')'}
+            </div>
+            <div className="dsh-evolve-meta">{t('skills.opportunities.attribution')}</div>
+            {references.length > 0 && <div className="dsh-evolve-meta">
+              {t('skills.opportunities.references')} · {references.join(' · ')}
+              {referencesTruncated && <> · {t('skills.opportunities.references.truncated')}</>}
+            </div>}
+            <div className="dsh-evolve-discovery-state">{t('skills.opportunities.state')}</div>
+          </li>
+        })}</ul>}
   </section>
 }
 

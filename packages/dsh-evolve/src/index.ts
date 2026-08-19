@@ -213,7 +213,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const deliveryOutcomes = await openDeliveryOutcomeStore(ctx.storageDomain)
   const feedbackSignals = await openFeedbackSignalStore(ctx.storageDomain)
   const capabilityGaps = await openCapabilityGapStore(ctx.storageDomain)
-  const skillOpportunities = new ExperienceDrivenSkillOpportunityDiscovery(capabilityGaps)
+  const skillOpportunities = new ExperienceDrivenSkillOpportunityDiscovery(capabilityGaps, {
+    feedback: feedbackSignals,
+    outcomes: deliveryOutcomes,
+  })
   const skillCandidateStore = await openSkillCandidateStore(ctx.storageDomain)
   const feedbackMonitor = installFeedbackSignalMonitor(ctx, feedbackSignals, store)
   let feedbackDraftBuilder: FeedbackCaseDraftBuilder | undefined

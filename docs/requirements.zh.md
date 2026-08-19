@@ -331,9 +331,11 @@ Goal、完整 settled catalog 和 exact name 不存在，再持久化 `model-dec
 仍作为另一类内部证据。用户不选择路径、Agent、工作流、Skill 或来源。该 Tool 的名称、描述、Schema 和顺序
 在 Session 内稳定，移除它后其余请求保持原生 composition 等价。
 
-`ExperienceDrivenSkillOpportunityDiscovery` 只读取同一 Workspace 的 durable、Goal-linked Gap。至少两个不同
+`ExperienceDrivenSkillOpportunityDiscovery` 以同一 Workspace 的 durable、Goal-linked Gap 决定资格。至少两个不同
 Goal 对同一能力形成重复证据才派生一个 `eligible-for-authoring` Skill Opportunity；同一 Goal retry、无 Goal、
-跨 Workspace 或证据不足都 abstain。Workspace 级 `selfDiscoveryPolicies` 只授权 owned run root 与日预算，
+跨 Workspace 或证据不足都 abstain。Opportunity v2 可额外关联同 Session 唯一 Gap Skill 的明确纠正引用和
+exact Goal id/revision 唯一 Gap Skill 的 compact delivery outcome；歧义或早于 Gap 的事件不关联，固定
+`causalClaim: none`，也不能改变资格、排序或 author 输入。Workspace 级 `selfDiscoveryPolicies` 只授权 owned run root 与日预算，
 不接受 Skill 名、路径、来源或工作流；Skill 名只能来自 Opportunity。原生 Jobs 中的 author 只接收有界 Goal/
 Gap 证据，不能执行外部搜索，返回 root `SKILL.md + references/*.md` 的 instruction-only whole-Skill manifest。
 Host 确定性组装 archive、绑定 opportunity/gap/goal/model/input/artifact/tree 血缘，并只写入 quarantined、
@@ -341,7 +343,7 @@ inactive、unevaluated、never-executed Candidate。可能已经付费但结果�
 取消后的迟到响应不得落候选。该模块没有安装、激活或发布接口。
 
 DSH Web 已投影 `Capability Gap → Skill Opportunity → Candidate → authoring state`，展示证据 Goal 数、Gap 数、
-Candidate id、预算/调用和隔离状态，不提供路线、来源、安装或激活菜单。旧的本地 Git、外部索引和运行时
+关联纠正/Outcome 计数、有界短引用、无因果声明、Candidate id、预算/调用和隔离状态，不提供路线、来源、安装或激活菜单。旧的本地 Git、外部索引和运行时
 Web research 方案必须从当前实现删除；相关历史 evidence 只说明过去实现，不构成当前产品
 声明。Hermes、OpenClaw、HanaAgent、市场、论文与开源实现继续用于设计期固定 revision 调研与 paired benchmark。
 

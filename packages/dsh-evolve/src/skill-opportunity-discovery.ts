@@ -1,10 +1,35 @@
 import { createHash } from 'node:crypto'
 import type { CapabilityGap, CapabilityGapStore } from './capability-gap-store.ts'
+import type { DeliveryOutcome, DeliveryOutcomeStore } from './delivery-outcome-monitor.ts'
+import type { FeedbackSignal, FeedbackSignalStore } from './feedback-signal-monitor.ts'
 
 const DEFAULT_MAX_OPPORTUNITIES = 20
+const MAX_EVIDENCE_REFERENCES = 100
+
+export interface SkillOpportunityEvidence {
+  readonly kind: 'internal-experience-v2'
+  readonly eligibilityBasis: 'two-or-more-distinct-goals'
+  readonly correctionSignals: {
+    readonly association: 'same-session-single-skill-gap'
+    readonly count: number
+    readonly ids: readonly string[]
+    readonly referencesTruncated: boolean
+  }
+  readonly deliveryOutcomes: {
+    readonly association: 'same-goal-revision-single-skill-gap'
+    readonly total: number
+    readonly passed: number
+    readonly failed: number
+    readonly unknown: number
+    readonly ids: readonly string[]
+    readonly referencesTruncated: boolean
+  }
+  /** Associated context is not evidence that the missing Skill caused the result. */
+  readonly causalClaim: 'none'
+}
 
 export interface SkillOpportunity {
-  readonly schemaVersion: 1
+  readonly schemaVersion: 2
   readonly id: string
   readonly workspaceId: string
   readonly skillName: string
@@ -14,7 +39,7 @@ export interface SkillOpportunity {
   readonly goalCount: number
   readonly firstObservedAt: number
   readonly lastObservedAt: number
-  readonly evidence: 'repeated-goal-capability-gap'
+  readonly evidence: SkillOpportunityEvidence
   readonly status: 'eligible-for-authoring'
   readonly releaseAuthority: 'none'
 }
@@ -26,11 +51,19 @@ export interface SkillOpportunity {
  */
 export class ExperienceDrivenSkillOpportunityDiscovery {
   private readonly gaps: Pick<CapabilityGapStore, 'list'>
-  private readonly options: { readonly maxOpportunities?: number }
+  private readonly options: {
+    readonly maxOpportunities?: number
+    readonly feedback?: Pick<FeedbackSignalStore, 'list'>
+    readonly outcomes?: Pick<DeliveryOutcomeStore, 'list'>
+  }
 
   constructor(
     gaps: Pick<CapabilityGapStore, 'list'>,
-    options: { readonly maxOpportunities?: number } = {},
+    options: {
+      readonly maxOpportunities?: number
+      readonly feedback?: Pick<FeedbackSignalStore, 'list'>
+      readonly outcomes?: Pick<DeliveryOutcomeStore, 'list'>
+    } = {},
   ) {
     this.gaps = gaps
     this.options = options
@@ -44,18 +77,25 @@ export class ExperienceDrivenSkillOpportunityDiscovery {
 
     const uniqueGaps = new Map<string, CapabilityGap>()
     for (const gap of this.gaps.list(workspaceId)) {
-      if (gap.goal !== undefined && !uniqueGaps.has(gap.id)) uniqueGaps.set(gap.id, gap)
+      if (!uniqueGaps.has(gap.id)) uniqueGaps.set(gap.id, gap)
     }
 
-    const groups = new Map<string, Array<CapabilityGap & { readonly goal: NonNullable<CapabilityGap['goal']> }>>()
-    for (const gap of uniqueGaps.values()) {
-      const withGoal = gap as CapabilityGap & { readonly goal: NonNullable<CapabilityGap['goal']> }
+    const goalLinkedGaps = [...uniqueGaps.values()].filter(
+      (gap): gap is CapabilityGap & { readonly goal: NonNullable<CapabilityGap['goal']> } =>
+        gap.goal !== undefined,
+    )
+    const groups = new Map<string, typeof goalLinkedGaps>()
+    for (const withGoal of goalLinkedGaps) {
+      const gap = withGoal
       const key = `${gap.workspaceId}\0${gap.requestedSkill}`
       const values = groups.get(key) ?? []
       values.push(withGoal)
       groups.set(key, values)
     }
 
+    const attribution = buildAttributionIndex([...uniqueGaps.values()])
+    const feedback = this.options.feedback?.list(workspaceId) ?? []
+    const outcomes = this.options.outcomes?.list(workspaceId) ?? []
     const opportunities: SkillOpportunity[] = []
     for (const values of groups.values()) {
       const goalIds = [...new Set(values.map(gap => gap.goal.id))].sort()
@@ -64,7 +104,7 @@ export class ExperienceDrivenSkillOpportunityDiscovery {
         left.observedAt - right.observedAt || left.id.localeCompare(right.id))
       const first = sorted[0]!
       opportunities.push(Object.freeze({
-        schemaVersion: 1,
+        schemaVersion: 2,
         id: opportunityId(first.workspaceId, first.requestedSkill),
         workspaceId: first.workspaceId,
         skillName: first.requestedSkill,
@@ -74,7 +114,7 @@ export class ExperienceDrivenSkillOpportunityDiscovery {
         goalCount: goalIds.length,
         firstObservedAt: first.observedAt,
         lastObservedAt: sorted.at(-1)!.observedAt,
-        evidence: 'repeated-goal-capability-gap',
+        evidence: opportunityEvidence(first.workspaceId, first.requestedSkill, attribution, feedback, outcomes),
         status: 'eligible-for-authoring',
         releaseAuthority: 'none',
       }))
@@ -87,6 +127,139 @@ export class ExperienceDrivenSkillOpportunityDiscovery {
       || left.skillName.localeCompare(right.skillName)
       || left.workspaceId.localeCompare(right.workspaceId)).slice(0, maxOpportunities)
   }
+}
+
+interface AttributionIndex {
+  readonly sessionSkills: ReadonlyMap<string, ReadonlySet<string>>
+  readonly sessionSkillFirstGapAt: ReadonlyMap<string, number>
+  readonly goalRevisionSkills: ReadonlyMap<string, ReadonlySet<string>>
+  readonly goalRevisionSkillFirstGapAt: ReadonlyMap<string, number>
+}
+
+function buildAttributionIndex(
+  gaps: readonly CapabilityGap[],
+): AttributionIndex {
+  const sessionSkills = new Map<string, Set<string>>()
+  const sessionSkillFirstGapAt = new Map<string, number>()
+  const goalRevisionSkills = new Map<string, Set<string>>()
+  const goalRevisionSkillFirstGapAt = new Map<string, number>()
+  for (const gap of gaps) {
+    addSkill(sessionSkills, sessionKey(gap.workspaceId, gap.sessionId), gap.requestedSkill)
+    setEarliest(
+      sessionSkillFirstGapAt,
+      sessionSkillKey(gap.workspaceId, gap.sessionId, gap.requestedSkill),
+      gap.observedAt,
+    )
+    if (gap.goal !== undefined) {
+      addSkill(
+        goalRevisionSkills,
+        goalRevisionKey(gap.workspaceId, gap.goal.id, gap.goal.revision),
+        gap.requestedSkill,
+      )
+      setEarliest(
+        goalRevisionSkillFirstGapAt,
+        goalRevisionSkillKey(gap.workspaceId, gap.goal.id, gap.goal.revision, gap.requestedSkill),
+        gap.observedAt,
+      )
+    }
+  }
+  return { sessionSkills, sessionSkillFirstGapAt, goalRevisionSkills, goalRevisionSkillFirstGapAt }
+}
+
+function opportunityEvidence(
+  workspaceId: string,
+  skillName: string,
+  attribution: AttributionIndex,
+  feedback: readonly FeedbackSignal[],
+  outcomes: readonly DeliveryOutcome[],
+): SkillOpportunityEvidence {
+  const exactFeedback = uniqueById(feedback.filter((signal) => {
+    if (signal.workspaceId !== workspaceId) return false
+    const skills = attribution.sessionSkills.get(sessionKey(workspaceId, signal.sessionId))
+    const firstGapAt = attribution.sessionSkillFirstGapAt.get(
+      sessionSkillKey(workspaceId, signal.sessionId, skillName),
+    )
+    return skills?.size === 1
+      && skills.has(skillName)
+      && firstGapAt !== undefined
+      && signal.sourceUpdatedAt >= firstGapAt
+  })).sort((left, right) => left.sourceUpdatedAt - right.sourceUpdatedAt || left.id.localeCompare(right.id))
+
+  const exactOutcomes = uniqueById(outcomes.filter((outcome) => {
+    if (outcome.workspaceId !== workspaceId) return false
+    const key = goalRevisionKey(workspaceId, outcome.goal.id, outcome.goal.revision)
+    const skills = attribution.goalRevisionSkills.get(key)
+    const firstGapAt = attribution.goalRevisionSkillFirstGapAt.get(
+      goalRevisionSkillKey(workspaceId, outcome.goal.id, outcome.goal.revision, skillName),
+    )
+    return skills?.size === 1
+      && skills.has(skillName)
+      && firstGapAt !== undefined
+      && outcome.observedAt >= firstGapAt
+  })).sort((left, right) => left.observedAt - right.observedAt || left.id.localeCompare(right.id))
+
+  const correctionIds = referenceIds(exactFeedback)
+  const outcomeIds = referenceIds(exactOutcomes)
+  const counts = { passed: 0, failed: 0, unknown: 0 }
+  for (const outcome of exactOutcomes) counts[outcome.status] += 1
+  return Object.freeze({
+    kind: 'internal-experience-v2',
+    eligibilityBasis: 'two-or-more-distinct-goals',
+    correctionSignals: Object.freeze({
+      association: 'same-session-single-skill-gap',
+      count: exactFeedback.length,
+      ids: correctionIds,
+      referencesTruncated: exactFeedback.length > correctionIds.length,
+    }),
+    deliveryOutcomes: Object.freeze({
+      association: 'same-goal-revision-single-skill-gap',
+      total: exactOutcomes.length,
+      ...counts,
+      ids: outcomeIds,
+      referencesTruncated: exactOutcomes.length > outcomeIds.length,
+    }),
+    causalClaim: 'none',
+  })
+}
+
+function uniqueById<T extends { readonly id: string }>(values: readonly T[]): T[] {
+  return [...new Map(values.map(value => [value.id, value])).values()]
+}
+
+function referenceIds(values: ReadonlyArray<{ readonly id: string }>): readonly string[] {
+  return Object.freeze(values.slice(-MAX_EVIDENCE_REFERENCES).map(value => value.id))
+}
+
+function addSkill(target: Map<string, Set<string>>, key: string, skill: string): void {
+  const skills = target.get(key) ?? new Set<string>()
+  skills.add(skill)
+  target.set(key, skills)
+}
+
+function setEarliest(target: Map<string, number>, key: string, observedAt: number): void {
+  const current = target.get(key)
+  if (current === undefined || observedAt < current) target.set(key, observedAt)
+}
+
+function sessionKey(workspaceId: string, sessionId: string): string {
+  return `${workspaceId}\0${sessionId}`
+}
+
+function sessionSkillKey(workspaceId: string, sessionId: string, skillName: string): string {
+  return `${sessionKey(workspaceId, sessionId)}\0${skillName}`
+}
+
+function goalRevisionKey(workspaceId: string, goalId: string, revision: number): string {
+  return `${workspaceId}\0${goalId}\0${revision}`
+}
+
+function goalRevisionSkillKey(
+  workspaceId: string,
+  goalId: string,
+  revision: number,
+  skillName: string,
+): string {
+  return `${goalRevisionKey(workspaceId, goalId, revision)}\0${skillName}`
 }
 
 function opportunityId(workspaceId: string, skillName: string): string {

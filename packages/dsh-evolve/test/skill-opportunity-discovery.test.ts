@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { CapabilityGap } from '../src/capability-gap-store.ts'
+import type { DeliveryOutcome } from '../src/delivery-outcome-monitor.ts'
+import type { FeedbackSignal } from '../src/feedback-signal-monitor.ts'
 import { ExperienceDrivenSkillOpportunityDiscovery } from '../src/skill-opportunity-discovery.ts'
 
 const WORKSPACE = '11111111-1111-4111-8111-111111111111'
@@ -13,7 +15,7 @@ describe('experience-driven Skill opportunity discovery', () => {
     const discovery = new ExperienceDrivenSkillOpportunityDiscovery({ list: () => gaps })
 
     expect(discovery.discover(WORKSPACE)).toEqual([{
-      schemaVersion: 1,
+      schemaVersion: 2,
       id: expect.stringMatching(/^[a-f0-9]{64}$/),
       workspaceId: WORKSPACE,
       skillName: 'release-dsh-plugin',
@@ -23,10 +25,108 @@ describe('experience-driven Skill opportunity discovery', () => {
       goalCount: 2,
       firstObservedAt: 100,
       lastObservedAt: 200,
-      evidence: 'repeated-goal-capability-gap',
+      evidence: {
+        kind: 'internal-experience-v2',
+        eligibilityBasis: 'two-or-more-distinct-goals',
+        correctionSignals: {
+          association: 'same-session-single-skill-gap',
+          count: 0,
+          ids: [],
+          referencesTruncated: false,
+        },
+        deliveryOutcomes: {
+          association: 'same-goal-revision-single-skill-gap',
+          total: 0,
+          passed: 0,
+          failed: 0,
+          unknown: 0,
+          ids: [],
+          referencesTruncated: false,
+        },
+        causalClaim: 'none',
+      },
       status: 'eligible-for-authoring',
       releaseAuthority: 'none',
     }])
+  })
+
+  it('associates only unambiguous later correction and exact Goal-revision outcome context', () => {
+    const gaps = [
+      gap('1', 'goal-a', 'release-dsh-plugin', 100, 1, WORKSPACE, 'session-a'),
+      gap('2', 'goal-b', 'release-dsh-plugin', 200, 2, WORKSPACE, 'session-b'),
+      gap('3', 'goal-b', 'another-skill', 210, 2, WORKSPACE, 'session-b'),
+    ]
+    const feedback = [
+      signal('4', 'session-a', 110),
+      signal('5', 'session-a', 90),
+      signal('6', 'session-b', 220),
+    ]
+    const outcomes = [
+      outcome('7', 'goal-a', 1, 'failed', 120),
+      outcome('8', 'goal-a', 2, 'passed', 130),
+      outcome('9', 'goal-b', 2, 'passed', 230),
+    ]
+    const discovery = new ExperienceDrivenSkillOpportunityDiscovery(
+      { list: () => gaps },
+      { feedback: { list: () => feedback }, outcomes: { list: () => outcomes } },
+    )
+
+    const [opportunity] = discovery.discover(WORKSPACE)
+    expect(opportunity?.evidence).toEqual({
+      kind: 'internal-experience-v2',
+      eligibilityBasis: 'two-or-more-distinct-goals',
+      correctionSignals: {
+        association: 'same-session-single-skill-gap',
+        count: 1,
+        ids: ['4'.repeat(64)],
+        referencesTruncated: false,
+      },
+      deliveryOutcomes: {
+        association: 'same-goal-revision-single-skill-gap',
+        total: 1,
+        passed: 0,
+        failed: 1,
+        unknown: 0,
+        ids: ['7'.repeat(64)],
+        referencesTruncated: false,
+      },
+      causalClaim: 'none',
+    })
+  })
+
+  it('never lets correction or outcome context replace the distinct-Goal eligibility rule', () => {
+    const gaps = [gap('1', 'goal-a', 'release-dsh-plugin', 100, 1, WORKSPACE, 'session-a')]
+    const discovery = new ExperienceDrivenSkillOpportunityDiscovery(
+      { list: () => gaps },
+      {
+        feedback: { list: () => [signal('2', 'session-a', 110)] },
+        outcomes: { list: () => [outcome('3', 'goal-a', 1, 'failed', 120)] },
+      },
+    )
+
+    expect(discovery.discover(WORKSPACE)).toEqual([])
+  })
+
+  it('refuses Session correction attribution when any second Skill gap makes the Session ambiguous', () => {
+    const unrelated = { ...gap(
+      '3',
+      'goal-c',
+      'another-skill',
+      105,
+      1,
+      WORKSPACE,
+      'session-a',
+    ), goal: undefined }
+    const discovery = new ExperienceDrivenSkillOpportunityDiscovery(
+      { list: () => [
+        gap('1', 'goal-a', 'release-dsh-plugin', 100, 1, WORKSPACE, 'session-a'),
+        gap('2', 'goal-b', 'release-dsh-plugin', 200, 1, WORKSPACE, 'session-b'),
+        unrelated,
+      ] },
+      { feedback: { list: () => [signal('4', 'session-a', 110)] } },
+    )
+
+    expect(discovery.discover(WORKSPACE)[0]?.evidence.correctionSignals.count).toBe(0)
   })
 
   it('abstains when evidence is only one Goal, retries, or has no active Goal', () => {
@@ -60,13 +160,14 @@ function gap(
   observedAt: number,
   revision = 1,
   workspaceId = WORKSPACE,
+  sessionId = `session-${marker}`,
 ): CapabilityGap {
   return {
     schemaVersion: 1,
     id: marker.repeat(64),
     observedAt,
     workspaceId,
-    sessionId: `session-${marker}`,
+    sessionId,
     requestedSkill,
     catalogHash: '9'.repeat(64),
     catalogSize: 4,
@@ -82,5 +183,38 @@ function gap(
       routing: 'model-declared-no-applicable-skill',
       providers: 'settled',
     },
+  }
+}
+
+function signal(marker: string, sessionId: string, sourceUpdatedAt: number): FeedbackSignal {
+  return {
+    schemaVersion: 2,
+    id: marker.repeat(64),
+    observedAt: sourceUpdatedAt,
+    workspaceId: WORKSPACE,
+    sessionId,
+    messageId: `message-${marker}`,
+    feedbackVersion: `${marker.repeat(8)}-${marker.repeat(4)}-4${marker.repeat(3)}-8${marker.repeat(3)}-${marker.repeat(12)}`,
+    sourceUpdatedAt,
+  }
+}
+
+function outcome(
+  marker: string,
+  goalId: string,
+  revision: number,
+  status: DeliveryOutcome['status'],
+  observedAt: number,
+): DeliveryOutcome {
+  return {
+    schemaVersion: 2,
+    id: marker.repeat(64),
+    observedAt,
+    workspaceId: WORKSPACE,
+    sessionId: `delivery-session-${marker}`,
+    callId: `call-${marker}`,
+    goal: { id: goalId, revision, phase: status === 'passed' ? 'complete' : 'active' },
+    status,
+    reason: `${status} delivery outcome`,
   }
 }

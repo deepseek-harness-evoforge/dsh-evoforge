@@ -110,7 +110,26 @@ export interface EvolutionSkillOpportunityView {
     readonly goalCount: number;
     readonly firstObservedAt: number;
     readonly lastObservedAt: number;
-    readonly evidence: 'repeated-goal-capability-gap';
+    readonly evidence: {
+        readonly kind: 'internal-experience-v2';
+        readonly eligibilityBasis: 'two-or-more-distinct-goals';
+        readonly correctionSignals: {
+            readonly association: 'same-session-single-skill-gap';
+            readonly count: number;
+            readonly ids: readonly string[];
+            readonly referencesTruncated: boolean;
+        };
+        readonly deliveryOutcomes: {
+            readonly association: 'same-goal-revision-single-skill-gap';
+            readonly total: number;
+            readonly passed: number;
+            readonly failed: number;
+            readonly unknown: number;
+            readonly ids: readonly string[];
+            readonly referencesTruncated: boolean;
+        };
+        readonly causalClaim: 'none';
+    };
     readonly status: 'eligible-for-authoring';
     readonly releaseAuthority: 'none';
 }

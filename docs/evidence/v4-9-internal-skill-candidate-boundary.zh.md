@@ -54,7 +54,7 @@ Candidate 使用新的 `evoforge_skill_candidates` Storage Domain。Store 不再
 
 ## 未完成
 
-- Opportunity 尚未完整吸收 correction、verified outcome、rework、cost、reuse、Retention、negative transfer 和 rollback 归因；当前只证明重复 Goal-linked Gap；
+- Opportunity v2 已保守关联 correction reference 和 compact delivery outcome context，但 fixed `causalClaim: none`；exact invocation、rework、cost、reuse、Retention、negative transfer 和 rollback 归因仍未完成；
 - 内部 Candidate 的真实 provider、未见任务、Retention、反事实 canary、长期误晋升和精确回滚整链证据未完成；
 - 本次源码构建的 Web 投影已通过真实浏览器复验；最终 tarball 安装进 clean-profile 后的同路径浏览器复验仍未完成；
 - exact 飞书消息闭环与同模型、同权限、同预算 Hermes paired benchmark 未完成。

@@ -15,6 +15,8 @@ Workspace/Session 和 exact Skill 缺失后持久化 Gap。系统随后从自身
 native Goal
   → Host-verified Capability Gap
   → ExperienceDrivenSkillOpportunityDiscovery
+  ├─ reference-only correction（same Session / unique Gap Skill / after Gap）
+  └─ compact outcome（exact Goal revision / unique Gap Skill / after Gap）
   → selfDiscoveryPolicy（Workspace/runRoot/day budget；无 Skill）
   → native DSH Job author
   → canonical instruction-only whole-Skill v1
@@ -32,6 +34,10 @@ native Goal
 
 同 Goal retry、无 Goal、跨 Workspace、证据不足或已有 Candidate 都 abstain。Opportunity 只有
 `eligible-for-authoring` 资格，`releaseAuthority` 固定为 `none`。
+
+Opportunity schema v2 会关联上述纠正和 Outcome 的 opaque id/计数，但固定 `causalClaim: none`。歧义或
+早于 Gap 的事件不关联；这些上下文不能创建 Opportunity、改变资格/排序或进入 author 输入。详细边界见
+[V4-10](v4-10-opportunity-internal-context-attribution.zh.md)。
 
 ## 模型与状态边界
 
@@ -83,16 +89,16 @@ quarantine/materialization；旧 acquisition class、fetch loop、research Jobs�
 - `DSH_SOURCE_ROOT=<pinned-dsh-source> pnpm generate:typert`：通过；
 - `pnpm --filter dsh-evolve-web typecheck`：通过；
 - `pnpm --filter dsh-evolve-web test`：2 files、25 tests 通过；
-- `pnpm --filter dsh-evolve exec vitest run --reporter=json`：重构后的当前全量为 55 files、247 tests 通过、2 skipped、0 failed；退出码 0；
+- `pnpm --filter dsh-evolve exec vitest run --reporter=json`：当前全量为 55 files、251 tests 通过、2 skipped、0 failed；退出码 0；
 - `slow-loop-skill-authoring.test.ts`：8 个内部经验生成、abstain、预算、取消、uncertain、证据边界和无 Skill policy 场景通过；
-- `skill-opportunity-discovery.test.ts`：跨 Goal 资格、同 Goal retry、Workspace 隔离与证据不足场景通过；
-- `skill-candidate-repository.test.ts` 与 `capability-gap-store.e2e.test.ts`：internal-experience v1 whole-Skill quarantine、独立持久化 Domain、旧 external/source/research shape 不进入记录；
+- `skill-opportunity-discovery.test.ts`：6 个跨 Goal 资格、同 Goal retry、Workspace 隔离、精确 correction/outcome context、时间和歧义拒绝场景通过；
+- `skill-candidate-repository.test.ts` 与 `capability-gap-store.e2e.test.ts`：internal-experience v1 whole-Skill quarantine、独立持久化 Domain、旧 external/source/research shape 不进入记录；后者还证明三个 DSH Domain 的 Opportunity v2 上下文在重启后恢复；
 - `skill-candidate-admission.test.ts`、`skill-candidate-lineage.test.ts`、`skill-candidate-shadow.test.ts`：确定性 admission、内部 lineage、独立 assembled holdout 与旧 lineage shape 拒绝。
 
 ## 未完成
 
 - 内部 Candidate 的独立 final-test/Shadow/Retention 真实 provider 整链路；
-- Goal outcome、用户 correction、复用收益和 Retention 信号共同参与 Opportunity 排序/抑制；
+- correction/outcome 的 exact invocation 因果链接，以及 rework、cost、reuse、Retention、negative transfer 和 rollback 的归因/排序/抑制；
 - 源码构建的新投影已通过真实浏览器复验；最终 tarball 安装进 clean-profile 后仍需复验同一路径；
 - 同模型 Hermes paired discovery/evolution outcome 与长期负迁移数据；
 - 用户配对短语触发的 exact 飞书消息闭环。

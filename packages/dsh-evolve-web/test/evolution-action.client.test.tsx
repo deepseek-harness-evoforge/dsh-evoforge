@@ -16,6 +16,29 @@ const workspaceId = '11111111-1111-4111-8111-111111111111'
 const otherWorkspaceId = '22222222-2222-4222-8222-222222222222'
 const sessionId = 'session-1'
 
+function internalOpportunityEvidence() {
+  return {
+    kind: 'internal-experience-v2' as const,
+    eligibilityBasis: 'two-or-more-distinct-goals' as const,
+    correctionSignals: {
+      association: 'same-session-single-skill-gap' as const,
+      count: 1,
+      ids: ['2'.repeat(64)],
+      referencesTruncated: false,
+    },
+    deliveryOutcomes: {
+      association: 'same-goal-revision-single-skill-gap' as const,
+      total: 2,
+      passed: 1,
+      failed: 1,
+      unknown: 0,
+      ids: ['3'.repeat(64), '4'.repeat(64)],
+      referencesTruncated: false,
+    },
+    causalClaim: 'none' as const,
+  }
+}
+
 const discoveredLineage = {
   kind: 'internal-skill-candidate-lineage-v1' as const,
   candidateId: '8'.repeat(64),
@@ -297,6 +320,17 @@ const t = (key: string) => ({
   'skills.opportunities.observations': 'Gap observations',
   'skills.opportunities.evidence': 'Discovered from repeated capability gaps across DSH Goals',
   'skills.opportunities.flow': 'Evidence Goals',
+  'skills.opportunities.context': 'Associated internal evidence',
+  'skills.opportunities.corrections': 'explicit corrections',
+  'skills.opportunities.delivery': 'delivery outcomes',
+  'skills.opportunities.passed': 'passed',
+  'skills.opportunities.failed': 'failed',
+  'skills.opportunities.unknown': 'unknown',
+  'skills.opportunities.attribution': 'Exact Session/Goal-revision association only · No causal or authoring-eligibility claim',
+  'skills.opportunities.references': 'Evidence references',
+  'skills.opportunities.reference.correction': 'correction',
+  'skills.opportunities.reference.outcome': 'outcome',
+  'skills.opportunities.references.truncated': 'more references retained by the Host',
   'skills.opportunities.state': 'Eligible for quarantined authoring · No install, activation, or release authority',
   'skills.slow-loop': 'Internal experience-driven Skill authoring',
   'skills.slow-loop.policies': 'Workspace safety policies',
@@ -629,7 +663,7 @@ describe('EvolutionAction', () => {
             goalCount: 2,
             firstObservedAt: 1_786_895_900_000,
             lastObservedAt: 1_786_896_000_000,
-            evidence: 'repeated-goal-capability-gap' as const,
+            evidence: internalOpportunityEvidence(),
             status: 'eligible-for-authoring' as const,
             releaseAuthority: 'none' as const,
           }],
@@ -749,6 +783,9 @@ describe('EvolutionAction', () => {
     expect(screen.getAllByText('2 distinct Goals · 3 Gap observations')).toHaveLength(2)
     expect(screen.getByText('Discovered from repeated capability gaps across DSH Goals')).toBeTruthy()
     expect(screen.getByText('Evidence Goals · goal-1 · goal-2')).toBeTruthy()
+    expect(screen.getByText('Associated internal evidence · explicit corrections: 1 · delivery outcomes: 2 (passed 1 / failed 1 / unknown 0)')).toBeTruthy()
+    expect(screen.getByText('Exact Session/Goal-revision association only · No causal or authoring-eligibility claim')).toBeTruthy()
+    expect(screen.getByText(`Evidence references · correction ${'2'.repeat(8)}… · outcome ${'3'.repeat(8)}… · outcome ${'4'.repeat(8)}…`)).toBeTruthy()
     expect(screen.getByText('Eligible for quarantined authoring · No install, activation, or release authority')).toBeTruthy()
     expect(screen.getByText('Internal experience-driven Skill authoring')).toBeTruthy()
     expect(screen.getByText('Quarantined candidate ready')).toBeTruthy()

@@ -31,6 +31,27 @@ const launchId = 'd'.repeat(64)
 const reviewId = 'c'.repeat(64)
 const workspaceId = '11111111-1111-4111-8111-111111111111'
 const sessionId = 'browser-evolution-session'
+
+const internalOpportunityEvidence = {
+  kind: 'internal-experience-v2' as const,
+  eligibilityBasis: 'two-or-more-distinct-goals' as const,
+  correctionSignals: {
+    association: 'same-session-single-skill-gap' as const,
+    count: 1,
+    ids: ['2'.repeat(64)],
+    referencesTruncated: false,
+  },
+  deliveryOutcomes: {
+    association: 'same-goal-revision-single-skill-gap' as const,
+    total: 2,
+    passed: 1,
+    failed: 1,
+    unknown: 0,
+    ids: ['3'.repeat(64), '4'.repeat(64)],
+    referencesTruncated: false,
+  },
+  causalClaim: 'none' as const,
+}
 const search = new URLSearchParams(window.location.search)
 const qualifiedMode = search.has('qualified')
 const reviewMode = search.has('review')
@@ -180,7 +201,7 @@ const remote: EvolutionRemoteClient = {
               goalCount: 2,
               firstObservedAt: 1_786_895_900_000,
               lastObservedAt: 1_786_896_000_000,
-              evidence: 'repeated-goal-capability-gap' as const,
+              evidence: internalOpportunityEvidence,
               status: 'eligible-for-authoring' as const,
               releaseAuthority: 'none' as const,
             }],

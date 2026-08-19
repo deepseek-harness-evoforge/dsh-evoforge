@@ -9,6 +9,29 @@ const generationId = 'a'.repeat(64)
 const parentId = 'b'.repeat(64)
 const reviewId = 'c'.repeat(64)
 
+function opportunityEvidence() {
+  return {
+    kind: 'internal-experience-v2' as const,
+    eligibilityBasis: 'two-or-more-distinct-goals' as const,
+    correctionSignals: {
+      association: 'same-session-single-skill-gap' as const,
+      count: 1,
+      ids: ['3'.repeat(64)],
+      referencesTruncated: false,
+    },
+    deliveryOutcomes: {
+      association: 'same-goal-revision-single-skill-gap' as const,
+      total: 2,
+      passed: 1,
+      failed: 1,
+      unknown: 0,
+      ids: ['4'.repeat(64), '5'.repeat(64)],
+      referencesTruncated: false,
+    },
+    causalClaim: 'none' as const,
+  }
+}
+
 function lineage(candidateTreeHash = '1'.repeat(64)) {
   return {
     kind: 'internal-skill-candidate-lineage-v1' as const,
@@ -289,7 +312,7 @@ describe('EvolutionControlPlane', () => {
       },
       opportunities: {
         discover: () => [{
-          schemaVersion: 1 as const,
+          schemaVersion: 2 as const,
           id: '8'.repeat(64),
           workspaceId: WORKSPACE_ID,
           skillName: 'release-native-extension',
@@ -299,7 +322,7 @@ describe('EvolutionControlPlane', () => {
           goalCount: 2,
           firstObservedAt: 1_786_896_000_000,
           lastObservedAt: 1_786_896_000_200,
-          evidence: 'repeated-goal-capability-gap' as const,
+          evidence: opportunityEvidence(),
           status: 'eligible-for-authoring' as const,
           releaseAuthority: 'none' as const,
         }],
@@ -455,7 +478,7 @@ describe('EvolutionControlPlane', () => {
           goalIds: ['goal-1', 'goal-2'],
           gapCount: 2,
           goalCount: 2,
-          evidence: 'repeated-goal-capability-gap',
+          evidence: opportunityEvidence(),
           status: 'eligible-for-authoring',
           releaseAuthority: 'none',
         }],

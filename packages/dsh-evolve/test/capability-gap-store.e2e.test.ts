@@ -4,10 +4,13 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { openCapabilityGapStore } from '../src/capability-gap-store.ts'
+import { openDeliveryOutcomeStore } from '../src/delivery-outcome-monitor.ts'
+import { openFeedbackSignalStore } from '../src/feedback-signal-monitor.ts'
 import {
   openSkillCandidateStore,
   type ExperienceSkillCandidateInput,
 } from '../src/skill-candidate-repository.ts'
+import { ExperienceDrivenSkillOpportunityDiscovery } from '../src/skill-opportunity-discovery.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -89,6 +92,77 @@ describe.skipIf(process.platform !== 'darwin')('Capability Gap durable queue', (
     } finally {
       await store.close()
       await ctx.fiber.dispose()
+    }
+  })
+
+  it('recovers exact internal correction and delivery context for one Skill Opportunity', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-opportunity-evidence-'))
+    temporaryRoots.push(root)
+    const configPath = await writeStorageConfig(root)
+    const first = await bootStorage(configPath)
+    const gaps = await openCapabilityGapStore(first.storageDomain)
+    const feedback = await openFeedbackSignalStore(first.storageDomain)
+    const outcomes = await openDeliveryOutcomeStore(first.storageDomain)
+    try {
+      await gaps.record({
+        ...gapInput(100, 'release-dsh-plugin'),
+        sessionId: 'session-a',
+        goal: { id: 'goal-a', revision: 1, objective: 'Release the first native plugin.' },
+      })
+      await gaps.record({
+        ...gapInput(200, 'release-dsh-plugin'),
+        sessionId: 'session-b',
+        goal: { id: 'goal-b', revision: 1, objective: 'Release another native plugin.' },
+      })
+      await feedback.replaceSession({
+        observedAt: 120,
+        workspaceId: WORKSPACE_ID,
+        sessionId: 'session-a',
+        items: [{
+          id: 'a'.repeat(64),
+          messageId: 'feedback-message-a',
+          feedbackVersion: '00000000-0000-4000-8000-000000000001',
+          sourceUpdatedAt: 120,
+        }],
+      })
+      await outcomes.record({
+        observedAt: 130,
+        workspaceId: WORKSPACE_ID,
+        sessionId: 'delivery-session-a',
+        callId: 'delivery-call-a',
+        goal: { id: 'goal-a', revision: 1, phase: 'active' },
+        status: 'failed',
+        reason: 'release verification failed',
+      })
+      expect(new ExperienceDrivenSkillOpportunityDiscovery(gaps, { feedback, outcomes })
+        .discover(WORKSPACE_ID)[0]?.evidence).toMatchObject({
+          correctionSignals: { count: 1, ids: ['a'.repeat(64)] },
+          deliveryOutcomes: { total: 1, passed: 0, failed: 1, unknown: 0 },
+          causalClaim: 'none',
+        })
+    } finally {
+      await Promise.all([gaps.close(), feedback.close(), outcomes.close()])
+      await first.fiber.dispose()
+    }
+
+    const resumed = await bootStorage(configPath)
+    const resumedGaps = await openCapabilityGapStore(resumed.storageDomain)
+    const resumedFeedback = await openFeedbackSignalStore(resumed.storageDomain)
+    const resumedOutcomes = await openDeliveryOutcomeStore(resumed.storageDomain)
+    try {
+      const recovered = new ExperienceDrivenSkillOpportunityDiscovery(resumedGaps, {
+        feedback: resumedFeedback,
+        outcomes: resumedOutcomes,
+      }).discover(WORKSPACE_ID)
+      expect(recovered).toHaveLength(1)
+      expect(recovered[0]?.evidence).toMatchObject({
+        correctionSignals: { count: 1, ids: ['a'.repeat(64)] },
+        deliveryOutcomes: { total: 1, failed: 1 },
+        causalClaim: 'none',
+      })
+    } finally {
+      await Promise.all([resumedGaps.close(), resumedFeedback.close(), resumedOutcomes.close()])
+      await resumed.fiber.dispose()
     }
   })
 

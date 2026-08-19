@@ -79,9 +79,11 @@
 
 实现状态：**partial implementation**。DSH 原生 catalog 负责已有 Skill 的语义选择；固定
 `report_capability_gap(name)` Tool 已通过真实 Agent Loop，把 active Goal 中模型确认的无匹配情况经 Host
-复核后持久化。`ExperienceDrivenSkillOpportunityDiscovery` 只读取这些 durable Gap：同 Workspace、同一
+复核后持久化。`ExperienceDrivenSkillOpportunityDiscovery` 以 durable Gap 决定资格：同 Workspace、同一
 Skill、至少两个不同 Goal 才产出确定性 Opportunity；同 Goal retry、无 Goal、跨 Workspace 和证据不足均
-abstain。`selfDiscoveryPolicies` 只配置 Workspace、run root 和日预算，不接受 Skill、路径、来源、Agent 或
+abstain。Opportunity v2 另按同 Session 唯一 Gap Skill 关联明确纠正引用，按 exact Goal id/revision 唯一 Gap
+Skill 关联 compact delivery outcome；事件必须晚于 Gap、歧义 fail closed，固定 `causalClaim: none`，且不
+改变资格/排序或 author 输入。`selfDiscoveryPolicies` 只配置 Workspace、run root 和日预算，不接受 Skill、路径、来源、Agent 或
 workflow 选择。原生 Job author 只接收有界内部 Goal/Gap 证据，输出 instruction-only whole-Skill v1，Host
 校验、内容寻址并写入 inactive/quarantined/unevaluated/never-executed Candidate。DSH Web 展示
 Gap → Opportunity → Candidate 及运行状态、成本和治理边界，不显示外部发现尝试。
@@ -89,7 +91,7 @@ Gap → Opportunity → Candidate 及运行状态、成本和治理边界，不�
 当前活动源码已经删除外部来源发现、Agent Skills 索引/archive、运行时 Web research、research Holdout/revision
 及其 Job 编排、依赖、持久化变体和 Web 类型；Candidate Repository、Admission、Lineage、Shadow 只接受
 内部 Skill Opportunity 与 canonical text bundle，不读取旧字段或提供兼容入口。历史证据页仅用于解释已撤销决策。
-仍待实现/验证：outcome/correction/rework/cost/reuse/retention 的完整归因、内部 Candidate 的独立
+仍待实现/验证：correction/outcome 的 exact invocation 因果链接，以及 rework/cost/reuse/retention/negative-transfer/rollback 的完整归因、内部 Candidate 的独立
 final-test/Shadow/Retention 整链路、真实 provider outcome、模型缺口质量、迁移/遗忘/
 长期保留，以及同条件 Hermes paired outcome。因此不能描述为“自主 Skill 进化已完成”。
 
