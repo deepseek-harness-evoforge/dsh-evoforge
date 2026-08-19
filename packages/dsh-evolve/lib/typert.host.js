@@ -140,11 +140,12 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'artifactDigest': z.union([z.undefined(), z.string()]).readonly().optional(),
   'treeHash': z.string().readonly(),
   'lineage': z.union([z.undefined(), z.object({
-  'kind': z.literal("internal-skill-candidate-lineage-v2").readonly(),
+  'kind': z.literal("internal-skill-candidate-lineage-v3").readonly(),
   'candidateId': z.string().readonly(),
   'workspaceId': z.string().readonly(),
   'skillName': z.string().readonly(),
   'opportunityId': z.string().readonly(),
+  'evaluationEvidenceId': z.string().readonly(),
   'policyId': z.string().readonly(),
   'versionKind': z.literal("experience-authored-bundle-v1").readonly(),
   'contentHash': z.string().readonly(),
@@ -288,6 +289,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'kind': z.literal("bounded-model-authoring-v1").readonly(),
   'policyId': z.string().readonly(),
   'modelIdentityHash': z.string().readonly(),
+  'evaluationEvidenceId': z.string().readonly(),
   'inputDigest': z.string().readonly(),
 }).readonly(),
   'scope': z.literal("workspace").readonly(),
@@ -605,11 +607,12 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'changedFiles': z.array(z.string()).readonly(),
   'candidateTreeHash': z.string().readonly(),
   'lineage': z.union([z.undefined(), z.object({
-  'kind': z.literal("internal-skill-candidate-lineage-v2").readonly(),
+  'kind': z.literal("internal-skill-candidate-lineage-v3").readonly(),
   'candidateId': z.string().readonly(),
   'workspaceId': z.string().readonly(),
   'skillName': z.string().readonly(),
   'opportunityId': z.string().readonly(),
+  'evaluationEvidenceId': z.string().readonly(),
   'policyId': z.string().readonly(),
   'versionKind': z.literal("experience-authored-bundle-v1").readonly(),
   'contentHash': z.string().readonly(),
@@ -652,11 +655,12 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'reviewId': z.string().readonly(),
   'skillName': z.string().readonly(),
   'lineage': z.union([z.undefined(), z.object({
-  'kind': z.literal("internal-skill-candidate-lineage-v2").readonly(),
+  'kind': z.literal("internal-skill-candidate-lineage-v3").readonly(),
   'candidateId': z.string().readonly(),
   'workspaceId': z.string().readonly(),
   'skillName': z.string().readonly(),
   'opportunityId': z.string().readonly(),
+  'evaluationEvidenceId': z.string().readonly(),
   'policyId': z.string().readonly(),
   'versionKind': z.literal("experience-authored-bundle-v1").readonly(),
   'contentHash': z.string().readonly(),
@@ -782,11 +786,12 @@ const dsh_evolve_evoforgeEvolution_review_result$schema = z.object({
   'changedFiles': z.array(z.string()).readonly(),
   'candidateTreeHash': z.string().readonly(),
   'lineage': z.union([z.undefined(), z.object({
-  'kind': z.literal("internal-skill-candidate-lineage-v2").readonly(),
+  'kind': z.literal("internal-skill-candidate-lineage-v3").readonly(),
   'candidateId': z.string().readonly(),
   'workspaceId': z.string().readonly(),
   'skillName': z.string().readonly(),
   'opportunityId': z.string().readonly(),
+  'evaluationEvidenceId': z.string().readonly(),
   'policyId': z.string().readonly(),
   'versionKind': z.literal("experience-authored-bundle-v1").readonly(),
   'contentHash': z.string().readonly(),
@@ -1560,7 +1565,7 @@ export const TYPERT = {
           },
           {
             "name": "SkillCandidateLineage",
-            "declaration": "export interface SkillCandidateLineage {\n    readonly kind: 'internal-skill-candidate-lineage-v2';\n    readonly candidateId: string;\n    readonly workspaceId: string;\n    readonly skillName: string;\n    readonly opportunityId: string;\n    readonly policyId: string;\n    readonly versionKind: SkillCandidateVersionKind;\n    readonly contentHash: string;\n    readonly candidateTreeHash: string;\n    readonly admissionId: string;\n    readonly evaluationEnvelopeId: string;\n    readonly releaseAuthority: 'none';\n}"
+            "declaration": "export interface SkillCandidateLineage {\n    readonly kind: 'internal-skill-candidate-lineage-v3';\n    readonly candidateId: string;\n    readonly workspaceId: string;\n    readonly skillName: string;\n    readonly opportunityId: string;\n    readonly evaluationEvidenceId: string;\n    readonly policyId: string;\n    readonly versionKind: SkillCandidateVersionKind;\n    readonly contentHash: string;\n    readonly candidateTreeHash: string;\n    readonly admissionId: string;\n    readonly evaluationEnvelopeId: string;\n    readonly releaseAuthority: 'none';\n}"
           },
           {
             "name": "SkillCandidateVersionKind",
@@ -1771,7 +1776,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionSkillCandidateLineageView",
-            "declaration": "export interface EvolutionSkillCandidateLineageView {\n    readonly kind: 'internal-skill-candidate-lineage-v2';\n    readonly candidateId: string;\n    readonly workspaceId: string;\n    readonly skillName: string;\n    readonly opportunityId: string;\n    readonly policyId: string;\n    readonly versionKind: EvolutionSkillCandidateVersionKind;\n    readonly contentHash: string;\n    readonly candidateTreeHash: string;\n    readonly admissionId: string;\n    readonly evaluationEnvelopeId: string;\n    readonly releaseAuthority: 'none';\n}"
+            "declaration": "export interface EvolutionSkillCandidateLineageView {\n    readonly kind: 'internal-skill-candidate-lineage-v3';\n    readonly candidateId: string;\n    readonly workspaceId: string;\n    readonly skillName: string;\n    readonly opportunityId: string;\n    readonly evaluationEvidenceId: string;\n    readonly policyId: string;\n    readonly versionKind: EvolutionSkillCandidateVersionKind;\n    readonly contentHash: string;\n    readonly candidateTreeHash: string;\n    readonly admissionId: string;\n    readonly evaluationEnvelopeId: string;\n    readonly releaseAuthority: 'none';\n}"
           },
           {
             "name": "EvolutionSkillCandidateQueueView",
@@ -1783,7 +1788,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionSkillCandidateView",
-            "declaration": "export interface EvolutionSkillCandidateView {\n    readonly id: string;\n    readonly createdAt: number;\n    readonly skillName: string;\n    readonly description: string;\n    readonly opportunity: { readonly kind: 'internal-experience-v1'; readonly id: string; readonly gapIds: readonly string[]; readonly goalCount: number; };\n    readonly authorship: { readonly kind: 'bounded-model-authoring-v1'; readonly policyId: string; readonly modelIdentityHash: string; readonly inputDigest: string; };\n    readonly scope: 'workspace';\n    readonly version: { readonly kind: 'experience-authored-bundle-v1'; readonly artifactDigest: string; readonly treeHash: string; };\n    readonly contentHash: string;\n    readonly package: { readonly path: string; readonly fileCount: number; readonly totalBytes: number; readonly hasScripts: boolean; readonly hasReferences: boolean; };\n    readonly permissions: { readonly declared: boolean; readonly executableContent: boolean; readonly externalEffects: 'unknown'; };\n    readonly license?: { readonly status: 'declared'; readonly value: string; } | { readonly status: 'unknown'; };\n    readonly safety: { readonly status: 'quarantined'; readonly checks: readonly { readonly name: 'artifact-digest-integrity' | 'regular-files-only' | 'skill-identity' | 'effect-review'; readonly status: 'passed' | 'required'; }[]; };\n    readonly lifecycle: 'inactive';\n    readonly verification: 'unevaluated';\n    readonly execution: 'never';\n}"
+            "declaration": "export interface EvolutionSkillCandidateView {\n    readonly id: string;\n    readonly createdAt: number;\n    readonly skillName: string;\n    readonly description: string;\n    readonly opportunity: { readonly kind: 'internal-experience-v1'; readonly id: string; readonly gapIds: readonly string[]; readonly goalCount: number; };\n    readonly authorship: { readonly kind: 'bounded-model-authoring-v1'; readonly policyId: string; readonly modelIdentityHash: string; readonly evaluationEvidenceId: string; readonly inputDigest: string; };\n    readonly scope: 'workspace';\n    readonly version: { readonly kind: 'experience-authored-bundle-v1'; readonly artifactDigest: string; readonly treeHash: string; };\n    readonly contentHash: string;\n    readonly package: { readonly path: string; readonly fileCount: number; readonly totalBytes: number; readonly hasScripts: boolean; readonly hasReferences: boolean; };\n    readonly permissions: { readonly declared: boolean; readonly executableContent: boolean; readonly externalEffects: 'unknown'; };\n    readonly license?: { readonly status: 'declared'; readonly value: string; } | { readonly status: 'unknown'; };\n    readonly safety: { readonly status: 'quarantined'; readonly checks: readonly { readonly name: 'artifact-digest-integrity' | 'regular-files-only' | 'skill-identity' | 'effect-review'; readonly status: 'passed' | 'required'; }[]; };\n    readonly lifecycle: 'inactive';\n    readonly verification: 'unevaluated';\n    readonly execution: 'never';\n}"
           },
           {
             "name": "EvolutionSkillOpportunityQueueView",

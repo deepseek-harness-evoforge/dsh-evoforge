@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { CapabilityGap } from '../src/capability-gap-store.ts'
+import type { ExperienceSkillCandidate } from '../src/skill-candidate-repository.ts'
 import { SkillEvaluationEvidenceVault } from '../src/skill-evaluation-evidence-vault.ts'
 import type { SkillOpportunity } from '../src/skill-opportunity-discovery.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
@@ -103,6 +104,30 @@ describe('Skill Evaluation Evidence Vault', () => {
     expect(protectedGoals.every(goalId => !authoringGoals.has(goalId))).toBe(true)
     expect(prepared.evidence.authoringGoalEvidence.map(goal => goal.id).sort())
       .toEqual([...authoringGoals].sort())
+
+    const candidate: Pick<ExperienceSkillCandidate,
+      'workspaceId' | 'skillName' | 'opportunity' | 'authorship'> = {
+      workspaceId: WORKSPACE_ID,
+      skillName: opportunity.skillName,
+      opportunity: {
+        kind: 'internal-experience-v1',
+        id: opportunity.id,
+        gapIds: [...opportunity.gapIds],
+        goalCount: opportunity.goalCount,
+      },
+      authorship: {
+        kind: 'bounded-model-authoring-v1',
+        policyId: 'workspace-experience-author',
+        modelIdentityHash: 'a'.repeat(64),
+        evaluationEvidenceId: prepared.evidence.id,
+        inputDigest: prepared.evidence.authoringInputDigest,
+      },
+    }
+    await expect(vault.verifyCandidateBinding(candidate)).resolves.toBeUndefined()
+    await expect(vault.verifyCandidateBinding({
+      ...candidate,
+      authorship: { ...candidate.authorship, evaluationEvidenceId: 'f'.repeat(64) },
+    })).rejects.toThrow()
   })
 
   it('abstains without writing governance state when independent samples are insufficient', async () => {

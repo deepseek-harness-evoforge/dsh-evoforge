@@ -127,11 +127,12 @@ describe('retention source integrity', () => {
     const proposal = { claim: 'internal Candidate', files: [{ path: 'SKILL.md', content: skill }] }
     const candidateTreeHash = await hashTree(candidateDir)
     const lineage = {
-      kind: 'internal-skill-candidate-lineage-v2',
+      kind: 'internal-skill-candidate-lineage-v3',
       candidateId: '1'.repeat(64),
       workspaceId: WORKSPACE_ID,
       skillName,
       opportunityId: '2'.repeat(64),
+      evaluationEvidenceId: '6'.repeat(64),
       policyId: 'internal-skill-author',
       versionKind: 'experience-authored-bundle-v1',
       contentHash: '3'.repeat(64),
@@ -264,11 +265,12 @@ describe.skipIf(process.platform !== 'darwin')('exact Candidate retention gate',
       },
     ])
     const lineage = {
-      kind: 'internal-skill-candidate-lineage-v2' as const,
+      kind: 'internal-skill-candidate-lineage-v3' as const,
       candidateId: '1'.repeat(64),
       workspaceId: WORKSPACE_ID,
       skillName: 'browser-e2e-baseline',
       opportunityId: '2'.repeat(64),
+      evaluationEvidenceId: '6'.repeat(64),
       policyId: 'browser-skill-author',
       versionKind: 'experience-authored-bundle-v1' as const,
       contentHash: bundle.artifactDigest,

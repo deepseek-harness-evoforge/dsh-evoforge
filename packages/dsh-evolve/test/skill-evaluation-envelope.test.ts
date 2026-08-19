@@ -4,7 +4,10 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { CapabilityGap } from '../src/capability-gap-store.ts'
 import { hashTree } from '../src/hash.ts'
-import { SkillEvaluationEvidenceVault } from '../src/skill-evaluation-evidence-vault.ts'
+import {
+  SkillEvaluationEvidenceVault,
+  skillEvaluationProtectedInputDigest,
+} from '../src/skill-evaluation-evidence-vault.ts'
 import {
   SkillEvaluationEnvelopeResolver,
   type SkillCandidateEvaluationPolicyConfig,
@@ -115,6 +118,7 @@ describe('internal Skill Evaluation Envelope', () => {
       fixture.policy.governanceRoot,
       'envelopes',
       fixture.candidate.opportunity.id,
+      fixture.candidate.authorship.evaluationEvidenceId,
     )
     const manifestPath = join(envelopeRoot, 'manifest.json')
     const targetPath = join(envelopeRoot, 'manifest-target.json')
@@ -144,6 +148,31 @@ describe('internal Skill Evaluation Envelope', () => {
       authorship: { ...fixture.candidate.authorship, inputDigest: 'f'.repeat(64) },
     })).rejects.toThrow('Candidate authoring does not match its sealed evaluation evidence')
   })
+
+  it('fails closed when an Envelope claims a different protected-sample author input', async () => {
+    const fixture = await envelopeFixture()
+    const envelopeRoot = join(
+      fixture.policy.governanceRoot,
+      'envelopes',
+      fixture.candidate.opportunity.id,
+      fixture.candidate.authorship.evaluationEvidenceId,
+    )
+    await writeFile(join(envelopeRoot, 'manifest.json'), `${JSON.stringify({
+      ...fixture.manifest,
+      governance: {
+        ...fixture.manifest.governance,
+        admissionInputDigest: 'f'.repeat(64),
+      },
+    }, null, 2)}\n`)
+    const resolver = new SkillEvaluationEnvelopeResolver(
+      [fixture.policy],
+      { discover: () => [opportunity()] },
+      fixture.vault,
+    )
+
+    await expect(resolver.resolve(fixture.candidate))
+      .rejects.toThrow('Evaluation Envelope protected inputs do not match their evidence seal')
+  })
 })
 
 async function envelopeFixture(options: {
@@ -158,6 +187,11 @@ async function envelopeFixture(options: {
   readonly holdoutCasePackDir: string
   readonly manifest: {
     readonly evaluationEvidenceId: string
+    readonly governance: {
+      readonly modelIdentityHash: string
+      readonly admissionInputDigest: string
+      readonly holdoutInputDigest: string
+    }
     readonly baseline: { readonly descriptorTreeHash: string }
     readonly admissionCasePackHash: string
     readonly holdoutCasePackHash: string
@@ -172,6 +206,11 @@ async function envelopeFixture(options: {
   const vault = new SkillEvaluationEvidenceVault([policy], { list: () => gaps })
   const prepared = await vault.prepare(opportunity())
   if (prepared.status !== 'ready') throw new Error('expected evaluation evidence')
+  const governed = await vault.readForGovernance(
+    WORKSPACE_ID,
+    opportunity().id,
+    prepared.evidence.id,
+  )
   const candidate = experienceSkillCandidate({
     opportunity: {
       kind: 'internal-experience-v1',
@@ -183,10 +222,16 @@ async function envelopeFixture(options: {
       kind: 'bounded-model-authoring-v1',
       policyId: 'workspace-experience-author',
       modelIdentityHash: '5'.repeat(64),
+      evaluationEvidenceId: prepared.evidence.id,
       inputDigest: prepared.evidence.authoringInputDigest,
     },
   })
-  const envelopeRoot = join(governanceRoot, 'envelopes', '2'.repeat(64))
+  const envelopeRoot = join(
+    governanceRoot,
+    'envelopes',
+    '2'.repeat(64),
+    prepared.evidence.id,
+  )
   const baselineDir = join(envelopeRoot, 'baseline')
   const admissionCasePackDir = join(envelopeRoot, 'admission')
   const holdoutCasePackDir = join(envelopeRoot, 'holdout')
@@ -212,8 +257,8 @@ async function envelopeFixture(options: {
     options.holdoutContent ?? '{"holdout":true}\n',
   )
   const manifest = {
-    schemaVersion: 3 as const,
-    kind: 'internal-skill-evaluation-envelope-v3' as const,
+    schemaVersion: 4 as const,
+    kind: 'internal-skill-evaluation-envelope-v4' as const,
     workspaceId: WORKSPACE_ID,
     evaluationEvidenceId: prepared.evidence.id,
     opportunity: {
@@ -225,6 +270,11 @@ async function envelopeFixture(options: {
     baseline: {
       kind: 'capability-absent' as const,
       descriptorTreeHash: await hashTree(baselineDir),
+    },
+    governance: {
+      modelIdentityHash: '6'.repeat(64),
+      admissionInputDigest: skillEvaluationProtectedInputDigest(governed, 'admission'),
+      holdoutInputDigest: skillEvaluationProtectedInputDigest(governed, 'holdout'),
     },
     admissionCasePackHash: await hashTree(admissionCasePackDir),
     holdoutCasePackHash: await hashTree(holdoutCasePackDir),

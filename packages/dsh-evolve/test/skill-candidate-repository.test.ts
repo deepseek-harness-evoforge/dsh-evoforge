@@ -21,7 +21,7 @@ describe('internal experience Skill Candidate repository', () => {
     const recordCandidate = vi.fn(async (input: ExperienceSkillCandidateInput) => ({
       created: true,
       candidate: {
-        schemaVersion: 1 as const,
+        schemaVersion: 2 as const,
         id: skillCandidateId(input),
         ...input,
       },
@@ -49,6 +49,7 @@ describe('internal experience Skill Candidate repository', () => {
       gapIds: ['2'.repeat(64), '3'.repeat(64)],
       goalCount: 2,
       modelIdentity: 'private-provider-route',
+      evaluationEvidenceId: '9'.repeat(64),
       inputDigest: '4'.repeat(64),
       files: [
         { path: 'SKILL.md', content: skillMd },
@@ -70,6 +71,7 @@ describe('internal experience Skill Candidate repository', () => {
         kind: 'bounded-model-authoring-v1',
         policyId: 'workspace-experience-author',
         modelIdentityHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+        evaluationEvidenceId: '9'.repeat(64),
         inputDigest: '4'.repeat(64),
       },
       version: {
@@ -111,6 +113,7 @@ describe('internal experience Skill Candidate repository', () => {
       gapIds: ['2'.repeat(64)],
       goalCount: 1,
       modelIdentity: 'private-provider-route',
+      evaluationEvidenceId: '9'.repeat(64),
       inputDigest: '4'.repeat(64),
       files: [
         {

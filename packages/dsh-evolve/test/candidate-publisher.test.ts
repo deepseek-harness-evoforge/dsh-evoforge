@@ -451,11 +451,12 @@ function discoveredLineage(
   contentHash = '2'.repeat(64),
 ): SkillCandidateLineage {
   return {
-    kind: 'internal-skill-candidate-lineage-v2',
+    kind: 'internal-skill-candidate-lineage-v3',
     candidateId: '1'.repeat(64),
     workspaceId: WORKSPACE_ID,
     skillName: 'stable-skill',
     opportunityId: '4'.repeat(64),
+    evaluationEvidenceId: '6'.repeat(64),
     policyId: 'stable-skill-author',
     versionKind: 'experience-authored-bundle-v1',
     contentHash,

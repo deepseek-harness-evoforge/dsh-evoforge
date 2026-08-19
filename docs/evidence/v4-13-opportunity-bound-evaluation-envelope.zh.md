@@ -3,6 +3,7 @@
 > 声明等级：`implemented`，不是 `verified/released`。本文证明内部 Candidate 的评测入口不再由配置预选
 > Skill、baseline 或 Case Pack，并证明一个治理面 Envelope 能贯穿 deterministic admission 与 independent
 > assembled holdout。本文不证明治理包已自主生成、真实 provider 改善、Retention 或 Hermes 上位。
+> 后续 [V4.18](v4-18-autonomous-governance-envelope.zh.md) 已将活动格式升级为按 evidence seal 寻址的 Envelope v4，并补 Candidate-independent 治理包形成；本文保留为旧入口边界证据。
 
 ## 用户可观察不变量
 

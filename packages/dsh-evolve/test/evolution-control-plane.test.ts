@@ -34,11 +34,12 @@ function opportunityEvidence() {
 
 function lineage(candidateTreeHash = '1'.repeat(64)) {
   return {
-    kind: 'internal-skill-candidate-lineage-v2' as const,
+    kind: 'internal-skill-candidate-lineage-v3' as const,
     candidateId: '8'.repeat(64),
     workspaceId: WORKSPACE_ID,
     skillName: 'build-dsh-plugin',
     opportunityId: '7'.repeat(64),
+    evaluationEvidenceId: '6'.repeat(64),
     policyId: 'bounded-author',
     versionKind: 'experience-authored-bundle-v1' as const,
     contentHash: '9'.repeat(64),
@@ -376,6 +377,7 @@ describe('EvolutionControlPlane', () => {
             kind: 'bounded-model-authoring-v1' as const,
             policyId: 'internal-experience-author',
             modelIdentityHash: 'a'.repeat(64),
+            evaluationEvidenceId: '9'.repeat(64),
             inputDigest: 'b'.repeat(64),
           },
           version: {
@@ -560,6 +562,7 @@ describe('EvolutionControlPlane', () => {
           authorship: {
             kind: 'bounded-model-authoring-v1',
             policyId: 'internal-experience-author',
+            evaluationEvidenceId: '9'.repeat(64),
           },
           version: { kind: 'experience-authored-bundle-v1', treeHash: 'd'.repeat(64) },
           contentHash: 'c'.repeat(64),

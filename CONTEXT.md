@@ -119,8 +119,12 @@ A content-addressed, governance-owned partition made before Candidate authoring 
 _Avoid_: Random train/test split, Candidate-authored cases, post-hoc evaluator target, external Skill research
 
 **Skill Evaluation Envelope**:
-A content-addressed, governance-owned binding from one exact current Skill Opportunity and Skill Evaluation Evidence Seal to a `capability-absent` subject descriptor, deterministic admission Case Pack, independent assembled holdout Case Pack, and isolated run roots. Because an Opportunity starts from an exact native-catalog miss, its baseline contains no `SKILL.md`; a placeholder Skill is forbidden. Deployment policy selects only the Workspace governance and run roots; it cannot select the Skill, baseline, Case Pack, or Candidate direction. Any author-input mismatch, Opportunity mismatch, content drift, shared admission/holdout identity, symlink, extra baseline file, or root overlap fails closed.
+A content-addressed, governance-owned binding from one exact current Skill Opportunity and Skill Evaluation Evidence Seal to a `capability-absent` subject descriptor, calibrated admission Case Pack, independent assembled holdout Case Pack, and isolated run roots. Its identity includes the protected-sample author inputs and governance author identity; the path is scoped by both Opportunity and evidence seal so later Goal evidence cannot silently retarget an older Candidate. Because an Opportunity starts from an exact native-catalog miss, its baseline contains no `SKILL.md`; a placeholder Skill is forbidden. Deployment policy selects only the Workspace governance, pinned DSH revision, run roots, and attempt budget; it cannot select the Skill, baseline, Case Pack, or Candidate direction. Any author-input mismatch, Opportunity mismatch, content drift, shared admission/holdout identity, symlink, extra baseline file, or root overlap fails closed.
 _Avoid_: Evaluation Target, operator-selected Skill, Candidate-authored test plan, mutable Case Pack, release authority
+
+**Governance Case Pack Authoring**:
+The candidate-independent activity that turns the protected admission and holdout subsets of one Skill Evaluation Evidence Seal into two separately authored, zero-proposer-calibrated Case Packs before Candidate evaluation. Its authors receive no Candidate artifact, and a dispatched but unobserved paid result becomes uncertain rather than being retried.
+_Avoid_: Candidate self-test, proposer-authored judge, operator-selected evaluation target, unsealed evaluator generation
 
 **Capability-Absent Baseline**:
 The exact DSH comparison subject for a missing-Skill Opportunity: the target Skill is not installed in the baseline profile and the exact whole-Skill Candidate is installed only in the Candidate profile. Both sides use the same DSH revision, task path, evaluator, permissions, and budget; only target Skill presence/body may differ in normalized composition.
@@ -151,7 +155,7 @@ A compact factual observation linked to an existing DSH session or artifact, suc
 _Avoid_: Full transcript copy, model reflection
 
 **Evolution Candidate**:
-An inactive, versioned diff owned by exactly one registered DSH Workspace, accompanied by a falsifiable improvement claim and a trial plan. Candidate creation cannot alter any active session or be reviewed, promoted, or reused from another Workspace.
+An inactive, versioned diff owned by exactly one registered DSH Workspace and bound to the exact pre-authoring Skill Evaluation Evidence Seal that supplied its visible evidence, accompanied by a falsifiable improvement claim and a trial plan. Candidate creation cannot alter any active session or be reviewed, promoted, or reused from another Workspace.
 _Avoid_: Live patch, learned rule
 
 **Evolution Candidate Lineage**:

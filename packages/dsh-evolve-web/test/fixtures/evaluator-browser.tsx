@@ -72,11 +72,12 @@ const runs: Array<{
 }> = []
 
 const semanticLineage = {
-  kind: 'internal-skill-candidate-lineage-v2' as const,
+  kind: 'internal-skill-candidate-lineage-v3' as const,
   candidateId: '4'.repeat(64),
   workspaceId,
   skillName: 'publish-dsh-plugin',
   opportunityId: '7'.repeat(64),
+  evaluationEvidenceId: '6'.repeat(64),
   policyId: 'publish-author',
   versionKind: 'experience-authored-bundle-v1' as const,
   contentHash: 'a'.repeat(64),
@@ -312,6 +313,7 @@ const remote: EvolutionRemoteClient = {
                 kind: 'bounded-model-authoring-v1' as const,
                 policyId: 'internal-experience-author',
                 modelIdentityHash: '4'.repeat(64),
+                evaluationEvidenceId: 'e'.repeat(64),
                 inputDigest: '5'.repeat(64),
               },
               scope: 'workspace' as const,

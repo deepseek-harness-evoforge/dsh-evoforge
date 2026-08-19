@@ -166,11 +166,12 @@ describe.skipIf(process.platform !== 'darwin')('sealed counterfactual canary run
       epoch: { dshRevision: string; evaluatorVersion: string }
     }
     const lineage = {
-      kind: 'internal-skill-candidate-lineage-v2' as const,
+      kind: 'internal-skill-candidate-lineage-v3' as const,
       candidateId: 'a'.repeat(64),
       workspaceId: WORKSPACE_ID,
       skillName: 'browser-e2e-baseline',
       opportunityId: 'b'.repeat(64),
+      evaluationEvidenceId: '6'.repeat(64),
       policyId: 'browser-skill-author',
       versionKind: 'experience-authored-bundle-v1' as const,
       contentHash: bundle.artifactDigest,

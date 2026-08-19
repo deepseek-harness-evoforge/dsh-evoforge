@@ -7,7 +7,10 @@ import { hashTree } from '../src/hash.ts'
 import { SkillCandidateAdmission } from '../src/skill-candidate-admission.ts'
 import { SkillCandidateShadowLauncher } from '../src/skill-candidate-shadow.ts'
 import { SkillEvaluationEnvelopeResolver } from '../src/skill-evaluation-envelope.ts'
-import { SkillEvaluationEvidenceVault } from '../src/skill-evaluation-evidence-vault.ts'
+import {
+  SkillEvaluationEvidenceVault,
+  skillEvaluationProtectedInputDigest,
+} from '../src/skill-evaluation-evidence-vault.ts'
 import type {
   ExperienceSkillCandidate,
   MaterializedSkillCandidate,
@@ -89,8 +92,9 @@ describe('Opportunity-bound internal Candidate evaluation flow', () => {
       expectedCasePackHash: await hashTree(fixture.holdoutDir),
       exactCandidate: expect.objectContaining({
         lineage: expect.objectContaining({
-          kind: 'internal-skill-candidate-lineage-v2',
+          kind: 'internal-skill-candidate-lineage-v3',
           opportunityId: opportunity.id,
+          evaluationEvidenceId: candidate.authorship.evaluationEvidenceId,
           evaluationEnvelopeId: admitted.envelopeId,
           releaseAuthority: 'none',
         }),
@@ -131,8 +135,22 @@ async function flowFixture(): Promise<{
   const vault = new SkillEvaluationEvidenceVault([policy], { list: () => gaps })
   const prepared = await vault.prepare(opportunity)
   if (prepared.status !== 'ready') throw new Error('expected evaluation evidence')
-  const candidate = await candidateFixture(prepared.evidence.authoringInputDigest, gaps)
-  const envelopeRoot = join(governanceRoot, 'envelopes', '2'.repeat(64))
+  const governed = await vault.readForGovernance(
+    WORKSPACE_ID,
+    opportunity.id,
+    prepared.evidence.id,
+  )
+  const candidate = await candidateFixture(
+    prepared.evidence.id,
+    prepared.evidence.authoringInputDigest,
+    gaps,
+  )
+  const envelopeRoot = join(
+    governanceRoot,
+    'envelopes',
+    '2'.repeat(64),
+    prepared.evidence.id,
+  )
   const baselineDir = join(envelopeRoot, 'baseline')
   const admissionDir = join(envelopeRoot, 'admission')
   const holdoutDir = join(envelopeRoot, 'holdout')
@@ -148,8 +166,8 @@ async function flowFixture(): Promise<{
   await writeCasePack(admissionDir, 'internal-admission', false)
   await writeCasePack(holdoutDir, 'internal-holdout', true)
   await writeFile(join(envelopeRoot, 'manifest.json'), `${JSON.stringify({
-    schemaVersion: 3,
-    kind: 'internal-skill-evaluation-envelope-v3',
+    schemaVersion: 4,
+    kind: 'internal-skill-evaluation-envelope-v4',
     workspaceId: WORKSPACE_ID,
     evaluationEvidenceId: prepared.evidence.id,
     opportunity: {
@@ -161,6 +179,11 @@ async function flowFixture(): Promise<{
     baseline: {
       kind: 'capability-absent',
       descriptorTreeHash: await hashTree(baselineDir),
+    },
+    governance: {
+      modelIdentityHash: '6'.repeat(64),
+      admissionInputDigest: skillEvaluationProtectedInputDigest(governed, 'admission'),
+      holdoutInputDigest: skillEvaluationProtectedInputDigest(governed, 'holdout'),
     },
     admissionCasePackHash: await hashTree(admissionDir),
     holdoutCasePackHash: await hashTree(holdoutDir),
@@ -187,6 +210,7 @@ async function writeCasePack(path: string, id: string, assembled: boolean): Prom
 }
 
 async function candidateFixture(
+  evaluationEvidenceId: string,
   inputDigest: string,
   gaps: readonly CapabilityGap[],
 ): Promise<ExperienceSkillCandidate> {
@@ -204,6 +228,7 @@ async function candidateFixture(
       kind: 'bounded-model-authoring-v1',
       policyId: 'workspace-experience-author',
       modelIdentityHash: '5'.repeat(64),
+      evaluationEvidenceId,
       inputDigest,
     },
     version: {

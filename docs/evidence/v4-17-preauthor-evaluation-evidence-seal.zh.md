@@ -29,4 +29,4 @@
 
 ## 明确未证明
 
-seal 只解决“Candidate 作者不能看到用于 admission/holdout 的内部 Goal 样本”和“评测包不能事后脱离作者输入”两个治理断点。它尚未把 protected Goal objective、Delivery Outcome、纠正和回归事实自主转换成可执行、已校准的 admission/holdout Case Pack；现有 Envelope 目录仍需治理侧提供 Case Pack。真实 provider paired Trial、长期 transfer/negative-transfer、exact 飞书消息、Hermes 同条件 benchmark 和发布 tag 仍未完成。
+本证据完成时，seal 只解决“Candidate 作者不能看到用于 admission/holdout 的内部 Goal 样本”和“评测包不能事后脱离作者输入”两个治理断点，Envelope 目录仍需治理侧提供 Case Pack。后续 [V4.18](v4-18-autonomous-governance-envelope.zh.md) 已实现 Candidate-independent 治理作者、零 proposer 校准、Envelope v4 原子安装和 uncertain restart 门；但真实 provider paired Trial、长期 transfer/negative-transfer、exact 飞书消息、Hermes 同条件 benchmark 和发布 tag 仍未完成。

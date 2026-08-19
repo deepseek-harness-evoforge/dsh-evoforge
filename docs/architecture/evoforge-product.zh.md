@@ -1,6 +1,6 @@
 # EvoForge 产品架构
 
-> 状态：产品边界已确认；Telegram、飞书两个 Assistant Adapter 与进化注意力桥已实现；内部经验驱动的 Skill Opportunity、生成前独立 Goal 证据密封、Candidate、Opportunity-bound Envelope v3、capability-absent assembled Shadow/Retention/canary 与内容寻址 future-Session Generation 已实现，从密封样本自主形成/校准 Case Pack 和真实评估闭环仍待完成与验收
+> 状态：产品边界已确认；Telegram、飞书两个 Assistant Adapter 与进化注意力桥已实现；内部经验驱动的 Skill Opportunity、生成前独立 Goal 证据密封、seal-bound Candidate v2、Candidate-independent Governance Case Pack Authoring、Envelope v4、Lineage v3、capability-absent assembled Shadow/Retention/canary 与内容寻址 future-Session Generation 已实现；治理包真实 provider assembled 评估闭环仍待完成与验收
 > 更新日期：2026-08-19
 
 ## 1. 产品结果
@@ -44,7 +44,7 @@ Trial Runner、Decision 与 Release 在证明有两个独立消费者或信任�
 数量拆成浅插件。
 
 内部 Candidate 评测的 profile 只允许 Workspace 级 governance/run roots，不再指定 Skill、baseline 或
-Case Pack。Host 以当前 Opportunity id 解析严格、内容寻址的 Evaluation Envelope v3；它必须重新核对
+Case Pack。Host 以当前 Opportunity id 与 Candidate 绑定的 evidence-seal id 解析严格、内容寻址的 Evaluation Envelope v4；它必须重新核对
 evidence seal 与 author-input digest，再由同一 Envelope 同时
 约束 deterministic admission 与独立 assembled holdout，并把 identity 写入 Candidate Lineage。baseline 只
 允许 Opportunity-bound `subject.json`，不安装目标 Skill；Candidate 侧才安装 exact whole-Skill，禁止用占位
@@ -160,7 +160,7 @@ Resident 只恢复进程，Goal Continuity 只决定 exact Session 的原生 Goa
 | 软件交付 | 原生 Goal 到 verified commit/Draft PR | verified commit、幂等 Draft PR、可选 exact-head checks 门、有界 active-call wait 与原生 Goal 受验证完成 implemented；真实任务数据 pending |
 | 单机持续运行 | crash-resume、幂等恢复、无半激活版本 | Generation release + Shadow journal + native Jobs supervisor、`dsh-goal-continuity` Goal 冷恢复与 `dsh-resident` 真实 macOS DSH PID `SIGKILL` 拉起已实现；Linux 真机与生产多日 soak pending |
 | Memory/Skill | 复用 DSH/社区能力，不造第二套 Memory | 架构边界已确认 |
-| 内部经验自我发现 | 自然语言 Goal 自动使用已安装的适用能力；反复出现真实缺口时从自身经验形成可复核 Opportunity 和完整候选 | 原生目录/路由证据、可证伪 Gap、至少两个独立 Goal 的 Opportunity、至少四个 Goal 后的 authoring/admission/holdout 预密封、无 Skill 预配置的 Workspace policy、instruction-only whole-Skill v1 quarantine 与 Web readiness implemented；从密封样本自主形成 Case Pack、真实 provider、迁移/成本门禁与 paired benchmark pending |
+| 内部经验自我发现 | 自然语言 Goal 自动使用已安装的适用能力；反复出现真实缺口时从自身经验形成可复核 Opportunity 和完整候选 | 原生目录/路由证据、可证伪 Gap、至少两个独立 Goal 的 Opportunity、至少四个 Goal 后的 authoring/admission/holdout 预密封、无 Skill 预配置的 Workspace policy、seal-bound Candidate v2、Candidate-independent governance Case Pack authoring/zero-proposer calibration、Envelope v4/Lineage v3 与 Web readiness implemented；真实 provider assembled 整链、迁移/成本门禁与 paired benchmark pending |
 | 消息与日程 | 按真实 workflow 提供可拆 Adapter | Telegram、飞书与 Evolve 注意力桥 implemented；真实飞书 App 握手与 setup-only 配对通过，exact route 消息/Hermes paired 与其他场景 pending |
 | 人类控制 | 状态、证据、审批、暂停、回滚不阻塞会话 | P0C Commands/Web + P3.1 非阻塞 Telegram attention + P3.2 Draft PR review follow-up implemented；语义 capability 审计与陌生用户可用性数据 pending |
 | 自进化 | 独立 final-test、inactive Candidate、可证明晋升 | P0A `fail → pass` + P0B verified-Git/resident resume + P0C inactive publication + P1.1 opt-in auto policy + P2D.1 Outcome + P1.2 exact-parent 反事实回滚 + P1.3 feedback intake + P1.4 private Case Draft + P1.5 feedback-guided Shadow + P1.6 pre-proposal calibration + P1.7 explicit evaluator authoring + P1.8 target-bound launch + P1.9 private Evaluator Draft/human qualification + P1.15 crash-safe automatic budget + P1.16 opt-in automatic inactive Evaluator Draft + P1.17 human-approved Qualify-and-Shadow + P1.18 per-Skill automatic inflight gate + P1.19 bounded automatic ambiguous review + P1.20 review-window visibility + P1.21 parent outcome comparison；真实 provider、陌生用户与长期效果 pending |

@@ -14,11 +14,12 @@ describe('internal Skill Candidate lineage', () => {
     const lineage = createSkillCandidateLineage(candidate, admission)
 
     expect(lineage).toEqual({
-      kind: 'internal-skill-candidate-lineage-v2',
+      kind: 'internal-skill-candidate-lineage-v3',
       candidateId: candidate.id,
       workspaceId: WORKSPACE_ID,
       skillName: 'release-proof',
       opportunityId: candidate.opportunity.id,
+      evaluationEvidenceId: candidate.authorship.evaluationEvidenceId,
       policyId: 'workspace-experience-author',
       versionKind: 'experience-authored-bundle-v1',
       contentHash: candidate.contentHash,
@@ -50,7 +51,7 @@ describe('internal Skill Candidate lineage', () => {
 
 function fixtureCandidate(): ExperienceSkillCandidate {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: '1'.repeat(64),
     createdAt: 1,
     workspaceId: WORKSPACE_ID,
@@ -66,6 +67,7 @@ function fixtureCandidate(): ExperienceSkillCandidate {
       kind: 'bounded-model-authoring-v1',
       policyId: 'workspace-experience-author',
       modelIdentityHash: '5'.repeat(64),
+      evaluationEvidenceId: '9'.repeat(64),
       inputDigest: '6'.repeat(64),
     },
     scope: 'workspace',

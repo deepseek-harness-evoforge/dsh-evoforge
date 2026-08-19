@@ -15,6 +15,7 @@ import type {
   SkillCandidateProposal,
   ExperienceSkillCandidate,
 } from './skill-candidate-repository.ts'
+import { boundedModelProviderIdentity } from './model-provider-identity.ts'
 
 const CONTENT_ID = /^[a-f0-9]{64}$/
 const PUBLIC_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
@@ -467,6 +468,7 @@ export class SlowLoopSkillAuthoring {
         gapIds: [...opportunity.gapIds].sort(),
         goalCount: opportunity.goalCount,
         modelIdentity: state.identity.modelIdentity,
+        evaluationEvidenceId: evidence.id,
         inputDigest: state.identity.inputDigest,
         files: proposal.files,
       })
@@ -839,11 +841,10 @@ async function readBoundedResponseJson(response: Response): Promise<unknown> {
 class ObservedAuthoringResponseError extends Error {}
 
 function configuredModelIdentity(): string {
-  return sha256(JSON.stringify({
-    baseUrl: requireEnvironment('DSH_EVOLVE_MODEL_BASE_URL'),
-    model: requireEnvironment('DSH_EVOLVE_MODEL_NAME'),
-    contract: POLICY_VERSION,
-  }))
+  return boundedModelProviderIdentity(
+    requireEnvironment('DSH_EVOLVE_MODEL_BASE_URL'),
+    requireEnvironment('DSH_EVOLVE_MODEL_NAME'),
+  )
 }
 
 function requireEnvironment(name: string): string {

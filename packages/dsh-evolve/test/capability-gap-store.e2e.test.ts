@@ -268,6 +268,7 @@ function skillCandidateInput(marker: string, createdAt: number): ExperienceSkill
       kind: 'bounded-model-authoring-v1' as const,
       policyId: 'workspace-experience-author',
       modelIdentityHash: 'c'.repeat(64),
+      evaluationEvidenceId: 'b'.repeat(64),
       inputDigest: 'd'.repeat(64),
     },
     scope: 'workspace' as const,

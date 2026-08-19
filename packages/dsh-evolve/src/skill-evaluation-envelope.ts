@@ -17,6 +17,8 @@ export interface SkillCandidateEvaluationPolicyConfig {
   readonly workspaceId: string
   readonly governanceRoot: string
   readonly runRoot: string
+  readonly dshRevision?: string
+  readonly maxAttemptsPerUtcDay?: number
 }
 
 export interface ResolvedSkillEvaluationEnvelope {
@@ -53,8 +55,22 @@ interface EvaluationEvidenceReader {
   verifyCandidateBinding(
     candidate: Pick<ExperienceSkillCandidate,
       'workspaceId' | 'skillName' | 'opportunity' | 'authorship'>,
-    evidenceId: string,
   ): Promise<void>
+  verifyEnvelopeProtectedInputs(
+    candidate: Pick<ExperienceSkillCandidate,
+      'workspaceId' | 'skillName' | 'opportunity' | 'authorship'>,
+    inputs: {
+      readonly admissionInputDigest: string
+      readonly holdoutInputDigest: string
+    },
+  ): Promise<void>
+}
+
+interface EvaluationEnvelopeProvisioner {
+  ensure(candidate: Pick<ExperienceSkillCandidate,
+    'workspaceId' | 'skillName' | 'opportunity' | 'authorship'>): Promise<{
+      readonly status: 'ready' | 'budget-deferred'
+    }>
 }
 
 interface ResolvedPolicy extends SkillCandidateEvaluationPolicyConfig {
@@ -63,8 +79,8 @@ interface ResolvedPolicy extends SkillCandidateEvaluationPolicyConfig {
 }
 
 const manifestSchema = z.strictObject({
-  schemaVersion: z.literal(3),
-  kind: z.literal('internal-skill-evaluation-envelope-v3'),
+  schemaVersion: z.literal(4),
+  kind: z.literal('internal-skill-evaluation-envelope-v4'),
   workspaceId: z.uuid(),
   evaluationEvidenceId: z.string().regex(CONTENT_ID),
   opportunity: z.strictObject({
@@ -76,6 +92,11 @@ const manifestSchema = z.strictObject({
   baseline: z.strictObject({
     kind: z.literal('capability-absent'),
     descriptorTreeHash: z.string().regex(CONTENT_ID),
+  }),
+  governance: z.strictObject({
+    modelIdentityHash: z.string().regex(CONTENT_ID),
+    admissionInputDigest: z.string().regex(CONTENT_ID),
+    holdoutInputDigest: z.string().regex(CONTENT_ID),
   }),
   admissionCasePackHash: z.string().regex(CONTENT_ID),
   holdoutCasePackHash: z.string().regex(CONTENT_ID),
@@ -96,11 +117,13 @@ export class SkillEvaluationEnvelopeResolver {
   private readonly policies = new Map<string, ResolvedPolicy>()
   private readonly opportunities: OpportunityReader
   private readonly evidence: EvaluationEvidenceReader
+  private readonly provisioner: EvaluationEnvelopeProvisioner | undefined
 
   constructor(
     policies: readonly SkillCandidateEvaluationPolicyConfig[],
     opportunities: OpportunityReader,
     evidence: EvaluationEvidenceReader,
+    provisioner?: EvaluationEnvelopeProvisioner,
   ) {
     assertSkillCandidateEvaluationPolicies(policies)
     for (const policy of policies) {
@@ -112,6 +135,7 @@ export class SkillEvaluationEnvelopeResolver {
     }
     this.opportunities = opportunities
     this.evidence = evidence
+    this.provisioner = provisioner
   }
 
   hasPolicy(workspaceId: string): boolean {
@@ -153,13 +177,24 @@ export class SkillEvaluationEnvelopeResolver {
       throw new Error('evaluation governance and run roots must not overlap')
     }
 
-    const expectedEnvelopeRoot = join(governanceRoot, 'envelopes', candidate.opportunity.id)
+    const expectedEnvelopeRoot = join(
+      governanceRoot,
+      'envelopes',
+      candidate.opportunity.id,
+      candidate.authorship.evaluationEvidenceId,
+    )
     let envelopeRoot: string
     try {
       envelopeRoot = await exactDirectory(expectedEnvelopeRoot, 'Skill Evaluation Envelope')
     } catch (error) {
-      if (isMissing(error)) return undefined
-      throw error
+      if (isMissing(error)) {
+        if (this.provisioner === undefined) return undefined
+        const provisioned = await this.provisioner.ensure(candidate)
+        if (provisioned.status !== 'ready') return undefined
+        envelopeRoot = await exactDirectory(expectedEnvelopeRoot, 'Skill Evaluation Envelope')
+      } else {
+        throw error
+      }
     }
     if (envelopeRoot !== expectedEnvelopeRoot) {
       throw new Error('Skill Evaluation Envelope path is not exact')
@@ -186,7 +221,11 @@ export class SkillEvaluationEnvelopeResolver {
       || JSON.stringify([...manifest.opportunity.gapIds].sort()) !== JSON.stringify(gapIds)) {
       throw new Error('Skill Evaluation Envelope does not match its internal Opportunity snapshot')
     }
-    await this.evidence.verifyCandidateBinding(candidate, manifest.evaluationEvidenceId)
+    if (manifest.evaluationEvidenceId !== candidate.authorship.evaluationEvidenceId) {
+      throw new Error('Skill Evaluation Envelope does not match the Candidate evidence seal')
+    }
+    await this.evidence.verifyCandidateBinding(candidate)
+    await this.evidence.verifyEnvelopeProtectedInputs(candidate, manifest.governance)
 
     const baselineDir = await exactChildDirectory(envelopeRoot, 'baseline')
     const baselineSubject = await readCapabilityAbsentSubject(baselineDir)
@@ -246,7 +285,7 @@ export class SkillEvaluationEnvelopeResolver {
 
 function evaluationEnvelopeId(policyId: string, manifest: SkillEvaluationEnvelopeManifest): string {
   return createHash('sha256').update(JSON.stringify([
-    'internal-skill-evaluation-envelope-v3',
+    'internal-skill-evaluation-envelope-v4',
     policyId,
     manifest.workspaceId,
     manifest.evaluationEvidenceId,
@@ -256,6 +295,9 @@ function evaluationEnvelopeId(policyId: string, manifest: SkillEvaluationEnvelop
     manifest.opportunity.goalCount,
     manifest.baseline.kind,
     manifest.baseline.descriptorTreeHash,
+    manifest.governance.modelIdentityHash,
+    manifest.governance.admissionInputDigest,
+    manifest.governance.holdoutInputDigest,
     manifest.admissionCasePackHash,
     manifest.holdoutCasePackHash,
   ])).digest('hex')
@@ -287,6 +329,16 @@ export function assertSkillCandidateEvaluationPolicies(
     }
     if (!isAbsolute(policy.governanceRoot) || !isAbsolute(policy.runRoot)) {
       throw new Error(`Skill evaluation policy '${policy.id}' roots must be absolute`)
+    }
+    if (policy.dshRevision !== undefined
+      && !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/u.test(policy.dshRevision)) {
+      throw new Error(`Skill evaluation policy '${policy.id}' DSH revision must be exact`)
+    }
+    if (policy.maxAttemptsPerUtcDay !== undefined
+      && (!Number.isInteger(policy.maxAttemptsPerUtcDay)
+        || policy.maxAttemptsPerUtcDay < 1
+        || policy.maxAttemptsPerUtcDay > 20)) {
+      throw new Error(`Skill evaluation policy '${policy.id}' daily attempt limit is invalid`)
     }
     if (dirname(resolve(policy.governanceRoot)) === resolve(policy.governanceRoot)
       || dirname(resolve(policy.runRoot)) === resolve(policy.runRoot)) {

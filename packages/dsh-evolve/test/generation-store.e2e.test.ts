@@ -526,11 +526,12 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
 
 function discoveredLineage(candidateTreeHash: string): SkillCandidateLineage {
   return {
-    kind: 'internal-skill-candidate-lineage-v2',
+    kind: 'internal-skill-candidate-lineage-v3',
     candidateId: '1'.repeat(64),
     workspaceId: WORKSPACE_ID,
     skillName: 'build-dsh-plugin',
     opportunityId: '4'.repeat(64),
+    evaluationEvidenceId: '6'.repeat(64),
     policyId: 'build-dsh-plugin-author',
     versionKind: 'experience-authored-bundle-v1',
     contentHash: '2'.repeat(64),

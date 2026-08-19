@@ -105,11 +105,12 @@ export type EvolutionSkillCandidateVersionKind = 'experience-authored-bundle-v1'
 
 /** Browser-safe identity of one internally discovered and admitted Candidate. */
 export interface EvolutionSkillCandidateLineageView {
-  readonly kind: 'internal-skill-candidate-lineage-v2'
+  readonly kind: 'internal-skill-candidate-lineage-v3'
   readonly candidateId: string
   readonly workspaceId: string
   readonly skillName: string
   readonly opportunityId: string
+  readonly evaluationEvidenceId: string
   readonly policyId: string
   readonly versionKind: EvolutionSkillCandidateVersionKind
   readonly contentHash: string
@@ -266,6 +267,7 @@ export interface EvolutionSkillCandidateView {
     readonly kind: 'bounded-model-authoring-v1'
     readonly policyId: string
     readonly modelIdentityHash: string
+    readonly evaluationEvidenceId: string
     readonly inputDigest: string
   }
   readonly scope: 'workspace'

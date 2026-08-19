@@ -18,7 +18,7 @@ const hashSchema = z.string().regex(CONTENT_ID)
 const safeInteger = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
 
 const candidateSchema = z.strictObject({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(2),
   id: hashSchema,
   createdAt: safeInteger,
   workspaceId: z.uuid(),
@@ -34,6 +34,7 @@ const candidateSchema = z.strictObject({
     kind: z.literal('bounded-model-authoring-v1'),
     policyId: z.string().regex(PUBLIC_ID),
     modelIdentityHash: hashSchema,
+    evaluationEvidenceId: hashSchema,
     inputDigest: hashSchema,
   }),
   scope: z.literal('workspace'),
@@ -97,6 +98,7 @@ export interface SkillCandidateProposal {
   readonly gapIds: readonly string[]
   readonly goalCount: number
   readonly modelIdentity: string
+  readonly evaluationEvidenceId: string
   readonly inputDigest: string
   readonly files: readonly SkillBundleTextFile[]
 }
@@ -124,7 +126,7 @@ export interface SkillCandidateStore {
 
 const candidateDomainSpec = defineDomain({
   name: 'evoforge_skill_candidates',
-  version: 1,
+  version: 2,
   tables: {
     candidates: domainTable<string, ExperienceSkillCandidate>(candidateSchema),
   },
@@ -149,7 +151,7 @@ class DomainSkillCandidateStore implements SkillCandidateStore {
       const table = this.domain.table('candidates')
       const existing = table.get(id)
       if (existing !== undefined) return { created: false, candidate: immutableCopy(existing) }
-      const candidate = immutableCopy(candidateSchema.parse({ schemaVersion: 1, id, ...input }))
+      const candidate = immutableCopy(candidateSchema.parse({ schemaVersion: 2, id, ...input }))
       await table.put(id, candidate)
       return { created: true, candidate }
     })
@@ -227,6 +229,7 @@ export class SkillCandidateRepository {
         kind: 'bounded-model-authoring-v1',
         policyId: proposal.policyId,
         modelIdentityHash: sha256(proposal.modelIdentity),
+        evaluationEvidenceId: proposal.evaluationEvidenceId,
         inputDigest: proposal.inputDigest,
       },
       scope: 'workspace',
@@ -317,12 +320,13 @@ export function skillCandidateId(
     'workspaceId' | 'skillName' | 'opportunity' | 'authorship' | 'version' | 'contentHash'>,
 ): string {
   return contentId([
-    'internal-experience-skill-candidate-v1',
+    'internal-experience-skill-candidate-v2',
     candidate.workspaceId,
     candidate.skillName,
     candidate.opportunity.id,
     candidate.authorship.policyId,
     candidate.authorship.modelIdentityHash,
+    candidate.authorship.evaluationEvidenceId,
     candidate.authorship.inputDigest,
     candidate.version.artifactDigest,
     candidate.version.treeHash,
@@ -375,6 +379,7 @@ function assertProposalIdentity(proposal: SkillCandidateProposal): void {
     || !PUBLIC_ID.test(proposal.skillName)
     || !PUBLIC_ID.test(proposal.policyId)
     || !CONTENT_ID.test(proposal.opportunityId)
+    || !CONTENT_ID.test(proposal.evaluationEvidenceId)
     || !CONTENT_ID.test(proposal.inputDigest)
     || proposal.gapIds.length < 2
     || proposal.gapIds.length > 1_000

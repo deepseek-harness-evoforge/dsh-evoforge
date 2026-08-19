@@ -1,0 +1,3 @@
+# ADR-0062：治理面在不读取 Candidate 的情况下形成 Case Pack
+
+内部 Candidate 不能继续依赖人工预置 Evaluation Envelope，也不能让 Skill proposer 编写或看到自己的 admission/holdout。`candidateEvaluationPolicies` 因此可在 Workspace 范围固定 exact DSH revision 与独立日预算；治理模块从 Candidate v2 显式绑定的 evidence-seal id 读取受保护样本，分别调用 admission/holdout 作者，零 proposer 校准后按 `Opportunity/evidence-seal` 原子安装 Envelope v4。治理作者输入不包含 Candidate 文件、正文或 id；治理作者与 Candidate proposer 的 model identity hash 相同时，必须在预算预留前 fail closed；Candidate Lineage v3 显式携带 seal id。可能已付费但结果不可确认时 journal 进入 `uncertain`，重启不得盲重试。该决定增加两个独立作者调用和校准成本，换取从内部经历到可执行治理包的自主形成、旧 Candidate 的精确评测身份以及 proposer/裁判隔离；真实 provider 与真实任务效果仍需单独验收。

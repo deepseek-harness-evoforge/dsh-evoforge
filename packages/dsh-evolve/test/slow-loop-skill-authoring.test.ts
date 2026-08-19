@@ -441,7 +441,7 @@ function skillFiles(name: string) {
 
 function generatedCandidate(input: SkillCandidateProposal): ExperienceSkillCandidate {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: '9'.repeat(64),
     createdAt: input.createdAt,
     workspaceId: input.workspaceId,
@@ -457,6 +457,7 @@ function generatedCandidate(input: SkillCandidateProposal): ExperienceSkillCandi
       kind: 'bounded-model-authoring-v1',
       policyId: input.policyId,
       modelIdentityHash: '5'.repeat(64),
+      evaluationEvidenceId: input.evaluationEvidenceId,
       inputDigest: input.inputDigest,
     },
     scope: 'workspace',
@@ -501,6 +502,7 @@ function existingCandidate(gaps: CapabilityGap[]): ExperienceSkillCandidate {
     gapIds: gaps.map(value => value.id),
     goalCount: new Set(gaps.map(value => value.goal?.id)).size,
     modelIdentity: 'provider/model@contract-v1',
+    evaluationEvidenceId: '2'.repeat(64),
     inputDigest: '3'.repeat(64),
     files: skillFiles('missing-release-skill'),
   })

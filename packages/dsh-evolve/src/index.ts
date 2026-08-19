@@ -28,6 +28,10 @@ import {
   type SkillCandidateEvaluationPolicyConfig,
 } from './skill-evaluation-envelope.ts'
 import { SkillEvaluationEvidenceVault } from './skill-evaluation-evidence-vault.ts'
+import {
+  SkillEvaluationGovernance,
+  type SkillEvaluationGovernancePolicyConfig,
+} from './skill-evaluation-governance.ts'
 import { installEvolutionCommand } from './evolve-command.ts'
 import { CandidatePublisher } from './candidate-publisher.ts'
 import { GitSkillSource, type GitSkillSourceConfig } from './git-skill-source.ts'
@@ -142,6 +146,8 @@ export const Config: Schema<Config> = z.object({
     workspaceId: z.string().required(),
     governanceRoot: z.string().required(),
     runRoot: z.string().required(),
+    dshRevision: z.string(),
+    maxAttemptsPerUtcDay: z.number().step(1).min(1).max(20).default(1),
   })).max(100).default([]),
   supervisor: z.object({
     runRoots: z.array(z.object({
@@ -223,10 +229,29 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     evaluation.workspaceId === policy.workspaceId))) {
     throw new Error('internal Skill authoring requires an evaluation governance policy for every Workspace')
   }
+  if (selfDiscoveryPolicies.some(policy => !candidateEvaluationPolicies.some(evaluation =>
+    evaluation.workspaceId === policy.workspaceId && evaluation.dshRevision !== undefined))) {
+    throw new Error('internal Skill authoring requires an exact DSH revision for autonomous evaluation governance')
+  }
   const skillEvaluationEvidence = new SkillEvaluationEvidenceVault(
     candidateEvaluationPolicies,
     capabilityGaps,
   )
+  const evaluationGovernancePolicies: SkillEvaluationGovernancePolicyConfig[] =
+    candidateEvaluationPolicies.flatMap(policy => policy.dshRevision === undefined
+      ? []
+      : [{
+          ...policy,
+          dshRevision: policy.dshRevision,
+          maxAttemptsPerUtcDay: policy.maxAttemptsPerUtcDay ?? 1,
+        }])
+  const skillEvaluationGovernance = evaluationGovernancePolicies.length === 0
+    ? undefined
+    : new SkillEvaluationGovernance({
+        policies: evaluationGovernancePolicies,
+        evidence: skillEvaluationEvidence,
+        budget: new AutomaticEvolutionBudget(),
+      })
   const shadowTargetsById = new Map(shadowTargets.map(target => [target.id, target]))
   const automaticFeedbackTargets: AutomaticFeedbackShadowTarget[] =
     automaticFeedbackTargetReferences.map((reference) => {
@@ -277,6 +302,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       candidateEvaluationPolicies,
       skillOpportunities,
       skillEvaluationEvidence,
+      skillEvaluationGovernance,
     )
     skillAdmission = new SkillCandidateAdmission(evaluationEnvelopes, skillCandidates)
     skillShadowScheduler = new SkillCandidateShadowScheduler(
@@ -726,6 +752,12 @@ export type {
 } from './generation-store.ts'
 export type { GitSkillSourceConfig } from './git-skill-source.ts'
 export type { SkillCandidateEvaluationPolicyConfig } from './skill-evaluation-envelope.ts'
+export type {
+  SkillEvaluationCaseAuthorInput,
+  SkillEvaluationCaseAuthorResult,
+  SkillEvaluationGovernancePolicyConfig,
+  SkillEvaluationGovernanceResult,
+} from './skill-evaluation-governance.ts'
 export type { FeedbackShadowTargetConfig } from './feedback-shadow-launcher.ts'
 export type { AutomaticFeedbackShadowTargetReference } from './automatic-feedback-shadow.ts'
 export type { AutomaticEvaluatorDraftTargetReference } from './automatic-evaluator-draft.ts'

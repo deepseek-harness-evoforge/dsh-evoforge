@@ -678,6 +678,7 @@ function projectSkillCandidateLineage(
     workspaceId: lineage.workspaceId,
     skillName: lineage.skillName,
     opportunityId: lineage.opportunityId,
+    evaluationEvidenceId: lineage.evaluationEvidenceId,
     policyId: lineage.policyId,
     versionKind: lineage.versionKind,
     contentHash: lineage.contentHash,

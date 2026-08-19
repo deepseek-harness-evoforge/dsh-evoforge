@@ -261,12 +261,11 @@ export class SkillEvaluationEvidenceVault {
   async verifyCandidateBinding(
     candidate: Pick<ExperienceSkillCandidate,
       'workspaceId' | 'skillName' | 'opportunity' | 'authorship'>,
-    evidenceId: string,
   ): Promise<void> {
     const manifest = await this.readForGovernance(
       candidate.workspaceId,
       candidate.opportunity.id,
-      evidenceId,
+      candidate.authorship.evaluationEvidenceId,
     )
     if (manifest.opportunity.skillName !== candidate.skillName
       || manifest.opportunity.goalCount !== candidate.opportunity.goalCount
@@ -276,6 +275,44 @@ export class SkillEvaluationEvidenceVault {
       throw new Error('Candidate authoring does not match its sealed evaluation evidence')
     }
   }
+
+  async verifyEnvelopeProtectedInputs(
+    candidate: Pick<ExperienceSkillCandidate,
+      'workspaceId' | 'skillName' | 'opportunity' | 'authorship'>,
+    inputs: {
+      readonly admissionInputDigest: string
+      readonly holdoutInputDigest: string
+    },
+  ): Promise<void> {
+    const manifest = await this.readForGovernance(
+      candidate.workspaceId,
+      candidate.opportunity.id,
+      candidate.authorship.evaluationEvidenceId,
+    )
+    if (inputs.admissionInputDigest !== skillEvaluationProtectedInputDigest(manifest, 'admission')
+      || inputs.holdoutInputDigest !== skillEvaluationProtectedInputDigest(manifest, 'holdout')) {
+      throw new Error('Evaluation Envelope protected inputs do not match their evidence seal')
+    }
+  }
+}
+
+export function skillEvaluationProtectedInputDigest(
+  manifest: SkillEvaluationEvidenceManifest,
+  role: 'admission' | 'holdout',
+): string {
+  return sha256(JSON.stringify({
+    kind: 'internal-skill-evaluation-case-input-v1',
+    role,
+    evidenceId: manifest.id,
+    opportunityId: manifest.opportunity.id,
+    skillName: manifest.opportunity.skillName,
+    goals: manifest.samples.filter(sample => sample.role === role).map(sample => ({
+      id: sample.goalId,
+      revision: sample.revision,
+      objective: sample.objective,
+      gapIds: sample.gapIds,
+    })),
+  }))
 }
 
 function buildManifest(

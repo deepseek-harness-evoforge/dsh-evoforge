@@ -9,11 +9,12 @@ export type SkillCandidateVersionKind = 'experience-authored-bundle-v1'
 
 /** Durable identity of one internally discovered, independently admitted Candidate. */
 export interface SkillCandidateLineage {
-  readonly kind: 'internal-skill-candidate-lineage-v2'
+  readonly kind: 'internal-skill-candidate-lineage-v3'
   readonly candidateId: string
   readonly workspaceId: string
   readonly skillName: string
   readonly opportunityId: string
+  readonly evaluationEvidenceId: string
   readonly policyId: string
   readonly versionKind: SkillCandidateVersionKind
   readonly contentHash: string
@@ -38,11 +39,12 @@ export function createSkillCandidateLineage(
     throw new Error('qualified admission cannot produce exact internal Skill Candidate lineage')
   }
   return parseSkillCandidateLineage({
-    kind: 'internal-skill-candidate-lineage-v2',
+    kind: 'internal-skill-candidate-lineage-v3',
     candidateId: candidate.id,
     workspaceId: candidate.workspaceId,
     skillName: candidate.skillName,
     opportunityId: candidate.opportunity.id,
+    evaluationEvidenceId: candidate.authorship.evaluationEvidenceId,
     policyId: candidate.authorship.policyId,
     versionKind: candidate.version.kind,
     contentHash: candidate.contentHash,
@@ -62,6 +64,7 @@ export function parseSkillCandidateLineage(value: unknown): SkillCandidateLineag
       'candidateTreeHash',
       'contentHash',
       'evaluationEnvelopeId',
+      'evaluationEvidenceId',
       'kind',
       'opportunityId',
       'policyId',
@@ -70,13 +73,14 @@ export function parseSkillCandidateLineage(value: unknown): SkillCandidateLineag
       'versionKind',
       'workspaceId',
     ].join(',')
-    || value.kind !== 'internal-skill-candidate-lineage-v2'
+    || value.kind !== 'internal-skill-candidate-lineage-v3'
     || !contentId(value.candidateId)
     || typeof value.workspaceId !== 'string'
     || !WORKSPACE_ID.test(value.workspaceId)
     || typeof value.skillName !== 'string'
     || !PUBLIC_ID.test(value.skillName)
     || !contentId(value.opportunityId)
+    || !contentId(value.evaluationEvidenceId)
     || typeof value.policyId !== 'string'
     || !PUBLIC_ID.test(value.policyId)
     || value.versionKind !== 'experience-authored-bundle-v1'
@@ -94,6 +98,7 @@ export function parseSkillCandidateLineage(value: unknown): SkillCandidateLineag
     workspaceId: value.workspaceId,
     skillName: value.skillName,
     opportunityId: value.opportunityId,
+    evaluationEvidenceId: value.evaluationEvidenceId,
     policyId: value.policyId,
     versionKind: value.versionKind,
     contentHash: value.contentHash,

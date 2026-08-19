@@ -578,6 +578,9 @@ function SkillCandidates({ summary, t }: { summary: EvolutionOverview; t: (key: 
                 {' · '}{t('skills.discovery.input')} {shortId(candidate.authorship.inputDigest)}
               </div>
               <div className="dsh-evolve-meta">
+                {t('skills.lineage.evidence')} · {candidate.authorship.evaluationEvidenceId.slice(0, 12)}
+              </div>
+              <div className="dsh-evolve-meta">
                 {skillVersionSummary(candidate.version, t)}
               </div>
               <div className="dsh-evolve-meta">
@@ -836,6 +839,7 @@ function SkillCandidateLineage({ lineage, t }: {
     </div>
     <ol className="dsh-evolve-lineage-flow">
       <LineageStep label={t('skills.lineage.opportunity')} id={lineage.opportunityId} />
+      <LineageStep label={t('skills.lineage.evidence')} id={lineage.evaluationEvidenceId} />
       <LineageStep
         label={t('skills.lineage.candidate')}
         id={lineage.candidateId}

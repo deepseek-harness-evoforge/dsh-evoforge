@@ -40,11 +40,12 @@ function internalOpportunityEvidence() {
 }
 
 const discoveredLineage = {
-  kind: 'internal-skill-candidate-lineage-v2' as const,
+  kind: 'internal-skill-candidate-lineage-v3' as const,
   candidateId: '8'.repeat(64),
   workspaceId,
   skillName: 'build-dsh-plugin',
   opportunityId: '7'.repeat(64),
+  evaluationEvidenceId: '6'.repeat(64),
   policyId: 'bounded-author',
   versionKind: 'experience-authored-bundle-v1' as const,
   contentHash: '9'.repeat(64),
@@ -367,6 +368,7 @@ const t = (key: string) => ({
   'skills.discovery': 'Internally authored Skill candidates',
   'skills.discovery.quarantined': 'Quarantined candidate',
   'skills.discovery.author': 'Internal author policy',
+  'skills.lineage.evidence': 'Evaluation evidence seal',
   'skills.discovery.version.experience-bundle': 'Internal-experience whole-Skill bundle v1',
   'skills.discovery.input': 'input digest',
   'skills.discovery.demand': 'Internal Skill opportunity evidence',
@@ -760,6 +762,7 @@ describe('EvolutionAction', () => {
               kind: 'bounded-model-authoring-v1' as const,
               policyId: 'internal-experience-author',
               modelIdentityHash: '4'.repeat(64),
+              evaluationEvidenceId: 'e'.repeat(64),
               inputDigest: '5'.repeat(64),
             },
             scope: 'workspace' as const,
@@ -855,6 +858,7 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('Quarantined candidate')).toBeTruthy()
     expect(screen.getByText(`Internal Skill opportunity evidence · 4 distinct Goals · 4 Gap observations · ${'1'.repeat(8)}…`)).toBeTruthy()
     expect(screen.getByText(`Internal author policy · internal-experience-author · input digest ${'5'.repeat(8)}…`)).toBeTruthy()
+    expect(screen.getByText(`Evaluation evidence seal · ${'e'.repeat(12)}`)).toBeTruthy()
     expect(screen.getByText(`Internal-experience whole-Skill bundle v1 · artifact digest ${'9'.repeat(12)} · tree ${'b'.repeat(12)}`)).toBeTruthy()
     expect(screen.getByText(`Content hash · ${'a'.repeat(12)}`)).toBeTruthy()
     expect(screen.getByText('Declared license · MIT')).toBeTruthy()

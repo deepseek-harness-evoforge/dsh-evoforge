@@ -7,7 +7,7 @@ export function experienceSkillCandidate(
   overrides: Partial<ExperienceSkillCandidate> = {},
 ): ExperienceSkillCandidate {
   const base: ExperienceSkillCandidate = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: '1'.repeat(64),
     createdAt: 1,
     workspaceId: WORKSPACE_ID,
@@ -23,6 +23,7 @@ export function experienceSkillCandidate(
       kind: 'bounded-model-authoring-v1',
       policyId: 'workspace-experience-author',
       modelIdentityHash: '5'.repeat(64),
+      evaluationEvidenceId: '9'.repeat(64),
       inputDigest: '6'.repeat(64),
     },
     scope: 'workspace',
@@ -93,11 +94,12 @@ export function internalSkillCandidateLineage(
 ): SkillCandidateLineage {
   const candidate = experienceSkillCandidate()
   return {
-    kind: 'internal-skill-candidate-lineage-v2',
+    kind: 'internal-skill-candidate-lineage-v3',
     candidateId: candidate.id,
     workspaceId: candidate.workspaceId,
     skillName: candidate.skillName,
     opportunityId: candidate.opportunity.id,
+    evaluationEvidenceId: candidate.authorship.evaluationEvidenceId,
     policyId: candidate.authorship.policyId,
     versionKind: candidate.version.kind,
     contentHash: candidate.contentHash,

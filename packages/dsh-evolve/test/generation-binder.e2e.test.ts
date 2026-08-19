@@ -1518,11 +1518,12 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
         treeHash: bundle.treeHash,
         contentBase64: bundle.content.toString('base64'),
         lineage: {
-          kind: 'internal-skill-candidate-lineage-v2',
+          kind: 'internal-skill-candidate-lineage-v3',
           candidateId: '1'.repeat(64),
           workspaceId: WORKSPACE_ID,
           skillName: 'internal-release-proof',
           opportunityId: '2'.repeat(64),
+          evaluationEvidenceId: '6'.repeat(64),
           policyId: 'release-proof-author',
           versionKind: 'experience-authored-bundle-v1',
           contentHash: bundle.artifactDigest,
