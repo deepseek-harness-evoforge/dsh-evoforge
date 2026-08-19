@@ -1,14 +1,12 @@
-import { execFile as execFileCallback } from 'node:child_process'
 import { chmod, mkdir, mkdtemp, readdir, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { promisify } from 'node:util'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { EvolutionStore } from '../src/generation-store.ts'
+import { assembleSkillBundleArchive } from '../src/skill-bundle-archive.ts'
 
-const execFile = promisify(execFileCallback)
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const suiteRoot = resolve(packageRoot, '../..')
 const dshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR ?? resolve(suiteRoot, '../deepseek-harness')
@@ -28,28 +26,16 @@ describe.skipIf(process.platform !== 'darwin')('native DSH Workspace-owned evolu
     temporaryRoots.push(root)
     const workspaceAPath = join(root, 'workspace-a')
     const workspaceBPath = join(root, 'workspace-b')
-    const repository = join(root, 'source')
     await Promise.all([
       mkdir(workspaceAPath),
       mkdir(workspaceBPath),
-      mkdir(join(repository, 'skills', 'native-evolution'), { recursive: true }),
     ])
     const canonicalA = await realpath(workspaceAPath)
     const canonicalB = await realpath(workspaceBPath)
     const baseline = skillSource('Baseline native Workspace instructions.')
-    await writeFile(join(repository, 'skills', 'native-evolution', 'SKILL.md'), baseline)
-    await git(repository, 'init', '--quiet')
-    await git(repository, 'add', 'skills/native-evolution/SKILL.md')
-    await git(repository, '-c', 'user.name=EvoForge Test', '-c', 'user.email=evoforge@example.invalid',
-      'commit', '--quiet', '-m', 'native workspace baseline')
-    const revision = {
-      commit: await git(repository, 'rev-parse', 'HEAD'),
-      treeHash: await git(repository, 'rev-parse', 'HEAD:skills/native-evolution'),
-    }
     const configPath = join(root, 'cordis.yml')
     await writeFile(configPath, JSON.stringify(hostConfig({
       root,
-      repository,
       workspacePaths: [workspaceAPath, workspaceBPath],
     }), null, 2))
     vi.stubEnv('DSH_AGENTS_HOME', join(root, '.agents-home'))
@@ -82,7 +68,9 @@ describe.skipIf(process.platform !== 'darwin')('native DSH Workspace-owned evolu
         await first.workspaceRegistry.get(workspaceBId)?.attachSession(liveB.agent.session.header.id)
         await Promise.all([runAgent(liveA.agent, 'live-a'), runAgent(liveB.agent, 'live-b')])
 
-        const generationA = (await store.publishGeneration(generationInput(workspaceAId, revision))).generation
+        const generationA = (await store.publishGeneration(
+          await generationInput(workspaceAId, baseline),
+        )).generation
         await store.promoteGeneration(workspaceAId, generationA.id)
         await expect(store.promoteGeneration(workspaceBId, generationA.id))
           .rejects.toThrow('belongs to Workspace')
@@ -140,7 +128,6 @@ describe.skipIf(process.platform !== 'darwin')('native DSH Workspace-owned evolu
 
 function hostConfig(input: {
   root: string
-  repository: string
   workspacePaths: readonly [string, string]
 }): unknown[] {
   return [
@@ -194,8 +181,6 @@ function hostConfig(input: {
       name: join(packageRoot, 'test', 'fixtures', 'native-workspace-evolution-bootstrap.ts'),
       config: {
         cacheRoot: join(input.root, 'cache'),
-        repository: input.repository,
-        skill: 'native-evolution',
         workspacePaths: input.workspacePaths,
       },
     },
@@ -227,15 +212,35 @@ async function runAgent(agent: any, suffix: string): Promise<void> {
   }, { timeout: 15_000, interval: 25 })
 }
 
-function generationInput(workspaceId: string, revision: { commit: string; treeHash: string }) {
+async function generationInput(workspaceId: string, content: string) {
+  const bundle = await assembleSkillBundleArchive([
+    { path: 'SKILL.md', content },
+    { path: 'references/internal-evidence.md', content: 'Authored from sealed internal DSH evidence.\n' },
+  ])
   return {
     workspaceId,
     createdAt: 1_786_896_000_000,
     artifacts: [{
-      kind: 'skill' as const,
+      kind: 'skill-bundle' as const,
       name: 'native-evolution',
-      gitCommit: revision.commit,
-      treeHash: revision.treeHash,
+      artifactDigest: bundle.artifactDigest,
+      treeHash: bundle.treeHash,
+      contentBase64: bundle.content.toString('base64'),
+      lineage: {
+        kind: 'internal-skill-candidate-lineage-v3' as const,
+        candidateId: '1'.repeat(64),
+        workspaceId,
+        skillName: 'native-evolution',
+        opportunityId: '2'.repeat(64),
+        evaluationEvidenceId: '3'.repeat(64),
+        policyId: 'native-workspace-e2e',
+        versionKind: 'experience-authored-bundle-v1' as const,
+        contentHash: bundle.artifactDigest,
+        candidateTreeHash: bundle.treeHash,
+        admissionId: '4'.repeat(64),
+        evaluationEnvelopeId: '5'.repeat(64),
+        releaseAuthority: 'none' as const,
+      },
     }],
     evaluatorVersion: 'native-workspace-e2e-v1',
     policyVersion: 'human-review-v1',
@@ -256,12 +261,17 @@ function sessionIdentity(
 }
 
 function skillSource(body: string): string {
-  return ['---', 'name: native-evolution', 'description: Native Workspace fixture.', '---', '', body, ''].join('\n')
-}
-
-async function git(repository: string, ...args: string[]): Promise<string> {
-  const { stdout } = await execFile('git', ['-C', repository, ...args], { encoding: 'utf8' })
-  return stdout.trim()
+  return [
+    '---',
+    'name: native-evolution',
+    'description: Native Workspace fixture.',
+    '---',
+    '',
+    body,
+    '',
+    'Evidence: [internal DSH evidence](references/internal-evidence.md).',
+    '',
+  ].join('\n')
 }
 
 async function makeWritable(path: string): Promise<void> {

@@ -10,7 +10,7 @@ dsh --profile web --dump-config
 dsh --profile web
 ```
 
-The Bundle inserts exactly one `evoforge-evolution` row and defaults `cacheRoot` under `DSH_HOME`. Configure the row in the profile's `cordis.patch.yml` when current Generation Git sources, private feedback roots, bounded supervisor roots, or explicit automatic policies are required.
+The Bundle inserts exactly one `evoforge-evolution` row and defaults the private content-addressed `cacheRoot` under `DSH_HOME`. Its public profile accepts only Workspace-scoped `selfDiscoveryPolicies`, `candidateEvaluationPolicies`, and bounded `supervisor` roots. It has no repository/source catalog, target Skill, static Case Pack, feedback/evaluator target, or per-Skill promotion allowlist.
 
 Existing-capability routing remains native DSH behavior: the model reads the complete Session Skill catalog and calls the native `skill` Tool when a catalog entry applies. EvoForge adds one stable model-facing Tool, `report_capability_gap`, for the distinct case where no cataloged Skill applies to an active natural-language Goal. The Host accepts only a bounded kebab-case proposal, rechecks the exact Workspace/Session, active native Goal, complete settled catalog, and absence of that exact Skill, then durably records the Gap before scheduling background discovery. This is not a user menu and does not ask the user to choose a path, Agent, workflow, or Skill. The Tool never searches the network, installs a package, executes candidate content, or changes the current Session.
 
@@ -32,20 +32,9 @@ One content-addressed Skill Evaluation Envelope now drives both phases. A native
 
 After explicit approval, a capability-absent Candidate can publish an inactive `skill-bundle` Generation artifact without a configured Git source. The Host reassembles and verifies the canonical whole-Skill archive against the sealed tree and lineage digest; Storage verifies it again, and the DSH Skill Provider materializes a read-only content-addressed tree for future Sessions only. Existing Sessions remain pinned, and root rollback returns later Sessions to native DSH. This is not external Skill acquisition: the artifact comes only from the internally authored Candidate and performs no network or marketplace lookup.
 
-Retention and sealed canary now preserve that same capability-absent identity. Retention replays an independent prior Case Pack against the exact absent subject and exact Candidate; canary replays the original sealed Case Pack using the canonical Generation bundle, without a Git parent. Both require exact Shadow lineage, immutable trees, and identical non-target assembled DSH composition, and both call no proposer. A contaminated absent subject, mutated Candidate, mismatched lineage, or parent Generation that already contains the target Skill fails closed. Governance Case Pack authoring is implemented but has not yet passed a real-provider assembled task trial; the narrow automatic policy is not expanded to whole-Skill Candidates, so this path is not automatically promoted or release-ready.
+Capability-absent Retention and sealed-canary primitives preserve the same exact subject and call no proposer, but the former static target/Case Pack orchestration is no longer composed by the plugin. Retention, canary, Shadow, and release must be rebound to the internally derived Opportunity/Candidate evidence flow before they count as active product behavior. Governance Case Pack authoring is implemented but has not yet passed a real-provider assembled task trial; no whole-Skill Candidate is automatically promoted or release-ready.
 
-Inside a DSH session, use `/evolve status`, review/release Commands, or the separately installed `dsh-evolve-web` client adapter. Active Generation selection is future-session-only; live Session history, Goal state, Approval, Jobs, and Storage remain DSH authoritative.
-
-When the Bundle row declares exact `shadowTargets` or `evaluatorTargets`, protected authoring and Shadow actions also stay on the DSH Command surface:
-
-```text
-/evolve feedback <signal-id> shadow <target-id>
-/evolve feedback <signal-id> author <evaluator-target-id>
-/evolve evaluator <draft-id> approve <review-note>
-/evolve evaluator <draft-id> shadow
-```
-
-Each authoring or Shadow launch is submitted as a native DSH Job and returns immediately. `/evolve evaluator <draft-id> qualify-shadow <review-note>` is the explicit combined qualification-plus-Shadow action. Target paths, Case Pack hashes, run roots, and spending boundaries come only from host profile configuration, never from the browser or Command arguments.
+Inside a DSH session, use `/evolve status`, review/release Commands, or the separately installed `dsh-evolve-web` client adapter. Active Generation selection is future-session-only; live Session history, Goal state, Approval, Jobs, and Storage remain DSH authoritative. The removed static target commands are not an alternate way to preselect a Skill or evolution direction.
 
 There is no published `dsh-evolve` executable. Shadow/calibration drivers under `test/fixtures` are non-packed development fixtures. Long-running scan/recovery work is optional, bounded, and owned by the plugin's Cordis lifecycle; unload cancels its work and unregisters services.
 

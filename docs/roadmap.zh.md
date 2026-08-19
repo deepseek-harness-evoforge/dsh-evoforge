@@ -1,6 +1,6 @@
 # EvoForge v0.1 路线图
 
-> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已直接替换错误命名的 `dsh-channel-router`，统一 Telegram/飞书普通文本 outbound、脱敏 transport observation，并由同包官方 DSH Client Module 完成统一只读健康视图的真实浏览器失败/恢复验收；旧能力获取/运行时研究 Candidate 的活动源码、依赖、持久化变体和 Web 投影已删除。缺失 Skill 的内部 Candidate 在生成前已要求治理面从至少四个独立 Goal 密封 authoring/admission/holdout；Candidate v2、Lineage v3 与 Envelope v4 显式绑定 seal，治理模块可在不读取 Candidate 的情况下分别形成、校准并原子安装 admission/holdout Case Pack；内容寻址 bundle 已由真实 DSH Session验证 future-only、root rollback、exact absent-parent Retention 与 sealed canary。现有 Skill 已能按 exact invocation-content hash 从跨 Goal 纠正形成独立调查，但完整 baseline Bundle、Candidate 与 skill-tree 评测尚未实现。治理包的真实 provider assembled 评估、完整内部经验归因、exact 飞书消息与最终 Hermes paired 验收仍未完成，v0.1 尚未发布或部署。
+> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已替换旧 Router 并完成公共 outbound/健康 Web 的真实浏览器失败恢复验收。ClawHub/市场/research Candidate 已删除；`dsh-evolve` 公开 Git source、预选 Skill、静态 Case Pack、Feedback/Evaluator target 与按 Skill AutoPromotion 也已删除并停止装配，真实 Session 测试改用内部内容寻址 Bundle。缺失 Skill Candidate 已绑定四 Goal 证据 seal、独立 admission/holdout 与 future-only Generation；现有 Skill 仍只形成等待完整 baseline Bundle 的调查。下一阶段先删除私有 Git materializer/旧 target 模块并建立 DSH 已安装 Skill 的完整基线快照，再重接内部 Retention/canary。真实 provider、exact 飞书消息与 Hermes paired 仍未完成，v0.1 未发布。
 > 更新日期：2026-08-19
 
 ## 开发与发布纪律

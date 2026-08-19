@@ -6,8 +6,6 @@ export const inject = ['storageDomain', 'workspaceRegistry']
 
 interface Config {
   readonly cacheRoot: string
-  readonly repository: string
-  readonly skill: string
   readonly workspacePaths: readonly [string, string]
 }
 
@@ -22,11 +20,6 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   ])
   const evolutionFiber = ctx.root.plugin(EvolvePlugin, {
     cacheRoot: config.cacheRoot,
-    sources: [{
-      name: config.skill,
-      repository: config.repository,
-      path: `skills/${config.skill}`,
-    }],
   })
   await evolutionFiber
   ctx.effect(() => () => evolutionFiber.dispose(), 'native-workspace-evolution.evolve')

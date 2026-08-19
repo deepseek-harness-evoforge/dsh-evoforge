@@ -2,4 +2,4 @@
     - id: evoforge-evolution
       name: dsh-evolve
       config:
-        cacheRoot: !!js dshHomePath('evoforge', 'git-skills')
+        cacheRoot: !!js dshHomePath('evoforge', 'generation-cache')
