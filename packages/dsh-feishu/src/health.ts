@@ -1,4 +1,4 @@
-import type { FeishuDeliveryRecord } from './delivery-store.js'
+import type { GatewayOutboundHealth, GatewayOutboundStatus } from 'dsh-gateway'
 
 export const FEISHU_HEALTH_PREFIX = 'EVOFORGE_FEISHU_HEALTH_V1 '
 
@@ -44,8 +44,8 @@ export interface FeishuHealthSnapshot {
     readonly last?: {
       readonly id: string
       readonly routeId: string
-      readonly source: FeishuDeliveryRecord['source']['kind']
-      readonly status: FeishuDeliveryRecord['status']
+      readonly source: 'turn' | 'response' | 'notice'
+      readonly status: GatewayOutboundStatus
       readonly attempts: number
       readonly updatedAt: number
     }
@@ -65,8 +65,7 @@ export interface SummarizeFeishuHealthInput {
     readonly lastErrorAt?: number
   }
   readonly routes: readonly FeishuHealthRouteInput[]
-  readonly records: readonly FeishuDeliveryRecord[]
-  readonly scheduled: number
+  readonly outbound: GatewayOutboundHealth
   readonly pendingApprovals: number
 }
 
@@ -79,22 +78,10 @@ export function summarizeFeishuHealth(input: SummarizeFeishuHealthInput): Feishu
     throw new Error('Feishu health routes must belong to one native Workspace and Session')
   }
   const routeIds = new Set(input.routes.map(route => route.id))
-  const records = input.records.filter(record => routeIds.has(record.routeId))
-  const counts = {
-    prepared: 0,
-    sending: 0,
-    retrying: 0,
-    delivered: 0,
-    uncertain: 0,
-    failed: 0,
+  if (input.outbound.last !== undefined && !routeIds.has(input.outbound.last.routeId)) {
+    throw new Error('Feishu health outbound facts must belong to one of its exact routes')
   }
-  for (const record of records) counts[record.status] += 1
-  const latest = records.reduce<FeishuDeliveryRecord | undefined>((current, record) =>
-    current === undefined
-      || record.updatedAt > current.updatedAt
-      || (record.updatedAt === current.updatedAt && record.id.localeCompare(current.id) > 0)
-      ? record
-      : current, undefined)
+  const counts = input.outbound
   const active = counts.prepared + counts.sending + counts.retrying
   const visibleRoutes = [...input.routes]
     .sort((left, right) => left.id.localeCompare(right.id))
@@ -108,7 +95,7 @@ export function summarizeFeishuHealth(input: SummarizeFeishuHealthInput): Feishu
         ? 'busy'
         : counts.uncertain + counts.failed > 0
           ? 'attention'
-          : active > 0 || input.scheduled > 0 || input.pendingApprovals > 0
+          : active > 0 || counts.scheduled > 0 || input.pendingApprovals > 0
             ? 'busy'
             : 'ready'
   return Object.freeze({
@@ -129,17 +116,22 @@ export function summarizeFeishuHealth(input: SummarizeFeishuHealthInput): Feishu
     routesTruncated: input.routes.length > visibleRoutes.length,
     routes: Object.freeze(visibleRoutes),
     deliveries: Object.freeze({
-      total: records.length,
-      ...counts,
-      scheduled: input.scheduled,
-      ...(latest === undefined ? {} : {
+      total: counts.total,
+      prepared: counts.prepared,
+      sending: counts.sending,
+      retrying: counts.retrying,
+      delivered: counts.delivered,
+      uncertain: counts.uncertain,
+      failed: counts.failed,
+      scheduled: counts.scheduled,
+      ...(counts.last === undefined ? {} : {
         last: Object.freeze({
-          id: latest.id,
-          routeId: latest.routeId,
-          source: latest.source.kind,
-          status: latest.status,
-          attempts: latest.attempts,
-          updatedAt: latest.updatedAt,
+          id: counts.last.id,
+          routeId: counts.last.routeId,
+          source: counts.last.kind,
+          status: counts.last.status,
+          attempts: counts.last.attempts,
+          updatedAt: counts.last.updatedAt,
         }),
       }),
     }),

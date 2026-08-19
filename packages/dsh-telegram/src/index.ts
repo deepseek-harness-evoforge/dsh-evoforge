@@ -3,13 +3,12 @@ import z from '@deepseek-ai/schemastery'
 import type Schema from '@deepseek-ai/schemastery'
 import type { DshGateway } from 'dsh-gateway'
 import { TelegramApi } from './telegram-api.js'
-import { openTelegramDeliveryStore } from './delivery-store.js'
 import { TelegramRuntime } from './runtime.js'
 import { resolveTelegramConfig } from './config.js'
 import type { TelegramHostNotice, TelegramHostRoute } from './host-route.js'
 
 export const name = 'dsh-telegram'
-export const inject = ['evoforge.gateway', 'storageDomain']
+export const inject = ['evoforge.gateway']
 
 export interface Config {
   /** Exact static dsh-gateway route owned by this Bot adapter. */
@@ -42,13 +41,11 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   if (token === undefined || token.length === 0) {
     throw new Error(`dsh-telegram: configured token environment variable ${resolved.tokenEnv} is empty`)
   }
-  const store = await openTelegramDeliveryStore(ctx.storageDomain)
   const runtime = new TelegramRuntime(
     ctx,
     resolved,
     gateway,
     new TelegramApi({ token, apiBase: resolved.apiBase }),
-    store,
   )
   ctx.effect(() => async () => runtime.dispose(), 'dsh-telegram runtime')
   try {

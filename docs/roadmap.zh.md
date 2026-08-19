@@ -1,6 +1,6 @@
 # EvoForge v0.1 路线图
 
-> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已直接替换错误命名的 `dsh-channel-router` 并通过渠道及十一包 clean-profile 回归；旧能力获取/运行时研究 Candidate 的活动源码、依赖、持久化变体和 Web 投影已删除。完整内部经验归因、Candidate 的真实 provider 独立评估、完整 Gateway、exact 飞书消息与最终 Hermes paired 验收仍未完成，v0.1 尚未发布或部署。
+> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已直接替换错误命名的 `dsh-channel-router`，并统一 Telegram/飞书普通文本 outbound 后通过渠道回归；旧能力获取/运行时研究 Candidate 的活动源码、依赖、持久化变体和 Web 投影已删除。完整内部经验归因、Candidate 的真实 provider 独立评估、Gateway transport/Web 聚合、exact 飞书消息与最终 Hermes paired 验收仍未完成，v0.1 尚未发布或部署。
 > 更新日期：2026-08-19
 
 ## 开发与发布纪律
@@ -34,14 +34,14 @@
 
 - 直接消费 DSH `WorkspaceRegistry`、Agent、Session、Commands、Approval 和 StorageDomain；
 - 静态、可审查、默认拒绝地把外部 tenant/chat/thread/user 绑定到既有 Workspace，并通过原生 API 创建或冷恢复稳定 Agent/Session；
-- Gateway ingress 幂等与各 Adapter outbound delivery 状态分别有界持久化；
+- Gateway 统一有界持久化 ingress 与普通文本 outbound delivery；Adapter 只保留平台协议、实际发送与平台特有 UI；
 - Telegram 成为第一个 Adapter；路由核心不复制 DSH Session、Goal、Schedule 或权限。
 
-退出门：两个 Workspace 的输入、输出、Commands、Approval、Goal 和文件权限在重启前后无串线。**现有 ingress/route 内核已由 Telegram + 飞书同一真实 Host assembled gate 完成；`dsh-gateway` 包替换也已通过十一包 clean-profile 回归。Gateway 自有 route/Session/ingress 脱敏健康快照已经实现并覆盖 uncertain 恢复；公共 outbound、跨 Adapter 限流、transport 健康聚合和统一 Web 展示仍属于后续 Gateway 门禁。**
+退出门：两个 Workspace 的输入、输出、Commands、Approval、Goal 和文件权限在重启前后无串线。**现有 ingress/route 内核已由 Telegram + 飞书同一真实 Host assembled gate 完成；公共 outbound intent/journal、幂等、按 account 串行、明确 rate-limit 有界重试、turn/end 门、uncertain 恢复和脱敏健康已进入 Gateway，两个 Adapter 的重复 Delivery Store/worker 已删除。Gateway 包替换也已通过十一包 clean-profile 回归；transport 健康聚合和统一 Web 展示仍属于后续门禁。**
 
 ## V2 — 飞书 Adapter
 
-实现状态：Adapter、可靠投递、真实 DSH 单 Workspace 组合、双 Workspace 双渠道同 Host 重启隔离、Telegram/飞书进化注意力、tarball lifecycle 与十一包总装已完成；真实飞书 App 身份请求、标准代理环境 WebSocket 和 setup-only pairing transport 已通过。同包 DSH Web Client Module 已从最终 tarball 安装到干净 profile，真实浏览器证明其在当前 Session 内生成/复制/取消配对且零 console error；用户尚未发送配对短语，exact route 消息仍未达到退出门。
+实现状态：Adapter、Gateway 公共可靠投递、真实 DSH 单 Workspace 组合、双 Workspace 双渠道同 Host 重启隔离、Telegram/飞书进化注意力、tarball lifecycle 与十一包总装已完成；真实飞书 App 身份请求、标准代理环境 WebSocket 和 setup-only pairing transport 已通过。同包 DSH Web Client Module 已从最终 tarball 安装到干净 profile，真实浏览器证明其在当前 Session 内生成/复制/取消配对且零 console error；用户尚未发送配对短语，exact route 消息仍未达到退出门。
 
 - 支持静态授权的私聊或群聊文本、原生 Command、一次性 Approval、最终回答、Goal/Schedule 与进化注意力；
 - 凭据、身份与 Workspace route 只能由部署配置决定；

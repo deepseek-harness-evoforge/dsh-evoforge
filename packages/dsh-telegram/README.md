@@ -12,10 +12,10 @@ dsh plugin --profile web add /absolute/path/dsh-telegram-0.1.0-alpha.1.tgz
   Schedule continuations;
 - native slash Commands without a model call;
 - one-shot DSH Approval buttons (`allowed-once` or `rejected` only);
-- a durable Storage Domain delivery journal and `/telegram` status;
+- a Gateway-owned durable outbound journal and `/telegram` status;
 - a suite-internal exact notice route used by `dsh-evolve-attention` without exposing a generic
   notification provider;
-- a 10,000-record hard bound for terminal outbound delivery history;
+- a Gateway-configured hard bound for outbound delivery history;
 - bounded retry only after Telegram explicitly returns `429 + retry_after`.
 
 It registers no model Tool, Skill, system-prompt section, or dynamic context. Idle and ordinary
@@ -60,10 +60,13 @@ and configure its row explicitly:
 The Gateway route is the only chat/user/Workspace/Session/Agent authority. `conversationId` and `userId`
 must be canonical positive Telegram integer strings; private topics are not accepted. The token is read
 from the environment of the DSH Host. Native Commands and one-shot Approval buttons reuse DSH services;
-ingress deduplication belongs to the Gateway and outbound delivery records use Telegram's DSH Storage
-Domain. The model cannot change the route or read the token.
+ingress deduplication and outbound delivery records belong to the Gateway. The Adapter retains only
+Telegram polling, protocol mapping, platform sending, and one-shot Approval UI. The model cannot change
+the route or read the token.
 
-Telegram long polling and pending retry timers are owned by the Cordis fiber. Disable/unload aborts them and unregisters routing. Ambiguous sends become `uncertain` and are not retried automatically; already delivered external messages cannot be retracted.
+Telegram long polling is owned by the Cordis fiber; Gateway owns the serialized outbound registration
+and retry timers. Disable/unload aborts both. Ambiguous sends become `uncertain` and are not retried
+automatically; already delivered external messages cannot be retracted.
 
 ```sh
 dsh plugin --profile web remove dsh-telegram
@@ -95,11 +98,11 @@ already accepted by Telegram.
 
 Native Command admission is at-most-once per Telegram update through the shared Gateway journal. A
 crash at an unprovable effect boundary becomes `uncertain`; replaying the same update never executes
-it twice, and the user receives a bounded instruction to send a new Telegram message. Telegram
-journal compaction removes only the oldest terminal outbound records and never a live delivery.
+it twice, and the user receives a bounded instruction to send a new Telegram message. Gateway journal
+compaction removes only the oldest terminal outbound records and never a live delivery.
 
 When the optional `dsh-evolve-attention` bridge is enabled in the same profile, actionable Evolve
-Candidate and Evaluator Draft states use this package's existing exact chat route and delivery
+Candidate and Evaluator Draft states use this package's existing exact chat route and Gateway delivery
 journal. The suite-internal route service exposes the same static native Workspace id so every
 Evolve scan remains explicitly Workspace-scoped. The bridge does not read the Bot token, add
 another route, choose a recent Workspace, or turn a notice into Approval.

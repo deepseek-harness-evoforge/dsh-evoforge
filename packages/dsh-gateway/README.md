@@ -2,7 +2,8 @@
 
 `dsh-gateway` 是默认关闭的 DeepSeek Harness 原生 Cordis Bundle，也是 Telegram、飞书等渠道
 Adapter 共用的 Host 接缝。它把部署者声明的 external account/conversation/thread/user 精确绑定到一个
-原生 DSH Workspace、Session 和 Agent preset，并负责进入 DSH 前的标准化、路由、幂等和崩溃不确定性。
+原生 DSH Workspace、Session 和 Agent preset，并负责进入 DSH 前的标准化、路由、幂等，以及普通文本
+出站意图的持久化、串行投递和崩溃不确定性。
 它不实现网络 Bot，不拥有 Goal、Session、Agent Runtime、Schedule 或 Approval，也不是独立网关进程。
 
 ## 安装
@@ -42,14 +43,24 @@ Bundle row 默认为 `disabled: true`。部署者在同一个 DSH profile 中配
 - 已注册 slash command 只走 DSH `commands.execute()`，普通文本以稳定 MessageId 进入原生 Agent inbox；
 - 以 DSH Storage Domain 保存有界 ingress identity/status/Command 结果，不保存消息正文；
 - 同一外部事件只执行一次；内容或归属漂移被拒绝；effect 边界崩溃标记为 `uncertain`，不盲目重放；
+- Adapter 通过小型 `registerTextAdapter()` 接口注册 exact platform account 和显式 routeIds；Gateway 逐条
+  校验 route 归属后先持久化
+  route-scoped `turn/response/notice` 意图，再按 Adapter/account 串行调用平台发送；
+- 同一 route + intent key 的重复提交不会重复发送，内容或目标漂移 fail closed；最终 turn 可在
+  `turn-stopping` 时先落盘，但必须观察到原生 `turn/end` 后才允许外发；
+- 只有 Adapter 明确证明的 pre-acceptance rate limit 才能按 `maxAttempts/maxRetryAfterMs` 有界重试；
+  模糊返回、抛错或崩溃中的 `sending` 一律进入 `uncertain`，禁止自动重放；
+- 有界 outbound journal 只淘汰最旧终态，活跃记录占满时拒绝新意图；普通文本、reply identity 和外部
+  message id 留在 Gateway Storage Domain，健康投影不暴露这些内容；
 - `healthSnapshot()` 从 Gateway 自有 route、原生 Agent 注册表和 ingress journal 生成脱敏权威快照，支持
-  exact route 子集、生命周期、live Session 与 prepared/executing/settled/uncertain 计数；
+  exact route 子集、生命周期、live Session、ingress 状态，以及 outbound 注册、排队、投递状态和最近意图元数据；
 - Cordis dispose 等待在途入站、释放 Gateway 创建的 Agent handle，并关闭自己的日志。
 
-Telegram 和飞书已经通过这个接缝运行。网络鉴权、SDK/WebSocket/polling、平台事件解析、Approval UI 与
-平台发送目前仍在各 Adapter；公共 outbound delivery、跨 Adapter 限流、平台 transport 健康聚合和统一 Web
-展示尚未迁入 Gateway，因此不得把当前增量描述成完整 Gateway。Gateway 快照不包含 account/chat/user、
-消息正文或凭据，也不调用模型或平台。
+Telegram 和飞书已经迁入同一个 outbound 接缝，并删除了各自重复的 Delivery Store/worker。网络鉴权、
+SDK/WebSocket/polling、平台事件解析、实际平台发送、卡片和 Approval UI 仍属于 Adapter。Gateway 当前提供
+共同的持久意图、幂等、按 account 串行和明确限流响应策略，不声称全局 token bucket、平台配额推断或
+exactly-once。平台 transport 健康聚合和统一 DSH Web 展示仍未完成。Gateway 快照不包含
+account/chat/user、消息正文、外部 message id、错误正文或凭据，也不调用模型或平台。
 
 ## 卸载
 

@@ -30,5 +30,15 @@ export function apply(ctx: Context): void {
     resolve: () => Promise.resolve(agent),
     messageIdFor: () => `channel:${'a'.repeat(64)}`,
     dispatch: () => Promise.reject(new Error('package fixture does not dispatch')),
+    registerTextAdapter: () => ({
+      submit: async () => ({ id: 'b'.repeat(64), created: true, status: 'prepared' }),
+      dispose: async () => {},
+    }),
+    healthSnapshot: () => ({
+      outbound: {
+        registrations: 1, scheduled: 0, total: 0, prepared: 0, sending: 0, retrying: 0,
+        delivered: 0, uncertain: 0, failed: 0,
+      },
+    }),
   }) as never)
 }

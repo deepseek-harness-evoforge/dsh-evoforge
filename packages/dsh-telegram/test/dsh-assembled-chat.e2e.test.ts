@@ -239,18 +239,19 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Telegram chat', ()
           agentIds: ctx.agents.list().map((candidate: { id: unknown }) => String(candidate.id)),
           agentStatus: agent?.status,
           eventTypes: agent?.session.events.map((event: SessionEvent) => event.type),
-          deliveries: [...(ctx.storageDomain.get('evoforge_telegram')?.table('deliveries').entries() ?? [])],
+          deliveries: [...(ctx.storageDomain.get('evoforge_gateway_outbound')?.table('outbound').entries() ?? [])],
         }
         throw new Error(`Telegram assembled path did not send: ${JSON.stringify(diagnostic)}`, { cause: error })
       }
       const agent = ctx.agents.get('main')
       expect(agent).toBeDefined()
-      const deliveryDomain = ctx.storageDomain.get('evoforge_telegram')
+      const deliveryDomain = ctx.storageDomain.get('evoforge_gateway_outbound')
       await vi.waitFor(() => {
-        const records = [...(deliveryDomain?.table('deliveries').entries() ?? [])]
+        const records = [...(deliveryDomain?.table('outbound').entries() ?? [])]
           .map(([, value]) => value as { status?: unknown })
         expect(records).toEqual([expect.objectContaining({ status: 'delivered' })])
       })
+      expect(ctx.storageDomain.get('evoforge_telegram')).toBeUndefined()
       const events = agent?.session.events as readonly SessionEvent[] | undefined
       expect(events?.some(event => event.type === 'user/message'
         && String(event.data.id).startsWith('channel:'))).toBe(true)

@@ -17,12 +17,15 @@ describe('Feishu authoritative health snapshot', () => {
         lastErrorAt: 700,
       },
       routes: [{ id: 'feishu-main', workspaceId: 'workspace-a', sessionId: 'session-a', threadScoped: false }],
-      records: [
-        delivery('a', 'feishu-main', 'session-a', 'delivered', 2, 500),
-        delivery('b', 'feishu-main', 'session-a', 'retrying', 1, 600),
-        delivery('c', 'another-route', 'session-b', 'failed', 3, 700),
-      ],
-      scheduled: 1,
+      outbound: outbound({
+        total: 2,
+        retrying: 1,
+        delivered: 1,
+        scheduled: 1,
+        last: {
+          id: 'b', routeId: 'feishu-main', kind: 'response', status: 'retrying', attempts: 1, updatedAt: 600,
+        },
+      }),
       pendingApprovals: 2,
     })
 
@@ -72,8 +75,7 @@ describe('Feishu authoritative health snapshot', () => {
       accountId: 'cli_test_app',
       transport: { state: 'connecting' },
       routes: [{ id: 'main', workspaceId: 'workspace-a', sessionId: 'session-a', threadScoped: true }],
-      records: [],
-      scheduled: 0,
+      outbound: outbound(),
       pendingApprovals: 0,
     })
     expect(connecting.status).toBe('busy')
@@ -83,8 +85,11 @@ describe('Feishu authoritative health snapshot', () => {
       accountId: 'cli_test_app',
       transport: { state: 'ready', connectedAt: 100 },
       routes: [{ id: 'main', workspaceId: 'workspace-a', sessionId: 'session-a', threadScoped: true }],
-      records: [delivery('x', 'main', 'session-a', 'uncertain', 1, 999)],
-      scheduled: 0,
+      outbound: outbound({
+        total: 1,
+        uncertain: 1,
+        last: { id: 'x', routeId: 'main', kind: 'response', status: 'uncertain', attempts: 1, updatedAt: 999 },
+      }),
       pendingApprovals: 0,
     })
     expect(attention.status).toBe('attention')
@@ -94,8 +99,7 @@ describe('Feishu authoritative health snapshot', () => {
       accountId: 'cli_test_app',
       transport: { state: 'degraded', connectedAt: 100, lastErrorAt: 1_000 },
       routes: [{ id: 'main', workspaceId: 'workspace-a', sessionId: 'session-a', threadScoped: true }],
-      records: [],
-      scheduled: 0,
+      outbound: outbound(),
       pendingApprovals: 0,
     })
     expect(degraded.status).toBe('degraded')
@@ -109,31 +113,23 @@ describe('Feishu authoritative health snapshot', () => {
         { id: 'one', workspaceId: 'workspace-a', sessionId: 'session-a', threadScoped: false },
         { id: 'two', workspaceId: 'workspace-b', sessionId: 'session-a', threadScoped: false },
       ],
-      records: [],
-      scheduled: 0,
+      outbound: outbound(),
       pendingApprovals: 0,
     })).toThrow(/one native Workspace and Session/u)
   })
 })
 
-function delivery(
-  id: string,
-  routeId: string,
-  sessionId: string,
-  status: 'prepared' | 'sending' | 'retrying' | 'delivered' | 'uncertain' | 'failed',
-  attempts: number,
-  updatedAt: number,
-) {
+function outbound(overrides: Record<string, unknown> = {}) {
   return {
-    id,
-    schemaVersion: 1 as const,
-    routeId,
-    sessionId,
-    chatId: 'oc_secret_chat',
-    source: { kind: 'response' as const, eventId: `event-${id}`, text: 'private answer' },
-    status,
-    attempts,
-    createdAt: updatedAt - 1,
-    updatedAt,
+    registrations: 1,
+    scheduled: 0,
+    total: 0,
+    prepared: 0,
+    sending: 0,
+    retrying: 0,
+    delivered: 0,
+    uncertain: 0,
+    failed: 0,
+    ...overrides,
   }
 }

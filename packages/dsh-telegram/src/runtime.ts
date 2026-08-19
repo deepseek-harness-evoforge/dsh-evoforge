@@ -3,18 +3,19 @@ import { setTimeout as wait } from 'node:timers/promises'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-commands'
-import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import type { ApprovalOutcome, ApprovalRequest } from '@deepseek-ai/dsh-user-approval'
-import { GatewayIngressUncertainError, type DshGateway } from 'dsh-gateway'
+import {
+  GatewayIngressUncertainError,
+  type DshGateway,
+  type GatewayOutboundSendInput,
+  type GatewayOutboundSendResult,
+  type GatewayTextAdapterRegistration,
+  type GatewayTextDeliveryIntent,
+} from 'dsh-gateway'
 import {
   selectApprovalCallback,
   selectInboundUpdate,
 } from './inbound.js'
-import {
-  openTelegramDeliveryStore,
-  type TelegramDeliveryRecord,
-  type TelegramDeliveryStore,
-} from './delivery-store.js'
 import { outboundTextForTurn } from './outbound.js'
 import { TelegramApi, type TelegramUpdate } from './telegram-api.js'
 import type { TelegramHostNotice, TelegramHostNoticeReceipt } from './host-route.js'
@@ -36,11 +37,11 @@ export class TelegramRuntime {
   private readonly lifecycle = new AbortController()
   private readonly repliesByMessage = new Map<string, number>()
   private readonly repliesByTurn = new Map<number, number>()
+  private readonly outboundByTurn = new Map<number, GatewayTextDeliveryIntent>()
   private readonly pendingApprovals = new Map<string, PendingApproval>()
-  private readonly scheduled = new Set<string>()
   private readonly bound = new WeakSet<Agent>()
   private pollTask?: Promise<void>
-  private deliveryTail: Promise<void> = Promise.resolve()
+  private outbound?: GatewayTextAdapterRegistration
   private agent: Agent | undefined
 
   constructor(
@@ -48,12 +49,19 @@ export class TelegramRuntime {
     private readonly config: ResolvedTelegramConfig,
     private readonly gateway: DshGateway,
     private readonly api: TelegramApi,
-    private readonly store: TelegramDeliveryStore,
   ) {}
 
   async start(): Promise<void> {
-    await this.store.recoverInflight(Date.now())
-    this.bind(await this.gateway.resolve(this.config.routeId, this.lifecycle.signal))
+    const agent = await this.gateway.resolve(this.config.routeId, this.lifecycle.signal)
+    this.outbound = this.gateway.registerTextAdapter({
+      adapter: 'telegram',
+      accountId: this.config.endpoint.accountId,
+      routeIds: [this.config.routeId],
+      maxAttempts: this.config.maxSendAttempts,
+      maxRetryAfterMs: MAX_RETRY_AFTER_SECONDS * 1_000,
+      send: (input, signal) => this.sendOutbound(input, signal),
+    })
+    this.bind(agent)
 
     this.ctx.on('agent/created', ({ agent }) => {
       if (String(agent.id) !== this.config.sessionId) return
@@ -81,26 +89,35 @@ export class TelegramRuntime {
       if (agent !== this.agent) return
       const text = outboundTextForTurn(agent.session.events, turn, this.config.maxTextChars)
       if (text === undefined) return
-      await this.store.prepareTurn({
-        now: Date.now(),
-        sessionId: String(agent.session.id),
-        turn,
+      const intent: GatewayTextDeliveryIntent = Object.freeze({
+        routeId: this.config.routeId,
+        kind: 'turn',
+        intentKey: `turn:${turn}`,
+        text,
+        waitForTurnEnd: turn,
         ...(this.repliesByTurn.get(turn) === undefined
           ? {}
-          : { replyToMessageId: this.repliesByTurn.get(turn)! }),
+          : { replyToExternalId: String(this.repliesByTurn.get(turn)!) }),
       })
+      this.outboundByTurn.set(turn, intent)
+      await this.requireOutbound().submit(intent)
     })
     this.ctx.on('session/event', (session, event) => {
       if (session !== this.agent?.session || event.type !== 'turn/end') return
       this.repliesByTurn.delete(event.data.turn)
-      this.enqueuePending()
+      const intent = this.outboundByTurn.get(event.data.turn)
+      this.outboundByTurn.delete(event.data.turn)
+      if (intent !== undefined) {
+        void this.requireOutbound().submit(intent).catch((error: unknown) => {
+          this.ctx.logger.warn(`dsh-telegram: could not release final answer: ${safeMessage(error)}`)
+        })
+      }
     })
     this.ctx.on('approval/request', (request, next) => {
       if (request.agent !== this.agent) return next()
       return this.requestApproval(request, next)
     })
 
-    this.enqueuePending()
     this.pollTask = this.poll()
   }
 
@@ -111,8 +128,7 @@ export class TelegramRuntime {
       if (pending.onAbort !== undefined) pending.signal?.removeEventListener('abort', pending.onAbort)
       pending.resolve('cancelled')
     }
-    await Promise.allSettled([this.pollTask, this.deliveryTail])
-    await this.store.close()
+    await Promise.allSettled([this.pollTask, this.outbound?.dispose()])
   }
 
   async notifyHost(notice: TelegramHostNotice): Promise<TelegramHostNoticeReceipt> {
@@ -122,14 +138,13 @@ export class TelegramRuntime {
     if (notice.text.length === 0) {
       throw new Error('dsh-telegram: host notice text must be non-empty')
     }
-    const prepared = await this.store.prepareNotice({
-      id: notice.id,
-      now: Date.now(),
-      sessionId: this.config.sessionId,
+    const prepared = await this.requireOutbound().submit({
+      routeId: this.config.routeId,
+      kind: 'notice',
+      intentKey: `notice:${notice.id}`,
       text: boundText(notice.text, this.config.maxTextChars),
     })
-    this.enqueue(prepared.record.id)
-    return { created: prepared.created, status: prepared.record.status }
+    return { created: prepared.created, status: prepared.status }
   }
 
   private bind(agent: Agent): void {
@@ -142,8 +157,7 @@ export class TelegramRuntime {
         recordInput: false,
         handler: ({ rawInput }) => {
           if (rawInput.trim() !== '') return { kind: 'error', text: 'Usage: /telegram' }
-          const counts = { prepared: 0, sending: 0, retrying: 0, delivered: 0, uncertain: 0, failed: 0 }
-          for (const record of this.store.list()) counts[record.status] += 1
+          const counts = this.gateway.healthSnapshot(Date.now(), [this.config.routeId]).outbound
           return {
             kind: 'success',
             text: [
@@ -154,7 +168,6 @@ export class TelegramRuntime {
           }
         },
       }))
-    this.enqueuePending()
   }
 
   private async poll(): Promise<void> {
@@ -245,86 +258,48 @@ export class TelegramRuntime {
     text: string,
   ): Promise<void> {
     const bounded = boundText(text, this.config.maxTextChars)
-    const prepared = await this.store.prepareCommand({
-      now: Date.now(),
-      replyToMessageId,
-      sessionId: this.config.sessionId,
+    await this.requireOutbound().submit({
+      routeId: this.config.routeId,
+      kind: 'response',
+      intentKey: `response:update:${updateId}`,
       text: bounded,
-      updateId,
+      replyToExternalId: String(replyToMessageId),
     })
-    this.enqueue(prepared.record.id)
   }
 
-  private enqueuePending(): void {
-    for (const record of this.store.list(['prepared', 'retrying'])) this.enqueue(record.id)
-  }
-
-  private enqueue(id: string): void {
-    if (this.scheduled.has(id) || this.lifecycle.signal.aborted) return
-    this.scheduled.add(id)
-    const task = this.deliveryTail.then(() => this.deliver(id))
-    this.deliveryTail = task.then(
-      () => {
-        this.scheduled.delete(id)
-        if (this.store.get(id)?.status === 'retrying') this.enqueue(id)
-      },
-      (error: unknown) => {
-        this.scheduled.delete(id)
-        this.ctx.logger.warn(`dsh-telegram: delivery worker failed: ${safeMessage(error)}`)
-      },
-    )
-  }
-
-  private async deliver(id: string): Promise<void> {
-    let record = this.store.get(id)
-    if (record === undefined || !['prepared', 'retrying'].includes(record.status)) return
-    if (record.source.kind === 'turn') {
-      const agent = this.agent
-      if (agent === undefined || String(agent.session.id) !== record.sessionId
-        || !turnEnded(agent.session.events, record.source.turn)) return
+  private async sendOutbound(
+    input: GatewayOutboundSendInput,
+    signal: AbortSignal,
+  ): Promise<GatewayOutboundSendResult> {
+    if (input.routeId !== this.config.routeId) return { kind: 'rejected', code: 'route_mismatch' }
+    const replyToMessageId = input.replyToExternalId === undefined
+      ? undefined
+      : canonicalTelegramMessageId(input.replyToExternalId)
+    if (input.replyToExternalId !== undefined && replyToMessageId === undefined) {
+      return { kind: 'rejected', code: 'invalid_reply_identity' }
     }
-    if (record.status === 'retrying' && record.nextAttemptAt !== undefined) {
-      await delay(Math.max(0, record.nextAttemptAt - Date.now()), this.lifecycle.signal)
-      if (this.lifecycle.signal.aborted) return
-      record = this.store.get(id)
-      if (record === undefined || record.status !== 'retrying') return
-    }
-    const text = this.textFor(record)
-    if (text === undefined) {
-      await this.store.markLocallyFailed(id, 'The referenced DSH turn has no final assistant text.', Date.now())
-      return
-    }
-    const sending = await this.store.markSending(id, Date.now())
     const result = await this.api.sendText({
       chatId: this.config.chatId,
-      text,
-      ...(sending.replyToMessageId === undefined ? {} : { replyToMessageId: sending.replyToMessageId }),
-    }, this.lifecycle.signal)
-    if (result.ok) {
-      await this.store.markDelivered(id, result.messageId, Date.now())
-      return
+      text: input.text,
+      ...(replyToMessageId === undefined ? {} : { replyToMessageId }),
+    }, signal)
+    if (result.ok) return { kind: 'delivered', externalMessageId: String(result.messageId) }
+    if (result.failure.kind !== 'telegram-rejected') return { kind: 'uncertain' }
+    const retryAfterSeconds = result.failure.retryAfterSeconds
+    if (result.failure.errorCode === 429 && retryAfterSeconds !== undefined) {
+      return {
+        kind: 'rate-limited',
+        retryAfterMs: retryAfterSeconds <= MAX_RETRY_AFTER_SECONDS
+          ? retryAfterSeconds * 1_000
+          : MAX_RETRY_AFTER_SECONDS * 1_000 + 1,
+      }
     }
-    if (result.failure.kind === 'telegram-rejected'
-      && result.failure.errorCode === 429
-      && (result.failure.retryAfterSeconds ?? 0) > MAX_RETRY_AFTER_SECONDS) {
-      await this.store.markFailure(
-        id,
-        { kind: 'telegram-rejected', errorCode: 429 },
-        Date.now(),
-        this.config.maxSendAttempts,
-      )
-      return
-    }
-    await this.store.markFailure(id, result.failure, Date.now(), this.config.maxSendAttempts)
+    return { kind: 'rejected', code: `telegram_${result.failure.errorCode}` }
   }
 
-  private textFor(record: TelegramDeliveryRecord): string | undefined {
-    if (record.source.kind === 'command' || record.source.kind === 'notice') {
-      return record.source.text
-    }
-    const agent = this.agent
-    if (agent === undefined || String(agent.session.id) !== record.sessionId) return undefined
-    return outboundTextForTurn(agent.session.events, record.source.turn, this.config.maxTextChars)
+  private requireOutbound(): GatewayTextAdapterRegistration {
+    if (this.outbound === undefined) throw new Error('dsh-telegram: Gateway outbound is unavailable')
+    return this.outbound
   }
 
   private async requestApproval(
@@ -382,6 +357,8 @@ function safeMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'unknown failure'
 }
 
-export function turnEnded(events: readonly SessionEvent[], turn: number): boolean {
-  return events.some(event => event.type === 'turn/end' && event.data.turn === turn)
+function canonicalTelegramMessageId(value: string): number | undefined {
+  if (!/^[1-9][0-9]*$/u.test(value)) return undefined
+  const parsed = Number(value)
+  return Number.isSafeInteger(parsed) && String(parsed) === value ? parsed : undefined
 }

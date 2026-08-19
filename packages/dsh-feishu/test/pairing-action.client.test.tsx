@@ -102,8 +102,17 @@ describe('Feishu pairing action', () => {
       accountId: 'cli_test_app',
       transport: { state: 'ready', connectedAt: 100, lastActivityAt: 800 },
       routes: [{ id: 'feishu-main', workspaceId: 'workspace-a', sessionId, threadScoped: false }],
-      records: [],
-      scheduled: 0,
+      outbound: {
+        registrations: 1,
+        scheduled: 0,
+        total: 0,
+        prepared: 0,
+        sending: 0,
+        retrying: 0,
+        delivered: 0,
+        uncertain: 0,
+        failed: 0,
+      },
       pendingApprovals: 0,
     })
     const commands = {

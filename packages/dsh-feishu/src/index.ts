@@ -10,7 +10,6 @@ import {
   resolveFeishuPairingConfig,
   type ResolvedFeishuPairingConfig,
 } from './config.js'
-import { openFeishuDeliveryStore } from './delivery-store.js'
 import type { FeishuHostNotice, FeishuHostRoute } from './host-route.js'
 import { FeishuPairingRuntime, type FeishuPairingTarget } from './pairing.js'
 import {
@@ -21,7 +20,7 @@ import {
 import { FeishuRuntime } from './runtime.js'
 
 export const name = 'dsh-feishu'
-export const inject = ['commands', 'evoforge.gateway', 'storageDomain', 'workspaceRegistry']
+export const inject = ['commands', 'evoforge.gateway', 'workspaceRegistry']
 
 export interface Config {
   readonly mode?: 'routes' | 'pairing'
@@ -29,7 +28,6 @@ export interface Config {
   readonly appIdEnv?: string
   readonly appSecretEnv?: string
   readonly handshakeTimeoutMs?: number
-  readonly maxDeliveryRecords?: number
   readonly maxRetryAfterSeconds?: number
   readonly maxSendAttempts?: number
   readonly maxTextChars?: number
@@ -41,7 +39,6 @@ export const Config: Schema<Config> = z.object({
   appIdEnv: z.string().default('DSH_FEISHU_APP_ID'),
   appSecretEnv: z.string().default('DSH_FEISHU_APP_SECRET'),
   handshakeTimeoutMs: z.number().step(1).min(1_000).max(60_000).default(15_000),
-  maxDeliveryRecords: z.number().step(1).min(1).max(100_000).default(10_000),
   maxRetryAfterSeconds: z.number().step(1).min(1).max(300).default(300),
   maxSendAttempts: z.number().step(1).min(1).max(5).default(3),
   maxTextChars: z.number().step(1).min(256).max(30_000).default(4_000),
@@ -66,12 +63,10 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     if (route !== undefined) routes.push(route)
   }
   const resolved = resolveFeishuConfig({ ...config, mode: 'routes', routeIds }, routes)
-  const store = await openFeishuDeliveryStore(ctx.storageDomain, { maxRecords: resolved.maxDeliveryRecords })
   const runtime = new FeishuRuntime(
     ctx,
     resolved,
     gateway,
-    store,
     createOfficialFeishuPlatform({
       appId: resolved.appId,
       appSecret: resolved.appSecret,
@@ -157,22 +152,6 @@ export {
   type ResolvedFeishuPairingConfig,
   type ResolvedFeishuRoute,
 } from './config.js'
-export {
-  openFeishuDeliveryStore,
-  type FeishuDeliveryRecord,
-  type FeishuDeliveryStore,
-  type PrepareFeishuNoticeInput,
-  type PrepareFeishuResponseInput,
-  type PrepareFeishuTurnInput,
-} from './delivery-store.js'
-export {
-  beginFeishuDelivery,
-  classifyFeishuSendFailure,
-  recoverFeishuDelivery,
-  type FeishuDeliveryState,
-  type FeishuDeliveryStatus,
-  type FeishuSendFailure,
-} from './delivery-state.js'
 export type {
   FeishuHostNotice,
   FeishuHostNoticeReceipt,

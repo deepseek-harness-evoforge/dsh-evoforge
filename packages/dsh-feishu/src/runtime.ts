@@ -1,5 +1,4 @@
 import { randomBytes } from 'node:crypto'
-import { setTimeout as wait } from 'node:timers/promises'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-commands'
@@ -8,10 +7,12 @@ import {
   GatewayIngressUncertainError,
   type GatewayEndpoint,
   type DshGateway,
+  type GatewayOutboundSendInput,
+  type GatewayOutboundSendResult,
+  type GatewayTextAdapterRegistration,
+  type GatewayTextDeliveryIntent,
 } from 'dsh-gateway'
 import type { ResolvedFeishuConfig, ResolvedFeishuRoute } from './config.js'
-import type { FeishuDeliveryRecord, FeishuDeliveryStore } from './delivery-store.js'
-import type { FeishuSendFailure } from './delivery-state.js'
 import type { FeishuHostNotice, FeishuHostNoticeReceipt } from './host-route.js'
 import {
   renderFeishuHealthCommand,
@@ -53,12 +54,11 @@ export class FeishuRuntime {
   private readonly bound = new WeakSet<Agent>()
   private readonly repliesByMessage = new Map<string, ReplyDestination>()
   private readonly repliesByTurn = new WeakMap<Agent, Map<number, ReplyDestination>>()
-  private readonly outputByTurn = new WeakMap<Agent, Map<number, string>>()
+  private readonly outboundByTurn = new WeakMap<Agent, Map<number, GatewayTextDeliveryIntent>>()
   private readonly latestDestination = new WeakMap<Agent, ReplyDestination>()
   private readonly pendingApprovals = new Map<string, PendingApproval>()
-  private readonly scheduled = new Set<string>()
   private readonly unsubscribers: Array<() => void> = []
-  private deliveryTail: Promise<void> = Promise.resolve()
+  private outbound?: GatewayTextAdapterRegistration
   private started = false
   private transportState: FeishuTransportState = 'connecting'
   private connectedAt?: number
@@ -69,7 +69,6 @@ export class FeishuRuntime {
     private readonly ctx: Context,
     private readonly config: ResolvedFeishuConfig,
     private readonly gateway: DshGateway,
-    private readonly store: FeishuDeliveryStore,
     private readonly platform: FeishuPlatform,
   ) {
     this.configuredRouteIds = config.routeIds
@@ -86,8 +85,15 @@ export class FeishuRuntime {
   async start(): Promise<void> {
     if (this.started) return
     this.started = true
-    await this.store.recoverInflight(Date.now())
     for (const route of this.config.routes) this.bind(await this.gateway.resolve(route.id, this.lifecycle.signal))
+    this.outbound = this.gateway.registerTextAdapter({
+      adapter: 'feishu',
+      accountId: this.config.appId,
+      routeIds: this.config.routes.map(route => route.id),
+      maxAttempts: this.config.maxSendAttempts,
+      maxRetryAfterMs: this.config.maxRetryAfterMs,
+      send: (input, signal) => this.sendOutbound(input, signal),
+    })
 
     this.ctx.on('agent/created', ({ agent }) => {
       const routes = this.routesBySession.get(String(agent.id))
@@ -115,7 +121,7 @@ export class FeishuRuntime {
       this.turnMap(this.repliesByTurn, agent).set(turn, destination)
       this.latestDestination.set(agent, destination)
     })
-    this.ctx.on('agent/turn-stopping', ({ agent, turn }) => {
+    this.ctx.on('agent/turn-stopping', async ({ agent, turn }) => {
       if (!this.bound.has(agent)) return
       const replies = this.turnMap(this.repliesByTurn, agent)
       if (!replies.has(turn)) {
@@ -124,24 +130,36 @@ export class FeishuRuntime {
           replies.set(turn, Object.freeze({ route: routes[0]!, replyInThread: routes[0]!.endpoint.threadId !== undefined }))
         }
       }
-      if (!replies.has(turn)) return
+      const destination = replies.get(turn)
+      if (destination === undefined) return
       const text = outboundTextForTurn(agent.session.events, turn, this.config.maxTextChars)
-      if (text !== undefined) this.turnMap(this.outputByTurn, agent).set(turn, text)
+      if (text === undefined) return
+      const intent: GatewayTextDeliveryIntent = Object.freeze({
+        routeId: destination.route.id,
+        kind: 'turn',
+        intentKey: `turn:${turn}`,
+        text,
+        waitForTurnEnd: turn,
+        ...(destination.replyTo === undefined ? {} : { replyToExternalId: destination.replyTo }),
+        ...(destination.replyInThread ? { replyInThread: true } : {}),
+      })
+      this.turnMap(this.outboundByTurn, agent).set(turn, intent)
+      await this.requireOutbound().submit(intent)
     })
     this.ctx.on('session/event', (session, event) => {
       if (event.type !== 'turn/end') return
       const agent = this.agentsBySession.get(String(session.id))
       if (agent === undefined || session !== agent.session) return
       const destination = this.turnMap(this.repliesByTurn, agent).get(event.data.turn)
-      const text = this.turnMap(this.outputByTurn, agent).get(event.data.turn)
+      const intent = this.turnMap(this.outboundByTurn, agent).get(event.data.turn)
       this.turnMap(this.repliesByTurn, agent).delete(event.data.turn)
-      this.turnMap(this.outputByTurn, agent).delete(event.data.turn)
+      this.turnMap(this.outboundByTurn, agent).delete(event.data.turn)
       if (destination !== undefined && this.latestDestination.get(agent) === destination) {
         this.latestDestination.delete(agent)
       }
-      if (destination !== undefined && text !== undefined) {
-        void this.prepareTurn(destination, agent, event.data.turn, text).catch((error: unknown) => {
-          this.ctx.logger.warn(`dsh-feishu: could not prepare final answer: ${safeMessage(error)}`)
+      if (intent !== undefined) {
+        void this.requireOutbound().submit(intent).catch((error: unknown) => {
+          this.ctx.logger.warn(`dsh-feishu: could not release final answer: ${safeMessage(error)}`)
         })
       }
     })
@@ -163,7 +181,6 @@ export class FeishuRuntime {
       await this.platform.connect()
       this.connectedAt = Date.now()
       this.transportState = 'ready'
-      this.enqueuePending()
     } catch (error) {
       await this.dispose()
       throw error
@@ -179,9 +196,8 @@ export class FeishuRuntime {
       if (pending.onAbort !== undefined) pending.signal?.removeEventListener('abort', pending.onAbort)
       pending.resolve('cancelled')
     }
-    await this.deliveryTail
+    await this.outbound?.dispose()
     await this.platform.disconnect()
-    await this.store.close()
   }
 
   async notifyHost(notice: FeishuHostNotice): Promise<FeishuHostNoticeReceipt> {
@@ -190,17 +206,14 @@ export class FeishuRuntime {
     }
     const route = this.routesById.get(notice.routeId)
     if (route === undefined) throw new Error(`dsh-feishu: host notice route '${notice.routeId}' is not configured`)
-    const prepared = await this.store.prepareNotice({
+    const prepared = await this.requireOutbound().submit({
       routeId: route.id,
-      sessionId: route.sessionId,
-      chatId: route.endpoint.conversationId,
-      ...(route.endpoint.threadId === undefined ? {} : { threadId: route.endpoint.threadId }),
-      noticeId: notice.id,
+      kind: 'notice',
+      intentKey: `notice:${notice.id}`,
       text: boundText(notice.text, this.config.maxTextChars),
-      now: Date.now(),
+      ...(route.endpoint.threadId === undefined ? {} : { replyInThread: true }),
     })
-    this.enqueue(prepared.record.id)
-    return Object.freeze({ created: prepared.created, status: prepared.record.status })
+    return Object.freeze({ created: prepared.created, status: prepared.status })
   }
 
   /** Redacted projection of the exact Host state; it performs no model or platform call. */
@@ -221,11 +234,7 @@ export class FeishuRuntime {
         sessionId: route.sessionId,
         threadScoped: route.endpoint.threadId !== undefined,
       })),
-      records: this.store.list(),
-      scheduled: [...this.scheduled].filter(id => {
-        const record = this.store.get(id)
-        return record !== undefined && routeIds.has(record.routeId)
-      }).length,
+      outbound: this.gateway.healthSnapshot(Date.now(), [...routeIds]).outbound,
       pendingApprovals: [...this.pendingApprovals.values()]
         .filter(pending => routeIds.has(pending.destination.route.id)).length,
     })
@@ -318,84 +327,45 @@ export class FeishuRuntime {
     pending.resolve(selected.outcome)
   }
 
-  private async prepareTurn(
-    destination: ReplyDestination,
-    agent: Agent,
-    turn: number,
-    text: string,
-  ): Promise<void> {
-    const prepared = await this.store.prepareTurn({
-      ...deliveryDestination(destination),
-      sessionId: String(agent.session.id),
-      turn,
-      text,
-      now: Date.now(),
-    })
-    this.enqueue(prepared.record.id)
-  }
-
   private async prepareResponse(
     destination: ReplyDestination,
     eventId: string,
     text: string,
   ): Promise<void> {
-    const prepared = await this.store.prepareResponse({
-      ...deliveryDestination(destination),
-      sessionId: destination.route.sessionId,
-      eventId,
+    await this.requireOutbound().submit({
+      routeId: destination.route.id,
+      kind: 'response',
+      intentKey: `response:${eventId}`,
       text: boundText(text, this.config.maxTextChars),
-      now: Date.now(),
+      ...(destination.replyTo === undefined ? {} : { replyToExternalId: destination.replyTo }),
+      ...(destination.replyInThread ? { replyInThread: true } : {}),
     })
-    this.enqueue(prepared.record.id)
   }
 
-  private enqueuePending(): void {
-    for (const record of this.store.list(['prepared', 'retrying'])) this.enqueue(record.id)
-  }
-
-  private enqueue(id: string): void {
-    if (this.scheduled.has(id) || this.lifecycle.signal.aborted) return
-    this.scheduled.add(id)
-    const task = this.deliveryTail.then(() => this.deliver(id))
-    this.deliveryTail = task.then(
-      () => {
-        this.scheduled.delete(id)
-        if (this.store.get(id)?.status === 'retrying') this.enqueue(id)
-      },
-      (error: unknown) => {
-        this.scheduled.delete(id)
-        this.ctx.logger.warn(`dsh-feishu: delivery worker failed: ${safeMessage(error)}`)
-      },
-    )
-  }
-
-  private async deliver(id: string): Promise<void> {
-    let record = this.store.get(id)
-    if (record === undefined || (record.status !== 'prepared' && record.status !== 'retrying')) return
-    if (record.status === 'retrying' && record.nextAttemptAt !== undefined) {
-      await delay(Math.max(0, record.nextAttemptAt - Date.now()), this.lifecycle.signal)
-      if (this.lifecycle.signal.aborted) return
-      record = this.store.get(id)
-      if (record === undefined || record.status !== 'retrying') return
-    }
-    const sending = await this.store.markSending(id, Date.now())
+  private async sendOutbound(
+    input: GatewayOutboundSendInput,
+    _signal: AbortSignal,
+  ): Promise<GatewayOutboundSendResult> {
+    const route = this.routesById.get(input.routeId)
+    if (route === undefined) return { kind: 'rejected', code: 'route_mismatch' }
     try {
-      const sent = await this.platform.sendText(
-        sending.chatId,
-        sending.source.text,
-        deliverySendOptions(sending),
-      )
+      const options: FeishuSendOptions | undefined = input.replyToExternalId === undefined && !input.replyInThread
+        ? undefined
+        : Object.freeze({
+          ...(input.replyToExternalId === undefined ? {} : { replyTo: input.replyToExternalId }),
+          ...(input.replyInThread ? { replyInThread: true } : {}),
+        })
+      const sent = await this.platform.sendText(route.endpoint.conversationId, input.text, options)
       this.observeTransportActivity()
-      await this.store.markDelivered(id, sent.messageId, Date.now())
+      return { kind: 'delivered', externalMessageId: sent.messageId }
     } catch (error: unknown) {
-      await this.store.markFailure(
-        id,
-        classifyPlatformFailure(error),
-        Date.now(),
-        this.config.maxSendAttempts,
-        this.config.maxRetryAfterMs,
-      )
+      return classifyPlatformFailure(error)
     }
+  }
+
+  private requireOutbound(): GatewayTextAdapterRegistration {
+    if (this.outbound === undefined) throw new Error('dsh-feishu: Gateway outbound is unavailable')
+    return this.outbound
   }
 
   private async requestApproval(
@@ -451,37 +421,15 @@ export class FeishuRuntime {
   }
 }
 
-function deliveryDestination(destination: ReplyDestination): {
-  routeId: string
-  chatId: string
-  threadId?: string
-  replyToMessageId?: string
-} {
-  return {
-    routeId: destination.route.id,
-    chatId: destination.route.endpoint.conversationId,
-    ...(destination.route.endpoint.threadId === undefined ? {} : { threadId: destination.route.endpoint.threadId }),
-    ...(destination.replyTo === undefined ? {} : { replyToMessageId: destination.replyTo }),
-  }
-}
-
-function deliverySendOptions(record: FeishuDeliveryRecord): FeishuSendOptions | undefined {
-  if (record.replyToMessageId === undefined && record.threadId === undefined) return undefined
-  return Object.freeze({
-    ...(record.replyToMessageId === undefined ? {} : { replyTo: record.replyToMessageId }),
-    ...(record.threadId === undefined ? {} : { replyInThread: true }),
-  })
-}
-
-function classifyPlatformFailure(error: unknown): FeishuSendFailure {
-  if (!isPlatformSendError(error)) return { kind: 'transport' }
+function classifyPlatformFailure(error: unknown): GatewayOutboundSendResult {
+  if (!isPlatformSendError(error)) return { kind: 'uncertain' }
   if (error.code === 'rate_limited') {
     return { kind: 'rate-limited', retryAfterMs: error.retryAfterMs ?? 1_000 }
   }
   if (['format_error', 'permission_denied', 'target_revoked'].includes(error.code)) {
     return { kind: 'rejected', code: error.code }
   }
-  return error.code === 'unknown' ? { kind: 'invalid-response' } : { kind: 'transport' }
+  return { kind: 'uncertain' }
 }
 
 function isPlatformSendError(error: unknown): error is FeishuPlatformSendError {
@@ -492,14 +440,6 @@ function isPlatformSendError(error: unknown): error is FeishuPlatformSendError {
     && typeof error.code === 'string'
     && (error.retryAfterMs === undefined
       || (Number.isSafeInteger(error.retryAfterMs) && (error.retryAfterMs as number) > 0))
-}
-
-async function delay(ms: number, signal: AbortSignal): Promise<void> {
-  try {
-    await wait(ms, undefined, { signal })
-  } catch {
-    // Cordis disposal aborts the only expected wait.
-  }
 }
 
 function approvalCard(content: string, nonce: string): object {

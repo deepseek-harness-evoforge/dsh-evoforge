@@ -6,7 +6,6 @@ export interface FeishuConfigInput {
   readonly appIdEnv?: string
   readonly appSecretEnv?: string
   readonly handshakeTimeoutMs?: number
-  readonly maxDeliveryRecords?: number
   readonly maxRetryAfterSeconds?: number
   readonly maxSendAttempts?: number
   readonly maxTextChars?: number
@@ -35,7 +34,6 @@ export interface ResolvedFeishuConfig {
   readonly appSecret: string
   readonly appSecretEnv: string
   readonly handshakeTimeoutMs: number
-  readonly maxDeliveryRecords: number
   readonly maxRetryAfterMs: number
   readonly maxSendAttempts: number
   readonly maxTextChars: number
@@ -69,12 +67,10 @@ export function resolveFeishuConfig(
   }
 
   const handshakeTimeoutMs = config.handshakeTimeoutMs ?? 15_000
-  const maxDeliveryRecords = config.maxDeliveryRecords ?? 10_000
   const maxRetryAfterSeconds = config.maxRetryAfterSeconds ?? 300
   const maxSendAttempts = config.maxSendAttempts ?? 3
   const maxTextChars = config.maxTextChars ?? 4_000
   assertIntegerRange('handshakeTimeoutMs', handshakeTimeoutMs, 1_000, 60_000)
-  assertIntegerRange('maxDeliveryRecords', maxDeliveryRecords, 1, 100_000)
   assertIntegerRange('maxRetryAfterSeconds', maxRetryAfterSeconds, 1, 300)
   assertIntegerRange('maxSendAttempts', maxSendAttempts, 1, 5)
   assertIntegerRange('maxTextChars', maxTextChars, 256, 30_000)
@@ -97,7 +93,6 @@ export function resolveFeishuConfig(
     appSecret,
     appSecretEnv,
     handshakeTimeoutMs,
-    maxDeliveryRecords,
     maxRetryAfterMs: maxRetryAfterSeconds * 1_000,
     maxSendAttempts,
     maxTextChars,

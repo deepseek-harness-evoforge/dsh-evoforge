@@ -320,14 +320,16 @@ workspace，输出可审查的 launchd/systemd unit。OS service manager 与 uni
 已分别以独立 `dsh-*` 包实现；飞书真实 App 身份请求、WebSocket 握手与 setup-only 配对 transport 已
 通过；同包 DSH Web Client Module 已从最终 tarball 在全新 profile 完成生成/复制/取消的真实浏览器验收，
 并只复用当前 Session 的 `/feishu-pair` 生成待审查静态 route，消除手工查 ID 和拼命令的负担。
-exact route 消息和 Hermes paired 证据完成以前仍只标记为 `implemented`；公共渠道可靠性收敛到
-`dsh-gateway`，平台协议和凭据留在 Adapter，也不把
+exact route 消息和 Hermes paired 证据完成以前仍只标记为 `implemented`；公共渠道可靠性中的 ingress、
+普通文本 outbound intent/journal、幂等、按 account 串行、明确限流重试和脱敏状态已经收敛到
+`dsh-gateway`，平台协议、凭据、实际发送、卡片和 transport health 留在 Adapter，也不把
 其他消息、内容或日程需求视为已交付。该说明不改变以上需求顺序和权限边界。
 
-Gateway 自有健康权威必须先于跨 Adapter 聚合：`healthSnapshot()` 只能从静态 route、原生 Agent 注册表和
-Gateway ingress journal 读取，按 exact route 子集返回生命周期、live Session 与 ingress 状态计数；不得输出
-account/chat/user、正文或凭据，不得调用模型或平台。公共 outbound、限流、Adapter transport 健康和统一 Web
-展示仍是独立门禁，不能因存在 Gateway 自身快照而标记完成。
+Gateway 权威 `healthSnapshot()` 只能从静态 route、原生 Agent 注册表、Gateway ingress/outbound journal
+和 Adapter registrations 读取，按 exact route 子集返回生命周期、live Session、ingress 与 outbound 状态；
+不得输出 account/chat/user、正文、external message id、错误正文或凭据，不得调用模型或平台。公共
+outbound 已由 Telegram/飞书共同验证并迁入；Adapter transport 健康聚合和统一 Web 展示仍是独立门禁，
+不能因存在 Gateway 自身快照而标记完成。
 
 内部经验自我发现的现行纵切只使用 DSH 内部经验。已有能力继续由模型依据原生完整 Session Skill catalog
 自主路由并由原生 `skill` Tool 加载；没有适用 Skill 时，模型可在同一自然语言 Goal 中调用唯一稳定的

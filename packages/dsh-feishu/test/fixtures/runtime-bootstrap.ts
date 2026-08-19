@@ -1,7 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { DshGateway, ResolvedGatewayRoute } from 'dsh-gateway'
 import type {
-  FeishuDeliveryStore,
   FeishuApprovalAction,
   FeishuHostNotice,
   FeishuInboundMessage,
@@ -11,7 +10,7 @@ import type {
 } from '../../src/index.ts'
 
 export const name = 'dsh-feishu-test-runtime-bootstrap'
-export const inject = ['evoforge.gateway', 'storageDomain']
+export const inject = ['evoforge.gateway']
 
 interface Config {
   readonly feishuEntry: string
@@ -96,7 +95,6 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       ctx: Context,
       config: ResolvedFeishuConfig,
       gateway: DshGateway,
-      store: FeishuDeliveryStore,
       platform: FeishuPlatform,
     ) => {
       start(): Promise<void>
@@ -104,10 +102,6 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       notifyHost(notice: FeishuHostNotice): Promise<unknown>
       healthSnapshot(): unknown
     }
-    openFeishuDeliveryStore(
-      facility: Context['storageDomain'],
-      options: { maxRecords: number },
-    ): Promise<FeishuDeliveryStore>
     resolveFeishuConfig(
       config: Config,
       routes: readonly ResolvedGatewayRoute[],
@@ -115,8 +109,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   }
   const resolved = feishu.resolveFeishuConfig(config, routes)
   const platform = new FakeFeishuPlatform()
-  const store = await feishu.openFeishuDeliveryStore(ctx.storageDomain, { maxRecords: resolved.maxDeliveryRecords })
-  const runtime = new feishu.FeishuRuntime(ctx, resolved, gateway, store, platform)
+  const runtime = new feishu.FeishuRuntime(ctx, resolved, gateway, platform)
   ctx.effect(() => async () => runtime.dispose(), 'dsh-feishu.test-runtime')
   await runtime.start()
   ctx.provide('evoforge.feishuRoute' as never, Object.freeze({

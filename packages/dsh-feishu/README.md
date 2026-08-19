@@ -86,14 +86,20 @@ setup-only pairing 只输出待审查配置，重启进入 routes 模式后才�
 ## 运行合同
 
 - Gateway 持有 endpoint → Workspace/Session/Agent、原生 Command admission 和持久 ingress 幂等；
-- Adapter 只持有官方 WebSocket 协议、文本/卡片收发、一次性 DSH Approval UI 和有界 StorageDomain 出站 journal；
+- Gateway 持有普通文本 `turn/response/notice` 的有界出站 journal、幂等键、按 App account 串行、
+  明确 429 有界重试和保守崩溃恢复；
+- Adapter 只持有官方 WebSocket/HTTP 协议、平台发送映射、卡片和一次性 DSH Approval UI，不再维护第二套
+  Delivery Store 或 retry worker；
 - Adapter 自动采用部署进程的 `HTTPS_PROXY`/`https_proxy` 或 `ALL_PROXY`/`all_proxy`，并遵守
   `NO_PROXY`/`no_proxy`；代理只绑定到该飞书连接，不修改环境变量或全局 Agent；
 - 发送意图先落盘；明确 429 才有界重试；传输失败或崩溃中的 `sending` 转为 `uncertain`，不自动重复发送；
 - 单 route Session 的 Goal/Schedule continuation 可主动投递；多 route Session 的主动目标不明确时 fail closed；host notice 必须显式指定 `routeId`；
-- `/feishu` 是原生 DSH Command；它从当前 Session 的 Host lifecycle 与持久 journal 生成带版本、脱敏的健康快照。DSH Web 打开面板或人工点击刷新时复用这个 Command，不后台轮询，不调用模型，也不显示凭据、chat/user identity 或消息正文；
+- `/feishu` 是原生 DSH Command；它从当前 Session 的 Adapter transport lifecycle 与 Gateway 权威
+  outbound 投影生成带版本、脱敏的健康快照。DSH Web 打开面板或人工点击刷新时复用这个 Command，
+  不后台轮询，不调用模型，也不显示凭据、chat/user identity、外部 message id 或消息正文；
 - 若同一部署暂时并存 setup-only 与 routes 实例，已绑定 Session 的 `/feishu` 健康入口优先于全局 `/feishu-pair`；读取失败会清除旧快照，避免历史 `ready` 冒充当前状态；
 - 健康视图区分 `ready`、`busy`、`attention`、`degraded` 与 `stopping`，展示 exact route 名称、官方 WebSocket lifecycle、投递/重试/uncertain/failed 与 pending Approval 计数；普通模型请求仍新增 0 Tool、0 Skill、0 Prompt section；
-- disable、reload 或 remove 会注销 handler、取消 pending Approval、停止 worker、关闭 StorageDomain 并断开官方长连接。
+- disable、reload 或 remove 会注销 handler、取消 pending Approval、释放 Gateway outbound registration
+  并断开官方长连接；Gateway 自己负责关闭公共 Storage Domain。
 
 官方协议依据：[飞书事件订阅概述](https://open.feishu.cn/document/server-docs/event-subscription-guide/overview)、[官方 Node SDK](https://github.com/larksuite/node-sdk)、[发送消息 API](https://open.feishu.cn/document/server-docs/im-v1/message/create)。

@@ -179,12 +179,13 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
         })
       }, { timeout: 15_000, interval: 25 })
       expect(service.platform.sendAttempts).toHaveLength(2)
-      const deliveryDomain = ctx.storageDomain.get('evoforge_feishu')
+      const deliveryDomain = ctx.storageDomain.get('evoforge_gateway_outbound')
       await vi.waitFor(() => {
-        const deliveries = [...(deliveryDomain?.table('deliveries').entries() ?? [])]
+        const deliveries = [...(deliveryDomain?.table('outbound').entries() ?? [])]
           .map(([, value]) => value as { attempts?: unknown; status?: unknown })
         expect(deliveries).toEqual([expect.objectContaining({ attempts: 2, status: 'delivered' })])
       })
+      expect(ctx.storageDomain.get('evoforge_feishu')).toBeUndefined()
       const agent = ctx.agents.get('main')
       expect(agent).toBeDefined()
       expect(agent?.session.events.some((event: SessionEvent) => event.type === 'user/message'

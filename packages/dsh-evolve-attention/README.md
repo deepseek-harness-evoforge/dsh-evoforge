@@ -49,10 +49,10 @@ There are deliberately no inline approve, promote, or qualify buttons.
 ## Delivery, lifecycle, and cache contract
 
 The bridge scans once when a concrete route service appears and after the existing evolution
-supervisor settles. It creates no timer or watcher. Deterministic notice ids flow into each
-Adapter's StorageDomain journal; repeated scans, bridge reloads, and process restarts therefore do
-not redeliver a recorded success. Ambiguous external sends remain `uncertain` according to the
-Adapter contract.
+supervisor settles. It creates no timer or watcher. Deterministic notice ids flow through each
+concrete Adapter route into the shared Gateway outbound journal; repeated scans, bridge reloads,
+and process restarts therefore do not redeliver a recorded success. Ambiguous external sends remain
+`uncertain` according to the Gateway contract.
 
 Concrete channel dependencies are optional peers. Cordis injection owns each bridge independently:
 installing only Telegram or only Feishu works, adding/removing either Adapter activates/disposes

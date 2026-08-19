@@ -133,7 +133,7 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-telegram package bound
     try {
       const entry = [...ctx.loader.entries()].find(candidate => candidate.options.name === 'dsh-telegram')
       expect(entry?.fiber?.state).toBe(2)
-      expect(ctx.storageDomain.get('evoforge_telegram')).toBeDefined()
+      expect(ctx.storageDomain.get('evoforge_telegram')).toBeUndefined()
     } finally {
       await ctx.fiber.dispose()
     }

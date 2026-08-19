@@ -1,6 +1,10 @@
 # AS-2 飞书 Channel Adapter 实现证据
 
 > 日期：2026-08-18；固定 DSH revision：`47f943859bef60e4160492346772ded9b24f765a`；状态：implemented；真实 App 凭据、机器人身份请求、WebSocket 握手与原生 DSH Web 配对向导已验证，routes mode 权威健康面已实现并通过 assembled/browser-component 门禁，exact route 消息闭环和 Hermes paired benchmark 尚未完成
+>
+> 2026-08-19 当前状态注记：本页的 `evoforge_feishu` 私有 journal/worker 和 `15 files / 41 tests` 是
+> AS-2 当时的历史证据；它们已由 [GW-3](gw-3-gateway-outbound-delivery.zh.md) 的 Gateway 公共 outbound
+> 深模块替换。活动源码不再打开 `evoforge_feishu` Domain，也不保留兼容双写。
 
 `dsh-feishu` 是 `dsh-gateway` 上的第二个薄 Adapter，不是独立机器人 Runtime。它使用飞书官方 Node SDK `1.73.0` 的 WebSocket 长连接；Router 持有 endpoint → Workspace/Session/Agent、原生 Command admission 和 ingress 幂等，Adapter 只持有协议、Approval 卡片与出站 journal。
 
@@ -75,7 +79,7 @@ profile；安装测试同时核对 `dist/client.js`、Module Loader wrapper、�
 ## Routes mode 权威健康面
 
 正常 routes mode 不再只有静态 `READY` 文本。当前 Session 的 `/feishu` 从同一个 Host runtime、
-`evoforge_feishu` StorageDomain journal、worker queue 和 pending Approval map 构造版本化快照；不访问平台、
+Gateway outbound health、Adapter transport lifecycle 和 pending Approval map 构造版本化快照；不访问平台、
 不调用模型。快照按该 Session 的 exact routes 过滤，只保留非秘密 App account、route 名称/Workspace/Session 归属、是否
 thread-scoped、WebSocket lifecycle、投递状态计数、最近投递的状态/尝试/时间与 pending Approval 数；
 App Secret、chat id、open id、消息正文和错误正文均不进入投影。

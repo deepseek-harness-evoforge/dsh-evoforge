@@ -1,6 +1,13 @@
-import type { SendFailure } from './delivery-state.js'
-
 type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>
+
+export type TelegramSendFailure =
+  | { readonly kind: 'transport' }
+  | { readonly kind: 'invalid-response' }
+  | {
+      readonly kind: 'telegram-rejected'
+      readonly errorCode: number
+      readonly retryAfterSeconds?: number
+    }
 
 export interface TelegramUpdate {
   readonly update_id: number
@@ -24,7 +31,7 @@ export interface SendTextInput {
 
 export type SendTextResult =
   | { readonly ok: true; readonly messageId: number }
-  | { readonly ok: false; readonly failure: SendFailure }
+  | { readonly ok: false; readonly failure: TelegramSendFailure }
 
 interface TelegramEnvelope {
   readonly ok?: unknown

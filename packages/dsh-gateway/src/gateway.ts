@@ -17,6 +17,13 @@ import type {
   ResolvedGatewayRoute,
   ResolvedGatewayRoutes,
 } from './routing.js'
+import {
+  GatewayOutboundCoordinator,
+  type GatewayOutboundHealth,
+  type GatewayTextAdapterConfig,
+  type GatewayTextAdapterRegistration,
+} from './outbound.js'
+import type { GatewayOutboundJournal } from './outbound-journal.js'
 
 export interface GatewayDispatchInput {
   readonly endpoint: GatewayEndpoint
@@ -62,6 +69,7 @@ export interface GatewayHealthSnapshot {
     readonly settled: number
     readonly uncertain: number
   }
+  readonly outbound: GatewayOutboundHealth
 }
 
 /** An accepted external event crossed an effect boundary whose outcome cannot be proven. */
@@ -82,19 +90,36 @@ export class DshGateway {
   private readonly resolutions = new Map<string, Promise<Agent>>()
   private readonly ingressTails = new Map<string, Promise<void>>()
   private started = false
+  private sessionEventsBound = false
   private stopping?: Promise<void>
+  private readonly outbound: GatewayOutboundCoordinator
 
   constructor(
     private readonly ctx: Context,
     private readonly configured: ResolvedGatewayRoutes,
     private readonly ingressJournal: GatewayIngressJournal,
-  ) {}
+    outboundJournal: GatewayOutboundJournal,
+  ) {
+    this.outbound = new GatewayOutboundCoordinator(
+      configured,
+      outboundJournal,
+      (route, turn, signal) => this.nativeTurnEnded(route, turn, signal),
+    )
+  }
 
   /** Validate the complete static binding table before any adapter accepts traffic. */
   async start(): Promise<void> {
     if (this.started) return
     if (this.stopping !== undefined) throw new Error('DSH gateway is stopping')
     await this.ingressJournal.recoverInflight(Date.now())
+    await this.outbound.start(Date.now())
+    if (!this.sessionEventsBound) {
+      this.sessionEventsBound = true
+      this.ctx.on('session/event', (session, event) => {
+        if (event.type !== 'turn/end') return
+        this.outbound.wakeEndedTurn(String(session.id), event.data.turn)
+      })
+    }
     const persisted = await this.ctx.sessionPersistence.list()
     const persistedById = new Map(persisted.map(header => [String(header.id), header]))
     for (const route of this.configured.routes) {
@@ -119,6 +144,11 @@ export class DshGateway {
 
   match(endpoint: GatewayEndpoint): ResolvedGatewayRoute | undefined {
     return this.configured.match(endpoint)
+  }
+
+  registerTextAdapter(config: GatewayTextAdapterConfig): GatewayTextAdapterRegistration {
+    this.assertRunning()
+    return this.outbound.register(config)
   }
 
   /**
@@ -156,6 +186,7 @@ export class DshGateway {
       lifecycle: this.stopping !== undefined ? 'stopping' : this.started ? 'ready' : 'starting',
       routes: { total: items.length, liveSessions: liveSessions.size, items },
       ingress,
+      outbound: this.outbound.health(selectedIds),
     })
   }
 
@@ -209,6 +240,7 @@ export class DshGateway {
   stop(): Promise<void> {
     this.stopping ??= (async () => {
       await Promise.allSettled(this.ingressTails.values())
+      await this.outbound.stop()
       const handles = [...this.ownedHandles.values()]
       this.ownedHandles.clear()
       await Promise.allSettled(handles.map(handle => handle.dispose()))
@@ -409,6 +441,16 @@ export class DshGateway {
   private assertRunning(): void {
     if (!this.started) throw new Error('DSH gateway has not started')
     if (this.stopping !== undefined) throw new Error('DSH gateway is stopping')
+  }
+
+  private async nativeTurnEnded(
+    route: ResolvedGatewayRoute,
+    turn: number,
+    signal: AbortSignal,
+  ): Promise<boolean> {
+    const agent = await this.resolve(route, signal)
+    return agent.session.events.some(event =>
+      event.type === 'turn/end' && event.data.turn === turn)
   }
 
   private selectHealthRoutes(routeIds: readonly string[] | undefined): readonly ResolvedGatewayRoute[] {

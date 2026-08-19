@@ -73,7 +73,7 @@ dsh --profile web
 
 ## 当前 v0.1 工作
 
-`dsh-gateway` 已直接替换旧 Router 包且没有兼容转发层；Gateway、Telegram、飞书、Evolve Attention、全仓类型/构建和十一包 clean-profile add/dump/boot/remove/readback 均已回归通过。现有静态 exact endpoint、原生 Workspace/Session/Agent、Command、持久 ingress、uncertain 恢复和双 Workspace 双渠道隔离行为保持；公共 outbound、限流与统一健康投影尚未完成。飞书 exact 消息闭环、内部 Candidate 独立评测、真实 provider、同模型编码/长任务和真实消息交付 Hermes paired epochs 仍是完成门禁；这些完成前不得发布或宣称整体上位。
+`dsh-gateway` 已直接替换旧 Router 包且没有兼容转发层；Gateway、Telegram、飞书、Evolve Attention、全仓类型/构建和十一包 clean-profile add/dump/boot/remove/readback 均已回归通过。静态 exact endpoint、原生 Workspace/Session/Agent、Command、持久 ingress 与双 Workspace 双渠道隔离保持；Gateway 现已统一 Telegram/飞书普通文本的持久 outbound intent、幂等、按 account 串行、明确 429 有界重试、uncertain 恢复和脱敏健康投影，并删除两个 Adapter 的重复 Delivery Store。平台 transport 健康聚合与统一 DSH Web 渠道视图尚未完成。飞书 exact 消息闭环、内部 Candidate 独立评测、真实 provider、同模型编码/长任务和真实消息交付 Hermes paired epochs 仍是完成门禁；这些完成前不得发布或宣称整体上位。
 
 - [安装与验收](docs/getting-started.zh.md)
 - [当前状态](docs/status.zh.md)

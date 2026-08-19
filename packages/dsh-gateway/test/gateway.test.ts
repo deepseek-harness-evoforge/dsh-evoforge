@@ -3,6 +3,7 @@ import type { Agent, AgentHandle } from '@deepseek-ai/dsh-agent'
 import type { DomainFacility, KvTable } from '@deepseek-ai/dsh-storage-domain'
 import { describe, expect, it, vi } from 'vitest'
 import { openGatewayIngressJournal } from '../src/ingress-journal.js'
+import { openGatewayOutboundJournal } from '../src/outbound-journal.js'
 import { DshGateway } from '../src/gateway.js'
 import { resolveGatewayRoutes, type GatewayEndpoint } from '../src/routing.js'
 
@@ -21,8 +22,9 @@ const routes = resolveGatewayRoutes([
 describe('DshGateway', () => {
   it('projects redacted route, native Session, and ingress health from the Gateway authority', async () => {
     const host = fakeNativeHost()
-    const journal = await openGatewayIngressJournal(memoryFacility())
-    const gateway = new DshGateway(host.ctx, routes, journal)
+    const facility = memoryFacility()
+    const journal = await openGatewayIngressJournal(facility)
+    const gateway = new DshGateway(host.ctx, routes, journal, await openGatewayOutboundJournal(facility))
 
     expect(gateway.healthSnapshot(90)).toEqual({
       schemaVersion: 1,
@@ -43,6 +45,10 @@ describe('DshGateway', () => {
         ],
       },
       ingress: { total: 0, prepared: 0, executing: 0, settled: 0, uncertain: 0 },
+      outbound: {
+        registrations: 0, scheduled: 0, total: 0, prepared: 0, sending: 0, retrying: 0,
+        delivered: 0, uncertain: 0, failed: 0,
+      },
     })
 
     await gateway.start()
@@ -72,7 +78,8 @@ describe('DshGateway', () => {
 
   it('surfaces recovered ingress uncertainty without replaying the effect', async () => {
     const host = fakeNativeHost()
-    const journal = await openGatewayIngressJournal(memoryFacility())
+    const facility = memoryFacility()
+    const journal = await openGatewayIngressJournal(facility)
     await journal.prepare({
       id: 'a'.repeat(64),
       routeId: 'telegram-a',
@@ -84,7 +91,7 @@ describe('DshGateway', () => {
       now: 100,
     })
     await journal.begin('a'.repeat(64), 110)
-    const gateway = new DshGateway(host.ctx, routes, journal)
+    const gateway = new DshGateway(host.ctx, routes, journal, await openGatewayOutboundJournal(facility))
 
     await gateway.start()
 
@@ -96,8 +103,9 @@ describe('DshGateway', () => {
 
   it('routes exact endpoints into isolated native Workspace sessions and deduplicates ingress', async () => {
     const host = fakeNativeHost()
-    const journal = await openGatewayIngressJournal(memoryFacility())
-    const gateway = new DshGateway(host.ctx, routes, journal)
+    const facility = memoryFacility()
+    const journal = await openGatewayIngressJournal(facility)
+    const gateway = new DshGateway(host.ctx, routes, journal, await openGatewayOutboundJournal(facility))
     await gateway.start()
     const messageId = gateway.messageIdFor(endpointA, 'update-7')
 
@@ -126,8 +134,9 @@ describe('DshGateway', () => {
   it('executes a native command once and replays only its retained result', async () => {
     const host = fakeNativeHost()
     host.commandLines.add('/goal status')
-    const journal = await openGatewayIngressJournal(memoryFacility())
-    const gateway = new DshGateway(host.ctx, routes, journal)
+    const facility = memoryFacility()
+    const journal = await openGatewayIngressJournal(facility)
+    const gateway = new DshGateway(host.ctx, routes, journal, await openGatewayOutboundJournal(facility))
     await gateway.start()
 
     const first = await gateway.dispatch({ endpoint: endpointA, eventId: 'update-8', text: '/goal status' })
@@ -145,8 +154,9 @@ describe('DshGateway', () => {
       meta: { id: 'session-a', cwd: '/work/b', agentPreset: 'standard', version: 0, createdAt: 1 },
       events: [],
     })
-    const journal = await openGatewayIngressJournal(memoryFacility())
-    const gateway = new DshGateway(host.ctx, routes, journal)
+    const facility = memoryFacility()
+    const journal = await openGatewayIngressJournal(facility)
+    const gateway = new DshGateway(host.ctx, routes, journal, await openGatewayOutboundJournal(facility))
 
     await expect(gateway.start()).rejects.toThrow("session 'session-a' cwd")
     expect(host.created).toEqual([])
@@ -231,6 +241,7 @@ function fakeNativeHost(): {
         return { commandId: 'command-1', result: { kind: 'success', text: 'goal active' } }
       },
     },
+    on() {},
   } as unknown as Context
   return { ctx, attached, messages, created, executed, commandLines, persisted }
 }

@@ -1,8 +1,8 @@
 # GW-2：Gateway 自有权威健康投影
 
 > 日期：2026-08-19
-> 声明等级：`implemented`；只证明 `dsh-gateway` 可脱敏投影自己拥有的 route、原生 Session 与 ingress 状态，
-> 不代表公共 outbound、跨 Adapter 限流、平台 transport 健康或统一 Web 已完成
+> 声明等级：`implemented`；本页只证明当时的 route、原生 Session 与 ingress 投影。公共 outbound
+> 后续已由 [GW-3](gw-3-gateway-outbound-delivery.zh.md) 实现；平台 transport 健康和统一 Web 仍未完成。
 
 ## 实现事实
 
@@ -25,9 +25,10 @@
 - Doctor 原生插件合同 22/22 通过；十一包 clean-profile add/dump/boot/dispose/remove 1/1 通过，
   用时 26.63 秒。该门只证明包形态和组合未回归，不冒充真实 Host 已调用新健康 seam。
 
-## 未完成门禁
+## 后续状态
 
-- Telegram 与飞书 outbound journal、send worker、429 policy 仍在各 Adapter；
+- Telegram 与飞书 outbound journal、send worker、明确 429 policy 已在 GW-3 迁入 Gateway；本页原始
+  自动化数量只记录 GW-2 当时事实，不改写历史；
 - 平台连接状态仍由 Adapter 权威持有，Gateway 不伪造 transport ready/degraded；
 - Gateway health 尚未生成 DSH Client Remote 或统一 Web 视图；
 - 尚未用 packed clean profile 的真实 Host 调用该新 seam，因此声明保持 `implemented`，不升级为 `verified`。

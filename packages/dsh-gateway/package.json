@@ -1,7 +1,7 @@
 {
   "name": "dsh-gateway",
   "version": "0.1.0-alpha.1",
-  "description": "Fail-closed channel ingress gateway for native DeepSeek Harness adapters",
+  "description": "Fail-closed channel routing and delivery gateway for native DeepSeek Harness adapters",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

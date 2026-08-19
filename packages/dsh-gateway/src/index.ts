@@ -2,6 +2,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type Schema from '@deepseek-ai/schemastery'
 import { openGatewayIngressJournal } from './ingress-journal.js'
+import { openGatewayOutboundJournal, type GatewayOutboundJournal } from './outbound-journal.js'
 import { DshGateway } from './gateway.js'
 import { resolveGatewayRoutes, type GatewayRouteConfig } from './routing.js'
 
@@ -20,6 +21,8 @@ export interface Config {
   readonly routes?: readonly GatewayRouteConfig[]
   /** Retained ingress journal bound; active effects are never pruned. */
   readonly maxIngressRecords?: number
+  /** Retained outbound journal bound; active deliveries are never pruned. */
+  readonly maxOutboundRecords?: number
 }
 
 const routeSchema = z.object({
@@ -40,6 +43,7 @@ const routeSchema = z.object({
 export const Config: Schema<Config> = z.object({
   routes: z.array(routeSchema).default([]),
   maxIngressRecords: z.number().step(1).min(1).max(100_000).default(10_000),
+  maxOutboundRecords: z.number().step(1).min(1).max(100_000).default(10_000),
 }) as Schema<Config>
 
 /** Install one shared Host Gateway for transport-only channel Adapters. */
@@ -47,7 +51,16 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const journal = await openGatewayIngressJournal(ctx.storageDomain, {
     maxRecords: config.maxIngressRecords ?? 10_000,
   })
-  const gateway = new DshGateway(ctx, resolveGatewayRoutes(config.routes ?? []), journal)
+  let outbound: GatewayOutboundJournal
+  try {
+    outbound = await openGatewayOutboundJournal(ctx.storageDomain, {
+      maxRecords: config.maxOutboundRecords ?? 10_000,
+    })
+  } catch (error) {
+    await journal.close()
+    throw error
+  }
+  const gateway = new DshGateway(ctx, resolveGatewayRoutes(config.routes ?? []), journal, outbound)
   try {
     await gateway.start()
     ctx.effect(() => () => gateway.stop(), 'dsh-gateway.runtime')
@@ -74,6 +87,23 @@ export {
   type GatewayIngressJournalOptions,
   type PrepareGatewayIngressInput,
 } from './ingress-journal.js'
+export {
+  GatewayOutboundCoordinator,
+  type GatewayOutboundHealth,
+  type GatewayOutboundPolicy,
+  type GatewayOutboundReceipt,
+  type GatewayOutboundSendInput,
+  type GatewayOutboundSendResult,
+  type GatewayTextAdapterConfig,
+  type GatewayTextAdapterRegistration,
+  type GatewayTextDeliveryIntent,
+} from './outbound.js'
+export {
+  openGatewayOutboundJournal,
+  type GatewayOutboundJournal,
+  type GatewayOutboundRecord,
+  type GatewayOutboundStatus,
+} from './outbound-journal.js'
 export {
   GatewayIngressUncertainError,
   DshGateway,
