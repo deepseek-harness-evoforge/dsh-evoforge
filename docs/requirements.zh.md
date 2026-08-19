@@ -1,6 +1,6 @@
 # DeepSeek Harness EvoForge 项目需求基线
 
-> 状态：已确认；目标是只安装并运行于 DSH 的原生 out-of-tree 插件套件。现有 P0A–P1.21 等实现只作为可重审资产，不能限制重构；`dsh-gateway` 已替换旧 Router 包并通过总装回归，能力获取/运行时研究 Candidate 的活动实现已删除。自然 Goal→可复核 Capability Gap→跨 Goal 内部经验→Skill Opportunity→隔离 whole-Skill Candidate 已形成部分纵切；配置式 Candidate target 已由 Workspace policy + Opportunity-bound Envelope 取代，缺失 Skill 已使用不安装目标 Skill 的真实 capability-absent baseline，但治理包自主生成和新 Skill 发布/Retention 仍未完成。完整内部证据、真实独立评测、Gateway、exact 飞书 route 消息、长期 outcome 与 Hermes paired epochs 完成前不构成 v0.1 交付
+> 状态：已确认；目标是只安装并运行于 DSH 的原生 out-of-tree 插件套件。现有 P0A–P1.21 等实现只作为可重审资产，不能限制重构；`dsh-gateway` 已替换旧 Router 包并通过总装回归，能力获取/运行时研究 Candidate 的活动实现已删除。自然 Goal→可复核 Capability Gap→跨 Goal 内部经验→Skill Opportunity→隔离 whole-Skill Candidate 已形成部分纵切；配置式 Candidate target 已由 Workspace policy + Opportunity-bound Envelope 取代，缺失 Skill 已使用不安装目标 Skill 的真实 capability-absent baseline，并能在明确复核后形成不依赖 Git source 的 inactive bundle、固定到未来 Session并精确 root rollback；治理包自主生成和 capability-absent Retention/canary 仍未完成。完整内部证据、真实独立评测、Gateway、exact 飞书 route 消息、长期 outcome 与 Hermes paired epochs 完成前不构成 v0.1 交付
 > 更新日期：2026-08-19
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。发生冲突时，下述“方向纠正”优先于旧里程碑文字。
 

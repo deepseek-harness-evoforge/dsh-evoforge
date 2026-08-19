@@ -102,6 +102,9 @@ async function resolveParent(
   candidate: SkillGenerationArtifact,
 ): Promise<ResolvedGitSkillArtifact> {
   if (generation.parentId === undefined) {
+    if (candidate.kind !== 'skill') {
+      throw new Error('canary for a capability-absent parent is not yet supported')
+    }
     return source.resolveParentArtifact(candidate.name, candidate)
   }
   const parent = store.getGeneration(generation.parentId)

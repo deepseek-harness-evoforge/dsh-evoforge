@@ -21,6 +21,8 @@ import type {
 } from '@deepseek-ai/dsh-skill'
 import { parse as parseYaml } from 'yaml'
 import type { CapabilityGeneration, SkillGenerationArtifact } from './generation-store.ts'
+import type { GitSkillGenerationArtifact, SkillBundleGenerationArtifact } from './generation-store.ts'
+import { assembleSkillBundleArchive, decodeSkillBundleArchive } from './skill-bundle-archive.ts'
 
 const execFile = promisify(execFileCallback)
 const CACHE_SCHEMA_VERSION = 1
@@ -36,8 +38,8 @@ export interface GitSkillSourceConfig {
 
 export interface ResolvedGitSkillArtifact {
   artifact: SkillGenerationArtifact
-  repository: string
-  path: string
+  repository?: string
+  path?: string
   resourceBase: string
 }
 
@@ -89,11 +91,13 @@ export class GitSkillSource {
       if (definitions.has(artifact.name)) {
         throw new Error(`Generation '${generation.id}' contains duplicate Skill '${artifact.name}'`)
       }
-      const source = this.sources.get(artifact.name)
-      if (source === undefined) {
-        throw new Error(`Generation '${generation.id}' has no configured Git source for Skill '${artifact.name}'`)
+      if (artifact.kind === 'skill-bundle'
+        && artifact.lineage.workspaceId !== generation.workspaceId) {
+        throw new Error(
+          `Generation Skill bundle '${artifact.name}' belongs to a different Workspace`,
+        )
       }
-      definitions.set(artifact.name, await this.loadDefinition(artifact, source))
+      definitions.set(artifact.name, await this.loadDefinition(artifact))
     }
     return new ImmutableGenerationProvider(generation.id, definitions)
   }
@@ -103,6 +107,15 @@ export class GitSkillSource {
     name: string,
     artifact?: SkillGenerationArtifact,
   ): Promise<ResolvedGitSkillArtifact> {
+    if (artifact?.kind === 'skill-bundle') {
+      if (artifact.name !== name) {
+        throw new Error(`Skill bundle artifact '${artifact.name}' does not match requested Skill '${name}'`)
+      }
+      return {
+        artifact,
+        resourceBase: await this.materializeBundle(artifact),
+      }
+    }
     const source = this.sources.get(name)
     if (source === undefined) throw new Error(`no configured Git source for Skill '${name}'`)
     if (artifact !== undefined && artifact.name !== name) {
@@ -125,7 +138,7 @@ export class GitSkillSource {
   /** Resolve the immutable first-parent Skill tree of an exact Candidate artifact. */
   async resolveParentArtifact(
     name: string,
-    candidate: SkillGenerationArtifact,
+    candidate: GitSkillGenerationArtifact,
   ): Promise<ResolvedGitSkillArtifact> {
     const source = this.sources.get(name)
     if (source === undefined) throw new Error(`no configured Git source for Skill '${name}'`)
@@ -149,9 +162,9 @@ export class GitSkillSource {
 
   private async loadDefinition(
     artifact: SkillGenerationArtifact,
-    source: ResolvedGitSkillSource,
   ): Promise<SkillDefinition> {
-    const resourceBase = await this.materialize(artifact, source)
+    const resolved = await this.resolveArtifact(artifact.name, artifact)
+    const resourceBase = resolved.resourceBase
     const parsed = parseSkill(await readFile(join(resourceBase, 'SKILL.md'), 'utf8'))
     if (!SKILL_NAME.test(parsed.name)) {
       throw new Error(`Generation SKILL.md has invalid Skill name '${parsed.name}'`)
@@ -176,7 +189,7 @@ export class GitSkillSource {
   }
 
   private materialize(
-    artifact: SkillGenerationArtifact,
+    artifact: GitSkillGenerationArtifact,
     source: ResolvedGitSkillSource,
   ): Promise<string> {
     const key = `${source.repository}\0${source.path}\0${artifact.gitCommit}\0${artifact.treeHash}`
@@ -191,8 +204,89 @@ export class GitSkillSource {
     return pending
   }
 
+  private materializeBundle(artifact: SkillBundleGenerationArtifact): Promise<string> {
+    const key = `skill-bundle\0${artifact.artifactDigest}\0${artifact.treeHash}`
+    let pending = this.materializations.get(key)
+    if (pending === undefined) {
+      pending = this.materializeBundleOnce(artifact)
+      this.materializations.set(key, pending)
+      void pending.finally(() => {
+        if (this.materializations.get(key) === pending) this.materializations.delete(key)
+      }).catch(() => undefined)
+    }
+    return pending
+  }
+
+  private async materializeBundleOnce(artifact: SkillBundleGenerationArtifact): Promise<string> {
+    const content = Buffer.from(artifact.contentBase64, 'base64')
+    if (content.toString('base64') !== artifact.contentBase64) {
+      throw new Error(`Generation Skill bundle '${artifact.name}' is not canonical base64`)
+    }
+    const decoded = await decodeSkillBundleArchive(content)
+    const assembled = await assembleSkillBundleArchive(decoded.files.map(file => ({
+      path: file.path,
+      content: decodeCanonicalUtf8(file.content),
+    })))
+    if (!assembled.content.equals(content)
+      || sha256Bytes(content) !== artifact.artifactDigest
+      || assembled.treeHash !== artifact.treeHash
+      || artifact.name !== artifact.lineage.skillName
+      || artifact.artifactDigest !== artifact.lineage.contentHash
+      || artifact.treeHash !== artifact.lineage.candidateTreeHash) {
+      throw new Error(`Generation Skill bundle '${artifact.name}' failed content identity verification`)
+    }
+    const entries: GitTreeEntry[] = assembled.files.map(file => ({
+      mode: '100644',
+      object: gitObjectHash(file.content, 64),
+      size: file.content.byteLength,
+      path: file.path,
+      relativePath: file.path,
+    }))
+    const marker = markerFor(artifact.treeHash, entries)
+    const finalRoot = join(this.cacheRoot, artifact.treeHash)
+    const finalTree = join(finalRoot, 'tree')
+    if (await pathExists(finalRoot)) {
+      await verifyMaterialization(finalRoot, marker)
+      return finalTree
+    }
+
+    await mkdir(this.cacheRoot, { recursive: true })
+    const stage = await mkdtemp(join(this.cacheRoot, '.evoforge-bundle-stage-'))
+    try {
+      const tree = join(stage, 'tree')
+      await mkdir(tree, { recursive: true })
+      for (const file of assembled.files) {
+        const target = containedPath(tree, file.path)
+        await mkdir(dirname(target), { recursive: true })
+        await writeFile(target, file.content, { flag: 'wx', mode: 0o444 })
+        await chmod(target, 0o444)
+      }
+      await makeDirectoriesReadOnly(tree)
+      await writeFile(join(stage, 'evoforge-owner.json'), `${JSON.stringify(marker, null, 2)}\n`, { mode: 0o444 })
+      await chmod(join(stage, 'evoforge-owner.json'), 0o444)
+      let installed = false
+      try {
+        await rename(stage, finalRoot)
+        installed = true
+      } catch (error) {
+        if (!await pathExists(finalRoot)) throw error
+        await verifyMaterialization(finalRoot, marker)
+        await makeOwnedStageWritable(stage)
+        await rm(stage, { force: true, recursive: true })
+      }
+      if (installed) await chmod(finalRoot, 0o555)
+      return finalTree
+    } catch (error) {
+      if (await pathExists(stage)) {
+        await makeOwnedStageWritable(stage)
+        await rm(stage, { force: true, recursive: true })
+      }
+      throw error
+    }
+  }
+
   private async materializeOnce(
-    artifact: SkillGenerationArtifact,
+    artifact: GitSkillGenerationArtifact,
     source: ResolvedGitSkillSource,
   ): Promise<string> {
     const commit = await gitText(source.repository, 'rev-parse', '--verify', `${artifact.gitCommit}^{commit}`)
@@ -361,6 +455,18 @@ function gitObjectHash(content: Buffer, objectIdLength: number): string {
     .digest('hex')
 }
 
+function sha256Bytes(content: Buffer): string {
+  return createHash('sha256').update(content).digest('hex')
+}
+
+function decodeCanonicalUtf8(content: Buffer): string {
+  const value = content.toString('utf8')
+  if (!Buffer.from(value).equals(content)) {
+    throw new Error('Generation Skill bundle contains non-canonical UTF-8 text')
+  }
+  return value
+}
+
 function markerFor(treeHash: string, entries: readonly GitTreeEntry[]): CacheMarker {
   return {
     schemaVersion: CACHE_SCHEMA_VERSION,
@@ -377,7 +483,7 @@ async function verifyMaterialization(root: string, expected: CacheMarker): Promi
     throw new Error(`Generation cache '${root}' has no readable EvoForge owner marker`, { cause: error })
   }
   if (JSON.stringify(marker) !== JSON.stringify(expected)) {
-    throw new Error(`Generation cache '${root}' does not match its immutable Git tree manifest`)
+    throw new Error(`Generation cache '${root}' does not match its immutable Skill tree manifest`)
   }
   const tree = join(root, 'tree')
   const observed = await listMaterializedTree(tree)
@@ -385,7 +491,7 @@ async function verifyMaterialization(root: string, expected: CacheMarker): Promi
   const expectedDirectories = [...new Set(expectedFiles.flatMap(parentDirectories))].sort()
   if (JSON.stringify(observed.files) !== JSON.stringify(expectedFiles)
     || JSON.stringify(observed.directories) !== JSON.stringify(expectedDirectories)) {
-    throw new Error(`Generation cache '${root}' contains files or directories outside its Git tree`)
+    throw new Error(`Generation cache '${root}' contains files or directories outside its Skill tree`)
   }
   for (const entry of expected.entries) {
     const path = containedPath(tree, entry.relativePath)

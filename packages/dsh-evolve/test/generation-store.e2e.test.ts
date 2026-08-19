@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { JobRegistry } from '@deepseek-ai/dsh-jobs'
 import { openEvolutionStore, type EvolutionStore } from '../src/generation-store.js'
+import { assembleSkillBundleArchive } from '../src/skill-bundle-archive.js'
 import type { SkillCandidateLineage } from '../src/skill-candidate-lineage.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
@@ -69,6 +70,77 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
     try {
       if (expected === undefined) throw new Error('expected Generation was not published')
       expect(resumedStore.getGeneration(expected.id)).toEqual(expected)
+    } finally {
+      await resumedStore.close()
+      await resumedCtx.fiber.dispose()
+    }
+  })
+
+  it('persists an exact internally authored Skill bundle and rejects tampered content identity', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-generation-bundle-'))
+    temporaryRoots.push(root)
+    const configPath = await writeStorageConfig(root)
+    const bundle = await assembleSkillBundleArchive([{
+      path: 'SKILL.md',
+      content: [
+        '---',
+        'name: build-dsh-plugin',
+        'description: Build a verified native DSH plugin.',
+        '---',
+        '',
+        '# Build DSH Plugin',
+        '',
+        'Follow the [verification contract](references/verification.md).',
+        '',
+      ].join('\n'),
+    }, {
+      path: 'references/verification.md',
+      content: '# Verification\n\nUse the real assembled DSH path.\n',
+    }])
+    const lineage = {
+      ...discoveredLineage(bundle.treeHash),
+      contentHash: bundle.artifactDigest,
+    }
+    const input = {
+      workspaceId: WORKSPACE_ID,
+      createdAt: 1_723_456_789_000,
+      artifacts: [{
+        kind: 'skill-bundle' as const,
+        name: 'build-dsh-plugin',
+        artifactDigest: bundle.artifactDigest,
+        treeHash: bundle.treeHash,
+        contentBase64: bundle.content.toString('base64'),
+        lineage,
+      }],
+      evaluatorVersion: 'capability-absent-v1',
+      policyVersion: 'human-review-v1',
+      compositionFingerprint: 'b'.repeat(64),
+    }
+    let generationId = ''
+
+    const firstCtx = await bootStorage(configPath)
+    const firstStore = await openEvolutionStore(firstCtx.storageDomain)
+    try {
+      const published = await firstStore.publishGeneration(input)
+      generationId = published.generation.id
+      expect(published.generation.artifacts[0]).toEqual(input.artifacts[0])
+      await expect(firstStore.publishGeneration({
+        ...input,
+        artifacts: [{
+          ...input.artifacts[0]!,
+          artifactDigest: '0'.repeat(64),
+          lineage: { ...lineage, contentHash: '0'.repeat(64) },
+        }],
+      })).rejects.toThrow("Skill bundle artifact 'build-dsh-plugin' failed content identity verification")
+    } finally {
+      await firstStore.close()
+      await firstCtx.fiber.dispose()
+    }
+
+    const resumedCtx = await bootStorage(configPath)
+    const resumedStore = await openEvolutionStore(resumedCtx.storageDomain)
+    try {
+      expect(resumedStore.getGeneration(generationId)?.artifacts[0]).toEqual(input.artifacts[0])
     } finally {
       await resumedStore.close()
       await resumedCtx.fiber.dispose()

@@ -10,14 +10,26 @@ import {
   parseSkillCandidateLineage,
   type SkillCandidateLineage,
 } from './skill-candidate-lineage.ts'
+import { assembleSkillBundleArchive, decodeSkillBundleArchive } from './skill-bundle-archive.ts'
 
-export interface SkillGenerationArtifact {
+export interface GitSkillGenerationArtifact {
   kind: 'skill'
   name: string
   gitCommit: string
   treeHash: string
   lineage?: SkillCandidateLineage | undefined
 }
+
+export interface SkillBundleGenerationArtifact {
+  kind: 'skill-bundle'
+  name: string
+  artifactDigest: string
+  treeHash: string
+  contentBase64: string
+  lineage: SkillCandidateLineage
+}
+
+export type SkillGenerationArtifact = GitSkillGenerationArtifact | SkillBundleGenerationArtifact
 
 export interface GenerationInput {
   workspaceId: string
@@ -79,13 +91,28 @@ const lineageSchema = z.custom<SkillCandidateLineage>((value) => {
     return false
   }
 }, 'invalid Skill Candidate lineage').transform(value => parseSkillCandidateLineage(value))
-const artifactSchema = z.strictObject({
+const gitArtifactSchema = z.strictObject({
   kind: z.literal('skill'),
   name: z.string().min(1),
   gitCommit: gitCommitSchema,
   treeHash: gitObjectSchema,
   lineage: lineageSchema.optional(),
 })
+const skillBundleArtifactSchema = z.strictObject({
+  kind: z.literal('skill-bundle'),
+  name: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+  artifactDigest: hashSchema,
+  treeHash: hashSchema,
+  contentBase64: z.string().base64().min(1).max(2 * 1024 * 1024),
+  lineage: lineageSchema,
+}).superRefine((artifact, context) => {
+  if (artifact.name !== artifact.lineage.skillName
+    || artifact.artifactDigest !== artifact.lineage.contentHash
+    || artifact.treeHash !== artifact.lineage.candidateTreeHash) {
+    context.addIssue({ code: 'custom', message: 'Skill bundle artifact does not match its Candidate lineage' })
+  }
+})
+const artifactSchema = z.discriminatedUnion('kind', [gitArtifactSchema, skillBundleArtifactSchema])
 const generationContentSchema = z.strictObject({
   schemaVersion: z.literal(2),
   workspaceId: workspaceIdSchema,
@@ -251,6 +278,11 @@ class DomainEvolutionStore implements EvolutionStore {
     generation: CapabilityGeneration
   }> {
     const content = generationContentSchema.parse({ schemaVersion: 2, ...input })
+    for (const artifact of content.artifacts) {
+      if (artifact.kind === 'skill-bundle') {
+        await verifySkillBundleArtifact(artifact, content.workspaceId)
+      }
+    }
     if (content.parentId !== undefined) {
       const parent = this.getGeneration(content.parentId)
       if (parent === undefined) throw new Error(`parent Generation '${content.parentId}' is missing`)
@@ -420,6 +452,35 @@ class DomainEvolutionStore implements EvolutionStore {
     if (existing.generationId === undefined) return
     await table.put(normalized.sessionId, immutableCopy({ identity: normalized }))
   }
+}
+
+async function verifySkillBundleArtifact(
+  artifact: SkillBundleGenerationArtifact,
+  workspaceId: string,
+): Promise<void> {
+  const content = Buffer.from(artifact.contentBase64, 'base64')
+  if (content.toString('base64') !== artifact.contentBase64
+    || artifact.lineage.workspaceId !== workspaceId) {
+    throw new Error(`Skill bundle artifact '${artifact.name}' has invalid ownership or encoding`)
+  }
+  const decoded = await decodeSkillBundleArchive(content)
+  const assembled = await assembleSkillBundleArchive(decoded.files.map(file => ({
+    path: file.path,
+    content: decodeCanonicalUtf8(file.content),
+  })))
+  if (!assembled.content.equals(content)
+    || assembled.artifactDigest !== artifact.artifactDigest
+    || assembled.treeHash !== artifact.treeHash) {
+    throw new Error(`Skill bundle artifact '${artifact.name}' failed content identity verification`)
+  }
+}
+
+function decodeCanonicalUtf8(content: Buffer): string {
+  const value = content.toString('utf8')
+  if (!Buffer.from(value).equals(content)) {
+    throw new Error('Skill bundle artifact contains non-canonical UTF-8 text')
+  }
+  return value
 }
 
 export async function openEvolutionStore(facility: DomainFacility): Promise<EvolutionStore> {

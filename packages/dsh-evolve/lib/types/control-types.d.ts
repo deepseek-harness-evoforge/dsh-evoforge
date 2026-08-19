@@ -2,7 +2,7 @@ export type CandidateImpactIndicator = 'artifact-scope-change' | 'credential-acc
 /** Browser-safe copy of the versioned host impact projection contract. */
 export interface CandidateImpactProjection {
     readonly version: 'lexical-protected-effects-v1';
-    readonly scope: 'append-only-skill' | 'broader-change';
+    readonly scope: 'append-only-skill' | 'broader-change' | 'new-skill';
     readonly indicators: readonly CandidateImpactIndicator[];
 }
 /** Minimal delivery status aggregate. */
@@ -78,9 +78,10 @@ export interface EvolutionGenerationView {
 }
 /** Client-safe Skill artifact identity; no repository path is exposed. */
 export interface EvolutionArtifactView {
-    readonly kind: 'skill';
+    readonly kind: 'skill' | 'skill-bundle';
     readonly name: string;
-    readonly gitCommit: string;
+    readonly gitCommit?: string;
+    readonly artifactDigest?: string;
     readonly treeHash: string;
     readonly lineage?: EvolutionSkillCandidateLineageView;
 }

@@ -162,6 +162,10 @@ _Avoid_: Merge, in-place edit
 An immutable, content-addressed set of capability versions owned by exactly one registered DSH Workspace and selected for one of its sessions. Existing sessions keep their generation; promotion affects only later sessions in that same Workspace, so behavior and the model-visible prefix do not drift mid-session.
 _Avoid_: Latest files, mutable skill catalog
 
+**Skill Bundle Generation Artifact**:
+The immutable Capability Generation artifact for a brand-new internally authored whole-Skill Candidate. It embeds the Host-canonical archive plus artifact digest, tree hash, and exact Candidate lineage, and is loaded by a read-only DSH Skill Provider without a configured Git source, network lookup, marketplace, or runtime acquisition. It remains inactive until the normal Generation promotion boundary and affects only future Sessions.
+_Avoid_: Downloaded Skill, Git branch, external repository dependency, mutable Candidate folder
+
 **Evolution Workspace**:
 The registered DSH Workspace whose stable native id is the mandatory ownership boundary for a Generation, Candidate, Case Pack, feedback signal, budget reservation, review decision, promotion, and rollback.
 _Avoid_: Global evolution namespace, cwd prefix, channel account

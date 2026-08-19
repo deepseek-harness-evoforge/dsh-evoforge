@@ -17,6 +17,6 @@ Skill presence/body 差异，其他组合仍须一致。Admission、Shadow、dur
 projection 都携带该 baseline kind。Candidate 仍无 release authority，当前 Session 不受影响。
 
 这是对 ADR-0055 中“baseline tree”的语义收紧，不提供 v1 Envelope 兼容读取。旧布局应被治理面重新生成，不能
-自动翻译成缺失能力。当前实现只完成真实 absent baseline 的消费与 assembled DSH 证明；现有 Git-backed
-Publisher、Retention 和 canary 仍假设既有 Skill，不能据此发布新 Skill。后续必须为 whole-Skill Candidate
-建立内容寻址的新能力发布/Retention 路径，未完成前保持 fail closed。
+自动翻译成缺失能力。本 ADR 落地时只完成真实 absent baseline 的消费与 assembled DSH 证明；当时的
+Git-backed Publisher、Retention 和 canary 仍假设既有 Skill。后继 ADR-0057 已建立 whole-Skill Candidate
+的内容寻址 publication/future-Session 路径；capability-absent Retention/canary 仍保持 fail closed。

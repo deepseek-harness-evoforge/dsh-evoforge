@@ -62,6 +62,17 @@ function generation(id = generationId): CapabilityGeneration {
       gitCommit: 'd'.repeat(40),
       treeHash: 'e'.repeat(40),
       lineage: lineage(),
+    }, {
+      kind: 'skill-bundle',
+      name: 'release-proof',
+      artifactDigest: '8'.repeat(64),
+      treeHash: '7'.repeat(64),
+      contentBase64: 'Zml4dHVyZQ==',
+      lineage: {
+        ...lineage('7'.repeat(64)),
+        skillName: 'release-proof',
+        contentHash: '8'.repeat(64),
+      },
     }],
     evaluatorVersion: 'case-pack-v1',
     policyVersion: 'human-review-v1',
@@ -587,6 +598,13 @@ describe('EvolutionControlPlane', () => {
       lineage: lineage(),
     }])
     expect(overview.active?.artifacts[0]?.lineage).toEqual(lineage())
+    expect(overview.active?.artifacts[1]).toMatchObject({
+      kind: 'skill-bundle',
+      name: 'release-proof',
+      artifactDigest: '8'.repeat(64),
+      treeHash: '7'.repeat(64),
+    })
+    expect(overview.active?.artifacts[1]).not.toHaveProperty('gitCommit')
     expect(overview.reviews.items[0]).toMatchObject({
       id: reviewId,
       skillName: 'build-dsh-plugin',

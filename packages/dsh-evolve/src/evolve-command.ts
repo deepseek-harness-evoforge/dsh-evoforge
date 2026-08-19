@@ -589,7 +589,9 @@ function renderStatus(
       `Rollback target: ${active.parentId ?? 'native DSH'}`,
       'Artifacts:',
       ...active.artifacts.map(artifact =>
-        `- skill ${artifact.name} tree ${artifact.treeHash} commit ${artifact.gitCommit}`),
+        artifact.kind === 'skill'
+          ? `- skill ${artifact.name} tree ${artifact.treeHash} commit ${artifact.gitCommit}`
+          : `- skill-bundle ${artifact.name} tree ${artifact.treeHash} digest ${artifact.artifactDigest}`),
       'Existing Sessions keep their pinned Generation.',
       '',
       'Commands: /evolve rollback',

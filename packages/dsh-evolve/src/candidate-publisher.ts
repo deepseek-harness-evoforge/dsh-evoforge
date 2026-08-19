@@ -13,11 +13,21 @@ import {
 import { tmpdir } from 'node:os'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { promisify } from 'node:util'
-import type { EvolutionStore, SkillGenerationArtifact } from './generation-store.ts'
-import { projectCandidateImpact, type CandidateImpactProjection } from './candidate-impact.ts'
+import type {
+  CapabilityGeneration,
+  EvolutionStore,
+  GitSkillGenerationArtifact,
+  SkillGenerationArtifact,
+} from './generation-store.ts'
+import {
+  projectCandidateImpact,
+  projectNewSkillCandidateImpact,
+  type CandidateImpactProjection,
+} from './candidate-impact.ts'
 import type { GitSkillSource } from './git-skill-source.ts'
 import { hashTree } from './hash.ts'
 import type { ReviewCandidate } from './review-inbox.ts'
+import { assembleSkillBundleArchive } from './skill-bundle-archive.ts'
 import {
   parseSkillCandidateLineage,
   type SkillCandidateLineage,
@@ -44,9 +54,31 @@ export class CandidatePublisher {
     this.source = source
   }
 
-  /** Render a bounded diff from the same exact Git baseline required for publication. */
+  /** Render a bounded diff from the exact Skill tree or capability-absent publication baseline. */
   async preview(candidate: ReviewCandidate): Promise<CandidateDiffPreview> {
-    assertProposal(candidate)
+    const lineage = assertProposal(candidate)
+    if (candidate.baselineKind === 'capability-absent') {
+      if (lineage === undefined) {
+        throw new Error('a brand-new internal Skill requires exact Candidate lineage')
+      }
+      await this.resolveAbsentBaseline(candidate)
+      const stage = await mkdtemp(join(tmpdir(), 'dsh-evolve-preview-'))
+      try {
+        const baselineTree = join(stage, 'a')
+        const candidateTree = join(stage, 'b')
+        await mkdir(baselineTree)
+        await mkdir(candidateTree)
+        await materializeCandidate(candidateTree, candidate)
+        const patch = await diffTrees(stage)
+        return {
+          ...boundDiffPreview(patch),
+          impact: projectNewSkillCandidateImpact(candidate.proposal.files),
+        }
+      } finally {
+        await makeWritable(stage).catch(() => undefined)
+        await rm(stage, { recursive: true, force: true })
+      }
+    }
     const { base } = await this.resolveBaseline(candidate)
     const baselineSkill = await readFile(join(base.resourceBase, 'SKILL.md'), 'utf8')
     const impact = projectCandidateImpact(baselineSkill, candidate.proposal.files)
@@ -71,7 +103,18 @@ export class CandidatePublisher {
   ) {
     if (candidate.status !== 'pending') throw new Error('only a pending review Candidate can be published')
     const lineage = assertProposal(candidate)
+    if (candidate.baselineKind === 'capability-absent') {
+      if (lineage === undefined) {
+        throw new Error('a brand-new internal Skill requires exact Candidate lineage')
+      }
+      return this.publishNewSkill(candidate, lineage, options)
+    }
     const { active, activeArtifacts, base } = await this.resolveBaseline(candidate)
+    if (base.artifact.kind !== 'skill'
+      || base.repository === undefined
+      || base.path === undefined) {
+      throw new Error(`existing Skill '${candidate.skillName}' has no exact Git publication baseline`)
+    }
 
     const stage = await mkdtemp(join(tmpdir(), 'dsh-evolve-approved-'))
     try {
@@ -114,6 +157,52 @@ export class CandidatePublisher {
       await makeWritable(stage).catch(() => undefined)
       await rm(stage, { recursive: true, force: true })
     }
+  }
+
+  private async publishNewSkill(
+    candidate: ReviewCandidate,
+    lineage: SkillCandidateLineage,
+    options: { policyVersion?: 'human-review-v1' | 'auto-clear-instruction-v1' },
+  ): Promise<CapabilityGeneration> {
+    const { active, activeArtifacts } = await this.resolveAbsentBaseline(candidate)
+    const assembled = await assembleSkillBundleArchive(candidate.proposal.files)
+    if (assembled.treeHash !== candidate.candidateTreeHash
+      || assembled.artifactDigest !== lineage.contentHash) {
+      throw new Error('brand-new Skill bundle does not match its sealed Candidate identity')
+    }
+    const artifact = {
+      kind: 'skill-bundle' as const,
+      name: candidate.skillName,
+      artifactDigest: assembled.artifactDigest,
+      treeHash: assembled.treeHash,
+      contentBase64: assembled.content.toString('base64'),
+      lineage,
+    }
+    const input = generationInput(
+      candidate,
+      active,
+      [...activeArtifacts, artifact],
+      options.policyVersion ?? 'human-review-v1',
+    )
+    // Fail before Storage publication if the canonical bundle or Skill definition is invalid.
+    await this.source.providerFor({ id: '0'.repeat(64), schemaVersion: 2, ...input })
+    const published = await this.store.publishGeneration(input)
+    if (this.store.getActiveGeneration(candidate.workspaceId)?.id !== active?.id) {
+      throw new Error('active Generation changed while the reviewed Candidate was being published')
+    }
+    return published.generation
+  }
+
+  private async resolveAbsentBaseline(candidate: ReviewCandidate) {
+    const active = this.store.getActiveGeneration(candidate.workspaceId)
+    const activeArtifacts = active?.artifacts ?? []
+    if (active !== undefined) await this.source.providerFor(active)
+    if (activeArtifacts.some(artifact => artifact.name === candidate.skillName)) {
+      throw new Error(
+        `capability-absent review conflicts with active Skill '${candidate.skillName}'`,
+      )
+    }
+    return { active, activeArtifacts }
   }
 
   private async resolveBaseline(candidate: ReviewCandidate) {
@@ -235,7 +324,7 @@ async function writeImmutableCommit(input: {
   lineage?: SkillCandidateLineage
   sourcePath: string
   stage: string
-}): Promise<SkillGenerationArtifact> {
+}): Promise<GitSkillGenerationArtifact> {
   const indexPath = join(input.stage, 'git-index')
   const gitEnv = {
     ...process.env,
@@ -301,6 +390,27 @@ async function writeImmutableCommit(input: {
     gitCommit: commit,
     treeHash,
     ...(input.lineage === undefined ? {} : { lineage: input.lineage }),
+  }
+}
+
+function generationInput(
+  candidate: ReviewCandidate,
+  active: CapabilityGeneration | undefined,
+  artifacts: SkillGenerationArtifact[],
+  policyVersion: 'human-review-v1' | 'auto-clear-instruction-v1',
+) {
+  const createdAt = Date.parse(candidate.startedAt)
+  if (!Number.isSafeInteger(createdAt) || createdAt < 0) {
+    throw new Error('review Candidate has an invalid startedAt timestamp')
+  }
+  return {
+    workspaceId: candidate.workspaceId,
+    ...active === undefined ? {} : { parentId: active.id },
+    createdAt,
+    artifacts,
+    evaluatorVersion: candidate.evaluatorVersion,
+    policyVersion,
+    compositionFingerprint: candidate.compositionFingerprint,
   }
 }
 

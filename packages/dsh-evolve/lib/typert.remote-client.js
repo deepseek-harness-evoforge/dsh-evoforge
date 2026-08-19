@@ -134,9 +134,10 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'evaluatorVersion': z.string().readonly(),
   'policyVersion': z.string().readonly(),
   'artifacts': z.array(z.object({
-  'kind': z.literal("skill").readonly(),
+  'kind': z.union([z.literal("skill"), z.literal("skill-bundle")]).readonly(),
   'name': z.string().readonly(),
-  'gitCommit': z.string().readonly(),
+  'gitCommit': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'artifactDigest': z.union([z.undefined(), z.string()]).readonly().optional(),
   'treeHash': z.string().readonly(),
   'lineage': z.union([z.undefined(), z.object({
   'kind': z.literal("internal-skill-candidate-lineage-v2").readonly(),
@@ -803,7 +804,7 @@ const dsh_evolve_evoforgeEvolution_review_result$schema = z.object({
   'truncated': z.boolean().readonly(),
   'impact': z.object({
   'version': z.literal("lexical-protected-effects-v1").readonly(),
-  'scope': z.union([z.literal("append-only-skill"), z.literal("broader-change")]).readonly(),
+  'scope': z.union([z.literal("append-only-skill"), z.literal("broader-change"), z.literal("new-skill")]).readonly(),
   'indicators': z.array(z.union([z.literal("artifact-scope-change"), z.literal("credential-access"), z.literal("destructive-action"), z.literal("messaging-or-calendar"), z.literal("network-access"), z.literal("payment-action"), z.literal("permission-or-sandbox"), z.literal("privileged-tooling"), z.literal("production-change"), z.literal("rewritten-instructions")])).readonly(),
 }).readonly(),
 }).readonly(),

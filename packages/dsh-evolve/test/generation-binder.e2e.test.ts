@@ -14,6 +14,7 @@ import { openDeliveryOutcomeStore } from '../src/delivery-outcome-monitor.js'
 import { openFeedbackSignalStore } from '../src/feedback-signal-monitor.js'
 import { hashTree, sha256 } from '../src/hash.js'
 import { evaluateRetention } from '../src/retention.js'
+import { assembleSkillBundleArchive } from '../src/skill-bundle-archive.js'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const execFile = promisify(execFileCallback)
@@ -1468,6 +1469,113 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     expect(resumedStore?.getSessionGeneration(identityOf(resumedAgent))?.id).toBe(newGeneration.id)
     expect((await resumedSkills?.get('stable-evolved-skill', { cwd: root, scope: resumedAgent }))?.content)
       .toBe('New body.')
+    await resumedCtx.fiber.dispose()
+  })
+
+  it('pins an internally discovered Skill bundle only into future real DSH Sessions and rolls back exactly', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-bundle-generation-binder-'))
+    temporaryRoots.push(root)
+    const cacheRoot = join(root, 'cache')
+    const sessionsRoot = join(root, 'sessions')
+    const configPath = await writeStorageConfig(root)
+    const bundle = await assembleSkillBundleArchive([{
+      path: 'SKILL.md',
+      content: [
+        '---',
+        'name: internal-release-proof',
+        'description: Require durable DSH release proof.',
+        '---',
+        '',
+        '# Internal Release Proof',
+        '',
+        'Use the [verification contract](references/verification.md).',
+        '',
+      ].join('\n'),
+    }, {
+      path: 'references/verification.md',
+      content: '# Verification\n\nRequire a clean-profile real DSH execution.\n',
+    }])
+    const ctx = await bootStorage(configPath)
+    await installAgentRuntime(ctx, sessionsRoot)
+    await ctx.plugin(EvolvePlugin, { cacheRoot, sources: [] })
+    const store = ctx.get('evoforge.evolution') as EvolutionStore | undefined
+    const skills = ctx.get('skills') as {
+      get(name: string, options: { cwd?: string; scope?: object }): Promise<{
+        content: string
+        resourceBase?: { kind: string; path?: string }
+      } | undefined>
+    } | undefined
+    if (store === undefined || skills === undefined) throw new Error('required service did not load')
+
+    const nativeAgent = await createAndRunAgent(ctx, 'before-bundle-promotion', root)
+    const generation = (await store.publishGeneration({
+      workspaceId: WORKSPACE_ID,
+      createdAt: 1_723_456_789_000,
+      artifacts: [{
+        kind: 'skill-bundle',
+        name: 'internal-release-proof',
+        artifactDigest: bundle.artifactDigest,
+        treeHash: bundle.treeHash,
+        contentBase64: bundle.content.toString('base64'),
+        lineage: {
+          kind: 'internal-skill-candidate-lineage-v2',
+          candidateId: '1'.repeat(64),
+          workspaceId: WORKSPACE_ID,
+          skillName: 'internal-release-proof',
+          opportunityId: '2'.repeat(64),
+          policyId: 'release-proof-author',
+          versionKind: 'experience-authored-bundle-v1',
+          contentHash: bundle.artifactDigest,
+          candidateTreeHash: bundle.treeHash,
+          admissionId: '3'.repeat(64),
+          evaluationEnvelopeId: '4'.repeat(64),
+          releaseAuthority: 'none',
+        },
+      }],
+      evaluatorVersion: 'capability-absent-v1',
+      policyVersion: 'human-review-v1',
+      compositionFingerprint: '5'.repeat(64),
+    })).generation
+    await store.promoteGeneration(WORKSPACE_ID, generation.id)
+    const evolvedAgent = await createAndRunAgent(ctx, 'after-bundle-promotion', root)
+    await runAgentTurn(nativeAgent, 'continue after promotion')
+    const nativeSkill = await skills.get('internal-release-proof', { cwd: root, scope: nativeAgent })
+    const evolvedSkill = await skills.get('internal-release-proof', { cwd: root, scope: evolvedAgent })
+
+    await store.rollbackGeneration(WORKSPACE_ID)
+    const rollbackAgent = await createAndRunAgent(ctx, 'after-bundle-rollback', root)
+    const rollbackSkill = await skills.get('internal-release-proof', { cwd: root, scope: rollbackAgent })
+    const pinnedAfterRollback = await skills.get(
+      'internal-release-proof',
+      { cwd: root, scope: evolvedAgent },
+    )
+
+    expect(store.getSessionGeneration(identityOf(nativeAgent))).toBeUndefined()
+    expect(store.getSessionGeneration(identityOf(evolvedAgent))?.id).toBe(generation.id)
+    expect(store.getSessionGeneration(identityOf(rollbackAgent))).toBeUndefined()
+    expect(nativeSkill).toBeUndefined()
+    expect(evolvedSkill?.content).toContain('verification contract')
+    expect(rollbackSkill).toBeUndefined()
+    expect(pinnedAfterRollback?.content).toBe(evolvedSkill?.content)
+    expect(await readFile(
+      join(evolvedSkill?.resourceBase?.path ?? '', 'references', 'verification.md'),
+      'utf8',
+    )).toContain('clean-profile real DSH execution')
+
+    await ctx.sessions.flush(evolvedAgent.session)
+    await ctx.fiber.dispose()
+
+    const resumedCtx = await bootStorage(configPath)
+    await installAgentRuntime(resumedCtx, sessionsRoot)
+    await resumedCtx.plugin(EvolvePlugin, { cacheRoot, sources: [] })
+    const resumedAgent = await resumeAndRunAgent(resumedCtx, 'after-bundle-promotion')
+    const resumedStore = resumedCtx.get('evoforge.evolution') as EvolutionStore | undefined
+    const resumedSkills = resumedCtx.get('skills') as typeof skills
+    expect(resumedStore?.getSessionGeneration(identityOf(resumedAgent))?.id).toBe(generation.id)
+    expect((await resumedSkills?.get(
+      'internal-release-proof',
+      { cwd: root, scope: resumedAgent },
+    ))?.content).toBe(evolvedSkill?.content)
     await resumedCtx.fiber.dispose()
   })
 

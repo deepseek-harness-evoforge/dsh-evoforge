@@ -13,6 +13,7 @@ import type {
   GenerationInput,
 } from '../src/generation-store.js'
 import type { ReviewCandidate } from '../src/review-inbox.js'
+import { assembleSkillBundleArchive } from '../src/skill-bundle-archive.js'
 import type { SkillCandidateLineage } from '../src/skill-candidate-lineage.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
@@ -27,6 +28,99 @@ afterEach(async () => {
 })
 
 describe('approved Candidate publisher', () => {
+  it('publishes a brand-new internal whole-Skill as a content-addressed Generation artifact', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-new-skill-publisher-'))
+    temporaryRoots.push(root)
+    const candidate = await newSkillCandidate(root)
+    const store = fakeStore()
+    const source = new GitSkillSource(join(root, 'cache'), [])
+    const publisher = new CandidatePublisher(store, source)
+
+    const preview = await publisher.preview(candidate)
+    const generation = await publisher.publish(candidate)
+
+    expect(preview).toMatchObject({
+      truncated: false,
+      impact: {
+        version: 'lexical-protected-effects-v1',
+        scope: 'new-skill',
+        indicators: ['production-change'],
+      },
+    })
+    expect(preview.patch).toContain('new file mode 100644')
+    expect(generation).toMatchObject({
+      artifacts: [{
+        kind: 'skill-bundle',
+        name: 'release-proof',
+        treeHash: candidate.candidateTreeHash,
+        artifactDigest: expect.stringMatching(/^[a-f0-9]{64}$/u),
+        contentBase64: expect.any(String),
+        lineage: candidate.lineage,
+      }],
+    })
+    expect(generation.artifacts[0]).not.toHaveProperty('gitCommit')
+    const provider = await source.providerFor(generation)
+    const observation = await provider.list({})
+    const listed = 'candidates' in observation ? observation.candidates : observation
+    expect(listed).toHaveLength(1)
+    expect(listed[0]).toMatchObject({ name: 'release-proof', provider: 'evoforge-generation' })
+    const definition = await provider.get(listed[0]!, {})
+    expect(definition?.content).toContain('Require clean-profile proof')
+  })
+
+  it('rejects a new Skill whose archive digest is not the admitted Candidate content hash', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-new-skill-identity-'))
+    temporaryRoots.push(root)
+    const candidate = await newSkillCandidate(root)
+    const mismatched = {
+      ...candidate,
+      lineage: { ...candidate.lineage!, contentHash: '0'.repeat(64) },
+    }
+    const store = fakeStore()
+    const publisher = new CandidatePublisher(store, new GitSkillSource(join(root, 'cache'), []))
+
+    await expect(publisher.publish(mismatched))
+      .rejects.toThrow('brand-new Skill bundle does not match its sealed Candidate identity')
+    expect(store.publishGeneration).not.toHaveBeenCalled()
+  })
+
+  it('rejects stale capability-absent evidence when the active Generation already has the Skill', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-new-skill-conflict-'))
+    temporaryRoots.push(root)
+    const candidate = await newSkillCandidate(root)
+    const source = new GitSkillSource(join(root, 'cache'), [])
+    const generation = await new CandidatePublisher(fakeStore(), source).publish(candidate)
+    const conflictingStore = fakeStore(generation)
+    const publisher = new CandidatePublisher(conflictingStore, source)
+
+    await expect(publisher.preview(candidate))
+      .rejects.toThrow("capability-absent review conflicts with active Skill 'release-proof'")
+    await expect(publisher.publish(candidate))
+      .rejects.toThrow("capability-absent review conflicts with active Skill 'release-proof'")
+    expect(conflictingStore.publishGeneration).not.toHaveBeenCalled()
+  })
+
+  it('fails closed when a persisted Skill bundle digest is tampered', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-new-skill-tamper-'))
+    temporaryRoots.push(root)
+    const candidate = await newSkillCandidate(root)
+    const source = new GitSkillSource(join(root, 'cache'), [])
+    const generation = await new CandidatePublisher(fakeStore(), source).publish(candidate)
+    const artifact = generation.artifacts[0]!
+    if (artifact.kind !== 'skill-bundle') throw new Error('expected Skill bundle artifact')
+    const tampered = {
+      ...generation,
+      artifacts: [{
+        ...artifact,
+        artifactDigest: '0'.repeat(64),
+        lineage: { ...artifact.lineage, contentHash: '0'.repeat(64) },
+      }],
+    }
+
+    await expect(source.providerFor(tampered))
+      .rejects.toThrow("Generation Skill bundle 'release-proof' failed content identity verification")
+  })
+
   it('previews the sealed Candidate against the exact Git baseline without publishing or moving user state', async () => {
     const fixture = await createFixture()
     const store = fakeStore()
@@ -158,6 +252,9 @@ describe('approved Candidate publisher', () => {
 
     const first = await publisher.publish(fixture.candidate)
     const second = await publisher.publish(fixture.candidate)
+    const firstArtifact = first.artifacts[0]!
+    expect(firstArtifact.kind).toBe('skill')
+    if (firstArtifact.kind !== 'skill') throw new Error('expected Git Skill artifact')
 
     expect(second).toEqual(first)
     expect(store.publishGeneration).toHaveBeenCalledTimes(2)
@@ -166,13 +263,13 @@ describe('approved Candidate publisher', () => {
     expect(await git(
       fixture.repository,
       'show',
-      `${first.artifacts[0]!.gitCommit}:skills/stable-skill/SKILL.md`,
+      `${firstArtifact.gitCommit}:skills/stable-skill/SKILL.md`,
     )).toContain('Verify the real browser flow.')
     expect(await git(
       fixture.repository,
       'rev-parse',
       `refs/evoforge/generations/${fixture.candidate.id}`,
-    )).toBe(first.artifacts[0]!.gitCommit)
+    )).toBe(firstArtifact.gitCommit)
     expect(first).toMatchObject({
       evaluatorVersion: 'fixture-v1',
       policyVersion: 'human-review-v1',
@@ -349,7 +446,10 @@ async function createFixture(): Promise<{
   return { root, repository, baseCommit, baseGitTree, otherGitTree, baseline, candidate }
 }
 
-function discoveredLineage(candidateTreeHash: string): SkillCandidateLineage {
+function discoveredLineage(
+  candidateTreeHash: string,
+  contentHash = '2'.repeat(64),
+): SkillCandidateLineage {
   return {
     kind: 'internal-skill-candidate-lineage-v2',
     candidateId: '1'.repeat(64),
@@ -358,11 +458,71 @@ function discoveredLineage(candidateTreeHash: string): SkillCandidateLineage {
     opportunityId: '4'.repeat(64),
     policyId: 'stable-skill-author',
     versionKind: 'experience-authored-bundle-v1',
-    contentHash: '2'.repeat(64),
+    contentHash,
     candidateTreeHash,
     admissionId: '3'.repeat(64),
     evaluationEnvelopeId: 'e'.repeat(64),
     releaseAuthority: 'none',
+  }
+}
+
+async function newSkillCandidate(root: string): Promise<ReviewCandidate> {
+  const skill = [
+    '---',
+    'name: release-proof',
+    'description: Produce durable release proof.',
+    '---',
+    '',
+    '# Release Proof',
+    '',
+    'Require clean-profile proof before declaring success.',
+    'Follow the [evidence protocol](references/evidence.md).',
+    '',
+  ].join('\n')
+  const reference = '# Evidence\n\nRecord the exact DSH revision.\n'
+  const candidateDir = join(root, 'candidate-tree')
+  await mkdir(join(candidateDir, 'references'), { recursive: true })
+  await writeFile(join(candidateDir, 'SKILL.md'), skill)
+  await writeFile(join(candidateDir, 'references', 'evidence.md'), reference)
+  const proposal = {
+    claim: 'Add the internally discovered release-proof Skill',
+    files: [
+      { path: 'SKILL.md', content: skill },
+      { path: 'references/evidence.md', content: reference },
+    ],
+  }
+  const candidateTreeHash = await hashTree(candidateDir)
+  const assembled = await assembleSkillBundleArchive(proposal.files)
+  return {
+    id: '7'.repeat(64),
+    workspaceId: WORKSPACE_ID,
+    runId: '8'.repeat(64),
+    status: 'pending',
+    outputDir: join(root, 'run'),
+    skillName: 'release-proof',
+    recommendation: 'promote',
+    claim: proposal.claim,
+    changedFiles: proposal.files.map(file => file.path),
+    candidateTreeHash,
+    baseTreeHash: '9'.repeat(64),
+    baselineKind: 'capability-absent',
+    proposalHash: sha256(JSON.stringify(proposal)),
+    proposal,
+    cases: [{ id: 'holdout', baseline: 'fail', candidate: 'pass', passedChecks: 5, totalChecks: 5 }],
+    cost: { inputTokens: 0, outputTokens: 0, trialCount: 4 },
+    reasons: ['candidate passed while the absent baseline failed'],
+    limitations: ['internal Candidate has no release authority'],
+    evaluatorVersion: 'holdout-v1',
+    compositionFingerprint: 'a'.repeat(64),
+    compositionStable: true,
+    startedAt: '2026-08-19T00:00:00.000Z',
+    lineage: {
+      ...discoveredLineage(candidateTreeHash, assembled.artifactDigest),
+      candidateId: 'b'.repeat(64),
+      skillName: 'release-proof',
+      opportunityId: 'c'.repeat(64),
+    },
+    evidenceHash: 'd'.repeat(64),
   }
 }
 

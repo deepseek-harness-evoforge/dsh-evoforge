@@ -14,8 +14,26 @@ export type CandidateImpactIndicator =
 
 export interface CandidateImpactProjection {
   readonly version: typeof CANDIDATE_IMPACT_VERSION
-  readonly scope: 'append-only-skill' | 'broader-change'
+  readonly scope: 'append-only-skill' | 'broader-change' | 'new-skill'
   readonly indicators: readonly CandidateImpactIndicator[]
+}
+
+/** Conservative lexical projection for an entire new Skill package. */
+export function projectNewSkillCandidateImpact(
+  files: readonly CandidateFile[],
+): CandidateImpactProjection {
+  const indicators = new Set<CandidateImpactIndicator>()
+  const skillFiles = files.filter(file => file.path === 'SKILL.md')
+  if (skillFiles.length !== 1) indicators.add('artifact-scope-change')
+  const text = files.map(file => file.content).join('\n')
+  for (const [indicator, pattern] of textIndicators) {
+    if (pattern.test(text)) indicators.add(indicator)
+  }
+  return {
+    version: CANDIDATE_IMPACT_VERSION,
+    scope: 'new-skill',
+    indicators: indicatorOrder.filter(indicator => indicators.has(indicator)),
+  }
 }
 
 interface CandidateFile {

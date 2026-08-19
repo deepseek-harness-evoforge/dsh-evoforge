@@ -52,7 +52,8 @@ Session/Goal/Tool、dispose/remove/reboot/readback 1/1，通过时间 25.96 秒�
 
 ## 未完成边界
 
-Envelope 仍由治理目录预先提供，尚未从内部 Goal/纠正/outcome 自主构造未见 admission/holdout。现有
-Git-backed Publisher、Retention 与 canary 假设目标 Skill 已存在并配置 Git source，不能安全发布新 Skill；
-该路径必须重构为内容寻址的 whole-Skill 新能力发布与未来 Session Generation，再完成真实 Retention、
-负迁移、回滚、provider outcome、飞书闭环和 Hermes paired benchmark。未完成前不得自动晋升或打 tag。
+Envelope 仍由治理目录预先提供，尚未从内部 Goal/纠正/outcome 自主构造未见 admission/holdout。后继
+[V4-15](v4-15-content-addressed-new-skill-generation.zh.md) 已用内容寻址 `skill-bundle` 打通新 Skill 的
+inactive publication、未来 Session固定、root rollback 和重启恢复，不再要求 Git source。Capability-absent
+Retention/canary、负迁移、provider outcome、飞书闭环和 Hermes paired benchmark 仍未完成；未完成前不得
+自动晋升或打 tag。

@@ -134,9 +134,10 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'evaluatorVersion': z.string().readonly(),
   'policyVersion': z.string().readonly(),
   'artifacts': z.array(z.object({
-  'kind': z.literal("skill").readonly(),
+  'kind': z.union([z.literal("skill"), z.literal("skill-bundle")]).readonly(),
   'name': z.string().readonly(),
-  'gitCommit': z.string().readonly(),
+  'gitCommit': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'artifactDigest': z.union([z.undefined(), z.string()]).readonly().optional(),
   'treeHash': z.string().readonly(),
   'lineage': z.union([z.undefined(), z.object({
   'kind': z.literal("internal-skill-candidate-lineage-v2").readonly(),
@@ -803,7 +804,7 @@ const dsh_evolve_evoforgeEvolution_review_result$schema = z.object({
   'truncated': z.boolean().readonly(),
   'impact': z.object({
   'version': z.literal("lexical-protected-effects-v1").readonly(),
-  'scope': z.union([z.literal("append-only-skill"), z.literal("broader-change")]).readonly(),
+  'scope': z.union([z.literal("append-only-skill"), z.literal("broader-change"), z.literal("new-skill")]).readonly(),
   'indicators': z.array(z.union([z.literal("artifact-scope-change"), z.literal("credential-access"), z.literal("destructive-action"), z.literal("messaging-or-calendar"), z.literal("network-access"), z.literal("payment-action"), z.literal("permission-or-sandbox"), z.literal("privileged-tooling"), z.literal("production-change"), z.literal("rewritten-instructions")])).readonly(),
 }).readonly(),
 }).readonly(),
@@ -1520,8 +1521,16 @@ export const TYPERT = {
             "declaration": "export interface GenerationInput {\n    workspaceId: string;\n    parentId?: string | undefined;\n    createdAt: number;\n    artifacts: SkillGenerationArtifact[];\n    evaluatorVersion: string;\n    policyVersion: string;\n    compositionFingerprint: string;\n}"
           },
           {
+            "name": "GitSkillGenerationArtifact",
+            "declaration": "export interface GitSkillGenerationArtifact {\n    kind: 'skill';\n    name: string;\n    gitCommit: string;\n    treeHash: string;\n    lineage?: SkillCandidateLineage | undefined;\n}"
+          },
+          {
             "name": "SessionIdentity",
             "declaration": "export interface SessionIdentity {\n    workspaceId: string;\n    sessionId: string;\n    createdAt: number;\n    cwd?: string | undefined;\n}"
+          },
+          {
+            "name": "SkillBundleGenerationArtifact",
+            "declaration": "export interface SkillBundleGenerationArtifact {\n    kind: 'skill-bundle';\n    name: string;\n    artifactDigest: string;\n    treeHash: string;\n    contentBase64: string;\n    lineage: SkillCandidateLineage;\n}"
           },
           {
             "name": "SkillCandidateLineage",
@@ -1533,7 +1542,7 @@ export const TYPERT = {
           },
           {
             "name": "SkillGenerationArtifact",
-            "declaration": "export interface SkillGenerationArtifact {\n    kind: 'skill';\n    name: string;\n    gitCommit: string;\n    treeHash: string;\n    lineage?: SkillCandidateLineage | undefined;\n}"
+            "declaration": "export type SkillGenerationArtifact = GitSkillGenerationArtifact | SkillBundleGenerationArtifact;"
           }
         ]
       },
@@ -1628,7 +1637,7 @@ export const TYPERT = {
           },
           {
             "name": "CandidateImpactProjection",
-            "declaration": "export interface CandidateImpactProjection {\n    readonly version: 'lexical-protected-effects-v1';\n    readonly scope: 'append-only-skill' | 'broader-change';\n    readonly indicators: readonly CandidateImpactIndicator[];\n}"
+            "declaration": "export interface CandidateImpactProjection {\n    readonly version: 'lexical-protected-effects-v1';\n    readonly scope: 'append-only-skill' | 'broader-change' | 'new-skill';\n    readonly indicators: readonly CandidateImpactIndicator[];\n}"
           },
           {
             "name": "DeliveryOutcomeCounts",
@@ -1640,7 +1649,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionArtifactView",
-            "declaration": "export interface EvolutionArtifactView {\n    readonly kind: 'skill';\n    readonly name: string;\n    readonly gitCommit: string;\n    readonly treeHash: string;\n    readonly lineage?: EvolutionSkillCandidateLineageView;\n}"
+            "declaration": "export interface EvolutionArtifactView {\n    readonly kind: 'skill' | 'skill-bundle';\n    readonly name: string;\n    readonly gitCommit?: string;\n    readonly artifactDigest?: string;\n    readonly treeHash: string;\n    readonly lineage?: EvolutionSkillCandidateLineageView;\n}"
           },
           {
             "name": "EvolutionAutomaticBudgetView",

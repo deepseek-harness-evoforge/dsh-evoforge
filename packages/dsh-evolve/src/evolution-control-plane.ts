@@ -572,8 +572,7 @@ function projectReviews(
     .map(candidate => {
       const generation = store.getGeneration(candidate.generationId!)
       const artifact = generation?.workspaceId === candidate.workspaceId
-        ? generation.artifacts.find(value => value.kind === 'skill'
-          && value.name === candidate.skillName
+        ? generation.artifacts.find(value => value.name === candidate.skillName
           && value.lineage?.candidateTreeHash === candidate.candidateTreeHash)
         : undefined
       return {
@@ -607,7 +606,9 @@ function projectGeneration(generation: ReturnType<EvolutionStore['getActiveGener
     artifacts: generation.artifacts.map(artifact => ({
       kind: artifact.kind,
       name: artifact.name,
-      gitCommit: artifact.gitCommit,
+      ...(artifact.kind === 'skill'
+        ? { gitCommit: artifact.gitCommit }
+        : { artifactDigest: artifact.artifactDigest }),
       treeHash: artifact.treeHash,
       ...(artifact.lineage === undefined
         ? {}
