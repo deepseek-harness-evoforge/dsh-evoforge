@@ -1,6 +1,6 @@
 # EvoForge v0.1 路线图
 
-> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已替换旧 Router 并完成公共 outbound/健康 Web 的真实浏览器失败恢复验收，飞书图片已在 assembled DSH 中经官方资源下载、整批校验、原生 AttachmentStore 保存并以内容寻址引用进入 Agent。ClawHub/市场/research Candidate、公开 source/target 配置、活动 Git materializer/ref、Feedback/Evaluator Draft、Shadow 内 proposer、自动 review expiry、旧 Retention/canary 编排和对应 Control/Web/attention 表面均已删除，packed runtime 只解析内部内容寻址 Bundle。缺失 Skill Candidate 已绑定四 Goal 证据 seal、独立 admission/holdout、exact-Candidate Shadow 与 future-only Generation；现有 Skill 仍只形成等待完整 baseline Bundle 的调查。下一阶段建立 DSH 已安装 Skill 的完整基线快照，并在内部 Opportunity/Candidate/Envelope/Outcome 上重建 Retention/canary。真实 provider、exact 飞书用户消息与 Hermes paired 仍未完成；固定 DSH attachment v1 不支持通用文件，普通文件/音视频和飞书内容能力仍 pending，v0.1 未发布。
+> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已替换旧 Router 并完成公共 outbound/健康 Web 的真实浏览器失败恢复验收，飞书图片已在 assembled DSH 中经官方资源下载、整批校验、原生 AttachmentStore 保存并以内容寻址引用进入 Agent。ClawHub/市场/research Candidate、公开 source/target 配置、活动 Git materializer/ref、Feedback/Evaluator Draft、Shadow 内 proposer、自动 review expiry、旧 Retention/canary 编排和对应 Control/Web/attention 表面均已删除，packed runtime 只解析内部内容寻址 Bundle。缺失 Skill Candidate 已绑定四 Goal authoring/admission/holdout seal；第五个及以后独立 Goal 可额外形成 Candidate 不可见的 Retention 分区和 Envelope v5 Case Pack，DSH Web 已投影，但 Retention runner 尚未实现。exact-Candidate Shadow 与 future-only Generation 已存在；现有 Skill 仍只形成等待完整 baseline Bundle 的调查。下一阶段先运行 exact Candidate Retention 并持久化同谱系 verdict，再接 canary/outcome；同时建立已安装 Skill 的完整基线快照。真实 provider、exact 飞书用户消息与 Hermes paired 仍未完成；固定 DSH attachment v1 不支持通用文件，普通文件/音视频和飞书内容能力仍 pending，v0.1 未发布。
 > 更新日期：2026-08-19
 
 ## 开发与发布纪律
@@ -65,7 +65,7 @@
 
 - 用户只提交自然语言 Goal；系统从 Capability Map 自主命中适用、已验证能力，不显示开场选路菜单；
 - 无适用能力时产生可复核 Capability Gap；同一 Workspace 内至少两个独立 Goal 的重复缺口才形成 Skill Opportunity；
-- Opportunity 达到至少四个独立 Goal 后，先由治理面密封 authoring/admission/holdout；作者看不到后两组，样本不足不花预算或生成 Candidate；
+- Opportunity 达到至少四个独立 Goal 后，先由治理面密封 authoring/admission/holdout；存在第五个或更多独立 Goal 时再保留一个 Candidate 不可见的 Retention 样本。作者看不到任何 protected 组，样本不足不花预算或生成 Candidate；
 - Skill 名和候选方向由内部 Goal、失败、纠正、结果、复用与保留证据推导，不由用户或部署者预选 exact Skill；
 - Skill 的 identity、source、scope、version、content hash、权限和 verification state 可追踪；
 - 候选按 whole-Skill folder 原子版本化，始终 inactive、Workspace-scoped、内容寻址；
@@ -94,13 +94,13 @@ Existing-Skill improvement 与 missing-Skill Opportunity 分轨：同一 invocat
 
 内部 Candidate 评测已删除 `candidateAdmissionTargets`/`candidateShadowTargets` 这两套预选 exact Skill 的配置。
 `candidateEvaluationPolicies` 不声明 Skill、baseline、Case Pack 或 Candidate 方向；自主治理只增加 exact DSH revision 和独立日预算。Host 先从 exact Opportunity
-自动形成内容寻址的 `Skill Evaluation Evidence Seal`，Candidate v2 将 seal id 纳入内容身份；Candidate-independent 治理模块分别用受保护 admission/holdout 样本形成两份 Case Pack，同 proposer model identity 在预算前 fail closed，并以零 proposer 调用校准；Envelope v4 再绑定 seal、author-input digest、治理作者/输入 digest、
+自动形成内容寻址的 `Skill Evaluation Evidence Seal`，Candidate v2 将 seal id 纳入内容身份；Candidate-independent 治理模块分别用受保护 admission/holdout，以及可用时的第五 Goal Retention 样本形成互不复用的 Case Pack，同 proposer model identity 在预算前 fail closed，并以零 proposer 调用校准；四 Goal Envelope v4 或带 Retention 的 Envelope v5 再绑定 seal、author-input digest、治理作者/输入 digest、
 exact Opportunity 快照和禁止占位 Skill 的 capability-absent
 baseline、deterministic admission 和不同的 assembled holdout。真实 assembled DSH baseline 不安装目标 Skill，
 Candidate 侧才安装 exact whole-Skill；Envelope id 和 seal id 贯穿 admission、Candidate Lineage v3、Shadow 与 crash resume；
-内容漂移、symlink、根重叠和 admission/holdout 同 hash 都 fail closed，缺包则 abstain。新 Skill Publisher
+内容漂移、symlink、根重叠和任意 protected Case Pack 同 hash 都 fail closed，缺包则 abstain。新 Skill Publisher
 已不再假设既有 Git source：explicit review 后生成 canonical `skill-bundle` inactive Generation，Storage/Provider
-重验 exact 内容，真实 DSH Session 证明 future-only、root rollback 和重启恢复。Shadow 只执行 exact Candidate/lineage 与真实 assembled DSH composition，自身不调用 proposer；旧 capability-absent Retention/sealed-canary 编排已删除，待直接绑定内部 Envelope 与 Outcome 重建。治理包自动形成、原子安装和 paid-call uncertain restart 已通过注入式自动化测试；V4.19 的贯穿红测发现并修复了“admission/holdout 都被标成 assembled，导致确定性 Admission 永远拒绝”的生产断点：现在 admission 为不执行 Candidate 的 deterministic filesystem 门，只有独立 holdout 为 assembled DSH。Host/Web 还会脱敏展示治理 0–2 次调用、token、budget-deferred、uncertain 与校准失败分类。下一步用两套独立真实 provider 对内部 Goal 样本运行 author→admission→assembled holdout，并补 Retention/canary/长期 outcome。
+重验 exact 内容，真实 DSH Session 证明 future-only、root rollback 和重启恢复。Shadow 只执行 exact Candidate/lineage 与真实 assembled DSH composition，自身不调用 proposer；旧 capability-absent Retention/sealed-canary 编排已删除。V4.25 已用内部第五 Goal 重建独立 assembled Retention Case Pack、Envelope v5、Host/Remote 与 Web 投影，但没有执行 Retention Trial。治理包自动形成、原子安装和 paid-call uncertain restart 已通过注入式自动化测试；V4.19 的贯穿红测发现并修复了“admission/holdout 都被标成 assembled，导致确定性 Admission 永远拒绝”的生产断点：现在 admission 为不执行 Candidate 的 deterministic filesystem 门，holdout 与 Retention 为互相独立的 assembled DSH Case Pack。Host/Web 会脱敏展示治理 0–3 次调用、token、budget-deferred、uncertain 与三类校准失败。下一步实现 exact Shadow lineage → assembled Retention run → durable retained/regressed/incomplete verdict，再用两套独立真实 provider 跑全链并接 canary/长期 outcome。
 
 当前活动源码已经删除外部来源发现、Agent Skills 索引/archive、运行时 Web research、research Holdout/revision
 及其 Job 编排、依赖、持久化变体和 Web 类型；Candidate Repository、Admission、Lineage、Shadow 只接受

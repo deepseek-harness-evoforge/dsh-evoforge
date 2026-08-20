@@ -140,6 +140,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'authoringGoalCount': z.number().readonly(),
   'admissionGoalCount': z.number().readonly(),
   'holdoutGoalCount': z.number().readonly(),
+  'retentionGoalCount': z.number().readonly(),
   'proposerCanReadProtectedSamples': z.literal(false).readonly(),
   'releaseAuthority': z.literal("none").readonly(),
 }), z.object({
@@ -273,15 +274,16 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'skillName': z.string().readonly(),
   'opportunityId': z.string().readonly(),
   'evaluationEvidenceId': z.string().readonly(),
-  'phase': z.union([z.literal("incomplete"), z.literal("prepared"), z.literal("budget-deferred"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("admission-ready"), z.literal("authored"), z.literal("ready")]).readonly(),
-  'pendingRole': z.union([z.undefined(), z.literal("admission"), z.literal("holdout")]).readonly().optional(),
+  'phase': z.union([z.literal("incomplete"), z.literal("prepared"), z.literal("budget-deferred"), z.literal("authoring-pending"), z.literal("uncertain"), z.literal("admission-ready"), z.literal("holdout-ready"), z.literal("authored"), z.literal("ready")]).readonly(),
+  'pendingRole': z.union([z.undefined(), z.literal("admission"), z.literal("holdout"), z.literal("retention")]).readonly().optional(),
   'createdAt': z.string().readonly(),
   'updatedAt': z.string().readonly(),
   'modelCalls': z.number().readonly(),
   'inputTokens': z.number().readonly(),
   'outputTokens': z.number().readonly(),
+  'retentionIncluded': z.boolean().readonly(),
   'retryAt': z.union([z.undefined(), z.number()]).readonly().optional(),
-  'failure': z.union([z.undefined(), z.literal("paid-authoring-uncertain"), z.literal("admission-calibration-failed"), z.literal("holdout-calibration-failed"), z.literal("governance-incomplete")]).readonly().optional(),
+  'failure': z.union([z.undefined(), z.literal("paid-authoring-uncertain"), z.literal("admission-calibration-failed"), z.literal("holdout-calibration-failed"), z.literal("retention-calibration-failed"), z.literal("governance-incomplete")]).readonly().optional(),
   'releaseAuthority': z.literal("none").readonly(),
 })).readonly(),
 })]).readonly().optional(),
@@ -1174,7 +1176,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionSkillEvaluationGovernanceView",
-            "declaration": "export interface EvolutionSkillEvaluationGovernanceView {\n    readonly configuredPolicyCount: number;\n    readonly warningCount: number;\n    readonly runs: readonly { readonly id: string; readonly policyId: string; readonly skillName: string; readonly opportunityId: string; readonly evaluationEvidenceId: string; readonly phase: 'prepared' | 'budget-deferred' | 'authoring-pending' | 'admission-ready' | 'authored' | 'uncertain' | 'incomplete' | 'ready'; readonly pendingRole?: 'admission' | 'holdout'; readonly createdAt: string; readonly updatedAt: string; readonly modelCalls: number; readonly inputTokens: number; readonly outputTokens: number; readonly retryAt?: number; readonly failure?: 'paid-authoring-uncertain' | 'admission-calibration-failed' | 'holdout-calibration-failed' | 'governance-incomplete'; readonly releaseAuthority: 'none'; }[];\n}"
+            "declaration": "export interface EvolutionSkillEvaluationGovernanceView {\n    readonly configuredPolicyCount: number;\n    readonly warningCount: number;\n    readonly runs: readonly { readonly id: string; readonly policyId: string; readonly skillName: string; readonly opportunityId: string; readonly evaluationEvidenceId: string; readonly phase: 'prepared' | 'budget-deferred' | 'authoring-pending' | 'admission-ready' | 'holdout-ready' | 'authored' | 'uncertain' | 'incomplete' | 'ready'; readonly pendingRole?: 'admission' | 'holdout' | 'retention'; readonly createdAt: string; readonly updatedAt: string; readonly modelCalls: number; readonly inputTokens: number; readonly outputTokens: number; readonly retentionIncluded: boolean; readonly retryAt?: number; readonly failure?: 'paid-authoring-uncertain' | 'admission-calibration-failed' | 'holdout-calibration-failed' | 'retention-calibration-failed' | 'governance-incomplete'; readonly releaseAuthority: 'none'; }[];\n}"
           },
           {
             "name": "EvolutionSkillImprovementOpportunityQueueView",
@@ -1190,7 +1192,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionSkillOpportunityView",
-            "declaration": "export interface EvolutionSkillOpportunityView {\n    readonly id: string;\n    readonly skillName: string;\n    readonly gapIds: readonly string[];\n    readonly goalIds: readonly string[];\n    readonly gapCount: number;\n    readonly goalCount: number;\n    readonly firstObservedAt: number;\n    readonly lastObservedAt: number;\n    readonly evidence: { readonly kind: 'internal-experience-v3'; readonly eligibilityBasis: 'two-or-more-distinct-goals'; readonly correctionSignals: { readonly association: 'exact-durable-skill-invocation'; readonly count: number; readonly goalCount: number; readonly ids: readonly string[]; readonly referencesTruncated: boolean; }; readonly deliveryOutcomes: { readonly association: 'same-goal-single-skill-gap'; readonly total: number; readonly passed: number; readonly failed: number; readonly unknown: number; readonly ids: readonly string[]; readonly referencesTruncated: boolean; }; readonly causalClaim: 'none'; };\n    readonly evaluationReadiness: { readonly status: 'ready-to-seal' | 'sealed'; readonly evidenceId: string; readonly observedGoalCount: number; readonly authoringGoalCount: number; readonly admissionGoalCount: number; readonly holdoutGoalCount: number; readonly proposerCanReadProtectedSamples: false; readonly releaseAuthority: 'none'; } | { readonly status: 'waiting'; readonly reason: 'fewer-than-four-independent-goals'; readonly observedGoalCount: number; readonly requiredGoalCount: 4; readonly releaseAuthority: 'none'; } | { readonly status: 'unavailable'; readonly reason: 'governance-policy-unavailable'; readonly observedGoalCount: number; readonly releaseAuthority: 'none'; } | { readonly status: 'invalid'; readonly reason: 'opportunity-evidence-invalid'; readonly observedGoalCount: number; readonly releaseAuthority: 'none'; };\n    readonly status: 'eligible-for-authoring';\n    readonly releaseAuthority: 'none';\n}"
+            "declaration": "export interface EvolutionSkillOpportunityView {\n    readonly id: string;\n    readonly skillName: string;\n    readonly gapIds: readonly string[];\n    readonly goalIds: readonly string[];\n    readonly gapCount: number;\n    readonly goalCount: number;\n    readonly firstObservedAt: number;\n    readonly lastObservedAt: number;\n    readonly evidence: { readonly kind: 'internal-experience-v3'; readonly eligibilityBasis: 'two-or-more-distinct-goals'; readonly correctionSignals: { readonly association: 'exact-durable-skill-invocation'; readonly count: number; readonly goalCount: number; readonly ids: readonly string[]; readonly referencesTruncated: boolean; }; readonly deliveryOutcomes: { readonly association: 'same-goal-single-skill-gap'; readonly total: number; readonly passed: number; readonly failed: number; readonly unknown: number; readonly ids: readonly string[]; readonly referencesTruncated: boolean; }; readonly causalClaim: 'none'; };\n    readonly evaluationReadiness: { readonly status: 'ready-to-seal' | 'sealed'; readonly evidenceId: string; readonly observedGoalCount: number; readonly authoringGoalCount: number; readonly admissionGoalCount: number; readonly holdoutGoalCount: number; readonly retentionGoalCount: number; readonly proposerCanReadProtectedSamples: false; readonly releaseAuthority: 'none'; } | { readonly status: 'waiting'; readonly reason: 'fewer-than-four-independent-goals'; readonly observedGoalCount: number; readonly requiredGoalCount: 4; readonly releaseAuthority: 'none'; } | { readonly status: 'unavailable'; readonly reason: 'governance-policy-unavailable'; readonly observedGoalCount: number; readonly releaseAuthority: 'none'; } | { readonly status: 'invalid'; readonly reason: 'opportunity-evidence-invalid'; readonly observedGoalCount: number; readonly releaseAuthority: 'none'; };\n    readonly status: 'eligible-for-authoring';\n    readonly releaseAuthority: 'none';\n}"
           },
           {
             "name": "EvolutionSlowLoopAuthoringView",

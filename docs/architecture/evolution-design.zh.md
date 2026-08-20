@@ -1,7 +1,7 @@
 # EvoForge 可证明自进化设计
 
-> 状态：当前活动纵切为内部 Goal→Gap→Skill Opportunity→生成前 Skill Evaluation Evidence Seal→seal-bound Candidate v2→Candidate-independent Governance Case Pack Authoring→Evaluation Envelope v4→Lineage v3→exact-Candidate assembled Shadow→content-addressed inactive Generation→future Session/root rollback；历史 P1 静态 target、Feedback/Evaluator Draft、Shadow 内 proposer、自动 review expiry 与旧 Retention/canary 编排已删除，仅保留历史说明。existing-Skill 同版本跨 Goal 纠正调查已实现，但完整 baseline Bundle/Candidate、内部 Retention/canary 重建、治理包真实 provider assembled 验证与真实任务长期证据待完成。
-> 更新日期：2026-08-19
+> 状态：当前活动纵切为内部 Goal→Gap→Skill Opportunity→生成前 Skill Evaluation Evidence Seal→seal-bound Candidate v2→Candidate-independent Governance Case Pack Authoring→Evaluation Envelope v4/v5→Lineage v3→exact-Candidate assembled Shadow→content-addressed inactive Generation→future Session/root rollback；第五个独立 Goal 已可形成 Candidate 不可见的 assembled Retention Case Pack，但 runner 尚未实现。历史 P1 静态 target、Feedback/Evaluator Draft、Shadow 内 proposer、自动 review expiry 与旧 Retention/canary 编排已删除，仅保留历史说明。existing-Skill 同版本跨 Goal 纠正调查已实现，但完整 baseline Bundle/Candidate、Retention execution/canary、治理包真实 provider assembled 验证与真实任务长期证据待完成。
+> 更新日期：2026-08-20
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 
 ## 1. 结论
@@ -238,13 +238,14 @@ interface LearningSignal {
   → 精确关联目标回答的 durable Skill 调用、invocation-content hash / stable Goal identity 跨 revision 交付结果（context only）
   → Workspace selfDiscoveryPolicy（无 Skill 字段）
   → 至少四个独立 Goal 后形成 governance-owned Skill Evaluation Evidence Seal
+  → 第五个及以后独立 Goal 可保留一个 Candidate 不可见的 Retention 样本
       authoring / admission / holdout 三组不重叠
-  → 原生 Job author（只读有界 authoring 子集；看不到 admission/holdout）
+  → 原生 Job author（只读有界 authoring 子集；看不到 admission/holdout/Retention）
   → instruction-only whole-Skill v1
   → inactive / quarantined / unevaluated / never-executed Candidate v2（显式绑定 seal）
   → Candidate-independent admission / holdout authoring（各自只见受保护子集）
   → zero-proposer calibration
-  → 当前 Opportunity + evidence seal 对应的 governance-owned Evaluation Envelope v4
+  → 当前 Opportunity + evidence seal 对应的 governance-owned Evaluation Envelope v4/v5
       baseline = capability-absent（无 SKILL.md）
   → deterministic admission → independent assembled holdout
   → exact-Candidate assembled Shadow（零 proposer）
@@ -264,15 +265,15 @@ interface LearningSignal {
 - policy 只授权 Workspace、私有 run root、日预算和可能的模型调用，不预定要发现哪个 Skill；
 - author 看不到外部搜索结果、验证答案、测试结果或 release 权限；
 - Opportunity 只有生成资格，Candidate 只有隔离身份，二者都不能安装、激活、晋升或发布；
-- 两个不同 Goal 只形成 Opportunity；至少四个不同 Goal 才能在作者调用前密封 authoring/admission/holdout。证据不足不花预算、不调用模型、不生成 Candidate；
+- 两个不同 Goal 只形成 Opportunity；至少四个不同 Goal 才能在作者调用前密封 authoring/admission/holdout；第五个及以后 Goal 再保留一个独立 Retention 样本。证据不足不花预算、不调用模型、不生成 Candidate；
 - evidence seal 对 exact Opportunity 快照、三组角色和 author-input digest 内容寻址；Candidate proposer 只收到 authoring 子集，治理目录篡改和作者输入错配均 fail closed；
 - Candidate evaluation policy 不能配置 Skill、baseline、Case Pack 或 Candidate 方向；自主治理只允许再固定 exact DSH revision 和独立日预算；
-- 治理作者分开读取 admission/holdout 子集，输入不含 Candidate 文件、正文或 id；两份包必须先零 proposer 校准，paid call 结果不确定时持久化 `uncertain` 且不盲重试；
-- 一个内容寻址 Evaluation Envelope v4 必须绑定当前 Opportunity 快照、evidence seal、author-input digest、治理作者/受保护输入 digest、只含 `subject.json` 的 capability-absent baseline、calibrated admission 与不同的 assembled holdout，任何占位 Skill、漂移、符号链接、根重叠或身份不一致都 fail closed；
+- 治理作者分开读取 admission/holdout/可选 Retention 子集，输入不含 Candidate 文件、正文或 id；每份包必须先零 proposer 校准，paid call 结果不确定时持久化 `uncertain` 且不盲重试；
+- 内容寻址 Evaluation Envelope v4 绑定四 Goal admission/holdout；v5 额外绑定 Retention input digest、唯一 assembled Case Pack hash 与隔离 run root。两者都绑定当前 Opportunity 快照、evidence seal、author-input digest、治理作者/受保护输入 digest和只含 `subject.json` 的 capability-absent baseline，任何占位 Skill、漂移、protected Case Pack 复用、符号链接、根重叠或身份不一致都 fail closed；
 - assembled baseline 不安装目标 Skill，Candidate 侧才安装 exact whole-Skill；两侧必须保持非目标 composition 相同；
-- Candidate v2、Lineage v3 和 Web 谱系显式携带 seal id；当前实现能解析、验证并贯穿 Envelope v4 到 Admission、Shadow、Review 和 crash resume；通过复核的新 Skill 可形成不依赖 Git source 的 inactive `skill-bundle` Generation，Storage 与 DSH Skill Provider 重验 exact archive，晋升只影响未来 Session，root rollback 恢复后续 Session 的 native DSH；
-- Shadow 只接收 exact Candidate、tree/lineage、Envelope 与 `dshAssembled` Trial，不查 Git/网络、不调用 proposer、不选择 target；污染、漂移和父 Generation 已有同名 Skill均 fail closed；Retention/canary 待直接绑定内部 Envelope/Outcome 重建；
-- 独立 Goal 样本已能在 author 前自动密封，并能通过 Candidate-independent 作者、零 proposer 校准和原子安装形成 Case Pack/Envelope；这条路径目前只有注入式自动化证据，真实 provider、真实 assembled 任务、负迁移率和长期 outcome 仍是后续治理门，不能由 author 或 Mock 自证。
+- Candidate v2、Lineage v3 和 Web 谱系显式携带 seal id；当前实现能解析、验证 Envelope v4/v5 并贯穿 Admission、Shadow、Review 和 crash resume；通过复核的新 Skill 可形成不依赖 Git source 的 inactive `skill-bundle` Generation，Storage 与 DSH Skill Provider 重验 exact archive，晋升只影响未来 Session，root rollback 恢复后续 Session 的 native DSH；
+- Shadow 只接收 exact Candidate、tree/lineage、Envelope 与 `dshAssembled` Trial，不查 Git/网络、不调用 proposer、不选择 target；污染、漂移和父 Generation 已有同名 Skill 均 fail closed；Retention Case Pack 已直接绑定内部 Envelope，但 runner/canary/outcome 尚未接通；
+- 独立 Goal 样本已能在 author 前自动密封，并能通过 Candidate-independent admission/holdout/Retention 作者、零 proposer 校准和原子安装形成 Case Pack/Envelope；这条路径目前只有注入式自动化证据，真实 provider、真实 assembled Retention 任务、负迁移率和长期 outcome 仍是后续治理门，不能由 author 或 Mock 自证。
 
 本项目不提供运行时外部包搜索、获取、下载、导入或市场功能；设计期研究不得进入本节的自我发现状态、UI 或声明。
 

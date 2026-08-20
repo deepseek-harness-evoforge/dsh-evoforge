@@ -224,7 +224,9 @@ const t = (key: string) => ({
   'skills.opportunities.evaluation.authoring': 'author-visible',
   'skills.opportunities.evaluation.admission': 'admission',
   'skills.opportunities.evaluation.holdout': 'holdout',
+  'skills.opportunities.evaluation.retention': 'retention',
   'skills.opportunities.evaluation.protected': 'Candidate proposer cannot read protected samples',
+  'skills.opportunities.evaluation.protectedWithRetention': 'Candidate proposer cannot read admission, holdout, or retention samples',
   'skills.opportunities.evaluation.waiting': 'Waiting for independent Goals; no Candidate authored',
   'skills.opportunities.evaluation.invalid': 'Invalid internal evidence',
   'skills.opportunities.evaluation.unavailable': 'Evaluation governance not configured',
@@ -250,6 +252,7 @@ const t = (key: string) => ({
   'skills.governance.warnings': 'unreadable governance states',
   'skills.governance.empty': 'No independent admission/holdout governance record yet.',
   'skills.governance.phase.ready': 'Admission and assembled holdout ready',
+  'skills.governance.phase.readyWithRetention': 'Admission, assembled holdout, and independent retention ready',
   'skills.governance.cost': 'Governance model calls · input/output tokens',
   'skills.governance.separation': 'Candidate proposer separated · protected samples only',
   'skills.governance.release.none': 'No promotion or release authority',
@@ -531,20 +534,21 @@ describe('EvolutionAction', () => {
           items: [{
             id: '1'.repeat(64),
             skillName: 'release-native-extension',
-            gapIds: ['5'.repeat(64), '6'.repeat(64), '7'.repeat(64), '8'.repeat(64)],
-            goalIds: ['goal-1', 'goal-2', 'goal-3', 'goal-4'],
-            gapCount: 4,
-            goalCount: 4,
+            gapIds: ['5'.repeat(64), '6'.repeat(64), '7'.repeat(64), '8'.repeat(64), '9'.repeat(64)],
+            goalIds: ['goal-1', 'goal-2', 'goal-3', 'goal-4', 'goal-5'],
+            gapCount: 5,
+            goalCount: 5,
             firstObservedAt: 1_786_895_900_000,
             lastObservedAt: 1_786_896_000_000,
             evidence: internalOpportunityEvidence(),
             evaluationReadiness: {
               status: 'sealed' as const,
               evidenceId: 'e'.repeat(64),
-              observedGoalCount: 4,
+              observedGoalCount: 5,
               authoringGoalCount: 2,
               admissionGoalCount: 1,
               holdoutGoalCount: 1,
+              retentionGoalCount: 1,
               proposerCanReadProtectedSamples: false as const,
               releaseAuthority: 'none' as const,
             },
@@ -583,8 +587,8 @@ describe('EvolutionAction', () => {
             targetId: 'missing-release-author',
             skillName: 'missing-release-skill',
             opportunityId: '1'.repeat(64),
-            gapCount: 4,
-            goalCount: 4,
+            gapCount: 5,
+            goalCount: 5,
             phase: 'candidate-ready' as const,
             createdAt: '2026-08-18T01:00:00.000Z',
             updatedAt: '2026-08-18T01:00:01.000Z',
@@ -607,9 +611,10 @@ describe('EvolutionAction', () => {
             phase: 'ready' as const,
             createdAt: '2026-08-18T01:00:01.000Z',
             updatedAt: '2026-08-18T01:00:02.000Z',
-            modelCalls: 2,
-            inputTokens: 640,
-            outputTokens: 240,
+            modelCalls: 3,
+            inputTokens: 960,
+            outputTokens: 360,
+            retentionIncluded: true,
             releaseAuthority: 'none' as const,
           }],
         },
@@ -623,8 +628,8 @@ describe('EvolutionAction', () => {
             opportunity: {
               kind: 'internal-experience-v1' as const,
               id: '1'.repeat(64),
-              gapIds: ['5'.repeat(64), '6'.repeat(64), '7'.repeat(64), '8'.repeat(64)],
-              goalCount: 4,
+              gapIds: ['5'.repeat(64), '6'.repeat(64), '7'.repeat(64), '8'.repeat(64), '9'.repeat(64)],
+              goalCount: 5,
             },
             authorship: {
               kind: 'bounded-model-authoring-v1' as const,
@@ -706,16 +711,16 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('Confirmed by complete DSH catalog')).toBeTruthy()
     expect(screen.getByText('No Skill was installed or executed.')).toBeTruthy()
     expect(screen.getByText('Self-Skill Candidate opportunities')).toBeTruthy()
-    expect(screen.getAllByText('4 distinct Goals · 4 Gap observations')).toHaveLength(2)
+    expect(screen.getAllByText('5 distinct Goals · 5 Gap observations')).toHaveLength(2)
     expect(screen.getByText('Discovered from repeated capability gaps across DSH Goals')).toBeTruthy()
-    expect(screen.getByText('Evidence Goals · goal-1 · goal-2 · goal-3 · goal-4')).toBeTruthy()
+    expect(screen.getByText('Evidence Goals · goal-1 · goal-2 · goal-3 · goal-4 · goal-5')).toBeTruthy()
     expect(screen.getByText('Associated internal evidence · explicit corrections: 1 · 1 exactly attributed Goals · delivery outcomes: 2 (passed 1 / failed 1 / unknown 0)')).toBeTruthy()
     expect(screen.getByText('Correction attribution · exact durable Session Skill invocation and Goal revision')).toBeTruthy()
     expect(screen.getByText('Delivery association · same-Goal single-gap-Skill context')).toBeTruthy()
     expect(screen.getByText('No causal claim · no Opportunity or authoring-eligibility effect')).toBeTruthy()
     expect(screen.getByText(`Evidence references · correction ${'2'.repeat(8)}… · outcome ${'3'.repeat(8)}… · outcome ${'4'.repeat(8)}…`)).toBeTruthy()
-    expect(screen.getByText(/Independent evaluation evidence sealed · author-visible 2 \/ admission 1 \/ holdout 1/u)).toBeTruthy()
-    expect(screen.getByText('Candidate proposer cannot read protected samples')).toBeTruthy()
+    expect(screen.getByText(/Independent evaluation evidence sealed · author-visible 2 \/ admission 1 \/ holdout 1 \/ retention 1/u)).toBeTruthy()
+    expect(screen.getByText('Candidate proposer cannot read admission, holdout, or retention samples')).toBeTruthy()
     expect(screen.getByText('Eligible for quarantined authoring · No install, activation, or release authority')).toBeTruthy()
     expect(screen.getByText('Existing-Skill improvement investigations')).toBeTruthy()
     expect(screen.getByText('2 distinct Goals · 2 exact corrections')).toBeTruthy()
@@ -734,7 +739,7 @@ describe('EvolutionAction', () => {
     expect(screen.getAllByText('release-native-extension').length).toBeGreaterThan(1)
     expect(screen.getByText('Prepare and verify a native DSH release.')).toBeTruthy()
     expect(screen.getByText('Quarantined candidate')).toBeTruthy()
-    expect(screen.getByText(`Internal Skill opportunity evidence · 4 distinct Goals · 4 Gap observations · ${'1'.repeat(8)}…`)).toBeTruthy()
+    expect(screen.getByText(`Internal Skill opportunity evidence · 5 distinct Goals · 5 Gap observations · ${'1'.repeat(8)}…`)).toBeTruthy()
     expect(screen.getByText(`Internal author policy · internal-experience-author · input digest ${'5'.repeat(8)}…`)).toBeTruthy()
     expect(screen.getAllByText(`Evaluation evidence seal · ${'e'.repeat(12)}`)).toHaveLength(2)
     expect(screen.getByText(`Internal-experience whole-Skill bundle v1 · artifact digest ${'9'.repeat(12)} · tree ${'b'.repeat(12)}`)).toBeTruthy()
@@ -744,8 +749,8 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('Permissions not declared · External effects unknown')).toBeTruthy()
     expect(screen.getByText('Quarantined · Inactive · Never executed · Unevaluated')).toBeTruthy()
     expect(screen.getByText('Independent evaluation governance')).toBeTruthy()
-    expect(screen.getByText('Admission and assembled holdout ready')).toBeTruthy()
-    expect(screen.getByText('Governance model calls · input/output tokens · 2 · 640/240')).toBeTruthy()
+    expect(screen.getByText('Admission, assembled holdout, and independent retention ready')).toBeTruthy()
+    expect(screen.getByText('Governance model calls · input/output tokens · 3 · 960/360')).toBeTruthy()
     expect(screen.getByText('Candidate proposer separated · protected samples only')).toBeTruthy()
     expect(screen.getByText('No promotion or release authority')).toBeTruthy()
     expect(screen.queryByText(/Agent Skills|Local Git|Distribution|research Holdout|research revision/u)).toBeNull()

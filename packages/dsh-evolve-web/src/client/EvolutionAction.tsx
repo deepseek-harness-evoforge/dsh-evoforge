@@ -459,7 +459,9 @@ function SkillEvaluationGovernance({
           <li className="dsh-evolve-skill-card" key={run.id}>
             <div className="dsh-evolve-review-skill">{run.skillName}</div>
             <div className="dsh-evolve-capability-route">
-              {t(`skills.governance.phase.${run.phase}`)}
+              {t(run.phase === 'ready' && run.retentionIncluded
+                ? 'skills.governance.phase.readyWithRetention'
+                : `skills.governance.phase.${run.phase}`)}
             </div>
             <div className="dsh-evolve-meta">
               {t('skills.governance.cost')} · {run.modelCalls} · {run.inputTokens}/{run.outputTokens}
@@ -687,9 +689,14 @@ function SkillOpportunities({ summary, t }: { summary: EvolutionOverview; t: (ke
                     {' · '}{t('skills.opportunities.evaluation.authoring')} {readiness.authoringGoalCount}
                     {' / '}{t('skills.opportunities.evaluation.admission')} {readiness.admissionGoalCount}
                     {' / '}{t('skills.opportunities.evaluation.holdout')} {readiness.holdoutGoalCount}
+                    {readiness.retentionGoalCount > 0 && <>
+                      {' / '}{t('skills.opportunities.evaluation.retention')} {readiness.retentionGoalCount}
+                    </>}
                     {' · '}{shortId(readiness.evidenceId)}
                   </div>
-                  <div className="dsh-evolve-meta">{t('skills.opportunities.evaluation.protected')}</div>
+                  <div className="dsh-evolve-meta">{t(readiness.retentionGoalCount > 0
+                    ? 'skills.opportunities.evaluation.protectedWithRetention'
+                    : 'skills.opportunities.evaluation.protected')}</div>
                 </>
               : readiness.status === 'waiting'
                 ? <div className="dsh-evolve-discovery-state">

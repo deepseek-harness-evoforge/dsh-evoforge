@@ -37,8 +37,11 @@ export interface ResolvedSkillEvaluationEnvelope {
   readonly admissionCasePackHash: string
   readonly holdoutCasePackDir: string
   readonly holdoutCasePackHash: string
+  readonly retentionCasePackDir?: string
+  readonly retentionCasePackHash?: string
   readonly admissionRunRoot: string
   readonly shadowRunRoot: string
+  readonly retentionRunRoot?: string
 }
 
 export interface SkillEvaluationPolicyView {
@@ -62,6 +65,7 @@ interface EvaluationEvidenceReader {
     inputs: {
       readonly admissionInputDigest: string
       readonly holdoutInputDigest: string
+      readonly retentionInputDigest?: string
     },
   ): Promise<void>
 }
@@ -78,21 +82,23 @@ interface ResolvedPolicy extends SkillCandidateEvaluationPolicyConfig {
   readonly runRoot: string
 }
 
-const manifestSchema = z.strictObject({
+const opportunitySchema = z.strictObject({
+  id: z.string().regex(CONTENT_ID),
+  skillName: z.string().regex(PUBLIC_ID),
+  gapIds: z.array(z.string().regex(CONTENT_ID)).min(4).max(1_000),
+  goalCount: z.number().int().min(4).max(1_000),
+})
+const baselineSchema = z.strictObject({
+  kind: z.literal('capability-absent'),
+  descriptorTreeHash: z.string().regex(CONTENT_ID),
+})
+const manifestV4Schema = z.strictObject({
   schemaVersion: z.literal(4),
   kind: z.literal('internal-skill-evaluation-envelope-v4'),
   workspaceId: z.uuid(),
   evaluationEvidenceId: z.string().regex(CONTENT_ID),
-  opportunity: z.strictObject({
-    id: z.string().regex(CONTENT_ID),
-    skillName: z.string().regex(PUBLIC_ID),
-    gapIds: z.array(z.string().regex(CONTENT_ID)).min(4).max(1_000),
-    goalCount: z.number().int().min(4).max(1_000),
-  }),
-  baseline: z.strictObject({
-    kind: z.literal('capability-absent'),
-    descriptorTreeHash: z.string().regex(CONTENT_ID),
-  }),
+  opportunity: opportunitySchema,
+  baseline: baselineSchema,
   governance: z.strictObject({
     modelIdentityHash: z.string().regex(CONTENT_ID),
     admissionInputDigest: z.string().regex(CONTENT_ID),
@@ -100,7 +106,26 @@ const manifestSchema = z.strictObject({
   }),
   admissionCasePackHash: z.string().regex(CONTENT_ID),
   holdoutCasePackHash: z.string().regex(CONTENT_ID),
-}).superRefine((manifest, context) => {
+})
+const manifestV5Schema = z.strictObject({
+  schemaVersion: z.literal(5),
+  kind: z.literal('internal-skill-evaluation-envelope-v5'),
+  workspaceId: z.uuid(),
+  evaluationEvidenceId: z.string().regex(CONTENT_ID),
+  opportunity: opportunitySchema,
+  baseline: baselineSchema,
+  governance: z.strictObject({
+    modelIdentityHash: z.string().regex(CONTENT_ID),
+    admissionInputDigest: z.string().regex(CONTENT_ID),
+    holdoutInputDigest: z.string().regex(CONTENT_ID),
+    retentionInputDigest: z.string().regex(CONTENT_ID),
+  }),
+  admissionCasePackHash: z.string().regex(CONTENT_ID),
+  holdoutCasePackHash: z.string().regex(CONTENT_ID),
+  retentionCasePackHash: z.string().regex(CONTENT_ID),
+})
+const manifestSchema = z.discriminatedUnion('schemaVersion', [manifestV4Schema, manifestV5Schema])
+  .superRefine((manifest, context) => {
   if (manifest.opportunity.gapIds.length !== new Set(manifest.opportunity.gapIds).size) {
     context.addIssue({ code: 'custom', message: 'Evaluation Envelope contains duplicate Gap ids' })
   }
@@ -236,29 +261,47 @@ export class SkillEvaluationEnvelopeResolver {
     }
     const admissionCasePackDir = await exactChildDirectory(envelopeRoot, 'admission')
     const holdoutCasePackDir = await exactChildDirectory(envelopeRoot, 'holdout')
-    const [baselineHash, admissionCasePackHash, holdoutCasePackHash] = await Promise.all([
+    const retentionCasePackDir = manifest.schemaVersion === 5
+      ? await exactChildDirectory(envelopeRoot, 'retention')
+      : undefined
+    const [baselineHash, admissionCasePackHash, holdoutCasePackHash, retentionCasePackHash] = await Promise.all([
       hashTree(baselineDir),
       hashTree(admissionCasePackDir),
       hashTree(holdoutCasePackDir),
+      retentionCasePackDir === undefined ? Promise.resolve(undefined) : hashTree(retentionCasePackDir),
     ])
     if (baselineHash !== manifest.baseline.descriptorTreeHash
       || admissionCasePackHash !== manifest.admissionCasePackHash
-      || holdoutCasePackHash !== manifest.holdoutCasePackHash) {
+      || holdoutCasePackHash !== manifest.holdoutCasePackHash
+      || (manifest.schemaVersion === 5
+        && retentionCasePackHash !== manifest.retentionCasePackHash)) {
       throw new Error('Skill Evaluation Envelope content identity mismatch')
     }
     if (admissionCasePackHash === holdoutCasePackHash) {
       throw new Error('Skill Evaluation Envelope requires an independent holdout Case Pack')
     }
+    if (retentionCasePackHash !== undefined
+      && (retentionCasePackHash === admissionCasePackHash
+        || retentionCasePackHash === holdoutCasePackHash)) {
+      throw new Error('Skill Evaluation Envelope requires an independent retention Case Pack')
+    }
 
     const admissionRunRoot = join(runRoot, 'admission')
     const shadowRunRoot = join(runRoot, 'shadow')
+    const retentionRunRoot = manifest.schemaVersion === 5 ? join(runRoot, 'retention') : undefined
     await Promise.all([
       mkdir(admissionRunRoot, { recursive: true, mode: 0o700 }),
       mkdir(shadowRunRoot, { recursive: true, mode: 0o700 }),
+      ...(retentionRunRoot === undefined
+        ? []
+        : [mkdir(retentionRunRoot, { recursive: true, mode: 0o700 })]),
     ])
     await Promise.all([
       exactDirectory(admissionRunRoot, 'evaluation admission run root'),
       exactDirectory(shadowRunRoot, 'evaluation Shadow run root'),
+      ...(retentionRunRoot === undefined
+        ? []
+        : [exactDirectory(retentionRunRoot, 'evaluation Retention run root')]),
     ])
     const id = evaluationEnvelopeId(policy.id, manifest)
     return Object.freeze({
@@ -277,6 +320,9 @@ export class SkillEvaluationEnvelopeResolver {
       admissionCasePackHash,
       holdoutCasePackDir,
       holdoutCasePackHash,
+      ...(retentionCasePackDir === undefined || retentionCasePackHash === undefined
+        ? {}
+        : { retentionCasePackDir, retentionCasePackHash, retentionRunRoot: retentionRunRoot! }),
       admissionRunRoot,
       shadowRunRoot,
     })
@@ -285,7 +331,7 @@ export class SkillEvaluationEnvelopeResolver {
 
 function evaluationEnvelopeId(policyId: string, manifest: SkillEvaluationEnvelopeManifest): string {
   return createHash('sha256').update(JSON.stringify([
-    'internal-skill-evaluation-envelope-v4',
+    manifest.kind,
     policyId,
     manifest.workspaceId,
     manifest.evaluationEvidenceId,
@@ -298,8 +344,10 @@ function evaluationEnvelopeId(policyId: string, manifest: SkillEvaluationEnvelop
     manifest.governance.modelIdentityHash,
     manifest.governance.admissionInputDigest,
     manifest.governance.holdoutInputDigest,
+    ...manifest.schemaVersion === 5 ? [manifest.governance.retentionInputDigest] : [],
     manifest.admissionCasePackHash,
     manifest.holdoutCasePackHash,
+    ...manifest.schemaVersion === 5 ? [manifest.retentionCasePackHash] : [],
   ])).digest('hex')
 }
 

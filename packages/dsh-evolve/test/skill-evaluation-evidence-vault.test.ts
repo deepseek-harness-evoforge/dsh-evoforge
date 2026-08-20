@@ -4,7 +4,10 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { CapabilityGap } from '../src/capability-gap-store.ts'
 import type { ExperienceSkillCandidate } from '../src/skill-candidate-repository.ts'
-import { SkillEvaluationEvidenceVault } from '../src/skill-evaluation-evidence-vault.ts'
+import {
+  SkillEvaluationEvidenceVault,
+  skillEvaluationProtectedInputDigest,
+} from '../src/skill-evaluation-evidence-vault.ts'
 import type { SkillOpportunity } from '../src/skill-opportunity-discovery.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
@@ -15,6 +18,44 @@ afterEach(async () => {
 })
 
 describe('Skill Evaluation Evidence Vault', () => {
+  it('seals a fifth independent Goal exclusively for retention governance', async () => {
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-evolve-evaluation-retention-')))
+    roots.push(root)
+    const gaps = [
+      gap('1', 'goal-a', 10),
+      gap('2', 'goal-b', 20),
+      gap('3', 'goal-c', 30),
+      gap('4', 'goal-d', 40),
+      gap('5', 'goal-e', 50),
+    ]
+    const opportunity = skillOpportunity(gaps)
+    const vault = new SkillEvaluationEvidenceVault(
+      [{
+        id: 'workspace-governance',
+        workspaceId: WORKSPACE_ID,
+        governanceRoot: join(root, 'governance'),
+        runRoot: join(root, 'runs'),
+      }],
+      { list: () => gaps },
+    )
+
+    const prepared = await vault.prepare(opportunity)
+    if (prepared.status !== 'ready') throw new Error('expected ready retention evidence')
+    expect(prepared.evidence.retentionGoalCount).toBe(1)
+
+    const governed = await vault.readForGovernance(
+      WORKSPACE_ID,
+      opportunity.id,
+      prepared.evidence.id,
+    )
+    const retention = governed.samples.filter(sample => sample.role === 'retention')
+    expect(retention).toHaveLength(1)
+    expect(JSON.stringify(prepared.evidence)).not.toContain(retention[0]!.objective)
+    expect(new Set(governed.samples.map(sample => sample.goalId)).size).toBe(5)
+    expect(skillEvaluationProtectedInputDigest(governed, 'retention'))
+      .toMatch(/^[a-f0-9]{64}$/u)
+  })
+
   it('seals independent internal Goal samples before Candidate authoring without exposing holdout', async () => {
     const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-evolve-evaluation-evidence-')))
     roots.push(root)
@@ -42,6 +83,7 @@ describe('Skill Evaluation Evidence Vault', () => {
       authoringGoalCount: 2,
       admissionGoalCount: 1,
       holdoutGoalCount: 1,
+      retentionGoalCount: 0,
       proposerCanReadProtectedSamples: false,
       releaseAuthority: 'none',
     })
@@ -54,6 +96,7 @@ describe('Skill Evaluation Evidence Vault', () => {
       authoringGoalCount: 2,
       admissionGoalCount: 1,
       holdoutGoalCount: 1,
+      retentionGoalCount: 0,
       proposerCanReadProtectedSamples: false,
       releaseAuthority: 'none',
     })
@@ -66,6 +109,7 @@ describe('Skill Evaluation Evidence Vault', () => {
         authoringGoalCount: 2,
         admissionGoalCount: 1,
         holdoutGoalCount: 1,
+        retentionGoalCount: 0,
         authoringInputDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
       },
     })
@@ -79,6 +123,7 @@ describe('Skill Evaluation Evidence Vault', () => {
       'holdoutGoalCount',
       'id',
       'opportunityId',
+      'retentionGoalCount',
       'skillName',
       'workspaceId',
     ])

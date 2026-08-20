@@ -48,7 +48,7 @@ export interface SkillEvaluationGovernancePolicyConfig
 
 export interface SkillEvaluationCaseAuthorInput {
   readonly idempotencyKey: string
-  readonly role: 'admission' | 'holdout'
+  readonly role: 'admission' | 'holdout' | 'retention'
   readonly workspaceId: string
   readonly skillName: string
   readonly opportunityId: string
@@ -89,21 +89,24 @@ export interface SkillEvaluationGovernanceRunView {
     | 'budget-deferred'
     | 'authoring-pending'
     | 'admission-ready'
+    | 'holdout-ready'
     | 'authored'
     | 'uncertain'
     | 'incomplete'
     | 'ready'
-  readonly pendingRole?: 'admission' | 'holdout'
+  readonly pendingRole?: 'admission' | 'holdout' | 'retention'
   readonly createdAt: string
   readonly updatedAt: string
   readonly modelCalls: number
   readonly inputTokens: number
   readonly outputTokens: number
+  readonly retentionIncluded: boolean
   readonly retryAt?: number
   readonly failure?:
     | 'paid-authoring-uncertain'
     | 'admission-calibration-failed'
     | 'holdout-calibration-failed'
+    | 'retention-calibration-failed'
     | 'governance-incomplete'
   readonly releaseAuthority: 'none'
 }
@@ -139,12 +142,13 @@ const stateSchema = z.strictObject({
     'budget-deferred',
     'authoring-pending',
     'admission-ready',
+    'holdout-ready',
     'authored',
     'uncertain',
     'incomplete',
     'ready',
   ]),
-  pendingRole: z.enum(['admission', 'holdout']).optional(),
+  pendingRole: z.enum(['admission', 'holdout', 'retention']).optional(),
   retryAt: z.number().int().nonnegative().optional(),
   createdAt: z.iso.datetime({ offset: true }),
   updatedAt: z.iso.datetime({ offset: true }),
@@ -157,11 +161,12 @@ const stateSchema = z.strictObject({
     authoringInputDigest: z.string().regex(CONTENT_ID),
     admissionInputDigest: z.string().regex(CONTENT_ID),
     holdoutInputDigest: z.string().regex(CONTENT_ID),
+    retentionInputDigest: z.string().regex(CONTENT_ID).optional(),
     modelIdentityHash: z.string().regex(CONTENT_ID),
     dshRevision: z.string().regex(GIT_OBJECT),
   }),
   cost: z.strictObject({
-    modelCalls: z.number().int().min(0).max(2),
+    modelCalls: z.number().int().min(0).max(3),
     inputTokens: z.number().int().nonnegative(),
     outputTokens: z.number().int().nonnegative(),
   }),
@@ -179,8 +184,9 @@ type GovernanceState = z.infer<typeof stateSchema>
 
 /**
  * The governance-owned seam that turns one exact pre-authoring evidence seal
- * into calibrated admission and holdout Case Packs. It never receives a
- * Candidate artifact and has no promotion or release interface.
+ * into calibrated admission, holdout, and optional Retention Case Packs. It
+ * never receives a Candidate artifact and has no promotion or release
+ * interface.
  */
 export class SkillEvaluationGovernance {
   private readonly policies = new Map<string, SkillEvaluationGovernancePolicyConfig>()
@@ -375,10 +381,13 @@ export class SkillEvaluationGovernance {
     if (state.phase === 'admission-ready') {
       state = await this.authorRole(policy, evidence, identity, journalRoot, state, 'holdout')
     }
-    if (state.phase !== 'authored') throw new Error('Skill evaluation governance did not author both roles')
+    if (state.phase === 'holdout-ready') {
+      state = await this.authorRole(policy, evidence, identity, journalRoot, state, 'retention')
+    }
+    if (state.phase !== 'authored') throw new Error('Skill evaluation governance did not author every protected role')
 
     const draftRoot = join(journalRoot, 'drafts')
-    for (const role of ['admission', 'holdout'] as const) {
+    for (const role of governanceRoles(evidence)) {
       const calibrationRoot = join(journalRoot, 'calibration', role)
       await mkdir(dirname(calibrationRoot), { recursive: true, mode: 0o700 })
       const outcome = await this.calibrate({
@@ -405,7 +414,7 @@ export class SkillEvaluationGovernance {
     identity: GovernanceState['identity'] & { readonly id: string },
     journalRoot: string,
     initial: GovernanceState,
-    role: 'admission' | 'holdout',
+    role: 'admission' | 'holdout' | 'retention',
   ): Promise<GovernanceState> {
     let state = await updateState(journalRoot, initial, {
       phase: 'authoring-pending',
@@ -447,8 +456,13 @@ export class SkillEvaluationGovernance {
     const validated = validateAuthorResult(result, evidence.opportunity.skillName)
     const packDir = join(journalRoot, 'drafts', role)
     await writeCasePack(packDir, policy, evidence, identity, role, validated)
+    const hasRetention = evidence.samples.some(sample => sample.role === 'retention')
     state = await updateState(journalRoot, state, {
-      phase: role === 'admission' ? 'admission-ready' : 'authored',
+      phase: role === 'admission'
+        ? 'admission-ready'
+        : role === 'holdout' && hasRetention
+          ? 'holdout-ready'
+          : 'authored',
       pendingRole: undefined,
       cost: {
         modelCalls: state.cost.modelCalls,
@@ -474,6 +488,9 @@ function governanceIdentity(
     authoringInputDigest: evidence.authoringInputDigest,
     admissionInputDigest: skillEvaluationProtectedInputDigest(evidence, 'admission'),
     holdoutInputDigest: skillEvaluationProtectedInputDigest(evidence, 'holdout'),
+    ...evidence.samples.some(sample => sample.role === 'retention')
+      ? { retentionInputDigest: skillEvaluationProtectedInputDigest(evidence, 'retention') }
+      : {},
     modelIdentityHash: sha256(modelIdentity),
     dshRevision: policy.dshRevision,
   } as const
@@ -492,6 +509,8 @@ function projectState(state: GovernanceState): SkillEvaluationGovernanceRunView 
         ? 'admission-calibration-failed' as const
         : state.reason?.startsWith('holdout Case Pack calibration')
           ? 'holdout-calibration-failed' as const
+          : state.reason?.startsWith('retention Case Pack calibration')
+            ? 'retention-calibration-failed' as const
           : 'governance-incomplete' as const
   return Object.freeze({
     id: state.id,
@@ -507,10 +526,31 @@ function projectState(state: GovernanceState): SkillEvaluationGovernanceRunView 
     modelCalls: state.cost.modelCalls,
     inputTokens: state.cost.inputTokens,
     outputTokens: state.cost.outputTokens,
+    retentionIncluded: state.identity.retentionInputDigest !== undefined,
     ...(state.retryAt === undefined ? {} : { retryAt: state.retryAt }),
     ...(failure === undefined ? {} : { failure }),
     releaseAuthority: 'none',
   })
+}
+
+function governanceRoles(
+  evidence: SkillEvaluationEvidenceManifest,
+): readonly ('admission' | 'holdout' | 'retention')[] {
+  return evidence.samples.some(sample => sample.role === 'retention')
+    ? ['admission', 'holdout', 'retention']
+    : ['admission', 'holdout']
+}
+
+function roleInputDigest(
+  identity: GovernanceState['identity'],
+  role: 'admission' | 'holdout' | 'retention',
+): string {
+  if (role === 'admission') return identity.admissionInputDigest
+  if (role === 'holdout') return identity.holdoutInputDigest
+  if (identity.retentionInputDigest === undefined) {
+    throw new Error('retention governance has no sealed retention input')
+  }
+  return identity.retentionInputDigest
 }
 
 async function writeCasePack(
@@ -518,7 +558,7 @@ async function writeCasePack(
   policy: SkillEvaluationGovernancePolicyConfig,
   evidence: SkillEvaluationEvidenceManifest,
   identity: GovernanceState['identity'],
-  role: 'admission' | 'holdout',
+  role: 'admission' | 'holdout' | 'retention',
   result: SkillEvaluationCaseAuthorResult,
 ): Promise<void> {
   await mkdir(join(path, 'calibration', 'known-bad'), { recursive: true, mode: 0o700 })
@@ -528,7 +568,7 @@ async function writeCasePack(
   const evaluatorVersion = sha256(JSON.stringify([
     'internal-governance-evaluator-v1',
     role,
-    role === 'admission' ? identity.admissionInputDigest : identity.holdoutInputDigest,
+    roleInputDigest(identity, role),
     result.evaluatorSource,
   ]))
   const manifest = {
@@ -547,7 +587,7 @@ async function writeCasePack(
       evaluator: 'final-test/evaluator.mjs',
       timeoutMs: 30_000,
       outputLimitBytes: 256 * 1024,
-      dshAssembled: role === 'holdout',
+      dshAssembled: role !== 'admission',
       capabilityAbsentBaseline: true,
     },
     calibration: {
@@ -586,21 +626,29 @@ async function installEnvelope(
       opportunityId: evidence.opportunity.id,
       skillName: evidence.opportunity.skillName,
     }, null, 2)}\n`, { flag: 'wx', mode: 0o600 })
+    const hasRetention = evidence.samples.some(sample => sample.role === 'retention')
     await Promise.all([
       cp(join(draftRoot, 'admission'), join(stage, 'admission'), { recursive: true, errorOnExist: true }),
       cp(join(draftRoot, 'holdout'), join(stage, 'holdout'), { recursive: true, errorOnExist: true }),
+      ...hasRetention
+        ? [cp(join(draftRoot, 'retention'), join(stage, 'retention'), { recursive: true, errorOnExist: true })]
+        : [],
     ])
-    const [baselineHash, admissionCasePackHash, holdoutCasePackHash] = await Promise.all([
+    const [baselineHash, admissionCasePackHash, holdoutCasePackHash, retentionCasePackHash] = await Promise.all([
       hashTree(baselineDir),
       hashTree(join(stage, 'admission')),
       hashTree(join(stage, 'holdout')),
+      ...hasRetention ? [hashTree(join(stage, 'retention'))] : [Promise.resolve(undefined)],
     ])
     if (admissionCasePackHash === holdoutCasePackHash) {
       throw new Error('independently authored admission and holdout Case Packs are identical')
     }
-    await writeDurableJson(join(stage, 'manifest.json'), {
-      schemaVersion: 4,
-      kind: 'internal-skill-evaluation-envelope-v4',
+    if (retentionCasePackHash !== undefined
+      && (retentionCasePackHash === admissionCasePackHash
+        || retentionCasePackHash === holdoutCasePackHash)) {
+      throw new Error('independently authored retention Case Pack is not unique')
+    }
+    const common = {
       workspaceId: evidence.workspaceId,
       evaluationEvidenceId: evidence.id,
       opportunity: {
@@ -617,7 +665,23 @@ async function installEnvelope(
       baseline: { kind: 'capability-absent', descriptorTreeHash: baselineHash },
       admissionCasePackHash,
       holdoutCasePackHash,
-    })
+    }
+    await writeDurableJson(join(stage, 'manifest.json'), retentionCasePackHash === undefined
+      ? {
+          schemaVersion: 4,
+          kind: 'internal-skill-evaluation-envelope-v4',
+          ...common,
+        }
+      : {
+          schemaVersion: 5,
+          kind: 'internal-skill-evaluation-envelope-v5',
+          ...common,
+          governance: {
+            ...common.governance,
+            retentionInputDigest: identity.retentionInputDigest!,
+          },
+          retentionCasePackHash,
+        })
     try {
       await rename(stage, target)
     } catch (error) {
@@ -855,7 +919,9 @@ async function requestCaseAuthor(
             'Return JSON with knownCorrectionSkill, evaluatorSource, and searchEvidence.',
             input.role === 'admission'
               ? 'For admission, evaluatorSource must be a deterministic filesystem-only evaluator.mjs: read the Candidate Skill tree from argv[2], support the capability-absent flags, do not start DSH, spawn processes, call a model, or use network, and emit the required JSON outcome.'
-              : 'For holdout, evaluatorSource must run as evaluator.mjs in the DSH EvoForge assembled capability-absent protocol: use the Candidate tree at argv[2], DSH source at argv[3], exercise the real DSH Skill/Agent path, support the capability-absent flags, and emit outcome plus composition evidence.',
+              : input.role === 'holdout'
+                ? 'For holdout, evaluatorSource must run as evaluator.mjs in the DSH EvoForge assembled capability-absent protocol: use the Candidate tree at argv[2], DSH source at argv[3], exercise the real DSH Skill/Agent path, support the capability-absent flags, and emit outcome plus composition evidence.'
+                : 'For retention, evaluatorSource must run as an independent assembled capability-absent prior-case replay: use only the sealed retention Goal, compare absent baseline and exact Candidate under the same DSH composition, and emit outcome plus composition evidence.',
             'It must reject an incomplete calibration Skill and accept the independent known correction.',
             'It has no promotion or release authority.',
           ].join(' '),

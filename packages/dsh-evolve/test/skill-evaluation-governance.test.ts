@@ -201,7 +201,138 @@ describe('internal Skill Evaluation Governance', () => {
         modelCalls: 2,
         inputTokens: 40,
         outputTokens: 20,
+        retentionIncluded: false,
         releaseAuthority: 'none',
+      }],
+    })
+  })
+
+  it('authors an independent assembled retention Case Pack when a fifth Goal is sealed', async () => {
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-evolve-retention-governance-')))
+    roots.push(root)
+    const policy = {
+      id: 'workspace-governance',
+      workspaceId: WORKSPACE_ID,
+      governanceRoot: join(root, 'governance'),
+      runRoot: join(root, 'runs'),
+      dshRevision: 'a'.repeat(40),
+      maxAttemptsPerUtcDay: 1,
+    }
+    const gaps = opportunityGaps(5)
+    const opportunity = internalOpportunity(gaps)
+    const vault = new SkillEvaluationEvidenceVault([policy], { list: () => gaps })
+    const sealed = await vault.prepare(opportunity)
+    if (sealed.status !== 'ready') throw new Error('expected sealed retention evidence')
+    const candidate = experienceSkillCandidate({
+      opportunity: {
+        kind: 'internal-experience-v1',
+        id: opportunity.id,
+        gapIds: [...opportunity.gapIds],
+        goalCount: opportunity.goalCount,
+      },
+      authorship: {
+        kind: 'bounded-model-authoring-v1',
+        policyId: 'workspace-experience-author',
+        modelIdentityHash: '5'.repeat(64),
+        evaluationEvidenceId: sealed.evidence.id,
+        inputDigest: sealed.evidence.authoringInputDigest,
+      },
+    })
+    const authorModel = vi.fn(async (input: SkillEvaluationCaseAuthorInput) => ({
+      knownCorrectionSkill: correctionSkill(input.skillName, input.role),
+      evaluatorSource: `process.stdout.write(${JSON.stringify(JSON.stringify({
+        schemaVersion: 1,
+        passed: true,
+        checks: [],
+        composition: { fingerprint: 'f'.repeat(64), modelCalls: 0, usage: {} },
+      }))})\n`,
+      searchEvidence: `Independent ${input.role} evidence.`,
+      usage: { inputTokens: 20, outputTokens: 10 },
+    }))
+    const governance = new SkillEvaluationGovernance({
+      policies: [policy],
+      evidence: vault,
+      budget: {
+        reserve: vi.fn(async () => ({
+          allowed: true,
+          newlyReserved: true,
+          snapshot: {
+            targetId: policy.id,
+            workspaceId: WORKSPACE_ID,
+            skillName: candidate.skillName,
+            utcDay: '2026-08-19',
+            used: 1,
+            limit: 1,
+            remaining: 0,
+          },
+        })),
+      },
+      authorModel,
+      calibrate: vi.fn(async () => ({
+        status: 'calibrated' as const,
+        reportPath: join(root, 'calibration-report.json'),
+        summary: 'calibrated',
+      })),
+      modelIdentity: () => 'independent-governance/model-v1',
+      now: () => 1_787_100_000_000,
+    })
+    const resolver = new SkillEvaluationEnvelopeResolver(
+      [policy],
+      { discover: () => [opportunity] },
+      vault,
+      governance,
+    )
+
+    const resolved = await resolver.resolve(candidate)
+
+    expect(authorModel.mock.calls.map(([input]) => input.role)).toEqual([
+      'admission',
+      'holdout',
+      'retention',
+    ])
+    for (const [input] of authorModel.mock.calls) {
+      expect(input).not.toHaveProperty('candidate')
+      expect(input.goalEvidence).toHaveLength(1)
+    }
+    expect(resolved).toMatchObject({
+      retentionCasePackDir: join(
+        policy.governanceRoot,
+        'envelopes',
+        opportunity.id,
+        sealed.evidence.id,
+        'retention',
+      ),
+      retentionCasePackHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      retentionRunRoot: join(policy.runRoot, 'retention'),
+    })
+    const manifest = JSON.parse(await readFile(join(
+      policy.governanceRoot,
+      'envelopes',
+      opportunity.id,
+      sealed.evidence.id,
+      'manifest.json',
+    ), 'utf8'))
+    expect(manifest).toMatchObject({
+      schemaVersion: 5,
+      kind: 'internal-skill-evaluation-envelope-v5',
+      governance: { retentionInputDigest: expect.stringMatching(/^[a-f0-9]{64}$/) },
+      retentionCasePackHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+    })
+    const retentionManifest = JSON.parse(await readFile(join(
+      resolved!.retentionCasePackDir!,
+      'manifest.json',
+    ), 'utf8'))
+    expect(retentionManifest.trial).toMatchObject({
+      dshAssembled: true,
+      capabilityAbsentBaseline: true,
+    })
+    await expect(governance.scan(WORKSPACE_ID)).resolves.toMatchObject({
+      runs: [{
+        phase: 'ready',
+        modelCalls: 3,
+        inputTokens: 60,
+        outputTokens: 30,
+        retentionIncluded: true,
       }],
     })
   })
@@ -407,8 +538,8 @@ function correctionSkill(name: string, role: string): string {
   ].join('\n')
 }
 
-function opportunityGaps(): CapabilityGap[] {
-  return ['a', 'b', 'c', 'd'].map((seed, index) => ({
+function opportunityGaps(count = 4): CapabilityGap[] {
+  return ['a', 'b', 'c', 'd', 'e'].slice(0, count).map((seed, index) => ({
     schemaVersion: 1,
     id: String(index + 3).repeat(64),
     observedAt: index + 1,

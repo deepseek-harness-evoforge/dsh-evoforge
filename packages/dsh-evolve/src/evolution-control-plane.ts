@@ -210,6 +210,7 @@ export class EvolutionControlPlane {
               modelCalls: run.modelCalls,
               inputTokens: run.inputTokens,
               outputTokens: run.outputTokens,
+              retentionIncluded: run.retentionIncluded,
               ...(run.retryAt === undefined ? {} : { retryAt: run.retryAt }),
               ...(run.failure === undefined ? {} : { failure: run.failure }),
               releaseAuthority: run.releaseAuthority,

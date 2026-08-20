@@ -1,7 +1,7 @@
 # EvoForge 产品架构
 
-> 状态：产品边界已确认；Telegram、飞书两个 Assistant Adapter 与进化注意力桥已实现；内部经验驱动的 Skill Opportunity、existing-Skill exact-version improvement investigation、生成前独立 Goal 证据密封、seal-bound Candidate v2、Candidate-independent Governance Case Pack Authoring、Envelope v4、Lineage v3、exact-Candidate assembled Shadow 与内容寻址 future-Session Generation 已实现；旧静态 Retention/canary 编排已删除，现有 Skill 完整 baseline Bundle/Candidate、内部 Retention/canary 重建与治理包真实 provider assembled 评估闭环仍待完成与验收
-> 更新日期：2026-08-19
+> 状态：产品边界已确认；Telegram、飞书两个 Assistant Adapter 与进化注意力桥已实现；内部经验驱动的 Skill Opportunity、existing-Skill exact-version improvement investigation、生成前独立 Goal 证据密封、seal-bound Candidate v2、Candidate-independent Governance Case Pack Authoring、Envelope v4/v5、Lineage v3、exact-Candidate assembled Shadow 与内容寻址 future-Session Generation 已实现；第五个内部 Goal 已能形成独立 Retention Case Pack，但 Retention runner/canary 尚未实现。旧静态 Retention/canary 编排已删除，现有 Skill 完整 baseline Bundle/Candidate、治理包真实 provider assembled 评估闭环仍待完成与验收
+> 更新日期：2026-08-20
 
 ## 1. 产品结果
 
@@ -36,7 +36,7 @@ DSH 始终拥有模型执行和基础服务；EvoForge 插件只增加用户结�
 只从 DSH 自身 Goal-linked Gap 中找重复模式：同一 Workspace、同一 Skill、至少两个独立 Goal 才形成
 Opportunity；同 Goal retry、无 Goal 和跨 Workspace 均 abstain。`selfDiscoveryPolicies` 只授权 Workspace、
 run root 与日预算，不预选 Skill、路径、来源、Agent 或 workflow。Opportunity 达到至少四个不同 Goal 后，
-治理面先内容寻址密封 authoring/admission/holdout；原生 Job author 只读取有界 authoring 子集，
+治理面先内容寻址密封 authoring/admission/holdout；存在第五个或更多独立 Goal 时再保留一个 Candidate 不可见的 Retention 样本。原生 Job author 只读取有界 authoring 子集，
 Host 将 instruction-only whole-Skill v1 内容寻址并隔离为 inactive Candidate。在线快环收集可归因
 signal/gap/outcome，离线慢环负责跨 Goal 归纳、候选生成、独立评测、保留和发布。外部生态研究只用于
 设计期和冻结 benchmark；运行时外部搜索不是自我发现。Self-Discovery、Observer、
@@ -44,17 +44,16 @@ Trial Runner、Decision 与 Release 在证明有两个独立消费者或信任�
 数量拆成浅插件。
 
 内部 Candidate 评测的 profile 只允许 Workspace 级 governance/run roots，不再指定 Skill、baseline 或
-Case Pack。Host 以当前 Opportunity id 与 Candidate 绑定的 evidence-seal id 解析严格、内容寻址的 Evaluation Envelope v4；它必须重新核对
+Case Pack。Host 以当前 Opportunity id 与 Candidate 绑定的 evidence-seal id 解析严格、内容寻址的 Evaluation Envelope v4/v5；它必须重新核对
 evidence seal 与 author-input digest，再由同一 Envelope 同时
-约束 deterministic admission 与独立 assembled holdout，并把 identity 写入 Candidate Lineage。baseline 只
+约束 deterministic admission、独立 assembled holdout 和 v5 可选的独立 assembled Retention Case Pack，并把 identity 写入 Candidate Lineage。baseline 只
 允许 Opportunity-bound `subject.json`，不安装目标 Skill；Candidate 侧才安装 exact whole-Skill，禁止用占位
 `SKILL.md` 冒充能力缺失。该路径已实现 fail-closed 解析、真实 DSH Shadow、Review projection 与 crash resume。
 经明确复核的新 whole-Skill 会以 canonical `skill-bundle` 写入 inactive Generation；Storage 和 DSH Skill
 Provider 重验 archive/digest/tree/lineage，不需要 Git source、网络或市场，晋升仅影响未来 Session，root
-rollback 让后续 Session 回到 native DSH。独立 Retention 与 sealed canary 使用原 Shadow 的 exact absent
-subject、whole-Skill tree/lineage 和 sealed Case Pack做无 Git paired replay，非目标 DSH composition 必须一致；
-它们不调用 proposer，也不扩大自动发布权限。独立 Goal 样本已能在 author 前密封，但 Case Pack/Envelope
-尚未由这些样本和内部 outcome/纠正/回归事实自主构造与校准。
+rollback 让后续 Session 回到 native DSH。独立 Retention 与 sealed canary 必须使用原 Shadow 的 exact absent
+subject、whole-Skill tree/lineage 和 sealed Case Pack 做无 Git paired replay，非目标 DSH composition 必须一致；
+它们不调用 proposer，也不扩大自动发布权限。独立 Retention Case Pack/Envelope 已可从第五个内部 Goal 自主形成并校准；实际 paired replay、durable verdict 和 canary 仍未实现。
 
 ### dsh-software-delivery
 
@@ -167,10 +166,10 @@ Resident 只恢复进程，Goal Continuity 只决定 exact Session 的原生 Goa
 | 软件交付 | 原生 Goal 到 verified commit/Draft PR | verified commit、幂等 Draft PR、可选 exact-head checks 门、有界 active-call wait 与原生 Goal 受验证完成 implemented；真实任务数据 pending |
 | 单机持续运行 | crash-resume、幂等恢复、无半激活版本 | Generation release + Shadow journal + native Jobs supervisor、`dsh-goal-continuity` Goal 冷恢复与 `dsh-resident` 真实 macOS DSH PID `SIGKILL` 拉起已实现；Linux 真机与生产多日 soak pending |
 | Memory/Skill | 复用 DSH/社区能力，不造第二套 Memory | 架构边界已确认 |
-| 内部经验自我发现 | 自然语言 Goal 自动使用已安装的适用能力；反复出现真实缺口时从自身经验形成可复核 Opportunity 和完整候选 | 原生目录/路由证据、可证伪 Gap、至少两个独立 Goal 的 Opportunity、至少四个 Goal 后的 authoring/admission/holdout 预密封、无 Skill 预配置的 Workspace policy、seal-bound Candidate v2、Candidate-independent governance Case Pack authoring/zero-proposer calibration、Envelope v4/Lineage v3 与 Web readiness implemented；真实 provider assembled 整链、迁移/成本门禁与 paired benchmark pending |
+| 内部经验自我发现 | 自然语言 Goal 自动使用已安装的适用能力；反复出现真实缺口时从自身经验形成可复核 Opportunity 和完整候选 | 原生目录/路由证据、可证伪 Gap、至少两个独立 Goal 的 Opportunity、四 Goal authoring/admission/holdout 与第五 Goal Retention 预密封、无 Skill 预配置的 Workspace policy、seal-bound Candidate v2、Candidate-independent governance Case Pack authoring/zero-proposer calibration、Envelope v4/v5/Lineage v3 与 Web readiness implemented；Retention runner、真实 provider assembled 整链、迁移/成本门禁与 paired benchmark pending |
 | 消息与日程 | 按真实 workflow 提供可拆 Adapter | Telegram、飞书与 Evolve 注意力桥 implemented；真实飞书 App 握手与 setup-only 配对通过，assembled 原生图片入站通过；exact route 用户消息/Hermes paired、普通文件/音视频和内容能力 pending |
 | 人类控制 | 状态、证据、审批、暂停、回滚不阻塞会话 | P0C Commands/Web + P3.1 非阻塞 Telegram attention + P3.2 Draft PR review follow-up implemented；语义 capability 审计与陌生用户可用性数据 pending |
-| 自进化 | 内部经验发现、独立治理、inactive Candidate、可证明晋升 | Goal-linked Gap → cross-Goal Opportunity → evidence seal → Candidate-independent admission/holdout → exact-Candidate assembled Shadow → review → content-addressed inactive Generation → future-Session promotion/root rollback 已形成活动纵切；历史 Feedback/Evaluator Draft、static target、Shadow proposer、自动过期和旧 Retention/canary 已撤销；existing-Skill 完整 Bundle、Retention/canary/outcome、真实 provider、陌生用户与长期效果 pending |
+| 自进化 | 内部经验发现、独立治理、inactive Candidate、可证明晋升 | Goal-linked Gap → cross-Goal Opportunity → evidence seal → Candidate-independent admission/holdout/Retention Case Pack → exact-Candidate assembled Shadow → review → content-addressed inactive Generation → future-Session promotion/root rollback 已形成活动纵切；历史 Feedback/Evaluator Draft、static target、Shadow proposer、自动过期和旧 Retention/canary 已撤销；existing-Skill 完整 Bundle、Retention execution/canary/outcome、真实 provider、陌生用户与长期效果 pending |
 | 权限 | 代码和外部效果不自动激活 | 需求与测试门已定义 |
 | KV Cache | Session 内完整 composition 稳定 | 64 轮 Evolution、GitHub review、Goal Continuity、Software Delivery 固定 surface，以及双 Workspace 双渠道全组合门禁通过；真实 provider cache-read/TTFT soak pending |
 | 回滚 | future Session 精确恢复 artifact；外部效果不虚假承诺 | exact parent Git tree 与 live Session 不漂移已实现；外部效果仍不在回滚范围 |

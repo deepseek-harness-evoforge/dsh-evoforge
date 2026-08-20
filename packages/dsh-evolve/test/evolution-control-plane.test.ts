@@ -414,6 +414,7 @@ describe('EvolutionControlPlane', () => {
             modelCalls: 2,
             inputTokens: 640,
             outputTokens: 240,
+            retentionIncluded: false,
             releaseAuthority: 'none' as const,
           }],
         })),

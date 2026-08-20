@@ -221,6 +221,7 @@ export interface EvolutionSkillOpportunityView {
         readonly authoringGoalCount: number
         readonly admissionGoalCount: number
         readonly holdoutGoalCount: number
+        readonly retentionGoalCount: number
         readonly proposerCanReadProtectedSamples: false
         readonly releaseAuthority: 'none'
       }
@@ -386,21 +387,24 @@ export interface EvolutionSkillEvaluationGovernanceView {
       | 'budget-deferred'
       | 'authoring-pending'
       | 'admission-ready'
+      | 'holdout-ready'
       | 'authored'
       | 'uncertain'
       | 'incomplete'
       | 'ready'
-    readonly pendingRole?: 'admission' | 'holdout'
+    readonly pendingRole?: 'admission' | 'holdout' | 'retention'
     readonly createdAt: string
     readonly updatedAt: string
     readonly modelCalls: number
     readonly inputTokens: number
     readonly outputTokens: number
+    readonly retentionIncluded: boolean
     readonly retryAt?: number
     readonly failure?:
       | 'paid-authoring-uncertain'
       | 'admission-calibration-failed'
       | 'holdout-calibration-failed'
+      | 'retention-calibration-failed'
       | 'governance-incomplete'
     readonly releaseAuthority: 'none'
   }[]

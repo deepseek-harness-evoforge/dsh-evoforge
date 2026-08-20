@@ -18,7 +18,7 @@ const MAX_OBJECTIVE_BYTES = 4 * 1024
 const MAX_MANIFEST_BYTES = 256 * 1024
 
 const sampleSchema = z.strictObject({
-  role: z.enum(['authoring', 'admission', 'holdout']),
+  role: z.enum(['authoring', 'admission', 'holdout', 'retention']),
   goalId: z.string().min(1).max(512),
   revision: z.number().int().nonnegative(),
   objective: z.string().min(1).max(8_192),
@@ -59,6 +59,10 @@ const manifestSchema = z.strictObject({
       context.addIssue({ code: 'custom', message: `evaluation evidence requires a ${role} sample` })
     }
   }
+  if (manifest.samples.length >= 5
+    && !manifest.samples.some(sample => sample.role === 'retention')) {
+    context.addIssue({ code: 'custom', message: 'five-goal evaluation evidence requires a retention sample' })
+  }
 })
 
 export type SkillEvaluationEvidenceManifest = z.infer<typeof manifestSchema>
@@ -77,6 +81,7 @@ export interface SkillAuthoringEvidence {
   readonly authoringGoalCount: number
   readonly admissionGoalCount: number
   readonly holdoutGoalCount: number
+  readonly retentionGoalCount: number
   readonly authoringInputDigest: string
 }
 
@@ -97,6 +102,7 @@ export type SkillEvaluationEvidenceReadiness =
       readonly authoringGoalCount: number
       readonly admissionGoalCount: number
       readonly holdoutGoalCount: number
+      readonly retentionGoalCount: number
       readonly proposerCanReadProtectedSamples: false
       readonly releaseAuthority: 'none'
     }
@@ -187,6 +193,7 @@ export class SkillEvaluationEvidenceVault {
         authoringGoalCount: view.authoringGoalCount,
         admissionGoalCount: view.admissionGoalCount,
         holdoutGoalCount: view.holdoutGoalCount,
+        retentionGoalCount: view.retentionGoalCount,
         proposerCanReadProtectedSamples: false,
         releaseAuthority: 'none',
       })
@@ -282,6 +289,7 @@ export class SkillEvaluationEvidenceVault {
     inputs: {
       readonly admissionInputDigest: string
       readonly holdoutInputDigest: string
+      readonly retentionInputDigest?: string
     },
   ): Promise<void> {
     const manifest = await this.readForGovernance(
@@ -289,8 +297,12 @@ export class SkillEvaluationEvidenceVault {
       candidate.opportunity.id,
       candidate.authorship.evaluationEvidenceId,
     )
+    const hasRetention = manifest.samples.some(sample => sample.role === 'retention')
     if (inputs.admissionInputDigest !== skillEvaluationProtectedInputDigest(manifest, 'admission')
-      || inputs.holdoutInputDigest !== skillEvaluationProtectedInputDigest(manifest, 'holdout')) {
+      || inputs.holdoutInputDigest !== skillEvaluationProtectedInputDigest(manifest, 'holdout')
+      || (hasRetention
+        ? inputs.retentionInputDigest !== skillEvaluationProtectedInputDigest(manifest, 'retention')
+        : inputs.retentionInputDigest !== undefined)) {
       throw new Error('Evaluation Envelope protected inputs do not match their evidence seal')
     }
   }
@@ -298,7 +310,7 @@ export class SkillEvaluationEvidenceVault {
 
 export function skillEvaluationProtectedInputDigest(
   manifest: SkillEvaluationEvidenceManifest,
-  role: 'admission' | 'holdout',
+  role: 'admission' | 'holdout' | 'retention',
 ): string {
   return sha256(JSON.stringify({
     kind: 'internal-skill-evaluation-case-input-v1',
@@ -365,13 +377,17 @@ function buildManifest(
   if (ranked.length < 4) throw new Error('evaluation evidence requires four independent Goals')
   const authoringCount = Math.max(2, Math.floor(ranked.length / 2))
   const remaining = ranked.length - authoringCount
-  const admissionCount = Math.max(1, Math.floor(remaining / 2))
+  const retentionCount = ranked.length >= 5 ? 1 : 0
+  const admissionCount = Math.max(1, Math.floor((remaining - retentionCount) / 2))
+  const retentionStart = ranked.length - retentionCount
   const samples = ranked.map((sample, index) => ({
     role: index < authoringCount
       ? 'authoring' as const
       : index < authoringCount + admissionCount
         ? 'admission' as const
-        : 'holdout' as const,
+        : index < retentionStart
+          ? 'holdout' as const
+          : 'retention' as const,
     goalId: sample.goalId,
     revision: sample.revision,
     objective: sample.objective,
@@ -434,6 +450,7 @@ function authoringView(manifest: SkillEvaluationEvidenceManifest): SkillAuthorin
     authoringGoalCount: authoring.length,
     admissionGoalCount: manifest.samples.filter(sample => sample.role === 'admission').length,
     holdoutGoalCount: manifest.samples.filter(sample => sample.role === 'holdout').length,
+    retentionGoalCount: manifest.samples.filter(sample => sample.role === 'retention').length,
     authoringInputDigest: manifest.authoringInputDigest,
   })
 }
