@@ -234,54 +234,6 @@ _Avoid_: A/B platform, automatic verdict, improvement percentage, task-normalize
 A retractable, reference-only projection owned by the same Evolution Workspace as one current negative DSH message-feedback item with a non-blank human note. It may carry Exact Skill Correction Attribution, but never copies the note, note hash, cwd, Prompt, Transcript, message body, or Skill body; it may justify investigation but never authorizes mutation.
 _Avoid_: `/learn` command, feedback memory, transcript copy, automatic Skill edit
 
-**Feedback Case Draft**:
-A private, content-addressed, unscored sample created only after configuration-level copy authorization and either one explicit host action or an explicit Automatic Feedback Shadow deployment policy. It binds one still-current feedback version to one direct user text, one correction, one exact Generation Skill artifact, the whole materialized Skill content hash, and one Session-prefix hash; it excludes assistant responses, Tool output, Skill bodies, cwd, and full Transcript. It is not evaluator truth by itself.
-_Avoid_: Automatic transcript harvesting, generic Case platform, Candidate, proof of improvement
-
-**Evaluator Draft**:
-A private, content-addressed and inactive proposal for one Case Pack, authored from an exact Feedback Case Draft and exact Skill version. Its generated files are review material only: they cannot execute, score a Candidate, become a Shadow Target, or authorize promotion until a separate human decision and sealed qualification succeed.
-_Avoid_: Evaluator, trusted test, automatic grader, Evolution Candidate
-
-**Qualified Case Pack**:
-An immutable Evaluator Draft whose exact files were semantically approved by a human and whose evaluator then rejected the declared known-bad fixture and accepted the declared known-correction fixture inside the sealed runner. Qualification proves direction for that exact pack, not novel-case coverage or Candidate improvement.
-_Avoid_: Proven evaluator, self-certified test, active Skill, promotion evidence
-
-**Feedback-guided Shadow**:
-A Shadow run that supplies one exact private Feedback Case Draft only to the proposer as untrusted search evidence, while an existing calibrated Case Pack remains the independent evaluator. The draft id and private resume path are durable; its input fields are not directly copied into Shadow evidence, although proposer output that echoes them remains durable Candidate evidence. One explicit host invocation or Automatic Feedback Shadow deployment policy authorizes the potentially paid provider request and disclosure.
-_Avoid_: Generated evaluator, self-scoring Candidate, background paid proposal, feedback text in report/journal
-
-**Feedback Shadow Target**:
-A statically configured binding from a public operator-chosen id to one exact Skill name, calibrated Case Pack, and owned run root, used only by explicit or opt-in Feedback-guided Shadow. It is not the evaluation authority for internally discovered Skill Candidates, which use an Opportunity-bound Skill Evaluation Envelope instead.
-_Avoid_: Internal Candidate Evaluation Target, workflow, arbitrary run request, dynamic evaluator
-
-**Feedback Shadow Launch**:
-A human-initiated Protected Action that turns one still-current Explicit Feedback Signal into a private draft and submits one configured Feedback-guided Shadow to native Jobs. It returns immediately to the caller and originating Session; it creates evidence for later review but does not prove improvement or authorize promotion.
-_Avoid_: Automatic learning, synchronous Session reflection, paid resident retry
-
-**Automatic Feedback Shadow**:
-An opt-in deployment policy that lets one still-current explicit correction enter one statically configured, exact-hash Shadow Target without another per-signal command. It reuses the private Draft, independent evaluator, native Jobs, review, Retention, future-Session promotion, and rollback paths; ambiguity and uncertain paid effects remain asynchronous human work.
-_Avoid_: Background reflection, automatic evaluator trust, live-session learning, self-grading
-
-**Automatic Evolution Budget**:
-A deployment-level UTC-day cap on durable automatic attempt reservations for one exact automatic Target. A reservation is consumed before a possibly paid author/launch boundary and survives crashes; it never limits an explicit human action or claims to be a billing ledger.
-_Avoid_: Token scheduler, pricing engine, global quota service, model budget in Session
-
-**Automatic Evaluator Draft**:
-An opt-in deployment policy that lets one still-current explicit correction create one private, inactive Evaluator Draft for a unique static Target without a per-signal author command. It spends a durable daily attempt reservation first and leaves execution, qualification, Shadow, and Promotion under their existing separate authorities.
-_Avoid_: Automatic evaluator trust, self-grading, synchronous Session reflection, default background spending
-
-**Per-Skill Automatic Inflight Gate**:
-A host-only preflight that lets P1.14/P1.16 reserve budget for a Skill only when its existing Evaluator Draft, Shadow journal, and Review Inbox contain no unresolved earlier automatic work. Deferred Signals stay in the existing Signal Store; explicit human actions remain available.
-_Avoid_: Evolution queue, distributed lease, duplicate state store, limit on human actions
-
-**Automatic Ambiguous Review Expiry**:
-An opt-in host policy that gives an ambiguous Candidate created by Automatic Feedback Shadow a bounded review window. When a later Signal arrives after that window, the existing Review Inbox durably rejects the old Candidate while retaining all evidence, then lets the Per-Skill Automatic Inflight Gate reconsider the new Signal.
-_Avoid_: Background TTL service, evidence deletion, expiration of human or promotable work
-
-**Automatic Review Window Projection**:
-A read-only host projection that tells Commands and Web when an Automatic Ambiguous Review Expiry becomes eligible and that only the next same-Skill automatic Signal can trigger rejection. It is derived from existing evidence and policy, not persisted or advanced by a timer.
-_Avoid_: Countdown service, browser authority, notification queue, claim that eligibility already means rejection
-
 **Case Pack Calibration**:
 A zero-proposer, host-only execution of the declared known-bad and known-correction fixtures through the exact evaluator used by Admission, Shadow, or Retention. It proves evaluator direction for one content-addressed Case Pack; it does not prove novel-case coverage or Candidate value. Admission uses a deterministic filesystem evaluator, while holdout and Retention use their separate assembled DSH evaluators.
 _Avoid_: Candidate-authored evaluator, cached trust forever, extra runtime service, model judge

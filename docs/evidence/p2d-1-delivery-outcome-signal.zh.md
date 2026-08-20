@@ -52,4 +52,4 @@ Session/Goal/Tool、dispose/remove/reboot/readback 1/1 通过（25.46 秒）。�
 
 设计取舍见 [ADR-0015](../adr/0015-delivery-outcomes-are-derived-signals.md)。后续 P1.2 已用原
 Case Pack 与 exact Git parent/Candidate 实现反事实门；见
-[P1.2 证据](p1-2-counterfactual-canary.zh.md)。单条 Outcome 本身仍只是一条信号。
+[当前 canary 边界](../architecture/evolution-design.zh.md)。单条 Outcome 本身仍只是一条信号。

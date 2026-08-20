@@ -13,7 +13,6 @@
 7. [公开 Agent 自进化项目证据审计](public-self-evolving-agents.zh.md)：横向审计 Hermes Self-Evolution、GEPA、DGM、Voyager、ADAS、AFlow、Agent0 等项目，并校准当前方案的独特价值与缺陷。
 8. [DSH 插件组、自进化与个人 Agent 生态增量调研（2026-08-18）](ecosystem-frontier-2026-08-18.zh.md)：固定 Hermes、Hermes Self-Evolution、OpenClaw、HanaAgent 与前沿实现的历史生态事实；其中运行时外部 Skill 获取建议已被 2026-08-19 目标纠正否决，当前只保留内部经验自我发现、三平面和双速闭环约束。
 9. [AS-1 首个通用助理工作流选择](assistant-workflow-selection.zh.md)：解释为何先做一个 Telegram 私聊，而不是预建通用 Gateway，并冻结其权限、投递和缓存边界。
-10. [下一用户结果研究（2026-08）](next-user-outcome-2026-08.zh.md)：在现有能力和一手用户痛点之间比较下一项最小交付，解释为何先补后台进化注意力。
 11. [P3.2 Draft PR 返修决策](p3-2-delivery-review-loop-decision.zh.md)：解释为何闭合现有交付断点，而不建设 Review 平台、Mission 或第二状态机。
 12. [可证明自进化设计](../architecture/evolution-design.zh.md)：查看 Generation 固定、Learning Signal、Candidate、Trial、晋升、回滚与缓存约束。
 13. [P0A Shadow 契约](../architecture/p0a-shadow-contract.zh.md)：查看首个可执行验证的 CLI、报告、case 隔离、evaluator 和红测试接缝。

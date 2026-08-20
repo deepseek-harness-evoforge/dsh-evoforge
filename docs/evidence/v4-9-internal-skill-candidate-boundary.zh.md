@@ -39,7 +39,7 @@ Candidate 使用新的 `evoforge_skill_candidates` Storage Domain。Store 不再
 
 ## 删除证据
 
-活动源码直接删除了 `trusted-skill-discovery.ts`、`skill-research.ts`、`research-skill-holdout.ts`、`research-skill-revision.ts` 及对应测试；Agent Skills index/archive discovery 测试和 zip 获取依赖也已删除。whole-Skill codec 被收敛为 Host-owned canonical text bundle；历史证据页保留但明确标记为已撤销方案。
+活动源码直接删除了 `trusted-skill-discovery.ts`、`skill-research.ts`、`research-skill-holdout.ts`、`research-skill-revision.ts` 及对应测试；Agent Skills index/archive discovery 测试和 zip 获取依赖也已删除。whole-Skill codec 被收敛为 Host-owned canonical text bundle；已撤销方案的完成证据页也已从活动文档删除。
 
 ## 自动化证据
 

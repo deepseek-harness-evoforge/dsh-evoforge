@@ -1,6 +1,6 @@
 # 当前实现状态
 
-> 更新日期：2026-08-20。本文只描述当前权威 `main` 工作树，不把计划或历史分支当作已交付能力。
+> 更新日期：2026-08-21。本文只描述标准路径中的权威 `main` 工作树，不把计划或历史分支当作已交付能力。
 
 ## 状态词
 
@@ -12,6 +12,8 @@
 | `released` | 已发布并验证安装、升级和卸载 |
 
 ## 当前总判断
+
+本地仓库已收口为标准仓库路径下唯一 `main` 工作树和本地分支，并与 `origin/main` 同步。
 
 EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。所有已提交成果都在权威 `main`；`dsh-gateway` 已直接替换 `dsh-channel-router`。ClawHub、市场和 runtime research Candidate 已删除；`dsh-evolve` 的 Git source/ref、预选 Skill、静态 Case Pack/Feedback/Evaluator target、Feedback/Evaluator Draft、Shadow 内 proposer、自动 review expiry、旧 Retention/canary 和对应 Control/Web/attention 表面也已从活动源码物理删除。公开 Config 只包含内容寻址缓存、Workspace 自发现/评测 policy 和通用 supervisor；`GenerationBundleRepository`/`CandidatePublisher` 只解析内部 whole-Skill Bundle，legacy artifact 明确 quarantine；packed artifact 与 Shadow 源码均有负向回归契约。Gateway 的入站边界现支持文本和 DSH 原生图片引用；飞书外部图片 key 在 Adapter 内下载并经 AttachmentStore 内容寻址保存，不进入 Session。固定 DSH attachment v1 不支持通用文件，普通文件/音视频仍明确 pending。
 
@@ -32,6 +34,8 @@ V4.26 按 [ADR-0071](adr/0071-retention-continues-the-exact-candidate-shadow-job
 V4.27 按 [ADR-0072](adr/0072-web-joins-owner-projections-with-exact-lineage.md) 让 `ReviewInbox` 与 `InternalSkillRetention` 各自保有 Shadow/Retention 权威制品，再由 Host 按 exact lineage/tree 只读拼接。Retention root 缺失表示未运行；prepared、terminal、verdict/token 形状或内容地址篡改会告警。Remote/Web 不下发 Host path、protected Goal/Case、evaluator、provider 或 proposal，只展示 holdout/Retention 对照、composition、trial、calibration、proposer=0、model/token/cache 与无发布权。详见 [V4.27 证据](evidence/v4-27-shadow-retention-web-projection.zh.md)。后续 [V4.28](evidence/v4-28-shadow-retention-real-browser.zh.md) 已从最终 tarball 安装到隔离 DSH profile，验证整页 reload、Host 停机 fail-visible、最后成功证据保留和同 profile/端口恢复；真实 provider Retention 仍 pending。
 
 V4.29 按 [ADR-0073](adr/0073-promotion-revalidates-exact-retention-without-giving-it-release-authority.md) 增加独立 Host Promotion Eligibility。它不把发布权交给 Shadow、Review 或 Retention；每次命令/Web 晋升前重读 exact approved Generation 与治理证据，只有唯一且结构一致的 retained verdict 才能写 active selection。缺失/准备中状态等待，扫描告警、归属/谱系错配、重复、回归、不完整和 verdict/evidence 脱钩全部 fail closed；DSH Web 显示状态/原因/Retention id 并禁用非 eligible 按钮。最终 tarball 已在隔离 profile 的真实 DSH Web 验证 eligible/enabled、regressed/disabled、Host 失败保留证据、同端口恢复和卸载。详见 [V4.29 证据](evidence/v4-29-retention-promotion-eligibility.zh.md)。本增量不包含 canary、真实 provider 或自动晋升。
+
+V4.30 完成本地 Git 和活动文档收口：所有已提交旧分支均经 ancestor 审计后保留在 `main` 历史，标准路径现只有一个 `main` worktree/本地分支；已撤销的能力获取、Feedback/Evaluator Draft、静态 Target 和旧 canary 架构/证据页已从活动文档删除，README 和进化架构已按当前 Retention/Promotion 实现重写。详见 [V4.30 证据](evidence/v4-30-main-worktree-and-active-doc-convergence.zh.md)。
 
 | 能力 | 当前状态 | 已有证据 | 仍缺 |
 |---|---|---|---|

@@ -2,7 +2,7 @@
 
 > 调研日期：2026-08-18  
 > 用途：保留 2026-08-18 的生态事实与备选方案审计；不是既有实现完成声明，也不是当前产品需求。2026-08-19 目标纠正已经否决运行时能力获取、外部 Skill 搜索/下载/导入和 ClawHub 工作流；当前决策见 [目标重新对齐审计](../audits/2026-08-19-goal-realignment.zh.md)、[ADR-0048](../adr/0048-self-discovery-learns-from-dsh-experience.md) 与 [ADR-0050](../adr/0050-internal-candidates-replace-runtime-skill-acquisition.md)。
-> 一手基线：DeepSeek Harness 兼容检出 `47f943859bef60e4160492346772ded9b24f765a`，2026-08-18 官方 `master` 已观测到 `99f6f02fecdb7dff40c3fbc9470f5907c29f74ca`；Hermes Agent `e02d1e41fc6104187e20af9eac8b2820566e3508`；Hermes Self-Evolution `0a929e3aa20e15cf04dc7c28492a7d41a5139125`；OpenClaw `d412c6b284e4e000d27b9d4a849fc46b05f54546`；HanaAgent 仓库 `openhanako` `c6d0405294be67cb134c2758f6472748ee73e2be`。whole-Skill 增量审计见 [V4-7 研究与组合审计](v4-7-whole-skill-grounding-audit.zh.md)。开发前仍须重新固定 DSH 当前官方 revision，不能把本文记忆当 API。
+> 一手基线：DeepSeek Harness 兼容检出 `47f943859bef60e4160492346772ded9b24f765a`，2026-08-18 官方 `master` 已观测到 `99f6f02fecdb7dff40c3fbc9470f5907c29f74ca`；Hermes Agent `e02d1e41fc6104187e20af9eac8b2820566e3508`；Hermes Self-Evolution `0a929e3aa20e15cf04dc7c28492a7d41a5139125`；OpenClaw `d412c6b284e4e000d27b9d4a849fc46b05f54546`；HanaAgent 仓库 `openhanako` `c6d0405294be67cb134c2758f6472748ee73e2be`。开发前仍须重新固定 DSH 当前官方 revision，不能把本文记忆当 API。
 
 ## 结论
 
@@ -39,37 +39,7 @@ HanaAgent（官方仓库仍名 `openhanako`）面向普通用户，支持主动�
 
 应学习它的无术语入口、拖拽安装、图形化、桥接与两级权限；同时为每个 Skill 明确稳定 identity、来源、scope、版本、优先级、冲突和去重，避免“目录里存在多个同名 Skill，却无法解释实际使用哪一个”。
 
-## 5. 外部 Skill 市场与开放发现协议的事实核验（运行时方案已否决）
-
-本节保留竞品和供应链事实，用于解释为什么不能把外部获取冒充自我发现。它不构成 EvoForge 的运行时需求，相关旧实现已经删除。
-
-OpenClaw 当前已经把 ClawHub 明确为公开 Skill/插件 registry：原生命令支持 search/install/update，安装会
-记录来源，用户可在安装前查看版本、changelog 与 scan 状态；`verify` 还能读取 registry 的 trust envelope。
-这说明“市场发现、来源锁定、安全分析、安装”应是四个可区分阶段，不能把搜索命中直接等价为可执行能力。
-[ClawHub quickstart](https://docs.openclaw.ai/clawhub/quickstart) ·
-[OpenClaw Skills](https://docs.openclaw.ai/skills)
-
-ClawHub 的 Skill 仍是含 `SKILL.md` 与可选支持文件的目录，并通过 origin/lock metadata 追踪来源；其官方
-格式要求声明 runtime/env/bin 等需求，完整 bundle 进入安全扫描，当前公开 Skill 统一为 MIT-0。这是一个
-具体市场的产品契约，不是 DSH 的通用安装接口，也不能用 scan 状态证明任务效果。
-[ClawHub Skill format](https://docs.openclaw.ai/clawhub/skill-format) ·
-[ClawHub CLI](https://docs.openclaw.ai/clawhub/cli)
-
-Cloudflare 发起的 Agent Skills Discovery via Well-Known URIs 当前状态是 **draft v0.2.0**，规定
-`/.well-known/agent-skills/index.json`、固定 `$schema`、`skill-md | archive`、artifact URL 与原始字节
-`sha256:<hex>`。客户端必须按 digest 校验下载内容，并应对来源 allowlist、prompt injection、script 默认不
-执行及 archive traversal/link/decompression bomb 做防护。它提供的是可移植 discovery index，不提供
-质量、许可证适用性或 release eligibility。
-[Agent Skills Discovery draft v0.2](https://github.com/cloudflare/agent-skills-discovery-rfc/blob/main/README.md) ·
-[Agent Skills specification](https://agentskills.io/specification)
-
-**已否决的历史推断：** 早期方案曾建议采用 digest-pinned index 作为首个网络纵切，并实现显式配置、
-HTTPS、同源、SHA-256、bounded 解码和 quarantine。该取舍与当前“内部经验自我发现”目标冲突，活动
-源码、zip 依赖、存储变体和 Web 投影均已删除；不再排期 ClawHub、Agent Skills、任意 Web/GitHub 搜索
-或外部 Skill 获取。`tar-stream` 现在只用于 Host 自己生成并核验 canonical text-only Candidate 包，
-不解析网络获取制品。[tar-stream](https://github.com/mafintosh/tar-stream)
-
-## 6. 前沿实现带来的新增硬要求
+## 5. 前沿实现带来的新增硬要求
 
 - **EvoSkill**：从失败轨迹发现/修改 Skill，用 Pareto frontier 和 held-out validation 选择，并报告跨任务迁移；说明“发现能力”与“保留能力”必须分开。[论文](https://arxiv.org/abs/2603.02766) · [代码](https://github.com/sentient-agi/EvoSkill)
 - **SkillHone**：进化单位是整个 Skill folder（`SKILL.md + scripts + references`），eval 与 Skill 通过代码路径/文件权限隔离，每个决策有 Git 审计；DSH 应做整包原子版本，而非只改 prompt。[官方仓库](https://github.com/Tencent/SkillHone) · [论文](https://arxiv.org/abs/2606.08671)
@@ -81,7 +51,7 @@ HTTPS、同源、SHA-256、bounded 解码和 quarantine。该取舍与当前“�
 
 由此得到不可缩减的评测维度：任务成功率、首次成功率、人工选路/干预次数、失败恢复、已安装 Skill 路由与 Opportunity precision/recall、错误调用、跨任务复用/迁移、负迁移、保留与遗忘、安全回归、成本、时延、cache-read、回滚正确性；并记录每个 signal→gap→opportunity→candidate→trial→decision→generation 的完整证据链。
 
-## 7. 插件组与交付约束
+## 6. 插件组与交付约束
 
 当前插件边界是：`dsh-evolve`（内部经验、Opportunity、Candidate、隔离评测、晋升与回滚）、`dsh-evolve-web`（权威 DSH Web 控制面）、`dsh-gateway`（Adapter 生命周期、标准化、身份/Session/Goal 映射、持久投递、幂等、重试、去重、路由、诊断、限流与最小权限）、`dsh-feishu` 与 `dsh-telegram`（薄 Adapter）、`dsh-software-delivery`（真实交付验证）和 `dsh-doctor`（安装、配置、连接与运行诊断）。它们各自可安装、禁用和卸载；Gateway 不拥有第二 Agent Runtime、Session、Goal 或 Approval，也不演变为巨型业务网关。
 

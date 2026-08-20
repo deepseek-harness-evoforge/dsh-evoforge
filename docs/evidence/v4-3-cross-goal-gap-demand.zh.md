@@ -58,9 +58,8 @@ Install/Activate 按钮，console warning/error 为 0，限制文本具有可见
 
 ## 尚未证明
 
-- cluster 本身不会主动搜索任何来源；后续 [V4-4](v4-4-agent-skills-index-discovery.zh.md) 已让每个 Gap 可查询
-  显式授信 Agent Skills v0.2 索引，但尚未由 cluster 驱动市场、官方资料、论文或开源仓库搜索。
-- cluster 不会启动 Skill 生成/组合，也没有预算、队列、退避、来源信誉或用户审查调度。
+- cluster 本身不会主动搜索任何外部来源；当前 [V4-8](v4-8-internal-skill-opportunity-discovery.zh.md) 只从 DSH 内部证据形成 Opportunity，后续 Candidate 也不得进行运行时外部搜索或获取。
+- V4-3 本身当时未启动 Skill 生成/组合；当前生成路径另由 evidence seal、日预算、Candidate quarantine 和独立治理约束。
 - 不同未解析 Gap name 之间不做 embedding/LLM 模糊聚类；这会主动漏合并，目的是避免错误需求污染。
 - 没有真实模型误缺口率、跨任务 transfer、negative transfer、遗忘或长期 retention 数据。
 - 没有同任务、同模型、同权限、同预算的完整 Hermes paired outcome。

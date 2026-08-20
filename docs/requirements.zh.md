@@ -1,7 +1,7 @@
 # DeepSeek Harness EvoForge 项目需求基线
 
 > 状态：已确认；目标是只安装并运行于 DSH 的原生 out-of-tree 插件套件。现有实现只作为可重审资产，不能限制重构；`dsh-gateway` 已替换旧 Router。ClawHub、市场、运行时 research Candidate、Git Skill source/ref、预选 Skill、静态 Case Pack/Feedback/Evaluator target、Feedback/Evaluator Draft、Shadow 内 proposer、自动 review expiry、旧 Retention/canary 和对应 Commands/Control/Web/attention 表面均已从活动源码删除。自然 Goal→Capability Gap→跨 Goal 内部经验→Skill Opportunity→隔离 whole-Skill Candidate 已形成部分纵切；Shadow 只消费 exact DSH-assembled Candidate 且零 proposer；现有 Skill 同版本跨 Goal 纠正只形成等待完整基线 Bundle 的调查。缺失 Skill 使用不安装目标 Skill 的 assembled baseline；第五个内部 Goal 形成的独立 Retention Case Pack 已能在同一 Shadow Jobs 任务内执行并持久给出 retained/regressed/incomplete，但无发布权。独立 Host Promotion Eligibility 重验 approved Review、Generation、Lineage、Shadow 与 Retention，只有 exact retained 才允许未来 Session 切换；明确复核后可形成内容寻址 inactive bundle并精确 rollback。canary、真实 provider、exact 飞书消息、长期 outcome 与 Hermes paired 完成前不构成 v0.1 交付。
-> 更新日期：2026-08-20
+> 更新日期：2026-08-21
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。发生冲突时，下述“方向纠正”优先于旧里程碑文字。
 
 ## 0. 方向纠正：DSH 是唯一 Runtime 与安装入口
@@ -314,7 +314,7 @@ workspace，输出可审查的 launchd/systemd unit。OS service manager 与 uni
 6. 完成 `dsh-gateway` 的 Adapter 生命周期、标准化、身份/Session 映射、持久投递、幂等重试、去重、路由、限流和诊断，并完成 exact 飞书 route 的消息/Command/Approval/投递闭环；Gateway 不得成为第二 Agent Runtime 或巨型业务平台；
 7. 用干净 profile、真实浏览器、真实飞书、真实 provider、长期 outcome 和与当前固定 Hermes revision 的 paired benchmark 验收；只有核心集合全部通过才创建首个 annotated semantic tag。
 
-旧阶段产生的报告和测试仍是有效历史证据，但不再凌驾于上述现行顺序，也不能把既有实现数量当作新目标完成。
+旧阶段的 Git 提交仍保留完整审计历史；已撤销的运行时架构、控制面合同和完成证据不再作为活动文档保留。历史不得凌驾于上述现行顺序，也不能把既有实现数量当作新目标完成。
 
 当前进度说明：软件交付、Runtime Readiness、Telegram、飞书第二 Adapter 与单用途 Evolve 注意力桥
 已分别以独立 `dsh-*` 包实现；飞书真实 App 身份请求、WebSocket 握手与 setup-only 配对 transport 已
@@ -378,8 +378,7 @@ Opportunity 另显示评测证据是等待、无策略、无效、具备密封�
 proposer 不可读保护声明，不返回受保护样本内容。
 Candidate 进入后，浏览器谱系显式显示 `Opportunity → evidence seal → Candidate → Admission`，不会用 Envelope id 隐去生成前封存版本。实际 assembled Shadow 继续由 `ReviewInbox` 校验，Retention 继续由其内容寻址 run root 校验；Host 只有在 Workspace、Skill、Candidate、Admission、Envelope、Shadow run、baseline tree 和 Candidate tree 全部一致时才投影同一行。错配、重复、篡改或不可读状态必须 fail visible，不能把 Retention 显示成通过；浏览器只接收 bounded case、trial、composition、verdict/reason、calibration、proposer/model/token/cache 聚合和 lineage，不接收 Host path、protected Goal/Case、evaluator、provider identity 或 proposal。
 不提供路线、来源、安装或激活菜单。刷新失败必须显式报错并保留最后一次成功快照，恢复后从同一 Host 权威重新读取。旧的本地 Git、外部索引和运行时
-Web research 方案必须从当前实现删除；相关历史 evidence 只说明过去实现，不构成当前产品
-声明。Hermes、OpenClaw、HanaAgent、市场、论文与开源实现继续用于设计期固定 revision 调研与 paired benchmark。
+Web research 方案必须从当前实现删除；其已撤销的架构与 evidence 页也从活动文档删除，决策原因只由 superseded ADR 和当前调研基线保留。Hermes、OpenClaw、HanaAgent、论文与开源实现继续用于设计期固定 revision 调研与 paired benchmark，不进入运行时 Skill 路径。
 
 确定性 admission、assembled Shadow、Review、immutable Generation、future-Session promotion 与 rollback 的既有
 治理路径仍保留。内部 Candidate 不再由 profile 预选 exact Skill、baseline 或两套 Case Pack；Workspace 级

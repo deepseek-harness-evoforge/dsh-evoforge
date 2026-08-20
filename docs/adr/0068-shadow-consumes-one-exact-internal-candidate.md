@@ -4,4 +4,4 @@
 
 Candidate 作者、评测治理和执行面保持分离：作者只消费被分配的内部 authoring 证据；治理面独占 admission/holdout；Shadow 只执行 exact Candidate 对照。当前 Session 固定已有版本，Shadow 结果最多进入 Review/Generation 边界，不能自行安装、激活或改变当前 Session。
 
-因此，旧的 `feedbackDraftRoot`、`shadowTargets`、`evaluatorTargets`、Feedback-guided Shadow、Evaluator Draft、静态 Retention/counterfactual-canary 编排和自动 review expiry 不再是当前运行时合同。相关旧 ADR 与证据仅保留为历史决策记录，不能作为重新启用这些接口的依据。Retention、反事实 canary 和低风险自动晋升若重新进入活动路径，必须直接绑定内部 Opportunity、Evidence Seal、Candidate、Evaluation Envelope 和真实 Outcome，并重新通过负迁移、安全、成本、恢复与回滚门禁。
+因此，旧的 `feedbackDraftRoot`、`shadowTargets`、`evaluatorTargets`、Feedback-guided Shadow、Evaluator Draft、静态 Retention/counterfactual-canary 编排和自动 review expiry 不再是当前运行时合同。相关旧 ADR 只保留决策原因；已撤销的架构与完成证据页已从活动文档删除，不能作为重新启用这些接口的依据。Retention、反事实 canary 和低风险自动晋升若重新进入活动路径，必须直接绑定内部 Opportunity、Evidence Seal、Candidate、Evaluation Envelope 和真实 Outcome，并重新通过负迁移、安全、成本、恢复与回滚门禁。
