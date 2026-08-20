@@ -12,15 +12,21 @@ import type {
 } from './feedback-signal-monitor.ts'
 import type { FutureSessionPromotion } from './future-session-promotion.ts'
 import type { FutureSessionRollback } from './future-session-rollback.ts'
+import type {
+  ExistingSkillRelease,
+  ExistingSkillReleaseEligibility,
+} from './existing-skill-release.ts'
 import { workspaceIdForCwd } from './workspace-identity.ts'
 
-const USAGE = 'Usage: /evolve [status|feedback [<signal-id>]|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback [<64-char-canary-id>]]'
+const USAGE = 'Usage: /evolve [status|feedback [<signal-id>]|review [<review-id> [approve|reject <note>]]|existing [<candidate-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|promote-existing <candidate-id>|rollback [<64-char-canary-id>]]'
 const generationIdPattern = /^[a-f0-9]{64}$/
 
 export interface EvolutionCommandModules {
   readonly promotion?: Pick<FutureSessionPromotion, 'promote'>
   readonly rollback?: Pick<FutureSessionRollback, 'rollback'>
   readonly review?: { inbox: ReviewInbox; publisher: CandidatePublisher }
+  readonly existingRelease?: Pick<ExistingSkillRelease,
+    'scan' | 'eligibility' | 'approve' | 'reject' | 'promote'>
   readonly resident?: Pick<ResidentEvolutionControl, 'isPaused' | 'pause' | 'resume'>
   readonly outcomes?: Pick<DeliveryOutcomeStore, 'summarize'>
   readonly feedback?: Pick<FeedbackSignalStore, 'list' | 'summarize'>
@@ -36,7 +42,7 @@ export function installEvolutionCommand(
     commandCtx.commands.register({
       name: 'evolve',
       description: 'inspect internal evidence, review Candidates, and control immutable Generations',
-      input: { hint: '[status|feedback ...|review ...|pause|resume|promote <generation-id>|rollback [<canary-id>]]' },
+      input: { hint: '[status|feedback ...|review ...|existing ...|pause|resume|promote ...|promote-existing ...|rollback ...]' },
       handler: async ({ rawInput, agent }) => executeEvolutionCommand(
         store,
         rawInput,
@@ -55,7 +61,7 @@ export async function executeEvolutionCommand(
   workspaceId: string,
 ): Promise<CommandResult> {
   const input = rawInput.trim()
-  const { promotion, rollback, review, resident, outcomes, feedback } = modules
+  const { promotion, rollback, review, existingRelease, resident, outcomes, feedback } = modules
   try {
     if (input === '' || input === 'status') {
       const active = store.getActiveGeneration(workspaceId)
@@ -140,6 +146,36 @@ export async function executeEvolutionCommand(
         ].join('\n'),
       }
     }
+    if (input === 'existing') {
+      if (existingRelease === undefined) return existingReleaseUnavailable()
+      return renderExistingReleaseList(await existingRelease.scan(workspaceId))
+    }
+    const existingAction = /^existing\s+([a-f0-9]{64})(?:\s+(approve|reject)\s+([\s\S]+))?$/u.exec(input)
+    if (existingAction?.[1] !== undefined) {
+      if (existingRelease === undefined) return existingReleaseUnavailable()
+      const [, candidateId, action, note] = existingAction
+      if (action === undefined) {
+        return renderExistingRelease(await existingRelease.eligibility(workspaceId, candidateId))
+      }
+      if (note === undefined || note.trim() === '') return { kind: 'error', text: USAGE }
+      if (action === 'reject') {
+        const rejected = await existingRelease.reject(workspaceId, candidateId, note)
+        return {
+          kind: 'success',
+          text: `Existing Skill Candidate ${rejected.candidateId} rejected. No Generation was created or activated.`,
+        }
+      }
+      const approved = await existingRelease.approve(workspaceId, candidateId, note)
+      return {
+        kind: 'success',
+        text: [
+          `Existing Skill Candidate ${approved.candidateId} approved.`,
+          `Inactive Generation: ${approved.generationId}`,
+          'No Session was changed.',
+          `Activate for future Sessions: /evolve promote-existing ${approved.candidateId}`,
+        ].join('\n'),
+      }
+    }
     const rollbackAction = /^rollback(?:\s+([^\s]+))?$/u.exec(input)
     if (rollbackAction !== null) {
       const canaryId = rollbackAction[1]
@@ -189,6 +225,21 @@ export async function executeEvolutionCommand(
         ].join('\n'),
       }
     }
+    const promoteExisting = /^promote-existing\s+([a-f0-9]{64})$/u.exec(input)
+    if (promoteExisting?.[1] !== undefined) {
+      if (existingRelease === undefined) return existingReleaseUnavailable()
+      const result = await existingRelease.promote(workspaceId, promoteExisting[1])
+      return {
+        kind: 'success',
+        text: [
+          'Existing Skill Generation promoted for future Sessions.',
+          `Previous: ${result.previousId ?? 'native DSH'}`,
+          `Active: ${result.generation.id}`,
+          'Existing Sessions were not changed.',
+          'Rollback: /evolve rollback',
+        ].join('\n'),
+      }
+    }
     return { kind: 'error', text: USAGE }
   } catch (error) {
     return {
@@ -202,6 +253,49 @@ function reviewUnavailable(): CommandResult {
   return {
     kind: 'error',
     text: 'Review inbox is not configured. Set dsh-evolve supervisor.runRoots to owned Shadow run roots.',
+  }
+}
+
+function existingReleaseUnavailable(): CommandResult {
+  return {
+    kind: 'error',
+    text: 'Existing Skill release governance is unavailable until exact admission, Holdout, and Retention owners are configured.',
+  }
+}
+
+function renderExistingReleaseList(
+  items: readonly ExistingSkillReleaseEligibility[],
+): CommandResult {
+  if (items.length === 0) return { kind: 'success', text: 'No existing Skill release Candidates.' }
+  const visible = items.slice(0, 20)
+  return {
+    kind: 'success',
+    text: [
+      `Existing Skill release Candidates: ${items.length}`,
+      ...visible.map(item => `- ${item.candidateId} [${item.status}] ${item.reason}`),
+      ...items.length > visible.length ? [`- … ${items.length - visible.length} more`] : [],
+      '',
+      'Inspect: /evolve existing <candidate-id>',
+    ].join('\n'),
+  }
+}
+
+function renderExistingRelease(item: ExistingSkillReleaseEligibility): CommandResult {
+  return {
+    kind: 'success',
+    text: [
+      `Existing Skill Candidate ${item.candidateId}`,
+      `Status: ${item.status}`,
+      `Reason: ${item.reason}`,
+      ...item.status === 'eligible' || item.status === 'approved'
+        ? [
+            `Admission: ${item.admissionId}`,
+            `Holdout: ${item.holdoutEvaluationId}`,
+            `Retention: ${item.retentionEvaluationId}`,
+            ...(item.generationId === undefined ? [] : [`Inactive Generation: ${item.generationId}`]),
+          ]
+        : ['Release remains terminal or blocked; no Generation or Session changed.'],
+    ].join('\n'),
   }
 }
 

@@ -679,6 +679,23 @@ export class SkillCandidateRepository {
       throw error
     }
   }
+
+  /**
+   * Resolve the exact canonical archive owned by an existing-Skill Candidate.
+   * Release governance receives immutable bytes only after the Candidate
+   * manifest, content digest, tree hash, and bounded archive all revalidate.
+   */
+  async resolveExistingBundle(
+    input: ExistingSkillCandidate,
+  ): Promise<AssembledSkillBundleArchive> {
+    const candidate = existingCandidateSchema.parse(input)
+    if (candidate.id !== existingSkillCandidateId(candidate)) {
+      throw new Error('existing Skill Candidate id does not match its content identity')
+    }
+    const root = this.existingRoots.get(candidate.workspaceId)
+    if (root === undefined) throw new Error('existing Skill Candidate policy is unavailable')
+    return readExistingCandidateArtifact(root, candidate)
+  }
 }
 
 export function skillCandidateId(

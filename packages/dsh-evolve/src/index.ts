@@ -76,6 +76,10 @@ import {
   ExistingSkillRetentionEvaluation,
   ExistingSkillRetentionEvaluationScheduler,
 } from './existing-skill-retention-evaluation.ts'
+import {
+  ExistingSkillRelease,
+  openExistingSkillReleaseStore,
+} from './existing-skill-release.ts'
 import { EvolutionControlPlane } from './evolution-control-plane.ts'
 import { EvolutionRemoteService } from './evolution-remote.ts'
 import { AutomaticEvolutionBudget } from './automatic-evolution-budget.ts'
@@ -151,6 +155,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     outcomes: deliveryOutcomes,
   })
   const skillCandidateStore = await openSkillCandidateStore(ctx.storageDomain)
+  const existingSkillReleaseStore = await openExistingSkillReleaseStore(ctx.storageDomain)
   let durableFeedbackAttribution: DurableFeedbackAttribution | undefined
   let reconcileExistingSkillCandidates: ((workspaceId: string) => void) | undefined
   const feedbackMonitor = installFeedbackSignalMonitor(ctx, feedbackSignals, store, {
@@ -371,6 +376,23 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         candidates: skillCandidates,
         governance: existingSkillHoldoutGovernance,
         holdouts: existingSkillHoldoutEvaluation,
+      })
+  const existingSkillRelease = existingSkillAdmission === undefined
+    || existingSkillHoldoutEvaluation === undefined
+    || existingSkillRetentionEvaluation === undefined
+    ? undefined
+    : new ExistingSkillRelease({
+        candidates: {
+          listExistingCandidates: workspaceId =>
+            skillCandidateStore.listExistingCandidates(workspaceId),
+          resolveExistingBundle: candidate => skillCandidates.resolveExistingBundle(candidate),
+        },
+        admissions: existingSkillAdmission,
+        holdouts: existingSkillHoldoutEvaluation,
+        retentions: existingSkillRetentionEvaluation,
+        decisions: existingSkillReleaseStore,
+        store,
+        bundles: source,
       })
   existingSkillRetentionEvaluationScheduler = existingSkillRetentionEvaluation === undefined
     ? undefined
@@ -603,6 +625,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   new EvolutionRemoteService(ctx, control)
   installEvolutionCommand(ctx, store, {
     ...(promotion === undefined ? {} : { promotion }),
+    ...(existingSkillRelease === undefined ? {} : { existingRelease: existingSkillRelease }),
     rollback,
     ...(review === undefined ? {} : { review }),
     ...(resident === undefined ? {} : { resident }),
@@ -757,6 +780,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     await feedbackSignals.close()
     await capabilityGaps.close()
     await skillCandidateStore.close()
+    await existingSkillReleaseStore.close()
     await disposeBinder()
     await store.close()
   }, 'dsh-evolve.runtimeClose')
@@ -828,6 +852,14 @@ export {
   ExistingSkillRetentionEvaluation,
   ExistingSkillRetentionEvaluationScheduler,
 } from './existing-skill-retention-evaluation.ts'
+export { ExistingSkillRelease, openExistingSkillReleaseStore } from './existing-skill-release.ts'
+export type {
+  ExistingSkillReleaseDecision,
+  ExistingSkillReleaseEligibility,
+  ExistingSkillReleaseReason,
+  ExistingSkillReleaseStore,
+} from './existing-skill-release.ts'
+export type { ExistingSkillCandidateLineage } from './existing-skill-candidate-lineage.ts'
 export type {
   ExistingSkillRetentionEvaluationEvidence,
   ExistingSkillRetentionEvaluationReason,

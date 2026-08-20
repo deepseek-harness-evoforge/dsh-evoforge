@@ -10,7 +10,15 @@ import {
   parseSkillCandidateLineage,
   type SkillCandidateLineage,
 } from './skill-candidate-lineage.ts'
-import { assembleSkillBundleArchive, decodeSkillBundleArchive } from './skill-bundle-archive.ts'
+import {
+  parseExistingSkillCandidateLineage,
+  type ExistingSkillCandidateLineage,
+} from './existing-skill-candidate-lineage.ts'
+import {
+  assembleSealedSkillBundleArchive,
+  assembleSkillBundleArchive,
+  decodeSkillBundleArchive,
+} from './skill-bundle-archive.ts'
 
 export interface GitSkillGenerationArtifact {
   kind: 'skill'
@@ -26,7 +34,7 @@ export interface SkillBundleGenerationArtifact {
   artifactDigest: string
   treeHash: string
   contentBase64: string
-  lineage: SkillCandidateLineage
+  lineage: SkillCandidateLineage | ExistingSkillCandidateLineage
 }
 
 export type SkillGenerationArtifact = GitSkillGenerationArtifact | SkillBundleGenerationArtifact
@@ -83,7 +91,7 @@ const hashSchema = z.string().regex(/^[a-f0-9]{64}$/)
 const workspaceIdSchema = z.uuid()
 const gitObjectSchema = z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/)
 const gitCommitSchema = z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/)
-const lineageSchema = z.custom<SkillCandidateLineage>((value) => {
+const newSkillLineageSchema = z.custom<SkillCandidateLineage>((value) => {
   try {
     parseSkillCandidateLineage(value)
     return true
@@ -91,12 +99,20 @@ const lineageSchema = z.custom<SkillCandidateLineage>((value) => {
     return false
   }
 }, 'invalid Skill Candidate lineage').transform(value => parseSkillCandidateLineage(value))
+const generationLineageSchema = z.custom<SkillCandidateLineage | ExistingSkillCandidateLineage>((value) => {
+  try {
+    parseGenerationLineage(value)
+    return true
+  } catch {
+    return false
+  }
+}, 'invalid Generation Skill lineage').transform(value => parseGenerationLineage(value))
 const gitArtifactSchema = z.strictObject({
   kind: z.literal('skill'),
   name: z.string().min(1),
   gitCommit: gitCommitSchema,
   treeHash: gitObjectSchema,
-  lineage: lineageSchema.optional(),
+  lineage: newSkillLineageSchema.optional(),
 })
 const skillBundleArtifactSchema = z.strictObject({
   kind: z.literal('skill-bundle'),
@@ -104,7 +120,7 @@ const skillBundleArtifactSchema = z.strictObject({
   artifactDigest: hashSchema,
   treeHash: hashSchema,
   contentBase64: z.string().base64().min(1).max(2 * 1024 * 1024),
-  lineage: lineageSchema,
+  lineage: generationLineageSchema,
 }).superRefine((artifact, context) => {
   if (artifact.name !== artifact.lineage.skillName
     || artifact.artifactDigest !== artifact.lineage.contentHash
@@ -468,15 +484,24 @@ async function verifySkillBundleArtifact(
     throw new Error(`Skill bundle artifact '${artifact.name}' has invalid ownership or encoding`)
   }
   const decoded = await decodeSkillBundleArchive(content)
-  const assembled = await assembleSkillBundleArchive(decoded.files.map(file => ({
-    path: file.path,
-    content: decodeCanonicalUtf8(file.content),
-  })))
+  const assembled = artifact.lineage.kind === 'existing-skill-candidate-lineage-v1'
+    ? await assembleSealedSkillBundleArchive(decoded.files)
+    : await assembleSkillBundleArchive(decoded.files.map(file => ({
+        path: file.path,
+        content: decodeCanonicalUtf8(file.content),
+      })))
   if (!assembled.content.equals(content)
     || assembled.artifactDigest !== artifact.artifactDigest
     || assembled.treeHash !== artifact.treeHash) {
     throw new Error(`Skill bundle artifact '${artifact.name}' failed content identity verification`)
   }
+}
+
+function parseGenerationLineage(value: unknown): SkillCandidateLineage | ExistingSkillCandidateLineage {
+  if (isRecord(value) && value.kind === 'existing-skill-candidate-lineage-v1') {
+    return parseExistingSkillCandidateLineage(value)
+  }
+  return parseSkillCandidateLineage(value)
 }
 
 function decodeCanonicalUtf8(content: Buffer): string {
@@ -485,6 +510,10 @@ function decodeCanonicalUtf8(content: Buffer): string {
     throw new Error('Skill bundle artifact contains non-canonical UTF-8 text')
   }
   return value
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 export async function openEvolutionStore(facility: DomainFacility): Promise<EvolutionStore> {

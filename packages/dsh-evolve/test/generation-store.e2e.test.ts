@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -6,6 +7,10 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { JobRegistry } from '@deepseek-ai/dsh-jobs'
 import { openEvolutionStore, type EvolutionStore } from '../src/generation-store.js'
+import {
+  openExistingSkillReleaseStore,
+  type ExistingSkillReleaseDecision,
+} from '../src/existing-skill-release.ts'
 import { assembleSkillBundleArchive } from '../src/skill-bundle-archive.js'
 import type { SkillCandidateLineage } from '../src/skill-candidate-lineage.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
@@ -526,6 +531,50 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
       await ctx.fiber.dispose()
     }
   })
+
+  it('persists an immutable existing-Skill human decision across a real Storage restart', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-existing-release-store-'))
+    temporaryRoots.push(root)
+    const configPath = await writeStorageConfig(root)
+    const content = {
+      kind: 'existing-skill-release-decision-v1' as const,
+      candidateId: '1'.repeat(64),
+      workspaceId: WORKSPACE_ID,
+      skillName: 'shared-skill',
+      status: 'rejected' as const,
+      actor: 'human' as const,
+      decisionNote: 'Do not release this exact Candidate.',
+      decidedAt: '2026-08-21T00:00:00.000Z',
+      evidenceHash: '2'.repeat(64),
+    }
+    const decision: ExistingSkillReleaseDecision = {
+      schemaVersion: 1,
+      id: sha256Json(content),
+      ...content,
+    }
+
+    const firstCtx = await bootStorage(configPath)
+    const first = await openExistingSkillReleaseStore(firstCtx.storageDomain)
+    try {
+      await expect(first.record(decision)).resolves.toEqual({ created: true, decision })
+      await expect(first.record(decision)).resolves.toEqual({ created: false, decision })
+      await expect(first.record({ ...decision, decisionNote: 'Conflicting decision.' }))
+        .rejects.toThrow('decision id is invalid')
+    } finally {
+      await first.close()
+      await firstCtx.fiber.dispose()
+    }
+
+    const resumedCtx = await bootStorage(configPath)
+    const resumed = await openExistingSkillReleaseStore(resumedCtx.storageDomain)
+    try {
+      expect(resumed.get(decision.candidateId)).toEqual(decision)
+      expect(resumed.list(WORKSPACE_ID)).toEqual([decision])
+    } finally {
+      await resumed.close()
+      await resumedCtx.fiber.dispose()
+    }
+  })
 })
 
 function discoveredLineage(candidateTreeHash: string): SkillCandidateLineage {
@@ -553,6 +602,19 @@ function session(sessionId: string, createdAt: number) {
     createdAt,
     cwd: '/workspace/project',
   }
+}
+
+function sha256Json(value: unknown): string {
+  return createHash('sha256').update(canonicalJson(value)).digest('hex')
+}
+
+function canonicalJson(value: unknown): string {
+  if (value === null || typeof value === 'boolean' || typeof value === 'number' || typeof value === 'string') {
+    return JSON.stringify(value)
+  }
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`
+  const record = value as Record<string, unknown>
+  return `{${Object.keys(record).sort().map(key => `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(',')}}`
 }
 
 async function writeStorageConfig(root: string): Promise<string> {

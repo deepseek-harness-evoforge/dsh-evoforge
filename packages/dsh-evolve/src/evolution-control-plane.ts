@@ -1003,6 +1003,7 @@ async function projectReviews(
         reviewId: candidate.id,
         skillName: candidate.skillName,
         ...(artifact?.lineage === undefined
+          || artifact.lineage.kind !== 'internal-skill-candidate-lineage-v3'
           ? {}
           : { lineage: projectSkillCandidateLineage(artifact.lineage) }),
         promotion: {
@@ -1040,6 +1041,7 @@ function projectGeneration(generation: ReturnType<EvolutionStore['getActiveGener
         : { artifactDigest: artifact.artifactDigest }),
       treeHash: artifact.treeHash,
       ...(artifact.lineage === undefined
+        || artifact.lineage.kind !== 'internal-skill-candidate-lineage-v3'
         ? {}
         : { lineage: projectSkillCandidateLineage(artifact.lineage) }),
     })),

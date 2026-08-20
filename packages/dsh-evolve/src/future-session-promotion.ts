@@ -137,6 +137,7 @@ function exactGenerationReview(
     artifact.kind === 'skill-bundle'
     && artifact.name === review.skillName
     && artifact.treeHash === review.candidateTreeHash
+    && artifact.lineage.kind === 'internal-skill-candidate-lineage-v3'
     && exactLineage(artifact.lineage, review.lineage!))
   return artifacts.length === 1
 }

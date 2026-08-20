@@ -23,7 +23,11 @@ import type {
   SkillBundleGenerationArtifact,
   SkillGenerationArtifact,
 } from './generation-store.ts'
-import { assembleSkillBundleArchive, decodeSkillBundleArchive } from './skill-bundle-archive.ts'
+import {
+  assembleSealedSkillBundleArchive,
+  assembleSkillBundleArchive,
+  decodeSkillBundleArchive,
+} from './skill-bundle-archive.ts'
 
 const CACHE_SCHEMA_VERSION = 2
 const PROVIDER_NAME = 'evoforge-generation'
@@ -142,10 +146,12 @@ export class GenerationBundleRepository {
       throw new Error(`Generation Skill bundle '${artifact.name}' is not canonical base64`)
     }
     const decoded = await decodeSkillBundleArchive(content)
-    const assembled = await assembleSkillBundleArchive(decoded.files.map(file => ({
-      path: file.path,
-      content: decodeCanonicalUtf8(file.content),
-    })))
+    const assembled = artifact.lineage.kind === 'existing-skill-candidate-lineage-v1'
+      ? await assembleSealedSkillBundleArchive(decoded.files)
+      : await assembleSkillBundleArchive(decoded.files.map(file => ({
+          path: file.path,
+          content: decodeCanonicalUtf8(file.content),
+        })))
     if (!assembled.content.equals(content)
       || sha256(content) !== artifact.artifactDigest
       || assembled.treeHash !== artifact.treeHash

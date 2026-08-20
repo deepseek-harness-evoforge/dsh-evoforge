@@ -5,7 +5,10 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import * as EvolvePlugin from '../src/index.js'
 import type { EvolutionStore } from '../src/generation-store.js'
-import { assembleSkillBundleArchive } from '../src/skill-bundle-archive.js'
+import {
+  assembleSealedSkillBundleArchive,
+  assembleSkillBundleArchive,
+} from '../src/skill-bundle-archive.js'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -195,6 +198,135 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
       { cwd: root, scope: resumedAgent },
     ))?.content).toBe(evolvedSkill?.content)
     await resumedCtx.fiber.dispose()
+  })
+
+  it('replaces an installed same-name Skill only for future Sessions and restores native selection exactly', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-existing-generation-binder-'))
+    temporaryRoots.push(root)
+    const ctx = await bootStorage(await writeStorageConfig(root))
+    await installAgentRuntime(ctx)
+    const nativeSkills = ctx.get('skills') as {
+      register(skill: {
+        name: string
+        description: string
+        source: string
+        content: string
+      }): () => void
+      get(name: string, options: { cwd?: string; scope?: object }): Promise<{
+        content: string
+        provider: string
+        resourceBase?: { kind: string; path?: string }
+      } | undefined>
+    } | undefined
+    if (nativeSkills === undefined) throw new Error('DSH Skill Registry did not load')
+    nativeSkills.register({
+      name: 'shared-release-proof',
+      description: 'Native installed release behavior.',
+      source: 'fixture-native',
+      content: 'NATIVE INSTALLED BEHAVIOR',
+    })
+    await ctx.plugin(EvolvePlugin, { cacheRoot: join(root, 'cache') })
+    const store = ctx.get('evoforge.evolution') as EvolutionStore | undefined
+    if (store === undefined) throw new Error('evolution store did not load')
+    const before = await createAndRunAgent(ctx, 'existing-before-promotion', root)
+    const beforeDefinition = await nativeSkills.get(
+      'shared-release-proof',
+      { cwd: root, scope: before },
+    )
+    const bundle = await assembleSealedSkillBundleArchive([{
+      path: 'SKILL.md',
+      mode: '100644',
+      content: Buffer.from([
+        '---',
+        'name: shared-release-proof',
+        'description: Corrected installed release behavior.',
+        '---',
+        '',
+        '# Shared Release Proof',
+        '',
+        'CANDIDATE CORRECTED BEHAVIOR',
+        '',
+      ].join('\n')),
+    }, {
+      path: 'assets/preserved.bin',
+      mode: '100644',
+      content: Buffer.from([0, 1, 2, 255]),
+    }])
+    const generation = (await store.publishGeneration({
+      workspaceId: WORKSPACE_ID,
+      createdAt: 1_777_000_000_000,
+      artifacts: [{
+        kind: 'skill-bundle',
+        name: 'shared-release-proof',
+        artifactDigest: bundle.artifactDigest,
+        treeHash: bundle.treeHash,
+        contentBase64: bundle.content.toString('base64'),
+        lineage: {
+          kind: 'existing-skill-candidate-lineage-v1',
+          candidateId: '1'.repeat(64),
+          workspaceId: WORKSPACE_ID,
+          skillName: 'shared-release-proof',
+          opportunityId: '2'.repeat(64),
+          qualificationId: '3'.repeat(64),
+          baselineId: '4'.repeat(64),
+          baselineArtifactDigest: '5'.repeat(64),
+          baselineTreeHash: '6'.repeat(64),
+          evaluationEvidenceId: '7'.repeat(64),
+          policyId: 'existing-release-proof',
+          versionKind: 'existing-skill-improvement-bundle-v1',
+          contentHash: bundle.artifactDigest,
+          candidateTreeHash: bundle.treeHash,
+          admissionId: '8'.repeat(64),
+          evaluationEnvelopeId: '9'.repeat(64),
+          holdoutEvaluationId: 'a'.repeat(64),
+          holdoutCasePackHash: 'b'.repeat(64),
+          retentionEvaluationId: 'c'.repeat(64),
+          retentionCasePackHash: 'd'.repeat(64),
+          releaseAuthority: 'none',
+        },
+      }],
+      evaluatorVersion: 'existing-skill-paired-v1',
+      policyVersion: 'human-review-existing-skill-v1',
+      compositionFingerprint: 'e'.repeat(64),
+    })).generation
+
+    await store.promoteGeneration(WORKSPACE_ID, generation.id)
+    const evolved = await createAndRunAgent(ctx, 'existing-after-promotion', root)
+    await runAgentTurn(before, 'continue with the pinned native Skill')
+    const beforeAfterPromotion = await nativeSkills.get(
+      'shared-release-proof',
+      { cwd: root, scope: before },
+    )
+    const evolvedDefinition = await nativeSkills.get(
+      'shared-release-proof',
+      { cwd: root, scope: evolved },
+    )
+
+    await store.rollbackGeneration(WORKSPACE_ID, generation.id)
+    const afterRollback = await createAndRunAgent(ctx, 'existing-after-rollback', root)
+    const rollbackDefinition = await nativeSkills.get(
+      'shared-release-proof',
+      { cwd: root, scope: afterRollback },
+    )
+    const evolvedAfterRollback = await nativeSkills.get(
+      'shared-release-proof',
+      { cwd: root, scope: evolved },
+    )
+
+    expect(beforeDefinition?.content).toBe('NATIVE INSTALLED BEHAVIOR')
+    expect(beforeAfterPromotion?.content).toBe('NATIVE INSTALLED BEHAVIOR')
+    expect(evolvedDefinition?.provider).toBe('evoforge-generation')
+    expect(evolvedDefinition?.content).toContain('CANDIDATE CORRECTED BEHAVIOR')
+    expect(await readFile(
+      join(evolvedDefinition?.resourceBase?.path ?? '', 'assets', 'preserved.bin'),
+    )).toEqual(Buffer.from([0, 1, 2, 255]))
+    expect(rollbackDefinition?.content).toBe('NATIVE INSTALLED BEHAVIOR')
+    expect(evolvedAfterRollback?.content).toBe(evolvedDefinition?.content)
+    expect(store.getSessionGeneration(identityOf(before))).toBeUndefined()
+    expect(store.getSessionGeneration(identityOf(evolved))?.id).toBe(generation.id)
+    expect(store.getSessionGeneration(identityOf(afterRollback))).toBeUndefined()
+
+    await ctx.fiber.dispose()
   })
 })
 

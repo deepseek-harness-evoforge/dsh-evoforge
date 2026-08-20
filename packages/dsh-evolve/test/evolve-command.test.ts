@@ -9,7 +9,7 @@ import type { ReviewCandidate, ReviewInbox } from '../src/review-inbox.js'
 import type { DeliveryOutcomeStore } from '../src/delivery-outcome-monitor.js'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
-const USAGE = 'Usage: /evolve [status|feedback [<signal-id>]|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback [<64-char-canary-id>]]'
+const USAGE = 'Usage: /evolve [status|feedback [<signal-id>]|review [<review-id> [approve|reject <note>]]|existing [<candidate-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|promote-existing <candidate-id>|rollback [<64-char-canary-id>]]'
 const rootId = '1'.repeat(64)
 const childId = '2'.repeat(64)
 
@@ -232,6 +232,73 @@ describe('/evolve host command', () => {
       text: expect.stringContaining(`/evolve promote ${childId}`),
     })
     expect(publisher.publish).toHaveBeenCalledWith(candidate)
+  })
+
+  it('reviews and promotes an exact existing-Skill Candidate through its separate Host gate', async () => {
+    const candidateId = 'd'.repeat(64)
+    const eligibility = {
+      status: 'eligible' as const,
+      reason: 'exact-existing-skill-evidence-retained' as const,
+      candidateId,
+      admissionId: '3'.repeat(64),
+      holdoutEvaluationId: '4'.repeat(64),
+      retentionEvaluationId: '5'.repeat(64),
+    }
+    const decision = {
+      schemaVersion: 1 as const,
+      kind: 'existing-skill-release-decision-v1' as const,
+      id: '6'.repeat(64),
+      candidateId,
+      workspaceId: WORKSPACE_ID,
+      skillName: 'shared-skill',
+      status: 'approved' as const,
+      actor: 'human' as const,
+      decisionNote: 'Exact diff reviewed.',
+      decidedAt: '2026-08-21T00:00:00.000Z',
+      evidenceHash: '7'.repeat(64),
+      admissionId: eligibility.admissionId,
+      holdoutEvaluationId: eligibility.holdoutEvaluationId,
+      retentionEvaluationId: eligibility.retentionEvaluationId,
+      generationId: childId,
+    }
+    const existingRelease = {
+      scan: vi.fn(async () => [eligibility]),
+      eligibility: vi.fn(async () => eligibility),
+      approve: vi.fn(async () => decision),
+      reject: vi.fn(),
+      promote: vi.fn(async () => ({
+        previousId: undefined,
+        generation: generation(childId),
+      })),
+    }
+
+    await expect(executeEvolutionCommand(fakeStore(), 'existing', { existingRelease }))
+      .resolves.toMatchObject({
+        kind: 'success',
+        text: expect.stringContaining(`${candidateId} [eligible]`),
+      })
+    await expect(executeEvolutionCommand(
+      fakeStore(),
+      `existing ${candidateId} approve Exact diff reviewed.`,
+      { existingRelease },
+    )).resolves.toMatchObject({
+      kind: 'success',
+      text: expect.stringContaining(`Inactive Generation: ${childId}`),
+    })
+    await expect(executeEvolutionCommand(
+      fakeStore(),
+      `promote-existing ${candidateId}`,
+      { existingRelease },
+    )).resolves.toMatchObject({
+      kind: 'success',
+      text: expect.stringContaining('Existing Skill Generation promoted for future Sessions.'),
+    })
+    expect(existingRelease.approve).toHaveBeenCalledWith(
+      WORKSPACE_ID,
+      candidateId,
+      'Exact diff reviewed.',
+    )
+    expect(existingRelease.promote).toHaveBeenCalledWith(WORKSPACE_ID, candidateId)
   })
 
   it('durably pauses and resumes resident recovery', async () => {
