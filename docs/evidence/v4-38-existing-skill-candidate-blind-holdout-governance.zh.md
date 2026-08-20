@@ -1,7 +1,7 @@
 # V4.38 现有 Skill Candidate 不可见 Holdout 治理
 
 日期：2026-08-21
-状态：`implemented`（自动化验证通过；尚未执行 baseline/Candidate paired Trial）
+状态：`implemented`（本增量只形成治理包；后继 [V4.39](v4-39-existing-skill-exact-paired-holdout-evaluation.zh.md) 已执行 exact paired holdout）
 
 ## 本增量回答的问题
 

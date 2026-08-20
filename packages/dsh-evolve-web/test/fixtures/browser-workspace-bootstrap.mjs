@@ -20,20 +20,23 @@ export async function apply(ctx, config) {
   await mkdir(config.runRoot, { recursive: true })
   const evolvePlugin = await import(pathToFileURL(config.evolveEntry).href)
   const workspace = await ctx.workspaceRegistry.create(config.workspacePath, 'EvoForge Browser Acceptance')
+  const configureEvaluation = config.seedCapabilityGaps === true
+    || config.seedExistingSkillHoldoutEvaluation === true
   const evolutionFiber = ctx.root.plugin(evolvePlugin, {
     cacheRoot: config.cacheRoot,
-    ...(config.seedCapabilityGaps === true
+    ...(configureEvaluation
       ? { candidateEvaluationPolicies: [{
           id: 'browser-evaluation-governance',
           workspaceId: String(workspace.id),
           governanceRoot: config.governanceRoot,
           runRoot: config.runRoot,
+          dshRevision: '47f943859bef60e4160492346772ded9b24f765a',
         }] }
       : {}),
     supervisor: {
       runRoots: [{
         workspaceId: String(workspace.id),
-        path: config.seedCapabilityGaps === true ? join(config.runRoot, 'shadow') : config.runRoot,
+        path: configureEvaluation ? join(config.runRoot, 'shadow') : config.runRoot,
       }],
       scanIntervalMs: 30_000,
     },
@@ -62,6 +65,9 @@ export async function apply(ctx, config) {
   if (config.seedSkillEvaluationRuns === true) {
     await seedExactSkillEvaluationRuns(ctx, workspace, config)
   }
+  if (config.seedExistingSkillHoldoutEvaluation === true) {
+    await seedExistingSkillHoldoutEvaluation(workspace, config)
+  }
   if (config.seedGoalMetrics === true) {
     await seedNativeGoalMetrics(ctx, workspace, agent)
   }
@@ -84,6 +90,101 @@ export async function apply(ctx, config) {
     await evolutionFiber.dispose()
     await handle?.dispose()
   }, 'evoforge-browser-workspace-bootstrap.dispose')
+}
+
+/** Seed one exact durable result for the production existing-Skill scanner. */
+async function seedExistingSkillHoldoutEvaluation(workspace, config) {
+  const workspaceId = String(workspace.id)
+  const policyId = 'browser-evaluation-governance'
+  const candidateId = '4'.repeat(64)
+  const admissionId = '5'.repeat(64)
+  const envelopeId = '6'.repeat(64)
+  const opportunityId = '7'.repeat(64)
+  const qualificationId = '8'.repeat(64)
+  const baselineId = '9'.repeat(64)
+  const baselineTreeHash = 'a'.repeat(64)
+  const candidateTreeHash = 'b'.repeat(64)
+  const casePackHash = 'c'.repeat(64)
+  const dshRevision = '47f943859bef60e4160492346772ded9b24f765a'
+  const skillName = 'verify-dsh-release'
+  const id = sha256(JSON.stringify([
+    'existing-skill-holdout-evaluation-v1',
+    policyId,
+    candidateId,
+    admissionId,
+    envelopeId,
+    workspaceId,
+    skillName,
+    opportunityId,
+    qualificationId,
+    baselineId,
+    baselineTreeHash,
+    candidateTreeHash,
+    casePackHash,
+    dshRevision,
+  ]))
+  const runRoot = await realpath(config.runRoot)
+  const runDir = join(runRoot, 'existing-skill-holdout', 'runs', id)
+  const reportPath = join(runDir, 'result.json')
+  const startedAt = '2026-08-21T00:00:00.000Z'
+  const finishedAt = '2026-08-21T00:00:01.000Z'
+  await mkdir(runDir, { recursive: true })
+  await writeFixtureJson(join(runDir, 'state.json'), {
+    schemaVersion: 1,
+    kind: 'existing-skill-holdout-evaluation-state-v1',
+    id,
+    policyId,
+    candidateId,
+    admissionId,
+    envelopeId,
+    workspaceId,
+    skillName,
+    opportunityId,
+    qualificationId,
+    baselineId,
+    baselineTreeHash,
+    candidateTreeHash,
+    casePackHash,
+    dshRevision,
+    phase: 'complete',
+    createdAt: startedAt,
+    updatedAt: finishedAt,
+  })
+  await writeFixtureJson(reportPath, {
+    schemaVersion: 1,
+    kind: 'existing-skill-holdout-evaluation-result-v1',
+    id,
+    candidateId,
+    admissionId,
+    envelopeId,
+    workspaceId,
+    skillName,
+    status: 'complete',
+    verdict: 'improved',
+    reason: 'candidate-passed-protected-holdout',
+    evidence: {
+      baselineTreeHash,
+      candidateTreeHash,
+      casePackHash,
+      baseline: 'fail',
+      candidate: 'pass',
+      calibrationPassed: true,
+      assembled: true,
+      compositionStable: true,
+      inputIntegrityStable: true,
+      proposerCalls: 0,
+      trialCount: 4,
+      modelCalls: { baseline: 1, candidate: 1 },
+      usage: {
+        baseline: { inputTokens: 120, outputTokens: 20, cacheReadTokens: 40 },
+        candidate: { inputTokens: 110, outputTokens: 18, cacheReadTokens: 50 },
+      },
+    },
+    reportPath,
+    startedAt,
+    finishedAt,
+    releaseAuthority: 'none',
+  })
 }
 
 /**

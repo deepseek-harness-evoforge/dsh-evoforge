@@ -98,11 +98,25 @@ export interface ExistingSkillHoldoutEnvelope {
   readonly opportunityId: string
   readonly qualificationId: string
   readonly baselineId: string
+  readonly baselineTreeHash: string
   readonly evaluationEvidenceId: string
+  readonly proposerModelIdentityHash: string
   readonly casePackDir: string
   readonly casePackHash: string
   readonly dshRevision: string
   readonly releaseAuthority: 'none'
+}
+
+export interface ExistingSkillHoldoutCandidateBinding {
+  readonly envelopeId: string
+  readonly workspaceId: string
+  readonly skillName: string
+  readonly opportunityId: string
+  readonly qualificationId: string
+  readonly baselineId: string
+  readonly baselineTreeHash: string
+  readonly evaluationEvidenceId: string
+  readonly proposerModelIdentityHash: string
 }
 
 export type ExistingSkillHoldoutGovernanceResult =
@@ -196,9 +210,11 @@ const stateSchema = z.strictObject({
 type HoldoutState = z.infer<typeof stateSchema>
 
 interface HoldoutBinding {
-  readonly schemaVersion: 1
-  readonly kind: 'existing-skill-holdout-envelope-v1'
+  readonly schemaVersion: 2
+  readonly kind: 'existing-skill-holdout-envelope-v2'
   readonly id: string
+  readonly governanceId: string
+  readonly policyId: string
   readonly workspaceId: string
   readonly skillName: string
   readonly opportunityId: string
@@ -206,6 +222,7 @@ interface HoldoutBinding {
   readonly baselineId: string
   readonly baselineTreeHash: string
   readonly evaluationEvidenceId: string
+  readonly proposerModelIdentityHash: string
   readonly governanceModelIdentityHash: string
   readonly holdoutInputDigest: string
   readonly casePackHash: string
@@ -305,6 +322,36 @@ export class ExistingSkillHoldoutGovernance {
       runs: Object.freeze(runs.sort((left, right) =>
         right.updatedAt.localeCompare(left.updatedAt) || left.id.localeCompare(right.id))),
     })
+  }
+
+  async resolve(input: ExistingSkillHoldoutCandidateBinding): Promise<ExistingSkillHoldoutEnvelope | undefined> {
+    assertCandidateBinding(input)
+    const policy = this.policies.get(input.workspaceId)
+    if (policy === undefined) return undefined
+    const root = join(
+      policy.governanceRoot,
+      'existing-skill-holdouts',
+      input.opportunityId,
+      input.qualificationId,
+      input.evaluationEvidenceId,
+    )
+    const located = await readEnvelope(root)
+    if (located === undefined) return undefined
+    const { binding } = located
+    if (binding.id !== input.envelopeId
+      || binding.policyId !== policy.id
+      || binding.workspaceId !== input.workspaceId
+      || binding.skillName !== input.skillName
+      || binding.opportunityId !== input.opportunityId
+      || binding.qualificationId !== input.qualificationId
+      || binding.baselineId !== input.baselineId
+      || binding.baselineTreeHash !== input.baselineTreeHash
+      || binding.evaluationEvidenceId !== input.evaluationEvidenceId
+      || binding.proposerModelIdentityHash !== input.proposerModelIdentityHash
+      || binding.dshRevision !== policy.dshRevision) {
+      throw new Error('existing-Skill holdout Envelope does not match its Candidate binding')
+    }
+    return located.envelope
   }
 
   private async ensureNow(
@@ -524,6 +571,20 @@ function assertSubject(subject: ExistingSkillHoldoutGovernanceSubject): void {
     || evidence.proposerCanReadProtectedSamples !== false
     || evidence.releaseAuthority !== 'none') {
     throw new Error('existing-Skill holdout subject does not bind one exact protected baseline')
+  }
+}
+
+function assertCandidateBinding(input: ExistingSkillHoldoutCandidateBinding): void {
+  if (!CONTENT_ID.test(input.envelopeId)
+    || typeof input.workspaceId !== 'string'
+    || !PUBLIC_ID.test(input.skillName)
+    || !CONTENT_ID.test(input.opportunityId)
+    || !CONTENT_ID.test(input.qualificationId)
+    || !CONTENT_ID.test(input.baselineId)
+    || !CONTENT_ID.test(input.baselineTreeHash)
+    || !CONTENT_ID.test(input.evaluationEvidenceId)
+    || !CONTENT_ID.test(input.proposerModelIdentityHash)) {
+    throw new Error('existing-Skill holdout Candidate binding is invalid')
   }
 }
 
@@ -749,10 +810,11 @@ async function installEnvelope(
   const parent = dirname(target)
   await mkdir(parent, { recursive: true, mode: 0o700 })
   await exactDirectory(parent)
-  const binding: HoldoutBinding = {
-    schemaVersion: 1,
-    kind: 'existing-skill-holdout-envelope-v1',
-    id: sha256Json(['existing-skill-holdout-envelope-v1', identity, casePackHash]),
+  const body: Omit<HoldoutBinding, 'id'> = {
+    schemaVersion: 2,
+    kind: 'existing-skill-holdout-envelope-v2',
+    governanceId: identity.id,
+    policyId: identity.policyId,
     workspaceId: identity.workspaceId,
     skillName: identity.skillName,
     opportunityId: identity.opportunityId,
@@ -760,12 +822,14 @@ async function installEnvelope(
     baselineId: identity.baselineId,
     baselineTreeHash: identity.baselineTreeHash,
     evaluationEvidenceId: identity.evaluationEvidenceId,
+    proposerModelIdentityHash: identity.proposerModelIdentityHash,
     governanceModelIdentityHash: identity.governanceModelIdentityHash,
     holdoutInputDigest: identity.holdoutInputDigest,
     casePackHash,
     dshRevision: identity.dshRevision,
     releaseAuthority: 'none',
   }
+  const binding: HoldoutBinding = { ...body, id: holdoutBindingId(body) }
   const stage = join(parent, `.holdout-${randomUUID()}`)
   await mkdir(stage, { mode: 0o700 })
   try {
@@ -788,15 +852,12 @@ async function readOptionalEnvelope(
   root: string,
   identity: HoldoutState['identity'] & { readonly id: string },
 ): Promise<ExistingSkillHoldoutEnvelope | undefined> {
-  try {
-    await exactDirectory(root)
-  } catch (error) {
-    if (isMissing(error)) return undefined
-    throw error
-  }
-  const value = await readBoundedJson(join(root, 'binding.json'), MAX_BINDING_BYTES)
-  const binding = parseBinding(value)
+  const located = await readEnvelope(root)
+  if (located === undefined) return undefined
+  const { binding } = located
   const expectedWithoutId = {
+    governanceId: identity.id,
+    policyId: identity.policyId,
     workspaceId: identity.workspaceId,
     skillName: identity.skillName,
     opportunityId: identity.opportunityId,
@@ -804,6 +865,7 @@ async function readOptionalEnvelope(
     baselineId: identity.baselineId,
     baselineTreeHash: identity.baselineTreeHash,
     evaluationEvidenceId: identity.evaluationEvidenceId,
+    proposerModelIdentityHash: identity.proposerModelIdentityHash,
     governanceModelIdentityHash: identity.governanceModelIdentityHash,
     holdoutInputDigest: identity.holdoutInputDigest,
     dshRevision: identity.dshRevision,
@@ -812,31 +874,50 @@ async function readOptionalEnvelope(
     binding[key as keyof HoldoutBinding] !== expected)) {
     throw new Error('existing-Skill holdout binding does not match its protected subject')
   }
+  return located.envelope
+}
+
+async function readEnvelope(
+  root: string,
+): Promise<{ readonly binding: HoldoutBinding; readonly envelope: ExistingSkillHoldoutEnvelope } | undefined> {
+  try {
+    await exactDirectory(root)
+  } catch (error) {
+    if (isMissing(error)) return undefined
+    throw error
+  }
+  const value = await readBoundedJson(join(root, 'binding.json'), MAX_BINDING_BYTES)
+  const binding = parseBinding(value)
   const casePackDir = join(root, 'case-pack')
   if (await hashTree(await exactDirectory(casePackDir)) !== binding.casePackHash
-    || binding.id !== sha256Json(['existing-skill-holdout-envelope-v1', identity, binding.casePackHash])) {
+    || binding.id !== holdoutBindingId(binding)) {
     throw new Error('existing-Skill holdout Case Pack content identity is invalid')
   }
-  return Object.freeze({
+  const envelope = Object.freeze({
     id: binding.id,
     workspaceId: binding.workspaceId,
     skillName: binding.skillName,
     opportunityId: binding.opportunityId,
     qualificationId: binding.qualificationId,
     baselineId: binding.baselineId,
+    baselineTreeHash: binding.baselineTreeHash,
     evaluationEvidenceId: binding.evaluationEvidenceId,
+    proposerModelIdentityHash: binding.proposerModelIdentityHash,
     casePackDir,
     casePackHash: binding.casePackHash,
     dshRevision: binding.dshRevision,
     releaseAuthority: 'none',
   })
+  return Object.freeze({ binding, envelope })
 }
 
 function parseBinding(value: unknown): HoldoutBinding {
   if (!isRecord(value)
-    || value.schemaVersion !== 1
-    || value.kind !== 'existing-skill-holdout-envelope-v1'
+    || value.schemaVersion !== 2
+    || value.kind !== 'existing-skill-holdout-envelope-v2'
     || !CONTENT_ID.test(String(value.id))
+    || !CONTENT_ID.test(String(value.governanceId))
+    || !PUBLIC_ID.test(String(value.policyId))
     || typeof value.workspaceId !== 'string'
     || !PUBLIC_ID.test(String(value.skillName))
     || !CONTENT_ID.test(String(value.opportunityId))
@@ -844,6 +925,7 @@ function parseBinding(value: unknown): HoldoutBinding {
     || !CONTENT_ID.test(String(value.baselineId))
     || !CONTENT_ID.test(String(value.baselineTreeHash))
     || !CONTENT_ID.test(String(value.evaluationEvidenceId))
+    || !CONTENT_ID.test(String(value.proposerModelIdentityHash))
     || !CONTENT_ID.test(String(value.governanceModelIdentityHash))
     || !CONTENT_ID.test(String(value.holdoutInputDigest))
     || !CONTENT_ID.test(String(value.casePackHash))
@@ -852,6 +934,29 @@ function parseBinding(value: unknown): HoldoutBinding {
     throw new Error('existing-Skill holdout binding has an invalid shape')
   }
   return value as unknown as HoldoutBinding
+}
+
+function holdoutBindingId(value: Omit<HoldoutBinding, 'id'> | HoldoutBinding): string {
+  const body = {
+    schemaVersion: value.schemaVersion,
+    kind: value.kind,
+    governanceId: value.governanceId,
+    policyId: value.policyId,
+    workspaceId: value.workspaceId,
+    skillName: value.skillName,
+    opportunityId: value.opportunityId,
+    qualificationId: value.qualificationId,
+    baselineId: value.baselineId,
+    baselineTreeHash: value.baselineTreeHash,
+    evaluationEvidenceId: value.evaluationEvidenceId,
+    proposerModelIdentityHash: value.proposerModelIdentityHash,
+    governanceModelIdentityHash: value.governanceModelIdentityHash,
+    holdoutInputDigest: value.holdoutInputDigest,
+    casePackHash: value.casePackHash,
+    dshRevision: value.dshRevision,
+    releaseAuthority: value.releaseAuthority,
+  }
+  return sha256Json(['existing-skill-holdout-envelope-v2', body])
 }
 
 async function prepareState(

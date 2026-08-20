@@ -1,7 +1,7 @@
 # EvoForge 可证明自进化架构
 
 > 更新日期：2026-08-21
-> 当前状态：内部 Goal 经验到 exact Retention、future-Session Promotion Eligibility、失败 Outcome 触发的 sealed Canary evidence 和 expected-active Rollback Gate 活动纵切已实现；existing-Skill 调用时完整 Bundle 封存与同一基线资格门禁已实现，protected author/Candidate/paired evaluation、Canary/rollback 最终 tarball 浏览器故障恢复、长期 Outcome 归因、真实 provider 和 Hermes paired benchmark 尚未完成。
+> 当前状态：内部 Goal 经验到 exact Retention、future-Session Promotion Eligibility、失败 Outcome 触发的 sealed Canary evidence 和 expected-active Rollback Gate 活动纵切已实现；existing-Skill 调用时完整 Bundle、同一基线资格、protected whole-tree Candidate、结构准入和 Candidate-blind exact paired holdout 已实现，并从最终 tarball 完成真实 DSH Web 故障恢复/卸载。existing-Skill Retention/Canary/晋升/回滚、长期 Outcome 归因、两套独立真实 provider 和 Hermes paired benchmark 尚未完成。
 
 ## 1. 用户结果
 
@@ -76,7 +76,7 @@ Natural-language Goal
 
 ### 4.3 Existing-Skill improvement
 
-已安装 Skill 与缺失 Skill 分轨。只有同 Workspace、同 Skill 名、同 invocation-content hash 在至少两个不同 Goal 收到明确纠正，才会形成独立调查。局部 hash 不是完整 Skill package；Host 在每次原生调用边界封存完整目录 Bundle，并把每个 correction 的 immutable Session/invocation reference 逐一重验。全部引用必须指向同一个内容寻址 baseline，missing 等待，漂移、损坏、错配或多个 Bundle 均 invalid。至少四个不同 Goal 后，Host 再经官方 Message Feedback/Session Persistence 读取当前纠正与 exact durable Goal/请求，在 Candidate 调用前内容寻址密封 authoring/admission/holdout；第五个及以上额外保留 Retention。proposer 只得到 authoring，保护正文不进入 Remote/Web。成功仍只允许进入后继 protected existing-Skill authoring，无 Candidate、安装或发布权。
+已安装 Skill 与缺失 Skill 分轨。只有同 Workspace、同 Skill 名、同 invocation-content hash 在至少两个不同 Goal 收到明确纠正，才会形成独立调查。局部 hash 不是完整 Skill package；Host 在每次原生调用边界封存完整目录 Bundle，并把每个 correction 的 immutable Session/invocation reference 逐一重验。全部引用必须指向同一个内容寻址 baseline，missing 等待，漂移、损坏、错配或多个 Bundle 均 invalid。至少四个不同 Goal 后，Host 再经官方 Message Feedback/Session Persistence 读取当前纠正与 exact durable Goal/请求，在 Candidate 调用前内容寻址密封 authoring/admission/holdout；第五个及以上额外保留 Retention。proposer 只得到 authoring，保护正文不进入 Remote/Web。Candidate-blind governance 在 proposer 前形成 calibrated assembled holdout；受保护作者生成完整继承 baseline 的 whole-tree Candidate，并把 exact pre-Candidate Envelope 纳入 Candidate 内容身份，结构准入只确认 declared diff。随后独立 paired holdout 才在同一 assembled DSH Trial 中执行 exact baseline/Candidate 双树；Envelope 缺失或错配在 Trial 前失败关闭，只有 calibration、assembled、composition 与输入完整性全部成立，才给出 `improved/ambiguous/not-improved/regressed`，并始终无安装或发布权。
 
 ## 5. 生成前证据密封
 
@@ -101,6 +101,8 @@ Slow Loop author 只读 authoring 分区，不读 holdout、Retention、外部�
 Shadow 必须使用同一 DSH revision、任务、权限、预算和非目标 composition 对比 baseline/Candidate。缺失 Skill 路径的 baseline 只有 bound `subject.json`，不允许占位 `SKILL.md`；Candidate 侧才安装 exact Bundle。Shadow 不调用 proposer，不选 target，不读 Git 或网络。
 
 promotable Shadow 在同一 DSH Jobs 任务中进入 `InternalSkillRetention`。Retention 重验 Envelope、Admission、Lineage、Shadow、Candidate tree、Case Pack、DSH revision、预算和 composition，持久得出 `retained`、`regressed` 或 `incomplete`。Retention 零 proposer，没有安装、激活或发布接口。
+
+existing-Skill 不复用 capability-absent Shadow。`ExistingSkillCandidateAdmission` 先以 Host-only 结构检查给出 `qualified-for-holdout`；`ExistingSkillHoldoutEvaluation` 再重新解析 exact Admission、installed baseline、whole-tree Candidate 和 Candidate 内容身份已绑定的 Candidate-blind Envelope，把两个 `skill-tree` 交给同一 assembled DSH Trial。Envelope 缺失或错配在 Candidate 物化和 Trial 前失败关闭；运行前后重验三棵树、固定 DSH revision、calibration 和非目标 composition。付费 Trial dispatch 前写入 durable pending；重启时若结果未知则标为 uncertain，不盲重试。四象限 verdict 只进入后续 Retention 的证据输入，本身无 release authority。
 
 ## 8. Generation、Promotion 与 rollback
 
@@ -137,7 +139,7 @@ missing 或 prepared 为 `waiting`；告警、歧义、谱系错配、`regressed
 
 `dsh-evolve-web` 是一个零模型调用的 DSH Client Module。浏览器只读 Host 权威 Remote，不接收 Host path、protected Goal/Case、evaluator source、provider identity 或 Candidate proposal 正文。
 
-当前已投影 Capability Map/Gap、Opportunity、Candidate、证据密封、治理作者状态、Admission、Shadow、Retention、Review、Generation、Promotion Eligibility、Outcome metrics、counterfactual Canary 与 rollback。Canary 视图显示 baseline/Candidate、完整性、pointer 稳定、calibration、composition、model/token/cache 和无发布权；只有 terminal `rollback-eligible` 行提供 exact-id 回滚入口，仍需人工确认并由 Host 重验。页面刷新失败必须显式报错，保留最后一次成功证据；Host 恢复后重新读取权威状态。所有写操作调用 Host 同一权威接口，不在浏览器里实现另一套规则。
+当前已投影 Capability Map/Gap、Opportunity、Candidate、证据密封、治理作者状态、Admission、existing-Skill exact paired holdout、Shadow、Retention、Review、Generation、Promotion Eligibility、Outcome metrics、counterfactual Canary 与 rollback。paired holdout 视图显示 exact Candidate/Admission/Envelope、三棵树、双方结果、calibration/assembled/composition/integrity、model/token/cache 和无发布权；Canary 视图另显示 pointer 稳定，只有 terminal `rollback-eligible` 行提供 exact-id 回滚入口，仍需人工确认并由 Host 重验。页面刷新失败必须显式报错，保留最后一次成功证据；Host 恢复后重新读取权威状态。所有写操作调用 Host 同一权威接口，不在浏览器里实现另一套规则。
 
 ## 11. 持久化、恢复、权限与 Cache
 
@@ -155,10 +157,10 @@ missing 或 prepared 为 `waiting`；告警、歧义、谱系错配、`regressed
 - Session/Goal 恢复、当前 Session pin、原子晋升与 exact rollback 通过；
 - 真实 provider 下 admission/holdout/Retention/canary 和故障注入通过；
 - 真实浏览器验证刷新、断连、恢复和控制操作；
-- existing-Skill protected whole-tree author消费已隔离 authoring evidence，baseline/candidate paired evaluation 和 Candidate 路径通过；
+- existing-Skill protected whole-tree author、Candidate、结构准入与 exact paired holdout 通过；独立 Retention/Canary/promotion/rollback 通过；
 - 长期误晋升、负迁移、遗忘、重复外部效果、成本、时延、cache-read 和回滚指标达标；
 - 相同任务、模型、权限和预算的 Hermes paired benchmark 证明声称的上位结果。
 
 越权、评测泄漏、当前 Session 漂移、无法卸载或无法精确回滚任意一项都阻止 tag 和发布。
 
-当前 exact Retention、Promotion Eligibility、Canary evidence、Rollback Gate、existing-Skill baseline qualification 与 correction evidence seal 见 [V4.26](../evidence/v4-26-exact-candidate-retention-execution.zh.md)、[V4.27](../evidence/v4-27-shadow-retention-web-projection.zh.md)、[V4.28](../evidence/v4-28-shadow-retention-real-browser.zh.md)、[V4.29](../evidence/v4-29-retention-promotion-eligibility.zh.md)、[V4.31](../evidence/v4-31-failed-outcome-counterfactual-canary.zh.md)、[V4.32](../evidence/v4-32-exact-canary-rollback-gate.zh.md)、[V4.34](../evidence/v4-34-existing-skill-baseline-qualification.zh.md) 和 [V4.35](../evidence/v4-35-existing-skill-correction-evidence-seal.zh.md)。
+当前 exact Retention、Promotion Eligibility、Canary evidence、Rollback Gate、existing-Skill baseline qualification、correction evidence seal 与 exact paired holdout 见 [V4.26](../evidence/v4-26-exact-candidate-retention-execution.zh.md)、[V4.27](../evidence/v4-27-shadow-retention-web-projection.zh.md)、[V4.28](../evidence/v4-28-shadow-retention-real-browser.zh.md)、[V4.29](../evidence/v4-29-retention-promotion-eligibility.zh.md)、[V4.31](../evidence/v4-31-failed-outcome-counterfactual-canary.zh.md)、[V4.32](../evidence/v4-32-exact-canary-rollback-gate.zh.md)、[V4.34](../evidence/v4-34-existing-skill-baseline-qualification.zh.md)、[V4.35](../evidence/v4-35-existing-skill-correction-evidence-seal.zh.md) 和 [V4.39](../evidence/v4-39-existing-skill-exact-paired-holdout-evaluation.zh.md)。

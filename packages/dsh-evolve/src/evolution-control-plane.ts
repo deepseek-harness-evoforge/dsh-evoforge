@@ -22,6 +22,7 @@ import type { SlowLoopSkillAuthoring } from './slow-loop-skill-authoring.ts'
 import type { ExistingSkillCandidateAuthoring } from './existing-skill-candidate-authoring.ts'
 import type { ExistingSkillHoldoutGovernance } from './existing-skill-holdout-governance.ts'
 import type { ExistingSkillCandidateAdmission } from './existing-skill-candidate-admission.ts'
+import type { ExistingSkillHoldoutEvaluation } from './existing-skill-holdout-evaluation.ts'
 import type { SkillCandidateLineage } from './skill-candidate-lineage.ts'
 import type { SkillEvaluationEvidenceVault } from './skill-evaluation-evidence-vault.ts'
 import type { SkillEvaluationGovernance } from './skill-evaluation-governance.ts'
@@ -42,6 +43,7 @@ import type {
   EvolutionExistingSkillBaselineQualificationView,
   EvolutionExistingSkillEvaluationEvidenceReadinessView,
   EvolutionExistingSkillAdmissionView,
+  EvolutionExistingSkillHoldoutEvaluationView,
   EvolutionSkillCandidateQueueView,
   EvolutionSkillAdmissionView,
   EvolutionSkillCandidateLineageView,
@@ -91,6 +93,7 @@ export interface EvolutionControlPlaneModules {
   readonly existingSkillAuthoring?: Pick<ExistingSkillCandidateAuthoring, 'scan'>
   readonly existingSkillHoldoutGovernance?: Pick<ExistingSkillHoldoutGovernance, 'scan'>
   readonly existingSkillAdmissions?: Pick<ExistingSkillCandidateAdmission, 'scan'>
+  readonly existingSkillHoldoutEvaluations?: Pick<ExistingSkillHoldoutEvaluation, 'scan'>
   readonly evaluationGovernance?: Pick<SkillEvaluationGovernance, 'scan'>
   readonly retention?: Pick<InternalSkillRetention, 'scan'>
   readonly counterfactualCanary?: Pick<CounterfactualCanary, 'scan'>
@@ -113,6 +116,7 @@ export class EvolutionControlPlane {
       existingSkillAuthoringScan,
       existingSkillHoldoutGovernanceScan,
       existingSkillAdmissionScan,
+      existingSkillHoldoutEvaluationScan,
       evaluationGovernanceScan,
       retentionScan,
       counterfactualCanaryScan,
@@ -131,6 +135,9 @@ export class EvolutionControlPlane {
       this.modules.existingSkillAdmissions === undefined
         ? undefined
         : this.modules.existingSkillAdmissions.scan(workspaceId),
+      this.modules.existingSkillHoldoutEvaluations === undefined
+        ? undefined
+        : this.modules.existingSkillHoldoutEvaluations.scan(workspaceId),
       this.modules.evaluationGovernance === undefined
         ? undefined
         : this.modules.evaluationGovernance.scan(workspaceId),
@@ -328,6 +335,13 @@ export class EvolutionControlPlane {
       ...(existingSkillAdmissionScan === undefined
         ? {}
         : { existingSkillAdmission: projectExistingSkillAdmission(existingSkillAdmissionScan) }),
+      ...(existingSkillHoldoutEvaluationScan === undefined
+        ? {}
+        : {
+            existingSkillHoldoutEvaluation: projectExistingSkillHoldoutEvaluation(
+              existingSkillHoldoutEvaluationScan,
+            ),
+          }),
       ...(admissionScan === undefined
         ? {}
         : { skillAdmission: projectSkillAdmission(admissionScan) }),
@@ -610,6 +624,9 @@ function projectExistingSkillCandidates(
         modelIdentityHash: candidate.authorship.modelIdentityHash,
         evaluationEvidenceId: candidate.authorship.evaluationEvidenceId,
         inputDigest: candidate.authorship.inputDigest,
+        ...(candidate.authorship.holdoutEnvelopeId === undefined
+          ? {}
+          : { holdoutEnvelopeId: candidate.authorship.holdoutEnvelopeId }),
       },
       version: { ...candidate.version },
       contentHash: candidate.contentHash,
@@ -674,6 +691,62 @@ function projectExistingSkillAdmission(
       releaseAuthority: value.releaseAuthority,
       ...(value.evidence === undefined ? {} : { evidence: { ...value.evidence } }),
     })),
+  }
+}
+
+function projectExistingSkillHoldoutEvaluation(
+  scan: Awaited<ReturnType<
+    NonNullable<EvolutionControlPlaneModules['existingSkillHoldoutEvaluations']>['scan']
+  >>,
+): EvolutionExistingSkillHoldoutEvaluationView {
+  return {
+    configuredPolicyCount: scan.configuredPolicyCount,
+    warningCount: scan.warningCount,
+    results: scan.results.slice(0, MAX_DISCOVERY_ROWS).map(value => ({
+      id: value.id,
+      candidateId: value.candidateId,
+      admissionId: value.admissionId,
+      envelopeId: value.envelopeId,
+      skillName: value.skillName,
+      baselineTreeHash: value.baselineTreeHash,
+      candidateTreeHash: value.candidateTreeHash,
+      casePackHash: value.casePackHash,
+      status: value.status,
+      ...(value.verdict === undefined ? {} : { verdict: value.verdict }),
+      ...(value.reason === undefined ? {} : { reason: value.reason }),
+      ...(value.evidence === undefined ? {} : { evidence: {
+        baseline: value.evidence.baseline,
+        candidate: value.evidence.candidate,
+        calibrationPassed: value.evidence.calibrationPassed,
+        assembled: value.evidence.assembled,
+        compositionStable: value.evidence.compositionStable,
+        inputIntegrityStable: value.evidence.inputIntegrityStable,
+        proposerCalls: value.evidence.proposerCalls,
+        trialCount: value.evidence.trialCount,
+        ...(value.evidence.modelCalls === undefined
+          ? {}
+          : { modelCalls: { ...value.evidence.modelCalls } }),
+        ...(value.evidence.usage === undefined
+          ? {}
+          : { usage: {
+              baseline: projectTrialUsage(value.evidence.usage.baseline),
+              candidate: projectTrialUsage(value.evidence.usage.candidate),
+            } }),
+      } }),
+      ...(value.startedAt === undefined ? {} : { startedAt: value.startedAt }),
+      ...(value.finishedAt === undefined ? {} : { finishedAt: value.finishedAt }),
+      releaseAuthority: value.releaseAuthority,
+    })),
+  }
+}
+
+function projectTrialUsage(value: Record<string, number | undefined>) {
+  return {
+    ...(value.inputTokens === undefined ? {} : { inputTokens: value.inputTokens }),
+    ...(value.outputTokens === undefined ? {} : { outputTokens: value.outputTokens }),
+    ...(value.cacheReadTokens === undefined ? {} : { cacheReadTokens: value.cacheReadTokens }),
+    ...(value.cacheWriteTokens === undefined ? {} : { cacheWriteTokens: value.cacheWriteTokens }),
+    ...(value.reasoningTokens === undefined ? {} : { reasoningTokens: value.reasoningTokens }),
   }
 }
 

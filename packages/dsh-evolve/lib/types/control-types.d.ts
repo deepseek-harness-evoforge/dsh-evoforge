@@ -386,6 +386,7 @@ export interface EvolutionExistingSkillCandidateView {
         readonly modelIdentityHash: string;
         readonly evaluationEvidenceId: string;
         readonly inputDigest: string;
+        readonly holdoutEnvelopeId?: string;
     };
     readonly version: {
         readonly kind: 'existing-skill-improvement-bundle-v1';
@@ -496,6 +497,57 @@ export interface EvolutionExistingSkillAdmissionView {
             readonly candidateExecuted: false;
             readonly evaluatorClass: 'host-structural';
         };
+        readonly releaseAuthority: 'none';
+    }[];
+}
+/** Exact protected baseline/Candidate holdout result; it has no release authority. */
+export interface EvolutionExistingSkillHoldoutEvaluationView {
+    readonly configuredPolicyCount: number;
+    readonly warningCount: number;
+    readonly results: readonly {
+        readonly id: string;
+        readonly candidateId: string;
+        readonly admissionId: string;
+        readonly envelopeId: string;
+        readonly skillName: string;
+        readonly baselineTreeHash: string;
+        readonly candidateTreeHash: string;
+        readonly casePackHash: string;
+        readonly status: 'prepared' | 'trial-pending' | 'complete' | 'protected' | 'incomplete';
+        readonly verdict?: 'improved' | 'ambiguous' | 'not-improved' | 'regressed' | 'none';
+        readonly reason?: 'candidate-passed-protected-holdout' | 'baseline-already-passed-protected-holdout' | 'candidate-did-not-fix-protected-holdout' | 'candidate-regressed-protected-holdout' | 'evaluation-input-protected' | 'paired-trial-outcome-uncertain' | 'paired-trial-failed' | 'paired-trial-integrity-failed';
+        readonly evidence?: {
+            readonly baseline: 'pass' | 'fail';
+            readonly candidate: 'pass' | 'fail';
+            readonly calibrationPassed: boolean;
+            readonly assembled: boolean;
+            readonly compositionStable: boolean;
+            readonly inputIntegrityStable: boolean;
+            readonly proposerCalls: 0;
+            readonly trialCount: 4;
+            readonly modelCalls?: {
+                readonly baseline: number;
+                readonly candidate: number;
+            };
+            readonly usage?: {
+                readonly baseline: {
+                    readonly inputTokens?: number;
+                    readonly outputTokens?: number;
+                    readonly cacheReadTokens?: number;
+                    readonly cacheWriteTokens?: number;
+                    readonly reasoningTokens?: number;
+                };
+                readonly candidate: {
+                    readonly inputTokens?: number;
+                    readonly outputTokens?: number;
+                    readonly cacheReadTokens?: number;
+                    readonly cacheWriteTokens?: number;
+                    readonly reasoningTokens?: number;
+                };
+            };
+        };
+        readonly startedAt?: string;
+        readonly finishedAt?: string;
         readonly releaseAuthority: 'none';
     }[];
 }
@@ -748,6 +800,7 @@ export interface EvolutionOverview {
     readonly existingSkillAuthoring?: EvolutionExistingSkillAuthoringView;
     readonly existingSkillHoldoutGovernance?: EvolutionExistingSkillHoldoutGovernanceView;
     readonly existingSkillAdmission?: EvolutionExistingSkillAdmissionView;
+    readonly existingSkillHoldoutEvaluation?: EvolutionExistingSkillHoldoutEvaluationView;
     readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView;
     readonly skillEvaluationGovernance?: EvolutionSkillEvaluationGovernanceView;
     readonly skillAdmission?: EvolutionSkillAdmissionView;

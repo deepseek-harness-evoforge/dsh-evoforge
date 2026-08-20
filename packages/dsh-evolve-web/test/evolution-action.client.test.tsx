@@ -271,6 +271,7 @@ const t = (key: string) => ({
   'skills.improvements.candidates.added': 'Added instructions',
   'skills.improvements.candidates.preserved': 'Preserved complete baseline',
   'skills.improvements.candidates.binary': 'binary resources',
+  'skills.improvements.candidates.holdout': 'Pre-Candidate Holdout Envelope',
   'skills.improvements.candidates.state': 'Quarantined · Inactive · Never executed · Unevaluated · No release authority',
   'skills.improvements.authoring': 'Protected Existing-Skill authoring',
   'skills.improvements.authoring.policies': 'Workspace policies',
@@ -296,6 +297,19 @@ const t = (key: string) => ({
   'skills.improvements.admission.protected': 'Protected admission sample digest',
   'skills.improvements.admission.reason.exact-paired-subjects-admitted': 'Exact pair admitted; no effect win claimed',
   'skills.improvements.admission.release.none': 'Candidate not executed · Host structural admission only · No release authority',
+  'skills.improvements.holdout-evaluation': 'Exact Existing-Skill Paired Holdout',
+  'skills.improvements.holdout-evaluation.policies': 'Workspace policies',
+  'skills.improvements.holdout-evaluation.warnings': 'unreadable paired holdout results',
+  'skills.improvements.holdout-evaluation.empty': 'No exact existing-Skill pair has completed holdout.',
+  'skills.improvements.holdout-evaluation.status.complete': 'Protected paired holdout complete',
+  'skills.improvements.holdout-evaluation.verdict.improved': 'Candidate independently improved the exact baseline',
+  'skills.improvements.holdout-evaluation.identities': 'Candidate / Admission / Envelope',
+  'skills.improvements.holdout-evaluation.inputs': 'Baseline / Candidate / Case Pack trees',
+  'skills.improvements.holdout-evaluation.outcomes': 'Baseline / Candidate · calibration / assembled / composition / integrity',
+  'skills.improvements.holdout-evaluation.usage': 'Baseline / Candidate model calls · input/output/cache-read tokens',
+  'skills.improvements.holdout-evaluation.yes': 'yes',
+  'skills.improvements.holdout-evaluation.no': 'no',
+  'skills.improvements.holdout-evaluation.release.none': 'Evidence only · No promotion or release authority',
   'skills.slow-loop': 'Internal experience-driven Skill authoring',
   'skills.slow-loop.policies': 'Workspace safety policies',
   'skills.slow-loop.warnings': 'unreadable durable states',
@@ -892,6 +906,7 @@ describe('EvolutionAction', () => {
               modelIdentityHash: '4'.repeat(64),
               evaluationEvidenceId: '5'.repeat(64),
               inputDigest: '6'.repeat(64),
+              holdoutEnvelopeId: 'd'.repeat(64),
             },
             version: {
               kind: 'existing-skill-improvement-bundle-v1' as const,
@@ -987,6 +1002,41 @@ describe('EvolutionAction', () => {
               candidateExecuted: false as const,
               evaluatorClass: 'host-structural' as const,
             },
+            releaseAuthority: 'none' as const,
+          }],
+        },
+        existingSkillHoldoutEvaluation: {
+          configuredPolicyCount: 1,
+          warningCount: 0,
+          results: [{
+            id: '1'.repeat(64),
+            candidateId: '0'.repeat(64),
+            admissionId: '6'.repeat(64),
+            envelopeId: 'd'.repeat(64),
+            skillName: 'build-dsh-plugin',
+            baselineTreeHash: '3'.repeat(64),
+            candidateTreeHash: '8'.repeat(64),
+            casePackHash: '4'.repeat(64),
+            status: 'complete' as const,
+            verdict: 'improved' as const,
+            reason: 'candidate-passed-protected-holdout' as const,
+            evidence: {
+              baseline: 'fail' as const,
+              candidate: 'pass' as const,
+              calibrationPassed: true,
+              assembled: true,
+              compositionStable: true,
+              inputIntegrityStable: true,
+              proposerCalls: 0 as const,
+              trialCount: 4 as const,
+              modelCalls: { baseline: 1, candidate: 1 },
+              usage: {
+                baseline: { inputTokens: 120, outputTokens: 20, cacheReadTokens: 40 },
+                candidate: { inputTokens: 110, outputTokens: 18, cacheReadTokens: 50 },
+              },
+            },
+            startedAt: '2026-08-18T01:01:00.000Z',
+            finishedAt: '2026-08-18T01:01:01.000Z',
             releaseAuthority: 'none' as const,
           }],
         },
@@ -1154,6 +1204,7 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('Changed instructions · references/verification.md · SKILL.md')).toBeTruthy()
     expect(screen.getByText('Added instructions · references/verification.md')).toBeTruthy()
     expect(screen.getByText('Preserved complete baseline · 2 files · 1 binary resources')).toBeTruthy()
+    expect(screen.getByText(`Pre-Candidate Holdout Envelope · ${'d'.repeat(8)}…`)).toBeTruthy()
     expect(screen.getByText('Quarantined · Inactive · Never executed · Unevaluated · No release authority')).toBeTruthy()
     expect(screen.getByText('Exact Existing-Skill Paired Admission')).toBeTruthy()
     expect(screen.getByText('Exact pair sealed; eligible for independent holdout')).toBeTruthy()
@@ -1162,6 +1213,14 @@ describe('EvolutionAction', () => {
     expect(screen.getByText(`Protected admission sample digest · ${'9'.repeat(8)}…`)).toBeTruthy()
     expect(screen.getByText('Exact pair admitted; no effect win claimed')).toBeTruthy()
     expect(screen.getByText('Candidate not executed · Host structural admission only · No release authority')).toBeTruthy()
+    expect(screen.getByText('Exact Existing-Skill Paired Holdout')).toBeTruthy()
+    expect(screen.getByText('Protected paired holdout complete')).toBeTruthy()
+    expect(screen.getByText('Candidate independently improved the exact baseline')).toBeTruthy()
+    expect(screen.getByText(`Candidate / Admission / Envelope · ${'0'.repeat(8)}… / ${'6'.repeat(8)}… / ${'d'.repeat(8)}…`)).toBeTruthy()
+    expect(screen.getByText(`Baseline / Candidate / Case Pack trees · ${'3'.repeat(8)}… / ${'8'.repeat(8)}… / ${'4'.repeat(8)}…`)).toBeTruthy()
+    expect(screen.getByText('Baseline / Candidate · calibration / assembled / composition / integrity · fail/pass · yes/yes/yes/yes')).toBeTruthy()
+    expect(screen.getByText('Baseline / Candidate model calls · input/output/cache-read tokens · 1/1 · 120/20/40 · 110/18/50')).toBeTruthy()
+    expect(screen.getByText('Evidence only · No promotion or release authority')).toBeTruthy()
     expect(screen.getByText('Independent evaluation governance')).toBeTruthy()
     expect(screen.getByText('Admission, assembled holdout, and independent retention ready')).toBeTruthy()
     expect(screen.getByText('Governance model calls · input/output tokens · 3 · 960/360')).toBeTruthy()

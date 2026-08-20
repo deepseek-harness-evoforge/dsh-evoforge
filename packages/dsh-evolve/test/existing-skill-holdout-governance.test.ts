@@ -124,6 +124,29 @@ describe('Existing Skill Holdout Governance', () => {
       .every(sample => !JSON.stringify(input).includes(sample.correction.note))).toBe(true)
     expect(calibrate).toHaveBeenCalledOnce()
 
+    await expect(governance.resolve({
+      envelopeId: result.envelope.id,
+      workspaceId: WORKSPACE_ID,
+      skillName: subject.opportunity.skillName,
+      opportunityId: subject.opportunity.id,
+      qualificationId: subject.qualification.id,
+      baselineId: subject.baseline.manifest.id,
+      baselineTreeHash: subject.baseline.manifest.bundle.treeHash,
+      evaluationEvidenceId: subject.evidence.id,
+      proposerModelIdentityHash: subject.proposerModelIdentityHash,
+    })).resolves.toEqual(result.envelope)
+    await expect(governance.resolve({
+      envelopeId: 'f'.repeat(64),
+      workspaceId: WORKSPACE_ID,
+      skillName: subject.opportunity.skillName,
+      opportunityId: subject.opportunity.id,
+      qualificationId: subject.qualification.id,
+      baselineId: subject.baseline.manifest.id,
+      baselineTreeHash: subject.baseline.manifest.bundle.treeHash,
+      evaluationEvidenceId: subject.evidence.id,
+      proposerModelIdentityHash: subject.proposerModelIdentityHash,
+    })).rejects.toThrow('does not match its Candidate binding')
+
     const manifest = JSON.parse(await readFile(join(result.envelope.casePackDir, 'manifest.json'), 'utf8'))
     expect(manifest.trial).toEqual({
       evaluator: 'final-test/evaluator.mjs',

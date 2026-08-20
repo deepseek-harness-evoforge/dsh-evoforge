@@ -191,12 +191,16 @@ An inactive, versioned diff owned by exactly one registered DSH Workspace and bo
 _Avoid_: Live patch, learned rule
 
 **Existing Skill Improvement Candidate**:
-An inactive, quarantined, content-addressed complete Skill tree derived from one exact sealed installed-Skill baseline and its protected internal correction evidence. The author may replace or add only bounded instruction text; the Host preserves every untouched file byte-for-byte and rejects identity, code, binary, path, permission-declaration, or license drift. It is unevaluated, never executed, and has no install, activation, or release authority.
+An inactive, quarantined, content-addressed complete Skill tree derived from one exact sealed installed-Skill baseline and its protected internal correction evidence, whose identity also binds the exact Candidate-blind Holdout Envelope formed before its author ran. The author may replace or add only bounded instruction text; the Host preserves every untouched file byte-for-byte and rejects identity, code, binary, path, permission-declaration, or license drift. It is unevaluated, never executed, and has no install, activation, or release authority.
 _Avoid_: Runtime self-edit, partial patch artifact, downloaded Skill, capability-absent Candidate, approved improvement
 
 **Existing Skill Paired Structural Admission**:
 A host-only, content-addressed gate that re-resolves one exact Installed Skill Baseline Bundle, materializes its exact Existing Skill Improvement Candidate beside it, consumes the governance-only admission partition, and revalidates every archive, tree, declared change, preserved byte, and protected identity. Passing means only `qualified-for-holdout`: neither tree is executed, no effect improvement is claimed, and no release authority is created. It is deliberately separate from the capability-absent Skill Evaluation Envelope.
 _Avoid_: Existing Skill as capability-absent, structural check as effect win, proposer-visible admission, reconstructed baseline, implicit promotion
+
+**Existing Skill Exact Paired Holdout**:
+A Host-owned, content-addressed effect evaluation that accepts only one exact `qualified-for-holdout` Admission, re-resolves its immutable installed baseline, exact whole-tree Candidate and the exact Candidate-blind Holdout Envelope already bound into that Candidate's identity, then executes both complete `skill-tree` subjects in the same assembled DSH Trial. It may classify only `improved`, `ambiguous`, `not-improved`, or `regressed` after calibration, assembled composition, input integrity and fixed-trial-count gates all pass; interruption after paid dispatch becomes uncertain and is never blindly retried. Its verdict is evidence for later Retention and has no install, activation, promotion, rollback, or release authority.
+_Avoid_: Structural pass as effect win, Candidate self-test, capability-absent baseline, retrying uncertain paid work, holdout verdict as promotion
 
 **Evolution Candidate Lineage**:
 The bounded, host-derived identity that follows one exact internally authored whole-Skill Candidate from its Skill Opportunity through one Skill Evaluation Envelope, admission, Shadow, Retention, review, and immutable Capability Generation. It binds internal evidence, Candidate version/content/tree, evaluation-envelope identity, independent evaluation, and release decisions while excluding Skill bodies, host paths, hidden cases, and proposer-private state.

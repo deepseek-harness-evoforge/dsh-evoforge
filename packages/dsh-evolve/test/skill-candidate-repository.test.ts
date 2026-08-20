@@ -181,6 +181,7 @@ describe('existing Skill improvement Candidate repository', () => {
       createdAt: 1_787_100_000_000,
       policyId: 'workspace-experience-author',
       modelIdentity: 'private-provider-route',
+      holdoutEnvelopeId: 'd'.repeat(64),
       claim: 'Require independent evidence and preserve the existing proof asset.',
       opportunity: {
         schemaVersion: 1,
@@ -318,6 +319,18 @@ describe('existing Skill improvement Candidate repository', () => {
     } satisfies ExistingSkillCandidateProposal
     const recorded = await repository.quarantineExisting(proposal)
     expect(onExistingCandidate).toHaveBeenCalledWith(recorded.candidate)
+    expect(existingSkillCandidateId({
+      ...recorded.candidate,
+      authorship: {
+        ...recorded.candidate.authorship,
+        holdoutEnvelopeId: 'e'.repeat(64),
+      },
+    })).not.toBe(recorded.candidate.id)
+
+    await expect(repository.quarantineExisting({
+      ...proposal,
+      holdoutEnvelopeId: 'not-a-content-id',
+    })).rejects.toThrow('valid protected internal correction provenance')
 
     await expect(repository.quarantineExisting({
       ...proposal,
@@ -363,6 +376,7 @@ describe('existing Skill improvement Candidate repository', () => {
         kind: 'protected-correction-authoring-v1',
         evaluationEvidenceId: 'a'.repeat(64),
         inputDigest: 'b'.repeat(64),
+        holdoutEnvelopeId: 'd'.repeat(64),
       },
       diff: {
         kind: 'bounded-instruction-tree-diff-v1',

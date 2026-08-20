@@ -68,6 +68,10 @@ import {
   ExistingSkillCandidateAdmission,
   ExistingSkillCandidateAdmissionScheduler,
 } from './existing-skill-candidate-admission.ts'
+import {
+  ExistingSkillHoldoutEvaluation,
+  ExistingSkillHoldoutEvaluationScheduler,
+} from './existing-skill-holdout-evaluation.ts'
 import { EvolutionControlPlane } from './evolution-control-plane.ts'
 import { EvolutionRemoteService } from './evolution-remote.ts'
 import { AutomaticEvolutionBudget } from './automatic-evolution-budget.ts'
@@ -199,6 +203,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   let existingSkillBaselineVault: InstalledSkillBaselineVault | undefined
   let existingSkillEvaluationEvidence: ExistingSkillEvaluationEvidenceVault | undefined
   let existingSkillAdmissionScheduler: ExistingSkillCandidateAdmissionScheduler | undefined
+  let existingSkillHoldoutEvaluationScheduler: ExistingSkillHoldoutEvaluationScheduler | undefined
   const existingSkillHoldoutGovernance = evaluationGovernancePolicies.length === 0
     ? undefined
     : new ExistingSkillHoldoutGovernance({
@@ -328,11 +333,39 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           },
         },
       })
+  const existingSkillHoldoutEvaluation = evaluationGovernancePolicies.length === 0
+    || existingSkillAdmission === undefined
+    || existingSkillHoldoutGovernance === undefined
+    ? undefined
+    : new ExistingSkillHoldoutEvaluation({
+        policies: evaluationGovernancePolicies,
+        baselines: {
+          resolveBaseline: (workspaceId, baselineId) => {
+            if (existingSkillBaselineVault === undefined) {
+              return Promise.reject(new Error('existing Skill baseline vault is unavailable'))
+            }
+            return existingSkillBaselineVault.resolveBaseline(workspaceId, baselineId)
+          },
+        },
+        candidates: skillCandidates,
+        governance: existingSkillHoldoutGovernance,
+      })
+  existingSkillHoldoutEvaluationScheduler = existingSkillHoldoutEvaluation === undefined
+    ? undefined
+    : new ExistingSkillHoldoutEvaluationScheduler(
+        existingSkillHoldoutEvaluation,
+        { listExistingCandidates: workspaceId => skillCandidateStore.listExistingCandidates(workspaceId) },
+        existingSkillAdmission!,
+      )
   existingSkillAdmissionScheduler = existingSkillAdmission === undefined
     ? undefined
     : new ExistingSkillCandidateAdmissionScheduler(
         existingSkillAdmission,
         { listExistingCandidates: workspaceId => skillCandidateStore.listExistingCandidates(workspaceId) },
+        {
+          onResult: (candidate, result) =>
+            existingSkillHoldoutEvaluationScheduler?.observe(candidate, result),
+        },
       )
   let skillAdmission: SkillCandidateAdmission | undefined
   if (candidateEvaluationPolicies.length > 0) {
@@ -522,6 +555,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     ...(existingSkillAuthoring === undefined ? {} : { existingSkillAuthoring }),
     ...(existingSkillHoldoutGovernance === undefined ? {} : { existingSkillHoldoutGovernance }),
     ...(existingSkillAdmission === undefined ? {} : { existingSkillAdmissions: existingSkillAdmission }),
+    ...(existingSkillHoldoutEvaluation === undefined
+      ? {}
+      : { existingSkillHoldoutEvaluations: existingSkillHoldoutEvaluation }),
     ...(skillEvaluationGovernance === undefined ? {} : { evaluationGovernance: skillEvaluationGovernance }),
     ...(review === undefined ? {} : { review }),
     ...(resident === undefined ? {} : { resident }),
@@ -609,6 +645,18 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           detachController()
         }
       }, 'dsh-evolve.existingSkillAdmissionJobs')
+    })
+  }
+  if (existingSkillHoldoutEvaluationScheduler !== undefined) {
+    ctx.inject(['jobs'], (jobCtx) => {
+      jobCtx.effect(() => {
+        const detachController = jobCtx.jobs.attachController('dsh-evolve-existing-skill-holdout')
+        const detachEvaluation = existingSkillHoldoutEvaluationScheduler!.attachJobs(jobCtx.jobs)
+        return () => {
+          detachEvaluation()
+          detachController()
+        }
+      }, 'dsh-evolve.existingSkillHoldoutJobs')
     })
   }
   const canaryScheduler = counterfactualCanaryScheduler
@@ -717,12 +765,26 @@ export { ExistingSkillHoldoutGovernance } from './existing-skill-holdout-governa
 export type {
   ExistingSkillHoldoutAuthorInput,
   ExistingSkillHoldoutAuthorResult,
+  ExistingSkillHoldoutCandidateBinding,
   ExistingSkillHoldoutEnvelope,
   ExistingSkillHoldoutGovernanceResult,
   ExistingSkillHoldoutGovernanceRunView,
   ExistingSkillHoldoutGovernanceScan,
   ExistingSkillHoldoutGovernanceSubject,
 } from './existing-skill-holdout-governance.ts'
+export {
+  ExistingSkillHoldoutEvaluation,
+  ExistingSkillHoldoutEvaluationScheduler,
+} from './existing-skill-holdout-evaluation.ts'
+export type {
+  ExistingSkillHoldoutEvaluationEvidence,
+  ExistingSkillHoldoutEvaluationReason,
+  ExistingSkillHoldoutEvaluationResult,
+  ExistingSkillHoldoutEvaluationRunView,
+  ExistingSkillHoldoutEvaluationScan,
+  ExistingSkillHoldoutTrialInput,
+  ExistingSkillHoldoutVerdict,
+} from './existing-skill-holdout-evaluation.ts'
 export {
   ExistingSkillCandidateAdmission,
   ExistingSkillCandidateAdmissionScheduler,
@@ -781,6 +843,7 @@ export type {
   EvolutionFutureSessionPromotionReason,
   EvolutionGenerationView,
   EvolutionExistingSkillAdmissionView,
+  EvolutionExistingSkillHoldoutEvaluationView,
   EvolutionInactiveGenerationView,
   EvolutionOverview,
   EvolutionReviewCaseView,

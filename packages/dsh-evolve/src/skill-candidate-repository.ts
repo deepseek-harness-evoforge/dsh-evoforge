@@ -141,6 +141,7 @@ const existingCandidateSchema = z.strictObject({
     modelIdentityHash: hashSchema,
     evaluationEvidenceId: hashSchema,
     inputDigest: hashSchema,
+    holdoutEnvelopeId: hashSchema.optional(),
     claim: z.string().min(1).max(2_048),
   }),
   scope: z.literal('workspace'),
@@ -220,6 +221,7 @@ export interface ExistingSkillCandidateProposal {
   readonly createdAt: number
   readonly policyId: string
   readonly modelIdentity: string
+  readonly holdoutEnvelopeId: string
   readonly claim: string
   readonly opportunity: SkillImprovementOpportunity
   readonly qualification: ExistingSkillBaselineQualificationManifest
@@ -573,6 +575,7 @@ export class SkillCandidateRepository {
         modelIdentityHash: sha256(proposal.modelIdentity),
         evaluationEvidenceId: proposal.evidence.id,
         inputDigest: proposal.evidence.authoringInputDigest,
+        holdoutEnvelopeId: proposal.holdoutEnvelopeId,
         claim: proposal.claim.trim(),
       },
       scope: 'workspace',
@@ -761,6 +764,7 @@ function assertExistingProposalIdentity(proposal: ExistingSkillCandidateProposal
     || !PUBLIC_ID.test(proposal.policyId)
     || proposal.modelIdentity.trim() === ''
     || Buffer.byteLength(proposal.modelIdentity) > 2_048
+    || !CONTENT_ID.test(proposal.holdoutEnvelopeId)
     || proposal.claim.trim() === ''
     || Buffer.byteLength(proposal.claim) > 2_048
     || opportunity.schemaVersion !== 1

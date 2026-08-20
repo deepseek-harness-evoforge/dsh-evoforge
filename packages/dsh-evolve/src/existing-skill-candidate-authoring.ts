@@ -450,6 +450,10 @@ export class ExistingSkillCandidateAuthoring {
       }, this.now())
       return { phase: 'incomplete', detail: errorDetail(controller.signal.reason) }
     }
+    const holdoutEnvelopeId = state.holdoutEnvelopeId
+    if (holdoutEnvelopeId === undefined) {
+      throw new Error('existing-Skill Candidate authoring lost its pre-Candidate holdout Envelope identity')
+    }
     const reservation = await this.budget.reserve(target, input.idempotencyKey)
     if (!reservation.allowed) {
       await updateState(runDir, state, {
@@ -481,6 +485,7 @@ export class ExistingSkillCandidateAuthoring {
         createdAt: this.now(),
         policyId: target.id,
         modelIdentity,
+        holdoutEnvelopeId,
         claim: authored.claim,
         opportunity,
         qualification: qualified.qualification,

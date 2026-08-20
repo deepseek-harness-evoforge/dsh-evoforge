@@ -345,6 +345,7 @@ function existingCandidate(
       modelIdentityHash: '9'.repeat(64),
       evaluationEvidenceId: 'a'.repeat(64),
       inputDigest: 'b'.repeat(64),
+      holdoutEnvelopeId: 'd'.repeat(64),
       claim: 'Require independent evidence.',
     },
     scope: 'workspace',

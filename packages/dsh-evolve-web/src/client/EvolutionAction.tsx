@@ -376,6 +376,7 @@ function hasVerificationTarget(summary: EvolutionOverview): boolean {
   return (summary.skillEvaluationGovernance?.configuredPolicyCount ?? 0) > 0
     || (summary.skillAdmission?.configuredPolicyCount ?? 0) > 0
     || (summary.existingSkillAdmission?.configuredPolicyCount ?? 0) > 0
+    || (summary.existingSkillHoldoutEvaluation?.configuredPolicyCount ?? 0) > 0
 }
 
 function SkillsView({ summary, busy, rollbackEligible, t }: {
@@ -403,6 +404,7 @@ function SkillsView({ summary, busy, rollbackEligible, t }: {
     <SkillCandidates summary={summary} t={t} />
     <ExistingSkillCandidates summary={summary} t={t} />
     <ExistingSkillAdmission summary={summary} t={t} />
+    <ExistingSkillHoldoutEvaluation summary={summary} t={t} />
     <SkillEvaluationGovernance summary={summary} t={t} />
     <SkillAdmission summary={summary} t={t} />
     <SkillEvaluationRuns summary={summary} t={t} />
@@ -800,6 +802,9 @@ function ExistingSkillCandidates({ summary, t }: { summary: EvolutionOverview; t
               {t('skills.discovery.author')} · {candidate.authorship.policyId}
               {' · '}{t('skills.lineage.evidence')} · {shortId(candidate.authorship.evaluationEvidenceId)}
             </div>
+            {candidate.authorship.holdoutEnvelopeId !== undefined && <div className="dsh-evolve-meta">
+              {t('skills.improvements.candidates.holdout')} · {shortId(candidate.authorship.holdoutEnvelopeId)}
+            </div>}
             <div className="dsh-evolve-discovery-state">{t('skills.improvements.candidates.state')}</div>
           </li>
         ))}</ul>}
@@ -935,6 +940,73 @@ function ExistingSkillAdmission({ summary, t }: { summary: EvolutionOverview; t:
           </li>
         ))}</ul>}
   </section>
+}
+
+function ExistingSkillHoldoutEvaluation({
+  summary,
+  t,
+}: {
+  summary: EvolutionOverview
+  t: (key: string) => string
+}) {
+  const evaluation = summary.existingSkillHoldoutEvaluation
+  if (evaluation === undefined) return null
+  const flag = (value: boolean) => t(`skills.improvements.holdout-evaluation.${value ? 'yes' : 'no'}`)
+  return <section>
+    <div className="dsh-evolve-capability-head">
+      <h3 className="dsh-evolve-section-title">{t('skills.improvements.holdout-evaluation')}</h3>
+      <span className="dsh-evolve-catalog-status">
+        {evaluation.configuredPolicyCount} {t('skills.improvements.holdout-evaluation.policies')}
+      </span>
+    </div>
+    {evaluation.warningCount > 0 && <div className="dsh-evolve-message dsh-evolve-error">
+      {evaluation.warningCount} {t('skills.improvements.holdout-evaluation.warnings')}
+    </div>}
+    {evaluation.results.length === 0
+      ? <div className="dsh-evolve-message">{t('skills.improvements.holdout-evaluation.empty')}</div>
+      : <ul className="dsh-evolve-list">{evaluation.results.map(result => (
+          <li className="dsh-evolve-skill-card" key={result.id}>
+            <div className="dsh-evolve-review-skill">{result.skillName}</div>
+            <div className="dsh-evolve-capability-route">
+              {t(`skills.improvements.holdout-evaluation.status.${result.status}`)}
+            </div>
+            {result.verdict !== undefined && <div className="dsh-evolve-meta">
+              {t(`skills.improvements.holdout-evaluation.verdict.${result.verdict}`)}
+            </div>}
+            {result.reason !== undefined && <div className="dsh-evolve-meta">
+              {t(`skills.improvements.holdout-evaluation.reason.${result.reason}`)}
+            </div>}
+            <div className="dsh-evolve-meta">
+              {t('skills.improvements.holdout-evaluation.identities')} · {shortId(result.candidateId)} / {shortId(result.admissionId)} / {shortId(result.envelopeId)}
+            </div>
+            <div className="dsh-evolve-meta">
+              {t('skills.improvements.holdout-evaluation.inputs')} · {shortId(result.baselineTreeHash)} / {shortId(result.candidateTreeHash)} / {shortId(result.casePackHash)}
+            </div>
+            {result.evidence !== undefined && <>
+              <div className="dsh-evolve-meta">
+                {t('skills.improvements.holdout-evaluation.outcomes')} · {result.evidence.baseline}/{result.evidence.candidate} · {flag(result.evidence.calibrationPassed)}/{flag(result.evidence.assembled)}/{flag(result.evidence.compositionStable)}/{flag(result.evidence.inputIntegrityStable)}
+              </div>
+              {result.evidence.modelCalls !== undefined && result.evidence.usage !== undefined &&
+                <div className="dsh-evolve-meta">
+                  {t('skills.improvements.holdout-evaluation.usage')} · {result.evidence.modelCalls.baseline}/{result.evidence.modelCalls.candidate} · {trialUsage(result.evidence.usage.baseline)} · {trialUsage(result.evidence.usage.candidate)}
+                </div>}
+            </>}
+            <div className="dsh-evolve-discovery-state">
+              {t('skills.improvements.holdout-evaluation.release.none')}
+            </div>
+          </li>
+        ))}</ul>}
+  </section>
+}
+
+function trialUsage(value: {
+  readonly inputTokens?: number
+  readonly outputTokens?: number
+  readonly cacheReadTokens?: number
+}): string {
+  return [value.inputTokens, value.outputTokens, value.cacheReadTokens]
+    .map(metric => metric === undefined ? '—' : String(metric))
+    .join('/')
 }
 
 function skillVersionSummary(

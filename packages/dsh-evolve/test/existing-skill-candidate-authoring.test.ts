@@ -106,7 +106,11 @@ describe('protected existing Skill Candidate authoring', () => {
             opportunityId: opportunity.id,
             qualificationId: qualification.qualification.id,
             baselineId: qualification.baseline.manifest.id,
+            baselineTreeHash: qualification.baseline.manifest.bundle.treeHash,
             evaluationEvidenceId: evidence.id,
+            proposerModelIdentityHash: createHash('sha256')
+              .update('provider/model@contract-v1')
+              .digest('hex'),
             casePackDir: join(exactRoot, 'governance', 'holdout'),
             casePackHash: 'e'.repeat(64),
             dshRevision: 'f'.repeat(40),
@@ -200,6 +204,7 @@ describe('protected existing Skill Candidate authoring', () => {
     expect(stored[0]).toMatchObject({
       skillName: 'release-proof',
       baseline: { id: qualification.baseline.manifest.id },
+      authorship: { holdoutEnvelopeId: 'd'.repeat(64) },
       diff: { changedPaths: ['SKILL.md'], preservedFileCount: 2, preservedBinaryFileCount: 1 },
       lifecycle: 'inactive',
       verification: 'unevaluated',
@@ -261,7 +266,11 @@ describe('protected existing Skill Candidate authoring', () => {
               opportunityId: opportunity.id,
               qualificationId: qualification.qualification.id,
               baselineId: qualification.baseline.manifest.id,
+              baselineTreeHash: qualification.baseline.manifest.bundle.treeHash,
               evaluationEvidenceId: evidence.id,
+              proposerModelIdentityHash: createHash('sha256')
+                .update('provider/model@contract-v1')
+                .digest('hex'),
               casePackDir: join(runRoot, 'holdout'),
               casePackHash: 'e'.repeat(64),
               dshRevision: 'f'.repeat(40),
