@@ -6,10 +6,13 @@ import { pathToFileURL } from 'node:url'
 const workspace = resolve(import.meta.dirname, '..')
 const output = join(workspace, 'packages/dsh-evolve/lib')
 const expectedMethods = [
+  'approveExistingSkill',
   'approveReview',
   'overview',
   'pause',
   'promote',
+  'promoteExistingSkill',
+  'rejectExistingSkill',
   'rejectReview',
   'resume',
   'review',
@@ -39,10 +42,13 @@ if (JSON.stringify(hostMethods) !== JSON.stringify(expectedMethods)
   throw new Error(`unexpected evoforgeEvolution Remote methods: ${JSON.stringify({ hostMethods, remoteMethods })}`)
 }
 const expectedParameters = {
+  approveExistingSkill: ['workspaceId', 'candidateId', 'note'],
   approveReview: ['workspaceId', 'id', 'note'],
   overview: ['workspaceId', 'sessionId'],
   pause: ['workspaceId'],
   promote: ['workspaceId', 'generationId'],
+  promoteExistingSkill: ['workspaceId', 'candidateId'],
+  rejectExistingSkill: ['workspaceId', 'candidateId', 'note'],
   rejectReview: ['workspaceId', 'id', 'note'],
   resume: ['workspaceId'],
   review: ['workspaceId', 'id'],

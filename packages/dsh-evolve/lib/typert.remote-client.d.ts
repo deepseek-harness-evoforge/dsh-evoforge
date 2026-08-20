@@ -7,20 +7,26 @@ import type { EvolutionActionReceipt, EvolutionOverview, EvolutionReviewDetail }
 
 declare module '@deepseek-ai/dsh-typert-protocol' {
   interface TypertRemoteNamespace$65766f666f72676545766f6c7574696f6e {
+    approveExistingSkill: (workspaceId: string, candidateId: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     approveReview: (workspaceId: string, id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     overview: (workspaceId: string, sessionId?: string) => Promise<RemoteResult<EvolutionOverview>>
     pause: (workspaceId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     promote: (workspaceId: string, generationId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
+    promoteExistingSkill: (workspaceId: string, candidateId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
+    rejectExistingSkill: (workspaceId: string, candidateId: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     rejectReview: (workspaceId: string, id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     resume: (workspaceId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     review: (workspaceId: string, id: string) => Promise<RemoteResult<EvolutionReviewDetail>>
     rollback: (workspaceId: string, canaryId?: string) => Promise<RemoteResult<EvolutionActionReceipt>>
   }
   interface TypertRemoteMap {
+    'evoforgeEvolution/approveExistingSkill': (workspaceId: string, candidateId: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     'evoforgeEvolution/approveReview': (workspaceId: string, id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     'evoforgeEvolution/overview': (workspaceId: string, sessionId?: string) => Promise<RemoteResult<EvolutionOverview>>
     'evoforgeEvolution/pause': (workspaceId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     'evoforgeEvolution/promote': (workspaceId: string, generationId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
+    'evoforgeEvolution/promoteExistingSkill': (workspaceId: string, candidateId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
+    'evoforgeEvolution/rejectExistingSkill': (workspaceId: string, candidateId: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     'evoforgeEvolution/rejectReview': (workspaceId: string, id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     'evoforgeEvolution/resume': (workspaceId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     'evoforgeEvolution/review': (workspaceId: string, id: string) => Promise<RemoteResult<EvolutionReviewDetail>>

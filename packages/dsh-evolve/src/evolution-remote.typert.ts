@@ -59,6 +59,37 @@ export class EvolutionRemoteTypertContract extends TypertRemoteService {
   }
 
   @Remote
+  approveExistingSkill(
+    workspaceId: string,
+    candidateId: string,
+    note: string,
+  ): Promise<EvolutionActionReceipt> {
+    void workspaceId
+    void candidateId
+    void note
+    throw new Error('static Typert contract')
+  }
+
+  @Remote
+  rejectExistingSkill(
+    workspaceId: string,
+    candidateId: string,
+    note: string,
+  ): Promise<EvolutionActionReceipt> {
+    void workspaceId
+    void candidateId
+    void note
+    throw new Error('static Typert contract')
+  }
+
+  @Remote
+  promoteExistingSkill(workspaceId: string, candidateId: string): Promise<EvolutionActionReceipt> {
+    void workspaceId
+    void candidateId
+    throw new Error('static Typert contract')
+  }
+
+  @Remote
   promote(workspaceId: string, generationId: string): Promise<EvolutionActionReceipt> {
     void workspaceId
     void generationId

@@ -173,6 +173,28 @@ function remote(
       generationId,
     })),
     rejectReview: vi.fn(() => success({ schemaVersion: 1 as const, workspaceId, action: 'reject-review' as const, reviewId, status: 'rejected' as const })),
+    approveExistingSkill: vi.fn((_requestedWorkspaceId: string, candidateId: string) => success({
+      schemaVersion: 1 as const,
+      workspaceId,
+      action: 'approve-existing-skill' as const,
+      candidateId,
+      generationId,
+      status: 'approved' as const,
+    })),
+    rejectExistingSkill: vi.fn((_requestedWorkspaceId: string, candidateId: string) => success({
+      schemaVersion: 1 as const,
+      workspaceId,
+      action: 'reject-existing-skill' as const,
+      candidateId,
+      status: 'rejected' as const,
+    })),
+    promoteExistingSkill: vi.fn((_requestedWorkspaceId: string, candidateId: string) => success({
+      schemaVersion: 1 as const,
+      workspaceId,
+      action: 'promote-existing-skill' as const,
+      candidateId,
+      activeGenerationId: generationId,
+    })),
     promote: vi.fn(() => success({ schemaVersion: 1 as const, workspaceId, action: 'promote' as const, activeGenerationId: generationId })),
     rollback: vi.fn((_requestedWorkspaceId: string, canaryId?: string) => success({
       schemaVersion: 1 as const,
@@ -326,6 +348,22 @@ const t = (key: string) => ({
   'skills.improvements.retention-evaluation.yes': 'yes',
   'skills.improvements.retention-evaluation.no': 'no',
   'skills.improvements.retention-evaluation.release.none': 'Retention evidence only · No promotion or release authority',
+  'skills.improvements.release': 'Existing-Skill release gate',
+  'skills.improvements.release.empty': 'No existing-Skill Candidate has reached the release gate.',
+  'skills.improvements.release.status.eligible': 'Human decision required',
+  'skills.improvements.release.status.approved': 'Published inactive; future Sessions unchanged',
+  'skills.improvements.release.status.rejected': 'Rejected by a human',
+  'skills.improvements.release.status.blocked': 'Release blocked',
+  'skills.improvements.release.reason.exact-existing-skill-evidence-retained': 'Exact Admission, Holdout, and Retention evidence passed',
+  'skills.improvements.release.baseline': 'Release baseline',
+  'skills.improvements.release.candidate': 'Release Candidate',
+  'skills.improvements.release.evidence': 'Admission / Holdout / Retention',
+  'skills.improvements.release.active': 'Active for future Sessions',
+  'skills.improvements.release.inactive': 'Inactive; current and future Sessions unchanged',
+  'skills.improvements.release.note': 'Existing-Skill release note',
+  'skills.improvements.release.approve': 'Approve inactive Generation',
+  'skills.improvements.release.reject': 'Reject Candidate',
+  'skills.improvements.release.promote': 'Promote for future Sessions',
   'skills.slow-loop': 'Internal experience-driven Skill authoring',
   'skills.slow-loop.policies': 'Workspace safety policies',
   'skills.slow-loop.warnings': 'unreadable durable states',
@@ -616,6 +654,103 @@ describe('EvolutionAction', () => {
     expect(screen.getAllByText('Candidate had no release authority')).toHaveLength(3)
     expect(screen.queryByText('8'.repeat(64))).toBeNull()
     expect(api.overview).toHaveBeenCalledTimes(1)
+  })
+
+  it('uses the Host existing-Skill release gate and keeps approval separate from promotion', async () => {
+    const candidateId = '0'.repeat(64)
+    const configured = remote()
+    let approved = false
+    const api = Object.assign(remote(), {
+      approveExistingSkill: vi.fn(() => {
+        approved = true
+        return success({
+          schemaVersion: 1 as const,
+          workspaceId,
+          action: 'approve-existing-skill' as const,
+          candidateId,
+          generationId,
+          status: 'approved' as const,
+        })
+      }),
+      rejectExistingSkill: vi.fn(() => success({
+        schemaVersion: 1 as const,
+        workspaceId,
+        action: 'reject-existing-skill' as const,
+        candidateId,
+        status: 'rejected' as const,
+      })),
+      promoteExistingSkill: vi.fn(() => success({
+        schemaVersion: 1 as const,
+        workspaceId,
+        action: 'promote-existing-skill' as const,
+        candidateId,
+        activeGenerationId: generationId,
+      })),
+    })
+    vi.mocked(api.overview).mockImplementation(async (requestedWorkspaceId, requestedSessionId) => {
+      const result = await configured.overview(requestedWorkspaceId, requestedSessionId)
+      if (!result.ok) return result
+      return success({
+        ...result.value,
+        existingSkillRelease: {
+          available: true as const,
+          actionableCount: 1,
+          items: [{
+            candidateId,
+            skillName: 'build-dsh-plugin',
+            status: approved ? 'approved' as const : 'eligible' as const,
+            reason: 'exact-existing-skill-evidence-retained' as const,
+            baseline: {
+              id: 'b'.repeat(64),
+              artifactDigest: 'd'.repeat(64),
+              treeHash: 'e'.repeat(64),
+            },
+            candidate: {
+              artifactDigest: '4'.repeat(64),
+              treeHash: '5'.repeat(64),
+            },
+            diff: {
+              changedPaths: ['references/verification.md', 'SKILL.md'],
+              addedPaths: ['references/verification.md'],
+              preservedFileCount: 2,
+              preservedBinaryFileCount: 1,
+            },
+            admissionId: '6'.repeat(64),
+            holdoutEvaluationId: '8'.repeat(64),
+            retentionEvaluationId: '9'.repeat(64),
+            ...(approved ? { generationId } : {}),
+            activeForFutureSessions: false,
+          }],
+        },
+      })
+    })
+    renderEvolution(api)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
+    fireEvent.click(await screen.findByRole('tab', { name: 'Skills' }))
+
+    expect(screen.getByText('Existing-Skill release gate')).toBeTruthy()
+    expect(screen.getByText('Human decision required')).toBeTruthy()
+    expect(screen.getByText('Exact Admission, Holdout, and Retention evidence passed')).toBeTruthy()
+    expect(screen.getByText(`Release baseline · ${'b'.repeat(8)}… · ${'e'.repeat(8)}…`)).toBeTruthy()
+    expect(screen.getByText(`Release Candidate · ${'5'.repeat(8)}…`)).toBeTruthy()
+    expect(screen.getByText('Changed instructions · references/verification.md · SKILL.md')).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Existing-Skill release note'), {
+      target: { value: 'verified exact retained improvement' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Approve inactive Generation' }))
+    expect(api.approveExistingSkill).not.toHaveBeenCalled()
+    fireEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Confirm' }))
+    await waitFor(() => expect(api.approveExistingSkill).toHaveBeenCalledWith(
+      workspaceId,
+      candidateId,
+      'verified exact retained improvement',
+    ))
+    expect(api.promoteExistingSkill).not.toHaveBeenCalled()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Promote for future Sessions' }))
+    fireEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Confirm' }))
+    await waitFor(() => expect(api.promoteExistingSkill).toHaveBeenCalledWith(workspaceId, candidateId))
   })
 
   it('requires confirmation and sends the exact failed-Outcome Canary for rollback', async () => {

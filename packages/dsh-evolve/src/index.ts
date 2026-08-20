@@ -616,6 +616,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     ...(existingSkillRetentionEvaluation === undefined
       ? {}
       : { existingSkillRetentionEvaluations: existingSkillRetentionEvaluation }),
+    ...(existingSkillRelease === undefined ? {} : { existingSkillRelease }),
     ...(skillEvaluationGovernance === undefined ? {} : { evaluationGovernance: skillEvaluationGovernance }),
     ...(review === undefined ? {} : { review }),
     ...(resident === undefined ? {} : { resident }),

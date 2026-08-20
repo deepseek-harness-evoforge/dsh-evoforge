@@ -424,6 +424,38 @@ export interface EvolutionExistingSkillCandidateQueueView {
     readonly quarantinedCount: number;
     readonly items: readonly EvolutionExistingSkillCandidateView[];
 }
+/** Browser-safe state of the sole Host gate for an exact existing-Skill Candidate. */
+export type EvolutionExistingSkillReleaseReason = 'exact-existing-skill-evidence-retained' | 'human-rejected' | 'candidate-not-found' | 'candidate-ambiguous' | 'admission-evidence-invalid' | 'admission-not-qualified' | 'holdout-evidence-invalid' | 'holdout-not-improved' | 'retention-evidence-invalid' | 'retention-not-retained' | 'release-decision-evidence-mismatch';
+export interface EvolutionExistingSkillReleaseView {
+    readonly available: true;
+    readonly actionableCount: number;
+    readonly items: readonly {
+        readonly candidateId: string;
+        readonly skillName: string;
+        readonly status: 'eligible' | 'approved' | 'rejected' | 'blocked';
+        readonly reason: EvolutionExistingSkillReleaseReason;
+        readonly baseline: {
+            readonly id: string;
+            readonly artifactDigest: string;
+            readonly treeHash: string;
+        };
+        readonly candidate: {
+            readonly artifactDigest: string;
+            readonly treeHash: string;
+        };
+        readonly diff: {
+            readonly changedPaths: readonly string[];
+            readonly addedPaths: readonly string[];
+            readonly preservedFileCount: number;
+            readonly preservedBinaryFileCount: number;
+        };
+        readonly admissionId?: string;
+        readonly holdoutEvaluationId?: string;
+        readonly retentionEvaluationId?: string;
+        readonly generationId?: string;
+        readonly activeForFutureSessions: boolean;
+    }[];
+}
 /** Durable protected authoring state for existing-Skill improvements. */
 export interface EvolutionExistingSkillAuthoringView {
     readonly configuredPolicyCount: number;
@@ -857,6 +889,7 @@ export interface EvolutionOverview {
     readonly existingSkillAdmission?: EvolutionExistingSkillAdmissionView;
     readonly existingSkillHoldoutEvaluation?: EvolutionExistingSkillHoldoutEvaluationView;
     readonly existingSkillRetentionEvaluation?: EvolutionExistingSkillRetentionEvaluationView;
+    readonly existingSkillRelease?: EvolutionExistingSkillReleaseView;
     readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView;
     readonly skillEvaluationGovernance?: EvolutionSkillEvaluationGovernanceView;
     readonly skillAdmission?: EvolutionSkillAdmissionView;
@@ -902,8 +935,9 @@ export interface EvolutionReviewDetail {
 export interface EvolutionActionReceipt {
     readonly schemaVersion: 1;
     readonly workspaceId: string;
-    readonly action: 'pause' | 'resume' | 'approve-review' | 'reject-review' | 'promote' | 'rollback';
+    readonly action: 'pause' | 'resume' | 'approve-review' | 'reject-review' | 'approve-existing-skill' | 'reject-existing-skill' | 'promote-existing-skill' | 'promote' | 'rollback';
     readonly reviewId?: string;
+    readonly candidateId?: string;
     readonly status?: 'approved' | 'rejected';
     readonly generationId?: string;
     readonly previousGenerationId?: string;

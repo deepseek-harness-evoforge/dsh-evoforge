@@ -13,6 +13,9 @@ export interface EvolutionRemoteClient {
   resume(workspaceId: string): Promise<RemoteResult<EvolutionActionReceipt>>
   approveReview(workspaceId: string, id: string, note: string): Promise<RemoteResult<EvolutionActionReceipt>>
   rejectReview(workspaceId: string, id: string, note: string): Promise<RemoteResult<EvolutionActionReceipt>>
+  approveExistingSkill(workspaceId: string, candidateId: string, note: string): Promise<RemoteResult<EvolutionActionReceipt>>
+  rejectExistingSkill(workspaceId: string, candidateId: string, note: string): Promise<RemoteResult<EvolutionActionReceipt>>
+  promoteExistingSkill(workspaceId: string, candidateId: string): Promise<RemoteResult<EvolutionActionReceipt>>
   promote(workspaceId: string, generationId: string): Promise<RemoteResult<EvolutionActionReceipt>>
   rollback(workspaceId: string, canaryId?: string): Promise<RemoteResult<EvolutionActionReceipt>>
 }

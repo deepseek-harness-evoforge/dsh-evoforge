@@ -24,6 +24,10 @@ import type { ExistingSkillHoldoutGovernance } from './existing-skill-holdout-go
 import type { ExistingSkillCandidateAdmission } from './existing-skill-candidate-admission.ts'
 import type { ExistingSkillHoldoutEvaluation } from './existing-skill-holdout-evaluation.ts'
 import type { ExistingSkillRetentionEvaluation } from './existing-skill-retention-evaluation.ts'
+import type {
+  ExistingSkillRelease,
+  ExistingSkillReleaseEligibility,
+} from './existing-skill-release.ts'
 import type { SkillCandidateLineage } from './skill-candidate-lineage.ts'
 import type { SkillEvaluationEvidenceVault } from './skill-evaluation-evidence-vault.ts'
 import type { SkillEvaluationGovernance } from './skill-evaluation-governance.ts'
@@ -46,6 +50,7 @@ import type {
   EvolutionExistingSkillAdmissionView,
   EvolutionExistingSkillHoldoutEvaluationView,
   EvolutionExistingSkillRetentionEvaluationView,
+  EvolutionExistingSkillReleaseView,
   EvolutionSkillCandidateQueueView,
   EvolutionSkillAdmissionView,
   EvolutionSkillCandidateLineageView,
@@ -97,6 +102,7 @@ export interface EvolutionControlPlaneModules {
   readonly existingSkillAdmissions?: Pick<ExistingSkillCandidateAdmission, 'scan'>
   readonly existingSkillHoldoutEvaluations?: Pick<ExistingSkillHoldoutEvaluation, 'scan'>
   readonly existingSkillRetentionEvaluations?: Pick<ExistingSkillRetentionEvaluation, 'scan'>
+  readonly existingSkillRelease?: Pick<ExistingSkillRelease, 'scan' | 'approve' | 'reject' | 'promote'>
   readonly evaluationGovernance?: Pick<SkillEvaluationGovernance, 'scan'>
   readonly retention?: Pick<InternalSkillRetention, 'scan'>
   readonly counterfactualCanary?: Pick<CounterfactualCanary, 'scan'>
@@ -121,6 +127,7 @@ export class EvolutionControlPlane {
       existingSkillAdmissionScan,
       existingSkillHoldoutEvaluationScan,
       existingSkillRetentionEvaluationScan,
+      existingSkillReleaseScan,
       evaluationGovernanceScan,
       retentionScan,
       counterfactualCanaryScan,
@@ -145,6 +152,9 @@ export class EvolutionControlPlane {
       this.modules.existingSkillRetentionEvaluations === undefined
         ? undefined
         : this.modules.existingSkillRetentionEvaluations.scan(workspaceId),
+      this.modules.existingSkillRelease === undefined
+        ? undefined
+        : this.modules.existingSkillRelease.scan(workspaceId),
       this.modules.evaluationGovernance === undefined
         ? undefined
         : this.modules.evaluationGovernance.scan(workspaceId),
@@ -358,6 +368,15 @@ export class EvolutionControlPlane {
               existingSkillRetentionEvaluationScan,
             ),
           }),
+      ...(existingSkillReleaseScan === undefined
+        ? {}
+        : {
+            existingSkillRelease: projectExistingSkillRelease(
+              existingSkillReleaseScan,
+              this.requireExistingSkillCandidates(workspaceId),
+              active?.id,
+            ),
+          }),
       ...(admissionScan === undefined
         ? {}
         : { skillAdmission: projectSkillAdmission(admissionScan) }),
@@ -496,6 +515,58 @@ export class EvolutionControlPlane {
     }
   }
 
+  async approveExistingSkill(
+    workspaceId: string,
+    candidateId: string,
+    note: string,
+  ): Promise<EvolutionActionReceipt> {
+    const decision = await this.requireExistingSkillRelease().approve(workspaceId, candidateId, note)
+    if (decision.status !== 'approved' || decision.generationId === undefined) {
+      throw new Error('approved existing Skill release has no inactive Generation id')
+    }
+    return {
+      schemaVersion: 1,
+      workspaceId,
+      action: 'approve-existing-skill',
+      candidateId: decision.candidateId,
+      generationId: decision.generationId,
+      status: 'approved',
+    }
+  }
+
+  async rejectExistingSkill(
+    workspaceId: string,
+    candidateId: string,
+    note: string,
+  ): Promise<EvolutionActionReceipt> {
+    const decision = await this.requireExistingSkillRelease().reject(workspaceId, candidateId, note)
+    if (decision.status !== 'rejected') {
+      throw new Error('rejected existing Skill release returned a non-rejected decision')
+    }
+    return {
+      schemaVersion: 1,
+      workspaceId,
+      action: 'reject-existing-skill',
+      candidateId: decision.candidateId,
+      status: 'rejected',
+    }
+  }
+
+  async promoteExistingSkill(
+    workspaceId: string,
+    candidateId: string,
+  ): Promise<EvolutionActionReceipt> {
+    const result = await this.requireExistingSkillRelease().promote(workspaceId, candidateId)
+    return {
+      schemaVersion: 1,
+      workspaceId,
+      action: 'promote-existing-skill',
+      candidateId,
+      ...(result.previousId === undefined ? {} : { previousGenerationId: result.previousId }),
+      activeGenerationId: result.generation.id,
+    }
+  }
+
   async promote(workspaceId: string, generationId: string): Promise<EvolutionActionReceipt> {
     if (this.modules.promotion === undefined) {
       throw new Error('future-Session promotion eligibility is not configured')
@@ -541,6 +612,22 @@ export class EvolutionControlPlane {
       throw new Error('resident recovery is not configured')
     }
     return this.modules.resident
+  }
+
+  private requireExistingSkillRelease(): NonNullable<EvolutionControlPlaneModules['existingSkillRelease']> {
+    if (this.modules.existingSkillRelease === undefined) {
+      throw new Error('existing Skill release gate is not configured')
+    }
+    return this.modules.existingSkillRelease
+  }
+
+  private requireExistingSkillCandidates(
+    workspaceId: string,
+  ): ReturnType<SkillCandidateStore['listExistingCandidates']> {
+    if (this.modules.candidates?.listExistingCandidates === undefined) {
+      throw new Error('existing Skill release gate has no Candidate projection')
+    }
+    return this.modules.candidates.listExistingCandidates(workspaceId)
   }
 
 }
@@ -663,6 +750,58 @@ function projectExistingSkillCandidates(
       execution: candidate.execution,
       releaseAuthority: candidate.releaseAuthority,
     })),
+  }
+}
+
+function projectExistingSkillRelease(
+  release: readonly ExistingSkillReleaseEligibility[],
+  candidates: ReturnType<SkillCandidateStore['listExistingCandidates']>,
+  activeGenerationId: string | undefined,
+): EvolutionExistingSkillReleaseView {
+  const items = release.slice(0, MAX_DISCOVERY_ROWS).map(value => {
+    const matches = candidates.filter(candidate => candidate.id === value.candidateId)
+    if (matches.length !== 1) {
+      throw new Error('existing Skill release projection does not have one exact Candidate')
+    }
+    const candidate = matches[0]!
+    return {
+      candidateId: value.candidateId,
+      skillName: candidate.skillName,
+      status: value.status,
+      reason: value.reason,
+      baseline: {
+        id: candidate.baseline.id,
+        artifactDigest: candidate.baseline.artifactDigest,
+        treeHash: candidate.baseline.treeHash,
+      },
+      candidate: {
+        artifactDigest: candidate.version.artifactDigest,
+        treeHash: candidate.version.treeHash,
+      },
+      diff: {
+        changedPaths: [...candidate.diff.changedPaths],
+        addedPaths: [...candidate.diff.addedPaths],
+        preservedFileCount: candidate.diff.preservedFileCount,
+        preservedBinaryFileCount: candidate.diff.preservedBinaryFileCount,
+      },
+      ...value.status === 'eligible' || value.status === 'approved'
+        ? {
+            admissionId: value.admissionId,
+            holdoutEvaluationId: value.holdoutEvaluationId,
+            retentionEvaluationId: value.retentionEvaluationId,
+            ...value.generationId === undefined ? {} : { generationId: value.generationId },
+          }
+        : {},
+      activeForFutureSessions: value.status === 'approved'
+        && value.generationId !== undefined
+        && value.generationId === activeGenerationId,
+    }
+  })
+  return {
+    available: true,
+    actionableCount: items.filter(item => item.status === 'eligible'
+      || (item.status === 'approved' && !item.activeForFutureSessions)).length,
+    items,
   }
 }
 

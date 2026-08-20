@@ -48,6 +48,26 @@ export class EvolutionRemoteService extends TypertRemoteService {
     return this.control.rejectReview(workspaceId, id, note)
   }
 
+  approveExistingSkill(
+    workspaceId: string,
+    candidateId: string,
+    note: string,
+  ): Promise<EvolutionActionReceipt> {
+    return this.control.approveExistingSkill(workspaceId, candidateId, note)
+  }
+
+  rejectExistingSkill(
+    workspaceId: string,
+    candidateId: string,
+    note: string,
+  ): Promise<EvolutionActionReceipt> {
+    return this.control.rejectExistingSkill(workspaceId, candidateId, note)
+  }
+
+  promoteExistingSkill(workspaceId: string, candidateId: string): Promise<EvolutionActionReceipt> {
+    return this.control.promoteExistingSkill(workspaceId, candidateId)
+  }
+
   promote(workspaceId: string, generationId: string): Promise<EvolutionActionReceipt> {
     return this.control.promote(workspaceId, generationId)
   }
@@ -65,6 +85,9 @@ export const EVOLUTION_REMOTE_METHODS = [
   'resume',
   'approveReview',
   'rejectReview',
+  'approveExistingSkill',
+  'rejectExistingSkill',
+  'promoteExistingSkill',
   'promote',
   'rollback',
 ] as const satisfies readonly (keyof EvolutionRemoteService)[]

@@ -1,7 +1,7 @@
 # V4.43 现有 Skill 独立发布门与 future-Session 同名替换
 
 日期：2026-08-21
-状态：`implemented`（Host/Storage/Command 与真实 DSH Session 自动化已验证；Control/Remote/Web、最终 tarball 浏览器和 failed-Outcome Canary 尚未完成）
+状态：`implemented`（Host/Storage/Command 与真实 DSH Session 自动化已验证；Control/Remote/Web 已由 [V4.44](v4-44-existing-skill-release-control-web.zh.md) 接入，最终 tarball 浏览器和 failed-Outcome Canary 尚未完成）
 
 ## 本增量回答的问题
 
@@ -26,5 +26,5 @@ V4.41/V4.42 已证明现有 Skill Candidate 在独立 Holdout 与 Retention 上�
 
 ## 发布边界
 
-- 本增量尚未把 existing-Skill release 状态和动作接入 `EvolutionControl`、Typert Remote 与 DSH Web，也未做最终 tarball 浏览器的刷新/断连/恢复/卸载验证。
+- 后续 [V4.44](v4-44-existing-skill-release-control-web.zh.md) 已把同一 Host owner 接入 `EvolutionControl`、Typert Remote 与 DSH Web；最终 tarball 浏览器的刷新/断连/恢复/卸载验证仍未完成。
 - failed-Outcome Canary、证据驱动回滚、两套独立真实 provider、真实飞书 exact route、Hermes paired benchmark 与长期负迁移/误晋升/误回滚数据仍阻止 tag 与完成声明。

@@ -20,7 +20,14 @@ export type EvolutionActionProps = PropsRuntime<'sidebar.footer.action'> & {
   readonly t: (key: string) => string
 }
 
-type ConfirmAction = 'approve' | 'reject' | 'promote' | 'rollback'
+type ConfirmAction =
+  | 'approve'
+  | 'reject'
+  | 'approve-existing'
+  | 'reject-existing'
+  | 'promote-existing'
+  | 'promote'
+  | 'rollback'
 type EvolutionView = 'overview' | 'skills' | 'advanced'
 
 /** Sidebar trigger and bounded global evolution control panel. */
@@ -34,6 +41,8 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
   const [overview, setOverview] = useState<EvolutionOverview>()
   const [detail, setDetail] = useState<EvolutionReviewDetail>()
   const [note, setNote] = useState('')
+  const [existingReleaseNotes, setExistingReleaseNotes] = useState<Record<string, string>>({})
+  const [existingReleaseTarget, setExistingReleaseTarget] = useState<string>()
   const [promotionTarget, setPromotionTarget] = useState<string>()
   const [rollbackCanaryId, setRollbackCanaryId] = useState<string>()
   const [busy, setBusy] = useState(false)
@@ -51,6 +60,8 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
     setOverview(undefined)
     setDetail(undefined)
     setNote('')
+    setExistingReleaseNotes({})
+    setExistingReleaseTarget(undefined)
     setPromotionTarget(undefined)
     setRollbackCanaryId(undefined)
     setNotice(undefined)
@@ -161,6 +172,19 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
       if (workspaceRef.current !== targetWorkspaceId) return
       if (receipt.action === 'promote') setPromotionTarget(undefined)
       if (receipt.action === 'rollback') setRollbackCanaryId(undefined)
+      if (receipt.action === 'approve-existing-skill'
+        || receipt.action === 'reject-existing-skill'
+        || receipt.action === 'promote-existing-skill') {
+        setExistingReleaseTarget(undefined)
+        if (receipt.candidateId !== undefined) {
+          const candidateId = receipt.candidateId
+          setExistingReleaseNotes(current => {
+            const next = { ...current }
+            delete next[candidateId]
+            return next
+          })
+        }
+      }
       if (receipt.action === 'approve-review' || receipt.action === 'reject-review') {
         setDetail(undefined)
       }
@@ -185,6 +209,20 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
       void run(() => remoteValue(remote.rejectReview(workspaceId, detail.review.id, note.trim())))
     } else if (confirm === 'promote' && promotionTarget !== undefined) {
       void run(() => remoteValue(remote.promote(workspaceId, promotionTarget)))
+    } else if (confirm === 'approve-existing' && existingReleaseTarget !== undefined) {
+      void run(() => remoteValue(remote.approveExistingSkill(
+        workspaceId,
+        existingReleaseTarget,
+        existingReleaseNotes[existingReleaseTarget]?.trim() ?? '',
+      )))
+    } else if (confirm === 'reject-existing' && existingReleaseTarget !== undefined) {
+      void run(() => remoteValue(remote.rejectExistingSkill(
+        workspaceId,
+        existingReleaseTarget,
+        existingReleaseNotes[existingReleaseTarget]?.trim() ?? '',
+      )))
+    } else if (confirm === 'promote-existing' && existingReleaseTarget !== undefined) {
+      void run(() => remoteValue(remote.promoteExistingSkill(workspaceId, existingReleaseTarget)))
     } else if (confirm === 'rollback') {
       void run(() => remoteValue(remote.rollback(workspaceId, rollbackCanaryId)))
     }
@@ -239,12 +277,25 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
             {notice !== undefined && <div className="dsh-evolve-message" role="status">{notice}</div>}
             {error !== undefined && <div className="dsh-evolve-message dsh-evolve-error" role="alert">{t('error.prefix')}{error}</div>}
             {overview !== undefined && view === 'overview' && (
-              <BeginnerOverview summary={overview} openAdvanced={() => setView('advanced')} t={t} />
+              <BeginnerOverview
+                summary={overview}
+                openAdvanced={() => setView(overview.reviews.actionableCount > 0 ? 'advanced' : 'skills')}
+                t={t}
+              />
             )}
             {overview !== undefined && view === 'skills' && (
               <SkillsView
                 summary={overview}
                 busy={busy}
+                existingReleaseNotes={existingReleaseNotes}
+                setExistingReleaseNote={(candidateId, value) => setExistingReleaseNotes(current => ({
+                  ...current,
+                  [candidateId]: value,
+                }))}
+                decideExistingRelease={(candidateId, action) => {
+                  setExistingReleaseTarget(candidateId)
+                  setConfirm(action)
+                }}
                 rollbackEligible={(canaryId) => {
                   setRollbackCanaryId(canaryId)
                   setConfirm('rollback')
@@ -309,6 +360,9 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
               <button type="button" className="dsh-evolve-button" onClick={() => {
                 setConfirm(undefined)
                 if (confirm === 'rollback') setRollbackCanaryId(undefined)
+                if (confirm === 'approve-existing'
+                  || confirm === 'reject-existing'
+                  || confirm === 'promote-existing') setExistingReleaseTarget(undefined)
               }}>{t('action.cancel')}</button>
               <button type="button" className="dsh-evolve-button dsh-evolve-primary" onClick={executeConfirmed}>{t('action.confirm')}</button>
             </div>
@@ -380,9 +434,23 @@ function hasVerificationTarget(summary: EvolutionOverview): boolean {
     || (summary.existingSkillRetentionEvaluation?.configuredPolicyCount ?? 0) > 0
 }
 
-function SkillsView({ summary, busy, rollbackEligible, t }: {
+function SkillsView({
+  summary,
+  busy,
+  existingReleaseNotes,
+  setExistingReleaseNote,
+  decideExistingRelease,
+  rollbackEligible,
+  t,
+}: {
   summary: EvolutionOverview
   busy: boolean
+  existingReleaseNotes: Readonly<Record<string, string>>
+  setExistingReleaseNote: (candidateId: string, value: string) => void
+  decideExistingRelease: (
+    candidateId: string,
+    action: 'approve-existing' | 'reject-existing' | 'promote-existing',
+  ) => void
   rollbackEligible: (canaryId: string) => void
   t: (key: string) => string
 }) {
@@ -407,6 +475,14 @@ function SkillsView({ summary, busy, rollbackEligible, t }: {
     <ExistingSkillAdmission summary={summary} t={t} />
     <ExistingSkillHoldoutEvaluation summary={summary} t={t} />
     <ExistingSkillRetentionEvaluation summary={summary} t={t} />
+    <ExistingSkillRelease
+      summary={summary}
+      busy={busy}
+      notes={existingReleaseNotes}
+      setNote={setExistingReleaseNote}
+      decide={decideExistingRelease}
+      t={t}
+    />
     <SkillEvaluationGovernance summary={summary} t={t} />
     <SkillAdmission summary={summary} t={t} />
     <SkillEvaluationRuns summary={summary} t={t} />
@@ -1066,6 +1142,112 @@ function ExistingSkillRetentionEvaluation({
   </section>
 }
 
+function ExistingSkillRelease({
+  summary,
+  busy,
+  notes,
+  setNote,
+  decide,
+  t,
+}: {
+  summary: EvolutionOverview
+  busy: boolean
+  notes: Readonly<Record<string, string>>
+  setNote: (candidateId: string, value: string) => void
+  decide: (
+    candidateId: string,
+    action: 'approve-existing' | 'reject-existing' | 'promote-existing',
+  ) => void
+  t: (key: string) => string
+}) {
+  const release = summary.existingSkillRelease
+  if (release === undefined) return null
+  return <section>
+    <h3 className="dsh-evolve-section-title">{t('skills.improvements.release')}</h3>
+    {release.items.length === 0
+      ? <div className="dsh-evolve-message">{t('skills.improvements.release.empty')}</div>
+      : <ul className="dsh-evolve-list">{release.items.map(item => {
+          const note = notes[item.candidateId] ?? ''
+          const validNote = note.trim().length > 0
+          return <li className="dsh-evolve-skill-card" key={item.candidateId}>
+            <div className="dsh-evolve-review-skill">{item.skillName}</div>
+            <div className="dsh-evolve-capability-route">
+              {t(item.activeForFutureSessions
+                ? 'skills.improvements.release.active'
+                : `skills.improvements.release.status.${item.status}`)}
+            </div>
+            <div className="dsh-evolve-meta">
+              {t(`skills.improvements.release.reason.${item.reason}`)}
+            </div>
+            <div className="dsh-evolve-meta">
+              {t('skills.improvements.release.baseline')} · {shortId(item.baseline.id)} · {shortId(item.baseline.treeHash)}
+            </div>
+            <div className="dsh-evolve-meta">
+              {t('skills.improvements.release.candidate')} · {shortId(item.candidate.treeHash)}
+            </div>
+            <div className="dsh-evolve-meta">
+              {t('skills.improvements.candidates.changed')} · {item.diff.changedPaths.join(' · ')}
+            </div>
+            {item.diff.addedPaths.length > 0 && <div className="dsh-evolve-meta">
+              {t('skills.improvements.candidates.added')} · {item.diff.addedPaths.join(' · ')}
+            </div>}
+            <div className="dsh-evolve-meta">
+              {t('skills.improvements.candidates.preserved')} · {item.diff.preservedFileCount} {t('skills.improvements.files')}
+              {' · '}{item.diff.preservedBinaryFileCount} {t('skills.improvements.candidates.binary')}
+            </div>
+            {item.admissionId !== undefined
+              && item.holdoutEvaluationId !== undefined
+              && item.retentionEvaluationId !== undefined
+              && <div className="dsh-evolve-meta">
+                {t('skills.improvements.release.evidence')} · {shortId(item.admissionId)} / {shortId(item.holdoutEvaluationId)} / {shortId(item.retentionEvaluationId)}
+              </div>}
+            {item.generationId !== undefined && <div className="dsh-evolve-meta">
+              Generation · {shortId(item.generationId)}
+            </div>}
+            <div className="dsh-evolve-discovery-state">
+              {t(item.activeForFutureSessions
+                ? 'skills.improvements.release.active'
+                : 'skills.improvements.release.inactive')}
+            </div>
+            {item.status === 'eligible' && <>
+              <label>
+                <span className="dsh-evolve-section-title">{t('skills.improvements.release.note')}</span>
+                <textarea
+                  className="dsh-evolve-note"
+                  aria-label={t('skills.improvements.release.note')}
+                  value={note}
+                  maxLength={2048}
+                  onChange={event => setNote(item.candidateId, event.currentTarget.value)}
+                />
+              </label>
+              <div className="dsh-evolve-actions">
+                <button
+                  type="button"
+                  className="dsh-evolve-button dsh-evolve-danger"
+                  disabled={busy || !validNote}
+                  onClick={() => decide(item.candidateId, 'reject-existing')}
+                >{t('skills.improvements.release.reject')}</button>
+                <button
+                  type="button"
+                  className="dsh-evolve-button dsh-evolve-primary"
+                  disabled={busy || !validNote}
+                  onClick={() => decide(item.candidateId, 'approve-existing')}
+                >{t('skills.improvements.release.approve')}</button>
+              </div>
+            </>}
+            {item.status === 'approved' && !item.activeForFutureSessions && <div className="dsh-evolve-actions">
+              <button
+                type="button"
+                className="dsh-evolve-button dsh-evolve-primary"
+                disabled={busy}
+                onClick={() => decide(item.candidateId, 'promote-existing')}
+              >{t('skills.improvements.release.promote')}</button>
+            </div>}
+          </li>
+        })}</ul>}
+  </section>
+}
+
 function trialUsage(value: {
   readonly inputTokens?: number
   readonly outputTokens?: number
@@ -1461,7 +1643,7 @@ function Overview({ summary, t }: { summary: EvolutionOverview; t: (key: string)
 
 function actionableCount(overview: EvolutionOverview | undefined): number {
   if (overview === undefined) return 0
-  return overview.reviews.actionableCount
+  return overview.reviews.actionableCount + (overview.existingSkillRelease?.actionableCount ?? 0)
 }
 
 function requireWorkspace<T>(

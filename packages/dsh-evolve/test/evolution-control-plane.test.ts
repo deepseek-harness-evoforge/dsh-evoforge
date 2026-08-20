@@ -2,12 +2,15 @@ import { describe, expect, it, vi } from 'vitest'
 import { EvolutionControlPlane } from '../src/evolution-control-plane.ts'
 import type { CapabilityGeneration, EvolutionStore } from '../src/generation-store.ts'
 import type { ReviewCandidate } from '../src/review-inbox.ts'
+import type { ExistingSkillCandidate } from '../src/skill-candidate-repository.ts'
 import { experienceSkillCandidate } from './skill-candidate-fixture.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const generationId = 'a'.repeat(64)
 const parentId = 'b'.repeat(64)
 const reviewId = 'c'.repeat(64)
+const existingCandidateId = '0'.repeat(64)
+const existingGenerationId = '1'.repeat(64)
 
 function opportunityEvidence() {
   return {
@@ -107,6 +110,86 @@ function candidate(status: ReviewCandidate['status'] = 'pending'): ReviewCandida
     compositionStable: true,
     startedAt: '2026-08-16T00:00:00.000Z',
     evidenceHash: '5'.repeat(64),
+  }
+}
+
+function existingCandidate(): ExistingSkillCandidate {
+  return {
+    schemaVersion: 1,
+    kind: 'existing-skill-improvement-candidate-v1',
+    id: existingCandidateId,
+    createdAt: 1_786_896_200_000,
+    workspaceId: WORKSPACE_ID,
+    skillName: 'build-dsh-plugin',
+    description: 'Build a DSH plugin with independent verification.',
+    opportunity: {
+      kind: 'internal-existing-skill-correction-v1',
+      id: 'f'.repeat(64),
+      signalCount: 4,
+      goalCount: 4,
+    },
+    baseline: {
+      qualificationId: 'a'.repeat(64),
+      id: 'b'.repeat(64),
+      artifactDigest: 'd'.repeat(64),
+      treeHash: 'e'.repeat(64),
+    },
+    authorship: {
+      kind: 'protected-correction-authoring-v1',
+      policyId: 'internal-experience-author',
+      modelIdentityHash: '1'.repeat(64),
+      evaluationEvidenceId: '2'.repeat(64),
+      inputDigest: '3'.repeat(64),
+      holdoutEnvelopeId: 'd'.repeat(64),
+      claim: 'private proposer claim',
+    },
+    scope: 'workspace',
+    version: {
+      kind: 'existing-skill-improvement-bundle-v1',
+      parentBaselineId: 'b'.repeat(64),
+      artifactDigest: '4'.repeat(64),
+      treeHash: '5'.repeat(64),
+    },
+    contentHash: '4'.repeat(64),
+    diff: {
+      kind: 'bounded-instruction-tree-diff-v1',
+      changedPaths: ['references/verification.md', 'SKILL.md'],
+      addedPaths: ['references/verification.md'],
+      preservedFileCount: 2,
+      preservedBinaryFileCount: 1,
+    },
+    package: {
+      path: '/private/candidate/build-dsh-plugin',
+      fileCount: 4,
+      totalBytes: 640,
+      hasExecutableFiles: false,
+    },
+    permissions: {
+      declared: false,
+      executableContentChanged: false,
+      externalEffects: 'unchanged-or-unknown',
+    },
+    license: { status: 'unknown' },
+    safety: {
+      status: 'quarantined',
+      checks: [
+        { name: 'artifact-digest-integrity', status: 'passed' },
+        { name: 'exact-baseline-binding', status: 'passed' },
+        { name: 'whole-tree-inheritance', status: 'passed' },
+        { name: 'skill-identity', status: 'passed' },
+        { name: 'instruction-only-diff', status: 'passed' },
+        { name: 'effect-review', status: 'required' },
+      ],
+    },
+    artifact: {
+      kind: 'sealed-complete-skill-bundle',
+      format: 'tar.gz',
+      digest: '4'.repeat(64),
+    },
+    lifecycle: 'inactive',
+    verification: 'unevaluated',
+    execution: 'never',
+    releaseAuthority: 'none',
   }
 }
 
@@ -1364,6 +1447,139 @@ describe('EvolutionControlPlane', () => {
     const promotion = await control.promote(WORKSPACE_ID, generationId)
     expect(evolutionStore.promoteGeneration).toHaveBeenCalledWith(WORKSPACE_ID, generationId)
     expect(promotion).toMatchObject({ action: 'promote', activeGenerationId: generationId })
+  })
+
+  it('projects and controls existing-Skill release through the sole Host release owner', async () => {
+    const evolutionStore = store(undefined)
+    const release = {
+      scan: vi.fn(async () => [{
+        status: 'eligible' as const,
+        reason: 'exact-existing-skill-evidence-retained' as const,
+        candidateId: existingCandidateId,
+        admissionId: '6'.repeat(64),
+        holdoutEvaluationId: '8'.repeat(64),
+        retentionEvaluationId: '9'.repeat(64),
+      }]),
+      approve: vi.fn(async () => ({
+        schemaVersion: 1 as const,
+        kind: 'existing-skill-release-decision-v1' as const,
+        id: '2'.repeat(64),
+        status: 'approved' as const,
+        candidateId: existingCandidateId,
+        workspaceId: WORKSPACE_ID,
+        skillName: 'build-dsh-plugin',
+        actor: 'human' as const,
+        decisionNote: 'verified retained improvement',
+        decidedAt: '2026-08-21T00:00:00.000Z',
+        evidenceHash: '3'.repeat(64),
+        admissionId: '6'.repeat(64),
+        holdoutEvaluationId: '8'.repeat(64),
+        retentionEvaluationId: '9'.repeat(64),
+        generationId: existingGenerationId,
+      })),
+      reject: vi.fn(async () => ({
+        schemaVersion: 1 as const,
+        kind: 'existing-skill-release-decision-v1' as const,
+        id: '4'.repeat(64),
+        status: 'rejected' as const,
+        candidateId: existingCandidateId,
+        workspaceId: WORKSPACE_ID,
+        skillName: 'build-dsh-plugin',
+        actor: 'human' as const,
+        decisionNote: 'unsafe effect boundary',
+        decidedAt: '2026-08-21T00:00:00.000Z',
+        evidenceHash: '5'.repeat(64),
+      })),
+      promote: vi.fn(async () => ({
+        previousId: undefined,
+        generation: generation(existingGenerationId),
+      })),
+    }
+    const control = new EvolutionControlPlane({
+      store: evolutionStore,
+      candidates: {
+        listCandidates: () => [],
+        listExistingCandidates: () => [existingCandidate()],
+      },
+      existingSkillRelease: release,
+    })
+
+    const overview = await control.overview(WORKSPACE_ID)
+    expect(release.scan).toHaveBeenCalledWith(WORKSPACE_ID)
+    expect(overview.existingSkillRelease).toEqual({
+      available: true,
+      actionableCount: 1,
+      items: [{
+        candidateId: existingCandidateId,
+        skillName: 'build-dsh-plugin',
+        status: 'eligible',
+        reason: 'exact-existing-skill-evidence-retained',
+        baseline: {
+          id: 'b'.repeat(64),
+          artifactDigest: 'd'.repeat(64),
+          treeHash: 'e'.repeat(64),
+        },
+        candidate: {
+          artifactDigest: '4'.repeat(64),
+          treeHash: '5'.repeat(64),
+        },
+        diff: {
+          changedPaths: ['references/verification.md', 'SKILL.md'],
+          addedPaths: ['references/verification.md'],
+          preservedFileCount: 2,
+          preservedBinaryFileCount: 1,
+        },
+        admissionId: '6'.repeat(64),
+        holdoutEvaluationId: '8'.repeat(64),
+        retentionEvaluationId: '9'.repeat(64),
+        activeForFutureSessions: false,
+      }],
+    })
+    expect(JSON.stringify(overview.existingSkillRelease)).not.toContain('/private/')
+    expect(JSON.stringify(overview.existingSkillRelease)).not.toContain('private proposer claim')
+
+    await expect(control.approveExistingSkill(
+      WORKSPACE_ID,
+      existingCandidateId,
+      'verified retained improvement',
+    )).resolves.toEqual({
+      schemaVersion: 1,
+      workspaceId: WORKSPACE_ID,
+      action: 'approve-existing-skill',
+      candidateId: existingCandidateId,
+      generationId: existingGenerationId,
+      status: 'approved',
+    })
+    expect(release.approve).toHaveBeenCalledWith(
+      WORKSPACE_ID,
+      existingCandidateId,
+      'verified retained improvement',
+    )
+    expect(evolutionStore.promoteGeneration).not.toHaveBeenCalled()
+
+    await expect(control.promoteExistingSkill(WORKSPACE_ID, existingCandidateId)).resolves.toEqual({
+      schemaVersion: 1,
+      workspaceId: WORKSPACE_ID,
+      action: 'promote-existing-skill',
+      candidateId: existingCandidateId,
+      activeGenerationId: existingGenerationId,
+    })
+    expect(release.promote).toHaveBeenCalledWith(WORKSPACE_ID, existingCandidateId)
+
+    await expect(control.rejectExistingSkill(
+      WORKSPACE_ID,
+      existingCandidateId,
+      'unsafe effect boundary',
+    )).resolves.toMatchObject({
+      action: 'reject-existing-skill',
+      candidateId: existingCandidateId,
+      status: 'rejected',
+    })
+    expect(release.reject).toHaveBeenCalledWith(
+      WORKSPACE_ID,
+      existingCandidateId,
+      'unsafe effect boundary',
+    )
   })
 
   it('refuses future-Session promotion when independent eligibility governance is unavailable', async () => {
