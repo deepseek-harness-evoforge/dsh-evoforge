@@ -261,6 +261,8 @@ const t = (key: string) => ({
   'skills.improvements.files': 'files',
   'skills.improvements.evidence': 'Exact invocation baselines',
   'skills.improvements.invocations': 'invocations',
+  'skills.improvements.evaluation.waiting': 'Waiting for independent correction evidence · Candidate authoring blocked',
+  'skills.improvements.evaluation.reason.fewer-than-four-independent-goals': 'Fewer than four distinct Goals',
   'skills.slow-loop': 'Internal experience-driven Skill authoring',
   'skills.slow-loop.policies': 'Workspace safety policies',
   'skills.slow-loop.warnings': 'unreadable durable states',
@@ -728,6 +730,13 @@ describe('EvolutionAction', () => {
               candidateEligibility: 'eligible-for-existing-skill-authoring' as const,
               releaseAuthority: 'none' as const,
             },
+            evaluationReadiness: {
+              status: 'waiting' as const,
+              reason: 'fewer-than-four-independent-goals' as const,
+              observedGoalCount: 2,
+              requiredGoalCount: 4 as const,
+              releaseAuthority: 'none' as const,
+            },
             status: 'waiting-for-baseline-bundle' as const,
             releaseAuthority: 'none' as const,
           }],
@@ -955,6 +964,7 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('Sealed baseline Bundle · eligible for protected existing-Skill authoring · no Candidate, install, or release')).toBeTruthy()
     expect(screen.getByText(`Baseline Bundle · filesystem/project-dsh · ${'b'.repeat(8)}… · 3 files`)).toBeTruthy()
     expect(screen.getByText('Exact invocation baselines · 2 invocations / 2 distinct Goals')).toBeTruthy()
+    expect(screen.getByText('Waiting for independent correction evidence · Candidate authoring blocked · Fewer than four distinct Goals · 2/4 distinct Goals')).toBeTruthy()
     expect(screen.getByText('Internal experience-driven Skill authoring')).toBeTruthy()
     expect(screen.getByText('Quarantined candidate ready')).toBeTruthy()
     expect(screen.getByText('Model calls · input/output tokens · 1 · 320/120')).toBeTruthy()

@@ -76,7 +76,7 @@ Natural-language Goal
 
 ### 4.3 Existing-Skill improvement
 
-已安装 Skill 与缺失 Skill 分轨。只有同 Workspace、同 Skill 名、同 invocation-content hash 在至少两个不同 Goal 收到明确纠正，才会形成独立调查。局部 hash 不是完整 Skill package；Host 在每次原生调用边界封存完整目录 Bundle，并把每个 correction 的 immutable Session/invocation reference 逐一重验。全部引用必须指向同一个内容寻址 baseline，missing 等待，漂移、损坏、错配或多个 Bundle 均 invalid。成功只允许进入后继 protected existing-Skill authoring，仍无 Candidate、安装或发布权。
+已安装 Skill 与缺失 Skill 分轨。只有同 Workspace、同 Skill 名、同 invocation-content hash 在至少两个不同 Goal 收到明确纠正，才会形成独立调查。局部 hash 不是完整 Skill package；Host 在每次原生调用边界封存完整目录 Bundle，并把每个 correction 的 immutable Session/invocation reference 逐一重验。全部引用必须指向同一个内容寻址 baseline，missing 等待，漂移、损坏、错配或多个 Bundle 均 invalid。至少四个不同 Goal 后，Host 再经官方 Message Feedback/Session Persistence 读取当前纠正与 exact durable Goal/请求，在 Candidate 调用前内容寻址密封 authoring/admission/holdout；第五个及以上额外保留 Retention。proposer 只得到 authoring，保护正文不进入 Remote/Web。成功仍只允许进入后继 protected existing-Skill authoring，无 Candidate、安装或发布权。
 
 ## 5. 生成前证据密封
 
@@ -155,10 +155,10 @@ missing 或 prepared 为 `waiting`；告警、歧义、谱系错配、`regressed
 - Session/Goal 恢复、当前 Session pin、原子晋升与 exact rollback 通过；
 - 真实 provider 下 admission/holdout/Retention/canary 和故障注入通过；
 - 真实浏览器验证刷新、断连、恢复和控制操作；
-- existing-Skill protected whole-tree author、baseline/candidate paired evaluation 和 Candidate 路径通过；
+- existing-Skill protected whole-tree author消费已隔离 authoring evidence，baseline/candidate paired evaluation 和 Candidate 路径通过；
 - 长期误晋升、负迁移、遗忘、重复外部效果、成本、时延、cache-read 和回滚指标达标；
 - 相同任务、模型、权限和预算的 Hermes paired benchmark 证明声称的上位结果。
 
 越权、评测泄漏、当前 Session 漂移、无法卸载或无法精确回滚任意一项都阻止 tag 和发布。
 
-当前 exact Retention、Promotion Eligibility、Canary evidence、Rollback Gate 与 existing-Skill baseline qualification 见 [V4.26](../evidence/v4-26-exact-candidate-retention-execution.zh.md)、[V4.27](../evidence/v4-27-shadow-retention-web-projection.zh.md)、[V4.28](../evidence/v4-28-shadow-retention-real-browser.zh.md)、[V4.29](../evidence/v4-29-retention-promotion-eligibility.zh.md)、[V4.31](../evidence/v4-31-failed-outcome-counterfactual-canary.zh.md)、[V4.32](../evidence/v4-32-exact-canary-rollback-gate.zh.md) 和 [V4.34](../evidence/v4-34-existing-skill-baseline-qualification.zh.md)。
+当前 exact Retention、Promotion Eligibility、Canary evidence、Rollback Gate、existing-Skill baseline qualification 与 correction evidence seal 见 [V4.26](../evidence/v4-26-exact-candidate-retention-execution.zh.md)、[V4.27](../evidence/v4-27-shadow-retention-web-projection.zh.md)、[V4.28](../evidence/v4-28-shadow-retention-real-browser.zh.md)、[V4.29](../evidence/v4-29-retention-promotion-eligibility.zh.md)、[V4.31](../evidence/v4-31-failed-outcome-counterfactual-canary.zh.md)、[V4.32](../evidence/v4-32-exact-canary-rollback-gate.zh.md)、[V4.34](../evidence/v4-34-existing-skill-baseline-qualification.zh.md) 和 [V4.35](../evidence/v4-35-existing-skill-correction-evidence-seal.zh.md)。

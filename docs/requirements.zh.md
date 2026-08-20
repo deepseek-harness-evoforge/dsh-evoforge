@@ -359,7 +359,9 @@ Host 确定性组装 archive；Candidate v2 将 exact evaluation-evidence seal i
 inactive、unevaluated、never-executed Candidate。可能已经付费但结果未知时持久化 `uncertain` 并拒绝盲重试；
 取消后的迟到响应不得落候选。该模块没有安装、激活或发布接口。
 
-现有 Skill 改进与上述缺失能力路径分轨。feedback 目标回答的唯一成功 Skill 调用必须从 durable Session 计算模型实际看到的 invocation content-block hash；只有同 Workspace、同 Skill 名、同 hash 在至少两个不同 Goal 中收到去重负向纠正，才形成独立调查。历史无 hash、同 Goal retry、重复 Signal、同名不同内容版本或歧义全部 abstain。该 hash 不是完整 Skill package/tree/version，固定 `causalClaim: none` 且不能被 capability-absent Envelope 或 Candidate Repository 消费。Host 必须在调用发生时封存完整受信 Bundle，再重验调查快照和每个 exact `(Session, invocation seq)` 引用；只有 route/Skill/hash 一致且全部解析到同一个 baseline id，才生成内容寻址的 `eligible-for-existing-skill-authoring` 资格。引用缺失等待，证据漂移、archive 损坏、归因错配或多个 Bundle 均 invalid。该资格固定无 Candidate、安装、激活或发布权；protected whole-tree author 和独立 baseline/candidate 评测仍须另建门禁。
+现有 Skill 改进与上述缺失能力路径分轨。feedback 目标回答的唯一成功 Skill 调用必须从 durable Session 计算模型实际看到的 invocation content-block hash；只有同 Workspace、同 Skill 名、同 hash 在至少两个不同 Goal 中收到去重负向纠正，才形成独立调查。历史无 hash、同 Goal retry、重复 Signal、同名不同内容版本或歧义全部 abstain。该 hash 不是完整 Skill package/tree/version，固定 `causalClaim: none` 且不能被 capability-absent Envelope 或 Candidate Repository 消费。Host 必须在调用发生时封存完整受信 Bundle，再重验调查快照和每个 exact `(Session, invocation seq)` 引用；只有 route/Skill/hash 一致且全部解析到同一个 baseline id，才生成内容寻址的 `eligible-for-existing-skill-authoring` 资格。引用缺失等待，证据漂移、archive 损坏、归因错配或多个 Bundle 均 invalid。
+
+该资格达到至少四个不同 Goal 后，Host 必须通过官方 `MessageFeedbackService.list()` 与 `SessionPersistence.inspect()` 重新读取当前纠正和 exact durable Goal/用户请求；禁止从私有 DSH storage table 或 reference-only Signal 偷取正文。message/version/time、assistant、唯一 Skill invocation、route/seq/content hash 和 Goal revision 必须全等。证据在 Candidate 调用前确定性分为至少两个 authoring、一个 admission、一个 holdout；第五个及以上再隔离一个 Retention；同 Goal 重复不计。proposer 只可见 authoring cases，治理面保留其余样本，Remote/Web 只显示 identity、计数和阻断原因。少于四 Goal 不读取纠正文；feedback/Session 漂移、服务缺失、内容超限和 seal 篡改均 fail closed。该证据仍固定无 Candidate、安装、激活或发布权；protected whole-tree author 和独立 baseline/candidate 评测仍须另建门禁。
 
 Delivery Outcome 可附带同一 Session、同一稳定 Goal id 的 `GoalExecutionMetrics`。Host 只统计首条 admitted
 message 属于当时最新 active Goal revision 的 turn，并在 exact `complete_delivery` result event 截止；token、
@@ -370,7 +372,7 @@ active wall time 来自同一原生 turn 边界。手工 turn、其他 Goal、�
 `EvolutionControlPlane.overview` 只输出 browser-safe 聚合与至多 20 条最新已测 Outcome；不输出 Session/call/reason/path，
 不建立第二 metrics API 或浏览器状态权威。缺失 metrics 必须显示为未测，不能折算为零。
 
-DSH Web 已投影 `Capability Gap → Skill Opportunity → Candidate → authoring state`，并将 existing-Skill improvement investigation 与 exact baseline qualification 作为独立队列展示。页面显示证据 Goal 数、Gap/纠正数、baseline provider/source/id/文件数、资格或阻断原因、
+DSH Web 已投影 `Capability Gap → Skill Opportunity → Candidate → authoring state`，并将 existing-Skill improvement investigation、exact baseline qualification 与 correction evidence readiness 作为独立队列展示。页面显示证据 Goal 数、Gap/纠正数、baseline provider/source/id/文件数、authoring/admission/holdout/Retention 分区、资格或阻断原因、
 关联纠正/Outcome 计数、有界短引用、无因果声明、Candidate id、预算/调用和隔离状态，并展示 Host 权威的
 Workspace/current/baseline Goal 执行聚合、最近已测 Outcome、token/cache/latency/active-wall facts 与价格 unavailable；
 Opportunity 另显示评测证据是等待、无策略、无效、具备密封条件或已密封；凡 Gap 已进入 Opportunity，浏览器

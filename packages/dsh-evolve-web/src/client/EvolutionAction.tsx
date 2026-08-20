@@ -8,6 +8,7 @@ import type {
   EvolutionCapabilityView,
   EvolutionDeliveryMetricEvidenceView,
   EvolutionDeliveryMetricRollupView,
+  EvolutionExistingSkillEvaluationEvidenceReadinessView,
   EvolutionSkillCandidateLineageView,
   EvolutionOverview,
   EvolutionReviewDetail,
@@ -990,9 +991,43 @@ function SkillImprovementOpportunities({ summary, t }: { summary: EvolutionOverv
                   : <div className="dsh-evolve-discovery-state">
                       {t('skills.improvements.unavailable')}
                     </div>}
+            <ExistingSkillEvidenceReadiness readiness={opportunity.evaluationReadiness} t={t} />
           </li>
         })}</ul>}
   </section>
+}
+
+function ExistingSkillEvidenceReadiness({
+  readiness,
+  t,
+}: {
+  readiness: EvolutionExistingSkillEvaluationEvidenceReadinessView
+  t: (key: string) => string
+}) {
+  if (!('reason' in readiness)) {
+    return <>
+      <div className="dsh-evolve-discovery-state">
+        {t(`skills.improvements.evaluation.${readiness.status}`)}
+      </div>
+      <div className="dsh-evolve-meta">
+        {t('skills.improvements.evaluation.partition')}
+        {' · '}{t('skills.opportunities.evaluation.authoring')} {readiness.authoringGoalCount}
+        {' / '}{t('skills.opportunities.evaluation.admission')} {readiness.admissionGoalCount}
+        {' / '}{t('skills.opportunities.evaluation.holdout')} {readiness.holdoutGoalCount}
+        {' / '}{t('skills.opportunities.evaluation.retention')} {readiness.retentionGoalCount}
+      </div>
+      <div className="dsh-evolve-meta">
+        {t('skills.improvements.evaluation.identity')}
+        {' · '}{shortId(readiness.evidenceId)} / {shortId(readiness.qualificationId)} / {shortId(readiness.baselineId)}
+      </div>
+      <div className="dsh-evolve-meta">{t('skills.improvements.evaluation.protected')}</div>
+    </>
+  }
+  return <div className="dsh-evolve-discovery-state">
+    {t(`skills.improvements.evaluation.${readiness.status}`)}
+    {' · '}{t(`skills.improvements.evaluation.reason.${readiness.reason}`)}
+    {' · '}{readiness.observedGoalCount}/{readiness.requiredGoalCount} {t('skills.opportunities.goals')}
+  </div>
 }
 
 function CapabilityMap({ summary, t }: { summary: EvolutionOverview; t: (key: string) => string }) {

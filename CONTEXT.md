@@ -122,6 +122,10 @@ _Avoid_: Invocation hash as package, name-only snapshot, flat Markdown guess, ru
 A Host-owned, content-addressed proof that every exact correction invocation in one current Existing Skill Improvement Opportunity resolves through its immutable Session/invocation reference to the same revalidated Installed Skill Baseline Bundle. Missing references wait; evidence drift, corruption, attribution mismatch, or multiple Bundle identities invalidate the qualification. Success permits only protected existing-Skill authoring and has no Candidate, install, activation, or release authority.
 _Avoid_: First-baseline wins, current-directory reconstruction, rendered-content equivalence, proposer-selected baseline, implicit Candidate
 
+**Existing Skill Evaluation Evidence Seal**:
+A Host-owned, content-addressed snapshot of current explicit correction text plus its exact durable Goal and user-request context, read only through official DSH Message Feedback and Session Persistence services after one Existing Skill Baseline Qualification succeeds. At least four distinct Goals are split before Candidate authoring into authoring, admission, and holdout, with an additional retention partition from a fifth Goal; the proposer receives only authoring cases. The seal has no Candidate, install, activation, or release authority.
+_Avoid_: Copying correction text into reference-only Signals, proposer-visible holdout, private DSH table reads, same-Goal retries, model-invented correction
+
 **Fast Evolution Loop**:
 A bounded online loop that attributes an explicit correction, verified outcome, repeated failure, or measured cost to the exact Session Generation and records an inactive signal, gap, or small candidate for later evaluation. It never rewrites an active capability or publishes from the originating Session.
 _Avoid_: Learn-once activation, synchronous reflection, retry-as-learning

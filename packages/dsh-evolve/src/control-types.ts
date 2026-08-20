@@ -275,6 +275,7 @@ export type EvolutionExistingSkillBaselineQualificationView =
       readonly candidateEligibility: 'eligible-for-existing-skill-authoring'
       readonly releaseAuthority: 'none'
     }
+
   | {
       readonly status: 'waiting'
       readonly reason: 'invocation-baseline-missing' | 'evidence-over-limit'
@@ -293,6 +294,37 @@ export type EvolutionExistingSkillBaselineQualificationView =
   | {
       readonly status: 'unavailable'
       readonly reason: 'baseline-governance-unavailable'
+      readonly releaseAuthority: 'none'
+    }
+
+export type EvolutionExistingSkillEvaluationEvidenceReadinessView =
+  | {
+      readonly status: 'ready-to-seal' | 'sealed'
+      readonly evidenceId: string
+      readonly qualificationId: string
+      readonly baselineId: string
+      readonly observedGoalCount: number
+      readonly authoringGoalCount: number
+      readonly admissionGoalCount: number
+      readonly holdoutGoalCount: number
+      readonly retentionGoalCount: number
+      readonly proposerCanReadProtectedSamples: false
+      readonly releaseAuthority: 'none'
+    }
+  | {
+      readonly status: 'waiting' | 'unavailable' | 'invalid'
+      readonly reason:
+        | 'governance-policy-unavailable'
+        | 'baseline-qualification-waiting'
+        | 'baseline-qualification-invalid'
+        | 'fewer-than-four-independent-goals'
+        | 'correction-evidence-unavailable'
+        | 'correction-evidence-drift'
+        | 'correction-evidence-invalid'
+        | 'sealed-evidence-invalid'
+        | 'evidence-services-unavailable'
+      readonly observedGoalCount: number
+      readonly requiredGoalCount: 4
       readonly releaseAuthority: 'none'
     }
 
@@ -315,6 +347,7 @@ export interface EvolutionSkillImprovementOpportunityView {
     readonly causalClaim: 'none'
   }
   readonly baselineQualification: EvolutionExistingSkillBaselineQualificationView
+  readonly evaluationReadiness: EvolutionExistingSkillEvaluationEvidenceReadinessView
   readonly status: 'waiting-for-baseline-bundle'
   readonly releaseAuthority: 'none'
 }

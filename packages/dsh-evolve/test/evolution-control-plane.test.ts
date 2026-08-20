@@ -338,6 +338,15 @@ describe('EvolutionControlPlane', () => {
           baseline: {} as never,
         }),
       },
+      improvementEvidence: {
+        readiness: async () => ({
+          status: 'waiting' as const,
+          reason: 'fewer-than-four-independent-goals' as const,
+          observedGoalCount: 2,
+          requiredGoalCount: 4 as const,
+          releaseAuthority: 'none' as const,
+        }),
+      },
       evaluationEvidence: {
         readiness: async () => ({
           status: 'waiting' as const,
@@ -660,6 +669,13 @@ describe('EvolutionControlPlane', () => {
               goalCount: 2,
             },
             candidateEligibility: 'eligible-for-existing-skill-authoring',
+            releaseAuthority: 'none',
+          },
+          evaluationReadiness: {
+            status: 'waiting',
+            reason: 'fewer-than-four-independent-goals',
+            observedGoalCount: 2,
+            requiredGoalCount: 4,
             releaseAuthority: 'none',
           },
           status: 'waiting-for-baseline-bundle',

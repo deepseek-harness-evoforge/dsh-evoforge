@@ -9,6 +9,9 @@ import type { CapabilityGapStore } from './capability-gap-store.ts'
 import type {
   ExistingSkillBaselineQualificationResult,
 } from './existing-skill-baseline-qualification.ts'
+import type {
+  ExistingSkillEvaluationEvidenceReadiness,
+} from './existing-skill-evaluation-evidence-vault.ts'
 import type { SkillCandidateStore } from './skill-candidate-repository.ts'
 import type {
   ExperienceDrivenSkillOpportunityDiscovery,
@@ -34,6 +37,7 @@ import type {
   EvolutionCapabilityMapView,
   EvolutionCapabilityGapQueueView,
   EvolutionExistingSkillBaselineQualificationView,
+  EvolutionExistingSkillEvaluationEvidenceReadinessView,
   EvolutionSkillCandidateQueueView,
   EvolutionSkillAdmissionView,
   EvolutionSkillCandidateLineageView,
@@ -69,6 +73,11 @@ export interface EvolutionControlPlaneModules {
     readonly qualify: (
       opportunity: SkillImprovementOpportunity,
     ) => Promise<ExistingSkillBaselineQualificationResult | undefined>
+  }
+  readonly improvementEvidence?: {
+    readonly readiness: (
+      opportunity: SkillImprovementOpportunity,
+    ) => Promise<ExistingSkillEvaluationEvidenceReadiness | undefined>
   }
   readonly evaluationEvidence?: Pick<SkillEvaluationEvidenceVault, 'readiness'>
   readonly candidates?: Pick<SkillCandidateStore, 'listCandidates'>
@@ -128,6 +137,10 @@ export class EvolutionControlPlane {
       ? []
       : await Promise.all(skillImprovementOpportunities.map(opportunity =>
           this.modules.improvementBaselines?.qualify(opportunity) ?? Promise.resolve(undefined)))
+    const improvementEvidenceReadiness = skillImprovementOpportunities === undefined
+      ? []
+      : await Promise.all(skillImprovementOpportunities.map(opportunity =>
+          this.modules.improvementEvidence?.readiness(opportunity) ?? Promise.resolve(undefined)))
     return {
       schemaVersion: 1,
       ...(active === undefined ? {} : { active: projectGeneration(active) }),
@@ -201,6 +214,10 @@ export class EvolutionControlPlane {
               evidence: { ...opportunity.evidence },
               baselineQualification: projectExistingSkillBaselineQualification(
                 improvementQualifications[index],
+              ),
+              evaluationReadiness: projectExistingSkillEvaluationEvidenceReadiness(
+                improvementEvidenceReadiness[index],
+                opportunity.goalCount,
               ),
               status: opportunity.status,
               releaseAuthority: opportunity.releaseAuthority,
@@ -833,6 +850,22 @@ function projectExistingSkillBaselineQualification(
     candidateEligibility: result.qualification.status,
     releaseAuthority: result.qualification.releaseAuthority,
   }
+}
+
+function projectExistingSkillEvaluationEvidenceReadiness(
+  result: ExistingSkillEvaluationEvidenceReadiness | undefined,
+  observedGoalCount: number,
+): EvolutionExistingSkillEvaluationEvidenceReadinessView {
+  if (result === undefined) {
+    return {
+      status: 'unavailable',
+      reason: 'evidence-services-unavailable',
+      observedGoalCount,
+      requiredGoalCount: 4,
+      releaseAuthority: 'none',
+    }
+  }
+  return { ...result }
 }
 
 function cloneOutcomeSummary(summary: ReturnType<DeliveryOutcomeStore['summarize']>) {

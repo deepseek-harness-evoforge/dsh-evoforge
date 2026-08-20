@@ -66,6 +66,7 @@
 - 用户只提交自然语言 Goal；系统从 Capability Map 自主命中适用、已验证能力，不显示开场选路菜单；
 - 无适用能力时产生可复核 Capability Gap；同一 Workspace 内至少两个独立 Goal 的重复缺口才形成 Skill Opportunity；
 - Opportunity 达到至少四个独立 Goal 后，先由治理面密封 authoring/admission/holdout；存在第五个或更多独立 Goal 时再保留一个 Candidate 不可见的 Retention 样本。作者看不到任何 protected 组，样本不足不花预算或生成 Candidate；
+- 现有已安装 Skill 的改进先绑定调用时完整 Bundle，再从官方 Feedback/Session 服务密封真实纠正；至少四个不同 Goal 后才隔离 authoring/admission/holdout，第五个及以上保留 Retention。当前已完成该证据门，下一步是 whole-tree author 与 paired evaluation；
 - Skill 名和候选方向由内部 Goal、失败、纠正、结果、复用与保留证据推导，不由用户或部署者预选 exact Skill；
 - Skill 的 identity、source、scope、version、content hash、权限和 verification state 可追踪；
 - 候选按 whole-Skill folder 原子版本化，始终 inactive、Workspace-scoped、内容寻址；

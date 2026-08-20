@@ -256,6 +256,25 @@ export type EvolutionExistingSkillBaselineQualificationView = {
     readonly reason: 'baseline-governance-unavailable';
     readonly releaseAuthority: 'none';
 };
+export type EvolutionExistingSkillEvaluationEvidenceReadinessView = {
+    readonly status: 'ready-to-seal' | 'sealed';
+    readonly evidenceId: string;
+    readonly qualificationId: string;
+    readonly baselineId: string;
+    readonly observedGoalCount: number;
+    readonly authoringGoalCount: number;
+    readonly admissionGoalCount: number;
+    readonly holdoutGoalCount: number;
+    readonly retentionGoalCount: number;
+    readonly proposerCanReadProtectedSamples: false;
+    readonly releaseAuthority: 'none';
+} | {
+    readonly status: 'waiting' | 'unavailable' | 'invalid';
+    readonly reason: 'governance-policy-unavailable' | 'baseline-qualification-waiting' | 'baseline-qualification-invalid' | 'fewer-than-four-independent-goals' | 'correction-evidence-unavailable' | 'correction-evidence-drift' | 'correction-evidence-invalid' | 'sealed-evidence-invalid' | 'evidence-services-unavailable';
+    readonly observedGoalCount: number;
+    readonly requiredGoalCount: 4;
+    readonly releaseAuthority: 'none';
+};
 /** Existing-Skill investigation queue; no Candidate exists without an exact baseline bundle. */
 export interface EvolutionSkillImprovementOpportunityView {
     readonly id: string;
@@ -275,6 +294,7 @@ export interface EvolutionSkillImprovementOpportunityView {
         readonly causalClaim: 'none';
     };
     readonly baselineQualification: EvolutionExistingSkillBaselineQualificationView;
+    readonly evaluationReadiness: EvolutionExistingSkillEvaluationEvidenceReadinessView;
     readonly status: 'waiting-for-baseline-bundle';
     readonly releaseAuthority: 'none';
 }

@@ -61,6 +61,7 @@ import { DurableFeedbackAttribution } from './durable-feedback-attribution.ts'
 import { InstalledSkillBaselineVault } from './installed-skill-baseline.ts'
 import { installInstalledSkillBaselineMonitor } from './installed-skill-baseline-monitor.ts'
 import { ExistingSkillBaselineQualification } from './existing-skill-baseline-qualification.ts'
+import { ExistingSkillEvaluationEvidenceVault } from './existing-skill-evaluation-evidence-vault.ts'
 import { EvolutionControlPlane } from './evolution-control-plane.ts'
 import { EvolutionRemoteService } from './evolution-remote.ts'
 import { AutomaticEvolutionBudget } from './automatic-evolution-budget.ts'
@@ -187,6 +188,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const capabilityMonitors = new Set<ReturnType<typeof installCapabilityMapObserver>>()
   const installedBaselineMonitors = new Set<ReturnType<typeof installInstalledSkillBaselineMonitor>>()
   let existingSkillBaselineQualification: ExistingSkillBaselineQualification | undefined
+  let existingSkillEvaluationEvidence: ExistingSkillEvaluationEvidenceVault | undefined
   ctx.inject(['skills'], (skillCtx) => {
     const monitor = installCapabilityMapObserver(skillCtx, capabilities, store)
     capabilityMonitors.add(monitor)
@@ -217,6 +219,37 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       capabilityMonitors.delete(monitor)
     }, 'dsh-evolve.skillObservation')
   })
+  if (candidateEvaluationPolicies.length > 0) {
+    ctx.inject(['skills', 'messageFeedback', 'sessionPersistence'], (evidenceCtx) => {
+      const baselineVault = new InstalledSkillBaselineVault(
+        candidateEvaluationPolicies.map(policy => ({
+          workspaceId: policy.workspaceId,
+          governanceRoot: policy.governanceRoot,
+        })),
+        evidenceCtx.skills,
+      )
+      const qualification = new ExistingSkillBaselineQualification(
+        skillOpportunities,
+        feedbackSignals,
+        baselineVault,
+      )
+      const evidence = new ExistingSkillEvaluationEvidenceVault(
+        candidateEvaluationPolicies,
+        qualification,
+        feedbackSignals,
+        evidenceCtx.messageFeedback,
+        evidenceCtx.sessionPersistence,
+      )
+      evidenceCtx.effect(() => {
+        existingSkillEvaluationEvidence = evidence
+        return () => {
+          if (existingSkillEvaluationEvidence === evidence) {
+            existingSkillEvaluationEvidence = undefined
+          }
+        }
+      }, 'dsh-evolve.existingSkillEvaluationEvidence')
+    })
+  }
 
   let skillAdmissionScheduler: SkillCandidateAdmissionScheduler | undefined
   let skillShadowScheduler: SkillCandidateShadowScheduler | undefined
@@ -360,6 +393,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     opportunities: skillOpportunities,
     improvementBaselines: {
       qualify: async opportunity => existingSkillBaselineQualification?.qualify(opportunity),
+    },
+    improvementEvidence: {
+      readiness: async opportunity => existingSkillEvaluationEvidence?.readiness(opportunity),
     },
     evaluationEvidence: skillEvaluationEvidence,
     candidates: skillCandidateStore,
@@ -510,6 +546,13 @@ export type {
   ExistingSkillBaselineQualificationManifest,
   ExistingSkillBaselineQualificationResult,
 } from './existing-skill-baseline-qualification.ts'
+export { ExistingSkillEvaluationEvidenceVault } from './existing-skill-evaluation-evidence-vault.ts'
+export type {
+  ExistingSkillAuthoringEvidence,
+  ExistingSkillEvaluationEvidenceManifest,
+  ExistingSkillEvaluationEvidencePreparation,
+  ExistingSkillEvaluationEvidenceReadiness,
+} from './existing-skill-evaluation-evidence-vault.ts'
 export type { SkillOpportunityAuthoringPolicyConfig } from './slow-loop-skill-authoring.ts'
 export type { ShadowResumeInvocation, ShadowSupervisorOptions } from './shadow-supervisor.ts'
 export type {
