@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { lstat, mkdir, readFile, realpath } from 'node:fs/promises'
+import { lstat, mkdir, readFile, readdir, realpath } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, join, relative, sep } from 'node:path'
 import { readCapabilityAbsentSubject } from './capability-absent-subject.ts'
 import { hashTree } from './hash.ts'
@@ -17,21 +17,12 @@ import {
   writeDurableJson,
 } from './shadow-run-state.ts'
 import { runPairedTrial, type PairedTrialResult } from './trial.ts'
+import { isWorkspaceId } from './workspace-identity.ts'
+import type { EvolutionSkillRetentionReason } from './control-types.ts'
 
 const CONTENT_ID = /^[a-f0-9]{64}$/
 
-export type InternalSkillRetentionReason =
-  | 'no-independent-retention-case'
-  | 'shadow-not-complete'
-  | 'shadow-not-promotable'
-  | 'retention-trial-failed'
-  | 'retention-input-mutated'
-  | 'retention-not-assembled'
-  | 'retention-calibration-failed'
-  | 'prior-case-baseline-failed'
-  | 'non-target-composition-changed'
-  | 'candidate-regressed-prior-case'
-  | 'candidate-retained-prior-case'
+export type InternalSkillRetentionReason = EvolutionSkillRetentionReason
 
 export interface InternalSkillRetentionResult {
   readonly schemaVersion: 1
@@ -65,6 +56,36 @@ export interface InternalSkillRetentionResult {
       readonly candidate: Record<string, number | undefined>
     }
   }
+}
+
+export interface InternalSkillRetentionRunRoot {
+  readonly workspaceId: string
+  readonly path: string
+}
+
+/** Redacted durable Retention state for the authoritative Host/Web control plane. */
+export interface InternalSkillRetentionRunView {
+  readonly id: string
+  readonly candidateId: string
+  readonly workspaceId: string
+  readonly skillName: string
+  readonly admissionId: string
+  readonly evaluationEnvelopeId: string
+  readonly shadowRunId: string
+  readonly baselineTreeHash: string
+  readonly candidateTreeHash: string
+  readonly status: 'prepared' | 'retained' | 'regressed' | 'incomplete'
+  readonly reason?: InternalSkillRetentionReason
+  readonly startedAt?: string
+  readonly finishedAt?: string
+  readonly evidence?: InternalSkillRetentionResult['evidence']
+  readonly releaseAuthority: 'none'
+}
+
+export interface InternalSkillRetentionScan {
+  readonly configuredRootCount: number
+  readonly warningCount: number
+  readonly runs: readonly InternalSkillRetentionRunView[]
 }
 
 export type InternalCandidateShadowResult =
@@ -111,13 +132,25 @@ type TrialRunner = typeof runPairedTrial
 export class InternalSkillRetention {
   private readonly admission: QualifiedAdmissionReader
   private readonly runTrial: TrialRunner
+  private readonly runRoots: readonly InternalSkillRetentionRunRoot[]
 
   constructor(
     admission: Pick<SkillCandidateAdmission, 'qualifiedShadowInput'>,
-    options: { runTrial?: TrialRunner } = {},
+    options: {
+      runTrial?: TrialRunner
+      runRoots?: readonly InternalSkillRetentionRunRoot[]
+    } = {},
   ) {
+    const runRoots = options.runRoots ?? []
+    if (runRoots.some(root => !isWorkspaceId(root.workspaceId) || !isAbsolute(root.path))) {
+      throw new Error('retention run roots require a native Workspace id and absolute path')
+    }
+    if (new Set(runRoots.map(root => root.path)).size !== runRoots.length) {
+      throw new Error('retention run roots must be uniquely owned')
+    }
     this.admission = admission
     this.runTrial = options.runTrial ?? runPairedTrial
+    this.runRoots = runRoots.map(root => Object.freeze({ ...root }))
   }
 
   async evaluate(
@@ -267,6 +300,150 @@ export class InternalSkillRetention {
       await releaseLock()
     }
   }
+
+  /** Read bounded, content-addressed state without copying Retention into another database. */
+  async scan(workspaceId?: string): Promise<InternalSkillRetentionScan> {
+    const roots = this.runRoots.filter(root => workspaceId === undefined || root.workspaceId === workspaceId)
+    const runs = new Map<string, InternalSkillRetentionRunView>()
+    let warningCount = 0
+    for (const requestedRoot of roots) {
+      let root: string
+      let entries
+      try {
+        root = await realpath(requestedRoot.path)
+        entries = await readdir(root, { withFileTypes: true })
+      } catch (error) {
+        if (!isMissingOrExisting(error, 'ENOENT')) warningCount += 1
+        continue
+      }
+      entries.sort((left, right) => left.name.localeCompare(right.name))
+      if (entries.length > 1_000) warningCount += 1
+      for (const entry of entries.slice(0, 1_000)) {
+        if (!CONTENT_ID.test(entry.name)) continue
+        if (!entry.isDirectory()) {
+          warningCount += 1
+          continue
+        }
+        try {
+          const outputDir = join(root, entry.name)
+          const info = await lstat(outputDir)
+          if (!info.isDirectory() || info.isSymbolicLink() || await realpath(outputDir) !== outputDir) {
+            throw new Error('retention scan entry is not an exact owned directory')
+          }
+          const prepared = await readPrepared(outputDir)
+          if (prepared.id !== entry.name
+            || prepared.workspaceId !== requestedRoot.workspaceId
+            || prepared.id !== retentionId(
+              prepared.candidateId,
+              prepared.admissionId,
+              prepared.evaluationEnvelopeId,
+              prepared.shadowRunId,
+              prepared.retentionCasePackHash,
+            )) {
+            throw new Error('retention scan identity does not match its content address')
+          }
+          const reportPath = join(outputDir, 'result.json')
+          const result = await readScannedResult(reportPath, prepared)
+          const view = projectRetentionRun(prepared, result)
+          const existing = runs.get(view.id)
+          if (existing !== undefined && JSON.stringify(existing) !== JSON.stringify(view)) {
+            throw new Error('duplicate retention id has different evidence')
+          }
+          runs.set(view.id, existing ?? view)
+        } catch {
+          warningCount += 1
+        }
+      }
+    }
+    return Object.freeze({
+      configuredRootCount: roots.length,
+      warningCount,
+      runs: [...runs.values()].sort((left, right) => left.id.localeCompare(right.id)),
+    })
+  }
+}
+
+async function readScannedResult(
+  reportPath: string,
+  prepared: RetentionRunIdentity,
+): Promise<InternalSkillRetentionResult | undefined> {
+  let info
+  try {
+    info = await lstat(reportPath)
+  } catch (error) {
+    if (isMissingOrExisting(error, 'ENOENT')) return undefined
+    throw error
+  }
+  if (!info.isFile() || info.isSymbolicLink()) {
+    throw new Error('retention result must be a regular owned file')
+  }
+  const result = await readExistingResult(reportPath, prepared)
+  if (result === undefined) throw new Error('retention result disappeared during scan')
+  return result
+}
+
+async function readPrepared(outputDir: string): Promise<RetentionRunIdentity> {
+  const path = join(outputDir, 'prepared.json')
+  const info = await lstat(path)
+  if (!info.isFile() || info.isSymbolicLink()) {
+    throw new Error('retention prepared identity must be a regular owned file')
+  }
+  const value = JSON.parse(await readFile(path, 'utf8')) as unknown
+  if (!isRecord(value)
+    || value.schemaVersion !== 1
+    || value.kind !== 'internal-skill-retention-run-v1'
+    || !CONTENT_ID.test(String(value.id))
+    || !CONTENT_ID.test(String(value.candidateId))
+    || !isWorkspaceId(value.workspaceId)
+    || typeof value.skillName !== 'string'
+    || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value.skillName)
+    || !CONTENT_ID.test(String(value.admissionId))
+    || !CONTENT_ID.test(String(value.evaluationEnvelopeId))
+    || typeof value.shadowRunId !== 'string'
+    || !CONTENT_ID.test(String(value.baselineTreeHash))
+    || !CONTENT_ID.test(String(value.candidateTreeHash))
+    || !CONTENT_ID.test(String(value.retentionCasePackHash))) {
+    throw new Error('retention prepared identity has an invalid shape')
+  }
+  return Object.freeze(value as unknown as RetentionRunIdentity)
+}
+
+function projectRetentionRun(
+  prepared: RetentionRunIdentity,
+  result: InternalSkillRetentionResult | undefined,
+): InternalSkillRetentionRunView {
+  if (result?.status === 'abstained') {
+    throw new Error('abstained Retention is not a durable run result')
+  }
+  const status = result?.status ?? 'prepared'
+  return Object.freeze({
+    id: prepared.id,
+    candidateId: prepared.candidateId,
+    workspaceId: prepared.workspaceId,
+    skillName: prepared.skillName,
+    admissionId: prepared.admissionId,
+    evaluationEnvelopeId: prepared.evaluationEnvelopeId,
+    shadowRunId: prepared.shadowRunId,
+    baselineTreeHash: prepared.baselineTreeHash,
+    candidateTreeHash: prepared.candidateTreeHash,
+    status,
+    ...(result?.reason === undefined ? {} : { reason: result.reason }),
+    ...(result?.startedAt === undefined ? {} : { startedAt: result.startedAt }),
+    ...(result?.finishedAt === undefined ? {} : { finishedAt: result.finishedAt }),
+    ...(result?.evidence === undefined ? {} : { evidence: {
+      ...result.evidence,
+      ...(result.evidence.modelCalls === undefined
+        ? {}
+        : { modelCalls: { ...result.evidence.modelCalls } }),
+      ...(result.evidence.usage === undefined
+        ? {}
+        : { usage: {
+            baseline: { ...result.evidence.usage.baseline },
+            candidate: { ...result.evidence.usage.candidate },
+          } }),
+    } }),
+    releaseAuthority: 'none',
+  })
 }
 
 function assertAdmission(
@@ -581,6 +758,30 @@ function isRetentionEvidence(value: unknown): value is NonNullable<InternalSkill
     && typeof value.compositionStable === 'boolean'
     && value.proposerCalls === 0
     && value.trialCount === 4
+    && ((value.modelCalls === undefined && value.usage === undefined)
+      || (isModelCallPair(value.modelCalls) && isUsagePair(value.usage)))
+}
+
+function isModelCallPair(value: unknown): boolean {
+  return isRecord(value)
+    && nonNegativeInteger(value.baseline)
+    && nonNegativeInteger(value.candidate)
+}
+
+function isUsagePair(value: unknown): boolean {
+  return isRecord(value)
+    && isEvaluatorUsage(value.baseline)
+    && isEvaluatorUsage(value.candidate)
+}
+
+function isEvaluatorUsage(value: unknown): boolean {
+  if (!isRecord(value)) return false
+  return ['inputTokens', 'outputTokens', 'cacheReadTokens', 'cacheWriteTokens', 'reasoningTokens']
+    .every(key => value[key] === undefined || nonNegativeInteger(value[key]))
+}
+
+function nonNegativeInteger(value: unknown): boolean {
+  return Number.isSafeInteger(value) && (value as number) >= 0
 }
 
 function parseShadowReport(value: unknown): {

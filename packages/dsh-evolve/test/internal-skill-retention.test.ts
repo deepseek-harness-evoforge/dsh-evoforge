@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, realpath, rename, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -52,6 +52,73 @@ describe('internal Skill Candidate retention', () => {
     expect(second).toEqual(first)
     expect(runTrial).toHaveBeenCalledOnce()
     await expect(readFile(first.reportPath!, 'utf8')).resolves.toContain('"status": "retained"')
+  })
+
+  it('scans its exact durable run root without exposing report paths and fails visible on tamper', async () => {
+    const fixture = await retentionFixture()
+    const runTrial = vi.fn(async (): Promise<PairedTrialResult> => paired(
+      fixture.baselineTreeHash,
+      fixture.candidateTreeHash,
+      true,
+    ))
+    const retention = new InternalSkillRetention(fixture.admission, {
+      runTrial,
+      runRoots: [{ workspaceId: WORKSPACE_ID, path: fixture.source.retentionRunRoot! }],
+    })
+    const result = await retention.evaluate(fixture.candidate, fixture.admissionResult, fixture.shadow)
+
+    await expect(retention.scan(WORKSPACE_ID)).resolves.toEqual({
+      configuredRootCount: 1,
+      warningCount: 0,
+      runs: [expect.objectContaining({
+        id: result.id,
+        candidateId: fixture.candidate.id,
+        workspaceId: WORKSPACE_ID,
+        skillName: fixture.candidate.skillName,
+        shadowRunId: fixture.shadowRunId,
+        status: 'retained',
+        reason: 'candidate-retained-prior-case',
+        releaseAuthority: 'none',
+        evidence: expect.objectContaining({
+          baseline: 'pass',
+          candidate: 'pass',
+          proposerCalls: 0,
+          trialCount: 4,
+        }),
+      })],
+    })
+    expect(JSON.stringify(await retention.scan(WORKSPACE_ID))).not.toContain(result.reportPath)
+
+    const original = JSON.parse(await readFile(result.reportPath!, 'utf8')) as Record<string, unknown>
+    const durable = structuredClone(original)
+    durable.status = 'regressed'
+    await writeFile(result.reportPath!, `${JSON.stringify(durable, null, 2)}\n`)
+    await expect(retention.scan(WORKSPACE_ID)).resolves.toEqual({
+      configuredRootCount: 1,
+      warningCount: 1,
+      runs: [],
+    })
+
+    const invalidUsage = structuredClone(original)
+    const evidence = invalidUsage.evidence as Record<string, unknown>
+    const usage = evidence.usage as Record<string, Record<string, unknown>>
+    usage.baseline!.inputTokens = 'private-token-shape'
+    await writeFile(result.reportPath!, `${JSON.stringify(invalidUsage, null, 2)}\n`)
+    await expect(retention.scan(WORKSPACE_ID)).resolves.toEqual({
+      configuredRootCount: 1,
+      warningCount: 1,
+      runs: [],
+    })
+
+    await writeFile(result.reportPath!, `${JSON.stringify(original, null, 2)}\n`)
+    const movedResult = join(fixture.source.retentionRunRoot!, 'moved-result.json')
+    await rename(result.reportPath!, movedResult)
+    await symlink(movedResult, result.reportPath!)
+    await expect(retention.scan(WORKSPACE_ID)).resolves.toEqual({
+      configuredRootCount: 1,
+      warningCount: 1,
+      runs: [],
+    })
   })
 
   it('refuses a Shadow whose Candidate lineage differs before invoking the Trial boundary', async () => {
@@ -332,6 +399,7 @@ async function retentionFixture() {
       reportPath,
       summary: 'promote: exact Candidate passed sealed holdout',
     },
+    shadowRunId,
   }
 }
 

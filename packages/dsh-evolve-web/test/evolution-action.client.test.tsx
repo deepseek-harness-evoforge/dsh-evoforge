@@ -296,6 +296,34 @@ const t = (key: string) => ({
   'skills.admission.governance': 'Deterministic filesystem · Candidate code not executed',
   'skills.admission.release.none': 'No release authority · Not installed or activated',
   'skills.admission.reason.candidate-improves-deterministic-admission': 'Candidate improved the deterministic admission case',
+  'skills.evaluation': 'Assembled Shadow and Retention',
+  'skills.evaluation.roots': 'configured Retention roots',
+  'skills.evaluation.warnings': 'unpaired or invalid evaluation states',
+  'skills.evaluation.empty': 'No assembled internal Candidate Shadow yet.',
+  'skills.evaluation.shadow': 'Assembled Shadow',
+  'skills.evaluation.recommendation.promote': 'Holdout recommends promotion',
+  'skills.evaluation.recommendation.review': 'Holdout requires review',
+  'skills.evaluation.baseline': 'Baseline',
+  'skills.evaluation.candidate': 'Candidate',
+  'skills.evaluation.outcome.pass': 'pass',
+  'skills.evaluation.outcome.fail': 'fail',
+  'skills.evaluation.outcome.incomplete': 'incomplete',
+  'skills.evaluation.trials': 'trials',
+  'skills.evaluation.composition.stable': 'Non-target composition stable',
+  'skills.evaluation.composition.changed': 'Non-target composition changed',
+  'skills.evaluation.retention': 'Independent Retention',
+  'skills.evaluation.retention.notRun': 'Not run for this Shadow',
+  'skills.evaluation.retention.status.prepared': 'Prepared; waiting for sealed Trial',
+  'skills.evaluation.retention.status.retained': 'Retained prior behavior',
+  'skills.evaluation.retention.status.regressed': 'Regressed on prior behavior',
+  'skills.evaluation.retention.status.incomplete': 'Retention incomplete',
+  'skills.evaluation.retention.reason.candidate-retained-prior-case': 'Exact Candidate passed the independent prior case',
+  'skills.evaluation.calibration.pass': 'Calibration passed',
+  'skills.evaluation.calibration.fail': 'Calibration failed',
+  'skills.evaluation.proposerCalls': 'Candidate proposer calls',
+  'skills.evaluation.modelCalls': 'Evaluator model calls · baseline/candidate',
+  'skills.evaluation.usage': 'Input/cache-read tokens · baseline/candidate',
+  'skills.evaluation.release.none': 'No release authority · Evidence only',
   'skills.active': 'In use',
   'skills.ready': 'Verified, waiting to be enabled',
   'skills.reviewing': 'Waiting for review',
@@ -693,6 +721,76 @@ describe('EvolutionAction', () => {
             },
           }],
         },
+        skillEvaluationRuns: {
+          configuredRetentionRootCount: 1,
+          warningCount: 0,
+          items: [{
+            candidateId: '7'.repeat(64),
+            skillName: 'release-native-extension',
+            lineage: {
+              kind: 'internal-skill-candidate-lineage-v3' as const,
+              candidateId: '7'.repeat(64),
+              workspaceId,
+              skillName: 'release-native-extension',
+              opportunityId: '1'.repeat(64),
+              evaluationEvidenceId: 'e'.repeat(64),
+              policyId: 'internal-experience-author',
+              versionKind: 'experience-authored-bundle-v1' as const,
+              contentHash: 'a'.repeat(64),
+              candidateTreeHash: 'b'.repeat(64),
+              admissionId: 'e'.repeat(64),
+              evaluationEnvelopeId: 'e'.repeat(64),
+              releaseAuthority: 'none' as const,
+            },
+            shadow: {
+              runId: 'c'.repeat(64),
+              status: 'complete' as const,
+              recommendation: 'promote' as const,
+              cases: [{
+                id: 'assembled-holdout',
+                baseline: 'fail' as const,
+                candidate: 'pass' as const,
+                passedChecks: 8,
+                totalChecks: 8,
+              }],
+              cost: { inputTokens: 0, outputTokens: 0, trialCount: 4 },
+              compositionStable: true,
+              startedAt: '2026-08-18T01:00:03.000Z',
+            },
+            retention: {
+              id: 'd'.repeat(64),
+              status: 'retained' as const,
+              reason: 'candidate-retained-prior-case' as const,
+              evidence: {
+                baseline: 'pass' as const,
+                candidate: 'pass' as const,
+                calibrationPassed: true,
+                compositionStable: true,
+                proposerCalls: 0 as const,
+                trialCount: 4 as const,
+                modelCalls: { baseline: 1, candidate: 1 },
+                usage: {
+                  baseline: {
+                    inputTokens: 12,
+                    outputTokens: 2,
+                    cacheReadTokens: 4,
+                    cacheWriteTokens: 0,
+                    reasoningTokens: 0,
+                  },
+                  candidate: {
+                    inputTokens: 10,
+                    outputTokens: 2,
+                    cacheReadTokens: 6,
+                    cacheWriteTokens: 0,
+                    reasoningTokens: 0,
+                  },
+                },
+              },
+              releaseAuthority: 'none' as const,
+            },
+            releaseAuthority: 'none' as const,
+          }],
+        },
       })
     })
     renderEvolution(api)
@@ -757,9 +855,17 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('Deterministic admission')).toBeTruthy()
     expect(screen.getByText('Qualified for later Shadow')).toBeTruthy()
     expect(screen.getByText(`Evaluation Envelope · ${'e'.repeat(64)}`)).toBeTruthy()
-    expect(screen.getByText('Baseline fail → Candidate pass · 4 trials')).toBeTruthy()
+    expect(screen.getAllByText('Baseline fail → Candidate pass · 4 trials')).toHaveLength(2)
     expect(screen.getByText('Deterministic filesystem · Candidate code not executed')).toBeTruthy()
     expect(screen.getByText('No release authority · Not installed or activated')).toBeTruthy()
+    expect(screen.getByText('Assembled Shadow and Retention')).toBeTruthy()
+    expect(screen.getByText('Assembled Shadow · Holdout recommends promotion')).toBeTruthy()
+    expect(screen.getByText('Independent Retention · Retained prior behavior')).toBeTruthy()
+    expect(screen.getByText('Baseline pass → Candidate pass · 4 trials')).toBeTruthy()
+    expect(screen.getByText('Calibration passed · Non-target composition stable · Candidate proposer calls 0')).toBeTruthy()
+    expect(screen.getByText('Evaluator model calls · baseline/candidate · 1/1')).toBeTruthy()
+    expect(screen.getByText('Input/cache-read tokens · baseline/candidate · 12/4 · 10/6')).toBeTruthy()
+    expect(screen.getByText('No release authority · Evidence only')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /build-dsh-plugin/u })).toBeNull()
     expect(screen.queryByRole('button', { name: /install|activate|missing-release-skill/u })).toBeNull()
   })

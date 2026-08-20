@@ -447,6 +447,78 @@ export interface EvolutionSkillAdmissionView {
   }[]
 }
 
+/** Browser-safe reason vocabulary shared by Retention evidence and its control projection. */
+export type EvolutionSkillRetentionReason =
+  | 'no-independent-retention-case'
+  | 'shadow-not-complete'
+  | 'shadow-not-promotable'
+  | 'retention-trial-failed'
+  | 'retention-input-mutated'
+  | 'retention-not-assembled'
+  | 'retention-calibration-failed'
+  | 'prior-case-baseline-failed'
+  | 'non-target-composition-changed'
+  | 'candidate-regressed-prior-case'
+  | 'candidate-retained-prior-case'
+
+/** Exact assembled Shadow plus optional fifth-Goal Retention, with Host paths removed. */
+export interface EvolutionSkillEvaluationRunsView {
+  readonly configuredRetentionRootCount: number
+  readonly warningCount: number
+  readonly items: readonly {
+    readonly candidateId: string
+    readonly skillName: string
+    readonly lineage: EvolutionSkillCandidateLineageView
+    readonly shadow: {
+      readonly runId: string
+      readonly status: 'complete'
+      readonly recommendation: 'promote' | 'review'
+      readonly cases: readonly EvolutionReviewCaseView[]
+      readonly cost: {
+        readonly inputTokens: number
+        readonly outputTokens: number
+        readonly trialCount: number
+      }
+      readonly compositionStable: boolean
+      readonly startedAt: string
+    }
+    readonly retention?: {
+      readonly id: string
+      readonly status: 'prepared' | 'retained' | 'regressed' | 'incomplete'
+      readonly reason?: EvolutionSkillRetentionReason
+      readonly startedAt?: string
+      readonly finishedAt?: string
+      readonly evidence?: {
+        readonly baseline: 'pass' | 'fail'
+        readonly candidate: 'pass' | 'fail'
+        readonly calibrationPassed: boolean
+        readonly compositionStable: boolean
+        readonly proposerCalls: 0
+        readonly trialCount: 4
+        readonly modelCalls?: { readonly baseline: number; readonly candidate: number }
+        readonly usage?: {
+          readonly baseline: {
+            readonly inputTokens: number
+            readonly outputTokens: number
+            readonly cacheReadTokens: number
+            readonly cacheWriteTokens: number
+            readonly reasoningTokens: number
+          }
+          readonly candidate: {
+            readonly inputTokens: number
+            readonly outputTokens: number
+            readonly cacheReadTokens: number
+            readonly cacheWriteTokens: number
+            readonly reasoningTokens: number
+          }
+        }
+      }
+      readonly releaseAuthority: 'none'
+    }
+    readonly releaseAuthority: 'none'
+  }[]
+}
+
 /** One sealed evaluator result shown in review. */
 export interface EvolutionReviewCaseView {
   readonly id: string
@@ -511,6 +583,7 @@ export interface EvolutionOverview {
   readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView
   readonly skillEvaluationGovernance?: EvolutionSkillEvaluationGovernanceView
   readonly skillAdmission?: EvolutionSkillAdmissionView
+  readonly skillEvaluationRuns?: EvolutionSkillEvaluationRunsView
   readonly deliveryOutcomes?: {
     readonly all: DeliveryOutcomeCounts
     readonly selected: DeliveryOutcomeCounts

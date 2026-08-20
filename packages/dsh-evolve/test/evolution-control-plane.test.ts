@@ -145,7 +145,7 @@ describe('EvolutionControlPlane', () => {
     const inbox = {
       scanAll: vi.fn(async () => ({
         candidates: [
-          candidate(),
+          { ...candidate(), recommendation: 'promote' as const },
           {
             ...candidate('approved'),
             id: '6'.repeat(64),
@@ -371,6 +371,44 @@ describe('EvolutionControlPlane', () => {
               baselineTreeHash: '6'.repeat(64),
               candidateTreeHash: '7'.repeat(64),
             },
+          }],
+        })),
+      },
+      retention: {
+        scan: vi.fn(async () => ({
+          configuredRootCount: 1,
+          warningCount: 0,
+          runs: [{
+            id: 'f'.repeat(64),
+            candidateId: lineage().candidateId,
+            workspaceId: WORKSPACE_ID,
+            skillName: 'build-dsh-plugin',
+            admissionId: lineage().admissionId,
+            evaluationEnvelopeId: lineage().evaluationEnvelopeId,
+            shadowRunId: 'run-1',
+            baselineTreeHash: '2'.repeat(64),
+            candidateTreeHash: '1'.repeat(64),
+            status: 'retained' as const,
+            reason: 'candidate-retained-prior-case' as const,
+            startedAt: '2026-08-16T00:01:00.000Z',
+            finishedAt: '2026-08-16T00:02:00.000Z',
+            evidence: {
+              retentionCasePackHash: '3'.repeat(64),
+              baselineTreeHash: '2'.repeat(64),
+              candidateTreeHash: '1'.repeat(64),
+              baseline: 'pass' as const,
+              candidate: 'pass' as const,
+              calibrationPassed: true,
+              compositionStable: true,
+              proposerCalls: 0 as const,
+              trialCount: 4 as const,
+              modelCalls: { baseline: 1, candidate: 1 },
+              usage: {
+                baseline: { inputTokens: 12, cacheReadTokens: 4 },
+                candidate: { inputTokens: 10, cacheReadTokens: 6 },
+              },
+            },
+            releaseAuthority: 'none' as const,
           }],
         })),
       },
@@ -607,6 +645,39 @@ describe('EvolutionControlPlane', () => {
       },
       reviews: { available: true, pendingCount: 1, warningCount: 1 },
     })
+    expect(overview.skillEvaluationRuns).toMatchObject({
+      configuredRetentionRootCount: 1,
+      warningCount: 0,
+    })
+    expect(overview.skillEvaluationRuns?.items[0]).toMatchObject({
+      candidateId: lineage().candidateId,
+      skillName: 'build-dsh-plugin',
+      lineage: lineage(),
+      shadow: {
+        runId: 'run-1',
+        status: 'complete',
+        recommendation: 'promote',
+        cases: [{ id: 'continuation', baseline: 'fail', candidate: 'pass' }],
+        cost: { inputTokens: 0, outputTokens: 0, trialCount: 1 },
+        compositionStable: true,
+      },
+      retention: {
+        id: 'f'.repeat(64),
+        status: 'retained',
+        reason: 'candidate-retained-prior-case',
+        evidence: {
+          baseline: 'pass',
+          candidate: 'pass',
+          calibrationPassed: true,
+          compositionStable: true,
+          proposerCalls: 0,
+          trialCount: 4,
+          modelCalls: { baseline: 1, candidate: 1 },
+        },
+        releaseAuthority: 'none',
+      },
+      releaseAuthority: 'none',
+    })
     expect(JSON.stringify(overview)).not.toContain('local-curated')
     expect(JSON.stringify(overview)).not.toContain('researchHoldout')
     expect(overview.reviews.inactiveGenerations).toEqual([{
@@ -640,6 +711,49 @@ describe('EvolutionControlPlane', () => {
     expect(JSON.stringify(overview)).not.toContain('private-gap-session')
     expect(JSON.stringify(overview)).not.toContain('private content')
     expect(JSON.stringify(overview)).not.toContain('/Users/')
+  })
+
+  it('fails visible instead of pairing Retention to a different Shadow Candidate tree', async () => {
+    const exact = { ...candidate(), recommendation: 'promote' as const }
+    const control = new EvolutionControlPlane({
+      store: store(),
+      review: {
+        inbox: {
+          scanAll: vi.fn(async () => ({ candidates: [exact], warnings: [] })),
+          get: vi.fn(async () => exact),
+          approve: vi.fn(),
+          reject: vi.fn(),
+        },
+        publisher: { preview: vi.fn(), publish: vi.fn() },
+      },
+      retention: {
+        scan: vi.fn(async () => ({
+          configuredRootCount: 1,
+          warningCount: 0,
+          runs: [{
+            id: 'f'.repeat(64),
+            candidateId: lineage().candidateId,
+            workspaceId: WORKSPACE_ID,
+            skillName: exact.skillName,
+            admissionId: lineage().admissionId,
+            evaluationEnvelopeId: lineage().evaluationEnvelopeId,
+            shadowRunId: exact.runId,
+            baselineTreeHash: exact.baseTreeHash,
+            candidateTreeHash: '0'.repeat(64),
+            status: 'retained' as const,
+            reason: 'candidate-retained-prior-case' as const,
+            releaseAuthority: 'none' as const,
+          }],
+        })),
+      },
+    })
+
+    const overview = await control.overview(WORKSPACE_ID)
+    expect(overview.skillEvaluationRuns).toMatchObject({
+      configuredRetentionRootCount: 1,
+      warningCount: 1,
+    })
+    expect(overview.skillEvaluationRuns?.items[0]?.retention).toBeUndefined()
   })
 
   it('keeps approval inactive and requires a separate promotion action', async () => {

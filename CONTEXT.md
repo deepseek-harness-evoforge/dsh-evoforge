@@ -146,6 +146,10 @@ _Avoid_: No-op Skill, placeholder `SKILL.md`, old-Skill baseline for a missing c
 An independent prior-case replay that continues the same native Jobs task after a promotable completed Shadow and compares its exact capability-absent subject with the exact internally authored whole-Skill Candidate. Its Case Pack comes only from the Candidate-invisible fifth-Goal Envelope v5 partition; v4 abstains. The absent side must still contain only its bound `subject.json`; Admission, Envelope, Shadow, Candidate tree, Skill identity, lineage, DSH revision, budgets, roots, Case Pack hashes, and non-target DSH composition are revalidated. A content-addressed locked run records an idempotent retained, regressed, or incomplete verdict with zero proposer calls and no release authority.
 _Avoid_: Placeholder baseline, Git first-parent, Candidate reconstruction, self-judged retention, automatic promotion
 
+**Assembled Evaluation Projection**:
+A bounded, browser-safe Host join of one `ReviewInbox`-validated assembled Shadow and an optional `InternalSkillRetention`-validated durable run. The join requires exact Workspace, Skill, Candidate lineage, Admission, Envelope, Shadow run, baseline tree, and Candidate tree agreement; mismatches become warnings and remain unpaired. It contains no Host path, protected case content, evaluator source, provider identity, Goal content, proposal content, release decision, or runtime authority.
+_Avoid_: Evaluation database, browser judge, path projection, best-effort lineage join, promotion gate
+
 **Verified Release Tag**:
 An annotated semantic Git tag on `main` that identifies a repository state whose declared core capability set passed its frozen release gates. It is not an Evolution Candidate version, does not replace content-addressed runtime Generations, and is never created merely because code was committed.
 _Avoid_: Feature branch, progress marker, unverified release label

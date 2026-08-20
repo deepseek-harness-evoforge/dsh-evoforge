@@ -374,6 +374,7 @@ function SkillsView({ summary, t }: { summary: EvolutionOverview; t: (key: strin
     <SkillCandidates summary={summary} t={t} />
     <SkillEvaluationGovernance summary={summary} t={t} />
     <SkillAdmission summary={summary} t={t} />
+    <SkillEvaluationRuns summary={summary} t={t} />
     {empty && <div className="dsh-evolve-message">{t('skills.empty')}</div>}
     {active.length > 0 && <SkillGroup t={t} label={t('skills.active')} items={active.map(artifact => ({
       key: `active:${artifact.gitCommit}:${artifact.name}`,
@@ -432,6 +433,95 @@ function SkillAdmission({ summary, t }: { summary: EvolutionOverview; t: (key: s
           </li>
         ))}</ul>}
   </section>
+}
+
+function SkillEvaluationRuns({ summary, t }: { summary: EvolutionOverview; t: (key: string) => string }) {
+  const evaluation = summary.skillEvaluationRuns
+  if (evaluation === undefined) return null
+  return <section>
+    <div className="dsh-evolve-capability-head">
+      <h3 className="dsh-evolve-section-title">{t('skills.evaluation')}</h3>
+      <span className="dsh-evolve-catalog-status">
+        {evaluation.configuredRetentionRootCount} {t('skills.evaluation.roots')}
+      </span>
+    </div>
+    {evaluation.warningCount > 0 && <div className="dsh-evolve-message dsh-evolve-error">
+      {evaluation.warningCount} {t('skills.evaluation.warnings')}
+    </div>}
+    {evaluation.items.length === 0
+      ? <div className="dsh-evolve-message">{t('skills.evaluation.empty')}</div>
+      : <ul className="dsh-evolve-list">{evaluation.items.map(run => (
+          <li className="dsh-evolve-skill-card" key={`${run.candidateId}:${run.shadow.runId}`}>
+            <div className="dsh-evolve-review-skill">{run.skillName}</div>
+            <div className="dsh-evolve-capability-route">
+              {t('skills.evaluation.shadow')} · {t(`skills.evaluation.recommendation.${run.shadow.recommendation}`)}
+            </div>
+            {run.shadow.cases.map(value => <div className="dsh-evolve-meta" key={value.id}>
+              {evaluationComparison(value.baseline, value.candidate, run.shadow.cost.trialCount, t)}
+            </div>)}
+            <div className="dsh-evolve-meta">
+              {t(run.shadow.compositionStable
+                ? 'skills.evaluation.composition.stable'
+                : 'skills.evaluation.composition.changed')}
+            </div>
+            <div className="dsh-evolve-meta">
+              {t('skills.lineage.candidate')} · {shortId(run.candidateId)}
+              {' · '}{t('skills.lineage.admission')} · {shortId(run.lineage.admissionId)}
+              {' · '}{t('skills.admission.envelope')} · {shortId(run.lineage.evaluationEnvelopeId)}
+            </div>
+            {run.retention === undefined
+              ? <div className="dsh-evolve-capability-route">
+                  {t('skills.evaluation.retention')} · {t('skills.evaluation.retention.notRun')}
+                </div>
+              : <>
+                  <div className="dsh-evolve-capability-route">
+                    {t('skills.evaluation.retention')} · {t(`skills.evaluation.retention.status.${run.retention.status}`)}
+                  </div>
+                  {run.retention.evidence !== undefined && <>
+                    <div className="dsh-evolve-meta">
+                      {evaluationComparison(
+                        run.retention.evidence.baseline,
+                        run.retention.evidence.candidate,
+                        run.retention.evidence.trialCount,
+                        t,
+                      )}
+                    </div>
+                    <div className="dsh-evolve-meta">
+                      {t(run.retention.evidence.calibrationPassed
+                        ? 'skills.evaluation.calibration.pass'
+                        : 'skills.evaluation.calibration.fail')}
+                      {' · '}{t(run.retention.evidence.compositionStable
+                        ? 'skills.evaluation.composition.stable'
+                        : 'skills.evaluation.composition.changed')}
+                      {' · '}{t('skills.evaluation.proposerCalls')} {run.retention.evidence.proposerCalls}
+                    </div>
+                    {run.retention.evidence.modelCalls !== undefined && <div className="dsh-evolve-meta">
+                      {t('skills.evaluation.modelCalls')} · {run.retention.evidence.modelCalls.baseline}/{run.retention.evidence.modelCalls.candidate}
+                    </div>}
+                    {run.retention.evidence.usage !== undefined && <div className="dsh-evolve-meta">
+                      {t('skills.evaluation.usage')} · {run.retention.evidence.usage.baseline.inputTokens}/{run.retention.evidence.usage.baseline.cacheReadTokens}
+                      {' · '}{run.retention.evidence.usage.candidate.inputTokens}/{run.retention.evidence.usage.candidate.cacheReadTokens}
+                    </div>}
+                  </>}
+                  {run.retention.reason !== undefined && <div className="dsh-evolve-meta">
+                    {t(`skills.evaluation.retention.reason.${run.retention.reason}`)}
+                  </div>}
+                </>}
+            <div className="dsh-evolve-discovery-state">{t('skills.evaluation.release.none')}</div>
+          </li>
+        ))}</ul>}
+  </section>
+}
+
+function evaluationComparison(
+  baseline: 'pass' | 'fail' | 'incomplete',
+  candidate: 'pass' | 'fail' | 'incomplete',
+  trialCount: number,
+  t: (key: string) => string,
+): string {
+  return `${t('skills.evaluation.baseline')} ${t(`skills.evaluation.outcome.${baseline}`)}`
+    + ` → ${t('skills.evaluation.candidate')} ${t(`skills.evaluation.outcome.${candidate}`)}`
+    + ` · ${trialCount} ${t('skills.evaluation.trials')}`
 }
 
 function SkillEvaluationGovernance({

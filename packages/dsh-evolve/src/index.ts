@@ -180,6 +180,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
 
   let skillAdmissionScheduler: SkillCandidateAdmissionScheduler | undefined
   let skillShadowScheduler: SkillCandidateShadowScheduler | undefined
+  let skillRetention: InternalSkillRetention | undefined
   const skillCandidates = new SkillCandidateRepository(
     skillCandidateStore,
     candidate => skillAdmissionScheduler?.observe(candidate),
@@ -201,9 +202,15 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       skillEvaluationGovernance,
     )
     skillAdmission = new SkillCandidateAdmission(evaluationEnvelopes, skillCandidates)
+    skillRetention = new InternalSkillRetention(skillAdmission, {
+      runRoots: candidateEvaluationPolicies.map(policy => ({
+        workspaceId: policy.workspaceId,
+        path: resolve(policy.runRoot, 'retention'),
+      })),
+    })
     skillShadowScheduler = new SkillCandidateShadowScheduler(
       new SkillCandidateShadowLauncher(skillAdmission, {
-        retention: new InternalSkillRetention(skillAdmission),
+        retention: skillRetention,
       }),
     )
     skillAdmissionScheduler = new SkillCandidateAdmissionScheduler(
@@ -273,6 +280,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     evaluationEvidence: skillEvaluationEvidence,
     candidates: skillCandidateStore,
     ...(skillAdmission === undefined ? {} : { admissions: skillAdmission }),
+    ...(skillRetention === undefined ? {} : { retention: skillRetention }),
     ...(slowLoopAuthoring === undefined ? {} : { slowLoopAuthoring }),
     ...(skillEvaluationGovernance === undefined ? {} : { evaluationGovernance: skillEvaluationGovernance }),
     ...(review === undefined ? {} : { review }),
@@ -405,6 +413,9 @@ export type {
   InternalCandidateShadowResult,
   InternalSkillRetentionReason,
   InternalSkillRetentionResult,
+  InternalSkillRetentionRunRoot,
+  InternalSkillRetentionRunView,
+  InternalSkillRetentionScan,
 } from './internal-skill-retention.ts'
 export type { EvolutionControlPlaneModules } from './evolution-control-plane.ts'
 export { EvolutionRemoteService } from './evolution-remote.ts'

@@ -31,5 +31,5 @@ pnpm test:cache-contract
 - Retention 结果进入未来 Session Promotion/rollback eligibility 的同谱系 gate；
 - 反事实 canary、持续 outcome 与 negative-transfer/forgetting 监测；
 - 两套独立真实 provider 的完整 admission→holdout→Retention outcome；
-- DSH Web 的 Shadow/Retention 运行与 verdict 视图及真实浏览器失败恢复；
+- DSH Web 的 Shadow/Retention 运行与 verdict 视图已由 [V4.27](v4-27-shadow-retention-web-projection.zh.md) 实现组件与权威投影；真实浏览器失败恢复仍 pending；
 - 同条件 Hermes paired benchmark、真实飞书消息闭环和任何 tag/release 声明。

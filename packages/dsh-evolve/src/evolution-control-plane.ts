@@ -9,6 +9,11 @@ import type { SlowLoopSkillAuthoring } from './slow-loop-skill-authoring.ts'
 import type { SkillCandidateLineage } from './skill-candidate-lineage.ts'
 import type { SkillEvaluationEvidenceVault } from './skill-evaluation-evidence-vault.ts'
 import type { SkillEvaluationGovernance } from './skill-evaluation-governance.ts'
+import type {
+  InternalSkillRetention,
+  InternalSkillRetentionRunView,
+  InternalSkillRetentionScan,
+} from './internal-skill-retention.ts'
 import type { EvolutionStore } from './generation-store.ts'
 import type { ResidentEvolutionControl } from './resident-evolution-control.ts'
 import type { ReviewCandidate, ReviewInbox } from './review-inbox.ts'
@@ -50,6 +55,7 @@ export interface EvolutionControlPlaneModules {
   readonly admissions?: Pick<SkillCandidateAdmission, 'scan'>
   readonly slowLoopAuthoring?: Pick<SlowLoopSkillAuthoring, 'scan'>
   readonly evaluationGovernance?: Pick<SkillEvaluationGovernance, 'scan'>
+  readonly retention?: Pick<InternalSkillRetention, 'scan'>
 }
 
 /** A structured adapter surface that delegates to the same owners as Commands. */
@@ -67,6 +73,7 @@ export class EvolutionControlPlane {
       admissionScan,
       slowLoopAuthoringScan,
       evaluationGovernanceScan,
+      retentionScan,
     ] = await Promise.all([
       this.modules.review === undefined ? undefined : this.modules.review.inbox.scanAll(),
       this.modules.admissions === undefined ? undefined : this.modules.admissions.scan(workspaceId),
@@ -76,6 +83,9 @@ export class EvolutionControlPlane {
       this.modules.evaluationGovernance === undefined
         ? undefined
         : this.modules.evaluationGovernance.scan(workspaceId),
+      this.modules.retention === undefined
+        ? undefined
+        : this.modules.retention.scan(workspaceId),
     ])
     const skillOpportunities = this.modules.opportunities?.discover(workspaceId)
     const skillImprovementOpportunities = this.modules.opportunities?.discoverImprovements?.(workspaceId)
@@ -216,6 +226,13 @@ export class EvolutionControlPlane {
               releaseAuthority: run.releaseAuthority,
             })),
           } }),
+      ...(scan === undefined
+        ? {}
+        : { skillEvaluationRuns: projectSkillEvaluationRuns(
+            scan,
+            retentionScan,
+            workspaceId,
+          ) }),
       ...(this.modules.outcomes === undefined
         ? {}
         : {
@@ -445,6 +462,110 @@ function projectSkillAdmission(
         trialCount: value.evidence.trialCount,
       } }),
     })),
+  }
+}
+
+function projectSkillEvaluationRuns(
+  shadowScan: Awaited<ReturnType<ReviewInbox['scanAll']>>,
+  retentionScan: InternalSkillRetentionScan | undefined,
+  workspaceId: string,
+): NonNullable<EvolutionOverview['skillEvaluationRuns']> {
+  const retentionRuns = retentionScan?.runs.filter(run => run.workspaceId === workspaceId) ?? []
+  const consumedRetention = new Set<string>()
+  let pairingWarnings = 0
+  const items = shadowScan.candidates
+    .filter(candidate => candidate.workspaceId === workspaceId && candidate.lineage !== undefined)
+    .map(candidate => {
+      const lineage = candidate.lineage!
+      const matches = retentionRuns.filter(run => !consumedRetention.has(run.id)
+        && candidate.recommendation === 'promote'
+        && exactRetentionPair(candidate, lineage, run))
+      const retention = matches.length === 1 ? matches[0] : undefined
+      if (matches.length > 1) pairingWarnings += 1
+      if (retention !== undefined) consumedRetention.add(retention.id)
+      return {
+        candidateId: lineage.candidateId,
+        skillName: candidate.skillName,
+        lineage: projectSkillCandidateLineage(lineage),
+        shadow: {
+          runId: candidate.runId,
+          status: 'complete' as const,
+          recommendation: candidate.recommendation,
+          cases: candidate.cases.map(value => ({ ...value })),
+          cost: { ...candidate.cost },
+          compositionStable: candidate.compositionStable,
+          startedAt: candidate.startedAt,
+        },
+        ...(retention === undefined ? {} : { retention: projectRetention(retention) }),
+        releaseAuthority: 'none' as const,
+      }
+    })
+  pairingWarnings += retentionRuns.filter(run => !consumedRetention.has(run.id)).length
+  return {
+    configuredRetentionRootCount: retentionScan?.configuredRootCount ?? 0,
+    warningCount: (retentionScan?.warningCount ?? 0)
+      + pairingWarnings,
+    items: items.slice(0, MAX_DISCOVERY_ROWS),
+  }
+}
+
+function exactRetentionPair(
+  candidate: ReviewCandidate,
+  lineage: SkillCandidateLineage,
+  retention: InternalSkillRetentionRunView,
+): boolean {
+  return retention.candidateId === lineage.candidateId
+    && retention.workspaceId === candidate.workspaceId
+    && retention.skillName === candidate.skillName
+    && retention.admissionId === lineage.admissionId
+    && retention.evaluationEnvelopeId === lineage.evaluationEnvelopeId
+    && retention.shadowRunId === candidate.runId
+    && retention.baselineTreeHash === candidate.baseTreeHash
+    && retention.candidateTreeHash === candidate.candidateTreeHash
+    && (retention.evidence === undefined
+      || (retention.evidence.baselineTreeHash === candidate.baseTreeHash
+        && retention.evidence.candidateTreeHash === candidate.candidateTreeHash))
+}
+
+function projectRetention(
+  retention: InternalSkillRetentionRunView,
+): NonNullable<
+  NonNullable<EvolutionOverview['skillEvaluationRuns']>['items'][number]['retention']
+> {
+  return {
+    id: retention.id,
+    status: retention.status,
+    ...(retention.reason === undefined ? {} : { reason: retention.reason }),
+    ...(retention.startedAt === undefined ? {} : { startedAt: retention.startedAt }),
+    ...(retention.finishedAt === undefined ? {} : { finishedAt: retention.finishedAt }),
+    ...(retention.evidence === undefined ? {} : { evidence: {
+      baseline: retention.evidence.baseline,
+      candidate: retention.evidence.candidate,
+      calibrationPassed: retention.evidence.calibrationPassed,
+      compositionStable: retention.evidence.compositionStable,
+      proposerCalls: retention.evidence.proposerCalls,
+      trialCount: retention.evidence.trialCount,
+      ...(retention.evidence.modelCalls === undefined
+        ? {}
+        : { modelCalls: { ...retention.evidence.modelCalls } }),
+      ...(retention.evidence.usage === undefined
+        ? {}
+        : { usage: {
+            baseline: projectEvaluatorUsage(retention.evidence.usage.baseline),
+            candidate: projectEvaluatorUsage(retention.evidence.usage.candidate),
+          } }),
+    } }),
+    releaseAuthority: 'none',
+  }
+}
+
+function projectEvaluatorUsage(value: Record<string, number | undefined>) {
+  return {
+    inputTokens: value.inputTokens ?? 0,
+    outputTokens: value.outputTokens ?? 0,
+    cacheReadTokens: value.cacheReadTokens ?? 0,
+    cacheWriteTokens: value.cacheWriteTokens ?? 0,
+    reasoningTokens: value.reasoningTokens ?? 0,
   }
 }
 
