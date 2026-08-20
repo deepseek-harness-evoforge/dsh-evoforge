@@ -17,14 +17,26 @@ export function installInstalledSkillBaselineMonitor(
 ): InstalledSkillBaselineMonitor {
   let disposed = false
   const seen = new WeakMap<Agent, Set<string>>()
+  const startupHighWater = new WeakMap<Agent, number>()
   const tails = new WeakMap<Agent, Promise<void>>()
   const pending = new Set<Promise<void>>()
 
+  const removeSessionStart = ctx.on('agent/session-start', ({ agent }) => {
+    startupHighWater.set(agent, lastEventSeq(agent))
+  })
+
   const removePreStep = ctx.on('agent/pre-step', async ({ agent, signal }, next) => {
     if (!disposed) {
+      let highWater = startupHighWater.get(agent)
+      if (highWater === undefined) {
+        // A late-mounted observer cannot prove when an existing invocation ran.
+        // Establish a fail-closed watermark and observe only later events.
+        highWater = lastEventSeq(agent)
+        startupHighWater.set(agent, highWater)
+      }
       const prior = tails.get(agent) ?? Promise.resolve()
       const task = prior
-        .then(() => observeAgent(ctx, vault, agent, signal, seen))
+        .then(() => observeAgent(ctx, vault, agent, highWater, signal, seen))
         .catch((error) => {
           ctx.logger.warn(`dsh-evolve skipped installed Skill baseline observation: ${errorMessage(error)}`)
         })
@@ -37,6 +49,7 @@ export function installInstalledSkillBaselineMonitor(
   })
   const removeDisposed = ctx.on('agent/disposed', ({ agent }) => {
     seen.delete(agent)
+    startupHighWater.delete(agent)
     tails.delete(agent)
   })
 
@@ -47,6 +60,7 @@ export function installInstalledSkillBaselineMonitor(
     async dispose() {
       if (!disposed) {
         disposed = true
+        removeSessionStart()
         removePreStep()
         removeDisposed()
       }
@@ -59,6 +73,7 @@ async function observeAgent(
   ctx: Context,
   vault: InstalledSkillBaselineVault,
   agent: Agent,
+  startupHighWater: number,
   signal: AbortSignal,
   seenByAgent: WeakMap<Agent, Set<string>>,
 ): Promise<void> {
@@ -69,6 +84,7 @@ async function observeAgent(
   }
   const identity = await sessionIdentityOf(ctx, agent)
   for (const invocation of durableSkillInvocations(agent.session.events)) {
+    if (invocation.seq <= startupHighWater) continue
     const key = invocationKey(invocation)
     if (agentSeen.has(key)) continue
     agentSeen.add(key)
@@ -98,6 +114,10 @@ async function observeAgent(
       )
     }
   }
+}
+
+function lastEventSeq(agent: Agent): number {
+  return agent.session.events.reduce((highest, event) => Math.max(highest, event.seq), -1)
 }
 
 function invocationKey(invocation: ReturnType<typeof durableSkillInvocations>[number]): string {

@@ -1,5 +1,6 @@
 import { Context } from '@deepseek-ai/cordis'
 import { agentEvents, Inbox, type Agent } from '@deepseek-ai/dsh-agent'
+import { MessageId } from '@deepseek-ai/dsh-llm'
 import { Session, SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
 import SkillRegistry, { renderSkillContent } from '@deepseek-ai/dsh-skill'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
@@ -17,7 +18,7 @@ afterEach(async () => {
 })
 
 describe('installed Skill baseline monitor', () => {
-  it('automatically seals a user-explicit invocation from the native Agent event path', async () => {
+  it('seals only new native invocations and never reconstructs a historical baseline after resume', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-baseline-monitor-'))
     temporaryRoots.push(root)
     const skillRoot = join(root, 'skills', 'release-proof')
@@ -61,6 +62,7 @@ describe('installed Skill baseline monitor', () => {
         content: invocationContent,
       },
     } as SessionEvent])
+    agentEvents(ctx, agent).emit('agent/session-start', { source: 'resume' })
 
     await agentEvents(ctx, agent).waterfall(
       'agent/pre-step',
@@ -70,6 +72,22 @@ describe('installed Skill baseline monitor', () => {
     await monitor.flush()
 
     await expect(vault.resolveInvocation(WORKSPACE_ID, 'session-monitored', 0))
+      .resolves.toBeUndefined()
+
+    const current = agent.session.append('user/message', {
+      id: MessageId('current-skill-injection'),
+      role: 'user',
+      source: { kind: 'skill-invocation', name: 'release-proof', form: 'instructions' },
+      content: invocationContent,
+    }, { surfaceOp: 'append' })
+    await agentEvents(ctx, agent).waterfall(
+      'agent/pre-step',
+      { messages: [], turn: 2, step: 1, signal: new AbortController().signal },
+      () => Promise.resolve({ kind: 'enter' as const, messages: [] }),
+    )
+    await monitor.flush()
+
+    await expect(vault.resolveInvocation(WORKSPACE_ID, 'session-monitored', current.seq))
       .resolves.toMatchObject({
         reference: { route: 'user-explicit', skillName: 'release-proof' },
         manifest: { kind: 'installed-skill-baseline-v1', bundle: { fileCount: 2 } },

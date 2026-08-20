@@ -7,6 +7,7 @@ V4.21 已能把明确纠正归因到 exact Skill invocation content，但模型�
 本增量新增宿主所有的 `InstalledSkillBaselineVault` 和原生 Agent monitor：
 
 - 同时识别 DSH 用户显式 Skill 注入和成功、source-linked 的模型 `skill` Tool 调用；
+- 在 `agent/session-start` 固定高水位，只封存之后的新调用；冷恢复历史记录不以当前资源目录补造旧基线；
 - 复用相同 Agent scope、Workspace cwd 和官方 `renderSkillContent()` 校验 exact model-visible content；
 - 只接受独立目录型 `<resourceBase>/SKILL.md` 包，完整读取目录内所有 regular files；
 - 拒绝 flat/URL/opaque、symlink、特殊文件、可执行文件、超预算内容和扫描漂移；
@@ -20,7 +21,7 @@ V4.21 已能把明确纠正归因到 exact Skill invocation content，但模型�
 ## 自动化证据
 
 - `installed-skill-baseline.test.ts`：真实 DSH `SkillRegistry` 注册目录型 Skill，封存 `SKILL.md`、reference 与 binary asset，验证内容寻址 manifest、调用映射、完整 archive 重读、flat Skill/symlink abstain 和持久 archive 篡改拒绝。
-- `installed-skill-baseline-monitor.test.ts`：真实 Cordis `agent/pre-step` waterfall、原生 Session event、Workspace 解析和 Skill scope 自动触发封存，无用户选路或额外 Tool；Workspace Registry 故障被包含，不阻断 Agent。
+- `installed-skill-baseline-monitor.test.ts`：真实 Cordis `agent/session-start` + `agent/pre-step` waterfall、原生 Session event、Workspace 解析和 Skill scope 自动触发封存；恢复前历史 invocation 不产生基线，启动后的新 invocation 才封存；Workspace Registry 故障被包含，不阻断 Agent。
 - `durable-feedback-attribution.test.ts`：共用 extractor 后，显式调用、模型 Tool、歧义与 source-link 失败合同保持通过。
 - `skill-bundle-archive.test.ts`：既有 authored Candidate archive 的顺序、预算与可执行文件拒绝合同未回归。
 - `pnpm --filter dsh-evolve typecheck`：通过。
