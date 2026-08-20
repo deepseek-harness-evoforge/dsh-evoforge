@@ -1,4 +1,5 @@
-import { mkdir } from 'node:fs/promises'
+import { createHash, randomUUID } from 'node:crypto'
+import { mkdir, realpath, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
@@ -56,6 +57,9 @@ export async function apply(ctx, config) {
     agent = handle.agent
   }
   await workspace.attachSession(agent.session.id)
+  if (config.seedSkillEvaluationRuns === true) {
+    await seedExactSkillEvaluationRuns(workspace, config)
+  }
   if (config.seedGoalMetrics === true) {
     await seedNativeGoalMetrics(ctx, workspace, agent)
   }
@@ -78,6 +82,217 @@ export async function apply(ctx, config) {
     await evolutionFiber.dispose()
     await handle?.dispose()
   }, 'evoforge-browser-workspace-bootstrap.dispose')
+}
+
+/**
+ * Seed one exact, deterministic Shadow/Retention artifact pair for real-browser
+ * projection acceptance. Production readers still validate the full durable
+ * shape and lineage; this fixture does not claim a provider evaluation.
+ */
+async function seedExactSkillEvaluationRuns(workspace, config) {
+  const workspaceId = String(workspace.id)
+  const skillName = 'publish-dsh-plugin'
+  const candidateId = '1'.repeat(64)
+  const opportunityId = '2'.repeat(64)
+  const evaluationEvidenceId = '3'.repeat(64)
+  const contentHash = '4'.repeat(64)
+  const candidateTreeHash = '5'.repeat(64)
+  const admissionId = '6'.repeat(64)
+  const evaluationEnvelopeId = '7'.repeat(64)
+  const baselineTreeHash = '8'.repeat(64)
+  const shadowRunId = '9'.repeat(64)
+  const holdoutCasePackHash = 'a'.repeat(64)
+  const compositionFingerprint = 'b'.repeat(64)
+  const retentionCasePackHash = 'c'.repeat(64)
+  const canonicalRunRoot = await realpath(config.runRoot)
+  const shadowRoot = join(canonicalRunRoot, 'shadow')
+  const retentionRoot = join(canonicalRunRoot, 'retention')
+  const fixtureInputs = join(canonicalRunRoot, 'browser-evaluation-inputs')
+  const runDir = join(shadowRoot, 'exact-browser-evaluation')
+  const reportPath = join(runDir, 'report.json')
+  await Promise.all([
+    shadowRoot,
+    retentionRoot,
+    runDir,
+    join(fixtureInputs, 'baseline'),
+    join(fixtureInputs, 'holdout'),
+    join(fixtureInputs, 'candidate'),
+  ].map(path => mkdir(path, { recursive: true })))
+
+  const lineage = {
+    kind: 'internal-skill-candidate-lineage-v3',
+    candidateId,
+    workspaceId,
+    skillName,
+    opportunityId,
+    evaluationEvidenceId,
+    policyId: 'browser-evaluation-seed',
+    versionKind: 'experience-authored-bundle-v1',
+    contentHash,
+    candidateTreeHash,
+    admissionId,
+    evaluationEnvelopeId,
+    releaseAuthority: 'none',
+  }
+  const proposal = {
+    claim: 'Preserve verified native DSH plugin delivery behavior.',
+    files: [{
+      path: 'SKILL.md',
+      content: 'Use the verified native DSH plugin delivery procedure.\n',
+    }],
+  }
+  const startedAt = '2026-08-20T00:00:00.000Z'
+  const finishedAt = '2026-08-20T00:01:00.000Z'
+  await writeFixtureJson(join(runDir, 'run-state.json'), {
+    schemaVersion: 1,
+    runId: shadowRunId,
+    phase: 'complete',
+    startedAt,
+    updatedAt: finishedAt,
+    identity: {
+      workspaceId,
+      baseTreeHash: baselineTreeHash,
+      casePackHash: holdoutCasePackHash,
+      dshRevision: 'd'.repeat(40),
+      evaluatorVersion: 'browser-holdout-v1',
+      modelConfigHash: 'e'.repeat(64),
+      modelRoute: 'pinned-internal-candidate-v1',
+      skillName,
+      baselineKind: 'capability-absent',
+      skillCandidateLineage: lineage,
+    },
+    resumeInputs: {
+      skillDir: join(fixtureInputs, 'baseline'),
+      casePackDir: join(fixtureInputs, 'holdout'),
+      baselineKind: 'capability-absent',
+      baselineSkillName: skillName,
+      candidateSkillDir: join(fixtureInputs, 'candidate'),
+    },
+    proposal,
+    proposalHash: sha256(JSON.stringify(proposal)),
+    modelUsage: { inputTokens: 120, outputTokens: 24 },
+    outcome: {
+      kind: 'complete',
+      reportPath,
+      summary: 'promote: exact Candidate passed the sealed browser holdout',
+    },
+  })
+  await writeFixtureJson(reportPath, {
+    schemaVersion: 1,
+    run: { id: shadowRunId, status: 'complete' },
+    subject: {
+      skillName,
+      baselineKind: 'capability-absent',
+      baseTreeHash: baselineTreeHash,
+      unchanged: true,
+    },
+    candidate: {
+      treeHash: candidateTreeHash,
+      claim: proposal.claim,
+      changedFiles: proposal.files.map(file => file.path),
+    },
+    epoch: { evaluatorVersion: 'browser-holdout-v1' },
+    trial: { count: 4 },
+    cases: [{
+      id: 'sealed-browser-holdout',
+      baseline: 'fail',
+      candidate: 'pass',
+      checks: [
+        { name: 'candidate-outcome', passed: true },
+        { name: 'composition', passed: true },
+      ],
+    }],
+    composition: {
+      baselineFingerprint: compositionFingerprint,
+      candidateFingerprint: compositionFingerprint,
+      stable: true,
+    },
+    decision: {
+      recommendation: 'promote',
+      reasons: ['exact Candidate passed the sealed holdout'],
+      limitations: ['deterministic real-browser projection fixture'],
+    },
+    lineage,
+  })
+
+  const retentionId = sha256(JSON.stringify([
+    'opportunity-bound-internal-skill-retention-v1',
+    candidateId,
+    admissionId,
+    evaluationEnvelopeId,
+    shadowRunId,
+    retentionCasePackHash,
+  ]))
+  const retentionDir = join(retentionRoot, retentionId)
+  const retentionReportPath = join(retentionDir, 'result.json')
+  await mkdir(retentionDir, { recursive: true })
+  await writeFixtureJson(join(retentionDir, 'prepared.json'), {
+    schemaVersion: 1,
+    kind: 'internal-skill-retention-run-v1',
+    id: retentionId,
+    candidateId,
+    workspaceId,
+    skillName,
+    admissionId,
+    evaluationEnvelopeId,
+    shadowRunId,
+    baselineTreeHash,
+    candidateTreeHash,
+    retentionCasePackHash,
+  })
+  await writeFixtureJson(retentionReportPath, {
+    schemaVersion: 1,
+    kind: 'internal-skill-retention-result-v1',
+    id: retentionId,
+    candidateId,
+    workspaceId,
+    skillName,
+    admissionId,
+    evaluationEnvelopeId,
+    shadowRunId,
+    status: 'retained',
+    reason: 'candidate-retained-prior-case',
+    releaseAuthority: 'none',
+    reportPath: retentionReportPath,
+    startedAt,
+    finishedAt,
+    evidence: {
+      retentionCasePackHash,
+      baselineTreeHash,
+      candidateTreeHash,
+      baseline: 'pass',
+      candidate: 'pass',
+      calibrationPassed: true,
+      compositionStable: true,
+      proposerCalls: 0,
+      trialCount: 4,
+      modelCalls: { baseline: 2, candidate: 2 },
+      usage: {
+        baseline: evaluatorUsage(100, 80),
+        candidate: evaluatorUsage(90, 70),
+      },
+    },
+  })
+}
+
+function evaluatorUsage(inputTokens, cacheReadTokens) {
+  return {
+    inputTokens,
+    outputTokens: 20,
+    cacheReadTokens,
+    cacheWriteTokens: 5,
+    reasoningTokens: 10,
+  }
+}
+
+function sha256(value) {
+  return createHash('sha256').update(value).digest('hex')
+}
+
+async function writeFixtureJson(path, value) {
+  const temporary = `${path}.${randomUUID()}.tmp`
+  await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 })
+  await rename(temporary, path)
 }
 
 /**

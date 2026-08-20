@@ -29,3 +29,4 @@
         governanceRoot: __EVOFORGE_GOVERNANCE_ROOT__
         seedGoalMetrics: true
         seedCapabilityGaps: true
+        seedSkillEvaluationRuns: true

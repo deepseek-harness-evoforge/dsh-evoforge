@@ -1,6 +1,6 @@
 # V4.27 Shadow/Retention 权威 Web 投影证据
 
-> 声明等级：`implemented`。本页证明 DSH Host 与 Web 已能读取并解释 exact-Candidate assembled Shadow 和第五 Goal Retention 的真实持久制品；不证明真实浏览器失败恢复、promotion eligibility、canary、真实 provider outcome 或 Hermes 上位替代。
+> 声明等级：`implemented`。本页证明 DSH Host 与 Web 已能读取并解释 exact-Candidate assembled Shadow 和第五 Goal Retention 的真实持久制品；后续 [V4.28](v4-28-shadow-retention-real-browser.zh.md) 已补真实 DSH 浏览器刷新、断连和恢复。本页仍不证明 promotion eligibility、canary、真实 provider outcome 或 Hermes 上位替代。
 
 ## 行为
 
@@ -29,7 +29,6 @@ pnpm test:cache-contract
 
 ## 未完成门禁
 
-- 用真实 DSH 浏览器验证在线刷新、Host 断连、保留最后权威快照、同 profile 恢复和 console error 0；
 - 把 exact Retention verdict 接入 future-Session promotion eligibility，而不影响当前 Session；
 - 反事实 canary、持续 outcome、negative-transfer/forgetting 与精确回滚证据；
 - 两套独立真实 provider、真实飞书用户消息闭环、同条件 Hermes paired benchmark 和任何 tag/release 声明。
