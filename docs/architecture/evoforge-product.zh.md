@@ -1,6 +1,6 @@
 # EvoForge 产品架构
 
-> 状态：产品边界已确认；Telegram、飞书两个 Assistant Adapter 与进化注意力桥已实现；内部经验驱动的 Skill Opportunity、existing-Skill exact-version improvement investigation、生成前独立 Goal 证据密封、seal-bound Candidate v2、Candidate-independent Governance Case Pack Authoring、Envelope v4/v5、Lineage v3、exact-Candidate assembled Shadow、同 Jobs 内容寻址 Retention verdict、独立 future-Session Promotion Eligibility、failed-Outcome sealed canary evidence 与内容寻址 Generation 已实现。Retention 与 canary 始终无发布权，Host gate 只有在 approved Generation 与 exact retained 谱系一致时才允许未来 Session 切换。旧静态 Retention/canary 编排已删除；独立 canary rollback action、现有 Skill 完整 baseline Bundle/Candidate、治理包真实 provider assembled 评估闭环仍待完成与验收。
+> 状态：产品边界已确认；Telegram、飞书两个 Assistant Adapter 与进化注意力桥已实现；内部经验驱动的 Skill Opportunity、existing-Skill exact-version improvement investigation、生成前独立 Goal 证据密封、seal-bound Candidate v2、Candidate-independent Governance Case Pack Authoring、Envelope v4/v5、Lineage v3、exact-Candidate assembled Shadow、同 Jobs 内容寻址 Retention verdict、独立 future-Session Promotion Eligibility、failed-Outcome sealed Canary evidence、exact evidence/human Rollback Gate 与内容寻址 Generation 已实现。Retention 与 Canary 始终无发布权；Promotion/Rollback Host gate 分别重验 exact 证据，Rollback 另以 expected-active compare 防止并发 pointer 误写。旧静态 Retention/canary 编排已删除；现有 Skill 完整 baseline Bundle/Candidate、Canary/rollback 真实 provider 与最终 tarball 浏览器故障恢复仍待完成与验收。
 > 更新日期：2026-08-21
 
 ## 1. 产品结果

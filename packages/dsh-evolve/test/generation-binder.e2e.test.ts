@@ -160,7 +160,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     const nativeSkill = await skills.get('internal-release-proof', { cwd: root, scope: nativeAgent })
     const evolvedSkill = await skills.get('internal-release-proof', { cwd: root, scope: evolvedAgent })
 
-    await store.rollbackGeneration(WORKSPACE_ID)
+    await store.rollbackGeneration(WORKSPACE_ID, generation.id)
     const rollbackAgent = await createAndRunAgent(ctx, 'after-bundle-rollback', root)
     const rollbackSkill = await skills.get('internal-release-proof', { cwd: root, scope: rollbackAgent })
     const pinnedAfterRollback = await skills.get(

@@ -18,7 +18,7 @@ V4.30 后的活动链只到 Retention 与 future-Session Promotion Eligibility�
 - Trial 使用已密封 assembled Retention Case Pack、零 proposer、同一 pre-Candidate subject 与 exact Candidate。baseline 通过且 Candidate 失败才产生 `rollback-eligible`；两侧均通过为 `keep`；其他情况为 `review`。
 - 输入漂移、active pointer 漂移、非 assembled、calibration/baseline 失败、composition 变化、歧义、篡改或已 dispatch 但结果不确定均 fail closed。中断后不会盲目重跑付费 Trial。
 - 每 Workspace 使用现有 candidate evaluation policy 的持久日预算。`keep` 后另一条失败可继续监测；`review` 或 `rollback-eligible` 会停止该 active Generation 的进一步花费，等待独立 Host action。
-- Canary 依赖只读 Generation 接口，结果固定 `releaseAuthority: none`；它不能修改 active pointer 或当前 Session。独立 rollback execution gate 仍是后续工作。
+- Canary 依赖只读 Generation 接口，结果固定 `releaseAuthority: none`；它不能修改 active pointer 或当前 Session。独立 rollback execution gate 在本增量仍是后续工作，现已由 [V4.32](v4-32-exact-canary-rollback-gate.zh.md) 补齐自动化实现。
 
 ## Web 与类型契约
 
@@ -56,7 +56,7 @@ pnpm check
 
 ## 未完成门禁
 
-- rollback 按钮尚未由 exact canary eligibility 独立授权；当前既有人工 root/parent rollback 能力不等于 canary 自动回滚；
+- V4.31 时 rollback 按钮尚未由 exact Canary eligibility 独立授权；后续 [V4.32](v4-32-exact-canary-rollback-gate.zh.md) 已增加人工确认的 exact evidence action，但仍不等于无人值守自动回滚；
 - 尚未从最终 tarball 在 clean profile 中用真实 provider 跑 assembled canary、故障注入、浏览器断连/恢复和卸载；
 - existing-Skill 完整 baseline Bundle/Candidate 尚未接入同一 Retention/canary 链；
 - 真实飞书 exact route、长期误晋升/误回滚/负迁移数据和同条件 Hermes paired benchmark 尚未通过。

@@ -242,6 +242,10 @@ _Avoid_: Candidate-authored evaluator, cached trust forever, extra runtime servi
 A content-addressed Host-owned replay triggered by a failed durable Outcome attributed to the exact active internal Candidate Generation. It compares the immutable pre-Candidate subject with that Candidate under sealed governance and emits only `keep`, `review`, or `rollback-eligible` evidence after calibration, integrity, and active-pointer-stability gates; it never changes a Generation pointer or an existing Session.
 _Avoid_: Git parent inference, live traffic routing, failure counter, model reflection, rollback executor, automatic retry platform
 
+**Future-Session Rollback Gate**:
+The sole Host mutation seam that moves one Workspace from its exact active Generation to that Generation's parent or native DSH for future Sessions. Explicit human recovery is always available; an evidence-driven request must revalidate one exact `rollback-eligible` Counterfactual Canary. Both paths use an expected-active compare inside the serialized Store write so a concurrent pointer change fails without rolling back another Generation.
+_Avoid_: Canary-owned pointer write, browser policy, current-Session mutation, external-effect undo, unchecked read-then-write rollback
+
 **Cache Contract**:
 The suite-wide rule that model-visible instructions, tools, schemas, and ordering remain stable within a DSH session. Cache impact is checked at the complete composition surface when that surface changes; plugins with no model-visible effect add no separate burden.
 _Avoid_: Runtime cache plugin, per-plugin bureaucracy

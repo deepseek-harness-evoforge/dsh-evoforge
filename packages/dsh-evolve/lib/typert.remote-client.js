@@ -14,6 +14,8 @@ const dsh_evolve_evoforgeEvolution_approveReview_result$schema = z.object({
   'previousGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'activeGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'recoveryPaused': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
+  'rollbackAuthority': z.union([z.undefined(), z.literal("explicit-human"), z.literal("counterfactual-canary")]).readonly().optional(),
+  'canaryId': z.union([z.undefined(), z.string()]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_overview_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_overview_parameter_1$schema = z.union([z.undefined(), z.string()])
@@ -667,6 +669,8 @@ const dsh_evolve_evoforgeEvolution_pause_result$schema = z.object({
   'previousGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'activeGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'recoveryPaused': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
+  'rollbackAuthority': z.union([z.undefined(), z.literal("explicit-human"), z.literal("counterfactual-canary")]).readonly().optional(),
+  'canaryId': z.union([z.undefined(), z.string()]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_promote_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_promote_parameter_1$schema = z.string()
@@ -680,6 +684,8 @@ const dsh_evolve_evoforgeEvolution_promote_result$schema = z.object({
   'previousGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'activeGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'recoveryPaused': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
+  'rollbackAuthority': z.union([z.undefined(), z.literal("explicit-human"), z.literal("counterfactual-canary")]).readonly().optional(),
+  'canaryId': z.union([z.undefined(), z.string()]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_rejectReview_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_rejectReview_parameter_1$schema = z.string()
@@ -694,6 +700,8 @@ const dsh_evolve_evoforgeEvolution_rejectReview_result$schema = z.object({
   'previousGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'activeGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'recoveryPaused': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
+  'rollbackAuthority': z.union([z.undefined(), z.literal("explicit-human"), z.literal("counterfactual-canary")]).readonly().optional(),
+  'canaryId': z.union([z.undefined(), z.string()]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_resume_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_resume_result$schema = z.object({
@@ -706,6 +714,8 @@ const dsh_evolve_evoforgeEvolution_resume_result$schema = z.object({
   'previousGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'activeGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'recoveryPaused': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
+  'rollbackAuthority': z.union([z.undefined(), z.literal("explicit-human"), z.literal("counterfactual-canary")]).readonly().optional(),
+  'canaryId': z.union([z.undefined(), z.string()]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_review_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_review_parameter_1$schema = z.string()
@@ -771,6 +781,7 @@ const dsh_evolve_evoforgeEvolution_review_result$schema = z.object({
 }).readonly(),
 })
 const dsh_evolve_evoforgeEvolution_rollback_parameter_0$schema = z.string()
+const dsh_evolve_evoforgeEvolution_rollback_parameter_1$schema = z.union([z.undefined(), z.string()])
 const dsh_evolve_evoforgeEvolution_rollback_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
   'workspaceId': z.string().readonly(),
@@ -781,6 +792,8 @@ const dsh_evolve_evoforgeEvolution_rollback_result$schema = z.object({
   'previousGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'activeGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'recoveryPaused': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
+  'rollbackAuthority': z.union([z.undefined(), z.literal("explicit-human"), z.literal("counterfactual-canary")]).readonly().optional(),
+  'canaryId': z.union([z.undefined(), z.string()]).readonly().optional(),
 })
 
 export const TYPERT_REMOTE = {
@@ -1047,6 +1060,17 @@ export const TYPERT_REMOTE = {
             mode: 'strict',
             typeSymbol: 'dsh-evolve#evoforgeEvolution/rollback:workspaceId',
             schema: dsh_evolve_evoforgeEvolution_rollback_parameter_0$schema,
+          },
+        },
+        {
+          name: 'canaryId',
+          wire: 'canaryId',
+          source: 'json',
+          acceptsUndefined: true,
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/rollback:canaryId',
+            schema: dsh_evolve_evoforgeEvolution_rollback_parameter_1$schema,
           },
         },
       ],

@@ -207,7 +207,11 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
         previousId: rootId,
         generation: candidateGeneration,
       })
-      expect(await promotingStore.rollbackGeneration(WORKSPACE_ID)).toEqual({
+      await expect(promotingStore.rollbackGeneration(WORKSPACE_ID, rootId)).rejects.toThrow(
+        `active Generation changed from expected '${rootId}' to '${candidateId}'`,
+      )
+      expect(promotingStore.getActiveGeneration(WORKSPACE_ID)?.id).toBe(candidateId)
+      expect(await promotingStore.rollbackGeneration(WORKSPACE_ID, candidateId)).toEqual({
         previousId: candidateId,
         generation: rootGeneration,
       })
@@ -220,7 +224,7 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
     const recoveredStore = await openEvolutionStore(recoveredCtx.storageDomain)
     try {
       expect(recoveredStore.getActiveGeneration(WORKSPACE_ID)?.id).toBe(rootId)
-      expect(await recoveredStore.rollbackGeneration(WORKSPACE_ID)).toEqual({
+      expect(await recoveredStore.rollbackGeneration(WORKSPACE_ID, rootId)).toEqual({
         previousId: rootId,
         generation: undefined,
       })
@@ -275,7 +279,7 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
     const resumedStore = await openEvolutionStore(resumedCtx.storageDomain)
     try {
       expect(resumedStore.isRecoveryPaused(WORKSPACE_ID)).toBe(true)
-      await resumedStore.rollbackGeneration(WORKSPACE_ID)
+      await resumedStore.rollbackGeneration(WORKSPACE_ID, generation.id)
       expect(resumedStore.isRecoveryPaused(WORKSPACE_ID)).toBe(true)
       await expect(resumedStore.setRecoveryPaused(WORKSPACE_ID, false)).resolves.toEqual({ changed: true, paused: false })
       await expect(resumedStore.setRecoveryPaused(WORKSPACE_ID, false)).resolves.toEqual({ changed: false, paused: false })

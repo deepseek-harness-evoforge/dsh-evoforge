@@ -43,17 +43,20 @@ export class VerifiedEvolutionStore implements EvolutionStore {
     return this.store.promoteGeneration(workspaceId, id)
   }
 
-  async rollbackGeneration(workspaceId: string) {
+  async rollbackGeneration(workspaceId: string, expectedActiveId: string) {
     const active = this.store.getActiveGeneration(workspaceId)
     if (active === undefined) throw new Error(`Workspace '${workspaceId}' has no active Generation to roll back`)
-    if (active.parentId === undefined) return this.store.rollbackGeneration(workspaceId)
+    if (active.id !== expectedActiveId) {
+      throw new Error(`active Generation changed from expected '${expectedActiveId}' to '${active.id}'`)
+    }
+    if (active.parentId === undefined) return this.store.rollbackGeneration(workspaceId, expectedActiveId)
     const parent = this.store.getGeneration(active.parentId)
     if (parent === undefined) throw new Error(`parent Generation '${active.parentId}' is missing`)
     if (parent.workspaceId !== workspaceId) {
       throw new Error(`parent Generation '${parent.id}' belongs to Workspace '${parent.workspaceId}'`)
     }
     await this.source.providerFor(parent)
-    return this.store.rollbackGeneration(workspaceId)
+    return this.store.rollbackGeneration(workspaceId, expectedActiveId)
   }
 
   pinSession(identity: SessionIdentity, options?: { parentSessionId?: string }) {

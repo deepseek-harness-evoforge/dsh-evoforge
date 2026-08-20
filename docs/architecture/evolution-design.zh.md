@@ -1,7 +1,7 @@
 # EvoForge 可证明自进化架构
 
 > 更新日期：2026-08-21
-> 当前状态：内部 Goal 经验到 exact Retention、future-Session Promotion Eligibility 和失败 Outcome 触发的 sealed canary evidence 活动纵切已实现；existing-Skill 完整 Bundle baseline、独立回滚执行 gate、长期 Outcome 归因、真实 provider 和 Hermes paired benchmark 尚未完成。
+> 当前状态：内部 Goal 经验到 exact Retention、future-Session Promotion Eligibility、失败 Outcome 触发的 sealed Canary evidence 和 expected-active Rollback Gate 活动纵切已实现；existing-Skill 完整 Bundle baseline、Canary/rollback 最终 tarball 浏览器故障恢复、长期 Outcome 归因、真实 provider 和 Hermes paired benchmark 尚未完成。
 
 ## 1. 用户结果
 
@@ -129,13 +129,15 @@ missing 或 prepared 为 `waiting`；告警、歧义、谱系错配、`regressed
 7. 执行中断、状态漂移或证据不完整均 fail closed，且已 dispatch 未观察到结果时不盲目重复付费调用；
 8. 每 Workspace 复用现有评测 policy 的持久日预算；`keep` 后新的失败可继续监测，`review`/`rollback-eligible` 会停止该活动 Generation 的后续花费，等待独立 Host action。
 
+`FutureSessionRollback` 是与 Canary 分离的唯一 Host mutation seam。显式人工回滚不依赖 Canary 配置；证据回滚必须带 exact Canary id，并重验唯一 terminal verdict、Workspace、active Generation 与 bounded evidence。两条路径都把观察到的 active id 传给 Generation Store，由 Store 在串行写临界区执行 expected-active compare；资格检查后的并发 pointer 变化会失败，不会误回滚另一个 Generation。Command、Remote、Web 不直接写 Store，Canary 继续无发布权。
+
 这条路径不得复活 Git parent inference、静态 target、Feedback/Evaluator Draft、旧 canary journal 或候选自己判定回滚。
 
 ## 10. DSH Web 控制面
 
 `dsh-evolve-web` 是一个零模型调用的 DSH Client Module。浏览器只读 Host 权威 Remote，不接收 Host path、protected Goal/Case、evaluator source、provider identity 或 Candidate proposal 正文。
 
-当前已投影 Capability Map/Gap、Opportunity、Candidate、证据密封、治理作者状态、Admission、Shadow、Retention、Review、Generation、Promotion Eligibility、Outcome metrics、counterfactual canary 与 rollback。Canary 视图显示 baseline/Candidate、完整性、pointer 稳定、calibration、composition、model/token/cache 和无发布权。页面刷新失败必须显式报错，保留最后一次成功证据；Host 恢复后重新读取权威状态。所有写操作调用 Host 同一权威接口，不在浏览器里实现另一套规则。
+当前已投影 Capability Map/Gap、Opportunity、Candidate、证据密封、治理作者状态、Admission、Shadow、Retention、Review、Generation、Promotion Eligibility、Outcome metrics、counterfactual Canary 与 rollback。Canary 视图显示 baseline/Candidate、完整性、pointer 稳定、calibration、composition、model/token/cache 和无发布权；只有 terminal `rollback-eligible` 行提供 exact-id 回滚入口，仍需人工确认并由 Host 重验。页面刷新失败必须显式报错，保留最后一次成功证据；Host 恢复后重新读取权威状态。所有写操作调用 Host 同一权威接口，不在浏览器里实现另一套规则。
 
 ## 11. 持久化、恢复、权限与 Cache
 
@@ -159,4 +161,4 @@ missing 或 prepared 为 `waiting`；告警、歧义、谱系错配、`regressed
 
 越权、评测泄漏、当前 Session 漂移、无法卸载或无法精确回滚任意一项都阻止 tag 和发布。
 
-当前 exact Retention、Promotion Eligibility 与 canary evidence 见 [V4.26](../evidence/v4-26-exact-candidate-retention-execution.zh.md)、[V4.27](../evidence/v4-27-shadow-retention-web-projection.zh.md)、[V4.28](../evidence/v4-28-shadow-retention-real-browser.zh.md)、[V4.29](../evidence/v4-29-retention-promotion-eligibility.zh.md) 和 [V4.31](../evidence/v4-31-failed-outcome-counterfactual-canary.zh.md)。
+当前 exact Retention、Promotion Eligibility、Canary evidence 与 Rollback Gate 见 [V4.26](../evidence/v4-26-exact-candidate-retention-execution.zh.md)、[V4.27](../evidence/v4-27-shadow-retention-web-projection.zh.md)、[V4.28](../evidence/v4-28-shadow-retention-real-browser.zh.md)、[V4.29](../evidence/v4-29-retention-promotion-eligibility.zh.md)、[V4.31](../evidence/v4-31-failed-outcome-counterfactual-canary.zh.md) 和 [V4.32](../evidence/v4-32-exact-canary-rollback-gate.zh.md)。

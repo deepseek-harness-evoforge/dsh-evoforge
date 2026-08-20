@@ -950,8 +950,19 @@ describe('EvolutionControlPlane', () => {
       reject: vi.fn(async () => rejected),
     }
     const evolutionStore = store()
+    const rollback = {
+      rollback: vi.fn(async (_workspaceId: string, options: { canaryId?: string } = {}) => ({
+        previousId: generationId,
+        generation: undefined,
+        authority: options.canaryId === undefined
+          ? 'explicit-human' as const
+          : 'counterfactual-canary' as const,
+        ...(options.canaryId === undefined ? {} : { canaryId: options.canaryId }),
+      })),
+    }
     const control = new EvolutionControlPlane({
       store: evolutionStore,
+      rollback,
       resident,
       review: { inbox, publisher: { preview: vi.fn(), publish: vi.fn() } },
     })
@@ -961,12 +972,26 @@ describe('EvolutionControlPlane', () => {
     await expect(control.rejectReview(WORKSPACE_ID, reviewId, 'not enough evidence')).resolves.toMatchObject({
       action: 'reject-review', reviewId, status: 'rejected',
     })
-    await expect(control.rollback(WORKSPACE_ID)).resolves.toMatchObject({
-      action: 'rollback', previousGenerationId: generationId,
+    await expect(control.rollback(WORKSPACE_ID, 'd'.repeat(64))).resolves.toMatchObject({
+      action: 'rollback',
+      previousGenerationId: generationId,
+      rollbackAuthority: 'counterfactual-canary',
+      canaryId: 'd'.repeat(64),
     })
     expect(resident.pause).toHaveBeenCalledOnce()
     expect(resident.resume).toHaveBeenCalledOnce()
     expect(inbox.reject).toHaveBeenCalledWith(reviewId, 'not enough evidence')
+    expect(rollback.rollback).toHaveBeenCalledWith(WORKSPACE_ID, { canaryId: 'd'.repeat(64) })
+    expect(evolutionStore.rollbackGeneration).not.toHaveBeenCalled()
+  })
+
+  it('fails closed instead of bypassing a missing future-Session rollback gate', async () => {
+    const evolutionStore = store()
+    const control = new EvolutionControlPlane({ store: evolutionStore })
+
+    await expect(control.rollback(WORKSPACE_ID))
+      .rejects.toThrow('future-Session rollback gate is not configured')
+    expect(evolutionStore.rollbackGeneration).not.toHaveBeenCalled()
   })
 
 })

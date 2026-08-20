@@ -9,7 +9,7 @@ import type { ReviewCandidate, ReviewInbox } from '../src/review-inbox.js'
 import type { DeliveryOutcomeStore } from '../src/delivery-outcome-monitor.js'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
-const USAGE = 'Usage: /evolve [status|feedback [<signal-id>]|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]'
+const USAGE = 'Usage: /evolve [status|feedback [<signal-id>]|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback [<64-char-canary-id>]]'
 const rootId = '1'.repeat(64)
 const childId = '2'.repeat(64)
 
@@ -91,10 +91,19 @@ describe('/evolve host command', () => {
   it('promotes only full content ids for future Sessions and rolls back precisely', async () => {
     const root = generation(rootId)
     const promoteGeneration = vi.fn(async () => ({ previousId: undefined, generation: root }))
-    const rollbackGeneration = vi.fn(async () => ({ previousId: rootId, generation: undefined }))
-    const store = fakeStore(undefined, { promoteGeneration, rollbackGeneration })
+    const store = fakeStore(undefined, { promoteGeneration })
     const promotion = {
       promote: (workspaceId: string, id: string) => store.promoteGeneration(workspaceId, id),
+    }
+    const rollback = {
+      rollback: vi.fn(async (_workspaceId: string, options: { canaryId?: string } = {}) => ({
+        previousId: rootId,
+        generation: undefined,
+        authority: options.canaryId === undefined
+          ? 'explicit-human' as const
+          : 'counterfactual-canary' as const,
+        ...(options.canaryId === undefined ? {} : { canaryId: options.canaryId }),
+      })),
     }
 
     await expect(executeEvolutionCommand(store, `promote ${rootId}`, { promotion })).resolves.toEqual({
@@ -109,16 +118,28 @@ describe('/evolve host command', () => {
     })
     expect(promoteGeneration).toHaveBeenCalledWith(WORKSPACE_ID, rootId)
 
-    await expect(executeEvolutionCommand(store, 'rollback')).resolves.toEqual({
+    await expect(executeEvolutionCommand(store, `rollback ${childId}`, { rollback })).resolves.toEqual({
       kind: 'success',
       text: [
         'Generation rolled back for future Sessions.',
         `Previous: ${rootId}`,
         'Active: native DSH',
+        `Authority: exact counterfactual Canary ${childId}`,
         'Existing Sessions were not changed.',
       ].join('\n'),
     })
-    expect(rollbackGeneration).toHaveBeenCalledWith(WORKSPACE_ID)
+    expect(rollback.rollback).toHaveBeenCalledWith(WORKSPACE_ID, { canaryId: childId })
+    expect(store.rollbackGeneration).not.toHaveBeenCalled()
+  })
+
+  it('fails closed when future-Session rollback governance is unavailable', async () => {
+    const store = fakeStore(generation(rootId))
+
+    await expect(executeEvolutionCommand(store, 'rollback')).resolves.toEqual({
+      kind: 'error',
+      text: 'Evolution action failed: future-Session rollback gate is not configured',
+    })
+    expect(store.rollbackGeneration).not.toHaveBeenCalled()
   })
 
   it('fails closed when future-Session promotion governance is unavailable', async () => {

@@ -25,6 +25,8 @@ describe('EvolutionRemoteService', () => {
     await expect(remote.overview(WORKSPACE_ID, 'session-1')).resolves.toBe(overview)
     expect(control.overview).toHaveBeenCalledWith(WORKSPACE_ID, 'session-1')
     await expect(remote.pause(WORKSPACE_ID)).resolves.toBe(receipt)
+    await remote.rollback(WORKSPACE_ID, 'c'.repeat(64))
+    expect(control.rollback).toHaveBeenCalledWith(WORKSPACE_ID, 'c'.repeat(64))
     expect(ctx.get('evoforge.evolutionControl')).toMatchObject({ name: 'evoforge.evolutionControl' })
     expect(remote.typertRemote).toMatchObject({
       serviceKey: 'evoforge.evolutionControl',

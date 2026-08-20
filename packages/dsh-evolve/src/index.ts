@@ -25,6 +25,7 @@ import {
 } from './skill-candidate-shadow.ts'
 import { InternalSkillRetention } from './internal-skill-retention.ts'
 import { FutureSessionPromotion } from './future-session-promotion.ts'
+import { FutureSessionRollback } from './future-session-rollback.ts'
 import {
   CounterfactualCanary,
   CounterfactualCanaryScheduler,
@@ -319,8 +320,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         counterfactualCanary,
         candidateEvaluationPolicies.map(policy => policy.workspaceId),
       )
+  const rollback = new FutureSessionRollback({
+    store,
+    ...(counterfactualCanary === undefined ? {} : { canary: counterfactualCanary }),
+  })
   const control = new EvolutionControlPlane({
     store,
+    rollback,
     ...(promotion === undefined ? {} : { promotion }),
     capabilities,
     gaps: capabilityGaps,
@@ -340,6 +346,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   new EvolutionRemoteService(ctx, control)
   installEvolutionCommand(ctx, store, {
     ...(promotion === undefined ? {} : { promotion }),
+    rollback,
     ...(review === undefined ? {} : { review }),
     ...(resident === undefined ? {} : { resident }),
     outcomes: deliveryOutcomes,

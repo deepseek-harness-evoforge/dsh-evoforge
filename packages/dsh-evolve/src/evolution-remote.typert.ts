@@ -66,8 +66,9 @@ export class EvolutionRemoteTypertContract extends TypertRemoteService {
   }
 
   @Remote
-  rollback(workspaceId: string): Promise<EvolutionActionReceipt> {
+  rollback(workspaceId: string, canaryId?: string): Promise<EvolutionActionReceipt> {
     void workspaceId
+    void canaryId
     throw new Error('static Typert contract')
   }
 

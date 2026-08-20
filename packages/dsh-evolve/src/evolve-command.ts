@@ -11,13 +11,15 @@ import type {
   FeedbackSignalSummary,
 } from './feedback-signal-monitor.ts'
 import type { FutureSessionPromotion } from './future-session-promotion.ts'
+import type { FutureSessionRollback } from './future-session-rollback.ts'
 import { workspaceIdForCwd } from './workspace-identity.ts'
 
-const USAGE = 'Usage: /evolve [status|feedback [<signal-id>]|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]'
+const USAGE = 'Usage: /evolve [status|feedback [<signal-id>]|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback [<64-char-canary-id>]]'
 const generationIdPattern = /^[a-f0-9]{64}$/
 
 export interface EvolutionCommandModules {
   readonly promotion?: Pick<FutureSessionPromotion, 'promote'>
+  readonly rollback?: Pick<FutureSessionRollback, 'rollback'>
   readonly review?: { inbox: ReviewInbox; publisher: CandidatePublisher }
   readonly resident?: Pick<ResidentEvolutionControl, 'isPaused' | 'pause' | 'resume'>
   readonly outcomes?: Pick<DeliveryOutcomeStore, 'summarize'>
@@ -34,7 +36,7 @@ export function installEvolutionCommand(
     commandCtx.commands.register({
       name: 'evolve',
       description: 'inspect internal evidence, review Candidates, and control immutable Generations',
-      input: { hint: '[status|feedback ...|review ...|pause|resume|promote <generation-id>|rollback]' },
+      input: { hint: '[status|feedback ...|review ...|pause|resume|promote <generation-id>|rollback [<canary-id>]]' },
       handler: async ({ rawInput, agent }) => executeEvolutionCommand(
         store,
         rawInput,
@@ -53,7 +55,7 @@ export async function executeEvolutionCommand(
   workspaceId: string,
 ): Promise<CommandResult> {
   const input = rawInput.trim()
-  const { promotion, review, resident, outcomes, feedback } = modules
+  const { promotion, rollback, review, resident, outcomes, feedback } = modules
   try {
     if (input === '' || input === 'status') {
       const active = store.getActiveGeneration(workspaceId)
@@ -138,14 +140,28 @@ export async function executeEvolutionCommand(
         ].join('\n'),
       }
     }
-    if (input === 'rollback') {
-      const result = await store.rollbackGeneration(workspaceId)
+    const rollbackAction = /^rollback(?:\s+([^\s]+))?$/u.exec(input)
+    if (rollbackAction !== null) {
+      const canaryId = rollbackAction[1]
+      if (canaryId !== undefined && !generationIdPattern.test(canaryId)) {
+        return { kind: 'error', text: USAGE }
+      }
+      if (rollback === undefined) {
+        throw new Error('future-Session rollback gate is not configured')
+      }
+      const result = await rollback.rollback(
+        workspaceId,
+        canaryId === undefined ? {} : { canaryId },
+      )
       return {
         kind: 'success',
         text: [
           'Generation rolled back for future Sessions.',
           `Previous: ${result.previousId}`,
           `Active: ${result.generation?.id ?? 'native DSH'}`,
+          result.authority === 'explicit-human'
+            ? 'Authority: explicit human rollback'
+            : `Authority: exact counterfactual Canary ${result.canaryId}`,
           'Existing Sessions were not changed.',
         ].join('\n'),
       }

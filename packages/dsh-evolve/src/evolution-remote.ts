@@ -52,8 +52,8 @@ export class EvolutionRemoteService extends TypertRemoteService {
     return this.control.promote(workspaceId, generationId)
   }
 
-  rollback(workspaceId: string): Promise<EvolutionActionReceipt> {
-    return this.control.rollback(workspaceId)
+  rollback(workspaceId: string, canaryId?: string): Promise<EvolutionActionReceipt> {
+    return this.control.rollback(workspaceId, canaryId)
   }
 
 }

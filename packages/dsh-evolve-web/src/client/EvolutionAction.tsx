@@ -34,6 +34,7 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
   const [detail, setDetail] = useState<EvolutionReviewDetail>()
   const [note, setNote] = useState('')
   const [promotionTarget, setPromotionTarget] = useState<string>()
+  const [rollbackCanaryId, setRollbackCanaryId] = useState<string>()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   const [notice, setNotice] = useState<string>()
@@ -50,6 +51,7 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
     setDetail(undefined)
     setNote('')
     setPromotionTarget(undefined)
+    setRollbackCanaryId(undefined)
     setNotice(undefined)
     setConfirm(undefined)
   }
@@ -157,6 +159,7 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
       const receipt = requireWorkspace(targetWorkspaceId, await request(), value => value.workspaceId)
       if (workspaceRef.current !== targetWorkspaceId) return
       if (receipt.action === 'promote') setPromotionTarget(undefined)
+      if (receipt.action === 'rollback') setRollbackCanaryId(undefined)
       if (receipt.action === 'approve-review' || receipt.action === 'reject-review') {
         setDetail(undefined)
       }
@@ -182,7 +185,7 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
     } else if (confirm === 'promote' && promotionTarget !== undefined) {
       void run(() => remoteValue(remote.promote(workspaceId, promotionTarget)))
     } else if (confirm === 'rollback') {
-      void run(() => remoteValue(remote.rollback(workspaceId)))
+      void run(() => remoteValue(remote.rollback(workspaceId, rollbackCanaryId)))
     }
   }
 
@@ -237,7 +240,17 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
             {overview !== undefined && view === 'overview' && (
               <BeginnerOverview summary={overview} openAdvanced={() => setView('advanced')} t={t} />
             )}
-            {overview !== undefined && view === 'skills' && <SkillsView summary={overview} t={t} />}
+            {overview !== undefined && view === 'skills' && (
+              <SkillsView
+                summary={overview}
+                busy={busy}
+                rollbackEligible={(canaryId) => {
+                  setRollbackCanaryId(canaryId)
+                  setConfirm('rollback')
+                }}
+                t={t}
+              />
+            )}
             {view === 'advanced' && <>
               {overview !== undefined && <Overview summary={overview} t={t} />}
               <div className="dsh-evolve-actions">
@@ -253,7 +266,10 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
                   </button>
                 )}
                 {overview?.active !== undefined && (
-                  <button type="button" className="dsh-evolve-button dsh-evolve-danger" disabled={busy} onClick={() => setConfirm('rollback')}>
+                  <button type="button" className="dsh-evolve-button dsh-evolve-danger" disabled={busy} onClick={() => {
+                    setRollbackCanaryId(undefined)
+                    setConfirm('rollback')
+                  }}>
                     {t('action.rollback')}
                   </button>
                 )}
@@ -289,7 +305,10 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
           <div className="dsh-evolve-confirm" role="alertdialog" aria-modal="true">
             <p>{t(`confirm.${confirm}`)}</p>
             <div className="dsh-evolve-actions">
-              <button type="button" className="dsh-evolve-button" onClick={() => setConfirm(undefined)}>{t('action.cancel')}</button>
+              <button type="button" className="dsh-evolve-button" onClick={() => {
+                setConfirm(undefined)
+                if (confirm === 'rollback') setRollbackCanaryId(undefined)
+              }}>{t('action.cancel')}</button>
               <button type="button" className="dsh-evolve-button dsh-evolve-primary" onClick={executeConfirmed}>{t('action.confirm')}</button>
             </div>
           </div>
@@ -357,7 +376,12 @@ function hasVerificationTarget(summary: EvolutionOverview): boolean {
     || (summary.skillAdmission?.configuredPolicyCount ?? 0) > 0
 }
 
-function SkillsView({ summary, t }: { summary: EvolutionOverview; t: (key: string) => string }) {
+function SkillsView({ summary, busy, rollbackEligible, t }: {
+  summary: EvolutionOverview
+  busy: boolean
+  rollbackEligible: (canaryId: string) => void
+  t: (key: string) => string
+}) {
   const active = summary.active?.artifacts.filter(isSkillArtifact) ?? []
   const ready = summary.reviews.inactiveGenerations
   const reviewing = summary.reviews.items.filter(review => review.status === 'pending')
@@ -376,7 +400,12 @@ function SkillsView({ summary, t }: { summary: EvolutionOverview; t: (key: strin
     <SkillEvaluationGovernance summary={summary} t={t} />
     <SkillAdmission summary={summary} t={t} />
     <SkillEvaluationRuns summary={summary} t={t} />
-    <CounterfactualCanaryRuns summary={summary} t={t} />
+    <CounterfactualCanaryRuns
+      summary={summary}
+      busy={busy}
+      rollbackEligible={rollbackEligible}
+      t={t}
+    />
     {empty && <div className="dsh-evolve-message">{t('skills.empty')}</div>}
     {active.length > 0 && <SkillGroup t={t} label={t('skills.active')} items={active.map(artifact => ({
       key: `active:${artifact.gitCommit ?? artifact.artifactDigest}:${artifact.name}`,
@@ -532,9 +561,13 @@ function evaluationComparison(
 
 function CounterfactualCanaryRuns({
   summary,
+  busy,
+  rollbackEligible,
   t,
 }: {
   summary: EvolutionOverview
+  busy: boolean
+  rollbackEligible: (canaryId: string) => void
   t: (key: string) => string
 }) {
   const canary = summary.counterfactualCanary
@@ -603,6 +636,14 @@ function CounterfactualCanaryRuns({
               {t(`skills.canary.reason.${run.reason}`)}
             </div>}
             <div className="dsh-evolve-discovery-state">{t('skills.canary.release.none')}</div>
+            {run.status === 'rollback-eligible' && <button
+              type="button"
+              className="dsh-evolve-button dsh-evolve-danger"
+              disabled={busy}
+              onClick={() => rollbackEligible(run.id)}
+            >
+              {t('skills.canary.action.rollback')}
+            </button>}
           </li>
         ))}</ul>}
   </section>

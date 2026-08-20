@@ -603,5 +603,7 @@ export interface EvolutionActionReceipt {
     readonly previousGenerationId?: string;
     readonly activeGenerationId?: string;
     readonly recoveryPaused?: boolean;
+    readonly rollbackAuthority?: 'explicit-human' | 'counterfactual-canary';
+    readonly canaryId?: string;
 }
 //# sourceMappingURL=control-types.d.ts.map

@@ -26,7 +26,9 @@ if (action === 'before-publish') {
   process.kill(process.pid, 'SIGKILL')
 } else if (action === 'after-rollback') {
   const input = JSON.parse(await readFile(inputPath, 'utf8'))
-  await store.rollbackGeneration(input.workspaceId)
+  const active = store.getActiveGeneration(input.workspaceId)
+  if (active === undefined) throw new Error('expected one active Generation before rollback crash')
+  await store.rollbackGeneration(input.workspaceId, active.id)
   process.kill(process.pid, 'SIGKILL')
 } else {
   throw new Error(`unknown crash action '${action}'`)

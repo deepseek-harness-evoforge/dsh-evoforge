@@ -20,6 +20,7 @@ import type {
 } from './internal-skill-retention.ts'
 import type { EvolutionStore } from './generation-store.ts'
 import type { FutureSessionPromotion } from './future-session-promotion.ts'
+import type { FutureSessionRollback } from './future-session-rollback.ts'
 import type { ResidentEvolutionControl } from './resident-evolution-control.ts'
 import type { ReviewCandidate, ReviewInbox } from './review-inbox.ts'
 import type {
@@ -43,6 +44,7 @@ const MAX_DISCOVERY_ROWS = 20
 export interface EvolutionControlPlaneModules {
   readonly store: EvolutionStore
   readonly promotion?: Pick<FutureSessionPromotion, 'eligibility' | 'promote'>
+  readonly rollback?: Pick<FutureSessionRollback, 'rollback'>
   readonly review?: {
     readonly inbox: Pick<ReviewInbox, 'scanAll' | 'get' | 'approve' | 'reject'>
     readonly publisher: Pick<CandidatePublisher, 'preview' | 'publish'>
@@ -362,14 +364,22 @@ export class EvolutionControlPlane {
     }
   }
 
-  async rollback(workspaceId: string): Promise<EvolutionActionReceipt> {
-    const result = await this.modules.store.rollbackGeneration(workspaceId)
+  async rollback(workspaceId: string, canaryId?: string): Promise<EvolutionActionReceipt> {
+    if (this.modules.rollback === undefined) {
+      throw new Error('future-Session rollback gate is not configured')
+    }
+    const result = await this.modules.rollback.rollback(
+      workspaceId,
+      canaryId === undefined ? {} : { canaryId },
+    )
     return {
       schemaVersion: 1,
       workspaceId,
       action: 'rollback',
       previousGenerationId: result.previousId,
       ...(result.generation === undefined ? {} : { activeGenerationId: result.generation.id }),
+      rollbackAuthority: result.authority,
+      ...(result.canaryId === undefined ? {} : { canaryId: result.canaryId }),
     }
   }
 

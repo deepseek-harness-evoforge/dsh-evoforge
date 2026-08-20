@@ -174,7 +174,14 @@ function remote(
     })),
     rejectReview: vi.fn(() => success({ schemaVersion: 1 as const, workspaceId, action: 'reject-review' as const, reviewId, status: 'rejected' as const })),
     promote: vi.fn(() => success({ schemaVersion: 1 as const, workspaceId, action: 'promote' as const, activeGenerationId: generationId })),
-    rollback: vi.fn(() => success({ schemaVersion: 1 as const, workspaceId, action: 'rollback' as const, previousGenerationId: generationId })),
+    rollback: vi.fn((_requestedWorkspaceId: string, canaryId?: string) => success({
+      schemaVersion: 1 as const,
+      workspaceId,
+      action: 'rollback' as const,
+      previousGenerationId: generationId,
+      rollbackAuthority: canaryId === undefined ? 'explicit-human' as const : 'counterfactual-canary' as const,
+      ...(canaryId === undefined ? {} : { canaryId }),
+    })),
   }
 }
 
@@ -347,6 +354,7 @@ const t = (key: string) => ({
   'skills.canary.pointer.stable': 'Active pointer remained stable',
   'skills.canary.integrity.stable': 'Sealed inputs remained exact',
   'skills.canary.release.none': 'Evidence only · Cannot move the Generation pointer',
+  'skills.canary.action.rollback': 'Rollback with this evidence',
   'skills.active': 'In use',
   'skills.ready': 'Verified, waiting to be enabled',
   'skills.reviewing': 'Waiting for review',
@@ -540,7 +548,7 @@ describe('EvolutionAction', () => {
     expect(api.overview).toHaveBeenCalledTimes(1)
   })
 
-  it('shows failed-Outcome canary rollback eligibility without claiming that it rolled back', async () => {
+  it('requires confirmation and sends the exact failed-Outcome Canary for rollback', async () => {
     const api = remote(true)
     const configured = remote(true)
     vi.mocked(api.overview).mockImplementationOnce(async (requestedWorkspaceId) => {
@@ -593,6 +601,12 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('Sealed inputs remained exact')).toBeTruthy()
     expect(screen.getByText('Evidence only · Cannot move the Generation pointer')).toBeTruthy()
     expect(api.rollback).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Rollback with this evidence' }))
+    expect(api.rollback).not.toHaveBeenCalled()
+    const confirmation = await screen.findByRole('alertdialog')
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm' }))
+    await waitFor(() => expect(api.rollback).toHaveBeenCalledWith(workspaceId, '4'.repeat(64)))
+    await waitFor(() => expect(api.overview).toHaveBeenCalledTimes(2))
   })
 
   it('explains the exact Session capability map without offering a route menu', async () => {

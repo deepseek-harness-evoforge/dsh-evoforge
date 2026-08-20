@@ -46,7 +46,7 @@ const expectedParameters = {
   rejectReview: ['workspaceId', 'id', 'note'],
   resume: ['workspaceId'],
   review: ['workspaceId', 'id'],
-  rollback: ['workspaceId'],
+  rollback: ['workspaceId', 'canaryId'],
 }
 const actualParameters = Object.fromEntries(
   remoteManifest.descriptors

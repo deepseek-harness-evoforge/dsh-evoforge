@@ -64,7 +64,7 @@ export interface EvolutionStore {
     previousId: string | undefined
     generation: CapabilityGeneration
   }>
-  rollbackGeneration(workspaceId: string): Promise<{
+  rollbackGeneration(workspaceId: string, expectedActiveId: string): Promise<{
     previousId: string
     generation: CapabilityGeneration | undefined
   }>
@@ -221,12 +221,13 @@ class DomainEvolutionStore implements EvolutionStore {
     return result
   }
 
-  rollbackGeneration(workspaceId: string): Promise<{
+  rollbackGeneration(workspaceId: string, expectedActiveId: string): Promise<{
     previousId: string
     generation: CapabilityGeneration | undefined
   }> {
     const exactWorkspaceId = workspaceIdSchema.parse(workspaceId)
-    const result = this.writeTail.then(() => this.rollbackNow(exactWorkspaceId))
+    const exactExpectedActiveId = hashSchema.parse(expectedActiveId)
+    const result = this.writeTail.then(() => this.rollbackNow(exactWorkspaceId, exactExpectedActiveId))
     this.writeTail = result.then(() => {}, () => {})
     return result
   }
@@ -327,12 +328,15 @@ class DomainEvolutionStore implements EvolutionStore {
     return { previousId, generation }
   }
 
-  private async rollbackNow(workspaceId: string): Promise<{
+  private async rollbackNow(workspaceId: string, expectedActiveId: string): Promise<{
     previousId: string
     generation: CapabilityGeneration | undefined
   }> {
     const previousId = this.workspaceState(workspaceId).activeGenerationId
     if (previousId === undefined) throw new Error(`Workspace '${workspaceId}' has no active Generation to roll back`)
+    if (previousId !== expectedActiveId) {
+      throw new Error(`active Generation changed from expected '${expectedActiveId}' to '${previousId}'`)
+    }
     const active = this.getGeneration(previousId)
     if (active === undefined) throw new Error(`active Generation '${previousId}' is missing`)
     if (active.workspaceId !== workspaceId) {
