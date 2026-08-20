@@ -1,7 +1,7 @@
 # V4.43 现有 Skill 独立发布门与 future-Session 同名替换
 
 日期：2026-08-21
-状态：`implemented`（Host/Storage/Command 与真实 DSH Session 自动化已验证；Control/Remote/Web 已由 [V4.44](v4-44-existing-skill-release-control-web.zh.md) 接入，最终 tarball 浏览器已由 [V4.45](v4-45-existing-skill-release-final-browser.zh.md) 验证，failed-Outcome Canary 尚未完成）
+状态：`implemented`（Host/Storage/Command 与真实 DSH Session 自动化已验证；Control/Remote/Web 已由 [V4.44](v4-44-existing-skill-release-control-web.zh.md) 接入，最终 tarball 浏览器已由 [V4.45](v4-45-existing-skill-release-final-browser.zh.md) 验证，failed-Outcome Canary Host/Jobs 已由 [V4.46](v4-46-existing-skill-failed-outcome-canary.zh.md) 补齐）
 
 ## 本增量回答的问题
 

@@ -1,7 +1,7 @@
 # V4.45 现有 Skill 发布门的最终 tarball 浏览器生命周期
 
 日期：2026-08-21
-状态：`verified`（最终 tarball 的 approve → inactive Generation → Host 冷恢复 → future-Session promote → reload → 断连恢复 → 官方卸载已验证；真实 provider、existing-Skill failed-Outcome Canary 与长期效果仍未完成）
+状态：`verified`（最终 tarball 发布生命周期已验证；failed-Outcome Canary Host/Jobs 已由 [V4.46](v4-46-existing-skill-failed-outcome-canary.zh.md) 补齐，其 Control/Web/rollback gate、真实 provider 与长期效果仍未完成）
 
 ## 本增量回答的问题
 

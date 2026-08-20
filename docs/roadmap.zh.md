@@ -1,8 +1,8 @@
 # EvoForge v0.1 路线图
 
-> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已替换旧 Router 并完成公共 outbound/健康 Web 的真实浏览器失败恢复验收，飞书图片已在 assembled DSH 中经官方资源下载、整批校验、原生 AttachmentStore 保存并以内容寻址引用进入 Agent。ClawHub/市场/research Candidate、公开 source/target 配置、活动 Git materializer/ref、Feedback/Evaluator Draft、Shadow 内 proposer、自动 review expiry、旧 Retention/canary 编排和对应 Control/Web/attention 表面均已删除，packed runtime 只解析内部内容寻址 Bundle。缺失 Skill Candidate 已形成 Retention/Promotion/Canary/Rollback 活动纵切。现有 Skill 的 exact correction 已绑定完整调用时 baseline Bundle 和受保护纠正证据，自主生成完整继承 baseline 的隔离 Candidate，经结构准入与 Candidate-blind exact paired Holdout 后，V4.41 只从权威 `improved` verdict 执行生成前密封的 exact Retention；V4.42 已完成该证据的最终 tarball DSH Web；V4.43 已增加独立 Host/Command 发布门、持久人工决定、inactive Generation、同名 future-Session 选择与显式回滚的真实 DSH Session 证据；V4.44 已把同一门接入 Control、固定 Typert Remote 与 DSH Web；V4.45 已完成最终 tarball 的真实浏览器发布生命周期。下一阶段实现 existing-Skill failed-Outcome Canary 并用两套独立真实 provider 验证。exact 飞书用户消息与 Hermes paired 仍未完成；普通文件/音视频和飞书内容能力仍 pending，v0.1 未发布。
+> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已替换旧 Router 并完成公共 outbound/健康 Web 的真实浏览器失败恢复验收，飞书图片已在 assembled DSH 中进入 Agent，运行时外部能力获取相关偏差表面已删除。缺失 Skill Candidate 已形成 Retention/Promotion/Canary/Rollback 活动纵切；现有 Skill 已完成完整 baseline、protected whole-tree Candidate、exact Holdout/Retention、独立发布门和最终包浏览器生命周期。V4.46 又实现 active existing-Skill release 的 failed-Outcome exact paired Canary Host/Jobs 纵切。下一阶段接入其权威 Control/Web 和独立 rollback gate，再做最终 tarball 浏览器与两套独立真实 provider。exact 飞书用户消息与 Hermes paired 仍未完成；普通文件/音视频和飞书内容能力仍 pending，v0.1 未发布。
 > V4.38 已在 existing-Skill Candidate proposer 前生成并校准 Candidate 不可见的完整 `skill-tree` holdout Envelope；V4.39 已把 exact Envelope 纳入 Candidate 内容身份并消费该 Envelope 与 V4.37 exact 双树执行 assembled paired Trial。下一门是独立 Retention/Canary/晋升/回滚，而不是再次生成或搜索能力。
-> V4.40 已先修正 Retention 的生成前身份链；V4.41 已由 `ExistingSkillRetentionEvaluation.evaluate()/scan()` 消费 authoritative improved Holdout 与该 exact Retention partition，并接入原生 DSH Jobs；V4.42 已完成权威 DSH Web/真实浏览器；V4.43 已完成独立 Host/Command 发布门、持久人工决定、inactive Generation、同名 future-Session 选择与显式回滚的真实 DSH Session 自动化；V4.44 已完成该发布门的 Control/Remote/Web 自动化；V4.45 已完成最终 tarball 浏览器生命周期。下一门是 existing-Skill failed-Outcome Canary。
+> V4.40–V4.45 已完成 Retention、发布门与最终包浏览器生命周期；V4.46 已完成 existing-Skill failed-Outcome Canary 的 Host/Jobs/持久证据。下一门是 Canary Control/Web 与独立 rollback gate。
 > 更新日期：2026-08-21
 
 ## 开发与发布纪律
@@ -93,9 +93,9 @@ workflow 选择。原生 Job author 只接收有界内部 Goal/Gap 证据，输�
 校验、内容寻址并写入 inactive/quarantined/unevaluated/never-executed Candidate。DSH Web 展示
 Gap → Opportunity → Candidate 及运行状态、成本和治理边界，不显示外部发现尝试。
 
-Existing-Skill improvement 与 missing-Skill Opportunity 分轨：同一 invocation-content hash 在至少两个不同 Goal 中的去重明确纠正可形成独立调查；不同 hash、同 Goal、legacy 或重复 Signal abstain。该 hash 不代表完整 Bundle，调查固定无因果/无发布权，不进入 capability-absent Envelope。V4.33–V4.38 依次完成调用边界完整 baseline Bundle、同一 baseline 资格、protected evidence seal、whole-tree Candidate、exact 双树结构准入和 Candidate-blind Holdout 治理。V4.39 由独立原生 Jobs 调度器执行 exact assembled paired Holdout；只有 calibration/assembled/composition/integrity 全部通过才按 `fail/pass` 四象限持久判决，输入漂移和未知付费结果 fail closed，最终 tarball 浏览器已验证读取、reload、断连恢复与卸载。V4.41 又只消费同一 Candidate 的权威 `improved` Holdout 和生成前独立 Retention partition，重验 baseline/Candidate、两套 Case Pack 与完整 Trial 门禁后持久给出 retained/ambiguous/not-retained/regressed；四 Goal不花费，付费结果未知不重试。V4.42 已完成 Retention Web/真实浏览器；V4.43 已增加独立 existing-Skill Host release gate、持久人工决定、inactive Generation、同名 future-only Session 选择与显式回滚；V4.44 已完成其 bounded Control、固定 Typert Remote 和分步确认 Web；V4.45 已从最终 tarball 验证 approve→inactive→restart→promote→reload→断连恢复→卸载。下一步推进 existing-Skill failed-Outcome Canary，并以两套独立真实 provider 跑出效果证据。
+Existing-Skill improvement 与 missing-Skill Opportunity 分轨。V4.33–V4.45 已完成完整 baseline、protected Candidate、Candidate-blind exact Holdout/Retention、独立发布门与最终 tarball 生命周期。V4.46 只在 active Generation 精确对应 approved existing-Skill release 时消费失败 Outcome，重验专用 lineage 并通过 Retention owner 物化 exact baseline/Candidate/Case Pack；原生 Jobs paired replay 只有在 baseline pass、Candidate fail 时给出无 mutation 权的 rollback-eligible，双失败进入 review，paid-uncertain 不重试。下一步接入 Control/Web 与独立 rollback gate，再以最终 tarball 和两套独立真实 provider 跑出效果证据。
 
-V4.40 将同一 Evidence Seal 的可选第五 Goal 交给第二次 Candidate 不可见治理调用，单独生成和校准 Retention Case Pack；v3 Evaluation Envelope 同时绑定 Holdout/Retention 输入摘要与内容 hash，Candidate 仍只绑定一个不可替换的 pre-Candidate Envelope id。V4.41 的 `ExistingSkillRetentionEvaluation.evaluate()/scan()` 已消费 V4.39 权威 `improved` verdict 与该 exact Retention partition，并由原生 DSH Jobs 负责实时/冷启动唤醒；它没有发布权。V4.42 已把有界结果投影到现有 Web 并通过最终 tarball 真实浏览器生命周期；下一纵切推进 Canary、future-Session 晋升和回滚。
+V4.40 将第五 Goal 密封为独立 Retention Case Pack；V4.41–V4.45 已完成 exact Retention、future-Session 发布门及最终包浏览器；V4.46 已完成 failed-Outcome Canary Host/Jobs。下一纵切把 Canary 接入权威 Control/Web，再由独立 Host gate 重验 exact rollback evidence 与 expected-active pointer。
 
 内部 Candidate 评测已删除 `candidateAdmissionTargets`/`candidateShadowTargets` 这两套预选 exact Skill 的配置。
 `candidateEvaluationPolicies` 不声明 Skill、baseline、Case Pack 或 Candidate 方向；自主治理只增加 exact DSH revision 和独立日预算。Host 先从 exact Opportunity
@@ -114,7 +114,7 @@ Candidate 侧才安装 exact whole-Skill；Envelope id 和 seal id 贯穿 admiss
 cache-read/write 和 latency projection，货币成本明确 unavailable，且不影响资格/author。Host 权威 summary、
 generated Remote 与 DSH Web 已展示 Workspace/current/baseline 聚合和至多 20 条最近已测 Outcome；真实浏览器已验证
 在线刷新、Host 断连保留最后快照并显式报错、同 profile 重启恢复和幂等重放。失败 Outcome 现可触发 exact active internal Candidate 的内容寻址 sealed canary；自动化测试覆盖 keep/review/rollback-eligible、预算、输入与 pointer 漂移、中断不盲重试、持续监测和 DSH Jobs。仍待实现/验证：
-existing-Skill Canary/晋升/回滚、correction/outcome 的因果证明，以及 rework/currency-cost/reuse/retention/negative-transfer/rollback 的完整归因、内部 Candidate 治理包的两套独立真实 provider outcome、模型缺口质量、迁移/遗忘/
+existing-Skill Canary 的 Control/Web/独立 rollback gate 与最终包恢复、correction/outcome 的因果证明，以及 rework/currency-cost/reuse/retention/negative-transfer/rollback 的完整归因、内部 Candidate 治理包的两套独立真实 provider outcome、模型缺口质量、迁移/遗忘/
 长期保留，以及同条件 Hermes paired outcome。因此不能描述为“自主 Skill 进化已完成”。
 
 ## V5 — 可解释 Web 与飞书闭环

@@ -27,4 +27,4 @@ V4.43 已建立唯一 `ExistingSkillRelease` Host mutation gate，但人工只�
 ## 发布边界
 
 - 本增量当时尚未从最终 `npm pack` tarball 在 clean profile 里验证真实浏览器生命周期；后续 [V4.45](v4-45-existing-skill-release-final-browser.zh.md) 已完成 reload、Host 断连保留、同端口恢复、approve→restart→promote、官方卸载与 console error 0。
-- existing-Skill failed-Outcome Canary、证据驱动精确回滚、两套独立真实 provider、真实飞书 exact route、Hermes paired benchmark 与长期误晋升/负迁移/误回滚数据仍阻止 tag 和完成声明。
+- failed-Outcome Canary Host/Jobs 已由 [V4.46](v4-46-existing-skill-failed-outcome-canary.zh.md) 补齐；其 Control/Web、证据驱动精确回滚、两套独立真实 provider、真实飞书 exact route、Hermes paired benchmark 与长期误晋升/负迁移/误回滚数据仍阻止 tag 和完成声明。

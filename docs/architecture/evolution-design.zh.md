@@ -1,7 +1,7 @@
 # EvoForge 可证明自进化架构
 
 > 更新日期：2026-08-21
-> 当前状态：内部 Goal 经验到 exact Retention、future-Session Promotion Eligibility、失败 Outcome 触发的 sealed Canary evidence 和 expected-active Rollback Gate 活动纵切已实现；existing-Skill 调用时完整 Bundle、同一基线资格、Candidate 前 Holdout/Retention Envelope、protected whole-tree Candidate、结构准入、exact paired Holdout 与只从 authoritative improved Holdout 触发的 exact Retention 已实现。V4.42 已从最终 tarball 完成 existing-Skill Retention 的 DSH Web 权威展示；V4.43 已完成独立 existing-Skill Host/Command 发布门、持久人工决定、inactive Generation、同名 future-only Session 选择与显式回滚自动化；V4.44 已把同一 release owner 接入 bounded Control、固定 Typert Remote 与分步确认 DSH Web；V4.45 已完成最终 tarball 的 approve→restart→promote→reload→断连恢复→卸载。existing-Skill failed-Outcome Canary、长期 Outcome 归因、两套独立真实 provider 和 Hermes paired benchmark 尚未完成。
+> 当前状态：内部 Goal 经验到 exact Retention、future-Session Promotion Eligibility、失败 Outcome 触发的 sealed Canary evidence 和 expected-active Rollback Gate 活动纵切已实现；existing-Skill 调用时完整 Bundle、同一基线资格、Candidate 前 Holdout/Retention Envelope、protected whole-tree Candidate、结构准入、exact paired Holdout 与只从 authoritative improved Holdout 触发的 exact Retention 已实现。V4.42–V4.45 已完成 existing-Skill Retention、独立发布门、Control/Web 与最终 tarball 发布生命周期；V4.46 已实现 active release 的 failed-Outcome exact paired Canary、原生 Jobs、paid-uncertain 恢复和无 mutation 权的 keep/review/rollback-eligible。其 Control/Web、独立 rollback gate、长期 Outcome 归因、两套独立真实 provider 和 Hermes paired benchmark 尚未完成。
 
 ## 1. 用户结果
 

@@ -102,6 +102,56 @@ describe('Existing Skill Retention Evaluation', () => {
     })
   })
 
+  it('prepares the exact retained trees and sealed Case Pack for a later failed-Outcome Canary', async () => {
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-existing-skill-canary-replay-')))
+    roots.push(root)
+    const fixture = await evaluationFixture(root)
+    const holdout = new ExistingSkillHoldoutEvaluation({
+      policies: [fixture.policy],
+      baselines: fixture.baselines,
+      candidates: fixture.candidates,
+      governance: fixture.governance,
+      runTrial: input => pairedTrial(input, false, true),
+    })
+    const holdoutResult = await holdout.evaluate(fixture.candidate, fixture.admission)
+    const retention = new ExistingSkillRetentionEvaluation({
+      policies: [fixture.policy],
+      baselines: fixture.baselines,
+      candidates: fixture.candidates,
+      governance: fixture.governance,
+      holdouts: holdout,
+      runTrial: input => pairedTrial(input, false, true),
+    })
+    const retained = await retention.evaluate(fixture.candidate, holdoutResult)
+    const outputDir = join(root, 'canary-replay')
+
+    const replay = await retention.prepareCanaryReplay(fixture.candidate, retained.id, outputDir)
+
+    expect(replay).toMatchObject({
+      candidateId: fixture.candidate.id,
+      retentionEvaluationId: retained.id,
+      holdoutEvaluationId: holdoutResult.id,
+      admissionId: fixture.admission.id,
+      envelopeId: fixture.envelope.id,
+      workspaceId: WORKSPACE_ID,
+      skillName: fixture.candidate.skillName,
+      baselineTreeHash: fixture.baseline.treeHash,
+      candidateTreeHash: fixture.candidateArchive.treeHash,
+      holdoutCasePackHash: fixture.envelope.casePackHash,
+      retentionCasePackHash: fixture.envelope.retentionCasePackHash,
+      dshRevision: fixture.policy.dshRevision,
+      releaseAuthority: 'none',
+      trial: {
+        baselineKind: 'skill-tree',
+        casePackDir: await realpath(fixture.retentionCasePackDir),
+        outputDir,
+        trialLimit: 4,
+      },
+    })
+    await expect(hashTree(replay.baselineDir)).resolves.toBe(fixture.baseline.treeHash)
+    await expect(hashTree(replay.candidateDir)).resolves.toBe(fixture.candidateArchive.treeHash)
+  })
+
   it('abstains without a fifth-Goal Retention partition and spends no Trial', async () => {
     const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-existing-skill-no-retention-')))
     roots.push(root)

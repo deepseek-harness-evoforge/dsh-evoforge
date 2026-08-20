@@ -80,6 +80,10 @@ import {
   ExistingSkillRelease,
   openExistingSkillReleaseStore,
 } from './existing-skill-release.ts'
+import {
+  ExistingSkillCounterfactualCanary,
+  ExistingSkillCounterfactualCanaryScheduler,
+} from './existing-skill-counterfactual-canary.ts'
 import { EvolutionControlPlane } from './evolution-control-plane.ts'
 import { EvolutionRemoteService } from './evolution-remote.ts'
 import { AutomaticEvolutionBudget } from './automatic-evolution-budget.ts'
@@ -166,10 +170,12 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     onSignalsChanged: workspaceId => reconcileExistingSkillCandidates?.(workspaceId),
   })
   let counterfactualCanaryScheduler: CounterfactualCanaryScheduler | undefined
+  let existingSkillCounterfactualCanaryScheduler: ExistingSkillCounterfactualCanaryScheduler | undefined
   const deliveryMonitor = installDeliveryOutcomeMonitor(ctx, deliveryOutcomes, store, {
     onOutcome: outcome => {
       if (outcome.status === 'failed') {
         counterfactualCanaryScheduler?.observe(outcome.workspaceId)
+        existingSkillCounterfactualCanaryScheduler?.observe(outcome.workspaceId)
       }
     },
   })
@@ -394,6 +400,28 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         store,
         bundles: source,
       })
+  const existingSkillCounterfactualCanary = existingSkillRelease === undefined
+    || existingSkillRetentionEvaluation === undefined
+    ? undefined
+    : new ExistingSkillCounterfactualCanary({
+        store,
+        outcomes: deliveryOutcomes,
+        releases: existingSkillRelease,
+        candidates: skillCandidateStore,
+        retention: existingSkillRetentionEvaluation,
+        budget: new AutomaticEvolutionBudget(),
+      }, {
+        policies: evaluationGovernancePolicies.map(policy => ({
+          ...policy,
+          maxAttemptsPerUtcDay: policy.maxAttemptsPerUtcDay ?? 1,
+        })),
+      })
+  existingSkillCounterfactualCanaryScheduler = existingSkillCounterfactualCanary === undefined
+    ? undefined
+    : new ExistingSkillCounterfactualCanaryScheduler(
+        existingSkillCounterfactualCanary,
+        evaluationGovernancePolicies.map(policy => policy.workspaceId),
+      )
   existingSkillRetentionEvaluationScheduler = existingSkillRetentionEvaluation === undefined
     ? undefined
     : new ExistingSkillRetentionEvaluationScheduler(
@@ -731,6 +759,18 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       }, 'dsh-evolve.existingSkillRetentionJobs')
     })
   }
+  if (existingSkillCounterfactualCanaryScheduler !== undefined) {
+    ctx.inject(['jobs'], (jobCtx) => {
+      jobCtx.effect(() => {
+        const detachController = jobCtx.jobs.attachController('dsh-evolve-existing-skill-canary')
+        const detachCanary = existingSkillCounterfactualCanaryScheduler!.attachJobs(jobCtx.jobs)
+        return () => {
+          detachCanary()
+          detachController()
+        }
+      }, 'dsh-evolve.existingSkillCounterfactualCanaryJobs')
+    })
+  }
   const canaryScheduler = counterfactualCanaryScheduler
   if (canaryScheduler !== undefined) {
     ctx.inject(['jobs'], (jobCtx) => {
@@ -754,6 +794,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           .filter(workspaceId => resident!.isPaused(workspaceId)),
         afterScan: async (_signal, workspaceId) => {
           counterfactualCanaryScheduler?.observe(workspaceId)
+          existingSkillCounterfactualCanaryScheduler?.observe(workspaceId)
           ctx.emit('evoforge/evolution/settled')
         },
         runner: createShadowJobRunner(jobCtx.jobs, runShadow),
@@ -853,6 +894,20 @@ export {
   ExistingSkillRetentionEvaluation,
   ExistingSkillRetentionEvaluationScheduler,
 } from './existing-skill-retention-evaluation.ts'
+export {
+  ExistingSkillCounterfactualCanary,
+  ExistingSkillCounterfactualCanaryScheduler,
+} from './existing-skill-counterfactual-canary.ts'
+export type {
+  ExistingSkillCounterfactualCanaryEvidence,
+  ExistingSkillCounterfactualCanaryModules,
+  ExistingSkillCounterfactualCanaryPolicy,
+  ExistingSkillCounterfactualCanaryPreparedView,
+  ExistingSkillCounterfactualCanaryReason,
+  ExistingSkillCounterfactualCanaryReconcile,
+  ExistingSkillCounterfactualCanaryResult,
+  ExistingSkillCounterfactualCanaryScan,
+} from './existing-skill-counterfactual-canary.ts'
 export { ExistingSkillRelease, openExistingSkillReleaseStore } from './existing-skill-release.ts'
 export type {
   ExistingSkillReleaseDecision,
@@ -870,6 +925,7 @@ export type {
   ExistingSkillRetentionHoldoutSource,
   ExistingSkillRetentionTrialInput,
   ExistingSkillRetentionVerdict,
+  ExistingSkillCanaryReplay,
 } from './existing-skill-retention-evaluation.ts'
 export type {
   ExistingSkillHoldoutEvaluationEvidence,

@@ -130,6 +130,28 @@ export interface ExistingSkillRetentionTrialInput {
   readonly trialLimit: number
 }
 
+/** Exact retained replay material prepared for a separate no-authority Canary owner. */
+export interface ExistingSkillCanaryReplay {
+  readonly candidateId: string
+  readonly retentionEvaluationId: string
+  readonly holdoutEvaluationId: string
+  readonly admissionId: string
+  readonly envelopeId: string
+  readonly workspaceId: string
+  readonly skillName: string
+  readonly baselineTreeHash: string
+  readonly candidateTreeHash: string
+  readonly holdoutCasePackHash: string
+  readonly retentionCasePackHash: string
+  readonly dshRevision: string
+  readonly baselineDir: string
+  readonly candidateDir: string
+  readonly holdoutCasePackDir: string
+  readonly casePackDir: string
+  readonly trial: ExistingSkillRetentionTrialInput
+  readonly releaseAuthority: 'none'
+}
+
 export interface ExistingSkillRetentionEvaluationRunView {
   readonly id: string
   readonly candidateId: string
@@ -455,6 +477,97 @@ export class ExistingSkillRetentionEvaluation {
     })
   }
 
+  /**
+   * Re-resolve and materialize the exact retained pair without running it.
+   * This seam deliberately returns no release writer; a failed-Outcome Canary
+   * can replay the protected contract but cannot activate or roll back anything.
+   */
+  async prepareCanaryReplay(
+    candidate: ExistingSkillCandidate,
+    retentionEvaluationId: string,
+    outputDir: string,
+  ): Promise<ExistingSkillCanaryReplay> {
+    const policy = this.policies.get(candidate.workspaceId)
+    if (policy === undefined || policy.dshRevision === undefined) {
+      throw new Error('existing-Skill Canary replay policy is unavailable')
+    }
+    const [retentionScan, holdoutScan] = await Promise.all([
+      this.scan(candidate.workspaceId),
+      this.holdouts.scan(candidate.workspaceId),
+    ])
+    if (retentionScan.warningCount !== 0 || retentionScan.configuredPolicyCount < 1
+      || holdoutScan.warningCount !== 0 || holdoutScan.configuredPolicyCount < 1) {
+      throw new Error('existing-Skill Canary replay cannot trust warning-bearing evidence')
+    }
+    const retainedMatches = retentionScan.results.filter(value => value.id === retentionEvaluationId)
+    if (retainedMatches.length !== 1) {
+      throw new Error('existing-Skill Canary replay requires one exact Retention result')
+    }
+    const retained = retainedMatches[0]!
+    const holdoutMatches = holdoutScan.results.filter(value => value.id === retained.holdoutEvaluationId)
+    if (holdoutMatches.length !== 1) {
+      throw new Error('existing-Skill Canary replay requires one exact Holdout result')
+    }
+    const holdout = await this.requireImprovedHoldout(candidate, holdoutMatches[0]!)
+    const baseline = await this.baselines.resolveBaseline(candidate.workspaceId, candidate.baseline.id)
+    if (baseline === undefined) throw new Error('existing-Skill Canary replay baseline is unavailable')
+    const baselineArchive = await assembleSealedSkillBundleArchive(baseline.files)
+    requireExactBaseline(candidate, holdout, baseline, baselineArchive)
+    const envelope = await this.governance.resolve(candidateBinding(candidate))
+    if (envelope === undefined) throw new Error('existing-Skill Canary replay Envelope is unavailable')
+    requireExactEnvelope(candidate, holdout, baselineArchive.treeHash, envelope, policy)
+    const casePack = await resolveRetentionCasePack(candidate, envelope, policy)
+    requireExactRetainedReplay(candidate, retained, holdout, envelope, casePack)
+
+    const exactOutputDir = await ensureExactDirectory(outputDir)
+    const baselineDir = join(exactOutputDir, 'baseline')
+    const candidateDir = join(exactOutputDir, 'candidate')
+    await rm(baselineDir, { recursive: true, force: true })
+    await rm(candidateDir, { recursive: true, force: true })
+    await materializeFiles(baselineDir, baselineArchive.files)
+    const materialized = await this.candidates.materializeExisting(candidate, candidateDir)
+    if (!(await verifyMaterializedInputs({
+      candidate,
+      materialized,
+      baselineDir,
+      candidateDir,
+      casePack,
+      envelope,
+    }))) {
+      throw new Error('existing-Skill Canary replay inputs changed after Retention')
+    }
+    return Object.freeze({
+      candidateId: candidate.id,
+      retentionEvaluationId: retained.id,
+      holdoutEvaluationId: holdout.id,
+      admissionId: holdout.admissionId,
+      envelopeId: envelope.id,
+      workspaceId: candidate.workspaceId,
+      skillName: candidate.skillName,
+      baselineTreeHash: candidate.baseline.treeHash,
+      candidateTreeHash: candidate.version.treeHash,
+      holdoutCasePackHash: envelope.casePackHash,
+      retentionCasePackHash: casePack.hash,
+      dshRevision: policy.dshRevision,
+      baselineDir,
+      candidateDir,
+      holdoutCasePackDir: await exactDirectory(envelope.casePackDir),
+      casePackDir: casePack.dir,
+      trial: Object.freeze({
+        baselineKind: 'skill-tree' as const,
+        calibration: casePack.manifest.calibration!,
+        casePackDir: casePack.dir,
+        dshRevision: policy.dshRevision,
+        outputDir: exactOutputDir,
+        candidateSkillDir: candidateDir,
+        skillDir: baselineDir,
+        trial: casePack.manifest.trial!,
+        trialLimit: casePack.manifest.budget.trialLimit,
+      }),
+      releaseAuthority: 'none' as const,
+    })
+  }
+
   private async requireImprovedHoldout(
     candidate: ExistingSkillCandidate,
     supplied: ExistingSkillRetentionHoldoutSource,
@@ -501,6 +614,47 @@ export class ExistingSkillRetentionEvaluation {
       throw new Error('existing-Skill Retention requires the exact improved Holdout')
     }
     return Object.freeze({ ...exact, evidence })
+  }
+}
+
+function requireExactRetainedReplay(
+  candidate: ExistingSkillCandidate,
+  retained: ExistingSkillRetentionEvaluationRunView,
+  holdout: ExistingSkillHoldoutEvaluationRunView & {
+    readonly evidence: ExistingSkillHoldoutEvaluationEvidence
+  },
+  envelope: ExistingSkillHoldoutEnvelope,
+  casePack: { readonly hash: string },
+): void {
+  const evidence = retained.evidence
+  if (retained.candidateId !== candidate.id
+    || retained.holdoutEvaluationId !== holdout.id
+    || retained.admissionId !== holdout.admissionId
+    || retained.envelopeId !== envelope.id
+    || retained.workspaceId !== candidate.workspaceId
+    || retained.skillName !== candidate.skillName
+    || retained.baselineTreeHash !== candidate.baseline.treeHash
+    || retained.candidateTreeHash !== candidate.version.treeHash
+    || retained.holdoutCasePackHash !== envelope.casePackHash
+    || retained.casePackHash !== casePack.hash
+    || retained.status !== 'complete'
+    || retained.verdict !== 'retained'
+    || retained.reason !== 'candidate-passed-protected-retention'
+    || retained.releaseAuthority !== 'none'
+    || evidence === undefined
+    || evidence.holdoutCasePackHash !== envelope.casePackHash
+    || evidence.casePackHash !== casePack.hash
+    || evidence.baselineTreeHash !== candidate.baseline.treeHash
+    || evidence.candidateTreeHash !== candidate.version.treeHash
+    || evidence.baseline !== 'fail'
+    || evidence.candidate !== 'pass'
+    || evidence.calibrationPassed !== true
+    || evidence.assembled !== true
+    || evidence.compositionStable !== true
+    || evidence.inputIntegrityStable !== true
+    || evidence.proposerCalls !== 0
+    || evidence.trialCount !== 4) {
+    throw new Error('existing-Skill Canary replay requires the exact retained evidence')
   }
 }
 
