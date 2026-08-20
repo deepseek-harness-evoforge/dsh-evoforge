@@ -304,6 +304,40 @@ describe('EvolutionControlPlane', () => {
           releaseAuthority: 'none' as const,
         }],
       },
+      improvementBaselines: {
+        qualify: async () => ({
+          status: 'qualified' as const,
+          qualification: {
+            schemaVersion: 1 as const,
+            kind: 'existing-skill-baseline-qualification-v1' as const,
+            id: 'a'.repeat(64),
+            opportunityId: 'f'.repeat(64),
+            workspaceId: WORKSPACE_ID,
+            skillName: 'build-dsh-plugin',
+            invocationContentHash: '1'.repeat(64),
+            baseline: {
+              id: 'b'.repeat(64),
+              provider: 'filesystem',
+              source: 'project-dsh',
+              definitionDigest: 'c'.repeat(64),
+              artifactDigest: 'd'.repeat(64),
+              treeHash: 'e'.repeat(64),
+              fileCount: 3,
+              totalBytes: 512,
+            },
+            evidence: {
+              kind: 'exact-correction-invocation-baselines-v1' as const,
+              feedbackSignalIds: ['2'.repeat(64), '3'.repeat(64)],
+              goalIds: ['goal-correction-1', 'goal-correction-2'],
+              invocationCount: 2,
+              goalCount: 2,
+            },
+            status: 'eligible-for-existing-skill-authoring' as const,
+            releaseAuthority: 'none' as const,
+          },
+          baseline: {} as never,
+        }),
+      },
       evaluationEvidence: {
         readiness: async () => ({
           status: 'waiting' as const,
@@ -590,7 +624,8 @@ describe('EvolutionControlPlane', () => {
         }],
       },
       skillImprovementOpportunities: {
-        waitingCount: 1,
+        qualifiedCount: 1,
+        waitingCount: 0,
         items: [{
           id: 'f'.repeat(64),
           skillName: 'build-dsh-plugin',
@@ -605,6 +640,27 @@ describe('EvolutionControlPlane', () => {
             eligibilityBasis: 'two-or-more-distinct-goals-same-invocation-content',
             referencesTruncated: false,
             causalClaim: 'none',
+          },
+          baselineQualification: {
+            status: 'qualified',
+            qualificationId: 'a'.repeat(64),
+            baseline: {
+              id: 'b'.repeat(64),
+              provider: 'filesystem',
+              source: 'project-dsh',
+              definitionDigest: 'c'.repeat(64),
+              artifactDigest: 'd'.repeat(64),
+              treeHash: 'e'.repeat(64),
+              fileCount: 3,
+              totalBytes: 512,
+            },
+            evidence: {
+              kind: 'exact-correction-invocation-baselines-v1',
+              invocationCount: 2,
+              goalCount: 2,
+            },
+            candidateEligibility: 'eligible-for-existing-skill-authoring',
+            releaseAuthority: 'none',
           },
           status: 'waiting-for-baseline-bundle',
           releaseAuthority: 'none',

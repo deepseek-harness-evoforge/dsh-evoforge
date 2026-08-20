@@ -111,12 +111,16 @@ A fail-closed, non-causal link from one Explicit Feedback Signal to the target a
 _Avoid_: Same-Session inference, Gap proximity, Skill blame, causal proof
 
 **Existing Skill Improvement Opportunity**:
-A deterministic, Workspace-scoped investigation created only when one exact Skill name and invocation-content hash receives explicit negative corrections across at least two distinct native Goals. Duplicate signals, same-Goal retries, legacy no-hash attribution, and same-name different-content versions do not merge. It is not a Skill Opportunity for missing capability and remains `waiting-for-baseline-bundle`; it cannot enter authoring, evaluation, installation, activation, or release until the complete invoked Skill package is independently sealed and matched to the observed invocation identity.
+A deterministic, Workspace-scoped investigation created only when one exact Skill name and invocation-content hash receives explicit negative corrections across at least two distinct native Goals. Duplicate signals, same-Goal retries, legacy no-hash attribution, and same-name different-content versions do not merge. It is not a Skill Opportunity for missing capability and never grants authoring, evaluation, installation, activation, or release authority; a separate Existing Skill Baseline Qualification must prove that every exact correction invocation used the same complete package.
 _Avoid_: Name-only clustering, correction-as-causality, capability-absent baseline, partial Skill snapshot, Candidate permission
 
 **Installed Skill Baseline Bundle**:
 A Host-sealed, content-addressed archive of every regular file inside the independent directory package used by one exact native DSH Skill invocation. The Host re-loads the same scoped definition, matches the official rendered invocation content, scans the package twice, rejects ambiguous boundaries, links, executables, special files and drift, then records an immutable Session/invocation reference. It has no release authority and is evidence for a future existing-Skill paired baseline, not a Candidate or active Generation.
 _Avoid_: Invocation hash as package, name-only snapshot, flat Markdown guess, runtime acquisition, current-Session rewrite
+
+**Existing Skill Baseline Qualification**:
+A Host-owned, content-addressed proof that every exact correction invocation in one current Existing Skill Improvement Opportunity resolves through its immutable Session/invocation reference to the same revalidated Installed Skill Baseline Bundle. Missing references wait; evidence drift, corruption, attribution mismatch, or multiple Bundle identities invalidate the qualification. Success permits only protected existing-Skill authoring and has no Candidate, install, activation, or release authority.
+_Avoid_: First-baseline wins, current-directory reconstruction, rendered-content equivalence, proposer-selected baseline, implicit Candidate
 
 **Fast Evolution Loop**:
 A bounded online loop that attributes an explicit correction, verified outcome, repeated failure, or measured cost to the exact Session Generation and records an inactive signal, gap, or small candidate for later evaluation. It never rewrites an active capability or publishes from the originating Session.

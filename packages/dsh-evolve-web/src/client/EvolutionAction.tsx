@@ -961,7 +961,35 @@ function SkillImprovementOpportunities({ summary, t }: { summary: EvolutionOverv
               {t('skills.opportunities.references')} · {references.join(' · ')}
               {referencesTruncated && <> · {t('skills.opportunities.references.truncated')}</>}
             </div>}
-            <div className="dsh-evolve-discovery-state">{t('skills.improvements.waiting')}</div>
+            {opportunity.baselineQualification.status === 'qualified'
+              ? <>
+                  <div className="dsh-evolve-discovery-state">{t('skills.improvements.qualified')}</div>
+                  <div className="dsh-evolve-meta">
+                    {t('skills.improvements.baseline')}
+                    {' · '}{opportunity.baselineQualification.baseline.provider}/{opportunity.baselineQualification.baseline.source}
+                    {' · '}{shortId(opportunity.baselineQualification.baseline.id)}
+                    {' · '}{opportunity.baselineQualification.baseline.fileCount} {t('skills.improvements.files')}
+                  </div>
+                  <div className="dsh-evolve-meta">
+                    {t('skills.improvements.evidence')}
+                    {' · '}{opportunity.baselineQualification.evidence.invocationCount} {t('skills.improvements.invocations')}
+                    {' / '}{opportunity.baselineQualification.evidence.goalCount} {t('skills.opportunities.goals')}
+                  </div>
+                </>
+              : opportunity.baselineQualification.status === 'waiting'
+                ? <div className="dsh-evolve-discovery-state">
+                    {t('skills.improvements.waiting')}
+                    {' · '}{t(`skills.improvements.reason.${opportunity.baselineQualification.reason}`)}
+                    {' · '}{opportunity.baselineQualification.observedInvocationCount} {t('skills.improvements.invocations')}
+                  </div>
+                : opportunity.baselineQualification.status === 'invalid'
+                  ? <div className="dsh-evolve-discovery-state">
+                      {t('skills.improvements.invalid')}
+                      {' · '}{t(`skills.improvements.reason.${opportunity.baselineQualification.reason}`)}
+                    </div>
+                  : <div className="dsh-evolve-discovery-state">
+                      {t('skills.improvements.unavailable')}
+                    </div>}
           </li>
         })}</ul>}
   </section>

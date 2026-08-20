@@ -167,6 +167,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
 })).readonly(),
 })]).readonly().optional(),
   'skillImprovementOpportunities': z.union([z.undefined(), z.object({
+  'qualifiedCount': z.number().readonly(),
   'waitingCount': z.number().readonly(),
   'items': z.array(z.object({
   'id': z.string().readonly(),
@@ -185,6 +186,40 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'referencesTruncated': z.boolean().readonly(),
   'causalClaim': z.literal("none").readonly(),
 }).readonly(),
+  'baselineQualification': z.union([z.object({
+  'status': z.literal("qualified").readonly(),
+  'qualificationId': z.string().readonly(),
+  'baseline': z.object({
+  'id': z.string().readonly(),
+  'provider': z.string().readonly(),
+  'source': z.string().readonly(),
+  'definitionDigest': z.string().readonly(),
+  'artifactDigest': z.string().readonly(),
+  'treeHash': z.string().readonly(),
+  'fileCount': z.number().readonly(),
+  'totalBytes': z.number().readonly(),
+}).readonly(),
+  'evidence': z.object({
+  'kind': z.literal("exact-correction-invocation-baselines-v1").readonly(),
+  'invocationCount': z.number().readonly(),
+  'goalCount': z.number().readonly(),
+}).readonly(),
+  'candidateEligibility': z.literal("eligible-for-existing-skill-authoring").readonly(),
+  'releaseAuthority': z.literal("none").readonly(),
+}), z.object({
+  'status': z.literal("waiting").readonly(),
+  'reason': z.union([z.literal("invocation-baseline-missing"), z.literal("evidence-over-limit")]).readonly(),
+  'observedInvocationCount': z.number().readonly(),
+  'releaseAuthority': z.literal("none").readonly(),
+}), z.object({
+  'status': z.literal("invalid").readonly(),
+  'reason': z.union([z.literal("opportunity-evidence-drift"), z.literal("invocation-baseline-corrupt"), z.literal("invocation-baseline-mismatch"), z.literal("baseline-bundle-conflict")]).readonly(),
+  'releaseAuthority': z.literal("none").readonly(),
+}), z.object({
+  'status': z.literal("unavailable").readonly(),
+  'reason': z.literal("baseline-governance-unavailable").readonly(),
+  'releaseAuthority': z.literal("none").readonly(),
+})]).readonly(),
   'status': z.literal("waiting-for-baseline-bundle").readonly(),
   'releaseAuthority': z.literal("none").readonly(),
 })).readonly(),
@@ -1286,6 +1321,10 @@ export const TYPERT = {
             "declaration": "export interface EvolutionDeliveryMetricRollupView {\n    readonly measured: number;\n    readonly unmeasured: number;\n    readonly attributedTurns: number;\n    readonly closedSteps: number;\n    readonly activeWallMs: number;\n    readonly providerUsage: EvolutionProviderUsageView;\n    readonly latency: EvolutionLatencyView;\n    readonly monetaryCost: { readonly status: 'unavailable'; readonly reason: 'provider-price-not-projected'; };\n}"
           },
           {
+            "name": "EvolutionExistingSkillBaselineQualificationView",
+            "declaration": "export type EvolutionExistingSkillBaselineQualificationView = { readonly status: 'qualified'; readonly qualificationId: string; readonly baseline: { readonly id: string; readonly provider: string; readonly source: string; readonly definitionDigest: string; readonly artifactDigest: string; readonly treeHash: string; readonly fileCount: number; readonly totalBytes: number; }; readonly evidence: { readonly kind: 'exact-correction-invocation-baselines-v1'; readonly invocationCount: number; readonly goalCount: number; }; readonly candidateEligibility: 'eligible-for-existing-skill-authoring'; readonly releaseAuthority: 'none'; } | { readonly status: 'waiting'; readonly reason: 'invocation-baseline-missing' | 'evidence-over-limit'; readonly observedInvocationCount: number; readonly releaseAuthority: 'none'; } | { readonly status: 'invalid'; readonly reason: 'opportunity-evidence-drift' | 'invocation-baseline-corrupt' | 'invocation-baseline-mismatch' | 'baseline-bundle-conflict'; readonly releaseAuthority: 'none'; } | { readonly status: 'unavailable'; readonly reason: 'baseline-governance-unavailable'; readonly releaseAuthority: 'none'; };"
+          },
+          {
             "name": "EvolutionFutureSessionPromotionReason",
             "declaration": "export type EvolutionFutureSessionPromotionReason = 'promotion-governance-unavailable' | 'generation-not-found' | 'generation-workspace-mismatch' | 'review-evidence-invalid' | 'approved-review-missing' | 'approved-review-ambiguous' | 'generation-lineage-mismatch' | 'retention-evidence-invalid' | 'retention-not-run' | 'retention-ambiguous' | 'retention-prepared' | 'retention-regressed' | 'retention-incomplete' | 'retention-verdict-invalid' | 'exact-retention-retained';"
           },
@@ -1351,11 +1390,11 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionSkillImprovementOpportunityQueueView",
-            "declaration": "export interface EvolutionSkillImprovementOpportunityQueueView {\n    readonly waitingCount: number;\n    readonly items: readonly EvolutionSkillImprovementOpportunityView[];\n}"
+            "declaration": "export interface EvolutionSkillImprovementOpportunityQueueView {\n    readonly qualifiedCount: number;\n    readonly waitingCount: number;\n    readonly items: readonly EvolutionSkillImprovementOpportunityView[];\n}"
           },
           {
             "name": "EvolutionSkillImprovementOpportunityView",
-            "declaration": "export interface EvolutionSkillImprovementOpportunityView {\n    readonly id: string;\n    readonly skillName: string;\n    readonly invocationContentHash: string;\n    readonly feedbackSignalIds: readonly string[];\n    readonly goalIds: readonly string[];\n    readonly signalCount: number;\n    readonly goalCount: number;\n    readonly firstObservedAt: number;\n    readonly lastObservedAt: number;\n    readonly evidence: { readonly kind: 'internal-exact-skill-corrections-v1'; readonly association: 'exact-durable-skill-invocation-content'; readonly eligibilityBasis: 'two-or-more-distinct-goals-same-invocation-content'; readonly referencesTruncated: boolean; readonly causalClaim: 'none'; };\n    readonly status: 'waiting-for-baseline-bundle';\n    readonly releaseAuthority: 'none';\n}"
+            "declaration": "export interface EvolutionSkillImprovementOpportunityView {\n    readonly id: string;\n    readonly skillName: string;\n    readonly invocationContentHash: string;\n    readonly feedbackSignalIds: readonly string[];\n    readonly goalIds: readonly string[];\n    readonly signalCount: number;\n    readonly goalCount: number;\n    readonly firstObservedAt: number;\n    readonly lastObservedAt: number;\n    readonly evidence: { readonly kind: 'internal-exact-skill-corrections-v1'; readonly association: 'exact-durable-skill-invocation-content'; readonly eligibilityBasis: 'two-or-more-distinct-goals-same-invocation-content'; readonly referencesTruncated: boolean; readonly causalClaim: 'none'; };\n    readonly baselineQualification: EvolutionExistingSkillBaselineQualificationView;\n    readonly status: 'waiting-for-baseline-bundle';\n    readonly releaseAuthority: 'none';\n}"
           },
           {
             "name": "EvolutionSkillOpportunityQueueView",

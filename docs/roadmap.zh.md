@@ -1,6 +1,6 @@
 # EvoForge v0.1 路线图
 
-> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已替换旧 Router并完成公共 outbound/健康 Web 的真实浏览器失败恢复验收，飞书图片已在 assembled DSH 中经官方资源下载、整批校验、原生 AttachmentStore 保存并以内容寻址引用进入 Agent。ClawHub/市场/research Candidate、公开 source/target 配置、活动 Git materializer/ref、Feedback/Evaluator Draft、Shadow 内 proposer、自动 review expiry、旧 Retention/canary 编排和对应 Control/Web/attention 表面均已删除，packed runtime 只解析内部内容寻址 Bundle。缺失 Skill Candidate 已绑定四 Goal authoring/admission/holdout seal；第五个及以后独立 Goal 可额外形成 Candidate 不可见的 Retention 分区和 Envelope v5 Case Pack。promotable exact-Candidate Shadow 现于同一 DSH Jobs 任务执行内容寻址 paired Retention 并持久给出 retained/regressed/incomplete，始终无发布权；独立 Host Promotion Eligibility 重验 approved Review、Generation、Lineage、Shadow 和 Retention exact identity，只有结构完整的 retained verdict 才能切换未来 Session。失败 durable Outcome 已接入新原生 DSH Job：重验 exact active Candidate 全谱系后，以原 Retention Case Pack 重跑 sealed Canary，只产出 keep/review/rollback-eligible 且自身无 pointer 写权。独立 Rollback Gate 现重验 exact Canary，并以 expected-active compare 执行人工确认的 future-Session 回滚；Command、Remote、Web 无直接 Store 旁路。现有 Skill 仍只形成等待完整 baseline Bundle 的调查。下一阶段补 Canary/rollback 真实环境验收，并建立已安装 Skill 的完整基线快照。真实 provider、exact 飞书用户消息与 Hermes paired 仍未完成；固定 DSH attachment v1 不支持通用文件，普通文件/音视频和飞书内容能力仍 pending，v0.1 未发布。
+> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已替换旧 Router并完成公共 outbound/健康 Web 的真实浏览器失败恢复验收，飞书图片已在 assembled DSH 中经官方资源下载、整批校验、原生 AttachmentStore 保存并以内容寻址引用进入 Agent。ClawHub/市场/research Candidate、公开 source/target 配置、活动 Git materializer/ref、Feedback/Evaluator Draft、Shadow 内 proposer、自动 review expiry、旧 Retention/canary 编排和对应 Control/Web/attention 表面均已删除，packed runtime 只解析内部内容寻址 Bundle。缺失 Skill Candidate 已绑定四 Goal authoring/admission/holdout seal；第五个及以后独立 Goal可额外形成 Candidate 不可见的 Retention 分区和 Envelope v5 Case Pack。promotable exact-Candidate Shadow 现于同一 DSH Jobs 任务执行内容寻址 paired Retention 并持久给出 retained/regressed/incomplete，始终无发布权；独立 Host Promotion Eligibility 重验 approved Review、Generation、Lineage、Shadow 和 Retention exact identity，只有结构完整的 retained verdict 才能切换未来 Session。失败 durable Outcome 已接入新原生 DSH Job并形成无 pointer 写权的 sealed Canary；独立 Rollback Gate 以 expected-active compare 执行人工确认的 future-Session 回滚。现有 Skill 的 exact correction 已能逐一绑定同一个完整调用时 baseline Bundle，获得无发布权的 protected authoring 资格；下一阶段实现 whole-tree author、existing baseline/candidate Envelope 与 paired evaluation。真实 provider、exact 飞书用户消息与 Hermes paired 仍未完成；普通文件/音视频和飞书内容能力仍 pending，v0.1 未发布。
 > 更新日期：2026-08-21
 
 ## 开发与发布纪律
@@ -90,7 +90,7 @@ workflow 选择。原生 Job author 只接收有界内部 Goal/Gap 证据，输�
 校验、内容寻址并写入 inactive/quarantined/unevaluated/never-executed Candidate。DSH Web 展示
 Gap → Opportunity → Candidate 及运行状态、成本和治理边界，不显示外部发现尝试。
 
-Existing-Skill improvement 与 missing-Skill Opportunity 分轨：同一 invocation-content hash 在至少两个不同 Goal 中的去重明确纠正可形成 `waiting-for-baseline-bundle` 调查，并在 Web 展示；不同 hash、同 Goal、legacy 或重复 Signal abstain。该 hash 不代表完整 Bundle，调查固定无因果/无发布权，不进入 Slow Loop 或 capability-absent Envelope。V4.33 已在原生调用边界以相同 Agent scope/cwd 重载 DSH definition，校验 exact rendered content，并对独立目录型 Skill 双扫描封存完整内容寻址 Bundle；unsupported boundary 或漂移 abstain。下一步是把每个 correction 的 `(Session, invocation seq)` 解析到同一个 sealed baseline，随后建立 existing-Skill 的受保护 author/admission/holdout、Candidate 与 paired evaluation。
+Existing-Skill improvement 与 missing-Skill Opportunity 分轨：同一 invocation-content hash 在至少两个不同 Goal 中的去重明确纠正可形成独立调查；不同 hash、同 Goal、legacy 或重复 Signal abstain。该 hash 不代表完整 Bundle，调查固定无因果/无发布权，不进入 capability-absent Envelope。V4.33 已在原生调用边界封存完整内容寻址目录 Bundle；V4.34 重新核对调查并把每个 exact correction 的 `(Session, invocation seq)` 逐一解析到同一 revalidated baseline id，missing 等待，漂移/损坏/错配/多 Bundle invalid。DSH Web 只展示有界资格摘要。下一步建立 existing-Skill 的 protected whole-tree author、独立 author/admission/holdout、Candidate 与 paired evaluation。
 
 内部 Candidate 评测已删除 `candidateAdmissionTargets`/`candidateShadowTargets` 这两套预选 exact Skill 的配置。
 `candidateEvaluationPolicies` 不声明 Skill、baseline、Case Pack 或 Candidate 方向；自主治理只增加 exact DSH revision 和独立日预算。Host 先从 exact Opportunity
@@ -109,7 +109,7 @@ Candidate 侧才安装 exact whole-Skill；Envelope id 和 seal id 贯穿 admiss
 cache-read/write 和 latency projection，货币成本明确 unavailable，且不影响资格/author。Host 权威 summary、
 generated Remote 与 DSH Web 已展示 Workspace/current/baseline 聚合和至多 20 条最近已测 Outcome；真实浏览器已验证
 在线刷新、Host 断连保留最后快照并显式报错、同 profile 重启恢复和幂等重放。失败 Outcome 现可触发 exact active internal Candidate 的内容寻址 sealed canary；自动化测试覆盖 keep/review/rollback-eligible、预算、输入与 pointer 漂移、中断不盲重试、持续监测和 DSH Jobs。仍待实现/验证：
-existing-Skill correction→完整 Bundle 基线汇合与 Candidate、correction/outcome 的因果证明，以及 rework/currency-cost/reuse/retention/negative-transfer/rollback 的完整归因、内部 Candidate 治理包的真实 provider outcome、模型缺口质量、迁移/遗忘/
+existing-Skill protected author/Candidate/paired evaluation、correction/outcome 的因果证明，以及 rework/currency-cost/reuse/retention/negative-transfer/rollback 的完整归因、内部 Candidate 治理包的真实 provider outcome、模型缺口质量、迁移/遗忘/
 长期保留，以及同条件 Hermes paired outcome。因此不能描述为“自主 Skill 进化已完成”。
 
 ## V5 — 可解释 Web 与飞书闭环

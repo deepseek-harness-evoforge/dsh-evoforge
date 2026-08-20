@@ -6,8 +6,14 @@ import type {
 } from './counterfactual-canary.ts'
 import type { FeedbackSignalStore } from './feedback-signal-monitor.ts'
 import type { CapabilityGapStore } from './capability-gap-store.ts'
+import type {
+  ExistingSkillBaselineQualificationResult,
+} from './existing-skill-baseline-qualification.ts'
 import type { SkillCandidateStore } from './skill-candidate-repository.ts'
-import type { ExperienceDrivenSkillOpportunityDiscovery } from './skill-opportunity-discovery.ts'
+import type {
+  ExperienceDrivenSkillOpportunityDiscovery,
+  SkillImprovementOpportunity,
+} from './skill-opportunity-discovery.ts'
 import type { SkillCandidateAdmission } from './skill-candidate-admission.ts'
 import type { SlowLoopSkillAuthoring } from './slow-loop-skill-authoring.ts'
 import type { SkillCandidateLineage } from './skill-candidate-lineage.ts'
@@ -27,6 +33,7 @@ import type {
   EvolutionActionReceipt,
   EvolutionCapabilityMapView,
   EvolutionCapabilityGapQueueView,
+  EvolutionExistingSkillBaselineQualificationView,
   EvolutionSkillCandidateQueueView,
   EvolutionSkillAdmissionView,
   EvolutionSkillCandidateLineageView,
@@ -58,6 +65,11 @@ export interface EvolutionControlPlaneModules {
   readonly gaps?: Pick<CapabilityGapStore, 'list'>
   readonly opportunities?: Pick<ExperienceDrivenSkillOpportunityDiscovery, 'discover'>
     & Partial<Pick<ExperienceDrivenSkillOpportunityDiscovery, 'discoverImprovements'>>
+  readonly improvementBaselines?: {
+    readonly qualify: (
+      opportunity: SkillImprovementOpportunity,
+    ) => Promise<ExistingSkillBaselineQualificationResult | undefined>
+  }
   readonly evaluationEvidence?: Pick<SkillEvaluationEvidenceVault, 'readiness'>
   readonly candidates?: Pick<SkillCandidateStore, 'listCandidates'>
   readonly admissions?: Pick<SkillCandidateAdmission, 'scan'>
@@ -112,6 +124,10 @@ export class EvolutionControlPlane {
             observedGoalCount: opportunity.goalCount,
             releaseAuthority: 'none' as const,
           })))
+    const improvementQualifications = skillImprovementOpportunities === undefined
+      ? []
+      : await Promise.all(skillImprovementOpportunities.map(opportunity =>
+          this.modules.improvementBaselines?.qualify(opportunity) ?? Promise.resolve(undefined)))
     return {
       schemaVersion: 1,
       ...(active === undefined ? {} : { active: projectGeneration(active) }),
@@ -170,8 +186,9 @@ export class EvolutionControlPlane {
       ...(skillImprovementOpportunities === undefined
         ? {}
         : { skillImprovementOpportunities: {
-            waitingCount: skillImprovementOpportunities.length,
-            items: skillImprovementOpportunities.map(opportunity => ({
+            qualifiedCount: improvementQualifications.filter(result => result?.status === 'qualified').length,
+            waitingCount: improvementQualifications.filter(result => result?.status !== 'qualified').length,
+            items: skillImprovementOpportunities.map((opportunity, index) => ({
               id: opportunity.id,
               skillName: opportunity.skillName,
               invocationContentHash: opportunity.invocationContentHash,
@@ -182,6 +199,9 @@ export class EvolutionControlPlane {
               firstObservedAt: opportunity.firstObservedAt,
               lastObservedAt: opportunity.lastObservedAt,
               evidence: { ...opportunity.evidence },
+              baselineQualification: projectExistingSkillBaselineQualification(
+                improvementQualifications[index],
+              ),
               status: opportunity.status,
               releaseAuthority: opportunity.releaseAuthority,
             })),
@@ -773,6 +793,45 @@ function projectSkillCandidateLineage(
     admissionId: lineage.admissionId,
     evaluationEnvelopeId: lineage.evaluationEnvelopeId,
     releaseAuthority: lineage.releaseAuthority,
+  }
+}
+
+function projectExistingSkillBaselineQualification(
+  result: ExistingSkillBaselineQualificationResult | undefined,
+): EvolutionExistingSkillBaselineQualificationView {
+  if (result === undefined) {
+    return {
+      status: 'unavailable',
+      reason: 'baseline-governance-unavailable',
+      releaseAuthority: 'none',
+    }
+  }
+  if (result.status === 'waiting') {
+    return {
+      status: result.status,
+      reason: result.reason,
+      observedInvocationCount: result.observedInvocationCount,
+      releaseAuthority: result.releaseAuthority,
+    }
+  }
+  if (result.status === 'invalid') {
+    return {
+      status: result.status,
+      reason: result.reason,
+      releaseAuthority: result.releaseAuthority,
+    }
+  }
+  return {
+    status: result.status,
+    qualificationId: result.qualification.id,
+    baseline: { ...result.qualification.baseline },
+    evidence: {
+      kind: result.qualification.evidence.kind,
+      invocationCount: result.qualification.evidence.invocationCount,
+      goalCount: result.qualification.evidence.goalCount,
+    },
+    candidateEligibility: result.qualification.status,
+    releaseAuthority: result.qualification.releaseAuthority,
   }
 }
 

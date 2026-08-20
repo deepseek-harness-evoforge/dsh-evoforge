@@ -167,6 +167,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
 })).readonly(),
 })]).readonly().optional(),
   'skillImprovementOpportunities': z.union([z.undefined(), z.object({
+  'qualifiedCount': z.number().readonly(),
   'waitingCount': z.number().readonly(),
   'items': z.array(z.object({
   'id': z.string().readonly(),
@@ -185,6 +186,40 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'referencesTruncated': z.boolean().readonly(),
   'causalClaim': z.literal("none").readonly(),
 }).readonly(),
+  'baselineQualification': z.union([z.object({
+  'status': z.literal("qualified").readonly(),
+  'qualificationId': z.string().readonly(),
+  'baseline': z.object({
+  'id': z.string().readonly(),
+  'provider': z.string().readonly(),
+  'source': z.string().readonly(),
+  'definitionDigest': z.string().readonly(),
+  'artifactDigest': z.string().readonly(),
+  'treeHash': z.string().readonly(),
+  'fileCount': z.number().readonly(),
+  'totalBytes': z.number().readonly(),
+}).readonly(),
+  'evidence': z.object({
+  'kind': z.literal("exact-correction-invocation-baselines-v1").readonly(),
+  'invocationCount': z.number().readonly(),
+  'goalCount': z.number().readonly(),
+}).readonly(),
+  'candidateEligibility': z.literal("eligible-for-existing-skill-authoring").readonly(),
+  'releaseAuthority': z.literal("none").readonly(),
+}), z.object({
+  'status': z.literal("waiting").readonly(),
+  'reason': z.union([z.literal("invocation-baseline-missing"), z.literal("evidence-over-limit")]).readonly(),
+  'observedInvocationCount': z.number().readonly(),
+  'releaseAuthority': z.literal("none").readonly(),
+}), z.object({
+  'status': z.literal("invalid").readonly(),
+  'reason': z.union([z.literal("opportunity-evidence-drift"), z.literal("invocation-baseline-corrupt"), z.literal("invocation-baseline-mismatch"), z.literal("baseline-bundle-conflict")]).readonly(),
+  'releaseAuthority': z.literal("none").readonly(),
+}), z.object({
+  'status': z.literal("unavailable").readonly(),
+  'reason': z.literal("baseline-governance-unavailable").readonly(),
+  'releaseAuthority': z.literal("none").readonly(),
+})]).readonly(),
   'status': z.literal("waiting-for-baseline-bundle").readonly(),
   'releaseAuthority': z.literal("none").readonly(),
 })).readonly(),

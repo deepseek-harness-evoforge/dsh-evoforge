@@ -1,6 +1,6 @@
 # DeepSeek Harness EvoForge 项目需求基线
 
-> 状态：已确认；目标是只安装并运行于 DSH 的原生 out-of-tree 插件套件。现有实现只作为可重审资产，不能限制重构；`dsh-gateway` 已替换旧 Router。ClawHub、市场、运行时 research Candidate、Git Skill source/ref、预选 Skill、静态 Case Pack/Feedback/Evaluator target、Feedback/Evaluator Draft、Shadow 内 proposer、自动 review expiry、旧 Retention/canary 和对应 Commands/Control/Web/attention 表面均已从活动源码删除。自然 Goal→Capability Gap→跨 Goal 内部经验→Skill Opportunity→隔离 whole-Skill Candidate 已形成部分纵切；Shadow 只消费 exact DSH-assembled Candidate 且零 proposer；现有 Skill 同版本跨 Goal 纠正只形成等待完整基线 Bundle 的调查。缺失 Skill 使用不安装目标 Skill 的 assembled baseline；第五个内部 Goal 形成的独立 Retention Case Pack 已能在同一 Shadow Jobs 任务内执行并持久给出 retained/regressed/incomplete，但无发布权。独立 Host Promotion Eligibility 重验 approved Review、Generation、Lineage、Shadow 与 Retention，只有 exact retained 才允许未来 Session 切换；失败 durable Outcome 已能触发另一个原生 DSH Job，重验同一 exact active Candidate 谱系并只生成 keep/review/rollback-eligible Canary evidence，仍无 pointer 写权限。独立 Rollback Gate 现重验 exact Canary/Workspace/active Generation，并以 Store 临界区 expected-active compare 执行人工确认的 future-Session 回滚；Canary 仍不能自行写 pointer。真实 provider、Canary/rollback 最终 tarball 浏览器故障恢复、exact 飞书消息、长期 outcome 与 Hermes paired 完成前不构成 v0.1 交付。
+> 状态：已确认；目标是只安装并运行于 DSH 的原生 out-of-tree 插件套件。现有实现只作为可重审资产，不能限制重构；`dsh-gateway` 已替换旧 Router。ClawHub、市场、运行时 research Candidate、Git Skill source/ref、预选 Skill、静态 Case Pack/Feedback/Evaluator target、Feedback/Evaluator Draft、Shadow 内 proposer、自动 review expiry、旧 Retention/canary 和对应 Commands/Control/Web/attention 表面均已从活动源码删除。自然 Goal→Capability Gap→跨 Goal 内部经验→Skill Opportunity→隔离 whole-Skill Candidate 已形成部分纵切；Shadow 只消费 exact DSH-assembled Candidate 且零 proposer；现有 Skill 的同版本跨 Goal 纠正会绑定调用时封存的完整 Bundle，只有全部 exact invocation reference 指向同一 baseline id 才获得无发布权的 protected authoring 资格。缺失 Skill 使用不安装目标 Skill 的 assembled baseline；第五个内部 Goal 形成的独立 Retention Case Pack 已能在同一 Shadow Jobs 任务内执行并持久给出 retained/regressed/incomplete，但无发布权。独立 Host Promotion Eligibility 重验 approved Review、Generation、Lineage、Shadow 与 Retention，只有 exact retained 才允许未来 Session 切换；失败 durable Outcome 已能触发另一个原生 DSH Job，重验同一 exact active Candidate 谱系并只生成 keep/review/rollback-eligible Canary evidence，仍无 pointer 写权限。独立 Rollback Gate 现重验 exact Canary/Workspace/active Generation，并以 Store 临界区 expected-active compare 执行人工确认的 future-Session 回滚；Canary 仍不能自行写 pointer。真实 provider、Canary/rollback 最终 tarball 浏览器故障恢复、exact 飞书消息、existing-Skill protected author/Candidate/paired evaluation、长期 outcome 与 Hermes paired 完成前不构成 v0.1 交付。
 > 更新日期：2026-08-21
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。发生冲突时，下述“方向纠正”优先于旧里程碑文字。
 
@@ -359,7 +359,7 @@ Host 确定性组装 archive；Candidate v2 将 exact evaluation-evidence seal i
 inactive、unevaluated、never-executed Candidate。可能已经付费但结果未知时持久化 `uncertain` 并拒绝盲重试；
 取消后的迟到响应不得落候选。该模块没有安装、激活或发布接口。
 
-现有 Skill 改进与上述缺失能力路径分轨。feedback 目标回答的唯一成功 Skill 调用必须从 durable Session 计算模型实际看到的 invocation content-block hash；只有同 Workspace、同 Skill 名、同 hash 在至少两个不同 Goal 中收到去重负向纠正，才形成 `waiting-for-baseline-bundle` 调查。历史无 hash、同 Goal retry、重复 Signal、同名不同内容版本或歧义全部 abstain。该 hash 不是完整 Skill package/tree/version，固定 `causalClaim: none` 且不能被 Slow Loop、Evidence Vault、capability-absent Envelope 或 Candidate Repository 消费；只有后继在调用时封存完整受信 Bundle 并证明与 invocation identity 一致，才允许设计 skill-tree baseline 和独立评测。
+现有 Skill 改进与上述缺失能力路径分轨。feedback 目标回答的唯一成功 Skill 调用必须从 durable Session 计算模型实际看到的 invocation content-block hash；只有同 Workspace、同 Skill 名、同 hash 在至少两个不同 Goal 中收到去重负向纠正，才形成独立调查。历史无 hash、同 Goal retry、重复 Signal、同名不同内容版本或歧义全部 abstain。该 hash 不是完整 Skill package/tree/version，固定 `causalClaim: none` 且不能被 capability-absent Envelope 或 Candidate Repository 消费。Host 必须在调用发生时封存完整受信 Bundle，再重验调查快照和每个 exact `(Session, invocation seq)` 引用；只有 route/Skill/hash 一致且全部解析到同一个 baseline id，才生成内容寻址的 `eligible-for-existing-skill-authoring` 资格。引用缺失等待，证据漂移、archive 损坏、归因错配或多个 Bundle 均 invalid。该资格固定无 Candidate、安装、激活或发布权；protected whole-tree author 和独立 baseline/candidate 评测仍须另建门禁。
 
 Delivery Outcome 可附带同一 Session、同一稳定 Goal id 的 `GoalExecutionMetrics`。Host 只统计首条 admitted
 message 属于当时最新 active Goal revision 的 turn，并在 exact `complete_delivery` result event 截止；token、
@@ -370,7 +370,7 @@ active wall time 来自同一原生 turn 边界。手工 turn、其他 Goal、�
 `EvolutionControlPlane.overview` 只输出 browser-safe 聚合与至多 20 条最新已测 Outcome；不输出 Session/call/reason/path，
 不建立第二 metrics API 或浏览器状态权威。缺失 metrics 必须显示为未测，不能折算为零。
 
-DSH Web 已投影 `Capability Gap → Skill Opportunity → Candidate → authoring state`，并将 existing-Skill improvement investigation 作为独立等待队列展示。页面显示证据 Goal 数、Gap/纠正数、
+DSH Web 已投影 `Capability Gap → Skill Opportunity → Candidate → authoring state`，并将 existing-Skill improvement investigation 与 exact baseline qualification 作为独立队列展示。页面显示证据 Goal 数、Gap/纠正数、baseline provider/source/id/文件数、资格或阻断原因、
 关联纠正/Outcome 计数、有界短引用、无因果声明、Candidate id、预算/调用和隔离状态，并展示 Host 权威的
 Workspace/current/baseline Goal 执行聚合、最近已测 Outcome、token/cache/latency/active-wall facts 与价格 unavailable；
 Opportunity 另显示评测证据是等待、无策略、无效、具备密封条件或已密封；凡 Gap 已进入 Opportunity，浏览器

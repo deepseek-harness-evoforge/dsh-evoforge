@@ -253,6 +253,49 @@ export interface EvolutionSkillOpportunityQueueView {
   readonly items: readonly EvolutionSkillOpportunityView[]
 }
 
+export type EvolutionExistingSkillBaselineQualificationView =
+  | {
+      readonly status: 'qualified'
+      readonly qualificationId: string
+      readonly baseline: {
+        readonly id: string
+        readonly provider: string
+        readonly source: string
+        readonly definitionDigest: string
+        readonly artifactDigest: string
+        readonly treeHash: string
+        readonly fileCount: number
+        readonly totalBytes: number
+      }
+      readonly evidence: {
+        readonly kind: 'exact-correction-invocation-baselines-v1'
+        readonly invocationCount: number
+        readonly goalCount: number
+      }
+      readonly candidateEligibility: 'eligible-for-existing-skill-authoring'
+      readonly releaseAuthority: 'none'
+    }
+  | {
+      readonly status: 'waiting'
+      readonly reason: 'invocation-baseline-missing' | 'evidence-over-limit'
+      readonly observedInvocationCount: number
+      readonly releaseAuthority: 'none'
+    }
+  | {
+      readonly status: 'invalid'
+      readonly reason:
+        | 'opportunity-evidence-drift'
+        | 'invocation-baseline-corrupt'
+        | 'invocation-baseline-mismatch'
+        | 'baseline-bundle-conflict'
+      readonly releaseAuthority: 'none'
+    }
+  | {
+      readonly status: 'unavailable'
+      readonly reason: 'baseline-governance-unavailable'
+      readonly releaseAuthority: 'none'
+    }
+
 /** Existing-Skill investigation queue; no Candidate exists without an exact baseline bundle. */
 export interface EvolutionSkillImprovementOpportunityView {
   readonly id: string
@@ -271,11 +314,13 @@ export interface EvolutionSkillImprovementOpportunityView {
     readonly referencesTruncated: boolean
     readonly causalClaim: 'none'
   }
+  readonly baselineQualification: EvolutionExistingSkillBaselineQualificationView
   readonly status: 'waiting-for-baseline-bundle'
   readonly releaseAuthority: 'none'
 }
 
 export interface EvolutionSkillImprovementOpportunityQueueView {
+  readonly qualifiedCount: number
   readonly waitingCount: number
   readonly items: readonly EvolutionSkillImprovementOpportunityView[]
 }

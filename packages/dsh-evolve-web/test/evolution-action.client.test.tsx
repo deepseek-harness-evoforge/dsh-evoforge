@@ -256,6 +256,11 @@ const t = (key: string) => ({
   'skills.improvements.attribution': 'Exact association · durable Session invocation-content hash and Goal revision',
   'skills.improvements.causalBoundary': 'No causal claim · same-name different-content versions never merge',
   'skills.improvements.waiting': 'Waiting for a sealed complete baseline bundle · no Candidate, install, or release',
+  'skills.improvements.qualified': 'Sealed baseline Bundle · eligible for protected existing-Skill authoring · no Candidate, install, or release',
+  'skills.improvements.baseline': 'Baseline Bundle',
+  'skills.improvements.files': 'files',
+  'skills.improvements.evidence': 'Exact invocation baselines',
+  'skills.improvements.invocations': 'invocations',
   'skills.slow-loop': 'Internal experience-driven Skill authoring',
   'skills.slow-loop.policies': 'Workspace safety policies',
   'skills.slow-loop.warnings': 'unreadable durable states',
@@ -683,7 +688,8 @@ describe('EvolutionAction', () => {
           }],
         },
         skillImprovementOpportunities: {
-          waitingCount: 1,
+          qualifiedCount: 1,
+          waitingCount: 0,
           items: [{
             id: 'c'.repeat(64),
             skillName: 'build-dsh-plugin',
@@ -700,6 +706,27 @@ describe('EvolutionAction', () => {
               eligibilityBasis: 'two-or-more-distinct-goals-same-invocation-content' as const,
               referencesTruncated: false,
               causalClaim: 'none' as const,
+            },
+            baselineQualification: {
+              status: 'qualified' as const,
+              qualificationId: 'e'.repeat(64),
+              baseline: {
+                id: 'b'.repeat(64),
+                provider: 'filesystem',
+                source: 'project-dsh',
+                definitionDigest: '1'.repeat(64),
+                artifactDigest: '2'.repeat(64),
+                treeHash: '3'.repeat(64),
+                fileCount: 3,
+                totalBytes: 512,
+              },
+              evidence: {
+                kind: 'exact-correction-invocation-baselines-v1' as const,
+                invocationCount: 2,
+                goalCount: 2,
+              },
+              candidateEligibility: 'eligible-for-existing-skill-authoring' as const,
+              releaseAuthority: 'none' as const,
             },
             status: 'waiting-for-baseline-bundle' as const,
             releaseAuthority: 'none' as const,
@@ -925,7 +952,9 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('Exact association · durable Session invocation-content hash and Goal revision')).toBeTruthy()
     expect(screen.getByText('No causal claim · same-name different-content versions never merge')).toBeTruthy()
     expect(screen.getByText(`Evidence references · correction ${'a'.repeat(8)}… · correction ${'b'.repeat(8)}…`)).toBeTruthy()
-    expect(screen.getByText('Waiting for a sealed complete baseline bundle · no Candidate, install, or release')).toBeTruthy()
+    expect(screen.getByText('Sealed baseline Bundle · eligible for protected existing-Skill authoring · no Candidate, install, or release')).toBeTruthy()
+    expect(screen.getByText(`Baseline Bundle · filesystem/project-dsh · ${'b'.repeat(8)}… · 3 files`)).toBeTruthy()
+    expect(screen.getByText('Exact invocation baselines · 2 invocations / 2 distinct Goals')).toBeTruthy()
     expect(screen.getByText('Internal experience-driven Skill authoring')).toBeTruthy()
     expect(screen.getByText('Quarantined candidate ready')).toBeTruthy()
     expect(screen.getByText('Model calls · input/output tokens · 1 · 320/120')).toBeTruthy()
