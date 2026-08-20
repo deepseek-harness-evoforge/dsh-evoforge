@@ -1,5 +1,9 @@
 import type { CandidatePublisher } from './candidate-publisher.ts'
 import type { DeliveryOutcomeStore } from './delivery-outcome-monitor.ts'
+import type {
+  CounterfactualCanary,
+  CounterfactualCanaryScan,
+} from './counterfactual-canary.ts'
 import type { FeedbackSignalStore } from './feedback-signal-monitor.ts'
 import type { CapabilityGapStore } from './capability-gap-store.ts'
 import type { SkillCandidateStore } from './skill-candidate-repository.ts'
@@ -58,6 +62,7 @@ export interface EvolutionControlPlaneModules {
   readonly slowLoopAuthoring?: Pick<SlowLoopSkillAuthoring, 'scan'>
   readonly evaluationGovernance?: Pick<SkillEvaluationGovernance, 'scan'>
   readonly retention?: Pick<InternalSkillRetention, 'scan'>
+  readonly counterfactualCanary?: Pick<CounterfactualCanary, 'scan'>
 }
 
 /** A structured adapter surface that delegates to the same owners as Commands. */
@@ -76,6 +81,7 @@ export class EvolutionControlPlane {
       slowLoopAuthoringScan,
       evaluationGovernanceScan,
       retentionScan,
+      counterfactualCanaryScan,
     ] = await Promise.all([
       this.modules.review === undefined ? undefined : this.modules.review.inbox.scanAll(),
       this.modules.admissions === undefined ? undefined : this.modules.admissions.scan(workspaceId),
@@ -88,6 +94,9 @@ export class EvolutionControlPlane {
       this.modules.retention === undefined
         ? undefined
         : this.modules.retention.scan(workspaceId),
+      this.modules.counterfactualCanary === undefined
+        ? undefined
+        : this.modules.counterfactualCanary.scan(workspaceId),
     ])
     const skillOpportunities = this.modules.opportunities?.discover(workspaceId)
     const skillImprovementOpportunities = this.modules.opportunities?.discoverImprovements?.(workspaceId)
@@ -235,6 +244,9 @@ export class EvolutionControlPlane {
             retentionScan,
             workspaceId,
           ) }),
+      ...(counterfactualCanaryScan === undefined
+        ? {}
+        : { counterfactualCanary: projectCounterfactualCanary(counterfactualCanaryScan) }),
       ...(this.modules.outcomes === undefined
         ? {}
         : {
@@ -575,6 +587,53 @@ function projectEvaluatorUsage(value: Record<string, number | undefined>) {
     cacheReadTokens: value.cacheReadTokens ?? 0,
     cacheWriteTokens: value.cacheWriteTokens ?? 0,
     reasoningTokens: value.reasoningTokens ?? 0,
+  }
+}
+
+function projectCounterfactualCanary(
+  scan: CounterfactualCanaryScan,
+): NonNullable<EvolutionOverview['counterfactualCanary']> {
+  return {
+    configuredRootCount: scan.configuredRootCount,
+    warningCount: scan.warningCount,
+    runs: scan.runs.slice(0, MAX_DISCOVERY_ROWS).map(run => ({
+      id: run.id,
+      generationId: run.generationId,
+      outcomeId: run.outcomeId,
+      candidateId: run.candidateId,
+      skillName: run.skillName,
+      reviewId: run.reviewId,
+      retentionId: run.retentionId,
+      admissionId: run.admissionId,
+      evaluationEnvelopeId: run.evaluationEnvelopeId,
+      status: run.status,
+      ...run.status === 'prepared' ? {} : {
+        reason: run.reason,
+        startedAt: run.startedAt,
+        finishedAt: run.finishedAt,
+        ...(run.evidence === undefined ? {} : { evidence: {
+          baseline: run.evidence.baseline,
+          candidate: run.evidence.candidate,
+          calibrationPassed: run.evidence.calibrationPassed,
+          assembled: run.evidence.assembled,
+          compositionStable: run.evidence.compositionStable,
+          inputIntegrityStable: run.evidence.inputIntegrityStable,
+          activePointerStable: run.evidence.activePointerStable,
+          proposerCalls: run.evidence.proposerCalls,
+          trialCount: run.evidence.trialCount,
+          ...(run.evidence.modelCalls === undefined
+            ? {}
+            : { modelCalls: { ...run.evidence.modelCalls } }),
+          ...(run.evidence.usage === undefined
+            ? {}
+            : { usage: {
+                baseline: projectEvaluatorUsage(run.evidence.usage.baseline),
+                candidate: projectEvaluatorUsage(run.evidence.usage.candidate),
+              } }),
+        } }),
+      },
+      releaseAuthority: 'none',
+    })),
   }
 }
 

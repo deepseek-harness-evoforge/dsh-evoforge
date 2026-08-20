@@ -1,6 +1,6 @@
 # EvoForge v0.1 路线图
 
-> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已替换旧 Router 并完成公共 outbound/健康 Web 的真实浏览器失败恢复验收，飞书图片已在 assembled DSH 中经官方资源下载、整批校验、原生 AttachmentStore 保存并以内容寻址引用进入 Agent。ClawHub/市场/research Candidate、公开 source/target 配置、活动 Git materializer/ref、Feedback/Evaluator Draft、Shadow 内 proposer、自动 review expiry、旧 Retention/canary 编排和对应 Control/Web/attention 表面均已删除，packed runtime 只解析内部内容寻址 Bundle。缺失 Skill Candidate 已绑定四 Goal authoring/admission/holdout seal；第五个及以后独立 Goal 可额外形成 Candidate 不可见的 Retention 分区和 Envelope v5 Case Pack。promotable exact-Candidate Shadow 现于同一 DSH Jobs 任务执行内容寻址 paired Retention 并持久给出 retained/regressed/incomplete，始终无发布权；独立 Host Promotion Eligibility 重验 approved Review、Generation、Lineage、Shadow 和 Retention exact identity，只有结构完整的 retained verdict 才能切换未来 Session，Command/Web 已无直写旁路并显示 eligible/waiting/blocked。现有 Skill 仍只形成等待完整 baseline Bundle 的调查。下一阶段重建 canary/长期 outcome 并建立已安装 Skill 的完整基线快照。真实 provider、exact 飞书用户消息与 Hermes paired 仍未完成；固定 DSH attachment v1 不支持通用文件，普通文件/音视频和飞书内容能力仍 pending，v0.1 未发布。
+> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已替换旧 Router并完成公共 outbound/健康 Web 的真实浏览器失败恢复验收，飞书图片已在 assembled DSH 中经官方资源下载、整批校验、原生 AttachmentStore 保存并以内容寻址引用进入 Agent。ClawHub/市场/research Candidate、公开 source/target 配置、活动 Git materializer/ref、Feedback/Evaluator Draft、Shadow 内 proposer、自动 review expiry、旧 Retention/canary 编排和对应 Control/Web/attention 表面均已删除，packed runtime 只解析内部内容寻址 Bundle。缺失 Skill Candidate 已绑定四 Goal authoring/admission/holdout seal；第五个及以后独立 Goal 可额外形成 Candidate 不可见的 Retention 分区和 Envelope v5 Case Pack。promotable exact-Candidate Shadow 现于同一 DSH Jobs 任务执行内容寻址 paired Retention 并持久给出 retained/regressed/incomplete，始终无发布权；独立 Host Promotion Eligibility 重验 approved Review、Generation、Lineage、Shadow 和 Retention exact identity，只有结构完整的 retained verdict 才能切换未来 Session。失败 durable Outcome 已接入新原生 DSH Job：重验 exact active Candidate 全谱系后，以原 Retention Case Pack 重跑 sealed canary，只产出 keep/review/rollback-eligible 并在 Web 显示，无 pointer 写权。现有 Skill 仍只形成等待完整 baseline Bundle 的调查。下一阶段补独立 rollback execution gate、canary 真实环境验收，并建立已安装 Skill 的完整基线快照。真实 provider、exact 飞书用户消息与 Hermes paired 仍未完成；固定 DSH attachment v1 不支持通用文件，普通文件/音视频和飞书内容能力仍 pending，v0.1 未发布。
 > 更新日期：2026-08-21
 
 ## 开发与发布纪律
@@ -12,7 +12,7 @@
 
 ## 已有实现
 
-- 当前活动 Evolution：内部 Gap/Opportunity/Candidate、独立治理、exact-Candidate Shadow/Retention、future-Session Promotion Eligibility、Generation、Session pin、review 和 rollback；历史 P1 静态 target/Draft/Retention/canary 编排已撤销，canary/outcome 待按内部证据重建；
+- 当前活动 Evolution：内部 Gap/Opportunity/Candidate、独立治理、exact-Candidate Shadow/Retention、future-Session Promotion Eligibility、failed-Outcome sealed canary evidence、Generation、Session pin、review 和 rollback；历史 P1 静态 target/Draft/Retention/canary 编排已撤销，新的 canary 只从内部 exact evidence 重建且无发布权；
 - P2A.1–P2D.1：原生 Skill/Tool 软件交付、Draft PR、exact-head checks、交付 Outcome；
 - P3.1/P3.2：Telegram/飞书进化注意力和 GitHub review follow-up；
 - LC-1/LC-2：Goal cold resume 与用户级 OS service unit；
@@ -100,7 +100,7 @@ baseline、deterministic admission 和不同的 assembled holdout。真实 assem
 Candidate 侧才安装 exact whole-Skill；Envelope id 和 seal id 贯穿 admission、Candidate Lineage v3、Shadow 与 crash resume；
 内容漂移、symlink、根重叠和任意 protected Case Pack 同 hash 都 fail closed，缺包则 abstain。新 Skill Publisher
 已不再假设既有 Git source：explicit review 后生成 canonical `skill-bundle` inactive Generation，Storage/Provider
-重验 exact 内容，真实 DSH Session 证明 future-only、root rollback 和重启恢复。Shadow 只执行 exact Candidate/lineage 与真实 assembled DSH composition，自身不调用 proposer；旧 capability-absent Retention/sealed-canary 编排已删除。V4.25 已用内部第五 Goal 重建独立 assembled Retention Case Pack、Envelope v5、Host/Remote 与 Web 治理投影；V4.26 已将该分区接到同一 Shadow Jobs 任务，重验 durable Shadow/Lineage/subject/tree/hash/revision/budget/composition，并以零 proposer 调用内容寻址落盘 retained/regressed/incomplete；V4.27 已由各自权威 reader 扫描 Shadow/Retention，按 exact lineage/tree 拼接并在 DSH Web 显示 verdict、reason、trial、composition、model/token/cache 和无发布权，错配只告警；V4.28 已从最终 tarball 安装到隔离 profile，以真实 DSH 浏览器验证整页 reload、Host 停机失败、最后成功证据保留和同端口恢复；V4.29 已由独立 Host gate 把 exact retained 证据转换为 future-Session eligibility，missing/prepared 等待，warning/错配/回归/incomplete 阻断，并从最终 tarball 在真实 DSH Web 验证 eligible/enabled、regressed/disabled、Host 失败保留证据、同端口恢复和卸载。治理包自动形成、原子安装和 paid-call uncertain restart 已通过注入式自动化测试。下一步重建 canary/长期 outcome，并用两套独立真实 provider 跑全链。
+重验 exact 内容，真实 DSH Session 证明 future-only、root rollback 和重启恢复。Shadow 只执行 exact Candidate/lineage 与真实 assembled DSH composition，自身不调用 proposer；旧 capability-absent Retention/sealed-canary 编排已删除。V4.25 已用内部第五 Goal 重建独立 assembled Retention Case Pack、Envelope v5、Host/Remote 与 Web 治理投影；V4.26 已将该分区接到同一 Shadow Jobs 任务，重验 durable Shadow/Lineage/subject/tree/hash/revision/budget/composition，并以零 proposer 调用内容寻址落盘 retained/regressed/incomplete；V4.27 已由各自权威 reader 扫描 Shadow/Retention，按 exact lineage/tree 拼接并在 DSH Web 显示 verdict、reason、trial、composition、model/token/cache 和无发布权，错配只告警；V4.28 已从最终 tarball 安装到隔离 profile，以真实 DSH 浏览器验证整页 reload、Host 停机失败、最后成功证据保留和同端口恢复；V4.29 已由独立 Host gate 把 exact retained 证据转换为 future-Session eligibility，missing/prepared 等待，warning/错配/回归/incomplete 阻断，并从最终 tarball在真实 DSH Web 验证 eligible/enabled、regressed/disabled、Host 失败保留证据、同端口恢复和卸载；V4.31 已让失败 Outcome 触发新的内容寻址 canary Job，重验同一谱系并只生成 keep/review/rollback-eligible 证据。治理包自动形成、原子安装和 paid-call uncertain restart 已通过注入式自动化测试。下一步补独立 rollback execution gate、canary 真实环境/长期 outcome，并用两套独立真实 provider 跑全链。
 
 当前活动源码已经删除外部来源发现、Agent Skills 索引/archive、运行时 Web research、research Holdout/revision
 及其 Job 编排、依赖、持久化变体和 Web 类型；Candidate Repository、Admission、Lineage、Shadow 只接受
@@ -108,7 +108,7 @@ Candidate 侧才安装 exact whole-Skill；Envelope id 和 seal id 贯穿 admiss
 已补齐一层非因果 cost fact：Delivery Outcome 可保存 exact Goal-owned turn 的官方 provider usage、
 cache-read/write 和 latency projection，货币成本明确 unavailable，且不影响资格/author。Host 权威 summary、
 generated Remote 与 DSH Web 已展示 Workspace/current/baseline 聚合和至多 20 条最近已测 Outcome；真实浏览器已验证
-在线刷新、Host 断连保留最后快照并显式报错、同 profile 重启恢复和幂等重放。仍待实现/验证：
+在线刷新、Host 断连保留最后快照并显式报错、同 profile 重启恢复和幂等重放。失败 Outcome 现可触发 exact active internal Candidate 的内容寻址 sealed canary；自动化测试覆盖 keep/review/rollback-eligible、预算、输入与 pointer 漂移、中断不盲重试、持续监测和 DSH Jobs。仍待实现/验证：
 existing-Skill 完整 Bundle 基线与 Candidate、correction/outcome 的因果证明，以及 rework/currency-cost/reuse/retention/negative-transfer/rollback 的完整归因、内部 Candidate 治理包的真实 provider outcome、模型缺口质量、迁移/遗忘/
 长期保留，以及同条件 Hermes paired outcome。因此不能描述为“自主 Skill 进化已完成”。
 

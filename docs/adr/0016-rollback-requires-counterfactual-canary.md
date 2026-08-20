@@ -2,7 +2,7 @@
 
 ## 状态
 
-Accepted，2026-08-16。
+Superseded by [ADR-0074](0074-failed-outcomes-produce-sealed-canary-evidence-without-release-authority.md)，2026-08-21。本文保留为历史设计记录；其中 Git parent、`auto-clear-instruction-v1` 和 canary 直接写 pointer 的方案不再属于活动实现。
 
 ## 决策
 

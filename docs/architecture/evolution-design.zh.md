@@ -1,7 +1,7 @@
 # EvoForge 可证明自进化架构
 
 > 更新日期：2026-08-21
-> 当前状态：内部 Goal 经验到 exact Retention 和 future-Session Promotion Eligibility 的活动纵切已实现；existing-Skill 完整 Bundle baseline、反事实 canary、长期 Outcome 归因、真实 provider 和 Hermes paired benchmark 尚未完成。
+> 当前状态：内部 Goal 经验到 exact Retention、future-Session Promotion Eligibility 和失败 Outcome 触发的 sealed canary evidence 活动纵切已实现；existing-Skill 完整 Bundle baseline、独立回滚执行 gate、长期 Outcome 归因、真实 provider 和 Hermes paired benchmark 尚未完成。
 
 ## 1. 用户结果
 
@@ -60,7 +60,10 @@ Natural-language Goal
   → independent Retention
   → Review + inactive Generation
   → Host Promotion Eligibility
-  → future-Session selection / exact rollback
+  → future-Session selection
+  → failed durable Outcome
+  → sealed counterfactual canary evidence
+  → separate exact rollback authority (pending)
 ```
 
 ### 4.1 Capability Gap
@@ -115,14 +118,16 @@ missing 或 prepared 为 `waiting`；告警、歧义、谱系错配、`regressed
 
 `DeliveryOutcomeMonitor` 只在 DSH Session durable checkpoint 之后，从 source-linked `complete_delivery` Tool call/result 投影有界 Outcome，并归属到该 Session 固定的 Generation。冷启动重放不重复执行 Tool 或外部效果。单个失败 Outcome 不能证明回归，也不能直接回滚。
 
-反事实 canary 尚未实现。它的现行设计边界是：
+反事实 canary 已实现为 `CounterfactualCanary` 深模块与原生 DSH `evolution` Job。当前活动合同是：
 
 1. 只由精确归属到当前 active internal Candidate lineage 的失败 durable Outcome 触发；
 2. 只重放该 Candidate 已密封、已校准的治理用例，不把真实失败 Goal 冒充成可重放的因果实验；
 3. 比较 immutable pre-Candidate subject/Generation 与 exact active Candidate；
-4. 重验 active pointer 未漂移，且当前 Session pin 不变；
+4. 运行前后重验 active pointer 未漂移；Promotion/rollback 仍只影响未来 Session，当前 Session pin 不变；
 5. 只产生 durable `keep`/`review`/`rollback-eligible` 证据，不直接操作 release pointer；
-6. 执行中断、状态漂移或证据不完整均 fail closed，且不盲目重复付费调用。
+6. 运行身份绑定 Workspace、Generation、Outcome、Candidate、Review、Retention、Admission、Envelope、Case Pack 和两侧 tree hash；
+7. 执行中断、状态漂移或证据不完整均 fail closed，且已 dispatch 未观察到结果时不盲目重复付费调用；
+8. 每 Workspace 复用现有评测 policy 的持久日预算；`keep` 后新的失败可继续监测，`review`/`rollback-eligible` 会停止该活动 Generation 的后续花费，等待独立 Host action。
 
 这条路径不得复活 Git parent inference、静态 target、Feedback/Evaluator Draft、旧 canary journal 或候选自己判定回滚。
 
@@ -130,7 +135,7 @@ missing 或 prepared 为 `waiting`；告警、歧义、谱系错配、`regressed
 
 `dsh-evolve-web` 是一个零模型调用的 DSH Client Module。浏览器只读 Host 权威 Remote，不接收 Host path、protected Goal/Case、evaluator source、provider identity 或 Candidate proposal 正文。
 
-当前已投影 Capability Map/Gap、Opportunity、Candidate、证据密封、治理作者状态、Admission、Shadow、Retention、Review、Generation、Promotion Eligibility、Outcome metrics 与 rollback。页面刷新失败必须显式报错，保留最后一次成功证据；Host 恢复后重新读取权威状态。所有写操作调用 Host 同一权威接口，不在浏览器里实现另一套规则。
+当前已投影 Capability Map/Gap、Opportunity、Candidate、证据密封、治理作者状态、Admission、Shadow、Retention、Review、Generation、Promotion Eligibility、Outcome metrics、counterfactual canary 与 rollback。Canary 视图显示 baseline/Candidate、完整性、pointer 稳定、calibration、composition、model/token/cache 和无发布权。页面刷新失败必须显式报错，保留最后一次成功证据；Host 恢复后重新读取权威状态。所有写操作调用 Host 同一权威接口，不在浏览器里实现另一套规则。
 
 ## 11. 持久化、恢复、权限与 Cache
 
@@ -154,4 +159,4 @@ missing 或 prepared 为 `waiting`；告警、歧义、谱系错配、`regressed
 
 越权、评测泄漏、当前 Session 漂移、无法卸载或无法精确回滚任意一项都阻止 tag 和发布。
 
-当前 exact Retention 与 Promotion Eligibility 证据见 [V4.26](../evidence/v4-26-exact-candidate-retention-execution.zh.md)、[V4.27](../evidence/v4-27-shadow-retention-web-projection.zh.md)、[V4.28](../evidence/v4-28-shadow-retention-real-browser.zh.md) 和 [V4.29](../evidence/v4-29-retention-promotion-eligibility.zh.md)。
+当前 exact Retention、Promotion Eligibility 与 canary evidence 见 [V4.26](../evidence/v4-26-exact-candidate-retention-execution.zh.md)、[V4.27](../evidence/v4-27-shadow-retention-web-projection.zh.md)、[V4.28](../evidence/v4-28-shadow-retention-real-browser.zh.md)、[V4.29](../evidence/v4-29-retention-promotion-eligibility.zh.md) 和 [V4.31](../evidence/v4-31-failed-outcome-counterfactual-canary.zh.md)。

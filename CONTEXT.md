@@ -239,8 +239,8 @@ A zero-proposer, host-only execution of the declared known-bad and known-correct
 _Avoid_: Candidate-authored evaluator, cached trust forever, extra runtime service, model judge
 
 **Counterfactual Canary**:
-An asynchronous replay planned for a failed durable Outcome that is exactly attributable to an active internal Candidate lineage. It must compare the immutable pre-Candidate subject or Generation with the exact active content-addressed Candidate under sealed governance, and may affect only future-Session selection after calibration, integrity, and pointer-stability gates. It is not implemented until Outcome attribution and rollback evidence are wired to the rebuilt internal Candidate path.
-_Avoid_: Git parent inference, live traffic routing, failure counter, model reflection, automatic retry platform
+A content-addressed Host-owned replay triggered by a failed durable Outcome attributed to the exact active internal Candidate Generation. It compares the immutable pre-Candidate subject with that Candidate under sealed governance and emits only `keep`, `review`, or `rollback-eligible` evidence after calibration, integrity, and active-pointer-stability gates; it never changes a Generation pointer or an existing Session.
+_Avoid_: Git parent inference, live traffic routing, failure counter, model reflection, rollback executor, automatic retry platform
 
 **Cache Contract**:
 The suite-wide rule that model-visible instructions, tools, schemas, and ordering remain stable within a DSH session. Cache impact is checked at the complete composition surface when that surface changes; plugins with no model-visible effect add no separate burden.

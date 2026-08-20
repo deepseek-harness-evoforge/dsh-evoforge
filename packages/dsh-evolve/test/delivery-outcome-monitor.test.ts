@@ -184,6 +184,36 @@ describe('verified delivery outcome monitor', () => {
     await monitor.dispose()
     await ctx.fiber.dispose()
   })
+
+  it('wakes downstream monitoring only after a new durable Outcome is recorded', async () => {
+    const ctx = new Context()
+    installWorkspaceFixture(ctx)
+    installSessionDurabilityFixture(ctx)
+    const outcomes = fakeOutcomes()
+    const onOutcome = vi.fn()
+    const evolution = {
+      getSessionGeneration: vi.fn(() => ({ id: generationId })),
+    } as unknown as EvolutionStore
+    const monitor = installDeliveryOutcomeMonitor(ctx, outcomes, evolution, { onOutcome })
+    const agent = testAgent()
+
+    appendDurablePair(ctx, agent, 'wake-canary', successfulDeliveryValue({
+      status: 'failed',
+      reason: 'verified failure',
+      goal: { id: 'goal-1', revision: 4, phase: 'failed' },
+    }), 10)
+    await monitor.flush()
+
+    expect(onOutcome).toHaveBeenCalledOnce()
+    expect(onOutcome).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'f'.repeat(64),
+      workspaceId: WORKSPACE_ID,
+      generationId,
+      status: 'failed',
+    }))
+    await monitor.dispose()
+    await ctx.fiber.dispose()
+  })
 })
 
 function fakeOutcomes() {

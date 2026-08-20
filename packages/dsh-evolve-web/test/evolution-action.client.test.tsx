@@ -120,9 +120,9 @@ function remote(
       evaluatorVersion: 'case-pack-v1',
       policyVersion: 'human-review-v1',
       artifacts: [{
-        kind: 'skill' as const,
+        kind: 'skill-bundle' as const,
         name: 'build-dsh-plugin',
-        gitCommit: 'f'.repeat(40),
+        artifactDigest: 'f'.repeat(64),
         treeHash: '3'.repeat(64),
         lineage: discoveredLineage,
       }],
@@ -335,6 +335,18 @@ const t = (key: string) => ({
   'skills.evaluation.modelCalls': 'Evaluator model calls · baseline/candidate',
   'skills.evaluation.usage': 'Input/cache-read tokens · baseline/candidate',
   'skills.evaluation.release.none': 'No release authority · Evidence only',
+  'skills.canary': 'Counterfactual canary',
+  'skills.canary.roots': 'configured canary roots',
+  'skills.canary.warnings': 'invalid canary states',
+  'skills.canary.empty': 'No failed active-Generation Outcome has triggered a canary.',
+  'skills.canary.status.prepared': 'Prepared for sealed replay',
+  'skills.canary.status.keep': 'Keep active Candidate',
+  'skills.canary.status.review': 'Human review required',
+  'skills.canary.status.rollback-eligible': 'Future-Session rollback eligible',
+  'skills.canary.reason.candidate-regressed-sealed-canary': 'Baseline passed while the exact active Candidate failed',
+  'skills.canary.pointer.stable': 'Active pointer remained stable',
+  'skills.canary.integrity.stable': 'Sealed inputs remained exact',
+  'skills.canary.release.none': 'Evidence only · Cannot move the Generation pointer',
   'skills.active': 'In use',
   'skills.ready': 'Verified, waiting to be enabled',
   'skills.reviewing': 'Waiting for review',
@@ -526,6 +538,61 @@ describe('EvolutionAction', () => {
     expect(screen.getAllByText('Candidate had no release authority')).toHaveLength(3)
     expect(screen.queryByText('8'.repeat(64))).toBeNull()
     expect(api.overview).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows failed-Outcome canary rollback eligibility without claiming that it rolled back', async () => {
+    const api = remote(true)
+    const configured = remote(true)
+    vi.mocked(api.overview).mockImplementationOnce(async (requestedWorkspaceId) => {
+      const result = await configured.overview(requestedWorkspaceId)
+      if (!result.ok) return result
+      return success({
+        ...result.value,
+        counterfactualCanary: {
+          configuredRootCount: 1,
+          warningCount: 0,
+          runs: [{
+            id: '4'.repeat(64),
+            generationId,
+            outcomeId: '0'.repeat(64),
+            candidateId: discoveredLineage.candidateId,
+            skillName: 'build-dsh-plugin',
+            reviewId,
+            retentionId: 'f'.repeat(64),
+            admissionId: discoveredLineage.admissionId,
+            evaluationEnvelopeId: discoveredLineage.evaluationEnvelopeId,
+            status: 'rollback-eligible' as const,
+            reason: 'candidate-regressed-sealed-canary' as const,
+            startedAt: '2026-08-21T00:00:00.000Z',
+            finishedAt: '2026-08-21T00:01:00.000Z',
+            evidence: {
+              baseline: 'pass' as const,
+              candidate: 'fail' as const,
+              calibrationPassed: true,
+              assembled: true,
+              compositionStable: true,
+              inputIntegrityStable: true,
+              activePointerStable: true,
+              proposerCalls: 0 as const,
+              trialCount: 4 as const,
+            },
+            releaseAuthority: 'none' as const,
+          }],
+        },
+      })
+    })
+    renderEvolution(api)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
+    fireEvent.click(await screen.findByRole('tab', { name: 'Skills' }))
+
+    expect(screen.getByText('Counterfactual canary')).toBeTruthy()
+    expect(screen.getByText('Future-Session rollback eligible')).toBeTruthy()
+    expect(screen.getByText('Baseline passed while the exact active Candidate failed')).toBeTruthy()
+    expect(screen.getByText('Active pointer remained stable')).toBeTruthy()
+    expect(screen.getByText('Sealed inputs remained exact')).toBeTruthy()
+    expect(screen.getByText('Evidence only · Cannot move the Generation pointer')).toBeTruthy()
+    expect(api.rollback).not.toHaveBeenCalled()
   })
 
   it('explains the exact Session capability map without offering a route menu', async () => {

@@ -519,6 +519,65 @@ export interface EvolutionSkillEvaluationRunsView {
   }[]
 }
 
+/** Failed-Outcome replay evidence; it can make rollback eligible but never move a pointer. */
+export interface EvolutionCounterfactualCanaryView {
+  readonly configuredRootCount: number
+  readonly warningCount: number
+  readonly runs: readonly {
+    readonly id: string
+    readonly generationId: string
+    readonly outcomeId: string
+    readonly candidateId: string
+    readonly skillName: string
+    readonly reviewId: string
+    readonly retentionId: string
+    readonly admissionId: string
+    readonly evaluationEnvelopeId: string
+    readonly status: 'prepared' | 'keep' | 'review' | 'rollback-eligible'
+    readonly reason?:
+      | 'candidate-retained-sealed-canary'
+      | 'candidate-regressed-sealed-canary'
+      | 'canary-input-mutated'
+      | 'canary-not-assembled'
+      | 'canary-calibration-failed'
+      | 'canary-baseline-failed'
+      | 'canary-composition-changed'
+      | 'active-generation-changed'
+      | 'canary-trial-outcome-uncertain'
+    readonly startedAt?: string
+    readonly finishedAt?: string
+    readonly evidence?: {
+      readonly baseline: 'pass' | 'fail'
+      readonly candidate: 'pass' | 'fail'
+      readonly calibrationPassed: boolean
+      readonly assembled: boolean
+      readonly compositionStable: boolean
+      readonly inputIntegrityStable: boolean
+      readonly activePointerStable: boolean
+      readonly proposerCalls: 0
+      readonly trialCount: 4
+      readonly modelCalls?: { readonly baseline: number; readonly candidate: number }
+      readonly usage?: {
+        readonly baseline: {
+          readonly inputTokens: number
+          readonly outputTokens: number
+          readonly cacheReadTokens: number
+          readonly cacheWriteTokens: number
+          readonly reasoningTokens: number
+        }
+        readonly candidate: {
+          readonly inputTokens: number
+          readonly outputTokens: number
+          readonly cacheReadTokens: number
+          readonly cacheWriteTokens: number
+          readonly reasoningTokens: number
+        }
+      }
+    }
+    readonly releaseAuthority: 'none'
+  }[]
+}
+
 /** One sealed evaluator result shown in review. */
 export interface EvolutionReviewCaseView {
   readonly id: string
@@ -606,6 +665,7 @@ export interface EvolutionOverview {
   readonly skillEvaluationGovernance?: EvolutionSkillEvaluationGovernanceView
   readonly skillAdmission?: EvolutionSkillAdmissionView
   readonly skillEvaluationRuns?: EvolutionSkillEvaluationRunsView
+  readonly counterfactualCanary?: EvolutionCounterfactualCanaryView
   readonly deliveryOutcomes?: {
     readonly all: DeliveryOutcomeCounts
     readonly selected: DeliveryOutcomeCounts

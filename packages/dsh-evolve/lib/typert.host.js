@@ -387,6 +387,57 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'releaseAuthority': z.literal("none").readonly(),
 })).readonly(),
 })]).readonly().optional(),
+  'counterfactualCanary': z.union([z.undefined(), z.object({
+  'configuredRootCount': z.number().readonly(),
+  'warningCount': z.number().readonly(),
+  'runs': z.array(z.object({
+  'id': z.string().readonly(),
+  'generationId': z.string().readonly(),
+  'outcomeId': z.string().readonly(),
+  'candidateId': z.string().readonly(),
+  'skillName': z.string().readonly(),
+  'reviewId': z.string().readonly(),
+  'retentionId': z.string().readonly(),
+  'admissionId': z.string().readonly(),
+  'evaluationEnvelopeId': z.string().readonly(),
+  'status': z.union([z.literal("prepared"), z.literal("review"), z.literal("keep"), z.literal("rollback-eligible")]).readonly(),
+  'reason': z.union([z.undefined(), z.literal("candidate-retained-sealed-canary"), z.literal("candidate-regressed-sealed-canary"), z.literal("canary-input-mutated"), z.literal("canary-not-assembled"), z.literal("canary-calibration-failed"), z.literal("canary-baseline-failed"), z.literal("canary-composition-changed"), z.literal("active-generation-changed"), z.literal("canary-trial-outcome-uncertain")]).readonly().optional(),
+  'startedAt': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'finishedAt': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'evidence': z.union([z.undefined(), z.object({
+  'baseline': z.union([z.literal("pass"), z.literal("fail")]).readonly(),
+  'candidate': z.union([z.literal("pass"), z.literal("fail")]).readonly(),
+  'calibrationPassed': z.boolean().readonly(),
+  'assembled': z.boolean().readonly(),
+  'compositionStable': z.boolean().readonly(),
+  'inputIntegrityStable': z.boolean().readonly(),
+  'activePointerStable': z.boolean().readonly(),
+  'proposerCalls': z.literal(0).readonly(),
+  'trialCount': z.literal(4).readonly(),
+  'modelCalls': z.union([z.undefined(), z.object({
+  'baseline': z.number().readonly(),
+  'candidate': z.number().readonly(),
+})]).readonly().optional(),
+  'usage': z.union([z.undefined(), z.object({
+  'baseline': z.object({
+  'inputTokens': z.number().readonly(),
+  'outputTokens': z.number().readonly(),
+  'cacheReadTokens': z.number().readonly(),
+  'cacheWriteTokens': z.number().readonly(),
+  'reasoningTokens': z.number().readonly(),
+}).readonly(),
+  'candidate': z.object({
+  'inputTokens': z.number().readonly(),
+  'outputTokens': z.number().readonly(),
+  'cacheReadTokens': z.number().readonly(),
+  'cacheWriteTokens': z.number().readonly(),
+  'reasoningTokens': z.number().readonly(),
+}).readonly(),
+})]).readonly().optional(),
+})]).readonly().optional(),
+  'releaseAuthority': z.literal("none").readonly(),
+})).readonly(),
+})]).readonly().optional(),
   'deliveryOutcomes': z.union([z.undefined(), z.object({
   'all': z.object({
   'total': z.number().readonly(),
@@ -1199,6 +1250,10 @@ export const TYPERT = {
             "declaration": "export interface EvolutionCapabilityView {\n    readonly name: string;\n    readonly description: string;\n    readonly source: string;\n    readonly provider: string;\n    readonly scope: 'workspace-session';\n    readonly invocation: { readonly model: boolean; readonly user: boolean; };\n    readonly versionKind: 'provider-managed' | 'evolved-tree';\n    readonly version?: string;\n    readonly generationId?: string;\n    readonly route: EvolutionCapabilityRoute;\n}"
           },
           {
+            "name": "EvolutionCounterfactualCanaryView",
+            "declaration": "export interface EvolutionCounterfactualCanaryView {\n    readonly configuredRootCount: number;\n    readonly warningCount: number;\n    readonly runs: readonly { readonly id: string; readonly generationId: string; readonly outcomeId: string; readonly candidateId: string; readonly skillName: string; readonly reviewId: string; readonly retentionId: string; readonly admissionId: string; readonly evaluationEnvelopeId: string; readonly status: 'prepared' | 'keep' | 'review' | 'rollback-eligible'; readonly reason?: 'candidate-retained-sealed-canary' | 'candidate-regressed-sealed-canary' | 'canary-input-mutated' | 'canary-not-assembled' | 'canary-calibration-failed' | 'canary-baseline-failed' | 'canary-composition-changed' | 'active-generation-changed' | 'canary-trial-outcome-uncertain'; readonly startedAt?: string; readonly finishedAt?: string; readonly evidence?: { readonly baseline: 'pass' | 'fail'; readonly candidate: 'pass' | 'fail'; readonly calibrationPassed: boolean; readonly assembled: boolean; readonly compositionStable: boolean; readonly inputIntegrityStable: boolean; readonly activePointerStable: boolean; readonly proposerCalls: 0; readonly trialCount: 4; readonly modelCalls?: { readonly baseline: number; readonly candidate: number; }; readonly usage?: { readonly baseline: { readonly inputTokens: number; readonly outputTokens: number; readonly cacheReadTokens: number; readonly cacheWriteTokens: number; readonly reasoningTokens: number; }; readonly candidate: { readonly inputTokens: number; readonly outputTokens: number; readonly cacheReadTokens: number; readonly cacheWriteTokens: number; readonly reasoningTokens: number; }; }; }; readonly releaseAuthority: 'none'; }[];\n}"
+          },
+          {
             "name": "EvolutionDeliveryMetricEvidenceView",
             "declaration": "export interface EvolutionDeliveryMetricEvidenceView {\n    readonly outcomeId: string;\n    readonly observedAt: number;\n    readonly generationId?: string;\n    readonly status: 'passed' | 'failed' | 'unknown';\n    readonly goal: { readonly id: string; readonly revision: number; };\n    readonly metrics: { readonly schemaVersion: 1; readonly source: 'dsh-session-projections'; readonly goalId: string; readonly throughEventSeq: number; readonly attributedTurns: number; readonly closedSteps: number; readonly activeWallMs: number; readonly providerUsage: EvolutionProviderUsageView; readonly latency: EvolutionLatencyView; readonly monetaryCost: { readonly status: 'unavailable'; readonly reason: 'provider-price-not-projected'; }; };\n}"
           },
@@ -1224,7 +1279,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionOverview",
-            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly workspaceId: string;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly capabilityMap?: EvolutionCapabilityMapView;\n    readonly capabilityGaps?: EvolutionCapabilityGapQueueView;\n    readonly skillOpportunities?: EvolutionSkillOpportunityQueueView;\n    readonly skillImprovementOpportunities?: EvolutionSkillImprovementOpportunityQueueView;\n    readonly skillCandidates?: EvolutionSkillCandidateQueueView;\n    readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView;\n    readonly skillEvaluationGovernance?: EvolutionSkillEvaluationGovernanceView;\n    readonly skillAdmission?: EvolutionSkillAdmissionView;\n    readonly skillEvaluationRuns?: EvolutionSkillEvaluationRunsView;\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; readonly baseline?: DeliveryOutcomeCounts; readonly metrics: { readonly all: EvolutionDeliveryMetricRollupView; readonly selected: EvolutionDeliveryMetricRollupView; readonly baseline?: EvolutionDeliveryMetricRollupView; readonly recent: readonly EvolutionDeliveryMetricEvidenceView[]; }; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
+            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly workspaceId: string;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly capabilityMap?: EvolutionCapabilityMapView;\n    readonly capabilityGaps?: EvolutionCapabilityGapQueueView;\n    readonly skillOpportunities?: EvolutionSkillOpportunityQueueView;\n    readonly skillImprovementOpportunities?: EvolutionSkillImprovementOpportunityQueueView;\n    readonly skillCandidates?: EvolutionSkillCandidateQueueView;\n    readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView;\n    readonly skillEvaluationGovernance?: EvolutionSkillEvaluationGovernanceView;\n    readonly skillAdmission?: EvolutionSkillAdmissionView;\n    readonly skillEvaluationRuns?: EvolutionSkillEvaluationRunsView;\n    readonly counterfactualCanary?: EvolutionCounterfactualCanaryView;\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; readonly baseline?: DeliveryOutcomeCounts; readonly metrics: { readonly all: EvolutionDeliveryMetricRollupView; readonly selected: EvolutionDeliveryMetricRollupView; readonly baseline?: EvolutionDeliveryMetricRollupView; readonly recent: readonly EvolutionDeliveryMetricEvidenceView[]; }; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
           },
           {
             "name": "EvolutionProviderUsageView",

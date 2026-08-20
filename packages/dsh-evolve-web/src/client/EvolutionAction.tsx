@@ -4,6 +4,7 @@ import type {} from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {
   EvolutionActionReceipt,
+  EvolutionArtifactView,
   EvolutionCapabilityView,
   EvolutionDeliveryMetricEvidenceView,
   EvolutionDeliveryMetricRollupView,
@@ -304,7 +305,7 @@ function BeginnerOverview({ summary, openAdvanced, t }: {
   t: (key: string) => string
 }) {
   const pending = actionableCount(summary)
-  const activeSkills = summary.active?.artifacts.filter(artifact => artifact.kind === 'skill').length ?? 0
+  const activeSkills = summary.active?.artifacts.filter(isSkillArtifact).length ?? 0
   const corrections = recordedCorrectionCount(summary)
   const verificationConfigured = hasVerificationTarget(summary)
   const headline = pending > 0
@@ -357,7 +358,7 @@ function hasVerificationTarget(summary: EvolutionOverview): boolean {
 }
 
 function SkillsView({ summary, t }: { summary: EvolutionOverview; t: (key: string) => string }) {
-  const active = summary.active?.artifacts.filter(artifact => artifact.kind === 'skill') ?? []
+  const active = summary.active?.artifacts.filter(isSkillArtifact) ?? []
   const ready = summary.reviews.inactiveGenerations
   const reviewing = summary.reviews.items.filter(review => review.status === 'pending')
   const empty = active.length === 0 && ready.length === 0 && reviewing.length === 0
@@ -375,9 +376,10 @@ function SkillsView({ summary, t }: { summary: EvolutionOverview; t: (key: strin
     <SkillEvaluationGovernance summary={summary} t={t} />
     <SkillAdmission summary={summary} t={t} />
     <SkillEvaluationRuns summary={summary} t={t} />
+    <CounterfactualCanaryRuns summary={summary} t={t} />
     {empty && <div className="dsh-evolve-message">{t('skills.empty')}</div>}
     {active.length > 0 && <SkillGroup t={t} label={t('skills.active')} items={active.map(artifact => ({
-      key: `active:${artifact.gitCommit}:${artifact.name}`,
+      key: `active:${artifact.gitCommit ?? artifact.artifactDigest}:${artifact.name}`,
       name: artifact.name,
       detail: t('skills.activeHelp'),
       ...(artifact.lineage === undefined ? {} : { lineage: artifact.lineage }),
@@ -396,6 +398,10 @@ function SkillsView({ summary, t }: { summary: EvolutionOverview; t: (key: strin
     }))} />}
     <p className="dsh-evolve-guidance">{t('skills.native')}</p>
   </>
+}
+
+function isSkillArtifact(artifact: EvolutionArtifactView): boolean {
+  return artifact.kind === 'skill' || artifact.kind === 'skill-bundle'
 }
 
 function SkillAdmission({ summary, t }: { summary: EvolutionOverview; t: (key: string) => string }) {
@@ -522,6 +528,84 @@ function evaluationComparison(
   return `${t('skills.evaluation.baseline')} ${t(`skills.evaluation.outcome.${baseline}`)}`
     + ` → ${t('skills.evaluation.candidate')} ${t(`skills.evaluation.outcome.${candidate}`)}`
     + ` · ${trialCount} ${t('skills.evaluation.trials')}`
+}
+
+function CounterfactualCanaryRuns({
+  summary,
+  t,
+}: {
+  summary: EvolutionOverview
+  t: (key: string) => string
+}) {
+  const canary = summary.counterfactualCanary
+  if (canary === undefined) return null
+  return <section>
+    <div className="dsh-evolve-capability-head">
+      <h3 className="dsh-evolve-section-title">{t('skills.canary')}</h3>
+      <span className="dsh-evolve-catalog-status">
+        {canary.configuredRootCount} {t('skills.canary.roots')}
+      </span>
+    </div>
+    {canary.warningCount > 0 && <div className="dsh-evolve-message dsh-evolve-error">
+      {canary.warningCount} {t('skills.canary.warnings')}
+    </div>}
+    {canary.runs.length === 0
+      ? <div className="dsh-evolve-message">{t('skills.canary.empty')}</div>
+      : <ul className="dsh-evolve-list">{canary.runs.map(run => (
+          <li className="dsh-evolve-skill-card" key={run.id}>
+            <div className="dsh-evolve-review-skill">{run.skillName}</div>
+            <div className="dsh-evolve-capability-route">
+              {t(`skills.canary.status.${run.status}`)}
+            </div>
+            <div className="dsh-evolve-meta">
+              {t('skills.lineage.candidate')} · {shortId(run.candidateId)}
+              {' · '}{t('skills.canary.outcome')} · {shortId(run.outcomeId)}
+            </div>
+            {run.evidence !== undefined && <>
+              <div className="dsh-evolve-meta">
+                {evaluationComparison(
+                  run.evidence.baseline,
+                  run.evidence.candidate,
+                  run.evidence.trialCount,
+                  t,
+                )}
+              </div>
+              <div className="dsh-evolve-meta">
+                {t(run.evidence.activePointerStable
+                  ? 'skills.canary.pointer.stable'
+                  : 'skills.canary.pointer.changed')}
+              </div>
+              <div className="dsh-evolve-meta">
+                {t(run.evidence.inputIntegrityStable
+                  ? 'skills.canary.integrity.stable'
+                  : 'skills.canary.integrity.changed')}
+              </div>
+              <div className="dsh-evolve-meta">
+                {t(run.evidence.assembled
+                  ? 'skills.canary.assembled'
+                  : 'skills.canary.notAssembled')}
+                {' · '}{t(run.evidence.calibrationPassed
+                  ? 'skills.evaluation.calibration.pass'
+                  : 'skills.evaluation.calibration.fail')}
+                {' · '}{t(run.evidence.compositionStable
+                  ? 'skills.evaluation.composition.stable'
+                  : 'skills.evaluation.composition.changed')}
+              </div>
+              {run.evidence.modelCalls !== undefined && <div className="dsh-evolve-meta">
+                {t('skills.evaluation.modelCalls')} · {run.evidence.modelCalls.baseline}/{run.evidence.modelCalls.candidate}
+              </div>}
+              {run.evidence.usage !== undefined && <div className="dsh-evolve-meta">
+                {t('skills.evaluation.usage')} · {run.evidence.usage.baseline.inputTokens}/{run.evidence.usage.baseline.cacheReadTokens}
+                {' · '}{run.evidence.usage.candidate.inputTokens}/{run.evidence.usage.candidate.cacheReadTokens}
+              </div>}
+            </>}
+            {run.reason !== undefined && <div className="dsh-evolve-meta">
+              {t(`skills.canary.reason.${run.reason}`)}
+            </div>}
+            <div className="dsh-evolve-discovery-state">{t('skills.canary.release.none')}</div>
+          </li>
+        ))}</ul>}
+  </section>
 }
 
 function SkillEvaluationGovernance({

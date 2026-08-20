@@ -26,6 +26,10 @@ import {
 import { InternalSkillRetention } from './internal-skill-retention.ts'
 import { FutureSessionPromotion } from './future-session-promotion.ts'
 import {
+  CounterfactualCanary,
+  CounterfactualCanaryScheduler,
+} from './counterfactual-canary.ts'
+import {
   SkillEvaluationEnvelopeResolver,
   type SkillCandidateEvaluationPolicyConfig,
 } from './skill-evaluation-envelope.ts'
@@ -135,7 +139,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         ?.resolve(sessionId, assistantMessageId) ?? Promise.resolve(undefined),
     },
   })
-  const deliveryMonitor = installDeliveryOutcomeMonitor(ctx, deliveryOutcomes, store)
+  let counterfactualCanaryScheduler: CounterfactualCanaryScheduler | undefined
+  const deliveryMonitor = installDeliveryOutcomeMonitor(ctx, deliveryOutcomes, store, {
+    onOutcome: outcome => {
+      if (outcome.status === 'failed') {
+        counterfactualCanaryScheduler?.observe(outcome.workspaceId)
+      }
+    },
+  })
   const candidateEvaluationPolicies = config.candidateEvaluationPolicies ?? []
   const selfDiscoveryPolicies = config.selfDiscoveryPolicies ?? []
   if (selfDiscoveryPolicies.some(policy => !candidateEvaluationPolicies.some(evaluation =>
@@ -280,6 +291,34 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         review: review.inbox,
         retention: skillRetention,
       })
+  const counterfactualCanary = promotion === undefined
+    || review === undefined
+    || skillRetention === undefined
+    || skillAdmission === undefined
+    ? undefined
+    : new CounterfactualCanary({
+        store,
+        outcomes: deliveryOutcomes,
+        promotion,
+        review: review.inbox,
+        retention: skillRetention,
+        candidates: skillCandidateStore,
+        admissions: skillAdmission,
+        budget: new AutomaticEvolutionBudget(),
+      }, {
+        policies: candidateEvaluationPolicies.map(policy => ({
+          id: policy.id,
+          workspaceId: policy.workspaceId,
+          runRoot: resolve(policy.runRoot, 'canary'),
+          maxAttemptsPerUtcDay: policy.maxAttemptsPerUtcDay ?? 1,
+        })),
+      })
+  counterfactualCanaryScheduler = counterfactualCanary === undefined
+    ? undefined
+    : new CounterfactualCanaryScheduler(
+        counterfactualCanary,
+        candidateEvaluationPolicies.map(policy => policy.workspaceId),
+      )
   const control = new EvolutionControlPlane({
     store,
     ...(promotion === undefined ? {} : { promotion }),
@@ -290,6 +329,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     candidates: skillCandidateStore,
     ...(skillAdmission === undefined ? {} : { admissions: skillAdmission }),
     ...(skillRetention === undefined ? {} : { retention: skillRetention }),
+    ...(counterfactualCanary === undefined ? {} : { counterfactualCanary }),
     ...(slowLoopAuthoring === undefined ? {} : { slowLoopAuthoring }),
     ...(skillEvaluationGovernance === undefined ? {} : { evaluationGovernance: skillEvaluationGovernance }),
     ...(review === undefined ? {} : { review }),
@@ -348,6 +388,19 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       }, 'dsh-evolve.slowLoopAuthoringJobs')
     })
   }
+  const canaryScheduler = counterfactualCanaryScheduler
+  if (canaryScheduler !== undefined) {
+    ctx.inject(['jobs'], (jobCtx) => {
+      jobCtx.effect(() => {
+        const detachController = jobCtx.jobs.attachController('dsh-evolve-counterfactual-canary')
+        const detachCanary = canaryScheduler.attachJobs(jobCtx.jobs)
+        return () => {
+          detachCanary()
+          detachController()
+        }
+      }, 'dsh-evolve.counterfactualCanaryJobs')
+    })
+  }
   if (config.supervisor !== undefined && config.supervisor.runRoots.length > 0) {
     ctx.inject(['jobs'], (jobCtx) => {
       jobCtx.jobs.attachController('dsh-evolve-shadow-supervisor')
@@ -356,7 +409,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         scanIntervalMs: config.supervisor!.scanIntervalMs ?? 30_000,
         pausedWorkspaces: [...new Set(config.supervisor!.runRoots.map(root => root.workspaceId))]
           .filter(workspaceId => resident!.isPaused(workspaceId)),
-        afterScan: async (_signal, _workspaceId) => {
+        afterScan: async (_signal, workspaceId) => {
+          counterfactualCanaryScheduler?.observe(workspaceId)
           ctx.emit('evoforge/evolution/settled')
         },
         runner: createShadowJobRunner(jobCtx.jobs, runShadow),
@@ -424,6 +478,18 @@ export type {
   FutureSessionPromotionModules,
   FutureSessionPromotionReason,
 } from './future-session-promotion.ts'
+export { CounterfactualCanary, CounterfactualCanaryScheduler } from './counterfactual-canary.ts'
+export type {
+  CounterfactualCanaryEvidence,
+  CounterfactualCanaryModules,
+  CounterfactualCanaryPolicy,
+  CounterfactualCanaryPreparedView,
+  CounterfactualCanaryReason,
+  CounterfactualCanaryReconcile,
+  CounterfactualCanaryResult,
+  CounterfactualCanaryRunView,
+  CounterfactualCanaryScan,
+} from './counterfactual-canary.ts'
 export { InternalSkillRetention } from './internal-skill-retention.ts'
 export type {
   InternalCandidateShadowResult,

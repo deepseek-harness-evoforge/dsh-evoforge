@@ -269,6 +269,9 @@ export function installDeliveryOutcomeMonitor(
   ctx: Context,
   outcomes: DeliveryOutcomeStore,
   evolution: Pick<EvolutionStore, 'getSessionGeneration'>,
+  options: {
+    readonly onOutcome?: (outcome: DeliveryOutcome) => void | Promise<void>
+  } = {},
 ): DeliveryOutcomeMonitor {
   let disposed = false
   let tail: Promise<void> = Promise.resolve()
@@ -293,7 +296,7 @@ export function installDeliveryOutcomeMonitor(
         const goalMetrics = projections === undefined
           ? undefined
           : projectGoalExecutionMetrics(session, parsed.goal.id, event.seq, projections)
-        await outcomes.record({
+        const recorded = await outcomes.record({
           observedAt: event.time,
           workspaceId: identity.workspaceId,
           sessionId: identity.sessionId,
@@ -306,6 +309,13 @@ export function installDeliveryOutcomeMonitor(
           ...(generationId === undefined ? {} : { generationId }),
           ...(goalMetrics === undefined ? {} : { goalMetrics }),
         })
+        if (recorded.created) {
+          try {
+            await options.onOutcome?.(recorded.outcome)
+          } catch (error) {
+            ctx.logger.warn(`dsh-evolve outcome wakeup failed: ${errorMessage(error)}`)
+          }
+        }
       } catch (error) {
         ctx.logger.warn(`dsh-evolve skipped one delivery outcome: ${errorMessage(error)}`)
       }
