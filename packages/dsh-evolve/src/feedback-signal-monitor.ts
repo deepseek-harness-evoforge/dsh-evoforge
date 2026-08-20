@@ -255,6 +255,7 @@ export function installFeedbackSignalMonitor(
   options: {
     now?: () => number
     attribution?: Pick<DurableFeedbackAttribution, 'resolve'>
+    onSignalsChanged?: (workspaceId: string) => void
   } = {},
 ): FeedbackSignalMonitor {
   const now = options.now ?? Date.now
@@ -313,6 +314,7 @@ export function installFeedbackSignalMonitor(
         ...(generationId === undefined ? {} : { generationId }),
         items,
       })
+      options.onSignalsChanged?.(workspaceId)
     })
   })
 

@@ -8,6 +8,8 @@ Compatibility evidence is pinned to DeepSeek Harness `47f943859bef60e41604923467
 
 The repository contains eleven native DSH Bundles: evidence-driven evolution and its Web adapter, verified software delivery, runtime diagnosis, GitHub review follow-up, Workspace DSH Gateway, Telegram, Feishu, cross-channel evolution attention, native Goal cold resume, and `/resident` control for one exact launchd/systemd user unit. External routes, recovery, and deployment control are disabled until an operator provides exact configuration.
 
+The active evolution path uses DSH-internal Goal, Skill invocation, correction, and outcome evidence only; it performs no runtime Skill-market search or acquisition and asks the user for no route, Agent, workflow, Skill, or source choice. Repeated exact corrections to one sealed installed-Skill baseline can now drive protected authoring of a complete content-addressed Candidate tree. Only bounded `SKILL.md`/`references/*.md` instruction text may change; all other files, including binaries, are inherited byte-for-byte and permission drift is rejected. The Candidate remains inactive, quarantined, unevaluated, never executed, and without release authority. Existing-Skill paired evaluation, retention, canary, promotion, real-provider/browser recovery, and full Hermes paired evidence remain unfinished.
+
 ## Install into DSH
 
 ```sh

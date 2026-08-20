@@ -186,6 +186,10 @@ _Avoid_: Full transcript copy, model reflection
 An inactive, versioned diff owned by exactly one registered DSH Workspace and bound to the exact pre-authoring Skill Evaluation Evidence Seal that supplied its visible evidence, accompanied by a falsifiable improvement claim and a trial plan. Candidate creation cannot alter any active session or be reviewed, promoted, or reused from another Workspace.
 _Avoid_: Live patch, learned rule
 
+**Existing Skill Improvement Candidate**:
+An inactive, quarantined, content-addressed complete Skill tree derived from one exact sealed installed-Skill baseline and its protected internal correction evidence. The author may replace or add only bounded instruction text; the Host preserves every untouched file byte-for-byte and rejects identity, code, binary, path, permission-declaration, or license drift. It is unevaluated, never executed, and has no install, activation, or release authority.
+_Avoid_: Runtime self-edit, partial patch artifact, downloaded Skill, capability-absent Candidate, approved improvement
+
 **Evolution Candidate Lineage**:
 The bounded, host-derived identity that follows one exact internally authored whole-Skill Candidate from its Skill Opportunity through one Skill Evaluation Envelope, admission, Shadow, Retention, review, and immutable Capability Generation. It binds internal evidence, Candidate version/content/tree, evaluation-envelope identity, independent evaluation, and release decisions while excluding Skill bodies, host paths, hidden cases, and proposer-private state.
 _Avoid_: Discovered Skill Lineage, external source provenance, copied Candidate record, private evidence dump, self-asserted lineage

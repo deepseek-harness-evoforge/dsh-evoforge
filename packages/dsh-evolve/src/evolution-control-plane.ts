@@ -19,6 +19,7 @@ import type {
 } from './skill-opportunity-discovery.ts'
 import type { SkillCandidateAdmission } from './skill-candidate-admission.ts'
 import type { SlowLoopSkillAuthoring } from './slow-loop-skill-authoring.ts'
+import type { ExistingSkillCandidateAuthoring } from './existing-skill-candidate-authoring.ts'
 import type { SkillCandidateLineage } from './skill-candidate-lineage.ts'
 import type { SkillEvaluationEvidenceVault } from './skill-evaluation-evidence-vault.ts'
 import type { SkillEvaluationGovernance } from './skill-evaluation-governance.ts'
@@ -81,8 +82,10 @@ export interface EvolutionControlPlaneModules {
   }
   readonly evaluationEvidence?: Pick<SkillEvaluationEvidenceVault, 'readiness'>
   readonly candidates?: Pick<SkillCandidateStore, 'listCandidates'>
+    & Partial<Pick<SkillCandidateStore, 'listExistingCandidates'>>
   readonly admissions?: Pick<SkillCandidateAdmission, 'scan'>
   readonly slowLoopAuthoring?: Pick<SlowLoopSkillAuthoring, 'scan'>
+  readonly existingSkillAuthoring?: Pick<ExistingSkillCandidateAuthoring, 'scan'>
   readonly evaluationGovernance?: Pick<SkillEvaluationGovernance, 'scan'>
   readonly retention?: Pick<InternalSkillRetention, 'scan'>
   readonly counterfactualCanary?: Pick<CounterfactualCanary, 'scan'>
@@ -102,6 +105,7 @@ export class EvolutionControlPlane {
       scan,
       admissionScan,
       slowLoopAuthoringScan,
+      existingSkillAuthoringScan,
       evaluationGovernanceScan,
       retentionScan,
       counterfactualCanaryScan,
@@ -111,6 +115,9 @@ export class EvolutionControlPlane {
       this.modules.slowLoopAuthoring === undefined
         ? undefined
         : this.modules.slowLoopAuthoring.scan(workspaceId),
+      this.modules.existingSkillAuthoring === undefined
+        ? undefined
+        : this.modules.existingSkillAuthoring.scan(workspaceId),
       this.modules.evaluationGovernance === undefined
         ? undefined
         : this.modules.evaluationGovernance.scan(workspaceId),
@@ -226,6 +233,11 @@ export class EvolutionControlPlane {
       ...(this.modules.candidates === undefined
         ? {}
         : { skillCandidates: projectSkillCandidates(this.modules.candidates, workspaceId) }),
+      ...(this.modules.candidates?.listExistingCandidates === undefined
+        ? {}
+        : { existingSkillCandidates: projectExistingSkillCandidates(
+            this.modules.candidates.listExistingCandidates(workspaceId),
+          ) }),
       ...(slowLoopAuthoringScan === undefined
         ? {}
         : { slowLoopAuthoring: {
@@ -238,6 +250,30 @@ export class EvolutionControlPlane {
               opportunityId: run.opportunityId,
               gapCount: run.gapCount,
               goalCount: run.goalCount,
+              phase: run.phase,
+              createdAt: run.createdAt,
+              updatedAt: run.updatedAt,
+              modelCalls: run.modelCalls,
+              inputTokens: run.inputTokens,
+              outputTokens: run.outputTokens,
+              ...(run.candidateId === undefined ? {} : { candidateId: run.candidateId }),
+              ...(run.retryAt === undefined ? {} : { retryAt: run.retryAt }),
+              releaseAuthority: run.releaseAuthority,
+            })),
+          } }),
+      ...(existingSkillAuthoringScan === undefined
+        ? {}
+        : { existingSkillAuthoring: {
+            configuredPolicyCount: existingSkillAuthoringScan.configuredPolicyCount,
+            warningCount: existingSkillAuthoringScan.warningCount,
+            runs: existingSkillAuthoringScan.runs.map(run => ({
+              id: run.id,
+              targetId: run.targetId,
+              skillName: run.skillName,
+              opportunityId: run.opportunityId,
+              qualificationId: run.qualificationId,
+              evaluationEvidenceId: run.evaluationEvidenceId,
+              baselineId: run.baselineId,
               phase: run.phase,
               createdAt: run.createdAt,
               updatedAt: run.updatedAt,
@@ -489,7 +525,13 @@ function projectSkillCandidates(
         gapIds: [...candidate.opportunity.gapIds],
         goalCount: candidate.opportunity.goalCount,
       },
-      authorship: { ...candidate.authorship },
+      authorship: {
+        kind: candidate.authorship.kind,
+        policyId: candidate.authorship.policyId,
+        modelIdentityHash: candidate.authorship.modelIdentityHash,
+        evaluationEvidenceId: candidate.authorship.evaluationEvidenceId,
+        inputDigest: candidate.authorship.inputDigest,
+      },
       scope: candidate.scope,
       version: { ...candidate.version },
       contentHash: candidate.contentHash,
@@ -503,6 +545,47 @@ function projectSkillCandidates(
       lifecycle: candidate.lifecycle,
       verification: candidate.verification,
       execution: candidate.execution,
+    })),
+  }
+}
+
+function projectExistingSkillCandidates(
+  values: ReturnType<SkillCandidateStore['listExistingCandidates']>,
+): NonNullable<EvolutionOverview['existingSkillCandidates']> {
+  return {
+    quarantinedCount: values.filter(candidate => candidate.safety.status === 'quarantined').length,
+    items: values.slice(0, MAX_DISCOVERY_ROWS).map(candidate => ({
+      id: candidate.id,
+      createdAt: candidate.createdAt,
+      skillName: candidate.skillName,
+      description: candidate.description,
+      opportunity: { ...candidate.opportunity },
+      baseline: { ...candidate.baseline },
+      authorship: {
+        kind: candidate.authorship.kind,
+        policyId: candidate.authorship.policyId,
+        modelIdentityHash: candidate.authorship.modelIdentityHash,
+        evaluationEvidenceId: candidate.authorship.evaluationEvidenceId,
+        inputDigest: candidate.authorship.inputDigest,
+      },
+      version: { ...candidate.version },
+      contentHash: candidate.contentHash,
+      diff: {
+        ...candidate.diff,
+        changedPaths: [...candidate.diff.changedPaths],
+        addedPaths: [...candidate.diff.addedPaths],
+      },
+      package: {
+        fileCount: candidate.package.fileCount,
+        totalBytes: candidate.package.totalBytes,
+        hasExecutableFiles: candidate.package.hasExecutableFiles,
+      },
+      permissions: { ...candidate.permissions },
+      safety: { status: candidate.safety.status },
+      lifecycle: candidate.lifecycle,
+      verification: candidate.verification,
+      execution: candidate.execution,
+      releaseAuthority: candidate.releaseAuthority,
     })),
   }
 }

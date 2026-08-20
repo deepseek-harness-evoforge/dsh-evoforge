@@ -396,8 +396,10 @@ function SkillsView({ summary, busy, rollbackEligible, t }: {
     <CapabilityGapQueue summary={summary} t={t} />
     <SkillOpportunities summary={summary} t={t} />
     <SkillImprovementOpportunities summary={summary} t={t} />
+    <ExistingSkillAuthoring summary={summary} t={t} />
     <SlowLoopAuthoring summary={summary} t={t} />
     <SkillCandidates summary={summary} t={t} />
+    <ExistingSkillCandidates summary={summary} t={t} />
     <SkillEvaluationGovernance summary={summary} t={t} />
     <SkillAdmission summary={summary} t={t} />
     <SkillEvaluationRuns summary={summary} t={t} />
@@ -757,6 +759,87 @@ function SkillCandidates({ summary, t }: { summary: EvolutionOverview; t: (key: 
           ))}</ul>}
     </section>
   </>
+}
+
+function ExistingSkillCandidates({ summary, t }: { summary: EvolutionOverview; t: (key: string) => string }) {
+  const candidates = summary.existingSkillCandidates
+  if (candidates === undefined) return null
+  return <section>
+    <h3 className="dsh-evolve-section-title">{t('skills.improvements.candidates')}</h3>
+    {candidates.items.length === 0
+      ? <div className="dsh-evolve-message">{t('skills.improvements.candidates.empty')}</div>
+      : <ul className="dsh-evolve-list">{candidates.items.map(candidate => (
+          <li className="dsh-evolve-skill-card" key={candidate.id}>
+            <div className="dsh-evolve-review-skill">{candidate.skillName}</div>
+            <p>{candidate.description}</p>
+            <div className="dsh-evolve-capability-route">
+              {candidate.opportunity.goalCount} {t('skills.opportunities.goals')}
+              {' · '}{candidate.opportunity.signalCount} {t('skills.improvements.corrections')}
+            </div>
+            <div className="dsh-evolve-meta">
+              {t('skills.improvements.candidates.baseline')} · {shortId(candidate.baseline.id)}
+              {' · '}{shortId(candidate.baseline.treeHash)}
+            </div>
+            <div className="dsh-evolve-meta">
+              {t('skills.improvements.candidates.candidate')} · {shortId(candidate.version.treeHash)}
+            </div>
+            <div className="dsh-evolve-meta">
+              {t('skills.improvements.candidates.changed')} · {candidate.diff.changedPaths.join(' · ')}
+            </div>
+            {candidate.diff.addedPaths.length > 0 && <div className="dsh-evolve-meta">
+              {t('skills.improvements.candidates.added')} · {candidate.diff.addedPaths.join(' · ')}
+            </div>}
+            <div className="dsh-evolve-meta">
+              {t('skills.improvements.candidates.preserved')} · {candidate.diff.preservedFileCount} {t('skills.improvements.files')}
+              {' · '}{candidate.diff.preservedBinaryFileCount} {t('skills.improvements.candidates.binary')}
+            </div>
+            <div className="dsh-evolve-meta">
+              {t('skills.discovery.author')} · {candidate.authorship.policyId}
+              {' · '}{t('skills.lineage.evidence')} · {shortId(candidate.authorship.evaluationEvidenceId)}
+            </div>
+            <div className="dsh-evolve-discovery-state">{t('skills.improvements.candidates.state')}</div>
+          </li>
+        ))}</ul>}
+  </section>
+}
+
+function ExistingSkillAuthoring({ summary, t }: { summary: EvolutionOverview; t: (key: string) => string }) {
+  const authoring = summary.existingSkillAuthoring
+  if (authoring === undefined) return null
+  return <section>
+    <div className="dsh-evolve-capability-head">
+      <h3 className="dsh-evolve-section-title">{t('skills.improvements.authoring')}</h3>
+      <span className="dsh-evolve-catalog-status">
+        {authoring.configuredPolicyCount} {t('skills.improvements.authoring.policies')}
+      </span>
+    </div>
+    {authoring.warningCount > 0 && <div className="dsh-evolve-message dsh-evolve-error">
+      {authoring.warningCount} {t('skills.improvements.authoring.warnings')}
+    </div>}
+    {authoring.runs.length === 0
+      ? <div className="dsh-evolve-message">{t('skills.improvements.authoring.empty')}</div>
+      : <ul className="dsh-evolve-list">{authoring.runs.map(run => (
+          <li className="dsh-evolve-skill-card" key={run.id}>
+            <div className="dsh-evolve-review-skill">{run.skillName}</div>
+            <div className="dsh-evolve-capability-route">
+              {t(`skills.slow-loop.phase.${run.phase}`)}
+            </div>
+            <div className="dsh-evolve-meta">
+              {t('skills.improvements.authoring.baseline')} · {shortId(run.baselineId)} / {shortId(run.qualificationId)} / {shortId(run.evaluationEvidenceId)}
+            </div>
+            <div className="dsh-evolve-meta">
+              {t('skills.slow-loop.cost')} · {run.modelCalls} · {run.inputTokens}/{run.outputTokens}
+            </div>
+            {run.candidateId !== undefined && <div className="dsh-evolve-meta">
+              {t('skills.slow-loop.candidate')} · {run.candidateId.slice(0, 12)}
+            </div>}
+            {run.retryAt !== undefined && <div className="dsh-evolve-meta">
+              {t('skills.slow-loop.retry')} · {new Date(run.retryAt).toLocaleString()}
+            </div>}
+            <div className="dsh-evolve-discovery-state">{t('skills.slow-loop.release.none')}</div>
+          </li>
+        ))}</ul>}
+  </section>
 }
 
 function skillVersionSummary(

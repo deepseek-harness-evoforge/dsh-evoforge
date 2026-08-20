@@ -62,6 +62,7 @@ import { InstalledSkillBaselineVault } from './installed-skill-baseline.ts'
 import { installInstalledSkillBaselineMonitor } from './installed-skill-baseline-monitor.ts'
 import { ExistingSkillBaselineQualification } from './existing-skill-baseline-qualification.ts'
 import { ExistingSkillEvaluationEvidenceVault } from './existing-skill-evaluation-evidence-vault.ts'
+import { ExistingSkillCandidateAuthoring } from './existing-skill-candidate-authoring.ts'
 import { EvolutionControlPlane } from './evolution-control-plane.ts'
 import { EvolutionRemoteService } from './evolution-remote.ts'
 import { AutomaticEvolutionBudget } from './automatic-evolution-budget.ts'
@@ -138,11 +139,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   })
   const skillCandidateStore = await openSkillCandidateStore(ctx.storageDomain)
   let durableFeedbackAttribution: DurableFeedbackAttribution | undefined
+  let reconcileExistingSkillCandidates: ((workspaceId: string) => void) | undefined
   const feedbackMonitor = installFeedbackSignalMonitor(ctx, feedbackSignals, store, {
     attribution: {
       resolve: (sessionId, assistantMessageId) => durableFeedbackAttribution
         ?.resolve(sessionId, assistantMessageId) ?? Promise.resolve(undefined),
     },
+    onSignalsChanged: workspaceId => reconcileExistingSkillCandidates?.(workspaceId),
   })
   let counterfactualCanaryScheduler: CounterfactualCanaryScheduler | undefined
   const deliveryMonitor = installDeliveryOutcomeMonitor(ctx, deliveryOutcomes, store, {
@@ -205,6 +208,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       ? undefined
       : new ExistingSkillBaselineQualification(skillOpportunities, feedbackSignals, baselineVault)
     existingSkillBaselineQualification = baselineQualification
+    for (const policy of candidateEvaluationPolicies) {
+      reconcileExistingSkillCandidates?.(policy.workspaceId)
+    }
     const baselineMonitor = baselineVault === undefined
       ? undefined
       : installInstalledSkillBaselineMonitor(skillCtx, baselineVault)
@@ -242,6 +248,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       )
       evidenceCtx.effect(() => {
         existingSkillEvaluationEvidence = evidence
+        for (const policy of candidateEvaluationPolicies) {
+          reconcileExistingSkillCandidates?.(policy.workspaceId)
+        }
         return () => {
           if (existingSkillEvaluationEvidence === evidence) {
             existingSkillEvaluationEvidence = undefined
@@ -257,6 +266,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const skillCandidates = new SkillCandidateRepository(
     skillCandidateStore,
     candidate => skillAdmissionScheduler?.observe(candidate),
+    candidateEvaluationPolicies.map(policy => ({
+      workspaceId: policy.workspaceId,
+      root: resolve(policy.governanceRoot, 'candidate-vault'),
+    })),
   )
   let skillAdmission: SkillCandidateAdmission | undefined
   if (candidateEvaluationPolicies.length > 0) {
@@ -313,6 +326,45 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         },
         budget: new AutomaticEvolutionBudget(),
       })
+  const existingSkillAuthoring = selfDiscoveryPolicies.length === 0
+    ? undefined
+    : new ExistingSkillCandidateAuthoring({
+        policies: selfDiscoveryPolicies,
+        opportunities: skillOpportunities,
+        qualification: {
+          qualify: opportunity => {
+            const qualification = existingSkillBaselineQualification
+            if (qualification === undefined) {
+              return Promise.reject(new Error('existing Skill baseline qualification is unavailable'))
+            }
+            return qualification.qualify(opportunity)
+          },
+        },
+        evaluationEvidence: {
+          prepare: opportunity => {
+            const evidence = existingSkillEvaluationEvidence
+            if (evidence === undefined) {
+              return Promise.reject(new Error('existing Skill protected evidence is unavailable'))
+            }
+            return evidence.prepare(opportunity)
+          },
+        },
+        candidates: {
+          listExistingCandidates: (workspaceId, opportunityId) =>
+            skillCandidateStore.listExistingCandidates(workspaceId, opportunityId),
+          quarantineExisting: input => skillCandidates.quarantineExisting(input),
+        },
+        budget: new AutomaticEvolutionBudget(),
+      })
+  reconcileExistingSkillCandidates = workspaceId => {
+    void existingSkillAuthoring?.reconcile(workspaceId).then((result) => {
+      for (const warning of result.warnings) {
+        ctx.logger.warn(`dsh-evolve existing Skill Candidate authoring skipped work: ${warning}`)
+      }
+    }, error => {
+      ctx.logger.warn(`dsh-evolve existing Skill Candidate authoring failed: ${String(error)}`)
+    })
+  }
   const reconcileSkillOpportunities = async (workspaceId: string): Promise<void> => {
     const result = await slowLoopAuthoring?.reconcile(workspaceId)
     for (const warning of result?.warnings ?? []) {
@@ -403,6 +455,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     ...(skillRetention === undefined ? {} : { retention: skillRetention }),
     ...(counterfactualCanary === undefined ? {} : { counterfactualCanary }),
     ...(slowLoopAuthoring === undefined ? {} : { slowLoopAuthoring }),
+    ...(existingSkillAuthoring === undefined ? {} : { existingSkillAuthoring }),
     ...(skillEvaluationGovernance === undefined ? {} : { evaluationGovernance: skillEvaluationGovernance }),
     ...(review === undefined ? {} : { review }),
     ...(resident === undefined ? {} : { resident }),
@@ -459,6 +512,25 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           detachController()
         }
       }, 'dsh-evolve.slowLoopAuthoringJobs')
+    })
+  }
+  if (existingSkillAuthoring !== undefined) {
+    ctx.inject(['jobs'], (jobCtx) => {
+      jobCtx.effect(() => {
+        const detachController = jobCtx.jobs.attachController('dsh-evolve-existing-skill-authoring')
+        const detachAuthoring = existingSkillAuthoring.attachJobs(jobCtx.jobs)
+        void existingSkillAuthoring.reconcile().then((result) => {
+          for (const warning of result.warnings) {
+            jobCtx.logger.warn(`dsh-evolve existing Skill Candidate authoring skipped work: ${warning}`)
+          }
+        }, error => {
+          jobCtx.logger.warn(`dsh-evolve existing Skill Candidate authoring startup failed: ${String(error)}`)
+        })
+        return () => {
+          detachAuthoring()
+          detachController()
+        }
+      }, 'dsh-evolve.existingSkillAuthoringJobs')
     })
   }
   const canaryScheduler = counterfactualCanaryScheduler
@@ -553,6 +625,15 @@ export type {
   ExistingSkillEvaluationEvidencePreparation,
   ExistingSkillEvaluationEvidenceReadiness,
 } from './existing-skill-evaluation-evidence-vault.ts'
+export { ExistingSkillCandidateAuthoring } from './existing-skill-candidate-authoring.ts'
+export type {
+  ExistingSkillAuthorInput,
+  ExistingSkillAuthorResult,
+  ExistingSkillCandidateAuthoringPhase,
+  ExistingSkillCandidateAuthoringRunView,
+  ExistingSkillCandidateAuthoringScan,
+  ExistingSkillCandidateAuthoringOptions,
+} from './existing-skill-candidate-authoring.ts'
 export type { SkillOpportunityAuthoringPolicyConfig } from './slow-loop-skill-authoring.ts'
 export type { ShadowResumeInvocation, ShadowSupervisorOptions } from './shadow-supervisor.ts'
 export type {

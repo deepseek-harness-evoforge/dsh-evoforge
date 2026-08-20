@@ -263,6 +263,20 @@ const t = (key: string) => ({
   'skills.improvements.invocations': 'invocations',
   'skills.improvements.evaluation.waiting': 'Waiting for independent correction evidence · Candidate authoring blocked',
   'skills.improvements.evaluation.reason.fewer-than-four-independent-goals': 'Fewer than four distinct Goals',
+  'skills.improvements.candidates': 'Existing-Skill quarantined candidates',
+  'skills.improvements.candidates.empty': 'No existing-Skill Candidate has been authored.',
+  'skills.improvements.candidates.baseline': 'Exact baseline',
+  'skills.improvements.candidates.candidate': 'Candidate tree',
+  'skills.improvements.candidates.changed': 'Changed instructions',
+  'skills.improvements.candidates.added': 'Added instructions',
+  'skills.improvements.candidates.preserved': 'Preserved complete baseline',
+  'skills.improvements.candidates.binary': 'binary resources',
+  'skills.improvements.candidates.state': 'Quarantined · Inactive · Never executed · Unevaluated · No release authority',
+  'skills.improvements.authoring': 'Protected Existing-Skill authoring',
+  'skills.improvements.authoring.policies': 'Workspace policies',
+  'skills.improvements.authoring.warnings': 'unreadable durable states',
+  'skills.improvements.authoring.empty': 'No existing-Skill authoring run has met the threshold.',
+  'skills.improvements.authoring.baseline': 'Baseline / Qualification / Evidence',
   'skills.slow-loop': 'Internal experience-driven Skill authoring',
   'skills.slow-loop.policies': 'Workspace safety policies',
   'skills.slow-loop.warnings': 'unreadable durable states',
@@ -834,6 +848,80 @@ describe('EvolutionAction', () => {
             execution: 'never' as const,
           }],
         },
+        existingSkillCandidates: {
+          quarantinedCount: 1,
+          items: [{
+            id: '0'.repeat(64),
+            createdAt: 1_786_896_000_200,
+            skillName: 'build-dsh-plugin',
+            description: 'Build a DSH plugin with independent verification.',
+            opportunity: {
+              kind: 'internal-existing-skill-correction-v1' as const,
+              id: 'c'.repeat(64),
+              signalCount: 4,
+              goalCount: 4,
+            },
+            baseline: {
+              qualificationId: 'e'.repeat(64),
+              id: 'b'.repeat(64),
+              artifactDigest: '2'.repeat(64),
+              treeHash: '3'.repeat(64),
+            },
+            authorship: {
+              kind: 'protected-correction-authoring-v1' as const,
+              policyId: 'internal-experience-author',
+              modelIdentityHash: '4'.repeat(64),
+              evaluationEvidenceId: '5'.repeat(64),
+              inputDigest: '6'.repeat(64),
+            },
+            version: {
+              kind: 'existing-skill-improvement-bundle-v1' as const,
+              parentBaselineId: 'b'.repeat(64),
+              artifactDigest: '7'.repeat(64),
+              treeHash: '8'.repeat(64),
+            },
+            contentHash: '7'.repeat(64),
+            diff: {
+              kind: 'bounded-instruction-tree-diff-v1' as const,
+              changedPaths: ['references/verification.md', 'SKILL.md'],
+              addedPaths: ['references/verification.md'],
+              preservedFileCount: 2,
+              preservedBinaryFileCount: 1,
+            },
+            package: { fileCount: 4, totalBytes: 640, hasExecutableFiles: false as const },
+            permissions: {
+              declared: false,
+              executableContentChanged: false as const,
+              externalEffects: 'unchanged-or-unknown' as const,
+            },
+            safety: { status: 'quarantined' as const },
+            lifecycle: 'inactive' as const,
+            verification: 'unevaluated' as const,
+            execution: 'never' as const,
+            releaseAuthority: 'none' as const,
+          }],
+        },
+        existingSkillAuthoring: {
+          configuredPolicyCount: 1,
+          warningCount: 0,
+          runs: [{
+            id: '0'.repeat(64),
+            targetId: 'internal-experience-author',
+            skillName: 'build-dsh-plugin',
+            opportunityId: 'c'.repeat(64),
+            qualificationId: 'e'.repeat(64),
+            evaluationEvidenceId: '5'.repeat(64),
+            baselineId: 'b'.repeat(64),
+            phase: 'candidate-ready' as const,
+            createdAt: '2026-08-18T01:00:00.000Z',
+            updatedAt: '2026-08-18T01:00:01.000Z',
+            modelCalls: 1 as const,
+            inputTokens: 280,
+            outputTokens: 70,
+            candidateId: '0'.repeat(64),
+            releaseAuthority: 'none' as const,
+          }],
+        },
         skillAdmission: {
           configuredPolicyCount: 1,
           warningCount: 0,
@@ -966,10 +1054,10 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('Exact invocation baselines · 2 invocations / 2 distinct Goals')).toBeTruthy()
     expect(screen.getByText('Waiting for independent correction evidence · Candidate authoring blocked · Fewer than four distinct Goals · 2/4 distinct Goals')).toBeTruthy()
     expect(screen.getByText('Internal experience-driven Skill authoring')).toBeTruthy()
-    expect(screen.getByText('Quarantined candidate ready')).toBeTruthy()
+    expect(screen.getAllByText('Quarantined candidate ready')).toHaveLength(2)
     expect(screen.getByText('Model calls · input/output tokens · 1 · 320/120')).toBeTruthy()
     expect(screen.getByText(`Candidate · ${'3'.repeat(12)}`)).toBeTruthy()
-    expect(screen.getByText('Quarantined Candidate only · No install, activation, or release')).toBeTruthy()
+    expect(screen.getAllByText('Quarantined Candidate only · No install, activation, or release')).toHaveLength(2)
     expect(screen.getByText('Internally authored Skill candidates')).toBeTruthy()
     expect(screen.getAllByText('release-native-extension').length).toBeGreaterThan(1)
     expect(screen.getByText('Prepare and verify a native DSH release.')).toBeTruthy()
@@ -983,6 +1071,17 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('Whole package · 2 files · 640 bytes · references')).toBeTruthy()
     expect(screen.getByText('Permissions not declared · External effects unknown')).toBeTruthy()
     expect(screen.getByText('Quarantined · Inactive · Never executed · Unevaluated')).toBeTruthy()
+    expect(screen.getByText('Existing-Skill quarantined candidates')).toBeTruthy()
+    expect(screen.getByText('Protected Existing-Skill authoring')).toBeTruthy()
+    expect(screen.getByText('Baseline / Qualification / Evidence · bbbbbbbb… / eeeeeeee… / 55555555…')).toBeTruthy()
+    expect(screen.getByText('Model calls · input/output tokens · 1 · 280/70')).toBeTruthy()
+    expect(screen.getByText('Build a DSH plugin with independent verification.')).toBeTruthy()
+    expect(screen.getByText(`Exact baseline · ${'b'.repeat(8)}… · ${'3'.repeat(8)}…`)).toBeTruthy()
+    expect(screen.getByText(`Candidate tree · ${'8'.repeat(8)}…`)).toBeTruthy()
+    expect(screen.getByText('Changed instructions · references/verification.md · SKILL.md')).toBeTruthy()
+    expect(screen.getByText('Added instructions · references/verification.md')).toBeTruthy()
+    expect(screen.getByText('Preserved complete baseline · 2 files · 1 binary resources')).toBeTruthy()
+    expect(screen.getByText('Quarantined · Inactive · Never executed · Unevaluated · No release authority')).toBeTruthy()
     expect(screen.getByText('Independent evaluation governance')).toBeTruthy()
     expect(screen.getByText('Admission, assembled holdout, and independent retention ready')).toBeTruthy()
     expect(screen.getByText('Governance model calls · input/output tokens · 3 · 960/360')).toBeTruthy()

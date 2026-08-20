@@ -362,6 +362,90 @@ export interface EvolutionSkillCandidateQueueView {
     readonly quarantinedCount: number;
     readonly items: readonly EvolutionSkillCandidateView[];
 }
+/** Existing-Skill whole-tree Candidate; bodies and Host artifact paths stay private. */
+export interface EvolutionExistingSkillCandidateView {
+    readonly id: string;
+    readonly createdAt: number;
+    readonly skillName: string;
+    readonly description: string;
+    readonly opportunity: {
+        readonly kind: 'internal-existing-skill-correction-v1';
+        readonly id: string;
+        readonly signalCount: number;
+        readonly goalCount: number;
+    };
+    readonly baseline: {
+        readonly qualificationId: string;
+        readonly id: string;
+        readonly artifactDigest: string;
+        readonly treeHash: string;
+    };
+    readonly authorship: {
+        readonly kind: 'protected-correction-authoring-v1';
+        readonly policyId: string;
+        readonly modelIdentityHash: string;
+        readonly evaluationEvidenceId: string;
+        readonly inputDigest: string;
+    };
+    readonly version: {
+        readonly kind: 'existing-skill-improvement-bundle-v1';
+        readonly parentBaselineId: string;
+        readonly artifactDigest: string;
+        readonly treeHash: string;
+    };
+    readonly contentHash: string;
+    readonly diff: {
+        readonly kind: 'bounded-instruction-tree-diff-v1';
+        readonly changedPaths: readonly string[];
+        readonly addedPaths: readonly string[];
+        readonly preservedFileCount: number;
+        readonly preservedBinaryFileCount: number;
+    };
+    readonly package: {
+        readonly fileCount: number;
+        readonly totalBytes: number;
+        readonly hasExecutableFiles: false;
+    };
+    readonly permissions: {
+        readonly declared: boolean;
+        readonly executableContentChanged: false;
+        readonly externalEffects: 'unchanged-or-unknown';
+    };
+    readonly safety: {
+        readonly status: 'quarantined';
+    };
+    readonly lifecycle: 'inactive';
+    readonly verification: 'unevaluated';
+    readonly execution: 'never';
+    readonly releaseAuthority: 'none';
+}
+export interface EvolutionExistingSkillCandidateQueueView {
+    readonly quarantinedCount: number;
+    readonly items: readonly EvolutionExistingSkillCandidateView[];
+}
+/** Durable protected authoring state for existing-Skill improvements. */
+export interface EvolutionExistingSkillAuthoringView {
+    readonly configuredPolicyCount: number;
+    readonly warningCount: number;
+    readonly runs: readonly {
+        readonly id: string;
+        readonly targetId: string;
+        readonly skillName: string;
+        readonly opportunityId: string;
+        readonly qualificationId: string;
+        readonly evaluationEvidenceId: string;
+        readonly baselineId: string;
+        readonly phase: 'prepared' | 'budget-deferred' | 'cancelled' | 'authoring-pending' | 'uncertain' | 'incomplete' | 'candidate-ready';
+        readonly createdAt: string;
+        readonly updatedAt: string;
+        readonly modelCalls: 0 | 1;
+        readonly inputTokens: number;
+        readonly outputTokens: number;
+        readonly candidateId?: string;
+        readonly retryAt?: number;
+        readonly releaseAuthority: 'none';
+    }[];
+}
 /** Durable slow-loop authoring state; generated bodies and private paths stay host-only. */
 export interface EvolutionSlowLoopAuthoringView {
     readonly configuredPolicyCount: number;
@@ -607,6 +691,8 @@ export interface EvolutionOverview {
     readonly skillOpportunities?: EvolutionSkillOpportunityQueueView;
     readonly skillImprovementOpportunities?: EvolutionSkillImprovementOpportunityQueueView;
     readonly skillCandidates?: EvolutionSkillCandidateQueueView;
+    readonly existingSkillCandidates?: EvolutionExistingSkillCandidateQueueView;
+    readonly existingSkillAuthoring?: EvolutionExistingSkillAuthoringView;
     readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView;
     readonly skillEvaluationGovernance?: EvolutionSkillEvaluationGovernanceView;
     readonly skillAdmission?: EvolutionSkillAdmissionView;
