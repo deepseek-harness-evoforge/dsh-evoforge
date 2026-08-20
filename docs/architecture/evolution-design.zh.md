@@ -1,7 +1,7 @@
 # EvoForge 可证明自进化架构
 
 > 更新日期：2026-08-21
-> 当前状态：内部 Goal 经验到 exact Retention、future-Session Promotion Eligibility、失败 Outcome 触发的 sealed Canary evidence 和 expected-active Rollback Gate 活动纵切已实现；existing-Skill 调用时完整 Bundle、同一基线资格、Candidate 前 Holdout/可选 Retention Evaluation Envelope、protected whole-tree Candidate、结构准入和 Candidate-blind exact paired holdout 已实现，并从 V4.39 最终 tarball 完成真实 DSH Web 故障恢复/卸载。existing-Skill Retention 执行/Canary/晋升/回滚、长期 Outcome 归因、两套独立真实 provider 和 Hermes paired benchmark 尚未完成。
+> 当前状态：内部 Goal 经验到 exact Retention、future-Session Promotion Eligibility、失败 Outcome 触发的 sealed Canary evidence 和 expected-active Rollback Gate 活动纵切已实现；existing-Skill 调用时完整 Bundle、同一基线资格、Candidate 前 Holdout/Retention Envelope、protected whole-tree Candidate、结构准入、exact paired Holdout 与只从 authoritative improved Holdout 触发的 exact Retention 已实现。V4.39 最终 tarball 已完成 Holdout 的真实 DSH Web 故障恢复/卸载；Retention Web/真实浏览器、existing-Skill Canary/晋升/回滚、长期 Outcome 归因、两套独立真实 provider 和 Hermes paired benchmark尚未完成。
 
 ## 1. 用户结果
 
@@ -157,10 +157,10 @@ missing 或 prepared 为 `waiting`；告警、歧义、谱系错配、`regressed
 - Session/Goal 恢复、当前 Session pin、原子晋升与 exact rollback 通过；
 - 真实 provider 下 admission/holdout/Retention/canary 和故障注入通过；
 - 真实浏览器验证刷新、断连、恢复和控制操作；
-- existing-Skill protected whole-tree author、Candidate、结构准入与 exact paired holdout 通过；独立 Retention/Canary/promotion/rollback 通过；
+- existing-Skill protected whole-tree author、Candidate、结构准入、exact paired Holdout 与独立 Retention 通过；独立 Canary/promotion/rollback 通过；
 - 长期误晋升、负迁移、遗忘、重复外部效果、成本、时延、cache-read 和回滚指标达标；
 - 相同任务、模型、权限和预算的 Hermes paired benchmark 证明声称的上位结果。
 
 越权、评测泄漏、当前 Session 漂移、无法卸载或无法精确回滚任意一项都阻止 tag 和发布。
 
-当前 exact Retention、Promotion Eligibility、Canary evidence、Rollback Gate、existing-Skill baseline qualification、correction evidence seal、exact paired holdout 与 Candidate 前 Retention 治理见 [V4.26](../evidence/v4-26-exact-candidate-retention-execution.zh.md)、[V4.27](../evidence/v4-27-shadow-retention-web-projection.zh.md)、[V4.28](../evidence/v4-28-shadow-retention-real-browser.zh.md)、[V4.29](../evidence/v4-29-retention-promotion-eligibility.zh.md)、[V4.31](../evidence/v4-31-failed-outcome-counterfactual-canary.zh.md)、[V4.32](../evidence/v4-32-exact-canary-rollback-gate.zh.md)、[V4.34](../evidence/v4-34-existing-skill-baseline-qualification.zh.md)、[V4.35](../evidence/v4-35-existing-skill-correction-evidence-seal.zh.md)、[V4.39](../evidence/v4-39-existing-skill-exact-paired-holdout-evaluation.zh.md) 和 [V4.40](../evidence/v4-40-existing-skill-pre-candidate-retention-governance.zh.md)。
+当前 exact Retention、Promotion Eligibility、Canary evidence、Rollback Gate、existing-Skill baseline qualification、correction evidence seal、exact paired Holdout、Candidate 前 Retention 治理与 exact Retention 评测见 [V4.26](../evidence/v4-26-exact-candidate-retention-execution.zh.md)、[V4.27](../evidence/v4-27-shadow-retention-web-projection.zh.md)、[V4.28](../evidence/v4-28-shadow-retention-real-browser.zh.md)、[V4.29](../evidence/v4-29-retention-promotion-eligibility.zh.md)、[V4.31](../evidence/v4-31-failed-outcome-counterfactual-canary.zh.md)、[V4.32](../evidence/v4-32-exact-canary-rollback-gate.zh.md)、[V4.34](../evidence/v4-34-existing-skill-baseline-qualification.zh.md)、[V4.35](../evidence/v4-35-existing-skill-correction-evidence-seal.zh.md)、[V4.39](../evidence/v4-39-existing-skill-exact-paired-holdout-evaluation.zh.md)、[V4.40](../evidence/v4-40-existing-skill-pre-candidate-retention-governance.zh.md) 和 [V4.41](../evidence/v4-41-existing-skill-exact-retention-evaluation.zh.md)。

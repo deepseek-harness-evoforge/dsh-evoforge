@@ -60,7 +60,7 @@ Bot/Hermes paired benchmark 前不能声称胜出。全局宣传必须由下面�
 | `AS-1` 通用助理 | 一个真实消息或日程工作流从触发到交付完整闭环 | 渠道路由、会话连续性、审批、幂等投递、失败重试和结果可查 | 成功投递、重复投递、人工步骤、时延 | [确定性 Telegram approval paired slice](../evidence/as-1-hermes-paired-benchmark.zh.md) 在错误身份/重放解析动作上 `0:0` 打平；Telegram/飞书真实 DSH routes、durable journals、429 与 cache parity implemented；真实 Bot/App delivery、陌生安装和同模型消息 paired pending |
 | `RM-1` 可删除性 | 用户禁用或删除 EvoForge 后仍可使用原生 DSH | 无私有事件阻断 Session；Goal 可读；无 watcher/process/config 残留 | 卸载成功率、残留数、数据可导出性 | Evolve/Delivery/GitHub Review/Doctor/Telegram/Attention/Goal Continuity packed artifact lifecycle + `dsh-resident` stop/unit removal/no third restart + native Session/Goal resume implemented；保留日志明确披露，第三方复跑 pending |
 
-DS-1 的 existing-Skill 证据新增 [V4.40 Candidate 前 Retention 治理](../evidence/v4-40-existing-skill-pre-candidate-retention-governance.zh.md)：五 Goal Candidate 的 Envelope 已绑定两个独立单样本治理调用和两套 Case Pack hash，四 Goal/legacy 明确无 Retention；这只加强 provenance 与防泄漏，不把尚未执行的 Retention 或真实 provider 效果记为通过。
+DS-1 的 existing-Skill 证据新增 [V4.40 Candidate 前 Retention 治理](../evidence/v4-40-existing-skill-pre-candidate-retention-governance.zh.md)与 [V4.41 exact Retention](../evidence/v4-41-existing-skill-exact-retention-evaluation.zh.md)：五 Goal Candidate 的 Envelope 绑定两个独立单样本治理调用和两套 Case Pack hash，只有权威 improved Holdout 才由原生 DSH Jobs 执行 exact Retention；四 Goal/legacy 零花费 abstain，四象限与 paid-uncertain 不重试均无发布权。自动化不替代两套真实 provider、最终 tarball 浏览器或长期效果证据。
 
 `LC-1` 只能证明 Local Continuity，不能称为 High Availability。High Availability 还必须有明确 SLO、至少两个故障域、故障转移和共享状态一致性试验；没有真实需求和单机运行数据前不进入实现。
 

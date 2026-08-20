@@ -206,6 +206,10 @@ _Avoid_: Existing Skill as capability-absent, structural check as effect win, pr
 A Host-owned, content-addressed effect evaluation that accepts only one exact `qualified-for-holdout` Admission, re-resolves its immutable installed baseline, exact whole-tree Candidate and the exact Candidate-blind Holdout Envelope already bound into that Candidate's identity, then executes both complete `skill-tree` subjects in the same assembled DSH Trial. It may classify only `improved`, `ambiguous`, `not-improved`, or `regressed` after calibration, assembled composition, input integrity and fixed-trial-count gates all pass; interruption after paid dispatch becomes uncertain and is never blindly retried. Its verdict is evidence for later Retention and has no install, activation, promotion, rollback, or release authority.
 _Avoid_: Structural pass as effect win, Candidate self-test, capability-absent baseline, retrying uncertain paid work, holdout verdict as promotion
 
+**Existing Skill Exact Retention**:
+A Host-owned, content-addressed paired evaluation that accepts only one authoritative `improved` Existing Skill Exact Paired Holdout and the same Candidate's independent pre-Candidate Retention partition, then replays the exact baseline and Candidate trees under the same assembled integrity gates. Four-Goal Envelopes abstain; only `fail/pass` is retained, and every result has no release authority.
+_Avoid_: Holdout replay, post-Candidate test selection, promotion verdict, missing-Skill prior-case Retention
+
 **Evolution Candidate Lineage**:
 The bounded, host-derived identity that follows one exact internally authored whole-Skill Candidate from its Skill Opportunity through one Skill Evaluation Envelope, admission, Shadow, Retention, review, and immutable Capability Generation. It binds internal evidence, Candidate version/content/tree, evaluation-envelope identity, independent evaluation, and release decisions while excluding Skill bodies, host paths, hidden cases, and proposer-private state.
 _Avoid_: Discovered Skill Lineage, external source provenance, copied Candidate record, private evidence dump, self-asserted lineage

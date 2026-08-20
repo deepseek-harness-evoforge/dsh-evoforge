@@ -553,6 +553,59 @@ export interface EvolutionExistingSkillHoldoutEvaluationView {
         readonly releaseAuthority: 'none';
     }[];
 }
+/** Exact independent existing-Skill Retention result; it has no release authority. */
+export interface EvolutionExistingSkillRetentionEvaluationView {
+    readonly configuredPolicyCount: number;
+    readonly warningCount: number;
+    readonly results: readonly {
+        readonly id: string;
+        readonly candidateId: string;
+        readonly holdoutEvaluationId: string;
+        readonly admissionId: string;
+        readonly envelopeId: string;
+        readonly skillName: string;
+        readonly baselineTreeHash: string;
+        readonly candidateTreeHash: string;
+        readonly holdoutCasePackHash: string;
+        readonly casePackHash: string;
+        readonly status: 'prepared' | 'trial-pending' | 'complete' | 'protected' | 'incomplete';
+        readonly verdict?: 'retained' | 'ambiguous' | 'not-retained' | 'regressed' | 'none';
+        readonly reason?: 'candidate-passed-protected-retention' | 'baseline-already-passed-protected-retention' | 'candidate-did-not-retain-protected-case' | 'candidate-regressed-protected-retention' | 'evaluation-input-protected' | 'paired-trial-outcome-uncertain' | 'paired-trial-failed' | 'paired-trial-integrity-failed';
+        readonly evidence?: {
+            readonly baseline: 'pass' | 'fail';
+            readonly candidate: 'pass' | 'fail';
+            readonly calibrationPassed: boolean;
+            readonly assembled: boolean;
+            readonly compositionStable: boolean;
+            readonly inputIntegrityStable: boolean;
+            readonly proposerCalls: 0;
+            readonly trialCount: 4;
+            readonly modelCalls?: {
+                readonly baseline: number;
+                readonly candidate: number;
+            };
+            readonly usage?: {
+                readonly baseline: {
+                    readonly inputTokens?: number;
+                    readonly outputTokens?: number;
+                    readonly cacheReadTokens?: number;
+                    readonly cacheWriteTokens?: number;
+                    readonly reasoningTokens?: number;
+                };
+                readonly candidate: {
+                    readonly inputTokens?: number;
+                    readonly outputTokens?: number;
+                    readonly cacheReadTokens?: number;
+                    readonly cacheWriteTokens?: number;
+                    readonly reasoningTokens?: number;
+                };
+            };
+        };
+        readonly startedAt?: string;
+        readonly finishedAt?: string;
+        readonly releaseAuthority: 'none';
+    }[];
+}
 /** Durable slow-loop authoring state; generated bodies and private paths stay host-only. */
 export interface EvolutionSlowLoopAuthoringView {
     readonly configuredPolicyCount: number;
@@ -803,6 +856,7 @@ export interface EvolutionOverview {
     readonly existingSkillHoldoutGovernance?: EvolutionExistingSkillHoldoutGovernanceView;
     readonly existingSkillAdmission?: EvolutionExistingSkillAdmissionView;
     readonly existingSkillHoldoutEvaluation?: EvolutionExistingSkillHoldoutEvaluationView;
+    readonly existingSkillRetentionEvaluation?: EvolutionExistingSkillRetentionEvaluationView;
     readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView;
     readonly skillEvaluationGovernance?: EvolutionSkillEvaluationGovernanceView;
     readonly skillAdmission?: EvolutionSkillAdmissionView;
