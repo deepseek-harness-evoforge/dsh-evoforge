@@ -30,3 +30,4 @@
         seedGoalMetrics: true
         seedCapabilityGaps: true
         seedSkillEvaluationRuns: true
+        retentionStatus: retained

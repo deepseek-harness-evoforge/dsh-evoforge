@@ -2,6 +2,8 @@ import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, realpath, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { gzipSync } from 'node:zlib'
+import { pack } from '../../../dsh-evolve/node_modules/tar-stream/index.js'
 
 export const name = 'evoforge-browser-workspace-bootstrap'
 export const inject = [
@@ -58,7 +60,7 @@ export async function apply(ctx, config) {
   }
   await workspace.attachSession(agent.session.id)
   if (config.seedSkillEvaluationRuns === true) {
-    await seedExactSkillEvaluationRuns(workspace, config)
+    await seedExactSkillEvaluationRuns(ctx, workspace, config)
   }
   if (config.seedGoalMetrics === true) {
     await seedNativeGoalMetrics(ctx, workspace, agent)
@@ -89,14 +91,13 @@ export async function apply(ctx, config) {
  * projection acceptance. Production readers still validate the full durable
  * shape and lineage; this fixture does not claim a provider evaluation.
  */
-async function seedExactSkillEvaluationRuns(workspace, config) {
+async function seedExactSkillEvaluationRuns(ctx, workspace, config) {
   const workspaceId = String(workspace.id)
+  const retentionStatus = config.retentionStatus === 'regressed' ? 'regressed' : 'retained'
   const skillName = 'publish-dsh-plugin'
   const candidateId = '1'.repeat(64)
   const opportunityId = '2'.repeat(64)
   const evaluationEvidenceId = '3'.repeat(64)
-  const contentHash = '4'.repeat(64)
-  const candidateTreeHash = '5'.repeat(64)
   const admissionId = '6'.repeat(64)
   const evaluationEnvelopeId = '7'.repeat(64)
   const baselineTreeHash = '8'.repeat(64)
@@ -119,6 +120,29 @@ async function seedExactSkillEvaluationRuns(workspace, config) {
     join(fixtureInputs, 'candidate'),
   ].map(path => mkdir(path, { recursive: true })))
 
+  const proposal = {
+    claim: 'Preserve verified native DSH plugin delivery behavior.',
+    files: [{
+      path: 'SKILL.md',
+      content: [
+        '---',
+        `name: ${skillName}`,
+        'description: Apply the verified native DSH plugin delivery procedure.',
+        '---',
+        '',
+        '# Native DSH plugin delivery',
+        '',
+        'Follow the [acceptance contract](references/acceptance.md).',
+        '',
+      ].join('\n'),
+    }, {
+      path: 'references/acceptance.md',
+      content: '# Acceptance contract\n\nVerify install, boot, reload, dispose, and uninstall.\n',
+    }],
+  }
+  const assembledBundle = await assembleBrowserSkillBundle(proposal.files)
+  const contentHash = assembledBundle.artifactDigest
+  const candidateTreeHash = assembledBundle.treeHash
   const lineage = {
     kind: 'internal-skill-candidate-lineage-v3',
     candidateId,
@@ -133,13 +157,6 @@ async function seedExactSkillEvaluationRuns(workspace, config) {
     admissionId,
     evaluationEnvelopeId,
     releaseAuthority: 'none',
-  }
-  const proposal = {
-    claim: 'Preserve verified native DSH plugin delivery behavior.',
-    files: [{
-      path: 'SKILL.md',
-      content: 'Use the verified native DSH plugin delivery procedure.\n',
-    }],
   }
   const startedAt = '2026-08-20T00:00:00.000Z'
   const finishedAt = '2026-08-20T00:01:00.000Z'
@@ -250,8 +267,10 @@ async function seedExactSkillEvaluationRuns(workspace, config) {
     admissionId,
     evaluationEnvelopeId,
     shadowRunId,
-    status: 'retained',
-    reason: 'candidate-retained-prior-case',
+    status: retentionStatus,
+    reason: retentionStatus === 'retained'
+      ? 'candidate-retained-prior-case'
+      : 'candidate-regressed-prior-case',
     releaseAuthority: 'none',
     reportPath: retentionReportPath,
     startedAt,
@@ -261,7 +280,7 @@ async function seedExactSkillEvaluationRuns(workspace, config) {
       baselineTreeHash,
       candidateTreeHash,
       baseline: 'pass',
-      candidate: 'pass',
+      candidate: retentionStatus === 'retained' ? 'pass' : 'fail',
       calibrationPassed: true,
       compositionStable: true,
       proposerCalls: 0,
@@ -273,6 +292,80 @@ async function seedExactSkillEvaluationRuns(workspace, config) {
       },
     },
   })
+
+  const control = ctx.get('evoforge.evolutionControl')
+  if (control === undefined) throw new Error('real browser fixture has no installed evolution control')
+  const proposalHash = sha256(JSON.stringify(proposal))
+  const reviewId = sha256(JSON.stringify({ runId: shadowRunId, proposalHash }))
+  const before = await control.overview(workspaceId)
+  let inactive = before.reviews.inactiveGenerations.find(item => item.reviewId === reviewId)
+  if (inactive === undefined) {
+    await control.approveReview(workspaceId, reviewId,
+      'Deterministic browser fixture: publish exact inactive Generation.')
+    const after = await control.overview(workspaceId)
+    inactive = after.reviews.inactiveGenerations.find(item => item.reviewId === reviewId)
+  }
+  if (inactive === undefined) {
+    throw new Error('real browser fixture did not publish an inactive Generation')
+  }
+  const expectedPromotionStatus = retentionStatus === 'retained' ? 'eligible' : 'blocked'
+  const expectedPromotionReason = retentionStatus === 'retained'
+    ? 'exact-retention-retained'
+    : 'retention-regressed'
+  if (inactive.promotion.status !== expectedPromotionStatus
+    || inactive.promotion.reason !== expectedPromotionReason
+    || inactive.promotion.retentionId !== retentionId) {
+    throw new Error(`real browser fixture did not project exact ${retentionStatus} promotion eligibility`)
+  }
+}
+
+async function assembleBrowserSkillBundle(input) {
+  const files = input.map(file => ({ path: file.path, content: Buffer.from(file.content) }))
+    .sort((left, right) => compareBundlePaths(left.path, right.path))
+  const tree = createHash('sha256')
+  const archive = pack()
+  const output = collectBrowserStream(archive)
+  for (const file of files) {
+    tree.update(file.path)
+    tree.update('\0')
+    tree.update(file.content)
+    tree.update('\0')
+    await new Promise((resolve, reject) => {
+      archive.entry({
+        name: file.path,
+        type: 'file',
+        mode: 0o644,
+        uid: 0,
+        gid: 0,
+        uname: '',
+        gname: '',
+        mtime: new Date(0),
+      }, file.content, error => error === null ? resolve() : reject(error))
+    })
+  }
+  archive.finalize()
+  const content = gzipSync(await output, { level: 9 })
+  return {
+    treeHash: tree.digest('hex'),
+    artifactDigest: sha256(content),
+  }
+}
+
+function compareBundlePaths(left, right) {
+  const leftParts = left.split('/')
+  const rightParts = right.split('/')
+  const length = Math.min(leftParts.length, rightParts.length)
+  for (let index = 0; index < length; index += 1) {
+    const order = leftParts[index].localeCompare(rightParts[index])
+    if (order !== 0) return order
+  }
+  return leftParts.length - rightParts.length
+}
+
+async function collectBrowserStream(stream) {
+  const chunks = []
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk))
+  return Buffer.concat(chunks)
 }
 
 function evaluatorUsage(inputTokens, cacheReadTokens) {

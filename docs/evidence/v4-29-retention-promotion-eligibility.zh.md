@@ -1,6 +1,6 @@
 # V4.29 exact Retention → future-Session Promotion Eligibility 证据
 
-> 声明等级：`implemented`。本证据证明 Command 与 Web 的 future-Session 晋升已由同一 Host gate 约束，只有 exact retained Candidate 才可写 active Generation selection；它不证明自动晋升、canary、真实 provider outcome、最终 tarball 浏览器或 Hermes 上位替代。
+> 声明等级：`verified`，仅覆盖同一 Host gate 的实现门禁与最终 tarball 真实 DSH 浏览器投影。只有 exact retained Candidate 才可写 active Generation selection；本证据不证明自动晋升、canary、真实 provider outcome 或 Hermes 上位替代。
 
 ## 修复的生产断点
 
@@ -60,9 +60,17 @@ pnpm check
 
 结果：完整 workspace 串行检查退出码为 0（`ROOT_CHECK_EXIT=0`）。
 
+## 最终 tarball 真实 DSH 浏览器
+
+- 从 `main` 构建 `dsh-evolve` 与 `dsh-evolve-web` 最终 tarball，安装到全新隔离 `web` profile；`--dump-config` 确认普通 evolve 行禁用、Typert 显式加载安装包、测试 overlay 只挂载 installed `dist/index.mjs`。
+- test-only bootstrap 生成 canonical 两文件 whole-Skill Bundle identity，但不伪造 Remote 返回：它把 exact Shadow/Retention 写入 Workspace-owned run root，再调用**已安装 Host**的 `approveReview`。生产 `CandidatePublisher`、Bundle codec、Generation store、Review reader、Retention reader 与 `FutureSessionPromotion` 共同重验并发布 inactive Generation。夹具不进入 tarball，也不冒充 provider Trial。
+- retained 启动自检通过后，真实 DSH Web 的 Skills 视图显示“可供未来 Session 晋升 · exact Candidate 已保留既有能力”；高级视图显示同一 Retention id，唯一“晋升”按钮 `enabled=true`。
+- 停止 Host，将同一 test-only Retention terminal verdict 改为结构一致的 `regressed` 后，用同 profile/端口重启。生产 gate 投影“晋升已阻止 · exact Candidate 在既有能力上发生回归”，唯一“晋升”按钮 `enabled=false`。
+- 再次停止 Host并点击刷新，页面显示唯一 `evoforgeEvolution/overview ... Failed to fetch` alert，同时保留上次 regressed 证据与 disabled 按钮；恢复 retained 并同 profile/端口重启后刷新，alert 为 0、唯一按钮重新 enabled，浏览器 console error 为 0。
+- 最后从隔离 profile 卸载 `dsh-evolve-web` 与 `dsh-evolve`；profile manifest 与默认配置均无 EvoForge 残留（`UNINSTALL_VERIFIED`）。
+
 ## 未完成门禁
 
-- 从最终 tarball 安装到 clean profile 后，以真实 DSH 浏览器复验 eligible、blocked、刷新、Host 失败和恢复；
 - counterfactual canary、持续 outcome、误晋升监测与自动 rollback eligibility；
 - 两套独立真实 provider 的 admission→holdout→Retention→Promotion 整链；
 - existing-Skill 完整 baseline Bundle/Candidate；
