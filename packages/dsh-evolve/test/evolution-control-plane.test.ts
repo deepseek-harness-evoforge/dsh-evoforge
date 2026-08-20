@@ -686,6 +686,10 @@ describe('EvolutionControlPlane', () => {
       reviewId: '6'.repeat(64),
       skillName: 'build-dsh-plugin',
       lineage: lineage(),
+      promotion: {
+        status: 'blocked',
+        reason: 'promotion-governance-unavailable',
+      },
     }])
     expect(overview.active?.artifacts[0]?.lineage).toEqual(lineage())
     expect(overview.active?.artifacts[1]).toMatchObject({
@@ -774,6 +778,16 @@ describe('EvolutionControlPlane', () => {
     }
     const control = new EvolutionControlPlane({
       store: evolutionStore,
+      promotion: {
+        eligibility: async () => ({
+          status: 'eligible' as const,
+          reason: 'exact-retention-retained' as const,
+          generationId,
+          reviewId,
+          retentionId: 'f'.repeat(64),
+        }),
+        promote: (workspaceId, id) => evolutionStore.promoteGeneration(workspaceId, id),
+      },
       review: { inbox, publisher },
     })
 
@@ -791,6 +805,66 @@ describe('EvolutionControlPlane', () => {
     const promotion = await control.promote(WORKSPACE_ID, generationId)
     expect(evolutionStore.promoteGeneration).toHaveBeenCalledWith(WORKSPACE_ID, generationId)
     expect(promotion).toMatchObject({ action: 'promote', activeGenerationId: generationId })
+  })
+
+  it('refuses future-Session promotion when independent eligibility governance is unavailable', async () => {
+    const evolutionStore = store(undefined, [generation()])
+    const before = evolutionStore.getActiveGeneration(WORKSPACE_ID)
+    const control = new EvolutionControlPlane({ store: evolutionStore })
+
+    await expect(control.promote(WORKSPACE_ID, generationId))
+      .rejects.toThrow('future-Session promotion eligibility is not configured')
+    expect(evolutionStore.promoteGeneration).not.toHaveBeenCalled()
+    expect(evolutionStore.getActiveGeneration(WORKSPACE_ID)).toEqual(before)
+  })
+
+  it('projects exact promotion eligibility for an inactive Generation', async () => {
+    const inactiveId = '7'.repeat(64)
+    const approved = {
+      ...candidate('approved'),
+      recommendation: 'promote' as const,
+      generationId: inactiveId,
+      decisionActor: 'human' as const,
+      decisionNote: 'verified',
+    }
+    const promotion = {
+      eligibility: vi.fn(async () => ({
+        status: 'eligible' as const,
+        reason: 'exact-retention-retained' as const,
+        generationId: inactiveId,
+        reviewId: approved.id,
+        retentionId: 'f'.repeat(64),
+      })),
+      promote: vi.fn(),
+    }
+    const control = new EvolutionControlPlane({
+      store: store(generation(), [generation(inactiveId)]),
+      promotion,
+      review: {
+        inbox: {
+          scanAll: vi.fn(async () => ({ candidates: [approved], warnings: [] })),
+          get: vi.fn(),
+          approve: vi.fn(),
+          reject: vi.fn(),
+        },
+        publisher: { preview: vi.fn(), publish: vi.fn() },
+      },
+    })
+
+    const overview = await control.overview(WORKSPACE_ID)
+    expect(overview.reviews.inactiveGenerations).toEqual([{
+      workspaceId: WORKSPACE_ID,
+      generationId: inactiveId,
+      reviewId: approved.id,
+      skillName: approved.skillName,
+      lineage: lineage(),
+      promotion: {
+        status: 'eligible',
+        reason: 'exact-retention-retained',
+        retentionId: 'f'.repeat(64),
+      },
+    }])
+    expect(promotion.eligibility).toHaveBeenCalledWith(WORKSPACE_ID, inactiveId)
   })
 
   it('routes pause, resume, rejection, and rollback through the existing durable owners', async () => {

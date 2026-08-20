@@ -597,6 +597,11 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'evaluationEnvelopeId': z.string().readonly(),
   'releaseAuthority': z.literal("none").readonly(),
 })]).readonly().optional(),
+  'promotion': z.object({
+  'status': z.union([z.literal("waiting"), z.literal("eligible"), z.literal("blocked")]).readonly(),
+  'reason': z.union([z.literal("promotion-governance-unavailable"), z.literal("generation-not-found"), z.literal("generation-workspace-mismatch"), z.literal("review-evidence-invalid"), z.literal("approved-review-missing"), z.literal("approved-review-ambiguous"), z.literal("generation-lineage-mismatch"), z.literal("retention-evidence-invalid"), z.literal("retention-not-run"), z.literal("retention-ambiguous"), z.literal("retention-prepared"), z.literal("retention-regressed"), z.literal("retention-incomplete"), z.literal("retention-verdict-invalid"), z.literal("exact-retention-retained")]).readonly(),
+  'retentionId': z.union([z.undefined(), z.string()]).readonly().optional(),
+}).readonly(),
 })).readonly(),
 }).readonly(),
 })

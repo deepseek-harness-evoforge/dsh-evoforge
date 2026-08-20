@@ -93,8 +93,11 @@ describe('/evolve host command', () => {
     const promoteGeneration = vi.fn(async () => ({ previousId: undefined, generation: root }))
     const rollbackGeneration = vi.fn(async () => ({ previousId: rootId, generation: undefined }))
     const store = fakeStore(undefined, { promoteGeneration, rollbackGeneration })
+    const promotion = {
+      promote: (workspaceId: string, id: string) => store.promoteGeneration(workspaceId, id),
+    }
 
-    await expect(executeEvolutionCommand(store, `promote ${rootId}`)).resolves.toEqual({
+    await expect(executeEvolutionCommand(store, `promote ${rootId}`, { promotion })).resolves.toEqual({
       kind: 'success',
       text: [
         'Generation promoted for future Sessions.',
@@ -116,6 +119,20 @@ describe('/evolve host command', () => {
       ].join('\n'),
     })
     expect(rollbackGeneration).toHaveBeenCalledWith(WORKSPACE_ID)
+  })
+
+  it('fails closed when future-Session promotion governance is unavailable', async () => {
+    const promoteGeneration = vi.fn(async () => ({
+      previousId: undefined,
+      generation: generation(rootId),
+    }))
+    const store = fakeStore(undefined, { promoteGeneration })
+
+    await expect(executeEvolutionCommand(store, `promote ${rootId}`)).resolves.toEqual({
+      kind: 'error',
+      text: 'Evolution action failed: future-Session promotion eligibility is not configured',
+    })
+    expect(promoteGeneration).not.toHaveBeenCalled()
   })
 
   it('rejects ambiguous ids and removed target/evaluator actions without touching release state', async () => {
@@ -242,7 +259,10 @@ describe('/evolve host command', () => {
     const store = fakeStore(undefined, {
       promoteGeneration: vi.fn(async () => { throw new Error(`Generation '${rootId}' does not exist`) }),
     })
-    await expect(executeEvolutionCommand(store, `promote ${rootId}`)).resolves.toEqual({
+    const promotion = {
+      promote: (workspaceId: string, id: string) => store.promoteGeneration(workspaceId, id),
+    }
+    await expect(executeEvolutionCommand(store, `promote ${rootId}`, { promotion })).resolves.toEqual({
       kind: 'error',
       text: `Evolution action failed: Generation '${rootId}' does not exist`,
     })

@@ -558,12 +558,34 @@ export interface EvolutionReviewView {
 }
 
 /** Durable approved Generation that is not the current active selection. */
+export type EvolutionFutureSessionPromotionReason =
+  | 'promotion-governance-unavailable'
+  | 'generation-not-found'
+  | 'generation-workspace-mismatch'
+  | 'review-evidence-invalid'
+  | 'approved-review-missing'
+  | 'approved-review-ambiguous'
+  | 'generation-lineage-mismatch'
+  | 'retention-evidence-invalid'
+  | 'retention-not-run'
+  | 'retention-ambiguous'
+  | 'retention-prepared'
+  | 'retention-regressed'
+  | 'retention-incomplete'
+  | 'retention-verdict-invalid'
+  | 'exact-retention-retained'
+
 export interface EvolutionInactiveGenerationView {
   readonly workspaceId: string
   readonly generationId: string
   readonly reviewId: string
   readonly skillName: string
   readonly lineage?: EvolutionSkillCandidateLineageView
+  readonly promotion: {
+    readonly status: 'eligible' | 'waiting' | 'blocked'
+    readonly reason: EvolutionFutureSessionPromotionReason
+    readonly retentionId?: string
+  }
 }
 
 /** Browser overview. Dynamic global state stays outside Session and model context. */

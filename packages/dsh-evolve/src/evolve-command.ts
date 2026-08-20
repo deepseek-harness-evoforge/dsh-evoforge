@@ -10,12 +10,14 @@ import type {
   FeedbackSignalStore,
   FeedbackSignalSummary,
 } from './feedback-signal-monitor.ts'
+import type { FutureSessionPromotion } from './future-session-promotion.ts'
 import { workspaceIdForCwd } from './workspace-identity.ts'
 
 const USAGE = 'Usage: /evolve [status|feedback [<signal-id>]|review [<review-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|rollback]'
 const generationIdPattern = /^[a-f0-9]{64}$/
 
 export interface EvolutionCommandModules {
+  readonly promotion?: Pick<FutureSessionPromotion, 'promote'>
   readonly review?: { inbox: ReviewInbox; publisher: CandidatePublisher }
   readonly resident?: Pick<ResidentEvolutionControl, 'isPaused' | 'pause' | 'resume'>
   readonly outcomes?: Pick<DeliveryOutcomeStore, 'summarize'>
@@ -51,7 +53,7 @@ export async function executeEvolutionCommand(
   workspaceId: string,
 ): Promise<CommandResult> {
   const input = rawInput.trim()
-  const { review, resident, outcomes, feedback } = modules
+  const { promotion, review, resident, outcomes, feedback } = modules
   try {
     if (input === '' || input === 'status') {
       const active = store.getActiveGeneration(workspaceId)
@@ -150,7 +152,10 @@ export async function executeEvolutionCommand(
     }
     const promote = /^promote\s+([^\s]+)$/u.exec(input)
     if (promote?.[1] !== undefined && generationIdPattern.test(promote[1])) {
-      const result = await store.promoteGeneration(workspaceId, promote[1])
+      if (promotion === undefined) {
+        throw new Error('future-Session promotion eligibility is not configured')
+      }
+      const result = await promotion.promote(workspaceId, promote[1])
       if (result.previousId === result.generation.id) {
         return {
           kind: 'success',

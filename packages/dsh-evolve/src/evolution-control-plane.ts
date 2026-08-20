@@ -15,6 +15,7 @@ import type {
   InternalSkillRetentionScan,
 } from './internal-skill-retention.ts'
 import type { EvolutionStore } from './generation-store.ts'
+import type { FutureSessionPromotion } from './future-session-promotion.ts'
 import type { ResidentEvolutionControl } from './resident-evolution-control.ts'
 import type { ReviewCandidate, ReviewInbox } from './review-inbox.ts'
 import type {
@@ -37,6 +38,7 @@ const MAX_DISCOVERY_ROWS = 20
 /** Existing authoritative owners used by Commands and structured adapters. */
 export interface EvolutionControlPlaneModules {
   readonly store: EvolutionStore
+  readonly promotion?: Pick<FutureSessionPromotion, 'eligibility' | 'promote'>
   readonly review?: {
     readonly inbox: Pick<ReviewInbox, 'scanAll' | 'get' | 'approve' | 'reject'>
     readonly publisher: Pick<CandidatePublisher, 'preview' | 'publish'>
@@ -256,9 +258,13 @@ export class EvolutionControlPlane {
             items: [],
             inactiveGenerations: [],
           }
-        : {
-            ...projectReviews(scan, active?.id, workspaceId, this.modules.store),
-          },
+        : await projectReviews(
+            scan,
+            active?.id,
+            workspaceId,
+            this.modules.store,
+            this.modules.promotion,
+          ),
     }
   }
 
@@ -331,7 +337,10 @@ export class EvolutionControlPlane {
   }
 
   async promote(workspaceId: string, generationId: string): Promise<EvolutionActionReceipt> {
-    const result = await this.modules.store.promoteGeneration(workspaceId, generationId)
+    if (this.modules.promotion === undefined) {
+      throw new Error('future-Session promotion eligibility is not configured')
+    }
+    const result = await this.modules.promotion.promote(workspaceId, generationId)
     return {
       schemaVersion: 1,
       workspaceId,
@@ -569,29 +578,38 @@ function projectEvaluatorUsage(value: Record<string, number | undefined>) {
   }
 }
 
-function projectReviews(
+async function projectReviews(
   all: Awaited<ReturnType<ReviewInbox['scanAll']>>,
   activeGenerationId: string | undefined,
   workspaceId: string,
   store: EvolutionStore,
-): EvolutionOverview['reviews'] {
+  promotion: EvolutionControlPlaneModules['promotion'],
+): Promise<EvolutionOverview['reviews']> {
   const workspaceCandidates = all.candidates.filter(candidate => candidate.workspaceId === workspaceId)
   const actionable = workspaceCandidates.filter(candidate => candidate.status === 'pending'
     || (candidate.status === 'approved'
       && candidate.decisionActor === 'auto-clear-instruction-v1'
       && candidate.activatedAt === undefined))
-  const inactiveGenerations = workspaceCandidates
+  const inactiveCandidates = workspaceCandidates
     .filter(candidate => candidate.status === 'approved'
       && candidate.generationId !== undefined
       && candidate.generationId !== activeGenerationId)
     .slice(-MAX_REVIEW_ROWS)
     .reverse()
-    .map(candidate => {
+  const inactiveGenerations = await Promise.all(inactiveCandidates.map(async candidate => {
       const generation = store.getGeneration(candidate.generationId!)
       const artifact = generation?.workspaceId === candidate.workspaceId
         ? generation.artifacts.find(value => value.name === candidate.skillName
           && value.lineage?.candidateTreeHash === candidate.candidateTreeHash)
         : undefined
+      const eligibility = promotion === undefined
+        ? {
+            status: 'blocked' as const,
+            reason: 'promotion-governance-unavailable' as const,
+            generationId: candidate.generationId!,
+            reviewId: candidate.id,
+          }
+        : await promotion.eligibility(workspaceId, candidate.generationId!)
       return {
         workspaceId: candidate.workspaceId,
         generationId: candidate.generationId!,
@@ -600,8 +618,15 @@ function projectReviews(
         ...(artifact?.lineage === undefined
           ? {}
           : { lineage: projectSkillCandidateLineage(artifact.lineage) }),
+        promotion: {
+          status: eligibility.status,
+          reason: eligibility.reason,
+          ...(!('retentionId' in eligibility) || eligibility.retentionId === undefined
+            ? {}
+            : { retentionId: eligibility.retentionId }),
+        },
       }
-    })
+    }))
   return {
     available: true,
     pendingCount: actionable.filter(item => item.status === 'pending').length,

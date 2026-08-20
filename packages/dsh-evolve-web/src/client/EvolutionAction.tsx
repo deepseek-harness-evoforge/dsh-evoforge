@@ -385,7 +385,7 @@ function SkillsView({ summary, t }: { summary: EvolutionOverview; t: (key: strin
     {ready.length > 0 && <SkillGroup t={t} label={t('skills.ready')} items={ready.map(item => ({
       key: `ready:${item.generationId}:${item.skillName}`,
       name: item.skillName,
-      detail: t('skills.readyHelp'),
+      detail: `${t(`promotion.status.${item.promotion.status}`)} · ${t(`promotion.reason.${item.promotion.reason}`)}`,
       ...(item.lineage === undefined ? {} : { lineage: item.lineage }),
     }))} />}
     {reviewing.length > 0 && <SkillGroup t={t} label={t('skills.reviewing')} items={reviewing.map(item => ({
@@ -1026,8 +1026,19 @@ function ReviewQueue({ overview, busy, inspect, promote, t }: {
             <div className="dsh-evolve-review-copy">
               <div className="dsh-evolve-review-skill">{generation.skillName}</div>
               <div className="dsh-evolve-meta">{shortId(generation.generationId)}</div>
+              <div className="dsh-evolve-meta">
+                {t(`promotion.status.${generation.promotion.status}`)} · {t(`promotion.reason.${generation.promotion.reason}`)}
+                {generation.promotion.retentionId === undefined
+                  ? ''
+                  : ` · ${t('promotion.retention')} ${shortId(generation.promotion.retentionId)}`}
+              </div>
             </div>
-            <button type="button" className="dsh-evolve-button dsh-evolve-primary" disabled={busy} onClick={() => promote(generation.generationId)}>{t('action.promote')}</button>
+            <button
+              type="button"
+              className="dsh-evolve-button dsh-evolve-primary"
+              disabled={busy || generation.promotion.status !== 'eligible'}
+              onClick={() => promote(generation.generationId)}
+            >{t('action.promote')}</button>
           </div>
         </li>
       ))}</ul>

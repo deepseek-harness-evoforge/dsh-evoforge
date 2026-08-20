@@ -597,6 +597,11 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'evaluationEnvelopeId': z.string().readonly(),
   'releaseAuthority': z.literal("none").readonly(),
 })]).readonly().optional(),
+  'promotion': z.object({
+  'status': z.union([z.literal("waiting"), z.literal("eligible"), z.literal("blocked")]).readonly(),
+  'reason': z.union([z.literal("promotion-governance-unavailable"), z.literal("generation-not-found"), z.literal("generation-workspace-mismatch"), z.literal("review-evidence-invalid"), z.literal("approved-review-missing"), z.literal("approved-review-ambiguous"), z.literal("generation-lineage-mismatch"), z.literal("retention-evidence-invalid"), z.literal("retention-not-run"), z.literal("retention-ambiguous"), z.literal("retention-prepared"), z.literal("retention-regressed"), z.literal("retention-incomplete"), z.literal("retention-verdict-invalid"), z.literal("exact-retention-retained")]).readonly(),
+  'retentionId': z.union([z.undefined(), z.string()]).readonly().optional(),
+}).readonly(),
 })).readonly(),
 }).readonly(),
 })
@@ -1202,12 +1207,16 @@ export const TYPERT = {
             "declaration": "export interface EvolutionDeliveryMetricRollupView {\n    readonly measured: number;\n    readonly unmeasured: number;\n    readonly attributedTurns: number;\n    readonly closedSteps: number;\n    readonly activeWallMs: number;\n    readonly providerUsage: EvolutionProviderUsageView;\n    readonly latency: EvolutionLatencyView;\n    readonly monetaryCost: { readonly status: 'unavailable'; readonly reason: 'provider-price-not-projected'; };\n}"
           },
           {
+            "name": "EvolutionFutureSessionPromotionReason",
+            "declaration": "export type EvolutionFutureSessionPromotionReason = 'promotion-governance-unavailable' | 'generation-not-found' | 'generation-workspace-mismatch' | 'review-evidence-invalid' | 'approved-review-missing' | 'approved-review-ambiguous' | 'generation-lineage-mismatch' | 'retention-evidence-invalid' | 'retention-not-run' | 'retention-ambiguous' | 'retention-prepared' | 'retention-regressed' | 'retention-incomplete' | 'retention-verdict-invalid' | 'exact-retention-retained';"
+          },
+          {
             "name": "EvolutionGenerationView",
             "declaration": "export interface EvolutionGenerationView {\n    readonly id: string;\n    readonly workspaceId: string;\n    readonly rollbackTargetId?: string;\n    readonly createdAt: number;\n    readonly evaluatorVersion: string;\n    readonly policyVersion: string;\n    readonly artifacts: readonly EvolutionArtifactView[];\n}"
           },
           {
             "name": "EvolutionInactiveGenerationView",
-            "declaration": "export interface EvolutionInactiveGenerationView {\n    readonly workspaceId: string;\n    readonly generationId: string;\n    readonly reviewId: string;\n    readonly skillName: string;\n    readonly lineage?: EvolutionSkillCandidateLineageView;\n}"
+            "declaration": "export interface EvolutionInactiveGenerationView {\n    readonly workspaceId: string;\n    readonly generationId: string;\n    readonly reviewId: string;\n    readonly skillName: string;\n    readonly lineage?: EvolutionSkillCandidateLineageView;\n    readonly promotion: { readonly status: 'eligible' | 'waiting' | 'blocked'; readonly reason: EvolutionFutureSessionPromotionReason; readonly retentionId?: string; };\n}"
           },
           {
             "name": "EvolutionLatencyView",

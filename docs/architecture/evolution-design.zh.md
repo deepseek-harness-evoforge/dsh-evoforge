@@ -1,7 +1,7 @@
 # EvoForge 可证明自进化设计
 
-> 状态：当前活动纵切为内部 Goal→Gap→Skill Opportunity→生成前 Skill Evaluation Evidence Seal→seal-bound Candidate v2→Candidate-independent Governance Case Pack Authoring→Evaluation Envelope v4/v5→Lineage v3→exact-Candidate assembled Shadow→同 Jobs 内容寻址 Retention verdict→content-addressed inactive Generation→future Session/root rollback；第五个独立 Goal 的 Candidate 不可见 assembled Retention Case Pack 已能产出 retained/regressed/incomplete，但没有 release authority。历史 P1 静态 target、Feedback/Evaluator Draft、Shadow 内 proposer、自动 review expiry 与旧 Retention/canary 编排已删除，仅保留历史说明。existing-Skill 同版本跨 Goal 纠正调查已实现，但完整 baseline Bundle/Candidate、Retention→promotion gate/canary、治理包真实 provider assembled 验证与真实任务长期证据待完成。
-> 更新日期：2026-08-20
+> 状态：当前活动纵切为内部 Goal→Gap→Skill Opportunity→生成前 Skill Evaluation Evidence Seal→seal-bound Candidate v2→Candidate-independent Governance Case Pack Authoring→Evaluation Envelope v4/v5→Lineage v3→exact-Candidate assembled Shadow→同 Jobs 内容寻址 Retention verdict→content-addressed inactive Generation→独立 future-Session Promotion Eligibility→future Session/root rollback。Retention 没有 release authority；Host gate 只有在 approved Generation 与唯一 exact retained 证据一致时才允许选择。历史 P1 静态 target、Feedback/Evaluator Draft、Shadow 内 proposer、自动 review expiry 与旧 Retention/canary 编排已删除，仅保留历史说明。existing-Skill 同版本跨 Goal 纠正调查已实现，但完整 baseline Bundle/Candidate、canary/outcome、治理包真实 provider assembled 验证与真实任务长期证据待完成。
+> 更新日期：2026-08-21
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 
 ## 1. 结论
@@ -249,7 +249,9 @@ interface LearningSignal {
       baseline = capability-absent（无 SKILL.md）
   → deterministic admission → independent assembled holdout
   → exact-Candidate assembled Shadow（零 proposer）
+  → independent fifth-Goal Retention（retained / regressed / incomplete；零 proposer；无发布权）
   → explicit review → inactive content-addressed skill-bundle Generation
+  → Host Promotion Eligibility 重验 exact Generation / Review / Lineage / Shadow / Retention
   → promotion affects future Sessions only / root rollback restores native DSH
 ```
 
@@ -272,8 +274,9 @@ interface LearningSignal {
 - 内容寻址 Evaluation Envelope v4 绑定四 Goal admission/holdout；v5 额外绑定 Retention input digest、唯一 assembled Case Pack hash 与隔离 run root。两者都绑定当前 Opportunity 快照、evidence seal、author-input digest、治理作者/受保护输入 digest和只含 `subject.json` 的 capability-absent baseline，任何占位 Skill、漂移、protected Case Pack 复用、符号链接、根重叠或身份不一致都 fail closed；
 - assembled baseline 不安装目标 Skill，Candidate 侧才安装 exact whole-Skill；两侧必须保持非目标 composition 相同；
 - Candidate v2、Lineage v3 和 Web 谱系显式携带 seal id；当前实现能解析、验证 Envelope v4/v5 并贯穿 Admission、Shadow、Review 和 crash resume；通过复核的新 Skill 可形成不依赖 Git source 的 inactive `skill-bundle` Generation，Storage 与 DSH Skill Provider 重验 exact archive，晋升只影响未来 Session，root rollback 恢复后续 Session 的 native DSH；
-- Shadow 只接收 exact Candidate、tree/lineage、Envelope 与 `dshAssembled` Trial，不查 Git/网络、不调用 proposer、不选择 target；污染、漂移和父 Generation 已有同名 Skill 均 fail closed；Retention Case Pack 已直接绑定内部 Envelope，但 runner/canary/outcome 尚未接通；
-- 独立 Goal 样本已能在 author 前自动密封，并能通过 Candidate-independent admission/holdout/Retention 作者、零 proposer 校准和原子安装形成 Case Pack/Envelope；这条路径目前只有注入式自动化证据，真实 provider、真实 assembled Retention 任务、负迁移率和长期 outcome 仍是后续治理门，不能由 author 或 Mock 自证。
+- Shadow 只接收 exact Candidate、tree/lineage、Envelope 与 `dshAssembled` Trial，不查 Git/网络、不调用 proposer、不选择 target；污染、漂移和父 Generation 已有同名 Skill 均 fail closed；Retention Case Pack、同 Jobs paired runner、durable verdict 与 future-Session Promotion Eligibility 已直接绑定内部 Envelope，canary/outcome 尚未接通；
+- Promotion Eligibility 是独立 Host authority，不接受 Candidate 自报结论；每次 Command/Web 晋升重验 approved Review、Generation artifact、Lineage、Shadow 与唯一 Retention run。missing/prepared 为 waiting，warning、歧义、错配、regressed、incomplete 或 verdict/evidence 脱钩为 blocked，只有 exact retained 为 eligible；
+- 独立 Goal 样本已能在 author 前自动密封，并能通过 Candidate-independent admission/holdout/Retention 作者、零 proposer 校准和原子安装形成 Case Pack/Envelope；这条路径目前只有自动化与固定评测 fixture 证据，真实 provider、真实任务 Retention、负迁移率和长期 outcome 仍是后续治理门，不能由 author、Mock 或一次 retained 自证。
 
 本项目不提供运行时外部包搜索、获取、下载、导入或市场功能；设计期研究不得进入本节的自我发现状态、UI 或声明。
 

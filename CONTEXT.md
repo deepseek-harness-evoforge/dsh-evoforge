@@ -187,8 +187,12 @@ A Trial whose executor can prove that a Candidate cannot read protected cases or
 _Avoid_: Best-effort sandbox, prompt-only isolation
 
 **Promotion**:
-An atomic selection of a proven candidate for future sessions. Clear improvements may promote automatically within configured authority; ambiguous results enter a separate review inbox, and executable or permission-expanding changes remain Protected Actions.
+An atomic selection of an eligible inactive Generation for future sessions. Clear improvements may promote automatically within configured authority; ambiguous results enter a separate review inbox, and executable or permission-expanding changes remain Protected Actions.
 _Avoid_: Merge, in-place edit
+
+**Future-Session Promotion Eligibility**:
+A Host-governed conclusion that binds one approved inactive Generation to its exact promotable Shadow and independently retained Candidate lineage. Missing, ambiguous, prepared, regressed, incomplete, or inconsistent evidence cannot change the active selection; eligibility never changes an already pinned Session.
+_Avoid_: Retention release authority, approved-means-active, Web-only validation
 
 **Capability Generation**:
 An immutable, content-addressed set of capability versions owned by exactly one registered DSH Workspace and selected for one of its sessions. Existing sessions keep their generation; promotion affects only later sessions in that same Workspace, so behavior and the model-visible prefix do not drift mid-session.

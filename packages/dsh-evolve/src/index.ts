@@ -24,6 +24,7 @@ import {
   SkillCandidateShadowScheduler,
 } from './skill-candidate-shadow.ts'
 import { InternalSkillRetention } from './internal-skill-retention.ts'
+import { FutureSessionPromotion } from './future-session-promotion.ts'
 import {
   SkillEvaluationEnvelopeResolver,
   type SkillCandidateEvaluationPolicyConfig,
@@ -272,8 +273,16 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const resident = config.supervisor === undefined || config.supervisor.runRoots.length === 0
     ? undefined
     : new ResidentEvolutionControl(store)
+  const promotion = review === undefined || skillRetention === undefined
+    ? undefined
+    : new FutureSessionPromotion({
+        store,
+        review: review.inbox,
+        retention: skillRetention,
+      })
   const control = new EvolutionControlPlane({
     store,
+    ...(promotion === undefined ? {} : { promotion }),
     capabilities,
     gaps: capabilityGaps,
     opportunities: skillOpportunities,
@@ -290,6 +299,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   })
   new EvolutionRemoteService(ctx, control)
   installEvolutionCommand(ctx, store, {
+    ...(promotion === undefined ? {} : { promotion }),
     ...(review === undefined ? {} : { review }),
     ...(resident === undefined ? {} : { resident }),
     outcomes: deliveryOutcomes,
@@ -408,6 +418,12 @@ export type {
   FeedbackSignalSummary,
 } from './feedback-signal-monitor.ts'
 export { EvolutionControlPlane } from './evolution-control-plane.ts'
+export { FutureSessionPromotion } from './future-session-promotion.ts'
+export type {
+  FutureSessionPromotionEligibility,
+  FutureSessionPromotionModules,
+  FutureSessionPromotionReason,
+} from './future-session-promotion.ts'
 export { InternalSkillRetention } from './internal-skill-retention.ts'
 export type {
   InternalCandidateShadowResult,
@@ -423,6 +439,7 @@ export type { EvolutionRemoteTypertContract } from './evolution-remote.typert.ts
 export type {
   EvolutionActionReceipt,
   EvolutionArtifactView,
+  EvolutionFutureSessionPromotionReason,
   EvolutionGenerationView,
   EvolutionInactiveGenerationView,
   EvolutionOverview,

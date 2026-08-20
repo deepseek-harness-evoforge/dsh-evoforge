@@ -77,7 +77,18 @@ function remote(
       actionableCount: 1,
       warningCount: 0,
       inactiveGenerations: withInactive
-        ? [{ workspaceId, generationId, reviewId, skillName: 'build-dsh-plugin', lineage: discoveredLineage }]
+        ? [{
+            workspaceId,
+            generationId,
+            reviewId,
+            skillName: 'build-dsh-plugin',
+            lineage: discoveredLineage,
+            promotion: {
+              status: 'eligible' as const,
+              reason: 'exact-retention-retained' as const,
+              retentionId: 'f'.repeat(64),
+            },
+          }]
         : [],
       items: [{
         workspaceId,
@@ -342,6 +353,12 @@ const t = (key: string) => ({
   'action.approve': 'Publish inactive',
   'action.reject': 'Reject',
   'action.promote': 'Promote',
+  'promotion.status.eligible': 'Eligible for future Sessions',
+  'promotion.status.waiting': 'Waiting for independent evidence',
+  'promotion.status.blocked': 'Promotion blocked',
+  'promotion.retention': 'Retention',
+  'promotion.reason.exact-retention-retained': 'Exact Candidate retained prior behavior',
+  'promotion.reason.retention-regressed': 'Exact Candidate regressed on prior behavior',
   'action.rollback': 'Rollback',
   'action.confirm': 'Confirm',
   'action.cancel': 'Cancel',
@@ -1080,6 +1097,39 @@ describe('EvolutionAction', () => {
     const confirmation = await screen.findByRole('alertdialog')
     fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm' }))
     await waitFor(() => expect(api.promote).toHaveBeenCalledWith(workspaceId, generationId))
+  })
+
+  it('shows a regressed Retention verdict and disables future-Session promotion', async () => {
+    const configured = remote(false, true)
+    const api = remote(false, true)
+    vi.mocked(api.overview).mockImplementation(async (requestedWorkspaceId, requestedSessionId) => {
+      const result = await configured.overview(requestedWorkspaceId, requestedSessionId)
+      if (!result.ok) return result
+      const inactive = result.value.reviews.inactiveGenerations[0]!
+      return success({
+        ...result.value,
+        reviews: {
+          ...result.value.reviews,
+          inactiveGenerations: [{
+            ...inactive,
+            promotion: {
+              status: 'blocked' as const,
+              reason: 'retention-regressed' as const,
+              retentionId: 'f'.repeat(64),
+            },
+          }],
+        },
+      })
+    })
+    renderEvolution(api)
+    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
+    await screen.findByRole('dialog')
+    await selectAdvanced()
+
+    expect(screen.getByText(/Promotion blocked · Exact Candidate regressed on prior behavior/u)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Promote' }).hasAttribute('disabled')).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Promote' }))
+    expect(api.promote).not.toHaveBeenCalled()
   })
 
 })

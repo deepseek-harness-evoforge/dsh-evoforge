@@ -1,6 +1,6 @@
 # DeepSeek Harness EvoForge 项目需求基线
 
-> 状态：已确认；目标是只安装并运行于 DSH 的原生 out-of-tree 插件套件。现有实现只作为可重审资产，不能限制重构；`dsh-gateway` 已替换旧 Router。ClawHub、市场、运行时 research Candidate、Git Skill source/ref、预选 Skill、静态 Case Pack/Feedback/Evaluator target、Feedback/Evaluator Draft、Shadow 内 proposer、自动 review expiry、旧 Retention/canary 和对应 Commands/Control/Web/attention 表面均已从活动源码删除。自然 Goal→Capability Gap→跨 Goal 内部经验→Skill Opportunity→隔离 whole-Skill Candidate 已形成部分纵切；Shadow 只消费 exact DSH-assembled Candidate 且零 proposer；现有 Skill 同版本跨 Goal 纠正只形成等待完整基线 Bundle 的调查。缺失 Skill 使用不安装目标 Skill 的 assembled baseline；第五个内部 Goal 形成的独立 Retention Case Pack 已能在同一 Shadow Jobs 任务内执行并持久给出 retained/regressed/incomplete，但无发布权。明确复核后可形成内容寻址 inactive bundle，固定未来 Session 并精确 rollback。Retention→promotion gate、canary、真实 provider、exact 飞书消息、长期 outcome 与 Hermes paired 完成前不构成 v0.1 交付。
+> 状态：已确认；目标是只安装并运行于 DSH 的原生 out-of-tree 插件套件。现有实现只作为可重审资产，不能限制重构；`dsh-gateway` 已替换旧 Router。ClawHub、市场、运行时 research Candidate、Git Skill source/ref、预选 Skill、静态 Case Pack/Feedback/Evaluator target、Feedback/Evaluator Draft、Shadow 内 proposer、自动 review expiry、旧 Retention/canary 和对应 Commands/Control/Web/attention 表面均已从活动源码删除。自然 Goal→Capability Gap→跨 Goal 内部经验→Skill Opportunity→隔离 whole-Skill Candidate 已形成部分纵切；Shadow 只消费 exact DSH-assembled Candidate 且零 proposer；现有 Skill 同版本跨 Goal 纠正只形成等待完整基线 Bundle 的调查。缺失 Skill 使用不安装目标 Skill 的 assembled baseline；第五个内部 Goal 形成的独立 Retention Case Pack 已能在同一 Shadow Jobs 任务内执行并持久给出 retained/regressed/incomplete，但无发布权。独立 Host Promotion Eligibility 重验 approved Review、Generation、Lineage、Shadow 与 Retention，只有 exact retained 才允许未来 Session 切换；明确复核后可形成内容寻址 inactive bundle并精确 rollback。canary、真实 provider、exact 飞书消息、长期 outcome 与 Hermes paired 完成前不构成 v0.1 交付。
 > 更新日期：2026-08-20
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。发生冲突时，下述“方向纠正”优先于旧里程碑文字。
 
@@ -389,9 +389,9 @@ whole-Skill，任何占位 `SKILL.md` 都 fail closed；
 Opportunity/内容/路径不一致、任意 protected Case Pack 同 hash 或符号链接均 fail closed。同一 Envelope id 进入
 admission、Candidate Lineage v3 和 Shadow handoff；lineage 另显式携带 seal id，结果仍无 release authority。治理作者请求 dispatch 后结果不可确认时持久化 `uncertain`，重启不得盲重试。
 
-该实现已消除人工预定进化方向，并完成生成前的独立证据密封、新 Skill 的内容寻址发布、future-Session 固定、root rollback、exact-Candidate assembled Shadow，以及同一 Jobs 任务内对 Envelope v5 第五 Goal Case Pack 的内容寻址 Retention verdict。旧静态 Retention/canary 编排已删除；新 Retention 不读取 target、不调用 proposer、不授予发布权。已实现把已密封 admission/holdout/Retention
-Goal 样本交给 Candidate-independent 治理作者、零 proposer 校准并形成 Envelope v4-v5 的源码和自动化纵切，但尚未用真实 provider 与真实 assembled Goal 样本证明生成包可用，也未在长期任务中
-完成 admission→holdout→Retention/canary→outcome 的整链归因。下一阶段必须让
+该实现已消除人工预定进化方向，并完成生成前的独立证据密封、新 Skill 的内容寻址发布、future-Session 固定、root rollback、exact-Candidate assembled Shadow，以及同一 Jobs 任务内对 Envelope v5 第五 Goal Case Pack 的内容寻址 Retention verdict。旧静态 Retention/canary 编排已删除；新 Retention 不读取 target、不调用 proposer、不授予发布权。独立 Host Promotion Eligibility 每次晋升前重验 approved Review、Generation artifact、Lineage、Shadow 和唯一 Retention run；missing/prepared 等待，warning、歧义、错配、regressed、incomplete 和 verdict/evidence 脱钩均阻止 active selection，Command 与 Web 不得绕过。
+已实现把已密封 admission/holdout/Retention Goal 样本交给 Candidate-independent 治理作者、零 proposer 校准并形成 Envelope v4-v5 的源码和自动化纵切，但尚未用真实 provider 与真实 assembled Goal 样本证明生成包可用，也未在长期任务中
+完成 admission→holdout→Retention→canary→outcome 的整链归因。下一阶段必须让
 Candidate 不可读写的 Evaluation Governance Plane 在真实 provider 下证明 baseline、未见样本和 hard gates 有效；没有合格治理包时 abstain，不能回退到外部搜索、author 自评、Mock 结果或一次成功即晋升。
 
 `dsh-software-delivery` 的最小 objective outcome 已作为内部交付事实。失败 Outcome 本身不证明 Skill 回归；只有未来重建的 exact Candidate/Envelope canary 才能形成回滚依据。自动 rollback 继续受 `auto-clear-instruction-v1` 的窄权限约束，人工复核的新 Skill 不会被实验性 policy 静默改写。
