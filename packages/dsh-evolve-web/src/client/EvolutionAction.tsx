@@ -375,6 +375,7 @@ function recordedCorrectionCount(summary: EvolutionOverview): number {
 function hasVerificationTarget(summary: EvolutionOverview): boolean {
   return (summary.skillEvaluationGovernance?.configuredPolicyCount ?? 0) > 0
     || (summary.skillAdmission?.configuredPolicyCount ?? 0) > 0
+    || (summary.existingSkillAdmission?.configuredPolicyCount ?? 0) > 0
 }
 
 function SkillsView({ summary, busy, rollbackEligible, t }: {
@@ -400,6 +401,7 @@ function SkillsView({ summary, busy, rollbackEligible, t }: {
     <SlowLoopAuthoring summary={summary} t={t} />
     <SkillCandidates summary={summary} t={t} />
     <ExistingSkillCandidates summary={summary} t={t} />
+    <ExistingSkillAdmission summary={summary} t={t} />
     <SkillEvaluationGovernance summary={summary} t={t} />
     <SkillAdmission summary={summary} t={t} />
     <SkillEvaluationRuns summary={summary} t={t} />
@@ -837,6 +839,47 @@ function ExistingSkillAuthoring({ summary, t }: { summary: EvolutionOverview; t:
               {t('skills.slow-loop.retry')} · {new Date(run.retryAt).toLocaleString()}
             </div>}
             <div className="dsh-evolve-discovery-state">{t('skills.slow-loop.release.none')}</div>
+          </li>
+        ))}</ul>}
+  </section>
+}
+
+function ExistingSkillAdmission({ summary, t }: { summary: EvolutionOverview; t: (key: string) => string }) {
+  const admission = summary.existingSkillAdmission
+  if (admission === undefined) return null
+  return <section>
+    <div className="dsh-evolve-capability-head">
+      <h3 className="dsh-evolve-section-title">{t('skills.improvements.admission')}</h3>
+      <span className="dsh-evolve-catalog-status">
+        {admission.configuredPolicyCount} {t('skills.improvements.admission.policies')}
+      </span>
+    </div>
+    {admission.warningCount > 0 && <div className="dsh-evolve-message dsh-evolve-error">
+      {admission.warningCount} {t('skills.improvements.admission.warnings')}
+    </div>}
+    {admission.results.length === 0
+      ? <div className="dsh-evolve-message">{t('skills.improvements.admission.empty')}</div>
+      : <ul className="dsh-evolve-list">{admission.results.map(result => (
+          <li className="dsh-evolve-skill-card" key={result.id}>
+            <div className="dsh-evolve-review-skill">{result.skillName}</div>
+            <div className="dsh-evolve-capability-route">
+              {t(`skills.improvements.admission.status.${result.status}`)}
+            </div>
+            {result.evidence !== undefined && <>
+              <div className="dsh-evolve-meta">
+                {t('skills.improvements.admission.pair')} · {shortId(result.evidence.baselineTreeHash)} → {shortId(result.evidence.candidateTreeHash)}
+              </div>
+              <div className="dsh-evolve-meta">
+                {t('skills.improvements.admission.diff')} · {result.evidence.changedFileCount} / {result.evidence.addedFileCount} / {result.evidence.preservedFileCount}
+              </div>
+              <div className="dsh-evolve-meta">
+                {t('skills.improvements.admission.protected')} · {shortId(result.evidence.protectedAdmissionSampleHash)}
+              </div>
+            </>}
+            {result.reasons.map(reason => <div className="dsh-evolve-meta" key={reason}>
+              {t(`skills.improvements.admission.reason.${reason}`)}
+            </div>)}
+            <div className="dsh-evolve-discovery-state">{t('skills.improvements.admission.release.none')}</div>
           </li>
         ))}</ul>}
   </section>

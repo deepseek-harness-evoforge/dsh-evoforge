@@ -277,6 +277,16 @@ const t = (key: string) => ({
   'skills.improvements.authoring.warnings': 'unreadable durable states',
   'skills.improvements.authoring.empty': 'No existing-Skill authoring run has met the threshold.',
   'skills.improvements.authoring.baseline': 'Baseline / Qualification / Evidence',
+  'skills.improvements.admission': 'Exact Existing-Skill Paired Admission',
+  'skills.improvements.admission.policies': 'Workspace policies',
+  'skills.improvements.admission.warnings': 'unreadable admission states',
+  'skills.improvements.admission.empty': 'No existing-Skill Candidate has entered structural admission.',
+  'skills.improvements.admission.status.qualified-for-holdout': 'Exact pair sealed; eligible for independent holdout',
+  'skills.improvements.admission.pair': 'Baseline → Candidate trees',
+  'skills.improvements.admission.diff': 'Changed / added / preserved files',
+  'skills.improvements.admission.protected': 'Protected admission sample digest',
+  'skills.improvements.admission.reason.exact-paired-subjects-admitted': 'Exact pair admitted; no effect win claimed',
+  'skills.improvements.admission.release.none': 'Candidate not executed · Host structural admission only · No release authority',
   'skills.slow-loop': 'Internal experience-driven Skill authoring',
   'skills.slow-loop.policies': 'Workspace safety policies',
   'skills.slow-loop.warnings': 'unreadable durable states',
@@ -922,6 +932,34 @@ describe('EvolutionAction', () => {
             releaseAuthority: 'none' as const,
           }],
         },
+        existingSkillAdmission: {
+          configuredPolicyCount: 1,
+          warningCount: 0,
+          results: [{
+            id: '6'.repeat(64),
+            candidateId: '0'.repeat(64),
+            skillName: 'build-dsh-plugin',
+            status: 'qualified-for-holdout' as const,
+            reasons: ['exact-paired-subjects-admitted' as const],
+            evidence: {
+              baselineId: 'b'.repeat(64),
+              baselineArtifactDigest: '2'.repeat(64),
+              baselineTreeHash: '3'.repeat(64),
+              candidateArtifactDigest: '7'.repeat(64),
+              candidateTreeHash: '8'.repeat(64),
+              evaluationEvidenceId: '5'.repeat(64),
+              protectedAdmissionSampleHash: '9'.repeat(64),
+              protectedAdmissionSampleCount: 1 as const,
+              changedFileCount: 2,
+              addedFileCount: 1,
+              preservedFileCount: 2,
+              preservedBinaryFileCount: 1,
+              candidateExecuted: false as const,
+              evaluatorClass: 'host-structural' as const,
+            },
+            releaseAuthority: 'none' as const,
+          }],
+        },
         skillAdmission: {
           configuredPolicyCount: 1,
           warningCount: 0,
@@ -1082,6 +1120,13 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('Added instructions · references/verification.md')).toBeTruthy()
     expect(screen.getByText('Preserved complete baseline · 2 files · 1 binary resources')).toBeTruthy()
     expect(screen.getByText('Quarantined · Inactive · Never executed · Unevaluated · No release authority')).toBeTruthy()
+    expect(screen.getByText('Exact Existing-Skill Paired Admission')).toBeTruthy()
+    expect(screen.getByText('Exact pair sealed; eligible for independent holdout')).toBeTruthy()
+    expect(screen.getByText(`Baseline → Candidate trees · ${'3'.repeat(8)}… → ${'8'.repeat(8)}…`)).toBeTruthy()
+    expect(screen.getByText('Changed / added / preserved files · 2 / 1 / 2')).toBeTruthy()
+    expect(screen.getByText(`Protected admission sample digest · ${'9'.repeat(8)}…`)).toBeTruthy()
+    expect(screen.getByText('Exact pair admitted; no effect win claimed')).toBeTruthy()
+    expect(screen.getByText('Candidate not executed · Host structural admission only · No release authority')).toBeTruthy()
     expect(screen.getByText('Independent evaluation governance')).toBeTruthy()
     expect(screen.getByText('Admission, assembled holdout, and independent retention ready')).toBeTruthy()
     expect(screen.getByText('Governance model calls · input/output tokens · 3 · 960/360')).toBeTruthy()

@@ -91,7 +91,7 @@ workflow 选择。原生 Job author 只接收有界内部 Goal/Gap 证据，输�
 校验、内容寻址并写入 inactive/quarantined/unevaluated/never-executed Candidate。DSH Web 展示
 Gap → Opportunity → Candidate 及运行状态、成本和治理边界，不显示外部发现尝试。
 
-Existing-Skill improvement 与 missing-Skill Opportunity 分轨：同一 invocation-content hash 在至少两个不同 Goal 中的去重明确纠正可形成独立调查；不同 hash、同 Goal、legacy 或重复 Signal abstain。该 hash 不代表完整 Bundle，调查固定无因果/无发布权，不进入 capability-absent Envelope。V4.33 已在原生调用边界封存完整内容寻址目录 Bundle；V4.34 重新核对调查并把每个 exact correction 的 `(Session, invocation seq)` 逐一解析到同一 revalidated baseline id，missing 等待，漂移/损坏/错配/多 Bundle invalid；V4.35 通过官方 Feedback/Session 服务把至少四 Goal 当前纠正预分为 authoring/admission/holdout/可选 Retention。V4.36 已由受保护作者自主提出 bounded instruction diff，Host 完整继承 baseline 的 references/assets/binary 并落内容寻址、无发布权 Candidate；权限声明漂移进入 Protected Action，不伪装成 instruction-only。DSH Web 展示持久 authoring phase/cost、精确 identity、Candidate tree 和 bounded diff。下一步建立 existing baseline/candidate Envelope、paired evaluation、Retention、Canary、晋升和回滚。
+Existing-Skill improvement 与 missing-Skill Opportunity 分轨：同一 invocation-content hash 在至少两个不同 Goal 中的去重明确纠正可形成独立调查；不同 hash、同 Goal、legacy 或重复 Signal abstain。该 hash 不代表完整 Bundle，调查固定无因果/无发布权，不进入 capability-absent Envelope。V4.33 已在原生调用边界封存完整内容寻址目录 Bundle；V4.34 重新核对调查并把每个 exact correction 的 `(Session, invocation seq)` 逐一解析到同一 revalidated baseline id，missing 等待，漂移/损坏/错配/多 Bundle invalid；V4.35 通过官方 Feedback/Session 服务把至少四 Goal 当前纠正预分为 authoring/admission/holdout/可选 Retention；V4.36 已由受保护作者自主提出 bounded instruction diff，Host 完整继承 baseline 的 references/assets/binary 并落内容寻址、无发布权 Candidate；V4.37 已用独立 Host 门禁重验 exact baseline/Candidate 双树、声明 diff 和 protected admission identity，原生 Jobs 可恢复，Web 分栏显示 `qualified-for-holdout`，但 Candidate 仍未执行且无效果/发布判决。下一步为 protected holdout 生成独立 evaluator/Case Pack，执行真实 `skill-tree ↔ skill-tree` assembled DSH Trial，再推进 Retention、Canary、晋升和回滚。
 
 内部 Candidate 评测已删除 `candidateAdmissionTargets`/`candidateShadowTargets` 这两套预选 exact Skill 的配置。
 `candidateEvaluationPolicies` 不声明 Skill、baseline、Case Pack 或 Candidate 方向；自主治理只增加 exact DSH revision 和独立日预算。Host 先从 exact Opportunity
@@ -110,7 +110,7 @@ Candidate 侧才安装 exact whole-Skill；Envelope id 和 seal id 贯穿 admiss
 cache-read/write 和 latency projection，货币成本明确 unavailable，且不影响资格/author。Host 权威 summary、
 generated Remote 与 DSH Web 已展示 Workspace/current/baseline 聚合和至多 20 条最近已测 Outcome；真实浏览器已验证
 在线刷新、Host 断连保留最后快照并显式报错、同 profile 重启恢复和幂等重放。失败 Outcome 现可触发 exact active internal Candidate 的内容寻址 sealed canary；自动化测试覆盖 keep/review/rollback-eligible、预算、输入与 pointer 漂移、中断不盲重试、持续监测和 DSH Jobs。仍待实现/验证：
-existing-Skill protected author/Candidate/paired evaluation、correction/outcome 的因果证明，以及 rework/currency-cost/reuse/retention/negative-transfer/rollback 的完整归因、内部 Candidate 治理包的真实 provider outcome、模型缺口质量、迁移/遗忘/
+existing-Skill assembled holdout/Retention/Canary/晋升/回滚、correction/outcome 的因果证明，以及 rework/currency-cost/reuse/retention/negative-transfer/rollback 的完整归因、内部 Candidate 治理包的真实 provider outcome、模型缺口质量、迁移/遗忘/
 长期保留，以及同条件 Hermes paired outcome。因此不能描述为“自主 Skill 进化已完成”。
 
 ## V5 — 可解释 Web 与飞书闭环

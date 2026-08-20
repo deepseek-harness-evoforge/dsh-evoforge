@@ -512,6 +512,48 @@ export interface EvolutionExistingSkillAuthoringView {
   }[]
 }
 
+/** Exact existing-Skill parent/Candidate structural admission; no Skill is executed. */
+export interface EvolutionExistingSkillAdmissionView {
+  readonly configuredPolicyCount: number
+  readonly warningCount: number
+  readonly results: readonly {
+    readonly id: string
+    readonly candidateId: string
+    readonly skillName: string
+    readonly status: 'abstained' | 'incomplete' | 'protected' | 'qualified-for-holdout'
+    readonly reasons: readonly (
+      | 'no-governance-policy'
+      | 'baseline-unavailable'
+      | 'protected-evidence-unavailable'
+      | 'protected-evidence-binding-mismatch'
+      | 'baseline-identity-mismatch'
+      | 'candidate-materialization-failed'
+      | 'candidate-identity-mismatch'
+      | 'undeclared-tree-difference'
+      | 'unsupported-tree-difference'
+      | 'evaluation-failed'
+      | 'exact-paired-subjects-admitted'
+    )[]
+    readonly evidence?: {
+      readonly baselineId: string
+      readonly baselineArtifactDigest: string
+      readonly baselineTreeHash: string
+      readonly candidateArtifactDigest: string
+      readonly candidateTreeHash: string
+      readonly evaluationEvidenceId: string
+      readonly protectedAdmissionSampleHash: string
+      readonly protectedAdmissionSampleCount: 1
+      readonly changedFileCount: number
+      readonly addedFileCount: number
+      readonly preservedFileCount: number
+      readonly preservedBinaryFileCount: number
+      readonly candidateExecuted: false
+      readonly evaluatorClass: 'host-structural'
+    }
+    readonly releaseAuthority: 'none'
+  }[]
+}
+
 /** Durable slow-loop authoring state; generated bodies and private paths stay host-only. */
 export interface EvolutionSlowLoopAuthoringView {
   readonly configuredPolicyCount: number
@@ -833,6 +875,7 @@ export interface EvolutionOverview {
   readonly skillCandidates?: EvolutionSkillCandidateQueueView
   readonly existingSkillCandidates?: EvolutionExistingSkillCandidateQueueView
   readonly existingSkillAuthoring?: EvolutionExistingSkillAuthoringView
+  readonly existingSkillAdmission?: EvolutionExistingSkillAdmissionView
   readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView
   readonly skillEvaluationGovernance?: EvolutionSkillEvaluationGovernanceView
   readonly skillAdmission?: EvolutionSkillAdmissionView

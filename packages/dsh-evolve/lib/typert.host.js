@@ -381,6 +381,34 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'releaseAuthority': z.literal("none").readonly(),
 })).readonly(),
 })]).readonly().optional(),
+  'existingSkillAdmission': z.union([z.undefined(), z.object({
+  'configuredPolicyCount': z.number().readonly(),
+  'warningCount': z.number().readonly(),
+  'results': z.array(z.object({
+  'id': z.string().readonly(),
+  'candidateId': z.string().readonly(),
+  'skillName': z.string().readonly(),
+  'status': z.union([z.literal("incomplete"), z.literal("abstained"), z.literal("protected"), z.literal("qualified-for-holdout")]).readonly(),
+  'reasons': z.array(z.union([z.literal("no-governance-policy"), z.literal("baseline-unavailable"), z.literal("protected-evidence-unavailable"), z.literal("protected-evidence-binding-mismatch"), z.literal("baseline-identity-mismatch"), z.literal("candidate-materialization-failed"), z.literal("candidate-identity-mismatch"), z.literal("undeclared-tree-difference"), z.literal("unsupported-tree-difference"), z.literal("evaluation-failed"), z.literal("exact-paired-subjects-admitted")])).readonly(),
+  'evidence': z.union([z.undefined(), z.object({
+  'baselineId': z.string().readonly(),
+  'baselineArtifactDigest': z.string().readonly(),
+  'baselineTreeHash': z.string().readonly(),
+  'candidateArtifactDigest': z.string().readonly(),
+  'candidateTreeHash': z.string().readonly(),
+  'evaluationEvidenceId': z.string().readonly(),
+  'protectedAdmissionSampleHash': z.string().readonly(),
+  'protectedAdmissionSampleCount': z.literal(1).readonly(),
+  'changedFileCount': z.number().readonly(),
+  'addedFileCount': z.number().readonly(),
+  'preservedFileCount': z.number().readonly(),
+  'preservedBinaryFileCount': z.number().readonly(),
+  'candidateExecuted': z.literal(false).readonly(),
+  'evaluatorClass': z.literal("host-structural").readonly(),
+})]).readonly().optional(),
+  'releaseAuthority': z.literal("none").readonly(),
+})).readonly(),
+})]).readonly().optional(),
   'slowLoopAuthoring': z.union([z.undefined(), z.object({
   'configuredPolicyCount': z.number().readonly(),
   'warningCount': z.number().readonly(),
@@ -432,7 +460,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'candidateId': z.string().readonly(),
   'skillName': z.string().readonly(),
   'status': z.union([z.literal("incomplete"), z.literal("abstained"), z.literal("protected"), z.literal("rejected"), z.literal("review"), z.literal("qualified-for-shadow")]).readonly(),
-  'reasons': z.array(z.union([z.literal("no-current-evaluation-envelope"), z.literal("candidate-has-executable-content"), z.literal("candidate-is-not-instruction-only"), z.literal("baseline-identity-mismatch"), z.literal("case-pack-identity-mismatch"), z.literal("assembled-evaluator-not-governance-separated"), z.literal("case-pack-calibration-failed"), z.literal("candidate-failed-admission"), z.literal("baseline-already-passes"), z.literal("candidate-improves-deterministic-admission"), z.literal("governance-input-mutated"), z.literal("governance-roots-overlap"), z.literal("evaluation-failed")])).readonly(),
+  'reasons': z.array(z.union([z.literal("baseline-identity-mismatch"), z.literal("evaluation-failed"), z.literal("no-current-evaluation-envelope"), z.literal("candidate-has-executable-content"), z.literal("candidate-is-not-instruction-only"), z.literal("case-pack-identity-mismatch"), z.literal("assembled-evaluator-not-governance-separated"), z.literal("case-pack-calibration-failed"), z.literal("candidate-failed-admission"), z.literal("baseline-already-passes"), z.literal("candidate-improves-deterministic-admission"), z.literal("governance-input-mutated"), z.literal("governance-roots-overlap")])).readonly(),
   'envelopeId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'releaseAuthority': z.literal("none").readonly(),
   'evidence': z.union([z.undefined(), z.object({
@@ -1421,6 +1449,10 @@ export const TYPERT = {
             "declaration": "export interface EvolutionDeliveryMetricRollupView {\n    readonly measured: number;\n    readonly unmeasured: number;\n    readonly attributedTurns: number;\n    readonly closedSteps: number;\n    readonly activeWallMs: number;\n    readonly providerUsage: EvolutionProviderUsageView;\n    readonly latency: EvolutionLatencyView;\n    readonly monetaryCost: { readonly status: 'unavailable'; readonly reason: 'provider-price-not-projected'; };\n}"
           },
           {
+            "name": "EvolutionExistingSkillAdmissionView",
+            "declaration": "export interface EvolutionExistingSkillAdmissionView {\n    readonly configuredPolicyCount: number;\n    readonly warningCount: number;\n    readonly results: readonly { readonly id: string; readonly candidateId: string; readonly skillName: string; readonly status: 'abstained' | 'incomplete' | 'protected' | 'qualified-for-holdout'; readonly reasons: readonly ('no-governance-policy' | 'baseline-unavailable' | 'protected-evidence-unavailable' | 'protected-evidence-binding-mismatch' | 'baseline-identity-mismatch' | 'candidate-materialization-failed' | 'candidate-identity-mismatch' | 'undeclared-tree-difference' | 'unsupported-tree-difference' | 'evaluation-failed' | 'exact-paired-subjects-admitted')[]; readonly evidence?: { readonly baselineId: string; readonly baselineArtifactDigest: string; readonly baselineTreeHash: string; readonly candidateArtifactDigest: string; readonly candidateTreeHash: string; readonly evaluationEvidenceId: string; readonly protectedAdmissionSampleHash: string; readonly protectedAdmissionSampleCount: 1; readonly changedFileCount: number; readonly addedFileCount: number; readonly preservedFileCount: number; readonly preservedBinaryFileCount: number; readonly candidateExecuted: false; readonly evaluatorClass: 'host-structural'; }; readonly releaseAuthority: 'none'; }[];\n}"
+          },
+          {
             "name": "EvolutionExistingSkillAuthoringView",
             "declaration": "export interface EvolutionExistingSkillAuthoringView {\n    readonly configuredPolicyCount: number;\n    readonly warningCount: number;\n    readonly runs: readonly { readonly id: string; readonly targetId: string; readonly skillName: string; readonly opportunityId: string; readonly qualificationId: string; readonly evaluationEvidenceId: string; readonly baselineId: string; readonly phase: 'prepared' | 'budget-deferred' | 'cancelled' | 'authoring-pending' | 'uncertain' | 'incomplete' | 'candidate-ready'; readonly createdAt: string; readonly updatedAt: string; readonly modelCalls: 0 | 1; readonly inputTokens: number; readonly outputTokens: number; readonly candidateId?: string; readonly retryAt?: number; readonly releaseAuthority: 'none'; }[];\n}"
           },
@@ -1458,7 +1490,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionOverview",
-            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly workspaceId: string;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly capabilityMap?: EvolutionCapabilityMapView;\n    readonly capabilityGaps?: EvolutionCapabilityGapQueueView;\n    readonly skillOpportunities?: EvolutionSkillOpportunityQueueView;\n    readonly skillImprovementOpportunities?: EvolutionSkillImprovementOpportunityQueueView;\n    readonly skillCandidates?: EvolutionSkillCandidateQueueView;\n    readonly existingSkillCandidates?: EvolutionExistingSkillCandidateQueueView;\n    readonly existingSkillAuthoring?: EvolutionExistingSkillAuthoringView;\n    readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView;\n    readonly skillEvaluationGovernance?: EvolutionSkillEvaluationGovernanceView;\n    readonly skillAdmission?: EvolutionSkillAdmissionView;\n    readonly skillEvaluationRuns?: EvolutionSkillEvaluationRunsView;\n    readonly counterfactualCanary?: EvolutionCounterfactualCanaryView;\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; readonly baseline?: DeliveryOutcomeCounts; readonly metrics: { readonly all: EvolutionDeliveryMetricRollupView; readonly selected: EvolutionDeliveryMetricRollupView; readonly baseline?: EvolutionDeliveryMetricRollupView; readonly recent: readonly EvolutionDeliveryMetricEvidenceView[]; }; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
+            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly workspaceId: string;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly capabilityMap?: EvolutionCapabilityMapView;\n    readonly capabilityGaps?: EvolutionCapabilityGapQueueView;\n    readonly skillOpportunities?: EvolutionSkillOpportunityQueueView;\n    readonly skillImprovementOpportunities?: EvolutionSkillImprovementOpportunityQueueView;\n    readonly skillCandidates?: EvolutionSkillCandidateQueueView;\n    readonly existingSkillCandidates?: EvolutionExistingSkillCandidateQueueView;\n    readonly existingSkillAuthoring?: EvolutionExistingSkillAuthoringView;\n    readonly existingSkillAdmission?: EvolutionExistingSkillAdmissionView;\n    readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView;\n    readonly skillEvaluationGovernance?: EvolutionSkillEvaluationGovernanceView;\n    readonly skillAdmission?: EvolutionSkillAdmissionView;\n    readonly skillEvaluationRuns?: EvolutionSkillEvaluationRunsView;\n    readonly counterfactualCanary?: EvolutionCounterfactualCanaryView;\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; readonly baseline?: DeliveryOutcomeCounts; readonly metrics: { readonly all: EvolutionDeliveryMetricRollupView; readonly selected: EvolutionDeliveryMetricRollupView; readonly baseline?: EvolutionDeliveryMetricRollupView; readonly recent: readonly EvolutionDeliveryMetricEvidenceView[]; }; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
           },
           {
             "name": "EvolutionProviderUsageView",

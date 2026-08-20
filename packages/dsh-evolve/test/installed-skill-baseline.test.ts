@@ -102,6 +102,17 @@ describe('Installed Skill Baseline Vault', () => {
         { path: 'SKILL.md' },
       ],
     })
+    await expect(vault.resolveBaseline(
+      WORKSPACE_ID,
+      captured.baseline.id,
+    )).resolves.toMatchObject({
+      manifest: { id: captured.baseline.id },
+      files: [
+        { path: 'asset.bin' },
+        { path: 'references/verification.md' },
+        { path: 'SKILL.md' },
+      ],
+    })
 
     await writeFile(
       join(governanceRoot, 'installed-skill-baselines', 'bundles', captured.baseline.id, 'bundle.tar.gz'),

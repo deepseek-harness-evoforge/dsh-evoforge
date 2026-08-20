@@ -169,10 +169,12 @@ describe('existing Skill improvement Candidate repository', () => {
         ...input,
       },
     }))
+    const onExistingCandidate = vi.fn()
     const repository = new SkillCandidateRepository(
       { recordCandidate: vi.fn(), recordExistingCandidate },
       undefined,
       [{ workspaceId: WORKSPACE_ID, root: join(exactRoot, 'vault') }],
+      onExistingCandidate,
     )
 
     const proposal = {
@@ -315,6 +317,7 @@ describe('existing Skill improvement Candidate repository', () => {
       ],
     } satisfies ExistingSkillCandidateProposal
     const recorded = await repository.quarantineExisting(proposal)
+    expect(onExistingCandidate).toHaveBeenCalledWith(recorded.candidate)
 
     await expect(repository.quarantineExisting({
       ...proposal,

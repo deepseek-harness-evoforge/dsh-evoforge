@@ -20,6 +20,7 @@ import type {
 import type { SkillCandidateAdmission } from './skill-candidate-admission.ts'
 import type { SlowLoopSkillAuthoring } from './slow-loop-skill-authoring.ts'
 import type { ExistingSkillCandidateAuthoring } from './existing-skill-candidate-authoring.ts'
+import type { ExistingSkillCandidateAdmission } from './existing-skill-candidate-admission.ts'
 import type { SkillCandidateLineage } from './skill-candidate-lineage.ts'
 import type { SkillEvaluationEvidenceVault } from './skill-evaluation-evidence-vault.ts'
 import type { SkillEvaluationGovernance } from './skill-evaluation-governance.ts'
@@ -39,6 +40,7 @@ import type {
   EvolutionCapabilityGapQueueView,
   EvolutionExistingSkillBaselineQualificationView,
   EvolutionExistingSkillEvaluationEvidenceReadinessView,
+  EvolutionExistingSkillAdmissionView,
   EvolutionSkillCandidateQueueView,
   EvolutionSkillAdmissionView,
   EvolutionSkillCandidateLineageView,
@@ -86,6 +88,7 @@ export interface EvolutionControlPlaneModules {
   readonly admissions?: Pick<SkillCandidateAdmission, 'scan'>
   readonly slowLoopAuthoring?: Pick<SlowLoopSkillAuthoring, 'scan'>
   readonly existingSkillAuthoring?: Pick<ExistingSkillCandidateAuthoring, 'scan'>
+  readonly existingSkillAdmissions?: Pick<ExistingSkillCandidateAdmission, 'scan'>
   readonly evaluationGovernance?: Pick<SkillEvaluationGovernance, 'scan'>
   readonly retention?: Pick<InternalSkillRetention, 'scan'>
   readonly counterfactualCanary?: Pick<CounterfactualCanary, 'scan'>
@@ -106,6 +109,7 @@ export class EvolutionControlPlane {
       admissionScan,
       slowLoopAuthoringScan,
       existingSkillAuthoringScan,
+      existingSkillAdmissionScan,
       evaluationGovernanceScan,
       retentionScan,
       counterfactualCanaryScan,
@@ -118,6 +122,9 @@ export class EvolutionControlPlane {
       this.modules.existingSkillAuthoring === undefined
         ? undefined
         : this.modules.existingSkillAuthoring.scan(workspaceId),
+      this.modules.existingSkillAdmissions === undefined
+        ? undefined
+        : this.modules.existingSkillAdmissions.scan(workspaceId),
       this.modules.evaluationGovernance === undefined
         ? undefined
         : this.modules.evaluationGovernance.scan(workspaceId),
@@ -285,6 +292,9 @@ export class EvolutionControlPlane {
               releaseAuthority: run.releaseAuthority,
             })),
           } }),
+      ...(existingSkillAdmissionScan === undefined
+        ? {}
+        : { existingSkillAdmission: projectExistingSkillAdmission(existingSkillAdmissionScan) }),
       ...(admissionScan === undefined
         ? {}
         : { skillAdmission: projectSkillAdmission(admissionScan) }),
@@ -612,6 +622,24 @@ function projectSkillAdmission(
         evaluatorClass: value.evidence.evaluatorClass,
         trialCount: value.evidence.trialCount,
       } }),
+    })),
+  }
+}
+
+function projectExistingSkillAdmission(
+  scan: Awaited<ReturnType<NonNullable<EvolutionControlPlaneModules['existingSkillAdmissions']>['scan']>>,
+): EvolutionExistingSkillAdmissionView {
+  return {
+    configuredPolicyCount: scan.configuredPolicyCount,
+    warningCount: scan.warningCount,
+    results: scan.results.slice(0, MAX_DISCOVERY_ROWS).map(value => ({
+      id: value.id,
+      candidateId: value.candidateId,
+      skillName: value.skillName,
+      status: value.status,
+      reasons: [...value.reasons],
+      releaseAuthority: value.releaseAuthority,
+      ...(value.evidence === undefined ? {} : { evidence: { ...value.evidence } }),
     })),
   }
 }

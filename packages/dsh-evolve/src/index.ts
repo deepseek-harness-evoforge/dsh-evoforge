@@ -63,6 +63,10 @@ import { installInstalledSkillBaselineMonitor } from './installed-skill-baseline
 import { ExistingSkillBaselineQualification } from './existing-skill-baseline-qualification.ts'
 import { ExistingSkillEvaluationEvidenceVault } from './existing-skill-evaluation-evidence-vault.ts'
 import { ExistingSkillCandidateAuthoring } from './existing-skill-candidate-authoring.ts'
+import {
+  ExistingSkillCandidateAdmission,
+  ExistingSkillCandidateAdmissionScheduler,
+} from './existing-skill-candidate-admission.ts'
 import { EvolutionControlPlane } from './evolution-control-plane.ts'
 import { EvolutionRemoteService } from './evolution-remote.ts'
 import { AutomaticEvolutionBudget } from './automatic-evolution-budget.ts'
@@ -191,7 +195,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const capabilityMonitors = new Set<ReturnType<typeof installCapabilityMapObserver>>()
   const installedBaselineMonitors = new Set<ReturnType<typeof installInstalledSkillBaselineMonitor>>()
   let existingSkillBaselineQualification: ExistingSkillBaselineQualification | undefined
+  let existingSkillBaselineVault: InstalledSkillBaselineVault | undefined
   let existingSkillEvaluationEvidence: ExistingSkillEvaluationEvidenceVault | undefined
+  let existingSkillAdmissionScheduler: ExistingSkillCandidateAdmissionScheduler | undefined
   ctx.inject(['skills'], (skillCtx) => {
     const monitor = installCapabilityMapObserver(skillCtx, capabilities, store)
     capabilityMonitors.add(monitor)
@@ -247,11 +253,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         evidenceCtx.sessionPersistence,
       )
       evidenceCtx.effect(() => {
+        existingSkillBaselineVault = baselineVault
         existingSkillEvaluationEvidence = evidence
         for (const policy of candidateEvaluationPolicies) {
           reconcileExistingSkillCandidates?.(policy.workspaceId)
+          existingSkillAdmissionScheduler?.reconcile(policy.workspaceId)
         }
         return () => {
+          if (existingSkillBaselineVault === baselineVault) existingSkillBaselineVault = undefined
           if (existingSkillEvaluationEvidence === evidence) {
             existingSkillEvaluationEvidence = undefined
           }
@@ -270,7 +279,41 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       workspaceId: policy.workspaceId,
       root: resolve(policy.governanceRoot, 'candidate-vault'),
     })),
+    candidate => existingSkillAdmissionScheduler?.observe(candidate),
   )
+  const existingSkillAdmission = candidateEvaluationPolicies.length === 0
+    ? undefined
+    : new ExistingSkillCandidateAdmission({
+        policies: candidateEvaluationPolicies,
+        baselines: {
+          resolveBaseline: (workspaceId, baselineId) => {
+            if (existingSkillBaselineVault === undefined) {
+              return Promise.reject(new Error('existing Skill baseline vault is unavailable'))
+            }
+            return existingSkillBaselineVault.resolveBaseline(workspaceId, baselineId)
+          },
+        },
+        candidates: skillCandidates,
+        evidence: {
+          readForGovernance: (workspaceId, opportunityId, qualificationId, evidenceId) => {
+            if (existingSkillEvaluationEvidence === undefined) {
+              return Promise.reject(new Error('existing Skill protected evidence is unavailable'))
+            }
+            return existingSkillEvaluationEvidence.readForGovernance(
+              workspaceId,
+              opportunityId,
+              qualificationId,
+              evidenceId,
+            )
+          },
+        },
+      })
+  existingSkillAdmissionScheduler = existingSkillAdmission === undefined
+    ? undefined
+    : new ExistingSkillCandidateAdmissionScheduler(
+        existingSkillAdmission,
+        { listExistingCandidates: workspaceId => skillCandidateStore.listExistingCandidates(workspaceId) },
+      )
   let skillAdmission: SkillCandidateAdmission | undefined
   if (candidateEvaluationPolicies.length > 0) {
     if (config.supervisor === undefined || config.supervisor.runRoots.length === 0) {
@@ -456,6 +499,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     ...(counterfactualCanary === undefined ? {} : { counterfactualCanary }),
     ...(slowLoopAuthoring === undefined ? {} : { slowLoopAuthoring }),
     ...(existingSkillAuthoring === undefined ? {} : { existingSkillAuthoring }),
+    ...(existingSkillAdmission === undefined ? {} : { existingSkillAdmissions: existingSkillAdmission }),
     ...(skillEvaluationGovernance === undefined ? {} : { evaluationGovernance: skillEvaluationGovernance }),
     ...(review === undefined ? {} : { review }),
     ...(resident === undefined ? {} : { resident }),
@@ -531,6 +575,18 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           detachController()
         }
       }, 'dsh-evolve.existingSkillAuthoringJobs')
+    })
+  }
+  if (existingSkillAdmissionScheduler !== undefined) {
+    ctx.inject(['jobs'], (jobCtx) => {
+      jobCtx.effect(() => {
+        const detachController = jobCtx.jobs.attachController('dsh-evolve-existing-skill-admission')
+        const detachAdmission = existingSkillAdmissionScheduler!.attachJobs(jobCtx.jobs)
+        return () => {
+          detachAdmission()
+          detachController()
+        }
+      }, 'dsh-evolve.existingSkillAdmissionJobs')
     })
   }
   const canaryScheduler = counterfactualCanaryScheduler
@@ -610,6 +666,7 @@ export type {
   InstalledSkillBaselineCaptureResult,
   InstalledSkillBaselineManifest,
   InstalledSkillBaselinePolicy,
+  ResolvedInstalledSkillBundle,
   ResolvedInstalledSkillBaseline,
 } from './installed-skill-baseline.ts'
 export { ExistingSkillBaselineQualification } from './existing-skill-baseline-qualification.ts'
@@ -634,6 +691,15 @@ export type {
   ExistingSkillCandidateAuthoringScan,
   ExistingSkillCandidateAuthoringOptions,
 } from './existing-skill-candidate-authoring.ts'
+export {
+  ExistingSkillCandidateAdmission,
+  ExistingSkillCandidateAdmissionScheduler,
+} from './existing-skill-candidate-admission.ts'
+export type {
+  ExistingSkillCandidateAdmissionReason,
+  ExistingSkillCandidateAdmissionResult,
+  ExistingSkillCandidateAdmissionScan,
+} from './existing-skill-candidate-admission.ts'
 export type { SkillOpportunityAuthoringPolicyConfig } from './slow-loop-skill-authoring.ts'
 export type { ShadowResumeInvocation, ShadowSupervisorOptions } from './shadow-supervisor.ts'
 export type {
@@ -682,6 +748,7 @@ export type {
   EvolutionArtifactView,
   EvolutionFutureSessionPromotionReason,
   EvolutionGenerationView,
+  EvolutionExistingSkillAdmissionView,
   EvolutionInactiveGenerationView,
   EvolutionOverview,
   EvolutionReviewCaseView,

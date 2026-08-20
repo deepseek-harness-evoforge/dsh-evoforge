@@ -374,6 +374,7 @@ export class SkillCandidateRepository {
   private readonly store: Pick<SkillCandidateStore, 'recordCandidate'>
     & Partial<Pick<SkillCandidateStore, 'recordExistingCandidate'>>
   private readonly onCandidate: ((candidate: ExperienceSkillCandidate) => void) | undefined
+  private readonly onExistingCandidate: ((candidate: ExistingSkillCandidate) => void) | undefined
   private readonly existingRoots = new Map<string, string>()
 
   constructor(
@@ -381,9 +382,11 @@ export class SkillCandidateRepository {
       & Partial<Pick<SkillCandidateStore, 'recordExistingCandidate'>>,
     onCandidate?: (candidate: ExperienceSkillCandidate) => void,
     existingPolicies: readonly ExistingSkillCandidatePolicy[] = [],
+    onExistingCandidate?: (candidate: ExistingSkillCandidate) => void,
   ) {
     this.store = store
     this.onCandidate = onCandidate
+    this.onExistingCandidate = onExistingCandidate
     for (const policy of existingPolicies) {
       if (!z.uuid().safeParse(policy.workspaceId).success
         || !isAbsolute(policy.root)
@@ -630,6 +633,7 @@ export class SkillCandidateRepository {
       || canonicalJson(recorded.candidate) !== canonicalJson(candidate)) {
       throw new Error('existing Skill Candidate store returned conflicting content')
     }
+    this.onExistingCandidate?.(recorded.candidate)
     return recorded
   }
 

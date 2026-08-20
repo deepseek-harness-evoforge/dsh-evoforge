@@ -104,6 +104,11 @@ export interface ResolvedInstalledSkillBaseline {
   readonly files: readonly SkillBundleArchiveFile[]
 }
 
+export interface ResolvedInstalledSkillBundle {
+  readonly manifest: InstalledSkillBaselineManifest
+  readonly files: readonly SkillBundleArchiveFile[]
+}
+
 interface InstalledSkillBaselineVaultOptions {
   readonly now?: () => number
 }
@@ -261,6 +266,20 @@ export class InstalledSkillBaselineVault {
     }
     return Object.freeze({
       reference: parsedReference,
+      manifest: resolved.manifest,
+      files: resolved.files,
+    })
+  }
+
+  /** Resolve one exact content-addressed parent Bundle without guessing an invocation. */
+  async resolveBaseline(
+    workspaceId: string,
+    baselineId: string,
+  ): Promise<ResolvedInstalledSkillBundle | undefined> {
+    const policy = this.policies.get(workspaceId)
+    if (policy === undefined) return undefined
+    const resolved = await readAndVerifyBundle(policy, baselineId)
+    return Object.freeze({
       manifest: resolved.manifest,
       files: resolved.files,
     })
