@@ -58,6 +58,8 @@ import {
   openFeedbackSignalStore,
 } from './feedback-signal-monitor.ts'
 import { DurableFeedbackAttribution } from './durable-feedback-attribution.ts'
+import { InstalledSkillBaselineVault } from './installed-skill-baseline.ts'
+import { installInstalledSkillBaselineMonitor } from './installed-skill-baseline-monitor.ts'
 import { EvolutionControlPlane } from './evolution-control-plane.ts'
 import { EvolutionRemoteService } from './evolution-remote.ts'
 import { AutomaticEvolutionBudget } from './automatic-evolution-budget.ts'
@@ -182,13 +184,29 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const disposeBinder = installGenerationBinder(ctx, store, source)
   const capabilities = new CapabilityMap()
   const capabilityMonitors = new Set<ReturnType<typeof installCapabilityMapObserver>>()
+  const installedBaselineMonitors = new Set<ReturnType<typeof installInstalledSkillBaselineMonitor>>()
   ctx.inject(['skills'], (skillCtx) => {
     const monitor = installCapabilityMapObserver(skillCtx, capabilities, store)
     capabilityMonitors.add(monitor)
+    const baselineMonitor = candidateEvaluationPolicies.length === 0
+      ? undefined
+      : installInstalledSkillBaselineMonitor(
+          skillCtx,
+          new InstalledSkillBaselineVault(
+            candidateEvaluationPolicies.map(policy => ({
+              workspaceId: policy.workspaceId,
+              governanceRoot: policy.governanceRoot,
+            })),
+            skillCtx.skills,
+          ),
+        )
+    if (baselineMonitor !== undefined) installedBaselineMonitors.add(baselineMonitor)
     skillCtx.effect(() => async () => {
+      await baselineMonitor?.dispose()
+      if (baselineMonitor !== undefined) installedBaselineMonitors.delete(baselineMonitor)
       await monitor.dispose()
       capabilityMonitors.delete(monitor)
-    }, 'dsh-evolve.capabilityMapObserver')
+    }, 'dsh-evolve.skillObservation')
   })
 
   let skillAdmissionScheduler: SkillCandidateAdmissionScheduler | undefined
@@ -437,6 +455,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   }
   ctx.effect(() => async () => {
     await deliveryMonitor.dispose()
+    await Promise.all([...installedBaselineMonitors].map(monitor => monitor.dispose()))
     await Promise.all([...capabilityMonitors].map(monitor => monitor.dispose()))
     await capabilityGapMonitor.dispose()
     await feedbackMonitor.dispose()
@@ -466,6 +485,13 @@ export type {
   SkillEvaluationGovernanceScan,
 } from './skill-evaluation-governance.ts'
 export type { ExactSkillInvocationAttribution } from './durable-feedback-attribution.ts'
+export { InstalledSkillBaselineVault } from './installed-skill-baseline.ts'
+export type {
+  InstalledSkillBaselineCaptureResult,
+  InstalledSkillBaselineManifest,
+  InstalledSkillBaselinePolicy,
+  ResolvedInstalledSkillBaseline,
+} from './installed-skill-baseline.ts'
 export type { SkillOpportunityAuthoringPolicyConfig } from './slow-loop-skill-authoring.ts'
 export type { ShadowResumeInvocation, ShadowSupervisorOptions } from './shadow-supervisor.ts'
 export type {

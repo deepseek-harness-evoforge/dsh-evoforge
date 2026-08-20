@@ -90,7 +90,7 @@ workflow 选择。原生 Job author 只接收有界内部 Goal/Gap 证据，输�
 校验、内容寻址并写入 inactive/quarantined/unevaluated/never-executed Candidate。DSH Web 展示
 Gap → Opportunity → Candidate 及运行状态、成本和治理边界，不显示外部发现尝试。
 
-Existing-Skill improvement 与 missing-Skill Opportunity 分轨：同一 invocation-content hash 在至少两个不同 Goal 中的去重明确纠正可形成 `waiting-for-baseline-bundle` 调查，并在 Web 展示；不同 hash、同 Goal、legacy 或重复 Signal abstain。该 hash 不代表完整 Bundle，调查固定无因果/无发布权，不进入 Slow Loop 或 capability-absent Envelope。下一步是调用时封存受信完整 Bundle、建立 exact skill-tree baseline 与受保护 author/admission/holdout，之后才允许 Candidate。
+Existing-Skill improvement 与 missing-Skill Opportunity 分轨：同一 invocation-content hash 在至少两个不同 Goal 中的去重明确纠正可形成 `waiting-for-baseline-bundle` 调查，并在 Web 展示；不同 hash、同 Goal、legacy 或重复 Signal abstain。该 hash 不代表完整 Bundle，调查固定无因果/无发布权，不进入 Slow Loop 或 capability-absent Envelope。V4.33 已在原生调用边界以相同 Agent scope/cwd 重载 DSH definition，校验 exact rendered content，并对独立目录型 Skill 双扫描封存完整内容寻址 Bundle；unsupported boundary 或漂移 abstain。下一步是把每个 correction 的 `(Session, invocation seq)` 解析到同一个 sealed baseline，随后建立 existing-Skill 的受保护 author/admission/holdout、Candidate 与 paired evaluation。
 
 内部 Candidate 评测已删除 `candidateAdmissionTargets`/`candidateShadowTargets` 这两套预选 exact Skill 的配置。
 `candidateEvaluationPolicies` 不声明 Skill、baseline、Case Pack 或 Candidate 方向；自主治理只增加 exact DSH revision 和独立日预算。Host 先从 exact Opportunity
@@ -109,7 +109,7 @@ Candidate 侧才安装 exact whole-Skill；Envelope id 和 seal id 贯穿 admiss
 cache-read/write 和 latency projection，货币成本明确 unavailable，且不影响资格/author。Host 权威 summary、
 generated Remote 与 DSH Web 已展示 Workspace/current/baseline 聚合和至多 20 条最近已测 Outcome；真实浏览器已验证
 在线刷新、Host 断连保留最后快照并显式报错、同 profile 重启恢复和幂等重放。失败 Outcome 现可触发 exact active internal Candidate 的内容寻址 sealed canary；自动化测试覆盖 keep/review/rollback-eligible、预算、输入与 pointer 漂移、中断不盲重试、持续监测和 DSH Jobs。仍待实现/验证：
-existing-Skill 完整 Bundle 基线与 Candidate、correction/outcome 的因果证明，以及 rework/currency-cost/reuse/retention/negative-transfer/rollback 的完整归因、内部 Candidate 治理包的真实 provider outcome、模型缺口质量、迁移/遗忘/
+existing-Skill correction→完整 Bundle 基线汇合与 Candidate、correction/outcome 的因果证明，以及 rework/currency-cost/reuse/retention/negative-transfer/rollback 的完整归因、内部 Candidate 治理包的真实 provider outcome、模型缺口质量、迁移/遗忘/
 长期保留，以及同条件 Hermes paired outcome。因此不能描述为“自主 Skill 进化已完成”。
 
 ## V5 — 可解释 Web 与飞书闭环

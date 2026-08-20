@@ -52,6 +52,24 @@ export async function assembleSkillBundleArchive(
   input: readonly SkillBundleTextFile[],
 ): Promise<AssembledSkillBundleArchive> {
   const files = validateAuthoredTextManifest(input)
+  return encodeCanonicalArchive(files)
+}
+
+/**
+ * Seal an already-installed directory Skill without narrowing its package to
+ * the authored-candidate text format. The caller must have established the
+ * directory boundary; this codec owns portable paths, budgets, modes and the
+ * canonical content identity for every regular file in that boundary.
+ */
+export async function assembleSealedSkillBundleArchive(
+  input: readonly SkillBundleArchiveFile[],
+): Promise<AssembledSkillBundleArchive> {
+  return encodeCanonicalArchive(validateSealedManifest(input))
+}
+
+async function encodeCanonicalArchive(
+  files: SkillBundleArchiveFile[],
+): Promise<AssembledSkillBundleArchive> {
   const decoded = finalize(files)
   const archive = pack()
   const output = collect(archive)
@@ -148,6 +166,37 @@ function validateAuthoredTextManifest(
   if (unreferenced !== undefined) {
     throw new Error(`authored whole-Skill has an unreferenced file: ${unreferenced}`)
   }
+  return files
+}
+
+function validateSealedManifest(
+  input: readonly SkillBundleArchiveFile[],
+): SkillBundleArchiveFile[] {
+  if (input.length === 0 || input.length > SKILL_BUNDLE_ARCHIVE_LIMITS.maxFiles) {
+    throw new Error('sealed Skill bundle file count exceeds safety limit')
+  }
+  const files: SkillBundleArchiveFile[] = []
+  const paths = new Set<string>()
+  let totalBytes = 0
+  for (const item of input) {
+    if (typeof item !== 'object' || item === null
+      || item.mode !== '100644'
+      || typeof item.path !== 'string'
+      || !Buffer.isBuffer(item.content)) {
+      throw new Error('sealed Skill bundle manifest has an invalid shape')
+    }
+    const path = validateArchivePath(item.path, false)
+    if (paths.has(path)) throw new Error(`duplicate path in sealed Skill bundle: ${path}`)
+    paths.add(path)
+    assertFileBudget(path, item.content.byteLength, totalBytes, files.length)
+    totalBytes += item.content.byteLength
+    files.push(Object.freeze({
+      path,
+      mode: '100644',
+      content: Buffer.from(item.content),
+    }))
+  }
+  if (!paths.has('SKILL.md')) throw new Error('sealed Skill bundle has no root SKILL.md')
   return files
 }
 

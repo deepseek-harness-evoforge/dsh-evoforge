@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { foldGoal } from '@deepseek-ai/dsh-goal'
 import type { SessionEvent, SessionId } from '@deepseek-ai/dsh-session'
 import type { SessionPersistence } from '@deepseek-ai/dsh-session-persistence'
-import { isSkillName } from '@deepseek-ai/dsh-skill'
+import { durableSkillInvocations } from './durable-skill-invocation.ts'
 
 export interface ExactSkillInvocationAttribution {
   readonly kind: 'exact-skill-invocation-v1'
@@ -55,10 +55,7 @@ export class DurableFeedbackAttribution {
       event.type === 'user/message' && sourceKind(event.data.source) === 'user')
     if (direct.length !== 1) return undefined
 
-    const invocations = [
-      ...explicitInvocations(turnEvents),
-      ...successfulToolInvocations(turnEvents),
-    ]
+    const invocations = durableSkillInvocations(turnEvents)
     if (invocations.length !== 1) return undefined
     let goal
     try {
@@ -73,7 +70,7 @@ export class DurableFeedbackAttribution {
       skillName: invocation.skillName,
       route: invocation.route,
       invocationSeq: invocation.seq,
-      invocationContentHash: invocation.contentHash,
+      invocationContentHash: hashContent(invocation.content),
       assistantSeq: assistant.seq,
       turn: assistant.data.turn,
       goal: Object.freeze({ id: String(goal.id), revision: goal.revision }),
@@ -81,80 +78,12 @@ export class DurableFeedbackAttribution {
   }
 }
 
-interface Invocation {
-  readonly skillName: string
-  readonly route: ExactSkillInvocationAttribution['route']
-  readonly seq: number
-  readonly contentHash: string
-}
-
-function explicitInvocations(events: readonly SessionEvent[]): Invocation[] {
-  return events.flatMap((event) => {
-    if (event.type !== 'user/message' || sourceKind(event.data.source) !== 'skill-invocation') return []
-    const skillName = sourceName(event.data.source)
-    return skillName !== undefined && isSkillName(skillName)
-      ? [{
-          skillName,
-          route: 'user-explicit' as const,
-          seq: event.seq,
-          contentHash: hashContent(event.data.content),
-        }]
-      : []
-  })
-}
-
-function successfulToolInvocations(events: readonly SessionEvent[]): Invocation[] {
-  const results = events.filter((event): event is SessionEvent<'tool/result'> =>
-    event.type === 'tool/result')
-  return events.flatMap((event) => {
-    if (event.type !== 'tool/call' || event.data.name !== 'skill') return []
-    const skillName = toolSkillName(event.data.arguments)
-    if (skillName === undefined) return []
-    const matches = results.flatMap(candidate => {
-      if (candidate.sourceEventSeqs?.includes(event.seq) === true
-        && candidate.data.error === undefined) {
-        return candidate.data.message.content.filter(block =>
-          block.type === 'tool-result'
-          && String(block.toolCallId) === String(event.data.callId)
-          && block.isError !== true)
-      }
-      return []
-    })
-    return matches.length !== 1
-      ? []
-      : [{
-          skillName,
-          route: 'model-tool' as const,
-          seq: event.seq,
-          contentHash: hashContent(matches[0]!.content),
-        }]
-  })
-}
-
 function hashContent(content: unknown): string {
   return createHash('sha256').update(JSON.stringify(content)).digest('hex')
-}
-
-function toolSkillName(raw: string): string | undefined {
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(raw)
-  } catch {
-    return undefined
-  }
-  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined
-  const name = (parsed as Record<string, unknown>).name
-  return typeof name === 'string' && isSkillName(name) ? name : undefined
 }
 
 function sourceKind(source: unknown): string | undefined {
   if (source === null || typeof source !== 'object') return undefined
   const kind = (source as { kind?: unknown }).kind
   return typeof kind === 'string' ? kind : undefined
-}
-
-function sourceName(source: unknown): string | undefined {
-  if (source === null || typeof source !== 'object') return undefined
-  const name = (source as { name?: unknown }).name
-  return typeof name === 'string' ? name : undefined
 }
