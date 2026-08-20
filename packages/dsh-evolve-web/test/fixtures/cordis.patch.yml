@@ -32,4 +32,5 @@
         seedSkillEvaluationRuns: true
         seedExistingSkillHoldoutEvaluation: true
         seedExistingSkillRetentionEvaluation: true
+        seedExistingSkillRelease: true
         retentionStatus: retained

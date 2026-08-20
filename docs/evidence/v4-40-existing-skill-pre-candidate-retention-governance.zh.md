@@ -1,7 +1,7 @@
 # V4.40 现有 Skill Candidate 前 Retention 治理
 
 日期：2026-08-21
-状态：`implemented`（自动化与 Host/Web contract 已验证；Retention Trial、真实 provider 和最终 tarball 浏览器尚未完成）
+状态：`implemented`（本增量只验证自动化与 Host/Web contract；后续 Retention Trial 已由 V4.41 实现，最终 tarball 浏览器已由 V4.42 验证；真实 provider 仍未完成）
 
 ## 本增量回答的问题
 
@@ -21,7 +21,7 @@ V4.35 已把第五个独立 Goal 保留为 Candidate 不可见的 `retention` �
 - 完全相同的 Holdout/Retention evaluator 会在 calibration 和安装前被拒绝，不能依靠不同 role 或 input digest 产生的 manifest hash 冒充独立评测。
 - `evolution-control-plane.test.ts` 和 `evolution-action.client.test.tsx` 固定 Retention presence、成本与 Candidate-blind Web 表达；generated Typert Host/Remote 与固定 DSH revision 同步。
 - 当前包级结果：`dsh-evolve` 251 passed / 1 skipped，`dsh-evolve-web` 20 passed；根级累计 480 passed / 3 skipped；最终 `pnpm check` 以退出码 0 通过文档、11 包 typecheck、全部测试与 build。
-- 本增量不把确定性测试执行器、Web fixture 或治理 ready 冒充 Retention 效果。后续 [V4.41](v4-41-existing-skill-exact-retention-evaluation.zh.md) 已增加 `ExistingSkillRetentionEvaluation`、原生 Jobs 恢复与 exact assembled Trial；最终 tarball 浏览器和真实 provider 仍未完成。
+- 本增量不把确定性测试执行器、Web fixture 或治理 ready 冒充 Retention 效果。后续 [V4.41](v4-41-existing-skill-exact-retention-evaluation.zh.md) 已增加 `ExistingSkillRetentionEvaluation`、原生 Jobs 恢复与 exact assembled Trial，[V4.42](v4-42-existing-skill-retention-web-browser.zh.md) 已完成最终 tarball 浏览器生命周期；真实 provider 仍未完成。
 
 ## 发布边界
 

@@ -4,6 +4,11 @@ import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { gzipSync } from 'node:zlib'
 import { pack } from '../../../dsh-evolve/node_modules/tar-stream/index.js'
+import {
+  defineDomain,
+  domainTable,
+} from '../../../dsh-evolve/node_modules/@deepseek-ai/dsh-storage-domain/lib/index.js'
+import { z } from '../../../dsh-evolve/node_modules/zod/index.js'
 
 export const name = 'evoforge-browser-workspace-bootstrap'
 export const inject = [
@@ -15,6 +20,12 @@ export const inject = [
   'workspaceRegistry',
 ]
 
+const browserExistingSkillCandidateDomain = defineDomain({
+  name: 'evoforge_existing_skill_candidates',
+  version: 1,
+  tables: { candidates: domainTable(z.unknown()) },
+})
+
 /** Browser-only fixture: DSH creates and owns the Workspace, Session, and Agent. */
 export async function apply(ctx, config) {
   await mkdir(config.runRoot, { recursive: true })
@@ -23,6 +34,10 @@ export async function apply(ctx, config) {
   const configureEvaluation = config.seedCapabilityGaps === true
     || config.seedExistingSkillHoldoutEvaluation === true
     || config.seedExistingSkillRetentionEvaluation === true
+    || config.seedExistingSkillRelease === true
+  const releaseSeed = config.seedExistingSkillRelease === true
+    ? await seedExistingSkillReleaseCandidate(ctx, workspace, config)
+    : undefined
   const evolutionFiber = ctx.root.plugin(evolvePlugin, {
     cacheRoot: config.cacheRoot,
     ...(configureEvaluation
@@ -66,11 +81,18 @@ export async function apply(ctx, config) {
   if (config.seedSkillEvaluationRuns === true) {
     await seedExactSkillEvaluationRuns(ctx, workspace, config)
   }
-  if (config.seedExistingSkillHoldoutEvaluation === true) {
+  if (releaseSeed === undefined && config.seedExistingSkillHoldoutEvaluation === true) {
     await seedExistingSkillHoldoutEvaluation(workspace, config)
   }
-  if (config.seedExistingSkillRetentionEvaluation === true) {
+  if (releaseSeed === undefined && config.seedExistingSkillRetentionEvaluation === true) {
     await seedExistingSkillRetentionEvaluation(workspace, config)
+  }
+  if (releaseSeed !== undefined) {
+    await waitFor(ctx, String(workspace.id), String(agent.session.id), value =>
+      value.existingSkillRelease?.items.some(item =>
+        item.candidateId === releaseSeed.candidateId
+          && (item.status === 'eligible' || item.status === 'approved')) === true,
+    'real browser fixture did not expose an eligible or approved existing Skill release')
   }
   if (config.seedGoalMetrics === true) {
     await seedNativeGoalMetrics(ctx, workspace, agent)
@@ -96,21 +118,238 @@ export async function apply(ctx, config) {
   }, 'evoforge-browser-workspace-bootstrap.dispose')
 }
 
+/**
+ * Prepare one exact release-eligible existing-Skill lineage before the installed
+ * Host starts. This is durable test setup only: approval and promotion remain
+ * untouched so the real Web controls must perform both authority transitions.
+ */
+async function seedExistingSkillReleaseCandidate(ctx, workspace, config) {
+  const workspaceId = String(workspace.id)
+  const skillName = 'verify-dsh-release'
+  const baseline = await assembleBrowserSkillBundle([{
+    path: 'SKILL.md',
+    content: [
+      '---',
+      `name: ${skillName}`,
+      'description: Verify the original DSH release procedure.',
+      '---',
+      '',
+      '# Original DSH release procedure',
+      '',
+      'Run the original verification sequence.',
+      '',
+    ].join('\n'),
+  }, {
+    path: 'assets/preserved.bin',
+    content: Buffer.from([0, 1, 2, 255]),
+  }])
+  const candidateArchive = await assembleBrowserSkillBundle([{
+    path: 'SKILL.md',
+    content: [
+      '---',
+      `name: ${skillName}`,
+      'description: Verify the strengthened DSH release procedure.',
+      '---',
+      '',
+      '# Strengthened DSH release procedure',
+      '',
+      'Follow the [verified release contract](references/release.md).',
+      '',
+    ].join('\n'),
+  }, {
+    path: 'assets/preserved.bin',
+    content: Buffer.from([0, 1, 2, 255]),
+  }, {
+    path: 'references/release.md',
+    content: '# Verified release contract\n\nInstall, boot, reload, recover, and uninstall.\n',
+  }])
+  const opportunityId = sha256('browser-existing-skill-opportunity')
+  const qualificationId = sha256('browser-existing-skill-qualification')
+  const baselineId = sha256('browser-existing-skill-baseline')
+  const evaluationEvidenceId = sha256('browser-existing-skill-evaluation-evidence')
+  const envelopeId = sha256('browser-existing-skill-holdout-envelope')
+  const input = {
+    kind: 'existing-skill-improvement-candidate-v1',
+    createdAt: Date.parse('2026-08-21T00:00:00.000Z'),
+    workspaceId,
+    skillName,
+    description: 'Verify the strengthened DSH release procedure.',
+    opportunity: {
+      kind: 'internal-existing-skill-correction-v1',
+      id: opportunityId,
+      signalCount: 5,
+      goalCount: 5,
+    },
+    baseline: {
+      qualificationId,
+      id: baselineId,
+      artifactDigest: baseline.artifactDigest,
+      treeHash: baseline.treeHash,
+    },
+    authorship: {
+      kind: 'protected-correction-authoring-v1',
+      policyId: 'browser-existing-release',
+      modelIdentityHash: sha256('browser-protected-author'),
+      evaluationEvidenceId,
+      inputDigest: sha256('browser-protected-authoring-input'),
+      holdoutEnvelopeId: envelopeId,
+      claim: 'Preserve the complete installed Skill while strengthening its verified release procedure.',
+    },
+    scope: 'workspace',
+    version: {
+      kind: 'existing-skill-improvement-bundle-v1',
+      parentBaselineId: baselineId,
+      artifactDigest: candidateArchive.artifactDigest,
+      treeHash: candidateArchive.treeHash,
+    },
+    contentHash: candidateArchive.artifactDigest,
+    diff: {
+      kind: 'bounded-instruction-tree-diff-v1',
+      changedPaths: ['SKILL.md', 'references/release.md'],
+      addedPaths: ['references/release.md'],
+      preservedFileCount: 1,
+      preservedBinaryFileCount: 1,
+    },
+    package: {
+      path: skillName,
+      fileCount: candidateArchive.files.length,
+      totalBytes: candidateArchive.totalBytes,
+      hasExecutableFiles: false,
+    },
+    permissions: {
+      declared: false,
+      executableContentChanged: false,
+      externalEffects: 'unchanged-or-unknown',
+    },
+    license: { status: 'unknown' },
+    safety: {
+      status: 'quarantined',
+      checks: [
+        { name: 'artifact-digest-integrity', status: 'passed' },
+        { name: 'exact-baseline-binding', status: 'passed' },
+        { name: 'whole-tree-inheritance', status: 'passed' },
+        { name: 'skill-identity', status: 'passed' },
+        { name: 'instruction-only-diff', status: 'passed' },
+        { name: 'effect-review', status: 'required' },
+      ],
+    },
+    artifact: {
+      kind: 'sealed-complete-skill-bundle',
+      format: 'tar.gz',
+      digest: candidateArchive.artifactDigest,
+    },
+    lifecycle: 'inactive',
+    verification: 'unevaluated',
+    execution: 'never',
+    releaseAuthority: 'none',
+  }
+  const candidateId = sha256(JSON.stringify([
+    'existing-skill-improvement-candidate-v1',
+    input.workspaceId,
+    input.skillName,
+    input.opportunity,
+    input.baseline,
+    input.authorship,
+    input.version,
+    input.contentHash,
+  ]))
+  const candidate = { schemaVersion: 1, id: candidateId, ...input }
+  const domain = await ctx.storageDomain.open(browserExistingSkillCandidateDomain)
+  try {
+    await domain.table('candidates').put(candidateId, candidate)
+  } finally {
+    await domain.close()
+  }
+
+  const candidateRoot = join(config.governanceRoot, 'candidate-vault')
+  const artifactRoot = join(candidateRoot, 'existing-skill-candidates', candidateId)
+  await mkdir(artifactRoot, { recursive: true, mode: 0o700 })
+  await writeFile(join(artifactRoot, 'bundle.tar.gz'), candidateArchive.content, { mode: 0o600 })
+  await writeFixtureJson(join(artifactRoot, 'manifest.json'), candidate)
+
+  const admissionId = sha256(JSON.stringify([
+    'existing-skill-candidate-admission-v1',
+    candidateId,
+    workspaceId,
+    skillName,
+    opportunityId,
+    qualificationId,
+    baselineId,
+    evaluationEvidenceId,
+  ]))
+  const admissionRoot = join(resolve(config.runRoot), 'existing-skill-admission', 'runs', admissionId)
+  await mkdir(admissionRoot, { recursive: true, mode: 0o700 })
+  await writeFixtureJson(join(admissionRoot, 'state.json'), {
+    schemaVersion: 1,
+    kind: 'existing-skill-candidate-admission-state-v1',
+    id: admissionId,
+    candidateId,
+    workspaceId,
+    skillName,
+    opportunityId,
+    qualificationId,
+    baselineId,
+    evaluationEvidenceId,
+  })
+  await writeFixtureJson(join(admissionRoot, 'result.json'), {
+    schemaVersion: 1,
+    id: admissionId,
+    candidateId,
+    workspaceId,
+    skillName,
+    status: 'qualified-for-holdout',
+    reasons: ['exact-paired-subjects-admitted'],
+    evidence: {
+      baselineId,
+      baselineArtifactDigest: baseline.artifactDigest,
+      baselineTreeHash: baseline.treeHash,
+      candidateArtifactDigest: candidateArchive.artifactDigest,
+      candidateTreeHash: candidateArchive.treeHash,
+      evaluationEvidenceId,
+      protectedAdmissionSampleHash: sha256('browser-protected-admission-sample'),
+      protectedAdmissionSampleCount: 1,
+      changedFileCount: 2,
+      addedFileCount: 1,
+      preservedFileCount: 1,
+      preservedBinaryFileCount: 1,
+      candidateExecuted: false,
+      evaluatorClass: 'host-structural',
+    },
+    releaseAuthority: 'none',
+  })
+  const evidence = {
+    candidateId,
+    admissionId,
+    envelopeId,
+    opportunityId,
+    qualificationId,
+    baselineId,
+    baselineTreeHash: baseline.treeHash,
+    candidateTreeHash: candidateArchive.treeHash,
+    holdoutCasePackHash: sha256('browser-existing-skill-holdout-case-pack'),
+    retentionCasePackHash: sha256('browser-existing-skill-retention-case-pack'),
+    skillName,
+  }
+  const holdoutEvaluationId = await seedExistingSkillHoldoutEvaluation(workspace, config, evidence)
+  await seedExistingSkillRetentionEvaluation(workspace, config, { ...evidence, holdoutEvaluationId })
+  return { candidateId }
+}
+
 /** Seed one exact durable result for the production existing-Skill scanner. */
-async function seedExistingSkillHoldoutEvaluation(workspace, config) {
+async function seedExistingSkillHoldoutEvaluation(workspace, config, release = {}) {
   const workspaceId = String(workspace.id)
   const policyId = 'browser-evaluation-governance'
-  const candidateId = '4'.repeat(64)
-  const admissionId = '5'.repeat(64)
-  const envelopeId = '6'.repeat(64)
-  const opportunityId = '7'.repeat(64)
-  const qualificationId = '8'.repeat(64)
-  const baselineId = '9'.repeat(64)
-  const baselineTreeHash = 'a'.repeat(64)
-  const candidateTreeHash = 'b'.repeat(64)
-  const casePackHash = 'c'.repeat(64)
+  const candidateId = release.candidateId ?? '4'.repeat(64)
+  const admissionId = release.admissionId ?? '5'.repeat(64)
+  const envelopeId = release.envelopeId ?? '6'.repeat(64)
+  const opportunityId = release.opportunityId ?? '7'.repeat(64)
+  const qualificationId = release.qualificationId ?? '8'.repeat(64)
+  const baselineId = release.baselineId ?? '9'.repeat(64)
+  const baselineTreeHash = release.baselineTreeHash ?? 'a'.repeat(64)
+  const candidateTreeHash = release.candidateTreeHash ?? 'b'.repeat(64)
+  const casePackHash = release.holdoutCasePackHash ?? 'c'.repeat(64)
   const dshRevision = '47f943859bef60e4160492346772ded9b24f765a'
-  const skillName = 'verify-dsh-release'
+  const skillName = release.skillName ?? 'verify-dsh-release'
   const id = sha256(JSON.stringify([
     'existing-skill-holdout-evaluation-v1',
     policyId,
@@ -192,25 +431,26 @@ async function seedExistingSkillHoldoutEvaluation(workspace, config) {
     finishedAt,
     releaseAuthority: 'none',
   })
+  return id
 }
 
 /** Seed one exact durable V4.41 Retention result for the production scanner. */
-async function seedExistingSkillRetentionEvaluation(workspace, config) {
+async function seedExistingSkillRetentionEvaluation(workspace, config, release = {}) {
   const workspaceId = String(workspace.id)
   const policyId = 'browser-evaluation-governance'
-  const candidateId = '4'.repeat(64)
-  const admissionId = '5'.repeat(64)
-  const envelopeId = '6'.repeat(64)
-  const opportunityId = '7'.repeat(64)
-  const qualificationId = '8'.repeat(64)
-  const baselineId = '9'.repeat(64)
-  const baselineTreeHash = 'a'.repeat(64)
-  const candidateTreeHash = 'b'.repeat(64)
-  const holdoutCasePackHash = 'c'.repeat(64)
-  const casePackHash = 'd'.repeat(64)
+  const candidateId = release.candidateId ?? '4'.repeat(64)
+  const admissionId = release.admissionId ?? '5'.repeat(64)
+  const envelopeId = release.envelopeId ?? '6'.repeat(64)
+  const opportunityId = release.opportunityId ?? '7'.repeat(64)
+  const qualificationId = release.qualificationId ?? '8'.repeat(64)
+  const baselineId = release.baselineId ?? '9'.repeat(64)
+  const baselineTreeHash = release.baselineTreeHash ?? 'a'.repeat(64)
+  const candidateTreeHash = release.candidateTreeHash ?? 'b'.repeat(64)
+  const holdoutCasePackHash = release.holdoutCasePackHash ?? 'c'.repeat(64)
+  const casePackHash = release.retentionCasePackHash ?? 'd'.repeat(64)
   const dshRevision = '47f943859bef60e4160492346772ded9b24f765a'
-  const skillName = 'verify-dsh-release'
-  const holdoutEvaluationId = sha256(JSON.stringify([
+  const skillName = release.skillName ?? 'verify-dsh-release'
+  const holdoutEvaluationId = release.holdoutEvaluationId ?? sha256(JSON.stringify([
     'existing-skill-holdout-evaluation-v1',
     policyId,
     candidateId,
@@ -575,6 +815,9 @@ async function assembleBrowserSkillBundle(input) {
   archive.finalize()
   const content = gzipSync(await output, { level: 9 })
   return {
+    content,
+    files,
+    totalBytes: files.reduce((total, file) => total + file.content.byteLength, 0),
     treeHash: tree.digest('hex'),
     artifactDigest: sha256(content),
   }
