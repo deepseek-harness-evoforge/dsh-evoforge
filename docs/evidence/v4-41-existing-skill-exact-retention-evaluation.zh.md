@@ -1,7 +1,7 @@
 # V4.41 现有 Skill 精确 Retention 评测
 
 日期：2026-08-21
-状态：`implemented`（自动化与 Host contract 已验证；DSH Web 视图的最终 tarball 真实浏览器、两套真实 provider、Canary/晋升/回滚尚未完成）
+状态：`implemented`（自动化与 Host contract 已验证；后续 [V4.42](v4-42-existing-skill-retention-web-browser.zh.md) 已补最终 tarball 真实浏览器，真实 provider、Canary/晋升/回滚尚未完成）
 
 ## 本增量回答的问题
 
@@ -25,5 +25,5 @@ V4.40 已在 Candidate 生成前把第五个独立 Goal 变成单独校准、内
 
 ## 发布边界
 
-- 本增量不包含 DSH Web Retention 组件与最终 tarball 真实浏览器验证，也不包含真实 provider、Canary、future-Session Promotion 或精确回滚。
+- 本增量自身不包含 DSH Web Retention 组件与最终 tarball 真实浏览器验证；后续 [V4.42](v4-42-existing-skill-retention-web-browser.zh.md) 已补该读路径。真实 provider、Canary、future-Session Promotion 与精确回滚仍未完成。
 - Retention 结果固定无发布权；两套独立真实 provider、真实飞书 exact route、Hermes paired benchmark 和长期负迁移/误晋升/误回滚数据仍阻止 tag 与完成声明。

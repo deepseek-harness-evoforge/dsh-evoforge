@@ -31,4 +31,5 @@
         seedCapabilityGaps: true
         seedSkillEvaluationRuns: true
         seedExistingSkillHoldoutEvaluation: true
+        seedExistingSkillRetentionEvaluation: true
         retentionStatus: retained

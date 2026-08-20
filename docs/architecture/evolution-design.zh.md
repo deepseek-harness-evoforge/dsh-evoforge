@@ -1,7 +1,7 @@
 # EvoForge 可证明自进化架构
 
 > 更新日期：2026-08-21
-> 当前状态：内部 Goal 经验到 exact Retention、future-Session Promotion Eligibility、失败 Outcome 触发的 sealed Canary evidence 和 expected-active Rollback Gate 活动纵切已实现；existing-Skill 调用时完整 Bundle、同一基线资格、Candidate 前 Holdout/Retention Envelope、protected whole-tree Candidate、结构准入、exact paired Holdout 与只从 authoritative improved Holdout 触发的 exact Retention 已实现。V4.39 最终 tarball 已完成 Holdout 的真实 DSH Web 故障恢复/卸载；Retention Web/真实浏览器、existing-Skill Canary/晋升/回滚、长期 Outcome 归因、两套独立真实 provider 和 Hermes paired benchmark尚未完成。
+> 当前状态：内部 Goal 经验到 exact Retention、future-Session Promotion Eligibility、失败 Outcome 触发的 sealed Canary evidence 和 expected-active Rollback Gate 活动纵切已实现；existing-Skill 调用时完整 Bundle、同一基线资格、Candidate 前 Holdout/Retention Envelope、protected whole-tree Candidate、结构准入、exact paired Holdout 与只从 authoritative improved Holdout 触发的 exact Retention 已实现。V4.42 已从最终 tarball 完成 existing-Skill Retention 的 DSH Web 权威展示、reload、Host 断连保留快照、恢复和卸载；existing-Skill Canary/晋升/回滚、长期 Outcome 归因、两套独立真实 provider 和 Hermes paired benchmark 尚未完成。
 
 ## 1. 用户结果
 

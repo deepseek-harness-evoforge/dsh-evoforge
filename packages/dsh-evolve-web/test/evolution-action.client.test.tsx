@@ -312,6 +312,20 @@ const t = (key: string) => ({
   'skills.improvements.holdout-evaluation.yes': 'yes',
   'skills.improvements.holdout-evaluation.no': 'no',
   'skills.improvements.holdout-evaluation.release.none': 'Evidence only · No promotion or release authority',
+  'skills.improvements.retention-evaluation': 'Exact Existing-Skill Retention',
+  'skills.improvements.retention-evaluation.policies': 'Workspace policies',
+  'skills.improvements.retention-evaluation.warnings': 'unreadable Retention results',
+  'skills.improvements.retention-evaluation.empty': 'No exact existing-Skill Retention has completed.',
+  'skills.improvements.retention-evaluation.status.complete': 'Protected Retention complete',
+  'skills.improvements.retention-evaluation.verdict.retained': 'Candidate retained the independent protected correction',
+  'skills.improvements.retention-evaluation.reason.candidate-passed-protected-retention': 'Exact Candidate passed while the baseline failed the protected Retention case',
+  'skills.improvements.retention-evaluation.identities': 'Candidate / Holdout / Admission / Envelope',
+  'skills.improvements.retention-evaluation.inputs': 'Baseline / Candidate / Holdout / Retention Case Pack trees',
+  'skills.improvements.retention-evaluation.outcomes': 'Baseline / Candidate · calibration / assembled / composition / integrity',
+  'skills.improvements.retention-evaluation.usage': 'Baseline / Candidate model calls · input/output/cache-read tokens',
+  'skills.improvements.retention-evaluation.yes': 'yes',
+  'skills.improvements.retention-evaluation.no': 'no',
+  'skills.improvements.retention-evaluation.release.none': 'Retention evidence only · No promotion or release authority',
   'skills.slow-loop': 'Internal experience-driven Skill authoring',
   'skills.slow-loop.policies': 'Workspace safety policies',
   'skills.slow-loop.warnings': 'unreadable durable states',
@@ -1043,6 +1057,43 @@ describe('EvolutionAction', () => {
             releaseAuthority: 'none' as const,
           }],
         },
+        existingSkillRetentionEvaluation: {
+          configuredPolicyCount: 1,
+          warningCount: 0,
+          results: [{
+            id: '2'.repeat(64),
+            candidateId: '0'.repeat(64),
+            holdoutEvaluationId: '1'.repeat(64),
+            admissionId: '6'.repeat(64),
+            envelopeId: 'd'.repeat(64),
+            skillName: 'build-dsh-plugin',
+            baselineTreeHash: '3'.repeat(64),
+            candidateTreeHash: '8'.repeat(64),
+            holdoutCasePackHash: '4'.repeat(64),
+            casePackHash: 'a'.repeat(64),
+            status: 'complete' as const,
+            verdict: 'retained' as const,
+            reason: 'candidate-passed-protected-retention' as const,
+            evidence: {
+              baseline: 'fail' as const,
+              candidate: 'pass' as const,
+              calibrationPassed: true,
+              assembled: true,
+              compositionStable: true,
+              inputIntegrityStable: true,
+              proposerCalls: 0 as const,
+              trialCount: 4 as const,
+              modelCalls: { baseline: 1, candidate: 1 },
+              usage: {
+                baseline: { inputTokens: 100, outputTokens: 20, cacheReadTokens: 60 },
+                candidate: { inputTokens: 90, outputTokens: 18, cacheReadTokens: 70 },
+              },
+            },
+            startedAt: '2026-08-18T01:02:00.000Z',
+            finishedAt: '2026-08-18T01:02:01.000Z',
+            releaseAuthority: 'none' as const,
+          }],
+        },
         skillAdmission: {
           configuredPolicyCount: 1,
           warningCount: 0,
@@ -1222,9 +1273,16 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('Candidate independently improved the exact baseline')).toBeTruthy()
     expect(screen.getByText(`Candidate / Admission / Envelope · ${'0'.repeat(8)}… / ${'6'.repeat(8)}… / ${'d'.repeat(8)}…`)).toBeTruthy()
     expect(screen.getByText(`Baseline / Candidate / Case Pack trees · ${'3'.repeat(8)}… / ${'8'.repeat(8)}… / ${'4'.repeat(8)}…`)).toBeTruthy()
-    expect(screen.getByText('Baseline / Candidate · calibration / assembled / composition / integrity · fail/pass · yes/yes/yes/yes')).toBeTruthy()
+    expect(screen.getAllByText('Baseline / Candidate · calibration / assembled / composition / integrity · fail/pass · yes/yes/yes/yes')).toHaveLength(2)
     expect(screen.getByText('Baseline / Candidate model calls · input/output/cache-read tokens · 1/1 · 120/20/40 · 110/18/50')).toBeTruthy()
     expect(screen.getByText('Evidence only · No promotion or release authority')).toBeTruthy()
+    expect(screen.getByText('Exact Existing-Skill Retention')).toBeTruthy()
+    expect(screen.getByText('Protected Retention complete')).toBeTruthy()
+    expect(screen.getByText('Candidate retained the independent protected correction')).toBeTruthy()
+    expect(screen.getByText(`Candidate / Holdout / Admission / Envelope · ${'0'.repeat(8)}… / ${'1'.repeat(8)}… / ${'6'.repeat(8)}… / ${'d'.repeat(8)}…`)).toBeTruthy()
+    expect(screen.getByText(`Baseline / Candidate / Holdout / Retention Case Pack trees · ${'3'.repeat(8)}… / ${'8'.repeat(8)}… / ${'4'.repeat(8)}… / ${'a'.repeat(8)}…`)).toBeTruthy()
+    expect(screen.getByText('Baseline / Candidate model calls · input/output/cache-read tokens · 1/1 · 100/20/60 · 90/18/70')).toBeTruthy()
+    expect(screen.getByText('Retention evidence only · No promotion or release authority')).toBeTruthy()
     expect(screen.getByText('Independent evaluation governance')).toBeTruthy()
     expect(screen.getByText('Admission, assembled holdout, and independent retention ready')).toBeTruthy()
     expect(screen.getByText('Governance model calls · input/output tokens · 3 · 960/360')).toBeTruthy()

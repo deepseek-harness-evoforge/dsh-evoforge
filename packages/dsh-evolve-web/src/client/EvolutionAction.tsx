@@ -377,6 +377,7 @@ function hasVerificationTarget(summary: EvolutionOverview): boolean {
     || (summary.skillAdmission?.configuredPolicyCount ?? 0) > 0
     || (summary.existingSkillAdmission?.configuredPolicyCount ?? 0) > 0
     || (summary.existingSkillHoldoutEvaluation?.configuredPolicyCount ?? 0) > 0
+    || (summary.existingSkillRetentionEvaluation?.configuredPolicyCount ?? 0) > 0
 }
 
 function SkillsView({ summary, busy, rollbackEligible, t }: {
@@ -405,6 +406,7 @@ function SkillsView({ summary, busy, rollbackEligible, t }: {
     <ExistingSkillCandidates summary={summary} t={t} />
     <ExistingSkillAdmission summary={summary} t={t} />
     <ExistingSkillHoldoutEvaluation summary={summary} t={t} />
+    <ExistingSkillRetentionEvaluation summary={summary} t={t} />
     <SkillEvaluationGovernance summary={summary} t={t} />
     <SkillAdmission summary={summary} t={t} />
     <SkillEvaluationRuns summary={summary} t={t} />
@@ -1001,6 +1003,63 @@ function ExistingSkillHoldoutEvaluation({
             </>}
             <div className="dsh-evolve-discovery-state">
               {t('skills.improvements.holdout-evaluation.release.none')}
+            </div>
+          </li>
+        ))}</ul>}
+  </section>
+}
+
+function ExistingSkillRetentionEvaluation({
+  summary,
+  t,
+}: {
+  summary: EvolutionOverview
+  t: (key: string) => string
+}) {
+  const evaluation = summary.existingSkillRetentionEvaluation
+  if (evaluation === undefined) return null
+  const flag = (value: boolean) => t(`skills.improvements.retention-evaluation.${value ? 'yes' : 'no'}`)
+  return <section>
+    <div className="dsh-evolve-capability-head">
+      <h3 className="dsh-evolve-section-title">{t('skills.improvements.retention-evaluation')}</h3>
+      <span className="dsh-evolve-catalog-status">
+        {evaluation.configuredPolicyCount} {t('skills.improvements.retention-evaluation.policies')}
+      </span>
+    </div>
+    {evaluation.warningCount > 0 && <div className="dsh-evolve-message dsh-evolve-error">
+      {evaluation.warningCount} {t('skills.improvements.retention-evaluation.warnings')}
+    </div>}
+    {evaluation.results.length === 0
+      ? <div className="dsh-evolve-message">{t('skills.improvements.retention-evaluation.empty')}</div>
+      : <ul className="dsh-evolve-list">{evaluation.results.map(result => (
+          <li className="dsh-evolve-skill-card" key={result.id}>
+            <div className="dsh-evolve-review-skill">{result.skillName}</div>
+            <div className="dsh-evolve-capability-route">
+              {t(`skills.improvements.retention-evaluation.status.${result.status}`)}
+            </div>
+            {result.verdict !== undefined && <div className="dsh-evolve-meta">
+              {t(`skills.improvements.retention-evaluation.verdict.${result.verdict}`)}
+            </div>}
+            {result.reason !== undefined && <div className="dsh-evolve-meta">
+              {t(`skills.improvements.retention-evaluation.reason.${result.reason}`)}
+            </div>}
+            <div className="dsh-evolve-meta">
+              {t('skills.improvements.retention-evaluation.identities')} · {shortId(result.candidateId)} / {shortId(result.holdoutEvaluationId)} / {shortId(result.admissionId)} / {shortId(result.envelopeId)}
+            </div>
+            <div className="dsh-evolve-meta">
+              {t('skills.improvements.retention-evaluation.inputs')} · {shortId(result.baselineTreeHash)} / {shortId(result.candidateTreeHash)} / {shortId(result.holdoutCasePackHash)} / {shortId(result.casePackHash)}
+            </div>
+            {result.evidence !== undefined && <>
+              <div className="dsh-evolve-meta">
+                {t('skills.improvements.retention-evaluation.outcomes')} · {result.evidence.baseline}/{result.evidence.candidate} · {flag(result.evidence.calibrationPassed)}/{flag(result.evidence.assembled)}/{flag(result.evidence.compositionStable)}/{flag(result.evidence.inputIntegrityStable)}
+              </div>
+              {result.evidence.modelCalls !== undefined && result.evidence.usage !== undefined &&
+                <div className="dsh-evolve-meta">
+                  {t('skills.improvements.retention-evaluation.usage')} · {result.evidence.modelCalls.baseline}/{result.evidence.modelCalls.candidate} · {trialUsage(result.evidence.usage.baseline)} · {trialUsage(result.evidence.usage.candidate)}
+                </div>}
+            </>}
+            <div className="dsh-evolve-discovery-state">
+              {t('skills.improvements.retention-evaluation.release.none')}
             </div>
           </li>
         ))}</ul>}

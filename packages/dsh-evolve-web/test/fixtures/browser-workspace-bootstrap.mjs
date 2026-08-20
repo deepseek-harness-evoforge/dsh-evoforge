@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, realpath, rename, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { gzipSync } from 'node:zlib'
 import { pack } from '../../../dsh-evolve/node_modules/tar-stream/index.js'
@@ -22,6 +22,7 @@ export async function apply(ctx, config) {
   const workspace = await ctx.workspaceRegistry.create(config.workspacePath, 'EvoForge Browser Acceptance')
   const configureEvaluation = config.seedCapabilityGaps === true
     || config.seedExistingSkillHoldoutEvaluation === true
+    || config.seedExistingSkillRetentionEvaluation === true
   const evolutionFiber = ctx.root.plugin(evolvePlugin, {
     cacheRoot: config.cacheRoot,
     ...(configureEvaluation
@@ -67,6 +68,9 @@ export async function apply(ctx, config) {
   }
   if (config.seedExistingSkillHoldoutEvaluation === true) {
     await seedExistingSkillHoldoutEvaluation(workspace, config)
+  }
+  if (config.seedExistingSkillRetentionEvaluation === true) {
+    await seedExistingSkillRetentionEvaluation(workspace, config)
   }
   if (config.seedGoalMetrics === true) {
     await seedNativeGoalMetrics(ctx, workspace, agent)
@@ -123,7 +127,10 @@ async function seedExistingSkillHoldoutEvaluation(workspace, config) {
     casePackHash,
     dshRevision,
   ]))
-  const runRoot = await realpath(config.runRoot)
+  // Match the production policy's lexical `resolve()` exactly. On macOS,
+  // `realpath('/tmp/...')` rewrites the path to `/private/tmp/...`; that makes
+  // the fixture's reportPath disagree with the authoritative scanner root.
+  const runRoot = resolve(config.runRoot)
   const runDir = join(runRoot, 'existing-skill-holdout', 'runs', id)
   const reportPath = join(runDir, 'result.json')
   const startedAt = '2026-08-21T00:00:00.000Z'
@@ -178,6 +185,127 @@ async function seedExistingSkillHoldoutEvaluation(workspace, config) {
       usage: {
         baseline: { inputTokens: 120, outputTokens: 20, cacheReadTokens: 40 },
         candidate: { inputTokens: 110, outputTokens: 18, cacheReadTokens: 50 },
+      },
+    },
+    reportPath,
+    startedAt,
+    finishedAt,
+    releaseAuthority: 'none',
+  })
+}
+
+/** Seed one exact durable V4.41 Retention result for the production scanner. */
+async function seedExistingSkillRetentionEvaluation(workspace, config) {
+  const workspaceId = String(workspace.id)
+  const policyId = 'browser-evaluation-governance'
+  const candidateId = '4'.repeat(64)
+  const admissionId = '5'.repeat(64)
+  const envelopeId = '6'.repeat(64)
+  const opportunityId = '7'.repeat(64)
+  const qualificationId = '8'.repeat(64)
+  const baselineId = '9'.repeat(64)
+  const baselineTreeHash = 'a'.repeat(64)
+  const candidateTreeHash = 'b'.repeat(64)
+  const holdoutCasePackHash = 'c'.repeat(64)
+  const casePackHash = 'd'.repeat(64)
+  const dshRevision = '47f943859bef60e4160492346772ded9b24f765a'
+  const skillName = 'verify-dsh-release'
+  const holdoutEvaluationId = sha256(JSON.stringify([
+    'existing-skill-holdout-evaluation-v1',
+    policyId,
+    candidateId,
+    admissionId,
+    envelopeId,
+    workspaceId,
+    skillName,
+    opportunityId,
+    qualificationId,
+    baselineId,
+    baselineTreeHash,
+    candidateTreeHash,
+    holdoutCasePackHash,
+    dshRevision,
+  ]))
+  const id = sha256(JSON.stringify([
+    'existing-skill-retention-evaluation-v1',
+    policyId,
+    candidateId,
+    holdoutEvaluationId,
+    admissionId,
+    envelopeId,
+    workspaceId,
+    skillName,
+    opportunityId,
+    qualificationId,
+    baselineId,
+    baselineTreeHash,
+    candidateTreeHash,
+    holdoutCasePackHash,
+    casePackHash,
+    dshRevision,
+  ]))
+  const runRoot = resolve(config.runRoot)
+  const runDir = join(runRoot, 'existing-skill-retention', 'runs', id)
+  const reportPath = join(runDir, 'result.json')
+  const startedAt = '2026-08-21T00:01:00.000Z'
+  const finishedAt = '2026-08-21T00:01:01.000Z'
+  const regressed = config.retentionStatus === 'regressed'
+  await mkdir(runDir, { recursive: true })
+  await writeFixtureJson(join(runDir, 'state.json'), {
+    schemaVersion: 1,
+    kind: 'existing-skill-retention-evaluation-state-v1',
+    id,
+    policyId,
+    candidateId,
+    holdoutEvaluationId,
+    admissionId,
+    envelopeId,
+    workspaceId,
+    skillName,
+    opportunityId,
+    qualificationId,
+    baselineId,
+    baselineTreeHash,
+    candidateTreeHash,
+    holdoutCasePackHash,
+    casePackHash,
+    dshRevision,
+    phase: 'complete',
+    createdAt: startedAt,
+    updatedAt: finishedAt,
+  })
+  await writeFixtureJson(reportPath, {
+    schemaVersion: 1,
+    kind: 'existing-skill-retention-evaluation-result-v1',
+    id,
+    candidateId,
+    holdoutEvaluationId,
+    admissionId,
+    envelopeId,
+    workspaceId,
+    skillName,
+    status: 'complete',
+    verdict: regressed ? 'regressed' : 'retained',
+    reason: regressed
+      ? 'candidate-regressed-protected-retention'
+      : 'candidate-passed-protected-retention',
+    evidence: {
+      holdoutCasePackHash,
+      baselineTreeHash,
+      candidateTreeHash,
+      casePackHash,
+      baseline: regressed ? 'pass' : 'fail',
+      candidate: regressed ? 'fail' : 'pass',
+      calibrationPassed: true,
+      assembled: true,
+      compositionStable: true,
+      inputIntegrityStable: true,
+      proposerCalls: 0,
+      trialCount: 4,
+      modelCalls: { baseline: 1, candidate: 1 },
+      usage: {
+        baseline: { inputTokens: 100, outputTokens: 20, cacheReadTokens: 60 },
+        candidate: { inputTokens: 90, outputTokens: 18, cacheReadTokens: 70 },
       },
     },
     reportPath,
