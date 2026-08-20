@@ -12,6 +12,7 @@ import type {
   ExistingSkillAuthoringEvidence,
   ExistingSkillEvaluationEvidenceVault,
 } from './existing-skill-evaluation-evidence-vault.ts'
+import type { ExistingSkillHoldoutGovernance } from './existing-skill-holdout-governance.ts'
 import { boundedModelProviderIdentity } from './model-provider-identity.ts'
 import type {
   ExistingSkillCandidate,
@@ -41,6 +42,8 @@ const stateSchema = z.strictObject({
   id: z.string().regex(/^[a-f0-9]{64}$/u),
   phase: z.enum([
     'prepared',
+    'holdout-deferred',
+    'holdout-blocked',
     'budget-deferred',
     'cancelled',
     'authoring-pending',
@@ -69,16 +72,21 @@ const stateSchema = z.strictObject({
     outputTokens: z.number().int().nonnegative(),
   }),
   candidateId: z.string().regex(/^[a-f0-9]{64}$/u).optional(),
+  holdoutEnvelopeId: z.string().regex(/^[a-f0-9]{64}$/u).optional(),
   retryAt: z.number().int().nonnegative().optional(),
   reason: z.string().min(1).max(512).optional(),
 }).superRefine((state, context) => {
-  if (['prepared', 'budget-deferred', 'cancelled'].includes(state.phase)
+  if (['prepared', 'holdout-deferred', 'holdout-blocked', 'budget-deferred', 'cancelled'].includes(state.phase)
     && state.cost.modelCalls !== 0) {
     context.addIssue({ code: 'custom', message: 'pre-dispatch existing Skill state records a model call' })
   }
   if (['authoring-pending', 'uncertain', 'incomplete', 'candidate-ready'].includes(state.phase)
     && state.cost.modelCalls !== 1) {
     context.addIssue({ code: 'custom', message: 'post-dispatch existing Skill state omits its model call' })
+  }
+  if ((state.phase === 'holdout-deferred' || state.phase === 'budget-deferred')
+    !== (state.retryAt !== undefined)) {
+    context.addIssue({ code: 'custom', message: 'existing Skill deferred state is inconsistent' })
   }
 })
 
@@ -135,6 +143,7 @@ export interface ExistingSkillCandidateAuthoringRunView {
   readonly inputTokens: number
   readonly outputTokens: number
   readonly candidateId?: string
+  readonly holdoutEnvelopeId?: string
   readonly retryAt?: number
   readonly releaseAuthority: 'none'
 }
@@ -150,6 +159,7 @@ export interface ExistingSkillCandidateAuthoringOptions {
   readonly opportunities: Pick<ExperienceDrivenSkillOpportunityDiscovery, 'discoverImprovements'>
   readonly qualification: Pick<ExistingSkillBaselineQualification, 'qualify'>
   readonly evaluationEvidence: Pick<ExistingSkillEvaluationEvidenceVault, 'prepare'>
+  readonly holdoutGovernance: Pick<ExistingSkillHoldoutGovernance, 'ensure'>
   readonly candidates: {
     listExistingCandidates(workspaceId?: string, opportunityId?: string): ExistingSkillCandidate[]
     quarantineExisting(input: ExistingSkillCandidateProposal): ReturnType<SkillCandidateRepository['quarantineExisting']>
@@ -172,6 +182,7 @@ export class ExistingSkillCandidateAuthoring {
   private readonly opportunities: ExistingSkillCandidateAuthoringOptions['opportunities']
   private readonly qualification: ExistingSkillCandidateAuthoringOptions['qualification']
   private readonly evaluationEvidence: ExistingSkillCandidateAuthoringOptions['evaluationEvidence']
+  private readonly holdoutGovernance: ExistingSkillCandidateAuthoringOptions['holdoutGovernance']
   private readonly candidates: ExistingSkillCandidateAuthoringOptions['candidates']
   private readonly budget: ExistingSkillCandidateAuthoringOptions['budget']
   private readonly authorModel: NonNullable<ExistingSkillCandidateAuthoringOptions['authorModel']>
@@ -189,6 +200,7 @@ export class ExistingSkillCandidateAuthoring {
     this.opportunities = options.opportunities
     this.qualification = options.qualification
     this.evaluationEvidence = options.evaluationEvidence
+    this.holdoutGovernance = options.holdoutGovernance
     this.candidates = options.candidates
     this.budget = options.budget
     this.authorModel = options.authorModel ?? requestExistingSkillAuthor
@@ -297,7 +309,7 @@ export class ExistingSkillCandidateAuthoring {
             reason: 'paid authoring outcome is uncertain after restart; refusing automatic retry',
           }, this.now())
         }
-        if (state.phase === 'budget-deferred'
+        if ((state.phase === 'holdout-deferred' || state.phase === 'budget-deferred')
           && state.retryAt !== undefined
           && state.retryAt <= this.now()) {
           state = await updateState(runDir, state, {
@@ -364,7 +376,9 @@ export class ExistingSkillCandidateAuthoring {
             done: done.then(result => ({
               status: controller.signal.aborted
                 ? 'killed' as const
-                : result.phase === 'candidate-ready' || result.phase === 'budget-deferred'
+                : result.phase === 'candidate-ready'
+                    || result.phase === 'budget-deferred'
+                    || result.phase === 'holdout-deferred'
                   ? 'completed' as const
                   : 'failed' as const,
               detail: controller.signal.aborted ? errorDetail(controller.signal.reason) : result.detail,
@@ -389,7 +403,7 @@ export class ExistingSkillCandidateAuthoring {
     controller: AbortController,
     initial: ExistingSkillAuthoringState,
     runDir: string,
-  ): Promise<{ readonly phase: 'candidate-ready' | 'budget-deferred' | 'uncertain' | 'incomplete'; readonly detail: string; readonly candidateId?: string }> {
+  ): Promise<{ readonly phase: 'candidate-ready' | 'holdout-deferred' | 'holdout-blocked' | 'budget-deferred' | 'uncertain' | 'incomplete'; readonly detail: string; readonly candidateId?: string }> {
     if (controller.signal.aborted) {
       await updateState(runDir, initial, {
         phase: 'cancelled',
@@ -397,16 +411,55 @@ export class ExistingSkillCandidateAuthoring {
       }, this.now())
       return { phase: 'incomplete', detail: errorDetail(controller.signal.reason) }
     }
+    let state = initial
+    try {
+      const governance = await this.holdoutGovernance.ensure({
+        opportunity,
+        qualification: qualified.qualification,
+        baseline: qualified.baseline,
+        evidence,
+        proposerModelIdentityHash: sha256(Buffer.from(modelIdentity)),
+      }, { signal: controller.signal })
+      if (governance.status === 'budget-deferred') {
+        await updateState(runDir, state, {
+          phase: 'holdout-deferred',
+          retryAt: governance.retryAt,
+          reason: 'independent existing-Skill holdout governance budget exhausted',
+        }, this.now())
+        return { phase: 'holdout-deferred', detail: 'holdout-deferred' }
+      }
+      state = await updateState(runDir, state, {
+        phase: 'prepared',
+        holdoutEnvelopeId: governance.envelope.id,
+        retryAt: undefined,
+        reason: undefined,
+      }, this.now())
+    } catch (error) {
+      const detail = errorDetail(error)
+      await updateState(runDir, state, {
+        phase: 'holdout-blocked',
+        retryAt: undefined,
+        reason: `independent existing-Skill holdout governance failed closed: ${detail}`,
+      }, this.now())
+      return { phase: 'holdout-blocked', detail: `holdout-blocked: ${detail}` }
+    }
+    if (controller.signal.aborted) {
+      await updateState(runDir, state, {
+        phase: 'cancelled',
+        reason: errorDetail(controller.signal.reason),
+      }, this.now())
+      return { phase: 'incomplete', detail: errorDetail(controller.signal.reason) }
+    }
     const reservation = await this.budget.reserve(target, input.idempotencyKey)
     if (!reservation.allowed) {
-      await updateState(runDir, initial, {
+      await updateState(runDir, state, {
         phase: 'budget-deferred',
         retryAt: reservation.retryAt,
         reason: 'daily paid authoring budget exhausted',
       }, this.now())
       return { phase: 'budget-deferred', detail: 'budget-deferred' }
     }
-    let state = await updateState(runDir, initial, {
+    state = await updateState(runDir, state, {
       phase: 'authoring-pending',
       cost: { modelCalls: 1, inputTokens: 0, outputTokens: 0 },
       retryAt: undefined,
@@ -621,7 +674,7 @@ async function updateState(
   runDir: string,
   state: ExistingSkillAuthoringState,
   patch: Partial<Pick<ExistingSkillAuthoringState,
-    'phase' | 'cost' | 'candidateId' | 'retryAt' | 'reason'>>,
+    'phase' | 'cost' | 'candidateId' | 'holdoutEnvelopeId' | 'retryAt' | 'reason'>>,
   now: number,
 ): Promise<ExistingSkillAuthoringState> {
   const next = stateSchema.parse({ ...state, ...patch, updatedAt: isoTime(now) })
@@ -823,6 +876,7 @@ function projectAuthoringState(
     inputTokens: state.cost.inputTokens,
     outputTokens: state.cost.outputTokens,
     ...(state.candidateId === undefined ? {} : { candidateId: state.candidateId }),
+    ...(state.holdoutEnvelopeId === undefined ? {} : { holdoutEnvelopeId: state.holdoutEnvelopeId }),
     ...(state.retryAt === undefined ? {} : { retryAt: state.retryAt }),
     releaseAuthority: 'none',
   })

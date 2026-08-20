@@ -20,6 +20,7 @@ import type {
 import type { SkillCandidateAdmission } from './skill-candidate-admission.ts'
 import type { SlowLoopSkillAuthoring } from './slow-loop-skill-authoring.ts'
 import type { ExistingSkillCandidateAuthoring } from './existing-skill-candidate-authoring.ts'
+import type { ExistingSkillHoldoutGovernance } from './existing-skill-holdout-governance.ts'
 import type { ExistingSkillCandidateAdmission } from './existing-skill-candidate-admission.ts'
 import type { SkillCandidateLineage } from './skill-candidate-lineage.ts'
 import type { SkillEvaluationEvidenceVault } from './skill-evaluation-evidence-vault.ts'
@@ -88,6 +89,7 @@ export interface EvolutionControlPlaneModules {
   readonly admissions?: Pick<SkillCandidateAdmission, 'scan'>
   readonly slowLoopAuthoring?: Pick<SlowLoopSkillAuthoring, 'scan'>
   readonly existingSkillAuthoring?: Pick<ExistingSkillCandidateAuthoring, 'scan'>
+  readonly existingSkillHoldoutGovernance?: Pick<ExistingSkillHoldoutGovernance, 'scan'>
   readonly existingSkillAdmissions?: Pick<ExistingSkillCandidateAdmission, 'scan'>
   readonly evaluationGovernance?: Pick<SkillEvaluationGovernance, 'scan'>
   readonly retention?: Pick<InternalSkillRetention, 'scan'>
@@ -109,6 +111,7 @@ export class EvolutionControlPlane {
       admissionScan,
       slowLoopAuthoringScan,
       existingSkillAuthoringScan,
+      existingSkillHoldoutGovernanceScan,
       existingSkillAdmissionScan,
       evaluationGovernanceScan,
       retentionScan,
@@ -122,6 +125,9 @@ export class EvolutionControlPlane {
       this.modules.existingSkillAuthoring === undefined
         ? undefined
         : this.modules.existingSkillAuthoring.scan(workspaceId),
+      this.modules.existingSkillHoldoutGovernance === undefined
+        ? undefined
+        : this.modules.existingSkillHoldoutGovernance.scan(workspaceId),
       this.modules.existingSkillAdmissions === undefined
         ? undefined
         : this.modules.existingSkillAdmissions.scan(workspaceId),
@@ -288,7 +294,34 @@ export class EvolutionControlPlane {
               inputTokens: run.inputTokens,
               outputTokens: run.outputTokens,
               ...(run.candidateId === undefined ? {} : { candidateId: run.candidateId }),
+              ...(run.holdoutEnvelopeId === undefined
+                ? {}
+                : { holdoutEnvelopeId: run.holdoutEnvelopeId }),
               ...(run.retryAt === undefined ? {} : { retryAt: run.retryAt }),
+              releaseAuthority: run.releaseAuthority,
+            })),
+          } }),
+      ...(existingSkillHoldoutGovernanceScan === undefined
+        ? {}
+        : { existingSkillHoldoutGovernance: {
+            configuredPolicyCount: existingSkillHoldoutGovernanceScan.configuredPolicyCount,
+            warningCount: existingSkillHoldoutGovernanceScan.warningCount,
+            runs: existingSkillHoldoutGovernanceScan.runs.slice(0, MAX_DISCOVERY_ROWS).map(run => ({
+              id: run.id,
+              policyId: run.policyId,
+              skillName: run.skillName,
+              opportunityId: run.opportunityId,
+              qualificationId: run.qualificationId,
+              baselineId: run.baselineId,
+              evaluationEvidenceId: run.evaluationEvidenceId,
+              phase: run.phase,
+              createdAt: run.createdAt,
+              updatedAt: run.updatedAt,
+              modelCalls: run.modelCalls,
+              inputTokens: run.inputTokens,
+              outputTokens: run.outputTokens,
+              ...(run.retryAt === undefined ? {} : { retryAt: run.retryAt }),
+              ...(run.failure === undefined ? {} : { failure: run.failure }),
               releaseAuthority: run.releaseAuthority,
             })),
           } }),

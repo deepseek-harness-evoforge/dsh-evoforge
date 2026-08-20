@@ -126,6 +126,10 @@ _Avoid_: First-baseline wins, current-directory reconstruction, rendered-content
 A Host-owned, content-addressed snapshot of current explicit correction text plus its exact durable Goal and user-request context, read only through official DSH Message Feedback and Session Persistence services after one Existing Skill Baseline Qualification succeeds. At least four distinct Goals are split before Candidate authoring into authoring, admission, and holdout, with an additional retention partition from a fifth Goal; the proposer receives only authoring cases. The seal has no Candidate, install, activation, or release authority.
 _Avoid_: Copying correction text into reference-only Signals, proposer-visible holdout, private DSH table reads, same-Goal retries, model-invented correction
 
+**Existing Skill Holdout Governance**:
+A Candidate-blind governance binding formed before proposer execution from one exact installed baseline and the protected holdout partition. It owns a calibrated assembled `skill-tree` Case Pack and model-separation evidence but has no Candidate effect verdict or release authority.
+_Avoid_: Candidate-authored evaluator, capability-absent Envelope, effect verdict, external Skill acquisition
+
 **Fast Evolution Loop**:
 A bounded online loop that attributes an explicit correction, verified outcome, repeated failure, or measured cost to the exact Session Generation and records an inactive signal, gap, or small candidate for later evaluation. It never rewrites an active capability or publishes from the originating Session.
 _Avoid_: Learn-once activation, synchronous reflection, retry-as-learning

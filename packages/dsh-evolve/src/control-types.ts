@@ -495,6 +495,8 @@ export interface EvolutionExistingSkillAuthoringView {
     readonly baselineId: string
     readonly phase:
       | 'prepared'
+      | 'holdout-deferred'
+      | 'holdout-blocked'
       | 'budget-deferred'
       | 'cancelled'
       | 'authoring-pending'
@@ -507,7 +509,41 @@ export interface EvolutionExistingSkillAuthoringView {
     readonly inputTokens: number
     readonly outputTokens: number
     readonly candidateId?: string
+    readonly holdoutEnvelopeId?: string
     readonly retryAt?: number
+    readonly releaseAuthority: 'none'
+  }[]
+}
+
+/** Candidate-blind assembled holdout governance for an exact installed Skill baseline. */
+export interface EvolutionExistingSkillHoldoutGovernanceView {
+  readonly configuredPolicyCount: number
+  readonly warningCount: number
+  readonly runs: readonly {
+    readonly id: string
+    readonly policyId: string
+    readonly skillName: string
+    readonly opportunityId: string
+    readonly qualificationId: string
+    readonly baselineId: string
+    readonly evaluationEvidenceId: string
+    readonly phase:
+      | 'prepared'
+      | 'budget-deferred'
+      | 'authoring-pending'
+      | 'uncertain'
+      | 'incomplete'
+      | 'ready'
+    readonly createdAt: string
+    readonly updatedAt: string
+    readonly modelCalls: 0 | 1
+    readonly inputTokens: number
+    readonly outputTokens: number
+    readonly retryAt?: number
+    readonly failure?:
+      | 'paid-authoring-uncertain'
+      | 'calibration-failed'
+      | 'governance-incomplete'
     readonly releaseAuthority: 'none'
   }[]
 }
@@ -875,6 +911,7 @@ export interface EvolutionOverview {
   readonly skillCandidates?: EvolutionSkillCandidateQueueView
   readonly existingSkillCandidates?: EvolutionExistingSkillCandidateQueueView
   readonly existingSkillAuthoring?: EvolutionExistingSkillAuthoringView
+  readonly existingSkillHoldoutGovernance?: EvolutionExistingSkillHoldoutGovernanceView
   readonly existingSkillAdmission?: EvolutionExistingSkillAdmissionView
   readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView
   readonly skillEvaluationGovernance?: EvolutionSkillEvaluationGovernanceView

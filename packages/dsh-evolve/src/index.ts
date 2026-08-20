@@ -63,6 +63,7 @@ import { installInstalledSkillBaselineMonitor } from './installed-skill-baseline
 import { ExistingSkillBaselineQualification } from './existing-skill-baseline-qualification.ts'
 import { ExistingSkillEvaluationEvidenceVault } from './existing-skill-evaluation-evidence-vault.ts'
 import { ExistingSkillCandidateAuthoring } from './existing-skill-candidate-authoring.ts'
+import { ExistingSkillHoldoutGovernance } from './existing-skill-holdout-governance.ts'
 import {
   ExistingSkillCandidateAdmission,
   ExistingSkillCandidateAdmissionScheduler,
@@ -198,6 +199,25 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   let existingSkillBaselineVault: InstalledSkillBaselineVault | undefined
   let existingSkillEvaluationEvidence: ExistingSkillEvaluationEvidenceVault | undefined
   let existingSkillAdmissionScheduler: ExistingSkillCandidateAdmissionScheduler | undefined
+  const existingSkillHoldoutGovernance = evaluationGovernancePolicies.length === 0
+    ? undefined
+    : new ExistingSkillHoldoutGovernance({
+        policies: evaluationGovernancePolicies,
+        evidence: {
+          readForGovernance: (workspaceId, opportunityId, qualificationId, evidenceId) => {
+            if (existingSkillEvaluationEvidence === undefined) {
+              return Promise.reject(new Error('existing Skill protected evidence is unavailable'))
+            }
+            return existingSkillEvaluationEvidence.readForGovernance(
+              workspaceId,
+              opportunityId,
+              qualificationId,
+              evidenceId,
+            )
+          },
+        },
+        budget: new AutomaticEvolutionBudget(),
+      })
   ctx.inject(['skills'], (skillCtx) => {
     const monitor = installCapabilityMapObserver(skillCtx, capabilities, store)
     capabilityMonitors.add(monitor)
@@ -392,6 +412,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             return evidence.prepare(opportunity)
           },
         },
+        holdoutGovernance: existingSkillHoldoutGovernance!,
         candidates: {
           listExistingCandidates: (workspaceId, opportunityId) =>
             skillCandidateStore.listExistingCandidates(workspaceId, opportunityId),
@@ -499,6 +520,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     ...(counterfactualCanary === undefined ? {} : { counterfactualCanary }),
     ...(slowLoopAuthoring === undefined ? {} : { slowLoopAuthoring }),
     ...(existingSkillAuthoring === undefined ? {} : { existingSkillAuthoring }),
+    ...(existingSkillHoldoutGovernance === undefined ? {} : { existingSkillHoldoutGovernance }),
     ...(existingSkillAdmission === undefined ? {} : { existingSkillAdmissions: existingSkillAdmission }),
     ...(skillEvaluationGovernance === undefined ? {} : { evaluationGovernance: skillEvaluationGovernance }),
     ...(review === undefined ? {} : { review }),
@@ -691,6 +713,16 @@ export type {
   ExistingSkillCandidateAuthoringScan,
   ExistingSkillCandidateAuthoringOptions,
 } from './existing-skill-candidate-authoring.ts'
+export { ExistingSkillHoldoutGovernance } from './existing-skill-holdout-governance.ts'
+export type {
+  ExistingSkillHoldoutAuthorInput,
+  ExistingSkillHoldoutAuthorResult,
+  ExistingSkillHoldoutEnvelope,
+  ExistingSkillHoldoutGovernanceResult,
+  ExistingSkillHoldoutGovernanceRunView,
+  ExistingSkillHoldoutGovernanceScan,
+  ExistingSkillHoldoutGovernanceSubject,
+} from './existing-skill-holdout-governance.ts'
 export {
   ExistingSkillCandidateAdmission,
   ExistingSkillCandidateAdmissionScheduler,

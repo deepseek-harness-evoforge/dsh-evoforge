@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { mkdir, mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -7,6 +8,7 @@ import {
   ExistingSkillCandidateAuthoring,
   type ExistingSkillAuthorInput,
 } from '../src/existing-skill-candidate-authoring.ts'
+import type { ExistingSkillHoldoutGovernanceSubject } from '../src/existing-skill-holdout-governance.ts'
 import {
   existingSkillCandidateId,
   SkillCandidateRepository,
@@ -91,22 +93,47 @@ describe('protected existing Skill Candidate authoring', () => {
         return { created: true, candidate }
       },
     }, undefined, [{ workspaceId: WORKSPACE_ID, root: join(exactRoot, 'candidate-vault') }])
-    const authorModel = vi.fn(async (_input: ExistingSkillAuthorInput) => ({
-      claim: 'Require independent evidence without changing bundled resources.',
-      changes: [{
-        path: 'SKILL.md',
-        content: [
-          '---',
-          'name: release-proof',
-          'description: Verify a release with independent evidence.',
-          '---',
-          '',
-          'Use the guide and require an independent reviewer.',
-          '',
-        ].join('\n'),
-      }],
-      usage: { inputTokens: 300, outputTokens: 80 },
-    }))
+    const callOrder: string[] = []
+    const holdoutGovernance = {
+      ensure: vi.fn(async (_subject: ExistingSkillHoldoutGovernanceSubject) => {
+        callOrder.push('holdout')
+        return {
+          status: 'ready' as const,
+          envelope: {
+            id: 'd'.repeat(64),
+            workspaceId: WORKSPACE_ID,
+            skillName: opportunity.skillName,
+            opportunityId: opportunity.id,
+            qualificationId: qualification.qualification.id,
+            baselineId: qualification.baseline.manifest.id,
+            evaluationEvidenceId: evidence.id,
+            casePackDir: join(exactRoot, 'governance', 'holdout'),
+            casePackHash: 'e'.repeat(64),
+            dshRevision: 'f'.repeat(40),
+            releaseAuthority: 'none' as const,
+          },
+        }
+      }),
+    }
+    const authorModel = vi.fn(async (_input: ExistingSkillAuthorInput) => {
+      callOrder.push('candidate')
+      return {
+        claim: 'Require independent evidence without changing bundled resources.',
+        changes: [{
+          path: 'SKILL.md',
+          content: [
+            '---',
+            'name: release-proof',
+            'description: Verify a release with independent evidence.',
+            '---',
+            '',
+            'Use the guide and require an independent reviewer.',
+            '',
+          ].join('\n'),
+        }],
+        usage: { inputTokens: 300, outputTokens: 80 },
+      }
+    })
     const jobs = fakeJobs()
     const authoring = new ExistingSkillCandidateAuthoring({
       policies: [{
@@ -118,6 +145,7 @@ describe('protected existing Skill Candidate authoring', () => {
       opportunities: { discoverImprovements: () => [opportunity] },
       qualification: { qualify: async () => qualification },
       evaluationEvidence: { prepare: async () => ({ status: 'ready', evidence }) },
+      holdoutGovernance,
       candidates: {
         listExistingCandidates: () => stored,
         quarantineExisting: input => repository.quarantineExisting(input),
@@ -137,6 +165,17 @@ describe('protected existing Skill Candidate authoring', () => {
     })
 
     expect(authorModel).toHaveBeenCalledOnce()
+    expect(callOrder).toEqual(['holdout', 'candidate'])
+    expect(holdoutGovernance.ensure).toHaveBeenCalledOnce()
+    expect(holdoutGovernance.ensure.mock.calls[0]![0]).toMatchObject({
+      opportunity,
+      qualification: qualification.qualification,
+      baseline: qualification.baseline,
+      evidence,
+      proposerModelIdentityHash: createHash('sha256')
+        .update('provider/model@contract-v1')
+        .digest('hex'),
+    })
     const input = authorModel.mock.calls[0]![0]
     expect(input).toMatchObject({
       targetId: 'workspace-self-discovery',
@@ -212,6 +251,24 @@ describe('protected existing Skill Candidate authoring', () => {
         opportunities: { discoverImprovements: () => [opportunity] },
         qualification: { qualify: async () => qualification },
         evaluationEvidence: { prepare: async () => ({ status: 'ready', evidence }) },
+        holdoutGovernance: {
+          ensure: vi.fn(async () => ({
+            status: 'ready' as const,
+            envelope: {
+              id: 'd'.repeat(64),
+              workspaceId: WORKSPACE_ID,
+              skillName: opportunity.skillName,
+              opportunityId: opportunity.id,
+              qualificationId: qualification.qualification.id,
+              baselineId: qualification.baseline.manifest.id,
+              evaluationEvidenceId: evidence.id,
+              casePackDir: join(runRoot, 'holdout'),
+              casePackHash: 'e'.repeat(64),
+              dshRevision: 'f'.repeat(40),
+              releaseAuthority: 'none' as const,
+            },
+          })),
+        },
         candidates: { listExistingCandidates: () => [], quarantineExisting: vi.fn() },
         budget: { reserve: async target => allowedReservation(target) },
         authorModel,
@@ -240,6 +297,60 @@ describe('protected existing Skill Candidate authoring', () => {
       configuredPolicyCount: 1,
       warningCount: 0,
       runs: [{ phase: 'uncertain', modelCalls: 1, releaseAuthority: 'none' }],
+    })
+  })
+
+  it('does not reserve proposer budget when independent holdout governance is deferred', async () => {
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-evolve-existing-holdout-deferred-')))
+    temporaryRoots.push(root)
+    const runRoot = join(root, 'authoring')
+    await mkdir(runRoot, { mode: 0o700 })
+    const opportunity = improvementOpportunity()
+    const bundle = await assembleSealedSkillBundleArchive([{
+      path: 'SKILL.md',
+      mode: '100644',
+      content: Buffer.from('---\nname: release-proof\ndescription: Verify a release.\n---\n\nCheck it.\n'),
+    }])
+    const qualification = qualificationFor(opportunity, bundle)
+    const evidence = authoringEvidence(opportunity, qualification)
+    const retryAt = 1_787_356_800_000
+    const proposerBudget = { reserve: vi.fn() }
+    const authorModel = vi.fn()
+    const jobs = fakeJobs()
+    const authoring = new ExistingSkillCandidateAuthoring({
+      policies: [{
+        id: 'workspace-self-discovery',
+        workspaceId: WORKSPACE_ID,
+        runRoot,
+        maxAttemptsPerUtcDay: 1,
+      }],
+      opportunities: { discoverImprovements: () => [opportunity] },
+      qualification: { qualify: async () => qualification },
+      evaluationEvidence: { prepare: async () => ({ status: 'ready', evidence }) },
+      holdoutGovernance: {
+        ensure: vi.fn(async () => ({
+          status: 'budget-deferred' as const,
+          retryAt,
+          releaseAuthority: 'none' as const,
+        })),
+      },
+      candidates: { listExistingCandidates: () => [], quarantineExisting: vi.fn() },
+      budget: proposerBudget,
+      authorModel,
+      modelIdentity: () => 'provider/model@contract-v1',
+      now: () => 1_787_100_000_000,
+    })
+    authoring.attachJobs(jobs.registry)
+
+    await expect(authoring.reconcile()).resolves.toEqual({ scheduled: 1, warnings: [] })
+    await expect(jobs.hooks[0]!.done).resolves.toMatchObject({
+      status: 'completed',
+      detail: 'holdout-deferred',
+    })
+    expect(proposerBudget.reserve).not.toHaveBeenCalled()
+    expect(authorModel).not.toHaveBeenCalled()
+    await expect(authoring.scan(WORKSPACE_ID)).resolves.toMatchObject({
+      runs: [{ phase: 'holdout-deferred', modelCalls: 0, retryAt }],
     })
   })
 })

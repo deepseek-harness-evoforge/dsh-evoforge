@@ -398,6 +398,7 @@ function SkillsView({ summary, busy, rollbackEligible, t }: {
     <SkillOpportunities summary={summary} t={t} />
     <SkillImprovementOpportunities summary={summary} t={t} />
     <ExistingSkillAuthoring summary={summary} t={t} />
+    <ExistingSkillHoldoutGovernance summary={summary} t={t} />
     <SlowLoopAuthoring summary={summary} t={t} />
     <SkillCandidates summary={summary} t={t} />
     <ExistingSkillCandidates summary={summary} t={t} />
@@ -835,10 +836,61 @@ function ExistingSkillAuthoring({ summary, t }: { summary: EvolutionOverview; t:
             {run.candidateId !== undefined && <div className="dsh-evolve-meta">
               {t('skills.slow-loop.candidate')} · {run.candidateId.slice(0, 12)}
             </div>}
+            {run.holdoutEnvelopeId !== undefined && <div className="dsh-evolve-meta">
+              {t('skills.improvements.authoring.holdout')} · {shortId(run.holdoutEnvelopeId)}
+            </div>}
             {run.retryAt !== undefined && <div className="dsh-evolve-meta">
               {t('skills.slow-loop.retry')} · {new Date(run.retryAt).toLocaleString()}
             </div>}
             <div className="dsh-evolve-discovery-state">{t('skills.slow-loop.release.none')}</div>
+          </li>
+        ))}</ul>}
+  </section>
+}
+
+function ExistingSkillHoldoutGovernance({
+  summary,
+  t,
+}: {
+  summary: EvolutionOverview
+  t: (key: string) => string
+}) {
+  const governance = summary.existingSkillHoldoutGovernance
+  if (governance === undefined) return null
+  return <section>
+    <div className="dsh-evolve-capability-head">
+      <h3 className="dsh-evolve-section-title">{t('skills.improvements.holdout-governance')}</h3>
+      <span className="dsh-evolve-catalog-status">
+        {governance.configuredPolicyCount} {t('skills.improvements.holdout-governance.policies')}
+      </span>
+    </div>
+    {governance.warningCount > 0 && <div className="dsh-evolve-message dsh-evolve-error">
+      {governance.warningCount} {t('skills.improvements.holdout-governance.warnings')}
+    </div>}
+    {governance.runs.length === 0
+      ? <div className="dsh-evolve-message">{t('skills.improvements.holdout-governance.empty')}</div>
+      : <ul className="dsh-evolve-list">{governance.runs.map(run => (
+          <li className="dsh-evolve-skill-card" key={run.id}>
+            <div className="dsh-evolve-review-skill">{run.skillName}</div>
+            <div className="dsh-evolve-capability-route">
+              {t(`skills.improvements.holdout-governance.phase.${run.phase}`)}
+            </div>
+            <div className="dsh-evolve-meta">
+              {t('skills.improvements.authoring.baseline')} · {shortId(run.baselineId)} / {shortId(run.qualificationId)} / {shortId(run.evaluationEvidenceId)}
+            </div>
+            <div className="dsh-evolve-meta">
+              {t('skills.improvements.holdout-governance.cost')} · {run.modelCalls} · {run.inputTokens}/{run.outputTokens}
+            </div>
+            <div className="dsh-evolve-meta">{t('skills.improvements.holdout-governance.separation')}</div>
+            {run.retryAt !== undefined && <div className="dsh-evolve-meta">
+              {t('skills.improvements.holdout-governance.retry')} · {new Date(run.retryAt).toLocaleString()}
+            </div>}
+            {run.failure !== undefined && <div className="dsh-evolve-meta">
+              {t(`skills.improvements.holdout-governance.failure.${run.failure}`)}
+            </div>}
+            <div className="dsh-evolve-discovery-state">
+              {t('skills.improvements.holdout-governance.release.none')}
+            </div>
           </li>
         ))}</ul>}
   </section>

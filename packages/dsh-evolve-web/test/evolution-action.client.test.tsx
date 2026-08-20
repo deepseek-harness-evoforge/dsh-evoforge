@@ -277,6 +277,15 @@ const t = (key: string) => ({
   'skills.improvements.authoring.warnings': 'unreadable durable states',
   'skills.improvements.authoring.empty': 'No existing-Skill authoring run has met the threshold.',
   'skills.improvements.authoring.baseline': 'Baseline / Qualification / Evidence',
+  'skills.improvements.authoring.holdout': 'Independent holdout',
+  'skills.improvements.holdout-governance': 'Candidate-blind Existing-Skill Holdout Governance',
+  'skills.improvements.holdout-governance.policies': 'Workspace governance policies',
+  'skills.improvements.holdout-governance.warnings': 'unreadable holdout governance states',
+  'skills.improvements.holdout-governance.empty': 'No independent assembled existing-Skill holdout yet.',
+  'skills.improvements.holdout-governance.phase.ready': 'Calibrated assembled Skill-tree holdout ready',
+  'skills.improvements.holdout-governance.cost': 'Holdout governance model calls · input/output tokens',
+  'skills.improvements.holdout-governance.separation': 'Candidate content unavailable to holdout author · Exact baseline only',
+  'skills.improvements.holdout-governance.release.none': 'No execution, promotion, or release authority',
   'skills.improvements.admission': 'Exact Existing-Skill Paired Admission',
   'skills.improvements.admission.policies': 'Workspace policies',
   'skills.improvements.admission.warnings': 'unreadable admission states',
@@ -929,6 +938,27 @@ describe('EvolutionAction', () => {
             inputTokens: 280,
             outputTokens: 70,
             candidateId: '0'.repeat(64),
+            holdoutEnvelopeId: 'd'.repeat(64),
+            releaseAuthority: 'none' as const,
+          }],
+        },
+        existingSkillHoldoutGovernance: {
+          configuredPolicyCount: 1,
+          warningCount: 0,
+          runs: [{
+            id: 'c'.repeat(64),
+            policyId: 'workspace-governance',
+            skillName: 'build-dsh-plugin',
+            opportunityId: 'c'.repeat(64),
+            qualificationId: 'e'.repeat(64),
+            baselineId: 'b'.repeat(64),
+            evaluationEvidenceId: '5'.repeat(64),
+            phase: 'ready' as const,
+            createdAt: '2026-08-18T00:59:00.000Z',
+            updatedAt: '2026-08-18T00:59:01.000Z',
+            modelCalls: 1 as const,
+            inputTokens: 90,
+            outputTokens: 40,
             releaseAuthority: 'none' as const,
           }],
         },
@@ -1111,8 +1141,13 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('Quarantined · Inactive · Never executed · Unevaluated')).toBeTruthy()
     expect(screen.getByText('Existing-Skill quarantined candidates')).toBeTruthy()
     expect(screen.getByText('Protected Existing-Skill authoring')).toBeTruthy()
-    expect(screen.getByText('Baseline / Qualification / Evidence · bbbbbbbb… / eeeeeeee… / 55555555…')).toBeTruthy()
+    expect(screen.getAllByText('Baseline / Qualification / Evidence · bbbbbbbb… / eeeeeeee… / 55555555…')).toHaveLength(2)
     expect(screen.getByText('Model calls · input/output tokens · 1 · 280/70')).toBeTruthy()
+    expect(screen.getByText(`Independent holdout · ${'d'.repeat(8)}…`)).toBeTruthy()
+    expect(screen.getByText('Candidate-blind Existing-Skill Holdout Governance')).toBeTruthy()
+    expect(screen.getByText('Calibrated assembled Skill-tree holdout ready')).toBeTruthy()
+    expect(screen.getByText('Holdout governance model calls · input/output tokens · 1 · 90/40')).toBeTruthy()
+    expect(screen.getByText('Candidate content unavailable to holdout author · Exact baseline only')).toBeTruthy()
     expect(screen.getByText('Build a DSH plugin with independent verification.')).toBeTruthy()
     expect(screen.getByText(`Exact baseline · ${'b'.repeat(8)}… · ${'3'.repeat(8)}…`)).toBeTruthy()
     expect(screen.getByText(`Candidate tree · ${'8'.repeat(8)}…`)).toBeTruthy()
