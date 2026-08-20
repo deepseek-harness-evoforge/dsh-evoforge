@@ -23,6 +23,7 @@ import {
   SkillCandidateShadowLauncher,
   SkillCandidateShadowScheduler,
 } from './skill-candidate-shadow.ts'
+import { InternalSkillRetention } from './internal-skill-retention.ts'
 import {
   SkillEvaluationEnvelopeResolver,
   type SkillCandidateEvaluationPolicyConfig,
@@ -201,7 +202,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     )
     skillAdmission = new SkillCandidateAdmission(evaluationEnvelopes, skillCandidates)
     skillShadowScheduler = new SkillCandidateShadowScheduler(
-      new SkillCandidateShadowLauncher(skillAdmission),
+      new SkillCandidateShadowLauncher(skillAdmission, {
+        retention: new InternalSkillRetention(skillAdmission),
+      }),
     )
     skillAdmissionScheduler = new SkillCandidateAdmissionScheduler(
       skillAdmission,
@@ -397,6 +400,12 @@ export type {
   FeedbackSignalSummary,
 } from './feedback-signal-monitor.ts'
 export { EvolutionControlPlane } from './evolution-control-plane.ts'
+export { InternalSkillRetention } from './internal-skill-retention.ts'
+export type {
+  InternalCandidateShadowResult,
+  InternalSkillRetentionReason,
+  InternalSkillRetentionResult,
+} from './internal-skill-retention.ts'
 export type { EvolutionControlPlaneModules } from './evolution-control-plane.ts'
 export { EvolutionRemoteService } from './evolution-remote.ts'
 export type { EvolutionRemoteTypertContract } from './evolution-remote.typert.ts'

@@ -29,3 +29,5 @@ pnpm test:cache-contract
 - Shadow、Retention、未来 Session Generation 与 Outcome 的同一谱系核验；
 - 真实 provider、真实浏览器最终 tarball、长期负迁移与反事实 canary；
 - Hermes paired benchmark 和任何发布/tag 声明。
+
+后续状态：V4.26 已实现本页第一项的 exact Candidate paired execution 与 durable verdict；其边界和剩余门禁见 [V4.26 证据](v4-26-exact-candidate-retention-execution.zh.md)。本页仍只证明 Case Pack 生成时的事实。

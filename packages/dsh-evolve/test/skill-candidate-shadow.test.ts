@@ -48,10 +48,28 @@ describe('qualified Skill Candidate Shadow handoff', () => {
       reportPath: join(fixture.shadowRunRoot, 'report.json'),
       summary: 'promote: exact Candidate passed assembled holdout',
     }))
-    const launcher = new SkillCandidateShadowLauncher(admission, { runShadow })
+    const retention = {
+      evaluate: vi.fn(async () => ({
+        schemaVersion: 1 as const,
+        kind: 'internal-skill-retention-result-v1' as const,
+        id: 'f'.repeat(64),
+        candidateId: candidate().id,
+        workspaceId: candidate().workspaceId,
+        skillName: candidate().skillName,
+        admissionId: qualified().id,
+        evaluationEnvelopeId: qualified().envelopeId!,
+        status: 'retained' as const,
+        reason: 'candidate-retained-prior-case' as const,
+        releaseAuthority: 'none' as const,
+      })),
+    }
+    const launcher = new SkillCandidateShadowLauncher(admission, { retention, runShadow })
 
     expect(launcher.matches(candidate(), qualified())).toBe(true)
-    await expect(launcher.launch(candidate(), qualified())).resolves.toMatchObject({ status: 'complete' })
+    await expect(launcher.launch(candidate(), qualified())).resolves.toMatchObject({
+      status: 'complete',
+      retention: { status: 'retained', releaseAuthority: 'none' },
+    })
     expect(runShadow).toHaveBeenCalledWith(expect.objectContaining({
       casePackDir: await realpath(fixture.shadowCasePackDir),
       expectedCasePackHash: fixture.target.casePackHash,
@@ -65,6 +83,12 @@ describe('qualified Skill Candidate Shadow handoff', () => {
       baselineSkillName: candidate().skillName,
       skillDir: await realpath(fixture.baselineDir),
     }))
+    expect(retention.evaluate).toHaveBeenCalledWith(
+      candidate(),
+      qualified(),
+      expect.objectContaining({ status: 'complete' }),
+      {},
+    )
   })
 
   it('uses DSH Jobs, ignores non-qualified results, and retries a rejected start on job settlement', async () => {

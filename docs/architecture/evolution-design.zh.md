@@ -1,6 +1,6 @@
 # EvoForge 可证明自进化设计
 
-> 状态：当前活动纵切为内部 Goal→Gap→Skill Opportunity→生成前 Skill Evaluation Evidence Seal→seal-bound Candidate v2→Candidate-independent Governance Case Pack Authoring→Evaluation Envelope v4/v5→Lineage v3→exact-Candidate assembled Shadow→content-addressed inactive Generation→future Session/root rollback；第五个独立 Goal 已可形成 Candidate 不可见的 assembled Retention Case Pack，但 runner 尚未实现。历史 P1 静态 target、Feedback/Evaluator Draft、Shadow 内 proposer、自动 review expiry 与旧 Retention/canary 编排已删除，仅保留历史说明。existing-Skill 同版本跨 Goal 纠正调查已实现，但完整 baseline Bundle/Candidate、Retention execution/canary、治理包真实 provider assembled 验证与真实任务长期证据待完成。
+> 状态：当前活动纵切为内部 Goal→Gap→Skill Opportunity→生成前 Skill Evaluation Evidence Seal→seal-bound Candidate v2→Candidate-independent Governance Case Pack Authoring→Evaluation Envelope v4/v5→Lineage v3→exact-Candidate assembled Shadow→同 Jobs 内容寻址 Retention verdict→content-addressed inactive Generation→future Session/root rollback；第五个独立 Goal 的 Candidate 不可见 assembled Retention Case Pack 已能产出 retained/regressed/incomplete，但没有 release authority。历史 P1 静态 target、Feedback/Evaluator Draft、Shadow 内 proposer、自动 review expiry 与旧 Retention/canary 编排已删除，仅保留历史说明。existing-Skill 同版本跨 Goal 纠正调查已实现，但完整 baseline Bundle/Candidate、Retention→promotion gate/canary、治理包真实 provider assembled 验证与真实任务长期证据待完成。
 > 更新日期：2026-08-20
 > 适用范围：单机常驻 DSH、Skill 指令型能力、软件开发交付试验场
 

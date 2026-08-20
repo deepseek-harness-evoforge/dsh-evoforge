@@ -143,7 +143,7 @@ The exact DSH comparison subject for a missing-Skill Opportunity: the target Ski
 _Avoid_: No-op Skill, placeholder `SKILL.md`, old-Skill baseline for a missing capability
 
 **Capability-Absent Retention**:
-An independent prior-case replay that compares the exact capability-absent subject from a completed Shadow with the exact internally authored whole-Skill Candidate. The absent side must still contain only its bound `subject.json`; the Candidate must retain its tree, Skill identity, and lineage; both profiles must preserve the same non-target DSH composition. It records retained, regressed, or incomplete evidence and grants no release authority.
+An independent prior-case replay that continues the same native Jobs task after a promotable completed Shadow and compares its exact capability-absent subject with the exact internally authored whole-Skill Candidate. Its Case Pack comes only from the Candidate-invisible fifth-Goal Envelope v5 partition; v4 abstains. The absent side must still contain only its bound `subject.json`; Admission, Envelope, Shadow, Candidate tree, Skill identity, lineage, DSH revision, budgets, roots, Case Pack hashes, and non-target DSH composition are revalidated. A content-addressed locked run records an idempotent retained, regressed, or incomplete verdict with zero proposer calls and no release authority.
 _Avoid_: Placeholder baseline, Git first-parent, Candidate reconstruction, self-judged retention, automatic promotion
 
 **Verified Release Tag**:
@@ -151,7 +151,7 @@ An annotated semantic Git tag on `main` that identifies a repository state whose
 _Avoid_: Feature branch, progress marker, unverified release label
 
 **Evolution Attention**:
-A bounded host-only notice that an actionable Candidate or Evaluator Draft exists, delivered through an already authorized adapter while the originating Session continues. The notice points to the authoritative control command and never grants approval itself.
+A bounded host-only notice that an actionable internal Candidate or governance decision exists, delivered through an already authorized adapter while the originating Session continues. The notice points to the authoritative control command and never grants approval itself.
 _Avoid_: Notification platform, inline approval, dynamic prompt injection, second workflow engine
 
 **Evolution Attention Bridge**:
@@ -274,21 +274,13 @@ _Avoid_: Background TTL service, evidence deletion, expiration of human or promo
 A read-only host projection that tells Commands and Web when an Automatic Ambiguous Review Expiry becomes eligible and that only the next same-Skill automatic Signal can trigger rejection. It is derived from existing evidence and policy, not persisted or advanced by a timer.
 _Avoid_: Countdown service, browser authority, notification queue, claim that eligibility already means rejection
 
-**Human-approved Qualify-and-Shadow**:
-One explicit host action taken after a human reviews an exact Evaluator Draft. It authorizes sealed qualification and one contingent paid Shadow: qualification failure stops before the proposer, while success delegates to the existing content-addressed Qualified Shadow launcher. It does not authorize Promotion.
-_Avoid_: Automatic approval, qualify-and-promote, workflow engine, Session-visible review state
-
 **Case Pack Calibration**:
-A zero-model, host-only execution of the declared known-bad and known-correction fixtures through the same sealed evaluator used by Shadow. It proves evaluator direction before proposer spend; it does not prove coverage of novel failures. A complete Shadow performs this gate before requesting a Candidate and still uses four Trial executions total.
-_Avoid_: Evaluator generation, cached trust forever, extra runtime service, model judge
-
-**Retention Target**:
-A static deployment policy binding one exact Skill to one independent prior Case Pack version for automatic Retention before clear-win promotion. It authorizes one potentially effectful evaluation attempt per exact Candidate; an uncertain attempt remains human-reviewed.
-_Avoid_: Case registry, test scheduler, remembered consent
+A zero-proposer, host-only execution of the declared known-bad and known-correction fixtures through the exact evaluator used by Admission, Shadow, or Retention. It proves evaluator direction for one content-addressed Case Pack; it does not prove novel-case coverage or Candidate value. Admission uses a deterministic filesystem evaluator, while holdout and Retention use their separate assembled DSH evaluators.
+_Avoid_: Candidate-authored evaluator, cached trust forever, extra runtime service, model judge
 
 **Counterfactual Canary**:
-An asynchronous replay of the original sealed Case Pack against the exact active Candidate and its immutable Git parent after a matching failed Delivery Outcome. It may roll back future-session selection only when calibration passes, the parent passes, the Candidate fails, and the active pointer is unchanged.
-_Avoid_: Live traffic routing, failure counter, model reflection, automatic retry platform
+An asynchronous replay planned for a failed durable Outcome that is exactly attributable to an active internal Candidate lineage. It must compare the immutable pre-Candidate subject or Generation with the exact active content-addressed Candidate under sealed governance, and may affect only future-Session selection after calibration, integrity, and pointer-stability gates. It is not implemented until Outcome attribution and rollback evidence are wired to the rebuilt internal Candidate path.
+_Avoid_: Git parent inference, live traffic routing, failure counter, model reflection, automatic retry platform
 
 **Cache Contract**:
 The suite-wide rule that model-visible instructions, tools, schemas, and ordering remain stable within a DSH session. Cache impact is checked at the complete composition surface when that surface changes; plugins with no model-visible effect add no separate burden.

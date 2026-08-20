@@ -10,8 +10,16 @@ import type {
 } from './skill-candidate-admission.ts'
 import { parseCasePackManifest, runShadow } from './shadow.ts'
 import type { ExperienceSkillCandidate } from './skill-candidate-repository.ts'
+import type {
+  InternalCandidateShadowResult,
+  InternalSkillRetention,
+  InternalSkillRetentionResult,
+} from './internal-skill-retention.ts'
 
 type ShadowResult = Awaited<ReturnType<typeof runShadow>>
+export type SkillCandidateShadowLaunchResult = ShadowResult & {
+  readonly retention?: InternalSkillRetentionResult
+}
 
 interface QualifiedAdmissionReader {
   qualifiedShadowInput(
@@ -20,16 +28,30 @@ interface QualifiedAdmissionReader {
   ): Promise<QualifiedSkillCandidateShadowInput>
 }
 
+interface RetentionEvaluator {
+  evaluate(
+    candidate: ExperienceSkillCandidate,
+    admission: SkillCandidateAdmissionResult,
+    shadow: InternalCandidateShadowResult,
+    options?: { signal?: AbortSignal },
+  ): Promise<InternalSkillRetentionResult>
+}
+
 /** Governance-separated assembled holdout for one exact pre-admitted internal Candidate. */
 export class SkillCandidateShadowLauncher {
   private readonly admission: QualifiedAdmissionReader
+  private readonly retention: RetentionEvaluator | undefined
   private readonly runner: typeof runShadow
 
   constructor(
     admission: Pick<SkillCandidateAdmission, 'qualifiedShadowInput'>,
-    options: { runShadow?: typeof runShadow } = {},
+    options: {
+      retention?: Pick<InternalSkillRetention, 'evaluate'>
+      runShadow?: typeof runShadow
+    } = {},
   ) {
     this.admission = admission
+    this.retention = options.retention
     this.runner = options.runShadow ?? runShadow
   }
 
@@ -47,7 +69,7 @@ export class SkillCandidateShadowLauncher {
     candidate: ExperienceSkillCandidate,
     admission: SkillCandidateAdmissionResult,
     options: { signal?: AbortSignal } = {},
-  ): Promise<ShadowResult> {
+  ): Promise<SkillCandidateShadowLaunchResult> {
     options.signal?.throwIfAborted()
     if (!this.matches(candidate, admission)) {
       throw new Error('Candidate has no exact qualified admission for Shadow')
@@ -83,7 +105,7 @@ export class SkillCandidateShadowLauncher {
     } catch (error) {
       if (!isMissing(error)) throw error
     }
-    return this.runner({
+    const shadow = await this.runner({
       baselineKind: source.baselineKind,
       baselineSkillName: source.baselineSkillName,
       casePackDir,
@@ -98,6 +120,9 @@ export class SkillCandidateShadowLauncher {
       ...options.signal === undefined ? {} : { signal: options.signal },
       skillDir: source.baselineDir,
     })
+    if (shadow.status !== 'complete' || this.retention === undefined) return shadow
+    const retention = await this.retention.evaluate(candidate, admission, shadow, options)
+    return Object.freeze({ ...shadow, retention })
   }
 }
 
@@ -157,7 +182,11 @@ export class SkillCandidateShadowScheduler {
                 status: controller.signal.aborted ? 'killed' as const : 'completed' as const,
                 detail: controller.signal.aborted ? errorDetail(controller.signal.reason) : value.status,
                 ...controller.signal.aborted ? {} : {
-                    output: boundedOutput(value.status === 'complete' ? value.summary : value.reason),
+                    output: boundedOutput(value.status === 'complete'
+                      ? `${value.summary}${value.retention === undefined
+                        ? ''
+                        : `; retention=${value.retention.status}:${value.retention.reason}`}`
+                      : value.reason),
                   },
               }), (error: unknown) => ({
                 status: controller.signal.aborted ? 'killed' as const : 'failed' as const,

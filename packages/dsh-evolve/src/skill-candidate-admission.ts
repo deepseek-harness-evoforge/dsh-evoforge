@@ -72,6 +72,9 @@ export interface QualifiedSkillCandidateShadowInput {
   readonly holdoutCasePackDir: string
   readonly holdoutCasePackHash: string
   readonly shadowRunRoot: string
+  readonly retentionCasePackDir?: string
+  readonly retentionCasePackHash?: string
+  readonly retentionRunRoot?: string
   readonly lineage: SkillCandidateLineage
 }
 
@@ -157,6 +160,21 @@ export class SkillCandidateAdmission {
       || await hashTree(admissionCasePackDir) !== target.admissionCasePackHash) {
       throw new Error('qualified admission inputs changed before Shadow handoff')
     }
+    const hasRetention = target.retentionCasePackDir !== undefined
+      || target.retentionCasePackHash !== undefined
+      || target.retentionRunRoot !== undefined
+    if (hasRetention && (target.retentionCasePackDir === undefined
+      || target.retentionCasePackHash === undefined
+      || target.retentionRunRoot === undefined)) {
+      throw new Error('qualified admission has an incomplete retention partition')
+    }
+    const retention = hasRetention
+      ? await resolveRetentionHandoff(
+          target.retentionCasePackDir!,
+          target.retentionCasePackHash!,
+          target.retentionRunRoot!,
+        )
+      : undefined
     return Object.freeze({
       evaluationEnvelopeId: target.id,
       baselineKind: target.baselineKind,
@@ -169,6 +187,7 @@ export class SkillCandidateAdmission {
       holdoutCasePackDir: target.holdoutCasePackDir,
       holdoutCasePackHash: target.holdoutCasePackHash,
       shadowRunRoot: target.shadowRunRoot,
+      ...retention,
       lineage: createSkillCandidateLineage(candidate, admission),
     })
   }
@@ -730,6 +749,26 @@ function isAdmissionResult(value: unknown): value is SkillCandidateAdmissionResu
     default:
       return false
   }
+}
+
+async function resolveRetentionHandoff(
+  casePackPath: string,
+  expectedHash: string,
+  runRootPath: string,
+): Promise<Pick<QualifiedSkillCandidateShadowInput,
+  'retentionCasePackDir' | 'retentionCasePackHash' | 'retentionRunRoot'>> {
+  const [retentionCasePackDir, retentionRunRoot] = await Promise.all([
+    realpath(casePackPath),
+    realpath(runRootPath),
+  ])
+  if (await hashTree(retentionCasePackDir) !== expectedHash) {
+    throw new Error('qualified admission retention Case Pack changed before handoff')
+  }
+  return Object.freeze({
+    retentionCasePackDir,
+    retentionCasePackHash: expectedHash,
+    retentionRunRoot,
+  })
 }
 
 function separateRoots(left: string, right: string): boolean {

@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { JobHooks, JobStart } from '@deepseek-ai/dsh-jobs'
@@ -24,7 +24,12 @@ describe('internal Skill Candidate deterministic admission', () => {
   it('uses an Opportunity-bound Envelope reader instead of a configured Skill target', async () => {
     const fixture = await admissionFixture()
     const candidate = await candidateFixture()
-    const runTrial = vi.fn(async (): Promise<PairedTrialResult> => paired(false, true))
+    const runTrial = vi.fn(async (): Promise<PairedTrialResult> => paired(
+      false,
+      true,
+      fixture.target.baselineHash,
+      candidate.version.treeHash,
+    ))
     const materialize = materializer(candidate)
     const envelopes = {
       hasPolicy: vi.fn(() => true),
@@ -65,7 +70,12 @@ describe('internal Skill Candidate deterministic admission', () => {
   it('qualifies a baseline-fail/candidate-pass package for later Shadow without release authority', async () => {
     const fixture = await admissionFixture()
     const candidate = await candidateFixture()
-    const runTrial = vi.fn(async (): Promise<PairedTrialResult> => paired(false, true))
+    const runTrial = vi.fn(async (): Promise<PairedTrialResult> => paired(
+      false,
+      true,
+      fixture.target.baselineHash,
+      candidate.version.treeHash,
+    ))
     const materialize = materializer(candidate)
     const admission = new SkillCandidateAdmission(
       evaluationEnvelopes(fixture, candidate),
@@ -93,6 +103,11 @@ describe('internal Skill Candidate deterministic admission', () => {
     expect(runTrial).toHaveBeenCalledOnce()
     await expect(admission.evaluate(candidate)).resolves.toEqual(result)
     expect(materialize).toHaveBeenCalledOnce()
+    await expect(admission.qualifiedShadowInput(candidate, result)).resolves.toMatchObject({
+      retentionCasePackDir: await realpath(fixture.target.retentionCasePackDir),
+      retentionCasePackHash: fixture.target.retentionCasePackHash,
+      retentionRunRoot: await realpath(fixture.target.retentionRunRoot),
+    })
     await expect(admission.scan(WORKSPACE_ID)).resolves.toMatchObject({
       configuredPolicyCount: 1,
       warningCount: 0,
@@ -203,10 +218,14 @@ async function admissionFixture() {
   roots.push(root)
   const baselineDir = join(root, 'baseline')
   const casePackDir = join(root, 'case-pack')
+  const retentionCasePackDir = join(root, 'retention-case-pack')
   const runRoot = join(root, 'runs')
+  const retentionRunRoot = join(root, 'retention-runs')
   await mkdir(baselineDir)
   await mkdir(casePackDir)
+  await mkdir(retentionCasePackDir)
   await mkdir(runRoot)
+  await mkdir(retentionRunRoot)
   await writeFile(join(baselineDir, 'subject.json'), '{"kind":"internal-capability-absent-subject-v1"}\n')
   await writeFile(join(casePackDir, 'evaluator.mjs'), 'process.stdout.write("{}")\n')
   await mkdir(join(casePackDir, 'known-bad'))
@@ -228,6 +247,7 @@ async function admissionFixture() {
     },
     calibration: { knownBad: 'known-bad', knownCorrection: 'known-correction' },
   })}\n`)
+  await writeFile(join(retentionCasePackDir, 'manifest.json'), '{"retention":true}\n')
   return {
     target: {
       id: 'release-proof-admission',
@@ -237,7 +257,10 @@ async function admissionFixture() {
       baselineHash: await hashTree(baselineDir),
       casePackDir,
       casePackHash: await hashTree(casePackDir),
+      retentionCasePackDir,
+      retentionCasePackHash: await hashTree(retentionCasePackDir),
       runRoot,
+      retentionRunRoot,
     },
   }
 }
@@ -264,8 +287,11 @@ function evaluationEnvelopes(
       admissionCasePackHash: fixture.target.casePackHash,
       holdoutCasePackDir: fixture.target.casePackDir,
       holdoutCasePackHash: 'f'.repeat(64),
+      retentionCasePackDir: fixture.target.retentionCasePackDir,
+      retentionCasePackHash: fixture.target.retentionCasePackHash,
       admissionRunRoot: fixture.target.runRoot,
       shadowRunRoot: join(fixture.target.runRoot, 'shadow'),
+      retentionRunRoot: fixture.target.retentionRunRoot,
     })),
     policyViews: () => [{
       id: 'workspace-governance',
@@ -306,7 +332,12 @@ function materializer(candidate: ExperienceSkillCandidate) {
   })
 }
 
-function paired(baseline: boolean, candidatePassed: boolean): PairedTrialResult {
+function paired(
+  baseline: boolean,
+  candidatePassed: boolean,
+  baselineTreeHash = 'a'.repeat(64),
+  candidateTreeHash = 'b'.repeat(64),
+): PairedTrialResult {
   return {
     backend: 'darwin-seatbelt',
     count: 4,
@@ -315,8 +346,8 @@ function paired(baseline: boolean, candidatePassed: boolean): PairedTrialResult 
       { id: 'known-bad', expected: 'fail', actual: 'fail', passed: true },
       { id: 'known-correction', expected: 'pass', actual: 'pass', passed: true },
     ],
-    baseline: { passed: baseline, checks: [], treeHash: 'a'.repeat(64) },
-    candidate: { passed: candidatePassed, checks: [], treeHash: 'b'.repeat(64) },
+    baseline: { passed: baseline, checks: [], treeHash: baselineTreeHash },
+    candidate: { passed: candidatePassed, checks: [], treeHash: candidateTreeHash },
   }
 }
 
