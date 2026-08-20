@@ -40,4 +40,5 @@ V4.37 只证明 exact baseline/Candidate 双树结构合规，V4.38 只证明 Ca
 - 自动化成功路径使用注入的确定性 paired Trial executor；生产默认路径调用真实 `runPairedTrial`，但本增量没有使用两套独立真实 provider 跑出该 `improved` 样本。
 - 真实浏览器验证的是最终 tarball 的 Host 投影、reload、断连、恢复与卸载，不是外部模型效果本身。
 - existing-Skill Retention、Canary、future-Session promotion、精确 rollback、长期误晋升/负迁移/遗忘数据仍未完成。
+- V4.40 已补齐 Retention Case Pack 的 Candidate 前生成与 Envelope 身份绑定，但尚未执行 Retention Trial；见 [V4.40 证据](v4-40-existing-skill-pre-candidate-retention-governance.zh.md)。
 - 真实飞书 exact route、同任务同模型同权限同预算的 Hermes paired benchmark 与首个发布 tag 仍被门禁阻止。

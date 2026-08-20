@@ -22,3 +22,5 @@ existing-Skill 的 baseline 是一个已安装完整 Skill 树，不能复用 ca
 - Candidate 的内容地址随 pre-Candidate Envelope 改变，治理存储被替换或错配时不能静默改判；
 - 后续 paired runner 可以消费 exact baseline、Candidate 和已封存 Case Pack，但必须另行产生真实 `skill-tree ↔ skill-tree` Trial 证据；
 - capability-absent Evaluation Envelope 保持单一语义，现有 Skill 不被伪装成缺失能力。
+
+V4.40 以 [ADR-0083](0083-existing-skill-retention-is-sealed-into-the-pre-candidate-envelope.md) 扩展该 Envelope：第五个独立 Goal 由第二次 Candidate 不可见调用形成 Retention Case Pack，并与 Holdout 一起进入 Candidate 身份；本 ADR 的 Holdout 时序与隔离要求保持不变。

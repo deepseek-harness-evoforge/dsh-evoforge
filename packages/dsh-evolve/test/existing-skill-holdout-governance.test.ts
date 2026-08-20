@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { mkdtemp, readFile, realpath, readdir, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, realpath, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -17,6 +17,79 @@ afterEach(async () => {
 })
 
 describe('Existing Skill Holdout Governance', () => {
+  it('seals an independent Retention Case Pack into the pre-Candidate Envelope when a fifth Goal exists', async () => {
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-existing-retention-governance-')))
+    roots.push(root)
+    const subject = await retentionSubject()
+    const governed = governedEvidence(subject)
+    const authorModel = vi.fn(async (input: ExistingSkillHoldoutAuthorInput) => validAuthorResult(input))
+    const calibrate = vi.fn(async () => ({
+      status: 'calibrated' as const,
+      reportPath: join(root, 'calibration-report.json'),
+      summary: 'known-bad failed and known-correction passed',
+    }))
+    const governance = new ExistingSkillHoldoutGovernance({
+      policies: [holdoutPolicy(root)],
+      evidence: { readForGovernance: vi.fn(async () => governed) },
+      budget: { reserve: vi.fn(async () => allowedGovernanceReservation()) },
+      authorModel,
+      calibrate,
+      modelIdentity: () => 'independent-existing-evaluation/model-v1',
+      now: () => 1_787_270_400_000,
+    })
+
+    const result = await governance.ensure(subject)
+
+    if (result.status !== 'ready') throw new Error('expected ready existing-Skill governance')
+    expect(authorModel).toHaveBeenCalledTimes(2)
+    expect(authorModel.mock.calls.map(call => call[0].role)).toEqual(['holdout', 'retention'])
+    expect(authorModel.mock.calls[0]![0].protectedCase.goal.id).toBe('goal-holdout')
+    expect(authorModel.mock.calls[1]![0].protectedCase.goal.id).toBe('goal-retention')
+    expect(JSON.stringify(authorModel.mock.calls[0]![0])).not.toContain('Retention correction.')
+    expect(JSON.stringify(authorModel.mock.calls[1]![0])).not.toContain('Do not let the author be the final reviewer.')
+    expect(calibrate).toHaveBeenCalledTimes(2)
+    expect(result.envelope).toMatchObject({
+      retentionCasePackDir: expect.any(String),
+      retentionCasePackHash: expect.stringMatching(/^[a-f0-9]{64}$/u),
+      releaseAuthority: 'none',
+    })
+    expect(result.envelope.retentionCasePackHash).not.toBe(result.envelope.casePackHash)
+    await expect(readFile(join(result.envelope.retentionCasePackDir!, 'manifest.json'), 'utf8'))
+      .resolves.toContain('existing-retention-')
+    await expect(governance.scan(WORKSPACE_ID)).resolves.toMatchObject({
+      warningCount: 0,
+      runs: [{ phase: 'ready', modelCalls: 2, retentionIncluded: true }],
+    })
+  })
+
+  it('rejects a Retention evaluator that merely duplicates the Holdout evaluator', async () => {
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-existing-retention-duplicate-')))
+    roots.push(root)
+    const subject = await retentionSubject()
+    const authorModel = vi.fn(async (input: ExistingSkillHoldoutAuthorInput) => ({
+      ...validAuthorResult(input),
+      evaluatorSource: 'process.stdout.write("{\\"schemaVersion\\":1,\\"passed\\":true}")\n',
+    }))
+    const calibrate = vi.fn()
+    const governance = new ExistingSkillHoldoutGovernance({
+      policies: [holdoutPolicy(root)],
+      evidence: { readForGovernance: vi.fn(async () => governedEvidence(subject)) },
+      budget: { reserve: vi.fn(async () => allowedGovernanceReservation()) },
+      authorModel,
+      calibrate,
+      modelIdentity: () => 'independent-existing-evaluation/model-v1',
+      now: () => 1_787_270_400_000,
+    })
+
+    await expect(governance.ensure(subject)).rejects
+      .toThrow('Retention evaluator duplicates Holdout')
+    expect(authorModel).toHaveBeenCalledTimes(2)
+    expect(calibrate).not.toHaveBeenCalled()
+    await expect(governance.scan(WORKSPACE_ID)).resolves.toMatchObject({
+      runs: [{ phase: 'incomplete', modelCalls: 2, retentionIncluded: true }],
+    })
+  })
+
   it('authors one calibrated assembled skill-tree holdout without exposing any Candidate', async () => {
     const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-existing-holdout-governance-')))
     roots.push(root)
@@ -105,10 +178,11 @@ describe('Existing Skill Holdout Governance', () => {
         id: subject.baseline.manifest.id,
         treeHash: subject.baseline.manifest.bundle.treeHash,
       },
-      holdoutCase: {
+      protectedCase: {
         goal: { id: 'goal-holdout' },
         correction: 'Do not let the author be the final reviewer.',
       },
+      role: 'holdout',
       dshRevision: policy.dshRevision,
     })
     expect(JSON.stringify(input)).not.toMatch(/candidate|changedPaths|claim/iu)
@@ -119,7 +193,7 @@ describe('Existing Skill Holdout Governance', () => {
       digest: expect.stringMatching(/^[a-f0-9]{64}$/u),
       representation: 'binary',
     })
-    expect(input.holdoutCase.correction).toBe('Do not let the author be the final reviewer.')
+    expect(input.protectedCase.correction).toBe('Do not let the author be the final reviewer.')
     expect(governed.samples.filter(sample => sample.role !== 'holdout')
       .every(sample => !JSON.stringify(input).includes(sample.correction.note))).toBe(true)
     expect(calibrate).toHaveBeenCalledOnce()
@@ -277,7 +351,7 @@ describe('Existing Skill Holdout Governance', () => {
     expect(authorModel).toHaveBeenCalledOnce()
     expect(calibrate).toHaveBeenCalledOnce()
     await expect(governance.scan(WORKSPACE_ID)).resolves.toMatchObject({
-      runs: [{ phase: 'incomplete', modelCalls: 1, failure: 'calibration-failed' }],
+      runs: [{ phase: 'incomplete', modelCalls: 1, failure: 'holdout-calibration-failed' }],
     })
   })
 
@@ -304,6 +378,90 @@ describe('Existing Skill Holdout Governance', () => {
     expect(retryAuthor).not.toHaveBeenCalled()
     await expect(restarted.scan(WORKSPACE_ID)).resolves.toMatchObject({
       runs: [{ phase: 'uncertain', modelCalls: 1, failure: 'paid-authoring-uncertain' }],
+    })
+  })
+
+  it('migrates a legacy pending Holdout state to uncertain without retrying the paid call', async () => {
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-existing-holdout-legacy-pending-')))
+    roots.push(root)
+    const subject = await holdoutSubject()
+    const deferred = new ExistingSkillHoldoutGovernance({
+      policies: [holdoutPolicy(root)],
+      evidence: { readForGovernance: vi.fn(async () => governedEvidence(subject)) },
+      budget: {
+        reserve: vi.fn(async () => ({
+          ...allowedGovernanceReservation(),
+          allowed: false as const,
+          newlyReserved: false,
+          retryAt: 1_787_356_800_000,
+        })),
+      },
+      authorModel: vi.fn(),
+      calibrate: vi.fn(),
+      modelIdentity: () => 'independent-existing-holdout/model-v1',
+      now: () => 1_787_270_400_000,
+    })
+    await deferred.ensure(subject)
+    const runRoot = join(root, 'runs', 'existing-skill-holdout-authoring', 'release-proof', 'runs')
+    const [runId] = await readdir(runRoot)
+    const statePath = join(runRoot, runId!, 'state.json')
+    const state = JSON.parse(await readFile(statePath, 'utf8')) as Record<string, unknown>
+    state.phase = 'authoring-pending'
+    state.cost = { modelCalls: 1, inputTokens: 0, outputTokens: 0 }
+    delete state.retryAt
+    delete state.reason
+    await writeFile(statePath, `${JSON.stringify(state, null, 2)}\n`)
+    const retryAuthor = vi.fn()
+    const restarted = new ExistingSkillHoldoutGovernance({
+      policies: [holdoutPolicy(root)],
+      evidence: { readForGovernance: vi.fn(async () => governedEvidence(subject)) },
+      budget: { reserve: vi.fn(async () => allowedGovernanceReservation()) },
+      authorModel: retryAuthor,
+      calibrate: vi.fn(),
+      modelIdentity: () => 'independent-existing-holdout/model-v1',
+      now: () => 1_787_270_400_000,
+    })
+
+    await expect(restarted.ensure(subject)).rejects.toThrow('refusing automatic retry')
+    expect(retryAuthor).not.toHaveBeenCalled()
+    await expect(restarted.scan(WORKSPACE_ID)).resolves.toMatchObject({
+      warningCount: 0,
+      runs: [{ phase: 'uncertain', modelCalls: 1, retentionIncluded: false }],
+    })
+  })
+
+  it('does not retry an unobserved paid Retention author response across restart', async () => {
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-existing-retention-restart-')))
+    roots.push(root)
+    const subject = await retentionSubject()
+    const firstAuthor = vi.fn(async (input: ExistingSkillHoldoutAuthorInput) => {
+      if (input.role === 'retention') throw new Error('connection reset before Retention response')
+      return validAuthorResult(input)
+    })
+    const build = (authorModel: typeof firstAuthor) => new ExistingSkillHoldoutGovernance({
+      policies: [holdoutPolicy(root)],
+      evidence: { readForGovernance: vi.fn(async () => governedEvidence(subject)) },
+      budget: { reserve: vi.fn(async () => allowedGovernanceReservation()) },
+      authorModel,
+      calibrate: vi.fn(),
+      modelIdentity: () => 'independent-existing-evaluation/model-v1',
+      now: () => 1_787_270_400_000,
+    })
+
+    await expect(build(firstAuthor).ensure(subject)).rejects
+      .toThrow('connection reset before Retention response')
+    const retryAuthor = vi.fn(async (input: ExistingSkillHoldoutAuthorInput) => validAuthorResult(input))
+    const restarted = build(retryAuthor)
+    await expect(restarted.ensure(subject)).rejects.toThrow('refusing automatic retry')
+    expect(firstAuthor).toHaveBeenCalledTimes(2)
+    expect(retryAuthor).not.toHaveBeenCalled()
+    await expect(restarted.scan(WORKSPACE_ID)).resolves.toMatchObject({
+      runs: [{
+        phase: 'uncertain',
+        modelCalls: 2,
+        retentionIncluded: true,
+        failure: 'paid-authoring-uncertain',
+      }],
     })
   })
 
@@ -383,10 +541,41 @@ function validAuthorResult(input: ExistingSkillHoldoutAuthorInput) {
     evaluatorSource: `process.stdout.write(${JSON.stringify(JSON.stringify({
       schemaVersion: 1,
       passed: true,
-      checks: [{ name: 'independent-proof', passed: true }],
+      checks: [{ name: `${input.role}-independent-proof`, passed: true }],
       composition: { fingerprint: 'f'.repeat(64), modelCalls: 1, usage: {} },
     }))})\n`,
     usage: { inputTokens: 40, outputTokens: 20 },
+  }
+}
+
+async function retentionSubject() {
+  const subject = await holdoutSubject()
+  const feedbackSignalIds = [...subject.opportunity.feedbackSignalIds, 'd'.repeat(64)]
+  const goalIds = [...subject.opportunity.goalIds, 'goal-retention']
+  return {
+    ...subject,
+    opportunity: {
+      ...subject.opportunity,
+      signalCount: 5,
+      goalCount: 5,
+      lastObservedAt: 5,
+      feedbackSignalIds,
+      goalIds,
+    },
+    qualification: {
+      ...subject.qualification,
+      evidence: {
+        ...subject.qualification.evidence,
+        feedbackSignalIds,
+        goalIds,
+        invocationCount: 5,
+        goalCount: 5,
+      },
+    },
+    evidence: {
+      ...subject.evidence,
+      retentionGoalCount: 1,
+    },
   }
 }
 
@@ -516,7 +705,7 @@ async function holdoutSubject() {
 }
 
 function governedEvidence(subject: Awaited<ReturnType<typeof holdoutSubject>>) {
-  const sample = (role: 'authoring' | 'admission' | 'holdout', suffix: string, note: string) => ({
+  const sample = (role: 'authoring' | 'admission' | 'holdout' | 'retention', suffix: string, note: string) => ({
     role,
     goal: { id: `goal-${suffix}`, revision: 1, objective: `Objective ${suffix}` },
     request: {
@@ -526,10 +715,18 @@ function governedEvidence(subject: Awaited<ReturnType<typeof holdoutSubject>>) {
     },
     correction: { note, sourceUpdatedAt: Number.parseInt(suffix, 10) || 4 },
     source: {
-      feedbackSignalId: (suffix === 'admission' ? '3' : suffix === 'holdout' ? '4' : suffix).repeat(64),
+      feedbackSignalId: (suffix === 'admission'
+        ? '3'
+        : suffix === 'holdout'
+          ? '4'
+          : suffix === 'retention'
+            ? 'd'
+            : suffix).repeat(64),
       sessionId: `session-${suffix}`,
       messageId: `message-${suffix}`,
-      feedbackVersion: suffix === 'holdout'
+      feedbackVersion: suffix === 'retention'
+        ? '0198f4b4-b664-7000-8000-000000000005'
+        : suffix === 'holdout'
         ? '0198f4b4-b664-7000-8000-000000000004'
         : suffix === 'admission'
           ? '0198f4b4-b664-7000-8000-000000000003'
@@ -554,12 +751,15 @@ function governedEvidence(subject: Awaited<ReturnType<typeof holdoutSubject>>) {
       lastObservedAt: 4,
     },
     qualification: { id: subject.qualification.id, baselineId: subject.baseline.manifest.id },
-    selection: { selectedGoalCount: 4, omittedGoalCount: 0 },
+    selection: { selectedGoalCount: subject.opportunity.goalCount, omittedGoalCount: 0 },
     samples: [
       sample('authoring', '1', 'Author correction 1.'),
       sample('authoring', '2', 'Author correction 2.'),
       sample('admission', 'admission', 'Admission correction.'),
       sample('holdout', 'holdout', 'Do not let the author be the final reviewer.'),
+      ...(subject.evidence.retentionGoalCount === 0
+        ? []
+        : [sample('retention', 'retention', 'Retention correction.')]),
     ],
     authoringInputDigest: subject.evidence.authoringInputDigest,
     releaseAuthority: 'none' as const,

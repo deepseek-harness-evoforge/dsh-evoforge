@@ -55,6 +55,8 @@ V4.38 按 [ADR-0081](adr/0081-existing-skill-holdout-is-authored-before-the-cand
 
 V4.39 按 [ADR-0082](adr/0082-existing-skill-effect-verdict-requires-an-exact-paired-holdout.md) 增加 `ExistingSkillHoldoutEvaluation`。新 Candidate 的 authorship/content identity 必须纳入生成前 exact Envelope；可读 legacy 无绑定 Candidate 和 Envelope id 错配都在 Trial 前阻断。它只消费 exact `qualified-for-holdout` Admission、immutable baseline、whole-tree Candidate 与 Candidate 已绑定的 Candidate-blind Envelope，并在同一 assembled DSH Trial 中运行完整双树；calibration、assembled、composition、输入完整性和固定 Trial 数全部通过后，才按 `fail/pass` 四象限持久给出 `improved/ambiguous/not-improved/regressed`。Candidate 物化漂移受保护，付费结果未知不盲重试，启动扫描与实时回调共用原生 Jobs，全部结果固定无发布权。最终 tarball 已用真实 DSH 浏览器验证投影、reload、Host 断连保留快照、同端口恢复、console error 0 与官方卸载。详见 [V4.39 证据](evidence/v4-39-existing-skill-exact-paired-holdout-evaluation.zh.md)。自动化成功 Trial 仍为注入式确定性 executor；下一步是 existing-Skill Retention/Canary/晋升/回滚和两套独立真实 provider。
 
+V4.40 按 [ADR-0083](adr/0083-existing-skill-retention-is-sealed-into-the-pre-candidate-envelope.md) 把第五个独立 Goal 的 Retention 从“仅在 Evidence Seal 中保留”推进到 Candidate 前 Evaluation Envelope。五 Goal 路径按 Holdout、Retention 两次独立付费调用，每次只接收 exact baseline 和一个 protected Goal；两套完整 `skill-tree` Case Pack 分别校准、哈希并原子进入 v3 Envelope，Candidate 内容 id 继续绑定整个 Envelope。四 Goal及 legacy v2 明确无 Retention；历史无 `pendingRole` 的付费 Holdout 状态安全转为 `uncertain`，新第二次调用未知也不盲重试。Host/Remote/Web 显示 role、Retention presence、聚合成本和细分失败，不下发保护正文或路径。详见 [V4.40 证据](evidence/v4-40-existing-skill-pre-candidate-retention-governance.zh.md)。该增量尚未执行 Retention Trial，也没有晋升权。
+
 | 能力 | 当前状态 | 已有证据 | 仍缺 |
 |---|---|---|---|
 | 原生 DSH 插件产品形态 | `implemented` | 十一包均有 `name/inject/Config/apply`、Bundle patch、无 bin 合同；同一次 clean-profile tarball add/dump/boot/remove/readback 通过 | 陌生安装与 registry release 门禁 |
@@ -77,7 +79,7 @@ V4.39 按 [ADR-0082](adr/0082-existing-skill-effect-verdict-requires-an-exact-pa
 
 当前 `main` 增量通过根级 `pnpm check`（文档、全包 typecheck、测试和构建）；其中
 `dsh-gateway` 7 files/24 tests、`dsh-evolve-web` 2 files/20 tests、`dsh-evolve-attention` 4 files/11 tests，
-`dsh-evolve` 60 files/247 tests passed、1 file/1 test skipped；根级累计 476 tests passed、3 skipped。Cache Contract 全通过；Doctor 十一包
+`dsh-evolve` 60 files/251 tests passed、1 file/1 test skipped；根级累计 480 tests passed、3 skipped。Cache Contract 全通过；Doctor 十一包
 原生合同 22/22，十一包 clean-profile 最终 tarball 的 add/dump/boot/真实
 Session+Goal+Storage+Tool/dispose/remove/reboot/readback 1/1（60.96 秒）；独立 Doctor packed
 add/Loader/command/remove 1/1（10.35 秒）。V4.24 删除旧浏览器 acceptance fixture，并用 DSH Web 组件测试固定“纠正进入

@@ -50,6 +50,7 @@ const AUTHOR_OUTPUT_TOKEN_LIMIT = 6_000
 
 export interface ExistingSkillHoldoutAuthorInput {
   readonly idempotencyKey: string
+  readonly role: 'holdout' | 'retention'
   readonly workspaceId: string
   readonly skillName: string
   readonly opportunityId: string
@@ -67,7 +68,7 @@ export interface ExistingSkillHoldoutAuthorInput {
       readonly content?: string
     }[]
   }
-  readonly holdoutCase: {
+  readonly protectedCase: {
     readonly goal: { readonly id: string; readonly revision: number; readonly objective: string }
     readonly request: string
     readonly requestHasOmittedContent: boolean
@@ -103,6 +104,8 @@ export interface ExistingSkillHoldoutEnvelope {
   readonly proposerModelIdentityHash: string
   readonly casePackDir: string
   readonly casePackHash: string
+  readonly retentionCasePackDir?: string
+  readonly retentionCasePackHash?: string
   readonly dshRevision: string
   readonly releaseAuthority: 'none'
 }
@@ -132,14 +135,28 @@ export interface ExistingSkillHoldoutGovernanceRunView {
   readonly qualificationId: string
   readonly baselineId: string
   readonly evaluationEvidenceId: string
-  readonly phase: 'prepared' | 'budget-deferred' | 'authoring-pending' | 'uncertain' | 'incomplete' | 'ready'
+  readonly phase:
+    | 'prepared'
+    | 'budget-deferred'
+    | 'authoring-pending'
+    | 'holdout-ready'
+    | 'authored'
+    | 'uncertain'
+    | 'incomplete'
+    | 'ready'
+  readonly pendingRole?: 'holdout' | 'retention'
   readonly createdAt: string
   readonly updatedAt: string
-  readonly modelCalls: 0 | 1
+  readonly modelCalls: number
   readonly inputTokens: number
   readonly outputTokens: number
+  readonly retentionIncluded: boolean
   readonly retryAt?: number
-  readonly failure?: 'paid-authoring-uncertain' | 'calibration-failed' | 'governance-incomplete'
+  readonly failure?:
+    | 'paid-authoring-uncertain'
+    | 'holdout-calibration-failed'
+    | 'retention-calibration-failed'
+    | 'governance-incomplete'
   readonly releaseAuthority: 'none'
 }
 
@@ -174,7 +191,17 @@ const stateSchema = z.strictObject({
   schemaVersion: z.literal(1),
   kind: z.literal('existing-skill-holdout-governance-state-v1'),
   id: z.string().regex(CONTENT_ID),
-  phase: z.enum(['prepared', 'budget-deferred', 'authoring-pending', 'uncertain', 'incomplete', 'ready']),
+  phase: z.enum([
+    'prepared',
+    'budget-deferred',
+    'authoring-pending',
+    'holdout-ready',
+    'authored',
+    'uncertain',
+    'incomplete',
+    'ready',
+  ]),
+  pendingRole: z.enum(['holdout', 'retention']).optional(),
   createdAt: z.iso.datetime({ offset: true }),
   updatedAt: z.iso.datetime({ offset: true }),
   identity: z.strictObject({
@@ -187,12 +214,13 @@ const stateSchema = z.strictObject({
     baselineTreeHash: z.string().regex(CONTENT_ID),
     evaluationEvidenceId: z.string().regex(CONTENT_ID),
     holdoutInputDigest: z.string().regex(CONTENT_ID),
+    retentionInputDigest: z.string().regex(CONTENT_ID).optional(),
     proposerModelIdentityHash: z.string().regex(CONTENT_ID),
     governanceModelIdentityHash: z.string().regex(CONTENT_ID),
     dshRevision: z.string().regex(GIT_OBJECT),
   }),
   cost: z.strictObject({
-    modelCalls: z.union([z.literal(0), z.literal(1)]),
+    modelCalls: z.number().int().min(0).max(2),
     inputTokens: z.number().int().nonnegative(),
     outputTokens: z.number().int().nonnegative(),
   }),
@@ -202,16 +230,23 @@ const stateSchema = z.strictObject({
   if ((state.phase === 'budget-deferred') !== (state.retryAt !== undefined)) {
     context.addIssue({ code: 'custom', message: 'existing-Skill holdout retry state is inconsistent' })
   }
-  if (state.phase === 'authoring-pending' && state.cost.modelCalls !== 1) {
-    context.addIssue({ code: 'custom', message: 'existing-Skill holdout pending state has no paid call' })
+  const legacyPendingHoldout = state.phase === 'authoring-pending'
+    && state.pendingRole === undefined
+    && state.cost.modelCalls === 1
+    && state.identity.retentionInputDigest === undefined
+  if ((state.pendingRole !== undefined && state.phase !== 'authoring-pending')
+    || (state.phase === 'authoring-pending'
+      && state.pendingRole === undefined
+      && !legacyPendingHoldout)) {
+    context.addIssue({ code: 'custom', message: 'existing-Skill protected-case pending role is inconsistent' })
   }
 })
 
 type HoldoutState = z.infer<typeof stateSchema>
 
 interface HoldoutBinding {
-  readonly schemaVersion: 2
-  readonly kind: 'existing-skill-holdout-envelope-v2'
+  readonly schemaVersion: 2 | 3
+  readonly kind: 'existing-skill-holdout-envelope-v2' | 'existing-skill-evaluation-envelope-v3'
   readonly id: string
   readonly governanceId: string
   readonly policyId: string
@@ -225,12 +260,14 @@ interface HoldoutBinding {
   readonly proposerModelIdentityHash: string
   readonly governanceModelIdentityHash: string
   readonly holdoutInputDigest: string
+  readonly retentionInputDigest?: string
   readonly casePackHash: string
+  readonly retentionCasePackHash?: string
   readonly dshRevision: string
   readonly releaseAuthority: 'none'
 }
 
-/** Candidate-independent authoring and calibration of one existing-Skill holdout. */
+/** Candidate-independent authoring and calibration of sealed existing-Skill Holdout/Retention roles. */
 export class ExistingSkillHoldoutGovernance {
   private readonly policies = new Map<string, SkillEvaluationGovernancePolicyConfig>()
   private readonly evidence: ExistingSkillHoldoutGovernanceOptions['evidence']
@@ -370,7 +407,7 @@ export class ExistingSkillHoldoutGovernance {
       subject.qualification.id,
       subject.evidence.id,
     )
-    const holdout = exactHoldout(subject, governed)
+    const protectedCases = exactProtectedCases(subject, governed)
     const authorIdentity = this.modelIdentity()
     if (authorIdentity.trim() === '' || Buffer.byteLength(authorIdentity) > 2_048) {
       throw new Error('existing-Skill holdout governance model identity is invalid')
@@ -379,11 +416,15 @@ export class ExistingSkillHoldoutGovernance {
     if (governanceModelIdentityHash === subject.proposerModelIdentityHash) {
       throw new Error('Candidate proposer cannot author its existing-Skill holdout')
     }
-    const holdoutInputDigest = sha256Json(holdout)
+    const holdoutInputDigest = sha256Json(protectedCases.holdout)
+    const retentionInputDigest = protectedCases.retention === undefined
+      ? undefined
+      : sha256Json(protectedCases.retention)
     const identity = governanceIdentity(
       policy,
       subject,
       holdoutInputDigest,
+      retentionInputDigest,
       governanceModelIdentityHash,
     )
     const installedRoot = join(
@@ -407,9 +448,11 @@ export class ExistingSkillHoldoutGovernance {
     await exactDirectory(runDir)
     let state = await prepareState(runDir, identity, this.now())
     if (state.phase === 'authoring-pending') {
+      const pendingRole = state.pendingRole ?? 'holdout'
       state = await updateState(runDir, state, {
         phase: 'uncertain',
-        reason: 'paid existing-Skill holdout authoring outcome is uncertain; refusing automatic retry',
+        pendingRole: undefined,
+        reason: `paid existing-Skill ${pendingRole} authoring outcome is uncertain; refusing automatic retry`,
       }, this.now())
     }
     if (state.phase === 'budget-deferred') {
@@ -431,110 +474,187 @@ export class ExistingSkillHoldoutGovernance {
       return { status: 'ready', envelope }
     }
 
-    const reservation = await this.budget.reserve({
-      id: policy.id,
-      workspaceId: policy.workspaceId,
-      skill: subject.opportunity.skillName,
-      runRoot: authoringRoot,
-      maxAttemptsPerUtcDay: policy.maxAttemptsPerUtcDay,
-    }, subject.evidence.id)
-    if (!reservation.allowed) {
-      if (reservation.retryAt === undefined) throw new Error('existing-Skill holdout budget denied without retry time')
-      await updateState(runDir, state, {
-        phase: 'budget-deferred',
-        retryAt: reservation.retryAt,
-        reason: 'daily paid existing-Skill holdout budget exhausted',
-      }, this.now())
-      return { status: 'budget-deferred', retryAt: reservation.retryAt, releaseAuthority: 'none' }
+    if (state.phase === 'prepared') {
+      const reservation = await this.budget.reserve({
+        id: policy.id,
+        workspaceId: policy.workspaceId,
+        skill: subject.opportunity.skillName,
+        runRoot: authoringRoot,
+        maxAttemptsPerUtcDay: policy.maxAttemptsPerUtcDay,
+      }, subject.evidence.id)
+      if (!reservation.allowed) {
+        if (reservation.retryAt === undefined) throw new Error('existing-Skill holdout budget denied without retry time')
+        await updateState(runDir, state, {
+          phase: 'budget-deferred',
+          retryAt: reservation.retryAt,
+          reason: 'daily paid existing-Skill holdout budget exhausted',
+        }, this.now())
+        return { status: 'budget-deferred', retryAt: reservation.retryAt, releaseAuthority: 'none' }
+      }
+      state = await this.authorRole(
+        policy,
+        subject,
+        baselineArchive.files,
+        identity,
+        runDir,
+        state,
+        'holdout',
+        protectedCases.holdout,
+        options.signal,
+      )
+    }
+    if (state.phase === 'holdout-ready') {
+      state = protectedCases.retention === undefined
+        ? await updateState(runDir, state, { phase: 'authored' }, this.now())
+        : await this.authorRole(
+            policy,
+            subject,
+            baselineArchive.files,
+            identity,
+            runDir,
+            state,
+            'retention',
+            protectedCases.retention,
+            options.signal,
+          )
+    }
+    if (state.phase !== 'authored') {
+      throw new Error('existing-Skill protected-case governance did not author every sealed role')
     }
 
-    state = await updateState(runDir, state, {
+    if (protectedCases.retention !== undefined) {
+      try {
+        await assertIndependentRoleEvaluators(join(runDir, 'drafts'))
+      } catch (error) {
+        await updateState(runDir, state, {
+          phase: 'incomplete',
+          reason: `existing-Skill protected-case governance incomplete: ${errorDetail(error)}`,
+        }, this.now())
+        throw error
+      }
+    }
+
+    const roles = protectedCases.retention === undefined
+      ? ['holdout'] as const
+      : ['holdout', 'retention'] as const
+    for (const role of roles) {
+      const draft = join(runDir, 'drafts', role)
+      const calibrationRoot = join(runDir, 'calibration', role)
+      let calibration: CasePackCalibrationResult
+      try {
+        await rm(calibrationRoot, { force: true, recursive: true })
+        await mkdir(dirname(calibrationRoot), { recursive: true, mode: 0o700 })
+        calibration = await this.calibrate({
+          casePackDir: draft,
+          outputDir: calibrationRoot,
+          ...options.signal === undefined ? {} : { signal: options.signal },
+        })
+      } catch (error) {
+        await updateState(runDir, state, {
+          phase: 'incomplete',
+          reason: `existing-Skill ${role} governance incomplete: ${errorDetail(error)}`,
+        }, this.now())
+        throw error
+      }
+      if (calibration.status !== 'calibrated') {
+        await updateState(runDir, state, {
+          phase: 'incomplete',
+          reason: `existing-Skill ${role} calibration ${calibration.status}: ${calibration.reason}`,
+        }, this.now())
+        throw new Error(`existing-Skill ${role} calibration failed closed`)
+      }
+    }
+
+    let envelope: ExistingSkillHoldoutEnvelope
+    try {
+      envelope = await installEnvelope(installedRoot, identity, join(runDir, 'drafts'))
+    } catch (error) {
+      await updateState(runDir, state, {
+        phase: 'incomplete',
+        reason: `existing-Skill protected-case governance incomplete: ${errorDetail(error)}`,
+      }, this.now())
+      throw error
+    }
+    await updateState(runDir, state, { phase: 'ready', reason: undefined }, this.now())
+    return { status: 'ready', envelope }
+  }
+
+  private async authorRole(
+    policy: SkillEvaluationGovernancePolicyConfig,
+    subject: ExistingSkillHoldoutGovernanceSubject,
+    baselineFiles: readonly SkillBundleArchiveFile[],
+    identity: HoldoutState['identity'] & { readonly id: string },
+    runDir: string,
+    initial: HoldoutState,
+    role: 'holdout' | 'retention',
+    protectedCase: ExistingSkillEvaluationEvidenceManifest['samples'][number],
+    signal?: AbortSignal,
+  ): Promise<HoldoutState> {
+    let state = await updateState(runDir, initial, {
       phase: 'authoring-pending',
-      cost: { modelCalls: 1, inputTokens: 0, outputTokens: 0 },
+      pendingRole: role,
+      retryAt: undefined,
+      cost: { ...initial.cost, modelCalls: initial.cost.modelCalls + 1 },
       reason: undefined,
     }, this.now())
     let authored: ExistingSkillHoldoutAuthorResult
     try {
-      authored = await this.authorModel(buildAuthorInput(policy, subject, holdout, identity.id, options.signal))
+      authored = await this.authorModel(buildAuthorInput(
+        policy,
+        subject,
+        role,
+        protectedCase,
+        identity.id,
+        signal,
+      ))
     } catch (error) {
       await updateState(runDir, state, {
         phase: 'uncertain',
-        reason: 'paid existing-Skill holdout authoring outcome is uncertain; refusing automatic retry',
+        pendingRole: undefined,
+        reason: `paid existing-Skill ${role} authoring outcome is uncertain; refusing automatic retry`,
       }, this.now())
       throw error
     }
     const observedUsage = authorUsage(authored)
     let validated: ExistingSkillHoldoutAuthorResult
     try {
-      options.signal?.throwIfAborted()
-      validated = validateAuthorResult(authored, subject.baseline.files)
-    } catch (error) {
-      await updateState(runDir, state, {
-        phase: 'incomplete',
-        cost: { modelCalls: 1, ...observedUsage },
-        reason: `existing-Skill holdout governance incomplete: ${errorDetail(error)}`,
-      }, this.now())
-      throw error
-    }
-    const draft = join(runDir, 'draft-case-pack')
-    const calibrationRoot = join(runDir, 'calibration')
-    let calibration: CasePackCalibrationResult
-    try {
+      signal?.throwIfAborted()
+      validated = validateAuthorResult(authored, baselineFiles)
+      const draft = join(runDir, 'drafts', role)
       await rm(draft, { force: true, recursive: true })
-      await writeCasePack(draft, policy, subject, baselineArchive.files, holdoutInputDigest, validated)
-      await rm(calibrationRoot, { force: true, recursive: true })
-      await mkdir(dirname(calibrationRoot), { recursive: true, mode: 0o700 })
-      calibration = await this.calibrate({
-        casePackDir: draft,
-        outputDir: calibrationRoot,
-        ...options.signal === undefined ? {} : { signal: options.signal },
-      })
-    } catch (error) {
-      await updateState(runDir, state, {
-        phase: 'incomplete',
-        cost: { modelCalls: 1, ...validated.usage },
-        reason: `existing-Skill holdout governance incomplete: ${errorDetail(error)}`,
-      }, this.now())
-      throw error
-    }
-    if (calibration.status !== 'calibrated') {
-      await updateState(runDir, state, {
-        phase: 'incomplete',
-        cost: {
-          modelCalls: 1,
-          inputTokens: validated.usage.inputTokens,
-          outputTokens: validated.usage.outputTokens,
-        },
-        reason: `existing-Skill holdout calibration ${calibration.status}: ${calibration.reason}`,
-      }, this.now())
-      throw new Error('existing-Skill holdout calibration failed closed')
-    }
-    let envelope: ExistingSkillHoldoutEnvelope
-    try {
-      envelope = await installEnvelope(
-        installedRoot,
-        identity,
+      await writeCasePack(
         draft,
-        await hashTree(draft),
+        policy,
+        subject,
+        baselineFiles,
+        role,
+        roleInputDigest(identity, role),
+        validated,
       )
     } catch (error) {
       await updateState(runDir, state, {
         phase: 'incomplete',
-        cost: { modelCalls: 1, ...validated.usage },
-        reason: `existing-Skill holdout governance incomplete: ${errorDetail(error)}`,
+        pendingRole: undefined,
+        cost: {
+          modelCalls: state.cost.modelCalls,
+          inputTokens: initial.cost.inputTokens + observedUsage.inputTokens,
+          outputTokens: initial.cost.outputTokens + observedUsage.outputTokens,
+        },
+        reason: `existing-Skill ${role} governance incomplete: ${errorDetail(error)}`,
       }, this.now())
       throw error
     }
-    await updateState(runDir, state, {
-      phase: 'ready',
+    state = await updateState(runDir, state, {
+      phase: role === 'holdout' ? 'holdout-ready' : 'authored',
+      pendingRole: undefined,
       cost: {
-        modelCalls: 1,
-        inputTokens: validated.usage.inputTokens,
-        outputTokens: validated.usage.outputTokens,
+        modelCalls: state.cost.modelCalls,
+        inputTokens: initial.cost.inputTokens + validated.usage.inputTokens,
+        outputTokens: initial.cost.outputTokens + validated.usage.outputTokens,
       },
       reason: undefined,
     }, this.now())
-    return { status: 'ready', envelope }
+    return state
   }
 }
 
@@ -568,6 +688,8 @@ function assertSubject(subject: ExistingSkillHoldoutGovernanceSubject): void {
     || evidence.baselineId !== baseline.manifest.id
     || evidence.skillName !== opportunity.skillName
     || evidence.holdoutGoalCount !== 1
+    || ![0, 1].includes(evidence.retentionGoalCount)
+    || (evidence.retentionGoalCount === 1 && opportunity.goalCount < 5)
     || evidence.proposerCanReadProtectedSamples !== false
     || evidence.releaseAuthority !== 'none') {
     throw new Error('existing-Skill holdout subject does not bind one exact protected baseline')
@@ -611,10 +733,13 @@ function assertBaseline(
   }
 }
 
-function exactHoldout(
+function exactProtectedCases(
   subject: ExistingSkillHoldoutGovernanceSubject,
   manifest: ExistingSkillEvaluationEvidenceManifest,
-): ExistingSkillEvaluationEvidenceManifest['samples'][number] {
+): {
+  readonly holdout: ExistingSkillEvaluationEvidenceManifest['samples'][number]
+  readonly retention?: ExistingSkillEvaluationEvidenceManifest['samples'][number]
+} {
   if (manifest.id !== subject.evidence.id
     || manifest.workspaceId !== subject.opportunity.workspaceId
     || manifest.opportunity.id !== subject.opportunity.id
@@ -626,15 +751,24 @@ function exactHoldout(
     || manifest.releaseAuthority !== 'none') {
     throw new Error('existing-Skill holdout evidence identity is inconsistent')
   }
-  const samples = manifest.samples.filter(sample => sample.role === 'holdout')
-  if (samples.length !== 1) throw new Error('existing-Skill holdout evidence must contain one protected case')
-  return samples[0]!
+  const holdout = manifest.samples.filter(sample => sample.role === 'holdout')
+  const retention = manifest.samples.filter(sample => sample.role === 'retention')
+  if (holdout.length !== 1
+    || retention.length > 1
+    || (subject.evidence.retentionGoalCount === 1) !== (retention.length === 1)) {
+    throw new Error('existing-Skill evidence does not bind its exact protected cases')
+  }
+  return Object.freeze({
+    holdout: holdout[0]!,
+    ...(retention.length === 0 ? {} : { retention: retention[0]! }),
+  })
 }
 
 function governanceIdentity(
   policy: SkillEvaluationGovernancePolicyConfig,
   subject: ExistingSkillHoldoutGovernanceSubject,
   holdoutInputDigest: string,
+  retentionInputDigest: string | undefined,
   governanceModelIdentityHash: string,
 ): HoldoutState['identity'] & { readonly id: string } {
   const identity = {
@@ -647,20 +781,48 @@ function governanceIdentity(
     baselineTreeHash: subject.baseline.manifest.bundle.treeHash,
     evaluationEvidenceId: subject.evidence.id,
     holdoutInputDigest,
+    ...(retentionInputDigest === undefined ? {} : { retentionInputDigest }),
     proposerModelIdentityHash: subject.proposerModelIdentityHash,
     governanceModelIdentityHash,
     dshRevision: policy.dshRevision,
   } as const
   return Object.freeze({
     ...identity,
-    id: sha256Json(['existing-skill-holdout-governance-v1', identity]),
+    id: sha256Json([
+      retentionInputDigest === undefined
+        ? 'existing-skill-holdout-governance-v1'
+        : 'existing-skill-protected-case-governance-v2',
+      identity,
+    ]),
   })
+}
+
+function roleInputDigest(
+  identity: HoldoutState['identity'],
+  role: 'holdout' | 'retention',
+): string {
+  if (role === 'holdout') return identity.holdoutInputDigest
+  if (identity.retentionInputDigest === undefined) {
+    throw new Error('existing-Skill Retention governance has no sealed input')
+  }
+  return identity.retentionInputDigest
+}
+
+async function assertIndependentRoleEvaluators(drafts: string): Promise<void> {
+  const [holdout, retention] = await Promise.all([
+    readFile(join(drafts, 'holdout', 'final-test', 'evaluator.mjs')),
+    readFile(join(drafts, 'retention', 'final-test', 'evaluator.mjs')),
+  ])
+  if (holdout.equals(retention)) {
+    throw new Error('existing-Skill Retention evaluator duplicates Holdout')
+  }
 }
 
 function buildAuthorInput(
   policy: SkillEvaluationGovernancePolicyConfig,
   subject: ExistingSkillHoldoutGovernanceSubject,
-  holdout: ExistingSkillEvaluationEvidenceManifest['samples'][number],
+  role: 'holdout' | 'retention',
+  protectedCase: ExistingSkillEvaluationEvidenceManifest['samples'][number],
   identityId: string,
   signal?: AbortSignal,
 ): ExistingSkillHoldoutAuthorInput {
@@ -676,7 +838,8 @@ function buildAuthorInput(
     })
   })
   const input: ExistingSkillHoldoutAuthorInput = Object.freeze({
-    idempotencyKey: sha256Json(['existing-skill-holdout-author-v1', identityId]),
+    idempotencyKey: sha256Json(['existing-skill-protected-case-author-v2', identityId, role]),
+    role,
     workspaceId: subject.opportunity.workspaceId,
     skillName: subject.opportunity.skillName,
     opportunityId: subject.opportunity.id,
@@ -687,11 +850,11 @@ function buildAuthorInput(
       treeHash: subject.baseline.manifest.bundle.treeHash,
       files: Object.freeze(files),
     }),
-    holdoutCase: Object.freeze({
-      goal: Object.freeze({ ...holdout.goal }),
-      request: holdout.request.text,
-      requestHasOmittedContent: holdout.request.omittedNonText,
-      correction: holdout.correction.note,
+    protectedCase: Object.freeze({
+      goal: Object.freeze({ ...protectedCase.goal }),
+      request: protectedCase.request.text,
+      requestHasOmittedContent: protectedCase.request.omittedNonText,
+      correction: protectedCase.correction.note,
     }),
     dshRevision: policy.dshRevision,
     ...(signal === undefined ? {} : { signal }),
@@ -740,7 +903,8 @@ async function writeCasePack(
   policy: SkillEvaluationGovernancePolicyConfig,
   subject: ExistingSkillHoldoutGovernanceSubject,
   baselineFiles: readonly SkillBundleArchiveFile[],
-  holdoutInputDigest: string,
+  role: 'holdout' | 'retention',
+  protectedInputDigest: string,
   result: ExistingSkillHoldoutAuthorResult,
 ): Promise<void> {
   const baselineSkill = baselineFiles.find(file => file.path === 'SKILL.md')
@@ -768,13 +932,14 @@ async function writeCasePack(
   ])
   const manifest = {
     schemaVersion: 1,
-    id: `existing-holdout-${subject.evidence.id.slice(0, 12)}`,
+    id: `existing-${role}-${subject.evidence.id.slice(0, 12)}`,
     workspaceId: subject.opportunity.workspaceId,
     epoch: {
       dshRevision: policy.dshRevision,
       evaluatorVersion: sha256Json([
-        'existing-skill-holdout-evaluator-v1',
-        holdoutInputDigest,
+        'existing-skill-protected-case-evaluator-v2',
+        role,
+        protectedInputDigest,
         result.evaluatorSource,
       ]),
     },
@@ -804,15 +969,21 @@ async function writeCasePack(
 async function installEnvelope(
   target: string,
   identity: HoldoutState['identity'] & { readonly id: string },
-  draft: string,
-  casePackHash: string,
+  drafts: string,
 ): Promise<ExistingSkillHoldoutEnvelope> {
   const parent = dirname(target)
   await mkdir(parent, { recursive: true, mode: 0o700 })
   await exactDirectory(parent)
+  const casePackHash = await hashTree(join(drafts, 'holdout'))
+  const retentionCasePackHash = identity.retentionInputDigest === undefined
+    ? undefined
+    : await hashTree(join(drafts, 'retention'))
+  if (retentionCasePackHash !== undefined && retentionCasePackHash === casePackHash) {
+    throw new Error('existing-Skill Retention Case Pack is not independent from Holdout')
+  }
   const body: Omit<HoldoutBinding, 'id'> = {
-    schemaVersion: 2,
-    kind: 'existing-skill-holdout-envelope-v2',
+    schemaVersion: 3,
+    kind: 'existing-skill-evaluation-envelope-v3',
     governanceId: identity.id,
     policyId: identity.policyId,
     workspaceId: identity.workspaceId,
@@ -825,7 +996,11 @@ async function installEnvelope(
     proposerModelIdentityHash: identity.proposerModelIdentityHash,
     governanceModelIdentityHash: identity.governanceModelIdentityHash,
     holdoutInputDigest: identity.holdoutInputDigest,
+    ...(identity.retentionInputDigest === undefined
+      ? {}
+      : { retentionInputDigest: identity.retentionInputDigest }),
     casePackHash,
+    ...(retentionCasePackHash === undefined ? {} : { retentionCasePackHash }),
     dshRevision: identity.dshRevision,
     releaseAuthority: 'none',
   }
@@ -833,7 +1008,13 @@ async function installEnvelope(
   const stage = join(parent, `.holdout-${randomUUID()}`)
   await mkdir(stage, { mode: 0o700 })
   try {
-    await cp(draft, join(stage, 'case-pack'), { recursive: true, errorOnExist: true })
+    await cp(join(drafts, 'holdout'), join(stage, 'case-pack'), { recursive: true, errorOnExist: true })
+    if (retentionCasePackHash !== undefined) {
+      await cp(join(drafts, 'retention'), join(stage, 'retention-case-pack'), {
+        recursive: true,
+        errorOnExist: true,
+      })
+    }
     await writeDurableJson(join(stage, 'binding.json'), binding)
     try {
       await rename(stage, target)
@@ -868,6 +1049,9 @@ async function readOptionalEnvelope(
     proposerModelIdentityHash: identity.proposerModelIdentityHash,
     governanceModelIdentityHash: identity.governanceModelIdentityHash,
     holdoutInputDigest: identity.holdoutInputDigest,
+    ...(identity.retentionInputDigest === undefined
+      ? {}
+      : { retentionInputDigest: identity.retentionInputDigest }),
     dshRevision: identity.dshRevision,
   }
   if (Object.entries(expectedWithoutId).some(([key, expected]) =>
@@ -889,7 +1073,12 @@ async function readEnvelope(
   const value = await readBoundedJson(join(root, 'binding.json'), MAX_BINDING_BYTES)
   const binding = parseBinding(value)
   const casePackDir = join(root, 'case-pack')
+  const retentionCasePackDir = binding.retentionCasePackHash === undefined
+    ? undefined
+    : join(root, 'retention-case-pack')
   if (await hashTree(await exactDirectory(casePackDir)) !== binding.casePackHash
+    || (retentionCasePackDir !== undefined
+      && await hashTree(await exactDirectory(retentionCasePackDir)) !== binding.retentionCasePackHash)
     || binding.id !== holdoutBindingId(binding)) {
     throw new Error('existing-Skill holdout Case Pack content identity is invalid')
   }
@@ -905,6 +1094,10 @@ async function readEnvelope(
     proposerModelIdentityHash: binding.proposerModelIdentityHash,
     casePackDir,
     casePackHash: binding.casePackHash,
+    ...(retentionCasePackDir === undefined ? {} : { retentionCasePackDir }),
+    ...(binding.retentionCasePackHash === undefined
+      ? {}
+      : { retentionCasePackHash: binding.retentionCasePackHash }),
     dshRevision: binding.dshRevision,
     releaseAuthority: 'none',
   })
@@ -912,9 +1105,14 @@ async function readEnvelope(
 }
 
 function parseBinding(value: unknown): HoldoutBinding {
+  const legacy = isRecord(value)
+    && value.schemaVersion === 2
+    && value.kind === 'existing-skill-holdout-envelope-v2'
+  const current = isRecord(value)
+    && value.schemaVersion === 3
+    && value.kind === 'existing-skill-evaluation-envelope-v3'
   if (!isRecord(value)
-    || value.schemaVersion !== 2
-    || value.kind !== 'existing-skill-holdout-envelope-v2'
+    || (!legacy && !current)
     || !CONTENT_ID.test(String(value.id))
     || !CONTENT_ID.test(String(value.governanceId))
     || !PUBLIC_ID.test(String(value.policyId))
@@ -929,6 +1127,12 @@ function parseBinding(value: unknown): HoldoutBinding {
     || !CONTENT_ID.test(String(value.governanceModelIdentityHash))
     || !CONTENT_ID.test(String(value.holdoutInputDigest))
     || !CONTENT_ID.test(String(value.casePackHash))
+    || (value.retentionInputDigest !== undefined
+      && !CONTENT_ID.test(String(value.retentionInputDigest)))
+    || (value.retentionCasePackHash !== undefined
+      && !CONTENT_ID.test(String(value.retentionCasePackHash)))
+    || (legacy && (value.retentionInputDigest !== undefined || value.retentionCasePackHash !== undefined))
+    || ((value.retentionInputDigest === undefined) !== (value.retentionCasePackHash === undefined))
     || !GIT_OBJECT.test(String(value.dshRevision))
     || value.releaseAuthority !== 'none') {
     throw new Error('existing-Skill holdout binding has an invalid shape')
@@ -952,11 +1156,19 @@ function holdoutBindingId(value: Omit<HoldoutBinding, 'id'> | HoldoutBinding): s
     proposerModelIdentityHash: value.proposerModelIdentityHash,
     governanceModelIdentityHash: value.governanceModelIdentityHash,
     holdoutInputDigest: value.holdoutInputDigest,
+    ...(value.retentionInputDigest === undefined
+      ? {}
+      : { retentionInputDigest: value.retentionInputDigest }),
     casePackHash: value.casePackHash,
+    ...(value.retentionCasePackHash === undefined
+      ? {}
+      : { retentionCasePackHash: value.retentionCasePackHash }),
     dshRevision: value.dshRevision,
     releaseAuthority: value.releaseAuthority,
   }
-  return sha256Json(['existing-skill-holdout-envelope-v2', body])
+  return sha256Json([value.schemaVersion === 2
+    ? 'existing-skill-holdout-envelope-v2'
+    : 'existing-skill-evaluation-envelope-v3', body])
 }
 
 async function prepareState(
@@ -998,7 +1210,7 @@ async function loadState(root: string): Promise<HoldoutState> {
 async function updateState(
   root: string,
   state: HoldoutState,
-  patch: Partial<Pick<HoldoutState, 'phase' | 'cost' | 'retryAt' | 'reason'>>,
+  patch: Partial<Pick<HoldoutState, 'phase' | 'pendingRole' | 'cost' | 'retryAt' | 'reason'>>,
   now: number,
 ): Promise<HoldoutState> {
   const next = stateSchema.parse({ ...state, ...patch, updatedAt: isoTime(now) })
@@ -1012,8 +1224,10 @@ function projectState(state: HoldoutState): ExistingSkillHoldoutGovernanceRunVie
     : state.phase !== 'incomplete'
       ? undefined
       : state.reason?.startsWith('existing-Skill holdout calibration')
-        ? 'calibration-failed' as const
-        : 'governance-incomplete' as const
+        ? 'holdout-calibration-failed' as const
+        : state.reason?.startsWith('existing-Skill retention calibration')
+          ? 'retention-calibration-failed' as const
+          : 'governance-incomplete' as const
   return Object.freeze({
     id: state.id,
     policyId: state.identity.policyId,
@@ -1024,11 +1238,13 @@ function projectState(state: HoldoutState): ExistingSkillHoldoutGovernanceRunVie
     baselineId: state.identity.baselineId,
     evaluationEvidenceId: state.identity.evaluationEvidenceId,
     phase: state.phase,
+    ...(state.pendingRole === undefined ? {} : { pendingRole: state.pendingRole }),
     createdAt: state.createdAt,
     updatedAt: state.updatedAt,
     modelCalls: state.cost.modelCalls,
     inputTokens: state.cost.inputTokens,
     outputTokens: state.cost.outputTokens,
+    retentionIncluded: state.identity.retentionInputDigest !== undefined,
     ...(state.retryAt === undefined ? {} : { retryAt: state.retryAt }),
     ...(failure === undefined ? {} : { failure }),
     releaseAuthority: 'none',
@@ -1142,8 +1358,8 @@ async function requestHoldoutAuthor(
         {
           role: 'system',
           content: [
-            'Author one independent hidden assembled DSH holdout for an existing Skill.',
-            'Use only the exact sealed baseline and supplied protected holdout case.',
+            `Author one independent hidden assembled DSH ${input.role} Case Pack for an existing Skill.`,
+            `Use only the exact sealed baseline and supplied protected ${input.role} case.`,
             'You never receive a Candidate and must not infer or request Candidate content.',
             'Return JSON with exactly knownCorrectionSkill and evaluatorSource.',
             'knownCorrectionSkill is a complete replacement for root SKILL.md; preserve exact name, license, permissions, and allowed-tools.',
@@ -1158,7 +1374,7 @@ async function requestHoldoutAuthor(
     ...input.signal === undefined ? {} : { signal: input.signal },
   })
   const payload = await readResponseJson(response)
-  if (!response.ok) throw new Error(`existing-Skill holdout author request failed with HTTP ${response.status}`)
+  if (!response.ok) throw new Error(`existing-Skill ${input.role} author request failed with HTTP ${response.status}`)
   const message = isRecord(payload)
     && Array.isArray(payload.choices)
     && isRecord(payload.choices[0])
@@ -1166,7 +1382,7 @@ async function requestHoldoutAuthor(
     && typeof payload.choices[0].message.content === 'string'
     ? payload.choices[0].message.content
     : undefined
-  if (message === undefined) throw new Error('existing-Skill holdout author response has no content')
+  if (message === undefined) throw new Error(`existing-Skill ${input.role} author response has no content`)
   const authored = JSON.parse(message) as unknown
   const usage = isRecord(payload) && isRecord(payload.usage) ? payload.usage : {}
   return {

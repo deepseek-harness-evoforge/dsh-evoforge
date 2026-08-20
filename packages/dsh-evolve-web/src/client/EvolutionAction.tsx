@@ -887,6 +887,14 @@ function ExistingSkillHoldoutGovernance({
               {t('skills.improvements.holdout-governance.cost')} · {run.modelCalls} · {run.inputTokens}/{run.outputTokens}
             </div>
             <div className="dsh-evolve-meta">{t('skills.improvements.holdout-governance.separation')}</div>
+            <div className="dsh-evolve-meta">
+              {t(run.retentionIncluded
+                ? 'skills.improvements.holdout-governance.retention.sealed'
+                : 'skills.improvements.holdout-governance.retention.unavailable')}
+            </div>
+            {run.pendingRole !== undefined && <div className="dsh-evolve-meta">
+              {t('skills.improvements.holdout-governance.pending')} · {run.pendingRole}
+            </div>}
             {run.retryAt !== undefined && <div className="dsh-evolve-meta">
               {t('skills.improvements.holdout-governance.retry')} · {new Date(run.retryAt).toLocaleString()}
             </div>}

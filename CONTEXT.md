@@ -191,8 +191,12 @@ An inactive, versioned diff owned by exactly one registered DSH Workspace and bo
 _Avoid_: Live patch, learned rule
 
 **Existing Skill Improvement Candidate**:
-An inactive, quarantined, content-addressed complete Skill tree derived from one exact sealed installed-Skill baseline and its protected internal correction evidence, whose identity also binds the exact Candidate-blind Holdout Envelope formed before its author ran. The author may replace or add only bounded instruction text; the Host preserves every untouched file byte-for-byte and rejects identity, code, binary, path, permission-declaration, or license drift. It is unevaluated, never executed, and has no install, activation, or release authority.
+An inactive, quarantined, content-addressed complete Skill tree derived from one exact sealed installed-Skill baseline and its protected internal correction evidence, whose identity also binds the exact pre-authoring Evaluation Envelope containing Holdout and, with a fifth independent Goal, a separately authored Retention Case Pack. The author may change only bounded instruction text while the Host preserves every untouched byte and rejects identity, code, binary, path, permission, or license drift; the Candidate remains unevaluated, never executed, and without install, activation, or release authority.
 _Avoid_: Runtime self-edit, partial patch artifact, downloaded Skill, capability-absent Candidate, approved improvement
+
+**Existing Skill Candidate-blind Evaluation Envelope**:
+A content-addressed, governance-owned binding created before an Existing Skill Improvement Candidate author runs. It binds the exact baseline, protected correction Evidence Seal, governance identity, calibrated assembled Holdout and optional independently authored Retention Case Pack; each governance call sees only its own protected Goal, a four-Goal Envelope cannot claim Retention, and a five-Goal Envelope binds both hashes into the Candidate identity.
+_Avoid_: Post-Candidate test selection, combined proposer/judge prompt, reusable lookup tuple, Holdout result as Retention
 
 **Existing Skill Paired Structural Admission**:
 A host-only, content-addressed gate that re-resolves one exact Installed Skill Baseline Bundle, materializes its exact Existing Skill Improvement Candidate beside it, consumes the governance-only admission partition, and revalidates every archive, tree, declared change, preserved byte, and protected identity. Passing means only `qualified-for-holdout`: neither tree is executed, no effect improvement is claimed, and no release authority is created. It is deliberately separate from the capability-absent Skill Evaluation Envelope.

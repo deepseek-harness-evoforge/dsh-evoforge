@@ -1,6 +1,6 @@
 # EvoForge 产品架构
 
-> 状态：产品边界已确认；Telegram、飞书两个 Assistant Adapter 与进化注意力桥已实现；内部经验驱动的 Skill Opportunity、existing-Skill exact-version investigation/完整调用时 baseline qualification/纠正证据预分区/whole-tree Candidate/结构准入/Candidate-blind exact paired holdout、生成前独立 Goal 证据密封、seal-bound Candidate v2、Candidate-independent Governance Case Pack Authoring、Envelope v4/v5、Lineage v3、exact-Candidate assembled Shadow、同 Jobs 内容寻址 Retention verdict、独立 future-Session Promotion Eligibility、failed-Outcome sealed Canary evidence、exact evidence/human Rollback Gate 与内容寻址 Generation 已实现。Retention、Canary 与 paired holdout 始终无发布权；Promotion/Rollback Host gate 分别重验 exact 证据，Rollback 另以 expected-active compare 防止并发 pointer 误写。V4.39 最终 tarball 已完成真实 DSH Web reload/断连/恢复/卸载；现有 Skill Retention/Canary/晋升/回滚、两套独立真实 provider 与长期效果仍待完成。
+> 状态：产品边界已确认；Telegram、飞书两个 Assistant Adapter 与进化注意力桥已实现；内部经验驱动的 Skill Opportunity、existing-Skill exact-version investigation/完整调用时 baseline qualification/纠正证据预分区/whole-tree Candidate/结构准入/Candidate-blind exact paired holdout、生成前独立 Goal 证据密封、seal-bound Candidate v2、Candidate-independent Governance Case Pack Authoring、Envelope v4/v5、Lineage v3、exact-Candidate assembled Shadow、同 Jobs 内容寻址 Retention verdict、独立 future-Session Promotion Eligibility、failed-Outcome sealed Canary evidence、exact evidence/human Rollback Gate 与内容寻址 Generation 已实现。V4.40 又把 existing-Skill 的可选 Retention 以第二次单样本治理调用封入 Candidate 前 v3 Evaluation Envelope。Retention、Canary 与 paired holdout 始终无发布权；Promotion/Rollback Host gate 分别重验 exact 证据，Rollback 另以 expected-active compare 防止并发 pointer 误写。V4.39 最终 tarball 已完成真实 DSH Web reload/断连/恢复/卸载；现有 Skill Retention 执行/Canary/晋升/回滚、两套独立真实 provider 与长期效果仍待完成。
 > 更新日期：2026-08-21
 
 ## 1. 产品结果
@@ -54,7 +54,7 @@ Provider 重验 archive/digest/tree/lineage，不需要 Git source、网络或�
 subject、whole-Skill tree/lineage 和 sealed Case Pack 做无 Git paired replay，非目标 DSH composition 必须一致；
 它们不调用 proposer，也不扩大自动发布权限。独立 Retention Case Pack/Envelope、paired replay、durable verdict、Promotion Eligibility、failed-Outcome sealed canary 与 exact rollback gate 已实现；长期 outcome 仍未完成。
 
-existing-Skill 路径不复用 capability-absent subject。Host 在调用时封存 exact installed Skill、从当前纠正预隔离 authoring/admission/holdout/Retention，并在 proposer 前形成 Candidate-blind calibrated `skill-tree` holdout；受保护作者只产生有界指令 diff，Host 组装完整继承 baseline 的 Candidate。结构准入只证明 exact 双树和 declared diff；随后另一原生 DSH Job 执行完整 `skill-tree ↔ skill-tree` paired holdout。只有 calibration、assembled、composition 与输入完整性全部成立才产生四象限效果判决；未知付费结果不盲重试，结果无发布权。V4.39 已完成最终 tarball 真实 DSH Web 投影、reload、断连保留快照、同端口恢复和卸载；真实 provider Trial 与后续 Retention/Canary/promotion/rollback 仍 pending。
+existing-Skill 路径不复用 capability-absent subject。Host 在调用时封存 exact installed Skill、从当前纠正预隔离 authoring/admission/holdout/Retention；Candidate-blind 治理在 proposer 前以两个独立单样本调用形成 calibrated `skill-tree` Holdout 与可选 Retention Case Pack，并把两者共同封入 Candidate 已绑定的 v3 Evaluation Envelope。受保护作者只产生有界指令 diff，Host 组装完整继承 baseline 的 Candidate。结构准入只证明 exact 双树和 declared diff；随后另一原生 DSH Job 执行完整 `skill-tree ↔ skill-tree` paired holdout。只有 calibration、assembled、composition 与输入完整性全部成立才产生四象限效果判决；未知付费结果不盲重试，结果无发布权。V4.39 已完成最终 tarball 真实 DSH Web 投影、reload、断连保留快照、同端口恢复和卸载；真实 provider Trial 与后续 Retention 执行/Canary/promotion/rollback 仍 pending。
 
 ### dsh-software-delivery
 

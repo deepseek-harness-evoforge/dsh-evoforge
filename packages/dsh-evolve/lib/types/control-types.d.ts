@@ -460,14 +460,16 @@ export interface EvolutionExistingSkillHoldoutGovernanceView {
         readonly qualificationId: string;
         readonly baselineId: string;
         readonly evaluationEvidenceId: string;
-        readonly phase: 'prepared' | 'budget-deferred' | 'authoring-pending' | 'uncertain' | 'incomplete' | 'ready';
+        readonly phase: 'prepared' | 'budget-deferred' | 'authoring-pending' | 'holdout-ready' | 'authored' | 'uncertain' | 'incomplete' | 'ready';
+        readonly pendingRole?: 'holdout' | 'retention';
         readonly createdAt: string;
         readonly updatedAt: string;
-        readonly modelCalls: 0 | 1;
+        readonly modelCalls: number;
         readonly inputTokens: number;
         readonly outputTokens: number;
+        readonly retentionIncluded: boolean;
         readonly retryAt?: number;
-        readonly failure?: 'paid-authoring-uncertain' | 'calibration-failed' | 'governance-incomplete';
+        readonly failure?: 'paid-authoring-uncertain' | 'holdout-calibration-failed' | 'retention-calibration-failed' | 'governance-incomplete';
         readonly releaseAuthority: 'none';
     }[];
 }

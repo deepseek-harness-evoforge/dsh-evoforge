@@ -21,6 +21,8 @@
 
 `dsh-software-delivery` 对不启用进化的用户仍有完整价值，因此是第二个插件，而不是 `dsh-evolve` 的私有 evaluator。
 
+V4.40 仅深化 `dsh-evolve`，不新增插件：existing-Skill 第五 Goal 现在由第二次 Candidate 不可见治理调用形成独立 Retention Case Pack，并与 Holdout 一起进入 Candidate 已绑定的 v3 Evaluation Envelope；Retention 执行、Canary、晋升和回滚仍属于同一个 `dsh-evolve` 闭环，不拆成新插件或第二调度器。
+
 ## 尚未进入路线图的候选
 
 | 候选 | 进入条件 | 为什么现在不建 |
