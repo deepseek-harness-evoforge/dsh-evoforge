@@ -54,7 +54,7 @@
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.1",
-    "@types/node": "^22.20.0",
+    "@types/node": "^26.2.0",
     "dsh-evolve": "workspace:*",
     "dsh-feishu": "workspace:*",
     "dsh-telegram": "workspace:*",
