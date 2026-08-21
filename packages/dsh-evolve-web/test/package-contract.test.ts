@@ -55,6 +55,8 @@ describe('installable DSH bundle', () => {
     expect(bootstrap).toContain('deliveryResultMessage')
     expect(bootstrap).toContain('item.outcomeAttemptCount === 3')
     expect(bootstrap).toContain('item.recoveredGoalContextCount === 1')
+    expect(bootstrap).toContain('item.betweenAttempts.transitionCount === 1')
+    expect(bootstrap).toContain('item.betweenAttempts.metrics.measured === 1')
     expect(bootstrap).toContain('item.metrics.measured === 2')
     expect(bootstrap).toContain("role: 'user'")
     expect(bootstrap).toContain("source: { kind: 'tool', callId }")

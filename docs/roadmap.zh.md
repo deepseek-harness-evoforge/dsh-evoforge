@@ -108,6 +108,13 @@ attempt、recovered、ambiguous latest 和唯一 latest 的 DSH Goal metrics。�
 停机时失败可见且保留最后证据、同 profile 冷恢复不重复计数及卸载；但它仍是时间上下文，不是成功率或返工因果。
 下一步是两套独立真实 provider、长期负迁移/遗忘和同条件 paired benchmark，而不是按这些观察计数晋升。
 
+V4.52 在 V4.51 的同一 Host 权威投影内增加 `Between-Attempt Work Context`：相邻 Outcome 只有在时间严格有序、
+两侧 DSH Goal metrics 同源同 Goal、event seq 前进且累计 counters 全部单调时才相减；并列时间整组顺序歧义，
+缺快照或回退只记 ordered transition/unmeasured。Control、Remote、Command 与 Web 共用同一差值，展示新增
+turns/steps/token/cache/latency/active wall，固定无因果、无 improvement claim、无发布权。它补充返工调查所需的
+可测上下文，但仍不能称为返工下降或 Skill 效果；两套真实 provider、长期结果与同条件 paired benchmark 仍是
+下一门禁。
+
 内部 Candidate 评测已删除 `candidateAdmissionTargets`/`candidateShadowTargets` 这两套预选 exact Skill 的配置。
 `candidateEvaluationPolicies` 不声明 Skill、baseline、Case Pack 或 Candidate 方向；自主治理只增加 exact DSH revision 和独立日预算。Host 先从 exact Opportunity
 自动形成内容寻址的 `Skill Evaluation Evidence Seal`，Candidate v2 将 seal id 纳入内容身份；Candidate-independent 治理模块分别用受保护 admission/holdout，以及可用时的第五 Goal Retention 样本形成互不复用的 Case Pack，同 proposer model identity 在预算前 fail closed，并以零 proposer 调用校准；四 Goal Envelope v4 或带 Retention 的 Envelope v5 再绑定 seal、author-input digest、治理作者/输入 digest、

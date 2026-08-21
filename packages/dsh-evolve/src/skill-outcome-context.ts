@@ -7,6 +7,12 @@ import type { SkillUse, SkillUseStore } from './skill-use-monitor.ts'
 
 const MAX_CONTEXT_ITEMS = 20
 
+export interface ExactSkillBetweenAttemptWork {
+  readonly transitionCount: number
+  readonly ambiguousOrderGoalContextCount: number
+  readonly metrics: DeliveryOutcomeMetricRollup
+}
+
 export interface ExactSkillOutcomeContextRollup {
   readonly skillVersionCount: number
   readonly goalContextCount: number
@@ -16,6 +22,7 @@ export interface ExactSkillOutcomeContextRollup {
   readonly repeatedOutcomeGoalContextCount: number
   readonly recoveredGoalContextCount: number
   readonly ambiguousLatestGoalContextCount: number
+  readonly betweenAttempts: ExactSkillBetweenAttemptWork
   readonly latest: {
     readonly passed: number
     readonly failed: number
@@ -36,6 +43,7 @@ export interface ExactSkillOutcomeContextEvidence {
   readonly repeatedOutcomeGoalContextCount: number
   readonly recoveredGoalContextCount: number
   readonly ambiguousLatestGoalContextCount: number
+  readonly betweenAttempts: ExactSkillBetweenAttemptWork
   readonly latest: ExactSkillOutcomeContextRollup['latest']
   readonly metrics: DeliveryOutcomeMetricRollup
   readonly attribution: 'same-session-goal-generation-after-use'
@@ -164,6 +172,7 @@ function projectGroup(
     repeatedOutcomeGoalContextCount: contexts.filter(context => context.attemptCount > 1).length,
     recoveredGoalContextCount: contexts.filter(context => context.recovered).length,
     ambiguousLatestGoalContextCount: contexts.filter(context => context.ambiguousLatest).length,
+    betweenAttempts: rollupBetweenAttempts(contexts.map(context => context.betweenAttempts)),
     latest,
     metrics,
     attribution: 'same-session-goal-generation-after-use',
@@ -189,6 +198,7 @@ interface ProjectedGoalContext {
   readonly latest?: DeliveryOutcome | undefined
   readonly recovered: boolean
   readonly ambiguousLatest: boolean
+  readonly betweenAttempts: ExactSkillBetweenAttemptWork
 }
 
 function projectGoalContext(
@@ -204,8 +214,9 @@ function projectGoalContext(
       && outcome.generationId === first.generationId
       && outcome.observedAt >= first.observedAt
       && outcome.goal.revision >= first.goal.revision)
+  const betweenAttempts = projectBetweenAttempts(attempts)
   if (attempts.length === 0) {
-    return { attemptCount: 0, recovered: false, ambiguousLatest: false }
+    return { attemptCount: 0, recovered: false, ambiguousLatest: false, betweenAttempts }
   }
   const latestObservedAt = Math.max(...attempts.map(outcome => outcome.observedAt))
   const latestCandidates = attempts.filter(outcome => outcome.observedAt === latestObservedAt)
@@ -214,6 +225,7 @@ function projectGoalContext(
       attemptCount: attempts.length,
       recovered: false,
       ambiguousLatest: true,
+      betweenAttempts,
     }
   }
   const latest = latestCandidates[0]!
@@ -223,7 +235,120 @@ function projectGoalContext(
     recovered: latest.status === 'passed' && attempts.some(outcome =>
       outcome.observedAt < latest.observedAt && outcome.status !== 'passed'),
     ambiguousLatest: false,
+    betweenAttempts,
   }
+}
+
+function projectBetweenAttempts(
+  attempts: readonly DeliveryOutcome[],
+): ExactSkillBetweenAttemptWork {
+  if (attempts.length < 2) return emptyBetweenAttempts()
+  if (new Set(attempts.map(outcome => outcome.observedAt)).size !== attempts.length) {
+    return {
+      ...emptyBetweenAttempts(),
+      ambiguousOrderGoalContextCount: 1,
+    }
+  }
+  const ordered = [...attempts].sort((left, right) => left.observedAt - right.observedAt)
+  const metrics = emptyMetrics()
+  for (let index = 1; index < ordered.length; index += 1) {
+    const delta = subtractGoalMetrics(ordered[index]!, ordered[index - 1]!)
+    if (delta === undefined) {
+      metrics.unmeasured += 1
+    } else {
+      metrics.measured += 1
+      addMetricValues(metrics, delta)
+    }
+  }
+  return {
+    transitionCount: ordered.length - 1,
+    ambiguousOrderGoalContextCount: 0,
+    metrics,
+  }
+}
+
+function subtractGoalMetrics(
+  later: DeliveryOutcome,
+  earlier: DeliveryOutcome,
+): MetricValues | undefined {
+  const after = later.goalMetrics
+  const before = earlier.goalMetrics
+  if (after === undefined || before === undefined
+    || after.goalId !== later.goal.id
+    || before.goalId !== earlier.goal.id
+    || after.goalId !== before.goalId
+    || after.source !== before.source
+    || after.throughEventSeq <= before.throughEventSeq) return undefined
+  const attributedTurns = subtractCounter(after.attributedTurns, before.attributedTurns)
+  const closedSteps = subtractCounter(after.closedSteps, before.closedSteps)
+  const activeWallMs = subtractCounter(after.activeWallMs, before.activeWallMs)
+  const uncachedInputTokens = subtractCounter(
+    after.providerUsage.uncachedInputTokens,
+    before.providerUsage.uncachedInputTokens,
+  )
+  const outputTokens = subtractCounter(after.providerUsage.outputTokens, before.providerUsage.outputTokens)
+  const cacheReadTokens = subtractCounter(
+    after.providerUsage.cacheReadTokens,
+    before.providerUsage.cacheReadTokens,
+  )
+  const cacheWriteTokens = subtractCounter(
+    after.providerUsage.cacheWriteTokens,
+    before.providerUsage.cacheWriteTokens,
+  )
+  const llmMs = subtractCounter(after.latency.llmMs, before.latency.llmMs)
+  const toolMs = subtractCounter(after.latency.toolMs, before.latency.toolMs)
+  const ttftMs = subtractCounter(after.latency.ttftMs, before.latency.ttftMs)
+  const ttftSteps = subtractCounter(after.latency.ttftSteps, before.latency.ttftSteps)
+  const decodeMs = subtractCounter(after.latency.decodeMs, before.latency.decodeMs)
+  const decodeTokens = subtractCounter(after.latency.decodeTokens, before.latency.decodeTokens)
+  const values = [
+    attributedTurns,
+    closedSteps,
+    activeWallMs,
+    uncachedInputTokens,
+    outputTokens,
+    cacheReadTokens,
+    cacheWriteTokens,
+    llmMs,
+    toolMs,
+    ttftMs,
+    ttftSteps,
+    decodeMs,
+    decodeTokens,
+  ]
+  if (values.some(value => value === undefined)) return undefined
+  return {
+    attributedTurns: attributedTurns!,
+    closedSteps: closedSteps!,
+    activeWallMs: activeWallMs!,
+    providerUsage: {
+      uncachedInputTokens: uncachedInputTokens!,
+      outputTokens: outputTokens!,
+      cacheReadTokens: cacheReadTokens!,
+      cacheWriteTokens: cacheWriteTokens!,
+    },
+    latency: {
+      llmMs: llmMs!,
+      toolMs: toolMs!,
+      ttftMs: ttftMs!,
+      ttftSteps: ttftSteps!,
+      decodeMs: decodeMs!,
+      decodeTokens: decodeTokens!,
+    },
+  }
+}
+
+interface MetricValues {
+  readonly attributedTurns: number
+  readonly closedSteps: number
+  readonly activeWallMs: number
+  readonly providerUsage: DeliveryOutcomeMetricRollup['providerUsage']
+  readonly latency: DeliveryOutcomeMetricRollup['latency']
+}
+
+function subtractCounter(after: number, before: number): number | undefined {
+  if (!Number.isFinite(after) || !Number.isFinite(before) || after < before) return undefined
+  return after - before
 }
 
 function rollup(items: readonly ExactSkillOutcomeContextEvidence[]): ExactSkillOutcomeContextRollup {
@@ -237,6 +362,7 @@ function rollup(items: readonly ExactSkillOutcomeContextEvidence[]): ExactSkillO
     result.repeatedOutcomeGoalContextCount += item.repeatedOutcomeGoalContextCount
     result.recoveredGoalContextCount += item.recoveredGoalContextCount
     result.ambiguousLatestGoalContextCount += item.ambiguousLatestGoalContextCount
+    addBetweenAttempts(result.betweenAttempts, item.betweenAttempts)
     result.latest.passed += item.latest.passed
     result.latest.failed += item.latest.failed
     result.latest.unknown += item.latest.unknown
@@ -255,9 +381,35 @@ function emptyRollup(): Mutable<ExactSkillOutcomeContextRollup> {
     repeatedOutcomeGoalContextCount: 0,
     recoveredGoalContextCount: 0,
     ambiguousLatestGoalContextCount: 0,
+    betweenAttempts: emptyBetweenAttempts(),
     latest: { passed: 0, failed: 0, unknown: 0 },
     metrics: emptyMetrics(),
   }
+}
+
+function emptyBetweenAttempts(): Mutable<ExactSkillBetweenAttemptWork> {
+  return {
+    transitionCount: 0,
+    ambiguousOrderGoalContextCount: 0,
+    metrics: emptyMetrics(),
+  }
+}
+
+function rollupBetweenAttempts(
+  items: readonly ExactSkillBetweenAttemptWork[],
+): ExactSkillBetweenAttemptWork {
+  const result = emptyBetweenAttempts()
+  for (const item of items) addBetweenAttempts(result, item)
+  return result
+}
+
+function addBetweenAttempts(
+  target: Mutable<ExactSkillBetweenAttemptWork>,
+  source: ExactSkillBetweenAttemptWork,
+): void {
+  target.transitionCount += source.transitionCount
+  target.ambiguousOrderGoalContextCount += source.ambiguousOrderGoalContextCount
+  addMetricRollup(target.metrics, source.metrics)
 }
 
 function emptyMetrics(): Mutable<DeliveryOutcomeMetricRollup> {
@@ -295,6 +447,13 @@ function incrementMetrics(
     return
   }
   rollup.measured += 1
+  addMetricValues(rollup, metrics)
+}
+
+function addMetricValues(
+  rollup: Mutable<DeliveryOutcomeMetricRollup>,
+  metrics: MetricValues,
+): void {
   rollup.attributedTurns += metrics.attributedTurns
   rollup.closedSteps += metrics.closedSteps
   rollup.activeWallMs += metrics.activeWallMs

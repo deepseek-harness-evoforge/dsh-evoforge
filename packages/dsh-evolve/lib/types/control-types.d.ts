@@ -91,6 +91,12 @@ export interface EvolutionSkillReuseEvidenceView {
     readonly releaseAuthority: 'none';
 }
 /** Browser-safe rollup of non-causal Outcome context for exact reusable Skill versions. */
+export interface EvolutionExactSkillBetweenAttemptWorkView {
+    readonly transitionCount: number;
+    readonly ambiguousOrderGoalContextCount: number;
+    readonly metrics: EvolutionDeliveryMetricRollupView;
+}
+/** Browser-safe rollup of non-causal Outcome context for exact reusable Skill versions. */
 export interface EvolutionExactSkillOutcomeContextRollupView {
     readonly skillVersionCount: number;
     readonly goalContextCount: number;
@@ -100,6 +106,7 @@ export interface EvolutionExactSkillOutcomeContextRollupView {
     readonly repeatedOutcomeGoalContextCount: number;
     readonly recoveredGoalContextCount: number;
     readonly ambiguousLatestGoalContextCount: number;
+    readonly betweenAttempts: EvolutionExactSkillBetweenAttemptWorkView;
     readonly latest: {
         readonly passed: number;
         readonly failed: number;
@@ -120,6 +127,7 @@ export interface EvolutionExactSkillOutcomeContextEvidenceView {
     readonly repeatedOutcomeGoalContextCount: number;
     readonly recoveredGoalContextCount: number;
     readonly ambiguousLatestGoalContextCount: number;
+    readonly betweenAttempts: EvolutionExactSkillBetweenAttemptWorkView;
     readonly latest: EvolutionExactSkillOutcomeContextRollupView['latest'];
     readonly metrics: EvolutionDeliveryMetricRollupView;
     readonly attribution: 'same-session-goal-generation-after-use';

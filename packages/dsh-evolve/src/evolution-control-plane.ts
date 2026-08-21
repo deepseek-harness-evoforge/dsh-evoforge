@@ -1489,6 +1489,7 @@ function cloneSkillOutcomeContext(summary: ExactSkillOutcomeContextSummary) {
       repeatedOutcomeGoalContextCount: item.repeatedOutcomeGoalContextCount,
       recoveredGoalContextCount: item.recoveredGoalContextCount,
       ambiguousLatestGoalContextCount: item.ambiguousLatestGoalContextCount,
+      betweenAttempts: cloneBetweenAttempts(item.betweenAttempts),
       latest: { ...item.latest },
       metrics: cloneMetricRollup(item.metrics),
       attribution: item.attribution,
@@ -1511,8 +1512,19 @@ function cloneSkillOutcomeContextRollup(
     repeatedOutcomeGoalContextCount: rollup.repeatedOutcomeGoalContextCount,
     recoveredGoalContextCount: rollup.recoveredGoalContextCount,
     ambiguousLatestGoalContextCount: rollup.ambiguousLatestGoalContextCount,
+    betweenAttempts: cloneBetweenAttempts(rollup.betweenAttempts),
     latest: { ...rollup.latest },
     metrics: cloneMetricRollup(rollup.metrics),
+  }
+}
+
+function cloneBetweenAttempts(
+  value: ExactSkillOutcomeContextSummary['all']['betweenAttempts'],
+) {
+  return {
+    transitionCount: value.transitionCount,
+    ambiguousOrderGoalContextCount: value.ambiguousOrderGoalContextCount,
+    metrics: cloneMetricRollup(value.metrics),
   }
 }
 

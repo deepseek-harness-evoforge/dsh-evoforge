@@ -1240,6 +1240,10 @@ async function seedNativeSkillReuse(ctx, workspace, config, handles) {
       && item.outcomeAttemptCount === 3
       && item.repeatedOutcomeGoalContextCount === 1
       && item.recoveredGoalContextCount === 1
+      && item.betweenAttempts.transitionCount === 1
+      && item.betweenAttempts.metrics.measured === 1
+      && item.betweenAttempts.metrics.unmeasured === 0
+      && item.betweenAttempts.ambiguousOrderGoalContextCount === 0
       && item.metrics.measured === 2) === true
   if ((current?.skillReuse?.all.crossGoalSkillVersionCount ?? 0) > 0 && exactContextReady) return
 
@@ -1431,6 +1435,10 @@ async function seedNativeSkillReuse(ctx, workspace, config, handles) {
         && item.repeatedOutcomeGoalContextCount === 1
         && item.recoveredGoalContextCount === 1
         && item.latest.passed === 2
+        && item.betweenAttempts.transitionCount === 1
+        && item.betweenAttempts.metrics.measured === 1
+        && item.betweenAttempts.metrics.unmeasured === 0
+        && item.betweenAttempts.ambiguousOrderGoalContextCount === 0
         && item.metrics.measured === 2) === true,
   'real browser fixture did not expose exact later Delivery Outcome context')
 }

@@ -126,6 +126,10 @@ _Avoid_: Invocation count, same-Goal retry, name-only reuse, improvement claim
 A non-causal association between one exact cross-Goal Skill version and later durable Delivery Outcomes from the same native Session, Goal, and Generation. It preserves repeated attempts, recovered delivery, missing outcomes, ambiguous latest facts, and measured cost/latency without claiming the Skill caused any result.
 _Avoid_: Skill success rate, effect estimate, rework attribution, improvement proof, promotion vote
 
+**Between-Attempt Work Context**:
+A non-causal delta between adjacent, strictly ordered Delivery Outcome metric snapshots inside one Exact Skill Outcome Context. Missing, tied, cross-Goal, or regressing snapshots abstain; the delta is observed additional work, not proof of rework or Skill effect.
+_Avoid_: Rework cost, retry penalty, Skill efficiency, causal savings
+
 **Existing Skill Improvement Opportunity**:
 A deterministic, Workspace-scoped investigation created only when one exact Skill name and invocation-content hash receives explicit negative corrections across at least two distinct native Goals. Duplicate signals, same-Goal retries, legacy no-hash attribution, and same-name different-content versions do not merge. It is not a Skill Opportunity for missing capability and never grants authoring, evaluation, installation, activation, or release authority; a separate Existing Skill Baseline Qualification must prove that every exact correction invocation used the same complete package.
 _Avoid_: Name-only clustering, correction-as-causality, capability-absent baseline, partial Skill snapshot, Candidate permission

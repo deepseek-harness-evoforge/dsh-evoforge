@@ -369,6 +369,9 @@ describe('/evolve host command', () => {
     )
     expect(status.text).toContain('Latest durable outcomes: 1 passed, 0 failed, 1 unknown.')
     expect(status.text).toContain(
+      'Between-attempt work: 1 ordered transitions; 1 measured; 0 unmeasured; 0 ambiguous Goal orders.',
+    )
+    expect(status.text).toContain(
       'Outcome context is temporal and non-causal; it grants no Candidate or promotion authority.',
     )
 
@@ -396,6 +399,32 @@ function commandOutcomeContextRollup(options: { empty?: boolean } = {}) {
     repeatedOutcomeGoalContextCount: value,
     recoveredGoalContextCount: value,
     ambiguousLatestGoalContextCount: 0,
+    betweenAttempts: {
+      transitionCount: value,
+      ambiguousOrderGoalContextCount: 0,
+      metrics: {
+        measured: value,
+        unmeasured: 0,
+        attributedTurns: value,
+        closedSteps: value,
+        activeWallMs: value,
+        providerUsage: {
+          uncachedInputTokens: value,
+          outputTokens: value,
+          cacheReadTokens: value,
+          cacheWriteTokens: value,
+        },
+        latency: {
+          llmMs: value,
+          toolMs: value,
+          ttftMs: value,
+          ttftSteps: value,
+          decodeMs: value,
+          decodeTokens: value,
+        },
+        monetaryCost: { status: 'unavailable' as const, reason: 'provider-price-not-projected' as const },
+      },
+    },
     latest: { passed: value, failed: 0, unknown: value },
     metrics: {
       measured: value * 2,

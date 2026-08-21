@@ -1015,6 +1015,35 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'repeatedOutcomeGoalContextCount': z.number().readonly(),
   'recoveredGoalContextCount': z.number().readonly(),
   'ambiguousLatestGoalContextCount': z.number().readonly(),
+  'betweenAttempts': z.object({
+  'transitionCount': z.number().readonly(),
+  'ambiguousOrderGoalContextCount': z.number().readonly(),
+  'metrics': z.object({
+  'measured': z.number().readonly(),
+  'unmeasured': z.number().readonly(),
+  'attributedTurns': z.number().readonly(),
+  'closedSteps': z.number().readonly(),
+  'activeWallMs': z.number().readonly(),
+  'providerUsage': z.object({
+  'uncachedInputTokens': z.number().readonly(),
+  'outputTokens': z.number().readonly(),
+  'cacheReadTokens': z.number().readonly(),
+  'cacheWriteTokens': z.number().readonly(),
+}).readonly(),
+  'latency': z.object({
+  'llmMs': z.number().readonly(),
+  'toolMs': z.number().readonly(),
+  'ttftMs': z.number().readonly(),
+  'ttftSteps': z.number().readonly(),
+  'decodeMs': z.number().readonly(),
+  'decodeTokens': z.number().readonly(),
+}).readonly(),
+  'monetaryCost': z.object({
+  'status': z.literal("unavailable").readonly(),
+  'reason': z.literal("provider-price-not-projected").readonly(),
+}).readonly(),
+}).readonly(),
+}).readonly(),
   'latest': z.object({
   'passed': z.number().readonly(),
   'failed': z.number().readonly(),
@@ -1055,6 +1084,35 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'repeatedOutcomeGoalContextCount': z.number().readonly(),
   'recoveredGoalContextCount': z.number().readonly(),
   'ambiguousLatestGoalContextCount': z.number().readonly(),
+  'betweenAttempts': z.object({
+  'transitionCount': z.number().readonly(),
+  'ambiguousOrderGoalContextCount': z.number().readonly(),
+  'metrics': z.object({
+  'measured': z.number().readonly(),
+  'unmeasured': z.number().readonly(),
+  'attributedTurns': z.number().readonly(),
+  'closedSteps': z.number().readonly(),
+  'activeWallMs': z.number().readonly(),
+  'providerUsage': z.object({
+  'uncachedInputTokens': z.number().readonly(),
+  'outputTokens': z.number().readonly(),
+  'cacheReadTokens': z.number().readonly(),
+  'cacheWriteTokens': z.number().readonly(),
+}).readonly(),
+  'latency': z.object({
+  'llmMs': z.number().readonly(),
+  'toolMs': z.number().readonly(),
+  'ttftMs': z.number().readonly(),
+  'ttftSteps': z.number().readonly(),
+  'decodeMs': z.number().readonly(),
+  'decodeTokens': z.number().readonly(),
+}).readonly(),
+  'monetaryCost': z.object({
+  'status': z.literal("unavailable").readonly(),
+  'reason': z.literal("provider-price-not-projected").readonly(),
+}).readonly(),
+}).readonly(),
+}).readonly(),
   'latest': z.object({
   'passed': z.number().readonly(),
   'failed': z.number().readonly(),
@@ -1095,6 +1153,35 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'repeatedOutcomeGoalContextCount': z.number().readonly(),
   'recoveredGoalContextCount': z.number().readonly(),
   'ambiguousLatestGoalContextCount': z.number().readonly(),
+  'betweenAttempts': z.object({
+  'transitionCount': z.number().readonly(),
+  'ambiguousOrderGoalContextCount': z.number().readonly(),
+  'metrics': z.object({
+  'measured': z.number().readonly(),
+  'unmeasured': z.number().readonly(),
+  'attributedTurns': z.number().readonly(),
+  'closedSteps': z.number().readonly(),
+  'activeWallMs': z.number().readonly(),
+  'providerUsage': z.object({
+  'uncachedInputTokens': z.number().readonly(),
+  'outputTokens': z.number().readonly(),
+  'cacheReadTokens': z.number().readonly(),
+  'cacheWriteTokens': z.number().readonly(),
+}).readonly(),
+  'latency': z.object({
+  'llmMs': z.number().readonly(),
+  'toolMs': z.number().readonly(),
+  'ttftMs': z.number().readonly(),
+  'ttftSteps': z.number().readonly(),
+  'decodeMs': z.number().readonly(),
+  'decodeTokens': z.number().readonly(),
+}).readonly(),
+  'monetaryCost': z.object({
+  'status': z.literal("unavailable").readonly(),
+  'reason': z.literal("provider-price-not-projected").readonly(),
+}).readonly(),
+}).readonly(),
+}).readonly(),
   'latest': z.object({
   'passed': z.number().readonly(),
   'failed': z.number().readonly(),
@@ -1138,6 +1225,35 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'repeatedOutcomeGoalContextCount': z.number().readonly(),
   'recoveredGoalContextCount': z.number().readonly(),
   'ambiguousLatestGoalContextCount': z.number().readonly(),
+  'betweenAttempts': z.object({
+  'transitionCount': z.number().readonly(),
+  'ambiguousOrderGoalContextCount': z.number().readonly(),
+  'metrics': z.object({
+  'measured': z.number().readonly(),
+  'unmeasured': z.number().readonly(),
+  'attributedTurns': z.number().readonly(),
+  'closedSteps': z.number().readonly(),
+  'activeWallMs': z.number().readonly(),
+  'providerUsage': z.object({
+  'uncachedInputTokens': z.number().readonly(),
+  'outputTokens': z.number().readonly(),
+  'cacheReadTokens': z.number().readonly(),
+  'cacheWriteTokens': z.number().readonly(),
+}).readonly(),
+  'latency': z.object({
+  'llmMs': z.number().readonly(),
+  'toolMs': z.number().readonly(),
+  'ttftMs': z.number().readonly(),
+  'ttftSteps': z.number().readonly(),
+  'decodeMs': z.number().readonly(),
+  'decodeTokens': z.number().readonly(),
+}).readonly(),
+  'monetaryCost': z.object({
+  'status': z.literal("unavailable").readonly(),
+  'reason': z.literal("provider-price-not-projected").readonly(),
+}).readonly(),
+}).readonly(),
+}).readonly(),
   'latest': z.object({
   'passed': z.number().readonly(),
   'failed': z.number().readonly(),
@@ -2124,12 +2240,16 @@ export const TYPERT = {
             "declaration": "export interface EvolutionDeliveryMetricRollupView {\n    readonly measured: number;\n    readonly unmeasured: number;\n    readonly attributedTurns: number;\n    readonly closedSteps: number;\n    readonly activeWallMs: number;\n    readonly providerUsage: EvolutionProviderUsageView;\n    readonly latency: EvolutionLatencyView;\n    readonly monetaryCost: { readonly status: 'unavailable'; readonly reason: 'provider-price-not-projected'; };\n}"
           },
           {
+            "name": "EvolutionExactSkillBetweenAttemptWorkView",
+            "declaration": "export interface EvolutionExactSkillBetweenAttemptWorkView {\n    readonly transitionCount: number;\n    readonly ambiguousOrderGoalContextCount: number;\n    readonly metrics: EvolutionDeliveryMetricRollupView;\n}"
+          },
+          {
             "name": "EvolutionExactSkillOutcomeContextEvidenceView",
-            "declaration": "export interface EvolutionExactSkillOutcomeContextEvidenceView {\n    readonly skillName: string;\n    readonly invocationContentHash: string;\n    readonly generationId?: string;\n    readonly useCount: number;\n    readonly goalContextCount: number;\n    readonly outcomeObservedGoalContextCount: number;\n    readonly outcomeUnobservedGoalContextCount: number;\n    readonly outcomeAttemptCount: number;\n    readonly repeatedOutcomeGoalContextCount: number;\n    readonly recoveredGoalContextCount: number;\n    readonly ambiguousLatestGoalContextCount: number;\n    readonly latest: EvolutionExactSkillOutcomeContextRollupView['latest'];\n    readonly metrics: EvolutionDeliveryMetricRollupView;\n    readonly attribution: 'same-session-goal-generation-after-use';\n    readonly causalClaim: 'none';\n    readonly improvementClaim: 'none';\n    readonly releaseAuthority: 'none';\n}"
+            "declaration": "export interface EvolutionExactSkillOutcomeContextEvidenceView {\n    readonly skillName: string;\n    readonly invocationContentHash: string;\n    readonly generationId?: string;\n    readonly useCount: number;\n    readonly goalContextCount: number;\n    readonly outcomeObservedGoalContextCount: number;\n    readonly outcomeUnobservedGoalContextCount: number;\n    readonly outcomeAttemptCount: number;\n    readonly repeatedOutcomeGoalContextCount: number;\n    readonly recoveredGoalContextCount: number;\n    readonly ambiguousLatestGoalContextCount: number;\n    readonly betweenAttempts: EvolutionExactSkillBetweenAttemptWorkView;\n    readonly latest: EvolutionExactSkillOutcomeContextRollupView['latest'];\n    readonly metrics: EvolutionDeliveryMetricRollupView;\n    readonly attribution: 'same-session-goal-generation-after-use';\n    readonly causalClaim: 'none';\n    readonly improvementClaim: 'none';\n    readonly releaseAuthority: 'none';\n}"
           },
           {
             "name": "EvolutionExactSkillOutcomeContextRollupView",
-            "declaration": "export interface EvolutionExactSkillOutcomeContextRollupView {\n    readonly skillVersionCount: number;\n    readonly goalContextCount: number;\n    readonly outcomeObservedGoalContextCount: number;\n    readonly outcomeUnobservedGoalContextCount: number;\n    readonly outcomeAttemptCount: number;\n    readonly repeatedOutcomeGoalContextCount: number;\n    readonly recoveredGoalContextCount: number;\n    readonly ambiguousLatestGoalContextCount: number;\n    readonly latest: { readonly passed: number; readonly failed: number; readonly unknown: number; };\n    readonly metrics: EvolutionDeliveryMetricRollupView;\n}"
+            "declaration": "export interface EvolutionExactSkillOutcomeContextRollupView {\n    readonly skillVersionCount: number;\n    readonly goalContextCount: number;\n    readonly outcomeObservedGoalContextCount: number;\n    readonly outcomeUnobservedGoalContextCount: number;\n    readonly outcomeAttemptCount: number;\n    readonly repeatedOutcomeGoalContextCount: number;\n    readonly recoveredGoalContextCount: number;\n    readonly ambiguousLatestGoalContextCount: number;\n    readonly betweenAttempts: EvolutionExactSkillBetweenAttemptWorkView;\n    readonly latest: { readonly passed: number; readonly failed: number; readonly unknown: number; };\n    readonly metrics: EvolutionDeliveryMetricRollupView;\n}"
           },
           {
             "name": "EvolutionExistingSkillAdmissionView",

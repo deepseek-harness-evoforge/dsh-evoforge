@@ -179,8 +179,11 @@ Outcome、返工、成本、Retention、负迁移和 paired benchmark 才能判�
 满足同 Workspace、Session、Goal、Generation，Outcome 时间不早于第一次 exact use，Goal revision 不倒退；
 否则 abstain。系统保留每个 Goal 的交付 attempt，唯一 latest 为通过且此前存在非通过时只描述为 recovered；
 同一 latest 时间存在冲突结果时拒绝 latest 状态、恢复和指标。指标只取唯一 latest Outcome 中 goal id 精确一致的
-DSH Goal metrics；全量 rollup 与最多 20 行明细分离。该投影固定无因果、无 improvement claim、无发布权，不能
-改变 Candidate、评测、晋升或回滚资格。
+DSH Goal metrics。相邻 attempt 只有在时间严格有序、两侧 Goal metrics 同源同 Goal、event seq 前进且所有累计
+计数单调时，才可相减为**尝试间新增工作**；并列时间记为顺序歧义，缺快照或计数回退记为 unmeasured。差值
+可以展示 turns、steps、token、cache、latency 与 active wall，但不得命名为返工成本、效率改善或 Skill 效果。
+全量 rollup 与最多 20 行明细分离。该投影固定无因果、无 improvement claim、无发布权，不能改变 Candidate、
+评测、晋升或回滚资格。
 
 ### 3.3 Goal，而不是 Mission
 

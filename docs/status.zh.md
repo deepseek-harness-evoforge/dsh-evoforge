@@ -103,6 +103,12 @@ V4.48 从最终 `dsh-evolve`/`dsh-evolve-web` tarball 和全新 DSH profile 验�
 
 V4.49 从最终 `dsh-evolve`/`dsh-evolve-web` tarball 和全新 DSH profile 验证 missing-Skill 整条 Generation→Canary→root rollback 生命周期：Web 人工 promote 只选择未来 Session，Host 重启后 exact Canary 显示 baseline 恢复/Candidate 失败且自身无 pointer writer；回滚在 Host 断连时 fail-visible 并保留最后证据，恢复后由生产 `FutureSessionRollback` 完成 expected-active root rollback。再次冷重启保持 inactive Candidate、历史 Canary 和无回滚按钮；官方 remove 后默认 dump/`node_modules` 无残留，无 overlay 的原生 DSH Web 可启动且无“演化”入口，console error 0。详见 [V4.49 证据](evidence/v4-49-missing-skill-canary-rollback-final-browser.zh.md)。fixture 不替代两套真实 provider。
 
+V4.52 已在 V4.51 的 exact Skill Outcome Context 内增加尝试间新增工作投影。相邻 Outcome 只有在时间严格有序、
+两侧 DSH Goal metrics 同源同 Goal、event seq 前进且所有累计 counters 单调时才相减；并列时间标记顺序歧义，
+缺快照或回退记为 unmeasured。Host、Control、固定 Typert Remote、`/evolve status` 与 DSH Web 共用同一权威
+summary；全仓类型、538 个通过测试、构建和生成契约已通过。最终 tarball 的 clean-profile 真实浏览器生命周期尚待
+下一浏览器会话复验，因此本条当前为 implemented，不写成 verified，更不构成返工下降或 Skill 因果效果。
+
 | 能力 | 当前状态 | 已有证据 | 仍缺 |
 |---|---|---|---|
 | 原生 DSH 插件产品形态 | `implemented` | 十一包均有 `name/inject/Config/apply`、Bundle patch、无 bin 合同；同一次 clean-profile tarball add/dump/boot/remove/readback 通过 | 陌生安装与 registry release 门禁 |
@@ -115,6 +121,7 @@ V4.49 从最终 `dsh-evolve`/`dsh-evolve-web` tarball 和全新 DSH profile 验�
 | Web Control Plane | `verified` | packed artifact、真实 DSH Workspace/Host/Client Module；浏览器 pause→Host restart→persisted pause→resume/refresh；Goal metrics 的 Workspace/current/baseline 聚合和最近证据来自 Host 权威 Remote；最终 tarball clean-profile 中以四个原生 DSH Session/Goal 形成 Opportunity，显示 `ready-to-seal`、2/1/1 分割、目标正文保护和零 Candidate；在线刷新、断线保留最后快照并 fail visible、同 profile 恢复、Outcome 幂等 1→1，console error 0 | 陌生用户可用性、真实 provider 价格与长期数据 |
 | Exact 跨 Goal Skill 复用证据 | `verified` | [V4.50](evidence/v4-50-exact-cross-goal-skill-reuse.zh.md)：真实原生 Skill Tool、Session durability、active Goal、exact 内容哈希/Generation 分桶、持久重放；最终 tarball Web 2 uses/2 Goals、reload、Host 冷启动、合法 Session readback 与官方卸载 | 真实用户任务、Outcome/返工/成本因果、负迁移、保持率与 paired benchmark |
 | Exact Skill 后续 Outcome 上下文 | `verified` | [V4.51](evidence/v4-51-exact-skill-outcome-context.zh.md)：同 Session/Goal/Generation 的 later durable Outcome、attempt/recovered/ambiguous latest、最新 metrics、全量 rollup/有界明细；最终 tarball Web 刷新、断连保留、冷恢复不重复与官方卸载 | 真实用户任务的因果效果、返工下降、长期负迁移/遗忘与 paired benchmark |
+| Exact Skill 尝试间新增工作 | `implemented` | [ADR-0093](adr/0093-exact-skill-outcome-context-is-temporal-not-causal.md)：严格相邻次序、同源 Goal metrics、event seq/counter 单调门；ordered/measured/unmeasured/ambiguous 与 token/cache/latency/active-wall 差值；全仓 538 tests passed、3 skipped | 最终 tarball clean-profile 浏览器生命周期；真实用户任务、因果效果、返工下降与 paired benchmark |
 | Runtime Readiness | `implemented` | 原生 Loader/Command、tarball 生命周期 | v0.1 全包诊断和陌生安装数据 |
 | Telegram 单私聊 | `implemented` | 已迁移 DSH Gateway；真实 DSH Workspace/Agent Loop、Commands、Approval、Goal/Schedule、Gateway durable ingress/outbound、cache parity、联合 tarball lifecycle；私有 Delivery Store 已删除；真实 assembled long-poll failure→Gateway `degraded`→成功 poll→`ready` | 真实 Bot 冒烟和多日证据 |
 | Evolve Channel Attention | `implemented` | Telegram/飞书 Candidate review/inactive promotion decision、concrete routes、显式 Workspace、durable notice、request parity；Evaluator Draft 表面已删除；进入十一包总装 | 真实渠道验证与多日移动端数据 |

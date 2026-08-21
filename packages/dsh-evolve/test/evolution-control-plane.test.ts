@@ -329,6 +329,11 @@ describe('EvolutionControlPlane', () => {
           repeatedOutcomeGoalContextCount: 1,
           recoveredGoalContextCount: 1,
           ambiguousLatestGoalContextCount: 0,
+          betweenAttempts: {
+            transitionCount: 1,
+            ambiguousOrderGoalContextCount: 0,
+            metrics: metricRollup(1, 0, 1),
+          },
           latest: { passed: 1, failed: 0, unknown: 1 },
           metrics: metricRollup(2, 0, 2),
           attribution: 'same-session-goal-generation-after-use' as const,
@@ -1957,6 +1962,11 @@ function outcomeContextRollup(
     repeatedOutcomeGoalContextCount,
     recoveredGoalContextCount,
     ambiguousLatestGoalContextCount,
+    betweenAttempts: {
+      transitionCount: repeatedOutcomeGoalContextCount,
+      ambiguousOrderGoalContextCount: 0,
+      metrics: metricRollup(repeatedOutcomeGoalContextCount, 0, repeatedOutcomeGoalContextCount),
+    },
     latest: { passed: 1, failed: 0, unknown: 1 },
     metrics: metricRollup(2, 0, 2),
   }

@@ -1015,6 +1015,35 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'repeatedOutcomeGoalContextCount': z.number().readonly(),
   'recoveredGoalContextCount': z.number().readonly(),
   'ambiguousLatestGoalContextCount': z.number().readonly(),
+  'betweenAttempts': z.object({
+  'transitionCount': z.number().readonly(),
+  'ambiguousOrderGoalContextCount': z.number().readonly(),
+  'metrics': z.object({
+  'measured': z.number().readonly(),
+  'unmeasured': z.number().readonly(),
+  'attributedTurns': z.number().readonly(),
+  'closedSteps': z.number().readonly(),
+  'activeWallMs': z.number().readonly(),
+  'providerUsage': z.object({
+  'uncachedInputTokens': z.number().readonly(),
+  'outputTokens': z.number().readonly(),
+  'cacheReadTokens': z.number().readonly(),
+  'cacheWriteTokens': z.number().readonly(),
+}).readonly(),
+  'latency': z.object({
+  'llmMs': z.number().readonly(),
+  'toolMs': z.number().readonly(),
+  'ttftMs': z.number().readonly(),
+  'ttftSteps': z.number().readonly(),
+  'decodeMs': z.number().readonly(),
+  'decodeTokens': z.number().readonly(),
+}).readonly(),
+  'monetaryCost': z.object({
+  'status': z.literal("unavailable").readonly(),
+  'reason': z.literal("provider-price-not-projected").readonly(),
+}).readonly(),
+}).readonly(),
+}).readonly(),
   'latest': z.object({
   'passed': z.number().readonly(),
   'failed': z.number().readonly(),
@@ -1055,6 +1084,35 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'repeatedOutcomeGoalContextCount': z.number().readonly(),
   'recoveredGoalContextCount': z.number().readonly(),
   'ambiguousLatestGoalContextCount': z.number().readonly(),
+  'betweenAttempts': z.object({
+  'transitionCount': z.number().readonly(),
+  'ambiguousOrderGoalContextCount': z.number().readonly(),
+  'metrics': z.object({
+  'measured': z.number().readonly(),
+  'unmeasured': z.number().readonly(),
+  'attributedTurns': z.number().readonly(),
+  'closedSteps': z.number().readonly(),
+  'activeWallMs': z.number().readonly(),
+  'providerUsage': z.object({
+  'uncachedInputTokens': z.number().readonly(),
+  'outputTokens': z.number().readonly(),
+  'cacheReadTokens': z.number().readonly(),
+  'cacheWriteTokens': z.number().readonly(),
+}).readonly(),
+  'latency': z.object({
+  'llmMs': z.number().readonly(),
+  'toolMs': z.number().readonly(),
+  'ttftMs': z.number().readonly(),
+  'ttftSteps': z.number().readonly(),
+  'decodeMs': z.number().readonly(),
+  'decodeTokens': z.number().readonly(),
+}).readonly(),
+  'monetaryCost': z.object({
+  'status': z.literal("unavailable").readonly(),
+  'reason': z.literal("provider-price-not-projected").readonly(),
+}).readonly(),
+}).readonly(),
+}).readonly(),
   'latest': z.object({
   'passed': z.number().readonly(),
   'failed': z.number().readonly(),
@@ -1095,6 +1153,35 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'repeatedOutcomeGoalContextCount': z.number().readonly(),
   'recoveredGoalContextCount': z.number().readonly(),
   'ambiguousLatestGoalContextCount': z.number().readonly(),
+  'betweenAttempts': z.object({
+  'transitionCount': z.number().readonly(),
+  'ambiguousOrderGoalContextCount': z.number().readonly(),
+  'metrics': z.object({
+  'measured': z.number().readonly(),
+  'unmeasured': z.number().readonly(),
+  'attributedTurns': z.number().readonly(),
+  'closedSteps': z.number().readonly(),
+  'activeWallMs': z.number().readonly(),
+  'providerUsage': z.object({
+  'uncachedInputTokens': z.number().readonly(),
+  'outputTokens': z.number().readonly(),
+  'cacheReadTokens': z.number().readonly(),
+  'cacheWriteTokens': z.number().readonly(),
+}).readonly(),
+  'latency': z.object({
+  'llmMs': z.number().readonly(),
+  'toolMs': z.number().readonly(),
+  'ttftMs': z.number().readonly(),
+  'ttftSteps': z.number().readonly(),
+  'decodeMs': z.number().readonly(),
+  'decodeTokens': z.number().readonly(),
+}).readonly(),
+  'monetaryCost': z.object({
+  'status': z.literal("unavailable").readonly(),
+  'reason': z.literal("provider-price-not-projected").readonly(),
+}).readonly(),
+}).readonly(),
+}).readonly(),
   'latest': z.object({
   'passed': z.number().readonly(),
   'failed': z.number().readonly(),
@@ -1138,6 +1225,35 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'repeatedOutcomeGoalContextCount': z.number().readonly(),
   'recoveredGoalContextCount': z.number().readonly(),
   'ambiguousLatestGoalContextCount': z.number().readonly(),
+  'betweenAttempts': z.object({
+  'transitionCount': z.number().readonly(),
+  'ambiguousOrderGoalContextCount': z.number().readonly(),
+  'metrics': z.object({
+  'measured': z.number().readonly(),
+  'unmeasured': z.number().readonly(),
+  'attributedTurns': z.number().readonly(),
+  'closedSteps': z.number().readonly(),
+  'activeWallMs': z.number().readonly(),
+  'providerUsage': z.object({
+  'uncachedInputTokens': z.number().readonly(),
+  'outputTokens': z.number().readonly(),
+  'cacheReadTokens': z.number().readonly(),
+  'cacheWriteTokens': z.number().readonly(),
+}).readonly(),
+  'latency': z.object({
+  'llmMs': z.number().readonly(),
+  'toolMs': z.number().readonly(),
+  'ttftMs': z.number().readonly(),
+  'ttftSteps': z.number().readonly(),
+  'decodeMs': z.number().readonly(),
+  'decodeTokens': z.number().readonly(),
+}).readonly(),
+  'monetaryCost': z.object({
+  'status': z.literal("unavailable").readonly(),
+  'reason': z.literal("provider-price-not-projected").readonly(),
+}).readonly(),
+}).readonly(),
+}).readonly(),
   'latest': z.object({
   'passed': z.number().readonly(),
   'failed': z.number().readonly(),

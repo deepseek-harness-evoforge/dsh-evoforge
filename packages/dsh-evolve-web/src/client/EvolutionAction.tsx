@@ -1964,9 +1964,22 @@ function SkillOutcomeContext({ context, active, t }: {
         {' · '}{item.latest.failed} {t('outcomes.failed')}
         {' · '}{item.latest.unknown} {t('outcomes.unknown')}
       </div>
+      <div className="dsh-evolve-meta">
+        {t('skillOutcomeContext.betweenAttempts')} · {item.betweenAttempts.transitionCount}{' '}
+        {t('skillOutcomeContext.transitions')}
+        {' · '}{item.betweenAttempts.metrics.measured} {t('outcomes.metrics.measured')}
+        {' · '}{item.betweenAttempts.metrics.unmeasured} {t('outcomes.metrics.unmeasured')}
+        {' · '}{item.betweenAttempts.ambiguousOrderGoalContextCount}{' '}
+        {t('skillOutcomeContext.ambiguousOrder')}
+      </div>
       <OutcomeMetricRollup
         label={t('skillOutcomeContext.metrics')}
         value={item.metrics}
+        t={t}
+      />
+      <OutcomeMetricRollup
+        label={t('skillOutcomeContext.betweenAttemptMetrics')}
+        value={item.betweenAttempts.metrics}
         t={t}
       />
     </li>)}</ul>}

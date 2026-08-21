@@ -24,7 +24,7 @@ describe('exact Skill Outcome Context', () => {
       ],
       [
         outcome('before-use', 'session-b', 19, 'goal-2', 1, generationA, 'passed'),
-        outcome('goal-1-failed', 'session-a', 11, 'goal-1', 1, generationA, 'failed'),
+        outcome('goal-1-failed', 'session-a', 11, 'goal-1', 1, generationA, 'failed', metrics('goal-1', 4)),
         outcome('goal-1-passed', 'session-a', 15, 'goal-1', 2, generationA, 'passed', metrics('goal-1', 10)),
         outcome('goal-2-unknown', 'session-b', 21, 'goal-2', 1, generationA, 'unknown', metrics('goal-2', 20)),
         outcome('older-revision', 'session-c', 31, 'goal-3', 1, generationA, 'failed'),
@@ -46,6 +46,7 @@ describe('exact Skill Outcome Context', () => {
         repeatedOutcomeGoalContextCount: 1,
         recoveredGoalContextCount: 1,
         ambiguousLatestGoalContextCount: 0,
+        betweenAttempts: betweenAttempts({ transitionCount: 1, metricSeed: 6, metricMeasured: 1 }),
         latest: { passed: 1, failed: 0, unknown: 1 },
         metricSeed: 30,
       }),
@@ -58,6 +59,7 @@ describe('exact Skill Outcome Context', () => {
         repeatedOutcomeGoalContextCount: 1,
         recoveredGoalContextCount: 1,
         ambiguousLatestGoalContextCount: 0,
+        betweenAttempts: betweenAttempts({ transitionCount: 1, metricSeed: 6, metricMeasured: 1 }),
         latest: { passed: 1, failed: 0, unknown: 1 },
         metricSeed: 30,
       }),
@@ -74,6 +76,7 @@ describe('exact Skill Outcome Context', () => {
         repeatedOutcomeGoalContextCount: 1,
         recoveredGoalContextCount: 1,
         ambiguousLatestGoalContextCount: 0,
+        betweenAttempts: betweenAttempts({ transitionCount: 1, metricSeed: 6, metricMeasured: 1 }),
         latest: { passed: 1, failed: 0, unknown: 1 },
         metrics: metricRollup(30),
         attribution: 'same-session-goal-generation-after-use',
@@ -106,6 +109,7 @@ describe('exact Skill Outcome Context', () => {
       outcomeAttemptCount: 3,
       repeatedOutcomeGoalContextCount: 1,
       ambiguousLatestGoalContextCount: 1,
+      betweenAttempts: betweenAttempts({ ambiguousOrderGoalContextCount: 1 }),
       latest: { passed: 1, failed: 0, unknown: 0 },
       metricSeed: 20,
       metricMeasured: 1,
@@ -113,6 +117,35 @@ describe('exact Skill Outcome Context', () => {
     expect(summary.items[0]).toMatchObject({
       recoveredGoalContextCount: 0,
       ambiguousLatestGoalContextCount: 1,
+      causalClaim: 'none',
+      improvementClaim: 'none',
+      releaseAuthority: 'none',
+    })
+  })
+
+  it('counts ordered transitions but abstains from deltas when metrics are missing or regress', () => {
+    const summary = summarizeExactSkillOutcomeContext(
+      [
+        use('session-a', 1, 10, 'goal-1', 1, generationA, contentA),
+        use('session-b', 1, 20, 'goal-2', 1, generationA, contentA),
+      ],
+      [
+        outcome('goal-1-failed', 'session-a', 11, 'goal-1', 1, generationA, 'failed', metrics('goal-1', 10)),
+        outcome('goal-1-passed', 'session-a', 12, 'goal-1', 2, generationA, 'passed', metrics('goal-1', 8)),
+        outcome('goal-2-failed', 'session-b', 21, 'goal-2', 1, generationA, 'failed'),
+        outcome('goal-2-passed', 'session-b', 22, 'goal-2', 2, generationA, 'passed', metrics('goal-2', 20)),
+      ],
+      WORKSPACE_ID,
+      generationA,
+    )
+
+    expect(summary.all.betweenAttempts).toEqual(betweenAttempts({
+      transitionCount: 2,
+      metricMeasured: 0,
+      metricUnmeasured: 2,
+    }))
+    expect(summary.items[0]).toMatchObject({
+      recoveredGoalContextCount: 2,
       causalClaim: 'none',
       improvementClaim: 'none',
       releaseAuthority: 'none',
@@ -222,6 +255,7 @@ function rollup(input: {
   repeatedOutcomeGoalContextCount?: number
   recoveredGoalContextCount?: number
   ambiguousLatestGoalContextCount?: number
+  betweenAttempts?: ReturnType<typeof betweenAttempts>
   latest?: { passed: number; failed: number; unknown: number }
   metricSeed?: number
   metricMeasured?: number
@@ -235,8 +269,26 @@ function rollup(input: {
     repeatedOutcomeGoalContextCount: input.repeatedOutcomeGoalContextCount ?? 0,
     recoveredGoalContextCount: input.recoveredGoalContextCount ?? 0,
     ambiguousLatestGoalContextCount: input.ambiguousLatestGoalContextCount ?? 0,
+    betweenAttempts: input.betweenAttempts ?? betweenAttempts(),
     latest: input.latest ?? { passed: 0, failed: 0, unknown: 0 },
     metrics: metricRollup(input.metricSeed, input.metricMeasured),
+  }
+}
+
+function betweenAttempts(input: {
+  transitionCount?: number
+  ambiguousOrderGoalContextCount?: number
+  metricSeed?: number
+  metricMeasured?: number
+  metricUnmeasured?: number
+} = {}) {
+  return {
+    transitionCount: input.transitionCount ?? 0,
+    ambiguousOrderGoalContextCount: input.ambiguousOrderGoalContextCount ?? 0,
+    metrics: {
+      ...metricRollup(input.metricSeed, input.metricMeasured),
+      unmeasured: input.metricUnmeasured ?? 0,
+    },
   }
 }
 

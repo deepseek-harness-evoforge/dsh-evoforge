@@ -21,16 +21,20 @@ EvoForge 已分别持久化 exact Skill Use 与 Delivery Outcome，不需要另�
    只描述为 recovered。相同最新时间存在多个结果时标记 ambiguous，并拒绝给出最新状态、恢复和最新指标。
 4. 指标只读取唯一最新 Outcome 自带、且 goal id 精确一致的 DSH Goal metrics；缺失即 unmeasured。货币成本继续
    明示 provider price 未投影，不根据 token 猜价格。
-5. Workspace/selected/baseline rollup 统计全部 exact 版本，明细按确定性顺序最多显示 20 行。所有输出固定
+5. 相邻 Outcome 只有在 `observedAt` 严格有序、两侧 Goal metrics 同源且 goal id 一致、后一 `throughEventSeq`
+   前进、全部累计计数单调时，才能相减形成 `Between-Attempt Work Context`。时间并列使该 Goal 的 attempt 顺序
+   ambiguous；缺快照、序号或任一计数回退都只保留 ordered transition 并记为 unmeasured。该差值只表示两个
+   累计快照之间新增的 turns、steps、token、cache、latency 与 active wall，禁止命名为返工成本或 Skill 效果。
+6. Workspace/selected/baseline rollup 统计全部 exact 版本，明细按确定性顺序最多显示 20 行。所有输出固定
    `attribution: same-session-goal-generation-after-use`、`causalClaim: none`、`improvementClaim: none` 与
    `releaseAuthority: none`，不得进入 Candidate 资格、评分、晋升或回滚决策。
-6. 这是两个独立 DSH StorageDomain 的只读 Host 投影。当前 Session 仍固定 Generation；不新增 Store、Session、
+7. 这是两个独立 DSH StorageDomain 的只读 Host 投影。当前 Session 仍固定 Generation；不新增 Store、Session、
    Goal、Agent Runtime、审批或模型调用。
 
 ## 后果
 
 - 用户可以看到 exact 跨 Goal 版本之后有多少 Goal 得到持久结果、多少次交付尝试、是否出现后续恢复，以及
-  最新结果对应的 token、cache 和时延；刷新和冷启动从同一权威事实恢复。
+  最新结果及尝试间新增工作对应的 token、cache 和时延；刷新和冷启动从同一权威事实恢复。
 - “恢复”仍只是事件顺序描述，不能写成 Skill 导致恢复、减少返工或提升成功率。
 - 真正的效果估计仍需同任务、同模型、同权限、同预算的 paired baseline、未见样本、负迁移/遗忘和长期结果；
   本投影不能解除任何发布门禁。

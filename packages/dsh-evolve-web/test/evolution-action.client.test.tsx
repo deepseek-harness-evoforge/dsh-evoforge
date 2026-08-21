@@ -179,6 +179,11 @@ function remote(
         repeatedOutcomeGoalContextCount: 1,
         recoveredGoalContextCount: 1,
         ambiguousLatestGoalContextCount: 0,
+        betweenAttempts: {
+          transitionCount: 1,
+          ambiguousOrderGoalContextCount: 0,
+          metrics: webMetricRollup(1, 0, 1),
+        },
         latest: { passed: 1, failed: 0, unknown: 1 },
         metrics: webMetricRollup(2, 0, 2),
         attribution: 'same-session-goal-generation-after-use' as const,
@@ -579,7 +584,11 @@ const t = (key: string) => ({
   'skillOutcomeContext.ambiguous': 'ambiguous latest',
   'skillOutcomeContext.latest': 'Latest',
   'skillOutcomeContext.metrics': 'Latest-outcome metrics',
-  'skillOutcomeContext.disclaimer': 'Same-Session/Goal/Generation timing is context only; it does not prove the Skill caused success, rework, recovery, or improvement and grants no release authority.',
+  'skillOutcomeContext.betweenAttempts': 'Between-attempt work',
+  'skillOutcomeContext.transitions': 'ordered transitions',
+  'skillOutcomeContext.ambiguousOrder': 'ambiguous Goal orders',
+  'skillOutcomeContext.betweenAttemptMetrics': 'Between-attempt work metrics',
+  'skillOutcomeContext.disclaimer': 'Same-Session/Goal/Generation timing is context only; between-attempt deltas are work added between two cumulative snapshots, not proof that the Skill caused success, rework, recovery, or improvement, and they grant no release authority.',
   'outcomes.active': 'Active',
   'outcomes.current': 'Current selection',
   'outcomes.parent': 'Parent',
@@ -1758,10 +1767,19 @@ describe('EvolutionAction', () => {
     expect(within(section).getByText(/build-dsh-plugin · 11111111… · aaaaaaaa…/)).toBeTruthy()
     expect(within(section).getByText(/3 delivery attempts · 1 repeated Goals · 1 recovered Goals · 0 ambiguous latest/)).toBeTruthy()
     expect(within(section).getByText(/Latest · 1 passed · 0 failed · 1 unknown/)).toBeTruthy()
+    expect(within(section).getByText(
+      /Between-attempt work · 1 ordered transitions · 1 measured · 0 unmeasured · 0 ambiguous Goal orders/,
+    )).toBeTruthy()
     const metrics = within(section).getByRole('group', { name: 'Latest-outcome metrics' })
     expect(within(metrics).getByText(/60 uncached input · 18 output · cache read 140 · cache write 10/)).toBeTruthy()
+    const betweenAttemptMetrics = within(section).getByRole('group', {
+      name: 'Between-attempt work metrics',
+    })
+    expect(within(betweenAttemptMetrics).getByText(
+      /30 uncached input · 9 output · cache read 70 · cache write 5/,
+    )).toBeTruthy()
     expect(within(section).getByText(
-      'Same-Session/Goal/Generation timing is context only; it does not prove the Skill caused success, rework, recovery, or improvement and grants no release authority.',
+      'Same-Session/Goal/Generation timing is context only; between-attempt deltas are work added between two cumulative snapshots, not proof that the Skill caused success, rework, recovery, or improvement, and they grant no release authority.',
     )).toBeTruthy()
   })
 
@@ -1941,6 +1959,15 @@ function webOutcomeContextRollup(
     repeatedOutcomeGoalContextCount,
     recoveredGoalContextCount,
     ambiguousLatestGoalContextCount: 0,
+    betweenAttempts: {
+      transitionCount: repeatedOutcomeGoalContextCount,
+      ambiguousOrderGoalContextCount: 0,
+      metrics: webMetricRollup(
+        repeatedOutcomeGoalContextCount,
+        0,
+        repeatedOutcomeGoalContextCount,
+      ),
+    },
     latest: {
       passed: skillVersionCount,
       failed: 0,
