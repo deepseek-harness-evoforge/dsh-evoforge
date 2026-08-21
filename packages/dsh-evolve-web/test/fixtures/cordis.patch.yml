@@ -30,6 +30,7 @@
         seedGoalMetrics: true
         seedCapabilityGaps: true
         seedSkillEvaluationRuns: true
+        seedCounterfactualCanary: true
         seedExistingSkillHoldoutEvaluation: true
         seedExistingSkillRetentionEvaluation: true
         seedExistingSkillRelease: true

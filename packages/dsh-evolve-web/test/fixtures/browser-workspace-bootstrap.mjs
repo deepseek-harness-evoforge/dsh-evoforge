@@ -78,8 +78,28 @@ export async function apply(ctx, config) {
     agent = handle.agent
   }
   await workspace.attachSession(agent.session.id)
-  if (config.seedSkillEvaluationRuns === true) {
-    await seedExactSkillEvaluationRuns(ctx, workspace, config)
+  const skillEvaluationSeed = config.seedSkillEvaluationRuns === true
+    ? await seedExactSkillEvaluationRuns(ctx, workspace, config)
+    : undefined
+  if (skillEvaluationSeed !== undefined && config.seedCounterfactualCanary === true) {
+    const current = await overview(ctx, String(workspace.id), String(agent.session.id))
+    const active = current?.active
+    const exactActive = active?.artifacts.some(artifact =>
+      artifact.kind === 'skill-bundle'
+        && artifact.name === skillEvaluationSeed.skillName
+        && artifact.lineage?.candidateId === skillEvaluationSeed.candidateId) === true
+    if (active !== undefined && exactActive) {
+      const canaryId = await seedCounterfactualCanary(
+        workspace,
+        config,
+        skillEvaluationSeed,
+        active.id,
+      )
+      await waitFor(ctx, String(workspace.id), String(agent.session.id), value =>
+        value.counterfactualCanary?.runs.some(run =>
+          run.id === canaryId && run.status === 'rollback-eligible') === true,
+      'real browser fixture did not expose the exact missing-Skill Canary')
+    }
   }
   if (releaseSeed === undefined && config.seedExistingSkillHoldoutEvaluation === true) {
     await seedExistingSkillHoldoutEvaluation(workspace, config)
@@ -681,6 +701,93 @@ async function seedExistingSkillCounterfactualCanary(workspace, config, releaseS
 }
 
 /**
+ * Seed one exact terminal missing-Skill Canary only after the real Web has
+ * promoted its inactive Generation. This fixture owns no pointer writer and
+ * never invokes rollback; the installed Host gate must revalidate the exact
+ * evidence and expected-active pointer before the browser action can succeed.
+ */
+async function seedCounterfactualCanary(workspace, config, seed, generationId) {
+  const workspaceId = String(workspace.id)
+  const outcomeId = sha256('browser-missing-skill-failed-outcome')
+  const identityWithoutId = {
+    schemaVersion: 1,
+    kind: 'internal-counterfactual-canary-run-v1',
+    workspaceId,
+    generationId,
+    outcomeId,
+    candidateId: seed.candidateId,
+    skillName: seed.skillName,
+    reviewId: seed.reviewId,
+    retentionId: seed.retentionId,
+    admissionId: seed.admissionId,
+    evaluationEnvelopeId: seed.evaluationEnvelopeId,
+    retentionCasePackHash: seed.retentionCasePackHash,
+    baselineTreeHash: seed.baselineTreeHash,
+    candidateTreeHash: seed.candidateTreeHash,
+  }
+  const id = sha256(JSON.stringify([
+    'internal-counterfactual-canary-v1',
+    identityWithoutId.workspaceId,
+    identityWithoutId.generationId,
+    identityWithoutId.outcomeId,
+    identityWithoutId.candidateId,
+    identityWithoutId.skillName,
+    identityWithoutId.reviewId,
+    identityWithoutId.retentionId,
+    identityWithoutId.admissionId,
+    identityWithoutId.evaluationEnvelopeId,
+    identityWithoutId.retentionCasePackHash,
+    identityWithoutId.baselineTreeHash,
+    identityWithoutId.candidateTreeHash,
+  ]))
+  const identity = { ...identityWithoutId, id }
+  const runDir = join(resolve(config.runRoot), 'canary', id)
+  const startedAt = '2026-08-21T00:03:00.000Z'
+  const finishedAt = '2026-08-21T00:03:01.000Z'
+  await mkdir(runDir, { recursive: true, mode: 0o700 })
+  await writeFixtureJson(join(runDir, 'prepared.json'), identity)
+  await writeFixtureJson(join(runDir, 'result.json'), {
+    schemaVersion: 1,
+    kind: 'internal-counterfactual-canary-result-v1',
+    id,
+    workspaceId,
+    generationId,
+    outcomeId,
+    candidateId: seed.candidateId,
+    skillName: seed.skillName,
+    reviewId: seed.reviewId,
+    retentionId: seed.retentionId,
+    admissionId: seed.admissionId,
+    evaluationEnvelopeId: seed.evaluationEnvelopeId,
+    status: 'rollback-eligible',
+    reason: 'candidate-regressed-sealed-canary',
+    startedAt,
+    finishedAt,
+    evidence: {
+      retentionCasePackHash: seed.retentionCasePackHash,
+      baselineTreeHash: seed.baselineTreeHash,
+      candidateTreeHash: seed.candidateTreeHash,
+      baseline: 'pass',
+      candidate: 'fail',
+      calibrationPassed: true,
+      assembled: true,
+      compositionStable: true,
+      inputIntegrityStable: true,
+      activePointerStable: true,
+      proposerCalls: 0,
+      trialCount: 4,
+      modelCalls: { baseline: 2, candidate: 2 },
+      usage: {
+        baseline: evaluatorUsage(100, 80),
+        candidate: evaluatorUsage(90, 70),
+      },
+    },
+    releaseAuthority: 'none',
+  })
+  return id
+}
+
+/**
  * Seed one exact, deterministic Shadow/Retention artifact pair for real-browser
  * projection acceptance. Production readers still validate the full durable
  * shape and lineage; this fixture does not claim a provider evaluation.
@@ -892,25 +999,49 @@ async function seedExactSkillEvaluationRuns(ctx, workspace, config) {
   const proposalHash = sha256(JSON.stringify(proposal))
   const reviewId = sha256(JSON.stringify({ runId: shadowRunId, proposalHash }))
   const before = await control.overview(workspaceId)
+  let active = exactActiveGeneration(before, candidateId, skillName)
   let inactive = before.reviews.inactiveGenerations.find(item => item.reviewId === reviewId)
-  if (inactive === undefined) {
+  if (inactive === undefined && active === undefined) {
     await control.approveReview(workspaceId, reviewId,
       'Deterministic browser fixture: publish exact inactive Generation.')
     const after = await control.overview(workspaceId)
     inactive = after.reviews.inactiveGenerations.find(item => item.reviewId === reviewId)
+    active = exactActiveGeneration(after, candidateId, skillName)
   }
-  if (inactive === undefined) {
-    throw new Error('real browser fixture did not publish an inactive Generation')
+  if (inactive === undefined && active === undefined) {
+    throw new Error('real browser fixture did not publish or restore the exact Generation')
   }
   const expectedPromotionStatus = retentionStatus === 'retained' ? 'eligible' : 'blocked'
   const expectedPromotionReason = retentionStatus === 'retained'
     ? 'exact-retention-retained'
     : 'retention-regressed'
-  if (inactive.promotion.status !== expectedPromotionStatus
+  if (inactive !== undefined && (inactive.promotion.status !== expectedPromotionStatus
     || inactive.promotion.reason !== expectedPromotionReason
-    || inactive.promotion.retentionId !== retentionId) {
+    || inactive.promotion.retentionId !== retentionId)) {
     throw new Error(`real browser fixture did not project exact ${retentionStatus} promotion eligibility`)
   }
+  return {
+    candidateId,
+    skillName,
+    reviewId,
+    retentionId,
+    admissionId,
+    evaluationEnvelopeId,
+    retentionCasePackHash,
+    baselineTreeHash,
+    candidateTreeHash,
+  }
+}
+
+function exactActiveGeneration(overview, candidateId, skillName) {
+  const active = overview.active
+  if (active === undefined) return undefined
+  return active.artifacts.some(artifact =>
+    artifact.kind === 'skill-bundle'
+      && artifact.name === skillName
+      && artifact.lineage?.candidateId === candidateId)
+    ? active
+    : undefined
 }
 
 async function assembleBrowserSkillBundle(input) {

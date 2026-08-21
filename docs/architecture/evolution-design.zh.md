@@ -1,7 +1,7 @@
 # EvoForge 可证明自进化架构
 
 > 更新日期：2026-08-21
-> 当前状态：内部 Goal 经验到 exact Retention、future-Session Promotion Eligibility、失败 Outcome 触发的 sealed Canary evidence 和 expected-active Rollback Gate 活动纵切已实现；existing-Skill 调用时完整 Bundle、同一基线资格、Candidate 前 Holdout/Retention Envelope、protected whole-tree Candidate、结构准入、exact paired Holdout 与只从 authoritative improved Holdout 触发的 exact Retention 已实现。V4.42–V4.45 已完成 existing-Skill Retention、独立发布门、Control/Web 与最终 tarball 发布生命周期；V4.46 已实现 active release 的 failed-Outcome exact paired Canary、原生 Jobs、paid-uncertain 恢复和无 mutation 权的 keep/review/rollback-eligible；V4.47 已以独立 Host owner、exact Canary id 和 expected-active compare 接入 Control/Remote/Web 人工回滚；V4.48 已从最终包验证批准、future-only 晋升、Canary、断连保留、精确回滚、冷恢复和卸载。长期 Outcome 归因、缺失 Skill 最终包回滚、两套独立真实 provider 和 Hermes paired benchmark 尚未完成。
+> 当前状态：内部 Goal 经验到 exact Retention、future-Session Promotion Eligibility、失败 Outcome 触发的 sealed Canary evidence 和 expected-active Rollback Gate 活动纵切已实现；existing-Skill 调用时完整 Bundle、同一基线资格、Candidate 前 Holdout/Retention Envelope、protected whole-tree Candidate、结构准入、exact paired Holdout 与只从 authoritative improved Holdout 触发的 exact Retention 已实现。V4.42–V4.45 已完成 existing-Skill Retention、独立发布门、Control/Web 与最终 tarball 发布生命周期；V4.46 已实现 active release 的 failed-Outcome exact paired Canary、原生 Jobs、paid-uncertain 恢复和无 mutation 权的 keep/review/rollback-eligible；V4.47 已以独立 Host owner、exact Canary id 和 expected-active compare 接入 Control/Remote/Web 人工回滚；V4.48 已从最终包验证 existing-Skill 批准、future-only 晋升、Canary、断连保留、精确回滚、冷恢复和卸载；V4.49 已对 missing-Skill `skill-bundle` 完成同类最终包验证。长期 Outcome 归因、两套独立真实 provider 和 Hermes paired benchmark 尚未完成。
 
 ## 1. 用户结果
 
