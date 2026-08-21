@@ -44,8 +44,11 @@ describe('Feishu protected deployment config', () => {
       appId: 'cli_app_id',
       appSecret: 'secret-value',
       handshakeTimeoutMs: 15_000,
+      maxContentChars: 20_000,
+      maxBitableRecords: 20,
       maxTextChars: 4_000,
     })
+    expect([...resolved.contentPermissions]).toEqual([])
     expect([...resolved.routeIds]).toEqual(['feishu-private', 'feishu-group'])
     expect(resolved.routes.map(route => ({ id: route.id, workspaceId: route.workspaceId }))).toEqual([
       { id: 'feishu-private', workspaceId: 'workspace-a' },
@@ -91,6 +94,38 @@ describe('Feishu protected deployment config', () => {
       .toThrow(/handshakeTimeoutMs/u)
     expect(() => resolveFeishuConfig({ ...input, maxTextChars: 30_001 }, [routes[0]!], environment))
       .toThrow(/maxTextChars/u)
+    expect(() => resolveFeishuConfig({ ...input, maxContentChars: 1_023 }, [routes[0]!], environment))
+      .toThrow(/maxContentChars/u)
+    expect(() => resolveFeishuConfig({ ...input, maxBitableRecords: 101 }, [routes[0]!], environment))
+      .toThrow(/maxBitableRecords/u)
+    expect(() => resolveFeishuConfig({
+      ...input,
+      contentPermissions: ['document-read', 'document-read'],
+    }, [routes[0]!], environment)).toThrow(/contentPermissions.*unique/u)
+    expect(() => resolveFeishuConfig({
+      ...input,
+      contentPermissions: ['calendar-read' as never],
+    }, [routes[0]!], environment)).toThrow(/contentPermissions/u)
+  })
+
+  it('resolves four independent content permissions without granting a fifth capability', () => {
+    const resolved = resolveFeishuConfig({
+      routeIds: ['feishu-private'],
+      appIdEnv: 'FEISHU_ID',
+      appSecretEnv: 'FEISHU_SECRET',
+      contentPermissions: ['document-read', 'wiki-read', 'drive-metadata-read', 'bitable-records-read'],
+      maxContentChars: 12_000,
+      maxBitableRecords: 7,
+    }, [routes[0]!], environment)
+
+    expect([...resolved.contentPermissions]).toEqual([
+      'document-read',
+      'wiki-read',
+      'drive-metadata-read',
+      'bitable-records-read',
+    ])
+    expect(resolved.maxContentChars).toBe(12_000)
+    expect(resolved.maxBitableRecords).toBe(7)
   })
 
   it('resolves explicit pairing mode without inventing a Gateway route', () => {
@@ -116,5 +151,12 @@ describe('Feishu protected deployment config', () => {
       appIdEnv: 'FEISHU_ID',
       appSecretEnv: 'FEISHU_SECRET',
     }, environment)).toThrow(/pairing mode.*routeIds/u)
+    expect(() => resolveFeishuPairingConfig({
+      mode: 'pairing',
+      routeIds: [],
+      appIdEnv: 'FEISHU_ID',
+      appSecretEnv: 'FEISHU_SECRET',
+      contentPermissions: ['document-read'],
+    }, environment)).toThrow(/pairing mode.*contentPermissions/u)
   })
 })

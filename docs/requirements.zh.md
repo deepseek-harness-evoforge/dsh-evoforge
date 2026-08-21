@@ -313,7 +313,7 @@ workspace，输出可审查的 launchd/systemd unit。OS service manager 与 uni
 3. 以 test-first 方式补齐自然语言 Goal 到 Capability Map/Gap/Skill Opportunity 的内部经验自我发现、稳定 identity/scope/version 与整包候选；运行时不搜索、下载、获取、导入或安装外部 Skill；
 4. 把在线快环与离线慢环接入现有 Candidate/Trial/Generation，并证明 Candidate 无法影响 evaluator、holdout、gold 和晋升规则；
 5. 在 DSH Web 中形成可解释的能力、缺口、候选、评测、回滚和飞书健康视图；关键动作继续走原生 Command/Approval；
-6. 完成 `dsh-gateway` 的 Adapter 生命周期、标准化、身份/Session 映射、持久投递、幂等重试、去重、路由、限流和诊断，并完成 exact 飞书 route 的消息/Command/Approval/投递闭环；Gateway 不得成为第二 Agent Runtime 或巨型业务平台；
+6. 完成 `dsh-gateway` 的 Adapter 生命周期、标准化、身份/Session 映射、持久投递、幂等重试、去重、路由、限流和诊断，并完成 exact 飞书 route 的消息/Command/Approval/投递闭环；飞书文档/知识库/云盘/多维表格按独立最小权限作为 `dsh-feishu` 的 Agent-scoped 原生 Tool 接入，不进入 Gateway；Gateway 不得成为第二 Agent Runtime 或巨型业务平台；
 7. 用干净 profile、真实浏览器、真实飞书、真实 provider、长期 outcome 和与当前固定 Hermes revision 的 paired benchmark 验收；只有核心集合全部通过才创建首个 annotated semantic tag。
 
 旧阶段的 Git 提交仍保留完整审计历史；已撤销的运行时架构、控制面合同和完成证据不再作为活动文档保留。历史不得凌驾于上述现行顺序，也不能把既有实现数量当作新目标完成。
@@ -329,8 +329,11 @@ message-resource 端口下载图片，整批按 `ctx.attachments` 限制校验�
 Session。assembled DSH 已证明原生 image block 和 exact bytes 回读，但尚未证明真实用户消息或真实多模态
 provider。飞书 Approval 卡片现已沿 thread-scoped exact route 发送，并将一次性 nonce 与平台 card message id、
 exact chat/operator 共同绑定；错误卡片、错误身份、重放和 dispose 均由 assembled DSH 门禁拒绝或取消，
-但真实用户点击仍未验证。固定 DSH attachment v1 没有通用文件契约，普通文件、音视频以及文档/知识库/云盘/多维表格仍
-必须按独立权限实现，不能发明 Gateway file block。平台协议、凭据、实际发送、卡片和 transport lifecycle 留在 Adapter；Adapter 只把
+但真实用户点击仍未验证。固定 DSH attachment v1 没有通用文件契约，普通文件和音视频仍不能发明 Gateway
+file block。文档、知识库、云盘元数据和多维表格已按四个默认关闭的独立权限实现为 Agent-scoped 原生
+`feishu_content_read` Tool；每次读取走 ToolRuntime/Approval，当前 Session schema 固定，结果进入原生 durable
+`tool/result`，不另建 Store 或 Gateway 内容路由。assembled DSH 已验证权限拒绝、审批、官方 SDK 映射、边界、
+取消和 dispose，但真实 App scope、资源成员权限和真实内容仍未验证。平台协议、凭据、实际发送、卡片和 transport lifecycle 留在 Adapter；Adapter 只把
 exact route 所属的脱敏 transport observation 注册到 Gateway 权威健康投影，也不把
 其他消息、内容或日程需求视为已交付。该说明不改变以上需求顺序和权限边界。
 

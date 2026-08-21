@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-commands'
+import type {} from '@deepseek-ai/dsh-tools'
 import type { ApprovalOutcome, ApprovalRequest } from '@deepseek-ai/dsh-user-approval'
 import {
   GatewayIngressUncertainError,
@@ -14,6 +15,7 @@ import {
   type GatewayTransportRegistration,
 } from 'dsh-gateway'
 import type { ResolvedFeishuConfig, ResolvedFeishuRoute } from './config.js'
+import { installFeishuContentTool, shouldInstallFeishuContentTool } from './content.js'
 import { materializeFeishuInbound } from './inbound-images.js'
 import type { FeishuHostNotice, FeishuHostNoticeReceipt } from './host-route.js'
 import {
@@ -60,10 +62,12 @@ export class FeishuRuntime {
   private readonly outboundByTurn = new WeakMap<Agent, Map<number, GatewayTextDeliveryIntent>>()
   private readonly latestDestination = new WeakMap<Agent, ReplyDestination>()
   private readonly pendingApprovals = new Map<string, PendingApproval>()
+  private readonly contentToolDisposers = new Map<Agent, () => void>()
   private readonly unsubscribers: Array<() => void> = []
   private outbound?: GatewayTextAdapterRegistration
   private transport: GatewayTransportRegistration | undefined
   private started = false
+  private disposed = false
   private transportState: FeishuTransportState = 'connecting'
   private connectedAt?: number
   private lastActivityAt?: number
@@ -121,6 +125,8 @@ export class FeishuRuntime {
         })
     })
     this.ctx.on('agent/disposed', ({ agent }) => {
+      this.contentToolDisposers.get(agent)?.()
+      this.contentToolDisposers.delete(agent)
       if (this.agentsBySession.get(String(agent.session.id)) === agent) {
         this.agentsBySession.delete(String(agent.session.id))
       }
@@ -202,10 +208,14 @@ export class FeishuRuntime {
   }
 
   async dispose(): Promise<void> {
+    if (this.disposed) return
+    this.disposed = true
     this.transportState = 'stopping'
     this.reportTransport(Date.now())
     if (!this.lifecycle.signal.aborted) this.lifecycle.abort(new Error('dsh-feishu disposed'))
     while (this.unsubscribers.length > 0) this.unsubscribers.pop()?.()
+    for (const disposeTool of this.contentToolDisposers.values()) disposeTool()
+    this.contentToolDisposers.clear()
     for (const [nonce, pending] of this.pendingApprovals) {
       this.pendingApprovals.delete(nonce)
       if (pending.onAbort !== undefined) pending.signal?.removeEventListener('abort', pending.onAbort)
@@ -264,6 +274,30 @@ export class FeishuRuntime {
     this.agentsBySession.set(sessionId, agent)
     if (this.bound.has(agent)) return
     this.bound.add(agent)
+    if (shouldInstallFeishuContentTool(agent, this.config.contentPermissions)) {
+      if (this.platform.readContent === undefined) {
+        throw new Error('dsh-feishu: configured content reads require a Feishu content platform')
+      }
+      // Approval is consumed opportunistically by ToolRuntime; if it is absent,
+      // the native pipeline denies every `ask` decision instead of bypassing it.
+      agent.ctx.inject(['tools'], () => {
+        if (this.disposed || this.contentToolDisposers.has(agent)) return
+        const disposeTool = installFeishuContentTool(agent, {
+          permissions: this.config.contentPermissions,
+          maxContentChars: this.config.maxContentChars,
+          maxBitableRecords: this.config.maxBitableRecords,
+        }, {
+          read: (request, signal) => this.platform.readContent!(request, signal),
+        })
+        this.contentToolDisposers.set(agent, disposeTool)
+        return () => {
+          disposeTool()
+          if (this.contentToolDisposers.get(agent) === disposeTool) {
+            this.contentToolDisposers.delete(agent)
+          }
+        }
+      })
+    }
     agent.ctx.inject(['commands'], commandCtx => commandCtx.commands.register({
       name: 'feishu',
       description: 'inspect the static Feishu routes bound to this native Session',

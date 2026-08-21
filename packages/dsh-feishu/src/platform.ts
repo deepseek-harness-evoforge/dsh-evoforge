@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks'
 import {
   createLarkChannel,
   Domain,
@@ -10,6 +11,10 @@ import {
 } from '@larksuiteoapi/node-sdk'
 import axios, { type AxiosInstance } from 'axios'
 import { HttpsProxyAgent } from 'https-proxy-agent'
+import type {
+  FeishuContentReadRequest,
+  FeishuContentReadResult,
+} from './content.js'
 
 const FEISHU_API_URL = 'https://open.feishu.cn/'
 
@@ -60,6 +65,10 @@ export interface FeishuPlatform {
     maxBytes: number,
     signal?: AbortSignal,
   ): Promise<Uint8Array>
+  readContent?(
+    request: FeishuContentReadRequest,
+    signal: AbortSignal,
+  ): Promise<FeishuContentReadResult>
 }
 
 export interface FeishuPlatformOptions {
@@ -87,6 +96,7 @@ interface FeishuPolicy {
 interface FeishuTransport {
   readonly httpInstance: AxiosInstance & HttpInstance
   readonly agent?: HttpsProxyAgent<string>
+  withSignal<T>(signal: AbortSignal, call: () => Promise<T>): Promise<T>
 }
 
 export class FeishuPlatformSendError extends Error {
@@ -186,6 +196,10 @@ function createOfficialPlatform(
         throw new Error('dsh-feishu: unable to download the exact message resource', { cause: error })
       }
     },
+    readContent: (request, signal) => transport.withSignal(
+      signal,
+      () => readOfficialFeishuContent(channel.rawClient, request, signal),
+    ),
   }
   return Object.freeze(platform)
 }
@@ -194,9 +208,15 @@ function createOfficialPlatform(
 export function resolveFeishuTransport(
   environment: NodeJS.ProcessEnv = process.env,
 ): FeishuTransport {
+  const signalScope = new AsyncLocalStorage<AbortSignal>()
   const proxyUrl = selectHttpsProxy(environment, FEISHU_API_URL)
   if (proxyUrl === undefined) {
-    return Object.freeze({ httpInstance: createFeishuHttpInstance() })
+    const httpInstance = createFeishuHttpInstance()
+    return Object.freeze({
+      httpInstance,
+      withSignal: <T>(signal: AbortSignal, call: () => Promise<T>) =>
+        runWithSignal(httpInstance, signalScope, signal, call),
+    })
   }
   let parsed: URL
   try {
@@ -208,9 +228,34 @@ export function resolveFeishuTransport(
     throw new Error('dsh-feishu: HTTPS proxy environment must use http or https')
   }
   const agent = new HttpsProxyAgent(parsed)
+  const httpInstance = createFeishuHttpInstance(agent)
   return Object.freeze({
     agent,
-    httpInstance: createFeishuHttpInstance(agent),
+    httpInstance,
+    withSignal: <T>(signal: AbortSignal, call: () => Promise<T>) =>
+      runWithSignal(httpInstance, signalScope, signal, call),
+  })
+}
+
+async function runWithSignal<T>(
+  httpInstance: AxiosInstance,
+  scope: AsyncLocalStorage<AbortSignal>,
+  signal: AbortSignal,
+  call: () => Promise<T>,
+): Promise<T> {
+  signal.throwIfAborted()
+  return scope.run(signal, async () => {
+    const interceptor = httpInstance.interceptors.request.use((config) => {
+      const current = scope.getStore()
+      return current === undefined ? config : { ...config, signal: current }
+    })
+    try {
+      const result = await call()
+      signal.throwIfAborted()
+      return result
+    } finally {
+      httpInstance.interceptors.request.eject(interceptor)
+    }
   })
 }
 
@@ -338,4 +383,265 @@ function selectAction(action: CardActionEvent): FeishuApprovalAction {
     operatorId: action.operator.openId,
     value: action.action.value,
   })
+}
+
+interface FeishuRawClient {
+  readonly docx: {
+    readonly v1: {
+      readonly document: {
+        get(payload: unknown): Promise<unknown>
+        rawContent(payload: unknown): Promise<unknown>
+      }
+    }
+  }
+  readonly wiki: {
+    readonly v2: {
+      readonly space: { getNode(payload: unknown): Promise<unknown> }
+    }
+  }
+  readonly drive: {
+    readonly v1: {
+      readonly meta: { batchQuery(payload: unknown): Promise<unknown> }
+    }
+  }
+  readonly bitable: {
+    readonly v1: {
+      readonly app: { get(payload: unknown): Promise<unknown> }
+      readonly appTableRecord: { search(payload: unknown): Promise<unknown> }
+    }
+  }
+}
+
+class FeishuContentReadError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options)
+    this.name = 'FeishuContentReadError'
+  }
+}
+
+/** Map four current official SDK read APIs into one bounded, provider-metadata-minimized Tool value. */
+export async function readOfficialFeishuContent(
+  candidate: unknown,
+  request: FeishuContentReadRequest,
+  signal: AbortSignal,
+): Promise<FeishuContentReadResult> {
+  signal.throwIfAborted()
+  const client = candidate as FeishuRawClient
+  try {
+    let result: FeishuContentReadResult
+    switch (request.kind) {
+      case 'document': result = await readDocument(client, request, signal); break
+      case 'wiki': result = await readWiki(client, request, signal); break
+      case 'drive': result = await readDrive(client, request, signal); break
+      case 'bitable': result = await readBitable(client, request, signal); break
+    }
+    signal.throwIfAborted()
+    return Object.freeze(result)
+  } catch (error: unknown) {
+    signal.throwIfAborted()
+    if (error instanceof FeishuContentReadError) throw error
+    throw new FeishuContentReadError(
+      'Feishu content read is unavailable; verify the App scope and exact resource access',
+      { cause: error },
+    )
+  }
+}
+
+async function readDocument(
+  client: FeishuRawClient,
+  request: FeishuContentReadRequest,
+  signal: AbortSignal,
+): Promise<FeishuContentReadResult> {
+  const metadata = responseData(await client.docx.v1.document.get({
+    path: { document_id: request.token },
+  }))
+  signal.throwIfAborted()
+  const body = responseData(await client.docx.v1.document.rawContent({
+    path: { document_id: request.token },
+  }))
+  const document = optionalRecord(metadata.document)
+  const title = optionalString(document?.title)
+  const revision = optionalSafeInteger(document?.revision_id)
+  const bounded = boundText(optionalString(body.content) ?? '', request.maxContentChars)
+  return {
+    schemaVersion: 1,
+    kind: 'document',
+    ...(title === undefined ? {} : { title }),
+    objectType: 'docx',
+    ...(revision === undefined ? {} : { revision }),
+    contentFormat: 'text/plain',
+    content: bounded.value,
+    truncated: bounded.truncated,
+  }
+}
+
+async function readWiki(
+  client: FeishuRawClient,
+  request: FeishuContentReadRequest,
+  signal: AbortSignal,
+): Promise<FeishuContentReadResult> {
+  const data = responseData(await client.wiki.v2.space.getNode({
+    params: { token: request.token },
+  }))
+  const node = requiredRecord(data.node, 'Feishu Wiki returned no node')
+  const objectType = requiredString(node.obj_type, 'Feishu Wiki returned no object type')
+  const title = optionalString(node.title)
+  if (objectType !== 'docx') {
+    return {
+      schemaVersion: 1,
+      kind: 'wiki',
+      ...(title === undefined ? {} : { title }),
+      objectType,
+      truncated: false,
+    }
+  }
+  const objectToken = requiredString(node.obj_token, 'Feishu Wiki returned no document object')
+  signal.throwIfAborted()
+  const body = responseData(await client.docx.v1.document.rawContent({
+    path: { document_id: objectToken },
+  }))
+  const bounded = boundText(optionalString(body.content) ?? '', request.maxContentChars)
+  return {
+    schemaVersion: 1,
+    kind: 'wiki',
+    ...(title === undefined ? {} : { title }),
+    objectType,
+    contentFormat: 'text/plain',
+    content: bounded.value,
+    truncated: bounded.truncated,
+  }
+}
+
+async function readDrive(
+  client: FeishuRawClient,
+  request: FeishuContentReadRequest,
+  _signal: AbortSignal,
+): Promise<FeishuContentReadResult> {
+  if (request.driveType === undefined) throw new FeishuContentReadError('Feishu Drive read requires drive_type')
+  const data = responseData(await client.drive.v1.meta.batchQuery({
+    data: {
+      request_docs: [{ doc_token: request.token, doc_type: request.driveType }],
+      with_url: false,
+    },
+  }))
+  const metas = Array.isArray(data.metas) ? data.metas : []
+  const meta = requiredRecord(metas[0], 'Feishu Drive returned no metadata for the exact resource')
+  const title = optionalString(meta.title)
+  const objectType = optionalString(meta.doc_type)
+  const createdAt = optionalString(meta.create_time)
+  const modifiedAt = optionalString(meta.latest_modify_time)
+  const classification = optionalString(meta.sec_label_name)
+  return {
+    schemaVersion: 1,
+    kind: 'drive',
+    ...(title === undefined ? {} : { title }),
+    ...(objectType === undefined ? {} : { objectType }),
+    ...(createdAt === undefined ? {} : { createdAt }),
+    ...(modifiedAt === undefined ? {} : { modifiedAt }),
+    ...(classification === undefined ? {} : { classification }),
+    truncated: false,
+  }
+}
+
+async function readBitable(
+  client: FeishuRawClient,
+  request: FeishuContentReadRequest,
+  signal: AbortSignal,
+): Promise<FeishuContentReadResult> {
+  const metadata = responseData(await client.bitable.v1.app.get({
+    path: { app_token: request.token },
+  }))
+  const app = requiredRecord(metadata.app, 'Feishu Bitable returned no App metadata')
+  const title = optionalString(app.name)
+  const revision = optionalSafeInteger(app.revision)
+  const base = {
+    schemaVersion: 1 as const,
+    kind: 'bitable' as const,
+    ...(title === undefined ? {} : { title }),
+    objectType: 'bitable',
+    ...(revision === undefined ? {} : { revision }),
+  }
+  if (request.tableId === undefined) return { ...base, truncated: false }
+  signal.throwIfAborted()
+  const pageSize = Math.min(request.pageSize ?? request.maxBitableRecords, request.maxBitableRecords)
+  const data = responseData(await client.bitable.v1.appTableRecord.search({
+    path: { app_token: request.token, table_id: request.tableId },
+    params: { page_size: pageSize },
+    data: { automatic_fields: false },
+  }))
+  const items = Array.isArray(data.items) ? data.items.slice(0, pageSize) : []
+  const records = items.map(item => {
+    const record = requiredRecord(item, 'Feishu Bitable returned an invalid record')
+    return Object.freeze({
+      ...optionalString(record.record_id) === undefined ? {} : { recordId: optionalString(record.record_id) },
+      fields: isRecord(record.fields) ? record.fields : {},
+    })
+  })
+  const bounded = boundJsonRecords(records, request.maxContentChars)
+  const providerHasMore = data.has_more === true
+  const totalItems = optionalSafeInteger(data.total)
+  return {
+    ...base,
+    contentFormat: 'application/json',
+    content: bounded.value,
+    returnedItems: bounded.items,
+    ...(totalItems === undefined ? {} : { totalItems }),
+    hasMore: providerHasMore || bounded.truncated,
+    truncated: providerHasMore || bounded.truncated,
+  }
+}
+
+function responseData(response: unknown): Record<string, unknown> {
+  const root = requiredRecord(response, 'Feishu returned an invalid response')
+  if (root.code !== 0) throw new FeishuContentReadError('Feishu rejected the content read')
+  return requiredRecord(root.data, 'Feishu returned no content data')
+}
+
+function boundText(value: string, limit: number): { value: string; truncated: boolean } {
+  const points = Array.from(value)
+  if (points.length <= limit) return { value, truncated: false }
+  return { value: points.slice(0, limit).join(''), truncated: true }
+}
+
+function boundJsonRecords(
+  records: readonly Readonly<Record<string, unknown>>[],
+  limit: number,
+): { value: string; items: number; truncated: boolean } {
+  const selected: Readonly<Record<string, unknown>>[] = []
+  for (const record of records) {
+    const next = JSON.stringify([...selected, record])
+    if (Array.from(next).length > limit) break
+    selected.push(record)
+  }
+  return {
+    value: JSON.stringify(selected),
+    items: selected.length,
+    truncated: selected.length !== records.length,
+  }
+}
+
+function requiredRecord(value: unknown, message: string): Record<string, unknown> {
+  if (!isRecord(value)) throw new FeishuContentReadError(message)
+  return value
+}
+
+function optionalRecord(value: unknown): Record<string, unknown> | undefined {
+  return isRecord(value) ? value : undefined
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function requiredString(value: unknown, message: string): string {
+  if (typeof value !== 'string' || value.length === 0) throw new FeishuContentReadError(message)
+  return value
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.length > 0 ? value : undefined
+}
+
+function optionalSafeInteger(value: unknown): number | undefined {
+  return Number.isSafeInteger(value) ? value as number : undefined
 }

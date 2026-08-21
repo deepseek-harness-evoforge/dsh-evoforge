@@ -2,6 +2,9 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { DshGateway, ResolvedGatewayRoute } from 'dsh-gateway'
 import type {
   FeishuApprovalAction,
+  FeishuContentReadRequest,
+  FeishuContentReadResult,
+  FeishuContentPermission,
   FeishuHostNotice,
   FeishuInboundMessage,
   FeishuPlatform,
@@ -17,6 +20,9 @@ interface Config {
   readonly routeIds: readonly string[]
   readonly appIdEnv: string
   readonly appSecretEnv: string
+  readonly contentPermissions?: readonly FeishuContentPermission[]
+  readonly maxContentChars?: number
+  readonly maxBitableRecords?: number
 }
 
 interface SentText {
@@ -36,8 +42,10 @@ class FakeFeishuPlatform implements FeishuPlatform {
   readonly texts: SentText[] = []
   readonly cards: SentCard[] = []
   readonly sendAttempts: string[] = []
+  readonly contentReads: FeishuContentReadRequest[] = []
   private readonly failures: unknown[] = []
   private readonly resources = new Map<string, Uint8Array>()
+  private readonly content = new Map<string, FeishuContentReadResult>()
   connected = false
   private messageHandler: ((message: FeishuInboundMessage) => Promise<void>) | undefined
   private approvalHandler: ((action: FeishuApprovalAction) => Promise<void>) | undefined
@@ -91,8 +99,20 @@ class FakeFeishuPlatform implements FeishuPlatform {
     return new Uint8Array(value)
   }
 
+  async readContent(request: FeishuContentReadRequest, signal: AbortSignal): Promise<FeishuContentReadResult> {
+    signal.throwIfAborted()
+    this.contentReads.push(request)
+    const value = this.content.get(`${request.kind}\0${request.token}`)
+    if (value === undefined) throw new Error('test Feishu content is unavailable')
+    return value
+  }
+
   setResource(messageId: string, fileKey: string, value: Uint8Array): void {
     this.resources.set(`${messageId}\0${fileKey}`, new Uint8Array(value))
+  }
+
+  setContent(kind: FeishuContentReadRequest['kind'], token: string, value: FeishuContentReadResult): void {
+    this.content.set(`${kind}\0${token}`, value)
   }
 
   async emitMessage(message: FeishuInboundMessage): Promise<void> {

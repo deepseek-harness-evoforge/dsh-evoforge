@@ -25,8 +25,8 @@ DSH Session、模型上下文或 Gateway journal。固定 DSH revision 已提供
 4. 纯文本事件沿用旧摘要算法，防止升级后把已经 settled 的事件误报为内容漂移；图文使用带 schema version
    的 canonical 摘要。含图片的消息永不解释为 slash command。
 5. 飞书 `fileKey`、平台 URL、base64、本地路径和资源错误正文不得进入 Session。它们只存在于 Adapter 下载边界。
-6. 当前不发明通用文件消息块。普通文件、音频、视频以及文档/知识库/云盘/多维表格保持独立 pending，直到
-   有官方 DSH 持久内容契约和独立权限验收。
+6. 当前不发明通用文件消息块。普通文件、音频和视频保持 pending；文档/知识库/云盘/多维表格不复用附件
+   契约，后续由 [ADR-0090](0090-feishu-content-reads-are-agent-scoped-native-tools.md) 定义为独立权限下的原生 Tool。
 
 ## 后果
 

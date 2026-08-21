@@ -1,5 +1,14 @@
 import type { GatewayEndpoint, ResolvedGatewayRoute } from 'dsh-gateway'
 
+export const FEISHU_CONTENT_PERMISSIONS = [
+  'document-read',
+  'wiki-read',
+  'drive-metadata-read',
+  'bitable-records-read',
+] as const
+
+export type FeishuContentPermission = typeof FEISHU_CONTENT_PERMISSIONS[number]
+
 export interface FeishuConfigInput {
   readonly mode?: 'routes' | 'pairing'
   readonly routeIds: readonly string[]
@@ -9,6 +18,9 @@ export interface FeishuConfigInput {
   readonly maxRetryAfterSeconds?: number
   readonly maxSendAttempts?: number
   readonly maxTextChars?: number
+  readonly contentPermissions?: readonly FeishuContentPermission[]
+  readonly maxContentChars?: number
+  readonly maxBitableRecords?: number
 }
 
 export interface ResolvedFeishuPairingConfig {
@@ -37,6 +49,9 @@ export interface ResolvedFeishuConfig {
   readonly maxRetryAfterMs: number
   readonly maxSendAttempts: number
   readonly maxTextChars: number
+  readonly contentPermissions: ReadonlySet<FeishuContentPermission>
+  readonly maxContentChars: number
+  readonly maxBitableRecords: number
   readonly routes: readonly ResolvedFeishuRoute[]
   readonly routeIds: ReadonlySet<string>
 }
@@ -70,10 +85,15 @@ export function resolveFeishuConfig(
   const maxRetryAfterSeconds = config.maxRetryAfterSeconds ?? 300
   const maxSendAttempts = config.maxSendAttempts ?? 3
   const maxTextChars = config.maxTextChars ?? 4_000
+  const contentPermissions = resolveContentPermissions(config.contentPermissions)
+  const maxContentChars = config.maxContentChars ?? 20_000
+  const maxBitableRecords = config.maxBitableRecords ?? 20
   assertIntegerRange('handshakeTimeoutMs', handshakeTimeoutMs, 1_000, 60_000)
   assertIntegerRange('maxRetryAfterSeconds', maxRetryAfterSeconds, 1, 300)
   assertIntegerRange('maxSendAttempts', maxSendAttempts, 1, 5)
   assertIntegerRange('maxTextChars', maxTextChars, 256, 30_000)
+  assertIntegerRange('maxContentChars', maxContentChars, 1_024, 100_000)
+  assertIntegerRange('maxBitableRecords', maxBitableRecords, 1, 100)
 
   const resolvedRoutes = routes.map(route => Object.freeze({
     id: route.id,
@@ -96,9 +116,26 @@ export function resolveFeishuConfig(
     maxRetryAfterMs: maxRetryAfterSeconds * 1_000,
     maxSendAttempts,
     maxTextChars,
+    contentPermissions,
+    maxContentChars,
+    maxBitableRecords,
     routes: Object.freeze(resolvedRoutes),
     routeIds,
   })
+}
+
+function resolveContentPermissions(
+  input: readonly FeishuContentPermission[] | undefined,
+): ReadonlySet<FeishuContentPermission> {
+  const values: readonly unknown[] = input ?? []
+  if (!Array.isArray(values) || values.length > FEISHU_CONTENT_PERMISSIONS.length
+    || values.some(value => typeof value !== 'string'
+      || !FEISHU_CONTENT_PERMISSIONS.includes(value as FeishuContentPermission))) {
+    throw new Error(`dsh-feishu: contentPermissions must contain only ${FEISHU_CONTENT_PERMISSIONS.join(', ')}`)
+  }
+  const resolved = new Set(values as readonly FeishuContentPermission[])
+  if (resolved.size !== values.length) throw new Error('dsh-feishu: contentPermissions must be unique')
+  return Object.freeze(resolved)
 }
 
 /** Resolve explicit setup-only mode; it discovers identity but never creates or mutates a Gateway route. */
@@ -109,6 +146,9 @@ export function resolveFeishuPairingConfig(
   if (config.mode !== 'pairing') throw new Error('dsh-feishu: pairing config mode must be pairing')
   if (!Array.isArray(config.routeIds) || config.routeIds.length !== 0) {
     throw new Error('dsh-feishu: pairing mode requires empty routeIds')
+  }
+  if ((config.contentPermissions?.length ?? 0) !== 0) {
+    throw new Error('dsh-feishu: pairing mode cannot enable contentPermissions')
   }
   const { appId, appIdEnv, appSecret, appSecretEnv } = resolveCredentials(config, environment)
   const handshakeTimeoutMs = config.handshakeTimeoutMs ?? 15_000

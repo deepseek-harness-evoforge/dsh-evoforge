@@ -77,11 +77,40 @@ remove 也会断开。
     routeIds: [feishu-personal]
     appIdEnv: DSH_FEISHU_APP_ID
     appSecretEnv: DSH_FEISHU_APP_SECRET
+    contentPermissions: []
 ```
 
 `accountId` 必须等于环境中的 App ID；App Secret 只从部署环境读取。一个 Adapter 实例可列出同一个
 App 的多个 exact route。普通 routes 模式不接受 wildcard、模型选择的 Workspace 或动态授权；
 setup-only pairing 只输出待审查配置，重启进入 routes 模式后才生效。
+
+## 文档、知识库、云盘和多维表格
+
+routes mode 可按部署最小权限独立启用四项内容读取；默认全部关闭：
+
+```yaml
+config:
+  routeIds: [feishu-personal]
+  appIdEnv: DSH_FEISHU_APP_ID
+  appSecretEnv: DSH_FEISHU_APP_SECRET
+  contentPermissions:
+    - document-read
+    - wiki-read
+    - drive-metadata-read
+    - bitable-records-read
+  maxContentChars: 20000
+  maxBitableRecords: 20
+```
+
+这四项不是 Gateway 能力。`dsh-feishu` 只为 exact Agent 注册一个稳定的原生
+`feishu_content_read` Tool；每次调用必须经过 DSH Tool policy 和原生 Approval，缺少 Approval provider 时
+fail closed。权限、Agent、参数或审批任一不满足时不会调用飞书。文档/Wiki 正文按字符上限截断，Drive 只读
+脱敏元数据，Bitable 最多读取一页受限记录；输入 resource token、provider metadata URL 和 owner identity
+不进入 Tool 结果。正文或表格字段本身仍是经审批进入当前 Session 的用户内容。
+
+当前 Session 已形成 request header 后不会新增 Tool；配置新权限只影响未来 Session。撤销权限时，为保持
+schema/cache 稳定，旧 Session 仍保留同名 schema，但每次执行都会被拒绝。pairing mode 禁止启用内容权限。
+部署配置不是飞书平台授权的替代：App scope、tenant 和 exact resource membership 还必须在飞书侧满足。
 
 ## 运行合同
 
@@ -109,7 +138,7 @@ setup-only pairing 只输出待审查配置，重启进入 routes 模式后才�
 
 固定 DSH revision `47f943859bef60e4160492346772ded9b24f765a` 的 attachment v1 目前只支持
 PNG/JPEG/WebP/GIF 栅格图片。因此本插件当前没有把飞书普通文件、音频或视频宣称为已完成：不得把外部
-`fileKey`、URL、base64 或伪造 file block 写入 Session。通用文件以及文档、知识库、云盘、多维表格仍按
-独立权限和官方 DSH 内容契约继续实现与验收。
+`fileKey`、URL、base64 或伪造 file block 写入 Session。文档、知识库、云盘元数据和多维表格读取已有
+assembled DSH 自动化证据，但真实飞书 App scope、资源权限拒绝与真实内容仍待验收。
 
-官方协议依据：[飞书事件订阅概述](https://open.feishu.cn/document/server-docs/event-subscription-guide/overview)、[官方 Node SDK](https://github.com/larksuite/node-sdk)、[发送消息 API](https://open.feishu.cn/document/server-docs/im-v1/message/create)、[获取消息中的资源文件](https://open.feishu.cn/api-explorer?from=op_doc_tab&apiName=get&project=im&resource=message.resource&version=v1)。
+官方协议依据：[飞书事件订阅概述](https://open.feishu.cn/document/server-docs/event-subscription-guide/overview)、[官方 Node SDK](https://github.com/larksuite/node-sdk)、[发送消息 API](https://open.feishu.cn/document/server-docs/im-v1/message/create)、[获取消息中的资源文件](https://open.feishu.cn/api-explorer?from=op_doc_tab&apiName=get&project=im&resource=message.resource&version=v1)、[文档 raw content](https://open.feishu.cn/api-explorer?from=op_doc_tab&apiName=raw_content&project=docx&resource=document&version=v1)、[知识库节点](https://open.feishu.cn/api-explorer?from=op_doc_tab&apiName=get_node&project=wiki&resource=space&version=v2)、[云盘元数据](https://open.feishu.cn/api-explorer?from=op_doc_tab&apiName=batch_query&project=drive&resource=meta&version=v1)、[多维表格记录](https://open.feishu.cn/api-explorer?from=op_doc_tab&apiName=search&project=bitable&resource=app.table.record&version=v1)。

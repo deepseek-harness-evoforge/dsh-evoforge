@@ -7,9 +7,11 @@ import z from '@deepseek-ai/schemastery'
 import type Schema from '@deepseek-ai/schemastery'
 import type { DshGateway, ResolvedGatewayRoute } from 'dsh-gateway'
 import {
+  FEISHU_CONTENT_PERMISSIONS,
   resolveFeishuConfig,
   resolveFeishuPairingConfig,
   type ResolvedFeishuPairingConfig,
+  type FeishuContentPermission,
 } from './config.js'
 import type { FeishuHostNotice, FeishuHostRoute } from './host-route.js'
 import { FeishuPairingRuntime, type FeishuPairingTarget } from './pairing.js'
@@ -32,6 +34,9 @@ export interface Config {
   readonly maxRetryAfterSeconds?: number
   readonly maxSendAttempts?: number
   readonly maxTextChars?: number
+  readonly contentPermissions?: readonly FeishuContentPermission[]
+  readonly maxContentChars?: number
+  readonly maxBitableRecords?: number
 }
 
 export const Config: Schema<Config> = z.object({
@@ -43,6 +48,9 @@ export const Config: Schema<Config> = z.object({
   maxRetryAfterSeconds: z.number().step(1).min(1).max(300).default(300),
   maxSendAttempts: z.number().step(1).min(1).max(5).default(3),
   maxTextChars: z.number().step(1).min(256).max(30_000).default(4_000),
+  contentPermissions: z.array(z.union(FEISHU_CONTENT_PERMISSIONS)).default([]),
+  maxContentChars: z.number().step(1).min(1_024).max(100_000).default(20_000),
+  maxBitableRecords: z.number().step(1).min(1).max(100).default(20),
 }) as Schema<Config>
 
 export async function apply(ctx: Context, config: Config): Promise<void> {
@@ -147,12 +155,22 @@ export function resolvePairingTarget(ctx: Context, agent: Agent): FeishuPairingT
 }
 
 export {
+  FEISHU_CONTENT_PERMISSIONS,
   resolveFeishuConfig,
   resolveFeishuPairingConfig,
   type ResolvedFeishuConfig,
   type ResolvedFeishuPairingConfig,
   type ResolvedFeishuRoute,
+  type FeishuContentPermission,
 } from './config.js'
+export {
+  FEISHU_CONTENT_TOOL,
+  installFeishuContentTool,
+  shouldInstallFeishuContentTool,
+  type FeishuContentReadRequest,
+  type FeishuContentReadResult,
+  type FeishuContentReader,
+} from './content.js'
 export type {
   FeishuHostNotice,
   FeishuHostNoticeReceipt,
