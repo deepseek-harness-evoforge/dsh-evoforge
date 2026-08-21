@@ -6,6 +6,10 @@ import type {
 } from './counterfactual-canary.ts'
 import type { FeedbackSignalStore } from './feedback-signal-monitor.ts'
 import type { SkillUseStore } from './skill-use-monitor.ts'
+import type {
+  ExactSkillOutcomeContextReader,
+  ExactSkillOutcomeContextSummary,
+} from './skill-outcome-context.ts'
 import type { CapabilityGapStore } from './capability-gap-store.ts'
 import type {
   ExistingSkillBaselineQualificationResult,
@@ -83,6 +87,7 @@ export interface EvolutionControlPlaneModules {
   readonly resident?: Pick<ResidentEvolutionControl, 'isPaused' | 'pause' | 'resume'>
   readonly outcomes?: Pick<DeliveryOutcomeStore, 'summarize'>
   readonly skillUses?: Pick<SkillUseStore, 'summarize'>
+  readonly skillOutcomeContext?: Pick<ExactSkillOutcomeContextReader, 'summarize'>
   readonly feedback?: Pick<FeedbackSignalStore, 'summarize'>
   readonly capabilities?: {
     readonly snapshot: (workspaceId: string, sessionId?: string) => EvolutionCapabilityMapView
@@ -449,6 +454,17 @@ export class EvolutionControlPlane {
         ? {}
         : {
             skillReuse: cloneSkillReuseSummary(this.modules.skillUses.summarize(
+              workspaceId,
+              active?.id,
+              active === undefined
+                ? undefined
+                : active.parentId === undefined ? {} : { baselineGenerationId: active.parentId },
+            )),
+          }),
+      ...(this.modules.skillOutcomeContext === undefined
+        ? {}
+        : {
+            skillOutcomeContext: cloneSkillOutcomeContext(this.modules.skillOutcomeContext.summarize(
               workspaceId,
               active?.id,
               active === undefined
@@ -1451,6 +1467,52 @@ function cloneSkillReuseSummary(summary: ReturnType<SkillUseStore['summarize']>)
       causalClaim: item.causalClaim,
       releaseAuthority: item.releaseAuthority,
     })),
+  }
+}
+
+function cloneSkillOutcomeContext(summary: ExactSkillOutcomeContextSummary) {
+  return {
+    all: cloneSkillOutcomeContextRollup(summary.all),
+    selected: cloneSkillOutcomeContextRollup(summary.selected),
+    ...(summary.baseline === undefined
+      ? {}
+      : { baseline: cloneSkillOutcomeContextRollup(summary.baseline) }),
+    items: summary.items.map(item => ({
+      skillName: item.skillName,
+      invocationContentHash: item.invocationContentHash,
+      ...(item.generationId === undefined ? {} : { generationId: item.generationId }),
+      useCount: item.useCount,
+      goalContextCount: item.goalContextCount,
+      outcomeObservedGoalContextCount: item.outcomeObservedGoalContextCount,
+      outcomeUnobservedGoalContextCount: item.outcomeUnobservedGoalContextCount,
+      outcomeAttemptCount: item.outcomeAttemptCount,
+      repeatedOutcomeGoalContextCount: item.repeatedOutcomeGoalContextCount,
+      recoveredGoalContextCount: item.recoveredGoalContextCount,
+      ambiguousLatestGoalContextCount: item.ambiguousLatestGoalContextCount,
+      latest: { ...item.latest },
+      metrics: cloneMetricRollup(item.metrics),
+      attribution: item.attribution,
+      causalClaim: item.causalClaim,
+      improvementClaim: item.improvementClaim,
+      releaseAuthority: item.releaseAuthority,
+    })),
+  }
+}
+
+function cloneSkillOutcomeContextRollup(
+  rollup: ExactSkillOutcomeContextSummary['all'],
+) {
+  return {
+    skillVersionCount: rollup.skillVersionCount,
+    goalContextCount: rollup.goalContextCount,
+    outcomeObservedGoalContextCount: rollup.outcomeObservedGoalContextCount,
+    outcomeUnobservedGoalContextCount: rollup.outcomeUnobservedGoalContextCount,
+    outcomeAttemptCount: rollup.outcomeAttemptCount,
+    repeatedOutcomeGoalContextCount: rollup.repeatedOutcomeGoalContextCount,
+    recoveredGoalContextCount: rollup.recoveredGoalContextCount,
+    ambiguousLatestGoalContextCount: rollup.ambiguousLatestGoalContextCount,
+    latest: { ...rollup.latest },
+    metrics: cloneMetricRollup(rollup.metrics),
   }
 }
 

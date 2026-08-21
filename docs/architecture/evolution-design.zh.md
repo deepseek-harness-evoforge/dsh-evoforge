@@ -120,6 +120,11 @@ missing 或 prepared 为 `waiting`；告警、歧义、谱系错配、`regressed
 
 `DeliveryOutcomeMonitor` 只在 DSH Session durable checkpoint 之后，从 source-linked `complete_delivery` Tool call/result 投影有界 Outcome，并归属到该 Session 固定的 Generation。冷启动重放不重复执行 Tool 或外部效果。单个失败 Outcome 不能证明回归，也不能直接回滚。
 
+`ExactSkillOutcomeContextProjection` 只读连接 independently durable Exact Skill Use 与 Delivery Outcome。它只为
+exact 跨 Goal 版本匹配同 Session/Goal/Generation 且不早于 use、revision 不倒退的 Outcome，保留 attempts、
+recovered、missing 和 ambiguous latest，并只汇总唯一 latest 的 DSH Goal metrics。该视图固定无因果、无
+improvement claim、无 release authority，不向模型注入，不进入 Candidate 或 pointer mutation。
+
 反事实 canary 已实现为 `CounterfactualCanary` 深模块与原生 DSH `evolution` Job。当前活动合同是：
 
 1. 只由精确归属到当前 active internal Candidate lineage 的失败 durable Outcome 触发；

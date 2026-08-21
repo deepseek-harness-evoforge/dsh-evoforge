@@ -106,6 +106,45 @@ export interface EvolutionSkillReuseEvidenceView {
   readonly releaseAuthority: 'none'
 }
 
+/** Browser-safe rollup of non-causal Outcome context for exact reusable Skill versions. */
+export interface EvolutionExactSkillOutcomeContextRollupView {
+  readonly skillVersionCount: number
+  readonly goalContextCount: number
+  readonly outcomeObservedGoalContextCount: number
+  readonly outcomeUnobservedGoalContextCount: number
+  readonly outcomeAttemptCount: number
+  readonly repeatedOutcomeGoalContextCount: number
+  readonly recoveredGoalContextCount: number
+  readonly ambiguousLatestGoalContextCount: number
+  readonly latest: {
+    readonly passed: number
+    readonly failed: number
+    readonly unknown: number
+  }
+  readonly metrics: EvolutionDeliveryMetricRollupView
+}
+
+/** One exact Skill version's bounded temporal Outcome context without Goal or Session ids. */
+export interface EvolutionExactSkillOutcomeContextEvidenceView {
+  readonly skillName: string
+  readonly invocationContentHash: string
+  readonly generationId?: string
+  readonly useCount: number
+  readonly goalContextCount: number
+  readonly outcomeObservedGoalContextCount: number
+  readonly outcomeUnobservedGoalContextCount: number
+  readonly outcomeAttemptCount: number
+  readonly repeatedOutcomeGoalContextCount: number
+  readonly recoveredGoalContextCount: number
+  readonly ambiguousLatestGoalContextCount: number
+  readonly latest: EvolutionExactSkillOutcomeContextRollupView['latest']
+  readonly metrics: EvolutionDeliveryMetricRollupView
+  readonly attribution: 'same-session-goal-generation-after-use'
+  readonly causalClaim: 'none'
+  readonly improvementClaim: 'none'
+  readonly releaseAuthority: 'none'
+}
+
 /** Client-safe immutable Generation projection. */
 export interface EvolutionGenerationView {
   readonly id: string
@@ -1197,6 +1236,12 @@ export interface EvolutionOverview {
     readonly selected: EvolutionSkillReuseCountsView
     readonly baseline?: EvolutionSkillReuseCountsView
     readonly items: readonly EvolutionSkillReuseEvidenceView[]
+  }
+  readonly skillOutcomeContext?: {
+    readonly all: EvolutionExactSkillOutcomeContextRollupView
+    readonly selected: EvolutionExactSkillOutcomeContextRollupView
+    readonly baseline?: EvolutionExactSkillOutcomeContextRollupView
+    readonly items: readonly EvolutionExactSkillOutcomeContextEvidenceView[]
   }
   readonly feedbackSignals?: {
     readonly all: number

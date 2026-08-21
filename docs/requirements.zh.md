@@ -175,6 +175,13 @@ Workspace 中相同 Skill name/content hash/Generation 覆盖至少两个不同 
 漂移、不同 Generation、失败调用或无 Goal 事件不得合并。该指标只描述使用事实，固定无因果、无发布权；仍需
 Outcome、返工、成本、Retention、负迁移和 paired benchmark 才能判断价值。
 
+跨 Goal exact 版本可以与后续 durable Delivery Outcome 建立**结果上下文**，但不能冒充效果归因。关联必须同时
+满足同 Workspace、Session、Goal、Generation，Outcome 时间不早于第一次 exact use，Goal revision 不倒退；
+否则 abstain。系统保留每个 Goal 的交付 attempt，唯一 latest 为通过且此前存在非通过时只描述为 recovered；
+同一 latest 时间存在冲突结果时拒绝 latest 状态、恢复和指标。指标只取唯一 latest Outcome 中 goal id 精确一致的
+DSH Goal metrics；全量 rollup 与最多 20 行明细分离。该投影固定无因果、无 improvement claim、无发布权，不能
+改变 Candidate、评测、晋升或回滚资格。
+
 ### 3.3 Goal，而不是 Mission
 
 保留 DSH 原生 Goal 作为唯一用户可见的长期目标概念。允许增强 Goal 的完成验证、预算、连续性、常驻监督和崩溃恢复，但不增加 Mission、第二套目标标识、任务 DAG 或平行工作流数据库。

@@ -1233,7 +1233,15 @@ async function waitForCurrentGoal(ctx, agent, goalId) {
 async function seedNativeSkillReuse(ctx, workspace, config, handles) {
   const workspaceId = String(workspace.id)
   const current = await overview(ctx, workspaceId, config.sessionId)
-  if ((current?.skillReuse?.all.crossGoalSkillVersionCount ?? 0) > 0) return
+  const exactContextReady = current?.skillOutcomeContext?.items.some(item =>
+    item.skillName === 'reuse-dsh-evidence'
+      && item.goalContextCount === 2
+      && item.outcomeObservedGoalContextCount === 2
+      && item.outcomeAttemptCount === 3
+      && item.repeatedOutcomeGoalContextCount === 1
+      && item.recoveredGoalContextCount === 1
+      && item.metrics.measured === 2) === true
+  if ((current?.skillReuse?.all.crossGoalSkillVersionCount ?? 0) > 0 && exactContextReady) return
 
   const persistedIds = new Set((await ctx.sessionPersistence.list()).map(header => String(header.id)))
   for (let index = 1; index <= 2; index += 1) {
@@ -1272,8 +1280,8 @@ async function seedNativeSkillReuse(ctx, workspace, config, handles) {
 
     const session = useAgent.session
     const callId = `evoforge-browser-skill-reuse-call-${index}`
+    const goalId = `goal-evoforge-browser-skill-reuse-${index}`
     if (!session.events.some(event => event.type === 'tool/call' && event.data.callId === callId)) {
-      const goalId = `goal-evoforge-browser-skill-reuse-${index}`
       const base = Math.max(Date.now(), (session.events.at(-1)?.time ?? 0) + 100)
       appendAt(session, base, 'goal/change', {
         kind: 'goal/change',
@@ -1290,6 +1298,39 @@ async function seedNativeSkillReuse(ctx, workspace, config, handles) {
         createdAt: base,
         updatedAt: base,
       })
+      appendAt(session, base + 1, 'turn/start', { turn: 1 })
+      appendAt(session, base + 2, 'step/start', { turn: 1, step: 1 })
+      appendAt(session, base + 3, 'user/message', message({
+        role: 'user',
+        content: [{ type: 'text', text: `Use the exact Skill and verify delivery ${index}.` }],
+        source: { kind: 'goal', goalId, revision: 1, round: 1 },
+      }), { surfaceOp: 'append' })
+      const firstToken = appendAt(session, base + 4, 'assistant/chunk', {
+        turn: 1,
+        step: 1,
+        chunk: { type: 'text-delta', index: 0, text: 'Using exact Skill.' },
+      })
+      const usage = {
+        inputTokens: 20 + index,
+        outputTokens: 4 + index,
+        cacheReadTokens: 30 + index,
+        cacheWriteTokens: 2 + index,
+      }
+      const usageChunk = appendAt(session, base + 5, 'assistant/chunk', {
+        turn: 1,
+        step: 1,
+        chunk: { type: 'usage', usage },
+      })
+      appendAt(session, base + 6, 'assistant/message', {
+        turn: 1,
+        step: 1,
+        message: message({
+          role: 'assistant',
+          content: [{ type: 'text', text: 'Using exact Skill.' }],
+          source: { kind: 'model', provider: 'browser-fixture', model: 'browser-fixture' },
+        }),
+        usage,
+      }, { surfaceOp: 'append', sourceEventSeqs: [firstToken.seq, usageChunk.seq] })
       const result = await ctx.tools.execute({
         signal: new AbortController().signal,
         callId,
@@ -1321,6 +1362,58 @@ async function seedNativeSkillReuse(ctx, workspace, config, handles) {
       }, { surfaceOp: 'append', sourceEventSeqs: [call.seq] })
       await ctx.sessions.flush(session)
     }
+
+    const passedCallId = `evoforge-browser-skill-outcome-passed-${index}`
+    if (!session.events.some(event => event.type === 'tool/call' && event.data.callId === passedCallId)) {
+      const base = Math.max(Date.now(), (session.events.at(-1)?.time ?? 0) + 100)
+      let offset = 0
+      if (index === 1) {
+        const failedCallId = 'evoforge-browser-skill-outcome-failed-1'
+        const failedCall = appendAt(session, base, 'tool/call', {
+          turn: 1,
+          step: 1,
+          callId: failedCallId,
+          name: 'complete_delivery',
+          arguments: '{}',
+        })
+        appendAt(session, base + 10, 'tool/result', {
+          turn: 1,
+          step: 1,
+          message: deliveryResultMessage(failedCallId, goalId, 1, 'failed'),
+        }, { surfaceOp: 'append', sourceEventSeqs: [failedCall.seq] })
+        offset = 20
+      }
+      appendAt(session, base + offset, 'goal/change', {
+        kind: 'goal/change',
+        version: 1,
+        operation: 'complete',
+        goal: {
+          id: goalId,
+          revision: 2,
+          objective: `Verify exact Skill reuse evidence ${index}.`,
+          phase: 'complete',
+          maxGoalRounds: 2,
+        },
+        roundsStarted: 1,
+        createdAt: base,
+        updatedAt: base + offset,
+      })
+      const passedCall = appendAt(session, base + offset + 10, 'tool/call', {
+        turn: 1,
+        step: 1,
+        callId: passedCallId,
+        name: 'complete_delivery',
+        arguments: '{}',
+      })
+      appendAt(session, base + offset + 20, 'tool/result', {
+        turn: 1,
+        step: 1,
+        message: deliveryResultMessage(passedCallId, goalId, 2, 'passed'),
+      }, { surfaceOp: 'append', sourceEventSeqs: [passedCall.seq] })
+      appendAt(session, base + offset + 30, 'step/end', { turn: 1, step: 1 })
+      appendAt(session, base + offset + 40, 'turn/end', { turn: 1, reason: { kind: 'completed' } })
+      await ctx.sessions.flush(session)
+    }
   }
 
   await waitFor(ctx, workspaceId, config.sessionId, value =>
@@ -1329,6 +1422,40 @@ async function seedNativeSkillReuse(ctx, workspace, config, handles) {
         && item.goalCount === 2
         && item.status === 'cross-goal-observed') === true,
   'real browser fixture did not expose exact cross-Goal Skill reuse')
+  await waitFor(ctx, workspaceId, config.sessionId, value =>
+    value.skillOutcomeContext?.items.some(item =>
+      item.skillName === 'reuse-dsh-evidence'
+        && item.goalContextCount === 2
+        && item.outcomeObservedGoalContextCount === 2
+        && item.outcomeAttemptCount === 3
+        && item.repeatedOutcomeGoalContextCount === 1
+        && item.recoveredGoalContextCount === 1
+        && item.latest.passed === 2
+        && item.metrics.measured === 2) === true,
+  'real browser fixture did not expose exact later Delivery Outcome context')
+}
+
+function deliveryResultMessage(callId, goalId, revision, status) {
+  return message({
+    role: 'user',
+    source: { kind: 'tool', callId },
+    content: [{
+      type: 'tool-result',
+      toolCallId: callId,
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          schemaVersion: 1,
+          status,
+          reason: status === 'passed'
+            ? 'browser test-owned delivery recovered and passed'
+            : 'browser test-owned first delivery attempt failed',
+          goal: { id: goalId, revision, phase: status === 'passed' ? 'complete' : 'active' },
+        }),
+      }],
+      isError: false,
+    }],
+  })
 }
 
 async function overview(ctx, workspaceId, sessionId) {

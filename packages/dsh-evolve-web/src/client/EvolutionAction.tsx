@@ -1787,6 +1787,11 @@ function ReviewQueue({ overview, busy, inspect, promote, t }: {
       active={overview.active}
       t={t}
     />}
+    {overview.skillOutcomeContext !== undefined && <SkillOutcomeContext
+      context={overview.skillOutcomeContext}
+      active={overview.active}
+      t={t}
+    />}
     {overview.deliveryOutcomes !== undefined && <section>
       <h3 className="dsh-evolve-section-title">{t('section.outcomes')}</h3>
       <ul className="dsh-evolve-list">
@@ -1909,6 +1914,73 @@ function renderSkillReuseCounts(
     + ` · ${counts.goalCount} ${t('skillReuse.goals')}`
     + ` · ${counts.skillVersionCount} ${t('skillReuse.versions')}`
     + ` · ${counts.crossGoalSkillVersionCount} ${t('skillReuse.crossGoal')}`
+}
+
+function SkillOutcomeContext({ context, active, t }: {
+  context: NonNullable<EvolutionOverview['skillOutcomeContext']>
+  active: EvolutionOverview['active']
+  t: (key: string) => string
+}) {
+  const rollups = [
+    { key: 'workspace', label: t('skillOutcomeContext.workspace'), value: context.all },
+    {
+      key: 'selected',
+      label: t(active === undefined ? 'skillOutcomeContext.current' : 'skillOutcomeContext.active'),
+      value: context.selected,
+    },
+    ...(context.baseline === undefined || active === undefined
+      ? []
+      : [{ key: 'baseline', label: t('skillOutcomeContext.parent'), value: context.baseline }]),
+  ]
+  return <section>
+    <h3 className="dsh-evolve-section-title">{t('section.skillOutcomeContext')}</h3>
+    <div className="dsh-evolve-metric-grid">{rollups.map(item => <div
+      className="dsh-evolve-metric-card"
+      key={item.key}
+      role="group"
+      aria-label={item.label}
+    >
+      <div className="dsh-evolve-review-skill">
+        {item.label} · {renderSkillOutcomeContextRollup(item.value, t)}
+      </div>
+    </div>)}</div>
+    {context.items.length > 0 && <ul className="dsh-evolve-list">{context.items.map(item => <li
+      className="dsh-evolve-review"
+      key={`${item.generationId ?? 'native'}:${item.skillName}:${item.invocationContentHash}`}
+    >
+      <div className="dsh-evolve-review-skill">
+        {item.skillName} · {shortId(item.invocationContentHash)} · {item.generationId === undefined
+          ? t('status.native')
+          : shortId(item.generationId)}
+      </div>
+      <div className="dsh-evolve-meta">
+        {item.outcomeAttemptCount} {t('skillOutcomeContext.attempts')}
+        {' · '}{item.repeatedOutcomeGoalContextCount} {t('skillOutcomeContext.repeated')}
+        {' · '}{item.recoveredGoalContextCount} {t('skillOutcomeContext.recovered')}
+        {' · '}{item.ambiguousLatestGoalContextCount} {t('skillOutcomeContext.ambiguous')}
+      </div>
+      <div className="dsh-evolve-meta">
+        {t('skillOutcomeContext.latest')} · {item.latest.passed} {t('outcomes.passed')}
+        {' · '}{item.latest.failed} {t('outcomes.failed')}
+        {' · '}{item.latest.unknown} {t('outcomes.unknown')}
+      </div>
+      <OutcomeMetricRollup
+        label={t('skillOutcomeContext.metrics')}
+        value={item.metrics}
+        t={t}
+      />
+    </li>)}</ul>}
+    <p className="dsh-evolve-meta">{t('skillOutcomeContext.disclaimer')}</p>
+  </section>
+}
+
+function renderSkillOutcomeContextRollup(
+  value: NonNullable<EvolutionOverview['skillOutcomeContext']>['all'],
+  t: (key: string) => string,
+): string {
+  return `${value.skillVersionCount} ${t('skillOutcomeContext.versions')}`
+    + ` · ${value.outcomeObservedGoalContextCount}/${value.goalContextCount} ${t('skillOutcomeContext.observed')}`
+    + ` · ${value.outcomeUnobservedGoalContextCount} ${t('skillOutcomeContext.missing')}`
 }
 
 function renderOutcomeCounts(

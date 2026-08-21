@@ -122,6 +122,10 @@ _Avoid_: Skill popularity, model-reported use, live Tool event, success vote
 A Workspace aggregate formed only when Exact Skill Uses for the same Skill name, content hash, and Generation span at least two distinct native Goals. It proves repeated use across Goals, not correctness, retention, improvement, or permission to author or promote a Candidate.
 _Avoid_: Invocation count, same-Goal retry, name-only reuse, improvement claim
 
+**Exact Skill Outcome Context**:
+A non-causal association between one exact cross-Goal Skill version and later durable Delivery Outcomes from the same native Session, Goal, and Generation. It preserves repeated attempts, recovered delivery, missing outcomes, ambiguous latest facts, and measured cost/latency without claiming the Skill caused any result.
+_Avoid_: Skill success rate, effect estimate, rework attribution, improvement proof, promotion vote
+
 **Existing Skill Improvement Opportunity**:
 A deterministic, Workspace-scoped investigation created only when one exact Skill name and invocation-content hash receives explicit negative corrections across at least two distinct native Goals. Duplicate signals, same-Goal retries, legacy no-hash attribution, and same-name different-content versions do not merge. It is not a Skill Opportunity for missing capability and never grants authoring, evaluation, installation, activation, or release authority; a separate Existing Skill Baseline Qualification must prove that every exact correction invocation used the same complete package.
 _Avoid_: Name-only clustering, correction-as-causality, capability-absent baseline, partial Skill snapshot, Candidate permission

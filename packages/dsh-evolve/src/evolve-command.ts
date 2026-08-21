@@ -11,6 +11,10 @@ import type {
   FeedbackSignalSummary,
 } from './feedback-signal-monitor.ts'
 import type { SkillReuseSummary, SkillUseStore } from './skill-use-monitor.ts'
+import type {
+  ExactSkillOutcomeContextReader,
+  ExactSkillOutcomeContextSummary,
+} from './skill-outcome-context.ts'
 import type { FutureSessionPromotion } from './future-session-promotion.ts'
 import type { FutureSessionRollback } from './future-session-rollback.ts'
 import type {
@@ -31,6 +35,7 @@ export interface EvolutionCommandModules {
   readonly resident?: Pick<ResidentEvolutionControl, 'isPaused' | 'pause' | 'resume'>
   readonly outcomes?: Pick<DeliveryOutcomeStore, 'summarize'>
   readonly skillUses?: Pick<SkillUseStore, 'summarize'>
+  readonly skillOutcomeContext?: Pick<ExactSkillOutcomeContextReader, 'summarize'>
   readonly feedback?: Pick<FeedbackSignalStore, 'list' | 'summarize'>
 }
 
@@ -71,6 +76,7 @@ export async function executeEvolutionCommand(
     resident,
     outcomes,
     skillUses,
+    skillOutcomeContext,
     feedback,
   } = modules
   try {
@@ -87,6 +93,13 @@ export async function executeEvolutionCommand(
             : active.parentId === undefined ? {} : { baselineGenerationId: active.parentId },
         ),
         skillUses?.summarize(
+          workspaceId,
+          active?.id,
+          active === undefined
+            ? undefined
+            : active.parentId === undefined ? {} : { baselineGenerationId: active.parentId },
+        ),
+        skillOutcomeContext?.summarize(
           workspaceId,
           active?.id,
           active === undefined
@@ -439,6 +452,7 @@ function renderStatus(
   recoveryPaused?: boolean,
   outcomeSummary?: DeliveryOutcomeSummary,
   skillReuseSummary?: SkillReuseSummary,
+  skillOutcomeContext?: ExactSkillOutcomeContextSummary,
   feedbackSummary?: FeedbackSignalSummary,
 ): CommandResult {
   const recovery = recoveryPaused === undefined
@@ -469,6 +483,13 @@ function renderStatus(
   const feedback = feedbackSummary === undefined
     ? []
     : [`Explicit feedback signals: ${feedbackSummary.all} retained (${feedbackSummary.selected} active selection)`]
+  const outcomeContext = skillOutcomeContext === undefined
+    ? []
+    : [
+        `Exact Skill outcome context: ${renderSkillOutcomeContext(skillOutcomeContext.all)}`,
+        `Latest durable outcomes: ${skillOutcomeContext.all.latest.passed} passed, ${skillOutcomeContext.all.latest.failed} failed, ${skillOutcomeContext.all.latest.unknown} unknown.`,
+        'Outcome context is temporal and non-causal; it grants no Candidate or promotion authority.',
+      ]
   if (active === undefined) {
     return {
       kind: 'success',
@@ -478,6 +499,7 @@ function renderStatus(
         ...recovery,
         ...delivery,
         ...reuse,
+        ...outcomeContext,
         ...feedback,
         'Future Sessions will use native capabilities.',
         '',
@@ -493,6 +515,7 @@ function renderStatus(
       ...recovery,
       ...delivery,
       ...reuse,
+      ...outcomeContext,
       ...feedback,
       `Rollback target: ${active.parentId ?? 'native DSH'}`,
       'Artifacts:',
@@ -510,6 +533,15 @@ function renderStatus(
 function renderSkillReuseCounts(counts: SkillReuseSummary['all']): string {
   return `${counts.useCount} uses across ${counts.goalCount} Goals; `
     + `${counts.crossGoalSkillVersionCount} cross-Goal versions`
+}
+
+function renderSkillOutcomeContext(context: ExactSkillOutcomeContextSummary['all']): string {
+  return `${context.skillVersionCount} versions; `
+    + `${context.outcomeObservedGoalContextCount}/${context.goalContextCount} Goal contexts observed; `
+    + `${context.outcomeAttemptCount} attempts; `
+    + `${context.repeatedOutcomeGoalContextCount} repeated; `
+    + `${context.recoveredGoalContextCount} recovered; `
+    + `${context.ambiguousLatestGoalContextCount} ambiguous latest.`
 }
 
 function renderOutcomeCounts(counts: DeliveryOutcomeSummary['all']): string {

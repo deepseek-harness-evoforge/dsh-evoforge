@@ -163,6 +163,30 @@ function remote(
         releaseAuthority: 'none' as const,
       }],
     },
+    skillOutcomeContext: {
+      all: webOutcomeContextRollup(1, 3, 2, 1, 3, 1, 1),
+      selected: webOutcomeContextRollup(1, 3, 2, 1, 3, 1, 1),
+      baseline: webOutcomeContextRollup(0, 0, 0, 0, 0, 0, 0),
+      items: [{
+        skillName: 'build-dsh-plugin',
+        invocationContentHash: '1'.repeat(64),
+        generationId,
+        useCount: 3,
+        goalContextCount: 2,
+        outcomeObservedGoalContextCount: 2,
+        outcomeUnobservedGoalContextCount: 0,
+        outcomeAttemptCount: 3,
+        repeatedOutcomeGoalContextCount: 1,
+        recoveredGoalContextCount: 1,
+        ambiguousLatestGoalContextCount: 0,
+        latest: { passed: 1, failed: 0, unknown: 1 },
+        metrics: webMetricRollup(2, 0, 2),
+        attribution: 'same-session-goal-generation-after-use' as const,
+        causalClaim: 'none' as const,
+        improvementClaim: 'none' as const,
+        releaseAuthority: 'none' as const,
+      }],
+    },
   })
   return {
     overview: vi.fn((requestedWorkspaceId: string) => success({
@@ -541,6 +565,21 @@ const t = (key: string) => ({
   'skillReuse.status.observed': 'Observed once',
   'skillReuse.status.cross-goal-observed': 'Cross-Goal observed',
   'skillReuse.disclaimer': 'Durable invocation reuse is descriptive; it does not prove task success, improvement, retention, or promotion eligibility.',
+  'section.skillOutcomeContext': 'Exact Skill Outcome Context',
+  'skillOutcomeContext.workspace': 'Workspace outcome context',
+  'skillOutcomeContext.active': 'Active outcome context',
+  'skillOutcomeContext.current': 'Current selection outcome context',
+  'skillOutcomeContext.parent': 'Parent outcome context',
+  'skillOutcomeContext.versions': 'exact reused versions',
+  'skillOutcomeContext.observed': 'Goal contexts with outcomes',
+  'skillOutcomeContext.missing': 'without outcome',
+  'skillOutcomeContext.attempts': 'delivery attempts',
+  'skillOutcomeContext.repeated': 'repeated Goals',
+  'skillOutcomeContext.recovered': 'recovered Goals',
+  'skillOutcomeContext.ambiguous': 'ambiguous latest',
+  'skillOutcomeContext.latest': 'Latest',
+  'skillOutcomeContext.metrics': 'Latest-outcome metrics',
+  'skillOutcomeContext.disclaimer': 'Same-Session/Goal/Generation timing is context only; it does not prove the Skill caused success, rework, recovery, or improvement and grants no release authority.',
   'outcomes.active': 'Active',
   'outcomes.current': 'Current selection',
   'outcomes.parent': 'Parent',
@@ -1700,10 +1739,29 @@ describe('EvolutionAction', () => {
     expect(await screen.findByText('Exact cross-Goal Skill reuse')).toBeTruthy()
     expect(screen.getByText(/Active reuse · 4 uses · 3 Goals · 2 exact Skill versions · 1 cross-Goal reused/)).toBeTruthy()
     expect(screen.getByText(/Parent reuse · 1 uses · 1 Goals · 1 exact Skill versions · 0 cross-Goal reused/)).toBeTruthy()
-    expect(screen.getByText(/build-dsh-plugin · 11111111… · aaaaaaaa…/)).toBeTruthy()
+    const section = screen.getByText('Exact cross-Goal Skill reuse').closest('section')!
+    expect(within(section).getByText(/build-dsh-plugin · 11111111… · aaaaaaaa…/)).toBeTruthy()
     expect(screen.getByText(/3 uses · 2 Goals · model 2 · user 1 · Cross-Goal observed/)).toBeTruthy()
     expect(screen.getByText(
       'Durable invocation reuse is descriptive; it does not prove task success, improvement, retention, or promotion eligibility.',
+    )).toBeTruthy()
+  })
+
+  it('shows later durable Outcome context without turning temporal association into Skill success', async () => {
+    const api = remote(true)
+    renderEvolution(api)
+    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
+    await selectAdvanced()
+
+    const section = (await screen.findByText('Exact Skill Outcome Context')).closest('section')!
+    expect(within(section).getByText(/Active outcome context · 1 exact reused versions · 2\/3 Goal contexts with outcomes · 1 without outcome/)).toBeTruthy()
+    expect(within(section).getByText(/build-dsh-plugin · 11111111… · aaaaaaaa…/)).toBeTruthy()
+    expect(within(section).getByText(/3 delivery attempts · 1 repeated Goals · 1 recovered Goals · 0 ambiguous latest/)).toBeTruthy()
+    expect(within(section).getByText(/Latest · 1 passed · 0 failed · 1 unknown/)).toBeTruthy()
+    const metrics = within(section).getByRole('group', { name: 'Latest-outcome metrics' })
+    expect(within(metrics).getByText(/60 uncached input · 18 output · cache read 140 · cache write 10/)).toBeTruthy()
+    expect(within(section).getByText(
+      'Same-Session/Goal/Generation timing is context only; it does not prove the Skill caused success, rework, recovery, or improvement and grants no release authority.',
     )).toBeTruthy()
   })
 
@@ -1862,6 +1920,33 @@ function webMetricRollup(measured: number, unmeasured: number, factor: number) {
       Object.entries(metrics.latency).map(([key, value]) => [key, value * factor]),
     ) as typeof metrics.latency,
     monetaryCost: metrics.monetaryCost,
+  }
+}
+
+function webOutcomeContextRollup(
+  skillVersionCount: number,
+  goalContextCount: number,
+  outcomeObservedGoalContextCount: number,
+  outcomeUnobservedGoalContextCount: number,
+  outcomeAttemptCount: number,
+  repeatedOutcomeGoalContextCount: number,
+  recoveredGoalContextCount: number,
+) {
+  return {
+    skillVersionCount,
+    goalContextCount,
+    outcomeObservedGoalContextCount,
+    outcomeUnobservedGoalContextCount,
+    outcomeAttemptCount,
+    repeatedOutcomeGoalContextCount,
+    recoveredGoalContextCount,
+    ambiguousLatestGoalContextCount: 0,
+    latest: {
+      passed: skillVersionCount,
+      failed: 0,
+      unknown: skillVersionCount,
+    },
+    metrics: webMetricRollup(skillVersionCount * 2, 0, skillVersionCount * 2),
   }
 }
 

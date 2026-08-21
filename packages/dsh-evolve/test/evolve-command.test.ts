@@ -341,11 +341,19 @@ describe('/evolve host command', () => {
         items: [],
       })),
     } as unknown as SkillUseStore
+    const skillOutcomeContext = {
+      summarize: vi.fn(() => ({
+        all: commandOutcomeContextRollup(),
+        selected: commandOutcomeContextRollup(),
+        baseline: commandOutcomeContextRollup({ empty: true }),
+        items: [],
+      })),
+    }
 
     const status = await executeEvolutionCommand(
       fakeStore(generation(rootId, childId)),
       'status',
-      { outcomes, skillUses },
+      { outcomes, skillUses, skillOutcomeContext },
     )
     expect(status).toMatchObject({
       kind: 'success',
@@ -356,6 +364,13 @@ describe('/evolve host command', () => {
     expect(status.text).toContain('Exact Skill reuse: 5 uses across 4 Goals; 1 cross-Goal versions')
     expect(status.text).toContain('Active selection reuse: 4 uses across 3 Goals; 1 cross-Goal versions')
     expect(status.text).toContain('Reuse is descriptive and grants no Candidate or promotion authority.')
+    expect(status.text).toContain(
+      'Exact Skill outcome context: 1 versions; 2/3 Goal contexts observed; 3 attempts; 1 repeated; 1 recovered; 0 ambiguous latest.',
+    )
+    expect(status.text).toContain('Latest durable outcomes: 1 passed, 0 failed, 1 unknown.')
+    expect(status.text).toContain(
+      'Outcome context is temporal and non-causal; it grants no Candidate or promotion authority.',
+    )
 
     const store = fakeStore(undefined, {
       promoteGeneration: vi.fn(async () => { throw new Error(`Generation '${rootId}' does not exist`) }),
@@ -369,6 +384,43 @@ describe('/evolve host command', () => {
     })
   })
 })
+
+function commandOutcomeContextRollup(options: { empty?: boolean } = {}) {
+  const value = options.empty === true ? 0 : 1
+  return {
+    skillVersionCount: value,
+    goalContextCount: value * 3,
+    outcomeObservedGoalContextCount: value * 2,
+    outcomeUnobservedGoalContextCount: value,
+    outcomeAttemptCount: value * 3,
+    repeatedOutcomeGoalContextCount: value,
+    recoveredGoalContextCount: value,
+    ambiguousLatestGoalContextCount: 0,
+    latest: { passed: value, failed: 0, unknown: value },
+    metrics: {
+      measured: value * 2,
+      unmeasured: 0,
+      attributedTurns: value * 2,
+      closedSteps: value * 2,
+      activeWallMs: value * 2,
+      providerUsage: {
+        uncachedInputTokens: value * 2,
+        outputTokens: value * 2,
+        cacheReadTokens: value * 2,
+        cacheWriteTokens: value * 2,
+      },
+      latency: {
+        llmMs: value * 2,
+        toolMs: value * 2,
+        ttftMs: value * 2,
+        ttftSteps: value * 2,
+        decodeMs: value * 2,
+        decodeTokens: value * 2,
+      },
+      monetaryCost: { status: 'unavailable' as const, reason: 'provider-price-not-projected' as const },
+    },
+  }
+}
 
 function generation(id: string, parentId?: string): CapabilityGeneration {
   return {

@@ -62,6 +62,7 @@ import {
   installSkillUseMonitor,
   openSkillUseStore,
 } from './skill-use-monitor.ts'
+import { ExactSkillOutcomeContextProjection } from './skill-outcome-context.ts'
 import { DurableFeedbackAttribution } from './durable-feedback-attribution.ts'
 import { InstalledSkillBaselineVault } from './installed-skill-baseline.ts'
 import { installInstalledSkillBaselineMonitor } from './installed-skill-baseline-monitor.ts'
@@ -159,6 +160,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const deliveryOutcomes = await openDeliveryOutcomeStore(ctx.storageDomain)
   const feedbackSignals = await openFeedbackSignalStore(ctx.storageDomain)
   const skillUses = await openSkillUseStore(ctx.storageDomain)
+  const skillOutcomeContext = new ExactSkillOutcomeContextProjection(skillUses, deliveryOutcomes)
   const capabilityGaps = await openCapabilityGapStore(ctx.storageDomain)
   const skillOpportunities = new ExperienceDrivenSkillOpportunityDiscovery(capabilityGaps, {
     feedback: feedbackSignals,
@@ -669,6 +671,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     ...(resident === undefined ? {} : { resident }),
     outcomes: deliveryOutcomes,
     skillUses,
+    skillOutcomeContext,
     feedback: feedbackSignals,
   })
   new EvolutionRemoteService(ctx, control)
@@ -680,6 +683,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     ...(resident === undefined ? {} : { resident }),
     outcomes: deliveryOutcomes,
     skillUses,
+    skillOutcomeContext,
     feedback: feedbackSignals,
   })
   ctx.inject(['sessionPersistence'], (attributionCtx) => {
@@ -996,6 +1000,16 @@ export type {
   SkillUseMonitor,
   SkillUseStore,
 } from './skill-use-monitor.ts'
+export {
+  ExactSkillOutcomeContextProjection,
+  summarizeExactSkillOutcomeContext,
+} from './skill-outcome-context.ts'
+export type {
+  ExactSkillOutcomeContextEvidence,
+  ExactSkillOutcomeContextReader,
+  ExactSkillOutcomeContextRollup,
+  ExactSkillOutcomeContextSummary,
+} from './skill-outcome-context.ts'
 export { EvolutionControlPlane } from './evolution-control-plane.ts'
 export { FutureSessionPromotion } from './future-session-promotion.ts'
 export type {
@@ -1042,4 +1056,6 @@ export type {
   EvolutionReviewView,
   EvolutionSkillReuseCountsView,
   EvolutionSkillReuseEvidenceView,
+  EvolutionExactSkillOutcomeContextEvidenceView,
+  EvolutionExactSkillOutcomeContextRollupView,
 } from './control-types.ts'
