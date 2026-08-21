@@ -35,6 +35,13 @@ V5.6 按 [ADR-0091](adr/0091-feishu-content-readiness-is-host-authoritative.md) 
 真实 DSH Web 验证权限/Tool/Approval、人工刷新、Host 停机清除旧快照、同端口无 reload 恢复和 console
 error 0。详见 [V5.6 证据](evidence/v5-6-feishu-content-readiness-web.zh.md)。该门未调用真实飞书内容 API。
 
+V4.50 按 [ADR-0092](adr/0092-skill-reuse-is-bound-to-exact-content-generation-and-goal.md) 增加 Host 权威的
+Exact Skill Use 与 Cross-Goal Skill Reuse。成功原生 Skill 调用只有在官方 Session flush 后才绑定 active Goal、
+模型可见内容哈希和 Session-pinned Generation；相同 exact 版本至少跨两个 Goal 才显示复用，同 Goal retry、失败、
+内容或 Generation 漂移均不合并。最终 tarball 已在全新 profile 的真实 DSH Web 验证 2 uses/2 Goals、整页刷新、
+Host 冷启动恢复、合法 Session readback 与官方卸载。详见 [V4.50 证据](evidence/v4-50-exact-cross-goal-skill-reuse.zh.md)。
+该门固定无因果、无发布权，不证明成功、提升、Retention 或整体自进化完成。
+
 V4.19 贯穿红测发现 V4.18 把治理生成的 admission/holdout 都标成 assembled，导致确定性 Admission 固定返回 `assembled-evaluator-not-governance-separated`；现已按 [ADR-0063](adr/0063-governance-splits-deterministic-admission-from-assembled-holdout.md) 修成“不执行 Candidate 的 deterministic admission → 独立 assembled holdout”。治理 budget deny 持久化为 `budget-deferred`，作者调用异常后立即持久化 `uncertain`；Host/Web 只读展示 phase、0–2 次调用、token、retry 与脱敏失败分类，仍不暴露 protected Goal、evaluator、provider identity 或路径。详见 [V4.19 证据](evidence/v4-19-governance-admission-handoff.zh.md)。本机没有两套独立真实 provider 配置，因此状态仍是 `implemented`，不能升级为真实 provider `verified`。
 
 V4.20 按 [ADR-0064](adr/0064-corrections-require-exact-durable-skill-invocation.md) 删除 correction 的 same-Session/unique-Gap 猜测：Host 从 feedback 目标回答的 durable turn 解析唯一成功 Skill invocation 和 exact Goal id/revision，歧义即 abstain；Signal 跨 Storage restart 保留有界身份，Web 分开展示 exact correction attribution 与非因果 Delivery Outcome association。详见 [V4.20 证据](evidence/v4-20-exact-durable-feedback-attribution.zh.md)。该增量没有把 correction 扩权为 Opportunity 资格或 Candidate，也没有完成 existing-Skill 再进化。
@@ -99,6 +106,7 @@ V4.49 从最终 `dsh-evolve`/`dsh-evolve-web` tarball 和全新 DSH profile 验�
 | Software Delivery P2A–P2D | `implemented` | 真实 Git、原生 Tool/Goal、Draft PR、checks；Outcome 只从 source-linked Session call/result pair 读取，经官方 durability checkpoint 后投影，并可在 cold Session start 幂等补记；十一包 clean-profile 内从 packed Tool 完成原生 Goal | 真实长期任务与 checkpoint 前 hard kill、checkpoint 后投影前 kill 的跨进程故障注入 |
 | GitHub Review Follow-up P3.2 | `implemented` | exact-head allowlist、bounded follow-up、重启去重、cache parity | 真实 reviewer 返修闭环和多日 resident |
 | Web Control Plane | `verified` | packed artifact、真实 DSH Workspace/Host/Client Module；浏览器 pause→Host restart→persisted pause→resume/refresh；Goal metrics 的 Workspace/current/baseline 聚合和最近证据来自 Host 权威 Remote；最终 tarball clean-profile 中以四个原生 DSH Session/Goal 形成 Opportunity，显示 `ready-to-seal`、2/1/1 分割、目标正文保护和零 Candidate；在线刷新、断线保留最后快照并 fail visible、同 profile 恢复、Outcome 幂等 1→1，console error 0 | 陌生用户可用性、真实 provider 价格与长期数据 |
+| Exact 跨 Goal Skill 复用证据 | `verified` | [V4.50](evidence/v4-50-exact-cross-goal-skill-reuse.zh.md)：真实原生 Skill Tool、Session durability、active Goal、exact 内容哈希/Generation 分桶、持久重放；最终 tarball Web 2 uses/2 Goals、reload、Host 冷启动、合法 Session readback 与官方卸载 | 真实用户任务、Outcome/返工/成本因果、负迁移、保持率与 paired benchmark |
 | Runtime Readiness | `implemented` | 原生 Loader/Command、tarball 生命周期 | v0.1 全包诊断和陌生安装数据 |
 | Telegram 单私聊 | `implemented` | 已迁移 DSH Gateway；真实 DSH Workspace/Agent Loop、Commands、Approval、Goal/Schedule、Gateway durable ingress/outbound、cache parity、联合 tarball lifecycle；私有 Delivery Store 已删除；真实 assembled long-poll failure→Gateway `degraded`→成功 poll→`ready` | 真实 Bot 冒烟和多日证据 |
 | Evolve Channel Attention | `implemented` | Telegram/飞书 Candidate review/inactive promotion decision、concrete routes、显式 Workspace、durable notice、request parity；Evaluator Draft 表面已删除；进入十一包总装 | 真实渠道验证与多日移动端数据 |
@@ -112,8 +120,8 @@ V4.49 从最终 `dsh-evolve`/`dsh-evolve-web` tarball 和全新 DSH profile 验�
 ## 当前可安装面
 
 当前 `main` 增量通过根级 `pnpm check`（文档、全包 typecheck、测试和构建）；其中
-`dsh-gateway` 7 files/24 tests、`dsh-evolve-web` 2 files/22 tests、`dsh-evolve-attention` 4 files/11 tests、
-`dsh-feishu` 17 files/48 tests，`dsh-evolve` 64 files/284 tests passed、1 file/1 test skipped；根级累计 529 tests passed、3 skipped。Cache Contract 全通过；Doctor 十一包
+`dsh-gateway` 7 files/24 tests、`dsh-evolve-web` 2 files/23 tests、`dsh-evolve-attention` 4 files/11 tests、
+`dsh-feishu` 17 files/48 tests，`dsh-evolve` 66 files/287 tests passed、1 file/1 test skipped；根级累计 533 tests passed、3 skipped。Cache Contract 全通过；Doctor 十一包
 原生合同 22/22，十一包 clean-profile 最终 tarball 的 add/dump/boot/真实
 Session+Goal+Storage+Tool/dispose/remove/reboot/readback 1/1（60.96 秒）；独立 Doctor packed
 add/Loader/command/remove 1/1（10.35 秒）。V4.24 删除旧浏览器 acceptance fixture，并用 DSH Web 组件测试固定“纠正进入

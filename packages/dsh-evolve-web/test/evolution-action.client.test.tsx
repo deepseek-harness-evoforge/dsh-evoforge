@@ -145,6 +145,24 @@ function remote(
         }],
       },
     },
+    skillReuse: {
+      all: { useCount: 5, goalCount: 4, skillVersionCount: 3, crossGoalSkillVersionCount: 1 },
+      selected: { useCount: 4, goalCount: 3, skillVersionCount: 2, crossGoalSkillVersionCount: 1 },
+      baseline: { useCount: 1, goalCount: 1, skillVersionCount: 1, crossGoalSkillVersionCount: 0 },
+      items: [{
+        skillName: 'build-dsh-plugin',
+        invocationContentHash: '1'.repeat(64),
+        generationId,
+        useCount: 3,
+        goalCount: 2,
+        routes: { userExplicit: 1, modelTool: 2 },
+        firstObservedAt: 1_786_896_000_100,
+        lastObservedAt: 1_786_896_000_300,
+        status: 'cross-goal-observed' as const,
+        causalClaim: 'none' as const,
+        releaseAuthority: 'none' as const,
+      }],
+    },
   })
   return {
     overview: vi.fn((requestedWorkspaceId: string) => success({
@@ -509,6 +527,20 @@ const t = (key: string) => ({
   'action.cancel': 'Cancel',
   'field.note': 'Decision note',
   'section.outcomes': 'Observed delivery outcomes',
+  'section.skillReuse': 'Exact cross-Goal Skill reuse',
+  'skillReuse.workspace': 'Workspace reuse',
+  'skillReuse.active': 'Active reuse',
+  'skillReuse.current': 'Current selection reuse',
+  'skillReuse.parent': 'Parent reuse',
+  'skillReuse.uses': 'uses',
+  'skillReuse.goals': 'Goals',
+  'skillReuse.versions': 'exact Skill versions',
+  'skillReuse.crossGoal': 'cross-Goal reused',
+  'skillReuse.route.model': 'model',
+  'skillReuse.route.user': 'user',
+  'skillReuse.status.observed': 'Observed once',
+  'skillReuse.status.cross-goal-observed': 'Cross-Goal observed',
+  'skillReuse.disclaimer': 'Durable invocation reuse is descriptive; it does not prove task success, improvement, retention, or promotion eligibility.',
   'outcomes.active': 'Active',
   'outcomes.current': 'Current selection',
   'outcomes.parent': 'Parent',
@@ -1656,6 +1688,22 @@ describe('EvolutionAction', () => {
     expect(screen.getByText('Provider price is unavailable; monetary cost is not inferred.')).toBeTruthy()
     expect(screen.getByText(
       'Observed counts are descriptive; they do not prove that a Generation caused the difference.',
+    )).toBeTruthy()
+  })
+
+  it('shows exact cross-Goal Skill reuse without turning invocation counts into a value claim', async () => {
+    const api = remote(true)
+    renderEvolution(api)
+    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
+    await selectAdvanced()
+
+    expect(await screen.findByText('Exact cross-Goal Skill reuse')).toBeTruthy()
+    expect(screen.getByText(/Active reuse · 4 uses · 3 Goals · 2 exact Skill versions · 1 cross-Goal reused/)).toBeTruthy()
+    expect(screen.getByText(/Parent reuse · 1 uses · 1 Goals · 1 exact Skill versions · 0 cross-Goal reused/)).toBeTruthy()
+    expect(screen.getByText(/build-dsh-plugin · 11111111… · aaaaaaaa…/)).toBeTruthy()
+    expect(screen.getByText(/3 uses · 2 Goals · model 2 · user 1 · Cross-Goal observed/)).toBeTruthy()
+    expect(screen.getByText(
+      'Durable invocation reuse is descriptive; it does not prove task success, improvement, retention, or promotion eligibility.',
     )).toBeTruthy()
   })
 

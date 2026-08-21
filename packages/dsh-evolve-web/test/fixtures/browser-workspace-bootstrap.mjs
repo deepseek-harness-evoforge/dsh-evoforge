@@ -17,6 +17,7 @@ export const inject = [
   'sessions',
   'sessionPersistence',
   'storageDomain',
+  'tools',
   'workspaceRegistry',
 ]
 
@@ -135,6 +136,10 @@ export async function apply(ctx, config) {
   if (config.seedGoalMetrics === true) {
     await seedNativeGoalMetrics(ctx, workspace, agent)
   }
+  const skillReuseHandles = []
+  if (config.seedSkillReuse === true) {
+    await seedNativeSkillReuse(ctx, workspace, config, skillReuseHandles)
+  }
   const capabilityHandles = []
   const capabilitySeedTask = config.seedCapabilityGaps === true
     ? new Promise(resolve => setTimeout(resolve, 0))
@@ -150,6 +155,7 @@ export async function apply(ctx, config) {
   })
   ctx.effect(() => async () => {
     await capabilitySeedTask?.catch(() => undefined)
+    for (const skillReuseHandle of skillReuseHandles.reverse()) await skillReuseHandle.dispose()
     for (const capabilityHandle of capabilityHandles.reverse()) await capabilityHandle.dispose()
     await evolutionFiber.dispose()
     await handle?.dispose()
@@ -1217,6 +1223,112 @@ async function waitForCurrentGoal(ctx, agent, goalId) {
     await new Promise(resolve => setTimeout(resolve, 20))
   }
   throw new Error(`real browser fixture did not activate native Goal ${goalId}`)
+}
+
+/**
+ * Execute one real native DSH Skill Tool in two Goal-owned Sessions. The
+ * fixture writes only native Session events; the installed Host owns the
+ * durable exact-use projection and cross-Goal aggregation.
+ */
+async function seedNativeSkillReuse(ctx, workspace, config, handles) {
+  const workspaceId = String(workspace.id)
+  const current = await overview(ctx, workspaceId, config.sessionId)
+  if ((current?.skillReuse?.all.crossGoalSkillVersionCount ?? 0) > 0) return
+
+  const persistedIds = new Set((await ctx.sessionPersistence.list()).map(header => String(header.id)))
+  for (let index = 1; index <= 2; index += 1) {
+    const sessionId = `evoforge-browser-skill-reuse-${index}`
+    let useAgent = ctx.agents.get(sessionId)
+    if (useAgent === undefined) {
+      const common = {
+        agentOptions: { provider: 'deepseek-official', model: 'deepseek-v4-flash' },
+        setup: agentCtx => ctx.agentPresets.mount(agentCtx, config.agentPreset).then(() => undefined),
+      }
+      const handle = persistedIds.has(sessionId)
+        ? await ctx.agents.resume({ resumeSessionId: sessionId, ...common })
+        : await ctx.agents.create({
+            sessionId,
+            meta: { cwd: workspace.path, agentPreset: config.agentPreset },
+            ...common,
+          })
+      handles.push(handle)
+      useAgent = handle.agent
+    }
+    await workspace.attachSession(useAgent.session.id)
+    const skills = useAgent.ctx.get('skills')
+    if (skills === undefined) throw new Error('real browser fixture has no Agent-scoped Skill registry')
+    skills.register({
+      name: 'reuse-dsh-evidence',
+      description: 'Verify durable cross-Goal Skill reuse evidence.',
+      source: 'browser-test-owned',
+      content: 'Use the same exact native Skill content in independent DSH Goals.',
+    })
+    const { agentEvents } = await import(pathToFileURL(config.agentEntry).href)
+    await agentEvents(ctx, useAgent).waterfall(
+      'agent/pre-step',
+      { messages: [], turn: 1, step: 1, signal: new AbortController().signal },
+      () => Promise.resolve({ kind: 'enter', messages: [] }),
+    )
+
+    const session = useAgent.session
+    const callId = `evoforge-browser-skill-reuse-call-${index}`
+    if (!session.events.some(event => event.type === 'tool/call' && event.data.callId === callId)) {
+      const goalId = `goal-evoforge-browser-skill-reuse-${index}`
+      const base = Math.max(Date.now(), (session.events.at(-1)?.time ?? 0) + 100)
+      appendAt(session, base, 'goal/change', {
+        kind: 'goal/change',
+        version: 1,
+        operation: 'create',
+        goal: {
+          id: goalId,
+          revision: 1,
+          objective: `Verify exact Skill reuse evidence ${index}.`,
+          phase: 'active',
+          maxGoalRounds: 2,
+        },
+        roundsStarted: 0,
+        createdAt: base,
+        updatedAt: base,
+      })
+      const result = await ctx.tools.execute({
+        signal: new AbortController().signal,
+        callId,
+        name: 'skill',
+        arguments: { name: 'reuse-dsh-evidence' },
+        agent: useAgent,
+      })
+      if (result.isError) throw new Error('real browser fixture native Skill Tool failed')
+      const call = appendAt(session, base + 10, 'tool/call', {
+        turn: 1,
+        step: 1,
+        callId,
+        name: 'skill',
+        arguments: '{"name":"reuse-dsh-evidence"}',
+      })
+      appendAt(session, base + 20, 'tool/result', {
+        turn: 1,
+        step: 1,
+        message: message({
+          role: 'user',
+          source: { kind: 'tool', callId },
+          content: [{
+            type: 'tool-result',
+            toolCallId: callId,
+            content: result.content,
+            isError: false,
+          }],
+        }),
+      }, { surfaceOp: 'append', sourceEventSeqs: [call.seq] })
+      await ctx.sessions.flush(session)
+    }
+  }
+
+  await waitFor(ctx, workspaceId, config.sessionId, value =>
+    value.skillReuse?.items.some(item =>
+      item.skillName === 'reuse-dsh-evidence'
+        && item.goalCount === 2
+        && item.status === 'cross-goal-observed') === true,
+  'real browser fixture did not expose exact cross-Goal Skill reuse')
 }
 
 async function overview(ctx, workspaceId, sessionId) {

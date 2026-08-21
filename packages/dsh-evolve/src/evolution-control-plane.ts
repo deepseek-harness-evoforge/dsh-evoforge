@@ -5,6 +5,7 @@ import type {
   CounterfactualCanaryScan,
 } from './counterfactual-canary.ts'
 import type { FeedbackSignalStore } from './feedback-signal-monitor.ts'
+import type { SkillUseStore } from './skill-use-monitor.ts'
 import type { CapabilityGapStore } from './capability-gap-store.ts'
 import type {
   ExistingSkillBaselineQualificationResult,
@@ -81,6 +82,7 @@ export interface EvolutionControlPlaneModules {
   }
   readonly resident?: Pick<ResidentEvolutionControl, 'isPaused' | 'pause' | 'resume'>
   readonly outcomes?: Pick<DeliveryOutcomeStore, 'summarize'>
+  readonly skillUses?: Pick<SkillUseStore, 'summarize'>
   readonly feedback?: Pick<FeedbackSignalStore, 'summarize'>
   readonly capabilities?: {
     readonly snapshot: (workspaceId: string, sessionId?: string) => EvolutionCapabilityMapView
@@ -436,6 +438,17 @@ export class EvolutionControlPlane {
         ? {}
         : {
             deliveryOutcomes: cloneOutcomeSummary(this.modules.outcomes.summarize(
+              workspaceId,
+              active?.id,
+              active === undefined
+                ? undefined
+                : active.parentId === undefined ? {} : { baselineGenerationId: active.parentId },
+            )),
+          }),
+      ...(this.modules.skillUses === undefined
+        ? {}
+        : {
+            skillReuse: cloneSkillReuseSummary(this.modules.skillUses.summarize(
               workspaceId,
               active?.id,
               active === undefined
@@ -1417,6 +1430,27 @@ function cloneMetricRollup(
     providerUsage: { ...value.providerUsage },
     latency: { ...value.latency },
     monetaryCost: { ...value.monetaryCost },
+  }
+}
+
+function cloneSkillReuseSummary(summary: ReturnType<SkillUseStore['summarize']>) {
+  return {
+    all: { ...summary.all },
+    selected: { ...summary.selected },
+    ...(summary.baseline === undefined ? {} : { baseline: { ...summary.baseline } }),
+    items: summary.items.map(item => ({
+      skillName: item.skillName,
+      invocationContentHash: item.invocationContentHash,
+      ...(item.generationId === undefined ? {} : { generationId: item.generationId }),
+      useCount: item.useCount,
+      goalCount: item.goalCount,
+      routes: { ...item.routes },
+      firstObservedAt: item.firstObservedAt,
+      lastObservedAt: item.lastObservedAt,
+      status: item.status,
+      causalClaim: item.causalClaim,
+      releaseAuthority: item.releaseAuthority,
+    })),
   }
 }
 

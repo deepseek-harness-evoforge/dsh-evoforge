@@ -66,6 +66,30 @@ export interface EvolutionDeliveryMetricEvidenceView {
         };
     };
 }
+/** Browser-safe aggregate of durable exact Skill uses; it makes no value claim. */
+export interface EvolutionSkillReuseCountsView {
+    readonly useCount: number;
+    readonly goalCount: number;
+    readonly skillVersionCount: number;
+    readonly crossGoalSkillVersionCount: number;
+}
+/** One exact name/content/Generation bucket without Session, Goal, content, or path. */
+export interface EvolutionSkillReuseEvidenceView {
+    readonly skillName: string;
+    readonly invocationContentHash: string;
+    readonly generationId?: string;
+    readonly useCount: number;
+    readonly goalCount: number;
+    readonly routes: {
+        readonly userExplicit: number;
+        readonly modelTool: number;
+    };
+    readonly firstObservedAt: number;
+    readonly lastObservedAt: number;
+    readonly status: 'observed' | 'cross-goal-observed';
+    readonly causalClaim: 'none';
+    readonly releaseAuthority: 'none';
+}
 /** Client-safe immutable Generation projection. */
 export interface EvolutionGenerationView {
     readonly id: string;
@@ -963,6 +987,12 @@ export interface EvolutionOverview {
             readonly baseline?: EvolutionDeliveryMetricRollupView;
             readonly recent: readonly EvolutionDeliveryMetricEvidenceView[];
         };
+    };
+    readonly skillReuse?: {
+        readonly all: EvolutionSkillReuseCountsView;
+        readonly selected: EvolutionSkillReuseCountsView;
+        readonly baseline?: EvolutionSkillReuseCountsView;
+        readonly items: readonly EvolutionSkillReuseEvidenceView[];
     };
     readonly feedbackSignals?: {
         readonly all: number;

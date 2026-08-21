@@ -169,6 +169,12 @@ EvoForge 首先服务软件开发交付，同时允许个人助理、内容、�
 - 当前会话固定使用不可变能力版本，晋升只影响后续会话；
 - 不重复实现 Hermes Self-Evolution 或通用 Prompt Optimizer；独特价值集中在 DSH 原生集成、KV Cache、Session 固定版本、非阻塞晋升、崩溃恢复和反事实回滚。
 
+“跨 Goal 复用”必须有精确、可持久恢复的最低事实口径：成功的原生 `skill` 调用先经过 Session durability
+checkpoint，再绑定 active Goal、模型实际看到的 invocation content hash 与 Session-pinned Generation；只有同一
+Workspace 中相同 Skill name/content hash/Generation 覆盖至少两个不同 Goal id 才成立。同 Goal retry、同名内容
+漂移、不同 Generation、失败调用或无 Goal 事件不得合并。该指标只描述使用事实，固定无因果、无发布权；仍需
+Outcome、返工、成本、Retention、负迁移和 paired benchmark 才能判断价值。
+
 ### 3.3 Goal，而不是 Mission
 
 保留 DSH 原生 Goal 作为唯一用户可见的长期目标概念。允许增强 Goal 的完成验证、预算、连续性、常驻监督和崩溃恢复，但不增加 Mission、第二套目标标识、任务 DAG 或平行工作流数据库。

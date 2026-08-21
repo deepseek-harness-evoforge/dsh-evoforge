@@ -1,8 +1,10 @@
-import { createHash } from 'node:crypto'
 import { foldGoal } from '@deepseek-ai/dsh-goal'
 import type { SessionEvent, SessionId } from '@deepseek-ai/dsh-session'
 import type { SessionPersistence } from '@deepseek-ai/dsh-session-persistence'
-import { durableSkillInvocations } from './durable-skill-invocation.ts'
+import {
+  durableSkillInvocations,
+  hashDurableSkillInvocationContent,
+} from './durable-skill-invocation.ts'
 
 export interface ExactSkillInvocationAttribution {
   readonly kind: 'exact-skill-invocation-v1'
@@ -70,16 +72,12 @@ export class DurableFeedbackAttribution {
       skillName: invocation.skillName,
       route: invocation.route,
       invocationSeq: invocation.seq,
-      invocationContentHash: hashContent(invocation.content),
+      invocationContentHash: hashDurableSkillInvocationContent(invocation.content),
       assistantSeq: assistant.seq,
       turn: assistant.data.turn,
       goal: Object.freeze({ id: String(goal.id), revision: goal.revision }),
     })
   }
-}
-
-function hashContent(content: unknown): string {
-  return createHash('sha256').update(JSON.stringify(content)).digest('hex')
 }
 
 function sourceKind(source: unknown): string | undefined {

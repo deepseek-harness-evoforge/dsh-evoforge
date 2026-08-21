@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { isSkillName } from '@deepseek-ai/dsh-skill'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 
@@ -21,6 +22,11 @@ export function durableSkillInvocations(
     ...explicitInvocations(events),
     ...successfulToolInvocations(events),
   ].sort((left, right) => left.seq - right.seq)
+}
+
+/** Stable identity of the exact native content blocks shown to the model. */
+export function hashDurableSkillInvocationContent(content: readonly unknown[]): string {
+  return createHash('sha256').update(JSON.stringify(content)).digest('hex')
 }
 
 function explicitInvocations(events: readonly SessionEvent[]): DurableSkillInvocation[] {

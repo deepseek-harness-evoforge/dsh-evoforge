@@ -58,6 +58,10 @@ import {
   installFeedbackSignalMonitor,
   openFeedbackSignalStore,
 } from './feedback-signal-monitor.ts'
+import {
+  installSkillUseMonitor,
+  openSkillUseStore,
+} from './skill-use-monitor.ts'
 import { DurableFeedbackAttribution } from './durable-feedback-attribution.ts'
 import { InstalledSkillBaselineVault } from './installed-skill-baseline.ts'
 import { installInstalledSkillBaselineMonitor } from './installed-skill-baseline-monitor.ts'
@@ -154,6 +158,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const store = new VerifiedEvolutionStore(await openEvolutionStore(ctx.storageDomain), source)
   const deliveryOutcomes = await openDeliveryOutcomeStore(ctx.storageDomain)
   const feedbackSignals = await openFeedbackSignalStore(ctx.storageDomain)
+  const skillUses = await openSkillUseStore(ctx.storageDomain)
   const capabilityGaps = await openCapabilityGapStore(ctx.storageDomain)
   const skillOpportunities = new ExperienceDrivenSkillOpportunityDiscovery(capabilityGaps, {
     feedback: feedbackSignals,
@@ -212,6 +217,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
 
   ctx.provide('evoforge.evolution', store)
   const disposeBinder = installGenerationBinder(ctx, store, source)
+  const skillUseMonitor = installSkillUseMonitor(ctx, skillUses, store)
   const capabilities = new CapabilityMap()
   const capabilityMonitors = new Set<ReturnType<typeof installCapabilityMapObserver>>()
   const installedBaselineMonitors = new Set<ReturnType<typeof installInstalledSkillBaselineMonitor>>()
@@ -662,6 +668,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     ...(review === undefined ? {} : { review }),
     ...(resident === undefined ? {} : { resident }),
     outcomes: deliveryOutcomes,
+    skillUses,
     feedback: feedbackSignals,
   })
   new EvolutionRemoteService(ctx, control)
@@ -672,6 +679,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     ...(review === undefined ? {} : { review }),
     ...(resident === undefined ? {} : { resident }),
     outcomes: deliveryOutcomes,
+    skillUses,
     feedback: feedbackSignals,
   })
   ctx.inject(['sessionPersistence'], (attributionCtx) => {
@@ -827,12 +835,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   }
   ctx.effect(() => async () => {
     await deliveryMonitor.dispose()
+    await skillUseMonitor.dispose()
     await Promise.all([...installedBaselineMonitors].map(monitor => monitor.dispose()))
     await Promise.all([...capabilityMonitors].map(monitor => monitor.dispose()))
     await capabilityGapMonitor.dispose()
     await feedbackMonitor.dispose()
     await deliveryOutcomes.close()
     await feedbackSignals.close()
+    await skillUses.close()
     await capabilityGaps.close()
     await skillCandidateStore.close()
     await existingSkillReleaseStore.close()
@@ -976,6 +986,16 @@ export type {
   FeedbackSignal,
   FeedbackSignalSummary,
 } from './feedback-signal-monitor.ts'
+export { installSkillUseMonitor, openSkillUseStore } from './skill-use-monitor.ts'
+export type {
+  SkillReuseCounts,
+  SkillReuseEvidence,
+  SkillReuseSummary,
+  SkillUse,
+  SkillUseInput,
+  SkillUseMonitor,
+  SkillUseStore,
+} from './skill-use-monitor.ts'
 export { EvolutionControlPlane } from './evolution-control-plane.ts'
 export { FutureSessionPromotion } from './future-session-promotion.ts'
 export type {
@@ -1020,4 +1040,6 @@ export type {
   EvolutionReviewCaseView,
   EvolutionReviewDetail,
   EvolutionReviewView,
+  EvolutionSkillReuseCountsView,
+  EvolutionSkillReuseEvidenceView,
 } from './control-types.ts'

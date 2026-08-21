@@ -969,6 +969,42 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
 })).readonly(),
 }).readonly(),
 })]).readonly().optional(),
+  'skillReuse': z.union([z.undefined(), z.object({
+  'all': z.object({
+  'useCount': z.number().readonly(),
+  'goalCount': z.number().readonly(),
+  'skillVersionCount': z.number().readonly(),
+  'crossGoalSkillVersionCount': z.number().readonly(),
+}).readonly(),
+  'selected': z.object({
+  'useCount': z.number().readonly(),
+  'goalCount': z.number().readonly(),
+  'skillVersionCount': z.number().readonly(),
+  'crossGoalSkillVersionCount': z.number().readonly(),
+}).readonly(),
+  'baseline': z.union([z.undefined(), z.object({
+  'useCount': z.number().readonly(),
+  'goalCount': z.number().readonly(),
+  'skillVersionCount': z.number().readonly(),
+  'crossGoalSkillVersionCount': z.number().readonly(),
+})]).readonly().optional(),
+  'items': z.array(z.object({
+  'skillName': z.string().readonly(),
+  'invocationContentHash': z.string().readonly(),
+  'generationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'useCount': z.number().readonly(),
+  'goalCount': z.number().readonly(),
+  'routes': z.object({
+  'userExplicit': z.number().readonly(),
+  'modelTool': z.number().readonly(),
+}).readonly(),
+  'firstObservedAt': z.number().readonly(),
+  'lastObservedAt': z.number().readonly(),
+  'status': z.union([z.literal("observed"), z.literal("cross-goal-observed")]).readonly(),
+  'causalClaim': z.literal("none").readonly(),
+  'releaseAuthority': z.literal("none").readonly(),
+})).readonly(),
+})]).readonly().optional(),
   'feedbackSignals': z.union([z.undefined(), z.object({
   'all': z.number().readonly(),
   'selected': z.number().readonly(),

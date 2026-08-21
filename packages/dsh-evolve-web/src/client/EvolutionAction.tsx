@@ -1782,6 +1782,11 @@ function ReviewQueue({ overview, busy, inspect, promote, t }: {
 }) {
   if (overview === undefined) return null
   return <>
+    {overview.skillReuse !== undefined && <SkillReuse
+      reuse={overview.skillReuse}
+      active={overview.active}
+      t={t}
+    />}
     {overview.deliveryOutcomes !== undefined && <section>
       <h3 className="dsh-evolve-section-title">{t('section.outcomes')}</h3>
       <ul className="dsh-evolve-list">
@@ -1846,6 +1851,64 @@ function ReviewQueue({ overview, busy, inspect, promote, t }: {
       ))}</ul>
     </section>}
   </>
+}
+
+function SkillReuse({ reuse, active, t }: {
+  reuse: NonNullable<EvolutionOverview['skillReuse']>
+  active: EvolutionOverview['active']
+  t: (key: string) => string
+}) {
+  const rollups = [
+    { key: 'workspace', label: t('skillReuse.workspace'), value: reuse.all },
+    {
+      key: 'selected',
+      label: t(active === undefined ? 'skillReuse.current' : 'skillReuse.active'),
+      value: reuse.selected,
+    },
+    ...(reuse.baseline === undefined || active === undefined
+      ? []
+      : [{ key: 'baseline', label: t('skillReuse.parent'), value: reuse.baseline }]),
+  ]
+  return <section>
+    <h3 className="dsh-evolve-section-title">{t('section.skillReuse')}</h3>
+    <div className="dsh-evolve-metric-grid">{rollups.map(rollup => <div
+      className="dsh-evolve-metric-card"
+      key={rollup.key}
+      role="group"
+      aria-label={rollup.label}
+    >
+      <div className="dsh-evolve-review-skill">
+        {rollup.label} · {renderSkillReuseCounts(rollup.value, t)}
+      </div>
+    </div>)}</div>
+    {reuse.items.length > 0 && <ul className="dsh-evolve-list">{reuse.items.map(item => <li
+      className="dsh-evolve-review"
+      key={`${item.generationId ?? 'native'}:${item.skillName}:${item.invocationContentHash}`}
+    >
+      <div className="dsh-evolve-review-skill">
+        {item.skillName} · {shortId(item.invocationContentHash)} · {item.generationId === undefined
+          ? t('status.native')
+          : shortId(item.generationId)}
+      </div>
+      <div className="dsh-evolve-meta">
+        {item.useCount} {t('skillReuse.uses')} · {item.goalCount} {t('skillReuse.goals')}
+        {' · '}{t('skillReuse.route.model')} {item.routes.modelTool}
+        {' · '}{t('skillReuse.route.user')} {item.routes.userExplicit}
+        {' · '}{t(`skillReuse.status.${item.status}`)}
+      </div>
+    </li>)}</ul>}
+    <p className="dsh-evolve-meta">{t('skillReuse.disclaimer')}</p>
+  </section>
+}
+
+function renderSkillReuseCounts(
+  counts: NonNullable<EvolutionOverview['skillReuse']>['all'],
+  t: (key: string) => string,
+): string {
+  return `${counts.useCount} ${t('skillReuse.uses')}`
+    + ` · ${counts.goalCount} ${t('skillReuse.goals')}`
+    + ` · ${counts.skillVersionCount} ${t('skillReuse.versions')}`
+    + ` · ${counts.crossGoalSkillVersionCount} ${t('skillReuse.crossGoal')}`
 }
 
 function renderOutcomeCounts(

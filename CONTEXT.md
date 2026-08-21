@@ -114,6 +114,14 @@ _Avoid_: Exact-revision equality, retry evidence, causal attribution, success vo
 A fail-closed, non-causal link from one Explicit Feedback Signal to the target assistant turn's only successful durable Skill invocation, the exact hash of the invocation content blocks the model saw, and the native Goal identity folded through that turn. Missing or ambiguous turns, invocations, content, or Goals abstain; same-Session Gap proximity and same-name Skill identity are not attribution. Legacy records without the content hash remain readable but are ineligible for Existing Skill Improvement Opportunity discovery.
 _Avoid_: Same-Session inference, Gap proximity, Skill blame, causal proof
 
+**Exact Skill Use**:
+A compact durable fact that one exact native Skill name and model-visible content version was successfully invoked while one native Goal and one Session-pinned Generation were current. It contains identity and attribution only, never Skill content, task success, value, or mutation authority.
+_Avoid_: Skill popularity, model-reported use, live Tool event, success vote
+
+**Cross-Goal Skill Reuse**:
+A Workspace aggregate formed only when Exact Skill Uses for the same Skill name, content hash, and Generation span at least two distinct native Goals. It proves repeated use across Goals, not correctness, retention, improvement, or permission to author or promote a Candidate.
+_Avoid_: Invocation count, same-Goal retry, name-only reuse, improvement claim
+
 **Existing Skill Improvement Opportunity**:
 A deterministic, Workspace-scoped investigation created only when one exact Skill name and invocation-content hash receives explicit negative corrections across at least two distinct native Goals. Duplicate signals, same-Goal retries, legacy no-hash attribution, and same-name different-content versions do not merge. It is not a Skill Opportunity for missing capability and never grants authoring, evaluation, installation, activation, or release authority; a separate Existing Skill Baseline Qualification must prove that every exact correction invocation used the same complete package.
 _Avoid_: Name-only clustering, correction-as-causality, capability-absent baseline, partial Skill snapshot, Candidate permission

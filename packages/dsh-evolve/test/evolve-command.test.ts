@@ -7,6 +7,7 @@ import {
 import type { CandidatePublisher } from '../src/candidate-publisher.js'
 import type { ReviewCandidate, ReviewInbox } from '../src/review-inbox.js'
 import type { DeliveryOutcomeStore } from '../src/delivery-outcome-monitor.js'
+import type { SkillUseStore } from '../src/skill-use-monitor.js'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const USAGE = 'Usage: /evolve [status|feedback [<signal-id>]|review [<review-id> [approve|reject <note>]]|existing [<candidate-id> [approve|reject <note>]]|pause|resume|promote <64-char-generation-id>|promote-existing <candidate-id>|rollback [<64-char-canary-id>]]'
@@ -332,17 +333,29 @@ describe('/evolve host command', () => {
         baseline: { total: 2, passed: 0, failed: 1, unknown: 1 },
       })),
     } as unknown as DeliveryOutcomeStore
+    const skillUses = {
+      summarize: vi.fn(() => ({
+        all: { useCount: 5, goalCount: 4, skillVersionCount: 3, crossGoalSkillVersionCount: 1 },
+        selected: { useCount: 4, goalCount: 3, skillVersionCount: 2, crossGoalSkillVersionCount: 1 },
+        baseline: { useCount: 1, goalCount: 1, skillVersionCount: 1, crossGoalSkillVersionCount: 0 },
+        items: [],
+      })),
+    } as unknown as SkillUseStore
 
-    await expect(executeEvolutionCommand(
+    const status = await executeEvolutionCommand(
       fakeStore(generation(rootId, childId)),
       'status',
-      { outcomes },
-    )).resolves.toMatchObject({
+      { outcomes, skillUses },
+    )
+    expect(status).toMatchObject({
       kind: 'success',
       text: expect.stringContaining(
         `Parent selection outcomes (${childId}): 2 total (0 passed, 1 failed, 1 unknown)`,
       ),
     })
+    expect(status.text).toContain('Exact Skill reuse: 5 uses across 4 Goals; 1 cross-Goal versions')
+    expect(status.text).toContain('Active selection reuse: 4 uses across 3 Goals; 1 cross-Goal versions')
+    expect(status.text).toContain('Reuse is descriptive and grants no Candidate or promotion authority.')
 
     const store = fakeStore(undefined, {
       promoteGeneration: vi.fn(async () => { throw new Error(`Generation '${rootId}' does not exist`) }),

@@ -10,6 +10,7 @@ import type {
   FeedbackSignalStore,
   FeedbackSignalSummary,
 } from './feedback-signal-monitor.ts'
+import type { SkillReuseSummary, SkillUseStore } from './skill-use-monitor.ts'
 import type { FutureSessionPromotion } from './future-session-promotion.ts'
 import type { FutureSessionRollback } from './future-session-rollback.ts'
 import type {
@@ -29,6 +30,7 @@ export interface EvolutionCommandModules {
     'scan' | 'eligibility' | 'approve' | 'reject' | 'promote'>
   readonly resident?: Pick<ResidentEvolutionControl, 'isPaused' | 'pause' | 'resume'>
   readonly outcomes?: Pick<DeliveryOutcomeStore, 'summarize'>
+  readonly skillUses?: Pick<SkillUseStore, 'summarize'>
   readonly feedback?: Pick<FeedbackSignalStore, 'list' | 'summarize'>
 }
 
@@ -61,7 +63,16 @@ export async function executeEvolutionCommand(
   workspaceId: string,
 ): Promise<CommandResult> {
   const input = rawInput.trim()
-  const { promotion, rollback, review, existingRelease, resident, outcomes, feedback } = modules
+  const {
+    promotion,
+    rollback,
+    review,
+    existingRelease,
+    resident,
+    outcomes,
+    skillUses,
+    feedback,
+  } = modules
   try {
     if (input === '' || input === 'status') {
       const active = store.getActiveGeneration(workspaceId)
@@ -69,6 +80,13 @@ export async function executeEvolutionCommand(
         active,
         resident?.isPaused(workspaceId),
         outcomes?.summarize(
+          workspaceId,
+          active?.id,
+          active === undefined
+            ? undefined
+            : active.parentId === undefined ? {} : { baselineGenerationId: active.parentId },
+        ),
+        skillUses?.summarize(
           workspaceId,
           active?.id,
           active === undefined
@@ -420,6 +438,7 @@ function renderStatus(
   active: CapabilityGeneration | undefined,
   recoveryPaused?: boolean,
   outcomeSummary?: DeliveryOutcomeSummary,
+  skillReuseSummary?: SkillReuseSummary,
   feedbackSummary?: FeedbackSignalSummary,
 ): CommandResult {
   const recovery = recoveryPaused === undefined
@@ -437,6 +456,16 @@ function renderStatus(
               'Observed delivery counts are descriptive; they do not prove that a Generation caused the difference.',
             ]),
       ]
+  const reuse = skillReuseSummary === undefined
+    ? []
+    : [
+        `Exact Skill reuse: ${renderSkillReuseCounts(skillReuseSummary.all)}`,
+        `Active selection reuse: ${renderSkillReuseCounts(skillReuseSummary.selected)}`,
+        ...(skillReuseSummary.baseline === undefined || active === undefined
+          ? []
+          : [`Parent selection reuse (${active.parentId ?? 'native DSH'}): ${renderSkillReuseCounts(skillReuseSummary.baseline)}`]),
+        'Reuse is descriptive and grants no Candidate or promotion authority.',
+      ]
   const feedback = feedbackSummary === undefined
     ? []
     : [`Explicit feedback signals: ${feedbackSummary.all} retained (${feedbackSummary.selected} active selection)`]
@@ -448,6 +477,7 @@ function renderStatus(
         'Active: native DSH',
         ...recovery,
         ...delivery,
+        ...reuse,
         ...feedback,
         'Future Sessions will use native capabilities.',
         '',
@@ -462,6 +492,7 @@ function renderStatus(
       `Active: ${active.id}`,
       ...recovery,
       ...delivery,
+      ...reuse,
       ...feedback,
       `Rollback target: ${active.parentId ?? 'native DSH'}`,
       'Artifacts:',
@@ -474,6 +505,11 @@ function renderStatus(
       'Commands: /evolve rollback',
     ].join('\n'),
   }
+}
+
+function renderSkillReuseCounts(counts: SkillReuseSummary['all']): string {
+  return `${counts.useCount} uses across ${counts.goalCount} Goals; `
+    + `${counts.crossGoalSkillVersionCount} cross-Goal versions`
 }
 
 function renderOutcomeCounts(counts: DeliveryOutcomeSummary['all']): string {

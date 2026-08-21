@@ -28,6 +28,7 @@
         runRoot: __EVOFORGE_RUN_ROOT__
         governanceRoot: __EVOFORGE_GOVERNANCE_ROOT__
         seedGoalMetrics: true
+        seedSkillReuse: true
         seedCapabilityGaps: true
         seedSkillEvaluationRuns: true
         seedCounterfactualCanary: true

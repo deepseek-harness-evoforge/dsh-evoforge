@@ -969,6 +969,42 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
 })).readonly(),
 }).readonly(),
 })]).readonly().optional(),
+  'skillReuse': z.union([z.undefined(), z.object({
+  'all': z.object({
+  'useCount': z.number().readonly(),
+  'goalCount': z.number().readonly(),
+  'skillVersionCount': z.number().readonly(),
+  'crossGoalSkillVersionCount': z.number().readonly(),
+}).readonly(),
+  'selected': z.object({
+  'useCount': z.number().readonly(),
+  'goalCount': z.number().readonly(),
+  'skillVersionCount': z.number().readonly(),
+  'crossGoalSkillVersionCount': z.number().readonly(),
+}).readonly(),
+  'baseline': z.union([z.undefined(), z.object({
+  'useCount': z.number().readonly(),
+  'goalCount': z.number().readonly(),
+  'skillVersionCount': z.number().readonly(),
+  'crossGoalSkillVersionCount': z.number().readonly(),
+})]).readonly().optional(),
+  'items': z.array(z.object({
+  'skillName': z.string().readonly(),
+  'invocationContentHash': z.string().readonly(),
+  'generationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'useCount': z.number().readonly(),
+  'goalCount': z.number().readonly(),
+  'routes': z.object({
+  'userExplicit': z.number().readonly(),
+  'modelTool': z.number().readonly(),
+}).readonly(),
+  'firstObservedAt': z.number().readonly(),
+  'lastObservedAt': z.number().readonly(),
+  'status': z.union([z.literal("observed"), z.literal("cross-goal-observed")]).readonly(),
+  'causalClaim': z.literal("none").readonly(),
+  'releaseAuthority': z.literal("none").readonly(),
+})).readonly(),
+})]).readonly().optional(),
   'feedbackSignals': z.union([z.undefined(), z.object({
   'all': z.number().readonly(),
   'selected': z.number().readonly(),
@@ -1984,7 +2020,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionOverview",
-            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly workspaceId: string;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly capabilityMap?: EvolutionCapabilityMapView;\n    readonly capabilityGaps?: EvolutionCapabilityGapQueueView;\n    readonly skillOpportunities?: EvolutionSkillOpportunityQueueView;\n    readonly skillImprovementOpportunities?: EvolutionSkillImprovementOpportunityQueueView;\n    readonly skillCandidates?: EvolutionSkillCandidateQueueView;\n    readonly existingSkillCandidates?: EvolutionExistingSkillCandidateQueueView;\n    readonly existingSkillAuthoring?: EvolutionExistingSkillAuthoringView;\n    readonly existingSkillHoldoutGovernance?: EvolutionExistingSkillHoldoutGovernanceView;\n    readonly existingSkillAdmission?: EvolutionExistingSkillAdmissionView;\n    readonly existingSkillHoldoutEvaluation?: EvolutionExistingSkillHoldoutEvaluationView;\n    readonly existingSkillRetentionEvaluation?: EvolutionExistingSkillRetentionEvaluationView;\n    readonly existingSkillRelease?: EvolutionExistingSkillReleaseView;\n    readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView;\n    readonly skillEvaluationGovernance?: EvolutionSkillEvaluationGovernanceView;\n    readonly skillAdmission?: EvolutionSkillAdmissionView;\n    readonly skillEvaluationRuns?: EvolutionSkillEvaluationRunsView;\n    readonly counterfactualCanary?: EvolutionCounterfactualCanaryView;\n    readonly existingSkillCounterfactualCanary?: EvolutionExistingSkillCounterfactualCanaryView;\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; readonly baseline?: DeliveryOutcomeCounts; readonly metrics: { readonly all: EvolutionDeliveryMetricRollupView; readonly selected: EvolutionDeliveryMetricRollupView; readonly baseline?: EvolutionDeliveryMetricRollupView; readonly recent: readonly EvolutionDeliveryMetricEvidenceView[]; }; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
+            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly workspaceId: string;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly capabilityMap?: EvolutionCapabilityMapView;\n    readonly capabilityGaps?: EvolutionCapabilityGapQueueView;\n    readonly skillOpportunities?: EvolutionSkillOpportunityQueueView;\n    readonly skillImprovementOpportunities?: EvolutionSkillImprovementOpportunityQueueView;\n    readonly skillCandidates?: EvolutionSkillCandidateQueueView;\n    readonly existingSkillCandidates?: EvolutionExistingSkillCandidateQueueView;\n    readonly existingSkillAuthoring?: EvolutionExistingSkillAuthoringView;\n    readonly existingSkillHoldoutGovernance?: EvolutionExistingSkillHoldoutGovernanceView;\n    readonly existingSkillAdmission?: EvolutionExistingSkillAdmissionView;\n    readonly existingSkillHoldoutEvaluation?: EvolutionExistingSkillHoldoutEvaluationView;\n    readonly existingSkillRetentionEvaluation?: EvolutionExistingSkillRetentionEvaluationView;\n    readonly existingSkillRelease?: EvolutionExistingSkillReleaseView;\n    readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView;\n    readonly skillEvaluationGovernance?: EvolutionSkillEvaluationGovernanceView;\n    readonly skillAdmission?: EvolutionSkillAdmissionView;\n    readonly skillEvaluationRuns?: EvolutionSkillEvaluationRunsView;\n    readonly counterfactualCanary?: EvolutionCounterfactualCanaryView;\n    readonly existingSkillCounterfactualCanary?: EvolutionExistingSkillCounterfactualCanaryView;\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; readonly baseline?: DeliveryOutcomeCounts; readonly metrics: { readonly all: EvolutionDeliveryMetricRollupView; readonly selected: EvolutionDeliveryMetricRollupView; readonly baseline?: EvolutionDeliveryMetricRollupView; readonly recent: readonly EvolutionDeliveryMetricEvidenceView[]; }; };\n    readonly skillReuse?: { readonly all: EvolutionSkillReuseCountsView; readonly selected: EvolutionSkillReuseCountsView; readonly baseline?: EvolutionSkillReuseCountsView; readonly items: readonly EvolutionSkillReuseEvidenceView[]; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
           },
           {
             "name": "EvolutionProviderUsageView",
@@ -2049,6 +2085,14 @@ export const TYPERT = {
           {
             "name": "EvolutionSkillRetentionReason",
             "declaration": "export type EvolutionSkillRetentionReason = 'no-independent-retention-case' | 'shadow-not-complete' | 'shadow-not-promotable' | 'retention-trial-failed' | 'retention-input-mutated' | 'retention-not-assembled' | 'retention-calibration-failed' | 'prior-case-baseline-failed' | 'non-target-composition-changed' | 'candidate-regressed-prior-case' | 'candidate-retained-prior-case';"
+          },
+          {
+            "name": "EvolutionSkillReuseCountsView",
+            "declaration": "export interface EvolutionSkillReuseCountsView {\n    readonly useCount: number;\n    readonly goalCount: number;\n    readonly skillVersionCount: number;\n    readonly crossGoalSkillVersionCount: number;\n}"
+          },
+          {
+            "name": "EvolutionSkillReuseEvidenceView",
+            "declaration": "export interface EvolutionSkillReuseEvidenceView {\n    readonly skillName: string;\n    readonly invocationContentHash: string;\n    readonly generationId?: string;\n    readonly useCount: number;\n    readonly goalCount: number;\n    readonly routes: { readonly userExplicit: number; readonly modelTool: number; };\n    readonly firstObservedAt: number;\n    readonly lastObservedAt: number;\n    readonly status: 'observed' | 'cross-goal-observed';\n    readonly causalClaim: 'none';\n    readonly releaseAuthority: 'none';\n}"
           },
           {
             "name": "EvolutionSlowLoopAuthoringView",
