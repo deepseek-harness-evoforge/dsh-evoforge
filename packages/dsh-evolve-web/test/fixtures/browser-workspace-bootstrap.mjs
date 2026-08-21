@@ -88,11 +88,29 @@ export async function apply(ctx, config) {
     await seedExistingSkillRetentionEvaluation(workspace, config)
   }
   if (releaseSeed !== undefined) {
-    await waitFor(ctx, String(workspace.id), String(agent.session.id), value =>
+    const releaseOverview = await waitFor(ctx, String(workspace.id), String(agent.session.id), value =>
       value.existingSkillRelease?.items.some(item =>
         item.candidateId === releaseSeed.candidateId
           && (item.status === 'eligible' || item.status === 'approved')) === true,
     'real browser fixture did not expose an eligible or approved existing Skill release')
+    const release = releaseOverview.existingSkillRelease.items.find(item =>
+      item.candidateId === releaseSeed.candidateId)
+    if (config.seedExistingSkillCounterfactualCanary === true
+      && release?.status === 'approved'
+      && release.generationId !== undefined
+      && release.activeForFutureSessions
+      && releaseOverview.active?.id === release.generationId) {
+      const canaryId = await seedExistingSkillCounterfactualCanary(
+        workspace,
+        config,
+        releaseSeed,
+        release,
+      )
+      await waitFor(ctx, String(workspace.id), String(agent.session.id), value =>
+        value.existingSkillCounterfactualCanary?.runs.some(run =>
+          run.id === canaryId && run.status === 'rollback-eligible') === true,
+      'real browser fixture did not expose the exact existing-Skill Canary')
+    }
   }
   if (config.seedGoalMetrics === true) {
     await seedNativeGoalMetrics(ctx, workspace, agent)
@@ -331,8 +349,12 @@ async function seedExistingSkillReleaseCandidate(ctx, workspace, config) {
     skillName,
   }
   const holdoutEvaluationId = await seedExistingSkillHoldoutEvaluation(workspace, config, evidence)
-  await seedExistingSkillRetentionEvaluation(workspace, config, { ...evidence, holdoutEvaluationId })
-  return { candidateId }
+  const retentionEvaluationId = await seedExistingSkillRetentionEvaluation(
+    workspace,
+    config,
+    { ...evidence, holdoutEvaluationId },
+  )
+  return { ...evidence, holdoutEvaluationId, retentionEvaluationId }
 }
 
 /** Seed one exact durable result for the production existing-Skill scanner. */
@@ -553,6 +575,109 @@ async function seedExistingSkillRetentionEvaluation(workspace, config, release =
     finishedAt,
     releaseAuthority: 'none',
   })
+  return id
+}
+
+/**
+ * Seed one exact terminal evidence record only after the real Web has approved
+ * and promoted the release. The fixture never invokes rollback; the installed
+ * Host gate must revalidate this record and the authoritative release lineage.
+ */
+async function seedExistingSkillCounterfactualCanary(workspace, config, releaseSeed, release) {
+  const policyId = 'browser-evaluation-governance'
+  const workspaceId = String(workspace.id)
+  const generationId = release.generationId
+  const outcomeId = sha256('browser-existing-skill-failed-outcome')
+  const dshRevision = '47f943859bef60e4160492346772ded9b24f765a'
+  const identity = {
+    policyId,
+    workspaceId,
+    generationId,
+    outcomeId,
+    candidateId: release.candidateId,
+    skillName: release.skillName,
+    admissionId: release.admissionId,
+    holdoutEvaluationId: release.holdoutEvaluationId,
+    retentionEvaluationId: release.retentionEvaluationId,
+    evaluationEnvelopeId: releaseSeed.envelopeId,
+    holdoutCasePackHash: releaseSeed.holdoutCasePackHash,
+    retentionCasePackHash: releaseSeed.retentionCasePackHash,
+    baselineTreeHash: releaseSeed.baselineTreeHash,
+    candidateTreeHash: releaseSeed.candidateTreeHash,
+    dshRevision,
+  }
+  const id = sha256(JSON.stringify([
+    'existing-skill-counterfactual-canary-v1',
+    identity.policyId,
+    identity.workspaceId,
+    identity.generationId,
+    identity.outcomeId,
+    identity.candidateId,
+    identity.skillName,
+    identity.admissionId,
+    identity.holdoutEvaluationId,
+    identity.retentionEvaluationId,
+    identity.evaluationEnvelopeId,
+    identity.holdoutCasePackHash,
+    identity.retentionCasePackHash,
+    identity.baselineTreeHash,
+    identity.candidateTreeHash,
+    identity.dshRevision,
+  ]))
+  const runDir = join(resolve(config.runRoot), 'existing-skill-canary', 'runs', id)
+  const startedAt = '2026-08-21T00:02:00.000Z'
+  const finishedAt = '2026-08-21T00:02:01.000Z'
+  await mkdir(runDir, { recursive: true, mode: 0o700 })
+  await writeFixtureJson(join(runDir, 'state.json'), {
+    schemaVersion: 1,
+    kind: 'existing-skill-counterfactual-canary-state-v1',
+    id,
+    ...identity,
+    phase: 'terminal',
+    createdAt: startedAt,
+    updatedAt: finishedAt,
+  })
+  await writeFixtureJson(join(runDir, 'result.json'), {
+    schemaVersion: 1,
+    kind: 'existing-skill-counterfactual-canary-result-v1',
+    id,
+    policyId,
+    workspaceId,
+    generationId,
+    outcomeId,
+    candidateId: release.candidateId,
+    skillName: release.skillName,
+    admissionId: release.admissionId,
+    holdoutEvaluationId: release.holdoutEvaluationId,
+    retentionEvaluationId: release.retentionEvaluationId,
+    evaluationEnvelopeId: releaseSeed.envelopeId,
+    status: 'rollback-eligible',
+    reason: 'candidate-regressed-baseline-recovers',
+    startedAt,
+    finishedAt,
+    evidence: {
+      holdoutCasePackHash: releaseSeed.holdoutCasePackHash,
+      retentionCasePackHash: releaseSeed.retentionCasePackHash,
+      baselineTreeHash: releaseSeed.baselineTreeHash,
+      candidateTreeHash: releaseSeed.candidateTreeHash,
+      baseline: 'pass',
+      candidate: 'fail',
+      calibrationPassed: true,
+      assembled: true,
+      compositionStable: true,
+      inputIntegrityStable: true,
+      activePointerStable: true,
+      proposerCalls: 0,
+      trialCount: 4,
+      modelCalls: { baseline: 1, candidate: 1 },
+      usage: {
+        baseline: evaluatorUsage(100, 60),
+        candidate: evaluatorUsage(90, 70),
+      },
+    },
+    releaseAuthority: 'none',
+  })
+  return id
 }
 
 /**

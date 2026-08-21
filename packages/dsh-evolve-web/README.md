@@ -30,6 +30,15 @@ estimating it. These observations are non-causal and do not affect Opportunity e
 evaluation, promotion, or rollback. A failed refresh keeps the last successful snapshot visible,
 shows the transport failure, and replaces it only after a later successful Host read.
 
+The Skills view also renders bounded existing-Skill baseline/Candidate diffs, protected
+Admission/Holdout/Retention identities, inactive release decisions, future-Session activation,
+and failed-Outcome Canary evidence. Approve, promote, and Canary rollback are separate confirmed
+actions against the generated Host Remote. The browser never writes Generation state directly;
+the rollback button appears only while the terminal Canary still names the exact active
+Generation. After rollback, the historical Canary remains visible for audit while the action is
+removed. The final packed pair has been verified through Host outage, recovery, full-page reload,
+process restart, and official DSH uninstall with zero browser console errors.
+
 Unload/remove the adapter before its provider:
 
 ```sh

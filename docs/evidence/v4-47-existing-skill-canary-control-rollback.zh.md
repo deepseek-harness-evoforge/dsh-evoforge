@@ -1,7 +1,7 @@
 # V4.47 现有 Skill Canary Control/Web 与独立回滚门
 
 日期：2026-08-21
-状态：`implemented`（Host/Control/固定 Typert Remote/Web 与自动化已验证；最终 tarball 真实浏览器恢复、两套独立真实 provider 与长期率尚未完成）
+状态：`implemented`（Host/Control/固定 Typert Remote/Web 与自动化已验证；后续最终 tarball 真实浏览器恢复已由 [V4.48](v4-48-existing-skill-canary-rollback-final-browser.zh.md) 完成，两套独立真实 provider 与长期率尚未完成）
 
 ## 本增量回答的问题
 
@@ -24,5 +24,5 @@ V4.46 已能从 active existing-Skill release 的失败 Outcome 形成无 mutati
 
 ## 尚未证明
 
-- 本增量的浏览器证据来自组件级真实 DOM 行为，不替代最终 `dsh-evolve`/`dsh-evolve-web` tarball 的 clean-profile 安装、reload、Host 失败、同 profile 恢复、实际 rollback、Session 固定与卸载；该门是下一增量。
+- 本增量的浏览器证据来自组件级真实 DOM 行为；后续 [V4.48](v4-48-existing-skill-canary-rollback-final-browser.zh.md) 已从最终 `dsh-evolve`/`dsh-evolve-web` tarball 完成 clean-profile 安装、reload、Host 失败保留、同 profile 恢复、实际 rollback、Session 固定与卸载。
 - 确定性 fixture 不替代两套独立真实 provider、长期负迁移/误回滚率、真实飞书 exact route 或 Hermes 同条件 paired benchmark，因此仍不能 tag 或声明上位替代完成。

@@ -33,4 +33,5 @@
         seedExistingSkillHoldoutEvaluation: true
         seedExistingSkillRetentionEvaluation: true
         seedExistingSkillRelease: true
+        seedExistingSkillCounterfactualCanary: true
         retentionStatus: retained
