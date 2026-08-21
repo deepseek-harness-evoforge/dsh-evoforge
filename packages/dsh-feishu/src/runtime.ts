@@ -15,7 +15,11 @@ import {
   type GatewayTransportRegistration,
 } from 'dsh-gateway'
 import type { ResolvedFeishuConfig, ResolvedFeishuRoute } from './config.js'
-import { installFeishuContentTool, shouldInstallFeishuContentTool } from './content.js'
+import {
+  FEISHU_CONTENT_TOOL,
+  installFeishuContentTool,
+  shouldInstallFeishuContentTool,
+} from './content.js'
 import { materializeFeishuInbound } from './inbound-images.js'
 import type { FeishuHostNotice, FeishuHostNoticeReceipt } from './host-route.js'
 import {
@@ -247,6 +251,10 @@ export class FeishuRuntime {
   healthSnapshot(routes: readonly ResolvedFeishuRoute[] = this.config.routes): FeishuHealthSnapshot {
     const routeIds = new Set(routes.map(route => route.id))
     const observedAt = Date.now()
+    const sessionId = routes[0]?.sessionId
+    const agent = sessionId === undefined ? undefined : this.agentsBySession.get(sessionId)
+    const requestHeader = agent?.session.requestHeader()
+    const toolAvailable = agent?.ctx.get('tools')?.get(FEISHU_CONTENT_TOOL, agent) !== undefined
     const gateway = this.gateway.healthSnapshot(observedAt, [...routeIds])
     if (gateway.transports.items.length !== 1) {
       throw new Error('dsh-feishu: exact Gateway transport health is unavailable')
@@ -264,6 +272,16 @@ export class FeishuRuntime {
       outbound: gateway.outbound,
       pendingApprovals: [...this.pendingApprovals.values()]
         .filter(pending => routeIds.has(pending.destination.route.id)).length,
+      content: {
+        permissions: this.config.contentPermissions,
+        toolAvailable,
+        approvalAvailable: agent?.ctx.get('approval') !== undefined,
+        futureSessionOnly: this.config.contentPermissions.size > 0 && !toolAvailable
+          && requestHeader !== undefined
+          && requestHeader.tools?.some(tool => tool.name === FEISHU_CONTENT_TOOL) !== true,
+        maxContentChars: this.config.maxContentChars,
+        maxBitableRecords: this.config.maxBitableRecords,
+      },
     })
   }
 

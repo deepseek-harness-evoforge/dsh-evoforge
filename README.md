@@ -18,7 +18,7 @@
 | `dsh-goal-continuity` | exact allowlist Session 的原生 Goal cold-resume policy | disabled，需显式配置 |
 | `dsh-resident` | `/resident` 管理 exact DSH profile 的 launchd/systemd user unit | disabled，需显式配置与逐次确认 |
 | `dsh-gateway` | external endpoint 到原生 Workspace/Session/Agent 的静态、幂等绑定；同包提供统一只读渠道健康视图 | disabled，需显式配置 |
-| `dsh-feishu` | 飞书 exact 私聊/群聊 Adapter、DSH Web 首次连接向导，以及按独立权限启用的原生内容读取 Tool | disabled，需显式配置 |
+| `dsh-feishu` | 飞书 exact 私聊/群聊 Adapter、DSH Web 连接/内容就绪健康面，以及按独立权限启用的原生内容读取 Tool | disabled，需显式配置 |
 
 当前活动进化纵切只使用 DSH 内部经验：Goal-linked Gap 与跨 Goal Skill Opportunity 经生成前证据密封后，产生隔离、内容寻址的 whole-Skill Candidate；用户不选路径、Agent、workflow、Skill 或来源，产品不建设运行时外部 Skill 搜索、获取、下载、导入或市场。missing-Skill 路径已有 Candidate-independent admission/holdout/可选 Retention、exact Shadow/Retention、future-Session Promotion、failed-Outcome Canary 和人工精确回滚，所有评测结果本身均无 pointer 或发布权。
 
@@ -79,7 +79,7 @@ dsh --profile web
 
 ## 当前 v0.1 工作
 
-`dsh-gateway` 已直接替换旧 Router 包且没有兼容转发层；Gateway、Telegram、飞书、Evolve Attention、全仓类型/构建和十一包 clean-profile add/dump/boot/remove/readback 均已回归通过。静态 exact endpoint、原生 Workspace/Session/Agent、Command、持久 ingress 与双 Workspace 双渠道隔离保持；Gateway 现已统一 Telegram/飞书普通文本的持久 outbound intent、幂等、按 account 串行、明确 429 有界重试、uncertain 恢复、脱敏 transport observation，并由同包 DSH Client Module 提供只读渠道健康视图。飞书图片已在 assembled DSH 中经官方 message-resource 端口下载、整批校验、原生 AttachmentStore 内容寻址保存并以 `ImageAttachmentRef` 进入 Agent，外部 `fileKey` 不进入 Session；文档/Wiki/Drive metadata/Bitable 已按四个默认关闭的独立权限进入 Agent-scoped 原生 Tool，每次读取经过 DSH Approval，assembled DSH 已验证稳定 schema、durable result、拒绝与 dispose。固定 DSH attachment v1 尚无通用文件契约，因此普通文件和音视频仍 pending；内容能力的真实飞书 App scope、资源权限与真实数据也未验收。最终 tarball 的真实 DSH 浏览器已验证 existing-Skill exact paired holdout 的读取、整页刷新、Host 停机保留最后快照并显式失败、同端口恢复和官方卸载。真实飞书 exact 用户消息/回复/Approval、两套独立真实 provider Trial、同模型编码/长任务和真实消息交付 Hermes paired epochs 仍是完成门禁；这些完成前不得发布或宣称整体上位。
+`dsh-gateway` 已直接替换旧 Router 包且没有兼容转发层；Gateway、Telegram、飞书、Evolve Attention、全仓类型/构建和十一包 clean-profile add/dump/boot/remove/readback 均已回归通过。静态 exact endpoint、原生 Workspace/Session/Agent、Command、持久 ingress 与双 Workspace 双渠道隔离保持；Gateway 现已统一 Telegram/飞书普通文本的持久 outbound intent、幂等、按 account 串行、明确 429 有界重试、uncertain 恢复、脱敏 transport observation，并由同包 DSH Client Module 提供只读渠道健康视图。飞书图片已在 assembled DSH 中经官方 message-resource 端口下载、整批校验、原生 AttachmentStore 内容寻址保存并以 `ImageAttachmentRef` 进入 Agent，外部 `fileKey` 不进入 Session；文档/Wiki/Drive metadata/Bitable 已按四个默认关闭的独立权限进入 Agent-scoped 原生 Tool，每次读取经过 DSH Approval，assembled DSH 已验证稳定 schema、durable result、拒绝与 dispose。V5.6 又从最终 tarball 在真实 DSH Web 验证当前 Session 的四权限、Tool/Approval、future-only 状态、刷新、Host 停机清空旧快照和同端口恢复；健康读取不调用模型或平台。固定 DSH attachment v1 尚无通用文件契约，因此普通文件和音视频仍 pending；内容能力的真实飞书 App scope、资源权限与真实数据也未验收。最终 tarball 的真实 DSH 浏览器已验证 existing-Skill exact paired holdout 的读取、整页刷新、Host 停机保留最后快照并显式失败、同端口恢复和官方卸载。真实飞书 exact 用户消息/回复/Approval、两套独立真实 provider Trial、同模型编码/长任务和真实消息交付 Hermes paired epochs 仍是完成门禁；这些完成前不得发布或宣称整体上位。
 
 - [安装与验收](docs/getting-started.zh.md)
 - [当前状态](docs/status.zh.md)
@@ -99,5 +99,6 @@ dsh --profile web
 - [ADR-0081](docs/adr/0081-existing-skill-holdout-is-authored-before-the-candidate.md)
 - [ADR-0082](docs/adr/0082-existing-skill-effect-verdict-requires-an-exact-paired-holdout.md)
 - [ADR-0090](docs/adr/0090-feishu-content-reads-are-agent-scoped-native-tools.md)
+- [ADR-0091](docs/adr/0091-feishu-content-readiness-is-host-authoritative.md)
 
 License: MIT.

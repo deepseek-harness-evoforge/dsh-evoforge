@@ -208,7 +208,11 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
       expect(service.platform.texts).toHaveLength(1)
 
       service.platform.emitError(new Error('simulated socket interruption'))
-      expect(service.runtime.healthSnapshot()).toMatchObject({ status: 'degraded', modelCalls: 0 })
+      expect(service.runtime.healthSnapshot()).toMatchObject({
+        status: 'degraded',
+        content: { status: 'disabled', enabledCount: 0 },
+        modelCalls: 0,
+      })
       expect(gateway.healthSnapshot(Date.now(), ['feishu-main']).transports).toMatchObject({
         registrations: 1,
         ready: 0,

@@ -67,6 +67,23 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu content', (
       if (agent === undefined) throw new Error('Feishu content Agent did not load')
       expect(ctx.tools.get('feishu_content_read', agent)).toBeDefined()
       expect(ctx.tools.get('feishu_content_read')).toBeUndefined()
+      expect(service.runtime.healthSnapshot()).toMatchObject({
+        schemaVersion: 2,
+        content: {
+          status: 'ready',
+          enabledCount: 1,
+          toolAvailable: true,
+          approvalAvailable: true,
+          platformAccess: 'not-verified',
+          permissions: [
+            { name: 'document-read', enabled: true },
+            { name: 'wiki-read', enabled: false },
+            { name: 'drive-metadata-read', enabled: false },
+            { name: 'bitable-records-read', enabled: false },
+          ],
+        },
+        modelCalls: 0,
+      })
       service.platform.setContent('document', 'doxcnApproved123', {
         schemaVersion: 1,
         kind: 'document',

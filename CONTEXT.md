@@ -54,6 +54,10 @@ _Avoid_: DSH daemon plugin, supervisor database, high availability
 A point-in-time, read-only answer to whether the capabilities an operator explicitly requires are currently usable. Its outcome is `ready`, `not-ready`, or `unknown`; it names concrete blockers and next actions without repairing them, retaining health history, or becoming a second lifecycle authority.
 _Avoid_: Invariant result, plugin inventory, uptime monitor, auto-repair plan
 
+**Feishu Content Readiness**:
+A point-in-time Host conclusion for one exact DSH Session that distinguishes configured Feishu content permissions, the Session's current native Tool/Approval availability, and future-Session-only activation. Platform resource authorization remains explicitly unverified until an approved real read.
+_Avoid_: Configured means authorized, platform permission probe, Gateway content capability, current-Session schema rewrite
+
 **DSH Gateway**:
 The removable Host module that normalizes exact external channel identities, binds them to native DSH Workspace/Session ownership, and governs transport-neutral routing, delivery intent, deduplication, rate limits, and health. Channel Adapters own platform protocols and credentials; DSH remains authoritative for Agent, Goal, Schedule, Approval, permissions, and persistence.
 _Avoid_: Channel Router, bot host, second Agent Runtime, dynamic workflow gateway, platform SDK wrapper

@@ -4,6 +4,8 @@ import {
   renderFeishuHealthCommand,
   summarizeFeishuHealth,
 } from '../src/health.js'
+import type { FeishuContentPermission } from '../src/config.js'
+import type { SummarizeFeishuContentHealthInput } from '../src/health.js'
 
 describe('Feishu authoritative health snapshot', () => {
   it('filters the durable journal to one native Session and exposes no endpoint or content', () => {
@@ -31,10 +33,11 @@ describe('Feishu authoritative health snapshot', () => {
         },
       }),
       pendingApprovals: 2,
+      content: contentHealth({ permissions: new Set(['document-read', 'wiki-read']) }),
     })
 
     expect(snapshot).toEqual({
-      schemaVersion: 1,
+      schemaVersion: 2,
       observedAt: 900,
       accountId: 'cli_test_app',
       workspaceId: 'workspace-a',
@@ -62,6 +65,21 @@ describe('Feishu authoritative health snapshot', () => {
         last: { id: 'b', routeId: 'feishu-main', source: 'response', status: 'retrying', attempts: 1, updatedAt: 600 },
       },
       pendingApprovals: 2,
+      content: {
+        status: 'ready',
+        enabledCount: 2,
+        permissions: [
+          { name: 'document-read', enabled: true },
+          { name: 'wiki-read', enabled: true },
+          { name: 'drive-metadata-read', enabled: false },
+          { name: 'bitable-records-read', enabled: false },
+        ],
+        toolAvailable: true,
+        approvalAvailable: true,
+        maxContentChars: 20_000,
+        maxBitableRecords: 20,
+        platformAccess: 'not-verified',
+      },
       modelCalls: 0,
       authority: 'native-dsh-command',
     })
@@ -81,6 +99,7 @@ describe('Feishu authoritative health snapshot', () => {
       routes: [{ id: 'main', workspaceId: 'workspace-a', sessionId: 'session-a', threadScoped: true }],
       outbound: outbound(),
       pendingApprovals: 0,
+      content: contentHealth(),
     })
     expect(connecting.status).toBe('busy')
 
@@ -95,6 +114,7 @@ describe('Feishu authoritative health snapshot', () => {
         last: { id: 'x', routeId: 'main', kind: 'response', status: 'uncertain', attempts: 1, updatedAt: 999 },
       }),
       pendingApprovals: 0,
+      content: contentHealth(),
     })
     expect(attention.status).toBe('attention')
 
@@ -105,9 +125,10 @@ describe('Feishu authoritative health snapshot', () => {
       routes: [{ id: 'main', workspaceId: 'workspace-a', sessionId: 'session-a', threadScoped: true }],
       outbound: outbound(),
       pendingApprovals: 0,
+      content: contentHealth(),
     })
     expect(degraded.status).toBe('degraded')
-    expect(() => parseFeishuHealthCommand('EVOFORGE_FEISHU_HEALTH_V1 {"schemaVersion":2}'))
+    expect(() => parseFeishuHealthCommand('EVOFORGE_FEISHU_HEALTH_V1 {"schemaVersion":1}'))
       .toThrow(/invalid health payload/u)
     expect(() => summarizeFeishuHealth({
       now: 1_002,
@@ -119,9 +140,55 @@ describe('Feishu authoritative health snapshot', () => {
       ],
       outbound: outbound(),
       pendingApprovals: 0,
+      content: contentHealth(),
     })).toThrow(/one native Workspace and Session/u)
   })
+
+  it('makes unavailable Approval and future-Session-only Tool activation explicit', () => {
+    const approvalUnavailable = summarizeFeishuHealth({
+      now: 1_100,
+      accountId: 'cli_test_app',
+      transport: gatewayTransport('ready', ['main'], 1_099),
+      routes: [{ id: 'main', workspaceId: 'workspace-a', sessionId: 'session-a', threadScoped: false }],
+      outbound: outbound(),
+      pendingApprovals: 0,
+      content: contentHealth({ permissions: new Set(['document-read']), approvalAvailable: false }),
+    })
+    expect(approvalUnavailable.status).toBe('attention')
+    expect(approvalUnavailable.content.status).toBe('approval-unavailable')
+
+    const futureSession = summarizeFeishuHealth({
+      now: 1_101,
+      accountId: 'cli_test_app',
+      transport: gatewayTransport('ready', ['main'], 1_100),
+      routes: [{ id: 'main', workspaceId: 'workspace-a', sessionId: 'session-a', threadScoped: false }],
+      outbound: outbound(),
+      pendingApprovals: 0,
+      content: contentHealth({
+        permissions: new Set(['bitable-records-read']),
+        toolAvailable: false,
+        futureSessionOnly: true,
+      }),
+    })
+    expect(futureSession.status).toBe('attention')
+    expect(futureSession.content.status).toBe('future-session-only')
+    expect(renderFeishuHealthCommand(futureSession)).toContain('Content: FUTURE-SESSION-ONLY')
+  })
 })
+
+function contentHealth(
+  overrides: Partial<SummarizeFeishuContentHealthInput> = {},
+): SummarizeFeishuContentHealthInput {
+  return {
+    permissions: new Set<FeishuContentPermission>(),
+    toolAvailable: true,
+    approvalAvailable: true,
+    futureSessionOnly: false,
+    maxContentChars: 20_000,
+    maxBitableRecords: 20,
+    ...overrides,
+  }
+}
 
 function outbound(overrides: Record<string, unknown> = {}) {
   return {

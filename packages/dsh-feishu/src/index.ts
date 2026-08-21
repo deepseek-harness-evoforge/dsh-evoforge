@@ -181,12 +181,16 @@ export {
   FEISHU_HEALTH_PREFIX,
   parseFeishuHealthCommand,
   renderFeishuHealthCommand,
+  summarizeFeishuContentHealth,
   summarizeFeishuHealth,
+  type FeishuContentHealth,
+  type FeishuContentHealthStatus,
   type FeishuHealthRoute,
   type FeishuHealthRouteInput,
   type FeishuHealthSnapshot,
   type FeishuHealthStatus,
   type FeishuTransportState,
+  type SummarizeFeishuContentHealthInput,
   type SummarizeFeishuHealthInput,
 } from './health.js'
 export {

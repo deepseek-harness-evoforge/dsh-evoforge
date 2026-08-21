@@ -333,7 +333,9 @@ exact chat/operator 共同绑定；错误卡片、错误身份、重放和 dispo
 file block。文档、知识库、云盘元数据和多维表格已按四个默认关闭的独立权限实现为 Agent-scoped 原生
 `feishu_content_read` Tool；每次读取走 ToolRuntime/Approval，当前 Session schema 固定，结果进入原生 durable
 `tool/result`，不另建 Store 或 Gateway 内容路由。assembled DSH 已验证权限拒绝、审批、官方 SDK 映射、边界、
-取消和 dispose，但真实 App scope、资源成员权限和真实内容仍未验证。平台协议、凭据、实际发送、卡片和 transport lifecycle 留在 Adapter；Adapter 只把
+取消和 dispose。V5.6 又把四权限、exact Agent Tool registry、Approval seam 和 request header 组成 V2 Host
+权威内容就绪投影；最终 tarball 已在真实 DSH Web 验证人工刷新、Host 停机清空旧状态和同端口无 reload 恢复，
+且健康读取不调用模型或平台。真实 App scope、资源成员权限和真实内容仍未验证。平台协议、凭据、实际发送、卡片和 transport lifecycle 留在 Adapter；Adapter 只把
 exact route 所属的脱敏 transport observation 注册到 Gateway 权威健康投影，也不把
 其他消息、内容或日程需求视为已交付。该说明不改变以上需求顺序和权限边界。
 

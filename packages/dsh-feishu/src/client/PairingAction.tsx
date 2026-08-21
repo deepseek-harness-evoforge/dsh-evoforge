@@ -189,6 +189,29 @@ export function PairingAction({ commands, t, useSessions, wide }: PairingActionP
               </div>)}
               {health.routesTruncated && <p className="dsh-feishu-health-foot">{t('health.routesTruncated')}</p>}
             </div>
+            <div className="dsh-feishu-content">
+              <div className="dsh-feishu-content-head">
+                <h3>{t('health.contentTitle')}</h3>
+                <span className={`dsh-feishu-content-status is-${health.content.status}`}>
+                  {t(`health.content.status.${health.content.status}`)}
+                </span>
+              </div>
+              <div className="dsh-feishu-content-permissions">
+                {health.content.permissions.map(permission => <div key={permission.name}>
+                  <span>{t(`health.content.permission.${permission.name}`)}</span>
+                  <strong className={permission.enabled ? 'is-enabled' : 'is-disabled'}>
+                    {t(permission.enabled ? 'health.content.enabled' : 'health.content.disabled')}
+                  </strong>
+                </div>)}
+              </div>
+              <dl className="dsh-feishu-content-facts">
+                <div><dt>{t('health.content.tool')}</dt><dd>{t(health.content.toolAvailable ? 'health.content.available' : 'health.content.unavailable')}</dd></div>
+                <div><dt>{t('health.content.approval')}</dt><dd>{t(health.content.approvalAvailable ? 'health.content.available' : 'health.content.unavailable')}</dd></div>
+                <div><dt>{t('health.content.charLimit')}</dt><dd>{health.content.maxContentChars}</dd></div>
+                <div><dt>{t('health.content.recordLimit')}</dt><dd>{health.content.maxBitableRecords}</dd></div>
+              </dl>
+              <p className="dsh-feishu-health-foot">{t('health.content.platformUnverified')}</p>
+            </div>
             {health.deliveries.last !== undefined && <div className="dsh-feishu-message">
               {t('health.lastDelivery')} <code>{health.deliveries.last.status}</code> · {health.deliveries.last.attempts} {t('health.attempts')}
             </div>}

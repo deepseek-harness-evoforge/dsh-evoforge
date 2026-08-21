@@ -4,11 +4,17 @@ import type {
   GatewayTransportHealthItem,
   GatewayTransportState,
 } from 'dsh-gateway'
+import {
+  FEISHU_CONTENT_PERMISSIONS,
+  type FeishuContentPermission,
+} from './config.js'
 
-export const FEISHU_HEALTH_PREFIX = 'EVOFORGE_FEISHU_HEALTH_V1 '
+export const FEISHU_HEALTH_PREFIX = 'EVOFORGE_FEISHU_HEALTH_V2 '
 
 export type FeishuTransportState = GatewayTransportState
 export type FeishuHealthStatus = 'ready' | 'busy' | 'attention' | 'degraded' | 'stopping'
+export type FeishuContentHealthStatus = 'disabled' | 'ready' | 'future-session-only'
+  | 'approval-unavailable' | 'tool-unavailable'
 
 export interface FeishuHealthRoute {
   readonly id: string
@@ -20,8 +26,23 @@ export interface FeishuHealthRouteInput extends FeishuHealthRoute {
   readonly sessionId: string
 }
 
+export interface FeishuContentHealth {
+  readonly status: FeishuContentHealthStatus
+  readonly enabledCount: number
+  readonly permissions: readonly {
+    readonly name: FeishuContentPermission
+    readonly enabled: boolean
+  }[]
+  readonly toolAvailable: boolean
+  readonly approvalAvailable: boolean
+  readonly maxContentChars: number
+  readonly maxBitableRecords: number
+  /** Health never turns a read-only refresh into a live Feishu permission probe. */
+  readonly platformAccess: 'not-verified'
+}
+
 export interface FeishuHealthSnapshot {
-  readonly schemaVersion: 1
+  readonly schemaVersion: 2
   readonly observedAt: number
   readonly accountId: string
   readonly workspaceId: string
@@ -56,8 +77,18 @@ export interface FeishuHealthSnapshot {
     }
   }
   readonly pendingApprovals: number
+  readonly content: FeishuContentHealth
   readonly modelCalls: 0
   readonly authority: 'native-dsh-command'
+}
+
+export interface SummarizeFeishuContentHealthInput {
+  readonly permissions: ReadonlySet<FeishuContentPermission>
+  readonly toolAvailable: boolean
+  readonly approvalAvailable: boolean
+  readonly futureSessionOnly: boolean
+  readonly maxContentChars: number
+  readonly maxBitableRecords: number
 }
 
 export interface SummarizeFeishuHealthInput {
@@ -67,6 +98,7 @@ export interface SummarizeFeishuHealthInput {
   readonly routes: readonly FeishuHealthRouteInput[]
   readonly outbound: GatewayOutboundHealth
   readonly pendingApprovals: number
+  readonly content: SummarizeFeishuContentHealthInput
 }
 
 /** Build a redacted, Session-scoped view from the durable Host authorities. */
@@ -88,6 +120,7 @@ export function summarizeFeishuHealth(input: SummarizeFeishuHealthInput): Feishu
   }
   const counts = input.outbound
   const active = counts.prepared + counts.sending + counts.retrying
+  const content = summarizeFeishuContentHealth(input.content)
   const visibleRoutes = [...input.routes]
     .sort((left, right) => left.id.localeCompare(right.id))
     .slice(0, 20)
@@ -100,11 +133,13 @@ export function summarizeFeishuHealth(input: SummarizeFeishuHealthInput): Feishu
         ? 'busy'
         : counts.uncertain + counts.failed > 0
           ? 'attention'
-          : active > 0 || counts.scheduled > 0 || input.pendingApprovals > 0
-            ? 'busy'
-            : 'ready'
+          : content.status !== 'disabled' && content.status !== 'ready'
+            ? 'attention'
+            : active > 0 || counts.scheduled > 0 || input.pendingApprovals > 0
+              ? 'busy'
+              : 'ready'
   return Object.freeze({
-    schemaVersion: 1,
+    schemaVersion: 2,
     observedAt: input.now,
     accountId: input.accountId,
     workspaceId,
@@ -141,8 +176,39 @@ export function summarizeFeishuHealth(input: SummarizeFeishuHealthInput): Feishu
       }),
     }),
     pendingApprovals: input.pendingApprovals,
+    content,
     modelCalls: 0,
     authority: 'native-dsh-command',
+  })
+}
+
+/** Resolve configured policy against the exact current Agent surface, without probing Feishu. */
+export function summarizeFeishuContentHealth(
+  input: SummarizeFeishuContentHealthInput,
+): FeishuContentHealth {
+  const permissions = Object.freeze(FEISHU_CONTENT_PERMISSIONS.map(name => Object.freeze({
+    name,
+    enabled: input.permissions.has(name),
+  })))
+  const enabledCount = permissions.filter(permission => permission.enabled).length
+  const status: FeishuContentHealthStatus = enabledCount === 0
+    ? 'disabled'
+    : input.toolAvailable && input.approvalAvailable
+      ? 'ready'
+      : input.toolAvailable
+        ? 'approval-unavailable'
+        : input.futureSessionOnly
+          ? 'future-session-only'
+          : 'tool-unavailable'
+  return Object.freeze({
+    status,
+    enabledCount,
+    permissions,
+    toolAvailable: input.toolAvailable,
+    approvalAvailable: input.approvalAvailable,
+    maxContentChars: input.maxContentChars,
+    maxBitableRecords: input.maxBitableRecords,
+    platformAccess: 'not-verified',
   })
 }
 
@@ -152,12 +218,13 @@ export function renderFeishuHealthCommand(snapshot: FeishuHealthSnapshot): strin
     `Feishu: ${snapshot.status.toUpperCase()} (${snapshot.routes.map(route => route.id).join(', ')}${snapshot.routesTruncated ? ', …' : ''}).`,
     `Transport: ${snapshot.transport.kind}; lifecycle ${snapshot.transport.state}.`,
     `Deliveries: ${snapshot.deliveries.total} total; ${snapshot.deliveries.retrying} retrying; ${snapshot.deliveries.uncertain} uncertain; ${snapshot.deliveries.failed} failed.`,
+    `Content: ${snapshot.content.status.toUpperCase()}; ${snapshot.content.enabledCount} permissions enabled; Tool ${snapshot.content.toolAvailable ? 'available' : 'unavailable'}; Approval ${snapshot.content.approvalAvailable ? 'available' : 'unavailable'}; platform access not verified.`,
     `Approvals: ${snapshot.pendingApprovals} pending. Model surface: ${snapshot.modelCalls} calls.`,
     `${FEISHU_HEALTH_PREFIX}${JSON.stringify(snapshot)}`,
   ].join('\n')
 }
 
-/** Parse only the bounded v1 projection; arbitrary Command text is never trusted as state. */
+/** Parse only the bounded v2 projection; arbitrary Command text is never trusted as state. */
 export function parseFeishuHealthCommand(text: string): FeishuHealthSnapshot {
   const line = text.split('\n').find(value => value.startsWith(FEISHU_HEALTH_PREFIX))
   if (line === undefined || line.length > 100_000) throw new Error('invalid health payload')
@@ -172,7 +239,7 @@ export function parseFeishuHealthCommand(text: string): FeishuHealthSnapshot {
 }
 
 function isHealth(value: unknown): value is FeishuHealthSnapshot {
-  if (!record(value) || value.schemaVersion !== 1 || !integer(value.observedAt) || !text(value.accountId)
+  if (!record(value) || value.schemaVersion !== 2 || !integer(value.observedAt) || !text(value.accountId)
     || !text(value.workspaceId) || !text(value.sessionId) || !integer(value.routeCount)
     || typeof value.routesTruncated !== 'boolean'
     || !oneOf(value.status, ['ready', 'busy', 'attention', 'degraded', 'stopping'])
@@ -183,11 +250,37 @@ function isHealth(value: unknown): value is FeishuHealthSnapshot {
     || !optionalInteger(value.transport.lastErrorAt) || !Array.isArray(value.routes)
     || value.routes.length > 20 || !value.routes.every(route)
     || !record(value.deliveries) || !deliveries(value.deliveries)
-    || !integer(value.pendingApprovals)) return false
+    || !integer(value.pendingApprovals) || !contentHealth(value.content)) return false
   const routeIds = value.routes.map(item => item.id)
   if (new Set(routeIds).size !== routeIds.length || value.routeCount < value.routes.length
     || value.routesTruncated !== (value.routeCount > value.routes.length)) return false
   return true
+}
+
+function contentHealth(value: unknown): value is FeishuContentHealth {
+  if (!record(value)
+    || !oneOf(value.status, ['disabled', 'ready', 'future-session-only', 'approval-unavailable', 'tool-unavailable'])
+    || !integer(value.enabledCount)
+    || typeof value.toolAvailable !== 'boolean'
+    || typeof value.approvalAvailable !== 'boolean'
+    || !integerRange(value.maxContentChars, 1_024, 100_000)
+    || !integerRange(value.maxBitableRecords, 1, 100)
+    || value.platformAccess !== 'not-verified'
+    || !Array.isArray(value.permissions)
+    || value.permissions.length !== FEISHU_CONTENT_PERMISSIONS.length) return false
+  let enabledCount = 0
+  for (let index = 0; index < FEISHU_CONTENT_PERMISSIONS.length; index += 1) {
+    const permission = value.permissions[index]
+    if (!record(permission) || permission.name !== FEISHU_CONTENT_PERMISSIONS[index]
+      || typeof permission.enabled !== 'boolean') return false
+    if (permission.enabled) enabledCount += 1
+  }
+  if (value.enabledCount !== enabledCount) return false
+  if (enabledCount === 0) return value.status === 'disabled'
+  if (value.status === 'ready') return value.toolAvailable && value.approvalAvailable
+  if (value.status === 'approval-unavailable') return value.toolAvailable && !value.approvalAvailable
+  if (value.status === 'future-session-only' || value.status === 'tool-unavailable') return !value.toolAvailable
+  return false
 }
 
 function route(value: unknown): value is FeishuHealthRoute {
@@ -210,6 +303,10 @@ function record(value: unknown): value is Record<string, unknown> {
 
 function integer(value: unknown): value is number {
   return Number.isSafeInteger(value) && (value as number) >= 0
+}
+
+function integerRange(value: unknown, minimum: number, maximum: number): value is number {
+  return integer(value) && value >= minimum && value <= maximum
 }
 
 function optionalInteger(value: unknown): boolean {

@@ -5,6 +5,8 @@
 > 2026-08-19 当前状态注记：本页的 `evoforge_feishu` 私有 journal/worker 和 `15 files / 41 tests` 是
 > AS-2 当时的历史证据；它们已由 [GW-3](gw-3-gateway-outbound-delivery.zh.md) 的 Gateway 公共 outbound
 > 深模块替换。活动源码不再打开 `evoforge_feishu` Domain，也不保留兼容双写。
+> routes-mode 健康协议的当前 V2 内容就绪面、最终包刷新/失败清空/恢复证据见
+> [V5.6](v5-6-feishu-content-readiness-web.zh.md)；下文 V1 描述仅保留当时审计语境。
 
 `dsh-feishu` 是 `dsh-gateway` 上的第二个薄 Adapter，不是独立机器人 Runtime。它使用飞书官方 Node SDK `1.73.0` 的 WebSocket 长连接；Router 持有 endpoint → Workspace/Session/Agent、原生 Command admission 和 ingress 幂等，Adapter 只持有协议、Approval 卡片与出站 journal。
 
@@ -88,7 +90,7 @@ App Secret、chat id、open id、消息正文和错误正文均不进入投影�
 或人工刷新时读取，不建立新 API/Remote、后台轮询或写权限；若全局 setup-only Command 与已绑定 route
 同时存在，`/feishu` 健康优先，避免重复配对。组件门禁固定了首次 Remote 失败保持 alert、再次刷新才
 恢复，以及刷新失败必须清除旧快照、不得继续显示历史 `ready` 的行为。macOS assembled DSH 门禁以 fake platform error 将 Host 状态变为 `degraded`，
-随后只有下一条实际平台消息才恢复 `ready`；经 Router 从飞书执行 `/feishu` 后，回复中的 v1 快照可解析且
+随后只有下一条实际平台消息才恢复 `ready`；经 Router 从飞书执行 `/feishu` 后，回复中的当时 V1 快照可解析且
 `modelCalls=0`，并断言不含测试 secret、exact chat id 与 user id。clean-profile 官方 add/dump/remove 在
 一次 npm `ECONNRESET` 后以放宽联网安装超时重跑通过。
 

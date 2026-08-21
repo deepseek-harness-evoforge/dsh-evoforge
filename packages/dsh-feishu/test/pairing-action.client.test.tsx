@@ -117,6 +117,14 @@ describe('Feishu pairing action', () => {
         failed: 0,
       },
       pendingApprovals: 0,
+      content: {
+        permissions: new Set(['document-read', 'bitable-records-read']),
+        toolAvailable: true,
+        approvalAvailable: true,
+        futureSessionOnly: false,
+        maxContentChars: 20_000,
+        maxBitableRecords: 20,
+      },
     })
     const commands = {
       list: vi.fn(() => success([
@@ -137,7 +145,13 @@ describe('Feishu pairing action', () => {
     expect(await screen.findByText('就绪')).toBeTruthy()
     expect(screen.getByText('official-feishu-websocket')).toBeTruthy()
     expect(screen.getByText('feishu-main')).toBeTruthy()
-    expect(screen.getAllByText('0')).toHaveLength(5)
+    expect(screen.getByText('内容读取')).toBeTruthy()
+    expect(screen.getByText('DSH 就绪')).toBeTruthy()
+    expect(screen.getByText('文档')).toBeTruthy()
+    expect(screen.getByText('多维表格记录')).toBeTruthy()
+    expect(screen.getAllByText('已启用')).toHaveLength(2)
+    expect(screen.getAllByText('未启用')).toHaveLength(2)
+    expect(screen.getByText(/平台权限未主动探测/u)).toBeTruthy()
     expect(screen.getByText(/不调用模型/u)).toBeTruthy()
     expect(commands.execute).toHaveBeenNthCalledWith(1, sessionId, '/feishu')
     expect(commands.execute).toHaveBeenNthCalledWith(2, sessionId, '/feishu')

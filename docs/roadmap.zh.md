@@ -1,6 +1,6 @@
 # EvoForge v0.1 路线图
 
-> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已替换旧 Router 并完成公共 outbound/健康 Web 的真实浏览器失败恢复验收，飞书图片已在 assembled DSH 中进入 Agent，运行时外部能力获取相关偏差表面已删除。缺失 Skill Candidate 已形成 Retention/Promotion/Canary/Rollback 活动纵切；现有 Skill 已完成完整 baseline、protected whole-tree Candidate、exact Holdout/Retention、独立发布门和最终包浏览器生命周期。V4.46 实现 active existing-Skill release 的 failed-Outcome exact paired Canary Host/Jobs，V4.47 已接入权威 Control/Remote/Web 和独立 expected-active rollback gate，V4.48 已从最终 tarball 完成 existing-Skill approve/promote/Canary/断连保留/精确 rollback/冷恢复/卸载，V4.49 已对 missing-Skill `skill-bundle` 完成同类最终包门禁。V5.5 已把飞书文档/Wiki/Drive metadata/Bitable 做成四个默认关闭权限下的一个 Agent-scoped 原生 Tool，并通过 assembled DSH Tool/Approval 门。下一阶段做真实飞书 App 内容/权限和两套独立真实 provider。exact 飞书用户消息与 Hermes paired 仍未完成；普通文件/音视频仍 pending，v0.1 未发布。
+> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已替换旧 Router 并完成公共 outbound/健康 Web 的真实浏览器失败恢复验收，飞书图片已在 assembled DSH 中进入 Agent，运行时外部能力获取相关偏差表面已删除。缺失 Skill Candidate 已形成 Retention/Promotion/Canary/Rollback 活动纵切；现有 Skill 已完成完整 baseline、protected whole-tree Candidate、exact Holdout/Retention、独立发布门和最终包浏览器生命周期。V4.46 实现 active existing-Skill release 的 failed-Outcome exact paired Canary Host/Jobs，V4.47 已接入权威 Control/Remote/Web 和独立 expected-active rollback gate，V4.48 已从最终 tarball 完成 existing-Skill approve/promote/Canary/断连保留/精确 rollback/冷恢复/卸载，V4.49 已对 missing-Skill `skill-bundle` 完成同类最终包门禁。V5.5 已把飞书文档/Wiki/Drive metadata/Bitable 做成四个默认关闭权限下的一个 Agent-scoped 原生 Tool；V5.6 已把当前 Session 的四权限、Tool/Approval 和 future-only 状态接入 Host V2 与 DSH Web，并从最终 tarball 通过刷新、失败清空和恢复。下一阶段做真实飞书 App 内容/权限和两套独立真实 provider。exact 飞书用户消息与 Hermes paired 仍未完成；普通文件/音视频仍 pending，v0.1 未发布。
 > V4.38 已在 existing-Skill Candidate proposer 前生成并校准 Candidate 不可见的完整 `skill-tree` holdout Envelope；V4.39 已把 exact Envelope 纳入 Candidate 内容身份并消费该 Envelope 与 V4.37 exact 双树执行 assembled paired Trial。下一门是独立 Retention/Canary/晋升/回滚，而不是再次生成或搜索能力。
 > V4.40–V4.45 已完成 Retention、发布门与最终包浏览器生命周期；V4.46–V4.48 已完成 existing-Skill failed-Outcome Canary、权威 Control/Remote/Web、独立 expected-active rollback gate 与最终 tarball 浏览器故障恢复；V4.49 已完成 missing-Skill 同类最终包故障恢复。下一门是两套独立真实 provider。
 > 更新日期：2026-08-21
@@ -43,7 +43,7 @@
 
 ## V2 — 飞书 Adapter
 
-实现状态：Adapter、Gateway 公共可靠投递、真实 DSH 单 Workspace 组合、双 Workspace 双渠道同 Host 重启隔离、Telegram/飞书进化注意力、tarball lifecycle 与十一包总装已完成；真实飞书 App 身份请求、标准代理环境 WebSocket 和 setup-only pairing transport 已通过。assembled 图片纵切已经证明外部 key 只停留在 Adapter，原生引用进入 Session 且 exact bytes 可由 AttachmentStore 回读；它不是用户真实飞书消息或真实多模态 provider 证据。同包 DSH Web Client Module 已从最终 tarball 安装到干净 profile，真实浏览器证明其在当前 Session 内生成/复制/取消配对且零 console error；用户尚未发送配对短语，exact route 消息仍未达到退出门。文档/Wiki/Drive metadata/Bitable 已以四个独立最小权限和一个稳定 Agent-scoped Tool 进入原生 ToolRuntime/Approval，官方 SDK 映射与 durable result 有 assembled 证据；真实 App scope、资源权限和真实内容仍待验收。普通文件、音视频继续 pending，不发明 Gateway file block。
+实现状态：Adapter、Gateway 公共可靠投递、真实 DSH 单 Workspace 组合、双 Workspace 双渠道同 Host 重启隔离、Telegram/飞书进化注意力、tarball lifecycle 与十一包总装已完成；真实飞书 App 身份请求、标准代理环境 WebSocket 和 setup-only pairing transport 已通过。assembled 图片纵切已经证明外部 key 只停留在 Adapter，原生引用进入 Session 且 exact bytes 可由 AttachmentStore 回读；它不是用户真实飞书消息或真实多模态 provider 证据。同包 DSH Web Client Module 已从最终 tarball 安装到干净 profile，真实浏览器证明其在当前 Session 内生成/复制/取消配对且零 console error；用户尚未发送配对短语，exact route 消息仍未达到退出门。文档/Wiki/Drive metadata/Bitable 已以四个独立最小权限和一个稳定 Agent-scoped Tool 进入原生 ToolRuntime/Approval，官方 SDK 映射与 durable result 有 assembled 证据；V2 Host/Web 已显示当前 Session 的 Tool/Approval/future-only 就绪状态并通过最终包刷新、失败清空和恢复。真实 App scope、资源权限和真实内容仍待验收。普通文件、音视频继续 pending，不发明 Gateway file block。
 
 - 支持静态授权的私聊或群聊文本、原生 Command、一次性 Approval、最终回答、Goal/Schedule 与进化注意力；
 - 支持按独立部署权限启用 document/Wiki/Drive metadata/Bitable 的有界原生 Tool 读取，每次走 DSH Approval；
@@ -132,7 +132,8 @@ correction/outcome 的因果证明，以及 rework/currency-cost/reuse/retention
 实现状态：既有 Evolve review、Capability Map/Gap、内部 Skill Opportunity、隔离 whole-Skill Candidate、admission/Shadow、飞书配对 UI、
 routes-mode 脱敏健康投影和渠道底座已实现；健康面最终 tarball 的真实浏览器读取/刷新/Host 停机与恢复
 已通过；assembled DSH 已验证 thread-scoped 回复/continuation 和 exact card/chat/operator 一次性 Approval，
-并验证四类内容独立权限、稳定 Agent Tool schema、原生 Approval、durable result 与 dispose；真实飞书 exact
+并验证四类内容独立权限、稳定 Agent Tool schema、原生 Approval、durable result 与 dispose；V2 内容就绪面
+已从最终 tarball 在真实浏览器验证四权限、Tool/Approval、future-only 语义、刷新、失败清空和恢复；真实飞书 exact
 route 消息、真实卡片点击、真实 App 内容权限与完整评测演进视图 **pending**。
 
 ## V6 — v0.1 验收与首个 tag
