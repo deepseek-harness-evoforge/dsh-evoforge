@@ -39,6 +39,11 @@ import type {
 import type { EvolutionStore } from './generation-store.ts'
 import type { FutureSessionPromotion } from './future-session-promotion.ts'
 import type { FutureSessionRollback } from './future-session-rollback.ts'
+import type {
+  ExistingSkillCounterfactualCanary,
+  ExistingSkillCounterfactualCanaryScan,
+} from './existing-skill-counterfactual-canary.ts'
+import type { ExistingSkillFutureSessionRollback } from './existing-skill-future-session-rollback.ts'
 import type { ResidentEvolutionControl } from './resident-evolution-control.ts'
 import type { ReviewCandidate, ReviewInbox } from './review-inbox.ts'
 import type {
@@ -69,6 +74,7 @@ export interface EvolutionControlPlaneModules {
   readonly store: EvolutionStore
   readonly promotion?: Pick<FutureSessionPromotion, 'eligibility' | 'promote'>
   readonly rollback?: Pick<FutureSessionRollback, 'rollback'>
+  readonly existingSkillRollback?: Pick<ExistingSkillFutureSessionRollback, 'rollback'>
   readonly review?: {
     readonly inbox: Pick<ReviewInbox, 'scanAll' | 'get' | 'approve' | 'reject'>
     readonly publisher: Pick<CandidatePublisher, 'preview' | 'publish'>
@@ -106,6 +112,7 @@ export interface EvolutionControlPlaneModules {
   readonly evaluationGovernance?: Pick<SkillEvaluationGovernance, 'scan'>
   readonly retention?: Pick<InternalSkillRetention, 'scan'>
   readonly counterfactualCanary?: Pick<CounterfactualCanary, 'scan'>
+  readonly existingSkillCounterfactualCanary?: Pick<ExistingSkillCounterfactualCanary, 'scan'>
 }
 
 /** A structured adapter surface that delegates to the same owners as Commands. */
@@ -131,6 +138,7 @@ export class EvolutionControlPlane {
       evaluationGovernanceScan,
       retentionScan,
       counterfactualCanaryScan,
+      existingSkillCounterfactualCanaryScan,
     ] = await Promise.all([
       this.modules.review === undefined ? undefined : this.modules.review.inbox.scanAll(),
       this.modules.admissions === undefined ? undefined : this.modules.admissions.scan(workspaceId),
@@ -164,6 +172,9 @@ export class EvolutionControlPlane {
       this.modules.counterfactualCanary === undefined
         ? undefined
         : this.modules.counterfactualCanary.scan(workspaceId),
+      this.modules.existingSkillCounterfactualCanary === undefined
+        ? undefined
+        : this.modules.existingSkillCounterfactualCanary.scan(workspaceId),
     ])
     const skillOpportunities = this.modules.opportunities?.discover(workspaceId)
     const skillImprovementOpportunities = this.modules.opportunities?.discoverImprovements?.(workspaceId)
@@ -414,6 +425,13 @@ export class EvolutionControlPlane {
       ...(counterfactualCanaryScan === undefined
         ? {}
         : { counterfactualCanary: projectCounterfactualCanary(counterfactualCanaryScan) }),
+      ...(existingSkillCounterfactualCanaryScan === undefined
+        ? {}
+        : {
+            existingSkillCounterfactualCanary: projectExistingSkillCounterfactualCanary(
+              existingSkillCounterfactualCanaryScan,
+            ),
+          }),
       ...(this.modules.outcomes === undefined
         ? {}
         : {
@@ -597,6 +615,25 @@ export class EvolutionControlPlane {
       ...(result.generation === undefined ? {} : { activeGenerationId: result.generation.id }),
       rollbackAuthority: result.authority,
       ...(result.canaryId === undefined ? {} : { canaryId: result.canaryId }),
+    }
+  }
+
+  async rollbackExistingSkill(
+    workspaceId: string,
+    canaryId: string,
+  ): Promise<EvolutionActionReceipt> {
+    if (this.modules.existingSkillRollback === undefined) {
+      throw new Error('existing-Skill future-Session rollback gate is not configured')
+    }
+    const result = await this.modules.existingSkillRollback.rollback(workspaceId, canaryId)
+    return {
+      schemaVersion: 1,
+      workspaceId,
+      action: 'rollback-existing-skill',
+      previousGenerationId: result.previousId,
+      ...(result.generation === undefined ? {} : { activeGenerationId: result.generation.id }),
+      rollbackAuthority: result.authority,
+      canaryId: result.canaryId,
     }
   }
 
@@ -1099,6 +1136,60 @@ function projectCounterfactualCanary(
               } }),
         } }),
       },
+      releaseAuthority: 'none',
+    })),
+  }
+}
+
+function projectExistingSkillCounterfactualCanary(
+  scan: ExistingSkillCounterfactualCanaryScan,
+): NonNullable<EvolutionOverview['existingSkillCounterfactualCanary']> {
+  return {
+    configuredPolicyCount: scan.configuredPolicyCount,
+    warningCount: scan.warningCount,
+    runs: scan.runs.slice(0, MAX_DISCOVERY_ROWS).map(run => ({
+      id: run.id,
+      policyId: run.policyId,
+      generationId: run.generationId,
+      outcomeId: run.outcomeId,
+      candidateId: run.candidateId,
+      skillName: run.skillName,
+      admissionId: run.admissionId,
+      holdoutEvaluationId: run.holdoutEvaluationId,
+      retentionEvaluationId: run.retentionEvaluationId,
+      evaluationEnvelopeId: run.evaluationEnvelopeId,
+      status: run.status,
+      ...run.kind === 'existing-skill-counterfactual-canary-state-v1'
+        ? {}
+        : {
+            reason: run.reason,
+            startedAt: run.startedAt,
+            finishedAt: run.finishedAt,
+            ...(run.evidence === undefined ? {} : { evidence: {
+              holdoutCasePackHash: run.evidence.holdoutCasePackHash,
+              retentionCasePackHash: run.evidence.retentionCasePackHash,
+              baselineTreeHash: run.evidence.baselineTreeHash,
+              candidateTreeHash: run.evidence.candidateTreeHash,
+              baseline: run.evidence.baseline,
+              candidate: run.evidence.candidate,
+              calibrationPassed: run.evidence.calibrationPassed,
+              assembled: run.evidence.assembled,
+              compositionStable: run.evidence.compositionStable,
+              inputIntegrityStable: run.evidence.inputIntegrityStable,
+              activePointerStable: run.evidence.activePointerStable,
+              proposerCalls: run.evidence.proposerCalls,
+              trialCount: run.evidence.trialCount,
+              ...(run.evidence.modelCalls === undefined
+                ? {}
+                : { modelCalls: { ...run.evidence.modelCalls } }),
+              ...(run.evidence.usage === undefined
+                ? {}
+                : { usage: {
+                    baseline: projectEvaluatorUsage(run.evidence.usage.baseline),
+                    candidate: projectEvaluatorUsage(run.evidence.usage.candidate),
+                  } }),
+            } }),
+          },
       releaseAuthority: 'none',
     })),
   }

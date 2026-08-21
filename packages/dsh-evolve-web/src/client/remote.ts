@@ -18,6 +18,7 @@ export interface EvolutionRemoteClient {
   promoteExistingSkill(workspaceId: string, candidateId: string): Promise<RemoteResult<EvolutionActionReceipt>>
   promote(workspaceId: string, generationId: string): Promise<RemoteResult<EvolutionActionReceipt>>
   rollback(workspaceId: string, canaryId?: string): Promise<RemoteResult<EvolutionActionReceipt>>
+  rollbackExistingSkill(workspaceId: string, canaryId: string): Promise<RemoteResult<EvolutionActionReceipt>>
 }
 
 /** Turn the Remote result union into the component's ordinary success/error flow. */

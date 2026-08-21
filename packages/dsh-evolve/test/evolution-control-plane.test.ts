@@ -1692,6 +1692,101 @@ describe('EvolutionControlPlane', () => {
     expect(evolutionStore.rollbackGeneration).not.toHaveBeenCalled()
   })
 
+  it('projects existing-Skill Canary evidence and routes its exact rollback gate independently', async () => {
+    const canaryId = '4'.repeat(64)
+    const existingSkillCounterfactualCanary = {
+      scan: vi.fn(async () => ({
+        configuredPolicyCount: 1,
+        warningCount: 0,
+        runs: [{
+          schemaVersion: 1 as const,
+          kind: 'existing-skill-counterfactual-canary-result-v1' as const,
+          id: canaryId,
+          policyId: 'workspace-governance',
+          workspaceId: WORKSPACE_ID,
+          generationId,
+          outcomeId: '5'.repeat(64),
+          candidateId: existingCandidateId,
+          skillName: 'build-dsh-plugin',
+          admissionId: '6'.repeat(64),
+          holdoutEvaluationId: '7'.repeat(64),
+          retentionEvaluationId: '8'.repeat(64),
+          evaluationEnvelopeId: '9'.repeat(64),
+          status: 'rollback-eligible' as const,
+          reason: 'candidate-regressed-baseline-recovers' as const,
+          startedAt: '2026-08-21T00:00:00.000Z',
+          finishedAt: '2026-08-21T00:01:00.000Z',
+          evidence: {
+            holdoutCasePackHash: '1'.repeat(64),
+            retentionCasePackHash: '2'.repeat(64),
+            baselineTreeHash: '3'.repeat(64),
+            candidateTreeHash: '4'.repeat(64),
+            baseline: 'pass' as const,
+            candidate: 'fail' as const,
+            calibrationPassed: true,
+            assembled: true,
+            compositionStable: true,
+            inputIntegrityStable: true,
+            activePointerStable: true,
+            proposerCalls: 0 as const,
+            trialCount: 4 as const,
+            modelCalls: { baseline: 1, candidate: 1 },
+            usage: {
+              baseline: { inputTokens: 20, cacheReadTokens: 5 },
+              candidate: { inputTokens: 18, cacheReadTokens: 7 },
+            },
+          },
+          releaseAuthority: 'none' as const,
+        }],
+      })),
+    }
+    const existingSkillRollback = {
+      rollback: vi.fn(async () => ({
+        previousId: generationId,
+        generation: undefined,
+        authority: 'existing-skill-counterfactual-canary' as const,
+        canaryId,
+      })),
+    }
+    const control = new EvolutionControlPlane({
+      store: store(),
+      existingSkillCounterfactualCanary,
+      existingSkillRollback,
+    })
+
+    await expect(control.overview(WORKSPACE_ID)).resolves.toMatchObject({
+      existingSkillCounterfactualCanary: {
+        configuredPolicyCount: 1,
+        warningCount: 0,
+        runs: [{
+          id: canaryId,
+          status: 'rollback-eligible',
+          reason: 'candidate-regressed-baseline-recovers',
+          evidence: {
+            baseline: 'pass',
+            candidate: 'fail',
+            activePointerStable: true,
+            inputIntegrityStable: true,
+            proposerCalls: 0,
+            trialCount: 4,
+            usage: {
+              baseline: { inputTokens: 20, cacheReadTokens: 5 },
+              candidate: { inputTokens: 18, cacheReadTokens: 7 },
+            },
+          },
+          releaseAuthority: 'none',
+        }],
+      },
+    })
+    await expect(control.rollbackExistingSkill(WORKSPACE_ID, canaryId)).resolves.toMatchObject({
+      action: 'rollback-existing-skill',
+      previousGenerationId: generationId,
+      rollbackAuthority: 'existing-skill-counterfactual-canary',
+      canaryId,
+    })
+    expect(existingSkillRollback.rollback).toHaveBeenCalledWith(WORKSPACE_ID, canaryId)
+  })
+
   it('fails closed instead of bypassing a missing future-Session rollback gate', async () => {
     const evolutionStore = store()
     const control = new EvolutionControlPlane({ store: evolutionStore })

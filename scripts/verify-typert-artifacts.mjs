@@ -17,6 +17,7 @@ const expectedMethods = [
   'resume',
   'review',
   'rollback',
+  'rollbackExistingSkill',
 ]
 
 const recorded = (await readFile(join(output, 'typert.source.sha256'), 'utf8')).trim()
@@ -53,6 +54,7 @@ const expectedParameters = {
   resume: ['workspaceId'],
   review: ['workspaceId', 'id'],
   rollback: ['workspaceId', 'canaryId'],
+  rollbackExistingSkill: ['workspaceId', 'canaryId'],
 }
 const actualParameters = Object.fromEntries(
   remoteManifest.descriptors

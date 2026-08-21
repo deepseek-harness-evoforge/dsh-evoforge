@@ -7,7 +7,7 @@ const dsh_evolve_evoforgeEvolution_approveExistingSkill_parameter_2$schema = z.s
 const dsh_evolve_evoforgeEvolution_approveExistingSkill_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
   'workspaceId': z.string().readonly(),
-  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback")]).readonly(),
+  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback"), z.literal("rollback-existing-skill")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'candidateId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("approved"), z.literal("rejected")]).readonly().optional(),
@@ -15,7 +15,7 @@ const dsh_evolve_evoforgeEvolution_approveExistingSkill_result$schema = z.object
   'previousGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'activeGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'recoveryPaused': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
-  'rollbackAuthority': z.union([z.undefined(), z.literal("explicit-human"), z.literal("counterfactual-canary")]).readonly().optional(),
+  'rollbackAuthority': z.union([z.undefined(), z.literal("explicit-human"), z.literal("counterfactual-canary"), z.literal("existing-skill-counterfactual-canary")]).readonly().optional(),
   'canaryId': z.union([z.undefined(), z.string()]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_approveReview_parameter_0$schema = z.string()
@@ -24,7 +24,7 @@ const dsh_evolve_evoforgeEvolution_approveReview_parameter_2$schema = z.string()
 const dsh_evolve_evoforgeEvolution_approveReview_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
   'workspaceId': z.string().readonly(),
-  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback")]).readonly(),
+  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback"), z.literal("rollback-existing-skill")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'candidateId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("approved"), z.literal("rejected")]).readonly().optional(),
@@ -32,7 +32,7 @@ const dsh_evolve_evoforgeEvolution_approveReview_result$schema = z.object({
   'previousGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'activeGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'recoveryPaused': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
-  'rollbackAuthority': z.union([z.undefined(), z.literal("explicit-human"), z.literal("counterfactual-canary")]).readonly().optional(),
+  'rollbackAuthority': z.union([z.undefined(), z.literal("explicit-human"), z.literal("counterfactual-canary"), z.literal("existing-skill-counterfactual-canary")]).readonly().optional(),
   'canaryId': z.union([z.undefined(), z.string()]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_overview_parameter_0$schema = z.string()
@@ -779,6 +779,62 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'releaseAuthority': z.literal("none").readonly(),
 })).readonly(),
 })]).readonly().optional(),
+  'existingSkillCounterfactualCanary': z.union([z.undefined(), z.object({
+  'configuredPolicyCount': z.number().readonly(),
+  'warningCount': z.number().readonly(),
+  'runs': z.array(z.object({
+  'id': z.string().readonly(),
+  'policyId': z.string().readonly(),
+  'generationId': z.string().readonly(),
+  'outcomeId': z.string().readonly(),
+  'candidateId': z.string().readonly(),
+  'skillName': z.string().readonly(),
+  'admissionId': z.string().readonly(),
+  'holdoutEvaluationId': z.string().readonly(),
+  'retentionEvaluationId': z.string().readonly(),
+  'evaluationEnvelopeId': z.string().readonly(),
+  'status': z.union([z.literal("prepared"), z.literal("trial-pending"), z.literal("review"), z.literal("keep"), z.literal("rollback-eligible")]).readonly(),
+  'reason': z.union([z.undefined(), z.literal("canary-input-mutated"), z.literal("canary-not-assembled"), z.literal("canary-calibration-failed"), z.literal("canary-composition-changed"), z.literal("active-generation-changed"), z.literal("canary-trial-outcome-uncertain"), z.literal("candidate-still-passes-sealed-canary"), z.literal("candidate-regressed-baseline-recovers"), z.literal("failed-outcome-not-isolated"), z.literal("canary-trial-failed"), z.literal("canary-replay-evidence-invalid")]).readonly().optional(),
+  'startedAt': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'finishedAt': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'evidence': z.union([z.undefined(), z.object({
+  'holdoutCasePackHash': z.string().readonly(),
+  'retentionCasePackHash': z.string().readonly(),
+  'baselineTreeHash': z.string().readonly(),
+  'candidateTreeHash': z.string().readonly(),
+  'baseline': z.union([z.literal("pass"), z.literal("fail")]).readonly(),
+  'candidate': z.union([z.literal("pass"), z.literal("fail")]).readonly(),
+  'calibrationPassed': z.boolean().readonly(),
+  'assembled': z.boolean().readonly(),
+  'compositionStable': z.boolean().readonly(),
+  'inputIntegrityStable': z.boolean().readonly(),
+  'activePointerStable': z.boolean().readonly(),
+  'proposerCalls': z.literal(0).readonly(),
+  'trialCount': z.literal(4).readonly(),
+  'modelCalls': z.union([z.undefined(), z.object({
+  'baseline': z.number().readonly(),
+  'candidate': z.number().readonly(),
+})]).readonly().optional(),
+  'usage': z.union([z.undefined(), z.object({
+  'baseline': z.object({
+  'inputTokens': z.number().readonly(),
+  'outputTokens': z.number().readonly(),
+  'cacheReadTokens': z.number().readonly(),
+  'cacheWriteTokens': z.number().readonly(),
+  'reasoningTokens': z.number().readonly(),
+}).readonly(),
+  'candidate': z.object({
+  'inputTokens': z.number().readonly(),
+  'outputTokens': z.number().readonly(),
+  'cacheReadTokens': z.number().readonly(),
+  'cacheWriteTokens': z.number().readonly(),
+  'reasoningTokens': z.number().readonly(),
+}).readonly(),
+})]).readonly().optional(),
+})]).readonly().optional(),
+  'releaseAuthority': z.literal("none").readonly(),
+})).readonly(),
+})]).readonly().optional(),
   'deliveryOutcomes': z.union([z.undefined(), z.object({
   'all': z.object({
   'total': z.number().readonly(),
@@ -1001,7 +1057,7 @@ const dsh_evolve_evoforgeEvolution_pause_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_pause_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
   'workspaceId': z.string().readonly(),
-  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback")]).readonly(),
+  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback"), z.literal("rollback-existing-skill")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'candidateId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("approved"), z.literal("rejected")]).readonly().optional(),
@@ -1009,7 +1065,7 @@ const dsh_evolve_evoforgeEvolution_pause_result$schema = z.object({
   'previousGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'activeGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'recoveryPaused': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
-  'rollbackAuthority': z.union([z.undefined(), z.literal("explicit-human"), z.literal("counterfactual-canary")]).readonly().optional(),
+  'rollbackAuthority': z.union([z.undefined(), z.literal("explicit-human"), z.literal("counterfactual-canary"), z.literal("existing-skill-counterfactual-canary")]).readonly().optional(),
   'canaryId': z.union([z.undefined(), z.string()]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_promote_parameter_0$schema = z.string()
@@ -1017,7 +1073,7 @@ const dsh_evolve_evoforgeEvolution_promote_parameter_1$schema = z.string()
 const dsh_evolve_evoforgeEvolution_promote_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
   'workspaceId': z.string().readonly(),
-  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback")]).readonly(),
+  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback"), z.literal("rollback-existing-skill")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'candidateId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("approved"), z.literal("rejected")]).readonly().optional(),
@@ -1025,7 +1081,7 @@ const dsh_evolve_evoforgeEvolution_promote_result$schema = z.object({
   'previousGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'activeGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'recoveryPaused': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
-  'rollbackAuthority': z.union([z.undefined(), z.literal("explicit-human"), z.literal("counterfactual-canary")]).readonly().optional(),
+  'rollbackAuthority': z.union([z.undefined(), z.literal("explicit-human"), z.literal("counterfactual-canary"), z.literal("existing-skill-counterfactual-canary")]).readonly().optional(),
   'canaryId': z.union([z.undefined(), z.string()]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_promoteExistingSkill_parameter_0$schema = z.string()
@@ -1033,7 +1089,7 @@ const dsh_evolve_evoforgeEvolution_promoteExistingSkill_parameter_1$schema = z.s
 const dsh_evolve_evoforgeEvolution_promoteExistingSkill_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
   'workspaceId': z.string().readonly(),
-  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback")]).readonly(),
+  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback"), z.literal("rollback-existing-skill")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'candidateId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("approved"), z.literal("rejected")]).readonly().optional(),
@@ -1041,7 +1097,7 @@ const dsh_evolve_evoforgeEvolution_promoteExistingSkill_result$schema = z.object
   'previousGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'activeGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'recoveryPaused': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
-  'rollbackAuthority': z.union([z.undefined(), z.literal("explicit-human"), z.literal("counterfactual-canary")]).readonly().optional(),
+  'rollbackAuthority': z.union([z.undefined(), z.literal("explicit-human"), z.literal("counterfactual-canary"), z.literal("existing-skill-counterfactual-canary")]).readonly().optional(),
   'canaryId': z.union([z.undefined(), z.string()]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_rejectExistingSkill_parameter_0$schema = z.string()
@@ -1050,7 +1106,7 @@ const dsh_evolve_evoforgeEvolution_rejectExistingSkill_parameter_2$schema = z.st
 const dsh_evolve_evoforgeEvolution_rejectExistingSkill_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
   'workspaceId': z.string().readonly(),
-  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback")]).readonly(),
+  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback"), z.literal("rollback-existing-skill")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'candidateId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("approved"), z.literal("rejected")]).readonly().optional(),
@@ -1058,7 +1114,7 @@ const dsh_evolve_evoforgeEvolution_rejectExistingSkill_result$schema = z.object(
   'previousGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'activeGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'recoveryPaused': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
-  'rollbackAuthority': z.union([z.undefined(), z.literal("explicit-human"), z.literal("counterfactual-canary")]).readonly().optional(),
+  'rollbackAuthority': z.union([z.undefined(), z.literal("explicit-human"), z.literal("counterfactual-canary"), z.literal("existing-skill-counterfactual-canary")]).readonly().optional(),
   'canaryId': z.union([z.undefined(), z.string()]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_rejectReview_parameter_0$schema = z.string()
@@ -1067,7 +1123,7 @@ const dsh_evolve_evoforgeEvolution_rejectReview_parameter_2$schema = z.string()
 const dsh_evolve_evoforgeEvolution_rejectReview_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
   'workspaceId': z.string().readonly(),
-  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback")]).readonly(),
+  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback"), z.literal("rollback-existing-skill")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'candidateId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("approved"), z.literal("rejected")]).readonly().optional(),
@@ -1075,14 +1131,14 @@ const dsh_evolve_evoforgeEvolution_rejectReview_result$schema = z.object({
   'previousGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'activeGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'recoveryPaused': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
-  'rollbackAuthority': z.union([z.undefined(), z.literal("explicit-human"), z.literal("counterfactual-canary")]).readonly().optional(),
+  'rollbackAuthority': z.union([z.undefined(), z.literal("explicit-human"), z.literal("counterfactual-canary"), z.literal("existing-skill-counterfactual-canary")]).readonly().optional(),
   'canaryId': z.union([z.undefined(), z.string()]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_resume_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_resume_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
   'workspaceId': z.string().readonly(),
-  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback")]).readonly(),
+  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback"), z.literal("rollback-existing-skill")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'candidateId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("approved"), z.literal("rejected")]).readonly().optional(),
@@ -1090,7 +1146,7 @@ const dsh_evolve_evoforgeEvolution_resume_result$schema = z.object({
   'previousGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'activeGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'recoveryPaused': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
-  'rollbackAuthority': z.union([z.undefined(), z.literal("explicit-human"), z.literal("counterfactual-canary")]).readonly().optional(),
+  'rollbackAuthority': z.union([z.undefined(), z.literal("explicit-human"), z.literal("counterfactual-canary"), z.literal("existing-skill-counterfactual-canary")]).readonly().optional(),
   'canaryId': z.union([z.undefined(), z.string()]).readonly().optional(),
 })
 const dsh_evolve_evoforgeEvolution_review_parameter_0$schema = z.string()
@@ -1161,7 +1217,7 @@ const dsh_evolve_evoforgeEvolution_rollback_parameter_1$schema = z.union([z.unde
 const dsh_evolve_evoforgeEvolution_rollback_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
   'workspaceId': z.string().readonly(),
-  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback")]).readonly(),
+  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback"), z.literal("rollback-existing-skill")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'candidateId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("approved"), z.literal("rejected")]).readonly().optional(),
@@ -1169,7 +1225,23 @@ const dsh_evolve_evoforgeEvolution_rollback_result$schema = z.object({
   'previousGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'activeGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'recoveryPaused': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
-  'rollbackAuthority': z.union([z.undefined(), z.literal("explicit-human"), z.literal("counterfactual-canary")]).readonly().optional(),
+  'rollbackAuthority': z.union([z.undefined(), z.literal("explicit-human"), z.literal("counterfactual-canary"), z.literal("existing-skill-counterfactual-canary")]).readonly().optional(),
+  'canaryId': z.union([z.undefined(), z.string()]).readonly().optional(),
+})
+const dsh_evolve_evoforgeEvolution_rollbackExistingSkill_parameter_0$schema = z.string()
+const dsh_evolve_evoforgeEvolution_rollbackExistingSkill_parameter_1$schema = z.string()
+const dsh_evolve_evoforgeEvolution_rollbackExistingSkill_result$schema = z.object({
+  'schemaVersion': z.literal(1).readonly(),
+  'workspaceId': z.string().readonly(),
+  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback"), z.literal("rollback-existing-skill")]).readonly(),
+  'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'candidateId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'status': z.union([z.undefined(), z.literal("approved"), z.literal("rejected")]).readonly().optional(),
+  'generationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'previousGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'activeGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'recoveryPaused': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
+  'rollbackAuthority': z.union([z.undefined(), z.literal("explicit-human"), z.literal("counterfactual-canary"), z.literal("existing-skill-counterfactual-canary")]).readonly().optional(),
   'canaryId': z.union([z.undefined(), z.string()]).readonly().optional(),
 })
 
@@ -1586,6 +1658,41 @@ export const TYPERT = {
       },
       sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":100,"column":3},
     },
+    {
+      id: 'dsh-evolve#evoforgeEvolution/rollbackExistingSkill',
+      service: 'evoforge.evolutionControl',
+      namespace: 'evoforgeEvolution',
+      method: 'rollbackExistingSkill',
+      invocation: { kind: 'direct' },
+      parameters: [
+        {
+          name: 'workspaceId',
+          wire: 'workspaceId',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/rollbackExistingSkill:workspaceId',
+            schema: dsh_evolve_evoforgeEvolution_rollbackExistingSkill_parameter_0$schema,
+          },
+        },
+        {
+          name: 'canaryId',
+          wire: 'canaryId',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/rollbackExistingSkill:canaryId',
+            schema: dsh_evolve_evoforgeEvolution_rollbackExistingSkill_parameter_1$schema,
+          },
+        },
+      ],
+      result: {
+        mode: 'strict',
+        typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
+        schema: dsh_evolve_evoforgeEvolution_rollbackExistingSkill_result$schema,
+      },
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":107,"column":3},
+    },
   ],
   model: {
     "services": [
@@ -1751,6 +1858,11 @@ export const TYPERT = {
             "kind": "method",
             "name": "rollback",
             "signature": "rollback(workspaceId: string, canaryId?: string): Promise<EvolutionActionReceipt>"
+          },
+          {
+            "kind": "method",
+            "name": "rollbackExistingSkill",
+            "signature": "rollbackExistingSkill(workspaceId: string, canaryId: string): Promise<EvolutionActionReceipt>"
           }
         ],
         "types": [
@@ -1768,7 +1880,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionActionReceipt",
-            "declaration": "export interface EvolutionActionReceipt {\n    readonly schemaVersion: 1;\n    readonly workspaceId: string;\n    readonly action: 'pause' | 'resume' | 'approve-review' | 'reject-review' | 'approve-existing-skill' | 'reject-existing-skill' | 'promote-existing-skill' | 'promote' | 'rollback';\n    readonly reviewId?: string;\n    readonly candidateId?: string;\n    readonly status?: 'approved' | 'rejected';\n    readonly generationId?: string;\n    readonly previousGenerationId?: string;\n    readonly activeGenerationId?: string;\n    readonly recoveryPaused?: boolean;\n    readonly rollbackAuthority?: 'explicit-human' | 'counterfactual-canary';\n    readonly canaryId?: string;\n}"
+            "declaration": "export interface EvolutionActionReceipt {\n    readonly schemaVersion: 1;\n    readonly workspaceId: string;\n    readonly action: 'pause' | 'resume' | 'approve-review' | 'reject-review' | 'approve-existing-skill' | 'reject-existing-skill' | 'promote-existing-skill' | 'promote' | 'rollback' | 'rollback-existing-skill';\n    readonly reviewId?: string;\n    readonly candidateId?: string;\n    readonly status?: 'approved' | 'rejected';\n    readonly generationId?: string;\n    readonly previousGenerationId?: string;\n    readonly activeGenerationId?: string;\n    readonly recoveryPaused?: boolean;\n    readonly rollbackAuthority?: 'explicit-human' | 'counterfactual-canary' | 'existing-skill-counterfactual-canary';\n    readonly canaryId?: string;\n}"
           },
           {
             "name": "EvolutionArtifactView",
@@ -1827,6 +1939,10 @@ export const TYPERT = {
             "declaration": "export interface EvolutionExistingSkillCandidateView {\n    readonly id: string;\n    readonly createdAt: number;\n    readonly skillName: string;\n    readonly description: string;\n    readonly opportunity: { readonly kind: 'internal-existing-skill-correction-v1'; readonly id: string; readonly signalCount: number; readonly goalCount: number; };\n    readonly baseline: { readonly qualificationId: string; readonly id: string; readonly artifactDigest: string; readonly treeHash: string; };\n    readonly authorship: { readonly kind: 'protected-correction-authoring-v1'; readonly policyId: string; readonly modelIdentityHash: string; readonly evaluationEvidenceId: string; readonly inputDigest: string; readonly holdoutEnvelopeId?: string; };\n    readonly version: { readonly kind: 'existing-skill-improvement-bundle-v1'; readonly parentBaselineId: string; readonly artifactDigest: string; readonly treeHash: string; };\n    readonly contentHash: string;\n    readonly diff: { readonly kind: 'bounded-instruction-tree-diff-v1'; readonly changedPaths: readonly string[]; readonly addedPaths: readonly string[]; readonly preservedFileCount: number; readonly preservedBinaryFileCount: number; };\n    readonly package: { readonly fileCount: number; readonly totalBytes: number; readonly hasExecutableFiles: false; };\n    readonly permissions: { readonly declared: boolean; readonly executableContentChanged: false; readonly externalEffects: 'unchanged-or-unknown'; };\n    readonly safety: { readonly status: 'quarantined'; };\n    readonly lifecycle: 'inactive';\n    readonly verification: 'unevaluated';\n    readonly execution: 'never';\n    readonly releaseAuthority: 'none';\n}"
           },
           {
+            "name": "EvolutionExistingSkillCounterfactualCanaryView",
+            "declaration": "export interface EvolutionExistingSkillCounterfactualCanaryView {\n    readonly configuredPolicyCount: number;\n    readonly warningCount: number;\n    readonly runs: readonly { readonly id: string; readonly policyId: string; readonly generationId: string; readonly outcomeId: string; readonly candidateId: string; readonly skillName: string; readonly admissionId: string; readonly holdoutEvaluationId: string; readonly retentionEvaluationId: string; readonly evaluationEnvelopeId: string; readonly status: 'prepared' | 'trial-pending' | 'keep' | 'review' | 'rollback-eligible'; readonly reason?: 'candidate-still-passes-sealed-canary' | 'candidate-regressed-baseline-recovers' | 'failed-outcome-not-isolated' | 'active-generation-changed' | 'canary-input-mutated' | 'canary-not-assembled' | 'canary-calibration-failed' | 'canary-composition-changed' | 'canary-trial-failed' | 'canary-trial-outcome-uncertain' | 'canary-replay-evidence-invalid'; readonly startedAt?: string; readonly finishedAt?: string; readonly evidence?: { readonly holdoutCasePackHash: string; readonly retentionCasePackHash: string; readonly baselineTreeHash: string; readonly candidateTreeHash: string; readonly baseline: 'pass' | 'fail'; readonly candidate: 'pass' | 'fail'; readonly calibrationPassed: boolean; readonly assembled: boolean; readonly compositionStable: boolean; readonly inputIntegrityStable: boolean; readonly activePointerStable: boolean; readonly proposerCalls: 0; readonly trialCount: 4; readonly modelCalls?: { readonly baseline: number; readonly candidate: number; }; readonly usage?: { readonly baseline: { readonly inputTokens: number; readonly outputTokens: number; readonly cacheReadTokens: number; readonly cacheWriteTokens: number; readonly reasoningTokens: number; }; readonly candidate: { readonly inputTokens: number; readonly outputTokens: number; readonly cacheReadTokens: number; readonly cacheWriteTokens: number; readonly reasoningTokens: number; }; }; }; readonly releaseAuthority: 'none'; }[];\n}"
+          },
+          {
             "name": "EvolutionExistingSkillEvaluationEvidenceReadinessView",
             "declaration": "export type EvolutionExistingSkillEvaluationEvidenceReadinessView = { readonly status: 'ready-to-seal' | 'sealed'; readonly evidenceId: string; readonly qualificationId: string; readonly baselineId: string; readonly observedGoalCount: number; readonly authoringGoalCount: number; readonly admissionGoalCount: number; readonly holdoutGoalCount: number; readonly retentionGoalCount: number; readonly proposerCanReadProtectedSamples: false; readonly releaseAuthority: 'none'; } | { readonly status: 'waiting' | 'unavailable' | 'invalid'; readonly reason: 'governance-policy-unavailable' | 'baseline-qualification-waiting' | 'baseline-qualification-invalid' | 'fewer-than-four-independent-goals' | 'correction-evidence-unavailable' | 'correction-evidence-drift' | 'correction-evidence-invalid' | 'sealed-evidence-invalid' | 'evidence-services-unavailable'; readonly observedGoalCount: number; readonly requiredGoalCount: 4; readonly releaseAuthority: 'none'; };"
           },
@@ -1868,7 +1984,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionOverview",
-            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly workspaceId: string;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly capabilityMap?: EvolutionCapabilityMapView;\n    readonly capabilityGaps?: EvolutionCapabilityGapQueueView;\n    readonly skillOpportunities?: EvolutionSkillOpportunityQueueView;\n    readonly skillImprovementOpportunities?: EvolutionSkillImprovementOpportunityQueueView;\n    readonly skillCandidates?: EvolutionSkillCandidateQueueView;\n    readonly existingSkillCandidates?: EvolutionExistingSkillCandidateQueueView;\n    readonly existingSkillAuthoring?: EvolutionExistingSkillAuthoringView;\n    readonly existingSkillHoldoutGovernance?: EvolutionExistingSkillHoldoutGovernanceView;\n    readonly existingSkillAdmission?: EvolutionExistingSkillAdmissionView;\n    readonly existingSkillHoldoutEvaluation?: EvolutionExistingSkillHoldoutEvaluationView;\n    readonly existingSkillRetentionEvaluation?: EvolutionExistingSkillRetentionEvaluationView;\n    readonly existingSkillRelease?: EvolutionExistingSkillReleaseView;\n    readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView;\n    readonly skillEvaluationGovernance?: EvolutionSkillEvaluationGovernanceView;\n    readonly skillAdmission?: EvolutionSkillAdmissionView;\n    readonly skillEvaluationRuns?: EvolutionSkillEvaluationRunsView;\n    readonly counterfactualCanary?: EvolutionCounterfactualCanaryView;\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; readonly baseline?: DeliveryOutcomeCounts; readonly metrics: { readonly all: EvolutionDeliveryMetricRollupView; readonly selected: EvolutionDeliveryMetricRollupView; readonly baseline?: EvolutionDeliveryMetricRollupView; readonly recent: readonly EvolutionDeliveryMetricEvidenceView[]; }; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
+            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly workspaceId: string;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly capabilityMap?: EvolutionCapabilityMapView;\n    readonly capabilityGaps?: EvolutionCapabilityGapQueueView;\n    readonly skillOpportunities?: EvolutionSkillOpportunityQueueView;\n    readonly skillImprovementOpportunities?: EvolutionSkillImprovementOpportunityQueueView;\n    readonly skillCandidates?: EvolutionSkillCandidateQueueView;\n    readonly existingSkillCandidates?: EvolutionExistingSkillCandidateQueueView;\n    readonly existingSkillAuthoring?: EvolutionExistingSkillAuthoringView;\n    readonly existingSkillHoldoutGovernance?: EvolutionExistingSkillHoldoutGovernanceView;\n    readonly existingSkillAdmission?: EvolutionExistingSkillAdmissionView;\n    readonly existingSkillHoldoutEvaluation?: EvolutionExistingSkillHoldoutEvaluationView;\n    readonly existingSkillRetentionEvaluation?: EvolutionExistingSkillRetentionEvaluationView;\n    readonly existingSkillRelease?: EvolutionExistingSkillReleaseView;\n    readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView;\n    readonly skillEvaluationGovernance?: EvolutionSkillEvaluationGovernanceView;\n    readonly skillAdmission?: EvolutionSkillAdmissionView;\n    readonly skillEvaluationRuns?: EvolutionSkillEvaluationRunsView;\n    readonly counterfactualCanary?: EvolutionCounterfactualCanaryView;\n    readonly existingSkillCounterfactualCanary?: EvolutionExistingSkillCounterfactualCanaryView;\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; readonly baseline?: DeliveryOutcomeCounts; readonly metrics: { readonly all: EvolutionDeliveryMetricRollupView; readonly selected: EvolutionDeliveryMetricRollupView; readonly baseline?: EvolutionDeliveryMetricRollupView; readonly recent: readonly EvolutionDeliveryMetricEvidenceView[]; }; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
           },
           {
             "name": "EvolutionProviderUsageView",

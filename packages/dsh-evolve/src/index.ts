@@ -26,6 +26,7 @@ import {
 import { InternalSkillRetention } from './internal-skill-retention.ts'
 import { FutureSessionPromotion } from './future-session-promotion.ts'
 import { FutureSessionRollback } from './future-session-rollback.ts'
+import { ExistingSkillFutureSessionRollback } from './existing-skill-future-session-rollback.ts'
 import {
   CounterfactualCanary,
   CounterfactualCanaryScheduler,
@@ -616,9 +617,18 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     store,
     ...(counterfactualCanary === undefined ? {} : { canary: counterfactualCanary }),
   })
+  const existingSkillRollback = existingSkillCounterfactualCanary === undefined
+    || existingSkillRelease === undefined
+    ? undefined
+    : new ExistingSkillFutureSessionRollback({
+        store,
+        canary: existingSkillCounterfactualCanary,
+        releases: existingSkillRelease,
+      })
   const control = new EvolutionControlPlane({
     store,
     rollback,
+    ...(existingSkillRollback === undefined ? {} : { existingSkillRollback }),
     ...(promotion === undefined ? {} : { promotion }),
     capabilities,
     gaps: capabilityGaps,
@@ -634,6 +644,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     ...(skillAdmission === undefined ? {} : { admissions: skillAdmission }),
     ...(skillRetention === undefined ? {} : { retention: skillRetention }),
     ...(counterfactualCanary === undefined ? {} : { counterfactualCanary }),
+    ...(existingSkillCounterfactualCanary === undefined
+      ? {}
+      : { existingSkillCounterfactualCanary }),
     ...(slowLoopAuthoring === undefined ? {} : { slowLoopAuthoring }),
     ...(existingSkillAuthoring === undefined ? {} : { existingSkillAuthoring }),
     ...(existingSkillHoldoutGovernance === undefined ? {} : { existingSkillHoldoutGovernance }),
@@ -898,6 +911,12 @@ export {
   ExistingSkillCounterfactualCanary,
   ExistingSkillCounterfactualCanaryScheduler,
 } from './existing-skill-counterfactual-canary.ts'
+export { ExistingSkillFutureSessionRollback } from './existing-skill-future-session-rollback.ts'
+export type {
+  ExistingSkillFutureSessionRollbackEligibility,
+  ExistingSkillFutureSessionRollbackModules,
+  ExistingSkillFutureSessionRollbackReason,
+} from './existing-skill-future-session-rollback.ts'
 export type {
   ExistingSkillCounterfactualCanaryEvidence,
   ExistingSkillCounterfactualCanaryModules,

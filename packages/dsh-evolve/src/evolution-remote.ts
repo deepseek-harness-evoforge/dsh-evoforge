@@ -76,6 +76,10 @@ export class EvolutionRemoteService extends TypertRemoteService {
     return this.control.rollback(workspaceId, canaryId)
   }
 
+  rollbackExistingSkill(workspaceId: string, canaryId: string): Promise<EvolutionActionReceipt> {
+    return this.control.rollbackExistingSkill(workspaceId, canaryId)
+  }
+
 }
 
 export const EVOLUTION_REMOTE_METHODS = [
@@ -90,6 +94,7 @@ export const EVOLUTION_REMOTE_METHODS = [
   'promoteExistingSkill',
   'promote',
   'rollback',
+  'rollbackExistingSkill',
 ] as const satisfies readonly (keyof EvolutionRemoteService)[]
 
 type RemoteInitializer = (this: EvolutionRemoteService) => void

@@ -204,6 +204,14 @@ function remote(
       rollbackAuthority: canaryId === undefined ? 'explicit-human' as const : 'counterfactual-canary' as const,
       ...(canaryId === undefined ? {} : { canaryId }),
     })),
+    rollbackExistingSkill: vi.fn((_requestedWorkspaceId: string, canaryId: string) => success({
+      schemaVersion: 1 as const,
+      workspaceId,
+      action: 'rollback-existing-skill' as const,
+      previousGenerationId: generationId,
+      rollbackAuthority: 'existing-skill-counterfactual-canary' as const,
+      canaryId,
+    })),
   }
 }
 
@@ -463,6 +471,15 @@ const t = (key: string) => ({
   'skills.canary.integrity.stable': 'Sealed inputs remained exact',
   'skills.canary.release.none': 'Evidence only · Cannot move the Generation pointer',
   'skills.canary.action.rollback': 'Rollback with this evidence',
+  'skills.existingCanary': 'Existing-Skill failed-Outcome counterfactual Canary',
+  'skills.existingCanary.policies': 'configured governance policies',
+  'skills.existingCanary.status.rollback-eligible': 'Existing-Skill future-Session rollback eligible',
+  'skills.existingCanary.outcome': 'trigger Outcome',
+  'skills.existingCanary.reason.candidate-regressed-baseline-recovers': 'The baseline recovered while the exact active Candidate failed',
+  'skills.existingCanary.pointer.stable': 'Existing-Skill active pointer remained stable',
+  'skills.existingCanary.integrity.stable': 'Holdout, retention, and Skill trees remained exact',
+  'skills.existingCanary.release.none': 'Evidence only · Evaluator cannot move the Generation pointer',
+  'skills.existingCanary.action.rollback': 'Rollback with existing-Skill Canary',
   'skills.active': 'In use',
   'skills.ready': 'Verified, waiting to be enabled',
   'skills.reviewing': 'Waiting for review',
@@ -812,6 +829,72 @@ describe('EvolutionAction', () => {
     fireEvent.click(within(confirmation).getByRole('button', { name: 'Confirm' }))
     await waitFor(() => expect(api.rollback).toHaveBeenCalledWith(workspaceId, '4'.repeat(64)))
     await waitFor(() => expect(api.overview).toHaveBeenCalledTimes(2))
+  })
+
+  it('shows existing-Skill Canary evidence and confirms its independent rollback action', async () => {
+    const api = remote(true)
+    const configured = remote(true)
+    const canaryId = '5'.repeat(64)
+    vi.mocked(api.overview).mockImplementationOnce(async (requestedWorkspaceId) => {
+      const result = await configured.overview(requestedWorkspaceId)
+      if (!result.ok) return result
+      return success({
+        ...result.value,
+        existingSkillCounterfactualCanary: {
+          configuredPolicyCount: 1,
+          warningCount: 0,
+          runs: [{
+            id: canaryId,
+            policyId: 'workspace-governance',
+            generationId,
+            outcomeId: '6'.repeat(64),
+            candidateId: discoveredLineage.candidateId,
+            skillName: 'build-dsh-plugin',
+            admissionId: '7'.repeat(64),
+            holdoutEvaluationId: '8'.repeat(64),
+            retentionEvaluationId: '9'.repeat(64),
+            evaluationEnvelopeId: discoveredLineage.evaluationEnvelopeId,
+            status: 'rollback-eligible' as const,
+            reason: 'candidate-regressed-baseline-recovers' as const,
+            startedAt: '2026-08-21T00:00:00.000Z',
+            finishedAt: '2026-08-21T00:01:00.000Z',
+            evidence: {
+              holdoutCasePackHash: '1'.repeat(64),
+              retentionCasePackHash: '2'.repeat(64),
+              baselineTreeHash: '3'.repeat(64),
+              candidateTreeHash: '4'.repeat(64),
+              baseline: 'pass' as const,
+              candidate: 'fail' as const,
+              calibrationPassed: true,
+              assembled: true,
+              compositionStable: true,
+              inputIntegrityStable: true,
+              activePointerStable: true,
+              proposerCalls: 0 as const,
+              trialCount: 4 as const,
+            },
+            releaseAuthority: 'none' as const,
+          }],
+        },
+      })
+    })
+    renderEvolution(api)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
+    fireEvent.click(await screen.findByRole('tab', { name: 'Skills' }))
+
+    expect(screen.getByText('Existing-Skill failed-Outcome counterfactual Canary')).toBeTruthy()
+    expect(screen.getByText('Existing-Skill future-Session rollback eligible')).toBeTruthy()
+    expect(screen.getByText('The baseline recovered while the exact active Candidate failed')).toBeTruthy()
+    expect(screen.getByText('Existing-Skill active pointer remained stable')).toBeTruthy()
+    expect(screen.getByText('Holdout, retention, and Skill trees remained exact')).toBeTruthy()
+    expect(screen.getByText('Evidence only · Evaluator cannot move the Generation pointer')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Rollback with existing-Skill Canary' }))
+    expect(api.rollbackExistingSkill).not.toHaveBeenCalled()
+    fireEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Confirm' }))
+    await waitFor(() => expect(api.rollbackExistingSkill).toHaveBeenCalledWith(workspaceId, canaryId))
+    await waitFor(() => expect(api.overview).toHaveBeenCalledTimes(2))
+    expect(api.rollback).not.toHaveBeenCalled()
   })
 
   it('explains the exact Session capability map without offering a route menu', async () => {

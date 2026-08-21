@@ -28,6 +28,7 @@ type ConfirmAction =
   | 'promote-existing'
   | 'promote'
   | 'rollback'
+  | 'rollback-existing-skill'
 type EvolutionView = 'overview' | 'skills' | 'advanced'
 
 /** Sidebar trigger and bounded global evolution control panel. */
@@ -45,6 +46,7 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
   const [existingReleaseTarget, setExistingReleaseTarget] = useState<string>()
   const [promotionTarget, setPromotionTarget] = useState<string>()
   const [rollbackCanaryId, setRollbackCanaryId] = useState<string>()
+  const [existingSkillRollbackCanaryId, setExistingSkillRollbackCanaryId] = useState<string>()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   const [notice, setNotice] = useState<string>()
@@ -64,6 +66,7 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
     setExistingReleaseTarget(undefined)
     setPromotionTarget(undefined)
     setRollbackCanaryId(undefined)
+    setExistingSkillRollbackCanaryId(undefined)
     setNotice(undefined)
     setConfirm(undefined)
   }
@@ -172,6 +175,7 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
       if (workspaceRef.current !== targetWorkspaceId) return
       if (receipt.action === 'promote') setPromotionTarget(undefined)
       if (receipt.action === 'rollback') setRollbackCanaryId(undefined)
+      if (receipt.action === 'rollback-existing-skill') setExistingSkillRollbackCanaryId(undefined)
       if (receipt.action === 'approve-existing-skill'
         || receipt.action === 'reject-existing-skill'
         || receipt.action === 'promote-existing-skill') {
@@ -225,6 +229,8 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
       void run(() => remoteValue(remote.promoteExistingSkill(workspaceId, existingReleaseTarget)))
     } else if (confirm === 'rollback') {
       void run(() => remoteValue(remote.rollback(workspaceId, rollbackCanaryId)))
+    } else if (confirm === 'rollback-existing-skill' && existingSkillRollbackCanaryId !== undefined) {
+      void run(() => remoteValue(remote.rollbackExistingSkill(workspaceId, existingSkillRollbackCanaryId)))
     }
   }
 
@@ -300,6 +306,10 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
                   setRollbackCanaryId(canaryId)
                   setConfirm('rollback')
                 }}
+                existingSkillRollbackEligible={(canaryId) => {
+                  setExistingSkillRollbackCanaryId(canaryId)
+                  setConfirm('rollback-existing-skill')
+                }}
                 t={t}
               />
             )}
@@ -360,6 +370,7 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
               <button type="button" className="dsh-evolve-button" onClick={() => {
                 setConfirm(undefined)
                 if (confirm === 'rollback') setRollbackCanaryId(undefined)
+                if (confirm === 'rollback-existing-skill') setExistingSkillRollbackCanaryId(undefined)
                 if (confirm === 'approve-existing'
                   || confirm === 'reject-existing'
                   || confirm === 'promote-existing') setExistingReleaseTarget(undefined)
@@ -441,6 +452,7 @@ function SkillsView({
   setExistingReleaseNote,
   decideExistingRelease,
   rollbackEligible,
+  existingSkillRollbackEligible,
   t,
 }: {
   summary: EvolutionOverview
@@ -452,6 +464,7 @@ function SkillsView({
     action: 'approve-existing' | 'reject-existing' | 'promote-existing',
   ) => void
   rollbackEligible: (canaryId: string) => void
+  existingSkillRollbackEligible: (canaryId: string) => void
   t: (key: string) => string
 }) {
   const active = summary.active?.artifacts.filter(isSkillArtifact) ?? []
@@ -490,6 +503,12 @@ function SkillsView({
       summary={summary}
       busy={busy}
       rollbackEligible={rollbackEligible}
+      t={t}
+    />
+    <ExistingSkillCounterfactualCanaryRuns
+      summary={summary}
+      busy={busy}
+      rollbackEligible={existingSkillRollbackEligible}
       t={t}
     />
     {empty && <div className="dsh-evolve-message">{t('skills.empty')}</div>}
@@ -722,13 +741,109 @@ function CounterfactualCanaryRuns({
               {t(`skills.canary.reason.${run.reason}`)}
             </div>}
             <div className="dsh-evolve-discovery-state">{t('skills.canary.release.none')}</div>
-            {run.status === 'rollback-eligible' && <button
+            {run.status === 'rollback-eligible'
+              && canary.warningCount === 0
+              && summary.active?.id === run.generationId
+              && <button
               type="button"
               className="dsh-evolve-button dsh-evolve-danger"
               disabled={busy}
               onClick={() => rollbackEligible(run.id)}
             >
               {t('skills.canary.action.rollback')}
+            </button>}
+          </li>
+        ))}</ul>}
+  </section>
+}
+
+function ExistingSkillCounterfactualCanaryRuns({
+  summary,
+  busy,
+  rollbackEligible,
+  t,
+}: {
+  summary: EvolutionOverview
+  busy: boolean
+  rollbackEligible: (canaryId: string) => void
+  t: (key: string) => string
+}) {
+  const canary = summary.existingSkillCounterfactualCanary
+  if (canary === undefined) return null
+  return <section>
+    <div className="dsh-evolve-capability-head">
+      <h3 className="dsh-evolve-section-title">{t('skills.existingCanary')}</h3>
+      <span className="dsh-evolve-catalog-status">
+        {canary.configuredPolicyCount} {t('skills.existingCanary.policies')}
+      </span>
+    </div>
+    {canary.warningCount > 0 && <div className="dsh-evolve-message dsh-evolve-error">
+      {canary.warningCount} {t('skills.existingCanary.warnings')}
+    </div>}
+    {canary.runs.length === 0
+      ? <div className="dsh-evolve-message">{t('skills.existingCanary.empty')}</div>
+      : <ul className="dsh-evolve-list">{canary.runs.map(run => (
+          <li className="dsh-evolve-skill-card" key={run.id}>
+            <div className="dsh-evolve-review-skill">{run.skillName}</div>
+            <div className="dsh-evolve-capability-route">
+              {t(`skills.existingCanary.status.${run.status}`)}
+            </div>
+            <div className="dsh-evolve-meta">
+              {t('skills.lineage.candidate')} · {shortId(run.candidateId)}
+              {' · '}{t('skills.existingCanary.outcome')} · {shortId(run.outcomeId)}
+            </div>
+            {run.evidence !== undefined && <>
+              <div className="dsh-evolve-meta">
+                {evaluationComparison(
+                  run.evidence.baseline,
+                  run.evidence.candidate,
+                  run.evidence.trialCount,
+                  t,
+                )}
+              </div>
+              <div className="dsh-evolve-meta">
+                {t(run.evidence.activePointerStable
+                  ? 'skills.existingCanary.pointer.stable'
+                  : 'skills.existingCanary.pointer.changed')}
+              </div>
+              <div className="dsh-evolve-meta">
+                {t(run.evidence.inputIntegrityStable
+                  ? 'skills.existingCanary.integrity.stable'
+                  : 'skills.existingCanary.integrity.changed')}
+              </div>
+              <div className="dsh-evolve-meta">
+                {t(run.evidence.assembled
+                  ? 'skills.canary.assembled'
+                  : 'skills.canary.notAssembled')}
+                {' · '}{t(run.evidence.calibrationPassed
+                  ? 'skills.evaluation.calibration.pass'
+                  : 'skills.evaluation.calibration.fail')}
+                {' · '}{t(run.evidence.compositionStable
+                  ? 'skills.evaluation.composition.stable'
+                  : 'skills.evaluation.composition.changed')}
+              </div>
+              {run.evidence.modelCalls !== undefined && <div className="dsh-evolve-meta">
+                {t('skills.evaluation.modelCalls')} · {run.evidence.modelCalls.baseline}/{run.evidence.modelCalls.candidate}
+              </div>}
+              {run.evidence.usage !== undefined && <div className="dsh-evolve-meta">
+                {t('skills.evaluation.usage')} · {run.evidence.usage.baseline.inputTokens}/{run.evidence.usage.baseline.cacheReadTokens}
+                {' · '}{run.evidence.usage.candidate.inputTokens}/{run.evidence.usage.candidate.cacheReadTokens}
+              </div>}
+            </>}
+            {run.reason !== undefined && <div className="dsh-evolve-meta">
+              {t(`skills.existingCanary.reason.${run.reason}`)}
+            </div>}
+            <div className="dsh-evolve-discovery-state">{t('skills.existingCanary.release.none')}</div>
+            {run.status === 'rollback-eligible'
+              && canary.warningCount === 0
+              && summary.active?.id === run.generationId
+              && <button
+              type="button"
+              className="dsh-evolve-button dsh-evolve-danger"
+              disabled={busy}
+              onClick={() => rollbackEligible(run.id)}
+            >
+              {t('skills.existingCanary.action.rollback')}
             </button>}
           </li>
         ))}</ul>}

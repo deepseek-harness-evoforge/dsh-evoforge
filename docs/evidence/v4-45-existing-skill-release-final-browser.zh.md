@@ -1,7 +1,7 @@
 # V4.45 现有 Skill 发布门的最终 tarball 浏览器生命周期
 
 日期：2026-08-21
-状态：`verified`（最终 tarball 发布生命周期已验证；failed-Outcome Canary Host/Jobs 已由 [V4.46](v4-46-existing-skill-failed-outcome-canary.zh.md) 补齐，其 Control/Web/rollback gate、真实 provider 与长期效果仍未完成）
+状态：`verified`（最终 tarball 发布生命周期已验证；failed-Outcome Canary Host/Jobs 已由 [V4.46](v4-46-existing-skill-failed-outcome-canary.zh.md) 补齐，Control/Web/rollback gate 已由 [V4.47](v4-47-existing-skill-canary-control-rollback.zh.md) 补齐；其最终包恢复、真实 provider 与长期效果仍未完成）
 
 ## 本增量回答的问题
 

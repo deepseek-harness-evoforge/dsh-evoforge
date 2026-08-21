@@ -1,7 +1,7 @@
 # V4.46 现有 Skill failed-Outcome Counterfactual Canary
 
 日期：2026-08-21  
-状态：`implemented`（Host/原生 Jobs/持久证据与自动化已验证；Control/Remote/Web、独立 rollback gate、最终 tarball 浏览器、真实 provider 与长期率尚未完成）
+状态：`implemented`（Host/原生 Jobs/持久证据与自动化已验证；Control/Remote/Web 与独立 rollback gate 已由 [V4.47](v4-47-existing-skill-canary-control-rollback.zh.md) 补齐；最终 tarball 浏览器、真实 provider 与长期率尚未完成）
 
 ## 本增量回答的问题
 
@@ -26,5 +26,5 @@ V4.45 已证明 existing-Skill Candidate 能从最终 tarball 经人工批准、
 ## 尚未证明
 
 - failed Delivery Outcome 目前只精确到 Generation，不宣称它因果归属于该 Skill；Canary 的 paired replay 才决定是否隔离出 Candidate 回归。
-- `rollback-eligible` 仍没有 mutation authority；独立 existing-Skill rollback gate、人工确认、expected-active compare、Control/Remote/Web 和最终 tarball 浏览器恢复是下一门。
+- `rollback-eligible` 本身仍没有 mutation authority；独立 existing-Skill rollback gate、人工确认、expected-active compare 与 Control/Remote/Web 已由 [V4.47](v4-47-existing-skill-canary-control-rollback.zh.md) 补齐，最终 tarball 浏览器恢复仍是下一门。
 - fixture/确定性 Trial 不替代两套独立真实 provider、长期负迁移/误回滚率、真实飞书 exact route 或 Hermes paired benchmark，因此仍不能 tag 或声明上位替代完成。

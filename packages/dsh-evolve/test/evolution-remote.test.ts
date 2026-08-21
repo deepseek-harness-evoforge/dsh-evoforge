@@ -21,6 +21,7 @@ describe('EvolutionRemoteService', () => {
       promoteExistingSkill: vi.fn(),
       promote: vi.fn(),
       rollback: vi.fn(),
+      rollbackExistingSkill: vi.fn(),
     } as unknown as EvolutionControlPlane
     const ctx = new Context()
     const remote = new EvolutionRemoteService(ctx, control)
@@ -30,6 +31,8 @@ describe('EvolutionRemoteService', () => {
     await expect(remote.pause(WORKSPACE_ID)).resolves.toBe(receipt)
     await remote.rollback(WORKSPACE_ID, 'c'.repeat(64))
     expect(control.rollback).toHaveBeenCalledWith(WORKSPACE_ID, 'c'.repeat(64))
+    await remote.rollbackExistingSkill(WORKSPACE_ID, 'e'.repeat(64))
+    expect(control.rollbackExistingSkill).toHaveBeenCalledWith(WORKSPACE_ID, 'e'.repeat(64))
     await remote.approveExistingSkill(WORKSPACE_ID, 'd'.repeat(64), 'verified')
     expect(control.approveExistingSkill).toHaveBeenCalledWith(WORKSPACE_ID, 'd'.repeat(64), 'verified')
     await remote.promoteExistingSkill(WORKSPACE_ID, 'd'.repeat(64))
@@ -51,6 +54,7 @@ describe('EvolutionRemoteService', () => {
       'promoteExistingSkill',
       'promote',
       'rollback',
+      'rollbackExistingSkill',
     ])
   })
 })

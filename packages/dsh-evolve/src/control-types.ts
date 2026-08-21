@@ -993,6 +993,72 @@ export interface EvolutionCounterfactualCanaryView {
   }[]
 }
 
+/** Existing-Skill failed-Outcome replay evidence; the view itself has no mutation authority. */
+export interface EvolutionExistingSkillCounterfactualCanaryView {
+  readonly configuredPolicyCount: number
+  readonly warningCount: number
+  readonly runs: readonly {
+    readonly id: string
+    readonly policyId: string
+    readonly generationId: string
+    readonly outcomeId: string
+    readonly candidateId: string
+    readonly skillName: string
+    readonly admissionId: string
+    readonly holdoutEvaluationId: string
+    readonly retentionEvaluationId: string
+    readonly evaluationEnvelopeId: string
+    readonly status: 'prepared' | 'trial-pending' | 'keep' | 'review' | 'rollback-eligible'
+    readonly reason?:
+      | 'candidate-still-passes-sealed-canary'
+      | 'candidate-regressed-baseline-recovers'
+      | 'failed-outcome-not-isolated'
+      | 'active-generation-changed'
+      | 'canary-input-mutated'
+      | 'canary-not-assembled'
+      | 'canary-calibration-failed'
+      | 'canary-composition-changed'
+      | 'canary-trial-failed'
+      | 'canary-trial-outcome-uncertain'
+      | 'canary-replay-evidence-invalid'
+    readonly startedAt?: string
+    readonly finishedAt?: string
+    readonly evidence?: {
+      readonly holdoutCasePackHash: string
+      readonly retentionCasePackHash: string
+      readonly baselineTreeHash: string
+      readonly candidateTreeHash: string
+      readonly baseline: 'pass' | 'fail'
+      readonly candidate: 'pass' | 'fail'
+      readonly calibrationPassed: boolean
+      readonly assembled: boolean
+      readonly compositionStable: boolean
+      readonly inputIntegrityStable: boolean
+      readonly activePointerStable: boolean
+      readonly proposerCalls: 0
+      readonly trialCount: 4
+      readonly modelCalls?: { readonly baseline: number; readonly candidate: number }
+      readonly usage?: {
+        readonly baseline: {
+          readonly inputTokens: number
+          readonly outputTokens: number
+          readonly cacheReadTokens: number
+          readonly cacheWriteTokens: number
+          readonly reasoningTokens: number
+        }
+        readonly candidate: {
+          readonly inputTokens: number
+          readonly outputTokens: number
+          readonly cacheReadTokens: number
+          readonly cacheWriteTokens: number
+          readonly reasoningTokens: number
+        }
+      }
+    }
+    readonly releaseAuthority: 'none'
+  }[]
+}
+
 /** One sealed evaluator result shown in review. */
 export interface EvolutionReviewCaseView {
   readonly id: string
@@ -1088,6 +1154,7 @@ export interface EvolutionOverview {
   readonly skillAdmission?: EvolutionSkillAdmissionView
   readonly skillEvaluationRuns?: EvolutionSkillEvaluationRunsView
   readonly counterfactualCanary?: EvolutionCounterfactualCanaryView
+  readonly existingSkillCounterfactualCanary?: EvolutionExistingSkillCounterfactualCanaryView
   readonly deliveryOutcomes?: {
     readonly all: DeliveryOutcomeCounts
     readonly selected: DeliveryOutcomeCounts
@@ -1140,6 +1207,7 @@ export interface EvolutionActionReceipt {
     | 'promote-existing-skill'
     | 'promote'
     | 'rollback'
+    | 'rollback-existing-skill'
   readonly reviewId?: string
   readonly candidateId?: string
   readonly status?: 'approved' | 'rejected'
@@ -1147,6 +1215,9 @@ export interface EvolutionActionReceipt {
   readonly previousGenerationId?: string
   readonly activeGenerationId?: string
   readonly recoveryPaused?: boolean
-  readonly rollbackAuthority?: 'explicit-human' | 'counterfactual-canary'
+  readonly rollbackAuthority?:
+    | 'explicit-human'
+    | 'counterfactual-canary'
+    | 'existing-skill-counterfactual-canary'
   readonly canaryId?: string
 }
