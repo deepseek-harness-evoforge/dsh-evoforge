@@ -16,6 +16,7 @@ interface Config {
   readonly routeId: string
   readonly accountId: string
   readonly conversationId: string
+  readonly threadId?: string
   readonly userId: string
   readonly sessionId: string
   readonly agentPreset: string
@@ -37,6 +38,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       adapter: 'feishu',
       accountId: config.accountId,
       conversationId: config.conversationId,
+      ...(config.threadId === undefined ? {} : { threadId: config.threadId }),
       userId: config.userId,
       workspaceId: String(workspace.id),
       sessionId: config.sessionId,

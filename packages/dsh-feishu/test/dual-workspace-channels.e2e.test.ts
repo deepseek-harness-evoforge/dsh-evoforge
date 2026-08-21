@@ -185,9 +185,10 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled dual Workspace cha
         const card = feishu.platform.cards[0]!.card as {
           body?: { elements?: Array<{ actions?: Array<{ value?: unknown }> }> }
         }
+        const cardMessageId = feishu.platform.cards[0]!.messageId
         const value = card.body?.elements?.[1]?.actions?.[0]?.value
         await feishu.platform.emitApproval({
-          messageId: 'om_feishu_card',
+          messageId: cardMessageId,
           chatId: 'oc_dual',
           operatorId: 'ou_intruder',
           value,
@@ -197,7 +198,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled dual Workspace cha
           new Promise<string>(accept => setTimeout(() => accept('pending'), 50)),
         ])).resolves.toBe('pending')
         await feishu.platform.emitApproval({
-          messageId: 'om_feishu_card',
+          messageId: cardMessageId,
           chatId: 'oc_dual',
           operatorId: 'ou_dual',
           value,
@@ -411,7 +412,7 @@ function hostConfig(input: {
 function requireFeishuService(ctx: { get(name: string): unknown }): {
   platform: {
     texts: Array<{ chatId: string; text: string; options?: FeishuSendOptions }>
-    cards: Array<{ chatId: string; card: object }>
+    cards: Array<{ messageId: string; chatId: string; card: object }>
     emitMessage(message: FeishuInboundMessage): Promise<void>
     emitApproval(action: FeishuApprovalAction): Promise<void>
   }

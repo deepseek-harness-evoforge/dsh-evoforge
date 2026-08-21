@@ -130,7 +130,8 @@ correction/outcome 的因果证明，以及 rework/currency-cost/reuse/retention
 
 实现状态：既有 Evolve review、Capability Map/Gap、内部 Skill Opportunity、隔离 whole-Skill Candidate、admission/Shadow、飞书配对 UI、
 routes-mode 脱敏健康投影和渠道底座已实现；健康面最终 tarball 的真实浏览器读取/刷新/Host 停机与恢复
-已通过，完整评测演进视图与真实飞书 exact route 消息 **pending**。
+已通过；assembled DSH 已验证 thread-scoped 回复/continuation 和 exact card/chat/operator 一次性 Approval，
+真实飞书 exact route 消息、真实卡片点击与完整评测演进视图 **pending**。
 
 ## V6 — v0.1 验收与首个 tag
 

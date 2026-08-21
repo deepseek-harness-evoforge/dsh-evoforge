@@ -114,6 +114,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
           routeId: 'feishu-main',
           accountId: 'cli_test_app',
           conversationId: 'oc_main',
+          threadId: 'omt_main',
           userId: 'ou_alice',
           sessionId: 'main',
           agentPreset: 'feishu-test',
@@ -149,7 +150,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
         connected: boolean
         sendAttempts: string[]
         texts: Array<{ chatId: string; text: string; options?: FeishuSendOptions }>
-        cards: Array<{ chatId: string; card: object }>
+        cards: Array<{ messageId: string; chatId: string; card: object; options?: FeishuSendOptions }>
         emitMessage(message: FeishuInboundMessage): Promise<void>
         emitApproval(action: FeishuApprovalAction): Promise<void>
         emitError(error: unknown): void
@@ -159,6 +160,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
       runtime: FeishuRuntime
     } | undefined
     if (service === undefined) throw new Error('Feishu test runtime service did not load')
+    let approvalCancelledByDispose: Promise<ApprovalOutcome> | undefined
     try {
       expect(service.platform.connected).toBe(true)
       const hostRoute = ctx.get('evoforge.feishuRoute') as {
@@ -185,7 +187,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
         expect(service.platform.texts[0]).toEqual({
           chatId: 'oc_main',
           text: expect.stringContaining('CLI tool round trip complete: CLI_TOOL_ROUND_TRIP'),
-          options: { replyTo: 'om_first' },
+          options: { replyTo: 'om_first', replyInThread: true },
         })
       }, { timeout: 15_000, interval: 25 })
       expect(service.platform.sendAttempts).toHaveLength(2)
@@ -235,7 +237,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
         transport: { state: 'ready', kind: 'official-feishu-websocket' },
         sessionId: 'main',
         routeCount: 1,
-        routes: [{ id: 'feishu-main', threadScoped: false }],
+        routes: [{ id: 'feishu-main', threadScoped: true }],
         modelCalls: 0,
       })
       expect(service.platform.texts[1]?.text).not.toContain('test-secret')
@@ -251,7 +253,10 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
         source: { kind: 'user' },
       }))
       await vi.waitFor(() => { expect(service.platform.texts).toHaveLength(3) }, { timeout: 15_000, interval: 25 })
-      expect(service.platform.texts[2]).toMatchObject({ chatId: 'oc_main' })
+      expect(service.platform.texts[2]).toMatchObject({
+        chatId: 'oc_main',
+        options: { replyInThread: true },
+      })
       expect(service.platform.texts[2]).not.toHaveProperty('options.replyTo')
 
       const agentModule = await import(pathToFileURL(
@@ -263,17 +268,51 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
         signal: new AbortController().signal,
       }, () => Promise.resolve<ApprovalOutcome>('unavailable'))
       await vi.waitFor(() => { expect(service.platform.cards).toHaveLength(1) })
+      expect(service.platform.cards[0]).toMatchObject({
+        chatId: 'oc_main',
+        options: { replyInThread: true },
+      })
       const card = service.platform.cards[0]!.card as {
         body?: { elements?: Array<{ actions?: Array<{ value?: unknown }> }> }
       }
+      const cardMessageId = service.platform.cards[0]!.messageId
       const value = card.body?.elements?.[1]?.actions?.[0]?.value
       await service.platform.emitApproval({
-        messageId: 'om_card_1',
+        messageId: 'om_other_card',
+        chatId: 'oc_main',
+        operatorId: 'ou_alice',
+        value,
+      })
+      expect(service.runtime.healthSnapshot().pendingApprovals).toBe(1)
+      await service.platform.emitApproval({
+        messageId: cardMessageId,
+        chatId: 'oc_other',
+        operatorId: 'ou_alice',
+        value,
+      })
+      expect(service.runtime.healthSnapshot().pendingApprovals).toBe(1)
+      await service.platform.emitApproval({
+        messageId: cardMessageId,
+        chatId: 'oc_main',
+        operatorId: 'ou_mallory',
+        value,
+      })
+      expect(service.runtime.healthSnapshot().pendingApprovals).toBe(1)
+      await service.platform.emitApproval({
+        messageId: cardMessageId,
         chatId: 'oc_main',
         operatorId: 'ou_alice',
         value,
       })
       await expect(approval).resolves.toBe('allowed-once')
+      expect(service.runtime.healthSnapshot().pendingApprovals).toBe(0)
+      await service.platform.emitApproval({
+        messageId: cardMessageId,
+        chatId: 'oc_main',
+        operatorId: 'ou_alice',
+        value,
+      })
+      expect(service.runtime.healthSnapshot().pendingApprovals).toBe(0)
 
       await expect(service.runtime.notifyHost({
         id: 'f'.repeat(64),
@@ -317,10 +356,18 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
       expect(JSON.stringify(agent?.session.events)).not.toContain('img_external_secret')
       const stored = await ctx.attachments.readImage(attachment!)
       expect(Buffer.from(stored.data)).toEqual(Buffer.from(imageBytes))
+
+      approvalCancelledByDispose = agentModule.agentEvents(ctx, agent).waterfall('approval/request', {
+        toolName: 'deploy-after-reload',
+        reason: 'Must not survive Adapter disposal.',
+        signal: new AbortController().signal,
+      }, () => Promise.resolve<ApprovalOutcome>('unavailable'))
+      await vi.waitFor(() => { expect(service.platform.cards).toHaveLength(2) })
     } finally {
       await ctx.fiber.dispose()
       process.chdir(previousCwd)
     }
+    await expect(approvalCancelledByDispose).resolves.toBe('cancelled')
     expect(service.platform.connected).toBe(false)
   }, 30_000)
 })
@@ -329,8 +376,9 @@ function message(overrides: Partial<FeishuInboundMessage>): FeishuInboundMessage
   return Object.freeze({
     messageId: 'om_default',
     chatId: 'oc_main',
-    chatType: 'p2p',
+    chatType: 'group',
     senderId: 'ou_alice',
+    threadId: 'omt_main',
     content: 'verify the real DSH Feishu path',
     rawContentType: 'text',
     resources: [],

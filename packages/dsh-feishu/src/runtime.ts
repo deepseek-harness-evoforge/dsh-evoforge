@@ -41,6 +41,7 @@ interface ReplyDestination {
 
 interface PendingApproval {
   readonly destination: ReplyDestination
+  readonly externalMessageId: string
   readonly resolve: (outcome: ApprovalOutcome) => void
   readonly signal?: AbortSignal
   readonly onAbort?: () => void
@@ -344,7 +345,8 @@ export class FeishuRuntime {
     if (selected === undefined) return
     const pending = this.pendingApprovals.get(selected.nonce)
     if (pending === undefined) return
-    if (pending.destination.route.endpoint.conversationId !== action.chatId
+    if (pending.externalMessageId !== action.messageId
+      || pending.destination.route.endpoint.conversationId !== action.chatId
       || pending.destination.route.endpoint.userId !== action.operatorId) return
     this.pendingApprovals.delete(selected.nonce)
     if (pending.onAbort !== undefined) pending.signal?.removeEventListener('abort', pending.onAbort)
@@ -402,7 +404,7 @@ export class FeishuRuntime {
     request: ApprovalRequest,
     next: () => Promise<ApprovalOutcome>,
   ): Promise<ApprovalOutcome> {
-    if (request.signal?.aborted === true) return 'cancelled'
+    if (isAborted(request.signal)) return 'cancelled'
     const routes = this.routesBySession.get(String(request.agent.session.id))
     const destination = this.latestDestination.get(request.agent)
       ?? (routes?.length === 1
@@ -414,11 +416,17 @@ export class FeishuRuntime {
       `**Approval required**\n\nTool: ${request.toolName}${request.reason === undefined ? '' : `\n\nReason: ${request.reason}`}`,
       this.config.maxTextChars,
     )
+    let sent: { readonly messageId: string }
     try {
-      await this.platform.sendCard(destination.route.endpoint.conversationId, approvalCard(content, nonce))
+      sent = await this.platform.sendCard(
+        destination.route.endpoint.conversationId,
+        approvalCard(content, nonce),
+        sendOptionsFor(destination),
+      )
     } catch {
       return next()
     }
+    if (this.lifecycle.signal.aborted || isAborted(request.signal)) return 'cancelled'
     return new Promise<ApprovalOutcome>((resolve) => {
       const settle = (outcome: ApprovalOutcome): void => {
         if (!this.pendingApprovals.delete(nonce)) return
@@ -428,11 +436,13 @@ export class FeishuRuntime {
       const onAbort = (): void => { settle('cancelled') }
       this.pendingApprovals.set(nonce, {
         destination,
+        externalMessageId: sent.messageId,
         resolve,
         onAbort,
         ...(request.signal === undefined ? {} : { signal: request.signal }),
       })
       request.signal?.addEventListener('abort', onAbort, { once: true })
+      if (this.lifecycle.signal.aborted || isAborted(request.signal)) settle('cancelled')
     })
   }
 
@@ -460,6 +470,18 @@ export class FeishuRuntime {
       ...(this.lastPlatformErrorAt === undefined ? {} : { lastErrorAt: this.lastPlatformErrorAt }),
     })
   }
+}
+
+function sendOptionsFor(destination: ReplyDestination): FeishuSendOptions | undefined {
+  if (destination.replyTo === undefined && !destination.replyInThread) return undefined
+  return Object.freeze({
+    ...(destination.replyTo === undefined ? {} : { replyTo: destination.replyTo }),
+    ...(destination.replyInThread ? { replyInThread: true } : {}),
+  })
+}
+
+function isAborted(signal: AbortSignal | undefined): boolean {
+  return signal?.aborted === true
 }
 
 function classifyPlatformFailure(error: unknown): GatewayOutboundSendResult {

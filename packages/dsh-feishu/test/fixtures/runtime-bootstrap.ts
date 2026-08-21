@@ -25,9 +25,16 @@ interface SentText {
   readonly options?: FeishuSendOptions
 }
 
+interface SentCard {
+  readonly messageId: string
+  readonly chatId: string
+  readonly card: object
+  readonly options?: FeishuSendOptions
+}
+
 class FakeFeishuPlatform implements FeishuPlatform {
   readonly texts: SentText[] = []
-  readonly cards: Array<{ chatId: string; card: object }> = []
+  readonly cards: SentCard[] = []
   readonly sendAttempts: string[] = []
   private readonly failures: unknown[] = []
   private readonly resources = new Map<string, Uint8Array>()
@@ -62,9 +69,14 @@ class FakeFeishuPlatform implements FeishuPlatform {
     return { messageId: `om_sent_${this.texts.length}` }
   }
 
-  async sendCard(chatId: string, card: object): Promise<{ messageId: string }> {
-    this.cards.push(Object.freeze({ chatId, card }))
-    return { messageId: `om_card_${this.cards.length}` }
+  async sendCard(
+    chatId: string,
+    card: object,
+    options?: FeishuSendOptions,
+  ): Promise<{ messageId: string }> {
+    const messageId = `om_card_${this.cards.length + 1}`
+    this.cards.push(Object.freeze({ messageId, chatId, card, ...(options === undefined ? {} : { options }) }))
+    return { messageId }
   }
 
   async downloadMessageResource(

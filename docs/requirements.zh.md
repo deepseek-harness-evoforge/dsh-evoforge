@@ -327,7 +327,9 @@ exact route 消息和 Hermes paired 证据完成以前仍只标记为 `implement
 `dsh-gateway`。Gateway 入站现接受 exact 文本与 DSH 原生 `ImageAttachmentRef`；飞书 Adapter 通过官方
 message-resource 端口下载图片，整批按 `ctx.attachments` 限制校验并内容寻址持久化，外部 `fileKey` 不进入
 Session。assembled DSH 已证明原生 image block 和 exact bytes 回读，但尚未证明真实用户消息或真实多模态
-provider。固定 DSH attachment v1 没有通用文件契约，普通文件、音视频以及文档/知识库/云盘/多维表格仍
+provider。飞书 Approval 卡片现已沿 thread-scoped exact route 发送，并将一次性 nonce 与平台 card message id、
+exact chat/operator 共同绑定；错误卡片、错误身份、重放和 dispose 均由 assembled DSH 门禁拒绝或取消，
+但真实用户点击仍未验证。固定 DSH attachment v1 没有通用文件契约，普通文件、音视频以及文档/知识库/云盘/多维表格仍
 必须按独立权限实现，不能发明 Gateway file block。平台协议、凭据、实际发送、卡片和 transport lifecycle 留在 Adapter；Adapter 只把
 exact route 所属的脱敏 transport observation 注册到 Gateway 权威健康投影，也不把
 其他消息、内容或日程需求视为已交付。该说明不改变以上需求顺序和权限边界。

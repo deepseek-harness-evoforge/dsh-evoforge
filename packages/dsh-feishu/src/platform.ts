@@ -48,7 +48,11 @@ export interface FeishuPlatform {
   connect(): Promise<void>
   disconnect(): Promise<void>
   sendText(chatId: string, text: string, options?: FeishuSendOptions): Promise<{ readonly messageId: string }>
-  sendCard(chatId: string, card: object): Promise<{ readonly messageId: string }>
+  sendCard(
+    chatId: string,
+    card: object,
+    options?: FeishuSendOptions,
+  ): Promise<{ readonly messageId: string }>
   downloadMessageResource(
     messageId: string,
     fileKey: string,
@@ -158,7 +162,14 @@ function createOfficialPlatform(
           ...(sendOptions.replyInThread === undefined ? {} : { replyInThread: sendOptions.replyInThread }),
         },
       )),
-    sendCard: (chatId, card) => translateSendFailure(() => channel.send(chatId, { card })),
+    sendCard: (chatId, card, sendOptions) => translateSendFailure(() => channel.send(
+      chatId,
+      { card },
+      sendOptions === undefined ? undefined : {
+        ...(sendOptions.replyTo === undefined ? {} : { replyTo: sendOptions.replyTo }),
+        ...(sendOptions.replyInThread === undefined ? {} : { replyInThread: sendOptions.replyInThread }),
+      },
+    )),
     downloadMessageResource: async (messageId, fileKey, type, maxBytes, signal) => {
       signal?.throwIfAborted()
       if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > 100 * 1024 * 1024) {

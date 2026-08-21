@@ -92,7 +92,9 @@ setup-only pairing 只输出待审查配置，重启进入 routes 模式后才�
 - Gateway 持有普通文本 `turn/response/notice` 的有界出站 journal、幂等键、按 App account 串行、
   明确 429 有界重试和保守崩溃恢复；
 - Adapter 只持有官方 WebSocket/HTTP 协议、平台发送映射、卡片和一次性 DSH Approval UI，不再维护第二套
-  Delivery Store 或 retry worker；
+  Delivery Store 或 retry worker；Approval 卡片沿 exact reply/thread 发送，并把 nonce 绑定到平台返回的
+  card message id、exact chat 和 exact operator，只有首个完全匹配的 action 生效，错误卡片、错误身份、重放、
+  abort、disable、reload 或 remove 均不能留下可消费的旧审批；
 - Adapter 自动采用部署进程的 `HTTPS_PROXY`/`https_proxy` 或 `ALL_PROXY`/`all_proxy`，并遵守
   `NO_PROXY`/`no_proxy`；代理只绑定到该飞书连接，不修改环境变量或全局 Agent；
 - 发送意图先落盘；明确 429 才有界重试；传输失败或崩溃中的 `sending` 转为 `uncertain`，不自动重复发送；
