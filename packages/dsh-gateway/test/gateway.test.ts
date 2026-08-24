@@ -5,6 +5,7 @@ import type { DomainFacility, KvTable } from '@deepseek-ai/dsh-storage-domain'
 import { describe, expect, it, vi } from 'vitest'
 import { openGatewayIngressJournal } from '../src/ingress-journal.js'
 import { openGatewayOutboundJournal } from '../src/outbound-journal.js'
+import { openGatewayPairingAuthority } from '../src/pairing.js'
 import { DshGateway } from '../src/gateway.js'
 import { resolveGatewayRoutes, type GatewayEndpoint } from '../src/routing.js'
 
@@ -21,6 +22,62 @@ const routes = resolveGatewayRoutes([
 ])
 
 describe('DshGateway', () => {
+  it('keeps unknown DMs out of the Agent until a Host pairing approval creates an exact native route', async () => {
+    const host = fakeNativeHost()
+    const facility = memoryFacility()
+    const pairing = await openGatewayPairingAuthority(facility, {
+      codeTtlMs: 15 * 60_000,
+      maxPendingPerAccount: 3,
+    })
+    const gateway = new DshGateway(
+      host.ctx,
+      resolveGatewayRoutes([]),
+      await openGatewayIngressJournal(facility),
+      await openGatewayOutboundJournal(facility),
+      pairing,
+    )
+    await gateway.start()
+
+    const first = await gateway.accept({
+      endpoint: endpointB,
+      chatKind: 'direct',
+      eventId: 'first-unknown-dm',
+      text: 'hello',
+      now: 1_000,
+    })
+    expect(first).toMatchObject({ kind: 'pairing', offer: { kind: 'offered' } })
+    if (first.kind !== 'pairing' || first.offer.kind !== 'offered') {
+      throw new Error('Gateway did not offer pairing')
+    }
+    expect(host.created).toHaveLength(0)
+
+    await gateway.approvePairing({
+      adapter: 'feishu',
+      accountId: 'app-b',
+      code: first.offer.code,
+      target: {
+        id: 'feishu-b',
+        workspaceId: 'workspace-b',
+        sessionId: 'session-b',
+        agentPreset: 'minimal',
+        provider: 'mock',
+        model: 'mock-b',
+      },
+      now: 2_000,
+    })
+    const accepted = await gateway.accept({
+      endpoint: endpointB,
+      chatKind: 'direct',
+      eventId: 'second-trusted-dm',
+      text: 'hello again',
+      now: 2_001,
+    })
+    expect(accepted).toMatchObject({ kind: 'message', route: { id: 'feishu-b' } })
+    expect(host.messages.get('session-b')).toEqual(['hello again'])
+
+    await gateway.stop()
+  })
+
   it('projects redacted route, native Session, and ingress health from the Gateway authority', async () => {
     const host = fakeNativeHost()
     const facility = memoryFacility()

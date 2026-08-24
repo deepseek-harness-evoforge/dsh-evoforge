@@ -26,6 +26,13 @@ import {
   type GatewayTextAdapterRegistration,
 } from './outbound.js'
 import type { GatewayOutboundJournal } from './outbound-journal.js'
+import type {
+  GatewayPairingApproval,
+  GatewayPairingApprovalInput,
+  GatewayPairingAuthority,
+  GatewayPairingOffer,
+  GatewayPairingTarget,
+} from './pairing.js'
 import {
   GatewayTransportRegistry,
   type GatewayTransportConfig,
@@ -44,6 +51,12 @@ export interface GatewayDispatchInput {
   readonly signal?: AbortSignal
 }
 
+export interface GatewayAcceptInput extends GatewayDispatchInput {
+  readonly chatKind: 'direct' | 'group'
+  /** Exact observation time used only when an unknown direct sender needs pairing. */
+  readonly now?: number
+}
+
 interface GatewayUserContent {
   readonly blocks: Readonly<UserMessage['content']>
   readonly commandText?: string
@@ -60,6 +73,10 @@ interface GatewayDispatchBase {
 export type GatewayDispatchResult =
   | (GatewayDispatchBase & { readonly kind: 'message' })
   | (GatewayDispatchBase & { readonly kind: 'command'; readonly result: GatewayCommandResult })
+
+export type GatewayAcceptResult = GatewayDispatchResult
+  | { readonly kind: 'pairing'; readonly offer: GatewayPairingOffer }
+  | { readonly kind: 'rejected'; readonly reason: 'untrusted' }
 
 export interface GatewayHealthRoute {
   readonly id: string
@@ -118,6 +135,7 @@ export class DshGateway {
     private readonly configured: ResolvedGatewayRoutes,
     private readonly ingressJournal: GatewayIngressJournal,
     outboundJournal: GatewayOutboundJournal,
+    private readonly pairing?: GatewayPairingAuthority,
   ) {
     this.outbound = new GatewayOutboundCoordinator(
       configured,
@@ -142,7 +160,8 @@ export class DshGateway {
     }
     const persisted = await this.ctx.sessionPersistence.list()
     const persistedById = new Map(persisted.map(header => [String(header.id), header]))
-    for (const route of this.configured.routes) {
+    this.assertRouteSet()
+    for (const route of this.allRoutes()) {
       const workspace = await this.requireWorkspace(route)
       await this.requirePreset(route)
       const live = this.ctx.agents.get(SessionId(route.sessionId))
@@ -159,11 +178,33 @@ export class DshGateway {
   }
 
   route(id: string): ResolvedGatewayRoute | undefined {
-    return this.configured.byId.get(id)
+    return this.configured.byId.get(id) ?? this.pairing?.route(id)
   }
 
   match(endpoint: GatewayEndpoint): ResolvedGatewayRoute | undefined {
-    return this.configured.match(endpoint)
+    return this.configured.match(endpoint) ?? this.pairing?.match(endpoint)
+  }
+
+  async approvePairing(input: GatewayPairingApprovalInput): Promise<GatewayPairingApproval> {
+    this.assertRunning()
+    if (this.pairing === undefined) throw new Error('DSH gateway pairing is disabled')
+    await this.validatePairingTarget(input.target)
+    if (this.configured.byId.has(input.target.id) || this.pairing.route(input.target.id) !== undefined) {
+      throw new Error(`gateway pairing route id '${input.target.id}' is already configured`)
+    }
+    return this.pairing.approve(input)
+  }
+
+  async accept(input: GatewayAcceptInput): Promise<GatewayAcceptResult> {
+    this.assertRunning()
+    const route = this.match(input.endpoint)
+    if (route !== undefined) return this.dispatchRoute(route, input)
+    if (input.chatKind !== 'direct' || this.pairing === undefined) {
+      return Object.freeze({ kind: 'rejected', reason: 'untrusted' })
+    }
+    const offer = await this.pairing.offer(input.endpoint, input.now)
+    if (offer.kind === 'already-trusted') return this.dispatchRoute(offer.route, input)
+    return Object.freeze({ kind: 'pairing', offer })
   }
 
   registerTextAdapter(config: GatewayTextAdapterConfig): GatewayTextAdapterRegistration {
@@ -218,7 +259,7 @@ export class DshGateway {
 
   /** Stable native MessageId an adapter can use to correlate inbox/turn events before dispatch. */
   messageIdFor(endpoint: GatewayEndpoint, eventId: string): string {
-    const route = this.configured.match(endpoint)
+    const route = this.match(endpoint)
     if (route === undefined) throw new Error('no configured gateway route for the exact external endpoint')
     const exactEventId = exactIngressText(eventId, 'eventId', 1_024)
     const eventHash = hash(`${route.endpointKey}\0${exactEventId}`)
@@ -228,7 +269,7 @@ export class DshGateway {
   /** Resolve the exact configured native Agent without dispatching user input. */
   async resolve(routeOrId: ResolvedGatewayRoute | string, signal?: AbortSignal): Promise<Agent> {
     this.assertRunning()
-    const route = typeof routeOrId === 'string' ? this.configured.byId.get(routeOrId) : routeOrId
+    const route = typeof routeOrId === 'string' ? this.route(routeOrId) : routeOrId
     if (route === undefined) throw new Error(`unknown gateway route '${String(routeOrId)}'`)
     signal?.throwIfAborted()
     let pending = this.resolutions.get(route.sessionId)
@@ -243,8 +284,12 @@ export class DshGateway {
 
   dispatch(input: GatewayDispatchInput): Promise<GatewayDispatchResult> {
     this.assertRunning()
-    const route = this.configured.match(input.endpoint)
+    const route = this.match(input.endpoint)
     if (route === undefined) return Promise.reject(new Error('no configured gateway route for the exact external endpoint'))
+    return this.dispatchRoute(route, input)
+  }
+
+  private dispatchRoute(route: ResolvedGatewayRoute, input: GatewayDispatchInput): Promise<GatewayDispatchResult> {
     const eventId = exactIngressText(input.eventId, 'eventId', 1_024)
     const content = normalizeUserContent(input.text, input.images)
     const eventHash = hash(`${route.endpointKey}\0${eventId}`)
@@ -271,6 +316,7 @@ export class DshGateway {
       this.ownedHandles.clear()
       await Promise.allSettled(handles.map(handle => handle.dispose()))
       await this.ingressJournal.close()
+      await this.pairing?.close()
     })()
     return this.stopping
   }
@@ -485,15 +531,52 @@ export class DshGateway {
   }
 
   private selectHealthRoutes(routeIds: readonly string[] | undefined): readonly ResolvedGatewayRoute[] {
-    if (routeIds === undefined) return this.configured.routes
+    if (routeIds === undefined) return this.allRoutes()
     const seen = new Set<string>()
     return routeIds.map((id) => {
       if (seen.has(id)) throw new Error(`duplicate gateway route '${id}'`)
       seen.add(id)
-      const route = this.configured.byId.get(id)
+      const route = this.route(id)
       if (route === undefined) throw new Error(`unknown gateway route '${id}'`)
       return route
     })
+  }
+
+  private allRoutes(): readonly ResolvedGatewayRoute[] {
+    return Object.freeze([...this.configured.routes, ...(this.pairing?.routes() ?? [])])
+  }
+
+  private assertRouteSet(): void {
+    const ids = new Set<string>()
+    const endpoints = new Set<string>()
+    for (const route of this.allRoutes()) {
+      if (ids.has(route.id)) throw new Error(`gateway route id '${route.id}' is duplicated`)
+      if (endpoints.has(route.endpointKey)) throw new Error('gateway routes claim the same external endpoint')
+      ids.add(route.id)
+      endpoints.add(route.endpointKey)
+    }
+  }
+
+  private async validatePairingTarget(target: GatewayPairingTarget): Promise<void> {
+    const candidate: ResolvedGatewayRoute = Object.freeze({
+      ...target,
+      adapter: 'pairing',
+      accountId: 'pending',
+      conversationId: 'pending',
+      userId: 'pending',
+      endpointKey: 'pending',
+    })
+    const workspace = await this.requireWorkspace(candidate)
+    await this.requirePreset(candidate)
+    const live = this.ctx.agents.get(SessionId(target.sessionId))
+    if (live !== undefined) {
+      this.assertLiveIdentity(candidate, workspace, live)
+      return
+    }
+    const header = (await this.ctx.sessionPersistence.list()).find(item => String(item.id) === target.sessionId)
+    if (header === undefined) return
+    const inspected = await this.ctx.sessionPersistence.inspect(SessionId(target.sessionId))
+    this.assertPersistedIdentity(candidate, workspace, inspected.meta, inspected.events)
   }
 }
 

@@ -5,6 +5,7 @@ import { openGatewayIngressJournal } from './ingress-journal.js'
 import { openGatewayOutboundJournal, type GatewayOutboundJournal } from './outbound-journal.js'
 import { DshGateway } from './gateway.js'
 import { GatewayRemoteService } from './gateway-remote.js'
+import { openGatewayPairingAuthority, type GatewayPairingAuthority } from './pairing.js'
 import { resolveGatewayRoutes, type GatewayRouteConfig } from './routing.js'
 
 export const name = 'dsh-gateway'
@@ -24,6 +25,12 @@ export interface Config {
   readonly maxIngressRecords?: number
   /** Retained outbound journal bound; active deliveries are never pruned. */
   readonly maxOutboundRecords?: number
+  /** Gateway-owned unknown-DM pairing; adapters still decide which messages are direct. */
+  readonly pairing?: {
+    readonly enabled?: boolean
+    readonly codeTtlMs?: number
+    readonly maxPendingPerAccount?: number
+  }
 }
 
 const routeSchema = z.object({
@@ -45,6 +52,11 @@ export const Config: Schema<Config> = z.object({
   routes: z.array(routeSchema).default([]),
   maxIngressRecords: z.number().step(1).min(1).max(100_000).default(10_000),
   maxOutboundRecords: z.number().step(1).min(1).max(100_000).default(10_000),
+  pairing: z.object({
+    enabled: z.boolean().default(true),
+    codeTtlMs: z.number().step(1).min(60_000).max(3_600_000).default(900_000),
+    maxPendingPerAccount: z.number().step(1).min(1).max(20).default(3),
+  }).default({ enabled: true, codeTtlMs: 900_000, maxPendingPerAccount: 3 }),
 }) as Schema<Config>
 
 /** Install one shared Host Gateway for transport-only channel Adapters. */
@@ -61,7 +73,25 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     await journal.close()
     throw error
   }
-  const gateway = new DshGateway(ctx, resolveGatewayRoutes(config.routes ?? []), journal, outbound)
+  let pairing: GatewayPairingAuthority | undefined
+  try {
+    if (config.pairing?.enabled !== false) {
+      pairing = await openGatewayPairingAuthority(ctx.storageDomain, {
+        codeTtlMs: config.pairing?.codeTtlMs ?? 900_000,
+        maxPendingPerAccount: config.pairing?.maxPendingPerAccount ?? 3,
+      })
+    }
+  } catch (error) {
+    await Promise.allSettled([outbound.close(), journal.close()])
+    throw error
+  }
+  const gateway = new DshGateway(
+    ctx,
+    resolveGatewayRoutes(config.routes ?? []),
+    journal,
+    outbound,
+    pairing,
+  )
   try {
     await gateway.start()
     new GatewayRemoteService(ctx, gateway)
@@ -73,6 +103,17 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   }
 }
 
+export {
+  openGatewayPairingAuthority,
+  type GatewayPairingApproval,
+  type GatewayPairingApprovalInput,
+  type GatewayPairingAuthority,
+  type GatewayPairingAuthorityOptions,
+  type GatewayPairingOffer,
+  type GatewayPairingRequest,
+  type GatewayPairingTarget,
+  type GatewayTrustGrant,
+} from './pairing.js'
 export {
   endpointKey,
   resolveGatewayRoutes,
@@ -118,6 +159,8 @@ export {
 export {
   GatewayIngressUncertainError,
   DshGateway,
+  type GatewayAcceptInput,
+  type GatewayAcceptResult,
   type GatewayDispatchInput,
   type GatewayDispatchResult,
   type GatewayHealthRoute,

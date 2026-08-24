@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-const PINNED_DSH_REVISION = '47f943859bef60e4160492346772ded9b24f765a'
+const PINNED_DSH_REVISION = 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e'
 const workspace = resolve(import.meta.dirname, '..')
 const dshRoot = process.env.DSH_SOURCE_ROOT
 
