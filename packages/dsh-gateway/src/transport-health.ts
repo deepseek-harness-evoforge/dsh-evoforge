@@ -15,6 +15,8 @@ export interface GatewayTransportConfig {
   readonly accountId: string
   readonly kind: string
   readonly routeIds: readonly string[]
+  /** Project future exact routes approved by this Gateway for the same account. */
+  readonly pairedRoutes?: boolean
   readonly initial: GatewayTransportObservation
 }
 
@@ -44,6 +46,7 @@ interface RegisteredTransport {
   readonly accountId: string
   readonly kind: string
   readonly routeIds: readonly string[]
+  readonly pairedRoutes: boolean
   observation: GatewayTransportObservation
 }
 
@@ -55,7 +58,10 @@ export class GatewayTransportRegistry {
   private readonly registrations = new Map<string, RegisteredTransport>()
   private stopped = false
 
-  constructor(private readonly routes: ResolvedGatewayRoutes) {}
+  constructor(
+    private readonly routes: ResolvedGatewayRoutes,
+    private readonly pairedRoute: (id: string) => ResolvedGatewayRoute | undefined = () => undefined,
+  ) {}
 
   register(config: GatewayTransportConfig): GatewayTransportRegistration {
     if (this.stopped) throw new Error('Gateway transport registry is stopping')
@@ -71,6 +77,7 @@ export class GatewayTransportRegistry {
       accountId: config.accountId,
       kind,
       routeIds: Object.freeze(ownedRoutes.map(route => route.id)),
+      pairedRoutes: config.pairedRoutes === true,
       observation: normalizeObservation(config.initial),
     }
     this.registrations.set(key, registration)
@@ -98,7 +105,12 @@ export class GatewayTransportRegistry {
     const counts = { connecting: 0, ready: 0, degraded: 0, stopping: 0 }
     const items: GatewayTransportHealthItem[] = []
     for (const registration of this.registrations.values()) {
-      const routeIds = registration.routeIds.filter(id => selectedRouteIds.has(id))
+      const routeIds = [...selectedRouteIds].filter((id) => {
+        if (registration.routeIds.includes(id)) return true
+        if (!registration.pairedRoutes) return false
+        const paired = this.pairedRoute(id)
+        return paired?.adapter === registration.adapter && paired.accountId === registration.accountId
+      })
       if (routeIds.length === 0) continue
       counts[registration.observation.state] += 1
       items.push(Object.freeze({
@@ -128,8 +140,9 @@ function exactTransportRoutes(
   routes: ResolvedGatewayRoutes,
   config: GatewayTransportConfig,
 ): readonly ResolvedGatewayRoute[] {
-  if (!Array.isArray(config.routeIds) || config.routeIds.length < 1 || config.routeIds.length > 100) {
-    throw new Error('Gateway transport must register 1 to 100 exact route ids')
+  if (!Array.isArray(config.routeIds) || config.routeIds.length > 100
+    || (config.routeIds.length === 0 && config.pairedRoutes !== true)) {
+    throw new Error('Gateway transport must register exact route ids or opt into paired routes')
   }
   const seen = new Set<string>()
   return config.routeIds.map((id) => {

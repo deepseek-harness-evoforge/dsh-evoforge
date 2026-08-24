@@ -40,6 +40,8 @@ export interface GatewayTextAdapterConfig extends GatewayOutboundPolicy {
   readonly adapter: string
   readonly accountId: string
   readonly routeIds: readonly string[]
+  /** Own future exact routes created by this Gateway's pairing authority for the same account. */
+  readonly pairedRoutes?: boolean
   send(input: GatewayOutboundSendInput, signal: AbortSignal): Promise<GatewayOutboundSendResult>
 }
 
@@ -87,6 +89,7 @@ export class GatewayOutboundCoordinator {
       turn: number,
       signal: AbortSignal,
     ) => Promise<boolean>,
+    private readonly pairedRoute: (id: string) => ResolvedGatewayRoute | undefined = () => undefined,
   ) {}
 
   async start(now: number): Promise<void> {
@@ -110,6 +113,7 @@ export class GatewayOutboundCoordinator {
       ownedRoutes,
       this.journal,
       this.isTurnEnded,
+      this.pairedRoute,
       () => {
         if (this.registrations.get(key) === registration) this.registrations.delete(key)
       },
@@ -190,6 +194,7 @@ class GatewayTextAdapterRegistrationImpl implements GatewayTextAdapterRegistrati
       turn: number,
       signal: AbortSignal,
     ) => Promise<boolean>,
+    private readonly pairedRoute: (id: string) => ResolvedGatewayRoute | undefined,
     private readonly onDispose: () => void,
   ) {
     this.routeIds = new Set(routes.map(route => route.id))
@@ -200,7 +205,7 @@ class GatewayTextAdapterRegistrationImpl implements GatewayTextAdapterRegistrati
 
   async submit(intent: GatewayTextDeliveryIntent): Promise<GatewayOutboundReceipt> {
     if (this.disposed !== undefined) throw new Error('Gateway text Adapter registration is disposed')
-    if (!this.routeIds.has(intent.routeId)) {
+    if (this.route(intent.routeId) === undefined) {
       throw new Error(`Gateway text Adapter does not own route '${intent.routeId}'`)
     }
     const prepared = await this.journal.prepare({ ...intent, now: Date.now() })
@@ -215,7 +220,7 @@ class GatewayTextAdapterRegistrationImpl implements GatewayTextAdapterRegistrati
   }
 
   ownsAny(routeIds: ReadonlySet<string>): boolean {
-    return [...this.routeIds].some(id => routeIds.has(id))
+    return [...routeIds].some(id => this.route(id) !== undefined)
   }
 
   scheduledCount(routeIds: ReadonlySet<string>): number {
@@ -229,7 +234,7 @@ class GatewayTextAdapterRegistrationImpl implements GatewayTextAdapterRegistrati
 
   resumePending(): void {
     for (const record of this.journal.list()) {
-      if (this.routeIds.has(record.routeId)
+      if (this.route(record.routeId) !== undefined
         && (record.status === 'prepared' || record.status === 'retrying')) this.enqueue(record.id)
     }
   }
@@ -237,7 +242,7 @@ class GatewayTextAdapterRegistrationImpl implements GatewayTextAdapterRegistrati
   wakeEndedTurn(sessionId: string, turn: number): void {
     for (const record of this.journal.list()) {
       if (record.status !== 'prepared' || record.waitForTurnEnd !== turn) continue
-      const route = this.routesById.get(record.routeId)
+      const route = this.route(record.routeId)
       if (route?.sessionId === sessionId) this.enqueue(record.id)
     }
   }
@@ -276,7 +281,7 @@ class GatewayTextAdapterRegistrationImpl implements GatewayTextAdapterRegistrati
     let record = this.journal.get(id)
     if (record === undefined || (record.status !== 'prepared' && record.status !== 'retrying')) return
     if (record.waitForTurnEnd !== undefined) {
-      const route = this.routesById.get(record.routeId)
+      const route = this.route(record.routeId)
       if (route === undefined
         || !await this.isTurnEnded(route, record.waitForTurnEnd, this.lifecycle.signal)) return
     }
@@ -304,6 +309,15 @@ class GatewayTextAdapterRegistrationImpl implements GatewayTextAdapterRegistrati
       clearTimeout(timer)
     }
     await this.journal.finish(id, result, this.config, Date.now())
+  }
+
+  private route(id: string): ResolvedGatewayRoute | undefined {
+    const configured = this.routesById.get(id)
+    if (configured !== undefined) return configured
+    if (this.config.pairedRoutes !== true) return undefined
+    const paired = this.pairedRoute(id)
+    if (paired?.adapter !== this.config.adapter || paired.accountId !== this.config.accountId) return undefined
+    return paired
   }
 }
 
@@ -346,8 +360,9 @@ function exactRegistrationRoutes(
   routes: ResolvedGatewayRoutes,
   config: GatewayTextAdapterConfig,
 ): readonly ResolvedGatewayRoute[] {
-  if (!Array.isArray(config.routeIds) || config.routeIds.length < 1 || config.routeIds.length > 100) {
-    throw new Error('Gateway text Adapter must register 1 to 100 exact route ids')
+  if (!Array.isArray(config.routeIds) || config.routeIds.length > 100
+    || (config.routeIds.length === 0 && config.pairedRoutes !== true)) {
+    throw new Error('Gateway text Adapter must register exact route ids or opt into paired routes')
   }
   const seen = new Set<string>()
   return config.routeIds.map((id) => {

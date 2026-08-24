@@ -161,6 +161,7 @@ export {
   DshGateway,
   type GatewayAcceptInput,
   type GatewayAcceptResult,
+  type GatewayAuthorizationResult,
   type GatewayDispatchInput,
   type GatewayDispatchResult,
   type GatewayHealthRoute,

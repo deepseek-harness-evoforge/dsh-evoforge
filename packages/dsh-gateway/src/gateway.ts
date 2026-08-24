@@ -78,6 +78,11 @@ export type GatewayAcceptResult = GatewayDispatchResult
   | { readonly kind: 'pairing'; readonly offer: GatewayPairingOffer }
   | { readonly kind: 'rejected'; readonly reason: 'untrusted' }
 
+export type GatewayAuthorizationResult =
+  | { readonly kind: 'trusted'; readonly route: ResolvedGatewayRoute }
+  | { readonly kind: 'pairing'; readonly offer: GatewayPairingOffer }
+  | { readonly kind: 'rejected'; readonly reason: 'untrusted' }
+
 export interface GatewayHealthRoute {
   readonly id: string
   readonly adapter: string
@@ -141,8 +146,9 @@ export class DshGateway {
       configured,
       outboundJournal,
       (route, turn, signal) => this.nativeTurnEnded(route, turn, signal),
+      id => this.pairing?.route(id),
     )
-    this.transports = new GatewayTransportRegistry(configured)
+    this.transports = new GatewayTransportRegistry(configured, id => this.pairing?.route(id))
   }
 
   /** Validate the complete static binding table before any adapter accepts traffic. */
@@ -197,13 +203,24 @@ export class DshGateway {
 
   async accept(input: GatewayAcceptInput): Promise<GatewayAcceptResult> {
     this.assertRunning()
-    const route = this.match(input.endpoint)
-    if (route !== undefined) return this.dispatchRoute(route, input)
-    if (input.chatKind !== 'direct' || this.pairing === undefined) {
+    const authorization = await this.authorize(input.endpoint, input.chatKind, input.now)
+    if (authorization.kind === 'trusted') return this.dispatchRoute(authorization.route, input)
+    return authorization
+  }
+
+  async authorize(
+    endpoint: GatewayEndpoint,
+    chatKind: 'direct' | 'group',
+    now?: number,
+  ): Promise<GatewayAuthorizationResult> {
+    this.assertRunning()
+    const route = this.match(endpoint)
+    if (route !== undefined) return Object.freeze({ kind: 'trusted', route })
+    if (chatKind !== 'direct' || this.pairing === undefined) {
       return Object.freeze({ kind: 'rejected', reason: 'untrusted' })
     }
-    const offer = await this.pairing.offer(input.endpoint, input.now)
-    if (offer.kind === 'already-trusted') return this.dispatchRoute(offer.route, input)
+    const offer = await this.pairing.offer(endpoint, now)
+    if (offer.kind === 'already-trusted') return Object.freeze({ kind: 'trusted', route: offer.route })
     return Object.freeze({ kind: 'pairing', offer })
   }
 

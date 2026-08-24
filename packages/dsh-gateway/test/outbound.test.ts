@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { DshGateway } from '../src/gateway.js'
 import { openGatewayIngressJournal } from '../src/ingress-journal.js'
 import { openGatewayOutboundJournal } from '../src/outbound-journal.js'
+import { openGatewayPairingAuthority } from '../src/pairing.js'
 import { resolveGatewayRoutes } from '../src/routing.js'
 
 const routes = resolveGatewayRoutes([{
@@ -21,6 +22,78 @@ const routes = resolveGatewayRoutes([{
 }])
 
 describe('Gateway outbound text delivery', () => {
+  it('lets one resident Adapter own routes approved after its account registration', async () => {
+    const facility = memoryFacility()
+    const host = fakeNativeHost()
+    const pairing = await openGatewayPairingAuthority(facility, {
+      codeTtlMs: 900_000,
+      maxPendingPerAccount: 3,
+    })
+    const gateway = new DshGateway(
+      host.ctx,
+      resolveGatewayRoutes([]),
+      await openGatewayIngressJournal(facility),
+      await openGatewayOutboundJournal(facility),
+      pairing,
+    )
+    await gateway.start()
+    const transport = gateway.registerTransport({
+      adapter: 'feishu',
+      accountId: 'app-a',
+      kind: 'official-feishu-websocket',
+      routeIds: [],
+      pairedRoutes: true,
+      initial: { state: 'ready', observedAt: 900, connectedAt: 900 },
+    })
+    const sends: string[] = []
+    const registration = gateway.registerTextAdapter({
+      adapter: 'feishu',
+      accountId: 'app-a',
+      routeIds: [],
+      pairedRoutes: true,
+      maxAttempts: 1,
+      maxRetryAfterMs: 1_000,
+      sendTimeoutMs: 30_000,
+      async send(input) {
+        sends.push(input.text)
+        return { kind: 'delivered', externalMessageId: 'om_dynamic' }
+      },
+    })
+    const endpoint = {
+      adapter: 'feishu', accountId: 'app-a', conversationId: 'oc_dynamic', userId: 'ou_dynamic',
+    }
+    const offer = await pairing.offer(endpoint, 1_000)
+    if (offer.kind !== 'offered') throw new Error('pairing code missing')
+    await gateway.approvePairing({
+      adapter: 'feishu',
+      accountId: 'app-a',
+      code: offer.code,
+      target: {
+        id: 'feishu-dynamic', workspaceId: 'workspace-a', sessionId: 'session-a',
+        agentPreset: 'standard', provider: 'mock', model: 'mock-a',
+      },
+      now: 2_000,
+    })
+    expect(gateway.healthSnapshot(2_001, ['feishu-dynamic']).transports).toMatchObject({
+      registrations: 1,
+      ready: 1,
+      items: [{ adapter: 'feishu', routeIds: ['feishu-dynamic'] }],
+    })
+
+    await registration.submit({
+      routeId: 'feishu-dynamic',
+      kind: 'response',
+      intentKey: 'response:dynamic',
+      text: 'paired route reply',
+    })
+    await eventually(() => sends.length === 1)
+    expect(sends).toEqual(['paired route reply'])
+
+    await registration.dispose()
+    transport.dispose()
+    await gateway.stop()
+  })
+
   it('persists one intent, honors a proven rate limit, and never resends a settled duplicate', async () => {
     const facility = memoryFacility()
     const host = fakeNativeHost()
@@ -272,7 +345,7 @@ describe('Gateway outbound text delivery', () => {
       async send() { return { kind: 'uncertain' as const } },
     }
     expect(() => gateway.registerTextAdapter({ ...base, routeIds: [] }))
-      .toThrow(/1 to 100 exact route ids/u)
+      .toThrow(/exact route ids or opt into paired routes/u)
     expect(() => gateway.registerTextAdapter({ ...base, routeIds: ['missing'] }))
       .toThrow(/is unknown/u)
     expect(() => gateway.registerTextAdapter({ ...base, accountId: 'other', routeIds: ['telegram-a'] }))
