@@ -497,6 +497,46 @@ describe('Existing Skill Holdout Governance', () => {
       }],
     })
   })
+
+  it('bounds the default real holdout Provider request even when an owner signal is supplied', async () => {
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-existing-governance-provider-timeout-')))
+    roots.push(root)
+    const subject = await holdoutSubject()
+    const policy = holdoutPolicy(root)
+    const previousBaseUrl = process.env.DSH_EVOLVE_GOVERNANCE_MODEL_BASE_URL
+    const previousModel = process.env.DSH_EVOLVE_GOVERNANCE_MODEL_NAME
+    const previousApiKey = process.env.DSH_EVOLVE_GOVERNANCE_MODEL_API_KEY
+    const originalFetch = globalThis.fetch
+    const owner = new AbortController()
+    let observedSignal: AbortSignal | undefined
+    process.env.DSH_EVOLVE_GOVERNANCE_MODEL_BASE_URL = 'https://governance.example.test/v1'
+    process.env.DSH_EVOLVE_GOVERNANCE_MODEL_NAME = 'governance-model'
+    process.env.DSH_EVOLVE_GOVERNANCE_MODEL_API_KEY = 'test-governance-key'
+    globalThis.fetch = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+      observedSignal = init?.signal instanceof AbortSignal ? init.signal : undefined
+      throw new Error('stop after observing the holdout request')
+    }) as typeof fetch
+    try {
+      const governance = new ExistingSkillHoldoutGovernance({
+        policies: [policy],
+        evidence: { readForGovernance: vi.fn(async () => governedEvidence(subject)) },
+        budget: { reserve: vi.fn(async () => allowedGovernanceReservation()) },
+        modelIdentity: () => 'independent-existing-evaluation/model-v1',
+        now: () => 1_787_529_600_000,
+      })
+
+      await expect(governance.ensure(subject, { signal: owner.signal })).rejects
+        .toThrow('stop after observing the holdout request')
+      expect(observedSignal).toBeInstanceOf(AbortSignal)
+      expect(observedSignal).not.toBe(owner.signal)
+      expect(observedSignal?.aborted).toBe(false)
+    } finally {
+      globalThis.fetch = originalFetch
+      restoreEnvironment('DSH_EVOLVE_GOVERNANCE_MODEL_BASE_URL', previousBaseUrl)
+      restoreEnvironment('DSH_EVOLVE_GOVERNANCE_MODEL_NAME', previousModel)
+      restoreEnvironment('DSH_EVOLVE_GOVERNANCE_MODEL_API_KEY', previousApiKey)
+    }
+  })
 })
 
 function holdoutPolicy(root: string) {
@@ -524,6 +564,11 @@ function allowedGovernanceReservation() {
       remaining: 0,
     },
   }
+}
+
+function restoreEnvironment(name: string, value: string | undefined): void {
+  if (value === undefined) delete process.env[name]
+  else process.env[name] = value
 }
 
 function validAuthorResult(input: ExistingSkillHoldoutAuthorInput) {

@@ -4,6 +4,7 @@
 > V4.39 已消费 V4.37 exact Admission 与 V4.38 Candidate-blind Envelope，在原生 DSH Jobs 中执行完整 `skill-tree ↔ skill-tree` paired holdout，并从最终 tarball 完成真实 DSH Web reload/断连/恢复/卸载验证；自动化成功路径使用注入式确定性 Trial，因此两套独立真实 provider、Retention 与发布资格仍未证明。
 > V4.40–V4.45 已完成生成前 Retention 身份链、exact Retention、独立发布门及最终包浏览器生命周期；V4.46–V4.48 已完成 existing-Skill failed-Outcome Canary、权威 Control/Remote/Web、独立 expected-active rollback gate 及其最终包浏览器故障恢复；V4.49 已完成 missing-Skill 同类最终包故障恢复。两套独立真实 provider 仍未证明。
 > V4.55 已实现阶段专用 RP-1 验收入口：它只在显式付费批准后使用两套独立 Provider 跑现有内部 Skill 纵切，并对 Provider/authority/credential/model identity、Candidate 盲区、准入、assembled Holdout/Retention 和 composition 设 hard gate。当前状态是 `NOT_RUN`，没有真实 Provider 通过证据。
+> V4.56 已把真实 Provider 请求边界补齐：proposer 与缺失/现有 Skill 的治理作者 HTTP seam 均有 60 秒 wall-clock 上限，Host cancellation 只能更早终止而不能移除 timeout；治理 dispatch 仍先 durable 落盘，未知付费结果仍为 `uncertain` 且不盲重试。本增量没有发起外部 Provider 请求。
 > 更新日期：2026-08-24
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。发生冲突时，下述“方向纠正”优先于旧里程碑文字。
 

@@ -531,6 +531,84 @@ describe('internal Skill Evaluation Governance', () => {
       }],
     })
   })
+
+  it('bounds the default real governance Provider request when no owner signal is supplied', async () => {
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-evolve-governance-provider-timeout-')))
+    roots.push(root)
+    const policy = {
+      id: 'workspace-governance',
+      workspaceId: WORKSPACE_ID,
+      governanceRoot: join(root, 'governance'),
+      runRoot: join(root, 'runs'),
+      dshRevision: 'a'.repeat(40),
+      maxAttemptsPerUtcDay: 1,
+    }
+    const gaps = opportunityGaps()
+    const opportunity = internalOpportunity(gaps)
+    const vault = new SkillEvaluationEvidenceVault([policy], { list: () => gaps })
+    const sealed = await vault.prepare(opportunity)
+    if (sealed.status !== 'ready') throw new Error('expected sealed evaluation evidence')
+    const candidate = experienceSkillCandidate({
+      opportunity: {
+        kind: 'internal-experience-v1',
+        id: opportunity.id,
+        gapIds: [...opportunity.gapIds],
+        goalCount: opportunity.goalCount,
+      },
+      authorship: {
+        kind: 'bounded-model-authoring-v1',
+        policyId: 'workspace-experience-author',
+        modelIdentityHash: '5'.repeat(64),
+        evaluationEvidenceId: sealed.evidence.id,
+        inputDigest: sealed.evidence.authoringInputDigest,
+      },
+    })
+    const previousBaseUrl = process.env.DSH_EVOLVE_GOVERNANCE_MODEL_BASE_URL
+    const previousModel = process.env.DSH_EVOLVE_GOVERNANCE_MODEL_NAME
+    const previousApiKey = process.env.DSH_EVOLVE_GOVERNANCE_MODEL_API_KEY
+    const originalFetch = globalThis.fetch
+    let observedSignal: AbortSignal | undefined
+    process.env.DSH_EVOLVE_GOVERNANCE_MODEL_BASE_URL = 'https://governance.example.test/v1'
+    process.env.DSH_EVOLVE_GOVERNANCE_MODEL_NAME = 'governance-model'
+    process.env.DSH_EVOLVE_GOVERNANCE_MODEL_API_KEY = 'test-governance-key'
+    globalThis.fetch = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+      observedSignal = init?.signal instanceof AbortSignal ? init.signal : undefined
+      throw new Error('stop after observing the governance request')
+    }) as typeof fetch
+    try {
+      const governance = new SkillEvaluationGovernance({
+        policies: [policy],
+        evidence: vault,
+        budget: {
+          reserve: vi.fn(async () => ({
+            allowed: true,
+            newlyReserved: true,
+            snapshot: {
+              targetId: policy.id,
+              workspaceId: WORKSPACE_ID,
+              skillName: candidate.skillName,
+              utcDay: '2026-08-24',
+              used: 1,
+              limit: 1,
+              remaining: 0,
+            },
+          })),
+        },
+        modelIdentity: () => 'independent-governance/model-v1',
+        now: () => 1_787_529_600_000,
+      })
+
+      await expect(governance.ensure(candidate)).rejects
+        .toThrow('stop after observing the governance request')
+      expect(observedSignal).toBeInstanceOf(AbortSignal)
+      expect(observedSignal?.aborted).toBe(false)
+    } finally {
+      globalThis.fetch = originalFetch
+      restoreEnvironment('DSH_EVOLVE_GOVERNANCE_MODEL_BASE_URL', previousBaseUrl)
+      restoreEnvironment('DSH_EVOLVE_GOVERNANCE_MODEL_NAME', previousModel)
+      restoreEnvironment('DSH_EVOLVE_GOVERNANCE_MODEL_API_KEY', previousApiKey)
+    }
+  })
 })
 
 function correctionSkill(name: string, role: string): string {
@@ -543,6 +621,11 @@ function correctionSkill(name: string, role: string): string {
     `Apply the independently derived ${role} method.`,
     '',
   ].join('\n')
+}
+
+function restoreEnvironment(name: string, value: string | undefined): void {
+  if (value === undefined) delete process.env[name]
+  else process.env[name] = value
 }
 
 function opportunityGaps(count = 4): CapabilityGap[] {

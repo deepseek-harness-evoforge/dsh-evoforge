@@ -47,6 +47,7 @@ const MAX_AUTHOR_RESPONSE_BYTES = 256 * 1024
 const MAX_EVALUATOR_BYTES = 128 * 1024
 const MAX_SKILL_BYTES = 64 * 1024
 const AUTHOR_OUTPUT_TOKEN_LIMIT = 6_000
+const PROVIDER_REQUEST_TIMEOUT_MS = 60_000
 
 export interface ExistingSkillHoldoutAuthorInput {
   readonly idempotencyKey: string
@@ -1371,7 +1372,12 @@ async function requestHoldoutAuthor(
         { role: 'user', content: JSON.stringify(input) },
       ],
     }),
-    ...input.signal === undefined ? {} : { signal: input.signal },
+    signal: input.signal === undefined
+      ? AbortSignal.timeout(PROVIDER_REQUEST_TIMEOUT_MS)
+      : AbortSignal.any([
+          input.signal,
+          AbortSignal.timeout(PROVIDER_REQUEST_TIMEOUT_MS),
+        ]),
   })
   const payload = await readResponseJson(response)
   if (!response.ok) throw new Error(`existing-Skill ${input.role} author request failed with HTTP ${response.status}`)

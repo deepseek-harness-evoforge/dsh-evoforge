@@ -39,6 +39,7 @@ const MAX_EVIDENCE_BYTES = 32 * 1024
 const MAX_STATE_BYTES = 64 * 1024
 const AUTHOR_OUTPUT_TOKEN_LIMIT = 6_000
 const MAX_SCAN_ROWS = 1_000
+const PROVIDER_REQUEST_TIMEOUT_MS = 60_000
 
 export interface SkillEvaluationGovernancePolicyConfig
   extends SkillCandidateEvaluationPolicyConfig {
@@ -930,7 +931,12 @@ async function requestCaseAuthor(
         { role: 'user', content: JSON.stringify(input) },
       ],
     }),
-    ...input.signal === undefined ? {} : { signal: input.signal },
+    signal: input.signal === undefined
+      ? AbortSignal.timeout(PROVIDER_REQUEST_TIMEOUT_MS)
+      : AbortSignal.any([
+          input.signal,
+          AbortSignal.timeout(PROVIDER_REQUEST_TIMEOUT_MS),
+        ]),
   })
   const payload = await readBoundedJson(response)
   if (!response.ok) throw new ObservedGovernanceResponseError(`governance author request failed with HTTP ${response.status}`)

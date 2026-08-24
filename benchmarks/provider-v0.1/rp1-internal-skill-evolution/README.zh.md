@@ -26,6 +26,10 @@ DSH_EVOLVE_REAL_PROVIDER_APPROVED=I_APPROVE_PAID_REAL_PROVIDER_EVALUATION
 一次新执行最多发起 1 次 proposer authoring 和 3 次 governance authoring。批准代表允许本次外部付费
 请求；它不允许发布、晋升、写 Git tag、发送消息或产生其他外部副作用。
 
+每个 proposer/governance HTTP authoring 请求都有 60 秒 wall-clock 上限。Host cancellation 可更早中止，
+但不能移除该上限；治理调用在 dispatch 前先 durable 记录 `authoring-pending`，异常或 timeout 进入
+`uncertain`，相同付费调用不会被普通重启盲目重发。
+
 运行时需要以下环境引用，凭据只允许通过进程环境提供，不能放入命令参数、仓库或报告：
 
 | 角色 | 必需环境名 |
@@ -65,6 +69,7 @@ pnpm benchmark:provider:rp1
 
 ## 当前状态
 
-截至 2026-08-24，合同、类型和 `NOT_RUN` 路径已通过；没有获得本次付费授权，且当前环境没有第二套
-独立 Provider，因此没有执行外部模型请求，也没有 `passed` 结果。该事实必须在 README、需求、路线图、
-状态和 V4.55 证据中保持一致。
+截至 2026-08-24，合同、类型和 `NOT_RUN` 路径已通过；V4.56 又验证两个 governance HTTP seam 都有
+60 秒硬上限，其中现有 Skill 路径同时验证了 Host signal 与 timeout 的组合。没有获得本次付费授权，且当前
+环境没有第二套独立 Provider，因此没有执行外部模型请求，也没有 `passed` 结果。该事实必须在 README、
+需求、路线图、状态和 V4.55/V4.56 证据中保持一致。
