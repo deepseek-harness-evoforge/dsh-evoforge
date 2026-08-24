@@ -12,7 +12,7 @@ type RemoteResult<T> =
 
 export interface PairingCommandsClient {
   list(sessionId: SessionId): Promise<RemoteResult<readonly CommandDescriptor[]>>
-  execute(sessionId: SessionId, line: string): Promise<RemoteResult<CommandExecution | undefined>>
+  execute(sessionId: SessionId, line: string, images?: readonly never[]): Promise<RemoteResult<CommandExecution | undefined>>
 }
 
 export type PairingActionProps = PropsRuntime<'sidebar.footer.action'> & {
@@ -22,6 +22,28 @@ export type PairingActionProps = PropsRuntime<'sidebar.footer.action'> & {
 
 const PHRASE = /EVOFORGE PAIR [A-Z2-9]{16}/u
 const YAML = /```yaml\n([\s\S]*?)\n```/u
+const RC2_COMMAND_ARITY = 'client api: commands/execute expected 3 business argument(s) plus an optional AbortSignal, got 2'
+const commandApiModes = new WeakMap<PairingCommandsClient, 'legacy' | 'images'>()
+
+async function executeCommand(
+  commands: PairingCommandsClient,
+  sessionId: SessionId,
+  line: string,
+): Promise<RemoteResult<CommandExecution | undefined>> {
+  const mode = commandApiModes.get(commands)
+  if (mode === 'images') return commands.execute(sessionId, line, [])
+  if (mode === 'legacy') return commands.execute(sessionId, line)
+  try {
+    const result = await commands.execute(sessionId, line)
+    commandApiModes.set(commands, 'legacy')
+    return result
+  } catch (cause) {
+    if (!(cause instanceof Error) || cause.message !== RC2_COMMAND_ARITY) throw cause
+    const result = await commands.execute(sessionId, line, [])
+    commandApiModes.set(commands, 'images')
+    return result
+  }
+}
 
 /** Native DSH Web setup surface over the existing human Command authority. */
 export function PairingAction({ commands, t, useSessions, wide }: PairingActionProps) {
@@ -78,7 +100,7 @@ export function PairingAction({ commands, t, useSessions, wide }: PairingActionP
     setError(undefined)
     setNotice(undefined)
     try {
-      const response = await commands.execute(target, `/feishu-pair ${action}`)
+      const response = await executeCommand(commands, target, `/feishu-pair ${action}`)
       if (!response.ok) throw new Error(`${response.error.code}: ${response.error.message}`)
       if (response.value === undefined) throw new Error('feishu-pair command is unavailable')
       if (sessionRef.current !== target) return
@@ -100,7 +122,7 @@ export function PairingAction({ commands, t, useSessions, wide }: PairingActionP
     setBusy(true)
     setError(undefined)
     try {
-      const response = await commands.execute(target, '/feishu')
+      const response = await executeCommand(commands, target, '/feishu')
       if (!response.ok) throw new Error(`${response.error.code}: ${response.error.message}`)
       if (response.value === undefined) throw new Error('feishu command is unavailable')
       if (sessionRef.current !== target) return

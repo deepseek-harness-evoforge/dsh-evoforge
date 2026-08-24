@@ -84,6 +84,27 @@ describe('Feishu pairing action', () => {
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(expect.stringContaining('evoforge-gateway')))
   })
 
+  it('adapts the rc.2 command Remote by retrying once with an empty image envelope', async () => {
+    const execute = vi.fn((...args: readonly unknown[]) => {
+      if (args.length === 2) {
+        throw new Error('client api: commands/execute expected 3 business argument(s) plus an optional AbortSignal, got 2')
+      }
+      return success(execution(`飞书配对窗口已开启\n${phrase}`))
+    })
+    const commands = {
+      list: vi.fn(() => success([{ name: 'feishu-pair', description: 'pair' }])),
+      execute,
+    } as unknown as PairingCommandsClient
+    renderPairing(commands)
+
+    fireEvent.click(await screen.findByRole('button', { name: '连接飞书' }))
+    fireEvent.click(screen.getByRole('button', { name: '生成一次性短语' }))
+
+    expect(await screen.findByText(phrase)).toBeTruthy()
+    expect(execute).toHaveBeenNthCalledWith(1, sessionId, '/feishu-pair start')
+    expect(execute).toHaveBeenNthCalledWith(2, sessionId, '/feishu-pair start', [])
+  })
+
   it('does not add a setup surface when this Session has no pairing command', async () => {
     const commands = {
       list: vi.fn(() => success([{ name: 'goal', description: 'goal' }])),

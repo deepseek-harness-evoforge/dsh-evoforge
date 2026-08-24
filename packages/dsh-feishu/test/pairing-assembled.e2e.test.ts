@@ -4,6 +4,9 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import type { Context } from '@deepseek-ai/cordis'
+import type { Agent } from '@deepseek-ai/dsh-agent'
+import type { CommandExecution } from '@deepseek-ai/dsh-commands/types'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { FeishuInboundMessage, FeishuSendOptions } from '../src/platform.js'
@@ -138,7 +141,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', (
       expect(ctx.commands.list(agent as never).map((command: { name: string }) => command.name))
         .toContain('feishu-pair')
 
-      const started = await ctx.commands.execute(agent as never, '/feishu-pair start', new AbortController().signal)
+      const started = await executeNativeCommand(ctx.commands, agent as never, '/feishu-pair start')
       const phrase = started?.result.text?.match(/EVOFORGE PAIR [A-Z2-9]{16}/u)?.[0]
       expect(phrase).toBeDefined()
       if (phrase === undefined) throw new Error('pairing phrase missing')
@@ -154,7 +157,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', (
       expect(service.platform.connected).toBe(false)
       expect(agent.session.events.filter(event => event.type === 'user/message')).toHaveLength(beforeMessages)
 
-      const status = await ctx.commands.execute(agent as never, '/feishu-pair status', new AbortController().signal)
+      const status = await executeNativeCommand(ctx.commands, agent as never, '/feishu-pair status')
       expect(status?.result.text).toContain('conversationId: "oc_discovered"')
       expect(status?.result.text).toContain('userId: "ou_discovered"')
       expect(status?.result.text).toContain(`workspaceId: "${gateway.route('existing-test-route')?.workspaceId}"`)
@@ -163,8 +166,8 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', (
       expect(status?.result.text).toContain('provider: "cli-mock"')
       expect(status?.result.text).toContain('model: "cli-mock"')
 
-      await ctx.commands.execute(agent as never, '/feishu-pair cancel', new AbortController().signal)
-      await ctx.commands.execute(agent as never, '/feishu-pair start', new AbortController().signal)
+      await executeNativeCommand(ctx.commands, agent as never, '/feishu-pair cancel')
+      await executeNativeCommand(ctx.commands, agent as never, '/feishu-pair start')
       expect(service.platform.connected).toBe(true)
     } finally {
       await ctx.fiber.dispose()
@@ -174,6 +177,24 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', (
     expect(service.platform.disconnectCount).toBeGreaterThanOrEqual(2)
   }, 45_000)
 })
+
+async function executeNativeCommand(
+  commands: Context['commands'],
+  agent: Agent,
+  line: string,
+): Promise<CommandExecution | undefined> {
+  const signal = new AbortController().signal
+  if (commands.execute.length >= 4) {
+    const executeWithImages = commands.execute as unknown as (
+      agent: Agent,
+      line: string,
+      images: readonly never[],
+      signal: AbortSignal,
+    ) => Promise<CommandExecution | undefined>
+    return executeWithImages.call(commands, agent, line, [], signal)
+  }
+  return commands.execute(agent, line, signal)
+}
 
 function message(overrides: Partial<FeishuInboundMessage>): FeishuInboundMessage {
   return {
