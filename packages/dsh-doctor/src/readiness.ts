@@ -10,10 +10,23 @@ export interface RuntimePluginEntry {
 export interface RuntimeReadinessInput {
   readonly requiredModules: readonly string[]
   readonly entries: readonly RuntimePluginEntry[]
+  readonly gateway?: RuntimeGatewayReadinessSnapshot
+}
+
+export interface RuntimeGatewayReadinessSnapshot {
+  readonly lifecycle: 'starting' | 'ready' | 'stopping'
+  readonly transports: {
+    readonly items: readonly RuntimeChannelTransport[]
+  }
+}
+
+export interface RuntimeChannelTransport {
+  readonly adapter: string
+  readonly state: 'connecting' | 'ready' | 'degraded' | 'stopping'
 }
 
 export interface ReadinessCheck {
-  readonly id: 'required-plugins' | 'runtime-failures'
+  readonly id: 'required-plugins' | 'runtime-failures' | 'channel-feishu' | 'channel-telegram'
   readonly status: 'passed' | 'failed' | 'unknown'
   readonly summary: string
   readonly action?: string
@@ -75,12 +88,66 @@ export function evaluateRuntimeReadiness(input: RuntimeReadinessInput): RuntimeR
         summary: `Enabled plugins failed: ${failures.map(entry => `${entry.moduleName} [${entry.entryId}]`).join(', ')}.`,
         action: 'Inspect the named Loader entry diagnostics, correct its configuration, and reload it.',
       }
+  const checks: ReadinessCheck[] = [requiredCheck, failureCheck]
+  for (const channel of CHANNELS) {
+    if (!input.requiredModules.includes(channel.moduleName)
+      || !input.entries.some(entry => entry.moduleName === channel.moduleName
+        && entry.enabled && entry.phase === 'active')) continue
+    checks.push(channelReadinessCheck(channel, input.gateway))
+  }
   return {
     schemaVersion: 1,
-    status: inactive.length > 0 || failures.length > 0
+    status: checks.some(check => check.status === 'failed')
       ? 'not-ready'
-      : changing.length > 0 ? 'unknown' : 'ready',
-    checks: [requiredCheck, failureCheck],
+      : checks.some(check => check.status === 'unknown') ? 'unknown' : 'ready',
+    checks,
+  }
+}
+
+const CHANNELS = [
+  { id: 'channel-feishu', moduleName: 'dsh-feishu', adapter: 'feishu', label: 'Feishu' },
+  { id: 'channel-telegram', moduleName: 'dsh-telegram', adapter: 'telegram', label: 'Telegram' },
+] as const
+
+function channelReadinessCheck(
+  channel: typeof CHANNELS[number],
+  gateway: RuntimeGatewayReadinessSnapshot | undefined,
+): ReadinessCheck {
+  const transports = gateway?.transports.items.filter(item => item.adapter === channel.adapter) ?? []
+  if (transports.length === 0) {
+    return {
+      id: channel.id,
+      status: 'failed',
+      summary: `Required ${channel.label} transport is unavailable.`,
+      action: `Enable dsh-gateway and one exact ${channel.label} route, then run /doctor again.`,
+    }
+  }
+  if (transports.some(item => item.state === 'degraded')) {
+    return {
+      id: channel.id,
+      status: 'failed',
+      summary: `Required ${channel.label} transport is degraded.`,
+      action: `Check the ${channel.label} credentials, exact route, network/proxy, and Adapter diagnostics, then run /doctor again.`,
+    }
+  }
+  if (gateway?.lifecycle === 'ready' && transports.every(item => item.state === 'ready')) {
+    return {
+      id: channel.id,
+      status: 'passed',
+      summary: `${transports.length} required ${channel.label} transport${transports.length === 1 ? ' is' : 's are'} ready.`,
+    }
+  }
+  const connecting = transports.filter(item => item.state === 'connecting').length
+  const stopping = transports.filter(item => item.state === 'stopping').length
+  const phases = [
+    ...(connecting === 0 ? [] : [`${connecting} connecting`]),
+    ...(stopping === 0 ? [] : [`${stopping} stopping`]),
+  ]
+  return {
+    id: channel.id,
+    status: 'unknown',
+    summary: `Required ${channel.label} transport is still changing: ${phases.join(', ') || `Gateway ${gateway?.lifecycle ?? 'unavailable'}`}.`,
+    action: `Wait for the ${channel.label} Adapter lifecycle to settle, then run /doctor again.`,
   }
 }
 

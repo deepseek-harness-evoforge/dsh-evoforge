@@ -6,6 +6,7 @@ import z from '@deepseek-ai/schemastery'
 import type Schema from '@deepseek-ai/schemastery'
 import {
   evaluateRuntimeReadiness,
+  type RuntimeGatewayReadinessSnapshot,
   type RuntimePluginEntry,
   type RuntimePluginPhase,
   type RuntimeReadinessReport,
@@ -43,12 +44,48 @@ export function apply(ctx: Context, config: Config = {}): void {
       if (rawInput.trim() !== '') {
         return { kind: 'error', text: 'Usage: /doctor' }
       }
+      const gateway = requiredModules.some(moduleName => moduleName === 'dsh-feishu'
+        || moduleName === 'dsh-telegram') ? snapshotGateway(ctx) : undefined
       const report = evaluateRuntimeReadiness({
         requiredModules,
         entries: snapshotLoader(ctx),
+        ...(gateway === undefined ? {} : { gateway }),
       })
       return renderCommandResult(report)
     },
+  })
+}
+
+function snapshotGateway(ctx: Context): RuntimeGatewayReadinessSnapshot | undefined {
+  const gateway = ctx.get('evoforge.gateway' as never) as {
+    healthSnapshot(): unknown
+  } | undefined
+  if (gateway === undefined) return undefined
+  try {
+    const snapshot = gateway.healthSnapshot()
+    return isRuntimeGatewayReadinessSnapshot(snapshot) ? snapshot : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function isRuntimeGatewayReadinessSnapshot(value: unknown): value is RuntimeGatewayReadinessSnapshot {
+  if (typeof value !== 'object' || value === null) return false
+  const snapshot = value as Record<string, unknown>
+  if (snapshot.lifecycle !== 'starting' && snapshot.lifecycle !== 'ready' && snapshot.lifecycle !== 'stopping') {
+    return false
+  }
+  if (typeof snapshot.transports !== 'object' || snapshot.transports === null) return false
+  const transports = snapshot.transports as Record<string, unknown>
+  if (!Array.isArray(transports.items)) return false
+  return transports.items.every((item) => {
+    if (typeof item !== 'object' || item === null) return false
+    const transport = item as Record<string, unknown>
+    return typeof transport.adapter === 'string'
+      && (transport.state === 'connecting'
+        || transport.state === 'ready'
+        || transport.state === 'degraded'
+        || transport.state === 'stopping')
   })
 }
 
@@ -105,6 +142,8 @@ export {
   evaluateRuntimeReadiness,
   type ReadinessCheck,
   type RuntimePluginEntry,
+  type RuntimeGatewayReadinessSnapshot,
+  type RuntimeChannelTransport,
   type RuntimePluginPhase,
   type RuntimeReadinessInput,
   type RuntimeReadinessReport,

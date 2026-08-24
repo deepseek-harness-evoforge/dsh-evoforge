@@ -346,7 +346,11 @@ workspace，输出可审查的 launchd/systemd unit。OS service manager 与 uni
 旧阶段的 Git 提交仍保留完整审计历史；已撤销的运行时架构、控制面合同和完成证据不再作为活动文档保留。历史不得凌驾于上述现行顺序，也不能把既有实现数量当作新目标完成。
 
 当前进度说明：软件交付、Runtime Readiness、Telegram、飞书第二 Adapter 与单用途 Evolve 注意力桥
-已分别以独立 `dsh-*` 包实现；飞书真实 App 身份请求、WebSocket 握手与 setup-only 配对 transport 已
+已分别以独立 `dsh-*` 包实现。V5.9 后 Runtime Readiness 不再只读 Loader：必需且 active 的
+`dsh-feishu`/`dsh-telegram` 还会复用现有 Gateway 脱敏 transport facts，分别诊断缺失、连接中、ready、
+degraded 与 stopping；不复制健康状态、不探测凭据或平台、不自动修复。最终 Doctor tarball 已在真实 DSH
+Loader 中验证 degraded→reload→ready→remove，但该确定性 Adapter 不是平台通过证据。飞书真实 App 身份请求、
+WebSocket 握手与 setup-only 配对 transport 已
 通过；同包 DSH Web Client Module 已从最终 tarball 在全新 profile 完成生成/复制/取消的真实浏览器验收，
 并只复用当前 Session 的 `/feishu-pair` 生成待审查静态 route，消除手工查 ID 和拼命令的负担。
 exact route 消息和 Hermes paired 证据完成以前仍只标记为 `implemented`；公共渠道可靠性中的 ingress、

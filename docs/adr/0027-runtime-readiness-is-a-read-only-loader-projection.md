@@ -19,7 +19,14 @@ EvoForge 需要降低安装和常驻运维门槛，但如果为此建立健康�
 - 任何 enabled failed entry 都单独列出 module name 与 entry id；
 - 输出给出有限、可执行的下一步，但不自动修改配置、启停插件或重启进程。
 
-报告不落盘、不轮询、不保留历史。Loader 仍是唯一生命周期权威，DSH invariant 仍负责包内契约，Plugin Inventory 仍负责原始状态投影。`dsh-doctor` 只拥有就绪分类与解释。
+当 exact required module 包含 active 的 `dsh-feishu` 或 `dsh-telegram` 时，同一次命令再读取现有
+`evoforge.gateway.healthSnapshot()` 的脱敏 transport facts：无对应 transport 或损坏快照为 `not-ready`，
+任一 `degraded` 为 `not-ready`，Gateway ready 且全部对应 transport ready 才通过，connecting/stopping 或
+Gateway lifecycle 尚未稳定为 `unknown`。飞书和 Telegram 独立归约；Doctor 不读取平台身份、凭据或错误正文，
+也不调用外部平台。
+
+报告不落盘、不轮询、不保留历史。Loader 仍是唯一插件生命周期权威，Gateway 仍是唯一 transport 健康权威，
+DSH invariant 仍负责包内契约，Plugin Inventory 仍负责原始状态投影。`dsh-doctor` 只拥有就绪分类与解释。
 
 ## KV Cache 契约
 
@@ -30,5 +37,6 @@ EvoForge 需要降低安装和常驻运维门槛，但如果为此建立健康�
 - **复用 invariant 表示用户就绪**：invariant 验证包内事实，不知道操作者要求哪些可选能力。
 - **直接展示 Plugin Inventory**：原始状态不足以解释缺失依赖和下一步动作。
 - **后台轮询并维护健康历史**：引入第二套状态、定时器和告警语义，首版没有证据需要。
+- **Doctor 自行探测飞书/Telegram 或复制 transport registry**：重复 Gateway 权威并扩大凭据、网络和生命周期边界。
 - **自动修复、自动 enable 或自动重启**：诊断不应扩大权限或夺取 DSH lifecycle authority。
 - **把 Doctor 暴露为模型 Tool**：Agent 正常执行不需要周期性读取 host 健康，且会增加 Tool surface、token 和缓存风险。

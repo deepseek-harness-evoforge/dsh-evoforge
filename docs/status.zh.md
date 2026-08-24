@@ -152,6 +152,12 @@ Session readback 都是 hard
 gate；崩溃后的同一 run 不自动重放。合同 7/7 与独立类型检查已通过；本机无凭据，direct/group 均严格
 `NOT_RUN`。详见 [V5.8 证据](evidence/v5-8-real-feishu-acceptance-gate.zh.md)。
 
+V5.9 修复 Runtime Readiness 的连接盲区：`dsh-feishu`/`dsh-telegram` 仅有 active fiber 不再足以让
+`/doctor` 报 READY。Doctor 在命令时读取现有 Gateway 脱敏 transport facts，独立归约 unavailable、changing、
+ready 与 degraded；损坏服务 fail closed。最终 Doctor tarball 已经官方 add/dump，在真实 DSH Loader 中完成
+degraded→Cordis reload→ready→dispose/remove。该测试 Adapter 不是平台证据，真实飞书状态仍为 `NOT_RUN`。
+详见 [V5.9 证据](evidence/v5-9-doctor-channel-readiness.zh.md)。
+
 | 能力 | 当前状态 | 已有证据 | 仍缺 |
 |---|---|---|---|
 | 原生 DSH 插件产品形态 | `implemented` | 十一包均有 `name/inject/Config/apply`、Bundle patch、无 bin 合同；同一次 clean-profile tarball add/dump/boot/remove/readback 通过 | 陌生安装与 registry release 门禁 |
@@ -168,7 +174,7 @@ gate；崩溃后的同一 run 不自动重放。合同 7/7 与独立类型检查
 | Exact Skill 后续 Outcome 上下文 | `verified` | [V4.51](evidence/v4-51-exact-skill-outcome-context.zh.md)：同 Session/Goal/Generation 的 later durable Outcome、attempt/recovered/ambiguous latest、最新 metrics、全量 rollup/有界明细；最终 tarball Web 刷新、断连保留、冷恢复不重复与官方卸载 | 真实用户任务的因果效果、返工下降、长期负迁移/遗忘与 paired benchmark |
 | Exact Skill 尝试间新增工作 | `verified` | [V4.52](evidence/v4-52-between-attempt-work-context.zh.md)：严格相邻次序、同源 Goal metrics、event seq/counter 单调门；ordered/measured/unmeasured/ambiguous 与 token/cache/latency/active-wall 差值；最终 tarball 的刷新、断连保留、冷恢复不重复、reload、卸载与无残留 | 真实用户任务、因果效果、返工下降与 paired benchmark |
 | Exact Skill 失败上下文调查 | `verified` | [V4.53](evidence/v4-53-exact-skill-failure-context-investigation.zh.md)：两个不同 Goal 的唯一 latest failed 门、恢复/冲突 abstain、eligible 明细优先、Host/Control/Remote/Command/Web review-only 投影；最终 tarball 的 1 eligible/2 latest-failed、刷新、断连保留、冷恢复无重复、reload、官方卸载与原生 Web 无残留 | 因果复核、真实 provider、长期率与 paired benchmark |
-| Runtime Readiness | `implemented` | 原生 Loader/Command、tarball 生命周期 | v0.1 全包诊断和陌生安装数据 |
+| Runtime Readiness | `implemented` | 原生 Loader/Command；[V5.9](evidence/v5-9-doctor-channel-readiness.zh.md) 复用 Gateway 权威健康，覆盖飞书/Telegram 的 unavailable/connecting/ready/degraded/stopping、损坏快照 fail closed，以及最终 tarball degraded→reload→ready→remove 生命周期 | 真实渠道、多日故障、v0.1 全包诊断和陌生安装数据 |
 | Telegram 单私聊 | `implemented` | 已迁移 DSH Gateway；真实 DSH Workspace/Agent Loop、Commands、Approval、Goal/Schedule、Gateway durable ingress/outbound、cache parity、联合 tarball lifecycle；私有 Delivery Store 已删除；真实 assembled long-poll failure→Gateway `degraded`→成功 poll→`ready`；[V5.7](evidence/v5-7-bounded-channel-delivery.zh.md) 固定 Gateway 所有单次平台发送最多等待 30 秒 | 真实 Bot 冒烟和多日证据 |
 | Evolve Channel Attention | `implemented` | Telegram/飞书 Candidate review/inactive promotion decision、concrete routes、显式 Workspace、durable notice、request parity；Evaluator Draft 表面已删除；进入十一包总装 | 真实渠道验证与多日移动端数据 |
 | Goal Continuity | `implemented` | JSONL cold resume、SIGKILL、原生 Goal round limit | 多 Workspace 绑定、生产 soak |

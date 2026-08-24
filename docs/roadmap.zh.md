@@ -1,6 +1,6 @@
 # EvoForge v0.1 路线图
 
-> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已替换旧 Router 并完成公共 outbound/健康 Web 的真实浏览器失败恢复验收，飞书图片已在 assembled DSH 中进入 Agent，运行时外部能力获取相关偏差表面已删除；V4.54 又移除了治理包与 Shadow 报告中残留的 `search` 语义。缺失 Skill Candidate 已形成 Retention/Promotion/Canary/Rollback 活动纵切；现有 Skill 已完成完整 baseline、protected whole-tree Candidate、exact Holdout/Retention、独立发布门和最终包浏览器生命周期。V4.46–V4.49 已完成 existing/missing Skill 的 Canary、rollback 与最终包门禁；V4.50 建立 exact 跨 Goal 复用事实，V4.51 又以非因果、无发布权的只读投影连接后续 durable Outcome、重复交付、恢复和最新结果 metrics，并从最终 tarball 验证刷新、失败保留、Host 冷恢复和卸载。V5.5–V5.6 已完成飞书四类独立内容读取与当前 Session Host/Web 就绪投影，V5.7 又让 Gateway 统一约束 Adapter send wall-clock、超时/卸载 `uncertain` 与飞书官方 HTTP cancellation；V5.8 已把 exact 飞书入站/回复/Command/Approval/卸载/readback 做成真实平台专用 AS-2 入口，但本机无凭据，合同通过而平台结果严格 `NOT_RUN`。V4.55 已实现两套真实 Provider 的阶段专用验收入口，V4.56 又补齐两个治理 Provider seam 的 60 秒硬上限；Provider 同样仍严格为 `NOT_RUN`。下一阶段取得真实 Provider 和真实飞书结果并做真实飞书 App 内容/权限；Hermes paired 仍未完成，普通文件/音视频仍 pending，v0.1 未发布。
+> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已替换旧 Router 并完成公共 outbound/健康 Web 的真实浏览器失败恢复验收，飞书图片已在 assembled DSH 中进入 Agent，运行时外部能力获取相关偏差表面已删除；V4.54 又移除了治理包与 Shadow 报告中残留的 `search` 语义。缺失 Skill Candidate 已形成 Retention/Promotion/Canary/Rollback 活动纵切；现有 Skill 已完成完整 baseline、protected whole-tree Candidate、exact Holdout/Retention、独立发布门和最终包浏览器生命周期。V4.46–V4.49 已完成 existing/missing Skill 的 Canary、rollback 与最终包门禁；V4.50 建立 exact 跨 Goal 复用事实，V4.51 又以非因果、无发布权的只读投影连接后续 durable Outcome、重复交付、恢复和最新结果 metrics，并从最终 tarball 验证刷新、失败保留、Host 冷恢复和卸载。V5.5–V5.6 已完成飞书四类独立内容读取与当前 Session Host/Web 就绪投影，V5.7 又让 Gateway 统一约束 Adapter send wall-clock、超时/卸载 `uncertain` 与飞书官方 HTTP cancellation；V5.8 已把 exact 飞书入站/回复/Command/Approval/卸载/readback 做成真实平台专用 AS-2 入口，但本机无凭据，合同通过而平台结果严格 `NOT_RUN`；V5.9 又让 Doctor 复用 Gateway 权威健康，最终包已验证渠道 degraded→reload→ready 而不复制 transport 状态。V4.55 已实现两套真实 Provider 的阶段专用验收入口，V4.56 又补齐两个治理 Provider seam 的 60 秒硬上限；Provider 同样仍严格为 `NOT_RUN`。下一阶段取得真实 Provider 和真实飞书结果并做真实飞书 App 内容/权限；Hermes paired 仍未完成，普通文件/音视频仍 pending，v0.1 未发布。
 > V4.38 已在 existing-Skill Candidate proposer 前生成并校准 Candidate 不可见的完整 `skill-tree` holdout Envelope；V4.39 已把 exact Envelope 纳入 Candidate 内容身份并消费该 Envelope 与 V4.37 exact 双树执行 assembled paired Trial。下一门是独立 Retention/Canary/晋升/回滚，而不是再次生成或搜索能力。
 > V4.40–V4.45 已完成 Retention、发布门与最终包浏览器生命周期；V4.46–V4.48 已完成 existing-Skill failed-Outcome Canary、权威 Control/Remote/Web、独立 expected-active rollback gate 与最终 tarball 浏览器故障恢复；V4.49 已完成 missing-Skill 同类最终包故障恢复。下一门是两套独立真实 provider。
 > 更新日期：2026-08-24
@@ -18,7 +18,7 @@
 - P2A.1–P2D.1：原生 Skill/Tool 软件交付、Draft PR、exact-head checks、交付 Outcome；
 - P3.1/P3.2：Telegram/飞书进化注意力和 GitHub review follow-up；
 - LC-1/LC-2：Goal cold resume 与用户级 OS service unit；
-- DSH Web review、Runtime Readiness、Workspace DSH Gateway、已迁移的 Telegram 与飞书 Adapter。
+- DSH Web review、复用 Gateway transport facts 的 Runtime Readiness、Workspace DSH Gateway、已迁移的 Telegram 与飞书 Adapter。
 
 这些条目表示内部实现和自动化证据存在，不等于当前发布形态已经满足 v0.1。
 

@@ -22,7 +22,7 @@ afterEach(async () => {
 })
 
 describe.skipIf(process.platform !== 'darwin')('built dsh-doctor package boundary', () => {
-  it('adds its Bundle, runs through the real DSH Loader, and removes cleanly', async () => {
+  it('adds its Bundle, observes Gateway health across reload, and removes cleanly', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-doctor-package-install-'))
     temporaryRoots.push(root)
     const dshHome = join(root, 'dsh-home')
@@ -79,10 +79,36 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-doctor package boundar
     const packageScope = join(profileDir, 'node_modules', '@deepseek-ai')
     await mkdir(packageScope, { recursive: true })
     await symlink(join(dshSourceDir, 'packages', 'interaction', 'commands'), join(packageScope, 'dsh-commands'), 'dir')
+
+    // This test-only Adapter supplies the same redacted Gateway service that the
+    // production dsh-gateway owns.  The plugin under test is the final packed
+    // dsh-doctor artifact; the fixture only makes failure/recovery deterministic.
+    const fixtureRoot = join(root, 'fixture-dsh-feishu')
+    await mkdir(fixtureRoot, { recursive: true })
+    await writeFile(join(fixtureRoot, 'package.json'), `${JSON.stringify({
+      name: 'dsh-feishu',
+      version: '0.0.0-test',
+      type: 'module',
+      exports: './index.mjs',
+    }, null, 2)}\n`)
+    await writeFile(join(fixtureRoot, 'index.mjs'), [
+      "export const name = 'dsh-feishu-test-adapter'",
+      'export function apply(ctx, config = {}) {',
+      "  const state = config.state ?? 'degraded'",
+      "  ctx.provide('evoforge.gateway', Object.freeze({",
+      '    healthSnapshot() {',
+      "      return { lifecycle: 'ready', transports: { items: [{ adapter: 'feishu', state }] } }",
+      '    },',
+      '  }))',
+      '}',
+      '',
+    ].join('\n'))
+    await symlink(fixtureRoot, join(profileDir, 'node_modules', 'dsh-feishu'), 'dir')
     const installedConfig = join(profileDir, 'installed.cordis.yml')
     await writeFile(installedConfig, JSON.stringify([
       { id: 'commands', name: '@deepseek-ai/dsh-commands' },
-      { id: 'doctor', name: 'dsh-doctor', config: { requiredModules: ['dsh-doctor'] } },
+      { id: 'feishu', name: 'dsh-feishu', config: { state: 'degraded' } },
+      { id: 'doctor', name: 'dsh-doctor', config: { requiredModules: ['dsh-doctor', 'dsh-feishu'] } },
     ], null, 2))
 
     const ctx = await boot(installedConfig)
@@ -96,8 +122,24 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-doctor package boundar
         signal: new AbortController().signal,
       })
       expect(result).toMatchObject({ kind: 'success' })
-      expect(result?.text).toContain('DSH readiness: READY')
-      expect(result?.text).toContain('1 required plugin is active.')
+      expect(result?.text).toContain('DSH readiness: NOT READY')
+      expect(result?.text).toContain('Required Feishu transport is degraded.')
+
+      const feishuEntry = [...ctx.loader.entries()].find(entry => entry.options.id === 'feishu')
+      if (feishuEntry === undefined) throw new Error('installed fixture Feishu entry is missing')
+      await feishuEntry.update({ config: { state: 'ready' } })
+      await ctx.loader.await()
+
+      const recovered = await command?.handler({
+        commandId: 'package-boundary-recovered' as never,
+        agent,
+        rawInput: '',
+        signal: new AbortController().signal,
+      })
+      expect(recovered).toMatchObject({ kind: 'success' })
+      expect(recovered?.text).toContain('DSH readiness: READY')
+      expect(recovered?.text).toContain('2 required plugins are active.')
+      expect(recovered?.text).toContain('1 required Feishu transport is ready.')
     } finally {
       await ctx.fiber.dispose()
     }

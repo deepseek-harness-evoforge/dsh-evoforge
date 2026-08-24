@@ -11,7 +11,7 @@
 | `dsh-evolve` | `/evolve`、Storage/Jobs/Session 上的证据驱动进化与 Skill Generation | enabled |
 | `dsh-evolve-web` | DSH Web Client Module；只投影 `dsh-evolve` 的 Host 权威状态 | enabled |
 | `dsh-software-delivery` | 原生 `software-delivery` Skill 与 `complete_delivery` Tool | enabled |
-| `dsh-doctor` | 原生 `/doctor` Loader readiness | enabled |
+| `dsh-doctor` | 原生 `/doctor` Loader + Gateway 渠道 readiness | enabled |
 | `dsh-github-review` | Draft PR exact-head 人类返修回到原 Session/Goal | disabled，需显式配置 |
 | `dsh-telegram` | 一个授权私聊经 Gateway 到原生 Workspace/Session/Agent 的 Adapter | disabled，需显式配置 |
 | `dsh-evolve-attention` | 把 Workspace-scoped 进化待决事项投影到既有 Telegram/飞书 route | disabled，需显式配置 |
@@ -39,6 +39,11 @@ V4.56 修复了真实 Provider 路径审计发现的可靠性缺口：缺失 Ski
 V5.7 把渠道外部发送的可靠性收回 `dsh-gateway` 深模块：每个 Adapter 注册都必须声明 wall-clock send 上限；超时或 Cordis dispose 即使遇到不合作的 Adapter Promise，也会把 durable `sending` 收敛为 `uncertain` 并禁止自动重发。Telegram 与飞书当前均为 30 秒；飞书文本和 Approval 卡片还把组合 signal 传入官方 HTTP transport。该增量不新增 Gateway 业务、模型表面或真实平台效果，详见 [V5.7 证据](docs/evidence/v5-7-bounded-channel-delivery.zh.md)。
 
 V5.8 增加阶段专用 AS-2 真实飞书验收入口：显式授权后，它把当前 clean `main` 的最终 `dsh-gateway`/`dsh-feishu` tarball 安装到隔离 DSH `web` profile，以生产飞书 transport 验证 exact 入站、原生回复、`/feishu`、一次性 Approval、持久 notice、dispose、官方卸载与 Session readback。未授权时不读取 App/chat/user/Secret，也不加载执行模块；本机无凭据，当前真实状态严格为 `NOT_RUN`。详见 [AS-2 说明](benchmarks/feishu-v0.1/as2-real-channel/README.zh.md)与 [V5.8 证据](docs/evidence/v5-8-real-feishu-acceptance-gate.zh.md)。
+
+V5.9 修正 `/doctor` 的渠道误报：必需且 active 的 `dsh-feishu`/`dsh-telegram` 现在还要通过现有 Gateway
+脱敏 transport health 才能 READY，degraded/缺失为 NOT READY，连接或停止过程中为 UNKNOWN。最终 Doctor
+tarball 已在真实 DSH Loader 中验证 degraded→Cordis reload→ready→remove；该确定性 Adapter 不构成真实平台
+证据，AS-2 状态仍为 `NOT_RUN`。详见 [V5.9 证据](docs/evidence/v5-9-doctor-channel-readiness.zh.md)。
 
 existing-Skill 路径会封存调用时完整 Bundle，并把当前纠正文与 durable Goal/请求预分为 authoring/admission/holdout/可选 Retention。V4.40 的 Candidate 不可见治理面在 proposer 前用两次独立调用分别消费 protected Holdout 与可选第五 Goal Retention，每次只见 exact baseline 和自己的一个 protected Goal；两套 assembled `skill-tree` Case Pack 经独立 calibration 后共同进入内容寻址 Evaluation Envelope，Candidate id 绑定整个 Envelope。受保护作者只允许改 `SKILL.md`/`references/*.md`，Host 原样继承二进制和其余文件并拒绝权限漂移；结构准入再重验 exact baseline/Candidate 双树、声明 diff 与 protected admission identity。V4.39 的原生 DSH Job 执行完整 paired Holdout；V4.41 只在该 exact Holdout 权威判为 `improved` 后由另一原生 DSH Job 执行预密封 Retention，四 Goal无样本时零花费 abstain，五 Goal按 `fail/pass` 四象限持久判为 `retained/ambiguous/not-retained/regressed`。两者都要求 calibration、assembled、composition 与输入完整性全部成立，中断不盲重试且无晋升权。V4.43 再由独立 Host mutation gate 重验 exact Admission/Holdout/Retention 与完整 sealed Bundle；只有人工 approve 才产生 inactive Generation，另一动作才选择未来 Session，reject 持久终止且 evaluator 始终无发布权。
 
@@ -74,7 +79,7 @@ dsh --profile web
 
 ## 在 DSH 内使用
 
-- `/doctor` 查看当前组合 readiness；
+- `/doctor` 查看当前插件组合及必需飞书/Telegram transport readiness；
 - `/evolve status` 或 DSH Web 侧栏查看和处理进化状态；
 - 在原生 Goal 中按需加载 `software-delivery` Skill，由 `complete_delivery` 通过 DSH Bash/Sandbox/Approval 验证并调用原生 `update_goal`；
 - `/resident plan|status|apply <plan-sha256>|remove <service-id>` 通过 DSH Command 审查和管理 OS user unit；

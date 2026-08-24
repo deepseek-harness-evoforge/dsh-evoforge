@@ -51,7 +51,7 @@ A user-level OS service registration that starts one exact DSH CLI/profile at lo
 _Avoid_: DSH daemon plugin, supervisor database, high availability
 
 **Runtime Readiness Report**:
-A point-in-time, read-only answer to whether the capabilities an operator explicitly requires are currently usable. Its outcome is `ready`, `not-ready`, or `unknown`; it names concrete blockers and next actions without repairing them, retaining health history, or becoming a second lifecycle authority.
+A point-in-time, read-only answer to whether the capabilities an operator explicitly requires are currently usable. Plugin lifecycle facts come from Loader; required Feishu/Telegram connection facts come from the existing DSH Gateway transport snapshot. Its outcome is `ready`, `not-ready`, or `unknown`; it names concrete blockers and next actions without probing platforms, repairing them, retaining health history, or becoming a second lifecycle authority.
 _Avoid_: Invariant result, plugin inventory, uptime monitor, auto-repair plan
 
 **Feishu Content Readiness**:
