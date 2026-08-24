@@ -66,7 +66,7 @@ export interface SkillEvaluationCaseAuthorInput {
 export interface SkillEvaluationCaseAuthorResult {
   readonly knownCorrectionSkill: string
   readonly evaluatorSource: string
-  readonly searchEvidence: string
+  readonly evidenceRationale: string
   readonly usage: {
     readonly inputTokens: number
     readonly outputTokens: number
@@ -564,7 +564,7 @@ async function writeCasePack(
   await mkdir(join(path, 'calibration', 'known-bad'), { recursive: true, mode: 0o700 })
   await mkdir(join(path, 'calibration', 'known-correction'), { recursive: true, mode: 0o700 })
   await mkdir(join(path, 'final-test'), { recursive: true, mode: 0o700 })
-  await mkdir(join(path, 'search'), { recursive: true, mode: 0o700 })
+  await mkdir(join(path, 'evidence'), { recursive: true, mode: 0o700 })
   const evaluatorVersion = sha256(JSON.stringify([
     'internal-governance-evaluator-v1',
     role,
@@ -582,7 +582,7 @@ async function writeCasePack(
       inputTokenLimit: 12_000,
       outputTokenLimit: 4_000,
     },
-    search: { evidence: 'search/evidence.md' },
+    evidence: { rationale: 'evidence/rationale.md' },
     trial: {
       evaluator: 'final-test/evaluator.mjs',
       timeoutMs: 30_000,
@@ -600,7 +600,7 @@ async function writeCasePack(
     writeFile(join(path, 'calibration', 'known-bad', 'SKILL.md'), knownBadSkill(evidence.opportunity.skillName), { flag: 'wx', mode: 0o600 }),
     writeFile(join(path, 'calibration', 'known-correction', 'SKILL.md'), result.knownCorrectionSkill, { flag: 'wx', mode: 0o600 }),
     writeFile(join(path, 'final-test', 'evaluator.mjs'), result.evaluatorSource, { flag: 'wx', mode: 0o600 }),
-    writeFile(join(path, 'search', 'evidence.md'), `${result.searchEvidence.trim()}\n`, { flag: 'wx', mode: 0o600 }),
+    writeFile(join(path, 'evidence', 'rationale.md'), `${result.evidenceRationale.trim()}\n`, { flag: 'wx', mode: 0o600 }),
   ])
 }
 
@@ -700,7 +700,7 @@ function validateAuthorResult(
   if (!isRecord(value)
     || typeof value.knownCorrectionSkill !== 'string'
     || typeof value.evaluatorSource !== 'string'
-    || typeof value.searchEvidence !== 'string'
+    || typeof value.evidenceRationale !== 'string'
     || !isRecord(value.usage)
     || !Number.isSafeInteger(value.usage.inputTokens)
     || value.usage.inputTokens < 0
@@ -709,10 +709,10 @@ function validateAuthorResult(
     || value.usage.outputTokens > AUTHOR_OUTPUT_TOKEN_LIMIT
     || value.knownCorrectionSkill.trim() === ''
     || value.evaluatorSource.trim() === ''
-    || value.searchEvidence.trim() === ''
+    || value.evidenceRationale.trim() === ''
     || Buffer.byteLength(value.knownCorrectionSkill) > MAX_SKILL_BYTES
     || Buffer.byteLength(value.evaluatorSource) > MAX_EVALUATOR_BYTES
-    || Buffer.byteLength(value.searchEvidence) > MAX_EVIDENCE_BYTES) {
+    || Buffer.byteLength(value.evidenceRationale) > MAX_EVIDENCE_BYTES) {
     throw new Error('Skill evaluation governance author response has an invalid shape')
   }
   const header = parseSkillHeader(value.knownCorrectionSkill)
@@ -722,7 +722,7 @@ function validateAuthorResult(
   return Object.freeze({
     knownCorrectionSkill: normalizeText(value.knownCorrectionSkill),
     evaluatorSource: normalizeText(value.evaluatorSource),
-    searchEvidence: value.searchEvidence.trim(),
+    evidenceRationale: value.evidenceRationale.trim(),
     usage: Object.freeze({ ...value.usage }),
   })
 }
@@ -916,7 +916,8 @@ async function requestCaseAuthor(
           content: [
             'You author an independent hidden evaluator for one missing DSH Skill.',
             'Use only the supplied protected DSH Goal evidence; do not assume or inspect any Candidate.',
-            'Return JSON with knownCorrectionSkill, evaluatorSource, and searchEvidence.',
+            'Return JSON with knownCorrectionSkill, evaluatorSource, and evidenceRationale.',
+            'evidenceRationale must explain how the evaluator follows only the supplied protected DSH Goal evidence.',
             input.role === 'admission'
               ? 'For admission, evaluatorSource must be a deterministic filesystem-only evaluator.mjs: read the Candidate Skill tree from argv[2], support the capability-absent flags, do not start DSH, spawn processes, call a model, or use network, and emit the required JSON outcome.'
               : input.role === 'holdout'

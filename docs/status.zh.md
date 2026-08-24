@@ -1,6 +1,6 @@
 # 当前实现状态
 
-> 更新日期：2026-08-21。本文只描述标准路径中的权威 `main` 工作树，不把计划或历史分支当作已交付能力。
+> 更新日期：2026-08-24。本文只描述标准路径中的权威 `main` 工作树，不把计划或历史分支当作已交付能力。
 
 ## 状态词
 
@@ -117,10 +117,16 @@ Host、Control、固定 Typert Remote、Command 与 Web 已共享同一投影，
 同 profile 冷恢复不重复、整页 reload、官方卸载及原生 Web 无残留，详见
 [V4.53 证据](evidence/v4-53-exact-skill-failure-context-investigation.zh.md)。
 
+V4.54 清除了活动评测链中残留的运行时搜索语义。Candidate-independent 治理作者返回的第三个字段改为
+`evidenceRationale`，Case Pack 只保存到 `evidence/rationale.md`；Shadow 在执行 Candidate 前发生的路径/身份
+拒绝改记为 `structural-admission`。测试同时断言新治理包不存在 `search` key 或目录。该增量没有新增外部
+Skill 搜索、能力获取、市场或 provider 调用，也不能证明模型效果。详见
+[V4.54 证据](evidence/v4-54-remove-runtime-search-semantics.zh.md)。
+
 | 能力 | 当前状态 | 已有证据 | 仍缺 |
 |---|---|---|---|
 | 原生 DSH 插件产品形态 | `implemented` | 十一包均有 `name/inject/Config/apply`、Bundle patch、无 bin 合同；同一次 clean-profile tarball add/dump/boot/remove/readback 通过 | 陌生安装与 registry release 门禁 |
-| Evidence-driven Evolution + internal Skill Opportunity | `implemented` | 自然 Goal→Host 复核/持久 Gap；跨 Goal Opportunity；缺失 Skill 的 exact Shadow/Retention/Promotion/Canary/Rollback 与[V4.49 最终包回滚生命周期](evidence/v4-49-missing-skill-canary-rollback-final-browser.zh.md)；existing-Skill 的完整 baseline、protected correction、whole-tree Candidate、paired Holdout/Retention、发布门、[V4.45 最终包浏览器](evidence/v4-45-existing-skill-release-final-browser.zh.md)、[V4.46 failed-Outcome Canary](evidence/v4-46-existing-skill-failed-outcome-canary.zh.md)、[V4.47 独立回滚门](evidence/v4-47-existing-skill-canary-control-rollback.zh.md)与[V4.48 最终包回滚生命周期](evidence/v4-48-existing-skill-canary-rollback-final-browser.zh.md)；历史 runtime 获取、static target、Draft、Shadow proposer 和旧编排均已删除 | 两套真实 provider、长期误晋升/回滚数据缺失 |
+| Evidence-driven Evolution + internal Skill Opportunity | `implemented` | 自然 Goal→Host 复核/持久 Gap；跨 Goal Opportunity；缺失 Skill 的 exact Shadow/Retention/Promotion/Canary/Rollback 与[V4.49 最终包回滚生命周期](evidence/v4-49-missing-skill-canary-rollback-final-browser.zh.md)；existing-Skill 的完整 baseline、protected correction、whole-tree Candidate、paired Holdout/Retention、发布门、[V4.45 最终包浏览器](evidence/v4-45-existing-skill-release-final-browser.zh.md)、[V4.46 failed-Outcome Canary](evidence/v4-46-existing-skill-failed-outcome-canary.zh.md)、[V4.47 独立回滚门](evidence/v4-47-existing-skill-canary-control-rollback.zh.md)与[V4.48 最终包回滚生命周期](evidence/v4-48-existing-skill-canary-rollback-final-browser.zh.md)；历史 runtime 获取、static target、Draft、Shadow proposer 和旧编排均已删除，[V4.54](evidence/v4-54-remove-runtime-search-semantics.zh.md) 又移除活动 Case Pack/报告中的 `search` 命名 | 两套真实 provider、长期误晋升/回滚数据缺失 |
 | Existing-Skill Release + Canary | `implemented` | Release Gate 最终 tarball 已 verified；[V4.46](evidence/v4-46-existing-skill-failed-outcome-canary.zh.md) 增加 exact active release/failed Outcome/Retention replay、原生 Jobs、paid-uncertain 恢复、strict rollback eligibility 与无 mutation authority；[V4.47](evidence/v4-47-existing-skill-canary-control-rollback.zh.md) 增加 bounded Control/Remote/Web、人工确认和 expected-active rollback gate；[V4.48](evidence/v4-48-existing-skill-canary-rollback-final-browser.zh.md) 从最终包验证动作、断连保留、恢复、精确回滚、reload/冷重启和卸载 | 两套真实 provider 与长期率 |
 | Existing-Skill Candidate-blind Holdout Evaluation | `implemented` | [V4.38](evidence/v4-38-existing-skill-candidate-blind-holdout-governance.zh.md) pre-Candidate 治理 + [V4.39](evidence/v4-39-existing-skill-exact-paired-holdout-evaluation.zh.md) exact Admission/baseline/Candidate/Envelope assembled paired Trial、四象限 verdict、输入漂移阻断、paid-uncertain 不盲重试、原生 Jobs 恢复、Host/Web 权威投影和最终 tarball 真实浏览器失败恢复/卸载 | 两套独立真实 provider与长期误晋升数据 |
 | Existing-Skill Exact Retention Evaluation | `implemented` | [V4.40](evidence/v4-40-existing-skill-pre-candidate-retention-governance.zh.md) pre-Candidate Retention + [V4.41](evidence/v4-41-existing-skill-exact-retention-evaluation.zh.md) authoritative improved Holdout、exact 双树/两 Case Pack、四 Goal abstain、四象限、input rehash、paid-uncertain 不重试、原生 Jobs 与 Host 权威投影 + [V4.42](evidence/v4-42-existing-skill-retention-web-browser.zh.md) 最终 tarball 真实 Web reload/断连保留/恢复/卸载 + [V4.48](evidence/v4-48-existing-skill-canary-rollback-final-browser.zh.md) 最终包 Canary/rollback 恢复 | 真实 provider 和长期保持率 |

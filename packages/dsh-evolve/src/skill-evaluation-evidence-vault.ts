@@ -128,7 +128,7 @@ export type SkillEvaluationEvidenceReadiness =
 
 /**
  * Seal an Opportunity's internal Goal evidence before Candidate authoring.
- * The author-facing interface returns only its search subset; protected
+ * The author-facing interface returns only its authoring subset; protected
  * admission and holdout samples remain available solely through the
  * governance reader.
  */

@@ -90,7 +90,7 @@ describe('Opportunity-bound internal Candidate evaluation flow', () => {
           '',
         ].join('\n'),
         evaluatorSource: 'process.stdout.write("not used by the injected sealed executor")\n',
-        searchEvidence: `Protected ${input.role} Goal evidence.`,
+        evidenceRationale: `Protected ${input.role} DSH Goal evidence.`,
         usage: { inputTokens: 20, outputTokens: 10 },
       }),
       calibrate: async () => ({

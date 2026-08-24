@@ -111,7 +111,7 @@ describe('internal Skill Evaluation Governance', () => {
         checks: [],
         composition: { fingerprint: 'f'.repeat(64), modelCalls: 0, usage: {} },
       }))})\n`,
-      searchEvidence: `Independent ${input.role} evidence.`,
+      evidenceRationale: `Independent ${input.role} DSH Goal evidence.`,
       usage: { inputTokens: 20, outputTokens: 10 },
     }))
     const calibrate = vi.fn(async () => ({
@@ -178,6 +178,13 @@ describe('internal Skill Evaluation Governance', () => {
     expect(calibrate).toHaveBeenCalledTimes(2)
     const envelopeRoot = join(governanceRoot, 'envelopes', opportunity.id, sealed.evidence.id)
     expect((await readdir(join(envelopeRoot, 'baseline'))).sort()).toEqual(['subject.json'])
+    const admissionRoot = join(envelopeRoot, 'admission')
+    const admissionManifest = JSON.parse(await readFile(join(admissionRoot, 'manifest.json'), 'utf8'))
+    expect(admissionManifest).not.toHaveProperty('search')
+    expect(admissionManifest.evidence).toEqual({ rationale: 'evidence/rationale.md' })
+    expect(await readFile(join(admissionRoot, 'evidence', 'rationale.md'), 'utf8'))
+      .toBe('Independent admission DSH Goal evidence.\n')
+    expect(await readdir(admissionRoot)).not.toContain('search')
     const manifest = JSON.parse(await readFile(join(envelopeRoot, 'manifest.json'), 'utf8'))
     expect(manifest).toMatchObject({
       schemaVersion: 4,
@@ -246,7 +253,7 @@ describe('internal Skill Evaluation Governance', () => {
         checks: [],
         composition: { fingerprint: 'f'.repeat(64), modelCalls: 0, usage: {} },
       }))})\n`,
-      searchEvidence: `Independent ${input.role} evidence.`,
+      evidenceRationale: `Independent ${input.role} DSH Goal evidence.`,
       usage: { inputTokens: 20, outputTokens: 10 },
     }))
     const governance = new SkillEvaluationGovernance({
@@ -417,7 +424,7 @@ describe('internal Skill Evaluation Governance', () => {
     const retryAuthor = vi.fn(async () => ({
       knownCorrectionSkill: correctionSkill(candidate.skillName, 'admission'),
       evaluatorSource: 'process.stdout.write("{}")\n',
-      searchEvidence: 'must not run',
+      evidenceRationale: 'must not run',
       usage: { inputTokens: 1, outputTokens: 1 },
     }))
     const restarted = new SkillEvaluationGovernance({

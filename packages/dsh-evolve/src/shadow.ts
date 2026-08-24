@@ -445,7 +445,7 @@ export async function runShadow(options: ShadowOptions): Promise<
       cases: [
         {
           id: manifest.id,
-          partition: 'search',
+          partition: 'structural-admission',
           baseline: 'pass',
           candidate: activeSkillUnchanged && unsafePaths.length > 0 ? 'fail' : 'incomplete',
           checks: [
@@ -504,7 +504,7 @@ export async function runShadow(options: ShadowOptions): Promise<
         run: { ...reportBase.run, status: 'complete' },
         cases: [{
           id: manifest.id,
-          partition: 'search',
+          partition: 'structural-admission',
           baseline: 'pass',
           candidate: 'fail',
           checks: [{

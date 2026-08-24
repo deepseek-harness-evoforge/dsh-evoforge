@@ -1,6 +1,6 @@
 # P0A Shadow 契约
 
-> 当前修正：本页的 evaluator 隔离与 fail-closed 原则保留；运行时 proposer、静态 target 和用户提交路径已由 [ADR-0068](../adr/0068-shadow-consumes-one-exact-internal-candidate.md) 撤销。当前 Shadow 只消费内部慢环已经形成的 exact Candidate，自身不调用模型。
+> 当前修正：本页只保留 Shadow 的 evaluator 隔离与 fail-closed 契约；运行时 proposer、静态 target、用户提交路径以及 `search` 分区命名已被撤销。当前 Shadow 只消费内部慢环已经形成的 exact Candidate，自身不调用模型；治理材料只来自 Candidate 生成前密封的 DSH 内部 Goal 证据。详见 [ADR-0068](../adr/0068-shadow-consumes-one-exact-internal-candidate.md)。
 
 > 状态：本地退出门已通过；证据只允许开始 P0B，不等于自动晋升、持续进化或真实 provider 效果已经完成
 > 更新日期：2026-08-16
@@ -79,7 +79,7 @@ interface ShadowReportV1 {
   }>
   cases: Array<{
     id: string
-    partition: 'search' | 'selection' | 'final-test'
+    partition: 'structural-admission' | 'final-test'
     baseline: 'pass' | 'fail' | 'incomplete'
     candidate: 'pass' | 'fail' | 'incomplete'
     checks: Array<{ name: string; passed: boolean; evidenceRef?: string }>
@@ -119,20 +119,23 @@ interface ShadowReportV1 {
 ```text
 case-pack/
   manifest.json
-  search/
-  selection/
+  evidence/
+    rationale.md
   final-test/
+    evaluator.mjs
   calibration/
+    known-bad/
+    known-correction/
 ```
 
-- `search` 可用于发现问题和生成 Candidate；
-- `selection` 只用于候选间选择，不进入 proposer 上下文；
-- `final-test` 在搜索和选择完全结束后只开放一次；一旦结果参与了下一轮修改，它就降级为 selection，并必须补充新的 final-test；
-- `calibration` 保存已知坏 Candidate 和人工确认的真实修正，用来先证明 evaluator 的方向没有颠倒。
+- `evidence/rationale.md` 只解释 evaluator 如何对应其唯一受保护的 DSH Goal 证据，不是外部资料、候选正文或运行时能力来源；
+- `final-test` 与 Candidate 无关地在生成前由治理面固定，Candidate 与 proposer 均不可读取或修改；
+- `calibration` 保存已知坏 Candidate 和人工确认的真实修正，用来先证明 evaluator 的方向没有颠倒；
+- Shadow 报告只把 Candidate 执行前的路径/身份拒绝记为 `structural-admission`，真正的 assembled paired Trial 记为 `final-test`。
 
 “未开放”不能只靠提示词约定。P0A 使用三道隔离：
 
-1. proposer 是无工具的有界模型调用，只收到 active Skill、search evidence、单一 claim 和 patch 范围；
+1. Candidate 作者只收到 Candidate 生成前密封的 authoring 子集；Shadow 不含 proposer，也不会把治理 Case Pack 回送给作者；
 2. 每个 Baseline/Candidate Trial 在干净的受限 workspace 中运行，只挂载任务仓库和对应 Skill，不挂载 case pack、evaluator 源码或其他 Candidate；
 3. Trial 退出后，由 host 侧 evaluator 注入或执行隐藏检查；Candidate 无权修改检查器、预算或 policy。
 
@@ -202,7 +205,7 @@ P0A 需要人工完成三件事：声明 owned Skill 和预算、提供/审核 f
 只有同时满足以下条件才进入 P0B：
 
 - evaluator 在重复运行中稳定拒绝所有 known-bad；
-- 至少一个真实修正通过未参与搜索的本地 final-test；
+- 至少一个真实修正通过 Candidate 不可见的本地 final-test；
 - 没有 active Skill 写入、case 泄漏或非目标 composition 漂移；
 - 报告能让不了解内部实现的人解释 claim、证据、成本和局限；
 - 测得的收益值得其 token/cost，而不是只证明系统可以运行。
