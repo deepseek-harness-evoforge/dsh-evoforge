@@ -118,8 +118,10 @@ turns/steps/token/cache/latency/active wall，固定无因果、无 improvement 
 V4.53 把重复跨 Goal 最新失败从被动数字提升为 `Exact Skill Failure-Context Investigation`：同一 exact Skill
 name/content hash/Generation 必须在至少两个不同 Goal 上各自具有唯一 latest failed；同 Goal retry、后来恢复、
 unknown/missing 与 latest 冲突全部不计。Host/Control/Remote/Command/Web 只投影可撤回的 review request，固定无
-因果、无 Candidate/发布权，并让 eligible 行优先进入 20 行明细。当前实现与自动化已补齐；下一门是从最终
-tarball 验证真实 DSH Web 的刷新、断连、冷恢复和官方卸载，之后仍回到两套真实 provider、长期结果和 paired benchmark。
+因果、无 Candidate/发布权，并让 eligible 行优先进入 20 行明细。最终 tarball 已从全新 profile 验证 1 个
+eligible/2 个 latest-failed、刷新、断连保留、同 profile 冷恢复不重复、reload、官方卸载及原生 Web 无残留；
+详见 [V4.53 证据](evidence/v4-53-exact-skill-failure-context-investigation.zh.md)。下一门仍是两套真实 provider、
+长期结果和 paired benchmark。
 
 内部 Candidate 评测已删除 `candidateAdmissionTargets`/`candidateShadowTargets` 这两套预选 exact Skill 的配置。
 `candidateEvaluationPolicies` 不声明 Skill、baseline、Case Pack 或 Candidate 方向；自主治理只增加 exact DSH revision 和独立日预算。Host 先从 exact Opportunity

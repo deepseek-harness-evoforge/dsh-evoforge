@@ -113,8 +113,9 @@ V4.53 已实现 [ADR-0094](adr/0094-repeated-exact-skill-failures-open-review-on
 `Exact Skill Failure-Context Investigation`。只有同一 exact Skill name/content hash/Generation 在至少两个不同
 Goal 上都有唯一 latest failed 才 eligible；同 Goal retry、后来恢复、unknown/missing 与 latest 冲突均 abstain。
 Host、Control、固定 Typert Remote、Command 与 Web 已共享同一投影，eligible 明细不会被 20 行上限隐藏；调查固定
-无因果、无 Candidate/发布权。自动化与最终浏览器夹具已经补齐，最终 tarball 的 clean-profile 浏览器刷新、断连、
-冷恢复和卸载仍待下一轮验证，因此当前状态只记 `implemented`。
+无因果、无 Candidate/发布权。最终 tarball 已从全新 profile 验证 1 eligible/2 latest-failed、刷新、断连保留、
+同 profile 冷恢复不重复、整页 reload、官方卸载及原生 Web 无残留，详见
+[V4.53 证据](evidence/v4-53-exact-skill-failure-context-investigation.zh.md)。
 
 | 能力 | 当前状态 | 已有证据 | 仍缺 |
 |---|---|---|---|
@@ -129,7 +130,7 @@ Host、Control、固定 Typert Remote、Command 与 Web 已共享同一投影，
 | Exact 跨 Goal Skill 复用证据 | `verified` | [V4.50](evidence/v4-50-exact-cross-goal-skill-reuse.zh.md)：真实原生 Skill Tool、Session durability、active Goal、exact 内容哈希/Generation 分桶、持久重放；最终 tarball Web 2 uses/2 Goals、reload、Host 冷启动、合法 Session readback 与官方卸载 | 真实用户任务、Outcome/返工/成本因果、负迁移、保持率与 paired benchmark |
 | Exact Skill 后续 Outcome 上下文 | `verified` | [V4.51](evidence/v4-51-exact-skill-outcome-context.zh.md)：同 Session/Goal/Generation 的 later durable Outcome、attempt/recovered/ambiguous latest、最新 metrics、全量 rollup/有界明细；最终 tarball Web 刷新、断连保留、冷恢复不重复与官方卸载 | 真实用户任务的因果效果、返工下降、长期负迁移/遗忘与 paired benchmark |
 | Exact Skill 尝试间新增工作 | `verified` | [V4.52](evidence/v4-52-between-attempt-work-context.zh.md)：严格相邻次序、同源 Goal metrics、event seq/counter 单调门；ordered/measured/unmeasured/ambiguous 与 token/cache/latency/active-wall 差值；最终 tarball 的刷新、断连保留、冷恢复不重复、reload、卸载与无残留 | 真实用户任务、因果效果、返工下降与 paired benchmark |
-| Exact Skill 失败上下文调查 | `implemented` | [ADR-0094](adr/0094-repeated-exact-skill-failures-open-review-only-investigations.md)：两个不同 Goal 的唯一 latest failed 门、恢复/冲突 abstain、eligible 明细优先、Host/Control/Remote/Command/Web review-only 投影；测试夹具只写原生 DSH Skill/Session/Goal/Outcome 事实 | 最终 tarball clean-profile 浏览器刷新、断连、冷恢复、卸载；因果复核、真实 provider、长期率与 paired benchmark |
+| Exact Skill 失败上下文调查 | `verified` | [V4.53](evidence/v4-53-exact-skill-failure-context-investigation.zh.md)：两个不同 Goal 的唯一 latest failed 门、恢复/冲突 abstain、eligible 明细优先、Host/Control/Remote/Command/Web review-only 投影；最终 tarball 的 1 eligible/2 latest-failed、刷新、断连保留、冷恢复无重复、reload、官方卸载与原生 Web 无残留 | 因果复核、真实 provider、长期率与 paired benchmark |
 | Runtime Readiness | `implemented` | 原生 Loader/Command、tarball 生命周期 | v0.1 全包诊断和陌生安装数据 |
 | Telegram 单私聊 | `implemented` | 已迁移 DSH Gateway；真实 DSH Workspace/Agent Loop、Commands、Approval、Goal/Schedule、Gateway durable ingress/outbound、cache parity、联合 tarball lifecycle；私有 Delivery Store 已删除；真实 assembled long-poll failure→Gateway `degraded`→成功 poll→`ready` | 真实 Bot 冒烟和多日证据 |
 | Evolve Channel Attention | `implemented` | Telegram/飞书 Candidate review/inactive promotion decision、concrete routes、显式 Workspace、durable notice、request parity；Evaluator Draft 表面已删除；进入十一包总装 | 真实渠道验证与多日移动端数据 |
