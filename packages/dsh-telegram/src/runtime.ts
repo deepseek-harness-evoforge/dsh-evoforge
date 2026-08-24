@@ -27,6 +27,7 @@ const EMPTY_POLL_DELAY_MS = 100
 const POLL_FAILURE_DELAY_MS = 1_000
 const MAX_RETRY_AFTER_SECONDS = 300
 const MAX_PENDING_REPLY_CORRELATIONS = 10_000
+const PLATFORM_SEND_TIMEOUT_MS = 30_000
 
 interface PendingApproval {
   readonly resolve: (outcome: ApprovalOutcome) => void
@@ -73,6 +74,7 @@ export class TelegramRuntime {
       routeIds: [this.config.routeId],
       maxAttempts: this.config.maxSendAttempts,
       maxRetryAfterMs: MAX_RETRY_AFTER_SECONDS * 1_000,
+      sendTimeoutMs: PLATFORM_SEND_TIMEOUT_MS,
       send: (input, signal) => this.sendOutbound(input, signal),
     })
     this.bind(agent)

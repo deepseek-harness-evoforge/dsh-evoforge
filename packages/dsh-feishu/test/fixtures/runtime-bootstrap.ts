@@ -42,6 +42,8 @@ class FakeFeishuPlatform implements FeishuPlatform {
   readonly texts: SentText[] = []
   readonly cards: SentCard[] = []
   readonly sendAttempts: string[] = []
+  readonly sendSignals: AbortSignal[] = []
+  readonly cardSignals: AbortSignal[] = []
   readonly contentReads: FeishuContentReadRequest[] = []
   private readonly failures: unknown[] = []
   private readonly resources = new Map<string, Uint8Array>()
@@ -70,8 +72,14 @@ class FakeFeishuPlatform implements FeishuPlatform {
 
   async disconnect(): Promise<void> { this.connected = false }
 
-  async sendText(chatId: string, text: string, options?: FeishuSendOptions): Promise<{ messageId: string }> {
+  async sendText(
+    chatId: string,
+    text: string,
+    options?: FeishuSendOptions,
+    signal?: AbortSignal,
+  ): Promise<{ messageId: string }> {
     this.sendAttempts.push(text)
+    if (signal !== undefined) this.sendSignals.push(signal)
     if (this.failures.length > 0) throw this.failures.shift()
     this.texts.push(Object.freeze({ chatId, text, ...(options === undefined ? {} : { options }) }))
     return { messageId: `om_sent_${this.texts.length}` }
@@ -81,7 +89,9 @@ class FakeFeishuPlatform implements FeishuPlatform {
     chatId: string,
     card: object,
     options?: FeishuSendOptions,
+    signal?: AbortSignal,
   ): Promise<{ messageId: string }> {
+    if (signal !== undefined) this.cardSignals.push(signal)
     const messageId = `om_card_${this.cards.length + 1}`
     this.cards.push(Object.freeze({ messageId, chatId, card, ...(options === undefined ? {} : { options }) }))
     return { messageId }

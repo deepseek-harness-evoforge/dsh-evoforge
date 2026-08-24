@@ -4,6 +4,7 @@ import type { FeishuInboundMessage, FeishuPlatform } from './platform.js'
 
 const PAIRING_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const USAGE = '用法：/feishu-pair start | status | cancel'
+const PAIRING_SEND_TIMEOUT_MS = 15_000
 
 export interface FeishuPairingTarget {
   readonly workspaceId: string
@@ -48,6 +49,7 @@ type PairingState =
  * config draft, and deliberately has no Agent or Gateway dispatch interface.
  */
 export class FeishuPairingRuntime {
+  private readonly lifecycle = new AbortController()
   private state: PairingState = Object.freeze({ kind: 'idle' })
   private timer: ReturnType<typeof setTimeout> | undefined
   private connected = false
@@ -73,6 +75,7 @@ export class FeishuPairingRuntime {
   async dispose(): Promise<void> {
     if (this.disposed) return
     this.disposed = true
+    this.lifecycle.abort(new Error('dsh-feishu pairing disposed'))
     this.clearExpiry()
     this.removeMessage()
     this.removeError()
@@ -166,6 +169,10 @@ export class FeishuPairingRuntime {
         message.chatId,
         'EvoForge 配对信息已收到。请回到 DSH 运行 /feishu-pair status，审查静态 route 后再启用。',
         { replyTo: message.messageId },
+        AbortSignal.any([
+          this.lifecycle.signal,
+          AbortSignal.timeout(PAIRING_SEND_TIMEOUT_MS),
+        ]),
       )
     } catch {
       this.state = Object.freeze({ ...paired, acknowledgement: 'uncertain' })

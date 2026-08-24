@@ -137,6 +137,13 @@ V4.56 审计了四个真实 Provider HTTP seam：两个 proposer seam 原本已�
 的治理语义没有改变。本次只执行可控 fake-fetch 与本地回归，没有外部 Provider 请求。详见
 [V4.56 证据](evidence/v4-56-bounded-governance-provider-requests.zh.md)。
 
+V5.7 审计公共渠道出站后确认：Gateway 已持久化发送 intent 和 `sending`，但过去只把 lifecycle signal 交给
+Adapter；一个忽略 signal 的 Promise 可以无限阻塞 dispose/reload，飞书 Adapter 还把收到的 signal 丢在官方
+HTTP port 之前。`registerTextAdapter()` 现在要求每个 Adapter 声明 `sendTimeoutMs`，Gateway 同时 race Adapter
+Promise 与组合 signal；timeout/dispose 均把 exact durable delivery 收敛为 `uncertain`，绝不自动重发。Telegram
+和飞书均固定 30 秒，飞书文本/Approval 卡片把 signal 传入官方 HTTP transport。详见
+[V5.7 证据](evidence/v5-7-bounded-channel-delivery.zh.md)。
+
 | 能力 | 当前状态 | 已有证据 | 仍缺 |
 |---|---|---|---|
 | 原生 DSH 插件产品形态 | `implemented` | 十一包均有 `name/inject/Config/apply`、Bundle patch、无 bin 合同；同一次 clean-profile tarball add/dump/boot/remove/readback 通过 | 陌生安装与 registry release 门禁 |
@@ -153,20 +160,20 @@ V4.56 审计了四个真实 Provider HTTP seam：两个 proposer seam 原本已�
 | Exact Skill 尝试间新增工作 | `verified` | [V4.52](evidence/v4-52-between-attempt-work-context.zh.md)：严格相邻次序、同源 Goal metrics、event seq/counter 单调门；ordered/measured/unmeasured/ambiguous 与 token/cache/latency/active-wall 差值；最终 tarball 的刷新、断连保留、冷恢复不重复、reload、卸载与无残留 | 真实用户任务、因果效果、返工下降与 paired benchmark |
 | Exact Skill 失败上下文调查 | `verified` | [V4.53](evidence/v4-53-exact-skill-failure-context-investigation.zh.md)：两个不同 Goal 的唯一 latest failed 门、恢复/冲突 abstain、eligible 明细优先、Host/Control/Remote/Command/Web review-only 投影；最终 tarball 的 1 eligible/2 latest-failed、刷新、断连保留、冷恢复无重复、reload、官方卸载与原生 Web 无残留 | 因果复核、真实 provider、长期率与 paired benchmark |
 | Runtime Readiness | `implemented` | 原生 Loader/Command、tarball 生命周期 | v0.1 全包诊断和陌生安装数据 |
-| Telegram 单私聊 | `implemented` | 已迁移 DSH Gateway；真实 DSH Workspace/Agent Loop、Commands、Approval、Goal/Schedule、Gateway durable ingress/outbound、cache parity、联合 tarball lifecycle；私有 Delivery Store 已删除；真实 assembled long-poll failure→Gateway `degraded`→成功 poll→`ready` | 真实 Bot 冒烟和多日证据 |
+| Telegram 单私聊 | `implemented` | 已迁移 DSH Gateway；真实 DSH Workspace/Agent Loop、Commands、Approval、Goal/Schedule、Gateway durable ingress/outbound、cache parity、联合 tarball lifecycle；私有 Delivery Store 已删除；真实 assembled long-poll failure→Gateway `degraded`→成功 poll→`ready`；[V5.7](evidence/v5-7-bounded-channel-delivery.zh.md) 固定 Gateway 所有单次平台发送最多等待 30 秒 | 真实 Bot 冒烟和多日证据 |
 | Evolve Channel Attention | `implemented` | Telegram/飞书 Candidate review/inactive promotion decision、concrete routes、显式 Workspace、durable notice、request parity；Evaluator Draft 表面已删除；进入十一包总装 | 真实渠道验证与多日移动端数据 |
 | Goal Continuity | `implemented` | JSONL cold resume、SIGKILL、原生 Goal round limit | 多 Workspace 绑定、生产 soak |
 | Resident OS unit | `implemented` | disabled Bundle、原生 `/resident`、exact hash/service-id 确认、无 bin tarball、十一包总装、launchd/systemd 与 macOS crash 测试 | Linux 真机和多日 soak |
-| Workspace DSH Gateway | `implemented` | `dsh-gateway` 直接替换旧包且无兼容层；exact endpoint/Adapter account/routeIds deny-by-default；原生 Workspace/Session/Agent create/resume；持久 ingress/outbound 幂等与 uncertain 状态机；按 account 串行、明确限流重试、turn/end 门、重启后原生 turn/end 唤醒、畸形 success 保守降级；[V5.1](evidence/v5-1-gateway-transport-health.zh.md) 聚合 Telegram/飞书脱敏 transport observation；[V5.2](evidence/v5-2-gateway-web-health.zh.md) 以同包只读 Remote/Client 在真实 DSH 浏览器验证读取、刷新、失败清空旧快照与恢复；[V5.3](evidence/v5-3-feishu-native-image-ingress.zh.md) 固定文本摘要兼容并把 exact 原生图片引用纳入幂等/漂移判断 | exact 飞书 chat/user 消息闭环、真实渠道长期运行与 paired benchmark；通用文件需官方 DSH 内容契约 |
-| 飞书 Adapter | `implemented` | [AS-2](evidence/as-2-feishu-channel.zh.md)：官方 SDK WebSocket；exact allowlist；原生 Agent/Command/Approval/continuation；Gateway outbound journal、429/uncertain、单渠道及双 Workspace 真实 Host、双 Agent完整 composition parity、tarball lifecycle；私有 Delivery Store/worker 已删除；真实 App 身份请求、标准代理 WebSocket 与 setup-only pairing transport；同包原生 DSH Web 从最终 tarball完成配对生成/复制/取消及 routes-mode Gateway 权威 transport/outbound 健康读取/刷新/Host 停机失败/同端口恢复，console error 0；assembled transport error→`degraded`→message→`ready`；[V5.3](evidence/v5-3-feishu-native-image-ingress.zh.md) 证明图片经 DSH AttachmentStore 进入 Session；[V5.4](evidence/v5-4-feishu-exact-approval.zh.md) 验证 exact 一次性卡片；[V5.5](evidence/v5-5-feishu-independent-content-read.zh.md) 验证四类独立权限、Agent-scoped 原生 Tool/Approval、官方 SDK 内容映射、稳定 schema、durable result 和 dispose；[V5.6](evidence/v5-6-feishu-content-readiness-web.zh.md) 从最终 tarball 验证当前 Session 内容就绪 V2、刷新、失败清空和恢复 | 用户发送一次配对短语后的真实 exact route 入站/回复/Approval 与多日重连；普通文件/音视频仍 pending；内容能力还缺真实 App scope、资源权限拒绝和真实数据 |
+| Workspace DSH Gateway | `implemented` | `dsh-gateway` 直接替换旧包且无兼容层；exact endpoint/Adapter account/routeIds deny-by-default；原生 Workspace/Session/Agent create/resume；持久 ingress/outbound 幂等与 uncertain 状态机；按 account 串行、明确限流重试、turn/end 门、重启后原生 turn/end 唤醒、畸形 success 保守降级；[V5.1](evidence/v5-1-gateway-transport-health.zh.md) 聚合 Telegram/飞书脱敏 transport observation；[V5.2](evidence/v5-2-gateway-web-health.zh.md) 以同包只读 Remote/Client 在真实 DSH 浏览器验证读取、刷新、失败清空旧快照与恢复；[V5.3](evidence/v5-3-feishu-native-image-ingress.zh.md) 固定文本摘要兼容并把 exact 原生图片引用纳入幂等/漂移判断；[V5.7](evidence/v5-7-bounded-channel-delivery.zh.md) 要求每个 Adapter 声明发送上限，timeout/dispose 都收敛为 durable `uncertain` 且不盲重发 | exact 飞书 chat/user 消息闭环、真实渠道长期运行与 paired benchmark；通用文件需官方 DSH 内容契约 |
+| 飞书 Adapter | `implemented` | [AS-2](evidence/as-2-feishu-channel.zh.md)：官方 SDK WebSocket；exact allowlist；原生 Agent/Command/Approval/continuation；Gateway outbound journal、429/uncertain、单渠道及双 Workspace 真实 Host、双 Agent完整 composition parity、tarball lifecycle；私有 Delivery Store/worker 已删除；真实 App 身份请求、标准代理 WebSocket 与 setup-only pairing transport；同包原生 DSH Web 从最终 tarball完成配对生成/复制/取消及 routes-mode Gateway 权威 transport/outbound 健康读取/刷新/Host 停机失败/同端口恢复，console error 0；assembled transport error→`degraded`→message→`ready`；[V5.3](evidence/v5-3-feishu-native-image-ingress.zh.md) 证明图片经 DSH AttachmentStore 进入 Session；[V5.4](evidence/v5-4-feishu-exact-approval.zh.md) 验证 exact 一次性卡片；[V5.5](evidence/v5-5-feishu-independent-content-read.zh.md) 验证四类独立权限、Agent-scoped 原生 Tool/Approval、官方 SDK 内容映射、稳定 schema、durable result 和 dispose；[V5.6](evidence/v5-6-feishu-content-readiness-web.zh.md) 从最终 tarball 验证当前 Session 内容就绪 V2、刷新、失败清空和恢复；[V5.7](evidence/v5-7-bounded-channel-delivery.zh.md) 把文本、Approval 卡片和配对回复的组合取消信号传入官方 HTTP transport | 用户发送一次配对短语后的真实 exact route 入站/回复/Approval 与多日重连；普通文件/音视频仍 pending；内容能力还缺真实 App scope、资源权限拒绝和真实数据 |
 | Hermes paired benchmark | `implemented` | [EV-1](evidence/ev-1-hermes-paired-benchmark.zh.md)、[SD-1](evidence/sd-1-hermes-paired-benchmark.zh.md)、[LC-1](evidence/lc-1-hermes-paired-benchmark.zh.md) 与 [AS-1 approval](evidence/as-1-hermes-paired-benchmark.zh.md) 四个确定性 slice：前两项窄场景胜出；本机崩溃恢复与 Telegram 一次性审批均 0:0 平局 | 同模型真实编码、真实 Bot/App 消息交付、真实模型长任务、真实 provider 与长期 outcome 的 paired epochs |
 | Registry release | `planned` | 无 | 全部门禁、版本矩阵、用户授权 |
 
 ## 当前可安装面
 
 当前 `main` 增量通过根级 `pnpm check`（文档、全包 typecheck、测试和构建）；其中
-`dsh-gateway` 7 files/24 tests、`dsh-evolve-web` 2 files/25 tests、`dsh-evolve-attention` 4 files/11 tests、
-`dsh-feishu` 17 files/48 tests，`dsh-evolve` 67 files/292 tests passed、1 file/1 test skipped；根级累计 540 tests passed、3 skipped。Cache Contract 全通过；Doctor 十一包
+`dsh-gateway` 7 files/26 tests、`dsh-evolve-web` 2 files/25 tests、`dsh-evolve-attention` 4 files/11 tests、
+`dsh-feishu` 17 files/48 tests，`dsh-evolve` 67 files/294 tests passed、1 file/1 test skipped；根级累计 544 tests passed、3 skipped。Cache Contract 全通过；Doctor 十一包
 原生合同 22/22，十一包 clean-profile 最终 tarball 的 add/dump/boot/真实
 Session+Goal+Storage+Tool/dispose/remove/reboot/readback 1/1（60.96 秒）；独立 Doctor packed
 add/Loader/command/remove 1/1（10.35 秒）。V4.24 删除旧浏览器 acceptance fixture，并用 DSH Web 组件测试固定“纠正进入

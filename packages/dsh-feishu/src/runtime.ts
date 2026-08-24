@@ -38,6 +38,7 @@ import type {
 } from './platform.js'
 
 const MAX_PENDING_REPLY_CORRELATIONS = 10_000
+const PLATFORM_SEND_TIMEOUT_MS = 30_000
 
 interface ReplyDestination {
   readonly route: ResolvedFeishuRoute
@@ -112,6 +113,7 @@ export class FeishuRuntime {
       routeIds: this.config.routes.map(route => route.id),
       maxAttempts: this.config.maxSendAttempts,
       maxRetryAfterMs: this.config.maxRetryAfterMs,
+      sendTimeoutMs: PLATFORM_SEND_TIMEOUT_MS,
       send: (input, signal) => this.sendOutbound(input, signal),
     })
 
@@ -422,7 +424,7 @@ export class FeishuRuntime {
 
   private async sendOutbound(
     input: GatewayOutboundSendInput,
-    _signal: AbortSignal,
+    signal: AbortSignal,
   ): Promise<GatewayOutboundSendResult> {
     const route = this.routesById.get(input.routeId)
     if (route === undefined) return { kind: 'rejected', code: 'route_mismatch' }
@@ -433,7 +435,7 @@ export class FeishuRuntime {
           ...(input.replyToExternalId === undefined ? {} : { replyTo: input.replyToExternalId }),
           ...(input.replyInThread ? { replyInThread: true } : {}),
         })
-      const sent = await this.platform.sendText(route.endpoint.conversationId, input.text, options)
+      const sent = await this.platform.sendText(route.endpoint.conversationId, input.text, options, signal)
       this.observeTransportActivity()
       return { kind: 'delivered', externalMessageId: sent.messageId }
     } catch (error: unknown) {
@@ -470,10 +472,13 @@ export class FeishuRuntime {
     )
     let sent: { readonly messageId: string }
     try {
+      const signals = [this.lifecycle.signal, AbortSignal.timeout(PLATFORM_SEND_TIMEOUT_MS)]
+      if (request.signal !== undefined) signals.push(request.signal)
       sent = await this.platform.sendCard(
         destination.route.endpoint.conversationId,
         approvalCard(content, nonce),
         sendOptionsFor(destination),
+        AbortSignal.any(signals),
       )
     } catch {
       return next()

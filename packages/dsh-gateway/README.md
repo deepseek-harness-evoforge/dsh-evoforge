@@ -53,6 +53,9 @@ Bundle row 默认为 `disabled: true`。部署者在同一个 DSH profile 中配
   `turn-stopping` 时先落盘，但必须观察到原生 `turn/end` 后才允许外发；
 - 只有 Adapter 明确证明的 pre-acceptance rate limit 才能按 `maxAttempts/maxRetryAfterMs` 有界重试；
   模糊返回、抛错或崩溃中的 `sending` 一律进入 `uncertain`，禁止自动重放；
+- 每个 Adapter 注册必须声明 `sendTimeoutMs`；Gateway 将 timeout 与 Cordis lifecycle cancellation 组合，
+  并主动 race Adapter Promise。即使平台代码忽略 signal，超时、disable、reload 或 remove 也会把 durable
+  `sending` 终结为 `uncertain`，不会无限阻塞 disposer 或自动重发；
 - 有界 outbound journal 只淘汰最旧终态，活跃记录占满时拒绝新意图；普通文本、reply identity 和外部
   message id 留在 Gateway Storage Domain，健康投影不暴露这些内容；
 - `healthSnapshot()` 从 Gateway 自有 route、原生 Agent 注册表和 ingress journal 生成脱敏权威快照，支持

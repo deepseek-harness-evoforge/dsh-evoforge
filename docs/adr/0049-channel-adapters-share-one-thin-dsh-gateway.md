@@ -10,6 +10,12 @@ Telegram 与飞书随后共同证明了普通文本出站的真实重复点：�
 send 调用、卡片/Approval UI 与 transport `ready/degraded` 仍留在 Adapter；Gateway 不推断平台配额，
 不提供全局 token bucket，不声称 exactly-once，也不把平台特有消息类型塞入公共契约。
 
+公共出站 seam 同时拥有每次平台 send 的 wall-clock 治理。Adapter 注册必须显式声明 `sendTimeoutMs`；Gateway
+把 timeout 与 registration lifecycle 组合并主动 race Adapter Promise，而不是假设第三方 SDK 必然服从 signal。
+timeout、disable、reload 或 remove 都会将已 durable 标记为 `sending` 的未知效果终结为 `uncertain`，并禁止
+自动重发。平台 HTTP cancellation 的具体适配仍属于 Adapter；Telegram 和飞书当前都声明 30 秒，飞书继续把
+同一组合 signal 传进官方 HTTP transport。该职责是公共投递可靠性，不把 Gateway 扩展成平台连接管理器。
+
 `healthSnapshot()` 现在按 exact route 子集投影静态 route、原生 live Session、生命周期、持久 ingress 和
 公共 outbound 元数据；外部 account/chat/user、正文、external message id、错误正文和凭据不出现在快照中。
 统一 DSH Web 渠道视图和 Adapter transport 聚合仍是后续门禁。

@@ -149,6 +149,8 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
       platform: {
         connected: boolean
         sendAttempts: string[]
+        sendSignals: AbortSignal[]
+        cardSignals: AbortSignal[]
         texts: Array<{ chatId: string; text: string; options?: FeishuSendOptions }>
         cards: Array<{ messageId: string; chatId: string; card: object; options?: FeishuSendOptions }>
         emitMessage(message: FeishuInboundMessage): Promise<void>
@@ -191,6 +193,8 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
         })
       }, { timeout: 15_000, interval: 25 })
       expect(service.platform.sendAttempts).toHaveLength(2)
+      expect(service.platform.sendSignals).toHaveLength(2)
+      expect(service.platform.sendSignals.every(signal => signal instanceof AbortSignal && !signal.aborted)).toBe(true)
       const deliveryDomain = ctx.storageDomain.get('evoforge_gateway_outbound')
       await vi.waitFor(() => {
         const deliveries = [...(deliveryDomain?.table('outbound').entries() ?? [])]
@@ -272,6 +276,9 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
         signal: new AbortController().signal,
       }, () => Promise.resolve<ApprovalOutcome>('unavailable'))
       await vi.waitFor(() => { expect(service.platform.cards).toHaveLength(1) })
+      expect(service.platform.cardSignals).toHaveLength(1)
+      expect(service.platform.cardSignals[0]).toBeInstanceOf(AbortSignal)
+      expect(service.platform.cardSignals[0]?.aborted).toBe(false)
       expect(service.platform.cards[0]).toMatchObject({
         chatId: 'oc_main',
         options: { replyInThread: true },

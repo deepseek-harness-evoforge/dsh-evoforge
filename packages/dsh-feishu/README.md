@@ -126,7 +126,9 @@ schema/cache 稳定，旧 Session 仍保留同名 schema，但每次执行都会
   abort、disable、reload 或 remove 均不能留下可消费的旧审批；
 - Adapter 自动采用部署进程的 `HTTPS_PROXY`/`https_proxy` 或 `ALL_PROXY`/`all_proxy`，并遵守
   `NO_PROXY`/`no_proxy`；代理只绑定到该飞书连接，不修改环境变量或全局 Agent；
-- 发送意图先落盘；明确 429 才有界重试；传输失败或崩溃中的 `sending` 转为 `uncertain`，不自动重复发送；
+- 发送意图先落盘；每次文本发送固定 30 秒 wall-clock 上限并把 Gateway signal 传入官方 HTTP transport；
+  明确 429 才有界重试；timeout、传输失败或崩溃中的 `sending` 转为 `uncertain`，不自动重复发送；Approval
+  卡片同样组合 30 秒上限、Adapter lifecycle 与原生 request signal；
 - 单 route Session 的 Goal/Schedule continuation 可主动投递；多 route Session 的主动目标不明确时 fail closed；host notice 必须显式指定 `routeId`；
 - `/feishu` 是原生 DSH Command；Adapter 把 transport lifecycle 的脱敏 observation 注册到 Gateway，它再与
   当前 Session 的权威 outbound 投影共同生成带版本的健康快照。DSH Web 打开面板或人工点击刷新时复用这个 Command，

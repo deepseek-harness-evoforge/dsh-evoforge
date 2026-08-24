@@ -52,11 +52,17 @@ export interface FeishuPlatform {
   onError(handler: (error: unknown) => void): () => void
   connect(): Promise<void>
   disconnect(): Promise<void>
-  sendText(chatId: string, text: string, options?: FeishuSendOptions): Promise<{ readonly messageId: string }>
+  sendText(
+    chatId: string,
+    text: string,
+    options: FeishuSendOptions | undefined,
+    signal: AbortSignal,
+  ): Promise<{ readonly messageId: string }>
   sendCard(
     chatId: string,
     card: object,
-    options?: FeishuSendOptions,
+    options: FeishuSendOptions | undefined,
+    signal: AbortSignal,
   ): Promise<{ readonly messageId: string }>
   downloadMessageResource(
     messageId: string,
@@ -164,7 +170,9 @@ function createOfficialPlatform(
     onError: handler => channel.on('error', handler),
     connect: () => channel.connect(),
     disconnect: () => channel.disconnect(),
-    sendText: async (chatId, text, sendOptions) => translateSendFailure(() => channel.send(
+    sendText: (chatId, text, sendOptions, signal) => transport.withSignal(
+      signal,
+      () => translateSendFailure(() => channel.send(
         chatId,
         { text },
         sendOptions === undefined ? undefined : {
@@ -172,14 +180,18 @@ function createOfficialPlatform(
           ...(sendOptions.replyInThread === undefined ? {} : { replyInThread: sendOptions.replyInThread }),
         },
       )),
-    sendCard: (chatId, card, sendOptions) => translateSendFailure(() => channel.send(
-      chatId,
-      { card },
-      sendOptions === undefined ? undefined : {
-        ...(sendOptions.replyTo === undefined ? {} : { replyTo: sendOptions.replyTo }),
-        ...(sendOptions.replyInThread === undefined ? {} : { replyInThread: sendOptions.replyInThread }),
-      },
-    )),
+    ),
+    sendCard: (chatId, card, sendOptions, signal) => transport.withSignal(
+      signal,
+      () => translateSendFailure(() => channel.send(
+        chatId,
+        { card },
+        sendOptions === undefined ? undefined : {
+          ...(sendOptions.replyTo === undefined ? {} : { replyTo: sendOptions.replyTo }),
+          ...(sendOptions.replyInThread === undefined ? {} : { replyInThread: sendOptions.replyInThread }),
+        },
+      )),
+    ),
     downloadMessageResource: async (messageId, fileKey, type, maxBytes, signal) => {
       signal?.throwIfAborted()
       if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > 100 * 1024 * 1024) {

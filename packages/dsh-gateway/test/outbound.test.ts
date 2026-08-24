@@ -42,6 +42,7 @@ describe('Gateway outbound text delivery', () => {
       routeIds: ['telegram-a'],
       maxAttempts: 3,
       maxRetryAfterMs: 300_000,
+      sendTimeoutMs: 30_000,
       async send(input) {
         sends.push(input)
         return outcomes.shift() ?? { kind: 'uncertain' as const }
@@ -112,6 +113,7 @@ describe('Gateway outbound text delivery', () => {
       routeIds: ['telegram-a'],
       maxAttempts: 3,
       maxRetryAfterMs: 300_000,
+      sendTimeoutMs: 30_000,
       async send(input) {
         sends.push(input.text)
         return { kind: 'delivered', externalMessageId: 'message-turn-3' }
@@ -155,6 +157,7 @@ describe('Gateway outbound text delivery', () => {
       routeIds: ['telegram-a'],
       maxAttempts: 1,
       maxRetryAfterMs: 1_000,
+      sendTimeoutMs: 30_000,
       async send() { return { kind: 'uncertain' as const } },
     })
     await firstRegistration.submit({
@@ -183,6 +186,7 @@ describe('Gateway outbound text delivery', () => {
       routeIds: ['telegram-a'],
       maxAttempts: 1,
       maxRetryAfterMs: 1_000,
+      sendTimeoutMs: 30_000,
       async send(input) {
         sends.push(input.text)
         return { kind: 'delivered', externalMessageId: 'message-after-restart' }
@@ -264,6 +268,7 @@ describe('Gateway outbound text delivery', () => {
       accountId: 'bot-a',
       maxAttempts: 1,
       maxRetryAfterMs: 1_000,
+      sendTimeoutMs: 30_000,
       async send() { return { kind: 'uncertain' as const } },
     }
     expect(() => gateway.registerTextAdapter({ ...base, routeIds: [] }))
@@ -272,6 +277,8 @@ describe('Gateway outbound text delivery', () => {
       .toThrow(/is unknown/u)
     expect(() => gateway.registerTextAdapter({ ...base, accountId: 'other', routeIds: ['telegram-a'] }))
       .toThrow(/does not belong/u)
+    expect(() => gateway.registerTextAdapter({ ...base, sendTimeoutMs: 0, routeIds: ['telegram-a'] }))
+      .toThrow(/sendTimeoutMs/u)
     const registration = gateway.registerTextAdapter({ ...base, routeIds: ['telegram-a'] })
     await registration.dispose()
     await gateway.stop()
@@ -292,6 +299,7 @@ describe('Gateway outbound text delivery', () => {
       routeIds: ['telegram-a'],
       maxAttempts: 1,
       maxRetryAfterMs: 1_000,
+      sendTimeoutMs: 30_000,
       async send() { return { kind: 'delivered', externalMessageId: 'bad\nidentity' } },
     })
     await registration.submit({
@@ -301,6 +309,85 @@ describe('Gateway outbound text delivery', () => {
       text: 'Do not get stuck.',
     })
     await eventually(() => gateway.healthSnapshot().outbound.uncertain === 1)
+    expect(gateway.healthSnapshot().outbound).toMatchObject({ sending: 0, uncertain: 1 })
+    await registration.dispose()
+    await gateway.stop()
+  })
+
+  it('settles an uncooperative in-flight Adapter send as uncertain when its registration is disposed', async () => {
+    const facility = memoryFacility()
+    const gateway = new DshGateway(
+      fakeNativeHost().ctx,
+      routes,
+      await openGatewayIngressJournal(facility),
+      await openGatewayOutboundJournal(facility),
+    )
+    await gateway.start()
+    let observedSignal: AbortSignal | undefined
+    const registration = gateway.registerTextAdapter({
+      adapter: 'telegram',
+      accountId: 'bot-a',
+      routeIds: ['telegram-a'],
+      maxAttempts: 1,
+      maxRetryAfterMs: 1_000,
+      sendTimeoutMs: 30_000,
+      async send(_input, signal) {
+        observedSignal = signal
+        return await new Promise<never>(() => {})
+      },
+    })
+    await registration.submit({
+      routeId: 'telegram-a',
+      kind: 'notice',
+      intentKey: 'notice:uncooperative-adapter',
+      text: 'Do not let Adapter code block Gateway disposal.',
+    })
+    await eventually(() => gateway.healthSnapshot().outbound.sending === 1)
+
+    const disposal = registration.dispose().then(() => 'disposed' as const)
+    const outcome = await Promise.race([
+      disposal,
+      new Promise<'timed-out'>(resolve => setTimeout(() => resolve('timed-out'), 50)),
+    ])
+
+    expect(observedSignal?.aborted).toBe(true)
+    expect(outcome).toBe('disposed')
+    expect(gateway.healthSnapshot().outbound).toMatchObject({ sending: 0, uncertain: 1 })
+    await gateway.stop()
+  })
+
+  it('bounds an uncooperative Adapter send without waiting for Gateway disposal', async () => {
+    const facility = memoryFacility()
+    const gateway = new DshGateway(
+      fakeNativeHost().ctx,
+      routes,
+      await openGatewayIngressJournal(facility),
+      await openGatewayOutboundJournal(facility),
+    )
+    await gateway.start()
+    let observedSignal: AbortSignal | undefined
+    const timeoutPolicy = { sendTimeoutMs: 10 }
+    const registration = gateway.registerTextAdapter({
+      adapter: 'telegram',
+      accountId: 'bot-a',
+      routeIds: ['telegram-a'],
+      maxAttempts: 1,
+      maxRetryAfterMs: 1_000,
+      ...timeoutPolicy,
+      async send(_input, signal) {
+        observedSignal = signal
+        return await new Promise<never>(() => {})
+      },
+    })
+    await registration.submit({
+      routeId: 'telegram-a',
+      kind: 'notice',
+      intentKey: 'notice:bounded-adapter-send',
+      text: 'Bound every external send attempt.',
+    })
+
+    await eventually(() => gateway.healthSnapshot().outbound.uncertain === 1)
+    expect(observedSignal?.aborted).toBe(true)
     expect(gateway.healthSnapshot().outbound).toMatchObject({ sending: 0, uncertain: 1 })
     await registration.dispose()
     await gateway.stop()

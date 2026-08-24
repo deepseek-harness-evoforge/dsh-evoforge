@@ -20,6 +20,7 @@ export interface GatewayTextDeliveryIntent {
 export interface GatewayOutboundPolicy {
   readonly maxAttempts: number
   readonly maxRetryAfterMs: number
+  readonly sendTimeoutMs: number
 }
 
 export interface GatewayOutboundSendInput {
@@ -286,11 +287,21 @@ class GatewayTextAdapterRegistrationImpl implements GatewayTextAdapterRegistrati
       if (record === undefined || record.status !== 'retrying') return
     }
     const sending = await this.journal.begin(id, Date.now())
+    const timeout = new AbortController()
+    const timer = setTimeout(() => {
+      timeout.abort(new Error('Gateway Adapter send exceeded its wall-clock limit'))
+    }, this.config.sendTimeoutMs)
+    const signal = AbortSignal.any([this.lifecycle.signal, timeout.signal])
     let result: GatewayOutboundSendResult
     try {
-      result = normalizeResult(await this.config.send(sendInput(sending), this.lifecycle.signal))
+      result = normalizeResult(await raceWithAbort(
+        () => this.config.send(sendInput(sending), signal),
+        signal,
+      ))
     } catch {
       result = { kind: 'uncertain' }
+    } finally {
+      clearTimeout(timer)
     }
     await this.journal.finish(id, result, this.config, Date.now())
   }
@@ -325,6 +336,10 @@ function validatePolicy(config: GatewayTextAdapterConfig): void {
     || config.maxRetryAfterMs < 1 || config.maxRetryAfterMs > 300_000) {
     throw new Error('Gateway text Adapter maxRetryAfterMs must be from 1 to 300000')
   }
+  if (!Number.isSafeInteger(config.sendTimeoutMs)
+    || config.sendTimeoutMs < 1 || config.sendTimeoutMs > 120_000) {
+    throw new Error('Gateway text Adapter sendTimeoutMs must be from 1 to 120000')
+  }
 }
 
 function exactRegistrationRoutes(
@@ -357,6 +372,41 @@ async function delay(ms: number, signal: AbortSignal): Promise<void> {
   } catch {
     // The registration lifecycle owns cancellation; retry state stays durable.
   }
+}
+
+function raceWithAbort<T>(operation: () => Promise<T>, signal: AbortSignal): Promise<T> {
+  signal.throwIfAborted()
+  return new Promise<T>((resolve, reject) => {
+    let settled = false
+    const resolveOnce = (value: T): void => {
+      if (settled) return
+      settled = true
+      signal.removeEventListener('abort', onAbort)
+      resolve(value)
+    }
+    const rejectOnce = (error: unknown): void => {
+      if (settled) return
+      settled = true
+      signal.removeEventListener('abort', onAbort)
+      reject(error)
+    }
+    const onAbort = (): void => {
+      rejectOnce(signal.reason ?? new Error('Gateway Adapter send was cancelled'))
+    }
+    signal.addEventListener('abort', onAbort, { once: true })
+    if (signal.aborted) {
+      onAbort()
+      return
+    }
+    let pending: Promise<T>
+    try {
+      pending = operation()
+    } catch (error: unknown) {
+      rejectOnce(error)
+      return
+    }
+    void pending.then(resolveOnce, rejectOnce)
+  })
 }
 
 type Mutable<T> = { -readonly [K in keyof T]: T[K] }

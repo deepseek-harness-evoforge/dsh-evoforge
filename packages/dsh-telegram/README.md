@@ -17,6 +17,8 @@ dsh plugin --profile web add /absolute/path/dsh-telegram-0.1.0-alpha.1.tgz
   notification provider;
 - a Gateway-configured hard bound for outbound delivery history;
 - bounded retry only after Telegram explicitly returns `429 + retry_after`.
+- a 30-second Gateway-owned wall-clock limit for every outbound attempt; timeout or unload becomes
+  `uncertain` and is never replayed automatically.
 
 It registers no model Tool, Skill, system-prompt section, or dynamic context. Idle and ordinary
 Session token overhead is zero; the selected Agent's existing model composition is unchanged.
