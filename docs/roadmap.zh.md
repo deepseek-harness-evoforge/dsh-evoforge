@@ -7,6 +7,7 @@
 > V5.14 从冻结 V5.11 `b0e4360` 构建十一包历史最终产物，经官方 DSH CLI 安装后由原生 Agent/Goal 写入内部 Gap，再用当前十一包原位升级；旧 Gap、新 Goal→Opportunity、唯一 Bundle 组合、卸载和两条原生 Session/Goal readback 全部通过。它证明 pre-release migration floor，不冒充已发布 tag→tag 或真实外部验收。
 > V5.15 把 DSH 官方 `dsh-v0.1.1-rc.2`（`b150a55`）作为独立设计审计基线：[直接源码确认](research/dsh-current-attachment-contract-2026-08-24.zh.md)其 Files API 仍只承载图片，核心没有 generic file/audio/video block。普通文件/音视频继续是上游契约缺口，不扩张 Gateway。
 > V5.16 已让 rc.2 与 rc.5 同时进入 exact allowlist：两版分别通过十一包 fresh-install、冻结前代升级、原生 Goal→Agent Loop→Gap、future-Session 固定/回滚、飞书聊天/内容 Approval/全通道缓存及卸载 readback。矩阵拒绝未知 revision、版本错配与 tracked dirty；下一门仍是真实 Provider、真实飞书和同条件 Hermes paired，不是继续扩张 Gateway。
+> V5.17 已以真实 DSH Agent/Goal/`complete_delivery`、JSONL Session、StorageDomain、两个独立进程和 `SIGKILL` 验证 checkpoint 前与 checkpoint 后/Outcome 前两个窗口；冷恢复不调用模型、不重跑 Tool，外部效果保持一次。Software Delivery 仍缺真实长期任务和同模型 Hermes paired，不因此升级为整体完成。
 > V4.38 已在 existing-Skill Candidate proposer 前生成并校准 Candidate 不可见的完整 `skill-tree` holdout Envelope；V4.39 已把 exact Envelope 纳入 Candidate 内容身份并消费该 Envelope 与 V4.37 exact 双树执行 assembled paired Trial。下一门是独立 Retention/Canary/晋升/回滚，而不是再次生成或搜索能力。
 > V4.40–V4.45 已完成 Retention、发布门与最终包浏览器生命周期；V4.46–V4.48 已完成 existing-Skill failed-Outcome Canary、权威 Control/Remote/Web、独立 expected-active rollback gate 与最终 tarball 浏览器故障恢复；V4.49 已完成 missing-Skill 同类最终包故障恢复。下一门是两套独立真实 provider。
 > 更新日期：2026-08-24
@@ -194,7 +195,7 @@ route 消息、真实卡片点击、真实 App 内容权限与完整评测演进
 ## V6 — v0.1 验收与首个 tag
 
 - 全包 tarball clean-profile 安装、dump、boot、真实 Agent/Session/Goal、卸载与 readback；**已完成**
-- dependency loss、reload、dispose、崩溃、重复事件、429、网络不确定和身份拒绝；
+- dependency loss、reload、dispose、崩溃、重复事件、429、网络不确定和身份拒绝；Delivery Outcome 的 checkpoint 前与 checkpoint 后/投影前跨进程 `SIGKILL` 已由 V5.17 完成；
 - 完整 composition cache parity；**已完成，见 `pnpm test:cache-contract`**
 - DSH Web 真实浏览器成功、刷新和失败路径；
 - 多 Workspace、自我发现、自进化、Gateway、消息、审批、崩溃恢复和软件交付的 Hermes paired benchmark；

@@ -288,6 +288,7 @@ _Avoid_: CI daemon, background watcher, unbounded wait, workflow scheduler
 
 **Delivery Outcome**:
 A compact Learning Signal projected from one source-linked `complete_delivery` call/result in the native DSH Session log and attributed to the Capability Generation pinned to that Session. Projection first crosses DSH's awaited Session durability checkpoint; a later cold Session start can replay a persisted pair idempotently without rerunning the Tool or any external effect. It may trigger evaluation, but one outcome never proves regression or authorizes rollback.
+If the process dies before that checkpoint, no live-only Tool notification may synthesize a Session or Outcome; the already attempted external effect is not automatically replayed.
 _Avoid_: Live-only Tool event, external-effect replay, transcript archive, rollback vote, delivery event platform
 
 **Exact Skill Failure-Context Investigation**:

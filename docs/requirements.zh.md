@@ -421,6 +421,12 @@ existing-Skill Candidate 必须进入独立于 capability-absent Envelope 的 Ho
 
 existing-Skill 自动晋升只允许由 Workspace 级部署策略授权，策略不得包含 Skill、路径、来源、Candidate、Case Pack、evaluator 或工作流。唯一 Host release owner 必须重新读取 exact baseline/Candidate archive、Admission、improved Holdout 和 independent retained Retention；只允许没有增删文件且其他文件逐字相等的单一 `SKILL.md` 末尾追加，追加量为 1–2048 canonical UTF-8 bytes，并通过 credentials/destructive/messaging/network/payment/permission/tool/production 等 protected-effect 筛查。存在模型调用时，Holdout 与 Retention 两处都必须满足 Candidate model calls、input/output/reasoning/cache-write 不高于 baseline 且 cache-read 不下降；两侧继续受相同 sealed timeout 与 composition 门约束。自动决策先持久化并发布 inactive Generation，再以 expected parent 选择未来 Session；当前 Session 不漂移。Workspace pause、取消、父版本变化或中途崩溃不得绕过门禁，重启只从 durable Candidate/评测/决策/Generation 状态恢复。改写正文、增加 reference、代码、权限、凭据、外部效果、新 Skill 与模糊结果继续走人工或 Protected Action。
 
+Delivery Outcome 只能从 native Session 中 source-linked 的 `complete_delivery` call/result pair 投影。实时 Tool
+通知没有证据权；Host 必须先等待 `ctx.sessions.flush(session)` 成功，再写 Outcome。checkpoint 前进程死亡不得
+凭 live event 补造 Session 或 Outcome，也不得自动重跑 Tool；checkpoint 已成功但 Outcome 写入前死亡时，cold
+Session start 只可幂等补投影同一 pair，不调用模型、不重复 check、Goal 完成或任何外部效果。两种窗口必须用
+独立进程硬杀与持久副作用计数验证，不能以 in-process exception、mock retry 或模型自评替代。
+
 Delivery Outcome 可附带同一 Session、同一稳定 Goal id 的 `GoalExecutionMetrics`。Host 只统计首条 admitted
 message 属于当时最新 active Goal revision 的 turn，并在 exact `complete_delivery` result event 截止；token、
 cache-read/write、LLM/tool/TTFT/decode 时间来自 DSH 官方 `tokenUsage`/`sessionStats` projection cut 的差值，

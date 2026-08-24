@@ -204,6 +204,12 @@ revision/version/clean-source guard、十一包 fresh-install 与冻结前代升
 固定/回滚、飞书聊天/内容 Approval/全通道缓存和卸载 readback。详见
 [V5.16 证据](evidence/v5-16-dsh-dual-version-compatibility-matrix.zh.md)。
 
+V5.17 已补齐 Software Delivery 的两个跨进程持久化窗口。真实 DSH Agent/Goal 运行正式
+`complete_delivery`，其仓库 check 写入一次持久副作用探针；checkpoint 前 `SIGKILL` 不留下伪 Session/Outcome，
+checkpoint 后但 Outcome 前 `SIGKILL` 可由 cold Session start 幂等补记一条 Outcome。恢复不调用模型、不重跑
+Tool，call/result 与外部效果都保持一次。详见
+[V5.17 证据](evidence/v5-17-delivery-outcome-process-crash.zh.md)。
+
 | 能力 | 当前状态 | 已有证据 | 仍缺 |
 |---|---|---|---|
 | 原生 DSH 插件产品形态 | `implemented` | 十一包均有 `name/inject/Config/apply`、Bundle patch、无 bin 合同；[V5.16](evidence/v5-16-dsh-dual-version-compatibility-matrix.zh.md) 在 exact rc.5/rc.2 上分别验证 clean-profile tarball add/dump/boot、冻结 V5.11→当前升级、旧/新内部证据连续、remove 与原生 readback | 陌生安装、真实发布 tag→tag 与 registry release 门禁 |
@@ -213,7 +219,7 @@ revision/version/clean-source guard、十一包 fresh-install 与冻结前代升
 | Existing-Skill Release + Canary | `implemented` | Release Gate 最终 tarball 已 verified；[V4.46](evidence/v4-46-existing-skill-failed-outcome-canary.zh.md) 增加 exact active release/failed Outcome/Retention replay、原生 Jobs、paid-uncertain 恢复、strict rollback eligibility 与无 mutation authority；[V4.47](evidence/v4-47-existing-skill-canary-control-rollback.zh.md) 增加 bounded Control/Remote/Web、人工确认和 expected-active rollback gate；[V4.48](evidence/v4-48-existing-skill-canary-rollback-final-browser.zh.md) 从最终包验证动作、断连保留、恢复、精确回滚、reload/冷重启和卸载；[V5.12](evidence/v5-12-existing-skill-automatic-promotion.zh.md) 增加 Workspace-only exact append-only/effect-clear/token-cache non-regression 自动门、durable decision/pointer crash recovery、原生 Jobs、只读 Web 状态，并从最终包验证自动晋升、断连保留、冷恢复和卸载 | 两套真实 provider、false-promotion/transfer 长期率与 Hermes paired |
 | Existing-Skill Candidate-blind Holdout Evaluation | `implemented` | [V4.38](evidence/v4-38-existing-skill-candidate-blind-holdout-governance.zh.md) pre-Candidate 治理 + [V4.39](evidence/v4-39-existing-skill-exact-paired-holdout-evaluation.zh.md) exact Admission/baseline/Candidate/Envelope assembled paired Trial、四象限 verdict、输入漂移阻断、paid-uncertain 不盲重试、原生 Jobs 恢复、Host/Web 权威投影和最终 tarball 真实浏览器失败恢复/卸载 | 两套独立真实 provider与长期误晋升数据 |
 | Existing-Skill Exact Retention Evaluation | `implemented` | [V4.40](evidence/v4-40-existing-skill-pre-candidate-retention-governance.zh.md) pre-Candidate Retention + [V4.41](evidence/v4-41-existing-skill-exact-retention-evaluation.zh.md) authoritative improved Holdout、exact 双树/两 Case Pack、四 Goal abstain、四象限、input rehash、paid-uncertain 不重试、原生 Jobs 与 Host 权威投影 + [V4.42](evidence/v4-42-existing-skill-retention-web-browser.zh.md) 最终 tarball 真实 Web reload/断连保留/恢复/卸载 + [V4.48](evidence/v4-48-existing-skill-canary-rollback-final-browser.zh.md) 最终包 Canary/rollback 恢复 | 真实 provider 和长期保持率 |
-| Software Delivery P2A–P2D | `implemented` | 真实 Git、原生 Tool/Goal、Draft PR、checks；Outcome 只从 source-linked Session call/result pair 读取，经官方 durability checkpoint 后投影，并可在 cold Session start 幂等补记；十一包 clean-profile 内从 packed Tool 完成原生 Goal | 真实长期任务与 checkpoint 前 hard kill、checkpoint 后投影前 kill 的跨进程故障注入 |
+| Software Delivery P2A–P2D | `implemented` | 真实 Git、原生 Tool/Goal、Draft PR、checks；Outcome 只从 source-linked Session call/result pair 读取，经官方 durability checkpoint 后投影，并可在 cold Session start 幂等补记；[V5.17](evidence/v5-17-delivery-outcome-process-crash.zh.md) 以两个独立进程和真实 `SIGKILL` 验证 checkpoint 前与 checkpoint 后/Outcome 前窗口，冷恢复零模型/零 Tool replay/一次外部效果 | 真实长期任务、远端 reviewer 数据与同模型 Hermes paired |
 | GitHub Review Follow-up P3.2 | `implemented` | exact-head allowlist、bounded follow-up、重启去重、cache parity | 真实 reviewer 返修闭环和多日 resident |
 | Web Control Plane | `verified` | packed artifact、真实 DSH Workspace/Host/Client Module；浏览器 pause→Host restart→persisted pause→resume/refresh；Goal metrics 的 Workspace/current/baseline 聚合和最近证据来自 Host 权威 Remote；最终 tarball clean-profile 中以四个原生 DSH Session/Goal 形成 Opportunity，显示 `ready-to-seal`、2/1/1 分割、目标正文保护和零 Candidate；在线刷新、断线保留最后快照并 fail visible、同 profile 恢复、Outcome 幂等 1→1；[V5.10](evidence/v5-10-generation-selection-history.zh.md) 验证 pointer 原子历史；[V5.11](evidence/v5-11-post-selection-outcome-window.zh.md) 又验证 selected/previous/other Outcome 窗口、真实 Session metrics、断线保留、两次冷恢复、卸载和原生 readback，console error 0 | 陌生用户可用性、真实 provider 价格与长期数据 |
 | Exact 跨 Goal Skill 复用证据 | `verified` | [V4.50](evidence/v4-50-exact-cross-goal-skill-reuse.zh.md)：真实原生 Skill Tool、Session durability、active Goal、exact 内容哈希/Generation 分桶、持久重放；最终 tarball Web 2 uses/2 Goals、reload、Host 冷启动、合法 Session readback 与官方卸载 | 真实用户任务、Outcome/返工/成本因果、负迁移、保持率与 paired benchmark |
@@ -233,8 +239,9 @@ revision/version/clean-source guard、十一包 fresh-install 与冻结前代升
 ## 当前可安装面
 
 当前 `main` 增量通过根级 `pnpm check`（文档、全包 typecheck、测试和构建）；其中
-`dsh-gateway` 7 files/26 tests、`dsh-evolve-web` 2 files/26 tests、`dsh-evolve-attention` 4 files/11 tests、
-`dsh-feishu` 17 files/48 tests，`dsh-evolve` 67 files/305 tests passed、1 file/1 test skipped；根级累计 565 tests passed、3 skipped。Cache Contract 全通过；Doctor 十一包
+`dsh-gateway` 7 files/27 tests、`dsh-evolve-web` 2 files/26 tests、`dsh-evolve-attention` 4 files/11 tests、
+`dsh-feishu` 17 files/49 tests、`dsh-software-delivery` 9 files/36 tests passed、1 test skipped，
+`dsh-evolve` 67 files/305 tests passed、1 file/1 test skipped；根级累计 568 tests passed、3 skipped。Cache Contract 全通过；Doctor 十一包
 原生合同 22/22，十一包 clean-profile 最终 tarball 的 add/dump/boot/真实
 Session+Goal+Storage+Tool/dispose/remove/reboot/readback 1/1（60.96 秒）；独立 Doctor packed
 add/Loader/command/remove 1/1（10.35 秒）。V4.24 删除旧浏览器 acceptance fixture，并用 DSH Web 组件测试固定“纠正进入
@@ -244,7 +251,7 @@ add/Loader/command/remove 1/1（10.35 秒）。V4.24 删除旧浏览器 acceptan
 
 ## 当前限制
 
-- 固定 rc.5 源码是唯一支持证据；官方最新 rc.2 仅完成设计契约审计，兼容范围不能由宽 peer range 或源码相似性推断；
+- rc.5 与 rc.2 是当前仅有的两个 exact 支持目标；未知 revision、版本错配、tracked dirty 或更宽 peer range 都不能冒充兼容证据；
 - v0.1 浏览器复验已完成；真实 provider cache-read/TTFT 仍需有预算的 paired soak；
 - 自我发现只允许从 DSH 内部 Goal、Gap、失败、纠正、结果与复用证据学习；任何 Opportunity/Candidate/Retention/Canary verdict 自身都没有安装、激活或发布权。missing-Skill 的 Retention/Canary/Rollback 与 existing-Skill 的发布门/failed-Outcome Canary/独立 expected-active rollback gate 已实现；两条路径的最终包 rollback 浏览器恢复均已完成，真实 provider assembled 评估、长期负迁移/误回滚率和模型缺口质量仍缺；
 - Hermes/OpenClaw/HanaAgent、论文、市场和开源实现只用于设计期调研与冻结 benchmark；运行时外部 Skill 搜索、获取、下载、导入或市场功能不属于本项目；

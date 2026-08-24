@@ -39,7 +39,8 @@ ToolRuntime、Generation/Shadow 回归，以及既有 Software Delivery assemble
 真实固定 DSH 的 Generation/canary 两条定向路径均通过。整仓十一包 typecheck/build 通过，
 native plugin contract 22/22 通过，clean-profile 十一包 tarball add/dump/boot、真实
 Session/Goal/Tool、dispose/remove/reboot/readback 1/1 通过（25.46 秒）。两个 skip 仍是显式
-环境/外部效果门，不算作通过；跨进程 kill 后补投影的独立故障注入仍列为未完成门禁。
+环境/外部效果门，不算作通过；该页当时尚未完成的跨进程门已于 2026-08-24 由
+[V5.17](v5-17-delivery-outcome-process-crash.zh.md) 补齐。
 
 ## Cache、权限与边界
 
@@ -47,7 +48,8 @@ Session/Goal/Tool、dispose/remove/reboot/readback 1/1 通过（25.46 秒）。�
 - 不读取 secret，不调用 GitHub，不重跑 check，不产生外部效果。
 - `tools/result` 是易失实时事件，不再有 evidence authority。checkpoint 成功后若进程在 Outcome
   投影前崩溃，只重放 persisted Session call/result pair 来补记 StorageDomain；不复制 Session、
-  不建立 event bus，也绝不重放 Tool 或外部动作。checkpoint 前 hard kill 仍需独立故障注入验证。
+  不建立 event bus，也绝不重放 Tool 或外部动作。checkpoint 前与 checkpoint 后/Outcome 前 hard kill 已由
+  [V5.17](v5-17-delivery-outcome-process-crash.zh.md) 以独立进程验证。
 - 单个 `failed`/`unknown` 不触发 rollback。业务代码失败不能被伪装成 Skill 退化。
 
 设计取舍见 [ADR-0015](../adr/0015-delivery-outcomes-are-derived-signals.md)。后续 P1.2 已用原
