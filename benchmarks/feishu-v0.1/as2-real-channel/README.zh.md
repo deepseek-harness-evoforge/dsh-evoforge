@@ -2,8 +2,10 @@
 
 本入口只验证一条真实飞书渠道纵切：最终 `dsh-gateway`/`dsh-feishu` tarball 安装到全新 DSH `web`
 profile，经官方飞书 WebSocket/HTTP 接收一个 exact 用户消息，进入原生 DSH Session，交付最终回答，执行
-`/feishu`，完成一次原生 DSH Approval 卡片，再投递一个持久 Host notice；随后 dispose、官方卸载、原生
-DSH 重启并读回同一 Session。
+`/feishu`，通过官方 agent-scoped `schedule_create` 完成一次 create→dispatch→`user/message`
+（`source.kind=plugin`、`source.plugin=schedule`）→同 route
+回送，完成一次原生 DSH Approval 卡片，再投递一个持久 Host notice；随后 dispose、官方卸载、原生 DSH
+重启并读回同一 Session。
 
 它不是飞书 Mock，也不使用 benchmark-owned Approval 或 Agent Runtime。为了把渠道效果与模型付费/质量分离，
 本 epoch 使用 DSH 自带的 keyless deterministic LLM fixture；因此通过结果只证明真实渠道、DSH 集成、生命周期
@@ -19,6 +21,8 @@ DSH 重启并读回同一 Session。
   `allowed-once`、卸载后 Session 不可读，均判失败；
 - terminal `result.json` 按 revision、manifest、App/route hash 与 chat kind 复用；Adapter 必须从真实入站事件
   观测到与声明一致的 `direct`/`group`，不能用私聊冒充群聊或复用另一条路线的结果。
+- 当前 epoch 为 `as2-feishu-real-channel-epoch-2`；终态解码器要求关闭的十一项 observation 全部存在，
+  `passed` 还要求全部为真。epoch-1 或遗漏 native Schedule gate 的旧/损坏结果不能阻止新执行。
 
 ## 前置飞书配置
 
@@ -47,8 +51,10 @@ pnpm benchmark:feishu:as2
 毫秒的规范十进制整数。
 
 入口启动后在 stderr 显示一次性 challenge。使用配置中的 exact 飞书用户/chat 发送它，收到 DSH 回复后发送
-`/feishu`，最后在卡片中点击“Allow once”；群聊必须先 `@机器人`，mention 后的正文保持 challenge/Command
-不变。stdout 只输出一个 JSON 报告：exit 0 + `status: passed` 才是该
+`/feishu`；随后等待一条由官方 DSH Schedule 到期 turn 回送的消息，最后在卡片中点击“Allow once”。群聊必须
+先 `@机器人`，mention 后的正文保持 challenge/Command 不变。Schedule 由验收器通过官方 Tool 创建，不要求
+用户再发送第三条指令；它只证明原生 Schedule 与真实渠道组合，不证明真实模型能正确理解自然语言时间。stdout
+只输出一个 JSON 报告：exit 0 + `status: passed` 才是该
 chat kind 的真实通过；exit 2 + `not-run`、exit 1 + `failed` 都不是证据。
 
 如果真实效果阶段超时或进程崩溃，先审计私有 run root、飞书消息和 Gateway 状态。为避免盲重放，不要删除或

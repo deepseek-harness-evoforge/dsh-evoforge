@@ -211,7 +211,7 @@ Tool，call/result 与外部效果都保持一次。详见
 [V5.17 证据](evidence/v5-17-delivery-outcome-process-crash.zh.md)。
 
 V5.18 纠正飞书 Schedule 验收偏差：旧测试只是手工 `agent.followup()`；现在 assembled Host 真正加载官方
-DSH Schedule，并通过 agent-scoped `schedule_create` 形成 durable create/dispatch、`plugin:schedule` 到期消息和
+DSH Schedule，并通过 agent-scoped `schedule_create` 形成 durable create/dispatch、Schedule 插件来源到期 `user/message` 和
 Agent turn。现有 Gateway journal 等待原生 `turn/end` 后只向 exact 飞书线程发送一次，不增加第二 scheduler 或
 Feishu 私有日程状态。详见 [V5.18 证据](evidence/v5-18-native-schedule-feishu-delivery.zh.md)。
 
@@ -228,12 +228,19 @@ durable intent；恢复 Fake Platform 发送 0 次，跨进程效果总数 1，G
 增加生产 runtime 或 Schedule 业务状态；模型与成本仍可能重复。详见
 [V5.20 证据](evidence/v5-20-schedule-dispatch-crash-outbound-dedup.zh.md)。
 
+V5.21 将真实飞书 AS-2 从 epoch-1 升为 epoch-2。最终包 profile 不在已创建 Agent 上补挂 Tool，而是先加载
+官方 DSH Schedule，再启动活动 Gateway route；验收器通过 agent-scoped `schedule_create` 要求同一原生 Session
+精确出现一次 create、dispatch 和 Schedule 插件来源 `user/message`，生产飞书 route 的 durable delivered 计数增加，卸载后仍可读回。
+终态解码器精确关闭十一项 observation，`passed` 必须全真，旧 epoch、缺 Schedule、畸形 verdict/Gateway facts
+均不能复用。合同 9/9、独立类型与 Feishu 18 files/52 tests 通过；真实 App 长连接已启动，exact route
+配对尚未完成，direct/group 仍为 `NOT_RUN`。详见 [V5.21 证据](evidence/v5-21-real-feishu-native-schedule-gate.zh.md)。
+
 | 能力 | 当前状态 | 已有证据 | 仍缺 |
 |---|---|---|---|
 | 原生 DSH 插件产品形态 | `implemented` | 十一包均有 `name/inject/Config/apply`、Bundle patch、无 bin 合同；[V5.16](evidence/v5-16-dsh-dual-version-compatibility-matrix.zh.md) 在 exact rc.5/rc.2 上分别验证 clean-profile tarball add/dump/boot、冻结 V5.11→当前升级、旧/新内部证据连续、remove 与原生 readback | 陌生安装、真实发布 tag→tag 与 registry release 门禁 |
 | Evidence-driven Evolution + internal Skill Opportunity | `implemented` | 自然 Goal→Host 复核/持久 Gap；跨 Goal Opportunity；缺失 Skill 的 exact Shadow/Retention/Promotion/Canary/Rollback 与[V4.49 最终包回滚生命周期](evidence/v4-49-missing-skill-canary-rollback-final-browser.zh.md)；existing-Skill 的完整 baseline、protected correction、whole-tree Candidate、paired Holdout/Retention、发布门、[V4.45 最终包浏览器](evidence/v4-45-existing-skill-release-final-browser.zh.md)、[V4.46 failed-Outcome Canary](evidence/v4-46-existing-skill-failed-outcome-canary.zh.md)、[V4.47 独立回滚门](evidence/v4-47-existing-skill-canary-control-rollback.zh.md)与[V4.48 最终包回滚生命周期](evidence/v4-48-existing-skill-canary-rollback-final-browser.zh.md)；历史 runtime 获取、static target、Draft、Shadow proposer 和旧编排均已删除，[V4.54](evidence/v4-54-remove-runtime-search-semantics.zh.md) 又移除活动 Case Pack/报告中的 `search` 命名 | 两套真实 provider、长期误晋升/回滚数据缺失 |
 | 双真实 Provider RP-1 | `implemented` | [V4.55](evidence/v4-55-real-provider-acceptance-gate.zh.md)：显式付费批准前零配置读取/零外部请求；不同 provider/authority/credential/model identity 预检；生产纵切编排；Candidate 盲区、assembled Holdout/Retention、composition、凭据脱敏与 terminal 不盲重试 hard gates；[V4.56](evidence/v4-56-bounded-governance-provider-requests.zh.md)又把两个治理 Provider seam 补齐 60 秒硬上限和 Host cancellation 组合；合同 8/8 与独立类型检查通过 | 当前 `NOT_RUN`；第二套独立 Provider、已授权真实 `passed` 结果和长期 outcome 均缺失 |
-| 真实飞书 AS-2 验收入口 | `implemented` | [V5.8](evidence/v5-8-real-feishu-acceptance-gate.zh.md)：未授权零身份/凭据读取；clean revision、最终 tarball、官方 DSH CLI、生产飞书 transport、exact 入站/回复/Command/Approval/notice、零 uncertain/failed、dispose/remove/native Session readback hard gates；合同 7/7 与独立类型检查通过 | 当前 direct/group 均 `NOT_RUN`；真实 App/chat/user、人工消息/卡片、长期重连和 Hermes paired 仍缺 |
+| 真实飞书 AS-2 验收入口 | `implemented` | [V5.8](evidence/v5-8-real-feishu-acceptance-gate.zh.md)建立未授权零身份/凭据读取、clean revision、最终 tarball、官方 DSH CLI、生产 transport、exact 入站/回复/Command/Approval/notice、零 uncertain/failed、remove/readback 门；[V5.21](evidence/v5-21-real-feishu-native-schedule-gate.zh.md) 的 epoch-2 又加入官方 Schedule create/dispatch/插件来源 `user/message`→同 route delivered、卸载后 readback 与关闭终态解码；合同 9/9 与独立类型检查通过 | 真实 App 长连接已启动但 exact route 配对尚未完成，direct/group 均 `NOT_RUN`；人工消息/卡片/Schedule、长期重连和 Hermes paired 仍缺 |
 | Existing-Skill Release + Canary | `implemented` | Release Gate 最终 tarball 已 verified；[V4.46](evidence/v4-46-existing-skill-failed-outcome-canary.zh.md) 增加 exact active release/failed Outcome/Retention replay、原生 Jobs、paid-uncertain 恢复、strict rollback eligibility 与无 mutation authority；[V4.47](evidence/v4-47-existing-skill-canary-control-rollback.zh.md) 增加 bounded Control/Remote/Web、人工确认和 expected-active rollback gate；[V4.48](evidence/v4-48-existing-skill-canary-rollback-final-browser.zh.md) 从最终包验证动作、断连保留、恢复、精确回滚、reload/冷重启和卸载；[V5.12](evidence/v5-12-existing-skill-automatic-promotion.zh.md) 增加 Workspace-only exact append-only/effect-clear/token-cache non-regression 自动门、durable decision/pointer crash recovery、原生 Jobs、只读 Web 状态，并从最终包验证自动晋升、断连保留、冷恢复和卸载 | 两套真实 provider、false-promotion/transfer 长期率与 Hermes paired |
 | Existing-Skill Candidate-blind Holdout Evaluation | `implemented` | [V4.38](evidence/v4-38-existing-skill-candidate-blind-holdout-governance.zh.md) pre-Candidate 治理 + [V4.39](evidence/v4-39-existing-skill-exact-paired-holdout-evaluation.zh.md) exact Admission/baseline/Candidate/Envelope assembled paired Trial、四象限 verdict、输入漂移阻断、paid-uncertain 不盲重试、原生 Jobs 恢复、Host/Web 权威投影和最终 tarball 真实浏览器失败恢复/卸载 | 两套独立真实 provider与长期误晋升数据 |
 | Existing-Skill Exact Retention Evaluation | `implemented` | [V4.40](evidence/v4-40-existing-skill-pre-candidate-retention-governance.zh.md) pre-Candidate Retention + [V4.41](evidence/v4-41-existing-skill-exact-retention-evaluation.zh.md) authoritative improved Holdout、exact 双树/两 Case Pack、四 Goal abstain、四象限、input rehash、paid-uncertain 不重试、原生 Jobs 与 Host 权威投影 + [V4.42](evidence/v4-42-existing-skill-retention-web-browser.zh.md) 最终 tarball 真实 Web reload/断连保留/恢复/卸载 + [V4.48](evidence/v4-48-existing-skill-canary-rollback-final-browser.zh.md) 最终包 Canary/rollback 恢复 | 真实 provider 和长期保持率 |

@@ -1,6 +1,6 @@
 # EvoForge v0.1 路线图
 
-> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已替换旧 Router 并完成公共 outbound/健康 Web 的真实浏览器失败恢复验收，飞书图片已在 assembled DSH 中进入 Agent，运行时外部能力获取相关偏差表面已删除；V4.54 又移除了治理包与 Shadow 报告中残留的 `search` 语义。缺失 Skill Candidate 已形成 Retention/Promotion/Canary/Rollback 活动纵切；现有 Skill 已完成完整 baseline、protected whole-tree Candidate、exact Holdout/Retention、独立发布门和最终包浏览器生命周期。V4.46–V4.49 已完成 existing/missing Skill 的 Canary、rollback 与最终包门禁；V4.50 建立 exact 跨 Goal 复用事实，V4.51 又以非因果、无发布权的只读投影连接后续 durable Outcome、重复交付、恢复和最新结果 metrics，并从最终 tarball 验证刷新、失败保留、Host 冷恢复和卸载。V5.5–V5.6 已完成飞书四类独立内容读取与当前 Session Host/Web 就绪投影，V5.7 又让 Gateway 统一约束 Adapter send wall-clock、超时/卸载 `uncertain` 与飞书官方 HTTP cancellation；V5.8 已把 exact 飞书入站/回复/Command/Approval/卸载/readback 做成真实平台专用 AS-2 入口，但本机无凭据，合同通过而平台结果严格 `NOT_RUN`；V5.9 又让 Doctor 复用 Gateway 权威健康，最终包已验证渠道 degraded→reload→ready 而不复制 transport 状态。V4.55 已实现两套真实 Provider 的阶段专用验收入口，V4.56 又补齐两个治理 Provider seam 的 60 秒硬上限；Provider 同样仍严格为 `NOT_RUN`。下一阶段取得真实 Provider 和真实飞书结果并做真实飞书 App 内容/权限；Hermes paired 仍未完成，普通文件/音视频仍 pending，v0.1 未发布。
+> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已替换旧 Router 并完成公共 outbound/健康 Web 的真实浏览器失败恢复验收，飞书图片已在 assembled DSH 中进入 Agent，运行时外部能力获取相关偏差表面已删除；V4.54 又移除了治理包与 Shadow 报告中残留的 `search` 语义。缺失 Skill Candidate 已形成 Retention/Promotion/Canary/Rollback 活动纵切；现有 Skill 已完成完整 baseline、protected whole-tree Candidate、exact Holdout/Retention、独立发布门和最终包浏览器生命周期。V4.46–V4.49 已完成 existing/missing Skill 的 Canary、rollback 与最终包门禁；V4.50 建立 exact 跨 Goal 复用事实，V4.51 又以非因果、无发布权的只读投影连接后续 durable Outcome、重复交付、恢复和最新结果 metrics，并从最终 tarball 验证刷新、失败保留、Host 冷恢复和卸载。V5.5–V5.6 已完成飞书四类独立内容读取与当前 Session Host/Web 就绪投影，V5.7 又让 Gateway 统一约束 Adapter send wall-clock、超时/卸载 `uncertain` 与飞书官方 HTTP cancellation；V5.8 已把 exact 飞书入站/回复/Command/Approval/卸载/readback 做成真实平台专用 AS-2 入口。当前真实 App 长连接已在最新 DSH rc.2 启动，exact route 配对尚未完成，平台结果仍为 `NOT_RUN`；V5.9 又让 Doctor 复用 Gateway 权威健康，最终包已验证渠道 degraded→reload→ready 而不复制 transport 状态。V4.55 已实现两套真实 Provider 的阶段专用验收入口，V4.56 又补齐两个治理 Provider seam 的 60 秒硬上限；Provider 同样仍严格为 `NOT_RUN`。下一阶段先完成 exact 飞书配对与 AS-2，再取得真实 Provider 结果并做真实飞书 App 内容/权限；Hermes paired 仍未完成，普通文件/音视频仍 pending，v0.1 未发布。
 > V5.10 已把真实 Generation 晋升/回滚与活动 pointer 原子记录，并从最终 tarball 验证 Web 晋升、reload、两次 Host 冷恢复、Canary root rollback、官方卸载和原生 Web readback。它只提供 mutation audit，不替代真实 Provider/长期 Outcome/paired 效果证据。
 > V5.11 已在该 mutation audit 上增加严格、有界、非因果的 post-selection Outcome 窗口，按 Session-pinned selected/previous/other Generation 展示 Goal、结果和 metrics；最终 tarball 已验证真实 Session Outcome、断线保留、两次冷恢复、整页 reload、卸载和原生 Web readback。V5.12 又以 Workspace-only opt-in policy 重建 existing-Skill 窄自动晋升，只允许 exact append-only/effect-clear/non-regressing 指令 Candidate，并接入原生 Jobs、durable pause、崩溃恢复及 Host/Web 权威状态。长期率、真实 provider 和因果效果仍 pending。
 > V5.13 修复冻结 EV-1 benchmark 与活动内容寻址架构之间的漂移：runner 删除已失效的 Git Skill source，改用 sealed `skill-bundle`、`GenerationBundleRepository` 和 expected-active rollback；四个 frozen Hermes epoch 已重新通过且结果未改写。根级检查现会类型检查 EV-1 runner，但这仍不是同模型真实 paired 证据。
@@ -11,6 +11,7 @@
 > V5.18 已推翻飞书测试中用普通 `agent.followup()` 文本冒充 Schedule 的旧证据，改为真实加载官方 DSH Schedule、通过原生 `schedule_create` 写入 Session 并等待 create→dispatch→follow-up；现有 Gateway turn journal 再以 `turn/end` 门只向 exact 飞书线程投递一次。没有新增 scheduler、Gateway 业务或 Feishu 私有日程状态；真实平台与 paired 门仍未通过。
 > V5.19 又把该路径推进到真实进程故障：子进程在 create 已由官方 Session flush 持久化、dispatch 尚未发生时被 `SIGKILL`；第二个 Host 由 Feishu Adapter 的 exact Gateway route 恢复同一 Session，官方 Schedule 处理 overdue 并投递一次，第三个 Host 不重放。exact rc.5/rc.2 均通过；官方 followup→dispatch checkpoint 窄重复窗口、真实平台和 paired 门仍未通过。
 > V5.20 已对 followup→dispatch checkpoint 窄窗口完成真实进程故障注入：先阻塞包含 dispatch 的 JSONL batch，等模型 turn 与第一次平台效果已经发生后 `SIGKILL`；恢复 Schedule 虽会重跑非 durable turn，但 Gateway 复用相同 route+turn intent，跨进程平台效果仍为一条。rc.5/rc.2 均通过；模型/成本重复、真实平台和 paired 门仍未通过。
+> V5.21 已把真实飞书 AS-2 升到 epoch-2：官方 Schedule 在活动 Gateway 前加载，真实验收必须经 agent-scoped `schedule_create` 观察精确一次 create/dispatch/Schedule 插件来源 `user/message`、同 route delivered 增量和卸载后原生 Session readback；关闭终态解码器拒绝旧 epoch、缺 Schedule 与损坏报告。合同 9/9、类型和 Feishu 52/52 通过；真实 App 长连接已启动，exact route 配对仍待完成，direct/group 仍严格 `NOT_RUN`。
 > V4.38 已在 existing-Skill Candidate proposer 前生成并校准 Candidate 不可见的完整 `skill-tree` holdout Envelope；V4.39 已把 exact Envelope 纳入 Candidate 内容身份并消费该 Envelope 与 V4.37 exact 双树执行 assembled paired Trial。下一门是独立 Retention/Canary/晋升/回滚，而不是再次生成或搜索能力。
 > V4.40–V4.45 已完成 Retention、发布门与最终包浏览器生命周期；V4.46–V4.48 已完成 existing-Skill failed-Outcome Canary、权威 Control/Remote/Web、独立 expected-active rollback gate 与最终 tarball 浏览器故障恢复；V4.49 已完成 missing-Skill 同类最终包故障恢复。下一门是两套独立真实 provider。
 > 更新日期：2026-08-24
@@ -58,10 +59,14 @@ Agent/Session/Goal 路径、reload/dispose、前代升级、卸载和原生 read
 
 实现状态：Adapter、Gateway 公共可靠投递、真实 DSH 单 Workspace 组合、双 Workspace 双渠道同 Host 重启隔离、Telegram/飞书进化注意力、tarball lifecycle 与十一包总装已完成；真实飞书 App 身份请求、标准代理环境 WebSocket 和 setup-only pairing transport 已通过。assembled 图片纵切已经证明外部 key 只停留在 Adapter，原生引用进入 Session 且 exact bytes 可由 AttachmentStore 回读；它不是用户真实飞书消息或真实多模态 provider 证据。同包 DSH Web Client Module 已从最终 tarball 安装到干净 profile，真实浏览器证明其在当前 Session 内生成/复制/取消配对且零 console error；用户尚未发送配对短语，exact route 消息仍未达到退出门。文档/Wiki/Drive metadata/Bitable 已以四个独立最小权限和一个稳定 Agent-scoped Tool 进入原生 ToolRuntime/Approval，官方 SDK 映射与 durable result 有 assembled 证据；V2 Host/Web 已显示当前 Session 的 Tool/Approval/future-only 就绪状态并通过最终包刷新、失败清空和恢复。真实 App scope、资源权限和真实内容仍待验收。普通文件、音视频继续 pending，不发明 Gateway file block。
 
-V5.8 的 AS-2 已把 V2 的真实平台退出路径编码为 fail-closed 入口：最终 tarball、官方 DSH CLI、生产飞书 transport、exact route、原生 Session/Command/Approval、Gateway durable notice、dispose/remove/readback 都是 hard gate；未授权时零身份/凭据读取。当前 7/7 合同通过，但 direct/group 两个真实 epoch 均为 `NOT_RUN`。
+V5.8 的 AS-2 已把 V2 的真实平台退出路径编码为 fail-closed 入口；V5.21 的 epoch-2 又把官方 DSH
+Schedule create/dispatch/插件来源 `user/message`、同 route delivered 增量与卸载后 readback 纳入关闭 hard gate。
+最终 tarball、官方 DSH CLI、生产飞书 transport、exact route、原生 Session/Command/Schedule/Approval、Gateway
+durable notice、dispose/remove/readback 都必须成立；未授权时零身份/凭据读取。当前 9/9 合同通过，但
+direct/group 两个真实 epoch 均为 `NOT_RUN`。
 
 V5.18 又把 V2 的日程回送从“普通 follow-up 代称 Schedule”修正为官方 DSH Schedule assembled 纵切：真实
-`schedule_create`、Session `schedule/change` create/dispatch、`plugin:schedule` 到期消息、Agent turn、Gateway
+`schedule_create`、Session `schedule/change` create/dispatch、Schedule 插件来源到期 `user/message`、Agent turn、Gateway
 durable `turn/end` 门和飞书 thread send 全部在同一 Host 中成立。V5.19 再以真实 `SIGKILL` 证明 create 已
 checkpoint、dispatch 前死亡后，exact route 冷恢复只回送一次且再次启动不重放；该门在 rc.5/rc.2 均通过。
 V5.20 进一步在第一次平台效果后阻塞 dispatch durability 并 kill；恢复虽然重跑模型 turn，Gateway 仍不产生

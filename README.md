@@ -38,7 +38,7 @@ V4.56 修复了真实 Provider 路径审计发现的可靠性缺口：缺失 Ski
 
 V5.7 把渠道外部发送的可靠性收回 `dsh-gateway` 深模块：每个 Adapter 注册都必须声明 wall-clock send 上限；超时或 Cordis dispose 即使遇到不合作的 Adapter Promise，也会把 durable `sending` 收敛为 `uncertain` 并禁止自动重发。Telegram 与飞书当前均为 30 秒；飞书文本和 Approval 卡片还把组合 signal 传入官方 HTTP transport。该增量不新增 Gateway 业务、模型表面或真实平台效果，详见 [V5.7 证据](docs/evidence/v5-7-bounded-channel-delivery.zh.md)。
 
-V5.8 增加阶段专用 AS-2 真实飞书验收入口：显式授权后，它把当前 clean `main` 的最终 `dsh-gateway`/`dsh-feishu` tarball 安装到隔离 DSH `web` profile，以生产飞书 transport 验证 exact 入站、原生回复、`/feishu`、一次性 Approval、持久 notice、dispose、官方卸载与 Session readback。未授权时不读取 App/chat/user/Secret，也不加载执行模块；本机无凭据，当前真实状态严格为 `NOT_RUN`。详见 [AS-2 说明](benchmarks/feishu-v0.1/as2-real-channel/README.zh.md)与 [V5.8 证据](docs/evidence/v5-8-real-feishu-acceptance-gate.zh.md)。
+V5.8 增加阶段专用 AS-2 真实飞书验收入口：显式授权后，它把当前 clean `main` 的最终 `dsh-gateway`/`dsh-feishu` tarball 安装到隔离 DSH `web` profile，以生产飞书 transport 验证 exact 入站、原生回复、`/feishu`、一次性 Approval、持久 notice、dispose、官方卸载与 Session readback。未授权时不读取 App/chat/user/Secret，也不加载执行模块；该阶段当时无凭据，真实状态严格为 `NOT_RUN`。详见 [AS-2 说明](benchmarks/feishu-v0.1/as2-real-channel/README.zh.md)与 [V5.8 证据](docs/evidence/v5-8-real-feishu-acceptance-gate.zh.md)。
 
 V5.9 修正 `/doctor` 的渠道误报：必需且 active 的 `dsh-feishu`/`dsh-telegram` 现在还要通过现有 Gateway
 脱敏 transport health 才能 READY，degraded/缺失为 NOT READY，连接或停止过程中为 UNKNOWN。最终 Doctor
@@ -103,6 +103,13 @@ V5.20 又覆盖官方 followup→dispatch checkpoint 窄窗口：测试先阻塞
 顺序使 turn 号不变，Gateway 复用同一 durable intent，恢复平台发送 0 次、跨进程效果总数 1。rc.5/rc.2 均
 通过，未增加 Schedule parser、causal key 或私有状态；模型与成本仍可能重复。详见
 [V5.20 证据](docs/evidence/v5-20-schedule-dispatch-crash-outbound-dedup.zh.md)。
+
+V5.21 将真实飞书 AS-2 从 epoch-1 升到 epoch-2：最终包的活动组合先加载官方 DSH Schedule，再由 Gateway
+创建 exact route Agent；验收器通过 agent-scoped `schedule_create` 要求 Session 中同时出现 create、dispatch、
+Schedule 插件来源的 `user/message`，且生产飞书 route 的 durable delivered 计数必须增加。卸载后原生 Session 仍须读回这些事实。
+终态解码器关闭十一项 observation，缺 Schedule、旧 epoch 或损坏报告不能复用；合同 9/9、类型与 Feishu
+52/52 已通过。真实 App 长连接已启动，exact route 配对尚未完成，因此 direct/group 仍严格为 `NOT_RUN`。详见
+[V5.21 证据](docs/evidence/v5-21-real-feishu-native-schedule-gate.zh.md)。
 
 existing-Skill 路径会封存调用时完整 Bundle，并把当前纠正文与 durable Goal/请求预分为 authoring/admission/holdout/可选 Retention。V4.40 的 Candidate 不可见治理面在 proposer 前用两次独立调用分别消费 protected Holdout 与可选第五 Goal Retention，每次只见 exact baseline 和自己的一个 protected Goal；两套 assembled `skill-tree` Case Pack 经独立 calibration 后共同进入内容寻址 Evaluation Envelope，Candidate id 绑定整个 Envelope。受保护作者只允许改 `SKILL.md`/`references/*.md`，Host 原样继承二进制和其余文件并拒绝权限漂移；结构准入再重验 exact baseline/Candidate 双树、声明 diff 与 protected admission identity。V4.39 的原生 DSH Job 执行完整 paired Holdout；V4.41 只在该 exact Holdout 权威判为 `improved` 后由另一原生 DSH Job 执行预密封 Retention，四 Goal无样本时零花费 abstain，五 Goal按 `fail/pass` 四象限持久判为 `retained/ambiguous/not-retained/regressed`。两者都要求 calibration、assembled、composition 与输入完整性全部成立，中断不盲重试且无晋升权。V4.43 再由独立 Host mutation gate 重验 exact Admission/Holdout/Retention 与完整 sealed Bundle；只有人工 approve 才产生 inactive Generation，另一动作才选择未来 Session，reject 持久终止且 evaluator 始终无发布权。
 

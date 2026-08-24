@@ -1,8 +1,30 @@
 import { createHash } from 'node:crypto'
 import { dirname, isAbsolute, resolve } from 'node:path'
 
-export const BENCHMARK_ID = 'as2-feishu-real-channel-epoch-1'
+export const BENCHMARK_ID = 'as2-feishu-real-channel-epoch-2'
 export const REAL_FEISHU_APPROVAL = 'I_APPROVE_REAL_FEISHU_CHANNEL_EFFECTS'
+
+const terminalObservationNames = [
+  'finalTarballsInstalled',
+  'profileDumped',
+  'officialTransportReady',
+  'exactInboundChallenge',
+  'replyDelivered',
+  'commandRoundTrip',
+  'nativeScheduleRoundTrip',
+  'approvalAllowedOnce',
+  'noticeDelivered',
+  'sessionRecoveredAfterRemoval',
+  'nativeHostBootedAfterRemoval',
+] as const
+
+const terminalGatewayNames = [
+  'ingressSettled',
+  'ingressUncertain',
+  'outboundDelivered',
+  'outboundUncertain',
+  'outboundFailed',
+] as const
 
 const requiredNames = [
   'DSH_FEISHU_APP_ID',
@@ -50,6 +72,100 @@ export type RealFeishuAcceptanceResolution =
       readonly execution: RealFeishuExecutionConfig
       readonly exitCode?: undefined
     }
+
+export interface RealFeishuTerminalReport {
+  readonly schemaVersion: 1
+  readonly benchmarkId: typeof BENCHMARK_ID
+  readonly status: 'passed' | 'failed'
+  readonly scope: string
+  readonly manifestHash: string
+  readonly revisions: { readonly evoforge: string; readonly deepseekHarness: string }
+  readonly chatKind: 'direct' | 'group'
+  readonly appIdentityHash: string
+  readonly routeIdentityHash: string
+  readonly stage: string
+  readonly observations: Readonly<Record<(typeof terminalObservationNames)[number], boolean>>
+  readonly gateway?: Readonly<Record<(typeof terminalGatewayNames)[number], number>>
+  readonly reasons: readonly string[]
+}
+
+export interface RealFeishuTerminalIdentity {
+  readonly manifestHash: string
+  readonly evoforgeRevision: string
+  readonly dshRevision: string
+  readonly preflight: Extract<RealFeishuAcceptanceResolution, { status: 'ready' }>['report']
+}
+
+export interface RealFeishuRuntimeEvent {
+  readonly type: string
+  readonly data?: unknown
+}
+
+/** Match the official Schedule facts exactly; there is no plugin:schedule event type. */
+export function hasExactNativeScheduleRoundTrip(events: readonly RealFeishuRuntimeEvent[]): boolean {
+  let created = 0
+  let dispatched = 0
+  let deliveredToSession = 0
+  for (const event of events) {
+    if (event.type === 'schedule/change' && isRecord(event.data)) {
+      if (event.data.operation === 'create') created += 1
+      if (event.data.operation === 'dispatch') dispatched += 1
+    }
+    if (event.type === 'user/message' && isRecord(event.data) && isRecord(event.data.source)
+      && event.data.source.kind === 'plugin' && event.data.source.plugin === 'schedule') {
+      deliveredToSession += 1
+    }
+  }
+  return created === 1 && dispatched === 1 && deliveredToSession === 1
+}
+
+/**
+ * Decode one retained AS-2 result before it can suppress a new real-platform
+ * run. The exact epoch owns a closed hard-gate set, including native Schedule;
+ * an older, partial, or malformed report is never reusable evidence.
+ */
+export function assertRealFeishuTerminalReport(
+  value: unknown,
+  expected: RealFeishuTerminalIdentity,
+): asserts value is RealFeishuTerminalReport {
+  if (!isRecord(value)
+    || value.schemaVersion !== 1
+    || value.benchmarkId !== BENCHMARK_ID
+    || (value.status !== 'passed' && value.status !== 'failed')
+    || !boundedText(value.scope, 2_048)
+    || value.manifestHash !== expected.manifestHash
+    || !isRecord(value.revisions)
+    || value.revisions.evoforge !== expected.evoforgeRevision
+    || value.revisions.deepseekHarness !== expected.dshRevision
+    || value.chatKind !== expected.preflight.chatKind
+    || value.appIdentityHash !== expected.preflight.appIdentityHash
+    || value.routeIdentityHash !== expected.preflight.routeIdentityHash
+    || !boundedText(value.stage, 128)) {
+    throw new Error('AS-2 retained terminal report identity is invalid')
+  }
+  const observations = value.observations
+  if (!isRecord(observations)
+    || !hasExactKeys(observations, terminalObservationNames)
+    || terminalObservationNames.some(name => typeof observations[name] !== 'boolean')) {
+    throw new Error('AS-2 retained terminal report observations are invalid')
+  }
+  const reasons = value.reasons
+  if (!Array.isArray(reasons)
+    || reasons.some(reason => !boundedText(reason, 512))
+    || (value.status === 'passed'
+      ? value.stage !== 'complete'
+        || reasons.length !== 0
+        || terminalObservationNames.some(name => observations[name] !== true)
+      : reasons.length === 0)) {
+    throw new Error('AS-2 retained terminal report verdict is invalid')
+  }
+  const gateway = value.gateway
+  if (gateway !== undefined && (!isRecord(gateway)
+    || !hasExactKeys(gateway, terminalGatewayNames)
+    || terminalGatewayNames.some(name => !Number.isSafeInteger(gateway[name]) || Number(gateway[name]) < 0))) {
+    throw new Error('AS-2 retained terminal report Gateway facts are invalid')
+  }
+}
 
 /** Resolve authorization before inspecting any platform identity or secret. */
 export function resolveRealFeishuAcceptance(
@@ -186,6 +302,21 @@ function containsPath(parent: string, child: string): boolean {
 function boundedReason(error: unknown): string {
   const value = error instanceof Error ? error.message : String(error)
   return value.replace(/[\r\n]+/gu, ' ').slice(0, 256) || 'invalid:unknown'
+}
+
+function boundedText(value: unknown, maxBytes: number): value is string {
+  return typeof value === 'string' && value.length > 0 && Buffer.byteLength(value) <= maxBytes
+    && !/[\u0000-\u001f\u007f]/u.test(value)
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function hasExactKeys(value: Record<string, unknown>, expected: readonly string[]): boolean {
+  const actual = Object.keys(value).sort()
+  const wanted = [...expected].sort()
+  return actual.length === wanted.length && actual.every((key, index) => key === wanted[index])
 }
 
 function sha256(value: string): string {

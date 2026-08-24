@@ -4,6 +4,8 @@ import { dirname, resolve } from 'node:path'
 import { describe, test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import {
+  assertRealFeishuTerminalReport,
+  hasExactNativeScheduleRoundTrip,
   REAL_FEISHU_APPROVAL,
   resolveRealFeishuAcceptance,
 } from './contract.ts'
@@ -36,7 +38,7 @@ describe('AS-2 real Feishu acceptance contract', () => {
       exitCode: 2,
       report: {
         schemaVersion: 1,
-        benchmarkId: 'as2-feishu-real-channel-epoch-1',
+        benchmarkId: 'as2-feishu-real-channel-epoch-2',
         status: 'not-run',
         reasons: ['real-feishu-effects-not-authorized'],
       },
@@ -54,7 +56,7 @@ describe('AS-2 real Feishu acceptance contract', () => {
     assert.equal(resolved.exitCode, 2)
     assert.deepEqual(resolved.report, {
       schemaVersion: 1,
-      benchmarkId: 'as2-feishu-real-channel-epoch-1',
+      benchmarkId: 'as2-feishu-real-channel-epoch-2',
       status: 'not-run',
       reasons: [
         'missing:DSH_FEISHU_APP_ID',
@@ -121,6 +123,80 @@ describe('AS-2 real Feishu acceptance contract', () => {
     }
   })
 
+  test('recognizes exactly one official Schedule create, dispatch, and plugin-sourced user message', () => {
+    const official = [
+      { type: 'schedule/change', data: { operation: 'create' } },
+      { type: 'schedule/change', data: { operation: 'dispatch' } },
+      { type: 'user/message', data: { source: { kind: 'plugin', plugin: 'schedule' } } },
+    ]
+    assert.equal(hasExactNativeScheduleRoundTrip(official), true)
+    assert.equal(hasExactNativeScheduleRoundTrip([
+      ...official.slice(0, 2),
+      { type: 'plugin:schedule', data: {} },
+    ]), false)
+    assert.equal(hasExactNativeScheduleRoundTrip([...official, official[2]!]), false)
+  })
+
+  test('rejects a retained terminal report that omits the native Schedule round trip gate', () => {
+    const resolved = resolveRealFeishuAcceptance(readyEnvironment())
+    assert.equal(resolved.status, 'ready')
+    if (resolved.status !== 'ready') throw new Error('expected ready Feishu acceptance')
+    const identity = {
+      manifestHash: 'a'.repeat(64),
+      evoforgeRevision: 'b'.repeat(40),
+      dshRevision: 'c'.repeat(40),
+      preflight: resolved.report,
+    }
+    const observations = {
+      finalTarballsInstalled: true,
+      profileDumped: true,
+      officialTransportReady: true,
+      exactInboundChallenge: true,
+      replyDelivered: true,
+      commandRoundTrip: true,
+      approvalAllowedOnce: true,
+      noticeDelivered: true,
+      sessionRecoveredAfterRemoval: true,
+      nativeHostBootedAfterRemoval: true,
+    }
+
+    assert.throws(() => assertRealFeishuTerminalReport({
+      schemaVersion: 1,
+      benchmarkId: 'as2-feishu-real-channel-epoch-2',
+      status: 'passed',
+      scope: 'real route including native Schedule',
+      manifestHash: identity.manifestHash,
+      revisions: {
+        evoforge: identity.evoforgeRevision,
+        deepseekHarness: identity.dshRevision,
+      },
+      chatKind: resolved.report.chatKind,
+      appIdentityHash: resolved.report.appIdentityHash,
+      routeIdentityHash: resolved.report.routeIdentityHash,
+      stage: 'complete',
+      observations,
+      reasons: [],
+    }, identity), /observations/u)
+
+    assert.doesNotThrow(() => assertRealFeishuTerminalReport({
+      schemaVersion: 1,
+      benchmarkId: 'as2-feishu-real-channel-epoch-2',
+      status: 'passed',
+      scope: 'real route including native Schedule',
+      manifestHash: identity.manifestHash,
+      revisions: {
+        evoforge: identity.evoforgeRevision,
+        deepseekHarness: identity.dshRevision,
+      },
+      chatKind: resolved.report.chatKind,
+      appIdentityHash: resolved.report.appIdentityHash,
+      routeIdentityHash: resolved.report.routeIdentityHash,
+      stage: 'complete',
+      observations: { ...observations, nativeScheduleRoundTrip: true },
+      reasons: [],
+    }, identity))
+  })
+
   test('exits 2 with one JSON not-run report before any real platform effect', () => {
     const result = spawnSync(tsx, [runner], {
       cwd: repositoryRoot,
@@ -132,7 +208,7 @@ describe('AS-2 real Feishu acceptance contract', () => {
     assert.equal(result.stderr, '')
     assert.deepEqual(JSON.parse(result.stdout), {
       schemaVersion: 1,
-      benchmarkId: 'as2-feishu-real-channel-epoch-1',
+      benchmarkId: 'as2-feishu-real-channel-epoch-2',
       status: 'not-run',
       reasons: ['real-feishu-effects-not-authorized'],
     })

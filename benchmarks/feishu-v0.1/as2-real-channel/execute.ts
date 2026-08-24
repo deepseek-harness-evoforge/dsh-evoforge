@@ -14,9 +14,12 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
 import {
+  assertRealFeishuTerminalReport,
   BENCHMARK_ID,
+  hasExactNativeScheduleRoundTrip,
   type RealFeishuAcceptanceResolution,
   type RealFeishuExecutionConfig,
+  type RealFeishuTerminalReport,
 } from './contract.ts'
 
 const execFile = promisify(execFileCallback)
@@ -47,38 +50,7 @@ interface RuntimeGateway {
   healthSnapshot(observedAt?: number, routeIds?: readonly string[]): GatewayHealthSnapshot
 }
 
-interface AcceptanceReport {
-  readonly schemaVersion: 1
-  readonly benchmarkId: typeof BENCHMARK_ID
-  readonly status: 'passed' | 'failed'
-  readonly scope: string
-  readonly manifestHash: string
-  readonly revisions: { readonly evoforge: string; readonly deepseekHarness: string }
-  readonly chatKind: 'direct' | 'group'
-  readonly appIdentityHash: string
-  readonly routeIdentityHash: string
-  readonly stage: string
-  readonly observations: {
-    readonly finalTarballsInstalled: boolean
-    readonly profileDumped: boolean
-    readonly officialTransportReady: boolean
-    readonly exactInboundChallenge: boolean
-    readonly replyDelivered: boolean
-    readonly commandRoundTrip: boolean
-    readonly approvalAllowedOnce: boolean
-    readonly noticeDelivered: boolean
-    readonly sessionRecoveredAfterRemoval: boolean
-    readonly nativeHostBootedAfterRemoval: boolean
-  }
-  readonly gateway?: {
-    readonly ingressSettled: number
-    readonly ingressUncertain: number
-    readonly outboundDelivered: number
-    readonly outboundUncertain: number
-    readonly outboundFailed: number
-  }
-  readonly reasons: readonly string[]
-}
+type AcceptanceReport = RealFeishuTerminalReport
 
 interface AcceptanceState {
   readonly schemaVersion: 1
@@ -95,9 +67,22 @@ interface AcceptanceState {
 
 interface RuntimeContext {
   readonly fiber: { dispose(): Promise<void> }
-  readonly agents: { get(id: unknown): RuntimeAgent | undefined }
+  readonly agents: {
+    get(id: unknown): RuntimeAgent | undefined
+    withInitiator<T>(agent: RuntimeAgent, operation: () => Promise<T>): Promise<T>
+  }
   readonly sessions: { flush(session: unknown): Promise<void> }
   readonly sessionPersistence: { load(id: unknown): Promise<{ events: readonly RuntimeEvent[] }> }
+  readonly tools: {
+    get(name: string, agent: RuntimeAgent): unknown
+    execute(input: {
+      readonly signal: AbortSignal
+      readonly callId: string
+      readonly name: string
+      readonly arguments: unknown
+      readonly agent: RuntimeAgent
+    }): Promise<{ readonly isError?: boolean }>
+  }
   readonly workspaceRegistry: {
     create(path: string): Promise<{ readonly id: unknown }>
   }
@@ -106,6 +91,7 @@ interface RuntimeContext {
 
 interface RuntimeAgent {
   readonly session: { readonly events: readonly RuntimeEvent[] }
+  whenIdle(): Promise<void>
 }
 
 interface RuntimeEvent {
@@ -166,9 +152,9 @@ export async function executeRealFeishuAcceptance(
   const runDir = await exactDirectory(join(root, BENCHMARK_ID, runId))
   const resultPath = join(runDir, RESULT_FILE)
   const statePath = join(runDir, STATE_FILE)
-  const previous = await readJson<AcceptanceReport>(resultPath)
+  const previous = await readJson<unknown>(resultPath)
   if (previous !== undefined) {
-    assertPriorReport(previous, { manifestHash, evoforgeRevision, dshRevision, preflight })
+    assertRealFeishuTerminalReport(previous, { manifestHash, evoforgeRevision, dshRevision, preflight })
     return previous
   }
   if (await exists(statePath)) {
@@ -238,8 +224,9 @@ export async function executeRealFeishuAcceptance(
       encoding: 'utf8',
       timeout: 30_000,
     })
-    if (!dumped.stdout.includes('id: evoforge-gateway')
-      || !dumped.stdout.includes('id: evoforge-feishu')
+    if (!dumped.stdout.includes('id: as2-schedule')
+      || !dumped.stdout.includes('id: as2-gateway')
+      || !dumped.stdout.includes('id: as2-feishu')
       || !dumped.stdout.includes(`sessionId: ${SESSION_ID}`)) {
       throw new Error('AS-2 effective DSH profile is missing an intended real-channel row')
     }
@@ -276,8 +263,12 @@ export async function executeRealFeishuAcceptance(
       throw new Error(`AS-2 observed ${observedChatKind ?? 'unknown'} chat kind, expected ${config.chatKind}`)
     }
     observations = { ...observations, exactInboundChallenge: true }
-    await eventually(() => gateway.healthSnapshot(Date.now(), [ROUTE_ID]).outbound.delivered >= 1,
-      config.interactionTimeoutMs, 'native DSH final reply was not durably delivered to Feishu')
+    let deliveredBefore = await exactDeliveredIncrement(
+      gateway,
+      0,
+      config.interactionTimeoutMs,
+      'native DSH final reply was not durably delivered to Feishu',
+    )
     observations = { ...observations, replyDelivered: true }
 
     stage = 'awaiting-native-command'
@@ -285,9 +276,26 @@ export async function executeRealFeishuAcceptance(
     process.stderr.write('Now send /feishu from the same exact Feishu user/chat.\n')
     await eventually(() => hasCommand(agent.session.events, 'feishu'), config.interactionTimeoutMs,
       'the /feishu Command did not enter the native DSH Session')
-    await eventually(() => gateway.healthSnapshot(Date.now(), [ROUTE_ID]).outbound.delivered >= 2,
-      config.interactionTimeoutMs, 'the /feishu Command result was not delivered')
+    deliveredBefore = await exactDeliveredIncrement(
+      gateway,
+      deliveredBefore,
+      config.interactionTimeoutMs,
+      'the /feishu Command result was not delivered',
+    )
     observations = { ...observations, commandRoundTrip: true }
+
+    stage = 'native-schedule-create-and-delivery'
+    await writeState(statePath, stateBase, stage)
+    await createNativeSchedule(config.dshSourceDir, context, agent, runId)
+    await eventually(() => hasExactNativeScheduleRoundTrip(agent.session.events), config.interactionTimeoutMs,
+      'official DSH Schedule create/dispatch/follow-up did not complete in the native Session')
+    deliveredBefore = await exactDeliveredIncrement(
+      gateway,
+      deliveredBefore,
+      config.interactionTimeoutMs,
+      'the official DSH Schedule result was not delivered to Feishu',
+    )
+    observations = { ...observations, nativeScheduleRoundTrip: true }
 
     stage = 'approval-dispatch-intent'
     await writeState(statePath, stateBase, stage)
@@ -306,8 +314,12 @@ export async function executeRealFeishuAcceptance(
       text: 'EvoForge AS-2 real-channel acceptance: durable host notice.',
     })
     if (!notice.created) throw new Error('AS-2 notice reused an effect before this exact run')
-    await eventually(() => gateway.healthSnapshot(Date.now(), [ROUTE_ID]).outbound.delivered >= 3,
-      config.interactionTimeoutMs, 'the durable host notice was not delivered')
+    deliveredBefore = await exactDeliveredIncrement(
+      gateway,
+      deliveredBefore,
+      config.interactionTimeoutMs,
+      'the durable host notice was not delivered',
+    )
     const health = gateway.healthSnapshot(Date.now(), [ROUTE_ID])
     if (countExactUserText(agent.session.events, challenge) !== 1) {
       throw new Error('AS-2 exact challenge was admitted more than once')
@@ -345,8 +357,10 @@ export async function executeRealFeishuAcceptance(
     ))
     try {
       const restored = await native.sessionPersistence.load(SESSION_ID)
-      if (!hasExactUserText(restored.events, challenge) || !hasCommand(restored.events, 'feishu')) {
-        throw new Error('native DSH Session readback lost the exact Feishu ingress or Command')
+      if (!hasExactUserText(restored.events, challenge)
+        || !hasCommand(restored.events, 'feishu')
+        || !hasExactNativeScheduleRoundTrip(restored.events)) {
+        throw new Error('native DSH Session readback lost the exact Feishu ingress, Command, or Schedule')
       }
       observations = { ...observations, sessionRecoveredAfterRemoval: true }
     } finally {
@@ -396,6 +410,7 @@ function emptyObservations(): AcceptanceReport['observations'] {
     exactInboundChallenge: false,
     replyDelivered: false,
     commandRoundTrip: false,
+    nativeScheduleRoundTrip: false,
     approvalAllowedOnce: false,
     noticeDelivered: false,
     sessionRecoveredAfterRemoval: false,
@@ -489,35 +504,39 @@ async function writeAcceptanceOverlay(
   workspaceId: string,
   mockLlmPath: string,
 ): Promise<void> {
-  const overlay = `- id: evoforge-gateway
-  name: dsh-gateway
-  disabled: false
-  config:
-    routes:
-      - id: ${ROUTE_ID}
-        adapter: feishu
-        accountId: ${yaml(config.appId)}
-        conversationId: ${yaml(config.conversationId)}
-        userId: ${yaml(config.userId)}
-        workspaceId: ${yaml(workspaceId)}
-        sessionId: ${SESSION_ID}
-        agentPreset: standard
-        provider: cli-mock
-        model: cli-mock
-
-- id: evoforge-feishu
-  name: dsh-feishu
-  disabled: false
-  config:
-    mode: routes
-    routeIds: [${ROUTE_ID}]
-    appIdEnv: DSH_FEISHU_APP_ID
-    appSecretEnv: DSH_FEISHU_APP_SECRET
-    contentPermissions: []
-
-- insert:
+  const overlay = `- insert:
     - id: as2-cli-mock-llm
       name: ${yaml(mockLlmPath)}
+
+    # Schedule observes only roots created after it loads. The active Gateway
+    # route is therefore inserted after this official DSH owner; the disabled
+    # Bundle rows remain installation declarations only.
+    - id: as2-schedule
+      name: '@deepseek-ai/dsh-schedule'
+
+    - id: as2-gateway
+      name: dsh-gateway
+      config:
+        routes:
+          - id: ${ROUTE_ID}
+            adapter: feishu
+            accountId: ${yaml(config.appId)}
+            conversationId: ${yaml(config.conversationId)}
+            userId: ${yaml(config.userId)}
+            workspaceId: ${yaml(workspaceId)}
+            sessionId: ${SESSION_ID}
+            agentPreset: standard
+            provider: cli-mock
+            model: cli-mock
+
+    - id: as2-feishu
+      name: dsh-feishu
+      config:
+        mode: routes
+        routeIds: [${ROUTE_ID}]
+        appIdEnv: DSH_FEISHU_APP_ID
+        appSecretEnv: DSH_FEISHU_APP_SECRET
+        contentPermissions: []
 `
   await writeFile(path, overlay, { mode: 0o600 })
   await chmod(path, 0o600)
@@ -588,6 +607,32 @@ async function requestNativeApproval(
   }, () => Promise.resolve<ApprovalOutcome>('unavailable'))
 }
 
+async function createNativeSchedule(
+  dshSourceDir: string,
+  context: RuntimeContext,
+  agent: RuntimeAgent,
+  runId: string,
+): Promise<void> {
+  if (context.tools.get('schedule_create', agent) === undefined) {
+    throw new Error('AS-2 official Schedule Tool was not registered before the Gateway Agent')
+  }
+  const llmModule = await import(pathToFileURL(
+    join(dshSourceDir, 'packages', 'llm', 'llm', 'lib', 'index.js'),
+  ).href) as { CallId(id: string): string }
+  const scheduled = await context.agents.withInitiator(agent, () => context.tools.execute({
+    signal: new AbortController().signal,
+    callId: llmModule.CallId(`as2-schedule-${runId.slice(0, 16)}`),
+    name: 'schedule_create',
+    arguments: {
+      prompt: `EvoForge AS-2 native Schedule round trip ${runId.slice(0, 16)}.`,
+      after_seconds: 1,
+    },
+    agent,
+  }))
+  if (scheduled.isError === true) throw new Error('AS-2 official schedule_create returned an error')
+  await context.sessions.flush(agent.session)
+}
+
 function requireGateway(context: RuntimeContext): RuntimeGateway {
   const gateway = context.get('evoforge.gateway') as RuntimeGateway | undefined
   if (gateway === undefined) throw new Error('AS-2 production dsh-gateway did not load')
@@ -650,6 +695,24 @@ async function eventually(
   }
   if (predicate()) return
   throw new Error(message)
+}
+
+async function exactDeliveredIncrement(
+  gateway: RuntimeGateway,
+  before: number,
+  timeoutMs: number,
+  message: string,
+): Promise<number> {
+  await eventually(
+    () => gateway.healthSnapshot(Date.now(), [ROUTE_ID]).outbound.delivered >= before + 1,
+    timeoutMs,
+    message,
+  )
+  const delivered = gateway.healthSnapshot(Date.now(), [ROUTE_ID]).outbound.delivered
+  if (delivered !== before + 1) {
+    throw new Error(`AS-2 expected exactly one new delivered effect, observed ${String(delivered - before)}`)
+  }
+  return delivered
 }
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
@@ -796,26 +859,6 @@ async function exists(path: string): Promise<boolean> {
   } catch (error: unknown) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false
     throw error
-  }
-}
-
-function assertPriorReport(
-  report: AcceptanceReport,
-  expected: {
-    readonly manifestHash: string
-    readonly evoforgeRevision: string
-    readonly dshRevision: string
-    readonly preflight: ReadyReport
-  },
-): void {
-  if (report.schemaVersion !== 1 || report.benchmarkId !== BENCHMARK_ID
-    || report.manifestHash !== expected.manifestHash
-    || report.revisions.evoforge !== expected.evoforgeRevision
-    || report.revisions.deepseekHarness !== expected.dshRevision
-    || report.appIdentityHash !== expected.preflight.appIdentityHash
-    || report.routeIdentityHash !== expected.preflight.routeIdentityHash
-    || report.chatKind !== expected.preflight.chatKind) {
-    throw new Error('AS-2 retained terminal report identity is invalid')
   }
 }
 

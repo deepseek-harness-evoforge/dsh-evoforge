@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "id": "as2-feishu-real-channel-epoch-1",
-  "scope": "one real Feishu exact-route inbound, native DSH reply, /feishu Command, once-only DSH Approval card, durable notice, dispose, uninstall, and native Session readback; not content-resource authorization, long-term soak, or Hermes paired evidence",
+  "id": "as2-feishu-real-channel-epoch-2",
+  "scope": "one real Feishu exact-route inbound, native DSH reply, /feishu Command, official native DSH Schedule round trip, once-only DSH Approval card, durable notice, dispose, uninstall, and native Session readback; not content-resource authorization, long-term soak, or Hermes paired evidence",
   "revisions": {
-    "deepseekHarness": "47f943859bef60e4160492346772ded9b24f765a"
+    "deepseekHarness": "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
   },
   "platform": {
     "transport": "official Feishu WebSocket and HTTP",
@@ -19,8 +19,9 @@
     "one human-sent challenge enters the native DSH Session and its final answer is durably delivered",
     "the production Adapter observes the declared direct or group kind on that exact inbound event",
     "the same exact user can execute /feishu and receive its result",
+    "the official DSH schedule_create Tool records exactly one create and dispatch plus one user/message sourced from the schedule plugin in the same Session, and the resulting turn is delivered to the exact Feishu route",
     "one native DSH Approval card resolves allowed-once and cannot be replaced by a benchmark-owned approval system",
     "one stable host notice is durably delivered without uncertain or failed outbound effects",
-    "dispose and official plugin removal succeed, native DSH boots, and the native Session still contains the exact ingress and Command"
+    "dispose and official plugin removal succeed, native DSH boots, and the native Session still contains the exact ingress, Command, and Schedule facts"
   ]
 }
