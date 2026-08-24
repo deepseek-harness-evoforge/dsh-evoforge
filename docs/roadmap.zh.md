@@ -115,6 +115,12 @@ turns/steps/token/cache/latency/active wall，固定无因果、无 improvement 
 可测上下文；最终 tarball 已从全新 profile 验证刷新、断连保留、同 profile 冷恢复不重复、reload、卸载及原生 Web
 无残留。但它仍不能称为返工下降或 Skill 效果；两套真实 provider、长期结果与同条件 paired benchmark 仍是下一门禁。
 
+V4.53 把重复跨 Goal 最新失败从被动数字提升为 `Exact Skill Failure-Context Investigation`：同一 exact Skill
+name/content hash/Generation 必须在至少两个不同 Goal 上各自具有唯一 latest failed；同 Goal retry、后来恢复、
+unknown/missing 与 latest 冲突全部不计。Host/Control/Remote/Command/Web 只投影可撤回的 review request，固定无
+因果、无 Candidate/发布权，并让 eligible 行优先进入 20 行明细。当前实现与自动化已补齐；下一门是从最终
+tarball 验证真实 DSH Web 的刷新、断连、冷恢复和官方卸载，之后仍回到两套真实 provider、长期结果和 paired benchmark。
+
 内部 Candidate 评测已删除 `candidateAdmissionTargets`/`candidateShadowTargets` 这两套预选 exact Skill 的配置。
 `candidateEvaluationPolicies` 不声明 Skill、baseline、Case Pack 或 Candidate 方向；自主治理只增加 exact DSH revision 和独立日预算。Host 先从 exact Opportunity
 自动形成内容寻址的 `Skill Evaluation Evidence Seal`，Candidate v2 将 seal id 纳入内容身份；Candidate-independent 治理模块分别用受保护 admission/holdout，以及可用时的第五 Goal Retention 样本形成互不复用的 Case Pack，同 proposer model identity 在预算前 fail closed，并以零 proposer 调用校准；四 Goal Envelope v4 或带 Retention 的 Envelope v5 再绑定 seal、author-input digest、治理作者/输入 digest、

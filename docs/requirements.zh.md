@@ -185,6 +185,13 @@ DSH Goal metrics。相邻 attempt 只有在时间严格有序、两侧 Goal metr
 全量 rollup 与最多 20 行明细分离。该投影固定无因果、无 improvement claim、无发布权，不能改变 Candidate、
 评测、晋升或回滚资格。
 
+当同一 exact Skill name、invocation-content hash 与 Generation 在至少两个不同 Goal 上都具有唯一最新 `failed`
+Outcome 时，系统可以从同一只读投影形成可撤回的 **Exact Skill Failure-Context Investigation**。同 Goal retry
+不能增加 Goal 数，后来 passed/recovered 的旧失败不能计入，missing、unknown、并列冲突或顺序歧义必须 abstain。
+该调查只把内部真实经历转成因果复核入口，固定无 causal claim、无 Candidate authority、无 release authority；
+不得直接生成或排序 Candidate，不得触发评测、晋升、回滚或发布。bounded 明细必须优先保留 eligible 调查，
+但 Workspace 全量 rollup 不得因 20 行展示上限丢失计数。
+
 ### 3.3 Goal，而不是 Mission
 
 保留 DSH 原生 Goal 作为唯一用户可见的长期目标概念。允许增强 Goal 的完成验证、预算、连续性、常驻监督和崩溃恢复，但不增加 Mission、第二套目标标识、任务 DAG 或平行工作流数据库。
@@ -408,6 +415,8 @@ active wall time 来自同一原生 turn 边界。手工 turn、其他 Goal、�
 DSH Web 已投影 `Capability Gap → Skill Opportunity → Candidate → authoring state`，并将 existing-Skill improvement investigation、exact baseline qualification、correction evidence readiness、Candidate-blind holdout governance、paired structural admission、exact paired holdout effect verdict 与 exact Retention 作为独立队列展示。existing-Skill Candidate 行显示其生成前绑定的 exact Holdout Envelope id；Retention 行显示 Candidate/Holdout/Admission/Envelope、baseline/Candidate/Holdout/Retention tree、四象限、calibration/assembled/composition/integrity、model/token/cache 与无晋升/发布权。页面另显示证据 Goal 数、Gap/纠正数、baseline provider/source/id/文件数、authoring/admission/holdout/Retention 分区、holdout phase/cost/retry/failure/Envelope identity、结构准入 status/reason、baseline→Candidate tree、声明 diff 计数、protected admission 摘要、paired Candidate/Admission/Envelope、三棵树、双方 pass/fail、calibration/assembled/composition/integrity、model/token/cache、资格或阻断原因、
 关联纠正/Outcome 计数、有界短引用、无因果声明、Candidate id、预算/调用和隔离状态，并展示 Host 权威的
 Workspace/current/baseline Goal 执行聚合、最近已测 Outcome、token/cache/latency/active-wall facts 与价格 unavailable；
+exact Skill 结果上下文另显示 eligible failure-context investigation 数、最新失败 Goal 数，以及每个 exact 版本的
+阈值和 review-only/no-Candidate 权限声明；
 Opportunity 另显示评测证据是等待、无策略、无效、具备密封条件或已密封；凡 Gap 已进入 Opportunity，浏览器
 投影都移除 Goal objective。具备密封条件或已密封时只显示 evidence id、authoring/admission/holdout/Retention 数量和
 proposer 不可读保护声明，不返回受保护样本内容。

@@ -1960,6 +1960,17 @@ function SkillOutcomeContext({ context, active, t }: {
         {' · '}{item.ambiguousLatestGoalContextCount} {t('skillOutcomeContext.ambiguous')}
       </div>
       <div className="dsh-evolve-meta">
+        {t('skillOutcomeContext.investigation.title')} · {t(
+          item.failureInvestigation.status === 'eligible-for-review'
+            ? 'skillOutcomeContext.investigation.eligible'
+            : 'skillOutcomeContext.investigation.insufficient',
+        )}
+        {' · '}{item.failureInvestigation.latestFailedGoalContextCount}/
+        {item.failureInvestigation.requiredLatestFailedGoalContextCount}{' '}
+        {t('skillOutcomeContext.investigation.goalThreshold')}
+        {' · '}{t('skillOutcomeContext.investigation.reviewOnly')}
+      </div>
+      <div className="dsh-evolve-meta">
         {t('skillOutcomeContext.latest')} · {item.latest.passed} {t('outcomes.passed')}
         {' · '}{item.latest.failed} {t('outcomes.failed')}
         {' · '}{item.latest.unknown} {t('outcomes.unknown')}
@@ -1994,6 +2005,8 @@ function renderSkillOutcomeContextRollup(
   return `${value.skillVersionCount} ${t('skillOutcomeContext.versions')}`
     + ` · ${value.outcomeObservedGoalContextCount}/${value.goalContextCount} ${t('skillOutcomeContext.observed')}`
     + ` · ${value.outcomeUnobservedGoalContextCount} ${t('skillOutcomeContext.missing')}`
+    + ` · ${value.failureInvestigations.eligibleSkillVersionCount} ${t('skillOutcomeContext.investigations')}`
+    + ` · ${value.failureInvestigations.latestFailedGoalContextCount} ${t('skillOutcomeContext.latestFailed')}`
 }
 
 function renderOutcomeCounts(

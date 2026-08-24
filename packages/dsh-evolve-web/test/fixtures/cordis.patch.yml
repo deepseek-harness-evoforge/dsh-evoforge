@@ -29,6 +29,7 @@
         governanceRoot: __EVOFORGE_GOVERNANCE_ROOT__
         seedGoalMetrics: true
         seedSkillReuse: true
+        seedSkillFailureInvestigation: true
         seedCapabilityGaps: true
         seedSkillEvaluationRuns: true
         seedCounterfactualCanary: true

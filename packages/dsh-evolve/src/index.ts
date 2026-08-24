@@ -1057,6 +1057,8 @@ export type {
   EvolutionSkillReuseCountsView,
   EvolutionSkillReuseEvidenceView,
   EvolutionExactSkillBetweenAttemptWorkView,
+  EvolutionExactSkillFailureContextInvestigationView,
+  EvolutionExactSkillFailureContextInvestigationRollupView,
   EvolutionExactSkillOutcomeContextEvidenceView,
   EvolutionExactSkillOutcomeContextRollupView,
 } from './control-types.ts'

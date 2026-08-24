@@ -278,6 +278,10 @@ _Avoid_: CI daemon, background watcher, unbounded wait, workflow scheduler
 A compact Learning Signal projected from one source-linked `complete_delivery` call/result in the native DSH Session log and attributed to the Capability Generation pinned to that Session. Projection first crosses DSH's awaited Session durability checkpoint; a later cold Session start can replay a persisted pair idempotently without rerunning the Tool or any external effect. It may trigger evaluation, but one outcome never proves regression or authorizes rollback.
 _Avoid_: Live-only Tool event, external-effect replay, transcript archive, rollback vote, delivery event platform
 
+**Exact Skill Failure-Context Investigation**:
+A retractable review request formed when one exact Skill name, invocation-content hash, and Generation has a unique latest failed Delivery Outcome in at least two distinct Goals. It is temporal context with no causal claim, Candidate authority, or release authority.
+_Avoid_: Skill regression verdict, failure counter, automatic Candidate trigger
+
 **Goal Execution Metrics**:
 Bounded, non-causal facts describing provider-reported token/cache use and elapsed execution time for work unambiguously owned by one native Goal and captured by a Delivery Outcome. Incomplete ownership or measurement abstains; inferred prices are excluded, and the facts never authorize authoring, evaluation, promotion, or rollback.
 _Avoid_: Transcript parser, token estimator, invented monetary price, cross-Goal average, optimization reward

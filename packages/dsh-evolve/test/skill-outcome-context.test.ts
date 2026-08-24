@@ -47,6 +47,7 @@ describe('exact Skill Outcome Context', () => {
         recoveredGoalContextCount: 1,
         ambiguousLatestGoalContextCount: 0,
         betweenAttempts: betweenAttempts({ transitionCount: 1, metricSeed: 6, metricMeasured: 1 }),
+        failureInvestigations: failureInvestigationRollup(),
         latest: { passed: 1, failed: 0, unknown: 1 },
         metricSeed: 30,
       }),
@@ -60,6 +61,7 @@ describe('exact Skill Outcome Context', () => {
         recoveredGoalContextCount: 1,
         ambiguousLatestGoalContextCount: 0,
         betweenAttempts: betweenAttempts({ transitionCount: 1, metricSeed: 6, metricMeasured: 1 }),
+        failureInvestigations: failureInvestigationRollup(),
         latest: { passed: 1, failed: 0, unknown: 1 },
         metricSeed: 30,
       }),
@@ -77,6 +79,7 @@ describe('exact Skill Outcome Context', () => {
         recoveredGoalContextCount: 1,
         ambiguousLatestGoalContextCount: 0,
         betweenAttempts: betweenAttempts({ transitionCount: 1, metricSeed: 6, metricMeasured: 1 }),
+        failureInvestigation: failureInvestigation(),
         latest: { passed: 1, failed: 0, unknown: 1 },
         metrics: metricRollup(30),
         attribution: 'same-session-goal-generation-after-use',
@@ -152,6 +155,36 @@ describe('exact Skill Outcome Context', () => {
     })
   })
 
+  it('opens a review-only investigation only from two distinct uniquely-latest failed Goals', () => {
+    const summary = summarizeExactSkillOutcomeContext(
+      [
+        use('session-a', 1, 10, 'goal-1', 1, generationA, contentA),
+        use('session-b', 1, 20, 'goal-2', 1, generationA, contentA),
+        use('session-c', 1, 30, 'goal-3', 1, generationA, contentA),
+        use('session-d', 1, 40, 'goal-4', 1, generationA, contentA),
+      ],
+      [
+        outcome('goal-1-failed', 'session-a', 11, 'goal-1', 1, generationA, 'failed'),
+        outcome('goal-2-failed', 'session-b', 21, 'goal-2', 1, generationA, 'failed'),
+        outcome('goal-3-failed', 'session-c', 31, 'goal-3', 1, generationA, 'failed'),
+        outcome('goal-3-recovered', 'session-c', 32, 'goal-3', 2, generationA, 'passed'),
+        outcome('goal-4-failed', 'session-d', 41, 'goal-4', 1, generationA, 'failed'),
+        outcome('goal-4-ambiguous', 'session-d', 41, 'goal-4', 2, generationA, 'passed'),
+      ],
+      WORKSPACE_ID,
+      generationA,
+    )
+
+    expect(summary.all.failureInvestigations).toEqual(failureInvestigationRollup({
+      eligibleSkillVersionCount: 1,
+      latestFailedGoalContextCount: 2,
+    }))
+    expect(summary.items[0]?.failureInvestigation).toEqual(failureInvestigation({
+      status: 'eligible-for-review',
+      latestFailedGoalContextCount: 2,
+    }))
+  })
+
   it('keeps Workspace rollups complete while bounding detailed evidence rows', () => {
     const uses = Array.from({ length: 21 }, (_, version) => {
       const contentHash = version.toString(16).padStart(64, '0')
@@ -160,13 +193,42 @@ describe('exact Skill Outcome Context', () => {
         use(`session-${version}-b`, 1, version * 10 + 2, `goal-${version}-b`, 1, generationA, contentHash),
       ]
     }).flat()
+    const outcomes = Array.from({ length: 21 }, (_, version) => {
+      const status = version === 20 ? 'failed' as const : 'passed' as const
+      return [
+        outcome(
+          `outcome-${version}-a`,
+          `session-${version}-a`,
+          version * 10 + 3,
+          `goal-${version}-a`,
+          1,
+          generationA,
+          status,
+        ),
+        outcome(
+          `outcome-${version}-b`,
+          `session-${version}-b`,
+          version * 10 + 4,
+          `goal-${version}-b`,
+          1,
+          generationA,
+          status,
+        ),
+      ]
+    }).flat()
 
-    const summary = summarizeExactSkillOutcomeContext(uses, [], WORKSPACE_ID, generationA)
+    const summary = summarizeExactSkillOutcomeContext(uses, outcomes, WORKSPACE_ID, generationA)
 
     expect(summary.all.skillVersionCount).toBe(21)
     expect(summary.all.goalContextCount).toBe(42)
     expect(summary.selected.skillVersionCount).toBe(21)
     expect(summary.items).toHaveLength(20)
+    expect(summary.all.failureInvestigations).toEqual(failureInvestigationRollup({
+      eligibleSkillVersionCount: 1,
+      latestFailedGoalContextCount: 2,
+    }))
+    expect(summary.items.some(item =>
+      item.failureInvestigation.status === 'eligible-for-review')).toBe(true)
   })
 })
 
@@ -256,6 +318,7 @@ function rollup(input: {
   recoveredGoalContextCount?: number
   ambiguousLatestGoalContextCount?: number
   betweenAttempts?: ReturnType<typeof betweenAttempts>
+  failureInvestigations?: ReturnType<typeof failureInvestigationRollup>
   latest?: { passed: number; failed: number; unknown: number }
   metricSeed?: number
   metricMeasured?: number
@@ -270,8 +333,34 @@ function rollup(input: {
     recoveredGoalContextCount: input.recoveredGoalContextCount ?? 0,
     ambiguousLatestGoalContextCount: input.ambiguousLatestGoalContextCount ?? 0,
     betweenAttempts: input.betweenAttempts ?? betweenAttempts(),
+    failureInvestigations: input.failureInvestigations ?? failureInvestigationRollup(),
     latest: input.latest ?? { passed: 0, failed: 0, unknown: 0 },
     metrics: metricRollup(input.metricSeed, input.metricMeasured),
+  }
+}
+
+function failureInvestigation(input: {
+  status?: 'insufficient-latest-failed-goals' | 'eligible-for-review'
+  latestFailedGoalContextCount?: number
+} = {}) {
+  return {
+    status: input.status ?? 'insufficient-latest-failed-goals',
+    latestFailedGoalContextCount: input.latestFailedGoalContextCount ?? 0,
+    requiredLatestFailedGoalContextCount: 2 as const,
+    trigger: 'exact-cross-goal-unique-latest-failure' as const,
+    causalClaim: 'none' as const,
+    candidateAuthority: 'none' as const,
+    releaseAuthority: 'none' as const,
+  }
+}
+
+function failureInvestigationRollup(input: {
+  eligibleSkillVersionCount?: number
+  latestFailedGoalContextCount?: number
+} = {}) {
+  return {
+    eligibleSkillVersionCount: input.eligibleSkillVersionCount ?? 0,
+    latestFailedGoalContextCount: input.latestFailedGoalContextCount ?? 0,
   }
 }
 

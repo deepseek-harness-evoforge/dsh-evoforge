@@ -1044,6 +1044,10 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
 }).readonly(),
 }).readonly(),
 }).readonly(),
+  'failureInvestigations': z.object({
+  'eligibleSkillVersionCount': z.number().readonly(),
+  'latestFailedGoalContextCount': z.number().readonly(),
+}).readonly(),
   'latest': z.object({
   'passed': z.number().readonly(),
   'failed': z.number().readonly(),
@@ -1113,6 +1117,10 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
 }).readonly(),
 }).readonly(),
 }).readonly(),
+  'failureInvestigations': z.object({
+  'eligibleSkillVersionCount': z.number().readonly(),
+  'latestFailedGoalContextCount': z.number().readonly(),
+}).readonly(),
   'latest': z.object({
   'passed': z.number().readonly(),
   'failed': z.number().readonly(),
@@ -1181,6 +1189,10 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'reason': z.literal("provider-price-not-projected").readonly(),
 }).readonly(),
 }).readonly(),
+}).readonly(),
+  'failureInvestigations': z.object({
+  'eligibleSkillVersionCount': z.number().readonly(),
+  'latestFailedGoalContextCount': z.number().readonly(),
 }).readonly(),
   'latest': z.object({
   'passed': z.number().readonly(),
@@ -1253,6 +1265,15 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'reason': z.literal("provider-price-not-projected").readonly(),
 }).readonly(),
 }).readonly(),
+}).readonly(),
+  'failureInvestigation': z.object({
+  'status': z.union([z.literal("insufficient-latest-failed-goals"), z.literal("eligible-for-review")]).readonly(),
+  'latestFailedGoalContextCount': z.number().readonly(),
+  'requiredLatestFailedGoalContextCount': z.literal(2).readonly(),
+  'trigger': z.literal("exact-cross-goal-unique-latest-failure").readonly(),
+  'causalClaim': z.literal("none").readonly(),
+  'candidateAuthority': z.literal("none").readonly(),
+  'releaseAuthority': z.literal("none").readonly(),
 }).readonly(),
   'latest': z.object({
   'passed': z.number().readonly(),

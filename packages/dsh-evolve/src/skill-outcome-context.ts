@@ -6,11 +6,27 @@ import type {
 import type { SkillUse, SkillUseStore } from './skill-use-monitor.ts'
 
 const MAX_CONTEXT_ITEMS = 20
+const REQUIRED_LATEST_FAILED_GOAL_CONTEXTS = 2
 
 export interface ExactSkillBetweenAttemptWork {
   readonly transitionCount: number
   readonly ambiguousOrderGoalContextCount: number
   readonly metrics: DeliveryOutcomeMetricRollup
+}
+
+export interface ExactSkillFailureContextInvestigation {
+  readonly status: 'insufficient-latest-failed-goals' | 'eligible-for-review'
+  readonly latestFailedGoalContextCount: number
+  readonly requiredLatestFailedGoalContextCount: 2
+  readonly trigger: 'exact-cross-goal-unique-latest-failure'
+  readonly causalClaim: 'none'
+  readonly candidateAuthority: 'none'
+  readonly releaseAuthority: 'none'
+}
+
+export interface ExactSkillFailureContextInvestigationRollup {
+  readonly eligibleSkillVersionCount: number
+  readonly latestFailedGoalContextCount: number
 }
 
 export interface ExactSkillOutcomeContextRollup {
@@ -23,6 +39,7 @@ export interface ExactSkillOutcomeContextRollup {
   readonly recoveredGoalContextCount: number
   readonly ambiguousLatestGoalContextCount: number
   readonly betweenAttempts: ExactSkillBetweenAttemptWork
+  readonly failureInvestigations: ExactSkillFailureContextInvestigationRollup
   readonly latest: {
     readonly passed: number
     readonly failed: number
@@ -44,6 +61,7 @@ export interface ExactSkillOutcomeContextEvidence {
   readonly recoveredGoalContextCount: number
   readonly ambiguousLatestGoalContextCount: number
   readonly betweenAttempts: ExactSkillBetweenAttemptWork
+  readonly failureInvestigation: ExactSkillFailureContextInvestigation
   readonly latest: ExactSkillOutcomeContextRollup['latest']
   readonly metrics: DeliveryOutcomeMetricRollup
   readonly attribution: 'same-session-goal-generation-after-use'
@@ -160,6 +178,9 @@ function projectGroup(
       incrementMetrics(metrics, context.latest)
     }
   }
+  const latestFailedGoalContextCount = contexts.filter(
+    context => context.latest?.status === 'failed',
+  ).length
   return {
     skillName: group.skillName,
     invocationContentHash: group.invocationContentHash,
@@ -173,6 +194,17 @@ function projectGroup(
     recoveredGoalContextCount: contexts.filter(context => context.recovered).length,
     ambiguousLatestGoalContextCount: contexts.filter(context => context.ambiguousLatest).length,
     betweenAttempts: rollupBetweenAttempts(contexts.map(context => context.betweenAttempts)),
+    failureInvestigation: {
+      status: latestFailedGoalContextCount >= REQUIRED_LATEST_FAILED_GOAL_CONTEXTS
+        ? 'eligible-for-review'
+        : 'insufficient-latest-failed-goals',
+      latestFailedGoalContextCount,
+      requiredLatestFailedGoalContextCount: REQUIRED_LATEST_FAILED_GOAL_CONTEXTS,
+      trigger: 'exact-cross-goal-unique-latest-failure',
+      causalClaim: 'none',
+      candidateAuthority: 'none',
+      releaseAuthority: 'none',
+    },
     latest,
     metrics,
     attribution: 'same-session-goal-generation-after-use',
@@ -363,6 +395,11 @@ function rollup(items: readonly ExactSkillOutcomeContextEvidence[]): ExactSkillO
     result.recoveredGoalContextCount += item.recoveredGoalContextCount
     result.ambiguousLatestGoalContextCount += item.ambiguousLatestGoalContextCount
     addBetweenAttempts(result.betweenAttempts, item.betweenAttempts)
+    result.failureInvestigations.latestFailedGoalContextCount +=
+      item.failureInvestigation.latestFailedGoalContextCount
+    if (item.failureInvestigation.status === 'eligible-for-review') {
+      result.failureInvestigations.eligibleSkillVersionCount += 1
+    }
     result.latest.passed += item.latest.passed
     result.latest.failed += item.latest.failed
     result.latest.unknown += item.latest.unknown
@@ -382,6 +419,10 @@ function emptyRollup(): Mutable<ExactSkillOutcomeContextRollup> {
     recoveredGoalContextCount: 0,
     ambiguousLatestGoalContextCount: 0,
     betweenAttempts: emptyBetweenAttempts(),
+    failureInvestigations: {
+      eligibleSkillVersionCount: 0,
+      latestFailedGoalContextCount: 0,
+    },
     latest: { passed: 0, failed: 0, unknown: 0 },
     metrics: emptyMetrics(),
   }
@@ -494,7 +535,9 @@ function compareEvidence(
   left: ExactSkillOutcomeContextEvidence,
   right: ExactSkillOutcomeContextEvidence,
 ): number {
-  return right.outcomeObservedGoalContextCount - left.outcomeObservedGoalContextCount
+  return Number(right.failureInvestigation.status === 'eligible-for-review')
+    - Number(left.failureInvestigation.status === 'eligible-for-review')
+    || right.outcomeObservedGoalContextCount - left.outcomeObservedGoalContextCount
     || right.goalContextCount - left.goalContextCount
     || left.skillName.localeCompare(right.skillName)
     || left.invocationContentHash.localeCompare(right.invocationContentHash)

@@ -61,6 +61,7 @@ function success<T>(value: T) {
 function remote(
   withActive = false,
   withInactive = false,
+  withFailureInvestigation = false,
 ): EvolutionRemoteClient {
   const overview = {
     schemaVersion: 1 as const,
@@ -164,8 +165,8 @@ function remote(
       }],
     },
     skillOutcomeContext: {
-      all: webOutcomeContextRollup(1, 3, 2, 1, 3, 1, 1),
-      selected: webOutcomeContextRollup(1, 3, 2, 1, 3, 1, 1),
+      all: webOutcomeContextRollup(1, 3, 2, 1, 3, 1, 1, withFailureInvestigation),
+      selected: webOutcomeContextRollup(1, 3, 2, 1, 3, 1, 1, withFailureInvestigation),
       baseline: webOutcomeContextRollup(0, 0, 0, 0, 0, 0, 0),
       items: [{
         skillName: 'build-dsh-plugin',
@@ -184,7 +185,20 @@ function remote(
           ambiguousOrderGoalContextCount: 0,
           metrics: webMetricRollup(1, 0, 1),
         },
-        latest: { passed: 1, failed: 0, unknown: 1 },
+        failureInvestigation: {
+          status: withFailureInvestigation
+            ? 'eligible-for-review' as const
+            : 'insufficient-latest-failed-goals' as const,
+          latestFailedGoalContextCount: withFailureInvestigation ? 2 : 0,
+          requiredLatestFailedGoalContextCount: 2 as const,
+          trigger: 'exact-cross-goal-unique-latest-failure' as const,
+          causalClaim: 'none' as const,
+          candidateAuthority: 'none' as const,
+          releaseAuthority: 'none' as const,
+        },
+        latest: withFailureInvestigation
+          ? { passed: 0, failed: 2, unknown: 0 }
+          : { passed: 1, failed: 0, unknown: 1 },
         metrics: webMetricRollup(2, 0, 2),
         attribution: 'same-session-goal-generation-after-use' as const,
         causalClaim: 'none' as const,
@@ -588,7 +602,14 @@ const t = (key: string) => ({
   'skillOutcomeContext.transitions': 'ordered transitions',
   'skillOutcomeContext.ambiguousOrder': 'ambiguous Goal orders',
   'skillOutcomeContext.betweenAttemptMetrics': 'Between-attempt work metrics',
-  'skillOutcomeContext.disclaimer': 'Same-Session/Goal/Generation timing is context only; between-attempt deltas are work added between two cumulative snapshots, not proof that the Skill caused success, rework, recovery, or improvement, and they grant no release authority.',
+  'skillOutcomeContext.investigations': 'eligible failure-context investigations',
+  'skillOutcomeContext.latestFailed': 'latest-failed Goal contexts',
+  'skillOutcomeContext.investigation.title': 'Failure-context investigation',
+  'skillOutcomeContext.investigation.eligible': 'Eligible for causal review',
+  'skillOutcomeContext.investigation.insufficient': 'Insufficient latest failures',
+  'skillOutcomeContext.investigation.goalThreshold': 'latest-failed Goals',
+  'skillOutcomeContext.investigation.reviewOnly': 'Review only; no Candidate authority',
+  'skillOutcomeContext.disclaimer': 'Same-Session/Goal/Generation timing is context only; between-attempt deltas are work added between two cumulative snapshots, and an investigation is only a review request. Neither proves that the Skill caused success, failure, rework, recovery, or improvement; neither creates a Candidate or grants release authority.',
   'outcomes.active': 'Active',
   'outcomes.current': 'Current selection',
   'outcomes.parent': 'Parent',
@@ -1779,8 +1800,24 @@ describe('EvolutionAction', () => {
       /30 uncached input · 9 output · cache read 70 · cache write 5/,
     )).toBeTruthy()
     expect(within(section).getByText(
-      'Same-Session/Goal/Generation timing is context only; between-attempt deltas are work added between two cumulative snapshots, not proof that the Skill caused success, rework, recovery, or improvement, and they grant no release authority.',
+      'Same-Session/Goal/Generation timing is context only; between-attempt deltas are work added between two cumulative snapshots, and an investigation is only a review request. Neither proves that the Skill caused success, failure, rework, recovery, or improvement; neither creates a Candidate or grants release authority.',
     )).toBeTruthy()
+  })
+
+  it('surfaces repeated uniquely-latest failures only as a review investigation', async () => {
+    const api = remote(true, false, true)
+    renderEvolution(api)
+    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
+    await selectAdvanced()
+
+    const section = (await screen.findByText('Exact Skill Outcome Context')).closest('section')!
+    expect(within(section).getByText(
+      /Active outcome context · 1 exact reused versions · 2\/3 Goal contexts with outcomes · 1 without outcome · 1 eligible failure-context investigations · 2 latest-failed Goal contexts/,
+    )).toBeTruthy()
+    expect(within(section).getByText(
+      /Failure-context investigation · Eligible for causal review · 2\/2 latest-failed Goals · Review only; no Candidate authority/,
+    )).toBeTruthy()
+    expect(within(section).getByText(/Latest · 0 passed · 2 failed · 0 unknown/)).toBeTruthy()
   })
 
   it('shows measured native-DSH outcomes before any evolved Generation exists', async () => {
@@ -1949,6 +1986,7 @@ function webOutcomeContextRollup(
   outcomeAttemptCount: number,
   repeatedOutcomeGoalContextCount: number,
   recoveredGoalContextCount: number,
+  failureInvestigation = false,
 ) {
   return {
     skillVersionCount,
@@ -1968,10 +2006,14 @@ function webOutcomeContextRollup(
         repeatedOutcomeGoalContextCount,
       ),
     },
+    failureInvestigations: {
+      eligibleSkillVersionCount: failureInvestigation ? skillVersionCount : 0,
+      latestFailedGoalContextCount: failureInvestigation ? 2 : 0,
+    },
     latest: {
-      passed: skillVersionCount,
-      failed: 0,
-      unknown: skillVersionCount,
+      passed: failureInvestigation ? 0 : skillVersionCount,
+      failed: failureInvestigation ? 2 : 0,
+      unknown: failureInvestigation ? 0 : skillVersionCount,
     },
     metrics: webMetricRollup(skillVersionCount * 2, 0, skillVersionCount * 2),
   }

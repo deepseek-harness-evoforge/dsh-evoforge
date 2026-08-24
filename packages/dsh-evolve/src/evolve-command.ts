@@ -489,6 +489,7 @@ function renderStatus(
         `Exact Skill outcome context: ${renderSkillOutcomeContext(skillOutcomeContext.all)}`,
         `Latest durable outcomes: ${skillOutcomeContext.all.latest.passed} passed, ${skillOutcomeContext.all.latest.failed} failed, ${skillOutcomeContext.all.latest.unknown} unknown.`,
         `Between-attempt work: ${renderBetweenAttemptWork(skillOutcomeContext.all)}`,
+        `Failure-context investigations: ${renderFailureInvestigations(skillOutcomeContext.all)}`,
         'Outcome context is temporal and non-causal; it grants no Candidate or promotion authority.',
       ]
   if (active === undefined) {
@@ -550,6 +551,11 @@ function renderBetweenAttemptWork(context: ExactSkillOutcomeContextSummary['all'
     + `${context.betweenAttempts.metrics.measured} measured; `
     + `${context.betweenAttempts.metrics.unmeasured} unmeasured; `
     + `${context.betweenAttempts.ambiguousOrderGoalContextCount} ambiguous Goal orders.`
+}
+
+function renderFailureInvestigations(context: ExactSkillOutcomeContextSummary['all']): string {
+  return `${context.failureInvestigations.eligibleSkillVersionCount} eligible versions; `
+    + `${context.failureInvestigations.latestFailedGoalContextCount} latest-failed Goal contexts.`
 }
 
 function renderOutcomeCounts(counts: DeliveryOutcomeSummary['all']): string {

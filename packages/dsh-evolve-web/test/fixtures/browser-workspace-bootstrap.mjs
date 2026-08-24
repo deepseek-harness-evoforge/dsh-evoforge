@@ -140,6 +140,9 @@ export async function apply(ctx, config) {
   if (config.seedSkillReuse === true) {
     await seedNativeSkillReuse(ctx, workspace, config, skillReuseHandles)
   }
+  if (config.seedSkillFailureInvestigation === true) {
+    await seedNativeSkillFailureInvestigation(ctx, workspace, config, skillReuseHandles)
+  }
   const capabilityHandles = []
   const capabilitySeedTask = config.seedCapabilityGaps === true
     ? new Promise(resolve => setTimeout(resolve, 0))
@@ -1441,6 +1444,149 @@ async function seedNativeSkillReuse(ctx, workspace, config, handles) {
         && item.betweenAttempts.ambiguousOrderGoalContextCount === 0
         && item.metrics.measured === 2) === true,
   'real browser fixture did not expose exact later Delivery Outcome context')
+}
+
+/**
+ * Execute one second exact native Skill in two independent failed Goals. This
+ * proves the installed Host derives a review-only investigation from native
+ * DSH facts without mutating a Candidate, release, or private projection.
+ */
+async function seedNativeSkillFailureInvestigation(ctx, workspace, config, handles) {
+  const workspaceId = String(workspace.id)
+  const skillName = 'investigate-dsh-failure-context'
+  const current = await overview(ctx, workspaceId, config.sessionId)
+  if (current?.skillOutcomeContext?.items.some(item =>
+    item.skillName === skillName
+      && item.goalContextCount === 2
+      && item.outcomeAttemptCount === 2
+      && item.latest.failed === 2
+      && item.failureInvestigation.status === 'eligible-for-review'
+      && item.failureInvestigation.latestFailedGoalContextCount === 2
+      && item.failureInvestigation.candidateAuthority === 'none'
+      && item.failureInvestigation.releaseAuthority === 'none') === true) return
+
+  const persistedIds = new Set((await ctx.sessionPersistence.list()).map(header => String(header.id)))
+  for (let index = 1; index <= 2; index += 1) {
+    const sessionId = `evoforge-browser-skill-failure-${index}`
+    let useAgent = ctx.agents.get(sessionId)
+    if (useAgent === undefined) {
+      const common = {
+        agentOptions: { provider: 'deepseek-official', model: 'deepseek-v4-flash' },
+        setup: agentCtx => ctx.agentPresets.mount(agentCtx, config.agentPreset).then(() => undefined),
+      }
+      const handle = persistedIds.has(sessionId)
+        ? await ctx.agents.resume({ resumeSessionId: sessionId, ...common })
+        : await ctx.agents.create({
+            sessionId,
+            meta: { cwd: workspace.path, agentPreset: config.agentPreset },
+            ...common,
+          })
+      handles.push(handle)
+      useAgent = handle.agent
+    }
+    await workspace.attachSession(useAgent.session.id)
+    const skills = useAgent.ctx.get('skills')
+    if (skills === undefined) throw new Error('real browser fixture has no Agent-scoped Skill registry')
+    skills.register({
+      name: skillName,
+      description: 'Expose repeated exact cross-Goal failure context for causal review.',
+      source: 'browser-test-owned',
+      content: 'Keep repeated latest failures review-only until independent evidence establishes causality.',
+    })
+    const { agentEvents } = await import(pathToFileURL(config.agentEntry).href)
+    await agentEvents(ctx, useAgent).waterfall(
+      'agent/pre-step',
+      { messages: [], turn: 1, step: 1, signal: new AbortController().signal },
+      () => Promise.resolve({ kind: 'enter', messages: [] }),
+    )
+
+    const session = useAgent.session
+    const callId = `evoforge-browser-skill-failure-call-${index}`
+    const goalId = `goal-evoforge-browser-skill-failure-${index}`
+    if (!session.events.some(event => event.type === 'tool/call' && event.data.callId === callId)) {
+      const base = Math.max(Date.now(), (session.events.at(-1)?.time ?? 0) + 100)
+      appendAt(session, base, 'goal/change', {
+        kind: 'goal/change',
+        version: 1,
+        operation: 'create',
+        goal: {
+          id: goalId,
+          revision: 1,
+          objective: `Expose exact failed Skill context ${index}.`,
+          phase: 'active',
+          maxGoalRounds: 2,
+        },
+        roundsStarted: 0,
+        createdAt: base,
+        updatedAt: base,
+      })
+      appendAt(session, base + 1, 'turn/start', { turn: 1 })
+      appendAt(session, base + 2, 'step/start', { turn: 1, step: 1 })
+      appendAt(session, base + 3, 'user/message', message({
+        role: 'user',
+        content: [{ type: 'text', text: `Use the exact Skill before failed delivery ${index}.` }],
+        source: { kind: 'goal', goalId, revision: 1, round: 1 },
+      }), { surfaceOp: 'append' })
+      const result = await ctx.tools.execute({
+        signal: new AbortController().signal,
+        callId,
+        name: 'skill',
+        arguments: { name: skillName },
+        agent: useAgent,
+      })
+      if (result.isError) throw new Error('real browser fixture failure-context Skill Tool failed')
+      const call = appendAt(session, base + 10, 'tool/call', {
+        turn: 1,
+        step: 1,
+        callId,
+        name: 'skill',
+        arguments: JSON.stringify({ name: skillName }),
+      })
+      appendAt(session, base + 20, 'tool/result', {
+        turn: 1,
+        step: 1,
+        message: message({
+          role: 'user',
+          source: { kind: 'tool', callId },
+          content: [{
+            type: 'tool-result',
+            toolCallId: callId,
+            content: result.content,
+            isError: false,
+          }],
+        }),
+      }, { surfaceOp: 'append', sourceEventSeqs: [call.seq] })
+      const failedCallId = `evoforge-browser-skill-failure-outcome-${index}`
+      const failedCall = appendAt(session, base + 30, 'tool/call', {
+        turn: 1,
+        step: 1,
+        callId: failedCallId,
+        name: 'complete_delivery',
+        arguments: '{}',
+      })
+      appendAt(session, base + 40, 'tool/result', {
+        turn: 1,
+        step: 1,
+        message: deliveryResultMessage(failedCallId, goalId, 1, 'failed'),
+      }, { surfaceOp: 'append', sourceEventSeqs: [failedCall.seq] })
+      appendAt(session, base + 50, 'step/end', { turn: 1, step: 1 })
+      appendAt(session, base + 60, 'turn/end', { turn: 1, reason: { kind: 'completed' } })
+      await ctx.sessions.flush(session)
+    }
+  }
+
+  await waitFor(ctx, workspaceId, config.sessionId, value =>
+    value.skillOutcomeContext?.items.some(item =>
+      item.skillName === skillName
+        && item.goalContextCount === 2
+        && item.outcomeObservedGoalContextCount === 2
+        && item.outcomeAttemptCount === 2
+        && item.latest.failed === 2
+        && item.failureInvestigation.status === 'eligible-for-review'
+        && item.failureInvestigation.latestFailedGoalContextCount === 2
+        && item.failureInvestigation.candidateAuthority === 'none'
+        && item.failureInvestigation.releaseAuthority === 'none') === true,
+  'real browser fixture did not expose repeated exact failure-context investigation')
 }
 
 function deliveryResultMessage(callId, goalId, revision, status) {

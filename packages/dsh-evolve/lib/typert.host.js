@@ -1044,6 +1044,10 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
 }).readonly(),
 }).readonly(),
 }).readonly(),
+  'failureInvestigations': z.object({
+  'eligibleSkillVersionCount': z.number().readonly(),
+  'latestFailedGoalContextCount': z.number().readonly(),
+}).readonly(),
   'latest': z.object({
   'passed': z.number().readonly(),
   'failed': z.number().readonly(),
@@ -1113,6 +1117,10 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
 }).readonly(),
 }).readonly(),
 }).readonly(),
+  'failureInvestigations': z.object({
+  'eligibleSkillVersionCount': z.number().readonly(),
+  'latestFailedGoalContextCount': z.number().readonly(),
+}).readonly(),
   'latest': z.object({
   'passed': z.number().readonly(),
   'failed': z.number().readonly(),
@@ -1181,6 +1189,10 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'reason': z.literal("provider-price-not-projected").readonly(),
 }).readonly(),
 }).readonly(),
+}).readonly(),
+  'failureInvestigations': z.object({
+  'eligibleSkillVersionCount': z.number().readonly(),
+  'latestFailedGoalContextCount': z.number().readonly(),
 }).readonly(),
   'latest': z.object({
   'passed': z.number().readonly(),
@@ -1253,6 +1265,15 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'reason': z.literal("provider-price-not-projected").readonly(),
 }).readonly(),
 }).readonly(),
+}).readonly(),
+  'failureInvestigation': z.object({
+  'status': z.union([z.literal("insufficient-latest-failed-goals"), z.literal("eligible-for-review")]).readonly(),
+  'latestFailedGoalContextCount': z.number().readonly(),
+  'requiredLatestFailedGoalContextCount': z.literal(2).readonly(),
+  'trigger': z.literal("exact-cross-goal-unique-latest-failure").readonly(),
+  'causalClaim': z.literal("none").readonly(),
+  'candidateAuthority': z.literal("none").readonly(),
+  'releaseAuthority': z.literal("none").readonly(),
 }).readonly(),
   'latest': z.object({
   'passed': z.number().readonly(),
@@ -2244,12 +2265,20 @@ export const TYPERT = {
             "declaration": "export interface EvolutionExactSkillBetweenAttemptWorkView {\n    readonly transitionCount: number;\n    readonly ambiguousOrderGoalContextCount: number;\n    readonly metrics: EvolutionDeliveryMetricRollupView;\n}"
           },
           {
+            "name": "EvolutionExactSkillFailureContextInvestigationRollupView",
+            "declaration": "export interface EvolutionExactSkillFailureContextInvestigationRollupView {\n    readonly eligibleSkillVersionCount: number;\n    readonly latestFailedGoalContextCount: number;\n}"
+          },
+          {
+            "name": "EvolutionExactSkillFailureContextInvestigationView",
+            "declaration": "export interface EvolutionExactSkillFailureContextInvestigationView {\n    readonly status: 'insufficient-latest-failed-goals' | 'eligible-for-review';\n    readonly latestFailedGoalContextCount: number;\n    readonly requiredLatestFailedGoalContextCount: 2;\n    readonly trigger: 'exact-cross-goal-unique-latest-failure';\n    readonly causalClaim: 'none';\n    readonly candidateAuthority: 'none';\n    readonly releaseAuthority: 'none';\n}"
+          },
+          {
             "name": "EvolutionExactSkillOutcomeContextEvidenceView",
-            "declaration": "export interface EvolutionExactSkillOutcomeContextEvidenceView {\n    readonly skillName: string;\n    readonly invocationContentHash: string;\n    readonly generationId?: string;\n    readonly useCount: number;\n    readonly goalContextCount: number;\n    readonly outcomeObservedGoalContextCount: number;\n    readonly outcomeUnobservedGoalContextCount: number;\n    readonly outcomeAttemptCount: number;\n    readonly repeatedOutcomeGoalContextCount: number;\n    readonly recoveredGoalContextCount: number;\n    readonly ambiguousLatestGoalContextCount: number;\n    readonly betweenAttempts: EvolutionExactSkillBetweenAttemptWorkView;\n    readonly latest: EvolutionExactSkillOutcomeContextRollupView['latest'];\n    readonly metrics: EvolutionDeliveryMetricRollupView;\n    readonly attribution: 'same-session-goal-generation-after-use';\n    readonly causalClaim: 'none';\n    readonly improvementClaim: 'none';\n    readonly releaseAuthority: 'none';\n}"
+            "declaration": "export interface EvolutionExactSkillOutcomeContextEvidenceView {\n    readonly skillName: string;\n    readonly invocationContentHash: string;\n    readonly generationId?: string;\n    readonly useCount: number;\n    readonly goalContextCount: number;\n    readonly outcomeObservedGoalContextCount: number;\n    readonly outcomeUnobservedGoalContextCount: number;\n    readonly outcomeAttemptCount: number;\n    readonly repeatedOutcomeGoalContextCount: number;\n    readonly recoveredGoalContextCount: number;\n    readonly ambiguousLatestGoalContextCount: number;\n    readonly betweenAttempts: EvolutionExactSkillBetweenAttemptWorkView;\n    readonly failureInvestigation: EvolutionExactSkillFailureContextInvestigationView;\n    readonly latest: EvolutionExactSkillOutcomeContextRollupView['latest'];\n    readonly metrics: EvolutionDeliveryMetricRollupView;\n    readonly attribution: 'same-session-goal-generation-after-use';\n    readonly causalClaim: 'none';\n    readonly improvementClaim: 'none';\n    readonly releaseAuthority: 'none';\n}"
           },
           {
             "name": "EvolutionExactSkillOutcomeContextRollupView",
-            "declaration": "export interface EvolutionExactSkillOutcomeContextRollupView {\n    readonly skillVersionCount: number;\n    readonly goalContextCount: number;\n    readonly outcomeObservedGoalContextCount: number;\n    readonly outcomeUnobservedGoalContextCount: number;\n    readonly outcomeAttemptCount: number;\n    readonly repeatedOutcomeGoalContextCount: number;\n    readonly recoveredGoalContextCount: number;\n    readonly ambiguousLatestGoalContextCount: number;\n    readonly betweenAttempts: EvolutionExactSkillBetweenAttemptWorkView;\n    readonly latest: { readonly passed: number; readonly failed: number; readonly unknown: number; };\n    readonly metrics: EvolutionDeliveryMetricRollupView;\n}"
+            "declaration": "export interface EvolutionExactSkillOutcomeContextRollupView {\n    readonly skillVersionCount: number;\n    readonly goalContextCount: number;\n    readonly outcomeObservedGoalContextCount: number;\n    readonly outcomeUnobservedGoalContextCount: number;\n    readonly outcomeAttemptCount: number;\n    readonly repeatedOutcomeGoalContextCount: number;\n    readonly recoveredGoalContextCount: number;\n    readonly ambiguousLatestGoalContextCount: number;\n    readonly betweenAttempts: EvolutionExactSkillBetweenAttemptWorkView;\n    readonly failureInvestigations: EvolutionExactSkillFailureContextInvestigationRollupView;\n    readonly latest: { readonly passed: number; readonly failed: number; readonly unknown: number; };\n    readonly metrics: EvolutionDeliveryMetricRollupView;\n}"
           },
           {
             "name": "EvolutionExistingSkillAdmissionView",

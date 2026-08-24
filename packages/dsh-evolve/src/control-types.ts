@@ -113,6 +113,22 @@ export interface EvolutionExactSkillBetweenAttemptWorkView {
   readonly metrics: EvolutionDeliveryMetricRollupView
 }
 
+/** Review-only repeated latest-failure context; never a Skill fault verdict. */
+export interface EvolutionExactSkillFailureContextInvestigationView {
+  readonly status: 'insufficient-latest-failed-goals' | 'eligible-for-review'
+  readonly latestFailedGoalContextCount: number
+  readonly requiredLatestFailedGoalContextCount: 2
+  readonly trigger: 'exact-cross-goal-unique-latest-failure'
+  readonly causalClaim: 'none'
+  readonly candidateAuthority: 'none'
+  readonly releaseAuthority: 'none'
+}
+
+export interface EvolutionExactSkillFailureContextInvestigationRollupView {
+  readonly eligibleSkillVersionCount: number
+  readonly latestFailedGoalContextCount: number
+}
+
 /** Browser-safe rollup of non-causal Outcome context for exact reusable Skill versions. */
 export interface EvolutionExactSkillOutcomeContextRollupView {
   readonly skillVersionCount: number
@@ -124,6 +140,7 @@ export interface EvolutionExactSkillOutcomeContextRollupView {
   readonly recoveredGoalContextCount: number
   readonly ambiguousLatestGoalContextCount: number
   readonly betweenAttempts: EvolutionExactSkillBetweenAttemptWorkView
+  readonly failureInvestigations: EvolutionExactSkillFailureContextInvestigationRollupView
   readonly latest: {
     readonly passed: number
     readonly failed: number
@@ -146,6 +163,7 @@ export interface EvolutionExactSkillOutcomeContextEvidenceView {
   readonly recoveredGoalContextCount: number
   readonly ambiguousLatestGoalContextCount: number
   readonly betweenAttempts: EvolutionExactSkillBetweenAttemptWorkView
+  readonly failureInvestigation: EvolutionExactSkillFailureContextInvestigationView
   readonly latest: EvolutionExactSkillOutcomeContextRollupView['latest']
   readonly metrics: EvolutionDeliveryMetricRollupView
   readonly attribution: 'same-session-goal-generation-after-use'

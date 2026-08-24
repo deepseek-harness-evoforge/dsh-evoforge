@@ -372,6 +372,9 @@ describe('/evolve host command', () => {
       'Between-attempt work: 1 ordered transitions; 1 measured; 0 unmeasured; 0 ambiguous Goal orders.',
     )
     expect(status.text).toContain(
+      'Failure-context investigations: 1 eligible versions; 2 latest-failed Goal contexts.',
+    )
+    expect(status.text).toContain(
       'Outcome context is temporal and non-causal; it grants no Candidate or promotion authority.',
     )
 
@@ -424,6 +427,10 @@ function commandOutcomeContextRollup(options: { empty?: boolean } = {}) {
         },
         monetaryCost: { status: 'unavailable' as const, reason: 'provider-price-not-projected' as const },
       },
+    },
+    failureInvestigations: {
+      eligibleSkillVersionCount: value,
+      latestFailedGoalContextCount: value * 2,
     },
     latest: { passed: value, failed: 0, unknown: value },
     metrics: {
