@@ -27,10 +27,14 @@
     "benchmark:hermes:lc1": "pnpm --filter dsh-goal-continuity exec tsx ../../benchmarks/hermes-v0.1/lc1-crash-recovery/run.ts",
     "benchmark:hermes:as1": "pnpm --filter dsh-telegram exec tsx ../../benchmarks/hermes-v0.1/as1-telegram-approval/run.ts",
     "benchmark:hermes": "pnpm benchmark:hermes:ev1 && pnpm benchmark:hermes:sd1 && pnpm benchmark:hermes:lc1 && pnpm benchmark:hermes:as1",
+    "benchmark:provider:rp1:typecheck": "pnpm --filter dsh-evolve exec tsc --ignoreConfig --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --strict --noUncheckedIndexedAccess --exactOptionalPropertyTypes --verbatimModuleSyntax --skipLibCheck --allowImportingTsExtensions --types node ../../benchmarks/provider-v0.1/rp1-internal-skill-evolution/contract.ts ../../benchmarks/provider-v0.1/rp1-internal-skill-evolution/contract.test.ts ../../benchmarks/provider-v0.1/rp1-internal-skill-evolution/execute.ts ../../benchmarks/provider-v0.1/rp1-internal-skill-evolution/run.ts",
+    "benchmark:provider:rp1:test": "pnpm --filter dsh-evolve exec tsx --test ../../benchmarks/provider-v0.1/rp1-internal-skill-evolution/contract.test.ts",
+    "benchmark:provider:rp1:check": "pnpm benchmark:provider:rp1:typecheck && pnpm benchmark:provider:rp1:test",
+    "benchmark:provider:rp1": "pnpm --filter dsh-evolve exec tsx ../../benchmarks/provider-v0.1/rp1-internal-skill-evolution/run.ts",
     "pretypecheck": "pnpm --filter dsh-gateway run build",
     "typecheck": "pnpm -r typecheck",
     "pretest": "pnpm --filter dsh-gateway run build",
     "test": "pnpm -r --filter '!dsh-telegram' --filter '!dsh-feishu' test && pnpm --filter dsh-telegram test && pnpm --filter dsh-feishu test",
-    "check": "pnpm run check:docs && pnpm run typecheck && pnpm run test && pnpm run build"
+    "check": "pnpm run check:docs && pnpm run benchmark:provider:rp1:check && pnpm run typecheck && pnpm run test && pnpm run build"
   }
 }

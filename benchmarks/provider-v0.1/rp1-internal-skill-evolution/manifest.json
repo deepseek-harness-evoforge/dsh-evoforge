@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "rp1-internal-skill-evolution-epoch-1",
+  "scope": "real two-provider internal Skill authoring, candidate-blind governance, assembled admission, holdout, and retention; not Hermes paired or long-term outcome evidence",
+  "revisions": {
+    "deepseekHarness": "47f943859bef60e4160492346772ded9b24f765a"
+  },
+  "scenario": {
+    "skillName": "recover-dsh-delivery",
+    "goalCount": 5,
+    "source": "frozen DSH-internal Capability Gap facts; no runtime external search or Skill acquisition",
+    "partitions": ["authoring", "admission", "holdout", "retention"]
+  },
+  "budget": {
+    "proposerCalls": 1,
+    "governanceCalls": 3,
+    "maxOutputTokensPerCall": 6000,
+    "trialCountPerSubject": 4
+  },
+  "hardGates": [
+    "explicit paid-operation approval exists before credentials are resolved",
+    "proposer and governance use different declared providers, authorities, credentials, and production model identities",
+    "the internally authored whole-Skill remains inactive, quarantined, unevaluated, and never executed before admission",
+    "governance authors admission, holdout, and retention from pre-Candidate protected partitions",
+    "deterministic admission qualifies the exact Candidate",
+    "assembled holdout recommends promotion without composition drift",
+    "independent assembled retention classifies the exact Candidate as retained"
+  ]
+}
