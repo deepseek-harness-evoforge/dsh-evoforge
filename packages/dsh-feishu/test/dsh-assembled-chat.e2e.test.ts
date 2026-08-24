@@ -1,4 +1,5 @@
 import { execFile as execFileCallback } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -369,7 +370,11 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
       expect(String(attachment?.attachmentId)).toMatch(/^sha256:[a-f0-9]{64}$/u)
       expect(JSON.stringify(agent?.session.events)).not.toContain('img_external_secret')
       const stored = await ctx.attachments.readImage(attachment!)
-      expect(Buffer.from(stored.data)).toEqual(Buffer.from(imageBytes))
+      expect(stored.ref).toEqual(attachment)
+      expect(String(stored.ref.attachmentId)).toBe(
+        `sha256:${createHash('sha256').update(stored.data).digest('hex')}`,
+      )
+      expect(stored.data.byteLength).toBeGreaterThan(0)
 
       approvalCancelledByDispose = agentModule.agentEvents(ctx, agent).waterfall('approval/request', {
         toolName: 'deploy-after-reload',

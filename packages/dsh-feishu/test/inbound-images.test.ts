@@ -36,6 +36,43 @@ describe('Feishu native DSH image materialization', () => {
     })])
   })
 
+  it('uses the rc.2 atomic batch seam and retains normalization metadata', async () => {
+    const platform = fakePlatform(async () => png)
+    const legacyValidate = vi.fn(async () => {})
+    const legacySave = vi.fn(async () => {
+      throw new Error('the rc.2 batch seam must own admission and publication')
+    })
+    const saveImages = vi.fn(async (inputs: readonly SaveImageAttachment[]) => inputs.map(input => ({
+      attachmentId: `sha256:${'b'.repeat(64)}` as never,
+      mediaType: input.mediaType,
+      bytes: input.data.byteLength,
+      width: 1024,
+      height: 512,
+      originalDimensions: { width: 4096, height: 2048 },
+      ...(input.name === undefined ? {} : { name: input.name }),
+    })))
+    const store = {
+      ...fakeStore(),
+      validateImage: legacyValidate,
+      saveImage: legacySave,
+      saveImages,
+    }
+
+    const result = await materializeFeishuInbound({
+      messageId: 'om_rc2', chatId: 'oc_1', chatType: 'p2p', senderId: 'ou_1',
+      rawContentType: 'image', content: '![image](img_rc2)',
+      resources: [{ type: 'image', fileKey: 'img_rc2', fileName: 'large.png' }],
+    }, platform, store)
+
+    expect(saveImages).toHaveBeenCalledOnce()
+    expect(legacyValidate).not.toHaveBeenCalled()
+    expect(legacySave).not.toHaveBeenCalled()
+    expect(result.images).toEqual([expect.objectContaining({
+      attachmentId: `sha256:${'b'.repeat(64)}`,
+      originalDimensions: { width: 4096, height: 2048 },
+    })])
+  })
+
   it('keeps image-only input image-only and rejects an oversized batch before persistence', async () => {
     const platform = fakePlatform(async () => png)
     const store = fakeStore({ maxImagesPerMessage: 1 })

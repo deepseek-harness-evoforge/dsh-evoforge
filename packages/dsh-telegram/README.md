@@ -25,7 +25,7 @@ Session token overhead is zero; the selected Agent's existing model composition 
 
 ## Requirements
 
-- DSH `>=0.1.0-rc.5 <0.1.0` with `dsh-gateway`, Agent, Agent presets, Commands, Session persistence, Workspace, Storage and Storage Domain composed;
+- DSH `0.1.0-rc.5` or `0.1.1-rc.2` with `dsh-gateway`, Agent, Agent presets, Commands, Session persistence, Workspace, Storage and Storage Domain composed;
 - Node.js `^22.19.0 || >=24`;
 - one Telegram Bot token, one private chat id, one Telegram user id;
 - one existing native Workspace plus a static Gateway route naming its stable Session id, Agent preset,

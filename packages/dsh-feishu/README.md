@@ -141,9 +141,10 @@ schema/cache 稳定，旧 Session 仍保留同名 schema，但每次执行都会
 - disable、reload 或 remove 会注销 handler、取消 pending Approval、释放 Gateway outbound registration
   并断开官方长连接；Gateway 自己负责关闭公共 Storage Domain。
 
-已验证 DSH revision `47f943859bef60e4160492346772ded9b24f765a` 的 attachment v1 只支持
-PNG/JPEG/WebP/GIF 栅格图片；2026-08-24 对官方最新 `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`
-（`0.1.1-rc.2`）的设计审计确认其 AttachmentStore、LLM ContentBlock 和 DeepSeek Files 路径仍为 image-only。
+已验证 DSH revision `47f943859bef60e4160492346772ded9b24f765a`（`0.1.0-rc.5`）与
+`b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`（`0.1.1-rc.2`）的 assembled 兼容矩阵。两版
+AttachmentStore、LLM ContentBlock 和 DeepSeek Files 路径仍为 image-only；rc.2 入站使用整批 `saveImages()`，
+并保留图片规范化产生的 `originalDimensions`。
 因此本插件当前没有把飞书普通文件、音频或视频宣称为已完成：不得把外部
 `fileKey`、URL、base64 或伪造 file block 写入 Session。文档、知识库、云盘元数据和多维表格读取已有
 assembled DSH 自动化证据，但真实飞书 App scope、资源权限拒绝与真实内容仍待验收。

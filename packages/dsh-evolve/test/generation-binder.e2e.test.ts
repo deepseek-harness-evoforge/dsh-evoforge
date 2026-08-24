@@ -1,3 +1,4 @@
+import { realpathSync } from 'node:fs'
 import { chmod, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -13,8 +14,8 @@ import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const suiteRoot = resolve(packageRoot, '../..')
-const dshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
-  ?? resolve(suiteRoot, '../deepseek-harness')
+const dshSourceDir = realpathSync(process.env.DSH_EVOLVE_DSH_SOURCE_DIR
+  ?? resolve(suiteRoot, '../deepseek-harness'))
 const temporaryRoots: string[] = []
 
 afterEach(async () => {
@@ -68,7 +69,6 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     }))
     await handle.agent.whenIdle()
 
-    expect(adapter.requests).toHaveLength(2)
     const overview = await control.overview(WORKSPACE_ID, 'model-gap-session')
     expect(overview).toMatchObject({ capabilityMap: { status: 'complete' } })
     expect(overview.capabilityGaps).toMatchObject({
@@ -86,6 +86,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
         },
       }],
     })
+    expect(adapter.requests).toHaveLength(2)
     expect(JSON.stringify(adapter.requests[1]))
       .toContain('internal Skill opportunity discovery continues asynchronously')
 

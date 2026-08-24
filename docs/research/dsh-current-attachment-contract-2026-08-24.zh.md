@@ -3,13 +3,15 @@
 > 性质：只读上游研究，不是插件完成证据，也不扩大 EvoForge 的支持范围。
 >
 > 一手来源仅限官方 [`deepseek-ai/deepseek-harness`](https://github.com/deepseek-ai/deepseek-harness) 的源码、文档与 Git 历史。
+>
+> 后续状态：V5.16 已另行完成 rc.5/rc.2 双版本 assembled 兼容矩阵；见[独立证据](../evidence/v5-16-dsh-dual-version-compatibility-matrix.zh.md)。下文保留本次审计发生时的支持判断，避免用后来实现追溯改写研究记录。
 
 ## 固定 revision
 
 | 口径 | Revision | 版本与用途 |
 |---|---|---|
-| EvoForge 已支持基线 | [`47f943859bef60e4160492346772ded9b24f765a`](https://github.com/deepseek-ai/deepseek-harness/commit/47f943859bef60e4160492346772ded9b24f765a) | 源码包版本 `0.1.0-rc.5`；现有 assembled gate 与支持声明仍只绑定该 revision。 |
-| 本次最新上游审计 | [`b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`](https://github.com/deepseek-ai/deepseek-harness/commit/b150a551b8d465e31e418e1b2eaf5e79bbb7d28e) | 2026-08-24 拉取官方 `origin/master`，该 commit 同时由 tag [`dsh-v0.1.1-rc.2`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.1.1-rc.2) 指向。它是研究基线，不是已经兼容或验证的目标。 |
+| 审计当时的 EvoForge 支持基线 | [`47f943859bef60e4160492346772ded9b24f765a`](https://github.com/deepseek-ai/deepseek-harness/commit/47f943859bef60e4160492346772ded9b24f765a) | 源码包版本 `0.1.0-rc.5`；审计时的 assembled gate 与支持声明只绑定该 revision。 |
+| 本次上游审计目标 | [`b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`](https://github.com/deepseek-ai/deepseek-harness/commit/b150a551b8d465e31e418e1b2eaf5e79bbb7d28e) | 2026-08-24 拉取官方 `origin/master`，该 commit 同时由 tag [`dsh-v0.1.1-rc.2`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.1.1-rc.2) 指向。审计当时它尚未兼容；V5.16 后由独立矩阵加入支持。 |
 
 两者不可混写：`rc.2` 的新源码事实不能追溯替换 `rc.5` 的安装、运行或验收证据。
 
@@ -66,15 +68,13 @@
 ## 对 `dsh-gateway` / `dsh-feishu` 的兼容含义
 
 1. **继续保留 image-only 边界。** 平台图片应先下载、校验并由 Host 的 `ctx.attachments` 持久化，Gateway 只接收原生引用；普通文件、音频、视频继续 fail closed 或显示明确 unsupported，不能降格为伪 `file` block。
-2. **支持声明仍停在 `rc.5`。** 当前
-   [`dsh-gateway`](../../packages/dsh-gateway/package.json) 与
-   [`dsh-feishu`](../../packages/dsh-feishu/package.json) 的 DSH peer range 是 `>=0.1.0-rc.5 <0.1.0`，不包含 `0.1.1-rc.2`；本次源码相似性审计不能替代 clean-profile 安装、类型、assembled lifecycle 和真实消息回归门禁。
-3. **若另行升级到 `rc.2`，应按新公开图片 seam 重审。** 当前飞书入站图片仍在
-   [`inbound-images.ts`](../../packages/dsh-feishu/src/inbound-images.ts) 自行组合旧版 `validateImage + saveImage`；升级后应优先使用 `saveImages()` 的整批准入/规范化语义。Gateway 目前也会在
-   [`gateway.ts`](../../packages/dsh-gateway/src/gateway.ts) 重建 native ref 而不携带 `originalDimensions`，升级审计应避免静默丢弃上游新增的引用元数据。两项都属于未来升级工作，本报告未修改运行时代码。
+2. **审计不能直接扩大支持。** 本次源码相似性判断之后，V5.16 才通过独立红测、实现和双版本 assembled 门禁，把 peer range 收紧为 exact `0.1.0-rc.5 || 0.1.1-rc.2`；未知预发布版仍不支持。
+3. **`rc.2` 使用新公开图片 seam。** V5.16 后，飞书入站图片在 Host 提供时优先使用
+   [`inbound-images.ts`](../../packages/dsh-feishu/src/inbound-images.ts) 的 `saveImages()` 整批准入/规范化语义；rc.5 回退仍先全量 `validateImage` 再逐个保存。Gateway 在
+   [`gateway.ts`](../../packages/dsh-gateway/src/gateway.ts) 保留并重验可选 `originalDimensions`，避免静默丢弃上游引用元数据。
 4. **不要把 TypeScript declaration merge 当成交付。** `ContentBlockMap` 可扩展只说明类型接缝开放；官方注释同时要求 adapter/UI/compaction 全链支持。单独在 EvoForge 声明 `file/audio/video` 不能形成 DSH 原生端到端契约。
 
 ## 上游缺口判定
 
-- 图片：核心附件与消息契约已存在；`rc.2` 比 `rc.5` 更强，但 EvoForge 尚未证明对 `rc.2` 的安装与运行兼容。
+- 图片：核心附件与消息契约已存在；`rc.2` 比 `rc.5` 更强，EvoForge 已在 V5.16 的独立双版本矩阵中证明其安装与 assembled 运行兼容。
 - 普通文件、音频、视频：**上游 DSH 功能缺口仍然存在**。在官方 durable ref、Session block、provider adapter、compaction 和客户端展示共同落地之前，`dsh-gateway` / `dsh-feishu` 不应自行建立平行消息格式。飞书文档、知识库、云盘或多维表格等独立授权 Tool 能力，也不能被当成聊天附件契约已经补齐。

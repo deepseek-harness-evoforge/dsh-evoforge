@@ -231,6 +231,7 @@ describe('DshGateway', () => {
       width: 1,
       height: 1,
       name: 'diagram.png',
+      originalDimensions: { width: 2, height: 2 },
     })
 
     await gateway.dispatch({
@@ -271,6 +272,51 @@ describe('DshGateway', () => {
     expect(duplicate).toMatchObject({ kind: 'command', duplicate: true, result: { kind: 'success', text: 'goal active' } })
     expect(host.executed).toEqual([{ sessionId: 'session-a', line: '/goal status' }])
     expect(host.messages.get('session-a')).toBeUndefined()
+  })
+
+  it('invokes the rc.2 image-aware native Command signature with an empty image batch', async () => {
+    const host = fakeNativeHost()
+    host.commandLines.add('/goal status')
+    const calls: Array<{ line: string; images: readonly unknown[]; signal: AbortSignal }> = []
+    const commands = host.ctx.commands as unknown as {
+      execute: (
+        agent: Agent,
+        line: string,
+        images: readonly unknown[],
+        signal: AbortSignal,
+      ) => Promise<{ commandId: string; result: { kind: 'success'; text: string } }>
+    }
+    commands.execute = async function executeRc2(_agent, line, images, signal) {
+      if (!Array.isArray(images)) throw new Error('rc.2 Command images must be an array')
+      if (!(signal instanceof AbortSignal)) throw new Error('rc.2 Command signal is missing')
+      calls.push({ line, images, signal })
+      return { commandId: 'command-rc2', result: { kind: 'success', text: 'goal active' } }
+    }
+    const facility = memoryFacility()
+    const gateway = new DshGateway(
+      host.ctx,
+      routes,
+      await openGatewayIngressJournal(facility),
+      await openGatewayOutboundJournal(facility),
+    )
+    await gateway.start()
+
+    const result = await gateway.dispatch({
+      endpoint: endpointA,
+      eventId: 'command-rc2',
+      text: '/goal status',
+    })
+
+    expect(result).toMatchObject({
+      kind: 'command',
+      duplicate: false,
+      result: { kind: 'success', text: 'goal active' },
+    })
+    expect(calls).toHaveLength(1)
+    expect(calls[0]?.line).toBe('/goal status')
+    expect(calls[0]?.images).toEqual([])
+    expect(calls[0]?.signal).toBeInstanceOf(AbortSignal)
+    await gateway.stop()
   })
 
   it('fails closed before binding a persisted Session owned by another Workspace', async () => {

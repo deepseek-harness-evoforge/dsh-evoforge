@@ -2,7 +2,7 @@
 
 **EvoForge 是安装进 DeepSeek Harness 的原生 out-of-tree 插件套件，不是独立 Harness、Runtime、CLI、Web 服务或 daemon。** DSH 始终是唯一 Agent Host，以及 Session、Goal、Approval、Storage、Jobs、Skill、Tool、Workspace 和 Cordis 生命周期权威。
 
-当前兼容性证据固定在 DeepSeek Harness `47f943859bef60e4160492346772ded9b24f765a`（`0.1.0-rc.5`）。最新设计审计另固定在官方 `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`（`0.1.1-rc.2`）：该版本仍只有原生栅格图片附件，DeepSeek Files API 也只承载图片请求，不能据此宣称飞书普通文件、音频或视频已进入 DSH Session。项目仍为 pre-alpha，尚未发布 registry release；当前真实安装路径是本地 tarball 加 DSH 官方 profile 命令。
+当前兼容性证据固定在两组官方 DeepSeek Harness revision：`47f943859bef60e4160492346772ded9b24f765a`（`0.1.0-rc.5`）和 `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`（`0.1.1-rc.2`）。两者均通过 revision/version/clean-source 锁定的十一包 fresh-install、升级、原生 Agent/Goal/Gap、飞书 assembled 路径与卸载 readback 矩阵。rc.2 仍只有原生栅格图片附件，DeepSeek Files API 也只承载图片请求，不能据此宣称飞书普通文件、音频或视频已进入 DSH Session。项目仍为 pre-alpha，尚未发布 registry release；当前真实安装路径是本地 tarball 加 DSH 官方 profile 命令。
 
 ## 当前套件
 
@@ -74,6 +74,12 @@ V5.14 补齐了此前缺失的整套升级门：从冻结 V5.11 revision 打出�
 内部 Gap，再用当前十一包最终 tarball 经官方 CLI 原位升级。新版读回旧证据，并以第二个不同 Goal 形成同一
 Skill Opportunity；Bundle/配置无重复，全部卸载后两条原生 Session/Goal 仍可读。该门是 pre-release migration
 floor，不冒充真实发布 tag→tag、真实 Provider 或真实飞书验收，详见 [V5.14 证据](docs/evidence/v5-14-suite-upgrade-lifecycle.zh.md)。
+
+V5.16 把 rc.2 从只读审计目标纳入显式支持矩阵，并继续保留 rc.5：peer range 只允许这两个 exact 版本；矩阵
+拒绝未知 revision、版本错配和 tracked dirty。兼容实现覆盖 rc.2 Command 图片参数、AttachmentStore 整批图片
+保存、`originalDimensions` 与规范化后内容身份；两版均通过十一包 fresh-install/升级/卸载、原生
+Goal→Agent Loop→Gap、future-Session 固定/回滚及飞书聊天/内容 Approval/全通道缓存组合。该门不替代真实飞书、
+真实 Provider、长期 Outcome 或同条件 Hermes paired，详见 [V5.16 证据](docs/evidence/v5-16-dsh-dual-version-compatibility-matrix.zh.md)。
 
 existing-Skill 路径会封存调用时完整 Bundle，并把当前纠正文与 durable Goal/请求预分为 authoring/admission/holdout/可选 Retention。V4.40 的 Candidate 不可见治理面在 proposer 前用两次独立调用分别消费 protected Holdout 与可选第五 Goal Retention，每次只见 exact baseline 和自己的一个 protected Goal；两套 assembled `skill-tree` Case Pack 经独立 calibration 后共同进入内容寻址 Evaluation Envelope，Candidate id 绑定整个 Envelope。受保护作者只允许改 `SKILL.md`/`references/*.md`，Host 原样继承二进制和其余文件并拒绝权限漂移；结构准入再重验 exact baseline/Candidate 双树、声明 diff 与 protected admission identity。V4.39 的原生 DSH Job 执行完整 paired Holdout；V4.41 只在该 exact Holdout 权威判为 `improved` 后由另一原生 DSH Job 执行预密封 Retention，四 Goal无样本时零花费 abstain，五 Goal按 `fail/pass` 四象限持久判为 `retained/ambiguous/not-retained/regressed`。两者都要求 calibration、assembled、composition 与输入完整性全部成立，中断不盲重试且无晋升权。V4.43 再由独立 Host mutation gate 重验 exact Admission/Holdout/Retention 与完整 sealed Bundle；只有人工 approve 才产生 inactive Generation，另一动作才选择未来 Session，reject 持久终止且 evaluator 始终无发布权。
 

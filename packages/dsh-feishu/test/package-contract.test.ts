@@ -20,8 +20,8 @@ describe('dsh-feishu package contract', () => {
     })
     expect(manifest.dependencies?.['@larksuiteoapi/node-sdk']).toBe('1.73.0')
     expect(manifest.peerDependencies?.['dsh-gateway']).toBe('0.1.0-alpha.1')
-    expect(manifest.peerDependencies?.['@deepseek-ai/dsh-tools']).toBe('>=0.1.0-rc.5 <0.1.0')
-    expect(manifest.peerDependencies?.['@deepseek-ai/dsh-llm']).toBe('>=0.1.0-rc.5 <0.1.0')
+    expect(manifest.peerDependencies?.['@deepseek-ai/dsh-tools']).toBe('0.1.0-rc.5 || 0.1.1-rc.2')
+    expect(manifest.peerDependencies?.['@deepseek-ai/dsh-llm']).toBe('0.1.0-rc.5 || 0.1.1-rc.2')
     expect(Object.keys(manifest.dependencies ?? {})).not.toContain('@deepseek-ai/cordis')
     expect(Object.keys(manifest.dependencies ?? {}).filter(name => name.startsWith('@deepseek-ai/dsh-'))).toEqual([])
     expect(await readFile(resolve(packageRoot, 'cordis.patch.yml'), 'utf8')).toBe(

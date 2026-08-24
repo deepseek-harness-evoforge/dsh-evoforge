@@ -16,6 +16,10 @@
 
 因此“DeepSeek Files API 已加入 DSH”不等于 DSH 已有通用文件块。普通文件、音频和视频继续 pending；若未来上游增加原生契约，应新建 ADR 并在新的 DSH 支持基线上完成 assembled 兼容矩阵后替代本决策，而不是扩张 Gateway。
 
+V5.16 随后完成 rc.5/rc.2 双版本兼容矩阵：rc.2 路径优先调用 Host 的有序 `saveImages()`，Gateway 保留并校验
+`originalDimensions`；rc.5 继续使用“先整批 validate、再逐个 save”的兼容路径。两者都只传递官方
+`ImageAttachmentRef`，没有增加 file/audio/video 私有块。
+
 ## 背景
 
 飞书事件把图片表示为平台 `fileKey`。该 key 是 Adapter 的外部资源身份，不是持久内容，也不应进入

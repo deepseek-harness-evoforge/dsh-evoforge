@@ -10,6 +10,7 @@ interface NativeImageStore {
   readonly imageLimits: ImageAttachmentLimits
   validateImage(input: SaveImageAttachment): Promise<void>
   saveImage(input: SaveImageAttachment): Promise<ImageAttachmentRef>
+  saveImages?(inputs: readonly SaveImageAttachment[]): Promise<readonly ImageAttachmentRef[]>
 }
 
 export interface MaterializedFeishuInbound {
@@ -56,16 +57,26 @@ export async function materializeFeishuInbound(
   if (totalBytes > limits.maxMessageImageBytes) {
     throw new Error('dsh-feishu: inbound message exceeds the native DSH aggregate image-byte limit')
   }
-  for (const image of prepared) await store.validateImage(image)
-  const images: ImageAttachmentRef[] = []
-  for (const image of prepared) images.push(await store.saveImage(image))
+  const images = store.saveImages === undefined
+    ? await saveLegacyImageBatch(store, prepared)
+    : await store.saveImages(prepared)
   const text = message.rawContentType === 'image'
     ? undefined
     : sanitizeResourceKeys(message.content, message.resources)
   return Object.freeze({
     text: text === undefined || text.length === 0 ? undefined : text,
-    images: Object.freeze(images),
+    images: Object.freeze([...images]),
   })
+}
+
+async function saveLegacyImageBatch(
+  store: NativeImageStore,
+  prepared: readonly SaveImageAttachment[],
+): Promise<readonly ImageAttachmentRef[]> {
+  for (const image of prepared) await store.validateImage(image)
+  const images: ImageAttachmentRef[] = []
+  for (const image of prepared) images.push(await store.saveImage(image))
+  return images
 }
 
 function sanitizeResourceKeys(

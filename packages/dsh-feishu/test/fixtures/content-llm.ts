@@ -17,6 +17,13 @@ class FeishuContentAdapter extends LlmAdapter {
     return Promise.resolve({ provider, id: model, name: model })
   }
 
+  async prepareCall(provider: string, model: string, _signal?: AbortSignal) {
+    return {
+      model: await this.resolveModel(provider, model),
+      stream: (options: GenerateOptions) => this.stream(options),
+    }
+  }
+
   async * stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
     this.requests.push({ tools: options.tools, ...(options.system === undefined ? {} : { system: options.system }) })
     const result = options.messages.at(-1)?.content.find(block => block.type === 'tool-result')

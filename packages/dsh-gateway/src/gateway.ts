@@ -4,6 +4,7 @@ import type { Agent, AgentHandle } from '@deepseek-ai/dsh-agent'
 import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import type {} from '@deepseek-ai/dsh-agent-presets'
 import { parseCommand } from '@deepseek-ai/dsh-commands'
+import type { CommandExecution } from '@deepseek-ai/dsh-commands/types'
 import { freezeMessage, MessageId } from '@deepseek-ai/dsh-llm'
 import { SessionId, type SessionEvent, type SessionHeader, type UserMessage } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-session-persistence'
@@ -321,7 +322,8 @@ export class DshGateway {
 
     let result: GatewayCommandResult
     try {
-      const execution = await this.ctx.commands.execute(
+      const execution = await executeNativeCommand(
+        this.ctx.commands,
         agent,
         input.content.commandText!,
         input.signal ?? new AbortController().signal,
@@ -589,14 +591,54 @@ function normalizeImageReference(input: ImageAttachmentRef): ImageAttachmentRef 
     }
   }
   const name = input.name === undefined ? undefined : exactImageName(input.name)
-  return Object.freeze({
+  const extended = input as ImageAttachmentRef & {
+    originalDimensions?: { width: number; height: number }
+  }
+  const originalDimensions = extended.originalDimensions === undefined
+    ? undefined
+    : normalizeOriginalDimensions(extended.originalDimensions, input.width, input.height)
+  const normalized = Object.freeze({
     attachmentId,
     mediaType: input.mediaType,
     bytes: input.bytes,
     width: input.width,
     height: input.height,
     ...(name === undefined ? {} : { name }),
+    ...(originalDimensions === undefined ? {} : { originalDimensions }),
   })
+  return normalized
+}
+
+async function executeNativeCommand(
+  commands: Context['commands'],
+  agent: Agent,
+  line: string,
+  signal: AbortSignal,
+): Promise<CommandExecution | undefined> {
+  if (commands.execute.length >= 4) {
+    const executeWithImages = commands.execute as unknown as (
+      agent: Agent,
+      line: string,
+      images: readonly never[],
+      signal: AbortSignal,
+    ) => Promise<CommandExecution | undefined>
+    return executeWithImages.call(commands, agent, line, [], signal)
+  }
+  return commands.execute(agent, line, signal)
+}
+
+function normalizeOriginalDimensions(
+  value: { width: number; height: number },
+  width: number,
+  height: number,
+): Readonly<{ width: number; height: number }> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)
+    || !Number.isSafeInteger(value.width) || value.width < width
+    || !Number.isSafeInteger(value.height) || value.height < height
+    || (value.width === width && value.height === height)) {
+    throw new Error('channel image originalDimensions must describe a larger positive raster')
+  }
+  return Object.freeze({ width: value.width, height: value.height })
 }
 
 function exactImageName(value: string): string {

@@ -27,6 +27,13 @@ class CompositionRecorder extends LlmAdapter {
     }
   }
 
+  async prepareCall(provider: string, model: string, _signal?: AbortSignal) {
+    return {
+      model: await this.resolveModel(provider, model),
+      stream: (options: GenerateOptions) => this.stream(options),
+    }
+  }
+
   async * stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
     const { signal: _signal, ...composition } = options
     appendFileSync(this.output, `${JSON.stringify(composition)}\n`, 'utf8')
