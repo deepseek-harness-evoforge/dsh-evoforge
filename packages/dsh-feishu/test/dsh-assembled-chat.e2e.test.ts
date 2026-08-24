@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { pathToFileURL, fileURLToPath } from 'node:url'
-import { freezeMessage, MessageId } from '@deepseek-ai/dsh-llm'
+import { CallId } from '@deepseek-ai/dsh-llm'
 import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import type { ApprovalOutcome } from '@deepseek-ai/dsh-user-approval'
@@ -28,7 +28,7 @@ afterEach(async () => {
 })
 
 describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () => {
-  it('drives native Agent, Command, Approval, continuation, and host notice through one exact route', async () => {
+  it('drives native Agent, Command, Schedule, Approval, and host notice through one exact route', async () => {
     await execFile('pnpm', ['run', 'build'], { cwd: packageRoot, encoding: 'utf8', timeout: 30_000 })
     const root = await mkdtemp(join(tmpdir(), 'dsh-feishu-assembled-'))
     temporaryRoots.push(root)
@@ -105,6 +105,10 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
       {
         id: 'workspace',
         name: join(dshSourceDir, 'packages', 'workspace', 'workspace', 'lib', 'index.js'),
+      },
+      {
+        id: 'schedule',
+        name: join(dshSourceDir, 'packages', 'schedule', 'schedule', 'lib', 'index.js'),
       },
       {
         id: 'channel-gateway-bootstrap',
@@ -258,18 +262,56 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
       expect(agent?.session.events.some((event: SessionEvent) => event.type === 'command/run'
         && event.data.name === 'feishu')).toBe(true)
 
-      agent?.followup(freezeMessage({
-        id: MessageId('native:feishu-continuation:1'),
-        role: 'user',
-        content: [{ type: 'text', text: 'native Goal or Schedule continuation' }],
-        source: { kind: 'user' },
+      await agent?.whenIdle()
+      expect(ctx.tools.get('schedule_create', agent)).toBeDefined()
+      const scheduled = await ctx.agents.withInitiator(agent!, () => ctx.tools.execute({
+        signal: new AbortController().signal,
+        callId: CallId('feishu-native-schedule-create'),
+        name: 'schedule_create',
+        arguments: {
+          prompt: 'Send the scheduled Feishu follow-up through the existing native Session.',
+          after_seconds: 1,
+        },
+        agent: agent!,
       }))
+      expect(scheduled.isError).toBe(false)
+      if (scheduled.isError) throw new Error('expected native Schedule create value')
+      expect(scheduled.value).toMatchObject({
+        id: 'schedule-1',
+        deliveryMode: 'session-local',
+      })
       await vi.waitFor(() => { expect(service.platform.texts).toHaveLength(3) }, { timeout: 15_000, interval: 25 })
       expect(service.platform.texts[2]).toMatchObject({
         chatId: 'oc_main',
+        text: expect.stringContaining('CLI tool round trip complete: CLI_TOOL_ROUND_TRIP'),
         options: { replyInThread: true },
       })
       expect(service.platform.texts[2]).not.toHaveProperty('options.replyTo')
+      expect(agent?.session.events.filter((event: unknown) => isScheduleChange(event, 'create'))).toHaveLength(1)
+      expect(agent?.session.events.filter((event: unknown) => isScheduleChange(event, 'dispatch'))).toHaveLength(1)
+      expect(agent?.session.events.some((event: SessionEvent) => event.type === 'user/message'
+        && event.data.source.kind === 'plugin'
+        && event.data.source.plugin === 'schedule')).toBe(true)
+      await vi.waitFor(() => {
+        const scheduledDeliveries = [...(deliveryDomain?.table('outbound').entries() ?? [])]
+          .map(([, value]) => value as {
+            attempts?: unknown
+            intentKey?: unknown
+            kind?: unknown
+            replyInThread?: unknown
+            replyToExternalId?: unknown
+            status?: unknown
+            waitForTurnEnd?: unknown
+          })
+          .filter(value => value.kind === 'turn' && value.replyToExternalId === undefined)
+        expect(scheduledDeliveries).toEqual([expect.objectContaining({
+          attempts: 1,
+          intentKey: expect.stringMatching(/^turn:\d+$/u),
+          replyInThread: true,
+          status: 'delivered',
+          waitForTurnEnd: expect.any(Number),
+        })])
+      }, { timeout: 5_000, interval: 10 })
 
       const agentModule = await import(pathToFileURL(
         join(dshSourceDir, 'packages', 'core', 'agent', 'lib', 'index.js'),
@@ -403,4 +445,10 @@ function message(overrides: Partial<FeishuInboundMessage>): FeishuInboundMessage
     resources: [],
     ...overrides,
   })
+}
+
+function isScheduleChange(event: unknown, operation: 'create' | 'dispatch'): boolean {
+  if (typeof event !== 'object' || event === null) return false
+  const value = event as { readonly type?: unknown; readonly data?: { readonly operation?: unknown } }
+  return value.type === 'schedule/change' && value.data?.operation === operation
 }

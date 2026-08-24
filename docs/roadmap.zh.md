@@ -8,6 +8,7 @@
 > V5.15 把 DSH 官方 `dsh-v0.1.1-rc.2`（`b150a55`）作为独立设计审计基线：[直接源码确认](research/dsh-current-attachment-contract-2026-08-24.zh.md)其 Files API 仍只承载图片，核心没有 generic file/audio/video block。普通文件/音视频继续是上游契约缺口，不扩张 Gateway。
 > V5.16 已让 rc.2 与 rc.5 同时进入 exact allowlist：两版分别通过十一包 fresh-install、冻结前代升级、原生 Goal→Agent Loop→Gap、future-Session 固定/回滚、飞书聊天/内容 Approval/全通道缓存及卸载 readback。矩阵拒绝未知 revision、版本错配与 tracked dirty；下一门仍是真实 Provider、真实飞书和同条件 Hermes paired，不是继续扩张 Gateway。
 > V5.17 已以真实 DSH Agent/Goal/`complete_delivery`、JSONL Session、StorageDomain、两个独立进程和 `SIGKILL` 验证 checkpoint 前与 checkpoint 后/Outcome 前两个窗口；冷恢复不调用模型、不重跑 Tool，外部效果保持一次。Software Delivery 仍缺真实长期任务和同模型 Hermes paired，不因此升级为整体完成。
+> V5.18 已推翻飞书测试中用普通 `agent.followup()` 文本冒充 Schedule 的旧证据，改为真实加载官方 DSH Schedule、通过原生 `schedule_create` 写入 Session 并等待 create→dispatch→follow-up；现有 Gateway turn journal 再以 `turn/end` 门只向 exact 飞书线程投递一次。没有新增 scheduler、Gateway 业务或 Feishu 私有日程状态；真实平台与 paired 门仍未通过。
 > V4.38 已在 existing-Skill Candidate proposer 前生成并校准 Candidate 不可见的完整 `skill-tree` holdout Envelope；V4.39 已把 exact Envelope 纳入 Candidate 内容身份并消费该 Envelope 与 V4.37 exact 双树执行 assembled paired Trial。下一门是独立 Retention/Canary/晋升/回滚，而不是再次生成或搜索能力。
 > V4.40–V4.45 已完成 Retention、发布门与最终包浏览器生命周期；V4.46–V4.48 已完成 existing-Skill failed-Outcome Canary、权威 Control/Remote/Web、独立 expected-active rollback gate 与最终 tarball 浏览器故障恢复；V4.49 已完成 missing-Skill 同类最终包故障恢复。下一门是两套独立真实 provider。
 > 更新日期：2026-08-24
@@ -56,6 +57,10 @@ Agent/Session/Goal 路径、reload/dispose、前代升级、卸载和原生 read
 实现状态：Adapter、Gateway 公共可靠投递、真实 DSH 单 Workspace 组合、双 Workspace 双渠道同 Host 重启隔离、Telegram/飞书进化注意力、tarball lifecycle 与十一包总装已完成；真实飞书 App 身份请求、标准代理环境 WebSocket 和 setup-only pairing transport 已通过。assembled 图片纵切已经证明外部 key 只停留在 Adapter，原生引用进入 Session 且 exact bytes 可由 AttachmentStore 回读；它不是用户真实飞书消息或真实多模态 provider 证据。同包 DSH Web Client Module 已从最终 tarball 安装到干净 profile，真实浏览器证明其在当前 Session 内生成/复制/取消配对且零 console error；用户尚未发送配对短语，exact route 消息仍未达到退出门。文档/Wiki/Drive metadata/Bitable 已以四个独立最小权限和一个稳定 Agent-scoped Tool 进入原生 ToolRuntime/Approval，官方 SDK 映射与 durable result 有 assembled 证据；V2 Host/Web 已显示当前 Session 的 Tool/Approval/future-only 就绪状态并通过最终包刷新、失败清空和恢复。真实 App scope、资源权限和真实内容仍待验收。普通文件、音视频继续 pending，不发明 Gateway file block。
 
 V5.8 的 AS-2 已把 V2 的真实平台退出路径编码为 fail-closed 入口：最终 tarball、官方 DSH CLI、生产飞书 transport、exact route、原生 Session/Command/Approval、Gateway durable notice、dispose/remove/readback 都是 hard gate；未授权时零身份/凭据读取。当前 7/7 合同通过，但 direct/group 两个真实 epoch 均为 `NOT_RUN`。
+
+V5.18 又把 V2 的日程回送从“普通 follow-up 代称 Schedule”修正为官方 DSH Schedule assembled 纵切：真实
+`schedule_create`、Session `schedule/change` create/dispatch、`plugin:schedule` 到期消息、Agent turn、Gateway
+durable `turn/end` 门和飞书 thread send 全部在同一 Host 中成立。它仍不替代 AS-2 真实平台或重启中途投递门。
 
 - 支持静态授权的私聊或群聊文本、原生 Command、一次性 Approval、最终回答、Goal/Schedule 与进化注意力；
 - 支持按独立部署权限启用 document/Wiki/Drive metadata/Bitable 的有界原生 Tool 读取，每次走 DSH Approval；
