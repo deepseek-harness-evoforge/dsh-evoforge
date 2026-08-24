@@ -2,7 +2,7 @@
 
 **EvoForge 是安装进 DeepSeek Harness 的原生 out-of-tree 插件套件，不是独立 Harness、Runtime、CLI、Web 服务或 daemon。** DSH 始终是唯一 Agent Host，以及 Session、Goal、Approval、Storage、Jobs、Skill、Tool、Workspace 和 Cordis 生命周期权威。
 
-当前兼容性证据固定在 DeepSeek Harness `47f943859bef60e4160492346772ded9b24f765a`（`0.1.0-rc.5`）。项目仍为 pre-alpha，尚未发布 registry release；当前真实安装路径是本地 tarball 加 DSH 官方 profile 命令。
+当前兼容性证据固定在 DeepSeek Harness `47f943859bef60e4160492346772ded9b24f765a`（`0.1.0-rc.5`）。最新设计审计另固定在官方 `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`（`0.1.1-rc.2`）：该版本仍只有原生栅格图片附件，DeepSeek Files API 也只承载图片请求，不能据此宣称飞书普通文件、音频或视频已进入 DSH Session。项目仍为 pre-alpha，尚未发布 registry release；当前真实安装路径是本地 tarball 加 DSH 官方 profile 命令。
 
 ## 当前套件
 
@@ -132,7 +132,7 @@ dsh --profile web
 
 ## 当前 v0.1 工作
 
-`dsh-gateway` 已直接替换旧 Router 包且没有兼容转发层；Gateway、Telegram、飞书、Evolve Attention、全仓类型/构建和十一包 clean-profile add/dump/boot/remove/readback 均已回归通过。静态 exact endpoint、原生 Workspace/Session/Agent、Command、持久 ingress 与双 Workspace 双渠道隔离保持；Gateway 现已统一 Telegram/飞书普通文本的持久 outbound intent、幂等、按 account 串行、明确 429 有界重试、uncertain 恢复、脱敏 transport observation，并由同包 DSH Client Module 提供只读渠道健康视图。飞书图片已在 assembled DSH 中经官方 message-resource 端口下载、整批校验、原生 AttachmentStore 内容寻址保存并以 `ImageAttachmentRef` 进入 Agent，外部 `fileKey` 不进入 Session；文档/Wiki/Drive metadata/Bitable 已按四个默认关闭的独立权限进入 Agent-scoped 原生 Tool，每次读取经过 DSH Approval，assembled DSH 已验证稳定 schema、durable result、拒绝与 dispose。V5.6 又从最终 tarball 在真实 DSH Web 验证当前 Session 的四权限、Tool/Approval、future-only 状态、刷新、Host 停机清空旧快照和同端口恢复；健康读取不调用模型或平台。固定 DSH attachment v1 尚无通用文件契约，因此普通文件和音视频仍 pending；内容能力的真实飞书 App scope、资源权限与真实数据也未验收。最终 tarball 的真实 DSH 浏览器已验证 existing-Skill exact paired holdout 的读取、整页刷新、Host 停机保留最后快照并显式失败、同端口恢复和官方卸载。真实飞书 exact 用户消息/回复/Approval、两套独立真实 provider Trial、同模型编码/长任务和真实消息交付 Hermes paired epochs 仍是完成门禁；这些完成前不得发布或宣称整体上位。
+`dsh-gateway` 已直接替换旧 Router 包且没有兼容转发层；Gateway、Telegram、飞书、Evolve Attention、全仓类型/构建和十一包 clean-profile add/dump/boot/remove/readback 均已回归通过。静态 exact endpoint、原生 Workspace/Session/Agent、Command、持久 ingress 与双 Workspace 双渠道隔离保持；Gateway 现已统一 Telegram/飞书普通文本的持久 outbound intent、幂等、按 account 串行、明确 429 有界重试、uncertain 恢复、脱敏 transport observation，并由同包 DSH Client Module 提供只读渠道健康视图。飞书图片已在 assembled DSH 中经官方 message-resource 端口下载、整批校验、原生 AttachmentStore 内容寻址保存并以 `ImageAttachmentRef` 进入 Agent，外部 `fileKey` 不进入 Session；文档/Wiki/Drive metadata/Bitable 已按四个默认关闭的独立权限进入 Agent-scoped 原生 Tool，每次读取经过 DSH Approval，assembled DSH 已验证稳定 schema、durable result、拒绝与 dispose。V5.6 又从最终 tarball 在真实 DSH Web 验证当前 Session 的四权限、Tool/Approval、future-only 状态、刷新、Host 停机清空旧快照和同端口恢复；健康读取不调用模型或平台。已验证 rc.5 和最新审计的 rc.2 都尚无通用附件契约，因此普通文件和音视频仍 pending；内容能力的真实飞书 App scope、资源权限与真实数据也未验收。最终 tarball 的真实 DSH 浏览器已验证 existing-Skill exact paired holdout 的读取、整页刷新、Host 停机保留最后快照并显式失败、同端口恢复和官方卸载。真实飞书 exact 用户消息/回复/Approval、两套独立真实 provider Trial、同模型编码/长任务和真实消息交付 Hermes paired epochs 仍是完成门禁；这些完成前不得发布或宣称整体上位。
 
 - [安装与验收](docs/getting-started.zh.md)
 - [当前状态](docs/status.zh.md)

@@ -1,6 +1,6 @@
 # EvoForge DSH 插件接口与验收规范
 
-> 上游核验基线：DeepSeek Harness `0.1.0-rc.5`，revision `47f943859bef60e4160492346772ded9b24f765a`
+> 已验证支持基线：DeepSeek Harness `0.1.0-rc.5`，revision `47f943859bef60e4160492346772ded9b24f765a`。最新设计审计另固定在 `0.1.1-rc.2`、`b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`，但尚未通过十一包 assembled 兼容矩阵，不能据此扩大支持声明。
 
 本规范约束 EvoForge 发布物，不发明第二套插件 API。运行时接口由 Cordis 和 DSH 所有；EvoForge 只规定一个 out-of-tree 插件必须如何选择接缝、保护缓存、验证生命周期并证明用户价值。
 

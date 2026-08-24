@@ -15,7 +15,7 @@
 
 本地仓库已收口为标准仓库路径下唯一 `main` 工作树和本地分支，并与 `origin/main` 同步。
 
-EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。所有已提交成果都在权威 `main`；`dsh-gateway` 已直接替换 `dsh-channel-router`。ClawHub、市场和 runtime research Candidate 已删除；`dsh-evolve` 的 Git source/ref、预选 Skill、静态 Case Pack/Feedback/Evaluator target、Feedback/Evaluator Draft、Shadow 内 proposer、自动 review expiry、旧 Retention/canary 和对应 Control/Web/attention 表面也已从活动源码物理删除。公开 Config 只包含内容寻址缓存、Workspace 自发现/评测 policy 和通用 supervisor；`GenerationBundleRepository`/`CandidatePublisher` 只解析内部 whole-Skill Bundle，legacy artifact 明确 quarantine；packed artifact 与 Shadow 源码均有负向回归契约。Gateway 的入站边界现支持文本和 DSH 原生图片引用；飞书外部图片 key 在 Adapter 内下载并经 AttachmentStore 内容寻址保存，不进入 Session。固定 DSH attachment v1 不支持通用文件，普通文件/音视频仍明确 pending。
+EvoForge 已有大量 `implemented` 能力，但 v0.1 **未完成**。所有已提交成果都在权威 `main`；`dsh-gateway` 已直接替换 `dsh-channel-router`。ClawHub、市场和 runtime research Candidate 已删除；`dsh-evolve` 的 Git source/ref、预选 Skill、静态 Case Pack/Feedback/Evaluator target、Feedback/Evaluator Draft、Shadow 内 proposer、自动 review expiry、旧 Retention/canary 和对应 Control/Web/attention 表面也已从活动源码物理删除。公开 Config 只包含内容寻址缓存、Workspace 自发现/评测 policy 和通用 supervisor；`GenerationBundleRepository`/`CandidatePublisher` 只解析内部 whole-Skill Bundle，legacy artifact 明确 quarantine；packed artifact 与 Shadow 源码均有负向回归契约。Gateway 的入站边界现支持文本和 DSH 原生图片引用；飞书外部图片 key 在 Adapter 内下载并经 AttachmentStore 内容寻址保存，不进入 Session。已验证支持基线 rc.5 和最新设计审计基线 rc.2 的 AttachmentStore/ContentBlock 均不支持通用文件；普通文件/音视频仍明确 pending。
 
 当前 Candidate seam 只接受内部 Skill Opportunity 生成的 canonical text bundle。两个独立 Goal 形成 Opportunity；四个 Goal 预密封 authoring/admission/holdout，存在第五个或更多独立 Goal 时再保留一个 Candidate 不可见的 Retention 样本。Candidate v2、Lineage v3 与 exact seal 绑定；四 Goal路径保持 Envelope v4 并对 Retention abstain，带第五 Goal 时形成 Envelope v5，绑定独立 assembled Retention Case Pack 与 run root。真实 assembled baseline 不安装目标 Skill，Candidate 侧才安装 exact whole-Skill；Shadow 只消费同一 exact Candidate、内容哈希、tree、lineage 与 `dshAssembled` Trial，自身不调用 proposer。promotable Shadow 现会在同一个 DSH Jobs 任务内进入内容寻址 Retention paired Trial，持久写入 retained/regressed/incomplete，结果无发布权。独立 `FutureSessionPromotion` Host gate 重验 approved Review、Generation artifact、Lineage、Shadow 和 Retention exact identity，只有结构完整的 retained verdict 才调用 Generation selection；missing/prepared 等待，warning、歧义、错配、regressed 和 incomplete 阻断。Command/Web 共用该 gate，Web 显示 eligible/waiting/blocked 与原因。失败 durable Outcome 现在会唤醒原生 DSH `evolution` Job；`CounterfactualCanary` 重验 exact active Generation 全谱系并复放其密封 Retention Case Pack，只写 `keep`/`review`/`rollback-eligible`。内容、pointer 或 composition 漂移、baseline/calibration 失败、歧义和中断均 fail closed，已 dispatch 未见结果不盲重试，Canary 没有 pointer 写接口。独立 `FutureSessionRollback` Host gate 现区分显式人工恢复与 exact Canary 证据动作，两者均在 Store 串行写临界区执行 expected-active compare；Command、Remote、Web 已删除直接 Store 旁路，既有 Session pin 不变。经复核的新 Skill 可形成内容寻址 inactive Generation，真实 DSH 已验证 future-Session-only、重启固定和 root rollback；V4.48 与 V4.49 已分别完成 existing-Skill 与 missing-Skill Canary/rollback 的最终 tarball 浏览器故障恢复，两条路径的真实 provider 仍未完成。
 
@@ -194,6 +194,11 @@ V5.14 已从冻结 V5.11 revision 构建十一包历史最终 tarball，通过�
 记录同名 Gap 后形成 2-Goal Skill Opportunity；profile Bundle/配置行无重复。全部卸载后，升级前后两条原生
 Session/Goal 仍可读。详见 [V5.14 证据](evidence/v5-14-suite-upgrade-lifecycle.zh.md)。
 
+V5.15 [复核了 DSH 官方最新 `dsh-v0.1.1-rc.2`（`b150a55`）的附件与模型内容契约](research/dsh-current-attachment-contract-2026-08-24.zh.md)。新增的 DeepSeek Files API
+只复用/上传确定性图片请求版本；核心仍没有 file/audio/video ContentBlock，官方 attachment README 也明确把这些
+形态留给独立契约。因此本次不修改 Gateway 或飞书 Runtime，不以私有块、平台 key 或 Adapter 私库绕开 DSH。
+rc.5 仍是唯一已验证支持基线；rc.2 只有设计审计结论，进入支持矩阵前必须重跑十一包 assembled 生命周期。
+
 | 能力 | 当前状态 | 已有证据 | 仍缺 |
 |---|---|---|---|
 | 原生 DSH 插件产品形态 | `implemented` | 十一包均有 `name/inject/Config/apply`、Bundle patch、无 bin 合同；同一次 clean-profile tarball add/dump/boot/remove/readback 通过；[V5.14](evidence/v5-14-suite-upgrade-lifecycle.zh.md) 又验证冻结 V5.11→当前十一包升级、旧/新内部证据连续和卸载后原生 readback | 陌生安装、真实发布 tag→tag 与 registry release 门禁 |
@@ -234,11 +239,11 @@ add/Loader/command/remove 1/1（10.35 秒）。V4.24 删除旧浏览器 acceptan
 
 ## 当前限制
 
-- 固定 rc.5 源码是唯一支持证据；兼容范围不能由宽 peer range 推断；
+- 固定 rc.5 源码是唯一支持证据；官方最新 rc.2 仅完成设计契约审计，兼容范围不能由宽 peer range 或源码相似性推断；
 - v0.1 浏览器复验已完成；真实 provider cache-read/TTFT 仍需有预算的 paired soak；
 - 自我发现只允许从 DSH 内部 Goal、Gap、失败、纠正、结果与复用证据学习；任何 Opportunity/Candidate/Retention/Canary verdict 自身都没有安装、激活或发布权。missing-Skill 的 Retention/Canary/Rollback 与 existing-Skill 的发布门/failed-Outcome Canary/独立 expected-active rollback gate 已实现；两条路径的最终包 rollback 浏览器恢复均已完成，真实 provider assembled 评估、长期负迁移/误回滚率和模型缺口质量仍缺；
 - Hermes/OpenClaw/HanaAgent、论文、市场和开源实现只用于设计期调研与冻结 benchmark；运行时外部 Skill 搜索、获取、下载、导入或市场功能不属于本项目；
 - 真实飞书 exact route 用户消息/回复/Approval、真实 Telegram/飞书 paired、真实 provider、陌生用户和生产多日证据仍缺失；assembled 图片链路不替代这些真实门禁；
-- 固定 DSH attachment v1 只有栅格图片契约，飞书普通文件和音视频尚未完成；文档/知识库/云盘元数据/多维表格已有 assembled Tool 纵切，但真实 App scope、资源权限与真实内容尚未验证；
+- rc.5 与最新审计的 rc.2 都只有栅格图片附件契约；飞书普通文件和音视频尚未完成，且不得由 Gateway 私有扩展绕过。文档/知识库/云盘元数据/多维表格已有 assembled Tool 纵切，但真实 App scope、资源权限与真实内容尚未验证；
 - 自动化 `implemented` 不能替代真实 outcome，也不能支持笼统的“优于 Hermes”；
 - 不 merge、不发布 registry、不部署生产，除非用户另行授权。

@@ -5,6 +5,17 @@
 - 关联：[ADR-0049](0049-channel-adapters-share-one-thin-dsh-gateway.md)
 - 固定 DSH revision：`47f943859bef60e4160492346772ded9b24f765a`
 
+## 2026-08-24 上游漂移复核
+
+官方最新 tag `dsh-v0.1.1-rc.2`（`b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`）的[完整审计](../research/dsh-current-attachment-contract-2026-08-24.zh.md)没有改变本 ADR 的边界：
+
+- `packages/attachment/attachment/src/types.ts` 与 `src/index.ts` 仍只定义并存取 `ImageAttachmentRef`；
+- `packages/llm/llm/src/types.ts` 的核心 `ContentBlockMap` 仍只有 text、reasoning、image、tool-call 和 tool-result；
+- `packages/llm/llm-deepseek/src/files-api.ts`、`file-store.ts` 与 `serialize.ts` 的 Files API 路径仍以 `ImageMediaType`、`RequestImageAttachment` 和 image wire part 为输入；
+- `packages/attachment/attachment/README.md` 明确说明 generic files、audio、video 需要独立生命周期与 provider 契约。
+
+因此“DeepSeek Files API 已加入 DSH”不等于 DSH 已有通用文件块。普通文件、音频和视频继续 pending；若未来上游增加原生契约，应新建 ADR 并在新的 DSH 支持基线上完成 assembled 兼容矩阵后替代本决策，而不是扩张 Gateway。
+
 ## 背景
 
 飞书事件把图片表示为平台 `fileKey`。该 key 是 Adapter 的外部资源身份，不是持久内容，也不应进入

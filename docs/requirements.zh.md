@@ -12,6 +12,7 @@
 > V5.12 已重建 existing-Skill 低风险自动晋升：公开策略只含 policy id 与 Workspace id，不接受 Skill/路径/来源/target；Host 只对 exact baseline 上单一 `SKILL.md` 末尾追加 1–2048 字节、无 protected-effect、paired Holdout/独立 Retention 明确改善且 model/token/cache 不回退的 Candidate 自动发布并选择未来 Session。持久暂停、父版本漂移、证据告警、改写/增文件/受保护效果均 fail closed；原生 Jobs 仅负责唤醒，决策和 Generation 指针可崩溃恢复。最终 tarball 已验证自动晋升、Web 刷新/断线保留/冷恢复和官方卸载；真实 provider 误晋升率、长期迁移与 paired benchmark 仍 pending。
 > V5.13 纠正冻结 Hermes `EV-1` runner 的架构漂移：它不再引用已删除的 `GitSkillSource` 或 legacy Git artifact，而是以 sealed canonical `skill-bundle`、`GenerationBundleRepository` 和 expected-active rollback 重放同一 frozen epoch。四个确定性 Hermes epoch 已从当前 `main` 全部复跑，冻结报告未改写；真实模型、真实渠道与长期 paired 门禁仍未完成。
 > V5.14 补齐十一包官方升级纵切：从冻结 V5.11 revision `b0e4360b49c243535395b7b1ffba59b9ce0ae2c6` 构建真实历史 Bundle，以测试专用 predecessor 版本安装并由原生 Agent/Goal 写入内部 Capability Gap，再用当前最终 tarball 通过 `dsh plugin ... add` 原位升级。新版读回旧 Gap，并从第二个不同 Goal 形成同一 Skill Opportunity；Bundle/组合无重复，全部卸载后两条原生 Session/Goal 仍可读。该门不替代真实已发布 tag→tag、真实 Provider、真实飞书或 Hermes paired 证据。
+> V5.15 将“已验证支持版本”和“最新设计审计版本”分离：前者仍是 `47f9438`（`0.1.0-rc.5`）；后者固定为官方最新 tag `b150a55`（`0.1.1-rc.2`）。[直接源码审计](research/dsh-current-attachment-contract-2026-08-24.zh.md)确认 rc.2 的 AttachmentStore、LLM ContentBlock 和 DeepSeek Files 序列化仍只支持栅格图片，官方 README 明确把 generic file/audio/video 留给独立生命周期与 provider 契约。因此普通文件、音频和视频继续是上游契约缺口；不得以 Files API 名称、私有 Gateway block 或 Adapter 私库冒充完成。rc.2 兼容声明必须另经十一包 clean-profile assembled 矩阵，不能由本次设计审计推断。
 > 更新日期：2026-08-24
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。发生冲突时，下述“方向纠正”优先于旧里程碑文字。
 
@@ -28,7 +29,7 @@
 7. 不 fork、不 monkey patch DSH。若门禁暴露 DSH Core Defect，只保留最小复现并上游报告。
 8. 用户入口是自然语言 Goal、材料、约束与验收条件。系统必须在内部完成能力识别、Skill 路由和执行路径选择；开头不得要求用户从任务类别、工作流、Agent 或 Skill 菜单中选路。
 
-截至本次纠正，目标源码为 DeepSeek Harness commit `47f943859bef60e4160492346772ded9b24f765a`（包版本 `0.1.0-rc.5`）。开发依赖可为获得已发布类型而使用兼容的 rc.6 包，但这不扩大支持声明；支持证据只来自上述固定源码 assembled gate。
+当前已验证支持基线为 DeepSeek Harness commit `47f943859bef60e4160492346772ded9b24f765a`（包版本 `0.1.0-rc.5`）。开发依赖可为获得已发布类型而使用兼容的 rc.6 包，但这不扩大支持声明；支持证据只来自上述固定源码 assembled gate。最新设计审计基线为官方 tag `dsh-v0.1.1-rc.2`、commit `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`；它只用于发现上游契约变化，不构成兼容支持。扩大支持范围前必须在 rc.2 上重跑十一包安装、dump、boot、真实路径、reload/dispose、升级、卸载与原生 readback。
 
 ## 1. 项目愿景
 
@@ -366,7 +367,7 @@ message-resource 端口下载图片，整批按 `ctx.attachments` 限制校验�
 Session。assembled DSH 已证明原生 image block 和 exact bytes 回读，但尚未证明真实用户消息或真实多模态
 provider。飞书 Approval 卡片现已沿 thread-scoped exact route 发送，并将一次性 nonce 与平台 card message id、
 exact chat/operator 共同绑定；错误卡片、错误身份、重放和 dispose 均由 assembled DSH 门禁拒绝或取消，
-但真实用户点击仍未验证。固定 DSH attachment v1 没有通用文件契约，普通文件和音视频仍不能发明 Gateway
+但真实用户点击仍未验证。已验证 rc.5 与最新设计审计 rc.2 都没有通用文件契约，普通文件和音视频仍不能发明 Gateway
 file block。文档、知识库、云盘元数据和多维表格已按四个默认关闭的独立权限实现为 Agent-scoped 原生
 `feishu_content_read` Tool；每次读取走 ToolRuntime/Approval，当前 Session schema 固定，结果进入原生 durable
 `tool/result`，不另建 Store 或 Gateway 内容路由。assembled DSH 已验证权限拒绝、审批、官方 SDK 映射、边界、

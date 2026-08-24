@@ -90,7 +90,7 @@ WebSocket 握手已经通过；setup-only `/feishu-pair` 用两分钟一次性�
 `implemented`，不能增加通用 Gateway Runtime。
 入站图片使用飞书官方 message-resource API 下载，再经 DSH AttachmentStore 内容寻址保存；assembled
 DSH 已证明原生 image block、exact bytes 回读和外部 `fileKey` 不进入 Session。该证据不等于真实用户
-exact route 或真实多模态 provider 验收。固定 DSH attachment v1 只有栅格图片；普通文件、音视频以及
+exact route 或真实多模态 provider 验收。已验证 rc.5 与最新设计审计 rc.2 都只有栅格图片附件；普通文件、音视频以及
 文档、知识库、云盘、多维表格必须走后续独立权限能力，不能由 Adapter 私有存储或 Gateway 占位消息冒充。
 
 ### dsh-evolve-attention
