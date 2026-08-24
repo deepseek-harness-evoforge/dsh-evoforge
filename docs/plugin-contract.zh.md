@@ -4,7 +4,7 @@
 
 本规范约束 EvoForge 发布物，不发明第二套插件 API。运行时接口由 Cordis 和 DSH 所有；EvoForge 只规定一个 out-of-tree 插件必须如何选择接缝、保护缓存、验证生命周期并证明用户价值。
 
-所有六个 suite 发布包都必须是官方 Bundle：包导出 `./cordis.patch.yml`，`package.json` 声明 `dsh.bundle.patch`，patch 中只插入该包自己的稳定 Loader row。不得依赖 root workspace manifest、自定义 installer 或源码 import 才能激活。
+所有十一个 suite 发布包都必须是官方 Bundle：包导出 `./cordis.patch.yml`，`package.json` 声明 `dsh.bundle.patch`，patch 中只插入该包自己的稳定 Loader row。不得依赖 root workspace manifest、自定义 installer 或源码 import 才能激活。
 
 DSH/Cordis 的直接运行时依赖必须同时出现在 `peerDependencies` 和 `devDependencies`，不得进入 `dependencies` 或 tarball 内的 `node_modules`。目前 registry 未提供全部 rc.5 单包，因此本仓开发类型使用 rc.6；这只是开发依赖事实，固定 rc.5 源码的 clean-profile assembled gate 才是支持证据。
 
@@ -111,6 +111,7 @@ Bundle 必须导出并发布 `cordis.patch.yml`；普通库或需要用户手工
 | Config | 默认值、非法值、缺失引用和版本不兼容会明确失败 |
 | Lifecycle | load、dependency loss、reload、dispose 后无残留注册、timer、watcher、进程或临时目录 |
 | Composition | bundle 安装/卸载、`--dump-config`、重复加载和插件顺序无隐式依赖 |
+| Upgrade | 从最新冻结、已验证的前代最终 tarball 经官方 DSH CLI 升级；Bundle 不重复，原生 Session/Goal 与插件自有派生证据可读，新版本仍可继续写入，随后可完整卸载 |
 | Behavior | 单元测试加一条真实组合路径；用户/模型可见行为使用 keyless snapshot 或等价 assembled test |
 | Cache | 同 Session composition 稳定；声明 no-surface 的插件前后 fingerprint 相同 |
 | Permission | Protected Action 无法被默认配置或 Candidate 激活 |

@@ -4,6 +4,7 @@
 > V5.10 已把真实 Generation 晋升/回滚与活动 pointer 原子记录，并从最终 tarball 验证 Web 晋升、reload、两次 Host 冷恢复、Canary root rollback、官方卸载和原生 Web readback。它只提供 mutation audit，不替代真实 Provider/长期 Outcome/paired 效果证据。
 > V5.11 已在该 mutation audit 上增加严格、有界、非因果的 post-selection Outcome 窗口，按 Session-pinned selected/previous/other Generation 展示 Goal、结果和 metrics；最终 tarball 已验证真实 Session Outcome、断线保留、两次冷恢复、整页 reload、卸载和原生 Web readback。V5.12 又以 Workspace-only opt-in policy 重建 existing-Skill 窄自动晋升，只允许 exact append-only/effect-clear/non-regressing 指令 Candidate，并接入原生 Jobs、durable pause、崩溃恢复及 Host/Web 权威状态。长期率、真实 provider 和因果效果仍 pending。
 > V5.13 修复冻结 EV-1 benchmark 与活动内容寻址架构之间的漂移：runner 删除已失效的 Git Skill source，改用 sealed `skill-bundle`、`GenerationBundleRepository` 和 expected-active rollback；四个 frozen Hermes epoch 已重新通过且结果未改写。根级检查现会类型检查 EV-1 runner，但这仍不是同模型真实 paired 证据。
+> V5.14 从冻结 V5.11 `b0e4360` 构建十一包历史最终产物，经官方 DSH CLI 安装后由原生 Agent/Goal 写入内部 Gap，再用当前十一包原位升级；旧 Gap、新 Goal→Opportunity、唯一 Bundle 组合、卸载和两条原生 Session/Goal readback 全部通过。它证明 pre-release migration floor，不冒充已发布 tag→tag 或真实外部验收。
 > V4.38 已在 existing-Skill Candidate proposer 前生成并校准 Candidate 不可见的完整 `skill-tree` holdout Envelope；V4.39 已把 exact Envelope 纳入 Candidate 内容身份并消费该 Envelope 与 V4.37 exact 双树执行 assembled paired Trial。下一门是独立 Retention/Canary/晋升/回滚，而不是再次生成或搜索能力。
 > V4.40–V4.45 已完成 Retention、发布门与最终包浏览器生命周期；V4.46–V4.48 已完成 existing-Skill failed-Outcome Canary、权威 Control/Remote/Web、独立 expected-active rollback gate 与最终 tarball 浏览器故障恢复；V4.49 已完成 missing-Skill 同类最终包故障恢复。下一门是两套独立真实 provider。
 > 更新日期：2026-08-24
@@ -193,6 +194,7 @@ route 消息、真实卡片点击、真实 App 内容权限与完整评测演进
 - DSH Web 真实浏览器成功、刷新和失败路径；
 - 多 Workspace、自我发现、自进化、Gateway、消息、审批、崩溃恢复和软件交付的 Hermes paired benchmark；
 - 四个 deterministic frozen Hermes epoch 已在 V5.13 从当前内容寻址路径完整复跑；真实模型、真实渠道与长期 epoch 仍 pending；
+- 十一包 frozen-predecessor→当前最终 tarball 的官方 CLI 升级纵切已在 V5.14 通过；首个真实发布 tag 后仍须建立 tag→tag 升级矩阵；
 - 真实 provider 的长期 retention/transfer/negative-transfer/false-promotion/false-rollback 与成本数据。
 - RP-1 双真实 Provider 入口已实现并通过无调用合同门，当前 `NOT_RUN`；只有显式批准后的 `status: passed` 才算这一阶段的真实 Provider 证据。
 - 四个真实 Provider authoring seam 均有 60 秒 wall-clock 上限；治理请求与 Host cancellation 组合，timeout 后沿用 `uncertain` 且不盲重试。

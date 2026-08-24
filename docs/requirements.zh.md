@@ -11,6 +11,7 @@
 > V5.11 已把每条不可变选择事件与其后、下一选择之前的 durable Outcome 做严格有界关联，按 Session-pinned selected/previous/other Generation 展示结果、Goal 和 metrics；边界歧义与时间倒退 fail closed。该窗口固定无因果、无 mutation authority，不替代长期 Provider/paired 证据。
 > V5.12 已重建 existing-Skill 低风险自动晋升：公开策略只含 policy id 与 Workspace id，不接受 Skill/路径/来源/target；Host 只对 exact baseline 上单一 `SKILL.md` 末尾追加 1–2048 字节、无 protected-effect、paired Holdout/独立 Retention 明确改善且 model/token/cache 不回退的 Candidate 自动发布并选择未来 Session。持久暂停、父版本漂移、证据告警、改写/增文件/受保护效果均 fail closed；原生 Jobs 仅负责唤醒，决策和 Generation 指针可崩溃恢复。最终 tarball 已验证自动晋升、Web 刷新/断线保留/冷恢复和官方卸载；真实 provider 误晋升率、长期迁移与 paired benchmark 仍 pending。
 > V5.13 纠正冻结 Hermes `EV-1` runner 的架构漂移：它不再引用已删除的 `GitSkillSource` 或 legacy Git artifact，而是以 sealed canonical `skill-bundle`、`GenerationBundleRepository` 和 expected-active rollback 重放同一 frozen epoch。四个确定性 Hermes epoch 已从当前 `main` 全部复跑，冻结报告未改写；真实模型、真实渠道与长期 paired 门禁仍未完成。
+> V5.14 补齐十一包官方升级纵切：从冻结 V5.11 revision `b0e4360b49c243535395b7b1ffba59b9ce0ae2c6` 构建真实历史 Bundle，以测试专用 predecessor 版本安装并由原生 Agent/Goal 写入内部 Capability Gap，再用当前最终 tarball 通过 `dsh plugin ... add` 原位升级。新版读回旧 Gap，并从第二个不同 Goal 形成同一 Skill Opportunity；Bundle/组合无重复，全部卸载后两条原生 Session/Goal 仍可读。该门不替代真实已发布 tag→tag、真实 Provider、真实飞书或 Hermes paired 证据。
 > 更新日期：2026-08-24
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。发生冲突时，下述“方向纠正”优先于旧里程碑文字。
 
@@ -18,12 +19,12 @@
 
 本节是不可协商的当前交付顺序，并取代把 EvoForge 描述成独立工具、独立 Runtime 或旁路应用的任何旧表述。
 
-1. `dsh-evoforge` 是真正的 out-of-tree DeepSeek Harness 插件套件。用户通过 DSH 官方 `dsh plugin --profile <name> add/remove` 和 Bundle/profile patch 机制安装、启用、禁用与卸载。
+1. `dsh-evoforge` 是真正的 out-of-tree DeepSeek Harness 插件套件。用户通过 DSH 官方 `dsh plugin --profile <name> add/update/remove` 和 Bundle/profile patch 机制安装、升级、启用、禁用与卸载；本地最终 tarball 以再次 `add` 新版本 spec 完成升级。
 2. DSH 是唯一 Agent Host、Runtime、Session、Goal、Approval、Storage、Jobs、Skill、Tool 与 Cordis 生命周期权威。EvoForge 不建立第二套应用、CLI、Web server、daemon、数据库、任务系统或 agent loop。
 3. 每个发布包必须导出 DSH/Cordis 可加载的 `name`、`inject`、`Config`、`apply`（或目标 revision 的官方等价接缝），声明官方 `dsh.bundle.patch`，并由 `ctx.effect()`/Cordis fiber 持有资源。
 4. DSH/Cordis 只能由 Host 提供，放在 `peerDependencies` 与 `devDependencies`；打包产物不得包含第二份 Runtime。
 5. Web 只能是随 DSH Web profile 组合加载、读取 DSH Host 权威状态的 client adapter；不得成为第二控制面。用户核心能力不得依赖 EvoForge CLI；开发夹具不得发布为产品入口。
-6. 在 roadmap 恢复前，必须用固定目标 DSH 源码完成 clean-profile 的 tarball 安装、官方 Bundle 启用、`--dump-config`、Host 启动、真实 Agent/Session/Goal 能力、原生持久化、卸载后原生启动/读回以及无残留资源的 assembled 硬门禁。
+6. 在 roadmap 恢复前，必须用固定目标 DSH 源码完成 clean-profile 的 tarball 安装、前代最终包升级、官方 Bundle 启用、`--dump-config`、Host 启动、真实 Agent/Session/Goal 能力、插件派生证据兼容、原生持久化、卸载后原生启动/读回以及无残留资源的 assembled 硬门禁。
 7. 不 fork、不 monkey patch DSH。若门禁暴露 DSH Core Defect，只保留最小复现并上游报告。
 8. 用户入口是自然语言 Goal、材料、约束与验收条件。系统必须在内部完成能力识别、Skill 路由和执行路径选择；开头不得要求用户从任务类别、工作流、Agent 或 Skill 菜单中选路。
 

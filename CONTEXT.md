@@ -13,7 +13,7 @@ The single source of truth for Agent identity, Session history, Goal state, perm
 _Avoid_: Mirrored authority, side database, parallel agent loop
 
 **Assembled Plugin Contract**:
-The release gate that packs artifacts, installs them with the target DSH plugin command into an isolated shipped profile, inspects the effective config, boots the Host, exercises a capability from a real DSH Agent/Session/Goal, unloads/removes the packages, and proves native data and startup remain intact.
+The release gate that packs artifacts, installs them with the target DSH plugin command into an isolated shipped profile, inspects the effective config, boots the Host, exercises a capability from a real DSH Agent/Session/Goal, upgrades from the latest frozen verified predecessor without losing native or plugin-owned evidence, unloads/removes the packages, and proves native data and startup remain intact.
 _Avoid_: Source import test, repository-only test, CLI smoke test
 
 ## Language

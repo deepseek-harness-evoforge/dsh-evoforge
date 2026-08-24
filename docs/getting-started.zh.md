@@ -144,6 +144,18 @@ Agent，插件不会自动写 profile 或扩大权限。没有 Web 时可使用�
 
 ## 4. 禁用、卸载与回退
 
+当前尚未发布 registry 版本；本地最终 tarball 的升级继续使用 DSH 官方插件命令，把新一组 exact tarball spec
+交给同一 profile。该操作由 DSH 转发给 pnpm 并按安装后事实重新协调 Bundle 层：
+
+```sh
+dsh plugin --profile web add /absolute/path/to/new-pack/*.tgz
+dsh --profile web --dump-config
+dsh --profile web
+```
+
+升级前应停止对应 profile；不要手工改 `node_modules` 或 `dsh.profile.bundles`。首个正式 tag 发布后，发布门还会
+固定 tag→tag 迁移矩阵；当前 V5.14 只证明冻结的 pre-release predecessor 到当前最终包。
+
 禁用单包时，在 profile patch 中覆盖稳定 row 的 `disabled: true`。完全移除：
 
 ```sh
@@ -161,6 +173,7 @@ dsh --profile web
 
 ```sh
 pnpm check
+pnpm test:suite-upgrade
 DSH_EVOLVE_DSH_SOURCE_DIR=/absolute/path/to/deepseek-harness \
   pnpm --filter dsh-doctor exec vitest run test/suite-native-plugin-contract.test.ts
 DSH_EVOLVE_DSH_SOURCE_DIR=/absolute/path/to/deepseek-harness \

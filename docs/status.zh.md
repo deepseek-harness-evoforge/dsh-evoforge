@@ -189,9 +189,14 @@ tree/lineage，并使用 expected-active rollback。`pnpm benchmark:hermes` 的 
 全部重新通过且 `result.json` 未改写；根级检查新增 EV-1 类型门。详见
 [V5.13 证据](evidence/v5-13-hermes-ev1-content-addressed-replay.zh.md)。
 
+V5.14 已从冻结 V5.11 revision 构建十一包历史最终 tarball，通过官方 DSH CLI 安装并由真实原生 Agent/Goal
+记录一个内部 Capability Gap，再用当前十一包 tarball 原位升级。新版精确读回旧 Gap，并从另一个原生 Goal
+记录同名 Gap 后形成 2-Goal Skill Opportunity；profile Bundle/配置行无重复。全部卸载后，升级前后两条原生
+Session/Goal 仍可读。详见 [V5.14 证据](evidence/v5-14-suite-upgrade-lifecycle.zh.md)。
+
 | 能力 | 当前状态 | 已有证据 | 仍缺 |
 |---|---|---|---|
-| 原生 DSH 插件产品形态 | `implemented` | 十一包均有 `name/inject/Config/apply`、Bundle patch、无 bin 合同；同一次 clean-profile tarball add/dump/boot/remove/readback 通过 | 陌生安装与 registry release 门禁 |
+| 原生 DSH 插件产品形态 | `implemented` | 十一包均有 `name/inject/Config/apply`、Bundle patch、无 bin 合同；同一次 clean-profile tarball add/dump/boot/remove/readback 通过；[V5.14](evidence/v5-14-suite-upgrade-lifecycle.zh.md) 又验证冻结 V5.11→当前十一包升级、旧/新内部证据连续和卸载后原生 readback | 陌生安装、真实发布 tag→tag 与 registry release 门禁 |
 | Evidence-driven Evolution + internal Skill Opportunity | `implemented` | 自然 Goal→Host 复核/持久 Gap；跨 Goal Opportunity；缺失 Skill 的 exact Shadow/Retention/Promotion/Canary/Rollback 与[V4.49 最终包回滚生命周期](evidence/v4-49-missing-skill-canary-rollback-final-browser.zh.md)；existing-Skill 的完整 baseline、protected correction、whole-tree Candidate、paired Holdout/Retention、发布门、[V4.45 最终包浏览器](evidence/v4-45-existing-skill-release-final-browser.zh.md)、[V4.46 failed-Outcome Canary](evidence/v4-46-existing-skill-failed-outcome-canary.zh.md)、[V4.47 独立回滚门](evidence/v4-47-existing-skill-canary-control-rollback.zh.md)与[V4.48 最终包回滚生命周期](evidence/v4-48-existing-skill-canary-rollback-final-browser.zh.md)；历史 runtime 获取、static target、Draft、Shadow proposer 和旧编排均已删除，[V4.54](evidence/v4-54-remove-runtime-search-semantics.zh.md) 又移除活动 Case Pack/报告中的 `search` 命名 | 两套真实 provider、长期误晋升/回滚数据缺失 |
 | 双真实 Provider RP-1 | `implemented` | [V4.55](evidence/v4-55-real-provider-acceptance-gate.zh.md)：显式付费批准前零配置读取/零外部请求；不同 provider/authority/credential/model identity 预检；生产纵切编排；Candidate 盲区、assembled Holdout/Retention、composition、凭据脱敏与 terminal 不盲重试 hard gates；[V4.56](evidence/v4-56-bounded-governance-provider-requests.zh.md)又把两个治理 Provider seam 补齐 60 秒硬上限和 Host cancellation 组合；合同 8/8 与独立类型检查通过 | 当前 `NOT_RUN`；第二套独立 Provider、已授权真实 `passed` 结果和长期 outcome 均缺失 |
 | 真实飞书 AS-2 验收入口 | `implemented` | [V5.8](evidence/v5-8-real-feishu-acceptance-gate.zh.md)：未授权零身份/凭据读取；clean revision、最终 tarball、官方 DSH CLI、生产飞书 transport、exact 入站/回复/Command/Approval/notice、零 uncertain/failed、dispose/remove/native Session readback hard gates；合同 7/7 与独立类型检查通过 | 当前 direct/group 均 `NOT_RUN`；真实 App/chat/user、人工消息/卡片、长期重连和 Hermes paired 仍缺 |
@@ -219,7 +224,7 @@ tree/lineage，并使用 expected-active rollback。`pnpm benchmark:hermes` 的 
 
 当前 `main` 增量通过根级 `pnpm check`（文档、全包 typecheck、测试和构建）；其中
 `dsh-gateway` 7 files/26 tests、`dsh-evolve-web` 2 files/26 tests、`dsh-evolve-attention` 4 files/11 tests、
-`dsh-feishu` 17 files/48 tests，`dsh-evolve` 67 files/305 tests passed、1 file/1 test skipped；根级累计 564 tests passed、3 skipped。Cache Contract 全通过；Doctor 十一包
+`dsh-feishu` 17 files/48 tests，`dsh-evolve` 67 files/305 tests passed、1 file/1 test skipped；根级累计 565 tests passed、3 skipped。Cache Contract 全通过；Doctor 十一包
 原生合同 22/22，十一包 clean-profile 最终 tarball 的 add/dump/boot/真实
 Session+Goal+Storage+Tool/dispose/remove/reboot/readback 1/1（60.96 秒）；独立 Doctor packed
 add/Loader/command/remove 1/1（10.35 秒）。V4.24 删除旧浏览器 acceptance fixture，并用 DSH Web 组件测试固定“纠正进入
