@@ -1,6 +1,6 @@
 # EvoForge v0.1 路线图
 
-> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已替换旧 Router 并完成公共 outbound/健康 Web 的真实浏览器失败恢复验收，飞书图片已在 assembled DSH 中进入 Agent，运行时外部能力获取相关偏差表面已删除；V4.54 又移除了治理包与 Shadow 报告中残留的 `search` 语义。缺失 Skill Candidate 已形成 Retention/Promotion/Canary/Rollback 活动纵切；现有 Skill 已完成完整 baseline、protected whole-tree Candidate、exact Holdout/Retention、独立发布门和最终包浏览器生命周期。V4.46–V4.49 已完成 existing/missing Skill 的 Canary、rollback 与最终包门禁；V4.50 建立 exact 跨 Goal 复用事实，V4.51 又以非因果、无发布权的只读投影连接后续 durable Outcome、重复交付、恢复和最新结果 metrics，并从最终 tarball 验证刷新、失败保留、Host 冷恢复和卸载。V5.5–V5.6 已完成飞书四类独立内容读取与当前 Session Host/Web 就绪投影，V5.7 又让 Gateway 统一约束 Adapter send wall-clock、超时/卸载 `uncertain` 与飞书官方 HTTP cancellation。V4.55 已实现两套真实 Provider 的阶段专用验收入口，V4.56 又补齐两个治理 Provider seam 的 60 秒硬上限；当前仍严格为 `NOT_RUN`，不是 provider 通过证据。下一阶段取得真实 Provider 结果并做真实飞书 App 内容/权限；exact 飞书用户消息与 Hermes paired 仍未完成，普通文件/音视频仍 pending，v0.1 未发布。
+> 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已替换旧 Router 并完成公共 outbound/健康 Web 的真实浏览器失败恢复验收，飞书图片已在 assembled DSH 中进入 Agent，运行时外部能力获取相关偏差表面已删除；V4.54 又移除了治理包与 Shadow 报告中残留的 `search` 语义。缺失 Skill Candidate 已形成 Retention/Promotion/Canary/Rollback 活动纵切；现有 Skill 已完成完整 baseline、protected whole-tree Candidate、exact Holdout/Retention、独立发布门和最终包浏览器生命周期。V4.46–V4.49 已完成 existing/missing Skill 的 Canary、rollback 与最终包门禁；V4.50 建立 exact 跨 Goal 复用事实，V4.51 又以非因果、无发布权的只读投影连接后续 durable Outcome、重复交付、恢复和最新结果 metrics，并从最终 tarball 验证刷新、失败保留、Host 冷恢复和卸载。V5.5–V5.6 已完成飞书四类独立内容读取与当前 Session Host/Web 就绪投影，V5.7 又让 Gateway 统一约束 Adapter send wall-clock、超时/卸载 `uncertain` 与飞书官方 HTTP cancellation；V5.8 已把 exact 飞书入站/回复/Command/Approval/卸载/readback 做成真实平台专用 AS-2 入口，但本机无凭据，合同通过而平台结果严格 `NOT_RUN`。V4.55 已实现两套真实 Provider 的阶段专用验收入口，V4.56 又补齐两个治理 Provider seam 的 60 秒硬上限；Provider 同样仍严格为 `NOT_RUN`。下一阶段取得真实 Provider 和真实飞书结果并做真实飞书 App 内容/权限；Hermes paired 仍未完成，普通文件/音视频仍 pending，v0.1 未发布。
 > V4.38 已在 existing-Skill Candidate proposer 前生成并校准 Candidate 不可见的完整 `skill-tree` holdout Envelope；V4.39 已把 exact Envelope 纳入 Candidate 内容身份并消费该 Envelope 与 V4.37 exact 双树执行 assembled paired Trial。下一门是独立 Retention/Canary/晋升/回滚，而不是再次生成或搜索能力。
 > V4.40–V4.45 已完成 Retention、发布门与最终包浏览器生命周期；V4.46–V4.48 已完成 existing-Skill failed-Outcome Canary、权威 Control/Remote/Web、独立 expected-active rollback gate 与最终 tarball 浏览器故障恢复；V4.49 已完成 missing-Skill 同类最终包故障恢复。下一门是两套独立真实 provider。
 > 更新日期：2026-08-24
@@ -44,6 +44,8 @@
 ## V2 — 飞书 Adapter
 
 实现状态：Adapter、Gateway 公共可靠投递、真实 DSH 单 Workspace 组合、双 Workspace 双渠道同 Host 重启隔离、Telegram/飞书进化注意力、tarball lifecycle 与十一包总装已完成；真实飞书 App 身份请求、标准代理环境 WebSocket 和 setup-only pairing transport 已通过。assembled 图片纵切已经证明外部 key 只停留在 Adapter，原生引用进入 Session 且 exact bytes 可由 AttachmentStore 回读；它不是用户真实飞书消息或真实多模态 provider 证据。同包 DSH Web Client Module 已从最终 tarball 安装到干净 profile，真实浏览器证明其在当前 Session 内生成/复制/取消配对且零 console error；用户尚未发送配对短语，exact route 消息仍未达到退出门。文档/Wiki/Drive metadata/Bitable 已以四个独立最小权限和一个稳定 Agent-scoped Tool 进入原生 ToolRuntime/Approval，官方 SDK 映射与 durable result 有 assembled 证据；V2 Host/Web 已显示当前 Session 的 Tool/Approval/future-only 就绪状态并通过最终包刷新、失败清空和恢复。真实 App scope、资源权限和真实内容仍待验收。普通文件、音视频继续 pending，不发明 Gateway file block。
+
+V5.8 的 AS-2 已把 V2 的真实平台退出路径编码为 fail-closed 入口：最终 tarball、官方 DSH CLI、生产飞书 transport、exact route、原生 Session/Command/Approval、Gateway durable notice、dispose/remove/readback 都是 hard gate；未授权时零身份/凭据读取。当前 7/7 合同通过，但 direct/group 两个真实 epoch 均为 `NOT_RUN`。
 
 - 支持静态授权的私聊或群聊文本、原生 Command、一次性 Approval、最终回答、Goal/Schedule 与进化注意力；
 - 支持按独立部署权限启用 document/Wiki/Drive metadata/Bitable 的有界原生 Tool 读取，每次走 DSH Approval；
@@ -159,7 +161,8 @@ routes-mode 脱敏健康投影和渠道底座已实现；健康面最终 tarball
 已通过；assembled DSH 已验证 thread-scoped 回复/continuation 和 exact card/chat/operator 一次性 Approval，
 并验证四类内容独立权限、稳定 Agent Tool schema、原生 Approval、durable result 与 dispose；V2 内容就绪面
 已从最终 tarball 在真实浏览器验证四权限、Tool/Approval、future-only 语义、刷新、失败清空和恢复；真实飞书 exact
-route 消息、真实卡片点击、真实 App 内容权限与完整评测演进视图 **pending**。
+route 消息、真实卡片点击、真实 App 内容权限与完整评测演进视图 **pending**。V5.8 已提供不能用 fake transport
+冒充的 AS-2 执行入口，当前 direct/group 均未实际运行。
 
 ## V6 — v0.1 验收与首个 tag
 

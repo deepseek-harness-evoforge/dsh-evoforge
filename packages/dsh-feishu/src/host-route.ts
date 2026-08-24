@@ -17,5 +17,7 @@ export interface FeishuHostRouteBinding {
 export interface FeishuHostRoute {
   /** Exact native Workspace ownership for each statically configured Gateway route. */
   readonly routes: readonly FeishuHostRouteBinding[]
+  /** Last platform-observed kind for an admitted exact route; never inferred from configuration. */
+  observedChatKind(routeId: string): 'direct' | 'group' | undefined
   notify(notice: FeishuHostNotice): Promise<FeishuHostNoticeReceipt>
 }

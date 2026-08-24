@@ -31,10 +31,14 @@
     "benchmark:provider:rp1:test": "pnpm --filter dsh-evolve exec tsx --test ../../benchmarks/provider-v0.1/rp1-internal-skill-evolution/contract.test.ts",
     "benchmark:provider:rp1:check": "pnpm benchmark:provider:rp1:typecheck && pnpm benchmark:provider:rp1:test",
     "benchmark:provider:rp1": "pnpm --filter dsh-evolve exec tsx ../../benchmarks/provider-v0.1/rp1-internal-skill-evolution/run.ts",
+    "benchmark:feishu:as2:typecheck": "pnpm --filter dsh-feishu exec tsc --ignoreConfig --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --strict --noUncheckedIndexedAccess --exactOptionalPropertyTypes --verbatimModuleSyntax --skipLibCheck --allowImportingTsExtensions --types node ../../benchmarks/feishu-v0.1/as2-real-channel/contract.ts ../../benchmarks/feishu-v0.1/as2-real-channel/contract.test.ts ../../benchmarks/feishu-v0.1/as2-real-channel/execute.ts ../../benchmarks/feishu-v0.1/as2-real-channel/run.ts",
+    "benchmark:feishu:as2:test": "pnpm --filter dsh-feishu exec tsx --test ../../benchmarks/feishu-v0.1/as2-real-channel/contract.test.ts",
+    "benchmark:feishu:as2:check": "pnpm benchmark:feishu:as2:typecheck && pnpm benchmark:feishu:as2:test",
+    "benchmark:feishu:as2": "packages/dsh-feishu/node_modules/.bin/tsx benchmarks/feishu-v0.1/as2-real-channel/run.ts",
     "pretypecheck": "pnpm --filter dsh-gateway run build",
     "typecheck": "pnpm -r typecheck",
     "pretest": "pnpm --filter dsh-gateway run build",
     "test": "pnpm -r --filter '!dsh-telegram' --filter '!dsh-feishu' test && pnpm --filter dsh-telegram test && pnpm --filter dsh-feishu test",
-    "check": "pnpm run check:docs && pnpm run benchmark:provider:rp1:check && pnpm run typecheck && pnpm run test && pnpm run build"
+    "check": "pnpm run check:docs && pnpm run benchmark:provider:rp1:check && pnpm run benchmark:feishu:as2:check && pnpm run typecheck && pnpm run test && pnpm run build"
   }
 }

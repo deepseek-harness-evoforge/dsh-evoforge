@@ -68,6 +68,7 @@ export class FeishuRuntime {
   private readonly latestDestination = new WeakMap<Agent, ReplyDestination>()
   private readonly pendingApprovals = new Map<string, PendingApproval>()
   private readonly contentToolDisposers = new Map<Agent, () => void>()
+  private readonly observedChatKinds = new Map<string, 'direct' | 'group'>()
   private readonly unsubscribers: Array<() => void> = []
   private outbound?: GatewayTextAdapterRegistration
   private transport: GatewayTransportRegistration | undefined
@@ -249,6 +250,10 @@ export class FeishuRuntime {
     return Object.freeze({ created: prepared.created, status: prepared.status })
   }
 
+  observedChatKind(routeId: string): 'direct' | 'group' | undefined {
+    return this.observedChatKinds.get(routeId)
+  }
+
   /** Redacted projection of the exact Host state; it performs no model or platform call. */
   healthSnapshot(routes: readonly ResolvedFeishuRoute[] = this.config.routes): FeishuHealthSnapshot {
     const routeIds = new Set(routes.map(route => route.id))
@@ -345,6 +350,12 @@ export class FeishuRuntime {
     if (route === undefined || !this.configuredRouteIds.has(route.id)) return
     const selected = this.routesById.get(route.id)
     if (selected === undefined) return
+    const observedChatKind = message.chatType === 'p2p' ? 'direct' : 'group'
+    const previousChatKind = this.observedChatKinds.get(route.id)
+    if (previousChatKind !== undefined && previousChatKind !== observedChatKind) {
+      throw new Error(`dsh-feishu: platform chat kind drifted for exact route '${route.id}'`)
+    }
+    this.observedChatKinds.set(route.id, observedChatKind)
     const materialized = await materializeFeishuInbound(
       message,
       this.platform,

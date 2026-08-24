@@ -6,6 +6,7 @@
 > V4.55 已实现阶段专用 RP-1 验收入口：它只在显式付费批准后使用两套独立 Provider 跑现有内部 Skill 纵切，并对 Provider/authority/credential/model identity、Candidate 盲区、准入、assembled Holdout/Retention 和 composition 设 hard gate。当前状态是 `NOT_RUN`，没有真实 Provider 通过证据。
 > V4.56 已把真实 Provider 请求边界补齐：proposer 与缺失/现有 Skill 的治理作者 HTTP seam 均有 60 秒 wall-clock 上限，Host cancellation 只能更早终止而不能移除 timeout；治理 dispatch 仍先 durable 落盘，未知付费结果仍为 `uncertain` 且不盲重试。本增量没有发起外部 Provider 请求。
 > V5.7 已把渠道 send 的 wall-clock 上限纳入 `dsh-gateway` 公共 Adapter policy；超时或 dispose 会把 durable `sending` 保守终结为 `uncertain`，即使 Adapter Promise 不响应 signal 也不能阻塞 Gateway 卸载。Telegram/飞书均使用 30 秒，飞书文本与 Approval 卡片把 signal 继续传入官方 HTTP transport；真实平台验收仍 pending。
+> V5.8 已实现阶段专用 AS-2 真实飞书验收入口：只在精确授权后读取 exact App/chat/user/Secret，并从当前 clean `main` 打包最终 Gateway/Feishu Bundle，经官方 DSH CLI 安装、dump、真实渠道消息/Command/Approval、dispose、remove、原生 Session readback。当前本机无凭据，合同 7/7 通过但真实平台严格为 `NOT_RUN`；它没有增加产品 CLI、Runtime、能力获取或 benchmark-owned 审批。
 > 更新日期：2026-08-24
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。发生冲突时，下述“方向纠正”优先于旧里程碑文字。
 

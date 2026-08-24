@@ -92,6 +92,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         routeId: route.id,
         workspaceId: route.workspaceId,
       }))),
+      observedChatKind: (routeId: string) => runtime.observedChatKind(routeId),
       notify: (notice: FeishuHostNotice) => runtime.notifyHost(notice),
     })
     ctx.provide('evoforge.feishuRoute' as never, hostRoute as never)

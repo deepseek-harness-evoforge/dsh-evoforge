@@ -146,4 +146,10 @@ PNG/JPEG/WebP/GIF 栅格图片。因此本插件当前没有把飞书普通文�
 `fileKey`、URL、base64 或伪造 file block 写入 Session。文档、知识库、云盘元数据和多维表格读取已有
 assembled DSH 自动化证据，但真实飞书 App scope、资源权限拒绝与真实内容仍待验收。
 
+真实 exact-route 渠道验收使用仓库阶段入口 `pnpm benchmark:feishu:as2`，详见
+[AS-2 说明](../../benchmarks/feishu-v0.1/as2-real-channel/README.zh.md)。它只在显式授权后从最终
+`dsh-gateway`/`dsh-feishu` tarball 启动生产飞书 transport，并把入站、回复、`/feishu`、一次性 Approval、
+持久 notice、dispose、官方卸载和原生 Session readback 设为 hard gate。当前无凭据，真实状态是 `NOT_RUN`；
+合同或 fake transport 通过不能替代真实结果。
+
 官方协议依据：[飞书事件订阅概述](https://open.feishu.cn/document/server-docs/event-subscription-guide/overview)、[官方 Node SDK](https://github.com/larksuite/node-sdk)、[发送消息 API](https://open.feishu.cn/document/server-docs/im-v1/message/create)、[获取消息中的资源文件](https://open.feishu.cn/api-explorer?from=op_doc_tab&apiName=get&project=im&resource=message.resource&version=v1)、[文档 raw content](https://open.feishu.cn/api-explorer?from=op_doc_tab&apiName=raw_content&project=docx&resource=document&version=v1)、[知识库节点](https://open.feishu.cn/api-explorer?from=op_doc_tab&apiName=get_node&project=wiki&resource=space&version=v2)、[云盘元数据](https://open.feishu.cn/api-explorer?from=op_doc_tab&apiName=batch_query&project=drive&resource=meta&version=v1)、[多维表格记录](https://open.feishu.cn/api-explorer?from=op_doc_tab&apiName=search&project=bitable&resource=app.table.record&version=v1)。

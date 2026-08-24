@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "as2-feishu-real-channel-epoch-1",
+  "scope": "one real Feishu exact-route inbound, native DSH reply, /feishu Command, once-only DSH Approval card, durable notice, dispose, uninstall, and native Session readback; not content-resource authorization, long-term soak, or Hermes paired evidence",
+  "revisions": {
+    "deepseekHarness": "47f943859bef60e4160492346772ded9b24f765a"
+  },
+  "platform": {
+    "transport": "official Feishu WebSocket and HTTP",
+    "chatKinds": ["direct", "group"],
+    "route": "one exact app, conversation, user, Workspace, and Session",
+    "model": "keyless deterministic DSH fixture so this epoch isolates the real channel effect"
+  },
+  "hardGates": [
+    "explicit real-platform approval exists before any Feishu identity or credential is read",
+    "the EvoForge and DSH worktrees are clean and DSH is the frozen revision",
+    "final dsh-gateway and dsh-feishu tarballs install into a clean DSH web profile and dump their intended Bundle rows",
+    "the official Feishu transport reaches ready for the exact static route",
+    "one human-sent challenge enters the native DSH Session and its final answer is durably delivered",
+    "the production Adapter observes the declared direct or group kind on that exact inbound event",
+    "the same exact user can execute /feishu and receive its result",
+    "one native DSH Approval card resolves allowed-once and cannot be replaced by a benchmark-owned approval system",
+    "one stable host notice is durably delivered without uncertain or failed outbound effects",
+    "dispose and official plugin removal succeed, native DSH boots, and the native Session still contains the exact ingress and Command"
+  ]
+}

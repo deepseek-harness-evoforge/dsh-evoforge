@@ -167,6 +167,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
       expect(service.platform.connected).toBe(true)
       const hostRoute = ctx.get('evoforge.feishuRoute') as {
         routes: readonly { routeId: string; workspaceId: string }[]
+        observedChatKind(routeId: string): 'direct' | 'group' | undefined
       } | undefined
       const gateway = ctx.get('evoforge.gateway') as {
         route(id: string): { workspaceId: string } | undefined
@@ -178,6 +179,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
         routeId: 'feishu-main',
         workspaceId: gateway.route('feishu-main')?.workspaceId,
       }])
+      expect(hostRoute?.observedChatKind('feishu-main')).toBeUndefined()
       await service.platform.emitMessage(message({ messageId: 'om_denied', senderId: 'ou_mallory' }))
       await new Promise(resolve => setTimeout(resolve, 50))
       expect(service.platform.texts).toHaveLength(0)
@@ -185,6 +187,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
       const inbound = message({ messageId: 'om_first', senderId: 'ou_alice' })
       service.platform.queueFailure(new FeishuPlatformSendError('rate_limited', '429', 1_000))
       await service.platform.emitMessage(inbound)
+      expect(hostRoute?.observedChatKind('feishu-main')).toBe('group')
       await vi.waitFor(() => {
         expect(service.platform.texts[0]).toEqual({
           chatId: 'oc_main',

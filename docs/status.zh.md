@@ -144,11 +144,20 @@ Promise 与组合 signal；timeout/dispose 均把 exact durable delivery 收敛�
 和飞书均固定 30 秒，飞书文本/Approval 卡片把 signal 传入官方 HTTP transport。详见
 [V5.7 证据](evidence/v5-7-bounded-channel-delivery.zh.md)。
 
+V5.8 把 exact 飞书真实渠道退出路径做成阶段专用 AS-2 入口，而不是新产品插件或能力获取面。入口在精确授权前
+只读取批准变量；授权后才验证 App/chat/user/Secret、clean EvoForge/DSH revision 与隔离 run root，并从最终
+`dsh-gateway`/`dsh-feishu` tarball 经官方 DSH CLI 走生产飞书 transport。入站 challenge、原生回复、`/feishu`、
+平台观测 chat kind 与声明一致、`allowed-once` Approval、持久 notice、零 uncertain/failed、dispose、remove、原生
+Session readback 都是 hard
+gate；崩溃后的同一 run 不自动重放。合同 7/7 与独立类型检查已通过；本机无凭据，direct/group 均严格
+`NOT_RUN`。详见 [V5.8 证据](evidence/v5-8-real-feishu-acceptance-gate.zh.md)。
+
 | 能力 | 当前状态 | 已有证据 | 仍缺 |
 |---|---|---|---|
 | 原生 DSH 插件产品形态 | `implemented` | 十一包均有 `name/inject/Config/apply`、Bundle patch、无 bin 合同；同一次 clean-profile tarball add/dump/boot/remove/readback 通过 | 陌生安装与 registry release 门禁 |
 | Evidence-driven Evolution + internal Skill Opportunity | `implemented` | 自然 Goal→Host 复核/持久 Gap；跨 Goal Opportunity；缺失 Skill 的 exact Shadow/Retention/Promotion/Canary/Rollback 与[V4.49 最终包回滚生命周期](evidence/v4-49-missing-skill-canary-rollback-final-browser.zh.md)；existing-Skill 的完整 baseline、protected correction、whole-tree Candidate、paired Holdout/Retention、发布门、[V4.45 最终包浏览器](evidence/v4-45-existing-skill-release-final-browser.zh.md)、[V4.46 failed-Outcome Canary](evidence/v4-46-existing-skill-failed-outcome-canary.zh.md)、[V4.47 独立回滚门](evidence/v4-47-existing-skill-canary-control-rollback.zh.md)与[V4.48 最终包回滚生命周期](evidence/v4-48-existing-skill-canary-rollback-final-browser.zh.md)；历史 runtime 获取、static target、Draft、Shadow proposer 和旧编排均已删除，[V4.54](evidence/v4-54-remove-runtime-search-semantics.zh.md) 又移除活动 Case Pack/报告中的 `search` 命名 | 两套真实 provider、长期误晋升/回滚数据缺失 |
 | 双真实 Provider RP-1 | `implemented` | [V4.55](evidence/v4-55-real-provider-acceptance-gate.zh.md)：显式付费批准前零配置读取/零外部请求；不同 provider/authority/credential/model identity 预检；生产纵切编排；Candidate 盲区、assembled Holdout/Retention、composition、凭据脱敏与 terminal 不盲重试 hard gates；[V4.56](evidence/v4-56-bounded-governance-provider-requests.zh.md)又把两个治理 Provider seam 补齐 60 秒硬上限和 Host cancellation 组合；合同 8/8 与独立类型检查通过 | 当前 `NOT_RUN`；第二套独立 Provider、已授权真实 `passed` 结果和长期 outcome 均缺失 |
+| 真实飞书 AS-2 验收入口 | `implemented` | [V5.8](evidence/v5-8-real-feishu-acceptance-gate.zh.md)：未授权零身份/凭据读取；clean revision、最终 tarball、官方 DSH CLI、生产飞书 transport、exact 入站/回复/Command/Approval/notice、零 uncertain/failed、dispose/remove/native Session readback hard gates；合同 7/7 与独立类型检查通过 | 当前 direct/group 均 `NOT_RUN`；真实 App/chat/user、人工消息/卡片、长期重连和 Hermes paired 仍缺 |
 | Existing-Skill Release + Canary | `implemented` | Release Gate 最终 tarball 已 verified；[V4.46](evidence/v4-46-existing-skill-failed-outcome-canary.zh.md) 增加 exact active release/failed Outcome/Retention replay、原生 Jobs、paid-uncertain 恢复、strict rollback eligibility 与无 mutation authority；[V4.47](evidence/v4-47-existing-skill-canary-control-rollback.zh.md) 增加 bounded Control/Remote/Web、人工确认和 expected-active rollback gate；[V4.48](evidence/v4-48-existing-skill-canary-rollback-final-browser.zh.md) 从最终包验证动作、断连保留、恢复、精确回滚、reload/冷重启和卸载 | 两套真实 provider 与长期率 |
 | Existing-Skill Candidate-blind Holdout Evaluation | `implemented` | [V4.38](evidence/v4-38-existing-skill-candidate-blind-holdout-governance.zh.md) pre-Candidate 治理 + [V4.39](evidence/v4-39-existing-skill-exact-paired-holdout-evaluation.zh.md) exact Admission/baseline/Candidate/Envelope assembled paired Trial、四象限 verdict、输入漂移阻断、paid-uncertain 不盲重试、原生 Jobs 恢复、Host/Web 权威投影和最终 tarball 真实浏览器失败恢复/卸载 | 两套独立真实 provider与长期误晋升数据 |
 | Existing-Skill Exact Retention Evaluation | `implemented` | [V4.40](evidence/v4-40-existing-skill-pre-candidate-retention-governance.zh.md) pre-Candidate Retention + [V4.41](evidence/v4-41-existing-skill-exact-retention-evaluation.zh.md) authoritative improved Holdout、exact 双树/两 Case Pack、四 Goal abstain、四象限、input rehash、paid-uncertain 不重试、原生 Jobs 与 Host 权威投影 + [V4.42](evidence/v4-42-existing-skill-retention-web-browser.zh.md) 最终 tarball 真实 Web reload/断连保留/恢复/卸载 + [V4.48](evidence/v4-48-existing-skill-canary-rollback-final-browser.zh.md) 最终包 Canary/rollback 恢复 | 真实 provider 和长期保持率 |

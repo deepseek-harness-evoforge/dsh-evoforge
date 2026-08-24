@@ -159,6 +159,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       start(): Promise<void>
       dispose(): Promise<void>
       notifyHost(notice: FeishuHostNotice): Promise<unknown>
+      observedChatKind(routeId: string): 'direct' | 'group' | undefined
       healthSnapshot(): unknown
     }
     resolveFeishuConfig(
@@ -176,6 +177,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       routeId: route.id,
       workspaceId: route.workspaceId,
     }))),
+    observedChatKind: (routeId: string) => runtime.observedChatKind(routeId),
     notify: (notice: FeishuHostNotice) => runtime.notifyHost(notice),
   }) as never)
   ctx.provide('evoforge.feishuTest' as never, Object.freeze({ platform, runtime }) as never)
