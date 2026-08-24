@@ -2,6 +2,10 @@
 
 > 日期：2026-08-17；状态：一个确定性 paired slice 已通过，不是全局 Hermes 上位声明
 
+> 2026-08-24 可重放性复核：V5.13 已把 DSH release fixture 从删除后的 `GitSkillSource` 迁移到当前 sealed
+> `skill-bundle` + `GenerationBundleRepository` 路径，并完整复跑四个 frozen Hermes epoch；本页 frozen result
+> 未改写。详见 [V5.13 证据](v5-13-hermes-ev1-content-addressed-replay.zh.md)。
+
 ## 冻结范围
 
 本轮只比较“一个已知错误的 Skill 收到同一条确定性修正后，如何验证并进入使用”这一发布控制面，

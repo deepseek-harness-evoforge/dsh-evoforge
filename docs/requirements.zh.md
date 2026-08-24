@@ -10,6 +10,7 @@
 > V5.10 已把每次真实 future-Session Generation 晋升/回滚与活动指针在同一 Workspace state 中原子保留，绑定 exact Retention/Release/Canary/人工 authority；最终 tarball 已验证晋升、整页/Host 恢复、Canary 回滚、再次恢复和官方卸载。该历史只证明 pointer mutation，不证明效果或授予发布权。
 > V5.11 已把每条不可变选择事件与其后、下一选择之前的 durable Outcome 做严格有界关联，按 Session-pinned selected/previous/other Generation 展示结果、Goal 和 metrics；边界歧义与时间倒退 fail closed。该窗口固定无因果、无 mutation authority，不替代长期 Provider/paired 证据。
 > V5.12 已重建 existing-Skill 低风险自动晋升：公开策略只含 policy id 与 Workspace id，不接受 Skill/路径/来源/target；Host 只对 exact baseline 上单一 `SKILL.md` 末尾追加 1–2048 字节、无 protected-effect、paired Holdout/独立 Retention 明确改善且 model/token/cache 不回退的 Candidate 自动发布并选择未来 Session。持久暂停、父版本漂移、证据告警、改写/增文件/受保护效果均 fail closed；原生 Jobs 仅负责唤醒，决策和 Generation 指针可崩溃恢复。最终 tarball 已验证自动晋升、Web 刷新/断线保留/冷恢复和官方卸载；真实 provider 误晋升率、长期迁移与 paired benchmark 仍 pending。
+> V5.13 纠正冻结 Hermes `EV-1` runner 的架构漂移：它不再引用已删除的 `GitSkillSource` 或 legacy Git artifact，而是以 sealed canonical `skill-bundle`、`GenerationBundleRepository` 和 expected-active rollback 重放同一 frozen epoch。四个确定性 Hermes epoch 已从当前 `main` 全部复跑，冻结报告未改写；真实模型、真实渠道与长期 paired 门禁仍未完成。
 > 更新日期：2026-08-24
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。发生冲突时，下述“方向纠正”优先于旧里程碑文字。
 

@@ -23,6 +23,7 @@
     "check:docs": "node scripts/check-docs.mjs",
     "test:cache-contract": "pnpm --filter dsh-evolve exec vitest run test/generation-binder.e2e.test.ts -t \"turns a natural-language native Goal into a durable model-declared Capability Gap\" && pnpm --filter dsh-github-review exec vitest run test/cache-composition.e2e.test.ts --maxWorkers 1 && pnpm --filter dsh-goal-continuity exec vitest run test/cold-resume.e2e.test.ts --maxWorkers 1 && pnpm --filter dsh-software-delivery exec vitest run test/dsh-assembled-skill.e2e.test.ts test/dsh-assembled-completion.e2e.test.ts --maxWorkers 1 && pnpm --filter dsh-feishu exec vitest run test/full-channel-cache-composition.e2e.test.ts --maxWorkers 1 && pnpm --filter dsh-doctor exec vitest run test/suite-native-plugin-contract.test.ts --maxWorkers 1",
     "benchmark:hermes:ev1": "pnpm --filter dsh-evolve exec tsx ../../benchmarks/hermes-v0.1/ev1-control-plane/run.ts",
+    "benchmark:hermes:ev1:typecheck": "pnpm --filter dsh-evolve exec tsc --ignoreConfig --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --strict --noUncheckedIndexedAccess --exactOptionalPropertyTypes --verbatimModuleSyntax --skipLibCheck --allowImportingTsExtensions --types node ../../benchmarks/hermes-v0.1/ev1-control-plane/run.ts",
     "benchmark:hermes:sd1": "pnpm --filter dsh-software-delivery exec tsx ../../benchmarks/hermes-v0.1/sd1-completion-control/run.ts",
     "benchmark:hermes:lc1": "pnpm --filter dsh-goal-continuity exec tsx ../../benchmarks/hermes-v0.1/lc1-crash-recovery/run.ts",
     "benchmark:hermes:as1": "pnpm --filter dsh-telegram exec tsx ../../benchmarks/hermes-v0.1/as1-telegram-approval/run.ts",
@@ -39,6 +40,6 @@
     "typecheck": "pnpm -r typecheck",
     "pretest": "pnpm --filter dsh-gateway run build",
     "test": "pnpm -r --filter '!dsh-telegram' --filter '!dsh-feishu' test && pnpm --filter dsh-telegram test && pnpm --filter dsh-feishu test",
-    "check": "pnpm run check:docs && pnpm run benchmark:provider:rp1:check && pnpm run benchmark:feishu:as2:check && pnpm run typecheck && pnpm run test && pnpm run build"
+    "check": "pnpm run check:docs && pnpm run benchmark:hermes:ev1:typecheck && pnpm run benchmark:provider:rp1:check && pnpm run benchmark:feishu:as2:check && pnpm run typecheck && pnpm run test && pnpm run build"
   }
 }

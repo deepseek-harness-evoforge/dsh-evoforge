@@ -14,8 +14,13 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
-import { GitSkillSource } from '../../../packages/dsh-evolve/src/git-skill-source.ts'
+import { GenerationBundleRepository } from '../../../packages/dsh-evolve/src/generation-bundle-repository.ts'
 import { openEvolutionStore } from '../../../packages/dsh-evolve/src/generation-store.ts'
+import type {} from '../../../packages/dsh-evolve/src/shadow-job-runner.ts'
+import {
+  assembleSealedSkillBundleArchive,
+  type AssembledSkillBundleArchive,
+} from '../../../packages/dsh-evolve/src/skill-bundle-archive.ts'
 import { runCalibrationTrial, runComparisonTrial } from '../../../packages/dsh-evolve/src/trial.ts'
 import { VerifiedEvolutionStore } from '../../../packages/dsh-evolve/src/verified-evolution-store.ts'
 
@@ -157,18 +162,18 @@ try {
 }
 
 async function exerciseEvoForgeRelease(input: { baselineDir: string; candidateDir: string }) {
-  const repository = join(temporaryRoot, 'skill-source')
-  const skillDir = join(repository, 'skills', skillName)
-  await mkdir(skillDir, { recursive: true })
-  await cp(join(input.baselineDir, 'SKILL.md'), join(skillDir, 'SKILL.md'))
-  await git(repository, 'init', '--quiet')
-  await git(repository, 'add', '.')
-  await git(repository, '-c', 'user.name=EvoForge Benchmark', '-c', 'user.email=benchmark@example.invalid', 'commit', '--quiet', '-m', 'baseline')
-  const baselineRevision = await revision(repository)
-  await cp(join(input.candidateDir, 'SKILL.md'), join(skillDir, 'SKILL.md'))
-  await git(repository, 'add', '.')
-  await git(repository, '-c', 'user.name=EvoForge Benchmark', '-c', 'user.email=benchmark@example.invalid', 'commit', '--quiet', '-m', 'candidate')
-  const candidateRevision = await revision(repository)
+  const [baselineBundle, candidateBundle] = await Promise.all([
+    assembleSealedSkillBundleArchive([{
+      path: 'SKILL.md',
+      mode: '100644',
+      content: await readFile(join(input.baselineDir, 'SKILL.md')),
+    }]),
+    assembleSealedSkillBundleArchive([{
+      path: 'SKILL.md',
+      mode: '100644',
+      content: await readFile(join(input.candidateDir, 'SKILL.md')),
+    }]),
+  ])
 
   const configPath = await writeStorageConfig(temporaryRoot)
   const firstContext = await bootStorage(configPath, 'evoforge-hermes-ev1-first')
@@ -178,21 +183,23 @@ async function exerciseEvoForgeRelease(input: { baselineDir: string; candidateDi
   let newSessionGeneration = ''
   let crossWorkspaceFailClosed = false
   try {
-    const source = new GitSkillSource(join(temporaryRoot, 'generation-cache'), [{
-      name: skillName,
-      repository,
-      path: `skills/${skillName}`,
-    }])
-    const store = new VerifiedEvolutionStore(await openEvolutionStore(firstContext.storageDomain), source)
+    const bundles = new GenerationBundleRepository(join(temporaryRoot, 'generation-cache'))
+    const store = new VerifiedEvolutionStore(await openEvolutionStore(firstContext.storageDomain), bundles)
     const compositionFingerprint = createHash('sha256').update('ev1-stable-composition').digest('hex')
-    const root = await store.publishGeneration(generationInput(workspaceA, baselineRevision, compositionFingerprint))
+    const root = await store.publishGeneration(generationInput(
+      workspaceA,
+      baselineBundle,
+      baselineBundle,
+      compositionFingerprint,
+    ))
     baselineGeneration = root.generation.id
     await store.promoteGeneration(workspaceA, baselineGeneration)
     const oldIdentity = { workspaceId: workspaceA, sessionId: 'ev1-old-session', createdAt: 1 }
     oldSessionGeneration = (await store.pinSession(oldIdentity))?.id ?? ''
     const candidate = await store.publishGeneration(generationInput(
       workspaceA,
-      candidateRevision,
+      candidateBundle,
+      baselineBundle,
       compositionFingerprint,
       baselineGeneration,
     ))
@@ -209,7 +216,7 @@ async function exerciseEvoForgeRelease(input: { baselineDir: string; candidateDi
       sessionId: 'ev1-new-session',
       createdAt: 2,
     }))?.id ?? ''
-    await store.rollbackGeneration(workspaceA)
+    await store.rollbackGeneration(workspaceA, candidateGeneration)
     await store.close()
   } finally {
     await firstContext.fiber.dispose()
@@ -238,19 +245,54 @@ async function exerciseEvoForgeRelease(input: { baselineDir: string; candidateDi
 
 function generationInput(
   workspaceId: string,
-  revision: { commit: string; treeHash: string },
+  bundle: AssembledSkillBundleArchive,
+  baseline: AssembledSkillBundleArchive,
   compositionFingerprint: string,
   parentId?: string,
 ) {
+  const version = parentId === undefined ? 'baseline' : 'candidate'
   return {
     workspaceId,
     ...(parentId === undefined ? {} : { parentId }),
     createdAt: parentId === undefined ? 1 : 2,
-    artifacts: [{ kind: 'skill' as const, name: skillName, gitCommit: revision.commit, treeHash: revision.treeHash }],
+    artifacts: [{
+      kind: 'skill-bundle' as const,
+      name: skillName,
+      artifactDigest: bundle.artifactDigest,
+      treeHash: bundle.treeHash,
+      contentBase64: bundle.content.toString('base64'),
+      lineage: {
+        kind: 'existing-skill-candidate-lineage-v1' as const,
+        candidateId: contentId(`${version}:candidate`),
+        workspaceId,
+        skillName,
+        opportunityId: contentId('opportunity'),
+        qualificationId: contentId('qualification'),
+        baselineId: contentId('baseline'),
+        baselineArtifactDigest: baseline.artifactDigest,
+        baselineTreeHash: baseline.treeHash,
+        evaluationEvidenceId: contentId('evaluation-evidence'),
+        policyId: 'ev-one-paired-epoch-one',
+        versionKind: 'existing-skill-improvement-bundle-v1' as const,
+        contentHash: bundle.artifactDigest,
+        candidateTreeHash: bundle.treeHash,
+        admissionId: contentId('admission'),
+        evaluationEnvelopeId: contentId('evaluation-envelope'),
+        holdoutEvaluationId: contentId('holdout-evaluation'),
+        holdoutCasePackHash: contentId('holdout-case-pack'),
+        retentionEvaluationId: contentId('retention-evaluation'),
+        retentionCasePackHash: contentId('retention-case-pack'),
+        releaseAuthority: 'none' as const,
+      },
+    }],
     evaluatorVersion: 'browser-e2e-guidance-v1',
     policyVersion: 'ev1-paired-epoch-1',
     compositionFingerprint,
   }
+}
+
+function contentId(label: string): string {
+  return createHash('sha256').update(`ev1-content-addressed-release:${label}`).digest('hex')
 }
 
 async function writeStorageConfig(root: string): Promise<string> {
@@ -301,13 +343,6 @@ function assertResult(result: any): void {
   }
   if (result.primaryMetric.evoforge !== 0 || result.primaryMetric.hermes !== 1) {
     throw new Error(`primary metric did not match the frozen expectation: ${JSON.stringify(result.primaryMetric)}`)
-  }
-}
-
-async function revision(repository: string) {
-  return {
-    commit: await git(repository, 'rev-parse', 'HEAD'),
-    treeHash: await git(repository, 'rev-parse', `HEAD:skills/${skillName}`),
   }
 }
 
