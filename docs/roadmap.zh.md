@@ -112,8 +112,8 @@ V4.52 在 V4.51 的同一 Host 权威投影内增加 `Between-Attempt Work Conte
 两侧 DSH Goal metrics 同源同 Goal、event seq 前进且累计 counters 全部单调时才相减；并列时间整组顺序歧义，
 缺快照或回退只记 ordered transition/unmeasured。Control、Remote、Command 与 Web 共用同一差值，展示新增
 turns/steps/token/cache/latency/active wall，固定无因果、无 improvement claim、无发布权。它补充返工调查所需的
-可测上下文，但仍不能称为返工下降或 Skill 效果；两套真实 provider、长期结果与同条件 paired benchmark 仍是
-下一门禁。
+可测上下文；最终 tarball 已从全新 profile 验证刷新、断连保留、同 profile 冷恢复不重复、reload、卸载及原生 Web
+无残留。但它仍不能称为返工下降或 Skill 效果；两套真实 provider、长期结果与同条件 paired benchmark 仍是下一门禁。
 
 内部 Candidate 评测已删除 `candidateAdmissionTargets`/`candidateShadowTargets` 这两套预选 exact Skill 的配置。
 `candidateEvaluationPolicies` 不声明 Skill、baseline、Case Pack 或 Candidate 方向；自主治理只增加 exact DSH revision 和独立日预算。Host 先从 exact Opportunity

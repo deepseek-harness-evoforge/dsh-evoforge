@@ -26,7 +26,7 @@ V4.50 又把真实原生 Skill Tool 的成功调用在 Session durability checkp
 
 V4.51 再把该 exact 跨 Goal 版本与同 Session/Goal/Generation、发生在使用之后的 durable Delivery Outcome 做只读时间关联。Web 可显示缺失结果、交付尝试、重复交付、后续恢复、latest 冲突拒答，以及最新结果的 token/cache/时延；不会输出“Skill 成功率”，也不参与 Candidate、晋升或回滚。最终 tarball 已验证整页刷新、Host 停机时失败可见且保留证据、同 profile 冷恢复不重复计数和官方卸载。
 
-V4.52 在同一只读投影中量化相邻交付尝试之间的新增工作：只有时间严格有序、DSH Goal metrics 同源同 Goal、event seq 前进且累计计数单调时才相减；并列、缺失或回退均 abstain。DSH Web 显示 ordered/measured/unmeasured/ambiguous 以及新增 turns、steps、token、cache、时延和 active wall；这些仍是时间上下文，不是返工成本或 Skill 因果效果，也不改变任何发布资格。
+V4.52 在同一只读投影中量化相邻交付尝试之间的新增工作：只有时间严格有序、DSH Goal metrics 同源同 Goal、event seq 前进且累计计数单调时才相减；并列、缺失或回退均 abstain。DSH Web 显示 ordered/measured/unmeasured/ambiguous 以及新增 turns、steps、token、cache、时延和 active wall；最终 tarball 已验证刷新、断连保留、同 profile 冷恢复、reload、卸载及原生 Web 无残留。这些仍是时间上下文，不是返工成本或 Skill 因果效果，也不改变任何发布资格。
 
 existing-Skill 路径会封存调用时完整 Bundle，并把当前纠正文与 durable Goal/请求预分为 authoring/admission/holdout/可选 Retention。V4.40 的 Candidate 不可见治理面在 proposer 前用两次独立调用分别消费 protected Holdout 与可选第五 Goal Retention，每次只见 exact baseline 和自己的一个 protected Goal；两套 assembled `skill-tree` Case Pack 经独立 calibration 后共同进入内容寻址 Evaluation Envelope，Candidate id 绑定整个 Envelope。受保护作者只允许改 `SKILL.md`/`references/*.md`，Host 原样继承二进制和其余文件并拒绝权限漂移；结构准入再重验 exact baseline/Candidate 双树、声明 diff 与 protected admission identity。V4.39 的原生 DSH Job 执行完整 paired Holdout；V4.41 只在该 exact Holdout 权威判为 `improved` 后由另一原生 DSH Job 执行预密封 Retention，四 Goal无样本时零花费 abstain，五 Goal按 `fail/pass` 四象限持久判为 `retained/ambiguous/not-retained/regressed`。两者都要求 calibration、assembled、composition 与输入完整性全部成立，中断不盲重试且无晋升权。V4.43 再由独立 Host mutation gate 重验 exact Admission/Holdout/Retention 与完整 sealed Bundle；只有人工 approve 才产生 inactive Generation，另一动作才选择未来 Session，reject 持久终止且 evaluator 始终无发布权。
 
