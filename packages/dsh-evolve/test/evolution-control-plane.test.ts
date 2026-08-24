@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import type { DeliveryOutcome } from '../src/delivery-outcome-monitor.ts'
 import { EvolutionControlPlane } from '../src/evolution-control-plane.ts'
 import type { CapabilityGeneration, EvolutionStore } from '../src/generation-store.ts'
 import type { ReviewCandidate } from '../src/review-inbox.ts'
@@ -278,7 +279,7 @@ describe('EvolutionControlPlane', () => {
           publish: vi.fn(),
         },
       },
-      outcomes: { summarize: () => ({
+      outcomes: { list: () => [], summarize: () => ({
         all: { total: 3, passed: 2, failed: 1, unknown: 0 },
         selected: { total: 2, passed: 2, failed: 0, unknown: 0 },
         baseline: { total: 1, passed: 0, failed: 1, unknown: 0 },
@@ -1595,11 +1596,33 @@ describe('EvolutionControlPlane', () => {
         },
       },
     ])
-    const control = new EvolutionControlPlane({ store: evolutionStore })
+    const outcomes: DeliveryOutcome[] = [
+      deliveryOutcome('boundary-lower', 300, 'failed', generationId, 'goal-boundary'),
+      deliveryOutcome('selected', 325, 'passed', parentId, 'goal-selected', projectedGoalMetrics()),
+      deliveryOutcome('previous', 350, 'failed', generationId, 'goal-previous'),
+      deliveryOutcome('other', 360, 'unknown', undefined, 'goal-other'),
+    ]
+    const control = new EvolutionControlPlane({
+      store: evolutionStore,
+      outcomes: {
+        summarize: () => ({
+          all: { total: 4, passed: 1, failed: 2, unknown: 1 },
+          selected: { total: 1, passed: 1, failed: 0, unknown: 0 },
+          baseline: { total: 2, passed: 0, failed: 2, unknown: 0 },
+          metrics: {
+            all: metricRollup(1, 3, 1),
+            selected: metricRollup(1, 0, 1),
+            baseline: metricRollup(0, 2, 0),
+            recent: [],
+          },
+        }),
+        list: () => outcomes,
+      },
+    })
 
     const overview = await control.overview(WORKSPACE_ID)
 
-    expect(overview.generationSelectionHistory).toEqual({
+    expect(overview.generationSelectionHistory).toMatchObject({
       totalCount: 3,
       promotionCount: 2,
       rollbackCount: 1,
@@ -1616,6 +1639,29 @@ describe('EvolutionControlPlane', () => {
           evidence: {
             authority: 'counterfactual-canary',
             canaryId: 'e'.repeat(64),
+          },
+          outcomeWindow: {
+            status: 'observed',
+            fromExclusive: 300,
+            selected: {
+              counts: { total: 1, passed: 1, failed: 0, unknown: 0 },
+              goalCount: 1,
+              metrics: metricRollup(1, 0, 1),
+            },
+            previous: {
+              counts: { total: 1, passed: 0, failed: 1, unknown: 0 },
+              goalCount: 1,
+              metrics: metricRollup(0, 1, 0),
+            },
+            other: {
+              counts: { total: 1, passed: 0, failed: 0, unknown: 1 },
+              goalCount: 1,
+              metrics: metricRollup(0, 1, 0),
+            },
+            ambiguousBoundaryOutcomeCount: 1,
+            coverage: 'bounded-retained-evidence',
+            causalClaim: 'none',
+            mutationAuthority: 'none',
           },
         },
         {
@@ -1642,6 +1688,57 @@ describe('EvolutionControlPlane', () => {
       ],
       outcomeClaim: 'none',
       releaseAuthority: 'none',
+    })
+  })
+
+  it('abstains from Outcome association when selection wall-clock order is ambiguous', async () => {
+    const evolutionStore = store()
+    vi.mocked(evolutionStore.listGenerationSelectionEvents).mockReturnValue([
+      {
+        schemaVersion: 1,
+        id: '1'.repeat(64),
+        workspaceId: WORKSPACE_ID,
+        sequence: 1,
+        kind: 'promotion',
+        recordedAt: 300,
+        activeGenerationId: parentId,
+        evidence: { authority: 'direct-host' },
+      },
+      {
+        schemaVersion: 1,
+        id: '2'.repeat(64),
+        workspaceId: WORKSPACE_ID,
+        sequence: 2,
+        kind: 'promotion',
+        recordedAt: 200,
+        previousGenerationId: parentId,
+        activeGenerationId: generationId,
+        evidence: { authority: 'direct-host' },
+      },
+    ])
+    const control = new EvolutionControlPlane({
+      store: evolutionStore,
+      outcomes: { list: () => [], summarize: emptyDeliveryOutcomeSummary },
+    })
+
+    const overview = await control.overview(WORKSPACE_ID)
+
+    expect(overview.generationSelectionHistory.items[1]?.outcomeWindow).toEqual({
+      status: 'abstained',
+      fromExclusive: 300,
+      untilExclusive: 200,
+      reason: 'selection-time-not-strictly-increasing',
+      coverage: 'bounded-retained-evidence',
+      causalClaim: 'none',
+      mutationAuthority: 'none',
+    })
+    expect(overview.generationSelectionHistory.items[0]?.outcomeWindow).toEqual({
+      status: 'abstained',
+      fromExclusive: 200,
+      reason: 'selection-time-not-strictly-increasing',
+      coverage: 'bounded-retained-evidence',
+      causalClaim: 'none',
+      mutationAuthority: 'none',
     })
   })
 
@@ -2018,6 +2115,41 @@ function projectedGoalMetrics() {
       decodeTokens: 9,
     },
     monetaryCost: { status: 'unavailable' as const, reason: 'provider-price-not-projected' as const },
+  }
+}
+
+function deliveryOutcome(
+  callId: string,
+  observedAt: number,
+  status: DeliveryOutcome['status'],
+  generationId: string | undefined,
+  goalId: string,
+  goalMetrics?: DeliveryOutcome['goalMetrics'],
+): DeliveryOutcome {
+  return {
+    schemaVersion: 2,
+    id: callId.padEnd(64, '0'),
+    observedAt,
+    workspaceId: WORKSPACE_ID,
+    sessionId: `session-${callId}`,
+    callId,
+    ...(generationId === undefined ? {} : { generationId }),
+    goal: { id: goalId, revision: 1, phase: status === 'passed' ? 'complete' : 'active' },
+    status,
+    reason: 'fixture',
+    ...(goalMetrics === undefined ? {} : { goalMetrics }),
+  }
+}
+
+function emptyDeliveryOutcomeSummary() {
+  return {
+    all: { total: 0, passed: 0, failed: 0, unknown: 0 },
+    selected: { total: 0, passed: 0, failed: 0, unknown: 0 },
+    metrics: {
+      all: metricRollup(0, 0, 0),
+      selected: metricRollup(0, 0, 0),
+      recent: [],
+    },
   }
 }
 

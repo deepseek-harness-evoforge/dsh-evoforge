@@ -165,6 +165,14 @@ existing-Skill Release、显式人工和两类 Canary gate 都把 exact authorit
 root rollback、官方 remove 和原生 Web 无残留，console error 为 0。详见
 [V5.10 证据](evidence/v5-10-generation-selection-history.zh.md)。
 
+V5.11 在不可变 selection events 上增加严格有界的 post-selection Outcome window。Host 只读复用现有
+Delivery Outcome Store，把每次选择之后、下一选择之前的事实按 Session-pinned selected/previous/other
+Generation 分桶，展示结果、不同 Goal 和 token/cache/latency/active-wall；边界相等计歧义，选择时间不严格
+递增就 abstain。最终 `dsh-evolve`/`dsh-evolve-web` tarball 已在真实 DSH Web 完成晋升、原生 Session Outcome、
+断线保留、两次冷恢复、整页 reload、官方 remove 和原生 Web readback，console error 为 0。该窗口固定
+bounded、无因果、无 mutation authority。详见
+[V5.11 证据](evidence/v5-11-post-selection-outcome-window.zh.md)。
+
 | 能力 | 当前状态 | 已有证据 | 仍缺 |
 |---|---|---|---|
 | 原生 DSH 插件产品形态 | `implemented` | 十一包均有 `name/inject/Config/apply`、Bundle patch、无 bin 合同；同一次 clean-profile tarball add/dump/boot/remove/readback 通过 | 陌生安装与 registry release 门禁 |
@@ -176,7 +184,7 @@ root rollback、官方 remove 和原生 Web 无残留，console error 为 0。�
 | Existing-Skill Exact Retention Evaluation | `implemented` | [V4.40](evidence/v4-40-existing-skill-pre-candidate-retention-governance.zh.md) pre-Candidate Retention + [V4.41](evidence/v4-41-existing-skill-exact-retention-evaluation.zh.md) authoritative improved Holdout、exact 双树/两 Case Pack、四 Goal abstain、四象限、input rehash、paid-uncertain 不重试、原生 Jobs 与 Host 权威投影 + [V4.42](evidence/v4-42-existing-skill-retention-web-browser.zh.md) 最终 tarball 真实 Web reload/断连保留/恢复/卸载 + [V4.48](evidence/v4-48-existing-skill-canary-rollback-final-browser.zh.md) 最终包 Canary/rollback 恢复 | 真实 provider 和长期保持率 |
 | Software Delivery P2A–P2D | `implemented` | 真实 Git、原生 Tool/Goal、Draft PR、checks；Outcome 只从 source-linked Session call/result pair 读取，经官方 durability checkpoint 后投影，并可在 cold Session start 幂等补记；十一包 clean-profile 内从 packed Tool 完成原生 Goal | 真实长期任务与 checkpoint 前 hard kill、checkpoint 后投影前 kill 的跨进程故障注入 |
 | GitHub Review Follow-up P3.2 | `implemented` | exact-head allowlist、bounded follow-up、重启去重、cache parity | 真实 reviewer 返修闭环和多日 resident |
-| Web Control Plane | `verified` | packed artifact、真实 DSH Workspace/Host/Client Module；浏览器 pause→Host restart→persisted pause→resume/refresh；Goal metrics 的 Workspace/current/baseline 聚合和最近证据来自 Host 权威 Remote；最终 tarball clean-profile 中以四个原生 DSH Session/Goal 形成 Opportunity，显示 `ready-to-seal`、2/1/1 分割、目标正文保护和零 Candidate；在线刷新、断线保留最后快照并 fail visible、同 profile 恢复、Outcome 幂等 1→1；[V5.10](evidence/v5-10-generation-selection-history.zh.md) 又验证 pointer 原子历史的真实晋升、reload、两次 Host 冷恢复、Canary 回滚、卸载和原生 readback，console error 0 | 陌生用户可用性、真实 provider 价格与长期数据 |
+| Web Control Plane | `verified` | packed artifact、真实 DSH Workspace/Host/Client Module；浏览器 pause→Host restart→persisted pause→resume/refresh；Goal metrics 的 Workspace/current/baseline 聚合和最近证据来自 Host 权威 Remote；最终 tarball clean-profile 中以四个原生 DSH Session/Goal 形成 Opportunity，显示 `ready-to-seal`、2/1/1 分割、目标正文保护和零 Candidate；在线刷新、断线保留最后快照并 fail visible、同 profile 恢复、Outcome 幂等 1→1；[V5.10](evidence/v5-10-generation-selection-history.zh.md) 验证 pointer 原子历史；[V5.11](evidence/v5-11-post-selection-outcome-window.zh.md) 又验证 selected/previous/other Outcome 窗口、真实 Session metrics、断线保留、两次冷恢复、卸载和原生 readback，console error 0 | 陌生用户可用性、真实 provider 价格与长期数据 |
 | Exact 跨 Goal Skill 复用证据 | `verified` | [V4.50](evidence/v4-50-exact-cross-goal-skill-reuse.zh.md)：真实原生 Skill Tool、Session durability、active Goal、exact 内容哈希/Generation 分桶、持久重放；最终 tarball Web 2 uses/2 Goals、reload、Host 冷启动、合法 Session readback 与官方卸载 | 真实用户任务、Outcome/返工/成本因果、负迁移、保持率与 paired benchmark |
 | Exact Skill 后续 Outcome 上下文 | `verified` | [V4.51](evidence/v4-51-exact-skill-outcome-context.zh.md)：同 Session/Goal/Generation 的 later durable Outcome、attempt/recovered/ambiguous latest、最新 metrics、全量 rollup/有界明细；最终 tarball Web 刷新、断连保留、冷恢复不重复与官方卸载 | 真实用户任务的因果效果、返工下降、长期负迁移/遗忘与 paired benchmark |
 | Exact Skill 尝试间新增工作 | `verified` | [V4.52](evidence/v4-52-between-attempt-work-context.zh.md)：严格相邻次序、同源 Goal metrics、event seq/counter 单调门；ordered/measured/unmeasured/ambiguous 与 token/cache/latency/active-wall 差值；最终 tarball 的刷新、断连保留、冷恢复不重复、reload、卸载与无残留 | 真实用户任务、因果效果、返工下降与 paired benchmark |
@@ -195,7 +203,7 @@ root rollback、官方 remove 和原生 Web 无残留，console error 为 0。�
 
 当前 `main` 增量通过根级 `pnpm check`（文档、全包 typecheck、测试和构建）；其中
 `dsh-gateway` 7 files/26 tests、`dsh-evolve-web` 2 files/26 tests、`dsh-evolve-attention` 4 files/11 tests、
-`dsh-feishu` 17 files/48 tests，`dsh-evolve` 67 files/296 tests passed、1 file/1 test skipped；根级累计 555 tests passed、3 skipped。Cache Contract 全通过；Doctor 十一包
+`dsh-feishu` 17 files/48 tests，`dsh-evolve` 67 files/297 tests passed、1 file/1 test skipped；根级累计 556 tests passed、3 skipped。Cache Contract 全通过；Doctor 十一包
 原生合同 22/22，十一包 clean-profile 最终 tarball 的 add/dump/boot/真实
 Session+Goal+Storage+Tool/dispose/remove/reboot/readback 1/1（60.96 秒）；独立 Doctor packed
 add/Loader/command/remove 1/1（10.35 秒）。V4.24 删除旧浏览器 acceptance fixture，并用 DSH Web 组件测试固定“纠正进入

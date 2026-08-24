@@ -46,6 +46,13 @@ no release authority. Final tarballs have been verified through real Web promoti
 Host cold restart, exact Canary rollback, another reload/restart, official uninstall, and native-Web
 readback with zero console errors.
 
+Each selection row also shows a Host-authoritative bounded post-selection Outcome window. Retained
+Outcomes strictly inside the selection epoch are grouped by their Session-pinned selected, previous,
+or other Generation, with Goal/result and token/cache/latency/active-wall rollups. Equal-boundary
+facts remain ambiguous and non-monotonic event time abstains. The view explicitly has no causal claim
+or mutation authority. Final tarballs have verified real Session Outcomes, outage snapshot retention,
+two cold recoveries, full-page reload, official uninstall, and native-Web readback.
+
 Unload/remove the adapter before its provider:
 
 ```sh

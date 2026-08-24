@@ -250,6 +250,10 @@ _Avoid_: Merge, in-place edit
 A Workspace-owned sequence of immutable, content-addressed facts written atomically with each real future-Session Generation pointer mutation. Every event names the prior and selected Generation plus the exact Host authority and evidence ids used by promotion or rollback; duplicate no-op selection creates no event, and current Session pins never change. It is mutation audit only, with no outcome claim or release authority.
 _Avoid_: Effect timeline, evaluator verdict, Web-owned log, separate event database, Git branch history
 
+**Generation Selection Outcome Window**:
+A bounded, read-only temporal association between one immutable Generation selection event and retained Delivery Outcomes strictly after it and before the next selection. Outcomes remain attributed to their Session-pinned Generation and are shown as selected, previous, or other with Goal/result/metric rollups; equal boundaries or non-monotonic selection time abstain. It has no causal claim, Candidate authority, or mutation authority.
+_Avoid_: Complete history, effect verdict, auto-promotion signal, analytics database, current-pointer attribution
+
 **Future-Session Promotion Eligibility**:
 A Host-governed conclusion that binds one approved inactive Generation to its exact promotable Shadow and independently retained Candidate lineage. Missing, ambiguous, prepared, regressed, incomplete, or inconsistent evidence cannot change the active selection; eligibility never changes an already pinned Session.
 _Avoid_: Retention release authority, approved-means-active, Web-only validation

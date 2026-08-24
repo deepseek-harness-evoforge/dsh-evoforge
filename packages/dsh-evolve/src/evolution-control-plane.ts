@@ -41,7 +41,8 @@ import type {
   InternalSkillRetentionRunView,
   InternalSkillRetentionScan,
 } from './internal-skill-retention.ts'
-import type { EvolutionStore, GenerationSelectionEvent } from './generation-store.ts'
+import type { EvolutionStore } from './generation-store.ts'
+import { projectGenerationSelectionHistory } from './generation-selection-history-projection.ts'
 import type { FutureSessionPromotion } from './future-session-promotion.ts'
 import type { FutureSessionRollback } from './future-session-rollback.ts'
 import type {
@@ -65,7 +66,6 @@ import type {
   EvolutionSkillAdmissionView,
   EvolutionSkillCandidateLineageView,
   EvolutionGenerationView,
-  EvolutionGenerationSelectionHistoryView,
   EvolutionOverview,
   EvolutionReviewDetail,
   EvolutionReviewView,
@@ -74,7 +74,6 @@ import type {
 const MAX_REVIEW_ROWS = 20
 const MAX_CAPABILITY_GAP_ROWS = 20
 const MAX_DISCOVERY_ROWS = 20
-const MAX_GENERATION_SELECTION_ROWS = 20
 
 /** Existing authoritative owners used by Commands and structured adapters. */
 export interface EvolutionControlPlaneModules {
@@ -87,7 +86,7 @@ export interface EvolutionControlPlaneModules {
     readonly publisher: Pick<CandidatePublisher, 'preview' | 'publish'>
   }
   readonly resident?: Pick<ResidentEvolutionControl, 'isPaused' | 'pause' | 'resume'>
-  readonly outcomes?: Pick<DeliveryOutcomeStore, 'summarize'>
+  readonly outcomes?: Pick<DeliveryOutcomeStore, 'summarize' | 'list'>
   readonly skillUses?: Pick<SkillUseStore, 'summarize'>
   readonly skillOutcomeContext?: Pick<ExactSkillOutcomeContextReader, 'summarize'>
   readonly feedback?: Pick<FeedbackSignalStore, 'summarize'>
@@ -136,6 +135,7 @@ export class EvolutionControlPlane {
     const active = this.modules.store.getActiveGeneration(workspaceId)
     const generationSelectionHistory = projectGenerationSelectionHistory(
       this.modules.store.listGenerationSelectionEvents(workspaceId),
+      this.modules.outcomes?.list(workspaceId),
     )
     const [
       scan,
@@ -1414,39 +1414,6 @@ function projectExistingSkillEvaluationEvidenceReadiness(
     }
   }
   return { ...result }
-}
-
-function projectGenerationSelectionHistory(
-  events: readonly GenerationSelectionEvent[],
-): EvolutionGenerationSelectionHistoryView {
-  return {
-    totalCount: events.length,
-    promotionCount: events.filter(event => event.kind === 'promotion').length,
-    rollbackCount: events.filter(event => event.kind === 'rollback').length,
-    canaryRollbackCount: events.filter(event => event.kind === 'rollback'
-      && (event.evidence.authority === 'counterfactual-canary'
-        || event.evidence.authority === 'existing-skill-counterfactual-canary')).length,
-    explicitRollbackCount: events.filter(event => event.kind === 'rollback'
-      && event.evidence.authority === 'explicit-human').length,
-    items: [...events]
-      .sort((left, right) => right.sequence - left.sequence || right.id.localeCompare(left.id))
-      .slice(0, MAX_GENERATION_SELECTION_ROWS)
-      .map(event => ({
-        id: event.id,
-        sequence: event.sequence,
-        kind: event.kind,
-        recordedAt: event.recordedAt,
-        ...(event.previousGenerationId === undefined
-          ? {}
-          : { previousGenerationId: event.previousGenerationId }),
-        ...(event.activeGenerationId === undefined
-          ? {}
-          : { activeGenerationId: event.activeGenerationId }),
-        evidence: { ...event.evidence },
-      })),
-    outcomeClaim: 'none',
-    releaseAuthority: 'none',
-  }
 }
 
 function cloneOutcomeSummary(summary: ReturnType<DeliveryOutcomeStore['summarize']>) {

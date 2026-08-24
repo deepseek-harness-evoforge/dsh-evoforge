@@ -66,6 +66,8 @@ UI-1 同步纳入 V4.42：Retention 卡片由 Host bounded summary 驱动，显�
 
 V5.10 为 UI-1 增加的只是 mutation audit：Host/Web 能显示每次 future-Session pointer 变更的 sequence、前后 Generation 和 exact authority/evidence，并在 reload、Host 冷恢复后保持；它不把一次选择包装成 Outcome、因果效果或 release authority。长期误晋升/误回滚率仍必须来自真实 Provider 与 paired benchmark。
 
+V5.11 为 DS-1/UI-1 增加的是 longitudinal monitoring 的最小底座：Host/Web 把每次选择后的 retained Outcome 按 Session-pinned selected/previous/other Generation 分桶，显示不同 Goal、结果、token/cache/latency/active-wall，并对边界歧义或时间倒退 abstain。最终包已验证真实 Session facts、断线保留、两次冷恢复、整页 reload 与卸载；该窗口仍是 bounded、non-causal、无 mutation authority，不能替代长期误晋升/负迁移/遗忘率或 Hermes paired 结论。
+
 `LC-1` 只能证明 Local Continuity，不能称为 High Availability。High Availability 还必须有明确 SLO、至少两个故障域、故障转移和共享状态一致性试验；没有真实需求和单机运行数据前不进入实现。
 
 ## 4. 阶段声明规则

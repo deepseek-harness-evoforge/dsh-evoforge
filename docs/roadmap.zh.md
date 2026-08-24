@@ -2,6 +2,7 @@
 
 > 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已替换旧 Router 并完成公共 outbound/健康 Web 的真实浏览器失败恢复验收，飞书图片已在 assembled DSH 中进入 Agent，运行时外部能力获取相关偏差表面已删除；V4.54 又移除了治理包与 Shadow 报告中残留的 `search` 语义。缺失 Skill Candidate 已形成 Retention/Promotion/Canary/Rollback 活动纵切；现有 Skill 已完成完整 baseline、protected whole-tree Candidate、exact Holdout/Retention、独立发布门和最终包浏览器生命周期。V4.46–V4.49 已完成 existing/missing Skill 的 Canary、rollback 与最终包门禁；V4.50 建立 exact 跨 Goal 复用事实，V4.51 又以非因果、无发布权的只读投影连接后续 durable Outcome、重复交付、恢复和最新结果 metrics，并从最终 tarball 验证刷新、失败保留、Host 冷恢复和卸载。V5.5–V5.6 已完成飞书四类独立内容读取与当前 Session Host/Web 就绪投影，V5.7 又让 Gateway 统一约束 Adapter send wall-clock、超时/卸载 `uncertain` 与飞书官方 HTTP cancellation；V5.8 已把 exact 飞书入站/回复/Command/Approval/卸载/readback 做成真实平台专用 AS-2 入口，但本机无凭据，合同通过而平台结果严格 `NOT_RUN`；V5.9 又让 Doctor 复用 Gateway 权威健康，最终包已验证渠道 degraded→reload→ready 而不复制 transport 状态。V4.55 已实现两套真实 Provider 的阶段专用验收入口，V4.56 又补齐两个治理 Provider seam 的 60 秒硬上限；Provider 同样仍严格为 `NOT_RUN`。下一阶段取得真实 Provider 和真实飞书结果并做真实飞书 App 内容/权限；Hermes paired 仍未完成，普通文件/音视频仍 pending，v0.1 未发布。
 > V5.10 已把真实 Generation 晋升/回滚与活动 pointer 原子记录，并从最终 tarball 验证 Web 晋升、reload、两次 Host 冷恢复、Canary root rollback、官方卸载和原生 Web readback。它只提供 mutation audit，不替代真实 Provider/长期 Outcome/paired 效果证据。
+> V5.11 已在该 mutation audit 上增加严格、有界、非因果的 post-selection Outcome 窗口，按 Session-pinned selected/previous/other Generation 展示 Goal、结果和 metrics；最终 tarball 已验证真实 Session Outcome、断线保留、两次冷恢复、整页 reload、卸载和原生 Web readback。长期率和因果效果仍 pending。
 > V4.38 已在 existing-Skill Candidate proposer 前生成并校准 Candidate 不可见的完整 `skill-tree` holdout Envelope；V4.39 已把 exact Envelope 纳入 Candidate 内容身份并消费该 Envelope 与 V4.37 exact 双树执行 assembled paired Trial。下一门是独立 Retention/Canary/晋升/回滚，而不是再次生成或搜索能力。
 > V4.40–V4.45 已完成 Retention、发布门与最终包浏览器生命周期；V4.46–V4.48 已完成 existing-Skill failed-Outcome Canary、权威 Control/Remote/Web、独立 expected-active rollback gate 与最终 tarball 浏览器故障恢复；V4.49 已完成 missing-Skill 同类最终包故障恢复。下一门是两套独立真实 provider。
 > 更新日期：2026-08-24
@@ -102,6 +103,12 @@ Existing-Skill improvement 与 missing-Skill Opportunity 分轨。V4.33–V4.45 
 V4.40 将第五 Goal 密封为独立 Retention Case Pack；V4.41–V4.45 已完成 exact Retention、future-Session 发布门及最终包浏览器；V4.46–V4.48 已完成 existing-Skill failed-Outcome Canary、权威 Control/Remote/Web、独立 Host expected-active rollback gate 和最终包真实生命周期；V4.49 已完成 missing-Skill 的同类最终包真实生命周期。下一纵切是两套独立真实 provider 与长期 Outcome。
 
 V5.10 将所有真正改变 future-Session selection 的 promotion/rollback 收口到同一 Workspace state 原子写：pointer 与内容寻址事件同时落盘，事件绑定 exact Retention、Release Decision、Canary 或显式人工 authority；重复 promotion 幂等，当前 Session pin 不变。Host/Web 只投影有界 mutation timeline 和分类计数，固定无 outcome claim、无 release authority。最终 tarball 已验证真实 Web 晋升、reload、Host 冷重启、Canary root rollback、再次 reload/冷重启和官方卸载。下一门不是继续扩张日志平台，而是用 RP-1/长期 Outcome 证明误晋升、负迁移、遗忘和误回滚率。
+
+V5.11 复用现有 selection events 与 Delivery Outcomes，在 Control/Web 中为每次选择投影严格时间 epoch。Outcome
+按 Session-pinned selected/previous/other 分桶并聚合 Goal、结果和 DSH metrics；边界相等只计 ambiguous，选择
+wall-clock 不严格递增则 abstain。最终 tarball 已验证真实 Session Outcome、Host 停机保留、同 profile 恢复、
+第二次冷启动、整页 reload、官方卸载和原生 Web readback。它只是 bounded monitoring foundation，不产生 Candidate、
+效果 verdict、晋升或回滚；下一门仍是已授权 RP-1、真实飞书和长期 paired epoch。
 
 V4.50 新增一个更窄、不可冒充效果的观察门：Host 只在成功原生 Skill 调用完成 Session flush 且存在 active
 Goal 后记录 exact name/content hash/Generation；相同 exact 版本覆盖至少两个不同 Goal 才算 Cross-Goal Skill

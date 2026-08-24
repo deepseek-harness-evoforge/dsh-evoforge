@@ -614,7 +614,15 @@ const t = (key: string) => ({
   'generationSelectionHistory.authority.explicit-human': 'Explicit human',
   'generationSelectionHistory.authority.counterfactual-canary': 'Counterfactual Canary',
   'generationSelectionHistory.authority.existing-skill-counterfactual-canary': 'Existing-Skill counterfactual Canary',
-  'generationSelectionHistory.disclaimer': 'This timeline records exact pointer mutations and their authority only. It makes no outcome claim and grants no release authority.',
+  'generationSelectionHistory.outcomeWindow.title': 'Post-selection retained Outcome window',
+  'generationSelectionHistory.outcomeWindow.selected': 'Selected after mutation',
+  'generationSelectionHistory.outcomeWindow.previous': 'Previous selection still completing',
+  'generationSelectionHistory.outcomeWindow.other': 'Other pinned selections',
+  'generationSelectionHistory.outcomeWindow.goals': 'Goals',
+  'generationSelectionHistory.outcomeWindow.boundaryAmbiguous': 'equal-boundary Outcomes abstained',
+  'generationSelectionHistory.outcomeWindow.abstained': 'Outcome association abstained because selection time is not strictly increasing.',
+  'generationSelectionHistory.outcomeWindow.coverage': 'Counts cover only bounded retained evidence; equal-boundary Outcomes are excluded.',
+  'generationSelectionHistory.disclaimer': 'This timeline joins exact pointer facts with bounded post-selection temporal Outcome context. It makes no causal or value claim and grants no mutation or release authority.',
   'section.skillOutcomeContext': 'Exact Skill Outcome Context',
   'skillOutcomeContext.workspace': 'Workspace outcome context',
   'skillOutcomeContext.active': 'Active outcome context',
@@ -1836,6 +1844,29 @@ describe('EvolutionAction', () => {
               authority: 'counterfactual-canary' as const,
               canaryId: 'e'.repeat(64),
             },
+            outcomeWindow: {
+              status: 'observed' as const,
+              fromExclusive: 1_786_896_000_300,
+              selected: {
+                counts: { total: 2, passed: 1, failed: 1, unknown: 0 },
+                goalCount: 2,
+                metrics: webMetricRollup(1, 1, 1),
+              },
+              previous: {
+                counts: { total: 1, passed: 0, failed: 1, unknown: 0 },
+                goalCount: 1,
+                metrics: webMetricRollup(0, 1, 0),
+              },
+              other: {
+                counts: { total: 1, passed: 0, failed: 0, unknown: 1 },
+                goalCount: 1,
+                metrics: webMetricRollup(0, 1, 0),
+              },
+              ambiguousBoundaryOutcomeCount: 1,
+              coverage: 'bounded-retained-evidence' as const,
+              causalClaim: 'none' as const,
+              mutationAuthority: 'none' as const,
+            },
           }, {
             id: 'c'.repeat(64),
             sequence: 2,
@@ -1866,8 +1897,18 @@ describe('EvolutionAction', () => {
     expect(within(section).getByText(/Counterfactual Canary · eeeeeeee…/u)).toBeTruthy()
     expect(within(section).getByText(/#2 · Promotion · aaaaaaaa… → bbbbbbbb…/u)).toBeTruthy()
     expect(within(section).getByText(/Internal retention gate · cccccccc… · ffffffff…/u)).toBeTruthy()
+    expect(within(section).getByText('Post-selection retained Outcome window')).toBeTruthy()
+    expect(within(section).getByText(/Selected after mutation · 2 Goals · 2 total · 1 passed · 1 failed · 0 unknown/u)).toBeTruthy()
+    expect(within(section).getByText(/Previous selection still completing · 1 Goals · 1 total · 0 passed · 1 failed · 0 unknown/u)).toBeTruthy()
+    expect(within(section).getByText(/Other pinned selections · 1 Goals · 1 total · 0 passed · 0 failed · 1 unknown/u)).toBeTruthy()
+    expect(within(section).getByText(/1 equal-boundary Outcomes abstained/u)).toBeTruthy()
+    const selectedMetrics = within(section).getByRole('group', { name: 'Selected after mutation' })
+    expect(within(selectedMetrics).getByText(/cache read 70/u)).toBeTruthy()
     expect(within(section).getByText(
-      'This timeline records exact pointer mutations and their authority only. It makes no outcome claim and grants no release authority.',
+      'Counts cover only bounded retained evidence; equal-boundary Outcomes are excluded.',
+    )).toBeTruthy()
+    expect(within(section).getByText(
+      'This timeline joins exact pointer facts with bounded post-selection temporal Outcome context. It makes no causal or value claim and grants no mutation or release authority.',
     )).toBeTruthy()
   })
 

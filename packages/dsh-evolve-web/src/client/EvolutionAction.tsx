@@ -1888,9 +1888,53 @@ function GenerationSelectionHistory({ history, t }: {
             {' · '}{new Date(item.recordedAt).toLocaleString()}
             {' · '}{shortId(item.id)}
           </div>
+          {item.outcomeWindow !== undefined && <GenerationSelectionOutcomeWindow
+            window={item.outcomeWindow}
+            t={t}
+          />}
         </li>)}</ul>}
     <p className="dsh-evolve-meta">{t('generationSelectionHistory.disclaimer')}</p>
   </section>
+}
+
+function GenerationSelectionOutcomeWindow({ window, t }: {
+  window: NonNullable<EvolutionOverview['generationSelectionHistory']['items'][number]['outcomeWindow']>
+  t: (key: string) => string
+}) {
+  if (window.status === 'abstained') {
+    return <div className="dsh-evolve-outcome-metrics">
+      <h4 className="dsh-evolve-section-title dsh-evolve-subsection-title">
+        {t('generationSelectionHistory.outcomeWindow.title')}
+      </h4>
+      <p className="dsh-evolve-meta">{t('generationSelectionHistory.outcomeWindow.abstained')}</p>
+      <p className="dsh-evolve-meta">{t('generationSelectionHistory.outcomeWindow.coverage')}</p>
+    </div>
+  }
+  const buckets = [
+    { key: 'selected', label: t('generationSelectionHistory.outcomeWindow.selected'), value: window.selected },
+    { key: 'previous', label: t('generationSelectionHistory.outcomeWindow.previous'), value: window.previous },
+    { key: 'other', label: t('generationSelectionHistory.outcomeWindow.other'), value: window.other },
+  ]
+  return <div className="dsh-evolve-outcome-metrics">
+    <h4 className="dsh-evolve-section-title dsh-evolve-subsection-title">
+      {t('generationSelectionHistory.outcomeWindow.title')}
+    </h4>
+    {buckets.map(bucket => <div className="dsh-evolve-meta" key={`${bucket.key}-counts`}>
+      {bucket.label} · {bucket.value.goalCount} {t('generationSelectionHistory.outcomeWindow.goals')}
+      {' · '}{renderOutcomeCounts(bucket.value.counts, t)}
+    </div>)}
+    <div className="dsh-evolve-meta">
+      {window.ambiguousBoundaryOutcomeCount}{' '}
+      {t('generationSelectionHistory.outcomeWindow.boundaryAmbiguous')}
+    </div>
+    <div className="dsh-evolve-metric-grid">{buckets.map(bucket => <OutcomeMetricRollup
+      key={`${bucket.key}-metrics`}
+      label={bucket.label}
+      value={bucket.value.metrics}
+      t={t}
+    />)}</div>
+    <p className="dsh-evolve-meta">{t('generationSelectionHistory.outcomeWindow.coverage')}</p>
+  </div>
 }
 
 function generationSelectionLabel(value: string | undefined, t: (key: string) => string): string {

@@ -1236,6 +1236,36 @@ export type EvolutionGenerationSelectionEvidenceView =
   | { readonly authority: 'counterfactual-canary'; readonly canaryId: string }
   | { readonly authority: 'existing-skill-counterfactual-canary'; readonly canaryId: string }
 
+export interface EvolutionGenerationSelectionOutcomeBucketView {
+  readonly counts: DeliveryOutcomeCounts
+  readonly goalCount: number
+  readonly metrics: EvolutionDeliveryMetricRollupView
+}
+
+/** Bounded retained Outcomes strictly inside one immutable selection epoch. */
+export type EvolutionGenerationSelectionOutcomeWindowView =
+  | {
+      readonly status: 'observed'
+      readonly fromExclusive: number
+      readonly untilExclusive?: number
+      readonly selected: EvolutionGenerationSelectionOutcomeBucketView
+      readonly previous: EvolutionGenerationSelectionOutcomeBucketView
+      readonly other: EvolutionGenerationSelectionOutcomeBucketView
+      readonly ambiguousBoundaryOutcomeCount: number
+      readonly coverage: 'bounded-retained-evidence'
+      readonly causalClaim: 'none'
+      readonly mutationAuthority: 'none'
+    }
+  | {
+      readonly status: 'abstained'
+      readonly fromExclusive: number
+      readonly untilExclusive?: number
+      readonly reason: 'selection-time-not-strictly-increasing'
+      readonly coverage: 'bounded-retained-evidence'
+      readonly causalClaim: 'none'
+      readonly mutationAuthority: 'none'
+    }
+
 /** Pointer mutations atomically retained with Workspace selection state. */
 export interface EvolutionGenerationSelectionHistoryView {
   readonly totalCount: number
@@ -1251,6 +1281,7 @@ export interface EvolutionGenerationSelectionHistoryView {
     readonly previousGenerationId?: string
     readonly activeGenerationId?: string
     readonly evidence: EvolutionGenerationSelectionEvidenceView
+    readonly outcomeWindow?: EvolutionGenerationSelectionOutcomeWindowView
   }[]
   readonly outcomeClaim: 'none'
   readonly releaseAuthority: 'none'

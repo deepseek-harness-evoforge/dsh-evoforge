@@ -137,6 +137,9 @@ export async function apply(ctx, config) {
     await seedNativeGoalMetrics(ctx, workspace, agent)
   }
   const skillReuseHandles = []
+  if (config.seedGenerationSelectionOutcomes === true) {
+    await seedGenerationSelectionOutcomes(ctx, workspace, agent, config, skillReuseHandles)
+  }
   if (config.seedSkillReuse === true) {
     await seedNativeSkillReuse(ctx, workspace, config, skillReuseHandles)
   }
@@ -1744,6 +1747,180 @@ async function seedNativeGoalMetrics(ctx, workspace, agent) {
 
   await ctx.sessions.flush(session)
   await waitForMeasuredOutcome(ctx, String(workspace.id), String(session.id))
+}
+
+/**
+ * Add one post-selection Outcome from the still-pinned previous Session and
+ * one from a new Session pinned to the selected Generation. All facts enter
+ * through native DSH Session durability and the installed delivery monitor.
+ */
+async function seedGenerationSelectionOutcomes(ctx, workspace, previousAgent, config, handles) {
+  const workspaceId = String(workspace.id)
+  const current = await overview(ctx, workspaceId, String(previousAgent.session.id))
+  const latest = current?.generationSelectionHistory?.items[0]
+  if (current?.active === undefined
+    || latest?.activeGenerationId !== current.active.id
+    || latest.outcomeWindow === undefined) {
+    throw new Error('selection Outcome seed requires one active Generation selected by a durable event')
+  }
+  if (latest.outcomeWindow.status === 'observed'
+    && latest.outcomeWindow.selected.counts.total > 0
+    && latest.outcomeWindow.previous.counts.total > 0) return
+
+  const selectedSessionId = 'evoforge-browser-selection-selected'
+  let selectedAgent = ctx.agents.get(selectedSessionId)
+  if (selectedAgent === undefined) {
+    const persisted = (await ctx.sessionPersistence.list())
+      .some(header => String(header.id) === selectedSessionId)
+    const common = {
+      agentOptions: { provider: 'deepseek-official', model: 'deepseek-v4-flash' },
+      setup: agentCtx => ctx.agentPresets.mount(agentCtx, config.agentPreset).then(() => undefined),
+    }
+    const handle = persisted
+      ? await ctx.agents.resume({ resumeSessionId: selectedSessionId, ...common })
+      : await ctx.agents.create({
+          sessionId: selectedSessionId,
+          meta: { cwd: workspace.path, agentPreset: config.agentPreset },
+          ...common,
+        })
+    handles.push(handle)
+    selectedAgent = handle.agent
+  }
+  await workspace.attachSession(selectedAgent.session.id)
+  const firstBase = Math.max(Date.now(), latest.recordedAt + 100)
+  await appendSelectionDeliveryOutcome(
+    ctx,
+    previousAgent,
+    'evoforge-browser-selection-previous-outcome',
+    'goal-evoforge-browser-selection-previous',
+    'failed',
+    firstBase,
+  )
+  await appendSelectionDeliveryOutcome(
+    ctx,
+    selectedAgent,
+    'evoforge-browser-selection-selected-outcome',
+    'goal-evoforge-browser-selection-selected',
+    'passed',
+    firstBase + 1_000,
+  )
+  await waitFor(ctx, workspaceId, String(previousAgent.session.id), value => {
+    const window = value.generationSelectionHistory?.items[0]?.outcomeWindow
+    return window?.status === 'observed'
+      && window.selected.counts.total > 0
+      && window.selected.goalCount > 0
+      && window.selected.metrics.measured > 0
+      && window.previous.counts.total > 0
+      && window.previous.goalCount > 0
+      && window.previous.metrics.measured + window.previous.metrics.unmeasured > 0
+  }, 'real browser fixture did not project selected/previous post-selection Outcomes')
+}
+
+async function appendSelectionDeliveryOutcome(ctx, agent, callId, goalId, status, requestedBase) {
+  const session = agent.session
+  if (session.events.some(event => event.type === 'tool/call' && event.data.callId === callId)) {
+    await ctx.sessions.flush(session)
+    return
+  }
+  const base = Math.max(requestedBase, (session.events.at(-1)?.time ?? 0) + 100)
+  const phase = status === 'passed' ? 'complete' : 'active'
+  appendAt(session, base, 'goal/change', {
+    kind: 'goal/change',
+    version: 1,
+    operation: 'create',
+    goal: {
+      id: goalId,
+      revision: 1,
+      objective: `Verify ${status} post-selection Outcome context.`,
+      phase: 'active',
+      maxGoalRounds: 2,
+    },
+    roundsStarted: 0,
+    createdAt: base,
+    updatedAt: base,
+  })
+  appendAt(session, base + 10, 'turn/start', { turn: 1 })
+  appendAt(session, base + 20, 'step/start', { turn: 1, step: 1 })
+  appendAt(session, base + 30, 'user/message', message({
+    role: 'user',
+    content: [{ type: 'text', text: 'Verify post-selection Outcome context.' }],
+    source: { kind: 'goal', goalId, revision: 1, round: 1 },
+  }), { surfaceOp: 'append' })
+  const firstToken = appendAt(session, base + 40, 'assistant/chunk', {
+    turn: 1,
+    step: 1,
+    chunk: { type: 'text-delta', index: 0, text: status === 'passed' ? 'Passed.' : 'Failed.' },
+  })
+  const usage = {
+    inputTokens: status === 'passed' ? 50 : 35,
+    outputTokens: status === 'passed' ? 10 : 7,
+    cacheReadTokens: status === 'passed' ? 80 : 45,
+    cacheWriteTokens: status === 'passed' ? 6 : 4,
+  }
+  const usageChunk = appendAt(session, base + 70, 'assistant/chunk', {
+    turn: 1,
+    step: 1,
+    chunk: { type: 'usage', usage },
+  })
+  appendAt(session, base + 100, 'assistant/message', {
+    turn: 1,
+    step: 1,
+    message: message({
+      role: 'assistant',
+      content: [{ type: 'text', text: status === 'passed' ? 'Passed.' : 'Failed.' }],
+      source: { kind: 'model', provider: 'browser-fixture', model: 'browser-fixture' },
+    }),
+    usage,
+  }, { surfaceOp: 'append', sourceEventSeqs: [firstToken.seq, usageChunk.seq] })
+  const call = appendAt(session, base + 110, 'tool/call', {
+    turn: 1,
+    step: 1,
+    callId,
+    name: 'complete_delivery',
+    arguments: '{}',
+  })
+  if (status === 'passed') {
+    appendAt(session, base + 120, 'goal/change', {
+      kind: 'goal/change',
+      version: 1,
+      operation: 'complete',
+      goal: {
+        id: goalId,
+        revision: 2,
+        objective: `Verify ${status} post-selection Outcome context.`,
+        phase,
+        maxGoalRounds: 2,
+      },
+      roundsStarted: 1,
+      createdAt: base,
+      updatedAt: base + 120,
+    })
+  }
+  appendAt(session, base + 130, 'tool/result', {
+    turn: 1,
+    step: 1,
+    message: message({
+      role: 'user',
+      source: { kind: 'tool', callId },
+      content: [{
+        type: 'tool-result',
+        toolCallId: callId,
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            schemaVersion: 1,
+            status,
+            reason: `browser test-owned post-selection ${status}`,
+            goal: { id: goalId, revision: status === 'passed' ? 2 : 1, phase },
+          }),
+        }],
+        isError: false,
+      }],
+    }),
+  }, { surfaceOp: 'append', sourceEventSeqs: [call.seq] })
+  appendAt(session, base + 140, 'step/end', { turn: 1, step: 1 })
+  appendAt(session, base + 150, 'turn/end', { turn: 1, reason: { kind: 'completed' } })
+  await ctx.sessions.flush(session)
 }
 
 function message(input) {
