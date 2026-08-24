@@ -1011,6 +1011,44 @@ export interface EvolutionInactiveGenerationView {
         readonly retentionId?: string;
     };
 }
+export type EvolutionGenerationSelectionEvidenceView = {
+    readonly authority: 'direct-host';
+} | {
+    readonly authority: 'internal-retention';
+    readonly reviewId: string;
+    readonly retentionId: string;
+} | {
+    readonly authority: 'existing-skill-release';
+    readonly candidateId: string;
+    readonly releaseDecisionId: string;
+} | {
+    readonly authority: 'explicit-human';
+} | {
+    readonly authority: 'counterfactual-canary';
+    readonly canaryId: string;
+} | {
+    readonly authority: 'existing-skill-counterfactual-canary';
+    readonly canaryId: string;
+};
+/** Pointer mutations atomically retained with Workspace selection state. */
+export interface EvolutionGenerationSelectionHistoryView {
+    readonly totalCount: number;
+    readonly promotionCount: number;
+    readonly rollbackCount: number;
+    readonly canaryRollbackCount: number;
+    readonly explicitRollbackCount: number;
+    readonly items: readonly {
+        readonly id: string;
+        readonly sequence: number;
+        readonly kind: 'promotion' | 'rollback';
+        readonly recordedAt: number;
+        readonly previousGenerationId?: string;
+        readonly activeGenerationId?: string;
+        readonly evidence: EvolutionGenerationSelectionEvidenceView;
+    }[];
+    readonly outcomeClaim: 'none';
+    readonly releaseAuthority: 'none';
+}
 /** Browser overview. Dynamic global state stays outside Session and model context. */
 export interface EvolutionOverview {
     readonly schemaVersion: 1;
@@ -1020,6 +1058,7 @@ export interface EvolutionOverview {
         readonly available: boolean;
         readonly paused?: boolean;
     };
+    readonly generationSelectionHistory: EvolutionGenerationSelectionHistoryView;
     readonly capabilityMap?: EvolutionCapabilityMapView;
     readonly capabilityGaps?: EvolutionCapabilityGapQueueView;
     readonly skillOpportunities?: EvolutionSkillOpportunityQueueView;

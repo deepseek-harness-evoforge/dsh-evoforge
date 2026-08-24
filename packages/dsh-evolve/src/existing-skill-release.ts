@@ -303,7 +303,11 @@ export class ExistingSkillRelease {
     if (active?.id !== generation.parentId) {
       throw new Error('existing Skill release blocked: active-parent-mismatch')
     }
-    return this.options.store.promoteGeneration(workspaceId, generation.id)
+    return this.options.store.promoteGeneration(workspaceId, generation.id, {
+      authority: 'existing-skill-release',
+      candidateId: evidence.candidate.id,
+      releaseDecisionId: decision.id,
+    })
   }
 
   private async resolveEvidence(

@@ -111,7 +111,13 @@ export class FutureSessionRollback {
     if (eligibility.status !== 'eligible') {
       throw new Error(`future-Session rollback blocked: ${eligibility.reason}`)
     }
-    const result = await this.modules.store.rollbackGeneration(workspaceId, eligibility.generationId)
+    const result = await this.modules.store.rollbackGeneration(
+      workspaceId,
+      eligibility.generationId,
+      eligibility.canaryId === undefined
+        ? { authority: 'explicit-human' }
+        : { authority: 'counterfactual-canary', canaryId: eligibility.canaryId },
+    )
     return Object.freeze({
       ...result,
       authority: eligibility.canaryId === undefined ? 'explicit-human' : 'counterfactual-canary',

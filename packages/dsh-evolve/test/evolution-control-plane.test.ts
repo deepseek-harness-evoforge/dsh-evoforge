@@ -214,6 +214,7 @@ function store(
       current = undefined
       return { previousId, generation: undefined }
     }),
+    listGenerationSelectionEvents: vi.fn(() => []),
     pinSession: vi.fn(),
     fallbackSessionToNative: vi.fn(),
     getSessionGeneration: vi.fn(),
@@ -1549,6 +1550,99 @@ describe('EvolutionControlPlane', () => {
     const promotion = await control.promote(WORKSPACE_ID, generationId)
     expect(evolutionStore.promoteGeneration).toHaveBeenCalledWith(WORKSPACE_ID, generationId)
     expect(promotion).toMatchObject({ action: 'promote', activeGenerationId: generationId })
+  })
+
+  it('projects a bounded post-release Generation selection timeline without an outcome claim', async () => {
+    const evolutionStore = store()
+    vi.mocked(evolutionStore.listGenerationSelectionEvents).mockReturnValue([
+      {
+        schemaVersion: 1,
+        id: '1'.repeat(64),
+        workspaceId: WORKSPACE_ID,
+        sequence: 1,
+        kind: 'promotion',
+        recordedAt: 100,
+        activeGenerationId: parentId,
+        evidence: { authority: 'direct-host' },
+      },
+      {
+        schemaVersion: 1,
+        id: '2'.repeat(64),
+        workspaceId: WORKSPACE_ID,
+        sequence: 2,
+        kind: 'promotion',
+        recordedAt: 200,
+        previousGenerationId: parentId,
+        activeGenerationId: generationId,
+        evidence: {
+          authority: 'internal-retention',
+          reviewId,
+          retentionId: 'd'.repeat(64),
+        },
+      },
+      {
+        schemaVersion: 1,
+        id: '3'.repeat(64),
+        workspaceId: WORKSPACE_ID,
+        sequence: 3,
+        kind: 'rollback',
+        recordedAt: 300,
+        previousGenerationId: generationId,
+        activeGenerationId: parentId,
+        evidence: {
+          authority: 'counterfactual-canary',
+          canaryId: 'e'.repeat(64),
+        },
+      },
+    ])
+    const control = new EvolutionControlPlane({ store: evolutionStore })
+
+    const overview = await control.overview(WORKSPACE_ID)
+
+    expect(overview.generationSelectionHistory).toEqual({
+      totalCount: 3,
+      promotionCount: 2,
+      rollbackCount: 1,
+      canaryRollbackCount: 1,
+      explicitRollbackCount: 0,
+      items: [
+        {
+          id: '3'.repeat(64),
+          sequence: 3,
+          kind: 'rollback',
+          recordedAt: 300,
+          previousGenerationId: generationId,
+          activeGenerationId: parentId,
+          evidence: {
+            authority: 'counterfactual-canary',
+            canaryId: 'e'.repeat(64),
+          },
+        },
+        {
+          id: '2'.repeat(64),
+          sequence: 2,
+          kind: 'promotion',
+          recordedAt: 200,
+          previousGenerationId: parentId,
+          activeGenerationId: generationId,
+          evidence: {
+            authority: 'internal-retention',
+            reviewId,
+            retentionId: 'd'.repeat(64),
+          },
+        },
+        {
+          id: '1'.repeat(64),
+          sequence: 1,
+          kind: 'promotion',
+          recordedAt: 100,
+          activeGenerationId: parentId,
+          evidence: { authority: 'direct-host' },
+        },
+      ],
+      outcomeClaim: 'none',
+      releaseAuthority: 'none',
+    })
   })
 
   it('projects and controls existing-Skill release through the sole Host release owner', async () => {

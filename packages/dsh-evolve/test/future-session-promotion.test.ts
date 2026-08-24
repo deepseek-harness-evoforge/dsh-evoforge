@@ -54,7 +54,11 @@ describe('future-Session Promotion', () => {
       generation,
     })
     expect(store.promoteGeneration).toHaveBeenCalledOnce()
-    expect(store.promoteGeneration).toHaveBeenCalledWith(WORKSPACE_ID, GENERATION_ID)
+    expect(store.promoteGeneration).toHaveBeenCalledWith(WORKSPACE_ID, GENERATION_ID, {
+      authority: 'internal-retention',
+      reviewId: 'a'.repeat(64),
+      retentionId: 'f'.repeat(64),
+    })
   })
 
   it('fails closed when a Retention run is projected without an owned configured root', async () => {
@@ -188,6 +192,7 @@ function storeFixture(generation: CapabilityGeneration): EvolutionStore & {
     getActiveGeneration: vi.fn(() => undefined),
     promoteGeneration: vi.fn(async () => ({ previousId: undefined, generation })),
     rollbackGeneration: vi.fn(),
+    listGenerationSelectionEvents: vi.fn(() => []),
     pinSession: vi.fn(),
     fallbackSessionToNative: vi.fn(),
     getSessionGeneration: vi.fn(),

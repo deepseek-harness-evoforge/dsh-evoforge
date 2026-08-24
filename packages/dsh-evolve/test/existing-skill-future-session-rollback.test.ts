@@ -22,7 +22,11 @@ describe('Existing-Skill Future-Session Rollback', () => {
       authority: 'existing-skill-counterfactual-canary',
       canaryId: CANARY_ID,
     })
-    expect(fixture.rolledBack).toEqual([{ workspaceId: WORKSPACE_ID, expectedActiveId: ACTIVE_ID }])
+    expect(fixture.rolledBack).toEqual([{
+      workspaceId: WORKSPACE_ID,
+      expectedActiveId: ACTIVE_ID,
+      evidence: { authority: 'existing-skill-counterfactual-canary', canaryId: CANARY_ID },
+    }])
   })
 
   it('fails closed when the durable verdict no longer proves isolated Candidate regression', async () => {
@@ -72,13 +76,13 @@ function rollbackFixture(options: {
 } = {}) {
   const parent = generation(PARENT_ID)
   const active = generation(ACTIVE_ID, PARENT_ID)
-  const rolledBack: Array<{ workspaceId: string; expectedActiveId: string }> = []
+  const rolledBack: Array<{ workspaceId: string; expectedActiveId: string; evidence: unknown }> = []
   const modules: ExistingSkillFutureSessionRollbackModules = {
     store: {
       getActiveGeneration: () => active,
       getGeneration: id => id === PARENT_ID ? parent : id === ACTIVE_ID ? active : undefined,
-      rollbackGeneration: async (workspaceId, expectedActiveId) => {
-        rolledBack.push({ workspaceId, expectedActiveId })
+      rollbackGeneration: async (workspaceId, expectedActiveId, evidence) => {
+        rolledBack.push({ workspaceId, expectedActiveId, evidence })
         return { previousId: expectedActiveId, generation: parent }
       },
     },

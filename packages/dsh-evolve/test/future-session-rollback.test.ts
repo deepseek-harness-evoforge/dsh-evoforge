@@ -22,7 +22,11 @@ describe('Future-Session Rollback', () => {
       authority: 'counterfactual-canary',
       canaryId: CANARY_ID,
     })
-    expect(fixture.rolledBack).toEqual([{ workspaceId: WORKSPACE_ID, expectedActiveId: ACTIVE_ID }])
+    expect(fixture.rolledBack).toEqual([{
+      workspaceId: WORKSPACE_ID,
+      expectedActiveId: ACTIVE_ID,
+      evidence: { authority: 'counterfactual-canary', canaryId: CANARY_ID },
+    }])
   })
 
   it('keeps explicit human recovery available without Canary governance', async () => {
@@ -34,7 +38,11 @@ describe('Future-Session Rollback', () => {
       generation: fixture.parent,
       authority: 'explicit-human',
     })
-    expect(fixture.rolledBack).toEqual([{ workspaceId: WORKSPACE_ID, expectedActiveId: ACTIVE_ID }])
+    expect(fixture.rolledBack).toEqual([{
+      workspaceId: WORKSPACE_ID,
+      expectedActiveId: ACTIVE_ID,
+      evidence: { authority: 'explicit-human' },
+    }])
   })
 
   it('fails closed when Canary authority is requested without Canary governance', async () => {
@@ -65,13 +73,13 @@ describe('Future-Session Rollback', () => {
 function rollbackFixture() {
   const parent = generation(PARENT_ID)
   const active = generation(ACTIVE_ID, PARENT_ID)
-  const rolledBack: Array<{ workspaceId: string; expectedActiveId: string }> = []
+  const rolledBack: Array<{ workspaceId: string; expectedActiveId: string; evidence: unknown }> = []
   const modules: FutureSessionRollbackModules = {
     store: {
       getActiveGeneration: () => active,
       getGeneration: id => id === PARENT_ID ? parent : id === ACTIVE_ID ? active : undefined,
-      rollbackGeneration: async (workspaceId, expectedActiveId) => {
-        rolledBack.push({ workspaceId, expectedActiveId })
+      rollbackGeneration: async (workspaceId, expectedActiveId, evidence) => {
+        rolledBack.push({ workspaceId, expectedActiveId, evidence })
         return { previousId: expectedActiveId, generation: parent }
       },
     },

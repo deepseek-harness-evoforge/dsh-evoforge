@@ -61,6 +61,34 @@ export interface SessionIdentity {
   cwd?: string | undefined
 }
 
+export type GenerationSelectionEvidence =
+  | { readonly authority: 'direct-host' }
+  | {
+      readonly authority: 'internal-retention'
+      readonly reviewId: string
+      readonly retentionId: string
+    }
+  | {
+      readonly authority: 'existing-skill-release'
+      readonly candidateId: string
+      readonly releaseDecisionId: string
+    }
+  | { readonly authority: 'explicit-human' }
+  | { readonly authority: 'counterfactual-canary'; readonly canaryId: string }
+  | { readonly authority: 'existing-skill-counterfactual-canary'; readonly canaryId: string }
+
+export interface GenerationSelectionEvent {
+  readonly schemaVersion: 1
+  readonly id: string
+  readonly workspaceId: string
+  readonly sequence: number
+  readonly kind: 'promotion' | 'rollback'
+  readonly recordedAt: number
+  readonly previousGenerationId?: string | undefined
+  readonly activeGenerationId?: string | undefined
+  readonly evidence: GenerationSelectionEvidence
+}
+
 export interface EvolutionStore {
   publishGeneration(input: GenerationInput): Promise<{
     created: boolean
@@ -68,14 +96,19 @@ export interface EvolutionStore {
   }>
   getGeneration(id: string): CapabilityGeneration | undefined
   getActiveGeneration(workspaceId: string): CapabilityGeneration | undefined
-  promoteGeneration(workspaceId: string, id: string): Promise<{
+  promoteGeneration(workspaceId: string, id: string, evidence?: GenerationSelectionEvidence): Promise<{
     previousId: string | undefined
     generation: CapabilityGeneration
   }>
-  rollbackGeneration(workspaceId: string, expectedActiveId: string): Promise<{
+  rollbackGeneration(
+    workspaceId: string,
+    expectedActiveId: string,
+    evidence?: GenerationSelectionEvidence,
+  ): Promise<{
     previousId: string
     generation: CapabilityGeneration | undefined
   }>
+  listGenerationSelectionEvents(workspaceId: string): readonly GenerationSelectionEvent[]
   pinSession(
     identity: SessionIdentity,
     options?: { parentSessionId?: string },
@@ -89,6 +122,64 @@ export interface EvolutionStore {
 
 const hashSchema = z.string().regex(/^[a-f0-9]{64}$/)
 const workspaceIdSchema = z.uuid()
+const generationSelectionEvidenceSchema = z.discriminatedUnion('authority', [
+  z.strictObject({ authority: z.literal('direct-host') }),
+  z.strictObject({
+    authority: z.literal('internal-retention'),
+    reviewId: hashSchema,
+    retentionId: hashSchema,
+  }),
+  z.strictObject({
+    authority: z.literal('existing-skill-release'),
+    candidateId: hashSchema,
+    releaseDecisionId: hashSchema,
+  }),
+  z.strictObject({ authority: z.literal('explicit-human') }),
+  z.strictObject({ authority: z.literal('counterfactual-canary'), canaryId: hashSchema }),
+  z.strictObject({
+    authority: z.literal('existing-skill-counterfactual-canary'),
+    canaryId: hashSchema,
+  }),
+])
+const generationSelectionEventContentSchema = z.strictObject({
+  schemaVersion: z.literal(1),
+  workspaceId: workspaceIdSchema,
+  sequence: z.number().int().positive(),
+  kind: z.enum(['promotion', 'rollback']),
+  recordedAt: z.number().int().nonnegative(),
+  previousGenerationId: hashSchema.optional(),
+  activeGenerationId: hashSchema.optional(),
+  evidence: generationSelectionEvidenceSchema,
+}).superRefine((event, context) => {
+  if (event.previousGenerationId === event.activeGenerationId) {
+    context.addIssue({ code: 'custom', message: 'Generation selection must change the active pointer' })
+  }
+  if (event.kind === 'promotion' && event.activeGenerationId === undefined) {
+    context.addIssue({ code: 'custom', message: 'Generation promotion must select one active Generation' })
+  }
+  if (event.kind === 'rollback' && event.previousGenerationId === undefined) {
+    context.addIssue({ code: 'custom', message: 'Generation rollback must name the previous active Generation' })
+  }
+  const promotionAuthority = event.evidence.authority === 'internal-retention'
+    || event.evidence.authority === 'existing-skill-release'
+  const rollbackAuthority = event.evidence.authority === 'explicit-human'
+    || event.evidence.authority === 'counterfactual-canary'
+    || event.evidence.authority === 'existing-skill-counterfactual-canary'
+  if (event.evidence.authority !== 'direct-host'
+    && ((event.kind === 'promotion' && !promotionAuthority)
+      || (event.kind === 'rollback' && !rollbackAuthority))) {
+    context.addIssue({ code: 'custom', message: 'Generation selection evidence does not match its action kind' })
+  }
+})
+const generationSelectionEventSchema = generationSelectionEventContentSchema.safeExtend({
+  id: hashSchema,
+}).superRefine((event, context) => {
+  const { id: _id, ...content } = event
+  const expected = createHash('sha256').update(canonicalJson(content)).digest('hex')
+  if (event.id !== expected) {
+    context.addIssue({ code: 'custom', message: 'Generation selection event id is not content-addressed' })
+  }
+})
 const gitObjectSchema = z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/)
 const gitCommitSchema = z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/)
 const newSkillLineageSchema = z.custom<SkillCandidateLineage>((value) => {
@@ -147,6 +238,23 @@ const workspaceStateSchema = z.strictObject({
   workspaceId: workspaceIdSchema,
   activeGenerationId: hashSchema.optional(),
   recoveryPaused: z.boolean().optional(),
+  selectionRevision: z.number().int().nonnegative().optional(),
+  selectionEvents: z.array(generationSelectionEventSchema).max(100).optional(),
+}).superRefine((state, context) => {
+  const events = state.selectionEvents ?? []
+  for (let index = 0; index < events.length; index += 1) {
+    const event = events[index]!
+    if (event.workspaceId !== state.workspaceId) {
+      context.addIssue({ code: 'custom', message: 'Generation selection event belongs to another Workspace' })
+    }
+    if (index > 0 && event.sequence <= events[index - 1]!.sequence) {
+      context.addIssue({ code: 'custom', message: 'Generation selection event sequence is not increasing' })
+    }
+  }
+  const last = events.at(-1)
+  if (last !== undefined && state.selectionRevision !== last.sequence) {
+    context.addIssue({ code: 'custom', message: 'Generation selection revision does not match its latest event' })
+  }
 })
 type WorkspaceEvolutionState = z.infer<typeof workspaceStateSchema>
 const sessionIdentitySchema = z.strictObject({
@@ -227,25 +335,44 @@ class DomainEvolutionStore implements EvolutionStore {
     return result
   }
 
-  promoteGeneration(workspaceId: string, id: string): Promise<{
+  promoteGeneration(
+    workspaceId: string,
+    id: string,
+    evidence: GenerationSelectionEvidence = { authority: 'direct-host' },
+  ): Promise<{
     previousId: string | undefined
     generation: CapabilityGeneration
   }> {
     const exactWorkspaceId = workspaceIdSchema.parse(workspaceId)
-    const result = this.writeTail.then(() => this.promoteNow(exactWorkspaceId, id))
+    const exactEvidence = generationSelectionEvidenceSchema.parse(evidence)
+    const result = this.writeTail.then(() => this.promoteNow(exactWorkspaceId, id, exactEvidence))
     this.writeTail = result.then(() => {}, () => {})
     return result
   }
 
-  rollbackGeneration(workspaceId: string, expectedActiveId: string): Promise<{
+  rollbackGeneration(
+    workspaceId: string,
+    expectedActiveId: string,
+    evidence: GenerationSelectionEvidence = { authority: 'direct-host' },
+  ): Promise<{
     previousId: string
     generation: CapabilityGeneration | undefined
   }> {
     const exactWorkspaceId = workspaceIdSchema.parse(workspaceId)
     const exactExpectedActiveId = hashSchema.parse(expectedActiveId)
-    const result = this.writeTail.then(() => this.rollbackNow(exactWorkspaceId, exactExpectedActiveId))
+    const exactEvidence = generationSelectionEvidenceSchema.parse(evidence)
+    const result = this.writeTail.then(() => this.rollbackNow(
+      exactWorkspaceId,
+      exactExpectedActiveId,
+      exactEvidence,
+    ))
     this.writeTail = result.then(() => {}, () => {})
     return result
+  }
+
+  listGenerationSelectionEvents(workspaceId: string): readonly GenerationSelectionEvent[] {
+    const exactWorkspaceId = workspaceIdSchema.parse(workspaceId)
+    return immutableCopy(this.workspaceState(exactWorkspaceId).selectionEvents ?? [])
   }
 
   pinSession(
@@ -323,7 +450,11 @@ class DomainEvolutionStore implements EvolutionStore {
     return { created: true, generation }
   }
 
-  private async promoteNow(workspaceId: string, id: string): Promise<{
+  private async promoteNow(
+    workspaceId: string,
+    id: string,
+    evidence: GenerationSelectionEvidence,
+  ): Promise<{
     previousId: string | undefined
     generation: CapabilityGeneration
   }> {
@@ -340,11 +471,21 @@ class DomainEvolutionStore implements EvolutionStore {
           : `Generation '${id}' is not a child of active Generation '${previousId}'`,
       )
     }
-    if (previousId !== id) await this.putWorkspaceState(workspaceId, id)
+    if (previousId !== id) {
+      await this.putWorkspaceSelection(workspaceId, id, {
+        kind: 'promotion',
+        previousGenerationId: previousId,
+        evidence,
+      })
+    }
     return { previousId, generation }
   }
 
-  private async rollbackNow(workspaceId: string, expectedActiveId: string): Promise<{
+  private async rollbackNow(
+    workspaceId: string,
+    expectedActiveId: string,
+    evidence: GenerationSelectionEvidence,
+  ): Promise<{
     previousId: string
     generation: CapabilityGeneration | undefined
   }> {
@@ -359,7 +500,11 @@ class DomainEvolutionStore implements EvolutionStore {
       throw new Error(`active Generation '${previousId}' belongs to Workspace '${active.workspaceId}'`)
     }
     if (active.parentId === undefined) {
-      await this.putWorkspaceState(workspaceId)
+      await this.putWorkspaceSelection(workspaceId, undefined, {
+        kind: 'rollback',
+        previousGenerationId: previousId,
+        evidence,
+      })
       return { previousId, generation: undefined }
     }
     const generation = this.getGeneration(active.parentId)
@@ -369,7 +514,11 @@ class DomainEvolutionStore implements EvolutionStore {
     if (generation.workspaceId !== workspaceId) {
       throw new Error(`parent Generation '${generation.id}' belongs to Workspace '${generation.workspaceId}'`)
     }
-    await this.putWorkspaceState(workspaceId, generation.id)
+    await this.putWorkspaceSelection(workspaceId, generation.id, {
+      kind: 'rollback',
+      previousGenerationId: previousId,
+      evidence,
+    })
     return { previousId, generation }
   }
 
@@ -381,8 +530,7 @@ class DomainEvolutionStore implements EvolutionStore {
     const changed = (current.recoveryPaused === true) !== paused
     if (changed) {
       await this.domain.table('workspace_states').put(workspaceId, {
-        workspaceId,
-        ...(current.activeGenerationId === undefined ? {} : { activeGenerationId: current.activeGenerationId }),
+        ...current,
         recoveryPaused: paused,
       })
     }
@@ -393,12 +541,40 @@ class DomainEvolutionStore implements EvolutionStore {
     return this.domain.table('workspace_states').get(workspaceId) ?? { workspaceId }
   }
 
-  private async putWorkspaceState(workspaceId: string, activeGenerationId?: string): Promise<void> {
-    const recoveryPaused = this.workspaceState(workspaceId).recoveryPaused
+  private async putWorkspaceSelection(
+    workspaceId: string,
+    activeGenerationId: string | undefined,
+    action: {
+      readonly kind: GenerationSelectionEvent['kind']
+      readonly previousGenerationId?: string | undefined
+      readonly evidence: GenerationSelectionEvidence
+    },
+  ): Promise<void> {
+    const current = this.workspaceState(workspaceId)
+    const sequence = (current.selectionRevision ?? 0) + 1
+    const content = generationSelectionEventContentSchema.parse({
+      schemaVersion: 1,
+      workspaceId,
+      sequence,
+      kind: action.kind,
+      recordedAt: Date.now(),
+      ...(action.previousGenerationId === undefined
+        ? {}
+        : { previousGenerationId: action.previousGenerationId }),
+      ...(activeGenerationId === undefined ? {} : { activeGenerationId }),
+      evidence: action.evidence,
+    })
+    const event = generationSelectionEventSchema.parse({
+      ...content,
+      id: createHash('sha256').update(canonicalJson(content)).digest('hex'),
+    })
+    const selectionEvents = [...(current.selectionEvents ?? []), event].slice(-100)
     await this.domain.table('workspace_states').put(workspaceId, {
       workspaceId,
       ...(activeGenerationId === undefined ? {} : { activeGenerationId }),
-      ...(recoveryPaused === undefined ? {} : { recoveryPaused }),
+      ...(current.recoveryPaused === undefined ? {} : { recoveryPaused: current.recoveryPaused }),
+      selectionRevision: sequence,
+      selectionEvents,
     })
   }
 

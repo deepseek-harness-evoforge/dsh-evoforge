@@ -7,6 +7,7 @@
 > V4.56 已把真实 Provider 请求边界补齐：proposer 与缺失/现有 Skill 的治理作者 HTTP seam 均有 60 秒 wall-clock 上限，Host cancellation 只能更早终止而不能移除 timeout；治理 dispatch 仍先 durable 落盘，未知付费结果仍为 `uncertain` 且不盲重试。本增量没有发起外部 Provider 请求。
 > V5.7 已把渠道 send 的 wall-clock 上限纳入 `dsh-gateway` 公共 Adapter policy；超时或 dispose 会把 durable `sending` 保守终结为 `uncertain`，即使 Adapter Promise 不响应 signal 也不能阻塞 Gateway 卸载。Telegram/飞书均使用 30 秒，飞书文本与 Approval 卡片把 signal 继续传入官方 HTTP transport；真实平台验收仍 pending。
 > V5.8 已实现阶段专用 AS-2 真实飞书验收入口：只在精确授权后读取 exact App/chat/user/Secret，并从当前 clean `main` 打包最终 Gateway/Feishu Bundle，经官方 DSH CLI 安装、dump、真实渠道消息/Command/Approval、dispose、remove、原生 Session readback。当前本机无凭据，合同 7/7 通过但真实平台严格为 `NOT_RUN`；它没有增加产品 CLI、Runtime、能力获取或 benchmark-owned 审批。
+> V5.10 已把每次真实 future-Session Generation 晋升/回滚与活动指针在同一 Workspace state 中原子保留，绑定 exact Retention/Release/Canary/人工 authority；最终 tarball 已验证晋升、整页/Host 恢复、Canary 回滚、再次恢复和官方卸载。该历史只证明 pointer mutation，不证明效果或授予发布权。
 > 更新日期：2026-08-24
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。发生冲突时，下述“方向纠正”优先于旧里程碑文字。
 
@@ -208,6 +209,7 @@ EvoForge 不能只在后台“自主运行”。DSH Command、DSH TUI、随 Host
 - 查看 Capability Map、Capability Gap queue、实际路由结果，以及 Skill 的来源、scope、版本、内容哈希、验证状态、使用与效用证据；
 - 查看 Candidate 的主张、diff、评测证据、token、缓存影响和权限变化；
 - 查看候选谱系、baseline/candidate/holdout 分数、失败归因、安全扫描、quarantine、成本、时延和当前 Generation/release tag；
+- 查看有界 Generation 选择时间线：每次真实晋升/回滚的前后版本、Host authority 与 exact evidence id；时间线必须明确无 outcome claim、无 release authority；
 - 查看飞书连接身份、route、健康、入站去重、出站投递与 uncertain 状态，但不在浏览器中绕过静态 route 与 DSH Approval；
 - 执行 approve、reject、pause、resume、promote 和 rollback；
 - 明确区分建议、等待人工、已授权执行和 Protected Action；
@@ -428,6 +430,7 @@ exact Skill 结果上下文另显示 eligible failure-context investigation 数�
 Opportunity 另显示评测证据是等待、无策略、无效、具备密封条件或已密封；凡 Gap 已进入 Opportunity，浏览器
 投影都移除 Goal objective。具备密封条件或已密封时只显示 evidence id、authoring/admission/holdout/Retention 数量和
 proposer 不可读保护声明，不返回受保护样本内容。
+每次真实选择变更还必须由 Store 在活动 pointer 的同一次 Workspace state 写入中追加内容寻址事件；事件至少绑定 sequence、promotion/rollback、前后 Generation 和唯一 Host authority/evidence。重复选择已经活动的版本不得制造事件，当前 Session pin 不得漂移。Control/Web 只显示有界最近历史和分类计数，不得从当前 pointer、Review 或 Canary 事后猜测，也不得把 mutation timeline 称为效果时间线。
 Candidate 进入后，浏览器谱系显式显示 `Opportunity → evidence seal → Candidate → Admission`，不会用 Envelope id 隐去生成前封存版本。实际 assembled Shadow 继续由 `ReviewInbox` 校验，Retention 继续由其内容寻址 run root 校验；Host 只有在 Workspace、Skill、Candidate、Admission、Envelope、Shadow run、baseline tree 和 Candidate tree 全部一致时才投影同一行。错配、重复、篡改或不可读状态必须 fail visible，不能把 Retention 显示成通过；浏览器只接收 bounded case、trial、composition、verdict/reason、calibration、proposer/model/token/cache 聚合和 lineage，不接收 Host path、protected Goal/Case、evaluator、provider identity 或 proposal。
 不提供路线、来源、安装或激活菜单。刷新失败必须显式报错并保留最后一次成功快照，恢复后从同一 Host 权威重新读取。旧的本地 Git、外部索引和运行时
 Web research 方案必须从当前实现删除；其已撤销的架构与 evidence 页也从活动文档删除，决策原因只由 superseded ADR 和当前调研基线保留。Hermes、OpenClaw、HanaAgent、论文与开源实现继续用于设计期固定 revision 调研与 paired benchmark，不进入运行时 Skill 路径。

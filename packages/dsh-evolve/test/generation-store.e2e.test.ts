@@ -294,6 +294,120 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
     }
   })
 
+  it('atomically retains exact promotion and Canary rollback evidence with the active pointer', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-selection-history-'))
+    temporaryRoots.push(root)
+    const configPath = await writeStorageConfig(root)
+    const rootInput = {
+      workspaceId: WORKSPACE_ID,
+      createdAt: 1_723_456_789_000,
+      artifacts: [{
+        kind: 'skill' as const,
+        name: 'build-dsh-plugin',
+        gitCommit: '0123456789abcdef0123456789abcdef01234567',
+        treeHash: 'a'.repeat(64),
+      }],
+      evaluatorVersion: 'private-host-runtime-package-boundary-v1',
+      policyVersion: 'p0b.1',
+      compositionFingerprint: 'b'.repeat(64),
+    }
+    const existing = session('selection-history-existing', 10)
+    let rootId = ''
+    let candidateId = ''
+    let expectedHistory: ReturnType<EvolutionStore['listGenerationSelectionEvents']> = []
+
+    const firstCtx = await bootStorage(configPath)
+    const first = await openEvolutionStore(firstCtx.storageDomain)
+    try {
+      const rootGeneration = (await first.publishGeneration(rootInput)).generation
+      rootId = rootGeneration.id
+      await first.promoteGeneration(WORKSPACE_ID, rootId)
+      expect((await first.pinSession(existing))?.id).toBe(rootId)
+      const candidate = (await first.publishGeneration({
+        ...rootInput,
+        parentId: rootId,
+        createdAt: rootInput.createdAt + 1,
+        artifacts: [{
+          kind: 'skill' as const,
+          name: 'build-dsh-plugin',
+          gitCommit: '89abcdef0123456789abcdef0123456789abcdef',
+          treeHash: 'c'.repeat(64),
+        }],
+        compositionFingerprint: 'd'.repeat(64),
+      })).generation
+      candidateId = candidate.id
+      await first.promoteGeneration(WORKSPACE_ID, candidateId, {
+        authority: 'internal-retention',
+        reviewId: 'e'.repeat(64),
+        retentionId: 'f'.repeat(64),
+      })
+      await first.promoteGeneration(WORKSPACE_ID, candidateId, {
+        authority: 'internal-retention',
+        reviewId: 'e'.repeat(64),
+        retentionId: 'f'.repeat(64),
+      })
+      await first.rollbackGeneration(WORKSPACE_ID, candidateId, {
+        authority: 'counterfactual-canary',
+        canaryId: '0'.repeat(64),
+      })
+
+      expectedHistory = first.listGenerationSelectionEvents(WORKSPACE_ID)
+      expect(expectedHistory).toHaveLength(3)
+      expect(expectedHistory.map(event => ({
+        sequence: event.sequence,
+        kind: event.kind,
+        previousGenerationId: event.previousGenerationId,
+        activeGenerationId: event.activeGenerationId,
+        evidence: event.evidence,
+      }))).toEqual([
+        {
+          sequence: 1,
+          kind: 'promotion',
+          previousGenerationId: undefined,
+          activeGenerationId: rootId,
+          evidence: { authority: 'direct-host' },
+        },
+        {
+          sequence: 2,
+          kind: 'promotion',
+          previousGenerationId: rootId,
+          activeGenerationId: candidateId,
+          evidence: {
+            authority: 'internal-retention',
+            reviewId: 'e'.repeat(64),
+            retentionId: 'f'.repeat(64),
+          },
+        },
+        {
+          sequence: 3,
+          kind: 'rollback',
+          previousGenerationId: candidateId,
+          activeGenerationId: rootId,
+          evidence: {
+            authority: 'counterfactual-canary',
+            canaryId: '0'.repeat(64),
+          },
+        },
+      ])
+      expect(expectedHistory.every(event => /^[a-f0-9]{64}$/u.test(event.id))).toBe(true)
+      expect(first.getSessionGeneration(existing)?.id).toBe(rootId)
+    } finally {
+      await first.close()
+      await firstCtx.fiber.dispose()
+    }
+
+    const resumedCtx = await bootStorage(configPath)
+    const resumed = await openEvolutionStore(resumedCtx.storageDomain)
+    try {
+      expect(resumed.getActiveGeneration(WORKSPACE_ID)?.id).toBe(rootId)
+      expect(resumed.listGenerationSelectionEvents(WORKSPACE_ID)).toEqual(expectedHistory)
+      expect(resumed.getSessionGeneration(existing)?.id).toBe(rootId)
+    } finally {
+      await resumed.close()
+      await resumedCtx.fiber.dispose()
+    }
+  })
+
   it('durably pins a native Session and its children to native DSH before the first promotion', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-native-session-pins-'))
     temporaryRoots.push(root)

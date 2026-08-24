@@ -246,6 +246,10 @@ _Avoid_: Best-effort sandbox, prompt-only isolation
 An atomic selection of an eligible inactive Generation for future sessions. Clear improvements may promote automatically within configured authority; ambiguous results enter a separate review inbox, and executable or permission-expanding changes remain Protected Actions.
 _Avoid_: Merge, in-place edit
 
+**Generation Selection History**:
+A Workspace-owned sequence of immutable, content-addressed facts written atomically with each real future-Session Generation pointer mutation. Every event names the prior and selected Generation plus the exact Host authority and evidence ids used by promotion or rollback; duplicate no-op selection creates no event, and current Session pins never change. It is mutation audit only, with no outcome claim or release authority.
+_Avoid_: Effect timeline, evaluator verdict, Web-owned log, separate event database, Git branch history
+
 **Future-Session Promotion Eligibility**:
 A Host-governed conclusion that binds one approved inactive Generation to its exact promotable Shadow and independently retained Candidate lineage. Missing, ambiguous, prepared, regressed, incomplete, or inconsistent evidence cannot change the active selection; eligibility never changes an already pinned Session.
 _Avoid_: Retention release authority, approved-means-active, Web-only validation

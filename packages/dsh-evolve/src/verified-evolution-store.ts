@@ -2,6 +2,7 @@ import type { GenerationBundleRepository } from './generation-bundle-repository.
 import type {
   CapabilityGeneration,
   EvolutionStore,
+  GenerationSelectionEvidence,
   GenerationInput,
   SessionIdentity,
 } from './generation-store.ts'
@@ -33,30 +34,40 @@ export class VerifiedEvolutionStore implements EvolutionStore {
     return this.store.getActiveGeneration(workspaceId)
   }
 
-  async promoteGeneration(workspaceId: string, id: string) {
+  async promoteGeneration(workspaceId: string, id: string, evidence?: GenerationSelectionEvidence) {
     const generation = this.store.getGeneration(id)
     if (generation === undefined) throw new Error(`Generation '${id}' does not exist`)
     if (generation.workspaceId !== workspaceId) {
       throw new Error(`Generation '${id}' belongs to Workspace '${generation.workspaceId}', not '${workspaceId}'`)
     }
     await this.source.providerFor(generation)
-    return this.store.promoteGeneration(workspaceId, id)
+    return this.store.promoteGeneration(workspaceId, id, evidence)
   }
 
-  async rollbackGeneration(workspaceId: string, expectedActiveId: string) {
+  async rollbackGeneration(
+    workspaceId: string,
+    expectedActiveId: string,
+    evidence?: GenerationSelectionEvidence,
+  ) {
     const active = this.store.getActiveGeneration(workspaceId)
     if (active === undefined) throw new Error(`Workspace '${workspaceId}' has no active Generation to roll back`)
     if (active.id !== expectedActiveId) {
       throw new Error(`active Generation changed from expected '${expectedActiveId}' to '${active.id}'`)
     }
-    if (active.parentId === undefined) return this.store.rollbackGeneration(workspaceId, expectedActiveId)
+    if (active.parentId === undefined) {
+      return this.store.rollbackGeneration(workspaceId, expectedActiveId, evidence)
+    }
     const parent = this.store.getGeneration(active.parentId)
     if (parent === undefined) throw new Error(`parent Generation '${active.parentId}' is missing`)
     if (parent.workspaceId !== workspaceId) {
       throw new Error(`parent Generation '${parent.id}' belongs to Workspace '${parent.workspaceId}'`)
     }
     await this.source.providerFor(parent)
-    return this.store.rollbackGeneration(workspaceId, expectedActiveId)
+    return this.store.rollbackGeneration(workspaceId, expectedActiveId, evidence)
+  }
+
+  listGenerationSelectionEvents(workspaceId: string) {
+    return this.store.listGenerationSelectionEvents(workspaceId)
   }
 
   pinSession(identity: SessionIdentity, options?: { parentSessionId?: string }) {

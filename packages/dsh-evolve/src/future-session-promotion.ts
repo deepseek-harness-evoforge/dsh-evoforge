@@ -117,7 +117,11 @@ export class FutureSessionPromotion {
     if (eligibility.status !== 'eligible') {
       throw new Error(`future-Session promotion blocked: ${eligibility.reason}`)
     }
-    return this.modules.store.promoteGeneration(workspaceId, generationId)
+    return this.modules.store.promoteGeneration(workspaceId, generationId, {
+      authority: 'internal-retention',
+      reviewId: eligibility.reviewId,
+      retentionId: eligibility.retentionId,
+    })
   }
 }
 

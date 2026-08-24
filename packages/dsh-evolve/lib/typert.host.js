@@ -7,7 +7,7 @@ const dsh_evolve_evoforgeEvolution_approveExistingSkill_parameter_2$schema = z.s
 const dsh_evolve_evoforgeEvolution_approveExistingSkill_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
   'workspaceId': z.string().readonly(),
-  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback"), z.literal("rollback-existing-skill")]).readonly(),
+  'action': z.union([z.literal("rollback"), z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback-existing-skill")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'candidateId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("approved"), z.literal("rejected")]).readonly().optional(),
@@ -24,7 +24,7 @@ const dsh_evolve_evoforgeEvolution_approveReview_parameter_2$schema = z.string()
 const dsh_evolve_evoforgeEvolution_approveReview_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
   'workspaceId': z.string().readonly(),
-  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback"), z.literal("rollback-existing-skill")]).readonly(),
+  'action': z.union([z.literal("rollback"), z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback-existing-skill")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'candidateId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("approved"), z.literal("rejected")]).readonly().optional(),
@@ -73,6 +73,42 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'recovery': z.object({
   'available': z.boolean().readonly(),
   'paused': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
+}).readonly(),
+  'generationSelectionHistory': z.object({
+  'totalCount': z.number().readonly(),
+  'promotionCount': z.number().readonly(),
+  'rollbackCount': z.number().readonly(),
+  'canaryRollbackCount': z.number().readonly(),
+  'explicitRollbackCount': z.number().readonly(),
+  'items': z.array(z.object({
+  'id': z.string().readonly(),
+  'sequence': z.number().readonly(),
+  'kind': z.union([z.literal("promotion"), z.literal("rollback")]).readonly(),
+  'recordedAt': z.number().readonly(),
+  'previousGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'activeGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'evidence': z.union([z.object({
+  'authority': z.literal("direct-host").readonly(),
+}), z.object({
+  'authority': z.literal("internal-retention").readonly(),
+  'reviewId': z.string().readonly(),
+  'retentionId': z.string().readonly(),
+}), z.object({
+  'authority': z.literal("existing-skill-release").readonly(),
+  'candidateId': z.string().readonly(),
+  'releaseDecisionId': z.string().readonly(),
+}), z.object({
+  'authority': z.literal("explicit-human").readonly(),
+}), z.object({
+  'authority': z.literal("counterfactual-canary").readonly(),
+  'canaryId': z.string().readonly(),
+}), z.object({
+  'authority': z.literal("existing-skill-counterfactual-canary").readonly(),
+  'canaryId': z.string().readonly(),
+})]).readonly(),
+})).readonly(),
+  'outcomeClaim': z.literal("none").readonly(),
+  'releaseAuthority': z.literal("none").readonly(),
 }).readonly(),
   'capabilityMap': z.union([z.undefined(), z.object({
   'status': z.union([z.literal("unobserved"), z.literal("complete"), z.literal("incomplete")]).readonly(),
@@ -1399,7 +1435,7 @@ const dsh_evolve_evoforgeEvolution_pause_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_pause_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
   'workspaceId': z.string().readonly(),
-  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback"), z.literal("rollback-existing-skill")]).readonly(),
+  'action': z.union([z.literal("rollback"), z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback-existing-skill")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'candidateId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("approved"), z.literal("rejected")]).readonly().optional(),
@@ -1415,7 +1451,7 @@ const dsh_evolve_evoforgeEvolution_promote_parameter_1$schema = z.string()
 const dsh_evolve_evoforgeEvolution_promote_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
   'workspaceId': z.string().readonly(),
-  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback"), z.literal("rollback-existing-skill")]).readonly(),
+  'action': z.union([z.literal("rollback"), z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback-existing-skill")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'candidateId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("approved"), z.literal("rejected")]).readonly().optional(),
@@ -1431,7 +1467,7 @@ const dsh_evolve_evoforgeEvolution_promoteExistingSkill_parameter_1$schema = z.s
 const dsh_evolve_evoforgeEvolution_promoteExistingSkill_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
   'workspaceId': z.string().readonly(),
-  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback"), z.literal("rollback-existing-skill")]).readonly(),
+  'action': z.union([z.literal("rollback"), z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback-existing-skill")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'candidateId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("approved"), z.literal("rejected")]).readonly().optional(),
@@ -1448,7 +1484,7 @@ const dsh_evolve_evoforgeEvolution_rejectExistingSkill_parameter_2$schema = z.st
 const dsh_evolve_evoforgeEvolution_rejectExistingSkill_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
   'workspaceId': z.string().readonly(),
-  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback"), z.literal("rollback-existing-skill")]).readonly(),
+  'action': z.union([z.literal("rollback"), z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback-existing-skill")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'candidateId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("approved"), z.literal("rejected")]).readonly().optional(),
@@ -1465,7 +1501,7 @@ const dsh_evolve_evoforgeEvolution_rejectReview_parameter_2$schema = z.string()
 const dsh_evolve_evoforgeEvolution_rejectReview_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
   'workspaceId': z.string().readonly(),
-  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback"), z.literal("rollback-existing-skill")]).readonly(),
+  'action': z.union([z.literal("rollback"), z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback-existing-skill")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'candidateId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("approved"), z.literal("rejected")]).readonly().optional(),
@@ -1480,7 +1516,7 @@ const dsh_evolve_evoforgeEvolution_resume_parameter_0$schema = z.string()
 const dsh_evolve_evoforgeEvolution_resume_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
   'workspaceId': z.string().readonly(),
-  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback"), z.literal("rollback-existing-skill")]).readonly(),
+  'action': z.union([z.literal("rollback"), z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback-existing-skill")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'candidateId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("approved"), z.literal("rejected")]).readonly().optional(),
@@ -1559,7 +1595,7 @@ const dsh_evolve_evoforgeEvolution_rollback_parameter_1$schema = z.union([z.unde
 const dsh_evolve_evoforgeEvolution_rollback_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
   'workspaceId': z.string().readonly(),
-  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback"), z.literal("rollback-existing-skill")]).readonly(),
+  'action': z.union([z.literal("rollback"), z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback-existing-skill")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'candidateId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("approved"), z.literal("rejected")]).readonly().optional(),
@@ -1575,7 +1611,7 @@ const dsh_evolve_evoforgeEvolution_rollbackExistingSkill_parameter_1$schema = z.
 const dsh_evolve_evoforgeEvolution_rollbackExistingSkill_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
   'workspaceId': z.string().readonly(),
-  'action': z.union([z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback"), z.literal("rollback-existing-skill")]).readonly(),
+  'action': z.union([z.literal("rollback"), z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback-existing-skill")]).readonly(),
   'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'candidateId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'status': z.union([z.undefined(), z.literal("approved"), z.literal("rejected")]).readonly().optional(),
@@ -2061,12 +2097,17 @@ export const TYPERT = {
           {
             "kind": "method",
             "name": "promoteGeneration",
-            "signature": "promoteGeneration(workspaceId: string, id: string): Promise<{ previousId: string | undefined generation: CapabilityGeneration }>"
+            "signature": "promoteGeneration(workspaceId: string, id: string, evidence?: GenerationSelectionEvidence): Promise<{ previousId: string | undefined generation: CapabilityGeneration }>"
           },
           {
             "kind": "method",
             "name": "rollbackGeneration",
-            "signature": "rollbackGeneration(workspaceId: string, expectedActiveId: string): Promise<{ previousId: string generation: CapabilityGeneration | undefined }>"
+            "signature": "rollbackGeneration( workspaceId: string, expectedActiveId: string, evidence?: GenerationSelectionEvidence, ): Promise<{ previousId: string generation: CapabilityGeneration | undefined }>"
+          },
+          {
+            "kind": "method",
+            "name": "listGenerationSelectionEvents",
+            "signature": "listGenerationSelectionEvents(workspaceId: string): readonly GenerationSelectionEvent[]"
           },
           {
             "kind": "method",
@@ -2111,6 +2152,14 @@ export const TYPERT = {
           {
             "name": "GenerationInput",
             "declaration": "export interface GenerationInput {\n    workspaceId: string;\n    parentId?: string | undefined;\n    createdAt: number;\n    artifacts: SkillGenerationArtifact[];\n    evaluatorVersion: string;\n    policyVersion: string;\n    compositionFingerprint: string;\n}"
+          },
+          {
+            "name": "GenerationSelectionEvent",
+            "declaration": "export interface GenerationSelectionEvent {\n    readonly schemaVersion: 1;\n    readonly id: string;\n    readonly workspaceId: string;\n    readonly sequence: number;\n    readonly kind: 'promotion' | 'rollback';\n    readonly recordedAt: number;\n    readonly previousGenerationId?: string | undefined;\n    readonly activeGenerationId?: string | undefined;\n    readonly evidence: GenerationSelectionEvidence;\n}"
+          },
+          {
+            "name": "GenerationSelectionEvidence",
+            "declaration": "export type GenerationSelectionEvidence = { readonly authority: 'direct-host'; } | { readonly authority: 'internal-retention'; readonly reviewId: string; readonly retentionId: string; } | { readonly authority: 'existing-skill-release'; readonly candidateId: string; readonly releaseDecisionId: string; } | { readonly authority: 'explicit-human'; } | { readonly authority: 'counterfactual-canary'; readonly canaryId: string; } | { readonly authority: 'existing-skill-counterfactual-canary'; readonly canaryId: string; };"
           },
           {
             "name": "GitSkillGenerationArtifact",
@@ -2333,6 +2382,14 @@ export const TYPERT = {
             "declaration": "export type EvolutionFutureSessionPromotionReason = 'promotion-governance-unavailable' | 'generation-not-found' | 'generation-workspace-mismatch' | 'review-evidence-invalid' | 'approved-review-missing' | 'approved-review-ambiguous' | 'generation-lineage-mismatch' | 'retention-evidence-invalid' | 'retention-not-run' | 'retention-ambiguous' | 'retention-prepared' | 'retention-regressed' | 'retention-incomplete' | 'retention-verdict-invalid' | 'exact-retention-retained';"
           },
           {
+            "name": "EvolutionGenerationSelectionEvidenceView",
+            "declaration": "export type EvolutionGenerationSelectionEvidenceView = { readonly authority: 'direct-host'; } | { readonly authority: 'internal-retention'; readonly reviewId: string; readonly retentionId: string; } | { readonly authority: 'existing-skill-release'; readonly candidateId: string; readonly releaseDecisionId: string; } | { readonly authority: 'explicit-human'; } | { readonly authority: 'counterfactual-canary'; readonly canaryId: string; } | { readonly authority: 'existing-skill-counterfactual-canary'; readonly canaryId: string; };"
+          },
+          {
+            "name": "EvolutionGenerationSelectionHistoryView",
+            "declaration": "export interface EvolutionGenerationSelectionHistoryView {\n    readonly totalCount: number;\n    readonly promotionCount: number;\n    readonly rollbackCount: number;\n    readonly canaryRollbackCount: number;\n    readonly explicitRollbackCount: number;\n    readonly items: readonly { readonly id: string; readonly sequence: number; readonly kind: 'promotion' | 'rollback'; readonly recordedAt: number; readonly previousGenerationId?: string; readonly activeGenerationId?: string; readonly evidence: EvolutionGenerationSelectionEvidenceView; }[];\n    readonly outcomeClaim: 'none';\n    readonly releaseAuthority: 'none';\n}"
+          },
+          {
             "name": "EvolutionGenerationView",
             "declaration": "export interface EvolutionGenerationView {\n    readonly id: string;\n    readonly workspaceId: string;\n    readonly rollbackTargetId?: string;\n    readonly createdAt: number;\n    readonly evaluatorVersion: string;\n    readonly policyVersion: string;\n    readonly artifacts: readonly EvolutionArtifactView[];\n}"
           },
@@ -2346,7 +2403,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionOverview",
-            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly workspaceId: string;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly capabilityMap?: EvolutionCapabilityMapView;\n    readonly capabilityGaps?: EvolutionCapabilityGapQueueView;\n    readonly skillOpportunities?: EvolutionSkillOpportunityQueueView;\n    readonly skillImprovementOpportunities?: EvolutionSkillImprovementOpportunityQueueView;\n    readonly skillCandidates?: EvolutionSkillCandidateQueueView;\n    readonly existingSkillCandidates?: EvolutionExistingSkillCandidateQueueView;\n    readonly existingSkillAuthoring?: EvolutionExistingSkillAuthoringView;\n    readonly existingSkillHoldoutGovernance?: EvolutionExistingSkillHoldoutGovernanceView;\n    readonly existingSkillAdmission?: EvolutionExistingSkillAdmissionView;\n    readonly existingSkillHoldoutEvaluation?: EvolutionExistingSkillHoldoutEvaluationView;\n    readonly existingSkillRetentionEvaluation?: EvolutionExistingSkillRetentionEvaluationView;\n    readonly existingSkillRelease?: EvolutionExistingSkillReleaseView;\n    readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView;\n    readonly skillEvaluationGovernance?: EvolutionSkillEvaluationGovernanceView;\n    readonly skillAdmission?: EvolutionSkillAdmissionView;\n    readonly skillEvaluationRuns?: EvolutionSkillEvaluationRunsView;\n    readonly counterfactualCanary?: EvolutionCounterfactualCanaryView;\n    readonly existingSkillCounterfactualCanary?: EvolutionExistingSkillCounterfactualCanaryView;\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; readonly baseline?: DeliveryOutcomeCounts; readonly metrics: { readonly all: EvolutionDeliveryMetricRollupView; readonly selected: EvolutionDeliveryMetricRollupView; readonly baseline?: EvolutionDeliveryMetricRollupView; readonly recent: readonly EvolutionDeliveryMetricEvidenceView[]; }; };\n    readonly skillReuse?: { readonly all: EvolutionSkillReuseCountsView; readonly selected: EvolutionSkillReuseCountsView; readonly baseline?: EvolutionSkillReuseCountsView; readonly items: readonly EvolutionSkillReuseEvidenceView[]; };\n    readonly skillOutcomeContext?: { readonly all: EvolutionExactSkillOutcomeContextRollupView; readonly selected: EvolutionExactSkillOutcomeContextRollupView; readonly baseline?: EvolutionExactSkillOutcomeContextRollupView; readonly items: readonly EvolutionExactSkillOutcomeContextEvidenceView[]; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
+            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly workspaceId: string;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly generationSelectionHistory: EvolutionGenerationSelectionHistoryView;\n    readonly capabilityMap?: EvolutionCapabilityMapView;\n    readonly capabilityGaps?: EvolutionCapabilityGapQueueView;\n    readonly skillOpportunities?: EvolutionSkillOpportunityQueueView;\n    readonly skillImprovementOpportunities?: EvolutionSkillImprovementOpportunityQueueView;\n    readonly skillCandidates?: EvolutionSkillCandidateQueueView;\n    readonly existingSkillCandidates?: EvolutionExistingSkillCandidateQueueView;\n    readonly existingSkillAuthoring?: EvolutionExistingSkillAuthoringView;\n    readonly existingSkillHoldoutGovernance?: EvolutionExistingSkillHoldoutGovernanceView;\n    readonly existingSkillAdmission?: EvolutionExistingSkillAdmissionView;\n    readonly existingSkillHoldoutEvaluation?: EvolutionExistingSkillHoldoutEvaluationView;\n    readonly existingSkillRetentionEvaluation?: EvolutionExistingSkillRetentionEvaluationView;\n    readonly existingSkillRelease?: EvolutionExistingSkillReleaseView;\n    readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView;\n    readonly skillEvaluationGovernance?: EvolutionSkillEvaluationGovernanceView;\n    readonly skillAdmission?: EvolutionSkillAdmissionView;\n    readonly skillEvaluationRuns?: EvolutionSkillEvaluationRunsView;\n    readonly counterfactualCanary?: EvolutionCounterfactualCanaryView;\n    readonly existingSkillCounterfactualCanary?: EvolutionExistingSkillCounterfactualCanaryView;\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; readonly baseline?: DeliveryOutcomeCounts; readonly metrics: { readonly all: EvolutionDeliveryMetricRollupView; readonly selected: EvolutionDeliveryMetricRollupView; readonly baseline?: EvolutionDeliveryMetricRollupView; readonly recent: readonly EvolutionDeliveryMetricEvidenceView[]; }; };\n    readonly skillReuse?: { readonly all: EvolutionSkillReuseCountsView; readonly selected: EvolutionSkillReuseCountsView; readonly baseline?: EvolutionSkillReuseCountsView; readonly items: readonly EvolutionSkillReuseEvidenceView[]; };\n    readonly skillOutcomeContext?: { readonly all: EvolutionExactSkillOutcomeContextRollupView; readonly selected: EvolutionExactSkillOutcomeContextRollupView; readonly baseline?: EvolutionExactSkillOutcomeContextRollupView; readonly items: readonly EvolutionExactSkillOutcomeContextEvidenceView[]; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
           },
           {
             "name": "EvolutionProviderUsageView",

@@ -113,7 +113,10 @@ export class ExistingSkillFutureSessionRollback {
     if (eligibility.status !== 'eligible') {
       throw new Error(`existing-Skill future-Session rollback blocked: ${eligibility.reason}`)
     }
-    const result = await this.modules.store.rollbackGeneration(workspaceId, eligibility.generationId)
+    const result = await this.modules.store.rollbackGeneration(workspaceId, eligibility.generationId, {
+      authority: 'existing-skill-counterfactual-canary',
+      canaryId,
+    })
     return Object.freeze({
       ...result,
       authority: 'existing-skill-counterfactual-canary',

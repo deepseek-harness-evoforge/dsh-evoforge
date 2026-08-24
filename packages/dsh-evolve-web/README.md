@@ -39,6 +39,13 @@ Generation. After rollback, the historical Canary remains visible for audit whil
 removed. The final packed pair has been verified through Host outage, recovery, full-page reload,
 process restart, and official DSH uninstall with zero browser console errors.
 
+The advanced view also renders the Host-authoritative Generation selection timeline. It shows the
+bounded promotion/rollback counts, exact prior and selected Generation, and the authority/evidence
+ids retained atomically with each pointer mutation. It explicitly makes no outcome claim and grants
+no release authority. Final tarballs have been verified through real Web promotion, full-page reload,
+Host cold restart, exact Canary rollback, another reload/restart, official uninstall, and native-Web
+readback with zero console errors.
+
 Unload/remove the adapter before its provider:
 
 ```sh

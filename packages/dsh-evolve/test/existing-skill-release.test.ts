@@ -88,7 +88,11 @@ describe('Existing Skill Release', () => {
       generation: fixture.generation,
     })
     expect(fixture.evolution.promoteGeneration)
-      .toHaveBeenCalledWith(WORKSPACE_ID, fixture.generation.id)
+      .toHaveBeenCalledWith(WORKSPACE_ID, fixture.generation.id, {
+        authority: 'existing-skill-release',
+        candidateId: fixture.candidate.id,
+        releaseDecisionId: approved.id,
+      })
   })
 
   it('fails closed before publication when retained evidence has any authority warning', async () => {
@@ -429,6 +433,7 @@ function evolutionStore(
     getActiveGeneration: vi.fn(() => active),
     promoteGeneration: vi.fn(async () => ({ previousId: active?.id, generation })),
     rollbackGeneration: vi.fn(),
+    listGenerationSelectionEvents: vi.fn(() => []),
     pinSession: vi.fn(),
     fallbackSessionToNative: vi.fn(),
     getSessionGeneration: vi.fn(),

@@ -1782,6 +1782,7 @@ function ReviewQueue({ overview, busy, inspect, promote, t }: {
 }) {
   if (overview === undefined) return null
   return <>
+    <GenerationSelectionHistory history={overview.generationSelectionHistory} t={t} />
     {overview.skillReuse !== undefined && <SkillReuse
       reuse={overview.skillReuse}
       active={overview.active}
@@ -1856,6 +1857,63 @@ function ReviewQueue({ overview, busy, inspect, promote, t }: {
       ))}</ul>
     </section>}
   </>
+}
+
+function GenerationSelectionHistory({ history, t }: {
+  history: EvolutionOverview['generationSelectionHistory']
+  t: (key: string) => string
+}) {
+  return <section>
+    <h3 className="dsh-evolve-section-title">{t('section.generationSelectionHistory')}</h3>
+    <div className="dsh-evolve-review-skill">
+      {history.totalCount} {t('generationSelectionHistory.mutations')}
+      {' · '}{history.promotionCount} {t('generationSelectionHistory.promotions')}
+      {' · '}{history.rollbackCount} {t('generationSelectionHistory.rollbacks')}
+      {' · '}{history.canaryRollbackCount} {t('generationSelectionHistory.canaryRollbacks')}
+      {' · '}{history.explicitRollbackCount} {t('generationSelectionHistory.explicitRollbacks')}
+    </div>
+    {history.items.length === 0
+      ? <div className="dsh-evolve-message">{t('generationSelectionHistory.empty')}</div>
+      : <ul className="dsh-evolve-list">{history.items.map(item => <li
+          className="dsh-evolve-review"
+          key={item.id}
+        >
+          <div className="dsh-evolve-review-skill">
+            #{item.sequence} · {t(`generationSelectionHistory.action.${item.kind}`)}
+            {' · '}{generationSelectionLabel(item.previousGenerationId, t)}
+            {' → '}{generationSelectionLabel(item.activeGenerationId, t)}
+          </div>
+          <div className="dsh-evolve-meta">
+            {renderGenerationSelectionEvidence(item.evidence, t)}
+            {' · '}{new Date(item.recordedAt).toLocaleString()}
+            {' · '}{shortId(item.id)}
+          </div>
+        </li>)}</ul>}
+    <p className="dsh-evolve-meta">{t('generationSelectionHistory.disclaimer')}</p>
+  </section>
+}
+
+function generationSelectionLabel(value: string | undefined, t: (key: string) => string): string {
+  return value === undefined ? t('generationSelectionHistory.native') : shortId(value)
+}
+
+function renderGenerationSelectionEvidence(
+  evidence: EvolutionOverview['generationSelectionHistory']['items'][number]['evidence'],
+  t: (key: string) => string,
+): string {
+  const authority = t(`generationSelectionHistory.authority.${evidence.authority}`)
+  switch (evidence.authority) {
+    case 'internal-retention':
+      return `${authority} · ${shortId(evidence.reviewId)} · ${shortId(evidence.retentionId)}`
+    case 'existing-skill-release':
+      return `${authority} · ${shortId(evidence.candidateId)} · ${shortId(evidence.releaseDecisionId)}`
+    case 'counterfactual-canary':
+    case 'existing-skill-counterfactual-canary':
+      return `${authority} · ${shortId(evidence.canaryId)}`
+    case 'direct-host':
+    case 'explicit-human':
+      return authority
+  }
 }
 
 function SkillReuse({ reuse, active, t }: {

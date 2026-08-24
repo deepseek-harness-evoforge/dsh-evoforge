@@ -58,6 +58,19 @@ function success<T>(value: T) {
   return Promise.resolve({ ok: true as const, value })
 }
 
+function emptyGenerationSelectionHistory() {
+  return {
+    totalCount: 0,
+    promotionCount: 0,
+    rollbackCount: 0,
+    canaryRollbackCount: 0,
+    explicitRollbackCount: 0,
+    items: [],
+    outcomeClaim: 'none' as const,
+    releaseAuthority: 'none' as const,
+  }
+}
+
 function remote(
   withActive = false,
   withInactive = false,
@@ -67,6 +80,7 @@ function remote(
     schemaVersion: 1 as const,
     workspaceId,
     recovery: { available: true, paused: false },
+    generationSelectionHistory: emptyGenerationSelectionHistory(),
     skillEvaluationGovernance: {
       configuredPolicyCount: 1,
       warningCount: 0,
@@ -584,6 +598,23 @@ const t = (key: string) => ({
   'skillReuse.status.observed': 'Observed once',
   'skillReuse.status.cross-goal-observed': 'Cross-Goal observed',
   'skillReuse.disclaimer': 'Durable invocation reuse is descriptive; it does not prove task success, improvement, retention, or promotion eligibility.',
+  'section.generationSelectionHistory': 'Generation selection timeline',
+  'generationSelectionHistory.mutations': 'pointer mutations',
+  'generationSelectionHistory.promotions': 'promotions',
+  'generationSelectionHistory.rollbacks': 'rollbacks',
+  'generationSelectionHistory.canaryRollbacks': 'Canary rollbacks',
+  'generationSelectionHistory.explicitRollbacks': 'explicit rollbacks',
+  'generationSelectionHistory.empty': 'No Generation pointer mutation has been recorded.',
+  'generationSelectionHistory.action.promotion': 'Promotion',
+  'generationSelectionHistory.action.rollback': 'Rollback',
+  'generationSelectionHistory.native': 'Native DSH',
+  'generationSelectionHistory.authority.direct-host': 'Direct Host',
+  'generationSelectionHistory.authority.internal-retention': 'Internal retention gate',
+  'generationSelectionHistory.authority.existing-skill-release': 'Existing-Skill release gate',
+  'generationSelectionHistory.authority.explicit-human': 'Explicit human',
+  'generationSelectionHistory.authority.counterfactual-canary': 'Counterfactual Canary',
+  'generationSelectionHistory.authority.existing-skill-counterfactual-canary': 'Existing-Skill counterfactual Canary',
+  'generationSelectionHistory.disclaimer': 'This timeline records exact pointer mutations and their authority only. It makes no outcome claim and grants no release authority.',
   'section.skillOutcomeContext': 'Exact Skill Outcome Context',
   'skillOutcomeContext.workspace': 'Workspace outcome context',
   'skillOutcomeContext.active': 'Active outcome context',
@@ -673,6 +704,7 @@ describe('EvolutionAction', () => {
       schemaVersion: 1,
       workspaceId,
       recovery: { available: true, paused: false },
+      generationSelectionHistory: emptyGenerationSelectionHistory(),
       reviews: {
         available: true,
         pendingCount: 0,
@@ -705,6 +737,7 @@ describe('EvolutionAction', () => {
       schemaVersion: 1,
       workspaceId,
       recovery: { available: true, paused: false },
+      generationSelectionHistory: emptyGenerationSelectionHistory(),
       feedbackSignals: { all: 1, selected: 1 },
       reviews: {
         available: true,
@@ -1677,6 +1710,7 @@ describe('EvolutionAction', () => {
       schemaVersion: 1,
       workspaceId: otherWorkspaceId,
       recovery: { available: false },
+      generationSelectionHistory: emptyGenerationSelectionHistory(),
       reviews: {
         available: true,
         pendingCount: 0,
@@ -1774,6 +1808,66 @@ describe('EvolutionAction', () => {
     expect(screen.getByText(/3 uses · 2 Goals · model 2 · user 1 · Cross-Goal observed/)).toBeTruthy()
     expect(screen.getByText(
       'Durable invocation reuse is descriptive; it does not prove task success, improvement, retention, or promotion eligibility.',
+    )).toBeTruthy()
+  })
+
+  it('shows exact Generation pointer history without turning selection into an outcome claim', async () => {
+    const configured = remote(true)
+    const api = remote(true)
+    vi.mocked(api.overview).mockImplementation(async (requestedWorkspaceId, requestedSessionId) => {
+      const result = await configured.overview(requestedWorkspaceId, requestedSessionId)
+      if (!result.ok) return result
+      return success({
+        ...result.value,
+        generationSelectionHistory: {
+          totalCount: 3,
+          promotionCount: 2,
+          rollbackCount: 1,
+          canaryRollbackCount: 1,
+          explicitRollbackCount: 0,
+          items: [{
+            id: 'd'.repeat(64),
+            sequence: 3,
+            kind: 'rollback' as const,
+            recordedAt: 1_786_896_000_300,
+            previousGenerationId: 'b'.repeat(64),
+            activeGenerationId: generationId,
+            evidence: {
+              authority: 'counterfactual-canary' as const,
+              canaryId: 'e'.repeat(64),
+            },
+          }, {
+            id: 'c'.repeat(64),
+            sequence: 2,
+            kind: 'promotion' as const,
+            recordedAt: 1_786_896_000_200,
+            previousGenerationId: generationId,
+            activeGenerationId: 'b'.repeat(64),
+            evidence: {
+              authority: 'internal-retention' as const,
+              reviewId,
+              retentionId: 'f'.repeat(64),
+            },
+          }],
+          outcomeClaim: 'none' as const,
+          releaseAuthority: 'none' as const,
+        },
+      })
+    })
+    renderEvolution(api)
+    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
+    await selectAdvanced()
+
+    const section = (await screen.findByText('Generation selection timeline')).closest('section')!
+    expect(within(section).getByText(
+      /3 pointer mutations · 2 promotions · 1 rollbacks · 1 Canary rollbacks · 0 explicit rollbacks/u,
+    )).toBeTruthy()
+    expect(within(section).getByText(/#3 · Rollback · bbbbbbbb… → aaaaaaaa…/u)).toBeTruthy()
+    expect(within(section).getByText(/Counterfactual Canary · eeeeeeee…/u)).toBeTruthy()
+    expect(within(section).getByText(/#2 · Promotion · aaaaaaaa… → bbbbbbbb…/u)).toBeTruthy()
+    expect(within(section).getByText(/Internal retention gate · cccccccc… · ffffffff…/u)).toBeTruthy()
+    expect(within(section).getByText(
+      'This timeline records exact pointer mutations and their authority only. It makes no outcome claim and grants no release authority.',
     )).toBeTruthy()
   })
 
