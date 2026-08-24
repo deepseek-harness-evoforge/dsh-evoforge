@@ -1,5 +1,5 @@
 import { execFile as execFileCallback, spawn } from 'node:child_process'
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { promisify } from 'node:util'
@@ -13,6 +13,7 @@ const suiteRoot = resolve(packageRoot, '../..')
 const gatewayRoot = resolve(packageRoot, '../dsh-gateway')
 const dshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR ?? resolve(suiteRoot, '../deepseek-harness')
 const crashDriver = join(packageRoot, 'test', 'fixtures', 'native-schedule-crash.ts')
+const dispatchCrashDriver = join(packageRoot, 'test', 'fixtures', 'native-schedule-dispatch-crash.ts')
 const temporaryRoots: string[] = []
 
 interface SentText {
@@ -124,9 +125,79 @@ describe.skipIf(process.platform !== 'darwin')('native Schedule cold restart thr
       process.chdir(previousCwd)
     }
   }, 60_000)
+
+  it('does not repeat the platform effect when dispatch durability loses a completed Schedule turn', async () => {
+    for (const cwd of [gatewayRoot, packageRoot]) {
+      await execFile('pnpm', ['run', 'build'], { cwd, encoding: 'utf8', timeout: 30_000 })
+    }
+    const root = await mkdtemp(join(tmpdir(), 'dsh-feishu-schedule-dispatch-crash-'))
+    temporaryRoots.push(root)
+    const presetRoot = join(root, 'agent-presets')
+    await mkdir(join(presetRoot, 'feishu-test'), { recursive: true })
+    await writeFile(join(presetRoot, 'feishu-test', 'preset.yml'), 'name: Feishu Schedule Dispatch Crash Test\n')
+    await writeFile(join(presetRoot, 'feishu-test', 'agent.cordis.yml'), '[]\n')
+    const config = join(root, 'cordis.yml')
+    await writeFile(config, JSON.stringify(hostConfig(
+      root,
+      presetRoot,
+      join(root, 'platform-effects.jsonl'),
+    ), null, 2))
+
+    vi.stubEnv('DSH_FEISHU_TEST_APP_ID', 'cli_test_app')
+    vi.stubEnv('DSH_FEISHU_TEST_APP_SECRET', 'test-secret')
+    vi.stubEnv('DSH_AGENTS_HOME', join(root, '.agents-home'))
+    vi.stubEnv('DSH_HOME', join(root, '.dsh-home'))
+    vi.stubEnv('DSH_TELEMETRY_DISABLED', '1')
+
+    const seed = spawn(process.execPath, [
+      '--import', join(dshSourceDir, 'node_modules', 'tsx', 'dist', 'esm', 'index.mjs'),
+      dispatchCrashDriver, root, config, dshSourceDir,
+    ], { cwd: packageRoot, stdio: ['ignore', 'pipe', 'pipe'] })
+    await waitForReady(seed, 'PLATFORM_EFFECT_BEFORE_DISPATCH_DURABLE')
+    const termination = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(resolveExit => {
+      seed.once('exit', (code, signal) => { resolveExit({ code, signal }) })
+    })
+    expect(seed.kill('SIGKILL')).toBe(true)
+    expect(await termination).toEqual({ code: null, signal: 'SIGKILL' })
+
+    const previousCwd = process.cwd()
+    process.chdir(root)
+    try {
+      const { boot } = await import(pathToFileURL(
+        join(dshSourceDir, 'packages', 'boot', 'app-boot', 'lib', 'index.js'),
+      ).href)
+      const recovered = await boot('dsh-feishu-schedule-dispatch-crash-recovery', config)
+      try {
+        const service = requireFeishuService(recovered)
+        const agent = recovered.agents.get('main')
+        expect(agent).toBeDefined()
+        await agent!.whenIdle()
+        await expect(recovered.sessions.flush(agent!.session)).resolves.toBe(true)
+        await new Promise(resolve => setTimeout(resolve, 250))
+
+        expect(service.platform.texts).toHaveLength(0)
+        expect((await readFile(join(root, 'platform-effects.jsonl'), 'utf8')).trim().split('\n')).toHaveLength(1)
+        expect(agent!.session.events.filter((event: unknown) => isScheduleChange(event, 'create'))).toHaveLength(1)
+        expect(agent!.session.events.filter((event: unknown) => isScheduleChange(event, 'dispatch'))).toHaveLength(1)
+        expect(agent!.session.events.filter((event: unknown) => isScheduleMessage(event))).toHaveLength(1)
+        expect(outboundRecords(recovered)
+          .filter(record => record.kind === 'turn' && record.replyToExternalId === undefined))
+          .toEqual([expect.objectContaining({
+            attempts: 1,
+            intentKey: 'turn:1',
+            status: expect.stringMatching(/^(?:delivered|uncertain)$/u),
+            waitForTurnEnd: 1,
+          })])
+      } finally {
+        await recovered.fiber.dispose()
+      }
+    } finally {
+      process.chdir(previousCwd)
+    }
+  }, 60_000)
 })
 
-function hostConfig(root: string, presetRoot: string): unknown[] {
+function hostConfig(root: string, presetRoot: string, textEffectPath?: string): unknown[] {
   return [
     {
       id: 'cli-mock-llm',
@@ -225,6 +296,7 @@ function hostConfig(root: string, presetRoot: string): unknown[] {
         routeIds: ['feishu-main'],
         appIdEnv: 'DSH_FEISHU_TEST_APP_ID',
         appSecretEnv: 'DSH_FEISHU_TEST_APP_SECRET',
+        ...(textEffectPath === undefined ? {} : { textEffectPath }),
       },
     },
   ]
@@ -264,7 +336,7 @@ function isScheduleMessage(event: unknown): boolean {
     && value.data.source.plugin === 'schedule'
 }
 
-async function waitForReady(child: ReturnType<typeof spawn>): Promise<void> {
+async function waitForReady(child: ReturnType<typeof spawn>, ready = 'READY'): Promise<void> {
   await new Promise<void>((resolveReady, rejectReady) => {
     let stdout = ''
     let stderr = ''
@@ -286,7 +358,7 @@ async function waitForReady(child: ReturnType<typeof spawn>): Promise<void> {
     }, 20_000)
     child.stdout?.on('data', (chunk) => {
       stdout += String(chunk)
-      if (stdout.includes('READY\n')) finish(resolveReady)
+      if (stdout.includes(`${ready}\n`)) finish(resolveReady)
     })
     child.stderr?.on('data', chunk => { stderr += String(chunk) })
     child.once('exit', onExit)

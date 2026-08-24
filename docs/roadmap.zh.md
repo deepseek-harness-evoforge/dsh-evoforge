@@ -10,6 +10,7 @@
 > V5.17 已以真实 DSH Agent/Goal/`complete_delivery`、JSONL Session、StorageDomain、两个独立进程和 `SIGKILL` 验证 checkpoint 前与 checkpoint 后/Outcome 前两个窗口；冷恢复不调用模型、不重跑 Tool，外部效果保持一次。Software Delivery 仍缺真实长期任务和同模型 Hermes paired，不因此升级为整体完成。
 > V5.18 已推翻飞书测试中用普通 `agent.followup()` 文本冒充 Schedule 的旧证据，改为真实加载官方 DSH Schedule、通过原生 `schedule_create` 写入 Session 并等待 create→dispatch→follow-up；现有 Gateway turn journal 再以 `turn/end` 门只向 exact 飞书线程投递一次。没有新增 scheduler、Gateway 业务或 Feishu 私有日程状态；真实平台与 paired 门仍未通过。
 > V5.19 又把该路径推进到真实进程故障：子进程在 create 已由官方 Session flush 持久化、dispatch 尚未发生时被 `SIGKILL`；第二个 Host 由 Feishu Adapter 的 exact Gateway route 恢复同一 Session，官方 Schedule 处理 overdue 并投递一次，第三个 Host 不重放。exact rc.5/rc.2 均通过；官方 followup→dispatch checkpoint 窄重复窗口、真实平台和 paired 门仍未通过。
+> V5.20 已对 followup→dispatch checkpoint 窄窗口完成真实进程故障注入：先阻塞包含 dispatch 的 JSONL batch，等模型 turn 与第一次平台效果已经发生后 `SIGKILL`；恢复 Schedule 虽会重跑非 durable turn，但 Gateway 复用相同 route+turn intent，跨进程平台效果仍为一条。rc.5/rc.2 均通过；模型/成本重复、真实平台和 paired 门仍未通过。
 > V4.38 已在 existing-Skill Candidate proposer 前生成并校准 Candidate 不可见的完整 `skill-tree` holdout Envelope；V4.39 已把 exact Envelope 纳入 Candidate 内容身份并消费该 Envelope 与 V4.37 exact 双树执行 assembled paired Trial。下一门是独立 Retention/Canary/晋升/回滚，而不是再次生成或搜索能力。
 > V4.40–V4.45 已完成 Retention、发布门与最终包浏览器生命周期；V4.46–V4.48 已完成 existing-Skill failed-Outcome Canary、权威 Control/Remote/Web、独立 expected-active rollback gate 与最终 tarball 浏览器故障恢复；V4.49 已完成 missing-Skill 同类最终包故障恢复。下一门是两套独立真实 provider。
 > 更新日期：2026-08-24
@@ -63,7 +64,8 @@ V5.18 又把 V2 的日程回送从“普通 follow-up 代称 Schedule”修正�
 `schedule_create`、Session `schedule/change` create/dispatch、`plugin:schedule` 到期消息、Agent turn、Gateway
 durable `turn/end` 门和飞书 thread send 全部在同一 Host 中成立。V5.19 再以真实 `SIGKILL` 证明 create 已
 checkpoint、dispatch 前死亡后，exact route 冷恢复只回送一次且再次启动不重放；该门在 rc.5/rc.2 均通过。
-它仍不替代 AS-2 真实平台，也不覆盖官方 Schedule 的 followup 已入队但 dispatch 未 checkpoint 的窄重复窗口。
+V5.20 进一步在第一次平台效果后阻塞 dispatch durability 并 kill；恢复虽然重跑模型 turn，Gateway 仍不产生
+第二次平台效果。它不替代 AS-2 真实平台，也不证明该窄窗口中的模型、token、时延或成本 exactly-once。
 
 - 支持静态授权的私聊或群聊文本、原生 Command、一次性 Approval、最终回答、Goal/Schedule 与进化注意力；
 - 支持按独立部署权限启用 document/Wiki/Drive metadata/Bitable 的有界原生 Tool 读取，每次走 DSH Approval；

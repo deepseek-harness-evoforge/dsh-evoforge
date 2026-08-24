@@ -23,3 +23,10 @@ timeout、disable、reload 或 remove 都会将已 durable 标记为 `sending` �
 入站二进制边界由 [ADR-0069](0069-channel-images-enter-dsh-as-native-attachments.md) 进一步收紧：平台资源
 必须在 Adapter 内转换为 DSH 原生内容寻址图片引用后才能进入 Gateway；Gateway 不拥有下载、平台 key、
 私有附件库或 DSH 尚未定义的通用 file block。
+
+V5.20 又验证官方 Schedule 的 followup→dispatch checkpoint 窄窗口不需要 Schedule 专属 Gateway 语义。由于
+append-only Session 中 dispatch 必然早于该 follow-up 的 turn 事件，dispatch 未 durable 时恢复后的 turn 号
+不变；Gateway 已 durable 的 `route + turn` intent 会复用 `delivered`/`uncertain` 结果，内容漂移则 fail closed，
+因此不会第二次调用 Adapter send。Gateway 不解析 reminder framing、不复制 schedule id，也不增加通用 causal
+key。该结论只保护外部渠道效果；官方 Schedule 仍可能重新运行模型并重复 token、时延和成本，不能宣称完整
+exactly-once。

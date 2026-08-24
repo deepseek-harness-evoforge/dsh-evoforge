@@ -1,3 +1,4 @@
+import { appendFile } from 'node:fs/promises'
 import type { Context } from '@deepseek-ai/cordis'
 import type { DshGateway, ResolvedGatewayRoute } from 'dsh-gateway'
 import type {
@@ -23,6 +24,8 @@ interface Config {
   readonly contentPermissions?: readonly FeishuContentPermission[]
   readonly maxContentChars?: number
   readonly maxBitableRecords?: number
+  /** Test-only durable observation of accepted text effects across Host processes. */
+  readonly textEffectPath?: string
 }
 
 interface SentText {
@@ -52,6 +55,11 @@ class FakeFeishuPlatform implements FeishuPlatform {
   private messageHandler: ((message: FeishuInboundMessage) => Promise<void>) | undefined
   private approvalHandler: ((action: FeishuApprovalAction) => Promise<void>) | undefined
   private errorHandler: ((error: unknown) => void) | undefined
+  private readonly textEffectPath: string | undefined
+
+  constructor(textEffectPath?: string) {
+    this.textEffectPath = textEffectPath
+  }
 
   onMessage(handler: (message: FeishuInboundMessage) => Promise<void>): () => void {
     this.messageHandler = handler
@@ -81,6 +89,9 @@ class FakeFeishuPlatform implements FeishuPlatform {
     this.sendAttempts.push(text)
     if (signal !== undefined) this.sendSignals.push(signal)
     if (this.failures.length > 0) throw this.failures.shift()
+    if (this.textEffectPath !== undefined) {
+      await appendFile(this.textEffectPath, `${JSON.stringify({ chatId, text, options })}\n`)
+    }
     this.texts.push(Object.freeze({ chatId, text, ...(options === undefined ? {} : { options }) }))
     return { messageId: `om_sent_${this.texts.length}` }
   }
@@ -168,7 +179,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     ): ResolvedFeishuConfig
   }
   const resolved = feishu.resolveFeishuConfig(config, routes)
-  const platform = new FakeFeishuPlatform()
+  const platform = new FakeFeishuPlatform(config.textEffectPath)
   const runtime = new feishu.FeishuRuntime(ctx, resolved, gateway, platform)
   ctx.effect(() => async () => runtime.dispose(), 'dsh-feishu.test-runtime')
   await runtime.start()

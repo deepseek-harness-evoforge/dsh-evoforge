@@ -149,9 +149,11 @@ AttachmentStore、LLM ContentBlock 和 DeepSeek Files 路径仍为 image-only；
 `fileKey`、URL、base64 或伪造 file block 写入 Session。文档、知识库、云盘元数据和多维表格读取已有
 assembled DSH 自动化证据，但真实飞书 App scope、资源权限拒绝与真实内容仍待验收。
 
-Schedule 的进程恢复证据只覆盖 durable create 之后、follow-up/dispatch 之前的 `SIGKILL`。官方 DSH Schedule
-仍明确保留 follow-up 已同步入队但 dispatch 尚未 checkpoint 的窄重复窗口；本插件不复制 Schedule 状态来掩盖
-该语义，也不宣称全窗口 exactly-once。
+Schedule 的进程恢复证据覆盖 durable create 后、follow-up/dispatch 前的 `SIGKILL`，以及第一次平台效果已发生、
+包含 dispatch 的 Session batch 仍未 durable 时的反向窗口。后者恢复时会重跑非 durable 模型 turn，但
+append-only Session 顺序让 turn 号保持不变，Gateway 复用同一 durable intent，不第二次调用平台。官方 DSH
+Schedule 仍明确保留该窗口中的模型重复；本插件不复制 Schedule 状态，也不宣称模型、token、时延或成本
+exactly-once。
 
 真实 exact-route 渠道验收使用仓库阶段入口 `pnpm benchmark:feishu:as2`，详见
 [AS-2 说明](../../benchmarks/feishu-v0.1/as2-real-channel/README.zh.md)。它只在显式授权后从最终

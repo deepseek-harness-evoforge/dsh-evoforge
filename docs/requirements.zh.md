@@ -16,6 +16,7 @@
 > V5.16 已完成这项独立兼容门：rc.5 与 rc.2 均由 exact revision/version/clean-source guard 锁定，并通过十一包 fresh-install、冻结前代→当前升级、原生 Agent/Goal/Gap、飞书 assembled 内容/渠道及卸载 readback。支持 peer 只列这两个 exact 版本；未知预发布版不能因 semver 范围碰巧匹配而进入支持声明。该矩阵不改变 generic file/audio/video 上游缺口，也不替代真实 Provider、真实飞书或 Hermes paired 证据。
 > V5.18 已删除飞书 assembled chat 中用手工 `agent.followup()` 冒充 Goal/Schedule continuation 的不合格证据，改为加载官方 DSH Schedule、经 agent-scoped `schedule_create` 形成原生 create/dispatch 事件和到期 follow-up，再由现有 Gateway durable turn intent 等待 `turn/end` 后回送同一飞书线程。该纵切不增加第二 scheduler、Feishu 私有日程状态或模型表面；真实飞书 direct/group 仍为 `NOT_RUN`。
 > V5.19 已在真实子进程中让 `schedule_create` 与 Session flush 完成后、dispatch 前执行 `SIGKILL`；第二个 Host 通过同一静态 Gateway route 恢复 exact Session，官方 Schedule 处理 overdue，并由既有 durable turn journal 回送一次飞书线程；第三次 Host 启动不重放。该门已在 exact rc.5/rc.2 分别通过，不增加 runtime 实现。官方 Schedule 的 followup 已入队但 dispatch 尚未 checkpoint 的窄重复窗口仍是未解决边界，不能宣称全窗口 exactly-once。
+> V5.20 对该窄窗口做了真实反向故障注入：第一次平台效果已写出、包含 dispatch 的 Session batch 仍被阻塞时 `SIGKILL`；恢复后 Schedule 会重跑非 durable turn，但 Gateway 因 exact route+turn intent 不第二次调用平台，跨进程效果保持一条。该结论只覆盖渠道外部效果；模型、token、时延和成本仍可能重复，不增加 Schedule parser、causal key 或私有日程状态。
 > 更新日期：2026-08-24
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。发生冲突时，下述“方向纠正”优先于旧里程碑文字。
 
