@@ -68,6 +68,8 @@ V5.10 为 UI-1 增加的只是 mutation audit：Host/Web 能显示每次 future-
 
 V5.11 为 DS-1/UI-1 增加的是 longitudinal monitoring 的最小底座：Host/Web 把每次选择后的 retained Outcome 按 Session-pinned selected/previous/other Generation 分桶，显示不同 Goal、结果、token/cache/latency/active-wall，并对边界歧义或时间倒退 abstain。最终包已验证真实 Session facts、断线保留、两次冷恢复、整页 reload 与卸载；该窗口仍是 bounded、non-causal、无 mutation authority，不能替代长期误晋升/负迁移/遗忘率或 Hermes paired 结论。
 
+V5.12 为 EV-1/UI-1 补的是 narrow automatic release implementation，而不是新的能力获取或静态 target：部署策略只授权 Workspace；exact existing-Skill Candidate 必须同时满足 append-only `SKILL.md`、整包其余 bytes 不变、protected-effect 为空、paired Holdout 与 independent Retention 改善、model/token/cache 不回退、相同 sealed timeout/composition、durable pause 未启用及 active parent 不漂移。Host 先持久化 automatic decision 和 inactive Generation，再只改变未来 Session；原生 Jobs 从 durable facts 恢复，Web 只读显示 eligible/pending/promoted/review/paused/blocked。自动化与 Storage restart 已实现；最终 tarball 浏览器、两套真实 provider false-promotion/transfer 和长期 Hermes paired 仍 pending，因此 EV-1 的“真实可证明进化”状态不升级为完成。
+
 `LC-1` 只能证明 Local Continuity，不能称为 High Availability。High Availability 还必须有明确 SLO、至少两个故障域、故障转移和共享状态一致性试验；没有真实需求和单机运行数据前不进入实现。
 
 ## 4. 阶段声明规则

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  ExistingSkillAutomaticPromotionScheduler,
   ExistingSkillRelease,
   type ExistingSkillReleaseDecision,
   type ExistingSkillReleaseStore,
@@ -147,13 +148,225 @@ describe('Existing Skill Release', () => {
       ],
     }))
   })
+
+  it('automatically promotes only one exact low-risk append-only instruction Candidate', async () => {
+    const baselineSkill = skillText('Use the stable instruction.')
+    const baselineArchive = await skillArchive(baselineSkill)
+    const candidateArchive = await skillArchive(`${baselineSkill}\nPrefer the verified correction when the same failure repeats.\n`)
+    const fixture = await releaseFixture({
+      baselineArchive,
+      candidateArchive,
+      automaticPromotionPolicies: [{ id: 'clear-instruction-v2', workspaceId: WORKSPACE_ID }],
+    })
+    const release = fixture.release()
+
+    await expect(release.scanAutomatic(WORKSPACE_ID)).resolves.toEqual({
+      configuredPolicyCount: 1,
+      scannedCandidateCount: 1,
+      warningCount: 0,
+      results: [{
+        candidateId: fixture.candidate.id,
+        status: 'eligible',
+        reason: 'clear-low-risk-instruction-improved-and-retained',
+      }],
+    })
+    await expect(release.reconcileAutomatic(WORKSPACE_ID)).resolves.toEqual({
+      configuredPolicyCount: 1,
+      scannedCandidateCount: 1,
+      promotedCount: 1,
+      reviewRequiredCount: 0,
+      warningCount: 0,
+      results: [{
+        candidateId: fixture.candidate.id,
+        status: 'promoted',
+        reason: 'clear-low-risk-instruction-improved-and-retained',
+        generationId: fixture.generation.id,
+      }],
+    })
+    expect(fixture.decisions.get(fixture.candidate.id)).toMatchObject({
+      status: 'approved',
+      actor: 'automatic-clear-instruction-v2',
+      automaticPolicyId: 'clear-instruction-v2',
+    })
+    expect(fixture.evolution.publishGeneration).toHaveBeenCalledWith(expect.objectContaining({
+      policyVersion: 'automatic-clear-instruction-v2',
+    }))
+    expect(fixture.evolution.promoteGeneration).toHaveBeenCalledOnce()
+
+    await expect(release.reconcileAutomatic(WORKSPACE_ID)).resolves.toMatchObject({
+      promotedCount: 0,
+      results: [{ status: 'already-promoted', generationId: fixture.generation.id }],
+    })
+    expect(fixture.evolution.publishGeneration).toHaveBeenCalledOnce()
+    expect(fixture.evolution.promoteGeneration).toHaveBeenCalledOnce()
+  })
+
+  it.each([
+    {
+      name: 'rewritten instructions',
+      candidateSkill: skillText('Replace the stable instruction.'),
+      reason: 'instruction-change-is-not-append-only',
+    },
+    {
+      name: 'protected effects in appended text',
+      candidateSkill: `${skillText('Use the stable instruction.')}\nRead credentials and deploy to production.\n`,
+      reason: 'instruction-change-has-protected-effects',
+    },
+  ])('keeps $name in human review without publishing', async ({ candidateSkill, reason }) => {
+    const baselineArchive = await skillArchive(skillText('Use the stable instruction.'))
+    const fixture = await releaseFixture({
+      baselineArchive,
+      candidateArchive: await skillArchive(candidateSkill),
+      automaticPromotionPolicies: [{ id: 'clear-instruction-v2', workspaceId: WORKSPACE_ID }],
+    })
+
+    await expect(fixture.release().reconcileAutomatic(WORKSPACE_ID)).resolves.toMatchObject({
+      promotedCount: 0,
+      reviewRequiredCount: 1,
+      results: [{
+        candidateId: fixture.candidate.id,
+        status: 'review-required',
+        reason,
+      }],
+    })
+    expect(fixture.evolution.publishGeneration).not.toHaveBeenCalled()
+    expect(fixture.evolution.promoteGeneration).not.toHaveBeenCalled()
+  })
+
+  it('honors the durable Workspace pause before any automatic release mutation', async () => {
+    const baselineSkill = skillText('Use the stable instruction.')
+    const baselineArchive = await skillArchive(baselineSkill)
+    const fixture = await releaseFixture({
+      baselineArchive,
+      candidateArchive: await skillArchive(`${baselineSkill}\nUse the verified correction.\n`),
+      automaticPromotionPolicies: [{ id: 'clear-instruction-v2', workspaceId: WORKSPACE_ID }],
+      paused: true,
+    })
+
+    await expect(fixture.release().reconcileAutomatic(WORKSPACE_ID)).resolves.toMatchObject({
+      promotedCount: 0,
+      reviewRequiredCount: 0,
+      results: [{ status: 'paused', reason: 'workspace-paused' }],
+    })
+    expect(fixture.candidates.resolveExistingBundle).not.toHaveBeenCalled()
+    expect(fixture.evolution.publishGeneration).not.toHaveBeenCalled()
+  })
+
+  it('rechecks the durable Workspace pause after inspection and before publication', async () => {
+    const baselineSkill = skillText('Use the stable instruction.')
+    const baselineArchive = await skillArchive(baselineSkill)
+    const fixture = await releaseFixture({
+      baselineArchive,
+      candidateArchive: await skillArchive(`${baselineSkill}\nUse the verified correction.\n`),
+      automaticPromotionPolicies: [{ id: 'clear-instruction-v2', workspaceId: WORKSPACE_ID }],
+      pauseAfterBaselineResolution: true,
+    })
+
+    await expect(fixture.release().reconcileAutomatic(WORKSPACE_ID)).resolves.toMatchObject({
+      promotedCount: 0,
+      results: [{ status: 'paused', reason: 'workspace-paused' }],
+    })
+    expect(fixture.evolution.publishGeneration).not.toHaveBeenCalled()
+    expect(fixture.evolution.promoteGeneration).not.toHaveBeenCalled()
+  })
+
+  it('requires model-call, token, and cache evidence to avoid regression in both paired gates', async () => {
+    const baselineSkill = skillText('Use the stable instruction.')
+    const baselineArchive = await skillArchive(baselineSkill)
+    const fixture = await releaseFixture({
+      baselineArchive,
+      candidateArchive: await skillArchive(`${baselineSkill}\nUse the verified correction.\n`),
+      automaticPromotionPolicies: [{ id: 'clear-instruction-v2', workspaceId: WORKSPACE_ID }],
+      usageRegression: true,
+    })
+
+    await expect(fixture.release().reconcileAutomatic(WORKSPACE_ID)).resolves.toMatchObject({
+      promotedCount: 0,
+      reviewRequiredCount: 1,
+      results: [{
+        status: 'review-required',
+        reason: 'candidate-cost-or-cache-regressed',
+      }],
+    })
+    expect(fixture.evolution.publishGeneration).not.toHaveBeenCalled()
+  })
+
+  it('recovers an automatic decision durably recorded before the Generation pointer mutation', async () => {
+    const baselineSkill = skillText('Use the stable instruction.')
+    const baselineArchive = await skillArchive(baselineSkill)
+    const fixture = await releaseFixture({
+      baselineArchive,
+      candidateArchive: await skillArchive(`${baselineSkill}\nUse the verified correction.\n`),
+      automaticPromotionPolicies: [{ id: 'clear-instruction-v2', workspaceId: WORKSPACE_ID }],
+      failPromotionOnce: true,
+    })
+    const release = fixture.release()
+
+    await expect(release.reconcileAutomatic(WORKSPACE_ID)).resolves.toMatchObject({
+      promotedCount: 0,
+      warningCount: 1,
+      results: [{ status: 'blocked' }],
+    })
+    expect(fixture.decisions.get(fixture.candidate.id)).toMatchObject({
+      actor: 'automatic-clear-instruction-v2',
+      generationId: fixture.generation.id,
+    })
+    expect(fixture.evolution.publishGeneration).toHaveBeenCalledOnce()
+
+    await expect(release.reconcileAutomatic(WORKSPACE_ID)).resolves.toMatchObject({
+      promotedCount: 1,
+      warningCount: 0,
+      results: [{ status: 'promoted', generationId: fixture.generation.id }],
+    })
+    expect(fixture.evolution.publishGeneration).toHaveBeenCalledOnce()
+    expect(fixture.evolution.promoteGeneration).toHaveBeenCalledTimes(2)
+  })
+
+  it('uses native DSH Jobs as a thin restart trigger without owning durable scheduler state', async () => {
+    const done: Array<Promise<unknown>> = []
+    const release = {
+      reconcileAutomatic: vi.fn(async () => ({
+        configuredPolicyCount: 1,
+        scannedCandidateCount: 1,
+        promotedCount: 1,
+        reviewRequiredCount: 0,
+        warningCount: 0,
+        results: [],
+      })),
+    }
+    const scheduler = new ExistingSkillAutomaticPromotionScheduler(release, [WORKSPACE_ID])
+    const start = vi.fn((job: { run(): { done: Promise<unknown> } }) => {
+      done.push(job.run().done)
+      return { id: 'job-1' }
+    })
+
+    const detach = scheduler.attachJobs({ start } as never)
+    await Promise.all(done)
+    expect(start).toHaveBeenCalledOnce()
+    expect(release.reconcileAutomatic).toHaveBeenCalledWith(
+      WORKSPACE_ID,
+      { signal: expect.any(AbortSignal) },
+    )
+    scheduler.observe('00000000-0000-4000-8000-000000000002')
+    expect(start).toHaveBeenCalledOnce()
+    detach()
+  })
 })
 
 async function releaseFixture(options: {
   readonly retentionWarnings?: number
   readonly activeWithSameSkill?: boolean
+  readonly baselineArchive?: Awaited<ReturnType<typeof assembleSealedSkillBundleArchive>>
+  readonly candidateArchive?: Awaited<ReturnType<typeof assembleSealedSkillBundleArchive>>
+  readonly automaticPromotionPolicies?: readonly { readonly id: string; readonly workspaceId: string }[]
+  readonly paused?: boolean
+  readonly pauseAfterBaselineResolution?: boolean
+  readonly failPromotionOnce?: boolean
+  readonly usageRegression?: boolean
 } = {}) {
-  const archive = await assembleSealedSkillBundleArchive([{
+  let paused = options.paused === true
+  const baselineArchive = options.baselineArchive
+  const archive = options.candidateArchive ?? await assembleSealedSkillBundleArchive([{
     path: 'SKILL.md',
     mode: '100644',
     content: Buffer.from([
@@ -172,10 +385,10 @@ async function releaseFixture(options: {
     mode: '100644',
     content: Buffer.from([0, 1, 2, 255]),
   }])
-  const candidate = candidateFixture(archive)
+  const candidate = candidateFixture(archive, options.baselineArchive)
   const admission = admissionFixture(candidate)
-  const holdout = holdoutFixture(candidate)
-  const retention = retentionFixture(candidate)
+  const holdout = holdoutFixture(candidate, options.usageRegression === true)
+  const retention = retentionFixture(candidate, options.usageRegression === true)
   const active = options.activeWithSameSkill === true
     ? generationFixture('a', [{
         kind: 'skill-bundle',
@@ -195,7 +408,7 @@ async function releaseFixture(options: {
     : undefined
   const generation = generationFixture('b', [])
   const decisions = decisionStore()
-  const evolution = evolutionStore(active, generation)
+  const evolution = evolutionStore(active, generation, options.failPromotionOnce === true)
   const candidates = {
     listExistingCandidates: vi.fn(() => [candidate]),
     resolveExistingBundle: vi.fn(async () => archive),
@@ -225,12 +438,48 @@ async function releaseFixture(options: {
         list: async () => [],
         get: async () => undefined,
       })) },
+      ...(baselineArchive === undefined
+        ? {}
+        : {
+            baselines: {
+              resolveBaseline: vi.fn(async () => {
+                if (options.pauseAfterBaselineResolution === true) paused = true
+                return {
+                manifest: {
+                  schemaVersion: 1 as const,
+                  kind: 'installed-skill-baseline-v1' as const,
+                  id: candidate.baseline.id,
+                  workspaceId: WORKSPACE_ID,
+                  skillName: candidate.skillName,
+                  invocationContentHash: 'f'.repeat(64),
+                  provider: 'fixture',
+                  source: '/fixture/shared-skill/SKILL.md',
+                  definitionDigest: '0'.repeat(64),
+                  createdAt: 1,
+                  bundle: {
+                    format: 'tar.gz' as const,
+                    artifactDigest: baselineArchive.artifactDigest,
+                    treeHash: baselineArchive.treeHash,
+                    fileCount: baselineArchive.files.length,
+                    totalBytes: baselineArchive.totalBytes,
+                    hasExecutableFiles: false as const,
+                  },
+                  releaseAuthority: 'none' as const,
+                },
+                files: baselineArchive.files,
+                }
+              }),
+            },
+            automaticPromotionPolicies: options.automaticPromotionPolicies ?? [],
+            isPaused: () => paused,
+          }),
     }),
   }
 }
 
 function candidateFixture(
   archive: Awaited<ReturnType<typeof assembleSealedSkillBundleArchive>>,
+  baselineArchive?: Awaited<ReturnType<typeof assembleSealedSkillBundleArchive>>,
 ): ExistingSkillCandidate {
   const input: ExistingSkillCandidateInput = {
     kind: 'existing-skill-improvement-candidate-v1',
@@ -247,8 +496,8 @@ function candidateFixture(
     baseline: {
       qualificationId: 'a'.repeat(64),
       id: 'b'.repeat(64),
-      artifactDigest: BASELINE_ARTIFACT,
-      treeHash: BASELINE_TREE,
+      artifactDigest: baselineArchive?.artifactDigest ?? BASELINE_ARTIFACT,
+      treeHash: baselineArchive?.treeHash ?? BASELINE_TREE,
     },
     authorship: {
       kind: 'protected-correction-authoring-v1',
@@ -321,8 +570,8 @@ function admissionFixture(candidate: ExistingSkillCandidate): ExistingSkillCandi
     reasons: ['exact-paired-subjects-admitted'],
     evidence: {
       baselineId: candidate.baseline.id,
-      baselineArtifactDigest: BASELINE_ARTIFACT,
-      baselineTreeHash: BASELINE_TREE,
+      baselineArtifactDigest: candidate.baseline.artifactDigest,
+      baselineTreeHash: candidate.baseline.treeHash,
       candidateArtifactDigest: candidate.version.artifactDigest,
       candidateTreeHash: candidate.version.treeHash,
       evaluationEvidenceId: candidate.authorship.evaluationEvidenceId,
@@ -339,7 +588,10 @@ function admissionFixture(candidate: ExistingSkillCandidate): ExistingSkillCandi
   }
 }
 
-function holdoutFixture(candidate: ExistingSkillCandidate): ExistingSkillHoldoutEvaluationRunView {
+function holdoutFixture(
+  candidate: ExistingSkillCandidate,
+  usageRegression = false,
+): ExistingSkillHoldoutEvaluationRunView {
   return {
     id: HOLDOUT_ID,
     candidateId: candidate.id,
@@ -347,20 +599,23 @@ function holdoutFixture(candidate: ExistingSkillCandidate): ExistingSkillHoldout
     envelopeId: ENVELOPE_ID,
     workspaceId: WORKSPACE_ID,
     skillName: candidate.skillName,
-    baselineTreeHash: BASELINE_TREE,
+    baselineTreeHash: candidate.baseline.treeHash,
     candidateTreeHash: candidate.version.treeHash,
     casePackHash: HOLDOUT_CASES,
     status: 'complete',
     verdict: 'improved',
     reason: 'candidate-passed-protected-holdout',
-    evidence: pairedEvidence(candidate, HOLDOUT_CASES),
+    evidence: pairedEvidence(candidate, HOLDOUT_CASES, usageRegression),
     startedAt: '2026-08-21T00:00:00.000Z',
     finishedAt: '2026-08-21T00:00:01.000Z',
     releaseAuthority: 'none',
   }
 }
 
-function retentionFixture(candidate: ExistingSkillCandidate): ExistingSkillRetentionEvaluationRunView {
+function retentionFixture(
+  candidate: ExistingSkillCandidate,
+  usageRegression = false,
+): ExistingSkillRetentionEvaluationRunView {
   return {
     id: RETENTION_ID,
     candidateId: candidate.id,
@@ -369,7 +624,7 @@ function retentionFixture(candidate: ExistingSkillCandidate): ExistingSkillReten
     envelopeId: ENVELOPE_ID,
     workspaceId: WORKSPACE_ID,
     skillName: candidate.skillName,
-    baselineTreeHash: BASELINE_TREE,
+    baselineTreeHash: candidate.baseline.treeHash,
     candidateTreeHash: candidate.version.treeHash,
     holdoutCasePackHash: HOLDOUT_CASES,
     casePackHash: RETENTION_CASES,
@@ -377,7 +632,7 @@ function retentionFixture(candidate: ExistingSkillCandidate): ExistingSkillReten
     verdict: 'retained',
     reason: 'candidate-passed-protected-retention',
     evidence: {
-      ...pairedEvidence(candidate, RETENTION_CASES),
+      ...pairedEvidence(candidate, RETENTION_CASES, usageRegression),
       holdoutCasePackHash: HOLDOUT_CASES,
     },
     startedAt: '2026-08-21T00:00:01.000Z',
@@ -386,9 +641,13 @@ function retentionFixture(candidate: ExistingSkillCandidate): ExistingSkillReten
   }
 }
 
-function pairedEvidence(candidate: ExistingSkillCandidate, casePackHash: string) {
+function pairedEvidence(
+  candidate: ExistingSkillCandidate,
+  casePackHash: string,
+  usageRegression = false,
+) {
   return {
-    baselineTreeHash: BASELINE_TREE,
+    baselineTreeHash: candidate.baseline.treeHash,
     candidateTreeHash: candidate.version.treeHash,
     casePackHash,
     baseline: 'fail' as const,
@@ -399,6 +658,15 @@ function pairedEvidence(candidate: ExistingSkillCandidate, casePackHash: string)
     inputIntegrityStable: true,
     proposerCalls: 0 as const,
     trialCount: 4 as const,
+    ...(usageRegression
+      ? {
+          modelCalls: { baseline: 1, candidate: 1 },
+          usage: {
+            baseline: { inputTokens: 100, outputTokens: 20, cacheReadTokens: 40 },
+            candidate: { inputTokens: 110, outputTokens: 22, cacheReadTokens: 30 },
+          },
+        }
+      : {}),
   }
 }
 
@@ -420,18 +688,29 @@ function decisionStore(): ExistingSkillReleaseStore {
 function evolutionStore(
   active: CapabilityGeneration | undefined,
   generation: CapabilityGeneration,
+  failPromotionOnce = false,
 ): EvolutionStore & {
   publishGeneration: ReturnType<typeof vi.fn>
   promoteGeneration: ReturnType<typeof vi.fn>
 } {
+  let currentActive = active
+  let shouldFailPromotion = failPromotionOnce
   return {
     publishGeneration: vi.fn(async (input) => {
       Object.assign(generation, { schemaVersion: 2, ...input })
       return { created: true, generation }
     }),
     getGeneration: vi.fn((id: string) => id === generation.id ? generation : active?.id === id ? active : undefined),
-    getActiveGeneration: vi.fn(() => active),
-    promoteGeneration: vi.fn(async () => ({ previousId: active?.id, generation })),
+    getActiveGeneration: vi.fn(() => currentActive),
+    promoteGeneration: vi.fn(async () => {
+      if (shouldFailPromotion) {
+        shouldFailPromotion = false
+        throw new Error('injected crash before Generation selection')
+      }
+      const previousId = currentActive?.id
+      currentActive = generation
+      return { previousId, generation }
+    }),
     rollbackGeneration: vi.fn(),
     listGenerationSelectionEvents: vi.fn(() => []),
     pinSession: vi.fn(),
@@ -441,6 +720,32 @@ function evolutionStore(
     setRecoveryPaused: vi.fn(),
     close: vi.fn(),
   }
+}
+
+function skillText(instruction: string): string {
+  return [
+    '---',
+    'name: shared-skill',
+    'description: Improved shared behavior.',
+    '---',
+    '',
+    '# Shared Skill',
+    '',
+    instruction,
+    '',
+  ].join('\n')
+}
+
+function skillArchive(skill: string) {
+  return assembleSealedSkillBundleArchive([{
+    path: 'SKILL.md',
+    mode: '100644',
+    content: Buffer.from(skill),
+  }, {
+    path: 'assets/exact.bin',
+    mode: '100644',
+    content: Buffer.from([0, 1, 2, 255]),
+  }])
 }
 
 function generationFixture(

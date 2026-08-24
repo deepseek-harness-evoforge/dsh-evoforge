@@ -646,7 +646,7 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
     }
   })
 
-  it('persists an immutable existing-Skill human decision across a real Storage restart', async () => {
+  it('persists immutable existing-Skill human and automatic decisions across a real Storage restart', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-existing-release-store-'))
     temporaryRoots.push(root)
     const configPath = await writeStorageConfig(root)
@@ -666,12 +666,37 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
       id: sha256Json(content),
       ...content,
     }
+    const automaticContent = {
+      kind: 'existing-skill-release-decision-v1' as const,
+      candidateId: '3'.repeat(64),
+      workspaceId: WORKSPACE_ID,
+      skillName: 'shared-skill',
+      status: 'approved' as const,
+      actor: 'automatic-clear-instruction-v2' as const,
+      automaticPolicyId: 'clear-instruction-v2',
+      decisionNote: 'Exact append-only instruction improved paired Holdout and independent Retention.',
+      decidedAt: '2026-08-21T00:00:01.000Z',
+      evidenceHash: '4'.repeat(64),
+      admissionId: '5'.repeat(64),
+      holdoutEvaluationId: '6'.repeat(64),
+      retentionEvaluationId: '7'.repeat(64),
+      generationId: '8'.repeat(64),
+    }
+    const automaticDecision: ExistingSkillReleaseDecision = {
+      schemaVersion: 1,
+      id: sha256Json(automaticContent),
+      ...automaticContent,
+    }
 
     const firstCtx = await bootStorage(configPath)
     const first = await openExistingSkillReleaseStore(firstCtx.storageDomain)
     try {
       await expect(first.record(decision)).resolves.toEqual({ created: true, decision })
       await expect(first.record(decision)).resolves.toEqual({ created: false, decision })
+      await expect(first.record(automaticDecision)).resolves.toEqual({
+        created: true,
+        decision: automaticDecision,
+      })
       await expect(first.record({ ...decision, decisionNote: 'Conflicting decision.' }))
         .rejects.toThrow('decision id is invalid')
     } finally {
@@ -683,7 +708,8 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
     const resumed = await openExistingSkillReleaseStore(resumedCtx.storageDomain)
     try {
       expect(resumed.get(decision.candidateId)).toEqual(decision)
-      expect(resumed.list(WORKSPACE_ID)).toEqual([decision])
+      expect(resumed.get(automaticDecision.candidateId)).toEqual(automaticDecision)
+      expect(resumed.list(WORKSPACE_ID)).toEqual([decision, automaticDecision])
     } finally {
       await resumed.close()
       await resumedCtx.fiber.dispose()

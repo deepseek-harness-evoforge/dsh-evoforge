@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import type { JobRegistry } from '@deepseek-ai/dsh-jobs'
 import {
   defineDomain,
   domainTable,
@@ -30,12 +31,18 @@ import type {
   SkillGenerationArtifact,
 } from './generation-store.ts'
 import type { GenerationBundleRepository } from './generation-bundle-repository.ts'
-import type { AssembledSkillBundleArchive } from './skill-bundle-archive.ts'
+import {
+  assembleSealedSkillBundleArchive,
+  type AssembledSkillBundleArchive,
+} from './skill-bundle-archive.ts'
 import type { ExistingSkillCandidate } from './skill-candidate-repository.ts'
+import type { ResolvedInstalledSkillBundle } from './installed-skill-baseline.ts'
+import { projectCandidateImpact } from './candidate-impact.ts'
 
 const HASH = /^[a-f0-9]{64}$/u
 const PUBLIC_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u
 const MAX_NOTE_BYTES = 2_048
+const MAX_AUTOMATIC_APPEND_BYTES = 2_048
 
 export type ExistingSkillReleaseReason =
   | 'exact-existing-skill-evidence-retained'
@@ -76,7 +83,8 @@ export interface ExistingSkillReleaseDecision {
   readonly workspaceId: string
   readonly skillName: string
   readonly status: 'approved' | 'rejected'
-  readonly actor: 'human'
+  readonly actor: 'human' | 'automatic-clear-instruction-v2'
+  readonly automaticPolicyId?: string | undefined
   readonly decisionNote: string
   readonly decidedAt: string
   readonly evidenceHash: string
@@ -84,6 +92,50 @@ export interface ExistingSkillReleaseDecision {
   readonly holdoutEvaluationId?: string | undefined
   readonly retentionEvaluationId?: string | undefined
   readonly generationId?: string | undefined
+}
+
+export interface ExistingSkillAutomaticPromotionPolicy {
+  readonly id: string
+  readonly workspaceId: string
+}
+
+export type ExistingSkillAutomaticPromotionReason =
+  | 'clear-low-risk-instruction-improved-and-retained'
+  | 'instruction-change-is-not-append-only'
+  | 'instruction-change-has-protected-effects'
+  | 'candidate-cost-or-cache-regressed'
+  | 'workspace-paused'
+  | 'human-decision-controls-release'
+  | ExistingSkillReleaseReason
+
+export interface ExistingSkillAutomaticPromotionResult {
+  readonly candidateId: string
+  readonly status: 'promoted' | 'already-promoted' | 'review-required' | 'paused' | 'blocked'
+  readonly reason: ExistingSkillAutomaticPromotionReason
+  readonly generationId?: string | undefined
+}
+
+export interface ExistingSkillAutomaticPromotionScan {
+  readonly configuredPolicyCount: number
+  readonly scannedCandidateCount: number
+  readonly promotedCount: number
+  readonly reviewRequiredCount: number
+  readonly warningCount: number
+  readonly results: readonly ExistingSkillAutomaticPromotionResult[]
+}
+
+export interface ExistingSkillAutomaticPromotionStatus {
+  readonly candidateId: string
+  readonly status: 'eligible' | 'pending-promotion' | 'already-promoted' | 'review-required' | 'paused' | 'blocked'
+  readonly reason: ExistingSkillAutomaticPromotionReason
+  readonly generationId?: string | undefined
+}
+
+export interface ExistingSkillAutomaticPromotionStatusScan {
+  readonly configuredPolicyCount: number
+  readonly scannedCandidateCount: number
+  readonly warningCount: number
+  readonly results: readonly ExistingSkillAutomaticPromotionStatus[]
 }
 
 export interface ExistingSkillReleaseStore {
@@ -110,6 +162,11 @@ interface ExistingSkillReleaseOptions {
   readonly bundles: {
     providerFor(generation: CapabilityGeneration): ReturnType<GenerationBundleRepository['providerFor']>
   }
+  readonly baselines?: {
+    resolveBaseline(workspaceId: string, baselineId: string): Promise<ResolvedInstalledSkillBundle | undefined>
+  }
+  readonly automaticPromotionPolicies?: readonly ExistingSkillAutomaticPromotionPolicy[]
+  readonly isPaused?: (workspaceId: string) => boolean
   readonly now?: () => number
 }
 
@@ -130,15 +187,62 @@ interface ExactReleaseEvidence {
  */
 export class ExistingSkillRelease {
   private readonly options: ExistingSkillReleaseOptions
+  private readonly automaticPolicies = new Map<string, ExistingSkillAutomaticPromotionPolicy>()
   private readonly actionTails = new Map<string, Promise<void>>()
 
   constructor(options: ExistingSkillReleaseOptions) {
     this.options = options
+    const ids = new Set<string>()
+    for (const policy of options.automaticPromotionPolicies ?? []) {
+      if (!PUBLIC_ID.test(policy.id) || !z.string().uuid().safeParse(policy.workspaceId).success) {
+        throw new Error('existing Skill automatic promotion policy has an invalid identity')
+      }
+      if (ids.has(policy.id) || this.automaticPolicies.has(policy.workspaceId)) {
+        throw new Error('existing Skill automatic promotion policy ids and Workspaces must be unique')
+      }
+      ids.add(policy.id)
+      this.automaticPolicies.set(policy.workspaceId, Object.freeze({ ...policy }))
+    }
+    if (this.automaticPolicies.size > 0
+      && (options.baselines === undefined || options.isPaused === undefined)) {
+      throw new Error('existing Skill automatic promotion requires exact baseline and pause authorities')
+    }
   }
 
   async scan(workspaceId?: string): Promise<readonly ExistingSkillReleaseEligibility[]> {
     const candidates = this.options.candidates.listExistingCandidates(workspaceId)
     return Promise.all(candidates.map(candidate => this.eligibility(candidate.workspaceId, candidate.id)))
+  }
+
+  /** Read-only Web/Control projection; it never publishes or selects a Generation. */
+  async scanAutomatic(workspaceId: string): Promise<ExistingSkillAutomaticPromotionStatusScan> {
+    const policy = this.automaticPolicies.get(workspaceId)
+    if (policy === undefined) return automaticStatusScan(0, 0, [])
+    const candidates = this.options.candidates.listExistingCandidates(workspaceId)
+      .filter(candidate => candidate.workspaceId === workspaceId)
+      .sort((left, right) => left.id.localeCompare(right.id))
+    if (this.options.isPaused!(workspaceId)) {
+      return automaticStatusScan(1, candidates.length, candidates.map(candidate => Object.freeze({
+        candidateId: candidate.id,
+        status: 'paused' as const,
+        reason: 'workspace-paused' as const,
+      })))
+    }
+    const results: ExistingSkillAutomaticPromotionStatus[] = []
+    let warningCount = 0
+    for (const candidate of candidates) {
+      try {
+        results.push(await this.inspectAutomaticCandidate(policy, candidate))
+      } catch {
+        warningCount += 1
+        results.push(Object.freeze({
+          candidateId: candidate.id,
+          status: 'blocked',
+          reason: 'release-decision-evidence-mismatch',
+        }))
+      }
+    }
+    return automaticStatusScan(1, candidates.length, results, warningCount)
   }
 
   async eligibility(
@@ -192,10 +296,56 @@ export class ExistingSkillRelease {
     return this.enqueue(candidateId, () => this.promoteNow(workspaceId, candidateId))
   }
 
+  /**
+   * Reconcile one explicitly authorized Workspace from durable evaluation
+   * evidence. This is the only automatic mutation seam and remains narrower
+   * than human release: exact append-only, effect-clear SKILL.md changes only.
+   */
+  async reconcileAutomatic(
+    workspaceId: string,
+    options: { readonly signal?: AbortSignal } = {},
+  ): Promise<ExistingSkillAutomaticPromotionScan> {
+    const policy = this.automaticPolicies.get(workspaceId)
+    if (policy === undefined) return automaticScan(0, 0, [])
+    const candidates = this.options.candidates.listExistingCandidates(workspaceId)
+      .filter(candidate => candidate.workspaceId === workspaceId)
+      .sort((left, right) => left.id.localeCompare(right.id))
+    if (this.options.isPaused!(workspaceId)) {
+      return automaticScan(1, candidates.length, candidates.map(candidate => Object.freeze({
+        candidateId: candidate.id,
+        status: 'paused' as const,
+        reason: 'workspace-paused' as const,
+      })))
+    }
+    const results: ExistingSkillAutomaticPromotionResult[] = []
+    let warningCount = 0
+    for (const candidate of candidates) {
+      options.signal?.throwIfAborted()
+      try {
+        results.push(await this.enqueue(candidate.id, () =>
+          this.reconcileAutomaticCandidate(policy, candidate, options.signal)))
+      } catch (error) {
+        if (options.signal?.aborted === true) throw error
+        if (error instanceof AutomaticPromotionPausedError) {
+          results.push(automaticPaused(candidate.id))
+          continue
+        }
+        warningCount += 1
+        results.push(Object.freeze({
+          candidateId: candidate.id,
+          status: 'blocked',
+          reason: 'release-decision-evidence-mismatch',
+        }))
+      }
+    }
+    return automaticScan(1, candidates.length, results, warningCount)
+  }
+
   private async approveNow(
     workspaceId: string,
     candidateId: string,
     note: string,
+    automaticPolicy?: ExistingSkillAutomaticPromotionPolicy,
   ): Promise<ExistingSkillReleaseDecision> {
     const normalizedNote = normalizeNote(note)
     const prior = this.options.decisions.get(candidateId)
@@ -225,10 +375,15 @@ export class ExistingSkillRelease {
       createdAt,
       artifacts,
       evaluatorVersion: 'existing-skill-paired-v1',
-      policyVersion: 'human-review-existing-skill-v1',
+      policyVersion: automaticPolicy === undefined
+        ? 'human-review-existing-skill-v1'
+        : 'automatic-clear-instruction-v2',
       compositionFingerprint: evidence.evidenceHash,
     }
     await this.options.bundles.providerFor({ id: '0'.repeat(64), schemaVersion: 2, ...input })
+    if (automaticPolicy !== undefined && this.options.isPaused!(workspaceId)) {
+      throw new AutomaticPromotionPausedError()
+    }
     const published = await this.options.store.publishGeneration(input)
     requirePublishedGeneration(published.generation, input)
     if (this.options.store.getActiveGeneration(workspaceId)?.id !== active?.id) {
@@ -244,12 +399,217 @@ export class ExistingSkillRelease {
       holdoutEvaluationId: evidence.holdout.id,
       retentionEvaluationId: evidence.retention.id,
       generationId: published.generation.id,
+      ...automaticPolicy === undefined
+        ? { actor: 'human' as const }
+        : {
+            actor: 'automatic-clear-instruction-v2' as const,
+            automaticPolicyId: automaticPolicy.id,
+          },
     })
+    if (automaticPolicy !== undefined && this.options.isPaused!(workspaceId)) {
+      throw new AutomaticPromotionPausedError()
+    }
     const recorded = await this.options.decisions.record(decision)
     if (!decisionEquals(recorded.decision, decision)) {
       throw new Error('existing Skill release decision conflicts with its exact published Generation')
     }
     return recorded.decision
+  }
+
+  private async reconcileAutomaticCandidate(
+    policy: ExistingSkillAutomaticPromotionPolicy,
+    candidate: ExistingSkillCandidate,
+    signal?: AbortSignal,
+  ): Promise<ExistingSkillAutomaticPromotionResult> {
+    signal?.throwIfAborted()
+    if (this.options.isPaused!(policy.workspaceId)) return automaticPaused(candidate.id)
+    const eligibility = await this.eligibility(policy.workspaceId, candidate.id)
+    if (eligibility.status === 'blocked' || eligibility.status === 'rejected') {
+      return Object.freeze({
+        candidateId: candidate.id,
+        status: 'blocked',
+        reason: eligibility.reason,
+      })
+    }
+    const prior = this.options.decisions.get(candidate.id)
+    if (prior !== undefined) {
+      if (prior.actor !== 'automatic-clear-instruction-v2'
+        || prior.automaticPolicyId !== policy.id
+        || prior.generationId === undefined) {
+        return Object.freeze({
+          candidateId: candidate.id,
+          status: 'review-required',
+          reason: 'human-decision-controls-release',
+          ...prior.generationId === undefined ? {} : { generationId: prior.generationId },
+        })
+      }
+      if (this.options.store.getActiveGeneration(policy.workspaceId)?.id === prior.generationId) {
+        return Object.freeze({
+          candidateId: candidate.id,
+          status: 'already-promoted',
+          reason: 'clear-low-risk-instruction-improved-and-retained',
+          generationId: prior.generationId,
+        })
+      }
+      if (this.options.isPaused!(policy.workspaceId)) return automaticPaused(candidate.id)
+      signal?.throwIfAborted()
+      const promoted = await this.promoteNow(policy.workspaceId, candidate.id, policy)
+      return Object.freeze({
+        candidateId: candidate.id,
+        status: 'promoted',
+        reason: 'clear-low-risk-instruction-improved-and-retained',
+        generationId: promoted.generation.id,
+      })
+    }
+    const impactReason = await this.automaticImpactReason(candidate)
+    if (impactReason !== undefined) {
+      return Object.freeze({
+        candidateId: candidate.id,
+        status: 'review-required',
+        reason: impactReason,
+      })
+    }
+    const qualityReason = await this.automaticQualityReason(policy.workspaceId, candidate.id)
+    if (qualityReason !== undefined) {
+      return Object.freeze({
+        candidateId: candidate.id,
+        status: 'review-required',
+        reason: qualityReason,
+      })
+    }
+    if (this.options.isPaused!(policy.workspaceId)) return automaticPaused(candidate.id)
+    const decision = await this.approveNow(
+      policy.workspaceId,
+      candidate.id,
+      'Exact append-only instruction improved paired Holdout and independent Retention.',
+      policy,
+    )
+    if (this.options.isPaused!(policy.workspaceId)) return automaticPaused(candidate.id)
+    signal?.throwIfAborted()
+    const promoted = await this.promoteNow(policy.workspaceId, candidate.id, policy)
+    return Object.freeze({
+      candidateId: candidate.id,
+      status: 'promoted',
+      reason: 'clear-low-risk-instruction-improved-and-retained',
+      generationId: decision.generationId ?? promoted.generation.id,
+    })
+  }
+
+  private async inspectAutomaticCandidate(
+    policy: ExistingSkillAutomaticPromotionPolicy,
+    candidate: ExistingSkillCandidate,
+  ): Promise<ExistingSkillAutomaticPromotionStatus> {
+    const eligibility = await this.eligibility(policy.workspaceId, candidate.id)
+    if (eligibility.status === 'blocked' || eligibility.status === 'rejected') {
+      return Object.freeze({
+        candidateId: candidate.id,
+        status: 'blocked',
+        reason: eligibility.reason,
+      })
+    }
+    const prior = this.options.decisions.get(candidate.id)
+    if (prior !== undefined) {
+      if (prior.actor !== 'automatic-clear-instruction-v2'
+        || prior.automaticPolicyId !== policy.id
+        || prior.generationId === undefined) {
+        return Object.freeze({
+          candidateId: candidate.id,
+          status: 'review-required',
+          reason: 'human-decision-controls-release',
+          ...prior.generationId === undefined ? {} : { generationId: prior.generationId },
+        })
+      }
+      return Object.freeze({
+        candidateId: candidate.id,
+        status: this.options.store.getActiveGeneration(policy.workspaceId)?.id === prior.generationId
+          ? 'already-promoted'
+          : 'pending-promotion',
+        reason: 'clear-low-risk-instruction-improved-and-retained',
+        generationId: prior.generationId,
+      })
+    }
+    const impactReason = await this.automaticImpactReason(candidate)
+    const qualityReason = impactReason === undefined
+      ? await this.automaticQualityReason(policy.workspaceId, candidate.id)
+      : undefined
+    return Object.freeze({
+      candidateId: candidate.id,
+      status: impactReason === undefined && qualityReason === undefined ? 'eligible' : 'review-required',
+      reason: impactReason ?? qualityReason ?? 'clear-low-risk-instruction-improved-and-retained',
+    })
+  }
+
+  private async automaticQualityReason(
+    workspaceId: string,
+    candidateId: string,
+  ): Promise<'candidate-cost-or-cache-regressed' | undefined> {
+    const resolved = await this.resolveEvidence(workspaceId, candidateId)
+    if ('blocked' in resolved) return 'candidate-cost-or-cache-regressed'
+    const evidence = resolved.evidence
+    return automaticUsageDoesNotRegress(evidence.holdout.evidence)
+      && automaticUsageDoesNotRegress(evidence.retention.evidence)
+      ? undefined
+      : 'candidate-cost-or-cache-regressed'
+  }
+
+  private async automaticImpactReason(
+    candidate: ExistingSkillCandidate,
+  ): Promise<'instruction-change-is-not-append-only' | 'instruction-change-has-protected-effects' | undefined> {
+    const baseline = await this.options.baselines!.resolveBaseline(
+      candidate.workspaceId,
+      candidate.baseline.id,
+    )
+    if (baseline === undefined) return 'instruction-change-is-not-append-only'
+    const [baselineArchive, candidateArchive] = await Promise.all([
+      assembleSealedSkillBundleArchive(baseline.files),
+      this.options.candidates.resolveExistingBundle(candidate),
+    ])
+    if (baseline.manifest.id !== candidate.baseline.id
+      || baseline.manifest.workspaceId !== candidate.workspaceId
+      || baseline.manifest.skillName !== candidate.skillName
+      || baseline.manifest.bundle.artifactDigest !== candidate.baseline.artifactDigest
+      || baseline.manifest.bundle.treeHash !== candidate.baseline.treeHash
+      || baseline.manifest.bundle.fileCount !== baselineArchive.files.length
+      || baseline.manifest.bundle.totalBytes !== baselineArchive.totalBytes
+      || baseline.manifest.bundle.hasExecutableFiles !== false
+      || baseline.manifest.releaseAuthority !== 'none'
+      || baselineArchive.artifactDigest !== candidate.baseline.artifactDigest
+      || baselineArchive.treeHash !== candidate.baseline.treeHash
+      || candidateArchive.artifactDigest !== candidate.version.artifactDigest
+      || candidateArchive.treeHash !== candidate.version.treeHash
+      || candidate.diff.changedPaths.length !== 1
+      || candidate.diff.changedPaths[0] !== 'SKILL.md'
+      || candidate.diff.addedPaths.length !== 0
+      || candidate.package.hasExecutableFiles !== false
+      || candidate.permissions.executableContentChanged !== false) {
+      return 'instruction-change-is-not-append-only'
+    }
+    const baselineFiles = new Map(baselineArchive.files.map(file => [file.path, file]))
+    const candidateFiles = new Map(candidateArchive.files.map(file => [file.path, file]))
+    if (baselineFiles.size !== candidateFiles.size
+      || [...baselineFiles].some(([path, file]) => {
+        const changed = candidateFiles.get(path)
+        return changed === undefined
+          || changed.mode !== file.mode
+          || (path !== 'SKILL.md' && !changed.content.equals(file.content))
+      })) {
+      return 'instruction-change-is-not-append-only'
+    }
+    const baselineSkillBytes = baselineFiles.get('SKILL.md')?.content
+    const candidateSkillBytes = candidateFiles.get('SKILL.md')?.content
+    if (baselineSkillBytes === undefined
+      || candidateSkillBytes === undefined
+      || candidateSkillBytes.byteLength <= baselineSkillBytes.byteLength
+      || candidateSkillBytes.byteLength - baselineSkillBytes.byteLength > MAX_AUTOMATIC_APPEND_BYTES
+      || !candidateSkillBytes.subarray(0, baselineSkillBytes.byteLength).equals(baselineSkillBytes)) {
+      return 'instruction-change-is-not-append-only'
+    }
+    const baselineSkill = decodeCanonicalUtf8(baselineSkillBytes)
+    const candidateSkill = decodeCanonicalUtf8(candidateSkillBytes)
+    const impact = projectCandidateImpact(baselineSkill, [{ path: 'SKILL.md', content: candidateSkill }])
+    if (impact.scope !== 'append-only-skill') return 'instruction-change-is-not-append-only'
+    if (impact.indicators.length > 0) return 'instruction-change-has-protected-effects'
+    return undefined
   }
 
   private async rejectNow(
@@ -279,6 +639,7 @@ export class ExistingSkillRelease {
   private async promoteNow(
     workspaceId: string,
     candidateId: string,
+    automaticPolicy?: ExistingSkillAutomaticPromotionPolicy,
   ): Promise<{ readonly previousId: string | undefined; readonly generation: CapabilityGeneration }> {
     const decision = this.options.decisions.get(candidateId)
     if (decision?.status !== 'approved' || decision.generationId === undefined) {
@@ -302,6 +663,9 @@ export class ExistingSkillRelease {
     }
     if (active?.id !== generation.parentId) {
       throw new Error('existing Skill release blocked: active-parent-mismatch')
+    }
+    if (automaticPolicy !== undefined && this.options.isPaused!(workspaceId)) {
+      throw new AutomaticPromotionPausedError()
     }
     return this.options.store.promoteGeneration(workspaceId, generation.id, {
       authority: 'existing-skill-release',
@@ -382,6 +746,87 @@ export class ExistingSkillRelease {
   }
 }
 
+/**
+ * Thin native Jobs adapter. Durable Candidates, evaluation results, release
+ * decisions, and the Generation pointer remain the restart queue and state;
+ * this class owns no scheduler database or alternate runtime.
+ */
+export class ExistingSkillAutomaticPromotionScheduler {
+  private readonly release: Pick<ExistingSkillRelease, 'reconcileAutomatic'>
+  private readonly workspaces: ReadonlySet<string>
+  private readonly pending = new Set<string>()
+  private readonly active = new Set<string>()
+  private jobs: Pick<JobRegistry, 'start'> | undefined
+
+  constructor(
+    release: Pick<ExistingSkillRelease, 'reconcileAutomatic'>,
+    workspaceIds: readonly string[],
+  ) {
+    this.release = release
+    this.workspaces = new Set(workspaceIds)
+  }
+
+  attachJobs(jobs: Pick<JobRegistry, 'start'>): () => void {
+    if (this.jobs !== undefined) throw new Error('existing Skill automatic promotion Jobs seam is already attached')
+    this.jobs = jobs
+    for (const workspaceId of this.workspaces) this.observe(workspaceId)
+    return () => {
+      if (this.jobs === jobs) this.jobs = undefined
+    }
+  }
+
+  observe(workspaceId: string): void {
+    if (!this.workspaces.has(workspaceId)) return
+    this.pending.add(workspaceId)
+    this.schedule(workspaceId)
+  }
+
+  private schedule(workspaceId: string): void {
+    const jobs = this.jobs
+    if (jobs === undefined || !this.pending.has(workspaceId) || this.active.has(workspaceId)) return
+    this.pending.delete(workspaceId)
+    this.active.add(workspaceId)
+    const controller = new AbortController()
+    try {
+      jobs.start({
+        kind: 'evolution',
+        label: 'existing Skill low-risk automatic promotion',
+        outputLimitBytes: 2_048,
+        run: () => {
+          const task = this.release.reconcileAutomatic(workspaceId, { signal: controller.signal })
+          return {
+            cancel: (reason?: string) => controller.abort(
+              new Error(reason ?? 'existing Skill automatic promotion cancelled'),
+            ),
+            done: task.then(scan => ({
+              status: controller.signal.aborted ? 'killed' as const : 'completed' as const,
+              detail: controller.signal.aborted
+                ? errorDetail(controller.signal.reason)
+                : `promoted:${scan.promotedCount};review-required:${scan.reviewRequiredCount};warnings:${scan.warningCount}`,
+              ...controller.signal.aborted ? {} : { output: JSON.stringify({
+                  configuredPolicyCount: scan.configuredPolicyCount,
+                  scannedCandidateCount: scan.scannedCandidateCount,
+                  promotedCount: scan.promotedCount,
+                  reviewRequiredCount: scan.reviewRequiredCount,
+                  warningCount: scan.warningCount,
+                }) },
+            }), (error: unknown) => ({
+              status: controller.signal.aborted ? 'killed' as const : 'failed' as const,
+              detail: errorDetail(controller.signal.aborted ? controller.signal.reason : error),
+            })).finally(() => {
+              this.active.delete(workspaceId)
+              this.schedule(workspaceId)
+            }),
+          }
+        },
+      })
+    } catch {
+      this.active.delete(workspaceId)
+      this.pending.add(workspaceId)
+    }
+  }
+}
+
 const decisionSchema = z.strictObject({
   schemaVersion: z.literal(1),
   kind: z.literal('existing-skill-release-decision-v1'),
@@ -390,7 +835,8 @@ const decisionSchema = z.strictObject({
   workspaceId: z.uuid(),
   skillName: z.string().regex(PUBLIC_ID),
   status: z.enum(['approved', 'rejected']),
-  actor: z.literal('human'),
+  actor: z.enum(['human', 'automatic-clear-instruction-v2']),
+  automaticPolicyId: z.string().regex(PUBLIC_ID).optional(),
   decisionNote: z.string().min(1).max(MAX_NOTE_BYTES),
   decidedAt: z.iso.datetime({ offset: true }),
   evidenceHash: z.string().regex(HASH),
@@ -411,6 +857,12 @@ const decisionSchema = z.strictObject({
       || decision.retentionEvaluationId !== undefined
       || decision.generationId !== undefined)) {
     context.addIssue({ code: 'custom', message: 'rejected existing Skill decision carries release authority' })
+  }
+  if ((decision.actor === 'human') === (decision.automaticPolicyId !== undefined)) {
+    context.addIssue({ code: 'custom', message: 'existing Skill automatic policy identity does not match its actor' })
+  }
+  if (decision.actor === 'automatic-clear-instruction-v2' && decision.status !== 'approved') {
+    context.addIssue({ code: 'custom', message: 'automatic existing Skill decisions may only approve exact evidence' })
   }
 })
 
@@ -581,6 +1033,8 @@ function createDecision(input: {
   readonly holdoutEvaluationId?: string
   readonly retentionEvaluationId?: string
   readonly generationId?: string
+  readonly actor?: ExistingSkillReleaseDecision['actor']
+  readonly automaticPolicyId?: string
 }): ExistingSkillReleaseDecision {
   const content = {
     kind: 'existing-skill-release-decision-v1' as const,
@@ -588,7 +1042,8 @@ function createDecision(input: {
     workspaceId: input.candidate.workspaceId,
     skillName: input.candidate.skillName,
     status: input.status,
-    actor: 'human' as const,
+    actor: input.actor ?? 'human',
+    ...input.automaticPolicyId === undefined ? {} : { automaticPolicyId: input.automaticPolicyId },
     decisionNote: input.note,
     decidedAt: input.decidedAt,
     evidenceHash: input.evidenceHash,
@@ -598,6 +1053,89 @@ function createDecision(input: {
     ...input.generationId === undefined ? {} : { generationId: input.generationId },
   }
   return parseDecision({ schemaVersion: 1, id: sha256Json(content), ...content })
+}
+
+function automaticScan(
+  configuredPolicyCount: number,
+  scannedCandidateCount: number,
+  results: readonly ExistingSkillAutomaticPromotionResult[],
+  warningCount = 0,
+): ExistingSkillAutomaticPromotionScan {
+  return Object.freeze({
+    configuredPolicyCount,
+    scannedCandidateCount,
+    promotedCount: results.filter(result => result.status === 'promoted').length,
+    reviewRequiredCount: results.filter(result => result.status === 'review-required').length,
+    warningCount,
+    results: Object.freeze([...results]),
+  })
+}
+
+function automaticPaused(candidateId: string): ExistingSkillAutomaticPromotionResult {
+  return Object.freeze({
+    candidateId,
+    status: 'paused',
+    reason: 'workspace-paused',
+  })
+}
+
+function automaticStatusScan(
+  configuredPolicyCount: number,
+  scannedCandidateCount: number,
+  results: readonly ExistingSkillAutomaticPromotionStatus[],
+  warningCount = 0,
+): ExistingSkillAutomaticPromotionStatusScan {
+  return Object.freeze({
+    configuredPolicyCount,
+    scannedCandidateCount,
+    warningCount,
+    results: Object.freeze([...results]),
+  })
+}
+
+function decodeCanonicalUtf8(content: Buffer): string {
+  const text = content.toString('utf8')
+  if (!Buffer.from(text).equals(content) || text.includes('\0') || /\r(?!\n)/u.test(text)) {
+    throw new Error('automatic existing Skill instruction is not canonical UTF-8 text')
+  }
+  return text
+}
+
+function automaticUsageDoesNotRegress(evidence: {
+  readonly modelCalls?: { readonly baseline: number; readonly candidate: number }
+  readonly usage?: {
+    readonly baseline: Record<string, number | undefined>
+    readonly candidate: Record<string, number | undefined>
+  }
+} | undefined): boolean {
+  if (evidence === undefined) return false
+  if (evidence.modelCalls === undefined && evidence.usage === undefined) return true
+  if (evidence.modelCalls === undefined || evidence.usage === undefined) return false
+  if (evidence.modelCalls.candidate > evidence.modelCalls.baseline) return false
+  const noIncrease = ['inputTokens', 'outputTokens', 'cacheWriteTokens', 'reasoningTokens']
+    .every(key => metricAtMost(evidence.usage!.candidate[key], evidence.usage!.baseline[key]))
+  return noIncrease
+    && metricAtLeast(evidence.usage.candidate.cacheReadTokens, evidence.usage.baseline.cacheReadTokens)
+}
+
+function metricAtMost(candidate: number | undefined, baseline: number | undefined): boolean {
+  if (candidate === undefined || baseline === undefined) return candidate === baseline
+  return candidate <= baseline
+}
+
+function metricAtLeast(candidate: number | undefined, baseline: number | undefined): boolean {
+  if (candidate === undefined || baseline === undefined) return candidate === baseline
+  return candidate >= baseline
+}
+
+function errorDetail(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+class AutomaticPromotionPausedError extends Error {
+  constructor() {
+    super('automatic existing Skill promotion paused')
+  }
 }
 
 function parseDecision(value: unknown): ExistingSkillReleaseDecision {

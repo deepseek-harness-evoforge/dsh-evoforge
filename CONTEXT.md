@@ -246,6 +246,10 @@ _Avoid_: Best-effort sandbox, prompt-only isolation
 An atomic selection of an eligible inactive Generation for future sessions. Clear improvements may promote automatically within configured authority; ambiguous results enter a separate review inbox, and executable or permission-expanding changes remain Protected Actions.
 _Avoid_: Merge, in-place edit
 
+**Automatic Existing-Skill Promotion**:
+A Workspace-scoped deployment authority that lets the sole Host release owner select a future-Session Generation only after one exact existing-Skill whole-tree Candidate passes structural Admission, Candidate-blind paired Holdout, independent Retention, exact parent/archive checks, append-only `SKILL.md` scope, protected-effect screening, non-regressing model/token/cache evidence, durable pause, and crash-recovery gates. The policy names no Skill, source, path, Candidate, Case Pack, or workflow; broader changes remain human-controlled.
+_Avoid_: Static promotion target, evaluator self-release, new-Skill auto-install, current-Session rewrite
+
 **Generation Selection History**:
 A Workspace-owned sequence of immutable, content-addressed facts written atomically with each real future-Session Generation pointer mutation. Every event names the prior and selected Generation plus the exact Host authority and evidence ids used by promotion or rollback; duplicate no-op selection creates no event, and current Session pins never change. It is mutation audit only, with no outcome claim or release authority.
 _Avoid_: Effect timeline, evaluator verdict, Web-owned log, separate event database, Git branch history

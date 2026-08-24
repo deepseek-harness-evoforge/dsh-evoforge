@@ -432,6 +432,11 @@ const t = (key: string) => ({
   'skills.improvements.retention-evaluation.no': 'no',
   'skills.improvements.retention-evaluation.release.none': 'Retention evidence only · No promotion or release authority',
   'skills.improvements.release': 'Existing-Skill release gate',
+  'skills.improvements.release.automatic.enabled': 'Low-risk instruction auto-promotion enabled',
+  'skills.improvements.release.automatic.scanned': 'Candidates scanned',
+  'skills.improvements.release.automatic.warnings': 'warnings',
+  'skills.improvements.release.automatic.status.review-required': 'Human review still required',
+  'skills.improvements.release.automatic.reason.instruction-change-is-not-append-only': 'Change is not an append-only SKILL.md instruction',
   'skills.improvements.release.empty': 'No existing-Skill Candidate has reached the release gate.',
   'skills.improvements.release.status.eligible': 'Human decision required',
   'skills.improvements.release.status.approved': 'Published inactive; future Sessions unchanged',
@@ -854,6 +859,16 @@ describe('EvolutionAction', () => {
         existingSkillRelease: {
           available: true as const,
           actionableCount: 1,
+          automaticPromotion: {
+            configuredPolicyCount: 1,
+            scannedCandidateCount: 1,
+            warningCount: 0,
+            results: [{
+              candidateId,
+              status: 'review-required' as const,
+              reason: 'instruction-change-is-not-append-only' as const,
+            }],
+          },
           items: [{
             candidateId,
             skillName: 'build-dsh-plugin',
@@ -889,6 +904,8 @@ describe('EvolutionAction', () => {
     fireEvent.click(await screen.findByRole('tab', { name: 'Skills' }))
 
     expect(screen.getByText('Existing-Skill release gate')).toBeTruthy()
+    expect(screen.getByText(/Low-risk instruction auto-promotion enabled/)).toBeTruthy()
+    expect(screen.getByText('Human review still required · Change is not an append-only SKILL.md instruction')).toBeTruthy()
     expect(screen.getByText('Human decision required')).toBeTruthy()
     expect(screen.getByText('Exact Admission, Holdout, and Retention evidence passed')).toBeTruthy()
     expect(screen.getByText(`Release baseline · ${'b'.repeat(8)}… · ${'e'.repeat(8)}…`)).toBeTruthy()

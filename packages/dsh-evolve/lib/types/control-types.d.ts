@@ -514,6 +514,17 @@ export type EvolutionExistingSkillReleaseReason = 'exact-existing-skill-evidence
 export interface EvolutionExistingSkillReleaseView {
     readonly available: true;
     readonly actionableCount: number;
+    readonly automaticPromotion?: {
+        readonly configuredPolicyCount: number;
+        readonly scannedCandidateCount: number;
+        readonly warningCount: number;
+        readonly results: readonly {
+            readonly candidateId: string;
+            readonly status: 'eligible' | 'pending-promotion' | 'already-promoted' | 'review-required' | 'paused' | 'blocked';
+            readonly reason: 'clear-low-risk-instruction-improved-and-retained' | 'instruction-change-is-not-append-only' | 'instruction-change-has-protected-effects' | 'candidate-cost-or-cache-regressed' | 'workspace-paused' | 'human-decision-controls-release' | EvolutionExistingSkillReleaseReason;
+            readonly generationId?: string;
+        }[];
+    };
     readonly items: readonly {
         readonly candidateId: string;
         readonly skillName: string;

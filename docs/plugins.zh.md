@@ -23,6 +23,8 @@
 
 V4.40–V4.49 只深化现有 `dsh-evolve`/`dsh-evolve-web`，不新增插件：existing-Skill 第五 Goal 形成独立 Retention Case Pack，V4.43–V4.45 完成独立发布门及最终包生命周期；V4.46 的 failed-Outcome Canary 仍在同一插件内由原生 Jobs 重放 exact retained pair，只产出无 mutation 权的证据；V4.47 的 rollback writer 是与 evaluator 分权的 Host gate，并通过同一 Control/Remote/Web 人工确认；V4.48 从最终包验证 existing-Skill 完整动作、故障、恢复与卸载，V4.49 对 missing-Skill `skill-bundle` 完成同类最终包验证。Canary、晋升、回滚属于同一个 `dsh-evolve` 闭环，不拆成新插件、第二 Runtime 或第二审批体系。
 
+V5.12 同样只深化 `dsh-evolve`/`dsh-evolve-web`：Workspace-only `automaticPromotionPolicies` 不能指定 Skill、路径、来源、Candidate 或评测 target；existing-Skill release owner 只对 exact append-only/effect-clear/non-regressing 指令 Candidate 自动发布并选择未来 Session。原生 Jobs 是薄唤醒 Adapter，Control/Web 是只读权威投影，没有新增插件、Gateway、Runtime、Store 或审批体系。
+
 ## 尚未进入路线图的候选
 
 | 候选 | 进入条件 | 为什么现在不建 |

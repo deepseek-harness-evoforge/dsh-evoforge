@@ -30,6 +30,7 @@ import type { ExistingSkillCandidateAdmission } from './existing-skill-candidate
 import type { ExistingSkillHoldoutEvaluation } from './existing-skill-holdout-evaluation.ts'
 import type { ExistingSkillRetentionEvaluation } from './existing-skill-retention-evaluation.ts'
 import type {
+  ExistingSkillAutomaticPromotionStatusScan,
   ExistingSkillRelease,
   ExistingSkillReleaseEligibility,
 } from './existing-skill-release.ts'
@@ -117,6 +118,7 @@ export interface EvolutionControlPlaneModules {
   readonly existingSkillHoldoutEvaluations?: Pick<ExistingSkillHoldoutEvaluation, 'scan'>
   readonly existingSkillRetentionEvaluations?: Pick<ExistingSkillRetentionEvaluation, 'scan'>
   readonly existingSkillRelease?: Pick<ExistingSkillRelease, 'scan' | 'approve' | 'reject' | 'promote'>
+    & Partial<Pick<ExistingSkillRelease, 'scanAutomatic'>>
   readonly evaluationGovernance?: Pick<SkillEvaluationGovernance, 'scan'>
   readonly retention?: Pick<InternalSkillRetention, 'scan'>
   readonly counterfactualCanary?: Pick<CounterfactualCanary, 'scan'>
@@ -147,6 +149,7 @@ export class EvolutionControlPlane {
       existingSkillHoldoutEvaluationScan,
       existingSkillRetentionEvaluationScan,
       existingSkillReleaseScan,
+      existingSkillAutomaticPromotionScan,
       evaluationGovernanceScan,
       retentionScan,
       counterfactualCanaryScan,
@@ -175,6 +178,9 @@ export class EvolutionControlPlane {
       this.modules.existingSkillRelease === undefined
         ? undefined
         : this.modules.existingSkillRelease.scan(workspaceId),
+      this.modules.existingSkillRelease?.scanAutomatic === undefined
+        ? undefined
+        : this.modules.existingSkillRelease.scanAutomatic(workspaceId),
       this.modules.evaluationGovernance === undefined
         ? undefined
         : this.modules.evaluationGovernance.scan(workspaceId),
@@ -399,6 +405,7 @@ export class EvolutionControlPlane {
               existingSkillReleaseScan,
               this.requireExistingSkillCandidates(workspaceId),
               active?.id,
+              existingSkillAutomaticPromotionScan,
             ),
           }),
       ...(admissionScan === undefined
@@ -829,6 +836,7 @@ function projectExistingSkillRelease(
   release: readonly ExistingSkillReleaseEligibility[],
   candidates: ReturnType<SkillCandidateStore['listExistingCandidates']>,
   activeGenerationId: string | undefined,
+  automaticPromotion: ExistingSkillAutomaticPromotionStatusScan | undefined,
 ): EvolutionExistingSkillReleaseView {
   const items = release.slice(0, MAX_DISCOVERY_ROWS).map(value => {
     const matches = candidates.filter(candidate => candidate.id === value.candidateId)
@@ -873,6 +881,19 @@ function projectExistingSkillRelease(
     available: true,
     actionableCount: items.filter(item => item.status === 'eligible'
       || (item.status === 'approved' && !item.activeForFutureSessions)).length,
+    ...(automaticPromotion === undefined
+      ? {}
+      : { automaticPromotion: {
+          configuredPolicyCount: automaticPromotion.configuredPolicyCount,
+          scannedCandidateCount: automaticPromotion.scannedCandidateCount,
+          warningCount: automaticPromotion.warningCount,
+          results: automaticPromotion.results.map(result => ({
+            candidateId: result.candidateId,
+            status: result.status,
+            reason: result.reason,
+            ...result.generationId === undefined ? {} : { generationId: result.generationId },
+          })),
+        } }),
     items,
   }
 }

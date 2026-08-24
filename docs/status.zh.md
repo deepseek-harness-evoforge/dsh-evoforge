@@ -173,13 +173,23 @@ Generation 分桶，展示结果、不同 Goal 和 token/cache/latency/active-wa
 bounded、无因果、无 mutation authority。详见
 [V5.11 证据](evidence/v5-11-post-selection-outcome-window.zh.md)。
 
+V5.12 重建了 existing-Skill 的低风险自动晋升，但没有恢复任何静态 Skill target。公开
+`automaticPromotionPolicies` 只含 policy id 与 Workspace id；sole Host release owner 只接受 exact baseline 上
+单一 `SKILL.md` 末尾 1–2048 bytes 追加、整包其余 bytes 不变、protected-effect 为空、Admission/Holdout/
+independent Retention 全通过且 model/token/cache 不回退的 Candidate。自动决策和 inactive Generation 先持久化，
+再只选择未来 Session；durable pause、父版本漂移、取消和 crash fail closed，原生 Jobs 从既有 durable facts
+恢复。Control/Web 只读显示 eligible/pending/promoted/review/paused/blocked 与原因。最终 tarball 已从全新 profile
+验证自动 decision、future-Session selection、整页刷新、Host 断线保留、同 profile 冷恢复、官方卸载和原生
+Web 无残留；真实 provider 长期率仍待后续门禁。详见
+[V5.12 证据](evidence/v5-12-existing-skill-automatic-promotion.zh.md)。
+
 | 能力 | 当前状态 | 已有证据 | 仍缺 |
 |---|---|---|---|
 | 原生 DSH 插件产品形态 | `implemented` | 十一包均有 `name/inject/Config/apply`、Bundle patch、无 bin 合同；同一次 clean-profile tarball add/dump/boot/remove/readback 通过 | 陌生安装与 registry release 门禁 |
 | Evidence-driven Evolution + internal Skill Opportunity | `implemented` | 自然 Goal→Host 复核/持久 Gap；跨 Goal Opportunity；缺失 Skill 的 exact Shadow/Retention/Promotion/Canary/Rollback 与[V4.49 最终包回滚生命周期](evidence/v4-49-missing-skill-canary-rollback-final-browser.zh.md)；existing-Skill 的完整 baseline、protected correction、whole-tree Candidate、paired Holdout/Retention、发布门、[V4.45 最终包浏览器](evidence/v4-45-existing-skill-release-final-browser.zh.md)、[V4.46 failed-Outcome Canary](evidence/v4-46-existing-skill-failed-outcome-canary.zh.md)、[V4.47 独立回滚门](evidence/v4-47-existing-skill-canary-control-rollback.zh.md)与[V4.48 最终包回滚生命周期](evidence/v4-48-existing-skill-canary-rollback-final-browser.zh.md)；历史 runtime 获取、static target、Draft、Shadow proposer 和旧编排均已删除，[V4.54](evidence/v4-54-remove-runtime-search-semantics.zh.md) 又移除活动 Case Pack/报告中的 `search` 命名 | 两套真实 provider、长期误晋升/回滚数据缺失 |
 | 双真实 Provider RP-1 | `implemented` | [V4.55](evidence/v4-55-real-provider-acceptance-gate.zh.md)：显式付费批准前零配置读取/零外部请求；不同 provider/authority/credential/model identity 预检；生产纵切编排；Candidate 盲区、assembled Holdout/Retention、composition、凭据脱敏与 terminal 不盲重试 hard gates；[V4.56](evidence/v4-56-bounded-governance-provider-requests.zh.md)又把两个治理 Provider seam 补齐 60 秒硬上限和 Host cancellation 组合；合同 8/8 与独立类型检查通过 | 当前 `NOT_RUN`；第二套独立 Provider、已授权真实 `passed` 结果和长期 outcome 均缺失 |
 | 真实飞书 AS-2 验收入口 | `implemented` | [V5.8](evidence/v5-8-real-feishu-acceptance-gate.zh.md)：未授权零身份/凭据读取；clean revision、最终 tarball、官方 DSH CLI、生产飞书 transport、exact 入站/回复/Command/Approval/notice、零 uncertain/failed、dispose/remove/native Session readback hard gates；合同 7/7 与独立类型检查通过 | 当前 direct/group 均 `NOT_RUN`；真实 App/chat/user、人工消息/卡片、长期重连和 Hermes paired 仍缺 |
-| Existing-Skill Release + Canary | `implemented` | Release Gate 最终 tarball 已 verified；[V4.46](evidence/v4-46-existing-skill-failed-outcome-canary.zh.md) 增加 exact active release/failed Outcome/Retention replay、原生 Jobs、paid-uncertain 恢复、strict rollback eligibility 与无 mutation authority；[V4.47](evidence/v4-47-existing-skill-canary-control-rollback.zh.md) 增加 bounded Control/Remote/Web、人工确认和 expected-active rollback gate；[V4.48](evidence/v4-48-existing-skill-canary-rollback-final-browser.zh.md) 从最终包验证动作、断连保留、恢复、精确回滚、reload/冷重启和卸载 | 两套真实 provider 与长期率 |
+| Existing-Skill Release + Canary | `implemented` | Release Gate 最终 tarball 已 verified；[V4.46](evidence/v4-46-existing-skill-failed-outcome-canary.zh.md) 增加 exact active release/failed Outcome/Retention replay、原生 Jobs、paid-uncertain 恢复、strict rollback eligibility 与无 mutation authority；[V4.47](evidence/v4-47-existing-skill-canary-control-rollback.zh.md) 增加 bounded Control/Remote/Web、人工确认和 expected-active rollback gate；[V4.48](evidence/v4-48-existing-skill-canary-rollback-final-browser.zh.md) 从最终包验证动作、断连保留、恢复、精确回滚、reload/冷重启和卸载；[V5.12](evidence/v5-12-existing-skill-automatic-promotion.zh.md) 增加 Workspace-only exact append-only/effect-clear/token-cache non-regression 自动门、durable decision/pointer crash recovery、原生 Jobs、只读 Web 状态，并从最终包验证自动晋升、断连保留、冷恢复和卸载 | 两套真实 provider、false-promotion/transfer 长期率与 Hermes paired |
 | Existing-Skill Candidate-blind Holdout Evaluation | `implemented` | [V4.38](evidence/v4-38-existing-skill-candidate-blind-holdout-governance.zh.md) pre-Candidate 治理 + [V4.39](evidence/v4-39-existing-skill-exact-paired-holdout-evaluation.zh.md) exact Admission/baseline/Candidate/Envelope assembled paired Trial、四象限 verdict、输入漂移阻断、paid-uncertain 不盲重试、原生 Jobs 恢复、Host/Web 权威投影和最终 tarball 真实浏览器失败恢复/卸载 | 两套独立真实 provider与长期误晋升数据 |
 | Existing-Skill Exact Retention Evaluation | `implemented` | [V4.40](evidence/v4-40-existing-skill-pre-candidate-retention-governance.zh.md) pre-Candidate Retention + [V4.41](evidence/v4-41-existing-skill-exact-retention-evaluation.zh.md) authoritative improved Holdout、exact 双树/两 Case Pack、四 Goal abstain、四象限、input rehash、paid-uncertain 不重试、原生 Jobs 与 Host 权威投影 + [V4.42](evidence/v4-42-existing-skill-retention-web-browser.zh.md) 最终 tarball 真实 Web reload/断连保留/恢复/卸载 + [V4.48](evidence/v4-48-existing-skill-canary-rollback-final-browser.zh.md) 最终包 Canary/rollback 恢复 | 真实 provider 和长期保持率 |
 | Software Delivery P2A–P2D | `implemented` | 真实 Git、原生 Tool/Goal、Draft PR、checks；Outcome 只从 source-linked Session call/result pair 读取，经官方 durability checkpoint 后投影，并可在 cold Session start 幂等补记；十一包 clean-profile 内从 packed Tool 完成原生 Goal | 真实长期任务与 checkpoint 前 hard kill、checkpoint 后投影前 kill 的跨进程故障注入 |
@@ -203,7 +213,7 @@ bounded、无因果、无 mutation authority。详见
 
 当前 `main` 增量通过根级 `pnpm check`（文档、全包 typecheck、测试和构建）；其中
 `dsh-gateway` 7 files/26 tests、`dsh-evolve-web` 2 files/26 tests、`dsh-evolve-attention` 4 files/11 tests、
-`dsh-feishu` 17 files/48 tests，`dsh-evolve` 67 files/297 tests passed、1 file/1 test skipped；根级累计 556 tests passed、3 skipped。Cache Contract 全通过；Doctor 十一包
+`dsh-feishu` 17 files/48 tests，`dsh-evolve` 67 files/305 tests passed、1 file/1 test skipped；根级累计 564 tests passed、3 skipped。Cache Contract 全通过；Doctor 十一包
 原生合同 22/22，十一包 clean-profile 最终 tarball 的 add/dump/boot/真实
 Session+Goal+Storage+Tool/dispose/remove/reboot/readback 1/1（60.96 秒）；独立 Doctor packed
 add/Loader/command/remove 1/1（10.35 秒）。V4.24 删除旧浏览器 acceptance fixture，并用 DSH Web 组件测试固定“纠正进入

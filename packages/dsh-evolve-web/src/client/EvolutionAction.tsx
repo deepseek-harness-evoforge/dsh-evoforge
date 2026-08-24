@@ -1257,6 +1257,19 @@ function ExistingSkillRetentionEvaluation({
   </section>
 }
 
+function automaticReleaseReasonKey(reason: string): string {
+  return [
+    'clear-low-risk-instruction-improved-and-retained',
+    'instruction-change-is-not-append-only',
+    'instruction-change-has-protected-effects',
+    'candidate-cost-or-cache-regressed',
+    'workspace-paused',
+    'human-decision-controls-release',
+  ].includes(reason)
+    ? `skills.improvements.release.automatic.reason.${reason}`
+    : `skills.improvements.release.reason.${reason}`
+}
+
 function ExistingSkillRelease({
   summary,
   busy,
@@ -1277,13 +1290,24 @@ function ExistingSkillRelease({
 }) {
   const release = summary.existingSkillRelease
   if (release === undefined) return null
+  const automaticByCandidate = new Map(
+    release.automaticPromotion?.results.map(result => [result.candidateId, result]) ?? [],
+  )
   return <section>
     <h3 className="dsh-evolve-section-title">{t('skills.improvements.release')}</h3>
+    {release.automaticPromotion !== undefined
+      && release.automaticPromotion.configuredPolicyCount > 0
+      && <div className="dsh-evolve-message">
+        {t('skills.improvements.release.automatic.enabled')}
+        {' · '}{release.automaticPromotion.scannedCandidateCount} {t('skills.improvements.release.automatic.scanned')}
+        {' · '}{release.automaticPromotion.warningCount} {t('skills.improvements.release.automatic.warnings')}
+      </div>}
     {release.items.length === 0
       ? <div className="dsh-evolve-message">{t('skills.improvements.release.empty')}</div>
       : <ul className="dsh-evolve-list">{release.items.map(item => {
           const note = notes[item.candidateId] ?? ''
           const validNote = note.trim().length > 0
+          const automatic = automaticByCandidate.get(item.candidateId)
           return <li className="dsh-evolve-skill-card" key={item.candidateId}>
             <div className="dsh-evolve-review-skill">{item.skillName}</div>
             <div className="dsh-evolve-capability-route">
@@ -1294,6 +1318,10 @@ function ExistingSkillRelease({
             <div className="dsh-evolve-meta">
               {t(`skills.improvements.release.reason.${item.reason}`)}
             </div>
+            {automatic !== undefined && <div className="dsh-evolve-meta">
+              {t(`skills.improvements.release.automatic.status.${automatic.status}`)}
+              {' · '}{t(automaticReleaseReasonKey(automatic.reason))}
+            </div>}
             <div className="dsh-evolve-meta">
               {t('skills.improvements.release.baseline')} · {shortId(item.baseline.id)} · {shortId(item.baseline.treeHash)}
             </div>

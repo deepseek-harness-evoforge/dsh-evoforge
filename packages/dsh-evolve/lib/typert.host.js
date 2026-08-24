@@ -713,10 +713,21 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'existingSkillRelease': z.union([z.undefined(), z.object({
   'available': z.literal(true).readonly(),
   'actionableCount': z.number().readonly(),
+  'automaticPromotion': z.union([z.undefined(), z.object({
+  'configuredPolicyCount': z.number().readonly(),
+  'scannedCandidateCount': z.number().readonly(),
+  'warningCount': z.number().readonly(),
+  'results': z.array(z.object({
+  'candidateId': z.string().readonly(),
+  'status': z.union([z.literal("eligible"), z.literal("pending-promotion"), z.literal("already-promoted"), z.literal("review-required"), z.literal("paused"), z.literal("blocked")]).readonly(),
+  'reason': z.union([z.literal("clear-low-risk-instruction-improved-and-retained"), z.literal("instruction-change-is-not-append-only"), z.literal("instruction-change-has-protected-effects"), z.literal("candidate-cost-or-cache-regressed"), z.literal("workspace-paused"), z.literal("human-decision-controls-release"), z.literal("exact-existing-skill-evidence-retained"), z.literal("human-rejected"), z.literal("candidate-not-found"), z.literal("candidate-ambiguous"), z.literal("admission-evidence-invalid"), z.literal("admission-not-qualified"), z.literal("holdout-evidence-invalid"), z.literal("holdout-not-improved"), z.literal("retention-evidence-invalid"), z.literal("retention-not-retained"), z.literal("release-decision-evidence-mismatch")]).readonly(),
+  'generationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+})).readonly(),
+})]).readonly().optional(),
   'items': z.array(z.object({
   'candidateId': z.string().readonly(),
   'skillName': z.string().readonly(),
-  'status': z.union([z.literal("eligible"), z.literal("approved"), z.literal("rejected"), z.literal("blocked")]).readonly(),
+  'status': z.union([z.literal("eligible"), z.literal("blocked"), z.literal("approved"), z.literal("rejected")]).readonly(),
   'reason': z.union([z.literal("exact-existing-skill-evidence-retained"), z.literal("human-rejected"), z.literal("candidate-not-found"), z.literal("candidate-ambiguous"), z.literal("admission-evidence-invalid"), z.literal("admission-not-qualified"), z.literal("holdout-evidence-invalid"), z.literal("holdout-not-improved"), z.literal("retention-evidence-invalid"), z.literal("retention-not-retained"), z.literal("release-decision-evidence-mismatch")]).readonly(),
   'baseline': z.object({
   'id': z.string().readonly(),
@@ -2490,7 +2501,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionExistingSkillReleaseView",
-            "declaration": "export interface EvolutionExistingSkillReleaseView {\n    readonly available: true;\n    readonly actionableCount: number;\n    readonly items: readonly { readonly candidateId: string; readonly skillName: string; readonly status: 'eligible' | 'approved' | 'rejected' | 'blocked'; readonly reason: EvolutionExistingSkillReleaseReason; readonly baseline: { readonly id: string; readonly artifactDigest: string; readonly treeHash: string; }; readonly candidate: { readonly artifactDigest: string; readonly treeHash: string; }; readonly diff: { readonly changedPaths: readonly string[]; readonly addedPaths: readonly string[]; readonly preservedFileCount: number; readonly preservedBinaryFileCount: number; }; readonly admissionId?: string; readonly holdoutEvaluationId?: string; readonly retentionEvaluationId?: string; readonly generationId?: string; readonly activeForFutureSessions: boolean; }[];\n}"
+            "declaration": "export interface EvolutionExistingSkillReleaseView {\n    readonly available: true;\n    readonly actionableCount: number;\n    readonly automaticPromotion?: { readonly configuredPolicyCount: number; readonly scannedCandidateCount: number; readonly warningCount: number; readonly results: readonly { readonly candidateId: string; readonly status: 'eligible' | 'pending-promotion' | 'already-promoted' | 'review-required' | 'paused' | 'blocked'; readonly reason: 'clear-low-risk-instruction-improved-and-retained' | 'instruction-change-is-not-append-only' | 'instruction-change-has-protected-effects' | 'candidate-cost-or-cache-regressed' | 'workspace-paused' | 'human-decision-controls-release' | EvolutionExistingSkillReleaseReason; readonly generationId?: string; }[]; };\n    readonly items: readonly { readonly candidateId: string; readonly skillName: string; readonly status: 'eligible' | 'approved' | 'rejected' | 'blocked'; readonly reason: EvolutionExistingSkillReleaseReason; readonly baseline: { readonly id: string; readonly artifactDigest: string; readonly treeHash: string; }; readonly candidate: { readonly artifactDigest: string; readonly treeHash: string; }; readonly diff: { readonly changedPaths: readonly string[]; readonly addedPaths: readonly string[]; readonly preservedFileCount: number; readonly preservedBinaryFileCount: number; }; readonly admissionId?: string; readonly holdoutEvaluationId?: string; readonly retentionEvaluationId?: string; readonly generationId?: string; readonly activeForFutureSessions: boolean; }[];\n}"
           },
           {
             "name": "EvolutionExistingSkillRetentionEvaluationView",

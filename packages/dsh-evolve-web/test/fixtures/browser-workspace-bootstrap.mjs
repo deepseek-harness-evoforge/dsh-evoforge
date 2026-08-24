@@ -50,6 +50,12 @@ export async function apply(ctx, config) {
           dshRevision: '47f943859bef60e4160492346772ded9b24f765a',
         }] }
       : {}),
+    ...(config.seedAutomaticExistingSkillPromotion === true
+      ? { automaticPromotionPolicies: [{
+          id: 'browser-clear-instruction-auto-promotion',
+          workspaceId: String(workspace.id),
+        }] }
+      : {}),
     supervisor: {
       runRoots: [{
         workspaceId: String(workspace.id),
@@ -111,11 +117,22 @@ export async function apply(ctx, config) {
   if (releaseSeed !== undefined) {
     const releaseOverview = await waitFor(ctx, String(workspace.id), String(agent.session.id), value =>
       value.existingSkillRelease?.items.some(item =>
-        item.candidateId === releaseSeed.candidateId
-          && (item.status === 'eligible' || item.status === 'approved')) === true,
-    'real browser fixture did not expose an eligible or approved existing Skill release')
+        item.candidateId === releaseSeed.candidateId) === true,
+    'real browser fixture did not expose the exact existing Skill release')
     const release = releaseOverview.existingSkillRelease.items.find(item =>
       item.candidateId === releaseSeed.candidateId)
+    if (release?.status !== 'eligible' && release?.status !== 'approved') {
+      throw new Error(
+        `real browser fixture existing Skill release is ${release?.status ?? 'missing'}: ${release?.reason ?? 'unknown'}`,
+      )
+    }
+    if (config.seedAutomaticExistingSkillPromotion === true) {
+      await waitFor(ctx, String(workspace.id), String(agent.session.id), value =>
+        value.existingSkillRelease?.automaticPromotion?.results.some(result =>
+          result.candidateId === releaseSeed.candidateId
+            && result.status === 'already-promoted') === true,
+      'real browser fixture did not expose the automatic existing-Skill promotion')
+    }
     if (config.seedExistingSkillCounterfactualCanary === true
       && release?.status === 'approved'
       && release.generationId !== undefined
@@ -176,46 +193,79 @@ export async function apply(ctx, config) {
 async function seedExistingSkillReleaseCandidate(ctx, workspace, config) {
   const workspaceId = String(workspace.id)
   const skillName = 'verify-dsh-release'
+  const baselineSkill = [
+    '---',
+    `name: ${skillName}`,
+    'description: Verify the original DSH release procedure.',
+    '---',
+    '',
+    '# Original DSH release procedure',
+    '',
+    'Run the original verification sequence.',
+    '',
+  ].join('\n')
+  const candidateSkill = baselineSkill + [
+    'Before completion, compare the final result with the Goal\'s stated acceptance criteria and record any mismatch.',
+    '',
+  ].join('\n')
   const baseline = await assembleBrowserSkillBundle([{
     path: 'SKILL.md',
-    content: [
-      '---',
-      `name: ${skillName}`,
-      'description: Verify the original DSH release procedure.',
-      '---',
-      '',
-      '# Original DSH release procedure',
-      '',
-      'Run the original verification sequence.',
-      '',
-    ].join('\n'),
+    content: baselineSkill,
   }, {
     path: 'assets/preserved.bin',
     content: Buffer.from([0, 1, 2, 255]),
   }])
   const candidateArchive = await assembleBrowserSkillBundle([{
     path: 'SKILL.md',
-    content: [
-      '---',
-      `name: ${skillName}`,
-      'description: Verify the strengthened DSH release procedure.',
-      '---',
-      '',
-      '# Strengthened DSH release procedure',
-      '',
-      'Follow the [verified release contract](references/release.md).',
-      '',
-    ].join('\n'),
+    content: candidateSkill,
   }, {
     path: 'assets/preserved.bin',
     content: Buffer.from([0, 1, 2, 255]),
-  }, {
-    path: 'references/release.md',
-    content: '# Verified release contract\n\nInstall, boot, reload, recover, and uninstall.\n',
   }])
   const opportunityId = sha256('browser-existing-skill-opportunity')
   const qualificationId = sha256('browser-existing-skill-qualification')
-  const baselineId = sha256('browser-existing-skill-baseline')
+  const baselineIdentity = {
+    schemaVersion: 1,
+    kind: 'installed-skill-baseline-v1',
+    workspaceId,
+    skillName,
+    invocationContentHash: sha256('browser-existing-skill-invocation-content'),
+    provider: 'browser-fixture',
+    source: 'browser-fixture',
+    definitionDigest: sha256('browser-existing-skill-definition'),
+    artifactDigest: baseline.artifactDigest,
+    treeHash: baseline.treeHash,
+  }
+  const baselineId = sha256(JSON.stringify(baselineIdentity))
+  const baselineRoot = join(
+    config.governanceRoot,
+    'installed-skill-baselines',
+    'bundles',
+    baselineId,
+  )
+  await mkdir(baselineRoot, { recursive: true, mode: 0o700 })
+  await writeFile(join(baselineRoot, 'bundle.tar.gz'), baseline.content, { mode: 0o600 })
+  await writeFixtureJson(join(baselineRoot, 'manifest.json'), {
+    schemaVersion: 1,
+    kind: 'installed-skill-baseline-v1',
+    id: baselineId,
+    workspaceId,
+    skillName,
+    invocationContentHash: baselineIdentity.invocationContentHash,
+    provider: baselineIdentity.provider,
+    source: baselineIdentity.source,
+    definitionDigest: baselineIdentity.definitionDigest,
+    createdAt: Date.parse('2026-08-21T00:00:00.000Z'),
+    bundle: {
+      format: 'tar.gz',
+      artifactDigest: baseline.artifactDigest,
+      treeHash: baseline.treeHash,
+      fileCount: baseline.files.length,
+      totalBytes: baseline.totalBytes,
+      hasExecutableFiles: false,
+    },
+    releaseAuthority: 'none',
+  })
   const evaluationEvidenceId = sha256('browser-existing-skill-evaluation-evidence')
   const envelopeId = sha256('browser-existing-skill-holdout-envelope')
   const input = {
@@ -255,8 +305,8 @@ async function seedExistingSkillReleaseCandidate(ctx, workspace, config) {
     contentHash: candidateArchive.artifactDigest,
     diff: {
       kind: 'bounded-instruction-tree-diff-v1',
-      changedPaths: ['SKILL.md', 'references/release.md'],
-      addedPaths: ['references/release.md'],
+      changedPaths: ['SKILL.md'],
+      addedPaths: [],
       preservedFileCount: 1,
       preservedBinaryFileCount: 1,
     },
@@ -358,8 +408,8 @@ async function seedExistingSkillReleaseCandidate(ctx, workspace, config) {
       evaluationEvidenceId,
       protectedAdmissionSampleHash: sha256('browser-protected-admission-sample'),
       protectedAdmissionSampleCount: 1,
-      changedFileCount: 2,
-      addedFileCount: 1,
+      changedFileCount: 1,
+      addedFileCount: 0,
       preservedFileCount: 1,
       preservedBinaryFileCount: 1,
       candidateExecuted: false,

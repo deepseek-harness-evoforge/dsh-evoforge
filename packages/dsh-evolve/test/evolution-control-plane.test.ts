@@ -1753,6 +1753,16 @@ describe('EvolutionControlPlane', () => {
         holdoutEvaluationId: '8'.repeat(64),
         retentionEvaluationId: '9'.repeat(64),
       }]),
+      scanAutomatic: vi.fn(async () => ({
+        configuredPolicyCount: 1,
+        scannedCandidateCount: 1,
+        warningCount: 0,
+        results: [{
+          candidateId: existingCandidateId,
+          status: 'review-required' as const,
+          reason: 'instruction-change-is-not-append-only' as const,
+        }],
+      })),
       approve: vi.fn(async () => ({
         schemaVersion: 1 as const,
         kind: 'existing-skill-release-decision-v1' as const,
@@ -1799,9 +1809,20 @@ describe('EvolutionControlPlane', () => {
 
     const overview = await control.overview(WORKSPACE_ID)
     expect(release.scan).toHaveBeenCalledWith(WORKSPACE_ID)
+    expect(release.scanAutomatic).toHaveBeenCalledWith(WORKSPACE_ID)
     expect(overview.existingSkillRelease).toEqual({
       available: true,
       actionableCount: 1,
+      automaticPromotion: {
+        configuredPolicyCount: 1,
+        scannedCandidateCount: 1,
+        warningCount: 0,
+        results: [{
+          candidateId: existingCandidateId,
+          status: 'review-required',
+          reason: 'instruction-change-is-not-append-only',
+        }],
+      },
       items: [{
         candidateId: existingCandidateId,
         skillName: 'build-dsh-plugin',

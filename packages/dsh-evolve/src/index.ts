@@ -83,7 +83,9 @@ import {
   ExistingSkillRetentionEvaluationScheduler,
 } from './existing-skill-retention-evaluation.ts'
 import {
+  ExistingSkillAutomaticPromotionScheduler,
   ExistingSkillRelease,
+  type ExistingSkillAutomaticPromotionPolicy,
   openExistingSkillReleaseStore,
 } from './existing-skill-release.ts'
 import {
@@ -121,6 +123,8 @@ export interface Config {
   cacheRoot?: string
   selfDiscoveryPolicies?: SkillOpportunityAuthoringPolicyConfig[]
   candidateEvaluationPolicies?: SkillCandidateEvaluationPolicyConfig[]
+  /** Workspace-only authority for exact low-risk existing-Skill instruction promotion. */
+  automaticPromotionPolicies?: ExistingSkillAutomaticPromotionPolicy[]
   supervisor?: {
     runRoots: Array<{ workspaceId: string; path: string }>
     scanIntervalMs?: number
@@ -142,6 +146,10 @@ export const Config: Schema<Config> = z.object({
     runRoot: z.string().required(),
     dshRevision: z.string(),
     maxAttemptsPerUtcDay: z.number().step(1).min(1).max(20).default(1),
+  })).max(100).default([]),
+  automaticPromotionPolicies: z.array(z.object({
+    id: z.string().required(),
+    workspaceId: z.string().required(),
   })).max(100).default([]),
   supervisor: z.object({
     runRoots: z.array(z.object({
@@ -189,6 +197,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   })
   const candidateEvaluationPolicies = config.candidateEvaluationPolicies ?? []
   const selfDiscoveryPolicies = config.selfDiscoveryPolicies ?? []
+  const automaticPromotionPolicies = config.automaticPromotionPolicies ?? []
   if (selfDiscoveryPolicies.some(policy => !candidateEvaluationPolicies.some(evaluation =>
     evaluation.workspaceId === policy.workspaceId))) {
     throw new Error('internal Skill authoring requires an evaluation governance policy for every Workspace')
@@ -196,6 +205,16 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   if (selfDiscoveryPolicies.some(policy => !candidateEvaluationPolicies.some(evaluation =>
     evaluation.workspaceId === policy.workspaceId && evaluation.dshRevision !== undefined))) {
     throw new Error('internal Skill authoring requires an exact DSH revision for autonomous evaluation governance')
+  }
+  if (automaticPromotionPolicies.some(policy => !candidateEvaluationPolicies.some(evaluation =>
+    evaluation.workspaceId === policy.workspaceId && evaluation.dshRevision !== undefined))) {
+    throw new Error('automatic existing Skill promotion requires exact evaluation governance for every Workspace')
+  }
+  const resident = config.supervisor === undefined || config.supervisor.runRoots.length === 0
+    ? undefined
+    : new ResidentEvolutionControl(store)
+  if (automaticPromotionPolicies.length > 0 && resident === undefined) {
+    throw new Error('automatic existing Skill promotion requires the durable resident pause authority')
   }
   const skillEvaluationEvidence = new SkillEvaluationEvidenceVault(
     candidateEvaluationPolicies,
@@ -408,7 +427,24 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         decisions: existingSkillReleaseStore,
         store,
         bundles: source,
+        baselines: {
+          resolveBaseline: (workspaceId, baselineId) => {
+            if (existingSkillBaselineVault === undefined) {
+              return Promise.reject(new Error('existing Skill baseline vault is unavailable'))
+            }
+            return existingSkillBaselineVault.resolveBaseline(workspaceId, baselineId)
+          },
+        },
+        automaticPromotionPolicies,
+        isPaused: workspaceId => resident?.isPaused(workspaceId) ?? true,
       })
+  const existingSkillAutomaticPromotionScheduler = existingSkillRelease === undefined
+    || automaticPromotionPolicies.length === 0
+    ? undefined
+    : new ExistingSkillAutomaticPromotionScheduler(
+        existingSkillRelease,
+        automaticPromotionPolicies.map(policy => policy.workspaceId),
+      )
   const existingSkillCounterfactualCanary = existingSkillRelease === undefined
     || existingSkillRetentionEvaluation === undefined
     ? undefined
@@ -437,6 +473,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         existingSkillRetentionEvaluation,
         { listExistingCandidates: workspaceId => skillCandidateStore.listExistingCandidates(workspaceId) },
         existingSkillHoldoutEvaluation!,
+        {
+          onResult: candidate =>
+            existingSkillAutomaticPromotionScheduler?.observe(candidate.workspaceId),
+        },
       )
   existingSkillHoldoutEvaluationScheduler = existingSkillHoldoutEvaluation === undefined
     ? undefined
@@ -583,9 +623,6 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         inbox: new ReviewInbox(config.supervisor.runRoots),
         publisher: new CandidatePublisher(store, source),
       }
-  const resident = config.supervisor === undefined || config.supervisor.runRoots.length === 0
-    ? undefined
-    : new ResidentEvolutionControl(store)
   const promotion = review === undefined || skillRetention === undefined
     ? undefined
     : new FutureSessionPromotion({
@@ -784,6 +821,18 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       }, 'dsh-evolve.existingSkillRetentionJobs')
     })
   }
+  if (existingSkillAutomaticPromotionScheduler !== undefined) {
+    ctx.inject(['jobs'], (jobCtx) => {
+      jobCtx.effect(() => {
+        const detachController = jobCtx.jobs.attachController('dsh-evolve-existing-skill-auto-promotion')
+        const detachPromotion = existingSkillAutomaticPromotionScheduler.attachJobs(jobCtx.jobs)
+        return () => {
+          detachPromotion()
+          detachController()
+        }
+      }, 'dsh-evolve.existingSkillAutomaticPromotionJobs')
+    })
+  }
   if (existingSkillCounterfactualCanaryScheduler !== undefined) {
     ctx.inject(['jobs'], (jobCtx) => {
       jobCtx.effect(() => {
@@ -820,6 +869,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         afterScan: async (_signal, workspaceId) => {
           counterfactualCanaryScheduler?.observe(workspaceId)
           existingSkillCounterfactualCanaryScheduler?.observe(workspaceId)
+          existingSkillAutomaticPromotionScheduler?.observe(workspaceId)
           ctx.emit('evoforge/evolution/settled')
         },
         runner: createShadowJobRunner(jobCtx.jobs, runShadow),
@@ -941,8 +991,18 @@ export type {
   ExistingSkillCounterfactualCanaryResult,
   ExistingSkillCounterfactualCanaryScan,
 } from './existing-skill-counterfactual-canary.ts'
-export { ExistingSkillRelease, openExistingSkillReleaseStore } from './existing-skill-release.ts'
+export {
+  ExistingSkillAutomaticPromotionScheduler,
+  ExistingSkillRelease,
+  openExistingSkillReleaseStore,
+} from './existing-skill-release.ts'
 export type {
+  ExistingSkillAutomaticPromotionPolicy,
+  ExistingSkillAutomaticPromotionReason,
+  ExistingSkillAutomaticPromotionResult,
+  ExistingSkillAutomaticPromotionScan,
+  ExistingSkillAutomaticPromotionStatus,
+  ExistingSkillAutomaticPromotionStatusScan,
   ExistingSkillReleaseDecision,
   ExistingSkillReleaseEligibility,
   ExistingSkillReleaseReason,

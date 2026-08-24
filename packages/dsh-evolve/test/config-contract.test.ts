@@ -6,6 +6,7 @@ describe('dsh-evolve public configuration', () => {
     const keys = Object.keys((Config as unknown as { dict: Record<string, unknown> }).dict).sort()
 
     expect(keys).toEqual([
+      'automaticPromotionPolicies',
       'cacheRoot',
       'candidateEvaluationPolicies',
       'selfDiscoveryPolicies',
@@ -16,5 +17,10 @@ describe('dsh-evolve public configuration', () => {
     expect(rendered).not.toMatch(
       /repository|sources|shadowTargets|evaluatorTargets|automaticFeedbackTargets|automaticEvaluatorTargets|autoPromote|feedbackDraftRoot/u,
     )
+    expect(rendered).toContain('automaticPromotionPolicies')
+    const automatic = (Config as unknown as {
+      dict: { automaticPromotionPolicies: { inner: { dict: Record<string, unknown> } } }
+    }).dict.automaticPromotionPolicies
+    expect(Object.keys(automatic.inner.dict).sort()).toEqual(['id', 'workspaceId'])
   })
 })

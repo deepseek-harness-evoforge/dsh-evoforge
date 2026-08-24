@@ -104,6 +104,8 @@ promotable Shadow 在同一 DSH Jobs 任务中进入 `InternalSkillRetention`。
 
 existing-Skill 不复用 capability-absent Shadow。`ExistingSkillCandidateAdmission` 先以 Host-only 结构检查给出 `qualified-for-holdout`；`ExistingSkillHoldoutEvaluation` 再重新解析 exact Admission、installed baseline、whole-tree Candidate 和 Candidate 内容身份已绑定的 Candidate-blind Envelope，把两个 `skill-tree` 交给同一 assembled DSH Trial。Envelope 缺失或错配在 Candidate 物化和 Trial 前失败关闭；运行前后重验三棵树、固定 DSH revision、calibration 和非目标 composition。付费 Trial dispatch 前写入 durable pending；重启时若结果未知则标为 uncertain，不盲重试。四象限 verdict 只进入后续 Retention 的证据输入，本身无 release authority。
 
+existing-Skill 的 narrow automatic release 不增加第四个 plane。Workspace-only deployment policy 只授权 mutation class，不能选择 Skill/路径/来源/Candidate/Case Pack；`ExistingSkillRelease` 继续是唯一 writer。它在正常 Admission→Holdout→Retention release evidence 之外重验 exact baseline/Candidate archive，只允许 `SKILL.md` 尾部追加 1–2048 canonical UTF-8 bytes、其他整包 bytes/mode 全等、protected-effect indicators 为空，并要求两个 paired gate 的 model calls/token/cache 不回退。Host 先写 automatic decision 和 inactive Generation，再 expected-parent 选择未来 Session；当前 Session pin 不变。原生 Jobs 只从 durable facts 唤醒 reconcile，Web overview 只调用无 mutation 的 `scanAutomatic()`。更广变更、指标回退、pause、parent drift 或 crash 均保留人工/恢复路径。
+
 ## 8. Generation、Promotion 与 rollback
 
 经复核的 Candidate 可形成 immutable、content-addressed、inactive `skill-bundle` Capability Generation。`FutureSessionPromotion` 是独立 Host authority，每次 Command/Web 晋升时都重新读取：
