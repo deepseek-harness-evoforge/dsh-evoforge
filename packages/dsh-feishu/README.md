@@ -129,7 +129,7 @@ schema/cache 稳定，旧 Session 仍保留同名 schema，但每次执行都会
 - 发送意图先落盘；每次文本发送固定 30 秒 wall-clock 上限并把 Gateway signal 传入官方 HTTP transport；
   明确 429 才有界重试；timeout、传输失败或崩溃中的 `sending` 转为 `uncertain`，不自动重复发送；Approval
   卡片同样组合 30 秒上限、Adapter lifecycle 与原生 request signal；
-- 单 route Session 的 Goal/Schedule continuation 可主动投递；多 route Session 的主动目标不明确时 fail closed；host notice 必须显式指定 `routeId`；
+- 单 route Session 的 Goal/Schedule continuation 可主动投递；create 已完成 Session checkpoint、dispatch 前进程死亡时，Adapter 启动会经静态 Gateway route 恢复 exact Session，官方 Schedule 处理 overdue，并由 durable turn journal 投递一次；后续 Host 启动不重放；多 route Session 的主动目标不明确时 fail closed；host notice 必须显式指定 `routeId`；
 - `/feishu` 是原生 DSH Command；Adapter 把 transport lifecycle 的脱敏 observation 注册到 Gateway，它再与
   当前 Session 的权威 outbound 投影共同生成带版本的健康快照。DSH Web 打开面板或人工点击刷新时复用这个 Command，
   不后台轮询，不调用模型，也不显示凭据、chat/user identity、外部 message id 或消息正文；
@@ -148,6 +148,10 @@ AttachmentStore、LLM ContentBlock 和 DeepSeek Files 路径仍为 image-only；
 因此本插件当前没有把飞书普通文件、音频或视频宣称为已完成：不得把外部
 `fileKey`、URL、base64 或伪造 file block 写入 Session。文档、知识库、云盘元数据和多维表格读取已有
 assembled DSH 自动化证据，但真实飞书 App scope、资源权限拒绝与真实内容仍待验收。
+
+Schedule 的进程恢复证据只覆盖 durable create 之后、follow-up/dispatch 之前的 `SIGKILL`。官方 DSH Schedule
+仍明确保留 follow-up 已同步入队但 dispatch 尚未 checkpoint 的窄重复窗口；本插件不复制 Schedule 状态来掩盖
+该语义，也不宣称全窗口 exactly-once。
 
 真实 exact-route 渠道验收使用仓库阶段入口 `pnpm benchmark:feishu:as2`，详见
 [AS-2 说明](../../benchmarks/feishu-v0.1/as2-real-channel/README.zh.md)。它只在显式授权后从最终

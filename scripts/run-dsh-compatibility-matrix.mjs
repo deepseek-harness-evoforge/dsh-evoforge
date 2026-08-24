@@ -38,7 +38,7 @@ export function runCompatibilityMatrix(sourceDir) {
     ['--filter', 'dsh-doctor', 'exec', 'vitest', 'run', 'test/suite-native-plugin-contract.test.ts', '--maxWorkers', '1'],
     ['--filter', 'dsh-software-delivery', 'exec', 'vitest', 'run', 'test/clean-profile-suite.e2e.test.ts', 'test/suite-upgrade.e2e.test.ts', '--maxWorkers', '1'],
     ['--filter', 'dsh-evolve', 'exec', 'vitest', 'run', 'test/generation-binder.e2e.test.ts', '--maxWorkers', '1'],
-    ['--filter', 'dsh-feishu', 'exec', 'vitest', 'run', 'test/dsh-assembled-chat.e2e.test.ts', 'test/dsh-assembled-content.e2e.test.ts', 'test/full-channel-cache-composition.e2e.test.ts', '--maxWorkers', '1'],
+    ['--filter', 'dsh-feishu', 'exec', 'vitest', 'run', 'test/dsh-assembled-chat.e2e.test.ts', 'test/dsh-assembled-content.e2e.test.ts', 'test/full-channel-cache-composition.e2e.test.ts', 'test/native-schedule-restart.e2e.test.ts', '--maxWorkers', '1'],
   ]
   process.stdout.write(`DSH compatibility target ${target.version} ${target.revision} at ${target.root}\n`)
   for (const args of checks) {
