@@ -17,12 +17,9 @@ if (resolved.status !== 'ready') {
       status: 'failed',
       chatKind: resolved.report.chatKind,
       appIdentityHash: resolved.report.appIdentityHash,
-      routeIdentityHash: resolved.report.routeIdentityHash,
       reasons: [boundedError(error, [
         resolved.execution.appId,
         resolved.execution.appSecret,
-        resolved.execution.conversationId,
-        resolved.execution.userId,
       ])],
     }, null, 2)}\n`)
     process.exitCode = 1

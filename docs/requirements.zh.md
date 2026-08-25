@@ -19,6 +19,7 @@
 > V5.20 对该窄窗口做了真实反向故障注入：第一次平台效果已写出、包含 dispatch 的 Session batch 仍被阻塞时 `SIGKILL`；恢复后 Schedule 会重跑非 durable turn，但 Gateway 因 exact route+turn intent 不第二次调用平台，跨进程效果保持一条。该结论只覆盖渠道外部效果；模型、token、时延和成本仍可能重复，不增加 Schedule parser、causal key 或私有日程状态。
 > V5.21 将阶段专用 AS-2 提升为 epoch-2：活动 clean-profile 组合必须在 Gateway route 创建 Agent 前加载官方 Schedule，并通过 agent-scoped `schedule_create` 形成精确一次 create/dispatch/Schedule 插件来源 `user/message`、真实 route delivered 增量与卸载后 Session readback。持久终态必须精确包含十一项关闭 observation；旧 epoch、缺 Schedule 或损坏报告不得复用。合同 9/9、类型和 Feishu 52/52 通过，但 direct/group 仍为 `NOT_RUN`，不构成真实平台证据。
 > V5.22 已推翻 setup-only Session pairing：Gateway 是 Host 常驻 authority，Adapter boot 即连接；陌生 DM 在 Agent 前回短期 code，Host Web批准到当前 native Workspace/Session，下一条消息直接采用动态 grant。旧 `/feishu-pair`、两分钟 listener、反向短语、静态 YAML 与倒计时 UI 已删除。最终 tarball 在真实 rc.2 App 完成 direct DM 配对、三次 native Session/回复和 Host 冷启动恢复；真实 Approval/Schedule/group/failure/长期重连仍是退出门。
+> V5.23 已同步推翻 AS-2 中残留的静态 route 验收：epoch-3 启动前只接受 App credential、DSH source 和隔离 run root，不接受 conversation/user/chat kind；真实 principal 必须由未知 DM pending code 与 Host approval 产生。关闭门增加动态 Host notice 与冷启动后的新增消息/回复；direct 与 group 分开验收，当前完整 epoch-3 仍未真实运行。
 > 更新日期：2026-08-25
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。发生冲突时，下述“方向纠正”优先于旧里程碑文字。
 

@@ -11,6 +11,7 @@ import {
   writeFile,
 } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
+import { createInterface } from 'node:readline/promises'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
 import {
@@ -28,7 +29,7 @@ const suiteRoot = resolve(benchmarkRoot, '../../..')
 const RESULT_FILE = 'result.json'
 const STATE_FILE = 'state.json'
 const PROFILE_NAME = 'web'
-const ROUTE_ID = 'feishu-as2-real'
+const SEED_ROUTE_ID = 'as2-native-session-seed'
 const SESSION_ID = 'evoforge-feishu-as2-real'
 
 type ReadyReport = Extract<RealFeishuAcceptanceResolution, { status: 'ready' }>['report']
@@ -48,6 +49,23 @@ interface GatewayHealthSnapshot {
 
 interface RuntimeGateway {
   healthSnapshot(observedAt?: number, routeIds?: readonly string[]): GatewayHealthSnapshot
+  resolve(id: string, signal?: AbortSignal): Promise<RuntimeAgent>
+  route(id: string): {
+    readonly id: string
+    readonly adapter: string
+    readonly accountId: string
+    readonly conversationId: string
+    readonly threadId?: string
+    readonly userId: string
+    readonly workspaceId: string
+    readonly sessionId: string
+  } | undefined
+  approvePairingForSession(input: {
+    readonly code: string
+    readonly adapter: string
+    readonly workspaceId: string
+    readonly sessionId: string
+  }): Promise<{ readonly routeId: string; readonly workspaceId: string; readonly sessionId: string }>
 }
 
 type AcceptanceReport = RealFeishuTerminalReport
@@ -58,8 +76,7 @@ interface AcceptanceState {
   readonly manifestHash: string
   readonly revisions: { readonly evoforge: string; readonly deepseekHarness: string }
   readonly appIdentityHash: string
-  readonly routeIdentityHash: string
-  readonly chatKind: 'direct' | 'group'
+  readonly chatKind: 'direct'
   readonly challenge: string
   readonly stage: string
   readonly updatedAt: string
@@ -100,6 +117,7 @@ interface RuntimeEvent {
 }
 
 interface FeishuHostRoute {
+  readonly routes: readonly { readonly routeId: string; readonly workspaceId: string }[]
   observedChatKind(routeId: string): 'direct' | 'group' | undefined
   notify(notice: { readonly id: string; readonly routeId: string; readonly text: string }): Promise<{
     readonly created: boolean
@@ -146,8 +164,6 @@ export async function executeRealFeishuAcceptance(
     evoforgeRevision,
     dshRevision,
     preflight.appIdentityHash,
-    preflight.routeIdentityHash,
-    preflight.chatKind,
   ]))
   const runDir = await exactDirectory(join(root, BENCHMARK_ID, runId))
   const resultPath = join(runDir, RESULT_FILE)
@@ -169,7 +185,6 @@ export async function executeRealFeishuAcceptance(
     manifestHash,
     revisions: { evoforge: evoforgeRevision, deepseekHarness: dshRevision },
     appIdentityHash: preflight.appIdentityHash,
-    routeIdentityHash: preflight.routeIdentityHash,
     chatKind: preflight.chatKind,
     challenge,
   }
@@ -178,6 +193,7 @@ export async function executeRealFeishuAcceptance(
   let restoreRuntimeEnvironment: (() => void) | undefined
   let observations = emptyObservations()
   let gatewayFacts: AcceptanceReport['gateway']
+  let routeIdentityHash: string | undefined
   await writeState(statePath, stateBase, stage)
   try {
     const dshHome = join(runDir, 'dsh-home')
@@ -214,7 +230,6 @@ export async function executeRealFeishuAcceptance(
     }
     await writeAcceptanceOverlay(
       join(profileDir, 'cordis.patch.yml'),
-      config,
       workspaceId,
       join(config.dshSourceDir, 'examples', 'headless-agent', 'tests', 'fixtures', 'cli-mock-llm.ts'),
     )
@@ -227,6 +242,7 @@ export async function executeRealFeishuAcceptance(
     if (!dumped.stdout.includes('id: as2-schedule')
       || !dumped.stdout.includes('id: as2-gateway')
       || !dumped.stdout.includes('id: as2-feishu')
+      || !dumped.stdout.includes('mode: pairing')
       || !dumped.stdout.includes(`sessionId: ${SESSION_ID}`)) {
       throw new Error('AS-2 effective DSH profile is missing an intended real-channel row')
     }
@@ -241,8 +257,9 @@ export async function executeRealFeishuAcceptance(
       dshHome,
     )
     const gateway = requireGateway(context)
+    let agent = await gateway.resolve(SEED_ROUTE_ID, new AbortController().signal)
     await eventually(() => {
-      const health = gateway.healthSnapshot(Date.now(), [ROUTE_ID])
+      const health = gateway.healthSnapshot()
       return health.lifecycle === 'ready'
         && health.routes.liveSessions === 1
         && health.transports.ready === 1
@@ -250,17 +267,51 @@ export async function executeRealFeishuAcceptance(
     }, config.interactionTimeoutMs, 'official Feishu transport did not become ready')
     observations = { ...observations, officialTransportReady: true }
 
-    stage = 'awaiting-exact-inbound'
+    const userMessagesBeforePairing = countUserMessages(agent.session.events)
+    stage = 'awaiting-resident-pairing-code'
     await writeState(statePath, stateBase, stage)
     process.stderr.write(
-      `AS-2 ready (${preflight.chatKind}). Send this exact text from the configured Feishu user/chat:\n${challenge}\n`,
+      'AS-2 resident Gateway is ready. Send any private message to the Feishu bot, then enter the returned code here.\n',
     )
-    const agent = await requireAgent(context, config.interactionTimeoutMs)
+    const pairingCode = await readPairingCode(config.interactionTimeoutMs)
+    if (countUserMessages(agent.session.events) !== userMessagesBeforePairing) {
+      throw new Error('the unknown pairing DM entered the native DSH Session before Host approval')
+    }
+    const pairing = await gateway.approvePairingForSession({
+      code: pairingCode,
+      adapter: 'feishu',
+      workspaceId,
+      sessionId: SESSION_ID,
+    })
+    const pairedRoute = gateway.route(pairing.routeId)
+    if (pairedRoute === undefined
+      || pairedRoute.adapter !== 'feishu'
+      || pairedRoute.accountId !== config.appId
+      || pairedRoute.workspaceId !== workspaceId
+      || pairedRoute.sessionId !== SESSION_ID) {
+      throw new Error('resident pairing did not create the exact native DSH route')
+    }
+    routeIdentityHash = sha256(JSON.stringify([
+      pairedRoute.accountId,
+      pairedRoute.conversationId,
+      pairedRoute.threadId ?? null,
+      pairedRoute.userId,
+    ]))
+    observations = { ...observations, residentPairingGranted: true }
+
+    stage = 'awaiting-exact-inbound'
+    await writeState(statePath, stateBase, stage)
+    process.stderr.write(`Pairing approved. Send this exact text as the next private message:\n${challenge}\n`)
     await eventually(() => hasExactUserText(agent.session.events, challenge), config.interactionTimeoutMs,
       'exact Feishu challenge was not observed in the native DSH Session')
-    const observedChatKind = requireFeishuHostRoute(context).observedChatKind(ROUTE_ID)
-    if (observedChatKind !== config.chatKind) {
-      throw new Error(`AS-2 observed ${observedChatKind ?? 'unknown'} chat kind, expected ${config.chatKind}`)
+    const hostRoute = requireFeishuHostRoute(context)
+    const observedChatKind = hostRoute.observedChatKind(pairing.routeId)
+    if (observedChatKind !== 'direct') {
+      throw new Error(`AS-2 observed ${observedChatKind ?? 'unknown'} chat kind, expected direct`)
+    }
+    if (!hostRoute.routes.some(binding => binding.routeId === pairing.routeId
+      && binding.workspaceId === workspaceId)) {
+      throw new Error('resident paired route was not projected to the Host notice seam')
     }
     observations = { ...observations, exactInboundChallenge: true }
     let deliveredBefore = await exactDeliveredIncrement(
@@ -268,6 +319,7 @@ export async function executeRealFeishuAcceptance(
       0,
       config.interactionTimeoutMs,
       'native DSH final reply was not durably delivered to Feishu',
+      pairing.routeId,
     )
     observations = { ...observations, replyDelivered: true }
 
@@ -281,6 +333,7 @@ export async function executeRealFeishuAcceptance(
       deliveredBefore,
       config.interactionTimeoutMs,
       'the /feishu Command result was not delivered',
+      pairing.routeId,
     )
     observations = { ...observations, commandRoundTrip: true }
 
@@ -294,6 +347,7 @@ export async function executeRealFeishuAcceptance(
       deliveredBefore,
       config.interactionTimeoutMs,
       'the official DSH Schedule result was not delivered to Feishu',
+      pairing.routeId,
     )
     observations = { ...observations, nativeScheduleRoundTrip: true }
 
@@ -310,7 +364,7 @@ export async function executeRealFeishuAcceptance(
     await writeState(statePath, stateBase, stage)
     const notice = await requireFeishuHostRoute(context).notify({
       id: sha256(`${runId}\0notice`),
-      routeId: ROUTE_ID,
+      routeId: pairing.routeId,
       text: 'EvoForge AS-2 real-channel acceptance: durable host notice.',
     })
     if (!notice.created) throw new Error('AS-2 notice reused an effect before this exact run')
@@ -319,8 +373,9 @@ export async function executeRealFeishuAcceptance(
       deliveredBefore,
       config.interactionTimeoutMs,
       'the durable host notice was not delivered',
+      pairing.routeId,
     )
-    const health = gateway.healthSnapshot(Date.now(), [ROUTE_ID])
+    const health = gateway.healthSnapshot(Date.now(), [pairing.routeId])
     if (countExactUserText(agent.session.events, challenge) !== 1) {
       throw new Error('AS-2 exact challenge was admitted more than once')
     }
@@ -329,6 +384,40 @@ export async function executeRealFeishuAcceptance(
       throw new Error('AS-2 observed an uncertain or failed Gateway effect')
     }
     observations = { ...observations, noticeDelivered: true }
+    await context.sessions.flush(agent.session)
+
+    stage = 'resident-host-clean-restart'
+    await writeState(statePath, stateBase, stage)
+    await context.fiber.dispose()
+    context = undefined
+    restoreRuntimeEnvironment()
+    restoreRuntimeEnvironment = installProcessEnvironment(env)
+    context = await bootProfile(config.dshSourceDir, PROFILE_NAME, dshHome)
+    const restartedGateway = requireGateway(context)
+    agent = await restartedGateway.resolve(SEED_ROUTE_ID, new AbortController().signal)
+    await eventually(() => {
+      const restarted = restartedGateway.healthSnapshot(Date.now(), [pairing.routeId])
+      return restarted.lifecycle === 'ready'
+        && restarted.routes.liveSessions === 1
+        && restarted.transports.ready === 1
+        && restarted.transports.degraded === 0
+    }, config.interactionTimeoutMs, 'resident grant or official transport did not recover after Host restart')
+    const postRestartChallenge = `${challenge}-AFTER-RESTART`
+    process.stderr.write(`Host restarted without changing the grant. Send this exact private message:\n${postRestartChallenge}\n`)
+    await eventually(() => hasExactUserText(agent.session.events, postRestartChallenge), config.interactionTimeoutMs,
+      'the persisted grant did not admit a post-restart Feishu message')
+    deliveredBefore = await exactDeliveredIncrement(
+      restartedGateway,
+      deliveredBefore,
+      config.interactionTimeoutMs,
+      'the post-restart native DSH reply was not delivered',
+      pairing.routeId,
+    )
+    if (requireFeishuHostRoute(context).observedChatKind(pairing.routeId) !== 'direct') {
+      throw new Error('the recovered resident route did not retain direct-message policy')
+    }
+    gatewayFacts = compactGateway(restartedGateway.healthSnapshot(Date.now(), [pairing.routeId]))
+    observations = { ...observations, postRestartRoundTrip: true }
     await context.sessions.flush(agent.session)
 
     stage = 'dispose-remove-readback'
@@ -358,6 +447,7 @@ export async function executeRealFeishuAcceptance(
     try {
       const restored = await native.sessionPersistence.load(SESSION_ID)
       if (!hasExactUserText(restored.events, challenge)
+        || !hasExactUserText(restored.events, `${challenge}-AFTER-RESTART`)
         || !hasCommand(restored.events, 'feishu')
         || !hasExactNativeScheduleRoundTrip(restored.events)) {
         throw new Error('native DSH Session readback lost the exact Feishu ingress, Command, or Schedule')
@@ -379,7 +469,7 @@ export async function executeRealFeishuAcceptance(
       revisions: { evoforge: evoforgeRevision, deepseekHarness: dshRevision },
       chatKind: preflight.chatKind,
       appIdentityHash: preflight.appIdentityHash,
-      routeIdentityHash: preflight.routeIdentityHash,
+      ...(routeIdentityHash === undefined ? {} : { routeIdentityHash }),
       stage: 'complete',
       observations: Object.freeze(observations),
       ...(gatewayFacts === undefined ? {} : { gateway: Object.freeze(gatewayFacts) }),
@@ -395,6 +485,7 @@ export async function executeRealFeishuAcceptance(
         boundedError(error, config)),
       stage,
       observations: Object.freeze(observations),
+      ...(routeIdentityHash === undefined ? {} : { routeIdentityHash }),
       ...(gatewayFacts === undefined ? {} : { gateway: Object.freeze(gatewayFacts) }),
     })
     await writePrivateJson(resultPath, report)
@@ -407,12 +498,14 @@ function emptyObservations(): AcceptanceReport['observations'] {
     finalTarballsInstalled: false,
     profileDumped: false,
     officialTransportReady: false,
+    residentPairingGranted: false,
     exactInboundChallenge: false,
     replyDelivered: false,
     commandRoundTrip: false,
     nativeScheduleRoundTrip: false,
     approvalAllowedOnce: false,
     noticeDelivered: false,
+    postRestartRoundTrip: false,
     sessionRecoveredAfterRemoval: false,
     nativeHostBootedAfterRemoval: false,
   }
@@ -435,7 +528,6 @@ function failureBase(
     revisions: { evoforge: evoforgeRevision, deepseekHarness: dshRevision },
     chatKind: preflight.chatKind,
     appIdentityHash: preflight.appIdentityHash,
-    routeIdentityHash: preflight.routeIdentityHash,
     stage: 'preflight',
     observations: Object.freeze(emptyObservations()),
     reasons: Object.freeze([reason]),
@@ -500,7 +592,6 @@ async function assertPackedBoundary(tarballs: { gateway: string; feishu: string 
 
 async function writeAcceptanceOverlay(
   path: string,
-  config: RealFeishuExecutionConfig,
   workspaceId: string,
   mockLlmPath: string,
 ): Promise<void> {
@@ -508,9 +599,9 @@ async function writeAcceptanceOverlay(
     - id: as2-cli-mock-llm
       name: ${yaml(mockLlmPath)}
 
-    # Schedule observes only roots created after it loads. The active Gateway
-    # route is therefore inserted after this official DSH owner; the disabled
-    # Bundle rows remain installation declarations only.
+    # Schedule observes only roots created after it loads. This benchmark-only
+    # seed route creates the native Session that Host pairing may approve; it
+    # does not authorize any Feishu endpoint.
     - id: as2-schedule
       name: '@deepseek-ai/dsh-schedule'
 
@@ -518,11 +609,11 @@ async function writeAcceptanceOverlay(
       name: dsh-gateway
       config:
         routes:
-          - id: ${ROUTE_ID}
-            adapter: feishu
-            accountId: ${yaml(config.appId)}
-            conversationId: ${yaml(config.conversationId)}
-            userId: ${yaml(config.userId)}
+          - id: ${SEED_ROUTE_ID}
+            adapter: as2-seed
+            accountId: local-acceptance
+            conversationId: native-session
+            userId: native-host
             workspaceId: ${yaml(workspaceId)}
             sessionId: ${SESSION_ID}
             agentPreset: standard
@@ -532,8 +623,8 @@ async function writeAcceptanceOverlay(
     - id: as2-feishu
       name: dsh-feishu
       config:
-        mode: routes
-        routeIds: [${ROUTE_ID}]
+        mode: pairing
+        routeIds: []
         appIdEnv: DSH_FEISHU_APP_ID
         appSecretEnv: DSH_FEISHU_APP_SECRET
         contentPermissions: []
@@ -645,17 +736,29 @@ function requireFeishuHostRoute(context: RuntimeContext): FeishuHostRoute {
   return route
 }
 
-async function requireAgent(context: RuntimeContext, timeoutMs: number): Promise<RuntimeAgent> {
-  let agent: RuntimeAgent | undefined
-  await eventually(() => {
-    agent = context.agents.get(SESSION_ID)
-    return agent !== undefined
-  }, timeoutMs, 'AS-2 exact native DSH Agent was not available')
-  return agent!
-}
-
 function hasExactUserText(events: readonly RuntimeEvent[], expected: string): boolean {
   return countExactUserText(events, expected) > 0
+}
+
+function countUserMessages(events: readonly RuntimeEvent[]): number {
+  return events.filter(event => event.type === 'user/message').length
+}
+
+async function readPairingCode(timeoutMs: number): Promise<string> {
+  const input = createInterface({ input: process.stdin, output: process.stderr })
+  const timeout = new AbortController()
+  const timer = setTimeout(() => timeout.abort(), timeoutMs)
+  try {
+    const value = (await input.question('Pairing code: ', { signal: timeout.signal })).trim()
+    if (!/^[A-HJ-NP-Z2-9]{10}$/u.test(value)) throw new Error('invalid resident Gateway pairing code')
+    return value
+  } catch (error: unknown) {
+    if (timeout.signal.aborted) throw new Error('resident Gateway pairing code was not entered before timeout')
+    throw error
+  } finally {
+    clearTimeout(timer)
+    input.close()
+  }
 }
 
 function countExactUserText(events: readonly RuntimeEvent[], expected: string): number {
@@ -702,13 +805,14 @@ async function exactDeliveredIncrement(
   before: number,
   timeoutMs: number,
   message: string,
+  routeId: string,
 ): Promise<number> {
   await eventually(
-    () => gateway.healthSnapshot(Date.now(), [ROUTE_ID]).outbound.delivered >= before + 1,
+    () => gateway.healthSnapshot(Date.now(), [routeId]).outbound.delivered >= before + 1,
     timeoutMs,
     message,
   )
-  const delivered = gateway.healthSnapshot(Date.now(), [ROUTE_ID]).outbound.delivered
+  const delivered = gateway.healthSnapshot(Date.now(), [routeId]).outbound.delivered
   if (delivered !== before + 1) {
     throw new Error(`AS-2 expected exactly one new delivered effect, observed ${String(delivered - before)}`)
   }
@@ -864,7 +968,7 @@ async function exists(path: string): Promise<boolean> {
 
 function boundedError(error: unknown, config: RealFeishuExecutionConfig): string {
   let value = error instanceof Error ? error.message : String(error)
-  for (const privateValue of [config.appId, config.appSecret, config.conversationId, config.userId]) {
+  for (const privateValue of [config.appId, config.appSecret]) {
     value = value.replaceAll(privateValue, '[redacted]')
   }
   return value.replace(/[\r\n]+/gu, ' ').slice(0, 512) || 'unknown AS-2 failure'

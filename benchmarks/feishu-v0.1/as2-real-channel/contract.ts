@@ -1,19 +1,21 @@
 import { createHash } from 'node:crypto'
 import { dirname, isAbsolute, resolve } from 'node:path'
 
-export const BENCHMARK_ID = 'as2-feishu-real-channel-epoch-2'
+export const BENCHMARK_ID = 'as2-feishu-resident-pairing-epoch-3'
 export const REAL_FEISHU_APPROVAL = 'I_APPROVE_REAL_FEISHU_CHANNEL_EFFECTS'
 
 const terminalObservationNames = [
   'finalTarballsInstalled',
   'profileDumped',
   'officialTransportReady',
+  'residentPairingGranted',
   'exactInboundChallenge',
   'replyDelivered',
   'commandRoundTrip',
   'nativeScheduleRoundTrip',
   'approvalAllowedOnce',
   'noticeDelivered',
+  'postRestartRoundTrip',
   'sessionRecoveredAfterRemoval',
   'nativeHostBootedAfterRemoval',
 ] as const
@@ -29,9 +31,6 @@ const terminalGatewayNames = [
 const requiredNames = [
   'DSH_FEISHU_APP_ID',
   'DSH_FEISHU_APP_SECRET',
-  'DSH_FEISHU_CONVERSATION_ID',
-  'DSH_FEISHU_USER_ID',
-  'DSH_FEISHU_CHAT_KIND',
   'DSH_FEISHU_DSH_SOURCE_DIR',
   'DSH_FEISHU_REAL_CHANNEL_RUN_ROOT',
 ] as const
@@ -39,9 +38,6 @@ const requiredNames = [
 export interface RealFeishuExecutionConfig {
   readonly appId: string
   readonly appSecret: string
-  readonly conversationId: string
-  readonly userId: string
-  readonly chatKind: 'direct' | 'group'
   readonly dshSourceDir: string
   readonly runRoot: string
   readonly interactionTimeoutMs: number
@@ -64,9 +60,8 @@ export type RealFeishuAcceptanceResolution =
         readonly schemaVersion: 1
         readonly benchmarkId: typeof BENCHMARK_ID
         readonly status: 'ready'
-        readonly chatKind: 'direct' | 'group'
+        readonly chatKind: 'direct'
         readonly appIdentityHash: string
-        readonly routeIdentityHash: string
         readonly interactionTimeoutMs: number
       }
       readonly execution: RealFeishuExecutionConfig
@@ -80,9 +75,10 @@ export interface RealFeishuTerminalReport {
   readonly scope: string
   readonly manifestHash: string
   readonly revisions: { readonly evoforge: string; readonly deepseekHarness: string }
-  readonly chatKind: 'direct' | 'group'
+  readonly chatKind: 'direct'
   readonly appIdentityHash: string
-  readonly routeIdentityHash: string
+  /** Hashed only after the unknown DM is approved; external principal ids never enter public output. */
+  readonly routeIdentityHash?: string
   readonly stage: string
   readonly observations: Readonly<Record<(typeof terminalObservationNames)[number], boolean>>
   readonly gateway?: Readonly<Record<(typeof terminalGatewayNames)[number], number>>
@@ -139,7 +135,8 @@ export function assertRealFeishuTerminalReport(
     || value.revisions.deepseekHarness !== expected.dshRevision
     || value.chatKind !== expected.preflight.chatKind
     || value.appIdentityHash !== expected.preflight.appIdentityHash
-    || value.routeIdentityHash !== expected.preflight.routeIdentityHash
+    || (value.routeIdentityHash !== undefined
+      && (typeof value.routeIdentityHash !== 'string' || !/^[a-f0-9]{64}$/u.test(value.routeIdentityHash)))
     || !boundedText(value.stage, 128)) {
     throw new Error('AS-2 retained terminal report identity is invalid')
   }
@@ -154,6 +151,7 @@ export function assertRealFeishuTerminalReport(
     || reasons.some(reason => !boundedText(reason, 512))
     || (value.status === 'passed'
       ? value.stage !== 'complete'
+        || !/^[a-f0-9]{64}$/u.test(String(value.routeIdentityHash ?? ''))
         || reasons.length !== 0
         || terminalObservationNames.some(name => observations[name] !== true)
       : reasons.length === 0)) {
@@ -183,14 +181,6 @@ export function resolveRealFeishuAcceptance(
   try {
     const appId = exactIdentity(environment.DSH_FEISHU_APP_ID!, 'DSH_FEISHU_APP_ID', /^cli_[A-Za-z0-9_-]+$/u)
     const appSecret = exact(environment.DSH_FEISHU_APP_SECRET!, 'DSH_FEISHU_APP_SECRET', 16 * 1_024)
-    const conversationId = exactIdentity(
-      environment.DSH_FEISHU_CONVERSATION_ID!,
-      'DSH_FEISHU_CONVERSATION_ID',
-      /^oc_[A-Za-z0-9_-]+$/u,
-    )
-    const userId = exactIdentity(environment.DSH_FEISHU_USER_ID!, 'DSH_FEISHU_USER_ID', /^ou_[A-Za-z0-9_-]+$/u)
-    const chatKind = exact(environment.DSH_FEISHU_CHAT_KIND!, 'DSH_FEISHU_CHAT_KIND', 16)
-    if (chatKind !== 'direct' && chatKind !== 'group') throw new Error('invalid:DSH_FEISHU_CHAT_KIND')
     const dshSourceDir = exactAbsolutePath(environment.DSH_FEISHU_DSH_SOURCE_DIR!, 'DSH_FEISHU_DSH_SOURCE_DIR')
     const runRoot = exactAbsolutePath(
       environment.DSH_FEISHU_REAL_CHANNEL_RUN_ROOT!,
@@ -206,9 +196,6 @@ export function resolveRealFeishuAcceptance(
     execution = Object.freeze({
       appId,
       appSecret,
-      conversationId,
-      userId,
-      chatKind,
       dshSourceDir,
       runRoot,
       interactionTimeoutMs,
@@ -226,14 +213,8 @@ export function resolveRealFeishuAcceptance(
       schemaVersion: 1,
       benchmarkId: BENCHMARK_ID,
       status: 'ready',
-      chatKind: execution.chatKind,
+      chatKind: 'direct',
       appIdentityHash: sha256(execution.appId),
-      routeIdentityHash: sha256(JSON.stringify([
-        execution.appId,
-        execution.conversationId,
-        execution.userId,
-        execution.chatKind,
-      ])),
       interactionTimeoutMs: execution.interactionTimeoutMs,
     }),
     execution,

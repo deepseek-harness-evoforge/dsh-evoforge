@@ -22,8 +22,6 @@ describe('AS-2 real Feishu acceptance contract', () => {
       DSH_FEISHU_REAL_CHANNEL_APPROVED: 'not-approved',
       DSH_FEISHU_APP_ID: 'cli_private_app',
       DSH_FEISHU_APP_SECRET: 'private-secret',
-      DSH_FEISHU_CONVERSATION_ID: 'oc_private_chat',
-      DSH_FEISHU_USER_ID: 'ou_private_user',
     }, {
       get(target, property, receiver) {
         reads.push(property)
@@ -38,7 +36,7 @@ describe('AS-2 real Feishu acceptance contract', () => {
       exitCode: 2,
       report: {
         schemaVersion: 1,
-        benchmarkId: 'as2-feishu-real-channel-epoch-2',
+        benchmarkId: 'as2-feishu-resident-pairing-epoch-3',
         status: 'not-run',
         reasons: ['real-feishu-effects-not-authorized'],
       },
@@ -47,7 +45,7 @@ describe('AS-2 real Feishu acceptance contract', () => {
     assert.equal(REAL_FEISHU_APPROVAL, 'I_APPROVE_REAL_FEISHU_CHANNEL_EFFECTS')
   })
 
-  test('reports every missing real route input without inventing a platform run', () => {
+  test('requires credentials and isolated roots but discovers the route only after resident pairing', () => {
     const resolved = resolveRealFeishuAcceptance({
       DSH_FEISHU_REAL_CHANNEL_APPROVED: REAL_FEISHU_APPROVAL,
     })
@@ -56,34 +54,21 @@ describe('AS-2 real Feishu acceptance contract', () => {
     assert.equal(resolved.exitCode, 2)
     assert.deepEqual(resolved.report, {
       schemaVersion: 1,
-      benchmarkId: 'as2-feishu-real-channel-epoch-2',
+      benchmarkId: 'as2-feishu-resident-pairing-epoch-3',
       status: 'not-run',
       reasons: [
         'missing:DSH_FEISHU_APP_ID',
         'missing:DSH_FEISHU_APP_SECRET',
-        'missing:DSH_FEISHU_CONVERSATION_ID',
-        'missing:DSH_FEISHU_USER_ID',
-        'missing:DSH_FEISHU_CHAT_KIND',
         'missing:DSH_FEISHU_DSH_SOURCE_DIR',
         'missing:DSH_FEISHU_REAL_CHANNEL_RUN_ROOT',
       ],
     })
   })
 
-  test('rejects malformed exact Feishu identities and overlapping run roots before dispatch', () => {
-    const invalidIdentity = resolveRealFeishuAcceptance({
-      ...readyEnvironment(),
-      DSH_FEISHU_CONVERSATION_ID: 'not-a-chat',
-    })
+  test('rejects malformed App identity and overlapping run roots before dispatch', () => {
+    const invalidIdentity = resolveRealFeishuAcceptance({ ...readyEnvironment(), DSH_FEISHU_APP_ID: 'not-an-app' })
     assert.equal(invalidIdentity.status, 'failed')
-    assert.deepEqual(invalidIdentity.report.reasons, ['invalid:DSH_FEISHU_CONVERSATION_ID'])
-
-    const invalidKind = resolveRealFeishuAcceptance({
-      ...readyEnvironment(),
-      DSH_FEISHU_CHAT_KIND: 'thread',
-    })
-    assert.equal(invalidKind.status, 'failed')
-    assert.deepEqual(invalidKind.report.reasons, ['invalid:DSH_FEISHU_CHAT_KIND'])
+    assert.deepEqual(invalidIdentity.report.reasons, ['invalid:DSH_FEISHU_APP_ID'])
 
     const overlapping = resolveRealFeishuAcceptance({
       ...readyEnvironment(),
@@ -93,22 +78,20 @@ describe('AS-2 real Feishu acceptance contract', () => {
     assert.deepEqual(overlapping.report.reasons, ['invalid:acceptance-roots-overlap'])
   })
 
-  test('returns private execution inputs and a secret-free hashed route preflight', () => {
+  test('returns private execution inputs and a secret-free App preflight without static route identity', () => {
     const resolved = resolveRealFeishuAcceptance(readyEnvironment())
 
     assert.equal(resolved.status, 'ready')
     if (resolved.status !== 'ready') throw new Error('expected ready Feishu acceptance')
     assert.equal(resolved.execution.appId, 'cli_real_app')
     assert.equal(resolved.execution.appSecret, appSecret)
-    assert.equal(resolved.execution.conversationId, 'oc_real_chat')
-    assert.equal(resolved.execution.userId, 'ou_real_user')
-    assert.equal(resolved.execution.chatKind, 'direct')
     assert.equal(resolved.execution.interactionTimeoutMs, 300_000)
     assert.equal(resolved.report.status, 'ready')
     assert.match(resolved.report.appIdentityHash, /^[a-f0-9]{64}$/u)
-    assert.match(resolved.report.routeIdentityHash, /^[a-f0-9]{64}$/u)
+    assert.equal(resolved.report.chatKind, 'direct')
+    assert.equal('routeIdentityHash' in resolved.report, false)
     const publicReport = JSON.stringify(resolved.report)
-    assert.doesNotMatch(publicReport, /cli_real_app|oc_real_chat|ou_real_user/u)
+    assert.doesNotMatch(publicReport, /cli_real_app/u)
     assert.doesNotMatch(publicReport, new RegExp(appSecret, 'u'))
   })
 
@@ -156,13 +139,15 @@ describe('AS-2 real Feishu acceptance contract', () => {
       commandRoundTrip: true,
       approvalAllowedOnce: true,
       noticeDelivered: true,
+      residentPairingGranted: true,
+      postRestartRoundTrip: true,
       sessionRecoveredAfterRemoval: true,
       nativeHostBootedAfterRemoval: true,
     }
 
     assert.throws(() => assertRealFeishuTerminalReport({
       schemaVersion: 1,
-      benchmarkId: 'as2-feishu-real-channel-epoch-2',
+      benchmarkId: 'as2-feishu-resident-pairing-epoch-3',
       status: 'passed',
       scope: 'real route including native Schedule',
       manifestHash: identity.manifestHash,
@@ -172,7 +157,7 @@ describe('AS-2 real Feishu acceptance contract', () => {
       },
       chatKind: resolved.report.chatKind,
       appIdentityHash: resolved.report.appIdentityHash,
-      routeIdentityHash: resolved.report.routeIdentityHash,
+      routeIdentityHash: 'd'.repeat(64),
       stage: 'complete',
       observations,
       reasons: [],
@@ -180,7 +165,7 @@ describe('AS-2 real Feishu acceptance contract', () => {
 
     assert.doesNotThrow(() => assertRealFeishuTerminalReport({
       schemaVersion: 1,
-      benchmarkId: 'as2-feishu-real-channel-epoch-2',
+      benchmarkId: 'as2-feishu-resident-pairing-epoch-3',
       status: 'passed',
       scope: 'real route including native Schedule',
       manifestHash: identity.manifestHash,
@@ -190,7 +175,7 @@ describe('AS-2 real Feishu acceptance contract', () => {
       },
       chatKind: resolved.report.chatKind,
       appIdentityHash: resolved.report.appIdentityHash,
-      routeIdentityHash: resolved.report.routeIdentityHash,
+      routeIdentityHash: 'd'.repeat(64),
       stage: 'complete',
       observations: { ...observations, nativeScheduleRoundTrip: true },
       reasons: [],
@@ -208,7 +193,7 @@ describe('AS-2 real Feishu acceptance contract', () => {
     assert.equal(result.stderr, '')
     assert.deepEqual(JSON.parse(result.stdout), {
       schemaVersion: 1,
-      benchmarkId: 'as2-feishu-real-channel-epoch-2',
+      benchmarkId: 'as2-feishu-resident-pairing-epoch-3',
       status: 'not-run',
       reasons: ['real-feishu-effects-not-authorized'],
     })
@@ -225,7 +210,7 @@ describe('AS-2 real Feishu acceptance contract', () => {
     assert.equal(result.stderr, '')
     const report = JSON.parse(result.stdout) as { status?: unknown }
     assert.equal(report.status, 'failed')
-    for (const privateValue of ['cli_real_app', appSecret, 'oc_real_chat', 'ou_real_user']) {
+    for (const privateValue of ['cli_real_app', appSecret]) {
       assert.doesNotMatch(result.stdout, new RegExp(privateValue, 'u'))
     }
   })
@@ -236,9 +221,6 @@ function readyEnvironment(): NodeJS.ProcessEnv {
     DSH_FEISHU_REAL_CHANNEL_APPROVED: REAL_FEISHU_APPROVAL,
     DSH_FEISHU_APP_ID: 'cli_real_app',
     DSH_FEISHU_APP_SECRET: appSecret,
-    DSH_FEISHU_CONVERSATION_ID: 'oc_real_chat',
-    DSH_FEISHU_USER_ID: 'ou_real_user',
-    DSH_FEISHU_CHAT_KIND: 'direct',
     DSH_FEISHU_DSH_SOURCE_DIR: '/private/tmp/deepseek-harness',
     DSH_FEISHU_REAL_CHANNEL_RUN_ROOT: '/private/tmp/evoforge-as2',
   }

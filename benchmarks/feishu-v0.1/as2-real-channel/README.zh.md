@@ -1,11 +1,13 @@
-# AS-2：真实飞书 exact-route 验收
+# AS-2：真实飞书 resident pairing 验收
 
-本入口只验证一条真实飞书渠道纵切：最终 `dsh-gateway`/`dsh-feishu` tarball 安装到全新 DSH `web`
-profile，经官方飞书 WebSocket/HTTP 接收一个 exact 用户消息，进入原生 DSH Session，交付最终回答，执行
+本入口只验证一条真实飞书私聊纵切：最终 `dsh-gateway`/`dsh-feishu` tarball 安装到全新 DSH `web`
+profile，Gateway/Adapter 以零预授权飞书 route 常驻。陌生用户先发送任意私聊并从机器人取得 code，Host
+把 code 批准到已创建的原生 Workspace/Session；第一条消息不进 Agent，批准后不改 profile、不重连。随后
+经官方飞书 WebSocket/HTTP 接收 exact 用户消息，进入原生 DSH Session，交付最终回答，执行
 `/feishu`，通过官方 agent-scoped `schedule_create` 完成一次 create→dispatch→`user/message`
 （`source.kind=plugin`、`source.plugin=schedule`）→同 route
-回送，完成一次原生 DSH Approval 卡片，再投递一个持久 Host notice；随后 dispose、官方卸载、原生 DSH
-重启并读回同一 Session。
+回送，完成一次原生 DSH Approval 卡片，再通过动态 Host route 投递一个持久 notice。Host 随后干净重启；
+用户无需重新配对即可再完成一次消息/回复。最后 dispose、官方卸载、原生 DSH 重启并读回同一 Session。
 
 它不是飞书 Mock，也不使用 benchmark-owned Approval 或 Agent Runtime。为了把渠道效果与模型付费/质量分离，
 本 epoch 使用 DSH 自带的 keyless deterministic LLM fixture；因此通过结果只证明真实渠道、DSH 集成、生命周期
@@ -13,47 +15,44 @@ profile，经官方飞书 WebSocket/HTTP 接收一个 exact 用户消息，进�
 
 ## 安全合同
 
-- 未设置精确授权短语时，入口只读取授权变量，不读取 App ID、Secret、chat/user，不加载执行模块，不发请求；
+- 未设置精确授权短语时，入口只读取授权变量，不读取 App ID、Secret，不加载执行模块，不发请求；
 - 所有平台身份、Secret、DSH 源码和 run root 都在授权后验证；公开报告只保留身份哈希；
 - EvoForge 与 DSH 必须是 clean worktree，DSH HEAD 必须等于 manifest 固定 revision；
 - 每个 exact run 在任何真实效果前写入私有状态；若进程在非终态退出，同一 run root 不会自动重放；
 - Gateway 出现 ingress/outbound `uncertain` 或 `failed`、challenge 重复进入 Session、Approval 不是
   `allowed-once`、卸载后 Session 不可读，均判失败；
-- terminal `result.json` 按 revision、manifest、App/route hash 与 chat kind 复用；Adapter 必须从真实入站事件
-  观测到与声明一致的 `direct`/`group`，不能用私聊冒充群聊或复用另一条路线的结果。
-- 当前 epoch 为 `as2-feishu-real-channel-epoch-2`；终态解码器要求关闭的十一项 observation 全部存在，
-  `passed` 还要求全部为真。epoch-1 或遗漏 native Schedule gate 的旧/损坏结果不能阻止新执行。
+- terminal `result.json` 按 revision、manifest 与 App hash 复用；route hash 只能在 Host 批准后由动态 grant 形成，
+  公开结果不包含 conversation/user/code。Adapter 必须从真实入站事件观测到 `direct`，群聊不在本 epoch 范围。
+- 当前 epoch 为 `as2-feishu-resident-pairing-epoch-3`；终态解码器要求关闭的十三项 observation 全部存在，
+  `passed` 还要求全部为真。静态 route epoch、缺 Schedule、缺重启消息或损坏结果不能阻止新执行。
 
 ## 前置飞书配置
 
 在飞书开发者后台为一个测试 App 启用机器人、长连接事件订阅 `im.message.receive_v1`、发送消息和卡片回调；
-把机器人加入目标私聊或群聊。第一次建议先用 `dsh-feishu` pairing mode 取得 exact `conversationId` 与
-`userId`，人工审查后再执行本入口。不要使用生产群或不可接受测试消息的账号。
+把机器人加入测试账号的私聊。无需预查 `conversationId` 或 `userId`；它们只在 Gateway pending request 内
+出现并由 Host 动态批准。不要使用生产群或不可接受测试消息的账号。
 
 ## 执行
 
-选择一个尚未使用、位于 DSH/EvoForge 仓库之外的绝对 run root。直接私聊和群聊是两个独立 epoch，必须分别
-设置 `direct`/`group` 并各跑一次：
+选择一个尚未使用、位于 DSH/EvoForge 仓库之外的绝对 run root。本 epoch 只验收 direct 私聊：
 
 ```sh
 export DSH_FEISHU_REAL_CHANNEL_APPROVED=I_APPROVE_REAL_FEISHU_CHANNEL_EFFECTS
 export DSH_FEISHU_APP_ID='cli_...'
 export DSH_FEISHU_APP_SECRET='...'
-export DSH_FEISHU_CONVERSATION_ID='oc_...'
-export DSH_FEISHU_USER_ID='ou_...'
-export DSH_FEISHU_CHAT_KIND='direct'
 export DSH_FEISHU_DSH_SOURCE_DIR='/absolute/path/to/deepseek-harness'
-export DSH_FEISHU_REAL_CHANNEL_RUN_ROOT='/absolute/private/path/as2-direct-epoch-1'
+export DSH_FEISHU_REAL_CHANNEL_RUN_ROOT='/absolute/private/path/as2-resident-epoch-3'
 pnpm benchmark:feishu:as2
 ```
 
 默认每个人工步骤等待 5 分钟。可用 `DSH_FEISHU_REAL_CHANNEL_TIMEOUT_MS` 调整为 60000–900000
 毫秒的规范十进制整数。
 
-入口启动后在 stderr 显示一次性 challenge。使用配置中的 exact 飞书用户/chat 发送它，收到 DSH 回复后发送
-`/feishu`；随后等待一条由官方 DSH Schedule 到期 turn 回送的消息，最后在卡片中点击“Allow once”。群聊必须
-先 `@机器人`，mention 后的正文保持 challenge/Command 不变。Schedule 由验收器通过官方 Tool 创建，不要求
-用户再发送第三条指令；它只证明原生 Schedule 与真实渠道组合，不证明真实模型能正确理解自然语言时间。stdout
+入口启动后先提示给机器人发送任意私聊；机器人返回 code 后，把 code 输入 Host 侧终端。批准后再发送 stderr
+显示的 exact challenge，收到 DSH 回复后发送 `/feishu`；随后等待一条由官方 DSH Schedule 到期 turn 回送的
+消息，最后在卡片中点击“Allow once”。收到持久 notice 后，验收器会干净重启 Host，并要求再发送一个 exact
+文本以证明无需重新配对。Schedule 由验收器通过官方 Tool 创建，不要求用户用自然语言解释时间；它只证明原生
+Schedule 与真实渠道组合，不证明真实模型时间理解。stdout
 只输出一个 JSON 报告：exit 0 + `status: passed` 才是该
 chat kind 的真实通过；exit 2 + `not-run`、exit 1 + `failed` 都不是证据。
 
