@@ -101,7 +101,10 @@ export class GatewayTransportRegistry {
     })
   }
 
-  health(selectedRouteIds: ReadonlySet<string>): GatewayTransportHealth {
+  health(
+    selectedRouteIds: ReadonlySet<string>,
+    includeUnboundPaired = false,
+  ): GatewayTransportHealth {
     const counts = { connecting: 0, ready: 0, degraded: 0, stopping: 0 }
     const items: GatewayTransportHealthItem[] = []
     for (const registration of this.registrations.values()) {
@@ -111,7 +114,7 @@ export class GatewayTransportRegistry {
         const paired = this.pairedRoute(id)
         return paired?.adapter === registration.adapter && paired.accountId === registration.accountId
       })
-      if (routeIds.length === 0) continue
+      if (routeIds.length === 0 && !(includeUnboundPaired && registration.pairedRoutes)) continue
       counts[registration.observation.state] += 1
       items.push(Object.freeze({
         adapter: registration.adapter,

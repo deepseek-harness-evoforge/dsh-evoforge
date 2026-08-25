@@ -59,6 +59,15 @@ describe('Gateway outbound text delivery', () => {
         return { kind: 'delivered', externalMessageId: 'om_dynamic' }
       },
     })
+    expect(gateway.healthSnapshot(901)).toMatchObject({
+      routes: { total: 0 },
+      transports: {
+        registrations: 1,
+        ready: 1,
+        items: [{ adapter: 'feishu', routeIds: [] }],
+      },
+      outbound: { registrations: 1 },
+    })
     const endpoint = {
       adapter: 'feishu', accountId: 'app-a', conversationId: 'oc_dynamic', userId: 'ou_dynamic',
     }

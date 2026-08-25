@@ -327,8 +327,8 @@ export class DshGateway {
       lifecycle: this.stopping !== undefined ? 'stopping' : this.started ? 'ready' : 'starting',
       routes: { total: items.length, liveSessions: liveSessions.size, items },
       ingress,
-      transports: this.transports.health(selectedIds),
-      outbound: this.outbound.health(selectedIds),
+      transports: this.transports.health(selectedIds, routeIds === undefined),
+      outbound: this.outbound.health(selectedIds, routeIds === undefined),
     })
   }
 

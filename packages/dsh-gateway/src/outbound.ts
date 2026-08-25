@@ -131,10 +131,10 @@ export class GatewayOutboundCoordinator {
     }
   }
 
-  health(routeIds: ReadonlySet<string>): GatewayOutboundHealth {
+  health(routeIds: ReadonlySet<string>, includeUnboundPaired = false): GatewayOutboundHealth {
     const counts: GatewayOutboundHealth = {
       registrations: [...this.registrations.values()]
-        .filter(registration => registration.ownsAny(routeIds)).length,
+        .filter(registration => registration.ownsAny(routeIds, includeUnboundPaired)).length,
       scheduled: [...this.registrations.values()]
         .reduce((total, registration) => total + registration.scheduledCount(routeIds), 0),
       total: 0,
@@ -219,8 +219,9 @@ class GatewayTextAdapterRegistrationImpl implements GatewayTextAdapterRegistrati
     })
   }
 
-  ownsAny(routeIds: ReadonlySet<string>): boolean {
+  ownsAny(routeIds: ReadonlySet<string>, includeUnboundPaired = false): boolean {
     return [...routeIds].some(id => this.route(id) !== undefined)
+      || (includeUnboundPaired && this.config.pairedRoutes === true)
   }
 
   scheduledCount(routeIds: ReadonlySet<string>): number {
