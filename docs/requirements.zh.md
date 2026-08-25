@@ -6,7 +6,7 @@
 > V4.55 已实现阶段专用 RP-1 验收入口：它只在显式付费批准后使用两套独立 Provider 跑现有内部 Skill 纵切，并对 Provider/authority/credential/model identity、Candidate 盲区、准入、assembled Holdout/Retention 和 composition 设 hard gate。当前状态是 `NOT_RUN`，没有真实 Provider 通过证据。
 > V4.56 已把真实 Provider 请求边界补齐：proposer 与缺失/现有 Skill 的治理作者 HTTP seam 均有 60 秒 wall-clock 上限，Host cancellation 只能更早终止而不能移除 timeout；治理 dispatch 仍先 durable 落盘，未知付费结果仍为 `uncertain` 且不盲重试。本增量没有发起外部 Provider 请求。
 > V5.7 已把渠道 send 的 wall-clock 上限纳入 `dsh-gateway` 公共 Adapter policy；超时或 dispose 会把 durable `sending` 保守终结为 `uncertain`，即使 Adapter Promise 不响应 signal 也不能阻塞 Gateway 卸载。Telegram/飞书均使用 30 秒，飞书文本与 Approval 卡片把 signal 继续传入官方 HTTP transport；真实平台验收仍 pending。
-> V5.8 已实现阶段专用 AS-2 真实飞书验收入口：只在精确授权后读取 exact App/chat/user/Secret，并从当前 clean `main` 打包最终 Gateway/Feishu Bundle，经官方 DSH CLI 安装、dump、真实渠道消息/Command/Approval、dispose、remove、原生 Session readback。当前本机无凭据，合同 7/7 通过但真实平台严格为 `NOT_RUN`；它没有增加产品 CLI、Runtime、能力获取或 benchmark-owned 审批。
+> V5.8 已实现阶段专用 AS-2 真实飞书验收入口：只在精确授权后读取 exact App/chat/user/Secret，并从当前 clean `main` 打包最终 Gateway/Feishu Bundle，经官方 DSH CLI 安装、dump、真实渠道消息/Command/Approval、dispose、remove、原生 Session readback。该增量当时无凭据，合同 7/7 通过但真实平台为 `NOT_RUN`；后续真实结果以 V5.22 为准。它没有增加产品 CLI、Runtime、能力获取或 benchmark-owned 审批。
 > V5.10 已把每次真实 future-Session Generation 晋升/回滚与活动指针在同一 Workspace state 中原子保留，绑定 exact Retention/Release/Canary/人工 authority；最终 tarball 已验证晋升、整页/Host 恢复、Canary 回滚、再次恢复和官方卸载。该历史只证明 pointer mutation，不证明效果或授予发布权。
 > V5.11 已把每条不可变选择事件与其后、下一选择之前的 durable Outcome 做严格有界关联，按 Session-pinned selected/previous/other Generation 展示结果、Goal 和 metrics；边界歧义与时间倒退 fail closed。该窗口固定无因果、无 mutation authority，不替代长期 Provider/paired 证据。
 > V5.12 已重建 existing-Skill 低风险自动晋升：公开策略只含 policy id 与 Workspace id，不接受 Skill/路径/来源/target；Host 只对 exact baseline 上单一 `SKILL.md` 末尾追加 1–2048 字节、无 protected-effect、paired Holdout/独立 Retention 明确改善且 model/token/cache 不回退的 Candidate 自动发布并选择未来 Session。持久暂停、父版本漂移、证据告警、改写/增文件/受保护效果均 fail closed；原生 Jobs 仅负责唤醒，决策和 Generation 指针可崩溃恢复。最终 tarball 已验证自动晋升、Web 刷新/断线保留/冷恢复和官方卸载；真实 provider 误晋升率、长期迁移与 paired benchmark 仍 pending。
@@ -18,7 +18,8 @@
 > V5.19 已在真实子进程中让 `schedule_create` 与 Session flush 完成后、dispatch 前执行 `SIGKILL`；第二个 Host 通过同一静态 Gateway route 恢复 exact Session，官方 Schedule 处理 overdue，并由既有 durable turn journal 回送一次飞书线程；第三次 Host 启动不重放。该门已在 exact rc.5/rc.2 分别通过，不增加 runtime 实现。官方 Schedule 的 followup 已入队但 dispatch 尚未 checkpoint 的窄重复窗口仍是未解决边界，不能宣称全窗口 exactly-once。
 > V5.20 对该窄窗口做了真实反向故障注入：第一次平台效果已写出、包含 dispatch 的 Session batch 仍被阻塞时 `SIGKILL`；恢复后 Schedule 会重跑非 durable turn，但 Gateway 因 exact route+turn intent 不第二次调用平台，跨进程效果保持一条。该结论只覆盖渠道外部效果；模型、token、时延和成本仍可能重复，不增加 Schedule parser、causal key 或私有日程状态。
 > V5.21 将阶段专用 AS-2 提升为 epoch-2：活动 clean-profile 组合必须在 Gateway route 创建 Agent 前加载官方 Schedule，并通过 agent-scoped `schedule_create` 形成精确一次 create/dispatch/Schedule 插件来源 `user/message`、真实 route delivered 增量与卸载后 Session readback。持久终态必须精确包含十一项关闭 observation；旧 epoch、缺 Schedule 或损坏报告不得复用。合同 9/9、类型和 Feishu 52/52 通过，但 direct/group 仍为 `NOT_RUN`，不构成真实平台证据。
-> 更新日期：2026-08-24
+> V5.22 已推翻 setup-only Session pairing：Gateway 是 Host 常驻 authority，Adapter boot 即连接；陌生 DM 在 Agent 前回短期 code，Host Web批准到当前 native Workspace/Session，下一条消息直接采用动态 grant。旧 `/feishu-pair`、两分钟 listener、反向短语、静态 YAML 与倒计时 UI 已删除。最终 tarball 在真实 rc.2 App 完成 direct DM 配对、三次 native Session/回复和 Host 冷启动恢复；真实 Approval/Schedule/group/failure/长期重连仍是退出门。
+> 更新日期：2026-08-25
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。发生冲突时，下述“方向纠正”优先于旧里程碑文字。
 
 ## 0. 方向纠正：DSH 是唯一 Runtime 与安装入口

@@ -17,7 +17,7 @@
 | `dsh-evolve-attention` | 把 Workspace-scoped 进化待决事项投影到既有 Telegram/飞书 route | disabled，需显式配置 |
 | `dsh-goal-continuity` | exact allowlist Session 的原生 Goal cold-resume policy | disabled，需显式配置 |
 | `dsh-resident` | `/resident` 管理 exact DSH profile 的 launchd/systemd user unit | disabled，需显式配置与逐次确认 |
-| `dsh-gateway` | external endpoint 到原生 Workspace/Session/Agent 的静态、幂等绑定；同包提供统一只读渠道健康视图 | disabled，需显式配置 |
+| `dsh-gateway` | 常驻渠道身份授权、Host 配对及 external endpoint 到原生 Workspace/Session/Agent 的持久幂等绑定；同包提供权威健康与配对控制面 | disabled，需显式配置 |
 | `dsh-feishu` | 飞书 exact 私聊/群聊 Adapter、DSH Web 连接/内容就绪健康面，以及按独立权限启用的原生内容读取 Tool | disabled，需显式配置 |
 
 当前活动进化纵切只使用 DSH 内部经验：Goal-linked Gap 与跨 Goal Skill Opportunity 经生成前证据密封后，产生隔离、内容寻址的 whole-Skill Candidate；用户不选路径、Agent、workflow、Skill 或来源，产品不建设运行时外部 Skill 搜索、获取、下载、导入或市场。missing-Skill 路径已有 Candidate-independent admission/holdout/可选 Retention、exact Shadow/Retention、future-Session Promotion、failed-Outcome Canary 和人工精确回滚，所有评测结果本身均无 pointer 或发布权。
@@ -111,9 +111,17 @@ Schedule 插件来源的 `user/message`，且生产飞书 route 的 durable deli
 52/52 已通过。真实 App 长连接已启动，exact route 配对尚未完成，因此 direct/group 仍严格为 `NOT_RUN`。详见
 [V5.21 证据](docs/evidence/v5-21-real-feishu-native-schedule-gate.zh.md)。
 
+V5.22 按 Hermes 当前源码纠正为 resident Gateway 配对：`dsh-feishu` 在 Bundle boot 即连接，陌生私聊在
+Agent 前收到短期 code，管理员从 DSH Web Host 控制面批准到当前 native Workspace/Session；不再使用 Session
+`/feishu-pair`、两分钟 listener、反向短语或 profile rewrite。最终 tarball 已在真实 rc.2 App 完成
+DM→code→Host approve、普通文本/原生 `/new`/普通文本三次 native Session 入站与回复，Gateway journal 为
+3/3 且零 pending/uncertain/failed；Host 冷启动恢复 exact grant、Session、journal 和 ready transport，无重复
+投递。重启后新增消息、真实 Approval/Schedule/group/failure/长期重连仍待验证，详见
+[V5.22 证据](docs/evidence/v5-22-resident-gateway-pairing.zh.md)。
+
 existing-Skill 路径会封存调用时完整 Bundle，并把当前纠正文与 durable Goal/请求预分为 authoring/admission/holdout/可选 Retention。V4.40 的 Candidate 不可见治理面在 proposer 前用两次独立调用分别消费 protected Holdout 与可选第五 Goal Retention，每次只见 exact baseline 和自己的一个 protected Goal；两套 assembled `skill-tree` Case Pack 经独立 calibration 后共同进入内容寻址 Evaluation Envelope，Candidate id 绑定整个 Envelope。受保护作者只允许改 `SKILL.md`/`references/*.md`，Host 原样继承二进制和其余文件并拒绝权限漂移；结构准入再重验 exact baseline/Candidate 双树、声明 diff 与 protected admission identity。V4.39 的原生 DSH Job 执行完整 paired Holdout；V4.41 只在该 exact Holdout 权威判为 `improved` 后由另一原生 DSH Job 执行预密封 Retention，四 Goal无样本时零花费 abstain，五 Goal按 `fail/pass` 四象限持久判为 `retained/ambiguous/not-retained/regressed`。两者都要求 calibration、assembled、composition 与输入完整性全部成立，中断不盲重试且无晋升权。V4.43 再由独立 Host mutation gate 重验 exact Admission/Holdout/Retention 与完整 sealed Bundle；只有人工 approve 才产生 inactive Generation，另一动作才选择未来 Session，reject 持久终止且 evaluator 始终无发布权。
 
-V4.39 最终 tarball 已验证 paired Holdout 的真实 DSH Web 生命周期；V4.42 又从最终 `dsh-evolve`/`dsh-evolve-web` tarball 验证 exact Retention 的权威卡片、整页 reload、Host 断连显式报错但保留最后快照、同端口恢复、console error 0 和官方卸载。V4.43 已用真实 DSH Agent/Session/SkillRegistry 自动化证明同名现有 Skill 的 future-only 晋升、旧 Session 固定、显式回滚恢复原生选择、二进制整包保留和决定跨重启恢复；V4.44 已把同一 Host owner 的 bounded release 状态和 approve/reject/promote 接入 Control、固定 Typert Remote 与 DSH Web。V4.45 再从最终 tarball 和 clean profile 真实完成发布生命周期；V4.46 已让 active existing-Skill release 的失败 Outcome 经原生 Jobs 触发 exact sealed paired Canary，只有 baseline 恢复且 Candidate 失败才产出无 mutation 权的 rollback-eligible。V4.47 已把该 Canary 的权威证据接入 Control、固定 Typert Remote 与 DSH Web，并以独立 Host gate、exact Canary id 和 expected-active compare 完成人工 future-Session rollback。V4.48 已从最终 tarball 和 clean profile 真实完成 existing-Skill approve→future-only promote→Canary→Host 断连保留→精确 rollback→整页/进程恢复→官方卸载；V4.49 又对缺失 Skill 的内部完整 `skill-bundle` 路径完成 future-only promote→Canary→断连保留→精确 root rollback→冷恢复→官方卸载，两轮浏览器 console error 均为 0。两套独立真实 provider、长期 Outcome、真实飞书 exact route、Hermes paired benchmark 与长期误晋升/负迁移/误回滚证据仍未完成。
+V4.39 最终 tarball 已验证 paired Holdout 的真实 DSH Web 生命周期；V4.42 又从最终 `dsh-evolve`/`dsh-evolve-web` tarball 验证 exact Retention 的权威卡片、整页 reload、Host 断连显式报错但保留最后快照、同端口恢复、console error 0 和官方卸载。V4.43 已用真实 DSH Agent/Session/SkillRegistry 自动化证明同名现有 Skill 的 future-only 晋升、旧 Session 固定、显式回滚恢复原生选择、二进制整包保留和决定跨重启恢复；V4.44 已把同一 Host owner 的 bounded release 状态和 approve/reject/promote 接入 Control、固定 Typert Remote 与 DSH Web。V4.45 再从最终 tarball 和 clean profile 真实完成发布生命周期；V4.46 已让 active existing-Skill release 的失败 Outcome 经原生 Jobs 触发 exact sealed paired Canary，只有 baseline 恢复且 Candidate 失败才产出无 mutation 权的 rollback-eligible。V4.47 已把该 Canary 的权威证据接入 Control、固定 Typert Remote 与 DSH Web，并以独立 Host gate、exact Canary id 和 expected-active compare 完成人工 future-Session rollback。V4.48 已从最终 tarball 和 clean profile 真实完成 existing-Skill approve→future-only promote→Canary→Host 断连保留→精确 rollback→整页/进程恢复→官方卸载；V4.49 又对缺失 Skill 的内部完整 `skill-bundle` 路径完成 future-only promote→Canary→断连保留→精确 root rollback→冷恢复→官方卸载，两轮浏览器 console error 均为 0。两套独立真实 provider、长期 Outcome、飞书 Approval/Schedule/group/failure/长期重连、Hermes paired benchmark 与长期误晋升/负迁移/误回滚证据仍未完成。
 
 现有 Skill Candidate 的内容身份绑定生成前 exact Evaluation Envelope；五 Goal Envelope 同时内容寻址 Holdout 与 Retention，四 Goal及历史 v2 Envelope 明确没有 Retention。历史无绑定 Candidate 只读且不得进入 Trial，Envelope 错配在 Candidate 物化前失败关闭；DSH Web 显示 Candidate 绑定、Retention presence 与 paired evaluation 实际使用的 Envelope。
 

@@ -43,8 +43,25 @@ Feishu 为 `mode: pairing`、空 `routeIds`。真实 DSH Web 返回 HTTP 200，�
 真实 Host 当前由最终 tarball 常驻运行。App ID/Secret 只经启动进程环境注入，未写 profile、仓库、证据或
 日志；标准 HTTPS proxy 由 Adapter 进程局部采用。
 
+## 真实平台消息与重启结果
+
+真实飞书私聊已完成 resident pairing 的人工纵切：陌生用户首条任意消息只收到短期 code，未进入 Agent；
+管理员在 Gateway Web 把 pending request 批准到当前 native Workspace/Session 后，不重连、不改 profile，
+后续三条真实消息均进入同一原生 Session，并各自收到一次飞书回复。其中覆盖普通文本、原生 `/new`
+Command 和新的普通文本 turn。
+
+批准后的 Gateway 权威面显示一条动态 route、一个 live Session、`official-feishu-websocket: ready`；journal
+为 ingress 3、outbound 3、pending 0、uncertain 0、failed 0。当前 Command palette 保留只读 `/feishu`
+健康命令且不再暴露 `/feishu-pair`。Session 中仍可见的旧 `/feishu-pair` 卡片是改造前已经持久化的历史
+事件，不是当前 runtime 命令或可调用入口；本次验收没有改写原生 Session 历史。
+
+随后对真实 Host 发送正常终止信号并从同一 profile 冷启动。重启后 exact 动态 route、live Session、
+3/3 journal 和 transport `ready` 均从持久状态恢复，没有要求重新配对，也没有重复投递已有消息。该结果
+证明 grant、Session 绑定与 Gateway journal 的干净重启恢复；尚未用重启后新增飞书消息关闭持续收发门。
+
 ## 尚未关闭的门
 
-当前不能把“连接 ready”冒充真实消息闭环。仍需真实用户在飞书私聊发送任意消息，保存 bot 返回 code，
-从 Gateway Web 批准，再发送第二条消息，验证 native Session 入站、模型/Command 回送、一次性 Approval、
-grant 跨进程恢复和精确撤销。完成前 AS-2 真实平台退出门仍是 `pending`，也不创建发布 tag。
+真实 DM→code→Host approve→native Session→回复的主路径已通过，但这还不是 AS-2 全部门禁。仍需在上述
+冷启动后发送一条新消息证明持续收发无需重新配对，并验证真实一次性 Approval 卡片、官方 Schedule
+create/dispatch 回送、group policy、网络/429/模糊发送故障、精确撤销和长期重连。完成前 AS-2 真实平台
+退出门仍是 `partial`，也不创建发布 tag。

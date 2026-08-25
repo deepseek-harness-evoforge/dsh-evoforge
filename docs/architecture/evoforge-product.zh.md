@@ -86,8 +86,9 @@ route，但 App ID 必须与 Gateway account 一致；Gateway 继续拥有 Works
 Adapter 只保留平台协议、实际发送和一次性 Approval 卡片；有界出站 journal 位于 Gateway。明确 429 才重试，模糊发送进入
 uncertain。双 Workspace 双渠道同 Host 重启隔离、真实 App 身份请求及标准 HTTPS proxy 环境中的
 WebSocket 握手已经通过；resident Gateway 在 Agent 前消费陌生私聊、回短期 code，并由 Host Web 把 grant
-原子绑定到当前 live native Workspace/Session；无需 Session Command、profile rewrite 或重启。exact chat/user 消息闭环完成前仍只标记为
-`implemented`，不能增加通用 Gateway Runtime。
+原子绑定到当前 live native Workspace/Session；无需 Session Command、profile rewrite 或重启。真实 direct
+私聊已完成 code→approve、三次 native Session/回复与 Host 冷启动状态恢复；真实 Approval、Schedule、group、
+故障和长期重连完成前仍只标记为 `implemented`，不能增加通用 Gateway Runtime。
 入站图片使用飞书官方 message-resource API 下载，再经 DSH AttachmentStore 内容寻址保存；assembled
 DSH 已证明原生 image block、exact bytes 回读和外部 `fileKey` 不进入 Session。该证据不等于真实用户
 exact route 或真实多模态 provider 验收。已验证 rc.5 与最新设计审计 rc.2 都只有栅格图片附件；普通文件、音视频以及
@@ -168,7 +169,7 @@ Resident 只恢复进程，Goal Continuity 只决定 exact Session 的原生 Goa
 | 单机持续运行 | crash-resume、幂等恢复、无半激活版本 | Generation release + Shadow journal + native Jobs supervisor、`dsh-goal-continuity` Goal 冷恢复与 `dsh-resident` 真实 macOS DSH PID `SIGKILL` 拉起已实现；Linux 真机与生产多日 soak pending |
 | Memory/Skill | 复用 DSH/社区能力，不造第二套 Memory | 架构边界已确认 |
 | 内部经验自我发现 | 自然语言 Goal 自动使用已安装的适用能力；反复出现真实缺口时从自身经验形成可复核 Opportunity 和完整候选 | 原生目录/路由证据、可证伪 Gap、至少两个独立 Goal 的 Opportunity、四 Goal authoring/admission/holdout 与第五 Goal Retention 预密封、无 Skill 预配置的 Workspace policy、seal-bound Candidate v2、Candidate-independent governance Case Pack authoring/zero-proposer calibration、Envelope v4/v5/Lineage v3、exact-Candidate Shadow/Retention，以及 existing-Skill whole-tree Candidate/结构准入/exact paired Holdout/Retention implemented；V5.12 已补 Workspace-only、无 Skill target 的 exact append-only/effect-clear/model-token-cache non-regression 自动晋升门；两套独立真实 provider、长期迁移与 paired benchmark pending |
-| 消息与日程 | 按真实 workflow 提供可拆 Adapter | Telegram、飞书与 Evolve 注意力桥 implemented；飞书 resident Gateway 配对 assembled 通过，真实 App WebSocket 在最终 tarball profile 显示 ready；真实用户 DM→code→Host approve→reply 闭环、Hermes paired、普通文件/音视频和真实内容权限 pending |
+| 消息与日程 | 按真实 workflow 提供可拆 Adapter | Telegram、飞书与 Evolve 注意力桥 implemented；飞书 resident Gateway 已从最终 tarball 真实 App 完成 DM→code→Host approve、三次 native Session/回复和 Host 冷启动恢复；Approval/Schedule/group/failure/长期重连、Hermes paired、普通文件/音视频和真实内容权限 pending |
 | 人类控制 | 状态、证据、审批、暂停、回滚不阻塞会话 | P0C Commands/Web + P3.1 非阻塞 Telegram attention + P3.2 Draft PR review follow-up implemented；语义 capability 审计与陌生用户可用性数据 pending |
 | 自进化 | 内部经验发现、独立治理、inactive Candidate、可证明晋升 | Goal-linked Gap → cross-Goal Opportunity → evidence seal → Candidate-independent admission/holdout/Retention Case Pack → exact-Candidate assembled Shadow → durable Retention verdict → review/窄自动门 → content-addressed inactive Generation → future-Session selection → failed-Outcome sealed canary evidence → exact rollback 已形成活动纵切；现有 Skill 的 exact correction 已绑定同一调用时完整 baseline Bundle，并从官方 Feedback/Session 服务在生成前隔离 authoring/admission/holdout/Retention，whole-tree author/Candidate、结构准入、Candidate-blind exact paired Holdout、只从 improved Holdout 触发的 exact Retention 及最终 tarball Web 生命周期已实现；V5.12 的 opt-in 自动门只允许 exact `SKILL.md` 末尾低风险追加并重验 token/cache、pause、parent 与 crash recovery；历史偏差表面已撤销；existing-Skill Canary Host/Jobs、权威 Control/Remote/Web 和独立 expected-active rollback gate 已实现；本增量最终包浏览器、两套独立真实 provider、陌生用户与长期效果 pending |
 | 权限 | 代码和外部效果不自动激活 | 需求与测试门已定义 |
