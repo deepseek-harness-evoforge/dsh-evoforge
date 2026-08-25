@@ -10,12 +10,41 @@ afterEach(() => {
 })
 
 describe('GatewayAction', () => {
+  it('lets the operator approve a relayed Feishu code into the selected native Session', async () => {
+    const remote = {
+      overview: vi.fn(async () => ({ ok: true, value: snapshot() })),
+      approvePairing: vi.fn(async () => ({
+        ok: true,
+        value: { routeId: 'paired-feishu', workspaceId: 'workspace-a', sessionId: 'session-a' },
+      })),
+    } as GatewayRemoteClient
+    render(<GatewayAction
+      remote={remote}
+      t={translate}
+      wide
+      useSessions={((selector: (state: { current: string }) => unknown) =>
+        selector({ current: 'session-a' })) as never}
+      useWorkspaces={((selector: (state: { items: Array<{ workspaceId: string; sessionIds: string[] }> }) => unknown) =>
+        selector({ items: [{ workspaceId: 'workspace-a', sessionIds: ['session-a'] }] })) as never}
+    />)
+
+    fireEvent.click(screen.getByRole('button', { name: '渠道健康' }))
+    fireEvent.change(await screen.findByLabelText('配对码'), { target: { value: 'ABCDEFGH23' } })
+    fireEvent.click(screen.getByRole('button', { name: '批准飞书配对' }))
+
+    expect(await screen.findByText(/paired-feishu/u)).toBeTruthy()
+    expect(remote.approvePairing).toHaveBeenCalledWith(
+      'ABCDEFGH23', 'feishu', 'workspace-a', 'session-a',
+    )
+  })
+
   it('shows unified channel health and fails visibly without retaining a stale ready view', async () => {
     const remote = {
       overview: vi.fn()
         .mockResolvedValueOnce({ ok: false, error: { code: 'host-unavailable', message: 'offline' } })
         .mockResolvedValueOnce({ ok: true, value: snapshot() })
         .mockResolvedValueOnce({ ok: false, error: { code: 'host-unavailable', message: 'offline again' } }),
+      approvePairing: vi.fn(),
     } as GatewayRemoteClient
     render(<GatewayAction
       remote={remote}
@@ -92,6 +121,9 @@ function translate(key: string, values?: Record<string, string | number>): strin
     'status.refreshing': '正在刷新',
     'summary.routes': '{count} 条路由',
     'summary.sessions': '{count} 个实时 Session',
+    'pairing.code': '配对码',
+    'pairing.approve': '批准飞书配对',
+    'pairing.approved': '配对已批准，路由：',
     'foot.noModel': '权威 Host 快照，不调用模型',
     'error.prefix': '读取失败：',
   }

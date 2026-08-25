@@ -2,6 +2,7 @@
 export type {
   GatewayHealthRoute,
   GatewayHealthSnapshot,
+  GatewayPairingSessionApprovalReceipt,
 } from './gateway.ts'
 export type { GatewayOutboundHealth } from './outbound.ts'
 export type { GatewayOutboundStatus } from './outbound-journal.ts'

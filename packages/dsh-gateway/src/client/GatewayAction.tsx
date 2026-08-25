@@ -2,10 +2,19 @@ import { useRef, useState } from 'react'
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
-import type { GatewayHealthSnapshot } from '../client-types.ts'
+import type {
+  GatewayHealthSnapshot,
+  GatewayPairingSessionApprovalReceipt,
+} from '../client-types.ts'
 
 export interface GatewayRemoteClient {
   overview(): Promise<RemoteResult<GatewayHealthSnapshot>>
+  approvePairing(
+    code: string,
+    adapter: string,
+    workspaceId: string,
+    sessionId: string,
+  ): Promise<RemoteResult<GatewayPairingSessionApprovalReceipt>>
 }
 
 export type GatewayActionProps = PropsRuntime<'sidebar.footer.action'> & {
@@ -15,12 +24,19 @@ export type GatewayActionProps = PropsRuntime<'sidebar.footer.action'> & {
 
 type ViewStatus = 'ready' | 'busy' | 'attention' | 'degraded' | 'stopping'
 
-/** Global, read-only DSH Web projection of the redacted Gateway authority. */
-export function GatewayAction({ remote, t, wide }: GatewayActionProps) {
+/** Global DSH Web control surface for Gateway health and Host-owned pairing. */
+export function GatewayAction({ remote, t, useSessions, useWorkspaces, wide }: GatewayActionProps) {
   const triggerRef = useRef<HTMLButtonElement>(null)
   const requestRef = useRef(0)
+  const sessionId = useSessions(state => state.current)
+  const workspaceId = useWorkspaces(state => sessionId === undefined
+    ? undefined
+    : state.items.find(workspace => workspace.sessionIds.includes(sessionId))?.workspaceId)
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [pairingBusy, setPairingBusy] = useState(false)
+  const [pairingCode, setPairingCode] = useState('')
+  const [pairingReceipt, setPairingReceipt] = useState<GatewayPairingSessionApprovalReceipt>()
   const [snapshot, setSnapshot] = useState<GatewayHealthSnapshot>()
   const [error, setError] = useState<string>()
 
@@ -51,6 +67,31 @@ export function GatewayAction({ remote, t, wide }: GatewayActionProps) {
     requestRef.current += 1
     setOpen(false)
     triggerRef.current?.focus()
+  }
+  const approvePairing = async () => {
+    const code = pairingCode.trim().toUpperCase()
+    setPairingReceipt(undefined)
+    setError(undefined)
+    if (workspaceId === undefined || sessionId === undefined) {
+      setError(t('pairing.noTarget'))
+      return
+    }
+    if (!/^[A-HJ-NP-Z2-9]{10}$/u.test(code)) {
+      setError(t('pairing.invalidCode'))
+      return
+    }
+    setPairingBusy(true)
+    try {
+      const result = await remote.approvePairing(code, 'feishu', workspaceId, sessionId)
+      if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`)
+      setPairingReceipt(result.value)
+      setPairingCode('')
+      await refresh()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setPairingBusy(false)
+    }
   }
   const status = snapshot === undefined ? undefined : viewStatus(snapshot)
 
@@ -84,6 +125,35 @@ export function GatewayAction({ remote, t, wide }: GatewayActionProps) {
             <strong>{format(t('summary.sessions'), snapshot.routes.liveSessions)}</strong>
             <span>{t(`lifecycle.${snapshot.lifecycle}`)}</span>
           </div>
+          <section className="dsh-gateway-section dsh-gateway-pairing">
+            <h3>{t('pairing.title')}</h3>
+            <p>{t('pairing.help')}</p>
+            <label htmlFor="dsh-gateway-pairing-code">{t('pairing.code')}</label>
+            <div className="dsh-gateway-pairing-row">
+              <input
+                id="dsh-gateway-pairing-code"
+                value={pairingCode}
+                maxLength={10}
+                autoComplete="off"
+                spellCheck={false}
+                placeholder="ABCDEFGH23"
+                onChange={event => setPairingCode(event.target.value.toUpperCase())}
+              />
+              <button
+                type="button"
+                disabled={pairingBusy || workspaceId === undefined || sessionId === undefined}
+                onClick={() => { void approvePairing() }}
+              >
+                {pairingBusy ? t('pairing.approving') : t('pairing.approve')}
+              </button>
+            </div>
+            {workspaceId === undefined || sessionId === undefined
+              ? <small>{t('pairing.noTarget')}</small>
+              : <small>{t('pairing.target')} <code>{workspaceId}</code> / <code>{sessionId}</code></small>}
+            {pairingReceipt !== undefined && <div className="dsh-gateway-message is-success" role="status">
+              {t('pairing.approved')} <code>{pairingReceipt.routeId}</code>
+            </div>}
+          </section>
           <section className="dsh-gateway-section">
             <h3>{t('transport.title')}</h3>
             {snapshot.transports.items.length === 0

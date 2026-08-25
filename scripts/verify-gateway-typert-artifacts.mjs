@@ -21,11 +21,13 @@ if (remote.TYPERT_REMOTE?.package !== 'dsh-gateway') {
 }
 const hostMethods = methods(host.TYPERT.invocations)
 const remoteMethods = methods(remote.TYPERT_REMOTE.descriptors)
-if (JSON.stringify(hostMethods) !== '["overview"]' || JSON.stringify(remoteMethods) !== '["overview"]') {
+if (JSON.stringify(hostMethods) !== '["approvePairing","overview"]'
+  || JSON.stringify(remoteMethods) !== '["approvePairing","overview"]') {
   throw new Error(`unexpected evoforgeGateway Remote methods: ${JSON.stringify({ hostMethods, remoteMethods })}`)
 }
-const descriptor = remote.TYPERT_REMOTE.descriptors.find(row => row?.namespace === 'evoforgeGateway')
-if (!descriptor || descriptor.parameters.length !== 0) {
+const descriptor = remote.TYPERT_REMOTE.descriptors.find(row =>
+  row?.namespace === 'evoforgeGateway' && row.method === 'overview')
+if (!descriptor || descriptor.method !== 'overview' || descriptor.parameters.length !== 0) {
   throw new Error('evoforgeGateway/overview must have no caller-controlled parameters')
 }
 

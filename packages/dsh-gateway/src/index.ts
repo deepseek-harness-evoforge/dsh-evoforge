@@ -166,6 +166,8 @@ export {
   type GatewayDispatchResult,
   type GatewayHealthRoute,
   type GatewayHealthSnapshot,
+  type GatewayPairingSessionApprovalInput,
+  type GatewayPairingSessionApprovalReceipt,
 } from './gateway.js'
 export { GatewayRemoteService } from './gateway-remote.js'
 export type { GatewayRemoteTypertContract } from './gateway-remote.typert.js'

@@ -103,7 +103,8 @@ export type GatewayPairingOffer =
 
 export interface GatewayPairingApprovalInput {
   readonly adapter: string
-  readonly accountId: string
+  /** Optional account scope; omitted Host approvals search the named Adapter and reject ambiguity. */
+  readonly accountId?: string
   readonly code: string
   readonly target: GatewayPairingTarget
   readonly now: number
@@ -179,7 +180,9 @@ class DomainGatewayPairingAuthority implements GatewayPairingAuthority {
     return this.write(async () => {
       exactTime(input.now)
       const adapter = endpointSchema.shape.adapter.parse(input.adapter)
-      const accountId = endpointSchema.shape.accountId.parse(input.accountId)
+      const accountId = input.accountId === undefined
+        ? undefined
+        : endpointSchema.shape.accountId.parse(input.accountId)
       const code = input.code.trim().toUpperCase()
       if (!CODE_PATTERN.test(code)) throw invalidCode()
       const target = normalizeTarget(input.target)
@@ -189,12 +192,13 @@ class DomainGatewayPairingAuthority implements GatewayPairingAuthority {
       let matched: GatewayPairingRequest | undefined
       for (const [key, request] of bindings.entries()) {
         if (request.kind !== 'pending') continue
-        if (request.endpoint.adapter !== adapter || request.endpoint.accountId !== accountId) continue
+        if (request.endpoint.adapter !== adapter
+          || (accountId !== undefined && request.endpoint.accountId !== accountId)) continue
         const digest = hashCode(code, Buffer.from(request.salt, 'hex'))
         if (timingSafeEqual(Buffer.from(digest, 'hex'), Buffer.from(request.codeHash, 'hex'))) {
+          if (matched !== undefined) throw new Error('gateway pairing code is ambiguous across Adapter accounts')
           matchedKey = key
           matched = request
-          break
         }
       }
       if (matchedKey === undefined || matched === undefined) throw invalidCode()

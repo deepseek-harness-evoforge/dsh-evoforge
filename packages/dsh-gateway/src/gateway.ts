@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent, AgentHandle } from '@deepseek-ai/dsh-agent'
 import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
@@ -82,6 +82,19 @@ export type GatewayAuthorizationResult =
   | { readonly kind: 'trusted'; readonly route: ResolvedGatewayRoute }
   | { readonly kind: 'pairing'; readonly offer: GatewayPairingOffer }
   | { readonly kind: 'rejected'; readonly reason: 'untrusted' }
+
+export interface GatewayPairingSessionApprovalInput {
+  readonly code: string
+  readonly adapter: string
+  readonly workspaceId: string
+  readonly sessionId: string
+}
+
+export interface GatewayPairingSessionApprovalReceipt {
+  readonly routeId: string
+  readonly workspaceId: string
+  readonly sessionId: string
+}
 
 export interface GatewayHealthRoute {
   readonly id: string
@@ -199,6 +212,51 @@ export class DshGateway {
       throw new Error(`gateway pairing route id '${input.target.id}' is already configured`)
     }
     return this.pairing.approve(input)
+  }
+
+  async approvePairingForSession(
+    input: GatewayPairingSessionApprovalInput,
+  ): Promise<GatewayPairingSessionApprovalReceipt> {
+    this.assertRunning()
+    if (this.pairing === undefined) throw new Error('DSH gateway pairing is disabled')
+    const workspace = this.ctx.workspaceRegistry.get(WorkspaceId(input.workspaceId))
+    if (workspace === undefined || await workspace.status() !== 'ok') {
+      throw new Error(`gateway pairing names unavailable Workspace '${input.workspaceId}'`)
+    }
+    const sessionId = SessionId(input.sessionId)
+    if (!workspace.sessionIds.some(id => id === sessionId)) {
+      throw new Error(`gateway pairing Session '${input.sessionId}' is not owned by Workspace '${input.workspaceId}'`)
+    }
+    const agent = this.ctx.agents.get(sessionId)
+    if (agent === undefined) {
+      throw new Error('gateway pairing approval requires the selected native DSH Session to be live')
+    }
+    if (agent.session.header.cwd !== workspace.path) {
+      throw new Error(`gateway pairing Session '${input.sessionId}' cwd does not match its Workspace`)
+    }
+    const agentPreset = this.ctx.agentPresets.composedPreset(agent.ctx)
+    if (agentPreset === undefined || agent.options.provider === undefined || agent.options.model === undefined) {
+      throw new Error('gateway pairing approval requires a complete live Agent route')
+    }
+    const approved = await this.approvePairing({
+      code: input.code,
+      adapter: input.adapter,
+      target: {
+        id: `paired-${randomBytes(12).toString('hex')}`,
+        workspaceId: input.workspaceId,
+        sessionId: input.sessionId,
+        agentPreset,
+        provider: agent.options.provider,
+        model: agent.options.model,
+        ...(agent.options.maxTokens === undefined ? {} : { maxTokens: agent.options.maxTokens }),
+      },
+      now: Date.now(),
+    })
+    return Object.freeze({
+      routeId: approved.route.id,
+      workspaceId: approved.route.workspaceId,
+      sessionId: approved.route.sessionId,
+    })
   }
 
   async accept(input: GatewayAcceptInput): Promise<GatewayAcceptResult> {

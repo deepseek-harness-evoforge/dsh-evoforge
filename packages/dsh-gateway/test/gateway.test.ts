@@ -22,6 +22,59 @@ const routes = resolveGatewayRoutes([
 ])
 
 describe('DshGateway', () => {
+  it('binds an unknown DM to the selected live native Session through the Host control surface', async () => {
+    const host = fakeNativeHost()
+    const facility = memoryFacility()
+    const pairing = await openGatewayPairingAuthority(facility, {
+      codeTtlMs: 15 * 60_000,
+      maxPendingPerAccount: 3,
+    })
+    const gateway = new DshGateway(
+      host.ctx,
+      resolveGatewayRoutes([{
+        id: 'telegram-a', ...endpointA, workspaceId: 'workspace-a', sessionId: 'session-a',
+        agentPreset: 'standard', provider: 'mock', model: 'mock-a',
+      }]),
+      await openGatewayIngressJournal(facility),
+      await openGatewayOutboundJournal(facility),
+      pairing,
+    )
+    await gateway.start()
+    await gateway.dispatch({ endpoint: endpointA, eventId: 'warm-native-session', text: 'local route' })
+    const now = Date.now()
+
+    const first = await gateway.accept({
+      endpoint: endpointB,
+      chatKind: 'direct',
+      eventId: 'unknown-feishu-dm',
+      text: 'pair me',
+      now,
+    })
+    if (first.kind !== 'pairing' || first.offer.kind !== 'offered') {
+      throw new Error('Gateway did not offer pairing')
+    }
+
+    const receipt = await gateway.approvePairingForSession({
+      code: first.offer.code,
+      adapter: 'feishu',
+      workspaceId: 'workspace-a',
+      sessionId: 'session-a',
+    })
+    expect(receipt).toMatchObject({ workspaceId: 'workspace-a', sessionId: 'session-a' })
+    expect(receipt.routeId).toMatch(/^paired-[a-f0-9]{24}$/u)
+
+    const accepted = await gateway.accept({
+      endpoint: endpointB,
+      chatKind: 'direct',
+      eventId: 'trusted-feishu-dm',
+      text: 'now enter DSH',
+      now: now + 1,
+    })
+    expect(accepted).toMatchObject({ kind: 'message', route: { id: receipt.routeId } })
+    expect(host.messages.get('session-a')).toEqual(['local route', 'now enter DSH'])
+    await gateway.stop()
+  })
+
   it('keeps unknown DMs out of the Agent until a Host pairing approval creates an exact native route', async () => {
     const host = fakeNativeHost()
     const facility = memoryFacility()
@@ -482,6 +535,7 @@ function fakeNativeHost(): {
 function workspace(id: string, path: string, attached: Map<string, string[]>): object {
   return {
     id, path,
+    get sessionIds() { return attached.get(id) ?? [] },
     async status() { return 'ok' },
     async attachSession(sessionId: string) {
       const list = attached.get(id) ?? []

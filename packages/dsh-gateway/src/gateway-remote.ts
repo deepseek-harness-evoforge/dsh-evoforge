@@ -1,6 +1,9 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
-import type { GatewayHealthSnapshot } from './client-types.ts'
+import type {
+  GatewayHealthSnapshot,
+  GatewayPairingSessionApprovalReceipt,
+} from './client-types.ts'
 import type { DshGateway } from './gateway.ts'
 
 declare module '@deepseek-ai/cordis' {
@@ -20,17 +23,28 @@ export class GatewayRemoteService extends TypertRemoteService {
   overview(): Promise<GatewayHealthSnapshot> {
     return Promise.resolve(this.gateway.healthSnapshot())
   }
+
+  approvePairing(
+    code: string,
+    adapter: string,
+    workspaceId: string,
+    sessionId: string,
+  ): Promise<GatewayPairingSessionApprovalReceipt> {
+    return this.gateway.approvePairingForSession({ code, adapter, workspaceId, sessionId })
+  }
 }
 
 type RemoteInitializer = (this: GatewayRemoteService) => void
 type AnyRemoteMethod = (this: GatewayRemoteService, ...args: unknown[]) => unknown
 const remoteInitializers: RemoteInitializer[] = []
-const method = GatewayRemoteService.prototype.overview as AnyRemoteMethod
-const context = {
-  kind: 'method',
-  name: 'overview',
-  static: false,
-  private: false,
-  addInitializer(initializer: RemoteInitializer) { remoteInitializers.push(initializer) },
-} as unknown as ClassMethodDecoratorContext<GatewayRemoteService, AnyRemoteMethod>
-Remote('overview')(method, context)
+for (const name of ['overview', 'approvePairing'] as const) {
+  const method = GatewayRemoteService.prototype[name] as AnyRemoteMethod
+  const context = {
+    kind: 'method',
+    name,
+    static: false,
+    private: false,
+    addInitializer(initializer: RemoteInitializer) { remoteInitializers.push(initializer) },
+  } as unknown as ClassMethodDecoratorContext<GatewayRemoteService, AnyRemoteMethod>
+  Remote(name)(method, context)
+}
