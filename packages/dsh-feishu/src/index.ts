@@ -11,7 +11,6 @@ import {
   resolveFeishuPairingConfig,
   type FeishuContentPermission,
 } from './config.js'
-import type { FeishuHostNotice, FeishuHostRoute } from './host-route.js'
 import {
   createOfficialFeishuPairingPlatform,
   createOfficialFeishuPlatform,
@@ -69,6 +68,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     ctx.effect(() => async () => runtime.dispose(), 'dsh-feishu.runtime')
     try {
       await runtime.start()
+      ctx.provide('evoforge.feishuRoute' as never, runtime.createHostRoute() as never)
     } catch (error) {
       await runtime.dispose()
       throw error
@@ -96,15 +96,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   ctx.effect(() => async () => runtime.dispose(), 'dsh-feishu.runtime')
   try {
     await runtime.start()
-    const hostRoute: FeishuHostRoute = Object.freeze({
-      routes: Object.freeze(resolved.routes.map(route => Object.freeze({
-        routeId: route.id,
-        workspaceId: route.workspaceId,
-      }))),
-      observedChatKind: (routeId: string) => runtime.observedChatKind(routeId),
-      notify: (notice: FeishuHostNotice) => runtime.notifyHost(notice),
-    })
-    ctx.provide('evoforge.feishuRoute' as never, hostRoute as never)
+    ctx.provide('evoforge.feishuRoute' as never, runtime.createHostRoute() as never)
   } catch (error) {
     await runtime.dispose()
     throw error

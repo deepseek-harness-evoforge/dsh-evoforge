@@ -22,7 +22,12 @@ import {
   shouldInstallFeishuContentTool,
 } from './content.js'
 import { materializeFeishuInbound } from './inbound-images.js'
-import type { FeishuHostNotice, FeishuHostNoticeReceipt } from './host-route.js'
+import type {
+  FeishuHostNotice,
+  FeishuHostNoticeReceipt,
+  FeishuHostRoute,
+  FeishuHostRouteBinding,
+} from './host-route.js'
 import {
   renderFeishuHealthCommand,
   summarizeFeishuHealth,
@@ -244,6 +249,20 @@ export class FeishuRuntime {
       ...(route.endpoint.threadId === undefined ? {} : { replyInThread: true }),
     })
     return Object.freeze({ created: prepared.created, status: prepared.status })
+  }
+
+  /** Host notice/control seam; route ownership is read dynamically after resident grants are adopted. */
+  createHostRoute(): FeishuHostRoute {
+    const runtime = this
+    return Object.freeze({
+      get routes(): readonly FeishuHostRouteBinding[] {
+        return Object.freeze([...runtime.routesById.values()]
+          .map(route => Object.freeze({ routeId: route.id, workspaceId: route.workspaceId }))
+          .sort((left, right) => left.routeId.localeCompare(right.routeId)))
+      },
+      observedChatKind: (routeId: string) => runtime.observedChatKind(routeId),
+      notify: (notice: FeishuHostNotice) => runtime.notifyHost(notice),
+    })
   }
 
   observedChatKind(routeId: string): 'direct' | 'group' | undefined {

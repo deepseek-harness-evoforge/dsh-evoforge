@@ -5,6 +5,7 @@ import { dirname, join, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
+import type { ApprovalOutcome } from '@deepseek-ai/dsh-user-approval'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { FeishuInboundMessage, FeishuSendOptions } from '../src/platform.js'
@@ -130,7 +131,14 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', (
         connected: boolean
         disconnectCount: number
         texts: Array<{ chatId: string; text: string; options?: FeishuSendOptions }>
+        cards: Array<{ messageId: string; chatId: string; card: object; options?: FeishuSendOptions }>
         emitMessage(message: FeishuInboundMessage): Promise<void>
+        emitApproval(action: {
+          messageId: string
+          chatId: string
+          operatorId: string
+          value: unknown
+        }): Promise<void>
       }
     } | undefined
     if (service === undefined) throw new Error('pairing test service unavailable')
@@ -154,6 +162,14 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', (
         }): Promise<unknown>
       }
       const agent = await gateway.resolve('existing-test-route')
+      const hostRoute = ctx.get('evoforge.feishuRoute') as {
+        readonly routes: readonly { readonly routeId: string; readonly workspaceId: string }[]
+        notify(input: { readonly id: string; readonly routeId: string; readonly text: string }): Promise<{
+          readonly status: string
+        }>
+      } | undefined
+      expect(hostRoute).toBeDefined()
+      expect(hostRoute?.routes).toEqual([])
       const beforeMessages = agent.session.events.filter(event => event.type === 'user/message').length
       expect(ctx.commands.list(agent as never).map((command: { name: string }) => command.name))
         .not.toContain('feishu-pair')
@@ -191,6 +207,38 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', (
       }))
       await eventually(() => agent.session.events
         .filter(event => event.type === 'user/message').length === beforeMessages + 1)
+      expect(hostRoute?.routes).toEqual([{
+        routeId: 'feishu-paired',
+        workspaceId: gateway.route('existing-test-route')!.workspaceId,
+      }])
+
+      const agentModule = await import(pathToFileURL(
+        join(dshSourceDir, 'packages', 'core', 'agent', 'lib', 'index.js'),
+      ).href)
+      const approval = agentModule.agentEvents(ctx, agent).waterfall('approval/request', {
+        toolName: 'pairing-protected-action',
+        reason: 'Verify resident paired Approval.',
+        signal: new AbortController().signal,
+      }, () => Promise.resolve<ApprovalOutcome>('unavailable'))
+      await eventually(() => service.platform.cards.length === 1)
+      const card = service.platform.cards[0]!
+      const value = (card.card as {
+        body?: { elements?: Array<{ actions?: Array<{ value?: unknown }> }> }
+      }).body?.elements?.[1]?.actions?.[0]?.value
+      await service.platform.emitApproval({
+        messageId: card.messageId,
+        chatId: 'oc_discovered',
+        operatorId: 'ou_discovered',
+        value,
+      })
+      await expect(approval).resolves.toBe('allowed-once')
+
+      await expect(hostRoute?.notify({
+        id: 'a'.repeat(64),
+        routeId: 'feishu-paired',
+        text: 'Resident pairing notice.',
+      })).resolves.toMatchObject({ status: 'prepared' })
+      await eventually(() => service.platform.texts.some(item => item.text === 'Resident pairing notice.'))
       expect(service.platform.connected).toBe(true)
     } finally {
       await ctx.fiber.dispose()
