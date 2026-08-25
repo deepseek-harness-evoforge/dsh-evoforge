@@ -7,7 +7,7 @@ import type {
 } from '../../src/index.ts'
 
 export const name = 'dsh-feishu-test-pairing-bootstrap'
-export const inject = ['commands', 'workspaceRegistry']
+export const inject = ['attachments', 'evoforge.gateway']
 
 interface Config {
   readonly feishuEntry: string
@@ -62,7 +62,10 @@ class FakePairingPlatform implements FeishuPlatform {
 
 export async function apply(ctx: Context, config: Config): Promise<void> {
   const feishu = await import(config.feishuEntry) as {
-    installFeishuPairing(ctx: Context, resolved: unknown, platform: FeishuPlatform): unknown
+    FeishuRuntime: new (ctx: Context, resolved: never, gateway: unknown, platform: FeishuPlatform) => {
+      start(): Promise<void>
+      dispose(): Promise<void>
+    }
     resolveFeishuPairingConfig(input: unknown): unknown
   }
   const resolved = feishu.resolveFeishuPairingConfig({
@@ -72,6 +75,8 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     appSecretEnv: config.appSecretEnv,
   })
   const platform = new FakePairingPlatform()
-  const runtime = feishu.installFeishuPairing(ctx, resolved, platform)
+  const runtime = new feishu.FeishuRuntime(ctx, resolved as never, ctx.get('evoforge.gateway' as never), platform)
+  ctx.effect(() => async () => runtime.dispose(), 'dsh-feishu-test.pairing')
+  await runtime.start()
   ctx.provide('evoforge.feishuPairingTest' as never, Object.freeze({ platform, runtime }) as never)
 }

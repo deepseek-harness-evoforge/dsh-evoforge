@@ -136,15 +136,21 @@ describe('Feishu protected deployment config', () => {
       appSecretEnv: 'FEISHU_SECRET',
     }, environment)
 
-    expect(resolved).toEqual({
+    expect(resolved).toMatchObject({
       mode: 'pairing',
       appId: 'cli_app_id',
       appIdEnv: 'FEISHU_ID',
       appSecret: 'secret-value',
       appSecretEnv: 'FEISHU_SECRET',
       handshakeTimeoutMs: 15_000,
-      pairingWindowMs: 120_000,
+      maxRetryAfterMs: 300_000,
+      maxSendAttempts: 3,
+      maxTextChars: 4_000,
+      pairedRoutes: true,
     })
+    expect(resolved.routes).toEqual([])
+    expect([...resolved.routeIds]).toEqual([])
+    expect([...resolved.contentPermissions]).toEqual([])
     expect(() => resolveFeishuPairingConfig({
       mode: 'pairing',
       routeIds: ['feishu-private'],

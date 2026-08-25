@@ -7,6 +7,7 @@ import type { ApprovalOutcome, ApprovalRequest } from '@deepseek-ai/dsh-user-app
 import {
   GatewayIngressUncertainError,
   type GatewayEndpoint,
+  type ResolvedGatewayRoute,
   type DshGateway,
   type GatewayOutboundSendInput,
   type GatewayOutboundSendResult,
@@ -58,8 +59,8 @@ interface PendingApproval {
 export class FeishuRuntime {
   private readonly lifecycle = new AbortController()
   private readonly configuredRouteIds: ReadonlySet<string>
-  private readonly routesById: ReadonlyMap<string, ResolvedFeishuRoute>
-  private readonly routesBySession: ReadonlyMap<string, readonly ResolvedFeishuRoute[]>
+  private readonly routesById = new Map<string, ResolvedFeishuRoute>()
+  private readonly routesBySession = new Map<string, readonly ResolvedFeishuRoute[]>()
   private readonly agentsBySession = new Map<string, Agent>()
   private readonly bound = new WeakSet<Agent>()
   private readonly repliesByMessage = new Map<string, ReplyDestination>()
@@ -86,14 +87,7 @@ export class FeishuRuntime {
     private readonly platform: FeishuPlatform,
   ) {
     this.configuredRouteIds = config.routeIds
-    this.routesById = new Map(config.routes.map(route => [route.id, route]))
-    const grouped = new Map<string, ResolvedFeishuRoute[]>()
-    for (const route of config.routes) {
-      const routes = grouped.get(route.sessionId) ?? []
-      routes.push(route)
-      grouped.set(route.sessionId, routes)
-    }
-    this.routesBySession = new Map([...grouped].map(([sessionId, routes]) => [sessionId, Object.freeze(routes)]))
+    for (const route of config.routes) this.rememberRoute(route)
   }
 
   async start(): Promise<void> {
@@ -105,6 +99,7 @@ export class FeishuRuntime {
       accountId: this.config.appId,
       kind: 'official-feishu-websocket',
       routeIds: this.config.routes.map(route => route.id),
+      pairedRoutes: this.config.pairedRoutes,
       initial: { state: 'connecting', observedAt: startingAt },
     })
     for (const route of this.config.routes) this.bind(await this.gateway.resolve(route.id, this.lifecycle.signal))
@@ -112,6 +107,7 @@ export class FeishuRuntime {
       adapter: 'feishu',
       accountId: this.config.appId,
       routeIds: this.config.routes.map(route => route.id),
+      pairedRoutes: this.config.pairedRoutes,
       maxAttempts: this.config.maxSendAttempts,
       maxRetryAfterMs: this.config.maxRetryAfterMs,
       sendTimeoutMs: PLATFORM_SEND_TIMEOUT_MS,
@@ -255,7 +251,7 @@ export class FeishuRuntime {
   }
 
   /** Redacted projection of the exact Host state; it performs no model or platform call. */
-  healthSnapshot(routes: readonly ResolvedFeishuRoute[] = this.config.routes): FeishuHealthSnapshot {
+  healthSnapshot(routes: readonly ResolvedFeishuRoute[] = [...this.routesById.values()]): FeishuHealthSnapshot {
     const routeIds = new Set(routes.map(route => route.id))
     const observedAt = Date.now()
     const sessionId = routes[0]?.sessionId
@@ -346,16 +342,22 @@ export class FeishuRuntime {
       ...(message.threadId === undefined ? {} : { threadId: message.threadId }),
       userId: message.senderId,
     })
-    const route = this.gateway.match(endpoint)
-    if (route === undefined || !this.configuredRouteIds.has(route.id)) return
-    const selected = this.routesById.get(route.id)
-    if (selected === undefined) return
     const observedChatKind = message.chatType === 'p2p' ? 'direct' : 'group'
-    const previousChatKind = this.observedChatKinds.get(route.id)
-    if (previousChatKind !== undefined && previousChatKind !== observedChatKind) {
-      throw new Error(`dsh-feishu: platform chat kind drifted for exact route '${route.id}'`)
+    const authorization = await this.gateway.authorize(endpoint, observedChatKind)
+    if (authorization.kind === 'rejected') return
+    if (authorization.kind === 'pairing') {
+      if (authorization.offer.kind === 'offered') {
+        await this.sendPairingCode(message, authorization.offer.code)
+      }
+      return
     }
-    this.observedChatKinds.set(route.id, observedChatKind)
+    const selected = this.adoptRoute(authorization.route)
+    if (selected === undefined) return
+    const previousChatKind = this.observedChatKinds.get(selected.id)
+    if (previousChatKind !== undefined && previousChatKind !== observedChatKind) {
+      throw new Error(`dsh-feishu: platform chat kind drifted for exact route '${selected.id}'`)
+    }
+    this.observedChatKinds.set(selected.id, observedChatKind)
     const materialized = await materializeFeishuInbound(
       message,
       this.platform,
@@ -402,6 +404,46 @@ export class FeishuRuntime {
     const text = dispatch.result.text
       ?? (dispatch.result.kind === 'success' ? 'Command completed.' : 'Command failed.')
     await this.prepareResponse(destination, eventId, boundText(text, this.config.maxTextChars))
+  }
+
+  private async sendPairingCode(message: FeishuInboundMessage, code: string): Promise<void> {
+    const signal = AbortSignal.any([this.lifecycle.signal, AbortSignal.timeout(PLATFORM_SEND_TIMEOUT_MS)])
+    await this.platform.sendText(
+      message.chatId,
+      `EvoForge 配对码：${code}\n\n请把配对码交给管理员批准；批准后直接发送下一条消息。当前消息不会进入 DSH Agent。`,
+      { replyTo: message.messageId },
+      signal,
+    )
+    this.observeTransportActivity()
+  }
+
+  private adoptRoute(route: ResolvedGatewayRoute): ResolvedFeishuRoute | undefined {
+    if (route.adapter !== 'feishu' || route.accountId !== this.config.appId) return undefined
+    if (!this.config.pairedRoutes && !this.configuredRouteIds.has(route.id)) return undefined
+    const existing = this.routesById.get(route.id)
+    if (existing !== undefined) return existing
+    const selected: ResolvedFeishuRoute = Object.freeze({
+      id: route.id,
+      workspaceId: route.workspaceId,
+      sessionId: route.sessionId,
+      endpoint: Object.freeze({
+        adapter: route.adapter,
+        accountId: route.accountId,
+        conversationId: route.conversationId,
+        userId: route.userId,
+        ...(route.threadId === undefined ? {} : { threadId: route.threadId }),
+      }),
+    })
+    this.rememberRoute(selected)
+    return selected
+  }
+
+  private rememberRoute(route: ResolvedFeishuRoute): void {
+    this.routesById.set(route.id, route)
+    const routes = this.routesBySession.get(route.sessionId) ?? []
+    if (!routes.some(candidate => candidate.id === route.id)) {
+      this.routesBySession.set(route.sessionId, Object.freeze([...routes, route]))
+    }
   }
 
   private async handleApprovalAction(action: FeishuApprovalAction): Promise<void> {

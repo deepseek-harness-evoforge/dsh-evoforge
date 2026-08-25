@@ -23,14 +23,9 @@ export interface FeishuConfigInput {
   readonly maxBitableRecords?: number
 }
 
-export interface ResolvedFeishuPairingConfig {
+export interface ResolvedFeishuPairingConfig extends ResolvedFeishuConfig {
   readonly mode: 'pairing'
-  readonly appId: string
-  readonly appIdEnv: string
-  readonly appSecret: string
-  readonly appSecretEnv: string
-  readonly handshakeTimeoutMs: number
-  readonly pairingWindowMs: number
+  readonly pairedRoutes: true
 }
 
 export interface ResolvedFeishuRoute {
@@ -54,6 +49,7 @@ export interface ResolvedFeishuConfig {
   readonly maxBitableRecords: number
   readonly routes: readonly ResolvedFeishuRoute[]
   readonly routeIds: ReadonlySet<string>
+  readonly pairedRoutes: boolean
 }
 
 export function resolveFeishuConfig(
@@ -121,6 +117,7 @@ export function resolveFeishuConfig(
     maxBitableRecords,
     routes: Object.freeze(resolvedRoutes),
     routeIds,
+    pairedRoutes: false,
   })
 }
 
@@ -138,7 +135,7 @@ function resolveContentPermissions(
   return Object.freeze(resolved)
 }
 
-/** Resolve explicit setup-only mode; it discovers identity but never creates or mutates a Gateway route. */
+/** Resolve resident unknown-DM pairing mode; Gateway owns grants and exact route bindings. */
 export function resolveFeishuPairingConfig(
   config: FeishuConfigInput,
   environment: NodeJS.ProcessEnv = process.env,
@@ -152,7 +149,17 @@ export function resolveFeishuPairingConfig(
   }
   const { appId, appIdEnv, appSecret, appSecretEnv } = resolveCredentials(config, environment)
   const handshakeTimeoutMs = config.handshakeTimeoutMs ?? 15_000
+  const maxRetryAfterSeconds = config.maxRetryAfterSeconds ?? 300
+  const maxSendAttempts = config.maxSendAttempts ?? 3
+  const maxTextChars = config.maxTextChars ?? 4_000
+  const maxContentChars = config.maxContentChars ?? 20_000
+  const maxBitableRecords = config.maxBitableRecords ?? 20
   assertIntegerRange('handshakeTimeoutMs', handshakeTimeoutMs, 1_000, 60_000)
+  assertIntegerRange('maxRetryAfterSeconds', maxRetryAfterSeconds, 1, 300)
+  assertIntegerRange('maxSendAttempts', maxSendAttempts, 1, 5)
+  assertIntegerRange('maxTextChars', maxTextChars, 256, 30_000)
+  assertIntegerRange('maxContentChars', maxContentChars, 1_024, 100_000)
+  assertIntegerRange('maxBitableRecords', maxBitableRecords, 1, 100)
   return Object.freeze({
     mode: 'pairing',
     appId,
@@ -160,7 +167,15 @@ export function resolveFeishuPairingConfig(
     appSecret,
     appSecretEnv,
     handshakeTimeoutMs,
-    pairingWindowMs: 120_000,
+    maxRetryAfterMs: maxRetryAfterSeconds * 1_000,
+    maxSendAttempts,
+    maxTextChars,
+    contentPermissions: Object.freeze(new Set<FeishuContentPermission>()),
+    maxContentChars,
+    maxBitableRecords,
+    routes: Object.freeze([]),
+    routeIds: Object.freeze(new Set<string>()),
+    pairedRoutes: true,
   })
 }
 

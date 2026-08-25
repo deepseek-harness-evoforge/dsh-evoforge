@@ -5,8 +5,6 @@ import { dirname, join, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
-import type { Agent } from '@deepseek-ai/dsh-agent'
-import type { CommandExecution } from '@deepseek-ai/dsh-commands/types'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { FeishuInboundMessage, FeishuSendOptions } from '../src/platform.js'
@@ -24,7 +22,7 @@ afterEach(async () => {
 })
 
 describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', () => {
-  it('pairs from one native Workspace Session without forwarding discovery messages to its Agent', async () => {
+  it('keeps the Gateway connected, replies to the first unknown DM with a code, and dispatches only after Host approval', async () => {
     await execFile('pnpm', ['run', 'build'], { cwd: packageRoot, encoding: 'utf8', timeout: 30_000 })
     const root = await mkdtemp(join(tmpdir(), 'dsh-feishu-pairing-'))
     temporaryRoots.push(root)
@@ -76,6 +74,11 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', (
         id: 'storage-domain',
         name: join(dshSourceDir, 'packages', 'storage', 'storage-domain', 'lib', 'index.js'),
         config: { backend: 'json' },
+      },
+      {
+        id: 'attachment-local',
+        name: join(dshSourceDir, 'packages', 'attachment', 'attachment-local', 'lib', 'index.js'),
+        config: { dshHome: join(root, '.dsh-home') },
       },
       { id: 'commands', name: join(dshSourceDir, 'packages', 'interaction', 'commands', 'lib', 'index.js') },
       {
@@ -135,66 +138,68 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', (
       const gateway = ctx.get('evoforge.gateway') as {
         resolve(id: string): Promise<{ session: { events: readonly SessionEvent[] } }>
         route(id: string): { workspaceId: string } | undefined
+        approvePairing(input: {
+          adapter: string
+          accountId: string
+          code: string
+          target: {
+            id: string
+            workspaceId: string
+            sessionId: string
+            agentPreset: string
+            provider: string
+            model: string
+          }
+          now: number
+        }): Promise<unknown>
       }
       const agent = await gateway.resolve('existing-test-route')
       const beforeMessages = agent.session.events.filter(event => event.type === 'user/message').length
       expect(ctx.commands.list(agent as never).map((command: { name: string }) => command.name))
-        .toContain('feishu-pair')
-
-      const started = await executeNativeCommand(ctx.commands, agent as never, '/feishu-pair start')
-      const phrase = started?.result.text?.match(/EVOFORGE PAIR [A-Z2-9]{16}/u)?.[0]
-      expect(phrase).toBeDefined()
-      if (phrase === undefined) throw new Error('pairing phrase missing')
+        .not.toContain('feishu-pair')
       expect(service.platform.connected).toBe(true)
 
-      await service.platform.emitMessage(message({ content: 'unrelated external text' }))
-      await service.platform.emitMessage(message({ content: phrase }))
-      expect(service.platform.texts).toEqual([{
+      await service.platform.emitMessage(message({ content: '你好' }))
+      const code = service.platform.texts[0]?.text.match(/[A-HJ-NP-Z2-9]{10}/u)?.[0]
+      expect(code).toBeDefined()
+      if (code === undefined) throw new Error('pairing code missing')
+      expect(service.platform.texts[0]).toEqual({
         chatId: 'oc_discovered',
-        text: expect.stringContaining('配对信息已收到'),
+        text: expect.stringContaining('配对码'),
         options: { replyTo: 'om_discovered' },
-      }])
-      expect(service.platform.connected).toBe(false)
+      })
+      expect(service.platform.connected).toBe(true)
       expect(agent.session.events.filter(event => event.type === 'user/message')).toHaveLength(beforeMessages)
 
-      const status = await executeNativeCommand(ctx.commands, agent as never, '/feishu-pair status')
-      expect(status?.result.text).toContain('conversationId: "oc_discovered"')
-      expect(status?.result.text).toContain('userId: "ou_discovered"')
-      expect(status?.result.text).toContain(`workspaceId: "${gateway.route('existing-test-route')?.workspaceId}"`)
-      expect(status?.result.text).toContain('sessionId: "pairing-session"')
-      expect(status?.result.text).toContain('agentPreset: "pairing-test"')
-      expect(status?.result.text).toContain('provider: "cli-mock"')
-      expect(status?.result.text).toContain('model: "cli-mock"')
-
-      await executeNativeCommand(ctx.commands, agent as never, '/feishu-pair cancel')
-      await executeNativeCommand(ctx.commands, agent as never, '/feishu-pair start')
+      await gateway.approvePairing({
+        adapter: 'feishu',
+        accountId: 'cli_test_app',
+        code,
+        target: {
+          id: 'feishu-paired',
+          workspaceId: gateway.route('existing-test-route')!.workspaceId,
+          sessionId: 'pairing-session',
+          agentPreset: 'pairing-test',
+          provider: 'cli-mock',
+          model: 'cli-mock',
+        },
+        now: Date.now(),
+      })
+      await service.platform.emitMessage(message({
+        messageId: 'om_trusted',
+        content: '现在可以了吗',
+      }))
+      await eventually(() => agent.session.events
+        .filter(event => event.type === 'user/message').length === beforeMessages + 1)
       expect(service.platform.connected).toBe(true)
     } finally {
       await ctx.fiber.dispose()
       process.chdir(previousCwd)
     }
     expect(service.platform.connected).toBe(false)
-    expect(service.platform.disconnectCount).toBeGreaterThanOrEqual(2)
+    expect(service.platform.disconnectCount).toBe(1)
   }, 45_000)
 })
-
-async function executeNativeCommand(
-  commands: Context['commands'],
-  agent: Agent,
-  line: string,
-): Promise<CommandExecution | undefined> {
-  const signal = new AbortController().signal
-  if (commands.execute.length >= 4) {
-    const executeWithImages = commands.execute as unknown as (
-      agent: Agent,
-      line: string,
-      images: readonly never[],
-      signal: AbortSignal,
-    ) => Promise<CommandExecution | undefined>
-    return executeWithImages.call(commands, agent, line, [], signal)
-  }
-  return commands.execute(agent, line, signal)
-}
 
 function message(overrides: Partial<FeishuInboundMessage>): FeishuInboundMessage {
   return {
@@ -206,5 +211,13 @@ function message(overrides: Partial<FeishuInboundMessage>): FeishuInboundMessage
     rawContentType: 'text',
     resources: [],
     ...overrides,
+  }
+}
+
+async function eventually(predicate: () => boolean, timeoutMs = 5_000): Promise<void> {
+  const startedAt = Date.now()
+  while (!predicate()) {
+    if (Date.now() - startedAt >= timeoutMs) throw new Error('condition did not become true')
+    await new Promise(resolve => setTimeout(resolve, 10))
   }
 }

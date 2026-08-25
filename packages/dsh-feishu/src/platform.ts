@@ -128,7 +128,7 @@ export function createOfficialFeishuPlatform(options: FeishuPlatformOptions): Fe
   })
 }
 
-/** Setup-only transport; the pairing runtime adds the high-entropy one-message gate. */
+/** Resident open-DM transport; Gateway authorization gates every message before Agent dispatch. */
 export function createOfficialFeishuPairingPlatform(options: FeishuPairingPlatformOptions): FeishuPlatform {
   return createOfficialPlatform(options, {
     dmMode: 'open',
