@@ -478,7 +478,7 @@ async function bootProfile(profileName: string, dshHome: string): Promise<any> {
       shippedPresetPatch,
     ],
     (hostCtx: { provide: (...args: unknown[]) => unknown }) => provideCmdline(hostCtx, {
-      args: ['--port', '0'],
+      args: ['--port', '0', '--no-open'],
       exit: () => {},
     }),
   )

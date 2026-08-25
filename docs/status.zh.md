@@ -30,6 +30,11 @@ V5.25 修正默认 DSH checkout 更新到 rc.2 后的活动门漂移：五个示
 测试 LLM 适配 `prepareCall()`，原生 Command 测试显式传空 images。Evolve 305 passed / 1 skipped，GitHub
 Review 27/27；冻结 Hermes 结果和双版本 compatibility gate 没有改写。
 
+V5.26 修正一次真实用户可见的验收偏差：`56017` 是已退出 clean-profile Host 留下的死页面，不是可交付
+DSH。生命周期探针现全部 `--no-open`；复跑后真实 Chrome 只剩常驻 `3080`，并已实际点击/刷新 Gateway
+控制面。飞书 Runtime 也修复 Gateway 先停止时 teardown 中断、平台不断连的竞态；确定性失败注入、30 次
+assembled pairing 重复门及 Feishu 45/45 已通过。
+
 V5.5 按 [ADR-0090](adr/0090-feishu-content-reads-are-agent-scoped-native-tools.md) 在 `dsh-feishu` 内增加一个
 Agent-scoped 原生 `feishu_content_read` Tool。document、Wiki、Drive metadata、Bitable records 四项权限独立且
 默认关闭；每次读取走真实 ToolRuntime/Approval，当前 Session schema 固定，撤权后执行拒绝，新启用只影响

@@ -669,7 +669,7 @@ async function bootProfile(
       shippedPresetPatch,
     ],
     (hostCtx: { provide(...args: unknown[]): unknown }) => provideCmdline(hostCtx, {
-      args: ['--port', '0'],
+      args: ['--port', '0', '--no-open'],
       exit: () => {},
     }),
   ) as RuntimeContext
@@ -858,7 +858,7 @@ async function expectCliHostStarts(
   cwd: string,
   env: NodeJS.ProcessEnv,
 ): Promise<void> {
-  const child = spawn(process.execPath, [dshBin, '--profile', profile, '--port', '0'], {
+  const child = spawn(process.execPath, [dshBin, '--profile', profile, '--port', '0', '--no-open'], {
     cwd,
     env,
     stdio: ['ignore', 'ignore', 'ignore'],

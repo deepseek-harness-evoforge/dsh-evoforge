@@ -16,6 +16,7 @@
 > V5.23 已把仍停留在静态 chat/user route 的 AS-2 runner 重构为 resident pairing epoch-3：零预授权飞书 route 启动，未知 DM code 由 Host批准到 native Session，再关闭 reply、Command、官方 Schedule、Approval、动态 notice、Host 冷启动新增消息和卸载 readback 十三项门；启动前不再填写 conversation/user/chat kind。动态 paired route 同时进入 Host notice seam，assembled Approval/notice 已通过；完整真实 epoch-3 仍 `NOT_RUN`。
 > V5.24 已增加 resident grant 精确撤销：Pairing Domain 原子 grant→revoked、幂等 receipt、下一条 DM 重新 code；静态 route 和活动 ingress/outbound effect fail closed，Session 不删除。Typert Remote 与 Gateway Web 只为动态 route 提供二次确认。最终 tarball 已在真实 rc.2 profile 升级/冷启动并恢复现有 route、3/3 journal 与 ready transport；未实际中断项目所有者的授权。
 > V5.25 已让默认根级开发门与最新 rc.2 源码一致：活动示例 Case Pack 精确锁 rc.2，补齐测试 LLM `prepareCall()` 和 Command images 参数；Evolve 305 passed / 1 skipped、GitHub Review 27/27。冻结 Hermes 与双版本 compatibility gate 不改写。
+> V5.26 已把 Web 人工交付入口与临时测试 Host 分离：生命周期测试全程 `--no-open`，真实 Chrome 只保留常驻 `3080`，Gateway 控制面点击/刷新已通过。飞书并发卸载改为分阶段失败隔离，Gateway 先停也不能跳过平台断连；30 次 assembled 重复门与 Feishu 45/45 通过。
 > V4.38 已在 existing-Skill Candidate proposer 前生成并校准 Candidate 不可见的完整 `skill-tree` holdout Envelope；V4.39 已把 exact Envelope 纳入 Candidate 内容身份并消费该 Envelope 与 V4.37 exact 双树执行 assembled paired Trial。下一门是独立 Retention/Canary/晋升/回滚，而不是再次生成或搜索能力。
 > V4.40–V4.45 已完成 Retention、发布门与最终包浏览器生命周期；V4.46–V4.48 已完成 existing-Skill failed-Outcome Canary、权威 Control/Remote/Web、独立 expected-active rollback gate 与最终 tarball 浏览器故障恢复；V4.49 已完成 missing-Skill 同类最终包故障恢复。下一门是两套独立真实 provider。
 > 更新日期：2026-08-25

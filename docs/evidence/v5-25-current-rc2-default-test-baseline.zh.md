@@ -29,4 +29,5 @@
 
 - `pnpm --filter dsh-evolve test`：67 files passed、1 skipped；305 tests passed、1 skipped；
 - `pnpm --filter dsh-github-review test`：10 files / 27 tests passed；
-- 根级 `pnpm check`：待同一增量最终复跑后填写。
+- 根级 `pnpm check`：在 V5.26 修复同轮暴露的飞书 sibling-teardown 竞态后通过；活动 rc.2 门、
+  RP-1/AS-2 合同、全包类型、测试与构建全部完成。

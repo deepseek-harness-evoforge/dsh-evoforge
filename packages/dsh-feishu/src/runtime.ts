@@ -218,21 +218,54 @@ export class FeishuRuntime {
   async dispose(): Promise<void> {
     if (this.disposed) return
     this.disposed = true
+    const failures: unknown[] = []
     this.transportState = 'stopping'
-    this.reportTransport(Date.now())
+    try {
+      this.reportTransport(Date.now())
+    } catch (error) {
+      failures.push(error)
+    }
     if (!this.lifecycle.signal.aborted) this.lifecycle.abort(new Error('dsh-feishu disposed'))
-    while (this.unsubscribers.length > 0) this.unsubscribers.pop()?.()
-    for (const disposeTool of this.contentToolDisposers.values()) disposeTool()
+    while (this.unsubscribers.length > 0) {
+      try {
+        this.unsubscribers.pop()?.()
+      } catch (error) {
+        failures.push(error)
+      }
+    }
+    for (const disposeTool of this.contentToolDisposers.values()) {
+      try {
+        disposeTool()
+      } catch (error) {
+        failures.push(error)
+      }
+    }
     this.contentToolDisposers.clear()
     for (const [nonce, pending] of this.pendingApprovals) {
       this.pendingApprovals.delete(nonce)
       if (pending.onAbort !== undefined) pending.signal?.removeEventListener('abort', pending.onAbort)
       pending.resolve('cancelled')
     }
-    await this.outbound?.dispose()
-    await this.platform.disconnect()
-    this.transport?.dispose()
+    try {
+      await this.outbound?.dispose()
+    } catch (error) {
+      failures.push(error)
+    }
+    try {
+      await this.platform.disconnect()
+    } catch (error) {
+      failures.push(error)
+    }
+    try {
+      this.transport?.dispose()
+    } catch (error) {
+      failures.push(error)
+    }
     this.transport = undefined
+    if (failures.length === 1) throw failures[0]
+    if (failures.length > 1) {
+      throw new AggregateError(failures, 'dsh-feishu: one or more runtime teardown steps failed')
+    }
   }
 
   async notifyHost(notice: FeishuHostNotice): Promise<FeishuHostNoticeReceipt> {
