@@ -362,9 +362,10 @@ workspace，输出可审查的 launchd/systemd unit。OS service manager 与 uni
 `dsh-feishu`/`dsh-telegram` 还会复用现有 Gateway 脱敏 transport facts，分别诊断缺失、连接中、ready、
 degraded 与 stopping；不复制健康状态、不探测凭据或平台、不自动修复。最终 Doctor tarball 已在真实 DSH
 Loader 中验证 degraded→reload→ready→remove，但该确定性 Adapter 不是平台通过证据。飞书真实 App 身份请求、
-WebSocket 握手与 setup-only 配对 transport 已
-通过；同包 DSH Web Client Module 已从最终 tarball 在全新 profile 完成生成/复制/取消的真实浏览器验收，
-并只复用当前 Session 的 `/feishu-pair` 生成待审查静态 route，消除手工查 ID 和拼命令的负担。
+WebSocket 握手与 resident pairing transport 已通过；同包最终 tarball 已在真实 DSH profile 中验证
+Gateway Web 显示零 route 的 `official-feishu-websocket: ready`、当前 native Session 目标和 Host 批准入口。
+陌生私聊首条消息必须在 Agent 前回 code，批准后未来消息立即生效；不得恢复 `/feishu-pair`、临时 listener、
+profile rewrite 或重启流程。
 exact route 消息和 Hermes paired 证据完成以前仍只标记为 `implemented`；公共渠道可靠性中的 ingress、
 普通文本 outbound intent/journal、幂等、按 account 串行、明确限流重试和脱敏状态已经收敛到
 `dsh-gateway`。Gateway 入站现接受 exact 文本与 DSH 原生 `ImageAttachmentRef`；飞书 Adapter 通过官方

@@ -57,7 +57,7 @@ Agent/Session/Goal 路径、reload/dispose、前代升级、卸载和原生 read
 
 ## V2 — 飞书 Adapter
 
-实现状态：Adapter、Gateway 公共可靠投递、真实 DSH 单 Workspace 组合、双 Workspace 双渠道同 Host 重启隔离、Telegram/飞书进化注意力、tarball lifecycle 与十一包总装已完成；真实飞书 App 身份请求、标准代理环境 WebSocket 和 setup-only pairing transport 已通过。assembled 图片纵切已经证明外部 key 只停留在 Adapter，原生引用进入 Session 且 exact bytes 可由 AttachmentStore 回读；它不是用户真实飞书消息或真实多模态 provider 证据。同包 DSH Web Client Module 已从最终 tarball 安装到干净 profile，真实浏览器证明其在当前 Session 内生成/复制/取消配对且零 console error；用户尚未发送配对短语，exact route 消息仍未达到退出门。文档/Wiki/Drive metadata/Bitable 已以四个独立最小权限和一个稳定 Agent-scoped Tool 进入原生 ToolRuntime/Approval，官方 SDK 映射与 durable result 有 assembled 证据；V2 Host/Web 已显示当前 Session 的 Tool/Approval/future-only 就绪状态并通过最终包刷新、失败清空和恢复。真实 App scope、资源权限和真实内容仍待验收。普通文件、音视频继续 pending，不发明 Gateway file block。
+实现状态：Adapter、Gateway 公共可靠投递、真实 DSH 单 Workspace 组合、双 Workspace 双渠道同 Host 重启隔离、Telegram/飞书进化注意力、tarball lifecycle 与十一包总装已完成。旧 setup-only Session 配对已删除；resident Adapter 现于 Bundle boot 连接，陌生私聊在 Agent 前回 code，Host Web 原子批准到当前 native Session，未来消息无需重启即可采用 exact grant。assembled Host 与 44 项 Feishu、32 项 Gateway 测试通过；最终 tarball 已安装进真实 rc.2 web profile，真实浏览器显示 `official-feishu-websocket: ready` 和 Host批准入口。真实用户 DM→code→approve→DSH reply 仍待用户消息关闭退出门。图片纵切仅证明原生 `ImageAttachmentRef`；文档/Wiki/Drive metadata/Bitable 的 assembled Tool/Approval 已通过，但真实 App scope、资源权限和数据仍待验收。普通文件、音视频继续 pending，不发明 Gateway file block。
 
 V5.8 的 AS-2 已把 V2 的真实平台退出路径编码为 fail-closed 入口；V5.21 的 epoch-2 又把官方 DSH
 Schedule create/dispatch/插件来源 `user/message`、同 route delivered 增量与卸载后 readback 纳入关闭 hard gate。

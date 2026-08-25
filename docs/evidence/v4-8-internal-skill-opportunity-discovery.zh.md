@@ -103,6 +103,6 @@ quarantine/materialization；旧 acquisition class、fetch loop、research Jobs�
 - correction/outcome 的 exact invocation 因果链接，以及 rework、cost、reuse、Retention、negative transfer 和 rollback 的归因/排序/抑制；
 - 源码构建的新投影已通过真实浏览器复验；最终 tarball 安装进 clean-profile 后仍需复验同一路径；
 - 同模型 Hermes paired discovery/evolution outcome 与长期负迁移数据；
-- 用户配对短语触发的 exact 飞书消息闭环。
+- 真实用户 DM→Gateway code→Host approval 触发的 exact 飞书消息闭环。
 
 因此本证据不能支持“自进化已完成”或“全面上位 Hermes”的声明，也不能创建发布 tag。

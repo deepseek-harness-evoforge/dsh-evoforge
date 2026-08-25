@@ -7,6 +7,11 @@
 > 深模块替换。活动源码不再打开 `evoforge_feishu` Domain，也不保留兼容双写。
 > routes-mode 健康协议的当前 V2 内容就绪面、最终包刷新/失败清空/恢复证据见
 > [V5.6](v5-6-feishu-content-readiness-web.zh.md)；下文 V1 描述仅保留当时审计语境。
+>
+> 2026-08-25 配对机制注记：本页的 setup-only `/feishu-pair`、两分钟 listener、反向短语/YAML 与
+> Client 配对向导已经删除，由 [V5.22 resident Gateway pairing](v5-22-resident-gateway-pairing.zh.md) 和
+> [ADR-0098](../adr/0098-channel-pairing-is-a-resident-gateway-host-authority.md) 取代。下文相关段落只保留
+> AS-2 当时的历史证据，不再描述活动 runtime 或用户入口。
 
 `dsh-feishu` 是 `dsh-gateway` 上的第二个薄 Adapter，不是独立机器人 Runtime。它使用飞书官方 Node SDK `1.73.0` 的 WebSocket 长连接；Router 持有 endpoint → Workspace/Session/Agent、原生 Command admission 和 ingress 幂等，Adapter 只持有协议、Approval 卡片与出站 journal。
 

@@ -1,6 +1,6 @@
 # ADR-0045：飞书首次连接 UI 复用原生 Session Command
 
-- 状态：accepted
+- 状态：superseded by [ADR-0098](0098-channel-pairing-is-a-resident-gateway-host-authority.md)
 - 日期：2026-08-17
 
 ## 背景

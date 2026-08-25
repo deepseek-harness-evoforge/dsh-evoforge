@@ -59,8 +59,16 @@ A point-in-time Host conclusion for one exact DSH Session that distinguishes con
 _Avoid_: Configured means authorized, platform permission probe, Gateway content capability, current-Session schema rewrite
 
 **DSH Gateway**:
-The removable Host module that normalizes exact external channel identities, binds them to native DSH Workspace/Session ownership, and governs transport-neutral routing, delivery intent, deduplication, rate limits, and health. Channel Adapters own platform protocols and credentials; DSH remains authoritative for Agent, Goal, Schedule, Approval, permissions, and persistence.
+The removable resident Host module that normalizes exact external channel identities, authorizes or pairs them before Agent dispatch, binds granted identities to native DSH Workspace/Session ownership, and governs transport-neutral routing, delivery intent, deduplication, rate limits, and health. Channel Adapters own platform protocols, credentials, connection recovery, and concrete sends; DSH remains authoritative for Agent, Goal, Schedule, Approval, permissions, and persistence.
 _Avoid_: Channel Router, bot host, second Agent Runtime, dynamic workflow gateway, platform SDK wrapper
+
+**Channel Pairing Request**:
+A short-lived, Host-owned request created when an untrusted principal sends the first direct message to a resident Adapter. The first message is consumed before Agent creation; only a salted code digest, exact platform endpoint, expiry, and bounded retry metadata persist.
+_Avoid_: Session command, model prompt, user-selected route, plaintext code store, group pairing
+
+**Channel Trust Grant**:
+An atomic Gateway transition from one exact Channel Pairing Request to one native Workspace/Session route selected by an authenticated operator. It applies to future messages, survives Host restart, is revocable with the plugin-owned binding, and never changes the current Session or grants platform/content permissions.
+_Avoid_: Profile rewrite, Adapter allowlist copy, first-message dispatch, implicit Agent creation, cross-account wildcard
 
 **Native Channel Image**:
 An Adapter-owned external image resource that is downloaded through the platform's exact message-resource API, batch-validated and durably saved by the DSH AttachmentStore, then crosses DSH Gateway only as an immutable `ImageAttachmentRef`. The external resource key is transport input, never Session content.

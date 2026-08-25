@@ -177,7 +177,7 @@ dsh --profile web
 - [需求基线](docs/requirements.zh.md)
 - [目标重新对齐审计](docs/audits/2026-08-19-goal-realignment.zh.md)
 - [ADR-0041](docs/adr/0041-dsh-is-the-only-runtime-and-install-surface.md)
-- [ADR-0045](docs/adr/0045-feishu-pairing-ui-reuses-session-commands.md)
+- [ADR-0098](docs/adr/0098-channel-pairing-is-a-resident-gateway-host-authority.md)
 - [ADR-0049](docs/adr/0049-channel-adapters-share-one-thin-dsh-gateway.md)
 - [ADR-0050](docs/adr/0050-internal-candidates-replace-runtime-skill-acquisition.md)
 - [ADR-0060](docs/adr/0060-gateway-web-is-a-read-only-host-projection.md)

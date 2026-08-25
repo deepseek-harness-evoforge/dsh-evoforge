@@ -1,6 +1,6 @@
 # dsh-feishu
 
-`dsh-feishu` 是 DeepSeek Harness 的飞书薄 Adapter Bundle。它不创建 Agent Runtime、Session、Goal、权限系统、网站、Webhook server 或 daemon；官方飞书 SDK 的 WebSocket 长连接由 DSH Cordis lifecycle 持有，所有入站身份和会话归属由 `dsh-gateway` 静态决定。同一个 npm 包还带一个 DSH Web Client Module：pairing mode 显示首次连接向导，routes mode 显示当前 Session 的只读飞书健康视图。
+`dsh-feishu` 是 DeepSeek Harness 的飞书薄 Adapter Bundle。它不创建 Agent Runtime、Session、Goal、权限系统、网站、Webhook server 或 daemon；官方飞书 SDK 的 WebSocket 长连接由 DSH Cordis lifecycle 持有，所有入站授权、配对和会话归属由常驻 `dsh-gateway` 决定。同一个 npm 包还带一个 DSH Web Client Module，只显示已绑定 Session 的只读飞书健康视图；配对批准位于 `dsh-gateway` Host 控制面。
 
 ## 安装
 
@@ -18,7 +18,7 @@ dsh --profile web --dump-config
 
 ## 第一次连接：不手工查 ID
 
-不知道 `chat_id`/`open_id` 时，先在 profile 中启用空 Gateway 和 setup-only pairing mode：
+不知道 `chat_id`/`open_id` 时，在 profile 中启用空 Gateway 和 resident pairing mode：
 
 ```yaml
 - id: evoforge-gateway
@@ -37,17 +37,14 @@ dsh --profile web --dump-config
     appSecretEnv: DSH_FEISHU_APP_SECRET
 ```
 
-启动唯一的 DSH Web Host，打开准备绑定的 Workspace/Session，点击侧栏底部的“连接飞书”。向导会生成
-两分钟有效的一次性短语；在目标飞书私聊中原样发送，群聊中先 `@机器人` 再发送。回到向导点击
-“我已发送，检查连接”，页面会根据当前原生 Workspace、Session、Agent preset 和模型显示完整 exact
-route 草案；复制、审查并写回 profile，把 pairing mode 替换为普通 routes 配置后重启 DSH。
+启动唯一的 DSH Web Host 后，Adapter 立即连接并保持常驻。用户只需在飞书私聊机器人发送任意消息；
+Gateway 在 Agent 之前消费首条消息并由机器人回复 10 位配对码。管理员打开 DSH Web 的“渠道健康”，
+确认当前 Workspace/Session，粘贴 code 并点击“批准飞书配对”。批准原子写入 Gateway Storage Domain，
+用户发送下一条消息即可进入原生 DSH Session；不改 profile、不切 mode、不重启。
 
-命令仍是同一 Host 能力的备用入口：依次运行 `/feishu-pair start`、`/feishu-pair status`，必要时运行
-`/feishu-pair cancel`。Web 不新增配对 API、不轮询或复制状态机，只调用这些 Session-scoped Commands。
-
-配对窗口只接受首条完全匹配的高熵短语；其他消息不会进入 Agent，不会自动写 profile、创建 route 或
-扩大权限。向导的“取消本次连接”或 `/feishu-pair cancel` 可立即关闭连接，超时、disable、reload 和
-remove 也会断开。
+群聊不会发配对码；过期、重放、跨 App 歧义、没有 live Session 或 Workspace ownership/cwd 不匹配都会
+fail closed。code 明文不落盘，首条消息和附件不进入 Agent。没有 `/feishu-pair` Session Command，也没有
+临时 listener、反向短语、静态 YAML 复制或浏览器后台轮询。
 
 ## 正常运行配置
 
@@ -81,8 +78,8 @@ remove 也会断开。
 ```
 
 `accountId` 必须等于环境中的 App ID；App Secret 只从部署环境读取。一个 Adapter 实例可列出同一个
-App 的多个 exact route。普通 routes 模式不接受 wildcard、模型选择的 Workspace 或动态授权；
-setup-only pairing 只输出待审查配置，重启进入 routes 模式后才生效。
+App 的多个 exact route。普通 routes 模式不接受 wildcard 或模型选择的 Workspace；它是预配置 route 与
+独立内容权限的可选方式，不是 resident pairing 成功后的迁移步骤。
 
 ## 文档、知识库、云盘和多维表格
 
@@ -136,7 +133,7 @@ schema/cache 稳定，旧 Session 仍保留同名 schema，但每次执行都会
 - V2 健康快照还从 exact Agent 的 Tool registry、Approval seam 和 request header 读取内容就绪状态，逐项
   显示四个部署权限、Tool/Approval 可用性和配置上限；`future-session-only` 明示新能力不会改写当前 Session；
   `platformAccess: not-verified` 明示健康检查没有主动探测飞书 App/资源授权；
-- 若同一部署暂时并存 setup-only 与 routes 实例，已绑定 Session 的 `/feishu` 健康入口优先于全局 `/feishu-pair`；读取失败会清除旧快照，避免历史 `ready` 冒充当前状态；
+- Gateway Web 在零 route 时仍显示 resident Adapter transport/outbound registration，并提供 Host-side code 批准；已绑定 Session 的 `/feishu` 只读健康读取失败会清除旧快照，避免历史 `ready` 冒充当前状态；
 - 健康视图区分 `ready`、`busy`、`attention`、`degraded` 与 `stopping`，展示 exact route 名称、官方 WebSocket lifecycle、投递/重试/uncertain/failed 与 pending Approval 计数；已配置内容能力但 Tool/Approval 当前不可用时进入 `attention`，未配置时保持 `disabled`；普通模型请求仍新增 0 Tool、0 Skill、0 Prompt section；
 - disable、reload 或 remove 会注销 handler、取消 pending Approval、释放 Gateway outbound registration
   并断开官方长连接；Gateway 自己负责关闭公共 Storage Domain。
