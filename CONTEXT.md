@@ -70,6 +70,10 @@ _Avoid_: Session command, model prompt, user-selected route, plaintext code stor
 An atomic Gateway transition from one exact Channel Pairing Request to one native Workspace/Session route selected by an authenticated operator. It applies to future messages, survives Host restart, is revocable with the plugin-owned binding, and never changes the current Session or grants platform/content permissions.
 _Avoid_: Profile rewrite, Adapter allowlist copy, first-message dispatch, implicit Agent creation, cross-account wildcard
 
+**Channel Trust Revocation**:
+An atomic Gateway transition that ends one exact dynamic Channel Trust Grant for future channel effects while retaining an auditable tombstone and the native Workspace/Session history. A revocation abstains while the route has active ingress or outbound effects; after success, the principal's next direct message creates a new Channel Pairing Request.
+_Avoid_: Session deletion, static route mutation, best-effort allowlist removal, in-flight effect cancellation claim, Adapter-local block
+
 **Native Channel Image**:
 An Adapter-owned external image resource that is downloaded through the platform's exact message-resource API, batch-validated and durably saved by the DSH AttachmentStore, then crosses DSH Gateway only as an immutable `ImageAttachmentRef`. The external resource key is transport input, never Session content.
 _Avoid_: external URL/key in Session, base64 message block, generic file disguised as image, Adapter-owned attachment store

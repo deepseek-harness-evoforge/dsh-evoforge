@@ -1,1 +1,1 @@
-{"version":3,"file":"typert.remote-client.d.ts","names":["approvePairing","overview"],"sources":["../src/gateway-remote.typert.ts"],"sourcesContent":[null],"mappings":";;;;;;;;;IAmBEA,c;IALAC,Q;;;IAKAD,gC;IALAC,0B","ignoreList":[]}
+{"version":3,"file":"typert.remote-client.d.ts","names":["approvePairing","overview","revokePairing"],"sources":["../src/gateway-remote.typert.ts"],"sourcesContent":[null],"mappings":";;;;;;;;;IAoBEA,c;IALAC,Q;IAeAC,a;;;IAVAF,gC;IALAC,0B;IAeAC,+B","ignoreList":[]}

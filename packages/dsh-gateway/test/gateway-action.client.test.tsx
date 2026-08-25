@@ -17,6 +17,13 @@ describe('GatewayAction', () => {
         ok: true,
         value: { routeId: 'paired-feishu', workspaceId: 'workspace-a', sessionId: 'session-a' },
       })),
+      revokePairing: vi.fn(async () => ({
+        ok: true,
+        value: {
+          routeId: 'feishu-main', workspaceId: 'workspace-a', sessionId: 'session-a',
+          revokedAt: 2_000, alreadyRevoked: false,
+        },
+      })),
     } as GatewayRemoteClient
     render(<GatewayAction
       remote={remote}
@@ -36,6 +43,11 @@ describe('GatewayAction', () => {
     expect(remote.approvePairing).toHaveBeenCalledWith(
       'ABCDEFGH23', 'feishu', 'workspace-a', 'session-a',
     )
+
+    fireEvent.click(screen.getByRole('button', { name: '撤销 feishu-main' }))
+    fireEvent.click(screen.getByRole('button', { name: '确认撤销 feishu-main' }))
+    expect(remote.revokePairing).toHaveBeenCalledWith('feishu-main')
+    expect(await screen.findByText(/feishu-main 已撤销/u)).toBeTruthy()
   })
 
   it('shows unified channel health and fails visibly without retaining a stale ready view', async () => {
@@ -45,6 +57,7 @@ describe('GatewayAction', () => {
         .mockResolvedValueOnce({ ok: true, value: snapshot() })
         .mockResolvedValueOnce({ ok: false, error: { code: 'host-unavailable', message: 'offline again' } }),
       approvePairing: vi.fn(),
+      revokePairing: vi.fn(),
     } as GatewayRemoteClient
     render(<GatewayAction
       remote={remote}
@@ -61,8 +74,8 @@ describe('GatewayAction', () => {
     expect(await screen.findByText('2 条路由')).toBeTruthy()
     expect(screen.getByText('telegram-long-poll')).toBeTruthy()
     expect(screen.getByText('official-feishu-websocket')).toBeTruthy()
-    expect(screen.getByText('telegram-main')).toBeTruthy()
-    expect(screen.getByText('feishu-main')).toBeTruthy()
+    expect(screen.getAllByText('telegram-main')).toHaveLength(2)
+    expect(screen.getAllByText('feishu-main').length).toBeGreaterThanOrEqual(2)
     expect(screen.getByText('1 个实时 Session')).toBeTruthy()
     expect(screen.getByText(/不调用模型/u)).toBeTruthy()
 
@@ -82,8 +95,8 @@ function snapshot(): GatewayHealthSnapshot {
       total: 2,
       liveSessions: 1,
       items: [
-        { id: 'feishu-main', adapter: 'feishu', workspaceId: 'workspace-a', sessionId: 'session-a', threadScoped: false, live: true },
-        { id: 'telegram-main', adapter: 'telegram', workspaceId: 'workspace-b', sessionId: 'session-b', threadScoped: false, live: false },
+        { id: 'feishu-main', adapter: 'feishu', workspaceId: 'workspace-a', sessionId: 'session-a', threadScoped: false, live: true, paired: true },
+        { id: 'telegram-main', adapter: 'telegram', workspaceId: 'workspace-b', sessionId: 'session-b', threadScoped: false, live: false, paired: false },
       ],
     },
     ingress: { total: 3, prepared: 0, executing: 0, settled: 3, uncertain: 0 },
@@ -124,6 +137,15 @@ function translate(key: string, values?: Record<string, string | number>): strin
     'pairing.code': '配对码',
     'pairing.approve': '批准飞书配对',
     'pairing.approved': '配对已批准，路由：',
+    'routes.title': '授权路由',
+    'routes.help': '动态授权可撤销',
+    'routes.empty': '没有路由',
+    'routes.paired': '动态配对',
+    'routes.configured': '静态配置',
+    'routes.revoke': '撤销 {routeId}',
+    'routes.confirmRevoke': '确认撤销 {routeId}',
+    'routes.revoking': '正在撤销…',
+    'routes.revoked': '{routeId} 已撤销',
     'foot.noModel': '权威 Host 快照，不调用模型',
     'error.prefix': '读取失败：',
   }

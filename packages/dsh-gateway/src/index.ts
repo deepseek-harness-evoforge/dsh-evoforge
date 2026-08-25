@@ -111,7 +111,9 @@ export {
   type GatewayPairingAuthorityOptions,
   type GatewayPairingOffer,
   type GatewayPairingRequest,
+  type GatewayPairingRevocation,
   type GatewayPairingTarget,
+  type GatewayRevokedTrustGrant,
   type GatewayTrustGrant,
 } from './pairing.js'
 export {
@@ -166,6 +168,7 @@ export {
   type GatewayDispatchResult,
   type GatewayHealthRoute,
   type GatewayHealthSnapshot,
+  type GatewayPairingRevocationReceipt,
   type GatewayPairingSessionApprovalInput,
   type GatewayPairingSessionApprovalReceipt,
 } from './gateway.js'

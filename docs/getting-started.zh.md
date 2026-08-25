@@ -109,6 +109,10 @@ token 由启动 DSH 的环境提供。模型不能读取 token、修改 route、
 “飞书配对”并批准。用户发送下一条消息即可进入当前原生 Session；不需要改 profile 或重启。群聊、过期
 code、重放、无 live Session 和 Workspace ownership 漂移均 fail closed；没有 `/feishu-pair` Command。
 
+需要撤销动态授权时，在同一“渠道健康”面板的“授权路由”区点击对应 route 的“撤销”，再点击一次“确认撤销”。
+静态配置 route 不提供该动作；仍有活动入站或出站效果时 Host 会拒绝撤销。成功后原生 Session 保留，该用户
+下一条私聊会重新收到配对码。此动作会中断该外部 principal 的后续访问，操作前应确认目标 route。
+
 正常模式下，一个 App 可列出多个 exact route，所有 route 的 `accountId` 必须等于部署环境中的 App ID：
 
 ```yaml

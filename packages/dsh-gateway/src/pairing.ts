@@ -71,7 +71,17 @@ const grantSchema = z.strictObject({
   approvedAt: z.number().int().nonnegative(),
 })
 
-const bindingSchema = z.discriminatedUnion('kind', [pendingSchema, grantSchema])
+const revokedSchema = z.strictObject({
+  kind: z.literal('revoked'),
+  grantId: z.string().regex(/^[a-f0-9]{64}$/u),
+  schemaVersion: z.literal(1),
+  requestId: z.string().regex(/^[a-f0-9]{32}$/u),
+  route: routeSchema,
+  approvedAt: z.number().int().nonnegative(),
+  revokedAt: z.number().int().nonnegative(),
+})
+
+const bindingSchema = z.discriminatedUnion('kind', [pendingSchema, grantSchema, revokedSchema])
 
 const pairingDomainSpec = defineDomain({
   name: 'evoforge_gateway_pairing',
@@ -85,6 +95,7 @@ const pairingDomainSpec = defineDomain({
 type PairingDomain = Domain<typeof pairingDomainSpec>
 export type GatewayPairingRequest = z.infer<typeof pendingSchema>
 export type GatewayTrustGrant = z.infer<typeof grantSchema>
+export type GatewayRevokedTrustGrant = z.infer<typeof revokedSchema>
 type GatewayPairingBinding = z.infer<typeof bindingSchema>
 export interface GatewayPairingTarget {
   readonly id: string
@@ -115,6 +126,14 @@ export interface GatewayPairingApproval {
   readonly route: ResolvedGatewayRoute
 }
 
+export interface GatewayPairingRevocation {
+  readonly routeId: string
+  readonly workspaceId: string
+  readonly sessionId: string
+  readonly revokedAt: number
+  readonly alreadyRevoked: boolean
+}
+
 export interface GatewayPairingAuthorityOptions {
   readonly codeTtlMs: number
   readonly maxPendingPerAccount: number
@@ -124,6 +143,7 @@ export interface GatewayPairingAuthorityOptions {
 export interface GatewayPairingAuthority {
   offer(endpoint: GatewayEndpoint, now?: number): Promise<GatewayPairingOffer>
   approve(input: GatewayPairingApprovalInput): Promise<GatewayPairingApproval>
+  revoke(routeId: string, now?: number): Promise<GatewayPairingRevocation>
   match(endpoint: GatewayEndpoint): ResolvedGatewayRoute | undefined
   route(id: string): ResolvedGatewayRoute | undefined
   routes(): readonly ResolvedGatewayRoute[]
@@ -232,6 +252,33 @@ class DomainGatewayPairingAuthority implements GatewayPairingAuthority {
         return grant
       })
       return Object.freeze({ grantId, route })
+    })
+  }
+
+  revoke(rawRouteId: string, now = Date.now()): Promise<GatewayPairingRevocation> {
+    return this.write(async () => {
+      exactTime(now)
+      const routeId = targetSchema.shape.id.parse(rawRouteId)
+      const bindings = this.domain.table('bindings')
+      const active = [...bindings.entries()].find((entry): entry is [string, GatewayTrustGrant] =>
+        entry[1].kind === 'grant' && entry[1].route.id === routeId)
+      if (active === undefined) {
+        const prior = [...bindings.entries()].find((entry): entry is [string, GatewayRevokedTrustGrant] =>
+          entry[1].kind === 'revoked' && entry[1].route.id === routeId)?.[1]
+        if (prior === undefined) {
+          throw new Error(`gateway pairing route '${routeId}' is not an active or revoked grant`)
+        }
+        return revocationReceipt(prior, true)
+      }
+      const [key, grant] = active
+      const revoked = revokedSchema.parse({ ...grant, kind: 'revoked', revokedAt: now })
+      await bindings.update(key, (current) => {
+        if (current.kind !== 'grant' || current.grantId !== grant.grantId) {
+          throw new Error(`gateway pairing route '${routeId}' changed while revocation was in progress`)
+        }
+        return revoked
+      })
+      return revocationReceipt(revoked, false)
     })
   }
 
@@ -346,4 +393,17 @@ function normalizePersistedRoute(input: z.infer<typeof routeSchema>): ResolvedGa
     ...(input.threadId === undefined ? {} : { threadId: input.threadId }),
     ...(input.maxTokens === undefined ? {} : { maxTokens: input.maxTokens }),
   }]).routes[0]!
+}
+
+function revocationReceipt(
+  grant: GatewayRevokedTrustGrant,
+  alreadyRevoked: boolean,
+): GatewayPairingRevocation {
+  return Object.freeze({
+    routeId: grant.route.id,
+    workspaceId: grant.route.workspaceId,
+    sessionId: grant.route.sessionId,
+    revokedAt: grant.revokedAt,
+    alreadyRevoked,
+  })
 }

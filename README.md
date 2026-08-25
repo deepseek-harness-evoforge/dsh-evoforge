@@ -126,6 +126,13 @@ route 投影到 Host notice seam，assembled DSH 已验证 paired Approval `allo
 epoch-3 尚未运行，不能用 9/9 契约检查冒充平台通过，详见
 [V5.23 证据](docs/evidence/v5-23-resident-pairing-as2-gate.zh.md)。
 
+V5.24 补齐 resident grant 的精确撤销：Gateway 在同一 Storage Domain 原子保留 revoked tombstone，撤销后
+下一条陌生私聊重新回 code，原生 Workspace/Session 不删除；静态 route、活动 ingress/outbound effect 均
+fail closed。DSH Web 只对动态 grant 提供两步确认。最新 Gateway tarball 已在当前真实 rc.2 profile 原位升级
+并冷启动，旧 route/Session/journal 与 ready WebSocket 恢复，Web 显示 3/3、零异常和撤销确认按钮；为避免中断
+项目所有者正在使用的授权，本轮没有执行第二次确认。详见
+[V5.24 证据](docs/evidence/v5-24-resident-pairing-revocation.zh.md)。
+
 existing-Skill 路径会封存调用时完整 Bundle，并把当前纠正文与 durable Goal/请求预分为 authoring/admission/holdout/可选 Retention。V4.40 的 Candidate 不可见治理面在 proposer 前用两次独立调用分别消费 protected Holdout 与可选第五 Goal Retention，每次只见 exact baseline 和自己的一个 protected Goal；两套 assembled `skill-tree` Case Pack 经独立 calibration 后共同进入内容寻址 Evaluation Envelope，Candidate id 绑定整个 Envelope。受保护作者只允许改 `SKILL.md`/`references/*.md`，Host 原样继承二进制和其余文件并拒绝权限漂移；结构准入再重验 exact baseline/Candidate 双树、声明 diff 与 protected admission identity。V4.39 的原生 DSH Job 执行完整 paired Holdout；V4.41 只在该 exact Holdout 权威判为 `improved` 后由另一原生 DSH Job 执行预密封 Retention，四 Goal无样本时零花费 abstain，五 Goal按 `fail/pass` 四象限持久判为 `retained/ambiguous/not-retained/regressed`。两者都要求 calibration、assembled、composition 与输入完整性全部成立，中断不盲重试且无晋升权。V4.43 再由独立 Host mutation gate 重验 exact Admission/Holdout/Retention 与完整 sealed Bundle；只有人工 approve 才产生 inactive Generation，另一动作才选择未来 Session，reject 持久终止且 evaluator 始终无发布权。
 
 V4.39 最终 tarball 已验证 paired Holdout 的真实 DSH Web 生命周期；V4.42 又从最终 `dsh-evolve`/`dsh-evolve-web` tarball 验证 exact Retention 的权威卡片、整页 reload、Host 断连显式报错但保留最后快照、同端口恢复、console error 0 和官方卸载。V4.43 已用真实 DSH Agent/Session/SkillRegistry 自动化证明同名现有 Skill 的 future-only 晋升、旧 Session 固定、显式回滚恢复原生选择、二进制整包保留和决定跨重启恢复；V4.44 已把同一 Host owner 的 bounded release 状态和 approve/reject/promote 接入 Control、固定 Typert Remote 与 DSH Web。V4.45 再从最终 tarball 和 clean profile 真实完成发布生命周期；V4.46 已让 active existing-Skill release 的失败 Outcome 经原生 Jobs 触发 exact sealed paired Canary，只有 baseline 恢复且 Candidate 失败才产出无 mutation 权的 rollback-eligible。V4.47 已把该 Canary 的权威证据接入 Control、固定 Typert Remote 与 DSH Web，并以独立 Host gate、exact Canary id 和 expected-active compare 完成人工 future-Session rollback。V4.48 已从最终 tarball 和 clean profile 真实完成 existing-Skill approve→future-only promote→Canary→Host 断连保留→精确 rollback→整页/进程恢复→官方卸载；V4.49 又对缺失 Skill 的内部完整 `skill-bundle` 路径完成 future-only promote→Canary→断连保留→精确 root rollback→冷恢复→官方卸载，两轮浏览器 console error 均为 0。两套独立真实 provider、长期 Outcome、飞书 Approval/Schedule/group/failure/长期重连、Hermes paired benchmark 与长期误晋升/负迁移/误回滚证据仍未完成。
@@ -164,7 +171,7 @@ dsh --profile web
 - `/evolve status` 或 DSH Web 侧栏查看和处理进化状态；
 - 在原生 Goal 中按需加载 `software-delivery` Skill，由 `complete_delivery` 通过 DSH Bash/Sandbox/Approval 验证并调用原生 `update_goal`；
 - `/resident plan|status|apply <plan-sha256>|remove <service-id>` 通过 DSH Command 审查和管理 OS user unit；
-- Telegram 与飞书经 DSH Gateway 只使用原生 Workspace、Agent、Session 与 Commands；飞书首次连接也只在原生 DSH Web 内调用 Session Command；GitHub review、Goal continuity 和进化注意力同样不创建第二套权威。
+- Telegram 与飞书经 DSH Gateway 只使用原生 Workspace、Agent、Session 与 Commands；陌生飞书私聊由常驻 Gateway 在 Agent 前回 code，管理员在 DSH Web Host 控制面批准或撤销 principal grant，不调用 Session Command；GitHub review、Goal continuity 和进化注意力同样不创建第二套权威。
 
 没有 `dsh-evolve`、`dsh-delivery` 或 `dsh-resident` 用户产品 CLI。测试驱动器不是打包入口。
 
@@ -183,7 +190,7 @@ dsh --profile web
 
 ## 当前 v0.1 工作
 
-`dsh-gateway` 已直接替换旧 Router 包且没有兼容转发层；Gateway、Telegram、飞书、Evolve Attention、全仓类型/构建和十一包 clean-profile add/dump/boot/remove/readback 均已回归通过。静态 exact endpoint、原生 Workspace/Session/Agent、Command、持久 ingress 与双 Workspace 双渠道隔离保持；Gateway 现已统一 Telegram/飞书普通文本的持久 outbound intent、幂等、按 account 串行、明确 429 有界重试、uncertain 恢复、脱敏 transport observation，并由同包 DSH Client Module 提供只读渠道健康视图。飞书图片已在 assembled DSH 中经官方 message-resource 端口下载、整批校验、原生 AttachmentStore 内容寻址保存并以 `ImageAttachmentRef` 进入 Agent，外部 `fileKey` 不进入 Session；文档/Wiki/Drive metadata/Bitable 已按四个默认关闭的独立权限进入 Agent-scoped 原生 Tool，每次读取经过 DSH Approval，assembled DSH 已验证稳定 schema、durable result、拒绝与 dispose。V5.6 又从最终 tarball 在真实 DSH Web 验证当前 Session 的四权限、Tool/Approval、future-only 状态、刷新、Host 停机清空旧快照和同端口恢复；健康读取不调用模型或平台。已验证 rc.5 和最新审计的 rc.2 都尚无通用附件契约，因此普通文件和音视频仍 pending；内容能力的真实飞书 App scope、资源权限与真实数据也未验收。最终 tarball 的真实 DSH 浏览器已验证 existing-Skill exact paired holdout 的读取、整页刷新、Host 停机保留最后快照并显式失败、同端口恢复和官方卸载。真实飞书 exact 用户消息/回复/Approval、两套独立真实 provider Trial、同模型编码/长任务和真实消息交付 Hermes paired epochs 仍是完成门禁；这些完成前不得发布或宣称整体上位。
+`dsh-gateway` 已直接替换旧 Router 包且没有兼容转发层；Gateway、Telegram、飞书、Evolve Attention、全仓类型/构建和十一包 clean-profile add/dump/boot/remove/readback 均已回归通过。静态 exact endpoint、原生 Workspace/Session/Agent、Command、持久 ingress 与双 Workspace 双渠道隔离保持；Gateway 现已统一 Telegram/飞书普通文本的持久 outbound intent、幂等、按 account 串行、明确 429 有界重试、uncertain 恢复、脱敏 transport observation，并由同包 DSH Client Module 提供渠道健康、Host pairing 和动态 grant 两步撤销。飞书图片已在 assembled DSH 中经官方 message-resource 端口下载、整批校验、原生 AttachmentStore 内容寻址保存并以 `ImageAttachmentRef` 进入 Agent，外部 `fileKey` 不进入 Session；文档/Wiki/Drive metadata/Bitable 已按四个默认关闭的独立权限进入 Agent-scoped 原生 Tool，每次读取经过 DSH Approval，assembled DSH 已验证稳定 schema、durable result、拒绝与 dispose。V5.6 又从最终 tarball 在真实 DSH Web 验证当前 Session 的四权限、Tool/Approval、future-only 状态、刷新、Host 停机清空旧快照和同端口恢复；健康读取不调用模型或平台。已验证 rc.5 和最新审计的 rc.2 都尚无通用附件契约，因此普通文件和音视频仍 pending；内容能力的真实飞书 App scope、资源权限与真实数据也未验收。真实飞书 direct 文本/原生 Command/回复已通过；重启后新增消息、真实撤销重配、真实 Approval/Schedule/group、两套独立真实 provider Trial、同模型编码/长任务和真实消息交付 Hermes paired epochs 仍是完成门禁；这些完成前不得发布或宣称整体上位。
 
 - [安装与验收](docs/getting-started.zh.md)
 - [当前状态](docs/status.zh.md)

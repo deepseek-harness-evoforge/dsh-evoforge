@@ -31,6 +31,7 @@ import type {
   GatewayPairingApprovalInput,
   GatewayPairingAuthority,
   GatewayPairingOffer,
+  GatewayPairingRevocation,
   GatewayPairingTarget,
 } from './pairing.js'
 import {
@@ -96,6 +97,8 @@ export interface GatewayPairingSessionApprovalReceipt {
   readonly sessionId: string
 }
 
+export type GatewayPairingRevocationReceipt = GatewayPairingRevocation
+
 export interface GatewayHealthRoute {
   readonly id: string
   readonly adapter: string
@@ -103,6 +106,8 @@ export interface GatewayHealthRoute {
   readonly sessionId: string
   readonly threadScoped: boolean
   readonly live: boolean
+  /** True only for a dynamic principal grant owned by the pairing authority. */
+  readonly paired: boolean
 }
 
 export interface GatewayHealthSnapshot {
@@ -142,6 +147,8 @@ export class DshGateway {
   private readonly ownedHandles = new Map<string, AgentHandle>()
   private readonly resolutions = new Map<string, Promise<Agent>>()
   private readonly ingressTails = new Map<string, Promise<void>>()
+  private readonly activeIngressByRoute = new Map<string, number>()
+  private readonly revokingRoutes = new Set<string>()
   private started = false
   private sessionEventsBound = false
   private stopping?: Promise<void>
@@ -159,9 +166,9 @@ export class DshGateway {
       configured,
       outboundJournal,
       (route, turn, signal) => this.nativeTurnEnded(route, turn, signal),
-      id => this.pairing?.route(id),
+      id => this.pairedRoute(id),
     )
-    this.transports = new GatewayTransportRegistry(configured, id => this.pairing?.route(id))
+    this.transports = new GatewayTransportRegistry(configured, id => this.pairedRoute(id))
   }
 
   /** Validate the complete static binding table before any adapter accepts traffic. */
@@ -197,11 +204,14 @@ export class DshGateway {
   }
 
   route(id: string): ResolvedGatewayRoute | undefined {
-    return this.configured.byId.get(id) ?? this.pairing?.route(id)
+    return this.configured.byId.get(id) ?? this.pairedRoute(id)
   }
 
   match(endpoint: GatewayEndpoint): ResolvedGatewayRoute | undefined {
-    return this.configured.match(endpoint) ?? this.pairing?.match(endpoint)
+    const configured = this.configured.match(endpoint)
+    if (configured !== undefined) return configured
+    const paired = this.pairing?.match(endpoint)
+    return paired === undefined || this.revokingRoutes.has(paired.id) ? undefined : paired
   }
 
   async approvePairing(input: GatewayPairingApprovalInput): Promise<GatewayPairingApproval> {
@@ -259,6 +269,30 @@ export class DshGateway {
     })
   }
 
+  async revokePairing(routeId: string): Promise<GatewayPairingRevocationReceipt> {
+    this.assertRunning()
+    if (this.pairing === undefined) throw new Error('DSH gateway pairing is disabled')
+    if (this.configured.byId.has(routeId)) {
+      throw new Error(`gateway route '${routeId}' is configured and cannot be revoked as a pairing grant`)
+    }
+    if (this.revokingRoutes.has(routeId)) {
+      throw new Error(`gateway pairing route '${routeId}' revocation is already in progress`)
+    }
+    this.revokingRoutes.add(routeId)
+    try {
+      if ((this.activeIngressByRoute.get(routeId) ?? 0) > 0) {
+        throw new Error(`gateway pairing route '${routeId}' has active ingress and cannot be revoked yet`)
+      }
+      const outbound = this.outbound.health(new Set([routeId]))
+      if (outbound.prepared + outbound.sending + outbound.retrying > 0) {
+        throw new Error(`gateway pairing route '${routeId}' has active outbound effects and cannot be revoked yet`)
+      }
+      return await this.pairing.revoke(routeId, Date.now())
+    } finally {
+      this.revokingRoutes.delete(routeId)
+    }
+  }
+
   async accept(input: GatewayAcceptInput): Promise<GatewayAcceptResult> {
     this.assertRunning()
     const authorization = await this.authorize(input.endpoint, input.chatKind, input.now)
@@ -312,6 +346,7 @@ export class DshGateway {
           sessionId: route.sessionId,
           threadScoped: route.threadId !== undefined,
           live,
+          paired: !this.configured.byId.has(route.id),
         }
       })
       .sort((left, right) => left.id.localeCompare(right.id))
@@ -365,11 +400,16 @@ export class DshGateway {
   }
 
   private dispatchRoute(route: ResolvedGatewayRoute, input: GatewayDispatchInput): Promise<GatewayDispatchResult> {
+    if (!this.configured.byId.has(route.id)
+      && (this.revokingRoutes.has(route.id) || this.pairing?.route(route.id) === undefined)) {
+      return Promise.reject(new Error(`gateway pairing route '${route.id}' is not active`))
+    }
     const eventId = exactIngressText(input.eventId, 'eventId', 1_024)
     const content = normalizeUserContent(input.text, input.images)
     const eventHash = hash(`${route.endpointKey}\0${eventId}`)
     const ingressId = hash(`${route.id}\0${eventHash}`)
     const prior = this.ingressTails.get(ingressId) ?? Promise.resolve()
+    this.activeIngressByRoute.set(route.id, (this.activeIngressByRoute.get(route.id) ?? 0) + 1)
     const operation = prior.then(() => this.dispatchSerial({
       route, eventHash, ingressId, content,
       ...(input.signal === undefined ? {} : { signal: input.signal }),
@@ -378,6 +418,9 @@ export class DshGateway {
     this.ingressTails.set(ingressId, tail)
     void tail.finally(() => {
       if (this.ingressTails.get(ingressId) === tail) this.ingressTails.delete(ingressId)
+      const active = (this.activeIngressByRoute.get(route.id) ?? 1) - 1
+      if (active === 0) this.activeIngressByRoute.delete(route.id)
+      else this.activeIngressByRoute.set(route.id, active)
     })
     return operation
   }
@@ -619,6 +662,10 @@ export class DshGateway {
 
   private allRoutes(): readonly ResolvedGatewayRoute[] {
     return Object.freeze([...this.configured.routes, ...(this.pairing?.routes() ?? [])])
+  }
+
+  private pairedRoute(id: string): ResolvedGatewayRoute | undefined {
+    return this.revokingRoutes.has(id) ? undefined : this.pairing?.route(id)
   }
 
   private assertRouteSet(): void {

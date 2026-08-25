@@ -24,6 +24,7 @@ const dsh_gateway_evoforgeGateway_overview_result$schema = z.object({
   'sessionId': z.string().readonly(),
   'threadScoped': z.boolean().readonly(),
   'live': z.boolean().readonly(),
+  'paired': z.boolean().readonly(),
 })).readonly(),
 }).readonly(),
   'ingress': z.object({
@@ -69,6 +70,14 @@ const dsh_gateway_evoforgeGateway_overview_result$schema = z.object({
   'updatedAt': z.number().readonly(),
 })]).readonly().optional(),
 }).readonly(),
+})
+const dsh_gateway_evoforgeGateway_revokePairing_parameter_0$schema = z.string()
+const dsh_gateway_evoforgeGateway_revokePairing_result$schema = z.object({
+  'routeId': z.string().readonly(),
+  'workspaceId': z.string().readonly(),
+  'sessionId': z.string().readonly(),
+  'revokedAt': z.number().readonly(),
+  'alreadyRevoked': z.boolean().readonly(),
 })
 
 export const TYPERT_REMOTE = {
@@ -127,7 +136,7 @@ export const TYPERT_REMOTE = {
         typeSymbol: 'dsh-gateway/client-types#GatewayPairingSessionApprovalReceipt',
         schema: dsh_gateway_evoforgeGateway_approvePairing_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-gateway/src/gateway-remote.typert.ts","line":20,"column":3},
+      sourceLocation: {"file":"packages/dsh-gateway/src/gateway-remote.typert.ts","line":21,"column":3},
     },
     {
       id: 'dsh-gateway#evoforgeGateway/overview',
@@ -142,7 +151,32 @@ export const TYPERT_REMOTE = {
         typeSymbol: 'dsh-gateway/client-types#GatewayHealthSnapshot',
         schema: dsh_gateway_evoforgeGateway_overview_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-gateway/src/gateway-remote.typert.ts","line":15,"column":3},
+      sourceLocation: {"file":"packages/dsh-gateway/src/gateway-remote.typert.ts","line":16,"column":3},
+    },
+    {
+      id: 'dsh-gateway#evoforgeGateway/revokePairing',
+      service: 'evoforge.gatewayHealth',
+      namespace: 'evoforgeGateway',
+      method: 'revokePairing',
+      invocation: { kind: 'direct' },
+      parameters: [
+        {
+          name: '_routeId',
+          wire: '_routeId',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-gateway#evoforgeGateway/revokePairing:_routeId',
+            schema: dsh_gateway_evoforgeGateway_revokePairing_parameter_0$schema,
+          },
+        },
+      ],
+      result: {
+        mode: 'strict',
+        typeSymbol: 'dsh-gateway/client-types#GatewayPairingRevocationReceipt',
+        schema: dsh_gateway_evoforgeGateway_revokePairing_result$schema,
+      },
+      sourceLocation: {"file":"packages/dsh-gateway/src/gateway-remote.typert.ts","line":31,"column":3},
     },
   ],
 }

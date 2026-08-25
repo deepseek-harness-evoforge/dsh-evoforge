@@ -12,6 +12,10 @@ describe('GatewayRemoteService', () => {
       approvePairingForSession: vi.fn(async () => ({
         routeId: 'paired-feishu', workspaceId: 'workspace-a', sessionId: 'session-a',
       })),
+      revokePairing: vi.fn(async () => ({
+        routeId: 'paired-feishu', workspaceId: 'workspace-a', sessionId: 'session-a',
+        revokedAt: 20, alreadyRevoked: false,
+      })),
     } as unknown as DshGateway
     const ctx = new Context()
     const remote = new GatewayRemoteService(ctx, gateway)
@@ -22,12 +26,17 @@ describe('GatewayRemoteService', () => {
     expect(gateway.approvePairingForSession).toHaveBeenCalledWith({
       code: 'ABCDEFGH23', adapter: 'feishu', workspaceId: 'workspace-a', sessionId: 'session-a',
     })
+    await expect(remote.revokePairing('paired-feishu')).resolves.toMatchObject({
+      routeId: 'paired-feishu', alreadyRevoked: false,
+    })
+    expect(gateway.revokePairing).toHaveBeenCalledWith('paired-feishu')
     expect(gateway.healthSnapshot).toHaveBeenCalledOnce()
     expect(ctx.get('evoforge.gatewayHealth')).toMatchObject({ name: 'evoforge.gatewayHealth' })
     expect(remote.typertRemote).toMatchObject({
       serviceKey: 'evoforge.gatewayHealth',
       namespace: 'evoforgeGateway',
     })
-    expect(remoteMethods(remote).map(marker => marker.method).sort()).toEqual(['approvePairing', 'overview'])
+    expect(remoteMethods(remote).map(marker => marker.method).sort())
+      .toEqual(['approvePairing', 'overview', 'revokePairing'])
   })
 })

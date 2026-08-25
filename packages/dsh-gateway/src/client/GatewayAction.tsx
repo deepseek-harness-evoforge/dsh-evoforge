@@ -4,6 +4,7 @@ import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {
   GatewayHealthSnapshot,
+  GatewayPairingRevocationReceipt,
   GatewayPairingSessionApprovalReceipt,
 } from '../client-types.ts'
 
@@ -15,6 +16,7 @@ export interface GatewayRemoteClient {
     workspaceId: string,
     sessionId: string,
   ): Promise<RemoteResult<GatewayPairingSessionApprovalReceipt>>
+  revokePairing(routeId: string): Promise<RemoteResult<GatewayPairingRevocationReceipt>>
 }
 
 export type GatewayActionProps = PropsRuntime<'sidebar.footer.action'> & {
@@ -37,6 +39,9 @@ export function GatewayAction({ remote, t, useSessions, useWorkspaces, wide }: G
   const [pairingBusy, setPairingBusy] = useState(false)
   const [pairingCode, setPairingCode] = useState('')
   const [pairingReceipt, setPairingReceipt] = useState<GatewayPairingSessionApprovalReceipt>()
+  const [revokingRoute, setRevokingRoute] = useState<string>()
+  const [confirmingRoute, setConfirmingRoute] = useState<string>()
+  const [revocationReceipt, setRevocationReceipt] = useState<GatewayPairingRevocationReceipt>()
   const [snapshot, setSnapshot] = useState<GatewayHealthSnapshot>()
   const [error, setError] = useState<string>()
 
@@ -49,6 +54,7 @@ export function GatewayAction({ remote, t, useSessions, useWorkspaces, wide }: G
       if (request !== requestRef.current) return
       if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`)
       setSnapshot(result.value)
+      setConfirmingRoute(undefined)
     } catch (cause) {
       if (request === requestRef.current) {
         setSnapshot(undefined)
@@ -66,7 +72,27 @@ export function GatewayAction({ remote, t, useSessions, useWorkspaces, wide }: G
   const close = () => {
     requestRef.current += 1
     setOpen(false)
+    setConfirmingRoute(undefined)
     triggerRef.current?.focus()
+  }
+  const revokePairing = async (routeId: string) => {
+    if (confirmingRoute !== routeId) {
+      setConfirmingRoute(routeId)
+      return
+    }
+    setRevokingRoute(routeId)
+    setRevocationReceipt(undefined)
+    setError(undefined)
+    try {
+      const result = await remote.revokePairing(routeId)
+      if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`)
+      setRevocationReceipt(result.value)
+      await refresh()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setRevokingRoute(undefined)
+    }
   }
   const approvePairing = async () => {
     const code = pairingCode.trim().toUpperCase()
@@ -155,6 +181,37 @@ export function GatewayAction({ remote, t, useSessions, useWorkspaces, wide }: G
             </div>}
           </section>
           <section className="dsh-gateway-section">
+            <h3>{t('routes.title')}</h3>
+            <p>{t('routes.help')}</p>
+            {snapshot.routes.items.length === 0
+              ? <p>{t('routes.empty')}</p>
+              : snapshot.routes.items.map(route => <article key={route.id} className="dsh-gateway-route">
+                <div>
+                  <strong>{route.adapter}</strong>
+                  <code>{route.id}</code>
+                  <small>{t(route.paired ? 'routes.paired' : 'routes.configured')}</small>
+                </div>
+                {route.paired && <button
+                  type="button"
+                  className={confirmingRoute === route.id ? 'is-confirm' : undefined}
+                  disabled={revokingRoute !== undefined}
+                  aria-label={routeLabel(t(confirmingRoute === route.id
+                    ? 'routes.confirmRevoke'
+                    : 'routes.revoke'), route.id)}
+                  onClick={() => { void revokePairing(route.id) }}
+                >
+                  {revokingRoute === route.id
+                    ? t('routes.revoking')
+                    : routeLabel(t(confirmingRoute === route.id
+                      ? 'routes.confirmRevoke'
+                      : 'routes.revoke'), route.id)}
+                </button>}
+              </article>)}
+            {revocationReceipt !== undefined && <div className="dsh-gateway-message is-success" role="status">
+              {routeLabel(t('routes.revoked'), revocationReceipt.routeId)}
+            </div>}
+          </section>
+          <section className="dsh-gateway-section">
             <h3>{t('transport.title')}</h3>
             {snapshot.transports.items.length === 0
               ? <p>{t('transport.empty')}</p>
@@ -196,4 +253,8 @@ function viewStatus(snapshot: GatewayHealthSnapshot): ViewStatus {
 
 function format(template: string, count: number): string {
   return template.replace('{count}', String(count))
+}
+
+function routeLabel(template: string, routeId: string): string {
+  return template.replace('{routeId}', routeId)
 }

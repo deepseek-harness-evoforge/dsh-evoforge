@@ -20,6 +20,7 @@
 > V5.21 将阶段专用 AS-2 提升为 epoch-2：活动 clean-profile 组合必须在 Gateway route 创建 Agent 前加载官方 Schedule，并通过 agent-scoped `schedule_create` 形成精确一次 create/dispatch/Schedule 插件来源 `user/message`、真实 route delivered 增量与卸载后 Session readback。持久终态必须精确包含十一项关闭 observation；旧 epoch、缺 Schedule 或损坏报告不得复用。合同 9/9、类型和 Feishu 52/52 通过，但 direct/group 仍为 `NOT_RUN`，不构成真实平台证据。
 > V5.22 已推翻 setup-only Session pairing：Gateway 是 Host 常驻 authority，Adapter boot 即连接；陌生 DM 在 Agent 前回短期 code，Host Web批准到当前 native Workspace/Session，下一条消息直接采用动态 grant。旧 `/feishu-pair`、两分钟 listener、反向短语、静态 YAML 与倒计时 UI 已删除。最终 tarball 在真实 rc.2 App 完成 direct DM 配对、三次 native Session/回复和 Host 冷启动恢复；真实 Approval/Schedule/group/failure/长期重连仍是退出门。
 > V5.23 已同步推翻 AS-2 中残留的静态 route 验收：epoch-3 启动前只接受 App credential、DSH source 和隔离 run root，不接受 conversation/user/chat kind；真实 principal 必须由未知 DM pending code 与 Host approval 产生。关闭门增加动态 Host notice 与冷启动后的新增消息/回复；direct 与 group 分开验收，当前完整 epoch-3 仍未真实运行。
+> V5.24 补齐 Host-owned principal 撤销：动态 grant 在同一 Pairing Domain 原子转为 revoked tombstone，未来消息重新进入 Agent 前 pairing；静态 route、活动 ingress/outbound effect 均拒绝撤销，原生 Workspace/Session 不删除。Gateway Remote/Web 只对动态 route 提供两步确认。最终包已在真实 rc.2 profile 原位升级并冷启动恢复现有授权；本轮未实际撤销项目所有者的活动 grant。
 > 更新日期：2026-08-25
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。发生冲突时，下述“方向纠正”优先于旧里程碑文字。
 
@@ -367,7 +368,8 @@ Loader 中验证 degraded→reload→ready→remove，但该确定性 Adapter �
 WebSocket 握手与 resident pairing transport 已通过；同包最终 tarball 已在真实 DSH profile 中验证
 Gateway Web 显示零 route 的 `official-feishu-websocket: ready`、当前 native Session 目标和 Host 批准入口。
 陌生私聊首条消息必须在 Agent 前回 code，批准后未来消息立即生效；不得恢复 `/feishu-pair`、临时 listener、
-profile rewrite 或重启流程。
+profile rewrite 或重启流程。Host 必须能列出并精确撤销动态 principal grant；撤销后下一条私聊重新配对，
+不得删除原生 Workspace/Session，也不得把静态 route 当作可撤销授权。
 exact route 消息和 Hermes paired 证据完成以前仍只标记为 `implemented`；公共渠道可靠性中的 ingress、
 普通文本 outbound intent/journal、幂等、按 account 串行、明确限流重试和脱敏状态已经收敛到
 `dsh-gateway`。Gateway 入站现接受 exact 文本与 DSH 原生 `ImageAttachmentRef`；飞书 Adapter 通过官方

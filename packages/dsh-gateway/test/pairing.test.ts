@@ -64,6 +64,19 @@ describe('Gateway pairing authority', () => {
       workspaceId: 'workspace-a',
       sessionId: 'session-a',
     })
+    await expect(resumed.revoke('feishu-first-contact', 3_000)).resolves.toEqual({
+      routeId: 'feishu-first-contact',
+      workspaceId: 'workspace-a',
+      sessionId: 'session-a',
+      revokedAt: 3_000,
+      alreadyRevoked: false,
+    })
+    expect(resumed.match(subject)).toBeUndefined()
+    expect(resumed.routes()).toEqual([])
+    await expect(resumed.revoke('feishu-first-contact', 3_001)).resolves.toMatchObject({
+      routeId: 'feishu-first-contact', alreadyRevoked: true, revokedAt: 3_000,
+    })
+    await expect(resumed.offer(subject, 4_000)).resolves.toMatchObject({ kind: 'offered' })
     await resumed.close()
   })
 })

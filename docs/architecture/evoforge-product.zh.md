@@ -86,7 +86,9 @@ route，但 App ID 必须与 Gateway account 一致；Gateway 继续拥有 Works
 Adapter 只保留平台协议、实际发送和一次性 Approval 卡片；有界出站 journal 位于 Gateway。明确 429 才重试，模糊发送进入
 uncertain。双 Workspace 双渠道同 Host 重启隔离、真实 App 身份请求及标准 HTTPS proxy 环境中的
 WebSocket 握手已经通过；resident Gateway 在 Agent 前消费陌生私聊、回短期 code，并由 Host Web 把 grant
-原子绑定到当前 live native Workspace/Session；无需 Session Command、profile rewrite 或重启。真实 direct
+原子绑定到当前 live native Workspace/Session；动态 grant 可在同一 Host Web 经二次确认精确撤销，撤销保留
+tombstone、阻止活动 effect、让下一条私聊重新回 code，但不删除原生 Session；无需 Session Command、profile
+rewrite 或重启。真实 direct
 私聊已完成 code→approve、三次 native Session/回复与 Host 冷启动状态恢复；真实 Approval、Schedule、group、
 故障和长期重连完成前仍只标记为 `implemented`，不能增加通用 Gateway Runtime。
 入站图片使用飞书官方 message-resource API 下载，再经 DSH AttachmentStore 内容寻址保存；assembled

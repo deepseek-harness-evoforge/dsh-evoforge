@@ -72,6 +72,34 @@ describe('DshGateway', () => {
     })
     expect(accepted).toMatchObject({ kind: 'message', route: { id: receipt.routeId } })
     expect(host.messages.get('session-a')).toEqual(['local route', 'now enter DSH'])
+    expect(gateway.healthSnapshot(now + 1, [receipt.routeId]).routes.items).toEqual([
+      expect.objectContaining({ id: receipt.routeId, paired: true }),
+    ])
+    await expect(gateway.revokePairing('telegram-a')).rejects.toThrow(
+      "gateway route 'telegram-a' is configured",
+    )
+
+    const revocation = await gateway.revokePairing(receipt.routeId)
+    expect(revocation).toMatchObject({
+      routeId: receipt.routeId,
+      workspaceId: 'workspace-a',
+      sessionId: 'session-a',
+      alreadyRevoked: false,
+    })
+    await expect(gateway.revokePairing(receipt.routeId)).resolves.toMatchObject({
+      routeId: receipt.routeId,
+      revokedAt: revocation.revokedAt,
+      alreadyRevoked: true,
+    })
+    const afterRevocation = await gateway.accept({
+      endpoint: endpointB,
+      chatKind: 'direct',
+      eventId: 'revoked-feishu-dm',
+      text: 'must pair again',
+      now: now + 2,
+    })
+    expect(afterRevocation).toMatchObject({ kind: 'pairing', offer: { kind: 'offered' } })
+    expect(host.messages.get('session-a')).toEqual(['local route', 'now enter DSH'])
     await gateway.stop()
   })
 
@@ -147,11 +175,11 @@ describe('DshGateway', () => {
         items: [
           {
             id: 'feishu-b', adapter: 'feishu', workspaceId: 'workspace-b',
-            sessionId: 'session-b', threadScoped: true, live: false,
+            sessionId: 'session-b', threadScoped: true, live: false, paired: false,
           },
           {
             id: 'telegram-a', adapter: 'telegram', workspaceId: 'workspace-a',
-            sessionId: 'session-a', threadScoped: false, live: false,
+            sessionId: 'session-a', threadScoped: false, live: false, paired: false,
           },
         ],
       },
