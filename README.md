@@ -141,7 +141,8 @@ GitHub Review 的测试 LLM 补官方 `prepareCall()`，原生 Command 测试显
 V5.26 修正真实 Chrome 被 clean-profile 临时 Host 死端口阻断的问题：所有生命周期探针经官方参数使用
 `--no-open`，修正后测试不会再打开随机端口，用户标签已切回常驻 `3080` 并实际点击/刷新 Gateway 控制面。
 同时修复 Gateway 先停止时飞书 teardown 跳过平台断连的竞态；确定性失败注入、30 次 assembled 重复门和
-Feishu 45/45 已通过。详见
+Feishu 45/45 已通过；最终飞书 tarball 已通过官方 CLI 升级当前 `web` profile，Host 重启后 route、Session、
+ready WebSocket 与 3/3 journal 均恢复。详见
 [V5.26 证据](docs/evidence/v5-26-live-web-handoff-and-feishu-teardown.zh.md)。
 
 existing-Skill 路径会封存调用时完整 Bundle，并把当前纠正文与 durable Goal/请求预分为 authoring/admission/holdout/可选 Retention。V4.40 的 Candidate 不可见治理面在 proposer 前用两次独立调用分别消费 protected Holdout 与可选第五 Goal Retention，每次只见 exact baseline 和自己的一个 protected Goal；两套 assembled `skill-tree` Case Pack 经独立 calibration 后共同进入内容寻址 Evaluation Envelope，Candidate id 绑定整个 Envelope。受保护作者只允许改 `SKILL.md`/`references/*.md`，Host 原样继承二进制和其余文件并拒绝权限漂移；结构准入再重验 exact baseline/Candidate 双树、声明 diff 与 protected admission identity。V4.39 的原生 DSH Job 执行完整 paired Holdout；V4.41 只在该 exact Holdout 权威判为 `improved` 后由另一原生 DSH Job 执行预密封 Retention，四 Goal无样本时零花费 abstain，五 Goal按 `fail/pass` 四象限持久判为 `retained/ambiguous/not-retained/regressed`。两者都要求 calibration、assembled、composition 与输入完整性全部成立，中断不盲重试且无晋升权。V4.43 再由独立 Host mutation gate 重验 exact Admission/Holdout/Retention 与完整 sealed Bundle；只有人工 approve 才产生 inactive Generation，另一动作才选择未来 Session，reject 持久终止且 evaluator 始终无发布权。

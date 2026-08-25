@@ -51,6 +51,19 @@
 - `pnpm --filter dsh-feishu test`：18 files / 45 tests passed；
 - 根级 `pnpm check`：通过；RP-1 8/8、AS-2 9/9、全 workspace typecheck/test/build 均完成。
 
+## 当前真实 profile 升级
+
+提交 `cb7266be37c18ff5c493950bc6a23d6b533ea7ac` 推送 `origin/main` 后，从该提交构建
+`dsh-feishu-0.1.0-alpha.1.tgz`，通过 DSH 官方 `plugin --profile web add` 原位升级。随后重启常驻
+`dsh --profile web --no-open`：
+
+- `127.0.0.1:3080` 由新 Host PID 监听；
+- 已安装 `node_modules/dsh-feishu/dist/index.mjs` 含本增量的 teardown 汇总错误路径；
+- 同一 Chrome 标签自动恢复，Gateway 控制面人工刷新成功；
+- 原动态 route、原生 Session、飞书 WebSocket `ready`、3/3 journal 与零异常全部恢复。
+
+本次升级没有撤销真实 grant，也没有发送新的飞书消息或调用模型。
+
 ## 边界
 
 - 本增量不修改 DSH onboarding，也不 fork DSH；死端口不能作为 DSH 或插件缺陷证据；
