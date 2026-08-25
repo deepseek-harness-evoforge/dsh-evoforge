@@ -92,11 +92,13 @@ describe.skipIf(process.platform !== 'darwin')('native DSH Workspace-owned evolu
         const statusA = await first.commands.execute(
           futureA.agent,
           '/evolve status',
+          [],
           new AbortController().signal,
         )
         const statusB = await first.commands.execute(
           futureB.agent,
           '/evolve status',
+          [],
           new AbortController().signal,
         )
         expect(statusA?.result).toMatchObject({ kind: 'success', text: expect.stringContaining(generationA.id) })

@@ -26,6 +26,10 @@ ingress/outbound effect 和 Session 删除均 fail closed；最终 Gateway tarba
 冷启动，现有动态 grant、原生 Session、3/3 journal 与 ready WebSocket 均恢复。真实 direct 文本、原生
 Command 和回复已经通过；实际撤销重配、Approval、Schedule、group、长期数据和 Hermes paired 仍未达标。
 
+V5.25 修正默认 DSH checkout 更新到 rc.2 后的活动门漂移：五个示例 Case Pack 不再锁旧 rc.5，GitHub Review
+测试 LLM 适配 `prepareCall()`，原生 Command 测试显式传空 images。Evolve 305 passed / 1 skipped，GitHub
+Review 27/27；冻结 Hermes 结果和双版本 compatibility gate 没有改写。
+
 V5.5 按 [ADR-0090](adr/0090-feishu-content-reads-are-agent-scoped-native-tools.md) 在 `dsh-feishu` 内增加一个
 Agent-scoped 原生 `feishu_content_read` Tool。document、Wiki、Drive metadata、Bitable records 四项权限独立且
 默认关闭；每次读取走真实 ToolRuntime/Approval，当前 Session schema 固定，撤权后执行拒绝，新启用只影响
