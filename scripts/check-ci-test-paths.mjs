@@ -15,6 +15,21 @@ const packageDirectories = (await readdir(join(repositoryRoot, 'packages'), { wi
   .filter(entry => entry.isDirectory())
   .map(entry => join(repositoryRoot, 'packages', entry.name))
 
+const artifactContractPackages = {
+  'dsh-control-center': 'pnpm run build',
+  'dsh-doctor': 'pnpm run build',
+  'dsh-evolve': 'pnpm run build',
+  'dsh-gateway': 'pnpm run build',
+  'dsh-feishu': 'pnpm run build',
+  'dsh-telegram': 'pnpm run build',
+}
+for (const [packageName, requiredPretest] of Object.entries(artifactContractPackages)) {
+  const manifest = JSON.parse(await readFile(join(repositoryRoot, 'packages', packageName, 'package.json'), 'utf8'))
+  if (!manifest.scripts?.pretest?.includes(requiredPretest)) {
+    throw new Error(`${packageName} reads built artifacts in its tests and must declare pretest '${requiredPretest}'`)
+  }
+}
+
 const missing = []
 for (const testPath of paths) {
   let found = false

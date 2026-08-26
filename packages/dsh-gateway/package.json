@@ -52,6 +52,7 @@
   "scripts": {
     "build": "tsc -b ../../tsconfig.host.json --force && tsdown && node ../../scripts/verify-gateway-typert-artifacts.mjs && node ../../scripts/verify-node-artifacts.mjs packages/dsh-gateway/dist/index.mjs packages/dsh-gateway/dist/client.js",
     "prepack": "pnpm run build",
+    "pretest": "pnpm run build",
     "typecheck": "tsc --noEmit -p tsconfig.test.json",
     "test": "vitest run"
   },

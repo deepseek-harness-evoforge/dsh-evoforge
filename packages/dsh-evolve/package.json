@@ -58,6 +58,7 @@
     "prune:types": "node ../../scripts/prune-stale-declarations.mjs .",
     "build": "tsc -b ../../tsconfig.host.json --force && pnpm run prune:types && tsdown && node ../../scripts/verify-typert-artifacts.mjs && node ../../scripts/verify-node-artifacts.mjs packages/dsh-evolve/dist/index.mjs",
     "prepack": "pnpm run build",
+    "pretest": "pnpm run build",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "test": "vitest run"
   },
