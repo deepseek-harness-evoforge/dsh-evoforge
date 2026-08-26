@@ -6,6 +6,8 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Corrected the `dsh-evolve-attention` README to describe both static routes and resident pairing grants;
+  the bridge consumes only Host-authorized routes and never creates a second routing path.
 - `pack:suite` now defaults to the user-facing `core` suite when `--suite` is omitted; the maintainer-only twelve-Bundle
   composition remains available only through the explicit `pack:full` command or `--suite full`.
 - The dual DSH assembled matrix now materializes a temporary Case Pack copy whose epoch is bound to the checked-out

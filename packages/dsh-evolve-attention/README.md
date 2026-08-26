@@ -19,7 +19,8 @@ originating Session continues.
 ## Requirements and installation
 
 Run `dsh-evolve`, this package, and at least one supported channel Adapter in the same DSH profile.
-Configure each Adapter first with exact static Gateway routes.
+Authorize at least one exact channel route first, either through a static Gateway route or the Adapter's
+resident pairing flow. Attention consumes only routes that the Host has already authorized.
 
 ```bash
 PACK_DIR="$(mktemp -d)"
@@ -30,11 +31,11 @@ pnpm --filter dsh-feishu pack --pack-destination "$PACK_DIR"   # optional
 dsh plugin --profile web add "$PACK_DIR"/*.tgz
 ```
 
-The bridge has no destination configuration. Telegram supplies its one static Workspace route;
-Feishu supplies every exact `routeId → Workspace` binding configured on that Adapter instance.
-Each scan passes the corresponding Workspace id explicitly to `dsh-evolve`, validates the returned
-ownership, and never scans a recent or arbitrary Workspace. Multiple Feishu routes for one
-Workspace share one overview read but retain independent durable delivery identities.
+The bridge has no destination configuration. Each concrete Adapter supplies its currently authorized
+exact `routeId → Workspace` bindings, including grants created by resident pairing. Each scan passes
+the corresponding Workspace id explicitly to `dsh-evolve`, validates the returned ownership, and
+never scans a recent or arbitrary Workspace. Multiple Feishu routes for one Workspace share one
+overview read but retain independent durable delivery identities.
 
 After a notice arrives, inspect and act through the existing command surface:
 
