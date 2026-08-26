@@ -31,7 +31,8 @@ V5.25 修正默认 DSH checkout 更新到 rc.2 后的活动门漂移：五个示
 Review 27/27；冻结 Hermes 结果和双版本 compatibility gate 没有改写。
 
 V5.26 修正一次真实用户可见的验收偏差：`56017` 是已退出 clean-profile Host 留下的死页面，不是可交付
-DSH。生命周期探针现全部 `--no-open`；复跑后真实 Chrome 只剩常驻 `3080`，并已实际点击/刷新 Gateway
+DSH。生命周期探针现在按目标 DSH CLI 能力自适应关闭浏览器（rc.2 传 `--no-open`，rc.5 使用其无浏览器
+handoff 的 `--port` 契约）；复跑后真实 Chrome 只剩常驻 `3080`，并已实际点击/刷新 Gateway
 控制面。飞书 Runtime 也修复 Gateway 先停止时 teardown 中断、平台不断连的竞态；确定性失败注入、30 次
 assembled pairing 重复门及 Feishu 45/45 已通过。`cb7266b` 最终飞书 tarball 已用官方 CLI 升级当前
 `web` profile；Host 重启后原 route/Session、ready WebSocket、3/3 journal 与零异常均恢复。

@@ -11,11 +11,12 @@
 
 ## 初始阻断与修复
 
-1. 当前 rc.5 Web CLI 已删除 `--no-open` 选项；兼容测试已改为使用官方当前 `--port` 参数，不再向 Host 传入已删除的 flag。
+1. 两个目标的 Web CLI 契约不同：rc.2 提供 `--no-open`，rc.5 已删除该选项。生命周期 harness 先读取目标 CLI 的 `--help`，仅在目标支持时传入 `--no-open`；rc.5 保持只传官方 `--port`，因此不会把已删除的 flag 传给旧目标，也不会因随机端口打开浏览器。
 2. rc.5 Web Bundle 要求 frontend dist 已构建；重跑前执行 `pnpm run build:lib` 与 `pnpm run build:web`，按官方宿主装配方式建立完整 fixture。
 
 ## 结论与后续门
 
 - V5.16 的“两个目标各 30 项通过”是 2026-08-24 的历史快照；本记录把当前重跑结果单独保留。
+- 本次修正后的 clean-profile 与 suite-upgrade 均分别在 rc.2 和 rc.5 重跑通过；rc.2 的探针明确没有 `opening the default browser` 输出，rc.5 的帮助输出不含 `--no-open` 且同样通过。
 - 当前发布基线可声明为：rc.2 与 rc.5 均已由当前 `main` 重验通过。
 - 这只证明 DSH 兼容与生命周期门，不替代真实 Provider、飞书完整 epoch-3、浏览器迁移和 Hermes paired 发布门。

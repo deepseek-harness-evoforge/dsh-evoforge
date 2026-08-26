@@ -22,7 +22,7 @@
 > V5.23 已同步推翻 AS-2 中残留的静态 route 验收：epoch-3 启动前只接受 App credential、DSH source 和隔离 run root，不接受 conversation/user/chat kind；真实 principal 必须由未知 DM pending code 与 Host approval 产生。关闭门增加动态 Host notice 与冷启动后的新增消息/回复；direct 与 group 分开验收，当前完整 epoch-3 仍未真实运行。
 > V5.24 补齐 Host-owned principal 撤销：动态 grant 在同一 Pairing Domain 原子转为 revoked tombstone，未来消息重新进入 Agent 前 pairing；静态 route、活动 ingress/outbound effect 均拒绝撤销，原生 Workspace/Session 不删除。Gateway Remote/Web 只对动态 route 提供两步确认。最终包已在真实 rc.2 profile 原位升级并冷启动恢复现有授权；本轮未实际撤销项目所有者的活动 grant。
 > V5.25 修正更新默认 DSH 到 rc.2 后暴露的活动门漂移：五个示例 Case Pack 仍锁 rc.5、GitHub Review 测试 LLM 缺 rc.2 `prepareCall()`、一个 Command 测试仍传旧签名。活动默认门现精确绑定 rc.2；冻结 Hermes epoch/result 与 rc.5/rc.2 双版本兼容矩阵保持不变。
-> V5.26 将“可交付 Web”收紧为常驻 Host 的真实浏览器路径：clean-profile/CLI 生命周期探针必须 `--no-open`，随机临时端口不得留在用户浏览器或冒充可用性证据。飞书 teardown 即使遇到 Gateway sibling 先停、状态上报或其他阶段失败，也必须继续执行 outbound、平台连接和 transport 清理，最后再汇总错误。
+> V5.26 将“可交付 Web”收紧为常驻 Host 的真实浏览器路径：clean-profile/CLI 生命周期探针必须使用目标 DSH 支持的无浏览器 handoff 契约（rc.2 传 `--no-open`；已删除该 flag 的 rc.5 只传官方 `--port`），随机临时端口不得留在用户浏览器或冒充可用性证据。飞书 teardown 即使遇到 Gateway sibling 先停、状态上报或其他阶段失败，也必须继续执行 outbound、平台连接和 transport 清理，最后再汇总错误。
 > 更新日期：2026-08-25
 > 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。发生冲突时，下述“方向纠正”优先于旧里程碑文字。
 

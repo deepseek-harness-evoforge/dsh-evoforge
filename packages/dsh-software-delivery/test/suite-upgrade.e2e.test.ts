@@ -36,6 +36,7 @@ const packageNames = [
 ] as const
 const historicalPackageNames = packageNames.filter(name => name !== 'dsh-control-center')
 const temporaryRoots: string[] = []
+let cachedNoOpenFlagSupport: boolean | undefined
 
 afterEach(async () => {
   await Promise.all(temporaryRoots.splice(0).map(path => rm(path, { force: true, recursive: true })))
@@ -474,6 +475,7 @@ async function bootProfile(profileName: string, dshHome: string): Promise<any> {
       includeUserRoot: true,
     },
   }
+  const noOpenArgs = await dshNoOpenArgs(suiteRoot, process.env)
   return appBoot.boot(
     'evoforge-suite-upgrade',
     rootConfig,
@@ -483,10 +485,29 @@ async function bootProfile(profileName: string, dshHome: string): Promise<any> {
       shippedPresetPatch,
     ],
     (hostCtx: { provide: (...args: unknown[]) => unknown }) => provideCmdline(hostCtx, {
-      args: ['--port', '0'],
+      args: ['--port', '0', ...noOpenArgs],
       exit: () => {},
     }),
   )
+}
+
+async function dshNoOpenArgs(cwd: string, env: NodeJS.ProcessEnv): Promise<string[]> {
+  if (cachedNoOpenFlagSupport === undefined) {
+    try {
+      const help = await execFile(process.execPath, [dshBin, '--profile', 'web', '--help'], {
+        cwd,
+        env,
+        encoding: 'utf8',
+        timeout: 30_000,
+      })
+      cachedNoOpenFlagSupport = /(?:^|\s)--no-open(?:\s|$)/u.test(`${help.stdout}\n${help.stderr}`)
+    } catch {
+      // rc.5 has no --no-open flag and no browser handoff; do not guess at a
+      // flag that an older supported DSH target cannot parse.
+      cachedNoOpenFlagSupport = false
+    }
+  }
+  return cachedNoOpenFlagSupport ? ['--no-open'] : []
 }
 
 async function sha256(path: string): Promise<string> {

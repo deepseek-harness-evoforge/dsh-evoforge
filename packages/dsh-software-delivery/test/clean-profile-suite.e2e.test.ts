@@ -31,6 +31,7 @@ const packageNames = [
   'dsh-telegram',
 ] as const
 const temporaryRoots: string[] = []
+let cachedNoOpenFlagSupport: boolean | undefined
 
 afterEach(async () => {
   await Promise.all(temporaryRoots.splice(0).map(path => rm(path, { force: true, recursive: true })))
@@ -307,8 +308,12 @@ async function expectCliHostStarts(
   env: NodeJS.ProcessEnv,
 ): Promise<void> {
   // This is a lifecycle probe, not a browser handoff. Opening the ephemeral
-  // port leaves a dead DSH tab behind as soon as the probe terminates.
-  const child = spawn(process.execPath, [dshBin, '--profile', profile, '--port', '0'], {
+  // port leaves a dead DSH tab behind as soon as the probe terminates. DSH
+  // rc.2 exposes --no-open; the older rc.5 deliberately removed that flag,
+  // so detect the installed CLI contract instead of passing a flag it cannot
+  // parse. rc.5 has no browser handoff at all.
+  const noOpenArgs = await dshNoOpenArgs(cwd, env)
+  const child = spawn(process.execPath, [dshBin, '--profile', profile, '--port', '0', ...noOpenArgs], {
     cwd,
     env,
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -332,7 +337,27 @@ async function expectCliHostStarts(
   child.kill('SIGTERM')
   const result = await exited
   expect(result).toEqual({ code: 0, signal: null })
+  expect(`${stdout}${stderr}`).not.toContain('opening the default browser')
   expect(() => process.kill(child.pid!, 0)).toThrow()
+}
+
+async function dshNoOpenArgs(cwd: string, env: NodeJS.ProcessEnv): Promise<string[]> {
+  if (cachedNoOpenFlagSupport === undefined) {
+    try {
+      const help = await execFile(process.execPath, [dshBin, '--profile', 'web', '--help'], {
+        cwd,
+        env,
+        encoding: 'utf8',
+        timeout: 30_000,
+      })
+      cachedNoOpenFlagSupport = /(?:^|\s)--no-open(?:\s|$)/u.test(`${help.stdout}\n${help.stderr}`)
+    } catch {
+      // A target that cannot print help is not made less compatible by a
+      // speculative flag. Its own startup contract remains authoritative.
+      cachedNoOpenFlagSupport = false
+    }
+  }
+  return cachedNoOpenFlagSupport ? ['--no-open'] : []
 }
 
 async function bootProfile(profileName: string, dshHome: string) {
@@ -359,6 +384,7 @@ async function bootProfile(profileName: string, dshHome: string) {
       includeUserRoot: true,
     },
   }
+  const noOpenArgs = await dshNoOpenArgs(suiteRoot, process.env)
   return appBoot.boot(
     'evoforge-native-contract',
     rootConfig,
@@ -368,7 +394,7 @@ async function bootProfile(profileName: string, dshHome: string) {
       shippedPresetPatch,
     ],
     (hostCtx: { provide: (...args: unknown[]) => unknown }) => provideCmdline(hostCtx, {
-      args: ['--port', '0'],
+      args: ['--port', '0', ...noOpenArgs],
       exit: () => {},
     }),
   )
