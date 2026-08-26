@@ -45,6 +45,8 @@ HanaAgent 一手 revision 的设计调研、[ADR-0099](adr/0099-control-center-o
 把 `dsh-evolve-web` 迁入同一公共 Surface；旧侧栏固定弹窗不再是活动入口。迁移后的 Evolution 最终包真实
 Evolution 迁移后的真实 Workspace/Session 浏览器验收已由 [V5.30](evidence/v5-30-evolution-surface-browser-2026-08-26.zh.md) 通过；Doctor/Telegram 迁入公共 Surface、完整陌生用户可用性、真实 provider 价格与长期数据仍未完成。
 
+V5.32 收敛了公开安装面：默认只有 `core`、`channels`、`delivery`、`continuity` 四个入口，`attention` 按需安装，`evolution`/`control`/`gateway` 仅为兼容或高级入口，`full` 仅供维护者。`channels` 不再强制安装 Control Center 或 Attention；十二个物理 Bundle 的独立启停、权限和卸载边界保持不变。套件 audience、四包 `core` tarball 和 `check:suites` 结果见 [V5.32](evidence/v5-32-install-surface-convergence-2026-08-26.zh.md)。
+
 V5.5 按 [ADR-0090](adr/0090-feishu-content-reads-are-agent-scoped-native-tools.md) 在 `dsh-feishu` 内增加一个
 Agent-scoped 原生 `feishu_content_read` Tool。document、Wiki、Drive metadata、Bitable records 四项权限独立且
 默认关闭；每次读取走真实 ToolRuntime/Approval，当前 Session schema 固定，撤权后执行拒绝，新启用只影响

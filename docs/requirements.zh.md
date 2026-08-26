@@ -328,7 +328,7 @@ workspace，输出可审查的 launchd/systemd unit。OS service manager 与 uni
 - 已有成熟社区插件能够解决的问题优先复用、组合或提供兼容指导。
 - 每个候选插件必须回答：服务谁、解决什么问题、为何 DSH 原生组合不足、如何测量效果、如何保护缓存、如何卸载和回滚。
 - 无法回答上述问题的设计不进入开发。
-- 用户安装面按能力套件呈现，而不是暴露内部流水线数量：`evolution`、`control`、`gateway`、`channels`、`delivery`、`continuity` 与 `full`。套件必须展开为真实官方 Bundle；不能用一个聚合包隐藏独立的生命周期、权限或卸载边界。
+- 用户安装面按能力套件呈现，而不是暴露内部流水线数量：默认入口为 `core`、`channels`、`delivery`、`continuity`；`attention` 为可选附加能力，`evolution`、`control`、`gateway` 仅作兼容/高级入口，`full` 仅供维护者。套件必须展开为真实官方 Bundle；不能用一个聚合包隐藏独立的生命周期、权限或卸载边界。`channels` 不得强制安装 Control Center 或 Attention。
 
 ## 9. 设计阶段交付物
 

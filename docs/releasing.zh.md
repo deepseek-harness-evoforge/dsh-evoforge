@@ -15,8 +15,7 @@ EvoForge 以 DSH 官方 Bundle 作为交付单元，以能力套件作为用户�
 pnpm install --frozen-lockfile
 pnpm check
 pnpm run check:suites
-pnpm run pack:suite -- --suite evolution --out /tmp/evoforge-packs
-pnpm run pack:suite -- --suite control --out /tmp/evoforge-packs
+pnpm run pack:suite -- --suite core --out /tmp/evoforge-packs
 pnpm run check:release
 ```
 

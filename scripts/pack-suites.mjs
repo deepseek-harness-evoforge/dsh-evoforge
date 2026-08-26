@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { getSuite } from './suite-manifest.mjs'
+import { getSuite, getSuiteAudience } from './suite-manifest.mjs'
 
 const repositoryRoot = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const args = parseArgs(process.argv.slice(2))
@@ -34,6 +34,7 @@ for (const packageName of selected.packages) {
 const suiteManifest = {
   schemaVersion: 1,
   suite: selected.id,
+  audience: getSuiteAudience(selected.id),
   label: selected.label,
   description: selected.description,
   packages,

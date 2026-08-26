@@ -13,20 +13,19 @@ EvoForge 只作为 DSH 原生 Bundle 套件运行。本页区分“开发者生�
 ```sh
 pnpm install --frozen-lockfile
 PACK_ROOT="$(mktemp -d)"
-pnpm run pack:suite -- --suite evolution --out "$PACK_ROOT"
-pnpm run pack:suite -- --suite control --out "$PACK_ROOT"
+pnpm run pack:suite -- --suite core --out "$PACK_ROOT"
 ```
 
-用户按能力选择套件即可；完整边界和为什么不物理合并见[能力套件说明](capability-suites.zh.md)。维护者或完整验收使用 `--suite full`。每个输出目录都会包含官方 Bundle 及带 SHA-256 的 `evoforge-suite.json`。
+用户按能力选择套件即可；默认入口是 `core`、`channels`、`delivery`、`continuity`，`attention` 按需安装；完整边界和为什么不物理合并见[能力套件说明](capability-suites.zh.md)。维护者或完整验收使用 `--suite full`。每个输出目录都会包含官方 Bundle 及带 SHA-256/audience 的 `evoforge-suite.json`。
 
 ## 2. 安装与有效配置
 
 ```sh
-dsh plugin --profile web add "$PACK_ROOT/evolution"/*.tgz "$PACK_ROOT/control"/*.tgz
+dsh plugin --profile web add "$PACK_ROOT/core"/*.tgz
 dsh --profile web --dump-config
 ```
 
-有效配置应分别出现一次 `dsh-evolve`、`dsh-doctor`、`dsh-control-center` 和 `dsh-evolve-web`。渠道、GitHub review、Goal continuity 和 OS service 都是独立可选套件；涉及外部身份、凭据、自动恢复或 OS 部署的 row 应保持 disabled，直到部署者提供完整静态配置。
+有效配置应分别出现一次 `dsh-evolve`、`dsh-doctor`、`dsh-control-center` 和 `dsh-evolve-web`。渠道、GitHub review、Goal continuity、OS service 和 attention 都是独立可选能力；涉及外部身份、凭据、自动恢复或 OS 部署的 row 应保持 disabled，直到部署者提供完整静态配置。
 
 启动唯一的 DSH Host：
 

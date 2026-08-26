@@ -8,15 +8,15 @@
 
 | 能力套件 | 内部 Bundle | 适合结果 |
 |---|---|---|
-| `evolution` | `dsh-evolve` + `dsh-doctor` | 自我进化闭环与运行就绪诊断 |
-| `control` | `dsh-control-center` + `dsh-evolve-web` | 原生 DSH Web 控制中心 |
-| `gateway` | `dsh-gateway` | 常驻配对、路由、持久投递基础 |
-| `channels` | `dsh-gateway` + `dsh-feishu` + `dsh-telegram` + `dsh-evolve-attention` + `dsh-control-center` | 飞书/Telegram 与进化提醒 |
+| `core` | `dsh-evolve` + `dsh-doctor` + `dsh-control-center` + `dsh-evolve-web` | 自我进化、诊断和原生 DSH Web 控制面 |
+| `channels` | `dsh-gateway` + `dsh-feishu` + `dsh-telegram` | 飞书/Telegram 常驻配对、路由和持久投递 |
 | `delivery` | `dsh-software-delivery` + `dsh-github-review` | 隔离交付、Draft PR 和 review 跟进 |
 | `continuity` | `dsh-goal-continuity` + `dsh-resident` | Goal 冷恢复与用户级常驻 |
+| `attention`（可选） | `dsh-evolve-attention` | 已配置渠道上的进化提醒 |
+| `evolution` / `control` / `gateway`（兼容） | 原有对应 Bundle | 旧安装脚本兼容；新安装使用 `core` 或 `channels` |
 | `full` | 全部十二个内部 Bundle | 维护者和完整验收 |
 
-这些套件不是第二个安装器：每个名称最终都展开为 DSH 官方 `dsh plugin` 的真实 tarball。内部包之所以仍独立，是因为它们拥有不同的生命周期、权限、外部依赖或可卸载边界；真正重复的旧演化侧栏弹窗已经迁入 Control Center。详见[套件边界与精简理由](docs/capability-suites.zh.md)。
+这些套件不是第二个安装器：每个名称最终都展开为 DSH 官方 `dsh plugin` 的真实 tarball。内部包之所以仍独立，是因为它们拥有不同的生命周期、权限、外部依赖或可卸载边界；精简的是用户入口，不是把必要边界合并成巨型 Bundle。`channels` 不再强制安装 Web 控制面或通知层。详见[套件边界与精简理由](docs/capability-suites.zh.md)。
 
 当前活动进化纵切只使用 DSH 内部经验：Goal-linked Gap 与跨 Goal Skill Opportunity 经生成前证据密封后，产生隔离、内容寻址的 whole-Skill Candidate；用户不选路径、Agent、workflow、Skill 或来源，产品不建设运行时外部 Skill 搜索、获取、下载、导入或市场。missing-Skill 路径已有 Candidate-independent admission/holdout/可选 Retention、exact Shadow/Retention、future-Session Promotion、failed-Outcome Canary 和人工精确回滚，所有评测结果本身均无 pointer 或发布权。
 
@@ -156,14 +156,13 @@ V4.39 最终 tarball 已验证 paired Holdout 的真实 DSH Web 生命周期；V
 ```sh
 pnpm install --frozen-lockfile
 PACK_ROOT="$(mktemp -d)"
-pnpm run pack:suite -- --suite evolution --out "$PACK_ROOT"
-pnpm run pack:suite -- --suite control --out "$PACK_ROOT"
+pnpm run pack:suite -- --suite core --out "$PACK_ROOT"
 ```
 
 使用 DSH 官方插件命令安装并检查同一个 Host：
 
 ```sh
-dsh plugin --profile web add "$PACK_ROOT/evolution"/*.tgz "$PACK_ROOT/control"/*.tgz
+dsh plugin --profile web add "$PACK_ROOT/core"/*.tgz
 dsh --profile web --dump-config
 dsh --profile web
 ```

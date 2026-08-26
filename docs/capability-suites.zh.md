@@ -1,26 +1,33 @@
 # 能力套件与内部插件边界
 
-EvoForge 对用户不再把十二个内部 Bundle 当成十二个必须理解的产品。当前公开安装面按用户结果收敛为六类能力，另保留一个 `full` 维护者套件。每个套件仍由 DSH 官方命令安装真实 Bundle；套件清单只是可重复的安装编排，不是第二个 Runtime、CLI 或插件市场。
+EvoForge 对用户不再把十二个内部 Bundle 当成十二个必须理解的产品。默认公开安装面收敛为四个入口：`core`、`channels`、`delivery`、`continuity`；`attention` 是可选附加能力，`evolution`、`control`、`gateway` 只保留为兼容/高级入口，`full` 仅供维护者验收。每个套件仍由 DSH 官方命令安装真实 Bundle；套件清单只是可重复的安装编排，不是第二个 Runtime、CLI 或插件市场。
 
-## 用户可见的能力套件
+## 默认用户入口
 
 | 套件 | 包含的内部 Bundle | 适合谁 | 默认影响 |
 |---|---|---|---|
-| `evolution` | `dsh-evolve`、`dsh-doctor` | 希望从真实 DSH Goal 经验形成可隔离评测的 Skill 版本，并能诊断运行就绪状态 | 无模型表面新增；候选不自动安装或改变当前 Session |
-| `control` | `dsh-control-center`、`dsh-evolve-web` | 需要在 DSH Web 查看进化、状态和治理动作 | 一个原生 `conversation.view`；不复制 Host 状态、不调用模型 |
-| `gateway` | `dsh-gateway` | 作为其他消息 Adapter 的常驻、授权、路由和投递基础 | 默认 disabled；没有 Adapter 时不产生渠道连接 |
-| `channels` | `dsh-gateway`、`dsh-feishu`、`dsh-telegram`、`dsh-evolve-attention`、`dsh-control-center` | 需要飞书/Telegram 私聊、配对、持久投递和进化提醒 | 渠道 Adapter 默认 disabled，必须由部署者提供精确凭据和路由 |
+| `core` | `dsh-evolve`、`dsh-doctor`、`dsh-control-center`、`dsh-evolve-web` | 自我进化闭环、运行诊断和 DSH Web 控制面 | 四个 Bundle 仍可独立禁用/卸载；不新增模型表面 |
+| `channels` | `dsh-gateway`、`dsh-feishu`、`dsh-telegram` | 需要飞书/Telegram 私聊、配对和持久投递 | 不强制安装控制面或通知层；渠道 Adapter 默认 disabled，必须提供精确凭据和路由 |
 | `delivery` | `dsh-software-delivery`、`dsh-github-review` | 需要隔离交付、Draft PR 和原生 Session 内的 GitHub review 跟进 | Skill/Tool 表面按 DSH 原生规则固定；外部 GitHub 写入仍受保护动作约束 |
 | `continuity` | `dsh-goal-continuity`、`dsh-resident` | 需要有限 Goal 冷恢复和登录后常驻 DSH profile | 两项均 opt-in；不创建第二 Scheduler、Daemon 或状态库 |
-| `full` | 全部十二包 | 维护者、完整验收和需要全部能力的部署 | 仍按各 Bundle 的默认 disabled/权限门生效 |
+
+## 可选与兼容入口
+
+| 入口 | 包含的 Bundle | 用途 |
+|---|---|---|
+| `attention` | `dsh-evolve-attention` | 已配置飞书/Telegram 后，投递需要处理的进化提醒；不创建第二 Gateway 或通知运行时 |
+| `evolution` | `dsh-evolve`、`dsh-doctor` | 旧脚本兼容入口；新安装请使用 `core` |
+| `control` | `dsh-control-center`、`dsh-evolve-web` | 旧脚本兼容入口；新安装请使用 `core` |
+| `gateway` | `dsh-gateway` | 高级入口，仅用于接入第三方 Adapter |
+| `full` | 全部十二包 | 维护者、完整验收；不作为普通用户默认安装选项 |
 
 生成一个套件的发布包：
 
 ```sh
-pnpm run pack:suite -- --suite evolution --out /tmp/evoforge-packs
+pnpm run pack:suite -- --suite core --out /tmp/evoforge-packs
 ```
 
-脚本会为套件中的每个包运行官方 `pnpm pack`，并写出带 SHA-256 的 `evoforge-suite.json`。安装仍由 DSH 负责：
+脚本会为套件中的每个包运行官方 `pnpm pack`，并写出带 SHA-256 和 `audience`（default/optional/compatibility/maintainer）的 `evoforge-suite.json`。安装仍由 DSH 负责：
 
 ```sh
 dsh plugin --profile web add /tmp/evoforge-packs/evolution/*.tgz
@@ -31,7 +38,7 @@ dsh --profile web
 卸载使用清单中的包名：
 
 ```sh
-dsh plugin --profile web remove dsh-evolve dsh-doctor
+dsh plugin --profile web remove dsh-evolve dsh-doctor dsh-control-center dsh-evolve-web
 ```
 
 ## 为什么不把十二包物理合成一个包
@@ -53,4 +60,4 @@ dsh plugin --profile web remove dsh-evolve dsh-doctor
 - Gateway/Feishu 不再各自拥有页面外的固定健康对话框；渠道协议、投递和配对事实仍只由 Host Adapter/Gateway 提供。
 - `dsh-evolve` 的 Observer、Candidate、Trial、Promotion、Rollback 等内部阶段不是可安装插件；它们共同构成一个演化用户结果。
 
-因此精简的是“用户要选择和维护的产品入口”，不是把必须独立启停、卸载、权限审计的运行边界抹掉。
+因此精简的是“用户要选择和维护的产品入口”，不是把必须独立启停、卸载、权限审计的运行边界抹掉。`channels` 不再默认带上 `dsh-control-center` 和 `dsh-evolve-attention`，避免用户为渠道安装不需要的 Web 或通知能力；需要时分别安装 `core` 或 `attention`。

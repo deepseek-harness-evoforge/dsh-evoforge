@@ -4,7 +4,7 @@
 
 ## 先看用户能力，而不是十二个内部包
 
-用户安装入口已经精简为 `evolution`、`control`、`gateway`、`channels`、`delivery`、`continuity` 和 `full` 七个能力套件；每个套件仍展开为真实 DSH Bundle，保留独立启停、卸载、权限和升级边界。请先看[能力套件与内部插件边界](capability-suites.zh.md)。下表是维护者需要审计的内部包目录，不是要求用户逐个选择的启动问卷。
+用户默认安装入口已经精简为 `core`、`channels`、`delivery`、`continuity` 四个能力套件；`attention` 是可选附加能力，`evolution`、`control`、`gateway` 只为旧脚本保留，`full` 仅供维护者验收。每个套件仍展开为真实 DSH Bundle，保留独立启停、卸载、权限和升级边界。请先看[能力套件与内部插件边界](capability-suites.zh.md)。下表是维护者需要审计的内部包目录，不是要求用户逐个选择的启动问卷。
 
 ## 已进入路线图
 
