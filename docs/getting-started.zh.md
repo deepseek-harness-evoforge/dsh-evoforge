@@ -49,7 +49,10 @@ dsh --profile web
 5. Telegram 与飞书只通过 DSH Gateway 绑定原生 Workspace/Session/Agent；进化注意力和 Goal cold resume 也不创建第二套会话、目标或调度。
 6. Resident 只通过 `/resident plan|status|apply <plan-sha256>|remove <service-id>` 管理 exact OS user unit；先审查 plan，再逐次确认 hash 或 service id。
 
-纠正首先保存在当前 Workspace。若部署者尚未配置 exact Shadow/Evaluator Target，原生 DSH Web 概览会明确显示“验证流程尚未配置”，不会把“已记录反馈”误报为“已经进化”；配置 Target 后，概览才提供处理入口。进化资格验证、Shadow、review、promote 和 rollback 仍通过 `/evolve` Commands 或同一 DSH Web Host 完成。Command 和浏览器不接收任意 host path、模型路由或执行权限。
+纠正首先保存在当前 Workspace。若内部证据尚未达到资格门，或 Workspace 没有启用对应的治理策略，原生 DSH Web
+概览会直接显示等待原因；它不会要求用户选择或配置 Skill、Target 或路径，也不会把“已记录反馈”误报为“已经进化”。
+满足策略后，进化资格验证、Shadow、review、promote 和 rollback 仍通过 `/evolve` Commands 或同一 DSH Web Host
+完成。Command 和浏览器不接收任意 host path、模型路由或执行权限。
 
 Telegram 示例：
 
