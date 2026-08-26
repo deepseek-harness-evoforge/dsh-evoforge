@@ -57,7 +57,12 @@ function parseArgs(values) {
     else if (value === '--channel') result.channel = values[++index]
     else if (value === '--out') result.out = values[++index]
     else if (value === '--help' || value === '-h') {
-      console.log(`Usage: node scripts/pack-suites.mjs [--suite <name>] [--channel <feishu|telegram>] --out <directory> (default: ${DEFAULT_SUITE_ID})`)
+      console.log(`Usage: node scripts/pack-suites.mjs [--suite <name>] [--channel <feishu|telegram>] --out <directory> (default: ${DEFAULT_SUITE_ID})
+
+User-facing suites: core, channels, delivery, continuity
+Optional add-on: attention
+Compatibility/advanced: evolution, control, gateway
+Maintainer-only: full`)
       process.exit(0)
     } else throw new Error(`Unknown argument: ${value}`)
   }

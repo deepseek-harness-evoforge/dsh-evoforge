@@ -16,6 +16,8 @@ All notable changes will be recorded here. The project has not published a stabl
   composition remains available only through the explicit `pack:full` command or `--suite full`.
 - `pack:suite --suite channels` now accepts `--channel feishu|telegram` to install only the selected first-party Adapter;
   the Gateway/Adapter runtime and permission boundaries remain independent. See [V5.46 evidence](docs/evidence/v5-46-channel-selective-suite-pack-2026-08-26.zh.md).
+- `pack:suite --help` now separates the four user-facing suites from the optional, compatibility, advanced, and
+  maintainer-only entries, so internal Bundle composition is not presented as a twelve-way product picker.
 - The Evolution Control Center child surface now contributes a localized navigation label (`演化`/`Evolution`) instead
   of exposing its internal `evoforge-evolution` slot id to users.
 - The dual DSH assembled matrix now materializes a temporary Case Pack copy whose epoch is bound to the checked-out
