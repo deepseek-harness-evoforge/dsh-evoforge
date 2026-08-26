@@ -2738,6 +2738,14 @@ export const TYPERT = {
         "jsDoc": "/** Host-only wakeup after the resident evaluation scan has settled. */",
         "name": "evoforge/evolution/settled",
         "signature": "'evoforge/evolution/settled'(): void"
+      },
+      {
+        "description": "Optional terminal Gateway observation; body and credentials are never included.",
+        "summary": "Optional terminal Gateway observation; body and credentials are never included.",
+        "tags": [],
+        "jsDoc": "/** Optional terminal Gateway observation; body and credentials are never included. */",
+        "name": "evoforge/gateway/outbound",
+        "signature": "'evoforge/gateway/outbound'(observation: { readonly workspaceId: string; readonly recordId: string; readonly routeId: string; readonly adapter: string; readonly intentKeyHash: string; readonly operationKeyHash: string; readonly status: 'applied' | 'unknown'; readonly attempts: number; readonly observedAt: number; }): void"
       }
     ],
     "objects": []

@@ -260,7 +260,16 @@ export const TYPERT = {
         ]
       }
     ],
-    "events": [],
+    "events": [
+      {
+        "description": "Terminal outbound observation for optional long-term evidence projection.",
+        "summary": "Terminal outbound observation for optional long-term evidence projection.",
+        "tags": [],
+        "jsDoc": "/** Terminal outbound observation for optional long-term evidence projection. */",
+        "name": "evoforge/gateway/outbound",
+        "signature": "'evoforge/gateway/outbound'(observation: GatewayOutboundObservation & { readonly workspaceId: string; }): void"
+      }
+    ],
     "objects": []
   },
 }
