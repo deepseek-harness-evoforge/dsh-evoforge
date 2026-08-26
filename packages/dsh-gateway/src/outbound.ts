@@ -76,6 +76,18 @@ export interface GatewayOutboundHealth {
   }
 }
 
+/** Host-only terminal observation; it contains no message body or credentials. */
+export interface GatewayOutboundObservation {
+  readonly recordId: string
+  readonly routeId: string
+  readonly adapter: string
+  readonly intentKeyHash: string
+  readonly operationKeyHash: string
+  readonly status: 'applied' | 'unknown'
+  readonly attempts: number
+  readonly observedAt: number
+}
+
 export class GatewayOutboundCoordinator {
   private readonly registrations = new Map<string, GatewayTextAdapterRegistrationImpl>()
   private started = false
@@ -90,6 +102,7 @@ export class GatewayOutboundCoordinator {
       signal: AbortSignal,
     ) => Promise<boolean>,
     private readonly pairedRoute: (id: string) => ResolvedGatewayRoute | undefined = () => undefined,
+    private readonly onTerminal: (record: GatewayOutboundRecord) => void = () => {},
   ) {}
 
   async start(now: number): Promise<void> {
@@ -114,6 +127,7 @@ export class GatewayOutboundCoordinator {
       this.journal,
       this.isTurnEnded,
       this.pairedRoute,
+      this.onTerminal,
       () => {
         if (this.registrations.get(key) === registration) this.registrations.delete(key)
       },
@@ -195,6 +209,7 @@ class GatewayTextAdapterRegistrationImpl implements GatewayTextAdapterRegistrati
       signal: AbortSignal,
     ) => Promise<boolean>,
     private readonly pairedRoute: (id: string) => ResolvedGatewayRoute | undefined,
+    private readonly onTerminal: (record: GatewayOutboundRecord) => void,
     private readonly onDispose: () => void,
   ) {
     this.routeIds = new Set(routes.map(route => route.id))
@@ -309,7 +324,12 @@ class GatewayTextAdapterRegistrationImpl implements GatewayTextAdapterRegistrati
     } finally {
       clearTimeout(timer)
     }
-    await this.journal.finish(id, result, this.config, Date.now())
+    const finished = await this.journal.finish(id, result, this.config, Date.now())
+    try {
+      this.onTerminal(finished)
+    } catch {
+      // Evidence projection is best effort and must never alter delivery state.
+    }
   }
 
   private route(id: string): ResolvedGatewayRoute | undefined {

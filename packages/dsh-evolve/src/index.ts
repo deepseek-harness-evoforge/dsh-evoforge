@@ -114,6 +114,18 @@ declare module '@deepseek-ai/cordis' {
   interface Events {
     /** Host-only wakeup after the resident evaluation scan has settled. */
     'evoforge/evolution/settled'(): void
+    /** Optional terminal Gateway observation; body and credentials are never included. */
+    'evoforge/gateway/outbound'(observation: {
+      readonly workspaceId: string
+      readonly recordId: string
+      readonly routeId: string
+      readonly adapter: string
+      readonly intentKeyHash: string
+      readonly operationKeyHash: string
+      readonly status: 'applied' | 'unknown'
+      readonly attempts: number
+      readonly observedAt: number
+    }): void
   }
 }
 
@@ -245,6 +257,20 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
 
   ctx.provide('evoforge.evolution', store)
   ctx.provide('evoforge.longTermEffects', longTermEffects)
+  ctx.on('evoforge/gateway/outbound', observation => {
+    void longTermEffects.record({
+      kind: 'external-effect',
+      workspaceId: observation.workspaceId,
+      observedAt: observation.observedAt,
+      adapter: observation.adapter === 'feishu' ? 'dsh-feishu' : 'other',
+      operationKeyHash: observation.operationKeyHash,
+      idempotencyKeyHash: observation.intentKeyHash,
+      result: observation.status,
+      evidenceId: observation.recordId,
+    }).catch(error => {
+      ctx.logger.warn(`dsh-evolve could not retain Gateway long-term observation: ${String(error)}`)
+    })
+  })
   const disposeBinder = installGenerationBinder(ctx, store, source)
   const skillUseMonitor = installSkillUseMonitor(ctx, skillUses, store)
   const capabilities = new CapabilityMap()

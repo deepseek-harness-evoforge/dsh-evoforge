@@ -135,6 +135,7 @@ export {
 export {
   GatewayOutboundCoordinator,
   type GatewayOutboundHealth,
+  type GatewayOutboundObservation,
   type GatewayOutboundPolicy,
   type GatewayOutboundReceipt,
   type GatewayOutboundSendInput,

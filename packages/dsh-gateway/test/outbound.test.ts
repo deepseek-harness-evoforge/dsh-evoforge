@@ -166,6 +166,17 @@ describe('Gateway outbound text delivery', () => {
     })
     expect(JSON.stringify(gateway.healthSnapshot())).not.toContain('One durable answer.')
     expect(JSON.stringify(gateway.healthSnapshot())).not.toContain('chat-secret')
+    expect(host.emitted).toHaveLength(1)
+    expect(host.emitted[0]).toMatchObject({
+      event: 'evoforge/gateway/outbound',
+      value: {
+        workspaceId: 'workspace-a',
+        routeId: 'telegram-a',
+        status: 'applied',
+        attempts: 2,
+      },
+    })
+    expect(JSON.stringify(host.emitted[0])).not.toContain('One durable answer.')
 
     await expect(registration.submit(intent)).resolves.toMatchObject({
       created: false,
@@ -488,9 +499,11 @@ async function eventually(assertion: () => boolean): Promise<void> {
 function fakeNativeHost(): {
   ctx: Context
   events: Array<Record<string, unknown>>
+  emitted: Array<Record<string, unknown>>
   endTurn(turn: number): void
 } {
   const events: Array<Record<string, unknown>> = []
+  const emitted: Array<Record<string, unknown>> = []
   const sessionEventListeners: Array<(session: Agent['session'], event: Record<string, unknown>) => void> = []
   const agent = {
     id: 'session-a',
@@ -519,10 +532,14 @@ function fakeNativeHost(): {
     on(event: string, listener: (session: Agent['session'], value: Record<string, unknown>) => void) {
       if (event === 'session/event') sessionEventListeners.push(listener)
     },
+    emit(event: string, value: Record<string, unknown>) {
+      emitted.push({ event, value })
+    },
   } as unknown as Context
   return {
     ctx,
     events,
+    emitted,
     endTurn(turn: number) {
       const event = { type: 'turn/end', data: { turn } }
       events.push(event)

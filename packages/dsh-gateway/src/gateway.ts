@@ -21,6 +21,7 @@ import type {
 } from './routing.js'
 import {
   GatewayOutboundCoordinator,
+  type GatewayOutboundObservation,
   type GatewayOutboundHealth,
   type GatewayTextAdapterConfig,
   type GatewayTextAdapterRegistration,
@@ -130,6 +131,13 @@ export interface GatewayHealthSnapshot {
   readonly outbound: GatewayOutboundHealth
 }
 
+declare module '@deepseek-ai/cordis' {
+  interface Events {
+    /** Terminal outbound observation for optional long-term evidence projection. */
+    'evoforge/gateway/outbound'(observation: GatewayOutboundObservation & { readonly workspaceId: string }): void
+  }
+}
+
 /** An accepted external event crossed an effect boundary whose outcome cannot be proven. */
 export class GatewayIngressUncertainError extends Error {
   constructor(readonly ingressId: string, message: string) {
@@ -167,8 +175,29 @@ export class DshGateway {
       outboundJournal,
       (route, turn, signal) => this.nativeTurnEnded(route, turn, signal),
       id => this.pairedRoute(id),
+      record => this.observeOutbound(record),
     )
     this.transports = new GatewayTransportRegistry(configured, id => this.pairedRoute(id))
+  }
+
+  private observeOutbound(record: import('./outbound-journal.js').GatewayOutboundRecord): void {
+    const route = this.route(record.routeId)
+    if (route === undefined || !['delivered', 'uncertain', 'failed'].includes(record.status)) return
+    const operationKeyHash = createHash('sha256')
+      .update(`${route.adapter}:${record.kind}`)
+      .digest('hex')
+    const intentKeyHash = createHash('sha256').update(record.intentKey).digest('hex')
+    this.ctx.emit('evoforge/gateway/outbound', {
+      workspaceId: route.workspaceId,
+      recordId: record.id,
+      routeId: record.routeId,
+      adapter: route.adapter,
+      intentKeyHash,
+      operationKeyHash,
+      status: record.status === 'delivered' ? 'applied' : 'unknown',
+      attempts: record.attempts,
+      observedAt: record.updatedAt,
+    })
   }
 
   /** Validate the complete static binding table before any adapter accepts traffic. */
