@@ -84,16 +84,9 @@ jobs:
           test/cache-safe-status-shadow.e2e.test.ts
           test/dispose-owned-watcher-shadow.e2e.test.ts
           test/profile-install-remove-shadow.e2e.test.ts
-          test/shadow-resume.e2e.test.ts
           test/shadow-jobs-dsh.e2e.test.ts
-          test/sealed-canary-runner.e2e.test.ts
           test/delivery-outcome-store.e2e.test.ts
           test/case-pack-calibration-cli.test.ts
-          test/feedback-case-draft.test.ts
-          test/evaluator-draft-inbox.test.ts
-          test/evaluator-authoring-crash.e2e.test.ts
-          test/shadow-cli.test.ts
-          test/retention-gate.e2e.test.ts
           test/feedback-signal-monitor.e2e.test.ts
           test/generation-store.e2e.test.ts
           test/generation-binder.e2e.test.ts
@@ -117,7 +110,6 @@ jobs:
             test/package-install-remove.e2e.test.ts
           pnpm --filter dsh-telegram exec vitest run \
             test/cache-composition.e2e.test.ts \
-            test/delivery-store-persistence.e2e.test.ts \
             test/dsh-assembled-chat.e2e.test.ts \
             test/package-install-remove.e2e.test.ts
           pnpm --filter dsh-evolve-attention exec vitest run \

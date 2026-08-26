@@ -21,6 +21,7 @@
     "build": "pnpm -r build",
     "generate:typert": "pnpm --filter dsh-evolve exec tsc -b ../../tsconfig.host.json --force && pnpm --filter dsh-evolve run prune:types && node scripts/generate-typert.mjs",
     "check:docs": "node scripts/check-docs.mjs",
+    "check:ci": "node scripts/check-ci-test-paths.mjs",
     "check:suites": "node --test scripts/suite-manifest.test.mjs",
     "check:release": "node scripts/check-release.mjs",
     "check:release:gates": "node scripts/check-release-gates.mjs",
@@ -50,6 +51,6 @@
     "typecheck": "pnpm -r typecheck",
     "pretest": "pnpm --filter dsh-gateway run build",
     "test": "pnpm -r --filter '!dsh-telegram' --filter '!dsh-feishu' test && pnpm --filter dsh-telegram test && pnpm --filter dsh-feishu test",
-    "check": "pnpm run check:docs && pnpm run check:suites && pnpm run check:release:gates:test && pnpm run check:dsh-compatibility-script && pnpm run benchmark:hermes:ev1:typecheck && pnpm run benchmark:provider:rp1:check && pnpm run benchmark:feishu:as2:check && pnpm run typecheck && pnpm run test && pnpm run build"
+    "check": "pnpm run check:docs && pnpm run check:ci && pnpm run check:suites && pnpm run check:release:gates:test && pnpm run check:dsh-compatibility-script && pnpm run benchmark:hermes:ev1:typecheck && pnpm run benchmark:provider:rp1:check && pnpm run benchmark:feishu:as2:check && pnpm run typecheck && pnpm run test && pnpm run build"
   }
 }
