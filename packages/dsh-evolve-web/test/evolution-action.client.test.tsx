@@ -2213,14 +2213,14 @@ describe('client plugin lifecycle', () => {
       'dsh-evolve-web.style',
     ])
     expect(context.slots.inject).toHaveBeenCalledWith(
-      'sidebar.footer.action',
+      'evoforge.control.surface',
       expect.any(Function),
     )
     installSlot?.()
     expect(registerSlot).toHaveBeenCalledWith(expect.objectContaining({
       id: 'evoforge-evolution',
       order: 30,
-    }), EvolutionAction)
+    }), expect.any(Function))
 
     for (const dispose of disposers.reverse()) await dispose()
     expect(unmount).toHaveBeenCalledOnce()

@@ -4,6 +4,16 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ## Unreleased
 
+### Changed
+
+- User-facing installation is now organized into the `evolution`, `control`, `gateway`, `channels`, `delivery`, `continuity`, and `full` capability suites. The underlying DSH Bundles remain independently installable, permission-scoped, and removable.
+- `dsh-evolve-web` now contributes its evolution surface to the native Control Center instead of registering a duplicate fixed sidebar dialog.
+- CI package verification now consumes the suite manifest and no longer references removed package names or obsolete hard-gate scripts.
+
+### Release readiness
+
+- Added the release preflight and release-gate documentation. The project remains pre-alpha and is not yet a registry release.
+
 ### Added
 
 - Initial EvoForge research baseline, including the DSH 171-plugin catalog and comparisons with Claude Code Rev and Hermes Agent.

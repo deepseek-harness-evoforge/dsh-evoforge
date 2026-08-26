@@ -1,7 +1,6 @@
-import { useLayoutEffect, useRef, useState } from 'react'
-import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import type {} from '@deepseek-ai/dsh-client-runtime/client'
-import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import type { SessionListState } from '@deepseek-ai/dsh-client-runtime/client'
+import type { ControlSurfaceProps } from 'dsh-control-center/client'
 import type {
   EvolutionActionReceipt,
   EvolutionArtifactView,
@@ -15,9 +14,33 @@ import type {
 } from 'dsh-evolve/client'
 import { remoteValue, type EvolutionRemoteClient } from './remote.ts'
 
-export type EvolutionActionProps = PropsRuntime<'sidebar.footer.action'> & {
+export type EvolutionSurfaceProps = Pick<ControlSurfaceProps, 'sessionId' | 'useWorkspaces' | 'ui'> & {
   readonly remote: EvolutionRemoteClient
   readonly t: (key: string) => string
+  readonly onPendingChange?: (count: number) => void
+}
+
+/** @deprecated Compatibility export for older embedders; the active package no longer registers this slot. */
+export type EvolutionActionProps = {
+  readonly remote: EvolutionRemoteClient
+  readonly t: (key: string) => string
+  readonly useSessions: <S>(selector: (state: SessionListState) => S) => S
+  readonly useWorkspaces: EvolutionSurfaceProps['useWorkspaces']
+  readonly wide?: boolean
+}
+
+/** Only used by the deprecated compatibility wrapper; live DSH receives the Control Center UI. */
+const legacySurfaceUI: EvolutionSurfaceProps['ui'] = {
+  Surface: ({ children, ariaLabel }: { children: ReactNode; ariaLabel: string }) => <div aria-label={ariaLabel}>{children}</div>,
+  Header: ({ eyebrow, title, description, status, actions }) => <header><small>{eyebrow}</small><h2>{title}</h2><p>{description}</p>{status}{actions}</header>,
+  Status: ({ children }) => <span>{children}</span>,
+  Metrics: ({ items }) => <dl>{items.map((item, index) => <div key={`${item.label}-${index}`}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}</dl>,
+  Section: ({ title, description, children, actions }) => <section><h3>{title}</h3>{description !== undefined && <p>{description}</p>}{actions}{children}</section>,
+  Entity: ({ title, description, status, actions, details }) => <article><strong>{title}</strong>{description}{status}{actions}{details}</article>,
+  Notice: ({ title, children, role }) => <div role={role}>{title}{children}</div>,
+  Button: ({ children, ...props }) => <button {...props}>{children}</button>,
+  Empty: ({ title, description }) => <div><h2>{title}</h2><p>{description}</p></div>,
+  Loading: () => <div role="status">Loading</div>,
 }
 
 type ConfirmAction =
@@ -31,13 +54,12 @@ type ConfirmAction =
   | 'rollback-existing-skill'
 type EvolutionView = 'overview' | 'skills' | 'advanced'
 
-/** Sidebar trigger and bounded global evolution control panel. */
-export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }: EvolutionActionProps) {
-  const currentSessionId = useSessions(state => state.current)
+/** Evolution adapter rendered inside the native EvoForge Control Center. */
+export function EvolutionSurface({ remote, t, sessionId, useWorkspaces, ui: UI, onPendingChange }: EvolutionSurfaceProps) {
+  const currentSessionId = sessionId
   const workspaceId = useWorkspaces(state => currentSessionId === undefined
     ? undefined
     : state.items.find(workspace => workspace.sessionIds.includes(currentSessionId))?.workspaceId)
-  const [open, setOpen] = useState(false)
   const [view, setView] = useState<EvolutionView>('overview')
   const [overview, setOverview] = useState<EvolutionOverview>()
   const [detail, setDetail] = useState<EvolutionReviewDetail>()
@@ -51,7 +73,6 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
   const [error, setError] = useState<string>()
   const [notice, setNotice] = useState<string>()
   const [confirm, setConfirm] = useState<ConfirmAction>()
-  const triggerRef = useRef<HTMLButtonElement>(null)
   const workspaceRef = useRef(workspaceId)
   const sessionRef = useRef(currentSessionId)
   workspaceRef.current = workspaceId
@@ -133,8 +154,8 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
     resetWorkspaceState()
     setError(undefined)
     setBusy(false)
-    if (open) void loadOverview(workspaceId, currentSessionId)
-  }, [open, workspaceId, currentSessionId])
+    void loadOverview(workspaceId, currentSessionId)
+  }, [workspaceId, currentSessionId])
 
   const inspect = async (id: string) => {
     if (workspaceId === undefined) {
@@ -234,34 +255,18 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
     }
   }
 
-  const close = () => {
-    setOpen(false)
-    setConfirm(undefined)
-    triggerRef.current?.focus()
-  }
-
   const pending = actionableCount(overview)
+  useLayoutEffect(() => { onPendingChange?.(pending) }, [onPendingChange, pending])
   return (
-    <>
-      <button
-        ref={triggerRef}
-        type="button"
-        className="dsh-evolve-trigger"
-        aria-label={t('trigger.label')}
-        aria-expanded={open}
-        onClick={() => setOpen(current => !current)}
-      >
-        <span aria-hidden="true">↻</span>
-        {wide && <span>{t('trigger.label')}</span>}
-        {pending > 0 && <span className="dsh-evolve-badge">{pending}</span>}
-      </button>
-      {open && (
-        <section className="dsh-evolve-panel" role="dialog" aria-label={t('panel.title')}>
-          <header className="dsh-evolve-head">
-            <h2 className="dsh-evolve-title">{t('panel.title')}</h2>
-            <button type="button" className="dsh-evolve-close" aria-label={t('panel.close')} onClick={close}>×</button>
-          </header>
-          <nav className="dsh-evolve-tabs" role="tablist" aria-label={t('view.label')}>
+    <UI.Surface ariaLabel={t('panel.title')}>
+      <UI.Header
+        eyebrow={t('surface.eyebrow')}
+        title={t('panel.title')}
+        description={t('surface.description')}
+        status={pending > 0 ? <UI.Status tone="attention">{pending} {t('surface.pending')}</UI.Status> : <UI.Status tone="healthy">{t('surface.stable')}</UI.Status>}
+        actions={<UI.Button type="button" disabled={busy} onClick={() => { void refreshVisibleState() }}>{busy ? t('action.refreshing') : t('action.refresh')}</UI.Button>}
+      />
+      <nav className="dsh-evolve-tabs" role="tablist" aria-label={t('view.label')}>
             {(['overview', 'skills', 'advanced'] as const).map(item => (
               <button
                 type="button"
@@ -277,8 +282,8 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
                 {t(`view.${item}`)}
               </button>
             ))}
-          </nav>
-          <div className="dsh-evolve-body">
+      </nav>
+      <div className="dsh-evolve-body">
             {overview === undefined && error === undefined && <div className="dsh-evolve-message">{t('status.loading')}</div>}
             {notice !== undefined && <div className="dsh-evolve-message" role="status">{notice}</div>}
             {error !== undefined && <div className="dsh-evolve-message dsh-evolve-error" role="alert">{t('error.prefix')}{error}</div>}
@@ -316,7 +321,6 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
             {view === 'advanced' && <>
               {overview !== undefined && <Overview summary={overview} t={t} />}
               <div className="dsh-evolve-actions">
-                <button type="button" className="dsh-evolve-button" disabled={busy} onClick={() => { void refreshVisibleState() }}>{t('action.refresh')}</button>
                 {overview?.recovery.available === true && (
                   <button
                     type="button"
@@ -359,13 +363,10 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
                   />
                 ) : null}
             </>}
-          </div>
-        </section>
-      )}
+      </div>
       {confirm !== undefined && (
-        <div className="dsh-evolve-confirm-backdrop">
-          <div className="dsh-evolve-confirm" role="alertdialog" aria-modal="true">
-            <p>{t(`confirm.${confirm}`)}</p>
+        <div role="alertdialog">
+          <UI.Section title={t('confirm.title')} description={t(`confirm.${confirm}`)}>
             <div className="dsh-evolve-actions">
               <button type="button" className="dsh-evolve-button" onClick={() => {
                 setConfirm(undefined)
@@ -377,11 +378,45 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
               }}>{t('action.cancel')}</button>
               <button type="button" className="dsh-evolve-button dsh-evolve-primary" onClick={executeConfirmed}>{t('action.confirm')}</button>
             </div>
-          </div>
+          </UI.Section>
         </div>
       )}
-    </>
+    </UI.Surface>
   )
+}
+
+/**
+ * Compatibility wrapper for embedders that imported the pre-Control-Center component.
+ * The package's active DSH registration uses EvolutionSurface, so this wrapper is not
+ * installed into the sidebar and can be removed in the next breaking release.
+ */
+export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }: EvolutionActionProps) {
+  const sessionId = useSessions(state => state.current)
+  const [open, setOpen] = useState(false)
+  const [pending, setPending] = useState(0)
+  return <>
+    <button
+      type="button"
+      className="dsh-evolve-trigger"
+      aria-label={t('trigger.label')}
+      aria-expanded={open}
+      onClick={() => setOpen(current => !current)}
+    >
+      <span aria-hidden="true">↻</span>
+      {wide && <span>{t('trigger.label')}</span>}
+      {pending > 0 && <span className="dsh-evolve-badge">{pending}</span>}
+    </button>
+    {open && <section className="dsh-evolve-panel" role="dialog" aria-label={t('panel.title')}>
+      <EvolutionSurface
+        remote={remote}
+        t={t}
+        sessionId={sessionId as EvolutionSurfaceProps['sessionId']}
+        useWorkspaces={useWorkspaces}
+        ui={legacySurfaceUI}
+        onPendingChange={setPending}
+      />
+    </section>}
+  </>
 }
 
 function BeginnerOverview({ summary, openAdvanced, t }: {

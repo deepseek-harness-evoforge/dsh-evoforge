@@ -11,9 +11,9 @@ dsh plugin --profile web add \
 dsh --profile web
 ```
 
-The Host half only waits for `evoforge.evolutionControl`; the browser module renders the global sidebar and calls the generated DSH Remote. Reads and actions therefore reach the same Host authority used by `/evolve` Commands. It adds no Tool, Skill, system prompt, watcher, polling loop, or persistent state.
+The Host half only waits for `evoforge.evolutionControl`; the browser module contributes an evolution Surface to the native `dsh-control-center` `conversation.view` and calls the generated DSH Remote. Reads and actions therefore reach the same Host authority used by `/evolve` Commands. It adds no Tool, Skill, system prompt, watcher, polling loop, or persistent state. The old fixed sidebar panel is not an active registration path.
 
-The beginner view points to DSH's native answer-feedback controls: mark an answer as bad, add a note explaining the error and correct result, then save. Feedback is counted separately from actionable reviews. The system attributes and clusters that internal evidence autonomously; it never asks the user to choose a Shadow, evaluator, Skill, Agent, or route. If independent evaluation governance is unavailable, the panel keeps the correction recorded and reports the missing governance instead of presenting false progress.
+The beginner view points to DSH's native answer-feedback controls: mark an answer as bad, add a note explaining the error and correct result, then save. Feedback is counted separately from actionable reviews. The system attributes and clusters that internal evidence autonomously; it never asks the user to choose a Shadow, evaluator, Skill, Agent, or route. If independent evaluation governance is unavailable, the Control Center Surface keeps the correction recorded and reports the missing governance instead of presenting false progress.
 
 The panel derives its exact Workspace only from the currently selected native DSH Session through
 the standard `useSessions` and `useWorkspaces` slot hooks. It passes that Workspace id on every

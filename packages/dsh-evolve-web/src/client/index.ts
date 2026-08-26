@@ -1,6 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
+import type {} from 'dsh-control-center/client'
 import evolutionRemote from 'dsh-evolve/remote'
-import { EvolutionAction } from './EvolutionAction.tsx'
+import { EvolutionSurface } from './EvolutionAction.tsx'
 import type { EvolutionRemoteClient } from './remote.ts'
 import { en, NS, zh } from './locales.ts'
 import { cssText, STYLE_ID } from './style.ts'
@@ -21,7 +22,7 @@ type WebContext = Context & {
 
 export const inject = ['remote', 'slots', 'locale']
 
-/** Mount the generated Remote contribution and one additive global DSH action. */
+/** Mount the generated Remote contribution into the native Control Center surface slot. */
 export async function apply(context: Context): Promise<void> {
   const ctx = context as WebContext
   const unmountRemote = await ctx.remote.$mount(evolutionRemote)
@@ -39,16 +40,16 @@ export async function apply(context: Context): Promise<void> {
   }, 'dsh-evolve-web.style')
   ctx.inject(['remote.evoforgeEvolution'], (remoteContext) => {
     const scope = remoteContext as WebContext
-    scope.slots.inject('sidebar.footer.action', () => scope.slots.register({
-      name: 'sidebar.footer.action',
+    scope.slots.inject('evoforge.control.surface', () => scope.slots.register({
+      name: 'evoforge.control.surface',
       id: 'evoforge-evolution',
       order: 30,
       locale: NS,
       inject: () => ({ remote: scope.remote.evoforgeEvolution }),
-    }, EvolutionAction))
+    }, EvolutionSurface))
   })
 }
 
-export { EvolutionAction } from './EvolutionAction.tsx'
-export type { EvolutionActionProps } from './EvolutionAction.tsx'
+export { EvolutionAction, EvolutionSurface } from './EvolutionAction.tsx'
+export type { EvolutionActionProps, EvolutionSurfaceProps } from './EvolutionAction.tsx'
 export type { EvolutionRemoteClient } from './remote.ts'

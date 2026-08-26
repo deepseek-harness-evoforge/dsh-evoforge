@@ -26,6 +26,10 @@ _Avoid_: DSH fork, alternate harness, one mandatory monorepo
 The `dsh-evoforge` repository containing capabilities that share DSH integration, release cadence, tests, and user installation. Published plugins use a `dsh-*` name. A capability moves to its own repository only when it has an independent lifecycle or trust boundary.
 _Avoid_: Platform kernel, plugin marketplace
 
+**Capability Suite**:
+A user-facing installation preset that expands to an explicit set of official DSH Bundle tarballs with a shared outcome, while preserving each package's own lifecycle, permissions, compatibility range, and uninstall boundary. The current presets are `evolution`, `control`, `gateway`, `channels`, `delivery`, `continuity`, and `full`; the preset is repository tooling, not a second runtime, registry, or authority.
+_Avoid_: Meta-runtime package, hidden dependency graph, startup questionnaire, global plugin registry
+
 **EvoForge Plugin**:
 An independently useful, removable out-of-tree DSH capability with a user-visible outcome and an explicit cache, permission, persistence, and rollback contract.
 _Avoid_: Internal pipeline stage, DSH bug patch

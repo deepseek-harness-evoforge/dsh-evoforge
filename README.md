@@ -2,23 +2,21 @@
 
 **EvoForge 是安装进 DeepSeek Harness 的原生 out-of-tree 插件套件，不是独立 Harness、Runtime、CLI、Web 服务或 daemon。** DSH 始终是唯一 Agent Host，以及 Session、Goal、Approval、Storage、Jobs、Skill、Tool、Workspace 和 Cordis 生命周期权威。
 
-当前兼容性证据固定在两组官方 DeepSeek Harness revision：`47f943859bef60e4160492346772ded9b24f765a`（`0.1.0-rc.5`）和 `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`（`0.1.1-rc.2`）。两者均通过 revision/version/clean-source 锁定的十一包 fresh-install、升级、原生 Agent/Goal/Gap、飞书 assembled 路径与卸载 readback 矩阵。rc.2 仍只有原生栅格图片附件，DeepSeek Files API 也只承载图片请求，不能据此宣称飞书普通文件、音频或视频已进入 DSH Session。项目仍为 pre-alpha，尚未发布 registry release；当前真实安装路径是本地 tarball 加 DSH 官方 profile 命令。
+当前兼容性证据固定在两组官方 DeepSeek Harness revision：`47f943859bef60e4160492346772ded9b24f765a`（`0.1.0-rc.5`）和 `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`（`0.1.1-rc.2`）。十二个内部 Bundle 均通过 revision/version/clean-source 锁定的安装、升级、原生 Agent/Goal/Gap、飞书 assembled 路径与卸载 readback 矩阵；用户可按[能力套件](docs/capability-suites.zh.md)精简安装。rc.2 仍只有原生栅格图片附件，DeepSeek Files API 也只承载图片请求，不能据此宣称飞书普通文件、音频或视频已进入 DSH Session。项目仍为 pre-alpha，尚未发布 registry release；当前真实安装路径是本地 tarball 加 DSH 官方 profile 命令。
 
-## 当前套件
+## 当前能力套件
 
-| 包 | DSH 内能力 | 默认状态 |
+| 能力套件 | 内部 Bundle | 适合结果 |
 |---|---|---|
-| `dsh-evolve` | `/evolve`、Storage/Jobs/Session 上的证据驱动进化与 Skill Generation | enabled |
-| `dsh-evolve-web` | DSH Web Client Module；只投影 `dsh-evolve` 的 Host 权威状态 | enabled |
-| `dsh-software-delivery` | 原生 `software-delivery` Skill 与 `complete_delivery` Tool | enabled |
-| `dsh-doctor` | 原生 `/doctor` Loader + Gateway 渠道 readiness | enabled |
-| `dsh-github-review` | Draft PR exact-head 人类返修回到原 Session/Goal | disabled，需显式配置 |
-| `dsh-telegram` | 一个授权私聊经 Gateway 到原生 Workspace/Session/Agent 的 Adapter | disabled，需显式配置 |
-| `dsh-evolve-attention` | 把 Workspace-scoped 进化待决事项投影到既有 Telegram/飞书 route | disabled，需显式配置 |
-| `dsh-goal-continuity` | exact allowlist Session 的原生 Goal cold-resume policy | disabled，需显式配置 |
-| `dsh-resident` | `/resident` 管理 exact DSH profile 的 launchd/systemd user unit | disabled，需显式配置与逐次确认 |
-| `dsh-gateway` | 常驻渠道身份授权、Host 配对及 external endpoint 到原生 Workspace/Session/Agent 的持久幂等绑定；同包提供权威健康与配对控制面 | disabled，需显式配置 |
-| `dsh-feishu` | 飞书 exact 私聊/群聊 Adapter、DSH Web 连接/内容就绪健康面，以及按独立权限启用的原生内容读取 Tool | disabled，需显式配置 |
+| `evolution` | `dsh-evolve` + `dsh-doctor` | 自我进化闭环与运行就绪诊断 |
+| `control` | `dsh-control-center` + `dsh-evolve-web` | 原生 DSH Web 控制中心 |
+| `gateway` | `dsh-gateway` | 常驻配对、路由、持久投递基础 |
+| `channels` | `dsh-gateway` + `dsh-feishu` + `dsh-telegram` + `dsh-evolve-attention` + `dsh-control-center` | 飞书/Telegram 与进化提醒 |
+| `delivery` | `dsh-software-delivery` + `dsh-github-review` | 隔离交付、Draft PR 和 review 跟进 |
+| `continuity` | `dsh-goal-continuity` + `dsh-resident` | Goal 冷恢复与用户级常驻 |
+| `full` | 全部十二个内部 Bundle | 维护者和完整验收 |
+
+这些套件不是第二个安装器：每个名称最终都展开为 DSH 官方 `dsh plugin` 的真实 tarball。内部包之所以仍独立，是因为它们拥有不同的生命周期、权限、外部依赖或可卸载边界；真正重复的旧演化侧栏弹窗已经迁入 Control Center。详见[套件边界与精简理由](docs/capability-suites.zh.md)。
 
 当前活动进化纵切只使用 DSH 内部经验：Goal-linked Gap 与跨 Goal Skill Opportunity 经生成前证据密封后，产生隔离、内容寻址的 whole-Skill Candidate；用户不选路径、Agent、workflow、Skill 或来源，产品不建设运行时外部 Skill 搜索、获取、下载、导入或市场。missing-Skill 路径已有 Candidate-independent admission/holdout/可选 Retention、exact Shadow/Retention、future-Session Promotion、failed-Outcome Canary 和人工精确回滚，所有评测结果本身均无 pointer 或发布权。
 
@@ -153,29 +151,24 @@ V4.39 最终 tarball 已验证 paired Holdout 的真实 DSH Web 生命周期；V
 
 ## 安装到一个 DSH profile
 
-先生成发布形态 tarball；这只是开发/验收步骤，不会启动第二个 Runtime：
+先按能力生成发布形态 tarball；这只是开发/验收步骤，不会启动第二个 Runtime：
 
 ```sh
 pnpm install --frozen-lockfile
-PACK_DIR="$(mktemp -d)"
-for package in \
-  dsh-evolve dsh-evolve-web dsh-software-delivery dsh-doctor \
-  dsh-github-review dsh-telegram dsh-evolve-attention dsh-goal-continuity \
-  dsh-resident dsh-gateway dsh-feishu
-do
-  pnpm --filter "$package" pack --pack-destination "$PACK_DIR"
-done
+PACK_ROOT="$(mktemp -d)"
+pnpm run pack:suite -- --suite evolution --out "$PACK_ROOT"
+pnpm run pack:suite -- --suite control --out "$PACK_ROOT"
 ```
 
 使用 DSH 官方插件命令安装并检查同一个 Host：
 
 ```sh
-dsh plugin --profile web add "$PACK_DIR"/*.tgz
+dsh plugin --profile web add "$PACK_ROOT/evolution"/*.tgz "$PACK_ROOT/control"/*.tgz
 dsh --profile web --dump-config
 dsh --profile web
 ```
 
-默认关闭的包只有在部署者通过 profile patch 提供 exact 身份、路由、凭据引用或 Session allowlist 后才能启用。模型不能选择 token、外部身份、Workspace、目标 Agent 或扩大权限。
+默认关闭的渠道、review、continuity 和 resident 包只有在部署者通过 profile patch 提供 exact 身份、路由、凭据引用或 Session allowlist 后才能启用。模型不能选择 token、外部身份、Workspace、目标 Agent 或扩大权限。
 
 ## 在 DSH 内使用
 
@@ -193,7 +186,7 @@ dsh --profile web
 dsh plugin --profile web remove \
   dsh-evolve-web dsh-evolve dsh-software-delivery dsh-doctor \
   dsh-github-review dsh-evolve-attention dsh-telegram dsh-goal-continuity \
-  dsh-resident dsh-feishu dsh-gateway
+  dsh-resident dsh-feishu dsh-gateway dsh-control-center
 dsh --profile web --dump-config
 dsh --profile web
 ```

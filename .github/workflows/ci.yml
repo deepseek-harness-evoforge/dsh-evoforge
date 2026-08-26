@@ -37,16 +37,7 @@ jobs:
       - name: Check repository
         run: pnpm check
       - name: Verify package contents
-        run: |
-          pnpm --filter dsh-evolve pack --pack-destination "$RUNNER_TEMP"
-          pnpm --filter dsh-evolve-web pack --pack-destination "$RUNNER_TEMP"
-          pnpm --filter dsh-software-delivery pack --pack-destination "$RUNNER_TEMP"
-          pnpm --filter dsh-github-review pack --pack-destination "$RUNNER_TEMP"
-          pnpm --filter dsh-doctor pack --pack-destination "$RUNNER_TEMP"
-          pnpm --filter dsh-telegram pack --pack-destination "$RUNNER_TEMP"
-          pnpm --filter dsh-evolve-telegram pack --pack-destination "$RUNNER_TEMP"
-          pnpm --filter dsh-goal-continuity pack --pack-destination "$RUNNER_TEMP"
-          pnpm --filter dsh-resident pack --pack-destination "$RUNNER_TEMP"
+        run: pnpm run pack:full -- --out "$RUNNER_TEMP/evoforge-full"
 
   assembled-darwin:
     name: macOS DSH Assembled Trial
@@ -79,7 +70,7 @@ jobs:
         run: |
           pnpm --filter dsh-evolve build
           pnpm --filter dsh-telegram build
-          pnpm --filter dsh-evolve-telegram build
+          pnpm --filter dsh-evolve-attention build
           pnpm --filter dsh-github-review build
       - name: Run sealed, assembled, and Local Continuity tests
         env:
@@ -127,7 +118,7 @@ jobs:
             test/delivery-store-persistence.e2e.test.ts \
             test/dsh-assembled-chat.e2e.test.ts \
             test/package-install-remove.e2e.test.ts
-          pnpm --filter dsh-evolve-telegram exec vitest run \
+          pnpm --filter dsh-evolve-attention exec vitest run \
             test/package-install-remove.e2e.test.ts
           pnpm --filter dsh-goal-continuity exec vitest run \
             test/cold-resume.e2e.test.ts \
@@ -136,7 +127,3 @@ jobs:
           pnpm --filter dsh-resident exec vitest run \
             test/launchd.e2e.test.ts \
             test/package-boundary.e2e.test.ts
-      - name: Run PA-1 protected-action hard gate
-        env:
-          DSH_EVOLVE_DSH_SOURCE_DIR: ${{ github.workspace }}/.evoforge/deepseek-harness
-        run: pnpm test:pa1

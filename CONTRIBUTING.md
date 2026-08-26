@@ -24,6 +24,10 @@
 6. 若改变 DSH runtime 接缝，补安装、组装、dispose、移除与完整 composition/cache 证据；
 7. 若改变 Web/GUI，使用真实浏览器覆盖可见成功路径、刷新后的权威状态和失败反馈。
 
+用户安装面使用 [能力套件](docs/capability-suites.zh.md)，不是要求用户逐个理解内部 Bundle。新增包前先证明它拥有独立的生命周期、权限、外部依赖或卸载边界；否则应扩展现有套件或删除重复入口。套件清单必须通过 `pnpm run check:suites`，不要在包之间复制 Gateway、Control Center、Session、Goal 或审批状态。
+
+发布只从 `main` 产生。提交前运行 `pnpm check` 和 `pnpm run check:release -- --allow-dirty`；真正 tag 前必须在 clean worktree 运行不带 `--allow-dirty` 的预检，并完成 [发布门](docs/releasing.zh.md) 中的最终 tarball、真实 DSH、浏览器、飞书和 Hermes paired 证据。
+
 ## Pull Request 要求
 
 PR 描述应包含：

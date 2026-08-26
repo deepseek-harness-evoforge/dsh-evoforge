@@ -328,6 +328,7 @@ workspace，输出可审查的 launchd/systemd unit。OS service manager 与 uni
 - 已有成熟社区插件能够解决的问题优先复用、组合或提供兼容指导。
 - 每个候选插件必须回答：服务谁、解决什么问题、为何 DSH 原生组合不足、如何测量效果、如何保护缓存、如何卸载和回滚。
 - 无法回答上述问题的设计不进入开发。
+- 用户安装面按能力套件呈现，而不是暴露内部流水线数量：`evolution`、`control`、`gateway`、`channels`、`delivery`、`continuity` 与 `full`。套件必须展开为真实官方 Bundle；不能用一个聚合包隐藏独立的生命周期、权限或卸载边界。
 
 ## 9. 设计阶段交付物
 
@@ -515,6 +516,7 @@ Retention、反事实 Canary、持续监测和低风险自动晋升必须直接�
 - 涉及前端时必须补充真实浏览器端到端验证，并保留可复核结果。
 - 设计基线已经确认，按 P0A Shadow 契约 test-first 实现。
 - 用户只提供自然语言 Goal、材料、约束和验收条件；系统内部自主发现并选择 Skill/路径，不提供开场路由菜单。
+- `dsh-evolve-web`、Gateway 与渠道 UI 共享一个原生 DSH Control Center Surface；不得恢复页面外固定弹窗或重复状态入口。
 - 自进化采用稳定执行面、隔离进化面、独立评测治理面，以及在线快环/离线慢环；没有充分证据时必须 abstain。
 - 从内部证据归纳生成的能力只能先成为可追踪、可隔离、可评测的完整 Skill 包 Candidate，不能静默安装到活动 Session。
 - “自我发现 Skill”只指从 DSH 内部 Goal/失败/纠正/outcome/复用与保留证据发现应形成或改进的能力；外部生态调研是设计期输入，不是运行时自我发现。
