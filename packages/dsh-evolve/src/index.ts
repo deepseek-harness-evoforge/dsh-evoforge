@@ -63,6 +63,11 @@ import {
   openSkillUseStore,
 } from './skill-use-monitor.ts'
 import { ExactSkillOutcomeContextProjection } from './skill-outcome-context.ts'
+import {
+  LongTermEffectsProjection,
+  openLongTermEffectsStore,
+  type LongTermEffectsStore,
+} from './long-term-effects.ts'
 import { DurableFeedbackAttribution } from './durable-feedback-attribution.ts'
 import { InstalledSkillBaselineVault } from './installed-skill-baseline.ts'
 import { installInstalledSkillBaselineMonitor } from './installed-skill-baseline-monitor.ts'
@@ -104,6 +109,7 @@ import {
 declare module '@deepseek-ai/cordis' {
   interface Context {
     'evoforge.evolution': EvolutionStore
+    'evoforge.longTermEffects': LongTermEffectsStore
   }
   interface Events {
     /** Host-only wakeup after the resident evaluation scan has settled. */
@@ -168,6 +174,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const deliveryOutcomes = await openDeliveryOutcomeStore(ctx.storageDomain)
   const feedbackSignals = await openFeedbackSignalStore(ctx.storageDomain)
   const skillUses = await openSkillUseStore(ctx.storageDomain)
+  const longTermEffects = await openLongTermEffectsStore(ctx.storageDomain)
   const skillOutcomeContext = new ExactSkillOutcomeContextProjection(skillUses, deliveryOutcomes)
   const capabilityGaps = await openCapabilityGapStore(ctx.storageDomain)
   const skillOpportunities = new ExperienceDrivenSkillOpportunityDiscovery(capabilityGaps, {
@@ -237,6 +244,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       })
 
   ctx.provide('evoforge.evolution', store)
+  ctx.provide('evoforge.longTermEffects', longTermEffects)
   const disposeBinder = installGenerationBinder(ctx, store, source)
   const skillUseMonitor = installSkillUseMonitor(ctx, skillUses, store)
   const capabilities = new CapabilityMap()
@@ -710,6 +718,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     skillUses,
     skillOutcomeContext,
     feedback: feedbackSignals,
+    longTermEffects: new LongTermEffectsProjection(longTermEffects, store, {
+      outcomes: deliveryOutcomes,
+    }),
   })
   new EvolutionRemoteService(ctx, control)
   installEvolutionCommand(ctx, store, {
@@ -897,6 +908,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     await deliveryOutcomes.close()
     await feedbackSignals.close()
     await skillUses.close()
+    await longTermEffects.close()
     await capabilityGaps.close()
     await skillCandidateStore.close()
     await existingSkillReleaseStore.close()
@@ -1121,4 +1133,19 @@ export type {
   EvolutionExactSkillFailureContextInvestigationRollupView,
   EvolutionExactSkillOutcomeContextEvidenceView,
   EvolutionExactSkillOutcomeContextRollupView,
+  EvolutionLongTermEffectsMetricView,
+  EvolutionLongTermEffectsView,
 } from './control-types.ts'
+export {
+  LongTermEffectsProjection,
+  openLongTermEffectsStore,
+} from './long-term-effects.ts'
+export type {
+  LongTermEffectsReader,
+  LongTermEffectsStore,
+  LongTermEffectsSummary,
+  LongTermFact,
+  LongTermFactInput,
+  LongTermMetricStatus,
+  LongTermMetricView,
+} from './long-term-effects.ts'

@@ -56,6 +56,12 @@ V5.50 收口了双版本生命周期探针的浏览器副作用：目标 CLI 先
 [V5.50](evidence/v5-50-single-browser-lifecycle-2026-08-26.zh.md)。这不改变真实飞书、真实 Provider、Hermes
 paired 和长期效果仍为发布阻断的事实。
 
+V5.51 将长期效果评测从散落的 TODO 收口为 `dsh-evolve` 的 `evoforge_long_term_effects` 持久事实域和
+只读 Control/Remote/Web 投影。误晋升、遗忘、负迁移、重复外部效果、崩溃/重启恢复和回滚率都必须由
+显式来源事实或不可变 selection event 计算；缺证据显示 `not-measured`/`unknown`，绝不由时间邻近或
+模型自评推断。全包测试为 308 passed、1 skipped；真实长期 paired 数据尚未授权写入，release gate 继续
+阻断。详见 [V5.51 证据](evidence/v5-51-long-term-effects-contract-2026-08-26.zh.md)。
+
 V5.5 按 [ADR-0090](adr/0090-feishu-content-reads-are-agent-scoped-native-tools.md) 在 `dsh-feishu` 内增加一个
 Agent-scoped 原生 `feishu_content_read` Tool。document、Wiki、Drive metadata、Bitable records 四项权限独立且
 默认关闭；每次读取走真实 ToolRuntime/Approval，当前 Session schema 固定，撤权后执行拒绝，新启用只影响
@@ -320,7 +326,7 @@ V5.21 将真实飞书 AS-2 从 epoch-1 升为 epoch-2。最终包 profile 不在
 | 能力 | 当前状态 | 已有证据 | 仍缺 |
 |---|---|---|---|
 | 原生 DSH 插件产品形态 | `implemented` | 十二包均有类型化 Client/Host plugin contract、Bundle patch、无 bin 合同；[V5.16](evidence/v5-16-dsh-dual-version-compatibility-matrix.zh.md) 在 exact rc.5/rc.2 上分别验证当时十一包 clean-profile；[V5.27](evidence/v5-27-native-plugin-control-center.zh.md) 增加第十二包并重跑当前 clean-profile | 十二包双版本矩阵、陌生安装、真实发布 tag→tag 与 registry release 门禁 |
-| Evidence-driven Evolution + internal Skill Opportunity | `implemented` | 自然 Goal→Host 复核/持久 Gap；跨 Goal Opportunity；缺失 Skill 的 exact Shadow/Retention/Promotion/Canary/Rollback 与[V4.49 最终包回滚生命周期](evidence/v4-49-missing-skill-canary-rollback-final-browser.zh.md)；existing-Skill 的完整 baseline、protected correction、whole-tree Candidate、paired Holdout/Retention、发布门、[V4.45 最终包浏览器](evidence/v4-45-existing-skill-release-final-browser.zh.md)、[V4.46 failed-Outcome Canary](evidence/v4-46-existing-skill-failed-outcome-canary.zh.md)、[V4.47 独立回滚门](evidence/v4-47-existing-skill-canary-control-rollback.zh.md)与[V4.48 最终包回滚生命周期](evidence/v4-48-existing-skill-canary-rollback-final-browser.zh.md)；历史 runtime 获取、static target、Draft、Shadow proposer 和旧编排均已删除，[V4.54](evidence/v4-54-remove-runtime-search-semantics.zh.md) 又移除活动 Case Pack/报告中的 `search` 命名 | 两套真实 provider、长期误晋升/回滚数据缺失 |
+| Evidence-driven Evolution + internal Skill Opportunity | `implemented` | 自然 Goal→Host 复核/持久 Gap；跨 Goal Opportunity；缺失 Skill 的 exact Shadow/Retention/Promotion/Canary/Rollback 与[V4.49 最终包回滚生命周期](evidence/v4-49-missing-skill-canary-rollback-final-browser.zh.md)；existing-Skill 的完整 baseline、protected correction、whole-tree Candidate、paired Holdout/Retention、发布门、[V4.45 最终包浏览器](evidence/v4-45-existing-skill-release-final-browser.zh.md)、[V4.46 failed-Outcome Canary](evidence/v4-46-existing-skill-failed-outcome-canary.zh.md)、[V4.47 独立回滚门](evidence/v4-47-existing-skill-canary-control-rollback.zh.md)与[V4.48 最终包回滚生命周期](evidence/v4-48-existing-skill-canary-rollback-final-browser.zh.md)；历史 runtime 获取、static target、Draft、Shadow proposer 和旧编排均已删除，[V4.54](evidence/v4-54-remove-runtime-search-semantics.zh.md) 又移除活动 Case Pack/报告中的 `search` 命名；[V5.51](evidence/v5-51-long-term-effects-contract-2026-08-26.zh.md) 已提供长期事实域和只读指标投影 | 两套真实 provider、真实长期事实/paired epochs、长期误晋升/回滚数据缺失 |
 | 双真实 Provider RP-1 | `implemented` | [V4.55](evidence/v4-55-real-provider-acceptance-gate.zh.md)：显式付费批准前零配置读取/零外部请求；不同 provider/authority/credential/model identity 预检；生产纵切编排；Candidate 盲区、assembled Holdout/Retention、composition、凭据脱敏与 terminal 不盲重试 hard gates；[V4.56](evidence/v4-56-bounded-governance-provider-requests.zh.md)又把两个治理 Provider seam 补齐 60 秒硬上限和 Host cancellation 组合；合同 8/8 与独立类型检查通过 | 当前 `NOT_RUN`；第二套独立 Provider、已授权真实 `passed` 结果和长期 outcome 均缺失 |
 | 真实飞书 AS-2 验收入口 | `implemented` | [V5.8](evidence/v5-8-real-feishu-acceptance-gate.zh.md)建立未授权零身份/凭据读取、clean revision、最终 tarball、官方 DSH CLI、生产 transport、exact 入站/回复/Command/Approval/notice、零 uncertain/failed、remove/readback 门；[V5.21](evidence/v5-21-real-feishu-native-schedule-gate.zh.md) 加入官方 Schedule；[V5.22](evidence/v5-22-resident-gateway-pairing.zh.md) 已从真实 App 完成 direct DM→code→Host approve、三次 native Session/回复和 Host 冷启动恢复；[V5.23](evidence/v5-23-resident-pairing-as2-gate.zh.md) 把 runner 改为零静态飞书 route、Host 动态 grant、十三项关闭门，不再要求 chat/user id；[V5.24](evidence/v5-24-resident-pairing-revocation.zh.md) 补齐 grant 撤销与 Web 二次确认；[V5.33](evidence/v5-33-real-feishu-pairing-timeout-2026-08-26.zh.md) 记录真实 epoch-3 等待配对码超时 | direct 主路径已人工通过，但 epoch-3 当前为 `failed`；缺真实配对后新增消息、重启后新增消息、实际撤销重配、真实 Approval/Schedule、group policy、故障/长期重连和 Hermes paired |
 | Existing-Skill Release + Canary | `implemented` | Release Gate 最终 tarball 已 verified；[V4.46](evidence/v4-46-existing-skill-failed-outcome-canary.zh.md) 增加 exact active release/failed Outcome/Retention replay、原生 Jobs、paid-uncertain 恢复、strict rollback eligibility 与无 mutation authority；[V4.47](evidence/v4-47-existing-skill-canary-control-rollback.zh.md) 增加 bounded Control/Remote/Web、人工确认和 expected-active rollback gate；[V4.48](evidence/v4-48-existing-skill-canary-rollback-final-browser.zh.md) 从最终包验证动作、断连保留、恢复、精确回滚、reload/冷重启和卸载；[V5.12](evidence/v5-12-existing-skill-automatic-promotion.zh.md) 增加 Workspace-only exact append-only/effect-clear/token-cache non-regression 自动门、durable decision/pointer crash recovery、原生 Jobs、只读 Web 状态，并从最终包验证自动晋升、断连保留、冷恢复和卸载 | 两套真实 provider、false-promotion/transfer 长期率与 Hermes paired |
@@ -349,7 +355,7 @@ V5.21 将真实飞书 AS-2 从 epoch-1 升为 epoch-2。最终包 profile 不在
 
 当前 `main` 增量通过根级 `pnpm check`（文档、全包 typecheck、测试和构建）；其中
 `dsh-control-center` 2 files/4 tests、`dsh-gateway` 8 files/32 tests、`dsh-evolve-web` 2 files/26 tests、
-`dsh-evolve-attention` 4 files/11 tests、`dsh-feishu` 18 files/45 tests、`dsh-evolve` 67 files/305 tests passed、
+`dsh-evolve-attention` 4 files/11 tests、`dsh-feishu` 18 files/45 tests、`dsh-evolve` 68 files/308 tests passed、
 1 test skipped。Cache Contract 全通过；Doctor 十二包原生合同含新增 Control Center；十二包 clean-profile 最终 tarball 的 add/dump/boot/真实
 Session+Goal+Storage+Tool/dispose/remove/reboot/readback 1/1（60.96 秒）；独立 Doctor packed
 add/Loader/command/remove 1/1（10.35 秒）。V4.24 删除旧浏览器 acceptance fixture，并用 DSH Web 组件测试固定“纠正进入

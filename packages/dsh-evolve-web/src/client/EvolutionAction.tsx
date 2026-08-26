@@ -1856,6 +1856,10 @@ function ReviewQueue({ overview, busy, inspect, promote, t }: {
       active={overview.active}
       t={t}
     />}
+    {overview.longTermEffects !== undefined && <LongTermEffects
+      effects={overview.longTermEffects}
+      t={t}
+    />}
     {overview.deliveryOutcomes !== undefined && <section>
       <h3 className="dsh-evolve-section-title">{t('section.outcomes')}</h3>
       <ul className="dsh-evolve-list">
@@ -2021,6 +2025,41 @@ function renderGenerationSelectionEvidence(
     case 'explicit-human':
       return authority
   }
+}
+
+function LongTermEffects({ effects, t }: {
+  effects: NonNullable<EvolutionOverview['longTermEffects']>
+  t: (key: string) => string
+}) {
+  const rows: Array<[
+    'falsePromotion' | 'forgetting' | 'negativeTransfer' | 'duplicateExternalEffect' | 'recovery' | 'rollback',
+    string,
+  ]> = [
+    ['falsePromotion', t('longTermEffects.falsePromotion')],
+    ['forgetting', t('longTermEffects.forgetting')],
+    ['negativeTransfer', t('longTermEffects.negativeTransfer')],
+    ['duplicateExternalEffect', t('longTermEffects.duplicateExternalEffect')],
+    ['recovery', t('longTermEffects.recovery')],
+    ['rollback', t('longTermEffects.rollback')],
+  ]
+  return <section>
+    <h3 className="dsh-evolve-section-title">{t('section.longTermEffects')}</h3>
+    <div className="dsh-evolve-long-term-grid">
+      {rows.map(([key, label]) => {
+        const metric = effects.metrics[key]
+        const rate = metric.rate === undefined ? '—' : `${Math.round(metric.rate * 100)}%`
+        return <div className="dsh-evolve-long-term-card" key={key}>
+          <div className="dsh-evolve-long-term-label">{label}</div>
+          <div className={`dsh-evolve-long-term-status is-${metric.status}`}>{t(`longTermEffects.status.${metric.status}`)}</div>
+          <div className="dsh-evolve-meta">{metric.count}/{metric.observed} · {rate}</div>
+        </div>
+      })}
+    </div>
+    <p className="dsh-evolve-meta">
+      {t('longTermEffects.sources')}: {effects.sourceFacts.total} · {t('longTermEffects.deliveryOutcomes')}: {effects.sourceFacts.deliveryOutcomes}
+    </p>
+    <p className="dsh-evolve-meta">{t('longTermEffects.disclaimer')}</p>
+  </section>
 }
 
 function SkillReuse({ reuse, active, t }: {

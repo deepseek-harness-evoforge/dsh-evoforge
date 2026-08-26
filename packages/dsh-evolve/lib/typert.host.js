@@ -229,6 +229,74 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'outcomeClaim': z.literal("none").readonly(),
   'releaseAuthority': z.literal("none").readonly(),
 }).readonly(),
+  'longTermEffects': z.union([z.undefined(), z.object({
+  'schemaVersion': z.literal(1).readonly(),
+  'workspaceId': z.string().readonly(),
+  'metrics': z.object({
+  'falsePromotion': z.object({
+  'status': z.union([z.literal("measured"), z.literal("insufficient-sample"), z.literal("not-measured"), z.literal("unknown")]).readonly(),
+  'observed': z.number().readonly(),
+  'denominator': z.number().readonly(),
+  'count': z.number().readonly(),
+  'rate': z.union([z.undefined(), z.number()]).readonly().optional(),
+  'reason': z.union([z.literal("explicit-facts"), z.literal("below-minimum-sample"), z.literal("no-authoritative-facts"), z.literal("only-unknown-facts")]).readonly(),
+}).readonly(),
+  'forgetting': z.object({
+  'status': z.union([z.literal("measured"), z.literal("insufficient-sample"), z.literal("not-measured"), z.literal("unknown")]).readonly(),
+  'observed': z.number().readonly(),
+  'denominator': z.number().readonly(),
+  'count': z.number().readonly(),
+  'rate': z.union([z.undefined(), z.number()]).readonly().optional(),
+  'reason': z.union([z.literal("explicit-facts"), z.literal("below-minimum-sample"), z.literal("no-authoritative-facts"), z.literal("only-unknown-facts")]).readonly(),
+}).readonly(),
+  'negativeTransfer': z.object({
+  'status': z.union([z.literal("measured"), z.literal("insufficient-sample"), z.literal("not-measured"), z.literal("unknown")]).readonly(),
+  'observed': z.number().readonly(),
+  'denominator': z.number().readonly(),
+  'count': z.number().readonly(),
+  'rate': z.union([z.undefined(), z.number()]).readonly().optional(),
+  'reason': z.union([z.literal("explicit-facts"), z.literal("below-minimum-sample"), z.literal("no-authoritative-facts"), z.literal("only-unknown-facts")]).readonly(),
+}).readonly(),
+  'duplicateExternalEffect': z.object({
+  'status': z.union([z.literal("measured"), z.literal("insufficient-sample"), z.literal("not-measured"), z.literal("unknown")]).readonly(),
+  'observed': z.number().readonly(),
+  'denominator': z.number().readonly(),
+  'count': z.number().readonly(),
+  'rate': z.union([z.undefined(), z.number()]).readonly().optional(),
+  'reason': z.union([z.literal("explicit-facts"), z.literal("below-minimum-sample"), z.literal("no-authoritative-facts"), z.literal("only-unknown-facts")]).readonly(),
+}).readonly(),
+  'recovery': z.object({
+  'status': z.union([z.literal("measured"), z.literal("insufficient-sample"), z.literal("not-measured"), z.literal("unknown")]).readonly(),
+  'observed': z.number().readonly(),
+  'denominator': z.number().readonly(),
+  'count': z.number().readonly(),
+  'rate': z.union([z.undefined(), z.number()]).readonly().optional(),
+  'reason': z.union([z.literal("explicit-facts"), z.literal("below-minimum-sample"), z.literal("no-authoritative-facts"), z.literal("only-unknown-facts")]).readonly(),
+}).readonly(),
+  'rollback': z.object({
+  'status': z.union([z.literal("measured"), z.literal("insufficient-sample"), z.literal("not-measured"), z.literal("unknown")]).readonly(),
+  'observed': z.number().readonly(),
+  'denominator': z.number().readonly(),
+  'count': z.number().readonly(),
+  'rate': z.union([z.undefined(), z.number()]).readonly().optional(),
+  'reason': z.union([z.literal("explicit-facts"), z.literal("below-minimum-sample"), z.literal("no-authoritative-facts"), z.literal("only-unknown-facts")]).readonly(),
+}).readonly(),
+}).readonly(),
+  'sourceFacts': z.object({
+  'total': z.number().readonly(),
+  'promotionReviews': z.number().readonly(),
+  'pairedComparisons': z.number().readonly(),
+  'externalEffects': z.number().readonly(),
+  'recoveryEvents': z.number().readonly(),
+  'unknownFacts': z.number().readonly(),
+  'deliveryOutcomes': z.number().readonly(),
+}).readonly(),
+  'evidence': z.object({
+  'source': z.literal("explicit-long-term-facts-v1").readonly(),
+  'causalClaim': z.literal("none").readonly(),
+  'releaseAuthority': z.literal("none").readonly(),
+}).readonly(),
+})]).readonly().optional(),
   'capabilityMap': z.union([z.undefined(), z.object({
   'status': z.union([z.literal("unobserved"), z.literal("complete"), z.literal("incomplete")]).readonly(),
   'catalogHash': z.union([z.undefined(), z.string()]).readonly().optional(),
@@ -2540,8 +2608,16 @@ export const TYPERT = {
             "declaration": "export interface EvolutionLatencyView {\n    readonly llmMs: number;\n    readonly toolMs: number;\n    readonly ttftMs: number;\n    readonly ttftSteps: number;\n    readonly decodeMs: number;\n    readonly decodeTokens: number;\n}"
           },
           {
+            "name": "EvolutionLongTermEffectsMetricView",
+            "declaration": "export interface EvolutionLongTermEffectsMetricView {\n    readonly status: 'measured' | 'insufficient-sample' | 'not-measured' | 'unknown';\n    readonly observed: number;\n    readonly denominator: number;\n    readonly count: number;\n    readonly rate?: number;\n    readonly reason: 'explicit-facts' | 'below-minimum-sample' | 'no-authoritative-facts' | 'only-unknown-facts';\n}"
+          },
+          {
+            "name": "EvolutionLongTermEffectsView",
+            "declaration": "export interface EvolutionLongTermEffectsView {\n    readonly schemaVersion: 1;\n    readonly workspaceId: string;\n    readonly metrics: { readonly falsePromotion: EvolutionLongTermEffectsMetricView; readonly forgetting: EvolutionLongTermEffectsMetricView; readonly negativeTransfer: EvolutionLongTermEffectsMetricView; readonly duplicateExternalEffect: EvolutionLongTermEffectsMetricView; readonly recovery: EvolutionLongTermEffectsMetricView; readonly rollback: EvolutionLongTermEffectsMetricView; };\n    readonly sourceFacts: { readonly total: number; readonly promotionReviews: number; readonly pairedComparisons: number; readonly externalEffects: number; readonly recoveryEvents: number; readonly unknownFacts: number; readonly deliveryOutcomes: number; };\n    readonly evidence: { readonly source: 'explicit-long-term-facts-v1'; readonly causalClaim: 'none'; readonly releaseAuthority: 'none'; };\n}"
+          },
+          {
             "name": "EvolutionOverview",
-            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly workspaceId: string;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly generationSelectionHistory: EvolutionGenerationSelectionHistoryView;\n    readonly capabilityMap?: EvolutionCapabilityMapView;\n    readonly capabilityGaps?: EvolutionCapabilityGapQueueView;\n    readonly skillOpportunities?: EvolutionSkillOpportunityQueueView;\n    readonly skillImprovementOpportunities?: EvolutionSkillImprovementOpportunityQueueView;\n    readonly skillCandidates?: EvolutionSkillCandidateQueueView;\n    readonly existingSkillCandidates?: EvolutionExistingSkillCandidateQueueView;\n    readonly existingSkillAuthoring?: EvolutionExistingSkillAuthoringView;\n    readonly existingSkillHoldoutGovernance?: EvolutionExistingSkillHoldoutGovernanceView;\n    readonly existingSkillAdmission?: EvolutionExistingSkillAdmissionView;\n    readonly existingSkillHoldoutEvaluation?: EvolutionExistingSkillHoldoutEvaluationView;\n    readonly existingSkillRetentionEvaluation?: EvolutionExistingSkillRetentionEvaluationView;\n    readonly existingSkillRelease?: EvolutionExistingSkillReleaseView;\n    readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView;\n    readonly skillEvaluationGovernance?: EvolutionSkillEvaluationGovernanceView;\n    readonly skillAdmission?: EvolutionSkillAdmissionView;\n    readonly skillEvaluationRuns?: EvolutionSkillEvaluationRunsView;\n    readonly counterfactualCanary?: EvolutionCounterfactualCanaryView;\n    readonly existingSkillCounterfactualCanary?: EvolutionExistingSkillCounterfactualCanaryView;\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; readonly baseline?: DeliveryOutcomeCounts; readonly metrics: { readonly all: EvolutionDeliveryMetricRollupView; readonly selected: EvolutionDeliveryMetricRollupView; readonly baseline?: EvolutionDeliveryMetricRollupView; readonly recent: readonly EvolutionDeliveryMetricEvidenceView[]; }; };\n    readonly skillReuse?: { readonly all: EvolutionSkillReuseCountsView; readonly selected: EvolutionSkillReuseCountsView; readonly baseline?: EvolutionSkillReuseCountsView; readonly items: readonly EvolutionSkillReuseEvidenceView[]; };\n    readonly skillOutcomeContext?: { readonly all: EvolutionExactSkillOutcomeContextRollupView; readonly selected: EvolutionExactSkillOutcomeContextRollupView; readonly baseline?: EvolutionExactSkillOutcomeContextRollupView; readonly items: readonly EvolutionExactSkillOutcomeContextEvidenceView[]; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
+            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly workspaceId: string;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly generationSelectionHistory: EvolutionGenerationSelectionHistoryView;\n    readonly longTermEffects?: EvolutionLongTermEffectsView;\n    readonly capabilityMap?: EvolutionCapabilityMapView;\n    readonly capabilityGaps?: EvolutionCapabilityGapQueueView;\n    readonly skillOpportunities?: EvolutionSkillOpportunityQueueView;\n    readonly skillImprovementOpportunities?: EvolutionSkillImprovementOpportunityQueueView;\n    readonly skillCandidates?: EvolutionSkillCandidateQueueView;\n    readonly existingSkillCandidates?: EvolutionExistingSkillCandidateQueueView;\n    readonly existingSkillAuthoring?: EvolutionExistingSkillAuthoringView;\n    readonly existingSkillHoldoutGovernance?: EvolutionExistingSkillHoldoutGovernanceView;\n    readonly existingSkillAdmission?: EvolutionExistingSkillAdmissionView;\n    readonly existingSkillHoldoutEvaluation?: EvolutionExistingSkillHoldoutEvaluationView;\n    readonly existingSkillRetentionEvaluation?: EvolutionExistingSkillRetentionEvaluationView;\n    readonly existingSkillRelease?: EvolutionExistingSkillReleaseView;\n    readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView;\n    readonly skillEvaluationGovernance?: EvolutionSkillEvaluationGovernanceView;\n    readonly skillAdmission?: EvolutionSkillAdmissionView;\n    readonly skillEvaluationRuns?: EvolutionSkillEvaluationRunsView;\n    readonly counterfactualCanary?: EvolutionCounterfactualCanaryView;\n    readonly existingSkillCounterfactualCanary?: EvolutionExistingSkillCounterfactualCanaryView;\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; readonly baseline?: DeliveryOutcomeCounts; readonly metrics: { readonly all: EvolutionDeliveryMetricRollupView; readonly selected: EvolutionDeliveryMetricRollupView; readonly baseline?: EvolutionDeliveryMetricRollupView; readonly recent: readonly EvolutionDeliveryMetricEvidenceView[]; }; };\n    readonly skillReuse?: { readonly all: EvolutionSkillReuseCountsView; readonly selected: EvolutionSkillReuseCountsView; readonly baseline?: EvolutionSkillReuseCountsView; readonly items: readonly EvolutionSkillReuseEvidenceView[]; };\n    readonly skillOutcomeContext?: { readonly all: EvolutionExactSkillOutcomeContextRollupView; readonly selected: EvolutionExactSkillOutcomeContextRollupView; readonly baseline?: EvolutionExactSkillOutcomeContextRollupView; readonly items: readonly EvolutionExactSkillOutcomeContextEvidenceView[]; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
           },
           {
             "name": "EvolutionProviderUsageView",
@@ -2618,6 +2694,38 @@ export const TYPERT = {
           {
             "name": "EvolutionSlowLoopAuthoringView",
             "declaration": "export interface EvolutionSlowLoopAuthoringView {\n    readonly configuredPolicyCount: number;\n    readonly warningCount: number;\n    readonly runs: readonly { readonly id: string; readonly targetId: string; readonly skillName: string; readonly opportunityId: string; readonly gapCount: number; readonly goalCount: number; readonly phase: 'prepared' | 'budget-deferred' | 'cancelled' | 'authoring-pending' | 'uncertain' | 'incomplete' | 'candidate-ready'; readonly createdAt: string; readonly updatedAt: string; readonly modelCalls: 0 | 1; readonly inputTokens: number; readonly outputTokens: number; readonly candidateId?: string; readonly retryAt?: number; readonly releaseAuthority: 'none'; }[];\n}"
+          }
+        ]
+      },
+      {
+        "tags": [],
+        "key": "evoforge.longTermEffects",
+        "exportName": "LongTermEffectsStore",
+        "members": [
+          {
+            "kind": "method",
+            "name": "record",
+            "signature": "record(input: LongTermFactInput): Promise<{ readonly created: boolean; readonly fact: LongTermFact }>"
+          },
+          {
+            "kind": "method",
+            "name": "list",
+            "signature": "list(workspaceId?: string): LongTermFact[]"
+          },
+          {
+            "kind": "method",
+            "name": "close",
+            "signature": "close(): Promise<void>"
+          }
+        ],
+        "types": [
+          {
+            "name": "LongTermFact",
+            "declaration": "export type LongTermFact = LongTermFactInput & { readonly schemaVersion: 1; readonly id: string; };"
+          },
+          {
+            "name": "LongTermFactInput",
+            "declaration": "export type LongTermFactInput = { readonly kind: 'promotion-review'; readonly workspaceId: string; readonly observedAt: number; readonly promotionEventId: string; readonly generationId: string; readonly verdict: 'false-promotion' | 'retained' | 'unknown'; readonly evidenceId: string; } | { readonly kind: 'paired-comparison'; readonly workspaceId: string; readonly observedAt: number; readonly caseId: string; readonly generationId: string; readonly baselineGenerationId: string; readonly comparisonKind: 'forgetting' | 'negative-transfer'; readonly priorCandidateStatus: 'passed' | 'failed' | 'unknown'; readonly baselineStatus: 'passed' | 'failed' | 'unknown'; readonly candidateStatus: 'passed' | 'failed' | 'unknown'; readonly exactPair: boolean; readonly evidenceId: string; } | { readonly kind: 'external-effect'; readonly workspaceId: string; readonly observedAt: number; readonly adapter: 'dsh-gateway' | 'dsh-feishu' | 'other'; readonly operationKeyHash: string; readonly idempotencyKeyHash: string; readonly result: 'applied' | 'duplicate' | 'unknown'; readonly duplicateOfFactId?: string | undefined; readonly evidenceId: string; } | { readonly kind: 'recovery'; readonly workspaceId: string; readonly observedAt: number; readonly trigger: 'crash' | 'restart'; readonly result: 'recovered' | 'failed' | 'unknown'; readonly generationId?: string | undefined; readonly evidenceId: string; };"
           }
         ]
       }

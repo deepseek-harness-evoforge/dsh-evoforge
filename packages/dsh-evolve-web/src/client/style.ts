@@ -61,6 +61,13 @@ export const cssText = `
 .dsh-evolve-danger{color:var(--dsw-alias-red)}
 .dsh-evolve-section-title{margin:0 0 8px;font-size:12px;color:var(--dsw-alias-label-secondary)}
 .dsh-evolve-list{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
+.dsh-evolve-long-term-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.dsh-evolve-long-term-card{padding:10px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-fill-l1)}
+.dsh-evolve-long-term-label{font-size:12px;color:var(--dsw-alias-label-secondary)}
+.dsh-evolve-long-term-status{margin-top:4px;font-size:13px;color:var(--dsw-alias-label-primary)}
+.dsh-evolve-long-term-status.is-not-measured,.dsh-evolve-long-term-status.is-unknown{color:var(--dsw-alias-label-tertiary)}
+.dsh-evolve-long-term-status.is-insufficient-sample{color:var(--dsw-alias-label-secondary)}
+@media (max-width:560px){.dsh-evolve-long-term-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .dsh-evolve-review{padding:10px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px}
 .dsh-evolve-outcome-metrics{margin-top:12px}
 .dsh-evolve-metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:6px}

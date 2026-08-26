@@ -1305,6 +1305,48 @@ export interface EvolutionGenerationSelectionHistoryView {
   readonly releaseAuthority: 'none'
 }
 
+/** Browser-safe long-horizon effects evidence.  Unknown and unmeasured are
+ * first-class states; this view never grants promotion or rollback authority. */
+export interface EvolutionLongTermEffectsMetricView {
+  readonly status: 'measured' | 'insufficient-sample' | 'not-measured' | 'unknown'
+  readonly observed: number
+  readonly denominator: number
+  readonly count: number
+  readonly rate?: number
+  readonly reason:
+    | 'explicit-facts'
+    | 'below-minimum-sample'
+    | 'no-authoritative-facts'
+    | 'only-unknown-facts'
+}
+
+export interface EvolutionLongTermEffectsView {
+  readonly schemaVersion: 1
+  readonly workspaceId: string
+  readonly metrics: {
+    readonly falsePromotion: EvolutionLongTermEffectsMetricView
+    readonly forgetting: EvolutionLongTermEffectsMetricView
+    readonly negativeTransfer: EvolutionLongTermEffectsMetricView
+    readonly duplicateExternalEffect: EvolutionLongTermEffectsMetricView
+    readonly recovery: EvolutionLongTermEffectsMetricView
+    readonly rollback: EvolutionLongTermEffectsMetricView
+  }
+  readonly sourceFacts: {
+    readonly total: number
+    readonly promotionReviews: number
+    readonly pairedComparisons: number
+    readonly externalEffects: number
+    readonly recoveryEvents: number
+    readonly unknownFacts: number
+    readonly deliveryOutcomes: number
+  }
+  readonly evidence: {
+    readonly source: 'explicit-long-term-facts-v1'
+    readonly causalClaim: 'none'
+    readonly releaseAuthority: 'none'
+  }
+}
+
 /** Browser overview. Dynamic global state stays outside Session and model context. */
 export interface EvolutionOverview {
   readonly schemaVersion: 1
@@ -1315,6 +1357,7 @@ export interface EvolutionOverview {
     readonly paused?: boolean
   }
   readonly generationSelectionHistory: EvolutionGenerationSelectionHistoryView
+  readonly longTermEffects?: EvolutionLongTermEffectsView
   readonly capabilityMap?: EvolutionCapabilityMapView
   readonly capabilityGaps?: EvolutionCapabilityGapQueueView
   readonly skillOpportunities?: EvolutionSkillOpportunityQueueView

@@ -52,6 +52,7 @@ import type {
 } from './existing-skill-counterfactual-canary.ts'
 import type { ExistingSkillFutureSessionRollback } from './existing-skill-future-session-rollback.ts'
 import type { ResidentEvolutionControl } from './resident-evolution-control.ts'
+import type { LongTermEffectsReader } from './long-term-effects.ts'
 import type { ReviewCandidate, ReviewInbox } from './review-inbox.ts'
 import type {
   EvolutionActionReceipt,
@@ -91,6 +92,7 @@ export interface EvolutionControlPlaneModules {
   readonly skillUses?: Pick<SkillUseStore, 'summarize'>
   readonly skillOutcomeContext?: Pick<ExactSkillOutcomeContextReader, 'summarize'>
   readonly feedback?: Pick<FeedbackSignalStore, 'summarize'>
+  readonly longTermEffects?: Pick<LongTermEffectsReader, 'summarize'>
   readonly capabilities?: {
     readonly snapshot: (workspaceId: string, sessionId?: string) => EvolutionCapabilityMapView
   }
@@ -139,6 +141,7 @@ export class EvolutionControlPlane {
       this.modules.store.listGenerationSelectionEvents(workspaceId),
       this.modules.outcomes?.list(workspaceId),
     )
+    const longTermEffects = this.modules.longTermEffects?.summarize(workspaceId)
     const [
       scan,
       admissionScan,
@@ -222,6 +225,7 @@ export class EvolutionControlPlane {
         ? { available: false }
         : { available: true, paused: this.modules.resident.isPaused(workspaceId) },
       generationSelectionHistory,
+      ...(longTermEffects === undefined ? {} : { longTermEffects }),
       ...(this.modules.capabilities === undefined
         ? {}
         : { capabilityMap: cloneCapabilityMap(this.modules.capabilities.snapshot(workspaceId, sessionId)) }),
