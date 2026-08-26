@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   COMPATIBILITY_SUITE_IDS,
+  DEFAULT_SUITE_ID,
   OPTIONAL_SUITE_IDS,
   PACKAGE_NAMES,
   PUBLIC_SUITE_IDS,
@@ -18,6 +19,7 @@ test('capability suite manifest is complete and has no duplicate package rows', 
 
 test('user-facing suites keep independent runtime boundaries explicit', () => {
   assert.deepEqual(PUBLIC_SUITE_IDS, ['core', 'channels', 'delivery', 'continuity'])
+  assert.equal(DEFAULT_SUITE_ID, 'core')
   assert.deepEqual(SUITES.core.packages, [
     'dsh-evolve',
     'dsh-doctor',

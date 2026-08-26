@@ -6,6 +6,8 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- `pack:suite` now defaults to the user-facing `core` suite when `--suite` is omitted; the maintainer-only twelve-Bundle
+  composition remains available only through the explicit `pack:full` command or `--suite full`.
 - The dual DSH assembled matrix now materializes a temporary Case Pack copy whose epoch is bound to the checked-out
   revision; strict identity checks no longer fail rc.5 against an rc.2 fixture. The CI preflight requires this step.
   See [V5.43](docs/evidence/v5-43-dsh-matrix-case-pack-identity-2026-08-26.zh.md).

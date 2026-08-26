@@ -17,6 +17,9 @@ PACK_ROOT="$(mktemp -d)"
 pnpm run pack:suite -- --suite core --out "$PACK_ROOT"
 ```
 
+`pack:suite` 省略 `--suite` 时默认仍是面向用户的 `core`；完整十二包只用于维护者验收，并需显式执行
+`pnpm run pack:full`。
+
 用户按能力选择套件即可；默认入口是 `core`、`channels`、`delivery`、`continuity`，`attention` 按需安装；完整边界和为什么不物理合并见[能力套件说明](capability-suites.zh.md)。维护者或完整验收使用 `--suite full`。每个输出目录都会包含官方 Bundle 及带 SHA-256/audience 的 `evoforge-suite.json`。
 
 ## 2. 安装与有效配置

@@ -4,11 +4,11 @@ import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { getSuite, getSuiteAudience } from './suite-manifest.mjs'
+import { DEFAULT_SUITE_ID, getSuite, getSuiteAudience } from './suite-manifest.mjs'
 
 const repositoryRoot = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const args = parseArgs(process.argv.slice(2))
-const selected = getSuite(args.suite ?? 'full')
+const selected = getSuite(args.suite ?? DEFAULT_SUITE_ID)
 const output = resolve(args.out ?? '.evoforge/pack', selected.id)
 await mkdir(output, { recursive: true })
 
@@ -53,7 +53,7 @@ function parseArgs(values) {
     if (value === '--suite') result.suite = values[++index]
     else if (value === '--out') result.out = values[++index]
     else if (value === '--help' || value === '-h') {
-      console.log('Usage: node scripts/pack-suites.mjs --suite <name> --out <directory>')
+      console.log(`Usage: node scripts/pack-suites.mjs [--suite <name>] --out <directory> (default: ${DEFAULT_SUITE_ID})`)
       process.exit(0)
     } else throw new Error(`Unknown argument: ${value}`)
   }

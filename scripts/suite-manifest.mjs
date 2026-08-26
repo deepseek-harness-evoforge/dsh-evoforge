@@ -39,6 +39,9 @@ export const PUBLIC_SUITE_IDS = Object.freeze([
   'continuity',
 ])
 
+/** The least-surprising install preset for an invocation without --suite. */
+export const DEFAULT_SUITE_ID = 'core'
+
 export const OPTIONAL_SUITE_IDS = Object.freeze(['attention'])
 
 export const COMPATIBILITY_SUITE_IDS = Object.freeze(['evolution', 'control', 'gateway'])
