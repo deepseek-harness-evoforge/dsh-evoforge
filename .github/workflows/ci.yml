@@ -86,9 +86,15 @@ jobs:
           pnpm --filter dsh-telegram build
           pnpm --filter dsh-evolve-attention build
           pnpm --filter dsh-github-review build
+      - name: Materialize DSH-revision-matched Case Packs
+        run: >-
+          node scripts/prepare-dsh-case-packs.mjs
+          --revision "${{ matrix.dsh.revision }}"
+          --out "$RUNNER_TEMP/evoforge-case-packs"
       - name: Run sealed, assembled, and Local Continuity tests
         env:
           DSH_EVOLVE_DSH_SOURCE_DIR: ${{ github.workspace }}/.evoforge/deepseek-harness
+          DSH_EVOLVE_CASE_PACK_ROOT: ${{ runner.temp }}/evoforge-case-packs
         run: >-
           pnpm --filter dsh-evolve exec vitest run
           test/sealed-trial-darwin.e2e.test.ts
@@ -107,6 +113,7 @@ jobs:
       - name: Run native suite contract and clean-profile assembled gate
         env:
           DSH_EVOLVE_DSH_SOURCE_DIR: ${{ github.workspace }}/.evoforge/deepseek-harness
+          DSH_EVOLVE_CASE_PACK_ROOT: ${{ runner.temp }}/evoforge-case-packs
         run: |
           pnpm --filter dsh-doctor exec vitest run \
             test/suite-native-plugin-contract.test.ts

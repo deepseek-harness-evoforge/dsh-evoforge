@@ -6,6 +6,9 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- The dual DSH assembled matrix now materializes a temporary Case Pack copy whose epoch is bound to the checked-out
+  revision; strict identity checks no longer fail rc.5 against an rc.2 fixture. The CI preflight requires this step.
+  See [V5.43](docs/evidence/v5-43-dsh-matrix-case-pack-identity-2026-08-26.zh.md).
 - Root typecheck now builds `dsh-control-center` before recursive consumers, and CI preflight locks that order so a clean
   runner cannot depend on stale client `lib` output. See [V5.42](docs/evidence/v5-42-ci-typecheck-preflight-2026-08-26.zh.md).
 - Clean-runner CI now declares `tsx` directly in `dsh-feishu`, builds both Host and Client faces of the audited DSH

@@ -12,7 +12,9 @@ const suiteRoot = resolve(packageRoot, '../..')
 const dshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
   ?? resolve(suiteRoot, '../deepseek-harness')
 const skillDir = join(suiteRoot, 'examples', 'skills', 'browser-e2e-baseline')
-const casePackDir = join(suiteRoot, 'examples', 'case-packs', 'browser-e2e-guidance-assembled')
+const casePackRoot = process.env.DSH_EVOLVE_CASE_PACK_ROOT
+  ?? join(suiteRoot, 'examples', 'case-packs')
+const casePackDir = join(casePackRoot, 'browser-e2e-guidance-assembled')
 const roots: string[] = []
 
 afterEach(async () => {

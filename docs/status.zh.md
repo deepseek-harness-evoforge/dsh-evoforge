@@ -211,6 +211,11 @@ V5.42 修复了随后由真实 Node 22/24 runner 暴露的类型检查前置缺�
 `check:ci` 固定该顺序；本地完整 `typecheck` 已通过，新的 GitHub 运行仍需复核，不提升 release gate。详见
 [V5.42](evidence/v5-42-ci-typecheck-preflight-2026-08-26.zh.md)。
 
+V5.43 修复了双 DSH assembled 矩阵中 Case Pack epoch 固定为 rc.2 的身份错配：每个 matrix job 现在在临时目录
+生成当前 revision 的 Case Pack 副本，测试通过 `DSH_EVOLVE_CASE_PACK_ROOT` 使用它，生产严格校验保持不变。
+本地 rc.5 四个 assembled Shadow 已 4/4 通过；新的 GitHub 运行尚未完成，不提升 CI 或 release gate。详见
+[V5.43](evidence/v5-43-dsh-matrix-case-pack-identity-2026-08-26.zh.md)。
+
 V5.35 将发布阻断提升为机器可执行的 `release-gates.json`：`check:release:gates` 会把 partial/not-run/failed
 证据明确归为阻断，`release:tag` 还要求 clean `main` 且 `HEAD == origin/main`，只创建 annotated tag，不提供绕过
 外部门禁的开关。当前该命令按设计失败，阻断项见 [release-gates.json](../release-gates.json)。

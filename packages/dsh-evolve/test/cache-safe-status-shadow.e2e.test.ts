@@ -8,7 +8,9 @@ const suiteRoot = resolve(import.meta.dirname, '../../..')
 const dshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
   ?? resolve(suiteRoot, '../deepseek-harness')
 const skillDir = join(suiteRoot, 'skills', 'build-dsh-plugin')
-const casePackDir = join(suiteRoot, 'examples', 'case-packs', 'cache-safe-status')
+const casePackRoot = process.env.DSH_EVOLVE_CASE_PACK_ROOT
+  ?? join(suiteRoot, 'examples', 'case-packs')
+const casePackDir = join(casePackRoot, 'cache-safe-status')
 const temporaryRoots: string[] = []
 
 afterEach(async () => {

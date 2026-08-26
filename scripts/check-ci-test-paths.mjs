@@ -51,4 +51,8 @@ if (!rootPackage.scripts?.pretypecheck?.includes('dsh-control-center')) {
   throw new Error('root pretypecheck must build dsh-control-center before recursive package typechecks; consumers import its published client entry')
 }
 
-process.stdout.write(`CI test path, DSH target, assembled build, and typecheck-preflight checks passed for ${paths.length} referenced files.\n`)
+if (!workflow.includes('prepare-dsh-case-packs.mjs')) {
+  throw new Error('assembled DSH CI job must materialize Case Packs for the matrix revision; a fixed epoch would fail closed on the other audited target')
+}
+
+process.stdout.write(`CI test path, DSH target, assembled build, typecheck-preflight, and revision-matched fixture checks passed for ${paths.length} referenced files.\n`)
