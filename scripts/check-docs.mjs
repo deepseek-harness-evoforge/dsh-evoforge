@@ -7,6 +7,7 @@ const ignoredDirectories = new Set(['.evoforge', '.git', 'dist', 'node_modules']
 const markdownLink = /\[[^\]]*\]\(([^)]+)\)/g
 const forbiddenPublicText = ['/Users/my/', '/home/runner/', 'file://', 'oh-my-dsh']
 const removedStandaloneCli = /\bdsh-evolve\s+(?:shadow|calibrate|retain)\b|\bdsh-delivery\s+verify\b/u
+const staleControlSurfaceGuide = ['打开侧栏“渠道健康', '打开侧栏"渠道健康', '渠道健康”面板', '渠道健康"面板', 'Router 配成 `routes: []`']
 const failures = []
 
 for (const file of await markdownFiles(repositoryRoot)) {
@@ -22,6 +23,10 @@ for (const file of await markdownFiles(repositoryRoot)) {
     } else if (!source.includes('ADR-0041')) {
       failures.push(`${relative} mentions a removed standalone EvoForge CLI without an ADR-0041 supersession marker`)
     }
+  }
+
+  if (isOperationalDoc(relative) && staleControlSurfaceGuide.some(text => source.includes(text))) {
+    failures.push(`${relative} contains the retired sidebar/Router channel-health guide; use native Control Center → Channels`)
   }
 
   for (const match of source.matchAll(markdownLink)) {

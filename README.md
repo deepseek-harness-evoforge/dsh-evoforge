@@ -172,7 +172,7 @@ dsh --profile web
 ## 在 DSH 内使用
 
 - `/doctor` 查看当前插件组合及必需飞书/Telegram transport readiness；
-- `/evolve status` 或 DSH Web 侧栏查看和处理进化状态；
+- `/evolve status` 或 DSH Web 原生“控制台”查看和处理进化状态；
 - 在原生 Goal 中按需加载 `software-delivery` Skill，由 `complete_delivery` 通过 DSH Bash/Sandbox/Approval 验证并调用原生 `update_goal`；
 - `/resident plan|status|apply <plan-sha256>|remove <service-id>` 通过 DSH Command 审查和管理 OS user unit；
 - Telegram 与飞书经 DSH Gateway 只使用原生 Workspace、Agent、Session 与 Commands；陌生飞书私聊由常驻 Gateway 在 Agent 前回 code，管理员在 DSH Web Host 控制面批准或撤销 principal grant，不调用 Session Command；GitHub review、Goal continuity 和进化注意力同样不创建第二套权威。

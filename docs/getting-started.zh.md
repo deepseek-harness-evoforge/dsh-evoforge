@@ -5,7 +5,8 @@ EvoForge 只作为 DSH 原生 Bundle 套件运行。本页区分“开发者生�
 ## 1. 前置条件
 
 - Node.js `^22.19.0 || >=24`、pnpm；
-- DeepSeek Harness revision `47f943859bef60e4160492346772ded9b24f765a`（`0.1.0-rc.5`）；
+- DeepSeek Harness revision `47f943859bef60e4160492346772ded9b24f765a`（`0.1.0-rc.5`）或当前已审计的
+  `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`（`0.1.1-rc.2`）；
 - 一个 DSH `web` profile。
 
 当前包尚未发布到 registry。先按用户结果生成需要的能力套件；这一步只生成 DSH 安装产物，不启动 EvoForge Runtime：
@@ -88,7 +89,7 @@ Goal cold-resume 示例：
 token 由启动 DSH 的环境提供。模型不能读取 token、修改 route、选择 Workspace 或扩大 allowlist。
 
 飞书使用官方 SDK WebSocket 长连接，不创建 EvoForge Webhook server。第一次使用无需到后台手工寻找
-`chat_id`/`open_id`：先把 Router 配成 `routes: []`，再把 `evoforge-feishu` 配成：
+`chat_id`/`open_id`：先让 `dsh-gateway` 保持 `routes: []`，再把 `evoforge-feishu` 配成：
 
 ```yaml
   name: dsh-feishu
@@ -101,11 +102,12 @@ token 由启动 DSH 的环境提供。模型不能读取 token、修改 route、
 ```
 
 启动 DSH Web 后，Adapter 立即常驻连接。先打开准备绑定的 Workspace/Session，再让用户给飞书机器人发送
-任意私聊消息；机器人会在 Agent 之前消费首条消息并回复配对码。打开侧栏“渠道健康”，把 code 粘贴到
-“飞书配对”并批准。用户发送下一条消息即可进入当前原生 Session；不需要改 profile 或重启。群聊、过期
+任意私聊消息；机器人会在 Agent 之前消费首条消息并回复配对码。打开 DSH Web 原生“控制台”，进入“渠道”
+Surface，把 code 粘贴到“飞书配对”并批准。用户发送下一条消息即可进入当前原生 Session；不需要改 profile
+或重启。群聊、过期
 code、重放、无 live Session 和 Workspace ownership 漂移均 fail closed；没有 `/feishu-pair` Command。
 
-需要撤销动态授权时，在同一“渠道健康”面板的“授权路由”区点击对应 route 的“撤销”，再点击一次“确认撤销”。
+需要撤销动态授权时，在同一“渠道”Surface 的“授权路由”区点击对应 route 的“撤销”，再点击一次“确认撤销”。
 静态配置 route 不提供该动作；仍有活动入站或出站效果时 Host 会拒绝撤销。成功后原生 Session 保留，该用户
 下一条私聊会重新收到配对码。此动作会中断该外部 principal 的后续访问，操作前应确认目标 route。
 

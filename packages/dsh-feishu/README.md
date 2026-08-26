@@ -38,7 +38,8 @@ dsh --profile web --dump-config
 ```
 
 启动唯一的 DSH Web Host 后，Adapter 立即连接并保持常驻。用户只需在飞书私聊机器人发送任意消息；
-Gateway 在 Agent 之前消费首条消息并由机器人回复 10 位配对码。管理员打开 DSH Web 的“渠道健康”，
+Gateway 在 Agent 之前消费首条消息并由机器人回复 10 位配对码。管理员打开 DSH Web 原生“控制台”中的“渠道”
+Surface，
 确认当前 Workspace/Session，粘贴 code 并点击“批准飞书配对”。批准原子写入 Gateway Storage Domain，
 用户发送下一条消息即可进入原生 DSH Session；不改 profile、不切 mode、不重启。
 
