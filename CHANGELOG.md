@@ -6,6 +6,8 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Root typecheck now builds `dsh-control-center` before recursive consumers, and CI preflight locks that order so a clean
+  runner cannot depend on stale client `lib` output. See [V5.42](docs/evidence/v5-42-ci-typecheck-preflight-2026-08-26.zh.md).
 - Clean-runner CI now declares `tsx` directly in `dsh-feishu`, builds both Host and Client faces of the audited DSH
   checkout for assembled profiles, and checks that workflow invariant before execution. See [V5.41](docs/evidence/v5-41-ci-clean-runner-dependencies-2026-08-26.zh.md).
 - Public installation docs now point to the native DSH `控制台 → 渠道` Surface and audited rc.2/rc.5 hosts; the docs checker rejects retired sidebar/Router channel-health instructions. See [V5.40](docs/evidence/v5-40-public-control-center-docs-2026-08-26.zh.md).

@@ -6,6 +6,7 @@ import { SUPPORTED_DSH_TARGETS } from './run-dsh-compatibility-matrix.mjs'
 const repositoryRoot = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const workflowPath = join(repositoryRoot, '.github/workflows/ci.yml')
 const workflow = await readFile(workflowPath, 'utf8')
+const rootPackage = JSON.parse(await readFile(join(repositoryRoot, 'package.json'), 'utf8'))
 const paths = [...workflow.matchAll(/(?:^|\s)(test\/[A-Za-z0-9._/-]+\.test\.ts)/gu)]
   .map(match => match[1])
   .filter((value, index, values) => values.indexOf(value) === index)
@@ -46,4 +47,8 @@ if (!/^\s+run: pnpm --dir \.evoforge\/deepseek-harness build:lib\s*$/mu.test(wor
   throw new Error('assembled DSH CI job must run build:lib (host and client); host-only builds omit client-declared package entrypoints used by clean-profile loading')
 }
 
-process.stdout.write(`CI test path, DSH target, and assembled build checks passed for ${paths.length} referenced files.\n`)
+if (!rootPackage.scripts?.pretypecheck?.includes('dsh-control-center')) {
+  throw new Error('root pretypecheck must build dsh-control-center before recursive package typechecks; consumers import its published client entry')
+}
+
+process.stdout.write(`CI test path, DSH target, assembled build, and typecheck-preflight checks passed for ${paths.length} referenced files.\n`)

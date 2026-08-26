@@ -206,6 +206,11 @@ macOS assembled job 改为对审计过的 DSH 同时执行 Host/Client `build:li
 这解释了 rc.2 clean-profile 中缺失 `@deepseek-ai/dsh-typert-registry/lib/index.js` 的来源。修复后的 GitHub
 运行尚未重新完成，因此不提升任何 release gate。详见 [V5.41](evidence/v5-41-ci-clean-runner-dependencies-2026-08-26.zh.md)。
 
+V5.42 修复了随后由真实 Node 22/24 runner 暴露的类型检查前置缺口：根 `pretypecheck` 现在先构建
+`dsh-control-center` 再构建 `dsh-gateway`，递归消费者不会依赖开发机残留的 `dsh-control-center/client` `lib`。
+`check:ci` 固定该顺序；本地完整 `typecheck` 已通过，新的 GitHub 运行仍需复核，不提升 release gate。详见
+[V5.42](evidence/v5-42-ci-typecheck-preflight-2026-08-26.zh.md)。
+
 V5.35 将发布阻断提升为机器可执行的 `release-gates.json`：`check:release:gates` 会把 partial/not-run/failed
 证据明确归为阻断，`release:tag` 还要求 clean `main` 且 `HEAD == origin/main`，只创建 annotated tag，不提供绕过
 外部门禁的开关。当前该命令按设计失败，阻断项见 [release-gates.json](../release-gates.json)。

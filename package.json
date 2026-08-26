@@ -47,7 +47,7 @@
     "benchmark:feishu:as2:test": "pnpm --filter dsh-feishu exec tsx --test ../../benchmarks/feishu-v0.1/as2-real-channel/contract.test.ts",
     "benchmark:feishu:as2:check": "pnpm benchmark:feishu:as2:typecheck && pnpm benchmark:feishu:as2:test",
     "benchmark:feishu:as2": "packages/dsh-feishu/node_modules/.bin/tsx benchmarks/feishu-v0.1/as2-real-channel/run.ts",
-    "pretypecheck": "pnpm --filter dsh-gateway run build",
+    "pretypecheck": "pnpm --filter dsh-control-center run build && pnpm --filter dsh-gateway run build",
     "typecheck": "pnpm -r typecheck",
     "pretest": "pnpm --filter dsh-gateway run build",
     "test": "pnpm -r --filter '!dsh-telegram' --filter '!dsh-feishu' test && pnpm --filter dsh-telegram test && pnpm --filter dsh-feishu test",
