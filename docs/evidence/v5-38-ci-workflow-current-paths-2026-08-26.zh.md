@@ -19,7 +19,7 @@ Shadow resume/CLI、旧 Canary/Retention 门，以及旧 Telegram delivery-store
 
 ```text
 pnpm run check:ci
-CI test path check passed for 25 referenced files.
+CI test path and DSH target checks passed for 25 referenced files.
 ```
 
 同时通过 `git diff --check`。该证据修复的是开源 CI 可重复性，不改变运行时、模型表面、权限、外部效果或发布门状态；真实 Provider、真实渠道、Hermes paired 和长期效果仍由独立 release gates 约束。
