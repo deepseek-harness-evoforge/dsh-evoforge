@@ -85,6 +85,7 @@ export async function apply(ctx, config) {
     agent = handle.agent
   }
   await workspace.attachSession(agent.session.id)
+  await seedBrowserConversation(ctx, agent)
   const skillEvaluationSeed = config.seedSkillEvaluationRuns === true
     ? await seedExactSkillEvaluationRuns(ctx, workspace, config)
     : undefined
@@ -183,6 +184,38 @@ export async function apply(ctx, config) {
     await evolutionFiber.dispose()
     await handle?.dispose()
   }, 'evoforge-browser-workspace-bootstrap.dispose')
+}
+
+/**
+ * The native workspace tree intentionally hides blank sessions. Add a small
+ * fixture-only completed turn so the browser gate can open this real Session
+ * and exercise the native conversation.view tabs without a paid provider call.
+ */
+async function seedBrowserConversation(ctx, agent) {
+  if (agent.session.events.some(event => event.type === 'user/message')) return
+  const { createAssistantMessage, createUserMessage } = await import(
+    pathToFileURL(resolve(
+      new URL('../../../dsh-evolve/node_modules/@deepseek-ai/dsh-llm/lib/index.js', import.meta.url).pathname,
+    )).href,
+  )
+  agent.session.append('turn/start', { turn: 1 })
+  agent.session.append('step/start', { turn: 1, step: 1 })
+  agent.session.append('user/message', createUserMessage({
+    content: [{ type: 'text', text: 'EvoForge browser acceptance fixture.' }],
+    source: { kind: 'user' },
+  }), { surfaceOp: 'append' })
+  agent.session.append('assistant/message', {
+    turn: 1,
+    step: 1,
+    message: createAssistantMessage({
+      content: [{ type: 'text', text: 'Fixture ready.' }],
+      source: { provider: 'fixture', model: 'fixture' },
+    }),
+    usage: { inputTokens: 1, outputTokens: 1 },
+  }, { surfaceOp: 'append', sourceEventSeqs: [] })
+  agent.session.append('step/end', { turn: 1, step: 1 })
+  agent.session.append('turn/end', { turn: 1, reason: { kind: 'completed' } })
+  await ctx.sessions.flush(agent.session)
 }
 
 /**
