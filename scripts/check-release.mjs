@@ -56,4 +56,4 @@ const changelog = await readFile(join(root, 'CHANGELOG.md'), 'utf8')
 if (!/^## Unreleased\s*$/m.test(changelog)) throw new Error('CHANGELOG.md must contain an Unreleased section')
 
 console.log(`Release preflight passed for ${manifests.length} packages at ${[...versions][0]}`)
-console.log('Next required evidence remains the DSH clean-profile install/boot/reload/dispose/remove gate, browser recovery, real channel checks, and paired Hermes benchmark.')
+console.log('Registry release remains gated by release-gates.json; run pnpm run check:release:gates for the current blocker list.')
