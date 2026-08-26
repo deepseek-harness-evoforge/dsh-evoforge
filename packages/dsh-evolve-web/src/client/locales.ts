@@ -3,6 +3,7 @@ export const NS = 'evoforge.evolution'
 export const zh = {
   'trigger.label': '演化',
   'panel.title': '演化控制',
+  'surface.nav': '演化',
   'panel.close': '关闭演化面板',
   'surface.eyebrow': 'EVOLUTION CONTROL',
   'surface.description': '自主从 DSH 原生 Goal 经验形成、隔离评测并治理未来 Session 的 Skill 版本。',
@@ -656,6 +657,7 @@ export type EvolutionLocaleKey = keyof typeof zh
 export const en: Record<EvolutionLocaleKey, string> = {
   'trigger.label': 'Evolution',
   'panel.title': 'Evolution control',
+  'surface.nav': 'Evolution',
   'panel.close': 'Close evolution panel',
   'surface.eyebrow': 'EVOLUTION CONTROL',
   'surface.description': 'Form, isolate, evaluate, and govern Skill versions from native DSH Goal experience for future Sessions.',

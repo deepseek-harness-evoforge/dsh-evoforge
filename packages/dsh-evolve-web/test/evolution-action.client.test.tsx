@@ -2220,6 +2220,7 @@ describe('client plugin lifecycle', () => {
     expect(registerSlot).toHaveBeenCalledWith(expect.objectContaining({
       id: 'evoforge-evolution',
       order: 30,
+      label: expect.any(Function),
     }), expect.any(Function))
 
     for (const dispose of disposers.reverse()) await dispose()

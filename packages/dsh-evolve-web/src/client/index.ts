@@ -1,4 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
+import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from 'dsh-control-center/client'
 import evolutionRemote from 'dsh-evolve/remote'
 import { EvolutionSurface } from './EvolutionAction.tsx'
@@ -13,6 +14,7 @@ type WebContext = Context & {
   }
   locale: {
     register(namespace: string, dictionaries: { zh: Record<string, string>; en: Record<string, string> }): () => void
+    bind(namespace: string): (key: string) => string
   }
   slots: Context['slots'] & {
     inject(name: string, install: () => unknown): void
@@ -44,6 +46,7 @@ export async function apply(context: Context): Promise<void> {
       name: 'evoforge.control.surface',
       id: 'evoforge-evolution',
       order: 30,
+      label: () => scope.locale.bind(NS)('surface.nav'),
       locale: NS,
       inject: () => ({ remote: scope.remote.evoforgeEvolution }),
     }, EvolutionSurface))
