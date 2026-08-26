@@ -126,6 +126,13 @@ declare module '@deepseek-ai/cordis' {
       readonly attempts: number
       readonly observedAt: number
     }): void
+    /** Startup observation for exact Gateway journal recovery after interruption. */
+    'evoforge/gateway/recovery'(observation: {
+      readonly workspaceId: string
+      readonly ingressRecovered: number
+      readonly outboundRecovered: number
+      readonly observedAt: number
+    }): void
   }
 }
 
@@ -257,6 +264,24 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
 
   ctx.provide('evoforge.evolution', store)
   ctx.provide('evoforge.longTermEffects', longTermEffects)
+  const recordGatewayRecovery = (observation: {
+    readonly workspaceId: string
+    readonly ingressRecovered: number
+    readonly outboundRecovered: number
+    readonly observedAt: number
+  }): void => {
+    if (observation.ingressRecovered === 0 && observation.outboundRecovered === 0) return
+    void longTermEffects.record({
+      kind: 'recovery',
+      workspaceId: observation.workspaceId,
+      observedAt: observation.observedAt,
+      trigger: 'restart',
+      result: 'recovered',
+      evidenceId: `gateway-recovery:${observation.observedAt}:${observation.ingressRecovered}:${observation.outboundRecovered}`,
+    }).catch(error => {
+      ctx.logger.warn(`dsh-evolve could not retain Gateway recovery observation: ${String(error)}`)
+    })
+  }
   ctx.on('evoforge/gateway/outbound', observation => {
     void longTermEffects.record({
       kind: 'external-effect',
@@ -271,6 +296,16 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       ctx.logger.warn(`dsh-evolve could not retain Gateway long-term observation: ${String(error)}`)
     })
   })
+  ctx.on('evoforge/gateway/recovery', recordGatewayRecovery)
+  const gateway = ctx.get('evoforge.gateway' as never) as {
+    recoveryObservations?: () => readonly {
+      readonly workspaceId: string
+      readonly ingressRecovered: number
+      readonly outboundRecovered: number
+      readonly observedAt: number
+    }[]
+  } | undefined
+  for (const observation of gateway?.recoveryObservations?.() ?? []) recordGatewayRecovery(observation)
   const disposeBinder = installGenerationBinder(ctx, store, source)
   const skillUseMonitor = installSkillUseMonitor(ctx, skillUses, store)
   const capabilities = new CapabilityMap()

@@ -74,6 +74,11 @@ surface 在 reload 后恢复，浏览器 console error 为 0，没有再出现 `
 也位于同一 Evolution surface，缺证据时保持未测量，不伪造晋升或发布结论。详见
 [V5.53 证据](evidence/v5-53-single-browser-control-center-long-term-effects-2026-08-26.zh.md)。
 
+V5.54 将 Gateway journal 的中断恢复接入长期账本：冷启动前读取 `executing`/`sending`，按 Workspace 发出
+脱敏 recovery Event；`dsh-evolve` 监听并通过 Gateway 只读快照 replay，内容寻址保证不重复。真实恢复事实
+仍只在确有遗留记录时写入，未把普通启动或单测冒充长期成功；Gateway 两个测试文件 21/21、双包 typecheck
+和 Typert 重生成通过。详见 [V5.54 证据](evidence/v5-54-gateway-recovery-long-term-facts-2026-08-27.zh.md)。
+
 V5.5 按 [ADR-0090](adr/0090-feishu-content-reads-are-agent-scoped-native-tools.md) 在 `dsh-feishu` 内增加一个
 Agent-scoped 原生 `feishu_content_read` Tool。document、Wiki、Drive metadata、Bitable records 四项权限独立且
 默认关闭；每次读取走真实 ToolRuntime/Approval，当前 Session schema 固定，撤权后执行拒绝，新启用只影响

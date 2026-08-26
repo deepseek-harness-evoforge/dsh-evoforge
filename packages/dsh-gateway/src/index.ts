@@ -169,6 +169,7 @@ export {
   type GatewayDispatchResult,
   type GatewayHealthRoute,
   type GatewayHealthSnapshot,
+  type GatewayRecoveryObservation,
   type GatewayPairingRevocationReceipt,
   type GatewayPairingSessionApprovalInput,
   type GatewayPairingSessionApprovalReceipt,

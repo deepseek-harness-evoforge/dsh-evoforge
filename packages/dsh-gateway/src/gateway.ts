@@ -131,10 +131,20 @@ export interface GatewayHealthSnapshot {
   readonly outbound: GatewayOutboundHealth
 }
 
+/** Redacted startup evidence retained until the Gateway is disposed. */
+export interface GatewayRecoveryObservation {
+  readonly workspaceId: string
+  readonly ingressRecovered: number
+  readonly outboundRecovered: number
+  readonly observedAt: number
+}
+
 declare module '@deepseek-ai/cordis' {
   interface Events {
     /** Terminal outbound observation for optional long-term evidence projection. */
     'evoforge/gateway/outbound'(observation: GatewayOutboundObservation & { readonly workspaceId: string }): void
+    /** Startup observation for inflight journal entries recovered after a prior interruption. */
+    'evoforge/gateway/recovery'(observation: GatewayRecoveryObservation): void
   }
 }
 
@@ -160,6 +170,7 @@ export class DshGateway {
   private started = false
   private sessionEventsBound = false
   private stopping?: Promise<void>
+  private recoveryObservationsValue: readonly GatewayRecoveryObservation[] = []
   private readonly outbound: GatewayOutboundCoordinator
   private readonly transports: GatewayTransportRegistry
 
@@ -167,12 +178,12 @@ export class DshGateway {
     private readonly ctx: Context,
     private readonly configured: ResolvedGatewayRoutes,
     private readonly ingressJournal: GatewayIngressJournal,
-    outboundJournal: GatewayOutboundJournal,
+    private readonly outboundJournal: GatewayOutboundJournal,
     private readonly pairing?: GatewayPairingAuthority,
   ) {
     this.outbound = new GatewayOutboundCoordinator(
       configured,
-      outboundJournal,
+      this.outboundJournal,
       (route, turn, signal) => this.nativeTurnEnded(route, turn, signal),
       id => this.pairedRoute(id),
       record => this.observeOutbound(record),
@@ -204,8 +215,11 @@ export class DshGateway {
   async start(): Promise<void> {
     if (this.started) return
     if (this.stopping !== undefined) throw new Error('DSH gateway is stopping')
-    await this.ingressJournal.recoverInflight(Date.now())
-    await this.outbound.start(Date.now())
+    const observedAt = Date.now()
+    const ingressBefore = this.ingressJournal.list().filter(record => record.status === 'executing')
+    const outboundBefore = this.outboundJournal.list().filter(record => record.status === 'sending')
+    const ingressRecovered = await this.ingressJournal.recoverInflight(observedAt)
+    const outboundRecovered = await this.outbound.start(observedAt)
     if (!this.sessionEventsBound) {
       this.sessionEventsBound = true
       this.ctx.on('session/event', (session, event) => {
@@ -229,7 +243,45 @@ export class DshGateway {
         this.assertPersistedIdentity(route, workspace, inspected.meta, inspected.events)
       }
     }
+    this.observeRecovery(ingressBefore, outboundBefore, ingressRecovered, outboundRecovered, observedAt)
     this.started = true
+  }
+
+  private observeRecovery(
+    ingressBefore: readonly import('./ingress-journal.js').GatewayIngressRecord[],
+    outboundBefore: readonly import('./outbound-journal.js').GatewayOutboundRecord[],
+    ingressRecovered: number,
+    outboundRecovered: number,
+    observedAt: number,
+  ): void {
+    if (ingressRecovered === 0 && outboundRecovered === 0) return
+    const byWorkspace = new Map<string, { ingressRecovered: number; outboundRecovered: number }>()
+    for (const record of ingressBefore) {
+      const route = this.route(record.routeId)
+      if (route === undefined) continue
+      const entry = byWorkspace.get(route.workspaceId) ?? { ingressRecovered: 0, outboundRecovered: 0 }
+      entry.ingressRecovered += 1
+      byWorkspace.set(route.workspaceId, entry)
+    }
+    for (const record of outboundBefore) {
+      const route = this.route(record.routeId)
+      if (route === undefined) continue
+      const entry = byWorkspace.get(route.workspaceId) ?? { ingressRecovered: 0, outboundRecovered: 0 }
+      entry.outboundRecovered += 1
+      byWorkspace.set(route.workspaceId, entry)
+    }
+    const observations = [...byWorkspace.entries()].map(([workspaceId, counts]) => Object.freeze({
+        workspaceId,
+        ...counts,
+        observedAt,
+      }))
+    this.recoveryObservationsValue = Object.freeze(observations)
+    for (const observation of observations) this.ctx.emit('evoforge/gateway/recovery', observation)
+  }
+
+  /** Read-only replay seam for observers that attach after Gateway startup. */
+  recoveryObservations(): readonly GatewayRecoveryObservation[] {
+    return this.recoveryObservationsValue.map(observation => Object.freeze({ ...observation }))
   }
 
   route(id: string): ResolvedGatewayRoute | undefined {

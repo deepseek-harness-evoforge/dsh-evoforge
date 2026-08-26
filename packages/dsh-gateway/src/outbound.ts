@@ -105,11 +105,12 @@ export class GatewayOutboundCoordinator {
     private readonly onTerminal: (record: GatewayOutboundRecord) => void = () => {},
   ) {}
 
-  async start(now: number): Promise<void> {
-    if (this.started) return
+  async start(now: number): Promise<number> {
+    if (this.started) return 0
     if (this.stopping !== undefined) throw new Error('Gateway outbound coordinator is stopping')
-    await this.journal.recoverInflight(now)
+    const recovered = await this.journal.recoverInflight(now)
     this.started = true
+    return recovered
   }
 
   register(config: GatewayTextAdapterConfig): GatewayTextAdapterRegistration {

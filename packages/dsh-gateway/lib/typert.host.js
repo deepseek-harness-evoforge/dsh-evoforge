@@ -268,6 +268,14 @@ export const TYPERT = {
         "jsDoc": "/** Terminal outbound observation for optional long-term evidence projection. */",
         "name": "evoforge/gateway/outbound",
         "signature": "'evoforge/gateway/outbound'(observation: GatewayOutboundObservation & { readonly workspaceId: string; }): void"
+      },
+      {
+        "description": "Startup observation for inflight journal entries recovered after a prior interruption.",
+        "summary": "Startup observation for inflight journal entries recovered after a prior interruption.",
+        "tags": [],
+        "jsDoc": "/** Startup observation for inflight journal entries recovered after a prior interruption. */",
+        "name": "evoforge/gateway/recovery",
+        "signature": "'evoforge/gateway/recovery'(observation: GatewayRecoveryObservation): void"
       }
     ],
     "objects": []

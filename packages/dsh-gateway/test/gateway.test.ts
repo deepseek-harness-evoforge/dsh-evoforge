@@ -471,6 +471,58 @@ describe('DshGateway', () => {
     expect(host.created).toEqual([])
     expect(host.attached.size).toBe(0)
   })
+
+  it('emits one workspace-scoped recovery observation for interrupted journals', async () => {
+    const facility = memoryFacility()
+    const ingress = await openGatewayIngressJournal(facility)
+    await ingress.prepare({
+      id: 'a'.repeat(64),
+      routeId: 'telegram-a',
+      workspaceId: 'workspace-a',
+      sessionId: 'session-a',
+      eventHash: 'b'.repeat(64),
+      contentHash: 'c'.repeat(64),
+      kind: 'message',
+      now: 100,
+    })
+    await ingress.begin('a'.repeat(64), 101)
+    const outbound = await openGatewayOutboundJournal(facility)
+    const prepared = await outbound.prepare({
+      routeId: 'telegram-a',
+      kind: 'response',
+      intentKey: 'response:recovery-observation',
+      text: 'recovery evidence',
+      now: 100,
+    })
+    await outbound.begin(prepared.record.id, 101)
+    await Promise.all([ingress.close(), outbound.close()])
+
+    const host = fakeNativeHost()
+    const gateway = new DshGateway(
+      host.ctx,
+      routes,
+      await openGatewayIngressJournal(facility),
+      await openGatewayOutboundJournal(facility),
+    )
+    await gateway.start()
+
+    expect(host.emitted).toContainEqual({
+      event: 'evoforge/gateway/recovery',
+      value: {
+        workspaceId: 'workspace-a',
+        ingressRecovered: 1,
+        outboundRecovered: 1,
+        observedAt: expect.any(Number),
+      },
+    })
+    expect(gateway.recoveryObservations()).toEqual([{
+      workspaceId: 'workspace-a',
+      ingressRecovered: 1,
+      outboundRecovered: 1,
+      observedAt: expect.any(Number),
+    }])
+    await gateway.stop()
+  })
 })
 
 function fakeNativeHost(): {
@@ -482,6 +534,7 @@ function fakeNativeHost(): {
   executed: Array<{ sessionId: string; line: string }>
   commandLines: Set<string>
   persisted: Map<string, { meta: Record<string, unknown>; events: unknown[] }>
+  emitted: Array<{ event: string; value: Record<string, unknown> }>
 } {
   const attached = new Map<string, string[]>()
   const messages = new Map<string, string[]>()
@@ -491,6 +544,7 @@ function fakeNativeHost(): {
   const executed: Array<{ sessionId: string; line: string }> = []
   const commandLines = new Set<string>()
   const persisted = new Map<string, { meta: Record<string, unknown>; events: unknown[] }>()
+  const emitted: Array<{ event: string; value: Record<string, unknown> }> = []
   const workspaces = new Map([
     ['workspace-a', workspace('workspace-a', '/work/a', attached)],
     ['workspace-b', workspace('workspace-b', '/work/b', attached)],
@@ -556,8 +610,11 @@ function fakeNativeHost(): {
       },
     },
     on() {},
+    emit(event: string, value: Record<string, unknown>) {
+      emitted.push({ event, value })
+    },
   } as unknown as Context
-  return { ctx, attached, messages, contents, created, executed, commandLines, persisted }
+  return { ctx, attached, messages, contents, created, executed, commandLines, persisted, emitted }
 }
 
 function workspace(id: string, path: string, attached: Map<string, string[]>): object {

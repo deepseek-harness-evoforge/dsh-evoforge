@@ -2746,6 +2746,14 @@ export const TYPERT = {
         "jsDoc": "/** Optional terminal Gateway observation; body and credentials are never included. */",
         "name": "evoforge/gateway/outbound",
         "signature": "'evoforge/gateway/outbound'(observation: { readonly workspaceId: string; readonly recordId: string; readonly routeId: string; readonly adapter: string; readonly intentKeyHash: string; readonly operationKeyHash: string; readonly status: 'applied' | 'unknown'; readonly attempts: number; readonly observedAt: number; }): void"
+      },
+      {
+        "description": "Startup observation for exact Gateway journal recovery after interruption.",
+        "summary": "Startup observation for exact Gateway journal recovery after interruption.",
+        "tags": [],
+        "jsDoc": "/** Startup observation for exact Gateway journal recovery after interruption. */",
+        "name": "evoforge/gateway/recovery",
+        "signature": "'evoforge/gateway/recovery'(observation: { readonly workspaceId: string; readonly ingressRecovered: number; readonly outboundRecovered: number; readonly observedAt: number; }): void"
       }
     ],
     "objects": []
