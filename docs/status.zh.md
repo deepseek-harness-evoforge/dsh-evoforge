@@ -216,6 +216,11 @@ V5.43 修复了双 DSH assembled 矩阵中 Case Pack epoch 固定为 rc.2 的身
 本地 rc.5 四个 assembled Shadow 已 4/4 通过；新的 GitHub 运行尚未完成，不提升 CI 或 release gate。详见
 [V5.43](evidence/v5-43-dsh-matrix-case-pack-identity-2026-08-26.zh.md)。
 
+V5.44 继续修复真实干净 runner 的 DSH 组装前置：`build:lib` 不会生成 Web frontend dist，且部分崩溃 fixture
+直接加载的 `dsh-llm/lib` 入口可能缺失；两个审计 revision 的 assembled job 现执行官方完整 `pnpm build`，
+并由 `check:ci` 固定该路径。V5.44 的本地 rc.5 完整构建已通过，GitHub 修复后 run 尚未完成，因此不提升
+任何 CI 或 release gate。详见 [V5.44](evidence/v5-44-ci-full-dsh-build-2026-08-26.zh.md)。
+
 V5.35 将发布阻断提升为机器可执行的 `release-gates.json`：`check:release:gates` 会把 partial/not-run/failed
 证据明确归为阻断，`release:tag` 还要求 clean `main` 且 `HEAD == origin/main`，只创建 annotated tag，不提供绕过
 外部门禁的开关。当前该命令按设计失败，阻断项见 [release-gates.json](../release-gates.json)。

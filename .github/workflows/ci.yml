@@ -74,12 +74,11 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Install pinned DSH dependencies
         run: pnpm --dir .evoforge/deepseek-harness install --frozen-lockfile
-      - name: Build pinned DSH libraries (host and client)
-        # The clean-profile loader starts on the Host, but the profile's
-        # dependency fallback also resolves client-declared packages such as
-        # dsh-typert-registry through their package main entry.  Host-only
-        # builds leave that entry absent on a clean runner.
-        run: pnpm --dir .evoforge/deepseek-harness build:lib
+      - name: Build pinned DSH runtime and Web artifacts
+        # The assembled tests boot the real Web profile.  build:lib alone
+        # leaves both the frontend dist and some host package entrypoints
+        # (notably dsh-llm/lib) absent on a clean runner.
+        run: pnpm --dir .evoforge/deepseek-harness build
       - name: Build EvoForge integration packages
         run: |
           pnpm --filter dsh-evolve build
