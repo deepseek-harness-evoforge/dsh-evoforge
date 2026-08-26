@@ -1,0 +1,91 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'dsh-v*'
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify-and-publish:
+    name: Verify and publish public Bundles
+    runs-on: ubuntu-latest
+    environment:
+      # Protect this environment with maintainer approval and the npm
+      # publishing secret/trusted publisher configuration.
+      name: npm
+      url: https://www.npmjs.com/search?q=dsh-evoforge
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@a8198c4bff370c8506180b035930dea56dbd528c # v5
+        with:
+          version: 11.7.0
+
+      - name: Install Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Configure npm registry
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          npm config set registry https://registry.npmjs.org/
+          if [ -n "$NPM_TOKEN" ]; then
+            npm config set //registry.npmjs.org/:_authToken "$NPM_TOKEN"
+          fi
+
+      - name: Check tag and package versions
+        run: node scripts/check-release-tag-version.mjs --tag "$GITHUB_REF_NAME"
+
+      - name: Checkout pinned DeepSeek Harness
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: deepseek-ai/deepseek-harness
+          ref: b150a551b8d465e31e418e1b2eaf5e79bbb7d28e
+          path: .evoforge/deepseek-harness
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install pinned DSH dependencies
+        run: pnpm --dir .evoforge/deepseek-harness install --frozen-lockfile
+
+      - name: Build pinned DSH runtime and Web artifacts
+        run: pnpm --dir .evoforge/deepseek-harness build
+
+      - name: Run complete repository checks
+        env:
+          DSH_EVOLVE_DSH_SOURCE_DIR: ${{ github.workspace }}/.evoforge/deepseek-harness
+        run: pnpm check
+
+      - name: Run static release preflight
+        run: pnpm run check:release
+
+      - name: Run all required release gates
+        run: pnpm run check:release:gates
+
+      - name: Build publish artifacts
+        run: pnpm -r build
+
+      - name: Publish all public Bundles
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: 'true'
+        run: |
+          for package_dir in packages/*; do
+            npm publish "$package_dir" --access public --provenance
+          done

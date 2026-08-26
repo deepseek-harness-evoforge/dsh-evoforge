@@ -22,6 +22,7 @@ const head = git(['rev-parse', 'HEAD']).stdout.trim()
 const originMain = git(['rev-parse', 'refs/remotes/origin/main']).stdout.trim()
 if (head !== originMain) throw new Error('Release tag requires HEAD to equal origin/main')
 
+runNode('scripts/check-release-tag-version.mjs', ['--tag', args.tag])
 runNode('scripts/check-release.mjs')
 runNode('scripts/check-release-gates.mjs')
 
@@ -48,8 +49,8 @@ if (args.push) {
   console.log(`Pushed ${args.tag} to origin`)
 }
 
-function runNode(script) {
-  run(process.execPath, [resolve(repositoryRoot, script)])
+function runNode(script, scriptArgs = []) {
+  run(process.execPath, [resolve(repositoryRoot, script), ...scriptArgs])
 }
 
 function run(command, commandArgs) {

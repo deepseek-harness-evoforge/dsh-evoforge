@@ -19,6 +19,11 @@ All notable changes will be recorded here. The project has not published a stabl
 - `pack:suite --help` now separates the four user-facing suites from the optional, compatibility, advanced, and
   maintainer-only entries, so internal Bundle composition is not presented as a twelve-way product picker; a regression
   test now locks this public ordering.
+- Added a tag/version consistency gate and a protected tag-triggered GitHub release workflow. It reruns the full check
+  and every required release gate before publishing public Bundles to npm; the `npm` Environment remains maintainer-
+  approved and no gate bypass is available. The local annotated-tag command runs the same version check before creating
+  the tag, while the workflow supports either an npm token or trusted publishing. A workflow contract test now locks
+  the tag-only trigger, protected Environment, gate-before-publish order, and commit-pinned Actions.
 - The Evolution Control Center child surface now contributes a localized navigation label (`演化`/`Evolution`) instead
   of exposing its internal `evoforge-evolution` slot id to users.
 - The dual DSH assembled matrix now materializes a temporary Case Pack copy whose epoch is bound to the checked-out
