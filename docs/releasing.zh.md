@@ -7,7 +7,7 @@ EvoForge 以 DSH 官方 Bundle 作为交付单元，以能力套件作为用户�
 - 所有插件包在一次发布中使用同一 SemVer 版本；版本变更必须同时更新 `CHANGELOG.md`、套件清单和验证证据。
 - 只在 `main` 开发。通过测试的最小增量原子提交并推送 `origin/main`，不使用功能分支或 Git 分支保存 Candidate。
 - Candidate 由运行时内容寻址存储保存；发布版本用 annotated tag 标记，例如 `dsh-v0.1.0-alpha.1`。tag 只能指向已在 `main` 验证过的提交，不能用轻量 tag 或手工改包覆盖。
-- `pnpm run check:release` 是 tag 前静态预检；它检查 clean worktree、统一版本、能力套件完整性和 Changelog 入口。`--allow-dirty` 只用于本地演练，不构成发布证据。
+- `pnpm run check:release` 是 tag 前静态预检；它检查 clean worktree、统一版本、MIT/仓库/README/Bundle patch 公共包元数据、能力套件完整性和 Changelog 入口。`--allow-dirty` 只用于本地演练，不构成发布证据。
 
 ## 可复现的安装包
 

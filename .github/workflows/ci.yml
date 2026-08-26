@@ -36,6 +36,8 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Check repository
         run: pnpm check
+      - name: Check release metadata
+        run: pnpm run check:release
       - name: Verify package contents
         run: pnpm run pack:full -- --out "$RUNNER_TEMP/evoforge-full"
 

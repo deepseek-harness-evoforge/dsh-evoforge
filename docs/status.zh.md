@@ -182,6 +182,10 @@ V5.33 在获得真实 App 配置后实际启动了 epoch-3 runner：最终 tarba
 均通过，但常驻 Gateway 等待真实私聊配对码时超时，`residentPairingGranted=false`，因此终态是 `failed`，未执行任何
 回复、Command、Schedule、Approval、重启或卸载门。详见 [V5.33 失败记录](evidence/v5-33-real-feishu-pairing-timeout-2026-08-26.zh.md)。
 
+本轮开源发布审计还补齐了 `dsh-control-center` 的包 README，并让 `check:release`/CI 强制检查每个公开 Bundle 的
+MIT、仓库地址、README、Cordis patch 文件和导出契约；English README 与四个默认安装入口同步。该门只证明发布
+元数据和文档可复核，不改变真实 Provider、真实飞书完整 epoch-3 或 Hermes paired 的未完成状态。
+
 V5.9 修复 Runtime Readiness 的连接盲区：`dsh-feishu`/`dsh-telegram` 仅有 active fiber 不再足以让
 `/doctor` 报 READY。Doctor 在命令时读取现有 Gateway 脱敏 transport facts，独立归约 unavailable、changing、
 ready 与 degraded；损坏服务 fail closed。最终 Doctor tarball 已经官方 add/dump，在真实 DSH Loader 中完成

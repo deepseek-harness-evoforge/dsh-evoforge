@@ -47,6 +47,6 @@
     "typecheck": "pnpm -r typecheck",
     "pretest": "pnpm --filter dsh-gateway run build",
     "test": "pnpm -r --filter '!dsh-telegram' --filter '!dsh-feishu' test && pnpm --filter dsh-telegram test && pnpm --filter dsh-feishu test",
-    "check": "pnpm run check:docs && pnpm run check:dsh-compatibility-script && pnpm run benchmark:hermes:ev1:typecheck && pnpm run benchmark:provider:rp1:check && pnpm run benchmark:feishu:as2:check && pnpm run typecheck && pnpm run test && pnpm run build"
+    "check": "pnpm run check:docs && pnpm run check:suites && pnpm run check:dsh-compatibility-script && pnpm run benchmark:hermes:ev1:typecheck && pnpm run benchmark:provider:rp1:check && pnpm run benchmark:feishu:as2:check && pnpm run typecheck && pnpm run test && pnpm run build"
   }
 }
