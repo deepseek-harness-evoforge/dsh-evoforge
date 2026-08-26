@@ -308,7 +308,7 @@ async function expectCliHostStarts(
 ): Promise<void> {
   // This is a lifecycle probe, not a browser handoff. Opening the ephemeral
   // port leaves a dead DSH tab behind as soon as the probe terminates.
-  const child = spawn(process.execPath, [dshBin, '--profile', profile, '--port', '0', '--no-open'], {
+  const child = spawn(process.execPath, [dshBin, '--profile', profile, '--port', '0'], {
     cwd,
     env,
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -368,7 +368,7 @@ async function bootProfile(profileName: string, dshHome: string) {
       shippedPresetPatch,
     ],
     (hostCtx: { provide: (...args: unknown[]) => unknown }) => provideCmdline(hostCtx, {
-      args: ['--port', '0', '--no-open'],
+      args: ['--port', '0'],
       exit: () => {},
     }),
   )

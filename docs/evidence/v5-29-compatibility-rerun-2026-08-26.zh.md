@@ -7,16 +7,15 @@
 | 目标 | revision | 结果 | 说明 |
 |---|---|---|---|
 | DSH `0.1.1-rc.2` | `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e` | `passed` | 使用当前 `main` 的 `pnpm test:dsh-compatibility`，doctor、software-delivery、evolve、feishu 四组兼容门全部通过。 |
-| DSH `0.1.0-rc.5` | `47f943859bef60e4160492346772ded9b24f765a` | `blocked` | rc.5 checkout 可构建，doctor 契约通过；clean-profile 与 suite-upgrade 在测试前置/宿主装配处失败，尚不能作为当前代码的通过证据。 |
+| DSH `0.1.0-rc.5` | `47f943859bef60e4160492346772ded9b24f765a` | `passed` | 修正测试 harness 的 CLI 参数并先构建 rc.5 Web frontend 后，doctor、clean-profile、suite-upgrade、evolve、feishu 全部通过。 |
 
-## rc.5 阻断的可复核原因
+## 初始阻断与修复
 
-1. 当前 rc.5 Web CLI 已删除 `--no-open` 选项，而兼容测试仍把该选项传给 `dsh web`；Host 在 readiness 前以 `unknown option '--no-open'` 退出。这是测试与 DSH CLI contract 的漂移，不是把失败标成插件运行成功的理由。
-2. suite-upgrade 临时 profile 的 Cordis loader 找不到 rc.5 宿主自带的 `@deepseek-ai/dsh-*` 包。该 profile 只安装 EvoForge tarball，需按 rc.5 最新官方宿主装配方式重新建立 fixture 后才能继续验证。
+1. 当前 rc.5 Web CLI 已删除 `--no-open` 选项；兼容测试已改为使用官方当前 `--port` 参数，不再向 Host 传入已删除的 flag。
+2. rc.5 Web Bundle 要求 frontend dist 已构建；重跑前执行 `pnpm run build:lib` 与 `pnpm run build:web`，按官方宿主装配方式建立完整 fixture。
 
 ## 结论与后续门
 
 - V5.16 的“两个目标各 30 项通过”是 2026-08-24 的历史快照；本记录把当前重跑结果单独保留。
-- 当前发布基线可声明为：rc.2 已重验；rc.5 兼容性待修正测试 harness/clean-profile fixture 后重验。
-- 在 rc.5 重验通过前，不创建 release tag，不宣称当前代码已完成双版本兼容。
-
+- 当前发布基线可声明为：rc.2 与 rc.5 均已由当前 `main` 重验通过。
+- 这只证明 DSH 兼容与生命周期门，不替代真实 Provider、飞书完整 epoch-3、浏览器迁移和 Hermes paired 发布门。
