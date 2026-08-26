@@ -76,7 +76,24 @@ export function ControlCenterView({ renderSlot, surfaces, t }: ControlCenterView
       </aside>
       <div className="dsh-cc-stage">
         {active === undefined
-          ? <controlSurfaceUI.Empty title={t('empty.title')} description={t('empty.description')} />
+          ? <div className="dsh-cc-empty-state">
+            <controlSurfaceUI.Empty title={t('empty.title')} description={t('empty.description')} />
+            <section className="dsh-cc-empty-guide" aria-label={t('empty.guideTitle')}>
+              <div className="dsh-cc-empty-guide-head">
+                <span>{t('empty.guideEyebrow')}</span>
+                <strong>{t('empty.guideTitle')}</strong>
+              </div>
+              <div className="dsh-cc-empty-suite-grid">
+                {(['core', 'channels', 'delivery', 'continuity'] as const).map(suite => (
+                  <article key={suite} className="dsh-cc-empty-suite">
+                    <span className="dsh-cc-empty-suite-key">{suite}</span>
+                    <p>{t(`empty.suite.${suite}`)}</p>
+                  </article>
+                ))}
+              </div>
+              <p className="dsh-cc-empty-note">{t('empty.guideNote')}</p>
+            </section>
+          </div>
           : renderSlot('evoforge.control.surface', { ui: controlSurfaceUI }, { only: active.id })}
       </div>
     </div>

@@ -19,6 +19,9 @@ All notable changes will be recorded here. The project has not published a stabl
 - `pack:suite --help` now separates the four user-facing suites from the optional, compatibility, advanced, and
   maintainer-only entries, so internal Bundle composition is not presented as a twelve-way product picker; a regression
   test now locks this public ordering.
+- The native Control Center empty state now explains the four public capability suites (`core`, `channels`, `delivery`,
+  and `continuity`) and explicitly distinguishes those user entry points from independently manageable underlying
+  Bundles, so a profile with no contributed surfaces is still self-explanatory.
 - Added a tag/version consistency gate and a protected tag-triggered GitHub release workflow. It reruns the full check
   and every required release gate before publishing public Bundles to npm; the `npm` Environment remains maintainer-
   approved and no gate bypass is available. The local annotated-tag command runs the same version check before creating

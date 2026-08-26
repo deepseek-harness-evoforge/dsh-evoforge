@@ -46,5 +46,8 @@ describe('ControlCenterView', () => {
     render(<ControlCenterView {...props} />)
     expect(screen.getByText('暂无可视化插件')).toBeTruthy()
     expect(screen.getByText(/自动出现在这里/u)).toBeTruthy()
+    expect(screen.getByText('按能力安装')).toBeTruthy()
+    expect(screen.getByText('自进化、诊断与统一控制面')).toBeTruthy()
+    expect(screen.getByText('这些是用户入口；底层 Bundle 仍可独立启停和卸载。')).toBeTruthy()
   })
 })
