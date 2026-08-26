@@ -54,6 +54,14 @@ _Avoid_: DSH daemon plugin, supervisor database, high availability
 A point-in-time, read-only answer to whether the capabilities an operator explicitly requires are currently usable. Plugin lifecycle facts come from Loader; required Feishu/Telegram connection facts come from the existing DSH Gateway transport snapshot. Its outcome is `ready`, `not-ready`, or `unknown`; it names concrete blockers and next actions without probing platforms, repairing them, retaining health history, or becoming a second lifecycle authority.
 _Avoid_: Invariant result, plugin inventory, uptime monitor, auto-repair plan
 
+**EvoForge Control Center**:
+The removable DSH Client Module that occupies one native session `conversation.view`, owns the suite's common visual language, and declares the additive Plugin Control Surface seam. It composes browser projections only; DSH and each Host plugin remain authoritative for lifecycle, Session, permissions, persistence, status, and actions.
+_Avoid_: Standalone website, custom router, global dashboard service, second status store
+
+**Plugin Control Surface**:
+A session-scoped browser projection contributed by an EvoForge plugin through the Control Center child slot. It receives common layout and interaction primitives from the slot owner and reads or mutates only through that plugin's existing Host/DSH authority.
+_Avoid_: New plugin manifest, independent page shell, browser-owned authority, cross-plugin registry
+
 **Feishu Content Readiness**:
 A point-in-time Host conclusion for one exact DSH Session that distinguishes configured Feishu content permissions, the Session's current native Tool/Approval availability, and future-Session-only activation. Platform resource authorization remains explicitly unverified until an approved real read.
 _Avoid_: Configured means authorized, platform permission probe, Gateway content capability, current-Session schema rewrite

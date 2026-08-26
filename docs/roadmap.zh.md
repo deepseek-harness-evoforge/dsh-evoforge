@@ -17,9 +17,10 @@
 > V5.24 已增加 resident grant 精确撤销：Pairing Domain 原子 grant→revoked、幂等 receipt、下一条 DM 重新 code；静态 route 和活动 ingress/outbound effect fail closed，Session 不删除。Typert Remote 与 Gateway Web 只为动态 route 提供二次确认。最终 tarball 已在真实 rc.2 profile 升级/冷启动并恢复现有 route、3/3 journal 与 ready transport；未实际中断项目所有者的授权。
 > V5.25 已让默认根级开发门与最新 rc.2 源码一致：活动示例 Case Pack 精确锁 rc.2，补齐测试 LLM `prepareCall()` 和 Command images 参数；Evolve 305 passed / 1 skipped、GitHub Review 27/27。冻结 Hermes 与双版本 compatibility gate 不改写。
 > V5.26 已把 Web 人工交付入口与临时测试 Host 分离：生命周期测试全程 `--no-open`，真实 Chrome 只保留常驻 `3080`，Gateway 控制面点击/刷新已通过。飞书并发卸载改为分阶段失败隔离，Gateway 先停也不能跳过平台断连；30 次 assembled 重复门与 Feishu 45/45 通过。
+> V5.27 已把 Gateway/飞书分散的 fixed dialog 推翻为 `dsh-control-center`：一个 DSH 原生 `conversation.view`、一个 Cordis child Surface slot、一套公共视觉原语，Gateway 与飞书作为两个真实 Adapter 接入；十二包 clean-profile 和真实 Chrome 成功/刷新/断连保留/恢复关闭该纵切。Evolution 复杂控制面尚未迁入，下一步按同一 seam 渐进迁移，而不是再造全局 Router。
 > V4.38 已在 existing-Skill Candidate proposer 前生成并校准 Candidate 不可见的完整 `skill-tree` holdout Envelope；V4.39 已把 exact Envelope 纳入 Candidate 内容身份并消费该 Envelope 与 V4.37 exact 双树执行 assembled paired Trial。下一门是独立 Retention/Canary/晋升/回滚，而不是再次生成或搜索能力。
 > V4.40–V4.45 已完成 Retention、发布门与最终包浏览器生命周期；V4.46–V4.48 已完成 existing-Skill failed-Outcome Canary、权威 Control/Remote/Web、独立 expected-active rollback gate 与最终 tarball 浏览器故障恢复；V4.49 已完成 missing-Skill 同类最终包故障恢复。下一门是两套独立真实 provider。
-> 更新日期：2026-08-25
+> 更新日期：2026-08-26
 
 ## 开发与发布纪律
 
@@ -46,9 +47,9 @@
 - DSH/Cordis 只作为 peer + dev dependency；
 - 建立覆盖全部包的 clean-profile tarball add/dump/boot/remove/readback gate。
 
-退出门：仓库只有一个权威集成分支和一套真实用户安装路径，原生 DSH 数据在卸载后仍可读取。**十一包统一 clean-profile gate 已完成，已收拢并推送到 `main`。**
+退出门：仓库只有一个权威集成分支和一套真实用户安装路径，原生 DSH 数据在卸载后仍可读取。**当前十二包统一 clean-profile gate 已完成；第十二包是只含 DSH 原生 Client 组合面的 `dsh-control-center`。**
 
-上游版本扩展门：每个新的 DSH RC 必须作为独立 assembled 矩阵目标完成十一包安装、dump、boot、真实
+上游版本扩展门：每个新的 DSH RC 必须作为独立 assembled 矩阵目标完成当前十二包安装、dump、boot、真实
 Agent/Session/Goal 路径、reload/dispose、前代升级、卸载和原生 readback；只有设计审计不能扩大 peer/support 声明。
 
 ## V1 — Workspace DSH Gateway
@@ -62,7 +63,7 @@ Agent/Session/Goal 路径、reload/dispose、前代升级、卸载和原生 read
 
 ## V2 — 飞书 Adapter
 
-实现状态：Adapter、Gateway 公共可靠投递、真实 DSH 单 Workspace 组合、双 Workspace 双渠道同 Host 重启隔离、Telegram/飞书进化注意力、tarball lifecycle 与十一包总装已完成。旧 setup-only Session 配对已删除；resident Adapter 现于 Bundle boot 连接，陌生私聊在 Agent 前回 code，Host Web 原子批准到当前 native Session，未来消息无需重启即可采用 exact grant。动态 grant 现可由 Host Web 两步精确撤销；静态 route、活动 effect 和 Session 删除均 fail closed。assembled Host 与 44 项 Feishu、32 项 Gateway 测试通过；最新最终 tarball 已安装进真实 rc.2 web profile。真实用户已完成 DM→code→Host approve，并以普通文本、原生 `/new` Command、普通文本三次进入同一 native Session、收到三次回复；Gateway journal 为 3 ingress/3 outbound、零 pending/uncertain/failed。Host 干净重启后 exact grant、Session、journal 与 `official-feishu-websocket: ready` 均恢复且无重复投递。仍需补重启后新增消息、实际撤销/重新配对、真实 Approval 卡片、官方 Schedule、group policy、故障注入与长期重连。图片纵切仅证明原生 `ImageAttachmentRef`；文档/Wiki/Drive metadata/Bitable 的 assembled Tool/Approval 已通过，但真实 App scope、资源权限和数据仍待验收。普通文件、音视频继续 pending，不发明 Gateway file block。
+实现状态：Adapter、Gateway 公共可靠投递、真实 DSH 单 Workspace 组合、双 Workspace 双渠道同 Host 重启隔离、Telegram/飞书进化注意力、tarball lifecycle 与十二包总装已完成。旧 setup-only Session 配对已删除；resident Adapter 现于 Bundle boot 连接，陌生私聊在 Agent 前回 code，Host Web 原子批准到当前 native Session，未来消息无需重启即可采用 exact grant。动态 grant 现可由 Host Web 两步精确撤销；静态 route、活动 effect 和 Session 删除均 fail closed。Gateway/飞书 Web 已进入 `dsh-control-center` 原生控制台，不再用 fixed dialog。真实用户已完成 DM→code→Host approve，并以普通文本、原生 `/new` Command、普通文本三次进入同一 native Session、收到三次回复；Gateway journal 为 3 ingress/3 outbound、零 pending/uncertain/failed。Host 干净重启后 exact grant、Session、journal 与 `official-feishu-websocket: ready` 均恢复且无重复投递。仍需补重启后新增消息、实际撤销/重新配对、真实 Approval 卡片、官方 Schedule、group policy、故障注入与长期重连。图片纵切仅证明原生 `ImageAttachmentRef`；文档/Wiki/Drive metadata/Bitable 的 assembled Tool/Approval 已通过，但真实 App scope、资源权限和数据仍待验收。普通文件、音视频继续 pending，不发明 Gateway file block。
 
 V5.8 的 AS-2 已把 V2 的真实平台退出路径编码为 fail-closed 入口；V5.21 的 epoch-2 又把官方 DSH
 Schedule create/dispatch/插件来源 `user/message`、同 route delivered 增量与卸载后 readback 纳入关闭 hard gate。
@@ -220,7 +221,7 @@ route 消息、真实卡片点击、真实 App 内容权限与完整评测演进
 - DSH Web 真实浏览器成功、刷新和失败路径；
 - 多 Workspace、自我发现、自进化、Gateway、消息、审批、崩溃恢复和软件交付的 Hermes paired benchmark；
 - 四个 deterministic frozen Hermes epoch 已在 V5.13 从当前内容寻址路径完整复跑；真实模型、真实渠道与长期 epoch 仍 pending；
-- 十一包 frozen-predecessor→当前最终 tarball 的官方 CLI 升级纵切已在 V5.14 通过；首个真实发布 tag 后仍须建立 tag→tag 升级矩阵；
+- 冻结十一包 predecessor→当前十二包最终 tarball 的官方 CLI 升级纵切在 V5.27 重验；首个真实发布 tag 后仍须建立 tag→tag 升级矩阵；
 - 真实 provider 的长期 retention/transfer/negative-transfer/false-promotion/false-rollback 与成本数据。
 - RP-1 双真实 Provider 入口已实现并通过无调用合同门，当前 `NOT_RUN`；只有显式批准后的 `status: passed` 才算这一阶段的真实 Provider 证据。
 - 四个真实 Provider authoring seam 均有 60 秒 wall-clock 上限；治理请求与 Host cancellation 组合，timeout 后沿用 `uncertain` 且不盲重试。

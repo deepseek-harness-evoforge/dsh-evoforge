@@ -8,7 +8,7 @@ EvoForge 只作为 DSH 原生 Bundle 套件运行。本页区分“开发者生�
 - DeepSeek Harness revision `47f943859bef60e4160492346772ded9b24f765a`（`0.1.0-rc.5`）；
 - 一个 DSH `web` profile。
 
-当前包尚未发布到 registry。先在本仓生成十一个 `0.1.0-alpha.1.tgz`；这一步只生成 DSH 安装产物，不启动 EvoForge Runtime：
+当前包尚未发布到 registry。先在本仓生成十二个 `0.1.0-alpha.1.tgz`；这一步只生成 DSH 安装产物，不启动 EvoForge Runtime：
 
 ```sh
 pnpm install --frozen-lockfile
@@ -16,7 +16,7 @@ PACK_DIR="$(mktemp -d)"
 for package in \
   dsh-evolve dsh-evolve-web dsh-software-delivery dsh-doctor \
   dsh-github-review dsh-telegram dsh-evolve-attention dsh-goal-continuity \
-  dsh-resident dsh-gateway dsh-feishu
+  dsh-resident dsh-gateway dsh-feishu dsh-control-center
 do
   pnpm --filter "$package" pack --pack-destination "$PACK_DIR"
 done
@@ -29,7 +29,7 @@ dsh plugin --profile web add "$PACK_DIR"/*.tgz
 dsh --profile web --dump-config
 ```
 
-有效配置应各出现一次：`dsh-evolve`、`dsh-evolve-web`、`dsh-software-delivery`、`dsh-doctor`、`dsh-github-review`、`dsh-telegram`、`dsh-evolve-attention`、`dsh-goal-continuity`、`dsh-resident`、`dsh-gateway`、`dsh-feishu`。涉及外部身份、凭据、自动恢复或 OS 部署的 row 应保持 disabled，直到部署者提供完整静态配置。
+有效配置应各出现一次：`dsh-evolve`、`dsh-evolve-web`、`dsh-software-delivery`、`dsh-doctor`、`dsh-github-review`、`dsh-telegram`、`dsh-evolve-attention`、`dsh-goal-continuity`、`dsh-resident`、`dsh-gateway`、`dsh-feishu`、`dsh-control-center`。涉及外部身份、凭据、自动恢复或 OS 部署的 row 应保持 disabled，直到部署者提供完整静态配置。
 
 启动唯一的 DSH Host：
 
@@ -43,7 +43,7 @@ dsh --profile web
 
 1. `/doctor` 读取原生 Loader entries；若飞书/Telegram 是必需且 active 的模块，再读取现有 Gateway 脱敏
    transport health，返回三态 readiness。它不探测凭据/平台、不修复，也不复制第二份健康状态。
-2. `/evolve status` 与 DSH Web 侧栏读取同一个 Host 权威状态；普通用户在回答下点击“有问题的回答”→“补充说明”，写清错误与正确结果后保存，不需要另学反馈命令。
+2. DSH Web 的原生“控制台”页统一承载 Gateway 渠道健康和飞书内容就绪 Surface；各 Surface 读取原插件 Host 权威，不调用模型，也不复制状态库。`/evolve status` 与现有演化 Web 仍读取同一个演化 Host 权威，迁入公共 Surface 前不冒充已完成。
 3. 创建原生 DSH Goal，让 Agent 按需加载 `software-delivery` Skill；`complete_delivery` 通过该 Agent 的 DSH Bash、Sandbox、Approval 和原生 `update_goal` 完成交付。
 4. `dsh-github-review` 只把 allowlist 人类对 exact Draft PR head 的修改要求作为有界、不可信 follow-up 送回原 Session。
 5. Telegram 与飞书只通过 DSH Gateway 绑定原生 Workspace/Session/Agent；进化注意力和 Goal cold resume 也不创建第二套会话、目标或调度。
@@ -165,7 +165,7 @@ dsh --profile web
 dsh plugin --profile web remove \
   dsh-evolve-web dsh-evolve dsh-software-delivery dsh-doctor \
   dsh-github-review dsh-evolve-attention dsh-telegram dsh-goal-continuity \
-  dsh-resident dsh-feishu dsh-gateway
+  dsh-resident dsh-feishu dsh-gateway dsh-control-center
 dsh --profile web --dump-config
 dsh --profile web
 ```
@@ -184,6 +184,6 @@ DSH_EVOLVE_DSH_SOURCE_DIR=/absolute/path/to/deepseek-harness \
 pnpm benchmark:hermes
 ```
 
-clean-profile gate 从全部十一个用户包的 tarball 开始，通过一次官方 DSH CLI 安装、dump、boot，在注册后的原生 Workspace 与真实 Agent preset/Session/Goal 内触发 packed Tool，flush 原生持久化，再一次卸载全部十一包、重启并读回 Goal。它同时检查每个 tarball 无用户产品 bin、无 `node_modules`，且 production dependencies 不携带 DSH/Cordis。
+clean-profile gate 从全部十二个用户包的 tarball 开始，通过一次官方 DSH CLI 安装、dump、boot，在注册后的原生 Workspace 与真实 Agent preset/Session/Goal 内触发 packed Tool，flush 原生持久化，再一次卸载全部十二包、重启并读回 Goal。它同时检查每个 tarball 无用户产品 bin、无 `node_modules`，且 production dependencies 不携带 DSH/Cordis。
 
-Resident 已有原生 Bundle、DSH Command、无 bin tarball以及 launchd/systemd 协议回归；DSH Gateway、Telegram 与飞书已通过原生 Bundle、持久 ingress/outbound、真实 DSH Host/Agent Loop、Command、Approval、continuation、429/uncertain、双 Workspace 双渠道重启隔离与 tarball lifecycle。Workspace-scoped evolution、Telegram/飞书进化注意力、十一包同一 clean-profile gate、完整 composition Cache Contract gate，以及包含零基础概览、Skills 和高级控制的 v0.1 真实 DSH 浏览器复验已通过；真实飞书 App 身份请求和标准代理环境 WebSocket 握手也已通过。EV-1、SD-1、LC-1 与 AS-1 approval 四个确定性 Hermes paired slice 已通过；exact 飞书 route 消息、同模型编码/长任务和真实消息交付 epochs 仍缺失，这些完成前不能发布 v0.1。本轮按项目所有者要求不验证 Telegram。
+Resident 已有原生 Bundle、DSH Command、无 bin tarball以及 launchd/systemd 协议回归；DSH Gateway、Telegram 与飞书已通过原生 Bundle、持久 ingress/outbound、真实 DSH Host/Agent Loop、Command、Approval、continuation、429/uncertain、双 Workspace 双渠道重启隔离与 tarball lifecycle。Workspace-scoped evolution、Telegram/飞书进化注意力、十二包同一 clean-profile gate、完整 composition Cache Contract gate，以及包含零基础概览、Skills 和高级控制的 v0.1 真实 DSH 浏览器复验已通过；真实飞书 App 身份请求和标准代理环境 WebSocket 握手也已通过。EV-1、SD-1、LC-1 与 AS-1 approval 四个确定性 Hermes paired slice 已通过；exact 飞书 route 消息、同模型编码/长任务和真实消息交付 epochs 仍缺失，这些完成前不能发布 v0.1。本轮按项目所有者要求不验证 Telegram。

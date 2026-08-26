@@ -1,6 +1,6 @@
 # 当前实现状态
 
-> 更新日期：2026-08-25。本文只描述标准路径中的权威 `main` 工作树，不把计划或历史分支当作已交付能力。
+> 更新日期：2026-08-26。本文只描述标准路径中的权威 `main` 工作树，不把计划或历史分支当作已交付能力。
 
 ## 状态词
 
@@ -35,6 +35,14 @@ DSH。生命周期探针现全部 `--no-open`；复跑后真实 Chrome 只剩常
 控制面。飞书 Runtime 也修复 Gateway 先停止时 teardown 中断、平台不断连的竞态；确定性失败注入、30 次
 assembled pairing 重复门及 Feishu 45/45 已通过。`cb7266b` 最终飞书 tarball 已用官方 CLI 升级当前
 `web` profile；Host 重启后原 route/Session、ready WebSocket、3/3 journal 与零异常均恢复。
+
+V5.27 把分散且遮挡 DSH 的 Gateway/飞书悬浮面板推翻为原生插件可视化平台：新增第十二个可卸载包
+`dsh-control-center`，只占用一个官方 `conversation.view`，并以 Cordis child slot 接收插件 Surface；Gateway
+与飞书作为两个真实 Adapter 复用同一组状态、指标、列表、错误和操作原语。固定 DSH/Turtle UI、Hermes、
+HanaAgent 一手 revision 的设计调研、[ADR-0099](adr/0099-control-center-owns-one-native-view-and-child-surface-slot.md)、
+十二包 clean-profile 安装/boot/remove/readback 与真实 Chrome 成功/刷新/断连保留/恢复证据见
+[V5.27](evidence/v5-27-native-plugin-control-center.zh.md)。`dsh-evolve-web` 尚未迁入公共 Surface，不能把这一
+纵切冒充全套 Web 已完成。
 
 V5.5 按 [ADR-0090](adr/0090-feishu-content-reads-are-agent-scoped-native-tools.md) 在 `dsh-feishu` 内增加一个
 Agent-scoped 原生 `feishu_content_read` Tool。document、Wiki、Drive metadata、Bitable records 四项权限独立且
@@ -252,7 +260,7 @@ V5.21 将真实飞书 AS-2 从 epoch-1 升为 epoch-2。最终包 profile 不在
 
 | 能力 | 当前状态 | 已有证据 | 仍缺 |
 |---|---|---|---|
-| 原生 DSH 插件产品形态 | `implemented` | 十一包均有 `name/inject/Config/apply`、Bundle patch、无 bin 合同；[V5.16](evidence/v5-16-dsh-dual-version-compatibility-matrix.zh.md) 在 exact rc.5/rc.2 上分别验证 clean-profile tarball add/dump/boot、冻结 V5.11→当前升级、旧/新内部证据连续、remove 与原生 readback | 陌生安装、真实发布 tag→tag 与 registry release 门禁 |
+| 原生 DSH 插件产品形态 | `implemented` | 十二包均有类型化 Client/Host plugin contract、Bundle patch、无 bin 合同；[V5.16](evidence/v5-16-dsh-dual-version-compatibility-matrix.zh.md) 在 exact rc.5/rc.2 上分别验证当时十一包 clean-profile；[V5.27](evidence/v5-27-native-plugin-control-center.zh.md) 增加第十二包并重跑当前 clean-profile | 十二包双版本矩阵、陌生安装、真实发布 tag→tag 与 registry release 门禁 |
 | Evidence-driven Evolution + internal Skill Opportunity | `implemented` | 自然 Goal→Host 复核/持久 Gap；跨 Goal Opportunity；缺失 Skill 的 exact Shadow/Retention/Promotion/Canary/Rollback 与[V4.49 最终包回滚生命周期](evidence/v4-49-missing-skill-canary-rollback-final-browser.zh.md)；existing-Skill 的完整 baseline、protected correction、whole-tree Candidate、paired Holdout/Retention、发布门、[V4.45 最终包浏览器](evidence/v4-45-existing-skill-release-final-browser.zh.md)、[V4.46 failed-Outcome Canary](evidence/v4-46-existing-skill-failed-outcome-canary.zh.md)、[V4.47 独立回滚门](evidence/v4-47-existing-skill-canary-control-rollback.zh.md)与[V4.48 最终包回滚生命周期](evidence/v4-48-existing-skill-canary-rollback-final-browser.zh.md)；历史 runtime 获取、static target、Draft、Shadow proposer 和旧编排均已删除，[V4.54](evidence/v4-54-remove-runtime-search-semantics.zh.md) 又移除活动 Case Pack/报告中的 `search` 命名 | 两套真实 provider、长期误晋升/回滚数据缺失 |
 | 双真实 Provider RP-1 | `implemented` | [V4.55](evidence/v4-55-real-provider-acceptance-gate.zh.md)：显式付费批准前零配置读取/零外部请求；不同 provider/authority/credential/model identity 预检；生产纵切编排；Candidate 盲区、assembled Holdout/Retention、composition、凭据脱敏与 terminal 不盲重试 hard gates；[V4.56](evidence/v4-56-bounded-governance-provider-requests.zh.md)又把两个治理 Provider seam 补齐 60 秒硬上限和 Host cancellation 组合；合同 8/8 与独立类型检查通过 | 当前 `NOT_RUN`；第二套独立 Provider、已授权真实 `passed` 结果和长期 outcome 均缺失 |
 | 真实飞书 AS-2 验收入口 | `implemented` | [V5.8](evidence/v5-8-real-feishu-acceptance-gate.zh.md)建立未授权零身份/凭据读取、clean revision、最终 tarball、官方 DSH CLI、生产 transport、exact 入站/回复/Command/Approval/notice、零 uncertain/failed、remove/readback 门；[V5.21](evidence/v5-21-real-feishu-native-schedule-gate.zh.md) 加入官方 Schedule；[V5.22](evidence/v5-22-resident-gateway-pairing.zh.md) 已从真实 App 完成 direct DM→code→Host approve、三次 native Session/回复和 Host 冷启动恢复；[V5.23](evidence/v5-23-resident-pairing-as2-gate.zh.md) 把 runner 改为零静态飞书 route、Host 动态 grant、十三项关闭门，不再要求 chat/user id；[V5.24](evidence/v5-24-resident-pairing-revocation.zh.md) 补齐 grant 撤销与 Web 二次确认 | direct 主路径已人工通过、epoch-3 完整执行仍 `NOT_RUN`；缺重启后新增消息、实际撤销重配、真实 Approval/Schedule、group policy、故障/长期重连和 Hermes paired |
@@ -261,7 +269,7 @@ V5.21 将真实飞书 AS-2 从 epoch-1 升为 epoch-2。最终包 profile 不在
 | Existing-Skill Exact Retention Evaluation | `implemented` | [V4.40](evidence/v4-40-existing-skill-pre-candidate-retention-governance.zh.md) pre-Candidate Retention + [V4.41](evidence/v4-41-existing-skill-exact-retention-evaluation.zh.md) authoritative improved Holdout、exact 双树/两 Case Pack、四 Goal abstain、四象限、input rehash、paid-uncertain 不重试、原生 Jobs 与 Host 权威投影 + [V4.42](evidence/v4-42-existing-skill-retention-web-browser.zh.md) 最终 tarball 真实 Web reload/断连保留/恢复/卸载 + [V4.48](evidence/v4-48-existing-skill-canary-rollback-final-browser.zh.md) 最终包 Canary/rollback 恢复 | 真实 provider 和长期保持率 |
 | Software Delivery P2A–P2D | `implemented` | 真实 Git、原生 Tool/Goal、Draft PR、checks；Outcome 只从 source-linked Session call/result pair 读取，经官方 durability checkpoint 后投影，并可在 cold Session start 幂等补记；[V5.17](evidence/v5-17-delivery-outcome-process-crash.zh.md) 以两个独立进程和真实 `SIGKILL` 验证 checkpoint 前与 checkpoint 后/Outcome 前窗口，冷恢复零模型/零 Tool replay/一次外部效果 | 真实长期任务、远端 reviewer 数据与同模型 Hermes paired |
 | GitHub Review Follow-up P3.2 | `implemented` | exact-head allowlist、bounded follow-up、重启去重、cache parity | 真实 reviewer 返修闭环和多日 resident |
-| Web Control Plane | `verified` | packed artifact、真实 DSH Workspace/Host/Client Module；浏览器 pause→Host restart→persisted pause→resume/refresh；Goal metrics 的 Workspace/current/baseline 聚合和最近证据来自 Host 权威 Remote；最终 tarball clean-profile 中以四个原生 DSH Session/Goal 形成 Opportunity，显示 `ready-to-seal`、2/1/1 分割、目标正文保护和零 Candidate；在线刷新、断线保留最后快照并 fail visible、同 profile 恢复、Outcome 幂等 1→1；[V5.10](evidence/v5-10-generation-selection-history.zh.md) 验证 pointer 原子历史；[V5.11](evidence/v5-11-post-selection-outcome-window.zh.md) 又验证 selected/previous/other Outcome 窗口、真实 Session metrics、断线保留、两次冷恢复、卸载和原生 readback，console error 0 | 陌生用户可用性、真实 provider 价格与长期数据 |
+| Web Control Plane | `verified` | packed artifact、真实 DSH Workspace/Host/Client Module；演化 Web 既有 pause/restart/resume/refresh 与权威证据继续成立；[V5.27](evidence/v5-27-native-plugin-control-center.zh.md) 新增 DSH 原生“控制台”页和通用 child Surface seam，Gateway/飞书不再使用 fixed dialog，断线保留最后快照并 fail visible、同 profile 恢复 | 演化/Doctor/Telegram 迁入公共 Surface、陌生用户可用性、真实 provider 价格与长期数据 |
 | Exact 跨 Goal Skill 复用证据 | `verified` | [V4.50](evidence/v4-50-exact-cross-goal-skill-reuse.zh.md)：真实原生 Skill Tool、Session durability、active Goal、exact 内容哈希/Generation 分桶、持久重放；最终 tarball Web 2 uses/2 Goals、reload、Host 冷启动、合法 Session readback 与官方卸载 | 真实用户任务、Outcome/返工/成本因果、负迁移、保持率与 paired benchmark |
 | Exact Skill 后续 Outcome 上下文 | `verified` | [V4.51](evidence/v4-51-exact-skill-outcome-context.zh.md)：同 Session/Goal/Generation 的 later durable Outcome、attempt/recovered/ambiguous latest、最新 metrics、全量 rollup/有界明细；最终 tarball Web 刷新、断连保留、冷恢复不重复与官方卸载 | 真实用户任务的因果效果、返工下降、长期负迁移/遗忘与 paired benchmark |
 | Exact Skill 尝试间新增工作 | `verified` | [V4.52](evidence/v4-52-between-attempt-work-context.zh.md)：严格相邻次序、同源 Goal metrics、event seq/counter 单调门；ordered/measured/unmeasured/ambiguous 与 token/cache/latency/active-wall 差值；最终 tarball 的刷新、断连保留、冷恢复不重复、reload、卸载与无残留 | 真实用户任务、因果效果、返工下降与 paired benchmark |
@@ -279,15 +287,14 @@ V5.21 将真实飞书 AS-2 从 epoch-1 升为 epoch-2。最终包 profile 不在
 ## 当前可安装面
 
 当前 `main` 增量通过根级 `pnpm check`（文档、全包 typecheck、测试和构建）；其中
-`dsh-gateway` 8 files/32 tests、`dsh-evolve-web` 2 files/26 tests、`dsh-evolve-attention` 4 files/11 tests、
-`dsh-feishu` 18 files/51 tests、`dsh-software-delivery` 9 files/36 tests passed、1 test skipped，
-`dsh-evolve` 67 files/305 tests passed、1 file/1 test skipped；根级累计 570 tests passed、3 skipped。Cache Contract 全通过；Doctor 十一包
-原生合同 22/22，十一包 clean-profile 最终 tarball 的 add/dump/boot/真实
+`dsh-control-center` 2 files/4 tests、`dsh-gateway` 8 files/32 tests、`dsh-evolve-web` 2 files/26 tests、
+`dsh-evolve-attention` 4 files/11 tests、`dsh-feishu` 18 files/45 tests、`dsh-evolve` 67 files/305 tests passed、
+1 test skipped。Cache Contract 全通过；Doctor 十二包原生合同含新增 Control Center；十二包 clean-profile 最终 tarball 的 add/dump/boot/真实
 Session+Goal+Storage+Tool/dispose/remove/reboot/readback 1/1（60.96 秒）；独立 Doctor packed
 add/Loader/command/remove 1/1（10.35 秒）。V4.24 删除旧浏览器 acceptance fixture，并用 DSH Web 组件测试固定“纠正进入
 自主内部治理、不出现路线选择”；V4.28 已用 test-only exact-lineage fixture 从最终 tarball 重跑完整评测视图的真实浏览器 reload/断连/恢复；V4.29 又从最终 tarball 验证 promotion eligible/blocked、失败保留、恢复和卸载；V4.48 从最终 tarball 验证 existing-Skill approve/promote/Canary/断连保留/rollback/reload/冷恢复/卸载，V4.49 验证 missing-Skill `skill-bundle` 的 promote/Canary/断连保留/root rollback/冷恢复/卸载，所有 fixture 均不进入发布包。
 
-十一个包可生成 tarball 并通过 `dsh plugin --profile web add` 安装：`dsh-evolve`、`dsh-evolve-web`、`dsh-software-delivery`、`dsh-doctor`、`dsh-github-review`、`dsh-telegram`、`dsh-evolve-attention`、`dsh-goal-continuity`、`dsh-resident`、`dsh-gateway`、`dsh-feishu`。外部路由、自动恢复和 OS 部署默认关闭。没有任何 EvoForge 独立 Runtime、网站、daemon 或产品 CLI 是受支持入口。
+十二个包可生成 tarball 并通过 `dsh plugin --profile web add` 安装：`dsh-evolve`、`dsh-evolve-web`、`dsh-software-delivery`、`dsh-doctor`、`dsh-github-review`、`dsh-telegram`、`dsh-evolve-attention`、`dsh-goal-continuity`、`dsh-resident`、`dsh-gateway`、`dsh-feishu`、`dsh-control-center`。外部路由、自动恢复和 OS 部署默认关闭。没有任何 EvoForge 独立 Runtime、网站、daemon 或产品 CLI 是受支持入口。
 
 ## 当前限制
 
