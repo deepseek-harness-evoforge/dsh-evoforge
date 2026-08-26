@@ -22,6 +22,9 @@ All notable changes will be recorded here. The project has not published a stabl
 - The native Control Center empty state now explains the four public capability suites (`core`, `channels`, `delivery`,
   and `continuity`) and explicitly distinguishes those user entry points from independently manageable underlying
   Bundles, so a profile with no contributed surfaces is still self-explanatory.
+- Compatibility lifecycle probes now inspect the target DSH Web CLI before choosing the no-browser handoff: rc.2 uses
+  `--no-open`, while rc.5 keeps its flag-free `--port` contract. Random-port probes therefore do not leave dead tabs
+  behind, and both supported DSH revisions retain a tested startup path.
 - Added a tag/version consistency gate and a protected tag-triggered GitHub release workflow. It reruns the full check
   and every required release gate before publishing public Bundles to npm; the `npm` Environment remains maintainer-
   approved and no gate bypass is available. The local annotated-tag command runs the same version check before creating
