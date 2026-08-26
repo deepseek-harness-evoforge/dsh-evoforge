@@ -1,12 +1,15 @@
 # ADR-0060：Gateway Web 是只读 Host 权威投影
 
+> 状态：superseded in presentation by [ADR-0099](0099-control-center-owns-one-native-view-and-child-surface-slot.md)。本
+> ADR 仍定义 Gateway `overview()` 的 Host 权威和脱敏边界；固定 Sidebar 面板不是当前入口。
+
 渠道运维需要在一个位置看到 Gateway lifecycle、exact route、live Session、Adapter transport、ingress 和
 outbound 状态。若由飞书、Telegram 各自维护 Web 状态，会重复事实源；若在浏览器调用模型、平台 SDK 或
 直接修复 route，又会把 `dsh-gateway` 扩成第二控制面。
 
 因此 `dsh-gateway` 在同一个可卸载包内增加官方 DSH Client Module 和生成式 Typert Remote。Host Remote 只有
-无参数、只读的 `overview()`，直接返回既有 `healthSnapshot()` 的脱敏结果；Client 只在 DSH 原生
-`sidebar.footer.action` 注册全局“渠道健康”入口。面板打开和人工刷新才读 Host，不调用模型，不连接平台，
+无参数、只读的 `overview()`，直接返回既有 `healthSnapshot()` 的脱敏结果；Client 通过 ADR-0099 定义的
+Control Center child surface 展示“渠道”入口。Surface 打开和人工刷新才读 Host，不调用模型，不连接平台，
 不拥有 Workspace、Session、Agent、Goal、Approval 或 Adapter transport。平台凭据、错误正文、account、
 conversation/user、消息正文和 external message id 都不能进入 Remote。
 

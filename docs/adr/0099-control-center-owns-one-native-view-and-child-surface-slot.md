@@ -36,5 +36,6 @@ composition。当前 Session 之外的全局页面仍不是本阶段支持面。
 - 用户在 DSH 原生中央工作区内查看渠道与飞书内容状态，不再被悬浮层挡住；
 - 新插件复用同一视觉和生命周期接缝，至少两个真实 Adapter 已证明该抽象不是单用例包装；
 - Gateway/飞书的 Remote、配对、撤销、内容就绪与投递语义不因 UI 合并而改变；
-- `dsh-evolve-web` 尚未迁入该 slot，在完成其复杂交互回归前仍保留现有入口，不能宣称全套 Web 已迁移；
+- `dsh-evolve-web` 已迁入该 slot，并已从最终 tarball 完成 Evolution Surface 的真实 Workspace/Session 浏览器
+  刷新、断连保留、恢复和卸载验证；当前入口不再保留旧的固定侧栏弹窗；
 - 无 Session 时没有 Control Center 原生页；若 DSH 未来提供正式全局贡献点，再单独审计，不自造 Router。

@@ -1,6 +1,6 @@
 # ADR-0025：Web 是 `dsh-evolve` 的薄型、KV-safe Adapter
 
-- 状态：accepted
+- 状态：superseded by [ADR-0099](0099-control-center-owns-one-native-view-and-child-surface-slot.md)
 - 日期：2026-08-16
 
 ## 背景
@@ -9,7 +9,8 @@
 
 ## 决策
 
-新增独立、可卸载的 `dsh-evolve-web` 包。它只包含两个 Adapter：
+新增独立、可卸载的 `dsh-evolve-web` 包。以下内容记录当时的设计；后续由 ADR-0099 将 Client Surface
+迁入统一的原生 Control Center，因此本 ADR 不再是当前 Web 入口规范。它当时只包含两个 Adapter：
 
 1. `dsh-evolve` Host 内的结构化 Remote Adapter；
 2. DSH 原生 Web Client Module，在 root-scoped `sidebar.footer.action` 注册一个演化面板；没有会话时仍可查看和控制 host 状态。

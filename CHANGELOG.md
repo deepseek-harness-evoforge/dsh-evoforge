@@ -8,6 +8,8 @@ All notable changes will be recorded here. The project has not published a stabl
 
 - Removed the stale newcomer instruction to configure a Shadow/Evaluator Target; the current internal-evidence flow
   reports evidence and governance readiness directly and never asks users to choose a Skill, target, or path.
+- Marked the historical Sidebar Web decisions as superseded and aligned ADR-0099 with the completed `dsh-evolve-web`
+  migration into the native Control Center child surface.
 - Corrected the `dsh-evolve-attention` README to describe both static routes and resident pairing grants;
   the bridge consumes only Host-authorized routes and never creates a second routing path.
 - `pack:suite` now defaults to the user-facing `core` suite when `--suite` is omitted; the maintainer-only twelve-Bundle
