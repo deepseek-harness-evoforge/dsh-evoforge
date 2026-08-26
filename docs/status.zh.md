@@ -47,6 +47,8 @@ Evolution 迁移后的真实 Workspace/Session 浏览器验收已由 [V5.30](evi
 
 V5.32 收敛了公开安装面：默认只有 `core`、`channels`、`delivery`、`continuity` 四个入口，`attention` 按需安装，`evolution`/`control`/`gateway` 仅为兼容或高级入口，`full` 仅供维护者。`channels` 不再强制安装 Control Center 或 Attention；十二个物理 Bundle 的独立启停、权限和卸载边界保持不变。套件 audience、四包 `core` tarball 和 `check:suites` 结果见 [V5.32](evidence/v5-32-install-surface-convergence-2026-08-26.zh.md)。
 
+V5.47 又把这一分类写入 `pack:suite --help`：帮助只把四个用户入口放在第一层，单独标记 `attention`、兼容/高级入口和维护者 `full`，避免把内部 Bundle 数量误解为产品选择数量。实际 `core` 打包仍生成四个官方 tarball，单渠道 `channels --channel feishu|telegram` 仍只生成 Gateway 与所选 Adapter；完整证据见 [V5.47](evidence/v5-47-public-suite-help-2026-08-26.zh.md)。
+
 V5.5 按 [ADR-0090](adr/0090-feishu-content-reads-are-agent-scoped-native-tools.md) 在 `dsh-feishu` 内增加一个
 Agent-scoped 原生 `feishu_content_read` Tool。document、Wiki、Drive metadata、Bitable records 四项权限独立且
 默认关闭；每次读取走真实 ToolRuntime/Approval，当前 Session schema 固定，撤权后执行拒绝，新启用只影响
