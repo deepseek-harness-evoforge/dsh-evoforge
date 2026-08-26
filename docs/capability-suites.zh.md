@@ -30,6 +30,15 @@ pnpm run pack:suite -- --suite core --out /tmp/evoforge-packs
 省略 `--suite` 时默认生成 `core`，避免新用户无意安装维护者用的完整组合；需要完整十二包验收时必须显式使用
 `pnpm run pack:full` 或 `--suite full`。
 
+如果只使用一个消息渠道，可以在打包时进一步减少已安装文件：
+
+```sh
+pnpm run pack:suite -- --suite channels --channel feishu --out /tmp/evoforge-packs
+# 或：--channel telegram
+```
+
+这会只生成 `dsh-gateway` 与所选 Adapter；它是安装层筛选，不会把 Gateway 与平台 Adapter 合成一个 Bundle。
+
 脚本会为套件中的每个包运行官方 `pnpm pack`，并写出带 SHA-256 和 `audience`（default/optional/compatibility/maintainer）的 `evoforge-suite.json`。安装仍由 DSH 负责：
 
 ```sh

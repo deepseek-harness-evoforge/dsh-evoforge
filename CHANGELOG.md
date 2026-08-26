@@ -12,6 +12,8 @@ All notable changes will be recorded here. The project has not published a stabl
   the bridge consumes only Host-authorized routes and never creates a second routing path.
 - `pack:suite` now defaults to the user-facing `core` suite when `--suite` is omitted; the maintainer-only twelve-Bundle
   composition remains available only through the explicit `pack:full` command or `--suite full`.
+- `pack:suite --suite channels` now accepts `--channel feishu|telegram` to install only the selected first-party Adapter;
+  the Gateway/Adapter runtime and permission boundaries remain independent.
 - The dual DSH assembled matrix now materializes a temporary Case Pack copy whose epoch is bound to the checked-out
   revision; strict identity checks no longer fail rc.5 against an rc.2 fixture. The CI preflight requires this step.
   See [V5.43](docs/evidence/v5-43-dsh-matrix-case-pack-identity-2026-08-26.zh.md).

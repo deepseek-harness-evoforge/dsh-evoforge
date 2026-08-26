@@ -42,6 +42,9 @@ export const PUBLIC_SUITE_IDS = Object.freeze([
 /** The least-surprising install preset for an invocation without --suite. */
 export const DEFAULT_SUITE_ID = 'core'
 
+/** First-party channel adapters that can be selected independently at pack time. */
+export const CHANNEL_ADAPTER_IDS = Object.freeze(['feishu', 'telegram'])
+
 export const OPTIONAL_SUITE_IDS = Object.freeze(['attention'])
 
 export const COMPATIBILITY_SUITE_IDS = Object.freeze(['evolution', 'control', 'gateway'])
@@ -125,6 +128,23 @@ export function getSuite(id) {
     throw new Error(`Unknown capability suite: ${id}. Choose one of: ${Object.keys(SUITES).join(', ')}`)
   }
   return value
+}
+
+/**
+ * Resolve an optional channel selection without merging the Gateway and its
+ * platform Adapter into one runtime Bundle. The selection is a packaging
+ * convenience only; DSH still installs each returned Bundle independently.
+ */
+export function getSuitePackages(id, channel) {
+  const value = getSuite(id)
+  if (channel === undefined) return value.packages
+  if (id !== 'channels') {
+    throw new Error(`--channel is only valid with --suite channels (received ${id})`)
+  }
+  if (!CHANNEL_ADAPTER_IDS.includes(channel)) {
+    throw new Error(`Unknown channel: ${channel}. Choose one of: ${CHANNEL_ADAPTER_IDS.join(', ')}`)
+  }
+  return Object.freeze(['dsh-gateway', `dsh-${channel}`])
 }
 
 export function validateSuiteManifest() {

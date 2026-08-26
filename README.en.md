@@ -15,6 +15,7 @@ The repository contains twelve independently removable native DSH Bundles. New u
 
 `attention` is an optional channel-notification add-on. `evolution`, `control`, and `gateway` remain compatibility or advanced entries, while `full` is maintainer-only. These groups are installation presets, not a second runtime or registry. External routes, recovery, and deployment control are disabled until an operator provides exact configuration.
 When `--suite` is omitted, `pnpm run pack:suite` defaults to `core`; the complete twelve-Bundle composition requires the explicit `pnpm run pack:full` command.
+For a single messaging platform, pass `--channel feishu` or `--channel telegram` with the `channels` suite to pack only the Gateway and that Adapter.
 
 The active evolution path uses DSH-internal Goal, Skill invocation, correction, and outcome evidence only; it performs no runtime Skill-market search or acquisition and asks the user for no route, Agent, workflow, Skill, or source choice. Repeated exact corrections to one sealed installed-Skill baseline can now drive protected authoring of a complete content-addressed Candidate tree. Only bounded `SKILL.md`/`references/*.md` instruction text may change; all other files, including binaries, are inherited byte-for-byte and permission drift is rejected. The Candidate remains inactive, quarantined, unevaluated, never executed, and without release authority. Existing-Skill paired evaluation, retention, canary, promotion, real-provider/browser recovery, and full Hermes paired evidence remain unfinished.
 

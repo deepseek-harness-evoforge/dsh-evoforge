@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  CHANNEL_ADAPTER_IDS,
   COMPATIBILITY_SUITE_IDS,
   DEFAULT_SUITE_ID,
   OPTIONAL_SUITE_IDS,
@@ -8,6 +9,7 @@ import {
   PUBLIC_SUITE_IDS,
   SUITES,
   getSuiteAudience,
+  getSuitePackages,
   validateSuiteManifest,
 } from './suite-manifest.mjs'
 
@@ -31,6 +33,12 @@ test('user-facing suites keep independent runtime boundaries explicit', () => {
   assert.equal(getSuiteAudience('attention'), 'optional')
   assert.deepEqual(COMPATIBILITY_SUITE_IDS, ['evolution', 'control', 'gateway'])
   assert.equal(getSuiteAudience('full'), 'maintainer')
+  assert.deepEqual(CHANNEL_ADAPTER_IDS, ['feishu', 'telegram'])
+  assert.deepEqual(getSuitePackages('channels'), SUITES.channels.packages)
+  assert.deepEqual(getSuitePackages('channels', 'feishu'), ['dsh-gateway', 'dsh-feishu'])
+  assert.deepEqual(getSuitePackages('channels', 'telegram'), ['dsh-gateway', 'dsh-telegram'])
+  assert.throws(() => getSuitePackages('core', 'feishu'), /only valid with --suite channels/u)
+  assert.throws(() => getSuitePackages('channels', 'slack'), /Unknown channel/u)
   assert.deepEqual(SUITES.evolution.packages, ['dsh-evolve', 'dsh-doctor'])
   assert.deepEqual(SUITES.control.packages, ['dsh-control-center', 'dsh-evolve-web'])
   assert.deepEqual(SUITES.channels.packages, ['dsh-gateway', 'dsh-feishu', 'dsh-telegram'])

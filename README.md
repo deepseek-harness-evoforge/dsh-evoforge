@@ -18,6 +18,8 @@
 
 这些套件不是第二个安装器：每个名称最终都展开为 DSH 官方 `dsh plugin` 的真实 tarball。内部包之所以仍独立，是因为它们拥有不同的生命周期、权限、外部依赖或可卸载边界；精简的是用户入口，不是把必要边界合并成巨型 Bundle。`channels` 不再强制安装 Web 控制面或通知层。详见[套件边界与精简理由](docs/capability-suites.zh.md)。
 `pnpm run pack:suite` 省略 `--suite` 时默认只生成 `core`；完整十二包必须显式使用 `pnpm run pack:full`。
+只需要一个消息渠道时，可用 `pnpm run pack:suite -- --suite channels --channel feishu --out /tmp/evoforge-packs`
+（或 `telegram`）只打包 Gateway 和对应 Adapter。
 
 当前活动进化纵切只使用 DSH 内部经验：Goal-linked Gap 与跨 Goal Skill Opportunity 经生成前证据密封后，产生隔离、内容寻址的 whole-Skill Candidate；用户不选路径、Agent、workflow、Skill 或来源，产品不建设运行时外部 Skill 搜索、获取、下载、导入或市场。missing-Skill 路径已有 Candidate-independent admission/holdout/可选 Retention、exact Shadow/Retention、future-Session Promotion、failed-Outcome Canary 和人工精确回滚，所有评测结果本身均无 pointer 或发布权。
 
