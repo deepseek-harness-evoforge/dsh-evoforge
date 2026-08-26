@@ -42,4 +42,8 @@ if (workflowRevisions.length !== supportedRevisions.length
   throw new Error(`CI DSH matrix must exactly match the audited compatibility allowlist. CI=${workflowRevisions.join(',')} allowlist=${supportedRevisions.join(',')}`)
 }
 
-process.stdout.write(`CI test path and DSH target checks passed for ${paths.length} referenced files.\n`)
+if (!/^\s+run: pnpm --dir \.evoforge\/deepseek-harness build:lib\s*$/mu.test(workflow)) {
+  throw new Error('assembled DSH CI job must run build:lib (host and client); host-only builds omit client-declared package entrypoints used by clean-profile loading')
+}
+
+process.stdout.write(`CI test path, DSH target, and assembled build checks passed for ${paths.length} referenced files.\n`)

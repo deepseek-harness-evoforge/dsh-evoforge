@@ -201,6 +201,11 @@ Telegram Surface 的真实 DSH 浏览器路径：Control Center 导航、`连接
 `web-control-plane` 仍为 `partial`。证据见 [V5.36](evidence/v5-36-doctor-control-surface-browser-2026-08-26.zh.md)
 和 [V5.37](evidence/v5-37-telegram-control-surface-browser-2026-08-26.zh.md)。
 
+V5.41 修复了真实 GitHub runner 才暴露的两项可重复性缺口：`dsh-feishu` 直接声明 benchmark 使用的 `tsx`，
+macOS assembled job 改为对审计过的 DSH 同时执行 Host/Client `build:lib`，并由 `check:ci` 固定该约束。
+这解释了 rc.2 clean-profile 中缺失 `@deepseek-ai/dsh-typert-registry/lib/index.js` 的来源。修复后的 GitHub
+运行尚未重新完成，因此不提升任何 release gate。详见 [V5.41](evidence/v5-41-ci-clean-runner-dependencies-2026-08-26.zh.md)。
+
 V5.35 将发布阻断提升为机器可执行的 `release-gates.json`：`check:release:gates` 会把 partial/not-run/failed
 证据明确归为阻断，`release:tag` 还要求 clean `main` 且 `HEAD == origin/main`，只创建 annotated tag，不提供绕过
 外部门禁的开关。当前该命令按设计失败，阻断项见 [release-gates.json](../release-gates.json)。
