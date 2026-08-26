@@ -79,6 +79,13 @@ V5.54 将 Gateway journal 的中断恢复接入长期账本：冷启动前读取
 仍只在确有遗留记录时写入，未把普通启动或单测冒充长期成功；Gateway 两个测试文件 21/21、双包 typecheck
 和 Typert 重生成通过。详见 [V5.54 证据](evidence/v5-54-gateway-recovery-long-term-facts-2026-08-27.zh.md)。
 
+V5.55 将当前 `main` 的 core 套件通过官方 CLI 安装到真实 DSH `web` profile，并在用户授权凭据下冷启动
+常驻 Host。`dsh-evolve`、`dsh-doctor`、`dsh-control-center`、`dsh-evolve-web` 与 Gateway/Feishu 同时加载；
+单一 `3080` 页面中的原生控制中心完成运行诊断、渠道刷新、飞书内容/演化 Surface 切换和整页 reload，显示
+1 个授权实时 Session、入站/出站各 3 条、待处理 0、飞书 WebSocket“连接正常”，浏览器错误为 0。该证据
+只证明安装/启动/控制面恢复，不提升真实飞书消息、Provider paired、Hermes paired 或长期效果门状态。
+详见 [V5.55 证据](evidence/v5-55-live-profile-cold-boot-2026-08-27.zh.md)。
+
 V5.5 按 [ADR-0090](adr/0090-feishu-content-reads-are-agent-scoped-native-tools.md) 在 `dsh-feishu` 内增加一个
 Agent-scoped 原生 `feishu_content_read` Tool。document、Wiki、Drive metadata、Bitable records 四项权限独立且
 默认关闭；每次读取走真实 ToolRuntime/Approval，当前 Session schema 固定，撤权后执行拒绝，新启用只影响
