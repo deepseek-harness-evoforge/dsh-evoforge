@@ -47,6 +47,14 @@ if (!/^\s+run: pnpm --dir \.evoforge\/deepseek-harness build\s*$/mu.test(workflo
   throw new Error('assembled DSH CI job must run the full DSH build; clean Web profiles require frontend dist and all runtime package entrypoints')
 }
 
+if (!workflow.includes('ref: b150a551b8d465e31e418e1b2eaf5e79bbb7d28e')) {
+  throw new Error('Node CI jobs must checkout the audited rc.2 DSH revision for package tests that exercise native DSH paths')
+}
+
+if (!workflow.includes('DSH_EVOLVE_DSH_SOURCE_DIR: ${{ github.workspace }}/.evoforge/deepseek-harness')) {
+  throw new Error('Node CI repository checks must point native DSH tests at the checked-out DSH source')
+}
+
 if (!rootPackage.scripts?.pretypecheck?.includes('dsh-control-center')) {
   throw new Error('root pretypecheck must build dsh-control-center before recursive package typechecks; consumers import its published client entry')
 }
