@@ -6,6 +6,7 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- The macOS assembled CI job now runs the same acceptance set against both audited DSH targets (`0.1.0-rc.5` and current `0.1.1-rc.2`), instead of silently testing only the older host. See [V5.39](docs/evidence/v5-39-ci-dsh-dual-target-matrix-2026-08-26.zh.md).
 - GitHub Actions macOS assembled coverage now references only current test files; a new `check:ci` preflight catches stale package test paths before they reach a clean runner. See [V5.38](docs/evidence/v5-38-ci-workflow-current-paths-2026-08-26.zh.md).
 - The Telegram adapter now has a verified real-DSH loopback browser path inside the shared Control Center (route, transport, refresh, reload, and zero application console errors). This remains deterministic loopback evidence, not a real Bot or release-gate pass; see [V5.37](docs/evidence/v5-37-telegram-control-surface-browser-2026-08-26.zh.md).
 - `dsh-doctor` and `dsh-telegram` now contribute read-only native Control Center Surfaces through the official DSH client slot. Doctor's real browser refresh/disconnect/recovery path is documented in [V5.36](docs/evidence/v5-36-doctor-control-surface-browser-2026-08-26.zh.md); Telegram's real authorized route remains a release blocker.

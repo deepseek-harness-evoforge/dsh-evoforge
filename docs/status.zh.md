@@ -186,7 +186,9 @@ V5.33 在获得真实 App 配置后实际启动了 epoch-3 runner：最终 tarba
 MIT、仓库地址、README、Cordis patch 文件和导出契约；English README 与四个默认安装入口同步。该门只证明发布
 元数据和文档可复核，不改变真实 Provider、真实飞书完整 epoch-3 或 Hermes paired 的未完成状态。
 
-V5.38 修复了开源 CI 的可重复性缺口：macOS assembled job 删除 7 个已物理移除的旧测试引用，根级 `pnpm check`
+V5.39 把开源 CI 的 macOS assembled job 扩展为 rc.5/rc.2 双目标矩阵，同一验收集分别运行在两组已审计 DSH
+revision；不再只测试旧 Host。证据见 [V5.39](evidence/v5-39-ci-dsh-dual-target-matrix-2026-08-26.zh.md)。V5.38
+修复了开源 CI 的可重复性缺口：macOS assembled job 删除 7 个已物理移除的旧测试引用，根级 `pnpm check`
 新增 `check:ci` 扫描所有 GitHub Actions 测试路径；干净 runner 不会再因 stale test path 在收集阶段失败。证据见
 [V5.38](evidence/v5-38-ci-workflow-current-paths-2026-08-26.zh.md)。V5.37 在 V5.36 的基础上用实际打包的
 `dsh-gateway`/`dsh-telegram` 和 loopback Telegram API 完成了

@@ -42,8 +42,16 @@ jobs:
         run: pnpm run pack:full -- --out "$RUNNER_TEMP/evoforge-full"
 
   assembled-darwin:
-    name: macOS DSH Assembled Trial
+    name: macOS DSH Assembled Trial (${{ matrix.dsh.version }})
     runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        dsh:
+          - version: 0.1.0-rc.5
+            revision: 47f943859bef60e4160492346772ded9b24f765a
+          - version: 0.1.1-rc.2
+            revision: b150a551b8d465e31e418e1b2eaf5e79bbb7d28e
     steps:
       - name: Checkout EvoForge
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -51,7 +59,7 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           repository: deepseek-ai/deepseek-harness
-          ref: 47f943859bef60e4160492346772ded9b24f765a
+          ref: ${{ matrix.dsh.revision }}
           path: .evoforge/deepseek-harness
       - name: Install pnpm
         uses: pnpm/action-setup@a8198c4bff370c8506180b035930dea56dbd5288 # v5
