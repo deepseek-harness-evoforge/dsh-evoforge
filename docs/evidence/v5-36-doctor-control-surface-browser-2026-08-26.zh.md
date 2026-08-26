@@ -47,7 +47,6 @@ Workspace/Session 的 `控制台` tab，未打开固定弹窗或独立页面。
 
 ## 边界与未完成项
 
-Doctor 的真实浏览器 Surface 已验证，但 Web Control Plane 仍为 `partial`：Telegram 尚未在真实授权 Bot
-和真实 Gateway route 下完成同样的浏览器路径；完整陌生安装引导、真实飞书 AS-2、双真实 Provider、Hermes
+Doctor 的真实浏览器 Surface 已验证，但 Web Control Plane 仍为 `partial`：Telegram 的真实外部 route、完整陌生安装引导、真实飞书 AS-2、双真实 Provider、Hermes
 paired benchmark 和长期效果数据仍阻断 release tag。因而本增量不能单独把 `web-control-plane` 或整个项目升级为
 `passed`/`released`。

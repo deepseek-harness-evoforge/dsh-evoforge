@@ -186,10 +186,12 @@ V5.33 在获得真实 App 配置后实际启动了 epoch-3 runner：最终 tarba
 MIT、仓库地址、README、Cordis patch 文件和导出契约；English README 与四个默认安装入口同步。该门只证明发布
 元数据和文档可复核，不改变真实 Provider、真实飞书完整 epoch-3 或 Hermes paired 的未完成状态。
 
-V5.36 已把 `dsh-doctor` 和 `dsh-telegram` 接入公共原生 Control Center Surface；Doctor 在真实 DSH Web
-Workspace/Session 中完成刷新、Host 断连保留、同端口恢复和浏览器 error 0，且只复用原生 `/doctor` Command。
-Telegram 已完成同一 Client/Surface 合同和自动化测试，但真实 Bot route 浏览器路径仍 pending，因此
-`web-control-plane` 仍为 `partial`。证据见 [V5.36](evidence/v5-36-doctor-control-surface-browser-2026-08-26.zh.md)。
+V5.37 在 V5.36 的基础上用实际打包的 `dsh-gateway`/`dsh-telegram` 和 loopback Telegram API 完成了
+Telegram Surface 的真实 DSH 浏览器路径：Control Center 导航、`连接正常`、固定私聊 route、刷新、整页 reload
+和应用层 browser error 0 均通过；它不冒充真实 Bot。Doctor 仍保留真实 Host 断连/恢复证据，且两者都只复用
+原生 `/doctor`/`/telegram` Command。真实外部 Bot route 和完整陌生安装引导仍 pending，因此
+`web-control-plane` 仍为 `partial`。证据见 [V5.36](evidence/v5-36-doctor-control-surface-browser-2026-08-26.zh.md)
+和 [V5.37](evidence/v5-37-telegram-control-surface-browser-2026-08-26.zh.md)。
 
 V5.35 将发布阻断提升为机器可执行的 `release-gates.json`：`check:release:gates` 会把 partial/not-run/failed
 证据明确归为阻断，`release:tag` 还要求 clean `main` 且 `HEAD == origin/main`，只创建 annotated tag，不提供绕过
@@ -289,7 +291,7 @@ V5.21 将真实飞书 AS-2 从 epoch-1 升为 epoch-2。最终包 profile 不在
 | Existing-Skill Exact Retention Evaluation | `implemented` | [V4.40](evidence/v4-40-existing-skill-pre-candidate-retention-governance.zh.md) pre-Candidate Retention + [V4.41](evidence/v4-41-existing-skill-exact-retention-evaluation.zh.md) authoritative improved Holdout、exact 双树/两 Case Pack、四 Goal abstain、四象限、input rehash、paid-uncertain 不重试、原生 Jobs 与 Host 权威投影 + [V4.42](evidence/v4-42-existing-skill-retention-web-browser.zh.md) 最终 tarball 真实 Web reload/断连保留/恢复/卸载 + [V4.48](evidence/v4-48-existing-skill-canary-rollback-final-browser.zh.md) 最终包 Canary/rollback 恢复 | 真实 provider 和长期保持率 |
 | Software Delivery P2A–P2D | `implemented` | 真实 Git、原生 Tool/Goal、Draft PR、checks；Outcome 只从 source-linked Session call/result pair 读取，经官方 durability checkpoint 后投影，并可在 cold Session start 幂等补记；[V5.17](evidence/v5-17-delivery-outcome-process-crash.zh.md) 以两个独立进程和真实 `SIGKILL` 验证 checkpoint 前与 checkpoint 后/Outcome 前窗口，冷恢复零模型/零 Tool replay/一次外部效果 | 真实长期任务、远端 reviewer 数据与同模型 Hermes paired |
 | GitHub Review Follow-up P3.2 | `implemented` | exact-head allowlist、bounded follow-up、重启去重、cache parity | 真实 reviewer 返修闭环和多日 resident |
-| Web Control Plane | `implemented` | Control Center/Gateway/Feishu 的真实浏览器控制台与断线恢复见 [V5.27](evidence/v5-27-native-plugin-control-center.zh.md)；[V5.28](evidence/v5-28-evolution-surface-control-center.zh.md) 已把 `dsh-evolve-web` registration 迁到同一 child Surface；[V5.30](evidence/v5-30-evolution-surface-browser-2026-08-26.zh.md) 已通过 Evolution Surface；[V5.36](evidence/v5-36-doctor-control-surface-browser-2026-08-26.zh.md) 已通过 Doctor Surface 刷新/断连/恢复 | Telegram 真实 route Surface、陌生用户可用性、真实 provider 价格与长期数据 |
+| Web Control Plane | `implemented` | Control Center/Gateway/Feishu 的真实浏览器控制台与断线恢复见 [V5.27](evidence/v5-27-native-plugin-control-center.zh.md)；[V5.28](evidence/v5-28-evolution-surface-control-center.zh.md) 已把 `dsh-evolve-web` registration 迁到同一 child Surface；[V5.30](evidence/v5-30-evolution-surface-browser-2026-08-26.zh.md) 已通过 Evolution Surface；[V5.36](evidence/v5-36-doctor-control-surface-browser-2026-08-26.zh.md) 已通过 Doctor 断连/恢复；[V5.37](evidence/v5-37-telegram-control-surface-browser-2026-08-26.zh.md) 已通过 Telegram loopback Surface 刷新/reload | Telegram 真实外部 Bot route、陌生用户可用性、真实 provider 价格与长期数据 |
 | Exact 跨 Goal Skill 复用证据 | `verified` | [V4.50](evidence/v4-50-exact-cross-goal-skill-reuse.zh.md)：真实原生 Skill Tool、Session durability、active Goal、exact 内容哈希/Generation 分桶、持久重放；最终 tarball Web 2 uses/2 Goals、reload、Host 冷启动、合法 Session readback 与官方卸载 | 真实用户任务、Outcome/返工/成本因果、负迁移、保持率与 paired benchmark |
 | Exact Skill 后续 Outcome 上下文 | `verified` | [V4.51](evidence/v4-51-exact-skill-outcome-context.zh.md)：同 Session/Goal/Generation 的 later durable Outcome、attempt/recovered/ambiguous latest、最新 metrics、全量 rollup/有界明细；最终 tarball Web 刷新、断连保留、冷恢复不重复与官方卸载 | 真实用户任务的因果效果、返工下降、长期负迁移/遗忘与 paired benchmark |
 | Exact Skill 尝试间新增工作 | `verified` | [V4.52](evidence/v4-52-between-attempt-work-context.zh.md)：严格相邻次序、同源 Goal metrics、event seq/counter 单调门；ordered/measured/unmeasured/ambiguous 与 token/cache/latency/active-wall 差值；最终 tarball 的刷新、断连保留、冷恢复不重复、reload、卸载与无残留 | 真实用户任务、因果效果、返工下降与 paired benchmark |
