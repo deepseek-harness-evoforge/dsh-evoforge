@@ -43,6 +43,7 @@ describe.skipIf(process.platform !== 'darwin')('dsh-resident launchd lifecycle',
       '--dsh-entry', dshEntry,
       '--node-bin', process.execPath,
       '--cwd', cwd,
+      '--no-open',
       '--confirm-deployment',
     ])
     expect(applied).toMatchObject({
@@ -58,7 +59,7 @@ describe.skipIf(process.platform !== 'darwin')('dsh-resident launchd lifecycle',
 
     const marker = join(dshHome, 'resident-fixture.jsonl')
     const first = await waitForStarts(marker, 1)
-    expect(first[0]?.argv).toEqual(['--profile', profile])
+    expect(first[0]?.argv).toEqual(['--profile', profile, '--no-open'])
     const firstPid = first[0]?.pid
     if (firstPid === undefined) throw new Error('first resident PID missing')
     process.kill(firstPid, 'SIGKILL')

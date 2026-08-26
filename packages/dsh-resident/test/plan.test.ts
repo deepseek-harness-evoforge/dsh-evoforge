@@ -16,6 +16,41 @@ afterEach(async () => {
 })
 
 describe('dsh-resident plan', () => {
+  it('carries an explicit no-open app argument into the service command', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-resident-plan-args-'))
+    temporaryRoots.push(root)
+    const dshHome = join(root, 'dsh-home')
+    const userHome = join(root, 'user-home')
+    const cwd = join(root, 'cwd')
+    const dshEntry = join(root, 'dsh.js')
+    await Promise.all([
+      mkdir(dshHome, { recursive: true }),
+      mkdir(userHome, { recursive: true }),
+      mkdir(cwd, { recursive: true }),
+      writeFile(dshEntry, '#!/usr/bin/env node\n'),
+    ])
+
+    const result = await execFile(process.execPath, [
+      '--import', 'tsx/esm', cli, 'plan',
+      '--manager', 'launchd',
+      '--profile', 'web',
+      '--dsh-entry', dshEntry,
+      '--node-bin', process.execPath,
+      '--dsh-home', dshHome,
+      '--cwd', cwd,
+      '--no-open',
+    ], {
+      cwd: packageRoot,
+      env: { ...process.env, HOME: userHome },
+      encoding: 'utf8',
+    })
+
+    const plan = JSON.parse(result.stdout) as Record<string, unknown>
+    expect(plan.command).toEqual([process.execPath, dshEntry, '--profile', 'web', '--no-open'])
+    expect(plan.definition).toContain('<string>--no-open</string>')
+    expect(result.stderr).toBe('')
+  })
+
   it('renders one inspectable launchd service without secrets or a shell', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-resident-plan-'))
     temporaryRoots.push(root)

@@ -25,6 +25,7 @@ async function main(argv: readonly string[]): Promise<void> {
       'node-bin': { type: 'string' },
       'dsh-home': { type: 'string' },
       cwd: { type: 'string' },
+      'no-open': { type: 'boolean' },
       'confirm-deployment': { type: 'boolean' },
     },
   })
@@ -48,6 +49,7 @@ async function main(argv: readonly string[]): Promise<void> {
     nodeBin: required(values['node-bin'], '--node-bin'),
     dshHome,
     cwd: required(values.cwd, '--cwd'),
+    noOpen: values['no-open'] === true,
   })
   const output = action === 'plan'
     ? plan

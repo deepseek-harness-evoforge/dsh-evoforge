@@ -21,7 +21,7 @@ export interface Plan {
   cwd: string
   nodeBin: string
   dshEntry: string
-  command: [string, string, '--profile', string]
+  command: readonly [string, string, '--profile', string, ...string[]]
   definition: string
   logRoot?: string
 }
@@ -41,6 +41,8 @@ export async function createPlan(input: {
   nodeBin: string
   dshHome: string
   cwd: string
+  /** Disable the Web app's default browser handoff when the target is a Web profile. */
+  noOpen?: boolean
 }): Promise<Plan> {
   validateProfile(input.profile)
   const [dshEntry, nodeBin, dshHome, cwd, userHome] = await Promise.all([
@@ -56,7 +58,13 @@ export async function createPlan(input: {
     dshHome,
     userHome,
   })
-  const command: Plan['command'] = [nodeBin, dshEntry, '--profile', input.profile]
+  const command = [
+    nodeBin,
+    dshEntry,
+    '--profile',
+    input.profile,
+    ...(input.noOpen === true ? ['--no-open'] : []),
+  ] as Plan['command']
   if (input.manager === 'launchd') {
     const logRoot = join(dshHome, 'resident', identity)
     return {
@@ -74,11 +82,9 @@ export async function createPlan(input: {
       logRoot,
       definition: renderLaunchd({
         serviceId,
-        profile: input.profile,
+        command,
         dshHome,
         cwd,
-        nodeBin,
-        dshEntry,
         stdoutPath: join(logRoot, 'stdout.log'),
         stderrPath: join(logRoot, 'stderr.log'),
       }),
@@ -337,11 +343,9 @@ export function requireNativeManager(manager: Manager): void {
 
 function renderLaunchd(input: {
   serviceId: string
-  profile: string
+  command: Plan['command']
   dshHome: string
   cwd: string
-  nodeBin: string
-  dshEntry: string
   stdoutPath: string
   stderrPath: string
 }): string {
@@ -354,10 +358,7 @@ function renderLaunchd(input: {
   <string>${xml(input.serviceId)}</string>
   <key>ProgramArguments</key>
   <array>
-    <string>${xml(input.nodeBin)}</string>
-    <string>${xml(input.dshEntry)}</string>
-    <string>--profile</string>
-    <string>${xml(input.profile)}</string>
+${input.command.map(value => `    <string>${xml(value)}</string>`).join('\n')}
   </array>
   <key>WorkingDirectory</key>
   <string>${xml(input.cwd)}</string>

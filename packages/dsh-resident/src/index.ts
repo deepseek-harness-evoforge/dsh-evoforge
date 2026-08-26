@@ -34,6 +34,8 @@ export interface Config {
   readonly dshEntry: string
   /** Exact Node executable used to boot DSH. */
   readonly nodeBin: string
+  /** Disable the target Web profile's default browser handoff. */
+  readonly noOpen?: boolean
 }
 
 export const Config: Schema<Config> = z.object({
@@ -43,6 +45,7 @@ export const Config: Schema<Config> = z.object({
   cwd: z.string().required(),
   dshEntry: z.string().required(),
   nodeBin: z.string().required(),
+  noOpen: z.boolean().default(false),
 })
 
 interface ResolvedConfig {
@@ -52,6 +55,7 @@ interface ResolvedConfig {
   readonly cwd: string
   readonly dshEntry: string
   readonly nodeBin: string
+  readonly noOpen: boolean
 }
 
 /** Register the DSH-owned human control surface; this package publishes no executable. */
@@ -128,6 +132,7 @@ function resolveConfig(config: Config): ResolvedConfig {
     cwd: config.cwd,
     dshEntry: config.dshEntry,
     nodeBin: config.nodeBin,
+    noOpen: config.noOpen === true,
   }
 }
 

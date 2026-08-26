@@ -86,6 +86,11 @@ V5.55 将当前 `main` 的 core 套件通过官方 CLI 安装到真实 DSH `web`
 只证明安装/启动/控制面恢复，不提升真实飞书消息、Provider paired、Hermes paired 或长期效果门状态。
 详见 [V5.55 证据](evidence/v5-55-live-profile-cold-boot-2026-08-27.zh.md)。
 
+V5.56 为 `dsh-resident` 增加受约束的 `noOpen` 配置：同一个 Web profile 可由 launchd/systemd 保活，
+但不会在服务启动时打开第二个浏览器页面；launchd/systemd 均从同一 exact ProgramArguments 生成，仍不经过
+shell，且 unit 不携带凭据。真实 launchd fixture 已验证 `--profile <fixture> --no-open`、SIGKILL 重启、
+status、remove 与无残留；完整契约见 [V5.56 证据](evidence/v5-56-resident-web-no-open-contract-2026-08-27.zh.md)。
+
 V5.5 按 [ADR-0090](adr/0090-feishu-content-reads-are-agent-scoped-native-tools.md) 在 `dsh-feishu` 内增加一个
 Agent-scoped 原生 `feishu_content_read` Tool。document、Wiki、Drive metadata、Bitable records 四项权限独立且
 默认关闭；每次读取走真实 ToolRuntime/Approval，当前 Session schema 固定，撤权后执行拒绝，新启用只影响
