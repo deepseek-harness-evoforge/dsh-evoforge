@@ -39,7 +39,7 @@ dsh --profile web
 
 1. `/doctor` 读取原生 Loader entries；若飞书/Telegram 是必需且 active 的模块，再读取现有 Gateway 脱敏
    transport health，返回三态 readiness。它不探测凭据/平台、不修复，也不复制第二份健康状态。
-2. DSH Web 的原生“控制台”页统一承载 Gateway、飞书和演化 Surface；各 Surface 读取原插件 Host 权威，不调用模型，也不复制状态库。演化页中的状态、证据和受控动作都读取同一个演化 Host 权威。
+2. DSH Web 的原生“控制台”页统一承载 Gateway、飞书、Telegram、Doctor 和演化 Surface；各 Surface 读取原插件 Host/Command 权威，不调用模型，也不复制状态库。Doctor 与 Telegram 通过已有 `/doctor`、`/telegram` 只读 Command 读取，不创建第二份健康状态。
 3. 创建原生 DSH Goal，让 Agent 按需加载 `software-delivery` Skill；`complete_delivery` 通过该 Agent 的 DSH Bash、Sandbox、Approval 和原生 `update_goal` 完成交付。
 4. `dsh-github-review` 只把 allowlist 人类对 exact Draft PR head 的修改要求作为有界、不可信 follow-up 送回原 Session。
 5. Telegram 与飞书只通过 DSH Gateway 绑定原生 Workspace/Session/Agent；进化注意力和 Goal cold resume 也不创建第二套会话、目标或调度。

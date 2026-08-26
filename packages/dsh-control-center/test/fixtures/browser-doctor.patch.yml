@@ -1,0 +1,9 @@
+- insert:
+    - id: evoforge-control-center-browser-bootstrap
+      # Replace this placeholder with the absolute path emitted by
+      # scripts/create-browser-doctor-overlay.mjs before a manual run.
+      name: __EVOFORGE_BROWSER_BOOTSTRAP__
+      config:
+        workspacePath: !!js String(process.env.EVOFORGE_BROWSER_WORKSPACE)
+        sessionId: evoforge-control-center-browser-session
+        agentPreset: standard

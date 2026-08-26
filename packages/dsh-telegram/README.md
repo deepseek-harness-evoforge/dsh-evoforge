@@ -2,6 +2,8 @@
 
 `dsh-telegram` is a disabled-by-default DSH Bundle connecting one exact private Telegram chat/user through `dsh-gateway` to a native Workspace/Session/Agent. It is not a gateway, webhook server, daemon, or second Agent host.
 
+When `dsh-control-center` is installed, the browser half contributes a read-only Telegram Surface to the native DSH Web view. It executes the existing `/telegram` Command, shows the fixed route, transport and Gateway delivery counts, and never creates a second route, journal or health authority.
+
 ```sh
 dsh plugin --profile web add /absolute/path/dsh-telegram-0.1.0-alpha.1.tgz
 ```
