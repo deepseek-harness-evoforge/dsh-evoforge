@@ -1,7 +1,9 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { GatewayAction, type GatewayRemoteClient } from '../src/client/GatewayAction.tsx'
+import type { ControlSurfaceUI } from 'dsh-control-center/client'
+import { GatewaySurface, type GatewayRemoteClient, type GatewaySurfaceProps } from '../src/client/GatewayAction.tsx'
+import { zh } from '../src/client/locales.ts'
 import type { GatewayHealthSnapshot } from '../src/index.ts'
 
 afterEach(() => {
@@ -9,8 +11,21 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('GatewayAction', () => {
-  it('lets the operator approve a relayed Feishu code into the selected native Session', async () => {
+const controlSurfaceUI: ControlSurfaceUI = {
+  Surface: ({ children, ariaLabel }) => <main aria-label={ariaLabel}>{children}</main>,
+  Header: ({ title, description, status, actions }) => <header><h2>{title}</h2><p>{description}</p>{status}{actions}</header>,
+  Status: ({ children }) => <span>{children}</span>,
+  Metrics: ({ items }) => <dl>{items.map(item => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd><small>{item.hint}</small></div>)}</dl>,
+  Section: ({ title, description, children }) => <section><h3>{title}</h3><p>{description}</p>{children}</section>,
+  Entity: ({ title, description, status, actions, details }) => <article><strong>{title}</strong><span>{description}</span>{status}{actions}{details}</article>,
+  Notice: ({ title, children, role }) => <div role={role}>{title}{children}</div>,
+  Button: ({ tone: _tone, ...props }) => <button {...props} />,
+  Empty: ({ title, description }) => <div><h2>{title}</h2><p>{description}</p></div>,
+  Loading: () => <div role="status">Loading</div>,
+}
+
+describe('Gateway Control Surface', () => {
+  it('approves and revokes Feishu grants without exposing internal ids in the primary view', async () => {
     const remote = {
       overview: vi.fn(async () => ({ ok: true, value: snapshot() })),
       approvePairing: vi.fn(async () => ({
@@ -25,32 +40,21 @@ describe('GatewayAction', () => {
         },
       })),
     } as GatewayRemoteClient
-    render(<GatewayAction
-      remote={remote}
-      t={translate}
-      wide
-      useSessions={((selector: (state: { current: string }) => unknown) =>
-        selector({ current: 'session-a' })) as never}
-      useWorkspaces={((selector: (state: { items: Array<{ workspaceId: string; sessionIds: string[] }> }) => unknown) =>
-        selector({ items: [{ workspaceId: 'workspace-a', sessionIds: ['session-a'] }] })) as never}
-    />)
+    render(<GatewaySurface {...surfaceProps(remote)} />)
 
-    fireEvent.click(screen.getByRole('button', { name: '渠道健康' }))
     fireEvent.change(await screen.findByLabelText('配对码'), { target: { value: 'ABCDEFGH23' } })
     fireEvent.click(screen.getByRole('button', { name: '批准飞书配对' }))
 
-    expect(await screen.findByText(/paired-feishu/u)).toBeTruthy()
-    expect(remote.approvePairing).toHaveBeenCalledWith(
-      'ABCDEFGH23', 'feishu', 'workspace-a', 'session-a',
-    )
+    expect(await screen.findByText('配对已批准。让用户直接发送下一条消息即可。')).toBeTruthy()
+    expect(remote.approvePairing).toHaveBeenCalledWith('ABCDEFGH23', 'feishu', 'workspace-a', 'session-a')
 
     fireEvent.click(screen.getByRole('button', { name: '撤销 feishu-main' }))
     fireEvent.click(screen.getByRole('button', { name: '确认撤销 feishu-main' }))
     expect(remote.revokePairing).toHaveBeenCalledWith('feishu-main')
-    expect(await screen.findByText(/feishu-main 已撤销/u)).toBeTruthy()
+    expect(await screen.findByText(/授权已撤销/u)).toBeTruthy()
   })
 
-  it('shows unified channel health and fails visibly without retaining a stale ready view', async () => {
+  it('keeps the last-good authoritative snapshot visible when a refresh fails', async () => {
     const remote = {
       overview: vi.fn()
         .mockResolvedValueOnce({ ok: false, error: { code: 'host-unavailable', message: 'offline' } })
@@ -59,32 +63,34 @@ describe('GatewayAction', () => {
       approvePairing: vi.fn(),
       revokePairing: vi.fn(),
     } as GatewayRemoteClient
-    render(<GatewayAction
-      remote={remote}
-      t={translate}
-      wide
-      useSessions={vi.fn() as never}
-      useWorkspaces={vi.fn() as never}
-    />)
+    render(<GatewaySurface {...surfaceProps(remote)} />)
 
-    fireEvent.click(screen.getByRole('button', { name: '渠道健康' }))
-    expect((await screen.findByRole('alert')).textContent).toContain('offline')
+    expect((await screen.findByRole('alert')).textContent).toContain('暂时无法连接 DSH Host')
     fireEvent.click(screen.getByRole('button', { name: '刷新状态' }))
 
-    expect(await screen.findByText('2 条路由')).toBeTruthy()
+    expect(await screen.findByText('official-feishu-websocket')).toBeTruthy()
     expect(screen.getByText('telegram-long-poll')).toBeTruthy()
-    expect(screen.getByText('official-feishu-websocket')).toBeTruthy()
-    expect(screen.getAllByText('telegram-main')).toHaveLength(2)
-    expect(screen.getAllByText('feishu-main').length).toBeGreaterThanOrEqual(2)
+    expect(screen.getAllByText('feishu-main').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('1 个实时 Session')).toBeTruthy()
     expect(screen.getByText(/不调用模型/u)).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: '刷新状态' }))
-    expect((await screen.findByRole('alert')).textContent).toContain('offline again')
-    expect(screen.queryByText('2 条路由')).toBeNull()
+    expect((await screen.findByRole('alert')).textContent).toContain('暂时无法连接 DSH Host')
+    expect(screen.getByText('official-feishu-websocket')).toBeTruthy()
     expect(remote.overview).toHaveBeenCalledTimes(3)
   })
 })
+
+function surfaceProps(remote: GatewayRemoteClient): GatewaySurfaceProps {
+  return {
+    remote,
+    t: (key: string) => zh[key as keyof typeof zh] ?? key,
+    sessionId: 'session-a',
+    ui: controlSurfaceUI,
+    useWorkspaces: ((selector: (state: { items: Array<{ workspaceId: string; sessionIds: string[] }> }) => unknown) =>
+      selector({ items: [{ workspaceId: 'workspace-a', sessionIds: ['session-a'] }] })) as never,
+  } as unknown as GatewaySurfaceProps
+}
 
 function snapshot(): GatewayHealthSnapshot {
   return {
@@ -122,34 +128,4 @@ function snapshot(): GatewayHealthSnapshot {
       delivered: 3, uncertain: 1, failed: 0,
     },
   }
-}
-
-function translate(key: string, values?: Record<string, string | number>): string {
-  const dictionary: Record<string, string> = {
-    'trigger.label': '渠道健康',
-    'panel.title': '渠道健康',
-    'panel.close': '关闭',
-    'status.loading': '正在读取',
-    'status.refresh': '刷新状态',
-    'status.refreshing': '正在刷新',
-    'summary.routes': '{count} 条路由',
-    'summary.sessions': '{count} 个实时 Session',
-    'pairing.code': '配对码',
-    'pairing.approve': '批准飞书配对',
-    'pairing.approved': '配对已批准，路由：',
-    'routes.title': '授权路由',
-    'routes.help': '动态授权可撤销',
-    'routes.empty': '没有路由',
-    'routes.paired': '动态配对',
-    'routes.configured': '静态配置',
-    'routes.revoke': '撤销 {routeId}',
-    'routes.confirmRevoke': '确认撤销 {routeId}',
-    'routes.revoking': '正在撤销…',
-    'routes.revoked': '{routeId} 已撤销',
-    'foot.noModel': '权威 Host 快照，不调用模型',
-    'error.prefix': '读取失败：',
-  }
-  let result = dictionary[key] ?? key
-  for (const [name, value] of Object.entries(values ?? {})) result = result.replace(`{${name}}`, String(value))
-  return result
 }

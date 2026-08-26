@@ -15,7 +15,7 @@ describe('Gateway native DSH Client Module', () => {
         inject: [
           '@deepseek-ai/dsh-api-remotes',
           '@deepseek-ai/dsh-client-locale',
-          '@deepseek-ai/dsh-client-ui-sidebar',
+          '@deepseek-ai/dsh-client-ui-conversation',
         ],
         platform: 'web',
       },
@@ -31,7 +31,8 @@ describe('Gateway native DSH Client Module', () => {
     const host = await readFile(resolve(packageRoot, 'dist/index.mjs'), 'utf8')
     const remote = await readFile(resolve(packageRoot, 'lib/typert.remote-client.js'), 'utf8')
     expect(client).toMatch(/window\.__ModuleLoader__\.load\(\{\s*id: "dsh-gateway"/u)
-    expect(client).toContain('sidebar.footer.action')
+    expect(client).toContain('evoforge.control.surface')
+    expect(client).not.toContain('dsh-gateway-panel')
     expect(client).toContain('evoforgeGateway')
     expect(host).not.toContain('window.__ModuleLoader__')
     expect(remote).toContain("method: 'overview'")

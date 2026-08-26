@@ -32,7 +32,9 @@ const packageNames = [
   'dsh-resident',
   'dsh-software-delivery',
   'dsh-telegram',
+  'dsh-control-center',
 ] as const
+const historicalPackageNames = packageNames.filter(name => name !== 'dsh-control-center')
 const temporaryRoots: string[] = []
 
 afterEach(async () => {
@@ -80,9 +82,9 @@ describe.skipIf(process.platform !== 'darwin')('assembled EvoForge suite upgrade
       root,
       env,
     )
-    await expectInstalledSuite(profileDir, upgradeFromVersion)
+    await expectInstalledSuite(profileDir, upgradeFromVersion, historicalPackageNames)
     const historicalDump = await dumpProfile(profileName, root, env)
-    expectSuiteRowsOnce(historicalDump)
+    expectSuiteRowsOnce(historicalDump, historicalPackageNames)
 
     const priorDshHome = process.env.DSH_HOME
     const priorPermissionMode = process.env.DSH_PERMISSION_MODE
@@ -124,10 +126,10 @@ describe.skipIf(process.platform !== 'darwin')('assembled EvoForge suite upgrade
         root,
         env,
       )
-      await expectInstalledSuite(profileDir, currentVersion)
+      await expectInstalledSuite(profileDir, currentVersion, packageNames)
       const currentDump = await dumpProfile(profileName, root, env)
-      expectSuiteRowsOnce(currentDump)
-      expect(evoforgeRows(currentDump)).toEqual(evoforgeRows(historicalDump))
+      expectSuiteRowsOnce(currentDump, packageNames)
+      expect(evoforgeRows(currentDump)).toEqual([...evoforgeRows(historicalDump), 'dsh-control-center'])
 
       const currentCtx = await bootProfile(profileName, dshHome)
       try {
@@ -250,13 +252,13 @@ async function packHistoricalSuite(
   // Keep dependency restoration against the exact historical lockfile. The
   // synthetic predecessor version is packaging metadata only: it gives pnpm
   // a real lower version to replace without changing the historical runtime.
-  for (const packageName of packageNames) {
+  for (const packageName of historicalPackageNames) {
     const manifestPath = join(source, 'packages', packageName, 'package.json')
     const manifest = JSON.parse(await readFile(manifestPath, 'utf8'))
     manifest.version = upgradeFromVersion
     await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
   }
-  return packSuite(source, destination, upgradeFromVersion, env)
+  return packSuite(source, destination, upgradeFromVersion, env, historicalPackageNames)
 }
 
 async function packSuite(
@@ -264,9 +266,10 @@ async function packSuite(
   destination: string,
   version: string,
   env: NodeJS.ProcessEnv,
+  packages: readonly string[] = packageNames,
 ): Promise<string[]> {
   const tarballs: string[] = []
-  for (const packageName of packageNames) {
+  for (const packageName of packages) {
     await execFile('pnpm', [
       '--filter', packageName, 'pack', '--pack-destination', destination,
     ], { cwd: source, env, encoding: 'utf8', timeout: 90_000 })
@@ -275,16 +278,16 @@ async function packSuite(
   return tarballs
 }
 
-async function expectInstalledSuite(profileDir: string, version: string): Promise<void> {
+async function expectInstalledSuite(profileDir: string, version: string, packages: readonly string[]): Promise<void> {
   const manifest = JSON.parse(await readFile(join(profileDir, 'package.json'), 'utf8'))
-  expect(Object.keys(manifest.dependencies).sort()).toEqual([...packageNames].sort())
+  expect(Object.keys(manifest.dependencies).sort()).toEqual([...packages].sort())
   expect(new Set(manifest.dsh.profile.bundles).size).toBe(manifest.dsh.profile.bundles.length)
   expect([...manifest.dsh.profile.bundles].sort()).toEqual([
     '@deepseek-ai/dsh-base',
     '@deepseek-ai/dsh-web-app',
-    ...packageNames,
+    ...packages,
   ].sort())
-  for (const packageName of packageNames) {
+  for (const packageName of packages) {
     const installed = JSON.parse(await readFile(
       join(profileDir, 'node_modules', packageName, 'package.json'),
       'utf8',
@@ -426,8 +429,8 @@ async function dumpProfile(profile: string, cwd: string, env: NodeJS.ProcessEnv)
   ], { cwd, env, encoding: 'utf8', timeout: 30_000 })).stdout
 }
 
-function expectSuiteRowsOnce(dump: string): void {
-  expect(evoforgeRows(dump)).toEqual([
+function expectSuiteRowsOnce(dump: string, packages: readonly string[]): void {
+  const expected = [
     'dsh-doctor',
     'dsh-evolve',
     'dsh-evolve-attention',
@@ -439,11 +442,13 @@ function expectSuiteRowsOnce(dump: string): void {
     'dsh-resident',
     'dsh-software-delivery',
     'dsh-telegram',
-  ])
+    ...(packages.includes('dsh-control-center') ? ['dsh-control-center'] : []),
+  ]
+  expect(evoforgeRows(dump)).toEqual(expected)
 }
 
 function evoforgeRows(dump: string): string[] {
-  return [...dump.matchAll(/^\s*name:\s*(dsh-(?:gateway|doctor|evolve(?:-attention|-web)?|feishu|github-review|goal-continuity|resident|software-delivery|telegram))\s*$/gmu)]
+  return [...dump.matchAll(/^\s*name:\s*(dsh-(?:control-center|gateway|doctor|evolve(?:-attention|-web)?|feishu|github-review|goal-continuity|resident|software-delivery|telegram))\s*$/gmu)]
     .map(match => match[1]!)
 }
 

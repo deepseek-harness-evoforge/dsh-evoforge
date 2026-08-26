@@ -17,6 +17,7 @@ const dshInstallAnchor = join(dshSourceDir, 'apps', 'cli', 'package.json')
 const corepackHome = process.env.COREPACK_HOME
   ?? join(process.env.HOME ?? '', 'Library', 'Caches', 'node', 'corepack')
 const packageNames = [
+  'dsh-control-center',
   'dsh-gateway',
   'dsh-doctor',
   'dsh-evolve',
@@ -88,6 +89,7 @@ describe.skipIf(process.platform !== 'darwin')('clean-profile assembled EvoForge
       dshBin, '--profile', profileName, '--dump-config',
     ], { cwd: root, env, encoding: 'utf8', timeout: 30_000 })
     expect(evoforgeRows(dumped.stdout)).toEqual([
+      'dsh-control-center',
       'dsh-doctor',
       'dsh-evolve',
       'dsh-evolve-attention',
@@ -281,7 +283,7 @@ describe.skipIf(process.platform !== 'darwin')('clean-profile assembled EvoForge
 })
 
 function evoforgeRows(dump: string): string[] {
-  return [...dump.matchAll(/^\s*name:\s*(dsh-(?:gateway|doctor|evolve(?:-attention|-web)?|feishu|github-review|goal-continuity|resident|software-delivery|telegram))\s*$/gmu)]
+  return [...dump.matchAll(/^\s*name:\s*(dsh-(?:control-center|gateway|doctor|evolve(?:-attention|-web)?|feishu|github-review|goal-continuity|resident|software-delivery|telegram))\s*$/gmu)]
     .map(match => match[1]!)
 }
 

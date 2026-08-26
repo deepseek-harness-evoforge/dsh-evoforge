@@ -1,0 +1,50 @@
+/** @vitest-environment jsdom */
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { ControlCenterView, type ControlCenterViewProps, type ControlSurfaceCatalog } from '../src/client/ControlCenterView.tsx'
+import { zh } from '../src/client/locales.ts'
+
+afterEach(() => {
+  cleanup()
+  vi.restoreAllMocks()
+})
+
+describe('ControlCenterView', () => {
+  it('renders contributed DSH surfaces inside one native view and switches locally', () => {
+    const catalog: ControlSurfaceCatalog = {
+      list: () => [
+        { id: 'gateway', label: '渠道' },
+        { id: 'feishu', label: '飞书' },
+      ],
+      subscribe: () => () => {},
+      version: () => 1,
+    }
+    const renderSlot = vi.fn((_name: string, _owner: unknown, options: { only?: string }) => <div>{options.only}</div>)
+    const props = {
+      surfaces: catalog,
+      t: (key: string) => zh[key as keyof typeof zh] ?? key,
+      renderSlot,
+    } as unknown as ControlCenterViewProps
+
+    render(<ControlCenterView {...props} />)
+    expect(screen.getByText('gateway')).toBeTruthy()
+    expect(screen.getByRole('tab', { name: /渠道/u }).getAttribute('aria-selected')).toBe('true')
+
+    fireEvent.click(screen.getByRole('tab', { name: /飞书/u }))
+    expect(screen.getByText('feishu')).toBeTruthy()
+    expect(renderSlot).toHaveBeenLastCalledWith(
+      'evoforge.control.surface', expect.objectContaining({ ui: expect.any(Object) }), { only: 'feishu' },
+    )
+  })
+
+  it('owns a stable empty state when no Adapter is installed', () => {
+    const props = {
+      surfaces: { list: () => [], subscribe: () => () => {}, version: () => 0 },
+      t: (key: string) => zh[key as keyof typeof zh] ?? key,
+      renderSlot: vi.fn(),
+    } as unknown as ControlCenterViewProps
+    render(<ControlCenterView {...props} />)
+    expect(screen.getByText('暂无可视化插件')).toBeTruthy()
+    expect(screen.getByText(/自动出现在这里/u)).toBeTruthy()
+  })
+})

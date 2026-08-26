@@ -80,7 +80,7 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-feishu package boundar
     const installedClient = await readFile(join(installedFeishuRoot, 'dist', 'client.js'), 'utf8')
     expect(installedClient).toContain('window.__ModuleLoader__.load({')
     expect(installedClient).toContain('id: "dsh-feishu"')
-    expect(installedClient).toContain('sidebar.footer.action')
+    expect(installedClient).toContain('evoforge.control.surface')
     const sdkManifest = JSON.parse(await readFile(
       join(profileDir, 'node_modules', '@larksuiteoapi', 'node-sdk', 'package.json'),
       'utf8',

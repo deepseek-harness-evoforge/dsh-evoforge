@@ -1,8 +1,8 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import type { SessionListState, WorkspaceListState } from '@deepseek-ai/dsh-client-runtime/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { FeishuAction, type FeishuCommandsClient } from '../src/client/FeishuAction.tsx'
+import type { ControlSurfaceUI } from 'dsh-control-center/client'
+import { FeishuSurface, type FeishuCommandsClient, type FeishuSurfaceProps } from '../src/client/FeishuAction.tsx'
 import { renderFeishuHealthCommand, summarizeFeishuHealth } from '../src/health.ts'
 import { zh } from '../src/client/locales.ts'
 
@@ -13,21 +13,34 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('Feishu health action', () => {
-  it('does not expose the deleted Session pairing flow', async () => {
+const controlSurfaceUI: ControlSurfaceUI = {
+  Surface: ({ children, ariaLabel }) => <main aria-label={ariaLabel}>{children}</main>,
+  Header: ({ title, description, status, actions }) => <header><h2>{title}</h2><p>{description}</p>{status}{actions}</header>,
+  Status: ({ children }) => <span>{children}</span>,
+  Metrics: ({ items }) => <dl>{items.map(item => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd><small>{item.hint}</small></div>)}</dl>,
+  Section: ({ title, description, actions, children }) => <section><h3>{title}</h3><p>{description}</p>{actions}{children}</section>,
+  Entity: ({ title, description, status, details }) => <article><strong>{title}</strong><span>{description}</span>{status}{details}</article>,
+  Notice: ({ title, children, role }) => <div role={role}>{title}{children}</div>,
+  Button: ({ tone: _tone, ...props }) => <button {...props} />,
+  Empty: ({ title, description }) => <div><h2>{title}</h2><p>{description}</p></div>,
+  Loading: () => <div role="status">Loading</div>,
+}
+
+describe('Feishu Control Surface', () => {
+  it('explains unavailable Session state without restoring the deleted pairing flow', async () => {
     const commands = {
       list: vi.fn(() => success([{ name: 'goal', description: 'goal' }])),
       execute: vi.fn(),
     } as unknown as FeishuCommandsClient
-    renderAction(commands)
+    renderSurface(commands)
 
     await waitFor(() => expect(commands.list).toHaveBeenCalledWith(sessionId))
+    expect(await screen.findByText(/当前对话未启用飞书内容读取/u)).toBeTruthy()
     expect(screen.queryByRole('button', { name: '连接飞书' })).toBeNull()
-    expect(screen.queryByRole('button', { name: '飞书健康' })).toBeNull()
     expect(commands.execute).not.toHaveBeenCalled()
   })
 
-  it('shows bound-route health and clears stale data after a Host failure', async () => {
+  it('shows bound-route health and retains the last-good view after a Host failure', async () => {
     const health = snapshot()
     const commands = {
       list: vi.fn(() => success([{ name: 'feishu', description: 'bound route health' }])),
@@ -36,10 +49,9 @@ describe('Feishu health action', () => {
         .mockResolvedValueOnce({ ok: true, value: execution(renderFeishuHealthCommand(health)) })
         .mockResolvedValueOnce({ ok: false, error: { code: 'gateway_unavailable', message: 'offline again' } }),
     } as unknown as FeishuCommandsClient
-    renderAction(commands)
+    renderSurface(commands)
 
-    fireEvent.click(await screen.findByRole('button', { name: '飞书健康' }))
-    expect((await screen.findByRole('alert')).textContent).toContain('gateway_unavailable: offline')
+    expect((await screen.findByRole('alert')).textContent).toContain('暂时无法读取当前 Session')
     fireEvent.click(screen.getByRole('button', { name: '刷新状态' }))
     expect(await screen.findByText('就绪')).toBeTruthy()
     expect(screen.getByText('official-feishu-websocket')).toBeTruthy()
@@ -48,8 +60,8 @@ describe('Feishu health action', () => {
     expect(screen.getByText(/不调用模型/u)).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: '刷新状态' }))
-    expect((await screen.findByRole('alert')).textContent).toContain('offline again')
-    expect(screen.queryByText('就绪')).toBeNull()
+    expect((await screen.findByRole('alert')).textContent).toContain('暂时无法读取当前 Session')
+    expect(screen.getByText('就绪')).toBeTruthy()
     expect(commands.execute).toHaveBeenCalledTimes(3)
   })
 
@@ -64,32 +76,22 @@ describe('Feishu health action', () => {
       list: vi.fn(() => success([{ name: 'feishu', description: 'health' }])),
       execute,
     } as unknown as FeishuCommandsClient
-    renderAction(commands)
+    renderSurface(commands)
 
-    fireEvent.click(await screen.findByRole('button', { name: '飞书健康' }))
     expect(await screen.findByText('就绪')).toBeTruthy()
     expect(execute).toHaveBeenNthCalledWith(1, sessionId, '/feishu')
     expect(execute).toHaveBeenNthCalledWith(2, sessionId, '/feishu', [])
   })
 })
 
-function renderAction(commands: FeishuCommandsClient) {
-  return render(<FeishuAction
-    commands={commands}
-    t={key => zh[key as keyof typeof zh] ?? key}
-    wide
-    useSessions={sessionHook()}
-    useWorkspaces={workspaceHook()}
-  />)
-}
-
-function sessionHook(current: string | undefined = sessionId) {
-  return <S,>(selector: (state: SessionListState) => S): S => selector({ current } as SessionListState)
-}
-
-function workspaceHook() {
-  return <S,>(selector: (state: WorkspaceListState) => S): S =>
-    selector({ items: [] } as unknown as WorkspaceListState)
+function renderSurface(commands: FeishuCommandsClient) {
+  const props = {
+    commands,
+    t: (key: string) => zh[key as keyof typeof zh] ?? key,
+    sessionId,
+    ui: controlSurfaceUI,
+  } as unknown as FeishuSurfaceProps
+  return render(<FeishuSurface {...props} />)
 }
 
 function success<T>(value: T) {

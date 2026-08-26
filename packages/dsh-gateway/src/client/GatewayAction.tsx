@@ -1,7 +1,6 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
-import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
+import type { ControlSurfaceProps, ControlTone } from 'dsh-control-center/client'
 import type {
   GatewayHealthSnapshot,
   GatewayPairingRevocationReceipt,
@@ -19,22 +18,17 @@ export interface GatewayRemoteClient {
   revokePairing(routeId: string): Promise<RemoteResult<GatewayPairingRevocationReceipt>>
 }
 
-export type GatewayActionProps = PropsRuntime<'sidebar.footer.action'> & {
+export type GatewaySurfaceProps = ControlSurfaceProps & {
   readonly remote: GatewayRemoteClient
   readonly t: (key: string) => string
 }
 
 type ViewStatus = 'ready' | 'busy' | 'attention' | 'degraded' | 'stopping'
 
-/** Global DSH Web control surface for Gateway health and Host-owned pairing. */
-export function GatewayAction({ remote, t, useSessions, useWorkspaces, wide }: GatewayActionProps) {
-  const triggerRef = useRef<HTMLButtonElement>(null)
+/** Gateway Adapter for the common DSH Control Surface. */
+export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: GatewaySurfaceProps) {
   const requestRef = useRef(0)
-  const sessionId = useSessions(state => state.current)
-  const workspaceId = useWorkspaces(state => sessionId === undefined
-    ? undefined
-    : state.items.find(workspace => workspace.sessionIds.includes(sessionId))?.workspaceId)
-  const [open, setOpen] = useState(false)
+  const workspaceId = useWorkspaces(state => state.items.find(workspace => workspace.sessionIds.includes(sessionId))?.workspaceId)
   const [busy, setBusy] = useState(false)
   const [pairingBusy, setPairingBusy] = useState(false)
   const [pairingCode, setPairingCode] = useState('')
@@ -52,29 +46,21 @@ export function GatewayAction({ remote, t, useSessions, useWorkspaces, wide }: G
     try {
       const result = await remote.overview()
       if (request !== requestRef.current) return
-      if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`)
+      if (!result.ok) throw new Error(t('error.unavailable'))
       setSnapshot(result.value)
       setConfirmingRoute(undefined)
     } catch (cause) {
-      if (request === requestRef.current) {
-        setSnapshot(undefined)
-        setError(cause instanceof Error ? cause.message : String(cause))
-      }
+      if (request === requestRef.current) setError(presentError(cause, t('error.unavailable')))
     } finally {
       if (request === requestRef.current) setBusy(false)
     }
   }
-  const toggle = () => {
-    const next = !open
-    setOpen(next)
-    if (next) void refresh()
-  }
-  const close = () => {
-    requestRef.current += 1
-    setOpen(false)
-    setConfirmingRoute(undefined)
-    triggerRef.current?.focus()
-  }
+
+  useEffect(() => {
+    void refresh()
+    return () => { requestRef.current += 1 }
+  }, [remote])
+
   const revokePairing = async (routeId: string) => {
     if (confirmingRoute !== routeId) {
       setConfirmingRoute(routeId)
@@ -85,20 +71,21 @@ export function GatewayAction({ remote, t, useSessions, useWorkspaces, wide }: G
     setError(undefined)
     try {
       const result = await remote.revokePairing(routeId)
-      if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`)
+      if (!result.ok) throw new Error(t('error.actionFailed'))
       setRevocationReceipt(result.value)
       await refresh()
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause))
+      setError(presentError(cause, t('error.actionFailed')))
     } finally {
       setRevokingRoute(undefined)
     }
   }
+
   const approvePairing = async () => {
     const code = pairingCode.trim().toUpperCase()
     setPairingReceipt(undefined)
     setError(undefined)
-    if (workspaceId === undefined || sessionId === undefined) {
+    if (workspaceId === undefined) {
       setError(t('pairing.noTarget'))
       return
     }
@@ -109,53 +96,84 @@ export function GatewayAction({ remote, t, useSessions, useWorkspaces, wide }: G
     setPairingBusy(true)
     try {
       const result = await remote.approvePairing(code, 'feishu', workspaceId, sessionId)
-      if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`)
+      if (!result.ok) throw new Error(t('error.actionFailed'))
       setPairingReceipt(result.value)
       setPairingCode('')
       await refresh()
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause))
+      setError(presentError(cause, t('error.actionFailed')))
     } finally {
       setPairingBusy(false)
     }
   }
-  const status = snapshot === undefined ? undefined : viewStatus(snapshot)
 
-  return <>
-    <button
-      ref={triggerRef}
-      type="button"
-      className="dsh-gateway-trigger"
-      aria-label={t('trigger.label')}
-      aria-expanded={open}
-      onClick={toggle}
-    >
-      <span aria-hidden="true">◎</span>
-      {wide && <span>{t('trigger.label')}</span>}
-    </button>
-    {open && <section className="dsh-gateway-panel" role="dialog" aria-label={t('panel.title')}>
-      <header className="dsh-gateway-head">
-        <div>
-          <h2>{t('panel.title')}</h2>
-          <p>{t('panel.subtitle')}</p>
-        </div>
-        <button type="button" className="dsh-gateway-close" aria-label={t('panel.close')} onClick={close}>×</button>
-      </header>
-      <div className="dsh-gateway-body">
-        {status !== undefined && <span className={`dsh-gateway-status is-${status}`}>{t(`health.${status}`)}</span>}
-        {error !== undefined && <div className="dsh-gateway-message is-error" role="alert">{t('error.prefix')}{error}</div>}
-        {snapshot === undefined && error === undefined && <div className="dsh-gateway-message" role="status">{t('status.loading')}</div>}
-        {snapshot !== undefined && <>
-          <div className="dsh-gateway-summary">
-            <strong>{format(t('summary.routes'), snapshot.routes.total)}</strong>
-            <strong>{format(t('summary.sessions'), snapshot.routes.liveSessions)}</strong>
-            <span>{t(`lifecycle.${snapshot.lifecycle}`)}</span>
-          </div>
-          <section className="dsh-gateway-section dsh-gateway-pairing">
-            <h3>{t('pairing.title')}</h3>
-            <p>{t('pairing.help')}</p>
+  const status = snapshot === undefined ? undefined : viewStatus(snapshot)
+  const pending = snapshot === undefined ? 0 : snapshot.outbound.prepared + snapshot.outbound.sending + snapshot.outbound.retrying
+  const anomalies = snapshot === undefined ? 0 : snapshot.ingress.uncertain + snapshot.outbound.uncertain + snapshot.outbound.failed
+
+  return <UI.Surface ariaLabel={t('surface.title')}>
+    <UI.Header
+      eyebrow={t('surface.eyebrow')}
+      title={t('surface.title')}
+      description={t('surface.description')}
+      status={status === undefined ? undefined : <UI.Status tone={statusTone(status)}>{t(`health.${status}`)}</UI.Status>}
+      actions={<UI.Button type="button" disabled={busy} onClick={() => { void refresh() }}>
+        {busy ? t('status.refreshing') : t('status.refresh')}
+      </UI.Button>}
+    />
+
+    {error !== undefined && <UI.Notice tone="danger" role="alert" title={t('error.title')}>{error}</UI.Notice>}
+    {snapshot === undefined
+      ? <UI.Loading cards={4} />
+      : <>
+        <UI.Metrics items={[
+          { label: t('metric.routes'), value: snapshot.routes.total, hint: format(t('summary.sessions'), snapshot.routes.liveSessions) },
+          { label: t('delivery.ingress'), value: snapshot.ingress.total, hint: t('metric.durable') },
+          { label: t('delivery.outbound'), value: snapshot.outbound.total, hint: t('metric.durable') },
+          { label: t('metric.anomalies'), value: anomalies, hint: pending === 0 ? t('metric.noPending') : format(t('metric.pending'), pending), tone: anomalies > 0 ? 'danger' : pending > 0 ? 'working' : 'healthy' },
+        ]} />
+
+        <UI.Section title={t('transport.title')} description={t('transport.description')}>
+          {snapshot.transports.items.length === 0
+            ? <UI.Empty title={t('transport.emptyTitle')} description={t('transport.empty')} />
+            : snapshot.transports.items.map(item => <UI.Entity
+              key={`${item.adapter}:${item.kind}`}
+              icon={item.adapter.slice(0, 1).toUpperCase()}
+              title={adapterLabel(item.adapter)}
+              description={item.kind}
+              status={<UI.Status tone={transportTone(item.state)}>{transportLabel(t, item.state)}</UI.Status>}
+              details={item.routeIds.length === 0 ? undefined : <details><summary>{format(t('technical.routes'), item.routeIds.length)}</summary>{item.routeIds.map(id => <div key={id}><code>{id}</code></div>)}</details>}
+            />)}
+        </UI.Section>
+
+        <UI.Section title={t('routes.title')} description={t('routes.help')}>
+          {snapshot.routes.items.length === 0
+            ? <UI.Empty title={t('routes.emptyTitle')} description={t('routes.empty')} />
+            : snapshot.routes.items.map(route => <UI.Entity
+              key={route.id}
+              icon={route.adapter.slice(0, 1).toUpperCase()}
+              title={adapterLabel(route.adapter)}
+              description={t(route.paired ? 'routes.pairedDescription' : 'routes.configuredDescription')}
+              status={<UI.Status tone={route.paired ? 'healthy' : 'neutral'}>{t(route.paired ? 'routes.paired' : 'routes.configured')}</UI.Status>}
+              details={<details><summary>{t('technical.details')}</summary><code>{route.id}</code></details>}
+              actions={route.paired && <UI.Button
+                type="button"
+                tone={confirmingRoute === route.id ? 'danger' : 'quiet'}
+                disabled={revokingRoute !== undefined}
+                aria-label={routeLabel(t(confirmingRoute === route.id ? 'routes.confirmRevoke' : 'routes.revoke'), route.id)}
+                onClick={() => { void revokePairing(route.id) }}
+              >
+                {revokingRoute === route.id ? t('routes.revoking') : t(confirmingRoute === route.id ? 'routes.confirm' : 'routes.revokeShort')}
+              </UI.Button>}
+            />)}
+        </UI.Section>
+
+        {revocationReceipt !== undefined && <UI.Notice tone="healthy">{t('routes.revokedShort')}</UI.Notice>}
+
+        <UI.Section title={t('pairing.title')} description={t('pairing.help')}>
+          <div className="dsh-cc-form">
             <label htmlFor="dsh-gateway-pairing-code">{t('pairing.code')}</label>
-            <div className="dsh-gateway-pairing-row">
+            <div className="dsh-cc-form-row">
               <input
                 id="dsh-gateway-pairing-code"
                 value={pairingCode}
@@ -163,83 +181,26 @@ export function GatewayAction({ remote, t, useSessions, useWorkspaces, wide }: G
                 autoComplete="off"
                 spellCheck={false}
                 placeholder="ABCDEFGH23"
-                onChange={event => setPairingCode(event.target.value.toUpperCase())}
+                onChange={event => { setPairingCode(event.target.value.toUpperCase()) }}
               />
-              <button
-                type="button"
-                disabled={pairingBusy || workspaceId === undefined || sessionId === undefined}
-                onClick={() => { void approvePairing() }}
-              >
+              <UI.Button type="button" tone="primary" disabled={pairingBusy || workspaceId === undefined} onClick={() => { void approvePairing() }}>
                 {pairingBusy ? t('pairing.approving') : t('pairing.approve')}
-              </button>
+              </UI.Button>
             </div>
-            {workspaceId === undefined || sessionId === undefined
-              ? <small>{t('pairing.noTarget')}</small>
-              : <small>{t('pairing.target')} <code>{workspaceId}</code> / <code>{sessionId}</code></small>}
-            {pairingReceipt !== undefined && <div className="dsh-gateway-message is-success" role="status">
-              {t('pairing.approved')} <code>{pairingReceipt.routeId}</code>
-            </div>}
-          </section>
-          <section className="dsh-gateway-section">
-            <h3>{t('routes.title')}</h3>
-            <p>{t('routes.help')}</p>
-            {snapshot.routes.items.length === 0
-              ? <p>{t('routes.empty')}</p>
-              : snapshot.routes.items.map(route => <article key={route.id} className="dsh-gateway-route">
-                <div>
-                  <strong>{route.adapter}</strong>
-                  <code>{route.id}</code>
-                  <small>{t(route.paired ? 'routes.paired' : 'routes.configured')}</small>
-                </div>
-                {route.paired && <button
-                  type="button"
-                  className={confirmingRoute === route.id ? 'is-confirm' : undefined}
-                  disabled={revokingRoute !== undefined}
-                  aria-label={routeLabel(t(confirmingRoute === route.id
-                    ? 'routes.confirmRevoke'
-                    : 'routes.revoke'), route.id)}
-                  onClick={() => { void revokePairing(route.id) }}
-                >
-                  {revokingRoute === route.id
-                    ? t('routes.revoking')
-                    : routeLabel(t(confirmingRoute === route.id
-                      ? 'routes.confirmRevoke'
-                      : 'routes.revoke'), route.id)}
-                </button>}
-              </article>)}
-            {revocationReceipt !== undefined && <div className="dsh-gateway-message is-success" role="status">
-              {routeLabel(t('routes.revoked'), revocationReceipt.routeId)}
-            </div>}
-          </section>
-          <section className="dsh-gateway-section">
-            <h3>{t('transport.title')}</h3>
-            {snapshot.transports.items.length === 0
-              ? <p>{t('transport.empty')}</p>
-              : snapshot.transports.items.map(item => <article key={`${item.adapter}:${item.kind}`} className="dsh-gateway-transport">
-                <div><strong>{item.adapter}</strong><code>{item.kind}</code></div>
-                <span className={`dsh-gateway-pill is-${item.state}`}>{item.state}</span>
-                <div className="dsh-gateway-routes">{item.routeIds.map(id => <code key={id}>{id}</code>)}</div>
-              </article>)}
-          </section>
-          <section className="dsh-gateway-section">
-            <h3>{t('delivery.title')}</h3>
-            <dl className="dsh-gateway-grid">
-              <div><dt>{t('delivery.ingress')}</dt><dd>{snapshot.ingress.total}</dd></div>
-              <div><dt>{t('delivery.outbound')}</dt><dd>{snapshot.outbound.total}</dd></div>
-              <div><dt>{t('delivery.pending')}</dt><dd>{snapshot.outbound.prepared + snapshot.outbound.sending + snapshot.outbound.retrying}</dd></div>
-              <div><dt>{t('delivery.uncertain')}</dt><dd>{snapshot.ingress.uncertain + snapshot.outbound.uncertain}</dd></div>
-              <div><dt>{t('delivery.failed')}</dt><dd>{snapshot.outbound.failed}</dd></div>
-            </dl>
-          </section>
-          <p className="dsh-gateway-foot">{t('foot.noModel')} · {new Date(snapshot.observedAt).toLocaleString()}</p>
-        </>}
-        <button type="button" className="dsh-gateway-refresh" disabled={busy} onClick={() => { void refresh() }}>
-          {busy ? t('status.refreshing') : t('status.refresh')}
-        </button>
-      </div>
-    </section>}
-  </>
+            <p>{workspaceId === undefined ? t('pairing.noTarget') : t('pairing.currentTarget')}</p>
+            {pairingReceipt !== undefined && <UI.Notice tone="healthy">{t('pairing.approvedShort')}</UI.Notice>}
+          </div>
+        </UI.Section>
+
+        <UI.Notice tone={anomalies > 0 ? 'attention' : 'neutral'}>
+          {t('foot.noModel')} · {new Date(snapshot.observedAt).toLocaleString()}
+        </UI.Notice>
+      </>}
+  </UI.Surface>
 }
+
+export const GatewayAction = GatewaySurface
+export type GatewayActionProps = GatewaySurfaceProps
 
 function viewStatus(snapshot: GatewayHealthSnapshot): ViewStatus {
   if (snapshot.lifecycle === 'stopping' || snapshot.transports.stopping > 0) return 'stopping'
@@ -251,10 +212,40 @@ function viewStatus(snapshot: GatewayHealthSnapshot): ViewStatus {
   return 'ready'
 }
 
+function statusTone(status: ViewStatus): ControlTone {
+  if (status === 'ready') return 'healthy'
+  if (status === 'busy') return 'working'
+  if (status === 'attention') return 'attention'
+  if (status === 'degraded') return 'danger'
+  return 'neutral'
+}
+
+function transportTone(state: GatewayHealthSnapshot['transports']['items'][number]['state']): ControlTone {
+  if (state === 'ready') return 'healthy'
+  if (state === 'connecting') return 'working'
+  if (state === 'degraded') return 'danger'
+  return 'neutral'
+}
+
+function transportLabel(t: (key: string) => string, state: string): string {
+  return t(`transport.state.${state}`)
+}
+
+function adapterLabel(adapter: string): string {
+  if (adapter === 'feishu') return '飞书'
+  if (adapter === 'telegram') return 'Telegram'
+  return adapter
+}
+
 function format(template: string, count: number): string {
   return template.replace('{count}', String(count))
 }
 
 function routeLabel(template: string, routeId: string): string {
   return template.replace('{routeId}', routeId)
+}
+
+function presentError(cause: unknown, fallback: string): string {
+  if (cause instanceof Error && (cause.message === fallback || cause.message.startsWith('配对码'))) return cause.message
+  return fallback
 }

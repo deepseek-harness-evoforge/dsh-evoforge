@@ -1,11 +1,10 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
-import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
+import type {} from 'dsh-control-center/client'
 import gatewayRemote from 'dsh-gateway/remote'
-import { GatewayAction, type GatewayRemoteClient } from './GatewayAction.tsx'
+import { GatewaySurface, type GatewayRemoteClient } from './GatewayAction.tsx'
 import { en, NS, zh } from './locales.ts'
-import { cssText, STYLE_ID } from './style.ts'
 
 type WebContext = Context & {
   remote: Context['remote'] & {
@@ -29,26 +28,23 @@ export async function apply(context: Context): Promise<void> {
   const unmountRemote = await ctx.remote.$mount(gatewayRemote)
   ctx.effect(() => unmountRemote, 'dsh-gateway.client.remote')
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-gateway.client.locale')
-  ctx.effect(() => {
-    const prior = document.querySelector(`style[data-plugin-css="${STYLE_ID}"]`)
-    if (prior !== null) return () => {}
-    const style = document.createElement('style')
-    style.dataset.plugin = 'dsh-gateway'
-    style.dataset.pluginCss = STYLE_ID
-    style.textContent = cssText
-    document.head.append(style)
-    return () => style.remove()
-  }, 'dsh-gateway.client.style')
   ctx.inject(['remote.evoforgeGateway'], (remoteContext) => {
     const scope = remoteContext as WebContext
-    scope.slots.inject('sidebar.footer.action', () => scope.slots.register({
-      name: 'sidebar.footer.action',
-      id: 'evoforge-gateway-health',
-      order: 32,
+    scope.slots.inject('evoforge.control.surface', () => scope.slots.register({
+      name: 'evoforge.control.surface',
+      id: 'evoforge-gateway',
+      order: 10,
+      label: () => scope.locale.bind(NS)('surface.nav'),
       locale: NS,
       inject: () => ({ remote: scope.remote.evoforgeGateway }),
-    }, GatewayAction))
+    }, GatewaySurface))
   })
 }
 
-export { GatewayAction, type GatewayActionProps, type GatewayRemoteClient } from './GatewayAction.tsx'
+export {
+  GatewayAction,
+  GatewaySurface,
+  type GatewayActionProps,
+  type GatewayRemoteClient,
+  type GatewaySurfaceProps,
+} from './GatewayAction.tsx'

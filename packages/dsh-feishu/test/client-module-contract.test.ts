@@ -16,7 +16,7 @@ describe('Feishu native DSH Client Module', () => {
           '@deepseek-ai/dsh-api-remotes',
           '@deepseek-ai/dsh-client-locale',
           '@deepseek-ai/dsh-client-runtime',
-          '@deepseek-ai/dsh-client-ui-sidebar',
+          '@deepseek-ai/dsh-client-ui-conversation',
         ],
         platform: 'web',
       },
@@ -30,7 +30,8 @@ describe('Feishu native DSH Client Module', () => {
     const client = await readFile(resolve(packageRoot, 'dist/client.js'), 'utf8')
     const host = await readFile(resolve(packageRoot, 'dist/index.mjs'), 'utf8')
     expect(client).toMatch(/window\.__ModuleLoader__\.load\(\{\s*id: "dsh-feishu"/u)
-    expect(client).toContain('sidebar.footer.action')
+    expect(client).toContain('evoforge.control.surface')
+    expect(client).not.toContain('dsh-feishu-panel')
     expect(client).toContain('executeCommand(commands, target, "/feishu")')
     expect(client).toContain('commands.execute(sessionId, line, [])')
     expect(client).toContain('EVOFORGE_FEISHU_HEALTH_V2')

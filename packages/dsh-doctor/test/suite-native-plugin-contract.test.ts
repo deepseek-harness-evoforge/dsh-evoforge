@@ -9,6 +9,11 @@ const supportedDshPeerRange = '0.1.0-rc.5 || 0.1.1-rc.2'
 
 const contracts = [
   {
+    name: 'dsh-control-center',
+    entryId: 'evoforge-control-center',
+    disabled: false,
+  },
+  {
     name: 'dsh-evolve',
     entryId: 'evoforge-evolution',
     disabled: false,
@@ -69,7 +74,7 @@ describe('EvoForge native DSH plugin suite contract', () => {
   it.each(contracts)('$name exports one loadable Cordis plugin contract', async ({ name }) => {
     const source = await readFile(join(packagesRoot, name, 'src', 'index.ts'), 'utf8')
     expect(source).toContain(`export const name = '${name}'`)
-    expect(source).toMatch(/export const inject = \[[^\]]+\]/u)
+    expect(source).toMatch(/export const inject(?::[^=]+)?\s*=\s*\[[^\]]*\]/u)
     expect(source).toContain('export const Config')
     expect(source).toMatch(/export (?:async )?function apply\(/u)
     if (name === 'dsh-software-delivery') {
