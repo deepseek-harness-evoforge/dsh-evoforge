@@ -22,7 +22,7 @@
     "generate:typert": "pnpm --filter dsh-evolve exec tsc -b ../../tsconfig.host.json --force && pnpm --filter dsh-evolve run prune:types && node scripts/generate-typert.mjs",
     "check:docs": "node scripts/check-docs.mjs",
     "check:ci": "node scripts/check-ci-test-paths.mjs",
-    "check:suites": "node --test scripts/suite-manifest.test.mjs",
+    "check:suites": "node --test scripts/suite-manifest.test.mjs scripts/pack-suites.test.mjs",
     "check:release": "node scripts/check-release.mjs",
     "check:release:gates": "node scripts/check-release-gates.mjs",
     "check:release:gates:test": "node --test scripts/check-release-gates.test.mjs",

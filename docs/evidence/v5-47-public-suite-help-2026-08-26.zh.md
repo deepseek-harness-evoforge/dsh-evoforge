@@ -19,7 +19,7 @@ Maintainer-only: full
 ```
 
 - `pnpm run pack:suite -- --help`：成功，默认套件为 `core`；
-- `pnpm run check:suites`：2 tests passed；
+- `pnpm run check:suites`：3 tests passed；
 - `pnpm run check:docs`：通过；
 - `pnpm check`：通过（全包 typecheck、测试和构建）；
 - GitHub CI `32974690241`：Node 22、Node 24 及 DSH `0.1.0-rc.5`/`0.1.1-rc.2` assembled jobs 均通过；
