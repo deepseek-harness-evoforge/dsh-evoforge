@@ -51,6 +51,12 @@ jobs:
       - name: Check tag and package versions
         run: node scripts/check-release-tag-version.mjs --tag "$GITHUB_REF_NAME"
 
+      - name: Verify annotated tag is on main
+        run: |
+          test "$(git cat-file -t "$GITHUB_REF_NAME")" = tag
+          tag_commit="$(git rev-list -n1 "$GITHUB_REF_NAME")"
+          git merge-base --is-ancestor "$tag_commit" origin/main
+
       - name: Checkout pinned DeepSeek Harness
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:

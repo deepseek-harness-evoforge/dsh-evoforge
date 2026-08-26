@@ -23,7 +23,8 @@ All notable changes will be recorded here. The project has not published a stabl
   and every required release gate before publishing public Bundles to npm; the `npm` Environment remains maintainer-
   approved and no gate bypass is available. The local annotated-tag command runs the same version check before creating
   the tag, while the workflow supports either an npm token or trusted publishing. A workflow contract test now locks
-  the tag-only trigger, protected Environment, gate-before-publish order, and commit-pinned Actions.
+  the tag-only trigger, annotated-tag/main ancestry check, protected Environment, gate-before-publish order, and
+  commit-pinned Actions.
 - The Evolution Control Center child surface now contributes a localized navigation label (`演化`/`Evolution`) instead
   of exposing its internal `evoforge-evolution` slot id to users.
 - The dual DSH assembled matrix now materializes a temporary Case Pack copy whose epoch is bound to the checked-out

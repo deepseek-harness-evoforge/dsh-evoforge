@@ -15,7 +15,7 @@ EvoForge 以 DSH 官方 Bundle 作为交付单元，以能力套件作为用户�
 
 ## GitHub 开源发布流程
 
-推送 `dsh-v*` annotated tag 后，`.github/workflows/release.yml` 会在受保护的 `npm` Environment 中重新执行 tag/版本检查、完整 `pnpm check`、静态发布预检和全部 required release gates，然后才构建并发布十二个公开 Bundle。工作流固定使用审计过的 DSH revision，并设置 `id-token: write` 以支持 npm provenance。
+推送 `dsh-v*` annotated tag 后，`.github/workflows/release.yml` 会先确认它确实是 annotated tag 且提交仍在 `main` 历史上，再在受保护的 `npm` Environment 中重新执行 tag/版本检查、完整 `pnpm check`、静态发布预检和全部 required release gates，然后才构建并发布十二个公开 Bundle。工作流固定使用审计过的 DSH revision，并设置 `id-token: write` 以支持 npm provenance。
 
 维护者需要在 GitHub 为 `npm` Environment 配置人工批准规则，并配置 npm trusted publisher 或 `NPM_TOKEN`；Environment 未获批准、任一门禁失败或 tag/包版本不一致，都不会执行发布步骤。该工作流只发布已经由 `release:tag` 创建的 tag，不提供跳过门禁或直接从普通 `main` 推送发布的路径。
 
