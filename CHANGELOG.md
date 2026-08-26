@@ -8,6 +8,7 @@ All notable changes will be recorded here. The project has not published a stabl
 
 - User-facing installation is now organized into four default entries: `core`, `channels`, `delivery`, and `continuity`. `attention` is optional, `evolution`/`control`/`gateway` remain compatibility or advanced entries, and `full` is maintainer-only. The underlying DSH Bundles remain independently installable, permission-scoped, and removable; `channels` no longer forces the Web Control Center or attention bridge.
 - The public-package release preflight now verifies MIT/repository metadata, package READMEs, exported Cordis patches, and publishable Bundle manifests; CI runs that preflight on every matrix entry.
+- Added a machine-readable `release-gates.json` and an annotated-tag command that refuses dirty/non-main/out-of-sync trees or any incomplete real-evidence gate.
 - `dsh-evolve-web` now contributes its evolution surface to the native Control Center instead of registering a duplicate fixed sidebar dialog.
 - CI package verification now consumes the suite manifest and no longer references removed package names or obsolete hard-gate scripts.
 

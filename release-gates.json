@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "releaseLine": "dsh-v0.1",
+  "requiredStatus": "passed",
+  "gates": [
+    {
+      "id": "public-package-preflight",
+      "title": "Public Bundle metadata and packaging",
+      "requiredForTag": true,
+      "status": "passed",
+      "evidence": ["docs/evidence/v5-34-public-package-preflight-2026-08-26.zh.md"]
+    },
+    {
+      "id": "dsh-compatibility",
+      "title": "Audited DSH revision compatibility",
+      "requiredForTag": true,
+      "status": "passed",
+      "evidence": ["docs/evidence/v5-29-compatibility-rerun-2026-08-26.zh.md"]
+    },
+    {
+      "id": "clean-profile-lifecycle",
+      "title": "Final Bundle clean-profile lifecycle",
+      "requiredForTag": true,
+      "status": "passed",
+      "evidence": ["docs/evidence/v5-27-native-plugin-control-center.zh.md"]
+    },
+    {
+      "id": "web-control-plane",
+      "title": "Native DSH Web control plane and recovery",
+      "requiredForTag": true,
+      "status": "partial",
+      "evidence": [
+        "docs/evidence/v5-27-native-plugin-control-center.zh.md",
+        "docs/evidence/v5-30-evolution-surface-browser-2026-08-26.zh.md"
+      ],
+      "blocker": "Evolution is verified, but Doctor/Telegram surfaces and complete newcomer UX are not yet verified."
+    },
+    {
+      "id": "real-feishu-as2",
+      "title": "Real Feishu resident Gateway epoch-3",
+      "requiredForTag": true,
+      "status": "failed",
+      "evidence": ["docs/evidence/v5-33-real-feishu-pairing-timeout-2026-08-26.zh.md"],
+      "blocker": "The latest authorized run timed out while waiting for a real resident pairing code."
+    },
+    {
+      "id": "real-provider-rp1",
+      "title": "Two independent real Provider paired evolution run",
+      "requiredForTag": true,
+      "status": "not-run",
+      "evidence": ["docs/evidence/v4-55-real-provider-acceptance-gate.zh.md"],
+      "blocker": "No same-task, same-model, same-budget real Provider run has been authorized and passed."
+    },
+    {
+      "id": "hermes-paired",
+      "title": "Full Hermes paired benchmark",
+      "requiredForTag": true,
+      "status": "partial",
+      "evidence": ["docs/evidence/v5-31-hermes-deterministic-rerun-2026-08-26.zh.md"],
+      "blocker": "Only four deterministic slices are verified; the required same-model real paired benchmark is missing."
+    },
+    {
+      "id": "long-term-effects",
+      "title": "Long-term outcome, negative-transfer, recovery, and external-effect data",
+      "requiredForTag": true,
+      "status": "not-run",
+      "evidence": ["docs/status.zh.md"],
+      "blocker": "Long-term false-promotion, forgetting, negative-transfer, duplicate-effect, and rollback-rate evidence is missing."
+    }
+  ]
+}

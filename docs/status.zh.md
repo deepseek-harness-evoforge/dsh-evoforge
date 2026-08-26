@@ -186,6 +186,10 @@ V5.33 在获得真实 App 配置后实际启动了 epoch-3 runner：最终 tarba
 MIT、仓库地址、README、Cordis patch 文件和导出契约；English README 与四个默认安装入口同步。该门只证明发布
 元数据和文档可复核，不改变真实 Provider、真实飞书完整 epoch-3 或 Hermes paired 的未完成状态。
 
+V5.35 将发布阻断提升为机器可执行的 `release-gates.json`：`check:release:gates` 会把 partial/not-run/failed
+证据明确归为阻断，`release:tag` 还要求 clean `main` 且 `HEAD == origin/main`，只创建 annotated tag，不提供绕过
+外部门禁的开关。当前该命令按设计失败，阻断项见 [release-gates.json](../release-gates.json)。
+
 V5.9 修复 Runtime Readiness 的连接盲区：`dsh-feishu`/`dsh-telegram` 仅有 active fiber 不再足以让
 `/doctor` 报 READY。Doctor 在命令时读取现有 Gateway 脱敏 transport facts，独立归约 unavailable、changing、
 ready 与 degraded；损坏服务 fail closed。最终 Doctor tarball 已经官方 add/dump，在真实 DSH Loader 中完成
@@ -293,7 +297,7 @@ V5.21 将真实飞书 AS-2 从 epoch-1 升为 epoch-2。最终包 profile 不在
 | Workspace DSH Gateway | `implemented` | `dsh-gateway` 直接替换旧包且无兼容层；exact endpoint/Adapter account/routeIds deny-by-default；原生 Workspace/Session/Agent create/resume；持久 ingress/outbound 幂等与 uncertain 状态机；[V5.22](evidence/v5-22-resident-gateway-pairing.zh.md) 增加 Agent-before-auth、hashed pending code、Host Remote/Web approval、live Session/Workspace/cwd gate、原子动态 grant、跨重启匹配和零-route resident transport 健康，并从真实 rc.2 App 完成三次 ingress/outbound、零异常和 Host 冷启动恢复；[V5.24](evidence/v5-24-resident-pairing-revocation.zh.md) 增加原子撤销墓碑、活动 effect 门、Typert Remote 和动态/静态 route Web 控制；8 files / 32 tests、最终 tarball 升级/冷启动与浏览器二次确认通过；[V5.1](evidence/v5-1-gateway-transport-health.zh.md)、[V5.2](evidence/v5-2-gateway-web-health.zh.md)、[V5.3](evidence/v5-3-feishu-native-image-ingress.zh.md)、[V5.7](evidence/v5-7-bounded-channel-delivery.zh.md) 继续成立 | 重启后新增消息、真实撤销重配、Approval/Schedule/group、渠道长期运行与 Hermes paired benchmark；通用文件需官方 DSH 内容契约 |
 | 飞书 Adapter | `implemented` | [V5.22](evidence/v5-22-resident-gateway-pairing.zh.md)：Bundle boot 即注册 `pairedRoutes` 并连接官方 WebSocket；未知 DM 首条不进 Agent，回 code；Host批准后下一条动态采用 exact route；旧 `/feishu-pair`、临时 listener、反向短语/YAML/倒计时 UI 与测试净删除；真实 App 最终 tarball已完成 direct DM pairing、普通文本/原生 `/new`/普通文本三次 native 入站与回复，冷启动恢复 exact route/Session/journal/transport 且无重复投递；[V5.23](evidence/v5-23-resident-pairing-as2-gate.zh.md) 又让动态 route 进入 Host notice seam，并以 assembled DSH 验证 paired Approval `allowed-once` 与持久 notice；[V5.24](evidence/v5-24-resident-pairing-revocation.zh.md) 的 Gateway Web 已从最终包显示动态 grant 撤销二次确认；原有 Schedule、图片/Approval/内容读取证据继续覆盖静态 exact routes | 重启后新增消息、真实撤销重配、真实 Approval/Schedule/group/failure 与多日重连；普通文件/音视频仍 pending；内容能力还缺真实 App scope、资源权限拒绝和真实数据 |
 | Hermes paired benchmark | `implemented` | [V5.31](evidence/v5-31-hermes-deterministic-rerun-2026-08-26.zh.md) 在当前 rc.5 checkout 重跑 EV-1、SD-1、LC-1、AS-1：前两项窄场景胜出；本机崩溃恢复与 Telegram 一次性审批均 0:0 平局；此前冻结证据与内容寻址路径不变 | 同模型真实编码、真实 Bot/App 消息交付、真实模型长任务、真实 provider 与长期 outcome 的 paired epochs |
-| Registry release | `planned` | 无 | 全部门禁、版本矩阵、用户授权 |
+| Registry release | `planned` | [V5.35](evidence/v5-35-machine-release-gates-2026-08-26.zh.md) 已提供机器可执行 gate manifest、阻断命令和 annotated-tag 入口，但当前 gates 仍为 blocked | 真实 Provider、完整飞书 AS-2、Hermes paired、长期效果证据和用户发布授权 |
 
 ## 当前可安装面
 
