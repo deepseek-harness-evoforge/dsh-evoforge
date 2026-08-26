@@ -17,15 +17,15 @@ clean-profile、native Bundle、assembled Session/Goal、卸载和恢复测试�
 | `0.1.0-rc.5` | `47f943859bef60e4160492346772ded9b24f765a` |
 | `0.1.1-rc.2` | `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e` |
 
-这两个目标与 `scripts/run-dsh-compatibility-matrix.mjs` 的 allowlist 完全一致；任意未审计 revision 仍会被
-兼容性脚本拒绝。`check:ci` 同时保证矩阵中引用的测试文件存在。
+这两个目标与 `scripts/run-dsh-compatibility-matrix.mjs` 的 allowlist 完全一致；`check:ci` 现在同时校验矩阵
+revision 与该 allowlist 的集合相等，并保证矩阵中引用的测试文件存在。任意未审计 revision 仍会被兼容性脚本拒绝。
 
 ## 证据
 
 ```text
 YAML parse: jobs=[check, assembled-darwin]
 assembled-darwin matrix: 0.1.0-rc.5 + 0.1.1-rc.2
-CI test path check passed for 25 referenced files.
+CI test path and DSH target checks passed for 25 referenced files.
 pnpm run check  # passed: docs, CI paths, suites, gates, typecheck, tests, build
 ```
 

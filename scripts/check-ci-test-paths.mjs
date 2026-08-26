@@ -1,6 +1,7 @@
 import { access, readdir, readFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { SUPPORTED_DSH_TARGETS } from './run-dsh-compatibility-matrix.mjs'
 
 const repositoryRoot = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const workflowPath = join(repositoryRoot, '.github/workflows/ci.yml')
@@ -32,4 +33,13 @@ if (missing.length > 0) {
   throw new Error(`CI references missing package test files:\n${missing.join('\n')}`)
 }
 
-process.stdout.write(`CI test path check passed for ${paths.length} referenced files.\n`)
+const workflowRevisions = [...workflow.matchAll(/^\s+revision:\s+([0-9a-f]{40})\s*$/gmu)]
+  .map(match => match[1])
+  .filter((value, index, values) => values.indexOf(value) === index)
+const supportedRevisions = Object.keys(SUPPORTED_DSH_TARGETS)
+if (workflowRevisions.length !== supportedRevisions.length
+  || workflowRevisions.some(revision => !supportedRevisions.includes(revision))) {
+  throw new Error(`CI DSH matrix must exactly match the audited compatibility allowlist. CI=${workflowRevisions.join(',')} allowlist=${supportedRevisions.join(',')}`)
+}
+
+process.stdout.write(`CI test path and DSH target checks passed for ${paths.length} referenced files.\n`)
