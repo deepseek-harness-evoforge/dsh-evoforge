@@ -41,6 +41,6 @@ README、中文 getting-started、status、roadmap、 operational Skills 与包 
 
 ## Assembled 证据覆盖
 
-现有 `test/clean-profile-suite.e2e.test.ts` 从全部十一个用户包的 tarball 开始，使用一次官方 `dsh plugin --profile web add`，核对 manifest、全部 Bundle rows 与 dump，启动真实 DSH Web Host，再用 shipped `standard` agent preset 注册原生 Workspace 并创建真实 Agent/Session/Goal。零网络 DSH LLM adapter 让 Agent driver 调用 packed `complete_delivery`，实际 DSH Bash 运行 check、原生 `update_goal` 完成 Goal并写入 Session。随后 dispose、一次官方 remove 十一包、再次 dump/boot，确认所有 EvoForge Tool/Skill/service 消失且原生持久化仍读到 complete Goal event。
+现有 `test/clean-profile-suite.e2e.test.ts` 从全部十二个用户包的 tarball 开始，使用一次官方 `dsh plugin --profile web add`，核对 manifest、全部 Bundle rows 与 dump，启动真实 DSH Web Host，再用 shipped `standard` agent preset 注册原生 Workspace 并创建真实 Agent/Session/Goal。零网络 DSH LLM adapter 让 Agent driver 调用 packed `complete_delivery`，实际 DSH Bash 运行 check、原生 `update_goal` 完成 Goal并写入 Session。随后 dispose、一次官方 remove 十二包、再次 dump/boot，确认所有 EvoForge Tool/Skill/service 消失且原生持久化仍读到 complete Goal event。
 
 该门禁同时检查每个 tarball 无 bin、无 `node_modules`、production dependencies 无 DSH/Cordis；CLI 启动使用随机端口并在 SIGTERM 后验证进程不存在。各包的独立 lifecycle 与 assembled tests 继续覆盖 watcher、长轮询、注册项、路由和投递资源的卸载。
