@@ -41,8 +41,9 @@ V5.27 把分散且遮挡 DSH 的 Gateway/飞书悬浮面板推翻为原生插件
 与飞书作为两个真实 Adapter 复用同一组状态、指标、列表、错误和操作原语。固定 DSH/Turtle UI、Hermes、
 HanaAgent 一手 revision 的设计调研、[ADR-0099](adr/0099-control-center-owns-one-native-view-and-child-surface-slot.md)、
 十二包 clean-profile 安装/boot/remove/readback 与真实 Chrome 成功/刷新/断连保留/恢复证据见
-[V5.27](evidence/v5-27-native-plugin-control-center.zh.md)。本次重构已把 `dsh-evolve-web` 迁入同一公共 Surface；旧
-侧栏固定弹窗不再是活动入口。完整陌生用户可用性、真实 provider 价格与长期数据仍未完成。
+[V5.27](evidence/v5-27-native-plugin-control-center.zh.md)。随后 [V5.28](evidence/v5-28-evolution-surface-control-center.zh.md)
+把 `dsh-evolve-web` 迁入同一公共 Surface；旧侧栏固定弹窗不再是活动入口。迁移后的 Evolution 最终包真实
+Workspace/Session 浏览器验收仍是发布前门，完整陌生用户可用性、真实 provider 价格与长期数据仍未完成。
 
 V5.5 按 [ADR-0090](adr/0090-feishu-content-reads-are-agent-scoped-native-tools.md) 在 `dsh-feishu` 内增加一个
 Agent-scoped 原生 `feishu_content_read` Tool。document、Wiki、Drive metadata、Bitable records 四项权限独立且
@@ -269,7 +270,7 @@ V5.21 将真实飞书 AS-2 从 epoch-1 升为 epoch-2。最终包 profile 不在
 | Existing-Skill Exact Retention Evaluation | `implemented` | [V4.40](evidence/v4-40-existing-skill-pre-candidate-retention-governance.zh.md) pre-Candidate Retention + [V4.41](evidence/v4-41-existing-skill-exact-retention-evaluation.zh.md) authoritative improved Holdout、exact 双树/两 Case Pack、四 Goal abstain、四象限、input rehash、paid-uncertain 不重试、原生 Jobs 与 Host 权威投影 + [V4.42](evidence/v4-42-existing-skill-retention-web-browser.zh.md) 最终 tarball 真实 Web reload/断连保留/恢复/卸载 + [V4.48](evidence/v4-48-existing-skill-canary-rollback-final-browser.zh.md) 最终包 Canary/rollback 恢复 | 真实 provider 和长期保持率 |
 | Software Delivery P2A–P2D | `implemented` | 真实 Git、原生 Tool/Goal、Draft PR、checks；Outcome 只从 source-linked Session call/result pair 读取，经官方 durability checkpoint 后投影，并可在 cold Session start 幂等补记；[V5.17](evidence/v5-17-delivery-outcome-process-crash.zh.md) 以两个独立进程和真实 `SIGKILL` 验证 checkpoint 前与 checkpoint 后/Outcome 前窗口，冷恢复零模型/零 Tool replay/一次外部效果 | 真实长期任务、远端 reviewer 数据与同模型 Hermes paired |
 | GitHub Review Follow-up P3.2 | `implemented` | exact-head allowlist、bounded follow-up、重启去重、cache parity | 真实 reviewer 返修闭环和多日 resident |
-| Web Control Plane | `verified` | packed artifact、真实 DSH Workspace/Host/Client Module；[V5.27](evidence/v5-27-native-plugin-control-center.zh.md) 新增 DSH 原生“控制台”页和通用 child Surface seam，Gateway/飞书/演化不再使用活动 fixed dialog，断线保留最后快照并 fail visible、同 profile 恢复 | Doctor/Telegram 迁入公共 Surface、陌生用户可用性、真实 provider 价格与长期数据 |
+| Web Control Plane | `implemented` | Control Center/Gateway/Feishu 的真实浏览器控制台与断线恢复见 [V5.27](evidence/v5-27-native-plugin-control-center.zh.md)；[V5.28](evidence/v5-28-evolution-surface-control-center.zh.md) 已把 `dsh-evolve-web` registration 迁到同一 child Surface，类型/26 项测试/最终包安装通过 | 迁移后 Evolution 在真实 Workspace/Session 中的最终 tarball 浏览器 reload/断连/恢复、Doctor/Telegram 迁入公共 Surface、陌生用户可用性、真实 provider 价格与长期数据 |
 | Exact 跨 Goal Skill 复用证据 | `verified` | [V4.50](evidence/v4-50-exact-cross-goal-skill-reuse.zh.md)：真实原生 Skill Tool、Session durability、active Goal、exact 内容哈希/Generation 分桶、持久重放；最终 tarball Web 2 uses/2 Goals、reload、Host 冷启动、合法 Session readback 与官方卸载 | 真实用户任务、Outcome/返工/成本因果、负迁移、保持率与 paired benchmark |
 | Exact Skill 后续 Outcome 上下文 | `verified` | [V4.51](evidence/v4-51-exact-skill-outcome-context.zh.md)：同 Session/Goal/Generation 的 later durable Outcome、attempt/recovered/ambiguous latest、最新 metrics、全量 rollup/有界明细；最终 tarball Web 刷新、断连保留、冷恢复不重复与官方卸载 | 真实用户任务的因果效果、返工下降、长期负迁移/遗忘与 paired benchmark |
 | Exact Skill 尝试间新增工作 | `verified` | [V4.52](evidence/v4-52-between-attempt-work-context.zh.md)：严格相邻次序、同源 Goal metrics、event seq/counter 单调门；ordered/measured/unmeasured/ambiguous 与 token/cache/latency/active-wall 差值；最终 tarball 的刷新、断连保留、冷恢复不重复、reload、卸载与无残留 | 真实用户任务、因果效果、返工下降与 paired benchmark |

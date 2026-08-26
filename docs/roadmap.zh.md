@@ -18,6 +18,7 @@
 > V5.25 已让默认根级开发门与最新 rc.2 源码一致：活动示例 Case Pack 精确锁 rc.2，补齐测试 LLM `prepareCall()` 和 Command images 参数；Evolve 305 passed / 1 skipped、GitHub Review 27/27。冻结 Hermes 与双版本 compatibility gate 不改写。
 > V5.26 已把 Web 人工交付入口与临时测试 Host 分离：生命周期测试全程 `--no-open`，真实 Chrome 只保留常驻 `3080`，Gateway 控制面点击/刷新已通过。飞书并发卸载改为分阶段失败隔离，Gateway 先停也不能跳过平台断连；30 次 assembled 重复门与 Feishu 45/45 通过。
 > V5.27 已把 Gateway/飞书分散的 fixed dialog 推翻为 `dsh-control-center`：一个 DSH 原生 `conversation.view`、一个 Cordis child Surface slot、一套公共视觉原语，Gateway 与飞书作为两个真实 Adapter 接入；十二包 clean-profile 和真实 Chrome 成功/刷新/断连保留/恢复关闭该纵切。Evolution 复杂控制面尚未迁入，下一步按同一 seam 渐进迁移，而不是再造全局 Router。
+> V5.28 已完成这项迁移：`dsh-evolve-web` 的活动 registration 现在贡献 `evoforge.control.surface`，不再注册旧 sidebar fixed dialog；Control Center/Evolution 的类型、测试、套件打包和隔离 DSH add/dump/boot/remove/readback 已通过。迁移后的 Evolution 在真实 Workspace/Session 中的最终 tarball 浏览器 reload/断连/恢复仍是发布前门。
 > V4.38 已在 existing-Skill Candidate proposer 前生成并校准 Candidate 不可见的完整 `skill-tree` holdout Envelope；V4.39 已把 exact Envelope 纳入 Candidate 内容身份并消费该 Envelope 与 V4.37 exact 双树执行 assembled paired Trial。下一门是独立 Retention/Canary/晋升/回滚，而不是再次生成或搜索能力。
 > V4.40–V4.45 已完成 Retention、发布门与最终包浏览器生命周期；V4.46–V4.48 已完成 existing-Skill failed-Outcome Canary、权威 Control/Remote/Web、独立 expected-active rollback gate 与最终 tarball 浏览器故障恢复；V4.49 已完成 missing-Skill 同类最终包故障恢复。下一门是两套独立真实 provider。
 > 更新日期：2026-08-26
