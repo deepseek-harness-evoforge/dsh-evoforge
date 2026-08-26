@@ -68,6 +68,12 @@ V5.52 将 Gateway 出站 journal 的终态通过脱敏 Cordis Event 接入长期
 刷新，Gateway 10 项出站测试、构建 verifier 和 dsh-evolve typecheck 通过。真实渠道长期重连、平台
 duplicate-of 事实和 paired 数据仍未授权，发布门继续阻断。详见 [V5.52 证据](evidence/v5-52-gateway-long-term-observation-2026-08-26.zh.md)。
 
+V5.53 对当前 `main` 做了单浏览器真实交互复验：只使用 `http://127.0.0.1:3080/`，控制中心的 `渠道` /
+`飞书内容` tab 切换、渠道状态刷新和整页 reload 均在同一原生 DSH Session 内完成；控制中心、Gateway
+surface 在 reload 后恢复，浏览器 console error 为 0，没有再出现 `56017` 等第二页面。长期效果六项卡片
+也位于同一 Evolution surface，缺证据时保持未测量，不伪造晋升或发布结论。详见
+[V5.53 证据](evidence/v5-53-single-browser-control-center-long-term-effects-2026-08-26.zh.md)。
+
 V5.5 按 [ADR-0090](adr/0090-feishu-content-reads-are-agent-scoped-native-tools.md) 在 `dsh-feishu` 内增加一个
 Agent-scoped 原生 `feishu_content_read` Tool。document、Wiki、Drive metadata、Bitable records 四项权限独立且
 默认关闭；每次读取走真实 ToolRuntime/Approval，当前 Session schema 固定，撤权后执行拒绝，新启用只影响
