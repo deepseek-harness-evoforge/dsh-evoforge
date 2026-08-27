@@ -20,6 +20,7 @@
 > V5.27 已把 Gateway/飞书分散的 fixed dialog 推翻为 `dsh-control-center`：一个 DSH 原生 `conversation.view`、一个 Cordis child Surface slot、一套公共视觉原语，Gateway 与飞书作为两个真实 Adapter 接入；十二包 clean-profile 和真实 Chrome 成功/刷新/断连保留/恢复关闭该纵切。Evolution 复杂控制面尚未迁入，下一步按同一 seam 渐进迁移，而不是再造全局 Router。
 > V5.28 已完成这项迁移：`dsh-evolve-web` 的活动 registration 现在贡献 `evoforge.control.surface`，不再注册旧 sidebar fixed dialog；Control Center/Evolution 的类型、测试、套件打包和隔离 DSH add/dump/boot/remove/readback 已通过。迁移后的 Evolution 在真实 Workspace/Session 中的最终 tarball 浏览器 reload/断连/恢复仍是发布前门。
 > V5.65 已把常驻 Gateway 的 pending pairing projection 接入同页低频轮询：陌生私聊到达后无需手动刷新或第二个网页即可出现在原生 `渠道` Surface；轮询失败保留最后快照，手动刷新会使旧响应失效。该 UX 增量不改变真实飞书 AS-2、Provider、Hermes paired 或长期效果门。
+> V5.66 已在同一渠道页显示连接/最近活动/最近错误时间，明确区分 transport ready 与平台事件到达；仍不进行平台探测或凭据读取。
 > V4.38 已在 existing-Skill Candidate proposer 前生成并校准 Candidate 不可见的完整 `skill-tree` holdout Envelope；V4.39 已把 exact Envelope 纳入 Candidate 内容身份并消费该 Envelope 与 V4.37 exact 双树执行 assembled paired Trial。下一门是独立 Retention/Canary/晋升/回滚，而不是再次生成或搜索能力。
 > V4.40–V4.45 已完成 Retention、发布门与最终包浏览器生命周期；V4.46–V4.48 已完成 existing-Skill failed-Outcome Canary、权威 Control/Remote/Web、独立 expected-active rollback gate 与最终 tarball 浏览器故障恢复；V4.49 已完成 missing-Skill 同类最终包故障恢复。下一门是两套独立真实 provider。
 > 更新日期：2026-08-27

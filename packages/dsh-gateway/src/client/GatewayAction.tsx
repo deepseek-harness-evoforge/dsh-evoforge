@@ -191,7 +191,12 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
               title={adapterLabel(item.adapter)}
               description={item.kind}
               status={<UI.Status tone={transportTone(item.state)}>{transportLabel(t, item.state)}</UI.Status>}
-              details={item.routeIds.length === 0 ? undefined : <details><summary>{format(t('technical.routes'), item.routeIds.length)}</summary>{item.routeIds.map(id => <div key={id}><code>{id}</code></div>)}</details>}
+              details={<details><summary>{format(t('technical.routes'), item.routeIds.length)}</summary>
+                {item.routeIds.map(id => <div key={id}><code>{id}</code></div>)}
+                <div>{t('transport.connectedAt')}: {formatTimestamp(item.connectedAt, t)}</div>
+                <div>{t('transport.lastActivityAt')}: {formatTimestamp(item.lastActivityAt, t)}</div>
+                <div>{t('transport.lastErrorAt')}: {formatTimestamp(item.lastErrorAt, t)}</div>
+              </details>}
             />)}
         </UI.Section>
 
@@ -318,6 +323,10 @@ function formatRemaining(expiresAt: number): string {
   const remaining = Math.max(0, expiresAt - Date.now())
   const minutes = Math.ceil(remaining / 60_000)
   return `${minutes} min`
+}
+
+function formatTimestamp(value: number | undefined, t: (key: string) => string): string {
+  return value === undefined ? t('transport.never') : new Date(value).toLocaleString()
 }
 
 function presentError(cause: unknown, fallback: string): string {

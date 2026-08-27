@@ -6,6 +6,9 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Gateway transport details in the native Control Center now show the Host-recorded connection, last-activity, and
+  last-error timestamps. This makes a ready WebSocket distinguishable from an Adapter that has actually received a
+  platform event, without probing the platform, reading credentials, or calling a model.
 - The native Gateway Control Center now polls the Host's redacted pending-pairing projection on the same page every
   five seconds. New requests appear without a second tab or a manual refresh, while transient poll failures retain
   the last authoritative list; the surface still performs no model call or mutation during polling.
