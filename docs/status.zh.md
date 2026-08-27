@@ -129,6 +129,11 @@ Promotion 写成缺失，中文入口同步 request-id pending 审批；安全�
 Gateway 授权边界。真实外部门禁仍未通过。详见
 [V5.62 证据](evidence/v5-62-public-security-capability-sync-2026-08-27.zh.md)。
 
+V5.63 将 Changelog 和机器可读飞书发布门同步到当前事实：旧 code-entry run 保留为失败证据，V5.61 的
+request-id Host 修正加入 evidence，但 `real-feishu-as2` 继续为 `failed`，直到新的真实私聊、Schedule、
+Approval、重启、卸载与 Session readback 全部 terminal passed。详见
+[V5.63 证据](evidence/v5-63-public-release-state-sync-2026-08-27.zh.md)。
+
 V5.5 按 [ADR-0090](adr/0090-feishu-content-reads-are-agent-scoped-native-tools.md) 在 `dsh-feishu` 内增加一个
 Agent-scoped 原生 `feishu_content_read` Tool。document、Wiki、Drive metadata、Bitable records 四项权限独立且
 默认关闭；每次读取走真实 ToolRuntime/Approval，当前 Session schema 固定，撤权后执行拒绝，新启用只影响
