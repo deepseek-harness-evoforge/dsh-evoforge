@@ -110,6 +110,13 @@ V5.59 将 V5.57 的待批准请求 Remote 原位安装到当前 `web` profile，
 不提升真实 Feishu epoch-3、真实 Provider、Hermes paired 或长期效果门。详见
 [V5.59 证据](evidence/v5-59-live-gateway-pending-control-2026-08-27.zh.md)。
 
+V5.60 将根测试第一批的跨包 `pretest → build → test` 生命周期改为单 workspace worker，消除
+`dsh-evolve`/渠道 peer artifact 重建与 `dsh-resident` launchd fixture 的资源竞争；包内测试并行和既有
+超时不变。完整 `pnpm test` 现已在同一 `main` 工作树退出 0：Evolution 308 passed/1 skipped、Resident
+15 passed/1 skipped、Gateway 35、Telegram 29、Feishu 45，Software Delivery 快速批次和两个 assembled
+文件也全部通过。`check:ci` 固化该编排门；真实外部验收状态不变。详见
+[V5.60 证据](evidence/v5-60-deterministic-root-test-2026-08-27.zh.md)。
+
 V5.5 按 [ADR-0090](adr/0090-feishu-content-reads-are-agent-scoped-native-tools.md) 在 `dsh-feishu` 内增加一个
 Agent-scoped 原生 `feishu_content_read` Tool。document、Wiki、Drive metadata、Bitable records 四项权限独立且
 默认关闭；每次读取走真实 ToolRuntime/Approval，当前 Session schema 固定，撤权后执行拒绝，新启用只影响

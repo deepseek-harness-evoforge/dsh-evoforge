@@ -74,6 +74,10 @@ if (!rootPackage.scripts?.pretypecheck?.includes('dsh-control-center')) {
   throw new Error('root pretypecheck must build dsh-control-center before recursive package typechecks; consumers import its published client entry')
 }
 
+if (!rootPackage.scripts?.test?.includes('--workspace-concurrency=1')) {
+  throw new Error('root test must serialize workspace package pretest/build/test lifecycles; shared packed artifacts are not safe to rebuild concurrently')
+}
+
 if (!workflow.includes('prepare-dsh-case-packs.mjs')) {
   throw new Error('assembled DSH CI job must materialize Case Packs for the matrix revision; a fixed epoch would fail closed on the other audited target')
 }
