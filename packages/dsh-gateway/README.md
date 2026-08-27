@@ -69,7 +69,8 @@ SDK/WebSocket/polling、平台事件解析、实际平台发送、卡片和 Appr
 共同的持久意图、幂等、按 account 串行和明确限流响应策略，不声称全局 token bucket、平台配额推断或
 exactly-once。Telegram long-poll 与飞书 WebSocket 的 transport 聚合已完成；同包官方 DSH Client Module
 通过只读生成式 Remote 在原生 DSH Web Control Center 的“渠道”Surface 统一展示 lifecycle、route、live Session、transport 与投递聚合。面板
-只在打开/人工刷新时读取 Host；读取失败保留最后成功快照并显式显示错误，Host 恢复后可重新读取。Gateway 快照不包含
+打开和人工刷新时读取 Host，并以低频只读轮询 pending projection，让新请求无需第二个网页即可出现；轮询失败保留最后一次 pending 快照，
+完整刷新失败时显式显示错误，Host 恢复后可重新读取。Gateway 快照不包含
 account/chat/user、消息正文、外部 message id、错误正文或凭据，也不调用模型或平台。
 
 未知 direct DM 的首条消息会在 Agent 之前进入 Gateway pairing authority，并生成一次性 code 和持久
