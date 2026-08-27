@@ -4,7 +4,7 @@
 
 `dsh-gateway` 的原生 DSH Control Center `渠道` Surface 现在在当前页面启动低频 Host 只读轮询（5 秒一次），
 自动发现常驻 Gateway 新增的脱敏 pending pairing request；不打开新网页、不创建第二个 Gateway、也不调用模型。
-轮询请求具有独立的序列号，页面卸载或切换 Remote 时会取消过期结果，避免旧响应覆盖新状态。
+轮询请求具有独立的序列号，页面卸载、手动刷新或切换 Remote 时会取消过期结果，避免旧响应覆盖新状态。
 
 瞬时 Host 错误、非 `ok` 结果或网络异常只丢弃本次轮询，不清空最后一次权威列表；管理员仍可在同一页按
 request-id 直接批准，批准后会复用现有 Host/Workspace/Session/cwd/Agent 约束和原子 pending 消费门。

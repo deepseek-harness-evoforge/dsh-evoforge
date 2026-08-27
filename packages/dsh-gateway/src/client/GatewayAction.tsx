@@ -51,6 +51,7 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
 
   const refresh = async () => {
     const request = ++requestRef.current
+    const pendingRequest = ++pendingRequestRef.current
     setBusy(true)
     setError(undefined)
     try {
@@ -59,7 +60,7 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
       if (!result.ok) throw new Error(t('error.unavailable'))
       if (!pendingResult.ok) throw new Error(t('error.unavailable'))
       setSnapshot(result.value)
-      setPendingPairings(pendingResult.value)
+      if (pendingRequest === pendingRequestRef.current) setPendingPairings(pendingResult.value)
       setConfirmingRoute(undefined)
     } catch (cause) {
       if (request === requestRef.current) setError(presentError(cause, t('error.unavailable')))
