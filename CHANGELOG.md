@@ -6,6 +6,9 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- The native Control Center now exposes accessible ARIA tabs with roving keyboard focus: arrow keys move between
+  plugin surfaces, while Home/End jump to the first/last surface. Each tab points at the single active panel, so the
+  entire visualization remains inside one DSH `conversation.view` without a second page or hidden router.
 - Gateway transport details in the native Control Center now show the Host-recorded connection, last-activity, and
   last-error timestamps. This makes a ready WebSocket distinguishable from an Adapter that has actually received a
   platform event, without probing the platform, reading credentials, or calling a model.

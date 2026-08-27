@@ -28,9 +28,20 @@ describe('ControlCenterView', () => {
 
     render(<ControlCenterView {...props} />)
     expect(screen.getByText('gateway')).toBeTruthy()
-    expect(screen.getByRole('tab', { name: /渠道/u }).getAttribute('aria-selected')).toBe('true')
+    const gatewayTab = screen.getByRole('tab', { name: /渠道/u })
+    const feishuTab = screen.getByRole('tab', { name: /飞书/u })
+    expect(gatewayTab.getAttribute('aria-selected')).toBe('true')
+    expect(gatewayTab.getAttribute('aria-controls')).toBe('dsh-cc-panel')
+    expect(gatewayTab.getAttribute('tabindex')).toBe('0')
+    expect(feishuTab.getAttribute('tabindex')).toBe('-1')
+    expect(screen.getByRole('tabpanel').getAttribute('aria-labelledby')).toBe('dsh-cc-tab-0')
 
-    fireEvent.click(screen.getByRole('tab', { name: /飞书/u }))
+    fireEvent.keyDown(gatewayTab, { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(feishuTab)
+    expect(feishuTab.getAttribute('aria-selected')).toBe('true')
+    fireEvent.keyDown(feishuTab, { key: 'Home' })
+    expect(document.activeElement).toBe(gatewayTab)
+    fireEvent.click(feishuTab)
     expect(screen.getByText('feishu')).toBeTruthy()
     expect(renderSlot).toHaveBeenLastCalledWith(
       'evoforge.control.surface', expect.objectContaining({ ui: expect.any(Object) }), { only: 'feishu' },

@@ -21,9 +21,10 @@
 > V5.28 已完成这项迁移：`dsh-evolve-web` 的活动 registration 现在贡献 `evoforge.control.surface`，不再注册旧 sidebar fixed dialog；Control Center/Evolution 的类型、测试、套件打包和隔离 DSH add/dump/boot/remove/readback 已通过。迁移后的 Evolution 在真实 Workspace/Session 中的最终 tarball 浏览器 reload/断连/恢复仍是发布前门。
 > V5.65 已把常驻 Gateway 的 pending pairing projection 接入同页低频轮询：陌生私聊到达后无需手动刷新或第二个网页即可出现在原生 `渠道` Surface；轮询失败保留最后快照，手动刷新会使旧响应失效。该 UX 增量不改变真实飞书 AS-2、Provider、Hermes paired 或长期效果门。
 > V5.66 已在同一渠道页显示连接/最近活动/最近错误时间，明确区分 transport ready 与平台事件到达；仍不进行平台探测或凭据读取。
+> V5.67 已为公共 Control Center 增加原生 ARIA tabs 键盘导航和唯一 `tabpanel`：方向键、Home/End、roving `tabIndex`、鼠标和移动端都留在同一个 DSH `conversation.view`，并通过真实单页刷新恢复验证；不新增网页、Router、Session 或模型调用。
 > V4.38 已在 existing-Skill Candidate proposer 前生成并校准 Candidate 不可见的完整 `skill-tree` holdout Envelope；V4.39 已把 exact Envelope 纳入 Candidate 内容身份并消费该 Envelope 与 V4.37 exact 双树执行 assembled paired Trial。下一门是独立 Retention/Canary/晋升/回滚，而不是再次生成或搜索能力。
 > V4.40–V4.45 已完成 Retention、发布门与最终包浏览器生命周期；V4.46–V4.48 已完成 existing-Skill failed-Outcome Canary、权威 Control/Remote/Web、独立 expected-active rollback gate 与最终 tarball 浏览器故障恢复；V4.49 已完成 missing-Skill 同类最终包故障恢复。下一门是两套独立真实 provider。
-> 更新日期：2026-08-27
+> 更新日期：2026-08-28
 
 ## 开发与发布纪律
 
