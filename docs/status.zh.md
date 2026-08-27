@@ -134,6 +134,12 @@ request-id Host 修正加入 evidence，但 `real-feishu-as2` 继续为 `failed`
 Approval、重启、卸载与 Session readback 全部 terminal passed。详见
 [V5.63 证据](evidence/v5-63-public-release-state-sync-2026-08-27.zh.md)。
 
+V5.64 对新的 AS-2 失败做了只读事件到达诊断：最终包安装、profile dump 和官方 WebSocket handshake 均为
+`ready`，但人工窗口内没有 Feishu pending request，验收器因此没有进入 Agent 或发送任何挑战消息。Bot info
+HTTP 200/`code=0` 且机器人 active；事件订阅读取因 App 未开通 `event:subscription:read` 被 Feishu 拒绝，
+未修改权限或订阅。代码侧连接 ready 与事件到达已严格分层，仍需后台确认 `im.message.receive_v1` 并由测试
+账号发送新私聊。详见 [V5.64 证据](evidence/v5-64-feishu-event-arrival-diagnostic-2026-08-27.zh.md)。
+
 V5.5 按 [ADR-0090](adr/0090-feishu-content-reads-are-agent-scoped-native-tools.md) 在 `dsh-feishu` 内增加一个
 Agent-scoped 原生 `feishu_content_read` Tool。document、Wiki、Drive metadata、Bitable records 四项权限独立且
 默认关闭；每次读取走真实 ToolRuntime/Approval，当前 Session schema 固定，撤权后执行拒绝，新启用只影响
