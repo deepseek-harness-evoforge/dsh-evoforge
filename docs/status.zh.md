@@ -123,6 +123,12 @@ Workspace/Session，并验证 request 原子消费和首条消息未进入 Agent
 类型检查和 10/10 合同测试通过，但新的真实纵切尚未完成，发布门不变。详见
 [V5.61 证据](evidence/v5-61-feishu-acceptance-host-pending-approval-2026-08-27.zh.md)。
 
+V5.62 清理公开文档的历史漂移：英文 README 不再把已实现的 existing-Skill paired/Retention/Canary/
+Promotion 写成缺失，中文入口同步 request-id pending 审批；安全策略删除已下线的 Feedback Draft 参数，改为
+当前 DSH 单权威、内部证据、内容寻址 Candidate、治理/评测/变更分离、future-Session 固定、凭据脱敏和
+Gateway 授权边界。真实外部门禁仍未通过。详见
+[V5.62 证据](evidence/v5-62-public-security-capability-sync-2026-08-27.zh.md)。
+
 V5.5 按 [ADR-0090](adr/0090-feishu-content-reads-are-agent-scoped-native-tools.md) 在 `dsh-feishu` 内增加一个
 Agent-scoped 原生 `feishu_content_read` Tool。document、Wiki、Drive metadata、Bitable records 四项权限独立且
 默认关闭；每次读取走真实 ToolRuntime/Approval，当前 Session schema 固定，撤权后执行拒绝，新启用只影响

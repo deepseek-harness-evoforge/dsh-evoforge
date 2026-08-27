@@ -12,12 +12,24 @@
 
 ## Current security boundary
 
-- P0A.1 不修改 active Skill，也不执行模型生成代码；
-- API key 只用于显式 Shadow 请求的 Authorization header，不进入报告或证据；
-- Feedback Case Draft 只应存放在私有目录；`--feedback-draft` 会把其中的直接用户文本和 correction
-  发给配置的 provider。输入字段不直接写入运行证据，但模型回显可能随 Candidate/claim 持久化；
-- 正常 DSH Session 不新增 Tool、Provider、system prompt 或 Skill catalog 项；
-- 无法证明 Trial 的 read/write/process/network 隔离时，命令必须返回 `incomplete`；
-- merge、release、部署、秘密、付费与不可逆外部动作属于 Protected Action。
+- DSH 是唯一 Agent、Session、Goal、Approval、Storage、Jobs、Skill、Tool、Workspace 与 Cordis 生命周期权威；
+  EvoForge 不另建 Runtime、身份系统或审批旁路。
+- Candidate 只来自 DSH 内部、可归因的 Goal/Skill/纠正/Outcome 证据；活动运行时没有外部 Skill 市场搜索、
+  下载、导入或 Git source fallback。
+- Candidate 是内容寻址、隔离且默认 inactive/quarantined 的完整 Skill 包；当前实现只允许有界修改
+  `SKILL.md`/`references/*.md` 指令文本，拒绝代码、二进制、路径、权限和未声明 tree 漂移。
+- proposer、Candidate-blind governance、assembled evaluator 与最终 Host mutation gate 分离。评测结果没有
+  pointer writer；无法证明隔离、输入 identity、holdout/retention 完整性或付费调用终态时必须 abstain、
+  quarantine、`incomplete` 或 `uncertain`，不得盲重试或晋升。
+- 当前 Session 固定其 Generation。晋升和回滚只影响未来 Session，并通过 expected-active compare、不可变
+  selection history 和精确 evidence lineage 执行；低风险自动晋升只允许单一 `SKILL.md` 末尾追加且全部
+  paired gates 无回退的候选。
+- Provider 与渠道凭据只从部署者声明的环境引用读取，不进入公开报告、Web 投影、Session 或仓库；受保护
+  Case Pack、provider identity 和平台身份只暴露必要哈希与计数。
+- Gateway 在 Agent 前完成陌生私聊授权；pending request、动态 grant、撤销墓碑、持久 ingress/outbound、
+  幂等和 uncertain 恢复由 Host 权威管理。外部发送、内容读取、代码、权限、凭据及其它副作用继续经过
+  DSH Approval/Protected Action 边界。
+- merge、registry release、tag、部署、付费真实 Provider 验收和不可逆外部动作仍是 Protected Action；
+  `release-gates.json` 未全部通过时，预检必须阻止发布。
 
 这些边界是当前承诺，不代表完整自进化系统已经安全完成。
