@@ -6,6 +6,9 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- The native Gateway Control Center now polls the Host's redacted pending-pairing projection on the same page every
+  five seconds. New requests appear without a second tab or a manual refresh, while transient poll failures retain
+  the last authoritative list; the surface still performs no model call or mutation during polling.
 - Resident Gateway pending pairing requests are now visible inside the native DSH Control Center and can be approved
   through the Host by opaque request id; code entry remains a compatibility path, not a Session command.
 - The real Feishu AS-2 acceptance runner now consumes that redacted Host pending-request path and no longer waits for

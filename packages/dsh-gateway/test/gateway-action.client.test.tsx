@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ControlSurfaceUI } from 'dsh-control-center/client'
 import { GatewaySurface, type GatewayRemoteClient, type GatewaySurfaceProps } from '../src/client/GatewayAction.tsx'
@@ -9,6 +9,7 @@ import type { GatewayHealthSnapshot } from '../src/index.ts'
 afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
+  vi.useRealTimers()
 })
 
 const controlSurfaceUI: ControlSurfaceUI = {
@@ -108,6 +109,44 @@ describe('Gateway Control Surface', () => {
     expect(screen.queryByText('oc_first_contact')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: '直接批准' }))
     expect(remote.approvePairingRequest).toHaveBeenCalledWith(requestId, 'workspace-a', 'session-a')
+  })
+
+  it('refreshes pending requests on the same page without erasing the last snapshot on a poll error', async () => {
+    let poll: (() => void) | undefined
+    const realSetInterval = globalThis.setInterval
+    vi.spyOn(globalThis, 'setInterval').mockImplementation((handler, timeout) => {
+      if (timeout === 5_000) poll = handler
+      if (timeout === 5_000) return 1 as unknown as ReturnType<typeof setInterval>
+      return realSetInterval(handler, timeout)
+    })
+    const requestId = 'c'.repeat(32)
+    const remote = {
+      overview: vi.fn(async () => ({ ok: true, value: snapshot() })),
+      pendingPairings: vi.fn()
+        .mockResolvedValueOnce({ ok: true, value: [] })
+        .mockResolvedValueOnce({ ok: true, value: [{
+          requestId,
+          adapter: 'feishu',
+          accountIdHash: 'd'.repeat(64),
+          createdAt: 1_000,
+          expiresAt: Date.now() + 600_000,
+        }] })
+        .mockResolvedValueOnce({ ok: false, error: { code: 'host-unavailable', message: 'offline' } }),
+      approvePairing: vi.fn(),
+      approvePairingRequest: vi.fn(),
+      revokePairing: vi.fn(),
+    } as GatewayRemoteClient
+    render(<GatewaySurface {...surfaceProps(remote)} />)
+    expect(await screen.findByText('没有待批准请求')).toBeTruthy()
+
+    expect(poll).toBeDefined()
+    poll!()
+    await waitFor(() => expect(remote.pendingPairings).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(screen.getByText('直接批准')).toBeTruthy())
+    poll!()
+    await waitFor(() => expect(screen.getByText('直接批准')).toBeTruthy())
+    expect(screen.getByText('直接批准')).toBeTruthy()
+    expect(remote.pendingPairings).toHaveBeenCalledTimes(3)
   })
 })
 

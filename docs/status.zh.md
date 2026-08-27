@@ -140,6 +140,11 @@ HTTP 200/`code=0` 且机器人 active；事件订阅读取因 App 未开通 `eve
 未修改权限或订阅。代码侧连接 ready 与事件到达已严格分层，仍需后台确认 `im.message.receive_v1` 并由测试
 账号发送新私聊。详见 [V5.64 证据](evidence/v5-64-feishu-event-arrival-diagnostic-2026-08-27.zh.md)。
 
+V5.65 修正同页控制面的可见性：`渠道` Surface 现在每 5 秒只读轮询 Host 的脱敏 pending pairing projection，
+陌生私聊到达后无需手动刷新或打开第二个网页即可出现；轮询失败保留最后一次权威列表，旧响应不会覆盖新状态。
+Gateway typecheck、8 个测试文件/36 项测试和既有 Control Center 合同通过。该增量不改变真实 Feishu AS-2、
+真实 Provider、Hermes paired 或长期效果发布门。详见 [V5.65 证据](evidence/v5-65-gateway-pending-polling-2026-08-27.zh.md)。
+
 V5.5 按 [ADR-0090](adr/0090-feishu-content-reads-are-agent-scoped-native-tools.md) 在 `dsh-feishu` 内增加一个
 Agent-scoped 原生 `feishu_content_read` Tool。document、Wiki、Drive metadata、Bitable records 四项权限独立且
 默认关闭；每次读取走真实 ToolRuntime/Approval，当前 Session schema 固定，撤权后执行拒绝，新启用只影响
@@ -422,7 +427,7 @@ V5.21 将真实飞书 AS-2 从 epoch-1 升为 epoch-2。最终包 profile 不在
 | Evolve Channel Attention | `implemented` | Telegram/飞书 Candidate review/inactive promotion decision、concrete routes、显式 Workspace、durable notice、request parity；Evaluator Draft 表面已删除；进入十二包总装 | 真实渠道验证与多日移动端数据 |
 | Goal Continuity | `implemented` | JSONL cold resume、SIGKILL、原生 Goal round limit | 多 Workspace 绑定、生产 soak |
 | Resident OS unit | `implemented` | disabled Bundle、原生 `/resident`、exact hash/service-id 确认、无 bin tarball、十二包总装、launchd/systemd 与 macOS crash 测试 | Linux 真机和多日 soak |
-| Workspace DSH Gateway | `implemented` | `dsh-gateway` 直接替换旧包且无兼容层；exact endpoint/Adapter account/routeIds deny-by-default；原生 Workspace/Session/Agent create/resume；持久 ingress/outbound 幂等与 uncertain 状态机；[V5.22](evidence/v5-22-resident-gateway-pairing.zh.md) 增加 Agent-before-auth、hashed pending code、Host Remote/Web approval、live Session/Workspace/cwd gate、原子动态 grant、跨重启匹配和零-route resident transport 健康，并从真实 rc.2 App 完成三次 ingress/outbound、零异常和 Host 冷启动恢复；[V5.24](evidence/v5-24-resident-pairing-revocation.zh.md) 增加原子撤销墓碑、活动 effect 门、Typert Remote 和动态/静态 route Web 控制；[V5.52](evidence/v5-52-gateway-long-term-observation-2026-08-26.zh.md) 增加脱敏终态事件并接入长期账本；[V5.57](evidence/v5-57-gateway-pending-request-control-2026-08-27.zh.md) 增加脱敏 pending request 与 request-id Host 审批；8 files / 35 tests、最终 tarball 升级/冷启动与单页浏览器控制面通过；[V5.1](evidence/v5-1-gateway-transport-health.zh.md)、[V5.2](evidence/v5-2-gateway-web-health.zh.md)、[V5.3](evidence/v5-3-feishu-native-image-ingress.zh.md)、[V5.7](evidence/v5-7-bounded-channel-delivery.zh.md) 继续成立 | 重启后新增消息、真实撤销重配、Approval/Schedule/group、渠道长期运行与 Hermes paired benchmark；通用文件需官方 DSH 内容契约 |
+| Workspace DSH Gateway | `implemented` | `dsh-gateway` 直接替换旧包且无兼容层；exact endpoint/Adapter account/routeIds deny-by-default；原生 Workspace/Session/Agent create/resume；持久 ingress/outbound 幂等与 uncertain 状态机；[V5.22](evidence/v5-22-resident-gateway-pairing.zh.md) 增加 Agent-before-auth、hashed pending code、Host Remote/Web approval、live Session/Workspace/cwd gate、原子动态 grant、跨重启匹配和零-route resident transport 健康，并从真实 rc.2 App 完成三次 ingress/outbound、零异常和 Host 冷启动恢复；[V5.24](evidence/v5-24-resident-pairing-revocation.zh.md) 增加原子撤销墓碑、活动 effect 门、Typert Remote 和动态/静态 route Web 控制；[V5.52](evidence/v5-52-gateway-long-term-observation-2026-08-26.zh.md) 增加脱敏终态事件并接入长期账本；[V5.57](evidence/v5-57-gateway-pending-request-control-2026-08-27.zh.md) 增加脱敏 pending request 与 request-id Host 审批；[V5.65](evidence/v5-65-gateway-pending-polling-2026-08-27.zh.md) 增加同页自动轮询且失败保留最后快照；8 files / 36 tests、最终 tarball 升级/冷启动与单页浏览器控制面通过；[V5.1](evidence/v5-1-gateway-transport-health.zh.md)、[V5.2](evidence/v5-2-gateway-web-health.zh.md)、[V5.3](evidence/v5-3-feishu-native-image-ingress.zh.md)、[V5.7](evidence/v5-7-bounded-channel-delivery.zh.md) 继续成立 | 重启后新增消息、真实撤销重配、Approval/Schedule/group、渠道长期运行与 Hermes paired benchmark；通用文件需官方 DSH 内容契约 |
 | 飞书 Adapter | `implemented` | [V5.22](evidence/v5-22-resident-gateway-pairing.zh.md)：Bundle boot 即注册 `pairedRoutes` 并连接官方 WebSocket；未知 DM 首条不进 Agent，回 code；Host批准后下一条动态采用 exact route；旧 `/feishu-pair`、临时 listener、反向短语/YAML/倒计时 UI 与测试净删除；真实 App 最终 tarball已完成 direct DM pairing、普通文本/原生 `/new`/普通文本三次 native 入站与回复，冷启动恢复 exact route/Session/journal/transport 且无重复投递；[V5.23](evidence/v5-23-resident-pairing-as2-gate.zh.md) 又让动态 route 进入 Host notice seam，并以 assembled DSH 验证 paired Approval `allowed-once` 与持久 notice；[V5.24](evidence/v5-24-resident-pairing-revocation.zh.md) 的 Gateway Web 已从最终包显示动态 grant 撤销二次确认；原有 Schedule、图片/Approval/内容读取证据继续覆盖静态 exact routes | 重启后新增消息、真实撤销重配、真实 Approval/Schedule/group/failure 与多日重连；普通文件/音视频仍 pending；内容能力还缺真实 App scope、资源权限拒绝和真实数据 |
 | Hermes paired benchmark | `implemented` | [V5.45](evidence/v5-45-hermes-deterministic-rerun-current-main-2026-08-26.zh.md) 在当前 `main`（`6e35477`）用独立 rc.5 checkout 重跑 EV-1、SD-1、LC-1、AS-1，退出码 0；前两项窄场景胜出，本机崩溃恢复与 Telegram 一次性审批均 0:0 平局；冻结 `result.json` 未改写 | 同模型真实编码、真实 Bot/App 消息交付、真实模型长任务、真实 provider 与长期 outcome 的 paired epochs |
 | Registry release | `planned` | [V5.35](evidence/v5-35-machine-release-gates-2026-08-26.zh.md) 已提供机器可执行 gate manifest、阻断命令和 annotated-tag 入口，但当前 gates 仍为 blocked | 真实 Provider、完整飞书 AS-2、Hermes paired、长期效果证据和用户发布授权 |
@@ -432,7 +437,7 @@ V5.21 将真实飞书 AS-2 从 epoch-1 升为 epoch-2。最终包 profile 不在
 用户安装面已按[能力套件](capability-suites.zh.md)精简；下面的十二包清单是维护者审计和完整 clean-profile gate 的内部边界，不是用户必须逐项选择的产品菜单。
 
 当前 `main` 增量通过根级 `pnpm check`（文档、全包 typecheck、测试和构建）；其中
-`dsh-control-center` 2 files/4 tests、`dsh-gateway` 8 files/35 tests、`dsh-evolve-web` 2 files/26 tests、
+`dsh-control-center` 2 files/4 tests、`dsh-gateway` 8 files/36 tests、`dsh-evolve-web` 2 files/26 tests、
 `dsh-evolve-attention` 4 files/11 tests、`dsh-feishu` 18 files/45 tests、`dsh-evolve` 68 files/308 tests passed、
 1 test skipped。Cache Contract 全通过；Doctor 十二包原生合同含新增 Control Center；十二包 clean-profile 最终 tarball 的 add/dump/boot/真实
 Session+Goal+Storage+Tool/dispose/remove/reboot/readback 1/1（60.96 秒）；独立 Doctor packed

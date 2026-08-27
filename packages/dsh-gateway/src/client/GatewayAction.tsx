@@ -31,10 +31,12 @@ export type GatewaySurfaceProps = ControlSurfaceProps & {
 }
 
 type ViewStatus = 'ready' | 'busy' | 'attention' | 'degraded' | 'stopping'
+const PENDING_POLL_INTERVAL_MS = 5_000
 
 /** Gateway Adapter for the common DSH Control Surface. */
 export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: GatewaySurfaceProps) {
   const requestRef = useRef(0)
+  const pendingRequestRef = useRef(0)
   const workspaceId = useWorkspaces(state => state.items.find(workspace => workspace.sessionIds.includes(sessionId))?.workspaceId)
   const [busy, setBusy] = useState(false)
   const [pairingBusy, setPairingBusy] = useState(false)
@@ -66,9 +68,25 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
     }
   }
 
+  const refreshPending = async () => {
+    const request = ++pendingRequestRef.current
+    try {
+      const result = await remote.pendingPairings()
+      if (request !== pendingRequestRef.current || !result.ok) return
+      setPendingPairings(result.value)
+    } catch {
+      // A transient polling failure must not erase the last authoritative list.
+    }
+  }
+
   useEffect(() => {
     void refresh()
-    return () => { requestRef.current += 1 }
+    const interval = setInterval(() => { void refreshPending() }, PENDING_POLL_INTERVAL_MS)
+    return () => {
+      clearInterval(interval)
+      requestRef.current += 1
+      pendingRequestRef.current += 1
+    }
   }, [remote])
 
   const revokePairing = async (routeId: string) => {
