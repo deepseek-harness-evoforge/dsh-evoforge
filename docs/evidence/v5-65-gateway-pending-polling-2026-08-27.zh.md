@@ -13,6 +13,8 @@ request-id 直接批准，批准后会复用现有 Host/Workspace/Session/cwd/Ag
 
 - `pnpm --filter dsh-gateway typecheck` 通过。
 - `pnpm --filter dsh-gateway test`：8 个测试文件、36 项测试全部通过；新增浏览器交互测试覆盖“初始为空→同页轮询出现请求→下一次轮询失败仍保留请求”。
+- 完整根级 `pnpm test` 通过；Gateway 36/36、Telegram 29/29、Feishu 45/45，两个 clean-profile assembled 生命周期分别
+  2/2 通过，未发现跨包构建或卸载回归。
 - 既有单页浏览器路径与 Control Center child Surface 未改变；本增量不提升真实 Feishu AS-2、真实 Provider、Hermes paired 或长期效果发布门。
 
 ## 边界
