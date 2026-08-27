@@ -50,6 +50,8 @@ describe('Gateway Control Surface', () => {
 
     expect(await screen.findByText('配对已批准。让用户直接发送下一条消息即可。')).toBeTruthy()
     expect(remote.approvePairing).toHaveBeenCalledWith('ABCDEFGH23', 'feishu', 'workspace-a', 'session-a')
+    expect(screen.getAllByText('最近活动: 尚无记录').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('最近错误: 尚无记录').length).toBeGreaterThan(0)
 
     fireEvent.click(screen.getByRole('button', { name: '撤销 feishu-main' }))
     fireEvent.click(screen.getByRole('button', { name: '确认撤销 feishu-main' }))

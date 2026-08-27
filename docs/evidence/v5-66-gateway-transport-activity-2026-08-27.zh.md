@@ -11,7 +11,7 @@
 ## 验证
 
 - `pnpm --filter dsh-gateway typecheck` 通过。
-- `pnpm --filter dsh-gateway test`：8 个测试文件、36 项测试全部通过。
+- `pnpm --filter dsh-gateway test`：8 个测试文件、36 项测试全部通过；浏览器组件测试同时覆盖“无活动/无错误记录”的明确空值呈现。
 - `pnpm check:docs` 与 `git diff --check` 通过；现有单页 Control Center、pending 自动轮询和真实发布门状态不变。
 
 ## 边界
