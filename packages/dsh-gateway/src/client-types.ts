@@ -5,6 +5,7 @@ export type {
   GatewayPairingRevocationReceipt,
   GatewayPairingSessionApprovalReceipt,
 } from './gateway.ts'
+export type { GatewayPairingPendingRequest } from './pairing.ts'
 export type { GatewayOutboundHealth } from './outbound.ts'
 export type { GatewayOutboundStatus } from './outbound-journal.ts'
 export type {

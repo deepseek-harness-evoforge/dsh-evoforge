@@ -3,15 +3,22 @@ import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 import type { ControlSurfaceProps, ControlTone } from 'dsh-control-center/client'
 import type {
   GatewayHealthSnapshot,
+  GatewayPairingPendingRequest,
   GatewayPairingRevocationReceipt,
   GatewayPairingSessionApprovalReceipt,
 } from '../client-types.ts'
 
 export interface GatewayRemoteClient {
   overview(): Promise<RemoteResult<GatewayHealthSnapshot>>
+  pendingPairings(): Promise<RemoteResult<readonly GatewayPairingPendingRequest[]>>
   approvePairing(
     code: string,
     adapter: string,
+    workspaceId: string,
+    sessionId: string,
+  ): Promise<RemoteResult<GatewayPairingSessionApprovalReceipt>>
+  approvePairingRequest(
+    requestId: string,
     workspaceId: string,
     sessionId: string,
   ): Promise<RemoteResult<GatewayPairingSessionApprovalReceipt>>
@@ -37,6 +44,7 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
   const [confirmingRoute, setConfirmingRoute] = useState<string>()
   const [revocationReceipt, setRevocationReceipt] = useState<GatewayPairingRevocationReceipt>()
   const [snapshot, setSnapshot] = useState<GatewayHealthSnapshot>()
+  const [pendingPairings, setPendingPairings] = useState<readonly GatewayPairingPendingRequest[]>([])
   const [error, setError] = useState<string>()
 
   const refresh = async () => {
@@ -44,10 +52,12 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
     setBusy(true)
     setError(undefined)
     try {
-      const result = await remote.overview()
+      const [result, pendingResult] = await Promise.all([remote.overview(), remote.pendingPairings()])
       if (request !== requestRef.current) return
       if (!result.ok) throw new Error(t('error.unavailable'))
+      if (!pendingResult.ok) throw new Error(t('error.unavailable'))
       setSnapshot(result.value)
+      setPendingPairings(pendingResult.value)
       setConfirmingRoute(undefined)
     } catch (cause) {
       if (request === requestRef.current) setError(presentError(cause, t('error.unavailable')))
@@ -99,6 +109,26 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
       if (!result.ok) throw new Error(t('error.actionFailed'))
       setPairingReceipt(result.value)
       setPairingCode('')
+      await refresh()
+    } catch (cause) {
+      setError(presentError(cause, t('error.actionFailed')))
+    } finally {
+      setPairingBusy(false)
+    }
+  }
+
+  const approvePendingPairing = async (requestId: string) => {
+    setPairingReceipt(undefined)
+    setError(undefined)
+    if (workspaceId === undefined) {
+      setError(t('pairing.noTarget'))
+      return
+    }
+    setPairingBusy(true)
+    try {
+      const result = await remote.approvePairingRequest(requestId, workspaceId, sessionId)
+      if (!result.ok) throw new Error(t('error.actionFailed'))
+      setPairingReceipt(result.value)
       await refresh()
     } catch (cause) {
       setError(presentError(cause, t('error.actionFailed')))
@@ -165,6 +195,26 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
               >
                 {revokingRoute === route.id ? t('routes.revoking') : t(confirmingRoute === route.id ? 'routes.confirm' : 'routes.revokeShort')}
               </UI.Button>}
+            />)}
+        </UI.Section>
+
+        <UI.Section title={t('pairing.pendingTitle')} description={t('pairing.pendingHelp')}>
+          {pendingPairings.length === 0
+            ? <UI.Empty title={t('pairing.pendingEmptyTitle')} description={t('pairing.pendingEmpty')} />
+            : pendingPairings.map(request => <UI.Entity
+              key={request.requestId}
+              icon={request.adapter.slice(0, 1).toUpperCase()}
+              title={adapterLabel(request.adapter)}
+              description={format(t('pairing.pendingExpires'), formatRemaining(request.expiresAt))}
+              status={<UI.Status tone="attention">{t('pairing.pendingStatus')}</UI.Status>}
+              details={<details><summary>{t('technical.details')}</summary><code>{request.requestId}</code><br /><small>{t('pairing.accountHash')}: {request.accountIdHash}</small></details>}
+              actions={<UI.Button
+                type="button"
+                tone="primary"
+                disabled={pairingBusy || workspaceId === undefined}
+                aria-label={t('pairing.approvePending')}
+                onClick={() => { void approvePendingPairing(request.requestId) }}
+              >{pairingBusy ? t('pairing.approving') : t('pairing.approvePending')}</UI.Button>}
             />)}
         </UI.Section>
 
@@ -237,12 +287,18 @@ function adapterLabel(adapter: string): string {
   return adapter
 }
 
-function format(template: string, count: number): string {
+function format(template: string, count: number | string): string {
   return template.replace('{count}', String(count))
 }
 
 function routeLabel(template: string, routeId: string): string {
   return template.replace('{routeId}', routeId)
+}
+
+function formatRemaining(expiresAt: number): string {
+  const remaining = Math.max(0, expiresAt - Date.now())
+  const minutes = Math.ceil(remaining / 60_000)
+  return `${minutes} min`
 }
 
 function presentError(cause: unknown, fallback: string): string {

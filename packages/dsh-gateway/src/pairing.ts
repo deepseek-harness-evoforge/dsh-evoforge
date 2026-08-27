@@ -134,6 +134,22 @@ export interface GatewayPairingRevocation {
   readonly alreadyRevoked: boolean
 }
 
+/** Redacted pending request metadata safe for the local Host control plane. */
+export interface GatewayPairingPendingRequest {
+  readonly requestId: string
+  readonly adapter: string
+  /** Stable correlation without exposing the platform account identity. */
+  readonly accountIdHash: string
+  readonly createdAt: number
+  readonly expiresAt: number
+}
+
+export interface GatewayPairingRequestApprovalInput {
+  readonly requestId: string
+  readonly target: GatewayPairingTarget
+  readonly now: number
+}
+
 export interface GatewayPairingAuthorityOptions {
   readonly codeTtlMs: number
   readonly maxPendingPerAccount: number
@@ -143,6 +159,9 @@ export interface GatewayPairingAuthorityOptions {
 export interface GatewayPairingAuthority {
   offer(endpoint: GatewayEndpoint, now?: number): Promise<GatewayPairingOffer>
   approve(input: GatewayPairingApprovalInput): Promise<GatewayPairingApproval>
+  /** Approve a specific pending request from an authenticated Host control plane. */
+  approveRequest(input: GatewayPairingRequestApprovalInput): Promise<GatewayPairingApproval>
+  pending(now?: number): readonly GatewayPairingPendingRequest[]
   revoke(routeId: string, now?: number): Promise<GatewayPairingRevocation>
   match(endpoint: GatewayEndpoint): ResolvedGatewayRoute | undefined
   route(id: string): ResolvedGatewayRoute | undefined
@@ -235,24 +254,50 @@ class DomainGatewayPairingAuthority implements GatewayPairingAuthority {
       if (conflicting !== undefined) {
         throw new Error(`gateway pairing route id '${route.id}' is already bound to another endpoint`)
       }
-      const grantId = createHash('sha256')
-        .update(`${matched.requestId}\0${route.endpointKey}\0${input.now}`)
-        .digest('hex')
-      const grant = grantSchema.parse({
-        kind: 'grant',
-        grantId,
-        schemaVersion: 1,
-        requestId: matched.requestId,
-        route,
-        approvedAt: input.now,
-      })
-      await bindings.update(matchedKey, (current) => {
-        if (current.kind !== 'pending' || current.requestId !== matched.requestId
-          || current.expiresAt <= input.now) throw invalidCode()
-        return grant
-      })
-      return Object.freeze({ grantId, route })
+      return this.approvePending(matchedKey, matched, route, input.now)
     })
+  }
+
+  approveRequest(input: GatewayPairingRequestApprovalInput): Promise<GatewayPairingApproval> {
+    return this.write(async () => {
+      exactTime(input.now)
+      const requestId = pendingSchema.shape.requestId.parse(input.requestId)
+      const target = normalizeTarget(input.target)
+      await this.removeExpired(input.now)
+      const bindings = this.domain.table('bindings')
+      const matched = [...bindings.entries()].find((entry): entry is [string, GatewayPairingRequest] =>
+        entry[1].kind === 'pending' && entry[1].requestId === requestId)
+      if (matched === undefined) throw invalidRequest()
+      const route = resolveGatewayRoutes([{
+        ...target,
+        adapter: matched[1].endpoint.adapter,
+        accountId: matched[1].endpoint.accountId,
+        conversationId: matched[1].endpoint.conversationId,
+        userId: matched[1].endpoint.userId,
+        ...(matched[1].endpoint.threadId === undefined ? {} : { threadId: matched[1].endpoint.threadId }),
+      }]).routes[0]!
+      const conflicting = [...bindings.entries()].find(([, binding]) => binding.kind === 'grant'
+        && binding.route.id === route.id && binding.route.endpointKey !== route.endpointKey)
+      if (conflicting !== undefined) {
+        throw new Error(`gateway pairing route id '${route.id}' is already bound to another endpoint`)
+      }
+      return this.approvePending(matched[0], matched[1], route, input.now)
+    })
+  }
+
+  pending(now = Date.now()): readonly GatewayPairingPendingRequest[] {
+    exactTime(now)
+    return Object.freeze([...this.domain.table('bindings').entries()]
+      .filter((entry): entry is [string, GatewayPairingRequest] =>
+        entry[1].kind === 'pending' && entry[1].expiresAt > now)
+      .map(([, request]) => Object.freeze({
+        requestId: request.requestId,
+        adapter: request.endpoint.adapter,
+        accountIdHash: createHash('sha256').update(request.endpoint.accountId).digest('hex'),
+        createdAt: request.createdAt,
+        expiresAt: request.expiresAt,
+      }))
+      .sort((left, right) => left.createdAt - right.createdAt || left.requestId.localeCompare(right.requestId)))
   }
 
   revoke(rawRouteId: string, now = Date.now()): Promise<GatewayPairingRevocation> {
@@ -312,6 +357,32 @@ class DomainGatewayPairingAuthority implements GatewayPairingAuthority {
       .map(([key]) => this.domain.table('bindings').delete(key))).then(() => undefined)
   }
 
+  private async approvePending(
+    key: string,
+    request: GatewayPairingRequest,
+    route: ResolvedGatewayRoute,
+    now: number,
+  ): Promise<GatewayPairingApproval> {
+    const grantId = createHash('sha256')
+      .update(`${request.requestId}\0${route.endpointKey}\0${now}`)
+      .digest('hex')
+    const grant = grantSchema.parse({
+      kind: 'grant',
+      grantId,
+      schemaVersion: 1,
+      requestId: request.requestId,
+      route,
+      approvedAt: now,
+    })
+    await this.domain.table('bindings').update(key, (current) => {
+      if (current.kind !== 'pending' || current.requestId !== request.requestId || current.expiresAt <= now) {
+        throw invalidRequest()
+      }
+      return grant
+    })
+    return Object.freeze({ grantId, route })
+  }
+
   private write<T>(operation: () => Promise<T>): Promise<T> {
     if (this.closing !== undefined) return Promise.reject(new Error('gateway pairing authority is closing'))
     const result = this.tail.then(operation)
@@ -352,6 +423,10 @@ function exactTime(value: number): void {
 
 function invalidCode(): Error {
   return new Error('gateway pairing code is invalid, expired, or already used')
+}
+
+function invalidRequest(): Error {
+  return new Error('gateway pairing request is invalid, expired, or already used')
 }
 
 function normalizeEndpoint(input: GatewayEndpoint): GatewayEndpoint {

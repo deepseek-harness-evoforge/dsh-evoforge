@@ -69,8 +69,14 @@ SDK/WebSocket/polling、平台事件解析、实际平台发送、卡片和 Appr
 共同的持久意图、幂等、按 account 串行和明确限流响应策略，不声称全局 token bucket、平台配额推断或
 exactly-once。Telegram long-poll 与飞书 WebSocket 的 transport 聚合已完成；同包官方 DSH Client Module
 通过只读生成式 Remote 在原生 DSH Web Control Center 的“渠道”Surface 统一展示 lifecycle、route、live Session、transport 与投递聚合。面板
-只在打开/人工刷新时读取 Host；读取失败清除旧快照，Host 恢复后可重新读取。Gateway 快照不包含
+只在打开/人工刷新时读取 Host；读取失败保留最后成功快照并显式显示错误，Host 恢复后可重新读取。Gateway 快照不包含
 account/chat/user、消息正文、外部 message id、错误正文或凭据，也不调用模型或平台。
+
+未知 direct DM 的首条消息会在 Agent 之前进入 Gateway pairing authority，并生成一次性 code 和持久
+pending request。Control Center 的“渠道”Surface 会显示脱敏的待批准请求（Adapter、有效期和账户指纹），
+管理员可以直接批准 request-id，也可以继续粘贴机器人返回的 code；两条路径都在 Host 侧原子消费请求并绑定
+到当前 live native Session。pending 投影不包含 conversation、user、code hash、盐或消息正文，过期和重放
+均拒绝。这样常驻 Gateway 不依赖 Session Command，也不要求用户预先知道 chat/user id。
 
 当前固定的 DSH attachment v1 只定义 PNG/JPEG/WebP/GIF 栅格图片。Gateway 不发明通用 file block；飞书
 普通文件、音频和视频必须等待 DSH 官方持久附件/消息契约或由独立、明确授权的内容能力处理，不能以图片

@@ -3,17 +3,21 @@ import type {
   RemoteResult,
   TypertRemoteContribution,
 } from '@deepseek-ai/dsh-typert-protocol'
-import type { GatewayHealthSnapshot, GatewayPairingRevocationReceipt, GatewayPairingSessionApprovalReceipt } from 'dsh-gateway/client-types'
+import type { GatewayHealthSnapshot, GatewayPairingPendingRequest, GatewayPairingRevocationReceipt, GatewayPairingSessionApprovalReceipt } from 'dsh-gateway/client-types'
 
 declare module '@deepseek-ai/dsh-typert-protocol' {
   interface TypertRemoteNamespace$65766f666f72676547617465776179 {
     approvePairing: (_code: string, _adapter: string, _workspaceId: string, _sessionId: string) => Promise<RemoteResult<GatewayPairingSessionApprovalReceipt>>
+    approvePairingRequest: (_requestId: string, _workspaceId: string, _sessionId: string) => Promise<RemoteResult<GatewayPairingSessionApprovalReceipt>>
     overview: () => Promise<RemoteResult<GatewayHealthSnapshot>>
+    pendingPairings: () => Promise<RemoteResult<readonly GatewayPairingPendingRequest[]>>
     revokePairing: (_routeId: string) => Promise<RemoteResult<GatewayPairingRevocationReceipt>>
   }
   interface TypertRemoteMap {
     'evoforgeGateway/approvePairing': (_code: string, _adapter: string, _workspaceId: string, _sessionId: string) => Promise<RemoteResult<GatewayPairingSessionApprovalReceipt>>
+    'evoforgeGateway/approvePairingRequest': (_requestId: string, _workspaceId: string, _sessionId: string) => Promise<RemoteResult<GatewayPairingSessionApprovalReceipt>>
     'evoforgeGateway/overview': () => Promise<RemoteResult<GatewayHealthSnapshot>>
+    'evoforgeGateway/pendingPairings': () => Promise<RemoteResult<readonly GatewayPairingPendingRequest[]>>
     'evoforgeGateway/revokePairing': (_routeId: string) => Promise<RemoteResult<GatewayPairingRevocationReceipt>>
   }
   interface TypertRemoteNamespaceMap {

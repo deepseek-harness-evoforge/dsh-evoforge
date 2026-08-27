@@ -10,6 +10,14 @@ const dsh_gateway_evoforgeGateway_approvePairing_result$schema = z.object({
   'workspaceId': z.string().readonly(),
   'sessionId': z.string().readonly(),
 })
+const dsh_gateway_evoforgeGateway_approvePairingRequest_parameter_0$schema = z.string()
+const dsh_gateway_evoforgeGateway_approvePairingRequest_parameter_1$schema = z.string()
+const dsh_gateway_evoforgeGateway_approvePairingRequest_parameter_2$schema = z.string()
+const dsh_gateway_evoforgeGateway_approvePairingRequest_result$schema = z.object({
+  'routeId': z.string().readonly(),
+  'workspaceId': z.string().readonly(),
+  'sessionId': z.string().readonly(),
+})
 const dsh_gateway_evoforgeGateway_overview_result$schema = z.object({
   'schemaVersion': z.literal(1).readonly(),
   'observedAt': z.number().readonly(),
@@ -71,6 +79,13 @@ const dsh_gateway_evoforgeGateway_overview_result$schema = z.object({
 })]).readonly().optional(),
 }).readonly(),
 })
+const dsh_gateway_evoforgeGateway_pendingPairings_result$schema = z.array(z.object({
+  'requestId': z.string().readonly(),
+  'adapter': z.string().readonly(),
+  'accountIdHash': z.string().readonly(),
+  'createdAt': z.number().readonly(),
+  'expiresAt': z.number().readonly(),
+}))
 const dsh_gateway_evoforgeGateway_revokePairing_parameter_0$schema = z.string()
 const dsh_gateway_evoforgeGateway_revokePairing_result$schema = z.object({
   'routeId': z.string().readonly(),
@@ -139,7 +154,52 @@ export const TYPERT = {
         typeSymbol: 'dsh-gateway/client-types#GatewayPairingSessionApprovalReceipt',
         schema: dsh_gateway_evoforgeGateway_approvePairing_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-gateway/src/gateway-remote.typert.ts","line":21,"column":3},
+      sourceLocation: {"file":"packages/dsh-gateway/src/gateway-remote.typert.ts","line":36,"column":3},
+    },
+    {
+      id: 'dsh-gateway#evoforgeGateway/approvePairingRequest',
+      service: 'evoforge.gatewayHealth',
+      namespace: 'evoforgeGateway',
+      method: 'approvePairingRequest',
+      invocation: { kind: 'direct' },
+      parameters: [
+        {
+          name: '_requestId',
+          wire: '_requestId',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-gateway#evoforgeGateway/approvePairingRequest:_requestId',
+            schema: dsh_gateway_evoforgeGateway_approvePairingRequest_parameter_0$schema,
+          },
+        },
+        {
+          name: '_workspaceId',
+          wire: '_workspaceId',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-gateway#evoforgeGateway/approvePairingRequest:_workspaceId',
+            schema: dsh_gateway_evoforgeGateway_approvePairingRequest_parameter_1$schema,
+          },
+        },
+        {
+          name: '_sessionId',
+          wire: '_sessionId',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-gateway#evoforgeGateway/approvePairingRequest:_sessionId',
+            schema: dsh_gateway_evoforgeGateway_approvePairingRequest_parameter_2$schema,
+          },
+        },
+      ],
+      result: {
+        mode: 'strict',
+        typeSymbol: 'dsh-gateway/client-types#GatewayPairingSessionApprovalReceipt',
+        schema: dsh_gateway_evoforgeGateway_approvePairingRequest_result$schema,
+      },
+      sourceLocation: {"file":"packages/dsh-gateway/src/gateway-remote.typert.ts","line":27,"column":3},
     },
     {
       id: 'dsh-gateway#evoforgeGateway/overview',
@@ -154,7 +214,22 @@ export const TYPERT = {
         typeSymbol: 'dsh-gateway/client-types#GatewayHealthSnapshot',
         schema: dsh_gateway_evoforgeGateway_overview_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-gateway/src/gateway-remote.typert.ts","line":16,"column":3},
+      sourceLocation: {"file":"packages/dsh-gateway/src/gateway-remote.typert.ts","line":17,"column":3},
+    },
+    {
+      id: 'dsh-gateway#evoforgeGateway/pendingPairings',
+      service: 'evoforge.gatewayHealth',
+      namespace: 'evoforgeGateway',
+      method: 'pendingPairings',
+      invocation: { kind: 'direct' },
+      parameters: [
+      ],
+      result: {
+        mode: 'strict',
+        typeSymbol: 'dsh-gateway#evoforgeGateway/pendingPairings:result',
+        schema: dsh_gateway_evoforgeGateway_pendingPairings_result$schema,
+      },
+      sourceLocation: {"file":"packages/dsh-gateway/src/gateway-remote.typert.ts","line":22,"column":3},
     },
     {
       id: 'dsh-gateway#evoforgeGateway/revokePairing',
@@ -179,7 +254,7 @@ export const TYPERT = {
         typeSymbol: 'dsh-gateway/client-types#GatewayPairingRevocationReceipt',
         schema: dsh_gateway_evoforgeGateway_revokePairing_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-gateway/src/gateway-remote.typert.ts","line":31,"column":3},
+      sourceLocation: {"file":"packages/dsh-gateway/src/gateway-remote.typert.ts","line":46,"column":3},
     },
   ],
   model: {
@@ -196,6 +271,16 @@ export const TYPERT = {
             "kind": "method",
             "name": "overview",
             "signature": "overview(): Promise<GatewayHealthSnapshot>"
+          },
+          {
+            "kind": "method",
+            "name": "pendingPairings",
+            "signature": "pendingPairings(): Promise<readonly GatewayPairingPendingRequest[]>"
+          },
+          {
+            "kind": "method",
+            "name": "approvePairingRequest",
+            "signature": "approvePairingRequest( requestId: string, workspaceId: string, sessionId: string, ): Promise<GatewayPairingSessionApprovalReceipt>"
           },
           {
             "kind": "method",
@@ -228,6 +313,10 @@ export const TYPERT = {
           {
             "name": "GatewayOutboundStatus",
             "declaration": "export type GatewayOutboundStatus = GatewayOutboundRecord['status'];"
+          },
+          {
+            "name": "GatewayPairingPendingRequest",
+            "declaration": "export interface GatewayPairingPendingRequest {\n    readonly requestId: string;\n    readonly adapter: string;\n    readonly accountIdHash: string;\n    readonly createdAt: number;\n    readonly expiresAt: number;\n}"
           },
           {
             "name": "GatewayPairingRevocation",

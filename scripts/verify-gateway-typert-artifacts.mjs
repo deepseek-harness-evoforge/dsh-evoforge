@@ -21,8 +21,8 @@ if (remote.TYPERT_REMOTE?.package !== 'dsh-gateway') {
 }
 const hostMethods = methods(host.TYPERT.invocations)
 const remoteMethods = methods(remote.TYPERT_REMOTE.descriptors)
-if (JSON.stringify(hostMethods) !== '["approvePairing","overview","revokePairing"]'
-  || JSON.stringify(remoteMethods) !== '["approvePairing","overview","revokePairing"]') {
+if (JSON.stringify(hostMethods) !== '["approvePairing","approvePairingRequest","overview","pendingPairings","revokePairing"]'
+  || JSON.stringify(remoteMethods) !== '["approvePairing","approvePairingRequest","overview","pendingPairings","revokePairing"]') {
   throw new Error(`unexpected evoforgeGateway Remote methods: ${JSON.stringify({ hostMethods, remoteMethods })}`)
 }
 const descriptor = remote.TYPERT_REMOTE.descriptors.find(row =>
@@ -35,6 +35,17 @@ const revokeDescriptor = remote.TYPERT_REMOTE.descriptors.find(row =>
 if (!revokeDescriptor || revokeDescriptor.parameters.length !== 1
   || revokeDescriptor.parameters[0]?.codec?.schema?.type !== 'string') {
   throw new Error('evoforgeGateway/revokePairing must accept exactly one string route id')
+}
+const pendingDescriptor = remote.TYPERT_REMOTE.descriptors.find(row =>
+  row?.namespace === 'evoforgeGateway' && row.method === 'pendingPairings')
+if (!pendingDescriptor || pendingDescriptor.parameters.length !== 0) {
+  throw new Error('evoforgeGateway/pendingPairings must have no caller-controlled parameters')
+}
+const requestDescriptor = remote.TYPERT_REMOTE.descriptors.find(row =>
+  row?.namespace === 'evoforgeGateway' && row.method === 'approvePairingRequest')
+if (!requestDescriptor || requestDescriptor.parameters.length !== 3
+  || requestDescriptor.parameters.some(parameter => parameter?.codec?.schema?.type !== 'string')) {
+  throw new Error('evoforgeGateway/approvePairingRequest must accept exactly three string parameters')
 }
 
 function methods(rows) {

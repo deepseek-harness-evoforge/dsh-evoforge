@@ -19,6 +19,43 @@ const target = Object.freeze({
 })
 
 describe('Gateway pairing authority', () => {
+  it('exposes only redacted pending metadata and supports exact request-id approval', async () => {
+    const facility = memoryFacility()
+    const pairing = await openGatewayPairingAuthority(facility, {
+      codeTtlMs: 15 * 60_000,
+      maxPendingPerAccount: 3,
+    })
+
+    const offered = await pairing.offer(subject, 1_000)
+    expect(offered.kind).toBe('offered')
+    const pending = pairing.pending(2_000)
+    expect(pending).toHaveLength(1)
+    expect(pending[0]).toMatchObject({
+      adapter: 'feishu', createdAt: 1_000, expiresAt: 901_000,
+      accountIdHash: expect.stringMatching(/^[a-f0-9]{64}$/u),
+    })
+    expect(pending[0]?.accountIdHash).not.toContain(subject.accountId)
+    expect(JSON.stringify(pending[0])).not.toContain(subject.conversationId)
+    expect(JSON.stringify(pending[0])).not.toContain(subject.userId)
+
+    const approved = await pairing.approveRequest({
+      requestId: pending[0]!.requestId,
+      target,
+      now: 2_000,
+    })
+    expect(approved.route).toMatchObject({
+      id: target.id,
+      adapter: subject.adapter,
+      accountId: subject.accountId,
+      conversationId: subject.conversationId,
+      userId: subject.userId,
+    })
+    expect(pairing.pending(2_001)).toEqual([])
+    await expect(pairing.approveRequest({ requestId: pending[0]!.requestId, target, now: 2_001 }))
+      .rejects.toThrow(/invalid|expired|used/iu)
+    await pairing.close()
+  })
+
   it('persists an unknown DM request and turns one Host approval into a recoverable exact route', async () => {
     const facility = memoryFacility()
     const first = await openGatewayPairingAuthority(facility, {

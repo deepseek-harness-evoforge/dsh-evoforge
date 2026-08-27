@@ -109,7 +109,8 @@ token 由启动 DSH 的环境提供。模型不能读取 token、修改 route、
 
 启动 DSH Web 后，Adapter 立即常驻连接。先打开准备绑定的 Workspace/Session，再让用户给飞书机器人发送
 任意私聊消息；机器人会在 Agent 之前消费首条消息并回复配对码。打开 DSH Web 原生“控制台”，进入“渠道”
-Surface，把 code 粘贴到“飞书配对”并批准。用户发送下一条消息即可进入当前原生 Session；不需要改 profile
+Surface；“待批准请求”会显示这次请求的脱敏 Adapter、有效期和账户指纹。管理员可直接点击“直接批准”，
+也可把 code 粘贴到“飞书配对”兼容输入框。用户发送下一条消息即可进入当前原生 Session；不需要改 profile
 或重启。群聊、过期
 code、重放、无 live Session 和 Workspace ownership 漂移均 fail closed；没有 `/feishu-pair` Command。
 

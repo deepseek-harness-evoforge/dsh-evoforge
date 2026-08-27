@@ -2,6 +2,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import type {
   GatewayHealthSnapshot,
+  GatewayPairingPendingRequest,
   GatewayPairingRevocationReceipt,
   GatewayPairingSessionApprovalReceipt,
 } from './client-types.ts'
@@ -25,6 +26,18 @@ export class GatewayRemoteService extends TypertRemoteService {
     return Promise.resolve(this.gateway.healthSnapshot())
   }
 
+  pendingPairings(): Promise<readonly GatewayPairingPendingRequest[]> {
+    return Promise.resolve(this.gateway.pendingPairings())
+  }
+
+  approvePairingRequest(
+    requestId: string,
+    workspaceId: string,
+    sessionId: string,
+  ): Promise<GatewayPairingSessionApprovalReceipt> {
+    return this.gateway.approvePairingRequestForSession({ requestId, workspaceId, sessionId })
+  }
+
   approvePairing(
     code: string,
     adapter: string,
@@ -42,7 +55,7 @@ export class GatewayRemoteService extends TypertRemoteService {
 type RemoteInitializer = (this: GatewayRemoteService) => void
 type AnyRemoteMethod = (this: GatewayRemoteService, ...args: unknown[]) => unknown
 const remoteInitializers: RemoteInitializer[] = []
-for (const name of ['overview', 'approvePairing', 'revokePairing'] as const) {
+for (const name of ['overview', 'pendingPairings', 'approvePairing', 'approvePairingRequest', 'revokePairing'] as const) {
   const method = GatewayRemoteService.prototype[name] as AnyRemoteMethod
   const context = {
     kind: 'method',

@@ -28,10 +28,12 @@ describe('Gateway Control Surface', () => {
   it('approves and revokes Feishu grants without exposing internal ids in the primary view', async () => {
     const remote = {
       overview: vi.fn(async () => ({ ok: true, value: snapshot() })),
+      pendingPairings: vi.fn(async () => ({ ok: true, value: [] })),
       approvePairing: vi.fn(async () => ({
         ok: true,
         value: { routeId: 'paired-feishu', workspaceId: 'workspace-a', sessionId: 'session-a' },
       })),
+      approvePairingRequest: vi.fn(),
       revokePairing: vi.fn(async () => ({
         ok: true,
         value: {
@@ -60,7 +62,9 @@ describe('Gateway Control Surface', () => {
         .mockResolvedValueOnce({ ok: false, error: { code: 'host-unavailable', message: 'offline' } })
         .mockResolvedValueOnce({ ok: true, value: snapshot() })
         .mockResolvedValueOnce({ ok: false, error: { code: 'host-unavailable', message: 'offline again' } }),
+      pendingPairings: vi.fn(async () => ({ ok: true, value: [] })),
       approvePairing: vi.fn(),
+      approvePairingRequest: vi.fn(),
       revokePairing: vi.fn(),
     } as GatewayRemoteClient
     render(<GatewaySurface {...surfaceProps(remote)} />)
@@ -78,6 +82,32 @@ describe('Gateway Control Surface', () => {
     expect((await screen.findByRole('alert')).textContent).toContain('暂时无法连接 DSH Host')
     expect(screen.getByText('official-feishu-websocket')).toBeTruthy()
     expect(remote.overview).toHaveBeenCalledTimes(3)
+  })
+
+  it('renders redacted pending requests and approves one by request id', async () => {
+    const requestId = 'a'.repeat(32)
+    const remote = {
+      overview: vi.fn(async () => ({ ok: true, value: snapshot() })),
+      pendingPairings: vi.fn(async () => ({ ok: true, value: [{
+        requestId,
+        adapter: 'feishu',
+        accountIdHash: 'b'.repeat(64),
+        createdAt: 1_000,
+        expiresAt: Date.now() + 600_000,
+      }] })),
+      approvePairing: vi.fn(),
+      approvePairingRequest: vi.fn(async () => ({ ok: true, value: {
+        routeId: 'paired-request', workspaceId: 'workspace-a', sessionId: 'session-a',
+      } })),
+      revokePairing: vi.fn(),
+    } as GatewayRemoteClient
+    render(<GatewaySurface {...surfaceProps(remote)} />)
+
+    expect(await screen.findByText('待批准请求')).toBeTruthy()
+    expect(screen.getAllByText('飞书').length).toBeGreaterThan(0)
+    expect(screen.queryByText('oc_first_contact')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '直接批准' }))
+    expect(remote.approvePairingRequest).toHaveBeenCalledWith(requestId, 'workspace-a', 'session-a')
   })
 })
 

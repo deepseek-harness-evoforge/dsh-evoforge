@@ -32,6 +32,8 @@ import type {
   GatewayPairingApprovalInput,
   GatewayPairingAuthority,
   GatewayPairingOffer,
+  GatewayPairingPendingRequest,
+  GatewayPairingRequestApprovalInput,
   GatewayPairingRevocation,
   GatewayPairingTarget,
 } from './pairing.js'
@@ -88,6 +90,12 @@ export type GatewayAuthorizationResult =
 export interface GatewayPairingSessionApprovalInput {
   readonly code: string
   readonly adapter: string
+  readonly workspaceId: string
+  readonly sessionId: string
+}
+
+export interface GatewayPairingSessionRequestApprovalInput {
+  readonly requestId: string
   readonly workspaceId: string
   readonly sessionId: string
 }
@@ -348,6 +356,67 @@ export class DshGateway {
       workspaceId: approved.route.workspaceId,
       sessionId: approved.route.sessionId,
     })
+  }
+
+  /** Approve one pending request by its opaque request id from the Host control plane. */
+  async approvePairingRequestForSession(
+    input: GatewayPairingSessionRequestApprovalInput,
+  ): Promise<GatewayPairingSessionApprovalReceipt> {
+    this.assertRunning()
+    if (this.pairing === undefined) throw new Error('DSH gateway pairing is disabled')
+    const workspace = this.ctx.workspaceRegistry.get(WorkspaceId(input.workspaceId))
+    if (workspace === undefined || await workspace.status() !== 'ok') {
+      throw new Error(`gateway pairing names unavailable Workspace '${input.workspaceId}'`)
+    }
+    const sessionId = SessionId(input.sessionId)
+    if (!workspace.sessionIds.some(id => id === sessionId)) {
+      throw new Error(`gateway pairing Session '${input.sessionId}' is not owned by Workspace '${input.workspaceId}'`)
+    }
+    const agent = this.ctx.agents.get(sessionId)
+    if (agent === undefined) {
+      throw new Error('gateway pairing approval requires the selected native DSH Session to be live')
+    }
+    if (agent.session.header.cwd !== workspace.path) {
+      throw new Error(`gateway pairing Session '${input.sessionId}' cwd does not match its Workspace`)
+    }
+    const agentPreset = this.ctx.agentPresets.composedPreset(agent.ctx)
+    if (agentPreset === undefined || agent.options.provider === undefined || agent.options.model === undefined) {
+      throw new Error('gateway pairing approval requires a complete live Agent route')
+    }
+    const approved = await this.approvePairingRequest({
+      requestId: input.requestId,
+      target: {
+        id: `paired-${randomBytes(12).toString('hex')}`,
+        workspaceId: input.workspaceId,
+        sessionId: input.sessionId,
+        agentPreset,
+        provider: agent.options.provider,
+        model: agent.options.model,
+        ...(agent.options.maxTokens === undefined ? {} : { maxTokens: agent.options.maxTokens }),
+      },
+      now: Date.now(),
+    })
+    return Object.freeze({
+      routeId: approved.route.id,
+      workspaceId: approved.route.workspaceId,
+      sessionId: approved.route.sessionId,
+    })
+  }
+
+  async approvePairingRequest(input: GatewayPairingRequestApprovalInput): Promise<GatewayPairingApproval> {
+    this.assertRunning()
+    if (this.pairing === undefined) throw new Error('DSH gateway pairing is disabled')
+    const target = input.target
+    await this.validatePairingTarget(target)
+    if (this.configured.byId.has(target.id) || this.pairing.route(target.id) !== undefined) {
+      throw new Error(`gateway pairing route id '${target.id}' is already configured`)
+    }
+    return this.pairing.approveRequest(input)
+  }
+
+  pendingPairings(observedAt = Date.now()): readonly GatewayPairingPendingRequest[] {
+    exactHealthTime(observedAt)
+    return this.pairing?.pending(observedAt) ?? []
   }
 
   async revokePairing(routeId: string): Promise<GatewayPairingRevocationReceipt> {

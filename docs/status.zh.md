@@ -91,6 +91,18 @@ V5.56 为 `dsh-resident` 增加受约束的 `noOpen` 配置：同一个 Web prof
 shell，且 unit 不携带凭据。真实 launchd fixture 已验证 `--profile <fixture> --no-open`、SIGKILL 重启、
 status、remove 与无残留；完整契约见 [V5.56 证据](evidence/v5-56-resident-web-no-open-contract-2026-08-27.zh.md)。
 
+V5.57 将常驻 Gateway 的待批准请求接入同一原生 Control Center：Host 现在提供脱敏 pending request
+列表，并支持管理员按不透明 `requestId` 直接批准；原有配对码输入仍兼容。请求 id 审批和 code 审批
+都必须重新验证 live native Session、Workspace ownership、cwd、Agent preset、provider/model，并在
+pairing store 中原子消费 pending binding；过期、重放、route 冲突和身份泄漏均 fail closed。Gateway
+全部 35 项测试、Control Surface 3 项测试、Typert 重生成/构建通过。该增量只改善常驻配对的可操作性，
+不提升真实 Feishu epoch-3、真实 Provider、Hermes paired 或长期效果门。详见 [V5.57 证据](evidence/v5-57-gateway-pending-request-control-2026-08-27.zh.md)。
+
+V5.58 修复根 `pnpm test` 的 macOS assembled 并发竞争：`dsh-software-delivery` 不再与其它包并行
+重建/打包，而是先跑 7 个快速测试，再以单 worker 串行跑 clean-profile 与 suite-upgrade。原先两个
+assembled 文件的 180 秒/420 秒超时在修复后的独立串行路径均 2/2 通过；不放宽断言或发布门。详见
+[V5.58 证据](evidence/v5-58-serial-assembled-test-runner-2026-08-27.zh.md)。
+
 V5.5 按 [ADR-0090](adr/0090-feishu-content-reads-are-agent-scoped-native-tools.md) 在 `dsh-feishu` 内增加一个
 Agent-scoped 原生 `feishu_content_read` Tool。document、Wiki、Drive metadata、Bitable records 四项权限独立且
 默认关闭；每次读取走真实 ToolRuntime/Approval，当前 Session schema 固定，撤权后执行拒绝，新启用只影响

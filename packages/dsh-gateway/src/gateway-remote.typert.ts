@@ -2,6 +2,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import type {
   GatewayHealthSnapshot,
+  GatewayPairingPendingRequest,
   GatewayPairingRevocationReceipt,
   GatewayPairingSessionApprovalReceipt,
 } from './client-types.ts'
@@ -14,6 +15,20 @@ export class GatewayRemoteTypertContract extends TypertRemoteService {
 
   @Remote
   overview(): Promise<GatewayHealthSnapshot> {
+    throw new Error('static Typert contract')
+  }
+
+  @Remote
+  pendingPairings(): Promise<readonly GatewayPairingPendingRequest[]> {
+    throw new Error('static Typert contract')
+  }
+
+  @Remote
+  approvePairingRequest(
+    _requestId: string,
+    _workspaceId: string,
+    _sessionId: string,
+  ): Promise<GatewayPairingSessionApprovalReceipt> {
     throw new Error('static Typert contract')
   }
 

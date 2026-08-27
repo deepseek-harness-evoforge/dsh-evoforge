@@ -53,15 +53,18 @@ describe('DshGateway', () => {
     if (first.kind !== 'pairing' || first.offer.kind !== 'offered') {
       throw new Error('Gateway did not offer pairing')
     }
+    expect(gateway.pendingPairings(now)).toHaveLength(1)
 
-    const receipt = await gateway.approvePairingForSession({
-      code: first.offer.code,
-      adapter: 'feishu',
+    const pending = gateway.pendingPairings(now)[0]
+    if (pending === undefined) throw new Error('Gateway did not retain pending request')
+    const receipt = await gateway.approvePairingRequestForSession({
+      requestId: pending.requestId,
       workspaceId: 'workspace-a',
       sessionId: 'session-a',
     })
     expect(receipt).toMatchObject({ workspaceId: 'workspace-a', sessionId: 'session-a' })
     expect(receipt.routeId).toMatch(/^paired-[a-f0-9]{24}$/u)
+    expect(gateway.pendingPairings(now + 1)).toEqual([])
 
     const accepted = await gateway.accept({
       endpoint: endpointB,

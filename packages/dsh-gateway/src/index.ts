@@ -110,6 +110,8 @@ export {
   type GatewayPairingAuthority,
   type GatewayPairingAuthorityOptions,
   type GatewayPairingOffer,
+  type GatewayPairingPendingRequest,
+  type GatewayPairingRequestApprovalInput,
   type GatewayPairingRequest,
   type GatewayPairingRevocation,
   type GatewayPairingTarget,
@@ -173,6 +175,7 @@ export {
   type GatewayPairingRevocationReceipt,
   type GatewayPairingSessionApprovalInput,
   type GatewayPairingSessionApprovalReceipt,
+  type GatewayPairingSessionRequestApprovalInput,
 } from './gateway.js'
 export { GatewayRemoteService } from './gateway-remote.js'
 export type { GatewayRemoteTypertContract } from './gateway-remote.typert.js'
