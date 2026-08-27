@@ -11,7 +11,6 @@ import {
   writeFile,
 } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
-import { createInterface } from 'node:readline/promises'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
 import {
@@ -60,9 +59,15 @@ interface RuntimeGateway {
     readonly workspaceId: string
     readonly sessionId: string
   } | undefined
-  approvePairingForSession(input: {
-    readonly code: string
+  pendingPairings(observedAt?: number): readonly {
+    readonly requestId: string
     readonly adapter: string
+    readonly accountIdHash: string
+    readonly createdAt: number
+    readonly expiresAt: number
+  }[]
+  approvePairingRequestForSession(input: {
+    readonly requestId: string
     readonly workspaceId: string
     readonly sessionId: string
   }): Promise<{ readonly routeId: string; readonly workspaceId: string; readonly sessionId: string }>
@@ -268,21 +273,34 @@ export async function executeRealFeishuAcceptance(
     observations = { ...observations, officialTransportReady: true }
 
     const userMessagesBeforePairing = countUserMessages(agent.session.events)
-    stage = 'awaiting-resident-pairing-code'
+    stage = 'awaiting-resident-pairing-request'
     await writeState(statePath, stateBase, stage)
     process.stderr.write(
-      'AS-2 resident Gateway is ready. Send any private message to the Feishu bot, then enter the returned code here.\n',
+      'AS-2 resident Gateway is ready. Send any private message to the Feishu bot; the Host will approve its pending request.\n',
     )
-    const pairingCode = await readPairingCode(config.interactionTimeoutMs)
+    let pairingRequest: ReturnType<RuntimeGateway['pendingPairings']>[number] | undefined
+    await eventually(() => {
+      const requests = gateway.pendingPairings().filter(request =>
+        request.adapter === 'feishu' && request.accountIdHash === preflight.appIdentityHash)
+      if (requests.length > 1) {
+        throw new Error('resident Gateway exposed more than one pending request for the exact Feishu App')
+      }
+      pairingRequest = requests[0]
+      return pairingRequest !== undefined
+    }, config.interactionTimeoutMs, 'resident Gateway did not expose the exact pending Feishu request')
+    if (pairingRequest === undefined) throw new Error('resident Gateway pending Feishu request disappeared')
     if (countUserMessages(agent.session.events) !== userMessagesBeforePairing) {
       throw new Error('the unknown pairing DM entered the native DSH Session before Host approval')
     }
-    const pairing = await gateway.approvePairingForSession({
-      code: pairingCode,
-      adapter: 'feishu',
+    const pairingRequestId = pairingRequest.requestId
+    const pairing = await gateway.approvePairingRequestForSession({
+      requestId: pairingRequestId,
       workspaceId,
       sessionId: SESSION_ID,
     })
+    if (gateway.pendingPairings().some(request => request.requestId === pairingRequestId)) {
+      throw new Error('resident Gateway did not atomically consume the approved pending request')
+    }
     const pairedRoute = gateway.route(pairing.routeId)
     if (pairedRoute === undefined
       || pairedRoute.adapter !== 'feishu'
@@ -742,23 +760,6 @@ function hasExactUserText(events: readonly RuntimeEvent[], expected: string): bo
 
 function countUserMessages(events: readonly RuntimeEvent[]): number {
   return events.filter(event => event.type === 'user/message').length
-}
-
-async function readPairingCode(timeoutMs: number): Promise<string> {
-  const input = createInterface({ input: process.stdin, output: process.stderr })
-  const timeout = new AbortController()
-  const timer = setTimeout(() => timeout.abort(), timeoutMs)
-  try {
-    const value = (await input.question('Pairing code: ', { signal: timeout.signal })).trim()
-    if (!/^[A-HJ-NP-Z2-9]{10}$/u.test(value)) throw new Error('invalid resident Gateway pairing code')
-    return value
-  } catch (error: unknown) {
-    if (timeout.signal.aborted) throw new Error('resident Gateway pairing code was not entered before timeout')
-    throw error
-  } finally {
-    clearTimeout(timer)
-    input.close()
-  }
 }
 
 function countExactUserText(events: readonly RuntimeEvent[], expected: string): number {

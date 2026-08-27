@@ -117,6 +117,12 @@ V5.60 将根测试第一批的跨包 `pretest → build → test` 生命周期�
 文件也全部通过。`check:ci` 固化该编排门；真实外部验收状态不变。详见
 [V5.60 证据](evidence/v5-60-deterministic-root-test-2026-08-27.zh.md)。
 
+V5.61 删除 AS-2 真实飞书验收的终端配对码转录。验收器现在等待常驻 Gateway 的脱敏 pending request，
+按 exact Feishu App hash 要求唯一匹配，再通过生产 `approvePairingRequestForSession` 门绑定原生
+Workspace/Session，并验证 request 原子消费和首条消息未进入 Agent；机器人 code 仅保留为产品兼容路径。
+类型检查和 10/10 合同测试通过，但新的真实纵切尚未完成，发布门不变。详见
+[V5.61 证据](evidence/v5-61-feishu-acceptance-host-pending-approval-2026-08-27.zh.md)。
+
 V5.5 按 [ADR-0090](adr/0090-feishu-content-reads-are-agent-scoped-native-tools.md) 在 `dsh-feishu` 内增加一个
 Agent-scoped 原生 `feishu_content_read` Tool。document、Wiki、Drive metadata、Bitable records 四项权限独立且
 默认关闭；每次读取走真实 ToolRuntime/Approval，当前 Session schema 固定，撤权后执行拒绝，新启用只影响

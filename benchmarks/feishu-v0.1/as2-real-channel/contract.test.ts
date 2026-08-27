@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { describe, test } from 'node:test'
 import { fileURLToPath } from 'node:url'
@@ -13,6 +14,7 @@ import {
 const appSecret = 'private-real-app-secret'
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 const runner = resolve(repositoryRoot, 'benchmarks/feishu-v0.1/as2-real-channel/run.ts')
+const execution = resolve(repositoryRoot, 'benchmarks/feishu-v0.1/as2-real-channel/execute.ts')
 const tsx = resolve(repositoryRoot, 'packages/dsh-feishu/node_modules/.bin/tsx')
 
 describe('AS-2 real Feishu acceptance contract', () => {
@@ -63,6 +65,14 @@ describe('AS-2 real Feishu acceptance contract', () => {
         'missing:DSH_FEISHU_REAL_CHANNEL_RUN_ROOT',
       ],
     })
+  })
+
+  test('approves the Host pending request without reading a pairing code from stdin', () => {
+    const source = readFileSync(execution, 'utf8')
+
+    assert.match(source, /pendingPairings\(\)/u)
+    assert.match(source, /approvePairingRequestForSession/u)
+    assert.doesNotMatch(source, /approvePairingForSession|createInterface|process\.stdin|Pairing code:/u)
   })
 
   test('rejects malformed App identity and overlapping run roots before dispatch', () => {
