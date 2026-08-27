@@ -103,6 +103,13 @@ V5.58 修复根 `pnpm test` 的 macOS assembled 并发竞争：`dsh-software-del
 assembled 文件的 180 秒/420 秒超时在修复后的独立串行路径均 2/2 通过；不放宽断言或发布门。详见
 [V5.58 证据](evidence/v5-58-serial-assembled-test-runner-2026-08-27.zh.md)。
 
+V5.59 将 V5.57 的待批准请求 Remote 原位安装到当前 `web` profile，并以用户授权的进程环境凭据启动
+常驻 Host。无凭据启动按预期 fail closed；授权启动只保留一个 `127.0.0.1:3080` Host。单页浏览器复验
+在原生 DSH Session 的 `控制台 → 渠道` Surface 完成：待批准请求、飞书配对、授权路由和刷新均可见，
+刷新后仍停留在同一页面，console warn/error 为 0。该证据只证明新包已进入可运行 profile 和控制面交互，
+不提升真实 Feishu epoch-3、真实 Provider、Hermes paired 或长期效果门。详见
+[V5.59 证据](evidence/v5-59-live-gateway-pending-control-2026-08-27.zh.md)。
+
 V5.5 按 [ADR-0090](adr/0090-feishu-content-reads-are-agent-scoped-native-tools.md) 在 `dsh-feishu` 内增加一个
 Agent-scoped 原生 `feishu_content_read` Tool。document、Wiki、Drive metadata、Bitable records 四项权限独立且
 默认关闭；每次读取走真实 ToolRuntime/Approval，当前 Session schema 固定，撤权后执行拒绝，新启用只影响
