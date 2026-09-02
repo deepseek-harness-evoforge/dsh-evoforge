@@ -1,6 +1,6 @@
 # 当前实现状态
 
-> 更新日期：2026-08-27。本文只描述标准路径中的权威 `main` 工作树，不把计划或历史分支当作已交付能力。
+> 更新日期：2026-09-02。本文只描述标准路径中的权威 `main` 工作树，不把计划或历史分支当作已交付能力。
 
 ## 状态词
 
@@ -12,6 +12,11 @@
 | `released` | 已发布并验证安装、升级和卸载 |
 
 ## 当前总判断
+
+V5.68 修复了 macOS assembled `0.1.1-rc.2` CI 中 `dsh-telegram/dist/index.mjs` 的共享构建竞态：
+`dsh-evolve-attention` 的 peer `prebuild` 与工作流重复直接构建 Telegram，`tsdown clean` 会造成偶发缺模块。
+本地 `check:ci` 已通过，远端矩阵仍需复跑；这只是 CI 可靠性修复，不提升真实 Feishu、真实 Provider、Hermes
+paired 或长期效果门。证据见 [V5.68](evidence/v5-68-ci-telegram-build-race-2026-09-02.zh.md)。
 
 本地仓库已收口为标准仓库路径下唯一 `main` 工作树和本地分支，并与 `origin/main` 同步。
 

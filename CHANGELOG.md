@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Fixed a nondeterministic macOS assembled CI failure where `dsh-evolve-attention`'s shared channel-peer
+  prebuild raced a duplicate direct `dsh-telegram` build and could clean `dist/index.mjs` after it was produced.
+  The workflow now has one Telegram build path and `check:ci` prevents the duplicate from returning. This does not
+  change the still-blocked real Feishu, real Provider, Hermes paired, or long-term release gates. See
+  [V5.68 evidence](docs/evidence/v5-68-ci-telegram-build-race-2026-09-02.zh.md).
+
 - The native Control Center now exposes accessible ARIA tabs with roving keyboard focus: arrow keys move between
   plugin surfaces, while Home/End jump to the first/last surface. Each tab points at the single active panel, so the
   entire visualization remains inside one DSH `conversation.view` without a second page or hidden router.

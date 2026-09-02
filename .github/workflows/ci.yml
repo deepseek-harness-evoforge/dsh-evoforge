@@ -94,7 +94,10 @@ jobs:
       - name: Build EvoForge integration packages
         run: |
           pnpm --filter dsh-evolve build
-          pnpm --filter dsh-telegram build
+          # dsh-evolve-attention's prebuild serially builds the shared
+          # Gateway/Telegram/Feishu channel peers. Do not build Telegram here
+          # as well: its clean tsdown target can race that peer build and
+          # remove dist/index.mjs while the assembled tests are starting.
           pnpm --filter dsh-evolve-attention build
           pnpm --filter dsh-github-review build
       - name: Materialize DSH-revision-matched Case Packs

@@ -24,7 +24,9 @@
 > V5.67 已为公共 Control Center 增加原生 ARIA tabs 键盘导航和唯一 `tabpanel`：方向键、Home/End、roving `tabIndex`、鼠标和移动端都留在同一个 DSH `conversation.view`，并通过真实单页刷新恢复验证；不新增网页、Router、Session 或模型调用。
 > V4.38 已在 existing-Skill Candidate proposer 前生成并校准 Candidate 不可见的完整 `skill-tree` holdout Envelope；V4.39 已把 exact Envelope 纳入 Candidate 内容身份并消费该 Envelope 与 V4.37 exact 双树执行 assembled paired Trial。下一门是独立 Retention/Canary/晋升/回滚，而不是再次生成或搜索能力。
 > V4.40–V4.45 已完成 Retention、发布门与最终包浏览器生命周期；V4.46–V4.48 已完成 existing-Skill failed-Outcome Canary、权威 Control/Remote/Web、独立 expected-active rollback gate 与最终 tarball 浏览器故障恢复；V4.49 已完成 missing-Skill 同类最终包故障恢复。下一门是两套独立真实 provider。
-> 更新日期：2026-08-28
+> V5.68 修复 macOS assembled `0.1.1-rc.2` 中 dsh-telegram 共享 `tsdown clean` 构建竞态，并用 `check:ci`
+> 固化防回归检查；远端矩阵尚待复跑，真实外部验收门状态不变。详见 [V5.68](evidence/v5-68-ci-telegram-build-race-2026-09-02.zh.md)。
+> 更新日期：2026-09-02
 
 ## 开发与发布纪律
 
