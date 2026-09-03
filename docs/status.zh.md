@@ -54,6 +54,7 @@ paired benchmark、长期负迁移/遗忘和完整真实浏览器成功/失败/�
 `lib/types/{index,invariant,startup}.js` 入口处失败；该问题未由 EvoForge 修改或掩盖。因而本轮所有可执行
 assembled/clean-profile 证据继续锁定已完整构建的 `dsh-v0.1.2-alpha.5` / `db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`，并将
 tag、master、可构建基线三者分开记录。该复核没有扩大支持声明，也没有把上游失败误报为插件故障。
+完整命令、输出和支持决策见 [V5.72 证据](evidence/v5-72-latest-dsh-master-reaudit-2026-09-03.zh.md)。
 
 ## 状态词
 
@@ -525,3 +526,4 @@ add/Loader/command/remove 1/1（10.35 秒）。V4.24 删除旧浏览器 acceptan
 - rc.5 与最新审计的 rc.2 都只有栅格图片附件契约；飞书普通文件和音视频尚未完成，且不得由 Gateway 私有扩展绕过。文档/知识库/云盘元数据/多维表格已有 assembled Tool 纵切，但真实 App scope、资源权限与真实内容尚未验证；
 - 自动化 `implemented` 不能替代真实 outcome，也不能支持笼统的“优于 Hermes”；
 - 不 merge、不发布 registry、不部署生产，除非用户另行授权。
+完整命令、输出和支持决策见 [V5.72 证据](evidence/v5-72-latest-dsh-master-reaudit-2026-09-03.zh.md)。
