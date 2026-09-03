@@ -280,7 +280,7 @@ export async function executeRealFeishuAcceptance(
     )
     let pairingRequest: ReturnType<RuntimeGateway['pendingPairings']>[number] | undefined
     await eventually(() => {
-      const requests = gateway.pendingPairings().filter(request =>
+      const requests = readPendingPairings(gateway).filter(request =>
         request.adapter === 'feishu' && request.accountIdHash === preflight.appIdentityHash)
       if (requests.length > 1) {
         throw new Error('resident Gateway exposed more than one pending request for the exact Feishu App')
@@ -298,7 +298,7 @@ export async function executeRealFeishuAcceptance(
       workspaceId,
       sessionId: SESSION_ID,
     })
-    if (gateway.pendingPairings().some(request => request.requestId === pairingRequestId)) {
+    if (readPendingPairings(gateway).some(request => request.requestId === pairingRequestId)) {
       throw new Error('resident Gateway did not atomically consume the approved pending request')
     }
     const pairedRoute = gateway.route(pairing.routeId)
@@ -748,6 +748,18 @@ function requireGateway(context: RuntimeContext): RuntimeGateway {
   const gateway = context.get('evoforge.gateway') as RuntimeGateway | undefined
   if (gateway === undefined) throw new Error('AS-2 production dsh-gateway did not load')
   return gateway
+}
+
+function readPendingPairings(gateway: RuntimeGateway): ReturnType<RuntimeGateway['pendingPairings']> {
+  const pending = gateway.pendingPairings()
+  if (Array.isArray(pending)) return pending
+  const prototype = Object.getPrototypeOf(gateway) as object | null
+  const methods = prototype === null
+    ? []
+    : Object.getOwnPropertyNames(prototype).filter(name => name !== 'constructor').slice(0, 32)
+  throw new Error(
+    `DSH gateway pending pairing API returned ${pending === null ? 'null' : typeof pending}; methods=${methods.join(',')}`,
+  )
 }
 
 function requireFeishuHostRoute(context: RuntimeContext): FeishuHostRoute {

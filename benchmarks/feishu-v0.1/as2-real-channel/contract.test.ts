@@ -71,6 +71,7 @@ describe('AS-2 real Feishu acceptance contract', () => {
     const source = readFileSync(execution, 'utf8')
 
     assert.match(source, /pendingPairings\(\)/u)
+    assert.match(source, /readPendingPairings\(gateway\)/u)
     assert.match(source, /approvePairingRequestForSession/u)
     assert.match(source, /healProfilesModuleFallback\(\{ installAnchor, profile, home: dshHome \}\)/u)
     assert.doesNotMatch(source, /healProfilesModuleFallback\(installAnchor\)/u)
