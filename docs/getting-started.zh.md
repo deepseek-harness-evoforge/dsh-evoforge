@@ -9,6 +9,10 @@ EvoForge 只作为 DSH 原生 Bundle 套件运行。本页区分“开发者生�
   `db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`；
 - 一个 DSH `web` profile。
 
+DSH 最新公开版本已推进到 `dsh-v0.1.2-rc.1`，但其干净完整构建仍有上游根级 tsdown 入口问题；在该问题
+修复并完成独立迁移矩阵前，不要把 rc.1 与本项目当前已验证的 alpha.5 混装。每次开发/测试前都应先更新
+DSH、确认 revision 和 clean worktree；本页命令使用的是当前可复现的 alpha.5 基线。
+
 当前包尚未发布到 registry。先按用户结果生成需要的能力套件；这一步只生成 DSH 安装产物，不启动 EvoForge Runtime：
 
 ```sh

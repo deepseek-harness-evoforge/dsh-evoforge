@@ -6,7 +6,7 @@ DSH 仍然是唯一的 Agent Host 和状态权威。EvoForge 不是 Codex 插件
 
 ## 当前状态
 
-项目目前是 `pre-alpha`：源码、测试和本地 tarball 安装路径可供开发者复现，但尚未发布 registry 稳定包，也还没有声明已经完成 Hermes 上位替代。推荐固定使用 DSH 公开 tag `dsh-v0.1.2-alpha.5`（revision `db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`）。每次开发和测试都必须先核对 DSH revision、版本和 clean worktree。
+项目目前是 `pre-alpha`：源码、测试和本地 tarball 安装路径可供开发者复现，但尚未发布 registry 稳定包，也还没有声明已经完成 Hermes 上位替代。DSH 最新公开版本已是 `dsh-v0.1.2-rc.1`（revision `a66e4702047846cdaa10c66c9d3df3951f5ea70d`），其干净完整构建仍被上游根级 tsdown 入口阻断；当前已完成矩阵的可构建基线仍是 `dsh-v0.1.2-alpha.5`（revision `db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`）。每次开发和测试都必须先核对 DSH revision、版本和 clean worktree；rc.1 的状态见 [迁移审计](docs/research/dsh-rc1-migration-audit-2026-09-03.zh.md)。
 
 当前尚未关闭的发布门包括：真实飞书完整 AS-2、两套独立真实 provider、同任务同模型同权限同预算的 Hermes paired benchmark、长期负迁移/遗忘数据，以及真实浏览器成功/失败/恢复的完整路径。门禁未全部通过前，不应把本项目当作稳定生产发行版。
 
