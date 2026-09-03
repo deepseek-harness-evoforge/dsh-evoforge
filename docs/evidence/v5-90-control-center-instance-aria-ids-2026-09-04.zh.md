@@ -30,6 +30,16 @@ pnpm --filter dsh-control-center build
 
 结果：Control Center 类型检查通过；定向测试 2 个文件、5/5 通过；Node/Client 产物构建和 artifact 校验通过。
 
+随后在同一 clean DSH alpha.5 支持基线下执行根级完整检查，明确退出码为 `0`：
+
+```sh
+DSH_EVOLVE_DSH_SOURCE_DIR=<path-to-built-dsh-alpha5> pnpm run check
+```
+
+该检查覆盖 DSH preflight、文档/CI/套件与发布结构合同、12 个 Bundle 的 typecheck/test/build、assembled
+clean-profile 生命周期和所有现有故障恢复夹具；没有把真实 Feishu、真实 Provider、Hermes paired 或长期效果
+门误报为通过。
+
 ## 发布边界
 
 这是多挂载可访问性和 Session 隔离修复，不是外部渠道、Provider、Hermes paired、长期效果或 release tag 的
