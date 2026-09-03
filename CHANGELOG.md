@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Re-ran the complete repository check after the Feishu callback and alpha.5 Schedule-fixture fixes, using the clean
+  audited alpha.5 DSH profile. Documentation/CI/package/release contracts, compatibility checks, all 12 package
+  typechecks, all tests, and all builds passed; Feishu is 18 files / 46 tests, Telegram 8 / 29, and Gateway 8 / 40.
+  Real Feishu AS-2, independent Providers, Hermes paired, long-term effects, and release-tag gates remain unchanged.
+  See [V5.96 evidence](docs/evidence/v5-96-alpha5-full-check-2026-09-04.zh.md).
+
 - Repaired the Feishu Schedule crash-recovery fixture for the audited DSH alpha.5 persistence contract. The fixture
   now replaces the actual `persistBatch` method (the old seam silently replaced an unused `appendBatch` property),
   and uses a five-second due window so fault injection is installed before dispatch. The test still kills the seed

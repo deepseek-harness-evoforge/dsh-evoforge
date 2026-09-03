@@ -36,6 +36,17 @@ SDK emitter 看到的未处理 Promise rejection，既不能稳定记录到现�
 Schedule durability 证据的有效性，不提升真实 Feishu AS-2、Provider、Hermes paired、长期效果或 release tag 门。
 详见 [V5.95 证据](evidence/v5-95-schedule-crash-fixture-alpha5-2026-09-04.zh.md)。
 
+## V5.96：飞书边界后根级质量检查（本轮）
+
+在再次 fetch 并确认 DSH 最新远端 `master` 为 `76fda729…`、支持基线 alpha.5 clean 后，运行根级
+`DSH_EVOLVE_DSH_SOURCE_DIR=<alpha5> pnpm run check`。文档/CI/套件与发布合同、DSH 兼容性、Hermes/Provider/
+Feishu 合同检查、12 个包的类型检查、所有测试和所有构建全部通过；其中 `dsh-feishu` 为 18/18 文件、46/46
+测试，`dsh-telegram` 为 8/8 文件、29/29 测试，`dsh-gateway` 为 8/8 文件、40/40 测试。
+
+这是当前 main 的可重复工程质量基线；真实 Feishu AS-2、双真实 Provider、Hermes paired、长期效果、真实外部
+浏览器恢复和首个 release tag 仍未通过，未因根级绿灯而提前发布。详见
+[V5.96 证据](evidence/v5-96-alpha5-full-check-2026-09-04.zh.md)。
+
 ## V5.88：Gateway 单页渠道入口按需显示（本轮）
 
 重新 fetch 并确认 DSH 最新远端 `master` 为 `76fda729…` 后，修复 Telegram-only profile 仍出现空“飞书配对”
