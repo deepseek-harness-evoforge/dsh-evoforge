@@ -686,7 +686,7 @@ durable intent；恢复 Fake Platform 发送 0 次，跨进程效果总数 1，G
 V5.21 将真实飞书 AS-2 从 epoch-1 升为 epoch-2。最终包 profile 不在已创建 Agent 上补挂 Tool，而是先加载
 官方 DSH Schedule，再启动活动 Gateway route；验收器通过 agent-scoped `schedule_create` 要求同一原生 Session
 精确出现一次 create、dispatch 和 Schedule 插件来源 `user/message`，生产飞书 route 的 durable delivered 计数增加，卸载后仍可读回。
-终态解码器精确关闭十一项 observation，`passed` 必须全真，旧 epoch、缺 Schedule、畸形 verdict/Gateway facts
+终态解码器精确关闭十三项 observation，`passed` 必须全真，旧 epoch、缺 Schedule、畸形 verdict/Gateway facts
 均不能复用。合同 9/9、独立类型与 Feishu 18 files/52 tests 通过；真实 App 长连接已启动，exact route
 配对尚未完成，direct/group 仍为 `NOT_RUN`。详见 [V5.21 证据](evidence/v5-21-real-feishu-native-schedule-gate.zh.md)。
 
@@ -721,8 +721,8 @@ V5.21 将真实飞书 AS-2 从 epoch-1 升为 epoch-2。最终包 profile 不在
 用户安装面已按[能力套件](capability-suites.zh.md)精简；下面的十二包清单是维护者审计和完整 clean-profile gate 的内部边界，不是用户必须逐项选择的产品菜单。
 
 当前 `main` 增量通过根级 `pnpm check`（文档、全包 typecheck、测试和构建）；其中
-`dsh-control-center` 2 files/4 tests、`dsh-gateway` 8 files/37 tests、`dsh-evolve-web` 2 files/26 tests、
-`dsh-evolve-attention` 4 files/11 tests、`dsh-feishu` 18 files/45 tests、`dsh-evolve` 69 files/309 tests passed、
+`dsh-control-center` 2 files/4 tests、`dsh-gateway` 8 files/40 tests、`dsh-evolve-web` 2 files/27 tests、
+`dsh-evolve-attention` 4 files/11 tests、`dsh-feishu` 18 files/46 tests、`dsh-evolve` 69 files/309 tests passed、
 1 test skipped。Cache Contract 全通过；Doctor 十二包原生合同含新增 Control Center；十二包 clean-profile 最终 tarball 的 add/dump/boot/真实
 Session+Goal+Storage+Tool/dispose/remove/reboot/readback 1/1（60.96 秒）；独立 Doctor packed
 add/Loader/command/remove 1/1（10.35 秒）。V4.24 删除旧浏览器 acceptance fixture，并用 DSH Web 组件测试固定“纠正进入
