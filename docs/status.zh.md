@@ -48,6 +48,12 @@ Host authority。运行时未改动；文档链接、差异检查和 release-gat
 epoch-1 冻结结果不变。两页都明确该结果只支持确定性 Skill 发布控制面的窄结论，不提升模型质量、真实渠道、长期
 效果或整体上位替代状态。
 
+## V5.126：最新 DSH 审计固化到开源流程（本轮）
+
+将“每次开发/测试先 fetch 最新 DSH，核对 `HEAD == origin/master`、版本/tag、依赖与 clean worktree”写入
+`CONTRIBUTING.md` 与发布纪律。最新 master 若自身不可构建，必须保留上游失败证据并使用已审计支持基线，不能
+修改 DSH、静默回退或混淆插件结果。运行时未改。
+
 ## V5.104：npm 包名归属审计与发布阻断（本轮）
 
 在再次 fetch 并确认最新 DSH `origin/master` 为 `76fda729…`、工作树 clean 后，查询所有公开 Bundle 的 npm

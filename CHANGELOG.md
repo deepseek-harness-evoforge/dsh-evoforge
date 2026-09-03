@@ -6,6 +6,10 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.126**: Made the latest-DSH audit a contributor and release requirement: fetch `origin/master`, verify the
+  clean exact revision/tag/dependencies, record it in evidence, and explicitly separate an upstream build failure
+  from the admitted support baseline. No runtime behavior changed.
+
 - **V5.125**: Synchronized the Hermes acceptance scorecard and paired-benchmark page with the current alpha.5 EV-1
   epoch. The new evidence is linked without rewriting the original epoch-1 result, and its narrow deterministic
   release-control conclusion remains separate from model, channel, or full-replacement claims.

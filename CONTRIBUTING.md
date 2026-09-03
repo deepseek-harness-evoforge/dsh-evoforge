@@ -16,13 +16,16 @@
 
 ## 开发流程
 
-1. 阅读根目录 `CONTEXT.md`、适用 ADR 和对应阶段契约；
-2. 用一句话写清用户结果和非目标；
-3. 先添加穿过公共接缝的失败测试；
-4. 实现最小纵切，不为假想复用发布公共抽象；
-5. 运行 `pnpm check`；
-6. 若改变 DSH runtime 接缝，补安装、组装、dispose、移除与完整 composition/cache 证据；
-7. 若改变 Web/GUI，使用真实浏览器覆盖可见成功路径、刷新后的权威状态和失败反馈。
+1. 在任何代码修改或测试前，先对 canonical DSH checkout 执行 `git fetch origin --tags --prune`，核对
+   `HEAD == origin/master`、当前 tag/版本、依赖和 clean worktree，并把 revision 记入证据；最新 master
+   若自身不可构建，记录上游失败事实后只能使用已审计的支持基线，不得修改 DSH 或把上游失败归因于插件；
+2. 阅读根目录 `CONTEXT.md`、适用 ADR 和对应阶段契约；
+3. 用一句话写清用户结果和非目标；
+4. 先添加穿过公共接缝的失败测试；
+5. 实现最小纵切，不为假想复用发布公共抽象；
+6. 运行 `pnpm check`；
+7. 若改变 DSH runtime 接缝，补安装、组装、dispose、移除与完整 composition/cache 证据；
+8. 若改变 Web/GUI，使用真实浏览器覆盖可见成功路径、刷新后的权威状态和失败反馈。
 
 用户安装面使用 [能力套件](docs/capability-suites.zh.md)，不是要求用户逐个理解内部 Bundle。新增包前先证明它拥有独立的生命周期、权限、外部依赖或卸载边界；否则应扩展现有套件或删除重复入口。套件清单必须通过 `pnpm run check:suites`，不要在包之间复制 Gateway、Control Center、Session、Goal 或审批状态。
 
