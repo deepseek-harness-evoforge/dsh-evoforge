@@ -36,6 +36,9 @@ pnpm run check:release
 三项均通过：25 个 CI 引用文件、套件 manifest/pack 合同 3/3，以及 12 个 Bundle 的公开 release preflight。
 这些门只证明构建/合同一致，仍不替代真实平台事件或 paired 效果。
 
+由于该字段通过 Gateway transport projection 对外提供，同一 alpha.5 基线下又执行了 `dsh-gateway` typecheck
+和测试：8 个 test files、36 个 tests 全部通过；Gateway 的配对、路由和持久投递语义未发生变化。
+
 ## 影响范围
 
 - 真实 Feishu AS-2 仍为失败：epoch-4 最新隔离重试只有安装、dump 和 WebSocket ready，通过不了 pending
