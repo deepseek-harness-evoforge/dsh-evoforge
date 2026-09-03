@@ -97,6 +97,14 @@ V5.114 提交后，新的隔离 AS-2 已完成最终 Bundle 安装、profile dum
 Schedule、Approval 或外部副作用；该失败现场不复用，真实 Feishu AS-2 仍未通过。详见
 [V5.115 证据](evidence/v5-115-feishu-as2-official-transport-no-pending-2026-09-04.zh.md)。
 
+## V5.116：Feishu AS-2 overlay 修复后的 alpha.5 全量回归（本轮）
+
+在 canonical DSH 最新 master fetch/clean preflight 后，使用 alpha.5 支持基线执行根级 `pnpm run check`，最终
+`CHECK_RC=0`。文档/CI/套件/发布合同、兼容矩阵、Hermes/Provider/Feishu 验收合同、12 包 typecheck、全部测试和
+构建均通过；AS-2 类型检查与安全契约 `10/10` 通过。该结果只证明本地工程回归，不改变真实 Feishu、Provider、
+Hermes paired、长期效果、Telegram 和 npm 发布门禁。详见
+[V5.116 证据](evidence/v5-116-alpha5-full-check-after-feishu-as2-fix-2026-09-04.zh.md)。
+
 ## V5.103：渠道控制面轮询契约与用户文档对齐（本轮）
 
 审计发现 `GatewaySurface` 为了让新配对请求在同一个 DSH Web 页面自动出现，实际每 5 秒读取一次 Host 脱敏

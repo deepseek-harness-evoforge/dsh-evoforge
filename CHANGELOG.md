@@ -16,6 +16,11 @@ All notable changes will be recorded here. The project has not published a stabl
   window, so the runner failed closed before any Agent or platform effect. Real Feishu remains unpassed.
   See [V5.115 evidence](docs/evidence/v5-115-feishu-as2-official-transport-no-pending-2026-09-04.zh.md).
 
+- **V5.116**: Re-ran the complete alpha.5 repository check after the Feishu AS-2 overlay fix. Documentation, CI/suite/release
+  contracts, compatibility, Hermes/Provider/Feishu contract checks, all package typechecks, tests, and builds passed
+  (`CHECK_RC=0`); real-channel, real-provider, paired, long-term, Telegram, and npm gates remain unchanged.
+  See [V5.116 evidence](docs/evidence/v5-116-alpha5-full-check-after-feishu-as2-fix-2026-09-04.zh.md).
+
 - **V5.113**: Added a cross-instance Generation cache readback regression for nested Skill references. A fresh
   `GenerationBundleRepository` verifies the immutable owner marker, read-only tree, file list, and hashes after materialization;
   the candidate-publisher suite passed 8/8. See [V5.113 evidence](docs/evidence/v5-113-generation-cache-restart-verification-2026-09-04.zh.md).
