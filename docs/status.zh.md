@@ -24,6 +24,18 @@ SDK emitter 看到的未处理 Promise rejection，既不能稳定记录到现�
 增量后同样复现，故未将该套件宣称为全绿，详见 [V5.94 证据](evidence/v5-94-feishu-event-boundary-2026-09-04.zh.md)。
 该增量改善常驻故障可观测性，不提升真实 Feishu AS-2、Provider、Hermes paired、长期效果或 release tag 门。
 
+## V5.95：Schedule 崩溃恢复夹具对齐 alpha.5（本轮）
+
+重新 fetch 并确认 DSH 最新远端 `master` 为 `76fda729…` 后，修复 `dsh-feishu` 的跨进程 Schedule 崩溃恢复
+夹具：alpha.5 已将持久化入口统一为 `persistBatch`，旧夹具却只替换了一个未被调用的 `appendBatch` 属性，且
+一秒延迟会让启动期间的 dispatch 先于故障注入发生。夹具现在按实际方法名安装阻断、给连接启动留出五秒窗口，
+仍真实验证“平台 effect 已产生但 dispatch checkpoint 未持久化”后的 SIGKILL 恢复去重；未改 DSH 上游源码，也
+未跳过测试。
+
+最新 alpha.5 支持基线下 `dsh-feishu` 全部 18 个测试文件、46/46 测试通过，产物构建通过。该修复恢复了
+Schedule durability 证据的有效性，不提升真实 Feishu AS-2、Provider、Hermes paired、长期效果或 release tag 门。
+详见 [V5.95 证据](evidence/v5-95-schedule-crash-fixture-alpha5-2026-09-04.zh.md)。
+
 ## V5.88：Gateway 单页渠道入口按需显示（本轮）
 
 重新 fetch 并确认 DSH 最新远端 `master` 为 `76fda729…` 后，修复 Telegram-only profile 仍出现空“飞书配对”

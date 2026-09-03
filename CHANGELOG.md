@@ -6,6 +6,13 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Repaired the Feishu Schedule crash-recovery fixture for the audited DSH alpha.5 persistence contract. The fixture
+  now replaces the actual `persistBatch` method (the old seam silently replaced an unused `appendBatch` property),
+  and uses a five-second due window so fault injection is installed before dispatch. The test still kills the seed
+  process after one external effect and verifies recovery does not duplicate it. No upstream DSH source or skip was
+  added; the full Feishu suite is now 18 files / 46 tests green. See [V5.95 evidence]
+  (docs/evidence/v5-95-schedule-crash-fixture-alpha5-2026-09-04.zh.md).
+
 - Added a host-side failure boundary around official Feishu `message` and `cardAction` async callbacks. Handler
   failures now settle as a redacted Gateway `degraded` observation and warning instead of becoming unhandled SDK
   Promise rejections; reporting failures and post-dispose callbacks are contained as well. No Gateway, Session,

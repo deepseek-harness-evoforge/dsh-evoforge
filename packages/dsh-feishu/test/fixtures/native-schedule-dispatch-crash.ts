@@ -25,27 +25,32 @@ const scheduled = await ctx.agents.withInitiator(agent, () => ctx.tools.execute(
   name: 'schedule_create',
   arguments: {
     prompt: 'Deliver this reminder exactly once across the dispatch checkpoint crash.',
-    after_seconds: 1,
+    // Leave enough startup headroom to install the crash seam before due time.
+    after_seconds: 5,
   },
   agent,
 }))
 if (scheduled.isError) throw new Error('Feishu dispatch-crash fixture failed to create the native Schedule')
-await ctx.sessions.flush(agent.session)
 
 let resolveDispatchBlocked: (() => void) | undefined
 const dispatchBlocked = new Promise<void>((resolveBlocked) => {
   resolveDispatchBlocked = resolveBlocked
 })
+type PersistenceBackend = {
+  appendBatch?: (...args: unknown[]) => Promise<void>
+  persistBatch?: (...args: unknown[]) => Promise<void>
+}
 const persistence = ctx.sessionPersistence as unknown as {
-  coordinator?: { backend?: Record<string, unknown> }
+  coordinator?: { backend?: PersistenceBackend }
   appendBatch?: (...args: unknown[]) => Promise<void>
   persistBatch?: (...args: unknown[]) => Promise<void>
 }
 const backend = persistence.coordinator?.backend ?? persistence
-const appendBatch = (backend.appendBatch ?? backend.persistBatch)
+const methodName: 'appendBatch' | 'persistBatch' = backend.appendBatch !== undefined ? 'appendBatch' : 'persistBatch'
+const appendBatch = backend[methodName]
 if (typeof appendBatch !== 'function') throw new Error('alpha5 persistence appendBatch seam is unavailable')
 const boundAppendBatch = appendBatch.bind(backend)
-backend.appendBatch = async (...args: unknown[]) => {
+backend[methodName] = async (...args: unknown[]) => {
   const events = (args[1] ?? []) as readonly {
     readonly type?: unknown
     readonly data?: { readonly operation?: unknown }
@@ -57,6 +62,7 @@ backend.appendBatch = async (...args: unknown[]) => {
   await boundAppendBatch(...args)
 }
 
+await ctx.sessions.flush(agent.session)
 await Promise.all([
   dispatchBlocked,
   waitForEffect(join(root, 'platform-effects.jsonl')),
