@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.131**: Re-ran the complete repository check after Feishu revoked-route reconciliation on the audited DSH
+  alpha.5 support checkout: documentation/CI/suite/release contracts, all 12 package typechecks, tests, and builds
+  passed; the worktree stayed clean. Real Feishu, Provider, Hermes paired, long-term, and npm gates remain unchanged.
+  See [V5.131 evidence](docs/evidence/v5-131-alpha5-full-check-after-feishu-revoke-2026-09-04.zh.md).
+
 - **V5.130**: Corrected the Chinese and English root README pairing instructions: request-id approval is performed
   on the redacted pending row in the same native DSH Web `Channels` surface, not through a nonexistent standalone
   Host CLI. No runtime entry point changed. See [V5.130 evidence](docs/evidence/v5-130-user-doc-host-approval-clarification-2026-09-04.zh.md).
