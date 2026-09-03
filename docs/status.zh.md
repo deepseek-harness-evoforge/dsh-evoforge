@@ -131,6 +131,13 @@ Feishu AS-2 仍需独立 run root 和真实私聊完成。详见
 差异检查通过。该改动只改善用户文档，不改变运行时或发布门。详见
 [V5.120 证据](evidence/v5-120-readme-standalone-pack-root-2026-09-04.zh.md)。
 
+## V5.121：真实飞书 AS-2 长等待仍无配对请求（本轮）
+
+在干净 V5.116 revision 上使用 900 秒窗口重新启动真实 AS-2；最终 Bundle/profile dump 和官方传输均 ready，但没有
+陌生私聊事件，Gateway 未暴露 pending request，runner 在配对前 fail closed。无 Agent、消息或其他外部副作用；
+V5.115 短窗口与本轮长窗口共同确认剩余阻塞是外部测试账号入站动作，真实 Feishu AS-2 仍未通过。详见
+[V5.121 证据](evidence/v5-121-feishu-as2-long-wait-no-pending-2026-09-04.zh.md)。
+
 ## V5.103：渠道控制面轮询契约与用户文档对齐（本轮）
 
 审计发现 `GatewaySurface` 为了让新配对请求在同一个 DSH Web 页面自动出现，实际每 5 秒读取一次 Host 脱敏

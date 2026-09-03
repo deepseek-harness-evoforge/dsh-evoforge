@@ -38,6 +38,11 @@ All notable changes will be recorded here. The project has not published a stabl
 - **V5.120**: Made the optional-install snippets in the Chinese and English root READMEs standalone by assigning a default
   temporary `PACK_ROOT`. Documentation checks pass; runtime and release gates are unchanged. See [V5.120 evidence](docs/evidence/v5-120-readme-standalone-pack-root-2026-09-04.zh.md).
 
+- **V5.121**: Ran the real Feishu AS-2 with the maximum 900-second interaction window from a clean revision. Final Bundle
+  installation, profile dump, and official transport stayed ready, but no newcomer private message created a pending request;
+  the runner failed closed before any Agent or platform effect. Real Feishu remains unpassed.
+  See [V5.121 evidence](docs/evidence/v5-121-feishu-as2-long-wait-no-pending-2026-09-04.zh.md).
+
 - **V5.113**: Added a cross-instance Generation cache readback regression for nested Skill references. A fresh
   `GenerationBundleRepository` verifies the immutable owner marker, read-only tree, file list, and hashes after materialization;
   the candidate-publisher suite passed 8/8. See [V5.113 evidence](docs/evidence/v5-113-generation-cache-restart-verification-2026-09-04.zh.md).
