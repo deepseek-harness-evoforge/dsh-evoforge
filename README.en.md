@@ -69,7 +69,7 @@ Enable the bot, long-connection event `im.message.receive_v1`, message sending, 
 test account's direct chat. Once DSH is running, an unknown user sends any private message to the bot:
 
 1. The resident Gateway returns a one-time pairing code; the first message never reaches the Agent.
-2. An administrator approves the pending request in the same DSH Web `Channels` surface, or with the Host request-id command.
+2. An administrator approves the pending request in the same DSH Web `Channels` surface; the redacted request-id is shown on the pending row and can be approved there.
 3. The user sends the next message, which enters the bound native DSH Session.
 
 No Session pairing command, temporary listener, or second webpage is required. See [`dsh-gateway`](packages/dsh-gateway/README.md)

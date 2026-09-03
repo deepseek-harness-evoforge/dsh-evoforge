@@ -66,7 +66,7 @@ export DSH_FEISHU_APP_SECRET='...'
 的私聊。启动 DSH 后，陌生用户在飞书给机器人发送任意私聊：
 
 1. 常驻 Gateway 收到首条消息并返回一次性配对码；首条消息不会进入 Agent。
-2. 管理员在同一个 DSH Web 控制面“渠道”页批准待处理请求；也可以使用 Host 侧 request-id 命令。
+2. 管理员在同一个 DSH Web 控制面“渠道”页批准待处理请求；pending 行会显示脱敏 request-id，可直接点击批准。
 3. 用户发送下一条消息，才会进入绑定的原生 DSH Session。
 
 不需要在 DSH Session 中执行配对命令，不需要临时 listener，也不需要打开第二个网页。配对、撤销、权限和故障

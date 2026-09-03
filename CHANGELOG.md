@@ -6,6 +6,10 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.130**: Corrected the Chinese and English root README pairing instructions: request-id approval is performed
+  on the redacted pending row in the same native DSH Web `Channels` surface, not through a nonexistent standalone
+  Host CLI. No runtime entry point changed. See [V5.130 evidence](docs/evidence/v5-130-user-doc-host-approval-clarification-2026-09-04.zh.md).
+
 - **V5.129**: Reconciled dynamic Feishu pairing routes with the authoritative Gateway state. Host route listings,
   health snapshots, notifications, and inbound handling now drop revoked grants while preserving the native DSH
   Agent/Session; the assembled revoke → re-pair regression passed 1/1 after waiting for outbound terminal state.
