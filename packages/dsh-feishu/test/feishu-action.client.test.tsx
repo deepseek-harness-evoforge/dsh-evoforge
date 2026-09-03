@@ -24,6 +24,7 @@ const controlSurfaceUI: ControlSurfaceUI = {
   Button: ({ tone: _tone, ...props }) => <button {...props} />,
   Empty: ({ title, description }) => <div><h2>{title}</h2><p>{description}</p></div>,
   Loading: () => <div role="status">Loading</div>,
+  Journey: ({ label, items }) => <ol aria-label={label}>{items.map(item => <li key={item.label}>{item.label}</li>)}</ol>,
 }
 
 describe('Feishu Control Surface', () => {

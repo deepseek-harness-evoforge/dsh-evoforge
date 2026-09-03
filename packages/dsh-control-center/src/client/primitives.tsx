@@ -67,6 +67,19 @@ export interface LoadingSkeletonProps {
   readonly cards?: number
 }
 
+export type JourneyStepState = 'complete' | 'current' | 'upcoming' | 'attention'
+
+export interface JourneyStep {
+  readonly label: string
+  readonly description: string
+  readonly state: JourneyStepState
+}
+
+export interface JourneyProps {
+  readonly label: string
+  readonly items: readonly JourneyStep[]
+}
+
 export interface ControlSurfaceUI {
   readonly Surface: ComponentType<SurfaceProps>
   readonly Header: ComponentType<SurfaceHeaderProps>
@@ -78,6 +91,8 @@ export interface ControlSurfaceUI {
   readonly Button: ComponentType<ActionButtonProps>
   readonly Empty: ComponentType<EmptyStateProps>
   readonly Loading: ComponentType<LoadingSkeletonProps>
+  /** Optional so older third-party surface adapters remain source-compatible. */
+  readonly Journey?: ComponentType<JourneyProps>
 }
 
 function Surface({ children, ariaLabel }: SurfaceProps) {
@@ -140,6 +155,19 @@ function Loading({ cards = 3 }: LoadingSkeletonProps) {
   </div>
 }
 
+function Journey({ label, items }: JourneyProps) {
+  return <ol className="dsh-cc-journey" aria-label={label}>
+    {items.map((item, index) => <li
+      key={`${item.label}-${index}`}
+      className={`is-${item.state}`}
+      aria-current={item.state === 'current' ? 'step' : undefined}
+    >
+      <span className="dsh-cc-journey-mark" aria-hidden="true">{item.state === 'complete' ? '✓' : index + 1}</span>
+      <span className="dsh-cc-journey-copy"><strong>{item.label}</strong><small>{item.description}</small></span>
+    </li>)}
+  </ol>
+}
+
 export const controlSurfaceUI: ControlSurfaceUI = Object.freeze({
   Surface,
   Header,
@@ -151,4 +179,5 @@ export const controlSurfaceUI: ControlSurfaceUI = Object.freeze({
   Button,
   Empty,
   Loading,
+  Journey,
 })

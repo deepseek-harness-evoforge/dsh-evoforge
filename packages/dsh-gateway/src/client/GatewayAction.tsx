@@ -159,6 +159,7 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
   const status = snapshot === undefined ? undefined : viewStatus(snapshot)
   const pending = snapshot === undefined ? 0 : snapshot.outbound.prepared + snapshot.outbound.sending + snapshot.outbound.retrying
   const anomalies = snapshot === undefined ? 0 : snapshot.ingress.uncertain + snapshot.outbound.uncertain + snapshot.outbound.failed
+  const feishuJourney = snapshot === undefined ? undefined : buildFeishuJourney(snapshot, pendingPairings, t)
 
   return <UI.Surface ariaLabel={t('surface.title')}>
     <UI.Header
@@ -175,6 +176,10 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
     {snapshot === undefined
       ? <UI.Loading cards={4} />
       : <>
+        {feishuJourney !== undefined && UI.Journey !== undefined && <UI.Section title={t('journey.title')} description={t('journey.description')}>
+          <UI.Journey label={t('journey.label')} items={feishuJourney} />
+        </UI.Section>}
+
         <UI.Metrics items={[
           { label: t('metric.routes'), value: snapshot.routes.total, hint: format(t('summary.sessions'), snapshot.routes.liveSessions) },
           { label: t('delivery.ingress'), value: snapshot.ingress.total, hint: t('metric.durable') },
@@ -324,6 +329,39 @@ function formatRemaining(expiresAt: number): string {
   const remaining = Math.max(0, expiresAt - Date.now())
   const minutes = Math.ceil(remaining / 60_000)
   return `${minutes} min`
+}
+
+function buildFeishuJourney(
+  snapshot: GatewayHealthSnapshot,
+  pendingPairings: readonly GatewayPairingPendingRequest[],
+  t: (key: string) => string,
+) {
+  const feishuTransports = snapshot.transports.items.filter(item => item.adapter === 'feishu')
+  const feishuRequests = pendingPairings.filter(request => request.adapter === 'feishu')
+  const feishuRoutes = snapshot.routes.items.filter(route => route.adapter === 'feishu')
+  if (feishuTransports.length === 0 && feishuRequests.length === 0 && feishuRoutes.length === 0) return undefined
+
+  const connected = feishuTransports.some(item => item.state === 'ready')
+  const degraded = feishuTransports.some(item => item.state === 'degraded')
+  const contacted = feishuRequests.length > 0 || feishuRoutes.length > 0
+  const authorized = feishuRoutes.length > 0
+  return [
+    {
+      label: t('journey.transport.label'),
+      description: t(connected ? 'journey.transport.complete' : degraded ? 'journey.transport.attention' : 'journey.transport.current'),
+      state: connected ? 'complete' as const : degraded ? 'attention' as const : 'current' as const,
+    },
+    {
+      label: t('journey.contact.label'),
+      description: t(contacted ? 'journey.contact.complete' : 'journey.contact.current'),
+      state: contacted ? 'complete' as const : connected ? 'current' as const : 'upcoming' as const,
+    },
+    {
+      label: t('journey.approval.label'),
+      description: t(authorized ? 'journey.approval.complete' : feishuRequests.length > 0 ? 'journey.approval.current' : 'journey.approval.upcoming'),
+      state: authorized ? 'complete' as const : feishuRequests.length > 0 ? 'current' as const : 'upcoming' as const,
+    },
+  ]
 }
 
 function formatTimestamp(value: number | undefined, t: (key: string) => string): string {

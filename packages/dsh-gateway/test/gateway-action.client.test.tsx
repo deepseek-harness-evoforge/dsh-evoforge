@@ -23,6 +23,7 @@ const controlSurfaceUI: ControlSurfaceUI = {
   Button: ({ tone: _tone, ...props }) => <button {...props} />,
   Empty: ({ title, description }) => <div><h2>{title}</h2><p>{description}</p></div>,
   Loading: () => <div role="status">Loading</div>,
+  Journey: ({ label, items }) => <ol aria-label={label}>{items.map(item => <li key={item.label} aria-current={item.state === 'current' ? 'step' : undefined}>{item.label}: {item.description}</li>)}</ol>,
 }
 
 describe('Gateway Control Surface', () => {
@@ -149,6 +150,39 @@ describe('Gateway Control Surface', () => {
     await waitFor(() => expect(screen.getByText('直接批准')).toBeTruthy())
     expect(screen.getByText('直接批准')).toBeTruthy()
     expect(remote.pendingPairings).toHaveBeenCalledTimes(3)
+  })
+
+  it('shows the Feishu newcomer journey from authoritative connection facts', async () => {
+    const base = snapshot()
+    const value: GatewayHealthSnapshot = {
+      ...base,
+      routes: { total: 0, liveSessions: 0, items: [] },
+      transports: {
+      registrations: 1,
+      connecting: 0,
+      ready: 1,
+      degraded: 0,
+      stopping: 0,
+      items: [{
+        adapter: 'feishu', kind: 'official-feishu-websocket', routeIds: [],
+        state: 'ready', observedAt: 999, connectedAt: 100,
+      }],
+      },
+    }
+    const remote = {
+      overview: vi.fn(async () => ({ ok: true, value })),
+      pendingPairings: vi.fn(async () => ({ ok: true, value: [] })),
+      approvePairing: vi.fn(),
+      approvePairingRequest: vi.fn(),
+      revokePairing: vi.fn(),
+    } as GatewayRemoteClient
+    render(<GatewaySurface {...surfaceProps(remote)} />)
+
+    const journey = await screen.findByRole('list', { name: '飞书首次连接进度' })
+    expect(journey.textContent).toContain('常驻连接: 飞书 Adapter 已连接')
+    expect(journey.textContent).toContain('用户私聊: 让用户给机器人发送任意私聊')
+    expect(journey.textContent).toContain('管理员批准: 收到陌生私聊后在本页批准')
+    expect(screen.getByText(/用户私聊/u).closest('li')?.getAttribute('aria-current')).toBe('step')
   })
 })
 

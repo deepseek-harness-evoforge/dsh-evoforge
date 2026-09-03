@@ -15,6 +15,7 @@ test('browser overlays isolate test fixtures from DSH client package identity', 
   try {
     const doctorOut = join(root, 'doctor.patch.yml')
     const telegramOut = join(root, 'telegram.patch.yml')
+    const gatewayOut = join(root, 'gateway.patch.yml')
     await execFile(process.execPath, [
       join(repositoryRoot, 'scripts/create-browser-doctor-overlay.mjs'),
       '--out', doctorOut,
@@ -28,6 +29,12 @@ test('browser overlays isolate test fixtures from DSH client package identity', 
       '--workspace', join(root, 'workspace'),
       '--session', 'browser-overlay-test-telegram',
     ])
+    await execFile(process.execPath, [
+      join(repositoryRoot, 'scripts/create-gateway-browser-overlay.mjs'),
+      '--out', gatewayOut,
+      '--workspace', join(root, 'workspace'),
+      '--session', 'browser-overlay-test-gateway',
+    ])
 
     for (const outputPath of [doctorOut, telegramOut]) {
       const patch = await readFile(outputPath, 'utf8')
@@ -38,6 +45,12 @@ test('browser overlays isolate test fixtures from DSH client package identity', 
       assert.match(shim, /export \{ name, inject, apply \} from /u)
       assert.match(shim, /browser-doctor-bootstrap\.mjs/u)
     }
+    const gatewayPatch = await readFile(gatewayOut, 'utf8')
+    const gatewayEntries = [...gatewayPatch.matchAll(/^\s+name: (.+bootstrap\.mjs)$/gmu)].map(match => match[1])
+    assert.equal(gatewayEntries.length, 2)
+    assert.equal(gatewayEntries.every(entry => !entry.includes('packages/dsh-')), true)
+    assert.match(await readFile(gatewayEntries[0], 'utf8'), /browser-gateway-bootstrap\.mjs/u)
+    assert.match(await readFile(gatewayEntries[1], 'utf8'), /browser-doctor-bootstrap\.mjs/u)
   } finally {
     await rm(root, { recursive: true, force: true })
   }

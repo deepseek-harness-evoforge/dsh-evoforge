@@ -13,14 +13,16 @@ export function apply(ctx) {
     adapter: 'feishu',
     accountId: 'feishu-browser-account',
     kind: 'official-feishu-websocket',
-    routeIds: ['feishu-browser'],
+    routeIds: [],
+    pairedRoutes: true,
     initial: { state: 'degraded', observedAt, lastErrorAt: observedAt },
   })
   gateway.registerTransport({
     adapter: 'telegram',
     accountId: 'telegram-browser-account',
     kind: 'telegram-long-poll',
-    routeIds: ['telegram-browser'],
+    routeIds: [],
+    pairedRoutes: true,
     initial: { state: 'ready', observedAt, connectedAt: observedAt },
   })
 }

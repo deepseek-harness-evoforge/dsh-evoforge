@@ -10,6 +10,15 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.83：渠道首次连接导引与单页浏览器验收（本轮）
+
+Control Center 现在提供共享的三段式首次连接导引：常驻连接、用户私聊、管理员批准。它只由 Gateway 脱敏
+transport/pending/route 事实驱动，Telegram-only 安装不会显示飞书入口；旧 Adapter 没有新控件时仍可运行。
+新增的 Gateway overlay 生成器把测试 fixture 放到包目录外，并使用 `pairedRoutes`，避免随机 Workspace id
+污染 patch。最新已审计 DSH alpha.5 隔离 profile 的单页浏览器实测已在原生“控制台 → 渠道”看到导引，刷新后同一
+Session 和状态恢复，始终只有一个页面。详见 [V5.83 证据](evidence/v5-83-channel-journey-single-page-browser-2026-09-04.zh.md)。
+本轮不提升真实渠道、Provider、Hermes paired 或长期效果门。
+
 ## V5.82：用户文档与发布门禁证据一致性审计（本轮）
 
 重新检查用户会直接阅读的 `dsh-feishu` README、根 README、状态页和最新浏览器证据后，修正了飞书 README

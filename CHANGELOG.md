@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Added a shared, optional Control Center `Journey` component and a Gateway-driven Feishu newcomer guide. The
+  native single-page Channels surface now explains resident connection → user DM → admin approval from redacted
+  Host facts, while Telegram-only installs stay free of Feishu setup noise. A clean alpha.5 browser profile verified
+  the guide, one-page layout, and reload recovery; the change does not claim real channel/provider/Hermes or release
+  gates. See [V5.83 evidence](docs/evidence/v5-83-channel-journey-single-page-browser-2026-09-04.zh.md).
+
 - Audited the user-facing Feishu README and release evidence for stale status. The guide now describes the current
   epoch-4 contract and the latest isolated run honestly: the official WebSocket reached `ready`, but no matching
   newcomer DM arrived before pairing, so the run failed closed and is not presented as a real-channel pass. Fixed
