@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Recorded a fresh isolated real Feishu AS-2 epoch: final Control Center/Gateway/Feishu bundles installed, the
+  profile dumped, and the official WebSocket reached ready, but no matching pending pairing request arrived during
+  the human window. The runner failed closed before Agent or external effects; the real-channel gate remains failed.
+  See [V5.74 evidence](docs/evidence/v5-74-feishu-as2-epoch5-no-event-2026-09-03.zh.md).
+
 - Re-audited all twelve physical Bundles and documented the minimal four user-facing suites. Independent Bundles are
   retained only for distinct lifecycle, permission, or external trust boundaries; ClawHub/market acquisition,
   duplicate Router/state, and other retired surfaces remain explicitly excluded. See the
