@@ -1,6 +1,6 @@
 # 能力套件与内部插件边界
 
-EvoForge 对用户不再把十二个内部 Bundle 当成十二个必须理解的产品。默认公开安装面收敛为四个入口：`core`、`channels`、`delivery`、`continuity`；`attention` 是可选附加能力，`evolution`、`control`、`gateway` 只保留为兼容/高级入口，`full` 仅供维护者验收。每个套件仍由 DSH 官方命令安装真实 Bundle；套件清单只是可重复的安装编排，不是第二个 Runtime、CLI 或插件市场。
+EvoForge 对用户不再把十二个内部 Bundle 当成十二个必须理解的产品。默认公开安装面收敛为四个入口：`core`、`channels`、`delivery`、`continuity`；`attention` 是可选附加能力，`evolution`、`control`、`gateway` 只保留为兼容/高级入口，`full` 仅供维护者验收。每个套件仍由 DSH 官方命令安装真实 Bundle；套件清单只是可重复的安装编排，不是第二个 Runtime、CLI 或插件市场。物理边界的逐包审计见[2026-09-03 插件边界审计](audits/2026-09-03-package-boundary-audit.zh.md)。
 
 ## 默认用户入口
 
