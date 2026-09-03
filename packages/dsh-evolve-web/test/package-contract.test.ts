@@ -113,4 +113,14 @@ describe('installable DSH bundle', () => {
     expect(bootstrap).toContain("ctx.get('evoforge.evolutionControl')")
     expect(bootstrap).toContain('ctx.agents.resume({ resumeSessionId: config.sessionId')
   })
+
+  it('does not ship a fixed evolution overlay beside the native Control Center surface', async () => {
+    const client = await readFile(resolve(packageRoot, 'src/client/EvolutionAction.tsx'), 'utf8')
+    const style = await readFile(resolve(packageRoot, 'src/client/style.ts'), 'utf8')
+    expect(client).toContain('dsh-evolve-inline')
+    expect(client).not.toContain('dsh-evolve-panel')
+    expect(style).not.toMatch(/position\s*:\s*fixed/u)
+    expect(style).not.toContain('dsh-evolve-panel')
+    expect(style).not.toContain('dsh-evolve-confirm-backdrop')
+  })
 })

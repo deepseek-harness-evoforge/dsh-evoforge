@@ -6,6 +6,13 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Removed the stale fixed `dsh-evolve-panel` and confirmation-backdrop CSS from the legacy
+  `EvolutionAction` compatibility export. The export remains source-compatible but now renders its
+  opened surface inline in normal document flow; the active registration remains the native DSH
+  Control Center `conversation.view`. Added a negative package contract so fixed overlays cannot
+  return. This is a single-page boundary cleanup and does not advance real Feishu, Provider, Hermes
+  paired, long-term-effects, or release-tag gates. See [V5.86 evidence](docs/evidence/v5-86-remove-stale-evolution-overlay-2026-09-04.zh.md).
+
 - Added an exact DSH preflight to the root `check`: assembled tests now require an explicit, clean, allowlisted DSH
   checkout and fail immediately with a copyable command when it is missing or mismatched. The alpha.5 full check
   still passes; this improves contributor feedback without broadening compatibility or release claims. See

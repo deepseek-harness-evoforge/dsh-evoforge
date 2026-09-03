@@ -11,7 +11,7 @@ dsh plugin --profile web add \
 dsh --profile web
 ```
 
-The Host half only waits for `evoforge.evolutionControl`; the browser module contributes an evolution Surface to the native `dsh-control-center` `conversation.view` and calls the generated DSH Remote. Reads and actions therefore reach the same Host authority used by `/evolve` Commands. It adds no Tool, Skill, system prompt, watcher, polling loop, or persistent state. The old fixed sidebar panel is not an active registration path.
+The Host half only waits for `evoforge.evolutionControl`; the browser module contributes an evolution Surface to the native `dsh-control-center` `conversation.view` and calls the generated DSH Remote. Reads and actions therefore reach the same Host authority used by `/evolve` Commands. It adds no Tool, Skill, system prompt, watcher, polling loop, or persistent state. The old sidebar wrapper remains only as an inline compatibility export; it is not an active registration path and no fixed overlay CSS is shipped.
 
 The beginner view points to DSH's native answer-feedback controls: mark an answer as bad, add a note explaining the error and correct result, then save. Feedback is counted separately from actionable reviews. The system attributes and clusters that internal evidence autonomously; it never asks the user to choose a Shadow, evaluator, Skill, Agent, or route. If independent evaluation governance is unavailable, the Control Center Surface keeps the correction recorded and reports the missing governance instead of presenting false progress.
 

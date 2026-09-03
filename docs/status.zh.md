@@ -28,6 +28,15 @@ clean worktree；缺失或错配会在长测试前失败并给出修复命令，
 该修正改善贡献者反馈，不扩大 DSH 支持范围，也不改变真实渠道、Provider、Hermes paired、长期效果或 release
 tag 门禁。
 
+## V5.86：清理旧 Evolution 固定弹层（本轮）
+
+重新审计发现，虽然活动入口已经迁入 DSH 原生 `conversation.view`，`dsh-evolve-web` 的兼容导出仍保留旧的
+固定 `dsh-evolve-panel` 和确认遮罩样式。这与单页控制面约束冲突，也给第三方嵌入者留下第二套浮层入口。
+本轮保留源码兼容导出，但将其改为文档流中的 `dsh-evolve-inline`，删除固定定位及旧 backdrop，并加入负向
+package contract 防回归。alpha.5 支持基线下文档、CI、套件、Evolution Web 27/27、全量 typecheck、测试和
+build 均通过。完整变更、命令和边界见 [V5.86 证据](evidence/v5-86-remove-stale-evolution-overlay-2026-09-04.zh.md)。
+这是单页边界清理，不提升真实 Feishu、Provider、Hermes paired、长期效果或 release tag 门禁。
+
 ## V5.83：渠道首次连接导引与单页浏览器验收（本轮）
 
 Control Center 现在提供共享的三段式首次连接导引：常驻连接、用户私聊、管理员批准。它只由 Gateway 脱敏

@@ -4,7 +4,7 @@ export const cssText = `
 .dsh-evolve-trigger{display:inline-flex;align-items:center;gap:6px;min-height:28px;padding:3px 8px;border:0;border-radius:7px;background:transparent;color:var(--dsw-alias-label-tertiary);font:inherit;font-size:12px;cursor:pointer}
 .dsh-evolve-trigger:hover,.dsh-evolve-trigger:focus-visible{background:var(--dsw-alias-fill-l2);color:var(--dsw-alias-label-primary)}
 .dsh-evolve-badge{display:inline-grid;min-width:17px;height:17px;padding:0 4px;place-items:center;border-radius:9px;background:var(--dsw-alias-fill-l2);font-size:10px;font-variant-numeric:tabular-nums}
-.dsh-evolve-panel{position:fixed;top:64px;right:24px;z-index:220;display:flex;box-sizing:border-box;flex-direction:column;width:min(560px,calc(100vw - 32px));max-height:calc(100vh - 88px);overflow:hidden;border:1px solid var(--dsw-alias-border-l2);border-radius:16px;background:var(--dsw-specific-menu);color:var(--dsw-alias-label-primary);box-shadow:var(--dsw-shadow-lv3)}
+.dsh-evolve-inline{display:flex;box-sizing:border-box;flex-direction:column;width:min(760px,100%);max-height:min(760px,80vh);overflow:auto;border:1px solid var(--dsw-alias-border-l2);border-radius:16px;background:var(--dsw-specific-menu);color:var(--dsw-alias-label-primary);box-shadow:var(--dsw-shadow-lv3)}
 .dsh-evolve-head,.dsh-evolve-actions,.dsh-evolve-summary,.dsh-evolve-review-head{display:flex;align-items:center;gap:8px}
 .dsh-evolve-head{padding:14px 16px;border-bottom:1px solid var(--dsw-alias-border-l2)}
 .dsh-evolve-title{flex:1;margin:0;font-size:15px;line-height:22px}
@@ -87,7 +87,6 @@ export const cssText = `
 .dsh-evolve-note{box-sizing:border-box;width:100%;min-height:64px;padding:8px 10px;resize:vertical;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-fill-l1);color:inherit;font:12px/18px inherit}
 .dsh-evolve-message{padding:8px 10px;border-radius:8px;background:var(--dsw-alias-fill-l1);font-size:12px;line-height:18px}
 .dsh-evolve-error{color:var(--dsw-alias-red)}
-.dsh-evolve-confirm-backdrop{position:fixed;inset:0;z-index:230;display:grid;padding:24px;place-items:center;background:rgba(0,0,0,.28)}
 .dsh-evolve-confirm{width:min(420px,100%);padding:18px;border:1px solid var(--dsw-alias-border-l2);border-radius:14px;background:var(--dsw-specific-menu);box-shadow:var(--dsw-shadow-lv3)}
 .dsh-evolve-confirm p{margin:0 0 16px;font-size:13px;line-height:20px}
 `

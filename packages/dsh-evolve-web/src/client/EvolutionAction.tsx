@@ -388,9 +388,9 @@ export function EvolutionSurface({ remote, t, sessionId, useWorkspaces, ui: UI, 
 }
 
 /**
- * Compatibility wrapper for embedders that imported the pre-Control-Center component.
- * The package's active DSH registration uses EvolutionSurface, so this wrapper is not
- * installed into the sidebar and can be removed in the next breaking release.
+ * Inline compatibility wrapper for embedders that imported the pre-Control-Center component.
+ * The package's active DSH registration uses EvolutionSurface. This wrapper deliberately
+ * stays in normal document flow and never opens a fixed overlay or a second page.
  */
 export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }: EvolutionActionProps) {
   const sessionId = useSessions(state => state.current)
@@ -408,7 +408,7 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
       {wide && <span>{t('trigger.label')}</span>}
       {pending > 0 && <span className="dsh-evolve-badge">{pending}</span>}
     </button>
-    {open && <section className="dsh-evolve-panel" role="dialog" aria-label={t('panel.title')}>
+    {open && <section className="dsh-evolve-inline" role="dialog" aria-label={t('panel.title')}>
       <EvolutionSurface
         remote={remote}
         t={t}
