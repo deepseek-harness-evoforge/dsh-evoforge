@@ -240,6 +240,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
         registrations: 1,
         ready: 1,
         degraded: 0,
+        items: [{ adapter: 'feishu', kind: 'official-feishu-websocket', state: 'ready', lastInboundAt: expect.any(Number) }],
       })
 
       await service.platform.emitMessage(message({

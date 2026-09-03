@@ -55,7 +55,8 @@
       "docs/evidence/v5-64-feishu-event-arrival-diagnostic-2026-08-27.zh.md",
       "docs/evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md",
       "docs/evidence/v5-71-channel-suite-control-center-and-real-run-2026-09-03.zh.md",
-      "docs/evidence/v5-74-feishu-as2-epoch5-no-event-2026-09-03.zh.md"
+      "docs/evidence/v5-74-feishu-as2-epoch5-no-event-2026-09-03.zh.md",
+      "docs/evidence/v5-80-feishu-as2-latest-isolated-retry-2026-09-03.zh.md"
       ],
       "blocker": "The latest request-id run reached official WebSocket ready but observed no Feishu pending request; event arrival is unproven, and no authorized run has completed the real direct-message, Schedule, Approval, restart, uninstall, and readback epoch."
     },

@@ -650,6 +650,7 @@ export class FeishuRuntime {
       state: this.transportState,
       observedAt,
       ...(this.connectedAt === undefined ? {} : { connectedAt: this.connectedAt }),
+      ...(this.lastInboundAt === undefined ? {} : { lastInboundAt: this.lastInboundAt }),
       ...(this.lastActivityAt === undefined ? {} : { lastActivityAt: this.lastActivityAt }),
       ...(this.lastPlatformErrorAt === undefined ? {} : { lastErrorAt: this.lastPlatformErrorAt }),
     })

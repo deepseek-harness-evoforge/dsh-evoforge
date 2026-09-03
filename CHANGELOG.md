@@ -6,6 +6,17 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Completed another isolated real Feishu AS-2 epoch-4 run: final Bundles installed, the clean profile was dumped,
+  and the official WebSocket reached `ready`, but the 15-minute window still produced no matching pending private
+  message. The runner failed closed before approval, Agent dispatch, or any external effect; the gate remains failed.
+  This run was frozen before the V5.78/V5.79 health commits and is recorded separately rather than treated as their
+  validation. See [V5.80 evidence](docs/evidence/v5-80-feishu-as2-latest-isolated-retry-2026-09-03.zh.md).
+
+- Completed the Feishu reconnect-health follow-through: the Adapter now forwards its observed `lastInboundAt` into
+  the shared Gateway transport registration, so the one-page Gateway view and the Feishu-specific health command
+  expose the same inbound-event fact. An assembled-chat regression assertion covers the projection. See [V5.79
+  evidence](docs/evidence/v5-79-feishu-inbound-projection-follow-through-2026-09-03.zh.md).
+
 - Feishu's official WebSocket reconnect lifecycle is now projected through the existing Gateway transport health:
   `reconnecting` becomes `degraded` and `reconnected` returns to `ready` without restarting the DSH Host. Older
   platform test doubles may omit these optional hooks. The native Control Center therefore does not mistake a

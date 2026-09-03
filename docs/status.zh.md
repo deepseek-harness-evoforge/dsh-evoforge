@@ -95,6 +95,22 @@ transport 标为 `degraded`，恢复后无重启回到 `ready`。这是同一个
 `ready → degraded → ready` 且 Gateway 停止时仍会断开平台；本增量不提升真实 AS-2、Provider、Hermes
 paired 或长期效果门。详见 [V5.78 证据](evidence/v5-78-feishu-reconnect-health-2026-09-03.zh.md)。
 
+## V5.79：飞书入站时间转发收口（本轮）
+
+补齐 V5.78 遗漏的公共投影接缝：`FeishuRuntime.reportTransport()` 现在把 Adapter 记录的
+`lastInboundAt` 转发到同一个 Gateway transport registration。因此统一 `渠道与网关` 页面、Gateway
+健康快照和 Feishu `/feishu` 健康命令不会再出现一个显示“收到事件”、另一个仍为空的分叉。assembled-chat
+回归断言要求实际入站后公共 transport 的字段为时间戳；不改变路由、配对、投递或发布门。详见
+[V5.79 证据](evidence/v5-79-feishu-inbound-projection-follow-through-2026-09-03.zh.md)。
+
+## V5.80：真实飞书 AS-2 最新隔离重试（本轮）
+
+再次执行 epoch-4 的真实飞书 resident pairing 合同：最终 Gateway/Feishu tarball 安装、profile dump 和
+官方 WebSocket `ready` 均通过；15 分钟人工窗口仍未出现与当前 App 身份匹配的陌生私聊 pending request，
+所以 runner 在 `awaiting-resident-pairing-request` fail closed，未批准 principal、未进入 Agent、未发送任何
+后续外部效果。该 run 在 V5.78/V5.79 提交之前冻结于 `e7ab932…`，不能用来宣称重连或公共入站字段已在真实
+平台验证；结果只强化“平台事件尚未到达”的事实。详见 [V5.80 证据](evidence/v5-80-feishu-as2-latest-isolated-retry-2026-09-03.zh.md)。
+
 ## V5.75：参考生态当前 revision 复核（本轮）
 
 为下一次 Hermes paired 和设计校准重新读取公开远端：Hermes Agent `63279301…`、OpenClaw `1fb3e0ca…`、
