@@ -46,6 +46,9 @@ pnpm --filter dsh-feishu exec vitest run --maxWorkers 1 \
 覆盖 ready 状态下策略拒绝仍可见、机器行可往返解析、非法 reason 被拒绝；assembled 夹具再验证 Runtime
 生命周期实际接收并投影 `sender_not_allowed`；平台契约继续覆盖代理与官方传输适配。
 
+在公开类型导出补齐后再次执行 `pnpm --filter dsh-feishu build`，Node 与 Client 两个入口均成功生成；随后
+`pnpm run check:docs` 与 `git diff --check` 通过，确保最终 Bundle 与源码导出一致。
+
 ## 边界与发布门
 
 这不是一次真实飞书事件验收，也不把 SDK 的 `ready` 或本地测试当作真实渠道通过。`real-feishu-as2` 仍需在
