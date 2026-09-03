@@ -25,7 +25,7 @@
 | 项目 | Revision | 证据定位 |
 |---|---|---|
 | DeepSeek Harness | `47f943859bef60e4160492346772ded9b24f765a` | 一手源码、测试、配置、包 README |
-| DeepSeek Harness（2026-09-03 最新 rc.1 审计） | `a66e4702047846cdaa10c66c9d3df3951f5ea70d` | 官方 tag `dsh-v0.1.2-rc.1`；clean build 阻断与支持决策见 rc.1 迁移审计 |
+| DeepSeek Harness（2026-09-03 最新 rc.1/master 审计） | tag `a66e4702047846cdaa10c66c9d3df3951f5ea70d`; master `76fda729799fe9b3848dbe2c211d4b231032b81e` | 官方 tag `dsh-v0.1.2-rc.1` 与最新远端 master 均记录；clean build 阻断与支持决策见 rc.1 迁移审计 |
 | DeepSeek Harness（2026-08-24 附件契约审计；V5.16 后兼容目标） | `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e` | 官方 tag `dsh-v0.1.1-rc.2` 的一手源码、文档与 Git 历史；研究结论与后续兼容证据分开记录 |
 | Claude Code Rev | `64915d730218363acba49e5454dc01c31e3986b1` | 第三方 source-map 恢复源码；只作行为参考 |
 | Hermes Agent | `29d0cc2602e01943ab300c0382fc9d97efb376da` | 一手源码、测试、仓库文档 |

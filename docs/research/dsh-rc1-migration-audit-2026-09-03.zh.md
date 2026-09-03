@@ -10,7 +10,7 @@
 | 最新公开 tag | `a66e4702047846cdaa10c66c9d3df3951f5ea70d` (`dsh-v0.1.2-rc.1`) | `0.1.2-rc.1` | `pnpm install --frozen-lockfile` 通过；完整 `pnpm build` 在根级 tsdown 入口失败 |
 | 最新远端 `master` | `76fda729799fe9b3848dbe2c211d4b231032b81e` | `0.1.2-rc.1` | `pnpm install --frozen-lockfile` 通过；与 rc.1 tag 的源码差异主要是版本发布同步 |
 
-本轮先执行 `git fetch --tags --prune` 和 `git pull --ff-only origin master`，确认本地 DSH clean，
+本轮先执行 `git fetch origin --tags`，确认本地 DSH clean，
 再安装依赖和运行官方构建。DSH 工作树没有被 EvoForge 修改。
 
 ## 构建事实
@@ -32,4 +32,3 @@
   明确记录原因。
 - 只有上游 rc.1 clean build 通过，且 EvoForge 重新完成 typecheck、pack、add/dump/boot、reload/dispose、
   Session/Goal 恢复、真实浏览器、真实渠道和卸载矩阵，才允许把支持基线改为 rc.1。
-

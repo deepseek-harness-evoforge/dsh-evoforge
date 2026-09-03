@@ -2,8 +2,9 @@
 
 > 更新日期：2026-09-03。本文只描述标准路径中的权威 `main` 工作树，不把计划或历史分支当作已交付能力。
 
-> DSH 最新公开版本现为 `dsh-v0.1.2-rc.1`（`a66e470…`），已更新并审计；其干净完整构建被上游根级 tsdown
-> 入口阻断。EvoForge 当前支持声明仍锁定已完成矩阵的 alpha.5（`db6bdc…`），详见 [rc.1 迁移审计](research/dsh-rc1-migration-audit-2026-09-03.zh.md)。
+> DSH 最新公开 tag 仍为 `dsh-v0.1.2-rc.1`（`a66e470…`），最新远端 `master` 为
+> `76fda729799fe9b3848dbe2c211d4b231032b81e`；两者均已在本轮重新 fetch 并审计，干净完整构建仍被上游根级
+> tsdown 入口阻断。EvoForge 当前支持声明仍锁定已完成矩阵的 alpha.5（`db6bdc…`），详见 [rc.1 迁移审计](research/dsh-rc1-migration-audit-2026-09-03.zh.md)。
 
 > 真实飞书验收契约已更新为 epoch-4，固定 alpha.5；旧 epoch-3 不被复用。契约修复与 clean guard 的
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
@@ -43,6 +44,16 @@ AS-2 最终包同步安装并卸载 Control Center。基于最新可复现 alpha
 当前仍是 `pre-alpha`，不能发布首个 tag：真实飞书完整 AS-2、两套真实 provider、同条件 Hermes
 paired benchmark、长期负迁移/遗忘和完整真实浏览器成功/失败/恢复门尚未齐备。README 已改为用户指南，
 内部过程和历史证据只放在 `docs/`。
+
+## V5.72：最新 DSH master 复核（本轮）
+
+按持续开发纪律，本轮在任何后续测试前重新执行了 DSH `git fetch origin --tags`，确认工作树 clean，当前远端
+`master` 为 `76fda729799fe9b3848dbe2c211d4b231032b81e`（`dsh-v0.1.2-rc.1-99-g76fda72979`），公开 tag
+`dsh-v0.1.2-rc.1` 为 `a66e4702047846cdaa10c66c9d3df3951f5ea70d`。两者安装依赖均通过，但从干净 checkout
+运行根级 `pnpm build` 都在上游 `@deepseek-ai/dsh-root` 缺少
+`lib/types/{index,invariant,startup}.js` 入口处失败；该问题未由 EvoForge 修改或掩盖。因而本轮所有可执行
+assembled/clean-profile 证据继续锁定已完整构建的 `dsh-v0.1.2-alpha.5` / `db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`，并将
+tag、master、可构建基线三者分开记录。该复核没有扩大支持声明，也没有把上游失败误报为插件故障。
 
 ## 状态词
 
