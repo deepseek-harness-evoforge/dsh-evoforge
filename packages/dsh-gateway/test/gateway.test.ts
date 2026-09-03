@@ -246,7 +246,7 @@ describe('DshGateway', () => {
       routeIds: ['feishu-b'],
       initial: { state: 'connecting', observedAt: 70 },
     })
-    telegram.report({ state: 'ready', observedAt: 100, connectedAt: 90, lastActivityAt: 99 })
+    telegram.report({ state: 'ready', observedAt: 100, connectedAt: 90, lastInboundAt: 98, lastActivityAt: 99 })
     feishu.report({ state: 'degraded', observedAt: 110, connectedAt: 80, lastErrorAt: 109 })
 
     expect(gateway.healthSnapshot(120).transports).toEqual({
@@ -262,7 +262,7 @@ describe('DshGateway', () => {
         },
         {
           adapter: 'telegram', kind: 'telegram-long-poll', state: 'ready',
-          routeIds: ['telegram-a'], observedAt: 100, connectedAt: 90, lastActivityAt: 99,
+          routeIds: ['telegram-a'], observedAt: 100, connectedAt: 90, lastInboundAt: 98, lastActivityAt: 99,
         },
       ],
     })
@@ -274,7 +274,7 @@ describe('DshGateway', () => {
       stopping: 0,
       items: [{
         adapter: 'telegram', kind: 'telegram-long-poll', state: 'ready',
-        routeIds: ['telegram-a'], observedAt: 100, connectedAt: 90, lastActivityAt: 99,
+        routeIds: ['telegram-a'], observedAt: 100, connectedAt: 90, lastInboundAt: 98, lastActivityAt: 99,
       }],
     })
     expect(JSON.stringify(gateway.healthSnapshot(121))).not.toContain('bot-a')

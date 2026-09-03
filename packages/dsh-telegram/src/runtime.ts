@@ -49,6 +49,7 @@ export class TelegramRuntime {
   private transport: GatewayTransportRegistration | undefined
   private transportState: GatewayTransportState = 'connecting'
   private connectedAt?: number
+  private lastInboundAt?: number
   private lastActivityAt?: number
   private lastErrorAt?: number
   private agent: Agent | undefined
@@ -341,7 +342,10 @@ export class TelegramRuntime {
   private observeTransportActivity(activity: boolean): void {
     const observedAt = Date.now()
     this.connectedAt ??= observedAt
-    if (activity) this.lastActivityAt = observedAt
+    if (activity) {
+      this.lastInboundAt = observedAt
+      this.lastActivityAt = observedAt
+    }
     this.transportState = 'ready'
     this.reportTransport(observedAt)
   }
@@ -351,6 +355,7 @@ export class TelegramRuntime {
       state: this.transportState,
       observedAt,
       ...(this.connectedAt === undefined ? {} : { connectedAt: this.connectedAt }),
+      ...(this.lastInboundAt === undefined ? {} : { lastInboundAt: this.lastInboundAt }),
       ...(this.lastActivityAt === undefined ? {} : { lastActivityAt: this.lastActivityAt }),
       ...(this.lastErrorAt === undefined ? {} : { lastErrorAt: this.lastErrorAt }),
     })

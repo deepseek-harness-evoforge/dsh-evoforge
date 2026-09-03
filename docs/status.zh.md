@@ -79,6 +79,13 @@ epoch-4 合同的最新隔离 AS-2 重试使用 EvoForge `026a0e0…` 与 DSH al
 不读取凭据、不改变路由。alpha.5 基线下针对性健康契约 3/3 通过，完整 Feishu 套件保持 45/45；真实 AS-2
 仍因没有 pending pairing 事件而严格失败。详见 [V5.76 证据](evidence/v5-76-feishu-inbound-observation-2026-09-03.zh.md)。
 
+## V5.77：统一 Gateway 入站事件可观测性（本轮）
+
+将 `lastInboundAt` 下沉为统一 Gateway transport observation，Feishu 与 Telegram Adapter 都报告真实入站
+事件，单页“渠道与网关”技术详情直接显示该时间；连接、出站和入站活动不再混为一谈。重新生成的 Gateway
+Typert artifacts、Gateway 36/36、Telegram 29/29 均通过 alpha.5 基线验证。该增量不改变路由、配对、投递或
+任何发布门；真实 Feishu AS-2 仍需事件到达。详见 [V5.77 证据](evidence/v5-77-gateway-inbound-observation-2026-09-03.zh.md)。
+
 ## V5.75：参考生态当前 revision 复核（本轮）
 
 为下一次 Hermes paired 和设计校准重新读取公开远端：Hermes Agent `63279301…`、OpenClaw `1fb3e0ca…`、

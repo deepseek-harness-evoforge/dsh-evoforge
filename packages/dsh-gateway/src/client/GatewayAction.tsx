@@ -194,6 +194,7 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
               details={<details><summary>{format(t('technical.routes'), item.routeIds.length)}</summary>
                 {item.routeIds.map(id => <div key={id}><code>{id}</code></div>)}
                 <div>{t('transport.connectedAt')}: {formatTimestamp(item.connectedAt, t)}</div>
+                <div>{t('transport.lastInboundAt')}: {formatTimestamp(item.lastInboundAt, t)}</div>
                 <div>{t('transport.lastActivityAt')}: {formatTimestamp(item.lastActivityAt, t)}</div>
                 <div>{t('transport.lastErrorAt')}: {formatTimestamp(item.lastErrorAt, t)}</div>
               </details>}

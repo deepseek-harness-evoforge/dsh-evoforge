@@ -55,6 +55,7 @@ const dsh_gateway_evoforgeGateway_overview_result$schema = z.object({
   'state': z.union([z.literal("ready"), z.literal("stopping"), z.literal("connecting"), z.literal("degraded")]).readonly(),
   'observedAt': z.number().readonly(),
   'connectedAt': z.union([z.undefined(), z.number()]).readonly().optional(),
+  'lastInboundAt': z.union([z.undefined(), z.number()]).readonly().optional(),
   'lastActivityAt': z.union([z.undefined(), z.number()]).readonly().optional(),
   'lastErrorAt': z.union([z.undefined(), z.number()]).readonly().optional(),
 })).readonly(),
@@ -340,7 +341,7 @@ export const TYPERT = {
           },
           {
             "name": "GatewayTransportObservation",
-            "declaration": "export interface GatewayTransportObservation {\n    readonly state: GatewayTransportState;\n    readonly observedAt: number;\n    readonly connectedAt?: number;\n    readonly lastActivityAt?: number;\n    readonly lastErrorAt?: number;\n}"
+            "declaration": "export interface GatewayTransportObservation {\n    readonly state: GatewayTransportState;\n    readonly observedAt: number;\n    readonly connectedAt?: number;\n    readonly lastInboundAt?: number;\n    readonly lastActivityAt?: number;\n    readonly lastErrorAt?: number;\n}"
           },
           {
             "name": "GatewayTransportState",

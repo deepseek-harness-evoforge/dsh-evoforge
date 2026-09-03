@@ -6,6 +6,8 @@ export interface GatewayTransportObservation {
   readonly state: GatewayTransportState
   readonly observedAt: number
   readonly connectedAt?: number
+  /** Last inbound platform event observed by the Adapter, distinct from generic activity. */
+  readonly lastInboundAt?: number
   readonly lastActivityAt?: number
   readonly lastErrorAt?: number
 }
@@ -167,6 +169,7 @@ function normalizeObservation(input: GatewayTransportObservation): GatewayTransp
   exactTime(input.observedAt, 'observation time')
   for (const [label, value] of [
     ['connected time', input.connectedAt],
+    ['last inbound event time', input.lastInboundAt],
     ['last activity time', input.lastActivityAt],
     ['last error time', input.lastErrorAt],
   ] as const) {
@@ -178,6 +181,7 @@ function normalizeObservation(input: GatewayTransportObservation): GatewayTransp
     state: input.state,
     observedAt: input.observedAt,
     ...(input.connectedAt === undefined ? {} : { connectedAt: input.connectedAt }),
+    ...(input.lastInboundAt === undefined ? {} : { lastInboundAt: input.lastInboundAt }),
     ...(input.lastActivityAt === undefined ? {} : { lastActivityAt: input.lastActivityAt }),
     ...(input.lastErrorAt === undefined ? {} : { lastErrorAt: input.lastErrorAt }),
   })

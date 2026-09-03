@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Gateway transport health now exposes a redacted `lastInboundAt` separately from generic activity. Feishu and
+  Telegram report real inbound events, and the single native Channels page can distinguish a connected transport from
+  one that has actually received a platform event. No routing, pairing, delivery, or model behavior changed. See
+  [V5.77 evidence](docs/evidence/v5-77-gateway-inbound-observation-2026-09-03.zh.md).
+
 - Feishu health now separates the last inbound platform event from generic transport activity. The single native
   Control Center page says explicitly when the WebSocket is connected but no event has arrived, without probing
   permissions, reading credentials, or calling a model. See [V5.76 evidence](docs/evidence/v5-76-feishu-inbound-observation-2026-09-03.zh.md).

@@ -55,6 +55,7 @@ const dsh_gateway_evoforgeGateway_overview_result$schema = z.object({
   'state': z.union([z.literal("ready"), z.literal("stopping"), z.literal("connecting"), z.literal("degraded")]).readonly(),
   'observedAt': z.number().readonly(),
   'connectedAt': z.union([z.undefined(), z.number()]).readonly().optional(),
+  'lastInboundAt': z.union([z.undefined(), z.number()]).readonly().optional(),
   'lastActivityAt': z.union([z.undefined(), z.number()]).readonly().optional(),
   'lastErrorAt': z.union([z.undefined(), z.number()]).readonly().optional(),
 })).readonly(),
