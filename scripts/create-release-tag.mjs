@@ -24,6 +24,7 @@ if (head !== originMain) throw new Error('Release tag requires HEAD to equal ori
 
 runNode('scripts/check-release-tag-version.mjs', ['--tag', args.tag])
 runNode('scripts/check-release.mjs')
+runNode('scripts/check-npm-package-names.mjs')
 runNode('scripts/check-release-gates.mjs')
 
 const localTag = spawnSync('git', ['rev-parse', '--verify', '--quiet', `refs/tags/${args.tag}`], {

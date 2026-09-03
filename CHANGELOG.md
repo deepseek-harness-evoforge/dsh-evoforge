@@ -6,6 +6,10 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.108**: Added the same live npm package-name ownership preflight to local `release:tag`, before release gates,
+  and covered its ordering with a regression test. Local and GitHub release paths now fail closed consistently on name
+  collisions or registry errors. The four existing collisions still block the first tag. See [V5.108 evidence](docs/evidence/v5-108-local-tag-npm-preflight-2026-09-04.zh.md).
+
 - **V5.107**: Made release metadata validation resolve package files by workspace directory instead of `manifest.name`,
   so a future project-owned scoped npm name can be migrated without breaking README/Bundle patch checks. No package names
   were changed and the npm ownership gate remains blocking. See [V5.107 evidence](docs/evidence/v5-107-release-check-scoped-name-safety-2026-09-04.zh.md).

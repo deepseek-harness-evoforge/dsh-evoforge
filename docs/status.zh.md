@@ -48,6 +48,13 @@ DSH 内部已安装能力、Goal、真实反馈和结果；外部生态与论文
 最新 DSH preflight、文档/CI/套件/发布合同、全量 alpha.5 `pnpm run check` 均通过；未改名、未改 DSH、未绕过
 npm 归属门。详见 [V5.107 证据](evidence/v5-107-release-check-scoped-name-safety-2026-09-04.zh.md)。
 
+## V5.108：本地 release tag 接入 npm 名称实时门（本轮）
+
+审计发现 GitHub release workflow 已检查 npm 包名，但本地 `release:tag` 路径没有实时检查。本轮在本地 tag
+创建流程中、release gates 之前调用 `check-npm-package-names.mjs`，并增加脚本顺序回归；冲突、无归属或 registry
+异常均 fail closed。CI 与本地发布路径现在一致，实际四个 npm 冲突仍阻止首个 tag。详见
+[V5.108 证据](evidence/v5-108-local-tag-npm-preflight-2026-09-04.zh.md)。
+
 ## V5.103：渠道控制面轮询契约与用户文档对齐（本轮）
 
 审计发现 `GatewaySurface` 为了让新配对请求在同一个 DSH Web 页面自动出现，实际每 5 秒读取一次 Host 脱敏

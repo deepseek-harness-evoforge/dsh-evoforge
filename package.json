@@ -27,6 +27,7 @@
     "check:release": "node scripts/check-release.mjs",
     "check:release:names": "node scripts/check-npm-package-names.mjs",
     "check:release:names:test": "node --test scripts/check-npm-package-names.test.mjs",
+    "check:release:tag-script": "node --test scripts/check-release-tag-script.test.mjs",
     "check:release:gates": "node scripts/check-release-gates.mjs",
     "check:release:gates:test": "node --test scripts/check-release-gates.test.mjs",
     "check:release:tag": "node --test scripts/check-release-tag-version.test.mjs",
@@ -57,6 +58,6 @@
     "typecheck": "pnpm -r typecheck",
     "pretest": "pnpm --filter dsh-gateway run build",
     "test": "pnpm -r --workspace-concurrency=1 --filter '!dsh-telegram' --filter '!dsh-feishu' --filter '!dsh-software-delivery' test && pnpm run test:software-delivery && pnpm --filter dsh-telegram test && pnpm --filter dsh-feishu test",
-    "check": "pnpm run check:dsh:preflight && pnpm run check:docs && pnpm run check:ci && pnpm run check:suites && pnpm run check:release:gates:test && pnpm run check:release:tag && pnpm run check:release:workflow && pnpm run check:release:names:test && pnpm run check:dsh-compatibility-script && pnpm run benchmark:hermes:ev1:typecheck && pnpm run benchmark:provider:rp1:check && pnpm run benchmark:feishu:as2:check && pnpm run typecheck && pnpm run test && pnpm run build"
+    "check": "pnpm run check:dsh:preflight && pnpm run check:docs && pnpm run check:ci && pnpm run check:suites && pnpm run check:release:gates:test && pnpm run check:release:tag && pnpm run check:release:workflow && pnpm run check:release:names:test && pnpm run check:release:tag-script && pnpm run check:dsh-compatibility-script && pnpm run benchmark:hermes:ev1:typecheck && pnpm run benchmark:provider:rp1:check && pnpm run benchmark:feishu:as2:check && pnpm run typecheck && pnpm run test && pnpm run build"
   }
 }
