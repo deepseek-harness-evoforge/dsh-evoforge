@@ -6,6 +6,10 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.112**: Aligned the status matrix with the machine release gates. Local contracts and fixtures no longer imply that real
+  providers, full Feishu AS-2, external Telegram, Hermes paired benchmarking, or long-term effects are complete; the documented
+  `not-run`/`partial`/`failed` blockers remain authoritative. See [V5.112 evidence](docs/evidence/v5-112-status-table-release-gate-alignment-2026-09-04.zh.md).
+
 - **V5.111**: Re-ran the final-tarball DSH clean-profile lifecycle after the suite identity fix: official add/dump/boot,
   real Session/Goal/Storage/Tool path, dispose/remove, and native readback passed 1/1 on the audited alpha.5 runtime. This
   is a local lifecycle regression only; real channel/provider, paired benchmark, long-term, and npm gates remain blocked.
