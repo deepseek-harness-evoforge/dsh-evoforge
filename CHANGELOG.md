@@ -6,6 +6,10 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.127**: Added documentation checks for the copyable Goal prompt: its final text block must stay within 2,000
+  characters, require autonomous continuation, and avoid promising an unsupported host CLI. This is a documentation
+  guard only; runtime behavior is unchanged.
+
 - **V5.126**: Made the latest-DSH audit a contributor and release requirement: fetch `origin/master`, verify the
   clean exact revision/tag/dependencies, record it in evidence, and explicitly separate an upstream build failure
   from the admitted support baseline. No runtime behavior changed.

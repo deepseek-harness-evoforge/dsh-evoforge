@@ -47,6 +47,22 @@ for (const file of await markdownFiles(repositoryRoot)) {
   }
 }
 
+const goalPromptPath = resolve(repositoryRoot, 'docs/goal-prompt.zh.md')
+const goalPromptSource = await readFile(goalPromptPath, 'utf8')
+const goalPromptBlocks = [...goalPromptSource.matchAll(/^```text\n([\s\S]*?)\n```/gmu)]
+const goalPromptBlock = goalPromptBlocks[0]?.[1]
+const hasFinalPromptBlock = goalPromptBlocks.length === 1
+  && /```text\n[\s\S]*\n```\s*$/u.test(goalPromptSource)
+if (goalPromptBlock === undefined || !hasFinalPromptBlock) {
+  failures.push('docs/goal-prompt.zh.md must contain exactly one final ```text prompt block')
+} else {
+  if (goalPromptSource.length > 2_000) failures.push(`docs/goal-prompt.zh.md exceeds the 2,000-character codex goal budget: ${goalPromptSource.length}`)
+  if (goalPromptBlock.includes('宿主 CLI')) failures.push('docs/goal-prompt.zh.md promises an unsupported host CLI; use the native DSH Web Host authority')
+  if (!goalPromptBlock.includes('不得让我选择') || !goalPromptBlock.includes('继续下一个未通过门禁')) {
+    failures.push('docs/goal-prompt.zh.md must require autonomous planning and continuation')
+  }
+}
+
 if (failures.length > 0) {
   process.stderr.write(`${failures.join('\n')}\n`)
   process.exitCode = 1
