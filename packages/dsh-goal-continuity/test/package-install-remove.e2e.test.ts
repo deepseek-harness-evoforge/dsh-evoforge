@@ -81,6 +81,7 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-goal-continuity packag
     const peerPackages = [
       ['core/agent', 'dsh-agent'],
       ['goal/goal', 'dsh-goal'],
+      ['session/session-projection', 'dsh-session-projection'],
     ] as const
     for (const [source, target] of peerPackages) {
       await symlink(join(dshSourceDir, 'packages', source), join(packageScope, target), 'dir')
@@ -89,6 +90,7 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-goal-continuity packag
     const nativeConfig = join(profileDir, 'native.cordis.yml')
     await writeFile(installedConfig, JSON.stringify([
       { id: 'agents', name: '@deepseek-ai/dsh-agent' },
+      { id: 'session-projection', name: '@deepseek-ai/dsh-session-projection' },
       { id: 'goals', name: '@deepseek-ai/dsh-goal' },
       {
         id: 'continuity',
@@ -98,6 +100,7 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-goal-continuity packag
     ], null, 2))
     await writeFile(nativeConfig, JSON.stringify([
       { id: 'agents', name: '@deepseek-ai/dsh-agent' },
+      { id: 'session-projection', name: '@deepseek-ai/dsh-session-projection' },
       { id: 'goals', name: '@deepseek-ai/dsh-goal' },
     ], null, 2))
 

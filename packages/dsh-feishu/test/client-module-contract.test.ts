@@ -15,7 +15,6 @@ describe('Feishu native DSH Client Module', () => {
         inject: [
           '@deepseek-ai/dsh-api-remotes',
           '@deepseek-ai/dsh-client-locale',
-          '@deepseek-ai/dsh-client-runtime',
           '@deepseek-ai/dsh-client-ui-conversation',
         ],
         platform: 'web',
@@ -23,7 +22,6 @@ describe('Feishu native DSH Client Module', () => {
     })
     expect(manifest.exports['./client']).toBe('./dist/client.js')
     expect(manifest.files).toEqual(['dist', 'cordis.patch.yml'])
-    expect(manifest.dependencies['@deepseek-ai/dsh-client-runtime']).toBeUndefined()
   })
 
   it('registers inside the original DSH Web loader and keeps browser code out of Host output', async () => {

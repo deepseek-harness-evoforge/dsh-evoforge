@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { SessionListState, WorkspaceListState } from '@deepseek-ai/dsh-client-runtime/client'
+import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
 import { EvolutionAction } from '../src/client/EvolutionAction.tsx'
 import { apply } from '../src/client/index.ts'
 import type { EvolutionRemoteClient } from '../src/client/remote.ts'
@@ -687,13 +687,13 @@ const t = (key: string) => ({
 }[key] ?? key)
 
 function sessionHook(current: string | undefined = sessionId) {
-  return <S,>(selector: (state: SessionListState) => S): S => selector({ current } as SessionListState)
+  return <S,>(selector: (state: { readonly current?: string }) => S): S => selector({ current })
 }
 
 function workspaceHook(id: string = workspaceId, current: string = sessionId) {
-  return <S,>(selector: (state: WorkspaceListState) => S): S => selector({
+  return <S,>(selector: (state: { readonly items: readonly { readonly workspaceId: string; readonly sessionIds: readonly string[] }[] }) => S): S => selector({
     items: [{ workspaceId: id, sessionIds: [current] }],
-  } as unknown as WorkspaceListState)
+  })
 }
 
 function renderEvolution(api: EvolutionRemoteClient) {
@@ -1694,7 +1694,7 @@ describe('EvolutionAction', () => {
       useWorkspaces={selector => selector({
         items: [{ workspaceId: otherWorkspaceId, sessionIds: [] }],
         recentWorkspaceId: otherWorkspaceId,
-      } as unknown as WorkspaceListState)}
+      })}
     />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
@@ -2020,11 +2020,11 @@ describe('EvolutionAction', () => {
     const api = remote()
     vi.mocked(api.review).mockResolvedValueOnce({
       ok: false,
-      error: {
-        code: 'not_found',
-        message: 'Candidate is no longer pending; refresh authoritative state.',
-        details: {},
-      },
+      error: new RemoteError(
+        'gateway/internal',
+        'Candidate is no longer pending; refresh authoritative state.',
+        {},
+      ),
     })
     renderEvolution(api)
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))

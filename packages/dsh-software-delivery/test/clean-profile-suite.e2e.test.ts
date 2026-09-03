@@ -174,7 +174,7 @@ describe.skipIf(process.platform !== 'darwin')('clean-profile assembled EvoForge
         async * stream(options: unknown) {
           this.requests.push(structuredClone(options))
           if (this.requests.length === 1) {
-            const callId = llm.CallId('evoforge-native-complete-delivery')
+            const callId = llm.ToolCallId('evoforge-native-complete-delivery')
             const input = JSON.stringify(callArguments)
             yield { type: 'block-start', index: 0, blockType: 'tool-call' }
             yield {
@@ -240,7 +240,7 @@ describe.skipIf(process.platform !== 'darwin')('clean-profile assembled EvoForge
       expect(adapter.requests.length).toBeGreaterThanOrEqual(2)
       expect(adapter.requests.length).toBeLessThanOrEqual(3)
       expect(installedCtx.goals.get(handle.agent)).toMatchObject({ phase: 'complete' })
-      expect(handle.agent.session.events.some((event: { type: string }) => event.type === 'goal/change'))
+      expect(sessionEvents(handle.agent.session).some((event: { type: string }) => event.type === 'goal/change'))
         .toBe(true)
       await installedCtx.sessions.flush(handle.agent.session)
       await installedCtx.fiber.dispose()
@@ -268,7 +268,8 @@ describe.skipIf(process.platform !== 'darwin')('clean-profile assembled EvoForge
         expect(await nativeCtx.skills.get('software-delivery')).toBeUndefined()
         expect(nativeCtx.get('evoforge.evolution')).toBeUndefined()
         const restored = await nativeCtx.sessionPersistence.load(sessionId)
-        expect(restored.events.some((event: { type: string; data?: unknown }) =>
+        const restoredEvents = restored.events
+        expect(restoredEvents.some((event: { type: string; data?: unknown }) =>
           event.type === 'goal/change' && JSON.stringify(event.data).includes('complete'))).toBe(true)
       } finally {
         await nativeCtx.fiber.dispose()
@@ -367,8 +368,8 @@ async function bootProfile(profileName: string, dshHome: string) {
   const { provideCmdline } = await import(
     pathToFileURL(join(dshSourceDir, 'packages', 'boot', 'cmdline', 'lib', 'index.js')).href
   )
-  appBoot.healProfilesModuleFallback(dshInstallAnchor)
   const profile = appBoot.loadProfile('evoforge-native-contract', profileName, dshInstallAnchor, dshHome)
+  await appBoot.healProfilesModuleFallback({ installAnchor: dshInstallAnchor, profile, home: dshHome })
   const rootConfig = join(profile.dir, 'cordis.yml')
   await writeFile(rootConfig, '[]\n')
   // Mirror the official CLI launcher-owned assembly fact: shipped presets
@@ -398,6 +399,12 @@ async function bootProfile(profileName: string, dshHome: string) {
       exit: () => {},
     }),
   )
+}
+
+function sessionEvents(session: { snapshotEvents?: () => readonly { type: string }[]; events?: readonly { type: string }[] }): readonly { type: string }[] {
+  if (typeof session.snapshotEvents === 'function') return session.snapshotEvents()
+  if (session.events !== undefined) return session.events
+  throw new Error('DSH Session does not expose a readable event snapshot')
 }
 
 async function git(cwd: string, ...args: string[]): Promise<string> {

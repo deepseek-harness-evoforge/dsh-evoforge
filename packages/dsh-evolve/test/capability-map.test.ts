@@ -102,7 +102,7 @@ describe('CapabilityMap', () => {
 
 function sessionAgent(id: string): Agent {
   const sessionId = SessionId(id)
-  const session = Session.create(sessionId, [], { version: 0, id: sessionId, createdAt: 1, cwd: '/repo' })
+  const session = Session.create(sessionId, [], { version: 0, id: sessionId, createdAt: 1, cwd: '/repo', isSeeded: false })
   return {
     ctx: new Context(),
     id: sessionId,

@@ -5,11 +5,12 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { pathToFileURL, fileURLToPath } from 'node:url'
-import { CallId } from '@deepseek-ai/dsh-llm'
+import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import type { ApprovalOutcome } from '@deepseek-ai/dsh-user-approval'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { bootLatestDshProfile } from './latest-dsh-test-runtime.ts'
 import { FeishuPlatformSendError } from '../src/platform.js'
 import { parseFeishuHealthCommand } from '../src/health.js'
 import type { FeishuApprovalAction, FeishuInboundMessage, FeishuSendOptions } from '../src/platform.js'
@@ -40,18 +41,18 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
     await writeFile(config, JSON.stringify([
       {
         id: 'cli-mock-llm',
-        name: join(dshSourceDir, 'examples', 'headless-agent', 'tests', 'fixtures', 'cli-mock-llm.ts'),
+        name: join(dshSourceDir, 'packages', 'test-support', 'loader-smoke', 'tests', 'fixtures', 'cli-mock-llm.ts'),
       },
       {
         id: 'base',
         name: join(dshSourceDir, 'vendor', 'include', 'lib', 'index.js'),
         config: {
-          path: join(dshSourceDir, 'examples', 'headless-agent', 'cordis.yml'),
+          path: join(dshSourceDir, 'packages', 'bundle', 'base', 'cordis.patch.yml'),
           patches: [
             { id: 'llm-deepseek', name: '@deepseek-ai/dsh-llm-deepseek', disabled: true },
             {
-              id: 'agent-spine',
-              name: '@deepseek-ai/dsh-agent-spine-demo',
+              id: 'agent-loop',
+              name: '@deepseek-ai/dsh-agent-loop',
               config: {
                 agents: [],
                 workspaceContext: false,
@@ -62,11 +63,11 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
               },
             },
             {
-              id: 'persistence',
+              id: 'session-persistence-jsonl',
               name: '@deepseek-ai/dsh-session-persistence-jsonl',
               config: { root: join(root, 'sessions'), compression: 'none' },
             },
-            { id: 'checkpoint-policy', name: '@deepseek-ai/dsh-session-checkpoint-policy', disabled: true },
+            { id: 'session-checkpoint-policy', name: '@deepseek-ai/dsh-session-checkpoint-policy', disabled: true },
           ],
         },
       },
@@ -144,12 +145,14 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
     vi.stubEnv('DSH_HOME', join(root, '.dsh-home'))
     vi.stubEnv('DSH_TELEMETRY_DISABLED', '1')
 
-    const { boot } = await import(pathToFileURL(
-      join(dshSourceDir, 'packages', 'boot', 'app-boot', 'lib', 'index.js'),
-    ).href)
     const previousCwd = process.cwd()
     process.chdir(root)
-    const ctx = await boot('dsh-feishu-assembled-test', config)
+    const ctx = await bootLatestDshProfile({
+      binName: 'dsh-feishu-assembled-test',
+      configPath: config,
+      dshSourceDir,
+      home: join(root, '.dsh-home'),
+    })
     const service = ctx.get('evoforge.feishuTest') as {
       platform: {
         connected: boolean
@@ -212,7 +215,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
       expect(ctx.storageDomain.get('evoforge_feishu')).toBeUndefined()
       const agent = ctx.agents.get('main')
       expect(agent).toBeDefined()
-      expect(agent?.session.events.some((event: SessionEvent) => event.type === 'user/message'
+      expect(agent?.session.snapshotEvents().some((event: SessionEvent) => event.type === 'user/message'
         && String(event.data.id).startsWith('channel:'))).toBe(true)
 
       await service.platform.emitMessage(inbound)
@@ -259,14 +262,14 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
       expect(service.platform.texts[1]?.text).not.toContain('test-secret')
       expect(service.platform.texts[1]?.text).not.toContain('ou_alice')
       expect(service.platform.texts[1]?.text).not.toContain('oc_main')
-      expect(agent?.session.events.some((event: SessionEvent) => event.type === 'command/run'
+      expect(agent?.session.snapshotEvents().some((event: SessionEvent) => event.type === 'command/run'
         && event.data.name === 'feishu')).toBe(true)
 
       await agent?.whenIdle()
       expect(ctx.tools.get('schedule_create', agent)).toBeDefined()
       const scheduled = await ctx.agents.withInitiator(agent!, () => ctx.tools.execute({
         signal: new AbortController().signal,
-        callId: CallId('feishu-native-schedule-create'),
+        callId: ToolCallId('feishu-native-schedule-create'),
         name: 'schedule_create',
         arguments: {
           prompt: 'Send the scheduled Feishu follow-up through the existing native Session.',
@@ -287,9 +290,9 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
         options: { replyInThread: true },
       })
       expect(service.platform.texts[2]).not.toHaveProperty('options.replyTo')
-      expect(agent?.session.events.filter((event: unknown) => isScheduleChange(event, 'create'))).toHaveLength(1)
-      expect(agent?.session.events.filter((event: unknown) => isScheduleChange(event, 'dispatch'))).toHaveLength(1)
-      expect(agent?.session.events.some((event: SessionEvent) => event.type === 'user/message'
+      expect(agent?.session.snapshotEvents().filter((event: unknown) => isScheduleChange(event, 'create'))).toHaveLength(1)
+      expect(agent?.session.snapshotEvents().filter((event: unknown) => isScheduleChange(event, 'dispatch'))).toHaveLength(1)
+      expect(agent?.session.snapshotEvents().some((event: SessionEvent) => event.type === 'user/message'
         && event.data.source.kind === 'plugin'
         && event.data.source.plugin === 'schedule')).toBe(true)
       await vi.waitFor(() => {
@@ -400,7 +403,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
         const messages = [
           ...agent!.inbox.nextTurn,
           ...agent!.inbox.nextStep,
-          ...agent!.session.events
+          ...agent!.session.snapshotEvents()
             .filter((event: SessionEvent) => event.type === 'user/message')
             .map((event: SessionEvent & { type: 'user/message' }) => event.data),
         ]
@@ -410,7 +413,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
         if (block?.type === 'image') attachment = block.attachment
       }, { timeout: 5_000, interval: 10 })
       expect(String(attachment?.attachmentId)).toMatch(/^sha256:[a-f0-9]{64}$/u)
-      expect(JSON.stringify(agent?.session.events)).not.toContain('img_external_secret')
+      expect(JSON.stringify(agent?.session.snapshotEvents())).not.toContain('img_external_secret')
       const stored = await ctx.attachments.readImage(attachment!)
       expect(stored.ref).toEqual(attachment)
       expect(String(stored.ref.attachmentId)).toBe(

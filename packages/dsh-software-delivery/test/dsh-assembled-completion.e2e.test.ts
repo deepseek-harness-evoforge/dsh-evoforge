@@ -11,7 +11,7 @@ import * as DeliveryPlugin from '../src/index.js'
 const execFile = promisify(execFileCallback)
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const suiteRoot = resolve(packageRoot, '../..')
-const dshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
+const rawDshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
   ?? resolve(suiteRoot, '../deepseek-harness')
 const temporaryRoots: string[] = []
 
@@ -21,6 +21,7 @@ afterEach(async () => {
 
 describe.skipIf(process.platform !== 'darwin')('assembled DSH verified completion', () => {
   it('uses pinned native Bash and update_goal through a real Agent without changing the repeat surface', async () => {
+    const dshSourceDir = await realpath(rawDshSourceDir)
     const sourcePackage = (path: string) => pathToFileURL(
       join(dshSourceDir, 'packages', path, 'lib', 'index.js'),
     ).href
@@ -33,6 +34,7 @@ describe.skipIf(process.platform !== 'darwin')('assembled DSH verified completio
       agent,
       goal,
       toolGoal,
+      sessionProjections,
       agentLoop,
       subprocessLocal,
       shellEnv,
@@ -47,6 +49,7 @@ describe.skipIf(process.platform !== 'darwin')('assembled DSH verified completio
       import(sourcePackage('core/agent')),
       import(sourcePackage('goal/goal')),
       import(sourcePackage('goal/tool-goal')),
+      import(sourcePackage('session/session-projection')),
       import(sourcePackage('core/agent-loop')),
       import(sourcePackage('subprocess/subprocess-local')),
       import(sourcePackage('shell/shell-env')),
@@ -70,6 +73,7 @@ describe.skipIf(process.platform !== 'darwin')('assembled DSH verified completio
     await ctx.plugin(agent.default)
     await ctx.plugin(goal.default)
     await ctx.plugin(toolGoal, {})
+    await ctx.plugin(sessionProjections.default)
     await ctx.plugin(subprocessLocal.default)
     await ctx.plugin(shellEnv)
     await ctx.plugin(bashLocal.default, { cwd: fixture.worktree, timeoutMs: 10_000 })
@@ -90,7 +94,7 @@ describe.skipIf(process.platform !== 'darwin')('assembled DSH verified completio
       async * stream(options: unknown) {
         this.requests.push(structuredClone(options))
         if (this.requests.length === 1) {
-          const callId = llm.CallId('native-complete-delivery')
+          const callId = llm.ToolCallId('native-complete-delivery')
           const input = JSON.stringify(callArguments)
           yield { type: 'block-start', index: 0, blockType: 'tool-call' }
           yield { type: 'tool-call-delta', index: 0, id: callId, name: 'complete_delivery', argumentsDelta: input }
@@ -153,7 +157,9 @@ describe.skipIf(process.platform !== 'darwin')('assembled DSH verified completio
     const second = requestView(adapter.requests[1])
     expect(first.tools.map(toolName)).toContain('complete_delivery')
     expect(second.tools).toEqual(first.tools)
-    const result = findToolResult(handle.agent.session.events, 'native-complete-delivery')
+    const result = findToolResult(typeof (handle.agent.session as any).snapshotEvents === 'function'
+      ? (handle.agent.session as any).snapshotEvents()
+      : (handle.agent.session as any).events, 'native-complete-delivery')
     expect(result).toMatchObject({
       schemaVersion: 1,
       status: 'passed',

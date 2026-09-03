@@ -1,12 +1,12 @@
 # EvoForge DSH 插件接口与验收规范
 
-> 已验证支持基线：DeepSeek Harness `0.1.0-rc.5` / `47f943859bef60e4160492346772ded9b24f765a` 与 `0.1.1-rc.2` / `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`。V5.16 的矩阵在两者上分别锁定 revision、版本和 clean source，验证十一包 fresh-install、升级、原生路径、飞书 assembled 路径、卸载与 readback；peer range 不接受其他未审计预发布版。
+> 当前已验证支持基线：DeepSeek Harness `dsh-v0.1.2-alpha.5` / `db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`。此前 rc.5/rc.2 的矩阵属于历史审计证据；本轮 alpha.5 迁移后不再把旧 revision 放入当前 peer/support 声明。详见 [alpha.5 迁移审计](research/dsh-alpha5-migration-audit-2026-09-03.zh.md)。
 
 本规范约束 EvoForge 发布物，不发明第二套插件 API。运行时接口由 Cordis 和 DSH 所有；EvoForge 只规定一个 out-of-tree 插件必须如何选择接缝、保护缓存、验证生命周期并证明用户价值。
 
 当前十二个可发布包都必须是官方 Bundle：包导出 `./cordis.patch.yml`，`package.json` 声明 `dsh.bundle.patch`，patch 中只插入该包自己的稳定 Loader row。不得依赖 root workspace manifest、自定义 installer 或源码 import 才能激活。用户不需要逐个理解这十二包；应优先使用[能力套件](capability-suites.zh.md)中的四个默认入口。
 
-DSH/Cordis 的直接运行时依赖必须同时出现在 `peerDependencies` 和 `devDependencies`，不得进入 `dependencies` 或 tarball 内的 `node_modules`。目前 registry 未提供全部目标版本单包，因此本仓开发类型使用 rc.6；这只是开发依赖事实，固定 rc.5/rc.2 源码的双目标 assembled gate 才是支持证据。
+DSH/Cordis 的直接运行时依赖必须同时出现在 `peerDependencies` 和 `devDependencies`，不得进入 `dependencies` 或 tarball 内的 `node_modules`。当前公开包精确依赖 `0.1.2-alpha.5`/Cordis `4.0.2`；任何其他 DSH revision 都必须先完成独立 assembled 迁移矩阵，不能因 semver 范围或源码相似而自动获得支持。
 
 ## 1. 进入条件
 

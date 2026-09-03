@@ -7,6 +7,7 @@ import { promisify } from 'node:util'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { freezeMessage, MessageId } from '@deepseek-ai/dsh-llm'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { bootLatestDshProfile } from './latest-dsh-test-runtime.ts'
 
 const execFile = promisify(execFileCallback)
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -99,12 +100,14 @@ async function captureCompositions(
     telegramApiBase: `http://127.0.0.1:${telegramPort}`,
   }), null, 2))
 
-  const { boot } = await import(pathToFileURL(
-    join(dshSourceDir, 'packages', 'boot', 'app-boot', 'lib', 'index.js'),
-  ).href)
   const previousCwd = process.cwd()
   process.chdir(root)
-  const ctx = await boot(`dsh-full-channel-composition-${mode}`, config)
+  const ctx = await bootLatestDshProfile({
+    binName: `dsh-full-channel-composition-${mode}`,
+    configPath: config,
+    dshSourceDir,
+    home: join(root, '.dsh-home'),
+  })
   try {
     const requests: Record<string, unknown> = {}
     for (const id of ['telegram-session', 'feishu-session'] as const) {
@@ -116,12 +119,12 @@ async function captureCompositions(
         content: [{ type: 'text', text: `same native request for ${id}` }],
         source: { kind: 'user' },
       }))
-      const expectedLines = Object.keys(requests).length + 1
+      const priorLineCount = nonemptyLines(await readFile(output, 'utf8')).length
       await vi.waitFor(async () => {
-        expect(nonemptyLines(await readFile(output, 'utf8'))).toHaveLength(expectedLines)
+        expect(nonemptyLines(await readFile(output, 'utf8')).length).toBeGreaterThan(priorLineCount)
       }, { timeout: 10_000, interval: 25 })
       const lines = nonemptyLines(await readFile(output, 'utf8'))
-      requests[id] = JSON.parse(lines[expectedLines - 1]!) as unknown
+      requests[id] = lines.slice(priorLineCount).map(line => normalizeComposition(JSON.parse(line) as unknown, root))
     }
 
     const feishuTexts = mode === 'channels'
@@ -169,12 +172,12 @@ function hostConfig(input: {
       id: 'base',
       name: join(dshSourceDir, 'vendor', 'include', 'lib', 'index.js'),
       config: {
-        path: join(dshSourceDir, 'examples', 'headless-agent', 'cordis.yml'),
+        path: join(dshSourceDir, 'packages', 'bundle', 'base', 'cordis.patch.yml'),
         patches: [
           { id: 'llm-deepseek', name: '@deepseek-ai/dsh-llm-deepseek', disabled: true },
           {
-            id: 'agent-spine',
-            name: '@deepseek-ai/dsh-agent-spine-demo',
+            id: 'agent-loop',
+            name: '@deepseek-ai/dsh-agent-loop',
             config: {
               agents: native ? [
                 {
@@ -194,11 +197,11 @@ function hostConfig(input: {
             },
           },
           {
-            id: 'persistence',
+            id: 'session-persistence-jsonl',
             name: '@deepseek-ai/dsh-session-persistence-jsonl',
             config: { root: join(input.root, `${input.mode}-sessions`), compression: 'none' },
           },
-          { id: 'checkpoint-policy', name: '@deepseek-ai/dsh-session-checkpoint-policy', disabled: true },
+          { id: 'session-checkpoint-policy', name: '@deepseek-ai/dsh-session-checkpoint-policy', disabled: true },
         ],
       },
     },
@@ -291,6 +294,28 @@ function channelPlugins(input: {
 
 function nonemptyLines(value: string): string[] {
   return value.split('\n').filter(line => line.length > 0)
+}
+
+/** UUIDs and temporary roots are boot-local and are not model composition. */
+function normalizeComposition(value: unknown, ephemeralRoot: string): unknown {
+  const canonicalRoot = ephemeralRoot.startsWith('/private/')
+    ? ephemeralRoot.slice('/private'.length)
+    : `/private${ephemeralRoot}`
+  const normalized = JSON.parse(JSON.stringify(value)
+    .split(canonicalRoot).join('<test-root>')
+    .split(ephemeralRoot).join('<test-root>'))
+  return stripEphemeralMessageIds(normalized)
+}
+
+function stripEphemeralMessageIds(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stripEphemeralMessageIds)
+  if (value === null || typeof value !== 'object') return value
+  const result: Record<string, unknown> = {}
+  for (const [key, child] of Object.entries(value)) {
+    if (key === 'id' && typeof child === 'string') continue
+    result[key] = stripEphemeralMessageIds(child)
+  }
+  return result
 }
 
 async function requestText(request: AsyncIterable<unknown>): Promise<string> {

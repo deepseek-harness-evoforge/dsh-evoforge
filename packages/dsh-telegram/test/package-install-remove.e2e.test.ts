@@ -88,6 +88,7 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-telegram package bound
     const packageScope = join(profileDir, 'node_modules', '@deepseek-ai')
     await mkdir(packageScope, { recursive: true })
     for (const [name, source] of [
+      ['cordis', join(dshSourceDir, 'vendor', 'cordis')],
       ['dsh-agent', join(dshSourceDir, 'packages', 'core', 'agent')],
       ['dsh-commands', join(dshSourceDir, 'packages', 'interaction', 'commands')],
       ['dsh-llm', join(dshSourceDir, 'packages', 'llm', 'llm')],

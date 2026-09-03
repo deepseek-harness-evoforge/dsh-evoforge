@@ -1,6 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import {
-  CallId,
+  ToolCallId,
   LlmAdapter,
   type GenerateOptions,
   type LlmResolvedModelInfo,
@@ -31,12 +31,12 @@ class FeishuContentAdapter extends LlmAdapter {
       const args = JSON.stringify({ kind: 'document', token_or_url: 'doxcnApproved123' })
       yield { type: 'block-start', index: 0, blockType: 'tool-call' }
       yield {
-        type: 'tool-call-delta', index: 0, id: CallId('feishu-content-call'),
+        type: 'tool-call-delta', index: 0, id: ToolCallId('feishu-content-call'),
         name: 'feishu_content_read', argumentsDelta: args,
       }
       yield {
         type: 'block-end', index: 0,
-        block: { type: 'tool-call', id: CallId('feishu-content-call'), name: 'feishu_content_read', arguments: args },
+        block: { type: 'tool-call', id: ToolCallId('feishu-content-call'), name: 'feishu_content_read', arguments: args },
       }
       yield { type: 'usage', usage: { inputTokens: 10, outputTokens: 3, cacheReadTokens: 2 } }
       yield { type: 'finish', reason: { kind: 'tool-calls' } }

@@ -9,7 +9,7 @@ export async function apply(ctx, config) {
   if (execution?.result.kind !== 'success') {
     throw new Error(`browser health seed Command failed: ${execution?.result.text ?? 'no result'}`)
   }
-  if (!agent.session.events.some(event => event.type === 'turn/start')) {
+  if (!agent.session.snapshotEvents().some(event => event.type === 'turn/start')) {
     // DSH intentionally hides non-current blank Sessions. A completed empty
     // acceptance-only turn makes this route selectable without a provider call.
     agent.session.append('turn/start', { turn: 1 })

@@ -388,8 +388,12 @@ async function applyProposal(candidateDir: string, proposal: Proposal): Promise<
 
 async function resolveCasePackEntry(casePackDir: string, entry: string): Promise<string> {
   if (!isOwnedRelativePath(entry)) throw new Error(`case pack entry is not owned: ${entry}`)
-  const path = await realpath(resolve(casePackDir, entry))
-  assertInside(casePackDir, path, 'Case pack entry')
+  // macOS exposes /tmp through the /private/tmp alias. Canonicalise both
+  // sides before containment checking so a legitimate temporary case pack
+  // cannot be rejected as escaping its root.
+  const canonicalRoot = await realpath(casePackDir)
+  const path = await realpath(resolve(canonicalRoot, entry))
+  assertInside(canonicalRoot, path, 'Case pack entry')
   return path
 }
 
@@ -488,7 +492,7 @@ async function resolveDshSource(expectedRevision: string, profileInstall: boolea
     throw new Error(`DSH source revision ${actualRevision} does not match case pack ${expectedRevision}`)
   }
   const readOnlyRoots = await Promise.all(
-    ['apps', 'examples', 'packages', 'node_modules', 'vendor']
+    ['apps', 'native', 'packages', 'node_modules', 'vendor']
       .map(async path => await realpath(join(sourceDir, path))),
   )
   await realpath(join(sourceDir, 'packages', 'boot', 'app-boot', 'lib', 'index.js'))

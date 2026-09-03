@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { defineDomain, domainTable } from '@deepseek-ai/dsh-storage-domain'
 import { z } from 'zod'
-import { SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
+import { SessionId, SessionLogOffset, SessionSeq, type SessionEvent } from '@deepseek-ai/dsh-session'
 import { DurableFeedbackAttribution } from '../src/durable-feedback-attribution.js'
 import {
   installFeedbackSignalMonitor,
@@ -59,7 +59,9 @@ describe.skipIf(process.platform !== 'darwin')('explicit feedback learning signa
             id: SessionId(lifecycle.sessionId),
             createdAt: lifecycle.createdAt,
             cwd: lifecycle.cwd,
+            isSeeded: false,
           },
+          inheritedEventCount: SessionLogOffset(0),
           events: attributedFeedbackEvents('assistant-negative'),
         }),
       }),
@@ -292,7 +294,7 @@ function attributedFeedbackEvents(assistantMessageId: string): SessionEvent[] {
 }
 
 function sessionEvent(type: string, seq: number, data: unknown): Record<string, unknown> {
-  return { type, seq, time: seq + 1, data }
+  return { type, seq: SessionSeq(seq), time: seq + 1, data }
 }
 
 function installWorkspaceFixture(ctx: object): void {

@@ -6,6 +6,7 @@ import { promisify } from 'node:util'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { FeishuSendOptions } from '../src/platform.js'
+import { bootLatestDshProfile } from './latest-dsh-test-runtime.ts'
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const execFile = promisify(execFileCallback)
@@ -53,9 +54,6 @@ describe.skipIf(process.platform !== 'darwin')('native Schedule cold restart thr
     vi.stubEnv('DSH_HOME', join(root, '.dsh-home'))
     vi.stubEnv('DSH_TELEMETRY_DISABLED', '1')
 
-    const { boot } = await import(pathToFileURL(
-      join(dshSourceDir, 'packages', 'boot', 'app-boot', 'lib', 'index.js'),
-    ).href)
     const previousCwd = process.cwd()
     process.chdir(root)
     try {
@@ -72,7 +70,12 @@ describe.skipIf(process.platform !== 'darwin')('native Schedule cold restart thr
 
       await new Promise(resolve => setTimeout(resolve, 1_100))
 
-      const second = await boot('dsh-feishu-schedule-restart-2', config)
+      const second = await bootLatestDshProfile({
+        binName: 'dsh-feishu-schedule-restart-2',
+        configPath: config,
+        dshSourceDir,
+        home: join(root, '.dsh-home'),
+      })
       try {
         const service = requireFeishuService(second)
         await vi.waitFor(() => {
@@ -86,9 +89,9 @@ describe.skipIf(process.platform !== 'darwin')('native Schedule cold restart thr
         expect(agent).toBeDefined()
         await agent!.whenIdle()
         await expect(second.sessions.flush(agent!.session)).resolves.toBe(true)
-        expect(agent!.session.events.filter((event: unknown) => isScheduleChange(event, 'create'))).toHaveLength(1)
-        expect(agent!.session.events.filter((event: unknown) => isScheduleChange(event, 'dispatch'))).toHaveLength(1)
-        expect(agent!.session.events.filter((event: unknown) => isScheduleMessage(event))).toHaveLength(1)
+        expect(agent!.session.snapshotEvents().filter((event: unknown) => isScheduleChange(event, 'create'))).toHaveLength(1)
+        expect(agent!.session.snapshotEvents().filter((event: unknown) => isScheduleChange(event, 'dispatch'))).toHaveLength(1)
+        expect(agent!.session.snapshotEvents().filter((event: unknown) => isScheduleMessage(event))).toHaveLength(1)
         await vi.waitFor(() => {
           const records = outboundRecords(second)
             .filter(record => record.kind === 'turn' && record.replyToExternalId === undefined)
@@ -104,7 +107,12 @@ describe.skipIf(process.platform !== 'darwin')('native Schedule cold restart thr
         await second.fiber.dispose()
       }
 
-      const third = await boot('dsh-feishu-schedule-restart-3', config)
+      const third = await bootLatestDshProfile({
+        binName: 'dsh-feishu-schedule-restart-3',
+        configPath: config,
+        dshSourceDir,
+        home: join(root, '.dsh-home'),
+      })
       try {
         const service = requireFeishuService(third)
         const agent = third.agents.get('main')
@@ -113,8 +121,8 @@ describe.skipIf(process.platform !== 'darwin')('native Schedule cold restart thr
         await new Promise(resolve => setTimeout(resolve, 250))
         await expect(third.sessions.flush(agent!.session)).resolves.toBe(true)
         expect(service.platform.texts).toHaveLength(0)
-        expect(agent!.session.events.filter((event: unknown) => isScheduleChange(event, 'dispatch'))).toHaveLength(1)
-        expect(agent!.session.events.filter((event: unknown) => isScheduleMessage(event))).toHaveLength(1)
+        expect(agent!.session.snapshotEvents().filter((event: unknown) => isScheduleChange(event, 'dispatch'))).toHaveLength(1)
+        expect(agent!.session.snapshotEvents().filter((event: unknown) => isScheduleMessage(event))).toHaveLength(1)
         const records = outboundRecords(third)
           .filter(record => record.kind === 'turn' && record.replyToExternalId === undefined)
         expect(records).toEqual([expect.objectContaining({ status: 'delivered', attempts: 1 })])
@@ -163,10 +171,12 @@ describe.skipIf(process.platform !== 'darwin')('native Schedule cold restart thr
     const previousCwd = process.cwd()
     process.chdir(root)
     try {
-      const { boot } = await import(pathToFileURL(
-        join(dshSourceDir, 'packages', 'boot', 'app-boot', 'lib', 'index.js'),
-      ).href)
-      const recovered = await boot('dsh-feishu-schedule-dispatch-crash-recovery', config)
+      const recovered = await bootLatestDshProfile({
+        binName: 'dsh-feishu-schedule-dispatch-crash-recovery',
+        configPath: config,
+        dshSourceDir,
+        home: join(root, '.dsh-home'),
+      })
       try {
         const service = requireFeishuService(recovered)
         const agent = recovered.agents.get('main')
@@ -177,9 +187,9 @@ describe.skipIf(process.platform !== 'darwin')('native Schedule cold restart thr
 
         expect(service.platform.texts).toHaveLength(0)
         expect((await readFile(join(root, 'platform-effects.jsonl'), 'utf8')).trim().split('\n')).toHaveLength(1)
-        expect(agent!.session.events.filter((event: unknown) => isScheduleChange(event, 'create'))).toHaveLength(1)
-        expect(agent!.session.events.filter((event: unknown) => isScheduleChange(event, 'dispatch'))).toHaveLength(1)
-        expect(agent!.session.events.filter((event: unknown) => isScheduleMessage(event))).toHaveLength(1)
+        expect(agent!.session.snapshotEvents().filter((event: unknown) => isScheduleChange(event, 'create'))).toHaveLength(1)
+        expect(agent!.session.snapshotEvents().filter((event: unknown) => isScheduleChange(event, 'dispatch'))).toHaveLength(1)
+        expect(agent!.session.snapshotEvents().filter((event: unknown) => isScheduleMessage(event))).toHaveLength(1)
         expect(outboundRecords(recovered)
           .filter(record => record.kind === 'turn' && record.replyToExternalId === undefined))
           .toEqual([expect.objectContaining({
@@ -201,18 +211,18 @@ function hostConfig(root: string, presetRoot: string, textEffectPath?: string): 
   return [
     {
       id: 'cli-mock-llm',
-      name: join(dshSourceDir, 'examples', 'headless-agent', 'tests', 'fixtures', 'cli-mock-llm.ts'),
+      name: join(dshSourceDir, 'packages', 'test-support', 'loader-smoke', 'tests', 'fixtures', 'cli-mock-llm.ts'),
     },
     {
       id: 'base',
       name: join(dshSourceDir, 'vendor', 'include', 'lib', 'index.js'),
       config: {
-        path: join(dshSourceDir, 'examples', 'headless-agent', 'cordis.yml'),
+        path: join(dshSourceDir, 'packages', 'bundle', 'base', 'cordis.patch.yml'),
         patches: [
           { id: 'llm-deepseek', name: '@deepseek-ai/dsh-llm-deepseek', disabled: true },
           {
-            id: 'agent-spine',
-            name: '@deepseek-ai/dsh-agent-spine-demo',
+            id: 'agent-loop',
+            name: '@deepseek-ai/dsh-agent-loop',
             config: {
               agents: [],
               workspaceContext: false,
@@ -223,11 +233,11 @@ function hostConfig(root: string, presetRoot: string, textEffectPath?: string): 
             },
           },
           {
-            id: 'persistence',
+            id: 'session-persistence-jsonl',
             name: '@deepseek-ai/dsh-session-persistence-jsonl',
             config: { root: join(root, 'sessions'), compression: 'none' },
           },
-          { id: 'checkpoint-policy', name: '@deepseek-ai/dsh-session-checkpoint-policy', disabled: true },
+          { id: 'session-checkpoint-policy', name: '@deepseek-ai/dsh-session-checkpoint-policy', disabled: true },
         ],
       },
     },

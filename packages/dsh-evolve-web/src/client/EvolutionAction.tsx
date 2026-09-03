@@ -1,5 +1,4 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import type { SessionListState } from '@deepseek-ai/dsh-client-runtime/client'
 import type { ControlSurfaceProps } from 'dsh-control-center/client'
 import type {
   EvolutionActionReceipt,
@@ -20,11 +19,14 @@ export type EvolutionSurfaceProps = Pick<ControlSurfaceProps, 'sessionId' | 'use
   readonly onPendingChange?: (count: number) => void
 }
 
+/** Minimal structural state kept for the deprecated pre-Control-Center wrapper. */
+type LegacySessionListState = { readonly current?: string }
+
 /** @deprecated Compatibility export for older embedders; the active package no longer registers this slot. */
 export type EvolutionActionProps = {
   readonly remote: EvolutionRemoteClient
   readonly t: (key: string) => string
-  readonly useSessions: <S>(selector: (state: SessionListState) => S) => S
+  readonly useSessions: <S>(selector: (state: LegacySessionListState) => S) => S
   readonly useWorkspaces: EvolutionSurfaceProps['useWorkspaces']
   readonly wide?: boolean
 }

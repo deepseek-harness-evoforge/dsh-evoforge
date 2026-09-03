@@ -33,7 +33,7 @@ describe.skipIf(process.platform !== 'darwin')('native DSH Workspace-owned evolu
     const canonicalA = await realpath(workspaceAPath)
     const canonicalB = await realpath(workspaceBPath)
     const baseline = skillSource('Baseline native Workspace instructions.')
-    const configPath = join(root, 'cordis.yml')
+    const configPath = join(root, 'native-workspace.patch.yml')
     await writeFile(configPath, JSON.stringify(hostConfig({
       root,
       workspacePaths: [workspaceAPath, workspaceBPath],
@@ -41,13 +41,10 @@ describe.skipIf(process.platform !== 'darwin')('native DSH Workspace-owned evolu
     vi.stubEnv('DSH_AGENTS_HOME', join(root, '.agents-home'))
     vi.stubEnv('DSH_HOME', join(root, '.dsh-home'))
     vi.stubEnv('DSH_TELEMETRY_DISABLED', '1')
-    const { boot } = await import(pathToFileURL(
-      join(dshSourceDir, 'packages', 'boot', 'app-boot', 'lib', 'index.js'),
-    ).href)
     const previousCwd = process.cwd()
     process.chdir(root)
     try {
-      const first = await boot('dsh-native-workspace-evolution-test-1', configPath)
+      const first = await bootLatestHeadlessProfile('dsh-native-workspace-evolution-test-1', root, configPath)
       let workspaceAId: string
       let workspaceBId: string
       try {
@@ -108,7 +105,7 @@ describe.skipIf(process.platform !== 'darwin')('native DSH Workspace-owned evolu
         await first.fiber.dispose()
       }
 
-      const second = await boot('dsh-native-workspace-evolution-test-2', configPath)
+      const second = await bootLatestHeadlessProfile('dsh-native-workspace-evolution-test-2', root, configPath)
       try {
         const fixture = second.get('evoforge.nativeWorkspaceEvolutionFixture') as {
           workspaceIds: readonly [string, string]
@@ -133,60 +130,86 @@ function hostConfig(input: {
   workspacePaths: readonly [string, string]
 }): unknown[] {
   return [
+    { id: 'llm-deepseek', disabled: true },
+    { id: 'headless-startup', disabled: true },
+    { id: 'headless-runner', disabled: true },
     {
-      id: 'cli-mock-llm',
-      name: join(dshSourceDir, 'examples', 'headless-agent', 'tests', 'fixtures', 'cli-mock-llm.ts'),
-    },
-    {
-      id: 'base',
-      name: join(dshSourceDir, 'vendor', 'include', 'lib', 'index.js'),
+      id: 'agent-loop',
       config: {
-        path: join(dshSourceDir, 'examples', 'headless-agent', 'cordis.yml'),
-        patches: [
-          { id: 'llm-deepseek', name: '@deepseek-ai/dsh-llm-deepseek', disabled: true },
-          {
-            id: 'agent-spine',
-            name: '@deepseek-ai/dsh-agent-spine-demo',
-            config: {
-              agents: [],
-              workspaceContext: false,
-              dshHome: join(input.root, '.dsh-home'),
-              skills: { filesystem: { agentsHome: join(input.root, '.agents-home') } },
-              invariants: { package_blocklist: ['^@deepseek-ai/dsh-scope$'] },
-              persona: 'Keyless native Workspace evolution isolation smoke.',
-            },
-          },
-          {
-            id: 'persistence',
-            name: '@deepseek-ai/dsh-session-persistence-jsonl',
-            config: { root: join(input.root, 'sessions'), compression: 'none' },
-          },
-          { id: 'checkpoint-policy', name: '@deepseek-ai/dsh-session-checkpoint-policy', disabled: true },
-        ],
+        agents: [],
+        workspaceContext: false,
+        dshHome: join(input.root, '.dsh-home'),
+        skills: { filesystem: { agentsHome: join(input.root, '.agents-home') } },
+        invariants: { package_blocklist: ['^@deepseek-ai/dsh-scope$'] },
+        persona: 'Keyless native Workspace evolution isolation smoke.',
       },
     },
-    { id: 'storage', name: join(dshSourceDir, 'packages', 'storage', 'storage', 'lib', 'index.js') },
     {
-      id: 'storage-json',
-      name: join(dshSourceDir, 'packages', 'storage', 'storage-json', 'lib', 'index.js'),
-      config: { root: join(input.root, 'evolution-storage') },
+      id: 'session-persistence-jsonl',
+      config: { root: join(input.root, 'sessions'), compression: 'none' },
     },
+    { id: 'session-checkpoint-policy', disabled: true },
     {
-      id: 'storage-domain',
-      name: join(dshSourceDir, 'packages', 'storage', 'storage-domain', 'lib', 'index.js'),
-      config: { backend: 'json' },
-    },
-    { id: 'commands', name: join(dshSourceDir, 'packages', 'interaction', 'commands', 'lib', 'index.js') },
-    { id: 'workspace', name: join(dshSourceDir, 'packages', 'workspace', 'workspace', 'lib', 'index.js') },
-    {
-      id: 'native-workspace-evolution-bootstrap',
-      name: join(packageRoot, 'test', 'fixtures', 'native-workspace-evolution-bootstrap.ts'),
-      config: {
-        cacheRoot: join(input.root, 'cache'),
-        workspacePaths: input.workspacePaths,
-      },
+      insert: [
+        {
+          id: 'workspace',
+          name: '@deepseek-ai/dsh-workspace',
+        },
+        {
+          id: 'cli-mock-llm',
+          name: join(dshSourceDir, 'packages', 'test-support', 'loader-smoke', 'tests', 'fixtures', 'cli-mock-llm.ts'),
+        },
+        {
+          id: 'native-workspace-evolution-bootstrap',
+          name: join(packageRoot, 'test', 'fixtures', 'native-workspace-evolution-bootstrap.ts'),
+          config: {
+            cacheRoot: join(input.root, 'cache'),
+            workspacePaths: input.workspacePaths,
+          },
+        },
+      ],
     },
   ]
+}
+
+/**
+ * Compose and boot the latest DSH shipped profile rather than embedding a
+ * stale base bundle path in this fixture. The source checkout is pinned by
+ * the test runner before Vitest starts; this helper keeps profile composition
+ * aligned with that exact revision and makes alpha upgrades fail loudly.
+ */
+async function bootLatestHeadlessProfile(
+  binName: string,
+  root: string,
+  overlayPath: string,
+): Promise<any> {
+  const appBoot = await import(pathToFileURL(
+    join(dshSourceDir, 'packages', 'boot', 'app-boot', 'lib', 'index.js'),
+  ).href)
+  const installAnchor = join(dshSourceDir, 'apps', 'cli', 'package.json')
+  const home = join(root, '.dsh-home')
+  const profile = appBoot.loadProfile(binName, 'headless', installAnchor, home, { userLayer: false })
+  await appBoot.healProfilesModuleFallback({ installAnchor, profile })
+  // Keep the composed root beside the profile-owned module fallback. DSH's
+  // bare-module resolver intentionally resolves from this profile directory;
+  // placing the generated document in the temporary test root bypasses that
+  // resolver and makes every base bundle appear missing.
+  const basePath = join(profile.dir, 'cordis.yml')
+  await writeFile(basePath, '[]\n')
+  const overlayPatches = appBoot.loadOverlayPatches(binName, overlayPath)
+  const config = appBoot.renderConfigDump(
+    binName,
+    basePath,
+    [
+      ...profile.layers.map((layer: { packageName: string; patches: unknown[] }) => ({
+        label: layer.packageName,
+        patches: layer.patches,
+      })),
+      { label: overlayPath, patches: overlayPatches },
+    ],
+  )
+  await writeFile(basePath, config)
+  return await appBoot.boot(binName, basePath)
 }
 
 async function createAgent(ctx: any, sessionId: string, cwd: string) {
@@ -201,7 +224,7 @@ async function runAgent(agent: any, suffix: string): Promise<void> {
   const { freezeMessage, MessageId } = await import(pathToFileURL(
     join(dshSourceDir, 'packages', 'llm', 'llm', 'lib', 'index.js'),
   ).href)
-  const priorTurns = agent.session.events.filter((event: { type: string }) => event.type === 'turn/end').length
+  const priorTurns = agent.session.snapshotEvents().filter((event: { type: string }) => event.type === 'turn/end').length
   agent.followup(freezeMessage({
     id: MessageId(`native:workspace-evolution:${suffix}`),
     role: 'user',
@@ -209,7 +232,7 @@ async function runAgent(agent: any, suffix: string): Promise<void> {
     source: { kind: 'user' },
   }))
   await vi.waitFor(() => {
-    expect(agent.session.events.filter((event: { type: string }) => event.type === 'turn/end').length)
+    expect(agent.session.snapshotEvents().filter((event: { type: string }) => event.type === 'turn/end').length)
       .toBe(priorTurns + 1)
   }, { timeout: 15_000, interval: 25 })
 }

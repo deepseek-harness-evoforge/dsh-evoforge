@@ -7,6 +7,7 @@ import { DshGateway } from './gateway.js'
 import { GatewayRemoteService } from './gateway-remote.js'
 import { openGatewayPairingAuthority, type GatewayPairingAuthority } from './pairing.js'
 import { resolveGatewayRoutes, type GatewayRouteConfig } from './routing.js'
+export { sessionEvents } from './session-log.ts'
 
 export const name = 'dsh-gateway'
 export const inject = [

@@ -5,7 +5,7 @@ import {
   assertSupportedDshTarget,
 } from './run-dsh-compatibility-matrix.mjs'
 
-test('admits only the two audited DSH revision/version pairs', () => {
+test('admits only the current audited DSH revision/version pair', () => {
   for (const [revision, version] of Object.entries(SUPPORTED_DSH_TARGETS)) {
     assert.deepEqual(
       assertSupportedDshTarget({ revision, version, dirty: '' }),

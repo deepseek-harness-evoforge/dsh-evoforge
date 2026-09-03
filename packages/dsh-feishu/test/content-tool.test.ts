@@ -1,6 +1,6 @@
 import { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
-import { CallId } from '@deepseek-ai/dsh-llm'
+import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import ApprovalService, { type ApprovalOutcome } from '@deepseek-ai/dsh-user-approval'
@@ -53,7 +53,7 @@ describe('native Feishu content Tool', () => {
     const dispose = installFeishuContentTool(agent, policy(['document-read']), reader)
 
     const result = await ctx.tools.execute({
-      callId: CallId('content-1'),
+      callId: ToolCallId('content-1'),
       name: FEISHU_CONTENT_TOOL,
       arguments: { kind: 'document', token_or_url: 'doxcnDocument123' },
       agent,
@@ -93,7 +93,7 @@ describe('native Feishu content Tool', () => {
     installFeishuContentTool(agent, policy(['document-read']), reader)
 
     const result = await ctx.tools.execute({
-      callId: CallId('content-denied'),
+      callId: ToolCallId('content-denied'),
       name: FEISHU_CONTENT_TOOL,
       arguments: { kind: 'wiki', token_or_url: 'wikcnNode123' },
       agent,
@@ -114,7 +114,7 @@ describe('native Feishu content Tool', () => {
     installFeishuContentTool(agent, policy(['bitable-records-read']), reader)
 
     const result = await ctx.tools.execute({
-      callId: CallId('content-rejected'),
+      callId: ToolCallId('content-rejected'),
       name: FEISHU_CONTENT_TOOL,
       arguments: {
         kind: 'bitable',
@@ -137,7 +137,7 @@ describe('native Feishu content Tool', () => {
     installFeishuContentTool(agent, policy(['document-read']), reader)
 
     const result = await ctx.tools.execute({
-      callId: CallId('content-no-approval'),
+      callId: ToolCallId('content-no-approval'),
       name: FEISHU_CONTENT_TOOL,
       arguments: { kind: 'document', token_or_url: 'doxcnDocument123' },
       agent,
@@ -156,7 +156,7 @@ describe('native Feishu content Tool', () => {
     installFeishuContentTool(agent, policy(['drive-metadata-read']), reader)
 
     const result = await ctx.tools.execute({
-      callId: CallId('content-invalid'),
+      callId: ToolCallId('content-invalid'),
       name: FEISHU_CONTENT_TOOL,
       arguments: { kind: 'drive', token_or_url: 'boxcnFile123' },
       agent,
@@ -192,7 +192,8 @@ async function harness(withApproval = true): Promise<{
   ]
   const session = {
     id: 'feishu-content-test',
-    events,
+    get seq() { return events.length },
+    eventAt: (seq: number) => events[seq],
     requestHeader: () => undefined,
     append(type: string, data: Record<string, unknown>) {
       const event = { type, data }

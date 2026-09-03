@@ -1,223 +1,86 @@
 # DeepSeek Harness EvoForge
 
-**EvoForge 是安装进 DeepSeek Harness 的原生 out-of-tree 插件套件，不是独立 Harness、Runtime、CLI、Web 服务或 daemon。** DSH 始终是唯一 Agent Host，以及 Session、Goal、Approval、Storage、Jobs、Skill、Tool、Workspace 和 Cordis 生命周期权威。
+EvoForge 是一组安装到 [DeepSeek Harness（DSH）](https://github.com/deepseek-ai/deepseek-harness) 的原生插件。它把常驻渠道、可追踪的内部经验进化、软件交付和统一 Web 控制面接到 DSH 的 Bundle、Cordis、Agent、Session、Goal、Skill、Tool、Approval、Jobs 和 Workspace 上。
 
-当前兼容性证据固定在两组官方 DeepSeek Harness revision：`47f943859bef60e4160492346772ded9b24f765a`（`0.1.0-rc.5`）和 `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`（`0.1.1-rc.2`）。十二个内部 Bundle 均通过 revision/version/clean-source 锁定的安装、升级、原生 Agent/Goal/Gap、飞书 assembled 路径与卸载 readback 矩阵；用户可按[能力套件](docs/capability-suites.zh.md)精简安装。rc.2 仍只有原生栅格图片附件，DeepSeek Files API 也只承载图片请求，不能据此宣称飞书普通文件、音频或视频已进入 DSH Session。项目仍为 pre-alpha，尚未发布 registry release；当前真实安装路径是本地 tarball 加 DSH 官方 profile 命令。
+DSH 仍然是唯一的 Agent Host 和状态权威。EvoForge 不是 Codex 插件，不 fork DSH，不另造 Session、Goal、Agent Runtime、Scheduler、权限系统或插件市场。
 
-## 当前能力套件
+## 当前状态
 
-| 能力套件 | 内部 Bundle | 适合结果 |
+项目目前是 `pre-alpha`：源码、测试和本地 tarball 安装路径可供开发者复现，但尚未发布 registry 稳定包，也还没有声明已经完成 Hermes 上位替代。推荐固定使用 DSH 公开 tag `dsh-v0.1.2-alpha.5`（revision `db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`）。每次开发和测试都必须先核对 DSH revision、版本和 clean worktree。
+
+当前尚未关闭的发布门包括：真实飞书完整 AS-2、两套独立真实 provider、同任务同模型同权限同预算的 Hermes paired benchmark、长期负迁移/遗忘数据，以及真实浏览器成功/失败/恢复的完整路径。门禁未全部通过前，不应把本项目当作稳定生产发行版。
+
+## 能力套件
+
+用户只需要选择结果，不需要理解内部 Bundle 数量：
+
+| 套件 | 提供的结果 | 内部包 |
 |---|---|---|
-| `core` | `dsh-evolve` + `dsh-doctor` + `dsh-control-center` + `dsh-evolve-web` | 自我进化、诊断和原生 DSH Web 控制面 |
-| `channels` | `dsh-gateway` + `dsh-feishu` + `dsh-telegram` | 飞书/Telegram 常驻配对、路由和持久投递 |
-| `delivery` | `dsh-software-delivery` + `dsh-github-review` | 隔离交付、Draft PR 和 review 跟进 |
-| `continuity` | `dsh-goal-continuity` + `dsh-resident` | Goal 冷恢复与用户级常驻 |
-| `attention`（可选） | `dsh-evolve-attention` | 已配置渠道上的进化提醒 |
-| `evolution` / `control` / `gateway`（兼容） | 原有对应 Bundle | 旧安装脚本兼容；新安装使用 `core` 或 `channels` |
-| `full` | 全部十二个内部 Bundle | 维护者和完整验收 |
+| `core` | 自我进化证据链、诊断和 DSH Web 控制面 | `dsh-evolve`、`dsh-doctor`、`dsh-control-center`、`dsh-evolve-web` |
+| `channels` | 常驻 Gateway、飞书/Telegram 配对、路由和持久投递 | `dsh-gateway`、`dsh-feishu`、`dsh-telegram` |
+| `delivery` | 原生 Skill/Tool 软件交付、隔离验证、Draft PR 和 GitHub review | `dsh-software-delivery`、`dsh-github-review` |
+| `continuity` | Goal 冷恢复和用户级 DSH profile 常驻 | `dsh-goal-continuity`、`dsh-resident` |
 
-这些套件不是第二个安装器：每个名称最终都展开为 DSH 官方 `dsh plugin` 的真实 tarball。内部包之所以仍独立，是因为它们拥有不同的生命周期、权限、外部依赖或可卸载边界；精简的是用户入口，不是把必要边界合并成巨型 Bundle。`channels` 不再强制安装 Web 控制面或通知层。详见[套件边界与精简理由](docs/capability-suites.zh.md)。
-`pnpm run pack:suite` 省略 `--suite` 时默认只生成 `core`；完整十二包必须显式使用 `pnpm run pack:full`。
-只需要一个消息渠道时，可用 `pnpm run pack:suite -- --suite channels --channel feishu --out /tmp/evoforge-packs`
-（或 `telegram`）只打包 Gateway 和对应 Adapter。
+`attention` 是可选提醒层；`evolution`、`control`、`gateway` 是兼容/高级入口；`full` 只给维护者做完整验收。内部包保持独立，是因为它们的生命周期、权限和外部依赖不同，必须能够单独启停、卸载和审计；用户入口已经收敛，不需要安装者逐个管理十二个包。详见[套件边界](docs/capability-suites.zh.md)。
 
-当前活动进化纵切只使用 DSH 内部经验：Goal-linked Gap 与跨 Goal Skill Opportunity 经生成前证据密封后，产生隔离、内容寻址的 whole-Skill Candidate；用户不选路径、Agent、workflow、Skill 或来源，产品不建设运行时外部 Skill 搜索、获取、下载、导入或市场。missing-Skill 路径已有 Candidate-independent admission/holdout/可选 Retention、exact Shadow/Retention、future-Session Promotion、failed-Outcome Canary 和人工精确回滚，所有评测结果本身均无 pointer 或发布权。
+## 安装
 
-V4.50 又把真实原生 Skill Tool 的成功调用在 Session durability checkpoint 后绑定到 active Goal、模型可见内容哈希和 Session-pinned Generation；只有同一 exact 版本覆盖至少两个不同 Goal 才显示跨 Goal 复用。同 Goal retry、同名内容漂移和不同 Generation 不合并。该事实已从最终 tarball 在真实 DSH Web 验证整页刷新、Host 冷启动恢复和官方卸载，但它固定无因果、无发布权，不能单独证明成功、提升或自进化。
-
-V4.51 再把该 exact 跨 Goal 版本与同 Session/Goal/Generation、发生在使用之后的 durable Delivery Outcome 做只读时间关联。Web 可显示缺失结果、交付尝试、重复交付、后续恢复、latest 冲突拒答，以及最新结果的 token/cache/时延；不会输出“Skill 成功率”，也不参与 Candidate、晋升或回滚。最终 tarball 已验证整页刷新、Host 停机时失败可见且保留证据、同 profile 冷恢复不重复计数和官方卸载。
-
-V4.52 在同一只读投影中量化相邻交付尝试之间的新增工作：只有时间严格有序、DSH Goal metrics 同源同 Goal、event seq 前进且累计计数单调时才相减；并列、缺失或回退均 abstain。DSH Web 显示 ordered/measured/unmeasured/ambiguous 以及新增 turns、steps、token、cache、时延和 active wall；最终 tarball 已验证刷新、断连保留、同 profile 冷恢复、reload、卸载及原生 Web 无残留。这些仍是时间上下文，不是返工成本或 Skill 因果效果，也不改变任何发布资格。
-
-V4.53 已把同一 exact Skill 版本在至少两个不同 Goal 上的唯一 latest failed 投影成可撤回的失败上下文调查；同 Goal retry、后来恢复、missing/unknown 和 latest 冲突不会凑数。Command 与 DSH Web 明示这只是因果复核请求，没有 Candidate、晋升、回滚或发布权。最终 tarball 已验证 1 eligible/2 latest-failed、刷新、断连保留、同 profile 冷恢复不重复、reload、官方卸载及原生 Web 无残留，详见 [V4.53 证据](docs/evidence/v4-53-exact-skill-failure-context-investigation.zh.md)。
-
-V4.54 已删除活动治理包和 Shadow 报告中残留的 `search` 语义：治理作者输出现在是内部证据说明 `evidenceRationale`，落盘到 `evidence/rationale.md`；Candidate 执行前的路径/身份拒绝明确归类为 `structural-admission`。该增量没有增加外部 Skill 搜索、能力获取或市场入口，也不构成真实 provider 效果证据，详见 [V4.54 证据](docs/evidence/v4-54-remove-runtime-search-semantics.zh.md)。
-
-V4.55 已增加仓库级 RP-1 双真实 Provider 验收入口，直接编排现有 Opportunity、Evidence Seal、whole-Skill Candidate、Candidate-blind Governance、Admission、assembled Shadow 与 Retention 模块。它不是新插件或运行时；未明确批准付费请求时会在读取 Provider 配置前返回 `NOT_RUN`。当前只完成合同、类型与无调用门禁，尚无第二套独立 Provider，也没有真实模型结果，详见 [RP-1 说明](benchmarks/provider-v0.1/rp1-internal-skill-evolution/README.zh.md)与 [V4.55 证据](docs/evidence/v4-55-real-provider-acceptance-gate.zh.md)。
-
-V4.56 修复了真实 Provider 路径审计发现的可靠性缺口：缺失 Skill admission/holdout/Retention 治理作者与现有 Skill holdout/Retention 治理作者的 HTTP 请求现在始终有 60 秒 wall-clock 上限，并与 Host 传入的取消信号组合。请求前持久化、超时后 `uncertain`、同一付费调用不盲重试的既有语义保持不变；本增量没有发起外部请求，也不是 Provider 效果证据，详见 [V4.56 证据](docs/evidence/v4-56-bounded-governance-provider-requests.zh.md)。
-
-V5.7 把渠道外部发送的可靠性收回 `dsh-gateway` 深模块：每个 Adapter 注册都必须声明 wall-clock send 上限；超时或 Cordis dispose 即使遇到不合作的 Adapter Promise，也会把 durable `sending` 收敛为 `uncertain` 并禁止自动重发。Telegram 与飞书当前均为 30 秒；飞书文本和 Approval 卡片还把组合 signal 传入官方 HTTP transport。该增量不新增 Gateway 业务、模型表面或真实平台效果，详见 [V5.7 证据](docs/evidence/v5-7-bounded-channel-delivery.zh.md)。
-
-V5.8 增加阶段专用 AS-2 真实飞书验收入口：显式授权后，它把当前 clean `main` 的最终 `dsh-gateway`/`dsh-feishu` tarball 安装到隔离 DSH `web` profile，以生产飞书 transport 验证 exact 入站、原生回复、`/feishu`、一次性 Approval、持久 notice、dispose、官方卸载与 Session readback。未授权时不读取 App/chat/user/Secret，也不加载执行模块；该阶段当时无凭据，真实状态严格为 `NOT_RUN`。详见 [AS-2 说明](benchmarks/feishu-v0.1/as2-real-channel/README.zh.md)与 [V5.8 证据](docs/evidence/v5-8-real-feishu-acceptance-gate.zh.md)。
-
-V5.9 修正 `/doctor` 的渠道误报：必需且 active 的 `dsh-feishu`/`dsh-telegram` 现在还要通过现有 Gateway
-脱敏 transport health 才能 READY，degraded/缺失为 NOT READY，连接或停止过程中为 UNKNOWN。最终 Doctor
-tarball 已在真实 DSH Loader 中验证 degraded→Cordis reload→ready→remove；该确定性 Adapter 不构成真实平台
-证据，AS-2 状态仍为 `NOT_RUN`。详见 [V5.9 证据](docs/evidence/v5-9-doctor-channel-readiness.zh.md)。
-
-V5.10 让每次真正改变 future-Session Generation 的晋升/回滚，都与活动指针在同一 Workspace Storage 写入中
-原子保留内容寻址历史，并绑定内部 Retention、existing-Skill Release、显式人工或两类 Canary 的 exact evidence。
-DSH Web 显示有界前后版本、authority 和分类计数，明确不作效果声明、不授予发布权。最终 `dsh-evolve`/
-`dsh-evolve-web` tarball 已在全新 profile 完成真实 Web 晋升→reload→Host 冷重启→Canary 回滚→reload→再次
-冷重启→官方卸载→原生 Web readback，console error 为 0。详见 [V5.10 证据](docs/evidence/v5-10-generation-selection-history.zh.md)。
-
-V5.11 在这条不可变选择历史上增加有界、只读的 post-selection Outcome 窗口：每次选择之后、下次选择之前的
-durable Outcome 按 Session 实际固定的 Generation 分为 selected/previous/other，并显示 Goal、结果、token、cache、
-latency 与 active-wall；边界相等只记歧义，选择时间不严格递增则 abstain。最终 tarball 已从真实 DSH Session
-验证 Web 晋升、断线保留、两次冷恢复、整页 reload、官方卸载与原生 Web readback。该投影固定无因果、无 mutation
-authority，详见 [V5.11 证据](docs/evidence/v5-11-post-selection-outcome-window.zh.md)。
-
-V5.12 在 existing-Skill sole release owner 内增加 Workspace-only 的低风险自动晋升：只接受 exact baseline 上
-单一 `SKILL.md` 末尾追加、整包其余 bytes 不变、无 protected-effect 且 paired Holdout/独立 Retention 的
-model/token/cache 不回退的 Candidate。decision 与 inactive Generation 先持久化，再只选择未来 Session；原生
-Jobs 只唤醒，Web 刷新不触发 mutation。最终 tarball 已在全新 DSH profile 验证自动晋升、整页刷新、Host
-断线保留、同 profile 冷恢复、官方卸载和原生 Web 无残留。真实 provider 长期误晋升率与 Hermes paired 仍是
-发布阻断项，详见 [V5.12 证据](docs/evidence/v5-12-existing-skill-automatic-promotion.zh.md)。
-
-V5.13 修复了冻结 Hermes `EV-1` 的可重放性偏差：旧 runner 仍导入已经删除的 `GitSkillSource`，实际无法运行；
-现在 DSH 一侧只发布 canonical `skill-bundle`，经 `GenerationBundleRepository` 重验后执行 future-Session 晋升、
-跨 Workspace 拒绝、expected-active 回滚和 Storage 重启。四个确定性 Hermes epoch 已重新完整通过，冻结结果未被
-改写；根级 `pnpm check` 新增 EV-1 类型门，防止活动模块再次被 benchmark 的旧架构引用。该修复不替代真实模型、
-真实渠道或长期 paired 证据，详见 [V5.13 证据](docs/evidence/v5-13-hermes-ev1-content-addressed-replay.zh.md)。
-
-V5.14 补齐了此前缺失的整套升级门：从冻结 V5.11 revision 打出历史十一包，在原生 DSH Agent/Goal 中写入
-内部 Gap，再用当前十一包最终 tarball 经官方 CLI 原位升级。新版读回旧证据，并以第二个不同 Goal 形成同一
-Skill Opportunity；Bundle/配置无重复，全部卸载后两条原生 Session/Goal 仍可读。该门是 pre-release migration
-floor，不冒充真实发布 tag→tag、真实 Provider 或真实飞书验收，详见 [V5.14 证据](docs/evidence/v5-14-suite-upgrade-lifecycle.zh.md)。
-
-V5.16 把 rc.2 从只读审计目标纳入显式支持矩阵，并继续保留 rc.5：peer range 只允许这两个 exact 版本；矩阵
-拒绝未知 revision、版本错配和 tracked dirty。兼容实现覆盖 rc.2 Command 图片参数、AttachmentStore 整批图片
-保存、`originalDimensions` 与规范化后内容身份；两版均通过十一包 fresh-install/升级/卸载、原生
-Goal→Agent Loop→Gap、future-Session 固定/回滚及飞书聊天/内容 Approval/全通道缓存组合。该门不替代真实飞书、
-真实 Provider、长期 Outcome 或同条件 Hermes paired，详见 [V5.16 证据](docs/evidence/v5-16-dsh-dual-version-compatibility-matrix.zh.md)。
-
-V5.17 用两个真实子进程和 `SIGKILL` 补齐 Delivery Outcome 的两个持久化窗口。真实 DSH Agent/Goal 通过正式
-`complete_delivery` Tool 执行一个持久外部效果探针：Session checkpoint 前死亡不会伪造 Session/Outcome；Session
-已落盘但 Outcome 尚未投影时死亡，冷启动只从 source-linked call/result 补记一次 Outcome，不调用模型、不重跑
-Tool，外部效果始终只有一次。详见 [V5.17 证据](docs/evidence/v5-17-delivery-outcome-process-crash.zh.md)。
-
-V5.18 删除了飞书 assembled chat 中用手工 `agent.followup()` 冒充 Schedule 的旧证据。测试现在真正加载 DSH
-官方 Schedule，通过 agent-scoped `schedule_create` 形成 Session create/dispatch 与到期 follow-up，再由既有
-Gateway durable `turn` intent 等待原生 `turn/end` 后只回送一次 exact 飞书线程。该增量没有增加第二 scheduler、
-Gateway 业务或 Feishu 私有日程状态；真实飞书 direct/group 仍为 `NOT_RUN`。详见
-[V5.18 证据](docs/evidence/v5-18-native-schedule-feishu-delivery.zh.md)。
-
-V5.19 把同一路径推进到真实进程故障：子进程在 `schedule_create` 已完成官方 Session flush、dispatch 前被
-`SIGKILL`；第二个 Host 由静态 Gateway route 恢复 exact Session，官方 Schedule 处理 overdue 并只向飞书线程
-投递一次，第三个 Host 不重放模型 turn、Schedule message、Gateway intent 或发送。新增门禁在 exact rc.5/rc.2
-分别通过且没有修改生产 runtime；官方 followup→dispatch checkpoint 窄重复窗口仍未解决。详见
-[V5.19 证据](docs/evidence/v5-19-native-schedule-process-restart.zh.md)。
-
-V5.20 又覆盖官方 followup→dispatch checkpoint 窄窗口：测试先阻塞包含 dispatch 的 JSONL batch，等模型 turn
-和第一条独立平台效果已经发生后 `SIGKILL`。恢复 Schedule 会重跑非 durable turn，但 append-only Session
-顺序使 turn 号不变，Gateway 复用同一 durable intent，恢复平台发送 0 次、跨进程效果总数 1。rc.5/rc.2 均
-通过，未增加 Schedule parser、causal key 或私有状态；模型与成本仍可能重复。详见
-[V5.20 证据](docs/evidence/v5-20-schedule-dispatch-crash-outbound-dedup.zh.md)。
-
-V5.21 将真实飞书 AS-2 从 epoch-1 升到 epoch-2：最终包的活动组合先加载官方 DSH Schedule，再由 Gateway
-创建 exact route Agent；验收器通过 agent-scoped `schedule_create` 要求 Session 中同时出现 create、dispatch、
-Schedule 插件来源的 `user/message`，且生产飞书 route 的 durable delivered 计数必须增加。卸载后原生 Session 仍须读回这些事实。
-终态解码器关闭十一项 observation，缺 Schedule、旧 epoch 或损坏报告不能复用；合同 9/9、类型与 Feishu
-52/52 已通过。真实 App 长连接已启动，exact route 配对尚未完成，因此 direct/group 仍严格为 `NOT_RUN`。详见
-[V5.21 证据](docs/evidence/v5-21-real-feishu-native-schedule-gate.zh.md)。
-
-V5.22 按 Hermes 当前源码纠正为 resident Gateway 配对：`dsh-feishu` 在 Bundle boot 即连接，陌生私聊在
-Agent 前收到短期 code，管理员从 DSH Web Host 控制面批准到当前 native Workspace/Session；不再使用 Session
-`/feishu-pair`、两分钟 listener、反向短语或 profile rewrite。最终 tarball 已在真实 rc.2 App 完成
-DM→code→Host approve、普通文本/原生 `/new`/普通文本三次 native Session 入站与回复，Gateway journal 为
-3/3 且零 pending/uncertain/failed；Host 冷启动恢复 exact grant、Session、journal 和 ready transport，无重复
-投递。重启后新增消息、真实 Approval/Schedule/group/failure/长期重连仍待验证，详见
-[V5.22 证据](docs/evidence/v5-22-resident-gateway-pairing.zh.md)。
-
-V5.23 又把 AS-2 从静态 chat/user route 改为 resident pairing epoch-3：启动前不再填写 conversation/user/chat
-kind；最终包必须从零预授权飞书 route 接收未知 DM、由 Host 批准动态 grant，再验证 reply、Command、官方
-Schedule、原生 Approval、动态 Host notice 与冷启动后的新增消息。`dsh-feishu` 同时把运行中采用的 paired
-route 投影到 Host notice seam，assembled DSH 已验证 paired Approval `allowed-once` 与持久 notice。完整真实
-epoch-3 尚未运行，不能用 9/9 契约检查冒充平台通过，详见
-[V5.23 证据](docs/evidence/v5-23-resident-pairing-as2-gate.zh.md)。
-
-V5.24 补齐 resident grant 的精确撤销：Gateway 在同一 Storage Domain 原子保留 revoked tombstone，撤销后
-下一条陌生私聊重新回 code，原生 Workspace/Session 不删除；静态 route、活动 ingress/outbound effect 均
-fail closed。DSH Web 只对动态 grant 提供两步确认。最新 Gateway tarball 已在当前真实 rc.2 profile 原位升级
-并冷启动，旧 route/Session/journal 与 ready WebSocket 恢复，Web 显示 3/3、零异常和撤销确认按钮；为避免中断
-项目所有者正在使用的授权，本轮没有执行第二次确认。详见
-[V5.24 证据](docs/evidence/v5-24-resident-pairing-revocation.zh.md)。
-
-V5.25 把更新到最新 DSH rc.2 后暴露的默认测试漂移收口：五个活动示例 Case Pack 改为 exact rc.2 revision，
-GitHub Review 的测试 LLM 补官方 `prepareCall()`，原生 Command 测试显式传空 images。`dsh-evolve` 305 passed /
-1 skipped，`dsh-github-review` 27/27；冻结 Hermes 结果和 rc.5/rc.2 双版本矩阵未改写。详见
-[V5.25 证据](docs/evidence/v5-25-current-rc2-default-test-baseline.zh.md)。
-
-V5.26 修正真实 Chrome 被 clean-profile 临时 Host 死端口阻断的问题：所有生命周期探针经官方参数使用
-`--no-open`，修正后测试不会再打开随机端口，用户标签已切回常驻 `3080` 并实际点击/刷新 Gateway 控制面。
-同时修复 Gateway 先停止时飞书 teardown 跳过平台断连的竞态；确定性失败注入、30 次 assembled 重复门和
-Feishu 45/45 已通过；最终飞书 tarball 已通过官方 CLI 升级当前 `web` profile，Host 重启后 route、Session、
-ready WebSocket 与 3/3 journal 均恢复。详见
-[V5.26 证据](docs/evidence/v5-26-live-web-handoff-and-feishu-teardown.zh.md)。
-
-existing-Skill 路径会封存调用时完整 Bundle，并把当前纠正文与 durable Goal/请求预分为 authoring/admission/holdout/可选 Retention。V4.40 的 Candidate 不可见治理面在 proposer 前用两次独立调用分别消费 protected Holdout 与可选第五 Goal Retention，每次只见 exact baseline 和自己的一个 protected Goal；两套 assembled `skill-tree` Case Pack 经独立 calibration 后共同进入内容寻址 Evaluation Envelope，Candidate id 绑定整个 Envelope。受保护作者只允许改 `SKILL.md`/`references/*.md`，Host 原样继承二进制和其余文件并拒绝权限漂移；结构准入再重验 exact baseline/Candidate 双树、声明 diff 与 protected admission identity。V4.39 的原生 DSH Job 执行完整 paired Holdout；V4.41 只在该 exact Holdout 权威判为 `improved` 后由另一原生 DSH Job 执行预密封 Retention，四 Goal无样本时零花费 abstain，五 Goal按 `fail/pass` 四象限持久判为 `retained/ambiguous/not-retained/regressed`。两者都要求 calibration、assembled、composition 与输入完整性全部成立，中断不盲重试且无晋升权。V4.43 再由独立 Host mutation gate 重验 exact Admission/Holdout/Retention 与完整 sealed Bundle；只有人工 approve 才产生 inactive Generation，另一动作才选择未来 Session，reject 持久终止且 evaluator 始终无发布权。
-
-V4.39 最终 tarball 已验证 paired Holdout 的真实 DSH Web 生命周期；V4.42 又从最终 `dsh-evolve`/`dsh-evolve-web` tarball 验证 exact Retention 的权威卡片、整页 reload、Host 断连显式报错但保留最后快照、同端口恢复、console error 0 和官方卸载。V4.43 已用真实 DSH Agent/Session/SkillRegistry 自动化证明同名现有 Skill 的 future-only 晋升、旧 Session 固定、显式回滚恢复原生选择、二进制整包保留和决定跨重启恢复；V4.44 已把同一 Host owner 的 bounded release 状态和 approve/reject/promote 接入 Control、固定 Typert Remote 与 DSH Web。V4.45 再从最终 tarball 和 clean profile 真实完成发布生命周期；V4.46 已让 active existing-Skill release 的失败 Outcome 经原生 Jobs 触发 exact sealed paired Canary，只有 baseline 恢复且 Candidate 失败才产出无 mutation 权的 rollback-eligible。V4.47 已把该 Canary 的权威证据接入 Control、固定 Typert Remote 与 DSH Web，并以独立 Host gate、exact Canary id 和 expected-active compare 完成人工 future-Session rollback。V4.48 已从最终 tarball 和 clean profile 真实完成 existing-Skill approve→future-only promote→Canary→Host 断连保留→精确 rollback→整页/进程恢复→官方卸载；V4.49 又对缺失 Skill 的内部完整 `skill-bundle` 路径完成 future-only promote→Canary→断连保留→精确 root rollback→冷恢复→官方卸载，两轮浏览器 console error 均为 0。两套独立真实 provider、长期 Outcome、飞书 Approval/Schedule/group/failure/长期重连、Hermes paired benchmark 与长期误晋升/负迁移/误回滚证据仍未完成。
-
-现有 Skill Candidate 的内容身份绑定生成前 exact Evaluation Envelope；五 Goal Envelope 同时内容寻址 Holdout 与 Retention，四 Goal及历史 v2 Envelope 明确没有 Retention。历史无绑定 Candidate 只读且不得进入 Trial，Envelope 错配在 Candidate 物化前失败关闭；DSH Web 显示 Candidate 绑定、Retention presence 与 paired evaluation 实际使用的 Envelope。
-
-## 安装到一个 DSH profile
-
-先按能力生成发布形态 tarball；这只是开发/验收步骤，不会启动第二个 Runtime：
+先准备 Node.js 22.19+、pnpm 11，并安装与本项目匹配的 DSH alpha.5。然后在本仓库执行：
 
 ```sh
 pnpm install --frozen-lockfile
-PACK_ROOT="$(mktemp -d)"
-pnpm run pack:suite -- --suite core --out "$PACK_ROOT"
+pnpm run pack:suite -- --suite core --out ./dist/evoforge-packs
+dsh plugin --profile web add ./dist/evoforge-packs/core/*.tgz
+dsh --profile web --dump-config
 ```
 
-使用 DSH 官方插件命令安装并检查同一个 Host：
+按需安装渠道或交付能力：
 
 ```sh
-dsh plugin --profile web add "$PACK_ROOT/core"/*.tgz
-dsh --profile web --dump-config
-dsh --profile web
+pnpm run pack:suite -- --suite channels --channel feishu --out ./dist/evoforge-packs
+dsh plugin --profile web add ./dist/evoforge-packs/channels-feishu/*.tgz
+
+pnpm run pack:suite -- --suite delivery --out ./dist/evoforge-packs
+dsh plugin --profile web add ./dist/evoforge-packs/delivery/*.tgz
 ```
 
-默认关闭的渠道、review、continuity 和 resident 包只有在部署者通过 profile patch 提供 exact 身份、路由、凭据引用或 Session allowlist 后才能启用。模型不能选择 token、外部身份、Workspace、目标 Agent 或扩大权限。
+`pack:suite` 使用 DSH 官方 `pnpm pack` 生成真实 Bundle，并写出带 SHA-256 的 `evoforge-suite.json`。安装、启动、查看配置、停止和卸载仍由 DSH 官方命令完成；EvoForge 不启动第二个后台 Runtime。完整安装和清理命令见[开始使用](docs/getting-started.zh.md)与[发布/安装门](docs/releasing.zh.md)。
 
-## 在 DSH 内使用
+## 第一次使用飞书
 
-- `/doctor` 查看当前插件组合及必需飞书/Telegram transport readiness；
-- `/evolve status` 或 DSH Web 原生“控制台”查看和处理进化状态；
-- 在原生 Goal 中按需加载 `software-delivery` Skill，由 `complete_delivery` 通过 DSH Bash/Sandbox/Approval 验证并调用原生 `update_goal`；
-- `/resident plan|status|apply <plan-sha256>|remove <service-id>` 通过 DSH Command 审查和管理 OS user unit；
-- Telegram 与飞书经 DSH Gateway 只使用原生 Workspace、Agent、Session 与 Commands；陌生飞书私聊由常驻 Gateway 在 Agent 前回 code，并在 DSH Web 的待批准列表中出现，管理员可直接按 request-id 批准或粘贴 code，之后也可撤销 principal grant；整个流程不调用 Session Command。GitHub review、Goal continuity 和进化注意力同样不创建第二套权威。
+安装 `channels` 后，在同一个 DSH profile 启用 Gateway 和 `dsh-feishu`，并通过环境变量提供飞书 App ID/Secret。Gateway 是常驻 Host：Adapter 启动即连接，陌生用户在飞书私聊机器人发送任意消息后，会先收到一次性配对码；首条消息不会进入 Agent。管理员在 DSH Web 的“控制台 → 渠道”页面批准待处理请求，用户发送下一条消息即可进入绑定的原生 DSH Session，不需要 Session 命令、不需要打开第二个网页、不需要重启。
 
-没有 `dsh-evolve`、`dsh-delivery` 或 `dsh-resident` 用户产品 CLI。测试驱动器不是打包入口。
+飞书配置、最小权限内容读取、撤销和故障语义见 [`dsh-feishu` 用户文档](packages/dsh-feishu/README.md)；Gateway 的路由、持久投递和配对边界见 [`dsh-gateway` 用户文档](packages/dsh-gateway/README.md)。普通文件、音频和视频目前受 DSH 原生 attachment v1 限制，项目不会用伪造 block 冒充支持。
 
-## 卸载
+## 自我进化是什么
+
+入口只接受自然语言 Goal、材料、约束、权限和验收标准。系统使用 DSH 原生能力盘点当前已安装 Skill，在真实 Goal 的成功、失败、纠正、返工和外部结果中形成可归因证据；当同一 Workspace 内出现可复核的重复缺口时，才进入 Opportunity、隔离 Candidate、baseline/holdout/Retention、治理、future-Session 晋升或精确回滚流程。当前 Session 固定已选版本，候选不能修改评测治理面，证据不足会 `abstain` 或 `quarantine`。
+
+这不是运行时从外部市场搜索、下载或导入 Skill 的功能，也不是模型自评。每个候选整包内容寻址，保留来源、版本、谱系、权限和证据；代码、凭据和外部副作用必须经过 Protected Action。当前能力和未完成的效果门见[实现状态](docs/status.zh.md)与[路线图](docs/roadmap.zh.md)。
+
+## Web 控制面
+
+`core` 提供一个原生 DSH `conversation.view` 控制面，而不是多个悬浮网页。它可以查看运行状态、能力/缺口、候选谱系与 diff、baseline/holdout、失败归因、成本/时延/cache、安全权限、晋升/隔离/回滚和渠道健康，并提供 pause/resume/approve/reject/promote/rollback。页面不调用模型；Gateway、Feishu 和 Evolution 通过同一 DSH child surface 接入。
+
+## 开发、验证与发布
 
 ```sh
-dsh plugin --profile web remove \
-  dsh-evolve-web dsh-evolve dsh-software-delivery dsh-doctor \
-  dsh-github-review dsh-evolve-attention dsh-telegram dsh-goal-continuity \
-  dsh-resident dsh-feishu dsh-gateway dsh-control-center
-dsh --profile web --dump-config
-dsh --profile web
+pnpm run check:docs
+pnpm run check:ci
+pnpm run check:suites
+pnpm run typecheck
+pnpm test
 ```
 
-卸载只移除 EvoForge 注册与生命周期资源；原生 DSH Session、Goal 和 Workspace 数据仍由 DSH 读取，已经发生的外部效果不能由卸载撤回。
+开发只在 `main` 进行；通过的最小增量立即原子 commit 并推送 `origin/main`。Candidate 使用运行时内容寻址存储，不用 Git 分支。首个 annotated SemVer tag 只有在 clean-profile 安装/卸载、真实浏览器、真实渠道、真实 provider 和 Hermes paired 全部达到发布门后才能创建。门禁与证据索引见 [`release-gates.json`](release-gates.json) 和[发布纪律](docs/releasing.zh.md)。
 
-## 当前 v0.1 工作
+## 设计与证据
 
-`dsh-gateway` 已直接替换旧 Router 包且没有兼容转发层；Gateway、Telegram、飞书、Evolve Attention、全仓类型/构建和十二包 clean-profile add/dump/boot/remove/readback 均已回归通过。静态 exact endpoint、原生 Workspace/Session/Agent、Command、持久 ingress 与双 Workspace 双渠道隔离保持；Gateway 现已统一 Telegram/飞书普通文本的持久 outbound intent、幂等、按 account 串行、明确 429 有界重试、uncertain 恢复、脱敏 transport observation，并由同包 DSH Client Module 提供渠道健康、Host pairing 和动态 grant 两步撤销。飞书图片已在 assembled DSH 中经官方 message-resource 端口下载、整批校验、原生 AttachmentStore 内容寻址保存并以 `ImageAttachmentRef` 进入 Agent，外部 `fileKey` 不进入 Session；文档/Wiki/Drive metadata/Bitable 已按四个默认关闭的独立权限进入 Agent-scoped 原生 Tool，每次读取经过 DSH Approval，assembled DSH 已验证稳定 schema、durable result、拒绝与 dispose。V5.6 又从最终 tarball 在真实 DSH Web 验证当前 Session 的四权限、Tool/Approval、future-only 状态、刷新、Host 停机清空旧快照和同端口恢复；健康读取不调用模型或平台。已验证 rc.5 和最新审计的 rc.2 都尚无通用附件契约，因此普通文件和音视频仍 pending；内容能力的真实飞书 App scope、资源权限与真实数据也未验收。真实飞书 direct 文本/原生 Command/回复已通过；重启后新增消息、真实撤销重配、真实 Approval/Schedule/group、两套独立真实 provider Trial、同模型编码/长任务和真实消息交付 Hermes paired epochs 仍是完成门禁；这些完成前不得发布或宣称整体上位。
+- [能力套件和独立边界](docs/capability-suites.zh.md)
+- [当前实现状态](docs/status.zh.md)
+- [路线图](docs/roadmap.zh.md)
+- [Hermes Gateway/配对调研](docs/research/hermes-gateway-pairing-current-2026-08-24.zh.md)
+- [DSH alpha.5 迁移审计](docs/research/dsh-alpha5-migration-audit-2026-09-03.zh.md)
+- [V5.69 alpha.5 迁移证据](docs/evidence/v5-69-dsh-alpha5-migration-2026-09-03.zh.md)
 
-- [安装与验收](docs/getting-started.zh.md)
-- [当前状态](docs/status.zh.md)
-- [产品形态审计](docs/native-plugin-shape-audit.zh.md)
-- [插件合同](docs/plugin-contract.zh.md)
-- [需求基线](docs/requirements.zh.md)
-- [目标重新对齐审计](docs/audits/2026-08-19-goal-realignment.zh.md)
-- [ADR-0041](docs/adr/0041-dsh-is-the-only-runtime-and-install-surface.md)
-- [ADR-0098](docs/adr/0098-channel-pairing-is-a-resident-gateway-host-authority.md)
-- [ADR-0049](docs/adr/0049-channel-adapters-share-one-thin-dsh-gateway.md)
-- [ADR-0050](docs/adr/0050-internal-candidates-replace-runtime-skill-acquisition.md)
-- [ADR-0060](docs/adr/0060-gateway-web-is-a-read-only-host-projection.md)
-- [ADR-0067](docs/adr/0067-generations-resolve-only-internal-content-addressed-bundles.md)
-- [ADR-0068](docs/adr/0068-shadow-consumes-one-exact-internal-candidate.md)
-- [ADR-0069](docs/adr/0069-channel-images-enter-dsh-as-native-attachments.md)
-- [ADR-0080](docs/adr/0080-existing-skill-structural-admission-is-a-separate-paired-subject-gate.md)
-- [ADR-0081](docs/adr/0081-existing-skill-holdout-is-authored-before-the-candidate.md)
-- [ADR-0082](docs/adr/0082-existing-skill-effect-verdict-requires-an-exact-paired-holdout.md)
-- [ADR-0090](docs/adr/0090-feishu-content-reads-are-agent-scoped-native-tools.md)
-- [ADR-0091](docs/adr/0091-feishu-content-readiness-is-host-authoritative.md)
-- [ADR-0092](docs/adr/0092-skill-reuse-is-bound-to-exact-content-generation-and-goal.md)
-
-License: MIT.
+欢迎通过 Issue 或 Pull Request 提交可复现的 DSH revision、测试结果和用户体验反馈。请不要在 Issue 中提交飞书 App Secret、访问令牌或真实消息内容。

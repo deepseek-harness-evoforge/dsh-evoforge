@@ -19,6 +19,7 @@ import type {
   ResolvedGatewayRoute,
   ResolvedGatewayRoutes,
 } from './routing.js'
+import { sessionEvents } from './session-log.ts'
 import {
   GatewayOutboundCoordinator,
   type GatewayOutboundObservation,
@@ -235,7 +236,7 @@ export class DshGateway {
         this.outbound.wakeEndedTurn(String(session.id), event.data.turn)
       })
     }
-    const persisted = await this.ctx.sessionPersistence.list()
+    const persisted = persistenceHeaders(await this.ctx.sessionPersistence.list())
     const persistedById = new Map(persisted.map(header => [String(header.id), header]))
     this.assertRouteSet()
     for (const route of this.allRoutes()) {
@@ -247,7 +248,7 @@ export class DshGateway {
         continue
       }
       if (persistedById.has(route.sessionId)) {
-        const inspected = await this.ctx.sessionPersistence.inspect(SessionId(route.sessionId))
+        const inspected = await inspectPersistenceSession(this.ctx.sessionPersistence, SessionId(route.sessionId))
         this.assertPersistedIdentity(route, workspace, inspected.meta, inspected.events)
       }
     }
@@ -688,7 +689,8 @@ export class DshGateway {
       return live
     }
 
-    const header = (await this.ctx.sessionPersistence.list(signal)).find(item => item.id === sessionId)
+    const header = persistenceHeaders(await this.ctx.sessionPersistence.list(signal))
+      .find(item => item.id === sessionId)
     let handle: AgentHandle
     try {
       if (header === undefined) {
@@ -700,7 +702,7 @@ export class DshGateway {
           setup: agentCtx => this.ctx.agentPresets.mount(agentCtx, route.agentPreset).then(() => undefined),
         })
       } else {
-        const inspected = await this.ctx.sessionPersistence.inspect(sessionId, signal)
+        const inspected = await inspectPersistenceSession(this.ctx.sessionPersistence, sessionId, signal)
         this.assertPersistedIdentity(route, workspace, inspected.meta, inspected.events)
         handle = await this.ctx.agents.resume({
           resumeSessionId: sessionId,
@@ -710,7 +712,14 @@ export class DshGateway {
         })
       }
     } catch (error: unknown) {
-      const raced = this.ctx.agents.get(sessionId)
+      // DSH alpha.5 publishes a resumed Agent only after the persistence
+      // reservation. A concurrent resolver can therefore observe the public
+      // "session already exists" error before the winning Agent is visible.
+      // Wait for that explicit publication instead of turning a recoverable
+      // race into an Adapter boot failure; all other errors remain fail-closed.
+      const raced = isSessionAlreadyExistsError(error)
+        ? await this.waitForRacingAgent(sessionId, signal)
+        : this.ctx.agents.get(sessionId)
       if (raced === undefined) throw error
       this.assertLiveIdentity(route, workspace, raced)
       await workspace.attachSession(sessionId)
@@ -726,6 +735,29 @@ export class DshGateway {
     }
     this.ownedHandles.set(route.sessionId, handle)
     return handle.agent
+  }
+
+  private waitForRacingAgent(sessionId: SessionId, signal?: AbortSignal): Promise<Agent | undefined> {
+    const existing = this.ctx.agents.get(sessionId)
+    if (existing !== undefined) return Promise.resolve(existing)
+    return new Promise(resolve => {
+      let settled = false
+      let timer: ReturnType<typeof setTimeout> | undefined
+      const finish = (agent: Agent | undefined): void => {
+        if (settled) return
+        settled = true
+        if (timer !== undefined) clearTimeout(timer)
+        disposeCreated()
+        signal?.removeEventListener('abort', onAbort)
+        resolve(agent)
+      }
+      const onAbort = (): void => { finish(undefined) }
+      const disposeCreated = this.ctx.on('agent/created', ({ agent }) => {
+        if (agent.id === sessionId) finish(agent)
+      })
+      timer = setTimeout(() => finish(this.ctx.agents.get(sessionId)), 5_000)
+      signal?.addEventListener('abort', onAbort, { once: true })
+    })
   }
 
   private async requireWorkspace(route: ResolvedGatewayRoute): Promise<Workspace> {
@@ -745,7 +777,7 @@ export class DshGateway {
   }
 
   private assertLiveIdentity(route: ResolvedGatewayRoute, workspace: Workspace, agent: Agent): void {
-    this.assertSessionIdentity(route, workspace, agent.session.header, agent.session.events)
+    this.assertSessionIdentity(route, workspace, agent.session.header, sessionEvents(agent.session))
     if (agent.options.provider !== route.provider || agent.options.model !== route.model
       || (route.maxTokens !== undefined && agent.options.maxTokens !== route.maxTokens)) {
       throw new Error(`channel session '${route.sessionId}' live Agent model does not match route '${route.provider}/${route.model}'`)
@@ -794,7 +826,7 @@ export class DshGateway {
     signal: AbortSignal,
   ): Promise<boolean> {
     const agent = await this.resolve(route, signal)
-    return agent.session.events.some(event =>
+    return sessionEvents(agent.session).some(event =>
       event.type === 'turn/end' && event.data.turn === turn)
   }
 
@@ -845,9 +877,10 @@ export class DshGateway {
       this.assertLiveIdentity(candidate, workspace, live)
       return
     }
-    const header = (await this.ctx.sessionPersistence.list()).find(item => String(item.id) === target.sessionId)
+    const header = persistenceHeaders(await this.ctx.sessionPersistence.list())
+      .find(item => String(item.id) === target.sessionId)
     if (header === undefined) return
-    const inspected = await this.ctx.sessionPersistence.inspect(SessionId(target.sessionId))
+    const inspected = await inspectPersistenceSession(this.ctx.sessionPersistence, SessionId(target.sessionId))
     this.assertPersistedIdentity(candidate, workspace, inspected.meta, inspected.events)
   }
 }
@@ -855,11 +888,50 @@ export class DshGateway {
 function messageSeen(agent: Agent, messageId: string): boolean {
   if (agent.inbox.nextTurn.some(message => message.id === messageId)
     || agent.inbox.nextStep.some(message => message.id === messageId)) return true
-  return agent.session.events.some((event) => {
+  return sessionEvents(agent.session).some((event) => {
     if (event.type === 'user/message') return event.data.id === messageId
     return event.type === 'agent/inbox/spliced'
       && event.data.inserted.some(message => message.id === messageId)
   })
+}
+
+/** DSH alpha.5 exposes list() snapshots; older builds returned bare headers. */
+function persistenceHeaders(value: readonly unknown[]): SessionHeader[] {
+  return value.flatMap(item => {
+    if (typeof item !== 'object' || item === null) return []
+    const record = item as { readonly header?: unknown; readonly id?: unknown }
+    const header = record.header ?? item
+    if (typeof header !== 'object' || header === null || typeof (header as { id?: unknown }).id !== 'string') return []
+    return [header as SessionHeader]
+  })
+}
+
+/** Read one persisted session across the pre-alpha5 and alpha5 APIs. */
+async function inspectPersistenceSession(
+  persistence: unknown,
+  id: SessionId,
+  signal?: AbortSignal,
+): Promise<{ meta: SessionHeader; events: readonly SessionEvent[] }> {
+  const service = persistence as {
+    inspect?: (sessionId: SessionId, signal?: AbortSignal) => Promise<{ meta: SessionHeader; events: readonly SessionEvent[] }>
+    load?: (sessionId: SessionId, signal?: AbortSignal) => Promise<{ meta: SessionHeader; events: readonly SessionEvent[] }>
+    open?: (sessionId: SessionId, access: 'read', options?: { signal?: AbortSignal }) => Promise<{
+      header?: SessionHeader
+      read(offset?: number, length?: number, options?: { signal?: AbortSignal }): Promise<readonly SessionEvent[]>
+      close(): Promise<void>
+    }>
+  }
+  if (service.inspect !== undefined) return service.inspect(id, signal)
+  if (service.load !== undefined) return service.load(id, signal)
+  if (service.open === undefined) throw new Error('DSH session persistence does not expose inspect/load/open')
+  const handle = await service.open(id, 'read', signal === undefined ? undefined : { signal })
+  try {
+    const meta = handle.header
+    if (meta === undefined) throw new Error(`persisted Session '${String(id)}' has no header`)
+    return { meta, events: await handle.read(0, Number.MAX_SAFE_INTEGER, signal === undefined ? undefined : { signal }) }
+  } finally {
+    await handle.close()
+  }
 }
 
 function sessionPreset(header: SessionHeader, events: readonly SessionEvent[]): string | undefined {
@@ -979,7 +1051,12 @@ async function executeNativeCommand(
     ) => Promise<CommandExecution | undefined>
     return executeWithImages.call(commands, agent, line, [], signal)
   }
-  return commands.execute(agent, line, signal)
+  const executeLegacy = commands.execute as unknown as (
+    agent: Agent,
+    line: string,
+    signal: AbortSignal,
+  ) => Promise<CommandExecution | undefined>
+  return executeLegacy(agent, line, signal)
 }
 
 function normalizeOriginalDimensions(
@@ -1018,6 +1095,10 @@ function hash(value: string): string {
 
 function safeMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'unknown channel failure'
+}
+
+function isSessionAlreadyExistsError(error: unknown): boolean {
+  return error instanceof Error && /session [^\n]* already exists/u.test(error.message)
 }
 
 function exactHealthTime(value: number): number {

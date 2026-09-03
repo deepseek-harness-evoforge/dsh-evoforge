@@ -1,25 +1,27 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { setTimeout as wait } from 'node:timers/promises'
-import { pathToFileURL } from 'node:url'
-import { CallId } from '@deepseek-ai/dsh-llm'
+import { ToolCallId } from '@deepseek-ai/dsh-llm'
+import { bootLatestDshProfile } from '../latest-dsh-test-runtime.ts'
 
 const [root, config, dshSourceDir] = process.argv.slice(2)
 if (root === undefined || config === undefined || dshSourceDir === undefined) {
   throw new Error('usage: native-schedule-dispatch-crash <root> <config> <dsh-source-dir>')
 }
 
-const { boot } = await import(pathToFileURL(
-  join(dshSourceDir, 'packages', 'boot', 'app-boot', 'lib', 'index.js'),
-).href)
 process.chdir(root)
-const ctx = await boot('dsh-feishu-schedule-dispatch-crash', config)
+const ctx = await bootLatestDshProfile({
+  binName: 'dsh-feishu-schedule-dispatch-crash',
+  configPath: config,
+  dshSourceDir,
+  home: process.env.DSH_HOME ?? join(root, '.dsh-home'),
+})
 const agent = ctx.agents.get('main')
 if (agent === undefined) throw new Error('Feishu dispatch-crash fixture Agent did not load')
 await agent.whenIdle()
 const scheduled = await ctx.agents.withInitiator(agent, () => ctx.tools.execute({
   signal: new AbortController().signal,
-  callId: CallId('feishu-schedule-dispatch-crash'),
+  callId: ToolCallId('feishu-schedule-dispatch-crash'),
   name: 'schedule_create',
   arguments: {
     prompt: 'Deliver this reminder exactly once across the dispatch checkpoint crash.',
@@ -35,19 +37,24 @@ const dispatchBlocked = new Promise<void>((resolveBlocked) => {
   resolveDispatchBlocked = resolveBlocked
 })
 const persistence = ctx.sessionPersistence as unknown as {
-  appendBatch(
-    meta: unknown,
-    events: readonly { readonly type?: unknown; readonly data?: { readonly operation?: unknown } }[],
-    isMaterialized: boolean,
-  ): Promise<void>
+  coordinator?: { backend?: Record<string, unknown> }
+  appendBatch?: (...args: unknown[]) => Promise<void>
+  persistBatch?: (...args: unknown[]) => Promise<void>
 }
-const appendBatch = persistence.appendBatch.bind(persistence)
-persistence.appendBatch = async (meta, events, isMaterialized) => {
+const backend = persistence.coordinator?.backend ?? persistence
+const appendBatch = (backend.appendBatch ?? backend.persistBatch)
+if (typeof appendBatch !== 'function') throw new Error('alpha5 persistence appendBatch seam is unavailable')
+const boundAppendBatch = appendBatch.bind(backend)
+backend.appendBatch = async (...args: unknown[]) => {
+  const events = (args[1] ?? []) as readonly {
+    readonly type?: unknown
+    readonly data?: { readonly operation?: unknown }
+  }[]
   if (events.some(event => event.type === 'schedule/change' && event.data?.operation === 'dispatch')) {
     resolveDispatchBlocked?.()
     await new Promise<void>(() => {})
   }
-  await appendBatch(meta, events, isMaterialized)
+  await boundAppendBatch(...args)
 }
 
 await Promise.all([

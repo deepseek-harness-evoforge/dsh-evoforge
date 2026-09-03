@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
-import { CallId, HarnessError } from '@deepseek-ai/dsh-llm'
-import { defineTool, type JsonValue, type ToolExecutionResult, type ToolRunContext } from '@deepseek-ai/dsh-tools'
+import { ToolCallId, HarnessError } from '@deepseek-ai/dsh-llm'
+import { defineTool, type ToolExecutionResult, type ToolRunContext } from '@deepseek-ai/dsh-tools'
+import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import {
   verifyDelivery,
   type CapturedOutput,
@@ -157,7 +158,7 @@ export function installCompleteDelivery(
       }
 
       const completion = await ctx.tools.execute({
-        callId: CallId(`${exec.callId}:delivery-complete`),
+        callId: ToolCallId(`${exec.callId}:delivery-complete`),
         rootCallId: exec.rootCallId,
         parent: exec.token,
         name: 'update_goal',
@@ -221,7 +222,7 @@ function nativeShellRunner(ctx: Context, parent: ToolRunContext): DeliveryCheckR
     index += 1
     const command = shellName === 'bash' ? bashCommand(check.argv) : pwshCommand(check.argv)
     const result = await ctx.tools.execute({
-      callId: CallId(`${parent.callId}:delivery-check:${index}`),
+      callId: ToolCallId(`${parent.callId}:delivery-check:${index}`),
       rootCallId: parent.rootCallId,
       parent: parent.token,
       name: shellName,

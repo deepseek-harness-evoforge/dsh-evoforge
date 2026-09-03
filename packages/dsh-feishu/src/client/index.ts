@@ -1,7 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
-import type {} from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from 'dsh-control-center/client'
 import { FeishuSurface, type FeishuCommandsClient } from './FeishuAction.tsx'
 import { en, NS, zh } from './locales.ts'
@@ -12,7 +11,7 @@ type WebContext = Context & {
     register(namespace: string, dictionaries: { zh: Record<string, string>; en: Record<string, string> }): () => void
     bind(namespace: string): (key: string) => string
   }
-  slots: Context['slots'] & {
+  slots: {
     inject(name: string, install: () => unknown): void
     register(options: Record<string, unknown>, component: unknown): () => void
   }

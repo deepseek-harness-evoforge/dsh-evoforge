@@ -339,7 +339,7 @@ async function installAgentRuntime(
   const packages = (path: string) => pathToFileURL(
     join(dshSourceDir, 'packages', path, 'lib', 'index.js'),
   ).href
-  const [llm, session, systemPrompt, tools, skill, toolSkill, agent, goal, agentLoop, persistence] =
+  const [llm, session, systemPrompt, tools, skill, toolSkill, agent, projection, goal, agentLoop, persistence] =
     await Promise.all([
       import(packages('llm/llm')),
       import(packages('core/session')),
@@ -348,6 +348,7 @@ async function installAgentRuntime(
       import(packages('skill/skill')),
       import(packages('skill/tool-skill')),
       import(packages('core/agent')),
+      import(packages('session/session-projection')),
       import(packages('goal/goal')),
       import(packages('core/agent-loop')),
       import(packages('session/session-persistence-jsonl')),
@@ -359,6 +360,7 @@ async function installAgentRuntime(
   await ctx.plugin(skill.default)
   await ctx.plugin(toolSkill)
   await ctx.plugin(agent.default)
+  await ctx.plugin(projection.default)
   await ctx.plugin(goal.default)
   await ctx.plugin(agentLoop.default, { agents: [] })
   if (persistenceRoot !== undefined) {
@@ -379,7 +381,7 @@ async function installAgentRuntime(
     async * stream(request: unknown) {
       this.requests.push(structuredClone(request))
       if (this.requests.length === 1 && scriptedCapabilityGap !== undefined) {
-        const callId = llm.CallId('model-declared-capability-gap')
+        const callId = llm.ToolCallId('model-declared-capability-gap')
         const argumentsJson = JSON.stringify({ name: scriptedCapabilityGap })
         yield { type: 'block-start', index: 0, blockType: 'tool-call' }
         yield {

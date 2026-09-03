@@ -6,6 +6,7 @@ import { promisify } from 'node:util'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { bootLatestDshProfile } from './latest-dsh-test-runtime.ts'
 import type {
   FeishuApprovalAction,
   FeishuContentReadRequest,
@@ -44,12 +45,14 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu content', (
     vi.stubEnv('DSH_HOME', join(root, '.dsh-home'))
     vi.stubEnv('DSH_TELEMETRY_DISABLED', '1')
 
-    const { boot } = await import(pathToFileURL(
-      join(dshSourceDir, 'packages', 'boot', 'app-boot', 'lib', 'index.js'),
-    ).href)
     const previousCwd = process.cwd()
     process.chdir(root)
-    const ctx = await boot('dsh-feishu-content-test', config)
+    const ctx = await bootLatestDshProfile({
+      binName: 'dsh-feishu-content-test',
+      configPath: config,
+      dshSourceDir,
+      home: join(root, '.dsh-home'),
+    })
     const service = ctx.get('evoforge.feishuTest') as {
       platform: {
         cards: Array<{ messageId: string; chatId: string; card: object; options?: FeishuSendOptions }>
@@ -114,7 +117,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu content', (
         kind: 'document', token: 'doxcnApproved123', maxContentChars: 20_000,
       })])
 
-      const events = agent.session.events as readonly SessionEvent[]
+      const events = agent.session.snapshotEvents() as readonly SessionEvent[]
       expect(events.some(event => event.type === 'approval/asked'
         && event.data.toolName === 'feishu_content_read')).toBe(true)
       expect(events.some(event => event.type === 'approval/decided'
@@ -128,9 +131,13 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu content', (
       const llm = ctx.get('evoforge.feishuContentLlm') as {
         requests: Array<{ tools?: readonly unknown[]; system?: string }>
       }
-      expect(llm.requests).toHaveLength(2)
-      expect(llm.requests[0]?.tools).toEqual(llm.requests[1]?.tools)
-      expect(llm.requests[0]?.tools?.filter((tool: unknown) =>
+      // DSH alpha.5 may issue a title/metadata request in the same turn;
+      // the adapter contract is that every request receives the same scoped
+      // tool schema, regardless of how many core requests the turn requires.
+      const requestsWithTools = llm.requests.filter(request => request.tools !== undefined)
+      expect(requestsWithTools.length).toBeGreaterThanOrEqual(2)
+      for (const request of requestsWithTools) expect(request.tools).toEqual(requestsWithTools[0]?.tools)
+      expect(requestsWithTools[0]?.tools?.filter((tool: unknown) =>
         typeof tool === 'object' && tool !== null && (tool as { name?: unknown }).name === 'feishu_content_read')).toHaveLength(1)
       expect(JSON.stringify(llm.requests)).not.toContain('test-secret')
 
@@ -153,12 +160,12 @@ function hostConfig(root: string, presetRoot: string): unknown[] {
       id: 'base',
       name: join(dshSourceDir, 'vendor', 'include', 'lib', 'index.js'),
       config: {
-        path: join(dshSourceDir, 'examples', 'headless-agent', 'cordis.yml'),
+        path: join(dshSourceDir, 'packages', 'bundle', 'base', 'cordis.patch.yml'),
         patches: [
           { id: 'llm-deepseek', name: '@deepseek-ai/dsh-llm-deepseek', disabled: true },
           {
-            id: 'agent-spine',
-            name: '@deepseek-ai/dsh-agent-spine-demo',
+            id: 'agent-loop',
+            name: '@deepseek-ai/dsh-agent-loop',
             config: {
               agents: [], workspaceContext: false, dshHome: join(root, '.dsh-home'),
               skills: { filesystem: { agentsHome: join(root, '.agents-home') } },
@@ -167,10 +174,10 @@ function hostConfig(root: string, presetRoot: string): unknown[] {
             },
           },
           {
-            id: 'persistence', name: '@deepseek-ai/dsh-session-persistence-jsonl',
+            id: 'session-persistence-jsonl', name: '@deepseek-ai/dsh-session-persistence-jsonl',
             config: { root: join(root, 'sessions'), compression: 'none' },
           },
-          { id: 'checkpoint-policy', name: '@deepseek-ai/dsh-session-checkpoint-policy', disabled: true },
+          { id: 'session-checkpoint-policy', name: '@deepseek-ai/dsh-session-checkpoint-policy', disabled: true },
         ],
       },
     },

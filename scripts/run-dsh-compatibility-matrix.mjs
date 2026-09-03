@@ -4,8 +4,7 @@ import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 export const SUPPORTED_DSH_TARGETS = Object.freeze({
-  '47f943859bef60e4160492346772ded9b24f765a': '0.1.0-rc.5',
-  'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e': '0.1.1-rc.2',
+  'db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5': '0.1.2-alpha.5',
 })
 
 export function assertSupportedDshTarget({ revision, version, dirty }) {

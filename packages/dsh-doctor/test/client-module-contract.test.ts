@@ -16,7 +16,6 @@ describe('Doctor native DSH Client Module', () => {
         inject: [
           '@deepseek-ai/dsh-api-remotes',
           '@deepseek-ai/dsh-client-locale',
-          '@deepseek-ai/dsh-client-runtime',
           '@deepseek-ai/dsh-client-ui-conversation',
         ],
         platform: 'web',

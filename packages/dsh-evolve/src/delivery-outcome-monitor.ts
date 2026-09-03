@@ -14,6 +14,7 @@ import {
   projectGoalExecutionMetrics,
   type GoalExecutionMetrics,
 } from './goal-execution-metrics.ts'
+import { sessionEvents } from './session-log.ts'
 import { workspaceIdForCwd } from './workspace-identity.ts'
 
 const DEFAULT_MAX_RECORDS = 1_000
@@ -325,7 +326,7 @@ export function installDeliveryOutcomeMonitor(
     if (event.type === 'tool/result') enqueue(session, event)
   })
   const removeStart = ctx.on('agent/session-start', ({ agent }) => {
-    for (const event of agent.session.events) {
+    for (const event of sessionEvents(agent.session)) {
       if (event.type === 'tool/result') enqueue(agent.session, event)
     }
   })
@@ -358,7 +359,7 @@ function parseDurableDeliveryResult(
 } | undefined {
   const sourceSeqs = event.sourceEventSeqs
   if (sourceSeqs?.length !== 1) return undefined
-  const call = session.events[sourceSeqs[0]!]
+  const call = sessionEvents(session)[sourceSeqs[0]!]
   if (call?.type !== 'tool/call'
     || call.data.name !== 'complete_delivery'
     || String(call.data.callId) !== String(event.data.message.source.callId)) return undefined

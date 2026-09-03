@@ -9,6 +9,7 @@ import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import type { ApprovalOutcome } from '@deepseek-ai/dsh-user-approval'
 import { freezeMessage, MessageId } from '@deepseek-ai/dsh-llm'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { bootLatestDshProfile } from './latest-dsh-test-runtime.ts'
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const execFile = promisify(execFileCallback)
@@ -38,6 +39,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Telegram chat', ()
     let servedCallback = false
     let commandRequested = false
     let servedCommand = false
+    let pollRequests = 0
     let failNextPoll = false
     let failedPoll = false
     const server = createServer((request, response) => {
@@ -47,6 +49,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Telegram chat', ()
         const body = chunks.length === 0 ? {} : JSON.parse(Buffer.concat(chunks).toString('utf8'))
         response.setHeader('content-type', 'application/json')
         if (request.url?.endsWith('/getUpdates')) {
+          pollRequests += 1
           if (failNextPoll && !failedPoll) {
             failedPoll = true
             response.end(JSON.stringify({ ok: false, error_code: 503 }))
@@ -120,18 +123,18 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Telegram chat', ()
     await writeFile(config, JSON.stringify([
       {
         id: 'cli-mock-llm',
-        name: join(dshSourceDir, 'examples', 'headless-agent', 'tests', 'fixtures', 'cli-mock-llm.ts'),
+        name: join(dshSourceDir, 'packages', 'test-support', 'loader-smoke', 'tests', 'fixtures', 'cli-mock-llm.ts'),
       },
       {
         id: 'base',
         name: join(dshSourceDir, 'vendor', 'include', 'lib', 'index.js'),
         config: {
-          path: join(dshSourceDir, 'examples', 'headless-agent', 'cordis.yml'),
+          path: join(dshSourceDir, 'packages', 'bundle', 'base', 'cordis.patch.yml'),
           patches: [
             { id: 'llm-deepseek', name: '@deepseek-ai/dsh-llm-deepseek', disabled: true },
             {
-              id: 'agent-spine',
-              name: '@deepseek-ai/dsh-agent-spine-demo',
+              id: 'agent-loop',
+              name: '@deepseek-ai/dsh-agent-loop',
               config: {
                 agents: [],
                 workspaceContext: false,
@@ -142,12 +145,12 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Telegram chat', ()
               },
             },
             {
-              id: 'persistence',
+              id: 'session-persistence-jsonl',
               name: '@deepseek-ai/dsh-session-persistence-jsonl',
               config: { root: join(root, 'sessions'), compression: 'none' },
             },
             {
-              id: 'checkpoint-policy',
+              id: 'session-checkpoint-policy',
               name: '@deepseek-ai/dsh-session-checkpoint-policy',
               disabled: true,
             },
@@ -217,12 +220,14 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Telegram chat', ()
     vi.stubEnv('DSH_HOME', join(root, '.dsh-home'))
     vi.stubEnv('DSH_TELEMETRY_DISABLED', '1')
 
-    const { boot } = await import(pathToFileURL(
-      join(dshSourceDir, 'packages', 'boot', 'app-boot', 'lib', 'index.js'),
-    ).href)
     const previousCwd = process.cwd()
     process.chdir(root)
-    const ctx = await boot('dsh-telegram-assembled-test', config)
+    const ctx = await bootLatestDshProfile({
+      binName: 'dsh-telegram-assembled-test',
+      configPath: config,
+      dshSourceDir,
+      home: join(root, '.dsh-home'),
+    })
     const gateway = ctx.get('evoforge.gateway') as {
       route(id: string): { workspaceId: string } | undefined
       healthSnapshot(now?: number, routeIds?: readonly string[]): {
@@ -251,7 +256,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Telegram chat', ()
           servedUpdate,
           agentIds: ctx.agents.list().map((candidate: { id: unknown }) => String(candidate.id)),
           agentStatus: agent?.status,
-          eventTypes: agent?.session.events.map((event: SessionEvent) => event.type),
+          eventTypes: agent?.session.snapshotEvents().map((event: SessionEvent) => event.type),
           deliveries: [...(ctx.storageDomain.get('evoforge_gateway_outbound')?.table('outbound').entries() ?? [])],
         }
         throw new Error(`Telegram assembled path did not send: ${JSON.stringify(diagnostic)}`, { cause: error })
@@ -265,7 +270,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Telegram chat', ()
         expect(records).toEqual([expect.objectContaining({ status: 'delivered' })])
       })
       expect(ctx.storageDomain.get('evoforge_telegram')).toBeUndefined()
-      const events = agent?.session.events as readonly SessionEvent[] | undefined
+      const events = agent?.session.snapshotEvents() as readonly SessionEvent[] | undefined
       expect(events?.some(event => event.type === 'user/message'
         && String(event.data.id).startsWith('channel:'))).toBe(true)
 
@@ -276,7 +281,13 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Telegram chat', ()
       }, { timeout: 5_000, interval: 25 })
       await vi.waitFor(() => {
         expect(gateway.healthSnapshot(Date.now(), ['telegram-main']).transports.ready).toBe(1)
-      }, { timeout: 5_000, interval: 25 })
+      }, { timeout: 5_000, interval: 25 }).catch((error: unknown) => {
+        throw new Error(JSON.stringify({
+          pollRequests,
+          failedPoll,
+          transport: gateway.healthSnapshot(Date.now(), ['telegram-main']).transports,
+        }), { cause: error })
+      })
 
       // Goal and Schedule continuations use the same native Agent followup seam. Prove that a
       // completed turn which did not originate in Telegram is also routed, without reply metadata.
@@ -318,7 +329,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Telegram chat', ()
       expect((sends[4] as { text?: string }).text).toContain('Telegram route: READY')
       expect((sends[4] as { text?: string }).text).toContain('Model surface: 0 tools, 0 prompt sections, 0 skills.')
       await vi.waitFor(() => {
-        const currentEvents = agent?.session.events as readonly SessionEvent[] | undefined
+        const currentEvents = agent?.session.snapshotEvents() as readonly SessionEvent[] | undefined
         expect(currentEvents?.some(event => event.type === 'command/run'
           && event.data.name === 'telegram')).toBe(true)
       })

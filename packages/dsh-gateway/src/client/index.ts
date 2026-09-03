@@ -15,7 +15,7 @@ type WebContext = Context & {
     register(namespace: string, dictionaries: { zh: Record<string, string>; en: Record<string, string> }): () => void
     bind(namespace: string): (key: string) => string
   }
-  slots: Context['slots'] & {
+  slots: {
     inject(name: string, install: () => unknown): void
     register(options: Record<string, unknown>, component: unknown): () => void
   }

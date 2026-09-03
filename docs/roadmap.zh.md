@@ -1,5 +1,18 @@
 # EvoForge v0.1 路线图
 
+> 2026-09-03 当前执行顺序：先以 DSH `dsh-v0.1.2-alpha.5` 固定基线收口兼容性和用户安装文档，
+> 再完成真实渠道/Provider/paired 验收；任何一项发布门未通过都不创建 tag。alpha.5 的迁移事实见
+> [迁移审计](research/dsh-alpha5-migration-audit-2026-09-03.zh.md)和
+> [V5.69 证据](evidence/v5-69-dsh-alpha5-migration-2026-09-03.zh.md)。
+
+## 下一步执行队列
+
+1. **P0：alpha.5 兼容性声明** — 让所有公开包、CI 矩阵和安装文档只对当前已验证的 DSH tag 作承诺；历史 revision 只能作为单独迁移审计，不能混入支持范围。
+2. **P1：可安装产品路径** — 从单一 DSH Web profile 验证 `core`、单渠道 `channels`、`delivery` 和 `continuity` 的 add/dump/boot/reload/dispose/remove/readback；把真实浏览器成功、失败和恢复证据留在同一页面。
+3. **P1：常驻网关真实通路** — 完成飞书重启后新增消息、撤销/重新配对、Approval 卡片、官方 Schedule、group policy、故障注入和长期 WebSocket 重连；不新增第二 Gateway 或 Session runtime。
+4. **P2：自我进化效果门** — 在同任务、同模型、同权限、同预算下运行两套独立真实 provider 与 Hermes paired benchmark，记录成功率、人工干预、误调用、跨任务复用、负迁移/遗忘、误晋升、恢复、重复外部效果、成本、时延、cache-read 和精确回滚。
+5. **P2：发布** — 只有 clean-profile、真实浏览器、真实飞书、paired benchmark 和卸载/回滚门全部为 `passed`，才在 `main` 创建 annotated SemVer tag；之后每个验证迭代继续使用 tag，不以 Git 分支保存 Candidate。
+
 > 当前状态：已验证提交统一在 `main`；`dsh-gateway` 已替换旧 Router 并完成公共 outbound/健康 Web 的真实浏览器失败恢复验收，飞书图片已在 assembled DSH 中进入 Agent，运行时外部能力获取相关偏差表面已删除；V4.54 又移除了治理包与 Shadow 报告中残留的 `search` 语义。缺失 Skill Candidate 已形成 Retention/Promotion/Canary/Rollback 活动纵切；现有 Skill 已完成完整 baseline、protected whole-tree Candidate、exact Holdout/Retention、独立发布门和最终包浏览器生命周期。V4.46–V4.49 已完成 existing/missing Skill 的 Canary、rollback 与最终包门禁；V4.50–V4.53 建立 exact 跨 Goal 复用、后续 Outcome、尝试间工作与失败调查的非因果投影。V5.22 已把飞书纠正为 resident Gateway Host pairing，并从最终 tarball 真实 rc.2 App 完成 DM→code→Host approve、三次 native Session/回复与 Host 冷启动恢复；direct 文本主路径已通过，Approval/Schedule/group/failure/长期重连仍待完成。V4.55–V4.56 的双真实 Provider 入口仍严格为 `NOT_RUN`。下一阶段关闭飞书剩余 AS-2 门，再取得真实 Provider 结果并做真实内容/权限；Hermes paired 仍未完成，普通文件/音视频仍 pending，v0.1 未发布。
 > V5.10 已把真实 Generation 晋升/回滚与活动 pointer 原子记录，并从最终 tarball 验证 Web 晋升、reload、两次 Host 冷恢复、Canary root rollback、官方卸载和原生 Web readback。它只提供 mutation audit，不替代真实 Provider/长期 Outcome/paired 效果证据。
 > V5.11 已在该 mutation audit 上增加严格、有界、非因果的 post-selection Outcome 窗口，按 Session-pinned selected/previous/other Generation 展示 Goal、结果和 metrics；最终 tarball 已验证真实 Session Outcome、断线保留、两次冷恢复、整页 reload、卸载和原生 Web readback。V5.12 又以 Workspace-only opt-in policy 重建 existing-Skill 窄自动晋升，只允许 exact append-only/effect-clear/non-regressing 指令 Candidate，并接入原生 Jobs、durable pause、崩溃恢复及 Host/Web 权威状态。长期率、真实 provider 和因果效果仍 pending。

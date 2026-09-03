@@ -134,6 +134,7 @@ function fakeStore(overrides: Partial<ImageAttachmentLimits> = {}): {
     maxImagesPerMessage: 20,
     maxMessageImageBytes: 4096,
     maxImagePixels: 1_000_000,
+    maxImageDimension: 4096,
     mediaTypes: ['image/png', 'image/jpeg', 'image/webp', 'image/gif'],
     ...overrides,
   }

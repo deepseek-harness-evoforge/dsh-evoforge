@@ -6,6 +6,15 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Migrated the public plugin suite to the audited DSH `0.1.2-alpha.5` contract and narrowed every published
+  DSH peer range to that version. Historical rc.5/rc.2 revisions remain research evidence only until a separate
+  runtime-specific migration matrix is rebuilt; the compatibility script and CI now exercise the current alpha.5
+  tag only. See [alpha.5 migration audit](docs/research/dsh-alpha5-migration-audit-2026-09-03.zh.md) and
+  [V5.69 evidence](docs/evidence/v5-69-dsh-alpha5-migration-2026-09-03.zh.md).
+- Replaced the root README with a user-facing installation and operation guide. Internal progress history,
+  release blockers, and DSH source/packaged-interface caveats remain in `docs/` instead of being presented as
+  end-user instructions.
+
 - Fixed a nondeterministic macOS assembled CI failure where `dsh-evolve-attention`'s shared channel-peer
   prebuild raced a duplicate direct `dsh-telegram` build and could clean `dist/index.mjs` after it was produced.
   The workflow now has one Telegram build path and `check:ci` prevents the duplicate from returning. This does not

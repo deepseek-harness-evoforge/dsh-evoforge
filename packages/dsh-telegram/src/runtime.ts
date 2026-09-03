@@ -14,6 +14,7 @@ import {
   type GatewayTransportRegistration,
   type GatewayTransportState,
 } from 'dsh-gateway'
+import { sessionEvents } from 'dsh-gateway'
 import {
   selectApprovalCallback,
   selectInboundUpdate,
@@ -103,7 +104,7 @@ export class TelegramRuntime {
     })
     this.ctx.on('agent/turn-stopping', async ({ agent, turn }) => {
       if (agent !== this.agent) return
-      const text = outboundTextForTurn(agent.session.events, turn, this.config.maxTextChars)
+      const text = outboundTextForTurn(sessionEvents(agent.session), turn, this.config.maxTextChars)
       if (text === undefined) return
       const intent: GatewayTextDeliveryIntent = Object.freeze({
         routeId: this.config.routeId,

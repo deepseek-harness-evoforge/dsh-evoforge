@@ -15,6 +15,7 @@ import {
   hashDurableSkillInvocationContent,
   type DurableSkillInvocation,
 } from './durable-skill-invocation.ts'
+import { sessionEvents } from './session-log.ts'
 import { workspaceIdForCwd } from './workspace-identity.ts'
 
 const DEFAULT_MAX_RECORDS = 5_000
@@ -290,7 +291,7 @@ export function installSkillUseMonitor(
         if (!(await ctx.sessions.flush(session))) {
           throw new Error('native Session has no durability checkpoint listener')
         }
-        const events = session.events.filter(event => event.seq <= invocation.seq)
+        const events = sessionEvents(session).filter(event => event.seq <= invocation.seq)
         const goal = foldGoal(events).goal
         if (goal === undefined || goal.phase !== 'active') return
         const { id, createdAt, cwd } = session.header
@@ -360,24 +361,25 @@ function observationsForEvent(
   event: SessionEvent,
 ): SkillUseObservation[] {
   if (event.type === 'user/message') {
-    return durableSkillInvocations(session.events)
-      .filter(invocation => invocation.route === 'user-explicit' && invocation.seq === event.seq)
+    return durableSkillInvocations(sessionEvents(session))
+      .filter(invocation => invocation.route === 'user-explicit' && invocation.seq === Number(event.seq))
       .map(invocation => ({ invocation, observedAt: event.time }))
   }
   if (event.type !== 'tool/result') return []
-  const sources = new Set(event.sourceEventSeqs ?? [])
-  return durableSkillInvocations(session.events)
+  const sources = new Set((event.sourceEventSeqs ?? []).map(Number))
+  return durableSkillInvocations(sessionEvents(session))
     .filter(invocation => invocation.route === 'model-tool' && sources.has(invocation.seq))
     .map(invocation => ({ invocation, observedAt: event.time }))
 }
 
 function durableObservations(session: Session): SkillUseObservation[] {
-  return durableSkillInvocations(session.events).flatMap(invocation => {
+  const events = sessionEvents(session)
+  return durableSkillInvocations(events).flatMap(invocation => {
     const observedAt = invocation.route === 'user-explicit'
-      ? session.events.find(event => event.seq === invocation.seq)?.time
-      : session.events.find(event =>
+      ? events.find(event => Number(event.seq) === invocation.seq)?.time
+      : events.find(event =>
           event.type === 'tool/result'
-          && event.sourceEventSeqs?.includes(invocation.seq) === true)?.time
+          && event.sourceEventSeqs?.some(seq => Number(seq) === invocation.seq) === true)?.time
     return observedAt === undefined ? [] : [{ invocation, observedAt }]
   })
 }

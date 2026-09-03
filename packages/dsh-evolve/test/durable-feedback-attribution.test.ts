@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
-import { SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
+import { SessionId, SessionLogOffset, SessionSeq, type SessionEvent } from '@deepseek-ai/dsh-session'
 import { DurableFeedbackAttribution } from '../src/durable-feedback-attribution.ts'
 
 describe('DurableFeedbackAttribution', () => {
@@ -27,7 +27,7 @@ describe('DurableFeedbackAttribution', () => {
       content: [{ type: 'text', text: '<skill_content>exact user route</skill_content>' }],
     }) as SessionEvent)
     const assistant = events.at(-1)!
-    events[events.length - 1] = { ...assistant, seq: 4, time: 5 }
+    events[events.length - 1] = { ...assistant, seq: SessionSeq(4), time: 5 }
 
     await expect(resolve(events, 'assistant-1')).resolves.toMatchObject({
       route: 'user-explicit',
@@ -78,7 +78,7 @@ describe('DurableFeedbackAttribution', () => {
         source: { kind: 'skill-invocation', name: 'review-dsh-plugin' },
         content: [{ type: 'text', text: '<skill_content />' }],
       }) as SessionEvent,
-      { ...assistant, seq: 6, time: 7 },
+      { ...assistant, seq: SessionSeq(6), time: 7 },
     )
     await expect(resolve(events, 'assistant-1')).resolves.toBeUndefined()
   })
@@ -96,7 +96,8 @@ describe('DurableFeedbackAttribution', () => {
 function resolve(events: SessionEvent[], assistantMessageId: string) {
   return new DurableFeedbackAttribution({
     inspect: async () => ({
-      meta: { version: 0, id: SessionId('session-1'), createdAt: 1, cwd: '/private/project' },
+      meta: { version: 0, id: SessionId('session-1'), createdAt: 1, cwd: '/private/project', isSeeded: false },
+      inheritedEventCount: SessionLogOffset(0),
       events,
     }),
   }).resolve('session-1', assistantMessageId)
@@ -164,7 +165,7 @@ function validEvents(): SessionEvent[] {
 }
 
 function event(type: string, seq: number, data: unknown): Record<string, unknown> {
-  return { type, seq, time: seq + 1, data }
+  return { type, seq: SessionSeq(seq), time: seq + 1, data }
 }
 
 function contentHash(text: string): string {

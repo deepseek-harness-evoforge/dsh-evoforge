@@ -27,6 +27,7 @@ describe('dsh-doctor runtime plugin', () => {
       commandId: 'fixture-command' as never,
       agent,
       rawInput: '',
+      attachments: [],
       signal: new AbortController().signal,
     })
     expect(result).toEqual({
@@ -68,6 +69,7 @@ describe('dsh-doctor runtime plugin', () => {
       commandId: 'fixture-channel-command' as never,
       agent: {} as Agent,
       rawInput: '',
+      attachments: [],
       signal: new AbortController().signal,
     })
 
@@ -101,6 +103,7 @@ describe('dsh-doctor runtime plugin', () => {
       commandId: 'fixture-telegram-command' as never,
       agent: {} as Agent,
       rawInput: '',
+      attachments: [],
       signal: new AbortController().signal,
     })
 
@@ -131,6 +134,7 @@ describe('dsh-doctor runtime plugin', () => {
       commandId: 'fixture-malformed-gateway-command' as never,
       agent: {} as Agent,
       rawInput: '',
+      attachments: [],
       signal: new AbortController().signal,
     })
 

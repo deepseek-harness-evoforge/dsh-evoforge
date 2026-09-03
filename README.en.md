@@ -2,7 +2,7 @@
 
 **EvoForge is an out-of-tree plugin suite installed into DeepSeek Harness. It is not a standalone harness, Runtime, CLI application, web server, or daemon.** DSH remains the sole authority for Agents, Sessions, Goals, Approvals, Storage, Jobs, Skills, Tools, Workspaces, and the Cordis lifecycle.
 
-Compatibility evidence is pinned to the audited DeepSeek Harness revisions `47f943859bef60e4160492346772ded9b24f765a` (`0.1.0-rc.5`) and `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e` (`0.1.1-rc.2`). The twelve internal Bundles are exposed as four default capability suites (`core`, `channels`, `delivery`, and `continuity`), with `attention` optional and legacy entries retained for compatibility; see the [suite boundary guide](docs/capability-suites.zh.md). The project is pre-alpha and has not been published to a registry; local tarballs installed through the official DSH profile command are the only current installation path.
+The current supported baseline is DeepSeek Harness `dsh-v0.1.2-alpha.5`, revision `db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`. Earlier rc.5/rc.2 matrices remain historical evidence and are not current support claims. The twelve internal Bundles are exposed as four default capability suites (`core`, `channels`, `delivery`, and `continuity`), with `attention` optional; see the [suite boundary guide](docs/capability-suites.zh.md). The project is pre-alpha and has not been published to a registry; local tarballs installed through the official DSH profile command are the only current installation path.
 
 ## Current capability suites
 

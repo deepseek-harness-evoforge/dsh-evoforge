@@ -1,6 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
-import type {} from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from 'dsh-control-center/client'
 import { DoctorSurface } from './DoctorAction.tsx'
@@ -13,7 +12,7 @@ type WebContext = Context & {
     register(namespace: string, dictionaries: { zh: Record<string, string>; en: Record<string, string> }): () => void
     bind(namespace: string): (key: string) => string
   }
-  slots: Context['slots'] & {
+  slots: {
     inject(name: string, install: () => unknown): void
     register(options: Record<string, unknown>, component: unknown): () => void
   }

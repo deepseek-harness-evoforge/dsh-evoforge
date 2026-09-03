@@ -28,8 +28,11 @@ if (skillPresent) {
   await cp(join(candidateDir, 'SKILL.md'), join(skillHome, 'SKILL.md'))
 }
 
-const driver = join(dshDir, 'examples', 'headless-agent', 'tests', 'fixtures', 'headless-driver.ts')
-const config = join(dshDir, 'examples', 'headless-agent', 'tests', 'fixtures', 'cli.cordis.yml')
+// DSH alpha.5 moved the keyless headless driver and overlay into the
+// test-support/profile tree. Keep the evaluator on the official test fixture
+// instead of reviving the removed examples/headless-agent path.
+const driver = join(dshDir, 'packages', 'test-support', 'loader-smoke', 'tests', 'fixtures', 'headless-driver.ts')
+const config = join(dshDir, 'apps', 'cli', 'tests', 'profiles', 'headless', 'tests', 'fixtures', 'cli.patch.yml')
 const execution = await runBounded(
   process.execPath,
   [driver, config, `/${targetSkillName}`, 'verify', 'the', 'real', 'GUI', 'flow'],
@@ -39,6 +42,11 @@ const execution = await runBounded(
       DSH_AGENTS_HOME: join(workspace, '.agents-home'),
       DSH_HOME: join(workspace, '.dsh-home'),
       DSH_TELEMETRY_DISABLED: '1',
+      // The outer Evolution Trial is the deny-by-default Seatbelt boundary.
+      // macOS refuses nested sandbox-exec, so this assembled composition test
+      // bypasses only DSH's inner sandbox while retaining the outer boundary;
+      // DSH's own sandbox backend suite remains the security gate.
+      DSH_PERMISSION_MODE: 'danger-full-access',
       HOME: workspace,
       LANG: 'C',
       LC_ALL: 'C',
@@ -72,7 +80,7 @@ const firstRequestIndex = events.findIndex(event => event.type === 'request/head
 const firstRequestEvents = firstRequestIndex === -1 ? [] : events.slice(0, firstRequestIndex + 1)
 const normalizedComposition = firstRequestEvents.flatMap(event => {
   if (event.type === 'request/header') {
-    return [{ type: event.type, header: event.data.header }]
+    return [{ type: event.type, header: normalizeCompositionValue(event.data.header, workspace) }]
   }
   if (event.type === 'user/message') {
     if (event.data?.source?.kind === 'skill-invocation'
@@ -125,6 +133,14 @@ function flagValue(args, name) {
     throw new Error(`missing value for ${name}`)
   }
   return value
+}
+
+// Each Trial gets a fresh temporary root. DSH correctly includes the current
+// working directory in its system prompt, but that host path is not a
+// capability or behavior difference and must not make paired composition
+// fingerprints diverge.
+function normalizeCompositionValue(value, ephemeralRoot) {
+  return JSON.parse(JSON.stringify(value).split(ephemeralRoot).join('<trial-workspace>'))
 }
 
 function runBounded(command, args, options) {

@@ -126,6 +126,7 @@ function sessionAgent(id: string, events: SessionEvent[]): Agent {
     id: sessionId,
     createdAt: 1,
     cwd: '/repo',
+    isSeeded: false,
   })
   return {
     ctx: new Context(),

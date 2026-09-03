@@ -9,6 +9,7 @@ import { freezeMessage, MessageId } from '@deepseek-ai/dsh-llm'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import type { ApprovalOutcome } from '@deepseek-ai/dsh-user-approval'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { bootLatestDshProfile } from './latest-dsh-test-runtime.ts'
 import type { FeishuApprovalAction, FeishuInboundMessage, FeishuSendOptions } from '../src/platform.js'
 import type { FeishuRuntime } from '../src/runtime.js'
 
@@ -113,13 +114,15 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled dual Workspace cha
     vi.stubEnv('DSH_HOME', join(root, '.dsh-home'))
     vi.stubEnv('DSH_TELEMETRY_DISABLED', '1')
 
-    const { boot } = await import(pathToFileURL(
-      join(dshSourceDir, 'packages', 'boot', 'app-boot', 'lib', 'index.js'),
-    ).href)
     const previousCwd = process.cwd()
     process.chdir(root)
     try {
-      const first = await boot('dsh-dual-workspace-channels-test-1', config)
+      const first = await bootLatestDshProfile({
+        binName: 'dsh-dual-workspace-channels-test-1',
+        configPath: config,
+        dshSourceDir,
+        home: join(root, '.dsh-home'),
+      })
       let firstTelegramExecution = executionCounts()
       let firstFeishuExecution = executionCounts()
       try {
@@ -141,10 +144,12 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled dual Workspace cha
         await expect(first.workspaceRegistry.resolveByPath(feishuWorkspace)).resolves.toMatchObject({
           sessionIds: expect.arrayContaining(['feishu-session']),
         })
-        expect(sessionText(telegramAgent?.session.events)).toContain('telegram-only-token')
-        expect(sessionText(telegramAgent?.session.events)).not.toContain('feishu-only-token')
-        expect(sessionText(feishuAgent?.session.events)).toContain('feishu-only-token')
-        expect(sessionText(feishuAgent?.session.events)).not.toContain('telegram-only-token')
+        await vi.waitFor(() => {
+          expect(sessionText(telegramAgent?.session.snapshotEvents())).toContain('telegram-only-token')
+          expect(sessionText(telegramAgent?.session.snapshotEvents())).not.toContain('feishu-only-token')
+          expect(sessionText(feishuAgent?.session.snapshotEvents())).toContain('feishu-only-token')
+          expect(sessionText(feishuAgent?.session.snapshotEvents())).not.toContain('telegram-only-token')
+        }, { timeout: 5_000, interval: 25 })
         expect(first.commands.list(telegramAgent).map((command: { name: string }) => command.name)).toContain('telegram')
         expect(first.commands.list(telegramAgent).map((command: { name: string }) => command.name)).not.toContain('feishu')
         expect(first.commands.list(feishuAgent).map((command: { name: string }) => command.name)).toContain('feishu')
@@ -246,14 +251,19 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled dual Workspace cha
         const source = first.get('evoforge.attentionTestSource') as { calls: string[] } | undefined
         expect(new Set(source?.calls)).toEqual(new Set([telegramWorkspaceId, feishuWorkspaceId]))
 
-        firstTelegramExecution = executionCounts(telegramAgent?.session.events)
-        firstFeishuExecution = executionCounts(feishuAgent?.session.events)
+        firstTelegramExecution = executionCounts(telegramAgent?.session.snapshotEvents())
+        firstFeishuExecution = executionCounts(feishuAgent?.session.snapshotEvents())
       } finally {
         await first.fiber.dispose()
       }
 
       const telegramSendCountBeforeRestart = telegramSends.length
-      const second = await boot('dsh-dual-workspace-channels-test-2', config)
+      const second = await bootLatestDshProfile({
+        binName: 'dsh-dual-workspace-channels-test-2',
+        configPath: config,
+        dshSourceDir,
+        home: join(root, '.dsh-home'),
+      })
       try {
         const feishu = requireFeishuService(second)
         await feishu.platform.emitMessage(feishuMessage({
@@ -276,8 +286,8 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled dual Workspace cha
           secondTelegramWorkspaceId,
           secondFeishuWorkspaceId,
         ]))
-        expect(executionCounts(second.agents.get('telegram-session')?.session.events)).toEqual(firstTelegramExecution)
-        expect(executionCounts(second.agents.get('feishu-session')?.session.events)).toEqual(firstFeishuExecution)
+        expect(executionCounts(second.agents.get('telegram-session')?.session.snapshotEvents())).toEqual(firstTelegramExecution)
+        expect(executionCounts(second.agents.get('feishu-session')?.session.snapshotEvents())).toEqual(firstFeishuExecution)
         expect(second.agents.get('telegram-session')?.session.header.cwd).toBe(canonicalTelegramWorkspace)
         expect(second.agents.get('feishu-session')?.session.header.cwd).toBe(canonicalFeishuWorkspace)
       } finally {
@@ -301,18 +311,18 @@ function hostConfig(input: {
   return [
     {
       id: 'cli-mock-llm',
-      name: join(dshSourceDir, 'examples', 'headless-agent', 'tests', 'fixtures', 'cli-mock-llm.ts'),
+      name: join(dshSourceDir, 'packages', 'test-support', 'loader-smoke', 'tests', 'fixtures', 'cli-mock-llm.ts'),
     },
     {
       id: 'base',
       name: join(dshSourceDir, 'vendor', 'include', 'lib', 'index.js'),
       config: {
-        path: join(dshSourceDir, 'examples', 'headless-agent', 'cordis.yml'),
+        path: join(dshSourceDir, 'packages', 'bundle', 'base', 'cordis.patch.yml'),
         patches: [
           { id: 'llm-deepseek', name: '@deepseek-ai/dsh-llm-deepseek', disabled: true },
           {
-            id: 'agent-spine',
-            name: '@deepseek-ai/dsh-agent-spine-demo',
+            id: 'agent-loop',
+            name: '@deepseek-ai/dsh-agent-loop',
             config: {
               agents: [],
               workspaceContext: false,
@@ -323,11 +333,11 @@ function hostConfig(input: {
             },
           },
           {
-            id: 'persistence',
+            id: 'session-persistence-jsonl',
             name: '@deepseek-ai/dsh-session-persistence-jsonl',
             config: { root: join(input.root, 'sessions'), compression: 'none' },
           },
-          { id: 'checkpoint-policy', name: '@deepseek-ai/dsh-session-checkpoint-policy', disabled: true },
+          { id: 'session-checkpoint-policy', name: '@deepseek-ai/dsh-session-checkpoint-policy', disabled: true },
         ],
       },
     },

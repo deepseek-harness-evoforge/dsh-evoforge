@@ -26,6 +26,7 @@ const [
   agent,
   goal,
   toolGoal,
+  sessionProjections,
   agentLoop,
   persistence,
   storage,
@@ -46,6 +47,7 @@ const [
   import(sourcePackage('core/agent')),
   import(sourcePackage('goal/goal')),
   import(sourcePackage('goal/tool-goal')),
+  import(sourcePackage('session/session-projection')),
   import(sourcePackage('core/agent-loop')),
   import(sourcePackage('session/session-persistence-jsonl')),
   import(sourcePackage('storage/storage')),
@@ -73,6 +75,7 @@ await ctx.plugin(systemPrompt.default, { persona: 'Delivery Outcome process cras
 await ctx.plugin(tools.default)
 await ctx.plugin(skill.default)
 await ctx.plugin(agent.default)
+await ctx.plugin(sessionProjections.default)
 await ctx.plugin(goal.default)
 await ctx.plugin(toolGoal, {})
 await ctx.plugin(agentLoop.default, { agents: [] })
@@ -85,7 +88,16 @@ const generation = { getSessionGeneration: () => undefined }
 
 if (mode === 'before-session-durable') {
   let announced = false
-  ctx.sessionPersistence.appendBatch = async () => {
+  const persistence = ctx.sessionPersistence
+  // Alpha5 keeps the durable write seam on the backend adapter owned by the
+  // coordinator; older assembled artifacts exposed it as `persistBatch` on
+  // the backend itself. Resolve both shapes so this fixture fails loudly when
+  // the current DSH backend no longer provides a durable interception seam.
+  const backend = persistence.coordinator?.backend ?? persistence
+  const appendBatch = backend.appendBatch ?? backend.persistBatch
+  if (typeof appendBatch !== 'function') throw new Error('alpha5 persistence appendBatch seam is unavailable')
+  const boundAppendBatch = appendBatch.bind(backend)
+  backend.appendBatch = async (storage, events, isMaterialized, ...rest) => {
     if (!announced) {
       announced = true
       process.stdout.write('BEFORE_SESSION_DURABLE\n')
@@ -110,13 +122,9 @@ if (mode === 'before-session-durable') {
   setInterval(() => {}, 60_000)
 } else {
   const effectCount = await readEffectCount(join(root, 'external-effects.log'))
-  let restored
-  try {
-    restored = await ctx.sessionPersistence.load(session.SessionId(sessionIdValue))
-  } catch {
-    restored = undefined
-  }
-  if (restored === undefined) {
+  const sessionPresent = (await ctx.sessionPersistence.list())
+    .some(snapshot => (snapshot.header ?? snapshot).id === sessionIdValue)
+  if (!sessionPresent) {
     process.stdout.write(`${JSON.stringify({ effectCount, outcomeCount: outcomes.list().length, sessionPresent: false })}\n`)
     await outcomes.close()
     await ctx.fiber.dispose()
@@ -139,7 +147,9 @@ if (mode === 'before-session-durable') {
       agentOptions: { provider: 'delivery-crash', model: 'delivery-crash' },
     })
     await monitor.flush()
-    const events = handle.agent.session.events
+    const events = typeof handle.agent.session.snapshotEvents === 'function'
+      ? handle.agent.session.snapshotEvents()
+      : handle.agent.session.events
     const result = {
       effectCount,
       goalPhase: ctx.goals.get(handle.agent)?.phase,
@@ -193,7 +203,7 @@ async function runDelivery(ctx, { root }) {
         yield {
           type: 'tool-call-delta',
           index: 0,
-          id: llm.CallId('delivery-outcome-call'),
+          id: llm.ToolCallId('delivery-outcome-call'),
           name: 'complete_delivery',
           argumentsDelta: input,
         }
@@ -202,7 +212,7 @@ async function runDelivery(ctx, { root }) {
           index: 0,
           block: {
             type: 'tool-call',
-            id: llm.CallId('delivery-outcome-call'),
+            id: llm.ToolCallId('delivery-outcome-call'),
             name: 'complete_delivery',
             arguments: input,
           },

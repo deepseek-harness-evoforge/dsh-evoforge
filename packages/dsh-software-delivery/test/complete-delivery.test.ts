@@ -5,15 +5,17 @@ import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { Context } from '@deepseek-ai/cordis'
 import LlmRuntime, {
-  CallId,
+  ToolCallId,
   createUserMessage,
   LlmAdapter,
   type GenerateOptions,
   type StreamChunk,
 } from '@deepseek-ai/dsh-llm'
-import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
+import SessionStore, { SessionId, type Session, type SessionEvent } from '@deepseek-ai/dsh-session'
+import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import ToolRuntime, { defineTool, type JsonValue } from '@deepseek-ai/dsh-tools'
+import ToolRuntime, { defineTool } from '@deepseek-ai/dsh-tools'
+import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import AgentRegistry from '@deepseek-ai/dsh-agent'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import GoalService from '@deepseek-ai/dsh-goal'
@@ -555,6 +557,7 @@ describe('complete_delivery Tool', () => {
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(AgentRegistry)
+    await ctx.plugin(SessionProjectionRegistry)
     await ctx.plugin(GoalService)
     await ctx.plugin(SkillRegistry)
     const fiber = await ctx.plugin(DeliveryPlugin)
@@ -665,6 +668,7 @@ async function setup(
   installTestBash(ctx, interceptBash)
   await ctx.plugin(SkillRegistry)
   await ctx.plugin(AgentRegistry)
+  await ctx.plugin(SessionProjectionRegistry)
   await ctx.plugin(GoalService)
   await ctx.plugin(ToolGoal, {})
   await ctx.plugin(DeliveryPlugin, deliveryConfig)
@@ -750,7 +754,7 @@ async function runHumanTurn(agent: { followup(message: unknown): void; whenIdle(
 }
 
 function toolCall(id: string, name: string, args: object): StreamChunk[] {
-  const callId = CallId(id)
+  const callId = ToolCallId(id)
   const input = JSON.stringify(args)
   return [
     { type: 'block-start', index: 0, blockType: 'tool-call' },
@@ -771,15 +775,25 @@ function textResponse(text: string): StreamChunk[] {
   ]
 }
 
-function toolResult(agent: { session: { events: readonly any[] } }, callId: string) {
-  return agent.session.events.find(event => event.type === 'tool/result'
+function sessionEvents(session: Session): readonly SessionEvent[] {
+  const candidate = session as unknown as {
+    readonly snapshotEvents?: () => readonly SessionEvent[]
+    readonly events?: readonly SessionEvent[]
+  }
+  if (typeof candidate.snapshotEvents === 'function') return candidate.snapshotEvents()
+  if (candidate.events !== undefined) return candidate.events
+  throw new Error('DSH Session does not expose a readable event snapshot')
+}
+
+function toolResult(agent: { session: Session }, callId: string): SessionEvent<'tool/result'> | undefined {
+  return sessionEvents(agent.session).find((event): event is SessionEvent<'tool/result'> => event.type === 'tool/result'
     && event.data.message.content.some((block: { toolCallId?: string }) => block.toolCallId === callId))
 }
 
-function toolResultValue(agent: { session: { events: readonly any[] } }, callId: string): any {
+function toolResultValue(agent: { session: Session }, callId: string): any {
   const event = toolResult(agent, callId)
   const block = event?.data.message.content.find((value: { toolCallId?: string }) => value.toolCallId === callId)
-  const text = block?.content?.find((value: { type?: string }) => value.type === 'text')?.text
+  const text = block?.content?.find((value): value is { type: 'text'; text: string } => value.type === 'text')?.text
   if (typeof text !== 'string') throw new Error(`tool result ${callId} has no text`)
   return JSON.parse(text)
 }

@@ -10,6 +10,16 @@ import type {
   GitHubReviewWatch,
 } from './review-store.js'
 
+function sessionEvents(session: Agent['session']): readonly import('@deepseek-ai/dsh-session').SessionEvent[] {
+  const candidate = session as unknown as {
+    readonly snapshotEvents?: () => readonly import('@deepseek-ai/dsh-session').SessionEvent[]
+    readonly events?: readonly import('@deepseek-ai/dsh-session').SessionEvent[]
+  }
+  if (typeof candidate.snapshotEvents === 'function') return candidate.snapshotEvents()
+  if (candidate.events !== undefined) return candidate.events
+  throw new Error('DSH Session does not expose a readable event snapshot')
+}
+
 export interface GitHubReviewRuntimeConfig {
   readonly trustedReviewers: readonly string[]
   readonly maxTextChars: number
@@ -151,7 +161,7 @@ export class GitHubReviewRuntime {
 function messageSeen(agent: Agent, messageId: string): boolean {
   if (agent.inbox.nextTurn.some(message => String(message.id) === messageId)
     || agent.inbox.nextStep.some(message => String(message.id) === messageId)) return true
-  return agent.session.events.some((event) => {
+  return sessionEvents(agent.session).some((event) => {
     if (event.type === 'user/message') return String(event.data.id) === messageId
     return event.type === 'agent/inbox/spliced'
       && event.data.inserted.some(message => String(message.id) === messageId)

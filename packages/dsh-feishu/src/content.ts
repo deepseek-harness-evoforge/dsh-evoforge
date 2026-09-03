@@ -1,6 +1,7 @@
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { HarnessError } from '@deepseek-ai/dsh-llm'
-import { defineTool, type JsonValue, type PreToolDecision } from '@deepseek-ai/dsh-tools'
+import type { JsonValue } from '@deepseek-ai/dsh-util-values'
+import { defineTool, type PreToolDecision } from '@deepseek-ai/dsh-tools'
 import type { FeishuContentPermission } from './config.js'
 
 export const FEISHU_CONTENT_TOOL = 'feishu_content_read'

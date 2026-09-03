@@ -47,7 +47,7 @@ export async function apply(ctx, config) {
           workspaceId: String(workspace.id),
           governanceRoot: config.governanceRoot,
           runRoot: config.runRoot,
-          dshRevision: '47f943859bef60e4160492346772ded9b24f765a',
+          dshRevision: 'db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5',
         }] }
       : {}),
     ...(config.seedAutomaticExistingSkillPromotion === true
@@ -192,7 +192,7 @@ export async function apply(ctx, config) {
  * and exercise the native conversation.view tabs without a paid provider call.
  */
 async function seedBrowserConversation(ctx, agent) {
-  if (agent.session.events.some(event => event.type === 'user/message')) return
+  if (sessionEvents(agent.session).some(event => event.type === 'user/message')) return
   const { createAssistantMessage, createUserMessage } = await import(
     pathToFileURL(resolve(
       new URL('../../../dsh-evolve/node_modules/@deepseek-ai/dsh-llm/lib/index.js', import.meta.url).pathname,
@@ -485,7 +485,7 @@ async function seedExistingSkillHoldoutEvaluation(workspace, config, release = {
   const baselineTreeHash = release.baselineTreeHash ?? 'a'.repeat(64)
   const candidateTreeHash = release.candidateTreeHash ?? 'b'.repeat(64)
   const casePackHash = release.holdoutCasePackHash ?? 'c'.repeat(64)
-  const dshRevision = '47f943859bef60e4160492346772ded9b24f765a'
+  const dshRevision = 'db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5'
   const skillName = release.skillName ?? 'verify-dsh-release'
   const id = sha256(JSON.stringify([
     'existing-skill-holdout-evaluation-v1',
@@ -585,7 +585,7 @@ async function seedExistingSkillRetentionEvaluation(workspace, config, release =
   const candidateTreeHash = release.candidateTreeHash ?? 'b'.repeat(64)
   const holdoutCasePackHash = release.holdoutCasePackHash ?? 'c'.repeat(64)
   const casePackHash = release.retentionCasePackHash ?? 'd'.repeat(64)
-  const dshRevision = '47f943859bef60e4160492346772ded9b24f765a'
+  const dshRevision = 'db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5'
   const skillName = release.skillName ?? 'verify-dsh-release'
   const holdoutEvaluationId = release.holdoutEvaluationId ?? sha256(JSON.stringify([
     'existing-skill-holdout-evaluation-v1',
@@ -703,7 +703,7 @@ async function seedExistingSkillCounterfactualCanary(workspace, config, releaseS
   const workspaceId = String(workspace.id)
   const generationId = release.generationId
   const outcomeId = sha256('browser-existing-skill-failed-outcome')
-  const dshRevision = '47f943859bef60e4160492346772ded9b24f765a'
+  const dshRevision = 'db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5'
   const identity = {
     policyId,
     workspaceId,
@@ -1256,8 +1256,8 @@ async function seedNativeCapabilityGaps(ctx, workspace, agent, agentEvents, conf
       `real browser fixture did not observe a complete DSH Skill catalog for ${gapSessionId}`)
     const session = gapAgent.session
     const objective = `Complete internal DSH capability-gap acceptance ${index}.`
-    if (!session.events.some(event => event.type === 'goal/change' && event.data.goal?.id === goalId)) {
-      const time = Math.max(Date.now(), (session.events.at(-1)?.time ?? 0) + 100)
+    if (!sessionEvents(session).some(event => event.type === 'goal/change' && event.data.goal?.id === goalId)) {
+      const time = Math.max(Date.now(), (sessionEvents(session).at(-1)?.time ?? 0) + 100)
       appendAt(session, time, 'goal/change', {
         kind: 'goal/change',
         version: 1,
@@ -1374,8 +1374,8 @@ async function seedNativeSkillReuse(ctx, workspace, config, handles) {
     const session = useAgent.session
     const callId = `evoforge-browser-skill-reuse-call-${index}`
     const goalId = `goal-evoforge-browser-skill-reuse-${index}`
-    if (!session.events.some(event => event.type === 'tool/call' && event.data.callId === callId)) {
-      const base = Math.max(Date.now(), (session.events.at(-1)?.time ?? 0) + 100)
+    if (!sessionEvents(session).some(event => event.type === 'tool/call' && event.data.callId === callId)) {
+      const base = Math.max(Date.now(), (sessionEvents(session).at(-1)?.time ?? 0) + 100)
       appendAt(session, base, 'goal/change', {
         kind: 'goal/change',
         version: 1,
@@ -1457,8 +1457,8 @@ async function seedNativeSkillReuse(ctx, workspace, config, handles) {
     }
 
     const passedCallId = `evoforge-browser-skill-outcome-passed-${index}`
-    if (!session.events.some(event => event.type === 'tool/call' && event.data.callId === passedCallId)) {
-      const base = Math.max(Date.now(), (session.events.at(-1)?.time ?? 0) + 100)
+    if (!sessionEvents(session).some(event => event.type === 'tool/call' && event.data.callId === passedCallId)) {
+      const base = Math.max(Date.now(), (sessionEvents(session).at(-1)?.time ?? 0) + 100)
       let offset = 0
       if (index === 1) {
         const failedCallId = 'evoforge-browser-skill-outcome-failed-1'
@@ -1589,8 +1589,8 @@ async function seedNativeSkillFailureInvestigation(ctx, workspace, config, handl
     const session = useAgent.session
     const callId = `evoforge-browser-skill-failure-call-${index}`
     const goalId = `goal-evoforge-browser-skill-failure-${index}`
-    if (!session.events.some(event => event.type === 'tool/call' && event.data.callId === callId)) {
-      const base = Math.max(Date.now(), (session.events.at(-1)?.time ?? 0) + 100)
+    if (!sessionEvents(session).some(event => event.type === 'tool/call' && event.data.callId === callId)) {
+      const base = Math.max(Date.now(), (sessionEvents(session).at(-1)?.time ?? 0) + 100)
       appendAt(session, base, 'goal/change', {
         kind: 'goal/change',
         version: 1,
@@ -1724,13 +1724,13 @@ function errorMessage(error) {
 async function seedNativeGoalMetrics(ctx, workspace, agent) {
   const session = agent.session
   const callId = 'evoforge-browser-goal-metrics'
-  if (session.events.some(event => event.type === 'tool/call' && event.data.callId === callId)) {
+  if (sessionEvents(session).some(event => event.type === 'tool/call' && event.data.callId === callId)) {
     await waitForMeasuredOutcome(ctx, String(workspace.id), String(session.id))
     return
   }
 
   const goalId = 'goal-evoforge-browser-metrics'
-  const lastEventTime = session.events.at(-1)?.time ?? 0
+  const lastEventTime = sessionEvents(session).at(-1)?.time ?? 0
   const base = Math.max(Date.now(), lastEventTime + 100)
   appendAt(session, base, 'goal/change', {
     kind: 'goal/change',
@@ -1901,11 +1901,11 @@ async function seedGenerationSelectionOutcomes(ctx, workspace, previousAgent, co
 
 async function appendSelectionDeliveryOutcome(ctx, agent, callId, goalId, status, requestedBase) {
   const session = agent.session
-  if (session.events.some(event => event.type === 'tool/call' && event.data.callId === callId)) {
+  if (sessionEvents(session).some(event => event.type === 'tool/call' && event.data.callId === callId)) {
     await ctx.sessions.flush(session)
     return
   }
-  const base = Math.max(requestedBase, (session.events.at(-1)?.time ?? 0) + 100)
+  const base = Math.max(requestedBase, (sessionEvents(session).at(-1)?.time ?? 0) + 100)
   const phase = status === 'passed' ? 'complete' : 'active'
   appendAt(session, base, 'goal/change', {
     kind: 'goal/change',
@@ -2018,6 +2018,13 @@ function appendAt(session, time, type, data, options) {
   } finally {
     Date.now = realNow
   }
+}
+
+/** Read the immutable event snapshot on current DSH and historical fixtures. */
+function sessionEvents(session) {
+  if (typeof session.snapshotEvents === 'function') return session.snapshotEvents()
+  if (Array.isArray(session.events)) return session.events
+  throw new Error('DSH Session does not expose a readable event snapshot')
 }
 
 async function waitForMeasuredOutcome(ctx, workspaceId, sessionId) {

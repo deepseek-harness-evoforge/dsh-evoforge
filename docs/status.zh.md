@@ -1,6 +1,28 @@
 # 当前实现状态
 
-> 更新日期：2026-09-02。本文只描述标准路径中的权威 `main` 工作树，不把计划或历史分支当作已交付能力。
+> 更新日期：2026-09-03。本文只描述标准路径中的权威 `main` 工作树，不把计划或历史分支当作已交付能力。
+
+## V5.69：DSH alpha.5 迁移收口（本轮）
+
+本轮开发和测试固定在 DSH `0.1.2-alpha.5`。本地最新 `master` 为
+`49a606bc5b5934603f22a26957a07dc799ab0291`；最新公开 tag
+`dsh-v0.1.2-alpha.5` 为 `db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`。EvoForge 已迁移到
+alpha.5 的 `ToolCallId`、`JsonValue`、`snapshotEvents()`、`SessionPersistence` 的
+`prepare/load/inspect` API 与 JSONL coordinator 接缝、
+`SessionProjectionRegistry.restore` 和 Cordis 4.0.2 接缝。typecheck、核心包测试、assembled
+Skill/Completion/Crash Recovery 以及 clean-profile add/dump/boot/reload/dispose/remove/readback
+均通过；历史 pre-alpha.5 suite-upgrade 夹具明确 skip，不把旧 `CallId` 导入失败伪装成升级成功。
+
+最新 DSH master 的安装通过，但其 Client bundle 构建暴露上游 `session-persistence` 导出缺失；
+本项目不改上游，assembled 证据使用同版本最新公开 tag，并在该 tag 上先完成完整构建再跑测试。
+本轮 alpha5 全套本地结果为：Evolve 309、Gateway 36、Feishu 45、Telegram 29、Software Delivery
+35（另 2 个历史/平台夹具明确 skipped），Goal Continuity 12、Doctor 40、Control Center 4。
+完整 revision、命令和失败修复过程见 [alpha.5 迁移审计](research/dsh-alpha5-migration-audit-2026-09-03.zh.md)与
+[V5.69 证据](evidence/v5-69-dsh-alpha5-migration-2026-09-03.zh.md)。
+
+当前仍是 `pre-alpha`，不能发布首个 tag：真实飞书完整 AS-2、两套真实 provider、同条件 Hermes
+paired benchmark、长期负迁移/遗忘和完整真实浏览器成功/失败/恢复门尚未齐备。README 已改为用户指南，
+内部过程和历史证据只放在 `docs/`。
 
 ## 状态词
 

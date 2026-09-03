@@ -1,7 +1,8 @@
-import type { Session, SessionEvent } from '@deepseek-ai/dsh-session'
+import { SessionLogOffset, type Session, type SessionEvent } from '@deepseek-ai/dsh-session'
 import type { SessionProjectionRegistry } from '@deepseek-ai/dsh-session-projection'
 import type {} from '@deepseek-ai/dsh-goal'
 import { z } from 'zod'
+import { sessionEvents } from './session-log.ts'
 
 const tokenUsageSchema = z.strictObject({
   uncachedInputTokens: z.number().int().nonnegative(),
@@ -70,13 +71,15 @@ export function projectGoalExecutionMetrics(
 ): GoalExecutionMetrics | undefined {
   if (goalId.length === 0 || goalId.length > 256
     || !Number.isSafeInteger(throughEventSeq) || throughEventSeq < 0) return undefined
-  const throughEvent = session.events[throughEventSeq]
+  const events = sessionEvents(session)
+  const throughEvent = events[throughEventSeq]
   if (throughEvent?.seq !== throughEventSeq) return undefined
-  const events = session.events.slice(0, throughEventSeq + 1)
-  const turns = attributedTurns(events, goalId)
+  const selectedEvents = events.slice(0, throughEventSeq + 1)
+  const turns = attributedTurns(selectedEvents, goalId)
   if (turns.length === 0) return undefined
   const cuts = projectionCuts(
-    events,
+    session,
+    selectedEvents,
     turns.flatMap(turn => [turn.startSeq - 1, turn.endSeq]),
     projections,
   )
@@ -187,6 +190,7 @@ function attributedTurns(
 }
 
 function projectionCuts(
+  session: Session,
   events: readonly SessionEvent[],
   requested: readonly number[],
   projections: ProjectionReader,
@@ -200,7 +204,7 @@ function projectionCuts(
     const tail = boundary < baseSeq ? [] : events.slice(baseSeq, boundary + 1)
     let restored: ReturnType<ProjectionReader['restore']>
     try {
-      restored = projections.restore(checkpoint, tail, baseSeq)
+      restored = projections.restore(checkpoint, tail, SessionLogOffset(baseSeq), session.header, session.inheritedEventCount)
     } catch {
       return undefined
     }

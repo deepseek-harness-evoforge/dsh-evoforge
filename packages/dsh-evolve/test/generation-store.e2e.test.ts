@@ -800,6 +800,7 @@ async function writeRuntimeConfigs(root: string): Promise<{
     ['dsh-system-prompt', join(dshSourceDir, 'packages', 'core', 'system-prompt')],
     ['dsh-tools', join(dshSourceDir, 'packages', 'core', 'tools')],
     ['dsh-session', join(dshSourceDir, 'packages', 'core', 'session')],
+    ['dsh-session-projection', join(dshSourceDir, 'packages', 'session', 'session-projection')],
     ['dsh-jobs-local', join(dshSourceDir, 'packages', 'jobs', 'jobs-local')],
     ['dsh-session-persistence-jsonl', join(dshSourceDir, 'packages', 'session', 'session-persistence-jsonl')],
     ['dsh-workspace', join(dshSourceDir, 'packages', 'workspace', 'workspace')],
@@ -816,6 +817,7 @@ async function writeRuntimeConfigs(root: string): Promise<{
     { id: 'tools', name: '@deepseek-ai/dsh-tools' },
     { id: 'session', name: '@deepseek-ai/dsh-session' },
     { id: 'agent', name: '@deepseek-ai/dsh-agent' },
+    { id: 'session-projection', name: '@deepseek-ai/dsh-session-projection' },
     { id: 'goal', name: '@deepseek-ai/dsh-goal' },
     { id: 'storage', name: '@deepseek-ai/dsh-storage' },
     {

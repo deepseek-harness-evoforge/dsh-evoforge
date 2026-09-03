@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const packagesRoot = resolve(packageRoot, '..')
-const supportedDshPeerRange = '0.1.0-rc.5 || 0.1.1-rc.2'
+const supportedDshPeerRange = '0.1.2-alpha.5'
 
 const contracts = [
   {
@@ -115,7 +115,7 @@ describe('EvoForge native DSH plugin suite contract', () => {
     }
     for (const dependency of manifest.dsh?.client?.inject ?? []) {
       expect(manifest.peerDependencies?.[dependency]).toBe(supportedDshPeerRange)
-      expect(manifest.devDependencies?.[dependency]).toBe('0.1.0-rc.6')
+      expect(manifest.devDependencies?.[dependency]).toBe('0.1.2-alpha.5')
     }
 
     const patch = await readFile(join(root, 'cordis.patch.yml'), 'utf8')

@@ -3,6 +3,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { durableSkillInvocations } from './durable-skill-invocation.ts'
 import { sessionIdentityOf } from './generation-binder.ts'
+import { sessionEvents } from './session-log.ts'
 import type { InstalledSkillBaselineVault } from './installed-skill-baseline.ts'
 
 export interface InstalledSkillBaselineMonitor {
@@ -83,7 +84,7 @@ async function observeAgent(
     seenByAgent.set(agent, agentSeen)
   }
   const identity = await sessionIdentityOf(ctx, agent)
-  for (const invocation of durableSkillInvocations(agent.session.events)) {
+  for (const invocation of durableSkillInvocations(sessionEvents(agent.session))) {
     if (invocation.seq <= startupHighWater) continue
     const key = invocationKey(invocation)
     if (agentSeen.has(key)) continue
@@ -117,7 +118,7 @@ async function observeAgent(
 }
 
 function lastEventSeq(agent: Agent): number {
-  return agent.session.events.reduce((highest, event) => Math.max(highest, event.seq), -1)
+  return sessionEvents(agent.session).reduce((highest, event) => Math.max(highest, Number(event.seq)), -1)
 }
 
 function invocationKey(invocation: ReturnType<typeof durableSkillInvocations>[number]): string {

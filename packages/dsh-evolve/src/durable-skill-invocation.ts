@@ -37,7 +37,7 @@ function explicitInvocations(events: readonly SessionEvent[]): DurableSkillInvoc
       ? [{
           skillName,
           route: 'user-explicit' as const,
-          seq: event.seq,
+          seq: Number(event.seq),
           content: event.data.content,
         }]
       : []
@@ -66,7 +66,7 @@ function successfulToolInvocations(events: readonly SessionEvent[]): DurableSkil
       : [{
           skillName,
           route: 'model-tool' as const,
-          seq: event.seq,
+          seq: Number(event.seq),
           content: matches[0]!.content,
         }]
   })

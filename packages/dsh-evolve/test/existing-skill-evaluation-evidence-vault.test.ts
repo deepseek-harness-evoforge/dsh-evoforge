@@ -1,6 +1,6 @@
 import { Context } from '@deepseek-ai/cordis'
 import type { MessageFeedbackListResult } from '@deepseek-ai/dsh-message-feedback'
-import { SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
+import { SessionId, SessionLogOffset, SessionSeq, type SessionEvent } from '@deepseek-ai/dsh-session'
 import type { SessionPersistence } from '@deepseek-ai/dsh-session-persistence'
 import SkillRegistry, { renderSkillContent } from '@deepseek-ai/dsh-skill'
 import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
@@ -280,7 +280,8 @@ async function evidenceFixture(goalCount = 4) {
       const found = sessions.get(String(sessionId))
       if (found === undefined) throw new Error('fixture Session not found')
       return {
-        meta: { version: 0, id: SessionId(String(sessionId)), createdAt: 1, cwd: '/private/project' },
+        meta: { version: 0, id: SessionId(String(sessionId)), createdAt: 1, cwd: '/private/project', isSeeded: false },
+        inheritedEventCount: SessionLogOffset(0),
         events: found,
       }
     },
@@ -400,5 +401,5 @@ function sessionEvents(marker: string, goalId: string, invocationText: string): 
 }
 
 function event(type: string, seq: number, data: unknown): Record<string, unknown> {
-  return { type, seq, time: seq + 1, data }
+  return { type, seq: SessionSeq(seq), time: seq + 1, data }
 }

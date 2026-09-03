@@ -8,7 +8,7 @@ import { en, NS, zh } from './locales.ts'
 import { cssText, STYLE_ID } from './style.ts'
 
 type WebContext = Context & {
-  remote: Context['remote'] & {
+  remote: {
     $mount(contribution: unknown): Promise<() => Promise<void>>
     evoforgeEvolution: EvolutionRemoteClient
   }
@@ -16,7 +16,7 @@ type WebContext = Context & {
     register(namespace: string, dictionaries: { zh: Record<string, string>; en: Record<string, string> }): () => void
     bind(namespace: string): (key: string) => string
   }
-  slots: Context['slots'] & {
+  slots: {
     inject(name: string, install: () => unknown): void
     register(options: Record<string, unknown>, component: unknown): () => void
   }

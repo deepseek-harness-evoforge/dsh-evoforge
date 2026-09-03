@@ -236,7 +236,7 @@ export async function executeRealFeishuAcceptance(
     await writeAcceptanceOverlay(
       join(profileDir, 'cordis.patch.yml'),
       workspaceId,
-      join(config.dshSourceDir, 'examples', 'headless-agent', 'tests', 'fixtures', 'cli-mock-llm.ts'),
+      join(config.dshSourceDir, 'packages', 'test-support', 'loader-smoke', 'tests', 'fixtures', 'cli-mock-llm.ts'),
     )
     const dumped = await execFile(process.execPath, [dshBin, '--profile', PROFILE_NAME, '--dump-config'], {
       cwd: runDir,

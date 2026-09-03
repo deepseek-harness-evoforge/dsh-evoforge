@@ -104,6 +104,7 @@ function invocation(agent: Agent, rawInput: string) {
     commandId: 'resident-command-fixture' as never,
     agent,
     rawInput,
+    attachments: [],
     signal: new AbortController().signal,
   }
 }

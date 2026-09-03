@@ -19,7 +19,35 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   }
 }
 
-export type ControlSurfaceProps = PropsRuntime<'evoforge.control.surface'>
+/**
+ * The alpha.5 web runner injects these standard seats through declaration
+ * modules owned by ui-session/ui-workspace. Those modules are deliberately
+ * optional peer surfaces for an out-of-tree plugin, so TypeScript can erase
+ * the augmentation when a consumer imports only `dsh-control-center/client`.
+ * Keep the public seam structural: the runtime still supplies the branded
+ * DSH values, while older rc builds remain assignable through their string
+ * compatible shapes.
+ */
+export interface ControlSurfaceWorkspace {
+  readonly workspaceId: string
+  readonly sessionIds: readonly string[]
+}
+
+export interface ControlSurfaceWorkspaceSnapshot {
+  readonly items: readonly ControlSurfaceWorkspace[]
+  /** Optional recency hint present in some DSH client revisions. */
+  readonly recentWorkspaceId?: string
+}
+
+export type ControlSurfaceWorkspaceSelector = <Selected>(
+  selector: (state: ControlSurfaceWorkspaceSnapshot) => Selected,
+  equal?: (left: Selected, right: Selected) => boolean,
+) => Selected
+
+export type ControlSurfaceProps = PropsRuntime<'evoforge.control.surface'> & {
+  readonly sessionId: string
+  readonly useWorkspaces: ControlSurfaceWorkspaceSelector
+}
 
 export interface ControlSurfaceTab {
   readonly id: string

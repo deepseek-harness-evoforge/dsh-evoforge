@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 const execFile = promisify(execFileCallback)
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const suiteRoot = resolve(packageRoot, '../..')
-const dshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
+const rawDshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
   ?? resolve(suiteRoot, '../deepseek-harness')
 const driver = join(packageRoot, 'test', 'fixtures', 'delivery-outcome-process-crash.mjs')
 const temporaryRoots: string[] = []
@@ -68,6 +68,7 @@ async function createFixtureRoot(label: string): Promise<string> {
 }
 
 async function expectCrash(root: string, mode: string, ready: string): Promise<void> {
+  const dshSourceDir = await realpath(rawDshSourceDir)
   const child = spawn(process.execPath, [
     '--import', 'tsx/esm', driver, mode, root, dshSourceDir, suiteRoot,
   ], { cwd: packageRoot, stdio: ['ignore', 'pipe', 'pipe'] })
@@ -80,6 +81,7 @@ async function expectCrash(root: string, mode: string, ready: string): Promise<v
 }
 
 async function inspect(root: string): Promise<Record<string, unknown>> {
+  const dshSourceDir = await realpath(rawDshSourceDir)
   const result = await execFile(process.execPath, [
     '--import', 'tsx/esm', driver, 'inspect', root, dshSourceDir, suiteRoot,
   ], { cwd: packageRoot, encoding: 'utf8', timeout: 20_000 })

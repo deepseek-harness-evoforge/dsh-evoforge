@@ -14,7 +14,7 @@ type WebContext = Context & {
     register(namespace: string, dictionaries: { zh: Record<string, string>; en: Record<string, string> }): () => void
     bind(namespace: string): (key: string) => string
   }
-  slots: Context['slots'] & {
+  slots: {
     entries(name: string): readonly StoredSurfaceEntry[]
     subscribe(name: string, listener: () => void): () => void
     getVersion(name: string): number

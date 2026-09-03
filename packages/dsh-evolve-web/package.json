@@ -43,7 +43,6 @@
       "inject": [
         "@deepseek-ai/dsh-api-remotes",
         "@deepseek-ai/dsh-client-locale",
-        "@deepseek-ai/dsh-client-runtime",
         "@deepseek-ai/dsh-client-ui-conversation"
       ],
       "platform": "web"
@@ -70,12 +69,11 @@
     "node": "^22.19.0 || >=24.0.0"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "4.0.1",
-    "@deepseek-ai/dsh-api-remotes": "0.1.0-rc.5 || 0.1.1-rc.2",
-    "@deepseek-ai/dsh-client-ui-conversation": "0.1.0-rc.5 || 0.1.1-rc.2",
-    "@deepseek-ai/dsh-client-locale": "0.1.0-rc.5 || 0.1.1-rc.2",
-    "@deepseek-ai/dsh-client-runtime": "0.1.0-rc.5 || 0.1.1-rc.2",
-    "@deepseek-ai/dsh-typert-protocol": "0.1.0-rc.5 || 0.1.1-rc.2",
+    "@deepseek-ai/cordis": "4.0.2",
+    "@deepseek-ai/dsh-api-remotes": "0.1.2-alpha.5",
+    "@deepseek-ai/dsh-client-ui-conversation": "0.1.2-alpha.5",
+    "@deepseek-ai/dsh-client-locale": "0.1.2-alpha.5",
+    "@deepseek-ai/dsh-typert-protocol": "0.1.2-alpha.5",
     "dsh-control-center": "0.1.0-alpha.1",
     "dsh-evolve": "0.1.0-alpha.1",
     "react": ">=18.2.0 <19"
@@ -84,12 +82,11 @@
     "@deepseek-ai/schemastery": "3.18.1"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "4.0.1",
-    "@deepseek-ai/dsh-api-remotes": "0.1.0-rc.6",
-    "@deepseek-ai/dsh-client-ui-conversation": "0.1.0-rc.6",
-    "@deepseek-ai/dsh-client-locale": "0.1.0-rc.6",
-    "@deepseek-ai/dsh-client-runtime": "0.1.0-rc.6",
-    "@deepseek-ai/dsh-typert-protocol": "0.1.0-rc.6",
+    "@deepseek-ai/cordis": "4.0.2",
+    "@deepseek-ai/dsh-api-remotes": "0.1.2-alpha.5",
+    "@deepseek-ai/dsh-client-ui-conversation": "0.1.2-alpha.5",
+    "@deepseek-ai/dsh-client-locale": "0.1.2-alpha.5",
+    "@deepseek-ai/dsh-typert-protocol": "0.1.2-alpha.5",
     "@testing-library/react": "^16.1.0",
     "@testing-library/dom": "^10.4.0",
     "@types/node": "^22.20.0",

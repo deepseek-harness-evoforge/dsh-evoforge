@@ -5,8 +5,8 @@ EvoForge 只作为 DSH 原生 Bundle 套件运行。本页区分“开发者生�
 ## 1. 前置条件
 
 - Node.js `^22.19.0 || >=24`、pnpm；
-- DeepSeek Harness revision `47f943859bef60e4160492346772ded9b24f765a`（`0.1.0-rc.5`）或当前已审计的
-  `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`（`0.1.1-rc.2`）；
+- DeepSeek Harness `dsh-v0.1.2-alpha.5`，revision
+  `db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`；
 - 一个 DSH `web` profile。
 
 当前包尚未发布到 registry。先按用户结果生成需要的能力套件；这一步只生成 DSH 安装产物，不启动 EvoForge Runtime：

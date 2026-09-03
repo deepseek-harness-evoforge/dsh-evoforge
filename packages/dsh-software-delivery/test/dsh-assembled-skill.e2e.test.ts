@@ -1,4 +1,5 @@
 import { Context } from '@deepseek-ai/cordis'
+import { realpath } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { describe, expect, it } from 'vitest'
@@ -6,15 +7,16 @@ import * as DeliveryPlugin from '../src/index.js'
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const suiteRoot = resolve(packageRoot, '../..')
-const dshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
+const rawDshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
   ?? resolve(suiteRoot, '../deepseek-harness')
 
 describe.skipIf(process.platform !== 'darwin')('assembled DSH software-delivery Skill', () => {
   it('loads through the native Skill tool in a real Agent while preserving one stable model surface', async () => {
+    const dshSourceDir = await realpath(rawDshSourceDir)
     const sourcePackage = (path: string) => pathToFileURL(
       join(dshSourceDir, 'packages', path, 'lib', 'index.js'),
     ).href
-    const [llm, session, systemPrompt, tools, skill, toolSkill, agent, goal, agentLoop] = await Promise.all([
+    const [llm, session, systemPrompt, tools, skill, toolSkill, agent, goal, sessionProjections, agentLoop] = await Promise.all([
       import(sourcePackage('llm/llm')),
       import(sourcePackage('core/session')),
       import(sourcePackage('core/system-prompt')),
@@ -23,6 +25,7 @@ describe.skipIf(process.platform !== 'darwin')('assembled DSH software-delivery 
       import(sourcePackage('skill/tool-skill')),
       import(sourcePackage('core/agent')),
       import(sourcePackage('goal/goal')),
+      import(sourcePackage('session/session-projection')),
       import(sourcePackage('core/agent-loop')),
     ])
     const ctx = new Context()
@@ -35,6 +38,7 @@ describe.skipIf(process.platform !== 'darwin')('assembled DSH software-delivery 
     await ctx.plugin(toolSkill)
     await ctx.plugin(agent.default)
     await ctx.plugin(goal.default)
+    await ctx.plugin(sessionProjections.default)
     await ctx.plugin(agentLoop.default, { agents: [] })
 
     class ScriptedAdapter extends llm.LlmAdapter {
@@ -47,7 +51,7 @@ describe.skipIf(process.platform !== 'darwin')('assembled DSH software-delivery 
       async * stream(options: unknown) {
         this.requests.push(structuredClone(options))
         if (this.requests.length === 1) {
-          const callId = llm.CallId('load-delivery')
+          const callId = llm.ToolCallId('load-delivery')
           const input = '{"name":"software-delivery"}'
           yield { type: 'block-start', index: 0, blockType: 'tool-call' }
           yield { type: 'tool-call-delta', index: 0, id: callId, name: 'skill', argumentsDelta: input }

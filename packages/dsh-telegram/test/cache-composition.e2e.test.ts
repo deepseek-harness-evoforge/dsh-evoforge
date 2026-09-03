@@ -5,6 +5,7 @@ import { dirname, join, resolve } from 'node:path'
 import { pathToFileURL, fileURLToPath } from 'node:url'
 import { freezeMessage, MessageId } from '@deepseek-ai/dsh-llm'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { bootLatestDshProfile } from './latest-dsh-test-runtime.ts'
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const suiteRoot = resolve(packageRoot, '../..')
@@ -82,12 +83,12 @@ async function captureComposition(
       id: 'base',
       name: join(dshSourceDir, 'vendor', 'include', 'lib', 'index.js'),
       config: {
-        path: join(dshSourceDir, 'examples', 'headless-agent', 'cordis.yml'),
+        path: join(dshSourceDir, 'packages', 'bundle', 'base', 'cordis.patch.yml'),
         patches: [
           { id: 'llm-deepseek', name: '@deepseek-ai/dsh-llm-deepseek', disabled: true },
           {
-            id: 'agent-spine',
-            name: '@deepseek-ai/dsh-agent-spine-demo',
+            id: 'agent-loop',
+            name: '@deepseek-ai/dsh-agent-loop',
             config: {
               agents: mode === 'native' ? [{
                 id: 'main',
@@ -103,11 +104,11 @@ async function captureComposition(
             },
           },
           {
-            id: 'persistence',
+            id: 'session-persistence-jsonl',
             name: '@deepseek-ai/dsh-session-persistence-jsonl',
             config: { root: join(root, `${label}-sessions`), compression: 'none' },
           },
-          { id: 'checkpoint-policy', name: '@deepseek-ai/dsh-session-checkpoint-policy', disabled: true },
+          { id: 'session-checkpoint-policy', name: '@deepseek-ai/dsh-session-checkpoint-policy', disabled: true },
         ],
       },
     },
@@ -178,12 +179,14 @@ async function captureComposition(
     }] : [],
   ], null, 2))
 
-  const { boot } = await import(pathToFileURL(
-    join(dshSourceDir, 'packages', 'boot', 'app-boot', 'lib', 'index.js'),
-  ).href)
   const previousCwd = process.cwd()
   process.chdir(root)
-  const ctx = await boot(`dsh-telegram-composition-${label}`, config)
+  const ctx = await bootLatestDshProfile({
+    binName: `dsh-telegram-composition-${label}`,
+    configPath: config,
+    dshSourceDir,
+    home: join(root, '.dsh-home'),
+  })
   try {
     const agent = ctx.agents.get('main')
     if (agent === undefined) throw new Error('composition Agent was not created')
@@ -202,12 +205,34 @@ async function captureComposition(
       }, { timeout: 10_000, interval: 25 })
     }
     const lines = (await readFile(output, 'utf8')).trim().split('\n')
-    expect(lines).toHaveLength(1)
-    return JSON.parse(lines[0]!) as unknown
+    expect(lines.length).toBeGreaterThan(0)
+    return lines.map(line => normalizeComposition(JSON.parse(line) as unknown, root))
   } finally {
     await ctx.fiber.dispose()
     process.chdir(previousCwd)
   }
+}
+
+/** UUID message ids are boot-local and are not part of the model composition. */
+function stripEphemeralMessageIds(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stripEphemeralMessageIds)
+  if (value === null || typeof value !== 'object') return value
+  const result: Record<string, unknown> = {}
+  for (const [key, child] of Object.entries(value)) {
+    if (key === 'id' && typeof child === 'string') continue
+    result[key] = stripEphemeralMessageIds(child)
+  }
+  return result
+}
+
+function normalizeComposition(value: unknown, ephemeralRoot: string): unknown {
+  const canonicalRoot = ephemeralRoot.startsWith('/private/')
+    ? ephemeralRoot.slice('/private'.length)
+    : `/private${ephemeralRoot}`
+  const normalized = JSON.parse(JSON.stringify(value)
+    .split(canonicalRoot).join('<test-root>')
+    .split(ephemeralRoot).join('<test-root>'))
+  return stripEphemeralMessageIds(normalized)
 }
 
 async function requestText(request: AsyncIterable<unknown>): Promise<string> {

@@ -4,8 +4,9 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { promisify } from 'node:util'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { bootLatestDshProfile } from './latest-dsh-test-runtime.ts'
 
 const execFile = promisify(execFileCallback)
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -64,12 +65,12 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled GitHub review foll
         id: 'base',
         name: join(dshSourceDir, 'vendor', 'include', 'lib', 'index.js'),
         config: {
-          path: join(dshSourceDir, 'examples', 'headless-agent', 'cordis.yml'),
+          path: join(dshSourceDir, 'packages', 'bundle', 'base', 'cordis.patch.yml'),
           patches: [
             { id: 'llm-deepseek', name: '@deepseek-ai/dsh-llm-deepseek', disabled: true },
             {
-              id: 'agent-spine',
-              name: '@deepseek-ai/dsh-agent-spine-demo',
+              id: 'agent-loop',
+              name: '@deepseek-ai/dsh-agent-loop',
               config: {
                 agents: [{
                   id: 'main', sessionId: 'main', provider: 'composition-recorder',
@@ -82,8 +83,8 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled GitHub review foll
                 persona: 'GitHub review assembled fixture.',
               },
             },
-            { id: 'persistence', name: '@deepseek-ai/dsh-session-persistence-jsonl', disabled: true },
-            { id: 'checkpoint-policy', name: '@deepseek-ai/dsh-session-checkpoint-policy', disabled: true },
+            { id: 'session-persistence-jsonl', name: '@deepseek-ai/dsh-session-persistence-jsonl', disabled: true },
+            { id: 'session-checkpoint-policy', name: '@deepseek-ai/dsh-session-checkpoint-policy', disabled: true },
           ],
         },
       },
@@ -108,12 +109,14 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled GitHub review foll
       },
     ], null, 2))
 
-    const { boot } = await import(pathToFileURL(
-      join(dshSourceDir, 'packages', 'boot', 'app-boot', 'lib', 'index.js'),
-    ).href)
     const previousCwd = process.cwd()
     process.chdir(root)
-    const ctx = await boot('dsh-github-review-assembled-test', config)
+    const ctx = await bootLatestDshProfile({
+      binName: 'dsh-github-review-assembled-test',
+      configPath: config,
+      dshSourceDir,
+      home: join(root, '.dsh-home'),
+    })
     try {
       const agent = ctx.agents.get('main')
       if (agent === undefined) throw new Error('assembled Agent was not created')
@@ -149,15 +152,14 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled GitHub review foll
           messageId: expect.stringMatching(/^github-review:/u),
         })])
       }, { timeout: 10_000, interval: 25 })
-      const request = JSON.parse((await readFile(output, 'utf8')).trim()) as {
-        messages?: Array<{ role?: unknown; content?: unknown }>
-      }
-      expect(request.messages).toEqual(expect.arrayContaining([expect.objectContaining({
-        role: 'user',
-        content: expect.arrayContaining([expect.objectContaining({
-          text: expect.stringContaining('untrusted external data'),
-        })]),
-      })]))
+      const requests = (await readFile(output, 'utf8')).trim().split('\n')
+        .map(line => JSON.parse(line) as { messages?: Array<{ role?: unknown; content?: unknown }> })
+      expect(requests.some(request => request.messages?.some(message => message.role === 'user'
+        && Array.isArray(message.content)
+        && message.content.some(block => typeof block === 'object' && block !== null
+          && 'text' in block
+          && typeof block.text === 'string'
+          && block.text.includes('untrusted external data'))))).toBe(true)
     } finally {
       await ctx.fiber.dispose()
       process.chdir(previousCwd)

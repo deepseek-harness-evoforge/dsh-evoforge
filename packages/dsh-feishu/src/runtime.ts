@@ -15,6 +15,7 @@ import {
   type GatewayTextDeliveryIntent,
   type GatewayTransportRegistration,
 } from 'dsh-gateway'
+import { sessionEvents } from 'dsh-gateway'
 import type { ResolvedFeishuConfig, ResolvedFeishuRoute } from './config.js'
 import {
   FEISHU_CONTENT_TOOL,
@@ -158,7 +159,7 @@ export class FeishuRuntime {
       }
       const destination = replies.get(turn)
       if (destination === undefined) return
-      const text = outboundTextForTurn(agent.session.events, turn, this.config.maxTextChars)
+      const text = outboundTextForTurn(sessionEvents(agent.session), turn, this.config.maxTextChars)
       if (text === undefined) return
       const intent: GatewayTextDeliveryIntent = Object.freeze({
         routeId: destination.route.id,

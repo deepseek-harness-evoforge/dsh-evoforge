@@ -8,6 +8,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { ApprovalOutcome } from '@deepseek-ai/dsh-user-approval'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { bootLatestDshProfile } from './latest-dsh-test-runtime.ts'
 import type { FeishuInboundMessage, FeishuSendOptions } from '../src/platform.js'
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -35,18 +36,18 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', (
     await writeFile(config, JSON.stringify([
       {
         id: 'cli-mock-llm',
-        name: join(dshSourceDir, 'examples', 'headless-agent', 'tests', 'fixtures', 'cli-mock-llm.ts'),
+        name: join(dshSourceDir, 'packages', 'test-support', 'loader-smoke', 'tests', 'fixtures', 'cli-mock-llm.ts'),
       },
       {
         id: 'base',
         name: join(dshSourceDir, 'vendor', 'include', 'lib', 'index.js'),
         config: {
-          path: join(dshSourceDir, 'examples', 'headless-agent', 'cordis.yml'),
+          path: join(dshSourceDir, 'packages', 'bundle', 'base', 'cordis.patch.yml'),
           patches: [
             { id: 'llm-deepseek', name: '@deepseek-ai/dsh-llm-deepseek', disabled: true },
             {
-              id: 'agent-spine',
-              name: '@deepseek-ai/dsh-agent-spine-demo',
+              id: 'agent-loop',
+              name: '@deepseek-ai/dsh-agent-loop',
               config: {
                 agents: [],
                 workspaceContext: false,
@@ -57,11 +58,11 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', (
               },
             },
             {
-              id: 'persistence',
+              id: 'session-persistence-jsonl',
               name: '@deepseek-ai/dsh-session-persistence-jsonl',
               config: { root: join(root, 'sessions'), compression: 'none' },
             },
-            { id: 'checkpoint-policy', name: '@deepseek-ai/dsh-session-checkpoint-policy', disabled: true },
+            { id: 'session-checkpoint-policy', name: '@deepseek-ai/dsh-session-checkpoint-policy', disabled: true },
           ],
         },
       },
@@ -120,12 +121,14 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', (
     vi.stubEnv('DSH_HOME', join(root, '.dsh-home'))
     vi.stubEnv('DSH_TELEMETRY_DISABLED', '1')
 
-    const { boot } = await import(pathToFileURL(
-      join(dshSourceDir, 'packages', 'boot', 'app-boot', 'lib', 'index.js'),
-    ).href)
     const previousCwd = process.cwd()
     process.chdir(root)
-    const ctx = await boot('dsh-feishu-pairing-test', config)
+    const ctx = await bootLatestDshProfile({
+      binName: 'dsh-feishu-pairing-test',
+      configPath: config,
+      dshSourceDir,
+      home: join(root, '.dsh-home'),
+    })
     const service = ctx.get('evoforge.feishuPairingTest') as {
       platform: {
         connected: boolean
@@ -144,7 +147,10 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', (
     if (service === undefined) throw new Error('pairing test service unavailable')
     try {
       const gateway = ctx.get('evoforge.gateway') as {
-        resolve(id: string): Promise<{ session: { events: readonly SessionEvent[] } }>
+        resolve(id: string): Promise<{
+          session: { snapshotEvents(): readonly SessionEvent[] }
+          whenIdle(): Promise<void>
+        }>
         route(id: string): { workspaceId: string } | undefined
         approvePairing(input: {
           adapter: string
@@ -170,7 +176,8 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', (
       } | undefined
       expect(hostRoute).toBeDefined()
       expect(hostRoute?.routes).toEqual([])
-      const beforeMessages = agent.session.events.filter(event => event.type === 'user/message').length
+      const beforeMessages = agent.session.snapshotEvents().filter(event => event.type === 'user/message'
+        && String(event.data.id).startsWith('channel:')).length
       expect(ctx.commands.list(agent as never).map((command: { name: string }) => command.name))
         .not.toContain('feishu-pair')
       expect(service.platform.connected).toBe(true)
@@ -185,7 +192,8 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', (
         options: { replyTo: 'om_discovered' },
       })
       expect(service.platform.connected).toBe(true)
-      expect(agent.session.events.filter(event => event.type === 'user/message')).toHaveLength(beforeMessages)
+      expect(agent.session.snapshotEvents().filter(event => event.type === 'user/message'
+        && String(event.data.id).startsWith('channel:'))).toHaveLength(beforeMessages)
 
       await gateway.approvePairing({
         adapter: 'feishu',
@@ -205,8 +213,12 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', (
         messageId: 'om_trusted',
         content: '现在可以了吗',
       }))
-      await eventually(() => agent.session.events
-        .filter(event => event.type === 'user/message').length === beforeMessages + 1)
+      await agent.whenIdle()
+      await eventually(() => {
+        const count = agent.session.snapshotEvents().filter(event => event.type === 'user/message'
+          && String(event.data.id).startsWith('channel:')).length
+        return count === beforeMessages + 1
+      })
       expect(hostRoute?.routes).toEqual([{
         routeId: 'feishu-paired',
         workspaceId: gateway.route('existing-test-route')!.workspaceId,
