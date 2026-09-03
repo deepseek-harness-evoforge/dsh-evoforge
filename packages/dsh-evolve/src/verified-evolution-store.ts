@@ -9,8 +9,8 @@ import type {
 
 /**
  * Runtime release boundary: inactive manifests may be recorded first, but an
- * active pointer can move only after every referenced Git tree is exact and
- * materializable. The lower Storage Domain stays concerned only with atomic
+ * active pointer can move only after every referenced content-addressed Skill
+ * Bundle is exact and materializable. The lower Storage Domain stays concerned only with atomic
  * persistence and is exercised independently by crash tests.
  */
 export class VerifiedEvolutionStore implements EvolutionStore {

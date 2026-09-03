@@ -22,6 +22,12 @@
 锁定 alpha.5 `db6bdc…`。本事实不冒充插件失败，也不改变真实渠道、双 Provider、Hermes paired、长期效果或
 发布 tag 门禁。
 
+## V5.122：内容寻址发布边界语义清理（本轮）
+
+活动源码中 `VerifiedEvolutionStore` 的注释仍使用已删除的 Git tree 语义。本轮改为准确描述当前
+`GenerationBundleRepository` 的内容寻址 Skill Bundle 校验；Generation store `10/10`、`check:docs` 和差异检查
+通过，未改变运行时或 DSH 上游。详见 [V5.122 证据](evidence/v5-122-content-addressed-release-comment-cleanup-2026-09-04.zh.md)。
+
 ## V5.104：npm 包名归属审计与发布阻断（本轮）
 
 在再次 fetch 并确认最新 DSH `origin/master` 为 `76fda729…`、工作树 clean 后，查询所有公开 Bundle 的 npm

@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.122**: Corrected an active `dsh-evolve` release-boundary comment that still described immutable Git trees after
+  runtime Git Skill source/ref acquisition had been removed. It now names the actual content-addressed Skill Bundle
+  materialization check; Generation-store `10/10`, documentation checks, and diff checks pass. No runtime behavior changed.
+  See [V5.122 evidence](docs/evidence/v5-122-content-addressed-release-comment-cleanup-2026-09-04.zh.md).
+
 - **V5.114**: Fixed the real Feishu AS-2 acceptance overlay to replace DSH's existing `web-runtime` row by id instead of
   inserting a duplicate Loader entry. AS-2 typecheck and 10/10 safety-contract tests pass; the first post-fix real run was
   correctly stopped by the clean-revision guard before credentials or platform effects. Real Feishu remains unpassed.
