@@ -50,6 +50,15 @@ Gateway 配对码输入框原先使用固定 DOM id，DSH 在 Session 切换或�
 测试通过；该修复不提升真实 Feishu AS-2、Provider、Hermes paired、长期效果或 release tag 门。详见
 [V5.92 证据](evidence/v5-92-gateway-pairing-aria-isolation-2026-09-04.zh.md)。
 
+## V5.93：Gateway 会话切换清空旧快照（本轮）
+
+重新 fetch 并确认 DSH 最新远端 `master` 为 `76fda729…` 后，修复 Gateway Surface 刷新 effect 只依赖
+`remote` 的会话隔离缺口。DSH 复用同一个 Surface 切换 Workspace/Session 时，现在会取消旧请求、清空旧渠道
+快照和配对状态，再读取新 Session 的 Host 权威状态；旧请求即使晚到也不能覆盖新状态。新增切换期间加载态与
+新快照回归测试，Gateway 类型检查、定向 8/8 测试和产物构建通过；不新增页面、Router、Session、状态库或
+运行时。该修复不提升真实 Feishu AS-2、Provider、Hermes paired、长期效果或 release tag 门。详见
+[V5.93 证据](evidence/v5-93-gateway-session-switch-isolation-2026-09-04.zh.md)。
+
 ## V5.87：飞书策略拒绝可观测性（本轮）
 
 重新 fetch 并确认 DSH 最新远端 `master` 为 `76fda729…` 后，为官方 Node SDK 的 `reject` 事件接入已有

@@ -82,6 +82,15 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
   }
 
   useEffect(() => {
+    setSnapshot(undefined)
+    setPendingPairings([])
+    setPairingReceipt(undefined)
+    setRevocationReceipt(undefined)
+    setPairingCode('')
+    setConfirmingRoute(undefined)
+    setError(undefined)
+    requestRef.current += 1
+    pendingRequestRef.current += 1
     void refresh()
     const interval = setInterval(() => { void refreshPending() }, PENDING_POLL_INTERVAL_MS)
     return () => {
@@ -89,7 +98,7 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
       requestRef.current += 1
       pendingRequestRef.current += 1
     }
-  }, [remote])
+  }, [remote, sessionId, workspaceId])
 
   const revokePairing = async (routeId: string) => {
     if (confirmingRoute !== routeId) {

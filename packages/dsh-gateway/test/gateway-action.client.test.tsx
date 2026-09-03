@@ -239,16 +239,42 @@ describe('Gateway Control Surface', () => {
     expect(inputs.every(input => input.id.startsWith('dsh-gateway-'))).toBe(true)
     expect(inputs.every(input => document.querySelector(`label[for="${input.id}"]`) !== null)).toBe(true)
   })
+
+  it('clears the previous Session snapshot while a switched Session reloads', async () => {
+    let resolveSecondOverview: ((value: { ok: true; value: GatewayHealthSnapshot }) => void) | undefined
+    const secondOverview = new Promise<{ ok: true; value: GatewayHealthSnapshot }>(resolve => {
+      resolveSecondOverview = resolve
+    })
+    const remote = {
+      overview: vi.fn()
+        .mockResolvedValueOnce({ ok: true, value: snapshot() })
+        .mockReturnValueOnce(secondOverview),
+      pendingPairings: vi.fn(async () => ({ ok: true, value: [] })),
+      approvePairing: vi.fn(),
+      approvePairingRequest: vi.fn(),
+      revokePairing: vi.fn(),
+    } as GatewayRemoteClient
+    const { rerender } = render(<GatewaySurface {...surfaceProps(remote, 'session-a', 'workspace-a')} />)
+
+    expect(await screen.findByText('official-feishu-websocket')).toBeTruthy()
+    rerender(<GatewaySurface {...surfaceProps(remote, 'session-b', 'workspace-b')} />)
+    await waitFor(() => expect(remote.overview).toHaveBeenCalledTimes(2))
+    expect(screen.queryByText('official-feishu-websocket')).toBeNull()
+    expect(screen.getByRole('status').textContent).toContain('Loading')
+
+    resolveSecondOverview!({ ok: true, value: snapshot() })
+    expect(await screen.findByText('official-feishu-websocket')).toBeTruthy()
+  })
 })
 
-function surfaceProps(remote: GatewayRemoteClient): GatewaySurfaceProps {
+function surfaceProps(remote: GatewayRemoteClient, sessionId = 'session-a', workspaceId = 'workspace-a'): GatewaySurfaceProps {
   return {
     remote,
     t: (key: string) => zh[key as keyof typeof zh] ?? key,
-    sessionId: 'session-a',
+    sessionId,
     ui: controlSurfaceUI,
     useWorkspaces: ((selector: (state: { items: Array<{ workspaceId: string; sessionIds: string[] }> }) => unknown) =>
-      selector({ items: [{ workspaceId: 'workspace-a', sessionIds: ['session-a'] }] })) as never,
+      selector({ items: [{ workspaceId, sessionIds: [sessionId] }] })) as never,
   } as unknown as GatewaySurfaceProps
 }
 
