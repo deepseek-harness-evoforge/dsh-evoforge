@@ -10,6 +10,14 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.135：当前 Hermes revision 的 EV-1 epoch-3（本轮）
+
+固定当前 Hermes `origin/main` `63279301…`，在已审计的 DSH alpha.5 `db6bdc…` 上建立独立 epoch-3，严格
+复跑 `benchmark:hermes:ev1:alpha5:current` 通过：校准 `2/2`，EvoForge 主指标 `0`、Hermes `1`，Session
+固定、跨 Workspace fail-closed、回滚/重启精确。旧 epoch-1/2 未改写；该证据仍只支持确定性 Skill 发布
+控制面窄结论，不代表模型质量、真实渠道或完整 Hermes 上位替代。详见
+[V5.135 证据](evidence/v5-135-hermes-current-ev1-epoch-3-2026-09-04.zh.md)。
+
 ## V5.134：同 route id 重配与聊天类型变更回归（本轮）
 
 配对装配测试现在复用已撤销的同一 route id，并以 `group` chat kind 再次入站，确认撤销时清除内部观测、不会继承旧 direct 事实或触发漂移拒绝；类型检查、Gateway 构建和回归 `1/1` 通过。详见 [V5.134 证据](evidence/v5-134-feishu-route-id-repair-regression-2026-09-04.zh.md)。

@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "benchmarkId": "ev1-skill-correction-control-plane-epoch-3-alpha5-hermes-current",
+  "revisions": {
+    "deepseekHarness": "db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5",
+    "hermesAgent": "63279301bcbdc185c1b07b98a9312eb0c862f26d"
+  },
+  "comparable": true,
+  "scope": "deterministic EV-1 release-control comparison on DSH alpha.5 and current Hermes main; not model-quality or channel evidence",
+  "calibration": {
+    "backend": "darwin-seatbelt",
+    "count": 2,
+    "assembled": false,
+    "calibration": [
+      { "id": "known-bad", "expected": "fail", "actual": "fail", "passed": true },
+      { "id": "known-correction", "expected": "pass", "actual": "pass", "passed": true }
+    ]
+  },
+  "outcome": {
+    "evoforge": { "baseline": "fail", "corrected": "pass" },
+    "hermes": { "baseline": "fail", "corrected": "pass" }
+  },
+  "primaryMetric": {
+    "name": "active Skill artifacts modified before final-test and explicit promotion",
+    "lowerIsBetter": true,
+    "evoforge": 0,
+    "hermes": 1
+  },
+  "hardGates": {
+    "evoforge": {
+      "calibrated": true,
+      "baselineImmutableDuringTrial": true,
+      "oldSessionPinnedAcrossPromotion": true,
+      "futureSessionUsesCandidate": true,
+      "crossWorkspaceFailClosed": true,
+      "rollbackAndRestartExact": true
+    },
+    "hermes": {
+      "calibrated": true,
+      "baselineImmutableDuringTrial": false,
+      "activeArtifactModifiedInPlace": true,
+      "candidateBoundaryBeforeMutation": false,
+      "sessionGenerationPin": false
+    }
+  },
+  "verdict": "better for deterministic Skill-correction release control; no claim about model quality, channels, or global Hermes replacement"
+}

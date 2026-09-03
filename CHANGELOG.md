@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.135**: Added and strictly froze EV-1 epoch-3 against the current Hermes `origin/main`
+  (`63279301…`) instead of the stale local checkout. On the audited DSH alpha.5 baseline, calibration passed
+  `2/2`; EvoForge kept the baseline immutable and Session-pinned (`0` premature active-Skill edits) while Hermes
+  modified its active Skill in place (`1`). This remains a deterministic release-control slice, not a model,
+  channel, or global-replacement claim. See [V5.135 evidence](docs/evidence/v5-135-hermes-current-ev1-epoch-3-2026-09-04.zh.md).
+
 - **V5.134**: Strengthened the assembled Feishu pairing regression by reusing the revoked route id and admitting
   the repaired message with a different `group` chat kind. This proves stale observation state is cleared rather
   than merely hidden; typecheck, Gateway build, and the regression passed. See [V5.134 evidence](docs/evidence/v5-134-feishu-route-id-repair-regression-2026-09-04.zh.md).

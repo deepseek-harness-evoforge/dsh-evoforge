@@ -42,6 +42,7 @@
     "test:suite-upgrade": "pnpm --filter dsh-software-delivery exec vitest run test/suite-upgrade.e2e.test.ts --maxWorkers 1",
     "benchmark:hermes:ev1": "pnpm --filter dsh-evolve exec tsx ../../benchmarks/hermes-v0.1/ev1-control-plane/run.ts",
     "benchmark:hermes:ev1:alpha5": "EVOFORGE_HERMES_EV1_MANIFEST=benchmarks/hermes-v0.1/ev1-control-plane/manifest-alpha5.json EVOFORGE_HERMES_EV1_EXPECTED_RESULT=benchmarks/hermes-v0.1/ev1-control-plane/result-alpha5.json pnpm --filter dsh-evolve exec tsx ../../benchmarks/hermes-v0.1/ev1-control-plane/run.ts",
+    "benchmark:hermes:ev1:alpha5:current": "EVOFORGE_HERMES_EV1_MANIFEST=benchmarks/hermes-v0.1/ev1-control-plane/manifest-alpha5-hermes-current.json EVOFORGE_HERMES_EV1_EXPECTED_RESULT=benchmarks/hermes-v0.1/ev1-control-plane/result-alpha5-hermes-current.json pnpm --filter dsh-evolve exec tsx ../../benchmarks/hermes-v0.1/ev1-control-plane/run.ts",
     "benchmark:hermes:ev1:typecheck": "pnpm --filter dsh-evolve exec tsc --ignoreConfig --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --strict --noUncheckedIndexedAccess --exactOptionalPropertyTypes --verbatimModuleSyntax --skipLibCheck --allowImportingTsExtensions --types node ../../benchmarks/hermes-v0.1/ev1-control-plane/run.ts",
     "benchmark:hermes:sd1": "pnpm --filter dsh-software-delivery exec tsx ../../benchmarks/hermes-v0.1/sd1-completion-control/run.ts",
     "benchmark:hermes:lc1": "pnpm --filter dsh-goal-continuity exec tsx ../../benchmarks/hermes-v0.1/lc1-crash-recovery/run.ts",
