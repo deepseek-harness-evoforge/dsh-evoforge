@@ -36,4 +36,4 @@ ESM shim。shim 只 re-export fixture 的 `name`、`inject` 和 `apply`，生成
 本证据证明：最新 DSH 支持基线下，EvoForge 的原生 Control Center fixture 可以干净启动、在同一 DSH
 Session 内显示通用插件可视化、执行刷新、键盘切换和 reload 恢复。它不宣称真实 Telegram/飞书外部消息、真实
 Provider、Hermes paired benchmark、长期负迁移/遗忘或 release tag 已通过；这些门继续按
-`docs/evidence/release-gates.json` 阻断发布。
+根目录 [`release-gates.json`](../../release-gates.json) 阻断发布。

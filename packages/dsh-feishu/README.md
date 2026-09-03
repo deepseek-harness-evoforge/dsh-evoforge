@@ -161,7 +161,11 @@ exactly-once。
 [AS-2 说明](../../benchmarks/feishu-v0.1/as2-real-channel/README.zh.md)。它只在显式授权后从最终
 `dsh-gateway`/`dsh-feishu` tarball 启动生产飞书 transport，并把入站、回复、`/feishu`、一次性 Approval、
 官方 DSH Schedule create/dispatch/插件来源 `user/message` 到同 route 回送、持久 notice、dispose、官方卸载和原生
-Session readback 设为 hard gate。当前 epoch-2 的关闭终态还必须包含全部十一项 observation；旧 epoch 或遗漏
-Schedule 的报告不能复用。当前无凭据，真实状态是 `NOT_RUN`；合同或 fake transport 通过不能替代真实结果。
+Session readback 设为 hard gate。当前 epoch-4 的关闭终态必须包含全部十一项 observation；旧 epoch 或遗漏
+Schedule 的报告不能复用。最近一次隔离真实运行已安装最终 Bundle、完成 profile dump 并观察到官方 WebSocket
+`ready`，但人工窗口内没有收到匹配的陌生私聊，因此在配对批准前 fail closed；没有把这次运行记作真实渠道通过。
+详见仓库的 [V5.80 AS-2 证据](../../docs/evidence/v5-80-feishu-as2-latest-isolated-retry-2026-09-03.zh.md)。合同或 fake
+transport 通过不能替代真实结果；部署者仍需按 [AS-2 说明](../../benchmarks/feishu-v0.1/as2-real-channel/README.zh.md)
+完成自己的授权验收。
 
 官方协议依据：[飞书事件订阅概述](https://open.feishu.cn/document/server-docs/event-subscription-guide/overview)、[官方 Node SDK](https://github.com/larksuite/node-sdk)、[发送消息 API](https://open.feishu.cn/document/server-docs/im-v1/message/create)、[获取消息中的资源文件](https://open.feishu.cn/api-explorer?from=op_doc_tab&apiName=get&project=im&resource=message.resource&version=v1)、[文档 raw content](https://open.feishu.cn/api-explorer?from=op_doc_tab&apiName=raw_content&project=docx&resource=document&version=v1)、[知识库节点](https://open.feishu.cn/api-explorer?from=op_doc_tab&apiName=get_node&project=wiki&resource=space&version=v2)、[云盘元数据](https://open.feishu.cn/api-explorer?from=op_doc_tab&apiName=batch_query&project=drive&resource=meta&version=v1)、[多维表格记录](https://open.feishu.cn/api-explorer?from=op_doc_tab&apiName=search&project=bitable&resource=app.table.record&version=v1)。

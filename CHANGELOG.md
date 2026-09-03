@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Audited the user-facing Feishu README and release evidence for stale status. The guide now describes the current
+  epoch-4 contract and the latest isolated run honestly: the official WebSocket reached `ready`, but no matching
+  newcomer DM arrived before pairing, so the run failed closed and is not presented as a real-channel pass. Fixed
+  the browser evidence link to the root `release-gates.json`; no runtime or release-gate status changed. See
+  [V5.82 status](docs/status.zh.md#v582用户文档与发布门禁证据一致性审计本轮).
+
 - Fixed the latest-DSH browser acceptance overlays so their test-only Control Center fixture is loaded through an
   external temporary ESM shim. DSH's nearest-`package.json` client identity resolver no longer mistakes the fixture
   for a second `dsh-control-center` source. A clean alpha.5 profile was then booted on the latest audited DSH
