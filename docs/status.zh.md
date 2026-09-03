@@ -105,6 +105,13 @@ Schedule、Approval 或外部副作用；该失败现场不复用，真实 Feish
 Hermes paired、长期效果、Telegram 和 npm 发布门禁。详见
 [V5.116 证据](evidence/v5-116-alpha5-full-check-after-feishu-as2-fix-2026-09-04.zh.md)。
 
+## V5.117：根 README 用户入口重写（本轮）
+
+中英文根 README 已重写为面向安装者的用户手册：说明四个能力套件、从本地 tarball 安装、飞书 resident pairing、
+统一单页 Web、卸载、限制与排障；维护者 revision/V5 流水账移回 `docs/`，所有未通过的真实门禁仍明确标注。
+`check:docs` 与 `git diff --check` 通过。详见
+[V5.117 证据](evidence/v5-117-user-readme-rewrite-2026-09-04.zh.md)。
+
 ## V5.103：渠道控制面轮询契约与用户文档对齐（本轮）
 
 审计发现 `GatewaySurface` 为了让新配对请求在同一个 DSH Web 页面自动出现，实际每 5 秒读取一次 Host 脱敏

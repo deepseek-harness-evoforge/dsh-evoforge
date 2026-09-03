@@ -21,6 +21,11 @@ All notable changes will be recorded here. The project has not published a stabl
   (`CHECK_RC=0`); real-channel, real-provider, paired, long-term, Telegram, and npm gates remain unchanged.
   See [V5.116 evidence](docs/evidence/v5-116-alpha5-full-check-after-feishu-as2-fix-2026-09-04.zh.md).
 
+- **V5.117**: Rewrote the Chinese and English root READMEs as user-facing installation and usage guides. They now cover
+  capability suites, local Bundle installation, resident Feishu pairing, the single Web control surface, removal,
+  troubleshooting, and honest pre-alpha limitations; maintainer evidence remains under `docs/`. Documentation checks pass.
+  See [V5.117 evidence](docs/evidence/v5-117-user-readme-rewrite-2026-09-04.zh.md).
+
 - **V5.113**: Added a cross-instance Generation cache readback regression for nested Skill references. A fresh
   `GenerationBundleRepository` verifies the immutable owner marker, read-only tree, file list, and hashes after materialization;
   the candidate-publisher suite passed 8/8. See [V5.113 evidence](docs/evidence/v5-113-generation-cache-restart-verification-2026-09-04.zh.md).

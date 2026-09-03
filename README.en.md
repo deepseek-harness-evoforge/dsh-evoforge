@@ -1,55 +1,131 @@
 # DeepSeek Harness EvoForge
 
-**EvoForge is an out-of-tree plugin suite installed into DeepSeek Harness. It is not a standalone harness, Runtime, CLI application, web server, or daemon.** DSH remains the sole authority for Agents, Sessions, Goals, Approvals, Storage, Jobs, Skills, Tools, Workspaces, and the Cordis lifecycle.
+EvoForge is a set of native plugins for [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness).
+It adds resident channels, evidence-driven internal evolution, software delivery, and one Web control surface while
+reusing DSH's Agent, Session, Goal, Skill, Tool, Approval, Jobs, Workspace, storage, and Cordis lifecycle.
 
-The current supported baseline is DeepSeek Harness `dsh-v0.1.2-alpha.5`, revision `db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`. Earlier rc.5/rc.2 matrices remain historical evidence and are not current support claims. The twelve internal Bundles are exposed as four default capability suites (`core`, `channels`, `delivery`, and `continuity`), with `attention` optional; see the [suite boundary guide](docs/capability-suites.zh.md). The project is pre-alpha and has not been published to a registry; local tarballs installed through the official DSH profile command are the only current installation path.
+EvoForge is not a standalone agent, a Codex plugin, a second runtime, or a plugin marketplace. DSH remains the only
+runtime and state authority.
 
-## Current capability suites
+## Status
 
-The repository contains twelve independently removable native DSH Bundles. New users see four default installation entries:
+This project is pre-alpha. Developers can reproduce the source and local Bundle installation path, but no npm registry
+release exists and the project does not yet claim a Hermes upper replacement. Real channels, real model providers,
+long-running behavior, and the same-condition Hermes comparison are still being verified. Read the [current status](docs/status.zh.md)
+before production use.
 
-- `core`: evolution, diagnostics, and the native Web control surface;
-- `channels`: the resident Gateway plus Feishu and Telegram adapters;
-- `delivery`: verified software delivery plus optional GitHub review;
-- `continuity`: bounded Goal cold resume plus optional OS residence.
+## Capability suites
 
-`attention` is an optional channel-notification add-on. `evolution`, `control`, and `gateway` remain compatibility or advanced entries, while `full` is maintainer-only. These groups are installation presets, not a second runtime or registry. External routes, recovery, and deployment control are disabled until an operator provides exact configuration.
-When `--suite` is omitted, `pnpm run pack:suite` defaults to `core`; the complete twelve-Bundle composition requires the explicit `pnpm run pack:full` command.
-For a single messaging platform, pass `--channel feishu` or `--channel telegram` with the `channels` suite to pack only the Gateway and that Adapter.
+Install user outcomes rather than managing every internal Bundle:
 
-The active evolution path uses DSH-internal Goal, Skill invocation, correction, and outcome evidence only; it performs no runtime Skill-market search or acquisition and asks the user for no route, Agent, workflow, Skill, or source choice. Repeated exact corrections to one sealed installed-Skill baseline can drive protected authoring of a complete content-addressed Candidate tree. Only bounded `SKILL.md`/`references/*.md` instruction text may change; all other files, including binaries, are inherited byte-for-byte and permission drift is rejected. Candidate-blind admission, exact paired holdout, independent retention, inactive release, future-Session promotion, failed-outcome canary, and expected-active rollback are implemented behind separate Host gates. Deterministic and browser lifecycle evidence does not replace two independent real-provider runs, a complete same-model Hermes benchmark, or long-term false-promotion/forgetting/negative-transfer data; those remain release blockers.
+| Suite | Result |
+| --- | --- |
+| `core` | Evidence-driven evolution, diagnostics, and the native DSH Web control surface |
+| `channels` | Resident Gateway, Feishu/Telegram adapters, pairing, routing, durable delivery, and the same Web surface |
+| `delivery` | Isolated software delivery, verification, Draft PRs, and GitHub review follow-up |
+| `continuity` | Bounded Goal cold resume and user-level DSH profile residence |
 
-## Install into DSH
+`attention` is an optional channel-notification add-on; `full` is for maintainer acceptance only. Suites are installation
+presets, not another runtime or marketplace. See the [suite boundary guide](docs/capability-suites.zh.md).
+
+## Install
+
+The current source is this repository's local tarballs. Prepare Node.js 22, pnpm 11, and a DSH checkout matching the
+project's supported compatibility matrix, then run from the repository root:
 
 ```sh
 pnpm install --frozen-lockfile
 PACK_ROOT="$(mktemp -d)"
 pnpm run pack:suite -- --suite core --out "$PACK_ROOT"
-
 dsh plugin --profile web add "$PACK_ROOT/core"/*.tgz
 dsh --profile web --dump-config
 dsh --profile web
 ```
 
-Inside DSH, use `/doctor`, the native Control Center view, the native `software-delivery` Skill with `complete_delivery`, and `/resident plan|status|apply|remove`. Telegram, review follow-up, attention, Goal continuity, and resident control reuse DSH-owned control surfaces. No model can select credentials, external identities, Workspaces, or broaden route authority.
+Add channels or delivery when needed:
 
-There is no supported `dsh-evolve`, `dsh-delivery`, or `dsh-resident` product CLI. Test drivers are not packaged entry points.
+```sh
+pnpm run pack:suite -- --suite channels --channel feishu --out "$PACK_ROOT"
+dsh plugin --profile web add "$PACK_ROOT/channels-feishu"/*.tgz
+
+pnpm run pack:suite -- --suite delivery --out "$PACK_ROOT"
+dsh plugin --profile web add "$PACK_ROOT/delivery"/*.tgz
+```
+
+DSH's official commands own startup, stop, reload, and removal. EvoForge does not require another web server, daemon, or
+product CLI.
+
+## Feishu setup and pairing
+
+After installing `channels`, configure the Feishu App for the DSH profile:
+
+```sh
+export DSH_FEISHU_APP_ID='cli_...'
+export DSH_FEISHU_APP_SECRET='...'
+```
+
+Enable the bot, long-connection event `im.message.receive_v1`, message sending, and card callbacks. Add the bot to the
+test account's direct chat. Once DSH is running, an unknown user sends any private message to the bot:
+
+1. The resident Gateway returns a one-time pairing code; the first message never reaches the Agent.
+2. An administrator approves the pending request in the same DSH Web `Channels` surface, or with the Host request-id command.
+3. The user sends the next message, which enters the bound native DSH Session.
+
+No Session pairing command, temporary listener, or second webpage is required. See [`dsh-gateway`](packages/dsh-gateway/README.md)
+and [`dsh-feishu`](packages/dsh-feishu/README.md) for routing, revocation, permissions, and troubleshooting.
+
+## Internal evolution
+
+The entry point accepts a natural-language Goal, materials, constraints, permissions, and acceptance criteria. EvoForge uses
+DSH-installed capabilities plus real Goal successes, failures, corrections, rework, cost, latency, and external outcomes to
+identify reviewable gaps and generate/evaluate complete Skill Candidates in isolation.
+
+Candidates pass baseline/holdout/retention, safety, permission, cost, latency, and cache gates. Execution, Candidate, and
+governance evaluation are isolated. Insufficient evidence produces `abstain` or `quarantine`; the current Session stays pinned,
+promotion affects future Sessions only, and canary, crash recovery, and exact rollback are supported.
+
+This is not runtime search, download, or import of Skills from an external market, and it is not model self-evaluation. Code,
+credentials, and external side effects always require protected-action authorization.
+
+## Web control surface
+
+`core` and `channels` use one native DSH page instead of one page per plugin. The surface shows Gateway, Feishu, and Telegram
+health; capabilities and gaps; Candidate versions, lineage, diffs, baseline/holdout, and failure attribution; cost, latency,
+cache, permissions; and promotion, quarantine, pause, resume, and rollback controls.
+
+It does not call a model or copy Session/state authority. Plugins contribute through DSH's native surface slots.
 
 ## Remove
 
+Use DSH's official command to remove the complete suite:
+
 ```sh
 dsh plugin --profile web remove \
-  dsh-evolve-web dsh-evolve dsh-software-delivery dsh-doctor \
-  dsh-github-review dsh-evolve-attention dsh-feishu dsh-telegram \
-  dsh-gateway dsh-goal-continuity dsh-resident dsh-control-center
+  dsh-evolve dsh-evolve-web dsh-control-center dsh-doctor \
+  dsh-gateway dsh-feishu dsh-telegram dsh-evolve-attention \
+  dsh-software-delivery dsh-github-review dsh-goal-continuity dsh-resident
 dsh --profile web --dump-config
-dsh --profile web
 ```
 
-Removal unregisters EvoForge effects while native DSH Session, Goal, and Workspace data remains readable. External effects that already occurred cannot be undone by uninstalling a plugin.
+Removal unregisters EvoForge effects but keeps native DSH Session, Goal, and Workspace data. External effects that already
+occurred are not undone by uninstalling.
 
-The native Workspace DSH Gateway, Telegram and Feishu Adapters, Workspace-owned evolution, twelve-package clean-profile gate, full composition Cache Contract gate, and real DSH browser restart/failure/recovery acceptance are implemented. Four deterministic Hermes paired slices now cover EV-1, SD-1, LC-1, and Telegram approval: the first two support narrow control-plane advantage claims, while local crash recovery and allow-once replay control are ties. v0.1 still requires real-channel credential smoke tests plus same-model coding, real-message delivery, long-task, provider, and long-running paired evidence.
+## Known limitations
 
-See the [Chinese installation guide](docs/getting-started.zh.md), [status](docs/status.zh.md), [shape audit](docs/native-plugin-shape-audit.zh.md), and [plugin contract](docs/plugin-contract.zh.md).
+- No registry packages have been published; the names above are local Bundle installation identifiers, not stable npm dependencies.
+- Complete real Feishu pairing, Schedule, Approval, post-restart messages, revocation/re-pairing, and long-term reconnect are still under acceptance.
+- Real Providers, a same-task/model/permission/budget Hermes paired benchmark, and long-term false-promotion/forgetting/negative-transfer data are incomplete.
+- The supported DSH attachment contract currently covers verified native image paths only; Gateway does not invent file/audio/video blocks.
+- An external Telegram Bot, production permissions, and multi-day operation require separate verification.
+
+For a runtime issue, start with DSH's native `/doctor`, then read the [current status](docs/status.zh.md) and the relevant plugin README.
+Never include an App Secret, access token, or real message content in an Issue or log.
+
+## Contributing
+
+Read the [development and release discipline](docs/releasing.zh.md), [plugin contract](docs/plugin-contract.zh.md), and
+[suite boundaries](docs/capability-suites.zh.md). Pull requests should include the DSH revision, reproduction commands,
+test results, and redacted evidence. Changes land on `main` in small commits; release requires real installation, browser,
+channel, provider, and Hermes comparison gates.
 
 License: MIT.
