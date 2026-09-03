@@ -15,5 +15,5 @@ DSH Web 必须在一个原生页面/view 内提供不调用模型的控制面，
 
 每次开发/测试前 fetch 并核对 `/Users/my/harness/deepseek-harness` 最新 `origin/master`、tag、依赖和契约，要求 HEAD 等于最新 master 且干净；在 clean profile 验证官方安装、dump、boot、真实路径、reload/dispose、卸载、Session/Goal 恢复和故障注入。每个通过测试的最小增量立即在 `main` 原子 commit 并推送 `origin/main`；不建分支、不强推、不丢提交，候选存储不用 Git 分支。每轮更新用户 README、需求/能力矩阵、ADR、路线图、Hermes 验收表、状态、CHANGELOG 和带 revision/命令/结果的证据文档。
 
-不得以文档、Mock、单测、retry、模型自评或一次成功冒充自我进化。完成声明必须来自同任务/模型/权限/预算的 Hermes paired benchmark 及路径，记录成功率、人工干预、发现/误调用、复用、负迁移、误晋升、恢复、重复外部效果、成本、时延、cache-read、权限和回滚。真实 provider、paired、长期效果、安全、可卸载、精确回滚任一未过，就继续实施并如实记录；外部阻塞也不能让你停工。门禁通过后才在 `main` 创建并推送 annotated SemVer tag，之后每个验证迭代继续用 tag 发布。
+不得以文档、Mock、单测、retry、模型自评或一次成功冒充自我进化。完成声明必须来自同任务/模型/权限/预算的 Hermes paired benchmark 及真实路径，记录成功率、人工干预、发现/误调用、复用、负迁移、误晋升、恢复、重复外部效果、成本、时延、cache-read、权限和回滚。真实 provider、paired、长期效果、安全、可卸载、精确回滚任一未过，就继续实施并如实记录；外部阻塞也不能让你停工。门禁通过后才在 `main` 创建并推送 annotated SemVer tag，之后每个验证迭代继续用 tag 发布。
 ```
