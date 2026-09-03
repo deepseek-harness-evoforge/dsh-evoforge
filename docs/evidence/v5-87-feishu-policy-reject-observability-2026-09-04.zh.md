@@ -42,8 +42,9 @@ pnpm --filter dsh-feishu exec vitest run --maxWorkers 1 \
   test/health.test.ts test/platform.test.ts
 ```
 
-结果：类型检查通过；2 个测试文件、8 个测试通过。健康契约覆盖 ready 状态下策略拒绝仍可见、机器行可往返解析、
-非法 reason 被拒绝；平台契约继续覆盖代理与官方传输适配。
+结果：类型检查通过；健康/平台 2 个测试文件、8 个测试通过；assembled chat 端到端夹具 1/1 通过。健康契约
+覆盖 ready 状态下策略拒绝仍可见、机器行可往返解析、非法 reason 被拒绝；assembled 夹具再验证 Runtime
+生命周期实际接收并投影 `sender_not_allowed`；平台契约继续覆盖代理与官方传输适配。
 
 ## 边界与发布门
 

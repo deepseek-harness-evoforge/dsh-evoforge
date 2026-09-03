@@ -9,6 +9,7 @@ import type {
   FeishuHostNotice,
   FeishuInboundMessage,
   FeishuPlatform,
+  FeishuPlatformReject,
   FeishuSendOptions,
   ResolvedFeishuConfig,
 } from '../../src/index.ts'
@@ -55,6 +56,7 @@ class FakeFeishuPlatform implements FeishuPlatform {
   private messageHandler: ((message: FeishuInboundMessage) => Promise<void>) | undefined
   private approvalHandler: ((action: FeishuApprovalAction) => Promise<void>) | undefined
   private errorHandler: ((error: unknown) => void) | undefined
+  private rejectHandler: ((reject: FeishuPlatformReject) => void) | undefined
   private readonly textEffectPath: string | undefined
 
   constructor(textEffectPath?: string) {
@@ -74,6 +76,11 @@ class FakeFeishuPlatform implements FeishuPlatform {
   onError(handler: (error: unknown) => void): () => void {
     this.errorHandler = handler
     return () => { if (this.errorHandler === handler) this.errorHandler = undefined }
+  }
+
+  onReject(handler: (reject: FeishuPlatformReject) => void): () => void {
+    this.rejectHandler = handler
+    return () => { if (this.rejectHandler === handler) this.rejectHandler = undefined }
   }
 
   async connect(): Promise<void> { this.connected = true }
@@ -149,6 +156,11 @@ class FakeFeishuPlatform implements FeishuPlatform {
   emitError(error: unknown): void {
     if (this.errorHandler === undefined) throw new Error('Feishu error handler is not registered')
     this.errorHandler(error)
+  }
+
+  emitReject(reject: FeishuPlatformReject): void {
+    if (this.rejectHandler === undefined) throw new Error('Feishu reject handler is not registered')
+    this.rejectHandler(reject)
   }
 
   queueFailure(error: unknown): void { this.failures.push(error) }

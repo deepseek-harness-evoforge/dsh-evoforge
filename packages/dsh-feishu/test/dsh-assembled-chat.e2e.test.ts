@@ -13,7 +13,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { bootLatestDshProfile } from './latest-dsh-test-runtime.ts'
 import { FeishuPlatformSendError } from '../src/platform.js'
 import { parseFeishuHealthCommand } from '../src/health.js'
-import type { FeishuApprovalAction, FeishuInboundMessage, FeishuSendOptions } from '../src/platform.js'
+import type { FeishuApprovalAction, FeishuInboundMessage, FeishuPlatformReject, FeishuSendOptions } from '../src/platform.js'
 import type { FeishuRuntime } from '../src/runtime.js'
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -164,6 +164,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
         emitMessage(message: FeishuInboundMessage): Promise<void>
         emitApproval(action: FeishuApprovalAction): Promise<void>
         emitError(error: unknown): void
+        emitReject(reject: FeishuPlatformReject): void
         queueFailure(error: unknown): void
         setResource(messageId: string, fileKey: string, value: Uint8Array): void
       }
@@ -191,6 +192,11 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
       await service.platform.emitMessage(message({ messageId: 'om_denied', senderId: 'ou_mallory' }))
       await new Promise(resolve => setTimeout(resolve, 50))
       expect(service.platform.texts).toHaveLength(0)
+      service.platform.emitReject({ reason: 'sender_not_allowed' })
+      expect(service.runtime.healthSnapshot()).toMatchObject({
+        status: 'ready',
+        transport: { lastPolicyRejectReason: 'sender_not_allowed', lastPolicyRejectAt: expect.any(Number) },
+      })
 
       const inbound = message({ messageId: 'om_first', senderId: 'ou_alice' })
       service.platform.queueFailure(new FeishuPlatformSendError('rate_limited', '429', 1_000))

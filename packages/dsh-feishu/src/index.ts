@@ -150,6 +150,8 @@ export {
   type FeishuInboundMessage,
   type FeishuInboundResource,
   type FeishuPlatform,
+  type FeishuPlatformReject,
+  type FeishuPlatformRejectReason,
   type FeishuPairingPlatformOptions,
   type FeishuPlatformOptions,
   type FeishuSendOptions,
