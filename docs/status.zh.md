@@ -28,6 +28,14 @@
 `GenerationBundleRepository` 的内容寻址 Skill Bundle 校验；Generation store `10/10`、`check:docs` 和差异检查
 通过，未改变运行时或 DSH 上游。详见 [V5.122 证据](evidence/v5-122-content-addressed-release-comment-cleanup-2026-09-04.zh.md)。
 
+## V5.123：Hermes EV-1 当前 alpha.5 新 epoch（本轮）
+
+在当前可构建 DSH alpha.5 `db6bdc…` 上建立独立 EV-1 epoch-2，旧 `47f9438` epoch-1 结果未改写。确定性
+修正控制对照实际通过：校准 `2/2`，EvoForge 活动 Skill 提前修改指标 `0`，Hermes 原地修改指标 `1`；当前
+Session 固定、未来 Session 晋升、跨 Workspace fail-closed、回滚/重启状态均通过。详见
+[V5.123 证据](evidence/v5-123-hermes-ev1-alpha5-epoch-2-2026-09-04.zh.md)。这不是模型质量、真实渠道或完整
+Hermes paired 证据，发布门仍保持阻断。
+
 ## V5.104：npm 包名归属审计与发布阻断（本轮）
 
 在再次 fetch 并确认最新 DSH `origin/master` 为 `76fda729…`、工作树 clean 后，查询所有公开 Bundle 的 npm

@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.123**: Added and strictly froze a new deterministic Hermes EV-1 control-plane epoch on the current buildable
+  DSH alpha.5 revision without rewriting epoch-1. The run passes calibration `2/2`; EvoForge keeps the baseline immutable,
+  pins the current Session, fails closed across Workspaces, and preserves exact promotion/rollback state (`0` premature
+  active-Skill edits versus Hermes `1`). This is not model-quality or full paired evidence. See [V5.123 evidence](docs/evidence/v5-123-hermes-ev1-alpha5-epoch-2-2026-09-04.zh.md).
+
 - **V5.122**: Corrected an active `dsh-evolve` release-boundary comment that still described immutable Git trees after
   runtime Git Skill source/ref acquisition had been removed. It now names the actual content-addressed Skill Bundle
   materialization check; Generation-store `10/10`, documentation checks, and diff checks pass. No runtime behavior changed.

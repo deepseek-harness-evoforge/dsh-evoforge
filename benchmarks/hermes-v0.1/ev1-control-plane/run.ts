@@ -29,8 +29,13 @@ const benchmarkRoot = dirname(fileURLToPath(import.meta.url))
 const suiteRoot = resolve(benchmarkRoot, '../../..')
 const dshRoot = resolve(process.env.DSH_EVOLVE_DSH_SOURCE_DIR ?? resolve(suiteRoot, '../deepseek-harness'))
 const hermesRoot = resolve(process.env.EVOFORGE_HERMES_SOURCE_DIR ?? resolve(suiteRoot, '../hermes-agent'))
-const manifest = JSON.parse(await readFile(join(benchmarkRoot, 'manifest.json'), 'utf8'))
-const expectedResult = JSON.parse(await readFile(join(benchmarkRoot, 'result.json'), 'utf8'))
+const manifestPath = resolve(suiteRoot, process.env.EVOFORGE_HERMES_EV1_MANIFEST ?? join(benchmarkRoot, 'manifest.json'))
+const manifest = JSON.parse(await readFile(manifestPath, 'utf8'))
+const allowNewEpoch = process.env.EVOFORGE_HERMES_EV1_ALLOW_NEW_EPOCH === '1'
+const expectedResultPath = process.env.EVOFORGE_HERMES_EV1_EXPECTED_RESULT
+const expectedResult = expectedResultPath === undefined && !allowNewEpoch
+  ? JSON.parse(await readFile(join(benchmarkRoot, 'result.json'), 'utf8'))
+  : expectedResultPath === undefined ? undefined : JSON.parse(await readFile(resolve(suiteRoot, expectedResultPath), 'utf8'))
 const casePackDir = resolve(suiteRoot, manifest.fixture.casePack)
 const baselineFixture = join(casePackDir, manifest.fixture.baseline)
 const correctionFixture = join(casePackDir, manifest.fixture.correction)
@@ -152,7 +157,7 @@ try {
   }
 
   assertResult(result)
-  if (JSON.stringify(result) !== JSON.stringify(expectedResult)) {
+  if (expectedResult !== undefined && JSON.stringify(result) !== JSON.stringify(expectedResult)) {
     throw new Error('paired result drifted from the frozen epoch; create a new epoch instead of rewriting evidence')
   }
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
