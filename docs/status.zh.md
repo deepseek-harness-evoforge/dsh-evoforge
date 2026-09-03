@@ -86,6 +86,15 @@ epoch-4 合同的最新隔离 AS-2 重试使用 EvoForge `026a0e0…` 与 DSH al
 Typert artifacts、Gateway 36/36、Telegram 29/29 均通过 alpha.5 基线验证。该增量不改变路由、配对、投递或
 任何发布门；真实 Feishu AS-2 仍需事件到达。详见 [V5.77 证据](evidence/v5-77-gateway-inbound-observation-2026-09-03.zh.md)。
 
+## V5.78：飞书 WebSocket 重连健康投影（本轮）
+
+飞书 Adapter 现在接收官方 Node SDK 的 `reconnecting`/`reconnected` 生命周期：重连期间把现有 Gateway
+transport 标为 `degraded`，恢复后无重启回到 `ready`。这是同一个 resident Host、同一个 Gateway 注册和同一
+原生控制面上的状态更新，没有新增 Router、后台 Runtime、探测请求或模型调用；`lastInboundAt` 仍只由真实
+消息/卡片事件更新。为兼容旧测试和替代平台，两个 hook 是可选的。运行时 teardown 测试已验证
+`ready → degraded → ready` 且 Gateway 停止时仍会断开平台；本增量不提升真实 AS-2、Provider、Hermes
+paired 或长期效果门。详见 [V5.78 证据](evidence/v5-78-feishu-reconnect-health-2026-09-03.zh.md)。
+
 ## V5.75：参考生态当前 revision 复核（本轮）
 
 为下一次 Hermes paired 和设计校准重新读取公开远端：Hermes Agent `63279301…`、OpenClaw `1fb3e0ca…`、

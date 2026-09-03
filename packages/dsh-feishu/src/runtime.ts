@@ -206,6 +206,20 @@ export class FeishuRuntime {
         if (!this.lifecycle.signal.aborted) this.ctx.logger.warn(`dsh-feishu: platform error: ${safeMessage(error)}`)
       }),
     )
+    if (this.platform.onReconnecting !== undefined) {
+      this.unsubscribers.push(this.platform.onReconnecting(() => {
+        if (this.lifecycle.signal.aborted) return
+        this.transportState = 'degraded'
+        this.reportTransport(Date.now())
+      }))
+    }
+    if (this.platform.onReconnected !== undefined) {
+      this.unsubscribers.push(this.platform.onReconnected(() => {
+        if (this.lifecycle.signal.aborted) return
+        this.transportState = 'ready'
+        this.reportTransport(Date.now())
+      }))
+    }
     try {
       await this.platform.connect()
       this.connectedAt = Date.now()

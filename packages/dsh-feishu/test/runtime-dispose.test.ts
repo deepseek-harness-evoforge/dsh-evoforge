@@ -16,9 +16,13 @@ describe('Feishu runtime teardown', () => {
     let disconnectCount = 0
     let outboundDisposed = false
     let transportDisposed = false
+    const observations: string[] = []
+    let reconnecting: (() => void) | undefined
+    let reconnected: (() => void) | undefined
     const gateway = {
       registerTransport: () => ({
         report(input: { state: string }) {
+          observations.push(input.state)
           if (input.state === 'stopping') throw new Error('Gateway already stopped')
         },
         dispose() { transportDisposed = true },
@@ -31,6 +35,14 @@ describe('Feishu runtime teardown', () => {
       onMessage(_handler: (message: FeishuInboundMessage) => Promise<void>) { return () => {} },
       onApprovalAction(_handler: (action: FeishuApprovalAction) => Promise<void>) { return () => {} },
       onError(_handler: (error: unknown) => void) { return () => {} },
+      onReconnecting(handler: () => void) {
+        reconnecting = handler
+        return () => { if (reconnecting === handler) reconnecting = undefined }
+      },
+      onReconnected(handler: () => void) {
+        reconnected = handler
+        return () => { if (reconnected === handler) reconnected = undefined }
+      },
       async connect() { connected = true },
       async disconnect() {
         disconnectCount += 1
@@ -53,6 +65,9 @@ describe('Feishu runtime teardown', () => {
 
     await runtime.start()
     expect(connected).toBe(true)
+    reconnecting?.()
+    reconnected?.()
+    expect(observations).toEqual(['ready', 'degraded', 'ready'])
     await expect(runtime.dispose()).rejects.toThrow('Gateway already stopped')
     expect(connected).toBe(false)
     expect(disconnectCount).toBe(1)

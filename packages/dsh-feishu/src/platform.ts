@@ -50,6 +50,9 @@ export interface FeishuPlatform {
   onMessage(handler: (message: FeishuInboundMessage) => Promise<void>): () => void
   onApprovalAction(handler: (action: FeishuApprovalAction) => Promise<void>): () => void
   onError(handler: (error: unknown) => void): () => void
+  /** Optional transport lifecycle hooks; older test/platform adapters may omit them. */
+  onReconnecting?(handler: () => void): () => void
+  onReconnected?(handler: () => void): () => void
   connect(): Promise<void>
   disconnect(): Promise<void>
   sendText(
@@ -168,6 +171,8 @@ function createOfficialPlatform(
     onMessage: handler => channel.on('message', message => handler(selectMessage(message))),
     onApprovalAction: handler => channel.on('cardAction', action => handler(selectAction(action))),
     onError: handler => channel.on('error', handler),
+    onReconnecting: handler => channel.on('reconnecting', handler),
+    onReconnected: handler => channel.on('reconnected', handler),
     connect: () => channel.connect(),
     disconnect: () => channel.disconnect(),
     sendText: (chatId, text, sendOptions, signal) => transport.withSignal(

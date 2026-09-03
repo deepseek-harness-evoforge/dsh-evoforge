@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Feishu's official WebSocket reconnect lifecycle is now projected through the existing Gateway transport health:
+  `reconnecting` becomes `degraded` and `reconnected` returns to `ready` without restarting the DSH Host. Older
+  platform test doubles may omit these optional hooks. The native Control Center therefore does not mistake a
+  silently reconnecting resident Adapter for a healthy connection. See [V5.78 evidence](docs/evidence/v5-78-feishu-reconnect-health-2026-09-03.zh.md).
+
 - Gateway transport health now exposes a redacted `lastInboundAt` separately from generic activity. Feishu and
   Telegram report real inbound events, and the single native Channels page can distinguish a connected transport from
   one that has actually received a platform event. No routing, pairing, delivery, or model behavior changed. See

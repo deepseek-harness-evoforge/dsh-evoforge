@@ -126,6 +126,8 @@ schema/cache 稳定，旧 Session 仍保留同名 schema，但每次执行都会
   abort、disable、reload 或 remove 均不能留下可消费的旧审批；
 - Adapter 自动采用部署进程的 `HTTPS_PROXY`/`https_proxy` 或 `ALL_PROXY`/`all_proxy`，并遵守
   `NO_PROXY`/`no_proxy`；代理只绑定到该飞书连接，不修改环境变量或全局 Agent；
+- 官方 WebSocket 的 reconnecting/reconnected 生命周期会进入 Gateway 健康投影：重连期间显示
+  `degraded`，恢复后自动回到 `ready`，不需要重启 DSH，也不会伪造入站事件或清空最近一次入站时间；
 - 发送意图先落盘；每次文本发送固定 30 秒 wall-clock 上限并把 Gateway signal 传入官方 HTTP transport；
   明确 429 才有界重试；timeout、传输失败或崩溃中的 `sending` 转为 `uncertain`，不自动重复发送；Approval
   卡片同样组合 30 秒上限、Adapter lifecycle 与原生 request signal；
