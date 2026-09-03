@@ -6,6 +6,10 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.113**: Added a cross-instance Generation cache readback regression for nested Skill references. A fresh
+  `GenerationBundleRepository` verifies the immutable owner marker, read-only tree, file list, and hashes after materialization;
+  the candidate-publisher suite passed 8/8. See [V5.113 evidence](docs/evidence/v5-113-generation-cache-restart-verification-2026-09-04.zh.md).
+
 - **V5.112**: Aligned the status matrix with the machine release gates, changing Web Control Plane, Telegram, and Hermes paired
   rows to `partial` while keeping real Provider `not-run` and Feishu AS-2 `partial`. Local contracts and fixtures no longer imply
   production completion; the documented `not-run`/`partial`/`failed` blockers remain authoritative. See [V5.112 evidence](docs/evidence/v5-112-status-table-release-gate-alignment-2026-09-04.zh.md).

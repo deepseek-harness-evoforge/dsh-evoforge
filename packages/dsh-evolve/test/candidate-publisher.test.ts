@@ -64,6 +64,17 @@ describe('internally authored Candidate publisher', () => {
     const definition = await provider.get(listed[0]!, {})
     expect(definition?.content).toContain('Require clean-profile proof')
     expect(definition?.resourceBase).toMatchObject({ kind: 'directory' })
+
+    // A fresh repository instance must verify the immutable cache exactly as a
+    // restarted DSH Host would; nested references are part of the normal Skill
+    // bundle shape and must not be mistaken for duplicate directories.
+    const recoveredProvider = await new GenerationBundleRepository(join(root, 'cache')).providerFor(generation)
+    const recovered = await recoveredProvider.list({})
+    expect(recovered).toHaveLength(1)
+    expect(await recoveredProvider.get(recovered[0]!, {})).toMatchObject({
+      name: 'release-proof',
+      content: expect.stringContaining('Require clean-profile proof'),
+    })
   })
 
   it('rejects Candidate content that differs from admitted lineage', async () => {

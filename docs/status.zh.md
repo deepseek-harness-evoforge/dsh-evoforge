@@ -76,6 +76,13 @@ npm Scope 后会与 package manifest 名称分叉。本轮改为同时记录 `di
 修正未破坏原生安装、卸载或持久化恢复；真实 Feishu、Provider、Hermes paired、长期效果和 npm 归属门仍保持原状态。
 详见 [V5.111 证据](evidence/v5-111-clean-profile-core-install-2026-09-04.zh.md)。
 
+## V5.113：Generation cache 跨进程恢复验证（本轮）
+
+补充真实重启语义验证：首次 materialize 带嵌套 `references/` 的 Skill Bundle 后，创建全新的
+`GenerationBundleRepository` 实例再次读取同一内容寻址缓存；`candidate-publisher` 8/8 通过。该测试覆盖 owner marker、
+只读目录/文件、清单和内容哈希校验，确认“当前进程可用”与“Host 重启后可恢复”不是同一条未经证明的假设。详见
+[V5.113 证据](evidence/v5-113-generation-cache-restart-verification-2026-09-04.zh.md)。
+
 ## V5.103：渠道控制面轮询契约与用户文档对齐（本轮）
 
 审计发现 `GatewaySurface` 为了让新配对请求在同一个 DSH Web 页面自动出现，实际每 5 秒读取一次 Host 脱敏
