@@ -10,6 +10,10 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.134：同 route id 重配与聊天类型变更回归（本轮）
+
+配对装配测试现在复用已撤销的同一 route id，并以 `group` chat kind 再次入站，确认撤销时清除内部观测、不会继承旧 direct 事实或触发漂移拒绝；类型检查、Gateway 构建和回归 `1/1` 通过。详见 [V5.134 证据](evidence/v5-134-feishu-route-id-repair-regression-2026-09-04.zh.md)。
+
 ## V5.133：撤销配对时清除飞书内部观测（本轮）
 
 撤销动态 route 时同步删除 `observedChatKinds` 内部记录，避免同一 route id 重新配对后把旧 direct/group 事实误判为聊天类型漂移。类型检查、Gateway 构建和配对装配回归 `1/1` 通过。详见 [V5.133 证据](evidence/v5-133-feishu-revoked-observation-cleanup-2026-09-04.zh.md)。

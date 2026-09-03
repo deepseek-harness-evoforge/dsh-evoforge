@@ -288,7 +288,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', (
         accountId: 'cli_test_app',
         code: repairCode,
         target: {
-          id: 'feishu-repaired',
+          id: pairedRouteId,
           workspaceId: gateway.route('existing-test-route')!.workspaceId,
           sessionId: 'pairing-session',
           agentPreset: 'pairing-test',
@@ -300,9 +300,11 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', (
       await service.platform.emitMessage(message({
         messageId: 'om_repaired',
         content: '重新配对后进入 DSH',
+        chatType: 'group',
       }))
       await agent.whenIdle()
-      await eventually(() => hostRoute?.routes.some(route => route.routeId === 'feishu-repaired') === true)
+      await eventually(() => hostRoute?.routes.some(route => route.routeId === pairedRouteId) === true)
+      expect(hostRoute?.observedChatKind(pairedRouteId)).toBe('group')
       const feishuCommand = ctx.commands.find(agent as never, 'feishu')
       const health = await feishuCommand?.handler({
         commandId: 'feishu-repaired-health' as never,
@@ -312,7 +314,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', (
         signal: new AbortController().signal,
       })
       expect(health).toMatchObject({ kind: 'success' })
-      expect(health?.text).toContain('feishu-repaired')
+      expect(health?.text).toContain(pairedRouteId)
     } finally {
       await ctx.fiber.dispose()
       process.chdir(previousCwd)

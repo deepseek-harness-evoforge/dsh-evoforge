@@ -6,6 +6,10 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.134**: Strengthened the assembled Feishu pairing regression by reusing the revoked route id and admitting
+  the repaired message with a different `group` chat kind. This proves stale observation state is cleared rather
+  than merely hidden; typecheck, Gateway build, and the regression passed. See [V5.134 evidence](docs/evidence/v5-134-feishu-route-id-repair-regression-2026-09-04.zh.md).
+
 - **V5.133**: Cleared Feishu `observedChatKinds` state when a dynamic pairing grant is revoked, preventing a
   reused route id from inheriting stale direct/group drift. Typecheck, Gateway build, and the assembled pairing
   regression passed. See [V5.133 evidence](docs/evidence/v5-133-feishu-revoked-observation-cleanup-2026-09-04.zh.md).
