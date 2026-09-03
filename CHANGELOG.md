@@ -11,6 +11,11 @@ All notable changes will be recorded here. The project has not published a stabl
   correctly stopped by the clean-revision guard before credentials or platform effects. Real Feishu remains unpassed.
   See [V5.114 evidence](docs/evidence/v5-114-feishu-as2-overlay-loader-row-fix-2026-09-04.zh.md).
 
+- **V5.115**: Re-ran the real Feishu AS-2 from the clean V5.114 revision. Final Bundle installation, profile dump, and the
+  official transport reached ready; no newcomer private message produced a pending pairing request within the bounded
+  window, so the runner failed closed before any Agent or platform effect. Real Feishu remains unpassed.
+  See [V5.115 evidence](docs/evidence/v5-115-feishu-as2-official-transport-no-pending-2026-09-04.zh.md).
+
 - **V5.113**: Added a cross-instance Generation cache readback regression for nested Skill references. A fresh
   `GenerationBundleRepository` verifies the immutable owner marker, read-only tree, file list, and hashes after materialization;
   the candidate-publisher suite passed 8/8. See [V5.113 evidence](docs/evidence/v5-113-generation-cache-restart-verification-2026-09-04.zh.md).

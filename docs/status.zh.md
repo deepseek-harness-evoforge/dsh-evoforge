@@ -90,6 +90,13 @@ npm Scope 后会与 package manifest 名称分叉。本轮改为同时记录 `di
 和安全契约 `10/10` 通过；重新尝试真实运行时因工作树尚未提交被 clean guard 拒绝，未读取凭据或发起平台请求。详见
 [V5.114 证据](evidence/v5-114-feishu-as2-overlay-loader-row-fix-2026-09-04.zh.md)。真实 Feishu AS-2 仍未通过。
 
+## V5.115：真实飞书 AS-2 官方传输启动但无配对请求（本轮）
+
+V5.114 提交后，新的隔离 AS-2 已完成最终 Bundle 安装、profile dump 和官方 WebSocket/HTTP 传输启动；等待 120 秒
+仍没有陌生飞书私聊，因此在 `awaiting-resident-pairing-request` 阶段 fail closed。没有 Agent、回复、配对、
+Schedule、Approval 或外部副作用；该失败现场不复用，真实 Feishu AS-2 仍未通过。详见
+[V5.115 证据](evidence/v5-115-feishu-as2-official-transport-no-pending-2026-09-04.zh.md)。
+
 ## V5.103：渠道控制面轮询契约与用户文档对齐（本轮）
 
 审计发现 `GatewaySurface` 为了让新配对请求在同一个 DSH Web 页面自动出现，实际每 5 秒读取一次 Host 脱敏
