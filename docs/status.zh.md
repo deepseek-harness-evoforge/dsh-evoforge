@@ -22,6 +22,14 @@
 锁定 alpha.5 `db6bdc…`。本事实不冒充插件失败，也不改变真实渠道、双 Provider、Hermes paired、长期效果或
 发布 tag 门禁。
 
+## V5.103：渠道控制面轮询契约与用户文档对齐（本轮）
+
+审计发现 `GatewaySurface` 为了让新配对请求在同一个 DSH Web 页面自动出现，实际每 5 秒读取一次 Host 脱敏
+`pendingPairings()`；飞书 README 与开始使用文档却写成“没有浏览器后台轮询”。本轮修正文档，明确这只是 Host
+pending projection 的低频只读轮询，不轮询平台消息、不探测凭据、不读取正文、不调用模型；轮询失败保留最后快照，
+完整健康状态仍由打开页面或手动刷新读取。未改运行时、网页数量、Gateway 权威或状态存储；`check:docs` 与差异检查
+通过。详见 [V5.103 证据](evidence/v5-103-channel-doc-contract-2026-09-04.zh.md)。
+
 ## V5.100：Control Center 鼠标命中层修复与真实单页复验（本轮）
 
 重新 fetch 并确认 DSH 最新远端 `origin/master` 为 `76fda729…`、工作树 clean。真实 DSH 页面定位到“看得到但点不

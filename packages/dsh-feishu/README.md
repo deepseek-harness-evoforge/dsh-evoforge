@@ -47,7 +47,9 @@ Surface，
 
 群聊不会发配对码；过期、重放、跨 App 歧义、没有 live Session 或 Workspace ownership/cwd 不匹配都会
 fail closed。code 明文不落盘，首条消息和附件不进入 Agent。没有 `/feishu-pair` Session Command，也没有
-临时 listener、反向短语、静态 YAML 复制或浏览器后台轮询。
+临时 listener、反向短语或静态 YAML 复制。Control Center 只对 Host 的脱敏 pending projection 做低频只读轮询，
+让新请求自动出现在同一个页面；它不轮询飞书消息、不探测平台、不读取凭据、不调用模型。轮询失败保留最后一次
+pending 快照，完整健康刷新仍由用户点击执行。
 
 ## 正常运行配置
 
@@ -137,7 +139,7 @@ schema/cache 稳定，旧 Session 仍保留同名 schema，但每次执行都会
 - 单 route Session 的 Goal/Schedule continuation 可主动投递；create 已完成 Session checkpoint、dispatch 前进程死亡时，Adapter 启动会经静态 Gateway route 恢复 exact Session，官方 Schedule 处理 overdue，并由 durable turn journal 投递一次；后续 Host 启动不重放；多 route Session 的主动目标不明确时 fail closed；host notice 必须显式指定 `routeId`；
 - `/feishu` 是原生 DSH Command；Adapter 把 transport lifecycle 的脱敏 observation 注册到 Gateway，它再与
   当前 Session 的权威 outbound 投影共同生成带版本的健康快照。DSH Web 打开面板或人工点击刷新时复用这个 Command，
-  不后台轮询，不调用模型，也不显示凭据、chat/user identity、外部 message id 或消息正文；
+  只对 Host 的脱敏 pending projection 做低频只读轮询，不轮询平台消息、不调用模型，也不显示凭据、chat/user identity、外部 message id 或消息正文；
 - V2 健康快照还从 exact Agent 的 Tool registry、Approval seam 和 request header 读取内容就绪状态，逐项
   显示四个部署权限、Tool/Approval 可用性和配置上限；`future-session-only` 明示新能力不会改写当前 Session；
   `platformAccess: not-verified` 明示健康检查没有主动探测飞书 App/资源授权；
