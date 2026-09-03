@@ -159,6 +159,11 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
   const status = snapshot === undefined ? undefined : viewStatus(snapshot)
   const pending = snapshot === undefined ? 0 : snapshot.outbound.prepared + snapshot.outbound.sending + snapshot.outbound.retrying
   const anomalies = snapshot === undefined ? 0 : snapshot.ingress.uncertain + snapshot.outbound.uncertain + snapshot.outbound.failed
+  const showFeishu = snapshot !== undefined && (
+    snapshot.transports.items.some(item => item.adapter === 'feishu')
+      || snapshot.routes.items.some(route => route.adapter === 'feishu')
+      || pendingPairings.some(request => request.adapter === 'feishu')
+  )
   const feishuJourney = snapshot === undefined ? undefined : buildFeishuJourney(snapshot, pendingPairings, t)
 
   return <UI.Surface ariaLabel={t('surface.title')}>
@@ -228,7 +233,7 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
             />)}
         </UI.Section>
 
-        <UI.Section title={t('pairing.pendingTitle')} description={t('pairing.pendingHelp')}>
+        {(showFeishu || pendingPairings.length > 0) && <UI.Section title={t('pairing.pendingTitle')} description={t('pairing.pendingHelp')}>
           {pendingPairings.length === 0
             ? <UI.Empty title={t('pairing.pendingEmptyTitle')} description={t('pairing.pendingEmpty')} />
             : pendingPairings.map(request => <UI.Entity
@@ -246,11 +251,11 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
                 onClick={() => { void approvePendingPairing(request.requestId) }}
               >{pairingBusy ? t('pairing.approving') : t('pairing.approvePending')}</UI.Button>}
             />)}
-        </UI.Section>
+        </UI.Section>}
 
         {revocationReceipt !== undefined && <UI.Notice tone="healthy">{t('routes.revokedShort')}</UI.Notice>}
 
-        <UI.Section title={t('pairing.title')} description={t('pairing.help')}>
+        {showFeishu && <UI.Section title={t('pairing.title')} description={t('pairing.help')}>
           <div className="dsh-cc-form">
             <label htmlFor="dsh-gateway-pairing-code">{t('pairing.code')}</label>
             <div className="dsh-cc-form-row">
@@ -270,7 +275,7 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
             <p>{workspaceId === undefined ? t('pairing.noTarget') : t('pairing.currentTarget')}</p>
             {pairingReceipt !== undefined && <UI.Notice tone="healthy">{t('pairing.approvedShort')}</UI.Notice>}
           </div>
-        </UI.Section>
+        </UI.Section>}
 
         <UI.Notice tone={anomalies > 0 ? 'attention' : 'neutral'}>
           {t('foot.noModel')} · {new Date(snapshot.observedAt).toLocaleString()}

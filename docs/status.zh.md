@@ -10,6 +10,14 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.88：Gateway 单页渠道入口按需显示（本轮）
+
+重新 fetch 并确认 DSH 最新远端 `master` 为 `76fda729…` 后，修复 Telegram-only profile 仍出现空“飞书配对”
+表单和 pending 区块的问题。Gateway 原生单页现在仅在 Host 已观察到飞书 transport/route/request 时显示飞书
+旅程；待处理区块也按事实出现，帮助文案优先管理员直接批准 request。Gateway Control Surface 6/6、文档检查和
+类型检查通过；没有新增网页、Router、Session 或外部探测。该入口降噪不提升真实 Feishu、Telegram、Provider、
+Hermes paired、长期效果或 release tag 门。详见 [V5.88 证据](evidence/v5-88-gateway-feishu-surface-gating-2026-09-04.zh.md)。
+
 ## V5.87：飞书策略拒绝可观测性（本轮）
 
 重新 fetch 并确认 DSH 最新远端 `master` 为 `76fda729…` 后，为官方 Node SDK 的 `reject` 事件接入已有

@@ -184,6 +184,40 @@ describe('Gateway Control Surface', () => {
     expect(journey.textContent).toContain('管理员批准: 收到陌生私聊后在本页批准')
     expect(screen.getByText(/用户私聊/u).closest('li')?.getAttribute('aria-current')).toBe('step')
   })
+
+  it('does not render Feishu pairing controls for a Telegram-only Host', async () => {
+    const base = snapshot()
+    const value: GatewayHealthSnapshot = {
+      ...base,
+      routes: {
+        total: 1,
+        liveSessions: 1,
+        items: [base.routes.items[1]!],
+      },
+      transports: {
+        registrations: 1,
+        connecting: 0,
+        ready: 1,
+        degraded: 0,
+        stopping: 0,
+        items: [base.transports.items[1]!],
+      },
+    }
+    const remote = {
+      overview: vi.fn(async () => ({ ok: true, value })),
+      pendingPairings: vi.fn(async () => ({ ok: true, value: [] })),
+      approvePairing: vi.fn(),
+      approvePairingRequest: vi.fn(),
+      revokePairing: vi.fn(),
+    } as GatewayRemoteClient
+    render(<GatewaySurface {...surfaceProps(remote)} />)
+
+    await screen.findByText('telegram-long-poll')
+    expect(screen.queryByText('飞书配对')).toBeNull()
+    expect(screen.queryByText('待批准请求')).toBeNull()
+    expect(screen.queryByLabelText('配对码')).toBeNull()
+    expect(screen.queryByRole('list', { name: '飞书首次连接进度' })).toBeNull()
+  })
 })
 
 function surfaceProps(remote: GatewayRemoteClient): GatewaySurfaceProps {

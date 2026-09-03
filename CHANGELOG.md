@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Gated the native Gateway pairing and newcomer sections by observed Feishu Host facts. Telegram-only profiles no
+  longer render empty Feishu controls, and the pairing help now makes pending-request approval the primary flow while
+  retaining code entry for compatibility. This reduces single-page setup noise without adding a page or runtime.
+  See [V5.88 evidence](docs/evidence/v5-88-gateway-feishu-surface-gating-2026-09-04.zh.md).
+
 - Projected official Feishu policy rejections into the existing redacted Gateway health snapshot. The native
   Control Center can now distinguish an inbound event rejected by allowlist/mention policy from a WebSocket that
   has received no event; no message, chat, sender, credential, or model data is exposed, and policy rejects do not
