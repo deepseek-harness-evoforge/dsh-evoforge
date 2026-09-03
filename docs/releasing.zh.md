@@ -32,7 +32,7 @@ pnpm run check:release:gates
 
 `pack:suite` 只调用 DSH 官方 `pnpm pack`，并产生包含文件名、版本和 SHA-256 的 `evoforge-suite.json`。部署者仍使用官方 `dsh plugin --profile <profile> add/remove`，不安装第二个 EvoForge Runtime。
 省略 `--suite` 时默认打包 `core`；完整十二包仅能通过显式 `pnpm run pack:full`（或 `--suite full`）生成。
-仅使用一个消息平台时，可在 `channels` 套件上增加 `--channel feishu` 或 `--channel telegram`，只生成 Gateway 与对应 Adapter。
+仅使用一个消息平台时，可在 `channels` 套件上增加 `--channel feishu` 或 `--channel telegram`，生成共享 Control Center、Gateway 与对应 Adapter；不会把它们合并成一个 Bundle。
 
 ## 不可跳过的发布门
 
