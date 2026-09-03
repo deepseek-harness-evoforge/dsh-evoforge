@@ -19,14 +19,19 @@ const packageDirs = (await readdir(packageRoot, { withFileTypes: true }))
   .filter(entry => entry.isDirectory())
   .map(entry => entry.name)
   .sort()
-const manifests = await Promise.all(packageDirs.map(async name => JSON.parse(await readFile(join(packageRoot, name, 'package.json'), 'utf8'))))
-const versions = new Set(manifests.map(manifest => manifest.version))
+const manifests = await Promise.all(packageDirs.map(async dir => ({
+  dir,
+  manifest: JSON.parse(await readFile(join(packageRoot, dir, 'package.json'), 'utf8')),
+})))
+const versions = new Set(manifests.map(({ manifest }) => manifest.version))
 if (versions.size !== 1) throw new Error(`All plugin packages must share one version; found ${[...versions].join(', ')}`)
 
 const packageErrors = []
 const repositoryUrl = 'git+https://github.com/deepseek-harness-evoforge/dsh-evoforge.git'
-for (const manifest of manifests) {
-  const packageDir = join(packageRoot, manifest.name)
+for (const { dir, manifest } of manifests) {
+  // The npm distribution name may become scoped. Resolve the local package
+  // by its workspace directory, never by manifest.name.
+  const packageDir = join(packageRoot, dir)
   if (manifest.private === true) packageErrors.push(`${manifest.name} must be publishable (private must be false or omitted)`)
   if (manifest.license !== 'MIT') packageErrors.push(`${manifest.name} must declare the MIT license`)
   if (manifest.repository?.url !== repositoryUrl) packageErrors.push(`${manifest.name} has an unexpected repository URL`)

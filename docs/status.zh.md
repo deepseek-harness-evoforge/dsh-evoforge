@@ -41,6 +41,13 @@ DSH 内部已安装能力、Goal、真实反馈和结果；外部生态与论文
 搜索、下载、导入或安装外部 Skill/能力。路线图、Goal 提示词和本证据已同步，`check:docs` 与差异检查通过；未
 新增市场、Runtime、Router 或状态库。详见 [V5.105 证据](evidence/v5-105-runtime-self-discovery-boundary-2026-09-04.zh.md)。
 
+## V5.107：发布预检与 scoped npm 名称解耦（本轮）
+
+审计发现 `check-release.mjs` 以 `manifest.name` 拼接本地目录；未来迁移到合法 npm Scope 后会错误找不到
+`packages/@scope/...`。本轮改为按 workspace 实际目录读取 manifest，同时保留公共元数据和 Bundle patch 校验。
+最新 DSH preflight、文档/CI/套件/发布合同、全量 alpha.5 `pnpm run check` 均通过；未改名、未改 DSH、未绕过
+npm 归属门。详见 [V5.107 证据](evidence/v5-107-release-check-scoped-name-safety-2026-09-04.zh.md)。
+
 ## V5.103：渠道控制面轮询契约与用户文档对齐（本轮）
 
 审计发现 `GatewaySurface` 为了让新配对请求在同一个 DSH Web 页面自动出现，实际每 5 秒读取一次 Host 脱敏
@@ -836,3 +843,9 @@ add/Loader/command/remove 1/1（10.35 秒）。V4.24 删除旧浏览器 acceptan
 - 自动化 `implemented` 不能替代真实 outcome，也不能支持笼统的“优于 Hermes”；
 - 不 merge、不发布 registry、不部署生产，除非用户另行授权。
 完整命令、输出和支持决策见 [V5.72 证据](evidence/v5-72-latest-dsh-master-reaudit-2026-09-03.zh.md)。
+## V5.107：发布预检与 scoped npm 名称解耦（本轮）
+
+审计发现 `check-release.mjs` 以 `manifest.name` 拼接本地目录；未来迁移到合法 npm Scope 后会错误找不到
+`packages/@scope/...`。本轮改为按 workspace 实际目录读取 manifest，同时保留公共元数据和 Bundle patch 校验。
+最新 DSH preflight、文档/CI/套件/发布合同、全量 alpha.5 `pnpm run check` 均通过；未改名、未改 DSH、未绕过
+npm 归属门。详见 [V5.107 证据](evidence/v5-107-release-check-scoped-name-safety-2026-09-04.zh.md)。

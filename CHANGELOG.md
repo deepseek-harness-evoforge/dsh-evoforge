@@ -6,6 +6,10 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.107**: Made release metadata validation resolve package files by workspace directory instead of `manifest.name`,
+  so a future project-owned scoped npm name can be migrated without breaking README/Bundle patch checks. No package names
+  were changed and the npm ownership gate remains blocking. See [V5.107 evidence](docs/evidence/v5-107-release-check-scoped-name-safety-2026-09-04.zh.md).
+
 - **V5.106**: Separated stable DSH logical Bundle identities from provisional npm distribution names and recorded the
   namespace migration decision in ADR-0101. The four existing npm collisions remain a hard release blocker; no guessed
   scope, alias package, or silent global rename is allowed. See [ADR-0101](docs/adr/0101-public-package-namespace-before-npm-release.md).
