@@ -47,6 +47,14 @@ Feishu 合同检查、12 个包的类型检查、所有测试和所有构建全�
 浏览器恢复和首个 release tag 仍未通过，未因根级绿灯而提前发布。详见
 [V5.96 证据](evidence/v5-96-alpha5-full-check-2026-09-04.zh.md)。
 
+## V5.97：真实 Feishu AS-2 最新隔离重试严格失败（本轮）
+
+在 main `d6b9e56…` 快照上重新打包三件最终 Bundle，使用全新隔离 run root 和固定 alpha.5 启动真实
+`dsh-gateway`/`dsh-feishu`。配置 dump 与官方飞书 WebSocket `ready` 均通过；15 分钟人工窗口内没有观察到
+当前 App 的陌生私聊 pending request，因而没有批准 principal、没有 Agent 入站、没有平台回复或其他外部副作用。
+运行器在 `awaiting-resident-pairing-request` 阶段 fail closed，旧 run 不复用；`real-feishu-as2` 门仍为
+`failed`。详见 [V5.97 证据](evidence/v5-97-real-feishu-as2-no-pending-2026-09-04.zh.md)。
+
 ## V5.88：Gateway 单页渠道入口按需显示（本轮）
 
 重新 fetch 并确认 DSH 最新远端 `master` 为 `76fda729…` 后，修复 Telegram-only profile 仍出现空“飞书配对”

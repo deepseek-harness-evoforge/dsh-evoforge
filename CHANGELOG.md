@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Recorded the newest isolated real Feishu AS-2 retry. Final Bundles installed into a fresh profile, config dump
+  passed, and the official WebSocket reached `ready`; no newcomer private message produced a Host pending request
+  during the 15-minute window, so the runner failed closed before pairing or any Agent/platform effect. The run root
+  is not reused and the `real-feishu-as2` gate remains failed. See [V5.97 evidence]
+  (docs/evidence/v5-97-real-feishu-as2-no-pending-2026-09-04.zh.md).
+
 - Re-ran the complete repository check after the Feishu callback and alpha.5 Schedule-fixture fixes, using the clean
   audited alpha.5 DSH profile. Documentation/CI/package/release contracts, compatibility checks, all 12 package
   typechecks, all tests, and all builds passed; Feishu is 18 files / 46 tests, Telegram 8 / 29, and Gateway 8 / 40.

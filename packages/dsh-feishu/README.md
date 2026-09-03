@@ -170,7 +170,7 @@ exactly-once。
 Session readback 设为 hard gate。当前 epoch-4 的关闭终态必须包含全部十三项 observation；旧 epoch 或遗漏
 Schedule 的报告不能复用。最近一次隔离真实运行已安装最终 Bundle、完成 profile dump 并观察到官方 WebSocket
 `ready`，但人工窗口内没有收到匹配的陌生私聊，因此在配对批准前 fail closed；没有把这次运行记作真实渠道通过。
-详见仓库的 [V5.89 AS-2 证据](../../docs/evidence/v5-89-feishu-as2-epoch4-no-pending-2026-09-04.zh.md)。合同或 fake
+详见仓库的 [V5.97 AS-2 证据](../../docs/evidence/v5-97-real-feishu-as2-no-pending-2026-09-04.zh.md)。合同或 fake
 transport 通过不能替代真实结果；部署者仍需按 [AS-2 说明](../../benchmarks/feishu-v0.1/as2-real-channel/README.zh.md)
 完成自己的授权验收。
 
