@@ -1,6 +1,7 @@
-import { mkdir, writeFile } from 'node:fs/promises'
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { mkdtemp, mkdir, writeFile } from 'node:fs/promises'
+import { dirname, join, resolve } from 'node:path'
+import { tmpdir } from 'node:os'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const args = parseArgs(process.argv.slice(2))
@@ -9,8 +10,15 @@ const workspaceId = required(args, 'workspace-id')
 const workspacePath = args.workspace ?? '/private/tmp/evoforge-telegram-browser-workspace'
 const sessionId = args.session ?? 'evoforge-telegram-browser-session'
 const apiBase = args['api-base'] ?? 'http://127.0.0.1:41235'
+const fixturePath = resolve(repositoryRoot, 'packages/dsh-control-center/test/fixtures/browser-doctor-bootstrap.mjs')
 
 await mkdir(dirname(outputPath), { recursive: true })
+// Keep the absolute test entry outside the control-center package root. DSH's
+// client-module resolver uses the nearest package.json as source identity and
+// would otherwise treat this fixture as a second dsh-control-center client.
+const shimDir = await mkdtemp(join(tmpdir(), 'evoforge-browser-bootstrap-'))
+const shimPath = join(shimDir, 'bootstrap.mjs')
+await writeFile(shimPath, `export { name, inject, apply } from ${JSON.stringify(pathToFileURL(fixturePath).href)}\n`, 'utf8')
 await writeFile(outputPath, `- id: evoforge-gateway
   name: dsh-gateway
   disabled: false
@@ -38,7 +46,7 @@ await writeFile(outputPath, `- id: evoforge-gateway
 
 - insert:
     - id: evoforge-telegram-browser-workspace
-      name: ${resolve(repositoryRoot, 'packages/dsh-control-center/test/fixtures/browser-doctor-bootstrap.mjs')}
+      name: ${shimPath}
       config:
         workspacePath: !!js String(${JSON.stringify(workspacePath)})
         sessionId: ${yaml(sessionId)}

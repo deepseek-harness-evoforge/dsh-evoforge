@@ -10,6 +10,19 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.81：最新 DSH 单页浏览器验收与入口身份修复（本轮）
+
+最新 DSH alpha.5 Web 验收曾因 overlay 直接加载包内 fixture，被 DSH 的最近 `package.json` client 身份解析器
+误判为第二个 `dsh-control-center` source。两个浏览器 overlay 现都生成包目录外的临时 ESM shim；shim 只转出
+fixture 的标准 Loader 导出，不进入最终 Bundle。重新 fetch 并确认最新 DSH `origin/master`
+`76fda729…` 后，在隔离 profile 安装 `core + channels/telegram`，用单个 `3080` Host 和单个浏览器页面验证了真实
+workspace/session 选择、原生“控制台”、Doctor 重新诊断、ARIA 键盘切换到 Evolution，以及整页 reload 恢复。
+页面全程没有第二标签、独立路由或固定弹窗；Host 已在验证结束停止。完整命令、截图观察和边界见
+[V5.81 证据](evidence/v5-81-browser-overlay-package-identity-2026-09-03.zh.md)。
+
+该修复只提高浏览器验收 harness 的可重复性，不改变真实渠道、Provider、Hermes paired 或长期效果门；项目仍
+处于 `pre-alpha`，不创建 release tag。
+
 ## V5.69：DSH alpha.5 迁移收口（本轮）
 
 本轮开发和测试固定在 DSH `0.1.2-alpha.5`。本地最新 `master` 为

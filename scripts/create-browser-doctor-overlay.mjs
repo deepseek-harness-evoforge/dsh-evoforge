@@ -1,6 +1,7 @@
-import { mkdir, writeFile } from 'node:fs/promises'
-import { dirname, isAbsolute, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { mkdtemp, mkdir, writeFile } from 'node:fs/promises'
+import { dirname, isAbsolute, join, resolve } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+import { tmpdir } from 'node:os'
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const fixturePath = resolve(repositoryRoot, 'packages/dsh-control-center/test/fixtures/browser-doctor-bootstrap.mjs')
@@ -10,7 +11,15 @@ const workspacePath = args.workspace ?? resolve('/tmp', 'evoforge-browser-worksp
 const sessionId = args.session ?? 'evoforge-control-center-browser-session'
 
 await mkdir(dirname(outputPath), { recursive: true })
-const patch = `- insert:\n    - id: evoforge-control-center-browser-bootstrap\n      name: ${fixturePath}\n      config:\n        workspacePath: ${yamlScalar(workspacePath)}\n        sessionId: ${yamlScalar(sessionId)}\n        agentPreset: standard\n`
+// DSH's client-module resolver walks upward from every absolute Loader entry
+// to find its nearest package.json. Keeping the test fixture under
+// packages/dsh-control-center makes DSH mistake it for a second client copy
+// of dsh-control-center. A tiny external shim preserves the fixture's own
+// dependency resolution while giving the Loader an unowned source root.
+const shimDir = await mkdtemp(join(tmpdir(), 'evoforge-browser-bootstrap-'))
+const shimPath = join(shimDir, 'bootstrap.mjs')
+await writeFile(shimPath, `export { name, inject, apply } from ${JSON.stringify(pathToFileURL(fixturePath).href)}\n`, 'utf8')
+const patch = `- insert:\n    - id: evoforge-control-center-browser-bootstrap\n      name: ${shimPath}\n      config:\n        workspacePath: ${yamlScalar(workspacePath)}\n        sessionId: ${yamlScalar(sessionId)}\n        agentPreset: standard\n`
 await writeFile(outputPath, patch, 'utf8')
 process.stdout.write(`${outputPath}\n`)
 

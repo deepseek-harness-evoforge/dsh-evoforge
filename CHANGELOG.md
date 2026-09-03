@@ -6,6 +6,14 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Fixed the latest-DSH browser acceptance overlays so their test-only Control Center fixture is loaded through an
+  external temporary ESM shim. DSH's nearest-`package.json` client identity resolver no longer mistakes the fixture
+  for a second `dsh-control-center` source. A clean alpha.5 profile was then booted on the latest audited DSH
+  support baseline and verified in one native Web page: real workspace/session selection, Control Center, Doctor
+  refresh, keyboard surface switching, and page reload recovery all worked without opening another tab. This is
+  acceptance-harness hardening, not a release claim; real channel/provider/Hermes gates remain unchanged. See
+  [V5.81 evidence](docs/evidence/v5-81-browser-overlay-package-identity-2026-09-03.zh.md).
+
 - Completed another isolated real Feishu AS-2 epoch-4 run: final Bundles installed, the clean profile was dumped,
   and the official WebSocket reached `ready`, but the 15-minute window still produced no matching pending private
   message. The runner failed closed before approval, Agent dispatch, or any external effect; the gate remains failed.
