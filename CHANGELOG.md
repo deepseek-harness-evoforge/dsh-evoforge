@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.136**: Recorded a fresh real Feishu AS-2 epoch-5 attempt on `dfdac55`. Final Bundles installed, the
+  profile dump passed, and the resident official WebSocket reached `ready`, but no matching newcomer private
+  message arrived during the five-minute window. The runner failed closed before pairing or any Agent/platform
+  effect; the `real-feishu-as2` gate remains failed. See [V5.136 evidence](docs/evidence/v5-136-real-feishu-as2-epoch5-no-pending-2026-09-04.zh.md).
+
 - **V5.135**: Added and strictly froze EV-1 epoch-3 against the current Hermes `origin/main`
   (`63279301…`) instead of the stale local checkout. On the audited DSH alpha.5 baseline, calibration passed
   `2/2`; EvoForge kept the baseline immutable and Session-pinned (`0` premature active-Skill edits) while Hermes

@@ -18,6 +18,13 @@
 控制面窄结论，不代表模型质量、真实渠道或完整 Hermes 上位替代。详见
 [V5.135 证据](evidence/v5-135-hermes-current-ev1-epoch-3-2026-09-04.zh.md)。
 
+## V5.136：真实 Feishu AS-2 epoch-5 仍无新人 pending（本轮）
+
+在 `dfdac55` 主线和已审计 DSH alpha.5 支持基线上重新打包并安装最终 Bundle；配置 dump、常驻 Gateway 和官方
+Feishu WebSocket `ready` 通过，但 5 分钟窗口内没有当前 App 的陌生私聊，runner 在配对前 fail closed。没有
+Agent 入站或平台副作用，`real-feishu-as2` 继续为 `failed`。详见
+[V5.136 证据](evidence/v5-136-real-feishu-as2-epoch5-no-pending-2026-09-04.zh.md)。
+
 ## V5.134：同 route id 重配与聊天类型变更回归（本轮）
 
 配对装配测试现在复用已撤销的同一 route id，并以 `group` chat kind 再次入站，确认撤销时清除内部观测、不会继承旧 direct 事实或触发漂移拒绝；类型检查、Gateway 构建和回归 `1/1` 通过。详见 [V5.134 证据](evidence/v5-134-feishu-route-id-repair-regression-2026-09-04.zh.md)。
