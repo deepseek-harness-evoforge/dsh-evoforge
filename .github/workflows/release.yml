@@ -24,7 +24,7 @@ jobs:
       url: https://www.npmjs.com/search?q=dsh-evoforge
     steps:
       - name: Checkout release tag
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
@@ -58,7 +58,7 @@ jobs:
           git merge-base --is-ancestor "$tag_commit" origin/main
 
       - name: Checkout pinned DeepSeek Harness
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: deepseek-ai/deepseek-harness
           ref: db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5
