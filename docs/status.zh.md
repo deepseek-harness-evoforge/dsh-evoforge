@@ -17,7 +17,8 @@ transport/pending/route 事实驱动，Telegram-only 安装不会显示飞书入
 新增的 Gateway overlay 生成器把测试 fixture 放到包目录外，并使用 `pairedRoutes`，避免随机 Workspace id
 污染 patch。最新已审计 DSH alpha.5 隔离 profile 的单页浏览器实测已在原生“控制台 → 渠道”看到导引，刷新后同一
 Session 和状态恢复，始终只有一个页面。详见 [V5.83 证据](evidence/v5-83-channel-journey-single-page-browser-2026-09-04.zh.md)。
-本轮不提升真实渠道、Provider、Hermes paired 或长期效果门。
+该证据已加入根目录 `release-gates.json` 的 `web-control-plane` 索引；本轮不提升真实渠道、Provider、Hermes
+paired 或长期效果门。
 
 ## V5.82：用户文档与发布门禁证据一致性审计（本轮）
 
