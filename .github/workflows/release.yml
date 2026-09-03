@@ -51,6 +51,9 @@ jobs:
       - name: Check tag and package versions
         run: node scripts/check-release-tag-version.mjs --tag "$GITHUB_REF_NAME"
 
+      - name: Check npm package names and ownership
+        run: pnpm run check:release:names
+
       - name: Verify annotated tag is on main
         run: |
           test "$(git cat-file -t "$GITHUB_REF_NAME")" = tag

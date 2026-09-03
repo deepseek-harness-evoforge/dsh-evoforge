@@ -18,6 +18,7 @@ export function validateReleaseWorkflow(workflow) {
   }
   for (const required of [
     'scripts/check-release-tag-version.mjs',
+    'run: pnpm run check:release:names',
     'git cat-file -t "$GITHUB_REF_NAME"',
     'git merge-base --is-ancestor',
     'run: pnpm check',

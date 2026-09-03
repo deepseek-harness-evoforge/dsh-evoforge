@@ -21,6 +21,14 @@
       ]
     },
     {
+      "id": "registry-name-availability",
+      "title": "npm package-name availability and ownership",
+      "requiredForTag": true,
+      "status": "failed",
+      "evidence": ["docs/evidence/v5-104-npm-package-name-collision-2026-09-04.zh.md"],
+      "blocker": "dsh-doctor, dsh-feishu, dsh-gateway, and dsh-telegram already belong to unrelated npm repositories; reserve a project-owned namespace or rename the public packages before tagging."
+    },
+    {
       "id": "clean-profile-lifecycle",
       "title": "Final Bundle clean-profile lifecycle",
       "requiredForTag": true,

@@ -8,7 +8,7 @@ DSH 仍然是唯一的 Agent Host 和状态权威。EvoForge 不是 Codex 插件
 
 项目目前是 `pre-alpha`：源码、测试和本地 tarball 安装路径可供开发者复现，但尚未发布 registry 稳定包，也还没有声明已经完成 Hermes 上位替代。DSH 最新公开 tag 是 `dsh-v0.1.2-rc.1`（revision `a66e4702047846cdaa10c66c9d3df3951f5ea70d`），最新远端 `master` 已推进到 `76fda729799fe9b3848dbe2c211d4b231032b81e`；两者的干净完整构建都被上游根级 tsdown 入口阻断。当前已完成矩阵的可构建基线仍是 `dsh-v0.1.2-alpha.5`（revision `db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`）。每次开发和测试都必须先核对 DSH revision、版本和 clean worktree；rc.1/master 的状态见 [迁移审计](docs/research/dsh-rc1-migration-audit-2026-09-03.zh.md)。
 
-当前尚未关闭的发布门包括：真实飞书完整 AS-2、两套独立真实 provider、同任务同模型同权限同预算的 Hermes paired benchmark、长期负迁移/遗忘数据，以及真实浏览器成功/失败/恢复的完整路径。门禁未全部通过前，不应把本项目当作稳定生产发行版。
+当前尚未关闭的发布门包括：npm 包名归属（其中 `dsh-doctor`、`dsh-feishu`、`dsh-gateway`、`dsh-telegram` 已被其他项目占用）、真实飞书完整 AS-2、两套独立真实 provider、同任务同模型同权限同预算的 Hermes paired benchmark、长期负迁移/遗忘数据，以及真实浏览器成功/失败/恢复的完整路径。门禁未全部通过前，不应把本项目当作稳定生产发行版。
 
 ## 能力套件
 
@@ -45,6 +45,8 @@ dsh plugin --profile web add ./dist/evoforge-packs/delivery/*.tgz
 ```
 
 `pack:suite` 使用 DSH 官方 `pnpm pack` 生成真实 Bundle，并写出带 SHA-256 的 `evoforge-suite.json`。安装、启动、查看配置、停止和卸载仍由 DSH 官方命令完成；EvoForge 不启动第二个后台 Runtime。完整安装和清理命令见[开始使用](docs/getting-started.zh.md)与[发布/安装门](docs/releasing.zh.md)。
+
+发布到 npm 前会自动检查每个公开包名的 registry 归属；命名空间冲突或 registry 查询异常会阻止 tag 和发布。当前冲突记录与维护者处理要求见 [V5.104 证据](docs/evidence/v5-104-npm-package-name-collision-2026-09-04.zh.md)。
 
 ## 第一次使用飞书
 

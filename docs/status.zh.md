@@ -22,6 +22,17 @@
 锁定 alpha.5 `db6bdc…`。本事实不冒充插件失败，也不改变真实渠道、双 Provider、Hermes paired、长期效果或
 发布 tag 门禁。
 
+## V5.104：npm 包名归属审计与发布阻断（本轮）
+
+在再次 fetch 并确认最新 DSH `origin/master` 为 `76fda729…`、工作树 clean 后，查询所有公开 Bundle 的 npm
+registry 状态。`dsh-doctor`、`dsh-feishu`、`dsh-gateway`、`dsh-telegram` 已分别属于其他公开仓库，不能安全
+发布；其余八个名称虽返回 `E404`，也尚未取得项目所有权。详见 [V5.104 证据](evidence/v5-104-npm-package-name-collision-2026-09-04.zh.md)。
+
+本轮新增 `pnpm run check:release:names`，发布工作流在构建和 `npm publish` 前执行；冲突、无归属或 registry
+异常均 fail closed，并在 `release-gates.json` 增加 required gate `registry-name-availability`（当前
+`failed`）。没有未经授权地猜测 npm Scope 或静默重命名，首个公开 tag 继续阻止，直到完成命名空间决策并对
+内部依赖、Bundle 清单、安装/卸载文档和完整矩阵重新验证。
+
 ## V5.103：渠道控制面轮询契约与用户文档对齐（本轮）
 
 审计发现 `GatewaySurface` 为了让新配对请求在同一个 DSH Web 页面自动出现，实际每 5 秒读取一次 Host 脱敏
