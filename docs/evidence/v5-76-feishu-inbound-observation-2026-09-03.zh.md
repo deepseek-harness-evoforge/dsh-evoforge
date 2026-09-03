@@ -25,6 +25,17 @@ DSH_EVOLVE_DSH_SOURCE_DIR=/path/to/dsh-v0.1.2-alpha.5 \
 passed; 45 tests passed`。新增测试覆盖 `lastInboundAt` 的 Host 汇总、JSONL/文本渲染和浏览器解析；没有把
 任意 endpoint、用户身份、消息正文或 secret 放入投影。
 
+变更提交后再次 fetch 最新 DSH master `76fda729799fe9b3848dbe2c211d4b231032b81e` 并确认 clean，随后执行：
+
+```sh
+pnpm run check:ci
+pnpm run check:suites
+pnpm run check:release
+```
+
+三项均通过：25 个 CI 引用文件、套件 manifest/pack 合同 3/3，以及 12 个 Bundle 的公开 release preflight。
+这些门只证明构建/合同一致，仍不替代真实平台事件或 paired 效果。
+
 ## 影响范围
 
 - 真实 Feishu AS-2 仍为失败：epoch-4 最新隔离重试只有安装、dump 和 WebSocket ready，通过不了 pending
