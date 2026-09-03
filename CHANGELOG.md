@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Channel-only installs now include the lightweight native `dsh-control-center` alongside `dsh-gateway` and the
+  selected Feishu/Telegram Adapter. Pairing approval and transport health therefore stay in one DSH Web page without
+  forcing self-evolution or attention packages. The real Feishu AS-2 runner installs and removes that Control Center
+  too; its latest human-window run remained a strict failure because no new pending Feishu DM arrived. See
+  [V5.71 evidence](docs/evidence/v5-71-channel-suite-control-center-and-real-run-2026-09-03.zh.md).
+
 - Migrated the public plugin suite to the audited DSH `0.1.2-alpha.5` contract and narrowed every published
   DSH peer range to that version. Historical rc.5/rc.2 revisions remain research evidence only until a separate
   runtime-specific migration matrix is rebuilt; the compatibility script and CI now exercise the current alpha.5
@@ -78,7 +84,7 @@ All notable changes will be recorded here. The project has not published a stabl
 - GitHub Actions macOS assembled coverage now references only current test files; a new `check:ci` preflight catches stale package test paths before they reach a clean runner. See [V5.38](docs/evidence/v5-38-ci-workflow-current-paths-2026-08-26.zh.md).
 - The Telegram adapter now has a verified real-DSH loopback browser path inside the shared Control Center (route, transport, refresh, reload, and zero application console errors). This remains deterministic loopback evidence, not a real Bot or release-gate pass; see [V5.37](docs/evidence/v5-37-telegram-control-surface-browser-2026-08-26.zh.md).
 - `dsh-doctor` and `dsh-telegram` now contribute read-only native Control Center Surfaces through the official DSH client slot. Doctor's real browser refresh/disconnect/recovery path is documented in [V5.36](docs/evidence/v5-36-doctor-control-surface-browser-2026-08-26.zh.md); Telegram's real authorized route remains a release blocker.
-- User-facing installation is now organized into four default entries: `core`, `channels`, `delivery`, and `continuity`. `attention` is optional, `evolution`/`control`/`gateway` remain compatibility or advanced entries, and `full` is maintainer-only. The underlying DSH Bundles remain independently installable, permission-scoped, and removable; `channels` no longer forces the Web Control Center or attention bridge.
+- User-facing installation is now organized into four default entries: `core`, `channels`, `delivery`, and `continuity`. `attention` is optional, `evolution`/`control`/`gateway` remain compatibility or advanced entries, and `full` is maintainer-only. The underlying DSH Bundles remain independently installable, permission-scoped, and removable; `channels` includes only the lightweight Web Control Center needed for one-page pairing and health, not the evolution or attention bridge.
 - The public-package release preflight now verifies MIT/repository metadata, package READMEs, exported Cordis patches, and publishable Bundle manifests; CI runs that preflight on every matrix entry.
 - Added a machine-readable `release-gates.json` and an annotated-tag command that refuses dirty/non-main/out-of-sync trees or any incomplete real-evidence gate.
 - `dsh-evolve-web` now contributes its evolution surface to the native Control Center instead of registering a duplicate fixed sidebar dialog.

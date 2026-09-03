@@ -219,6 +219,7 @@ export async function executeRealFeishuAcceptance(
     await writeState(statePath, stateBase, stage)
     await runDsh(dshBin, [
       'plugin', '--profile', PROFILE_NAME, 'add',
+      tarballs.control,
       tarballs.gateway,
       tarballs.feishu,
       '--prefer-offline', '--ignore-scripts',
@@ -250,6 +251,7 @@ export async function executeRealFeishuAcceptance(
     if (!dumped.stdout.includes('id: as2-schedule')
       || !dumped.stdout.includes('id: as2-gateway')
       || !dumped.stdout.includes('id: as2-feishu')
+      || !dumped.stdout.includes('dsh-control-center')
       || !dumped.stdout.includes('mode: pairing')
       || !dumped.stdout.includes(`sessionId: ${SESSION_ID}`)) {
       throw new Error('AS-2 effective DSH profile is missing an intended real-channel row')
@@ -449,7 +451,7 @@ export async function executeRealFeishuAcceptance(
     restoreRuntimeEnvironment = undefined
     await writeFile(join(profileDir, 'cordis.patch.yml'), '[]\n', { mode: 0o600 })
     await runDsh(dshBin, [
-      'plugin', '--profile', PROFILE_NAME, 'remove', 'dsh-feishu', 'dsh-gateway',
+      'plugin', '--profile', PROFILE_NAME, 'remove', 'dsh-feishu', 'dsh-gateway', 'dsh-control-center',
     ], runDir, env)
     const removedDump = await execFile(process.execPath, [dshBin, '--profile', PROFILE_NAME, '--dump-config'], {
       cwd: runDir,
@@ -586,9 +588,9 @@ async function acceptanceEnvironment(
   }
 }
 
-async function packFinalBundles(runDir: string): Promise<{ gateway: string; feishu: string }> {
+async function packFinalBundles(runDir: string): Promise<{ control: string; gateway: string; feishu: string }> {
   const packRoot = await exactDirectory(join(runDir, 'packs'))
-  for (const packageName of ['dsh-gateway', 'dsh-feishu']) {
+  for (const packageName of ['dsh-control-center', 'dsh-gateway', 'dsh-feishu']) {
     await execFile('pnpm', ['--filter', packageName, 'pack', '--pack-destination', packRoot], {
       cwd: suiteRoot,
       encoding: 'utf8',
@@ -596,10 +598,13 @@ async function packFinalBundles(runDir: string): Promise<{ gateway: string; feis
     })
   }
   const files = await readdir(packRoot)
+  const control = files.find(file => /^dsh-control-center-.*\.tgz$/u.test(file))
   const gateway = files.find(file => /^dsh-gateway-.*\.tgz$/u.test(file))
   const feishu = files.find(file => /^dsh-feishu-.*\.tgz$/u.test(file))
-  if (gateway === undefined || feishu === undefined) throw new Error('AS-2 final tarballs were not produced')
-  return { gateway: join(packRoot, gateway), feishu: join(packRoot, feishu) }
+  if (control === undefined || gateway === undefined || feishu === undefined) {
+    throw new Error('AS-2 final tarballs were not produced')
+  }
+  return { control: join(packRoot, control), gateway: join(packRoot, gateway), feishu: join(packRoot, feishu) }
 }
 
 async function assertPackedBoundary(tarballs: { gateway: string; feishu: string }): Promise<void> {

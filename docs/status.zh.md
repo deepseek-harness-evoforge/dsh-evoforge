@@ -27,6 +27,19 @@ Skill/Completion/Crash Recovery 以及 clean-profile add/dump/boot/reload/dispos
 完整 revision、命令和失败修复过程见 [alpha.5 迁移审计](research/dsh-alpha5-migration-audit-2026-09-03.zh.md)与
 [V5.69 证据](evidence/v5-69-dsh-alpha5-migration-2026-09-03.zh.md)。
 
+## V5.71：渠道套件统一单页控制面（本轮）
+
+重新审计发现 `channels` 只安装 Gateway/Adapter 时，README 虽要求管理员在 DSH Web 批准配对，但该 profile
+实际上没有安装 Control Center。已修正套件清单：`channels` 及 `--channel feishu|telegram` 现在随附轻量
+`dsh-control-center`，仍不包含 `dsh-evolve`、`dsh-evolve-web` 或 `attention`，因此没有增加自我进化或通知冗余。
+AS-2 最终包同步安装并卸载 Control Center。基于最新可复现 alpha.5 clean profile 的真实单页浏览器验证已通过：
+在一个 DSH Web 标签中进入原生 Session“控制台 → 渠道”，看到 Gateway/飞书 Surface，点击刷新并整页 reload
+后仍可操作，没有打开第二网页或固定遮挡弹窗。证据见 [V5.71](evidence/v5-71-channel-suite-control-center-and-real-run-2026-09-03.zh.md)。
+
+同一轮真实 Feishu AS-2 已到达官方 WebSocket ready，但人工等待窗口没有新的陌生私聊，严格停在
+`awaiting-resident-pairing-request` 并失败；没有批准 principal、进入 Agent 或产生任何外部效果。该结果不提升
+真实飞书、Provider、Hermes paired 或长期门，下一轮必须使用新的隔离 run root 重跑完整 AS-2。
+
 当前仍是 `pre-alpha`，不能发布首个 tag：真实飞书完整 AS-2、两套真实 provider、同条件 Hermes
 paired benchmark、长期负迁移/遗忘和完整真实浏览器成功/失败/恢复门尚未齐备。README 已改为用户指南，
 内部过程和历史证据只放在 `docs/`。
@@ -80,9 +93,9 @@ HanaAgent 一手 revision 的设计调研、[ADR-0099](adr/0099-control-center-o
 把 `dsh-evolve-web` 迁入同一公共 Surface；旧侧栏固定弹窗不再是活动入口。迁移后的 Evolution 最终包真实
 Evolution 迁移后的真实 Workspace/Session 浏览器验收已由 [V5.30](evidence/v5-30-evolution-surface-browser-2026-08-26.zh.md) 通过；Doctor/Telegram 迁入公共 Surface、完整陌生用户可用性、真实 provider 价格与长期数据仍未完成。
 
-V5.32 收敛了公开安装面：默认只有 `core`、`channels`、`delivery`、`continuity` 四个入口，`attention` 按需安装，`evolution`/`control`/`gateway` 仅为兼容或高级入口，`full` 仅供维护者。`channels` 不再强制安装 Control Center 或 Attention；十二个物理 Bundle 的独立启停、权限和卸载边界保持不变。套件 audience、四包 `core` tarball 和 `check:suites` 结果见 [V5.32](evidence/v5-32-install-surface-convergence-2026-08-26.zh.md)。
+V5.32 收敛了公开安装面：默认只有 `core`、`channels`、`delivery`、`continuity` 四个入口，`attention` 按需安装，`evolution`/`control`/`gateway` 仅为兼容或高级入口，`full` 仅供维护者。`channels` 当时不强制安装 Control Center；V5.71 根据真实用户路径复核已改为随附轻量 Control Center，而仍不带 Attention。十二个物理 Bundle 的独立启停、权限和卸载边界保持不变。套件 audience、四包 `core` tarball 和 `check:suites` 结果见 [V5.32](evidence/v5-32-install-surface-convergence-2026-08-26.zh.md)；当前修正见 [V5.71](evidence/v5-71-channel-suite-control-center-and-real-run-2026-09-03.zh.md)。
 
-V5.47 又把这一分类写入 `pack:suite --help`：帮助只把四个用户入口放在第一层，单独标记 `attention`、兼容/高级入口和维护者 `full`，避免把内部 Bundle 数量误解为产品选择数量。实际 `core` 打包仍生成四个官方 tarball，单渠道 `channels --channel feishu|telegram` 仍只生成 Gateway 与所选 Adapter；完整证据见 [V5.47](evidence/v5-47-public-suite-help-2026-08-26.zh.md)。
+V5.47 又把这一分类写入 `pack:suite --help`：帮助只把四个用户入口放在第一层，单独标记 `attention`、兼容/高级入口和维护者 `full`，避免把内部 Bundle 数量误解为产品选择数量。实际 `core` 打包仍生成四个官方 tarball；当前单渠道 `channels --channel feishu|telegram` 生成轻量 Control Center、Gateway 与所选 Adapter，完整修正见 [V5.71](evidence/v5-71-channel-suite-control-center-and-real-run-2026-09-03.zh.md)。
 
 V5.50 收口了双版本生命周期探针的浏览器副作用：目标 CLI 先按帮助输出选择 `--no-open`（rc.2）或无该参数的
 `--port` 契约（rc.5），直接 `appBoot` 组装也同步处理；两个 macOS assembled job 与本地双版本 clean-profile

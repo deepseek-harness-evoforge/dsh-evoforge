@@ -4,13 +4,15 @@
 
 ## 安装
 
-当前未发布 registry 版本。先打包 Gateway 与 Adapter，再使用 DSH 官方 profile 命令安装：
+当前未发布 registry 版本。推荐用 `channels` 套件一次打包轻量 Control Center、Gateway 与 Adapter；如果单独
+安装本包，也要同时安装 `dsh-control-center`，否则飞书仍能连接，但 DSH Web 没有配对/健康控制面：
 
 ```sh
 PACK_DIR="$(mktemp -d)"
 pnpm --filter dsh-gateway pack --pack-destination "$PACK_DIR"
+pnpm --filter dsh-control-center pack --pack-destination "$PACK_DIR"
 pnpm --filter dsh-feishu pack --pack-destination "$PACK_DIR"
-dsh plugin --profile web add "$PACK_DIR"/dsh-gateway-*.tgz "$PACK_DIR"/dsh-feishu-*.tgz
+dsh plugin --profile web add "$PACK_DIR"/dsh-control-center-*.tgz "$PACK_DIR"/dsh-gateway-*.tgz "$PACK_DIR"/dsh-feishu-*.tgz
 dsh --profile web --dump-config
 ```
 

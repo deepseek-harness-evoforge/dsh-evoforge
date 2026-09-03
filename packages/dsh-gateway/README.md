@@ -9,8 +9,9 @@ Adapter 共用的 Host 接缝。它把部署者声明的 external account/conver
 ## 安装
 
 ```sh
+pnpm --filter dsh-control-center pack --pack-destination /tmp
 pnpm --filter dsh-gateway pack --pack-destination /tmp
-dsh plugin --profile web add /tmp/dsh-gateway-0.1.0-alpha.1.tgz
+dsh plugin --profile web add /tmp/dsh-control-center-0.1.0-alpha.1.tgz /tmp/dsh-gateway-0.1.0-alpha.1.tgz
 ```
 
 Bundle row 默认为 `disabled: true`。部署者在同一个 DSH profile 中配置精确 route 后启用：

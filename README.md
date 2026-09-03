@@ -17,7 +17,7 @@ DSH 仍然是唯一的 Agent Host 和状态权威。EvoForge 不是 Codex 插件
 | 套件 | 提供的结果 | 内部包 |
 |---|---|---|
 | `core` | 自我进化证据链、诊断和 DSH Web 控制面 | `dsh-evolve`、`dsh-doctor`、`dsh-control-center`、`dsh-evolve-web` |
-| `channels` | 常驻 Gateway、飞书/Telegram 配对、路由和持久投递 | `dsh-gateway`、`dsh-feishu`、`dsh-telegram` |
+| `channels` | 常驻 Gateway、飞书/Telegram 配对、路由、持久投递和一个原生 DSH Web 控制面 | `dsh-control-center`、`dsh-gateway`、`dsh-feishu`、`dsh-telegram` |
 | `delivery` | 原生 Skill/Tool 软件交付、隔离验证、Draft PR 和 GitHub review | `dsh-software-delivery`、`dsh-github-review` |
 | `continuity` | Goal 冷恢复和用户级 DSH profile 常驻 | `dsh-goal-continuity`、`dsh-resident` |
 
@@ -60,7 +60,7 @@ dsh plugin --profile web add ./dist/evoforge-packs/delivery/*.tgz
 
 ## Web 控制面
 
-`core` 提供一个原生 DSH `conversation.view` 控制面，而不是多个悬浮网页。它可以查看运行状态、能力/缺口、候选谱系与 diff、baseline/holdout、失败归因、成本/时延/cache、安全权限、晋升/隔离/回滚和渠道健康，并提供 pause/resume/approve/reject/promote/rollback。页面不调用模型；Gateway、Feishu 和 Evolution 通过同一 DSH child surface 接入。
+`core` 和 `channels` 都提供同一个原生 DSH `conversation.view` 控制面，而不是多个悬浮网页：`core` 展示自我进化与诊断，`channels` 至少展示 Gateway/飞书/Telegram 渠道。它可以查看运行状态、能力/缺口、候选谱系与 diff、baseline/holdout、失败归因、成本/时延/cache、安全权限、晋升/隔离/回滚和渠道健康，并提供 pause/resume/approve/reject/promote/rollback。页面不调用模型；各插件通过同一 DSH child surface 接入。
 
 ## 开发、验证与发布
 

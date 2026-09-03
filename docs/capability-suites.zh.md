@@ -7,7 +7,7 @@ EvoForge 对用户不再把十二个内部 Bundle 当成十二个必须理解的
 | 套件 | 包含的内部 Bundle | 适合谁 | 默认影响 |
 |---|---|---|---|
 | `core` | `dsh-evolve`、`dsh-doctor`、`dsh-control-center`、`dsh-evolve-web` | 自我进化闭环、运行诊断和 DSH Web 控制面 | 四个 Bundle 仍可独立禁用/卸载；不新增模型表面 |
-| `channels` | `dsh-gateway`、`dsh-feishu`、`dsh-telegram` | 需要飞书/Telegram 私聊、配对和持久投递 | 不强制安装控制面或通知层；渠道 Adapter 默认 disabled，必须提供精确凭据和路由 |
+| `channels` | `dsh-control-center`、`dsh-gateway`、`dsh-feishu`、`dsh-telegram` | 需要飞书/Telegram 私聊、配对和持久投递，并在同一个 DSH Web 页面管理渠道 | 包含一个无模型的原生控制面；不强制安装自我进化或通知层；渠道 Adapter 默认 disabled，必须提供精确凭据和路由 |
 | `delivery` | `dsh-software-delivery`、`dsh-github-review` | 需要隔离交付、Draft PR 和原生 Session 内的 GitHub review 跟进 | Skill/Tool 表面按 DSH 原生规则固定；外部 GitHub 写入仍受保护动作约束 |
 | `continuity` | `dsh-goal-continuity`、`dsh-resident` | 需要有限 Goal 冷恢复和登录后常驻 DSH profile | 两项均 opt-in；不创建第二 Scheduler、Daemon 或状态库 |
 
@@ -37,7 +37,7 @@ pnpm run pack:suite -- --suite channels --channel feishu --out /tmp/evoforge-pac
 # 或：--channel telegram
 ```
 
-这会只生成 `dsh-gateway` 与所选 Adapter；它是安装层筛选，不会把 Gateway 与平台 Adapter 合成一个 Bundle。
+这会生成共享控制面、`dsh-gateway` 与所选 Adapter；它是安装层筛选，不会把控制面、Gateway 与平台 Adapter 合成一个 Bundle。
 
 脚本会为套件中的每个包运行官方 `pnpm pack`，并写出带 SHA-256 和 `audience`（default/optional/compatibility/maintainer）的 `evoforge-suite.json`。安装仍由 DSH 负责：
 
@@ -72,4 +72,4 @@ dsh plugin --profile web remove dsh-evolve dsh-doctor dsh-control-center dsh-evo
 - Gateway/Feishu 不再各自拥有页面外的固定健康对话框；渠道协议、投递和配对事实仍只由 Host Adapter/Gateway 提供。
 - `dsh-evolve` 的 Observer、Candidate、Trial、Promotion、Rollback 等内部阶段不是可安装插件；它们共同构成一个演化用户结果。
 
-因此精简的是“用户要选择和维护的产品入口”，不是把必须独立启停、卸载、权限审计的运行边界抹掉。`channels` 不再默认带上 `dsh-control-center` 和 `dsh-evolve-attention`，避免用户为渠道安装不需要的 Web 或通知能力；需要时分别安装 `core` 或 `attention`。
+因此精简的是“用户要选择和维护的产品入口”，不是把必须独立启停、卸载、权限审计的运行边界抹掉。`channels` 包含轻量 `dsh-control-center`，确保只安装渠道时仍有一个网页完成配对批准和健康查看；它不带自我进化、诊断或 `attention`，需要这些能力时再安装 `core` 或 `attention`。

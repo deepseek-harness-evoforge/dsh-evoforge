@@ -89,9 +89,9 @@ export const SUITES = Object.freeze({
   channels: suite(
     'channels',
     'Messaging channels',
-    'Gateway plus private Feishu and Telegram adapters, without forcing optional attention or the core Web surface.',
-    ['dsh-gateway', 'dsh-feishu', 'dsh-telegram'],
-    ['Adapters are disabled until their exact credentials and routes are configured. Install core for the native Web control surface and attention only when channel notifications are required.'],
+    'Resident Gateway, private Feishu and Telegram adapters, and one native DSH Web control surface.',
+    ['dsh-control-center', 'dsh-gateway', 'dsh-feishu', 'dsh-telegram'],
+    ['The shared Control Center is included so channel-only installs have one place to approve pairing and inspect health. Self-evolution and optional attention remain separate capabilities. Adapters are disabled until their exact credentials and routes are configured.'],
   ),
   attention: suite(
     'attention',
@@ -144,7 +144,7 @@ export function getSuitePackages(id, channel) {
   if (!CHANNEL_ADAPTER_IDS.includes(channel)) {
     throw new Error(`Unknown channel: ${channel}. Choose one of: ${CHANNEL_ADAPTER_IDS.join(', ')}`)
   }
-  return Object.freeze(['dsh-gateway', `dsh-${channel}`])
+  return Object.freeze(['dsh-control-center', 'dsh-gateway', `dsh-${channel}`])
 }
 
 export function validateSuiteManifest() {
