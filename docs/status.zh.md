@@ -65,6 +65,17 @@ Workspace、正式连接和重启会多次 boot DSH Web；此前虽使用 `--no-
 AS-2 合同 10/10、类型检查和文档检查通过；没有新增页面、Router、Gateway、Session 或状态库，不改变真实
 Feishu AS-2 的失败门禁。详见 [V5.98 证据](evidence/v5-98-as2-single-page-startup-output-2026-09-04.zh.md)。
 
+## V5.99：AS-2 overlay 修复后的根级完整回归（本轮）
+
+在再次 fetch 并确认 DSH 最新远端 `master` 为 `76fda729…`、alpha.5 支持 checkout clean 后，重新运行根级
+`DSH_EVOLVE_DSH_SOURCE_DIR=<alpha5> pnpm run check`。文档、CI、套件清单、发布合同、兼容性检查、所有包的
+类型检查、测试和构建全部通过；`dsh-evolve` 为 69 个文件/309 个测试，`dsh-gateway` 为 8/40，
+`dsh-feishu` 为 18/46，`dsh-telegram` 为 8/29，`dsh-evolve-web` 为 2/27。V5.98 的非交互 AS-2 overlay
+没有引入回归，详见 [V5.99 证据](evidence/v5-99-alpha5-full-check-after-as2-overlay-2026-09-04.zh.md)。
+
+该绿灯只代表固定运行时上的工程质量；真实 Feishu AS-2、双真实 Provider、同模型 Hermes paired、长期效果、
+真实浏览器完整恢复和首个 release tag 仍未通过，发布门状态不变。
+
 ## V5.88：Gateway 单页渠道入口按需显示（本轮）
 
 重新 fetch 并确认 DSH 最新远端 `master` 为 `76fda729…` 后，修复 Telegram-only profile 仍出现空“飞书配对”

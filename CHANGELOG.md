@@ -6,6 +6,13 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Re-ran the complete repository check after quieting the non-interactive Feishu AS-2 overlay. Documentation, CI,
+  package/release contracts, compatibility checks, all package typechecks, tests, and builds passed on the audited
+  clean DSH alpha.5 baseline; `dsh-evolve` is 69 files / 309 tests, Gateway 8 / 40, Feishu 18 / 46, Telegram 8 / 29,
+  and Evolution Web 2 / 27. This is an engineering-quality result only: real Feishu AS-2, independent Providers,
+  Hermes paired, long-term effects, browser recovery, and the first release tag remain blocked. See [V5.99 evidence]
+  (docs/evidence/v5-99-alpha5-full-check-after-as2-overlay-2026-09-04.zh.md).
+
 - Quieted the non-interactive real Feishu AS-2 overlay. DSH's Web service remains available for native RPC composition,
   but the seed, connection, and restart boots now disable `openBrowser`, URL printing, and model-facing Web context so
   the runner does not emit a fresh temporary URL for every boot. The user-facing DSH path remains one native
