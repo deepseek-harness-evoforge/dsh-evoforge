@@ -6,6 +6,10 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.132**: Extended Feishu revoked-grant reconciliation to the read-only `observedChatKind` Host seam, so
+  revoked dynamic routes no longer expose stale direct/group observations. Typecheck, Gateway build, and the
+  assembled revoke/re-pair regression passed. See [V5.132 evidence](docs/evidence/v5-132-feishu-revoked-observation-reconciliation-2026-09-04.zh.md).
+
 - **V5.131**: Re-ran the complete repository check after Feishu revoked-route reconciliation on the audited DSH
   alpha.5 support checkout: documentation/CI/suite/release contracts, all 12 package typechecks, tests, and builds
   passed; the worktree stayed clean. Real Feishu, Provider, Hermes paired, long-term, and npm gates remain unchanged.

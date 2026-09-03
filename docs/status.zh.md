@@ -10,6 +10,10 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.132：撤销后的飞书只读观测同步（本轮）
+
+动态配对 route 撤销后，`observedChatKind` 不再返回旧的 direct/group 观测，和 routes、health、notify、inbound 共同以 Gateway 当前 route 为权威。类型检查、Gateway 构建和配对装配回归 `1/1` 通过。详见 [V5.132 证据](evidence/v5-132-feishu-revoked-observation-reconciliation-2026-09-04.zh.md)。
+
 ## V5.131：飞书撤销修复后的 alpha.5 全仓回归（本轮）
 
 在最新 DSH fetch/clean 审计后，使用已记录的 alpha.5 支持 checkout 执行 `DSH_EVOLVE_DSH_SOURCE_DIR=... pnpm run check`：文档、CI、套件/发布合同、12 包 typecheck、全部测试和全部构建通过，Feishu `18/46`、Gateway `8/40`、Telegram `8/29`，工作树 clean。该回归不改变最新 DSH master 上游构建阻断或真实渠道/Provider/Hermes/长期/npm 发布门状态。详见 [V5.131 证据](evidence/v5-131-alpha5-full-check-after-feishu-revoke-2026-09-04.zh.md)。

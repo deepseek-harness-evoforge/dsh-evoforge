@@ -174,6 +174,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', (
       const agent = await gateway.resolve('existing-test-route')
       const hostRoute = ctx.get('evoforge.feishuRoute') as {
         readonly routes: readonly { readonly routeId: string; readonly workspaceId: string }[]
+        observedChatKind(routeId: string): 'direct' | 'group' | undefined
         notify(input: { readonly id: string; readonly routeId: string; readonly text: string }): Promise<{
           readonly status: string
         }>
@@ -268,6 +269,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', (
         alreadyRevoked: false,
       })
       expect(hostRoute?.routes).toEqual([])
+      expect(hostRoute?.observedChatKind(pairedRouteId)).toBeUndefined()
       await expect(hostRoute?.notify({
         id: 'b'.repeat(64),
         routeId: pairedRouteId,

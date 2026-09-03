@@ -330,6 +330,8 @@ export class FeishuRuntime {
   }
 
   observedChatKind(routeId: string): 'direct' | 'group' | undefined {
+    this.syncActivePairedRoutes()
+    if (!this.routesById.has(routeId)) return undefined
     return this.observedChatKinds.get(routeId)
   }
 
