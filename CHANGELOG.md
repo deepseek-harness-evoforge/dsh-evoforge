@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Recorded the newest isolated real Feishu AS-2 epoch-4 result. Final Bundles installed into a clean profile,
+  the effective configuration was dumped, and the official WebSocket reached `ready`; no matching newcomer DM
+  arrived during the 15-minute window, so the runner failed closed before pairing or any external effect. The
+  real-channel gate remains `failed`, and this non-terminal run root will not be reused. See [V5.89 evidence](docs/evidence/v5-89-feishu-as2-epoch4-no-pending-2026-09-04.zh.md).
+
 - Gated the native Gateway pairing and newcomer sections by observed Feishu Host facts. Telegram-only profiles no
   longer render empty Feishu controls, and the pairing help now makes pending-request approval the primary flow while
   retaining code entry for compatibility. This reduces single-page setup noise without adding a page or runtime.

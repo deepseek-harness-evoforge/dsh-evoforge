@@ -18,6 +18,14 @@
 类型检查通过；没有新增网页、Router、Session 或外部探测。该入口降噪不提升真实 Feishu、Telegram、Provider、
 Hermes paired、长期效果或 release tag 门。详见 [V5.88 证据](evidence/v5-88-gateway-feishu-surface-gating-2026-09-04.zh.md)。
 
+## V5.89：飞书 AS-2 epoch-4 最新隔离运行严格失败（本轮）
+
+最新一次真实飞书 AS-2 使用干净 profile、最终三包和 alpha.5 支持基线完成安装、配置 dump，并确认官方
+WebSocket 达到 `ready`；15 分钟人工窗口内没有收到与当前 App 身份匹配的新陌生私聊，因而没有 pending
+pairing request，运行在配对前 fail closed。没有批准 principal、Agent 入站或外部副作用；`real-feishu-as2`
+继续保持 `failed`，下一次必须使用全新隔离 run root。详见
+[V5.89 证据](evidence/v5-89-feishu-as2-epoch4-no-pending-2026-09-04.zh.md)。
+
 ## V5.87：飞书策略拒绝可观测性（本轮）
 
 重新 fetch 并确认 DSH 最新远端 `master` 为 `76fda729…` 后，为官方 Node SDK 的 `reject` 事件接入已有
