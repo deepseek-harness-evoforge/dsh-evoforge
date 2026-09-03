@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Re-ran the complete repository check against the audited, buildable DSH alpha.5 support baseline after the
+  single-page channel journey work. Documentation/CI/package contracts, all package typechecks, tests, artifact
+  verification, and builds passed; explicit historical/platform skips remain skips. This is a reproducible
+  engineering-quality result only: real Feishu AS-2, independent Providers, Hermes paired, long-term effects, and
+  the first release tag remain blocked. See [V5.84 evidence](docs/evidence/v5-84-alpha5-full-check-2026-09-04.zh.md).
+
 - Added a shared, optional Control Center `Journey` component and a Gateway-driven Feishu newcomer guide. The
   native single-page Channels surface now explains resident connection → user DM → admin approval from redacted
   Host facts, while Telegram-only installs stay free of Feishu setup noise. A clean alpha.5 browser profile verified

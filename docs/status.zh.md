@@ -10,6 +10,16 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.84：alpha.5 支持基线完整检查收口（本轮）
+
+在重新 fetch 并确认 DSH 最新远端 `master` 为 `76fda729…` 后，本轮用已构建的 alpha.5 支持基线
+`db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5` 执行根级 `DSH_EVOLVE_DSH_SOURCE_DIR=... pnpm run check`。
+命令退出码为 0：文档/CI/套件/发布结构、兼容性与合同门、12 包 typecheck、全包测试和全包 build 均通过；
+Evolve 309、Gateway 37、Feishu 45、Telegram 29、Evolution Web 26、Doctor 40 等关键计数见
+[V5.84 证据](evidence/v5-84-alpha5-full-check-2026-09-04.zh.md)。其中只有已有平台/历史夹具的显式 skip，
+不把 skip 改写成通过。该结果收口本地工程质量，不提升真实 Feishu、双 Provider、Hermes paired、长期效果
+或 release tag 门禁。
+
 ## V5.83：渠道首次连接导引与单页浏览器验收（本轮）
 
 Control Center 现在提供共享的三段式首次连接导引：常驻连接、用户私聊、管理员批准。它只由 Gateway 脱敏
@@ -599,8 +609,8 @@ V5.21 将真实飞书 AS-2 从 epoch-1 升为 epoch-2。最终包 profile 不在
 用户安装面已按[能力套件](capability-suites.zh.md)精简；下面的十二包清单是维护者审计和完整 clean-profile gate 的内部边界，不是用户必须逐项选择的产品菜单。
 
 当前 `main` 增量通过根级 `pnpm check`（文档、全包 typecheck、测试和构建）；其中
-`dsh-control-center` 2 files/4 tests、`dsh-gateway` 8 files/36 tests、`dsh-evolve-web` 2 files/26 tests、
-`dsh-evolve-attention` 4 files/11 tests、`dsh-feishu` 18 files/45 tests、`dsh-evolve` 68 files/308 tests passed、
+`dsh-control-center` 2 files/4 tests、`dsh-gateway` 8 files/37 tests、`dsh-evolve-web` 2 files/26 tests、
+`dsh-evolve-attention` 4 files/11 tests、`dsh-feishu` 18 files/45 tests、`dsh-evolve` 69 files/309 tests passed、
 1 test skipped。Cache Contract 全通过；Doctor 十二包原生合同含新增 Control Center；十二包 clean-profile 最终 tarball 的 add/dump/boot/真实
 Session+Goal+Storage+Tool/dispose/remove/reboot/readback 1/1（60.96 秒）；独立 Doctor packed
 add/Loader/command/remove 1/1（10.35 秒）。V4.24 删除旧浏览器 acceptance fixture，并用 DSH Web 组件测试固定“纠正进入
