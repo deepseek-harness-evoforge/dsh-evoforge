@@ -622,6 +622,17 @@ async function writeAcceptanceOverlay(
   mockLlmPath: string,
 ): Promise<void> {
   const overlay = `- insert:
+    # AS-2 is a non-interactive Host acceptance runner. Keep DSH's native Web
+    # server available for RPC composition, but do not print a fresh URL (or
+    # hand off a browser) for every seed/restart boot; the product control
+    # surface remains one native conversation.view page when a user runs DSH.
+    - id: web-runtime
+      config:
+        openBrowser: false
+        printUrl: false
+        surfaceContext: false
+        trustedHosts: []
+
     - id: as2-cli-mock-llm
       name: ${yaml(mockLlmPath)}
 

@@ -55,6 +55,16 @@ Feishu 合同检查、12 个包的类型检查、所有测试和所有构建全�
 运行器在 `awaiting-resident-pairing-request` 阶段 fail closed，旧 run 不复用；`real-feishu-as2` 门仍为
 `failed`。详见 [V5.97 证据](evidence/v5-97-real-feishu-as2-no-pending-2026-09-04.zh.md)。
 
+## V5.98：AS-2 非交互启动不再制造多 URL 噪声（本轮）
+
+重新 fetch 并确认 DSH 最新远端 `master` 为 `76fda729…` 后，收敛真实 AS-2 验收器的启动输出。验收器为创建
+Workspace、正式连接和重启会多次 boot DSH Web；此前虽使用 `--no-open`，仍会把每个临时服务 URL 打到终端，
+容易让用户误以为需要打开多个网页。现在仅在验收 overlay 中关闭 `web-runtime` 的 URL/浏览器/模型表面输出，
+保留 DSH Web 服务作为原生 RPC 依赖；正式 DSH 用户路径仍只有一个 `conversation.view` 控制面。
+
+AS-2 合同 10/10、类型检查和文档检查通过；没有新增页面、Router、Gateway、Session 或状态库，不改变真实
+Feishu AS-2 的失败门禁。详见 [V5.98 证据](evidence/v5-98-as2-single-page-startup-output-2026-09-04.zh.md)。
+
 ## V5.88：Gateway 单页渠道入口按需显示（本轮）
 
 重新 fetch 并确认 DSH 最新远端 `master` 为 `76fda729…` 后，修复 Telegram-only profile 仍出现空“飞书配对”

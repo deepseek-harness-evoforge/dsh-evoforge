@@ -50,6 +50,10 @@ pnpm benchmark:feishu:as2
 默认每个人工步骤等待 5 分钟。可用 `DSH_FEISHU_REAL_CHANNEL_TIMEOUT_MS` 调整为 60000–900000
 毫秒的规范十进制整数。
 
+验收器自身是非交互 Host runner：它保留 DSH Web 服务供原生 RPC 和状态组合，但会关闭 URL 打印、浏览器交接和
+模型可见 Web 上下文，因此创建 Workspace、正式连接和重启不会要求用户打开多个临时网页。需要人工操作时，
+只按 stderr 提示在飞书私聊或卡片中操作；正式 DSH 用户的控制面仍是同一原生 `conversation.view` 页面。
+
 入口启动后先提示给机器人发送任意私聊；Gateway 把陌生私聊保存为脱敏 pending request，验收器从 Host
 读取唯一匹配当前 App 的 `requestId` 并走生产 `approvePairingRequestForSession` 门批准，不从 stdin 读取
 配对码，也不把平台身份暴露给验收器。批准后再发送 stderr 显示的 exact challenge，收到 DSH 回复后发送

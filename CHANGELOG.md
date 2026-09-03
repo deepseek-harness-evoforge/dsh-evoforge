@@ -6,6 +6,13 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Quieted the non-interactive real Feishu AS-2 overlay. DSH's Web service remains available for native RPC composition,
+  but the seed, connection, and restart boots now disable `openBrowser`, URL printing, and model-facing Web context so
+  the runner does not emit a fresh temporary URL for every boot. The user-facing DSH path remains one native
+  `conversation.view` control surface; no page, Router, Gateway, Session, or state store was added. AS-2 contract
+  tests and typecheck pass. See [V5.98 evidence]
+  (docs/evidence/v5-98-as2-single-page-startup-output-2026-09-04.zh.md).
+
 - Recorded the newest isolated real Feishu AS-2 retry. Final Bundles installed into a fresh profile, config dump
   passed, and the official WebSocket reached `ready`; no newcomer private message produced a Host pending request
   during the 15-minute window, so the runner failed closed before pairing or any Agent/platform effect. The run root
