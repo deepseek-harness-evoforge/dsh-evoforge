@@ -6,6 +6,10 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.125**: Synchronized the Hermes acceptance scorecard and paired-benchmark page with the current alpha.5 EV-1
+  epoch. The new evidence is linked without rewriting the original epoch-1 result, and its narrow deterministic
+  release-control conclusion remains separate from model, channel, or full-replacement claims.
+
 - **V5.124**: Aligned the copyable Goal prompt with the implemented Host authority: Feishu pairing is approved from the native
   DSH Web pending list, never from a Session Command; a future host-management command may reuse that authority without
   changing the user-facing flow. This removes an unsupported CLI promise while preserving the resident Gateway contract.

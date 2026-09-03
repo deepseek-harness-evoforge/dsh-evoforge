@@ -42,6 +42,12 @@ Hermes paired 证据，发布门仍保持阻断。
 的 pending 列表批准，配对永远不回到 Session Command；未来若增加独立宿主管理命令，也只能复用同一 Gateway
 Host authority。运行时未改动；文档链接、差异检查和 release-gate 结构检查随后通过。
 
+## V5.125：Hermes 验收表同步当前 EV-1 epoch（本轮）
+
+将当前 alpha.5 EV-1 epoch-2 的独立结果补入 Hermes replacement scorecard 与原始 paired-benchmark 页面，保留
+epoch-1 冻结结果不变。两页都明确该结果只支持确定性 Skill 发布控制面的窄结论，不提升模型质量、真实渠道、长期
+效果或整体上位替代状态。
+
 ## V5.104：npm 包名归属审计与发布阻断（本轮）
 
 在再次 fetch 并确认最新 DSH `origin/master` 为 `76fda729…`、工作树 clean 后，查询所有公开 Bundle 的 npm

@@ -6,6 +6,11 @@
 > `skill-bundle` + `GenerationBundleRepository` 路径，并完整复跑四个 frozen Hermes epoch；本页 frozen result
 > 未改写。详见 [V5.13 证据](v5-13-hermes-ev1-content-addressed-replay.zh.md)。
 
+> 2026-09-04 当前基线复核：V5.123 在可构建 DSH alpha.5 上新增独立 epoch-2，使用新的 manifest/result
+> 冻结同一确定性窄场景；epoch-1 与本页原始结果保持不变。当前结果仍只支持 Skill 修正发布控制面的
+> `better` 结论，不支持模型质量、真实渠道或整体 Hermes 上位替代声明。详见
+> [V5.123 证据](v5-123-hermes-ev1-alpha5-epoch-2-2026-09-04.zh.md)。
+
 ## 冻结范围
 
 本轮只比较“一个已知错误的 Skill 收到同一条确定性修正后，如何验证并进入使用”这一发布控制面，
