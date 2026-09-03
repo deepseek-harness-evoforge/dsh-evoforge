@@ -33,6 +33,7 @@ describe('Feishu authoritative health snapshot', () => {
         },
       }),
       pendingApprovals: 2,
+      lastInboundAt: 750,
       content: contentHealth({ permissions: new Set(['document-read', 'wiki-read']) }),
     })
 
@@ -47,6 +48,7 @@ describe('Feishu authoritative health snapshot', () => {
         kind: 'official-feishu-websocket',
         state: 'ready',
         connectedAt: 100,
+        lastInboundAt: 750,
         lastActivityAt: 800,
         lastErrorAt: 700,
       },

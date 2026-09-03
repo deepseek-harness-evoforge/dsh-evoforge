@@ -83,6 +83,7 @@ export class FeishuRuntime {
   private disposed = false
   private transportState: FeishuTransportState = 'connecting'
   private connectedAt?: number
+  private lastInboundAt?: number
   private lastActivityAt?: number
   private lastPlatformErrorAt?: number
 
@@ -328,6 +329,7 @@ export class FeishuRuntime {
       outbound: gateway.outbound,
       pendingApprovals: [...this.pendingApprovals.values()]
         .filter(pending => routeIds.has(pending.destination.route.id)).length,
+      ...(this.lastInboundAt === undefined ? {} : { lastInboundAt: this.lastInboundAt }),
       content: {
         permissions: this.config.contentPermissions,
         toolAvailable,
@@ -385,7 +387,7 @@ export class FeishuRuntime {
 
   private async handleMessage(message: FeishuInboundMessage): Promise<void> {
     if (this.lifecycle.signal.aborted) return
-    this.observeTransportActivity()
+    this.observeInboundActivity()
     if (message.rawContentType !== 'text' && message.rawContentType !== 'post'
       && message.rawContentType !== 'image') return
     const endpoint: GatewayEndpoint = Object.freeze({
@@ -500,7 +502,7 @@ export class FeishuRuntime {
   }
 
   private async handleApprovalAction(action: FeishuApprovalAction): Promise<void> {
-    this.observeTransportActivity()
+    this.observeInboundActivity()
     const selected = selectApprovalValue(action.value)
     if (selected === undefined) return
     const pending = this.pendingApprovals.get(selected.nonce)
@@ -622,6 +624,11 @@ export class FeishuRuntime {
     this.lastActivityAt = Date.now()
     if (!this.lifecycle.signal.aborted) this.transportState = 'ready'
     this.reportTransport(this.lastActivityAt)
+  }
+
+  private observeInboundActivity(): void {
+    this.lastInboundAt = Date.now()
+    this.observeTransportActivity()
   }
 
   private reportTransport(observedAt: number): void {

@@ -72,6 +72,13 @@ epoch-4 合同的最新隔离 AS-2 重试使用 EvoForge `026a0e0…` 与 DSH al
 所有后续 direct message、Command、Schedule、Approval、重启、卸载和 readback 观察值均为 false。详见
 [V5.74 证据](evidence/v5-74-feishu-as2-epoch5-no-event-2026-09-03.zh.md)；`real-feishu-as2` 仍保持 failed。
 
+## V5.76：飞书入站事件可观测性（本轮）
+
+健康投影新增 `transport.lastInboundAt`，与 `lastActivityAt` 分离；同一原生 Control Center 技术详情现在能
+明确区分“WebSocket 已连接”和“确实收到平台事件”。字段只由真实消息/Approval 回调更新，不探测平台权限、
+不读取凭据、不改变路由。alpha.5 基线下针对性健康契约 3/3 通过，完整 Feishu 套件保持 45/45；真实 AS-2
+仍因没有 pending pairing 事件而严格失败。详见 [V5.76 证据](evidence/v5-76-feishu-inbound-observation-2026-09-03.zh.md)。
+
 ## V5.75：参考生态当前 revision 复核（本轮）
 
 为下一次 Hermes paired 和设计校准重新读取公开远端：Hermes Agent `63279301…`、OpenClaw `1fb3e0ca…`、

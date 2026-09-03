@@ -77,6 +77,8 @@ export const zh = {
   'transport.state.connecting': '正在连接',
   'transport.state.degraded': '连接降级',
   'transport.state.stopping': '正在停止',
+  'transport.lastInboundAt': '最近收到平台事件',
+  'transport.noInbound': '尚未收到平台事件（仅连接已建立）',
   'delivery.emptyTitle': '暂无投递记录',
   'delivery.empty': '收到或发送第一条可归因消息后，这里会显示最近投递。',
 } as const
@@ -158,6 +160,8 @@ export const en: Record<keyof typeof zh, string> = {
   'transport.state.connecting': 'Connecting',
   'transport.state.degraded': 'Degraded',
   'transport.state.stopping': 'Stopping',
+  'transport.lastInboundAt': 'Last inbound platform event',
+  'transport.noInbound': 'No platform event observed yet (transport is connected)',
   'delivery.emptyTitle': 'No delivery records yet',
   'delivery.empty': 'The latest delivery appears here after the first attributable message is received or sent.',
 }

@@ -6,6 +6,10 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Feishu health now separates the last inbound platform event from generic transport activity. The single native
+  Control Center page says explicitly when the WebSocket is connected but no event has arrived, without probing
+  permissions, reading credentials, or calling a model. See [V5.76 evidence](docs/evidence/v5-76-feishu-inbound-observation-2026-09-03.zh.md).
+
 - Re-checked the current public HEADs for Hermes Agent, OpenClaw, and HanaAgent/openhanako and recorded tag-vs-HEAD
   identity separately. These projects remain design/paired references only; no runtime acquisition or dependency was
   added. See [the current revision audit](docs/research/ecosystem-current-revision-2026-09-03.zh.md).

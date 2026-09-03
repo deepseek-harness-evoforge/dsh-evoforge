@@ -52,6 +52,8 @@ export interface FeishuHealthSnapshot {
     readonly kind: 'official-feishu-websocket'
     readonly state: FeishuTransportState
     readonly connectedAt?: number
+    /** Last inbound platform event observed by this Adapter, not merely any transport activity. */
+    readonly lastInboundAt?: number
     readonly lastActivityAt?: number
     readonly lastErrorAt?: number
   }
@@ -98,6 +100,7 @@ export interface SummarizeFeishuHealthInput {
   readonly routes: readonly FeishuHealthRouteInput[]
   readonly outbound: GatewayOutboundHealth
   readonly pendingApprovals: number
+  readonly lastInboundAt?: number
   readonly content: SummarizeFeishuContentHealthInput
 }
 
@@ -149,6 +152,7 @@ export function summarizeFeishuHealth(input: SummarizeFeishuHealthInput): Feishu
       kind: 'official-feishu-websocket',
       state: input.transport.state,
       ...(input.transport.connectedAt === undefined ? {} : { connectedAt: input.transport.connectedAt }),
+      ...(input.lastInboundAt === undefined ? {} : { lastInboundAt: input.lastInboundAt }),
       ...(input.transport.lastActivityAt === undefined ? {} : { lastActivityAt: input.transport.lastActivityAt }),
       ...(input.transport.lastErrorAt === undefined ? {} : { lastErrorAt: input.transport.lastErrorAt }),
     }),
@@ -246,7 +250,8 @@ function isHealth(value: unknown): value is FeishuHealthSnapshot {
     || value.modelCalls !== 0 || value.authority !== 'native-dsh-command'
     || !record(value.transport) || value.transport.kind !== 'official-feishu-websocket'
     || !oneOf(value.transport.state, ['connecting', 'ready', 'degraded', 'stopping'])
-    || !optionalInteger(value.transport.connectedAt) || !optionalInteger(value.transport.lastActivityAt)
+    || !optionalInteger(value.transport.connectedAt) || !optionalInteger(value.transport.lastInboundAt)
+    || !optionalInteger(value.transport.lastActivityAt)
     || !optionalInteger(value.transport.lastErrorAt) || !Array.isArray(value.routes)
     || value.routes.length > 20 || !value.routes.every(route)
     || !record(value.deliveries) || !deliveries(value.deliveries)

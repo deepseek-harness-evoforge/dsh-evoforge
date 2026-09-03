@@ -111,6 +111,9 @@ export function FeishuSurface({ commands, t, sessionId, ui: UI }: FeishuSurfaceP
             <summary>{t('technical.details')}</summary>
             <div><code>{health.transport.kind}</code></div>
             <div><code>{health.accountId}</code></div>
+            <div>{t('transport.lastInboundAt')}: {health.transport.lastInboundAt === undefined
+              ? t('transport.noInbound')
+              : new Date(health.transport.lastInboundAt).toLocaleString()}</div>
           </details>}
         />
         {health.routes.map(route => <UI.Entity
