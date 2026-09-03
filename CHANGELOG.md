@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Projected official Feishu policy rejections into the existing redacted Gateway health snapshot. The native
+  Control Center can now distinguish an inbound event rejected by allowlist/mention policy from a WebSocket that
+  has received no event; no message, chat, sender, credential, or model data is exposed, and policy rejects do not
+  become transport failures. See [V5.87 evidence](docs/evidence/v5-87-feishu-policy-reject-observability-2026-09-04.zh.md).
+
 - Removed the stale fixed `dsh-evolve-panel` and confirmation-backdrop CSS from the legacy
   `EvolutionAction` compatibility export. The export remains source-compatible but now renders its
   opened surface inline in normal document flow; the active registration remains the native DSH

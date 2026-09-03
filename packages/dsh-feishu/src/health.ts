@@ -8,6 +8,7 @@ import {
   FEISHU_CONTENT_PERMISSIONS,
   type FeishuContentPermission,
 } from './config.js'
+import type { FeishuPlatformRejectReason } from './platform.js'
 
 export const FEISHU_HEALTH_PREFIX = 'EVOFORGE_FEISHU_HEALTH_V2 '
 
@@ -56,6 +57,9 @@ export interface FeishuHealthSnapshot {
     readonly lastInboundAt?: number
     readonly lastActivityAt?: number
     readonly lastErrorAt?: number
+    /** Last event rejected by the official Feishu policy gate (identifiers are never exposed). */
+    readonly lastPolicyRejectAt?: number
+    readonly lastPolicyRejectReason?: FeishuPlatformRejectReason
   }
   readonly routeCount: number
   readonly routesTruncated: boolean
@@ -101,6 +105,8 @@ export interface SummarizeFeishuHealthInput {
   readonly outbound: GatewayOutboundHealth
   readonly pendingApprovals: number
   readonly lastInboundAt?: number
+  readonly lastPolicyRejectAt?: number
+  readonly lastPolicyRejectReason?: FeishuPlatformRejectReason
   readonly content: SummarizeFeishuContentHealthInput
 }
 
@@ -155,6 +161,8 @@ export function summarizeFeishuHealth(input: SummarizeFeishuHealthInput): Feishu
       ...(input.lastInboundAt === undefined ? {} : { lastInboundAt: input.lastInboundAt }),
       ...(input.transport.lastActivityAt === undefined ? {} : { lastActivityAt: input.transport.lastActivityAt }),
       ...(input.transport.lastErrorAt === undefined ? {} : { lastErrorAt: input.transport.lastErrorAt }),
+      ...(input.lastPolicyRejectAt === undefined ? {} : { lastPolicyRejectAt: input.lastPolicyRejectAt }),
+      ...(input.lastPolicyRejectReason === undefined ? {} : { lastPolicyRejectReason: input.lastPolicyRejectReason }),
     }),
     routeCount: input.routes.length,
     routesTruncated: input.routes.length > visibleRoutes.length,
@@ -223,6 +231,7 @@ export function renderFeishuHealthCommand(snapshot: FeishuHealthSnapshot): strin
     `Transport: ${snapshot.transport.kind}; lifecycle ${snapshot.transport.state}.`,
     `Deliveries: ${snapshot.deliveries.total} total; ${snapshot.deliveries.retrying} retrying; ${snapshot.deliveries.uncertain} uncertain; ${snapshot.deliveries.failed} failed.`,
     `Content: ${snapshot.content.status.toUpperCase()}; ${snapshot.content.enabledCount} permissions enabled; Tool ${snapshot.content.toolAvailable ? 'available' : 'unavailable'}; Approval ${snapshot.content.approvalAvailable ? 'available' : 'unavailable'}; platform access not verified.`,
+    `Policy rejects: ${snapshot.transport.lastPolicyRejectReason === undefined ? 'none observed' : `${snapshot.transport.lastPolicyRejectReason} at ${new Date(snapshot.transport.lastPolicyRejectAt ?? snapshot.observedAt).toISOString()}`}.`,
     `Approvals: ${snapshot.pendingApprovals} pending. Model surface: ${snapshot.modelCalls} calls.`,
     `${FEISHU_HEALTH_PREFIX}${JSON.stringify(snapshot)}`,
   ].join('\n')
@@ -243,6 +252,10 @@ export function parseFeishuHealthCommand(text: string): FeishuHealthSnapshot {
 }
 
 function isHealth(value: unknown): value is FeishuHealthSnapshot {
+  const policyRejectAt = record(value) && record(value.transport) ? value.transport.lastPolicyRejectAt : undefined
+  const policyRejectReason = record(value) && record(value.transport) ? value.transport.lastPolicyRejectReason : undefined
+  const hasPolicyRejectAt = policyRejectAt !== undefined
+  const hasPolicyRejectReason = policyRejectReason !== undefined
   if (!record(value) || value.schemaVersion !== 2 || !integer(value.observedAt) || !text(value.accountId)
     || !text(value.workspaceId) || !text(value.sessionId) || !integer(value.routeCount)
     || typeof value.routesTruncated !== 'boolean'
@@ -252,7 +265,12 @@ function isHealth(value: unknown): value is FeishuHealthSnapshot {
     || !oneOf(value.transport.state, ['connecting', 'ready', 'degraded', 'stopping'])
     || !optionalInteger(value.transport.connectedAt) || !optionalInteger(value.transport.lastInboundAt)
     || !optionalInteger(value.transport.lastActivityAt)
-    || !optionalInteger(value.transport.lastErrorAt) || !Array.isArray(value.routes)
+    || !optionalInteger(value.transport.lastErrorAt)
+    || !optionalInteger(value.transport.lastPolicyRejectAt)
+    || hasPolicyRejectAt !== hasPolicyRejectReason
+    || (hasPolicyRejectReason
+      && !oneOf(policyRejectReason, ['group_not_allowed', 'sender_not_allowed', 'no_mention', 'dm_disabled', 'mention_all_blocked']))
+    || !Array.isArray(value.routes)
     || value.routes.length > 20 || !value.routes.every(route)
     || !record(value.deliveries) || !deliveries(value.deliveries)
     || !integer(value.pendingApprovals) || !contentHealth(value.content)) return false

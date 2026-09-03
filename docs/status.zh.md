@@ -10,6 +10,15 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.87：飞书策略拒绝可观测性（本轮）
+
+重新 fetch 并确认 DSH 最新远端 `master` 为 `76fda729…` 后，为官方 Node SDK 的 `reject` 事件接入已有
+Gateway 健康投影：同一个原生 Control Center 技术详情现在能区分“事件已到达但被安全策略拒绝”和“连接从未
+收到平台事件”。只记录官方 reason 与时间，不暴露消息/聊天/发送者标识；策略拒绝不改变 transport 的
+`ready`/`degraded` 生命周期。Feishu 类型检查、健康/平台定向 8/8 测试通过；完整发布门仍保持真实 AS-2、
+双 Provider、Hermes paired、长期效果和首个 tag 未通过。完整实现和命令见
+[V5.87 证据](evidence/v5-87-feishu-policy-reject-observability-2026-09-04.zh.md)。
+
 ## V5.84：alpha.5 支持基线完整检查收口（本轮）
 
 在重新 fetch 并确认 DSH 最新远端 `master` 为 `76fda729…` 后，本轮用已构建的 alpha.5 支持基线

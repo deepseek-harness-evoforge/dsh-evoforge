@@ -176,6 +176,30 @@ describe('Feishu authoritative health snapshot', () => {
     expect(futureSession.content.status).toBe('future-session-only')
     expect(renderFeishuHealthCommand(futureSession)).toContain('Content: FUTURE-SESSION-ONLY')
   })
+
+  it('preserves redacted policy rejection diagnostics without changing transport status', () => {
+    const snapshot = summarizeFeishuHealth({
+      now: 2_000,
+      accountId: 'cli_test_app',
+      transport: gatewayTransport('ready', ['main'], 1_999),
+      routes: [{ id: 'main', workspaceId: 'workspace-a', sessionId: 'session-a', threadScoped: false }],
+      outbound: outbound(),
+      pendingApprovals: 0,
+      lastPolicyRejectAt: 1_998,
+      lastPolicyRejectReason: 'sender_not_allowed',
+      content: contentHealth(),
+    })
+    expect(snapshot.status).toBe('ready')
+    expect(snapshot.transport.lastPolicyRejectAt).toBe(1_998)
+    expect(snapshot.transport.lastPolicyRejectReason).toBe('sender_not_allowed')
+    expect(parseFeishuHealthCommand(renderFeishuHealthCommand(snapshot))).toEqual(snapshot)
+    expect(() => parseFeishuHealthCommand(renderFeishuHealthCommand(snapshot).replaceAll(
+      'sender_not_allowed', 'credential_leaked',
+    ))).toThrow(/invalid health payload/u)
+    expect(() => parseFeishuHealthCommand(renderFeishuHealthCommand(snapshot).replace(
+      '"lastPolicyRejectAt":1998,', '',
+    ))).toThrow(/invalid health payload/u)
+  })
 })
 
 function contentHealth(

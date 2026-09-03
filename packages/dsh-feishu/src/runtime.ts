@@ -41,6 +41,7 @@ import type {
   FeishuApprovalAction,
   FeishuInboundMessage,
   FeishuPlatform,
+  FeishuPlatformReject,
   FeishuSendOptions,
 } from './platform.js'
 
@@ -86,6 +87,8 @@ export class FeishuRuntime {
   private lastInboundAt?: number
   private lastActivityAt?: number
   private lastPlatformErrorAt?: number
+  private lastPolicyRejectAt?: number
+  private lastPolicyRejectReason?: FeishuPlatformReject['reason']
 
   constructor(
     private readonly ctx: Context,
@@ -206,6 +209,16 @@ export class FeishuRuntime {
         if (!this.lifecycle.signal.aborted) this.ctx.logger.warn(`dsh-feishu: platform error: ${safeMessage(error)}`)
       }),
     )
+    if (this.platform.onReject !== undefined) {
+      this.unsubscribers.push(this.platform.onReject(reject => {
+        if (this.lifecycle.signal.aborted) return
+        this.lastPolicyRejectAt = Date.now()
+        this.lastPolicyRejectReason = reject.reason
+        // Policy rejects are expected safety decisions, not transport failures.
+        // Keep the lifecycle state intact while making the cause visible to Host health.
+        this.observeTransportActivity()
+      }))
+    }
     if (this.platform.onReconnecting !== undefined) {
       this.unsubscribers.push(this.platform.onReconnecting(() => {
         if (this.lifecycle.signal.aborted) return
@@ -344,6 +357,8 @@ export class FeishuRuntime {
       pendingApprovals: [...this.pendingApprovals.values()]
         .filter(pending => routeIds.has(pending.destination.route.id)).length,
       ...(this.lastInboundAt === undefined ? {} : { lastInboundAt: this.lastInboundAt }),
+      ...(this.lastPolicyRejectAt === undefined ? {} : { lastPolicyRejectAt: this.lastPolicyRejectAt }),
+      ...(this.lastPolicyRejectReason === undefined ? {} : { lastPolicyRejectReason: this.lastPolicyRejectReason }),
       content: {
         permissions: this.config.contentPermissions,
         toolAvailable,

@@ -114,6 +114,9 @@ export function FeishuSurface({ commands, t, sessionId, ui: UI }: FeishuSurfaceP
             <div>{t('transport.lastInboundAt')}: {health.transport.lastInboundAt === undefined
               ? t('transport.noInbound')
               : new Date(health.transport.lastInboundAt).toLocaleString()}</div>
+            <div>{t('transport.lastPolicyReject')}: {health.transport.lastPolicyRejectReason === undefined
+              ? t('transport.noPolicyReject')
+              : `${t(`transport.policyReject.${health.transport.lastPolicyRejectReason}`)} · ${new Date(health.transport.lastPolicyRejectAt ?? health.observedAt).toLocaleString()}`}</div>
           </details>}
         />
         {health.routes.map(route => <UI.Entity

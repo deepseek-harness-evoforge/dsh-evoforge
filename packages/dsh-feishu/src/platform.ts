@@ -7,6 +7,8 @@ import {
   type CardActionEvent,
   type HttpInstance,
   type NormalizedMessage,
+  type RejectEvent,
+  type RejectReason,
   type ResourceDescriptor,
 } from '@larksuiteoapi/node-sdk'
 import axios, { type AxiosInstance } from 'axios'
@@ -41,6 +43,14 @@ export interface FeishuApprovalAction {
   readonly value: unknown
 }
 
+/** Policy-level rejection reasons emitted by the official channel safety pipeline. */
+export type FeishuPlatformRejectReason = RejectReason
+
+/** Redacted policy diagnostic; message/chat/sender identifiers stay inside the Adapter. */
+export interface FeishuPlatformReject {
+  readonly reason: FeishuPlatformRejectReason
+}
+
 export interface FeishuSendOptions {
   readonly replyTo?: string
   readonly replyInThread?: boolean
@@ -50,6 +60,8 @@ export interface FeishuPlatform {
   onMessage(handler: (message: FeishuInboundMessage) => Promise<void>): () => void
   onApprovalAction(handler: (action: FeishuApprovalAction) => Promise<void>): () => void
   onError(handler: (error: unknown) => void): () => void
+  /** Optional policy diagnostics; older/custom platform adapters may omit this hook. */
+  onReject?(handler: (reject: FeishuPlatformReject) => void): () => void
   /** Optional transport lifecycle hooks; older test/platform adapters may omit them. */
   onReconnecting?(handler: () => void): () => void
   onReconnected?(handler: () => void): () => void
@@ -171,6 +183,7 @@ function createOfficialPlatform(
     onMessage: handler => channel.on('message', message => handler(selectMessage(message))),
     onApprovalAction: handler => channel.on('cardAction', action => handler(selectAction(action))),
     onError: handler => channel.on('error', handler),
+    onReject: handler => channel.on('reject', reject => handler(selectReject(reject))),
     onReconnecting: handler => channel.on('reconnecting', handler),
     onReconnected: handler => channel.on('reconnected', handler),
     connect: () => channel.connect(),
@@ -400,6 +413,10 @@ function selectAction(action: CardActionEvent): FeishuApprovalAction {
     operatorId: action.operator.openId,
     value: action.action.value,
   })
+}
+
+function selectReject(reject: RejectEvent): FeishuPlatformReject {
+  return Object.freeze({ reason: reject.reason })
 }
 
 interface FeishuRawClient {
