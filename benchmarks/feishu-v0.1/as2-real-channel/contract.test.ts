@@ -75,6 +75,8 @@ describe('AS-2 real Feishu acceptance contract', () => {
     assert.match(source, /approvePairingRequestForSession/u)
     assert.match(source, /healProfilesModuleFallback\(\{ installAnchor, profile, home: dshHome \}\)/u)
     assert.doesNotMatch(source, /healProfilesModuleFallback\(installAnchor\)/u)
+    assert.match(source, /readSessionEvents\(agent\.session\)/u)
+    assert.match(source, /typeof session\.snapshotEvents === 'function'/u)
     assert.doesNotMatch(source, /approvePairingForSession|createInterface|process\.stdin|Pairing code:/u)
   })
 

@@ -112,7 +112,10 @@ interface RuntimeContext {
 }
 
 interface RuntimeAgent {
-  readonly session: { readonly events: readonly RuntimeEvent[] }
+  readonly session: {
+    readonly snapshotEvents?: () => readonly RuntimeEvent[]
+    readonly events?: readonly RuntimeEvent[]
+  }
   whenIdle(): Promise<void>
 }
 
@@ -272,7 +275,7 @@ export async function executeRealFeishuAcceptance(
     }, config.interactionTimeoutMs, 'official Feishu transport did not become ready')
     observations = { ...observations, officialTransportReady: true }
 
-    const userMessagesBeforePairing = countUserMessages(agent.session.events)
+    const userMessagesBeforePairing = countUserMessages(readSessionEvents(agent.session))
     stage = 'awaiting-resident-pairing-request'
     await writeState(statePath, stateBase, stage)
     process.stderr.write(
@@ -289,7 +292,7 @@ export async function executeRealFeishuAcceptance(
       return pairingRequest !== undefined
     }, config.interactionTimeoutMs, 'resident Gateway did not expose the exact pending Feishu request')
     if (pairingRequest === undefined) throw new Error('resident Gateway pending Feishu request disappeared')
-    if (countUserMessages(agent.session.events) !== userMessagesBeforePairing) {
+    if (countUserMessages(readSessionEvents(agent.session)) !== userMessagesBeforePairing) {
       throw new Error('the unknown pairing DM entered the native DSH Session before Host approval')
     }
     const pairingRequestId = pairingRequest.requestId
@@ -320,7 +323,7 @@ export async function executeRealFeishuAcceptance(
     stage = 'awaiting-exact-inbound'
     await writeState(statePath, stateBase, stage)
     process.stderr.write(`Pairing approved. Send this exact text as the next private message:\n${challenge}\n`)
-    await eventually(() => hasExactUserText(agent.session.events, challenge), config.interactionTimeoutMs,
+    await eventually(() => hasExactUserText(readSessionEvents(agent.session), challenge), config.interactionTimeoutMs,
       'exact Feishu challenge was not observed in the native DSH Session')
     const hostRoute = requireFeishuHostRoute(context)
     const observedChatKind = hostRoute.observedChatKind(pairing.routeId)
@@ -344,7 +347,7 @@ export async function executeRealFeishuAcceptance(
     stage = 'awaiting-native-command'
     await writeState(statePath, stateBase, stage)
     process.stderr.write('Now send /feishu from the same exact Feishu user/chat.\n')
-    await eventually(() => hasCommand(agent.session.events, 'feishu'), config.interactionTimeoutMs,
+    await eventually(() => hasCommand(readSessionEvents(agent.session), 'feishu'), config.interactionTimeoutMs,
       'the /feishu Command did not enter the native DSH Session')
     deliveredBefore = await exactDeliveredIncrement(
       gateway,
@@ -358,7 +361,7 @@ export async function executeRealFeishuAcceptance(
     stage = 'native-schedule-create-and-delivery'
     await writeState(statePath, stateBase, stage)
     await createNativeSchedule(config.dshSourceDir, context, agent, runId)
-    await eventually(() => hasExactNativeScheduleRoundTrip(agent.session.events), config.interactionTimeoutMs,
+    await eventually(() => hasExactNativeScheduleRoundTrip(readSessionEvents(agent.session)), config.interactionTimeoutMs,
       'official DSH Schedule create/dispatch/follow-up did not complete in the native Session')
     deliveredBefore = await exactDeliveredIncrement(
       gateway,
@@ -394,7 +397,7 @@ export async function executeRealFeishuAcceptance(
       pairing.routeId,
     )
     const health = gateway.healthSnapshot(Date.now(), [pairing.routeId])
-    if (countExactUserText(agent.session.events, challenge) !== 1) {
+    if (countExactUserText(readSessionEvents(agent.session), challenge) !== 1) {
       throw new Error('AS-2 exact challenge was admitted more than once')
     }
     gatewayFacts = compactGateway(health)
@@ -422,7 +425,7 @@ export async function executeRealFeishuAcceptance(
     }, config.interactionTimeoutMs, 'resident grant or official transport did not recover after Host restart')
     const postRestartChallenge = `${challenge}-AFTER-RESTART`
     process.stderr.write(`Host restarted without changing the grant. Send this exact private message:\n${postRestartChallenge}\n`)
-    await eventually(() => hasExactUserText(agent.session.events, postRestartChallenge), config.interactionTimeoutMs,
+    await eventually(() => hasExactUserText(readSessionEvents(agent.session), postRestartChallenge), config.interactionTimeoutMs,
       'the persisted grant did not admit a post-restart Feishu message')
     deliveredBefore = await exactDeliveredIncrement(
       restartedGateway,
@@ -770,6 +773,13 @@ function requireFeishuHostRoute(context: RuntimeContext): FeishuHostRoute {
 
 function hasExactUserText(events: readonly RuntimeEvent[], expected: string): boolean {
   return countExactUserText(events, expected) > 0
+}
+
+/** Read the immutable Session snapshot across the current DSH and rc APIs. */
+function readSessionEvents(session: RuntimeAgent['session']): readonly RuntimeEvent[] {
+  if (typeof session.snapshotEvents === 'function') return session.snapshotEvents()
+  if (session.events !== undefined) return session.events
+  throw new Error('DSH Session does not expose a readable event snapshot')
 }
 
 function countUserMessages(events: readonly RuntimeEvent[]): number {
