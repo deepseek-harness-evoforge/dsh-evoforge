@@ -31,10 +31,13 @@ describe('ControlCenterView', () => {
     const gatewayTab = screen.getByRole('tab', { name: /渠道/u })
     const feishuTab = screen.getByRole('tab', { name: /飞书/u })
     expect(gatewayTab.getAttribute('aria-selected')).toBe('true')
-    expect(gatewayTab.getAttribute('aria-controls')).toBe('dsh-cc-panel')
+    const panelId = gatewayTab.getAttribute('aria-controls')
+    expect(panelId).toMatch(/^dsh-cc-.+-panel$/u)
     expect(gatewayTab.getAttribute('tabindex')).toBe('0')
     expect(feishuTab.getAttribute('tabindex')).toBe('-1')
-    expect(screen.getByRole('tabpanel').getAttribute('aria-labelledby')).toBe('dsh-cc-tab-0')
+    const panel = screen.getByRole('tabpanel')
+    expect(panel.getAttribute('id')).toBe(panelId)
+    expect(panel.getAttribute('aria-labelledby')).toMatch(/^dsh-cc-.+-tab-0$/u)
 
     fireEvent.keyDown(gatewayTab, { key: 'ArrowDown' })
     expect(document.activeElement).toBe(feishuTab)
@@ -46,6 +49,31 @@ describe('ControlCenterView', () => {
     expect(renderSlot).toHaveBeenLastCalledWith(
       'evoforge.control.surface', expect.objectContaining({ ui: expect.any(Object) }), { only: 'feishu' },
     )
+  })
+
+  it('keeps ARIA ids isolated when two native views are mounted', () => {
+    const catalog: ControlSurfaceCatalog = {
+      list: () => [{ id: 'gateway', label: '渠道' }],
+      subscribe: () => () => {},
+      version: () => 1,
+    }
+    const props = {
+      surfaces: catalog,
+      t: (key: string) => zh[key as keyof typeof zh] ?? key,
+      renderSlot: vi.fn(() => <div>surface</div>),
+    } as unknown as ControlCenterViewProps
+
+    render(<><ControlCenterView {...props} /><ControlCenterView {...props} /></>)
+    const tabs = screen.getAllByRole('tab')
+    const panels = screen.getAllByRole('tabpanel')
+    expect(tabs).toHaveLength(2)
+    expect(panels).toHaveLength(2)
+    expect(new Set(tabs.map(tab => tab.id)).size).toBe(2)
+    expect(new Set(panels.map(panel => panel.id)).size).toBe(2)
+    expect(tabs[0]?.getAttribute('aria-controls')).toBe(panels[0]?.id)
+    expect(tabs[1]?.getAttribute('aria-controls')).toBe(panels[1]?.id)
+    expect(panels[0]?.getAttribute('aria-labelledby')).toBe(tabs[0]?.id)
+    expect(panels[1]?.getAttribute('aria-labelledby')).toBe(tabs[1]?.id)
   })
 
   it('owns a stable empty state when no Adapter is installed', () => {

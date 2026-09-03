@@ -26,6 +26,13 @@ pairing request，运行在配对前 fail closed。没有批准 principal、Agen
 继续保持 `failed`，下一次必须使用全新隔离 run root。详见
 [V5.89 证据](evidence/v5-89-feishu-as2-epoch4-no-pending-2026-09-04.zh.md)。
 
+## V5.90：Control Center 多挂载 ARIA 标识隔离（本轮）
+
+统一原生 `conversation.view` 控制面不再使用跨挂载的固定 tab/panel DOM id。每个 React view 实例现在拥有
+独立的 ARIA 标识，DSH 切换 Session 或恢复时即使短暂存在多个 view，也不会让键盘/读屏关系串到其他 Session。
+最新 DSH revision 下类型检查、Control Center 定向 5/5 测试和产物构建通过；没有新增网页、Router、Session
+或状态库。详见 [V5.90 证据](evidence/v5-90-control-center-instance-aria-ids-2026-09-04.zh.md)。
+
 ## V5.87：飞书策略拒绝可观测性（本轮）
 
 重新 fetch 并确认 DSH 最新远端 `master` 为 `76fda729…` 后，为官方 Node SDK 的 `reject` 事件接入已有

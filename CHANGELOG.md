@@ -6,6 +6,10 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Isolated the native Control Center tab and panel ARIA ids per React mount with `useId()`. Session switching
+  or recovery can no longer make two temporarily mounted views point at each other; the change adds no route,
+  Session, state store, or page. Added a two-view regression and rebuilt the package. See [V5.90 evidence](docs/evidence/v5-90-control-center-instance-aria-ids-2026-09-04.zh.md).
+
 - Recorded the newest isolated real Feishu AS-2 epoch-4 result. Final Bundles installed into a clean profile,
   the effective configuration was dumped, and the official WebSocket reached `ready`; no matching newcomer DM
   arrived during the 15-minute window, so the runner failed closed before pairing or any external effect. The

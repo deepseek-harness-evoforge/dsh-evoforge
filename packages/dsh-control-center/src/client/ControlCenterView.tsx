@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { PropsRenderSlots, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { controlSurfaceUI, type ControlSurfaceUI } from './primitives.tsx'
@@ -69,6 +69,7 @@ export type ControlCenterViewProps = PropsRuntime<'conversation.view'>
 
 /** One native DSH conversation view that owns layout while plugins own surface data. */
 export function ControlCenterView({ renderSlot, surfaces, t }: ControlCenterViewProps) {
+  const instanceId = useId().replaceAll(':', '')
   const rootRef = useRef<HTMLDivElement>(null)
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
   useSyncExternalStore(surfaces.subscribe, surfaces.version, surfaces.version)
@@ -79,8 +80,10 @@ export function ControlCenterView({ renderSlot, surfaces, t }: ControlCenterView
     rootRef.current?.scrollIntoView?.({ block: 'start' })
   }, [])
   const activeIndex = active === undefined ? -1 : tabs.findIndex(tab => tab.id === active.id)
-  const tabId = (index: number) => `dsh-cc-tab-${index}`
-  const panelId = 'dsh-cc-panel'
+  // DSH can mount the native view more than once while switching Sessions.
+  // IDs must be instance-local so ARIA relationships never cross a Session.
+  const tabId = (index: number) => `dsh-cc-${instanceId}-tab-${index}`
+  const panelId = `dsh-cc-${instanceId}-panel`
   const moveFocus = (index: number) => {
     const nextIndex = (index + tabs.length) % tabs.length
     const next = tabs[nextIndex]
