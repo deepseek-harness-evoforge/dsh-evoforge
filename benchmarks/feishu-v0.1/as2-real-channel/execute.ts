@@ -607,8 +607,8 @@ async function packFinalBundles(runDir: string): Promise<{ control: string; gate
   return { control: join(packRoot, control), gateway: join(packRoot, gateway), feishu: join(packRoot, feishu) }
 }
 
-async function assertPackedBoundary(tarballs: { gateway: string; feishu: string }): Promise<void> {
-  for (const tarball of [tarballs.gateway, tarballs.feishu]) {
+async function assertPackedBoundary(tarballs: { control: string; gateway: string; feishu: string }): Promise<void> {
+  for (const tarball of [tarballs.control, tarballs.gateway, tarballs.feishu]) {
     const list = (await execFile('tar', ['-tf', tarball], { encoding: 'utf8', timeout: 10_000 })).stdout
     if (/(^|\/)node_modules\//u.test(list) || /(^|\/)cli\.(?:mjs|js)$/mu.test(list)) {
       throw new Error('AS-2 packed Bundle contains a forbidden Runtime or product CLI')
