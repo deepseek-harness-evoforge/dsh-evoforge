@@ -5,6 +5,10 @@
 > DSH 最新公开版本现为 `dsh-v0.1.2-rc.1`（`a66e470…`），已更新并审计；其干净完整构建被上游根级 tsdown
 > 入口阻断。EvoForge 当前支持声明仍锁定已完成矩阵的 alpha.5（`db6bdc…`），详见 [rc.1 迁移审计](research/dsh-rc1-migration-audit-2026-09-03.zh.md)。
 
+> 真实飞书验收契约已更新为 epoch-4，固定 alpha.5；旧 epoch-3 不被复用。契约修复与 clean guard 的
+> 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
+> 仍未通过。
+
 ## V5.69：DSH alpha.5 迁移收口（本轮）
 
 本轮开发和测试固定在 DSH `0.1.2-alpha.5`。本地最新 `master` 为

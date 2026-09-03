@@ -47,11 +47,12 @@
       "id": "real-feishu-as2",
       "title": "Real Feishu resident Gateway epoch-3",
       "requiredForTag": true,
-      "status": "failed",
-      "evidence": [
-        "docs/evidence/v5-33-real-feishu-pairing-timeout-2026-08-26.zh.md",
-        "docs/evidence/v5-61-feishu-acceptance-host-pending-approval-2026-08-27.zh.md",
-        "docs/evidence/v5-64-feishu-event-arrival-diagnostic-2026-08-27.zh.md"
+    "status": "failed",
+    "evidence": [
+      "docs/evidence/v5-33-real-feishu-pairing-timeout-2026-08-26.zh.md",
+      "docs/evidence/v5-61-feishu-acceptance-host-pending-approval-2026-08-27.zh.md",
+      "docs/evidence/v5-64-feishu-event-arrival-diagnostic-2026-08-27.zh.md",
+      "docs/evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md"
       ],
       "blocker": "The latest request-id run reached official WebSocket ready but observed no Feishu pending request; event arrival is unproven, and no authorized run has completed the real direct-message, Schedule, Approval, restart, uninstall, and readback epoch."
     },

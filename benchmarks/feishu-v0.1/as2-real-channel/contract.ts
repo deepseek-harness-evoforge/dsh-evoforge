@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { dirname, isAbsolute, resolve } from 'node:path'
 
-export const BENCHMARK_ID = 'as2-feishu-resident-pairing-epoch-3'
+export const BENCHMARK_ID = 'as2-feishu-resident-pairing-epoch-4'
 export const REAL_FEISHU_APPROVAL = 'I_APPROVE_REAL_FEISHU_CHANNEL_EFFECTS'
 
 const terminalObservationNames = [

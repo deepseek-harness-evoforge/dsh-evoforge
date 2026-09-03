@@ -24,7 +24,8 @@ profile、不重连。机器人仍会把 code 返回给用户作为产品兼容�
   `allowed-once`、卸载后 Session 不可读，均判失败；
 - terminal `result.json` 按 revision、manifest 与 App hash 复用；route hash 只能在 Host 批准后由动态 grant 形成，
   公开结果不包含 conversation/user/code。Adapter 必须从真实入站事件观测到 `direct`，群聊不在本 epoch 范围。
-- 当前 epoch 为 `as2-feishu-resident-pairing-epoch-3`；终态解码器要求关闭的十三项 observation 全部存在，
+- 当前 epoch 为 `as2-feishu-resident-pairing-epoch-4`，固定 DSH `dsh-v0.1.2-alpha.5` /
+  `db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`；终态解码器要求关闭的十三项 observation 全部存在，
   `passed` 还要求全部为真。静态 route epoch、缺 Schedule、缺重启消息或损坏结果不能阻止新执行。
 
 ## 前置飞书配置
@@ -42,7 +43,7 @@ export DSH_FEISHU_REAL_CHANNEL_APPROVED=I_APPROVE_REAL_FEISHU_CHANNEL_EFFECTS
 export DSH_FEISHU_APP_ID='cli_...'
 export DSH_FEISHU_APP_SECRET='...'
 export DSH_FEISHU_DSH_SOURCE_DIR='/absolute/path/to/deepseek-harness'
-export DSH_FEISHU_REAL_CHANNEL_RUN_ROOT='/absolute/private/path/as2-resident-epoch-3'
+export DSH_FEISHU_REAL_CHANNEL_RUN_ROOT='/absolute/private/path/as2-resident-epoch-4'
 pnpm benchmark:feishu:as2
 ```
 

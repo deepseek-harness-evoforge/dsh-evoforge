@@ -38,7 +38,7 @@ describe('AS-2 real Feishu acceptance contract', () => {
       exitCode: 2,
       report: {
         schemaVersion: 1,
-        benchmarkId: 'as2-feishu-resident-pairing-epoch-3',
+        benchmarkId: 'as2-feishu-resident-pairing-epoch-4',
         status: 'not-run',
         reasons: ['real-feishu-effects-not-authorized'],
       },
@@ -56,7 +56,7 @@ describe('AS-2 real Feishu acceptance contract', () => {
     assert.equal(resolved.exitCode, 2)
     assert.deepEqual(resolved.report, {
       schemaVersion: 1,
-      benchmarkId: 'as2-feishu-resident-pairing-epoch-3',
+      benchmarkId: 'as2-feishu-resident-pairing-epoch-4',
       status: 'not-run',
       reasons: [
         'missing:DSH_FEISHU_APP_ID',
@@ -157,7 +157,7 @@ describe('AS-2 real Feishu acceptance contract', () => {
 
     assert.throws(() => assertRealFeishuTerminalReport({
       schemaVersion: 1,
-      benchmarkId: 'as2-feishu-resident-pairing-epoch-3',
+      benchmarkId: 'as2-feishu-resident-pairing-epoch-4',
       status: 'passed',
       scope: 'real route including native Schedule',
       manifestHash: identity.manifestHash,
@@ -175,7 +175,7 @@ describe('AS-2 real Feishu acceptance contract', () => {
 
     assert.doesNotThrow(() => assertRealFeishuTerminalReport({
       schemaVersion: 1,
-      benchmarkId: 'as2-feishu-resident-pairing-epoch-3',
+      benchmarkId: 'as2-feishu-resident-pairing-epoch-4',
       status: 'passed',
       scope: 'real route including native Schedule',
       manifestHash: identity.manifestHash,
@@ -203,7 +203,7 @@ describe('AS-2 real Feishu acceptance contract', () => {
     assert.equal(result.stderr, '')
     assert.deepEqual(JSON.parse(result.stdout), {
       schemaVersion: 1,
-      benchmarkId: 'as2-feishu-resident-pairing-epoch-3',
+      benchmarkId: 'as2-feishu-resident-pairing-epoch-4',
       status: 'not-run',
       reasons: ['real-feishu-effects-not-authorized'],
     })
