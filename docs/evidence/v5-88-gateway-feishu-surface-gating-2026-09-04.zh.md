@@ -25,7 +25,8 @@ pnpm --filter dsh-gateway exec vitest run --maxWorkers 1 \
 pnpm run check:docs
 ```
 
-结果：Gateway 类型检查通过；Control Surface 6/6 通过（新增 Telegram-only 无飞书控件回归）；文档检查通过。
+结果：Gateway 类型检查通过；Control Surface 6/6 通过（新增 Telegram-only 无飞书控件回归）；Gateway Node/Client
+产物构建和 artifact 校验通过；CI 路径合同与 5/5 套件静态检查通过；文档检查通过。
 此前单页 DSH Web 浏览器证据仍适用，本增量没有增加页面或路由。
 
 ## 发布边界
