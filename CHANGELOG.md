@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Bound Feishu message-resource downloads to the caller's `AbortSignal` through the Adapter's existing Axios
+  signal context. Gateway shutdown, Session cancellation, and Adapter disposal can now interrupt a stalled
+  platform download instead of only checking cancellation before and after it; limits and error semantics are
+  unchanged. See [V5.91 evidence](docs/evidence/v5-91-feishu-download-abort-signal-2026-09-04.zh.md).
+
 - Isolated the native Control Center tab and panel ARIA ids per React mount with `useId()`. Session switching
   or recovery can no longer make two temporarily mounted views point at each other; the change adds no route,
   Session, state store, or page. Added a two-view regression and rebuilt the package. See [V5.90 evidence](docs/evidence/v5-90-control-center-instance-aria-ids-2026-09-04.zh.md).

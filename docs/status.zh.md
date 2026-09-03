@@ -33,6 +33,14 @@ pairing request，运行在配对前 fail closed。没有批准 principal、Agen
 最新 DSH revision 下类型检查、Control Center 定向 5/5 测试和产物构建通过；没有新增网页、Router、Session
 或状态库。详见 [V5.90 证据](evidence/v5-90-control-center-instance-aria-ids-2026-09-04.zh.md)。
 
+## V5.91：飞书资源下载绑定取消信号（本轮）
+
+重新 fetch 并确认 DSH 最新远端 `master` 为 `76fda729…` 后，修复资源下载只检查 signal 却没有让官方 SDK
+网络请求继承 signal 的生命周期缺口。Gateway 停止、Session 取消或 Adapter dispose 时，图片/文件请求现在
+和其他飞书 HTTP 调用一样可被中断；大小上限、流式校验和错误语义不变。`dsh-feishu` 类型检查及平台/图片
+定向 8/8 测试通过。该增量改善清理可靠性，不提升真实 Feishu AS-2、Provider、Hermes paired、长期效果或
+release tag 门。详见 [V5.91 证据](evidence/v5-91-feishu-download-abort-signal-2026-09-04.zh.md)。
+
 ## V5.87：飞书策略拒绝可观测性（本轮）
 
 重新 fetch 并确认 DSH 最新远端 `master` 为 `76fda729…` 后，为官方 Node SDK 的 `reject` 事件接入已有

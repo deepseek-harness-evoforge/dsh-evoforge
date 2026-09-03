@@ -154,6 +154,9 @@ schema/cache 稳定，旧 Session 仍保留同名 schema，但每次执行都会
 `fileKey`、URL、base64 或伪造 file block 写入 Session。文档、知识库、云盘元数据和多维表格读取已有
 assembled DSH 自动化证据，但真实飞书 App scope、资源权限拒绝与真实内容仍待验收。
 
+资源下载遵循 DSH/Gateway 的取消生命周期：停止 Host、取消 Session 或卸载 Adapter 时，正在进行的飞书
+资源请求会被中断，不会继续占用连接。大小上限和内容类型校验仍然生效。
+
 Schedule 的进程恢复证据覆盖 durable create 后、follow-up/dispatch 前的 `SIGKILL`，以及第一次平台效果已发生、
 包含 dispatch 的 Session batch 仍未 durable 时的反向窗口。后者恢复时会重跑非 durable 模型 turn，但
 append-only Session 顺序让 turn 号保持不变，Gateway 复用同一 durable intent，不第二次调用平台。官方 DSH

@@ -216,10 +216,17 @@ function createOfficialPlatform(
         throw new Error('dsh-feishu: message resource byte limit is invalid')
       }
       try {
-        const response = await channel.rawClient.im.v1.messageResource.get({
+        const request = () => channel.rawClient.im.v1.messageResource.get({
           params: { type },
           path: { message_id: messageId, file_key: fileKey },
         })
+        // The SDK request is made through the same axios instance as the
+        // other Feishu calls.  Bind the caller's signal to that request too;
+        // checking the signal only before/after the download cannot interrupt
+        // a stalled platform response during Gateway dispose or retry.
+        const response = signal === undefined
+          ? await request()
+          : await transport.withSignal(signal, request)
         return await readBoundedResource(response.getReadableStream(), maxBytes, signal)
       } catch (error: unknown) {
         signal?.throwIfAborted()
