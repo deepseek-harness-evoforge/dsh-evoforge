@@ -20,6 +20,10 @@ EvoForge：`main`
 pnpm --filter dsh-evolve exec vitest run test/candidate-publisher.test.ts --maxWorkers 1
 Test Files  1 passed (1)
 Tests       8 passed (8)
+
+DSH_EVOLVE_DSH_SOURCE_DIR=/private/tmp/evoforge-dsh-latest.qPqo1d pnpm run check
+CHECK_RC=0
 ```
 
-该验证增强了跨进程 cache/readback 证据，但不替代完整 DSH Session/Goal 恢复、真实 Provider、Hermes paired 或长期效果门。
+根级检查在同一最新 DSH 构建基线下通过，包含类型检查、全包测试和构建。该验证增强了跨进程 cache/readback 证据，
+但不替代完整 DSH Session/Goal 恢复、真实 Provider、Hermes paired 或长期效果门。

@@ -70,8 +70,9 @@ describe('internally authored Candidate publisher', () => {
     // bundle shape and must not be mistaken for duplicate directories.
     const recoveredProvider = await new GenerationBundleRepository(join(root, 'cache')).providerFor(generation)
     const recovered = await recoveredProvider.list({})
-    expect(recovered).toHaveLength(1)
-    expect(await recoveredProvider.get(recovered[0]!, {})).toMatchObject({
+    const recoveredListed = 'candidates' in recovered ? recovered.candidates : recovered
+    expect(recoveredListed).toHaveLength(1)
+    expect(await recoveredProvider.get(recoveredListed[0]!, {})).toMatchObject({
       name: 'release-proof',
       content: expect.stringContaining('Require clean-profile proof'),
     })
