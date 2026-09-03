@@ -6,6 +6,8 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.102**: Re-fetched the latest DSH `origin/master` (`76fda729…`), passed the exact-revision and clean-worktree preflight, and ran the official root build. Recorded the upstream `dsh-root` tsdown entry failure (`lib/types/{index,invariant,startup}.js`) without modifying or forking DSH; the buildable EvoForge support baseline remains alpha.5. See [V5.102 evidence](docs/evidence/v5-102-latest-dsh-build-blocker-2026-09-04.zh.md).
+
 - Re-ran the complete repository check after the real-browser Control Center hit-target fix. Latest DSH master was fetched
   and verified clean; the audited buildable alpha.5 support baseline passed documentation/CI/suite/release contracts,
   compatibility checks, all package typechecks, tests, and builds (Evolve 69/309, Gateway 8/40, Feishu 18/46,

@@ -10,6 +10,18 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.102：最新 DSH master 官方构建阻断复核（本轮）
+
+重新 fetch 后，DSH checkout 已与 `origin/master`
+`76fda729799fe9b3848dbe2c211d4b231032b81e` 对齐且 clean。直接运行官方 `pnpm build` 严格失败于 DSH 自身
+`build:lib:host` 的 tsdown 入口解析：`[@deepseek-ai/dsh-root] Cannot find entry:
+["lib/types/{index,invariant,startup}.js"]`。失败没有修改 DSH 工作树，也没有修改上游源码；详见
+[V5.102 证据](evidence/v5-102-latest-dsh-build-blocker-2026-09-04.zh.md)。
+
+因此最新 master 继续作为“已 fetch、已审计但不可 assembled 运行”的上游观察目标；EvoForge 的可构建支持矩阵仍
+锁定 alpha.5 `db6bdc…`。本事实不冒充插件失败，也不改变真实渠道、双 Provider、Hermes paired、长期效果或
+发布 tag 门禁。
+
 ## V5.100：Control Center 鼠标命中层修复与真实单页复验（本轮）
 
 重新 fetch 并确认 DSH 最新远端 `origin/master` 为 `76fda729…`、工作树 clean。真实 DSH 页面定位到“看得到但点不
