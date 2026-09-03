@@ -23,8 +23,19 @@
 
 在可构建的 DSH alpha.5 支持 profile（`db6bdc…`）中，真实浏览器仅保留一个标签，鼠标点击 `渠道`、`飞书内容`、
 `演化` 均成功切换，`刷新状态` 可用，整页 reload 后控制台和渠道仍可恢复。Control Center typecheck、构建和 2 个
-测试文件/5 个测试通过。最新 DSH master 的已知上游 module-table 构建缺陷未被修改；真实 Feishu AS-2、Provider、
+ 测试文件/5 个测试通过。最新 DSH master 的已知上游 module-table 构建缺陷未被修改；真实 Feishu AS-2、Provider、
 Hermes paired、长期效果和 release tag 门不因本修复改变。详见 [V5.100 证据](evidence/v5-100-control-center-mouse-hit-target-2026-09-04.zh.md)。
+
+## V5.101：鼠标命中修复后的根级完整回归（本轮）
+
+重新 fetch 并确认最新 DSH `origin/master` 为 `76fda729…`、工作树 clean 后，在已审计可构建的 alpha.5 支持基线
+`db6bdc…` 运行 `DSH_EVOLVE_DSH_SOURCE_DIR=<alpha5> pnpm run check`，exit 0。文档/CI/套件清单、发布与兼容性
+合同、Hermes/Provider/Feishu 验收合同、12 个包类型检查、全部测试和全部构建均通过；Evolve 69/309、Gateway
+8/40、Feishu 18/46、Telegram 8/29、Evolution Web 2/27、Doctor 5/40、Control Center 2/5。
+
+该回归确认 Control Center 根层级修复与浏览器夹具 workspace 初始化没有引入工程回归，main 工作树保持 clean，未
+创建分支或 release tag。它不提升真实 Feishu AS-2、外部 Telegram、真实 Provider、Hermes paired、长期效果或
+首个 tag 门；详见 [V5.101 证据](evidence/v5-101-alpha5-full-check-after-hit-target-fix-2026-09-04.zh.md)。
 
 ## V5.94：飞书事件回调故障边界（本轮）
 

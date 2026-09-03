@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Re-ran the complete repository check after the real-browser Control Center hit-target fix. Latest DSH master was fetched
+  and verified clean; the audited buildable alpha.5 support baseline passed documentation/CI/suite/release contracts,
+  compatibility checks, all package typechecks, tests, and builds (Evolve 69/309, Gateway 8/40, Feishu 18/46,
+  Telegram 8/29). Real Feishu, external Telegram, Provider, Hermes paired, long-term-effect, and release-tag gates remain
+  unchanged. See [V5.101 evidence](docs/evidence/v5-101-alpha5-full-check-after-hit-target-fix-2026-09-04.zh.md).
+
 - Fixed a real DSH Web hit-target regression in the native Control Center. DSH's sibling left-width drag handle (z-index 8)
   covered the 40px center of the plugin navigation, so mouse clicks only moved focus while keyboard navigation still worked.
   The Control Center root now owns a local z-index 9 stacking context, and the browser fixture creates its workspace path
