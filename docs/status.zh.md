@@ -56,6 +56,14 @@ assembled/clean-profile 证据继续锁定已完整构建的 `dsh-v0.1.2-alpha.5
 tag、master、可构建基线三者分开记录。该复核没有扩大支持声明，也没有把上游失败误报为插件故障。
 完整命令、输出和支持决策见 [V5.72 证据](evidence/v5-72-latest-dsh-master-reaudit-2026-09-03.zh.md)。
 
+## V5.73：物理 Bundle 边界与用户入口审计（本轮）
+
+逐包复核了当前 12 个 Bundle 的生命周期、权限、外部依赖和状态所有权。没有发现可以安全合并而不破坏
+DSH 原生卸载、最小权限或信任域的包；因此不做目录级删减，而是把用户入口固定为 `core`、`channels`、
+`delivery`、`continuity` 四个套件，`attention` 作为显式可选附加能力，其余仅为兼容/维护者入口。旧
+`dsh-channel-router`、ClawHub/市场获取、重复状态库和旧 Web 表面继续保持物理删除。审计表与安装决策见
+[插件边界审计](audits/2026-09-03-package-boundary-audit.zh.md)。
+
 ## 状态词
 
 | 状态 | 含义 |

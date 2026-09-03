@@ -6,6 +6,13 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Re-audited all twelve physical Bundles and documented the minimal four user-facing suites. Independent Bundles are
+  retained only for distinct lifecycle, permission, or external trust boundaries; ClawHub/market acquisition,
+  duplicate Router/state, and other retired surfaces remain explicitly excluded. See the
+  [package-boundary audit](docs/audits/2026-09-03-package-boundary-audit.zh.md).
+- Recorded the latest DSH rc.1 tag and remote `master` re-audit separately from the alpha.5 buildable support baseline;
+  both upstream clean builds remain blocked at the root tsdown entry. See [V5.72 evidence](docs/evidence/v5-72-latest-dsh-master-reaudit-2026-09-03.zh.md).
+
 - Channel-only installs now include the lightweight native `dsh-control-center` alongside `dsh-gateway` and the
   selected Feishu/Telegram Adapter. Pairing approval and transport health therefore stay in one DSH Web page without
   forcing self-evolution or attention packages. The real Feishu AS-2 runner installs and removes that Control Center
