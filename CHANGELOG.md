@@ -6,6 +6,10 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.124**: Aligned the copyable Goal prompt with the implemented Host authority: Feishu pairing is approved from the native
+  DSH Web pending list, never from a Session Command; a future host-management command may reuse that authority without
+  changing the user-facing flow. This removes an unsupported CLI promise while preserving the resident Gateway contract.
+
 - **V5.123**: Added and strictly froze a new deterministic Hermes EV-1 control-plane epoch on the current buildable
   DSH alpha.5 revision without rewriting epoch-1. The run passes calibration `2/2`; EvoForge keeps the baseline immutable,
   pins the current Session, fails closed across Workspaces, and preserves exact promotion/rollback state (`0` premature

@@ -36,6 +36,12 @@ Session 固定、未来 Session 晋升、跨 Workspace fail-closed、回滚/重�
 [V5.123 证据](evidence/v5-123-hermes-ev1-alpha5-epoch-2-2026-09-04.zh.md)。这不是模型质量、真实渠道或完整
 Hermes paired 证据，发布门仍保持阻断。
 
+## V5.124：Goal 提示词与 Host 配对权威对齐（本轮）
+
+复核可复制的 `codex goal` 提示词与当前实现后，删除“宿主 CLI 已可用”的不实承诺，明确管理员从原生 DSH Web
+的 pending 列表批准，配对永远不回到 Session Command；未来若增加独立宿主管理命令，也只能复用同一 Gateway
+Host authority。运行时未改动；文档链接、差异检查和 release-gate 结构检查随后通过。
+
 ## V5.104：npm 包名归属审计与发布阻断（本轮）
 
 在再次 fetch 并确认最新 DSH `origin/master` 为 `76fda729…`、工作树 clean 后，查询所有公开 Bundle 的 npm
