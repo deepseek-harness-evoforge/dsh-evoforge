@@ -10,6 +10,20 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.94：飞书事件回调故障边界（本轮）
+
+重新 fetch 并确认 DSH 最新远端 `master` 为 `76fda729…` 后，收口官方飞书 SDK 事件回调的异步拒绝路径。
+此前 `message` 与 `cardAction` 回调直接调用异步处理器；入站路由解析、内容物化或 Gateway 投递异常可能变成
+SDK emitter 看到的未处理 Promise rejection，既不能稳定记录到现有 Gateway 健康投影，也可能影响常驻连接。
+现在两类回调均经过 Host 侧有限故障边界：捕获异常、将 transport 标记为 `degraded`、写入脱敏错误时间并记录
+可读日志；上报健康本身失败时也只记录警告，dispose 后的迟到事件不会重新写状态。没有新增 Gateway、Session、
+队列、重试策略或页面。
+
+类型检查、定向 teardown 回归（包含真实异步 message callback 不泄漏 rejection）和产物构建通过。完整
+`dsh-feishu` 测试集在当前 alpha.5 支持基线仍有一个已有的 Schedule 崩溃夹具在 `READY` 标记前超时；移除本
+增量后同样复现，故未将该套件宣称为全绿，详见 [V5.94 证据](evidence/v5-94-feishu-event-boundary-2026-09-04.zh.md)。
+该增量改善常驻故障可观测性，不提升真实 Feishu AS-2、Provider、Hermes paired、长期效果或 release tag 门。
+
 ## V5.88：Gateway 单页渠道入口按需显示（本轮）
 
 重新 fetch 并确认 DSH 最新远端 `master` 为 `76fda729…` 后，修复 Telegram-only profile 仍出现空“飞书配对”

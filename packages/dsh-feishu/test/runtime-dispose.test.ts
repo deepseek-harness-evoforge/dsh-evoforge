@@ -17,6 +17,7 @@ describe('Feishu runtime teardown', () => {
     let outboundDisposed = false
     let transportDisposed = false
     const observations: string[] = []
+    let messageHandler: ((message: FeishuInboundMessage) => Promise<void>) | undefined
     let reconnecting: (() => void) | undefined
     let reconnected: (() => void) | undefined
     const gateway = {
@@ -32,7 +33,10 @@ describe('Feishu runtime teardown', () => {
       }),
     } as unknown as DshGateway
     const platform: FeishuPlatform = {
-      onMessage(_handler: (message: FeishuInboundMessage) => Promise<void>) { return () => {} },
+      onMessage(handler: (message: FeishuInboundMessage) => Promise<void>) {
+        messageHandler = handler
+        return () => { if (messageHandler === handler) messageHandler = undefined }
+      },
       onApprovalAction(_handler: (action: FeishuApprovalAction) => Promise<void>) { return () => {} },
       onError(_handler: (error: unknown) => void) { return () => {} },
       onReconnecting(handler: () => void) {
@@ -65,9 +69,19 @@ describe('Feishu runtime teardown', () => {
 
     await runtime.start()
     expect(connected).toBe(true)
+    await expect(messageHandler!({
+      messageId: 'om_failure',
+      chatId: 'oc_chat',
+      chatType: 'p2p',
+      senderId: 'ou_user',
+      content: 'hello',
+      rawContentType: 'text',
+      resources: [],
+    })).resolves.toBeUndefined()
+    expect(observations.at(-1)).toBe('degraded')
     reconnecting?.()
     reconnected?.()
-    expect(observations).toEqual(['ready', 'degraded', 'ready'])
+    expect(observations.slice(-2)).toEqual(['degraded', 'ready'])
     await expect(runtime.dispose()).rejects.toThrow('Gateway already stopped')
     expect(connected).toBe(false)
     expect(disconnectCount).toBe(1)

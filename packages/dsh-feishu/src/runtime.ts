@@ -200,8 +200,8 @@ export class FeishuRuntime {
     })
 
     this.unsubscribers.push(
-      this.platform.onMessage(message => this.handleMessage(message)),
-      this.platform.onApprovalAction(action => this.handleApprovalAction(action)),
+      this.platform.onMessage(message => this.receiveMessage(message)),
+      this.platform.onApprovalAction(action => this.receiveApprovalAction(action)),
       this.platform.onError(error => {
         this.transportState = 'degraded'
         this.lastPlatformErrorAt = Date.now()
@@ -488,6 +488,40 @@ export class FeishuRuntime {
     const text = dispatch.result.text
       ?? (dispatch.result.kind === 'success' ? 'Command completed.' : 'Command failed.')
     await this.prepareResponse(destination, eventId, boundText(text, this.config.maxTextChars))
+  }
+
+  /** Keep SDK event emitters from observing an unhandled async rejection. */
+  private async receiveMessage(message: FeishuInboundMessage): Promise<void> {
+    try {
+      await this.handleMessage(message)
+    } catch (error: unknown) {
+      this.recordInboundFailure('message', error)
+    }
+  }
+
+  /** Approval callbacks share the same failure boundary as inbound messages. */
+  private async receiveApprovalAction(action: FeishuApprovalAction): Promise<void> {
+    try {
+      await this.handleApprovalAction(action)
+    } catch (error: unknown) {
+      this.recordInboundFailure('card action', error)
+    }
+  }
+
+  private recordInboundFailure(kind: string, error: unknown): void {
+    if (this.lifecycle.signal.aborted) return
+    this.transportState = 'degraded'
+    this.lastPlatformErrorAt = Date.now()
+    try {
+      this.reportTransport(this.lastPlatformErrorAt)
+    } catch (reportError: unknown) {
+      if (!this.lifecycle.signal.aborted) {
+        this.ctx.logger.warn(`dsh-feishu: could not report ${kind} failure: ${safeMessage(reportError)}`)
+      }
+    }
+    if (!this.lifecycle.signal.aborted) {
+      this.ctx.logger.warn(`dsh-feishu: ${kind} handler failed: ${safeMessage(error)}`)
+    }
   }
 
   private async sendPairingCode(message: FeishuInboundMessage, code: string): Promise<void> {

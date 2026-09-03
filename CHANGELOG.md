@@ -6,6 +6,13 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Added a host-side failure boundary around official Feishu `message` and `cardAction` async callbacks. Handler
+  failures now settle as a redacted Gateway `degraded` observation and warning instead of becoming unhandled SDK
+  Promise rejections; reporting failures and post-dispose callbacks are contained as well. No Gateway, Session,
+  queue, retry policy, or page was added. Typecheck, targeted teardown regression, and build pass; the existing
+  alpha.5 Schedule crash-fixture timeout keeps the full Feishu suite out of release evidence. See [V5.94 evidence]
+  (docs/evidence/v5-94-feishu-event-boundary-2026-09-04.zh.md).
+
 - Reset the Gateway Surface when its DSH `Session` or resolved `Workspace` changes. Old transport, route, pending
   pairing, input, and action state is cleared before the new Host snapshot loads, and stale requests/intervals cannot
   overwrite the new Session. Added a delayed-rerender regression; no page, router, Session, or state store was added.
