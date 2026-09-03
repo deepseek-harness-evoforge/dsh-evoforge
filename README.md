@@ -43,6 +43,7 @@ dsh --profile web
 按需安装渠道或交付：
 
 ```sh
+PACK_ROOT="${PACK_ROOT:-$(mktemp -d)}"
 pnpm run pack:suite -- --suite channels --channel feishu --out "$PACK_ROOT"
 dsh plugin --profile web add "$PACK_ROOT/channels-feishu"/*.tgz
 

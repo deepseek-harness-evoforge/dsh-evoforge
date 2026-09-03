@@ -35,6 +35,9 @@ All notable changes will be recorded here. The project has not published a stabl
   not ambiguous “background discovery”. The runtime boundary remains DSH-installed capabilities and internal Goal evidence;
   documentation checks pass and no runtime code changed. See [V5.119 evidence](docs/evidence/v5-119-internal-gap-wording-2026-09-04.zh.md).
 
+- **V5.120**: Made the optional-install snippets in the Chinese and English root READMEs standalone by assigning a default
+  temporary `PACK_ROOT`. Documentation checks pass; runtime and release gates are unchanged. See [V5.120 evidence](docs/evidence/v5-120-readme-standalone-pack-root-2026-09-04.zh.md).
+
 - **V5.113**: Added a cross-instance Generation cache readback regression for nested Skill references. A fresh
   `GenerationBundleRepository` verifies the immutable owner marker, read-only tree, file list, and hashes after materialization;
   the candidate-publisher suite passed 8/8. See [V5.113 evidence](docs/evidence/v5-113-generation-cache-restart-verification-2026-09-04.zh.md).

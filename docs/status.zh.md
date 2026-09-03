@@ -125,6 +125,12 @@ Feishu AS-2 仍需独立 run root 和真实私聊完成。详见
 明确缺口报告只启动 DSH 内部证据处理，不触发外部搜索、下载、导入或安装。`check:docs` 与差异检查通过，未改运行时。
 详见 [V5.119 证据](evidence/v5-119-internal-gap-wording-2026-09-04.zh.md)。
 
+## V5.120：README 套件示例可独立执行（本轮）
+
+中英文根 README 的按需安装代码块现在自带 `PACK_ROOT` 默认值，单独复制也能生成和安装 tarball；`check:docs` 与
+差异检查通过。该改动只改善用户文档，不改变运行时或发布门。详见
+[V5.120 证据](evidence/v5-120-readme-standalone-pack-root-2026-09-04.zh.md)。
+
 ## V5.103：渠道控制面轮询契约与用户文档对齐（本轮）
 
 审计发现 `GatewaySurface` 为了让新配对请求在同一个 DSH Web 页面自动出现，实际每 5 秒读取一次 Host 脱敏
