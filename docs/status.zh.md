@@ -10,6 +10,10 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.133：撤销配对时清除飞书内部观测（本轮）
+
+撤销动态 route 时同步删除 `observedChatKinds` 内部记录，避免同一 route id 重新配对后把旧 direct/group 事实误判为聊天类型漂移。类型检查、Gateway 构建和配对装配回归 `1/1` 通过。详见 [V5.133 证据](evidence/v5-133-feishu-revoked-observation-cleanup-2026-09-04.zh.md)。
+
 ## V5.132：撤销后的飞书只读观测同步（本轮）
 
 动态配对 route 撤销后，`observedChatKind` 不再返回旧的 direct/group 观测，和 routes、health、notify、inbound 共同以 Gateway 当前 route 为权威。类型检查、Gateway 构建和配对装配回归 `1/1` 通过。详见 [V5.132 证据](evidence/v5-132-feishu-revoked-observation-reconciliation-2026-09-04.zh.md)。

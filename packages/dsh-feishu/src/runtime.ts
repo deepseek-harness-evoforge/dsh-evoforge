@@ -578,6 +578,7 @@ export class FeishuRuntime {
       if (this.configuredRouteIds.has(routeId)) continue
       if (this.gateway.route(routeId) !== undefined) continue
       this.routesById.delete(routeId)
+      this.observedChatKinds.delete(routeId)
       changed = true
     }
     if (!changed) return
