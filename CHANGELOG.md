@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Added an exact DSH preflight to the root `check`: assembled tests now require an explicit, clean, allowlisted DSH
+  checkout and fail immediately with a copyable command when it is missing or mismatched. The alpha.5 full check
+  still passes; this improves contributor feedback without broadening compatibility or release claims. See
+  [V5.85 evidence](docs/evidence/v5-85-dsh-preflight-2026-09-04.zh.md).
+
 - Re-ran the complete repository check against the audited, buildable DSH alpha.5 support baseline after the
   single-page channel journey work. Documentation/CI/package contracts, all package typechecks, tests, artifact
   verification, and builds passed; explicit historical/platform skips remain skips. This is a reproducible

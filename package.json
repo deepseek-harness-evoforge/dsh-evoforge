@@ -22,7 +22,8 @@
     "generate:typert": "pnpm --filter dsh-evolve exec tsc -b ../../tsconfig.host.json --force && pnpm --filter dsh-evolve run prune:types && node scripts/generate-typert.mjs",
     "check:docs": "node scripts/check-docs.mjs",
     "check:ci": "node scripts/check-ci-test-paths.mjs",
-    "check:suites": "node --test scripts/suite-manifest.test.mjs scripts/pack-suites.test.mjs scripts/browser-overlay.test.mjs",
+    "check:suites": "node --test scripts/suite-manifest.test.mjs scripts/pack-suites.test.mjs scripts/browser-overlay.test.mjs scripts/check-dsh-preflight.test.mjs",
+    "check:dsh:preflight": "node scripts/check-dsh-preflight.mjs",
     "check:release": "node scripts/check-release.mjs",
     "check:release:gates": "node scripts/check-release-gates.mjs",
     "check:release:gates:test": "node --test scripts/check-release-gates.test.mjs",
@@ -54,6 +55,6 @@
     "typecheck": "pnpm -r typecheck",
     "pretest": "pnpm --filter dsh-gateway run build",
     "test": "pnpm -r --workspace-concurrency=1 --filter '!dsh-telegram' --filter '!dsh-feishu' --filter '!dsh-software-delivery' test && pnpm run test:software-delivery && pnpm --filter dsh-telegram test && pnpm --filter dsh-feishu test",
-    "check": "pnpm run check:docs && pnpm run check:ci && pnpm run check:suites && pnpm run check:release:gates:test && pnpm run check:release:tag && pnpm run check:release:workflow && pnpm run check:dsh-compatibility-script && pnpm run benchmark:hermes:ev1:typecheck && pnpm run benchmark:provider:rp1:check && pnpm run benchmark:feishu:as2:check && pnpm run typecheck && pnpm run test && pnpm run build"
+    "check": "pnpm run check:dsh:preflight && pnpm run check:docs && pnpm run check:ci && pnpm run check:suites && pnpm run check:release:gates:test && pnpm run check:release:tag && pnpm run check:release:workflow && pnpm run check:dsh-compatibility-script && pnpm run benchmark:hermes:ev1:typecheck && pnpm run benchmark:provider:rp1:check && pnpm run benchmark:feishu:as2:check && pnpm run typecheck && pnpm run test && pnpm run build"
   }
 }

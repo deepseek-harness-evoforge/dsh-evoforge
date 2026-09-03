@@ -20,6 +20,14 @@ Evolve 309、Gateway 37、Feishu 45、Telegram 29、Evolution Web 26、Doctor 40
 不把 skip 改写成通过。该结果收口本地工程质量，不提升真实 Feishu、双 Provider、Hermes paired、长期效果
 或 release tag 门禁。
 
+## V5.85：完整检查 DSH preflight（本轮）
+
+根级 `pnpm run check` 现在先要求显式 `DSH_EVOLVE_DSH_SOURCE_DIR`，并立即校验 DSH exact revision、版本与
+clean worktree；缺失或错配会在长测试前失败并给出修复命令，不再回退到相邻 checkout。静态套件含新增合同
+测试 5/5 通过，使用 alpha.5 支持基线的完整 check 也通过；详见 [V5.85 证据](evidence/v5-85-dsh-preflight-2026-09-04.zh.md)。
+该修正改善贡献者反馈，不扩大 DSH 支持范围，也不改变真实渠道、Provider、Hermes paired、长期效果或 release
+tag 门禁。
+
 ## V5.83：渠道首次连接导引与单页浏览器验收（本轮）
 
 Control Center 现在提供共享的三段式首次连接导引：常驻连接、用户私聊、管理员批准。它只由 Gateway 脱敏

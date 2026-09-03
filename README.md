@@ -72,6 +72,17 @@ pnpm run typecheck
 pnpm test
 ```
 
+运行完整 `pnpm run check` 前，必须把 `DSH_EVOLVE_DSH_SOURCE_DIR` 指向干净的、与当前支持矩阵完全匹配的
+DSH alpha.5 checkout；命令会在最开始校验 revision、版本和 tracked worktree，避免把 DSH 环境错配误报为
+EvoForge 回归：
+
+```sh
+DSH_EVOLVE_DSH_SOURCE_DIR=/path/to/dsh-v0.1.2-alpha.5 pnpm run check
+```
+
+没有 DSH checkout 时仍可单独运行上面的文档、CI 路径和套件静态检查。当前支持边界与最新 DSH master 的
+上游构建状态见[实现状态](docs/status.zh.md)，不要把未审计的 checkout 当作兼容目标。
+
 开发只在 `main` 进行；通过的最小增量立即原子 commit 并推送 `origin/main`。Candidate 使用运行时内容寻址存储，不用 Git 分支。首个 annotated SemVer tag 只有在 clean-profile 安装/卸载、真实浏览器、真实渠道、真实 provider 和 Hermes paired 全部达到发布门后才能创建。门禁与证据索引见 [`release-gates.json`](release-gates.json) 和[发布纪律](docs/releasing.zh.md)。
 
 ## 设计与证据

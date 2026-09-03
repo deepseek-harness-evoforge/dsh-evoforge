@@ -1,6 +1,6 @@
 # EvoForge v0.1 路线图
 
-> 2026-09-03 当前执行顺序：先以 DSH `dsh-v0.1.2-alpha.5` 固定基线收口兼容性和用户安装文档，
+> 2026-09-04 当前执行顺序：先以 DSH `dsh-v0.1.2-alpha.5` 固定基线收口兼容性和用户安装文档，
 > 再完成真实渠道/Provider/paired 验收；任何一项发布门未通过都不创建 tag。alpha.5 的迁移事实见
 > [迁移审计](research/dsh-alpha5-migration-audit-2026-09-03.zh.md)和
 > [V5.69 证据](evidence/v5-69-dsh-alpha5-migration-2026-09-03.zh.md)。
@@ -39,7 +39,9 @@
 > V4.40–V4.45 已完成 Retention、发布门与最终包浏览器生命周期；V4.46–V4.48 已完成 existing-Skill failed-Outcome Canary、权威 Control/Remote/Web、独立 expected-active rollback gate 与最终 tarball 浏览器故障恢复；V4.49 已完成 missing-Skill 同类最终包故障恢复。下一门是两套独立真实 provider。
 > V5.68 修复 macOS assembled `0.1.1-rc.2` 中 dsh-telegram 共享 `tsdown clean` 构建竞态，并用 `check:ci`
 > 固化防回归检查；远端矩阵尚待复跑，真实外部验收门状态不变。详见 [V5.68](evidence/v5-68-ci-telegram-build-race-2026-09-02.zh.md)。
-> 更新日期：2026-09-02
+> V5.84/V5.85 已补齐 alpha.5 完整检查证据与 DSH preflight；下一轮继续推进真实常驻渠道和 paired 门，
+> 不因本地质量门通过而提前发布。
+> 更新日期：2026-09-04
 
 ## 开发与发布纪律
 
