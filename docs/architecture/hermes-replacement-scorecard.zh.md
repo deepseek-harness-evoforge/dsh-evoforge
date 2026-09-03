@@ -3,7 +3,7 @@
 > 状态：长期验收基线；不是功能清单，也不是当前完成声明
 > 更新日期：2026-08-24
 > 已有 paired epoch 比较基线：Hermes Agent `29d0cc2602e01943ab300c0382fc9d97efb376da`
-> 新一轮生态审计基线：Hermes Agent `7a81dd9efdaa1d27a98815df6aecc26d849ca084`、Hermes Self-Evolution `0a929e3aa20e15cf04dc7c28492a7d41a5139125`、OpenClaw `1c3e512096bc57b34f9379b1992912c3d18729c7`、HanaAgent/openhanako `c6d0405294be67cb134c2758f6472748ee73e2be`
+> 历史生态审计基线保留用于既有证据；2026-09-03 当前远端 revision 已单独复核为 Hermes Agent `63279301bcbdc185c1b07b98a9312eb0c862f26d`、OpenClaw `1fb3e0ca33847b5827a21cf5cb132d3f90ff49ad`、HanaAgent/openhanako `1d3ef308299e9f630786384e77de45444ea59196`，详见[当前 revision 复核](../research/ecosystem-current-revision-2026-09-03.zh.md)。
 > V5.13 已从当前内容寻址 Generation 路径重跑旧 revision 的四个 frozen deterministic epoch；EV-1 不再引用已删除的 Git Skill source，冻结结果保持不变。该复跑不把旧 epoch 升格为当前 Hermes revision 或真实模型证据。
 
 ## 1. “上位”到底是什么意思

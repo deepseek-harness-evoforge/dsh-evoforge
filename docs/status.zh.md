@@ -72,6 +72,12 @@ epoch-4 合同的最新隔离 AS-2 重试使用 EvoForge `026a0e0…` 与 DSH al
 所有后续 direct message、Command、Schedule、Approval、重启、卸载和 readback 观察值均为 false。详见
 [V5.74 证据](evidence/v5-74-feishu-as2-epoch5-no-event-2026-09-03.zh.md)；`real-feishu-as2` 仍保持 failed。
 
+## V5.75：参考生态当前 revision 复核（本轮）
+
+为下一次 Hermes paired 和设计校准重新读取公开远端：Hermes Agent `63279301…`、OpenClaw `1fb3e0ca…`、
+HanaAgent/openhanako `1d3ef308…`；公开 tag 与远端 HEAD 分开记录。该复核只更新设计期证据，不把任何外部
+项目作为运行时依赖、Skill 来源、Provider 路由或发布门捷径。详见[当前 revision 复核](research/ecosystem-current-revision-2026-09-03.zh.md)。
+
 ## 状态词
 
 | 状态 | 含义 |

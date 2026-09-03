@@ -19,6 +19,7 @@
 13. [P3.2 Draft PR 返修决策](p3-2-delivery-review-loop-decision.zh.md)：解释为何闭合现有交付断点，而不建设 Review 平台、Mission 或第二状态机。
 14. [可证明自进化设计](../architecture/evolution-design.zh.md)：查看 Generation 固定、Learning Signal、Candidate、Trial、晋升、回滚与缓存约束。
 15. [P0A Shadow 契约](../architecture/p0a-shadow-contract.zh.md)：查看首个可执行验证的 CLI、报告、case 隔离、evaluator 和红测试接缝。
+16. [参考生态当前 revision 复核（2026-09-03）](ecosystem-current-revision-2026-09-03.zh.md)：重新固定 Hermes、OpenClaw 和 HanaAgent 的远端 HEAD/tag；外部项目只作设计与 paired 参照，不进入运行时。
 
 ## 审计基线
 

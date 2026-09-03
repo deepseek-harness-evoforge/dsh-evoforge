@@ -6,6 +6,10 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Re-checked the current public HEADs for Hermes Agent, OpenClaw, and HanaAgent/openhanako and recorded tag-vs-HEAD
+  identity separately. These projects remain design/paired references only; no runtime acquisition or dependency was
+  added. See [the current revision audit](docs/research/ecosystem-current-revision-2026-09-03.zh.md).
+
 - Recorded a fresh isolated retry of the real Feishu AS-2 epoch-4 contract: final Control Center/Gateway/Feishu bundles installed, the
   profile dumped, and the official WebSocket reached ready, but no matching pending pairing request arrived during
   the human window. The runner failed closed before Agent or external effects; the real-channel gate remains failed.
