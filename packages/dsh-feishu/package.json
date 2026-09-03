@@ -99,7 +99,7 @@
     "dsh-control-center": "workspace:*",
     "jsdom": "^26.0.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "react-dom": "^19.2.8",
     "tsdown": "^0.22.2",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3",
