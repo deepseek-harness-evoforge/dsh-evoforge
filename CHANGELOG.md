@@ -6,6 +6,13 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Fixed a real DSH Web hit-target regression in the native Control Center. DSH's sibling left-width drag handle (z-index 8)
+  covered the 40px center of the plugin navigation, so mouse clicks only moved focus while keyboard navigation still worked.
+  The Control Center root now owns a local z-index 9 stacking context, and the browser fixture creates its workspace path
+  before the official WorkspaceRegistry resolves it. Against the audited buildable DSH alpha.5 profile, one real browser tab
+  clicked Channels, Feishu Content, and Evolution, refreshed status, and recovered after a full reload. See [V5.100 evidence]
+  (docs/evidence/v5-100-control-center-mouse-hit-target-2026-09-04.zh.md).
+
 - Re-ran the complete repository check after quieting the non-interactive Feishu AS-2 overlay. Documentation, CI,
   package/release contracts, compatibility checks, all package typechecks, tests, and builds passed on the audited
   clean DSH alpha.5 baseline; `dsh-evolve` is 69 files / 309 tests, Gateway 8 / 40, Feishu 18 / 46, Telegram 8 / 29,

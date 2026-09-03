@@ -1,3 +1,4 @@
+import { mkdir } from 'node:fs/promises'
 import { createAssistantMessage, createUserMessage } from '@deepseek-ai/dsh-llm'
 
 export const name = 'evoforge-control-center-browser-bootstrap'
@@ -10,6 +11,10 @@ export const inject = [
 
 /** Test-only native DSH fixture: create one real Workspace/Session without a model call. */
 export async function apply(ctx, config) {
+  // WorkspaceRegistry resolves the path before creating its own metadata.
+  // Make the standalone overlay self-contained so a clean-profile user can
+  // run it without a pre-created fixture directory.
+  await mkdir(config.workspacePath, { recursive: true })
   const workspace = await ctx.workspaceRegistry.create(config.workspacePath, 'EvoForge Control Center Browser')
   const handle = await ctx.agents.create({
     sessionId: config.sessionId,

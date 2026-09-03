@@ -23,6 +23,10 @@ describe('Control Center native DSH Client Module', () => {
     expect(client).toContain('conversation.view')
     expect(client).toContain('evoforge.control.surface')
     expect(client).toContain('window.__ModuleLoader__.load({')
+    // DSH's own width handle is a z-indexed sibling of the conversation body.
+    // Keep the native Control Center nav above that hit target so mouse users
+    // can activate a Surface instead of only moving keyboard focus.
+    expect(client).toContain('dsh-cc-root{position:relative;z-index:9')
     expect(client).not.toContain('position:fixed')
     expect(client).not.toContain('createBrowserRouter')
     expect(client).not.toContain('react-router')

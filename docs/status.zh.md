@@ -10,6 +10,22 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.100：Control Center 鼠标命中层修复与真实单页复验（本轮）
+
+重新 fetch 并确认 DSH 最新远端 `origin/master` 为 `76fda729…`、工作树 clean。真实 DSH 页面定位到“看得到但点不
+进去”的根因：DSH 自己的左侧宽度拖拽层以 `z-index:8`、40px 命中区域覆盖了 Control Center 导航按钮。键盘方向键
+仍然有效，因而此前单测和键盘证据无法发现这个鼠标命中问题。
+
+`dsh-control-center` 现在让整个原生 `conversation.view` 根节点建立 `position:relative; z-index:9` 层叠上下文，越过
+该 DSH sibling 拖拽层；只提高内部导航层级不足以解决外部 stacking context。浏览器夹具同时在
+`WorkspaceRegistry` 解析前创建 test-owned workspace，clean overlay 不再因不存在路径失败。新增客户端契约断言锁定
+命中层级。
+
+在可构建的 DSH alpha.5 支持 profile（`db6bdc…`）中，真实浏览器仅保留一个标签，鼠标点击 `渠道`、`飞书内容`、
+`演化` 均成功切换，`刷新状态` 可用，整页 reload 后控制台和渠道仍可恢复。Control Center typecheck、构建和 2 个
+测试文件/5 个测试通过。最新 DSH master 的已知上游 module-table 构建缺陷未被修改；真实 Feishu AS-2、Provider、
+Hermes paired、长期效果和 release tag 门不因本修复改变。详见 [V5.100 证据](evidence/v5-100-control-center-mouse-hit-target-2026-09-04.zh.md)。
+
 ## V5.94：飞书事件回调故障边界（本轮）
 
 重新 fetch 并确认 DSH 最新远端 `master` 为 `76fda729…` 后，收口官方飞书 SDK 事件回调的异步拒绝路径。
