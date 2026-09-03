@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.129**: Reconciled dynamic Feishu pairing routes with the authoritative Gateway state. Host route listings,
+  health snapshots, notifications, and inbound handling now drop revoked grants while preserving the native DSH
+  Agent/Session; the assembled revoke → re-pair regression passed 1/1 after waiting for outbound terminal state.
+  This does not change the still-blocked real Feishu, Provider, Hermes paired, long-term, or npm release gates. See
+  [V5.129 evidence](docs/evidence/v5-129-feishu-revoked-route-reconciliation-2026-09-04.zh.md).
+
 - **V5.128**: Added an explicit `benchmark:hermes:ev1:alpha5` script and documented the current alpha.5 manifest/result
   path, while keeping the historical EV-1 command and epoch immutable. The new entry still requires an exact DSH source
   and fails closed on revision or result drift.

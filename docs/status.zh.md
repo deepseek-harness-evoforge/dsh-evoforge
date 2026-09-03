@@ -10,6 +10,12 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.129：飞书撤销配对路由权威同步（本轮）
+
+修复 `dsh-feishu` 动态配对 route 的本地缓存不会随 Gateway Host 撤销而消失的问题。Host 路由列表、健康快照、通知和入站入口现在都会以 Gateway 当前 route 为权威；撤销后旧 route 被移除、通知 fail closed，DSH 原生 Agent/Session 保留，下一条陌生私聊重新走配对码。最新 DSH clean preflight、`dsh-gateway` 构建和 Feishu 配对装配回归 `1/1` 通过。详见 [V5.129 证据](evidence/v5-129-feishu-revoked-route-reconciliation-2026-09-04.zh.md)。
+
+这只修复撤销/重配对的一致性，不改变真实 Feishu AS-2、独立 Provider、Hermes paired、长期效果或 npm 命名空间发布门的状态。
+
 ## V5.102：最新 DSH master 官方构建阻断复核（本轮）
 
 重新 fetch 后，DSH checkout 已与 `origin/master`

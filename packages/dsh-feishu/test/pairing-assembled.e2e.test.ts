@@ -152,6 +152,9 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', (
           whenIdle(): Promise<void>
         }>
         route(id: string): { workspaceId: string } | undefined
+        healthSnapshot(now?: number, routeIds?: readonly string[]): {
+          outbound: { prepared: number; sending: number; retrying: number }
+        }
         approvePairing(input: {
           adapter: string
           accountId: string
@@ -166,6 +169,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', (
           }
           now: number
         }): Promise<unknown>
+        revokePairing(routeId: string): Promise<unknown>
       }
       const agent = await gateway.resolve('existing-test-route')
       const hostRoute = ctx.get('evoforge.feishuRoute') as {
@@ -252,6 +256,61 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', (
       })).resolves.toMatchObject({ status: 'prepared' })
       await eventually(() => service.platform.texts.some(item => item.text === 'Resident pairing notice.'))
       expect(service.platform.connected).toBe(true)
+
+      const pairedRouteId = hostRoute?.routes[0]?.routeId
+      if (pairedRouteId === undefined) throw new Error('paired route was not exposed to Host')
+      await eventually(() => {
+        const outbound = gateway.healthSnapshot(Date.now(), [pairedRouteId]).outbound
+        return outbound.prepared === 0 && outbound.sending === 0 && outbound.retrying === 0
+      })
+      await expect(gateway.revokePairing(pairedRouteId)).resolves.toMatchObject({
+        routeId: pairedRouteId,
+        alreadyRevoked: false,
+      })
+      expect(hostRoute?.routes).toEqual([])
+      await expect(hostRoute?.notify({
+        id: 'b'.repeat(64),
+        routeId: pairedRouteId,
+        text: 'Revoked route must not receive notices.',
+      })).rejects.toThrow(`dsh-feishu: host notice route '${pairedRouteId}' is not configured`)
+
+      await service.platform.emitMessage(message({
+        messageId: 'om_repair',
+        content: '撤销后重新配对',
+      }))
+      const repairCode = service.platform.texts.at(-1)?.text.match(/[A-HJ-NP-Z2-9]{10}/u)?.[0]
+      expect(repairCode).toBeDefined()
+      if (repairCode === undefined) throw new Error('repair pairing code missing')
+      await gateway.approvePairing({
+        adapter: 'feishu',
+        accountId: 'cli_test_app',
+        code: repairCode,
+        target: {
+          id: 'feishu-repaired',
+          workspaceId: gateway.route('existing-test-route')!.workspaceId,
+          sessionId: 'pairing-session',
+          agentPreset: 'pairing-test',
+          provider: 'cli-mock',
+          model: 'cli-mock',
+        },
+        now: Date.now(),
+      })
+      await service.platform.emitMessage(message({
+        messageId: 'om_repaired',
+        content: '重新配对后进入 DSH',
+      }))
+      await agent.whenIdle()
+      await eventually(() => hostRoute?.routes.some(route => route.routeId === 'feishu-repaired') === true)
+      const feishuCommand = ctx.commands.find(agent as never, 'feishu')
+      const health = await feishuCommand?.handler({
+        commandId: 'feishu-repaired-health' as never,
+        agent,
+        rawInput: '',
+        attachments: [],
+        signal: new AbortController().signal,
+      })
+      expect(health).toMatchObject({ kind: 'success' })
+      expect(health?.text).toContain('feishu-repaired')
     } finally {
       await ctx.fiber.dispose()
       process.chdir(previousCwd)

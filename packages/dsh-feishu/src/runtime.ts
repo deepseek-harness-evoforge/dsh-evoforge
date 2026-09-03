@@ -301,6 +301,7 @@ export class FeishuRuntime {
     if (!/^[a-f0-9]{64}$/u.test(notice.id)) {
       throw new Error('dsh-feishu: host notice id must be a SHA-256 hex digest')
     }
+    this.syncActivePairedRoutes()
     const route = this.routesById.get(notice.routeId)
     if (route === undefined) throw new Error(`dsh-feishu: host notice route '${notice.routeId}' is not configured`)
     const prepared = await this.requireOutbound().submit({
@@ -318,6 +319,7 @@ export class FeishuRuntime {
     const runtime = this
     return Object.freeze({
       get routes(): readonly FeishuHostRouteBinding[] {
+        runtime.syncActivePairedRoutes()
         return Object.freeze([...runtime.routesById.values()]
           .map(route => Object.freeze({ routeId: route.id, workspaceId: route.workspaceId }))
           .sort((left, right) => left.routeId.localeCompare(right.routeId)))
@@ -333,9 +335,12 @@ export class FeishuRuntime {
 
   /** Redacted projection of the exact Host state; it performs no model or platform call. */
   healthSnapshot(routes: readonly ResolvedFeishuRoute[] = [...this.routesById.values()]): FeishuHealthSnapshot {
-    const routeIds = new Set(routes.map(route => route.id))
+    this.syncActivePairedRoutes()
+    const activeRoutes = routes.filter(route => this.routesById.get(route.id) === route
+      || this.configuredRouteIds.has(route.id))
+    const routeIds = new Set(activeRoutes.map(route => route.id))
     const observedAt = Date.now()
-    const sessionId = routes[0]?.sessionId
+    const sessionId = activeRoutes[0]?.sessionId
     const agent = sessionId === undefined ? undefined : this.agentsBySession.get(sessionId)
     const requestHeader = agent?.session.requestHeader()
     const toolAvailable = agent?.ctx.get('tools')?.get(FEISHU_CONTENT_TOOL, agent) !== undefined
@@ -347,7 +352,7 @@ export class FeishuRuntime {
       now: observedAt,
       accountId: this.config.appId,
       transport: gateway.transports.items[0]!,
-      routes: routes.map(route => ({
+      routes: activeRoutes.map(route => ({
         id: route.id,
         workspaceId: route.workspaceId,
         sessionId: route.sessionId,
@@ -409,13 +414,15 @@ export class FeishuRuntime {
       recordInput: false,
       handler: ({ rawInput }) => {
         if (rawInput.trim() !== '') return { kind: 'error', text: 'Usage: /feishu' }
-        return { kind: 'success', text: renderFeishuHealthCommand(this.healthSnapshot(routes)) }
+        const currentRoutes = this.routesBySession.get(sessionId) ?? []
+        return { kind: 'success', text: renderFeishuHealthCommand(this.healthSnapshot(currentRoutes)) }
       },
     }))
   }
 
   private async handleMessage(message: FeishuInboundMessage): Promise<void> {
     if (this.lifecycle.signal.aborted) return
+    this.syncActivePairedRoutes()
     this.observeInboundActivity()
     if (message.rawContentType !== 'text' && message.rawContentType !== 'post'
       && message.rawContentType !== 'image') return
@@ -554,6 +561,31 @@ export class FeishuRuntime {
     })
     this.rememberRoute(selected)
     return selected
+  }
+
+  /**
+   * Gateway pairing grants are revocable Host state. Do not let a local cache
+   * keep exposing a grant after the authoritative Gateway has removed it.
+   * Configured routes are intentionally retained: their lifecycle is owned by
+   * the DSH configuration, not the pairing authority.
+   */
+  private syncActivePairedRoutes(): void {
+    if (!this.config.pairedRoutes) return
+    let changed = false
+    for (const routeId of this.routesById.keys()) {
+      if (this.configuredRouteIds.has(routeId)) continue
+      if (this.gateway.route(routeId) !== undefined) continue
+      this.routesById.delete(routeId)
+      changed = true
+    }
+    if (!changed) return
+    const rebuilt = new Map<string, readonly ResolvedFeishuRoute[]>()
+    for (const route of this.routesById.values()) {
+      const routes = rebuilt.get(route.sessionId) ?? []
+      rebuilt.set(route.sessionId, Object.freeze([...routes, route]))
+    }
+    this.routesBySession.clear()
+    for (const [sessionId, routes] of rebuilt) this.routesBySession.set(sessionId, routes)
   }
 
   private rememberRoute(route: ResolvedFeishuRoute): void {
