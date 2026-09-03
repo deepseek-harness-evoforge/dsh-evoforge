@@ -56,7 +56,7 @@
     },
     {
       "id": "real-feishu-as2",
-      "title": "Real Feishu resident Gateway epoch-4 (latest isolated retry)",
+      "title": "Real Feishu resident Gateway epoch-4 (latest 15-minute isolated retry)",
       "requiredForTag": true,
     "status": "failed",
     "evidence": [
@@ -68,7 +68,11 @@
       "docs/evidence/v5-74-feishu-as2-epoch5-no-event-2026-09-03.zh.md",
       "docs/evidence/v5-80-feishu-as2-latest-isolated-retry-2026-09-03.zh.md",
       "docs/evidence/v5-89-feishu-as2-epoch4-no-pending-2026-09-04.zh.md",
-      "docs/evidence/v5-97-real-feishu-as2-no-pending-2026-09-04.zh.md"
+      "docs/evidence/v5-97-real-feishu-as2-no-pending-2026-09-04.zh.md",
+      "docs/evidence/v5-114-feishu-as2-overlay-loader-row-fix-2026-09-04.zh.md",
+      "docs/evidence/v5-115-feishu-as2-official-transport-no-pending-2026-09-04.zh.md",
+      "docs/evidence/v5-118-feishu-as2-overlay-regression-contract-2026-09-04.zh.md",
+      "docs/evidence/v5-121-feishu-as2-long-wait-no-pending-2026-09-04.zh.md"
       ],
       "blocker": "The latest request-id run reached official WebSocket ready but observed no Feishu pending request; event arrival is unproven, and no authorized run has completed the real direct-message, Schedule, Approval, restart, uninstall, and readback epoch."
     },
