@@ -13,7 +13,7 @@
 > V5.13 纠正冻结 Hermes `EV-1` runner 的架构漂移：它不再引用已删除的 `GitSkillSource` 或 legacy Git artifact，而是以 sealed canonical `skill-bundle`、`GenerationBundleRepository` 和 expected-active rollback 重放同一 frozen epoch。四个确定性 Hermes epoch 已从当前 `main` 全部复跑，冻结报告未改写；真实模型、真实渠道与长期 paired 门禁仍未完成。
 > V5.14 补齐十一包官方升级纵切：从冻结 V5.11 revision `b0e4360b49c243535395b7b1ffba59b9ce0ae2c6` 构建真实历史 Bundle，以测试专用 predecessor 版本安装并由原生 Agent/Goal 写入内部 Capability Gap，再用当前最终 tarball 通过 `dsh plugin ... add` 原位升级。新版读回旧 Gap，并从第二个不同 Goal 形成同一 Skill Opportunity；Bundle/组合无重复，全部卸载后两条原生 Session/Goal 仍可读。该门不替代真实已发布 tag→tag、真实 Provider、真实飞书或 Hermes paired 证据。
 > V5.15 将“已验证支持版本”和“最新设计审计版本”分离：前者仍是 `47f9438`（`0.1.0-rc.5`）；后者固定为官方最新 tag `b150a55`（`0.1.1-rc.2`）。[直接源码审计](research/dsh-current-attachment-contract-2026-08-24.zh.md)确认 rc.2 的 AttachmentStore、LLM ContentBlock 和 DeepSeek Files 序列化仍只支持栅格图片，官方 README 明确把 generic file/audio/video 留给独立生命周期与 provider 契约。因此普通文件、音频和视频继续是上游契约缺口；不得以 Files API 名称、私有 Gateway block 或 Adapter 私库冒充完成。rc.2 兼容声明必须另经十一包 clean-profile assembled 矩阵，不能由本次设计审计推断。
-> V5.16 已完成这项独立兼容门：rc.5 与 rc.2 均由 exact revision/version/clean-source guard 锁定，并通过十一包 fresh-install、冻结前代→当前升级、原生 Agent/Goal/Gap、飞书 assembled 内容/渠道及卸载 readback。支持 peer 只列这两个 exact 版本；未知预发布版不能因 semver 范围碰巧匹配而进入支持声明。该矩阵不改变 generic file/audio/video 上游缺口，也不替代真实 Provider、真实飞书或 Hermes paired 证据。
+> V5.16 当时完成了 rc.5 与 rc.2 的独立兼容门；这只是历史 evidence，不代表当前支持范围。当前支持声明已在 V5.69 迁移到 DSH `dsh-v0.1.2-alpha.5`，任何旧版本都必须重新完成 assembled 矩阵后才能恢复。该历史矩阵不改变 generic file/audio/video 上游缺口，也不替代真实 Provider、真实飞书或 Hermes paired 证据。
 > V5.18 已删除飞书 assembled chat 中用手工 `agent.followup()` 冒充 Goal/Schedule continuation 的不合格证据，改为加载官方 DSH Schedule、经 agent-scoped `schedule_create` 形成原生 create/dispatch 事件和到期 follow-up，再由现有 Gateway durable turn intent 等待 `turn/end` 后回送同一飞书线程。该纵切不增加第二 scheduler、Feishu 私有日程状态或模型表面；真实飞书 direct/group 仍为 `NOT_RUN`。
 > V5.19 已在真实子进程中让 `schedule_create` 与 Session flush 完成后、dispatch 前执行 `SIGKILL`；第二个 Host 通过同一静态 Gateway route 恢复 exact Session，官方 Schedule 处理 overdue，并由既有 durable turn journal 回送一次飞书线程；第三次 Host 启动不重放。该门已在 exact rc.5/rc.2 分别通过，不增加 runtime 实现。官方 Schedule 的 followup 已入队但 dispatch 尚未 checkpoint 的窄重复窗口仍是未解决边界，不能宣称全窗口 exactly-once。
 > V5.20 对该窄窗口做了真实反向故障注入：第一次平台效果已写出、包含 dispatch 的 Session batch 仍被阻塞时 `SIGKILL`；恢复后 Schedule 会重跑非 durable turn，但 Gateway 因 exact route+turn intent 不第二次调用平台，跨进程效果保持一条。该结论只覆盖渠道外部效果；模型、token、时延和成本仍可能重复，不增加 Schedule parser、causal key 或私有日程状态。
@@ -39,7 +39,7 @@
 7. 不 fork、不 monkey patch DSH。若门禁暴露 DSH Core Defect，只保留最小复现并上游报告。
 8. 用户入口是自然语言 Goal、材料、约束与验收条件。系统必须在内部完成能力识别、Skill 路由和执行路径选择；开头不得要求用户从任务类别、工作流、Agent 或 Skill 菜单中选路。
 
-当前已验证支持基线为两个 exact DeepSeek Harness 目标：commit `47f943859bef60e4160492346772ded9b24f765a`（`0.1.0-rc.5`）和官方 tag `dsh-v0.1.1-rc.2` 所指向的 commit `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`（`0.1.1-rc.2`）。开发依赖可为获得已发布类型而使用 rc.6 包，但这不扩大支持声明；支持证据只来自 exact revision/version、无 tracked 修改的源码 assembled gate。未来任何 DSH 版本仍须重新完成安装、dump、boot、真实路径、reload/dispose、升级、卸载与原生 readback 后才能加入 peer allowlist。
+当前已验证支持基线为 DSH `dsh-v0.1.2-alpha.5`，revision `db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`。此前 `0.1.0-rc.5` 与 `0.1.1-rc.2` 的 assembled 结果只作历史 evidence；当前公开包的 peer/dev 依赖已精确迁移到 alpha.5。最新公开 `dsh-v0.1.2-rc.1` 已完成更新审计，但上游 clean build 被根级 tsdown 入口阻断，不能进入支持声明；详见 [rc.1 迁移审计](research/dsh-rc1-migration-audit-2026-09-03.zh.md)。未来任何 DSH 版本仍须重新完成安装、dump、boot、真实路径、reload/dispose、升级、卸载与原生 readback 后才能加入 peer allowlist。
 
 ## 1. 项目愿景
 
