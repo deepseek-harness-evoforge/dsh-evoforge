@@ -6,6 +6,10 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.110**: Normalized equivalent GitHub repository URL forms in the npm ownership gate without accepting another host or
+  path. This prevents a future owned scoped package from being falsely classified as a collision; six classifier tests and
+  documentation checks passed. Existing unowned-name collisions still block the first tag. See [V5.110 evidence](docs/evidence/v5-110-npm-repository-url-normalization-2026-09-04.zh.md).
+
 - **V5.109**: Separated workspace directory identity from the public npm name in `pack:suite`. Scoped package migration can now
   produce the correct tarball filename and DSH remove target without rewriting Cordis Bundle identities. Core suite packing and
   suite tests passed; the existing npm ownership blocker remains. See [V5.109 evidence](docs/evidence/v5-109-suite-pack-public-name-boundary-2026-09-04.zh.md).

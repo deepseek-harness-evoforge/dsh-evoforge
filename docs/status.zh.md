@@ -62,6 +62,13 @@ npm Scope 后会与 package manifest 名称分叉。本轮改为同时记录 `di
 `filename`，保持 DSH Bundle row 身份不变。core 套件真实打包、套件脚本测试和文档检查均通过；当前四个 npm 冲突及
 命名空间授权仍是首个 tag 的硬阻塞。详见 [V5.109 证据](evidence/v5-109-suite-pack-public-name-boundary-2026-09-04.zh.md)。
 
+## V5.110：npm 仓库归属 URL 规范化（本轮）
+
+进一步审计真实 registry 归属判定时发现，同一 GitHub 仓库的 `git+https`、HTTPS 和 SSH 表示会被精确字符串比较
+误判为 collision。本轮只对 GitHub owner/repository 路径做严格规范化，保留不同 host/路径和解析异常的 fail-closed
+行为；6 个分类测试与文档检查通过。现有四个外部包名冲突和命名空间授权仍阻塞首个 tag。详见
+[V5.110 证据](evidence/v5-110-npm-repository-url-normalization-2026-09-04.zh.md)。
+
 ## V5.103：渠道控制面轮询契约与用户文档对齐（本轮）
 
 审计发现 `GatewaySurface` 为了让新配对请求在同一个 DSH Web 页面自动出现，实际每 5 秒读取一次 Host 脱敏

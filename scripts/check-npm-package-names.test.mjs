@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { classifyRegistryResult } from './check-npm-package-names.mjs'
+import { classifyRegistryResult, sameRepository } from './check-npm-package-names.mjs'
 
 const repository = 'git+https://github.com/deepseek-harness-evoforge/dsh-evoforge.git'
 
@@ -36,5 +36,23 @@ test('fails closed on registry errors that are not a 404', () => {
   assert.deepEqual(classifyRegistryResult({ status: 1, stderr: 'npm error code ETIMEDOUT' }, repository), {
     state: 'unknown',
     reason: 'npm error code ETIMEDOUT',
+  })
+})
+
+test('accepts equivalent GitHub repository URL forms without accepting another host', () => {
+  assert.equal(sameRepository('https://github.com/deepseek-harness-evoforge/dsh-evoforge/', repository), true)
+  assert.equal(sameRepository('git@github.com:deepseek-harness-evoforge/dsh-evoforge.git', repository), true)
+  assert.equal(sameRepository('git+https://github.com/deepseek-harness-evoforge/other.git', repository), false)
+  assert.equal(sameRepository('https://example.com/deepseek-harness-evoforge/dsh-evoforge.git', repository), false)
+})
+
+test('classifies a normalized URL for this repository as owned', () => {
+  assert.deepEqual(classifyRegistryResult({
+    status: 0,
+    stdout: JSON.stringify({ version: '0.1.1', repository: { url: 'https://github.com/deepseek-harness-evoforge/dsh-evoforge/' } }),
+  }, repository), {
+    state: 'owned',
+    version: '0.1.1',
+    repository: 'https://github.com/deepseek-harness-evoforge/dsh-evoforge/',
   })
 })

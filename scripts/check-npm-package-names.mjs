@@ -25,7 +25,7 @@ export function classifyRegistryResult({ status, stdout = '', stderr = '' }, exp
     const repository = typeof metadata.repository === 'string'
       ? metadata.repository
       : metadata.repository?.url
-    if (repository === expectedUrl) {
+    if (sameRepository(repository, expectedUrl)) {
       return { state: 'owned', version: metadata.version ?? null, repository }
     }
     return {
@@ -40,6 +40,31 @@ export function classifyRegistryResult({ status, stdout = '', stderr = '' }, exp
   if (/\bE404\b|\b404\b|not found/iu.test(combined)) return { state: 'available' }
   const detail = combined.trim().replace(/\s+/gu, ' ').slice(0, 240)
   return { state: 'unknown', reason: detail || `npm exited with status ${status}` }
+}
+
+/**
+ * npm may normalize a GitHub repository field differently from package.json
+ * (git+https, https, or scp-style SSH; optional .git/trailing slash). Compare
+ * only the canonical GitHub owner/repository path so an equivalent URL is
+ * owned, while a different host or path remains a collision.
+ */
+export function sameRepository(actual, expected) {
+  const normalize = value => {
+    if (typeof value !== 'string') return null
+    let text = value.trim()
+    if (text.startsWith('git+')) text = text.slice(4)
+    if (/^git@github\.com:/iu.test(text)) text = `https://github.com/${text.slice('git@github.com:'.length)}`
+    try {
+      const url = new URL(text)
+      if (url.hostname.toLowerCase() !== 'github.com') return null
+      return url.pathname.replace(/^\/+|\/+$/gu, '').replace(/\.git$/iu, '').toLowerCase()
+    } catch {
+      return null
+    }
+  }
+  const left = normalize(actual)
+  const right = normalize(expected)
+  return left !== null && right !== null && left === right
 }
 
 async function readPackageManifests() {
