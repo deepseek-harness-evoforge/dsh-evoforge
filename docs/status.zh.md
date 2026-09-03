@@ -64,9 +64,9 @@ DSH 原生卸载、最小权限或信任域的包；因此不做目录级删减�
 `dsh-channel-router`、ClawHub/市场获取、重复状态库和旧 Web 表面继续保持物理删除。审计表与安装决策见
 [插件边界审计](audits/2026-09-03-package-boundary-audit.zh.md)。
 
-## V5.74：真实飞书 AS-2 epoch-5 严格失败（本轮）
+## V5.74：真实飞书 AS-2 epoch-4 最新隔离重试严格失败（本轮）
 
-新的隔离 AS-2 run 使用 EvoForge `026a0e0…` 与 DSH alpha.5 `db6bdc…`，三包最终产物安装、profile dump 和
+epoch-4 合同的最新隔离 AS-2 重试使用 EvoForge `026a0e0…` 与 DSH alpha.5 `db6bdc…`，三包最终产物安装、profile dump 和
 官方 WebSocket ready 均通过；15 分钟人工窗口内没有收到与当前 App 身份匹配的 pending pairing request，
 因此在 `awaiting-resident-pairing-request` fail closed。没有批准 principal、进入 Agent 或产生外部副作用，
 所有后续 direct message、Command、Schedule、Approval、重启、卸载和 readback 观察值均为 false。详见

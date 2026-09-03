@@ -1,8 +1,8 @@
-# V5.74：真实飞书 AS-2 epoch-5 事件到达失败证据（2026-09-03）
+# V5.74：真实飞书 AS-2 epoch-4 最新隔离重试失败证据（2026-09-03）
 
 ## 运行身份
 
-本轮使用新的隔离 run root，未复用任何之前的终态或配对授权。EvoForge 固定在
+本轮是 epoch-4 合同的最新一次隔离重试，使用新的 run root，未复用任何之前的终态或配对授权。EvoForge 固定在
 `026a0e07a96c7a82cdbc30a301f5b99b3713f40c`，DSH 固定在可构建的
 `db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`（`dsh-v0.1.2-alpha.5`）；App 身份只以脱敏 hash 记录。
 Secret、chat id、user id 和临时目录不写入仓库。
@@ -52,7 +52,7 @@ Secret、chat id、user id 和临时目录不写入仓库。
 
 ## 发布门影响
 
-本次结果替换此前运行的“等待事件”证据，`real-feishu-as2` 继续为 `failed`。下一次必须使用新的隔离 run
+本次结果补充此前运行的“等待事件”证据，`real-feishu-as2` 继续为 `failed`。下一次必须使用新的隔离 run
 root，在事件确实到达后完成完整 direct message、Command、Schedule、Approval、notice、restart、remove
 和 readback 纵切；不得重用本次非终态状态或伪造 pending request。该证据不影响已通过的本地兼容、clean-profile
 和单页浏览器门，也不允许创建发布 tag。
