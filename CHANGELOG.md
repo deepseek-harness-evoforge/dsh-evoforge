@@ -6,6 +6,10 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.128**: Added an explicit `benchmark:hermes:ev1:alpha5` script and documented the current alpha.5 manifest/result
+  path, while keeping the historical EV-1 command and epoch immutable. The new entry still requires an exact DSH source
+  and fails closed on revision or result drift.
+
 - **V5.127**: Added documentation checks for the copyable Goal prompt: its final text block must stay within 2,000
   characters, require autonomous continuation, and avoid promising an unsupported host CLI. This is a documentation
   guard only; runtime behavior is unchanged.

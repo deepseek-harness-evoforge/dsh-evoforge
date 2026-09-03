@@ -59,6 +59,12 @@ epoch-1 冻结结果不变。两页都明确该结果只支持确定性 Skill �
 在 `check-docs` 增加可复制 Goal 提示词守护：最终 `text` 块必须存在、总长度不超过 2000 字符，必须要求自主
 继续，并禁止承诺不存在的宿主 CLI。这样后续文档编辑不会重新引入入口或预算漂移；运行时未改。
 
+## V5.128：alpha.5 EV-1 复现入口显式化（本轮）
+
+新增 `pnpm benchmark:hermes:ev1:alpha5`，固定使用当前 alpha.5 manifest/result；开发文档同时保留历史四个
+epoch 的兼容入口并明确两者不可互相替代。新入口仍要求 `DSH_EVOLVE_DSH_SOURCE_DIR` 指向 exact alpha.5，
+revision 或冻结结果漂移会 fail closed。
+
 ## V5.104：npm 包名归属审计与发布阻断（本轮）
 
 在再次 fetch 并确认最新 DSH `origin/master` 为 `76fda729…`、工作树 clean 后，查询所有公开 Bundle 的 npm
