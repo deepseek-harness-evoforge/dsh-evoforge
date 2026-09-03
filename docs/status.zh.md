@@ -112,6 +112,13 @@ Hermes paired、长期效果、Telegram 和 npm 发布门禁。详见
 `check:docs` 与 `git diff --check` 通过。详见
 [V5.117 证据](evidence/v5-117-user-readme-rewrite-2026-09-04.zh.md)。
 
+## V5.118：Feishu AS-2 overlay 行替换回归契约（本轮）
+
+为防止 V5.114 的 Loader 冲突回归，AS-2 合同新增静态结构门，锁定 `web-runtime` 必须按 id 顶层替换、不得放进
+`insert`；类型检查和安全/输入/终态合同 `11/11` 通过。该检查不读取凭据、不连接飞书、不产生外部效果；真实
+Feishu AS-2 仍需独立 run root 和真实私聊完成。详见
+[V5.118 证据](evidence/v5-118-feishu-as2-overlay-regression-contract-2026-09-04.zh.md)。
+
 ## V5.103：渠道控制面轮询契约与用户文档对齐（本轮）
 
 审计发现 `GatewaySurface` 为了让新配对请求在同一个 DSH Web 页面自动出现，实际每 5 秒读取一次 Host 脱敏

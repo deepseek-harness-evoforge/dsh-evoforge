@@ -80,6 +80,14 @@ describe('AS-2 real Feishu acceptance contract', () => {
     assert.doesNotMatch(source, /approvePairingForSession|createInterface|process\.stdin|Pairing code:/u)
   })
 
+  test('replaces DSH web-runtime by id instead of inserting a duplicate Loader row', () => {
+    const source = readFileSync(execution, 'utf8')
+
+    assert.match(source, /\n- id: web-runtime\n  config:\n    openBrowser: false/u)
+    assert.match(source, /\n- id: web-runtime[\s\S]*\n\n- insert:\n    - id: as2-cli-mock-llm/u)
+    assert.doesNotMatch(source, /- insert:\n[\s\S]{0,512}- id: web-runtime/u)
+  })
+
   test('rejects malformed App identity and overlapping run roots before dispatch', () => {
     const invalidIdentity = resolveRealFeishuAcceptance({ ...readyEnvironment(), DSH_FEISHU_APP_ID: 'not-an-app' })
     assert.equal(invalidIdentity.status, 'failed')

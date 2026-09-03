@@ -26,6 +26,11 @@ All notable changes will be recorded here. The project has not published a stabl
   troubleshooting, and honest pre-alpha limitations; maintainer evidence remains under `docs/`. Documentation checks pass.
   See [V5.117 evidence](docs/evidence/v5-117-user-readme-rewrite-2026-09-04.zh.md).
 
+- **V5.118**: Added an AS-2 regression contract that requires the acceptance overlay to replace DSH's existing `web-runtime`
+  row by id and rejects putting it inside `insert`. Typecheck and 11/11 safety/input/terminal contract tests pass; no real
+  credentials or platform effects are used. Real Feishu remains unpassed.
+  See [V5.118 evidence](docs/evidence/v5-118-feishu-as2-overlay-regression-contract-2026-09-04.zh.md).
+
 - **V5.113**: Added a cross-instance Generation cache readback regression for nested Skill references. A fresh
   `GenerationBundleRepository` verifies the immutable owner marker, read-only tree, file list, and hashes after materialization;
   the candidate-publisher suite passed 8/8. See [V5.113 evidence](docs/evidence/v5-113-generation-cache-restart-verification-2026-09-04.zh.md).
