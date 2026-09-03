@@ -621,18 +621,20 @@ async function writeAcceptanceOverlay(
   workspaceId: string,
   mockLlmPath: string,
 ): Promise<void> {
-  const overlay = `- insert:
-    # AS-2 is a non-interactive Host acceptance runner. Keep DSH's native Web
-    # server available for RPC composition, but do not print a fresh URL (or
-    # hand off a browser) for every seed/restart boot; the product control
-    # surface remains one native conversation.view page when a user runs DSH.
-    - id: web-runtime
-      config:
-        openBrowser: false
-        printUrl: false
-        surfaceContext: false
-        trustedHosts: []
+  const overlay = `# AS-2 is a non-interactive Host acceptance runner. Keep DSH's native Web
+# server available for RPC composition, but do not print a fresh URL (or hand
+# off a browser) for every seed/restart boot; the product control surface
+# remains one native conversation.view page when a user runs DSH.
+# This is a row replacement, not an insert: dsh-web-app already owns the
+# web-runtime row and this profile layer replaces it by id.
+- id: web-runtime
+  config:
+    openBrowser: false
+    printUrl: false
+    surfaceContext: false
+    trustedHosts: []
 
+- insert:
     - id: as2-cli-mock-llm
       name: ${yaml(mockLlmPath)}
 

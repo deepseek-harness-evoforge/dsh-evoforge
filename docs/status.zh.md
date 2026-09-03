@@ -83,6 +83,13 @@ npm Scope 后会与 package manifest 名称分叉。本轮改为同时记录 `di
 只读目录/文件、清单和内容哈希校验，确认“当前进程可用”与“Host 重启后可恢复”不是同一条未经证明的假设。详见
 [V5.113 证据](evidence/v5-113-generation-cache-restart-verification-2026-09-04.zh.md)。
 
+## V5.114：真实飞书 AS-2 Loader 行冲突修复（本轮）
+
+真实 AS-2 首次重跑在官方传输启动前暴露了验收 overlay 的配置错误：它把 DSH Web 已拥有的 `web-runtime` 放入
+`insert`，Loader 报 `duplicate loader entry id`。本轮按 DSH 官方 patch 语义改为顶层同 `id` 完整替换，AS-2 类型检查
+和安全契约 `10/10` 通过；重新尝试真实运行时因工作树尚未提交被 clean guard 拒绝，未读取凭据或发起平台请求。详见
+[V5.114 证据](evidence/v5-114-feishu-as2-overlay-loader-row-fix-2026-09-04.zh.md)。真实 Feishu AS-2 仍未通过。
+
 ## V5.103：渠道控制面轮询契约与用户文档对齐（本轮）
 
 审计发现 `GatewaySurface` 为了让新配对请求在同一个 DSH Web 页面自动出现，实际每 5 秒读取一次 Host 脱敏
