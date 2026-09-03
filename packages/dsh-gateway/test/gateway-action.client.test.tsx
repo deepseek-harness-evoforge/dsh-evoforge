@@ -218,6 +218,27 @@ describe('Gateway Control Surface', () => {
     expect(screen.queryByLabelText('配对码')).toBeNull()
     expect(screen.queryByRole('list', { name: '飞书首次连接进度' })).toBeNull()
   })
+
+  it('keeps pairing labels isolated when two Gateway surfaces are mounted', async () => {
+    const remote = {
+      overview: vi.fn(async () => ({ ok: true, value: {
+        ...snapshot(),
+        transports: { ...snapshot().transports, items: [snapshot().transports.items[0]!] },
+      } })),
+      pendingPairings: vi.fn(async () => ({ ok: true, value: [] })),
+      approvePairing: vi.fn(),
+      approvePairingRequest: vi.fn(),
+      revokePairing: vi.fn(),
+    } as GatewayRemoteClient
+
+    render(<><GatewaySurface {...surfaceProps(remote)} /><GatewaySurface {...surfaceProps(remote)} /></>)
+
+    const inputs = await screen.findAllByLabelText('配对码')
+    expect(inputs).toHaveLength(2)
+    expect(new Set(inputs.map(input => input.id)).size).toBe(2)
+    expect(inputs.every(input => input.id.startsWith('dsh-gateway-'))).toBe(true)
+    expect(inputs.every(input => document.querySelector(`label[for="${input.id}"]`) !== null)).toBe(true)
+  })
 })
 
 function surfaceProps(remote: GatewayRemoteClient): GatewaySurfaceProps {

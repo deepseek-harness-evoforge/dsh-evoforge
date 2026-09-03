@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 import type { ControlSurfaceProps, ControlTone } from 'dsh-control-center/client'
 import type {
@@ -35,6 +35,7 @@ const PENDING_POLL_INTERVAL_MS = 5_000
 
 /** Gateway Adapter for the common DSH Control Surface. */
 export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: GatewaySurfaceProps) {
+  const instanceId = useId().replaceAll(':', '')
   const requestRef = useRef(0)
   const pendingRequestRef = useRef(0)
   const workspaceId = useWorkspaces(state => state.items.find(workspace => workspace.sessionIds.includes(sessionId))?.workspaceId)
@@ -159,6 +160,7 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
   const status = snapshot === undefined ? undefined : viewStatus(snapshot)
   const pending = snapshot === undefined ? 0 : snapshot.outbound.prepared + snapshot.outbound.sending + snapshot.outbound.retrying
   const anomalies = snapshot === undefined ? 0 : snapshot.ingress.uncertain + snapshot.outbound.uncertain + snapshot.outbound.failed
+  const pairingCodeId = `dsh-gateway-${instanceId}-pairing-code`
   const showFeishu = snapshot !== undefined && (
     snapshot.transports.items.some(item => item.adapter === 'feishu')
       || snapshot.routes.items.some(route => route.adapter === 'feishu')
@@ -257,10 +259,10 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
 
         {showFeishu && <UI.Section title={t('pairing.title')} description={t('pairing.help')}>
           <div className="dsh-cc-form">
-            <label htmlFor="dsh-gateway-pairing-code">{t('pairing.code')}</label>
+            <label htmlFor={pairingCodeId}>{t('pairing.code')}</label>
             <div className="dsh-cc-form-row">
               <input
-                id="dsh-gateway-pairing-code"
+                id={pairingCodeId}
                 value={pairingCode}
                 maxLength={10}
                 autoComplete="off"

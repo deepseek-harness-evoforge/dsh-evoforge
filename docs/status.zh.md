@@ -41,6 +41,15 @@ pairing request，运行在配对前 fail closed。没有批准 principal、Agen
 定向 8/8 测试通过。该增量改善清理可靠性，不提升真实 Feishu AS-2、Provider、Hermes paired、长期效果或
 release tag 门。详见 [V5.91 证据](evidence/v5-91-feishu-download-abort-signal-2026-09-04.zh.md)。
 
+## V5.92：Gateway 配对表单多挂载标识隔离（本轮）
+
+重新 fetch 并确认 DSH 最新远端 `master` 为 `76fda729…` 后，补齐统一控制面另一处多挂载可访问性缺口：
+Gateway 配对码输入框原先使用固定 DOM id，DSH 在 Session 切换或恢复时若短暂挂载多个 Gateway Surface，
+`label` 可能指向另一个 Session 的输入框。现在每个 Surface 使用 React `useId()` 生成实例化配对码 id，
+同时保持单页、原生 slot、Host 权威状态和现有配对流程不变。新增双 Surface 回归测试，类型检查和定向 7/7
+测试通过；该修复不提升真实 Feishu AS-2、Provider、Hermes paired、长期效果或 release tag 门。详见
+[V5.92 证据](evidence/v5-92-gateway-pairing-aria-isolation-2026-09-04.zh.md)。
+
 ## V5.87：飞书策略拒绝可观测性（本轮）
 
 重新 fetch 并确认 DSH 最新远端 `master` 为 `76fda729…` 后，为官方 Node SDK 的 `reject` 事件接入已有

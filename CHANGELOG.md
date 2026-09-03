@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- Isolated the Feishu pairing-code input id per mounted Gateway Surface with React `useId()`. During a native
+  DSH Session switch or recovery, temporarily mounted Gateway views can no longer make their labels point at the
+  other Session's input. Added a two-surface accessibility regression; no route, page, Session, or state store was
+  added. See [V5.92 evidence](docs/evidence/v5-92-gateway-pairing-aria-isolation-2026-09-04.zh.md).
+
 - Bound Feishu message-resource downloads to the caller's `AbortSignal` through the Adapter's existing Axios
   signal context. Gateway shutdown, Session cancellation, and Adapter disposal can now interrupt a stalled
   platform download instead of only checking cancellation before and after it; limits and error semantics are
