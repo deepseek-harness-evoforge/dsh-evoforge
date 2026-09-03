@@ -182,7 +182,7 @@ dsh --profile web
 ## 5. 开发与 assembled 验收
 
 ```sh
-pnpm check
+DSH_EVOLVE_DSH_SOURCE_DIR=/path/to/dsh-v0.1.2-alpha.5 pnpm check
 pnpm test:suite-upgrade
 DSH_EVOLVE_DSH_SOURCE_DIR=/absolute/path/to/deepseek-harness \
   pnpm --filter dsh-doctor exec vitest run test/suite-native-plugin-contract.test.ts

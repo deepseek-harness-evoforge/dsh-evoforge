@@ -23,7 +23,7 @@ EvoForge 以 DSH 官方 Bundle 作为交付单元，以能力套件作为用户�
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm check
+DSH_EVOLVE_DSH_SOURCE_DIR=/path/to/dsh-v0.1.2-alpha.5 pnpm check
 pnpm run check:suites
 pnpm run pack:suite -- --suite core --out /tmp/evoforge-packs
 pnpm run check:release
