@@ -119,6 +119,12 @@ Hermes paired、长期效果、Telegram 和 npm 发布门禁。详见
 Feishu AS-2 仍需独立 run root 和真实私聊完成。详见
 [V5.118 证据](evidence/v5-118-feishu-as2-overlay-regression-contract-2026-09-04.zh.md)。
 
+## V5.119：自我发现文档边界措辞修正（本轮）
+
+将 `dsh-evolve` README 中容易被误解为能力获取的 “background discovery” 改为 “internal evidence processing”，
+明确缺口报告只启动 DSH 内部证据处理，不触发外部搜索、下载、导入或安装。`check:docs` 与差异检查通过，未改运行时。
+详见 [V5.119 证据](evidence/v5-119-internal-gap-wording-2026-09-04.zh.md)。
+
 ## V5.103：渠道控制面轮询契约与用户文档对齐（本轮）
 
 审计发现 `GatewaySurface` 为了让新配对请求在同一个 DSH Web 页面自动出现，实际每 5 秒读取一次 Host 脱敏
