@@ -55,6 +55,13 @@ npm 归属门。详见 [V5.107 证据](evidence/v5-107-release-check-scoped-name
 异常均 fail closed。CI 与本地发布路径现在一致，实际四个 npm 冲突仍阻止首个 tag。详见
 [V5.108 证据](evidence/v5-108-local-tag-npm-preflight-2026-09-04.zh.md)。
 
+## V5.109：套件打包分离 workspace 与公开 npm 身份（本轮）
+
+继续审计命名空间迁移路径时发现，`pack-suites.mjs` 仍用 workspace 目录名推导 tarball 和卸载身份；取得项目拥有的
+npm Scope 后会与 package manifest 名称分叉。本轮改为同时记录 `dir`、manifest `name` 和由公开名称推导的
+`filename`，保持 DSH Bundle row 身份不变。core 套件真实打包、套件脚本测试和文档检查均通过；当前四个 npm 冲突及
+命名空间授权仍是首个 tag 的硬阻塞。详见 [V5.109 证据](evidence/v5-109-suite-pack-public-name-boundary-2026-09-04.zh.md)。
+
 ## V5.103：渠道控制面轮询契约与用户文档对齐（本轮）
 
 审计发现 `GatewaySurface` 为了让新配对请求在同一个 DSH Web 页面自动出现，实际每 5 秒读取一次 Host 脱敏

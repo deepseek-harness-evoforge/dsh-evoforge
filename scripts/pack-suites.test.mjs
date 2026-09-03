@@ -16,3 +16,11 @@ test('pack:suite help presents product choices before internal compatibility ent
   assert.match(result.stdout, /Maintainer-only: full/u)
   assert.ok(result.stdout.indexOf('User-facing suites:') < result.stdout.indexOf('Maintainer-only:'))
 })
+
+test('pack:suite keeps workspace directories separate from public npm names', async () => {
+  const source = await (await import('node:fs/promises')).readFile(script, 'utf8')
+  assert.match(source, /const packageDirs = getSuitePackages/u)
+  assert.match(source, /--filter', packageDir/u)
+  assert.match(source, /manifest\.name\.replace\(\/\^@\//u)
+  assert.match(source, /packages\.push\(\{ dir: packageDir, name: manifest\.name/u)
+})

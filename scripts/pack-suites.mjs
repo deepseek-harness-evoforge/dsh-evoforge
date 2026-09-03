@@ -9,13 +9,13 @@ import { DEFAULT_SUITE_ID, getSuite, getSuiteAudience, getSuitePackages } from '
 const repositoryRoot = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const args = parseArgs(process.argv.slice(2))
 const selected = getSuite(args.suite ?? DEFAULT_SUITE_ID)
-const packageNames = getSuitePackages(selected.id, args.channel)
+const packageDirs = getSuitePackages(selected.id, args.channel)
 const outputId = args.channel === undefined ? selected.id : `${selected.id}-${args.channel}`
 const output = resolve(args.out ?? '.evoforge/pack', outputId)
 await mkdir(output, { recursive: true })
 
-for (const packageName of packageNames) {
-  const result = spawnSync('pnpm', ['--filter', packageName, 'pack', '--pack-destination', output], {
+for (const packageDir of packageDirs) {
+  const result = spawnSync('pnpm', ['--filter', packageDir, 'pack', '--pack-destination', output], {
     cwd: repositoryRoot,
     stdio: 'inherit',
     shell: false,
@@ -24,13 +24,19 @@ for (const packageName of packageNames) {
 }
 
 const packages = []
-for (const packageName of packageNames) {
-  const manifest = JSON.parse(await readFile(join(repositoryRoot, 'packages', packageName, 'package.json'), 'utf8'))
-  const filename = `${packageName.replace(/^@/, '').replaceAll('/', '-')}-${manifest.version}.tgz`
+for (const packageDir of packageDirs) {
+  const manifest = JSON.parse(await readFile(join(repositoryRoot, 'packages', packageDir, 'package.json'), 'utf8'))
+  if (typeof manifest.name !== 'string' || manifest.name.length === 0) {
+    throw new Error(`Package directory ${packageDir} has no publishable name`)
+  }
+  // DSH resolves the workspace directory through pnpm, while npm derives the
+  // tarball filename and remove target from the public manifest name. Keep
+  // these identities separate so a future owned npm scope cannot break packs.
+  const filename = `${manifest.name.replace(/^@/, '').replaceAll('/', '-')}-${manifest.version}.tgz`
   const path = join(output, filename)
   if (!existsSync(path)) throw new Error(`pnpm pack did not produce ${path}`)
   const digest = createHash('sha256').update(await readFile(path)).digest('hex')
-  packages.push({ name: packageName, version: manifest.version, filename, sha256: digest })
+  packages.push({ dir: packageDir, name: manifest.name, version: manifest.version, filename, sha256: digest })
 }
 
 const suiteManifest = {

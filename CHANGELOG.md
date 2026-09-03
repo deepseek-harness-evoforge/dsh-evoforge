@@ -6,6 +6,10 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.109**: Separated workspace directory identity from the public npm name in `pack:suite`. Scoped package migration can now
+  produce the correct tarball filename and DSH remove target without rewriting Cordis Bundle identities. Core suite packing and
+  suite tests passed; the existing npm ownership blocker remains. See [V5.109 evidence](docs/evidence/v5-109-suite-pack-public-name-boundary-2026-09-04.zh.md).
+
 - **V5.108**: Added the same live npm package-name ownership preflight to local `release:tag`, before release gates,
   and covered its ordering with a regression test. Local and GitHub release paths now fail closed consistently on name
   collisions or registry errors. The four existing collisions still block the first tag. See [V5.108 evidence](docs/evidence/v5-108-local-tag-npm-preflight-2026-09-04.zh.md).
