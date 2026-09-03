@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.111**: Re-ran the final-tarball DSH clean-profile lifecycle after the suite identity fix: official add/dump/boot,
+  real Session/Goal/Storage/Tool path, dispose/remove, and native readback passed 1/1 on the audited alpha.5 runtime. This
+  is a local lifecycle regression only; real channel/provider, paired benchmark, long-term, and npm gates remain blocked.
+  See [V5.111 evidence](docs/evidence/v5-111-clean-profile-core-install-2026-09-04.zh.md).
+
 - **V5.110**: Normalized equivalent GitHub repository URL forms in the npm ownership gate without accepting another host or
   path. This prevents a future owned scoped package from being falsely classified as a collision; six classifier tests and
   documentation checks passed. Existing unowned-name collisions still block the first tag. See [V5.110 evidence](docs/evidence/v5-110-npm-repository-url-normalization-2026-09-04.zh.md).

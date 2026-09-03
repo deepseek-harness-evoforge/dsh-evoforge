@@ -69,6 +69,13 @@ npm Scope 后会与 package manifest 名称分叉。本轮改为同时记录 `di
 行为；6 个分类测试与文档检查通过。现有四个外部包名冲突和命名空间授权仍阻塞首个 tag。详见
 [V5.110 证据](evidence/v5-110-npm-repository-url-normalization-2026-09-04.zh.md)。
 
+## V5.111：core clean-profile 生命周期回归（本轮）
+
+在最新 DSH fetch/clean preflight 后，使用已审计可构建 alpha.5 重新执行最终 tarball 的真实 DSH
+`add/dump/boot/Session+Goal/dispose/remove/readback` 测试；1/1 通过（约 30.23 秒）。确认 V5.109 的套件身份
+修正未破坏原生安装、卸载或持久化恢复；真实 Feishu、Provider、Hermes paired、长期效果和 npm 归属门仍保持原状态。
+详见 [V5.111 证据](evidence/v5-111-clean-profile-core-install-2026-09-04.zh.md)。
+
 ## V5.103：渠道控制面轮询契约与用户文档对齐（本轮）
 
 审计发现 `GatewaySurface` 为了让新配对请求在同一个 DSH Web 页面自动出现，实际每 5 秒读取一次 Host 脱敏
