@@ -46,6 +46,8 @@ DSH_STATUS=<empty>
 - 发布工作流在 tag 校验后、任何构建和 `npm publish` 前运行 `pnpm run check:release:names`。
 - `release-gates.json` 新增 required gate `registry-name-availability`，当前诚实标记为 `failed`。
 - 在没有获得 npm 组织/Scope 所有权前不自动重命名包，也不创建 release tag；避免把未经授权的假 Scope 当成可发布方案。
+- 逻辑 Bundle id 与 npm 分发名的迁移边界固定见 [ADR-0101](../adr/0101-public-package-namespace-before-npm-release.md)，
+  不把简单改 `package.json` 或本地 tarball 误认为完成命名迁移。
 
 ## 验证结果
 

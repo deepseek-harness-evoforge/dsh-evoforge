@@ -31,7 +31,8 @@ registry 状态。`dsh-doctor`、`dsh-feishu`、`dsh-gateway`、`dsh-telegram` �
 本轮新增 `pnpm run check:release:names`，发布工作流在构建和 `npm publish` 前执行；冲突、无归属或 registry
 异常均 fail closed，并在 `release-gates.json` 增加 required gate `registry-name-availability`（当前
 `failed`）。没有未经授权地猜测 npm Scope 或静默重命名，首个公开 tag 继续阻止，直到完成命名空间决策并对
-内部依赖、Bundle 清单、安装/卸载文档和完整矩阵重新验证。
+内部依赖、Bundle 清单、安装/卸载文档和完整矩阵重新验证。逻辑 Bundle id 与 npm 分发名的迁移边界见
+[ADR-0101](adr/0101-public-package-namespace-before-npm-release.md)。
 
 ## V5.105：运行时自我发现边界纠偏（本轮）
 

@@ -6,6 +6,10 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.106**: Separated stable DSH logical Bundle identities from provisional npm distribution names and recorded the
+  namespace migration decision in ADR-0101. The four existing npm collisions remain a hard release blocker; no guessed
+  scope, alias package, or silent global rename is allowed. See [ADR-0101](docs/adr/0101-public-package-namespace-before-npm-release.md).
+
 - **V5.105**: Removed ambiguous runtime capability-acquisition wording from the roadmap and copyable Goal prompt. Runtime self-discovery is now explicitly limited to DSH-installed capabilities and real internal Goal/feedback/outcome evidence; external ecosystem material is design-time research/benchmark input only and cannot be searched, downloaded, imported, or installed at runtime. See [V5.105 evidence](docs/evidence/v5-105-runtime-self-discovery-boundary-2026-09-04.zh.md).
 
 - **V5.104**: Audited npm registry ownership for every public Bundle and found four unscoped names already owned by unrelated repositories (`dsh-doctor`, `dsh-feishu`, `dsh-gateway`, `dsh-telegram`). Added a fail-closed `check:release:names` preflight and required release gate; no tag is allowed until a project-owned namespace is authorized and the package/dependency/install matrix is revalidated. See [V5.104 evidence](docs/evidence/v5-104-npm-package-name-collision-2026-09-04.zh.md).

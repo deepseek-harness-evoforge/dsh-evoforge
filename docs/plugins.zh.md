@@ -49,7 +49,9 @@ V5.12 同样只深化 `dsh-evolve`/`dsh-evolve-web`：Workspace-only `automaticP
 
 插件默认放在 Suite。只有独立发布/维护周期、独立信任边界、明显不同的重型依赖或许可证、或者无需 Suite 其余能力即可完整采用时才拆仓；详见 [ADR 0005](adr/0005-evoforge-repository-boundaries.md)。
 
-首个 GitHub 仓库名与当前包名已经冻结为 `dsh-evoforge`、`dsh-evolve`、
+首个 GitHub 仓库名与当前内部逻辑包名暂定为 `dsh-evoforge`、`dsh-evolve`、
 `dsh-evolve-web`、`dsh-software-delivery`、`dsh-github-review`、`dsh-doctor`、`dsh-telegram`、`dsh-evolve-attention`、
 `dsh-goal-continuity`、`dsh-resident`、`dsh-gateway` 和 `dsh-feishu`。可发布包的本地
-打包安装/卸载边界已验证；npm 尚未发布，发布前仍需版本策略、第三方安装验收与发布授权。
+打包安装/卸载边界已验证；其中四个 unscoped npm 名称已被其他仓库占用。npm 分发名不是 DSH 逻辑 Bundle id，
+必须在取得项目 Scope 后按 [ADR-0101](adr/0101-public-package-namespace-before-npm-release.md) 一次性迁移并重新验证；
+npm 尚未发布，发布前仍需命名空间、版本策略、第三方安装验收与发布授权。
