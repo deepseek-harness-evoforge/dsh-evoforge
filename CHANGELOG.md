@@ -6,6 +6,8 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.105**: Removed ambiguous runtime capability-acquisition wording from the roadmap and copyable Goal prompt. Runtime self-discovery is now explicitly limited to DSH-installed capabilities and real internal Goal/feedback/outcome evidence; external ecosystem material is design-time research/benchmark input only and cannot be searched, downloaded, imported, or installed at runtime. See [V5.105 evidence](docs/evidence/v5-105-runtime-self-discovery-boundary-2026-09-04.zh.md).
+
 - **V5.104**: Audited npm registry ownership for every public Bundle and found four unscoped names already owned by unrelated repositories (`dsh-doctor`, `dsh-feishu`, `dsh-gateway`, `dsh-telegram`). Added a fail-closed `check:release:names` preflight and required release gate; no tag is allowed until a project-owned namespace is authorized and the package/dependency/install matrix is revalidated. See [V5.104 evidence](docs/evidence/v5-104-npm-package-name-collision-2026-09-04.zh.md).
 
 - **V5.103**: Aligned the Feishu and getting-started user docs with the actual single-page Control Center contract: it performs only a low-frequency read of the redacted Host pending projection so new pairing requests appear without a second page; it does not poll platform messages, probe credentials, read message bodies, or call a model. See [V5.103 evidence](docs/evidence/v5-103-channel-doc-contract-2026-09-04.zh.md).

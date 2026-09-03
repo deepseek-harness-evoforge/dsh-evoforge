@@ -7,7 +7,7 @@
 
 目标仓库是当前 deepseek-harness-evoforge/dsh-evoforge。最终交付是一组真正可由 DSH 直接安装、独立启停、升级、卸载的 DSH 原生插件，成为真实工作流中 Hermes 核心能力的可验证上位替代；对象是 DSH 插件组，不是 Codex 插件。必须遵守 DeepSeek Harness 官方 Cordis/Bundle/Client 规范。不 fork 或修改 DSH，不建设第二套 Session、Goal、Agent Runtime、Scheduler、Approval 或 Gateway；复用 DSH 原生生命周期、会话、目标、调度、审批、消息和 Web 扩展点。
 
-先无损审计 branches/worktrees、未提交改动、现有插件和文档，清理或合并重复、交叉、不可安装、无证据的内容；通过“一个职责、一个生命周期、一个安装边界、无重复状态”的标准确定最小插件组。核心边界至少包括：常驻 dsh-gateway（宿主网关和控制面）、按需渠道 Adapter（先完成 dsh-feishu，保留必要的 Telegram 等）、dsh-evolve 自我迭代能力、必要的交付/诊断能力，以及一个融合进 DSH Web 原生页面的 dsh-control-center。不得建设 ClawHub、泛化市场/能力获取平台或巨型 Gateway；“自我发现”只指系统从真实运行证据识别能力缺口、生成/改进本项目 Skill 并隔离验证，外部资料只能作为缺口证据来源，不能演变成另一套产品。
+先无损审计 branches/worktrees、未提交改动、现有插件和文档，清理或合并重复、交叉、不可安装、无证据的内容；通过“一个职责、一个生命周期、一个安装边界、无重复状态”的标准确定最小插件组。核心边界至少包括：常驻 dsh-gateway（宿主网关和控制面）、按需渠道 Adapter（先完成 dsh-feishu，保留必要的 Telegram 等）、dsh-evolve 自我迭代能力、必要的交付/诊断能力，以及一个融合进 DSH Web 原生页面的 dsh-control-center。不得建设 ClawHub、泛化市场/能力获取平台或巨型 Gateway；“自我发现”只指系统从 DSH 内部真实运行证据识别能力缺口、生成/改进本项目 Skill 并隔离验证。外部资料只用于开发期设计调研和冻结 benchmark，运行时不得搜索、下载、导入或引用外部能力。
 
 入口只接受自然语言 Goal、材料、约束、权限和验收标准。系统内部自主理解目标、盘点本地和已安装能力、组合现有插件；没有合适能力时，从真实失败/纠正中形成缺口，生成完整候选 Skill 包。不得在开场要求用户选择路径。实现双速自进化闭环：在线快环记录成功、失败、纠正、返工、外部结果、成本和时延；离线慢环做缺口聚类、候选生成、隔离 rollout、baseline/candidate 对照、未见样本、回归、安全、权限、成本、时延和 KV-cache 门禁。执行面、候选面、不可被候选篡改的评测治理面必须隔离，proposer 不能兼任裁判。候选按整包内容寻址，保存来源、版本、谱系、边界和证据；当前 Session 固定版本，晋升只影响未来 Session。支持 abstain、quarantine、原子晋升、崩溃恢复、持续监测、反事实 canary 和精确回滚；低风险、明确胜出的指令能力可按配置自动晋升，代码、权限、凭据及外部副作用一律 Protected Action。
 

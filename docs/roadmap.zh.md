@@ -135,7 +135,7 @@ V5.20 进一步在第一次平台效果后阻塞 dispatch durability 并 kill；
 
 外部生态、论文、Hermes/OpenClaw/HanaAgent 和开源实现只用于**设计期调研与冻结 benchmark**。本项目不建设运行时外部 Skill 搜索、下载、导入、市场或“能力获取”功能。
 
-退出门：在未见 Goal 上自动命中已有 Skill；在确实缺失时找到或生成正确候选；错误路由、未授权获取、
+退出门：在未见 Goal 上自动命中已有 Skill；在确实缺失时仅依据 DSH 内部真实证据生成正确候选；错误路由、未授权能力变更、
 候选越界和负迁移均被 hard gate 拒绝；同一任务 paired baseline 证明首次成功率或人工选路显著改善，且
 当前 Session、权限和 cache prefix 不漂移。
 

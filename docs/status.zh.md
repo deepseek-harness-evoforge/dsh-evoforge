@@ -33,6 +33,13 @@ registry 状态。`dsh-doctor`、`dsh-feishu`、`dsh-gateway`、`dsh-telegram` �
 `failed`）。没有未经授权地猜测 npm Scope 或静默重命名，首个公开 tag 继续阻止，直到完成命名空间决策并对
 内部依赖、Bundle 清单、安装/卸载文档和完整矩阵重新验证。
 
+## V5.105：运行时自我发现边界纠偏（本轮）
+
+审计路线图和可复制 Goal 提示词发现“找到候选/外部资料作为缺口来源”的歧义。本轮明确运行时自我发现只消费
+DSH 内部已安装能力、Goal、真实反馈和结果；外部生态与论文只用于开发期设计调研和冻结 benchmark，禁止运行时
+搜索、下载、导入或安装外部 Skill/能力。路线图、Goal 提示词和本证据已同步，`check:docs` 与差异检查通过；未
+新增市场、Runtime、Router 或状态库。详见 [V5.105 证据](evidence/v5-105-runtime-self-discovery-boundary-2026-09-04.zh.md)。
+
 ## V5.103：渠道控制面轮询契约与用户文档对齐（本轮）
 
 审计发现 `GatewaySurface` 为了让新配对请求在同一个 DSH Web 页面自动出现，实际每 5 秒读取一次 Host 脱敏
