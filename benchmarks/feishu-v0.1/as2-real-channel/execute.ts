@@ -663,8 +663,10 @@ async function bootProfile(
     join(dshSourceDir, 'packages', 'boot', 'cmdline', 'lib', 'index.js'),
   ).href) as any
   const installAnchor = join(dshSourceDir, 'apps', 'cli', 'package.json')
-  appBoot.healProfilesModuleFallback(installAnchor)
   const profile = appBoot.loadProfile('evoforge-feishu-as2', profileName, installAnchor, dshHome)
+  // DSH alpha.5 exposes the healer as an options object and needs the loaded
+  // profile to link Bundle-only dependencies into this profile's fallback.
+  await appBoot.healProfilesModuleFallback({ installAnchor, profile, home: dshHome })
   const rootConfig = join(profile.dir, 'cordis.yml')
   await writeFile(rootConfig, '[]\n', { mode: 0o600 })
   const shippedPresetPatch = {
