@@ -10,6 +10,14 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.186：渠道竞态修复后的当前 Hermes EV-1 确定性复跑（本轮）
+
+在提交 `36f0199` 后重新 fetch 并审计 canonical DSH，使用同一 DSH alpha.5 与 Hermes revision 重跑当前 EV-1 epoch-4：校准 `2/2`，
+两边均 baseline fail/corrected pass；EvoForge 显式晋升前 active Skill 修改 `0`、Hermes `1`，且 EvoForge 的 baseline 不可变、旧
+Session 代际固定、future Session 使用 Candidate、跨工作区 fail-closed 与精确 rollback/restart 门禁均为 true。此结果只证明确定性
+发布控制面没有因渠道竞态修复回归，不扩大为真实 Provider、真实渠道、长期效果或整体 Hermes 上位替代。详见
+[V5.186 证据](evidence/v5-186-hermes-ev1-current-after-channel-race-2026-09-04.zh.md)。
+
 ## V5.185：渠道凭据代际切换与失效启动隔离（本轮）
 
 发现并修复 Feishu/Telegram 凭据轮换与 Adapter 启动并发时的真实竞态：旧启动 Promise 不再被新事件复用；每次凭据提交使旧代际

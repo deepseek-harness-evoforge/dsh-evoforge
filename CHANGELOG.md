@@ -6,6 +6,13 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.186**: Re-ran the current Hermes EV-1 epoch-4 deterministic release-control comparison after the channel
+  credential-generation fix. Calibration passed `2/2`, both sides remained baseline-fail/corrected-pass, and EvoForge kept
+  `0` active-Skill mutations before final-test/explicit promotion versus Hermes `1`; EvoForge's immutable baseline, Session
+  generation pin, future-Session Candidate boundary, cross-workspace fail-closed, and exact rollback/restart gates stayed true.
+  This remains narrow release-control evidence, not real Provider/channel/long-run or global Hermes-replacement evidence. See
+  [V5.186 evidence](docs/evidence/v5-186-hermes-ev1-current-after-channel-race-2026-09-04.zh.md).
+
 - **V5.185**: Fixed a real credential-rotation race in both Feishu and Telegram resident adapters. Each committed native
   credential update invalidates the previous generation; an in-flight stale candidate is disposed without becoming live, and
   callers retry only after the complete start promise settles. A failed disposal of the old adapter is logged but no longer
