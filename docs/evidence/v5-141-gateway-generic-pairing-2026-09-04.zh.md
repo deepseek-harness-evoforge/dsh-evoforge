@@ -1,7 +1,7 @@
 # V5.141 Gateway 通用 Adapter 配对控件证据
 
 日期：2026-09-04
-EvoForge revision：本轮原子提交（对应 V5.141）
+EvoForge revision：`08cc1c2`（对应 V5.141）
 Canonical DSH 最新审计：`76fda729799fe9b3848dbe2c211d4b231032b81e`，`0.1.2-rc.1`，`HEAD == origin/master`，clean。
 可运行 assembled 支持基线：`db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`，`0.1.2-alpha.5`，clean。
 
