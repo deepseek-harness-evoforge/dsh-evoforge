@@ -236,6 +236,7 @@ export async function executeRealTelegramAcceptance(
       workspaceId,
       join(config.dshSourceDir, 'packages', 'test-support', 'loader-smoke', 'tests', 'fixtures', 'cli-mock-llm.ts'),
       config.accountId,
+      config.apiBase,
     )
     const dumped = await execFile(process.execPath, [dshBin, '--profile', PROFILE_NAME, '--dump-config'], {
       cwd: runDir,
@@ -540,6 +541,7 @@ async function writeAcceptanceOverlay(
   workspaceId: string,
   mockLlmPath: string,
   accountId: string,
+  apiBase: string,
 ): Promise<void> {
   const overlay = `# AS-1 is a non-interactive Host acceptance runner. DSH's native Web runtime remains available
 # for RPC composition, but no extra browser URL or page is opened by this runner.
@@ -577,7 +579,7 @@ async function writeAcceptanceOverlay(
         mode: pairing
         accountId: ${yaml(accountId)}
         tokenEnv: DSH_TELEGRAM_BOT_TOKEN
-        apiBase: https://api.telegram.org
+        apiBase: ${yaml(apiBase)}
 `
   await writeFile(path, overlay, { mode: 0o600 })
   await chmod(path, 0o600)
