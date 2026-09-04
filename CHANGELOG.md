@@ -6,6 +6,13 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.197**: Re-fetched canonical DSH `origin/master` `d347e703…` (`0.1.3-alpha.1`) before verification and re-ran the
+  full EvoForge check on the audited buildable alpha.5 support composition. The authoritative check passed (`CHECK_RC=0`):
+  Evolution `309/309`, Gateway `43/43`, Feishu `56/56`, Telegram `38/38`, Control Center `27/27`, Evolve Web `27/27`,
+  Doctor `40/40`, Software Delivery `34 passed/1 skipped`, and clean-profile `1 passed/1 skipped`. The latest DSH root
+  build defect remains classified as upstream and the release gate remains blocked for real channels, providers, Hermes paired,
+  long-run evidence, and npm ownership. See [V5.197 evidence](docs/evidence/v5-197-latest-dsh-full-check-2026-09-04.zh.md).
+
 - **V5.196**: Revalidated the native single-page DSH Web control center on the latest buildable support
   composition. One browser tab can open/close settings and switch between runtime diagnostics, resident
   channels, Feishu content, and evolution surfaces inside the native Session console. The evolution fixture's
