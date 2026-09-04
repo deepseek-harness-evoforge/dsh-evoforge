@@ -6,6 +6,13 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.178**: Re-fetched canonical DSH and ran the complete alpha.5 repository check after the CI package-filter and
+  Telegram worker fix. The authoritative no-pipeline rerun finished `CHECK_RC=0`: Evolution `309/309`, Gateway `41/41`,
+  Feishu `50/50`, Telegram `34/34`, Doctor `40/40`, Evolve Web `27/27`, all Bundle typechecks/builds, and the
+  clean-profile lifecycle passed (platform-specific skips remain explicit). An earlier run whose outer zsh exit-code
+  wrapper failed was discarded rather than reported as green. Real external release gates remain blocked. See
+  [V5.178 evidence](docs/evidence/v5-178-full-check-after-ci-filter-fix-2026-09-04.zh.md).
+
 - **V5.177**: Fixed GitHub Actions after the project-prefixed package-name migration and removed a real assembled
   Telegram test race. CI now filters Doctor/Telegram by their public package names, honors Telegram's package-declared
   single-worker policy while `prepack` can clean shared `dist`, and fails closed when a workflow uses a migrated

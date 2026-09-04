@@ -67,6 +67,15 @@ Telegram CI 子集 `4/4` 通过。CI 检查器现在会通用拒绝旧目录过�
 Vitest 调用。该变更只修复开源 CI 的真实性和确定性，不改变外部发布门禁。详见
 [V5.177 证据](evidence/v5-177-ci-public-name-and-telegram-worker-contract-2026-09-04.zh.md)。
 
+## V5.178：CI 修复后的最新 DSH 全仓回归（本轮）
+
+重新 fetch 并核对 canonical DSH 最新 `origin/master` `76fda729…` 后，在已审计 alpha.5 支持 checkout 上对
+`c962733` 执行完整 `pnpm run check`，权威直接退出码为 `CHECK_RC=0`。Evolution `309/309`、Gateway `41/41`、
+Feishu `50/50`、Telegram `34/34`、Doctor `40/40`、Evolve Web `27/27`，其余 Bundle、类型检查、构建、
+clean-profile 和发布契约也全部通过或按平台条件明确跳过。第一次运行因外层 zsh 管道状态表达式错误未被采用，
+第二次无管道完整重跑才作为证据。真实渠道、Provider、完整 Hermes paired、长期效果和 npm 归属门禁未变化。
+详见 [V5.178 证据](evidence/v5-178-full-check-after-ci-filter-fix-2026-09-04.zh.md)。
+
 ## V5.171：公共分发名撞名迁移与全仓回归（本轮）
 
 审计发现 `dsh-doctor`、`dsh-feishu`、`dsh-gateway`、`dsh-telegram` 四个 unscoped npm 名称已被无关仓库占用。
