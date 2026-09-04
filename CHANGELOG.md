@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.187**: Serialized native credential rotation for the Feishu and Telegram resident adapters. Each update now waits for
+  the previous runtime to dispose before starting the newest generation, and Host unload waits for both the restart queue and
+  any in-flight start. Feishu `19 files / 55 tests`, Telegram `10 files / 36 tests`, typechecks, builds, and the latest-DSH
+  alpha.5 root check (`CHECK_RC=0`) pass. This remains lifecycle/concurrency evidence only; real channel, Provider/Hermes,
+  long-run, npm ownership, and release-tag gates remain blocked. See [V5.187 evidence](docs/evidence/v5-187-serialized-channel-restart-2026-09-04.zh.md).
+
 - **V5.186**: Re-ran the current Hermes EV-1 epoch-4 deterministic release-control comparison after the channel
   credential-generation fix. Calibration passed `2/2`, both sides remained baseline-fail/corrected-pass, and EvoForge kept
   `0` active-Skill mutations before final-test/explicit promotion versus Hermes `1`; EvoForge's immutable baseline, Session

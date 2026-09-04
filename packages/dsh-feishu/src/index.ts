@@ -62,6 +62,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   let startPromise: Promise<void> | undefined
   let disposed = false
   let credentialGeneration = 0
+  let restartChain: Promise<void> = Promise.resolve()
   const hostRoute: FeishuHostRoute = Object.freeze({
     get routes() {
       return runtime?.createHostRoute().routes ?? []
@@ -170,7 +171,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     credentialGeneration += 1
     const previous = runtime
     runtime = undefined
-    void (async () => {
+    restartChain = restartChain.then(async () => {
       if (previous !== undefined) {
         try {
           await previous.dispose()
@@ -182,12 +183,13 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         }
       }
       await start()
-    })().catch(error => {
+    }).catch(error => {
       if (!disposed) ctx.logger.warn(`dsh-feishu: credential update could not start Adapter: ${safeMessage(error)}`)
     })
   })
   ctx.effect(() => async () => {
     disposed = true
+    await restartChain
     await startPromise
     await runtime?.dispose()
     runtime = undefined

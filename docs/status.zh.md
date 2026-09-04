@@ -10,6 +10,16 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.187：渠道凭据轮换串行化与最新 DSH 全仓验证（本轮）
+
+重新 fetch 并审计 canonical DSH 后，为 Feishu/Telegram 常驻 Adapter 增加串行
+`restartChain`：凭据更新先等待上一代完整 dispose，再启动最新代际；Host 卸载等待队列与
+启动 Promise，避免轮换或卸载时出现重叠/孤儿连接。Feishu `19 files / 55 tests`、Telegram
+`10 files / 36 tests`、两包 typecheck/build 通过；随后在 alpha.5 支持 checkout 执行根级
+`pnpm run check`，权威 `CHECK_RC=0`，Evolution `309/309`、Gateway `41/41`。该增量仍不扩大
+为真实渠道、Provider、Hermes paired、长期效果或发布通过；release gate 继续 `blocked`。
+详见 [V5.187 证据](evidence/v5-187-serialized-channel-restart-2026-09-04.zh.md)。
+
 ## V5.186：渠道竞态修复后的当前 Hermes EV-1 确定性复跑（本轮）
 
 在提交 `36f0199` 后重新 fetch 并审计 canonical DSH，使用同一 DSH alpha.5 与 Hermes revision 重跑当前 EV-1 epoch-4：校准 `2/2`，
