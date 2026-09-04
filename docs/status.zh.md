@@ -1,5 +1,7 @@
 # 当前实现状态
 
+> **常驻配对回归（V5.223）**：在当前 `main` 上分别执行 Feishu 与 Telegram assembled pairing 测试，均为 `1 file / 1 test passed`、退出码 `0`。两条路径都证明陌生私聊首条消息仅返回配对码且不进入 Agent，Host 批准后下一条消息才进入 DSH Session；Feishu 还覆盖 Approval/撤销，Telegram 覆盖 reply-to。该证据仍是本地 fixture，不外推为真实 AS-2/AS-1，发布门禁继续 blocked。详见 [V5.223 证据](evidence/v5-223-local-pairing-assembled-regression-2026-09-04.zh.md)。
+
 > **浏览器复核（V5.222）**：复用唯一 DSH In-app Browser 标签页尝试读取本地 Control Center DOM，再次在 DOM 读取前被 URL policy 拒绝；没有创建第二网页、绕过策略或把本轮记为通过。历史 V5.183/V5.196 仍是最近有效的单页交互证据，`web-control-plane` 继续为 `partial`。详见 [V5.222 证据](evidence/v5-222-browser-policy-repeat-2026-09-04.zh.md)。
 
 > **最新全量验证（V5.221）**：重新 fetch 并审计 canonical DSH `d347e703…`（`0.1.3-alpha.1`，clean）；官方根构建仍被上游缺失 `@deepseek-ai/dsh-root` 类型入口阻断。使用已审计可构建 alpha.5 支持 checkout 重跑根级 `pnpm run check`，权威退出码 `0`：Evolution `313/313`、Gateway `52/52`、Feishu `57/57`、Telegram `38/38`、Evolve Web `27/27`、Control Center `5/5`、Doctor `40/40`、Goal Continuity `12/12`、GitHub Review `27/27`，Resident `17 passed/1 skipped`、Software Delivery `34 passed/1 skipped`，其余文档、套件、兼容性、合同、clean-profile、typecheck 与 build 门均通过。没有读取凭据或发送真实外部消息；真实 Feishu/Telegram/Provider、Hermes paired、长期效果、npm ownership 和 tag 门禁仍未通过。详见 [V5.221 证据](evidence/v5-221-latest-dsh-full-check-2026-09-04.zh.md)。
