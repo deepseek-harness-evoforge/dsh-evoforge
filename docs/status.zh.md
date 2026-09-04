@@ -1,5 +1,7 @@
 # 当前实现状态
 
+> **最新验证（V5.215）**：在已审计可构建 DSH alpha.5 与 Hermes `29d0cc2…` 上复跑冻结 EV-1 epoch-4，校准 `2/2`，两边 baseline 均 fail、corrected 均 pass；EvoForge 在 final-test 前 active Skill mutation `0`，Hermes `1`，EvoForge 的 baseline immutable、Candidate mutation boundary、Session pin 与 rollback/restart hard gates 为真。该结果只证明确定性发布控制面的边界优势，不冒充模型质量、真实渠道、Provider 或整体 Hermes 上位替代。详见 [V5.215 证据](evidence/v5-215-hermes-ev1-rerun-2026-09-04.zh.md)。
+
 > **最新增量（V5.214）**：Feishu 与 Telegram pairing 在授权 await 返回后重新检查 runtime 生命周期；卸载期间迟到的授权结果不再调用平台 API，即使 SDK 不遵守已中止 signal 也不会发送配对码。Feishu teardown 回归断言授权跨卸载边界时发送次数为零；Feishu `57/57`、Telegram `38/38`，在最新 DSH 审计支持组合上根级 `CHECK_RC=0`，其余套件/合同通过。真实渠道、Provider、Hermes paired、长期效果、npm ownership 与发布 tag 门禁仍未通过。详见 [V5.214 证据](evidence/v5-214-channel-auth-dispose-guard-2026-09-04.zh.md)。
 
 > **最新增量（V5.213）**：Feishu 常驻 runtime 现在追踪并有界排空已进入的消息/Approval 回调；卸载顺序固定为停止接收、等待出站、排空回调、断开平台、释放 transport，避免授权/配对码/响应在断连后产生迟到副作用。已销毁 runtime 的 Host notice 立即 fail-closed。新增停机竞态回归，Feishu `57/57`；在最新 DSH 审计支持组合上根级 `CHECK_RC=0`，Evolution `313/313`、Gateway `51/51`、Telegram `38/38` 及其余套件/合同通过。真实渠道、Provider、Hermes paired、长期效果、npm ownership 与发布 tag 门禁仍未通过。详见 [V5.213 证据](evidence/v5-213-feishu-inbound-drain-2026-09-04.zh.md)。

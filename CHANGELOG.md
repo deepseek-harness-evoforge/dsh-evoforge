@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.215**: Reran the frozen Hermes EV-1 epoch-4 deterministic control-plane comparison on the audited, buildable
+  DSH alpha.5 support composition. Calibration was `2/2`; both sides had baseline `fail` and corrected `pass`, while
+  EvoForge modified `0` active Skill artifacts before final-test versus Hermes `1`, preserving EvoForge's immutable
+  baseline, Candidate boundary, Session pin, and rollback/restart gates. This is release-control evidence only, not a
+  model-quality, real-channel, real-provider, long-run, or overall Hermes-replacement result. See [V5.215 evidence](docs/evidence/v5-215-hermes-ev1-rerun-2026-09-04.zh.md).
+
 - **V5.214**: Added a post-authorization lifecycle guard to Feishu and Telegram pairing handlers. If a slow Gateway
   authorization resolves after runtime disposal, the result is discarded before any pairing-code or Bot API send,
   even when an SDK ignores an aborted signal. The Feishu teardown regression verifies zero sends across this boundary;
