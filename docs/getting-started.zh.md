@@ -198,14 +198,14 @@ pnpm benchmark:hermes
 DSH_EVOLVE_DSH_SOURCE_DIR=/absolute/path/to/dsh-v0.1.2-alpha.5 \
   pnpm benchmark:hermes:ev1:alpha5
 
-# 当前 Hermes origin/main 的 EV-1 epoch-3（需提供固定 revision checkout）
+# 当前 Hermes origin/main 的 EV-1 epoch-4（需提供固定 revision checkout）
 DSH_EVOLVE_DSH_SOURCE_DIR=/absolute/path/to/dsh-v0.1.2-alpha.5 \
-EVOFORGE_HERMES_SOURCE_DIR=/absolute/path/to/hermes-at-63279301 \
+EVOFORGE_HERMES_SOURCE_DIR=/absolute/path/to/hermes-at-29d0cc2602e01943ab300c0382fc9d97efb376da \
   pnpm benchmark:hermes:ev1:alpha5:current
 ```
 
 `pnpm benchmark:hermes` 保留历史四个冻结 epoch 的兼容入口；当前 alpha.5 的 EV-1 请使用上面的显式入口。
-当前 Hermes 的 epoch-3 入口也会核对 Hermes 与 DSH exact revision；结果漂移会 fail closed，不能用旧 epoch
+当前 Hermes 的 epoch-4 入口也会核对 Hermes 与 DSH exact revision；结果漂移会 fail closed，不能用旧 epoch
 代替真实模型或渠道 paired 验收。详见 [V5.135 证据](evidence/v5-135-hermes-current-ev1-epoch-3-2026-09-04.zh.md)。
 
 clean-profile gate 仍从全部十二个内部 Bundle 的 tarball 开始，通过一次官方 DSH CLI 安装、dump、boot，在注册后的原生 Workspace 与真实 Agent preset/Session/Goal 内触发 packed Tool，flush 原生持久化，再一次卸载全部包、重启并读回 Goal。用户不必安装全包；能力套件只是对这套真实 Bundle 的精简安装编排。它同时检查每个 tarball 无用户产品 bin、无 `node_modules`，且 production dependencies 不携带 DSH/Cordis。

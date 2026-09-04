@@ -24,6 +24,12 @@
 错误的外部依赖。现已统一改为 `delivery` 套件本地 tarball 安装，并在包 README 中明确 registry namespace 和正式
 tag 完成后才切换安装 spec。`check:docs` 与差异检查通过。详见 [V5.164 证据](evidence/v5-164-user-install-doc-correction-2026-09-04.zh.md)。
 
+## V5.165：当前 Hermes revision 安装说明同步（本轮）
+
+维护者上手指南仍把 EV-1 current 示例指向已淘汰的 Hermes epoch-3 `63279301…`；现已同步到当前
+`origin/main` `29d0cc2602e01943ab300c0382fc9d97efb376da` 的 epoch-4，并保留 exact revision fail-closed 约束。
+`check:docs` 与差异检查通过。详见 [V5.165 证据](evidence/v5-165-current-hermes-install-doc-2026-09-04.zh.md)。
+
 ## V5.159：当前 Hermes revision 的 EV-1 epoch-4（本轮）
 
 重新 fetch Hermes 后确认 `origin/main` 已从旧的 `63279301…` 漂移到

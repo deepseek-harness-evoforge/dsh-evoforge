@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.165**: Updated the maintainer EV-1 example to the current Hermes `origin/main` revision
+  `29d0cc2602e01943ab300c0382fc9d97efb376da` and epoch-4, replacing the retired epoch-3 checkout while retaining
+  exact revision assertions and fail-closed drift handling. Documentation and diff checks passed; benchmark gate status
+  is unchanged. See [V5.165 evidence](docs/evidence/v5-165-current-hermes-install-doc-2026-09-04.zh.md).
+
 - **V5.164**: Corrected the `dsh-github-review` README so it no longer instructs users to install an unpublished
   registry name. It now uses the reproducible `delivery` suite tarballs and states that a project-owned namespace and
   release tag must exist before switching to a registry spec. Documentation and diff checks passed; runtime behavior is
