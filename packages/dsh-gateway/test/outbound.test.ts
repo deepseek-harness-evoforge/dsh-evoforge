@@ -1,7 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { DomainFacility, KvTable } from '@deepseek-ai/dsh-storage-domain'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { DshGateway } from '../src/gateway.js'
 import { openGatewayIngressJournal } from '../src/ingress-journal.js'
 import { openGatewayOutboundJournal } from '../src/outbound-journal.js'
@@ -446,6 +446,56 @@ describe('Gateway outbound text delivery', () => {
     expect(observedSignal?.aborted).toBe(true)
     expect(outcome).toBe('disposed')
     expect(gateway.healthSnapshot().outbound).toMatchObject({ sending: 0, uncertain: 1 })
+    await gateway.stop()
+  })
+
+  it('waits for an in-flight submit before disposing a resident Adapter', async () => {
+    const facility = memoryFacility()
+    const outbound = await openGatewayOutboundJournal(facility)
+    const gateway = new DshGateway(
+      fakeNativeHost().ctx,
+      routes,
+      await openGatewayIngressJournal(facility),
+      outbound,
+    )
+    await gateway.start()
+    let releasePrepare!: () => void
+    let prepareEntered!: () => void
+    const entered = new Promise<void>(resolve => { prepareEntered = resolve })
+    const prepareReleased = new Promise<void>(resolve => { releasePrepare = resolve })
+    const originalPrepare = outbound.prepare.bind(outbound)
+    vi.spyOn(outbound, 'prepare').mockImplementation(async input => {
+      prepareEntered()
+      await prepareReleased
+      return originalPrepare(input)
+    })
+    const registration = gateway.registerTextAdapter({
+      adapter: 'telegram',
+      accountId: 'bot-a',
+      routeIds: ['telegram-a'],
+      maxAttempts: 1,
+      maxRetryAfterMs: 1_000,
+      sendTimeoutMs: 30_000,
+      async send() { return { kind: 'delivered', externalMessageId: 'not-reached' } },
+    })
+
+    const pending = registration.submit({
+      routeId: 'telegram-a',
+      kind: 'notice',
+      intentKey: 'notice:dispose-submit-barrier',
+      text: 'Durable before resident unload.',
+    })
+    await prepareEntered
+    let disposed = false
+    const disposal = registration.dispose().then(() => { disposed = true })
+    await Promise.resolve()
+    expect(disposed).toBe(false)
+
+    releasePrepare()
+    await expect(pending).resolves.toMatchObject({ status: 'prepared' })
+    await disposal
+    expect(disposed).toBe(true)
+    expect(gateway.healthSnapshot().outbound).toMatchObject({ prepared: 1, sending: 0 })
     await gateway.stop()
   })
 

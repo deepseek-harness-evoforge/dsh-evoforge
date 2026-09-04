@@ -1,5 +1,7 @@
 # 当前实现状态
 
+> **最新增量（V5.211）**：常驻 Gateway 的出站 Adapter 现在对 `submit()` 与 `dispose()` 建立活跃提交屏障；卸载先中止新提交、等待已进入的 journal prepare 完成，再等待发送队列和资源回收，避免 journal 关闭后出现迟到写入。新增延迟 prepare 的真实回归，Gateway `50/50` 通过。首次构建发现并修复 Typert digest 过期后，最新 DSH 审计支持组合根级 `CHECK_RC=0`，Evolution `313/313`、Feishu `56/56`、Telegram `38/38` 及其余套件/合同通过。真实渠道、Provider、Hermes paired、长期效果、npm ownership 与发布 tag 门禁仍未通过。详见 [V5.211 证据](evidence/v5-211-gateway-submit-dispose-barrier-2026-09-04.zh.md)。
+
 > **最新增量（V5.210）**：常驻 Gateway 与 outbound coordinator 在 `stop()` 开始后先行进入终态，后续 `start()` 请求确定性拒绝，不再把已关闭资源误报为 ready；Gateway 回归 `18/18`，随后最新 DSH 支持组合根级 `CHECK_RC=0`，Gateway `49/49`、Evolution `313/313`、Feishu `56/56`、Telegram `38/38` 及其余套件/合同通过。Typert digest 已按 pinned DSH generator 重生成。真实渠道、Provider、Hermes paired、长期效果、npm ownership 与发布 tag 门禁仍未通过。详见 [V5.210 证据](evidence/v5-210-gateway-terminal-start-2026-09-04.zh.md)。
 
 > **最新增量（V5.209）**：Gap、Feedback、Skill-use、Delivery-outcome 与 Long-term-effects Storage 在进入异步写入队列前捕获输入快照，排队期间的对象修改不会污染自进化证据；新增 Gap/Feedback/Delivery 真实 Storage 回归。重新生成 pinned DSH Typert digest 后，根级全量 `CHECK_RC=0`，Evolution `313/313`、Gateway `48/48`、Feishu `56/56`、Telegram `38/38` 及其余本地套件/合同通过。最新 DSH `d347e703…` 安装通过，根构建缺陷仍按上游事实分类；真实渠道、Provider、Hermes paired、长期效果、npm ownership 与发布 tag 门禁仍未通过。详见 [V5.209 证据](evidence/v5-209-evidence-input-snapshot-2026-09-04.zh.md)。

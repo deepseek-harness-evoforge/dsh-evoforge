@@ -198,6 +198,14 @@ class GatewayTextAdapterRegistrationImpl implements GatewayTextAdapterRegistrati
   private readonly scheduled = new Set<string>()
   private readonly reschedule = new Set<string>()
   private tail: Promise<void> = Promise.resolve()
+  /**
+   * Submission calls can be between validation and the journal write when a
+   * resident Gateway is disposed. Keep the journal open until those calls
+   * have settled so unload cannot race a late prepare().
+   */
+  private activeSubmits = 0
+  private submitIdle: Promise<void> | undefined
+  private resolveSubmitIdle: (() => void) | undefined
   private disposed?: Promise<void>
 
   constructor(
@@ -220,19 +228,26 @@ class GatewayTextAdapterRegistrationImpl implements GatewayTextAdapterRegistrati
   private readonly routesById: ReadonlyMap<string, ResolvedGatewayRoute>
 
   async submit(intent: GatewayTextDeliveryIntent): Promise<GatewayOutboundReceipt> {
-    if (this.disposed !== undefined) throw new Error('Gateway text Adapter registration is disposed')
-    if (this.route(intent.routeId) === undefined) {
-      throw new Error(`Gateway text Adapter does not own route '${intent.routeId}'`)
+    this.beginSubmit()
+    try {
+      if (this.disposed !== undefined || this.lifecycle.signal.aborted) {
+        throw new Error('Gateway text Adapter registration is disposed')
+      }
+      if (this.route(intent.routeId) === undefined) {
+        throw new Error(`Gateway text Adapter does not own route '${intent.routeId}'`)
+      }
+      const prepared = await this.journal.prepare({ ...intent, now: Date.now() })
+      if (prepared.record.status === 'prepared' || prepared.record.status === 'retrying') {
+        this.enqueue(prepared.record.id)
+      }
+      return Object.freeze({
+        id: prepared.record.id,
+        created: prepared.created,
+        status: prepared.record.status,
+      })
+    } finally {
+      this.endSubmit()
     }
-    const prepared = await this.journal.prepare({ ...intent, now: Date.now() })
-    if (prepared.record.status === 'prepared' || prepared.record.status === 'retrying') {
-      this.enqueue(prepared.record.id)
-    }
-    return Object.freeze({
-      id: prepared.record.id,
-      created: prepared.created,
-      status: prepared.record.status,
-    })
   }
 
   ownsAny(routeIds: ReadonlySet<string>, includeUnboundPaired = false): boolean {
@@ -267,10 +282,33 @@ class GatewayTextAdapterRegistrationImpl implements GatewayTextAdapterRegistrati
   dispose(): Promise<void> {
     this.disposed ??= (async () => {
       this.lifecycle.abort(new Error('Gateway text Adapter registration disposed'))
+      await this.waitForSubmits()
       await this.tail
       this.onDispose()
     })()
     return this.disposed
+  }
+
+  private beginSubmit(): void {
+    if (this.activeSubmits === 0) {
+      this.submitIdle = new Promise<void>((resolve) => {
+        this.resolveSubmitIdle = resolve
+      })
+    }
+    this.activeSubmits += 1
+  }
+
+  private endSubmit(): void {
+    this.activeSubmits -= 1
+    if (this.activeSubmits !== 0) return
+    const resolve = this.resolveSubmitIdle
+    this.resolveSubmitIdle = undefined
+    this.submitIdle = undefined
+    resolve?.()
+  }
+
+  private waitForSubmits(): Promise<void> {
+    return this.activeSubmits === 0 ? Promise.resolve() : this.submitIdle ?? Promise.resolve()
   }
 
   private enqueue(id: string): void {

@@ -6,6 +6,14 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.211**: Added an active-submission barrier to resident Gateway text Adapter teardown. `dispose()` now aborts new
+  scheduling, waits for in-flight outbound `prepare()` calls, then drains delivery work before resources close; late
+  submissions fail closed instead of writing after journal shutdown. Added a delayed-journal regression. The first build
+  correctly caught a stale Gateway Typert digest; after regeneration, the latest-DSH-audited root check passed with
+  `CHECK_RC=0` (Evolution `313/313`, Gateway `50/50`, Feishu `56/56`, Telegram `38/38`, and all other local suites/contracts).
+  Real channels, providers, Hermes paired benchmarking, long-run effects, npm ownership, and the release tag remain
+  blocked. See [V5.211 evidence](docs/evidence/v5-211-gateway-submit-dispose-barrier-2026-09-04.zh.md).
+
 - **V5.210**: Made the resident Gateway and outbound coordinator fail closed after `stop()` begins. A later `start()` now
   rejects instead of reporting success against closed journals/transports; added the start-stop-start regression and
   regenerated the pinned DSH Typert digest after the stale-artifact gate. The audited root check passed with `CHECK_RC=0`
