@@ -58,6 +58,15 @@ clean assembled profile 通过 `unknown DM → code → Host approve → next-me
 与 `hermes-paired` 发布门仍按 `release-gates.json` 阻断。配对模式目前不向 `dsh-evolve-attention` 暴露未选定
 Workspace 的通知 route；需要提醒桥接时使用静态 route 模式。
 
+## V5.141：Gateway 配对码控件改为通用 Adapter 入口（本轮）
+
+复核发现原生 Gateway Control Surface 的配对码输入仍硬编码调用 `feishu`，导致 Telegram-only Host 只能使用
+pending request 行，不能复用同一 Host code 审批入口。本轮改为从当前 Gateway transport/pending projection 生成排序后的
+Adapter 选择器，调用现有 `approvePairing(code, adapter, workspace, session)`；单页、脱敏、Host 权威和 request-id
+路径保持不变。Telegram-only 与双 Adapter 的组件回归覆盖了选择器和正确 Adapter 传参，空 pending 时不再显示误导性
+空卡片；完整 alpha.5 `pnpm run check` 退出码 `0`。未新增 Router、状态库、页面或运行时外部能力获取。详见
+[V5.141 证据](evidence/v5-141-gateway-generic-pairing-2026-09-04.zh.md)。
+
 ## V5.134：同 route id 重配与聊天类型变更回归（本轮）
 
 配对装配测试现在复用已撤销的同一 route id，并以 `group` chat kind 再次入站，确认撤销时清除内部观测、不会继承旧 direct 事实或触发漂移拒绝；类型检查、Gateway 构建和回归 `1/1` 通过。详见 [V5.134 证据](evidence/v5-134-feishu-route-id-repair-regression-2026-09-04.zh.md)。

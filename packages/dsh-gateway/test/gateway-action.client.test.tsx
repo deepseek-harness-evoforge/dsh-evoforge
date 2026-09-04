@@ -47,7 +47,7 @@ describe('Gateway Control Surface', () => {
     render(<GatewaySurface {...surfaceProps(remote)} />)
 
     fireEvent.change(await screen.findByLabelText('配对码'), { target: { value: 'ABCDEFGH23' } })
-    fireEvent.click(screen.getByRole('button', { name: '批准飞书配对' }))
+    fireEvent.click(screen.getByRole('button', { name: '批准渠道配对' }))
 
     expect(await screen.findByText('配对已批准。让用户直接发送下一条消息即可。')).toBeTruthy()
     expect(remote.approvePairing).toHaveBeenCalledWith('ABCDEFGH23', 'feishu', 'workspace-a', 'session-a')
@@ -140,7 +140,8 @@ describe('Gateway Control Surface', () => {
       revokePairing: vi.fn(),
     } as GatewayRemoteClient
     render(<GatewaySurface {...surfaceProps(remote)} />)
-    expect(await screen.findByText('没有待批准请求')).toBeTruthy()
+    await screen.findByText('渠道配对')
+    expect(screen.queryByText('没有待批准请求')).toBeNull()
 
     expect(poll).toBeDefined()
     poll!()
@@ -185,7 +186,7 @@ describe('Gateway Control Surface', () => {
     expect(screen.getByText(/用户私聊/u).closest('li')?.getAttribute('aria-current')).toBe('step')
   })
 
-  it('does not render Feishu pairing controls for a Telegram-only Host', async () => {
+  it('renders generic pairing controls for a Telegram-only Host', async () => {
     const base = snapshot()
     const value: GatewayHealthSnapshot = {
       ...base,
@@ -213,10 +214,39 @@ describe('Gateway Control Surface', () => {
     render(<GatewaySurface {...surfaceProps(remote)} />)
 
     await screen.findByText('telegram-long-poll')
-    expect(screen.queryByText('飞书配对')).toBeNull()
+    expect(screen.getByText('渠道配对')).toBeTruthy()
     expect(screen.queryByText('待批准请求')).toBeNull()
-    expect(screen.queryByLabelText('配对码')).toBeNull()
+    expect(screen.getByLabelText('配对码')).toBeTruthy()
+    expect((screen.getByLabelText('渠道') as HTMLSelectElement).value).toBe('telegram')
     expect(screen.queryByRole('list', { name: '飞书首次连接进度' })).toBeNull()
+  })
+
+  it('routes a typed pairing code through the selected Adapter', async () => {
+    const base = snapshot()
+    const value: GatewayHealthSnapshot = {
+      ...base,
+      transports: {
+        ...base.transports,
+        items: [base.transports.items[0]!, base.transports.items[1]!],
+      },
+    }
+    const remote = {
+      overview: vi.fn(async () => ({ ok: true, value })),
+      pendingPairings: vi.fn(async () => ({ ok: true, value: [] })),
+      approvePairing: vi.fn(async () => ({ ok: true, value: {
+        routeId: 'paired-telegram', workspaceId: 'workspace-a', sessionId: 'session-a',
+      } })),
+      approvePairingRequest: vi.fn(),
+      revokePairing: vi.fn(),
+    } as GatewayRemoteClient
+    render(<GatewaySurface {...surfaceProps(remote)} />)
+
+    fireEvent.change(await screen.findByLabelText('配对码'), { target: { value: 'ABCDEFGH23' } })
+    fireEvent.change(screen.getByLabelText('渠道'), { target: { value: 'telegram' } })
+    fireEvent.click(screen.getByRole('button', { name: '批准渠道配对' }))
+
+    expect(await screen.findByText('配对已批准。让用户直接发送下一条消息即可。')).toBeTruthy()
+    expect(remote.approvePairing).toHaveBeenCalledWith('ABCDEFGH23', 'telegram', 'workspace-a', 'session-a')
   })
 
   it('keeps pairing labels isolated when two Gateway surfaces are mounted', async () => {

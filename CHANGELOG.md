@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.141**: Generalized the native Gateway pairing-code control from a Feishu-only field to a shared Adapter
+  selector. Telegram-only and future resident channel profiles now expose the same single-page Host approval path;
+  the selected Adapter is passed to the existing Gateway authority, with no extra page or state store. The generic
+  Control Surface regression and full alpha.5 check passed. See [V5.141 evidence](docs/evidence/v5-141-gateway-generic-pairing-2026-09-04.zh.md).
+
 - **V5.140**: Added a resident Telegram Host-pairing mode that reuses the shared Gateway authorization and
   durable delivery seams. Unknown direct messages receive a one-time code without Agent ingress; after Host approval,
   only the next message is dispatched to the native DSH Session. Existing exact static-route profiles remain compatible,

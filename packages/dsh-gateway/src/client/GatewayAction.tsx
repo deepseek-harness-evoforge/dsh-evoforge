@@ -42,6 +42,7 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
   const [busy, setBusy] = useState(false)
   const [pairingBusy, setPairingBusy] = useState(false)
   const [pairingCode, setPairingCode] = useState('')
+  const [pairingAdapter, setPairingAdapter] = useState<string>()
   const [pairingReceipt, setPairingReceipt] = useState<GatewayPairingSessionApprovalReceipt>()
   const [revokingRoute, setRevokingRoute] = useState<string>()
   const [confirmingRoute, setConfirmingRoute] = useState<string>()
@@ -128,13 +129,17 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
       setError(t('pairing.noTarget'))
       return
     }
+    if (selectedPairingAdapter === undefined) {
+      setError(t('pairing.noAdapter'))
+      return
+    }
     if (!/^[A-HJ-NP-Z2-9]{10}$/u.test(code)) {
       setError(t('pairing.invalidCode'))
       return
     }
     setPairingBusy(true)
     try {
-      const result = await remote.approvePairing(code, 'feishu', workspaceId, sessionId)
+      const result = await remote.approvePairing(code, selectedPairingAdapter, workspaceId, sessionId)
       if (!result.ok) throw new Error(t('error.actionFailed'))
       setPairingReceipt(result.value)
       setPairingCode('')
@@ -170,11 +175,14 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
   const pending = snapshot === undefined ? 0 : snapshot.outbound.prepared + snapshot.outbound.sending + snapshot.outbound.retrying
   const anomalies = snapshot === undefined ? 0 : snapshot.ingress.uncertain + snapshot.outbound.uncertain + snapshot.outbound.failed
   const pairingCodeId = `dsh-gateway-${instanceId}-pairing-code`
-  const showFeishu = snapshot !== undefined && (
-    snapshot.transports.items.some(item => item.adapter === 'feishu')
-      || snapshot.routes.items.some(route => route.adapter === 'feishu')
-      || pendingPairings.some(request => request.adapter === 'feishu')
-  )
+  const pairingAdapters = snapshot === undefined ? [] : [...new Set([
+    ...snapshot.transports.items.map(item => item.adapter),
+    ...pendingPairings.map(request => request.adapter),
+  ])].sort((left, right) => left.localeCompare(right))
+  const selectedPairingAdapter = pairingAdapter !== undefined && pairingAdapters.includes(pairingAdapter)
+    ? pairingAdapter
+    : pairingAdapters[0]
+  const showPairing = pairingAdapters.length > 0
   const feishuJourney = snapshot === undefined ? undefined : buildFeishuJourney(snapshot, pendingPairings, t)
 
   return <UI.Surface ariaLabel={t('surface.title')}>
@@ -244,7 +252,7 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
             />)}
         </UI.Section>
 
-        {(showFeishu || pendingPairings.length > 0) && <UI.Section title={t('pairing.pendingTitle')} description={t('pairing.pendingHelp')}>
+        {pendingPairings.length > 0 && <UI.Section title={t('pairing.pendingTitle')} description={t('pairing.pendingHelp')}>
           {pendingPairings.length === 0
             ? <UI.Empty title={t('pairing.pendingEmptyTitle')} description={t('pairing.pendingEmpty')} />
             : pendingPairings.map(request => <UI.Entity
@@ -266,9 +274,17 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
 
         {revocationReceipt !== undefined && <UI.Notice tone="healthy">{t('routes.revokedShort')}</UI.Notice>}
 
-        {showFeishu && <UI.Section title={t('pairing.title')} description={t('pairing.help')}>
+        {showPairing && <UI.Section title={t('pairing.title')} description={t('pairing.help')}>
           <div className="dsh-cc-form">
             <label htmlFor={pairingCodeId}>{t('pairing.code')}</label>
+            <label htmlFor={`${pairingCodeId}-adapter`}>{t('pairing.adapter')}</label>
+            <select
+              id={`${pairingCodeId}-adapter`}
+              value={selectedPairingAdapter ?? ''}
+              onChange={event => { setPairingAdapter(event.target.value) }}
+            >
+              {pairingAdapters.map(adapter => <option key={adapter} value={adapter}>{adapterLabel(adapter)}</option>)}
+            </select>
             <div className="dsh-cc-form-row">
               <input
                 id={pairingCodeId}
@@ -279,7 +295,7 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
                 placeholder="ABCDEFGH23"
                 onChange={event => { setPairingCode(event.target.value.toUpperCase()) }}
               />
-              <UI.Button type="button" tone="primary" disabled={pairingBusy || workspaceId === undefined} onClick={() => { void approvePairing() }}>
+              <UI.Button type="button" tone="primary" disabled={pairingBusy || workspaceId === undefined || selectedPairingAdapter === undefined} onClick={() => { void approvePairing() }}>
                 {pairingBusy ? t('pairing.approving') : t('pairing.approve')}
               </UI.Button>
             </div>
