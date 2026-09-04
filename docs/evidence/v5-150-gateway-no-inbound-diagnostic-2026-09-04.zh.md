@@ -1,7 +1,7 @@
 # V5.150：Gateway 单页明确显示“连接正常但尚无入站事件”
 
 日期：2026-09-04  
-EvoForge revision：`c15e51f`（代码变更提交前的基线）  
+EvoForge revision：`e645af62417c4901ed441e967cee8a4f21e9ec59`
 Canonical DSH：`76fda729799fe9b3848dbe2c211d4b231032b81e`，`0.1.2-rc.1`，clean。
 
 ## 问题
