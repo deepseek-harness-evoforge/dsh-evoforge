@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.152**: Changed `dsh-resident` to default `noOpen: true`, so a launchd/systemd crash restart appends DSH's
+  official `--no-open` and does not create another browser tab. An operator can explicitly set `noOpen: false` when
+  this service should open the Web UI on every start. Resident tests (`17 passed / 1 skipped`), typecheck, and build
+  passed; no Gateway, Session, Router, or state authority changed. See [V5.152 evidence](docs/evidence/v5-152-resident-no-open-default-2026-09-04.zh.md).
+
 - **V5.151**: Re-ran the complete alpha.5 repository check after the Gateway single-page no-inbound diagnostic. The
   canonical DSH rc.1 was fetched and verified clean; documentation, CI/suite/release contracts, Hermes/Provider/Feishu/
   Telegram acceptance contracts, all 12 Bundle typechecks, tests, and builds passed (`exit 0`, Gateway `41/41`, Feishu

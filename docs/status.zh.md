@@ -24,6 +24,13 @@
 `34/34`）。本轮不读取真实凭据、不产生外部效果；所有真实渠道、Provider、Hermes paired、长期效果和 npm 发布门状态
 保持原值。详见 [V5.151 证据](evidence/v5-151-alpha5-full-check-after-gateway-diagnostic-2026-09-04.zh.md)。
 
+## V5.152：常驻服务默认不重复打开网页（本轮）
+
+修正 `dsh-resident` 的常驻 Web 行为：`noOpen` 默认值从 `false` 改为 `true`，OS service 默认追加官方
+`--no-open`，只有显式 `noOpen: false` 才允许每次启动请求浏览器交接。这样 launchd/systemd 崩溃恢复不会制造
+重复网页，仍由 DSH 官方 Web 页面承载所有插件 Surface。Resident 测试 `17 passed / 1 skipped`、类型检查和构建
+通过；详见 [V5.152 证据](evidence/v5-152-resident-no-open-default-2026-09-04.zh.md)。
+
 ## V5.149：真实飞书有效凭据连接成功但无新人 pending（本轮）
 
 使用用户提供的精确 App 凭据和真实效果授权，在新的物理 run root `/private/tmp/evoforge-feishu-as2-20260904-r2`
