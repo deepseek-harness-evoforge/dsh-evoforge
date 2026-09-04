@@ -330,6 +330,9 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'revision': z.number().readonly(),
   'objective': z.union([z.undefined(), z.string()]).readonly().optional(),
 })]).readonly().optional(),
+  'abstention': z.union([z.undefined(), z.object({
+  'reason': z.literal("missing-native-goal").readonly(),
+})]).readonly().optional(),
   'status': z.literal("confirmed").readonly(),
   'evidence': z.union([z.object({
   'kind': z.literal("native-skill-miss").readonly(),

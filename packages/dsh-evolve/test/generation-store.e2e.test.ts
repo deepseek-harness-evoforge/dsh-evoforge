@@ -548,7 +548,7 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
     const before = await evolvedCtx.systemPrompt.assemble()
     expect(before.tools).toEqual([{
       name: 'report_capability_gap',
-      description: 'Report a missing reusable capability only after reviewing the complete Session Skill catalog and finding that no available Skill applies. Propose one kebab-case capability name; EvoForge retains it as internal Goal experience and looks for repeated evidence across Goals without changing the current Session.',
+      description: 'Report a missing reusable capability after reviewing the complete native Session Skill catalog and confirming no available Skill applies. Propose one kebab-case name. EvoForge records a durable Interaction signal; a native Goal is optional. Goal-linked signals may enter the legacy evidence loop, while a no-Goal signal is recorded and explicitly abstained until independent Interaction evidence exists. It never searches, downloads, or installs external Skills, and never changes the current Session.',
       parameters: {
         type: 'object',
         properties: {

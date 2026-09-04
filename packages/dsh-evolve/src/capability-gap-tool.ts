@@ -27,10 +27,10 @@ export function installCapabilityGapTool(
   const now = options.now ?? Date.now
   return ctx.tools.register(defineTool({
     name: 'report_capability_gap',
-    // Keep the model-visible description byte-for-byte compatible with the
-    // frozen Goal-linked epoch.  The output status/reason below carries the
-    // conversation-first no-Goal decision without changing that composition.
-    description: 'Report a missing reusable capability only after reviewing the complete Session Skill catalog and finding that no available Skill applies. Propose one kebab-case capability name; EvoForge retains it as internal Goal experience and looks for repeated evidence across Goals without changing the current Session.',
+    // This is a new model-visible composition epoch: ordinary Interaction is
+    // primary, while the durable legacy Goal-linked evidence path remains
+    // explicitly gated below.
+    description: 'Report a missing reusable capability after reviewing the complete native Session Skill catalog and confirming no available Skill applies. Propose one kebab-case name. EvoForge records a durable Interaction signal; a native Goal is optional. Goal-linked signals may enter the legacy evidence loop, while a no-Goal signal is recorded and explicitly abstained until independent Interaction evidence exists. It never searches, downloads, or installs external Skills, and never changes the current Session.',
     parameters: {
       name: {
         type: 'string',

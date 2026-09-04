@@ -330,6 +330,9 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = z.object({
   'revision': z.number().readonly(),
   'objective': z.union([z.undefined(), z.string()]).readonly().optional(),
 })]).readonly().optional(),
+  'abstention': z.union([z.undefined(), z.object({
+  'reason': z.literal("missing-native-goal").readonly(),
+})]).readonly().optional(),
   'status': z.literal("confirmed").readonly(),
   'evidence': z.union([z.object({
   'kind': z.literal("native-skill-miss").readonly(),
@@ -2481,7 +2484,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionCapabilityGapView",
-            "declaration": "export interface EvolutionCapabilityGapView {\n    readonly id: string;\n    readonly observedAt: number;\n    readonly requestedSkill: string;\n    readonly catalogHash: string;\n    readonly catalogSize: number;\n    readonly generationId?: string;\n    readonly goal?: { readonly id: string; readonly revision: number; readonly objective?: string; };\n    readonly status: 'confirmed';\n    readonly evidence: { readonly kind: 'native-skill-miss'; readonly catalog: 'complete'; readonly routing: 'requested-skill-absent'; readonly providers: 'settled'; } | { readonly kind: 'model-declared-skill-gap'; readonly catalog: 'complete'; readonly routing: 'model-declared-no-applicable-skill'; readonly providers: 'settled'; };\n}"
+            "declaration": "export interface EvolutionCapabilityGapView {\n    readonly id: string;\n    readonly observedAt: number;\n    readonly requestedSkill: string;\n    readonly catalogHash: string;\n    readonly catalogSize: number;\n    readonly generationId?: string;\n    readonly goal?: { readonly id: string; readonly revision: number; readonly objective?: string; };\n    readonly abstention?: { readonly reason: 'missing-native-goal'; };\n    readonly status: 'confirmed';\n    readonly evidence: { readonly kind: 'native-skill-miss'; readonly catalog: 'complete'; readonly routing: 'requested-skill-absent'; readonly providers: 'settled'; } | { readonly kind: 'model-declared-skill-gap'; readonly catalog: 'complete'; readonly routing: 'model-declared-no-applicable-skill'; readonly providers: 'settled'; };\n}"
           },
           {
             "name": "EvolutionCapabilityMapView",
