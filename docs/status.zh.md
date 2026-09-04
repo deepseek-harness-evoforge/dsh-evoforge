@@ -10,6 +10,14 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.189：Telegram runtime 卸载收口与最新 DSH 全仓验证（本轮）
+
+静态与 pairing Telegram runtime 现在保存并撤销全部 Cordis 监听，重复 dispose 幂等；Pairing approval 只在存在时移除 abort listener。
+插件 Host teardown 同步注销原生凭据更新监听，卸载后事件不会再重启 Adapter。Telegram `36/36`、Feishu `55/55`、两包构建与类型检查
+通过；在重新 fetch 的最新 DSH alpha.5 支持 checkout 上执行根级 `pnpm run check`，权威 `CHECK_RC=0`，Evolution `309/309`、Gateway
+`41/41`。该增量仅扩充本地生命周期证据，不改变真实渠道、Provider、Hermes paired、长期效果、npm 与 tag 门禁。详见
+[V5.189 证据](evidence/v5-189-telegram-teardown-listener-2026-09-04.zh.md)。
+
 ## V5.188：异步凭据轮换重叠门禁与最新 DSH 全仓验证（本轮）
 
 在 V5.187 串行队列基础上，把 Telegram 生命周期回归改为受控阻塞旧 Adapter `dispose`，连续提交两次凭据更新，并断言旧代尚未释放

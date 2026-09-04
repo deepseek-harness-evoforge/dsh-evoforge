@@ -44,6 +44,7 @@ export class TelegramRuntime {
   private readonly outboundByTurn = new Map<number, GatewayTextDeliveryIntent>()
   private readonly pendingApprovals = new Map<string, PendingApproval>()
   private readonly bound = new WeakSet<Agent>()
+  private readonly unsubscribers: Array<() => void> = []
   private pollTask?: Promise<void>
   private outbound?: GatewayTextAdapterRegistration
   private transport: GatewayTransportRegistration | undefined
@@ -53,6 +54,7 @@ export class TelegramRuntime {
   private lastActivityAt?: number
   private lastErrorAt?: number
   private agent: Agent | undefined
+  private disposed = false
 
   constructor(
     private readonly ctx: Context,
@@ -62,6 +64,7 @@ export class TelegramRuntime {
   ) {}
 
   async start(): Promise<void> {
+    if (this.disposed) throw new Error('dsh-telegram: runtime is already disposed')
     const agent = await this.gateway.resolve(this.config.routeId, this.lifecycle.signal)
     this.transport = this.gateway.registerTransport({
       adapter: 'telegram',
@@ -81,7 +84,7 @@ export class TelegramRuntime {
     })
     this.bind(agent)
 
-    this.ctx.on('agent/created', ({ agent }) => {
+    this.unsubscribers.push(this.ctx.on('agent/created', ({ agent }) => {
       if (String(agent.id) !== this.config.sessionId) return
       void this.gateway.resolve(this.config.routeId, this.lifecycle.signal).then((resolved) => {
         if (resolved === agent) this.bind(resolved)
@@ -90,11 +93,11 @@ export class TelegramRuntime {
           this.ctx.logger.warn(`dsh-telegram: rejected replacement Agent: ${safeMessage(error)}`)
         }
       })
-    })
-    this.ctx.on('agent/disposed', ({ agent }) => {
+    }))
+    this.unsubscribers.push(this.ctx.on('agent/disposed', ({ agent }) => {
       if (this.agent === agent) this.agent = undefined
-    })
-    this.ctx.on('agent/inbox/claimed', ({ agent, message, turn }) => {
+    }))
+    this.unsubscribers.push(this.ctx.on('agent/inbox/claimed', ({ agent, message, turn }) => {
       if (agent !== this.agent) return
       const messageId = String(message.id)
       const reply = this.repliesByMessage.get(messageId)
@@ -102,8 +105,8 @@ export class TelegramRuntime {
         this.repliesByMessage.delete(messageId)
         this.repliesByTurn.set(turn, reply)
       }
-    })
-    this.ctx.on('agent/turn-stopping', async ({ agent, turn }) => {
+    }))
+    this.unsubscribers.push(this.ctx.on('agent/turn-stopping', async ({ agent, turn }) => {
       if (agent !== this.agent) return
       const text = outboundTextForTurn(sessionEvents(agent.session), turn, this.config.maxTextChars)
       if (text === undefined) return
@@ -119,8 +122,8 @@ export class TelegramRuntime {
       })
       this.outboundByTurn.set(turn, intent)
       await this.requireOutbound().submit(intent)
-    })
-    this.ctx.on('session/event', (session, event) => {
+    }))
+    this.unsubscribers.push(this.ctx.on('session/event', (session, event) => {
       if (session !== this.agent?.session || event.type !== 'turn/end') return
       this.repliesByTurn.delete(event.data.turn)
       const intent = this.outboundByTurn.get(event.data.turn)
@@ -130,19 +133,22 @@ export class TelegramRuntime {
           this.ctx.logger.warn(`dsh-telegram: could not release final answer: ${safeMessage(error)}`)
         })
       }
-    })
-    this.ctx.on('approval/request', (request, next) => {
+    }))
+    this.unsubscribers.push(this.ctx.on('approval/request', (request, next) => {
       if (request.agent !== this.agent) return next()
       return this.requestApproval(request, next)
-    })
+    }))
 
     this.pollTask = this.poll()
   }
 
   async dispose(): Promise<void> {
+    if (this.disposed) return
+    this.disposed = true
     this.transportState = 'stopping'
     this.reportTransport(Date.now())
     this.lifecycle.abort(new Error('dsh-telegram disposed'))
+    while (this.unsubscribers.length > 0) this.unsubscribers.pop()?.()
     for (const [nonce, pending] of this.pendingApprovals) {
       this.pendingApprovals.delete(nonce)
       if (pending.onAbort !== undefined) pending.signal?.removeEventListener('abort', pending.onAbort)

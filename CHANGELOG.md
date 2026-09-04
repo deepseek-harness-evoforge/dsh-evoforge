@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.189**: Closed Telegram teardown leaks. Static and pairing runtimes now remove every Cordis listener and make `dispose` idempotent;
+  pairing approval abort callbacks are removed only when present, and the Host unregisters its native credential-update listener during teardown.
+  Telegram `36/36`, Feishu `55/55`, typechecks/builds, and the latest-DSH alpha.5 root check (`CHECK_RC=0`) pass. This remains local lifecycle
+  evidence only; real channels, Provider/Hermes paired, long-run, npm ownership, and release-tag gates remain blocked. See
+  [V5.189 evidence](docs/evidence/v5-189-telegram-teardown-listener-2026-09-04.zh.md).
+
 - **V5.188**: Strengthened the Telegram credential-rotation regression with a deliberately blocked old Adapter disposal and two
   consecutive native credential updates. The test proves the newest generation does not register a second transport until the old
   one has fully released; the latest-DSH alpha.5 root check remains `CHECK_RC=0` with Evolution `309/309`, Gateway `41/41`,

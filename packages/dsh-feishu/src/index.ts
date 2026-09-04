@@ -165,7 +165,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     await run
   }
 
-  ctx.on('credentials/reference-updated', (reference) => {
+  const removeCredentialUpdate = ctx.on('credentials/reference-updated', (reference) => {
     const ref = String(reference)
     if (ref !== appIdRef && ref !== appSecretRef) return
     credentialGeneration += 1
@@ -189,6 +189,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   })
   ctx.effect(() => async () => {
     disposed = true
+    removeCredentialUpdate()
     await restartChain
     await startPromise
     await runtime?.dispose()
