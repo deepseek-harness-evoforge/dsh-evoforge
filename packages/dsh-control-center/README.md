@@ -17,8 +17,10 @@ For the normal user installation, pack and install the `core` capability suite:
 ```sh
 pnpm run pack:suite -- --suite core --out /tmp/evoforge-packs
 dsh plugin --profile web add /tmp/evoforge-packs/core/*.tgz
-dsh --profile web
+dsh --profile web --no-open
 ```
+
+启动一次后复用 DSH 打印的 URL；刷新浏览器即可，不要重复启动 Host。
 
 The suite also installs `dsh-evolve`, `dsh-doctor`, and `dsh-evolve-web`. The
 control center is intentionally separate from those adapters so Gateway and

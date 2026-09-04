@@ -8,7 +8,7 @@ Install both Bundles into the same profile:
 dsh plugin --profile web add \
   /absolute/path/dsh-evolve-0.1.0-alpha.1.tgz \
   /absolute/path/dsh-evolve-web-0.1.0-alpha.1.tgz
-dsh --profile web
+dsh --profile web --no-open
 ```
 
 The Host half only waits for `evoforge.evolutionControl`; the browser module contributes an evolution Surface to the native `dsh-control-center` `conversation.view` and calls the generated DSH Remote. Reads and actions therefore reach the same Host authority used by `/evolve` Commands. It adds no Tool, Skill, system prompt, watcher, polling loop, or persistent state. The old sidebar wrapper remains only as an inline compatibility export; it is not an active registration path and no fixed overlay CSS is shipped.

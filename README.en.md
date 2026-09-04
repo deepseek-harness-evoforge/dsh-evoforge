@@ -30,8 +30,8 @@ presets, not another runtime or marketplace. See the [suite boundary guide](docs
 
 ## Install
 
-The current source is this repository's local tarballs. Prepare Node.js 22, pnpm 11, and a DSH checkout matching the
-project's supported compatibility matrix, then run from the repository root:
+The current source is this repository's local tarballs. Prepare Node.js 22, pnpm 11, and DSH
+`dsh-v0.1.2-alpha.5` (`db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`), then run from the repository root:
 
 ```sh
 pnpm install --frozen-lockfile
@@ -39,8 +39,12 @@ PACK_ROOT="$(mktemp -d)"
 pnpm run pack:suite -- --suite core --out "$PACK_ROOT"
 dsh plugin --profile web add "$PACK_ROOT/core"/*.tgz
 dsh --profile web --dump-config
-dsh --profile web
+dsh --profile web --no-open
 ```
+
+Start the DSH Host once. Its startup log prints a Web URL; open that URL in the existing DSH browser tab and use the
+browser's reload thereafter. Do not start the Host again just to refresh or reconnect. `dsh-resident` also defaults to
+`noOpen: true`, so crash recovery does not create duplicate pages; set `noOpen: false` only as an explicit opt-out.
 
 Add channels or delivery when needed:
 

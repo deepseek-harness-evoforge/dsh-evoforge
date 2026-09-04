@@ -7,7 +7,7 @@ Install the packed artifact through DSH:
 ```sh
 dsh plugin --profile web add /absolute/path/dsh-evolve-0.1.0-alpha.1.tgz
 dsh --profile web --dump-config
-dsh --profile web
+dsh --profile web --no-open
 ```
 
 The Bundle inserts exactly one `evoforge-evolution` row and defaults the private content-addressed `cacheRoot` under `DSH_HOME`. Its public profile accepts only Workspace-scoped `selfDiscoveryPolicies`, `candidateEvaluationPolicies`, `automaticPromotionPolicies`, and bounded `supervisor` roots. It has no repository/source catalog, target Skill, static Case Pack, feedback/evaluator target, or per-Skill promotion allowlist.

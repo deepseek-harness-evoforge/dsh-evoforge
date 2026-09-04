@@ -4,7 +4,7 @@
 
 ```sh
 dsh plugin --profile web add /absolute/path/dsh-software-delivery-0.1.0-alpha.1.tgz
-dsh --profile web
+dsh --profile web --no-open
 ```
 
 In a DSH session, create/continue a native Goal and use the `software-delivery` Skill. The Agent calls `complete_delivery` with the exact Goal id/revision, linked worktree, base ref, and repository check argv. The Tool resolves that Agent's native Bash/pwsh and `update_goal`, so DSH Sandbox, Approval, Tool policy, Session event log, and Goal revision remain authoritative.

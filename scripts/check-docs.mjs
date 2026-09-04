@@ -8,6 +8,7 @@ const markdownLink = /\[[^\]]*\]\(([^)]+)\)/g
 const forbiddenPublicText = ['/Users/my/', '/home/runner/', 'file://', 'oh-my-dsh']
 const removedStandaloneCli = /\bdsh-evolve\s+(?:shadow|calibrate|retain)\b|\bdsh-delivery\s+verify\b/u
 const staleControlSurfaceGuide = ['打开侧栏“渠道健康', '打开侧栏"渠道健康', '渠道健康”面板', '渠道健康"面板', 'Router 配成 `routes: []`']
+const duplicateWebStartupGuide = /^dsh --profile web[ \t]*$/mu
 const failures = []
 
 for (const file of await markdownFiles(repositoryRoot)) {
@@ -27,6 +28,10 @@ for (const file of await markdownFiles(repositoryRoot)) {
 
   if (isOperationalDoc(relative) && staleControlSurfaceGuide.some(text => source.includes(text))) {
     failures.push(`${relative} contains the retired sidebar/Router channel-health guide; use native Control Center → Channels`)
+  }
+
+  if (isOperationalDoc(relative) && duplicateWebStartupGuide.test(source)) {
+    failures.push(`${relative} starts DSH Web without --no-open; tell users to reuse one browser tab instead of launching another handoff`)
   }
 
   for (const match of source.matchAll(markdownLink)) {
