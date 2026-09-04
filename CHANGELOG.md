@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.148**: Re-ran the complete alpha.5 repository check after wiring the configured Telegram API endpoint into the
+  final AS-1 DSH overlay. Canonical DSH rc.1 was fetched and verified clean; documentation, CI/suite/release contracts,
+  Hermes/Provider/Feishu/Telegram acceptance contracts, all 12 Bundle typechecks, tests, and builds passed (`exit 0`).
+  No real credentials or external effects were used, and the real Telegram gate remains `not-run`. See [V5.148 evidence](docs/evidence/v5-148-alpha5-full-check-after-telegram-api-fix-2026-09-04.zh.md).
+
 - **V5.147**: Verified the Telegram AS-1 unauthorised runner and final package boundary after the executor admission.
   With no approval or credentials, `pnpm benchmark:telegram:as1` exits `2` with one `not-run` JSON and performs no Bot
   request. Control Center, Gateway, and Telegram tarballs all pack successfully and contain neither `node_modules` nor a

@@ -10,6 +10,14 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.148：Telegram AS-1 API 修复后的 alpha.5 全仓回归（本轮）
+
+在再次 fetch/核对 canonical DSH rc.1（`76fda729…`，clean）后，使用已审计可构建的 alpha.5 支持 checkout
+`db6bdc…` 执行根级 `DSH_EVOLVE_DSH_SOURCE_DIR=... pnpm run check`，退出码 `0`。Telegram AS-1 执行器将可配置
+官方 API endpoint 传入最终 overlay 的修复与文档、CI/套件/发布合同、12 个 Bundle 的 typecheck、全部测试和构建
+共同通过；EvoForge 工作树保持 clean。该回归没有读取真实凭据或产生外部效果，真实 Telegram、Feishu、Provider、Hermes
+paired、长期效果和 npm 发布门状态不变。详见 [V5.148 证据](evidence/v5-148-alpha5-full-check-after-telegram-api-fix-2026-09-04.zh.md)。
+
 ## V5.144：真实 Telegram AS-1 合同与零副作用预检（本轮）
 
 新增真实 Telegram Bot resident pairing 的独立 AS-1 验收合同和执行器，固定可构建 DSH alpha.5 支持 revision，并单独记录
