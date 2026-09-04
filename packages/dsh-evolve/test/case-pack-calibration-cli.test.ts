@@ -5,6 +5,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { afterEach, describe, expect, it } from 'vitest'
+import { parseCasePackManifest } from '../src/shadow.ts'
 
 const execFileAsync = promisify(execFile)
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -17,6 +18,25 @@ afterEach(async () => {
 })
 
 describe('dsh-evolve calibrate', () => {
+  it('accepts only the current evidence rationale manifest contract', async () => {
+    const source = await readFile(
+      join(suiteRoot, 'examples', 'case-packs', 'browser-e2e-guidance', 'manifest.json'),
+      'utf8',
+    )
+    const current = JSON.parse(source) as Record<string, unknown>
+
+    expect(parseCasePackManifest(source).evidence).toEqual({ rationale: 'evidence/rationale.md' })
+    expect(() => parseCasePackManifest(JSON.stringify({
+      ...current,
+      evidence: undefined,
+      search: { evidence: 'search/evidence.md' },
+    }))).toThrow('case pack manifest uses the retired search field')
+    expect(() => parseCasePackManifest(JSON.stringify({
+      ...current,
+      unexpected: true,
+    }))).toThrow("case pack manifest has unknown field 'unexpected'")
+  })
+
   it('refuses to place calibration evidence inside the Case Pack', async () => {
     const fixture = await createFixture()
     const casePackBefore = await snapshotTree(fixture.casePackDir)
@@ -62,7 +82,7 @@ describe('dsh-evolve calibrate', () => {
       run: { status: 'complete' },
       calibrated: true,
       epoch: {
-        evaluatorVersion: 'browser-e2e-guidance-v1',
+        evaluatorVersion: 'browser-e2e-guidance-v2',
       },
       calibration: [
         { id: 'known-bad', expected: 'fail', actual: 'fail', passed: true },

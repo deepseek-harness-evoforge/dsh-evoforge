@@ -9,13 +9,14 @@ Use this reference while authoring or reviewing a Case Pack. The source of truth
 ```text
 case-pack/
   manifest.json
-  search/evidence.md
+  evidence/rationale.md
   calibration/known-bad/SKILL.md
   calibration/known-correction/SKILL.md
   final-test/evaluator.mjs
 ```
 
-Only `search/evidence.md` enters the proposer request. The calibration trees and evaluator stay on
+Only `evidence/rationale.md` enters the Candidate-authoring request. It records bounded internal evidence and is not an
+external-search result. The calibration trees and evaluator stay on
 the trusted host side. Keep a real held-out input inside the evaluator or its sealed workspace;
 repeatedly exposed final-test data becomes selection data and requires a new final test.
 
@@ -35,7 +36,7 @@ repeatedly exposed final-test data becomes selection data and requires a new fin
     "inputTokenLimit": 4000,
     "outputTokenLimit": 600
   },
-  "search": { "evidence": "search/evidence.md" },
+  "evidence": { "rationale": "evidence/rationale.md" },
   "trial": {
     "evaluator": "final-test/evaluator.mjs",
     "timeoutMs": 10000,
@@ -92,4 +93,3 @@ malformed JSON, missing composition, or aggregate contradiction makes the Trial 
 
 See the assembled examples under [`examples/case-packs`](../../../examples/case-packs) for bounded
 DSH boot, lifecycle, cache-composition, and profile-install patterns.
-

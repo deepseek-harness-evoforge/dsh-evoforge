@@ -24,7 +24,7 @@ Complete when the same observable check fails on the known-bad tree and passes o
 
 Keep four roles separate:
 
-- `search/evidence.md`: facts the proposer may see; exclude hidden expectations and evaluator source.
+- `evidence/rationale.md`: bounded internal facts the Candidate author may see; this is not external search. Exclude hidden expectations and evaluator source.
 - `calibration/known-bad/`: an exact Skill tree that exhibits the failure.
 - `calibration/known-correction/`: an exact, human-confirmed Skill tree that fixes it.
 - `final-test/evaluator.mjs`: trusted checks that observe behavior without consulting Candidate claims.
@@ -74,7 +74,7 @@ Only after explicit authorization for provider disclosure or a paid request, sta
 
 The command submits one content-addressed native DSH Job and returns immediately. When qualification and the paid Shadow are intentionally authorized as one reviewed action, use `/evolve evaluator <64-char-draft-id> qualify-shadow <review-note>` instead. For an already trusted static `shadowTargets` pack covering an exact feedback signal, use `/evolve feedback <64-char-signal-id> shadow <target-id>`.
 
-The Feedback Case Draft is untrusted search evidence. Keep it out of calibration and final-test inputs. Treat only calibrated `baseline=fail`, `candidate=pass`, unchanged active Skill/Case Pack, stable non-target composition, and passed hard gates as a promotion recommendation. Review or reject every ambiguous result through `/evolve review` or the DSH Web adapter.
+The Feedback Case Draft is untrusted authoring evidence. Keep it out of calibration and final-test inputs. Treat only calibrated `baseline=fail`, `candidate=pass`, unchanged active Skill/Case Pack, stable non-target composition, and passed hard gates as a promotion recommendation. Review or reject every ambiguous result through `/evolve review` or the DSH Web adapter.
 
 Complete when the native Job's durable report is reproducible and no current Session or active Skill changed.
 

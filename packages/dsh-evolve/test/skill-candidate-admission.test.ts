@@ -228,8 +228,10 @@ async function admissionFixture() {
   await mkdir(retentionRunRoot)
   await writeFile(join(baselineDir, 'subject.json'), '{"kind":"internal-capability-absent-subject-v1"}\n')
   await writeFile(join(casePackDir, 'evaluator.mjs'), 'process.stdout.write("{}")\n')
+  await mkdir(join(casePackDir, 'evidence'))
   await mkdir(join(casePackDir, 'known-bad'))
   await mkdir(join(casePackDir, 'known-correction'))
+  await writeFile(join(casePackDir, 'evidence', 'rationale.md'), 'Internal test rationale.\n')
   await writeFile(join(casePackDir, 'known-bad', 'SKILL.md'), 'bad\n')
   await writeFile(join(casePackDir, 'known-correction', 'SKILL.md'), 'good\n')
   await writeFile(join(casePackDir, 'manifest.json'), `${JSON.stringify({
@@ -238,6 +240,7 @@ async function admissionFixture() {
     workspaceId: WORKSPACE_ID,
     epoch: { dshRevision: 'dsh-revision', evaluatorVersion: 'admission-v1' },
     budget: { candidateLimit: 1, trialLimit: 4, inputTokenLimit: 1, outputTokenLimit: 1 },
+    evidence: { rationale: 'evidence/rationale.md' },
     trial: {
       evaluator: 'evaluator.mjs',
       timeoutMs: 1_000,

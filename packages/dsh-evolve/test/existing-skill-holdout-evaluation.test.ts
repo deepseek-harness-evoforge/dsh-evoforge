@@ -506,9 +506,11 @@ describe('Existing Skill Holdout Evaluation', () => {
 
 async function writeCasePack(root: string): Promise<void> {
   await mkdir(join(root, 'final-test'), { recursive: true })
+  await mkdir(join(root, 'evidence'), { recursive: true })
   await mkdir(join(root, 'calibration', 'known-bad'), { recursive: true })
   await mkdir(join(root, 'calibration', 'known-correction'), { recursive: true })
   await writeFile(join(root, 'final-test', 'evaluator.mjs'), 'process.stdout.write("{}")\n')
+  await writeFile(join(root, 'evidence', 'rationale.md'), 'Internal test rationale.\n')
   await writeFile(join(root, 'calibration', 'known-bad', 'SKILL.md'), 'bad\n')
   await writeFile(join(root, 'calibration', 'known-correction', 'SKILL.md'), 'good\n')
   await writeFile(join(root, 'manifest.json'), `${JSON.stringify({
@@ -517,6 +519,7 @@ async function writeCasePack(root: string): Promise<void> {
     workspaceId: WORKSPACE_ID,
     epoch: { dshRevision: 'a'.repeat(40), evaluatorVersion: 'b'.repeat(64) },
     budget: { candidateLimit: 1, trialLimit: 4, inputTokenLimit: 12_000, outputTokenLimit: 4_000 },
+    evidence: { rationale: 'evidence/rationale.md' },
     trial: {
       evaluator: 'final-test/evaluator.mjs',
       timeoutMs: 30_000,

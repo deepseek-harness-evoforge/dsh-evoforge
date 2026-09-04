@@ -132,6 +132,8 @@ async function shadowFixture() {
     shadowRunRoot,
   ].map(path => mkdir(path)))
   await mkdir(candidateDir, { recursive: true })
+  await mkdir(join(shadowCasePackDir, 'evidence'))
+  await writeFile(join(shadowCasePackDir, 'evidence', 'rationale.md'), 'Internal test rationale.\n')
   await writeFile(join(baselineDir, 'subject.json'), '{"kind":"internal-capability-absent-subject-v1"}\n')
   await writeFile(join(candidateDir, 'SKILL.md'), 'candidate\n')
   await writeFile(join(admissionCasePackDir, 'manifest.json'), '{"admission":true}\n')
@@ -141,6 +143,7 @@ async function shadowFixture() {
     workspaceId: WORKSPACE_ID,
     epoch: { dshRevision: 'a'.repeat(40), evaluatorVersion: 'holdout-v1' },
     budget: { candidateLimit: 1, trialLimit: 4, inputTokenLimit: 1, outputTokenLimit: 1 },
+    evidence: { rationale: 'evidence/rationale.md' },
     trial: {
       evaluator: 'evaluator.mjs',
       timeoutMs: 1_000,

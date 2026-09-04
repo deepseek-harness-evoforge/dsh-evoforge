@@ -573,8 +573,10 @@ async function canaryFixture() {
 
 async function writeCasePack(path: string): Promise<void> {
   await writeFile(join(path, 'evaluator.mjs'), 'process.stdout.write("{}")\n')
+  await mkdir(join(path, 'evidence'))
   await mkdir(join(path, 'known-bad'))
   await mkdir(join(path, 'known-correction'))
+  await writeFile(join(path, 'evidence', 'rationale.md'), 'Internal test rationale.\n')
   await writeFile(join(path, 'known-bad', 'SKILL.md'), 'bad\n')
   await writeFile(join(path, 'known-correction', 'SKILL.md'), 'good\n')
   await writeFile(join(path, 'manifest.json'), `${JSON.stringify({
@@ -583,6 +585,7 @@ async function writeCasePack(path: string): Promise<void> {
     workspaceId: WORKSPACE_ID,
     epoch: { dshRevision: 'e'.repeat(40), evaluatorVersion: 'retention-v1' },
     budget: { candidateLimit: 1, trialLimit: 4, inputTokenLimit: 100, outputTokenLimit: 100 },
+    evidence: { rationale: 'evidence/rationale.md' },
     trial: {
       evaluator: 'evaluator.mjs',
       timeoutMs: 1_000,

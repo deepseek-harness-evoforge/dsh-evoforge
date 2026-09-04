@@ -100,6 +100,8 @@ async function createFixture(assembled: boolean): Promise<{
   const outputDir = join(root, 'run')
   await mkdir(baselineDir)
   await mkdir(casePackDir)
+  await mkdir(join(casePackDir, 'evidence'))
+  await writeFile(join(casePackDir, 'evidence', 'rationale.md'), 'Internal test rationale.\n')
   await writeFile(join(baselineDir, 'SKILL.md'), [
     '---',
     'name: exact-shadow-test',
@@ -121,6 +123,7 @@ async function createFixture(assembled: boolean): Promise<{
     workspaceId: WORKSPACE_ID,
     epoch: { dshRevision: 'a'.repeat(40), evaluatorVersion: 'gate-v1' },
     budget: { candidateLimit: 1, trialLimit: 4, inputTokenLimit: 1, outputTokenLimit: 1 },
+    evidence: { rationale: 'evidence/rationale.md' },
     trial: {
       evaluator: 'evaluator.mjs',
       timeoutMs: 1_000,

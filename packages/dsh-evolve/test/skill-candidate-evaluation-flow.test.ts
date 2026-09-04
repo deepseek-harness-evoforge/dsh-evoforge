@@ -300,12 +300,15 @@ async function flowFixture(): Promise<{
 }
 
 async function writeCasePack(path: string, id: string, assembled: boolean): Promise<void> {
+  await mkdir(join(path, 'evidence'), { recursive: true })
+  await writeFile(join(path, 'evidence', 'rationale.md'), 'Internal test rationale.\n')
   await writeFile(join(path, 'manifest.json'), `${JSON.stringify({
     schemaVersion: 1,
     id,
     workspaceId: WORKSPACE_ID,
     epoch: { dshRevision: 'a'.repeat(40), evaluatorVersion: `${id}-v1` },
     budget: { candidateLimit: 1, trialLimit: 4, inputTokenLimit: 1, outputTokenLimit: 1 },
+    evidence: { rationale: 'evidence/rationale.md' },
     trial: {
       evaluator: 'evaluator.mjs',
       timeoutMs: 1_000,

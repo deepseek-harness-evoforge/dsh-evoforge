@@ -53,6 +53,9 @@ export interface CasePackManifest {
     inputTokenLimit: number
     outputTokenLimit: number
   }
+  evidence: {
+    rationale: 'evidence/rationale.md'
+  }
   trial?: {
     evaluator: string
     timeoutMs: number
@@ -903,10 +906,25 @@ export function parseCasePackManifest(source: string): CasePackManifest {
     || typeof value.workspaceId !== 'string' || !zUuid(value.workspaceId)) {
     throw new Error('case pack manifest must use schemaVersion 1 and have an id and Workspace id')
   }
+  if (Object.hasOwn(value, 'search')) {
+    throw new Error('case pack manifest uses the retired search field; use evidence.rationale')
+  }
+  const knownFields = new Set([
+    'schemaVersion', 'id', 'workspaceId', 'epoch', 'budget', 'evidence', 'trial', 'calibration',
+  ])
+  const unknownField = Object.keys(value).find(key => !knownFields.has(key))
+  if (unknownField !== undefined) {
+    throw new Error(`case pack manifest has unknown field '${unknownField}'`)
+  }
   if (!isRecord(value.epoch)
     || typeof value.epoch.dshRevision !== 'string'
     || typeof value.epoch.evaluatorVersion !== 'string') {
     throw new Error('case pack manifest has an invalid epoch')
+  }
+  if (!isRecord(value.evidence)
+    || value.evidence.rationale !== 'evidence/rationale.md'
+    || Object.keys(value.evidence).some(key => key !== 'rationale')) {
+    throw new Error('case pack manifest evidence must contain only rationale="evidence/rationale.md"')
   }
   if (!isRecord(value.budget)) throw new Error('case pack manifest has no budget')
   for (const key of ['candidateLimit', 'trialLimit', 'inputTokenLimit', 'outputTokenLimit']) {
