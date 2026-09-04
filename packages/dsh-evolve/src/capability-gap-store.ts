@@ -104,15 +104,21 @@ class DomainCapabilityGapStore implements CapabilityGapStore {
   }
 
   record(input: CapabilityGapInput): Promise<{ created: boolean; gap: CapabilityGap }> {
+    let captured: CapabilityGapInput
+    try {
+      captured = structuredClone(input)
+    } catch (error) {
+      return Promise.reject(error)
+    }
     return this.enqueue(async () => {
-      const id = gapId(input)
+      const id = gapId(captured)
       const table = this.domain.table('gaps')
       const existing = table.get(id)
       if (existing !== undefined) return { created: false, gap: immutableCopy(existing) }
       const gap = immutableCopy(gapSchema.parse({
         schemaVersion: 1,
         id,
-        ...input,
+        ...captured,
         status: 'confirmed',
       }))
       await table.put(id, gap)

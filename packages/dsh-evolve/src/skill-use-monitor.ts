@@ -129,7 +129,13 @@ class DomainSkillUseStore implements SkillUseStore {
 
   record(input: SkillUseInput): Promise<{ created: boolean; use: SkillUse }> {
     if (this.closing !== undefined) return Promise.reject(new Error('Skill use store is closing'))
-    const result = this.writeTail.then(() => this.recordNow(input))
+    let captured: SkillUseInput
+    try {
+      captured = structuredClone(input)
+    } catch (error) {
+      return Promise.reject(error)
+    }
+    const result = this.writeTail.then(() => this.recordNow(captured))
     this.writeTail = result.then(() => {}, () => {})
     return result
   }

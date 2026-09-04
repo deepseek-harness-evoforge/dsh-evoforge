@@ -95,6 +95,64 @@ describe.skipIf(process.platform !== 'darwin')('Capability Gap durable queue', (
     }
   })
 
+  it('snapshots Gap, Feedback, and Delivery evidence before queued persistence', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-evidence-snapshot-'))
+    temporaryRoots.push(root)
+    const configPath = await writeStorageConfig(root)
+    const ctx = await bootStorage(configPath)
+    const gaps = await openCapabilityGapStore(ctx.storageDomain)
+    const feedback = await openFeedbackSignalStore(ctx.storageDomain)
+    const outcomes = await openDeliveryOutcomeStore(ctx.storageDomain)
+    try {
+      const gap = gapInput(10, 'snapshot-gap')
+      const pendingGap = gaps.record(gap)
+      gap.requestedSkill = 'mutated-gap'
+      expect((await pendingGap).gap.requestedSkill).toBe('snapshot-gap')
+
+      const session = {
+        observedAt: 20,
+        workspaceId: WORKSPACE_ID,
+        sessionId: 'snapshot-feedback',
+        items: [{
+          id: 'a'.repeat(64),
+          messageId: 'snapshot-message',
+          feedbackVersion: '00000000-0000-4000-8000-000000000001',
+          sourceUpdatedAt: 20,
+          attribution: {
+            kind: 'exact-skill-invocation-v1' as const,
+            skillName: 'snapshot-gap',
+            route: 'model-tool' as const,
+            invocationSeq: 1,
+            assistantSeq: 1,
+            turn: 1,
+            goal: { id: 'snapshot-goal', revision: 1 },
+          },
+        }],
+      }
+      const pendingFeedback = feedback.replaceSession(session)
+      session.items[0]!.messageId = 'mutated-message'
+      expect(feedback.list(WORKSPACE_ID)).toHaveLength(0)
+      await pendingFeedback
+      expect(feedback.get('a'.repeat(64), WORKSPACE_ID)?.messageId).toBe('snapshot-message')
+
+      const outcome = {
+        observedAt: 30,
+        workspaceId: WORKSPACE_ID,
+        sessionId: 'snapshot-outcome',
+        callId: 'snapshot-call',
+        goal: { id: 'snapshot-goal', revision: 1, phase: 'complete' as const },
+        status: 'passed' as const,
+        reason: 'verified',
+      }
+      const pendingOutcome = outcomes.record(outcome)
+      outcome.goal.id = 'mutated-goal'
+      expect((await pendingOutcome).outcome.goal.id).toBe('snapshot-goal')
+    } finally {
+      await Promise.all([gaps.close(), feedback.close(), outcomes.close()])
+      await ctx.fiber.dispose()
+    }
+  })
+
   it('recovers exact internal correction and delivery context for one Skill Opportunity', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-opportunity-evidence-'))
     temporaryRoots.push(root)

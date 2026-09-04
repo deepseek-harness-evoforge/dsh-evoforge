@@ -1,5 +1,7 @@
 # 当前实现状态
 
+> **最新增量（V5.209）**：Gap、Feedback、Skill-use、Delivery-outcome 与 Long-term-effects Storage 在进入异步写入队列前捕获输入快照，排队期间的对象修改不会污染自进化证据；新增 Gap/Feedback/Delivery 真实 Storage 回归。重新生成 pinned DSH Typert digest 后，根级全量 `CHECK_RC=0`，Evolution `313/313`、Gateway `48/48`、Feishu `56/56`、Telegram `38/38` 及其余本地套件/合同通过。最新 DSH `d347e703…` 安装通过，根构建缺陷仍按上游事实分类；真实渠道、Provider、Hermes paired、长期效果、npm ownership 与发布 tag 门禁仍未通过。详见 [V5.209 证据](evidence/v5-209-evidence-input-snapshot-2026-09-04.zh.md)。
+
 > **最新增量（V5.208）**：Skill Candidate 与 Existing-Skill Candidate 在进入异步 Storage 队列前捕获输入快照，排队期间的调用方修改不会污染 Candidate 内容哈希、身份或谱系。新增真实 Storage 回归，`dsh-evolve` 类型检查、Capability Gap durable queue `6/6` 与根级全量 `CHECK_RC=0` 通过（Evolution `312/312`、Gateway `48/48`、Feishu `56/56`、Telegram `38/38` 及其余本地套件/合同）。最新 DSH `d347e703…` 安装通过，根构建缺陷仍按上游事实分类。真实渠道、Provider、Hermes paired、长期效果、npm ownership 与发布 tag 门禁仍未通过。详见 [V5.208 证据](evidence/v5-208-candidate-input-snapshot-2026-09-04.zh.md)。
 
 > 更新日期：2026-09-04。本文只描述标准路径中的权威 `main` 工作树，不把计划或历史分支当作已交付能力。

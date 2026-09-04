@@ -154,8 +154,14 @@ class DomainLongTermEffectsStore implements LongTermEffectsStore {
 
   record(input: LongTermFactInput): Promise<{ readonly created: boolean; readonly fact: LongTermFact }> {
     if (this.closing !== undefined) return Promise.reject(new Error('Long-term effects store is closing'))
+    let captured: LongTermFactInput
+    try {
+      captured = structuredClone(input)
+    } catch (error) {
+      return Promise.reject(error)
+    }
     const result = this.writeTail.then(async () => {
-      const content = factContentSchema.parse({ schemaVersion: 1, ...input })
+      const content = factContentSchema.parse({ schemaVersion: 1, ...captured })
       const id = sha256(canonicalJson(content))
       const table = this.domain.table('facts')
       const existing = table.get(id)

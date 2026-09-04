@@ -158,7 +158,13 @@ class DomainDeliveryOutcomeStore implements DeliveryOutcomeStore {
 
   record(input: DeliveryOutcomeInput): Promise<{ created: boolean; outcome: DeliveryOutcome }> {
     if (this.closing !== undefined) return Promise.reject(new Error('delivery outcome store is closing'))
-    const result = this.writeTail.then(() => this.recordNow(input))
+    let captured: DeliveryOutcomeInput
+    try {
+      captured = structuredClone(input)
+    } catch (error) {
+      return Promise.reject(error)
+    }
+    const result = this.writeTail.then(() => this.recordNow(captured))
     this.writeTail = result.then(() => {}, () => {})
     return result
   }

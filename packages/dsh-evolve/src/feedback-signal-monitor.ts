@@ -134,16 +134,22 @@ class DomainFeedbackSignalStore implements FeedbackSignalStore {
   }
 
   replaceSession(input: FeedbackSignalSessionInput): Promise<void> {
+    let captured: FeedbackSignalSessionInput
+    try {
+      captured = structuredClone(input)
+    } catch (error) {
+      return Promise.reject(error)
+    }
     return this.enqueue(async () => {
       const table = this.domain.table('sessions')
-      if (input.items.length === 0) {
-        await table.delete(input.sessionId)
+      if (captured.items.length === 0) {
+        await table.delete(captured.sessionId)
         return
       }
       const session = immutableCopy(storedSignalSessionSchema.parse({
         schemaVersion: 2,
-        ...input,
-        items: [...input.items]
+        ...captured,
+        items: [...captured.items]
           .sort((left, right) => right.sourceUpdatedAt - left.sourceUpdatedAt
             || left.id.localeCompare(right.id))
           .slice(0, MAX_SIGNALS_PER_SESSION)
