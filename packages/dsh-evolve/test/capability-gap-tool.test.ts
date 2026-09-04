@@ -78,6 +78,60 @@ describe('autonomous Capability Gap Tool', () => {
     await ctx.fiber.dispose()
   })
 
+  it('persists a no-Goal Interaction signal and explicitly abstains without scheduling authoring', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SystemPrompt)
+    await ctx.plugin(Tools)
+    installWorkspaceFixture(ctx)
+    // No native Goal service is installed for this ordinary Interaction.
+    const capabilities = new CapabilityMap()
+    capabilities.observe({
+      workspaceId: WORKSPACE_ID,
+      sessionId: 'session-without-goal',
+      snapshot: { complete: true, skills: [] },
+    })
+    const gaps = fakeGaps()
+    const onGap = vi.fn()
+    installCapabilityGapTool(
+      ctx,
+      gaps,
+      capabilities,
+      { getSessionGeneration: vi.fn(() => ({ id: 'a'.repeat(64) })) } as unknown as EvolutionStore,
+      { now: () => 1_786_896_000_000, onGap },
+    )
+
+    const result = await executeGapTool(ctx, 'session-without-goal', 'publish-dsh-plugin')
+
+    expect(result).toMatchObject({
+      isError: false,
+      value: {
+        status: 'abstained',
+        reason: 'missing-native-goal',
+        gapId: '5'.repeat(64),
+        requestedSkill: 'publish-dsh-plugin',
+      },
+    })
+    expect(gaps.record).toHaveBeenCalledWith({
+      observedAt: 1_786_896_000_000,
+      workspaceId: WORKSPACE_ID,
+      sessionId: 'session-without-goal',
+      requestedSkill: 'publish-dsh-plugin',
+      catalogHash: expect.stringMatching(/^[a-f0-9]{64}$/u),
+      catalogSize: 0,
+      generationId: 'a'.repeat(64),
+      abstention: { reason: 'missing-native-goal' },
+      evidence: {
+        kind: 'model-declared-skill-gap',
+        catalog: 'complete',
+        routing: 'model-declared-no-applicable-skill',
+        providers: 'settled',
+      },
+    })
+    expect(onGap).not.toHaveBeenCalled()
+
+    await ctx.fiber.dispose()
+  })
+
   it('rejects an unbounded model-proposed Skill name before durable persistence', async () => {
     const ctx = new Context()
     await ctx.plugin(SystemPrompt)

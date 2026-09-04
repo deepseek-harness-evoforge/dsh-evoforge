@@ -732,21 +732,29 @@ function projectCapabilityGaps(
 ): EvolutionCapabilityGapQueueView {
   return {
     confirmedCount: gaps.filter(gap => gap.status === 'confirmed').length,
-    items: gaps.slice(0, MAX_CAPABILITY_GAP_ROWS).map(gap => ({
-      id: gap.id,
-      observedAt: gap.observedAt,
-      requestedSkill: gap.requestedSkill,
-      catalogHash: gap.catalogHash,
-      catalogSize: gap.catalogSize,
-      ...(gap.generationId === undefined ? {} : { generationId: gap.generationId }),
-      ...(gap.goal === undefined ? {} : { goal: {
-        id: gap.goal.id,
-        revision: gap.goal.revision,
-        ...(redactObjectiveFor.has(gap.id) ? {} : { objective: gap.goal.objective }),
-      } }),
-      status: gap.status,
-      evidence: { ...gap.evidence },
-    })),
+    items: gaps.slice(0, MAX_CAPABILITY_GAP_ROWS).map(gap => {
+      // Older schema-version 1 rows may predate the explicit decision field.
+      // Derive the same fail-closed projection for a missing Goal without
+      // rewriting their durable identity or historical contents.
+      const abstention = gap.abstention
+        ?? (gap.goal === undefined ? { reason: 'missing-native-goal' as const } : undefined)
+      return {
+        id: gap.id,
+        observedAt: gap.observedAt,
+        requestedSkill: gap.requestedSkill,
+        catalogHash: gap.catalogHash,
+        catalogSize: gap.catalogSize,
+        ...(gap.generationId === undefined ? {} : { generationId: gap.generationId }),
+        ...(gap.goal === undefined ? {} : { goal: {
+          id: gap.goal.id,
+          revision: gap.goal.revision,
+          ...(redactObjectiveFor.has(gap.id) ? {} : { objective: gap.goal.objective }),
+        } }),
+        ...(abstention === undefined ? {} : { abstention: { ...abstention } }),
+        status: gap.status,
+        evidence: { ...gap.evidence },
+      }
+    }),
   }
 }
 

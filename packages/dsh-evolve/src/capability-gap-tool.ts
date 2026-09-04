@@ -27,6 +27,9 @@ export function installCapabilityGapTool(
   const now = options.now ?? Date.now
   return ctx.tools.register(defineTool({
     name: 'report_capability_gap',
+    // Keep the model-visible description byte-for-byte compatible with the
+    // frozen Goal-linked epoch.  The output status/reason below carries the
+    // conversation-first no-Goal decision without changing that composition.
     description: 'Report a missing reusable capability only after reviewing the complete Session Skill catalog and finding that no available Skill applies. Propose one kebab-case capability name; EvoForge retains it as internal Goal experience and looks for repeated evidence across Goals without changing the current Session.',
     parameters: {
       name: {
@@ -40,14 +43,17 @@ export function installCapabilityGapTool(
         type: 'object',
         additionalProperties: false,
         properties: {
-          status: { type: 'string', required: true, enum: ['queued', 'already-recorded'] },
+          status: { type: 'string', required: true, enum: ['queued', 'already-recorded', 'abstained'] },
           gapId: { type: 'string', required: true },
           requestedSkill: { type: 'string', required: true },
+          reason: { type: 'string', enum: ['missing-native-goal'] },
         },
       },
       render: (_args, value) => [{
         type: 'text',
-        text: value.status === 'queued'
+        text: value.status === 'abstained'
+          ? `Capability Gap ${value.gapId} recorded for ${value.requestedSkill}; discovery abstained because no native DSH Goal is active.`
+          : value.status === 'queued'
           ? `Capability Gap ${value.gapId} recorded for ${value.requestedSkill}; internal Skill opportunity discovery continues asynchronously.`
           : `Capability Gap ${value.gapId} was already recorded for ${value.requestedSkill}.`,
       }],
@@ -67,7 +73,6 @@ export function installCapabilityGapTool(
         throw new Error(`Skill '${name}' is already available in this Session`)
       }
       const goal = currentGoal(ctx, agent)
-      if (goal === undefined) throw new Error('report_capability_gap requires an active native DSH Goal')
       const generationId = evolution.getSessionGeneration(identity)?.id
       const recorded = await gaps.record({
         observedAt: now(),
@@ -77,7 +82,9 @@ export function installCapabilityGapTool(
         catalogHash: catalog.catalogHash,
         catalogSize: catalog.capabilities.length,
         ...(generationId === undefined ? {} : { generationId }),
-        goal,
+        ...(goal === undefined
+          ? { abstention: { reason: 'missing-native-goal' as const } }
+          : { goal }),
         evidence: {
           kind: 'model-declared-skill-gap',
           catalog: 'complete',
@@ -85,13 +92,21 @@ export function installCapabilityGapTool(
           providers: 'settled',
         },
       })
-      if (recorded.created && options.onGap !== undefined) {
+      if (goal !== undefined && recorded.created && options.onGap !== undefined) {
         try {
           void Promise.resolve(options.onGap(recorded.gap)).catch((error: unknown) => {
             ctx.logger.warn(`dsh-evolve failed to reconcile internal Skill opportunities for Capability Gap '${recorded.gap.id}': ${String(error)}`)
           })
         } catch (error) {
           ctx.logger.warn(`dsh-evolve failed to reconcile internal Skill opportunities for Capability Gap '${recorded.gap.id}': ${String(error)}`)
+        }
+      }
+      if (goal === undefined) {
+        return {
+          status: 'abstained' as const,
+          reason: 'missing-native-goal' as const,
+          gapId: recorded.gap.id,
+          requestedSkill: recorded.gap.requestedSkill,
         }
       }
       return {

@@ -224,6 +224,10 @@ export interface EvolutionCapabilityGapView {
         /** Omitted once the Gap contributes to an evaluation-bearing Opportunity. */
         readonly objective?: string;
     };
+    /** Durable fail-closed decision for an Interaction without a native Goal. */
+    readonly abstention?: {
+        readonly reason: 'missing-native-goal';
+    };
     readonly status: 'confirmed';
     readonly evidence: {
         readonly kind: 'native-skill-miss';

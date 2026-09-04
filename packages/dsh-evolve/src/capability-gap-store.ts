@@ -46,11 +46,20 @@ const gapSchema = z.strictObject({
     revision: safeInteger,
     objective: z.string().min(1).max(8_192),
   }).optional(),
+  /**
+   * A durable decision that this observation is not eligible for the legacy
+   * Goal-qualified authoring loop.  It is optional so schema-version 1 rows
+   * written before the conversation-first transition remain readable.
+   */
+  abstention: z.strictObject({
+    reason: z.literal('missing-native-goal'),
+  }).optional(),
   status: z.literal('confirmed'),
   evidence: evidenceSchema,
 })
 
 export type CapabilityGap = z.infer<typeof gapSchema>
+export type CapabilityGapAbstentionReason = 'missing-native-goal'
 
 export interface CapabilityGapInput {
   readonly observedAt: number
@@ -64,6 +73,9 @@ export interface CapabilityGapInput {
     readonly id: string
     readonly revision: number
     readonly objective: string
+  } | undefined
+  readonly abstention?: {
+    readonly reason: CapabilityGapAbstentionReason
   } | undefined
   readonly evidence: CapabilityGap['evidence']
 }
@@ -203,7 +215,9 @@ export function installCapabilityGapMonitor(
           catalogHash: catalog.catalogHash,
           catalogSize: catalog.capabilities.length,
           ...(generationId === undefined ? {} : { generationId }),
-          ...(goal === undefined ? {} : { goal }),
+          ...(goal === undefined
+            ? { abstention: { reason: 'missing-native-goal' as const } }
+            : { goal }),
           evidence: {
             kind: 'native-skill-miss',
             catalog: 'complete',
@@ -211,7 +225,9 @@ export function installCapabilityGapMonitor(
             providers: 'settled',
           },
         })
-        if (recorded.created) await options.onGap?.(recorded.gap)
+        // A no-Goal observation is durable evidence for the Interaction-first
+        // path, but it cannot enter the legacy Goal-qualified authoring loop.
+        if (recorded.created && goal !== undefined) await options.onGap?.(recorded.gap)
       } catch (error) {
         ctx.logger.warn(`dsh-evolve skipped one Capability Gap observation: ${errorMessage(error)}`)
       }

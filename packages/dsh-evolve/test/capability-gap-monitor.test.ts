@@ -83,6 +83,49 @@ describe('Capability Gap monitor', () => {
     await ctx.fiber.dispose()
   })
 
+  it('persists and exposes a no-Goal signal without invoking the authoring callback', async () => {
+    const ctx = new Context()
+    installWorkspaceFixture(ctx)
+    const capabilities = new CapabilityMap()
+    capabilities.observe({
+      workspaceId: WORKSPACE_ID,
+      sessionId: 'session-without-goal',
+      snapshot: { complete: true, skills: [] },
+    })
+    const gaps = fakeGaps()
+    const onGap = vi.fn()
+    const monitor = installCapabilityGapMonitor(ctx, gaps, capabilities, {
+      getSessionGeneration: vi.fn(() => ({ id: 'a'.repeat(64) })),
+    } as unknown as EvolutionStore, {
+      now: () => 1_786_896_000_000,
+      onGap,
+    })
+
+    emitSkillResult(ctx, 'session-without-goal', 'missing-skill', true)
+    await monitor.flush()
+
+    expect(gaps.record).toHaveBeenCalledWith({
+      observedAt: 1_786_896_000_000,
+      workspaceId: WORKSPACE_ID,
+      sessionId: 'session-without-goal',
+      requestedSkill: 'missing-skill',
+      catalogHash: expect.stringMatching(catalogHash),
+      catalogSize: 0,
+      generationId: 'a'.repeat(64),
+      abstention: { reason: 'missing-native-goal' },
+      evidence: {
+        kind: 'native-skill-miss',
+        catalog: 'complete',
+        routing: 'requested-skill-absent',
+        providers: 'settled',
+      },
+    })
+    expect(onGap).not.toHaveBeenCalled()
+
+    await monitor.dispose()
+    await ctx.fiber.dispose()
+  })
+
   it('contains one persistence failure and continues observing later exact misses', async () => {
     const ctx = new Context()
     installWorkspaceFixture(ctx)

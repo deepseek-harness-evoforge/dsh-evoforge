@@ -674,7 +674,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     capabilityGaps,
     capabilities,
     store,
-    { onGap: gap => reconcileSkillOpportunities(gap.workspaceId) },
+    {
+      // A no-Goal Interaction is a durable signal, not an authoring trigger.
+      // The legacy slow loop remains strictly Goal-qualified until its
+      // Interaction evidence contract is introduced in a new epoch.
+      onGap: gap => gap.goal === undefined
+        ? undefined
+        : reconcileSkillOpportunities(gap.workspaceId),
+    },
   )
   ctx.inject(['tools', 'goals'], (toolCtx) => {
     installCapabilityGapTool(
@@ -682,7 +689,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       capabilityGaps,
       capabilities,
       store,
-      { onGap: gap => reconcileSkillOpportunities(gap.workspaceId) },
+      {
+        // Keep the old Goal-linked authoring path unchanged while making the
+        // new no-Goal durable signal explicitly fail closed.
+        onGap: gap => gap.goal === undefined
+          ? undefined
+          : reconcileSkillOpportunities(gap.workspaceId),
+      },
     )
   })
 
