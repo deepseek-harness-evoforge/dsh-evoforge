@@ -6,6 +6,14 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.196**: Revalidated the native single-page DSH Web control center on the latest buildable support
+  composition. One browser tab can open/close settings and switch between runtime diagnostics, resident
+  channels, Feishu content, and evolution surfaces inside the native Session console. The evolution fixture's
+  missing-native-workspace state remains fail-closed; no external messages or credential writes were performed.
+  A stale temporary profile dependency resolution failure was recorded instead of being masked. Real channel,
+  Provider/Hermes paired, long-run, npm ownership, and release-tag gates remain blocked. See
+  [V5.196 evidence](docs/evidence/v5-196-single-page-control-center-live-revalidation-2026-09-04.zh.md).
+
 - **V5.195**: Hardened both Telegram resident runtimes. Static and pairing adapters now reject duplicate starts,
   clean up every resource on partial startup failure, and continue teardown when health reporting, listener removal, or
   transport disposal throws. Added regressions for static startup failure and pairing duplicate-start registration counts.
