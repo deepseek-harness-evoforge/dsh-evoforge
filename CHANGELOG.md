@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.170**: Re-fetched canonical DSH before rerunning the complete alpha.5 check after integrating the latest-DSH
+  audit classifier into the root check chain. The run finished `CHECK_RC=0`; Evolution `309/309`, Gateway `41/41`,
+  Feishu `46/46`, Telegram `34/34`, Resident `17 passed / 1 skipped`, clean-profile `1 passed / 1 skipped`, all 12
+  Bundle typechecks/tests/builds, and the new `2/2` classifier tests passed. Real release gates remain unchanged. See
+  [V5.170 evidence](docs/evidence/v5-170-full-check-after-dsh-audit-command-2026-09-04.zh.md).
+
 - **V5.169**: Added `audit:dsh:latest`, a repeatable maintainer command that fetches canonical DSH, verifies clean
   `HEAD == origin/master`, installs dependencies, runs the official root build, and distinguishes the known rc.1
   `lib/types` upstream defect (exit `2`) from unknown failures (exit `1`). The canonical DSH audit returned revision

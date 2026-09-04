@@ -55,6 +55,13 @@ rc.1 `lib/types` 上游缺陷与未知失败分开返回（`0` 通过、`2` 已�
 为 revision `76fda729…`、安装 `0`、构建 `1`、分类 `blocked-upstream-root-types-entry`、退出 `2`；单测 `2/2`
 通过。详见 [V5.169 证据](evidence/v5-169-latest-dsh-audit-command-2026-09-04.zh.md)。
 
+## V5.170：最新 DSH 审计命令接入后的 alpha.5 全仓回归（本轮）
+
+开发前重新 fetch canonical DSH，根 `pnpm run check` 在已审计 alpha.5 checkout 上明确 `CHECK_RC=0`；新增
+`check:dsh:latest:test` 已在检查链中执行。Evolution `309/309`、Gateway `41/41`、Feishu `46/46`、Telegram `34/34`、
+Resident `17 passed / 1 skipped`、clean-profile `1 passed / 1 skipped`，12 个 Bundle 类型检查、测试和构建全部通过。
+真实外部门禁状态不变。详见 [V5.170 证据](evidence/v5-170-full-check-after-dsh-audit-command-2026-09-04.zh.md)。
+
 ## V5.159：当前 Hermes revision 的 EV-1 epoch-4（本轮）
 
 重新 fetch Hermes 后确认 `origin/main` 已从旧的 `63279301…` 漂移到
