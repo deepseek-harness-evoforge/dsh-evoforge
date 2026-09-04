@@ -6,6 +6,13 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.210**: Made the resident Gateway and outbound coordinator fail closed after `stop()` begins. A later `start()` now
+  rejects instead of reporting success against closed journals/transports; added the start-stop-start regression and
+  regenerated the pinned DSH Typert digest after the stale-artifact gate. The audited root check passed with `CHECK_RC=0`
+  (Evolution `313/313`, Gateway `49/49`, Feishu `56/56`, Telegram `38/38`, and all other local suites/contracts). Real
+  channels, providers, Hermes paired benchmarking, long-run effects, npm ownership, and the release tag remain blocked.
+  See [V5.210 evidence](docs/evidence/v5-210-gateway-terminal-start-2026-09-04.zh.md).
+
 - **V5.209**: Snapshotted Gap, Feedback, Skill-use, Delivery-outcome, and Long-term-effects inputs before asynchronous
   Storage persistence, so caller mutations cannot rewrite evolution evidence after submission. Added real DSH Storage
   regressions for the Gap/Feedback/Delivery chain. Regenerated the pinned DSH Typert digest after the first full check

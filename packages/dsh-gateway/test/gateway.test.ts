@@ -43,6 +43,22 @@ describe('DshGateway', () => {
     await gateway.stop()
   })
 
+  it('fails closed when a stopped resident Gateway is started again', async () => {
+    const host = fakeNativeHost()
+    const facility = memoryFacility()
+    const gateway = new DshGateway(
+      host.ctx,
+      resolveGatewayRoutes([]),
+      await openGatewayIngressJournal(facility),
+      await openGatewayOutboundJournal(facility),
+    )
+
+    await gateway.start()
+    await gateway.stop()
+    await expect(gateway.start()).rejects.toThrow('DSH gateway is stopping')
+    expect(gateway.healthSnapshot(Date.now()).lifecycle).toBe('stopping')
+  })
+
   it('waits for an in-flight startup before closing resident resources', async () => {
     const host = fakeNativeHost()
     let releaseList!: () => void

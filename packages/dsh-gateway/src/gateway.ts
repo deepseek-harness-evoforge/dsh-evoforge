@@ -225,8 +225,8 @@ export class DshGateway {
 
   /** Validate the complete static binding table before any adapter accepts traffic. */
   start(): Promise<void> {
-    if (this.started) return Promise.resolve()
     if (this.stopping !== undefined) return Promise.reject(new Error('DSH gateway is stopping'))
+    if (this.started) return Promise.resolve()
     if (this.starting !== undefined) return this.starting
     const starting = this.startInternal()
     this.starting = starting

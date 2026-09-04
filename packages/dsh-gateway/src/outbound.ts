@@ -106,8 +106,8 @@ export class GatewayOutboundCoordinator {
   ) {}
 
   async start(now: number): Promise<number> {
-    if (this.started) return 0
     if (this.stopping !== undefined) throw new Error('Gateway outbound coordinator is stopping')
+    if (this.started) return 0
     const recovered = await this.journal.recoverInflight(now)
     this.started = true
     return recovered
