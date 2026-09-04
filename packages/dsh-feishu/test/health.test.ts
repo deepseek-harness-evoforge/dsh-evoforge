@@ -196,8 +196,38 @@ describe('Feishu authoritative health snapshot', () => {
     expect(() => parseFeishuHealthCommand(renderFeishuHealthCommand(snapshot).replaceAll(
       'sender_not_allowed', 'credential_leaked',
     ))).toThrow(/invalid health payload/u)
-    expect(() => parseFeishuHealthCommand(renderFeishuHealthCommand(snapshot).replace(
+    expect(() => parseFeishuHealthCommand(renderFeishuHealthCommand(snapshot).replaceAll(
       '"lastPolicyRejectAt":1998,', '',
+    ))).toThrow(/invalid health payload/u)
+  })
+
+  it('projects optional app-access diagnostics without making the page probe the platform', () => {
+    const snapshot = summarizeFeishuHealth({
+      now: 2_100,
+      accountId: 'cli_test_app',
+      transport: gatewayTransport('ready', ['main'], 2_099),
+      routes: [{ id: 'main', workspaceId: 'workspace-a', sessionId: 'session-a', threadScoped: false }],
+      outbound: outbound(),
+      pendingApprovals: 0,
+      platformAccess: {
+        status: 'not-verified',
+        checkedAt: 2_098,
+        botIdentity: 'verified',
+        scopeList: 'verified',
+        requiredScopes: [
+          { name: 'im:message.p2p_msg:readonly', granted: true },
+          { name: 'im:message:send_as_bot', granted: true },
+        ],
+        eventSubscription: 'not-verified',
+        reason: 'event-subscription-read-scope-missing',
+      },
+      content: contentHealth(),
+    })
+    expect(snapshot.status).toBe('ready')
+    expect(parseFeishuHealthCommand(renderFeishuHealthCommand(snapshot))).toEqual(snapshot)
+    expect(renderFeishuHealthCommand(snapshot)).toContain('Platform access: NOT-VERIFIED')
+    expect(() => parseFeishuHealthCommand(renderFeishuHealthCommand(snapshot).replaceAll(
+      'event-subscription-read-scope-missing', 'secret-leaked',
     ))).toThrow(/invalid health payload/u)
   })
 })

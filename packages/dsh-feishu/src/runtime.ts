@@ -40,6 +40,7 @@ import { FeishuPlatformSendError } from './platform.js'
 import type {
   FeishuApprovalAction,
   FeishuInboundMessage,
+  FeishuPlatformAccess,
   FeishuPlatform,
   FeishuPlatformReject,
   FeishuSendOptions,
@@ -89,6 +90,7 @@ export class FeishuRuntime {
   private lastPlatformErrorAt?: number
   private lastPolicyRejectAt?: number
   private lastPolicyRejectReason?: FeishuPlatformReject['reason']
+  private platformAccess?: FeishuPlatformAccess
 
   constructor(
     private readonly ctx: Context,
@@ -238,6 +240,12 @@ export class FeishuRuntime {
       this.connectedAt = Date.now()
       this.transportState = 'ready'
       this.reportTransport(this.connectedAt)
+      if (this.platform.probeAccess !== undefined) {
+        // App scope/event-subscription diagnostics are read-only and advisory.
+        // A missing diagnostic permission must not take down an otherwise live
+        // WebSocket; the result is rendered as `not-verified` in Host health.
+        this.platformAccess = await this.platform.probeAccess(this.lifecycle.signal)
+      }
     } catch (error) {
       await this.dispose()
       throw error
@@ -366,6 +374,7 @@ export class FeishuRuntime {
       ...(this.lastInboundAt === undefined ? {} : { lastInboundAt: this.lastInboundAt }),
       ...(this.lastPolicyRejectAt === undefined ? {} : { lastPolicyRejectAt: this.lastPolicyRejectAt }),
       ...(this.lastPolicyRejectReason === undefined ? {} : { lastPolicyRejectReason: this.lastPolicyRejectReason }),
+      ...(this.platformAccess === undefined ? {} : { platformAccess: this.platformAccess }),
       content: {
         permissions: this.config.contentPermissions,
         toolAvailable,

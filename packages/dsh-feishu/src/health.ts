@@ -8,7 +8,17 @@ import {
   FEISHU_CONTENT_PERMISSIONS,
   type FeishuContentPermission,
 } from './config.js'
-import type { FeishuPlatformRejectReason } from './platform.js'
+import type {
+  FeishuPlatformAccess,
+  FeishuPlatformRejectReason,
+} from './platform.js'
+
+// Keep the browser health parser independent from the Node-only Feishu SDK.
+// This tuple mirrors the two transport scopes emitted by the Host probe.
+const FEISHU_HEALTH_REQUIRED_SCOPES = [
+  'im:message.p2p_msg:readonly',
+  'im:message:send_as_bot',
+] as const
 
 export const FEISHU_HEALTH_PREFIX = 'EVOFORGE_FEISHU_HEALTH_V2 '
 
@@ -64,6 +74,8 @@ export interface FeishuHealthSnapshot {
   readonly routeCount: number
   readonly routesTruncated: boolean
   readonly routes: readonly FeishuHealthRoute[]
+  /** Optional read-only App configuration probe; absent for legacy/custom adapters. */
+  readonly platformAccess?: FeishuPlatformAccess
   readonly deliveries: {
     readonly total: number
     readonly prepared: number
@@ -107,6 +119,7 @@ export interface SummarizeFeishuHealthInput {
   readonly lastInboundAt?: number
   readonly lastPolicyRejectAt?: number
   readonly lastPolicyRejectReason?: FeishuPlatformRejectReason
+  readonly platformAccess?: FeishuPlatformAccess
   readonly content: SummarizeFeishuContentHealthInput
 }
 
@@ -144,6 +157,8 @@ export function summarizeFeishuHealth(input: SummarizeFeishuHealthInput): Feishu
           ? 'attention'
           : content.status !== 'disabled' && content.status !== 'ready'
             ? 'attention'
+            : input.platformAccess?.status === 'attention'
+              ? 'attention'
             : active > 0 || counts.scheduled > 0 || input.pendingApprovals > 0
               ? 'busy'
               : 'ready'
@@ -167,6 +182,7 @@ export function summarizeFeishuHealth(input: SummarizeFeishuHealthInput): Feishu
     routeCount: input.routes.length,
     routesTruncated: input.routes.length > visibleRoutes.length,
     routes: Object.freeze(visibleRoutes),
+    ...(input.platformAccess === undefined ? {} : { platformAccess: input.platformAccess }),
     deliveries: Object.freeze({
       total: counts.total,
       prepared: counts.prepared,
@@ -230,7 +246,8 @@ export function renderFeishuHealthCommand(snapshot: FeishuHealthSnapshot): strin
     `Feishu: ${snapshot.status.toUpperCase()} (${snapshot.routes.map(route => route.id).join(', ')}${snapshot.routesTruncated ? ', …' : ''}).`,
     `Transport: ${snapshot.transport.kind}; lifecycle ${snapshot.transport.state}.`,
     `Deliveries: ${snapshot.deliveries.total} total; ${snapshot.deliveries.retrying} retrying; ${snapshot.deliveries.uncertain} uncertain; ${snapshot.deliveries.failed} failed.`,
-    `Content: ${snapshot.content.status.toUpperCase()}; ${snapshot.content.enabledCount} permissions enabled; Tool ${snapshot.content.toolAvailable ? 'available' : 'unavailable'}; Approval ${snapshot.content.approvalAvailable ? 'available' : 'unavailable'}; platform access not verified.`,
+    `Content: ${snapshot.content.status.toUpperCase()}; ${snapshot.content.enabledCount} permissions enabled; Tool ${snapshot.content.toolAvailable ? 'available' : 'unavailable'}; Approval ${snapshot.content.approvalAvailable ? 'available' : 'unavailable'}.`,
+    `Platform access: ${snapshot.platformAccess === undefined ? 'NOT-VERIFIED (legacy adapter)' : `${snapshot.platformAccess.status.toUpperCase()} (${snapshot.platformAccess.reason ?? 'scope and event checks passed'})`}.`,
     `Policy rejects: ${snapshot.transport.lastPolicyRejectReason === undefined ? 'none observed' : `${snapshot.transport.lastPolicyRejectReason} at ${new Date(snapshot.transport.lastPolicyRejectAt ?? snapshot.observedAt).toISOString()}`}.`,
     `Approvals: ${snapshot.pendingApprovals} pending. Model surface: ${snapshot.modelCalls} calls.`,
     `${FEISHU_HEALTH_PREFIX}${JSON.stringify(snapshot)}`,
@@ -272,11 +289,39 @@ function isHealth(value: unknown): value is FeishuHealthSnapshot {
       && !oneOf(policyRejectReason, ['group_not_allowed', 'sender_not_allowed', 'no_mention', 'dm_disabled', 'mention_all_blocked']))
     || !Array.isArray(value.routes)
     || value.routes.length > 20 || !value.routes.every(route)
+    || (value.platformAccess !== undefined && !platformAccess(value.platformAccess))
     || !record(value.deliveries) || !deliveries(value.deliveries)
     || !integer(value.pendingApprovals) || !contentHealth(value.content)) return false
   const routeIds = value.routes.map(item => item.id)
   if (new Set(routeIds).size !== routeIds.length || value.routeCount < value.routes.length
     || value.routesTruncated !== (value.routeCount > value.routes.length)) return false
+  return true
+}
+
+function platformAccess(value: unknown): value is FeishuPlatformAccess {
+  if (!record(value)
+    || !oneOf(value.status, ['verified', 'attention', 'not-verified'])
+    || !integer(value.checkedAt)
+    || !oneOf(value.botIdentity, ['verified', 'unavailable'])
+    || !oneOf(value.scopeList, ['verified', 'unavailable'])
+    || !Array.isArray(value.requiredScopes)
+    || value.requiredScopes.length !== FEISHU_HEALTH_REQUIRED_SCOPES.length
+    || !value.requiredScopes.every((scope, index) => record(scope)
+      && scope.name === FEISHU_HEALTH_REQUIRED_SCOPES[index]
+      && typeof scope.granted === 'boolean')
+    || !oneOf(value.eventSubscription, ['verified', 'not-verified', 'unavailable'])
+    || (value.reason !== undefined && !oneOf(value.reason, [
+      'required-scope-missing',
+      'scope-list-unavailable',
+      'event-subscription-read-scope-missing',
+      'event-subscription-unavailable',
+    ]))) return false
+  const granted = value.requiredScopes.filter(scope => scope.granted).length
+  if (value.status === 'verified') {
+    return value.botIdentity === 'verified' && value.scopeList === 'verified'
+      && granted === value.requiredScopes.length && value.eventSubscription === 'verified'
+  }
+  if (value.status === 'attention') return value.botIdentity === 'unavailable' || granted < value.requiredScopes.length
   return true
 }
 

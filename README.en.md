@@ -79,6 +79,11 @@ test account's direct chat. Once DSH is running, an unknown user sends any priva
 2. An administrator approves the pending request in the same DSH Web `Channels` surface; the redacted request-id is shown on the pending row and can be approved there.
 3. The user sends the next message, which enters the bound native DSH Session.
 
+After the connection succeeds, the `Channels` surface shows a one-time, read-only App configuration diagnostic for bot
+identity, required message scopes, and event-subscription API access. It never reads messages or performs a write; “not
+fully verified” means the event subscription still needs confirmation in the Feishu Developer Console, not that a ready
+WebSocket has received an inbound event.
+
 No Session pairing command, temporary listener, or second webpage is required. See [`dsh-gateway`](packages/dsh-gateway/README.md)
 and [`dsh-feishu`](packages/dsh-feishu/README.md) for routing, revocation, permissions, and troubleshooting.
 

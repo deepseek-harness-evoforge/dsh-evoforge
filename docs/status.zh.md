@@ -10,6 +10,19 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.172：飞书启动期只读 App 配置诊断（本轮）
+
+在重新 fetch 并审计最新 canonical DSH rc.1 后，针对真实 AS-2 已知的“凭据有效、WebSocket `ready`、但事件
+订阅无法从 API 验证”问题，给官方 Feishu Adapter 增加一次启动期只读诊断。它复用官方 SDK 的 Bot info、scope
+列表和事件订阅读取接口，只返回固定枚举、两个消息 transport scope 的布尔值、事件 API 可达性和时间；不写权限、
+不发送消息、不读取资源、不保存凭据或平台标识。缺少消息必需权限进入 `attention`；缺少
+`event:subscription:read` 只显示 `not-verified`，不把 API 不可检查误报为事件关闭，也不拆除已连接的 WebSocket。
+结果进入原有 V2 Feishu 健康快照，单页控制面在“连接与路由”区显示；自定义/旧 Adapter 仍可省略字段，浏览器刷新
+不发起平台请求。定向测试 `12/12`、typecheck、build 通过，Web bundle 保持约 36 KB；真实 AS-2、Provider、Hermes
+paired、长期效果和 npm 归属门禁均不改变。真实 API 检查观察到 scope list `36` 项且两个 transport scope 已授权，
+事件订阅读取因缺少 `event:subscription:read` 被拒；没有外部写副作用。详见 [V5.172 证据](evidence/v5-172-feishu-startup-access-diagnostic-2026-09-04.zh.md)
+和 [ADR-0102](adr/0102-feishu-startup-access-diagnostic-is-advisory.md)。
+
 ## V5.171：公共分发名撞名迁移与全仓回归（本轮）
 
 审计发现 `dsh-doctor`、`dsh-feishu`、`dsh-gateway`、`dsh-telegram` 四个 unscoped npm 名称已被无关仓库占用。

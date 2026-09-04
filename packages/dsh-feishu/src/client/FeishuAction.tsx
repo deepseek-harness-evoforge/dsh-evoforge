@@ -119,6 +119,23 @@ export function FeishuSurface({ commands, t, sessionId, ui: UI }: FeishuSurfaceP
               : `${t(`transport.policyReject.${health.transport.lastPolicyRejectReason}`)} · ${new Date(health.transport.lastPolicyRejectAt ?? health.observedAt).toLocaleString()}`}</div>
           </details>}
         />
+        {health.platformAccess === undefined
+          ? <UI.Notice tone="neutral">{t('platformAccess.legacy')}</UI.Notice>
+          : <UI.Entity
+            icon={health.platformAccess.status === 'verified' ? '✓' : '!'}
+            title={t('platformAccess.title')}
+            description={t(`platformAccess.description.${health.platformAccess.status}`)}
+            status={<UI.Status tone={platformAccessTone(health.platformAccess.status)}>{t(`platformAccess.status.${health.platformAccess.status}`)}</UI.Status>}
+            details={<details>
+              <summary>{t('technical.details')}</summary>
+              <div>{t('platformAccess.botIdentity')}: {health.platformAccess.botIdentity}</div>
+              <div>{t('platformAccess.scopeList')}: {health.platformAccess.scopeList}</div>
+              <div>{t('platformAccess.eventSubscription')}: {health.platformAccess.eventSubscription}</div>
+              <div>{t('platformAccess.requiredScopes')}: {health.platformAccess.requiredScopes.map(scope => `${scope.name}=${scope.granted ? 'ok' : 'missing'}`).join(', ')}</div>
+              {health.platformAccess.reason !== undefined && <div>{t('platformAccess.reason')}: {t(`platformAccess.reason.${health.platformAccess.reason}`)}</div>}
+              <div>{t('platformAccess.checkedAt')}: {new Date(health.platformAccess.checkedAt).toLocaleString()}</div>
+            </details>}
+          />}
         {health.routes.map(route => <UI.Entity
           key={route.id}
           icon="#"
@@ -206,6 +223,12 @@ function transportTone(state: FeishuHealthSnapshot['transport']['state']): Contr
 function contentTone(status: FeishuHealthSnapshot['content']['status']): ControlTone {
   if (status === 'ready') return 'healthy'
   if (status === 'disabled') return 'neutral'
+  return 'attention'
+}
+
+function platformAccessTone(status: NonNullable<FeishuHealthSnapshot['platformAccess']>['status']): ControlTone {
+  if (status === 'verified') return 'healthy'
+  if (status === 'attention') return 'danger'
   return 'attention'
 }
 

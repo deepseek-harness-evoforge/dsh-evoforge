@@ -6,6 +6,16 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.172**: Added a bounded, read-only Feishu startup App diagnostic behind the official Adapter. It reports bot
+  identity resolution, the two required message transport scopes, and whether the event-subscription read API is
+  reachable; missing message scopes are `attention`, while an unavailable `event:subscription:read` check remains
+  `not-verified` and never tears down a live WebSocket. The optional redacted result is projected into the existing V2
+  health snapshot and native single-page Control Center without a new Remote, Gateway, state store, browser request, or
+  model call. The Web bundle remains about 36 KB because the Node-only SDK stays out of the client. Feishu targeted tests
+  pass `12/12`, with typecheck/build green; real AS-2 and all external release gates remain blocked. See
+  [V5.172 evidence](docs/evidence/v5-172-feishu-startup-access-diagnostic-2026-09-04.zh.md) and
+  [ADR-0102](docs/adr/0102-feishu-startup-access-diagnostic-is-advisory.md).
+
 - **V5.171**: Migrated the four colliding unscoped distribution names to the project-prefixed
   `dsh-evoforge-{doctor,feishu,gateway,telegram}` names across manifests, Cordis patches, Typert artifacts, workspace
   dependencies, suites, fixtures, benchmarks, and user installation docs. Repository directories and logical Bundle ids

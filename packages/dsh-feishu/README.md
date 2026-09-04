@@ -145,7 +145,9 @@ schema/cache 稳定，旧 Session 仍保留同名 schema，但每次执行都会
   只对 Host 的脱敏 pending projection 做低频只读轮询，不轮询平台消息、不调用模型，也不显示凭据、chat/user identity、外部 message id 或消息正文；
 - V2 健康快照还从 exact Agent 的 Tool registry、Approval seam 和 request header 读取内容就绪状态，逐项
   显示四个部署权限、Tool/Approval 可用性和配置上限；`future-session-only` 明示新能力不会改写当前 Session；
-  `platformAccess: not-verified` 明示健康检查没有主动探测飞书 App/资源授权；
+  启动后的可选只读 App 诊断会补充机器人身份、消息必需 scope 和事件订阅 API 可达性；`attention` 表示缺少消息
+  必需权限，`not-verified` 表示事件订阅仍需在开发者后台确认。该诊断不读取消息、不执行写操作，也不会让 Web
+  刷新触发平台请求；旧/自定义 Adapter 没有诊断时保留 `platformAccess: not-verified`；
 - Gateway Web 在零 route 时仍显示 resident Adapter transport/outbound registration，并提供 Host-side code 批准；已绑定 Session 的 `/feishu` 只读健康读取失败会清除旧快照，避免历史 `ready` 冒充当前状态；
 - 健康视图区分 `ready`、`busy`、`attention`、`degraded` 与 `stopping`，展示 exact route 名称、官方 WebSocket lifecycle、投递/重试/uncertain/failed 与 pending Approval 计数；已配置内容能力但 Tool/Approval 当前不可用时进入 `attention`，未配置时保持 `disabled`；普通模型请求仍新增 0 Tool、0 Skill、0 Prompt section；
 - disable、reload 或 remove 会注销 handler、取消 pending Approval、释放 Gateway outbound registration

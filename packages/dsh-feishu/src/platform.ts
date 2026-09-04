@@ -51,6 +51,117 @@ export interface FeishuPlatformReject {
   readonly reason: FeishuPlatformRejectReason
 }
 
+/**
+ * A bounded, redacted result of the optional platform configuration probe.
+ *
+ * This is deliberately not a claim that an event is flowing: Feishu exposes
+ * the transport mode and event subscription in different control-plane
+ * surfaces.  `eventSubscription` only says whether the read-only subscription
+ * API could be inspected with the App's current scopes.
+ */
+export type FeishuPlatformAccessStatus = 'verified' | 'attention' | 'not-verified'
+export type FeishuPlatformAccessReason =
+  | 'required-scope-missing'
+  | 'scope-list-unavailable'
+  | 'event-subscription-read-scope-missing'
+  | 'event-subscription-unavailable'
+
+export interface FeishuPlatformAccess {
+  readonly status: FeishuPlatformAccessStatus
+  readonly checkedAt: number
+  readonly botIdentity: 'verified' | 'unavailable'
+  readonly scopeList: 'verified' | 'unavailable'
+  readonly requiredScopes: readonly {
+    readonly name: string
+    readonly granted: boolean
+  }[]
+  readonly eventSubscription: 'verified' | 'not-verified' | 'unavailable'
+  readonly reason?: FeishuPlatformAccessReason
+}
+
+/** Read-only subset of the official SDK used by the startup diagnostic. */
+export interface FeishuPlatformAccessClient {
+  listScopes(): Promise<unknown>
+  readEventSubscriptions(): Promise<unknown>
+}
+
+export const FEISHU_TRANSPORT_SCOPES = Object.freeze([
+  'im:message.p2p_msg:readonly',
+  'im:message:send_as_bot',
+] as const)
+export const FEISHU_EVENT_SUBSCRIPTION_READ_SCOPE = 'event:subscription:read'
+
+/**
+ * Inspect only app-level facts. No message, chat, user, resource or secret is
+ * returned. Every failure is represented as a bounded status so a diagnostic
+ * can never prevent the resident Adapter from starting.
+ */
+export async function inspectFeishuPlatformAccess(
+  client: FeishuPlatformAccessClient,
+  botIdentity: 'verified' | 'unavailable',
+  checkedAt = Date.now(),
+): Promise<FeishuPlatformAccess> {
+  const requiredScopes = FEISHU_TRANSPORT_SCOPES.map(name => ({ name, granted: false }))
+  let scopeList: 'verified' | 'unavailable' = 'verified'
+  let granted = new Set<string>()
+  try {
+    const response = await client.listScopes()
+    const root = record(response) ? response : undefined
+    const scopes = root?.data && record(root.data) && Array.isArray(root.data.scopes)
+      ? root.data.scopes
+      : undefined
+    if (root?.code !== 0 || scopes === undefined) {
+      scopeList = 'unavailable'
+    } else {
+      granted = new Set(scopes
+        .filter(value => record(value) && value.grant_status === 1 && typeof value.scope_name === 'string')
+        .map(value => (value as { readonly scope_name: string }).scope_name))
+      for (const scope of requiredScopes) scope.granted = granted.has(scope.name)
+    }
+  } catch {
+    scopeList = 'unavailable'
+  }
+
+  let eventSubscription: FeishuPlatformAccess['eventSubscription'] = 'not-verified'
+  let reason: FeishuPlatformAccessReason | undefined
+  if (scopeList === 'unavailable') {
+    reason = 'scope-list-unavailable'
+  } else if (requiredScopes.some(scope => !scope.granted)) {
+    reason = 'required-scope-missing'
+  } else if (!granted.has(FEISHU_EVENT_SUBSCRIPTION_READ_SCOPE)) {
+    reason = 'event-subscription-read-scope-missing'
+  } else {
+    try {
+      const response = await client.readEventSubscriptions()
+      const root = record(response) ? response : undefined
+      if (root?.code === 0) eventSubscription = 'verified'
+      else {
+        eventSubscription = 'unavailable'
+        reason = 'event-subscription-unavailable'
+      }
+    } catch {
+      eventSubscription = 'unavailable'
+      reason = 'event-subscription-unavailable'
+    }
+  }
+
+  const status: FeishuPlatformAccessStatus = botIdentity === 'unavailable'
+    || (scopeList === 'verified' && requiredScopes.some(scope => !scope.granted))
+    ? 'attention'
+    : eventSubscription === 'verified'
+      ? 'verified'
+      : 'not-verified'
+  return Object.freeze({
+    status,
+    checkedAt,
+    botIdentity,
+    scopeList,
+    requiredScopes: Object.freeze(requiredScopes.map(scope => Object.freeze(scope))),
+    eventSubscription,
+    ...(reason === undefined ? {} : { reason }),
+  })
+}
+
 export interface FeishuSendOptions {
   readonly replyTo?: string
   readonly replyInThread?: boolean
@@ -67,6 +178,8 @@ export interface FeishuPlatform {
   onReconnected?(handler: () => void): () => void
   connect(): Promise<void>
   disconnect(): Promise<void>
+  /** Optional read-only startup diagnostic; never required for transport. */
+  probeAccess?(signal?: AbortSignal): Promise<FeishuPlatformAccess>
   sendText(
     chatId: string,
     text: string,
@@ -187,6 +300,19 @@ function createOfficialPlatform(
     onReconnecting: handler => channel.on('reconnecting', handler),
     onReconnected: handler => channel.on('reconnected', handler),
     connect: () => channel.connect(),
+    probeAccess: (signal?: AbortSignal) => inspectFeishuPlatformAccess({
+      listScopes: () => transport.withSignal(
+        signal ?? new AbortController().signal,
+        () => channel.rawClient.application.scope.list(),
+      ),
+      readEventSubscriptions: () => transport.withSignal(
+        signal ?? new AbortController().signal,
+        () => channel.rawClient.request({
+          url: '/open-apis/event/v1/subscriptions',
+          method: 'GET',
+        }),
+      ),
+    }, channel.botIdentity?.openId === undefined ? 'unavailable' : 'verified'),
     disconnect: () => channel.disconnect(),
     sendText: (chatId, text, sendOptions, signal) => transport.withSignal(
       signal,
@@ -424,6 +550,10 @@ function selectAction(action: CardActionEvent): FeishuApprovalAction {
 
 function selectReject(reject: RejectEvent): FeishuPlatformReject {
   return Object.freeze({ reason: reject.reason })
+}
+
+function record(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 interface FeishuRawClient {
