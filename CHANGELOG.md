@@ -6,6 +6,14 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.205**: Kept the original `dsh-gateway` Bundle startup error when `apply()` cleanup also fails. Bundle teardown now
+  waits via `Promise.allSettled`, logs cleanup failure through the Host logger, and rethrows the actionable startup validation
+  error; a Bundle-level regression covers the boundary. Gateway `48/48` and the latest DSH alpha.5-supported root check
+  passed with `CHECK_RC=0` (Evolution `309/309`, Feishu `56/56`, Telegram `38/38`, Evolve Web `27/27`, Control Center
+  `5/5`, Doctor `40/40`, Goal Continuity `12/12`, GitHub Review `27/27`, and remaining local gates). Real channels,
+  providers, Hermes paired benchmarking, long-run effects, npm ownership, and the release tag remain blocked. See
+  [V5.205 evidence](docs/evidence/v5-205-gateway-bundle-error-propagation-full-check-2026-09-04.zh.md).
+
 - **V5.204**: Serialized concurrent `start()` and `dispose()` calls inside the Feishu, static Telegram, and Telegram
   pairing runtimes. Feishu now fails closed after Agent resolution, platform connect, and access probing when a stale
   generation was disposed, so a late connection cannot report `ready`. Feishu `56/56` and Telegram `38/38` passed;

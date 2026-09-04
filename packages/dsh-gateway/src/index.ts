@@ -99,9 +99,16 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     ctx.effect(() => () => gateway.stop(), 'dsh-gateway.runtime')
     ctx.provide('evoforge.gateway' as never, gateway as never)
   } catch (error: unknown) {
-    await gateway.stop()
+    const cleanup = (await Promise.allSettled([gateway.stop()]))[0]
+    if (cleanup?.status === 'rejected') {
+      ctx.logger.warn(`dsh-gateway: startup cleanup failed: ${safeMessage(cleanup.reason)}`)
+    }
     throw error
   }
+}
+
+function safeMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
 export {
