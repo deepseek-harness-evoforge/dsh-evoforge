@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.151**: Re-ran the complete alpha.5 repository check after the Gateway single-page no-inbound diagnostic. The
+  canonical DSH rc.1 was fetched and verified clean; documentation, CI/suite/release contracts, Hermes/Provider/Feishu/
+  Telegram acceptance contracts, all 12 Bundle typechecks, tests, and builds passed (`exit 0`, Gateway `41/41`, Feishu
+  `46/46`, Telegram `34/34`). No real credentials or external effects were used, and all real-channel, Provider, Hermes
+  paired, long-term, and registry gates remain unchanged. See [V5.151 evidence](docs/evidence/v5-151-alpha5-full-check-after-gateway-diagnostic-2026-09-04.zh.md).
+
 - **V5.150**: Added an Adapter-level no-inbound diagnostic to the native Gateway Control Surface. A `ready` transport
   with no authoritative `lastInboundAt` now shows a single-page attention notice explaining that the connection is up
   but no platform event has arrived, with checks for bot enablement, event subscriptions, and long-lived connection

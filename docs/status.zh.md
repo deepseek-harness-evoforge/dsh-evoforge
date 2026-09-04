@@ -17,6 +17,13 @@
 提示不调用模型、不新增网页、Router 或状态库；首次入站后由现有 Host `lastInboundAt` 事实自然消失。Gateway
 `41/41` 测试、类型检查和构建通过。详见 [V5.150 证据](evidence/v5-150-gateway-no-inbound-diagnostic-2026-09-04.zh.md)。
 
+## V5.151：Gateway 诊断后的 alpha.5 全仓回归（本轮）
+
+在最新 canonical DSH rc.1 重新 fetch/审计后，以独立 alpha.5 支持 checkout 执行根级 `pnpm run check`，退出码
+`0`。文档、合同、12 个 Bundle 的 typecheck、测试和构建全部通过（Gateway `41/41`、Feishu `46/46`、Telegram
+`34/34`）。本轮不读取真实凭据、不产生外部效果；所有真实渠道、Provider、Hermes paired、长期效果和 npm 发布门状态
+保持原值。详见 [V5.151 证据](evidence/v5-151-alpha5-full-check-after-gateway-diagnostic-2026-09-04.zh.md)。
+
 ## V5.149：真实飞书有效凭据连接成功但无新人 pending（本轮）
 
 使用用户提供的精确 App 凭据和真实效果授权，在新的物理 run root `/private/tmp/evoforge-feishu-as2-20260904-r2`
