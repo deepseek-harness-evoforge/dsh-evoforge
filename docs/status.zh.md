@@ -19,6 +19,12 @@ Session/Goal/Storage、真实 Tool 调用、dispose、完整卸载及卸载后�
 本地 clean-profile 生命周期，不改变真实渠道、Provider、Hermes paired、长期效果或 npm 发布门禁。
 详见 [V5.157 证据](evidence/v5-157-clean-profile-user-suite-install-2026-09-04.zh.md)。
 
+## V5.158：发布门禁机器可读快照（本轮）
+
+运行 `pnpm run check:release:gates -- --json`，结果明确为 `blocked`，且无清单错误或缺失证据文件。当前阻断逐项
+记录了 npm 命名空间、真实 Telegram/飞书、Provider paired、Hermes paired 和长期效果的实际缺口；因此没有创建
+release tag，也没有把本地 clean-profile 通过误报成完整产品发布。详见 [V5.158 证据](evidence/v5-158-release-gate-json-snapshot-2026-09-04.zh.md)。
+
 ## V5.150：Gateway 单页补充无入站事件诊断（本轮）
 
 真实 Feishu AS-2 已确认官方 WebSocket `ready` 但没有新人 pending；本轮在同一原生 Control Center 中增加了

@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.158**: Captured a machine-readable `check:release:gates -- --json` snapshot. The manifest and every evidence
+  path validate, while seven real release conditions remain blocked: npm namespace ownership, external Telegram and
+  Feishu epochs, real Provider paired runs, the same-model Hermes pairing, and long-term outcome data. No SemVer tag was
+  created; local clean-profile success is not presented as a completed Hermes replacement. See [V5.158 evidence](docs/evidence/v5-158-release-gate-json-snapshot-2026-09-04.zh.md).
+
 - **V5.157**: Ran the official DSH clean-profile lifecycle against the four user suites (12 Bundles): packed and
   installed through `dsh plugin --profile web add`, booted the native Host, exercised native Session/Goal/Storage and
   a real Tool call, disposed the Fiber, removed every plugin with the official command, and read the persisted Goal
