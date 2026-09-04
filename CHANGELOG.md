@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.190**: Re-ran the current Hermes EV-1 epoch-4 deterministic control-plane benchmark after the Telegram teardown fix.
+  Calibration passed `2/2`; both sides remained baseline-fail/corrected-pass, with EvoForge making `0` active-Skill mutations before
+  final-test/explicit promotion versus Hermes `1`. This is release-control evidence only, not real Provider/channel/long-run or
+  global Hermes-replacement evidence; release gates remain blocked. See [V5.190 evidence](docs/evidence/v5-190-hermes-ev1-after-telegram-teardown-2026-09-04.zh.md).
+
 - **V5.189**: Closed Telegram teardown leaks. Static and pairing runtimes now remove every Cordis listener and make `dispose` idempotent;
   pairing approval abort callbacks are removed only when present, and the Host unregisters its native credential-update listener during teardown.
   Telegram `36/36`, Feishu `55/55`, typechecks/builds, and the latest-DSH alpha.5 root check (`CHECK_RC=0`) pass. This remains local lifecycle

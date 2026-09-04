@@ -10,6 +10,13 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.190：Telegram teardown 修复后的 Hermes EV-1 复跑（本轮）
+
+在 `c7fdc19` 生命周期修复后重新 fetch 并审计 canonical DSH，复跑当前 Hermes EV-1 epoch-4：校准 `2/2`，两边均
+`baseline=fail / corrected=pass`；EvoForge 显式晋升前 active Skill 修改 `0`、Hermes `1`，隔离/代际/回滚门禁保持为真。
+这只是确定性发布控制面证据，不扩大为真实 Provider、真实渠道、长期效果或整体 Hermes 上位替代。详见
+[V5.190 证据](evidence/v5-190-hermes-ev1-after-telegram-teardown-2026-09-04.zh.md)。
+
 ## V5.189：Telegram runtime 卸载收口与最新 DSH 全仓验证（本轮）
 
 静态与 pairing Telegram runtime 现在保存并撤销全部 Cordis 监听，重复 dispose 幂等；Pairing approval 只在存在时移除 abort listener。
