@@ -79,6 +79,16 @@
       "blocker": "The latest request-id run reached official WebSocket ready but observed no Feishu pending request; event arrival is unproven, and no authorized run has completed the real direct-message, Schedule, Approval, restart, uninstall, and readback epoch."
     },
     {
+      "id": "real-telegram-as1",
+      "title": "Real Telegram resident Gateway epoch-1",
+      "requiredForTag": true,
+      "status": "not-run",
+      "evidence": [
+        "docs/evidence/v5-144-telegram-as1-real-contract-2026-09-04.zh.md"
+      ],
+      "blocker": "The strict zero-side-effect contract and preflight exist, but no authorized real Telegram Bot executor has completed the private-message pairing, native reply, duplicate-update, Approval, restart, uninstall, and Session-readback epoch."
+    },
+    {
       "id": "real-provider-rp1",
       "title": "Two independent real Provider paired evolution run",
       "requiredForTag": true,

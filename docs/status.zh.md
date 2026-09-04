@@ -10,6 +10,16 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.144：真实 Telegram AS-1 合同与零副作用预检（本轮）
+
+新增真实 Telegram Bot resident pairing 的独立 AS-1 验收合同，固定可构建 DSH alpha.5 支持 revision，并单独记录
+每次开发前审计到的最新 DSH rc.1。未设置精确授权短语时，入口只读取授权变量，不读取 Bot token、账户、路径，
+不加载执行器，也不发起 Telegram 请求；授权后才校验官方 API、token、clean source 和仓库外隔离 run root。终态
+报告绑定 manifest、EvoForge/DSH revision、最新审计 revision 和账户哈希，配对码、首条消息不入 Agent、Host 批准、
+重复 update、原生 Approval、重启、卸载和 Session readback 任一缺失都不能复用。合同类型检查和 `8/8` 安全测试通过；
+当前 `run.ts` 仍是预检入口，即使环境中存在 token 也会严格 `not-run`，因此没有虚构真实 Bot 通过证据。详见
+[V5.144 证据](evidence/v5-144-telegram-as1-real-contract-2026-09-04.zh.md)。
+
 ## V5.135：当前 Hermes revision 的 EV-1 epoch-3（本轮）
 
 固定当前 Hermes `origin/main` `63279301…`，在已审计的 DSH alpha.5 `db6bdc…` 上建立独立 epoch-3，严格
@@ -1046,7 +1056,7 @@ V5.21 将真实飞书 AS-2 从 epoch-1 升为 epoch-2。最终包 profile 不在
 | Exact Skill 尝试间新增工作 | `verified` | [V4.52](evidence/v4-52-between-attempt-work-context.zh.md)：严格相邻次序、同源 Goal metrics、event seq/counter 单调门；ordered/measured/unmeasured/ambiguous 与 token/cache/latency/active-wall 差值；最终 tarball 的刷新、断连保留、冷恢复不重复、reload、卸载与无残留 | 真实用户任务、因果效果、返工下降与 paired benchmark |
 | Exact Skill 失败上下文调查 | `verified` | [V4.53](evidence/v4-53-exact-skill-failure-context-investigation.zh.md)：两个不同 Goal 的唯一 latest failed 门、恢复/冲突 abstain、eligible 明细优先、Host/Control/Remote/Command/Web review-only 投影；最终 tarball 的 1 eligible/2 latest-failed、刷新、断连保留、冷恢复无重复、reload、官方卸载与原生 Web 无残留 | 因果复核、真实 provider、长期率与 paired benchmark |
 | Runtime Readiness | `implemented` | 原生 Loader/Command；[V5.9](evidence/v5-9-doctor-channel-readiness.zh.md) 复用 Gateway 权威健康，覆盖飞书/Telegram 的 unavailable/connecting/ready/degraded/stopping、损坏快照 fail closed，以及最终 tarball degraded→reload→ready→remove 生命周期 | 真实渠道、多日故障、v0.1 全包诊断和陌生安装数据 |
-| Telegram 单私聊 | `partial` | 已迁移 DSH Gateway；静态 exact route 与新增 resident pairing（unknown direct DM→一次性 code→Host approve→next-message native dispatch）；真实 DSH Workspace/Agent Loop、Commands、Approval、Goal/Schedule、Gateway durable ingress/outbound、cache parity、联合 tarball lifecycle；私有 Delivery Store 已删除；assembled long-poll failure→Gateway `degraded`→成功 poll→`ready`；[V5.7](evidence/v5-7-bounded-channel-delivery.zh.md)、[V5.140](evidence/v5-140-telegram-pairing-assembled-2026-09-04.zh.md) | 真实 Bot 冒烟和多日证据、真实 pairing 撤销重配与重启后新增消息 |
+| Telegram 单私聊 | `partial` | 已迁移 DSH Gateway；静态 exact route 与新增 resident pairing（unknown direct DM→一次性 code→Host approve→next-message native dispatch）；真实 DSH Workspace/Agent Loop、Commands、Approval、Goal/Schedule、Gateway durable ingress/outbound、cache parity、联合 tarball lifecycle；私有 Delivery Store 已删除；assembled long-poll failure→Gateway `degraded`→成功 poll→`ready`；[V5.7](evidence/v5-7-bounded-channel-delivery.zh.md)、[V5.140](evidence/v5-140-telegram-pairing-assembled-2026-09-04.zh.md)、[V5.144](evidence/v5-144-telegram-as1-real-contract-2026-09-04.zh.md) | 真实 Bot executor、陌生用户完整配对/回复/去重/Approval/重启/卸载和多日证据 |
 | Evolve Channel Attention | `implemented` | Telegram/飞书 Candidate review/inactive promotion decision、concrete routes、显式 Workspace、durable notice、request parity；Evaluator Draft 表面已删除；进入十二包总装 | 真实渠道验证与多日移动端数据 |
 | Goal Continuity | `implemented` | JSONL cold resume、SIGKILL、原生 Goal round limit | 多 Workspace 绑定、生产 soak |
 | Resident OS unit | `implemented` | disabled Bundle、原生 `/resident`、exact hash/service-id 确认、无 bin tarball、十二包总装、launchd/systemd 与 macOS crash 测试 | Linux 真机和多日 soak |

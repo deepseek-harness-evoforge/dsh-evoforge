@@ -6,6 +6,13 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.144**: Added a strict real Telegram Bot AS-1 resident-pairing acceptance contract. The preflight reads only its
+  exact authorization switch before inspecting the Bot token, binds retained reports to both the admitted DSH support
+  revision and the separately audited latest DSH revision, and requires pairing isolation, Host approval, duplicate-update
+  suppression, native Approval, restart, uninstall, and Session readback observations. The entrypoint intentionally remains
+  preflight-only and exits `not-run` even with a token until an explicit human-channel executor is admitted; no real Bot
+  effect is claimed. See [V5.144 evidence](docs/evidence/v5-144-telegram-as1-real-contract-2026-09-04.zh.md).
+
 - **V5.143**: Generalized the Gateway first-connection journey to the selected Adapter instead of hard-coding a Feishu
   label. Telegram-only surfaces now show the same resident-connection, newcomer-message, and Host-approval stages;
   the existing single-page Control Center and Gateway authority remain unchanged. Gateway Surface `9/9` and the full
