@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.219**: Replayed the official DSH CLI install path in an isolated profile with the final Control Center and
+  Gateway tarballs. `plugin add` and `--dump-config` succeeded, and the dumped Gateway row had no `disabled: true`,
+  confirming the install-enabled resident Host behavior. Missing peers in the intentionally empty fixture were recorded
+  as a profile-composition warning; no DSH Runtime was bundled into EvoForge. See [V5.219 evidence](docs/evidence/v5-219-channels-gateway-clean-install-2026-09-04.zh.md).
+
 - **V5.218**: Re-fetched and rebuilt canonical DSH `0.1.3-alpha.1` (`d347e703…`). Installation remains clean, while the
   official root build is still blocked by DSH's missing `@deepseek-ai/dsh-root` `lib/types/{index,invariant,startup}.js`
   entry. Recorded the upstream fact and kept the audited alpha.5 support checkout for EvoForge validation; no upstream

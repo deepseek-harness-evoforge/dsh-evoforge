@@ -2,6 +2,8 @@
 
 > **最新审计（V5.218）**：重新 fetch 最新 DSH 后确认 canonical `origin/master` 仍为 `d347e703…`（`0.1.3-alpha.1`，clean）；官方安装通过，但真实 `pnpm build` 仍因 DSH 自身 `@deepseek-ai/dsh-root` 缺失 `lib/types/{index,invariant,startup}.js` 入口而失败。未修改或掩盖上游问题，EvoForge 继续以已审计可构建 alpha.5 支持 checkout 做完整验证。详见 [V5.218 证据](evidence/v5-218-latest-dsh-build-reaudit-2026-09-04.zh.md)。
 
+> **安装复验（V5.219）**：在隔离 `DSH_HOME` 中用已审计 DSH CLI 对最终 tarball 执行官方 `plugin add` 与 `--dump-config`；`dsh-control-center` 和 `dsh-evoforge-gateway` 安装成功，Gateway dump row 不含 `disabled: true`，确认 `channels` 安装即启用常驻 Gateway 的语义真实落在 DSH profile 中。基础 profile 未预装 DSH peers 的警告已记录，不把它误报成 EvoForge Runtime 安装失败。详见 [V5.219 证据](evidence/v5-219-channels-gateway-clean-install-2026-09-04.zh.md)。
+
 > **环境记录（V5.216）**：本轮尝试用 in-app Browser 复核 `127.0.0.1:3080` 单页交互时，浏览器 URL policy 在页面 DOM 读取前拒绝了该本地地址；未绕过策略、未切换未授权控制通道、未修改 UI，也未把本轮记为通过。历史 V5.183/V5.196 单页浏览器证据仍保留，`web-control-plane` 继续按 release gate 为 `partial`。详见 [V5.216 证据](evidence/v5-216-browser-policy-block-2026-09-04.zh.md)。
 
 > **最新增量（V5.217）**：修正 `channels` 安装后的常驻语义：`dsh-gateway` Bundle 现在安装即启用，默认 `routes: []`，只启动本地 Host 接缝和无模型控制面，不连接平台、不读取凭据、不发送消息；Feishu/Telegram Adapter 仍保持 disabled，直到部署者提供精确凭据和 route。Gateway 契约 `4/4`、全包回归 `52/52`、根级 `CHECK_RC=0`、构建、套件 `6/6` 与文档门通过；解包 tarball 已确认 patch 不再写入 `disabled: true`。详见 [V5.217 证据](evidence/v5-217-gateway-install-enabled-2026-09-04.zh.md)。真实渠道、Provider、Hermes paired、长期效果、npm ownership 与发布 tag 门禁仍未通过。
