@@ -20,6 +20,7 @@
 14. [可证明自进化设计](../architecture/evolution-design.zh.md)：查看 Generation 固定、Learning Signal、Candidate、Trial、晋升、回滚与缓存约束。
 15. [P0A Shadow 契约](../architecture/p0a-shadow-contract.zh.md)：查看首个可执行验证的 CLI、报告、case 隔离、evaluator 和红测试接缝。
 16. [参考生态当前 revision 复核（2026-09-03）](ecosystem-current-revision-2026-09-03.zh.md)：重新固定 Hermes、OpenClaw 和 HanaAgent 的远端 HEAD/tag；外部项目只作设计与 paired 参照，不进入运行时。
+17. [Hermes 当前 revision 增量复核（2026-09-04）](hermes-current-revision-2026-09-04.zh.md)：记录 Hermes `origin/main` 漂移、旧 EV-1 manifest 拒绝和 epoch-4 重跑结果；历史 epoch 不被静默覆盖。
 
 ## 审计基线
 
@@ -29,7 +30,7 @@
 | DeepSeek Harness（2026-09-03 最新 rc.1/master 审计） | tag `a66e4702047846cdaa10c66c9d3df3951f5ea70d`; master `76fda729799fe9b3848dbe2c211d4b231032b81e` | 官方 tag `dsh-v0.1.2-rc.1` 与最新远端 master 均记录；clean build 阻断与支持决策见 rc.1 迁移审计 |
 | DeepSeek Harness（2026-08-24 附件契约审计；V5.16 后兼容目标） | `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e` | 官方 tag `dsh-v0.1.1-rc.2` 的一手源码、文档与 Git 历史；研究结论与后续兼容证据分开记录 |
 | Claude Code Rev | `64915d730218363acba49e5454dc01c31e3986b1` | 第三方 source-map 恢复源码；只作行为参考 |
-| Hermes Agent | `29d0cc2602e01943ab300c0382fc9d97efb376da` | 一手源码、测试、仓库文档 |
+| Hermes Agent（2026-09-04 当前） | `29d0cc2602e01943ab300c0382fc9d97efb376da` | 一手源码、测试、仓库文档；当前 revision 漂移与 EV-1 epoch-4 见增量复核 |
 | Hermes Agent（2026-08-18 增量审计） | `7a81dd9efdaa1d27a98815df6aecc26d849ca084` | 一手源码与官方文档；不追溯改写旧 paired epoch |
 | Hermes Self-Evolution | `0a929e3aa20e15cf04dc7c28492a7d41a5139125` | 一手源码、PLAN 与仓库文档 |
 | OpenClaw | `1c3e512096bc57b34f9379b1992912c3d18729c7` | 官方文档与一手源码 |

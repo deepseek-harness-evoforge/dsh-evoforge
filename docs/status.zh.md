@@ -10,6 +10,15 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.159：当前 Hermes revision 的 EV-1 epoch-4（本轮）
+
+重新 fetch Hermes 后确认 `origin/main` 已从旧的 `63279301…` 漂移到
+`29d0cc2602e01943ab300c0382fc9d97efb376da`。旧 current manifest 因 revision assertion 正确拒绝运行；新增
+epoch-4 后在同一 DSH alpha.5、同一冻结 case pack、无网络和同一预算下重跑，校准 `2/2`，两侧 baseline 均失败、
+corrected 均通过，EvoForge primary metric `0`、Hermes `1`，六项 EvoForge release-control hard gate 全部通过。
+该结果仍是确定性控制面对照，不是模型质量、真实渠道或完整 Hermes paired；`hermes-paired` 继续为 partial。
+详见 [V5.159 证据](evidence/v5-159-hermes-current-revision-ev1-epoch4-2026-09-04.zh.md)。
+
 ## V5.157：用户套件官方 clean-profile 安装/卸载验收（本轮）
 
 在重新 fetch 并核对 canonical DSH rc.1 后，使用隔离 `DSH_HOME` 实际执行官方 DSH 的

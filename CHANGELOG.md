@@ -6,6 +6,13 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.159**: Re-fetched Hermes and detected that `origin/main` had moved from the epoch-3 pin to
+  `29d0cc2602e01943ab300c0382fc9d97efb376da`. The stale current manifest correctly failed its revision assertion;
+  a new epoch-4 manifest/result now runs the same DSH alpha.5 frozen deterministic EV-1 comparison against current
+  Hermes. Calibration was `2/2`, both sides were fail→pass, EvoForge's primary metric was `0` versus Hermes `1`, and
+  all six EvoForge release-control hard gates held. This remains deterministic control evidence, not model quality,
+  real-channel, long-term, or full Hermes paired evidence. See [V5.159 evidence](docs/evidence/v5-159-hermes-current-revision-ev1-epoch4-2026-09-04.zh.md).
+
 - **V5.158**: Captured a machine-readable `check:release:gates -- --json` snapshot. The manifest and every evidence
   path validate, while seven real release conditions remain blocked: npm namespace ownership, external Telegram and
   Feishu epochs, real Provider paired runs, the same-model Hermes pairing, and long-term outcome data. No SemVer tag was

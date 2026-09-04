@@ -105,7 +105,8 @@
       "status": "partial",
       "evidence": [
         "docs/evidence/v5-31-hermes-deterministic-rerun-2026-08-26.zh.md",
-        "docs/evidence/v5-123-hermes-ev1-alpha5-epoch-2-2026-09-04.zh.md"
+        "docs/evidence/v5-123-hermes-ev1-alpha5-epoch-2-2026-09-04.zh.md",
+        "docs/evidence/v5-159-hermes-current-revision-ev1-epoch4-2026-09-04.zh.md"
       ],
       "blocker": "Only four deterministic slices are verified; the required same-model real paired benchmark is missing."
     },
