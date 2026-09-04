@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.176**: Refreshed `release-gates.json` to index the latest suite-pack, single-page browser, current-Hermes
+  deterministic EV-1, and full-check evidence without changing any gate status or blocker. Gate manifest tests pass
+  `3/3`, evidence is complete, and the aggregate remains `blocked`; no SemVer tag was created. See
+  [V5.176 evidence](docs/evidence/v5-176-release-gate-evidence-index-refresh-2026-09-04.zh.md).
+
 - **V5.175**: Re-fetched and audited canonical DSH, then ran the complete alpha.5 `pnpm run check` after the suite
   packer fix. The run exited `0`: DSH preflight, docs/CI/suite/release-script gates, Typert/typecheck/builds,
   clean-profile lifecycle, and all Bundle tests passed (Evolution `309/309`, Gateway `41/41`, Feishu `50/50`, Telegram

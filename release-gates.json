@@ -8,7 +8,10 @@
       "title": "Public Bundle metadata and packaging",
       "requiredForTag": true,
       "status": "passed",
-      "evidence": ["docs/evidence/v5-34-public-package-preflight-2026-08-26.zh.md"]
+      "evidence": [
+        "docs/evidence/v5-34-public-package-preflight-2026-08-26.zh.md",
+        "docs/evidence/v5-173-suite-pack-and-single-page-browser-2026-09-04.zh.md"
+      ]
     },
     {
       "id": "dsh-compatibility",
@@ -40,7 +43,8 @@
       "status": "passed",
       "evidence": [
         "docs/evidence/v5-27-native-plugin-control-center.zh.md",
-        "docs/evidence/v5-69-dsh-alpha5-migration-2026-09-03.zh.md"
+        "docs/evidence/v5-69-dsh-alpha5-migration-2026-09-03.zh.md",
+        "docs/evidence/v5-175-full-check-after-suite-packer-fix-2026-09-04.zh.md"
       ]
     },
     {
@@ -56,7 +60,8 @@
         "docs/evidence/v5-71-channel-suite-control-center-and-real-run-2026-09-03.zh.md",
         "docs/evidence/v5-83-channel-journey-single-page-browser-2026-09-04.zh.md",
         "docs/evidence/v5-92-gateway-pairing-aria-isolation-2026-09-04.zh.md",
-        "docs/evidence/v5-142-control-surface-browser-retry-2026-09-04.zh.md"
+        "docs/evidence/v5-142-control-surface-browser-retry-2026-09-04.zh.md",
+        "docs/evidence/v5-173-suite-pack-and-single-page-browser-2026-09-04.zh.md"
       ],
       "blocker": "Evolution, Doctor, Telegram loopback static/pairing paths, and channel-only single-page newcomer UX are verified, but a real external Telegram Bot route and its complete newcomer path are not yet verified."
     },
@@ -80,7 +85,7 @@
       "docs/evidence/v5-118-feishu-as2-overlay-regression-contract-2026-09-04.zh.md",
       "docs/evidence/v5-121-feishu-as2-long-wait-no-pending-2026-09-04.zh.md",
       "docs/evidence/v5-136-real-feishu-as2-epoch5-no-pending-2026-09-04.zh.md",
-      "docs/evidence/v5-149-real-feishu-as2-valid-credential-no-pending-2026-09-04.zh.md"
+        "docs/evidence/v5-149-real-feishu-as2-valid-credential-no-pending-2026-09-04.zh.md"
       ],
       "blocker": "The latest run with a valid App credential reached official WebSocket ready but observed no Feishu pending request; event arrival is unproven, and no authorized run has completed the real direct-message, Schedule, Approval, restart, uninstall, and readback epoch."
     },
@@ -111,7 +116,8 @@
       "evidence": [
         "docs/evidence/v5-31-hermes-deterministic-rerun-2026-08-26.zh.md",
         "docs/evidence/v5-123-hermes-ev1-alpha5-epoch-2-2026-09-04.zh.md",
-        "docs/evidence/v5-159-hermes-current-revision-ev1-epoch4-2026-09-04.zh.md"
+        "docs/evidence/v5-159-hermes-current-revision-ev1-epoch4-2026-09-04.zh.md",
+        "docs/evidence/v5-174-hermes-current-ev1-epoch4-rerun-2026-09-04.zh.md"
       ],
       "blocker": "Only four deterministic slices are verified; the required same-model real paired benchmark is missing."
     },

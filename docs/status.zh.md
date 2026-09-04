@@ -50,6 +50,13 @@ revision `29d0cc2602e01943ab300c0382fc9d97efb376da` 重跑 EV-1 epoch-4。校准
 `34 passed/1 skipped` 加 clean-profile `1 passed/1 skipped`。这确认公开包名打包修复没有破坏原生 DSH 安装/运行/卸载
 契约；真实渠道、Provider、Hermes paired、长期效果和 npm 归属门禁保持原阻断。详见 [V5.175 证据](evidence/v5-175-full-check-after-suite-packer-fix-2026-09-04.zh.md)。
 
+## V5.176：发布门禁证据索引刷新（本轮）
+
+发布清单保持所有 gate 状态和阻断条件不变，只补齐 V5.173（公开套件打包/单页）、V5.174（当前 Hermes
+确定性 EV-1）和 V5.175（最新 DSH 全仓回归）的证据引用。`check:release:gates:test` `3/3`、JSON 清单结构和
+`missingEvidence` 均通过；汇总仍为 `blocked`，没有以本地 fixture 或确定性结果放宽真实渠道、Provider、完整
+Hermes paired、长期效果或 npm 归属门禁，也没有创建 tag。详见 [V5.176 证据](evidence/v5-176-release-gate-evidence-index-refresh-2026-09-04.zh.md)。
+
 ## V5.171：公共分发名撞名迁移与全仓回归（本轮）
 
 审计发现 `dsh-doctor`、`dsh-feishu`、`dsh-gateway`、`dsh-telegram` 四个 unscoped npm 名称已被无关仓库占用。
