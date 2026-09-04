@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.150**: Added an Adapter-level no-inbound diagnostic to the native Gateway Control Surface. A `ready` transport
+  with no authoritative `lastInboundAt` now shows a single-page attention notice explaining that the connection is up
+  but no platform event has arrived, with checks for bot enablement, event subscriptions, and long-lived connection
+  settings. Gateway tests (`41/41`), typecheck, and build passed; no model, page, Router, or state-store path was added.
+  See [V5.150 evidence](docs/evidence/v5-150-gateway-no-inbound-diagnostic-2026-09-04.zh.md).
+
 - **V5.149**: Ran the real Feishu AS-2 with the exact user-provided App credential on a new physical run root. Final
   Bundles, profile dump, and the official WebSocket handshake reached `ready`, but no newcomer private-message pending
   appeared during the full 60-second window. The runner failed closed before pairing and produced no Agent or platform

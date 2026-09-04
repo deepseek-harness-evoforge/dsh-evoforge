@@ -10,6 +10,13 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.150：Gateway 单页补充无入站事件诊断（本轮）
+
+真实 Feishu AS-2 已确认官方 WebSocket `ready` 但没有新人 pending；本轮在同一原生 Control Center 中增加了
+“连接正常但尚未观察到平台入站事件”的 Adapter 级提示，帮助区分事件订阅/机器人/长连接问题与 DSH Agent 问题。
+提示不调用模型、不新增网页、Router 或状态库；首次入站后由现有 Host `lastInboundAt` 事实自然消失。Gateway
+`41/41` 测试、类型检查和构建通过。详见 [V5.150 证据](evidence/v5-150-gateway-no-inbound-diagnostic-2026-09-04.zh.md)。
+
 ## V5.149：真实飞书有效凭据连接成功但无新人 pending（本轮）
 
 使用用户提供的精确 App 凭据和真实效果授权，在新的物理 run root `/private/tmp/evoforge-feishu-as2-20260904-r2`

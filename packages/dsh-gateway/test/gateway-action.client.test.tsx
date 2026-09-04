@@ -184,6 +184,7 @@ describe('Gateway Control Surface', () => {
     expect(journey.textContent).toContain('用户私聊: 让用户给机器人发送任意私聊')
     expect(journey.textContent).toContain('管理员批准: 收到陌生私聊后在本页批准')
     expect(screen.getByText(/用户私聊/u).closest('li')?.getAttribute('aria-current')).toBe('step')
+    expect(await screen.findByText(/尚未观察到平台入站事件/u)).toBeTruthy()
   })
 
   it('renders generic pairing controls for a Telegram-only Host', async () => {

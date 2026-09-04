@@ -232,6 +232,12 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
             />)}
         </UI.Section>
 
+        {snapshot.transports.items
+          .filter(item => item.state === 'ready' && item.lastInboundAt === undefined)
+          .map(item => <UI.Notice key={`awaiting-inbound:${item.adapter}:${item.kind}`} tone="attention" title={adapterLabel(item.adapter)}>
+            {t('transport.noInbound')}
+          </UI.Notice>)}
+
         <UI.Section title={t('routes.title')} description={t('routes.help')}>
           {snapshot.routes.items.length === 0
             ? <UI.Empty title={t('routes.emptyTitle')} description={t('routes.empty')} />
