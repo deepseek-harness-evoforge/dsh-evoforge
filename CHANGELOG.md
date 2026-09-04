@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.164**: Corrected the `dsh-github-review` README so it no longer instructs users to install an unpublished
+  registry name. It now uses the reproducible `delivery` suite tarballs and states that a project-owned namespace and
+  release tag must exist before switching to a registry spec. Documentation and diff checks passed; runtime behavior is
+  unchanged. See [V5.164 evidence](docs/evidence/v5-164-user-install-doc-correction-2026-09-04.zh.md).
+
 - **V5.163**: Re-fetched the latest canonical DSH and recorded an open-source readiness audit. Static Bundle metadata
   checks pass, while npm ownership, the latest DSH clean build, real Feishu/Telegram paths, real Provider pairing, the
   same-condition Hermes run, and long-term outcome data still block a registry release. The audit also explains why the

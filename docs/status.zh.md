@@ -18,6 +18,12 @@
 双 Provider、Hermes paired 和长期效果六类事实，并明确 12 个物理 Bundle 已经通过四个用户套件收敛入口，不再把
 内部生命周期边界误当成用户选择。详见 [V5.163 审计](evidence/v5-163-open-source-readiness-audit-2026-09-04.zh.md)。
 
+## V5.164：未发布 registry 包的用户安装说明纠偏（本轮）
+
+审计发现 `dsh-github-review` README 仍给出直接 registry 安装名；当前项目尚未发布 npm 包，这会导致用户执行
+错误的外部依赖。现已统一改为 `delivery` 套件本地 tarball 安装，并在包 README 中明确 registry namespace 和正式
+tag 完成后才切换安装 spec。`check:docs` 与差异检查通过。详见 [V5.164 证据](evidence/v5-164-user-install-doc-correction-2026-09-04.zh.md)。
+
 ## V5.159：当前 Hermes revision 的 EV-1 epoch-4（本轮）
 
 重新 fetch Hermes 后确认 `origin/main` 已从旧的 `63279301…` 漂移到

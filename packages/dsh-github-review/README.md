@@ -7,8 +7,14 @@ The plugin does not merge, mark a PR ready, release, deploy, read a secret by de
 ## Install
 
 ```bash
-dsh plugin --profile web add dsh-github-review
+PACK_ROOT="$(mktemp -d)"
+pnpm run pack:suite -- --suite delivery --out "$PACK_ROOT"
+dsh plugin --profile web add "$PACK_ROOT/delivery"/*.tgz
+dsh --profile web --no-open
 ```
+
+The registry package is not published yet; the command above uses the repository's reproducible local tarballs. Once a
+project-owned registry namespace is released, the install spec will be updated together with the release tag.
 
 The Bundle installs disabled. Enable its exact Loader entry only after configuring one Agent, one repository, and at least one human reviewer:
 
