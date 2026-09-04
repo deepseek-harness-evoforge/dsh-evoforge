@@ -59,6 +59,10 @@ describe('Telegram runtime startup boundaries', () => {
     let adapterRegistrations = 0
     let transportDisposed = 0
     let adapterDisposed = 0
+    let disposeStarted!: () => void
+    let releaseDispose!: () => void
+    const disposeReached = new Promise<void>(resolve => { disposeStarted = resolve })
+    const disposeReleased = new Promise<void>(resolve => { releaseDispose = resolve })
     const config = resolveTelegramPairingConfig({
       mode: 'pairing',
       accountId: 'test-bot',
@@ -72,7 +76,13 @@ describe('Telegram runtime startup boundaries', () => {
       },
       registerTextAdapter: () => {
         adapterRegistrations += 1
-        return { dispose: async () => { adapterDisposed += 1 } }
+        return {
+          dispose: async () => {
+            adapterDisposed += 1
+            disposeStarted()
+            await disposeReleased
+          },
+        }
       },
     } as unknown as DshGateway
     const runtime = new TelegramPairingRuntime(ctx, config, gateway, {} as TelegramApi)
@@ -81,7 +91,12 @@ describe('Telegram runtime startup boundaries', () => {
     await runtime.start()
     expect(transportRegistrations).toBe(1)
     expect(adapterRegistrations).toBe(1)
-    await runtime.dispose()
+    const firstDispose = runtime.dispose()
+    await disposeReached
+    const secondDispose = runtime.dispose()
+    expect(secondDispose).toBe(firstDispose)
+    releaseDispose()
+    await firstDispose
     expect(transportDisposed).toBe(1)
     expect(adapterDisposed).toBe(1)
     await ctx.fiber.dispose()

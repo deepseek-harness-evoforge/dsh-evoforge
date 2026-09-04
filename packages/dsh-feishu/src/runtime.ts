@@ -91,6 +91,7 @@ export class FeishuRuntime {
   private lastPolicyRejectAt?: number
   private lastPolicyRejectReason?: FeishuPlatformReject['reason']
   private platformAccess?: FeishuPlatformAccess
+  private disposing: Promise<void> | undefined
 
   constructor(
     private readonly ctx: Context,
@@ -257,8 +258,15 @@ export class FeishuRuntime {
     }
   }
 
-  async dispose(): Promise<void> {
-    if (this.disposed) return
+  dispose(): Promise<void> {
+    if (this.disposing !== undefined) return this.disposing
+    if (this.disposed) return Promise.resolve()
+    const disposing = this.disposeInternal()
+    this.disposing = disposing
+    return disposing
+  }
+
+  private async disposeInternal(): Promise<void> {
     this.disposed = true
     const failures: unknown[] = []
     this.transportState = 'stopping'

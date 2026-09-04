@@ -6,6 +6,14 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.203**: Made Feishu, static Telegram, and Telegram pairing runtime teardown share one in-flight Promise. Concurrent
+  `dispose()` calls now wait for the same listener, approval, outbound, platform, and transport cleanup, preventing Host
+  rotation or uninstall from treating a still-connected old Adapter as disposed. Feishu `56/56` and Telegram `38/38`
+  passed; the latest DSH alpha.5-supported root check passed with `CHECK_RC=0` (Evolution `309/309`, Gateway `47/47`,
+  Evolve Web `27/27`, Control Center `5/5`, Doctor `40/40`, Goal Continuity `12/12`, GitHub Review `27/27`, and the
+  remaining local gates). Real channels, providers, Hermes paired benchmarking, long-run effects, npm ownership, and the
+  release tag remain blocked. See [V5.203 evidence](docs/evidence/v5-203-channel-dispose-promise-full-check-2026-09-04.zh.md).
+
 - **V5.202**: Preserved the original Gateway startup validation error when resource cleanup also fails, while keeping the
   shared public `stop()` promise responsible for reporting cleanup failures. Added regressions for concurrent stop,
   startup rejection, and cleanup rejection. After re-fetching and auditing DSH `d347e703…` (`0.1.3-alpha.1`, tag

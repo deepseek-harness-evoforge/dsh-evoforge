@@ -83,6 +83,10 @@ describe('Feishu runtime teardown', () => {
     let messageHandler: ((message: FeishuInboundMessage) => Promise<void>) | undefined
     let reconnecting: (() => void) | undefined
     let reconnected: (() => void) | undefined
+    let disconnectStarted!: () => void
+    let releaseDisconnect!: () => void
+    const disconnectReached = new Promise<void>(resolve => { disconnectStarted = resolve })
+    const disconnectReleased = new Promise<void>(resolve => { releaseDisconnect = resolve })
     const gateway = {
       registerTransport: () => ({
         report(input: { state: string }) {
@@ -113,6 +117,8 @@ describe('Feishu runtime teardown', () => {
       async connect() { connected = true },
       async disconnect() {
         disconnectCount += 1
+        disconnectStarted()
+        await disconnectReleased
         connected = false
       },
       async sendText() { return { messageId: 'unused' } },
@@ -147,7 +153,12 @@ describe('Feishu runtime teardown', () => {
     reconnecting?.()
     reconnected?.()
     expect(observations.slice(-2)).toEqual(['degraded', 'ready'])
-    await expect(runtime.dispose()).rejects.toThrow('Gateway already stopped')
+    const firstDispose = runtime.dispose()
+    await disconnectReached
+    const secondDispose = runtime.dispose()
+    expect(secondDispose).toBe(firstDispose)
+    releaseDisconnect()
+    await expect(firstDispose).rejects.toThrow('Gateway already stopped')
     expect(connected).toBe(false)
     expect(disconnectCount).toBe(1)
     expect(outboundDisposed).toBe(true)

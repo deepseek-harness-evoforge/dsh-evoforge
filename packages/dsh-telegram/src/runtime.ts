@@ -56,6 +56,7 @@ export class TelegramRuntime {
   private agent: Agent | undefined
   private started = false
   private disposed = false
+  private disposing: Promise<void> | undefined
 
   constructor(
     private readonly ctx: Context,
@@ -154,8 +155,15 @@ export class TelegramRuntime {
     }
   }
 
-  async dispose(): Promise<void> {
-    if (this.disposed) return
+  dispose(): Promise<void> {
+    if (this.disposing !== undefined) return this.disposing
+    if (this.disposed) return Promise.resolve()
+    const disposing = this.disposeInternal()
+    this.disposing = disposing
+    return disposing
+  }
+
+  private async disposeInternal(): Promise<void> {
     this.disposed = true
     this.transportState = 'stopping'
     try {
