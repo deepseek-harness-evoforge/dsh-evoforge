@@ -6,6 +6,13 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.157**: Ran the official DSH clean-profile lifecycle against the four user suites (12 Bundles): packed and
+  installed through `dsh plugin --profile web add`, booted the native Host, exercised native Session/Goal/Storage and
+  a real Tool call, disposed the Fiber, removed every plugin with the official command, and read the persisted Goal
+  back after removal. The single test passed (`exit 0`, ~39.74s) with no browser-opening handoff. This validates local
+  installability and reversibility only; real channels, Provider paired runs, long-term effects, npm names, and Hermes
+  publication gates remain unchanged. See [V5.157 evidence](docs/evidence/v5-157-clean-profile-user-suite-install-2026-09-04.zh.md).
+
 - **V5.156**: Packed the four user-facing suites and audited all 12 resulting tarballs: `core` (4), `channels` (4),
   `delivery` (2), and `continuity` (2). Each suite emitted `evoforge-suite.json` with version/SHA-256/audience, and
   no tarball contained `node_modules`, `.bin`, or a product `bin` directory. This verifies package boundaries only; real

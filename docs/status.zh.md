@@ -10,6 +10,15 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.157：用户套件官方 clean-profile 安装/卸载验收（本轮）
+
+在重新 fetch 并核对 canonical DSH rc.1 后，使用隔离 `DSH_HOME` 实际执行官方 DSH 的
+`plugin --profile web add/remove`，覆盖四个用户套件共 12 个 Bundle。安装后的 dump、Host 启动、原生
+Session/Goal/Storage、真实 Tool 调用、dispose、完整卸载及卸载后的 Session/Goal 读回均通过；测试 `1/1`
+通过、退出码 `0`。所有 Host lifecycle probe 均未输出浏览器打开动作，单网页约束未被测试绕过。该结果只证明
+本地 clean-profile 生命周期，不改变真实渠道、Provider、Hermes paired、长期效果或 npm 发布门禁。
+详见 [V5.157 证据](evidence/v5-157-clean-profile-user-suite-install-2026-09-04.zh.md)。
+
 ## V5.150：Gateway 单页补充无入站事件诊断（本轮）
 
 真实 Feishu AS-2 已确认官方 WebSocket `ready` 但没有新人 pending；本轮在同一原生 Control Center 中增加了
