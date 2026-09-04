@@ -18,17 +18,17 @@ const corepackHome = process.env.COREPACK_HOME
   ?? join(process.env.HOME ?? '', 'Library', 'Caches', 'node', 'corepack')
 const packageNames = [
   'dsh-control-center',
-  'dsh-gateway',
-  'dsh-doctor',
+  'dsh-evoforge-gateway',
+  'dsh-evoforge-doctor',
   'dsh-evolve',
   'dsh-evolve-attention',
   'dsh-evolve-web',
-  'dsh-feishu',
+  'dsh-evoforge-feishu',
   'dsh-github-review',
   'dsh-goal-continuity',
   'dsh-resident',
   'dsh-software-delivery',
-  'dsh-telegram',
+  'dsh-evoforge-telegram',
 ] as const
 const temporaryRoots: string[] = []
 let cachedNoOpenFlagSupport: boolean | undefined
@@ -91,17 +91,17 @@ describe.skipIf(process.platform !== 'darwin')('clean-profile assembled EvoForge
     ], { cwd: root, env, encoding: 'utf8', timeout: 30_000 })
     expect(evoforgeRows(dumped.stdout)).toEqual([
       'dsh-control-center',
-      'dsh-doctor',
+      'dsh-evoforge-doctor',
+      'dsh-evoforge-feishu',
+      'dsh-evoforge-gateway',
+      'dsh-evoforge-telegram',
       'dsh-evolve',
       'dsh-evolve-attention',
       'dsh-evolve-web',
-      'dsh-feishu',
-      'dsh-gateway',
       'dsh-github-review',
       'dsh-goal-continuity',
       'dsh-resident',
       'dsh-software-delivery',
-      'dsh-telegram',
     ])
     expect(dumped.stdout.match(/name: dsh-evolve$/gmu)).toHaveLength(1)
     expect(dumped.stdout.match(/name: dsh-software-delivery$/gmu)).toHaveLength(1)
@@ -301,7 +301,7 @@ describe.skipIf(process.platform !== 'darwin')('clean-profile assembled EvoForge
 })
 
 function evoforgeRows(dump: string): string[] {
-  return [...dump.matchAll(/^\s*name:\s*(dsh-(?:control-center|gateway|doctor|evolve(?:-attention|-web)?|feishu|github-review|goal-continuity|resident|software-delivery|telegram))\s*$/gmu)]
+  return [...dump.matchAll(/^\s*name:\s*(dsh-evoforge-(?:doctor|feishu|gateway|telegram)|dsh-(?:control-center|evolve(?:-attention|-web)?|github-review|goal-continuity|resident|software-delivery))\s*$/gmu)]
     .map(match => match[1]!)
 }
 

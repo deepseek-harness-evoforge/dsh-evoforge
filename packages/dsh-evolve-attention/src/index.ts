@@ -6,8 +6,8 @@ import {
   EvolutionTelegramBridge,
   type EvolutionAttentionSource,
 } from './bridge.js'
-import type { FeishuHostRoute } from 'dsh-feishu'
-import type { TelegramHostRoute } from 'dsh-telegram'
+import type { FeishuHostRoute } from 'dsh-evoforge-feishu'
+import type { TelegramHostRoute } from 'dsh-evoforge-telegram'
 
 declare module '@deepseek-ai/cordis' {
   interface Events {

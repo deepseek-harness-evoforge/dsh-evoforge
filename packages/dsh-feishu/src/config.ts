@@ -1,4 +1,4 @@
-import type { GatewayEndpoint, ResolvedGatewayRoute } from 'dsh-gateway'
+import type { GatewayEndpoint, ResolvedGatewayRoute } from 'dsh-evoforge-gateway'
 
 export const FEISHU_CONTENT_PERMISSIONS = [
   'document-read',

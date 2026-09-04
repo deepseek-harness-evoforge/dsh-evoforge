@@ -10,15 +10,15 @@ Adapter 共用的 Host 接缝。它把部署者声明的 external account/conver
 
 ```sh
 pnpm --filter dsh-control-center pack --pack-destination /tmp
-pnpm --filter dsh-gateway pack --pack-destination /tmp
-dsh plugin --profile web add /tmp/dsh-control-center-0.1.0-alpha.1.tgz /tmp/dsh-gateway-0.1.0-alpha.1.tgz
+pnpm --filter dsh-evoforge-gateway pack --pack-destination /tmp
+dsh plugin --profile web add /tmp/dsh-control-center-0.1.0-alpha.1.tgz /tmp/dsh-evoforge-gateway-0.1.0-alpha.1.tgz
 ```
 
 Bundle row 默认为 `disabled: true`。部署者在同一个 DSH profile 中配置精确 route 后启用：
 
 ```yaml
 - id: evoforge-gateway
-  name: dsh-gateway
+  name: dsh-evoforge-gateway
   disabled: false
   config:
     routes:
@@ -87,7 +87,7 @@ pending request。Control Center 的“渠道”Surface 会显示脱敏的待批
 ## 卸载
 
 ```sh
-dsh plugin --profile web remove dsh-gateway
+dsh plugin --profile web remove dsh-evoforge-gateway
 ```
 
 卸载只停止 Gateway 自己的生命周期并关闭插件日志；原生 DSH Session、Goal、Workspace 以及已经发生的

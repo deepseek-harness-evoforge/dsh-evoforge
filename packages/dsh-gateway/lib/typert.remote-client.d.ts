@@ -3,7 +3,7 @@ import type {
   RemoteResult,
   TypertRemoteContribution,
 } from '@deepseek-ai/dsh-typert-protocol'
-import type { GatewayHealthSnapshot, GatewayPairingPendingRequest, GatewayPairingRevocationReceipt, GatewayPairingSessionApprovalReceipt } from 'dsh-gateway/client-types'
+import type { GatewayHealthSnapshot, GatewayPairingPendingRequest, GatewayPairingRevocationReceipt, GatewayPairingSessionApprovalReceipt } from 'dsh-evoforge-gateway/client-types'
 
 declare module '@deepseek-ai/dsh-typert-protocol' {
   interface TypertRemoteNamespace$65766f666f72676547617465776179 {

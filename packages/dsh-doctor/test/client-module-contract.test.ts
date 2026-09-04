@@ -28,7 +28,7 @@ describe('Doctor native DSH Client Module', () => {
   it('uses the existing /doctor command and the common native Surface slot', async () => {
     const client = await readFile(resolve(packageRoot, 'dist/client.js'), 'utf8')
     const host = await readFile(resolve(packageRoot, 'dist/index.mjs'), 'utf8')
-    expect(client).toMatch(/window\.__ModuleLoader__\.load\(\{\s*id: "dsh-doctor"/u)
+    expect(client).toMatch(/window\.__ModuleLoader__\.load\(\{\s*id: "dsh-evoforge-doctor"/u)
     expect(client).toContain('evoforge.control.surface')
     expect(client).toContain('/doctor')
     expect(client).not.toContain('position:fixed')

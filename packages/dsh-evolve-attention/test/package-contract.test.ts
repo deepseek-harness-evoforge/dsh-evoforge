@@ -12,12 +12,12 @@ describe('dsh-evolve-attention package contract', () => {
     expect(manifest.dsh?.bundle).toEqual({ patch: './cordis.patch.yml' })
     expect(manifest.peerDependencies).toMatchObject({
       'dsh-evolve': '>=0.1.0-alpha.1 <0.2.0',
-      'dsh-feishu': '>=0.1.0-alpha.1 <0.2.0',
-      'dsh-telegram': '>=0.1.0-alpha.1 <0.2.0',
+      'dsh-evoforge-feishu': '>=0.1.0-alpha.1 <0.2.0',
+      'dsh-evoforge-telegram': '>=0.1.0-alpha.1 <0.2.0',
     })
     expect(manifest.peerDependenciesMeta).toEqual({
-      'dsh-feishu': { optional: true },
-      'dsh-telegram': { optional: true },
+      'dsh-evoforge-feishu': { optional: true },
+      'dsh-evoforge-telegram': { optional: true },
     })
     expect(manifest.dependencies).toEqual({ '@deepseek-ai/schemastery': '3.18.1' })
     expect(manifest.exports?.['./cordis.patch.yml']).toBe('./cordis.patch.yml')

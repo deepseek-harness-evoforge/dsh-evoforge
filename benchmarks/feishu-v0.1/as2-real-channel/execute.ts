@@ -451,7 +451,7 @@ export async function executeRealFeishuAcceptance(
     restoreRuntimeEnvironment = undefined
     await writeFile(join(profileDir, 'cordis.patch.yml'), '[]\n', { mode: 0o600 })
     await runDsh(dshBin, [
-      'plugin', '--profile', PROFILE_NAME, 'remove', 'dsh-feishu', 'dsh-gateway', 'dsh-control-center',
+      'plugin', '--profile', PROFILE_NAME, 'remove', 'dsh-evoforge-feishu', 'dsh-evoforge-gateway', 'dsh-control-center',
     ], runDir, env)
     const removedDump = await execFile(process.execPath, [dshBin, '--profile', PROFILE_NAME, '--dump-config'], {
       cwd: runDir,
@@ -590,7 +590,7 @@ async function acceptanceEnvironment(
 
 async function packFinalBundles(runDir: string): Promise<{ control: string; gateway: string; feishu: string }> {
   const packRoot = await exactDirectory(join(runDir, 'packs'))
-  for (const packageName of ['dsh-control-center', 'dsh-gateway', 'dsh-feishu']) {
+  for (const packageName of ['dsh-control-center', 'dsh-evoforge-gateway', 'dsh-evoforge-feishu']) {
     await execFile('pnpm', ['--filter', packageName, 'pack', '--pack-destination', packRoot], {
       cwd: suiteRoot,
       encoding: 'utf8',
@@ -599,8 +599,8 @@ async function packFinalBundles(runDir: string): Promise<{ control: string; gate
   }
   const files = await readdir(packRoot)
   const control = files.find(file => /^dsh-control-center-.*\.tgz$/u.test(file))
-  const gateway = files.find(file => /^dsh-gateway-.*\.tgz$/u.test(file))
-  const feishu = files.find(file => /^dsh-feishu-.*\.tgz$/u.test(file))
+  const gateway = files.find(file => /^dsh-evoforge-gateway-.*\.tgz$/u.test(file))
+  const feishu = files.find(file => /^dsh-evoforge-feishu-.*\.tgz$/u.test(file))
   if (control === undefined || gateway === undefined || feishu === undefined) {
     throw new Error('AS-2 final tarballs were not produced')
   }
@@ -645,7 +645,7 @@ async function writeAcceptanceOverlay(
       name: '@deepseek-ai/dsh-schedule'
 
     - id: as2-gateway
-      name: dsh-gateway
+      name: dsh-evoforge-gateway
       config:
         routes:
           - id: ${SEED_ROUTE_ID}
@@ -660,7 +660,7 @@ async function writeAcceptanceOverlay(
             model: cli-mock
 
     - id: as2-feishu
-      name: dsh-feishu
+      name: dsh-evoforge-feishu
       config:
         mode: pairing
         routeIds: []

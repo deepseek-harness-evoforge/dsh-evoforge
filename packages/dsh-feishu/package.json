@@ -1,5 +1,5 @@
 {
-  "name": "dsh-feishu",
+  "name": "dsh-evoforge-feishu",
   "version": "0.1.0-alpha.1",
   "description": "Workspace-isolated Feishu channel adapter for DeepSeek Harness",
   "license": "MIT",
@@ -59,7 +59,7 @@
     "@deepseek-ai/dsh-util-values": "0.1.2-alpha.5",
     "@deepseek-ai/dsh-user-approval": "0.1.2-alpha.5",
     "@deepseek-ai/dsh-workspace": "0.1.2-alpha.5",
-    "dsh-gateway": "0.1.0-alpha.1",
+    "dsh-evoforge-gateway": "0.1.0-alpha.1",
     "dsh-control-center": "0.1.0-alpha.1",
     "react": ">=18.2.0 <19"
   },
@@ -95,7 +95,7 @@
     "@testing-library/react": "^16.1.0",
     "@types/node": "^22.20.0",
     "@types/react": "~18.3.1",
-    "dsh-gateway": "workspace:*",
+    "dsh-evoforge-gateway": "workspace:*",
     "dsh-control-center": "workspace:*",
     "jsdom": "^26.0.0",
     "react": "^18.2.0",

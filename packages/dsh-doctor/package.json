@@ -1,5 +1,5 @@
 {
-  "name": "dsh-doctor",
+  "name": "dsh-evoforge-doctor",
   "version": "0.1.0-alpha.1",
   "description": "Zero-token runtime readiness diagnostics for DeepSeek Harness",
   "license": "MIT",

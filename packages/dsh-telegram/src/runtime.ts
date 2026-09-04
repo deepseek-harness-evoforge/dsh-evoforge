@@ -13,8 +13,8 @@ import {
   type GatewayTextDeliveryIntent,
   type GatewayTransportRegistration,
   type GatewayTransportState,
-} from 'dsh-gateway'
-import { sessionEvents } from 'dsh-gateway'
+} from 'dsh-evoforge-gateway'
+import { sessionEvents } from 'dsh-evoforge-gateway'
 import {
   selectApprovalCallback,
   selectInboundUpdate,

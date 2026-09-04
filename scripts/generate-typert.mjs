@@ -52,13 +52,13 @@ await writeFile(gatewayAggregate, `${JSON.stringify({
 const gatewayModel = new WorkspaceAnalyzer({
   root: workspace,
   hostConfig: gatewayAggregate,
-  packages: ['dsh-gateway', '@deepseek-ai/dsh-typert-protocol'],
+  packages: ['dsh-evoforge-gateway', '@deepseek-ai/dsh-typert-protocol'],
   faces: ['host'],
 }).analyze()
 const gatewayFace = gatewayModel.faces.find(candidate => candidate.face === 'host')
 const gatewayEmitted = gatewayFace === undefined
   ? undefined
-  : new FaceModelEmitter(gatewayFace).emit('dsh-gateway')
+  : new FaceModelEmitter(gatewayFace).emit('dsh-evoforge-gateway')
 if (gatewayEmitted === undefined || gatewayEmitted.remote === undefined) {
   throw new Error('pinned DSH generator produced no dsh-gateway Host Remote artifact')
 }

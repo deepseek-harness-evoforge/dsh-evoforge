@@ -1,5 +1,5 @@
 {
-  "name": "dsh-telegram",
+  "name": "dsh-evoforge-telegram",
   "version": "0.1.0-alpha.1",
   "description": "A cache-safe private Telegram chat adapter for DeepSeek Harness",
   "license": "MIT",
@@ -53,7 +53,7 @@
     "@deepseek-ai/dsh-storage-domain": "0.1.2-alpha.5",
     "@deepseek-ai/dsh-user-approval": "0.1.2-alpha.5",
     "dsh-control-center": "0.1.0-alpha.1",
-    "dsh-gateway": "0.1.0-alpha.1",
+    "dsh-evoforge-gateway": "0.1.0-alpha.1",
     "react": ">=18.2.0 <19"
   },
   "peerDependenciesMeta": {
@@ -83,7 +83,7 @@
     "@types/node": "^22.20.0",
     "@types/react": "~18.3.1",
     "dsh-control-center": "workspace:*",
-    "dsh-gateway": "workspace:*",
+    "dsh-evoforge-gateway": "workspace:*",
     "react": "^18.2.0",
     "tsdown": "^0.22.2",
     "tsx": "^4.22.4",

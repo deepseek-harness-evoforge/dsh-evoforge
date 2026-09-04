@@ -1,6 +1,6 @@
 import { defineConfig } from 'tsdown'
 
-const id = 'dsh-gateway'
+const id = 'dsh-evoforge-gateway'
 const clientExternals = ['react', 'react/jsx-runtime', 'react/jsx-dev-runtime', '@deepseek-ai/cordis']
 
 export default defineConfig([

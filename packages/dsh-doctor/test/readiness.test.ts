@@ -32,10 +32,10 @@ describe('runtime readiness report', () => {
 
   it('names missing, disabled, and failed plugins instead of claiming readiness', () => {
     const report = evaluateRuntimeReadiness({
-      requiredModules: ['dsh-evolve', 'dsh-software-delivery', 'dsh-doctor'],
+      requiredModules: ['dsh-evolve', 'dsh-software-delivery', 'dsh-evoforge-doctor'],
       entries: [
         { entryId: 'evolution', moduleName: 'dsh-evolve', enabled: false, phase: null },
-        { entryId: 'doctor', moduleName: 'dsh-doctor', enabled: true, phase: 'active' },
+        { entryId: 'doctor', moduleName: 'dsh-evoforge-doctor', enabled: true, phase: 'active' },
         { entryId: 'broken-channel', moduleName: 'example-channel', enabled: true, phase: 'failed' },
       ],
     })
@@ -89,9 +89,9 @@ describe('runtime readiness report', () => {
 
   it('does not claim readiness when the required Feishu transport is degraded', () => {
     const report = evaluateRuntimeReadiness({
-      requiredModules: ['dsh-feishu'],
+      requiredModules: ['dsh-evoforge-feishu'],
       entries: [
-        { entryId: 'feishu', moduleName: 'dsh-feishu', enabled: true, phase: 'active' },
+        { entryId: 'feishu', moduleName: 'dsh-evoforge-feishu', enabled: true, phase: 'active' },
       ],
       gateway: {
         lifecycle: 'ready',
@@ -127,9 +127,9 @@ describe('runtime readiness report', () => {
 
   it('reports a required active Feishu Adapter with no Gateway transport as not ready', () => {
     const report = evaluateRuntimeReadiness({
-      requiredModules: ['dsh-feishu'],
+      requiredModules: ['dsh-evoforge-feishu'],
       entries: [
-        { entryId: 'feishu', moduleName: 'dsh-feishu', enabled: true, phase: 'active' },
+        { entryId: 'feishu', moduleName: 'dsh-evoforge-feishu', enabled: true, phase: 'active' },
       ],
     })
 
@@ -144,9 +144,9 @@ describe('runtime readiness report', () => {
 
   it('proves readiness only from an observed ready Feishu transport', () => {
     const report = evaluateRuntimeReadiness({
-      requiredModules: ['dsh-feishu'],
+      requiredModules: ['dsh-evoforge-feishu'],
       entries: [
-        { entryId: 'feishu', moduleName: 'dsh-feishu', enabled: true, phase: 'active' },
+        { entryId: 'feishu', moduleName: 'dsh-evoforge-feishu', enabled: true, phase: 'active' },
       ],
       gateway: {
         lifecycle: 'ready',
@@ -166,9 +166,9 @@ describe('runtime readiness report', () => {
 
   it('reports a connecting required Feishu transport as unknown during reload', () => {
     const report = evaluateRuntimeReadiness({
-      requiredModules: ['dsh-feishu'],
+      requiredModules: ['dsh-evoforge-feishu'],
       entries: [
-        { entryId: 'feishu', moduleName: 'dsh-feishu', enabled: true, phase: 'active' },
+        { entryId: 'feishu', moduleName: 'dsh-evoforge-feishu', enabled: true, phase: 'active' },
       ],
       gateway: {
         lifecycle: 'ready',
@@ -189,10 +189,10 @@ describe('runtime readiness report', () => {
 
   it('diagnoses Telegram independently through the same Gateway transport interface', () => {
     const report = evaluateRuntimeReadiness({
-      requiredModules: ['dsh-feishu', 'dsh-telegram'],
+      requiredModules: ['dsh-evoforge-feishu', 'dsh-evoforge-telegram'],
       entries: [
-        { entryId: 'feishu', moduleName: 'dsh-feishu', enabled: true, phase: 'active' },
-        { entryId: 'telegram', moduleName: 'dsh-telegram', enabled: true, phase: 'active' },
+        { entryId: 'feishu', moduleName: 'dsh-evoforge-feishu', enabled: true, phase: 'active' },
+        { entryId: 'telegram', moduleName: 'dsh-evoforge-telegram', enabled: true, phase: 'active' },
       ],
       gateway: {
         lifecycle: 'ready',

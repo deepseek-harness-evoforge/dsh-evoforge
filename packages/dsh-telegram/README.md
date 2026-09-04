@@ -5,7 +5,7 @@
 When `dsh-control-center` is installed, the browser half contributes a read-only Telegram Surface to the native DSH Web view. It executes the existing `/telegram` Command, shows the static or paired route, transport and Gateway delivery counts, and never creates a second route, journal or health authority.
 
 ```sh
-dsh plugin --profile web add /absolute/path/dsh-telegram-0.1.0-alpha.1.tgz
+dsh plugin --profile web add /absolute/path/dsh-evoforge-telegram-0.1.0-alpha.1.tgz
 ```
 
 - exact `chat_id` + `user_id` filtering for static private text routes;
@@ -41,7 +41,7 @@ For the existing exact-route mode, enable and configure its rows explicitly:
 
 ```yaml
 - id: evoforge-gateway
-  name: dsh-gateway
+  name: dsh-evoforge-gateway
   disabled: false
   config:
     routes:
@@ -57,7 +57,7 @@ For the existing exact-route mode, enable and configure its rows explicitly:
         model: deepseek-v4-flash
 
 - id: evoforge-telegram
-  name: dsh-telegram
+  name: dsh-evoforge-telegram
   disabled: false
   config:
     routeId: telegram-personal
@@ -69,14 +69,14 @@ the same account id on `dsh-telegram`:
 
 ```yaml
 - id: evoforge-gateway
-  name: dsh-gateway
+  name: dsh-evoforge-gateway
   disabled: false
   config:
     pairing:
       enabled: true
 
 - id: evoforge-telegram
-  name: dsh-telegram
+  name: dsh-evoforge-telegram
   disabled: false
   config:
     mode: pairing
@@ -102,7 +102,7 @@ for its configured account and active routes into Gateway health; protocol error
 automatically; already delivered external messages cannot be retracted.
 
 ```sh
-dsh plugin --profile web remove dsh-telegram
+dsh plugin --profile web remove dsh-evoforge-telegram
 ```
 
 Set `DSH_TELEGRAM_BOT_TOKEN` in the process supervisor's secret environment. Naming that variable

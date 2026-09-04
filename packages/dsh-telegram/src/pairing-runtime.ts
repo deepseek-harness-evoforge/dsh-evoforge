@@ -15,8 +15,8 @@ import {
   type GatewayTransportRegistration,
   type GatewayTransportState,
   type ResolvedGatewayRoute,
-} from 'dsh-gateway'
-import { sessionEvents } from 'dsh-gateway'
+} from 'dsh-evoforge-gateway'
+import { sessionEvents } from 'dsh-evoforge-gateway'
 import {
   selectTelegramApprovalCallback,
   selectTelegramMessage,

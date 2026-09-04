@@ -1,6 +1,6 @@
 import { defineConfig } from 'tsdown'
 
-const id = 'dsh-telegram'
+const id = 'dsh-evoforge-telegram'
 const clientExternals = ['react', 'react/jsx-runtime', 'react/jsx-dev-runtime', '@deepseek-ai/cordis']
 
 export default defineConfig([

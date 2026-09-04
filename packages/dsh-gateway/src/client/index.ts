@@ -2,7 +2,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from 'dsh-control-center/client'
-import gatewayRemote from 'dsh-gateway/remote'
+import gatewayRemote from 'dsh-evoforge-gateway/remote'
 import { GatewaySurface, type GatewayRemoteClient } from './GatewayAction.tsx'
 import { en, NS, zh } from './locales.ts'
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { resolveGatewayRoutes } from 'dsh-gateway'
+import { resolveGatewayRoutes } from 'dsh-evoforge-gateway'
 import { resolveTelegramConfig, resolveTelegramPairingConfig } from '../src/config.js'
 
 const base = {

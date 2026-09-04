@@ -19,13 +19,13 @@ describe('dsh-feishu package contract', () => {
       client: { platform: 'web' },
     })
     expect(manifest.dependencies?.['@larksuiteoapi/node-sdk']).toBe('1.73.0')
-    expect(manifest.peerDependencies?.['dsh-gateway']).toBe('0.1.0-alpha.1')
+    expect(manifest.peerDependencies?.['dsh-evoforge-gateway']).toBe('0.1.0-alpha.1')
     expect(manifest.peerDependencies?.['@deepseek-ai/dsh-tools']).toBe('0.1.2-alpha.5')
     expect(manifest.peerDependencies?.['@deepseek-ai/dsh-llm']).toBe('0.1.2-alpha.5')
     expect(Object.keys(manifest.dependencies ?? {})).not.toContain('@deepseek-ai/cordis')
     expect(Object.keys(manifest.dependencies ?? {}).filter(name => name.startsWith('@deepseek-ai/dsh-'))).toEqual([])
     expect(await readFile(resolve(packageRoot, 'cordis.patch.yml'), 'utf8')).toBe(
-      '- insert:\n    - id: evoforge-feishu\n      name: dsh-feishu\n      disabled: true\n',
+      '- insert:\n    - id: evoforge-feishu\n      name: dsh-evoforge-feishu\n      disabled: true\n',
     )
   })
 })

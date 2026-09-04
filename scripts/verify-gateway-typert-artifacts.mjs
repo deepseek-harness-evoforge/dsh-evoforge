@@ -13,10 +13,10 @@ if (recorded !== actual) {
 
 const host = await import(pathToFileURL(join(output, 'typert.host.js')).href)
 const remote = await import(pathToFileURL(join(output, 'typert.remote-client.js')).href)
-if (host.TYPERT?.package !== 'dsh-gateway' || host.TYPERT.face !== 'host') {
+if (host.TYPERT?.package !== 'dsh-evoforge-gateway' || host.TYPERT.face !== 'host') {
   throw new Error('invalid dsh-gateway Host Typert manifest')
 }
-if (remote.TYPERT_REMOTE?.package !== 'dsh-gateway') {
+if (remote.TYPERT_REMOTE?.package !== 'dsh-evoforge-gateway') {
   throw new Error('invalid dsh-gateway Client Remote contribution')
 }
 const hostMethods = methods(host.TYPERT.invocations)

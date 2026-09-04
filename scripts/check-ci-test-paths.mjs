@@ -71,8 +71,8 @@ if (!workflow.includes('DSH_EVOLVE_DSH_SOURCE_DIR: ${{ github.workspace }}/.evof
 }
 
 const integrationBuild = workflow.match(/- name: Build EvoForge integration packages\n([\s\S]*?)(?=\n\s*- name: Materialize DSH-revision-matched Case Packs)/u)?.[1] ?? ''
-if (/pnpm --filter dsh-telegram build/u.test(integrationBuild)) {
-  throw new Error('assembled CI must not build dsh-telegram directly beside dsh-evolve-attention: its shared peer build can race and remove dist/index.mjs')
+if (/pnpm --filter dsh-evoforge-telegram build/u.test(integrationBuild)) {
+  throw new Error('assembled CI must not build dsh-evoforge-telegram directly beside dsh-evolve-attention: its shared peer build can race and remove dist/index.mjs')
 }
 
 if (!rootPackage.scripts?.pretypecheck?.includes('dsh-control-center')) {

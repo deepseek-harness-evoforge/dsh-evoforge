@@ -9,10 +9,10 @@
 
 ```sh
 PACK_DIR="$(mktemp -d)"
-pnpm --filter dsh-gateway pack --pack-destination "$PACK_DIR"
+pnpm --filter dsh-evoforge-gateway pack --pack-destination "$PACK_DIR"
 pnpm --filter dsh-control-center pack --pack-destination "$PACK_DIR"
-pnpm --filter dsh-feishu pack --pack-destination "$PACK_DIR"
-dsh plugin --profile web add "$PACK_DIR"/dsh-control-center-*.tgz "$PACK_DIR"/dsh-gateway-*.tgz "$PACK_DIR"/dsh-feishu-*.tgz
+pnpm --filter dsh-evoforge-feishu pack --pack-destination "$PACK_DIR"
+dsh plugin --profile web add "$PACK_DIR"/dsh-control-center-*.tgz "$PACK_DIR"/dsh-evoforge-gateway-*.tgz "$PACK_DIR"/dsh-evoforge-feishu-*.tgz
 dsh --profile web --dump-config
 ```
 
@@ -24,13 +24,13 @@ dsh --profile web --dump-config
 
 ```yaml
 - id: evoforge-gateway
-  name: dsh-gateway
+  name: dsh-evoforge-gateway
   disabled: false
   config:
     routes: []
 
 - id: evoforge-feishu
-  name: dsh-feishu
+  name: dsh-evoforge-feishu
   disabled: false
   config:
     mode: pairing
@@ -60,7 +60,7 @@ pending 快照，完整健康刷新仍由用户点击执行。
 
 ```yaml
 - id: evoforge-gateway
-  name: dsh-gateway
+  name: dsh-evoforge-gateway
   disabled: false
   config:
     routes:
@@ -76,7 +76,7 @@ pending 快照，完整健康刷新仍由用户点击执行。
         model: deepseek-v4-flash
 
 - id: evoforge-feishu
-  name: dsh-feishu
+  name: dsh-evoforge-feishu
   disabled: false
   config:
     routeIds: [feishu-personal]

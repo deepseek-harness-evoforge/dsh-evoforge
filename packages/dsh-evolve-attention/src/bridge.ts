@@ -2,8 +2,8 @@ import {
   projectEvolutionAttention,
   type EvolutionAttentionOverview,
 } from './attention.js'
-import type { FeishuHostRoute } from 'dsh-feishu'
-import type { TelegramHostRoute } from 'dsh-telegram'
+import type { FeishuHostRoute } from 'dsh-evoforge-feishu'
+import type { TelegramHostRoute } from 'dsh-evoforge-telegram'
 
 export interface EvolutionAttentionSource {
   overview(workspaceId: string): Promise<EvolutionAttentionOverview>

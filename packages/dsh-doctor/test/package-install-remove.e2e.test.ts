@@ -51,7 +51,7 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-doctor package boundar
       encoding: 'utf8',
       timeout: 10_000,
     })).stdout.trim()
-    const tarball = join(root, 'dsh-doctor-0.1.0-alpha.1.tgz')
+    const tarball = join(root, 'dsh-evoforge-doctor-0.1.0-alpha.1.tgz')
     const env = {
       ...process.env,
       COREPACK_ENABLE_DOWNLOAD_PROMPT: '0',
@@ -68,13 +68,13 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-doctor package boundar
       env,
     )
     const installedManifest = JSON.parse(await readFile(join(profileDir, 'package.json'), 'utf8'))
-    expect(installedManifest.dependencies?.['dsh-doctor']).toBeDefined()
-    expect(installedManifest.dsh.profile.bundles).toEqual(['dsh-doctor'])
+    expect(installedManifest.dependencies?.['dsh-evoforge-doctor']).toBeDefined()
+    expect(installedManifest.dsh.profile.bundles).toEqual(['dsh-evoforge-doctor'])
     const dumped = await execFile(process.execPath, [
       dshBin, '--profile', 'fixture', '--dump-config',
     ], { cwd: root, env, encoding: 'utf8', timeout: 30_000 })
     expect(dumped.stdout).toContain('id: evoforge-doctor')
-    expect(dumped.stdout).toContain('name: dsh-doctor')
+    expect(dumped.stdout).toContain('name: dsh-evoforge-doctor')
 
     const packageScope = join(profileDir, 'node_modules', '@deepseek-ai')
     await mkdir(packageScope, { recursive: true })
@@ -86,7 +86,7 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-doctor package boundar
     const fixtureRoot = join(root, 'fixture-dsh-feishu')
     await mkdir(fixtureRoot, { recursive: true })
     await writeFile(join(fixtureRoot, 'package.json'), `${JSON.stringify({
-      name: 'dsh-feishu',
+      name: 'dsh-evoforge-feishu',
       version: '0.0.0-test',
       type: 'module',
       exports: './index.mjs',
@@ -103,12 +103,12 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-doctor package boundar
       '}',
       '',
     ].join('\n'))
-    await symlink(fixtureRoot, join(profileDir, 'node_modules', 'dsh-feishu'), 'dir')
+    await symlink(fixtureRoot, join(profileDir, 'node_modules', 'dsh-evoforge-feishu'), 'dir')
     const installedConfig = join(profileDir, 'installed.cordis.yml')
     await writeFile(installedConfig, JSON.stringify([
       { id: 'commands', name: '@deepseek-ai/dsh-commands' },
-      { id: 'feishu', name: 'dsh-feishu', config: { state: 'degraded' } },
-      { id: 'doctor', name: 'dsh-doctor', config: { requiredModules: ['dsh-doctor', 'dsh-feishu'] } },
+      { id: 'feishu', name: 'dsh-evoforge-feishu', config: { state: 'degraded' } },
+      { id: 'doctor', name: 'dsh-evoforge-doctor', config: { requiredModules: ['dsh-evoforge-doctor', 'dsh-evoforge-feishu'] } },
     ], null, 2))
 
     const ctx = await boot(installedConfig)
@@ -144,9 +144,9 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-doctor package boundar
       await ctx.fiber.dispose()
     }
 
-    await runDsh(['plugin', '--profile', 'fixture', 'remove', 'dsh-doctor'], root, env)
+    await runDsh(['plugin', '--profile', 'fixture', 'remove', 'dsh-evoforge-doctor'], root, env)
     const removedManifest = JSON.parse(await readFile(join(profileDir, 'package.json'), 'utf8'))
-    expect(removedManifest.dependencies?.['dsh-doctor']).toBeUndefined()
+    expect(removedManifest.dependencies?.['dsh-evoforge-doctor']).toBeUndefined()
     expect(removedManifest.dsh.profile.bundles).toEqual([])
   }, 60_000)
 })

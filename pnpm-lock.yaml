@@ -248,15 +248,15 @@ importers:
       '@types/node':
         specifier: ^22.20.0
         version: 22.20.1
+      dsh-evoforge-feishu:
+        specifier: workspace:*
+        version: link:../dsh-feishu
+      dsh-evoforge-telegram:
+        specifier: workspace:*
+        version: link:../dsh-telegram
       dsh-evolve:
         specifier: workspace:*
         version: link:../dsh-evolve
-      dsh-feishu:
-        specifier: workspace:*
-        version: link:../dsh-feishu
-      dsh-telegram:
-        specifier: workspace:*
-        version: link:../dsh-telegram
       tsdown:
         specifier: ^0.22.2
         version: 0.22.14(tsx@4.23.12)(typescript@6.0.3)
@@ -415,7 +415,7 @@ importers:
       dsh-control-center:
         specifier: workspace:*
         version: link:../dsh-control-center
-      dsh-gateway:
+      dsh-evoforge-gateway:
         specifier: workspace:*
         version: link:../dsh-gateway
       jsdom:
@@ -832,7 +832,7 @@ importers:
       dsh-control-center:
         specifier: workspace:*
         version: link:../dsh-control-center
-      dsh-gateway:
+      dsh-evoforge-gateway:
         specifier: workspace:*
         version: link:../dsh-gateway
       react:

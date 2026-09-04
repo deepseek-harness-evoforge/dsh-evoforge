@@ -9,7 +9,7 @@
       - dsh-gateway
 
 - id: evoforge-gateway
-  name: dsh-gateway
+  name: dsh-evoforge-gateway
   disabled: false
   config:
     routes:

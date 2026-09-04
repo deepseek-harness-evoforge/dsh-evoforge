@@ -9,7 +9,7 @@ import { openGatewayPairingAuthority, type GatewayPairingAuthority } from './pai
 import { resolveGatewayRoutes, type GatewayRouteConfig } from './routing.js'
 export { sessionEvents } from './session-log.ts'
 
-export const name = 'dsh-gateway'
+export const name = 'dsh-evoforge-gateway'
 export const inject = [
   'agents',
   'agentPresets',

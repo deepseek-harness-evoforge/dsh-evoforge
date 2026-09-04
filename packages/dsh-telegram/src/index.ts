@@ -1,14 +1,14 @@
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type Schema from '@deepseek-ai/schemastery'
-import type { DshGateway } from 'dsh-gateway'
+import type { DshGateway } from 'dsh-evoforge-gateway'
 import { TelegramApi } from './telegram-api.js'
 import { TelegramRuntime } from './runtime.js'
 import { TelegramPairingRuntime } from './pairing-runtime.js'
 import { resolveTelegramConfig, resolveTelegramPairingConfig } from './config.js'
 import type { TelegramHostNotice, TelegramHostRoute } from './host-route.js'
 
-export const name = 'dsh-telegram'
+export const name = 'dsh-evoforge-telegram'
 export const inject = ['evoforge.gateway']
 
 export interface Config {

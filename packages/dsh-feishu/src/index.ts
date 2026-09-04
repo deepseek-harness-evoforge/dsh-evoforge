@@ -4,7 +4,7 @@ import type {} from '@deepseek-ai/dsh-commands'
 import type {} from '@deepseek-ai/dsh-workspace'
 import z from '@deepseek-ai/schemastery'
 import type Schema from '@deepseek-ai/schemastery'
-import type { DshGateway, ResolvedGatewayRoute } from 'dsh-gateway'
+import type { DshGateway, ResolvedGatewayRoute } from 'dsh-evoforge-gateway'
 import {
   FEISHU_CONTENT_PERMISSIONS,
   resolveFeishuConfig,
@@ -18,7 +18,7 @@ import {
 } from './platform.js'
 import { FeishuRuntime } from './runtime.js'
 
-export const name = 'dsh-feishu'
+export const name = 'dsh-evoforge-feishu'
 export const inject = ['attachments', 'commands', 'evoforge.gateway', 'workspaceRegistry']
 
 export interface Config {

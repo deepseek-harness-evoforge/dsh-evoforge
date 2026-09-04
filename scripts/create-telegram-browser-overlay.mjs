@@ -20,7 +20,7 @@ const shimDir = await mkdtemp(join(tmpdir(), 'evoforge-browser-bootstrap-'))
 const shimPath = join(shimDir, 'bootstrap.mjs')
 await writeFile(shimPath, `export { name, inject, apply } from ${JSON.stringify(pathToFileURL(fixturePath).href)}\n`, 'utf8')
 await writeFile(outputPath, `- id: evoforge-gateway
-  name: dsh-gateway
+  name: dsh-evoforge-gateway
   disabled: false
   config:
     routes:
@@ -36,7 +36,7 @@ await writeFile(outputPath, `- id: evoforge-gateway
         model: deepseek-v4-flash
 
 - id: evoforge-telegram
-  name: dsh-telegram
+  name: dsh-evoforge-telegram
   disabled: false
   config:
     routeId: telegram-browser

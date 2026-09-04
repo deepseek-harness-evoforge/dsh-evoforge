@@ -162,7 +162,7 @@ function createOfficialPlatform(
     appSecret: options.appSecret,
     domain: Domain.Feishu,
     transport: 'websocket',
-    source: 'dsh-feishu',
+    source: 'dsh-evoforge-feishu',
     loggerLevel: LoggerLevel.warn,
     httpInstance: transport.httpInstance,
     ...(transport.agent === undefined ? {} : { agent: transport.agent }),

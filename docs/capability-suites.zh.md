@@ -53,7 +53,7 @@ Host 只启动一次；启动日志打印的 URL 应复用到已有 DSH 浏览�
 卸载使用清单中的包名：
 
 ```sh
-dsh plugin --profile web remove dsh-evolve dsh-doctor dsh-control-center dsh-evolve-web
+dsh plugin --profile web remove dsh-evolve dsh-evoforge-doctor dsh-control-center dsh-evolve-web
 ```
 
 ## 为什么不把十二包物理合成一个包

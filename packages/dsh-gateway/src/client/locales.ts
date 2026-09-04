@@ -1,4 +1,4 @@
-export const NS = 'dsh-gateway'
+export const NS = 'dsh-evoforge-gateway'
 
 export const zh = {
   'surface.nav': '渠道',

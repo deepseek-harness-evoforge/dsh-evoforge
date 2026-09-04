@@ -18,7 +18,7 @@ await mkdir(dirname(outputPath), { recursive: true })
 await writeFile(gatewayShim, `export { name, inject, apply } from ${JSON.stringify(pathToFileURL(gatewayFixture).href)}\n`, 'utf8')
 await writeFile(controlShim, `export { name, inject, apply } from ${JSON.stringify(pathToFileURL(controlFixture).href)}\n`, 'utf8')
 await writeFile(outputPath, `- id: evoforge-gateway
-  name: dsh-gateway
+  name: dsh-evoforge-gateway
   disabled: false
 - insert:
     - id: evoforge-gateway-browser

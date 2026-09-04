@@ -1,4 +1,4 @@
-import type { GatewayEndpoint, ResolvedGatewayRoute } from 'dsh-gateway'
+import type { GatewayEndpoint, ResolvedGatewayRoute } from 'dsh-evoforge-gateway'
 import type { TelegramRouteIdentity } from './inbound.js'
 
 export interface TelegramConfigInput {

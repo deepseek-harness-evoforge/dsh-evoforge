@@ -1,6 +1,6 @@
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
-import type { DshGateway } from 'dsh-gateway'
+import type { DshGateway } from 'dsh-evoforge-gateway'
 import { resolveFeishuPairingConfig } from '../src/config.js'
 import type {
   FeishuApprovalAction,

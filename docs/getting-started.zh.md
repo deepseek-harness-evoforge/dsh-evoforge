@@ -66,7 +66,7 @@ Telegram 示例：
 
 ```yaml
 - id: evoforge-gateway
-  name: dsh-gateway
+  name: dsh-evoforge-gateway
   disabled: false
   config:
     routes:
@@ -82,7 +82,7 @@ Telegram 示例：
         model: deepseek-v4-flash
 
 - id: evoforge-telegram
-  name: dsh-telegram
+  name: dsh-evoforge-telegram
   disabled: false
   config:
     routeId: telegram-personal
@@ -106,7 +106,7 @@ token 由启动 DSH 的环境提供。模型不能读取 token、修改 route、
 `chat_id`/`open_id`：先让 `dsh-gateway` 保持 `routes: []`，再把 `evoforge-feishu` 配成：
 
 ```yaml
-  name: dsh-feishu
+  name: dsh-evoforge-feishu
   disabled: false
   config:
     mode: pairing
@@ -130,7 +130,7 @@ code、重放、无 live Session 和 Workspace ownership 漂移均 fail closed�
 
 ```yaml
 - id: evoforge-gateway
-  name: dsh-gateway
+  name: dsh-evoforge-gateway
   disabled: false
   config:
     routes:
@@ -146,7 +146,7 @@ code、重放、无 live Session 和 Workspace ownership 漂移均 fail closed�
         model: deepseek-v4-flash
 
 - id: evoforge-feishu
-  name: dsh-feishu
+  name: dsh-evoforge-feishu
   disabled: false
   config:
     routeIds: [feishu-personal]

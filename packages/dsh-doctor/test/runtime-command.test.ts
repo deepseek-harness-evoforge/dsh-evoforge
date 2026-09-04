@@ -51,7 +51,7 @@ describe('dsh-doctor runtime plugin', () => {
     vi.spyOn(ctx.loader, 'entries').mockImplementation(function* () {
       yield {
         id: 'feishu-entry',
-        options: { name: 'dsh-feishu', group: false },
+        options: { name: 'dsh-evoforge-feishu', group: false },
         disabled: false,
         fiber: { state: 2 },
       } as never
@@ -62,7 +62,7 @@ describe('dsh-doctor runtime plugin', () => {
         transports: { items: [{ adapter: 'feishu', state: 'degraded' }] },
       }),
     }) as never)
-    await ctx.plugin(DoctorPlugin, { requiredModules: ['dsh-feishu'] })
+    await ctx.plugin(DoctorPlugin, { requiredModules: ['dsh-evoforge-feishu'] })
 
     const command = ctx.commands.find({} as Agent, 'doctor')
     const result = await command?.handler({
@@ -85,7 +85,7 @@ describe('dsh-doctor runtime plugin', () => {
     vi.spyOn(ctx.loader, 'entries').mockImplementation(function* () {
       yield {
         id: 'telegram-entry',
-        options: { name: 'dsh-telegram', group: false },
+        options: { name: 'dsh-evoforge-telegram', group: false },
         disabled: false,
         fiber: { state: 2 },
       } as never
@@ -96,7 +96,7 @@ describe('dsh-doctor runtime plugin', () => {
         transports: { items: [{ adapter: 'telegram', state: 'ready' }] },
       }),
     }) as never)
-    await ctx.plugin(DoctorPlugin, { requiredModules: ['dsh-telegram'] })
+    await ctx.plugin(DoctorPlugin, { requiredModules: ['dsh-evoforge-telegram'] })
 
     const command = ctx.commands.find({} as Agent, 'doctor')
     const result = await command?.handler({
@@ -119,7 +119,7 @@ describe('dsh-doctor runtime plugin', () => {
     vi.spyOn(ctx.loader, 'entries').mockImplementation(function* () {
       yield {
         id: 'feishu-entry',
-        options: { name: 'dsh-feishu', group: false },
+        options: { name: 'dsh-evoforge-feishu', group: false },
         disabled: false,
         fiber: { state: 2 },
       } as never
@@ -127,7 +127,7 @@ describe('dsh-doctor runtime plugin', () => {
     ctx.provide('evoforge.gateway' as never, Object.freeze({
       healthSnapshot: () => ({ lifecycle: 'ready' }),
     }) as never)
-    await ctx.plugin(DoctorPlugin, { requiredModules: ['dsh-feishu'] })
+    await ctx.plugin(DoctorPlugin, { requiredModules: ['dsh-evoforge-feishu'] })
 
     const command = ctx.commands.find({} as Agent, 'doctor')
     const result = await command?.handler({

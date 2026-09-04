@@ -105,8 +105,8 @@ export function evaluateRuntimeReadiness(input: RuntimeReadinessInput): RuntimeR
 }
 
 const CHANNELS = [
-  { id: 'channel-feishu', moduleName: 'dsh-feishu', adapter: 'feishu', label: 'Feishu' },
-  { id: 'channel-telegram', moduleName: 'dsh-telegram', adapter: 'telegram', label: 'Telegram' },
+  { id: 'channel-feishu', moduleName: 'dsh-evoforge-feishu', adapter: 'feishu', label: 'Feishu' },
+  { id: 'channel-telegram', moduleName: 'dsh-evoforge-telegram', adapter: 'telegram', label: 'Telegram' },
 ] as const
 
 function channelReadinessCheck(

@@ -109,8 +109,8 @@ Use DSH's official command to remove the complete suite:
 
 ```sh
 dsh plugin --profile web remove \
-  dsh-evolve dsh-evolve-web dsh-control-center dsh-doctor \
-  dsh-gateway dsh-feishu dsh-telegram dsh-evolve-attention \
+  dsh-evolve dsh-evolve-web dsh-control-center dsh-evoforge-doctor \
+  dsh-evoforge-gateway dsh-evoforge-feishu dsh-evoforge-telegram dsh-evolve-attention \
   dsh-software-delivery dsh-github-review dsh-goal-continuity dsh-resident
 dsh --profile web --dump-config
 ```

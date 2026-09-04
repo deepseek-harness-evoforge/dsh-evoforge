@@ -1,4 +1,4 @@
-export const NS = 'dsh-telegram'
+export const NS = 'dsh-evoforge-telegram'
 
 export const zh = {
   'surface.nav': 'Telegram',

@@ -3,7 +3,7 @@ import type {
   GatewayOutboundStatus,
   GatewayTransportHealthItem,
   GatewayTransportState,
-} from 'dsh-gateway'
+} from 'dsh-evoforge-gateway'
 import {
   FEISHU_CONTENT_PERMISSIONS,
   type FeishuContentPermission,

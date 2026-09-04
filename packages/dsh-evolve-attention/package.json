@@ -27,7 +27,7 @@
   "keywords": ["deepseek-harness", "dsh", "evolution", "telegram", "feishu", "attention"],
   "files": ["dist", "cordis.patch.yml", "README.md"],
   "scripts": {
-    "build:channel-peers": "pnpm --filter dsh-gateway --filter dsh-telegram --filter dsh-feishu build",
+    "build:channel-peers": "pnpm --filter dsh-evoforge-gateway --filter dsh-evoforge-telegram --filter dsh-evoforge-feishu build",
     "prebuild": "pnpm run build:channel-peers",
     "build": "tsdown src/index.ts --format esm --clean",
     "prepack": "pnpm run build",
@@ -45,19 +45,19 @@
   "peerDependencies": {
     "@deepseek-ai/cordis": "4.0.2",
     "dsh-evolve": ">=0.1.0-alpha.1 <0.2.0",
-    "dsh-feishu": ">=0.1.0-alpha.1 <0.2.0",
-    "dsh-telegram": ">=0.1.0-alpha.1 <0.2.0"
+    "dsh-evoforge-feishu": ">=0.1.0-alpha.1 <0.2.0",
+    "dsh-evoforge-telegram": ">=0.1.0-alpha.1 <0.2.0"
   },
   "peerDependenciesMeta": {
-    "dsh-feishu": { "optional": true },
-    "dsh-telegram": { "optional": true }
+    "dsh-evoforge-feishu": { "optional": true },
+    "dsh-evoforge-telegram": { "optional": true }
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.2",
     "@types/node": "^22.20.0",
     "dsh-evolve": "workspace:*",
-    "dsh-feishu": "workspace:*",
-    "dsh-telegram": "workspace:*",
+    "dsh-evoforge-feishu": "workspace:*",
+    "dsh-evoforge-telegram": "workspace:*",
     "tsdown": "^0.22.2",
     "typescript": "^6.0.3",
     "vitest": "^4.1.8"

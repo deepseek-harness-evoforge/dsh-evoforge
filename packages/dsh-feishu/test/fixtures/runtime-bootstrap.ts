@@ -1,6 +1,6 @@
 import { appendFile } from 'node:fs/promises'
 import type { Context } from '@deepseek-ai/cordis'
-import type { DshGateway, ResolvedGatewayRoute } from 'dsh-gateway'
+import type { DshGateway, ResolvedGatewayRoute } from 'dsh-evoforge-gateway'
 import type {
   FeishuApprovalAction,
   FeishuContentReadRequest,

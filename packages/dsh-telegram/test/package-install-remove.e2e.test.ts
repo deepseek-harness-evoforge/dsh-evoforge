@@ -56,8 +56,8 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-telegram package bound
       encoding: 'utf8',
       timeout: 10_000,
     })).stdout.trim()
-    const tarball = join(root, 'dsh-telegram-0.1.0-alpha.1.tgz')
-    const gatewayTarball = join(root, 'dsh-gateway-0.1.0-alpha.1.tgz')
+    const tarball = join(root, 'dsh-evoforge-telegram-0.1.0-alpha.1.tgz')
+    const gatewayTarball = join(root, 'dsh-evoforge-gateway-0.1.0-alpha.1.tgz')
     const env = {
       ...process.env,
       COREPACK_ENABLE_DOWNLOAD_PROMPT: '0',
@@ -74,14 +74,14 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-telegram package bound
       env,
     )
     const installedManifest = JSON.parse(await readFile(join(profileDir, 'package.json'), 'utf8'))
-    expect(installedManifest.dependencies?.['dsh-telegram']).toBeDefined()
-    expect(installedManifest.dependencies?.['dsh-gateway']).toBeDefined()
-    expect(installedManifest.dsh.profile.bundles).toEqual(['dsh-gateway', 'dsh-telegram'])
+    expect(installedManifest.dependencies?.['dsh-evoforge-telegram']).toBeDefined()
+    expect(installedManifest.dependencies?.['dsh-evoforge-gateway']).toBeDefined()
+    expect(installedManifest.dsh.profile.bundles).toEqual(['dsh-evoforge-gateway', 'dsh-evoforge-telegram'])
     const dumped = await execFile(process.execPath, [
       dshBin, '--profile', 'fixture', '--dump-config',
     ], { cwd: root, env, encoding: 'utf8', timeout: 30_000 })
     expect(dumped.stdout).toContain('id: evoforge-telegram')
-    expect(dumped.stdout).toContain('name: dsh-telegram')
+    expect(dumped.stdout).toContain('name: dsh-evoforge-telegram')
     expect(dumped.stdout).toContain('id: evoforge-gateway')
     expect(dumped.stdout).toContain('disabled: true')
 
@@ -120,7 +120,7 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-telegram package bound
       },
       {
         id: 'telegram',
-        name: 'dsh-telegram',
+        name: 'dsh-evoforge-telegram',
         config: {
           apiBase: 'http://127.0.0.1:1',
           pollTimeoutSeconds: 1,
@@ -132,7 +132,7 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-telegram package bound
     vi.stubEnv('DSH_TELEGRAM_PACKAGE_TEST_TOKEN', 'test-token')
     const ctx = await boot(installedConfig)
     try {
-      const entry = [...ctx.loader.entries()].find(candidate => candidate.options.name === 'dsh-telegram')
+      const entry = [...ctx.loader.entries()].find(candidate => candidate.options.name === 'dsh-evoforge-telegram')
       expect(entry?.fiber?.state).toBe(2)
       expect(ctx.storageDomain.get('evoforge_telegram')).toBeUndefined()
     } finally {
@@ -140,11 +140,11 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-telegram package bound
     }
 
     await runDsh([
-      'plugin', '--profile', 'fixture', 'remove', 'dsh-telegram', 'dsh-gateway',
+      'plugin', '--profile', 'fixture', 'remove', 'dsh-evoforge-telegram', 'dsh-evoforge-gateway',
     ], root, env)
     const removedManifest = JSON.parse(await readFile(join(profileDir, 'package.json'), 'utf8'))
-    expect(removedManifest.dependencies?.['dsh-telegram']).toBeUndefined()
-    expect(removedManifest.dependencies?.['dsh-gateway']).toBeUndefined()
+    expect(removedManifest.dependencies?.['dsh-evoforge-telegram']).toBeUndefined()
+    expect(removedManifest.dependencies?.['dsh-evoforge-gateway']).toBeUndefined()
     expect(removedManifest.dsh.profile.bundles).toEqual([])
   }, 60_000)
 })

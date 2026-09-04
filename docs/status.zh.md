@@ -10,6 +10,19 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.171：公共分发名撞名迁移与全仓回归（本轮）
+
+审计发现 `dsh-doctor`、`dsh-feishu`、`dsh-gateway`、`dsh-telegram` 四个 unscoped npm 名称已被无关仓库占用。
+现已把四个 `package.json.name`、Cordis patch、Typert manifest、workspace/peer/dev 依赖、安装/卸载命令、套件
+夹具和用户 README 统一迁移为 `dsh-evoforge-doctor`、`dsh-evoforge-feishu`、`dsh-evoforge-gateway`、
+`dsh-evoforge-telegram`；仓库目录、逻辑 Bundle row id 和 Gateway/Adapter 职责保持不变，未增加别名或第二 Runtime。
+新名称查询无冲突，但“可用”不等于维护者拥有，因此 `registry-name-availability` 继续 fail closed。
+
+在开发前重新 fetch canonical DSH `origin/master` `76fda729…`（`dsh-v0.1.2-rc.1`）并复核 clean；alpha.5 支持 checkout
+仍为 `db6bdc…`。Typert 重生成、12 包安装元数据、Evolution `309/309`、Doctor `40/40`、Gateway `41/41`、Feishu
+`46/46`、Telegram `34/34`、Evolve-attention `11/11`、Evolve Web `27/27`、clean-profile `1/1`（升级历史夹具按设计
+skip）以及根级 `pnpm run build` `BUILD_RC=0` 均通过。完整记录见 [V5.171 证据](evidence/v5-171-public-package-name-migration-2026-09-04.zh.md)。
+
 ## V5.163：开源可用性与真实缺口审计（本轮）
 
 开发前重新 fetch 并核对 canonical DSH 最新 `master` 为 `76fda729…`（`dsh-v0.1.2-rc.1`，clean），EvoForge
@@ -1255,7 +1268,7 @@ Session+Goal+Storage+Tool/dispose/remove/reboot/readback 1/1（60.96 秒）；�
 add/Loader/command/remove 1/1（10.35 秒）。V4.24 删除旧浏览器 acceptance fixture，并用 DSH Web 组件测试固定“纠正进入
 自主内部治理、不出现路线选择”；V4.28 已用 test-only exact-lineage fixture 从最终 tarball 重跑完整评测视图的真实浏览器 reload/断连/恢复；V4.29 又从最终 tarball 验证 promotion eligible/blocked、失败保留、恢复和卸载；V4.48 从最终 tarball 验证 existing-Skill approve/promote/Canary/断连保留/rollback/reload/冷恢复/卸载，V4.49 验证 missing-Skill `skill-bundle` 的 promote/Canary/断连保留/root rollback/冷恢复/卸载，所有 fixture 均不进入发布包。
 
-十二个包可生成 tarball 并通过 `dsh plugin --profile web add` 安装：`dsh-evolve`、`dsh-evolve-web`、`dsh-software-delivery`、`dsh-doctor`、`dsh-github-review`、`dsh-telegram`、`dsh-evolve-attention`、`dsh-goal-continuity`、`dsh-resident`、`dsh-gateway`、`dsh-feishu`、`dsh-control-center`。外部路由、自动恢复和 OS 部署默认关闭。没有任何 EvoForge 独立 Runtime、网站、daemon 或产品 CLI 是受支持入口。
+十二个包可生成 tarball 并通过 `dsh plugin --profile web add` 安装：`dsh-evolve`、`dsh-evolve-web`、`dsh-software-delivery`、`dsh-evoforge-doctor`、`dsh-github-review`、`dsh-evoforge-telegram`、`dsh-evolve-attention`、`dsh-goal-continuity`、`dsh-resident`、`dsh-evoforge-gateway`、`dsh-evoforge-feishu`、`dsh-control-center`。外部路由、自动恢复和 OS 部署默认关闭。没有任何 EvoForge 独立 Runtime、网站、daemon 或产品 CLI 是受支持入口。
 
 ## 当前限制
 

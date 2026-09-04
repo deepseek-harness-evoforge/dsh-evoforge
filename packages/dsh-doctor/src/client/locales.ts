@@ -1,4 +1,4 @@
-export const NS = 'dsh-doctor'
+export const NS = 'dsh-evoforge-doctor'
 
 export const zh = {
   'surface.nav': '运行诊断',

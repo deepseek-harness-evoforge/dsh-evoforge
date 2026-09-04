@@ -28,7 +28,7 @@ describe('Telegram native DSH Client Module', () => {
   it('uses the existing /telegram command and common Control Center slot', async () => {
     const client = await readFile(resolve(packageRoot, 'dist/client.js'), 'utf8')
     const host = await readFile(resolve(packageRoot, 'dist/index.mjs'), 'utf8')
-    expect(client).toMatch(/window\.__ModuleLoader__\.load\(\{\s*id: "dsh-telegram"/u)
+    expect(client).toMatch(/window\.__ModuleLoader__\.load\(\{\s*id: "dsh-evoforge-telegram"/u)
     expect(client).toContain('evoforge.control.surface')
     expect(client).toContain('/telegram')
     expect(client).not.toContain('position:fixed')

@@ -26,8 +26,8 @@ resident pairing flow. Attention consumes only routes that the Host has already 
 PACK_DIR="$(mktemp -d)"
 pnpm --filter dsh-evolve pack --pack-destination "$PACK_DIR"
 pnpm --filter dsh-evolve-attention pack --pack-destination "$PACK_DIR"
-pnpm --filter dsh-telegram pack --pack-destination "$PACK_DIR" # optional
-pnpm --filter dsh-feishu pack --pack-destination "$PACK_DIR"   # optional
+pnpm --filter dsh-evoforge-telegram pack --pack-destination "$PACK_DIR" # optional
+pnpm --filter dsh-evoforge-feishu pack --pack-destination "$PACK_DIR"   # optional
 dsh plugin --profile web add "$PACK_DIR"/*.tgz
 ```
 

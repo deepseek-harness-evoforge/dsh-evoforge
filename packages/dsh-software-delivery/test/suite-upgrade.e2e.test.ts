@@ -21,17 +21,17 @@ const upgradeFromRevision = 'b0e4360b49c243535395b7b1ffba59b9ce0ae2c6'
 const upgradeFromVersion = '0.1.0-alpha.0'
 const currentVersion = '0.1.0-alpha.1'
 const packageNames = [
-  'dsh-gateway',
-  'dsh-doctor',
+  'dsh-evoforge-gateway',
+  'dsh-evoforge-doctor',
   'dsh-evolve',
   'dsh-evolve-attention',
   'dsh-evolve-web',
-  'dsh-feishu',
+  'dsh-evoforge-feishu',
   'dsh-github-review',
   'dsh-goal-continuity',
   'dsh-resident',
   'dsh-software-delivery',
-  'dsh-telegram',
+  'dsh-evoforge-telegram',
   'dsh-control-center',
 ] as const
 const historicalPackageNames = packageNames.filter(name => name !== 'dsh-control-center')
@@ -432,24 +432,24 @@ async function dumpProfile(profile: string, cwd: string, env: NodeJS.ProcessEnv)
 
 function expectSuiteRowsOnce(dump: string, packages: readonly string[]): void {
   const expected = [
-    'dsh-doctor',
+    ...(packages.includes('dsh-control-center') ? ['dsh-control-center'] : []),
+    'dsh-evoforge-doctor',
+    'dsh-evoforge-feishu',
+    'dsh-evoforge-gateway',
+    'dsh-evoforge-telegram',
     'dsh-evolve',
     'dsh-evolve-attention',
     'dsh-evolve-web',
-    'dsh-feishu',
-    'dsh-gateway',
     'dsh-github-review',
     'dsh-goal-continuity',
     'dsh-resident',
     'dsh-software-delivery',
-    'dsh-telegram',
-    ...(packages.includes('dsh-control-center') ? ['dsh-control-center'] : []),
   ]
   expect(evoforgeRows(dump)).toEqual(expected)
 }
 
 function evoforgeRows(dump: string): string[] {
-  return [...dump.matchAll(/^\s*name:\s*(dsh-(?:control-center|gateway|doctor|evolve(?:-attention|-web)?|feishu|github-review|goal-continuity|resident|software-delivery|telegram))\s*$/gmu)]
+  return [...dump.matchAll(/^\s*name:\s*(dsh-evoforge-(?:doctor|feishu|gateway|telegram)|dsh-(?:control-center|evolve(?:-attention|-web)?|github-review|goal-continuity|resident|software-delivery))\s*$/gmu)]
     .map(match => match[1]!)
 }
 

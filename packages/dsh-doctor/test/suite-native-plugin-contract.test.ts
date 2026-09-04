@@ -7,7 +7,12 @@ const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const packagesRoot = resolve(packageRoot, '..')
 const supportedDshPeerRange = '0.1.2-alpha.5'
 
-const contracts = [
+const contracts: readonly {
+  readonly name: string
+  readonly moduleName?: string
+  readonly entryId: string
+  readonly disabled: boolean
+}[] = [
   {
     name: 'dsh-control-center',
     entryId: 'evoforge-control-center',
@@ -30,6 +35,7 @@ const contracts = [
   },
   {
     name: 'dsh-doctor',
+    moduleName: 'dsh-evoforge-doctor',
     entryId: 'evoforge-doctor',
     disabled: false,
   },
@@ -40,6 +46,7 @@ const contracts = [
   },
   {
     name: 'dsh-telegram',
+    moduleName: 'dsh-evoforge-telegram',
     entryId: 'evoforge-telegram',
     disabled: true,
   },
@@ -60,20 +67,22 @@ const contracts = [
   },
   {
     name: 'dsh-gateway',
+    moduleName: 'dsh-evoforge-gateway',
     entryId: 'evoforge-gateway',
     disabled: true,
   },
   {
     name: 'dsh-feishu',
+    moduleName: 'dsh-evoforge-feishu',
     entryId: 'evoforge-feishu',
     disabled: true,
   },
 ] as const
 
 describe('EvoForge native DSH plugin suite contract', () => {
-  it.each(contracts)('$name exports one loadable Cordis plugin contract', async ({ name }) => {
+  it.each(contracts)('$name exports one loadable Cordis plugin contract', async ({ name, moduleName }) => {
     const source = await readFile(join(packagesRoot, name, 'src', 'index.ts'), 'utf8')
-    expect(source).toContain(`export const name = '${name}'`)
+    expect(source).toContain(`export const name = '${moduleName ?? name}'`)
     expect(source).toMatch(/export const inject(?::[^=]+)?\s*=\s*\[[^\]]*\]/u)
     expect(source).toContain('export const Config')
     expect(source).toMatch(/export (?:async )?function apply\(/u)
@@ -85,6 +94,7 @@ describe('EvoForge native DSH plugin suite contract', () => {
 
   it.each(contracts)('$name is an official install-and-activate Bundle without a product CLI', async ({
     name,
+    moduleName,
     entryId,
     disabled,
   }) => {
@@ -120,7 +130,7 @@ describe('EvoForge native DSH plugin suite contract', () => {
 
     const patch = await readFile(join(root, 'cordis.patch.yml'), 'utf8')
     expect([...patch.matchAll(/^\s*name:\s*(\S+)\s*$/gmu)].map(match => match[1]))
-      .toEqual([name])
+      .toEqual([moduleName ?? name])
     expect(patch).toContain(`id: ${entryId}`)
     expect(/^\s*disabled:\s*true\s*$/mu.test(patch)).toBe(disabled)
   })

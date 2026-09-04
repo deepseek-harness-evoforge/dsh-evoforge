@@ -61,16 +61,16 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-feishu package boundar
     }
     await runDsh([
       'plugin', '--profile', 'fixture', 'add',
-      join(root, 'dsh-gateway-0.1.0-alpha.1.tgz'),
-      join(root, 'dsh-feishu-0.1.0-alpha.1.tgz'),
+      join(root, 'dsh-evoforge-gateway-0.1.0-alpha.1.tgz'),
+      join(root, 'dsh-evoforge-feishu-0.1.0-alpha.1.tgz'),
       '--prefer-offline', '--ignore-scripts',
     ], root, env)
 
     const manifest = JSON.parse(await readFile(join(profileDir, 'package.json'), 'utf8'))
-    expect(manifest.dependencies?.['dsh-gateway']).toBeDefined()
-    expect(manifest.dependencies?.['dsh-feishu']).toBeDefined()
-    expect(manifest.dsh.profile.bundles).toEqual(['dsh-feishu', 'dsh-gateway'])
-    const installedFeishuRoot = join(profileDir, 'node_modules', 'dsh-feishu')
+    expect(manifest.dependencies?.['dsh-evoforge-gateway']).toBeDefined()
+    expect(manifest.dependencies?.['dsh-evoforge-feishu']).toBeDefined()
+    expect(manifest.dsh.profile.bundles).toEqual(['dsh-evoforge-feishu', 'dsh-evoforge-gateway'])
+    const installedFeishuRoot = join(profileDir, 'node_modules', 'dsh-evoforge-feishu')
     const installedFeishuManifest = JSON.parse(await readFile(join(installedFeishuRoot, 'package.json'), 'utf8'))
     expect(installedFeishuManifest.dsh).toMatchObject({
       bundle: { patch: './cordis.patch.yml' },
@@ -79,7 +79,7 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-feishu package boundar
     expect(installedFeishuManifest.exports?.['./client']).toBe('./dist/client.js')
     const installedClient = await readFile(join(installedFeishuRoot, 'dist', 'client.js'), 'utf8')
     expect(installedClient).toContain('window.__ModuleLoader__.load({')
-    expect(installedClient).toContain('id: "dsh-feishu"')
+    expect(installedClient).toContain('id: "dsh-evoforge-feishu"')
     expect(installedClient).toContain('evoforge.control.surface')
     const sdkManifest = JSON.parse(await readFile(
       join(profileDir, 'node_modules', '@larksuiteoapi', 'node-sdk', 'package.json'),
@@ -91,15 +91,15 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-feishu package boundar
     })
     expect(dumped.stdout).toContain('id: evoforge-gateway')
     expect(dumped.stdout).toContain('id: evoforge-feishu')
-    expect(dumped.stdout).toContain('name: dsh-feishu')
+    expect(dumped.stdout).toContain('name: dsh-evoforge-feishu')
     expect(dumped.stdout).toContain('disabled: true')
 
     await runDsh([
-      'plugin', '--profile', 'fixture', 'remove', 'dsh-feishu', 'dsh-gateway',
+      'plugin', '--profile', 'fixture', 'remove', 'dsh-evoforge-feishu', 'dsh-evoforge-gateway',
     ], root, env)
     const removed = JSON.parse(await readFile(join(profileDir, 'package.json'), 'utf8'))
-    expect(removed.dependencies?.['dsh-feishu']).toBeUndefined()
-    expect(removed.dependencies?.['dsh-gateway']).toBeUndefined()
+    expect(removed.dependencies?.['dsh-evoforge-feishu']).toBeUndefined()
+    expect(removed.dependencies?.['dsh-evoforge-gateway']).toBeUndefined()
     expect(removed.dsh.profile.bundles).toEqual([])
     await expect(access(installedFeishuRoot)).rejects.toMatchObject({ code: 'ENOENT' })
   }, 180_000)

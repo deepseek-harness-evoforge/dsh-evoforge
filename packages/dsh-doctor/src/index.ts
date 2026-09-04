@@ -12,7 +12,7 @@ import {
   type RuntimeReadinessReport,
 } from './readiness.js'
 
-export const name = 'dsh-doctor'
+export const name = 'dsh-evoforge-doctor'
 export const inject = ['commands', 'loader']
 
 const MAX_REQUIRED_MODULES = 50
@@ -31,11 +31,11 @@ export interface Config {
 }
 
 export const Config: Schema<Config> = z.object({
-  requiredModules: z.array(z.string()).max(MAX_REQUIRED_MODULES).default(['dsh-doctor']),
+  requiredModules: z.array(z.string()).max(MAX_REQUIRED_MODULES).default(['dsh-evoforge-doctor']),
 })
 
 export function apply(ctx: Context, config: Config = {}): void {
-  const requiredModules = normalizeRequiredModules(config.requiredModules ?? ['dsh-doctor'])
+  const requiredModules = normalizeRequiredModules(config.requiredModules ?? ['dsh-evoforge-doctor'])
   ctx.commands.register({
     name: 'doctor',
     description: 'inspect current DSH runtime readiness without changing it',
@@ -44,8 +44,8 @@ export function apply(ctx: Context, config: Config = {}): void {
       if (rawInput.trim() !== '') {
         return { kind: 'error', text: 'Usage: /doctor' }
       }
-      const gateway = requiredModules.some(moduleName => moduleName === 'dsh-feishu'
-        || moduleName === 'dsh-telegram') ? snapshotGateway(ctx) : undefined
+      const gateway = requiredModules.some(moduleName => moduleName === 'dsh-evoforge-feishu'
+        || moduleName === 'dsh-evoforge-telegram') ? snapshotGateway(ctx) : undefined
       const report = evaluateRuntimeReadiness({
         requiredModules,
         entries: snapshotLoader(ctx),

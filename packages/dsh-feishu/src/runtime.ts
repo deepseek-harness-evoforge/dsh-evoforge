@@ -14,8 +14,8 @@ import {
   type GatewayTextAdapterRegistration,
   type GatewayTextDeliveryIntent,
   type GatewayTransportRegistration,
-} from 'dsh-gateway'
-import { sessionEvents } from 'dsh-gateway'
+} from 'dsh-evoforge-gateway'
+import { sessionEvents } from 'dsh-evoforge-gateway'
 import type { ResolvedFeishuConfig, ResolvedFeishuRoute } from './config.js'
 import {
   FEISHU_CONTENT_TOOL,

@@ -6,6 +6,15 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.171**: Migrated the four colliding unscoped distribution names to the project-prefixed
+  `dsh-evoforge-{doctor,feishu,gateway,telegram}` names across manifests, Cordis patches, Typert artifacts, workspace
+  dependencies, suites, fixtures, benchmarks, and user installation docs. Repository directories and logical Bundle ids
+  remain stable; no alias or second runtime was introduced. Re-fetched canonical DSH `origin/master` `76fda729` before
+  regenerating artifacts and rerunning the alpha.5 checks: Evolution `309/309`, Doctor `40/40`, Gateway `41/41`, Feishu
+  `46/46`, Telegram `34/34`, Evolve-attention `11/11`, Evolve Web `27/27`, clean-profile `1/1`, and root build `0`.
+  The names are currently available but not proven maintainer-owned, so registry release remains fail-closed. See
+  [V5.171 evidence](docs/evidence/v5-171-public-package-name-migration-2026-09-04.zh.md).
+
 - **V5.170**: Re-fetched canonical DSH before rerunning the complete alpha.5 check after integrating the latest-DSH
   audit classifier into the root check chain. The run finished `CHECK_RC=0`; Evolution `309/309`, Gateway `41/41`,
   Feishu `46/46`, Telegram `34/34`, Resident `17 passed / 1 skipped`, clean-profile `1 passed / 1 skipped`, all 12

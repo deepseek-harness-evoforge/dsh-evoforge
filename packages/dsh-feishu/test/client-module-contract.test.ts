@@ -27,7 +27,7 @@ describe('Feishu native DSH Client Module', () => {
   it('registers inside the original DSH Web loader and keeps browser code out of Host output', async () => {
     const client = await readFile(resolve(packageRoot, 'dist/client.js'), 'utf8')
     const host = await readFile(resolve(packageRoot, 'dist/index.mjs'), 'utf8')
-    expect(client).toMatch(/window\.__ModuleLoader__\.load\(\{\s*id: "dsh-feishu"/u)
+    expect(client).toMatch(/window\.__ModuleLoader__\.load\(\{\s*id: "dsh-evoforge-feishu"/u)
     expect(client).toContain('evoforge.control.surface')
     expect(client).not.toContain('dsh-feishu-panel')
     expect(client).toContain('executeCommand(commands, target, "/feishu")')
@@ -51,7 +51,7 @@ describe('Feishu native DSH Client Module', () => {
     expect(healthBootstrap).toContain("ctx.commands.execute(agent, '/feishu'")
     expect(healthBootstrap).toContain("agent.session.append('turn/start'")
     expect(healthBootstrap).toContain("inject = ['agents', 'commands', 'evoforge.feishuTest']")
-    expect(overlay).toContain('name: dsh-feishu')
+    expect(overlay).toContain('name: dsh-evoforge-feishu')
     expect(overlay).toContain('mode: pairing')
     expect(overlay).toContain('name: __EVOFORGE_FEISHU_BROWSER_BOOTSTRAP__')
   })
