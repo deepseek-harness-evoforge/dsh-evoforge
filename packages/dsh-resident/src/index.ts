@@ -34,7 +34,7 @@ export interface Config {
   readonly dshEntry: string
   /** Exact Node executable used to boot DSH. */
   readonly nodeBin: string
-  /** Disable the target Web profile's default browser handoff. */
+  /** Disable the target Web profile's default browser handoff (enabled by default for resident services). */
   readonly noOpen?: boolean
 }
 
@@ -45,7 +45,7 @@ export const Config: Schema<Config> = z.object({
   cwd: z.string().required(),
   dshEntry: z.string().required(),
   nodeBin: z.string().required(),
-  noOpen: z.boolean().default(false),
+  noOpen: z.boolean().default(true),
 })
 
 interface ResolvedConfig {
@@ -132,7 +132,10 @@ function resolveConfig(config: Config): ResolvedConfig {
     cwd: config.cwd,
     dshEntry: config.dshEntry,
     nodeBin: config.nodeBin,
-    noOpen: config.noOpen === true,
+    // A resident service may restart after a crash; opening a new browser tab
+    // on every restart is surprising and can flood the user's desktop. An
+    // operator who explicitly wants the handoff can set `noOpen: false`.
+    noOpen: config.noOpen !== false,
   }
 }
 

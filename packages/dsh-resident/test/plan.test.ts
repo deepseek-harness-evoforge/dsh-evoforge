@@ -51,6 +51,75 @@ describe('dsh-resident plan', () => {
     expect(result.stderr).toBe('')
   })
 
+  it('defaults resident plans to no-open so crash recovery does not spawn browser tabs', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-resident-plan-default-'))
+    temporaryRoots.push(root)
+    const dshHome = join(root, 'dsh-home')
+    const userHome = join(root, 'user-home')
+    const cwd = join(root, 'cwd')
+    const dshEntry = join(root, 'dsh.js')
+    await Promise.all([
+      mkdir(dshHome, { recursive: true }),
+      mkdir(userHome, { recursive: true }),
+      mkdir(cwd, { recursive: true }),
+      writeFile(dshEntry, '#!/usr/bin/env node\n'),
+    ])
+
+    const result = await execFile(process.execPath, [
+      '--import', 'tsx/esm', cli, 'plan',
+      '--manager', 'launchd',
+      '--profile', 'web',
+      '--dsh-entry', dshEntry,
+      '--node-bin', process.execPath,
+      '--dsh-home', dshHome,
+      '--cwd', cwd,
+    ], {
+      cwd: packageRoot,
+      env: { ...process.env, HOME: userHome },
+      encoding: 'utf8',
+    })
+
+    const plan = JSON.parse(result.stdout) as Record<string, unknown>
+    expect(plan.command).toEqual([process.execPath, dshEntry, '--profile', 'web', '--no-open'])
+    expect(plan.definition).toContain('<string>--no-open</string>')
+    expect(result.stderr).toBe('')
+  })
+
+  it('requires an explicit opt-out before a resident plan may open a browser', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-resident-plan-open-'))
+    temporaryRoots.push(root)
+    const dshHome = join(root, 'dsh-home')
+    const userHome = join(root, 'user-home')
+    const cwd = join(root, 'cwd')
+    const dshEntry = join(root, 'dsh.js')
+    await Promise.all([
+      mkdir(dshHome, { recursive: true }),
+      mkdir(userHome, { recursive: true }),
+      mkdir(cwd, { recursive: true }),
+      writeFile(dshEntry, '#!/usr/bin/env node\n'),
+    ])
+
+    const result = await execFile(process.execPath, [
+      '--import', 'tsx/esm', cli, 'plan',
+      '--manager', 'launchd',
+      '--profile', 'web',
+      '--dsh-entry', dshEntry,
+      '--node-bin', process.execPath,
+      '--dsh-home', dshHome,
+      '--cwd', cwd,
+      '--open',
+    ], {
+      cwd: packageRoot,
+      env: { ...process.env, HOME: userHome },
+      encoding: 'utf8',
+    })
+
+    const plan = JSON.parse(result.stdout) as Record<string, unknown>
+    expect(plan.command).toEqual([process.execPath, dshEntry, '--profile', 'web'])
+    expect(plan.definition).not.toContain('<string>--no-open</string>')
+    expect(result.stderr).toBe('')
+  })
+
   it('renders one inspectable launchd service without secrets or a shell', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-resident-plan-'))
     temporaryRoots.push(root)
@@ -89,7 +158,7 @@ describe('dsh-resident plan', () => {
       cwd,
       nodeBin: process.execPath,
       dshEntry,
-      command: [process.execPath, dshEntry, '--profile', 'web & review'],
+      command: [process.execPath, dshEntry, '--profile', 'web & review', '--no-open'],
       unitPath: expect.stringMatching(/\/Library\/LaunchAgents\/io\.evoforge\.dsh\.[a-f0-9]{16}\.plist$/),
     })
     expect(plan.serviceId).toMatch(/^io\.evoforge\.dsh\.[a-f0-9]{16}$/)
@@ -140,7 +209,7 @@ describe('dsh-resident plan', () => {
       profile: 'web review',
       dshHome,
       cwd,
-      command: [process.execPath, dshEntry, '--profile', 'web review'],
+      command: [process.execPath, dshEntry, '--profile', 'web review', '--no-open'],
       unitPath: expect.stringMatching(/\/\.config\/systemd\/user\/io\.evoforge\.dsh\.[a-f0-9]{16}\.service$/),
     })
     expect(plan.definition).toContain('[Service]')

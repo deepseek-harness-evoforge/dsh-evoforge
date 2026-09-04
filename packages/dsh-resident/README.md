@@ -26,9 +26,13 @@ Bundle 默认 disabled，因为目标 profile 和绝对路径属于机器部署�
     cwd: /absolute/path/to/workspace
     dshEntry: /absolute/path/to/deepseek-harness/apps/cli/lib/bin.js
     nodeBin: /absolute/path/to/node
-    # Required for a Web target under launchd/systemd: keep the service from opening another tab.
+    # Optional: this is already the default for resident services, so crash recovery does not open another tab.
     noOpen: true
 ```
+
+`noOpen` defaults to `true`. A resident service can restart after a crash, and opening the DSH Web handoff on every
+restart would create duplicate browser tabs. Set `noOpen: false` only when this exact service is intentionally responsible
+for opening a browser on each start.
 
 控制 profile 可以与目标 profile 不同，避免首次启动 resident unit 时和当前管理进程争用同一端口。
 所有路径必须存在、为绝对规范路径；Node 必须可执行。
@@ -60,8 +64,8 @@ Bundle 默认 disabled，因为目标 profile 和绝对路径属于机器部署�
 
 ## 安全与生命周期
 
-- unit 直接执行 exact Node + DSH JavaScript entry，不经过 shell 或 `PATH`；`noOpen` 只向目标应用追加
-  `--no-open`，不会改变 profile、Session 或 Gateway 路由；
+- unit 直接执行 exact Node + DSH JavaScript entry，不经过 shell 或 `PATH`；`noOpen` 默认只向目标应用追加
+  `--no-open`（显式设为 `false` 才取消），不会改变 profile、Session 或 Gateway 路由；
 - unit 只携带 `DSH_HOME`，不复制 token、API key 或其他 shell 环境；
 - unit 原子写入并使用 `0600`；
 - macOS 日志位于 `<DSH_HOME>/resident/<service-id>/`，卸载插件不会伪称撤销已发生的 OS 效果；

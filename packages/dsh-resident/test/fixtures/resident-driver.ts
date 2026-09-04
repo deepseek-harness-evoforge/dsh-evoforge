@@ -26,6 +26,7 @@ async function main(argv: readonly string[]): Promise<void> {
       'dsh-home': { type: 'string' },
       cwd: { type: 'string' },
       'no-open': { type: 'boolean' },
+      open: { type: 'boolean' },
       'confirm-deployment': { type: 'boolean' },
     },
   })
@@ -42,6 +43,9 @@ async function main(argv: readonly string[]): Promise<void> {
     process.stdout.write(`${JSON.stringify(output, null, 2)}\n`)
     return
   }
+  if (values['no-open'] === true && values.open === true) {
+    throw new Error('--no-open and --open are mutually exclusive')
+  }
   const plan = await createPlan({
     manager,
     profile,
@@ -49,7 +53,7 @@ async function main(argv: readonly string[]): Promise<void> {
     nodeBin: required(values['node-bin'], '--node-bin'),
     dshHome,
     cwd: required(values.cwd, '--cwd'),
-    noOpen: values['no-open'] === true,
+    noOpen: values.open === true ? false : true,
   })
   const output = action === 'plan'
     ? plan

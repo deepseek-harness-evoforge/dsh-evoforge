@@ -41,7 +41,7 @@ export async function createPlan(input: {
   nodeBin: string
   dshHome: string
   cwd: string
-  /** Disable the Web app's default browser handoff when the target is a Web profile. */
+  /** Disable the Web app's default browser handoff; resident plans default to true. */
   noOpen?: boolean
 }): Promise<Plan> {
   validateProfile(input.profile)
@@ -63,7 +63,7 @@ export async function createPlan(input: {
     dshEntry,
     '--profile',
     input.profile,
-    ...(input.noOpen === true ? ['--no-open'] : []),
+    ...(input.noOpen !== false ? ['--no-open'] : []),
   ] as Plan['command']
   if (input.manager === 'launchd') {
     const logRoot = join(dshHome, 'resident', identity)
