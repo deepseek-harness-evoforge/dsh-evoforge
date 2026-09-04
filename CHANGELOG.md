@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.162**: Re-fetched canonical DSH rc.1 and reran its own frozen install/build boundary. Dependency installation
+  passed, but the official root build still exits `1` because `@deepseek-ai/dsh-root` cannot resolve
+  `lib/types/{index,invariant,startup}.js`; the DSH worktree remains clean. This upstream defect is recorded separately
+  from EvoForge's rc.1 clean-profile compatibility and keeps the formal support claim on alpha.5 until DSH repairs its
+  root build. See [V5.162 evidence](docs/evidence/v5-162-dsh-rc1-root-build-boundary-2026-09-04.zh.md).
+
 - **V5.161**: Ran the clean-profile suite against canonical DSH rc.1 and the pinned alpha.5 support checkout. The
   first rc.1 attempt exposed a real fixture drift (`sessionPersistence.load` was removed); the fixture now prefers the
   official `open(id, 'read')`/`read()`/`close()` seam and falls back to `load()` only for alpha.5. Both baselines passed
