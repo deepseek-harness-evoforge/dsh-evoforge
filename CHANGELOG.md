@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.145**: Re-ran the complete repository check after admitting the real Telegram AS-1 contract. The canonical DSH
+  rc.1 was fetched and verified clean, the audited alpha.5 support checkout passed documentation, CI/suite/release
+  contracts, Hermes/Provider/Feishu/Telegram acceptance contracts, all package typechecks, tests, and builds (`exit 0`);
+  no real Telegram or Feishu effects were used and the worktree stayed clean. See [V5.145 evidence](docs/evidence/v5-145-alpha5-full-check-after-telegram-as1-contract-2026-09-04.zh.md).
+
 - **V5.144**: Added a strict real Telegram Bot AS-1 resident-pairing acceptance contract. The preflight reads only its
   exact authorization switch before inspecting the Bot token, binds retained reports to both the admitted DSH support
   revision and the separately audited latest DSH revision, and requires pairing isolation, Host approval, duplicate-update

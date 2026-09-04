@@ -20,6 +20,14 @@
 当前 `run.ts` 仍是预检入口，即使环境中存在 token 也会严格 `not-run`，因此没有虚构真实 Bot 通过证据。详见
 [V5.144 证据](evidence/v5-144-telegram-as1-real-contract-2026-09-04.zh.md)。
 
+## V5.145：AS-1 接入后的 alpha.5 全仓回归（本轮）
+
+在再次 fetch/核对 canonical DSH rc.1（`76fda729…`，clean）后，使用已审计可构建的 alpha.5 支持 checkout
+`db6bdc…` 执行根级 `DSH_EVOLVE_DSH_SOURCE_DIR=... pnpm run check`，退出码 `0`。文档、CI/套件、发布合同、
+Hermes EV-1 类型门、Provider RP-1、Feishu AS-2、Telegram AS-1 合同、12 包类型检查、全部测试和全部构建均通过，
+EvoForge 工作树保持 clean。该结果只证明工程回归；真实 Telegram Bot executor、真实 Feishu AS-2、Provider、
+Hermes paired、长期效果和 npm 发布门仍未通过。详见 [V5.145 证据](evidence/v5-145-alpha5-full-check-after-telegram-as1-contract-2026-09-04.zh.md)。
+
 ## V5.135：当前 Hermes revision 的 EV-1 epoch-3（本轮）
 
 固定当前 Hermes `origin/main` `63279301…`，在已审计的 DSH alpha.5 `db6bdc…` 上建立独立 epoch-3，严格
