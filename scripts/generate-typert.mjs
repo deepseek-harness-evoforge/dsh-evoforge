@@ -63,6 +63,28 @@ if (gatewayEmitted === undefined || gatewayEmitted.remote === undefined) {
   throw new Error('pinned DSH generator produced no dsh-gateway Host Remote artifact')
 }
 
+const feishuAggregate = join(analysisRoot, 'tsconfig.feishu-host.json')
+await writeFile(feishuAggregate, `${JSON.stringify({
+  files: [],
+  references: [
+    { path: join(workspace, 'packages/dsh-feishu/tsconfig.typert.json') },
+    { path: join(exactDshRoot, 'packages/typert/protocol') },
+  ],
+}, null, 2)}\n`)
+const feishuModel = new WorkspaceAnalyzer({
+  root: workspace,
+  hostConfig: feishuAggregate,
+  packages: ['dsh-evoforge-feishu', '@deepseek-ai/dsh-typert-protocol'],
+  faces: ['host'],
+}).analyze()
+const feishuFace = feishuModel.faces.find(candidate => candidate.face === 'host')
+const feishuEmitted = feishuFace === undefined
+  ? undefined
+  : new FaceModelEmitter(feishuFace).emit('dsh-evoforge-feishu')
+if (feishuEmitted === undefined || feishuEmitted.remote === undefined) {
+  throw new Error('pinned DSH generator produced no dsh-feishu Host Remote artifact')
+}
+
 const output = join(workspace, 'packages/dsh-evolve/lib')
 await mkdir(output, { recursive: true })
 await Promise.all([
@@ -83,6 +105,17 @@ await Promise.all([
   writeFile(join(gatewayOutput, 'typert.remote-client.d.ts'), gatewayEmitted.remote.dts),
   writeFile(join(gatewayOutput, 'typert.remote-client.d.ts.map'), gatewayEmitted.remote.dtsMap),
   writeFile(join(gatewayOutput, 'typert.source.sha256'), `${await gatewaySourceDigest()}\n`),
+])
+
+const feishuOutput = join(workspace, 'packages/dsh-feishu/lib')
+await mkdir(feishuOutput, { recursive: true })
+await Promise.all([
+  writeFile(join(feishuOutput, 'typert.host.js'), feishuEmitted.js),
+  writeFile(join(feishuOutput, 'typert.host.d.ts'), feishuEmitted.dts),
+  writeFile(join(feishuOutput, 'typert.remote-client.js'), feishuEmitted.remote.js),
+  writeFile(join(feishuOutput, 'typert.remote-client.d.ts'), feishuEmitted.remote.dts),
+  writeFile(join(feishuOutput, 'typert.remote-client.d.ts.map'), feishuEmitted.remote.dtsMap),
+  writeFile(join(feishuOutput, 'typert.source.sha256'), `${await feishuSourceDigest()}\n`),
 ])
 
 async function evolutionSourceDigest() {
@@ -112,6 +145,20 @@ async function gatewaySourceDigest() {
     'packages/dsh-gateway/src/transport-health.ts',
     'packages/dsh-gateway/typert-generator-compat.d.ts',
     'packages/dsh-gateway/tsconfig.typert.json',
+  ]
+  const hash = createHash('sha256')
+  for (const source of sources) {
+    hash.update(source).update('\0').update(await readFile(join(workspace, source))).update('\0')
+  }
+  return hash.digest('hex')
+}
+
+async function feishuSourceDigest() {
+  const sources = [
+    'packages/dsh-feishu/src/feishu-credentials-remote.ts',
+    'packages/dsh-feishu/src/feishu-credentials-remote.typert.ts',
+    'packages/dsh-feishu/typert-generator-compat.d.ts',
+    'packages/dsh-feishu/tsconfig.typert.json',
   ]
   const hash = createHash('sha256')
   for (const source of sources) {

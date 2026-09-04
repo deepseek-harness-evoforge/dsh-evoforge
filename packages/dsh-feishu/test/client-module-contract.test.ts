@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
 describe('Feishu native DSH Client Module', () => {
-  it('ships one host Bundle and one browser half without another product surface', async () => {
+  it('ships one host Bundle, one browser half, and one typed reference projection', async () => {
     const manifest = JSON.parse(await readFile(resolve(packageRoot, 'package.json'), 'utf8'))
     expect(manifest.bin).toBeUndefined()
     expect(manifest.dsh).toEqual({
@@ -21,7 +21,11 @@ describe('Feishu native DSH Client Module', () => {
       },
     })
     expect(manifest.exports['./client']).toBe('./dist/client.js')
-    expect(manifest.files).toEqual(['dist', 'cordis.patch.yml'])
+    expect(manifest.exports['./remote']?.default).toBe('./lib/typert.remote-client.js')
+    expect(manifest.files).toContain('lib/typert.remote-client.js')
+    expect(manifest.files).toContain('lib/typert.remote-client.d.ts')
+    expect(manifest.files).toContain('lib/typert.host.js')
+    expect(manifest.files).not.toContain('test')
   })
 
   it('registers inside the original DSH Web loader and keeps browser code out of Host output', async () => {
@@ -35,9 +39,19 @@ describe('Feishu native DSH Client Module', () => {
     expect(client).toContain('EVOFORGE_FEISHU_HEALTH_V2')
     expect(client).toContain('health.content.permission.document-read')
     expect(client).toContain('health.content.status.future-session-only')
+    expect(client).toContain('evoforgeFeishu')
     expect(client).not.toContain('/feishu-pair')
     expect(client).not.toContain('EVOFORGE PAIR')
     expect(host).not.toContain('window.__ModuleLoader__')
+  })
+
+  it('keeps the generated Remote contract to a redacted, parameterless reference method', async () => {
+    const host = await readFile(resolve(packageRoot, 'lib/typert.host.js'), 'utf8')
+    const remote = await readFile(resolve(packageRoot, 'lib/typert.remote-client.js'), 'utf8')
+    expect(host).toContain("package: 'dsh-evoforge-feishu'")
+    expect(remote).toContain("namespace: 'evoforgeFeishu'")
+    expect(remote).toContain("method: 'references'")
+    expect(remote).not.toContain('secret-value')
   })
 
   it('keeps the real-browser bootstrap outside the published package', async () => {

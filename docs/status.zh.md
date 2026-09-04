@@ -10,6 +10,17 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.181：飞书自定义凭据引用的 Host→Web Remote（本轮）
+
+继续审计最新 canonical DSH 后修复一个会阻断真实部署的配置契约：profile 允许自定义 `appIdEnv`/`appSecretEnv`，但旧 Web
+表单把引用名写死为默认值。现在 Feishu Host Bundle 发布最小 Typert Remote `evoforgeFeishu/references()`，只投影两个引用名，
+不返回 Secret；Web 表单先读取该投影，再通过 DSH 原生 `remote.credentials.describe/set` 写入对应引用。新增 Host/Remote artifact
+校验、默认/自定义引用 jsdom 用例和 Remote service 单测；Feishu 3 files / 9 tests、typecheck/build、Typert 生成和 node artifact guard
+通过。随后在再次 fetch 最新 canonical DSH 后执行完整根级 `pnpm run check`，权威退出码 `CHECK_RC=0`；Feishu `19 files / 55 tests`、
+Gateway `41/41`、Evolution `309/309` 及其余 Bundle、assembled/package-boundary/clean-profile 均通过。英文根 README 同步改为原生
+CredentialProvider，不再建议普通环境变量导出。真实渠道、Provider、Hermes paired、长期效果和 tag 门禁不变。
+详见 [V5.181 证据](evidence/v5-181-feishu-custom-credential-reference-remote-2026-09-04.zh.md)。
+
 ## V5.180：飞书单页原生凭据与缺失凭据下的常驻 Host（本轮）
 
 重新 fetch 并审计 canonical DSH `origin/master` `76fda729…` 后，把 Feishu App ID/Secret 配置接入 DSH 官方
@@ -1375,3 +1386,4 @@ add/Loader/command/remove 1/1（10.35 秒）。V4.24 删除旧浏览器 acceptan
 `packages/@scope/...`。本轮改为按 workspace 实际目录读取 manifest，同时保留公共元数据和 Bundle patch 校验。
 最新 DSH preflight、文档/CI/套件/发布合同、全量 alpha.5 `pnpm run check` 均通过；未改名、未改 DSH、未绕过
 npm 归属门。详见 [V5.107 证据](evidence/v5-107-release-check-scoped-name-safety-2026-09-04.zh.md)。
+随后在再次 fetch 最新 canonical DSH 后执行完整根级 `pnpm run check`，权威退出码 `CHECK_RC=0`；Feishu `19 files / 55 tests`、Gateway `41/41`、Evolution `309/309` 及其余 Bundle、assembled/package-boundary/clean-profile 均通过。

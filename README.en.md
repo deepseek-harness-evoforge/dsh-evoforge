@@ -65,12 +65,10 @@ product CLI.
 
 ## Feishu setup and pairing
 
-After installing `channels`, configure the Feishu App for the DSH profile:
-
-```sh
-export DSH_FEISHU_APP_ID='cli_...'
-export DSH_FEISHU_APP_SECRET='...'
-```
+After installing `channels`, configure the Feishu App through DSH's native credential provider. Open the existing DSH Web
+page's model/credential settings and write `DSH_FEISHU_APP_ID` and `DSH_FEISHU_APP_SECRET`, or save those references in
+`$DSH_HOME/.credentials.yaml` with mode `0600`. The Channels surface also provides a write-only Feishu credential section;
+it follows custom `appIdEnv`/`appSecretEnv` reference names and never reads values back.
 
 Enable the bot, long-connection event `im.message.receive_v1`, message sending, and card callbacks. Add the bot to the
 test account's direct chat. Once DSH is running, an unknown user sends any private message to the bot:

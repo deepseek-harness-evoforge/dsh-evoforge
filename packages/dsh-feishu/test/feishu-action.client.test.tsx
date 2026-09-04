@@ -53,6 +53,37 @@ describe('Feishu Control Surface', () => {
     expect(screen.queryByText('secret-value')).toBeNull()
   })
 
+  it('uses the Host-projected names when a profile customizes credential references', async () => {
+    const credentials = {
+      describe: vi.fn(async () => success({
+        EVOFORGE_FEISHU_ID: { configured: false, writable: true },
+        EVOFORGE_FEISHU_SECRET: { configured: false, writable: true },
+      })),
+      set: vi.fn(async () => success(undefined)),
+    }
+    const credentialReferences = {
+      references: vi.fn(async () => success({
+        appIdRef: 'EVOFORGE_FEISHU_ID',
+        appSecretRef: 'EVOFORGE_FEISHU_SECRET',
+      })),
+    }
+    const commands = {
+      list: vi.fn(() => success([{ name: 'goal', description: 'goal' }])),
+      execute: vi.fn(),
+    } as unknown as FeishuCommandsClient
+    renderSurface(commands, credentials, credentialReferences)
+
+    expect(await screen.findByText('飞书连接凭据')).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('App ID'), { target: { value: 'custom-app' } })
+    fireEvent.change(screen.getByLabelText('App Secret'), { target: { value: 'custom-secret' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存凭据' }))
+
+    await waitFor(() => expect(credentials.set).toHaveBeenCalledTimes(2))
+    expect(credentials.set).toHaveBeenNthCalledWith(1, 'EVOFORGE_FEISHU_ID', 'custom-app')
+    expect(credentials.set).toHaveBeenNthCalledWith(2, 'EVOFORGE_FEISHU_SECRET', 'custom-secret')
+    expect(screen.queryByText('custom-secret')).toBeNull()
+  })
+
   it('explains unavailable Session state without restoring the deleted pairing flow', async () => {
     const commands = {
       list: vi.fn(() => success([{ name: 'goal', description: 'goal' }])),
@@ -110,10 +141,15 @@ describe('Feishu Control Surface', () => {
   })
 })
 
-function renderSurface(commands: FeishuCommandsClient, credentials?: FeishuSurfaceProps['credentials']) {
+function renderSurface(
+  commands: FeishuCommandsClient,
+  credentials?: FeishuSurfaceProps['credentials'],
+  credentialReferences?: FeishuSurfaceProps['credentialReferences'],
+) {
   const props = {
     commands,
     credentials,
+    credentialReferences,
     t: (key: string) => zh[key as keyof typeof zh] ?? key,
     sessionId,
     ui: controlSurfaceUI,

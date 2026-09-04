@@ -21,7 +21,8 @@ dsh --profile web --dump-config
 App ID 和 App Secret 通过 DSH 官方 `CredentialProvider` 保存，不写入 Bundle 配置、Git 或普通环境变量。
 DSH base 已挂载 `@deepseek-ai/dsh-credentials-local`；在 DSH Web 的模型/凭据设置中写入
 `DSH_FEISHU_APP_ID` 与 `DSH_FEISHU_APP_SECRET` 两个引用，或按官方格式保存到 `$DSH_HOME/.credentials.yaml`，
-并确保文件权限为 `0600`。配置中的 `appIdEnv`/`appSecretEnv` 是为兼容已有 profile 保留的字段名，值实际是凭据引用名。
+并确保文件权限为 `0600`。渠道页下方也提供同一 DSH 原生凭据的 write-only 表单；如果 profile 使用自定义
+`appIdEnv`/`appSecretEnv`，页面会显示并写入对应引用名。两个字段是为兼容已有 profile 保留的字段名，值实际是凭据引用名。
 
 ## 第一次连接：不手工查 ID
 

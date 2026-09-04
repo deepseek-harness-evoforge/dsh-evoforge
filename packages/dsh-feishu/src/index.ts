@@ -17,6 +17,7 @@ import {
   createOfficialFeishuPlatform,
   type FeishuPlatform,
 } from './platform.js'
+import { FeishuCredentialRemoteService } from './feishu-credentials-remote.js'
 import type { FeishuHostNotice, FeishuHostRoute } from './host-route.js'
 import { FeishuRuntime } from './runtime.js'
 
@@ -75,6 +76,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   // Cordis services are single-assignment; this dynamic façade keeps all
   // downstream injectors attached to the same native service identity.
   ctx.provide('evoforge.feishuRoute' as never, hostRoute as never)
+  new FeishuCredentialRemoteService(ctx, { appIdRef, appSecretRef })
 
   const start = async (): Promise<void> => {
     if (disposed || runtime !== undefined) return
@@ -235,3 +237,6 @@ export {
   type FeishuSendOptions,
 } from './platform.js'
 export { FeishuRuntime } from './runtime.js'
+export { FeishuCredentialRemoteService } from './feishu-credentials-remote.js'
+export type { FeishuCredentialReferences } from './feishu-credentials-remote.js'
+export type { FeishuCredentialRemoteTypertContract } from './feishu-credentials-remote.typert.js'

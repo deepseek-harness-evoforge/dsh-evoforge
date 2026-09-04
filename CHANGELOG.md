@@ -6,6 +6,14 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.181**: Fixed custom Feishu credential references in the Web form. The Host now publishes a minimal typed Remote,
+  `evoforgeFeishu/references()`, that returns only configured reference names; the browser then uses DSH's native
+  write-only `remote.credentials.describe/set` seam for either defaults or custom names. Added generated artifact/source-digest
+  guards, package exports, default/custom jsdom coverage, and the Remote service test. Feishu 3 files / 9 tests, typecheck,
+  build, and Typert generation pass; the subsequent latest-DSH full check finished `CHECK_RC=0` with Feishu `19 files / 55 tests`,
+  Gateway `41/41`, and Evolution `309/309`. The English README now documents native CredentialProvider setup. Real channel,
+  Provider/Hermes, long-run, npm, and tag gates remain blocked. See [V5.181 evidence](docs/evidence/v5-181-feishu-custom-credential-reference-remote-2026-09-04.zh.md).
+
 - **V5.180**: Added a native DSH Web credential section to the Feishu surface. App ID and App Secret use the official
   `remote.credentials` write-only seam; metadata is shown without echoing values, and a committed reference update
   restarts the same resident Adapter façade. Missing/invalid references now leave Feishu fail-closed while allowing the

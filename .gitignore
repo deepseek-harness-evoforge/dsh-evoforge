@@ -21,6 +21,14 @@ packages/dsh-gateway/lib/*
 !packages/dsh-gateway/lib/typert.remote-client.d.ts
 !packages/dsh-gateway/lib/typert.remote-client.d.ts.map
 !packages/dsh-gateway/lib/typert.source.sha256
+!packages/dsh-feishu/lib/
+packages/dsh-feishu/lib/*
+!packages/dsh-feishu/lib/typert.host.js
+!packages/dsh-feishu/lib/typert.host.d.ts
+!packages/dsh-feishu/lib/typert.remote-client.js
+!packages/dsh-feishu/lib/typert.remote-client.d.ts
+!packages/dsh-feishu/lib/typert.remote-client.d.ts.map
+!packages/dsh-feishu/lib/typert.source.sha256
 dist/
 coverage/
 .evoforge/

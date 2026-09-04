@@ -6,13 +6,21 @@
   "type": "module",
   "sideEffects": false,
   "main": "./dist/index.mjs",
-  "types": "./dist/index.d.mts",
+  "types": "./lib/types/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.mts",
+      "types": "./lib/types/index.d.ts",
       "default": "./dist/index.mjs"
     },
     "./client": "./dist/client.js",
+    "./client-types": {
+      "types": "./lib/types/client-types.d.ts",
+      "default": "./dist/client-types.mjs"
+    },
+    "./remote": {
+      "types": "./lib/typert.remote-client.d.ts",
+      "default": "./lib/typert.remote-client.js"
+    },
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
   },
@@ -26,9 +34,19 @@
     "url": "https://github.com/deepseek-harness-evoforge/dsh-evoforge/issues"
   },
   "keywords": ["deepseek-harness", "dsh", "feishu", "lark", "assistant"],
-  "files": ["dist", "cordis.patch.yml"],
+  "files": [
+    "dist",
+    "lib/types/**/*.d.ts",
+    "lib/typert.remote-client.js",
+    "lib/typert.remote-client.d.ts",
+    "lib/typert.remote-client.d.ts.map",
+    "lib/typert.host.js",
+    "lib/typert.host.d.ts",
+    "lib/typert.source.sha256",
+    "cordis.patch.yml"
+  ],
   "scripts": {
-    "build": "tsdown",
+    "build": "tsc -b tsconfig.host.json --force && tsdown && node ../../scripts/verify-feishu-typert-artifacts.mjs && node ../../scripts/verify-node-artifacts.mjs packages/dsh-feishu/dist/index.mjs packages/dsh-feishu/dist/client.js",
     "prepack": "pnpm run build",
     "pretest": "pnpm run build",
     "typecheck": "tsc --noEmit",
@@ -54,6 +72,7 @@
     "@deepseek-ai/dsh-client-ui-slots": "0.1.2-alpha.5",
     "@deepseek-ai/dsh-commands": "0.1.2-alpha.5",
     "@deepseek-ai/dsh-credentials": "0.1.2-alpha.5",
+    "@deepseek-ai/dsh-typert-protocol": "0.1.2-alpha.5",
     "@deepseek-ai/dsh-llm": "0.1.2-alpha.5",
     "@deepseek-ai/dsh-session": "0.1.2-alpha.5",
     "@deepseek-ai/dsh-tools": "0.1.2-alpha.5",
@@ -83,6 +102,7 @@
     "@deepseek-ai/dsh-client-ui-slots": "0.1.2-alpha.5",
     "@deepseek-ai/dsh-commands": "0.1.2-alpha.5",
     "@deepseek-ai/dsh-credentials": "0.1.2-alpha.5",
+    "@deepseek-ai/dsh-typert-protocol": "0.1.2-alpha.5",
     "@deepseek-ai/dsh-invariants": "0.1.2-alpha.5",
     "@deepseek-ai/dsh-llm": "0.1.2-alpha.5",
     "@deepseek-ai/dsh-session": "0.1.2-alpha.5",
@@ -90,7 +110,6 @@
     "@deepseek-ai/dsh-tools": "0.1.2-alpha.5",
     "@deepseek-ai/dsh-util-values": "0.1.2-alpha.5",
     "@deepseek-ai/dsh-storage-domain": "0.1.2-alpha.5",
-    "@deepseek-ai/dsh-typert-protocol": "0.1.2-alpha.5",
     "@deepseek-ai/dsh-user-approval": "0.1.2-alpha.5",
     "@deepseek-ai/dsh-workspace": "0.1.2-alpha.5",
     "@testing-library/dom": "^10.4.0",

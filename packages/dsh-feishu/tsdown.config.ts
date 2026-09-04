@@ -5,7 +5,7 @@ const clientExternals = ['react', 'react/jsx-runtime', 'react/jsx-dev-runtime', 
 
 export default defineConfig([
   {
-    entry: ['src/index.ts'],
+    entry: ['src/index.ts', 'src/client-types.ts'],
     outDir: 'dist',
     format: ['esm'],
     platform: 'node',
