@@ -57,7 +57,7 @@ const suiteManifest = {
   packages,
   ...(args.channel === undefined ? {} : { channel: args.channel }),
   notes: selected.notes,
-  dshInstall: `dsh plugin --profile <profile> add ${packages.map(item => item.filename).join(' ')}`,
+  dshInstall: `dsh plugin --profile <profile> add ${packages.map(item => `./${item.filename}`).join(' ')}`,
   dshRemove: `dsh plugin --profile <profile> remove ${packages.map(item => item.name).join(' ')}`,
 }
 await writeFile(join(output, 'evoforge-suite.json'), `${JSON.stringify(suiteManifest, null, 2)}\n`)
@@ -74,9 +74,9 @@ function parseArgs(values) {
     else if (value === '--help' || value === '-h') {
       console.log(`Usage: node scripts/pack-suites.mjs [--suite <name>] [--channel <feishu|telegram>] --out <directory> (default: ${DEFAULT_SUITE_ID})
 
-User-facing suites: core, channels, delivery, continuity
+User-facing suites: product, delivery, continuity
 Optional add-on: attention
-Compatibility/advanced: evolution, control, gateway
+Compatibility/advanced: core, channels, evolution, control, gateway
 Maintainer-only: full`)
       process.exit(0)
     } else throw new Error(`Unknown argument: ${value}`)

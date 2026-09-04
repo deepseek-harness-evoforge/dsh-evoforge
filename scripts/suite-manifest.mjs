@@ -33,21 +33,20 @@ const suite = (id, label, description, packages, notes = []) => Object.freeze({
  * from turning every physical Bundle into a product choice.
  */
 export const PUBLIC_SUITE_IDS = Object.freeze([
-  'core',
-  'channels',
+  'product',
   'delivery',
   'continuity',
 ])
 
 /** The least-surprising install preset for an invocation without --suite. */
-export const DEFAULT_SUITE_ID = 'core'
+export const DEFAULT_SUITE_ID = 'product'
 
 /** First-party channel adapters that can be selected independently at pack time. */
 export const CHANNEL_ADAPTER_IDS = Object.freeze(['feishu', 'telegram'])
 
 export const OPTIONAL_SUITE_IDS = Object.freeze(['attention'])
 
-export const COMPATIBILITY_SUITE_IDS = Object.freeze(['evolution', 'control', 'gateway'])
+export const COMPATIBILITY_SUITE_IDS = Object.freeze(['core', 'channels', 'evolution', 'control', 'gateway'])
 
 export function getSuiteAudience(id) {
   if (PUBLIC_SUITE_IDS.includes(id)) return 'default'
@@ -58,26 +57,33 @@ export function getSuiteAudience(id) {
 }
 
 export const SUITES = Object.freeze({
+  product: suite(
+    'product',
+    'EvoForge Product',
+    'Self-evolution, diagnostics, one native Web control surface, one resident Gateway, and first-party Feishu/Telegram adapters.',
+    ['dsh-evolve', 'dsh-doctor', 'dsh-control-center', 'dsh-evolve-web', 'dsh-gateway', 'dsh-feishu', 'dsh-telegram'],
+    ['Default user installation. Gateway starts with no routes; Feishu and Telegram remain disabled until exact credentials and pairing/routes are configured.'],
+  ),
   core: suite(
     'core',
     'EvoForge Core',
     'Self-evolution, zero-token diagnostics, and the shared native DSH Web control surface.',
     ['dsh-evolve', 'dsh-doctor', 'dsh-control-center', 'dsh-evolve-web'],
-    ['This is the default installation entry for the core product. The four Bundles remain independently removable.'],
+    ['Compatibility entry for evolution-only installations; new users should install product.'],
   ),
   evolution: suite(
     'evolution',
     'Self-evolution',
     'Evidence-driven Skill evolution and runtime readiness diagnostics.',
     ['dsh-evolve', 'dsh-doctor'],
-    ['Compatibility entry; new installations should use core. dsh-evolve creates no second Session, Goal, Runtime, or approval system.'],
+    ['Compatibility entry; new installations should use product. dsh-evolve creates no second Session, Goal, Runtime, or approval system.'],
   ),
   control: suite(
     'control',
     'Web control center',
     'One native DSH Web view for suite status, evidence, and governed actions.',
     ['dsh-control-center', 'dsh-evolve-web'],
-    ['Compatibility entry; new installations should use core. The Control Center is a shared UI shell; dsh-evolve-web is its evolution adapter.'],
+    ['Compatibility entry; new installations should use product. The Control Center is a shared UI shell; dsh-evolve-web is its evolution adapter.'],
   ),
   gateway: suite(
     'gateway',
@@ -91,7 +97,7 @@ export const SUITES = Object.freeze({
     'Messaging channels',
     'Resident Gateway, private Feishu and Telegram adapters, and one native DSH Web control surface.',
     ['dsh-control-center', 'dsh-gateway', 'dsh-feishu', 'dsh-telegram'],
-    ['The shared Control Center is included so channel-only installs have one place to approve pairing and inspect health. Self-evolution and optional attention remain separate capabilities. Adapters are disabled until their exact credentials and routes are configured.'],
+    ['Compatibility entry for channel-only installations; new users should install product. Adapters are disabled until their exact credentials and routes are configured.'],
   ),
   attention: suite(
     'attention',
@@ -103,9 +109,9 @@ export const SUITES = Object.freeze({
   delivery: suite(
     'delivery',
     'Software delivery',
-    'Verified worktree delivery and optional Draft PR review follow-up.',
-    ['dsh-software-delivery', 'dsh-github-review'],
-    ['GitHub review stays optional because its external read/follow-up trust boundary differs.'],
+    'Verified worktree delivery through native DSH Goal and Tool authority.',
+    ['dsh-software-delivery'],
+    ['dsh-github-review is excluded until its private-repository credentials use the native DSH CredentialProvider and the clean-profile gate is rerun.'],
   ),
   continuity: suite(
     'continuity',

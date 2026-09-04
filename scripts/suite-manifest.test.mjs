@@ -20,18 +20,28 @@ test('capability suite manifest is complete and has no duplicate package rows', 
 })
 
 test('user-facing suites keep independent runtime boundaries explicit', () => {
-  assert.deepEqual(PUBLIC_SUITE_IDS, ['core', 'channels', 'delivery', 'continuity'])
-  assert.equal(DEFAULT_SUITE_ID, 'core')
+  assert.deepEqual(PUBLIC_SUITE_IDS, ['product', 'delivery', 'continuity'])
+  assert.equal(DEFAULT_SUITE_ID, 'product')
+  assert.deepEqual(SUITES.product.packages, [
+    'dsh-evolve',
+    'dsh-doctor',
+    'dsh-control-center',
+    'dsh-evolve-web',
+    'dsh-gateway',
+    'dsh-feishu',
+    'dsh-telegram',
+  ])
   assert.deepEqual(SUITES.core.packages, [
     'dsh-evolve',
     'dsh-doctor',
     'dsh-control-center',
     'dsh-evolve-web',
   ])
-  assert.equal(getSuiteAudience('core'), 'default')
+  assert.equal(getSuiteAudience('product'), 'default')
+  assert.equal(getSuiteAudience('core'), 'compatibility')
   assert.deepEqual(OPTIONAL_SUITE_IDS, ['attention'])
   assert.equal(getSuiteAudience('attention'), 'optional')
-  assert.deepEqual(COMPATIBILITY_SUITE_IDS, ['evolution', 'control', 'gateway'])
+  assert.deepEqual(COMPATIBILITY_SUITE_IDS, ['core', 'channels', 'evolution', 'control', 'gateway'])
   assert.equal(getSuiteAudience('full'), 'maintainer')
   assert.deepEqual(CHANNEL_ADAPTER_IDS, ['feishu', 'telegram'])
   assert.deepEqual(getSuitePackages('channels'), SUITES.channels.packages)
@@ -44,6 +54,6 @@ test('user-facing suites keep independent runtime boundaries explicit', () => {
   assert.deepEqual(SUITES.channels.packages, ['dsh-control-center', 'dsh-gateway', 'dsh-feishu', 'dsh-telegram'])
   assert.ok(!SUITES.channels.packages.includes('dsh-evolve-attention'))
   assert.ok(SUITES.channels.packages.includes('dsh-control-center'))
-  assert.ok(SUITES.delivery.packages.includes('dsh-github-review'))
+  assert.deepEqual(SUITES.delivery.packages, ['dsh-software-delivery'])
   assert.ok(SUITES.continuity.packages.includes('dsh-resident'))
 })
