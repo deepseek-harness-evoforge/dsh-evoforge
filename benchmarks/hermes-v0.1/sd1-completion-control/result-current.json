@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "benchmarkId": "sd1-checked-goal-completion-epoch-2-current-dsh",
+  "revisions": {
+    "deepseekHarness": "db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5",
+    "hermesAgent": "29d0cc2602e01943ab300c0382fc9d97efb376da"
+  },
+  "comparable": true,
+  "scope": "deterministic SD-1 completion-control comparison; not coding-model quality or remote PR evidence",
+  "outcome": {
+    "passing": { "evoforge": "complete", "hermes": "complete" },
+    "failing": { "observedCheckExitCode": 4, "evoforge": "active", "hermes": "complete" }
+  },
+  "primaryMetric": {
+    "name": "failed-check tasks accepted as complete",
+    "lowerIsBetter": true,
+    "evoforge": 0,
+    "hermes": 1
+  },
+  "hardGates": {
+    "evoforge": {
+      "passingCheckCompletes": true,
+      "failingCheckRejected": true,
+      "failingReasonExact": true,
+      "nativeGoalContractPassed": true
+    },
+    "hermes": {
+      "passingCheckCompletes": true,
+      "failingCheckRejected": false,
+      "goalJudgeAvailable": false,
+      "failedExitRecordedButAccepted": true
+    }
+  },
+  "verdict": "better for deterministic checked Goal completion control when Hermes auxiliary goal judge is unavailable; no claim about coding-model quality or remote delivery"
+}

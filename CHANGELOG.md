@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.224**: Kept the historical `benchmark:hermes` epochs immutable after the latest DSH revision made the old
+  command fail closed. Added explicit manifest/result overrides and current epoch-2 fixtures for SD-1, LC-1, and AS-1,
+  plus `benchmark:hermes:current`. With the audited DSH alpha.5 support checkout and Hermes `29d0cc2…`, all four
+  deterministic slices reran strictly: EV-1 calibration `2/2`, SD-1 `0/1`, LC-1 `0/0`, and AS-1 `0/0`. This remains
+  fixture evidence only; real channels, providers, long-term effects, and release gates stay blocked. See [V5.224 evidence](docs/evidence/v5-224-current-hermes-benchmark-suite-2026-09-04.zh.md).
+
 - **V5.223**: Re-ran the assembled resident pairing regressions for Feishu and Telegram on `main`. Each test file passed
   (`1/1`, exit `0`): an unknown DM receives a pairing code without entering the Agent, and only the next message after Host
   approval reaches the DSH Session. Feishu also covers Approval/revocation; Telegram covers reply-to delivery. This is local

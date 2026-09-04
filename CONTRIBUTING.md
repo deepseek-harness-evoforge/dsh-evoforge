@@ -29,6 +29,18 @@
 7. 若改变 DSH runtime 接缝，补安装、组装、dispose、移除与完整 composition/cache 证据；
 8. 若改变 Web/GUI，使用真实浏览器覆盖可见成功路径、刷新后的权威状态和失败反馈。
 
+Hermes paired slice 有冻结的历史入口和跟随当前支持组合的入口。历史 `pnpm benchmark:hermes` 只用于复核旧
+epoch，DSH revision 不匹配时必须保持 fail closed；在最新 DSH 开发/验证中，使用已审计可构建 checkout 和固定
+Hermes revision 运行：
+
+```sh
+DSH_EVOLVE_DSH_SOURCE_DIR=/absolute/path/to/audited-dsh-support \
+EVOFORGE_HERMES_SOURCE_DIR=/absolute/path/to/hermes-revision \
+pnpm benchmark:hermes:current
+```
+
+该命令只覆盖无网络的确定性 paired slices，不等于真实 Provider、渠道或整体上位替代验收。
+
 用户安装面使用 [能力套件](docs/capability-suites.zh.md)，不是要求用户逐个理解内部 Bundle。新增包前先证明它拥有独立的生命周期、权限、外部依赖或卸载边界；否则应扩展现有套件或删除重复入口。套件清单必须通过 `pnpm run check:suites`，不要在包之间复制 Gateway、Control Center、Session、Goal 或审批状态。
 
 发布只从 `main` 产生。提交前运行 `pnpm check` 和 `pnpm run check:release -- --allow-dirty`；真正 tag 前必须在 clean worktree 运行不带 `--allow-dirty` 的预检，并完成 [发布门](docs/releasing.zh.md) 中的最终 tarball、真实 DSH、浏览器、飞书和 Hermes paired 证据。

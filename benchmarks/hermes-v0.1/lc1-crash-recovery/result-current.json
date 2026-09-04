@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "benchmarkId": "lc1-local-crash-recovery-epoch-2-current-dsh",
+  "revisions": {
+    "deepseekHarness": "db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5",
+    "hermesAgent": "29d0cc2602e01943ab300c0382fc9d97efb376da"
+  },
+  "comparable": true,
+  "scope": "deterministic macOS local-process crash recovery comparison; not high availability, recovery latency, or external-effect exactly-once",
+  "comparisonBoundary": {
+    "comparableOutcomes": [
+      "the authoritative work unit is not lost after reopening canonical storage",
+      "one crash causes exactly one bounded recovery action",
+      "recovery does not create duplicate terminal records"
+    ],
+    "nonComparableOutcomes": [
+      "EvoForge resumes a native DSH Goal round while Hermes reclaims a Kanban worker run",
+      "wall-clock recovery latency and service-manager restart are excluded",
+      "no external side effect is executed, so exactly-once delivery is excluded"
+    ]
+  },
+  "outcome": {
+    "evoforge": {
+      "processSignal": "SIGKILL",
+      "recoveryActions": 1,
+      "authoritativeStateAfterRecovery": "blocked",
+      "roundsStarted": 1,
+      "maxGoalRounds": 1
+    },
+    "hermes": {
+      "processSignal": "SIGKILL",
+      "recoveryActions": 1,
+      "stateAfterStorageReopen": "ready",
+      "stateAfterStaleOwnerAttempt": "running",
+      "authoritativeStateAfterRecovery": "done",
+      "crashDetections": 1,
+      "repeatedCrashDetections": 0,
+      "staleOwnerMutationAccepted": false,
+      "successorCompletionAccepted": true,
+      "duplicateCompletionAccepted": false,
+      "completedEvents": 1,
+      "runOutcomes": ["crashed", "completed"]
+    }
+  },
+  "primaryMetric": {
+    "name": "lost authoritative work units after one local SIGKILL",
+    "lowerIsBetter": true,
+    "evoforge": 0,
+    "hermes": 0
+  },
+  "secondaryMetrics": {
+    "duplicateRecoveryActions": { "lowerIsBetter": true, "evoforge": 0, "hermes": 0 }
+  },
+  "hardGates": {
+    "evoforge": {
+      "actualSigkill": true,
+      "exactlyOneRecoveryAction": true,
+      "nativeRoundBoundHeld": true
+    },
+    "hermes": {
+      "actualSigkill": true,
+      "canonicalTaskRecovered": true,
+      "crashDetectedOnce": true,
+      "staleOwnerRejected": true,
+      "successorCompletedOnce": true,
+      "runHistoryExact": true
+    }
+  },
+  "verdict": "tie on bounded local durable-work recovery; no superiority, high-availability, recovery-latency, or external exactly-once claim"
+}

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "lc1-local-crash-recovery-epoch-2-current-dsh",
+  "scope": "deterministic macOS local-process crash recovery comparison; not high availability, recovery latency, or external-effect exactly-once",
+  "revisions": {
+    "deepseekHarness": "db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5",
+    "hermesAgent": "29d0cc2602e01943ab300c0382fc9d97efb376da"
+  },
+  "comparison": {
+    "model": "frozen local adapter for EvoForge; none for Hermes",
+    "network": "disabled",
+    "samples": 1,
+    "fault": "SIGKILL one local process after the authoritative work unit is durable",
+    "comparableOutcomes": [
+      "the authoritative work unit is not lost after reopening canonical storage",
+      "one crash causes exactly one bounded recovery action",
+      "recovery does not create duplicate terminal records"
+    ],
+    "nonComparableOutcomes": [
+      "EvoForge resumes a native DSH Goal round while Hermes reclaims a Kanban worker run",
+      "wall-clock recovery latency and service-manager restart are excluded",
+      "no external side effect is executed, so exactly-once delivery is excluded"
+    ],
+    "primaryMetric": "lost authoritative work units after one local SIGKILL; lower is better"
+  }
+}

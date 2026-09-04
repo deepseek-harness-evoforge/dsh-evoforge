@@ -1,5 +1,7 @@
 # 当前实现状态
 
+> **当前 Hermes 聚合入口（V5.224）**：发现历史 `pnpm benchmark:hermes` 在最新 DSH 上会因冻结 epoch-1 revision 不匹配而 fail closed；没有改写历史结果。为 SD-1/LC-1/AS-1 增加显式 manifest/result 环境变量，建立当前 DSH alpha.5 epoch-2，并新增 `DSH_EVOLVE_DSH_SOURCE_DIR=<audited-support> EVOFORGE_HERMES_SOURCE_DIR=<hermes> pnpm benchmark:hermes:current`。四个确定性 slice 严格复跑通过：EV-1 `2/2` 校准、SD-1 EvoForge/Hermes `0/1`、LC-1 `0/0`、AS-1 `0/0`。这不外推为真实渠道、Provider、长期效果或整体上位替代。详见 [V5.224 证据](evidence/v5-224-current-hermes-benchmark-suite-2026-09-04.zh.md)。
+
 > **常驻配对回归（V5.223）**：在当前 `main` 上分别执行 Feishu 与 Telegram assembled pairing 测试，均为 `1 file / 1 test passed`、退出码 `0`。两条路径都证明陌生私聊首条消息仅返回配对码且不进入 Agent，Host 批准后下一条消息才进入 DSH Session；Feishu 还覆盖 Approval/撤销，Telegram 覆盖 reply-to。该证据仍是本地 fixture，不外推为真实 AS-2/AS-1，发布门禁继续 blocked。详见 [V5.223 证据](evidence/v5-223-local-pairing-assembled-regression-2026-09-04.zh.md)。
 
 > **浏览器复核（V5.222）**：复用唯一 DSH In-app Browser 标签页尝试读取本地 Control Center DOM，再次在 DOM 读取前被 URL policy 拒绝；没有创建第二网页、绕过策略或把本轮记为通过。历史 V5.183/V5.196 仍是最近有效的单页交互证据，`web-control-plane` 继续为 `partial`。详见 [V5.222 证据](evidence/v5-222-browser-policy-repeat-2026-09-04.zh.md)。
