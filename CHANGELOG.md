@@ -6,6 +6,13 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.174**: Re-ran the current-Hermes EV-1 epoch-4 deterministic paired control benchmark on the audited DSH
+  alpha.5 support checkout and Hermes revision `29d0cc2602e01943ab300c0382fc9d97efb376da`. Calibration passed `2/2`
+  and the run exited `0`; EvoForge made `0` active-Skill mutations before explicit promotion while the Hermes production
+  seam made `1`, with EvoForge preserving current-Session generation and exact rollback. This is a narrow release-control
+  result only, not model/channel/long-term or global Hermes-replacement evidence. See
+  [V5.174 evidence](docs/evidence/v5-174-hermes-current-ev1-epoch4-rerun-2026-09-04.zh.md).
+
 - **V5.173**: Fixed the public suite packer after the project-prefixed distribution-name migration. Suite entries keep
   stable workspace directory ids, while `pnpm pack` now filters by each package's declared public `manifest.name`; the
   regression is covered and `channels/feishu` now produces installable Control Center, Gateway, and Feishu tarballs.

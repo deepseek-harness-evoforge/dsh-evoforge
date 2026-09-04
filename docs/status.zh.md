@@ -32,6 +32,15 @@ paired、长期效果和 npm 归属门禁均不改变。真实 API 检查观察�
 页面，关闭提示、选择真实 Session、进入原生“控制台 → 渠道”，验证首次连接导引、Gateway/渠道状态、刷新、整页
 reload 恢复和浏览器 error `0`；结束时清理旧失效页面。完整过程见 [V5.173 证据](evidence/v5-173-suite-pack-and-single-page-browser-2026-09-04.zh.md)。
 
+## V5.174：当前 Hermes EV-1 epoch-4 确定性 paired 复跑（本轮）
+
+在重新核对 canonical DSH 最新 `origin/master` 并使用已审计 alpha.5 support checkout 后，按当前 Hermes 固定
+revision `29d0cc2602e01943ab300c0382fc9d97efb376da` 重跑 EV-1 epoch-4。校准 `2/2`、退出码 `0`；同一修正输入下
+两边均 baseline fail/corrected pass，但 EvoForge 在显式晋升前不修改 active Skill（`0`），Hermes production seam
+原地修改（`1`），且 EvoForge 保持当前 Session 代际、候选隔离和精确回滚。该结果只证明确定性 Skill 发布控制面的
+边界优势，不代表模型质量、渠道或整体 Hermes 替代；`hermes-paired` 仍因真实同条件模型与长期效果缺失而阻断。
+详见 [V5.174 证据](evidence/v5-174-hermes-current-ev1-epoch4-rerun-2026-09-04.zh.md)。
+
 ## V5.171：公共分发名撞名迁移与全仓回归（本轮）
 
 审计发现 `dsh-doctor`、`dsh-feishu`、`dsh-gateway`、`dsh-telegram` 四个 unscoped npm 名称已被无关仓库占用。
