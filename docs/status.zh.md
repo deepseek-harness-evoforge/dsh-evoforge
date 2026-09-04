@@ -19,6 +19,13 @@ corrected 均通过，EvoForge primary metric `0`、Hermes `1`，六项 EvoForge
 该结果仍是确定性控制面对照，不是模型质量、真实渠道或完整 Hermes paired；`hermes-paired` 继续为 partial。
 详见 [V5.159 证据](evidence/v5-159-hermes-current-revision-ev1-epoch4-2026-09-04.zh.md)。
 
+## V5.160：Hermes epoch-4 修复后的 alpha.5 全仓回归（本轮）
+
+在 epoch-4 基准和当前 Hermes revision 文档进入 `main` 后，重新 fetch/核对 canonical DSH rc.1，使用已审计
+alpha.5 支持 checkout 执行根级 `pnpm run check`，低噪声退出码为 `CHECK_RC=0`。文档、CI、套件、发布合同、
+Hermes/Provider/Feishu/Telegram 验收合同、12 个 Bundle 类型检查、测试和构建均通过；真实外部门禁状态未被
+虚构改变。详见 [V5.160 证据](evidence/v5-160-alpha5-full-check-after-hermes-epoch4-2026-09-04.zh.md)。
+
 ## V5.157：用户套件官方 clean-profile 安装/卸载验收（本轮）
 
 在重新 fetch 并核对 canonical DSH rc.1 后，使用隔离 `DSH_HOME` 实际执行官方 DSH 的

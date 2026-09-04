@@ -6,6 +6,13 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.160**: Re-ran the full alpha.5 repository check after rebasing the current Hermes EV-1 benchmark. The audited
+  DSH rc.1 was fetched and verified clean; documentation, CI/suite/release contracts, Hermes/Provider/Feishu/Telegram
+  acceptance contracts, all 12 Bundle typechecks, tests, and builds passed (`CHECK_RC=0`). Key counts were Evolution
+  `309/309`, Gateway `41/41`, Feishu `46/46`, Telegram `34/34`, Resident `17 passed / 1 skipped`, and clean-profile
+  software delivery `1 passed / 1 skipped`. No real credentials or external effects were used, and real release gates
+  remain unchanged. See [V5.160 evidence](docs/evidence/v5-160-alpha5-full-check-after-hermes-epoch4-2026-09-04.zh.md).
+
 - **V5.159**: Re-fetched Hermes and detected that `origin/main` had moved from the epoch-3 pin to
   `29d0cc2602e01943ab300c0382fc9d97efb376da`. The stale current manifest correctly failed its revision assertion;
   a new epoch-4 manifest/result now runs the same DSH alpha.5 frozen deterministic EV-1 comparison against current
