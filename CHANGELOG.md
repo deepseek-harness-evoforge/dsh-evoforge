@@ -6,6 +6,13 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.175**: Re-fetched and audited canonical DSH, then ran the complete alpha.5 `pnpm run check` after the suite
+  packer fix. The run exited `0`: DSH preflight, docs/CI/suite/release-script gates, Typert/typecheck/builds,
+  clean-profile lifecycle, and all Bundle tests passed (Evolution `309/309`, Gateway `41/41`, Feishu `50/50`, Telegram
+  `34/34`, Doctor `40/40`, Evolve Web `27/27`, Control Center `27/27`; platform-specific skips remain explicit).
+  Real channel, Provider, Hermes paired, long-term, and npm ownership gates remain blocked. See
+  [V5.175 evidence](docs/evidence/v5-175-full-check-after-suite-packer-fix-2026-09-04.zh.md).
+
 - **V5.174**: Re-ran the current-Hermes EV-1 epoch-4 deterministic paired control benchmark on the audited DSH
   alpha.5 support checkout and Hermes revision `29d0cc2602e01943ab300c0382fc9d97efb376da`. Calibration passed `2/2`
   and the run exited `0`; EvoForge made `0` active-Skill mutations before explicit promotion while the Hermes production

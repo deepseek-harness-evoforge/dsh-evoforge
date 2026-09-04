@@ -41,6 +41,15 @@ revision `29d0cc2602e01943ab300c0382fc9d97efb376da` 重跑 EV-1 epoch-4。校准
 边界优势，不代表模型质量、渠道或整体 Hermes 替代；`hermes-paired` 仍因真实同条件模型与长期效果缺失而阻断。
 详见 [V5.174 证据](evidence/v5-174-hermes-current-ev1-epoch4-rerun-2026-09-04.zh.md)。
 
+## V5.175：套件打包修复后的最新 DSH 全仓回归（本轮）
+
+重新 fetch 并审计 canonical DSH `origin/master` `76fda729…` 后，在 alpha.5 assembled support checkout 上执行根级
+`pnpm run check`，退出码 `0`。DSH preflight、文档/CI/套件/发布脚本门禁、Typert、类型检查、构建、clean-profile
+和所有 Bundle 测试均通过：Evolution `309/309`、Gateway `41/41`、Feishu full `50/50`、Telegram `34/34`、Doctor
+`40/40`、Evolve Web `27/27`、Control Center `27/27`，Resident `17 passed/1 skipped`，Software delivery
+`34 passed/1 skipped` 加 clean-profile `1 passed/1 skipped`。这确认公开包名打包修复没有破坏原生 DSH 安装/运行/卸载
+契约；真实渠道、Provider、Hermes paired、长期效果和 npm 归属门禁保持原阻断。详见 [V5.175 证据](evidence/v5-175-full-check-after-suite-packer-fix-2026-09-04.zh.md)。
+
 ## V5.171：公共分发名撞名迁移与全仓回归（本轮）
 
 审计发现 `dsh-doctor`、`dsh-feishu`、`dsh-gateway`、`dsh-telegram` 四个 unscoped npm 名称已被无关仓库占用。
