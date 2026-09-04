@@ -10,6 +10,16 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.182：Telegram 原生凭据缺失时的常驻 Host 延迟启动（本轮）
+
+重新 fetch 并审计 canonical DSH 后，把 Telegram 生命周期与 Feishu 对齐：先校验路由/配对结构并注册稳定 Host façade；
+空/非法 Bot token 只让 Adapter 进入 fail-closed waiting，不再拖垮 DSH Host、Gateway、Web、Session 和 Goal，也不联系 Telegram。
+官方 `credentials/reference-updated` 提交后，旧运行时在同一服务身份内 dispose，再启动新的长轮询运行时；不会新增 Gateway 路由、Session
+或网页。新增 Cordis 生命周期测试覆盖空凭据→提交→启动→卸载，Telegram `10 files / 36 tests`、typecheck/build 通过。
+随后以已审计 alpha.5 checkout 执行根级 `pnpm run check`，权威 `CHECK_RC=0`；Evolution `309/309`、Gateway `41/41`、Feishu `19 files / 55 tests`
+和全包/clean-profile 均通过。真实 Telegram/Feishu、Provider、Hermes paired、长期效果、npm 归属与 tag 门禁不变。详见
+[V5.182 证据](evidence/v5-182-telegram-native-credential-lazy-start-2026-09-04.zh.md)。
+
 ## V5.181：飞书自定义凭据引用的 Host→Web Remote（本轮）
 
 继续审计最新 canonical DSH 后修复一个会阻断真实部署的配置契约：profile 允许自定义 `appIdEnv`/`appSecretEnv`，但旧 Web

@@ -22,6 +22,9 @@ dsh plugin --profile web add /absolute/path/dsh-evoforge-telegram-0.1.0-alpha.1.
 - bounded retry only after Telegram explicitly returns `429 + retry_after`.
 - a 30-second Gateway-owned wall-clock limit for every outbound attempt; timeout or unload becomes
   `uncertain` and is never replayed automatically.
+- a fail-closed credential lifecycle: an empty or missing native DSH token keeps the Host and Web
+  surface bootable without starting polling; the same resident Adapter starts after the configured
+  credential reference is committed, and disposes before a replacement is installed.
 
 It registers no model Tool, Skill, system-prompt section, or dynamic context. Idle and ordinary
 Session token overhead is zero; the selected Agent's existing model composition is unchanged.
@@ -91,7 +94,10 @@ the first message is never replayed. Group messages remain ignored.
 
 The Gateway route is the only chat/user/Workspace/Session/Agent authority. `conversationId` and `userId`
 must be canonical positive Telegram integer strings; private topics are not accepted. The token is resolved
-from DSH's native credential provider at Bundle startup; it is never read from `process.env` by this Adapter.
+from DSH's native credential provider; it is never read from `process.env` by this Adapter. If the reference
+is empty or unavailable, the Bundle remains loaded in a redacted `waiting` state and does not contact Telegram.
+A later native credential commit emits the official reference-update event, then starts the long-poll Adapter in
+place without a second Gateway route or Host page. Structural configuration errors still fail the Bundle closed.
 Native Commands and one-shot Approval buttons reuse DSH services;
 ingress deduplication and outbound delivery records belong to the Gateway. The Adapter retains only
 Telegram polling, protocol mapping, platform sending, and one-shot Approval UI. The model cannot change

@@ -6,6 +6,14 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.182**: Aligned Telegram with the native DSH credential lifecycle. Structural route/pairing validation and a stable Host
+  façade now load before the Bot token; an empty or invalid credential reference leaves the Host fail-closed and bootable without
+  polling or Telegram effects. A committed `credentials/reference-updated` event disposes and replaces the runtime in place,
+  without a second Gateway route, Session, or Web page. Added a real Cordis lifecycle test for missing-token boot, update, start,
+  and unload. Telegram `10 files / 36 tests`, typecheck, build, and the subsequent latest-DSH full check (`CHECK_RC=0`) pass;
+  Evolution `309/309`, Gateway `41/41`, and Feishu `19 files / 55 tests` remain green. Real Telegram/Feishu, Provider/Hermes,
+  long-run, npm, and tag gates remain blocked. See [V5.182 evidence](docs/evidence/v5-182-telegram-native-credential-lazy-start-2026-09-04.zh.md).
+
 - **V5.181**: Fixed custom Feishu credential references in the Web form. The Host now publishes a minimal typed Remote,
   `evoforgeFeishu/references()`, that returns only configured reference names; the browser then uses DSH's native
   write-only `remote.credentials.describe/set` seam for either defaults or custom names. Added generated artifact/source-digest
