@@ -17,7 +17,8 @@
       "status": "passed",
       "evidence": [
         "docs/evidence/v5-29-compatibility-rerun-2026-08-26.zh.md",
-        "docs/evidence/v5-69-dsh-alpha5-migration-2026-09-03.zh.md"
+        "docs/evidence/v5-69-dsh-alpha5-migration-2026-09-03.zh.md",
+        "docs/evidence/v5-161-current-dsh-rc1-clean-profile-compatibility-2026-09-04.zh.md"
       ]
     },
     {

@@ -6,6 +6,13 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.161**: Ran the clean-profile suite against canonical DSH rc.1 and the pinned alpha.5 support checkout. The
+  first rc.1 attempt exposed a real fixture drift (`sessionPersistence.load` was removed); the fixture now prefers the
+  official `open(id, 'read')`/`read()`/`close()` seam and falls back to `load()` only for alpha.5. Both baselines passed
+  `1/1`, covering official install, native Host/Goal/Session/Storage, a Tool call, dispose, remove, and readback. This
+  broadens compatibility evidence without hiding the rc.1 root tsdown build defect or changing the alpha.5 support claim.
+  See [V5.161 evidence](docs/evidence/v5-161-current-dsh-rc1-clean-profile-compatibility-2026-09-04.zh.md).
+
 - **V5.160**: Re-ran the full alpha.5 repository check after rebasing the current Hermes EV-1 benchmark. The audited
   DSH rc.1 was fetched and verified clean; documentation, CI/suite/release contracts, Hermes/Provider/Feishu/Telegram
   acceptance contracts, all 12 Bundle typechecks, tests, and builds passed (`CHECK_RC=0`). Key counts were Evolution

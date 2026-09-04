@@ -26,6 +26,13 @@ alpha.5 支持 checkout 执行根级 `pnpm run check`，低噪声退出码为 `C
 Hermes/Provider/Feishu/Telegram 验收合同、12 个 Bundle 类型检查、测试和构建均通过；真实外部门禁状态未被
 虚构改变。详见 [V5.160 证据](evidence/v5-160-alpha5-full-check-after-hermes-epoch4-2026-09-04.zh.md)。
 
+## V5.161：canonical DSH rc.1 clean-profile 兼容验收（本轮）
+
+直接用最新 canonical DSH rc.1 跑用户套件时，先发现验收 fixture 仍调用已删除的 `sessionPersistence.load()`；按
+官方当前 `open(id, 'read')` → `read()` → `close()` 契约修复，且只对已锁定 alpha.5 保留 test-only 回退。修复后
+rc.1 与 alpha.5 各自 `1/1` 通过，覆盖安装、Host、Goal/Session、Tool、卸载和恢复读回。该证据扩展了 clean-profile
+兼容范围，但不掩盖 rc.1 root tsdown 构建缺陷，正式支持声明仍为 alpha.5。详见 [V5.161 证据](evidence/v5-161-current-dsh-rc1-clean-profile-compatibility-2026-09-04.zh.md)。
+
 ## V5.157：用户套件官方 clean-profile 安装/卸载验收（本轮）
 
 在重新 fetch 并核对 canonical DSH rc.1 后，使用隔离 `DSH_HOME` 实际执行官方 DSH 的

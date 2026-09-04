@@ -267,8 +267,24 @@ describe.skipIf(process.platform !== 'darwin')('clean-profile assembled EvoForge
         expect(nativeCtx.tools.get('complete_delivery')).toBeUndefined()
         expect(await nativeCtx.skills.get('software-delivery')).toBeUndefined()
         expect(nativeCtx.get('evoforge.evolution')).toBeUndefined()
-        const restored = await nativeCtx.sessionPersistence.load(sessionId)
-        const restoredEvents = restored.events
+        // DSH rc.1 removed the old id-addressed `load()` helper. Prefer the
+        // official SessionPersistence handle seam; the pinned alpha.5 support
+        // checkout still exposes only `load()`, so retain this test-only
+        // compatibility fallback without reintroducing it in product code.
+        const persistence = nativeCtx.sessionPersistence as unknown as {
+          open?: (id: SessionId, access: 'read') => Promise<{ read: () => Promise<readonly { type: string; data?: unknown }[]>; close: () => Promise<void> }>
+          load?: (id: SessionId) => Promise<{ events: readonly { type: string; data?: unknown }[] }>
+        }
+        let restoredEvents: readonly { type: string; data?: unknown }[]
+        if (typeof persistence.open === 'function') {
+          const restoredHandle = await persistence.open(sessionId, 'read')
+          restoredEvents = await restoredHandle.read()
+          await restoredHandle.close()
+        } else if (typeof persistence.load === 'function') {
+          restoredEvents = (await persistence.load(sessionId)).events
+        } else {
+          throw new Error('DSH SessionPersistence exposes neither open/read nor the alpha.5 load fallback')
+        }
         expect(restoredEvents.some((event: { type: string; data?: unknown }) =>
           event.type === 'goal/change' && JSON.stringify(event.data).includes('complete'))).toBe(true)
       } finally {
