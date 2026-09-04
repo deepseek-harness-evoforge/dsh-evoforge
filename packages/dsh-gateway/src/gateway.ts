@@ -180,7 +180,8 @@ export class DshGateway {
   private starting: Promise<void> | undefined
   private sessionEventsBound = false
   private removeSessionEvents: (() => void) | undefined
-  private stopping?: Promise<void>
+  private stopping: Promise<void> | undefined
+  private cleanupPromise: Promise<void> | undefined
   private recoveryObservationsValue: readonly GatewayRecoveryObservation[] = []
   private readonly outbound: GatewayOutboundCoordinator
   private readonly transports: GatewayTransportRegistry
@@ -274,7 +275,11 @@ export class DshGateway {
       this.started = true
     } catch (error: unknown) {
       // A direct DshGateway consumer must not leak journals or listeners when startup validation fails.
-      await Promise.allSettled([this.stop()])
+      // Do not call stop() here: a concurrent public stop() waits for this startup
+      // promise, so awaiting it from inside startup would deadlock. The cleanup
+      // itself is shared and idempotent; a racing stop() will await the same work.
+      await this.cleanupResources()
+      this.stopping ??= this.cleanupPromise
       throw error
     }
   }
@@ -601,6 +606,18 @@ export class DshGateway {
 
   stop(): Promise<void> {
     this.stopping ??= (async () => {
+      // A resident Host may receive shutdown while validation/recovery is still
+      // awaiting persistence. Let startup finish before closing its resources.
+      // Promise.allSettled keeps a startup validation error from masking cleanup.
+      const starting = this.starting
+      if (starting !== undefined) await Promise.allSettled([starting])
+      await this.cleanupResources()
+    })()
+    return this.stopping
+  }
+
+  private cleanupResources(): Promise<void> {
+    this.cleanupPromise ??= (async () => {
       this.removeSessionEvents?.()
       this.removeSessionEvents = undefined
       await Promise.allSettled(this.ingressTails.values())
@@ -612,7 +629,7 @@ export class DshGateway {
       await this.ingressJournal.close()
       await this.pairing?.close()
     })()
-    return this.stopping
+    return this.cleanupPromise
   }
 
   private async dispatchSerial(input: {

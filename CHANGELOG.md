@@ -6,6 +6,21 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.201**: Re-fetched and audited DSH `origin/master` `d347e703…` (`0.1.3-alpha.1`, also tagged
+  `dsh-v0.1.3-alpha.1`) after the Gateway start/stop race fix, then reran the root check on the audited alpha.5 support
+  composition. The authoritative result is `CHECK_RC=0`: Evolution `309/309`, Gateway `46/46`, Feishu `56/56`,
+  Telegram `38/38`, Evolve Web `27/27`, Control Center `5/5`, Doctor `40/40`, Goal Continuity `12/12`, GitHub Review
+  `27/27`, with the remaining Bundle, clean-profile, Typert, compatibility, and contract gates passing. Real channels,
+  providers, Hermes paired benchmarking, long-run effects, npm ownership, and the release tag remain blocked. See
+  [V5.201 evidence](docs/evidence/v5-201-full-check-after-gateway-stop-race-2026-09-04.zh.md).
+
+- **V5.200**: Closed the resident Gateway start/stop race. `stop()` now waits for an in-flight startup to settle before
+  closing journals, transports, Agent handles, or pairing storage. Startup failure and external stop share one idempotent
+  cleanup promise, avoiding premature resource closure and self-wait deadlocks while preserving the original validation error.
+  Gateway build, Typert/Node artifact checks, and `46/46` tests pass on the pinned DSH support composition. Real channels,
+  providers, Hermes paired benchmarking, long-run effects, npm ownership, and the release tag remain blocked. See
+  [V5.200 evidence](docs/evidence/v5-200-gateway-stop-start-race-2026-09-04.zh.md).
+
 - **V5.199**: Re-fetched and audited canonical DSH after the concurrent Gateway-start fix, then reran the full EvoForge
   check on the buildable support composition. The authoritative result is `CHECK_RC=0`: Evolution `309/309`, Gateway `44/44`,
   Feishu `56/56`, Telegram `38/38`, Evolve Web `27/27`, Control Center `27/27`, Doctor `40/40`, with the remaining Bundle,

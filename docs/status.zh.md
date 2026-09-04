@@ -2,6 +2,10 @@
 
 > 更新日期：2026-09-04。本文只描述标准路径中的权威 `main` 工作树，不把计划或历史分支当作已交付能力。
 
+> **最新验证（V5.201）**：V5.200 Gateway 启停竞态修复后，重新 fetch/audit DSH `origin/master` `d347e703…`（`0.1.3-alpha.1`，公开 tag `dsh-v0.1.3-alpha.1` 同 revision），在已审计 alpha.5 支持组合上执行根级 `pnpm run check`，权威 `CHECK_RC=0`。Evolution `309/309`、Gateway `46/46`、Feishu `56/56`、Telegram `38/38`、Evolve Web `27/27`、Control Center `5/5`、Doctor `40/40`，Goal Continuity `12/12`、GitHub Review `27/27`，其余 Bundle、clean-profile、Typert、兼容性和合同门通过。真实渠道、Provider、Hermes paired、长期效果、npm ownership 与发布 tag 门禁仍未通过。详见 [V5.201 证据](evidence/v5-201-full-check-after-gateway-stop-race-2026-09-04.zh.md)。
+
+> **最新增量（V5.200）**：收口常驻 `dsh-gateway` 启动与停止并发竞态。`stop()` 现在等待正在进行的启动完成后再关闭 journal、transport、Agent handle 和 pairing authority；启动失败与外部停止共享幂等清理 Promise，避免资源提前关闭或自等待死锁。Gateway 构建、Typert/Node 产物校验及 `46/46` 测试通过。本轮同步发现公开 DSH tag `dsh-v0.1.3-alpha.1` 与 canonical `origin/master` `d347e703…` 同 revision。详见 [V5.200 证据](evidence/v5-200-gateway-stop-start-race-2026-09-04.zh.md)。真实渠道、Provider、Hermes paired、长期效果、npm ownership 与发布 tag 门禁仍未通过。
+
 > **最新增量（V5.196）**：在最新可构建 DSH 支持实例上完成单页 Web 复验。仅使用一个 `127.0.0.1:3080` 标签页，原生 Session 的“控制台”内可打开/关闭设置，并切换“运行诊断”“渠道”“飞书内容”“演化”四个控制中心 tab；渠道页显示 Resident Gateway、授权路由、持久投递与配对入口。演化 fixture 未绑定原生 Workspace 时正确显示 fail-closed 提示，没有被误记为通过。临时旧 profile 的 tarball 解析失败已记录并改用当前用户 profile 验证。详见 [V5.196 证据](evidence/v5-196-single-page-control-center-live-revalidation-2026-09-04.zh.md)。本轮未发送真实外部消息，真实渠道、Provider、Hermes paired、长期效果、npm ownership 与发布 tag 门禁仍未通过。
 
 > **最新增量（V5.197）**：在同一轮重新 fetch 最新 canonical DSH 后，使用已审计可构建的 alpha.5 支持实例完成根级 `pnpm run check`，权威退出码 `CHECK_RC=0`；Evolution `309/309`、Gateway `43/43`、Feishu `56/56`、Telegram `38/38`、Control Center `27/27`、Evolve Web `27/27`、Doctor `40/40`，Software Delivery `34 passed/1 skipped`，clean-profile `1 passed/1 skipped`。最新 DSH 根构建缺陷仍按上游事实分类，发布门禁没有被本地全量检查掩盖或升级。详见 [V5.197 证据](evidence/v5-197-latest-dsh-full-check-2026-09-04.zh.md)。

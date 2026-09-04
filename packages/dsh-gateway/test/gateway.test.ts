@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent, AgentHandle } from '@deepseek-ai/dsh-agent'
 import type { DomainFacility, KvTable } from '@deepseek-ai/dsh-storage-domain'
+import type { SessionHeader } from '@deepseek-ai/dsh-session'
 import { describe, expect, it, vi } from 'vitest'
 import { openGatewayIngressJournal } from '../src/ingress-journal.js'
 import { openGatewayOutboundJournal } from '../src/outbound-journal.js'
@@ -40,6 +41,74 @@ describe('DshGateway', () => {
     expect(on).toHaveBeenCalledTimes(1)
     expect(gateway.healthSnapshot(Date.now()).lifecycle).toBe('ready')
     await gateway.stop()
+  })
+
+  it('waits for an in-flight startup before closing resident resources', async () => {
+    const host = fakeNativeHost()
+    let releaseList!: () => void
+    let reachedList!: () => void
+    const listReached = new Promise<void>(resolve => { reachedList = resolve })
+    const listReleased = new Promise<void>(resolve => { releaseList = resolve })
+    vi.spyOn(host.ctx.sessionPersistence, 'list').mockImplementation(async () => {
+      reachedList()
+      await listReleased
+      return []
+    })
+    const facility = memoryFacility()
+    const ingress = await openGatewayIngressJournal(facility)
+    const closeIngress = vi.spyOn(ingress, 'close')
+    const gateway = new DshGateway(
+      host.ctx,
+      resolveGatewayRoutes([]),
+      ingress,
+      await openGatewayOutboundJournal(facility),
+    )
+
+    const starting = gateway.start()
+    await listReached
+    const stopping = gateway.stop()
+    await Promise.resolve()
+    expect(closeIngress).not.toHaveBeenCalled()
+
+    releaseList()
+    await expect(starting).resolves.toBeUndefined()
+    await expect(stopping).resolves.toBeUndefined()
+    expect(closeIngress).toHaveBeenCalledTimes(1)
+  })
+
+  it('coalesces cleanup when startup fails while stop races', async () => {
+    const host = fakeNativeHost()
+    host.persisted.set('session-a', {
+      meta: { id: 'session-a', cwd: '/work/b', agentPreset: 'standard', version: 0, createdAt: 1 },
+      events: [],
+    })
+    let releaseList!: () => void
+    let reachedList!: () => void
+    const listReached = new Promise<void>(resolve => { reachedList = resolve })
+    const listReleased = new Promise<void>(resolve => { releaseList = resolve })
+    vi.spyOn(host.ctx.sessionPersistence, 'list').mockImplementation(async () => {
+      reachedList()
+      await listReleased
+      return [...host.persisted.values()].map(entry => entry.meta) as unknown as SessionHeader[]
+    })
+    const facility = memoryFacility()
+    const ingress = await openGatewayIngressJournal(facility)
+    const closeIngress = vi.spyOn(ingress, 'close')
+    const gateway = new DshGateway(
+      host.ctx,
+      routes,
+      ingress,
+      await openGatewayOutboundJournal(facility),
+    )
+
+    const starting = gateway.start()
+    await listReached
+    const stopping = gateway.stop()
+    releaseList()
+
+    await expect(starting).rejects.toThrow("session 'session-a' cwd")
+    await expect(stopping).resolves.toBeUndefined()
+    expect(closeIngress).toHaveBeenCalledTimes(1)
   })
 
   it('removes its session-event listener exactly once when stopped', async () => {
