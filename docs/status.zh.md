@@ -25,6 +25,12 @@ Feishu WebSocket `ready` 通过，但 5 分钟窗口内没有当前 App 的陌�
 Agent 入站或平台副作用，`real-feishu-as2` 继续为 `failed`。详见
 [V5.136 证据](evidence/v5-136-real-feishu-as2-epoch5-no-pending-2026-09-04.zh.md)。
 
+## V5.137：DSH preflight 拒绝未跟踪文件（本轮）
+
+发现兼容性脚本使用 `--untracked-files=no`，可能把含 `??` 文件的 DSH checkout 误判为 clean。本轮改为检查完整
+`git status --porcelain`，并新增 tracked 与 untracked 两类回归；4/4 测试、文档和差异检查通过。详见
+[V5.137 证据](evidence/v5-137-dsh-preflight-untracked-guard-2026-09-04.zh.md)。
+
 ## V5.134：同 route id 重配与聊天类型变更回归（本轮）
 
 配对装配测试现在复用已撤销的同一 route id，并以 `group` chat kind 再次入站，确认撤销时清除内部观测、不会继承旧 direct 事实或触发漂移拒绝；类型检查、Gateway 构建和回归 `1/1` 通过。详见 [V5.134 证据](evidence/v5-134-feishu-route-id-repair-regression-2026-09-04.zh.md)。

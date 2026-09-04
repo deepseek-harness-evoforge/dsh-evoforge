@@ -21,7 +21,7 @@ test('rejects an unreviewed revision', () => {
   )
 })
 
-test('rejects a version mismatch and tracked source changes', () => {
+test('rejects a version mismatch and any source-tree changes', () => {
   const [revision, version] = Object.entries(SUPPORTED_DSH_TARGETS)[0]
   assert.throws(
     () => assertSupportedDshTarget({ revision, version: '0.1.1-rc.2', dirty: '' }),
@@ -29,6 +29,10 @@ test('rejects a version mismatch and tracked source changes', () => {
   )
   assert.throws(
     () => assertSupportedDshTarget({ revision, version, dirty: ' M packages/core/tools/src/index.ts' }),
-    /tracked changes/u,
+    /working tree changes/u,
+  )
+  assert.throws(
+    () => assertSupportedDshTarget({ revision, version, dirty: '?? local-debug.log' }),
+    /working tree changes/u,
   )
 })

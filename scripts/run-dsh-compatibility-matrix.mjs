@@ -16,7 +16,7 @@ export function assertSupportedDshTarget({ revision, version, dirty }) {
     throw new Error(`DSH revision ${revision} must report version ${expectedVersion}; received ${version}`)
   }
   if (dirty !== '') {
-    throw new Error(`DSH compatibility target has tracked changes:\n${dirty}`)
+    throw new Error(`DSH compatibility target has working tree changes:\n${dirty}`)
   }
   return Object.freeze({ revision, version })
 }
@@ -24,7 +24,7 @@ export function assertSupportedDshTarget({ revision, version, dirty }) {
 export function inspectDshTarget(sourceDir) {
   const root = realpathSync(sourceDir)
   const revision = git(root, ['rev-parse', 'HEAD']).trim()
-  const dirty = git(root, ['status', '--porcelain', '--untracked-files=no']).trim()
+  const dirty = git(root, ['status', '--porcelain']).trim()
   const manifest = JSON.parse(readFileSync(join(root, 'apps', 'cli', 'package.json'), 'utf8'))
   const target = assertSupportedDshTarget({ revision, version: manifest.version, dirty })
   return Object.freeze({ root, ...target })

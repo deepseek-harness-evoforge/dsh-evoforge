@@ -6,6 +6,10 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.137**: Hardened the DSH compatibility preflight to inspect complete `git status --porcelain`, rejecting
+  untracked files as well as tracked changes. The regression now covers both dirty forms (`4/4` tests passed),
+  preventing a debug artifact from being mistaken for a clean audited DSH checkout. See [V5.137 evidence](docs/evidence/v5-137-dsh-preflight-untracked-guard-2026-09-04.zh.md).
+
 - **V5.136**: Recorded a fresh real Feishu AS-2 epoch-5 attempt on `dfdac55`. Final Bundles installed, the
   profile dump passed, and the resident official WebSocket reached `ready`, but no matching newcomer private
   message arrived during the five-minute window. The runner failed closed before pairing or any Agent/platform
