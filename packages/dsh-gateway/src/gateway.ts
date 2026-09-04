@@ -225,36 +225,42 @@ export class DshGateway {
   async start(): Promise<void> {
     if (this.started) return
     if (this.stopping !== undefined) throw new Error('DSH gateway is stopping')
-    const observedAt = Date.now()
-    const ingressBefore = this.ingressJournal.list().filter(record => record.status === 'executing')
-    const outboundBefore = this.outboundJournal.list().filter(record => record.status === 'sending')
-    const ingressRecovered = await this.ingressJournal.recoverInflight(observedAt)
-    const outboundRecovered = await this.outbound.start(observedAt)
-    if (!this.sessionEventsBound) {
-      this.sessionEventsBound = true
-      this.removeSessionEvents = this.ctx.on('session/event', (session, event) => {
-        if (event.type !== 'turn/end') return
-        this.outbound.wakeEndedTurn(String(session.id), event.data.turn)
-      })
-    }
-    const persisted = persistenceHeaders(await this.ctx.sessionPersistence.list())
-    const persistedById = new Map(persisted.map(header => [String(header.id), header]))
-    this.assertRouteSet()
-    for (const route of this.allRoutes()) {
-      const workspace = await this.requireWorkspace(route)
-      await this.requirePreset(route)
-      const live = this.ctx.agents.get(SessionId(route.sessionId))
-      if (live !== undefined) {
-        this.assertLiveIdentity(route, workspace, live)
-        continue
+    try {
+      const observedAt = Date.now()
+      const ingressBefore = this.ingressJournal.list().filter(record => record.status === 'executing')
+      const outboundBefore = this.outboundJournal.list().filter(record => record.status === 'sending')
+      const ingressRecovered = await this.ingressJournal.recoverInflight(observedAt)
+      const outboundRecovered = await this.outbound.start(observedAt)
+      if (!this.sessionEventsBound) {
+        this.sessionEventsBound = true
+        this.removeSessionEvents = this.ctx.on('session/event', (session, event) => {
+          if (event.type !== 'turn/end') return
+          this.outbound.wakeEndedTurn(String(session.id), event.data.turn)
+        })
       }
-      if (persistedById.has(route.sessionId)) {
-        const inspected = await inspectPersistenceSession(this.ctx.sessionPersistence, SessionId(route.sessionId))
-        this.assertPersistedIdentity(route, workspace, inspected.meta, inspected.events)
+      const persisted = persistenceHeaders(await this.ctx.sessionPersistence.list())
+      const persistedById = new Map(persisted.map(header => [String(header.id), header]))
+      this.assertRouteSet()
+      for (const route of this.allRoutes()) {
+        const workspace = await this.requireWorkspace(route)
+        await this.requirePreset(route)
+        const live = this.ctx.agents.get(SessionId(route.sessionId))
+        if (live !== undefined) {
+          this.assertLiveIdentity(route, workspace, live)
+          continue
+        }
+        if (persistedById.has(route.sessionId)) {
+          const inspected = await inspectPersistenceSession(this.ctx.sessionPersistence, SessionId(route.sessionId))
+          this.assertPersistedIdentity(route, workspace, inspected.meta, inspected.events)
+        }
       }
+      this.observeRecovery(ingressBefore, outboundBefore, ingressRecovered, outboundRecovered, observedAt)
+      this.started = true
+    } catch (error: unknown) {
+      // A direct DshGateway consumer must not leak journals or listeners when startup validation fails.
+      await Promise.allSettled([this.stop()])
+      throw error
     }
-    this.observeRecovery(ingressBefore, outboundBefore, ingressRecovered, outboundRecovered, observedAt)
-    this.started = true
   }
 
   private observeRecovery(

@@ -6,6 +6,13 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.193**: Made `dsh-gateway` startup self-cleaning. Any route or persisted-Session validation failure now invokes the
+  idempotent Gateway stop boundary, releasing listeners and journals before rethrowing the original error; a regression
+  verifies the disposer is called exactly once. With DSH canonical `d347e703…` (`0.1.3-alpha.1`), official install passed,
+  the known upstream root-entry build defect remained classified, and the EvoForge root check passed (`CHECK_RC=0`; Gateway
+  `43/43`, Evolution `309/309`, Feishu `55/55`, Telegram `36/36`). Real channel/provider/Hermes paired, long-run, npm
+  ownership, and release-tag gates remain blocked. See [V5.193 evidence](docs/evidence/v5-193-gateway-startup-failure-cleanup-2026-09-04.zh.md).
+
 - **V5.192**: Closed the `dsh-gateway` session-event listener teardown gap. Gateway now stores and removes its Cordis
   disposer exactly once during idempotent `stop()`, with a regression test. Before development, DSH was fast-forwarded to
   canonical `origin/master` `d347e703…` (`0.1.3-alpha.1`); official install passed, while the upstream root build remains

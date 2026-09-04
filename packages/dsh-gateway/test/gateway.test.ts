@@ -42,6 +42,28 @@ describe('DshGateway', () => {
     expect(removals).toBe(1)
   })
 
+  it('cleans up startup resources when Session validation fails', async () => {
+    const host = fakeNativeHost()
+    host.persisted.set('session-a', {
+      meta: { id: 'session-a', cwd: '/work/b', agentPreset: 'standard', version: 0, createdAt: 1 },
+      events: [],
+    })
+    let removals = 0
+    vi.spyOn(host.ctx, 'on').mockImplementation(() => () => { removals += 1; return true })
+    const facility = memoryFacility()
+    const gateway = new DshGateway(
+      host.ctx,
+      routes,
+      await openGatewayIngressJournal(facility),
+      await openGatewayOutboundJournal(facility),
+    )
+
+    await expect(gateway.start()).rejects.toThrow("session 'session-a' cwd")
+    expect(removals).toBe(1)
+    expect(gateway.healthSnapshot(100).lifecycle).toBe('stopping')
+    await gateway.stop()
+  })
+
   it('binds an unknown DM to the selected live native Session through the Host control surface', async () => {
     const host = fakeNativeHost()
     const facility = memoryFacility()
