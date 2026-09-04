@@ -56,10 +56,14 @@
     "benchmark:feishu:as2:test": "pnpm --filter dsh-feishu exec tsx --test ../../benchmarks/feishu-v0.1/as2-real-channel/contract.test.ts",
     "benchmark:feishu:as2:check": "pnpm benchmark:feishu:as2:typecheck && pnpm benchmark:feishu:as2:test",
     "benchmark:feishu:as2": "packages/dsh-feishu/node_modules/.bin/tsx benchmarks/feishu-v0.1/as2-real-channel/run.ts",
+    "benchmark:telegram:as1:typecheck": "pnpm --filter dsh-telegram exec tsc --ignoreConfig --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --strict --noUncheckedIndexedAccess --exactOptionalPropertyTypes --verbatimModuleSyntax --skipLibCheck --allowImportingTsExtensions --types node ../../benchmarks/telegram-v0.1/as1-real-channel/contract.ts ../../benchmarks/telegram-v0.1/as1-real-channel/contract.test.ts ../../benchmarks/telegram-v0.1/as1-real-channel/run.ts",
+    "benchmark:telegram:as1:test": "pnpm --filter dsh-telegram exec tsx --test ../../benchmarks/telegram-v0.1/as1-real-channel/contract.test.ts",
+    "benchmark:telegram:as1:check": "pnpm benchmark:telegram:as1:typecheck && pnpm benchmark:telegram:as1:test",
+    "benchmark:telegram:as1": "packages/dsh-telegram/node_modules/.bin/tsx benchmarks/telegram-v0.1/as1-real-channel/run.ts",
     "pretypecheck": "pnpm --filter dsh-control-center run build && pnpm --filter dsh-gateway run build",
     "typecheck": "pnpm -r typecheck",
     "pretest": "pnpm --filter dsh-gateway run build",
     "test": "pnpm -r --workspace-concurrency=1 --filter '!dsh-telegram' --filter '!dsh-feishu' --filter '!dsh-software-delivery' test && pnpm run test:software-delivery && pnpm --filter dsh-telegram test && pnpm --filter dsh-feishu test",
-    "check": "pnpm run check:dsh:preflight && pnpm run check:docs && pnpm run check:ci && pnpm run check:suites && pnpm run check:release:gates:test && pnpm run check:release:tag && pnpm run check:release:workflow && pnpm run check:release:names:test && pnpm run check:release:tag-script && pnpm run check:dsh-compatibility-script && pnpm run benchmark:hermes:ev1:typecheck && pnpm run benchmark:provider:rp1:check && pnpm run benchmark:feishu:as2:check && pnpm run typecheck && pnpm run test && pnpm run build"
+    "check": "pnpm run check:dsh:preflight && pnpm run check:docs && pnpm run check:ci && pnpm run check:suites && pnpm run check:release:gates:test && pnpm run check:release:tag && pnpm run check:release:workflow && pnpm run check:release:names:test && pnpm run check:release:tag-script && pnpm run check:dsh-compatibility-script && pnpm run benchmark:hermes:ev1:typecheck && pnpm run benchmark:provider:rp1:check && pnpm run benchmark:feishu:as2:check && pnpm run benchmark:telegram:as1:check && pnpm run typecheck && pnpm run test && pnpm run build"
   }
 }
