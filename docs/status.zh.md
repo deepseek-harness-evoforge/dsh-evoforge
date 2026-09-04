@@ -41,6 +41,13 @@ tag 完成后才切换安装 spec。`check:docs` 与差异检查通过。详见 
 tarball 路径；历史 evidence 不受影响。文档、差异和 release 预检通过。未来 namespace 正式发布时必须同步调整该
 门禁与安装说明。详见 [V5.167 证据](evidence/v5-167-unpublished-install-doc-guard-2026-09-04.zh.md)。
 
+## V5.168：安装文档门禁后的 alpha.5 全仓回归（本轮）
+
+开发前重新核对 canonical DSH 最新 `master` `76fda729…`，随后在已审计 alpha.5 支持 checkout 上执行根级
+`pnpm run check`，明确 `CHECK_RC=0`。Evolution `309/309`、Gateway `41/41`、Feishu `46/46`、Telegram `34/34`、
+Resident `17 passed / 1 skipped`、clean-profile `1 passed / 1 skipped`，12 个 Bundle 类型检查、测试和构建全部通过。
+真实外部门禁状态未被改变。详见 [V5.168 证据](evidence/v5-168-full-check-after-install-guard-2026-09-04.zh.md)。
+
 ## V5.159：当前 Hermes revision 的 EV-1 epoch-4（本轮）
 
 重新 fetch Hermes 后确认 `origin/main` 已从旧的 `63279301…` 漂移到

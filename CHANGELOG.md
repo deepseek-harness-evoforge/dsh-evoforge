@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.168**: Re-fetched and audited the latest canonical DSH before rerunning the complete alpha.5 repository check
+  after the unpublished-install documentation guard. The run finished with `CHECK_RC=0`: Evolution `309/309`, Gateway
+  `41/41`, Feishu `46/46`, Telegram `34/34`, Resident `17 passed / 1 skipped`, clean-profile `1 passed / 1 skipped`,
+  all 12 Bundle typechecks/tests/builds, and the new docs guard passed. Real channel, Provider, Hermes paired, long-term,
+  and npm gates remain unchanged. See [V5.168 evidence](docs/evidence/v5-168-full-check-after-install-guard-2026-09-04.zh.md).
+
 - **V5.167**: Added a `check-docs` guard that rejects bare `dsh plugin ... add dsh-*` registry names in operational
   documentation while packages remain unpublished. Local tarball paths and historical evidence are unaffected. The
   documentation, diff, and release preflight checks passed; runtime behavior is unchanged. See [V5.167 evidence](docs/evidence/v5-167-unpublished-install-doc-guard-2026-09-04.zh.md).
