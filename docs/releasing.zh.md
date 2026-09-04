@@ -8,6 +8,9 @@ EvoForge 以 DSH 官方 Bundle 作为交付单元，以能力套件作为用户�
   `HEAD == origin/master`、版本/tag、依赖与工作树 clean，并把最新 revision 写入本轮证据。若最新 master
   自身构建失败，必须保留上游失败日志并使用已审计的支持基线；不得修改 DSH、静默回退或把上游缺陷算作
   EvoForge 结果。
+- 可用 `pnpm run audit:dsh:latest -- --source /absolute/path/to/deepseek-harness --json` 自动执行上述 fetch、
+  clean/revision/version 校验和官方安装/根构建。退出码 `0` 表示最新 DSH 构建通过，`2` 只表示已识别的上游根级
+  `lib/types` 入口缺陷，其他非零结果一律视为未知阻断；无论哪种结果，都必须把 JSON/日志写入证据后再使用已审计支持基线。
 - 所有插件包在一次发布中使用同一 SemVer 版本；版本变更必须同时更新 `CHANGELOG.md`、套件清单和验证证据。
 - 只在 `main` 开发。通过测试的最小增量原子提交并推送 `origin/main`，不使用功能分支或 Git 分支保存 Candidate。
 - Candidate 由运行时内容寻址存储保存；发布版本用 annotated tag 标记，例如 `dsh-v0.1.0-alpha.1`。tag 只能指向已在 `main` 验证过的提交，不能用轻量 tag 或手工改包覆盖。

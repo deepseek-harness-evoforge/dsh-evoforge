@@ -48,6 +48,13 @@ tarball 路径；历史 evidence 不受影响。文档、差异和 release 预�
 Resident `17 passed / 1 skipped`、clean-profile `1 passed / 1 skipped`，12 个 Bundle 类型检查、测试和构建全部通过。
 真实外部门禁状态未被改变。详见 [V5.168 证据](evidence/v5-168-full-check-after-install-guard-2026-09-04.zh.md)。
 
+## V5.169：最新 DSH 自动审计命令（本轮）
+
+新增 `audit:dsh:latest`：自动 fetch canonical DSH、核对 clean/revision/version、执行官方安装和根构建，并把已知
+rc.1 `lib/types` 上游缺陷与未知失败分开返回（`0` 通过、`2` 已知上游阻断、`1` 其他失败）。canonical DSH 实测
+为 revision `76fda729…`、安装 `0`、构建 `1`、分类 `blocked-upstream-root-types-entry`、退出 `2`；单测 `2/2`
+通过。详见 [V5.169 证据](evidence/v5-169-latest-dsh-audit-command-2026-09-04.zh.md)。
+
 ## V5.159：当前 Hermes revision 的 EV-1 epoch-4（本轮）
 
 重新 fetch Hermes 后确认 `origin/main` 已从旧的 `63279301…` 漂移到

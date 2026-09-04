@@ -19,6 +19,8 @@
 1. 在任何代码修改或测试前，先对 canonical DSH checkout 执行 `git fetch origin --tags --prune`，核对
    `HEAD == origin/master`、当前 tag/版本、依赖和 clean worktree，并把 revision 记入证据；最新 master
    若自身不可构建，记录上游失败事实后只能使用已审计的支持基线，不得修改 DSH 或把上游失败归因于插件；
+   推荐先运行 `pnpm run audit:dsh:latest -- --source /absolute/path/to/deepseek-harness --json`，它会给出
+   机器可读的 revision、安装和构建分类；未知失败不能被当作已知上游缺陷吞掉；
 2. 阅读根目录 `CONTEXT.md`、适用 ADR 和对应阶段契约；
 3. 用一句话写清用户结果和非目标；
 4. 先添加穿过公共接缝的失败测试；

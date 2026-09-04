@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.169**: Added `audit:dsh:latest`, a repeatable maintainer command that fetches canonical DSH, verifies clean
+  `HEAD == origin/master`, installs dependencies, runs the official root build, and distinguishes the known rc.1
+  `lib/types` upstream defect (exit `2`) from unknown failures (exit `1`). The canonical DSH audit returned revision
+  `76fda729`, install `0`, build classification `blocked-upstream-root-types-entry`, and audit exit `2`; classifier tests
+  passed `2/2` and are now part of the root `pnpm check`. See [V5.169 evidence](docs/evidence/v5-169-latest-dsh-audit-command-2026-09-04.zh.md).
+
 - **V5.168**: Re-fetched and audited the latest canonical DSH before rerunning the complete alpha.5 repository check
   after the unpublished-install documentation guard. The run finished with `CHECK_RC=0`: Evolution `309/309`, Gateway
   `41/41`, Feishu `46/46`, Telegram `34/34`, Resident `17 passed / 1 skipped`, clean-profile `1 passed / 1 skipped`,
