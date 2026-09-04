@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.198**: Made resident Gateway startup idempotent under concurrent Host lifecycle calls. Concurrent `start()` calls now
+  share one startup promise, preventing duplicate journal recovery, session-event listeners, and route validation while retaining
+  fail-closed stopping and the existing startup cleanup boundary. Gateway build, generated Typert digest/artifact checks, and
+  `44/44` tests pass on the pinned DSH support composition. See [V5.198 evidence](docs/evidence/v5-198-gateway-concurrent-start-2026-09-04.zh.md).
+
 - **V5.197**: Re-fetched canonical DSH `origin/master` `d347e703…` (`0.1.3-alpha.1`) before verification and re-ran the
   full EvoForge check on the audited buildable alpha.5 support composition. The authoritative check passed (`CHECK_RC=0`):
   Evolution `309/309`, Gateway `43/43`, Feishu `56/56`, Telegram `38/38`, Control Center `27/27`, Evolve Web `27/27`,

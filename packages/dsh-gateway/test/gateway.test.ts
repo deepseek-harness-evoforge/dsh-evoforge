@@ -22,6 +22,26 @@ const routes = resolveGatewayRoutes([
 ])
 
 describe('DshGateway', () => {
+  it('shares one startup promise when resident Host boot races', async () => {
+    const host = fakeNativeHost()
+    const on = vi.spyOn(host.ctx, 'on')
+    const facility = memoryFacility()
+    const gateway = new DshGateway(
+      host.ctx,
+      resolveGatewayRoutes([]),
+      await openGatewayIngressJournal(facility),
+      await openGatewayOutboundJournal(facility),
+    )
+
+    const first = gateway.start()
+    const second = gateway.start()
+    expect(second).toBe(first)
+    await Promise.all([first, second])
+    expect(on).toHaveBeenCalledTimes(1)
+    expect(gateway.healthSnapshot(Date.now()).lifecycle).toBe('ready')
+    await gateway.stop()
+  })
+
   it('removes its session-event listener exactly once when stopped', async () => {
     const host = fakeNativeHost()
     let removals = 0

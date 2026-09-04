@@ -6,6 +6,8 @@
 
 > **最新增量（V5.197）**：在同一轮重新 fetch 最新 canonical DSH 后，使用已审计可构建的 alpha.5 支持实例完成根级 `pnpm run check`，权威退出码 `CHECK_RC=0`；Evolution `309/309`、Gateway `43/43`、Feishu `56/56`、Telegram `38/38`、Control Center `27/27`、Evolve Web `27/27`、Doctor `40/40`，Software Delivery `34 passed/1 skipped`，clean-profile `1 passed/1 skipped`。最新 DSH 根构建缺陷仍按上游事实分类，发布门禁没有被本地全量检查掩盖或升级。详见 [V5.197 证据](evidence/v5-197-latest-dsh-full-check-2026-09-04.zh.md)。
 
+> **最新增量（V5.198）**：修复常驻 `dsh-gateway` 同一 Host 并发启动的生命周期竞态：并发 `start()` 现在共享唯一 Promise，避免重复恢复 journal、注册 session listener 或重复路由校验；启动失败回收、停止态 fail-closed 和 Typert 契约保持不变。重新生成 pinned DSH Typert digest 后，Gateway 构建/产物校验及 `44/44` 测试通过（新增并发启动回归）。详见 [V5.198 证据](evidence/v5-198-gateway-concurrent-start-2026-09-04.zh.md)。
+
 > **最新审计（V5.192）**：开发前已将 DSH 更新到 canonical `origin/master` `d347e703…`（`0.1.3-alpha.1`，clean 且 HEAD 与远端一致）。DSH 官方安装通过，但其根构建仍被上游 `@deepseek-ai/dsh-root` 缺失 `lib/types/{index,invariant,startup}.js` 阻断；EvoForge 未修改或掩盖该事实。基于已审计 alpha.5 支持 checkout 的根级 EvoForge `pnpm run check` 退出码为 `0`，Gateway 新增监听回收回归后为 `42/42`，Evolution `309/309`、Feishu `55/55`、Telegram `36/36`。详见 [V5.192 证据](evidence/v5-192-gateway-listener-teardown-and-dsh-latest-2026-09-04.zh.md)。真实渠道、Provider、Hermes paired、长期效果、npm ownership 和发布 tag 门禁仍未通过。
 
 > **最新增量（V5.193）**：Gateway 启动阶段现在拥有自身失败清理边界；路由/Session 校验异常会自动回收已绑定监听和 journal，公开类直接使用也不依赖 Host 外层兜底。最新 DSH `d347e703…` 安装通过、根构建缺陷仍按上游分类，EvoForge 根检查 `CHECK_RC=0`；Gateway `43/43`、Evolution `309/309`、Feishu `55/55`、Telegram `36/36`。详见 [V5.193 证据](evidence/v5-193-gateway-startup-failure-cleanup-2026-09-04.zh.md)。发布门禁不变。

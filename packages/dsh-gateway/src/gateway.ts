@@ -177,6 +177,7 @@ export class DshGateway {
   private readonly activeIngressByRoute = new Map<string, number>()
   private readonly revokingRoutes = new Set<string>()
   private started = false
+  private starting: Promise<void> | undefined
   private sessionEventsBound = false
   private removeSessionEvents: (() => void) | undefined
   private stopping?: Promise<void>
@@ -222,9 +223,24 @@ export class DshGateway {
   }
 
   /** Validate the complete static binding table before any adapter accepts traffic. */
-  async start(): Promise<void> {
-    if (this.started) return
-    if (this.stopping !== undefined) throw new Error('DSH gateway is stopping')
+  start(): Promise<void> {
+    if (this.started) return Promise.resolve()
+    if (this.stopping !== undefined) return Promise.reject(new Error('DSH gateway is stopping'))
+    if (this.starting !== undefined) return this.starting
+    const starting = this.startInternal()
+    this.starting = starting
+    void starting.then(
+      () => {
+        if (this.starting === starting) this.starting = undefined
+      },
+      () => {
+        if (this.starting === starting) this.starting = undefined
+      },
+    )
+    return starting
+  }
+
+  private async startInternal(): Promise<void> {
     try {
       const observedAt = Date.now()
       const ingressBefore = this.ingressJournal.list().filter(record => record.status === 'executing')
