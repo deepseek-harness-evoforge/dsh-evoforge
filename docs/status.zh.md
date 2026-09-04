@@ -35,6 +35,12 @@ tag 完成后才切换安装 spec。`check:docs` 与差异检查通过。详见 
 根中文、英文 README 已在本地 tarball 命令前明确标注“尚未发布 registry 包”，并禁止用户直接安装 `dsh-*`
 名称，避免误装 npm 上的同名第三方包。`check:docs` 与差异检查通过。详见 [V5.166 证据](evidence/v5-166-root-readme-registry-warning-2026-09-04.zh.md)。
 
+## V5.167：未发布包安装命令进入文档门禁（本轮）
+
+`check-docs` 现会拒绝面向用户文档中的 `dsh plugin ... add dsh-*` 裸 registry 安装名，只允许仓库生成的本地
+tarball 路径；历史 evidence 不受影响。文档、差异和 release 预检通过。未来 namespace 正式发布时必须同步调整该
+门禁与安装说明。详见 [V5.167 证据](evidence/v5-167-unpublished-install-doc-guard-2026-09-04.zh.md)。
+
 ## V5.159：当前 Hermes revision 的 EV-1 epoch-4（本轮）
 
 重新 fetch Hermes 后确认 `origin/main` 已从旧的 `63279301…` 漂移到

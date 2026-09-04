@@ -6,6 +6,10 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.167**: Added a `check-docs` guard that rejects bare `dsh plugin ... add dsh-*` registry names in operational
+  documentation while packages remain unpublished. Local tarball paths and historical evidence are unaffected. The
+  documentation, diff, and release preflight checks passed; runtime behavior is unchanged. See [V5.167 evidence](docs/evidence/v5-167-unpublished-install-doc-guard-2026-09-04.zh.md).
+
 - **V5.166**: Added explicit registry-not-published warnings to the Chinese and English root READMEs. Users are told
   to build local suite tarballs before invoking the official DSH installer, preventing accidental installation of
   unrelated packages that share an unscoped `dsh-*` name. Documentation and diff checks passed; runtime behavior is

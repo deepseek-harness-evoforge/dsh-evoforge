@@ -9,6 +9,10 @@ const forbiddenPublicText = ['/Users/my/', '/home/runner/', 'file://', 'oh-my-ds
 const removedStandaloneCli = /\bdsh-evolve\s+(?:shadow|calibrate|retain)\b|\bdsh-delivery\s+verify\b/u
 const staleControlSurfaceGuide = ['打开侧栏“渠道健康', '打开侧栏"渠道健康', '渠道健康”面板', '渠道健康"面板', 'Router 配成 `routes: []`']
 const duplicateWebStartupGuide = /^dsh --profile web[ \t]*$/mu
+// Registry packages are intentionally unpublished while the public namespace
+// gate is blocked. Operational docs must point at a repository-built tarball,
+// never a bare dsh-* name that could resolve to an unrelated npm package.
+const unpublishedRegistryInstall = /dsh plugin[^\n]*\badd\s+dsh-[a-z0-9-]+(?:\s|$)/iu
 const failures = []
 
 for (const file of await markdownFiles(repositoryRoot)) {
@@ -32,6 +36,9 @@ for (const file of await markdownFiles(repositoryRoot)) {
 
   if (isOperationalDoc(relative) && duplicateWebStartupGuide.test(source)) {
     failures.push(`${relative} starts DSH Web without --no-open; tell users to reuse one browser tab instead of launching another handoff`)
+  }
+  if (isOperationalDoc(relative) && unpublishedRegistryInstall.test(source)) {
+    failures.push(`${relative} installs an unpublished bare dsh-* registry name; build and install a local suite tarball instead`)
   }
 
   for (const match of source.matchAll(markdownLink)) {
