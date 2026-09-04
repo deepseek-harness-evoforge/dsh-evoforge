@@ -6,6 +6,8 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.221**: Re-fetched and audited canonical DSH, then reran the root `pnpm run check` on the audited buildable alpha.5 support checkout with exit code `0`. Recorded Evolution 313/313, Gateway 52/52, Feishu 57/57, Telegram 38/38, remaining suite/contracts, clean-profile, typecheck, and build evidence. Real channels, Provider, Hermes paired, long-term effects, npm ownership, and the release tag remain blocked. See [V5.221 evidence](docs/evidence/v5-221-latest-dsh-full-check-2026-09-04.zh.md).
+
 - **V5.220**: Hardened the Feishu and Telegram clean-profile package contracts to inspect each DSH dump Bundle section
   instead of accepting any unrelated `disabled: true`. Final tarball install/remove regressions now require the resident
   Gateway to be enabled and each platform Adapter to remain disabled until configured; both tests pass. See [V5.220 evidence](docs/evidence/v5-220-channel-package-dump-contract-2026-09-04.zh.md).

@@ -1,5 +1,7 @@
 # 当前实现状态
 
+> **最新全量验证（V5.221）**：重新 fetch 并审计 canonical DSH `d347e703…`（`0.1.3-alpha.1`，clean）；官方根构建仍被上游缺失 `@deepseek-ai/dsh-root` 类型入口阻断。使用已审计可构建 alpha.5 支持 checkout 重跑根级 `pnpm run check`，权威退出码 `0`：Evolution `313/313`、Gateway `52/52`、Feishu `57/57`、Telegram `38/38`、Evolve Web `27/27`、Control Center `5/5`、Doctor `40/40`、Goal Continuity `12/12`、GitHub Review `27/27`，Resident `17 passed/1 skipped`、Software Delivery `34 passed/1 skipped`，其余文档、套件、兼容性、合同、clean-profile、typecheck 与 build 门均通过。没有读取凭据或发送真实外部消息；真实 Feishu/Telegram/Provider、Hermes paired、长期效果、npm ownership 和 tag 门禁仍未通过。详见 [V5.221 证据](evidence/v5-221-latest-dsh-full-check-2026-09-04.zh.md)。
+
 > **最新审计（V5.218）**：重新 fetch 最新 DSH 后确认 canonical `origin/master` 仍为 `d347e703…`（`0.1.3-alpha.1`，clean）；官方安装通过，但真实 `pnpm build` 仍因 DSH 自身 `@deepseek-ai/dsh-root` 缺失 `lib/types/{index,invariant,startup}.js` 入口而失败。未修改或掩盖上游问题，EvoForge 继续以已审计可构建 alpha.5 支持 checkout 做完整验证。详见 [V5.218 证据](evidence/v5-218-latest-dsh-build-reaudit-2026-09-04.zh.md)。
 
 > **安装复验（V5.219）**：在隔离 `DSH_HOME` 中用已审计 DSH CLI 对最终 tarball 执行官方 `plugin add` 与 `--dump-config`；`dsh-control-center` 和 `dsh-evoforge-gateway` 安装成功，Gateway dump row 不含 `disabled: true`，确认 `channels` 安装即启用常驻 Gateway 的语义真实落在 DSH profile 中。基础 profile 未预装 DSH peers 的警告已记录，不把它误报成 EvoForge Runtime 安装失败。详见 [V5.219 证据](evidence/v5-219-channels-gateway-clean-install-2026-09-04.zh.md)。
