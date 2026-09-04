@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.183**: Re-fetched and audited canonical DSH, then verified the Web experience with one Host and one browser page. The
+  native Session `控制台` tab renders EvoForge Control Center in `conversation.view`; Runtime Doctor and Channels tabs switch
+  in place, status refresh is clickable, revocation requires a second confirmation, and reloading the same URL restores the
+  control surface. The final browser tab count was one and no second dashboard or fixed overlay was used. This is browser-layout
+  and interaction evidence only; real channel, Provider/Hermes, long-run, npm, and tag gates remain blocked. See [V5.183 evidence](docs/evidence/v5-183-single-page-control-center-browser-2026-09-04.zh.md).
+
 - **V5.182**: Aligned Telegram with the native DSH credential lifecycle. Structural route/pairing validation and a stable Host
   façade now load before the Bot token; an empty or invalid credential reference leaves the Host fail-closed and bootable without
   polling or Telegram effects. A committed `credentials/reference-updated` event disposes and replaces the runtime in place,

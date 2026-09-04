@@ -10,6 +10,14 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.183：单页控制中心真实浏览器复验（本轮）
+
+在重新 fetch 并审计 canonical DSH 后，只启动一个 Web Host 和一个浏览器页面，进入既有 Session 的原生“控制台”tab。
+EvoForge Control Center 确认作为 `conversation.view` 同页控制面渲染；“运行诊断”和“渠道”tab 可切换，渠道“刷新状态”可点击，
+授权路由第一次点击进入二次确认而未产生外部副作用，重新加载同一 URL 后控制台恢复，随后“重新诊断”仍可操作。最终浏览器标签数为 `1`，
+没有打开第二个网页或固定遮挡弹窗。此次只证明真实浏览器布局与交互可达性，不扩大为真实渠道/Provider/Hermes/长期通过。详见
+[V5.183 证据](evidence/v5-183-single-page-control-center-browser-2026-09-04.zh.md)。
+
 ## V5.182：Telegram 原生凭据缺失时的常驻 Host 延迟启动（本轮）
 
 重新 fetch 并审计 canonical DSH 后，把 Telegram 生命周期与 Feishu 对齐：先校验路由/配对结构并注册稳定 Host façade；
