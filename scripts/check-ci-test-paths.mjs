@@ -11,9 +11,52 @@ const paths = [...workflow.matchAll(/(?:^|\s)(test\/[A-Za-z0-9._/-]+\.test\.ts)/
   .map(match => match[1])
   .filter((value, index, values) => values.indexOf(value) === index)
 
-const packageDirectories = (await readdir(join(repositoryRoot, 'packages'), { withFileTypes: true }))
+const packageEntries = (await readdir(join(repositoryRoot, 'packages'), { withFileTypes: true }))
   .filter(entry => entry.isDirectory())
+const packageDirectories = packageEntries
   .map(entry => join(repositoryRoot, 'packages', entry.name))
+const workspaceDirectoryToPublicName = new Map()
+const workspaceManifestsByPublicName = new Map()
+for (const entry of packageEntries) {
+  const manifest = JSON.parse(await readFile(join(repositoryRoot, 'packages', entry.name, 'package.json'), 'utf8'))
+  workspaceDirectoryToPublicName.set(entry.name, manifest.name)
+  workspaceManifestsByPublicName.set(manifest.name, manifest)
+}
+
+const workflowFilters = [...workflow.matchAll(/pnpm\s+--filter\s+([^\s\\]+)/gu)]
+  .map(match => match[1])
+  .filter((value, index, values) => values.indexOf(value) === index)
+const publicPackageNames = new Set(workspaceDirectoryToPublicName.values())
+const staleDirectoryFilters = workflowFilters
+  .filter(filter => workspaceDirectoryToPublicName.has(filter)
+    && workspaceDirectoryToPublicName.get(filter) !== filter)
+  .map(filter => filter + ' -> ' + workspaceDirectoryToPublicName.get(filter))
+if (staleDirectoryFilters.length > 0) {
+  throw new Error([
+    'CI pnpm filters must use public package names, not migrated workspace directory names:',
+    ...staleDirectoryFilters,
+  ].join('\n'))
+}
+const unknownFilters = workflowFilters.filter(filter => !publicPackageNames.has(filter))
+if (unknownFilters.length > 0) {
+  throw new Error([
+    'CI pnpm filters do not resolve to workspace package names:',
+    ...unknownFilters,
+  ].join('\n'))
+}
+for (const filter of workflowFilters) {
+  const testScript = workspaceManifestsByPublicName.get(filter)?.scripts?.test
+  const requiredWorkerLimit = testScript?.match(/--maxWorkers\s+\d+/u)?.[0]
+  if (requiredWorkerLimit === undefined) continue
+  const escapedFilter = filter.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')
+  const invocation = workflow.match(new RegExp(
+    `pnpm --filter ${escapedFilter} exec vitest run[\\s\\S]*?(?=\\n\\s+pnpm --filter|\\n\\s+- name:|$)`,
+    'u',
+  ))?.[0]
+  if (invocation !== undefined && !invocation.includes(requiredWorkerLimit)) {
+    throw new Error(`CI bypasses the ${filter} test worker limit '${requiredWorkerLimit}'; package-boundary prepack cleans shared dist output`)
+  }
+}
 
 const artifactContractPackages = {
   'dsh-control-center': 'pnpm run build',

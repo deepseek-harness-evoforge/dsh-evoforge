@@ -57,6 +57,16 @@ revision `29d0cc2602e01943ab300c0382fc9d97efb376da` 重跑 EV-1 epoch-4。校准
 `missingEvidence` 均通过；汇总仍为 `blocked`，没有以本地 fixture 或确定性结果放宽真实渠道、Provider、完整
 Hermes paired、长期效果或 npm 归属门禁，也没有创建 tag。详见 [V5.176 证据](evidence/v5-176-release-gate-evidence-index-refresh-2026-09-04.zh.md)。
 
+## V5.177：公开 CI 包名与 Telegram 组装测试竞态修复（本轮）
+
+公开分发名迁移后，GitHub Actions 仍有三处按旧 workspace 目录名执行 `pnpm --filter`；修正为
+`dsh-evoforge-doctor` 和 `dsh-evoforge-telegram` 后，实际复跑进一步暴露 Telegram package-boundary
+测试的 `prepack → tsdown --clean` 会与 cache-composition 测试并行争用 `dist/index.mjs`。最小两文件组合在
+修复前稳定失败 `1/2`，两个文件隔离运行均通过；CI 继承包已有的 `--maxWorkers 1` 后，最小组合 `2/2`、完整
+Telegram CI 子集 `4/4` 通过。CI 检查器现在会通用拒绝旧目录过滤器、未知公开包名及绕过包级 worker 限制的
+Vitest 调用。该变更只修复开源 CI 的真实性和确定性，不改变外部发布门禁。详见
+[V5.177 证据](evidence/v5-177-ci-public-name-and-telegram-worker-contract-2026-09-04.zh.md)。
+
 ## V5.171：公共分发名撞名迁移与全仓回归（本轮）
 
 审计发现 `dsh-doctor`、`dsh-feishu`、`dsh-gateway`、`dsh-telegram` 四个 unscoped npm 名称已被无关仓库占用。

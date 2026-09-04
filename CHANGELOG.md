@@ -6,6 +6,13 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.177**: Fixed GitHub Actions after the project-prefixed package-name migration and removed a real assembled
+  Telegram test race. CI now filters Doctor/Telegram by their public package names, honors Telegram's package-declared
+  single-worker policy while `prepack` can clean shared `dist`, and fails closed when a workflow uses a migrated
+  directory id, an unknown package filter, or bypasses a package worker limit. The pre-fix two-file repro failed `1/2`
+  with `ERR_MODULE_NOT_FOUND`; the same pair passed `2/2` and the full Telegram CI subset passed `4/4` after the fix.
+  See [V5.177 evidence](docs/evidence/v5-177-ci-public-name-and-telegram-worker-contract-2026-09-04.zh.md).
+
 - **V5.176**: Refreshed `release-gates.json` to index the latest suite-pack, single-page browser, current-Hermes
   deterministic EV-1, and full-check evidence without changing any gate status or blocker. Gate manifest tests pass
   `3/3`, evidence is complete, and the aggregate remains `blocked`; no SemVer tag was created. See

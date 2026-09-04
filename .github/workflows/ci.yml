@@ -127,7 +127,7 @@ jobs:
           DSH_EVOLVE_DSH_SOURCE_DIR: ${{ github.workspace }}/.evoforge/deepseek-harness
           DSH_EVOLVE_CASE_PACK_ROOT: ${{ runner.temp }}/evoforge-case-packs
         run: |
-          pnpm --filter dsh-doctor exec vitest run \
+          pnpm --filter dsh-evoforge-doctor exec vitest run \
             test/suite-native-plugin-contract.test.ts
           pnpm --filter dsh-software-delivery exec vitest run \
             test/dsh-assembled-skill.e2e.test.ts \
@@ -137,9 +137,9 @@ jobs:
             test/cache-composition.e2e.test.ts \
             test/dsh-assembled-review.e2e.test.ts \
             test/package-install-remove.e2e.test.ts
-          pnpm --filter dsh-doctor exec vitest run \
+          pnpm --filter dsh-evoforge-doctor exec vitest run \
             test/package-install-remove.e2e.test.ts
-          pnpm --filter dsh-telegram exec vitest run \
+          pnpm --filter dsh-evoforge-telegram exec vitest run --maxWorkers 1 \
             test/cache-composition.e2e.test.ts \
             test/dsh-assembled-chat.e2e.test.ts \
             test/pairing-assembled.e2e.test.ts \
