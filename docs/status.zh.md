@@ -31,6 +31,13 @@ Agent 入站或平台副作用，`real-feishu-as2` 继续为 `failed`。详见
 `git status --porcelain`，并新增 tracked 与 untracked 两类回归；4/4 测试、文档和差异检查通过。详见
 [V5.137 证据](evidence/v5-137-dsh-preflight-untracked-guard-2026-09-04.zh.md)。
 
+## V5.138：preflight 收紧后的 alpha.5 全仓回归（本轮）
+
+在最新 DSH fetch/clean 审计后，使用已审计可构建 alpha.5 执行根级 `pnpm run check`，文档、CI/套件/发布合同、
+12 包 typecheck、全部测试和全部构建通过（`CHECK_RC=0`）；Evolve `69/309`、Gateway `8/40`、Feishu
+`18/46`、Telegram `8/29`，构建后工作树 clean。真实渠道、Provider、Hermes paired、长期效果和 npm 发布门
+保持原状态。详见 [V5.138 证据](evidence/v5-138-alpha5-full-check-after-preflight-guard-2026-09-04.zh.md)。
+
 ## V5.134：同 route id 重配与聊天类型变更回归（本轮）
 
 配对装配测试现在复用已撤销的同一 route id，并以 `group` chat kind 再次入站，确认撤销时清除内部观测、不会继承旧 direct 事实或触发漂移拒绝；类型检查、Gateway 构建和回归 `1/1` 通过。详见 [V5.134 证据](evidence/v5-134-feishu-route-id-repair-regression-2026-09-04.zh.md)。

@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.138**: Re-ran the complete alpha.5 repository check after tightening DSH preflight to reject untracked
+  files. Documentation, CI/suite/release contracts, all 12 package typechecks, tests, and builds passed (`CHECK_RC=0`);
+  the worktree remained clean. Real channels/providers, Hermes paired, long-term effects, and npm release gates remain
+  unchanged. See [V5.138 evidence](docs/evidence/v5-138-alpha5-full-check-after-preflight-guard-2026-09-04.zh.md).
+
 - **V5.137**: Hardened the DSH compatibility preflight to inspect complete `git status --porcelain`, rejecting
   untracked files as well as tracked changes. The regression now covers both dirty forms (`4/4` tests passed),
   preventing a debug artifact from being mistaken for a clean audited DSH checkout. See [V5.137 evidence](docs/evidence/v5-137-dsh-preflight-untracked-guard-2026-09-04.zh.md).
