@@ -93,7 +93,7 @@
     "@deepseek-ai/dsh-workspace": "0.1.2-alpha.5",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.1.0",
-    "@types/node": "^22.20.0",
+    "@types/node": "^26.4.0",
     "@types/react": "~18.3.1",
     "dsh-evoforge-gateway": "workspace:*",
     "dsh-control-center": "workspace:*",
