@@ -9,9 +9,10 @@ EvoForge 不是独立 Agent、Codex 插件、第二个运行时或插件市场�
 ## 当前状态
 
 项目处于 pre-alpha。源码、测试和本地 Bundle 安装路径可供开发者试用，但尚未发布到 npm，也不能宣称已经完成
-Hermes 上位替代。当前已验证的运行目标是 DSH `dsh-v0.1.2-alpha.5`
-（`db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`）；真实渠道、真实模型 Provider、长期运行和 Hermes 同条件对照仍在验收中；生产使用前请先阅读
-[当前限制](docs/status.zh.md)。
+Hermes 上位替代。开发前已审计 DSH canonical `origin/master` `d347e703…`（`0.1.3-alpha.1`）：官方安装通过，
+但 DSH 根构建被其自身缺失的 `@deepseek-ai/dsh-root` 类型入口阻断。EvoForge 当前可复现的插件类型/协议运行矩阵
+仍锁定已完成验证的 DSH alpha.5（`db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`），直到上游入口修复并重新通过兼容性审计。
+真实渠道、真实模型 Provider、长期运行和 Hermes 同条件对照仍在验收中；生产使用前请先阅读[当前限制](docs/status.zh.md)。
 
 ## 能力套件
 
