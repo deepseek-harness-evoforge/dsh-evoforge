@@ -13,7 +13,7 @@ const terminalObservationNames = [
   'hostPairingApproved',
   'exactChallengeDelivered',
   'replyDelivered',
-  'duplicateUpdateSuppressed',
+  'duplicateIngressSuppressed',
   'approvalAllowedOnce',
   'postRestartRoundTrip',
   'sessionRecoveredAfterRemoval',

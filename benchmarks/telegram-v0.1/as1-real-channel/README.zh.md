@@ -8,6 +8,8 @@
 完成消息/回复，最后卸载插件并读回原生 Session。
 
 这不是 Hermes paired benchmark，也不证明模型质量、群聊、媒体、Webhook、长期运行或完整上位替代。
+重复效果门在真实执行器中使用同一个 Gateway ingress identity 做 Host 级回放（Telegram update 仍由长轮询唯一消费），
+因此证明的是 DSH Gateway 的幂等边界，不会被描述成 Telegram 平台重复投递的观测。
 `manifest.json` 固定可构建的 DSH alpha.5 支持 revision，同时记录每次开发前审计到的最新 DSH rc.1；
 最新 master 的上游构建缺陷不能被本验收器修改或掩盖。
 
@@ -18,22 +20,22 @@
 - 授权后才校验 token、官方 API 地址、DSH 源码目录和仓库外隔离 run root；公开报告只保留账户哈希，
   不写入 token、Telegram chat/user id 或配对码。
 - EvoForge 与 DSH 必须是 clean worktree；任何终态报告必须匹配 manifest、两套 DSH revision 和账户哈希。
-- 所有 terminal observations 缺一项、Gateway 出现 `uncertain`/`failed`、首条消息进入 Agent、重复 update
+- 所有 terminal observations 缺一项、Gateway 出现 `uncertain`/`failed`、首条消息进入 Agent、重复 ingress
   产生重复 turn、Approval 不是 `allowed-once`、重启需重新配对或卸载后 Session 不可读，都判失败。
 - 发生崩溃或超时不得盲目重放；先审计私有 run root、Bot 消息和 Gateway journal，再使用新的隔离 run root。
 
 ## 当前入口状态
 
-`contract.ts` 和 `contract.test.ts` 已提供外部效果前的严格预检、脱敏 ready 报告与终态报告解码器。
-`run.ts` 当前是安全预检入口：无授权时退出码 `2` 并输出 `not-run`；即使环境中存在完整 token，也不会
-自动启动真实 Bot，直到完整的人机交互执行器和 release gate 被显式接入。这是防止误把导出的 token 变成
-外部副作用的故意门禁，不是“真实 Telegram 已通过”的声明。
+`contract.ts`、`execute.ts` 和 `contract.test.ts` 提供外部效果前的严格预检、最终 Bundle/Host 执行骨架、脱敏
+ready 报告与终态报告解码器。`run.ts` 无授权时退出码 `2` 并输出 `not-run`；授权后才进入真实执行器，在新的
+仓库外 run root 中等待人工私聊、Host 批准、exact challenge、Approval、重启和卸载；任何阶段失败都会保留私有
+状态并 fail closed。
 
 ```sh
 pnpm benchmark:telegram:as1:check
 ```
 
-真实执行器接入后，才允许在仓库外创建新的 run root，并显式设置：
+真实执行器只允许在仓库外创建新的 run root，并且必须显式设置：
 
 ```sh
 export DSH_TELEGRAM_REAL_CHANNEL_APPROVED=I_APPROVE_REAL_TELEGRAM_CHANNEL_EFFECTS

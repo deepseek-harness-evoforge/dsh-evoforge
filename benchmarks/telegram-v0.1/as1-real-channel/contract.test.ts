@@ -174,20 +174,21 @@ describe('AS-1 real Telegram acceptance contract', () => {
     })
   })
 
-  test('does not auto-start an authorized token from the preflight-only entrypoint', () => {
+  test('fails before any Bot API effect when the authorized runner source is not a Git checkout', () => {
     const result = spawnSync(tsx, [runner], {
       cwd: repositoryRoot,
-      env: { PATH: process.env.PATH, ...readyEnvironment() },
+      env: {
+        PATH: process.env.PATH,
+        ...readyEnvironment(),
+        DSH_TELEGRAM_DSH_SOURCE_DIR: '/private/tmp/not-a-git-checkout',
+      },
       encoding: 'utf8',
     })
-    assert.equal(result.status, 2)
+    assert.equal(result.status, 1)
     assert.equal(result.stderr, '')
-    assert.deepEqual(JSON.parse(result.stdout), {
-      schemaVersion: 1,
-      benchmarkId: 'as1-telegram-resident-pairing-epoch-1',
-      status: 'not-run',
-      reasons: ['real-telegram-executor-requires-explicit-human-runner'],
-    })
+    const report = JSON.parse(result.stdout) as { status?: unknown; reasons?: readonly string[] }
+    assert.equal(report.status, 'failed')
+    assert.equal(report.reasons?.length, 1)
     assert.doesNotMatch(result.stdout, new RegExp(botToken, 'u'))
   })
 })

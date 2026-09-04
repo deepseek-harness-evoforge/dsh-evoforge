@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "as1-telegram-resident-pairing-epoch-1",
-  "scope": "one real Telegram Bot private chat discovered through resident Gateway pairing, native DSH reply, duplicate-update suppression, one-shot native Approval, clean Host restart without re-pairing, uninstall, and native Session readback; not group policy, media, webhook mode, long-term soak, or Hermes paired evidence",
+  "scope": "one real Telegram Bot private chat discovered through resident Gateway pairing, native DSH reply, Gateway ingress replay suppression, one-shot native Approval, clean Host restart without re-pairing, uninstall, and native Session readback; not group policy, media, webhook mode, long-term soak, or Hermes paired evidence",
   "revisions": {
     "deepseekHarness": "db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5",
     "auditedLatestDeepseekHarness": "76fda729799fe9b3848dbe2c211d4b231032b81e"
@@ -20,7 +20,7 @@
     "the official Telegram transport reaches ready with zero pre-authorized Telegram routes",
     "an unknown private message produces a short-lived code before Agent dispatch and Host approval creates one dynamic trust grant without profile rewrite or reconnect",
     "one human-sent exact challenge after approval enters the native DSH Session and its final answer is durably delivered",
-    "the same Telegram update cannot create a second native turn or duplicate external reply",
+    "replaying the same Gateway ingress identity cannot create a second native turn or duplicate external reply",
     "one native DSH Approval request resolves allowed-once and cannot be replaced by a benchmark-owned approval system",
     "a clean Host restart restores the exact grant and a new private message/reply without another pairing ceremony",
     "dispose and official plugin removal succeed, native DSH boots, and the native Session still contains the exact ingress and approval facts"
