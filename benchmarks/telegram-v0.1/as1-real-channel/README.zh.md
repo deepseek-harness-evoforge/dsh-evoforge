@@ -35,7 +35,8 @@ ready 报告与终态报告解码器。`run.ts` 无授权时退出码 `2` 并输
 pnpm benchmark:telegram:as1:check
 ```
 
-真实执行器只允许在仓库外创建新的 run root，并且必须显式设置：
+真实执行器只允许在仓库外创建新的 run root，并且必须显式设置。run root 及其父目录必须是物理目录，不能经过符号链接；
+macOS 的 `/tmp` 通常是 `/private/tmp` 的别名，请使用 `/private/tmp/...`，否则执行器会在任何 Bot 请求前 fail closed：
 
 ```sh
 export DSH_TELEGRAM_REAL_CHANNEL_APPROVED=I_APPROVE_REAL_TELEGRAM_CHANNEL_EFFECTS

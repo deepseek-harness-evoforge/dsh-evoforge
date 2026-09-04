@@ -36,7 +36,9 @@ profile、不重连。机器人仍会把 code 返回给用户作为产品兼容�
 
 ## 执行
 
-选择一个尚未使用、位于 DSH/EvoForge 仓库之外的绝对 run root。本 epoch 只验收 direct 私聊：
+选择一个尚未使用、位于 DSH/EvoForge 仓库之外的绝对 run root。本 epoch 只验收 direct 私聊。run root 及其父目录必须是
+物理目录，不能经过符号链接；macOS 的 `/tmp` 通常是 `/private/tmp` 的别名，请使用 `/private/tmp/...`，否则执行器会
+在任何平台效果前 fail closed：
 
 ```sh
 export DSH_FEISHU_REAL_CHANNEL_APPROVED=I_APPROVE_REAL_FEISHU_CHANNEL_EFFECTS

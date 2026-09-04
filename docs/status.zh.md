@@ -10,6 +10,14 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.149：真实飞书有效凭据连接成功但无新人 pending（本轮）
+
+使用用户提供的精确 App 凭据和真实效果授权，在新的物理 run root `/private/tmp/evoforge-feishu-as2-20260904-r2`
+运行 AS-2。最终 tarball 安装、profile dump 和官方 Feishu WebSocket `ready` 均通过；完整 60 秒等待窗口内没有
+当前 App 的陌生私聊 pending，runner 在配对前以退出码 `1` fail closed，没有 Agent 或平台回复/卡片/notice 副作用。
+这次排除了 Secret、Loader、Bundle、overlay 和 handshake 失败，但不证明事件已抵达 Adapter；`real-feishu-as2` 继续
+为 `failed`。详见 [V5.149 证据](evidence/v5-149-real-feishu-as2-valid-credential-no-pending-2026-09-04.zh.md)。
+
 ## V5.148：Telegram AS-1 API 修复后的 alpha.5 全仓回归（本轮）
 
 在再次 fetch/核对 canonical DSH rc.1（`76fda729…`，clean）后，使用已审计可构建的 alpha.5 支持 checkout

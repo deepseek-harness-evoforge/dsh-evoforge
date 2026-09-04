@@ -765,7 +765,9 @@ function installProcessEnvironment(environment: NodeJS.ProcessEnv): () => void {
 async function exactDirectory(path: string): Promise<string> {
   await mkdir(path, { recursive: true, mode: 0o700 })
   const canonical = await realpath(path)
-  if (canonical !== resolve(path)) throw new Error('AS-1 run directories must not traverse symlinks')
+  if (canonical !== resolve(path)) {
+    throw new Error('AS-1 run directories must not traverse symlinks; on macOS use /private/tmp instead of /tmp')
+  }
   await chmod(canonical, 0o700)
   return canonical
 }

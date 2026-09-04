@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.149**: Ran the real Feishu AS-2 with the exact user-provided App credential on a new physical run root. Final
+  Bundles, profile dump, and the official WebSocket handshake reached `ready`, but no newcomer private-message pending
+  appeared during the full 60-second window. The runner failed closed before pairing and produced no Agent or platform
+  reply/card/notice effect; the Feishu gate remains `failed`. The AS-1/AS-2 runner errors now explain that macOS `/tmp`
+  is a symlink alias and real runs must use `/private/tmp`. See [V5.149 evidence](docs/evidence/v5-149-real-feishu-as2-valid-credential-no-pending-2026-09-04.zh.md).
+
 - **V5.148**: Re-ran the complete alpha.5 repository check after wiring the configured Telegram API endpoint into the
   final AS-1 DSH overlay. Canonical DSH rc.1 was fetched and verified clean; documentation, CI/suite/release contracts,
   Hermes/Provider/Feishu/Telegram acceptance contracts, all 12 Bundle typechecks, tests, and builds passed (`exit 0`).

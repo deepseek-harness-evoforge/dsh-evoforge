@@ -74,9 +74,10 @@
       "docs/evidence/v5-115-feishu-as2-official-transport-no-pending-2026-09-04.zh.md",
       "docs/evidence/v5-118-feishu-as2-overlay-regression-contract-2026-09-04.zh.md",
       "docs/evidence/v5-121-feishu-as2-long-wait-no-pending-2026-09-04.zh.md",
-      "docs/evidence/v5-136-real-feishu-as2-epoch5-no-pending-2026-09-04.zh.md"
+      "docs/evidence/v5-136-real-feishu-as2-epoch5-no-pending-2026-09-04.zh.md",
+      "docs/evidence/v5-149-real-feishu-as2-valid-credential-no-pending-2026-09-04.zh.md"
       ],
-      "blocker": "The latest request-id run reached official WebSocket ready but observed no Feishu pending request; event arrival is unproven, and no authorized run has completed the real direct-message, Schedule, Approval, restart, uninstall, and readback epoch."
+      "blocker": "The latest run with a valid App credential reached official WebSocket ready but observed no Feishu pending request; event arrival is unproven, and no authorized run has completed the real direct-message, Schedule, Approval, restart, uninstall, and readback epoch."
     },
     {
       "id": "real-telegram-as1",
