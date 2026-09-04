@@ -69,6 +69,7 @@ export class TelegramPairingRuntime {
   private lastInboundAt?: number
   private lastActivityAt?: number
   private lastErrorAt?: number
+  private started = false
   private disposed = false
 
   constructor(
@@ -80,15 +81,18 @@ export class TelegramPairingRuntime {
 
   async start(): Promise<void> {
     if (this.disposed) throw new Error('dsh-telegram: pairing runtime is already disposed')
-    this.transport = this.gateway.registerTransport({
+    if (this.started) return
+    this.started = true
+    try {
+      this.transport = this.gateway.registerTransport({
       adapter: 'telegram',
       accountId: this.config.accountId,
       kind: 'telegram-long-poll',
       routeIds: [],
       pairedRoutes: true,
       initial: { state: 'connecting', observedAt: Date.now() },
-    })
-    this.outbound = this.gateway.registerTextAdapter({
+      })
+      this.outbound = this.gateway.registerTextAdapter({
       adapter: 'telegram',
       accountId: this.config.accountId,
       routeIds: [],
@@ -97,9 +101,9 @@ export class TelegramPairingRuntime {
       maxRetryAfterMs: MAX_RETRY_AFTER_SECONDS * 1_000,
       sendTimeoutMs: PLATFORM_SEND_TIMEOUT_MS,
       send: (input, signal) => this.sendOutbound(input, signal),
-    })
+      })
 
-    this.unsubscribers.push(this.ctx.on('agent/created', ({ agent }) => {
+      this.unsubscribers.push(this.ctx.on('agent/created', ({ agent }) => {
       const routes = this.routesBySession.get(String(agent.id))
       if (routes === undefined) return
       void Promise.all(routes.map(route => this.gateway.resolve(route.id, this.lifecycle.signal)))
@@ -111,20 +115,20 @@ export class TelegramPairingRuntime {
             this.ctx.logger.warn(`dsh-telegram: rejected replacement Agent: ${safeMessage(error)}`)
           }
         })
-    }))
-    this.unsubscribers.push(this.ctx.on('agent/disposed', ({ agent }) => {
+      }))
+      this.unsubscribers.push(this.ctx.on('agent/disposed', ({ agent }) => {
       const sessionId = String(agent.session.id)
       if (this.agentsBySession.get(sessionId) === agent) this.agentsBySession.delete(sessionId)
-    }))
-    this.unsubscribers.push(this.ctx.on('agent/inbox/claimed', ({ agent, message, turn }) => {
+      }))
+      this.unsubscribers.push(this.ctx.on('agent/inbox/claimed', ({ agent, message, turn }) => {
       if (!this.bound.has(agent)) return
       const destination = this.repliesByMessage.get(String(message.id))
       if (destination === undefined) return
       this.repliesByMessage.delete(String(message.id))
       this.turnMap(this.repliesByTurn, agent).set(turn, destination)
       this.latestDestination.set(agent, destination)
-    }))
-    this.unsubscribers.push(this.ctx.on('agent/turn-stopping', async ({ agent, turn }) => {
+      }))
+      this.unsubscribers.push(this.ctx.on('agent/turn-stopping', async ({ agent, turn }) => {
       if (!this.bound.has(agent)) return
       const destination = this.turnMap(this.repliesByTurn, agent).get(turn)
         ?? this.latestDestination.get(agent)
@@ -141,8 +145,8 @@ export class TelegramPairingRuntime {
       })
       this.turnMap(this.outboundByTurn, agent).set(turn, intent)
       await this.requireOutbound().submit(intent)
-    }))
-    this.unsubscribers.push(this.ctx.on('session/event', (session, event) => {
+      }))
+      this.unsubscribers.push(this.ctx.on('session/event', (session, event) => {
       if (event.type !== 'turn/end') return
       const agent = this.agentsBySession.get(String(session.id))
       if (agent === undefined) return
@@ -154,28 +158,50 @@ export class TelegramPairingRuntime {
           this.ctx.logger.warn(`dsh-telegram: could not release final answer: ${safeMessage(error)}`)
         })
       }
-    }))
-    this.unsubscribers.push(this.ctx.on('approval/request', (request, next) => {
+      }))
+      this.unsubscribers.push(this.ctx.on('approval/request', (request, next) => {
       if (!this.bound.has(request.agent)) return next()
       return this.requestApproval(request, next)
-    }))
-    this.pollTask = this.poll()
+      }))
+      this.pollTask = this.poll()
+    } catch (error: unknown) {
+      try {
+        await this.dispose()
+      } catch (cleanupError: unknown) {
+        this.ctx.logger.warn(`dsh-telegram: pairing startup cleanup failed: ${safeMessage(cleanupError)}`)
+      }
+      throw error
+    }
   }
 
   async dispose(): Promise<void> {
     if (this.disposed) return
     this.disposed = true
     this.transportState = 'stopping'
-    this.reportTransport(Date.now())
+    try {
+      this.reportTransport(Date.now())
+    } catch (error: unknown) {
+      this.ctx.logger.warn(`dsh-telegram: pairing teardown health report failed: ${safeMessage(error)}`)
+    }
     this.lifecycle.abort(new Error('dsh-telegram pairing runtime disposed'))
-    while (this.unsubscribers.length > 0) this.unsubscribers.pop()?.()
+    while (this.unsubscribers.length > 0) {
+      try {
+        this.unsubscribers.pop()?.()
+      } catch (error: unknown) {
+        this.ctx.logger.warn(`dsh-telegram: pairing teardown listener removal failed: ${safeMessage(error)}`)
+      }
+    }
     for (const [nonce, pending] of this.pendingApprovals) {
       this.pendingApprovals.delete(nonce)
       if (pending.onAbort !== undefined) pending.signal?.removeEventListener('abort', pending.onAbort)
       pending.resolve('cancelled')
     }
     await Promise.allSettled([this.pollTask, this.outbound?.dispose()])
-    this.transport?.dispose()
+    try {
+      this.transport?.dispose()
+    } catch (error: unknown) {
+      this.ctx.logger.warn(`dsh-telegram: pairing transport teardown failed: ${safeMessage(error)}`)
+    }
     this.transport = undefined
   }
 

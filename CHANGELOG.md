@@ -6,6 +6,14 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.195**: Hardened both Telegram resident runtimes. Static and pairing adapters now reject duplicate starts,
+  clean up every resource on partial startup failure, and continue teardown when health reporting, listener removal, or
+  transport disposal throws. Added regressions for static startup failure and pairing duplicate-start registration counts.
+  Latest DSH `d347e703…` install passed, its known upstream root-entry build defect remained classified, and the EvoForge
+  root check passed (`CHECK_RC=0`; Telegram `38/38`, Feishu `56/56`, Gateway `43/43`, Evolution `309/309`). Real
+  channel/provider/Hermes paired, long-run, npm ownership, and release-tag gates remain blocked. See
+  [V5.195 evidence](docs/evidence/v5-195-telegram-startup-boundary-2026-09-04.zh.md).
+
 - **V5.194**: Made the complete Feishu Adapter startup path self-cleaning. Failures during route resolution, binding, or
   outbound registration now dispose already-registered resources before preserving the original error; a regression proves
   a registered transport is released exactly once and the platform is never connected. Latest DSH `d347e703…` install passed,
