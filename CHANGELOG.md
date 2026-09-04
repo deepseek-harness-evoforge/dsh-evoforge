@@ -6,6 +6,8 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.222**: Reused the single connected DSH in-app browser tab for a fresh Control Center DOM check. The browser URL policy rejected the local page before DOM access; no second tab, workaround, or UI pass claim was made. The web-control-plane gate remains partial. See [V5.222 evidence](docs/evidence/v5-222-browser-policy-repeat-2026-09-04.zh.md).
+
 - **V5.221**: Re-fetched and audited canonical DSH, then reran the root `pnpm run check` on the audited buildable alpha.5 support checkout with exit code `0`. Recorded Evolution 313/313, Gateway 52/52, Feishu 57/57, Telegram 38/38, remaining suite/contracts, clean-profile, typecheck, and build evidence. Real channels, Provider, Hermes paired, long-term effects, npm ownership, and the release tag remain blocked. See [V5.221 evidence](docs/evidence/v5-221-latest-dsh-full-check-2026-09-04.zh.md).
 
 - **V5.220**: Hardened the Feishu and Telegram clean-profile package contracts to inspect each DSH dump Bundle section
