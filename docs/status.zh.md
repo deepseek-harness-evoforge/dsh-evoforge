@@ -2,6 +2,8 @@
 
 > 更新日期：2026-09-04。本文只描述标准路径中的权威 `main` 工作树，不把计划或历史分支当作已交付能力。
 
+> **最新审计（V5.192）**：开发前已将 DSH 更新到 canonical `origin/master` `d347e703…`（`0.1.3-alpha.1`，clean 且 HEAD 与远端一致）。DSH 官方安装通过，但其根构建仍被上游 `@deepseek-ai/dsh-root` 缺失 `lib/types/{index,invariant,startup}.js` 阻断；EvoForge 未修改或掩盖该事实。基于已审计 alpha.5 支持 checkout 的根级 EvoForge `pnpm run check` 退出码为 `0`，Gateway 新增监听回收回归后为 `42/42`，Evolution `309/309`、Feishu `55/55`、Telegram `36/36`。详见 [V5.192 证据](evidence/v5-192-gateway-listener-teardown-and-dsh-latest-2026-09-04.zh.md)。真实渠道、Provider、Hermes paired、长期效果、npm ownership 和发布 tag 门禁仍未通过。
+
 > DSH 最新公开 tag 仍为 `dsh-v0.1.2-rc.1`（`a66e470…`），最新远端 `master` 为
 > `76fda729799fe9b3848dbe2c211d4b231032b81e`；两者均已在本轮重新 fetch 并审计，干净完整构建仍被上游根级
 > tsdown 入口阻断。EvoForge 当前支持声明仍锁定已完成矩阵的 alpha.5（`db6bdc…`），详见 [rc.1 迁移审计](research/dsh-rc1-migration-audit-2026-09-03.zh.md)。

@@ -178,6 +178,7 @@ export class DshGateway {
   private readonly revokingRoutes = new Set<string>()
   private started = false
   private sessionEventsBound = false
+  private removeSessionEvents: (() => void) | undefined
   private stopping?: Promise<void>
   private recoveryObservationsValue: readonly GatewayRecoveryObservation[] = []
   private readonly outbound: GatewayOutboundCoordinator
@@ -231,7 +232,7 @@ export class DshGateway {
     const outboundRecovered = await this.outbound.start(observedAt)
     if (!this.sessionEventsBound) {
       this.sessionEventsBound = true
-      this.ctx.on('session/event', (session, event) => {
+      this.removeSessionEvents = this.ctx.on('session/event', (session, event) => {
         if (event.type !== 'turn/end') return
         this.outbound.wakeEndedTurn(String(session.id), event.data.turn)
       })
@@ -578,6 +579,8 @@ export class DshGateway {
 
   stop(): Promise<void> {
     this.stopping ??= (async () => {
+      this.removeSessionEvents?.()
+      this.removeSessionEvents = undefined
       await Promise.allSettled(this.ingressTails.values())
       await this.outbound.stop()
       this.transports.stop()

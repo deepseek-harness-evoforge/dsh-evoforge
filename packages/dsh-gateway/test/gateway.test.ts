@@ -22,6 +22,26 @@ const routes = resolveGatewayRoutes([
 ])
 
 describe('DshGateway', () => {
+  it('removes its session-event listener exactly once when stopped', async () => {
+    const host = fakeNativeHost()
+    let removals = 0
+    vi.spyOn(host.ctx, 'on').mockImplementation(() => () => { removals += 1; return true })
+    const facility = memoryFacility()
+    const gateway = new DshGateway(
+      host.ctx,
+      resolveGatewayRoutes([]),
+      await openGatewayIngressJournal(facility),
+      await openGatewayOutboundJournal(facility),
+    )
+
+    await gateway.start()
+    expect(removals).toBe(0)
+    await gateway.stop()
+    expect(removals).toBe(1)
+    await gateway.stop()
+    expect(removals).toBe(1)
+  })
+
   it('binds an unknown DM to the selected live native Session through the Host control surface', async () => {
     const host = fakeNativeHost()
     const facility = memoryFacility()

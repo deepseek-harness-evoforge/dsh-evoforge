@@ -6,6 +6,13 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.192**: Closed the `dsh-gateway` session-event listener teardown gap. Gateway now stores and removes its Cordis
+  disposer exactly once during idempotent `stop()`, with a regression test. Before development, DSH was fast-forwarded to
+  canonical `origin/master` `d347e703…` (`0.1.3-alpha.1`); official install passed, while the upstream root build remains
+  blocked by its missing `lib/types/{index,invariant,startup}.js` entry. EvoForge's alpha.5-supported root check passed
+  (`CHECK_RC=0`; Gateway `42/42`, Evolution `309/309`, Feishu `55/55`, Telegram `36/36`). Real channel/provider/Hermes
+  paired, long-run, npm ownership, and release-tag gates remain blocked. See [V5.192 evidence](docs/evidence/v5-192-gateway-listener-teardown-and-dsh-latest-2026-09-04.zh.md).
+
 - **V5.191**: Closed Feishu runtime listener leaks. Static Feishu runtime now removes every Cordis and platform listener, rejects starts
   after disposal, and makes teardown idempotent; the Host unregisters its native credential-update listener during teardown. Feishu `55/55`,
   Telegram `36/36`, typechecks/builds, and the latest-DSH alpha.5 root check (`CHECK_RC=0`) pass. This is local lifecycle evidence only;
