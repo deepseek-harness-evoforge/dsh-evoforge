@@ -6,6 +6,13 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.212**: Made resident Gateway cleanup wait for all direct `resolve()` operations before closing journals and disposing
+  owned Native Agent handles. This prevents an Agent created during Host shutdown from being published after the cleanup
+  snapshot and becoming an orphan. Added a delayed-`agents.create()` regression. The latest-DSH-audited root check passed
+  with `CHECK_RC=0` (Evolution `313/313`, Gateway `51/51`, Feishu `56/56`, Telegram `38/38`, and all other local
+  suites/contracts). Real channels, providers, Hermes paired benchmarking, long-run effects, npm ownership, and the
+  release tag remain blocked. See [V5.212 evidence](docs/evidence/v5-212-gateway-resolution-dispose-barrier-2026-09-04.zh.md).
+
 - **V5.211**: Added an active-submission barrier to resident Gateway text Adapter teardown. `dispose()` now aborts new
   scheduling, waits for in-flight outbound `prepare()` calls, then drains delivery work before resources close; late
   submissions fail closed instead of writing after journal shutdown. Added a delayed-journal regression. The first build

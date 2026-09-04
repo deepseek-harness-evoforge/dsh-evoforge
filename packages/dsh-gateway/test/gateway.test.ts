@@ -127,6 +127,49 @@ describe('DshGateway', () => {
     expect(closeIngress).toHaveBeenCalledTimes(1)
   })
 
+  it('waits for a direct Agent resolution before closing resident resources', async () => {
+    const host = fakeNativeHost()
+    let releaseCreate!: () => void
+    let createEntered!: () => void
+    const createReached = new Promise<void>(resolve => { createEntered = resolve })
+    const createReleased = new Promise<void>(resolve => { releaseCreate = resolve })
+    const originalCreate = host.ctx.agents.create.bind(host.ctx.agents)
+    let createdHandle: AgentHandle | undefined
+    vi.spyOn(host.ctx.agents, 'create').mockImplementation(async options => {
+      createEntered()
+      await createReleased
+      const handle = await originalCreate(options)
+      vi.spyOn(handle, 'dispose')
+      createdHandle = handle
+      return handle
+    })
+    const facility = memoryFacility()
+    const ingress = await openGatewayIngressJournal(facility)
+    const closeIngress = vi.spyOn(ingress, 'close')
+    const gateway = new DshGateway(
+      host.ctx,
+      resolveGatewayRoutes([{
+        id: 'telegram-a', ...endpointA, workspaceId: 'workspace-a', sessionId: 'session-a',
+        agentPreset: 'standard', provider: 'mock', model: 'mock-a',
+      }]),
+      ingress,
+      await openGatewayOutboundJournal(facility),
+    )
+    await gateway.start()
+
+    const resolving = gateway.resolve('telegram-a')
+    await createReached
+    const stopping = gateway.stop()
+    await Promise.resolve()
+    expect(closeIngress).not.toHaveBeenCalled()
+
+    releaseCreate()
+    await resolving
+    await stopping
+    expect(createdHandle).toBeDefined()
+    expect(vi.mocked(createdHandle!.dispose)).toHaveBeenCalledTimes(1)
+  })
+
   it('preserves the startup validation error when cleanup itself fails', async () => {
     const host = fakeNativeHost()
     host.persisted.set('session-a', {

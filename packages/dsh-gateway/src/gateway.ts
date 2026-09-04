@@ -624,6 +624,10 @@ export class DshGateway {
       this.removeSessionEvents?.()
       this.removeSessionEvents = undefined
       await Promise.allSettled(this.ingressTails.values())
+      // A direct resolve() may be creating or resuming a Native Agent without
+      // an ingress tail. Wait before snapshotting owned handles so a late
+      // resolution cannot publish an undisposed handle after Host shutdown.
+      await Promise.allSettled(this.resolutions.values())
       await this.outbound.stop()
       this.transports.stop()
       const handles = [...this.ownedHandles.values()]
