@@ -6,6 +6,14 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.179**: Re-fetched and audited the latest canonical DSH before moving both channel adapters from direct
+  `process.env` secret reads to the native `CredentialProvider` seam. Feishu App credentials and the Telegram Bot token
+  now resolve through `ctx.credentials` with fail-closed validation; legacy `*Env` field names remain only for profile
+  compatibility. Packed Telegram boundary and assembled tests, Telegram `35/35`, Feishu `51/51`, typechecks, and builds
+  pass. User docs now describe DSH Web/local credential setup and durable pack paths. Real channel, live rotation,
+  Hermes-paired, long-run, and npm ownership gates remain blocked. See [V5.179 evidence](docs/evidence/v5-179-native-channel-credentials-2026-09-04.zh.md)
+  and [ADR-0103](docs/adr/0103-channel-adapters-use-native-dsh-credentials.md).
+
 - **V5.178**: Re-fetched canonical DSH and ran the complete alpha.5 repository check after the CI package-filter and
   Telegram worker fix. The authoritative no-pipeline rerun finished `CHECK_RC=0`: Evolution `309/309`, Gateway `41/41`,
   Feishu `50/50`, Telegram `34/34`, Doctor `40/40`, Evolve Web `27/27`, all Bundle typechecks/builds, and the

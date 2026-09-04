@@ -1,3 +1,4 @@
+import { credentialRef, type CredentialProvider } from '@deepseek-ai/dsh-credentials'
 import type { GatewayEndpoint, ResolvedGatewayRoute } from 'dsh-evoforge-gateway'
 import type { TelegramRouteIdentity } from './inbound.js'
 
@@ -39,6 +40,23 @@ export interface ResolvedTelegramPairingConfig {
   readonly tokenEnv: string
 }
 
+type TelegramCredentialReader = Pick<CredentialProvider, 'resolve'>
+
+/** Resolve the Bot token through DSH's credential provider; secrets never come from plugin config. */
+export async function resolveTelegramToken(
+  tokenEnv: string,
+  credentials: TelegramCredentialReader,
+): Promise<string> {
+  assertCredentialReference(tokenEnv, 'tokenEnv')
+  const resolved = await credentials.resolve(credentialRef(tokenEnv))
+  const token = resolved?.value
+  if (token === undefined || token.length === 0 || token.trim() !== token
+    || /[\u0000-\u001f\u007f]/u.test(token)) {
+    throw new Error(`dsh-telegram: configured credential reference ${tokenEnv} is empty or invalid`)
+  }
+  return token
+}
+
 export function resolveTelegramConfig(
   config: TelegramConfigInput,
   route: ResolvedGatewayRoute,
@@ -72,9 +90,7 @@ export function resolveTelegramConfig(
     maxSendAttempts: config.maxSendAttempts ?? 3,
     maxTextChars: config.maxTextChars ?? 4_000,
   }
-  if (!/^[A-Za-z_][A-Za-z0-9_]*$/u.test(resolved.tokenEnv)) {
-    throw new Error('dsh-telegram: tokenEnv must be an environment-variable name')
-  }
+  assertCredentialReference(resolved.tokenEnv, 'tokenEnv')
   assertIntegerRange('pollTimeoutSeconds', resolved.pollTimeoutSeconds, 1, 50)
   assertIntegerRange('maxSendAttempts', resolved.maxSendAttempts, 1, 5)
   assertIntegerRange('maxTextChars', resolved.maxTextChars, 256, 4_096)
@@ -85,7 +101,6 @@ export function resolveTelegramConfig(
 /** Resolve resident unknown-DM pairing; Gateway owns grants and exact routes. */
 export function resolveTelegramPairingConfig(
   config: TelegramConfigInput,
-  environment: NodeJS.ProcessEnv = process.env,
 ): ResolvedTelegramPairingConfig {
   if (config.mode !== 'pairing') throw new Error('dsh-telegram: pairing config mode must be pairing')
   if (config.routeId !== undefined || (config.routeIds?.length ?? 0) !== 0) {
@@ -93,9 +108,7 @@ export function resolveTelegramPairingConfig(
   }
   const accountId = exactText(config.accountId, 'accountId', 256)
   const tokenEnv = config.tokenEnv ?? 'DSH_TELEGRAM_BOT_TOKEN'
-  if (!/^[A-Za-z_][A-Za-z0-9_]*$/u.test(tokenEnv)) {
-    throw new Error('dsh-telegram: tokenEnv must be an environment-variable name')
-  }
+  assertCredentialReference(tokenEnv, 'tokenEnv')
   const resolved: ResolvedTelegramPairingConfig = {
     mode: 'pairing',
     accountId,
@@ -109,9 +122,6 @@ export function resolveTelegramPairingConfig(
   assertIntegerRange('maxSendAttempts', resolved.maxSendAttempts, 1, 5)
   assertIntegerRange('maxTextChars', resolved.maxTextChars, 256, 4_096)
   assertApiBase(resolved.apiBase)
-  if (environment[resolved.tokenEnv] === undefined || environment[resolved.tokenEnv]!.length === 0) {
-    throw new Error(`dsh-telegram: configured token environment variable ${resolved.tokenEnv} is empty`)
-  }
   return Object.freeze(resolved)
 }
 
@@ -157,4 +167,10 @@ function exactText(value: string | undefined, field: string, maxBytes: number): 
     throw new Error(`dsh-telegram: ${field} must be non-empty, trimmed, control-free, and at most ${maxBytes} bytes`)
   }
   return value
+}
+
+function assertCredentialReference(value: string, field: string): void {
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/u.test(value)) {
+    throw new Error(`dsh-telegram: ${field} must be a credential reference name`)
+  }
 }

@@ -15,7 +15,7 @@ import type {
 } from '../../src/index.ts'
 
 export const name = 'dsh-feishu-test-runtime-bootstrap'
-export const inject = ['attachments', 'evoforge.gateway']
+export const inject = ['attachments', 'credentials', 'evoforge.gateway']
 
 interface Config {
   readonly feishuEntry: string
@@ -188,9 +188,10 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     resolveFeishuConfig(
       config: Config,
       routes: readonly ResolvedGatewayRoute[],
-    ): ResolvedFeishuConfig
+      credentials: Context['credentials'],
+    ): Promise<ResolvedFeishuConfig>
   }
-  const resolved = feishu.resolveFeishuConfig(config, routes)
+  const resolved = await feishu.resolveFeishuConfig(config, routes, ctx.credentials)
   const platform = new FakeFeishuPlatform(config.textEffectPath)
   const runtime = new feishu.FeishuRuntime(ctx, resolved, gateway, platform)
   ctx.effect(() => async () => runtime.dispose(), 'dsh-feishu.test-runtime')

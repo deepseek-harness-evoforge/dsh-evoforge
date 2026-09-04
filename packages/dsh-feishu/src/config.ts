@@ -1,3 +1,4 @@
+import { credentialRef, type CredentialProvider } from '@deepseek-ai/dsh-credentials'
 import type { GatewayEndpoint, ResolvedGatewayRoute } from 'dsh-evoforge-gateway'
 
 export const FEISHU_CONTENT_PERMISSIONS = [
@@ -12,7 +13,9 @@ export type FeishuContentPermission = typeof FEISHU_CONTENT_PERMISSIONS[number]
 export interface FeishuConfigInput {
   readonly mode?: 'routes' | 'pairing'
   readonly routeIds: readonly string[]
+  /** Credential reference for the Feishu App ID (legacy `Env` suffix retained for profile compatibility). */
   readonly appIdEnv?: string
+  /** Credential reference for the Feishu App Secret (legacy `Env` suffix retained for profile compatibility). */
   readonly appSecretEnv?: string
   readonly handshakeTimeoutMs?: number
   readonly maxRetryAfterSeconds?: number
@@ -52,11 +55,13 @@ export interface ResolvedFeishuConfig {
   readonly pairedRoutes: boolean
 }
 
-export function resolveFeishuConfig(
+type FeishuCredentialReader = Pick<CredentialProvider, 'resolve'>
+
+export async function resolveFeishuConfig(
   config: FeishuConfigInput,
   routes: readonly ResolvedGatewayRoute[],
-  environment: NodeJS.ProcessEnv = process.env,
-): ResolvedFeishuConfig {
+  credentials: FeishuCredentialReader,
+): Promise<ResolvedFeishuConfig> {
   if (config.mode === 'pairing') throw new Error('dsh-feishu: routes config cannot use pairing mode')
   if (!Array.isArray(config.routeIds) || config.routeIds.length === 0 || config.routeIds.length > 100) {
     throw new Error('dsh-feishu: routeIds must contain 1 to 100 exact Gateway route ids')
@@ -72,7 +77,7 @@ export function resolveFeishuConfig(
   const accountIds = new Set(routes.map(route => route.accountId))
   if (accountIds.size !== 1) throw new Error('dsh-feishu: one Adapter instance can bind only one Feishu app account')
 
-  const { appId, appIdEnv, appSecret, appSecretEnv } = resolveCredentials(config, environment)
+  const { appId, appIdEnv, appSecret, appSecretEnv } = await resolveCredentials(config, credentials)
   if (appId !== routes[0]!.accountId) {
     throw new Error('dsh-feishu: credential app id does not match the Gateway accountId')
   }
@@ -136,10 +141,10 @@ function resolveContentPermissions(
 }
 
 /** Resolve resident unknown-DM pairing mode; Gateway owns grants and exact route bindings. */
-export function resolveFeishuPairingConfig(
+export async function resolveFeishuPairingConfig(
   config: FeishuConfigInput,
-  environment: NodeJS.ProcessEnv = process.env,
-): ResolvedFeishuPairingConfig {
+  credentials: FeishuCredentialReader,
+): Promise<ResolvedFeishuPairingConfig> {
   if (config.mode !== 'pairing') throw new Error('dsh-feishu: pairing config mode must be pairing')
   if (!Array.isArray(config.routeIds) || config.routeIds.length !== 0) {
     throw new Error('dsh-feishu: pairing mode requires empty routeIds')
@@ -147,7 +152,7 @@ export function resolveFeishuPairingConfig(
   if ((config.contentPermissions?.length ?? 0) !== 0) {
     throw new Error('dsh-feishu: pairing mode cannot enable contentPermissions')
   }
-  const { appId, appIdEnv, appSecret, appSecretEnv } = resolveCredentials(config, environment)
+  const { appId, appIdEnv, appSecret, appSecretEnv } = await resolveCredentials(config, credentials)
   const handshakeTimeoutMs = config.handshakeTimeoutMs ?? 15_000
   const maxRetryAfterSeconds = config.maxRetryAfterSeconds ?? 300
   const maxSendAttempts = config.maxSendAttempts ?? 3
@@ -179,33 +184,35 @@ export function resolveFeishuPairingConfig(
   })
 }
 
-function resolveCredentials(
+async function resolveCredentials(
   config: Pick<FeishuConfigInput, 'appIdEnv' | 'appSecretEnv'>,
-  environment: NodeJS.ProcessEnv,
-): { appId: string; appIdEnv: string; appSecret: string; appSecretEnv: string } {
+  credentials: FeishuCredentialReader,
+): Promise<{ appId: string; appIdEnv: string; appSecret: string; appSecretEnv: string }> {
   const appIdEnv = config.appIdEnv ?? 'DSH_FEISHU_APP_ID'
   const appSecretEnv = config.appSecretEnv ?? 'DSH_FEISHU_APP_SECRET'
-  assertEnvironmentName(appIdEnv, 'appIdEnv')
-  assertEnvironmentName(appSecretEnv, 'appSecretEnv')
-  if (appIdEnv === appSecretEnv) throw new Error('dsh-feishu: app id and secret must use different environment variables')
+  assertCredentialReferenceName(appIdEnv, 'appIdEnv')
+  assertCredentialReferenceName(appSecretEnv, 'appSecretEnv')
+  if (appIdEnv === appSecretEnv) throw new Error('dsh-feishu: app id and secret must use different credential references')
+  const appId = await credentials.resolve(credentialRef(appIdEnv))
+  const appSecret = await credentials.resolve(credentialRef(appSecretEnv))
   return {
-    appId: exactSecret(environment[appIdEnv], appIdEnv),
+    appId: exactSecret(appId?.value, appIdEnv),
     appIdEnv,
-    appSecret: exactSecret(environment[appSecretEnv], appSecretEnv),
+    appSecret: exactSecret(appSecret?.value, appSecretEnv),
     appSecretEnv,
   }
 }
 
-function assertEnvironmentName(value: string, label: string): void {
+function assertCredentialReferenceName(value: string, label: string): void {
   if (!/^[A-Za-z_][A-Za-z0-9_]*$/u.test(value)) {
-    throw new Error(`dsh-feishu: ${label} must be an environment-variable name`)
+    throw new Error(`dsh-feishu: ${label} must be a credential reference name`)
   }
 }
 
 function exactSecret(value: string | undefined, name: string): string {
   if (value === undefined || value.length === 0 || value.trim() !== value
     || /[\u0000-\u001f\u007f]/u.test(value)) {
-    throw new Error(`dsh-feishu: configured credential environment variable ${name} is empty or invalid`)
+    throw new Error(`dsh-feishu: configured credential reference ${name} is empty or invalid`)
   }
   return value
 }

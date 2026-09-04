@@ -7,7 +7,7 @@ import type {
 } from '../../src/index.ts'
 
 export const name = 'dsh-feishu-test-pairing-bootstrap'
-export const inject = ['attachments', 'evoforge.gateway']
+export const inject = ['attachments', 'credentials', 'evoforge.gateway']
 
 interface Config {
   readonly feishuEntry: string
@@ -86,14 +86,14 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       dispose(): Promise<void>
       createHostRoute(): unknown
     }
-    resolveFeishuPairingConfig(input: unknown): unknown
+    resolveFeishuPairingConfig(input: unknown, credentials: Context['credentials']): Promise<unknown>
   }
-  const resolved = feishu.resolveFeishuPairingConfig({
+  const resolved = await feishu.resolveFeishuPairingConfig({
     mode: 'pairing',
     routeIds: [],
     appIdEnv: config.appIdEnv,
     appSecretEnv: config.appSecretEnv,
-  })
+  }, ctx.credentials)
   const platform = new FakePairingPlatform()
   const runtime = new feishu.FeishuRuntime(ctx, resolved as never, ctx.get('evoforge.gateway' as never), platform)
   ctx.effect(() => async () => runtime.dispose(), 'dsh-feishu-test.pairing')

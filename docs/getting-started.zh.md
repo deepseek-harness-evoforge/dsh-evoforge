@@ -17,7 +17,8 @@ DSH、确认 revision 和 clean worktree；本页命令使用的是当前可复�
 
 ```sh
 pnpm install --frozen-lockfile
-PACK_ROOT="$(mktemp -d)"
+PACK_ROOT="${PWD}/.evoforge/packs"
+mkdir -p "$PACK_ROOT"
 pnpm run pack:suite -- --suite core --out "$PACK_ROOT"
 ```
 
@@ -115,7 +116,9 @@ token 由启动 DSH 的环境提供。模型不能读取 token、修改 route、
     appSecretEnv: DSH_FEISHU_APP_SECRET
 ```
 
-启动 DSH Web 后，Adapter 立即常驻连接。先打开准备绑定的 Workspace/Session，再让用户给飞书机器人发送
+先在 DSH Web 的模型/凭据设置中写入 `DSH_FEISHU_APP_ID` 与 `DSH_FEISHU_APP_SECRET`，或按官方格式保存到
+`$DSH_HOME/.credentials.yaml`（权限 `0600`）。这两个名称是 credential reference，不是让 Adapter 直接读取
+`process.env`。启动 DSH Web 后，Adapter 立即常驻连接。先打开准备绑定的 Workspace/Session，再让用户给飞书机器人发送
 任意私聊消息；机器人会在 Agent 之前消费首条消息并回复配对码。打开 DSH Web 原生“控制台”，进入“渠道”
 Surface；“待批准请求”会显示这次请求的脱敏 Adapter、有效期和账户指纹。管理员可直接点击“直接批准”，
 也可把 code 粘贴到“渠道配对”兼容输入框，并选择对应 Adapter。用户发送下一条消息即可进入当前原生 Session；不需要改 profile

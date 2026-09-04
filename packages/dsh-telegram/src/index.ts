@@ -1,15 +1,16 @@
 import type { Context } from '@deepseek-ai/cordis'
+import type {} from '@deepseek-ai/dsh-credentials'
 import z from '@deepseek-ai/schemastery'
 import type Schema from '@deepseek-ai/schemastery'
 import type { DshGateway } from 'dsh-evoforge-gateway'
 import { TelegramApi } from './telegram-api.js'
 import { TelegramRuntime } from './runtime.js'
 import { TelegramPairingRuntime } from './pairing-runtime.js'
-import { resolveTelegramConfig, resolveTelegramPairingConfig } from './config.js'
+import { resolveTelegramConfig, resolveTelegramPairingConfig, resolveTelegramToken } from './config.js'
 import type { TelegramHostNotice, TelegramHostRoute } from './host-route.js'
 
 export const name = 'dsh-evoforge-telegram'
-export const inject = ['evoforge.gateway']
+export const inject = ['credentials', 'evoforge.gateway']
 
 export interface Config {
   /** Static route mode is retained for existing profiles. */
@@ -20,7 +21,7 @@ export interface Config {
   readonly routeIds?: readonly string[]
   /** Gateway account identity used by resident pairing mode. */
   readonly accountId?: string
-  /** Environment variable holding the Bot token. Reading it is an explicit deployment policy. */
+  /** DSH credential reference holding the Bot token; legacy `Env` suffix retained for profile compatibility. */
   readonly tokenEnv?: string
   /** Official API endpoint, or a loopback endpoint for a local Bot API/test server. */
   readonly apiBase?: string
@@ -46,7 +47,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   if (gateway === undefined) throw new Error('dsh-telegram: dsh-gateway service is unavailable')
   if (config.mode === 'pairing') {
     const resolved = resolveTelegramPairingConfig(config)
-    const token = process.env[resolved.tokenEnv]!
+    const token = await resolveTelegramToken(resolved.tokenEnv, ctx.credentials)
     const runtime = new TelegramPairingRuntime(
       ctx,
       resolved,
@@ -67,10 +68,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   const route = gateway.route(routeId)
   if (route === undefined) throw new Error(`dsh-telegram: unknown Gateway route '${routeId}'`)
   const resolved = resolveTelegramConfig({ ...config, routeId }, route)
-  const token = process.env[resolved.tokenEnv]
-  if (token === undefined || token.length === 0) {
-    throw new Error(`dsh-telegram: configured token environment variable ${resolved.tokenEnv} is empty`)
-  }
+  const token = await resolveTelegramToken(resolved.tokenEnv, ctx.credentials)
   const runtime = new TelegramRuntime(
     ctx,
     resolved,
@@ -92,6 +90,6 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
 }
 
 export type { TelegramHostNotice, TelegramHostNoticeReceipt, TelegramHostRoute } from './host-route.js'
-export { resolveTelegramConfig, resolveTelegramPairingConfig } from './config.js'
+export { resolveTelegramConfig, resolveTelegramPairingConfig, resolveTelegramToken } from './config.js'
 export type { ResolvedTelegramConfig, ResolvedTelegramPairingConfig } from './config.js'
 export { TelegramPairingRuntime } from './pairing-runtime.js'

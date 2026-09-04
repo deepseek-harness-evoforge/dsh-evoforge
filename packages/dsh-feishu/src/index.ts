@@ -1,6 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-attachment'
 import type {} from '@deepseek-ai/dsh-commands'
+import type {} from '@deepseek-ai/dsh-credentials'
 import type {} from '@deepseek-ai/dsh-workspace'
 import z from '@deepseek-ai/schemastery'
 import type Schema from '@deepseek-ai/schemastery'
@@ -19,7 +20,7 @@ import {
 import { FeishuRuntime } from './runtime.js'
 
 export const name = 'dsh-evoforge-feishu'
-export const inject = ['attachments', 'commands', 'evoforge.gateway', 'workspaceRegistry']
+export const inject = ['attachments', 'commands', 'credentials', 'evoforge.gateway', 'workspaceRegistry']
 
 export interface Config {
   readonly mode?: 'routes' | 'pairing'
@@ -54,7 +55,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   const gateway = ctx.get('evoforge.gateway' as never) as DshGateway | undefined
   if (gateway === undefined) throw new Error('dsh-feishu: dsh-gateway service is unavailable')
   if (config.mode === 'pairing') {
-    const resolved = resolveFeishuPairingConfig({ ...config, mode: 'pairing', routeIds })
+    const resolved = await resolveFeishuPairingConfig({ ...config, mode: 'pairing', routeIds }, ctx.credentials)
     const runtime = new FeishuRuntime(
       ctx,
       resolved,
@@ -80,7 +81,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     const route = gateway.route(id)
     if (route !== undefined) routes.push(route)
   }
-  const resolved = resolveFeishuConfig({ ...config, mode: 'routes', routeIds }, routes)
+  const resolved = await resolveFeishuConfig({ ...config, mode: 'routes', routeIds }, routes, ctx.credentials)
   const runtime = new FeishuRuntime(
     ctx,
     resolved,

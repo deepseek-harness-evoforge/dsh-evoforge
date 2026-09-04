@@ -1,4 +1,4 @@
-# dsh-telegram
+# dsh-evoforge-telegram
 
 `dsh-telegram` is a disabled-by-default DSH Bundle connecting Telegram private messages through the resident `dsh-gateway` to native DSH Workspace/Session/Agent state. It supports both an exact static route and Hermes-style Host pairing for unknown direct messages. It is not a gateway, webhook server, daemon, or second Agent host.
 
@@ -30,7 +30,7 @@ Session token overhead is zero; the selected Agent's existing model composition 
 
 - DSH `0.1.2-alpha.5` (`dsh-v0.1.2-alpha.5`) with `dsh-gateway`, Agent, Agent presets, Commands, Session persistence, Workspace, Storage and Storage Domain composed. DSH `0.1.2-rc.1` is newer but its clean upstream build is currently blocked; it is not yet an accepted runtime target;
 - Node.js `^22.19.0 || >=24`;
-- one Telegram Bot token;
+- one Telegram Bot token stored by DSH's native `CredentialProvider`;
 - static mode additionally needs one private chat id, one Telegram user id, and one existing native
   Workspace plus a static Gateway route naming its stable Session id, Agent preset, provider and model;
 - pairing mode needs a Gateway account id and an existing native Workspace/Session target for the
@@ -90,8 +90,9 @@ existing live Workspace/Session target. The next message is then routed to that 
 the first message is never replayed. Group messages remain ignored.
 
 The Gateway route is the only chat/user/Workspace/Session/Agent authority. `conversationId` and `userId`
-must be canonical positive Telegram integer strings; private topics are not accepted. The token is read
-from the environment of the DSH Host. Native Commands and one-shot Approval buttons reuse DSH services;
+must be canonical positive Telegram integer strings; private topics are not accepted. The token is resolved
+from DSH's native credential provider at Bundle startup; it is never read from `process.env` by this Adapter.
+Native Commands and one-shot Approval buttons reuse DSH services;
 ingress deduplication and outbound delivery records belong to the Gateway. The Adapter retains only
 Telegram polling, protocol mapping, platform sending, and one-shot Approval UI. The model cannot change
 the route or read the token.
@@ -105,9 +106,9 @@ automatically; already delivered external messages cannot be retracted.
 dsh plugin --profile web remove dsh-evoforge-telegram
 ```
 
-Set `DSH_TELEGRAM_BOT_TOKEN` in the process supervisor's secret environment. Naming that variable
-in plugin config is the explicit deployment policy authorizing this plugin to read that one secret
-and contact the configured Bot account. The model cannot read the token or change the Bot API endpoint,
+Store the Bot token under the `DSH_TELEGRAM_BOT_TOKEN` credential reference through DSH Web's model/credential
+settings (or the official `$DSH_HOME/.credentials.yaml` provider document). Naming that reference in plugin config
+is the explicit deployment policy authorizing this plugin to contact the configured Bot account. The model cannot read the token or change the Bot API endpoint,
 chat, user, or Agent route. Production accepts only `https://api.telegram.org`; loopback endpoints exist
 for a local Bot API server and tests.
 

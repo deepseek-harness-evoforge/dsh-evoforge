@@ -10,6 +10,17 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.179：渠道秘密统一接入 DSH 原生凭据（本轮）
+
+重新 fetch 并审计 canonical DSH 最新 `origin/master` `76fda729…` 后，发现两个渠道 Adapter 的生产启动仍直读
+`process.env`，这会绕过 DSH 官方 `CredentialProvider` 和常驻 Host 的凭据设置。现已把 Feishu App ID/Secret、
+Telegram Bot token 统一改为 `ctx.credentials.resolve(credentialRef(...))`，保留旧 `*Env` 配置字段名仅作 profile
+兼容；缺失凭据服务、空值和非法引用均 fail closed。Telegram 全量 `35/35`、Feishu 全量 `51/51`，两包 typecheck/build
+和 packed package-boundary/assembled 路径通过；一次先失败的 packed 测试暴露缺失 peer seam，补齐官方 credentials
+模块后才记为通过。README 同步说明 DSH Web/官方 local provider 配置，并移除渠道安装对易失 `/tmp` tarball 的
+依赖。真实 AS-1/AS-2、live rotation、Provider、Hermes paired、长期运行和 npm 归属门禁仍未通过。详见
+[V5.179 证据](evidence/v5-179-native-channel-credentials-2026-09-04.zh.md) 与 [ADR-0103](adr/0103-channel-adapters-use-native-dsh-credentials.md)。
+
 ## V5.172：飞书启动期只读 App 配置诊断（本轮）
 
 在重新 fetch 并审计最新 canonical DSH rc.1 后，针对真实 AS-2 已知的“凭据有效、WebSocket `ready`、但事件

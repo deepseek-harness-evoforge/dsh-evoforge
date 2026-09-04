@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { resolveGatewayRoutes } from 'dsh-evoforge-gateway'
-import { resolveTelegramConfig, resolveTelegramPairingConfig } from '../src/config.js'
+import { resolveTelegramConfig, resolveTelegramPairingConfig, resolveTelegramToken } from '../src/config.js'
 
 const base = {
   routeId: 'telegram-main',
@@ -72,7 +72,7 @@ describe('Telegram protected route policy', () => {
       accountId: 'bot-main',
       tokenEnv: 'MY_TELEGRAM_TOKEN',
       apiBase: 'http://127.0.0.1:8081',
-    }, { MY_TELEGRAM_TOKEN: 'secret' })
+    })
     expect(resolved).toMatchObject({
       mode: 'pairing',
       accountId: 'bot-main',
@@ -80,8 +80,25 @@ describe('Telegram protected route policy', () => {
       apiBase: 'http://127.0.0.1:8081',
     })
     expect(Object.isFrozen(resolved)).toBe(true)
-    expect(() => resolveTelegramPairingConfig({ mode: 'pairing', accountId: 'bot-main', routeId: 'telegram-main' }, { DSH_TELEGRAM_BOT_TOKEN: 'x' })).toThrow(/no static route ids/u)
-    expect(() => resolveTelegramPairingConfig({ mode: 'pairing', accountId: '' }, { DSH_TELEGRAM_BOT_TOKEN: 'x' })).toThrow(/accountId/u)
-    expect(() => resolveTelegramPairingConfig({ mode: 'pairing', accountId: 'bot-main' }, {})).toThrow(/environment variable/u)
+    expect(() => resolveTelegramPairingConfig({ mode: 'pairing', accountId: 'bot-main', routeId: 'telegram-main' })).toThrow(/no static route ids/u)
+    expect(() => resolveTelegramPairingConfig({ mode: 'pairing', accountId: '' })).toThrow(/accountId/u)
+  })
+
+  it('resolves the Bot token through the native DSH credential provider', async () => {
+    const calls: string[] = []
+    const token = await resolveTelegramToken('MY_TELEGRAM_TOKEN', {
+      resolve: async (reference: string) => {
+        calls.push(reference)
+        return { value: 'bot-token', source: 'file' }
+      },
+    })
+    expect(token).toBe('bot-token')
+    expect(calls).toEqual(['MY_TELEGRAM_TOKEN'])
+    await expect(resolveTelegramToken('MY_TEGRAM_TOKEN', {
+      resolve: async () => undefined,
+    })).rejects.toThrow(/credential reference/u)
+    await expect(resolveTelegramToken('TOKEN-NAME', {
+      resolve: async () => ({ value: 'token', source: 'file' }),
+    })).rejects.toThrow(/tokenEnv/u)
   })
 })

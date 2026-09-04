@@ -89,8 +89,10 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-telegram package bound
     await mkdir(packageScope, { recursive: true })
     for (const [name, source] of [
       ['cordis', join(dshSourceDir, 'vendor', 'cordis')],
+      ['dsh-brand', join(dshSourceDir, 'packages', 'util', 'brand')],
       ['dsh-agent', join(dshSourceDir, 'packages', 'core', 'agent')],
       ['dsh-commands', join(dshSourceDir, 'packages', 'interaction', 'commands')],
+      ['dsh-credentials', join(dshSourceDir, 'packages', 'credentials', 'credentials')],
       ['dsh-llm', join(dshSourceDir, 'packages', 'llm', 'llm')],
       ['dsh-session', join(dshSourceDir, 'packages', 'core', 'session')],
       ['dsh-storage', join(dshSourceDir, 'packages', 'storage', 'storage')],
@@ -104,6 +106,10 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-telegram package bound
     }
     const installedConfig = join(profileDir, 'installed.cordis.yml')
     await writeFile(installedConfig, JSON.stringify([
+      {
+        id: 'credentials',
+        name: join(packageRoot, 'test', 'fixtures', 'credentials-bootstrap.ts'),
+      },
       { id: 'session', name: '@deepseek-ai/dsh-session' },
       { id: 'agent', name: '@deepseek-ai/dsh-agent' },
       { id: 'commands', name: '@deepseek-ai/dsh-commands' },

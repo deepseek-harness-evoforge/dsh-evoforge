@@ -1,4 +1,4 @@
-# dsh-feishu
+# dsh-evoforge-feishu
 
 `dsh-feishu` 是 DeepSeek Harness 的飞书薄 Adapter Bundle。它不创建 Agent Runtime、Session、Goal、权限系统、网站、Webhook server 或 daemon；官方飞书 SDK 的 WebSocket 长连接由 DSH Cordis lifecycle 持有，所有入站授权、配对和会话归属由常驻 `dsh-gateway` 决定。同一个 npm 包还带一个 DSH Web Client Module，只显示已绑定 Session 的只读飞书健康视图；配对批准位于 `dsh-gateway` Host 控制面。
 
@@ -8,7 +8,8 @@
 安装本包，也要同时安装 `dsh-control-center`，否则飞书仍能连接，但 DSH Web 没有配对/健康控制面：
 
 ```sh
-PACK_DIR="$(mktemp -d)"
+PACK_DIR="${PWD}/.evoforge/packs/channels-feishu"
+mkdir -p "$PACK_DIR"
 pnpm --filter dsh-evoforge-gateway pack --pack-destination "$PACK_DIR"
 pnpm --filter dsh-control-center pack --pack-destination "$PACK_DIR"
 pnpm --filter dsh-evoforge-feishu pack --pack-destination "$PACK_DIR"
@@ -17,6 +18,10 @@ dsh --profile web --dump-config
 ```
 
 两个 Bundle 默认 disabled。部署者先在飞书开发者后台启用机器人能力、订阅 `im.message.receive_v1` 与卡片回调所需权限并选择长连接。
+App ID 和 App Secret 通过 DSH 官方 `CredentialProvider` 保存，不写入 Bundle 配置、Git 或普通环境变量。
+DSH base 已挂载 `@deepseek-ai/dsh-credentials-local`；在 DSH Web 的模型/凭据设置中写入
+`DSH_FEISHU_APP_ID` 与 `DSH_FEISHU_APP_SECRET` 两个引用，或按官方格式保存到 `$DSH_HOME/.credentials.yaml`，
+并确保文件权限为 `0600`。配置中的 `appIdEnv`/`appSecretEnv` 是为兼容已有 profile 保留的字段名，值实际是凭据引用名。
 
 ## 第一次连接：不手工查 ID
 
@@ -85,7 +90,7 @@ pending 快照，完整健康刷新仍由用户点击执行。
     contentPermissions: []
 ```
 
-`accountId` 必须等于环境中的 App ID；App Secret 只从部署环境读取。一个 Adapter 实例可列出同一个
+`accountId` 必须等于凭据引用解析出的 App ID；App Secret 只从 DSH 凭据服务读取。一个 Adapter 实例可列出同一个
 App 的多个 exact route。普通 routes 模式不接受 wildcard 或模型选择的 Workspace；它是预配置 route 与
 独立内容权限的可选方式，不是 resident pairing 成功后的迁移步骤。
 

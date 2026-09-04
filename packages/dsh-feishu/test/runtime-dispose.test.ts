@@ -56,14 +56,16 @@ describe('Feishu runtime teardown', () => {
       async sendCard() { return { messageId: 'unused' } },
       async downloadMessageResource() { throw new Error('unused') },
     }
-    const config = resolveFeishuPairingConfig({
+    const config = await resolveFeishuPairingConfig({
       mode: 'pairing',
       routeIds: [],
       appIdEnv: 'TEST_APP_ID',
       appSecretEnv: 'TEST_APP_SECRET',
     }, {
-      TEST_APP_ID: 'test-app',
-      TEST_APP_SECRET: 'test-secret',
+      resolve: async (reference: string) => ({
+        value: reference === 'TEST_APP_ID' ? 'test-app' : 'test-secret',
+        source: 'test',
+      }),
     })
     const runtime = new FeishuRuntime(ctx, config, gateway, platform)
 

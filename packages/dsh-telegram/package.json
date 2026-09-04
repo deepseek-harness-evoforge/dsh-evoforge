@@ -43,6 +43,7 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "4.0.2",
+    "@deepseek-ai/dsh-credentials": "0.1.2-alpha.5",
     "@deepseek-ai/dsh-api-remotes": "0.1.2-alpha.5",
     "@deepseek-ai/dsh-agent": "0.1.2-alpha.5",
     "@deepseek-ai/dsh-client-locale": "0.1.2-alpha.5",
@@ -66,6 +67,7 @@
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.2",
+    "@deepseek-ai/dsh-credentials": "0.1.2-alpha.5",
     "@deepseek-ai/dsh-agent": "0.1.2-alpha.5",
     "@deepseek-ai/dsh-api-remotes": "0.1.2-alpha.5",
     "@deepseek-ai/dsh-brand": "0.1.2-alpha.5",

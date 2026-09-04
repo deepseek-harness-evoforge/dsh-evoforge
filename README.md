@@ -47,10 +47,11 @@ dsh --profile web --no-open
 现有的 DSH 浏览器标签页，后续用浏览器刷新即可。若使用 `dsh-resident`，常驻服务默认追加 `--no-open`，崩溃恢复
 不会再创建网页；只有明确配置 `noOpen: false` 才会在每次启动请求浏览器交接。
 
-按需安装渠道或交付：
+按需安装渠道或交付（将 tarball 保存在仓库外的持久目录，避免 profile 依赖会被清理的 `/tmp` 路径）：
 
 ```sh
-PACK_ROOT="${PACK_ROOT:-$(mktemp -d)}"
+PACK_ROOT="${PACK_ROOT:-$PWD/.evoforge/packs}"
+mkdir -p "$PACK_ROOT"
 pnpm run pack:suite -- --suite channels --channel feishu --out "$PACK_ROOT"
 dsh plugin --profile web add "$PACK_ROOT/channels-feishu"/*.tgz
 
@@ -62,12 +63,11 @@ dsh plugin --profile web add "$PACK_ROOT/delivery"/*.tgz
 
 ## 飞书配置与配对
 
-安装 `channels` 后，为 DSH profile 配置飞书 App 的环境变量：
+安装 `channels` 后，通过 DSH 原生 CredentialProvider 配置飞书 App：
 
-```sh
-export DSH_FEISHU_APP_ID='cli_...'
-export DSH_FEISHU_APP_SECRET='...'
-```
+在 DSH Web 的模型/凭据设置中写入 `DSH_FEISHU_APP_ID` 与 `DSH_FEISHU_APP_SECRET` 两个引用，或按 DSH
+官方格式保存到 `$DSH_HOME/.credentials.yaml`（权限 `0600`）。这两个名称是插件配置里的 credential reference，
+不是要求 Adapter 读取 `process.env`；密钥不会进入 profile YAML、Git 或日志。
 
 飞书 App 需要启用机器人、长连接事件 `im.message.receive_v1`、发送消息和卡片回调，并把机器人加入测试账号
 的私聊。启动 DSH 后，陌生用户在飞书给机器人发送任意私聊：
