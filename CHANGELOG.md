@@ -6,6 +6,14 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.206**: Added a close gate to the Generation and Existing-Skill Release storage repositories. Once `close()` begins,
+  new publish/promote/rollback/pause/session-pin/native-fallback or release-decision writes are rejected immediately,
+  while already queued writes drain before the DSH Storage domains close. Added a real Storage regression covering the
+  boundary; `dsh-evolve` typecheck and Generation store `11/11` passed after auditing the latest DSH. The audited alpha.5
+  support composition then passed the root check with `CHECK_RC=0` (Evolution `310/310`, Gateway `48/48`, Feishu `56/56`,
+  Telegram `38/38`, and all other local suites/contracts). Real channels, providers, Hermes paired benchmarking, long-run
+  effects, npm ownership, and the release tag remain blocked. See [V5.206 evidence](docs/evidence/v5-206-evolution-store-close-guard-2026-09-04.zh.md).
+
 - **V5.205**: Kept the original `dsh-gateway` Bundle startup error when `apply()` cleanup also fails. Bundle teardown now
   waits via `Promise.allSettled`, logs cleanup failure through the Host logger, and rethrows the actionable startup validation
   error; a Bundle-level regression covers the boundary. Gateway `48/48` and the latest DSH alpha.5-supported root check

@@ -902,7 +902,7 @@ class DomainExistingSkillReleaseStore implements ExistingSkillReleaseStore {
     readonly created: boolean
     readonly decision: ExistingSkillReleaseDecision
   }> {
-    const result = this.writeTail.then(async () => {
+    return this.enqueue(async () => {
       const exact = parseDecision(decision)
       const table = this.domain.table('decisions')
       const prior = table.get(exact.candidateId)
@@ -913,13 +913,20 @@ class DomainExistingSkillReleaseStore implements ExistingSkillReleaseStore {
       await table.put(exact.candidateId, exact)
       return { created: true, decision: immutableCopy(exact) }
     })
-    this.writeTail = result.then(() => {}, () => {})
-    return result
   }
 
   close(): Promise<void> {
     this.closing ??= this.writeTail.then(() => this.domain.close())
     return this.closing
+  }
+
+  private enqueue<T>(operation: () => Promise<T>): Promise<T> {
+    if (this.closing !== undefined) {
+      return Promise.reject(new Error('existing Skill release store is closing'))
+    }
+    const result = this.writeTail.then(operation)
+    this.writeTail = result.then(() => {}, () => {})
+    return result
   }
 }
 

@@ -715,6 +715,66 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
       await resumedCtx.fiber.dispose()
     }
   })
+
+  it('rejects new writes once the evolution domains begin closing', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-store-close-'))
+    temporaryRoots.push(root)
+    const configPath = await writeStorageConfig(root)
+    const input = {
+      workspaceId: WORKSPACE_ID,
+      createdAt: 1_723_456_789_000,
+      artifacts: [{
+        kind: 'skill' as const,
+        name: 'close-guard',
+        gitCommit: '0123456789abcdef0123456789abcdef01234567',
+        treeHash: 'a'.repeat(64),
+      }],
+      evaluatorVersion: 'close-guard-v1',
+      policyVersion: 'close-guard-v1',
+      compositionFingerprint: 'b'.repeat(64),
+    }
+    const content = {
+      kind: 'existing-skill-release-decision-v1' as const,
+      candidateId: '1'.repeat(64),
+      workspaceId: WORKSPACE_ID,
+      skillName: 'close-guard',
+      status: 'rejected' as const,
+      actor: 'human' as const,
+      decisionNote: 'Close guard regression.',
+      decidedAt: '2026-08-21T00:00:00.000Z',
+      evidenceHash: '2'.repeat(64),
+    }
+    const decision: ExistingSkillReleaseDecision = {
+      schemaVersion: 1,
+      id: sha256Json(content),
+      ...content,
+    }
+
+    const ctx = await bootStorage(configPath)
+    const generations = await openEvolutionStore(ctx.storageDomain)
+    const releases = await openExistingSkillReleaseStore(ctx.storageDomain)
+    try {
+      await generations.close()
+      await releases.close()
+      await expect(generations.publishGeneration(input)).rejects.toThrow(
+        'Capability Generation store is closing',
+      )
+      await expect(generations.setRecoveryPaused(WORKSPACE_ID, true)).rejects.toThrow(
+        'Capability Generation store is closing',
+      )
+      await expect(generations.pinSession({
+        workspaceId: WORKSPACE_ID,
+        sessionId: 'closed-session',
+        createdAt: 1_723_456_789_000,
+      })).rejects.toThrow('Capability Generation store is closing')
+      await expect(releases.record(decision)).rejects.toThrow(
+        'existing Skill release store is closing',
+      )
+    } finally {
+      await Promise.all([generations.close(), releases.close()])
+      await ctx.fiber.dispose()
+    }
+  })
 })
 
 function discoveredLineage(candidateTreeHash: string): SkillCandidateLineage {

@@ -299,9 +299,7 @@ class DomainEvolutionStore implements EvolutionStore {
     created: boolean
     generation: CapabilityGeneration
   }> {
-    const result = this.writeTail.then(() => this.publishNow(input))
-    this.writeTail = result.then(() => {}, () => {})
-    return result
+    return this.enqueue(() => this.publishNow(input))
   }
 
   getGeneration(id: string): CapabilityGeneration | undefined {
@@ -330,9 +328,7 @@ class DomainEvolutionStore implements EvolutionStore {
 
   setRecoveryPaused(workspaceId: string, paused: boolean): Promise<{ changed: boolean; paused: boolean }> {
     const exactWorkspaceId = workspaceIdSchema.parse(workspaceId)
-    const result = this.writeTail.then(() => this.setRecoveryPausedNow(exactWorkspaceId, paused))
-    this.writeTail = result.then(() => {}, () => {})
-    return result
+    return this.enqueue(() => this.setRecoveryPausedNow(exactWorkspaceId, paused))
   }
 
   promoteGeneration(
@@ -345,9 +341,7 @@ class DomainEvolutionStore implements EvolutionStore {
   }> {
     const exactWorkspaceId = workspaceIdSchema.parse(workspaceId)
     const exactEvidence = generationSelectionEvidenceSchema.parse(evidence)
-    const result = this.writeTail.then(() => this.promoteNow(exactWorkspaceId, id, exactEvidence))
-    this.writeTail = result.then(() => {}, () => {})
-    return result
+    return this.enqueue(() => this.promoteNow(exactWorkspaceId, id, exactEvidence))
   }
 
   rollbackGeneration(
@@ -361,13 +355,11 @@ class DomainEvolutionStore implements EvolutionStore {
     const exactWorkspaceId = workspaceIdSchema.parse(workspaceId)
     const exactExpectedActiveId = hashSchema.parse(expectedActiveId)
     const exactEvidence = generationSelectionEvidenceSchema.parse(evidence)
-    const result = this.writeTail.then(() => this.rollbackNow(
+    return this.enqueue(() => this.rollbackNow(
       exactWorkspaceId,
       exactExpectedActiveId,
       exactEvidence,
     ))
-    this.writeTail = result.then(() => {}, () => {})
-    return result
   }
 
   listGenerationSelectionEvents(workspaceId: string): readonly GenerationSelectionEvent[] {
@@ -379,15 +371,11 @@ class DomainEvolutionStore implements EvolutionStore {
     identity: SessionIdentity,
     options?: { parentSessionId?: string },
   ): Promise<CapabilityGeneration | undefined> {
-    const result = this.writeTail.then(() => this.pinNow(identity, options))
-    this.writeTail = result.then(() => {}, () => {})
-    return result
+    return this.enqueue(() => this.pinNow(identity, options))
   }
 
   fallbackSessionToNative(identity: SessionIdentity): Promise<void> {
-    const result = this.writeTail.then(() => this.fallbackToNativeNow(identity))
-    this.writeTail = result.then(() => {}, () => {})
-    return result
+    return this.enqueue(() => this.fallbackToNativeNow(identity))
   }
 
   getSessionGeneration(identity: SessionIdentity): CapabilityGeneration | undefined {
@@ -415,6 +403,13 @@ class DomainEvolutionStore implements EvolutionStore {
   close(): Promise<void> {
     this.closing ??= this.writeTail.then(() => this.domain.close())
     return this.closing
+  }
+
+  private enqueue<T>(operation: () => Promise<T>): Promise<T> {
+    if (this.closing !== undefined) return Promise.reject(new Error('Capability Generation store is closing'))
+    const result = this.writeTail.then(operation)
+    this.writeTail = result.then(() => {}, () => {})
+    return result
   }
 
   private async publishNow(input: GenerationInput): Promise<{
