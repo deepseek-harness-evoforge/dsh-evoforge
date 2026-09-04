@@ -34,7 +34,9 @@ dsh plugin --profile web add "$PACK_ROOT/core"/*.tgz
 dsh --profile web --dump-config
 ```
 
-有效配置应分别出现一次 `dsh-evolve`、`dsh-doctor`、`dsh-control-center` 和 `dsh-evolve-web`。渠道、GitHub review、Goal continuity、OS service 和 attention 都是独立可选能力；涉及外部身份、凭据、自动恢复或 OS 部署的 row 应保持 disabled，直到部署者提供完整静态配置。
+有效配置应分别出现一次 `dsh-evolve`、`dsh-doctor`、`dsh-control-center` 和 `dsh-evolve-web`；安装 `channels` 后还会有一个
+安装即启用、默认 `routes: []` 的 `dsh-gateway`。渠道、GitHub review、Goal continuity、OS service 和 attention 都是独立可选能力；
+涉及外部身份、凭据、自动恢复或 OS 部署的 Adapter row 应保持 disabled，直到部署者提供完整静态配置。
 
 启动唯一的 DSH Host（关闭自动打开新网页）：
 

@@ -1,6 +1,6 @@
 # dsh-gateway
 
-`dsh-gateway` 是默认关闭的 DeepSeek Harness 原生 Cordis Bundle，也是 Telegram、飞书等渠道
+`dsh-gateway` 是安装即启用的 DeepSeek Harness 原生 Cordis Bundle，也是 Telegram、飞书等渠道
 Adapter 共用的 Host 接缝。它把部署者声明的 external account/conversation/thread/user 精确绑定到一个
 原生 DSH Workspace、Session 和 Agent preset，并负责进入 DSH 前的文本/原生图片引用标准化、路由、幂等，以及普通文本
 出站意图的持久化、串行投递和崩溃不确定性。
@@ -14,7 +14,9 @@ pnpm --filter dsh-evoforge-gateway pack --pack-destination /tmp
 dsh plugin --profile web add /tmp/dsh-control-center-0.1.0-alpha.1.tgz /tmp/dsh-evoforge-gateway-0.1.0-alpha.1.tgz
 ```
 
-Bundle row 默认为 `disabled: true`。部署者在同一个 DSH profile 中配置精确 route 后启用：
+安装后 Gateway 立即启动并保持常驻。默认 `routes: []`，只打开本地 Host 接缝和控制面，不连接平台、不发送消息、
+不创建 Agent/Session；只有配置了精确 route 的渠道 Adapter 才会产生外部连接。部署者在同一个 DSH profile 中
+配置精确 route，并按需启用对应 Adapter：
 
 ```yaml
 - id: evoforge-gateway

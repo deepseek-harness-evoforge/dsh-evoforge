@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.217**: Made the resident `dsh-gateway` Bundle install enabled with an empty `routes: []` by default. A channel
+  suite now starts the local Host Gateway and read-only control surface without platform connections, credentials, messages,
+  or Agent/Session creation; Feishu and Telegram remain disabled until exact credentials and routes are configured. Added a
+  package contract, rebuilt the Gateway, packed the four-package channels suite, and passed documentation/suite checks. See
+  [V5.217 evidence](docs/evidence/v5-217-gateway-install-enabled-2026-09-04.zh.md).
+
 - **V5.215**: Reran the frozen Hermes EV-1 epoch-4 deterministic control-plane comparison on the audited, buildable
   DSH alpha.5 support composition. Calibration was `2/2`; both sides had baseline `fail` and corrected `pass`, while
   EvoForge modified `0` active Skill artifacts before final-test versus Hermes `1`, preserving EvoForge's immutable

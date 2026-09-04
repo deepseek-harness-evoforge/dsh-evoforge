@@ -2,6 +2,8 @@
 
 > **环境记录（V5.216）**：本轮尝试用 in-app Browser 复核 `127.0.0.1:3080` 单页交互时，浏览器 URL policy 在页面 DOM 读取前拒绝了该本地地址；未绕过策略、未切换未授权控制通道、未修改 UI，也未把本轮记为通过。历史 V5.183/V5.196 单页浏览器证据仍保留，`web-control-plane` 继续按 release gate 为 `partial`。详见 [V5.216 证据](evidence/v5-216-browser-policy-block-2026-09-04.zh.md)。
 
+> **最新增量（V5.217）**：修正 `channels` 安装后的常驻语义：`dsh-gateway` Bundle 现在安装即启用，默认 `routes: []`，只启动本地 Host 接缝和无模型控制面，不连接平台、不读取凭据、不发送消息；Feishu/Telegram Adapter 仍保持 disabled，直到部署者提供精确凭据和 route。Gateway 契约 `4/4`、全包回归 `52/52`、根级 `CHECK_RC=0`、构建、套件 `6/6` 与文档门通过；解包 tarball 已确认 patch 不再写入 `disabled: true`。详见 [V5.217 证据](evidence/v5-217-gateway-install-enabled-2026-09-04.zh.md)。真实渠道、Provider、Hermes paired、长期效果、npm ownership 与发布 tag 门禁仍未通过。
+
 > **最新验证（V5.215）**：在已审计可构建 DSH alpha.5 与 Hermes `29d0cc2…` 上复跑冻结 EV-1 epoch-4，校准 `2/2`，两边 baseline 均 fail、corrected 均 pass；EvoForge 在 final-test 前 active Skill mutation `0`，Hermes `1`，EvoForge 的 baseline immutable、Candidate mutation boundary、Session pin 与 rollback/restart hard gates 为真。该结果只证明确定性发布控制面的边界优势，不冒充模型质量、真实渠道、Provider 或整体 Hermes 上位替代。详见 [V5.215 证据](evidence/v5-215-hermes-ev1-rerun-2026-09-04.zh.md)。
 
 > **最新增量（V5.214）**：Feishu 与 Telegram pairing 在授权 await 返回后重新检查 runtime 生命周期；卸载期间迟到的授权结果不再调用平台 API，即使 SDK 不遵守已中止 signal 也不会发送配对码。Feishu teardown 回归断言授权跨卸载边界时发送次数为零；Feishu `57/57`、Telegram `38/38`，在最新 DSH 审计支持组合上根级 `CHECK_RC=0`，其余套件/合同通过。真实渠道、Provider、Hermes paired、长期效果、npm ownership 与发布 tag 门禁仍未通过。详见 [V5.214 证据](evidence/v5-214-channel-auth-dispose-guard-2026-09-04.zh.md)。

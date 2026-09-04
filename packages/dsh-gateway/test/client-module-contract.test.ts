@@ -26,6 +26,13 @@ describe('Gateway native DSH Client Module', () => {
     expect(manifest.files).not.toContain('test')
   })
 
+  it('installs the Host Gateway enabled while keeping platform adapters opt-in', async () => {
+    const patch = await readFile(resolve(packageRoot, 'cordis.patch.yml'), 'utf8')
+    expect(patch).toContain('id: evoforge-gateway')
+    expect(patch).toContain('name: dsh-evoforge-gateway')
+    expect(patch).not.toContain('disabled: true')
+  })
+
   it('keeps browser code outside the Host artifact and exposes only one read method', async () => {
     const client = await readFile(resolve(packageRoot, 'dist/client.js'), 'utf8')
     const host = await readFile(resolve(packageRoot, 'dist/index.mjs'), 'utf8')

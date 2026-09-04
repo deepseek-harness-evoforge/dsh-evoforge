@@ -7,7 +7,7 @@ EvoForge 对用户不再把十二个内部 Bundle 当成十二个必须理解的
 | 套件 | 包含的内部 Bundle | 适合谁 | 默认影响 |
 |---|---|---|---|
 | `core` | `dsh-evolve`、`dsh-doctor`、`dsh-control-center`、`dsh-evolve-web` | 自我进化闭环、运行诊断和 DSH Web 控制面 | 四个 Bundle 仍可独立禁用/卸载；不新增模型表面 |
-| `channels` | `dsh-control-center`、`dsh-gateway`、`dsh-feishu`、`dsh-telegram` | 需要飞书/Telegram 私聊、配对和持久投递，并在同一个 DSH Web 页面管理渠道 | 包含一个无模型的原生控制面；不强制安装自我进化或通知层；渠道 Adapter 默认 disabled，必须提供精确凭据和路由 |
+| `channels` | `dsh-control-center`、`dsh-gateway`、`dsh-feishu`、`dsh-telegram` | 需要飞书/Telegram 私聊、配对和持久投递，并在同一个 DSH Web 页面管理渠道 | Gateway 安装即常驻且默认 `routes: []`，不连接平台；渠道 Adapter 默认 disabled，必须提供精确凭据和路由 |
 | `delivery` | `dsh-software-delivery`、`dsh-github-review` | 需要隔离交付、Draft PR 和原生 Session 内的 GitHub review 跟进 | Skill/Tool 表面按 DSH 原生规则固定；外部 GitHub 写入仍受保护动作约束 |
 | `continuity` | `dsh-goal-continuity`、`dsh-resident` | 需要有限 Goal 冷恢复和登录后常驻 DSH profile | 两项均 opt-in；不创建第二 Scheduler、Daemon 或状态库 |
 

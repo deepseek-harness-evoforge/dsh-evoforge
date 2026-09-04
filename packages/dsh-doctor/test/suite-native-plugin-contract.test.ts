@@ -69,7 +69,7 @@ const contracts: readonly {
     name: 'dsh-gateway',
     moduleName: 'dsh-evoforge-gateway',
     entryId: 'evoforge-gateway',
-    disabled: true,
+    disabled: false,
   },
   {
     name: 'dsh-feishu',
