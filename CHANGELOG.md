@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.153**: Re-ran the complete alpha.5 repository check after making resident Web services default to DSH's
+  `--no-open` handoff. The latest canonical DSH rc.1 was fetched and verified clean; documentation, contracts, all 12
+  Bundle typechecks, tests, and builds passed (`exit 0`, Resident `17 passed / 1 skipped`, Gateway `41/41`, Feishu
+  `46/46`, Telegram `34/34`, Evolution `309/309`). No real credentials or external effects were used; real-channel,
+  Provider, Hermes paired, long-term, and npm gates remain unchanged. See [V5.153 evidence](docs/evidence/v5-153-alpha5-full-check-after-resident-default-2026-09-04.zh.md).
+
 - **V5.152**: Changed `dsh-resident` to default `noOpen: true`, so a launchd/systemd crash restart appends DSH's
   official `--no-open` and does not create another browser tab. An operator can explicitly set `noOpen: false` when
   this service should open the Web UI on every start. Resident tests (`17 passed / 1 skipped`), typecheck, and build
