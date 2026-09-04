@@ -39,7 +39,7 @@ EvoForge 的十二个物理 Bundle 仍以 `dsh-*` 作为仓库目录和逻辑 Bu
 
 ## 验证
 
-- `docs/evidence/v5-104-npm-package-name-collision-2026-09-04.zh.md` 记录了当前 registry 事实和四个冲突；
+- `docs/evidence/v5-171-public-package-name-migration-2026-09-04.zh.md` 记录了 registry 事实、四个冲突和迁移结果；
 - `scripts/check-npm-package-names.mjs` 在发布工作流的 `npm publish` 前执行，未知 registry 错误也阻断；当前
   `dsh-evoforge-*` 返回可用，但不代表命名空间归属已经完成。
 - Scope/发布授权完成后，本 ADR 的第 2、4 条必须由新的迁移证据逐项关闭，不能以改 manifest 或单元测试代替。

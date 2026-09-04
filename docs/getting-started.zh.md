@@ -1,114 +1,64 @@
-# 安装、使用与卸载
+# 安装、配置与卸载
 
-EvoForge 只作为 DSH 原生 Bundle 套件运行。本页区分“开发者生成 tarball”和“用户通过 DSH 安装/使用”；仓库测试、源码 import 或独立命令都不是安装。
+EvoForge 只加载进现有 DSH Host，不启动第二个 Agent Runtime、Web 服务或 Gateway。当前仍是 pre-alpha，尚无
+registry 包；本页描述可复现的仓库安装方式。
 
-## 1. 前置条件
+## 1. 准备
 
-- Node.js `^22.19.0 || >=24`、pnpm；
-- DeepSeek Harness `dsh-v0.1.2-alpha.5`，revision
-  `db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`；
-- 一个 DSH `web` profile。
+- Node.js 22、pnpm 11；
+- 可运行的 DSH CLI；
+- 一个可写的 DSH profile，默认名为 `web`；
+- 使用渠道时，准备平台应用和最小权限。
 
-DSH 最新公开版本已推进到 `dsh-v0.1.2-rc.1`，但其干净完整构建仍有上游根级 tsdown 入口问题；在该问题
-修复并完成独立迁移矩阵前，不要把 rc.1 与本项目当前已验证的 alpha.5 混装。每次开发/测试前都应先更新
-DSH、确认 revision 和 clean worktree；本页命令使用的是当前可复现的 alpha.5 基线。
+每次开发和发布验证前都要审计 DSH 最新 revision。当前 canonical latest 与可构建支持基线并不相同，准确结论见
+[当前状态](status.zh.md)，不要根据旧 evidence 猜版本。
 
-当前包尚未发布到 registry。先按用户结果生成需要的能力套件；这一步只生成 DSH 安装产物，不启动 EvoForge Runtime：
+## 2. 一行安装完整产品
 
-```sh
-pnpm install --frozen-lockfile
-PACK_ROOT="${PWD}/.evoforge/packs"
-mkdir -p "$PACK_ROOT"
-pnpm run pack:suite -- --suite core --out "$PACK_ROOT"
-```
-
-`pack:suite` 省略 `--suite` 时默认仍是面向用户的 `core`；完整十二包只用于维护者验收，并需显式执行
-`pnpm run pack:full`。
-
-用户按能力选择套件即可；默认入口是 `core`、`channels`、`delivery`、`continuity`，`attention` 按需安装；完整边界和为什么不物理合并见[能力套件说明](capability-suites.zh.md)。维护者或完整验收使用 `--suite full`。每个输出目录都会包含官方 Bundle 及带 SHA-256/audience 的 `evoforge-suite.json`。
-
-## 2. 安装与有效配置
+在仓库根目录运行：
 
 ```sh
-dsh plugin --profile web add "$PACK_ROOT/core"/*.tgz
-dsh --profile web --dump-config
+pnpm install --frozen-lockfile && pnpm run dsh:install
 ```
 
-有效配置应分别出现一次 `dsh-evolve`、`dsh-doctor`、`dsh-control-center` 和 `dsh-evolve-web`；安装 `channels` 后还会有一个
-安装即启用、默认 `routes: []` 的 `dsh-gateway`。渠道、GitHub review、Goal continuity、OS service 和 attention 都是独立可选能力；
-涉及外部身份、凭据、自动恢复或 OS 部署的 Adapter row 应保持 disabled，直到部署者提供完整静态配置。
+默认安装 `product`：Evolution、Doctor、Control Center、Gateway、Feishu 和 Telegram。指定其他 profile：
 
-启动唯一的 DSH Host（关闭自动打开新网页）：
+```sh
+pnpm run dsh:install -- --profile personal
+```
+
+可选附加能力：
+
+```sh
+pnpm run dsh:install -- --suite delivery --profile web
+pnpm run dsh:install -- --suite continuity --profile admin
+```
+
+安装器在新 staging 中打包，读取 `evoforge-suite.json`，校验 exact 文件与 SHA-256，再把整组产物按内容地址
+原子保存到用户持久数据目录；DSH 安装的永远是该目录中的绝对路径。Bundle 已预构建，因此安装显式禁用依赖
+install script，不替用户授予第三方构建权限。成功只清 staging，失败保留可恢复产物。两次 DSH 配置核对均在
+进程内完成，完整 effective config 不会打印到 Agent/终端日志。
+
+安装命令会修改目标 profile。人在 shell 中直接运行时，这不是 DSH Agent Approval；由 Agent 通过 DSH Shell
+运行时，原生 Tool policy/Approval 仍然生效。安装插件不会写 OS service，只有随后显式执行
+`/resident apply <hash>` 才会创建服务。
+
+## 3. 启动一个 Host 和一个页面
 
 ```sh
 dsh --profile web --no-open
 ```
 
-启动日志会打印 Web URL。只需把它打开到现有的 DSH 浏览器标签页；不要为了刷新、重连或查看插件而再次运行启动命令，
-否则 DSH 会按官方行为再次请求浏览器交接。常驻 `dsh-resident` 默认使用同样的 `--no-open`，崩溃恢复不会创建重复页面。
-确需每次启动自动打开时，才在 resident 配置中显式设置 `noOpen: false`。
+只打开启动日志给出的完整 URL，并保留 `?token=...`。裸端口返回 401。以后刷新现有标签页，不要因为安装了
+Gateway、Evolution 或渠道再启动 Host。Control Center 是 Session-scoped；先创建或打开原生 Session，空白
+onboarding 页面可能不会渲染该 slot。
 
-## 3. 在 DSH 内使用
+## 4. 飞书
 
-在已有 DSH 会话中：
-
-1. `/doctor` 读取原生 Loader entries；若飞书/Telegram 是必需且 active 的模块，再读取现有 Gateway 脱敏
-   transport health，返回三态 readiness。它不探测凭据/平台、不修复，也不复制第二份健康状态。
-2. DSH Web 的原生“控制台”页统一承载 Gateway、飞书、Telegram、Doctor 和演化 Surface；各 Surface 读取原插件 Host/Command 权威，不调用模型，也不复制状态库。Doctor 与 Telegram 通过已有 `/doctor`、`/telegram` 只读 Command 读取，不创建第二份健康状态。
-3. 创建原生 DSH Goal，让 Agent 按需加载 `software-delivery` Skill；`complete_delivery` 通过该 Agent 的 DSH Bash、Sandbox、Approval 和原生 `update_goal` 完成交付。
-4. `dsh-github-review` 只把 allowlist 人类对 exact Draft PR head 的修改要求作为有界、不可信 follow-up 送回原 Session。
-5. Telegram 与飞书只通过 DSH Gateway 绑定原生 Workspace/Session/Agent；进化注意力和 Goal cold resume 也不创建第二套会话、目标或调度。
-6. Resident 只通过 `/resident plan|status|apply <plan-sha256>|remove <service-id>` 管理 exact OS user unit；先审查 plan，再逐次确认 hash 或 service id。
-
-纠正首先保存在当前 Workspace。若内部证据尚未达到资格门，或 Workspace 没有启用对应的治理策略，原生 DSH Web
-概览会直接显示等待原因；它不会要求用户选择或配置 Skill、Target 或路径，也不会把“已记录反馈”误报为“已经进化”。
-满足策略后，进化资格验证、Shadow、review、promote 和 rollback 仍通过 `/evolve` Commands 或同一 DSH Web Host
-完成。Command 和浏览器不接收任意 host path、模型路由或执行权限。
-
-Telegram 示例：
+完整产品已经安装飞书 Adapter，但它默认关闭。先在该 profile 的官方 patch 中增加或覆盖：
 
 ```yaml
-- id: evoforge-gateway
-  name: dsh-evoforge-gateway
-  disabled: false
-  config:
-    routes:
-      - id: telegram-personal
-        adapter: telegram
-        accountId: personal-bot
-        conversationId: "100000001"
-        userId: "200000002"
-        workspaceId: 11111111-1111-4111-8111-111111111111
-        sessionId: personal-main
-        agentPreset: standard
-        provider: deepseek-official
-        model: deepseek-v4-flash
-
-- id: evoforge-telegram
-  name: dsh-evoforge-telegram
-  disabled: false
-  config:
-    routeId: telegram-personal
-    tokenEnv: DSH_TELEGRAM_BOT_TOKEN
-```
-
-Goal cold-resume 示例：
-
-```yaml
-- id: evoforge-goal-continuity
-  name: dsh-goal-continuity
-  disabled: false
-  config:
-    autoResumeSessionIds:
-      - personal-main
-```
-
-token 由启动 DSH 的环境提供。模型不能读取 token、修改 route、选择 Workspace 或扩大 allowlist。
-
-飞书使用官方 SDK WebSocket 长连接，不创建 EvoForge Webhook server。第一次使用无需到后台手工寻找
-`chat_id`/`open_id`：先让 `dsh-gateway` 保持 `routes: []`，再把 `evoforge-feishu` 配成：
-
-```yaml
+- id: evoforge-feishu
   name: dsh-evoforge-feishu
   disabled: false
   config:
@@ -118,101 +68,70 @@ token 由启动 DSH 的环境提供。模型不能读取 token、修改 route、
     appSecretEnv: DSH_FEISHU_APP_SECRET
 ```
 
-先在 DSH Web 的模型/凭据设置中写入 `DSH_FEISHU_APP_ID` 与 `DSH_FEISHU_APP_SECRET`，或按官方格式保存到
-`$DSH_HOME/.credentials.yaml`（权限 `0600`）。这两个名称是 credential reference，不是让 Adapter 直接读取
-`process.env`。启动 DSH Web 后，Adapter 立即常驻连接。先打开准备绑定的 Workspace/Session，再让用户给飞书机器人发送
-任意私聊消息；机器人会在 Agent 之前消费首条消息并回复配对码。打开 DSH Web 原生“控制台”，进入“渠道”
-Surface；“待批准请求”会显示这次请求的脱敏 Adapter、有效期和账户指纹。管理员可直接点击“直接批准”，
-也可把 code 粘贴到“渠道配对”兼容输入框，并选择对应 Adapter。用户发送下一条消息即可进入当前原生 Session；不需要改 profile
-或重启。群聊、过期
-code、重放、无 live Session 和 Workspace ownership 漂移均 fail closed；没有 `/feishu-pair` Command。
+`appIdEnv` 和 `appSecretEnv` 是历史命名保留的 **CredentialProvider 引用名**，不是让用户导出环境变量。启动
+Host 后，在同一 Control Center 的 Feishu 凭据表单保存 App ID/Secret；值只进入 DSH CredentialProvider，不能
+写进 YAML、Git、日志或 Session。
 
-需要撤销动态授权时，在同一“渠道”Surface 的“授权路由”区点击对应 route 的“撤销”，再点击一次“确认撤销”。
-静态配置 route 不提供该动作；仍有活动入站或出站效果时 Host 会拒绝撤销。成功后原生 Session 保留，该用户
-下一条私聊会重新收到配对码。此动作会中断该外部 principal 的后续访问，操作前应确认目标 route。
+飞书开发者后台至少需要机器人、长连接事件 `im.message.receive_v1` 和发送消息权限，并发布当前应用版本。随后：
 
-正常模式下，一个 App 可列出多个 exact route，所有 route 的 `accountId` 必须等于部署环境中的 App ID：
+1. 陌生用户发送第一条私聊；Gateway 返回一次性配对码，消息不进入 Agent。
+2. 管理员在同一页面的 **Channels** 中选择已有 Workspace/Session 并批准。
+3. 用户发送下一条消息；它进入绑定的原生 Session。
+
+pairing 不需要用户手工提供 `chat_id` 或 `open_id`。过期码、重放、没有可用 Session、身份不匹配或不确定发送
+结果都会停在可诊断状态，不会盲目重试。
+
+群聊、图片、文件、知识库、云盘和多维表格必须在 exact route 上逐项开启 `contentPermissions`，并服从 DSH
+Attachment/Tool/Approval 契约。当前 DSH 不支持的内容类型会明确拒绝，不伪装成图片或静默丢失。
+
+## 5. Telegram
+
+Telegram Adapter 同样默认关闭。最小 pairing patch：
 
 ```yaml
-- id: evoforge-gateway
-  name: dsh-evoforge-gateway
+- id: evoforge-telegram
+  name: dsh-evoforge-telegram
   disabled: false
   config:
-    routes:
-      - id: feishu-personal
-        adapter: feishu
-        accountId: cli_xxxxxxxxxxxxx
-        conversationId: oc_xxxxxxxxxxxxx
-        userId: ou_xxxxxxxxxxxxx
-        workspaceId: 22222222-2222-4222-8222-222222222222
-        sessionId: feishu-personal-main
-        agentPreset: standard
-        provider: deepseek-official
-        model: deepseek-v4-flash
-
-- id: evoforge-feishu
-  name: dsh-evoforge-feishu
-  disabled: false
-  config:
-    routeIds: [feishu-personal]
-    appIdEnv: DSH_FEISHU_APP_ID
-    appSecretEnv: DSH_FEISHU_APP_SECRET
+    mode: pairing
+    accountId: telegram-bot-prod
+    tokenEnv: DSH_TELEGRAM_BOT_TOKEN
+    routeIds: []
 ```
 
-飞书 Adapter 会自动采用启动 DSH 进程中的 `HTTPS_PROXY`/`https_proxy` 或
-`ALL_PROXY`/`all_proxy`，并遵守 `NO_PROXY`/`no_proxy`。该设置只作用于此飞书连接，
-不改写环境或 Node 全局 Agent。
+`tokenEnv` 也是 CredentialProvider 引用名。保存 Bot token 后，陌生私聊使用与飞书相同的“首条配对、页面批准、
+下一条进入 Session”流程。静态生产路由必须精确绑定 account、conversation/user、Workspace、Session、Agent、
+provider 和 model，不接受 wildcard。
 
-## 4. 禁用、卸载与回退
+## 6. 日常使用与进化
 
-当前尚未发布 registry 版本；本地最终 tarball 的升级继续使用 DSH 官方插件命令，把新一组 exact tarball spec
-交给同一 profile。该操作由 DSH 转发给 pnpm 并按安装后事实重新协调 Bundle 层：
+像普通 DSH 一样对话、发材料和纠正回答即可；没有单独的“进化模式”。EvoForge 在旁路记录可归因事件，候选
+只在独立评测后才可能用于未来 Session。一次失败、retry 或模型自评不构成学习；缺少证据时状态必须是
+`abstain`、`review`、`quarantine` 或 `uncertain`。
 
-```sh
-dsh plugin --profile web add /absolute/path/to/new-pack/*.tgz
-dsh --profile web --dump-config
-dsh --profile web --no-open
-```
+统一页面展示已安装模块的 Host 状态、渠道连接与配对、Gap、Candidate 谱系/diff、评测和治理动作。未安装的
+能力显示空态；读取失败保留 last-good 并标记 stale/error。当前真实 Provider 慢环仍未完成，状态页会明确写
+`partial`，不会用本地夹具冒充产品完成。
 
-升级前应停止对应 profile；不要手工改 `node_modules` 或 `dsh.profile.bundles`。首个正式 tag 发布后，发布门还会
-固定 tag→tag 迁移矩阵；当前 V5.14 只证明冻结的 pre-release predecessor 到当前最终包。
+## 7. 更新与卸载
 
-禁用单包时，在 profile patch 中覆盖稳定 row 的 `disabled: true`。完全移除一个已安装套件（以 evolution + control 为例）：
+本地升级重新运行同一个安装命令，会产生新的内容地址并交给 DSH 协调。不要删除安装器打印的持久数据目录；
+DSH 的 profile/lockfile 可能继续引用其中的 tarball。
 
-```sh
-dsh plugin --profile web remove \
-  dsh-evolve dsh-doctor dsh-control-center dsh-evolve-web
-dsh --profile web --dump-config
-dsh --profile web --no-open
-```
+成功输出会给出 `Verified manifest` 路径。打开该 manifest，复制 `dshRemove`，把 `<profile>` 换成实际 profile 后
+执行。然后重新启动一个 Host，确认 EvoForge 表面消失且原生 Session/Goal/Workspace 仍可读。卸载不会撤回
+消息、提交或其他外部效果。
 
-卸载后的官方 DSH Bundle 仍保留；Session、Goal、Workspace 和 Storage 继续由 DSH 读取。外部系统已经接受的消息或 PR 效果不能由卸载撤回。
+若安装过 `continuity` 并实际执行了 `/resident apply`，必须先运行 `/resident status`，再用
+`/resident remove <service-id>` 删除 OS service；仅卸载 Bundle 不会伪装成已撤销系统服务。
 
-## 5. 开发与 assembled 验收
+## 8. 排障
 
-```sh
-DSH_EVOLVE_DSH_SOURCE_DIR=/path/to/dsh-v0.1.2-alpha.5 pnpm check
-pnpm test:suite-upgrade
-DSH_EVOLVE_DSH_SOURCE_DIR=/absolute/path/to/deepseek-harness \
-  pnpm --filter dsh-doctor exec vitest run test/suite-native-plugin-contract.test.ts
-DSH_EVOLVE_DSH_SOURCE_DIR=/absolute/path/to/deepseek-harness \
-  pnpm --filter dsh-software-delivery exec vitest run test/clean-profile-suite.e2e.test.ts
-pnpm benchmark:hermes
+1. 在原生 Session 运行 `/doctor`，先看 Loader、Bundle 和 Gateway 状态。
+2. Web 401 时重新使用启动日志中的完整认证 URL。
+3. 渠道停在 waiting 时，检查 Adapter 是否启用、CredentialProvider 引用是否存在、平台事件订阅是否已发布。
+4. `unknown`/`uncertain` 时先核对 Gateway journal，不要重复发送。
+5. Issue 只附脱敏的 revision、命令和状态；不要附完整 `--dump-config`、Secret、token、真实消息或私有样本。
 
-# 当前可构建 alpha.5 的 EV-1 epoch-2（严格匹配 manifest/result）
-DSH_EVOLVE_DSH_SOURCE_DIR=/absolute/path/to/dsh-v0.1.2-alpha.5 \
-  pnpm benchmark:hermes:ev1:alpha5
-
-# 当前 Hermes origin/main 的 EV-1 epoch-4（需提供固定 revision checkout）
-DSH_EVOLVE_DSH_SOURCE_DIR=/absolute/path/to/dsh-v0.1.2-alpha.5 \
-EVOFORGE_HERMES_SOURCE_DIR=/absolute/path/to/hermes-at-29d0cc2602e01943ab300c0382fc9d97efb376da \
-  pnpm benchmark:hermes:ev1:alpha5:current
-```
-
-`pnpm benchmark:hermes` 保留历史四个冻结 epoch 的兼容入口；当前 alpha.5 的 EV-1 请使用上面的显式入口。
-当前 Hermes 的 epoch-4 入口也会核对 Hermes 与 DSH exact revision；结果漂移会 fail closed，不能用旧 epoch
-代替真实模型或渠道 paired 验收。详见 [V5.135 证据](evidence/v5-135-hermes-current-ev1-epoch-3-2026-09-04.zh.md)。
-
-clean-profile gate 仍从全部十二个内部 Bundle 的 tarball 开始，通过一次官方 DSH CLI 安装、dump、boot，在注册后的原生 Workspace 与真实 Agent preset/Session/Goal 内触发 packed Tool，flush 原生持久化，再一次卸载全部包、重启并读回 Goal。用户不必安装全包；能力套件只是对这套真实 Bundle 的精简安装编排。它同时检查每个 tarball 无用户产品 bin、无 `node_modules`，且 production dependencies 不携带 DSH/Cordis。
-
-Resident 已有原生 Bundle、DSH Command、无 bin tarball以及 launchd/systemd 协议回归；DSH Gateway、Telegram 与飞书已通过原生 Bundle、持久 ingress/outbound、真实 DSH Host/Agent Loop、Command、Approval、continuation、429/uncertain、双 Workspace 双渠道重启隔离与 tarball lifecycle。Workspace-scoped evolution、Telegram/飞书进化注意力、十二包同一 clean-profile gate、完整 composition Cache Contract gate，以及 Evolution/Doctor/Telegram loopback 的 DSH 浏览器路径已通过；真实飞书 App 身份请求和标准代理环境 WebSocket 握手也已通过。真实 Telegram Bot 的 AS-1 执行器与零副作用合同已接入，但真实陌生用户配对、真实飞书 AS-2、同模型编码/长任务和真实消息交付 epochs 仍缺失，这些完成前不能发布 v0.1。Telegram 真实运行必须使用其独立授权和仓库外 run root，详见 [AS-1 说明](../benchmarks/telegram-v0.1/as1-real-channel/README.zh.md)。
+套件边界见[能力套件](capability-suites.zh.md)。贡献者的真实渠道、Provider 与 Hermes 验收命令只在
+[发布门](releasing.zh.md)和[benchmarks 说明](../benchmarks/README.md)中维护，不属于用户流程。

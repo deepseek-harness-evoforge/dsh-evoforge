@@ -1,3 +1,0 @@
-# Make evidence-driven evolution the flagship
-
-EvoForge treats continuous evolution as its flagship, with software delivery as the first measurable proving ground. Candidate generation and held-out optimization already exist in Hermes Self-Evolution, GEPA, and related projects, so they are reusable machinery rather than the product's unique claim. The differentiator is a DSH-native control plane that preserves live sessions and KV Cache, evaluates inactive candidates, keeps ambiguous review off the foreground path, and releases proven versions atomically with crash recovery and rollback. An offline Shadow experiment must prove evaluator value before this release infrastructure is built.

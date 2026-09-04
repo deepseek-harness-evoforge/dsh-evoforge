@@ -33,14 +33,14 @@ EvoForge 以 DSH 官方 Bundle 作为交付单元，以能力套件作为用户�
 pnpm install --frozen-lockfile
 DSH_EVOLVE_DSH_SOURCE_DIR=/path/to/dsh-v0.1.2-alpha.5 pnpm check
 pnpm run check:suites
-pnpm run pack:suite -- --suite core --out /tmp/evoforge-packs
+pnpm run pack:suite -- --suite product --out /tmp/evoforge-packs
 pnpm run check:release
 pnpm run check:release:gates
 ```
 
-`pack:suite` 只调用 DSH 官方 `pnpm pack`，并产生包含文件名、版本和 SHA-256 的 `evoforge-suite.json`。部署者仍使用官方 `dsh plugin --profile <profile> add/remove`，不安装第二个 EvoForge Runtime。
-省略 `--suite` 时默认打包 `core`；完整十二包仅能通过显式 `pnpm run pack:full`（或 `--suite full`）生成。
-仅使用一个消息平台时，可在 `channels` 套件上增加 `--channel feishu` 或 `--channel telegram`，生成共享 Control Center、Gateway 与对应 Adapter；不会把它们合并成一个 Bundle。
+`pack:suite` 调用各 Bundle 的 `pnpm pack`，并产生包含文件名、版本和 SHA-256 的 `evoforge-suite.json`。部署者仍使用官方 `dsh plugin --profile <profile> add/remove`，不安装第二个 EvoForge Runtime。
+省略 `--suite` 时默认打包 `product`；完整十二包仅能通过显式 `pnpm run pack:full`（或 `--suite full`）生成。
+仅在旧部署迁移或 Adapter 独立验收时，才对兼容套件 `channels` 增加 `--channel feishu` 或 `--channel telegram`；正常安装使用默认 `product`，其中共享 Control Center、Gateway 与 Adapter 仍保持独立 Bundle。
 
 ## 不可跳过的发布门
 

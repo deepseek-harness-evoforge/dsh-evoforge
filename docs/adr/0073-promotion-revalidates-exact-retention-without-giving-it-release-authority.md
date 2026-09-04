@@ -1,3 +1,0 @@
-# Promotion revalidates exact Retention without giving it release authority
-
-Accepted. Shadow, Review and Retention remain independent evidence owners with `releaseAuthority: none`; a separate Host-side `FutureSessionPromotion` module re-reads the approved inactive Generation and exact Review/Lineage/Shadow/Retention identities, then alone may call the Generation selection store when the terminal verdict is structurally valid `retained`. Missing or prepared evidence waits, while warnings, ambiguity, mismatch, `regressed` and `incomplete` fail closed; Command and Web consume this same authority, rollback remains available, and existing Session pins never change.

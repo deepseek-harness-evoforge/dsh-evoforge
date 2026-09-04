@@ -26,10 +26,9 @@ composition。当前 Session 之外的全局页面仍不是本阶段支持面。
 
 ## 被替代的旧决策
 
-本 ADR 只替代 [ADR-0060](0060-gateway-web-is-a-read-only-host-projection.md) 中
-`sidebar.footer.action` 固定面板和“读取失败必须清除快照”的展示策略；Gateway Host 的只读脱敏权威仍然
-有效。它也不违反 [ADR-0025](0025-web-is-a-thin-kv-safe-adapter.md) 对独立 Control Center 服务/数据库的拒绝：
-这里的 Control Center 只是可卸载的 DSH Client 组合视图，没有服务、数据库或第二控制面。
+本 ADR 替代历史的 `sidebar.footer.action` 固定面板和“读取失败必须清除快照”策略；Gateway Host 的只读脱敏
+权威仍有效。Control Center 只是可卸载的 DSH Client 组合视图，没有服务、数据库或第二控制面。旧 ADR 已从
+工作树删除，可由 Git 历史追溯。
 
 ## 后果
 

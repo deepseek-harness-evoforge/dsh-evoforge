@@ -1,3 +1,0 @@
-# Keep related plugins together until their lifecycle proves independent
-
-The GitHub organization `deepseek-harness-evoforge` is the public home for all DSH design and development, but repository-per-plugin is not the default. Capabilities that share DSH integration, release cadence, tests, maintainers, and installation stay in the EvoForge Suite; a plugin gets its own repository only when it has an independent release or trust boundary, materially different dependencies or license, or a user base that can adopt it without the suite. This avoids both a giant inseparable platform and dozens of empty repositories.

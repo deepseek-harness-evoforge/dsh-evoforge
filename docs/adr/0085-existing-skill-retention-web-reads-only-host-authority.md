@@ -1,5 +1,0 @@
-# Existing-Skill Retention Web reads only Host authority
-
-Status: accepted — 2026-08-21
-
-The DSH Web adapter may display existing-Skill Retention only from the bounded `EvolutionControl.overview()` projection owned by the Host. It shows the exact Candidate/Holdout/Admission/Envelope identities, baseline/Candidate/Holdout/Retention tree hashes, four-quadrant result, calibration/assembled/composition/input-integrity gates, model/token/cache facts and the explicit absence of promotion or release authority. It never reads run directories, protected cases, evaluator identities or provider credentials and never calls a model. A failed refresh must remain visible while preserving the last successful snapshot; recovery must replace that snapshot only after the same Host Remote succeeds. Unreadable or mismatched authoritative artifacts are warnings, never successful Retention. We reject browser-owned evaluation state, optimistic pass rendering, clearing verified evidence on a transient disconnect, and any Web mutation seam that bypasses the existing Host gates.

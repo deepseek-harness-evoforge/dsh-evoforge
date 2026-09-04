@@ -1,5 +1,0 @@
-# Existing-Skill Retention requires an authoritative improved Holdout
-
-Status: accepted — 2026-08-21
-
-Existing-Skill Retention may start only from the authoritative durable `improved` result for the same Candidate's exact paired Holdout and must consume the independent Retention Case Pack already sealed into that Candidate's pre-authoring Evaluation Envelope. The Host re-resolves the immutable installed baseline, whole-tree Candidate, Admission, Envelope, both Case Pack hashes, fixed DSH revision and assembled Trial gates; four-Goal Envelopes abstain without spending a Trial, while `fail/pass`, `pass/pass`, `fail/fail` and `pass/fail` classify as `retained`, `ambiguous`, `not-retained` and `regressed`. A dispatch whose result was not durably observed becomes outcome-uncertain and is never retried automatically; native DSH Jobs provides wake-up and cancellation only, and every Retention result remains evidence without install, activation, promotion, rollback or release authority. We reject reusing the Holdout result as Retention, selecting cases after Candidate creation, evaluating a non-improved Holdout, or giving the evaluator a release mutation seam.

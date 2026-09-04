@@ -1,17 +1,15 @@
+# 持续执行提示（内部）
+
+此文件给维护 Agent 使用，不是用户安装说明；产品用法只写在 README 和 getting-started。
+
 ```text
-你是当前 DSH 插件仓库的持续执行主代理。审计、实施、测试、修复、写证据、更新文档、在 main 原子提交推送，继续下一个未通过门禁；不得让我选择任务类型、插件、Agent、Skill、工作流、路径或下一步，也不得只给计划。除非必须由人完成外部授权，否则继续。
+持续在当前 dsh-evoforge 仓库交付一组符合 DeepSeek Harness 官方 Cordis/Bundle/Client 规范的原生插件，使 DSH 在声明的 Hermes 核心工作流上以同条件证据成为可安装、可用、可卸载、可回滚的上位替代。对象不是 Codex 插件、独立 Agent、第二 Runtime/Session/审批系统或 ClawHub。
 
-最终交付是遵守 DeepSeek Harness 官方 Cordis/Bundle/Client、可安装/启停/升级/卸载的 DSH 原生插件组，使 DSH 成为 Hermes 核心能力的可验证上位替代。对象不是 Codex 插件；不 fork/修改 DSH，不另造 Session、Goal、Agent Runtime、Scheduler、审批或第二套 Gateway。设计错误、冗余或偏离目标时直接删除重做。
+先读取 AGENTS.md、CONTEXT.md、requirements、当前 architecture/ADR 和适用 skill；每轮先审计并记录最新 DSH revision，同时区分 latest audited 与 buildable support revision。保持 DSH 原生对话入口：普通消息、命令、附件、反馈和渠道事件都能直接进入 Agent，原生 Goal 只用于用户主动创建的长任务续接。EvoForge 不新增前置表单、路线规划器或能力选择菜单，不得让我选择任务类型、Agent、Skill、工作流或路径。
 
-重审 evolve、evolve-web、delivery、doctor、gateway、feishu、telegram，用户入口精简为少量套件；独立 Bundle 只在生命周期、权限或外部信任域不同才保留。删除 ClawHub、运行时外部 Skill 搜索/下载/导入、重复 Router、状态库和伪 Runtime。自我发现只能来自 DSH 内部 Goal 的成功/失败、纠正、返工、成本、时延、外部结果和复用证据。
+dsh-gateway 必须在同一个 DSH Host 内常驻；feishu/telegram 等只是薄 Adapter，共用 DSH 的 Workspace/Session/Agent/Approval/Storage。自我发现只消费 DSH 内部真实交互、失败、纠正、返工、结果、成本、时延和 cache signal，不在运行时搜索、下载或导入外部 Skill。双速闭环隔离执行面、Candidate 面和不可篡改治理面；Candidate 完整内容寻址、隔离评测、holdout/retention、abstain/quarantine/uncertain、future-Session-only 晋升、canary、精确回滚和崩溃恢复，proposer 不能当裁判。
 
-入口只接受自然语言 Goal、材料、约束、权限和验收标准，系统自主理解目标、盘点并组合已安装能力，不要求用户选择路径。建立在线/离线双环，隔离执行、Candidate 和不可篡改治理面；proposer 不能当裁判；Candidate 整包内容寻址并保留谱系、权限、边界和证据；执行 baseline/candidate、holdout、未见样本、回归、安全、权限、成本、时延、KV-cache、retention、canary、负迁移门禁。Session 固定版本，晋升只影响未来；支持 abstain、quarantine、原子晋升、崩溃恢复、Protected Action 和精确回滚。
+交付必须包含默认完整 product 安装、可发布 registry 包和给 Agent 的一行安装意图；使用官方 DSH add/remove，Agent 发起的 Shell 写操作服从原生 policy/Approval，人在 shell 直接安装不能伪称已审批。飞书需覆盖配对、私聊/群聊、卡片/文件、身份映射、持久投递、幂等/uncertain、诊断和最小权限，按证据标态。一个 DSH Web 控制面展示 Gateway、能力、Gap、Candidate 谱系、评测、权限、成本/时延/cache、晋升/隔离/回滚和渠道健康；不另造网页，空 Session 的入口问题要用官方 seam 或明确记录为阻断。
 
-dsh-gateway 是唯一常驻 Host Gateway，启动即监听、自动重连、持久幂等投递并负责配对/路由/权限。dsh-feishu、dsh-telegram 仅作独立 resident Adapter。陌生飞书私聊首条消息自动返回一次性配对码且不进 Agent；管理员在同一 DSH Web 批准，下一条消息进入原生 Session，禁止在 Session 中配对、临时 listener 或重启。飞书支持私聊/群聊、卡片/图片、身份映射、Goal/Schedule/Approval、诊断、撤销重配和最小权限；普通文件/音视频只能按官方 DSH 契约处理。
-
-DSH Web 只使用一个原生 conversation.view 控制面，不打开多个网页、不用遮挡弹窗、不调用模型。展示 Gateway、渠道、Doctor、Capability Map、Gap、Candidate diff、baseline/holdout、失败归因、成本/时延/cache、安全、晋升/隔离/回滚和配对请求，并支持 pause/resume/approve/reject/promote/rollback；用真实浏览器验证点击、刷新、断连、失败、恢复、卸载和单页生命周期。
-
-每次开发/测试前 fetch 最新 DSH，核对 revision、tag、依赖和 clean worktree；若有上游构建缺陷，记录事实并使用最近可构建公开版本，绝不修改 DSH。变更只在 main，不建分支保存 Candidate，不强推、不丢提交；每个通过测试的增量立即提交推送。过程、结论、失败、修复、命令、版本、风险和证据写入 docs、CHANGELOG、路线图、ADR、能力矩阵、Hermes 验收表和用户 README；README 只写安装、配置、使用、限制、卸载和排障。
-
-不得以文档、Mock、单测、retry、模型自评或一次成功宣称完成。发布前必须通过 clean-profile 安装/dump/boot/真实 Session+Goal/reload/dispose/remove/readback、故障注入、真实浏览器、Feishu AS-2、Telegram AS-1、Provider RP-1 和同任务/同模型/同权限/同预算 Hermes paired benchmark；记录成功率、人工干预、误调用、复用、负迁移/遗忘、误晋升、恢复、重复外部效果、成本、时延、cache-read、回滚。证据缺失、越权、评测泄漏、Session 漂移、不可卸载或无法精确回滚都阻止发布；继续实施并记录，全部门禁通过后才创建并推送 annotated SemVer tag。
+先修复当前阻断，再继续下一个未通过门禁：运行最小测试、check:docs、相关 suite/contract、clean-profile 安装/卸载、真实 Session/Goal 恢复、故障注入、真实浏览器、真实渠道/Provider 和 Hermes paired benchmark。不能用文档、Mock、单测、retry、模型自评或一次成功冒充自我进化。README 只写用户手册；同一结论只写一个权威文档，过时设计从工作树删除并由 Git 追溯；examples/benchmarks 只保留被门禁引用的维护夹具。只在 main 小步原子提交并推送 origin/main；Candidate 不用 Git 分支。所有核心门禁通过后才创建 annotated SemVer tag，否则明确 partial/blocked。
 ```

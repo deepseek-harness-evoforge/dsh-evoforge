@@ -1,8 +1,11 @@
-# 公开 Agent 自进化项目证据审计
+# 【历史快照】公开 Agent 自进化项目证据审计（2026-08-15）
 
 > 审计日期：2026-08-15
 > 范围：公开论文、官方 GitHub、官方文档；不使用媒体转述作为结论依据
 > 目的：校准 `EvoForge` 自进化设计，识别真正已有的能力、未解决的问题和可形成差异的位置
+> 本文固定于文内列出的源码 revision，是设计期研究而非运行时能力或发布声明。当前参考项目身份见
+> [生态最新审计](ecosystem-latest-audit-2026-09-05.zh.md)，当前产品边界见
+> [产品设计总览](../architecture/product-target-and-design.zh.md)。
 
 ## 1. 结论先行
 
@@ -453,7 +456,10 @@ Canvas 于 2026 年公开 Meta-Agent。它冻结基础模型，fast loop 修改 
 
 ## 5. 首次设计审计发现的缺陷与处理状态
 
-以下问题来自对早期 [可证明自进化设计](../architecture/evolution-design.zh.md) 的审计，不是泛泛风险。后续文档已经处理了一部分**设计缺口**，并新增一次真实 DSH 包装/安装路径上的本地未见 `fail → pass`；这仍不能写成“进化问题已解决”，因为真实 provider、多个独立 Case、误晋升率与长期收益尚未验证。当前权威测试接缝见 [P0A Shadow 契约](../architecture/p0a-shadow-contract.zh.md)，本地证据见 [P0A.8](../evidence/p0a-8-private-heldout.zh.md)，长期声明门见 [Hermes 上位目标验收记分卡](../architecture/hermes-replacement-scorecard.zh.md)。
+以下问题来自对早期进化设计的审计，不是泛泛风险。后续实现增加过本地未见 `fail → pass`，但这仍不能写成
+“进化问题已解决”，因为真实 provider、多个独立 Case、误晋升率与长期收益尚未验证。当前权威边界见
+[自我进化设计](../architecture/evolution-design.zh.md)，本地历史证据见 [P0A.8](../evidence/p0a-8-private-heldout.zh.md)，
+长期声明门见 [Hermes 对照记分卡](../architecture/hermes-replacement-scorecard.zh.md)。
 
 | 审计项 | 当前处理状态 |
 |---|---|

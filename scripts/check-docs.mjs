@@ -13,6 +13,7 @@ const duplicateWebStartupGuide = /^dsh --profile web[ \t]*$/mu
 // gate is blocked. Operational docs must point at a repository-built tarball,
 // never a bare dsh-* name that could resolve to an unrelated npm package.
 const unpublishedRegistryInstall = /dsh plugin[^\n]*\badd\s+dsh-[a-z0-9-]+(?:\s|$)/iu
+const unverifiedTarballGlob = /dsh plugin[^\n]*\badd\b[^\n]*\*\.tgz/iu
 const failures = []
 
 for (const file of await markdownFiles(repositoryRoot)) {
@@ -39,6 +40,9 @@ for (const file of await markdownFiles(repositoryRoot)) {
   }
   if (isOperationalDoc(relative) && unpublishedRegistryInstall.test(source)) {
     failures.push(`${relative} installs an unpublished bare dsh-* registry name; build and install a local suite tarball instead`)
+  }
+  if (isOperationalDoc(relative) && unverifiedTarballGlob.test(source)) {
+    failures.push(`${relative} installs a tarball glob; use pnpm run dsh:install and its verified exact manifest paths`)
   }
 
   for (const match of source.matchAll(markdownLink)) {

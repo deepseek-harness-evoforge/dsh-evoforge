@@ -1,7 +1,0 @@
-# Failed Outcomes produce sealed canary evidence without release authority
-
-Accepted. A newly durable failed `DeliveryOutcome` attributed to the exact active internal Candidate Generation wakes one native DSH `evolution` Job. The Host revalidates the approved Review, Promotion Eligibility, Candidate Lineage, Admission, Retention and the immutable pre-Candidate subject, then replays the exact assembled Retention Case Pack with zero proposer calls. A content-addressed terminal result is `keep`, `review`, or `rollback-eligible`; the canary owns no Generation mutation interface and cannot change a current or future Session pointer.
-
-The run identity binds Workspace, Generation, Outcome, Candidate, Review, Retention, Admission, Evaluation Envelope, Case Pack and both trees. Input drift, pointer drift, calibration failure, baseline failure, composition drift, malformed evidence, ambiguous Generation delta or an interrupted dispatched Trial fails closed. Dispatch uncertainty is never blindly retried. Daily budget is durable; a `keep` permits a later failed Outcome to trigger another run, while `review` and `rollback-eligible` stop further spending for that active Generation until a separate Host action resolves it.
-
-This supersedes ADR-0016's Git-parent and direct automatic-rollback assumptions. The failed real Outcome is only a health-check trigger, not a replayable causal case or rollback vote. Exact pointer mutation remains a separate release authority, and capability rollback never claims to undo external effects.

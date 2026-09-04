@@ -2,7 +2,7 @@
 
 ## 状态
 
-Accepted（2026-09-04）。实现已进入 `main` 的待提交验证窗口；发布前仍需真实渠道验收。
+Accepted（2026-09-04）。本文保留当日凭据决策；其中 DSH revision 仅是历史依据，当前 API/支持基线以 [最新审计](../research/dsh-latest-audit-2026-09-05.zh.md) 为准。实现仍需真实渠道验收。
 
 ## 背景
 
@@ -37,8 +37,7 @@ Accepted（2026-09-04）。实现已进入 `main` 的待提交验证窗口；发
 
 ## 依据
 
-- DSH 最新 canonical `origin/master`：`76fda729799fe9b3848dbe2c211d4b231032b81e`（2026-09-04 fetch 后
-  clean）；支持测试 checkout：`db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`。
+- 历史依据：DSH canonical `origin/master` `76fda729799fe9b3848dbe2c211d4b231032b81e`（2026-09-04）；支持测试 checkout：`db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`。当前 revision 不在本 ADR 中重复维护。
 - DSH 官方 `packages/credentials/credentials/src/index.ts`、`packages/credentials/credentials-local/src/index.ts`、
   `packages/api/settings-controller/src/credentials.ts`。
 - 本仓库 `packages/dsh-feishu/src/config.ts`、`packages/dsh-telegram/src/config.ts` 与对应 assembled/package

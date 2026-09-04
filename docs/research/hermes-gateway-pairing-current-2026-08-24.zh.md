@@ -1,4 +1,7 @@
-# Hermes 当前 Gateway 与陌生发送者配对机制源码审计
+# 【历史快照】Hermes Gateway 与陌生发送者配对机制源码审计
+
+> 当前远端身份只认 [参考生态最新 revision 审计](ecosystem-latest-audit-2026-09-05.zh.md)；本页保留
+> 2026-08-25 的源码快照，文中的“当前”只指审计当时。
 
 > 审计时间：2026-08-25（Asia/Shanghai）  
 > 官方仓库：[`NousResearch/hermes-agent`](https://github.com/NousResearch/hermes-agent)  

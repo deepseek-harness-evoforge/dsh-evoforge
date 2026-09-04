@@ -1,552 +1,121 @@
-# DeepSeek Harness EvoForge 项目需求基线
-
-> 状态：已确认；目标是只安装并运行于 DSH 的原生 out-of-tree 插件套件。现有实现只作为可重审资产，不能限制重构；`dsh-gateway` 已替换旧 Router。ClawHub、市场、运行时 research Candidate、Git Skill source/ref、预选 Skill、静态 Case Pack/Feedback/Evaluator target、Feedback/Evaluator Draft、Shadow 内 proposer、自动 review expiry、旧 Retention/canary 和对应 Commands/Control/Web/attention 表面均已从活动源码删除；V4.54 又清除了治理包与 Shadow 报告中会把内部证据误解为运行时搜索的残留命名。自然 Goal→Capability Gap→跨 Goal 内部经验→Skill Opportunity→隔离 whole-Skill Candidate 已形成纵切；Shadow 只消费 exact DSH-assembled Candidate 且零 proposer。现有 Skill 已完成完整 Bundle、protected Candidate、Candidate-blind exact Holdout/Retention、独立发布门及最终包浏览器生命周期；V4.46 又让 active release 的失败 Outcome 只在 exact lineage 下经原生 Jobs 重放 sealed baseline/Candidate/Retention pair，只有 baseline 恢复且 Candidate 失败才形成无 mutation 权的 rollback-eligible；V4.47 已用独立 Host gate、exact Canary id 和 expected-active compare 接入 Control/Remote/Web 人工 future-Session rollback；V4.48 已从最终 tarball 验证 existing-Skill approve/promote/Canary/断连保留/精确 rollback/冷恢复/卸载。缺失 Skill 的 Retention/Promotion/Canary/Rollback 纵切同样无评测自授发布权，V4.49 已从最终 tarball 验证 promote/Canary/断连保留/精确 root rollback/冷恢复/卸载。两套独立真实 provider、exact 飞书消息、长期 outcome 与 Hermes paired 完成前不构成 v0.1 交付。
-> V4.39 已消费 V4.37 exact Admission 与 V4.38 Candidate-blind Envelope，在原生 DSH Jobs 中执行完整 `skill-tree ↔ skill-tree` paired holdout，并从最终 tarball 完成真实 DSH Web reload/断连/恢复/卸载验证；自动化成功路径使用注入式确定性 Trial，因此两套独立真实 provider、Retention 与发布资格仍未证明。
-> V4.40–V4.45 已完成生成前 Retention 身份链、exact Retention、独立发布门及最终包浏览器生命周期；V4.46–V4.48 已完成 existing-Skill failed-Outcome Canary、权威 Control/Remote/Web、独立 expected-active rollback gate 及其最终包浏览器故障恢复；V4.49 已完成 missing-Skill 同类最终包故障恢复。两套独立真实 provider 仍未证明。
-> V4.55 已实现阶段专用 RP-1 验收入口：它只在显式付费批准后使用两套独立 Provider 跑现有内部 Skill 纵切，并对 Provider/authority/credential/model identity、Candidate 盲区、准入、assembled Holdout/Retention 和 composition 设 hard gate。当前状态是 `NOT_RUN`，没有真实 Provider 通过证据。
-> V4.56 已把真实 Provider 请求边界补齐：proposer 与缺失/现有 Skill 的治理作者 HTTP seam 均有 60 秒 wall-clock 上限，Host cancellation 只能更早终止而不能移除 timeout；治理 dispatch 仍先 durable 落盘，未知付费结果仍为 `uncertain` 且不盲重试。本增量没有发起外部 Provider 请求。
-> V5.7 已把渠道 send 的 wall-clock 上限纳入 `dsh-gateway` 公共 Adapter policy；超时或 dispose 会把 durable `sending` 保守终结为 `uncertain`，即使 Adapter Promise 不响应 signal 也不能阻塞 Gateway 卸载。Telegram/飞书均使用 30 秒，飞书文本与 Approval 卡片把 signal 继续传入官方 HTTP transport；真实平台验收仍 pending。
-> V5.8 已实现阶段专用 AS-2 真实飞书验收入口：只在精确授权后读取 exact App/chat/user/Secret，并从当前 clean `main` 打包最终 Gateway/Feishu Bundle，经官方 DSH CLI 安装、dump、真实渠道消息/Command/Approval、dispose、remove、原生 Session readback。该增量当时无凭据，合同 7/7 通过但真实平台为 `NOT_RUN`；后续真实结果以 V5.22 为准。它没有增加产品 CLI、Runtime、能力获取或 benchmark-owned 审批。
-> V5.10 已把每次真实 future-Session Generation 晋升/回滚与活动指针在同一 Workspace state 中原子保留，绑定 exact Retention/Release/Canary/人工 authority；最终 tarball 已验证晋升、整页/Host 恢复、Canary 回滚、再次恢复和官方卸载。该历史只证明 pointer mutation，不证明效果或授予发布权。
-> V5.11 已把每条不可变选择事件与其后、下一选择之前的 durable Outcome 做严格有界关联，按 Session-pinned selected/previous/other Generation 展示结果、Goal 和 metrics；边界歧义与时间倒退 fail closed。该窗口固定无因果、无 mutation authority，不替代长期 Provider/paired 证据。
-> V5.12 已重建 existing-Skill 低风险自动晋升：公开策略只含 policy id 与 Workspace id，不接受 Skill/路径/来源/target；Host 只对 exact baseline 上单一 `SKILL.md` 末尾追加 1–2048 字节、无 protected-effect、paired Holdout/独立 Retention 明确改善且 model/token/cache 不回退的 Candidate 自动发布并选择未来 Session。持久暂停、父版本漂移、证据告警、改写/增文件/受保护效果均 fail closed；原生 Jobs 仅负责唤醒，决策和 Generation 指针可崩溃恢复。最终 tarball 已验证自动晋升、Web 刷新/断线保留/冷恢复和官方卸载；真实 provider 误晋升率、长期迁移与 paired benchmark 仍 pending。
-> V5.13 纠正冻结 Hermes `EV-1` runner 的架构漂移：它不再引用已删除的 `GitSkillSource` 或 legacy Git artifact，而是以 sealed canonical `skill-bundle`、`GenerationBundleRepository` 和 expected-active rollback 重放同一 frozen epoch。四个确定性 Hermes epoch 已从当前 `main` 全部复跑，冻结报告未改写；真实模型、真实渠道与长期 paired 门禁仍未完成。
-> V5.14 补齐十一包官方升级纵切：从冻结 V5.11 revision `b0e4360b49c243535395b7b1ffba59b9ce0ae2c6` 构建真实历史 Bundle，以测试专用 predecessor 版本安装并由原生 Agent/Goal 写入内部 Capability Gap，再用当前最终 tarball 通过 `dsh plugin ... add` 原位升级。新版读回旧 Gap，并从第二个不同 Goal 形成同一 Skill Opportunity；Bundle/组合无重复，全部卸载后两条原生 Session/Goal 仍可读。该门不替代真实已发布 tag→tag、真实 Provider、真实飞书或 Hermes paired 证据。
-> V5.15 将“已验证支持版本”和“最新设计审计版本”分离：前者仍是 `47f9438`（`0.1.0-rc.5`）；后者固定为官方最新 tag `b150a55`（`0.1.1-rc.2`）。[直接源码审计](research/dsh-current-attachment-contract-2026-08-24.zh.md)确认 rc.2 的 AttachmentStore、LLM ContentBlock 和 DeepSeek Files 序列化仍只支持栅格图片，官方 README 明确把 generic file/audio/video 留给独立生命周期与 provider 契约。因此普通文件、音频和视频继续是上游契约缺口；不得以 Files API 名称、私有 Gateway block 或 Adapter 私库冒充完成。rc.2 兼容声明必须另经十一包 clean-profile assembled 矩阵，不能由本次设计审计推断。
-> V5.16 当时完成了 rc.5 与 rc.2 的独立兼容门；这只是历史 evidence，不代表当前支持范围。当前支持声明已在 V5.69 迁移到 DSH `dsh-v0.1.2-alpha.5`，任何旧版本都必须重新完成 assembled 矩阵后才能恢复。该历史矩阵不改变 generic file/audio/video 上游缺口，也不替代真实 Provider、真实飞书或 Hermes paired 证据。
-> V5.18 已删除飞书 assembled chat 中用手工 `agent.followup()` 冒充 Goal/Schedule continuation 的不合格证据，改为加载官方 DSH Schedule、经 agent-scoped `schedule_create` 形成原生 create/dispatch 事件和到期 follow-up，再由现有 Gateway durable turn intent 等待 `turn/end` 后回送同一飞书线程。该纵切不增加第二 scheduler、Feishu 私有日程状态或模型表面；真实飞书 direct/group 仍为 `NOT_RUN`。
-> V5.19 已在真实子进程中让 `schedule_create` 与 Session flush 完成后、dispatch 前执行 `SIGKILL`；第二个 Host 通过同一静态 Gateway route 恢复 exact Session，官方 Schedule 处理 overdue，并由既有 durable turn journal 回送一次飞书线程；第三次 Host 启动不重放。该门已在 exact rc.5/rc.2 分别通过，不增加 runtime 实现。官方 Schedule 的 followup 已入队但 dispatch 尚未 checkpoint 的窄重复窗口仍是未解决边界，不能宣称全窗口 exactly-once。
-> V5.20 对该窄窗口做了真实反向故障注入：第一次平台效果已写出、包含 dispatch 的 Session batch 仍被阻塞时 `SIGKILL`；恢复后 Schedule 会重跑非 durable turn，但 Gateway 因 exact route+turn intent 不第二次调用平台，跨进程效果保持一条。该结论只覆盖渠道外部效果；模型、token、时延和成本仍可能重复，不增加 Schedule parser、causal key 或私有日程状态。
-> V5.21 将阶段专用 AS-2 提升为 epoch-2：活动 clean-profile 组合必须在 Gateway route 创建 Agent 前加载官方 Schedule，并通过 agent-scoped `schedule_create` 形成精确一次 create/dispatch/Schedule 插件来源 `user/message`、真实 route delivered 增量与卸载后 Session readback。持久终态必须精确包含十一项关闭 observation；旧 epoch、缺 Schedule 或损坏报告不得复用。合同 9/9、类型和 Feishu 52/52 通过，但 direct/group 仍为 `NOT_RUN`，不构成真实平台证据。
-> V5.22 已推翻 setup-only Session pairing：Gateway 是 Host 常驻 authority，Adapter boot 即连接；陌生 DM 在 Agent 前回短期 code，Host Web批准到当前 native Workspace/Session，下一条消息直接采用动态 grant。旧 `/feishu-pair`、两分钟 listener、反向短语、静态 YAML 与倒计时 UI 已删除。最终 tarball 在真实 rc.2 App 完成 direct DM 配对、三次 native Session/回复和 Host 冷启动恢复；真实 Approval/Schedule/group/failure/长期重连仍是退出门。
-> V5.23 已同步推翻 AS-2 中残留的静态 route 验收：epoch-3 启动前只接受 App credential、DSH source 和隔离 run root，不接受 conversation/user/chat kind；真实 principal 必须由未知 DM pending code 与 Host approval 产生。关闭门增加动态 Host notice 与冷启动后的新增消息/回复；direct 与 group 分开验收，当前完整 epoch-3 仍未真实运行。
-> V5.24 补齐 Host-owned principal 撤销：动态 grant 在同一 Pairing Domain 原子转为 revoked tombstone，未来消息重新进入 Agent 前 pairing；静态 route、活动 ingress/outbound effect 均拒绝撤销，原生 Workspace/Session 不删除。Gateway Remote/Web 只对动态 route 提供两步确认。最终包已在真实 rc.2 profile 原位升级并冷启动恢复现有授权；本轮未实际撤销项目所有者的活动 grant。
-> V5.25 修正更新默认 DSH 到 rc.2 后暴露的活动门漂移：五个示例 Case Pack 仍锁 rc.5、GitHub Review 测试 LLM 缺 rc.2 `prepareCall()`、一个 Command 测试仍传旧签名。活动默认门现精确绑定 rc.2；冻结 Hermes epoch/result 与 rc.5/rc.2 双版本兼容矩阵保持不变。
-> V5.26 将“可交付 Web”收紧为常驻 Host 的真实浏览器路径：clean-profile/CLI 生命周期探针必须使用目标 DSH 支持的无浏览器 handoff 契约（rc.2 传 `--no-open`；已删除该 flag 的 rc.5 只传官方 `--port`），随机临时端口不得留在用户浏览器或冒充可用性证据。飞书 teardown 即使遇到 Gateway sibling 先停、状态上报或其他阶段失败，也必须继续执行 outbound、平台连接和 transport 清理，最后再汇总错误。
-> 更新日期：2026-08-25
-> 用途：记录项目所有者从最初请求到当前确认的目标、范围、约束和交付顺序，供学习、设计评审和后续 Agent 持续执行。本文记录需求，不代替源码审计和市场证据。发生冲突时，下述“方向纠正”优先于旧里程碑文字。
-
-## 0. 方向纠正：DSH 是唯一 Runtime 与安装入口
-
-本节是不可协商的当前交付顺序，并取代把 EvoForge 描述成独立工具、独立 Runtime 或旁路应用的任何旧表述。
-
-1. `dsh-evoforge` 是真正的 out-of-tree DeepSeek Harness 插件套件。用户通过 DSH 官方 `dsh plugin --profile <name> add/update/remove` 和 Bundle/profile patch 机制安装、升级、启用、禁用与卸载；本地最终 tarball 以再次 `add` 新版本 spec 完成升级。
-2. DSH 是唯一 Agent Host、Runtime、Session、Goal、Approval、Storage、Jobs、Skill、Tool 与 Cordis 生命周期权威。EvoForge 不建立第二套应用、CLI、Web server、daemon、数据库、任务系统或 agent loop。
-3. 每个发布包必须导出 DSH/Cordis 可加载的 `name`、`inject`、`Config`、`apply`（或目标 revision 的官方等价接缝），声明官方 `dsh.bundle.patch`，并由 `ctx.effect()`/Cordis fiber 持有资源。
-4. DSH/Cordis 只能由 Host 提供，放在 `peerDependencies` 与 `devDependencies`；打包产物不得包含第二份 Runtime。
-5. Web 只能是随 DSH Web profile 组合加载、读取 DSH Host 权威状态的 client adapter；不得成为第二控制面。用户核心能力不得依赖 EvoForge CLI；开发夹具不得发布为产品入口。
-6. 在 roadmap 恢复前，必须用固定目标 DSH 源码完成 clean-profile 的 tarball 安装、前代最终包升级、官方 Bundle 启用、`--dump-config`、Host 启动、真实 Agent/Session/Goal 能力、插件派生证据兼容、原生持久化、卸载后原生启动/读回以及无残留资源的 assembled 硬门禁。
-7. 不 fork、不 monkey patch DSH。若门禁暴露 DSH Core Defect，只保留最小复现并上游报告。
-8. 用户入口是自然语言 Goal、材料、约束与验收条件。系统必须在内部完成能力识别、Skill 路由和执行路径选择；开头不得要求用户从任务类别、工作流、Agent 或 Skill 菜单中选路。
+# EvoForge 当前需求基线
 
-当前已验证支持基线为 DSH `dsh-v0.1.2-alpha.5`，revision `db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`。此前 `0.1.0-rc.5` 与 `0.1.1-rc.2` 的 assembled 结果只作历史 evidence；当前公开包的 peer/dev 依赖已精确迁移到 alpha.5。最新公开 `dsh-v0.1.2-rc.1` 已完成更新审计，但上游 clean build 被根级 tsdown 入口阻断，不能进入支持声明；详见 [rc.1 迁移审计](research/dsh-rc1-migration-audit-2026-09-03.zh.md)。未来任何 DSH 版本仍须重新完成安装、dump、boot、真实路径、reload/dispose、升级、卸载与原生 readback 后才能加入 peer allowlist。
+更新时间：2026-09-05。本文是维护者实现和评审的当前基线，取代早期把所有交互都写成 Goal 的版本。旧证据仍在
+Git 历史和 evidence 目录中，但不再覆盖本文件。
 
-## 1. 项目愿景
+## 1. 产品对象
 
-以 GitHub 组织 [`deepseek-harness-evoforge`](https://github.com/deepseek-harness-evoforge) 作为所有 DSH 扩展设计与开发的公开归属。首个公开仓库命名为 `dsh-evoforge`，通过 out-of-tree 插件为 DSH 增加真正有用、通用、可插拔的新能力；相关插件可以共仓，具有独立生命周期或信任边界时可以拆为独立仓库。
+交付一组可由 DSH 官方机制安装、启停、升级和卸载的 Cordis/Bundle/Client 插件。对象是 DSH 插件组，不是 Codex
+插件，不 fork DSH，不修改上游核心，不建设第二 Agent Runtime、Session、Goal、Scheduler、审批中心、数据库或第二/独立
+Gateway；唯一的 `dsh-gateway` 是本插件组在 DSH Host 内必须交付的 Bundle。
 
-DSH 继续作为 Agent Runtime，拥有 Session、Goal、工具、权限、存储、工作流、Skill、调度和模型执行。EvoForge 复用这些原生接缝，不 fork DSH，不建立平行 Runtime，不以插件形式修补 DSH 核心缺陷。
+DSH 是 Agent、Session、Goal、Skill、Tool、Approval、Jobs、Schedule、Workspace、权限、持久化和生命周期的唯一
+权威。插件拥有的记录必须存进 DSH 提供的 Storage/Host seam，并明确作用域、dispose、升级和卸载。
 
-长期目标是形成一个能够长时间自主运行、遵循真实工作流程、从实际结果中持续进化，同时保持简洁、可解释、缓存稳定和随时可回滚的通用 Agent 扩展体系。
-
-## 2. 已完成的项目研究基线
+## 2. 用户交互
 
-本节保留原始验收口径，防止后续设计脱离源码事实。对应报告统一收录在[研究索引](research/README.zh.md)。
+### 必须成立
 
-### 2.1 DeepSeek Harness
+1. 用户可以像使用普通 DSH 一样发送消息、问题、指令、材料、附件或反馈。
+2. EvoForge 不改变 DSH Agent 原本的能力解析与 Tool/Skill 调用方式，也不另造 route planner；它只观察本次实际调用的
+   版本、权限和结果。用户不会看到任务类型、工作流、Agent、Skill 或路径选择菜单。
+3. DSH 原生 Goal 仅用于需要长期续接、冷恢复或明确目标管理的工作；普通一次性交互不创建 Goal。
+4. 自然语言可以声明约束、验收标准和所需权限，但不能扩大 DSH policy 或绕过 Approval。
+5. Gateway 渠道消息最终进入一个原生 DSH Session；不要复制一套会话或路由权威。
 
-深入阅读 DSH 源码、测试、文档、示例和组合配置，形成足以帮助读者建立完整心智模型的中文报告。报告至少回答：
+### 明确不做
 
-1. DSH 的总体架构、启动和组合方式是什么；
-2. “一切皆插件”在代码中如何实现；
-3. Cordis 生命周期、Context、Service、inject、effect、scope 和插件卸载如何协作；
-4. Agent Loop、Session、Goal、Tool、Skill、Approval、Sandbox、Storage、Jobs、Schedule、Workflow、Subagent、Compaction、Hooks 和客户端如何组合；
-5. 哪些是核心脊柱、能力接缝、Provider、Consumer 和 Bundle；
-6. 一次模型请求的上下文、工具和事件是如何产生并持久化的；
-7. DSH 的 KV Cache 优势来自哪里，哪些插件行为会破坏它；
-8. DSH 值得借鉴的设计、适用边界、当前不足和扩展机会是什么。
+- 运行时访问 ClawHub/市场/互联网来下载、导入或安装 Skill；
+- 把外部研究资料直接当成运行时能力；
+- 用“用户必须先写 Goal”代替自然对话；
+- 用普通 retry、模型自评或一次成功宣称学会。
 
-### 2.2 DSH 原生插件目录
-
-列举当前仓库内所有原生插件，不凭 README 标题抽样。最终目录必须说明统计口径，并为每项记录：
+## 3. 自我发现与进化
 
-- 包名、源码路径和所属类别；
-- 是否为 Service Definition、Provider、Consumer、Bundle、客户端插件或开发工具；
-- 提供或依赖的 Context Service；
-- 用户可感知作用；
-- 主要配置和默认行为；
-- 是否改变模型可见提示词、工具 Schema 或顺序；
-- 生命周期、权限和持久化影响；
-- 推荐使用场景和已知限制。
-
-原始要求中的“171 插件目录”保留为交付目标表述；最终数量以指定 DSH revision 的可验证源码为准，并明确解释“包、插件、组合、客户端插件”的统计差异，不凑数。
-
-### 2.3 Claude Code Rev
-
-分析本地 `claude-code-rev` 项目，说明其逆向结构、Agent Loop、上下文构建、工具调用、权限、任务/Goal、计划、压缩、子 Agent、Hook、会话恢复和软件开发工作流。
-
-总结其：
-
-- 设计理念和关键模块；
-- 值得 DSH/EvoForge 借鉴的能力；
-- 对长时自治、可恢复性、权限和缓存的处理；
-- 架构长处、局限、耦合和不适合复制的部分。
-
-### 2.4 Hermes Agent
-
-分析本地 `hermes-agent` 项目，既覆盖整体 Agent、Gateway、消息渠道、Cron、Memory、Skill、插件和会话体系，也重点审计其 self-improvement loop：
-
-- 前台 Skill 创建与修改；
-- 后台 memory/skill review；
-- Curator、使用统计、归档、合并、备份和回滚；
-- `/learn`、学习图和相关控制界面；
-- 触发条件、模型成本、权限边界和故障恢复；
-- 它如何判断“学到了”以及为何不等于“变得更好”。
-
-总结 Hermes 值得继承的设计和必须超越的问题。目标不是逐功能复制 Hermes，而是让 `DSH + EvoForge` 在选定真实工作流中以可靠性、交互控制、缓存效率和持续进化证据成为更好的上位选择。
-
-### 2.5 跨项目比较
-
-使用同一组维度比较 DSH、Claude Code Rev 和 Hermes，至少包括：
-
-- 插件化和扩展边界；
-- Agent/Goal/任务模型；
-- 上下文与 KV Cache；
-- 工具和权限；
-- Session 持久化与崩溃恢复；
-- 长时间自治；
-- 软件开发交付；
-- Memory 与 Skill；
-- 持续进化；
-- 可观测性、测试和回滚；
-- 个人助理和外部消息能力；
-- 安装、理解和维护成本。
-
-比较必须区分源码事实、合理推断、用户需求证据和项目所有者的战略选择。
-
-### 2.6 生态与前沿增量调研
-
-在进入内部经验自我发现和下一代进化闭环实现前，必须以固定 revision 继续审计 Hermes Agent、Hermes
-Self-Evolution、OpenClaw、HanaAgent，以及有公开论文或源码的 Skill 发现、Skill 进化和 Agent 评测实现。
-调研不是照搬任一项目，而是形成可证伪的设计选择：哪些交互与治理值得吸收，哪些必须因 DSH 权威、
-KV Cache、权限、隔离和可回滚要求而拒绝。每个 benchmark epoch 必须单独固定当时 revision；旧 paired
-结果继续绑定旧 revision，不能被新审计 revision 静默改写。
-
-## 3. 产品定位
-
-### 3.1 核心用户结果
-
-EvoForge 首先服务软件开发交付，同时允许个人助理、内容、消息、日程等通用自治能力按需插拔。
-
-软件开发的默认闭环是：
-
-```text
-原生 DSH Goal
-→ 隔离 worktree
-→ 遵循仓库规范
-→ 编辑与测试
-→ 可审查 diff
-→ commit
-→ Draft PR
-```
-
-软件交付也是持续进化的第一个试验场，因为测试、静态检查、diff、审查、返工、成本和 Goal 结果能够提供较强的客观反馈。
-
-### 3.2 旗舰能力：持续进化
-
-持续进化是 EvoForge 最亮眼的新增功能。其目标不是频繁修改自己，而是让真实任务结果持续产生可验证、可解释、可回滚的能力提升。
-
-最小闭环为：
-
-```text
-自然语言 Goal
-→ Capability Map 内自主路由，或形成可证伪 Capability Gap
-→ 在线快环记录可归因的 Learning Signal / 小步候选
-→ 离线慢环归纳 Skill Opportunity 并生成完整 Skill 包候选
-→ 独立治理面执行 active/candidate、holdout、回归和安全评测
-→ promote / review / reject / abstain
-→ 只对未来 Session 生效
-→ 持续监测、保留与精确回滚
-```
+“自我发现”只表示从 DSH 自身 Interaction 和结果中发现可复用模式。Interaction 包括普通消息、命令、附件、
+反馈、Tool/Session 事件、计划触发、渠道事件和可选 Goal 事件。
 
-必须满足：
+### 快环
 
-- 先检查当前 Workspace 中可用、适用且已验证的 Skill/Tool；有现成能力时自主调用，不把选路责任转交用户；
-- 没有适用能力时记录可复核的 Capability Gap；“自我发现 Skill”只从 DSH 自身 Goal、失败、纠正、交付结果、复用与保留证据中发现应形成或改进的可复用能力，不以运行时外部搜索代替自我发现；
-- Hermes、OpenClaw、HanaAgent、论文、市场与开源实现只用于设计期调研和固定 revision benchmark；运行时不得搜索、下载、获取、导入或安装外部 Skill；
-- 内部发现和生成只产生带稳定 identity、Workspace、版本、内容哈希、权限与安全状态的非活动候选；不得静默安装、启用或执行未知代码；
-- 进化单位可以是完整 Skill folder（`SKILL.md`、scripts、references 与清单），必须原子版本化，不能只优化一段 prompt 就宣称能力进化；
-- 在线快环只捕获可归因信号、缺口和小步候选；离线慢环负责跨任务机会发现、候选生成、迁移、遗忘、负迁移和长期保留判断；
-- evaluator、holdout、gold、hard gate 与发布资格由 Candidate 不可读写的独立 Evaluation Governance Plane 持有；隔离无法证明时 Trial 为 `incomplete`；
-- 无法证明改善时允许 `abstain`；一次成功、模型自评、使用次数、重试成功或安全扫描通过均不能单独晋升；
-- 原会话不等待后台学习或人工审批；
-- 反思只能提出候选，不能证明改进；
-- 调用次数、复用次数、模型信心和新鲜度不能单独决定晋升；
-- 明显正向且在授权范围内的指令型改进可以自动晋升；
-- 模糊、主观、样本不足或有取舍的改进进入独立人工审批区；
-- 每一个能力版本都可定位、比较和回滚；版本回滚不能撤销已经发生的外部副作用；
-- 可执行代码、脚本、工具、权限和外部效果的自动激活受到更严格保护；
-- 当前会话固定使用不可变能力版本，晋升只影响后续会话；
-- 不重复实现 Hermes Self-Evolution 或通用 Prompt Optimizer；独特价值集中在 DSH 原生集成、KV Cache、Session 固定版本、非阻塞晋升、崩溃恢复和反事实回滚。
+在线记录可归因 signal：实际能力组成、成功/失败、用户纠正、验证结果、观测到的额外工作、token/时延/cache-read、
+外部效果和 uncertain。Goal id 可为空。快环不改 active Skill、不调用治理模型、不执行外部副作用。
 
-“跨 Goal 复用”必须有精确、可持久恢复的最低事实口径：成功的原生 `skill` 调用先经过 Session durability
-checkpoint，再绑定 active Goal、模型实际看到的 invocation content hash 与 Session-pinned Generation；只有同一
-Workspace 中相同 Skill name/content hash/Generation 覆盖至少两个不同 Goal id 才成立。同 Goal retry、同名内容
-漂移、不同 Generation、失败调用或无 Goal 事件不得合并。该指标只描述使用事实，固定无因果、无发布权；仍需
-Outcome、返工、成本、Retention、负迁移和 paired benchmark 才能判断价值。
+### 慢环
 
-跨 Goal exact 版本可以与后续 durable Delivery Outcome 建立**结果上下文**，但不能冒充效果归因。关联必须同时
-满足同 Workspace、Session、Goal、Generation，Outcome 时间不早于第一次 exact use，Goal revision 不倒退；
-否则 abstain。系统保留每个 Goal 的交付 attempt，唯一 latest 为通过且此前存在非通过时只描述为 recovered；
-同一 latest 时间存在冲突结果时拒绝 latest 状态、恢复和指标。指标只取唯一 latest Outcome 中 goal id 精确一致的
-DSH Goal metrics。相邻 attempt 只有在时间严格有序、两侧 Goal metrics 同源同 Goal、event seq 前进且所有累计
-计数单调时，才可相减为**尝试间新增工作**；并列时间记为顺序歧义，缺快照或计数回退记为 unmeasured。差值
-可以展示 turns、steps、token、cache、latency 与 active wall，但不得命名为返工成本、效率改善或 Skill 效果。
-全量 rollup 与最多 20 行明细分离。该投影固定无因果、无 improvement claim、无发布权，不能改变 Candidate、
-评测、晋升或回滚资格。
+离线聚类和审查 signal，区分能力缺口、现有 Skill 改进、配置/权限问题和 DSH Core Defect；证据不足时 abstain。
+需要生成 Candidate 时，先封存治理输入，再执行：
 
-当同一 exact Skill name、invocation-content hash 与 Generation 在至少两个不同 Goal 上都具有唯一最新 `failed`
-Outcome 时，系统可以从同一只读投影形成可撤回的 **Exact Skill Failure-Context Investigation**。同 Goal retry
-不能增加 Goal 数，后来 passed/recovered 的旧失败不能计入，missing、unknown、并列冲突或顺序歧义必须 abstain。
-该调查只把内部真实经历转成因果复核入口，固定无 causal claim、无 Candidate authority、无 release authority；
-不得直接生成或排序 Candidate，不得触发评测、晋升、回滚或发布。bounded 明细必须优先保留 eligible 调查，
-但 Workspace 全量 rollup 不得因 20 行展示上限丢失计数。
+1. 完整 Skill tree authoring；
+2. 独立结构准入和 calibration；
+3. 相同 DSH composition/model/permission/budget 的 baseline/candidate paired；
+4. 隐藏 holdout、未见样本和 retention；
+5. 安全、权限、回归、负迁移、token、时延和 cache 门禁；
+6. review、quarantine、promote、reject 或 incomplete。
 
-### 3.3 Goal，而不是 Mission
+执行、Candidate 和评测治理三平面隔离；proposer 不能兼任裁判，治理数据不可被 Candidate 读取或修改。
 
-保留 DSH 原生 Goal 作为唯一用户可见的长期目标概念。允许增强 Goal 的完成验证、预算、连续性、常驻监督和崩溃恢复，但不增加 Mission、第二套目标标识、任务 DAG 或平行工作流数据库。
-
-### 3.4 人类可充分交互的控制面
+### 版本与恢复
 
-EvoForge 不能只在后台“自主运行”。DSH Command、DSH TUI、随 Host 组合的 Web client 或消息 Adapter 可以投影同一组 DSH 权威状态，使用户能够：
+Candidate 按完整目录树内容寻址，绑定来源、父代、DSH revision、权限、边界、评测 hash 和证据。Candidate 默认
+inactive/quarantine；当前 Session 固定 Generation，晋升只影响未来 Session。晋升、pause、resume、canary 和
+rollback 必须是 Host 权威的原子动作；崩溃恢复从 durable journal 继续，未知外部结果保持 uncertain。
 
-- 查看当前 Goal、执行阶段、最近动作、阻塞原因和下一步；
-- 查看 Capability Map、Capability Gap queue、实际路由结果，以及 Skill 的来源、scope、版本、内容哈希、验证状态、使用与效用证据；
-- 查看 Candidate 的主张、diff、评测证据、token、缓存影响和权限变化；
-- 查看候选谱系、baseline/candidate/holdout 分数、失败归因、安全扫描、quarantine、成本、时延和当前 Generation/release tag；
-- 查看有界 Generation 选择时间线：每次真实晋升/回滚的前后版本、Host authority 与 exact evidence id；时间线必须明确无 outcome claim、无 release authority；
-- 查看飞书连接身份、route、健康、入站去重、出站投递与 uncertain 状态，但不在浏览器中绕过静态 route 与 DSH Approval；
-- 执行 approve、reject、pause、resume、promote 和 rollback；
-- 明确区分建议、等待人工、已授权执行和 Protected Action；
-- 在不回复进化审批时继续正常会话和其他 Goal。
-
-交互状态属于 host/control plane。除非模型执行任务确实需要，不得为了 UI 刷新而新增模型工具、动态 system prompt 或每轮状态注入。
-
-任何新增或修改的 Web/GUI 交互除了自动化组件测试，还必须使用真实浏览器控制完成端到端验收，覆盖用户可见路径、刷新后的权威状态和关键失败反馈；不能仅凭 DOM 单元测试或截图宣称前端完成。
-
-### 3.5 Hermes 上位目标
-
-“上位替代”按真实结果验证，不按功能数量或宣传语判断。目标矩阵至少覆盖：软件交付、单机持续运行、会话与 Goal 连续性、Memory/Skill、消息和日程 Adapter、人类控制、权限、成本、KV Cache、持续进化证据和回滚。首版不承诺复制 Hermes 的全部渠道，也不把单机崩溃恢复称为高可用。
-
-## 4. 扩展与上游边界
-
-EvoForge 是新增功能项目，不是 DSH Bug 修复项目。
-
-候选插件必须通过 `upstream-fixed test`：假设 DSH 完全正确，该插件是否仍然提供独立、用户可感知的价值？如果答案是否定的，它就是 Bug workaround，应当生成最小复现并反馈 DSH 上游，而不是进入 EvoForge 路线图。
-
-允许：
-
-- 新工作流、新集成、新自治能力和新用户结果；
-- 诊断、版本检查和生成上游最小复现；
-- 通过 DSH 已支持的接缝进行组合。
-
-不属于产品：
-
-- Monkey Patch 或影子实现 DSH 核心；
-- 修复 DSH Session、Hook、插件加载、资源释放或 UI/CLI 自身缺陷；
-- 因上游修复即可失去价值的长期兼容补丁。
-
-## 5. 权限与外部动作
-
-默认允许 Agent：
-
-- 创建和管理 worktree；
-- 编辑代码与文档；
-- 运行测试、构建和本地验证；
-- 创建 commit；
-- 创建 Draft PR。
-
-以下动作必须由人工或明确部署策略批准：
-
-- merge；
-- 发布和生产部署；
-- 读取秘密；
-- 付费操作；
-- 扩大权限；
-- 不可逆外部动作。
-
-持续进化不能绕过上述边界。模糊候选的审批与正常会话分离，审批等待不能阻塞原任务。
-
-本仓库自身的产品开发与上述“软件交付插件可为用户仓库创建 worktree/Draft PR”是两个不同边界。
-`dsh-evoforge` 开发只在 `main` 上进行小步、可验证的 commit，并在每批验证后实时 push 到
-`origin/main`；不得为功能或发布创建新分支，不得 force-push 或重写已推送历史。运行时 Evolution
-Candidate 使用隔离、内容寻址存储，不使用 Git branch 表示。只有冻结的核心能力集合通过完整 release
-gate 后，才在 `main` 创建 annotated semantic tag；普通进度提交不得打发布 tag。
-
-## 6. 常驻运行与恢复
-
-第一阶段只要求单机常驻进程和崩溃恢复，正式称为 Local Continuity，不设计分布式调度、选主或多 Worker 平台。对 exact 持久 Session 的原生 active Goal，可由默认关闭的部署策略预授权 cold-resume continuation；仍复用原生轮次、权限和进程管理，不引入 Mission 或任务库。High Availability 留到存在明确可用性目标和多个故障域后再设计。
-
-进程层只允许一个薄的用户级 OS adapter：输入 exact absolute Node/DSH entry、profile、`DSH_HOME` 和
-workspace，输出可审查的 launchd/systemd unit。OS service manager 与 unit 是唯一权威；不得再建 daemon、
-进程状态数据库或通用 supervisor API。安装、启动、停止和删除属于 Protected Action，必须逐次确认或由
-明确部署策略授权；unit 不复制 shell `PATH` 或秘密环境变量。
-
-常驻能力应：
-
-- 复用操作系统服务管理器完成进程拉起；
-- 复用 DSH Session Persistence、Goal、Jobs、Schedule 和 Storage；
-- 使用少量、幂等、可恢复的后台状态；
-- 在进程终止后识别未完成的候选生成、Trial 和晋升步骤；
-- 不尝试修复 DSH 已损坏或丢失的核心状态。
-
-## 7. KV Cache 第一原则
-
-保护 DSH 的 KV Cache 优势是所有插件的共同第一优先级，不是某一个缓存插件或检查器的单独职责。
-
-所有设计必须遵守：
-
-- 同一会话内模型可见前缀、工具名、Schema 和排序保持稳定；
-- 动态状态通过已有稳定工具按需读取，或存储在模型上下文之外；
-- 无事发生的 Hook 真正 no-op；
-- 不反复注入时间、UUID、全量历史和运行状态；
-- 后台观察和持续进化不增加动态模型工具或系统提示；确有 Goal 执行动作价值的固定 Tool 必须逐项声明、
-  跨轮稳定，并证明移除该声明项后其余完整请求与原生控制组等价；
-- UI、审批、时间线和运行状态从 host/control plane 读取，不通过每轮 Prompt 注入同步；
-- 能力晋升在会话边界生效，活动会话固定版本；
-- 对完整 composition 测量缓存影响，而不是用局部插件自证；
-- 缓存明显退化且没有足够收益的候选不得自动晋升。
-
-## 8. 简洁与插件化原则
-
-- 新能力优先作为 EvoForge Suite 内独立、可选、可删除的 out-of-tree 插件或能力包；只有独立生命周期或信任边界成立时才拆仓。
-- 优先组合 DSH 原生 Service；只有真实变化点才建立新接缝。
-- 一个公共接缝原则上需要至少两个真实 Adapter；否则先保留为插件内部实现。
-- 设计深模块：用户学习很小的 Interface，复杂度隐藏在实现内部。
-- 不为“以后可能需要”预建通用平台。
-- 不建设 Mission、通用任务 DAG、平行事件溯源、Effect Broker、分布式 Lease、第二套审批语言或第二套 Memory 平台。
-- 已有成熟社区插件能够解决的问题优先复用、组合或提供兼容指导。
-- 每个候选插件必须回答：服务谁、解决什么问题、为何 DSH 原生组合不足、如何测量效果、如何保护缓存、如何卸载和回滚。
-- 无法回答上述问题的设计不进入开发。
-- 用户安装面按能力套件呈现，而不是暴露内部流水线数量：默认入口为 `core`、`channels`、`delivery`、`continuity`；`attention` 为可选附加能力，`evolution`、`control`、`gateway` 仅作兼容/高级入口，`full` 仅供维护者。套件必须展开为真实官方 Bundle；不能用一个聚合包隐藏独立的生命周期、权限或卸载边界。`channels` 不得强制安装 Control Center 或 Attention。
-
-## 9. 设计阶段交付物
-
-设计阶段必须交付：
-
-1. DSH 完整架构报告；
-2. DSH 全量原生插件目录及统计口径；
-3. DSH、Claude Code Rev、Hermes 跨项目比较；
-4. Hermes 持续进化机制专项审计；
-5. 用户核心痛点与证据报告；
-6. `CONTEXT.md`；
-7. 必要且精简的 ADR；
-8. EvoForge 插件目录、仓库边界和取舍依据；
-9. 插件接口规范；
-10. 分阶段开发路线图；
-11. 可执行的 DSH 插件开发 Skill；
-12. 持续进化架构、评测、晋升和回滚规范。
-
-所有报告使用中文；源码符号和正式包名保留英文。报告应提供源码路径或一手来源，使读者能够自行验证。
-
-## 10. 工作顺序和完成条件
-
-基础研究与既有 P0A–P3 实现已经形成，但 2026-08-18 的生态增量调研和产品方向纠正带来新的现行顺序：
-
-1. 只在 `main` 收拢并持续推送可验证现状；先修复 clean checkout、全包检查和 DSH 原生安装基线，禁止用新分支掩盖集成状态；
-2. 同步更新需求、领域模型、增量调研、ADR、产品架构、路线图和验收记分卡，冻结“无开场选路、三平面、双速进化、独立评测、main/tag”约束；
-3. 以 test-first 方式补齐自然语言 Goal 到 Capability Map/Gap/Skill Opportunity 的内部经验自我发现、稳定 identity/scope/version 与整包候选；运行时不搜索、下载、获取、导入或安装外部 Skill；
-4. 把在线快环与离线慢环接入现有 Candidate/Trial/Generation，并证明 Candidate 无法影响 evaluator、holdout、gold 和晋升规则；
-5. 在 DSH Web 中形成可解释的能力、缺口、候选、评测、回滚和飞书健康视图；关键动作继续走原生 Command/Approval；
-6. 完成 `dsh-gateway` 的 Adapter 生命周期、标准化、身份/Session 映射、持久投递、幂等重试、去重、路由、限流和诊断，并完成 exact 飞书 route 的消息/Command/Approval/投递闭环；飞书文档/知识库/云盘/多维表格按独立最小权限作为 `dsh-feishu` 的 Agent-scoped 原生 Tool 接入，不进入 Gateway；Gateway 不得成为第二 Agent Runtime 或巨型业务平台；
-7. 用干净 profile、真实浏览器、真实飞书、真实 provider、长期 outcome 和与当前固定 Hermes revision 的 paired benchmark 验收；只有核心集合全部通过才创建首个 annotated semantic tag。
-
-旧阶段的 Git 提交仍保留完整审计历史；已撤销的运行时架构、控制面合同和完成证据不再作为活动文档保留。历史不得凌驾于上述现行顺序，也不能把既有实现数量当作新目标完成。
-
-当前进度说明：软件交付、Runtime Readiness、Telegram、飞书第二 Adapter 与单用途 Evolve 注意力桥
-已分别以独立 `dsh-*` 包实现。V5.9 后 Runtime Readiness 不再只读 Loader：必需且 active 的
-`dsh-feishu`/`dsh-telegram` 还会复用现有 Gateway 脱敏 transport facts，分别诊断缺失、连接中、ready、
-degraded 与 stopping；不复制健康状态、不探测凭据或平台、不自动修复。最终 Doctor tarball 已在真实 DSH
-Loader 中验证 degraded→reload→ready→remove，但该确定性 Adapter 不是平台通过证据。飞书真实 App 身份请求、
-WebSocket 握手与 resident pairing transport 已通过；同包最终 tarball 已在真实 DSH profile 中验证
-Gateway Web 显示零 route 的 `official-feishu-websocket: ready`、当前 native Session 目标和 Host 批准入口。
-陌生私聊首条消息必须在 Agent 前回 code，批准后未来消息立即生效；不得恢复 `/feishu-pair`、临时 listener、
-profile rewrite 或重启流程。Host 必须能列出并精确撤销动态 principal grant；撤销后下一条私聊重新配对，
-不得删除原生 Workspace/Session，也不得把静态 route 当作可撤销授权。
-exact route 消息和 Hermes paired 证据完成以前仍只标记为 `implemented`；公共渠道可靠性中的 ingress、
-普通文本 outbound intent/journal、幂等、按 account 串行、明确限流重试和脱敏状态已经收敛到
-`dsh-gateway`。Gateway 入站现接受 exact 文本与 DSH 原生 `ImageAttachmentRef`；飞书 Adapter 通过官方
-message-resource 端口下载图片，整批按 `ctx.attachments` 限制校验并内容寻址持久化，外部 `fileKey` 不进入
-Session。assembled DSH 已证明原生 image block 和 exact bytes 回读，但尚未证明真实用户消息或真实多模态
-provider。飞书 Approval 卡片现已沿 thread-scoped exact route 发送，并将一次性 nonce 与平台 card message id、
-exact chat/operator 共同绑定；错误卡片、错误身份、重放和 dispose 均由 assembled DSH 门禁拒绝或取消，
-但真实用户点击仍未验证。已验证 rc.5 与最新设计审计 rc.2 都没有通用文件契约，普通文件和音视频仍不能发明 Gateway
-file block。文档、知识库、云盘元数据和多维表格已按四个默认关闭的独立权限实现为 Agent-scoped 原生
-`feishu_content_read` Tool；每次读取走 ToolRuntime/Approval，当前 Session schema 固定，结果进入原生 durable
-`tool/result`，不另建 Store 或 Gateway 内容路由。assembled DSH 已验证权限拒绝、审批、官方 SDK 映射、边界、
-取消和 dispose。V5.6 又把四权限、exact Agent Tool registry、Approval seam 和 request header 组成 V2 Host
-权威内容就绪投影；最终 tarball 已在真实 DSH Web 验证人工刷新、Host 停机清空旧状态和同端口无 reload 恢复，
-且健康读取不调用模型或平台。真实 App scope、资源成员权限和真实内容仍未验证。平台协议、凭据、实际发送、卡片和 transport lifecycle 留在 Adapter；Adapter 只把
-exact route 所属的脱敏 transport observation 注册到 Gateway 权威健康投影，也不把
-其他消息、内容或日程需求视为已交付。该说明不改变以上需求顺序和权限边界。
-
-Gateway 权威 `healthSnapshot()` 只能从静态 route、原生 Agent 注册表、Gateway ingress/outbound journal
-和 Adapter registrations 读取，按 exact route 子集返回生命周期、live Session、ingress、transport 与 outbound 状态；
-不得输出 account/chat/user、正文、external message id、错误正文或凭据，不得调用模型或平台。公共
-outbound 和 Adapter transport observation 已由 Telegram/飞书共同验证并迁入；统一 Gateway Web 已由同包
-官方 Client Module + 只读生成式 Remote 实现，并从最终 tarball 在真实 DSH 浏览器验证读取、刷新、Host
-停机清除旧快照和同端口恢复。该门通过不代表 exact 平台消息已完成。平台 SDK、重连策略和错误正文不得进入 Gateway。
-
-内部经验自我发现的现行纵切只使用 DSH 内部经验。已有能力继续由模型依据原生完整 Session Skill catalog
-自主路由并由原生 `skill` Tool 加载；没有适用 Skill 时，模型可在同一自然语言 Goal 中调用唯一稳定的
-`report_capability_gap` Tool 提议一个有界 kebab-case 能力名。Host 重新核对 exact Workspace/Session、active
-Goal、完整 settled catalog 和 exact name 不存在，再持久化 `model-declared-skill-gap`；原生 `skill` exact miss
-仍作为另一类内部证据。用户不选择路径、Agent、工作流、Skill 或来源。该 Tool 的名称、描述、Schema 和顺序
-在 Session 内稳定，移除它后其余请求保持原生 composition 等价。
-
-`ExperienceDrivenSkillOpportunityDiscovery` 以同一 Workspace 的 durable、Goal-linked Gap 决定资格。至少两个不同
-Goal 对同一能力形成重复证据才派生一个 `eligible-for-authoring` Skill Opportunity；同一 Goal retry、无 Goal、
-跨 Workspace 或证据不足都 abstain。Opportunity v3 只关联能够从 feedback 目标回答的 durable Session turn 中
-证明唯一成功 Skill 调用并折叠出 exact Goal id/revision 的明确纠正；同 Session Gap 接近关系不构成归因。它还可关联
-同一稳定 Goal id 跨 revision 的唯一 Gap Skill compact delivery outcome；Outcome 必须不早于对应 Gap 且 revision 不得倒退，歧义事件不关联，固定
-`causalClaim: none`，也不能改变资格、排序或 author 输入。Workspace 级 `selfDiscoveryPolicies` 只授权 owned run root 与日预算，
-不接受 Skill 名、路径、来源或工作流；Skill 名只能来自 Opportunity。Opportunity 本身不等于 Candidate readiness：
-`SkillEvaluationEvidenceVault` 必须先从 exact Opportunity 快照中选出至少四个不同 Goal，内容寻址密封 authoring、
-admission 与 holdout 三组不重叠样本；存在第五个或更多独立 Goal 时，另保留一个专属 Retention 样本。作者只接收 authoring 子集及密封 id，admission/holdout/Retention objective 不进入 proposer
-请求。少于四个 Goal、快照不一致、symlink 或密封内容篡改均在预算和模型调用前 abstain/fail closed。原生 Jobs
-中的 author 不能执行外部搜索，返回 root `SKILL.md + references/*.md` 的 instruction-only whole-Skill manifest。
-Host 确定性组装 archive；Candidate v2 将 exact evaluation-evidence seal id 纳入内容身份，并绑定 opportunity/gap/goal/model/input/artifact/tree 血缘，只写入 quarantined、
-inactive、unevaluated、never-executed Candidate。可能已经付费但结果未知时持久化 `uncertain` 并拒绝盲重试；
-取消后的迟到响应不得落候选。该模块没有安装、激活或发布接口。
-
-现有 Skill 改进与上述缺失能力路径分轨。feedback 目标回答的唯一成功 Skill 调用必须从 durable Session 计算模型实际看到的 invocation content-block hash；只有同 Workspace、同 Skill 名、同 hash 在至少两个不同 Goal 中收到去重负向纠正，才形成独立调查。历史无 hash、同 Goal retry、重复 Signal、同名不同内容版本或歧义全部 abstain。该 hash 不是完整 Skill package/tree/version，固定 `causalClaim: none` 且不能被 capability-absent Envelope 或 Candidate Repository 消费。Host 必须在调用发生时封存完整受信 Bundle，再重验调查快照和每个 exact `(Session, invocation seq)` 引用；只有 route/Skill/hash 一致且全部解析到同一个 baseline id，才生成内容寻址的 `eligible-for-existing-skill-authoring` 资格。引用缺失等待，证据漂移、archive 损坏、归因错配或多个 Bundle 均 invalid。
-
-该资格达到至少四个不同 Goal 后，Host 必须通过官方 `MessageFeedbackService.list()` 与 `SessionPersistence.inspect()` 重新读取当前纠正和 exact durable Goal/用户请求；禁止从私有 DSH storage table 或 reference-only Signal 偷取正文。message/version/time、assistant、唯一 Skill invocation、route/seq/content hash 和 Goal revision 必须全等。证据在 Candidate 调用前确定性分为至少两个 authoring、一个 admission、一个 holdout；第五个及以上再隔离一个 Retention；同 Goal 重复不计。proposer 只可见 authoring cases，治理面保留其余样本，Remote/Web 只显示 identity、计数和阻断原因。少于四 Goal 不读取纠正文；feedback/Session 漂移、服务缺失、内容超限和 seal 篡改均 fail closed。
-
-Candidate proposer 调用前，独立 existing-Skill holdout governance 必须只接收 exact Opportunity、Qualification、完整 baseline、Evidence Seal identity、proposer identity hash 和唯一 protected holdout；禁止接收 Candidate、diff、claim 或 capability-absent subject。governance author 与 proposer identity 相同必须在预算前阻断。Host 只接受保持 name/license/permissions/allowed-tools 的完整 correction `SKILL.md` 与 assembled evaluator，并将 baseline 的其余 references/assets/binary 原样继承为 synthetic known-bad 与 known-correction 完整树；Case Pack 必须是 `dshAssembled: true` 的 `skill-tree` subject，不得含 `capabilityAbsentBaseline`。零 proposer calibration 未证明 known-bad fail / known-correction pass 时不得安装 Envelope。预算延期可恢复；paid-call uncertain、校准失败、identity/content drift 均不得盲重试。该治理必须在原生 DSH Jobs 内先于 proposer 执行，失败时 proposer budget/model call 为零，且始终无 effect verdict 或 release authority。
-
-受保护的 existing-Skill author 必须自主从上述内部机会取任务，不接受用户选择的 Skill、路径、来源或工作流，也不得做外部搜索/获取。它只能看到 exact baseline 的有界文本、二进制资源元数据和 authoring cases，只能提出 root `SKILL.md` 与一层 `references/*.md` 的文本替换/新增。Host 必须拒绝 delete/rename/path drift、Skill identity 漂移、代码/二进制改写、no-op、超限及 `permissions`/`allowed-tools`/`license` 漂移，并从 baseline 原样继承所有未修改文件后组装完整内容寻址 archive/tree。paid call 前必须持久化 intent；未观察结果或重启发现 pending 时标记 uncertain 且不盲重试。Candidate 必须独立于 capability-absent 新 Skill schema/storage，固定 inactive/quarantined/unevaluated/never-executed/no-release-authority；Web 只能显示持久 phase/cost、identity、tree 和 bounded diff，不得下发 claim、正文、保护样本或 Host path。
-
-existing-Skill Candidate 必须进入独立于 capability-absent Envelope 的 Host 结构准入。该门禁只按 exact Workspace/baseline 内容地址读取已封存完整 Bundle，并从 Candidate vault 物化 exact 整包；它必须绑定 qualification/evidence/authoring digest 和 governance-only admission 样本，重算两侧 archive/tree，逐字确认所有未修改文件，且实际 changed/added/preserved/binary 与 Candidate 声明完全一致。删除、未声明 diff、非 `SKILL.md`/一层 `references/*.md` 差异、identity/evidence 漂移均阻断。运行 state/result 必须内容寻址、加锁、可恢复并由原生 DSH Jobs 调度；通过只表示 `qualified-for-holdout`，明确 `candidateExecuted: false`、无效果判决和无发布权。
-
-结构准入后必须由独立 existing-Skill exact paired holdout 重读 immutable baseline、exact Candidate、qualified Admission 和 Candidate authorship/content identity 已绑定的 exact Candidate-blind Envelope。新 Candidate 必须把生成前 Envelope id 纳入内容身份；五 Goal Envelope 必须由两个单样本治理调用分别形成并绑定 Holdout/Retention Case Pack 与输入摘要，四 Goal和 legacy v2 必须显式没有 Retention。可读 legacy 无绑定 Candidate、Envelope id 错配或事后 lookup 到另一个 Envelope 都必须在 Candidate 物化和 Trial 前失败关闭。运行 identity 必须绑定 Candidate/Admission/Envelope/Opportunity/Qualification、三棵内容树和固定 DSH revision；两侧完整 `skill-tree` 进入相同 assembled DSH Trial，禁止 capability-absent subject。Trial 前后都要重算 baseline/Candidate/Case Pack；只有 known-bad/known-correction calibration、assembled execution、非目标 composition、输入完整性和四次 Trial 全部成立才可分类：`fail/pass → improved`、`pass/pass → ambiguous`、`fail/fail → not-improved`、`pass/fail → regressed`。物化漂移必须 `protected`，明确失败或完整性失败必须 `incomplete`；付费 dispatch 前持久化 pending，重启发现未知结果时不得盲重试。该评测只产生无发布权证据；Retention、Canary、晋升和回滚仍须独立门禁。
-
-existing-Skill 自动晋升只允许由 Workspace 级部署策略授权，策略不得包含 Skill、路径、来源、Candidate、Case Pack、evaluator 或工作流。唯一 Host release owner 必须重新读取 exact baseline/Candidate archive、Admission、improved Holdout 和 independent retained Retention；只允许没有增删文件且其他文件逐字相等的单一 `SKILL.md` 末尾追加，追加量为 1–2048 canonical UTF-8 bytes，并通过 credentials/destructive/messaging/network/payment/permission/tool/production 等 protected-effect 筛查。存在模型调用时，Holdout 与 Retention 两处都必须满足 Candidate model calls、input/output/reasoning/cache-write 不高于 baseline 且 cache-read 不下降；两侧继续受相同 sealed timeout 与 composition 门约束。自动决策先持久化并发布 inactive Generation，再以 expected parent 选择未来 Session；当前 Session 不漂移。Workspace pause、取消、父版本变化或中途崩溃不得绕过门禁，重启只从 durable Candidate/评测/决策/Generation 状态恢复。改写正文、增加 reference、代码、权限、凭据、外部效果、新 Skill 与模糊结果继续走人工或 Protected Action。
-
-Delivery Outcome 只能从 native Session 中 source-linked 的 `complete_delivery` call/result pair 投影。实时 Tool
-通知没有证据权；Host 必须先等待 `ctx.sessions.flush(session)` 成功，再写 Outcome。checkpoint 前进程死亡不得
-凭 live event 补造 Session 或 Outcome，也不得自动重跑 Tool；checkpoint 已成功但 Outcome 写入前死亡时，cold
-Session start 只可幂等补投影同一 pair，不调用模型、不重复 check、Goal 完成或任何外部效果。两种窗口必须用
-独立进程硬杀与持久副作用计数验证，不能以 in-process exception、mock retry 或模型自评替代。
-
-Delivery Outcome 可附带同一 Session、同一稳定 Goal id 的 `GoalExecutionMetrics`。Host 只统计首条 admitted
-message 属于当时最新 active Goal revision 的 turn，并在 exact `complete_delivery` result event 截止；token、
-cache-read/write、LLM/tool/TTFT/decode 时间来自 DSH 官方 `tokenUsage`/`sessionStats` projection cut 的差值，
-active wall time 来自同一原生 turn 边界。手工 turn、其他 Goal、旧 revision、归属歧义、缺少 projection unit
-或计数倒退全部 abstain。DSH 没有提供 provider price 时货币成本必须明确为 unavailable，禁止自行估价。
-这些 metrics 只进入 Host 权威 compact Outcome 事实，不改变 Opportunity 资格/排序、author 输入、评测 verdict 或晋升。
-`EvolutionControlPlane.overview` 只输出 browser-safe 聚合与至多 20 条最新已测 Outcome；不输出 Session/call/reason/path，
-不建立第二 metrics API 或浏览器状态权威。缺失 metrics 必须显示为未测，不能折算为零。
-
-DSH Web 已投影 `Capability Gap → Skill Opportunity → Candidate → authoring state`，并将 existing-Skill improvement investigation、exact baseline qualification、correction evidence readiness、Candidate-blind holdout governance、paired structural admission、exact paired holdout effect verdict 与 exact Retention 作为独立队列展示。existing-Skill Candidate 行显示其生成前绑定的 exact Holdout Envelope id；Retention 行显示 Candidate/Holdout/Admission/Envelope、baseline/Candidate/Holdout/Retention tree、四象限、calibration/assembled/composition/integrity、model/token/cache 与无晋升/发布权。页面另显示证据 Goal 数、Gap/纠正数、baseline provider/source/id/文件数、authoring/admission/holdout/Retention 分区、holdout phase/cost/retry/failure/Envelope identity、结构准入 status/reason、baseline→Candidate tree、声明 diff 计数、protected admission 摘要、paired Candidate/Admission/Envelope、三棵树、双方 pass/fail、calibration/assembled/composition/integrity、model/token/cache、资格或阻断原因、
-关联纠正/Outcome 计数、有界短引用、无因果声明、Candidate id、预算/调用和隔离状态，并展示 Host 权威的
-Workspace/current/baseline Goal 执行聚合、最近已测 Outcome、token/cache/latency/active-wall facts 与价格 unavailable；
-exact Skill 结果上下文另显示 eligible failure-context investigation 数、最新失败 Goal 数，以及每个 exact 版本的
-阈值和 review-only/no-Candidate 权限声明；
-Opportunity 另显示评测证据是等待、无策略、无效、具备密封条件或已密封；凡 Gap 已进入 Opportunity，浏览器
-投影都移除 Goal objective。具备密封条件或已密封时只显示 evidence id、authoring/admission/holdout/Retention 数量和
-proposer 不可读保护声明，不返回受保护样本内容。
-每次真实选择变更还必须由 Store 在活动 pointer 的同一次 Workspace state 写入中追加内容寻址事件；事件至少绑定 sequence、promotion/rollback、前后 Generation 和唯一 Host authority/evidence。重复选择已经活动的版本不得制造事件，当前 Session pin 不得漂移。Control/Web 只显示有界最近历史和分类计数，不得从当前 pointer、Review 或 Canary 事后猜测，也不得把 mutation timeline 称为效果时间线。
-每条选择事件可以关联其 `recordedAt` 之后、下一条选择事件 `recordedAt` 之前的 retained Delivery Outcome；两个边界必须严格排除，边界相等只记歧义，相邻选择时间不严格递增必须 abstain。Outcome 必须按自身 Session-pinned Generation 分为 selected、previous、other，并分别显示结果、不同 Goal、已测/未测 token/cache/latency/active-wall。该窗口只能由 Host 复用现有选择历史与 Outcome reader 只读投影，固定 `bounded-retained-evidence`、无因果、无 Candidate/评测/晋升/回滚 authority，不得建立第二 Store 或自动动作。
-Candidate 进入后，浏览器谱系显式显示 `Opportunity → evidence seal → Candidate → Admission`，不会用 Envelope id 隐去生成前封存版本。实际 assembled Shadow 继续由 `ReviewInbox` 校验，Retention 继续由其内容寻址 run root 校验；Host 只有在 Workspace、Skill、Candidate、Admission、Envelope、Shadow run、baseline tree 和 Candidate tree 全部一致时才投影同一行。错配、重复、篡改或不可读状态必须 fail visible，不能把 Retention 显示成通过；浏览器只接收 bounded case、trial、composition、verdict/reason、calibration、proposer/model/token/cache 聚合和 lineage，不接收 Host path、protected Goal/Case、evaluator、provider identity 或 proposal。
-不提供路线、来源、安装或激活菜单。刷新失败必须显式报错并保留最后一次成功快照，恢复后从同一 Host 权威重新读取。旧的本地 Git、外部索引和运行时
-Web research 方案必须从当前实现删除；其已撤销的架构与 evidence 页也从活动文档删除，决策原因只由 superseded ADR 和当前调研基线保留。Hermes、OpenClaw、HanaAgent、论文与开源实现继续用于设计期固定 revision 调研与 paired benchmark，不进入运行时 Skill 路径。
-
-确定性 admission、assembled Shadow、Review、immutable Generation、future-Session promotion 与 rollback 的既有
-治理路径仍保留。内部 Candidate 不再由 profile 预选 exact Skill、baseline 或两套 Case Pack；Workspace 级
-`candidateEvaluationPolicies` 不接受 Skill、baseline、Case Pack 或 Candidate 方向；自主治理时只额外固定 exact DSH revision 和独立日预算。Host 根据 Candidate v2 的 exact evidence-seal id 读取受保护 admission/holdout/可选 Retention；治理作者分别只接收自身样本且不接收 Candidate 文件、正文或 id。治理作者与 Candidate proposer 的模型身份相同时必须在预算预留和模型调用前失败关闭；全部 Case Pack 先以零 proposer 调用校准，再按 `Opportunity/evidence-seal` 原子安装。
-Envelope v4 严格绑定四 Goal 路径；存在 Retention 样本时使用 v5，额外绑定其 protected input digest、独立 assembled Case Pack hash 与 run root。两者都绑定 Opportunity 快照、`Skill Evaluation Evidence Seal`、author-input digest、治理作者 identity，只能含 `subject.json` 的 capability-absent baseline、calibrated admission 和不同的 assembled holdout；baseline DSH 不安装目标 Skill，Candidate 侧才安装 exact
-whole-Skill，任何占位 `SKILL.md` 都 fail closed；
-Opportunity/内容/路径不一致、任意 protected Case Pack 同 hash 或符号链接均 fail closed。同一 Envelope id 进入
-admission、Candidate Lineage v3 和 Shadow handoff；lineage 另显式携带 seal id，结果仍无 release authority。治理作者请求 dispatch 后结果不可确认时持久化 `uncertain`，重启不得盲重试。
-
-该实现已消除人工预定进化方向，并完成生成前的独立证据密封、新 Skill 的内容寻址发布、future-Session 固定、root rollback、exact-Candidate assembled Shadow，以及同一 Jobs 任务内对 Envelope v5 第五 Goal Case Pack 的内容寻址 Retention verdict。旧静态 Retention/canary 编排已删除；新 Retention 不读取 target、不调用 proposer、不授予发布权。独立 Host Promotion Eligibility 每次晋升前重验 approved Review、Generation artifact、Lineage、Shadow 和唯一 Retention run；missing/prepared 等待，warning、歧义、错配、regressed、incomplete 和 verdict/evidence 脱钩均阻止 active selection，Command 与 Web 不得绕过。新的 failed-Outcome canary 只从该 exact internal evidence 重建，内容寻址重跑 Retention Case Pack 并产出 keep/review/rollback-eligible；它没有 Generation mutation seam。
-已实现把已密封 admission/holdout/Retention Goal 样本交给 Candidate-independent 治理作者、零 proposer 校准并形成 Envelope v4-v5；existing-Skill 路径也已把 exact Admission、baseline、Candidate 与 Candidate-blind Envelope 接入 assembled paired holdout 并持久分类，但尚未用两套独立真实 provider 与真实 assembled Goal 样本证明生成包可用，也未在长期任务中
-完成 admission→holdout→Retention→canary→outcome 的整链归因。下一阶段必须让
-Candidate 不可读写的 Evaluation Governance Plane 在真实 provider 下证明 baseline、未见样本和 hard gates 有效；没有合格治理包时 abstain，不能回退到外部搜索、author 自评、Mock 结果或一次成功即晋升。
-
-`dsh-software-delivery` 的最小 objective outcome 已作为内部交付事实。失败 Outcome 本身不证明 Skill 回归；只有 exact Candidate/Envelope canary 在 baseline 通过且 Candidate 失败时才能形成 `rollback-eligible` 证据。该证据不直接回滚；后续独立 Host action 必须再次重验 exact pointer 和权限，人工复核的新 Skill不会被实验性 policy 静默改写。
-
-验证器之后只增加一个最小原子 `complete_delivery` Tool：复用原生 shell policy 和
-`update_goal`，通过才完成 exact native Goal。它不是 Mission、全局 Goal 拦截或第二套 policy；
-若真实使用没有证明需要，不扩张为通用 workflow engine。
-
-Draft PR 继续复用同一个 Tool 的可选参数，不再增加模型动作。默认只做非强制 exact commit push、
-创建或复用 Draft 和 read-after-write；不 merge、不转 ready。远端 branch/PR 是幂等事实源，
-网络结果不确定时 Goal 保持 active，重试先查询而不是盲目重复外部动作。
-
-仓库可通过默认关闭的 host 配置要求 exact Draft PR head 至少有一项且全部远端 checks 通过后才
-完成 Goal。该配置不改变 Tool Schema；默认每次调用只读一次远端事实。部署者可另行配置有上限的
-active-call wait，只对 pending/缺失 checks 重读，不保存 CI journal、不复制日志，也不启动后台
-watcher。failed、无法读取或 head 漂移立即保持 Goal active；timeout 后显式重试仍复用同一个 PR。
-
-反馈进化只复用原生 Message Feedback 保存 reference-only Signal。目标 Skill 只能从 durable Session 的唯一成功 `skill-invocation`、exact Goal id/revision 与 invocation-content hash 归因，用户不能指定 Skill 或处理路径；歧义、同 Goal 重复和 legacy 无 hash 一律 abstain。Signal 与 Gap、Outcome 进入内部经验聚类，达到跨 Goal 门槛后才形成 Opportunity、Evidence Seal 和隔离 Candidate。
-
-Candidate 作者、评测治理面和执行面必须分离。作者只读 authoring 子集；治理作者分别只读 admission/holdout/Retention，且不能读取 Candidate；Shadow 只接收 exact Candidate、lineage、Envelope 和 `dshAssembled` Trial，不调用 proposer、不选择 target、不生成任何 Draft。评测或持久状态不完整时 fail closed，不以自动过期替代明确治理决定。
-
-Retention、反事实 Canary、持续监测和低风险自动晋升必须直接绑定内部 Candidate/Envelope/Outcome，使用 baseline/candidate 对照、未见样本、负迁移、安全、权限、成本、时延、cache、故障恢复和精确回滚证据。当前缺失 Skill 的 Retention/Canary/Rollback，以及 existing-Skill Retention/发布门/failed-Outcome Canary/独立 rollback gate 已按该边界重建；两条路径都已完成最终包 rollback 故障恢复。真实 provider、长期率和 full paired 门禁仍属 pending。任何阶段都不能复用已删除的静态 target、Feedback Draft、Evaluator Draft 或旧 journal。
-
-研究完成的标准是“当前 revision 的每一个原生插件都有归类和作用说明，三个项目的关键结论都有源码证据”。设计完成的标准是“每个计划插件都有用户结果、DSH 接缝、缓存影响、权限边界、验证方法和回滚方案”。实现完成的标准由相应 P0 测试规格定义。
-
-## 11. 已确认的关键决策
-
-- 持续进化是旗舰功能；软件交付是第一试验场。
-- `deepseek-harness-evoforge` 是所有 DSH 扩展设计和开发的公开组织；相关插件默认共仓，独立生命周期或信任边界成立时拆仓。
-- 只使用 Goal，不设计 Mission。
-- EvoForge 只增加功能，不承担 DSH 核心 Bug 修复。
-- 新能力优先 out-of-tree、插件化、可独立安装和卸载。
-- 首个在线阶段 P0B 为单机、常驻、可崩溃恢复，不做分布式系统；离线 P0A 不预建 daemon。
-- 明显正向的指令改进可以自动晋升；模糊结果异步人工复核。
-- 可执行变更默认生成 commit/Draft PR，不自动 merge 或激活。
-- 所有能力版本可回滚；外部副作用仍由原生审批和补偿流程负责。
-- 所有插件共同以 KV Cache 稳定为第一设计约束。
-- 先证明 evaluator 与 Candidate 有用户价值，再建设在线发布底座；不能用基础设施完成度代替进化效果。
-- 首个仓库为 `dsh-evoforge`；公开插件和独立插件仓库使用 `dsh-*` 命名，首个插件为 `dsh-evolve`。
-- 项目所有者只负责最终产品验收；命名、开发方式和验证路径由维护 Agent 按本需求基线自主决定。
-- 涉及前端时必须补充真实浏览器端到端验证，并保留可复核结果。
-- 设计基线已经确认，按 P0A Shadow 契约 test-first 实现。
-- 用户只提供自然语言 Goal、材料、约束和验收条件；系统内部自主发现并选择 Skill/路径，不提供开场路由菜单。
-- `dsh-evolve-web`、Gateway 与渠道 UI 共享一个原生 DSH Control Center Surface；不得恢复页面外固定弹窗或重复状态入口。
-- 自进化采用稳定执行面、隔离进化面、独立评测治理面，以及在线快环/离线慢环；没有充分证据时必须 abstain。
-- 从内部证据归纳生成的能力只能先成为可追踪、可隔离、可评测的完整 Skill 包 Candidate，不能静默安装到活动 Session。
-- “自我发现 Skill”只指从 DSH 内部 Goal/失败/纠正/outcome/复用与保留证据发现应形成或改进的能力；外部生态调研是设计期输入，不是运行时自我发现。
-- `dsh-evoforge` 自身只在 `main` 小步提交并实时同步 `origin/main`；核心门禁通过后才用 annotated semantic tag 标记迭代。
-- 飞书是首批正式集成能力，Web 必须可视化能力图、缺口、候选谱系、评测/成本/安全/回滚与飞书健康，但不得成为第二权威控制面。
-
-## 12. 相关设计文档
-
-- [领域语言与不变量](../CONTEXT.md)
-- [EvoForge 产品架构](architecture/evoforge-product.zh.md)
-- [Hermes 上位目标验收记分卡](architecture/hermes-replacement-scorecard.zh.md)
-- [持续进化架构](architecture/evolution-design.zh.md)
-- [插件目录](plugins.zh.md)
-- [插件接口与验收规范](plugin-contract.zh.md)
-- [开发路线图](roadmap.zh.md)
-- [可执行 DSH 插件开发 Skill](../skills/build-dsh-plugin/SKILL.md)
-- [全新失败 evaluator authoring Skill](../skills/author-dsh-evolution-case/SKILL.md)
-- [用户痛点证据](research/user-pain-evidence.md)
-- [公开自进化项目证据审计](research/public-self-evolving-agents.zh.md)
-- [DSH 插件组、自进化与个人 Agent 生态增量调研](research/ecosystem-frontier-2026-08-18.zh.md)
-- [ADR：只增强原生 Goal](adr/0002-extend-native-goal.md)
-- [ADR：只做扩展，不修核心](adr/0003-extensions-not-core-repairs.md)
-- [ADR：持续进化作为旗舰](adr/0004-evidence-driven-evolution-is-the-flagship.md)
-- [ADR：EvoForge 仓库边界](adr/0005-evoforge-repository-boundaries.md)
-- [ADR：自我发现采用三平面双速闭环](adr/0046-autonomous-skill-discovery-uses-three-planes-and-two-speeds.md)
-- [ADR：main 是实时开发线，tag 只标记验证发布](adr/0047-main-is-the-live-development-line-and-tags-mark-verified-releases.md)
-- [ADR：自我发现只从 DSH 自身经验学习](adr/0048-self-discovery-learns-from-dsh-experience.md)
-- [ADR：渠道 Adapter 共享一个薄型 DSH Gateway](adr/0049-channel-adapters-share-one-thin-dsh-gateway.md)
-- [ADR：渠道图片只以 DSH 原生附件引用进入 Session](adr/0069-channel-images-enter-dsh-as-native-attachments.md)
-- [ADR：Gateway Web 是只读 Host 权威投影](adr/0060-gateway-web-is-a-read-only-host-projection.md)
-- [2026-08-19 目标重新对齐审计](audits/2026-08-19-goal-realignment.zh.md)
-
-若后续对话改变已确认要求，应在同一轮更新本文相应章节；历史架构文档不得凌驾于本需求基线。
+## 4. Gateway 与 Adapter
+
+DSH Host 内只有一个 dsh-gateway。它负责身份规范化、pairing request、Workspace/Session 绑定、ingress/outbound
+幂等、限流、恢复和脱敏健康。Feishu/Telegram Adapter 负责平台协议、连接、凭据引用、卡片/附件映射和发送。
+
+陌生私聊首条消息必须在 Agent 前消费并返回一次性配对码；管理员在同一 DSH Web 批准到已有原生 Workspace/Session；
+下一条消息才 dispatch。撤销保留原生历史但阻止后续外部效果。Adapter 不得启动自己的 Webhook 服务、Session、
+审批或状态库。
+
+飞书最小权限分层为私聊/群聊收发、卡片、图片、文件、知识库、云盘、多维表格；每项独立启用，未获 DSH 官方附件/
+Tool 契约支持的类型明确返回不支持。
+
+## 5. Web 控制面
+
+Control Center 使用一个 Session-scoped 的原生 conversation.view；Gateway、Evolution、Delivery、Doctor 通过 child
+slot 注入内容。控制面必须：
+
+- 不调用模型、不复制 Session/Storage 权威；
+- 在一个页面展示 Host/Bundle、渠道、能力图、Gap、Candidate 谱系/diff、评测、权限、token/时延/cache、晋升和回滚；
+- 提供 pause/resume/approve/reject/promote/rollback，并将动作交给对应 Host 权限；
+- 对未安装套件显示空态；刷新失败保留 last-good 并标记 stale/error；
+- 通过真实浏览器验证新 Session、刷新、401、断连、恢复、失败和卸载。
+
+空 Session 或 DSH onboarding 时官方可能不渲染 conversation.view；不得用固定弹窗或第二网页伪造入口。
+
+## 6. 套件和包边界
+
+默认入口只有 product，它一次安装 Evolution、Doctor、统一 Control Center、Gateway 与第一方渠道 Adapter；delivery、
+continuity 是公开可选能力，attention 是可选提醒桥。core、channels、evolution、control、gateway 仅供旧部署迁移或
+独立开发，full 仅供维护者验收。物理 Bundle 只有在生命周期、权限、外部依赖或信任边界确实不同才保留；重复的
+用户入口应删除。
+
+逻辑套件 id、Bundle id、仓库包名和未来 registry 分发名必须分别记录。当前仓库尚未发布 registry 包，不能让裸
+dsh-* 名称解析到未知第三方包。
+
+## 7. 研究与比较
+
+进入新设计前必须固定并记录 DSH、Hermes/Hermes Self-Evolution、OpenClaw、HanaAgent 的 revision/一手资料，并
+阅读 GEPA、EvoSkill、SkillHone、OpenSkill、DGM 等论文或开源实现。研究输出区分源码事实、用户痛点、推断和取舍；
+研究不会成为运行时外部能力获取。见[研究索引](research/README.zh.md)。
+
+## 8. 验收和发布
+
+每个工作流分别记录 designed、implemented、verified、better、partial、blocked 或 not-measured。better 必须来自
+同任务、同模型、同权限、同预算、同 DSH revision 的 Hermes paired benchmark，并记录成功率、人工干预、误调用、
+复用、负迁移/遗忘、误晋升、恢复、重复外部效果、token、时延、cache-read、费用（有真实计价时）和精确回滚。
+
+发布前还必须完成 clean-profile add/dump/boot/reload/dispose/remove/readback、真实浏览器、真实 Feishu/Telegram、
+真实 Provider、故障注入和单 Host/单页面验证。越权、评测泄漏、当前 Session 漂移、不可卸载或无法精确回滚均阻止
+tag 和 registry 发布。
+
+## 9. Git 与文档
+
+只在 main 开发，不用 Git 分支存 Candidate。每个通过测试的最小增量原子提交并推送 origin/main；失败要记录准确
+网络错误。核心门通过后创建 annotated SemVer tag，之后每个验证迭代继续以 tag 发布。
+
+README 是用户产品手册；内部规则写 AGENTS.md，当前设计写 architecture/requirements，长期决定写 ADR，真实验收写
+evidence，当前阻断写 status。一个变化只更新实际受影响的权威页，不为每个测试复制一套日志。旧设计与本基线
+冲突时从工作树删除，Git 历史负责追溯。

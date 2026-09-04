@@ -46,4 +46,4 @@ config:
 
 required-only 规则、CI 日志诊断、自动修复、fork/GHES/其他 forge、多 PR workflow、后台 watcher、通知中心、持久队列、自动 merge 和通用 CI 平台均不进入 P2C.3。
 
-实现取舍见 [ADR-0038](../adr/0038-draft-check-wait-is-bounded-and-call-scoped.md)。
+实现取舍已经并入本页；旧 ADR-0038 只在 Git 历史中保留。

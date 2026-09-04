@@ -1,4 +1,7 @@
-# DSH 插件可视化参考研究：Hermes、HanaAgent 与 DSH TUI/Web
+# 【历史快照】DSH 插件可视化参考研究：Hermes、HanaAgent 与 DSH TUI/Web
+
+> 当前 UI 边界只认[产品设计](../architecture/product-target-and-design.zh.md)和[当前状态](../status.zh.md)；
+> 本页只保留当日视觉研究。
 
 > 调研日期：2026-08-25（Asia/Shanghai）
 > 研究边界：只研究一手源码、官方文档和当前 `dsh-evoforge` 实现；不把竞品交互当需求，不把视觉参考扩张成新的 Session、Agent Runtime、路由或审批体系。

@@ -1,4 +1,8 @@
-# Hermes Agent 深度调研报告
+# 【冻结源码快照】Hermes Agent 深度调研
+
+> 本页只描述 `29d0cc2602e01943ab300c0382fc9d97efb376da`。当前远端身份只认
+> [参考生态最新 revision 审计](ecosystem-latest-audit-2026-09-05.zh.md)，不能把本页当成当前 Hermes API 或
+> EvoForge 运行时契约。
 
 > 审计对象：[`NousResearch/hermes-agent`](https://github.com/NousResearch/hermes-agent/tree/29d0cc2602e01943ab300c0382fc9d97efb376da)
 > Revision：`29d0cc2602e01943ab300c0382fc9d97efb376da`

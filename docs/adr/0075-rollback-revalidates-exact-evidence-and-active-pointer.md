@@ -1,7 +1,0 @@
-# Rollback revalidates exact evidence and the active pointer
-
-Accepted. A separate Host-side `FutureSessionRollback` module is the sole public mutation seam for future-Session rollback. The Counterfactual Canary remains evidence-only with `releaseAuthority: none`; an evidence-driven request must name one exact terminal `rollback-eligible` Canary, and the Host revalidates its Workspace, active Generation, verdict and bounded evidence before mutation. Explicit human emergency rollback remains available even when Canary governance is not configured.
-
-Both authorities resolve the exact parent or native DSH target, then pass the observed active Generation id into the Generation Store. The Store compares that expected id inside its serialized write critical section; if another promotion or rollback changed the pointer after eligibility was checked, the operation fails without moving any Generation. Command, Remote and Web delegate to the same gate and cannot call `rollbackGeneration` directly. Web requires confirmation and sends the exact Canary id from the displayed evidence row.
-
-Rollback changes only the Workspace selection used by future Sessions. Existing Session pins do not drift, and capability rollback does not claim to undo external effects. This decision provides a precise human/evidence action, not unattended automatic rollback, real-provider validation, or a measured false-rollback rate.

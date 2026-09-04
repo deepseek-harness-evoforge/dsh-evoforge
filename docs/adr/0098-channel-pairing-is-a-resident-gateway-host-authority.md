@@ -2,14 +2,15 @@
 
 - 状态：accepted
 - 日期：2026-08-25
-- 取代：[ADR-0045](0045-feishu-pairing-ui-reuses-session-commands.md)
+- 取代：历史的 Session command pairing 方案（已从工作树删除，可由 Git 历史追溯）
 
 ## 背景
 
 旧 `dsh-feishu` 通过当前 Session 的 `/feishu-pair start|status|cancel` 临时启动两分钟 listener，要求用户
 把 DSH 生成的短语发到飞书，再复制静态 route、改 profile 并重启。这与真实消息入口相反，也把渠道身份
-授权错误地塞进 Session Command。Hermes current source（固定 revision `057dcdf236f8a6a26721c10fcc6ccb72726e272a`）
-证明更清楚的入口是：Gateway 常驻；陌生私聊在 Agent 之前收到 code；管理员从 Host CLI/Dashboard 批准；
+授权错误地塞进 Session Command。2026-08-24 冻结的 Hermes 源码（revision
+`057dcdf236f8a6a26721c10fcc6ccb72726e272a`；当前身份见[生态审计](../research/ecosystem-latest-audit-2026-09-05.zh.md)）
+展示了更清楚的入口：Gateway 常驻；陌生私聊在 Agent 之前收到 code；管理员从 Host CLI/Dashboard 批准；
 下一条消息才进入 Session。Hermes 的多 JSON 文件写入、授权非事务和重复 DM 静默缺口不应照搬。
 
 ## 决定

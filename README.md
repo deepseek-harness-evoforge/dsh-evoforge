@@ -1,154 +1,91 @@
 # DeepSeek Harness EvoForge
 
-EvoForge 是一组安装到 [DeepSeek Harness（DSH）](https://github.com/deepseek-ai/deepseek-harness) 的原生插件。
-它为 DSH 增加常驻渠道、自我进化证据链、软件交付和统一 Web 控制面，同时继续使用 DSH 自己的 Agent、Session、
-Goal、Skill、Tool、Approval、Jobs、Workspace 和存储。
+EvoForge 是一组可安装进 [DeepSeek Harness（DSH）](https://github.com/deepseek-ai/deepseek-harness) 的原生
+Cordis/Bundle/Client 插件。它给现有 DSH 增加常驻消息 Gateway、飞书与 Telegram Adapter、可验证的 Skill
+进化、软件交付和一个统一 Web 控制面。
 
-EvoForge 不是独立 Agent、Codex 插件、第二个运行时或插件市场。DSH 仍是唯一的运行时和状态权威。
+它不是 Codex 插件，也不替换或 fork DSH。Agent、Session、Goal、Skill、Tool、Approval、Jobs、Workspace、
+权限和存储仍由 DSH 管理。
 
-## 当前状态
+## 当前能力
 
-项目处于 pre-alpha。源码、测试和本地 Bundle 安装路径可供开发者试用，但尚未发布到 npm，也不能宣称已经完成
-Hermes 上位替代。开发前已审计 DSH canonical `origin/master` `d347e703…`（`0.1.3-alpha.1`）：官方安装通过，
-但 DSH 根构建被其自身缺失的 `@deepseek-ai/dsh-root` 类型入口阻断。EvoForge 当前可复现的插件类型/协议运行矩阵
-仍锁定已完成验证的 DSH alpha.5（`db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`），直到上游入口修复并重新通过兼容性审计。
-真实渠道、真实模型 Provider、长期运行和 Hermes 同条件对照仍在验收中；生产使用前请先阅读[当前限制](docs/status.zh.md)。
+- **常驻 Gateway**：在 DSH Host 内处理配对、路由、幂等投递、限流、断线恢复和不确定外部结果。
+- **飞书与 Telegram**：平台连接是可独立禁用、卸载的 Adapter；陌生私聊先返回配对码，批准后的下一条消息
+  才进入已有 DSH Session。
+- **可验证进化**：从真实会话中的纠正、失败、验证和结果形成证据；Candidate 与当前 Skill 隔离，独立评测后
+  才能影响未来 Session，并支持 quarantine、canary 和精确回滚。
+- **统一控制面**：Gateway、Channels、Evolution、Doctor 和其他已安装模块使用同一个 DSH Web 页面，不启动
+  插件自己的站点。
+- **软件交付与连续运行**：按需增加隔离交付、Draft PR、原生 Goal 冷恢复和用户级常驻服务。
 
-如果你想先看懂产品边界、设计取舍、已完成/未完成的证据和后续退出门，请先读[产品目标与设计方案（可读基线）](docs/architecture/product-target-and-design.zh.md)；它是给用户和贡献者看的说明，不是安装命令。
-
-## 能力套件
-
-用户按需要选择结果，不必逐个管理内部 Bundle：
-
-| 套件 | 提供的结果 |
-| --- | --- |
-| `core` | 自我进化证据链、运行诊断和 DSH Web 控制面 |
-| `channels` | 常驻 Gateway、飞书/Telegram Adapter、配对、路由、持久投递和同一个 Web 控制面 |
-| `delivery` | 隔离的软件交付、验证、Draft PR 和 GitHub review 跟进 |
-| `continuity` | Goal 冷恢复和用户级 DSH profile 常驻 |
-
-`attention` 是可选的渠道提醒层；`full` 只用于维护者验收。套件是安装编排，不是第二个 Runtime 或市场。
-需要精确边界时参阅[能力套件说明](docs/capability-suites.zh.md)。
+项目仍是 **pre-alpha**：本地合同和部分 assembled 路径已通过，但 registry、真实渠道长期运行、真实 Provider
+进化和完整 Hermes paired benchmark 尚未过门，当前不能宣称整体上位替代。准确进度见[当前状态](docs/status.zh.md)。
 
 ## 安装
 
-当前安装来源是本仓库生成的本地 tarball。请准备 Node.js 22、pnpm 11 和一份与项目支持矩阵匹配的 DSH，
-然后在仓库根目录执行：
-
-> 当前尚未发布 npm registry 包。不要直接执行 `dsh plugin ... add dsh-*`；先按下面命令生成 tarball，避免误装同名第三方包。
+需要 Node.js 22、pnpm 11、可运行的 DSH CLI 和可写 profile。当前尚未发布 registry 包，请在仓库根目录运行：
 
 ```sh
-pnpm install --frozen-lockfile
-PACK_ROOT="$(mktemp -d)"
-pnpm run pack:suite -- --suite core --out "$PACK_ROOT"
-dsh plugin --profile web add "$PACK_ROOT/core"/*.tgz
-dsh --profile web --dump-config
+pnpm install --frozen-lockfile && pnpm run dsh:install
+```
+
+默认 `product` 套件一次安装 Evolution、Doctor、Control Center、Gateway、Feishu 和 Telegram。Gateway 会加载，
+两个平台 Adapter 在配置凭据和路由前保持关闭。安装器根据 manifest 校验 exact tarball，并把 DSH 持续依赖的包
+保存在用户持久数据目录中；不会用目录 glob，也不会打印完整 profile 配置。所有 Bundle 均为预构建产物，安装时
+不会替用户批准或运行依赖包的安装脚本。
+
+这条 shell 命令会修改当前 DSH profile，本身不等于一次 DSH Agent Approval。若由 DSH Agent 调用 Shell，仍由
+该 Agent 的 Tool policy/Approval 决定是否执行；`/resident apply` 等额外系统动作另行确认。
+
+给 Agent 的一行请求：
+
+> 请在当前 dsh-evoforge 仓库核对最新 DSH 与正在使用的 profile，运行 `pnpm install --frozen-lockfile && pnpm run dsh:install` 安装默认完整产品；不得输出凭据或完整配置，沿用现有唯一 Host/Web，完成后验证 Bundle 可见和 Host 可启动，失败时保留可恢复安装包并报告准确阻断。
+
+当前没有公开 registry，因此 Agent 也必须执行仓库安装器，不能猜测短包名。高级套件和自定义 profile 见
+[安装指南](docs/getting-started.zh.md)。
+
+## 启动与首次使用
+
+只启动一个 DSH Host：
+
+```sh
 dsh --profile web --no-open
 ```
 
-这条命令只启动一个 DSH Host，不应在每次刷新或重连时重复执行。启动日志会打印一次性 Web URL；把它粘贴到
-现有的 DSH 浏览器标签页，后续用浏览器刷新即可。若使用 `dsh-resident`，常驻服务默认追加 `--no-open`，崩溃恢复
-不会再创建网页；只有明确配置 `noOpen: false` 才会在每次启动请求浏览器交接。
+打开日志打印的完整 Web URL，必须保留 `?token=...`；裸端口会返回 401。以后刷新同一个标签页，不要为插件、
+渠道或刷新再启动 Host。先打开或创建一个原生 Session，统一控制面才会出现在该会话页面中。
 
-按需安装渠道或交付（将 tarball 保存在仓库外的持久目录，避免 profile 依赖会被清理的 `/tmp` 路径）：
+平常直接聊天、发材料或纠正结果即可，不需要先启动“进化流程”或创建 Goal。Goal 只在用户确实需要 DSH 的
+长任务续接时使用。进化发生在旁路：一次失败、一次重试或模型自评不会自动修改 Skill，当前 Session 也不会
+在运行中漂移。
 
-```sh
-PACK_ROOT="${PACK_ROOT:-$PWD/.evoforge/packs}"
-mkdir -p "$PACK_ROOT"
-pnpm run pack:suite -- --suite channels --channel feishu --out "$PACK_ROOT"
-dsh plugin --profile web add "$PACK_ROOT/channels-feishu"/*.tgz
+## 飞书配对
 
-pnpm run pack:suite -- --suite delivery --out "$PACK_ROOT"
-dsh plugin --profile web add "$PACK_ROOT/delivery"/*.tgz
-```
+安装后在 DSH profile 中显式启用 `evoforge-feishu` 的 pairing 配置，并通过 DSH CredentialProvider 保存 App ID
+和 App Secret；不要把明文写入 YAML、环境日志或仓库。然后：
 
-启动、停止、配置重载和卸载都由 DSH 官方命令负责。EvoForge 不要求启动额外网页、daemon 或产品 CLI。
+1. 用户向机器人发送任意私聊，Gateway 返回一次性配对码，首条消息不进入 Agent。
+2. 管理员在同一 DSH Web 的 **Channels** 页面选择已有 Workspace/Session 并批准。
+3. 用户发送下一条消息，它才进入绑定的原生 Session。
 
-## 飞书配置与配对
+所需 profile 片段、平台权限、Telegram 和故障恢复见[安装指南](docs/getting-started.zh.md)。
 
-安装 `channels` 后，通过 DSH 原生 CredentialProvider 配置飞书 App：
+## 更新与卸载
 
-在 DSH Web 的模型/凭据设置中写入 `DSH_FEISHU_APP_ID` 与 `DSH_FEISHU_APP_SECRET` 两个引用，或按 DSH
-官方格式保存到 `$DSH_HOME/.credentials.yaml`（权限 `0600`）。这两个名称是插件配置里的 credential reference，
-不是要求 Adapter 读取 `process.env`；密钥不会进入 profile YAML、Git 或日志。
+本地升级重新运行同一安装命令。卸载必须使用持久安装 manifest 中的包名和 DSH 官方 `plugin remove`；卸载
+EvoForge 不会删除原生 Session/Goal/Workspace，也不会撤回已经发送的消息或其他外部效果。`dsh-resident`
+创建的 OS service 必须先用 `/resident remove` 显式移除。
 
-飞书 App 需要启用机器人、长连接事件 `im.message.receive_v1`、发送消息和卡片回调，并把机器人加入测试账号
-的私聊。启动 DSH 后，陌生用户在飞书给机器人发送任意私聊：
+## 支持与文档
 
-1. 常驻 Gateway 收到首条消息并返回一次性配对码；首条消息不会进入 Agent。
-2. 管理员在同一个 DSH Web 控制面“渠道”页批准待处理请求；pending 行会显示脱敏 request-id，可直接点击批准。
-3. 用户发送下一条消息，才会进入绑定的原生 DSH Session。
+遇到问题先在 DSH Session 中运行 `/doctor`。不要在 Issue 中粘贴完整 `--dump-config`、Secret、token、真实消息
+或私有评测样本。
 
-连接建立后，`渠道` Surface 会显示一次只读的应用配置诊断：机器人身份、消息收发必需权限和事件订阅读取
-权限。它不会读取消息或执行外部写操作；“未完全验证”只表示事件订阅仍需在飞书开发者后台确认，并不把
-WebSocket `ready` 冒充成已经收到入站消息。
-
-如果首条消息是普通文件、音频或视频，仍会先完成配对；批准后会收到一次明确的附件契约提示，不会静默丢弃，
-也不会把外部文件标识伪装成 DSH 原生附件。
-
-不需要在 DSH Session 中执行配对命令，不需要临时 listener，也不需要打开第二个网页。配对、撤销、权限和故障
-排查见 [`dsh-gateway`](packages/dsh-gateway/README.md) 与 [`dsh-feishu`](packages/dsh-feishu/README.md)。
-
-Telegram 同样复用常驻 Gateway。静态模式可绑定一个精确私聊；配对模式只需配置 Bot account id，陌生私聊首条消息
-会收到一次性配对码且不会进入 Agent，管理员在同一 Web `Channels` 页面批准后，用户下一条消息才进入原生 Session。
-Telegram 的完整配置和静态/配对两种模式见 [`dsh-telegram`](packages/dsh-telegram/README.md)。
-
-仓库还提供真实 Telegram Bot 的 AS-1 验收器。它只接受显式授权短语，在仓库外隔离 run root 中等待人工私聊、Host
-批准、回复、Approval、重启和卸载；未授权时只输出 `not-run`，不会读取 token 或连接 Telegram。执行前请先阅读
-[`AS-1 安全合同`](benchmarks/telegram-v0.1/as1-real-channel/README.zh.md)，不要把合同测试当成真实渠道通过。
-
-## 自我进化
-
-入口只接收自然语言 Goal、材料、约束、权限和验收标准。系统从 DSH 已安装能力以及真实 Goal 的成功、失败、
-纠正、返工、成本、时延和外部结果中识别可复核的能力缺口，并在隔离环境中生成和评测完整 Skill Candidate。
-
-Candidate 会经过 baseline/holdout/Retention、安全、权限、成本、时延和 cache 门禁；执行面、Candidate 面和治理
-评测面隔离。证据不足时系统会 `abstain` 或 `quarantine`，当前 Session 固定版本，晋升只影响未来 Session，
-并支持 canary、崩溃恢复和精确回滚。
-
-这不是运行时从外部市场搜索、下载或导入 Skill 的功能，也不是模型自评。代码、凭据和外部副作用始终需要受保护
-动作授权。
-
-## Web 控制面
-
-`core` 与 `channels` 使用同一个原生 DSH 页面，不会为每个插件打开独立网页。控制面可以查看：
-
-- Gateway、飞书和 Telegram 的连接、配对、投递和错误状态；
-- 能力图、缺口、Candidate 版本、谱系、diff、baseline/holdout 和失败归因；
-- 成本、时延、cache、安全权限，以及晋升、隔离、暂停、恢复和回滚操作。
-
-控制面不调用模型，也不复制 Session 或状态库。插件通过 DSH 原生 surface 接入同一页面。
-
-## 卸载
-
-卸载由 DSH 官方命令完成。要移除完整套件，可执行：
-
-```sh
-dsh plugin --profile web remove \
-  dsh-evolve dsh-evolve-web dsh-control-center dsh-evoforge-doctor \
-  dsh-evoforge-gateway dsh-evoforge-feishu dsh-evoforge-telegram dsh-evolve-attention \
-  dsh-software-delivery dsh-github-review dsh-goal-continuity dsh-resident
-dsh --profile web --dump-config
-```
-
-卸载不会删除 DSH 原生 Session、Goal 或 Workspace 数据；已经发生的外部发送、提交或其他副作用也不会被撤销。
-
-## 已知限制
-
-- 尚未发布 registry 包；上述包名是当前本地 Bundle 的安装标识，不能当作 npm 稳定依赖。
-- 真实 Feishu 的完整配对、Schedule、Approval、重启新增消息、撤销重配和长期重连仍在验收。
-- 真实 Provider、同条件 Hermes paired benchmark、长期误晋升/遗忘/负迁移数据尚未全部通过。
-- DSH 当前附件契约只支持已验证的原生图片路径；普通文件、音频和视频不由 Gateway 私自伪造支持。
-- Telegram 外部 Bot 的 AS-1 执行器和本地配对合同已就绪，但真实陌生用户配对、生产权限、重启/卸载和多日运行尚未
-  通过；`real-telegram-as1` 发布门仍为 `not-run`。
-
-安装或运行异常时，先运行 DSH 原生 `/doctor`，再查看[当前状态](docs/status.zh.md)和对应插件 README。
-请不要在 Issue 或日志中提交 App Secret、访问令牌或真实消息内容。
-
-## 参与开发
-
-请先阅读[开发与发布纪律](docs/releasing.zh.md)、[插件契约](docs/plugin-contract.zh.md)和[能力套件边界](docs/capability-suites.zh.md)。
-提交 Pull Request 时附上 DSH revision、复现命令、测试结果和脱敏证据。所有变更在 `main` 上以小提交推进，
-发布前必须通过真实安装、浏览器、渠道、Provider 和 Hermes 对照门禁。
+- [安装、配置与卸载](docs/getting-started.zh.md)
+- [能力套件](docs/capability-suites.zh.md)
+- [产品设计](docs/architecture/product-target-and-design.zh.md)
+- [自我进化设计](docs/architecture/evolution-design.zh.md)
+- [当前状态与阻断](docs/status.zh.md)
+- [贡献指南](CONTRIBUTING.md)
 
 许可证：MIT。

@@ -1,55 +1,40 @@
 # dsh-evolve
 
-`dsh-evolve` is an out-of-tree DSH Bundle. It runs inside the existing DSH Host and uses native Storage Domain, Agent/Session, Jobs, Commands, Skills, Tools, and message-feedback seams. It is not a standalone evolution Runtime.
+Host-side, evidence-gated Skill evolution for DSH. It observes native interactions and results, records bounded signals,
+and manages inactive content-addressed Candidates without creating a second Agent, Session, Goal, approval system,
+scheduler, database, or runtime.
 
-Install the packed artifact through DSH:
+## User result
+
+- Ordinary DSH conversation stays unchanged; a Goal is optional and only belongs to DSH long-running continuation.
+- Corrections, failed checks, rework, measured outcomes, token/latency/cache facts, and uncertain effects can become
+  evidence. A single failure, retry, preference, or model self-score cannot rewrite a Skill.
+- Candidate authoring, execution, and evaluation governance are separate. Missing evidence yields `abstain`, `review`,
+  or `quarantine`.
+- Promotion changes only future Session selection. The active Session remains pinned; canary and rollback are exact
+  Host decisions.
+
+The current implementation persists a no-Goal gap signal but deliberately stops it at `abstained`; the complete
+Interaction-episode slow loop and real-provider proof remain release blockers. See [current status](../../docs/status.zh.md).
+
+## Install and use
+
+Normal users install the complete product:
 
 ```sh
-dsh plugin --profile web add /absolute/path/dsh-evolve-0.1.0-alpha.1.tgz
-dsh --profile web --dump-config
-dsh --profile web --no-open
+pnpm run dsh:install
 ```
 
-The Bundle inserts exactly one `evoforge-evolution` row and defaults the private content-addressed `cacheRoot` under `DSH_HOME`. Its public profile accepts only Workspace-scoped `selfDiscoveryPolicies`, `candidateEvaluationPolicies`, `automaticPromotionPolicies`, and bounded `supervisor` roots. It has no repository/source catalog, target Skill, static Case Pack, feedback/evaluator target, or per-Skill promotion allowlist.
+Use the Evolution surface in the same DSH Web conversation view. The compatibility `core`/`evolution` suites exist only
+for old deployments and isolated development. External Skill marketplaces, runtime downloads, and other Agents are not
+evolution sources.
 
-Existing-capability routing remains native DSH behavior: the model reads the complete Session Skill catalog and calls the native `skill` Tool when a catalog entry applies. EvoForge adds one stable model-facing Tool, `report_capability_gap`, for the distinct case where no cataloged Skill applies to an active natural-language Goal. The Host accepts only a bounded kebab-case proposal, rechecks the exact Workspace/Session, active native Goal, complete settled catalog, and absence of that exact Skill, then durably records the Gap before starting internal evidence processing. This is not a user menu and does not ask the user to choose a path, Agent, workflow, or Skill. The Tool never searches the network, installs a package, executes candidate content, or changes the current Session.
-
-Self-discovery is internal experience learning. `ExperienceDrivenSkillOpportunityDiscovery` derives eligibility only from durable, Goal-linked DSH Capability Gaps. One same-name pattern becomes an eligible `SkillOpportunity` only inside one Workspace and after at least two distinct Goal ids. Opportunity v3 may associate a reference-only correction only when the feedback target resolves to exactly one successful durable Skill invocation and the native Goal id/revision folded through that assistant turn; same-Session Gap proximity is not attribution. It may also associate a later compact delivery outcome when its stable Goal id has exactly one Gap Skill across known revisions and the Outcome revision is not older than the matching Gap. Ambiguity fails closed and `causalClaim` is always `none`; this context cannot create or reorder an Opportunity, change authoring eligibility, or enter the author input. Same-Goal retries, missing Goal identity, cross-Workspace evidence, and insufficient observations abstain. Runtime external search, package acquisition, download, import, and marketplace access are not product capabilities.
-
-Existing-Skill improvement is a separate investigation and release path. The Host hashes the exact durable Skill content blocks shown to the model; duplicate-free corrections for the same Workspace, Skill name, and invocation-content hash across distinct Goals first create a non-causal investigation. The native provider must then supply one exact, complete baseline Bundle; invocation hashes and repository references are not substitutes. Four protected Goals are split before authoring into admission and Candidate-invisible holdout, while a fifth reserves independent Retention. The author may change only `SKILL.md` and one-level `references/*.md`; the Host preserves every other text or binary byte, content-addresses the whole tree, and runs structural admission plus exact baseline/Candidate paired Holdout and Retention in the assembled DSH path. Only one warning-free `qualified + improved + retained` lineage can be manually approved as an inactive Generation, and a second action selects it for future Sessions. Failed durable Outcomes can trigger a zero-proposer sealed paired Canary; the evaluator has no writer, and the separate `ExistingSkillFutureSessionRollback` gate revalidates the exact terminal evidence, authoritative release lineage, and expected active pointer before a human-confirmed rollback. Same-Goal retries, legacy no-hash attribution, same-name changed content, input drift, pointer drift, ambiguous results, or unknown paid outcomes fail closed.
-
-Delivery Outcomes are projected only from a native DSH Session's source-sequence-linked `complete_delivery` call/result pair, after DSH's awaited Session durability checkpoint succeeds. Cold Session start replays persisted pairs idempotently into the bounded StorageDomain without rerunning the Tool or any external effect; live-only `tools/result` notifications have no evidence authority.
-
-When DSH's official `tokenUsage` and `sessionStats` units are present, an Outcome may also carry `GoalExecutionMetrics`. The Host subtracts cumulative projection cuts only across turns whose first admitted message belongs to the exact then-active Goal revision, with the immutable delivery result event as cutoff. Manual/other/stale/ambiguous turns and missing or regressing projections abstain. Provider token/cache/timing facts remain host-only and non-causal; monetary cost is explicitly unavailable when DSH has no provider price projection.
-
-For an exact Skill name, invocation-content hash, and Generation reused across Goals, two distinct Goal contexts with a unique latest failed Outcome form a retractable `ExactSkillFailureContextInvestigation`. Same-Goal retries do not increase the threshold; a later pass/recovery, missing or unknown outcome, or tied conflicting latest result abstains. The projection is review-only and has no causal claim, Candidate authority, or release authority. It reuses the durable Skill Use and Delivery Outcome readers and creates no separate Store, queue, Session, Goal, or Runtime.
-
-`selfDiscoveryPolicies` optionally authorizes `{ id, workspaceId, runRoot, maxAttemptsPerUtcDay }`. It deliberately has no `skill`, source, path, Agent, workflow, or route selector. The Skill identity is derived from the internal Opportunity. A native DSH Job receives only bounded Goal/Gap evidence and asks the configured author model for one instruction-only whole-Skill bundle containing root `SKILL.md` and optional one-level `references/*.md`. The Host validates canonical paths, identity, size, regular-file-only content, and no scripts; it hashes model/input/artifact/tree provenance, stores the bundle privately, and emits an inactive/quarantined/unevaluated/never-executed Candidate. One reconciliation schedules at most one Job. A crash after a possibly paid request becomes `uncertain` and is never blindly retried.
-
-The product does not provide external Skill search, package acquisition, marketplace access, download, or import. DSH Web projects the exact `Capability Gap → Skill Opportunity → Candidate` flow plus associated correction/outcome counts, bounded opaque references, the no-causality disclaimer, phase, cost, digests, and governance state. Candidate bodies, correction text, Session ids, and private paths never cross the adapter. Ecosystem research is limited to design-time decisions and frozen benchmarks.
-
-`candidateEvaluationPolicies` authorizes `{ id, workspaceId, governanceRoot, runRoot }`; autonomous governance additionally requires an exact `dshRevision` and bounded `maxAttemptsPerUtcDay`. It has no Skill, baseline, Case Pack, source, or Candidate selector. Candidate v2 binds the exact pre-authoring evidence-seal id. Four independent Goals produce protected authoring/admission/holdout partitions and Envelope v4. With a fifth or later independent Goal, the vault reserves one Candidate-invisible Retention sample; governance sends admission, holdout, and Retention to separate author requests, rejects the Candidate proposer's model identity before budget reservation, calibrates every Case Pack with zero proposer calls, and atomically installs Envelope v5 with a unique Retention hash and isolated run root. A dispatched but unobserved paid request becomes `uncertain` and is never blindly retried. The absent baseline may contain only `subject.json`, never a placeholder `SKILL.md`. Directory identity, content drift, symlinks, root overlap, Opportunity mismatch, and any protected Case Pack reuse fail closed. Envelope v5 lets the same native Shadow Job run exact paired Retention and durably record `retained`, `regressed`, or `incomplete`; Retention itself still has no release authority.
-
-`automaticPromotionPolicies` optionally authorizes `{ id, workspaceId }` for one narrow existing-Skill release class. It never names a Skill, path, source, Candidate, Case Pack, or workflow. The sole Host release owner requires exact Admission, improved paired Holdout, independent retained Retention, exact parent/archive identity, an unpaused Workspace, only a 1–2048 byte append to `SKILL.md`, no other file change, no protected-effect indicator, and no model-call/token/cache regression in either paired gate. It persists an automatic decision and inactive Generation before selecting only future Sessions. Native Jobs wakes restart-safe reconciliation; the Candidate/evaluation/decision/Generation facts remain the durable queue. New Skills, rewritten instructions, references, code, permissions, credentials, messaging/network/payment/deployment effects, and ambiguous results remain human-controlled.
-
-One content-addressed Skill Evaluation Envelope now drives both phases. A native DSH Job runs the zero-model deterministic admission without executing Candidate code; only absent-baseline-fail/candidate-pass becomes `qualified-for-shadow`. The durable admission then re-resolves the same current Opportunity and Envelope before handing the exact Candidate tree and the Envelope's independent `dshAssembled: true` holdout to native Shadow Jobs. The assembled Trial leaves the target Skill uninstalled on the baseline side and installs it only for the Candidate. `SkillCandidateLineage` v3 records both the exact evidence-seal id and Envelope id rather than an operator target. No evaluation result installs, activates, or auto-promotes a Candidate.
-
-After explicit approval, a capability-absent Candidate can publish an inactive `skill-bundle` Generation artifact. The active runtime has no Git Skill source at all: `GenerationBundleRepository` accepts only the exact internally authored artifact, reassembles and verifies the canonical archive, tree, lineage, paths, bytes, and owned cache manifest, then exposes a read-only content-addressed DSH Skill Provider for future Sessions only. `FutureSessionPromotion` is the sole Host authority used by Command and Web promotion: it re-reads the exact approved Review, Generation artifact, Candidate Lineage, Shadow and Retention projection and permits selection only for one structurally valid `retained` verdict. Missing/prepared evidence waits; warnings, ambiguity, mismatch, `regressed`, or `incomplete` fail closed. Persisted legacy Git artifacts are quarantined rather than resolved. Existing-Skill publication abstains until a complete native provider Bundle baseline can be sealed; invocation hashes and repositories are not substitutes. Existing Sessions remain pinned, and root rollback returns later Sessions to native DSH.
-
-Every real promotion or rollback writes one content-addressed Generation selection event atomically with the Workspace active pointer. Events bind the exact Host authority and Review/Retention, Release Decision, or Canary evidence ids; duplicate promotion of the already-active Generation is a no-op. The same Storage state recovers the pointer, bounded history, and unchanged Session pins after restart. This is a mutation audit, not an effect verdict or release authority, and it creates no second Store, event bus, Runtime, Session, or Goal.
-
-The Control overview also joins each immutable selection event to retained Delivery Outcomes strictly after that event and before the next event. Outcomes stay in their Session-pinned Generation and are grouped as selected, previous, or other with distinct Goal, result, token, cache, latency, and active-wall rollups. Equal boundaries remain ambiguous and non-monotonic selection time abstains. Coverage is bounded, with no causal claim or mutation authority; the projection reuses existing readers and creates no monitoring Store or writer.
-
-The former static Retention, counterfactual-canary, Feedback Draft, Evaluator Draft, and target orchestration has been physically removed. Shadow remains active only as an exact-Candidate executor: it accepts a content-addressed internally authored Candidate with complete lineage and a DSH-assembled Trial, makes no proposer call, and has no install or release authority. Exact fifth-Goal Retention, future-Session Promotion Eligibility, failed-Outcome Canary evidence, and expected-active rollback have been rebuilt directly on the internal Opportunity/Candidate/Envelope/Outcome chain. Both the missing-Skill and existing-Skill paths have passed final-tarball DSH Web promote/Canary/rollback, outage recovery, reload, cold restart, and uninstall verification; existing-Skill approval remains its separate release gate. Governance Case Pack authoring and Retention have not yet passed a two-provider real-task trial, long-term Outcome rates remain pending, and no whole-Skill Candidate is automatically promoted or release-ready.
-
-Inside a DSH session, use `/evolve status`, review/release Commands, or the separately installed `dsh-evolve-web` client adapter. Active Generation selection is future-session-only; live Session history, Goal state, Approval, Jobs, and Storage remain DSH authoritative. The removed static target commands are not an alternate way to preselect a Skill or evolution direction.
-
-There is no published `dsh-evolve` executable. Shadow/calibration drivers under `test/fixtures` are non-packed development fixtures. Long-running scan/recovery work is optional, bounded, and owned by the plugin's Cordis lifecycle; unload cancels its work and unregisters services.
-
-Remove it with:
+## Remove
 
 ```sh
 dsh plugin --profile web remove dsh-evolve
 ```
 
-Remove `dsh-evolve-web` first when both are installed. Native DSH Session/Goal data remains readable; plugin-owned evolution records can remain in DSH Storage for a later reinstall.
+Remove `dsh-evolve-web` first if that Client adapter is installed. Native Session/Goal/Workspace data and external effects
+remain. Design and claim boundaries are in [evolution design](../../docs/architecture/evolution-design.zh.md) and the
+[Hermes scorecard](../../docs/architecture/hermes-replacement-scorecard.zh.md).

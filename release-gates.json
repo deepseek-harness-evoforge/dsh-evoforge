@@ -9,20 +9,18 @@
       "requiredForTag": true,
       "status": "passed",
       "evidence": [
-        "docs/evidence/v5-34-public-package-preflight-2026-08-26.zh.md",
-        "docs/evidence/v5-173-suite-pack-and-single-page-browser-2026-09-04.zh.md"
+        "docs/evidence/v5-173-suite-pack-and-single-page-browser-2026-09-04.zh.md",
+        "docs/evidence/v5-228-product-install-and-document-reset-2026-09-05.zh.md"
       ]
     },
     {
       "id": "dsh-compatibility",
-      "title": "Audited DSH revision compatibility",
+      "title": "Audited supported DSH compatibility",
       "requiredForTag": true,
       "status": "passed",
       "evidence": [
-        "docs/evidence/v5-29-compatibility-rerun-2026-08-26.zh.md",
-        "docs/evidence/v5-69-dsh-alpha5-migration-2026-09-03.zh.md",
-        "docs/evidence/v5-161-current-dsh-rc1-clean-profile-compatibility-2026-09-04.zh.md",
-        "docs/evidence/v5-162-dsh-rc1-root-build-boundary-2026-09-04.zh.md"
+        "docs/evidence/v5-218-latest-dsh-build-reaudit-2026-09-04.zh.md",
+        "docs/evidence/v5-221-latest-dsh-full-check-2026-09-04.zh.md"
       ]
     },
     {
@@ -31,21 +29,20 @@
       "requiredForTag": true,
       "status": "failed",
       "evidence": [
-        "docs/evidence/v5-104-npm-package-name-collision-2026-09-04.zh.md",
         "docs/evidence/v5-171-public-package-name-migration-2026-09-04.zh.md"
       ],
-      "blocker": "The four third-party name collisions are removed by the dsh-evoforge-* distribution prefix, but the project still lacks maintainer-owned npm namespace/reservation and publish authorization; keep the tag blocked until ownership is proven."
+      "blocker": "The collision-avoidance names are not yet proved to belong to this maintainer. Keep the tag blocked until namespace ownership and publish authorization are verified."
     },
     {
       "id": "clean-profile-lifecycle",
       "title": "Final Bundle clean-profile lifecycle",
       "requiredForTag": true,
-      "status": "passed",
+      "status": "partial",
       "evidence": [
-        "docs/evidence/v5-27-native-plugin-control-center.zh.md",
-        "docs/evidence/v5-69-dsh-alpha5-migration-2026-09-03.zh.md",
-        "docs/evidence/v5-175-full-check-after-suite-packer-fix-2026-09-04.zh.md"
-      ]
+        "docs/evidence/v5-175-full-check-after-suite-packer-fix-2026-09-04.zh.md",
+        "docs/evidence/v5-228-product-install-and-document-reset-2026-09-05.zh.md"
+      ],
+      "blocker": "Current product tarballs pass add, dump, boot, remove, and post-remove boot in a clean profile; current-head hot reload, explicit dispose observation, and Session readback are still missing."
     },
     {
       "id": "web-control-plane",
@@ -53,59 +50,40 @@
       "requiredForTag": true,
       "status": "partial",
       "evidence": [
-        "docs/evidence/v5-27-native-plugin-control-center.zh.md",
-        "docs/evidence/v5-30-evolution-surface-browser-2026-08-26.zh.md",
-        "docs/evidence/v5-36-doctor-control-surface-browser-2026-08-26.zh.md",
-        "docs/evidence/v5-37-telegram-control-surface-browser-2026-08-26.zh.md",
-        "docs/evidence/v5-71-channel-suite-control-center-and-real-run-2026-09-03.zh.md",
-        "docs/evidence/v5-83-channel-journey-single-page-browser-2026-09-04.zh.md",
-        "docs/evidence/v5-92-gateway-pairing-aria-isolation-2026-09-04.zh.md",
-        "docs/evidence/v5-142-control-surface-browser-retry-2026-09-04.zh.md",
-        "docs/evidence/v5-173-suite-pack-and-single-page-browser-2026-09-04.zh.md"
+        "docs/evidence/v5-196-single-page-control-center-live-revalidation-2026-09-04.zh.md"
       ],
-      "blocker": "Evolution, Doctor, Telegram loopback static/pairing paths, and channel-only single-page newcomer UX are verified, but a real external Telegram Bot route and its complete newcomer path are not yet verified."
+      "blocker": "The single native conversation.view is reachable and interactive, but current-head clean-profile recovery and the complete real-channel newcomer path still need browser verification."
     },
     {
       "id": "real-feishu-as2",
-      "title": "Real Feishu resident Gateway epoch-4 (latest 15-minute isolated retry)",
+      "title": "Real Feishu resident Gateway",
       "requiredForTag": true,
-    "status": "failed",
-    "evidence": [
-      "docs/evidence/v5-33-real-feishu-pairing-timeout-2026-08-26.zh.md",
-      "docs/evidence/v5-61-feishu-acceptance-host-pending-approval-2026-08-27.zh.md",
-      "docs/evidence/v5-64-feishu-event-arrival-diagnostic-2026-08-27.zh.md",
-      "docs/evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md",
-      "docs/evidence/v5-71-channel-suite-control-center-and-real-run-2026-09-03.zh.md",
-      "docs/evidence/v5-74-feishu-as2-epoch5-no-event-2026-09-03.zh.md",
-      "docs/evidence/v5-80-feishu-as2-latest-isolated-retry-2026-09-03.zh.md",
-      "docs/evidence/v5-89-feishu-as2-epoch4-no-pending-2026-09-04.zh.md",
-      "docs/evidence/v5-97-real-feishu-as2-no-pending-2026-09-04.zh.md",
-      "docs/evidence/v5-114-feishu-as2-overlay-loader-row-fix-2026-09-04.zh.md",
-      "docs/evidence/v5-115-feishu-as2-official-transport-no-pending-2026-09-04.zh.md",
-      "docs/evidence/v5-118-feishu-as2-overlay-regression-contract-2026-09-04.zh.md",
-      "docs/evidence/v5-121-feishu-as2-long-wait-no-pending-2026-09-04.zh.md",
-      "docs/evidence/v5-136-real-feishu-as2-epoch5-no-pending-2026-09-04.zh.md",
-        "docs/evidence/v5-149-real-feishu-as2-valid-credential-no-pending-2026-09-04.zh.md"
+      "status": "failed",
+      "evidence": [
+        "docs/evidence/v5-149-real-feishu-as2-valid-credential-no-pending-2026-09-04.zh.md",
+        "docs/evidence/v5-184-feishu-native-credential-live-websocket-2026-09-04.zh.md"
       ],
-      "blocker": "The latest run with a valid App credential reached official WebSocket ready but observed no Feishu pending request; event arrival is unproven, and no authorized run has completed the real direct-message, Schedule, Approval, restart, uninstall, and readback epoch."
+      "blocker": "Credentials and the official WebSocket reached ready, but no new inbound direct-message event was observed; pairing, Agent reply, Schedule, Approval, restart, uninstall, and readback remain unproved."
     },
     {
       "id": "real-telegram-as1",
-      "title": "Real Telegram resident Gateway epoch-1",
+      "title": "Real Telegram resident Gateway",
       "requiredForTag": true,
       "status": "not-run",
       "evidence": [
         "docs/evidence/v5-144-telegram-as1-real-contract-2026-09-04.zh.md",
-        "docs/evidence/v5-147-telegram-as1-preflight-pack-boundary-2026-09-04.zh.md"
+        "docs/evidence/v5-223-local-pairing-assembled-regression-2026-09-04.zh.md"
       ],
-      "blocker": "The strict zero-side-effect contract and a final-Bundle Host executor now exist, but no authorized real Telegram Bot run has completed private-message pairing, native reply, Gateway ingress replay, Approval, restart, uninstall, and Session-readback evidence."
+      "blocker": "The fail-closed contract and local assembled pairing pass, but no authorized real Bot run has completed pairing, native reply, Approval, restart, uninstall, and Session readback."
     },
     {
       "id": "real-provider-rp1",
       "title": "Two independent real Provider paired evolution run",
       "requiredForTag": true,
       "status": "not-run",
-      "evidence": ["docs/evidence/v4-55-real-provider-acceptance-gate.zh.md"],
+      "evidence": [
+        "docs/evidence/v4-55-real-provider-acceptance-gate.zh.md"
+      ],
       "blocker": "No same-task, same-model, same-budget real Provider run has been authorized and passed."
     },
     {
@@ -114,19 +92,18 @@
       "requiredForTag": true,
       "status": "partial",
       "evidence": [
-        "docs/evidence/v5-31-hermes-deterministic-rerun-2026-08-26.zh.md",
-        "docs/evidence/v5-123-hermes-ev1-alpha5-epoch-2-2026-09-04.zh.md",
-        "docs/evidence/v5-159-hermes-current-revision-ev1-epoch4-2026-09-04.zh.md",
-        "docs/evidence/v5-174-hermes-current-ev1-epoch4-rerun-2026-09-04.zh.md"
+        "docs/evidence/v5-224-current-hermes-benchmark-suite-2026-09-04.zh.md"
       ],
-      "blocker": "Only four deterministic slices are verified; the required same-model real paired benchmark is missing."
+      "blocker": "Four deterministic slices are verified, but the required same-task and same-model real paired benchmark is missing."
     },
     {
       "id": "long-term-effects",
       "title": "Long-term outcome, negative-transfer, recovery, and external-effect data",
       "requiredForTag": true,
       "status": "not-run",
-      "evidence": ["docs/status.zh.md"],
+      "evidence": [
+        "docs/status.zh.md"
+      ],
       "blocker": "Long-term false-promotion, forgetting, negative-transfer, duplicate-effect, and rollback-rate evidence is missing."
     }
   ]
