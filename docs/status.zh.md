@@ -67,6 +67,14 @@ Adapter 选择器，调用现有 `approvePairing(code, adapter, workspace, sessi
 空卡片；完整 alpha.5 `pnpm run check` 退出码 `0`。未新增 Router、状态库、页面或运行时外部能力获取。详见
 [V5.141 证据](evidence/v5-141-gateway-generic-pairing-2026-09-04.zh.md)。
 
+## V5.142：原生 Control Center 单页浏览器复核仍受 Host 不可用阻断（本轮）
+
+在不新开网页的前提下接管当前 DSH Local Build 页面，点击原生 `控制台 → 渠道`，确认同一 Control Center
+complementary 与单一 `渠道` tabpanel 存在，未出现独立渠道窗口或固定弹窗。但当前页面的 DSH Host Remote 不可用，
+Surface 停在错误提示/加载状态；浏览器随后拒绝本地页面刷新。该轮只证明单页挂载和点击路径，不能证明最新 Bundle
+的 Remote、通用 Adapter 选择器或恢复交互通过；`web-control-plane` 保持 `partial`。详见
+[V5.142 证据](evidence/v5-142-control-surface-browser-retry-2026-09-04.zh.md)。
+
 ## V5.134：同 route id 重配与聊天类型变更回归（本轮）
 
 配对装配测试现在复用已撤销的同一 route id，并以 `group` chat kind 再次入站，确认撤销时清除内部观测、不会继承旧 direct 事实或触发漂移拒绝；类型检查、Gateway 构建和回归 `1/1` 通过。详见 [V5.134 证据](evidence/v5-134-feishu-route-id-repair-regression-2026-09-04.zh.md)。
