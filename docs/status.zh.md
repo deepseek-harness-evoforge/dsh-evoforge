@@ -10,6 +10,17 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.180：飞书单页原生凭据与缺失凭据下的常驻 Host（本轮）
+
+重新 fetch 并审计 canonical DSH `origin/master` `76fda729…` 后，把 Feishu App ID/Secret 配置接入 DSH 官方
+`remote.credentials`：页面只展示配置元数据，值只写入 Host，不回显 Secret。凭据提交后监听官方
+`credentials/reference-updated`，销毁旧运行时并在同一 Host 内尝试恢复常驻 Adapter；Cordis service 只注册一次，避免
+凭据轮换产生重复路由或第二套生命周期。空/非法引用现在只让 Feishu 保持 fail-closed waiting，不再拖垮 Gateway、Web、Session
+和其他插件；结构性配置错误仍会阻止 Bundle 启动。Feishu 全量 `52/52`、typecheck/build、channels pack 和根级
+alpha.5 `pnpm run check`（`CHECK_RC=0`）通过。单页浏览器本轮只确认一个页面的原生壳层；因临时 cwd 与历史 Session 存储根不一致，
+没有把表单误报成真实浏览器点击通过，仍需在同一 profile Session 补齐保存/刷新/恢复证据。真实 AS-2、Telegram、Provider、Hermes
+paired、长期效果、npm 归属和 tag 门禁不变。详见 [V5.180 证据](evidence/v5-180-native-feishu-credential-surface-and-lazy-start-2026-09-04.zh.md)。
+
 ## V5.179：渠道秘密统一接入 DSH 原生凭据（本轮）
 
 重新 fetch 并审计 canonical DSH 最新 `origin/master` `76fda729…` 后，发现两个渠道 Adapter 的生产启动仍直读

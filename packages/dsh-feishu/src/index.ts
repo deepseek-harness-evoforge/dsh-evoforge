@@ -17,6 +17,7 @@ import {
   createOfficialFeishuPlatform,
   type FeishuPlatform,
 } from './platform.js'
+import type { FeishuHostNotice, FeishuHostRoute } from './host-route.js'
 import { FeishuRuntime } from './runtime.js'
 
 export const name = 'dsh-evoforge-feishu'
@@ -54,54 +55,123 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   const routeIds = config.routeIds ?? []
   const gateway = ctx.get('evoforge.gateway' as never) as DshGateway | undefined
   if (gateway === undefined) throw new Error('dsh-feishu: dsh-gateway service is unavailable')
-  if (config.mode === 'pairing') {
-    const resolved = await resolveFeishuPairingConfig({ ...config, mode: 'pairing', routeIds }, ctx.credentials)
-    const runtime = new FeishuRuntime(
-      ctx,
-      resolved,
-      gateway,
-      createOfficialFeishuPairingPlatform({
-        appId: resolved.appId,
-        appSecret: resolved.appSecret,
-        handshakeTimeoutMs: resolved.handshakeTimeoutMs,
-      }),
-    )
-    ctx.effect(() => async () => runtime.dispose(), 'dsh-feishu.runtime')
+  const appIdRef = config.appIdEnv ?? 'DSH_FEISHU_APP_ID'
+  const appSecretRef = config.appSecretEnv ?? 'DSH_FEISHU_APP_SECRET'
+  let runtime: FeishuRuntime | undefined
+  let startPromise: Promise<void> | undefined
+  let disposed = false
+  const hostRoute: FeishuHostRoute = Object.freeze({
+    get routes() {
+      return runtime?.createHostRoute().routes ?? []
+    },
+    observedChatKind: (routeId: string) => runtime?.observedChatKind(routeId),
+    notify: (notice: FeishuHostNotice) => {
+      const current = runtime
+      if (current === undefined) return Promise.reject(new Error('dsh-feishu: Adapter is not ready'))
+      return current.notifyHost(notice)
+    },
+  })
+  // Register exactly once. A credential rotation may replace the runtime, but
+  // Cordis services are single-assignment; this dynamic façade keeps all
+  // downstream injectors attached to the same native service identity.
+  ctx.provide('evoforge.feishuRoute' as never, hostRoute as never)
+
+  const start = async (): Promise<void> => {
+    if (disposed || runtime !== undefined) return
+    if (startPromise !== undefined) return startPromise
+    const attempt = (async () => {
+      let candidate: FeishuRuntime | undefined
+      try {
+        if (config.mode === 'pairing') {
+          const resolved = await resolveFeishuPairingConfig({ ...config, mode: 'pairing', routeIds }, ctx.credentials)
+          candidate = new FeishuRuntime(
+            ctx,
+            resolved,
+            gateway,
+            createOfficialFeishuPairingPlatform({
+              appId: resolved.appId,
+              appSecret: resolved.appSecret,
+              handshakeTimeoutMs: resolved.handshakeTimeoutMs,
+            }),
+          )
+        } else {
+          const routes: ResolvedGatewayRoute[] = []
+          for (const id of routeIds) {
+            const route = gateway.route(id)
+            if (route !== undefined) routes.push(route)
+          }
+          const resolved = await resolveFeishuConfig({ ...config, mode: 'routes', routeIds }, routes, ctx.credentials)
+          candidate = new FeishuRuntime(
+            ctx,
+            resolved,
+            gateway,
+            createOfficialFeishuPlatform({
+              appId: resolved.appId,
+              appSecret: resolved.appSecret,
+              handshakeTimeoutMs: resolved.handshakeTimeoutMs,
+              allowedChats: resolved.routes.map(route => route.endpoint.conversationId),
+              allowedUsers: resolved.routes.map(route => route.endpoint.userId),
+            }),
+          )
+        }
+        await candidate.start()
+        if (disposed) {
+          await candidate.dispose()
+          return
+        }
+        runtime = candidate
+      } catch (error: unknown) {
+        if (candidate !== undefined) {
+          try {
+            await candidate.dispose()
+          } catch (disposeError: unknown) {
+            ctx.logger.warn(`dsh-feishu: failed to dispose an unsuccessful start: ${safeMessage(disposeError)}`)
+          }
+        }
+        if (!isCredentialUnavailableError(error)) throw error
+        // A missing/invalid secret is a fail-closed channel state, not a reason
+        // to take down the native DSH Host. The credential event below retries
+        // the same start path after an official Web/Host write commits.
+        ctx.logger.warn(`dsh-feishu: waiting for credential references ${appIdRef} and ${appSecretRef}`)
+      }
+    })()
+    startPromise = attempt
     try {
-      await runtime.start()
-      ctx.provide('evoforge.feishuRoute' as never, runtime.createHostRoute() as never)
-    } catch (error) {
-      await runtime.dispose()
-      throw error
+      await attempt
+    } finally {
+      if (startPromise === attempt) startPromise = undefined
     }
-    return
   }
-  const routes: ResolvedGatewayRoute[] = []
-  for (const id of routeIds) {
-    const route = gateway.route(id)
-    if (route !== undefined) routes.push(route)
-  }
-  const resolved = await resolveFeishuConfig({ ...config, mode: 'routes', routeIds }, routes, ctx.credentials)
-  const runtime = new FeishuRuntime(
-    ctx,
-    resolved,
-    gateway,
-    createOfficialFeishuPlatform({
-      appId: resolved.appId,
-      appSecret: resolved.appSecret,
-      handshakeTimeoutMs: resolved.handshakeTimeoutMs,
-      allowedChats: resolved.routes.map(route => route.endpoint.conversationId),
-      allowedUsers: resolved.routes.map(route => route.endpoint.userId),
-    }),
-  )
-  ctx.effect(() => async () => runtime.dispose(), 'dsh-feishu.runtime')
-  try {
-    await runtime.start()
-    ctx.provide('evoforge.feishuRoute' as never, runtime.createHostRoute() as never)
-  } catch (error) {
-    await runtime.dispose()
-    throw error
-  }
+
+  ctx.on('credentials/reference-updated', (reference) => {
+    const ref = String(reference)
+    if (ref !== appIdRef && ref !== appSecretRef) return
+    const previous = runtime
+    runtime = undefined
+    void (async () => {
+      if (previous !== undefined) await previous.dispose()
+      await start()
+    })().catch(error => {
+      if (!disposed) ctx.logger.warn(`dsh-feishu: credential update could not start Adapter: ${safeMessage(error)}`)
+    })
+  })
+  ctx.effect(() => async () => {
+    disposed = true
+    await startPromise
+    await runtime?.dispose()
+    runtime = undefined
+  }, 'dsh-feishu.runtime')
+  await start()
+}
+
+/** Only missing/invalid resolved values are deferred; malformed config still fails the Host. */
+function isCredentialUnavailableError(error: unknown): boolean {
+  return error instanceof Error
+    && /configured credential reference [A-Za-z_][A-Za-z0-9_]* is empty or invalid/u.test(error.message)
+}
+
+function safeMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
 export {

@@ -2,11 +2,11 @@ import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from 'dsh-control-center/client'
-import { FeishuSurface, type FeishuCommandsClient } from './FeishuAction.tsx'
+import { FeishuSurface, type FeishuCommandsClient, type FeishuCredentialsClient } from './FeishuAction.tsx'
 import { en, NS, zh } from './locales.ts'
 
 type WebContext = Context & {
-  remote: Context['remote'] & { commands: FeishuCommandsClient }
+  remote: Context['remote'] & { commands: FeishuCommandsClient; credentials: FeishuCredentialsClient }
   locale: {
     register(namespace: string, dictionaries: { zh: Record<string, string>; en: Record<string, string> }): () => void
     bind(namespace: string): (key: string) => string
@@ -17,7 +17,7 @@ type WebContext = Context & {
   }
 }
 
-export const inject = ['remote', 'remote.commands', 'slots', 'locale']
+export const inject = ['remote', 'remote.commands', 'remote.credentials', 'slots', 'locale']
 
 /** Additive browser half inside the original DSH Web shell. */
 export function apply(context: Context): void {
@@ -29,7 +29,7 @@ export function apply(context: Context): void {
     order: 20,
     label: () => ctx.locale.bind(NS)('surface.nav'),
     locale: NS,
-    inject: () => ({ commands: ctx.remote.commands }),
+    inject: () => ({ commands: ctx.remote.commands, credentials: ctx.remote.credentials }),
   }, FeishuSurface))
 }
 
@@ -38,5 +38,6 @@ export {
   FeishuSurface,
   type FeishuActionProps,
   type FeishuCommandsClient,
+  type FeishuCredentialsClient,
   type FeishuSurfaceProps,
 } from './FeishuAction.tsx'

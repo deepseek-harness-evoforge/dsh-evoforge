@@ -28,6 +28,31 @@ const controlSurfaceUI: ControlSurfaceUI = {
 }
 
 describe('Feishu Control Surface', () => {
+  it('writes native Feishu credential references without exposing their values', async () => {
+    const credentials = {
+      describe: vi.fn(async () => success({
+        DSH_FEISHU_APP_ID: { configured: false, writable: true },
+        DSH_FEISHU_APP_SECRET: { configured: false, writable: true },
+      })),
+      set: vi.fn(async () => success(undefined)),
+    }
+    const commands = {
+      list: vi.fn(() => success([{ name: 'goal', description: 'goal' }])),
+      execute: vi.fn(),
+    } as unknown as FeishuCommandsClient
+    renderSurface(commands, credentials)
+
+    expect(await screen.findByText('飞书连接凭据')).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('App ID'), { target: { value: 'cli_test_app' } })
+    fireEvent.change(screen.getByLabelText('App Secret'), { target: { value: 'secret-value' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存凭据' }))
+
+    await waitFor(() => expect(credentials.set).toHaveBeenCalledTimes(2))
+    expect(credentials.set).toHaveBeenNthCalledWith(1, 'DSH_FEISHU_APP_ID', 'cli_test_app')
+    expect(credentials.set).toHaveBeenNthCalledWith(2, 'DSH_FEISHU_APP_SECRET', 'secret-value')
+    expect(screen.queryByText('secret-value')).toBeNull()
+  })
+
   it('explains unavailable Session state without restoring the deleted pairing flow', async () => {
     const commands = {
       list: vi.fn(() => success([{ name: 'goal', description: 'goal' }])),
@@ -85,9 +110,10 @@ describe('Feishu Control Surface', () => {
   })
 })
 
-function renderSurface(commands: FeishuCommandsClient) {
+function renderSurface(commands: FeishuCommandsClient, credentials?: FeishuSurfaceProps['credentials']) {
   const props = {
     commands,
+    credentials,
     t: (key: string) => zh[key as keyof typeof zh] ?? key,
     sessionId,
     ui: controlSurfaceUI,

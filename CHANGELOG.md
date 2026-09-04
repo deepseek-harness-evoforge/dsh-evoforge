@@ -6,6 +6,14 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.180**: Added a native DSH Web credential section to the Feishu surface. App ID and App Secret use the official
+  `remote.credentials` write-only seam; metadata is shown without echoing values, and a committed reference update
+  restarts the same resident Adapter façade. Missing/invalid references now leave Feishu fail-closed while allowing the
+  DSH Host, Gateway, Web, Session, and Goal services to boot. Feishu `52/52`, typecheck/build, channels packing, and
+  the authoritative alpha.5 `pnpm run check` (`CHECK_RC=0`) pass. This increment did not claim real Feishu AS-2 or
+  browser form completion; the remaining external, Provider, Hermes, long-run, npm, and tag gates stay blocked. See
+  [V5.180 evidence](docs/evidence/v5-180-native-feishu-credential-surface-and-lazy-start-2026-09-04.zh.md).
+
 - **V5.179**: Re-fetched and audited the latest canonical DSH before moving both channel adapters from direct
   `process.env` secret reads to the native `CredentialProvider` seam. Feishu App credentials and the Telegram Bot token
   now resolve through `ctx.credentials` with fail-closed validation; legacy `*Env` field names remain only for profile

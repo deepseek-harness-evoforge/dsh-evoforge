@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { SessionId } from '@deepseek-ai/dsh-api-remotes/client'
+import type { CredentialInfo } from '@deepseek-ai/dsh-api-remotes/client'
 import type { CommandDescriptor, CommandExecution } from '@deepseek-ai/dsh-commands/types'
+import type { RemoteResult as DshRemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 import type { ControlSurfaceProps, ControlTone } from 'dsh-control-center/client'
 import { parseFeishuHealthCommand, type FeishuHealthSnapshot, type FeishuHealthStatus } from '../health.js'
 
@@ -13,22 +15,81 @@ export interface FeishuCommandsClient {
   execute(sessionId: SessionId, line: string, images?: readonly never[]): Promise<RemoteResult<CommandExecution | undefined>>
 }
 
+/** Native DSH credential seam; values only travel to Host and are never read back. */
+export interface FeishuCredentialsClient {
+  describe(refs: readonly string[]): Promise<DshRemoteResult<Record<string, CredentialInfo>>>
+  set(ref: string, value: string): Promise<DshRemoteResult<void>>
+}
+
 export type FeishuSurfaceProps = ControlSurfaceProps & {
   readonly commands: FeishuCommandsClient
+  readonly credentials?: FeishuCredentialsClient
   readonly t: (key: string) => string
 }
 
 const RC2_COMMAND_ARITY = 'client api: commands/execute expected 3 business argument(s) plus an optional AbortSignal, got 2'
+const FEISHU_APP_ID_REF = 'DSH_FEISHU_APP_ID'
+const FEISHU_APP_SECRET_REF = 'DSH_FEISHU_APP_SECRET'
+const FEISHU_CREDENTIAL_REFS = [FEISHU_APP_ID_REF, FEISHU_APP_SECRET_REF] as const
 const commandApiModes = new WeakMap<FeishuCommandsClient, 'legacy' | 'images'>()
 
 /** Feishu Adapter for the common DSH Control Surface; pairing remains Gateway-owned. */
-export function FeishuSurface({ commands, t, sessionId, ui: UI }: FeishuSurfaceProps) {
+export function FeishuSurface({ commands, credentials, t, sessionId, ui: UI }: FeishuSurfaceProps) {
   const sessionRef = useRef(sessionId)
   sessionRef.current = sessionId
   const [available, setAvailable] = useState<boolean>()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   const [health, setHealth] = useState<FeishuHealthSnapshot>()
+  const [credentialInfo, setCredentialInfo] = useState<Record<string, CredentialInfo>>()
+  const [credentialDraft, setCredentialDraft] = useState({ appId: '', appSecret: '' })
+  const [credentialBusy, setCredentialBusy] = useState(false)
+  const [credentialMessage, setCredentialMessage] = useState<string>()
+  const [credentialError, setCredentialError] = useState<string>()
+  const appIdInputId = `${sessionId}-feishu-app-id`
+  const appSecretInputId = `${sessionId}-feishu-app-secret`
+
+  const refreshCredentials = async () => {
+    if (credentials === undefined) return
+    try {
+      const response = await credentials.describe(FEISHU_CREDENTIAL_REFS)
+      if (!response.ok) throw new Error(t('credentials.error'))
+      setCredentialInfo(response.value)
+    } catch {
+      setCredentialInfo(undefined)
+      setCredentialError(t('credentials.error'))
+    }
+  }
+
+  const saveCredentials = async () => {
+    if (credentials === undefined) return
+    const appId = credentialDraft.appId.trim()
+    const appSecret = credentialDraft.appSecret.trim()
+    if (appId.length === 0 && appSecret.length === 0) {
+      setCredentialError(t('credentials.enterOne'))
+      return
+    }
+    setCredentialBusy(true)
+    setCredentialError(undefined)
+    setCredentialMessage(undefined)
+    try {
+      if (appId.length > 0) {
+        const response = await credentials.set(FEISHU_APP_ID_REF, appId)
+        if (!response.ok) throw new Error(t('credentials.error'))
+      }
+      if (appSecret.length > 0) {
+        const response = await credentials.set(FEISHU_APP_SECRET_REF, appSecret)
+        if (!response.ok) throw new Error(t('credentials.error'))
+      }
+      setCredentialDraft({ appId: '', appSecret: '' })
+      setCredentialMessage(t('credentials.saved'))
+      await refreshCredentials()
+    } catch {
+      setCredentialError(t('credentials.error'))
+    } finally {
+      setCredentialBusy(false)
+    }
+  }
 
   const refresh = async () => {
     const target = sessionId
@@ -74,8 +135,19 @@ export function FeishuSurface({ commands, t, sessionId, ui: UI }: FeishuSurfaceP
     return () => { current = false }
   }, [commands, sessionId])
 
+  useEffect(() => {
+    setCredentialInfo(undefined)
+    setCredentialDraft({ appId: '', appSecret: '' })
+    setCredentialMessage(undefined)
+    setCredentialError(undefined)
+    if (credentials !== undefined) void refreshCredentials()
+  }, [credentials, sessionId])
+
   const anomalies = health === undefined ? 0 : health.deliveries.uncertain + health.deliveries.failed
   const active = health === undefined ? 0 : health.deliveries.prepared + health.deliveries.sending + health.deliveries.retrying
+
+  const credentialsConfigured = credentialInfo?.[FEISHU_APP_ID_REF]?.configured === true
+    && credentialInfo?.[FEISHU_APP_SECRET_REF]?.configured === true
 
   return <UI.Surface ariaLabel={t('health.title')}>
     <UI.Header
@@ -92,6 +164,47 @@ export function FeishuSurface({ commands, t, sessionId, ui: UI }: FeishuSurfaceP
     {available === false && <UI.Notice tone="attention" title={t('surface.unavailableTitle')}>{error ?? t('surface.unavailable')}</UI.Notice>}
     {available === true && error !== undefined && <UI.Notice tone="danger" role="alert" title={t('error.title')}>{error}</UI.Notice>}
     {available === true && health === undefined && error === undefined && <UI.Loading cards={4} />}
+
+    {credentials !== undefined && <UI.Section
+      title={t('credentials.title')}
+      description={t('credentials.description')}
+      actions={<UI.Status tone={credentialsConfigured ? 'healthy' : 'attention'}>
+        {t(credentialsConfigured ? 'credentials.configured' : 'credentials.missing')}
+      </UI.Status>}
+    >
+      <div className="dsh-cc-form">
+        <p>{t('credentials.writeOnly')}</p>
+        <label htmlFor={appIdInputId}>{t('credentials.appId')}</label>
+        <div className="dsh-cc-form-row">
+          <input
+            id={appIdInputId}
+            type="text"
+            value={credentialDraft.appId}
+            autoComplete="off"
+            spellCheck={false}
+            placeholder={credentialInfo?.[FEISHU_APP_ID_REF]?.configured === true ? t('credentials.replacePlaceholder') : t('credentials.requiredPlaceholder')}
+            onChange={event => { setCredentialDraft(current => ({ ...current, appId: event.target.value })) }}
+          />
+        </div>
+        <label htmlFor={appSecretInputId}>{t('credentials.appSecret')}</label>
+        <div className="dsh-cc-form-row">
+          <input
+            id={appSecretInputId}
+            type="password"
+            value={credentialDraft.appSecret}
+            autoComplete="new-password"
+            spellCheck={false}
+            placeholder={credentialInfo?.[FEISHU_APP_SECRET_REF]?.configured === true ? t('credentials.replacePlaceholder') : t('credentials.requiredPlaceholder')}
+            onChange={event => { setCredentialDraft(current => ({ ...current, appSecret: event.target.value })) }}
+          />
+          <UI.Button type="button" tone="primary" disabled={credentialBusy} onClick={() => { void saveCredentials() }}>
+            {credentialBusy ? t('credentials.saving') : t('credentials.save')}
+          </UI.Button>
+        </div>
+        {credentialMessage !== undefined && <UI.Notice tone="healthy">{credentialMessage}</UI.Notice>}
+        {credentialError !== undefined && <UI.Notice tone="danger" role="alert">{credentialError}</UI.Notice>}
+      </div>
+    </UI.Section>}
 
     {health !== undefined && <>
       <UI.Metrics items={[
