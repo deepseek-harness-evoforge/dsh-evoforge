@@ -23,6 +23,14 @@
 
 执行器接入与类型检查的具体证据见 [V5.146](evidence/v5-146-telegram-as1-executor-skeleton-2026-09-04.zh.md)。
 
+## V5.147：Telegram AS-1 未授权运行与最终包边界验证（本轮）
+
+在 canonical DSH rc.1 重新 fetch/clean 审计后，未设置授权和凭据运行 `pnpm benchmark:telegram:as1`，退出码为 `2`，
+stdout 只有一个 `real-telegram-effects-not-authorized` 的 `not-run` JSON，stderr 无内容；没有加载执行器、读取 token
+或连接 Telegram。随后将 `dsh-control-center`、`dsh-gateway`、`dsh-telegram` 打成最终 tarball，三个包均成功产出，
+包内容不含 `node_modules` 或产品 CLI，EvoForge 工作树保持 clean。真实 Bot AS-1 仍未授权运行，发布门仍为 `not-run`。
+详见 [V5.147 证据](evidence/v5-147-telegram-as1-preflight-pack-boundary-2026-09-04.zh.md)。
+
 ## V5.145：AS-1 接入后的 alpha.5 全仓回归（本轮）
 
 在再次 fetch/核对 canonical DSH rc.1（`76fda729…`，clean）后，使用已审计可构建的 alpha.5 支持 checkout

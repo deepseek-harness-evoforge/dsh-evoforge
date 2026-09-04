@@ -84,7 +84,8 @@
       "requiredForTag": true,
       "status": "not-run",
       "evidence": [
-        "docs/evidence/v5-144-telegram-as1-real-contract-2026-09-04.zh.md"
+        "docs/evidence/v5-144-telegram-as1-real-contract-2026-09-04.zh.md",
+        "docs/evidence/v5-147-telegram-as1-preflight-pack-boundary-2026-09-04.zh.md"
       ],
       "blocker": "The strict zero-side-effect contract and a final-Bundle Host executor now exist, but no authorized real Telegram Bot run has completed private-message pairing, native reply, Gateway ingress replay, Approval, restart, uninstall, and Session-readback evidence."
     },

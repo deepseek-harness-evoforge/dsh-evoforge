@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.147**: Verified the Telegram AS-1 unauthorised runner and final package boundary after the executor admission.
+  With no approval or credentials, `pnpm benchmark:telegram:as1` exits `2` with one `not-run` JSON and performs no Bot
+  request. Control Center, Gateway, and Telegram tarballs all pack successfully and contain neither `node_modules` nor a
+  product CLI; the worktree remains clean. The real Telegram gate is still `not-run`. See [V5.147 evidence](docs/evidence/v5-147-telegram-as1-preflight-pack-boundary-2026-09-04.zh.md).
+
 - **V5.146**: Admitted the real Telegram AS-1 executor skeleton behind the exact authorization switch. It reuses the
   verified DSH app-boot/final-Bundle path to exercise a real private-chat pairing request, Host approval, native reply,
   Gateway ingress replay, native Approval, restart, uninstall, and Session readback; all run state is isolated and
