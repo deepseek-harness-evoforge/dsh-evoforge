@@ -299,7 +299,13 @@ class DomainEvolutionStore implements EvolutionStore {
     created: boolean
     generation: CapabilityGeneration
   }> {
-    return this.enqueue(() => this.publishNow(input))
+    let captured: GenerationInput
+    try {
+      captured = structuredClone(input)
+    } catch (error) {
+      return Promise.reject(error)
+    }
+    return this.enqueue(() => this.publishNow(captured))
   }
 
   getGeneration(id: string): CapabilityGeneration | undefined {
@@ -371,11 +377,25 @@ class DomainEvolutionStore implements EvolutionStore {
     identity: SessionIdentity,
     options?: { parentSessionId?: string },
   ): Promise<CapabilityGeneration | undefined> {
-    return this.enqueue(() => this.pinNow(identity, options))
+    let capturedIdentity: SessionIdentity
+    let capturedOptions: { parentSessionId?: string } | undefined
+    try {
+      capturedIdentity = structuredClone(identity)
+      capturedOptions = options === undefined ? undefined : structuredClone(options)
+    } catch (error) {
+      return Promise.reject(error)
+    }
+    return this.enqueue(() => this.pinNow(capturedIdentity, capturedOptions))
   }
 
   fallbackSessionToNative(identity: SessionIdentity): Promise<void> {
-    return this.enqueue(() => this.fallbackToNativeNow(identity))
+    let captured: SessionIdentity
+    try {
+      captured = structuredClone(identity)
+    } catch (error) {
+      return Promise.reject(error)
+    }
+    return this.enqueue(() => this.fallbackToNativeNow(captured))
   }
 
   getSessionGeneration(identity: SessionIdentity): CapabilityGeneration | undefined {

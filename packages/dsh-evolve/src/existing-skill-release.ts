@@ -902,8 +902,14 @@ class DomainExistingSkillReleaseStore implements ExistingSkillReleaseStore {
     readonly created: boolean
     readonly decision: ExistingSkillReleaseDecision
   }> {
+    let captured: ExistingSkillReleaseDecision
+    try {
+      captured = structuredClone(decision)
+    } catch (error) {
+      return Promise.reject(error)
+    }
     return this.enqueue(async () => {
-      const exact = parseDecision(decision)
+      const exact = parseDecision(captured)
       const table = this.domain.table('decisions')
       const prior = table.get(exact.candidateId)
       if (prior !== undefined) {

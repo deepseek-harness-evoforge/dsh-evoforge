@@ -2,6 +2,8 @@
 
 > 更新日期：2026-09-04。本文只描述标准路径中的权威 `main` 工作树，不把计划或历史分支当作已交付能力。
 
+> **最新增量（V5.207）**：Generation `publishGeneration()`、Session pin/回退和 Existing-Skill Release `record()` 在进入异步 Storage 队列前捕获输入快照，排队期间调用方修改对象不会污染内容哈希、谱系或决策。新增真实 Storage 提交时快照回归；`dsh-evolve` 类型检查、Generation store `12/12` 和根级全量 `CHECK_RC=0` 通过（Evolution `311/311`、Gateway `48/48`、Feishu `56/56`、Telegram `38/38` 及其余本地套件/合同）。最新 DSH `d347e703…` 安装通过，根构建缺陷仍按上游事实分类。真实渠道、Provider、Hermes paired、长期效果、npm ownership 与发布 tag 门禁仍未通过。详见 [V5.207 证据](evidence/v5-207-content-addressed-input-snapshot-2026-09-04.zh.md)。
+
 > **最新增量（V5.206）**：Generation 与 Existing-Skill Release Storage 增加关闭闸门；`close()` 开始后不再接受新的发布、晋升、回滚、暂停、Session pin、回退或 Release decision 写入，已排队写入仍会先完成。新增真实 DSH Storage 关闭回归，`dsh-evolve` 类型检查与 Generation store `11/11` 通过；随后根级全量 `CHECK_RC=0`，Evolution `310/310`、Gateway `48/48`、Feishu `56/56`、Telegram `38/38` 及其余本地套件、合同、产物门通过。最新 DSH `d347e703…`（`0.1.3-alpha.1` / `dsh-v0.1.3-alpha.1`）安装通过，根构建缺陷仍按上游事实分类。真实渠道、Provider、Hermes paired、长期效果、npm ownership 与发布 tag 门禁仍未通过。详见 [V5.206 证据](evidence/v5-206-evolution-store-close-guard-2026-09-04.zh.md)。
 
 > **最新增量（V5.205）**：`dsh-gateway` Bundle `apply()` 现在在 startup 失败后即使清理失败也保留原始校验错误，并将 cleanup 失败写入 Host logger；新增 Bundle 级回归。Gateway `48/48`，随后在最新 DSH `d347e703…`（`0.1.3-alpha.1` / `dsh-v0.1.3-alpha.1`）和 alpha.5 支持组合上根级 `CHECK_RC=0`，Evolution `309/309`、Feishu `56/56`、Telegram `38/38` 及其余套件、clean-profile、合同门通过。真实渠道、Provider、Hermes paired、长期效果、npm ownership 与发布 tag 门禁仍未通过。详见 [V5.205 证据](evidence/v5-205-gateway-bundle-error-propagation-full-check-2026-09-04.zh.md)。

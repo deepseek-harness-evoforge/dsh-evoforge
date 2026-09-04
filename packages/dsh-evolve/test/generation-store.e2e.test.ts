@@ -744,8 +744,8 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
       decidedAt: '2026-08-21T00:00:00.000Z',
       evidenceHash: '2'.repeat(64),
     }
-    const decision: ExistingSkillReleaseDecision = {
-      schemaVersion: 1,
+    const decision = {
+      schemaVersion: 1 as const,
       id: sha256Json(content),
       ...content,
     }
@@ -770,6 +770,57 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
       await expect(releases.record(decision)).rejects.toThrow(
         'existing Skill release store is closing',
       )
+    } finally {
+      await Promise.all([generations.close(), releases.close()])
+      await ctx.fiber.dispose()
+    }
+  })
+
+  it('snapshots content-addressed inputs before asynchronous persistence', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-store-snapshot-'))
+    temporaryRoots.push(root)
+    const configPath = await writeStorageConfig(root)
+    const input = {
+      workspaceId: WORKSPACE_ID,
+      createdAt: 1_723_456_789_000,
+      artifacts: [{
+        kind: 'skill' as const,
+        name: 'snapshot-before-mutation',
+        gitCommit: '0123456789abcdef0123456789abcdef01234567',
+        treeHash: 'a'.repeat(64),
+      }],
+      evaluatorVersion: 'snapshot-v1',
+      policyVersion: 'snapshot-v1',
+      compositionFingerprint: 'b'.repeat(64),
+    }
+    const content = {
+      kind: 'existing-skill-release-decision-v1' as const,
+      candidateId: '3'.repeat(64),
+      workspaceId: WORKSPACE_ID,
+      skillName: 'snapshot-before-mutation',
+      status: 'rejected' as const,
+      actor: 'human' as const,
+      decisionNote: 'Captured before caller mutation.',
+      decidedAt: '2026-08-21T00:00:00.000Z',
+      evidenceHash: '4'.repeat(64),
+    }
+    const decision = {
+      schemaVersion: 1 as const,
+      id: sha256Json(content),
+      ...content,
+    }
+    const ctx = await bootStorage(configPath)
+    const generations = await openEvolutionStore(ctx.storageDomain)
+    const releases = await openExistingSkillReleaseStore(ctx.storageDomain)
+    try {
+      const pendingGeneration = generations.publishGeneration(input)
+      input.artifacts[0]!.name = 'mutated-after-submit'
+      const persistedGeneration = (await pendingGeneration).generation
+      expect(persistedGeneration.artifacts[0]!.name).toBe('snapshot-before-mutation')
+
+      const pendingDecision = releases.record(decision)
+      decision.decisionNote = 'Mutated after submit.'
+      expect((await pendingDecision).decision.decisionNote).toBe('Captured before caller mutation.')
     } finally {
       await Promise.all([generations.close(), releases.close()])
       await ctx.fiber.dispose()
