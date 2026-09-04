@@ -179,8 +179,8 @@ describe('Gateway Control Surface', () => {
     } as GatewayRemoteClient
     render(<GatewaySurface {...surfaceProps(remote)} />)
 
-    const journey = await screen.findByRole('list', { name: '飞书首次连接进度' })
-    expect(journey.textContent).toContain('常驻连接: 飞书 Adapter 已连接')
+    const journey = await screen.findByRole('list', { name: '渠道首次连接进度' })
+    expect(journey.textContent).toContain('常驻连接: 飞书 · Adapter 已连接')
     expect(journey.textContent).toContain('用户私聊: 让用户给机器人发送任意私聊')
     expect(journey.textContent).toContain('管理员批准: 收到陌生私聊后在本页批准')
     expect(screen.getByText(/用户私聊/u).closest('li')?.getAttribute('aria-current')).toBe('step')
@@ -218,7 +218,8 @@ describe('Gateway Control Surface', () => {
     expect(screen.queryByText('待批准请求')).toBeNull()
     expect(screen.getByLabelText('配对码')).toBeTruthy()
     expect((screen.getByLabelText('渠道') as HTMLSelectElement).value).toBe('telegram')
-    expect(screen.queryByRole('list', { name: '飞书首次连接进度' })).toBeNull()
+    const journey = await screen.findByRole('list', { name: '渠道首次连接进度' })
+    expect(journey.textContent).toContain('常驻连接: Telegram · Adapter 已连接')
   })
 
   it('routes a typed pairing code through the selected Adapter', async () => {

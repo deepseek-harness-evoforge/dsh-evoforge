@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.143**: Generalized the Gateway first-connection journey to the selected Adapter instead of hard-coding a Feishu
+  label. Telegram-only surfaces now show the same resident-connection, newcomer-message, and Host-approval stages;
+  the existing single-page Control Center and Gateway authority remain unchanged. Gateway Surface `9/9` and the full
+  alpha.5 check passed. See [V5.143 evidence](docs/evidence/v5-143-gateway-generic-journey-2026-09-04.zh.md).
+
 - **V5.141**: Generalized the native Gateway pairing-code control from a Feishu-only field to a shared Adapter
   selector. Telegram-only and future resident channel profiles now expose the same single-page Host approval path;
   the selected Adapter is passed to the existing Gateway authority, with no extra page or state store. The generic

@@ -183,7 +183,9 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
     ? pairingAdapter
     : pairingAdapters[0]
   const showPairing = pairingAdapters.length > 0
-  const feishuJourney = snapshot === undefined ? undefined : buildFeishuJourney(snapshot, pendingPairings, t)
+  const pairingJourney = snapshot === undefined || selectedPairingAdapter === undefined
+    ? undefined
+    : buildPairingJourney(snapshot, pendingPairings, selectedPairingAdapter, t)
 
   return <UI.Surface ariaLabel={t('surface.title')}>
     <UI.Header
@@ -200,8 +202,8 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
     {snapshot === undefined
       ? <UI.Loading cards={4} />
       : <>
-        {feishuJourney !== undefined && UI.Journey !== undefined && <UI.Section title={t('journey.title')} description={t('journey.description')}>
-          <UI.Journey label={t('journey.label')} items={feishuJourney} />
+        {pairingJourney !== undefined && UI.Journey !== undefined && <UI.Section title={t('journey.title')} description={t('journey.description')}>
+          <UI.Journey label={t('journey.label')} items={pairingJourney} />
         </UI.Section>}
 
         <UI.Metrics items={[
@@ -363,24 +365,26 @@ function formatRemaining(expiresAt: number): string {
   return `${minutes} min`
 }
 
-function buildFeishuJourney(
+function buildPairingJourney(
   snapshot: GatewayHealthSnapshot,
   pendingPairings: readonly GatewayPairingPendingRequest[],
+  adapter: string,
   t: (key: string) => string,
 ) {
-  const feishuTransports = snapshot.transports.items.filter(item => item.adapter === 'feishu')
-  const feishuRequests = pendingPairings.filter(request => request.adapter === 'feishu')
-  const feishuRoutes = snapshot.routes.items.filter(route => route.adapter === 'feishu')
-  if (feishuTransports.length === 0 && feishuRequests.length === 0 && feishuRoutes.length === 0) return undefined
+  const transports = snapshot.transports.items.filter(item => item.adapter === adapter)
+  const requests = pendingPairings.filter(request => request.adapter === adapter)
+  const routes = snapshot.routes.items.filter(route => route.adapter === adapter)
+  if (transports.length === 0 && requests.length === 0 && routes.length === 0) return undefined
 
-  const connected = feishuTransports.some(item => item.state === 'ready')
-  const degraded = feishuTransports.some(item => item.state === 'degraded')
-  const contacted = feishuRequests.length > 0 || feishuRoutes.length > 0
-  const authorized = feishuRoutes.length > 0
+  const connected = transports.some(item => item.state === 'ready')
+  const degraded = transports.some(item => item.state === 'degraded')
+  const contacted = requests.length > 0 || routes.length > 0
+  const authorized = routes.length > 0
+  const label = adapterLabel(adapter)
   return [
     {
       label: t('journey.transport.label'),
-      description: t(connected ? 'journey.transport.complete' : degraded ? 'journey.transport.attention' : 'journey.transport.current'),
+      description: `${label} · ${t(connected ? 'journey.transport.complete' : degraded ? 'journey.transport.attention' : 'journey.transport.current')}`,
       state: connected ? 'complete' as const : degraded ? 'attention' as const : 'current' as const,
     },
     {
@@ -390,8 +394,8 @@ function buildFeishuJourney(
     },
     {
       label: t('journey.approval.label'),
-      description: t(authorized ? 'journey.approval.complete' : feishuRequests.length > 0 ? 'journey.approval.current' : 'journey.approval.upcoming'),
-      state: authorized ? 'complete' as const : feishuRequests.length > 0 ? 'current' as const : 'upcoming' as const,
+      description: t(authorized ? 'journey.approval.complete' : requests.length > 0 ? 'journey.approval.current' : 'journey.approval.upcoming'),
+      state: authorized ? 'complete' as const : requests.length > 0 ? 'current' as const : 'upcoming' as const,
     },
   ]
 }

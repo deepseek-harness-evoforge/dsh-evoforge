@@ -75,6 +75,13 @@ Surface 停在错误提示/加载状态；浏览器随后拒绝本地页面刷�
 的 Remote、通用 Adapter 选择器或恢复交互通过；`web-control-plane` 保持 `partial`。详见
 [V5.142 证据](evidence/v5-142-control-surface-browser-retry-2026-09-04.zh.md)。
 
+## V5.143：Gateway 首次连接旅程改为通用 Adapter 投影（本轮）
+
+修复 Gateway Control Surface 仍固定显示“飞书首次连接进度”的可视化偏差。现在旅程从当前 Adapter 的 transport、
+pending 和 route 权威投影生成，Telegram-only 与双渠道页面共享连接、用户私聊、管理员批准三阶段；配对码入口和
+空 pending 卡片策略与同一 Adapter 列表保持一致。Gateway Surface `9/9`、类型/构建与完整 alpha.5 `pnpm run check`
+退出码 `0`。详见 [V5.143 证据](evidence/v5-143-gateway-generic-journey-2026-09-04.zh.md)。
+
 ## V5.134：同 route id 重配与聊天类型变更回归（本轮）
 
 配对装配测试现在复用已撤销的同一 route id，并以 `group` chat kind 再次入站，确认撤销时清除内部观测、不会继承旧 direct 事实或触发漂移拒绝；类型检查、Gateway 构建和回归 `1/1` 通过。详见 [V5.134 证据](evidence/v5-134-feishu-route-id-repair-regression-2026-09-04.zh.md)。
