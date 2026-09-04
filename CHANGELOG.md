@@ -6,6 +6,10 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.155**: Standardized all user-facing Web startup examples on `dsh --profile web --no-open`, documented reuse
+  of one existing browser tab, and added a `check-docs` guard that rejects a bare `dsh --profile web` in operational
+  documentation. Documentation checks passed; runtime and release-gate status are unchanged. See [V5.155 evidence](docs/evidence/v5-155-single-web-doc-guard-2026-09-04.zh.md).
+
 - **V5.154**: Updated the root README, getting-started guide, and capability-suite guide to start the DSH Web Host
   with `--no-open`, reuse one existing browser tab, and refresh without launching another Host. The docs now state the
   supported DSH alpha.5 revision and explain that `dsh-resident` defaults to `noOpen: true`, with `noOpen: false` as an

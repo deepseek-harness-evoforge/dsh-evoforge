@@ -44,6 +44,12 @@ paired、长期效果和 npm 发布门状态不变。详见 [V5.153 证据](evid
 已有浏览器标签页、刷新不重复启动；同时标注 resident 默认 `noOpen: true` 与当前支持的 alpha.5 DSH revision。
 文档链接检查和 diff 检查通过。详见 [V5.154 证据](evidence/v5-154-single-web-startup-docs-2026-09-04.zh.md)。
 
+## V5.155：单网页启动约束进入文档门禁（本轮）
+
+根 README、英文 README、五个直接安装 Bundle README 和中文上手/套件指南已统一为 `--no-open` 启动说明；
+`check-docs` 现在会拒绝面向用户文档中的裸 `dsh --profile web`，防止重复浏览器交接回归。文档检查和 diff 检查
+通过。详见 [V5.155 证据](evidence/v5-155-single-web-doc-guard-2026-09-04.zh.md)。
+
 ## V5.149：真实飞书有效凭据连接成功但无新人 pending（本轮）
 
 使用用户提供的精确 App 凭据和真实效果授权，在新的物理 run root `/private/tmp/evoforge-feishu-as2-20260904-r2`
