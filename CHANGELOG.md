@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.154**: Updated the root README, getting-started guide, and capability-suite guide to start the DSH Web Host
+  with `--no-open`, reuse one existing browser tab, and refresh without launching another Host. The docs now state the
+  supported DSH alpha.5 revision and explain that `dsh-resident` defaults to `noOpen: true`, with `noOpen: false` as an
+  explicit opt-out. Documentation checks passed; runtime and release-gate status are unchanged. See [V5.154 evidence](docs/evidence/v5-154-single-web-startup-docs-2026-09-04.zh.md).
+
 - **V5.153**: Re-ran the complete alpha.5 repository check after making resident Web services default to DSH's
   `--no-open` handoff. The latest canonical DSH rc.1 was fetched and verified clean; documentation, contracts, all 12
   Bundle typechecks, tests, and builds passed (`exit 0`, Resident `17 passed / 1 skipped`, Gateway `41/41`, Feishu

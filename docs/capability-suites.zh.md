@@ -44,8 +44,11 @@ pnpm run pack:suite -- --suite channels --channel feishu --out /tmp/evoforge-pac
 ```sh
 dsh plugin --profile web add /tmp/evoforge-packs/evolution/*.tgz
 dsh --profile web --dump-config
-dsh --profile web
+dsh --profile web --no-open
 ```
+
+Host 只启动一次；启动日志打印的 URL 应复用到已有 DSH 浏览器标签页。刷新页面不需要再次执行启动命令，常驻服务也默认
+使用 `--no-open`，因此不会为每次重启创建新网页。
 
 卸载使用清单中的包名：
 

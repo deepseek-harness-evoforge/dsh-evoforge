@@ -38,6 +38,12 @@ Bundle 的 typecheck、测试和构建全部通过（Resident `17 passed / 1 ski
 Telegram `34/34`、Evolution `309/309`）。本轮未读取真实凭据或产生外部效果；真实渠道、Provider、Hermes
 paired、长期效果和 npm 发布门状态不变。详见 [V5.153 证据](evidence/v5-153-alpha5-full-check-after-resident-default-2026-09-04.zh.md)。
 
+## V5.154：用户安装文档统一为单网页启动（本轮）
+
+根 README、上手指南和能力套件说明统一使用 `dsh --profile web --no-open`，并明确 Host 只启动一次、URL 复用到
+已有浏览器标签页、刷新不重复启动；同时标注 resident 默认 `noOpen: true` 与当前支持的 alpha.5 DSH revision。
+文档链接检查和 diff 检查通过。详见 [V5.154 证据](evidence/v5-154-single-web-startup-docs-2026-09-04.zh.md)。
+
 ## V5.149：真实飞书有效凭据连接成功但无新人 pending（本轮）
 
 使用用户提供的精确 App 凭据和真实效果授权，在新的物理 run root `/private/tmp/evoforge-feishu-as2-20260904-r2`

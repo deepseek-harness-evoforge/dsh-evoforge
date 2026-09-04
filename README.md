@@ -9,7 +9,8 @@ EvoForge 不是独立 Agent、Codex 插件、第二个运行时或插件市场�
 ## 当前状态
 
 项目处于 pre-alpha。源码、测试和本地 Bundle 安装路径可供开发者试用，但尚未发布到 npm，也不能宣称已经完成
-Hermes 上位替代。真实渠道、真实模型 Provider、长期运行和 Hermes 同条件对照仍在验收中；生产使用前请先阅读
+Hermes 上位替代。当前已验证的运行目标是 DSH `dsh-v0.1.2-alpha.5`
+（`db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`）；真实渠道、真实模型 Provider、长期运行和 Hermes 同条件对照仍在验收中；生产使用前请先阅读
 [当前限制](docs/status.zh.md)。
 
 ## 能力套件
@@ -37,8 +38,12 @@ PACK_ROOT="$(mktemp -d)"
 pnpm run pack:suite -- --suite core --out "$PACK_ROOT"
 dsh plugin --profile web add "$PACK_ROOT/core"/*.tgz
 dsh --profile web --dump-config
-dsh --profile web
+dsh --profile web --no-open
 ```
+
+这条命令只启动一个 DSH Host，不应在每次刷新或重连时重复执行。启动日志会打印一次性 Web URL；把它粘贴到
+现有的 DSH 浏览器标签页，后续用浏览器刷新即可。若使用 `dsh-resident`，常驻服务默认追加 `--no-open`，崩溃恢复
+不会再创建网页；只有明确配置 `noOpen: false` 才会在每次启动请求浏览器交接。
 
 按需安装渠道或交付：
 

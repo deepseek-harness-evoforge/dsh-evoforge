@@ -35,11 +35,15 @@ dsh --profile web --dump-config
 
 有效配置应分别出现一次 `dsh-evolve`、`dsh-doctor`、`dsh-control-center` 和 `dsh-evolve-web`。渠道、GitHub review、Goal continuity、OS service 和 attention 都是独立可选能力；涉及外部身份、凭据、自动恢复或 OS 部署的 row 应保持 disabled，直到部署者提供完整静态配置。
 
-启动唯一的 DSH Host：
+启动唯一的 DSH Host（关闭自动打开新网页）：
 
 ```sh
-dsh --profile web
+dsh --profile web --no-open
 ```
+
+启动日志会打印 Web URL。只需把它打开到现有的 DSH 浏览器标签页；不要为了刷新、重连或查看插件而再次运行启动命令，
+否则 DSH 会按官方行为再次请求浏览器交接。常驻 `dsh-resident` 默认使用同样的 `--no-open`，崩溃恢复不会创建重复页面。
+确需每次启动自动打开时，才在 resident 配置中显式设置 `noOpen: false`。
 
 ## 3. 在 DSH 内使用
 
@@ -162,7 +166,7 @@ code、重放、无 live Session 和 Workspace ownership 漂移均 fail closed�
 ```sh
 dsh plugin --profile web add /absolute/path/to/new-pack/*.tgz
 dsh --profile web --dump-config
-dsh --profile web
+dsh --profile web --no-open
 ```
 
 升级前应停止对应 profile；不要手工改 `node_modules` 或 `dsh.profile.bundles`。首个正式 tag 发布后，发布门还会
@@ -174,7 +178,7 @@ dsh --profile web
 dsh plugin --profile web remove \
   dsh-evolve dsh-doctor dsh-control-center dsh-evolve-web
 dsh --profile web --dump-config
-dsh --profile web
+dsh --profile web --no-open
 ```
 
 卸载后的官方 DSH Bundle 仍保留；Session、Goal、Workspace 和 Storage 继续由 DSH 读取。外部系统已经接受的消息或 PR 效果不能由卸载撤回。
