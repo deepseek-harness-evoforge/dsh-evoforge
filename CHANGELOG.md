@@ -6,6 +6,13 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.194**: Made the complete Feishu Adapter startup path self-cleaning. Failures during route resolution, binding, or
+  outbound registration now dispose already-registered resources before preserving the original error; a regression proves
+  a registered transport is released exactly once and the platform is never connected. Latest DSH `d347e703…` install passed,
+  its known upstream root-entry build defect remained classified, and the EvoForge root check passed (`CHECK_RC=0`; Feishu
+  `56/56`, Gateway `43/43`, Evolution `309/309`, Telegram `36/36`). Real channel/provider/Hermes paired, long-run, npm
+  ownership, and release-tag gates remain blocked. See [V5.194 evidence](docs/evidence/v5-194-feishu-startup-failure-cleanup-2026-09-04.zh.md).
+
 - **V5.193**: Made `dsh-gateway` startup self-cleaning. Any route or persisted-Session validation failure now invokes the
   idempotent Gateway stop boundary, releasing listeners and journals before rethrowing the original error; a regression
   verifies the disposer is called exactly once. With DSH canonical `d347e703…` (`0.1.3-alpha.1`), official install passed,

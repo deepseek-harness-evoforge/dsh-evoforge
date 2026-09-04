@@ -1,7 +1,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import type { DshGateway } from 'dsh-evoforge-gateway'
-import { resolveFeishuPairingConfig } from '../src/config.js'
+import { resolveFeishuConfig, resolveFeishuPairingConfig } from '../src/config.js'
 import type {
   FeishuApprovalAction,
   FeishuInboundMessage,
@@ -10,6 +10,69 @@ import type {
 import { FeishuRuntime } from '../src/runtime.js'
 
 describe('Feishu runtime teardown', () => {
+  it('cleans up a registered transport when startup fails before platform connect', async () => {
+    const ctx = new Context()
+    let transportDisposed = 0
+    let disconnectCount = 0
+    const route = {
+      id: 'feishu-start-failure',
+      adapter: 'feishu' as const,
+      accountId: 'test-app',
+      conversationId: 'oc_chat',
+      userId: 'ou_user',
+      workspaceId: 'workspace-test',
+      sessionId: 'session-test',
+      agentPreset: 'test',
+      provider: 'test',
+      model: 'test',
+      endpointKey: '["feishu","test-app","oc_chat",null,"ou_user"]',
+    }
+    const agent = {
+      id: route.sessionId,
+      session: { id: route.sessionId, requestHeader: () => undefined },
+      ctx: {
+        inject(_deps: readonly string[], callback: (value: unknown) => unknown) {
+          callback({ commands: { register: () => undefined } })
+        },
+      },
+    }
+    const gateway = {
+      resolve: async () => agent,
+      registerTransport: () => ({
+        report: () => undefined,
+        dispose: () => { transportDisposed += 1 },
+      }),
+      registerTextAdapter: () => { throw new Error('outbound registration failed') },
+    } as unknown as DshGateway
+    const platform: FeishuPlatform = {
+      onMessage: () => () => {},
+      onApprovalAction: () => () => {},
+      onError: () => () => {},
+      async connect() { throw new Error('platform connect must not run') },
+      async disconnect() { disconnectCount += 1 },
+      async sendText() { return { messageId: 'unused' } },
+      async sendCard() { return { messageId: 'unused' } },
+      async downloadMessageResource() { throw new Error('unused') },
+    }
+    const config = await resolveFeishuConfig({
+      routeIds: [route.id],
+      appIdEnv: 'TEST_APP_ID',
+      appSecretEnv: 'TEST_APP_SECRET',
+    }, [route], {
+      resolve: async (reference: string) => ({
+        value: reference === 'TEST_APP_ID' ? 'test-app' : 'test-secret',
+        source: 'test',
+      }),
+    })
+    const runtime = new FeishuRuntime(ctx, config, gateway, platform)
+
+    await expect(runtime.start()).rejects.toThrow('outbound registration failed')
+    expect(transportDisposed).toBe(1)
+    expect(disconnectCount).toBe(1)
+    await runtime.dispose()
+    await ctx.fiber.dispose()
+  })
+
   it('disconnects the platform even when the sibling Gateway rejects the stopping report', async () => {
     const ctx = new Context()
     let connected = false

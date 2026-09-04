@@ -6,6 +6,8 @@
 
 > **最新增量（V5.193）**：Gateway 启动阶段现在拥有自身失败清理边界；路由/Session 校验异常会自动回收已绑定监听和 journal，公开类直接使用也不依赖 Host 外层兜底。最新 DSH `d347e703…` 安装通过、根构建缺陷仍按上游分类，EvoForge 根检查 `CHECK_RC=0`；Gateway `43/43`、Evolution `309/309`、Feishu `55/55`、Telegram `36/36`。详见 [V5.193 证据](evidence/v5-193-gateway-startup-failure-cleanup-2026-09-04.zh.md)。发布门禁不变。
 
+> **最新增量（V5.194）**：Feishu Adapter 的完整启动阶段现在失败即自动 dispose；即使 outbound 注册失败，已注册 transport 也会回收，原始错误保持可诊断。最新 DSH `d347e703…` 安装通过、根构建缺陷仍按上游分类，EvoForge 根检查 `CHECK_RC=0`；Feishu `56/56`、Gateway `43/43`、Evolution `309/309`、Telegram `36/36`。详见 [V5.194 证据](evidence/v5-194-feishu-startup-failure-cleanup-2026-09-04.zh.md)。发布门禁不变。
+
 > DSH 最新公开 tag 仍为 `dsh-v0.1.2-rc.1`（`a66e470…`），最新远端 `master` 为
 > `76fda729799fe9b3848dbe2c211d4b231032b81e`；两者均已在本轮重新 fetch 并审计，干净完整构建仍被上游根级
 > tsdown 入口阻断。EvoForge 当前支持声明仍锁定已完成矩阵的 alpha.5（`db6bdc…`），详见 [rc.1 迁移审计](research/dsh-rc1-migration-audit-2026-09-03.zh.md)。
