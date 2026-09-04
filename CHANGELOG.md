@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.218**: Re-fetched and rebuilt canonical DSH `0.1.3-alpha.1` (`d347e703…`). Installation remains clean, while the
+  official root build is still blocked by DSH's missing `@deepseek-ai/dsh-root` `lib/types/{index,invariant,startup}.js`
+  entry. Recorded the upstream fact and kept the audited alpha.5 support checkout for EvoForge validation; no upstream
+  source or release gate was modified. See [V5.218 evidence](docs/evidence/v5-218-latest-dsh-build-reaudit-2026-09-04.zh.md).
+
 - **V5.217**: Made the resident `dsh-gateway` Bundle install enabled with an empty `routes: []` by default. A channel
   suite now starts the local Host Gateway and read-only control surface without platform connections, credentials, messages,
   or Agent/Session creation; Feishu and Telegram remain disabled until exact credentials and routes are configured. Added a
