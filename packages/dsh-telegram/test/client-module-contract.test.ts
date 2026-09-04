@@ -52,5 +52,17 @@ describe('Telegram native DSH Client Module', () => {
       uncertain: 1,
       failed: 3,
     })
+    expect(parseTelegramHealth([
+      'Telegram pairing: READY (Gateway account bot-main).',
+      'Authorized routes: 1; transport telegram-long-poll.',
+      'Retained delivery: 1 delivered; 0 pending; 0 uncertain; 0 failed.',
+      'Model surface: 0 tools, 0 prompt sections, 0 skills.',
+    ].join('\n'))).toMatchObject({
+      status: 'ready',
+      delivered: 1,
+      pending: 0,
+      uncertain: 0,
+      failed: 0,
+    })
   })
 })

@@ -52,7 +52,7 @@
         "docs/evidence/v5-83-channel-journey-single-page-browser-2026-09-04.zh.md",
         "docs/evidence/v5-92-gateway-pairing-aria-isolation-2026-09-04.zh.md"
       ],
-      "blocker": "Evolution, Doctor, Telegram loopback, and channel-only single-page newcomer UX are verified, but a real external Telegram Bot route and its complete newcomer path are not yet verified."
+      "blocker": "Evolution, Doctor, Telegram loopback static/pairing paths, and channel-only single-page newcomer UX are verified, but a real external Telegram Bot route and its complete newcomer path are not yet verified."
     },
     {
       "id": "real-feishu-as2",

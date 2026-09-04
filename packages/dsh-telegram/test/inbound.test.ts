@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { selectApprovalCallback, selectInboundUpdate } from '../src/inbound.js'
+import {
+  selectApprovalCallback,
+  selectInboundUpdate,
+  selectTelegramApprovalCallback,
+  selectTelegramMessage,
+} from '../src/inbound.js'
 
 const route = { chatId: 1001, userId: 2002 }
 
@@ -55,6 +60,42 @@ describe('Telegram inbound selection', () => {
       },
     }, route)).toEqual({ kind: 'ignored', updateId: 80 })
   })
+
+  it('extracts an unknown direct sender for Gateway pairing without dispatching text', () => {
+    expect(selectTelegramMessage({
+      update_id: 81,
+      message: {
+        message_id: 13,
+        chat: { id: 3003, type: 'private' },
+        from: { id: 4004, is_bot: false },
+        document: { file_id: 'opaque' },
+      },
+    })).toEqual({
+      kind: 'unsupported', updateId: 81, messageId: 13,
+      chatId: 3003, userId: 4004, chatKind: 'direct',
+    })
+    expect(selectTelegramMessage({
+      update_id: 82,
+      message: {
+        message_id: 14,
+        chat: { id: 3003, type: 'private' },
+        from: { id: 4004, is_bot: false },
+        text: 'pair me',
+      },
+    })).toMatchObject({ kind: 'message', chatKind: 'direct', text: 'pair me' })
+  })
+
+  it('does not expose group messages to pairing', () => {
+    expect(selectTelegramMessage({
+      update_id: 83,
+      message: {
+        message_id: 15,
+        chat: { id: -3003, type: 'group' },
+        from: { id: 4004, is_bot: false },
+        text: 'group',
+      },
+    })).toMatchObject({ kind: 'unsupported', chatKind: 'group' })
+  })
 })
 
 describe('Telegram approval callback selection', () => {
@@ -95,5 +136,20 @@ describe('Telegram approval callback selection', () => {
         data,
       },
     }, route)).toEqual({ kind: 'ignored', updateId: 92 })
+  })
+
+  it('parses a pairing callback before checking the pending route identity', () => {
+    expect(selectTelegramApprovalCallback({
+      update_id: 93,
+      callback_query: {
+        id: 'callback-pairing',
+        from: { id: 5005, is_bot: false },
+        message: { message_id: 33, chat: { id: 6006, type: 'private' } },
+        data: 'dsh:a:nonce123:allow',
+      },
+    })).toEqual({
+      kind: 'approval-callback', updateId: 93, callbackQueryId: 'callback-pairing',
+      nonce: 'nonce123', outcome: 'allowed-once', chatId: 6006, userId: 5005,
+    })
   })
 })

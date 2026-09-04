@@ -45,6 +45,19 @@ Agent 入站或平台副作用，`real-feishu-as2` 继续为 `failed`。详见
 `messageId` 不重复外发。assembled Feishu chat 与 pairing 回归 `2/2` 通过，未调用真实凭据；普通文件、音频和
 视频仍未宣称为 DSH 原生附件能力。详见 [V5.139 证据](evidence/v5-139-feishu-unsupported-first-message-2026-09-04.zh.md)。
 
+## V5.140：Telegram 常驻 Host 配对纵切（本轮）
+
+`dsh-telegram` 新增 `mode: pairing`，不再要求预先写入 Telegram 私聊的静态 `conversationId/userId`。它复用同一个
+`dsh-gateway` 的 `authorize`、配对存储、原生 Workspace/Session/Agent 和 Gateway outbound journal：陌生 direct DM
+收到一次性配对码，首条消息不进入 Agent；管理员批准后，下一条消息才由 Gateway 路由到原生 Session。动态 route
+在 dispatch 前解析并绑定 Agent，避免同步 inbox claim 被错过；静态 `routeId` 配置保持兼容。已用 DSH alpha.5
+clean assembled profile 通过 `unknown DM → code → Host approve → next-message dispatch`，并补齐 inbound/config
+与 Web 健康解析回归；证据见 [V5.140](evidence/v5-140-telegram-pairing-assembled-2026-09-04.zh.md)。
+
+这仍不是真实 Telegram Bot 发布证据：真实外部 Bot、陌生安装引导、生产权限和多日运行未执行，`web-control-plane`
+与 `hermes-paired` 发布门仍按 `release-gates.json` 阻断。配对模式目前不向 `dsh-evolve-attention` 暴露未选定
+Workspace 的通知 route；需要提醒桥接时使用静态 route 模式。
+
 ## V5.134：同 route id 重配与聊天类型变更回归（本轮）
 
 配对装配测试现在复用已撤销的同一 route id，并以 `group` chat kind 再次入站，确认撤销时清除内部观测、不会继承旧 direct 事实或触发漂移拒绝；类型检查、Gateway 构建和回归 `1/1` 通过。详见 [V5.134 证据](evidence/v5-134-feishu-route-id-repair-regression-2026-09-04.zh.md)。
@@ -1009,7 +1022,7 @@ V5.21 将真实飞书 AS-2 从 epoch-1 升为 epoch-2。最终包 profile 不在
 | Exact Skill 尝试间新增工作 | `verified` | [V4.52](evidence/v4-52-between-attempt-work-context.zh.md)：严格相邻次序、同源 Goal metrics、event seq/counter 单调门；ordered/measured/unmeasured/ambiguous 与 token/cache/latency/active-wall 差值；最终 tarball 的刷新、断连保留、冷恢复不重复、reload、卸载与无残留 | 真实用户任务、因果效果、返工下降与 paired benchmark |
 | Exact Skill 失败上下文调查 | `verified` | [V4.53](evidence/v4-53-exact-skill-failure-context-investigation.zh.md)：两个不同 Goal 的唯一 latest failed 门、恢复/冲突 abstain、eligible 明细优先、Host/Control/Remote/Command/Web review-only 投影；最终 tarball 的 1 eligible/2 latest-failed、刷新、断连保留、冷恢复无重复、reload、官方卸载与原生 Web 无残留 | 因果复核、真实 provider、长期率与 paired benchmark |
 | Runtime Readiness | `implemented` | 原生 Loader/Command；[V5.9](evidence/v5-9-doctor-channel-readiness.zh.md) 复用 Gateway 权威健康，覆盖飞书/Telegram 的 unavailable/connecting/ready/degraded/stopping、损坏快照 fail closed，以及最终 tarball degraded→reload→ready→remove 生命周期 | 真实渠道、多日故障、v0.1 全包诊断和陌生安装数据 |
-| Telegram 单私聊 | `partial` | 已迁移 DSH Gateway；真实 DSH Workspace/Agent Loop、Commands、Approval、Goal/Schedule、Gateway durable ingress/outbound、cache parity、联合 tarball lifecycle；私有 Delivery Store 已删除；真实 assembled long-poll failure→Gateway `degraded`→成功 poll→`ready`；[V5.7](evidence/v5-7-bounded-channel-delivery.zh.md) 固定 Gateway 所有单次平台发送最多等待 30 秒 | 真实 Bot 冒烟和多日证据 |
+| Telegram 单私聊 | `partial` | 已迁移 DSH Gateway；静态 exact route 与新增 resident pairing（unknown direct DM→一次性 code→Host approve→next-message native dispatch）；真实 DSH Workspace/Agent Loop、Commands、Approval、Goal/Schedule、Gateway durable ingress/outbound、cache parity、联合 tarball lifecycle；私有 Delivery Store 已删除；assembled long-poll failure→Gateway `degraded`→成功 poll→`ready`；[V5.7](evidence/v5-7-bounded-channel-delivery.zh.md)、[V5.140](evidence/v5-140-telegram-pairing-assembled-2026-09-04.zh.md) | 真实 Bot 冒烟和多日证据、真实 pairing 撤销重配与重启后新增消息 |
 | Evolve Channel Attention | `implemented` | Telegram/飞书 Candidate review/inactive promotion decision、concrete routes、显式 Workspace、durable notice、request parity；Evaluator Draft 表面已删除；进入十二包总装 | 真实渠道验证与多日移动端数据 |
 | Goal Continuity | `implemented` | JSONL cold resume、SIGKILL、原生 Goal round limit | 多 Workspace 绑定、生产 soak |
 | Resident OS unit | `implemented` | disabled Bundle、原生 `/resident`、exact hash/service-id 确认、无 bin tarball、十二包总装、launchd/systemd 与 macOS crash 测试 | Linux 真机和多日 soak |

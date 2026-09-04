@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { resolveGatewayRoutes } from 'dsh-gateway'
-import { resolveTelegramConfig } from '../src/config.js'
+import { resolveTelegramConfig, resolveTelegramPairingConfig } from '../src/config.js'
 
 const base = {
   routeId: 'telegram-main',
@@ -64,5 +64,24 @@ describe('Telegram protected route policy', () => {
     expect(() => resolveTelegramConfig({ ...base, pollTimeoutSeconds: 51 }, route)).toThrow(/pollTimeoutSeconds/u)
     expect(() => resolveTelegramConfig({ ...base, maxSendAttempts: 6 }, route)).toThrow(/maxSendAttempts/u)
     expect(() => resolveTelegramConfig({ ...base, maxTextChars: 4_097 }, route)).toThrow(/maxTextChars/u)
+  })
+
+  it('resolves resident pairing without inventing a static route', () => {
+    const resolved = resolveTelegramPairingConfig({
+      mode: 'pairing',
+      accountId: 'bot-main',
+      tokenEnv: 'MY_TELEGRAM_TOKEN',
+      apiBase: 'http://127.0.0.1:8081',
+    }, { MY_TELEGRAM_TOKEN: 'secret' })
+    expect(resolved).toMatchObject({
+      mode: 'pairing',
+      accountId: 'bot-main',
+      tokenEnv: 'MY_TELEGRAM_TOKEN',
+      apiBase: 'http://127.0.0.1:8081',
+    })
+    expect(Object.isFrozen(resolved)).toBe(true)
+    expect(() => resolveTelegramPairingConfig({ mode: 'pairing', accountId: 'bot-main', routeId: 'telegram-main' }, { DSH_TELEGRAM_BOT_TOKEN: 'x' })).toThrow(/no static route ids/u)
+    expect(() => resolveTelegramPairingConfig({ mode: 'pairing', accountId: '' }, { DSH_TELEGRAM_BOT_TOKEN: 'x' })).toThrow(/accountId/u)
+    expect(() => resolveTelegramPairingConfig({ mode: 'pairing', accountId: 'bot-main' }, {})).toThrow(/environment variable/u)
   })
 })

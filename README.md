@@ -75,6 +75,10 @@ export DSH_FEISHU_APP_SECRET='...'
 不需要在 DSH Session 中执行配对命令，不需要临时 listener，也不需要打开第二个网页。配对、撤销、权限和故障
 排查见 [`dsh-gateway`](packages/dsh-gateway/README.md) 与 [`dsh-feishu`](packages/dsh-feishu/README.md)。
 
+Telegram 同样复用常驻 Gateway。静态模式可绑定一个精确私聊；配对模式只需配置 Bot account id，陌生私聊首条消息
+会收到一次性配对码且不会进入 Agent，管理员在同一 Web `Channels` 页面批准后，用户下一条消息才进入原生 Session。
+Telegram 的完整配置和静态/配对两种模式见 [`dsh-telegram`](packages/dsh-telegram/README.md)。
+
 ## 自我进化
 
 入口只接收自然语言 Goal、材料、约束、权限和验收标准。系统从 DSH 已安装能力以及真实 Goal 的成功、失败、
@@ -117,7 +121,7 @@ dsh --profile web --dump-config
 - 真实 Feishu 的完整配对、Schedule、Approval、重启新增消息、撤销重配和长期重连仍在验收。
 - 真实 Provider、同条件 Hermes paired benchmark、长期误晋升/遗忘/负迁移数据尚未全部通过。
 - DSH 当前附件契约只支持已验证的原生图片路径；普通文件、音频和视频不由 Gateway 私自伪造支持。
-- Telegram 外部 Bot、生产权限和多日运行也需要单独验证。
+- Telegram 外部 Bot 的真实陌生用户配对路径、生产权限和多日运行也需要单独验证；本地 loopback 组装路径已覆盖静态和配对流程。
 
 安装或运行异常时，先运行 DSH 原生 `/doctor`，再查看[当前状态](docs/status.zh.md)和对应插件 README。
 请不要在 Issue 或日志中提交 App Secret、访问令牌或真实消息内容。

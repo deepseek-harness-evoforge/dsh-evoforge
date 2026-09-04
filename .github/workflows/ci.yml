@@ -142,6 +142,7 @@ jobs:
           pnpm --filter dsh-telegram exec vitest run \
             test/cache-composition.e2e.test.ts \
             test/dsh-assembled-chat.e2e.test.ts \
+            test/pairing-assembled.e2e.test.ts \
             test/package-install-remove.e2e.test.ts
           pnpm --filter dsh-evolve-attention exec vitest run \
             test/package-install-remove.e2e.test.ts

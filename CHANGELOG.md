@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.140**: Added a resident Telegram Host-pairing mode that reuses the shared Gateway authorization and
+  durable delivery seams. Unknown direct messages receive a one-time code without Agent ingress; after Host approval,
+  only the next message is dispatched to the native DSH Session. Existing exact static-route profiles remain compatible,
+  and a real-DSH alpha.5 assembled pairing path passed. Real Telegram Bot and Hermes paired release gates remain open.
+  See [V5.140 evidence](docs/evidence/v5-140-telegram-pairing-assembled-2026-09-04.zh.md).
+
 - **V5.139**: Fixed Feishu authorization ordering for unsupported top-level messages. An unknown direct user now
   receives a pairing code even when the first message is a file, audio, or video; an already authorized route receives
   one durable, idempotent attachment-contract notice instead of silent loss. The assembled chat and pairing regressions

@@ -1,14 +1,15 @@
 # dsh-telegram
 
-`dsh-telegram` is a disabled-by-default DSH Bundle connecting one exact private Telegram chat/user through `dsh-gateway` to a native Workspace/Session/Agent. It is not a gateway, webhook server, daemon, or second Agent host.
+`dsh-telegram` is a disabled-by-default DSH Bundle connecting Telegram private messages through the resident `dsh-gateway` to native DSH Workspace/Session/Agent state. It supports both an exact static route and Hermes-style Host pairing for unknown direct messages. It is not a gateway, webhook server, daemon, or second Agent host.
 
-When `dsh-control-center` is installed, the browser half contributes a read-only Telegram Surface to the native DSH Web view. It executes the existing `/telegram` Command, shows the fixed route, transport and Gateway delivery counts, and never creates a second route, journal or health authority.
+When `dsh-control-center` is installed, the browser half contributes a read-only Telegram Surface to the native DSH Web view. It executes the existing `/telegram` Command, shows the static or paired route, transport and Gateway delivery counts, and never creates a second route, journal or health authority.
 
 ```sh
 dsh plugin --profile web add /absolute/path/dsh-telegram-0.1.0-alpha.1.tgz
 ```
 
-- exact `chat_id` + `user_id` filtering for private text messages;
+- exact `chat_id` + `user_id` filtering for static private text routes;
+- resident pairing mode: an unknown private sender receives a one-time code from the Adapter, the first message never enters the Agent, and only a Host-approved next message is dispatched through Gateway;
 - Gateway-owned deterministic DSH message identities and ingress journal, so Telegram update replay does not create a second turn or repeat a native Command;
 - final-answer delivery for every completed turn on the selected Agent, including native Goal and
   Schedule continuations;
@@ -29,12 +30,14 @@ Session token overhead is zero; the selected Agent's existing model composition 
 
 - DSH `0.1.2-alpha.5` (`dsh-v0.1.2-alpha.5`) with `dsh-gateway`, Agent, Agent presets, Commands, Session persistence, Workspace, Storage and Storage Domain composed. DSH `0.1.2-rc.1` is newer but its clean upstream build is currently blocked; it is not yet an accepted runtime target;
 - Node.js `^22.19.0 || >=24`;
-- one Telegram Bot token, one private chat id, one Telegram user id;
-- one existing native Workspace plus a static Gateway route naming its stable Session id, Agent preset,
-  provider and model. The Gateway alone creates or cold-resumes that Agent.
+- one Telegram Bot token;
+- static mode additionally needs one private chat id, one Telegram user id, and one existing native
+  Workspace plus a static Gateway route naming its stable Session id, Agent preset, provider and model;
+- pairing mode needs a Gateway account id and an existing native Workspace/Session target for the
+  administrator to approve. The Gateway alone creates or cold-resumes that Agent.
 
-The Bundle installs disabled because the route and token policy are deployment-specific. Enable
-and configure its row explicitly:
+The Bundle installs disabled because the route, pairing, and token policies are deployment-specific.
+For the existing exact-route mode, enable and configure its rows explicitly:
 
 ```yaml
 - id: evoforge-gateway
@@ -61,6 +64,31 @@ and configure its row explicitly:
     tokenEnv: DSH_TELEGRAM_BOT_TOKEN
 ```
 
+For resident Host pairing (no static Telegram chat/user route), leave `routeIds` empty and configure
+the same account id on `dsh-telegram`:
+
+```yaml
+- id: evoforge-gateway
+  name: dsh-gateway
+  disabled: false
+  config:
+    pairing:
+      enabled: true
+
+- id: evoforge-telegram
+  name: dsh-telegram
+  disabled: false
+  config:
+    mode: pairing
+    accountId: personal-bot
+    tokenEnv: DSH_TELEGRAM_BOT_TOKEN
+```
+
+When an unknown user sends a private message, the Gateway decides whether to offer a code. The
+administrator approves the redacted pending request in the native DSH Web Channels surface using an
+existing live Workspace/Session target. The next message is then routed to that native Session;
+the first message is never replayed. Group messages remain ignored.
+
 The Gateway route is the only chat/user/Workspace/Session/Agent authority. `conversationId` and `userId`
 must be canonical positive Telegram integer strings; private topics are not accepted. The token is read
 from the environment of the DSH Host. Native Commands and one-shot Approval buttons reuse DSH services;
@@ -70,7 +98,7 @@ the route or read the token.
 
 Telegram long polling is owned by the Cordis fiber; Gateway owns the serialized outbound registration
 and retry timers. The Adapter reports only redacted `connecting/ready/degraded/stopping` observations
-for its exact route into Gateway health; protocol errors and reconnect policy stay here. Disable/unload aborts both. Ambiguous sends become `uncertain` and are not retried
+for its configured account and active routes into Gateway health; protocol errors and reconnect policy stay here. Disable/unload aborts both. Ambiguous sends become `uncertain` and are not retried
 automatically; already delivered external messages cannot be retracted.
 
 ```sh
@@ -79,8 +107,8 @@ dsh plugin --profile web remove dsh-telegram
 
 Set `DSH_TELEGRAM_BOT_TOKEN` in the process supervisor's secret environment. Naming that variable
 in plugin config is the explicit deployment policy authorizing this plugin to read that one secret
-and contact the fixed chat. The model cannot read the token or change the Bot API endpoint, chat,
-user, or Agent route. Production accepts only `https://api.telegram.org`; loopback endpoints exist
+and contact the configured Bot account. The model cannot read the token or change the Bot API endpoint,
+chat, user, or Agent route. Production accepts only `https://api.telegram.org`; loopback endpoints exist
 for a local Bot API server and tests.
 
 ## Delivery semantics
@@ -115,6 +143,8 @@ See [`dsh-evolve-attention`](../dsh-evolve-attention/README.md) for its message 
 
 ## Deliberate limits
 
-No groups, channels, topics, media, webhook server, streaming drafts, multi-Bot routing,
+No groups, channels, topics, media materialization, webhook server, streaming drafts, multi-Bot routing,
 multi-Agent routing, second Session, second Goal, second Schedule, or permanent approval grant.
+Pairing mode intentionally does not expose a notification route to `dsh-evolve-attention` until a
+specific Workspace target has been selected; static mode remains the supported attention path.
 Add another out-of-tree adapter only after its own user workflow and authority boundary are proven.

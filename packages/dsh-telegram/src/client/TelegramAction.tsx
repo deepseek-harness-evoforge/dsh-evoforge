@@ -141,9 +141,10 @@ export function TelegramSurface({ commands, t, sessionId, ui: UI }: TelegramSurf
 
 export function parseTelegramHealth(text: string): TelegramHealthSnapshot {
   const route = /^Telegram route:\s+([^\s(]+).*?Gateway\s+([^,]+),\s+session\s+([^,]+),/u.exec(text)
+  const pairing = /^Telegram pairing:\s+([^\s(]+).*?Gateway account\s+([^).]+)\)/u.exec(text)
   const transport = /^Transport:\s+([^;]+);\s+lifecycle\s+([^\.]+)\./mu.exec(text)
   const delivery = /^Retained delivery:\s+(\d+) delivered;\s+(\d+) pending;\s+(\d+) uncertain;\s+(\d+) failed\./mu.exec(text)
-  const status = normalizeStatus(route?.[1] ?? transport?.[2] ?? 'unavailable')
+  const status = normalizeStatus(route?.[1] ?? pairing?.[1] ?? transport?.[2] ?? 'unavailable')
   return {
     status,
     ...(transport?.[1] === undefined ? {} : { transportKind: transport[1].trim() }),
