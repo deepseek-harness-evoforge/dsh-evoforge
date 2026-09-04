@@ -50,6 +50,12 @@ paired、长期效果和 npm 发布门状态不变。详见 [V5.153 证据](evid
 `check-docs` 现在会拒绝面向用户文档中的裸 `dsh --profile web`，防止重复浏览器交接回归。文档检查和 diff 检查
 通过。详见 [V5.155 证据](evidence/v5-155-single-web-doc-guard-2026-09-04.zh.md)。
 
+## V5.156：四个用户套件 tarball 边界审计（本轮）
+
+实际执行 `pack:suite` 生成 `core 4`、`channels 4`、`delivery 2`、`continuity 2`，共 12 个 tarball 和四份
+带 SHA-256/audience 的清单；逐包归档审计确认没有 `node_modules`、`.bin` 或产品 `bin`。用户入口仍是四个能力
+套件，内部 Bundle 保留独立生命周期。详见 [V5.156 证据](evidence/v5-156-user-suite-tarball-boundary-2026-09-04.zh.md)。
+
 ## V5.149：真实飞书有效凭据连接成功但无新人 pending（本轮）
 
 使用用户提供的精确 App 凭据和真实效果授权，在新的物理 run root `/private/tmp/evoforge-feishu-as2-20260904-r2`

@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.156**: Packed the four user-facing suites and audited all 12 resulting tarballs: `core` (4), `channels` (4),
+  `delivery` (2), and `continuity` (2). Each suite emitted `evoforge-suite.json` with version/SHA-256/audience, and
+  no tarball contained `node_modules`, `.bin`, or a product `bin` directory. This verifies package boundaries only; real
+  channels, Providers, Hermes pairing, long-term effects, and registry publication remain gated. See [V5.156 evidence](docs/evidence/v5-156-user-suite-tarball-boundary-2026-09-04.zh.md).
+
 - **V5.155**: Standardized all user-facing Web startup examples on `dsh --profile web --no-open`, documented reuse
   of one existing browser tab, and added a `check-docs` guard that rejects a bare `dsh --profile web` in operational
   documentation. Documentation checks passed; runtime and release-gate status are unchanged. See [V5.155 evidence](docs/evidence/v5-155-single-web-doc-guard-2026-09-04.zh.md).
