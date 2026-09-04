@@ -30,6 +30,18 @@ _Avoid_: Platform kernel, plugin marketplace
 A user-facing installation preset that expands to an explicit set of official DSH Bundle tarballs with a shared outcome, while preserving each package's own lifecycle, permissions, compatibility range, and uninstall boundary. The current presets are `evolution`, `control`, `gateway`, `channels`, `delivery`, `continuity`, and `full`; the preset is repository tooling, not a second runtime, registry, or authority.
 _Avoid_: Meta-runtime package, hidden dependency graph, startup questionnaire, global plugin registry
 
+**Installation Entrance**:
+The one-time human or Agent-facing path that validates a DSH profile, obtains and verifies EvoForge Bundles, installs them through the official DSH plugin mechanism, and starts or reports one Host. It must be idempotent and must not ask the user to choose a task, workflow, Agent, Skill, or execution path.
+_Avoid_: Runtime Goal menu, capability-acquisition workflow, second installer runtime
+
+**Runtime Goal Entrance**:
+The post-install DSH interaction in which a user supplies natural-language Goal, materials, constraints, permissions, and acceptance criteria. Native DSH Agent execution autonomously inspects and composes already-installed capabilities; this term does not authorize external Skill search, download, import, or installation.
+_Avoid_: Installation command, startup questionnaire, marketplace search
+
+**Evidence State**:
+A bounded declaration of what an implementation or experiment actually proves: `designed`, `implemented`, `verified`, `better for <workflow>`, or `blocked/not-measured`. A code path or local fixture may not be promoted to a stronger state without its named gate and reproducible evidence.
+_Avoid_: Feature-complete, production-ready by default, model self-evaluation
+
 **EvoForge Plugin**:
 An independently useful, removable out-of-tree DSH capability with a user-visible outcome and an explicit cache, permission, persistence, and rollback contract.
 _Avoid_: Internal pipeline stage, DSH bug patch

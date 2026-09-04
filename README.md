@@ -14,6 +14,8 @@ Hermes 上位替代。开发前已审计 DSH canonical `origin/master` `d347e703
 仍锁定已完成验证的 DSH alpha.5（`db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`），直到上游入口修复并重新通过兼容性审计。
 真实渠道、真实模型 Provider、长期运行和 Hermes 同条件对照仍在验收中；生产使用前请先阅读[当前限制](docs/status.zh.md)。
 
+如果你想先看懂产品边界、设计取舍、已完成/未完成的证据和后续退出门，请先读[产品目标与设计方案（可读基线）](docs/architecture/product-target-and-design.zh.md)；它是给用户和贡献者看的说明，不是安装命令。
+
 ## 能力套件
 
 用户按需要选择结果，不必逐个管理内部 Bundle：

@@ -1,6 +1,8 @@
 # EvoForge v0.1 路线图
 
-> 2026-09-04 当前执行顺序：alpha.5 兼容性、安装面、统一单页控制面和旧固定弹层清理已经收口；V5.217 已让
+目标、架构、当前进度和阶段退出条件的可读总览见[产品目标与设计方案（可读基线）](architecture/product-target-and-design.zh.md)；本页保留按版本累积的执行证据和历史决策。
+
+> 2026-09-05 当前执行顺序：alpha.5 兼容性、安装面、统一单页控制面和旧固定弹层清理已经收口；V5.217 已让
 > `channels` 安装即启动空 route 的常驻 Gateway，Adapter 仍在凭据前保持关闭；V5.215 已在最新 DSH
 > canonical `origin/master` `d347e703908d0406b7a7ef80e3a0e594d86b2215` 审计支持组合上完成全量 `CHECK_RC=0` 复验，并修复 resident
 > Feishu 授权返回/在途回调、Gateway Agent resolution、出站提交与卸载的屏障；V5.163 已把开源

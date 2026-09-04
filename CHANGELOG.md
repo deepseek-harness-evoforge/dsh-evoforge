@@ -6,6 +6,13 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.225**: Added the plain-language product target and design baseline. It separates the one-time installation
+  entrance from the runtime natural-language Goal entrance, defines internal self-discovery (without runtime
+  external Skill acquisition), documents the single-Host Gateway/Feishu flow and one-page Control Center, explains
+  why four public suites map to independently removable Bundles, and records the exact current evidence and release
+  blockers. This documentation increment does not claim a registry package, one-line installer, real-channel/Provider
+  acceptance, or an overall Hermes upper-replacement result. See [product target and design](docs/architecture/product-target-and-design.zh.md).
+
 - **V5.224**: Kept the historical `benchmark:hermes` epochs immutable after the latest DSH revision made the old
   command fail closed. Added explicit manifest/result overrides and current epoch-2 fixtures for SD-1, LC-1, and AS-1,
   plus `benchmark:hermes:current`. With the audited DSH alpha.5 support checkout and Hermes `29d0cc2…`, all four

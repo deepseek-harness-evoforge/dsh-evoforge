@@ -1,5 +1,11 @@
 # 当前实现状态
 
+## V5.225：产品目标与设计基线（2026-09-05，本轮）
+
+新增[产品目标与设计方案（可读基线）](architecture/product-target-and-design.zh.md)，把安装入口与运行时 Goal 入口、自我发现与外部能力获取的边界、单 Host Gateway/飞书路径、四个公开套件、统一 DSH Web 控制面、当前证据和发布退出门集中说明。本轮只更新设计与状态文档，没有把未完成的 registry、一行安装、真实渠道、真实 Provider 或 Hermes 整体上位替代写成已交付。
+
+当前工作树事实：`main` 比 `origin/main` 多两个已提交提交，另有四个未提交的 benchmark runner/package.json 修复；上一轮被中断的全量检查尚未在本轮重新确认，网络推送也未成功。请以具体证据页和命令结果为准，不把“本地代码存在”当作“已发布”。
+
 > **当前 Hermes 聚合入口（V5.224）**：发现历史 `pnpm benchmark:hermes` 在最新 DSH 上会因冻结 epoch-1 revision 不匹配而 fail closed；没有改写历史结果。为 SD-1/LC-1/AS-1 增加显式 manifest/result 环境变量，建立当前 DSH alpha.5 epoch-2，并新增 `DSH_EVOLVE_DSH_SOURCE_DIR=<audited-support> EVOFORGE_HERMES_SOURCE_DIR=<hermes> pnpm benchmark:hermes:current`。四个确定性 slice 严格复跑通过：EV-1 `2/2` 校准、SD-1 EvoForge/Hermes `0/1`、LC-1 `0/0`、AS-1 `0/0`。这不外推为真实渠道、Provider、长期效果或整体上位替代。详见 [V5.224 证据](evidence/v5-224-current-hermes-benchmark-suite-2026-09-04.zh.md)。
 
 > **常驻配对回归（V5.223）**：在当前 `main` 上分别执行 Feishu 与 Telegram assembled pairing 测试，均为 `1 file / 1 test passed`、退出码 `0`。两条路径都证明陌生私聊首条消息仅返回配对码且不进入 Agent，Host 批准后下一条消息才进入 DSH Session；Feishu 还覆盖 Approval/撤销，Telegram 覆盖 reply-to。该证据仍是本地 fixture，不外推为真实 AS-2/AS-1，发布门禁继续 blocked。详见 [V5.223 证据](evidence/v5-223-local-pairing-assembled-regression-2026-09-04.zh.md)。
