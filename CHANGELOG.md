@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.191**: Closed Feishu runtime listener leaks. Static Feishu runtime now removes every Cordis and platform listener, rejects starts
+  after disposal, and makes teardown idempotent; the Host unregisters its native credential-update listener during teardown. Feishu `55/55`,
+  Telegram `36/36`, typechecks/builds, and the latest-DSH alpha.5 root check (`CHECK_RC=0`) pass. This is local lifecycle evidence only;
+  real channel, Provider/Hermes paired, long-run, npm ownership, and release-tag gates remain blocked. See
+  [V5.191 evidence](docs/evidence/v5-191-feishu-teardown-listener-and-full-check-2026-09-04.zh.md).
+
 - **V5.190**: Re-ran the current Hermes EV-1 epoch-4 deterministic control-plane benchmark after the Telegram teardown fix.
   Calibration passed `2/2`; both sides remained baseline-fail/corrected-pass, with EvoForge making `0` active-Skill mutations before
   final-test/explicit promotion versus Hermes `1`. This is release-control evidence only, not real Provider/channel/long-run or

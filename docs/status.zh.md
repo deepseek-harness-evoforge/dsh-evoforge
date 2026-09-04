@@ -17,6 +17,14 @@
 这只是确定性发布控制面证据，不扩大为真实 Provider、真实渠道、长期效果或整体 Hermes 上位替代。详见
 [V5.190 证据](evidence/v5-190-hermes-ev1-after-telegram-teardown-2026-09-04.zh.md)。
 
+## V5.191：Feishu runtime 监听收口与最新 DSH 全仓验证（本轮）
+
+Feishu runtime 现在保存并撤销全部 Cordis 与平台监听，`start()` 对已销毁实例 fail-closed，`dispose()` 幂等；Host effect teardown
+继续注销原生凭据更新监听。重新 fetch 的最新 DSH alpha.5 基线上，Feishu `19 files / 55 tests`、Telegram `10 files / 36 tests`、
+两包构建/类型检查和根级 `pnpm run check`（`CHECK_RC=0`，Evolution `309/309`、Gateway `41/41`）均通过。该增量只扩充本地生命周期证据，
+不改变真实渠道、Provider、Hermes paired、长期效果、npm 与 tag 门禁。详见
+[V5.191 证据](evidence/v5-191-feishu-teardown-listener-and-full-check-2026-09-04.zh.md)。
+
 ## V5.189：Telegram runtime 卸载收口与最新 DSH 全仓验证（本轮）
 
 静态与 pairing Telegram runtime 现在保存并撤销全部 Cordis 监听，重复 dispose 幂等；Pairing approval 只在存在时移除 abort listener。

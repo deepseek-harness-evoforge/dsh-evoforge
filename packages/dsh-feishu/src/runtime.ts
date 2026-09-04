@@ -103,6 +103,7 @@ export class FeishuRuntime {
   }
 
   async start(): Promise<void> {
+    if (this.disposed) throw new Error('dsh-feishu: runtime is already disposed')
     if (this.started) return
     this.started = true
     const startingAt = Date.now()
@@ -126,7 +127,7 @@ export class FeishuRuntime {
       send: (input, signal) => this.sendOutbound(input, signal),
     })
 
-    this.ctx.on('agent/created', ({ agent }) => {
+    this.unsubscribers.push(this.ctx.on('agent/created', ({ agent }) => {
       const routes = this.routesBySession.get(String(agent.id))
       if (routes === undefined) return
       void Promise.all(routes.map(route => this.gateway.resolve(route.id, this.lifecycle.signal)))
@@ -138,23 +139,23 @@ export class FeishuRuntime {
             this.ctx.logger.warn(`dsh-feishu: rejected replacement Agent: ${safeMessage(error)}`)
           }
         })
-    })
-    this.ctx.on('agent/disposed', ({ agent }) => {
+    }))
+    this.unsubscribers.push(this.ctx.on('agent/disposed', ({ agent }) => {
       this.contentToolDisposers.get(agent)?.()
       this.contentToolDisposers.delete(agent)
       if (this.agentsBySession.get(String(agent.session.id)) === agent) {
         this.agentsBySession.delete(String(agent.session.id))
       }
-    })
-    this.ctx.on('agent/inbox/claimed', ({ agent, message, turn }) => {
+    }))
+    this.unsubscribers.push(this.ctx.on('agent/inbox/claimed', ({ agent, message, turn }) => {
       if (!this.bound.has(agent)) return
       const destination = this.repliesByMessage.get(String(message.id))
       if (destination === undefined) return
       this.repliesByMessage.delete(String(message.id))
       this.turnMap(this.repliesByTurn, agent).set(turn, destination)
       this.latestDestination.set(agent, destination)
-    })
-    this.ctx.on('agent/turn-stopping', async ({ agent, turn }) => {
+    }))
+    this.unsubscribers.push(this.ctx.on('agent/turn-stopping', async ({ agent, turn }) => {
       if (!this.bound.has(agent)) return
       const replies = this.turnMap(this.repliesByTurn, agent)
       if (!replies.has(turn)) {
@@ -178,8 +179,8 @@ export class FeishuRuntime {
       })
       this.turnMap(this.outboundByTurn, agent).set(turn, intent)
       await this.requireOutbound().submit(intent)
-    })
-    this.ctx.on('session/event', (session, event) => {
+    }))
+    this.unsubscribers.push(this.ctx.on('session/event', (session, event) => {
       if (event.type !== 'turn/end') return
       const agent = this.agentsBySession.get(String(session.id))
       if (agent === undefined || session !== agent.session) return
@@ -195,11 +196,11 @@ export class FeishuRuntime {
           this.ctx.logger.warn(`dsh-feishu: could not release final answer: ${safeMessage(error)}`)
         })
       }
-    })
-    this.ctx.on('approval/request', (request, next) => {
+    }))
+    this.unsubscribers.push(this.ctx.on('approval/request', (request, next) => {
       if (!this.bound.has(request.agent)) return next()
       return this.requestApproval(request, next)
-    })
+    }))
 
     this.unsubscribers.push(
       this.platform.onMessage(message => this.receiveMessage(message)),
