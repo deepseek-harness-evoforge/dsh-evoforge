@@ -1,5 +1,7 @@
 # 当前实现状态
 
+> **最新增量（V5.214）**：Feishu 与 Telegram pairing 在授权 await 返回后重新检查 runtime 生命周期；卸载期间迟到的授权结果不再调用平台 API，即使 SDK 不遵守已中止 signal 也不会发送配对码。Feishu teardown 回归断言授权跨卸载边界时发送次数为零；Feishu `57/57`、Telegram `38/38`，在最新 DSH 审计支持组合上根级 `CHECK_RC=0`，其余套件/合同通过。真实渠道、Provider、Hermes paired、长期效果、npm ownership 与发布 tag 门禁仍未通过。详见 [V5.214 证据](evidence/v5-214-channel-auth-dispose-guard-2026-09-04.zh.md)。
+
 > **最新增量（V5.213）**：Feishu 常驻 runtime 现在追踪并有界排空已进入的消息/Approval 回调；卸载顺序固定为停止接收、等待出站、排空回调、断开平台、释放 transport，避免授权/配对码/响应在断连后产生迟到副作用。已销毁 runtime 的 Host notice 立即 fail-closed。新增停机竞态回归，Feishu `57/57`；在最新 DSH 审计支持组合上根级 `CHECK_RC=0`，Evolution `313/313`、Gateway `51/51`、Telegram `38/38` 及其余套件/合同通过。真实渠道、Provider、Hermes paired、长期效果、npm ownership 与发布 tag 门禁仍未通过。详见 [V5.213 证据](evidence/v5-213-feishu-inbound-drain-2026-09-04.zh.md)。
 
 > **最新增量（V5.212）**：常驻 Gateway 关闭流程现在等待所有在途 `resolve()` 的 Native Agent 创建/恢复完成，再快照并 dispose owned handles，避免 stop 期间出现无法卸载的孤儿 Agent。新增延迟 `agents.create()` 的真实回归，Gateway `51/51` 通过；在最新 DSH 审计支持组合上根级 `CHECK_RC=0`，Evolution `313/313`、Feishu `56/56`、Telegram `38/38` 及其余套件/合同通过。真实渠道、Provider、Hermes paired、长期效果、npm ownership 与发布 tag 门禁仍未通过。详见 [V5.212 证据](evidence/v5-212-gateway-resolution-dispose-barrier-2026-09-04.zh.md)。

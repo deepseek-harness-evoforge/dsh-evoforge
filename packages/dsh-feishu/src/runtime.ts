@@ -525,6 +525,10 @@ export class FeishuRuntime {
     })
     const observedChatKind = message.chatType === 'p2p' ? 'direct' : 'group'
     const authorization = await this.gateway.authorize(endpoint, observedChatKind)
+    // Authorization may outlive a concurrent runtime dispose. Do not invoke a
+    // platform send (even with an aborted signal) after the resident lifecycle
+    // has ended; some SDK implementations do not honor cancellation eagerly.
+    this.assertAvailable()
     if (authorization.kind === 'rejected') return
     if (authorization.kind === 'pairing') {
       if (authorization.offer.kind === 'offered') {

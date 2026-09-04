@@ -301,6 +301,9 @@ export class TelegramPairingRuntime {
       userId: String(selected.userId),
     })
     const authorization = await this.gateway.authorize(endpoint, 'direct')
+    // A slow Host authorization can finish after pairing runtime teardown.
+    // Avoid calling the Bot API with an already-aborted signal on that path.
+    if (this.lifecycle.signal.aborted) return
     if (authorization.kind === 'rejected') return
     if (authorization.kind === 'pairing') {
       if (authorization.offer.kind === 'offered') await this.sendPairingCode(selected, authorization.offer.code)

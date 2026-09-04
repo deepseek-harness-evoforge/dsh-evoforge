@@ -177,13 +177,14 @@ describe('Feishu runtime teardown', () => {
     const authorizeStarted = new Promise<void>(resolve => { authorizeReached = resolve })
     const authorizeReleased = new Promise<void>(resolve => { releaseAuthorize = resolve })
     let disconnected = false
+    let sends = 0
     const gateway = {
       registerTransport: () => ({ report() {}, dispose() {} }),
       registerTextAdapter: () => ({ async dispose() {} }),
       async authorize() {
         authorizeReached()
         await authorizeReleased
-        return { kind: 'rejected', reason: 'untrusted' as const }
+        return { kind: 'pairing', offer: { kind: 'offered', code: 'ABCDEFGH' } as const }
       },
     } as unknown as DshGateway
     const platform: FeishuPlatform = {
@@ -195,7 +196,7 @@ describe('Feishu runtime teardown', () => {
       onError() { return () => {} },
       async connect() {},
       async disconnect() { disconnected = true },
-      async sendText() { return { messageId: 'unused' } },
+      async sendText() { sends += 1; return { messageId: 'unused' } },
       async sendCard() { return { messageId: 'unused' } },
       async downloadMessageResource() { throw new Error('unused') },
     }
@@ -231,6 +232,7 @@ describe('Feishu runtime teardown', () => {
     await message
     await disposing
     expect(disconnected).toBe(true)
+    expect(sends).toBe(0)
     await ctx.fiber.dispose()
   })
 })

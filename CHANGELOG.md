@@ -6,6 +6,13 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.214**: Added a post-authorization lifecycle guard to Feishu and Telegram pairing handlers. If a slow Gateway
+  authorization resolves after runtime disposal, the result is discarded before any pairing-code or Bot API send,
+  even when an SDK ignores an aborted signal. The Feishu teardown regression verifies zero sends across this boundary;
+  Feishu `57/57`, Telegram `38/38`, and the latest-DSH-audited root check passed with `CHECK_RC=0`. Real channels,
+  providers, Hermes paired benchmarking, long-run effects, npm ownership, and the release tag remain blocked. See
+  [V5.214 evidence](docs/evidence/v5-214-channel-auth-dispose-guard-2026-09-04.zh.md).
+
 - **V5.213**: Feishu resident runtime now tracks and drains in-flight message and approval callbacks before
   disconnecting the platform. Teardown stops new intake, drains outbound work, waits up to the platform send deadline
   for callbacks already entered, then disconnects and disposes transport; a late Host notice fails closed immediately.
