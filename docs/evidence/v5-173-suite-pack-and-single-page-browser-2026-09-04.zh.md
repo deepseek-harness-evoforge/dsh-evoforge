@@ -1,7 +1,7 @@
 # V5.173：公开套件打包修复与最新 DSH 单页交互复验
 
 日期：2026-09-04  
-EvoForge revision：`23d8dc5`（本证据对应的修复将在后续原子提交中）  
+EvoForge revision：`a401beb`（本轮修复已推送 `origin/main`）
 DSH canonical revision：`76fda729799fe9b3848dbe2c211d4b231032b81e`（`origin/master`，`dsh-v0.1.2-rc.1`）  
 DSH assembled support revision：`db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`（alpha.5）
 
