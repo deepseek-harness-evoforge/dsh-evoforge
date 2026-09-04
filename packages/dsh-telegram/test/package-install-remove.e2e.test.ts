@@ -83,7 +83,8 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-telegram package bound
     expect(dumped.stdout).toContain('id: evoforge-telegram')
     expect(dumped.stdout).toContain('name: dsh-evoforge-telegram')
     expect(dumped.stdout).toContain('id: evoforge-gateway')
-    expect(dumped.stdout).toContain('disabled: true')
+    expect(dumpEntry(dumped.stdout, 'dsh-evoforge-gateway')).not.toContain('disabled: true')
+    expect(dumpEntry(dumped.stdout, 'dsh-evoforge-telegram')).toContain('disabled: true')
 
     const packageScope = join(profileDir, 'node_modules', '@deepseek-ai')
     await mkdir(packageScope, { recursive: true })
@@ -162,6 +163,14 @@ async function runDsh(args: string[], cwd: string, env: NodeJS.ProcessEnv): Prom
     const failed = error as { stdout?: string; stderr?: string }
     throw new Error(`DSH profile command failed:\n${failed.stdout ?? ''}${failed.stderr ?? ''}`, { cause: error })
   }
+}
+
+function dumpEntry(dump: string, packageName: string): string {
+  const marker = `# == ${packageName}`
+  const start = dump.indexOf(marker)
+  if (start < 0) return ''
+  const next = dump.indexOf('\n# == ', start + marker.length)
+  return dump.slice(start, next < 0 ? undefined : next)
 }
 
 async function boot(configPath: string) {

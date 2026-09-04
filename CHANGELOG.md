@@ -6,6 +6,10 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.220**: Hardened the Feishu and Telegram clean-profile package contracts to inspect each DSH dump Bundle section
+  instead of accepting any unrelated `disabled: true`. Final tarball install/remove regressions now require the resident
+  Gateway to be enabled and each platform Adapter to remain disabled until configured; both tests pass. See [V5.220 evidence](docs/evidence/v5-220-channel-package-dump-contract-2026-09-04.zh.md).
+
 - **V5.219**: Replayed the official DSH CLI install path in an isolated profile with the final Control Center and
   Gateway tarballs. `plugin add` and `--dump-config` succeeded, and the dumped Gateway row had no `disabled: true`,
   confirming the install-enabled resident Host behavior. Missing peers in the intentionally empty fixture were recorded
