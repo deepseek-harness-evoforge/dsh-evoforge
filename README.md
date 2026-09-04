@@ -69,6 +69,9 @@ export DSH_FEISHU_APP_SECRET='...'
 2. 管理员在同一个 DSH Web 控制面“渠道”页批准待处理请求；pending 行会显示脱敏 request-id，可直接点击批准。
 3. 用户发送下一条消息，才会进入绑定的原生 DSH Session。
 
+如果首条消息是普通文件、音频或视频，仍会先完成配对；批准后会收到一次明确的附件契约提示，不会静默丢弃，
+也不会把外部文件标识伪装成 DSH 原生附件。
+
 不需要在 DSH Session 中执行配对命令，不需要临时 listener，也不需要打开第二个网页。配对、撤销、权限和故障
 排查见 [`dsh-gateway`](packages/dsh-gateway/README.md) 与 [`dsh-feishu`](packages/dsh-feishu/README.md)。
 

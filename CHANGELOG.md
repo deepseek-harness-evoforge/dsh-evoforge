@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.139**: Fixed Feishu authorization ordering for unsupported top-level messages. An unknown direct user now
+  receives a pairing code even when the first message is a file, audio, or video; an already authorized route receives
+  one durable, idempotent attachment-contract notice instead of silent loss. The assembled chat and pairing regressions
+  passed `2/2`; no real credentials or external effects were used. See [V5.139 evidence](docs/evidence/v5-139-feishu-unsupported-first-message-2026-09-04.zh.md).
+
 - **V5.138**: Re-ran the complete alpha.5 repository check after tightening DSH preflight to reject untracked
   files. Documentation, CI/suite/release contracts, all 12 package typechecks, tests, and builds passed (`CHECK_RC=0`);
   the worktree remained clean. Real channels/providers, Hermes paired, long-term effects, and npm release gates remain

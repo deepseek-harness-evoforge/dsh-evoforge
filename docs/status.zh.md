@@ -38,6 +38,13 @@ Agent 入站或平台副作用，`real-feishu-as2` 继续为 `failed`。详见
 `18/46`、Telegram `8/29`，构建后工作树 clean。真实渠道、Provider、Hermes paired、长期效果和 npm 发布门
 保持原状态。详见 [V5.138 证据](evidence/v5-138-alpha5-full-check-after-preflight-guard-2026-09-04.zh.md)。
 
+## V5.139：飞书非支持首条消息先授权再反馈（本轮）
+
+修复 `dsh-feishu` 在 Gateway 授权前过滤顶层消息类型的顺序缺陷。未知 direct DM 即使首条是普通文件、音频或视频，
+也会先收到配对码且不进入 Agent；已配对 route 则经同一持久 outbound journal 获得明确的附件契约提示，重复
+`messageId` 不重复外发。assembled Feishu chat 与 pairing 回归 `2/2` 通过，未调用真实凭据；普通文件、音频和
+视频仍未宣称为 DSH 原生附件能力。详见 [V5.139 证据](evidence/v5-139-feishu-unsupported-first-message-2026-09-04.zh.md)。
+
 ## V5.134：同 route id 重配与聊天类型变更回归（本轮）
 
 配对装配测试现在复用已撤销的同一 route id，并以 `group` chat kind 再次入站，确认撤销时清除内部观测、不会继承旧 direct 事实或触发漂移拒绝；类型检查、Gateway 构建和回归 `1/1` 通过。详见 [V5.134 证据](evidence/v5-134-feishu-route-id-repair-regression-2026-09-04.zh.md)。

@@ -426,8 +426,6 @@ export class FeishuRuntime {
     if (this.lifecycle.signal.aborted) return
     this.syncActivePairedRoutes()
     this.observeInboundActivity()
-    if (message.rawContentType !== 'text' && message.rawContentType !== 'post'
-      && message.rawContentType !== 'image') return
     const endpoint: GatewayEndpoint = Object.freeze({
       adapter: 'feishu',
       accountId: this.config.appId,
@@ -451,23 +449,38 @@ export class FeishuRuntime {
       throw new Error(`dsh-feishu: platform chat kind drifted for exact route '${selected.id}'`)
     }
     this.observedChatKinds.set(selected.id, observedChatKind)
+    const eventId = `message:${message.messageId}`
+    const destination: ReplyDestination = Object.freeze({
+      route: selected,
+      replyTo: message.messageId,
+      replyInThread: message.threadId !== undefined,
+    })
+    // Authorize before interpreting content. An unknown direct user must
+    // receive the pairing code even when their first message is a file, audio,
+    // or another type the current DSH attachment contract cannot materialize.
+    // Once trusted, unsupported top-level types get a durable explanation
+    // instead of disappearing silently; the Gateway outbound journal makes a
+    // repeated platform event idempotent.
+    if (message.rawContentType !== 'text' && message.rawContentType !== 'post'
+      && message.rawContentType !== 'image') {
+      await this.prepareResponse(
+        destination,
+        eventId,
+        unsupportedContentNotice(message.rawContentType),
+      )
+      return
+    }
     const materialized = await materializeFeishuInbound(
       message,
       this.platform,
       this.ctx.attachments,
       this.lifecycle.signal,
     )
-    const eventId = `message:${message.messageId}`
     const messageId = this.gateway.messageIdFor(endpoint, eventId)
     if (!this.repliesByMessage.has(messageId)
       && this.repliesByMessage.size >= MAX_PENDING_REPLY_CORRELATIONS) {
       throw new Error('dsh-feishu: pending reply correlation capacity is full')
     }
-    const destination: ReplyDestination = Object.freeze({
-      route: selected,
-      replyTo: message.messageId,
-      replyInThread: message.threadId !== undefined,
-    })
     this.repliesByMessage.set(messageId, destination)
     let dispatch: Awaited<ReturnType<DshGateway['dispatch']>>
     try {
@@ -751,6 +764,13 @@ function sendOptionsFor(destination: ReplyDestination): FeishuSendOptions | unde
 
 function isAborted(signal: AbortSignal | undefined): boolean {
   return signal?.aborted === true
+}
+
+function unsupportedContentNotice(rawContentType: string): string {
+  const label = rawContentType === 'file' || rawContentType === 'audio' || rawContentType === 'video'
+    ? rawContentType
+    : 'this Feishu message type'
+  return `暂不支持直接处理 ${label}。当前 DSH 附件契约仅接受图片；请发送文字或图片，或先将文件内容粘贴到消息中。`
 }
 
 function classifyPlatformFailure(error: unknown): GatewayOutboundSendResult {

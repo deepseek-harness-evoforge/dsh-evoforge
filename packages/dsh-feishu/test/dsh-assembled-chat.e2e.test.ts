@@ -272,6 +272,34 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
       expect(agent?.session.snapshotEvents().some((event: SessionEvent) => event.type === 'command/run'
         && event.data.name === 'feishu')).toBe(true)
 
+      const channelMessagesBeforeUnsupported = agent?.session.snapshotEvents().filter((event: SessionEvent) =>
+        event.type === 'user/message' && String(event.data.id).startsWith('channel:')).length ?? 0
+      await service.platform.emitMessage(message({
+        messageId: 'om_file_unsupported',
+        rawContentType: 'file',
+        content: '[file](file_external_secret)',
+        resources: [{ type: 'file', fileKey: 'file_external_secret', fileName: 'notes.pdf' }],
+      }))
+      await vi.waitFor(() => {
+        expect(service.platform.texts).toHaveLength(3)
+        expect(service.platform.texts[2]).toMatchObject({
+          chatId: 'oc_main',
+          text: expect.stringContaining('暂不支持直接处理 file'),
+          options: { replyTo: 'om_file_unsupported', replyInThread: true },
+        })
+      }, { timeout: 5_000, interval: 25 })
+      expect(agent?.session.snapshotEvents().filter((event: SessionEvent) => event.type === 'user/message'
+        && String(event.data.id).startsWith('channel:')).length).toBe(channelMessagesBeforeUnsupported)
+      // A duplicate platform delivery must not send the unsupported notice twice.
+      await service.platform.emitMessage(message({
+        messageId: 'om_file_unsupported',
+        rawContentType: 'file',
+        content: '[file](file_external_secret)',
+        resources: [{ type: 'file', fileKey: 'file_external_secret', fileName: 'notes.pdf' }],
+      }))
+      await new Promise(resolve => setTimeout(resolve, 100))
+      expect(service.platform.texts).toHaveLength(3)
+
       await agent?.whenIdle()
       expect(ctx.tools.get('schedule_create', agent)).toBeDefined()
       const scheduled = await ctx.agents.withInitiator(agent!, () => ctx.tools.execute({
@@ -290,13 +318,13 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
         id: 'schedule-1',
         deliveryMode: 'session-local',
       })
-      await vi.waitFor(() => { expect(service.platform.texts).toHaveLength(3) }, { timeout: 15_000, interval: 25 })
-      expect(service.platform.texts[2]).toMatchObject({
+      await vi.waitFor(() => { expect(service.platform.texts).toHaveLength(4) }, { timeout: 15_000, interval: 25 })
+      expect(service.platform.texts[3]).toMatchObject({
         chatId: 'oc_main',
         text: expect.stringContaining('CLI tool round trip complete: CLI_TOOL_ROUND_TRIP'),
         options: { replyInThread: true },
       })
-      expect(service.platform.texts[2]).not.toHaveProperty('options.replyTo')
+      expect(service.platform.texts[3]).not.toHaveProperty('options.replyTo')
       expect(agent?.session.snapshotEvents().filter((event: unknown) => isScheduleChange(event, 'create'))).toHaveLength(1)
       expect(agent?.session.snapshotEvents().filter((event: unknown) => isScheduleChange(event, 'dispatch'))).toHaveLength(1)
       expect(agent?.session.snapshotEvents().some((event: SessionEvent) => event.type === 'user/message'
@@ -386,8 +414,8 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
         routeId: 'feishu-main',
         text: 'EvoForge attention: inspect one Workspace-scoped review.',
       })).resolves.toMatchObject({ created: true, status: 'prepared' })
-      await vi.waitFor(() => { expect(service.platform.texts).toHaveLength(4) })
-      expect(service.platform.texts[3]?.text).toContain('EvoForge attention')
+      await vi.waitFor(() => { expect(service.platform.texts).toHaveLength(5) })
+      expect(service.platform.texts[4]?.text).toContain('EvoForge attention')
       await expect(service.runtime.notifyHost({
         id: 'f'.repeat(64),
         routeId: 'feishu-main',

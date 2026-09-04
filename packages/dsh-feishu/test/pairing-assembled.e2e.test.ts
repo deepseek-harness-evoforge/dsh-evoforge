@@ -187,7 +187,11 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', (
         .not.toContain('feishu-pair')
       expect(service.platform.connected).toBe(true)
 
-      await service.platform.emitMessage(message({ content: '你好' }))
+      await service.platform.emitMessage(message({
+        content: '[file](unknown_file_key)',
+        rawContentType: 'file',
+        resources: [{ type: 'file', fileKey: 'unknown_file_key', fileName: 'first-contact.pdf' }],
+      }))
       const code = service.platform.texts[0]?.text.match(/[A-HJ-NP-Z2-9]{10}/u)?.[0]
       expect(code).toBeDefined()
       if (code === undefined) throw new Error('pairing code missing')
