@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.199**: Re-fetched and audited canonical DSH after the concurrent Gateway-start fix, then reran the full EvoForge
+  check on the buildable support composition. The authoritative result is `CHECK_RC=0`: Evolution `309/309`, Gateway `44/44`,
+  Feishu `56/56`, Telegram `38/38`, Evolve Web `27/27`, Control Center `27/27`, Doctor `40/40`, with the remaining Bundle,
+  clean-profile, Typert, compatibility, and contract gates passing. The latest DSH root build defect remains upstream and the
+  real-channel/provider/Hermes/long-run/npm release gates remain blocked. See [V5.199 evidence](docs/evidence/v5-199-full-check-after-gateway-start-2026-09-04.zh.md).
+
 - **V5.198**: Made resident Gateway startup idempotent under concurrent Host lifecycle calls. Concurrent `start()` calls now
   share one startup promise, preventing duplicate journal recovery, session-event listeners, and route validation while retaining
   fail-closed stopping and the existing startup cleanup boundary. Gateway build, generated Typert digest/artifact checks, and
