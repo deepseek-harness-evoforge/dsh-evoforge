@@ -6,6 +6,11 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.166**: Added explicit registry-not-published warnings to the Chinese and English root READMEs. Users are told
+  to build local suite tarballs before invoking the official DSH installer, preventing accidental installation of
+  unrelated packages that share an unscoped `dsh-*` name. Documentation and diff checks passed; runtime behavior is
+  unchanged. See [V5.166 evidence](docs/evidence/v5-166-root-readme-registry-warning-2026-09-04.zh.md).
+
 - **V5.165**: Updated the maintainer EV-1 example to the current Hermes `origin/main` revision
   `29d0cc2602e01943ab300c0382fc9d97efb376da` and epoch-4, replacing the retired epoch-3 checkout while retaining
   exact revision assertions and fail-closed drift handling. Documentation and diff checks passed; benchmark gate status

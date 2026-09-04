@@ -33,6 +33,9 @@ presets, not another runtime or marketplace. See the [suite boundary guide](docs
 The current source is this repository's local tarballs. Prepare Node.js 22, pnpm 11, and DSH
 `dsh-v0.1.2-alpha.5` (`db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`), then run from the repository root:
 
+> Registry packages are not published yet. Do not run `dsh plugin ... add dsh-*` directly; build the local tarballs below
+> first so an unrelated package with the same name cannot be installed accidentally.
+
 ```sh
 pnpm install --frozen-lockfile
 PACK_ROOT="$(mktemp -d)"

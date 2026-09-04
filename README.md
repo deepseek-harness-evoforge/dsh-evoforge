@@ -32,6 +32,8 @@ Hermes 上位替代。当前已验证的运行目标是 DSH `dsh-v0.1.2-alpha.5`
 当前安装来源是本仓库生成的本地 tarball。请准备 Node.js 22、pnpm 11 和一份与项目支持矩阵匹配的 DSH，
 然后在仓库根目录执行：
 
+> 当前尚未发布 npm registry 包。不要直接执行 `dsh plugin ... add dsh-*`；先按下面命令生成 tarball，避免误装同名第三方包。
+
 ```sh
 pnpm install --frozen-lockfile
 PACK_ROOT="$(mktemp -d)"

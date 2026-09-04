@@ -30,6 +30,11 @@ tag 完成后才切换安装 spec。`check:docs` 与差异检查通过。详见 
 `origin/main` `29d0cc2602e01943ab300c0382fc9d97efb376da` 的 epoch-4，并保留 exact revision fail-closed 约束。
 `check:docs` 与差异检查通过。详见 [V5.165 证据](evidence/v5-165-current-hermes-install-doc-2026-09-04.zh.md)。
 
+## V5.166：根 README registry 安装风险提示（本轮）
+
+根中文、英文 README 已在本地 tarball 命令前明确标注“尚未发布 registry 包”，并禁止用户直接安装 `dsh-*`
+名称，避免误装 npm 上的同名第三方包。`check:docs` 与差异检查通过。详见 [V5.166 证据](evidence/v5-166-root-readme-registry-warning-2026-09-04.zh.md)。
+
 ## V5.159：当前 Hermes revision 的 EV-1 epoch-4（本轮）
 
 重新 fetch Hermes 后确认 `origin/main` 已从旧的 `63279301…` 漂移到
