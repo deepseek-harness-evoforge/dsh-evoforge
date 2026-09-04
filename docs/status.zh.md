@@ -2,6 +2,8 @@
 
 > 更新日期：2026-09-04。本文只描述标准路径中的权威 `main` 工作树，不把计划或历史分支当作已交付能力。
 
+> **最新增量（V5.204）**：Feishu、Telegram 静态及 Telegram pairing runtime 现在对并发 `start()` 和 `dispose()` 都共享生命周期 Promise；Feishu 在 Agent resolve、平台 connect 和 access probe 后拒绝迟到的销毁连接写回 `ready`。类型检查及 Feishu `56/56`、Telegram `38/38` 通过；随后在最新 DSH `d347e703…`（`0.1.3-alpha.1` / `dsh-v0.1.3-alpha.1`）和 alpha.5 支持组合上根级 `CHECK_RC=0`，Evolution `309/309`、Gateway `47/47` 及其余套件、clean-profile、合同门通过。真实渠道、Provider、Hermes paired、长期效果、npm ownership 与发布 tag 门禁仍未通过。详见 [V5.204 证据](evidence/v5-204-channel-start-dispose-concurrency-full-check-2026-09-04.zh.md)。
+
 > **最新增量（V5.203）**：Feishu、Telegram 静态及 Telegram pairing runtime 现在共享唯一 teardown Promise；并发 `dispose()` 会等待同一组 listener、approval、outbound、platform 和 transport 回收，避免凭据轮换/卸载时旧 WebSocket 尚未断开就被误判为完成。Feishu `56/56`、Telegram `38/38`，随后在最新 DSH `d347e703…`（`0.1.3-alpha.1` / `dsh-v0.1.3-alpha.1`）和 alpha.5 支持组合上根级 `CHECK_RC=0`，Evolution `309/309`、Gateway `47/47` 及其余套件、clean-profile、合同门通过。真实渠道、Provider、Hermes paired、长期效果、npm ownership 与发布 tag 门禁仍未通过。详见 [V5.203 证据](evidence/v5-203-channel-dispose-promise-full-check-2026-09-04.zh.md)。
 
 > **最新验证（V5.202）**：修复 Gateway 启动失败时 cleanup 错误覆盖原始校验错误的边界，新增并发停止与清理失败回归；在 DSH `d347e703…`（`0.1.3-alpha.1` / `dsh-v0.1.3-alpha.1`）和 alpha.5 支持组合上重跑根级检查，权威 `CHECK_RC=0`。Gateway `47/47`，Evolution `309/309`，Feishu `56/56`，Telegram `38/38`，Evolve Web `27/27`，Control Center `5/5`，Doctor `40/40`，Goal Continuity `12/12`，GitHub Review `27/27`，其余合同、clean-profile、Typert 和套件门通过。真实渠道、Provider、Hermes paired、长期效果、npm ownership 与发布 tag 门禁仍未通过。详见 [V5.202 证据](evidence/v5-202-gateway-startup-cleanup-error-full-check-2026-09-04.zh.md)。

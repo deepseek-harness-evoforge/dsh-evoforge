@@ -91,6 +91,7 @@ export class FeishuRuntime {
   private lastPolicyRejectAt?: number
   private lastPolicyRejectReason?: FeishuPlatformReject['reason']
   private platformAccess?: FeishuPlatformAccess
+  private starting: Promise<void> | undefined
   private disposing: Promise<void> | undefined
 
   constructor(
@@ -103,9 +104,22 @@ export class FeishuRuntime {
     for (const route of config.routes) this.rememberRoute(route)
   }
 
-  async start(): Promise<void> {
+  start(): Promise<void> {
+    if (this.disposed) return Promise.reject(new Error('dsh-feishu: runtime is already disposed'))
+    if (this.starting !== undefined) return this.starting
+    if (this.started) return Promise.resolve()
+    const starting = this.startInternal()
+    this.starting = starting
+    void starting.then(() => {
+      if (this.starting === starting) this.starting = undefined
+    }, () => {
+      if (this.starting === starting) this.starting = undefined
+    })
+    return starting
+  }
+
+  private async startInternal(): Promise<void> {
     if (this.disposed) throw new Error('dsh-feishu: runtime is already disposed')
-    if (this.started) return
     this.started = true
     try {
       const startingAt = Date.now()
@@ -117,7 +131,11 @@ export class FeishuRuntime {
       pairedRoutes: this.config.pairedRoutes,
       initial: { state: 'connecting', observedAt: startingAt },
       })
-      for (const route of this.config.routes) this.bind(await this.gateway.resolve(route.id, this.lifecycle.signal))
+      for (const route of this.config.routes) {
+        const agent = await this.gateway.resolve(route.id, this.lifecycle.signal)
+        this.assertAvailable()
+        this.bind(agent)
+      }
       this.outbound = this.gateway.registerTextAdapter({
       adapter: 'feishu',
       accountId: this.config.appId,
@@ -238,7 +256,9 @@ export class FeishuRuntime {
         this.reportTransport(Date.now())
         }))
       }
+      this.assertAvailable()
       await this.platform.connect()
+      this.assertAvailable()
       this.connectedAt = Date.now()
       this.transportState = 'ready'
       this.reportTransport(this.connectedAt)
@@ -247,6 +267,7 @@ export class FeishuRuntime {
         // A missing diagnostic permission must not take down an otherwise live
         // WebSocket; the result is rendered as `not-verified` in Host health.
         this.platformAccess = await this.platform.probeAccess(this.lifecycle.signal)
+        this.assertAvailable()
       }
     } catch (error: unknown) {
       try {
@@ -315,6 +336,12 @@ export class FeishuRuntime {
     if (failures.length === 1) throw failures[0]
     if (failures.length > 1) {
       throw new AggregateError(failures, 'dsh-feishu: one or more runtime teardown steps failed')
+    }
+  }
+
+  private assertAvailable(): void {
+    if (this.disposed || this.lifecycle.signal.aborted) {
+      throw new Error('dsh-feishu: runtime is disposed')
     }
   }
 

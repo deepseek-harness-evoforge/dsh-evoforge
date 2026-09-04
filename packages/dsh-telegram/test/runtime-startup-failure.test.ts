@@ -87,8 +87,10 @@ describe('Telegram runtime startup boundaries', () => {
     } as unknown as DshGateway
     const runtime = new TelegramPairingRuntime(ctx, config, gateway, {} as TelegramApi)
 
-    await runtime.start()
-    await runtime.start()
+    const firstStart = runtime.start()
+    const secondStart = runtime.start()
+    expect(secondStart).toBe(firstStart)
+    await firstStart
     expect(transportRegistrations).toBe(1)
     expect(adapterRegistrations).toBe(1)
     const firstDispose = runtime.dispose()

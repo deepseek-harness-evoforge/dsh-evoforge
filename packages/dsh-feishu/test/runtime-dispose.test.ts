@@ -138,7 +138,10 @@ describe('Feishu runtime teardown', () => {
     })
     const runtime = new FeishuRuntime(ctx, config, gateway, platform)
 
-    await runtime.start()
+    const firstStart = runtime.start()
+    const secondStart = runtime.start()
+    expect(secondStart).toBe(firstStart)
+    await firstStart
     expect(connected).toBe(true)
     await expect(messageHandler!({
       messageId: 'om_failure',

@@ -56,6 +56,7 @@ export class TelegramRuntime {
   private agent: Agent | undefined
   private started = false
   private disposed = false
+  private starting: Promise<void> | undefined
   private disposing: Promise<void> | undefined
 
   constructor(
@@ -65,10 +66,24 @@ export class TelegramRuntime {
     private readonly api: TelegramApi,
   ) {}
 
-  async start(): Promise<void> {
+  start(): Promise<void> {
+    if (this.disposed) return Promise.reject(new Error('dsh-telegram: runtime is already disposed'))
+    if (this.starting !== undefined) return this.starting
+    if (this.started) return Promise.resolve()
+    const starting = this.startInternal()
+    this.starting = starting
+    void starting.then(() => {
+      if (this.starting === starting) this.starting = undefined
+    }, () => {
+      if (this.starting === starting) this.starting = undefined
+    })
+    return starting
+  }
+
+  private async startInternal(): Promise<void> {
     if (this.disposed) throw new Error('dsh-telegram: runtime is already disposed')
-    if (this.started) return
     const agent = await this.gateway.resolve(this.config.routeId, this.lifecycle.signal)
+    if (this.disposed || this.lifecycle.signal.aborted) throw new Error('dsh-telegram: runtime is disposed')
     this.started = true
     try {
       this.transport = this.gateway.registerTransport({
