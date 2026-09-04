@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.188**: Strengthened the Telegram credential-rotation regression with a deliberately blocked old Adapter disposal and two
+  consecutive native credential updates. The test proves the newest generation does not register a second transport until the old
+  one has fully released; the latest-DSH alpha.5 root check remains `CHECK_RC=0` with Evolution `309/309`, Gateway `41/41`,
+  Feishu `19/55`, and Telegram `36/36`. This is local lifecycle evidence only; real channels, Provider/Hermes paired, long-run,
+  npm ownership, and release-tag gates remain blocked. See [V5.188 evidence](docs/evidence/v5-188-credential-rotation-overlap-gate-2026-09-04.zh.md).
+
 - **V5.187**: Serialized native credential rotation for the Feishu and Telegram resident adapters. Each update now waits for
   the previous runtime to dispose before starting the newest generation, and Host unload waits for both the restart queue and
   any in-flight start. Feishu `19 files / 55 tests`, Telegram `10 files / 36 tests`, typechecks, builds, and the latest-DSH

@@ -10,6 +10,14 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.188：异步凭据轮换重叠门禁与最新 DSH 全仓验证（本轮）
+
+在 V5.187 串行队列基础上，把 Telegram 生命周期回归改为受控阻塞旧 Adapter `dispose`，连续提交两次凭据更新，并断言旧代尚未释放
+时不会注册第二个 Transport；释放闸门后才启动最新代际，活动 Adapter 最大并发数保持一。专项测试与根级最新 DSH alpha.5
+`pnpm run check` 均通过（`CHECK_RC=0`，Evolution `309/309`、Gateway `41/41`、Feishu `19/55`、Telegram `36/36`）。
+该结果仅扩充本地生命周期证据，不改变真实渠道、Provider、Hermes paired、长期效果、npm 与发布 tag 门禁。详见
+[V5.188 证据](evidence/v5-188-credential-rotation-overlap-gate-2026-09-04.zh.md)。
+
 ## V5.187：渠道凭据轮换串行化与最新 DSH 全仓验证（本轮）
 
 重新 fetch 并审计 canonical DSH 后，为 Feishu/Telegram 常驻 Adapter 增加串行

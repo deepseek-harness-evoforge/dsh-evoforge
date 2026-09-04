@@ -32,6 +32,9 @@ describe('Telegram native credential lifecycle', () => {
     let transportRegistrations = 0
     let transportDisposals = 0
     let adapterDisposals = 0
+    let adapterDisposeStarted = 0
+    let blockAdapterDisposal = false
+    let releaseAdapterDisposal: (() => void) | undefined
     const route = Object.freeze({
       id: 'telegram-lazy',
       adapter: 'telegram',
@@ -64,7 +67,13 @@ describe('Telegram native credential lifecycle', () => {
       registerTextAdapter: () => {
         return {
           submit: async () => ({ id: 'b'.repeat(64), created: true, status: 'delivered' }),
-          dispose: async () => { adapterDisposals += 1 },
+          dispose: async () => {
+            adapterDisposals += 1
+            adapterDisposeStarted += 1
+            if (blockAdapterDisposal) {
+              await new Promise<void>(resolve => { releaseAdapterDisposal = resolve })
+            }
+          },
         }
       },
     }
@@ -100,6 +109,7 @@ describe('Telegram native credential lifecycle', () => {
     // still in flight. The old attempt must be discarded and the second value
     // must become the only live runtime.
     blockResolution = true
+    blockAdapterDisposal = true
     token = 'old-token'
     ctx.emit('credentials/reference-updated', credentialRef('TEST_TELEGRAM_TOKEN'))
     await vi.waitFor(() => expect(resolveCalls).toBe(2), { timeout: 2_000 })
@@ -107,6 +117,11 @@ describe('Telegram native credential lifecycle', () => {
     blockResolution = false
     ctx.emit('credentials/reference-updated', credentialRef('TEST_TELEGRAM_TOKEN'))
     releaseBlockedResolution?.()
+    await vi.waitFor(() => expect(adapterDisposeStarted).toBe(1), { timeout: 2_000 })
+    await new Promise(resolve => setTimeout(resolve, 50))
+    expect(transportRegistrations).toBe(1)
+    blockAdapterDisposal = false
+    releaseAdapterDisposal?.()
     await vi.waitFor(() => expect(transportRegistrations).toBe(2), { timeout: 2_000 })
     expect(transportDisposals).toBe(1)
     expect(adapterDisposals).toBe(1)
