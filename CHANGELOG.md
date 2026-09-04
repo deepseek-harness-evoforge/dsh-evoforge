@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.184**: In the same native DSH Web control surface, saved the user-provided Feishu credentials through the write-only
+  `remote.credentials` seam and observed the same resident Adapter recover to `official-feishu-websocket` with a healthy
+  transport. No second page, Gateway, or Session was created and no secret entered the repository, logs, or evidence. The
+  platform still delivered no inbound event during this run, so real pairing, Agent reply, Schedule, Approval, restart,
+  uninstall/readback, and AS-2 remain unproven. See [V5.184 evidence](docs/evidence/v5-184-feishu-native-credential-live-websocket-2026-09-04.zh.md).
+
 - **V5.183**: Re-fetched and audited canonical DSH, then verified the Web experience with one Host and one browser page. The
   native Session `控制台` tab renders EvoForge Control Center in `conversation.view`; Runtime Doctor and Channels tabs switch
   in place, status refresh is clickable, revocation requires a second confirmation, and reloading the same URL restores the

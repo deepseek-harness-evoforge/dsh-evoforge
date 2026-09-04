@@ -10,6 +10,14 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.184：原生凭据写入后的飞书常驻 WebSocket 复验（本轮）
+
+在同一 DSH Web 原生“控制台 → 飞书内容”页面保存用户提供的飞书凭据后，页面显示 write-only 保存成功；返回“渠道”页，
+同一 Host 内的 Adapter 恢复为 `official-feishu-websocket` 且显示“连接正常”，没有新网页、第二个 Gateway 或第二个 Session。
+这次只证明原生凭据写入到官方 WebSocket ready 的真实链路；页面仍明确显示尚未观察到平台入站事件，因此没有把它扩大为真实消息、配对、
+Schedule、Approval、重启、卸载或 AS-2 通过。凭据值没有写入仓库、日志或证据。详见
+[V5.184 证据](evidence/v5-184-feishu-native-credential-live-websocket-2026-09-04.zh.md)。
+
 ## V5.183：单页控制中心真实浏览器复验（本轮）
 
 在重新 fetch 并审计 canonical DSH 后，只启动一个 Web Host 和一个浏览器页面，进入既有 Session 的原生“控制台”tab。
