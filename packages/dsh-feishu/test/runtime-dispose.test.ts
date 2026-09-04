@@ -168,4 +168,69 @@ describe('Feishu runtime teardown', () => {
     expect(transportDisposed).toBe(true)
     await ctx.fiber.dispose()
   })
+
+  it('drains an in-flight inbound callback before disconnecting the platform', async () => {
+    const ctx = new Context()
+    let messageHandler: ((message: FeishuInboundMessage) => Promise<void>) | undefined
+    let authorizeReached!: () => void
+    let releaseAuthorize!: () => void
+    const authorizeStarted = new Promise<void>(resolve => { authorizeReached = resolve })
+    const authorizeReleased = new Promise<void>(resolve => { releaseAuthorize = resolve })
+    let disconnected = false
+    const gateway = {
+      registerTransport: () => ({ report() {}, dispose() {} }),
+      registerTextAdapter: () => ({ async dispose() {} }),
+      async authorize() {
+        authorizeReached()
+        await authorizeReleased
+        return { kind: 'rejected', reason: 'untrusted' as const }
+      },
+    } as unknown as DshGateway
+    const platform: FeishuPlatform = {
+      onMessage(handler: (message: FeishuInboundMessage) => Promise<void>) {
+        messageHandler = handler
+        return () => { if (messageHandler === handler) messageHandler = undefined }
+      },
+      onApprovalAction() { return () => {} },
+      onError() { return () => {} },
+      async connect() {},
+      async disconnect() { disconnected = true },
+      async sendText() { return { messageId: 'unused' } },
+      async sendCard() { return { messageId: 'unused' } },
+      async downloadMessageResource() { throw new Error('unused') },
+    }
+    const config = await resolveFeishuPairingConfig({
+      mode: 'pairing',
+      routeIds: [],
+      appIdEnv: 'TEST_APP_ID',
+      appSecretEnv: 'TEST_APP_SECRET',
+    }, {
+      resolve: async (reference: string) => ({
+        value: reference === 'TEST_APP_ID' ? 'test-app' : 'test-secret',
+        source: 'test',
+      }),
+    })
+    const runtime = new FeishuRuntime(ctx, config, gateway, platform)
+    await runtime.start()
+
+    const message = messageHandler!({
+      messageId: 'om_in_flight',
+      chatId: 'oc_chat',
+      chatType: 'p2p',
+      senderId: 'ou_user',
+      content: 'hello',
+      rawContentType: 'text',
+      resources: [],
+    })
+    await authorizeStarted
+    const disposing = runtime.dispose()
+    await Promise.resolve()
+    expect(disconnected).toBe(false)
+
+    releaseAuthorize()
+    await message
+    await disposing
+    expect(disconnected).toBe(true)
+    await ctx.fiber.dispose()
+  })
 })

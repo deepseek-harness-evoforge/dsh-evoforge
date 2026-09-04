@@ -48,6 +48,8 @@ import type {
 
 const MAX_PENDING_REPLY_CORRELATIONS = 10_000
 const PLATFORM_SEND_TIMEOUT_MS = 30_000
+/** Do not disconnect a resident platform while an already-delivered callback can still send. */
+const INBOUND_DRAIN_TIMEOUT_MS = PLATFORM_SEND_TIMEOUT_MS
 
 interface ReplyDestination {
   readonly route: ResolvedFeishuRoute
@@ -79,6 +81,9 @@ export class FeishuRuntime {
   private readonly contentToolDisposers = new Map<Agent, () => void>()
   private readonly observedChatKinds = new Map<string, 'direct' | 'group'>()
   private readonly unsubscribers: Array<() => void> = []
+  private activeInboundCallbacks = 0
+  private inboundCallbacksIdle: Promise<void> | undefined
+  private resolveInboundCallbacksIdle: (() => void) | undefined
   private outbound?: GatewayTextAdapterRegistration
   private transport: GatewayTransportRegistration | undefined
   private started = false
@@ -322,6 +327,7 @@ export class FeishuRuntime {
     } catch (error) {
       failures.push(error)
     }
+    await this.waitForInboundCallbacks()
     try {
       await this.platform.disconnect()
     } catch (error) {
@@ -345,7 +351,42 @@ export class FeishuRuntime {
     }
   }
 
+  private beginInboundCallback(): void {
+    if (this.activeInboundCallbacks === 0) {
+      this.inboundCallbacksIdle = new Promise<void>(resolve => {
+        this.resolveInboundCallbacksIdle = resolve
+      })
+    }
+    this.activeInboundCallbacks += 1
+  }
+
+  private endInboundCallback(): void {
+    if (this.activeInboundCallbacks === 0) return
+    this.activeInboundCallbacks -= 1
+    if (this.activeInboundCallbacks !== 0) return
+    this.resolveInboundCallbacksIdle?.()
+    this.resolveInboundCallbacksIdle = undefined
+    this.inboundCallbacksIdle = undefined
+  }
+
+  private async waitForInboundCallbacks(): Promise<void> {
+    const idle = this.inboundCallbacksIdle
+    if (idle === undefined) return
+    let timeout: ReturnType<typeof setTimeout> | undefined
+    const deadline = new Promise<void>(resolve => {
+      timeout = setTimeout(resolve, INBOUND_DRAIN_TIMEOUT_MS)
+    })
+    await Promise.race([idle, deadline])
+    if (timeout !== undefined) clearTimeout(timeout)
+    if (this.activeInboundCallbacks > 0) {
+      this.ctx.logger.warn(
+        `dsh-feishu: timed out draining ${this.activeInboundCallbacks} inbound callback(s) before disconnect`,
+      )
+    }
+  }
+
   async notifyHost(notice: FeishuHostNotice): Promise<FeishuHostNoticeReceipt> {
+    this.assertAvailable()
     if (!/^[a-f0-9]{64}$/u.test(notice.id)) {
       throw new Error('dsh-feishu: host notice id must be a SHA-256 hex digest')
     }
@@ -562,21 +603,27 @@ export class FeishuRuntime {
   }
 
   /** Keep SDK event emitters from observing an unhandled async rejection. */
-  private async receiveMessage(message: FeishuInboundMessage): Promise<void> {
-    try {
-      await this.handleMessage(message)
-    } catch (error: unknown) {
-      this.recordInboundFailure('message', error)
-    }
+  private receiveMessage(message: FeishuInboundMessage): Promise<void> {
+    this.beginInboundCallback()
+    return (async () => {
+      try {
+        await this.handleMessage(message)
+      } catch (error: unknown) {
+        this.recordInboundFailure('message', error)
+      }
+    })().finally(() => this.endInboundCallback())
   }
 
   /** Approval callbacks share the same failure boundary as inbound messages. */
-  private async receiveApprovalAction(action: FeishuApprovalAction): Promise<void> {
-    try {
-      await this.handleApprovalAction(action)
-    } catch (error: unknown) {
-      this.recordInboundFailure('card action', error)
-    }
+  private receiveApprovalAction(action: FeishuApprovalAction): Promise<void> {
+    this.beginInboundCallback()
+    return (async () => {
+      try {
+        await this.handleApprovalAction(action)
+      } catch (error: unknown) {
+        this.recordInboundFailure('card action', error)
+      }
+    })().finally(() => this.endInboundCallback())
   }
 
   private recordInboundFailure(kind: string, error: unknown): void {

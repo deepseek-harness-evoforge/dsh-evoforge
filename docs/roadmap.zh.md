@@ -1,8 +1,8 @@
 # EvoForge v0.1 路线图
 
-> 2026-09-04 当前执行顺序：alpha.5 兼容性、安装面、统一单页控制面和旧固定弹层清理已经收口；V5.212 已在最新 DSH
+> 2026-09-04 当前执行顺序：alpha.5 兼容性、安装面、统一单页控制面和旧固定弹层清理已经收口；V5.213 已在最新 DSH
 > canonical `origin/master` `d347e703908d0406b7a7ef80e3a0e594d86b2215` 审计支持组合上完成全量 `CHECK_RC=0` 复验，并修复 resident
-> Gateway Agent resolution、出站提交与卸载的屏障；V5.163 已把开源
+> Feishu 在途回调、Gateway Agent resolution、出站提交与卸载的屏障；V5.163 已把开源
 > 可用性缺口按证据分层；当前一边持续收口本地可发布可靠性，一边按授权条件攻真实
 > Feishu/Telegram、双真实 Provider、Hermes paired 与长期效果证据。任何一项发布门未通过都不创建 tag。
 > 最新远端 DSH `master` 为 `d347e703908d0406b7a7ef80e3a0e594d86b2215`（`0.1.3-alpha.1`，根构建仍有上游类型入口缺陷），可构建支持基线仍为
@@ -47,7 +47,8 @@
 > 固化防回归检查；远端矩阵尚待复跑，真实外部验收门状态不变。详见 [V5.68](evidence/v5-68-ci-telegram-build-race-2026-09-02.zh.md)。
 > V5.84/V5.85 已补齐 alpha.5 完整检查证据与 DSH preflight；下一轮继续推进真实常驻渠道和 paired 门，
 > 不因本地质量门通过而提前发布。
-> 更新日期：2026-09-04。V5.212 证据：[Agent resolution 与卸载屏障](evidence/v5-212-gateway-resolution-dispose-barrier-2026-09-04.zh.md)；
+> 更新日期：2026-09-04。V5.213 证据：[Feishu 在途回调排空](evidence/v5-213-feishu-inbound-drain-2026-09-04.zh.md)；
+> V5.212 证据：[Agent resolution 与卸载屏障](evidence/v5-212-gateway-resolution-dispose-barrier-2026-09-04.zh.md)；
 > V5.211 证据：[出站提交与卸载屏障](evidence/v5-211-gateway-submit-dispose-barrier-2026-09-04.zh.md)。
 
 ## 开发与发布纪律

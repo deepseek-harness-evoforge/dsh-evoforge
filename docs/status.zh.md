@@ -1,5 +1,7 @@
 # 当前实现状态
 
+> **最新增量（V5.213）**：Feishu 常驻 runtime 现在追踪并有界排空已进入的消息/Approval 回调；卸载顺序固定为停止接收、等待出站、排空回调、断开平台、释放 transport，避免授权/配对码/响应在断连后产生迟到副作用。已销毁 runtime 的 Host notice 立即 fail-closed。新增停机竞态回归，Feishu `57/57`；在最新 DSH 审计支持组合上根级 `CHECK_RC=0`，Evolution `313/313`、Gateway `51/51`、Telegram `38/38` 及其余套件/合同通过。真实渠道、Provider、Hermes paired、长期效果、npm ownership 与发布 tag 门禁仍未通过。详见 [V5.213 证据](evidence/v5-213-feishu-inbound-drain-2026-09-04.zh.md)。
+
 > **最新增量（V5.212）**：常驻 Gateway 关闭流程现在等待所有在途 `resolve()` 的 Native Agent 创建/恢复完成，再快照并 dispose owned handles，避免 stop 期间出现无法卸载的孤儿 Agent。新增延迟 `agents.create()` 的真实回归，Gateway `51/51` 通过；在最新 DSH 审计支持组合上根级 `CHECK_RC=0`，Evolution `313/313`、Feishu `56/56`、Telegram `38/38` 及其余套件/合同通过。真实渠道、Provider、Hermes paired、长期效果、npm ownership 与发布 tag 门禁仍未通过。详见 [V5.212 证据](evidence/v5-212-gateway-resolution-dispose-barrier-2026-09-04.zh.md)。
 
 > **最新增量（V5.211）**：常驻 Gateway 的出站 Adapter 现在对 `submit()` 与 `dispose()` 建立活跃提交屏障；卸载先中止新提交、等待已进入的 journal prepare 完成，再等待发送队列和资源回收，避免 journal 关闭后出现迟到写入。新增延迟 prepare 的真实回归，Gateway `50/50` 通过。首次构建发现并修复 Typert digest 过期后，最新 DSH 审计支持组合根级 `CHECK_RC=0`，Evolution `313/313`、Feishu `56/56`、Telegram `38/38` 及其余套件/合同通过。真实渠道、Provider、Hermes paired、长期效果、npm ownership 与发布 tag 门禁仍未通过。详见 [V5.211 证据](evidence/v5-211-gateway-submit-dispose-barrier-2026-09-04.zh.md)。

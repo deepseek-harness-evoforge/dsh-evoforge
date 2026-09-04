@@ -6,6 +6,14 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.213**: Feishu resident runtime now tracks and drains in-flight message and approval callbacks before
+  disconnecting the platform. Teardown stops new intake, drains outbound work, waits up to the platform send deadline
+  for callbacks already entered, then disconnects and disposes transport; a late Host notice fails closed immediately.
+  Added a teardown race regression and reran the latest-DSH-audited root check with `CHECK_RC=0` (Feishu `57/57`,
+  Evolution `313/313`, Gateway `51/51`, Telegram `38/38`, and all other local suites/contracts). Real channels,
+  providers, Hermes paired benchmarking, long-run effects, npm ownership, and the release tag remain blocked. See
+  [V5.213 evidence](docs/evidence/v5-213-feishu-inbound-drain-2026-09-04.zh.md).
+
 - **V5.212**: Made resident Gateway cleanup wait for all direct `resolve()` operations before closing journals and disposing
   owned Native Agent handles. This prevents an Agent created during Host shutdown from being published after the cleanup
   snapshot and becoming an orphan. Added a delayed-`agents.create()` regression. The latest-DSH-audited root check passed
