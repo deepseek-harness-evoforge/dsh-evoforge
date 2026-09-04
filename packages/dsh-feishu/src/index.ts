@@ -61,6 +61,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   let runtime: FeishuRuntime | undefined
   let startPromise: Promise<void> | undefined
   let disposed = false
+  let credentialGeneration = 0
   const hostRoute: FeishuHostRoute = Object.freeze({
     get routes() {
       return runtime?.createHostRoute().routes ?? []
@@ -80,7 +81,16 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
 
   const start = async (): Promise<void> => {
     if (disposed || runtime !== undefined) return
-    if (startPromise !== undefined) return startPromise
+    const pending = startPromise
+    if (pending !== undefined) {
+      await pending
+      // A credential event may have invalidated the in-flight attempt. Once
+      // that attempt has fully settled, immediately retry the new generation
+      // instead of accidentally retaining a runtime built from old secrets.
+      if (!disposed && runtime === undefined) await start()
+      return
+    }
+    const generation = credentialGeneration
     const attempt = (async () => {
       let candidate: FeishuRuntime | undefined
       try {
@@ -117,8 +127,13 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
           )
         }
         await candidate.start()
-        if (disposed) {
-          await candidate.dispose()
+        if (disposed || generation !== credentialGeneration) {
+          try {
+            await candidate.dispose()
+          } catch (error: unknown) {
+            ctx.logger.warn(`dsh-feishu: stale Adapter disposal failed: ${safeMessage(error)}`)
+          }
+          candidate = undefined
           return
         }
         runtime = candidate
@@ -137,21 +152,35 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         ctx.logger.warn(`dsh-feishu: waiting for credential references ${appIdRef} and ${appSecretRef}`)
       }
     })()
-    startPromise = attempt
-    try {
-      await attempt
-    } finally {
-      if (startPromise === attempt) startPromise = undefined
-    }
+    let run!: Promise<void>
+    run = (async () => {
+      try {
+        await attempt
+      } finally {
+        if (startPromise === run) startPromise = undefined
+      }
+    })()
+    startPromise = run
+    await run
   }
 
   ctx.on('credentials/reference-updated', (reference) => {
     const ref = String(reference)
     if (ref !== appIdRef && ref !== appSecretRef) return
+    credentialGeneration += 1
     const previous = runtime
     runtime = undefined
     void (async () => {
-      if (previous !== undefined) await previous.dispose()
+      if (previous !== undefined) {
+        try {
+          await previous.dispose()
+        } catch (error: unknown) {
+          // A partially stopped old Adapter must not prevent the new
+          // credential generation from being attempted. Its own teardown
+          // remains observable, but recovery stays fail-closed and live.
+          if (!disposed) ctx.logger.warn(`dsh-feishu: previous Adapter disposal failed during credential update: ${safeMessage(error)}`)
+        }
+      }
       await start()
     })().catch(error => {
       if (!disposed) ctx.logger.warn(`dsh-feishu: credential update could not start Adapter: ${safeMessage(error)}`)

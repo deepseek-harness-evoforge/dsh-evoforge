@@ -10,6 +10,15 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.185：渠道凭据代际切换与失效启动隔离（本轮）
+
+发现并修复 Feishu/Telegram 凭据轮换与 Adapter 启动并发时的真实竞态：旧启动 Promise 不再被新事件复用；每次凭据提交使旧代际
+失效，旧候选连接建立后会被隔离销毁，新代际在完整 settle 后重试。轮换期间旧 Adapter dispose 失败不会阻断恢复。Telegram 并发
+代际回归、Feishu `19 files / 55 tests`、Telegram `10 files / 36 tests`、两包 typecheck/build 通过；随后在最新 DSH alpha.5 支持
+基线上执行根级 `pnpm run check`，权威 `CHECK_RC=0`，Evolution `309/309`、Gateway `41/41`。本轮仍未把连接生命周期测试扩大为
+真实外部渠道、Provider、Hermes paired、长期效果或发布通过。详见
+[V5.185 证据](evidence/v5-185-channel-credential-generation-restart-2026-09-04.zh.md)。
+
 ## V5.184：原生凭据写入后的飞书常驻 WebSocket 复验（本轮）
 
 在同一 DSH Web 原生“控制台 → 飞书内容”页面保存用户提供的飞书凭据后，页面显示 write-only 保存成功；返回“渠道”页，

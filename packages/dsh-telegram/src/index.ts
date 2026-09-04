@@ -58,6 +58,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   let runtime: TelegramRuntime | TelegramPairingRuntime | undefined
   let startPromise: Promise<void> | undefined
   let disposed = false
+  let credentialGeneration = 0
 
   if (resolved !== undefined && route !== undefined) {
     const hostRoute: TelegramHostRoute = Object.freeze({
@@ -75,7 +76,15 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
 
   const start = async (): Promise<void> => {
     if (disposed || runtime !== undefined) return
-    if (startPromise !== undefined) return startPromise
+    const pending = startPromise
+    if (pending !== undefined) {
+      await pending
+      // A credential event can invalidate an in-flight attempt. Retry only
+      // after it has settled so an old token can never become the live runtime.
+      if (!disposed && runtime === undefined) await start()
+      return
+    }
+    const generation = credentialGeneration
     const attempt = (async () => {
       let candidate: TelegramRuntime | TelegramPairingRuntime | undefined
       try {
@@ -98,8 +107,13 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
           throw new Error('dsh-telegram: resolved route is unavailable')
         }
         await candidate.start()
-        if (disposed) {
-          await candidate.dispose()
+        if (disposed || generation !== credentialGeneration) {
+          try {
+            await candidate.dispose()
+          } catch (error: unknown) {
+            ctx.logger.warn(`dsh-telegram: stale Adapter disposal failed: ${safeMessage(error)}`)
+          }
+          candidate = undefined
           return
         }
         runtime = candidate
@@ -109,20 +123,31 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         ctx.logger.warn(`dsh-telegram: waiting for credential reference ${tokenRef}`)
       }
     })()
-    startPromise = attempt
-    try {
-      await attempt
-    } finally {
-      if (startPromise === attempt) startPromise = undefined
-    }
+    let run!: Promise<void>
+    run = (async () => {
+      try {
+        await attempt
+      } finally {
+        if (startPromise === run) startPromise = undefined
+      }
+    })()
+    startPromise = run
+    await run
   }
 
   ctx.on('credentials/reference-updated', (reference) => {
     if (String(reference) !== tokenRef) return
+    credentialGeneration += 1
     const previous = runtime
     runtime = undefined
     void (async () => {
-      if (previous !== undefined) await previous.dispose()
+      if (previous !== undefined) {
+        try {
+          await previous.dispose()
+        } catch (error: unknown) {
+          if (!disposed) ctx.logger.warn(`dsh-telegram: previous Adapter disposal failed during credential update: ${safeMessage(error)}`)
+        }
+      }
       await start()
     })().catch(error => {
       if (!disposed) ctx.logger.warn(`dsh-telegram: credential update could not start Adapter: ${safeMessage(error)}`)

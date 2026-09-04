@@ -6,6 +6,13 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.185**: Fixed a real credential-rotation race in both Feishu and Telegram resident adapters. Each committed native
+  credential update invalidates the previous generation; an in-flight stale candidate is disposed without becoming live, and
+  callers retry only after the complete start promise settles. A failed disposal of the old adapter is logged but no longer
+  blocks recovery. Telegram concurrent-generation coverage, Feishu `19 files / 55 tests`, Telegram `10 files / 36 tests`,
+  typechecks, builds, and the latest-DSH root check (`CHECK_RC=0`) pass. External channel, Provider/Hermes, long-run, npm, and
+  release-tag gates remain blocked. See [V5.185 evidence](docs/evidence/v5-185-channel-credential-generation-restart-2026-09-04.zh.md).
+
 - **V5.184**: In the same native DSH Web control surface, saved the user-provided Feishu credentials through the write-only
   `remote.credentials` seam and observed the same resident Adapter recover to `official-feishu-websocket` with a healthy
   transport. No second page, Gateway, or Session was created and no secret entered the repository, logs, or evidence. The

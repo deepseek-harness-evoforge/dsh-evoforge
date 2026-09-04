@@ -26,6 +26,9 @@ describe('Telegram native credential lifecycle', () => {
     if (address === null || typeof address === 'string') throw new Error('Telegram test server did not bind')
 
     let token: string | undefined
+    let resolveCalls = 0
+    let blockResolution = false
+    let releaseBlockedResolution: (() => void) | undefined
     let transportRegistrations = 0
     let transportDisposals = 0
     let adapterDisposals = 0
@@ -66,7 +69,14 @@ describe('Telegram native credential lifecycle', () => {
       },
     }
     const credentials = {
-      resolve: async () => token === undefined ? undefined : { value: token, source: 'test' },
+      resolve: async () => {
+        resolveCalls += 1
+        const value = token
+        if (blockResolution) {
+          await new Promise<void>(resolve => { releaseBlockedResolution = resolve })
+        }
+        return value === undefined ? undefined : { value, source: 'test' }
+      },
     }
     const ctx = new Context()
     ctx.provide('credentials' as never, credentials as never)
@@ -86,13 +96,23 @@ describe('Telegram native credential lifecycle', () => {
     }
     await expect(hostRoute.notify({ id: 'a'.repeat(64), text: 'not ready' })).rejects.toThrow(/not ready/u)
 
-    token = 'test-token'
+    // Two committed writes arrive while the first credential resolution is
+    // still in flight. The old attempt must be discarded and the second value
+    // must become the only live runtime.
+    blockResolution = true
+    token = 'old-token'
     ctx.emit('credentials/reference-updated', credentialRef('TEST_TELEGRAM_TOKEN'))
-    await vi.waitFor(() => expect(transportRegistrations).toBe(1), { timeout: 2_000 })
-    expect(transportDisposals).toBe(0)
-
-    await ctx.fiber.dispose()
+    await vi.waitFor(() => expect(resolveCalls).toBe(2), { timeout: 2_000 })
+    token = 'new-token'
+    blockResolution = false
+    ctx.emit('credentials/reference-updated', credentialRef('TEST_TELEGRAM_TOKEN'))
+    releaseBlockedResolution?.()
+    await vi.waitFor(() => expect(transportRegistrations).toBe(2), { timeout: 2_000 })
     expect(transportDisposals).toBe(1)
     expect(adapterDisposals).toBe(1)
+
+    await ctx.fiber.dispose()
+    expect(transportDisposals).toBe(2)
+    expect(adapterDisposals).toBe(2)
   })
 })
