@@ -1,5 +1,7 @@
 # 当前实现状态
 
+> **最新增量（V5.208）**：Skill Candidate 与 Existing-Skill Candidate 在进入异步 Storage 队列前捕获输入快照，排队期间的调用方修改不会污染 Candidate 内容哈希、身份或谱系。新增真实 Storage 回归，`dsh-evolve` 类型检查、Capability Gap durable queue `6/6` 与根级全量 `CHECK_RC=0` 通过（Evolution `312/312`、Gateway `48/48`、Feishu `56/56`、Telegram `38/38` 及其余本地套件/合同）。最新 DSH `d347e703…` 安装通过，根构建缺陷仍按上游事实分类。真实渠道、Provider、Hermes paired、长期效果、npm ownership 与发布 tag 门禁仍未通过。详见 [V5.208 证据](evidence/v5-208-candidate-input-snapshot-2026-09-04.zh.md)。
+
 > 更新日期：2026-09-04。本文只描述标准路径中的权威 `main` 工作树，不把计划或历史分支当作已交付能力。
 
 > **最新增量（V5.207）**：Generation `publishGeneration()`、Session pin/回退和 Existing-Skill Release `record()` 在进入异步 Storage 队列前捕获输入快照，排队期间调用方修改对象不会污染内容哈希、谱系或决策。新增真实 Storage 提交时快照回归；`dsh-evolve` 类型检查、Generation store `12/12` 和根级全量 `CHECK_RC=0` 通过（Evolution `311/311`、Gateway `48/48`、Feishu `56/56`、Telegram `38/38` 及其余本地套件/合同）。最新 DSH `d347e703…` 安装通过，根构建缺陷仍按上游事实分类。真实渠道、Provider、Hermes paired、长期效果、npm ownership 与发布 tag 门禁仍未通过。详见 [V5.207 证据](evidence/v5-207-content-addressed-input-snapshot-2026-09-04.zh.md)。

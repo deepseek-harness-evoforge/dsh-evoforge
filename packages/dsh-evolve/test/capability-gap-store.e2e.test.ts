@@ -213,6 +213,26 @@ describe.skipIf(process.platform !== 'darwin')('Capability Gap durable queue', (
     }
   })
 
+  it('snapshots Candidate inputs before queued persistence', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-candidate-snapshot-'))
+    temporaryRoots.push(root)
+    const configPath = await writeStorageConfig(root)
+    const ctx = await bootStorage(configPath)
+    const store = await openSkillCandidateStore(ctx.storageDomain)
+    try {
+      const input = skillCandidateInput('a', 1)
+      const pending = store.recordCandidate(input)
+      input.skillName = 'mutated-after-submit'
+      input.description = 'mutated after submit'
+      const persisted = (await pending).candidate
+      expect(persisted.skillName).toBe('release-proof-a')
+      expect(persisted.description).toBe('Publish a verified release.')
+    } finally {
+      await store.close()
+      await ctx.fiber.dispose()
+    }
+  })
+
   it('retains every content-addressed Candidate until an explicit governance decision', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-skill-candidate-retention-'))
     temporaryRoots.push(root)

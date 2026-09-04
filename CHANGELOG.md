@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.208**: Snapshotted Skill Candidate and Existing-Skill Candidate inputs before asynchronous Storage persistence. Caller
+  mutations after submission can no longer alter Candidate identity, content hashes, or lineage. Added a real DSH Storage
+  regression and reran the latest-DSH-audited root check with `CHECK_RC=0` (Evolution `312/312`, Gateway `48/48`, Feishu
+  `56/56`, Telegram `38/38`, and all other local suites/contracts). Real channels, providers, Hermes paired benchmarking,
+  long-run effects, npm ownership, and the release tag remain blocked. See [V5.208 evidence](docs/evidence/v5-208-candidate-input-snapshot-2026-09-04.zh.md).
+
 - **V5.207**: Snapshotted content-addressed Generation publish, Session pin/native fallback, and Existing-Skill Release
   decision inputs before they enter the asynchronous Storage queue. Caller mutations after submission can no longer alter
   persisted hashes, lineage, or decision content; clone failures reject the write. Added a real Storage regression and

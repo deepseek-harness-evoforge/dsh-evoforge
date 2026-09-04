@@ -295,12 +295,18 @@ class DomainSkillCandidateStore implements SkillCandidateStore {
     readonly created: boolean
     readonly candidate: ExperienceSkillCandidate
   }> {
+    let captured: ExperienceSkillCandidateInput
+    try {
+      captured = structuredClone(input)
+    } catch (error) {
+      return Promise.reject(error)
+    }
     return this.enqueue(async () => {
-      const id = skillCandidateId(input)
+      const id = skillCandidateId(captured)
       const table = this.domain.table('candidates')
       const existing = table.get(id)
       if (existing !== undefined) return { created: false, candidate: immutableCopy(existing) }
-      const candidate = immutableCopy(candidateSchema.parse({ schemaVersion: 2, id, ...input }))
+      const candidate = immutableCopy(candidateSchema.parse({ schemaVersion: 2, id, ...captured }))
       await table.put(id, candidate)
       return { created: true, candidate }
     })
@@ -319,12 +325,18 @@ class DomainSkillCandidateStore implements SkillCandidateStore {
     readonly created: boolean
     readonly candidate: ExistingSkillCandidate
   }> {
+    let captured: ExistingSkillCandidateInput
+    try {
+      captured = structuredClone(input)
+    } catch (error) {
+      return Promise.reject(error)
+    }
     return this.enqueue(async () => {
-      const id = existingSkillCandidateId(input)
+      const id = existingSkillCandidateId(captured)
       const table = this.existingDomain.table('candidates')
       const existing = table.get(id)
       if (existing !== undefined) return { created: false, candidate: immutableCopy(existing) }
-      const candidate = immutableCopy(existingCandidateSchema.parse({ schemaVersion: 1, id, ...input }))
+      const candidate = immutableCopy(existingCandidateSchema.parse({ schemaVersion: 1, id, ...captured }))
       await table.put(id, candidate)
       return { created: true, candidate }
     })
