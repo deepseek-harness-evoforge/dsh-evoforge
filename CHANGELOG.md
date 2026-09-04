@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.146**: Admitted the real Telegram AS-1 executor skeleton behind the exact authorization switch. It reuses the
+  verified DSH app-boot/final-Bundle path to exercise a real private-chat pairing request, Host approval, native reply,
+  Gateway ingress replay, native Approval, restart, uninstall, and Session readback; all run state is isolated and
+  redacted. The unauthorised path still reads only its switch and performs no Bot request. No authorized real Bot run has
+  completed, so the release gate remains `not-run`. See [V5.146 evidence](docs/evidence/v5-146-telegram-as1-executor-skeleton-2026-09-04.zh.md).
+
 - **V5.145**: Re-ran the complete repository check after admitting the real Telegram AS-1 contract. The canonical DSH
   rc.1 was fetched and verified clean, the audited alpha.5 support checkout passed documentation, CI/suite/release
   contracts, Hermes/Provider/Feishu/Telegram acceptance contracts, all package typechecks, tests, and builds (`exit 0`);

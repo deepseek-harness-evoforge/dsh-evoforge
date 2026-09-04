@@ -12,13 +12,16 @@
 
 ## V5.144：真实 Telegram AS-1 合同与零副作用预检（本轮）
 
-新增真实 Telegram Bot resident pairing 的独立 AS-1 验收合同，固定可构建 DSH alpha.5 支持 revision，并单独记录
+新增真实 Telegram Bot resident pairing 的独立 AS-1 验收合同和执行器，固定可构建 DSH alpha.5 支持 revision，并单独记录
 每次开发前审计到的最新 DSH rc.1。未设置精确授权短语时，入口只读取授权变量，不读取 Bot token、账户、路径，
-不加载执行器，也不发起 Telegram 请求；授权后才校验官方 API、token、clean source 和仓库外隔离 run root。终态
+不加载执行器，也不发起 Telegram 请求；授权后才校验官方 API、token、clean source 和仓库外隔离 run root，
+并使用已验证的 DSH app-boot/最终 Bundle 骨架进入人工私聊、Host 批准、回复、幂等回放、Approval、重启和卸载流程。终态
 报告绑定 manifest、EvoForge/DSH revision、最新审计 revision 和账户哈希，配对码、首条消息不入 Agent、Host 批准、
 重复 update、原生 Approval、重启、卸载和 Session readback 任一缺失都不能复用。合同类型检查和 `8/8` 安全测试通过；
-当前 `run.ts` 仍是预检入口，即使环境中存在 token 也会严格 `not-run`，因此没有虚构真实 Bot 通过证据。详见
+当前没有授权的真实 Bot 运行记录，`real-telegram-as1` 仍为 `not-run`，因此没有虚构真实 Bot 通过证据。详见
 [V5.144 证据](evidence/v5-144-telegram-as1-real-contract-2026-09-04.zh.md)。
+
+执行器接入与类型检查的具体证据见 [V5.146](evidence/v5-146-telegram-as1-executor-skeleton-2026-09-04.zh.md)。
 
 ## V5.145：AS-1 接入后的 alpha.5 全仓回归（本轮）
 
