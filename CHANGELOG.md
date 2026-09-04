@@ -6,6 +6,12 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.163**: Re-fetched the latest canonical DSH and recorded an open-source readiness audit. Static Bundle metadata
+  checks pass, while npm ownership, the latest DSH clean build, real Feishu/Telegram paths, real Provider pairing, the
+  same-condition Hermes run, and long-term outcome data still block a registry release. The audit also explains why the
+  12 physical Bundles are exposed through four user suites without collapsing independent lifecycle and trust boundaries.
+  See [V5.163 evidence](docs/evidence/v5-163-open-source-readiness-audit-2026-09-04.zh.md).
+
 - **V5.162**: Re-fetched canonical DSH rc.1 and reran its own frozen install/build boundary. Dependency installation
   passed, but the official root build still exits `1` because `@deepseek-ai/dsh-root` cannot resolve
   `lib/types/{index,invariant,startup}.js`; the DSH worktree remains clean. This upstream defect is recorded separately

@@ -1,6 +1,7 @@
 # EvoForge v0.1 路线图
 
-> 2026-09-04 当前执行顺序：alpha.5 兼容性、安装面、统一单页控制面和旧固定弹层清理已经收口；现在只攻真实
+> 2026-09-04 当前执行顺序：alpha.5 兼容性、安装面、统一单页控制面和旧固定弹层清理已经收口；V5.163 已把开源
+> 可用性缺口按证据分层；现在只攻真实
 > Feishu/Telegram、双真实 Provider、Hermes paired 与长期效果证据。任何一项发布门未通过都不创建 tag。
 > 最新远端 DSH `master` 为 `76fda729799fe9b3848dbe2c211d4b231032b81e`，可构建支持基线仍为
 > `dsh-v0.1.2-alpha.5`。V5.86 还清除了 Evolution 兼容导出的 fixed overlay，见

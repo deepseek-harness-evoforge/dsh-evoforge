@@ -10,6 +10,14 @@
 > 外部效果前拒绝见 [V5.70](evidence/v5-70-feishu-epoch4-revision-contract-2026-09-03.zh.md)，真实 AS-2
 > 仍未通过。
 
+## V5.163：开源可用性与真实缺口审计（本轮）
+
+开发前重新 fetch 并核对 canonical DSH 最新 `master` 为 `76fda729…`（`dsh-v0.1.2-rc.1`，clean），EvoForge
+`main` 为 `b03723b…`（clean）。静态发布预检通过；npm 名称检查确认四个公共名称已被无关仓库占用，动态发布门禁
+仍为 `blocked`。本轮把“为什么本地实现仍不能称为开源发行版”拆成 DSH 最新构建、registry 命名、真实 Feishu/Telegram、
+双 Provider、Hermes paired 和长期效果六类事实，并明确 12 个物理 Bundle 已经通过四个用户套件收敛入口，不再把
+内部生命周期边界误当成用户选择。详见 [V5.163 审计](evidence/v5-163-open-source-readiness-audit-2026-09-04.zh.md)。
+
 ## V5.159：当前 Hermes revision 的 EV-1 epoch-4（本轮）
 
 重新 fetch Hermes 后确认 `origin/main` 已从旧的 `63279301…` 漂移到
