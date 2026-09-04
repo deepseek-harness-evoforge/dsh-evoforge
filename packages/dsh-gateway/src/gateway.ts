@@ -278,7 +278,10 @@ export class DshGateway {
       // Do not call stop() here: a concurrent public stop() waits for this startup
       // promise, so awaiting it from inside startup would deadlock. The cleanup
       // itself is shared and idempotent; a racing stop() will await the same work.
-      await this.cleanupResources()
+      // Teardown is still awaited, but a journal/transport close failure must
+      // not replace the actionable startup validation error. Public stop() can
+      // report the shared cleanup failure to its caller independently.
+      await Promise.allSettled([this.cleanupResources()])
       this.stopping ??= this.cleanupPromise
       throw error
     }

@@ -111,6 +111,26 @@ describe('DshGateway', () => {
     expect(closeIngress).toHaveBeenCalledTimes(1)
   })
 
+  it('preserves the startup validation error when cleanup itself fails', async () => {
+    const host = fakeNativeHost()
+    host.persisted.set('session-a', {
+      meta: { id: 'session-a', cwd: '/work/b', agentPreset: 'standard', version: 0, createdAt: 1 },
+      events: [],
+    })
+    const facility = memoryFacility()
+    const ingress = await openGatewayIngressJournal(facility)
+    vi.spyOn(ingress, 'close').mockRejectedValue(new Error('ingress close failed'))
+    const gateway = new DshGateway(
+      host.ctx,
+      routes,
+      ingress,
+      await openGatewayOutboundJournal(facility),
+    )
+
+    await expect(gateway.start()).rejects.toThrow("session 'session-a' cwd")
+    await expect(gateway.stop()).rejects.toThrow('ingress close failed')
+  })
+
   it('removes its session-event listener exactly once when stopped', async () => {
     const host = fakeNativeHost()
     let removals = 0

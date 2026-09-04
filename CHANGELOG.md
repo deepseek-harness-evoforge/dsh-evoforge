@@ -6,6 +6,14 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.202**: Preserved the original Gateway startup validation error when resource cleanup also fails, while keeping the
+  shared public `stop()` promise responsible for reporting cleanup failures. Added regressions for concurrent stop,
+  startup rejection, and cleanup rejection. After re-fetching and auditing DSH `d347e703…` (`0.1.3-alpha.1`, tag
+  `dsh-v0.1.3-alpha.1`), the root check passed with `CHECK_RC=0`: Evolution `309/309`, Gateway `47/47`, Feishu `56/56`,
+  Telegram `38/38`, Evolve Web `27/27`, Control Center `5/5`, Doctor `40/40`, Goal Continuity `12/12`, GitHub Review
+  `27/27`, and all remaining local contract/clean-profile gates passed. Real channels, providers, Hermes paired benchmarking,
+  long-run effects, npm ownership, and the release tag remain blocked. See [V5.202 evidence](docs/evidence/v5-202-gateway-startup-cleanup-error-full-check-2026-09-04.zh.md).
+
 - **V5.201**: Re-fetched and audited DSH `origin/master` `d347e703…` (`0.1.3-alpha.1`, also tagged
   `dsh-v0.1.3-alpha.1`) after the Gateway start/stop race fix, then reran the root check on the audited alpha.5 support
   composition. The authoritative result is `CHECK_RC=0`: Evolution `309/309`, Gateway `46/46`, Feishu `56/56`,
