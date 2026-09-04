@@ -6,6 +6,14 @@ All notable changes will be recorded here. The project has not published a stabl
 
 ### Changed
 
+- **V5.173**: Fixed the public suite packer after the project-prefixed distribution-name migration. Suite entries keep
+  stable workspace directory ids, while `pnpm pack` now filters by each package's declared public `manifest.name`; the
+  regression is covered and `channels/feishu` now produces installable Control Center, Gateway, and Feishu tarballs.
+  Re-fetched canonical DSH before a real alpha.5 single-page Web check: one `--no-open` Host, one native Session,
+  Control Center channel journey, refresh, full-page reload recovery, and zero browser errors. A stale refused page was
+  cleaned at the end; fixture observations do not count as real external channel or Hermes paired evidence. See
+  [V5.173 evidence](docs/evidence/v5-173-suite-pack-and-single-page-browser-2026-09-04.zh.md).
+
 - **V5.172**: Added a bounded, read-only Feishu startup App diagnostic behind the official Adapter. It reports bot
   identity resolution, the two required message transport scopes, and whether the event-subscription read API is
   reachable; missing message scopes are `attention`, while an unavailable `event:subscription:read` check remains

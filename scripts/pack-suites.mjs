@@ -14,8 +14,21 @@ const outputId = args.channel === undefined ? selected.id : `${selected.id}-${ar
 const output = resolve(args.out ?? '.evoforge/pack', outputId)
 await mkdir(output, { recursive: true })
 
-for (const packageDir of packageDirs) {
-  const result = spawnSync('pnpm', ['--filter', packageDir, 'pack', '--pack-destination', output], {
+// Suite manifests intentionally use stable workspace directory ids so the
+// product choices stay independent from the public npm names.  Pack by the
+// manifest name, however: a Bundle may use a project-owned distribution name
+// (for example dsh-evoforge-gateway) to avoid colliding with an official DSH
+// package while its workspace directory remains dsh-gateway.
+const packageEntries = await Promise.all(packageDirs.map(async packageDir => {
+  const manifest = JSON.parse(await readFile(join(repositoryRoot, 'packages', packageDir, 'package.json'), 'utf8'))
+  if (typeof manifest.name !== 'string' || manifest.name.length === 0) {
+    throw new Error(`Package directory ${packageDir} has no publishable name`)
+  }
+  return { packageDir, manifest }
+}))
+
+for (const { manifest } of packageEntries) {
+  const result = spawnSync('pnpm', ['--filter', manifest.name, 'pack', '--pack-destination', output], {
     cwd: repositoryRoot,
     stdio: 'inherit',
     shell: false,
@@ -24,11 +37,7 @@ for (const packageDir of packageDirs) {
 }
 
 const packages = []
-for (const packageDir of packageDirs) {
-  const manifest = JSON.parse(await readFile(join(repositoryRoot, 'packages', packageDir, 'package.json'), 'utf8'))
-  if (typeof manifest.name !== 'string' || manifest.name.length === 0) {
-    throw new Error(`Package directory ${packageDir} has no publishable name`)
-  }
+for (const { packageDir, manifest } of packageEntries) {
   // DSH resolves the workspace directory through pnpm, while npm derives the
   // tarball filename and remove target from the public manifest name. Keep
   // these identities separate so a future owned npm scope cannot break packs.

@@ -20,7 +20,8 @@ test('pack:suite help presents product choices before internal compatibility ent
 test('pack:suite keeps workspace directories separate from public npm names', async () => {
   const source = await (await import('node:fs/promises')).readFile(script, 'utf8')
   assert.match(source, /const packageDirs = getSuitePackages/u)
-  assert.match(source, /--filter', packageDir/u)
+  assert.match(source, /--filter', manifest\.name/u)
+  assert.match(source, /const packageEntries = await Promise\.all\(packageDirs\.map/u)
   assert.match(source, /manifest\.name\.replace\(\/\^@\//u)
   assert.match(source, /packages\.push\(\{ dir: packageDir, name: manifest\.name/u)
 })

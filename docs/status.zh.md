@@ -23,6 +23,15 @@ paired、长期效果和 npm 归属门禁均不改变。真实 API 检查观察�
 事件订阅读取因缺少 `event:subscription:read` 被拒；没有外部写副作用。详见 [V5.172 证据](evidence/v5-172-feishu-startup-access-diagnostic-2026-09-04.zh.md)
 和 [ADR-0102](adr/0102-feishu-startup-access-diagnostic-is-advisory.md)。
 
+## V5.173：公开套件打包修复与最新 DSH 单页交互复验（本轮）
+
+真实验收发现公开包名迁移后，`pack:suite` 仍按 workspace 目录名过滤，导致 `channels --channel feishu` 无法
+生成 Gateway/Feishu tarball。现已先读取 `package.json`，再按公开 `manifest.name` 调用 pnpm pack，并以回归测试
+锁定目录 id 与分发名分离；`channels/feishu` 已实际生成三个可安装包。随后重新 fetch canonical DSH 最新
+`origin/master` `76fda729…`，在已审计 alpha.5 支持基线的临时 clean profile 中只启动一个 Web Host 和一个
+页面，关闭提示、选择真实 Session、进入原生“控制台 → 渠道”，验证首次连接导引、Gateway/渠道状态、刷新、整页
+reload 恢复和浏览器 error `0`；结束时清理旧失效页面。完整过程见 [V5.173 证据](evidence/v5-173-suite-pack-and-single-page-browser-2026-09-04.zh.md)。
+
 ## V5.171：公共分发名撞名迁移与全仓回归（本轮）
 
 审计发现 `dsh-doctor`、`dsh-feishu`、`dsh-gateway`、`dsh-telegram` 四个 unscoped npm 名称已被无关仓库占用。
