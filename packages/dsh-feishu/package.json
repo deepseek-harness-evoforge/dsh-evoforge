@@ -59,7 +59,7 @@
     "@deepseek-ai/schemastery": "3.18.1",
     "@larksuiteoapi/node-sdk": "1.73.0",
     "axios": "1.19.0",
-    "https-proxy-agent": "7.0.6",
+    "https-proxy-agent": "9.1.0",
     "zod": "4.4.3"
   },
   "peerDependencies": {
