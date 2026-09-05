@@ -137,7 +137,7 @@
     "@deepseek-ai/dsh-typert-protocol": "0.1.2-alpha.5",
     "@deepseek-ai/dsh-user-approval": "0.1.2-alpha.5",
     "@deepseek-ai/dsh-workspace": "0.1.2-alpha.5",
-    "@types/node": "^22.20.0",
+    "@types/node": "^26.4.1",
     "@types/tar-stream": "3.1.4",
     "tsdown": "^0.22.2",
     "tsx": "^4.22.4",
