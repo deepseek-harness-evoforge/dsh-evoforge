@@ -1,144 +1,104 @@
-# EvoForge 产品目标与设计基线
+# EvoForge 产品目标
 
-更新时间：2026-09-05。本文是当前设计的唯一概览，面向贡献者和评审者；用户操作请读根 README，历史增量请读
-evidence 索引。本文不把设计、fixture 或单个测试写成产品完成。
+更新时间：2026-09-07。本文是产品目标和边界的唯一概览。用户安装说明在根 README，术语在 `CONTEXT.md`，当前状态和
+证据分别在 `docs/status.zh.md` 与 `docs/evidence/`。
 
-## 1. 一句话目标
+## 1. 产品是什么
 
-交付一组符合 DeepSeek Harness 官方 Cordis、Bundle、Client 规范的 out-of-tree 插件，让一个 DSH Host 在真实
-工作中拥有 Hermes 的关键用户结果，并在可验证进化、会话连续性、权限边界、可观察性和可回滚性上更可靠。
+EvoForge 是一组安装到 DeepSeek Harness（DSH）的开源原生插件。DSH 是产品内核，负责 Agent、Session、Goal、Skill、
+Tool、Approval、Jobs、Schedule、Workspace、权限、存储和生命周期；EvoForge 在这些能力之上提供 Gateway、渠道接入、
+自我进化和统一控制面。
 
-对象是 DSH 插件组，不是 Codex 插件；不 fork 或修改 DSH，不建立第二个 Agent Runtime、Session、Goal、审批、调度器、
-数据库或第二/独立 Gateway；`dsh-gateway` 是本插件组在 DSH Host 内的唯一 Gateway。
+产品的最终结果是：用户安装 EvoForge 后，仍然使用一个 DSH，却得到 Hermes 核心工作流的完整可用体验，并在能力进化、
+故障恢复、权限控制、可观察性和回滚方面更可靠。这里的“上位替代”必须按具体工作流和证据判断，不能用插件数量或功能
+清单代替验证。
 
-“上位替代”是按已声明工作流逐项证明的结果，不是功能清单口号。未通过 paired benchmark 的范围保持
-partial/not-measured。
+EvoForge 不是 Codex 插件、独立 Agent、第二个运行时或 DSH 分支。它不修改或 fork DSH，也不复制 DSH 的 Session、Goal、
+审批、调度和存储系统。
 
-## 2. 用户心智模型
+## 2. 用户得到什么
 
-用户面对的是一个 DSH：
+用户可以像使用普通 DSH 一样工作：聊天、提问、发送指令、上传受支持材料、纠正回答，或者从飞书等渠道发消息。用户不
+需要先选择任务类型、工作流、Agent、Skill 或路径，也不需要先启动“自我进化流程”。需要长期续接时使用 DSH 原生 Goal；
+普通对话不因没有 Goal 而失效。
 
-1. 在普通会话中聊天、提问、贴材料、上传受支持附件或纠正回答，不进入 EvoForge 专用表单或流程；
-2. DSH Agent 仍按原生机制使用当前 profile 的 Skill、Tool、权限和上下文，EvoForge 不增加路径选择器；
-3. 需要跨重启继续时，用户才显式使用 DSH 原生 Goal；
-4. 需要外部消息时，Gateway 把渠道身份绑定到已有 native Workspace/Session；
-5. 需要改进时，用户在同一 Web 控制面看到证据、候选和决定。
+当用户从外部渠道发消息时，系统把身份绑定到已有的 DSH Workspace/Session。陌生私聊先得到一次性配对码，管理员批准
+后，后续消息才进入 DSH Agent。消息重复、连接中断或发送结果未知时，系统保持幂等和可恢复，不重复制造外部效果。
 
-自然语言可以表达约束和验收标准，但不能扩大 DSH policy，也不能绕过 Protected Action。
+当工作出现重复失败或纠正时，系统在后台从 DSH 自己的交互事实中发现可复用的问题。用户看到的是清楚的状态、证据和决策，
+而不是一套新的任务管理界面。
 
-### 2.1 关键术语
+## 3. 插件组成
 
-| 术语 | 当前含义 |
-| --- | --- |
-| Interaction | 一次原生 DSH 消息、命令、附件、反馈、计划触发或渠道事件；不等于 Goal |
-| Work episode | 从原生 Session/事件日志派生的只读关联视图；不是新的持久实体 |
-| Goal | DSH 原生的长任务/续接对象；可选，不是所有请求的入口 |
-| Experience signal | 对一次 Interaction 的可核事实：成功、失败、纠正、重试、观测到的额外工作、成本/时延或外部结果 |
-| Capability gap | 在检查已有 Skill、Tool、配置和权限后仍无法满足当前请求的可证伪缺口 |
-| Candidate | 完整、内容寻址、未激活的 Skill 包及其证据绑定 |
-| Generation | DSH 未来 Session 可选择的已发布 Skill 版本；当前 Session 固定 |
+### dsh-gateway
 
-## 3. 产品边界
+唯一的常驻 Host Gateway，负责身份规范化、配对、Workspace/Session 绑定、入站和出站意图、幂等、限流、断线恢复、不确定
+状态和脱敏健康信息。
 
-### 3.1 Gateway 与渠道
+### dsh-feishu 与 dsh-telegram
 
-DSH Host 内的 dsh-gateway 是唯一常驻入口。它负责：
+可独立启停和卸载的薄 Adapter，负责平台协议、长连接或轮询、凭据引用、消息格式、卡片、附件和发送。它们把路由、会话、
+审批和持久化交给 DSH 与 Gateway。
 
-- 规范化外部身份并建立一次性 pairing request；
-- 将已批准身份绑定到已有 Workspace/Session；
-- 保存 ingress/outbound intent、去重、限流、uncertain 和恢复状态；
-- 向同一 DSH Web 控制面提供脱敏健康与操作。
+### dsh-evolve
 
-Feishu、Telegram 等 Adapter 只负责平台 SDK、长连接/轮询、凭据引用、平台格式和发送；不拥有 Session、Goal、审批
-或第二份路由状态。dsh-resident 只是可选的 OS user service 计划，不是第二个 Gateway。
+自我发现和自我进化核心。它记录真实 Interaction 的结果，识别能力缺口，生成隔离 Candidate，并通过独立评测决定是否
+让未来 Session 使用新的 Skill 版本。
 
-### 3.2 进化
+### dsh-control-center 与 dsh-evolve-web
 
-进化从原生 DSH 事件形成经验信号；它不从市场、ClawHub、互联网或其他 Agent 下载/导入 Skill。外部资料只在
-设计期研究使用。Candidate 不能改变正在运行的 Session，也不能读取或修改评测治理面。
+一个嵌入 DSH Web 的原生控制面。它展示 Gateway、渠道、能力、缺口、Candidate 谱系、评测、权限、成本、时延、cache、晋升、
+隔离和回滚，并把管理动作交给 DSH Host 权限。
 
-### 3.3 软件交付与连续性
+### dsh-doctor、dsh-software-delivery、dsh-goal-continuity、dsh-resident
 
-dsh-software-delivery 复用 DSH 的 Agent、Shell、Sandbox、Approval 和 Goal；dsh-goal-continuity 只补充受限冷恢复；
-两者都不创建任务数据库。GitHub review 是外部不可信输入，必须回到发起它的原生 Session。
+分别提供诊断、软件交付、原生 Goal 冷恢复和用户级常驻服务。它们复用 DSH 的原生能力，不建立第二套运行时或权限体系。
 
-### 3.4 Web
+## 4. 自我进化目标
 
-Control Center 注册一个原生、Session-scoped 的 conversation.view，再由 Gateway、Evolution、Delivery 等插件注入
-child slots。它是只读/受权限动作的 Host 投影，不调用模型、不复制 Session 数据库、不在模块级创建永久 registry。
-空 Session 或 DSH onboarding 状态下，DSH 官方行为可能不渲染该 slot；验证必须先打开/创建一个原生 Session，而不是
-用弹窗或固定侧栏绕过。
+自我进化只使用 DSH 内部真实经验：消息、命令、附件、反馈、Tool/Session 事件、渠道事件、计划触发、验证结果、返工、成本、
+时延、cache 和外部结果。它不在运行时搜索市场、ClawHub、互联网或下载外部 Skill。
 
-## 4. 研究后的取舍
+系统采用两段式闭环：在线环快速记录事实和形成调查；离线环聚类问题、生成完整 Skill Candidate，并在隔离环境中进行
+baseline/candidate 对照、结构准入、hidden holdout、retention、未见样本、回归、安全、权限、成本和时延评测。
 
-| 来源 | 吸收 | EvoForge 的具体化/测量 | 明确拒绝 |
-| --- | --- | --- | --- |
-| Hermes | 常驻 Gateway、跨渠道 Session、渐进式 Skill、异步 review/Curator | Gateway 与 Adapter 共用 DSH Host；paired 逐项记录人工介入、复用、恢复和外部效果 | 把 live Skill 直接当成唯一真相；用活动统计替代效果证据 |
-| OpenClaw | 事件驱动编排、隔离候选和人工控制的思路 | Candidate 内容寻址、三平面分权、holdout/retention、abstain/uncertain、原子指针和回滚 | 运行时外部能力获取、第二 Runtime 或新的权限中心 |
-| HanaAgent | Page/Widget/统一组件、失败隔离和可视化操作 | 同一 DSH `conversation.view`/Settings seam，统一 loading/empty/stale/error 状态和浏览器门 | 脱离 DSH 生命周期的独立控制面 |
-| GEPA/EvoSkill/SkillHone/OpenSkill/DGM | 候选生成、反思、holdout、搜索空间和长期实验的思想 | baseline/candidate 同条件对照，未见样本、负迁移、成本/时延/cache-read 和 paired Hermes 指标 | 模型自评、泄漏评测集、一次成功即发布 |
+Candidate 必须拥有完整内容地址、来源、父版本、DSH revision、权限边界和评测证据。执行面、Candidate 面和评测治理面
+彼此隔离；生成 Candidate 的 proposer 不能担任最终裁判。
 
-研究结论必须区分源码事实、用户痛点、推断和产品取舍；固定 revision 与来源见[研究索引](../research/README.zh.md)。
+证据不足时系统必须 abstain；不安全的 Candidate 进入 quarantine；外部结果未知时保持 uncertain。当前 Session 始终固定
+原版本，晋升只影响未来 Session。晋升、canary、暂停、恢复和 rollback 都是 Host 的原子动作，并支持崩溃恢复。
 
-## 5. 用户旅程
+## 5. Web 产品目标
 
-~~~text
-普通消息/命令/附件/纠正
-        │
-        ▼
-原生 DSH Session + 当前权限 + 已安装能力
-        │
-        ├── 能完成 → 正常结果 + 可归因 Experience signal
-        ├── 不能完成 → Gap investigation（不自动改写）
-        └── 长任务 → 用户可选 DSH Goal/原生 Schedule
-                              │
-                              ▼
-                  离线 Candidate → 独立评测 → review/promote/quarantine
-                              │
-                              ▼
-                     只影响未来 Session，失败可精确回滚
-~~~
+控制面必须在一个原生 DSH 页面内完成。用户能在同一页面看到 Gateway 和渠道健康、已安装插件与 Skill、能力缺口、Candidate
+谱系与 diff、评测证据、权限、成本、时延、cache、Protected Action，以及 pause、resume、approve、reject、promote、
+quarantine、rollback 的结果。
 
-渠道路径是同一流程的外部入口：
+页面不调用模型，不复制 DSH 状态，不启动第二个网站。刷新、断连、未授权、空 Session、卸载和恢复都必须有明确状态。
 
-~~~text
-飞书/Telegram → Adapter → resident Gateway → pairing/route → 原生 Session → Adapter outbound
-~~~
+## 6. 安装和开源目标
 
-首条陌生私聊只产生配对码，不进 Agent；管理员批准后下一条消息才进入绑定 Session。重复事件和不确定发送不会被
-盲目重发。
+普通用户只需要一个默认 `product` 套件和一条简短安装命令。安装器必须校验完整 manifest 和 SHA，将包保存到持久目录，
+调用 DSH 官方 add/remove，并在失败时保留可恢复产物。还要提供可直接交给 DSH Agent 的一行自然语言安装请求。
 
-## 6. 公开安装形态
+插件必须能在 clean profile 中完成安装、启动、真实 Session、reload、dispose、卸载和原生数据恢复。所有开发在 `main`
+进行；通过验证的增量立即提交并推送。运行时 Candidate 使用内容寻址存储，不使用 Git 分支；首个 annotated SemVer tag
+只能在所有发布门通过后创建。
 
-`product` 是唯一默认入口：evolve、doctor、control-center、evolve-web、gateway、feishu 和 telegram 一次安装；
-Gateway 空路由启动，平台 Adapter 在明确配置前关闭。`delivery`、`continuity` 是公开可选结果，`attention` 是可卸载
-提醒桥。`core`、`channels`、`evolution`、`control`、`gateway` 仅用于迁移/独立开发，`full` 仅用于维护验收。
+README 是用户手册。架构、需求、ADR、研究、状态和证据各自只有一个权威位置。`examples/` 与 `benchmarks/` 是维护者验收
+夹具，不是产品安装内容，也不能被用来夸大产品能力。
 
-逻辑套件名、Bundle id 和未来 registry 分发名必须分开记录；当前没有公开 registry 包。
+## 7. Hermes 上位替代的完成标准
 
-## 7. 可靠性与安全不变量
+只有同时满足以下条件，才能对某个工作流声明“上位替代”：
 
-- 执行、Candidate authoring、评测治理三平面隔离；proposer 不能兼任裁判。
-- Candidate 按整包内容寻址，保存来源、父代、权限、边界、DSH revision 和证据。
-- baseline/candidate 使用相同 DSH composition、权限、预算和模型条件；holdout/retention 在 authoring 前封存。
-- abstain、quarantine、uncertain 是一等结果；缺数据不能当 pass。
-- 当前 Session pin 不漂移；promotion/rollback 是原子 Host 决策，只改变未来 Session。
-- 代码、凭据、付款、消息发送和外部写入走 Protected Action；卸载不会撤回已发生副作用。
-- 所有 listener、timer、watcher、transport 和 Remote 都由 Cordis lifecycle 持有并在 dispose 后消失。
-- 凭据只通过 DSH CredentialProvider；不进入仓库、日志、Session 或公共证据。
+1. 用户能在真实 DSH 中安装并完成该工作流；
+2. Gateway、渠道、Session、Approval、恢复、卸载和外部效果符合声明；
+3. 自我进化的 Candidate 经过独立 baseline、holdout、retention、安全、成本和回滚门禁；
+4. 使用同任务、同模型、同权限、同预算和同 DSH revision 与 Hermes 做 paired benchmark；
+5. 记录成功率、人工干预、误调用、跨任务复用、负迁移、遗忘、误晋升、恢复、重复外部效果、成本、时延、cache-read 和
+   精确回滚；
+6. 任何越权、评测泄漏、当前 Session 漂移、不可卸载或无法精确回滚都会阻止发布。
 
-## 8. 验收与当前状态
-
-发布声明按每个工作流单独给出四态：designed、implemented、verified、better。better 只能来自同任务、同模型、
-同权限、同预算、同 DSH revision 的 Hermes paired benchmark，并同时记录成功率、人工介入、误调用、跨任务复用、
-负迁移/遗忘、误晋升、恢复、重复外部效果、token/时延/cache-read 和回滚。
-
-最近审计（2026-09-05）确认 canonical DSH 为 d347e703… / 0.1.3-alpha.1，安装通过但上游根构建被 dsh-root
-类型入口阻断；EvoForge 可构建支持组合仍为 alpha.5。当前真实渠道、真实 Provider、长期效果和完整 paired
-仍未齐备，因此项目保持 pre-alpha，不能宣称整体 Hermes 上位替代。细节见[当前状态](../status.zh.md)和[记分卡](hermes-replacement-scorecard.zh.md)。
-
-## 9. 文档与变更规则
-
-需求/术语改变时先更新 CONTEXT、requirements 与 ADR，再同步架构、状态和 README。历史证据只记录发生过的事实，不
-重新定义当前产品。代码只在 main 开发；每个通过测试的最小增量提交并推送 origin/main；运行时版本不使用 Git 分支，
-验证通过后才用 annotated SemVer tag。
+在这些条件完成前，项目只能按工作流标记为 `designed`、`implemented`、`verified`、`better`、`partial`、`blocked` 或
+`not-measured`，不能宣称整体 Hermes 上位替代。
