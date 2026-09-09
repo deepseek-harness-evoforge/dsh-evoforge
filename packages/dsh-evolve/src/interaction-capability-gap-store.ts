@@ -87,13 +87,18 @@ const interactionGapDomainSpec = defineDomain({
 type InteractionGapDomain = Domain<typeof interactionGapDomainSpec>
 
 class DomainInteractionCapabilityGapStore implements InteractionCapabilityGapStore {
+  private readonly domain: InteractionGapDomain
+  private readonly episodes: InteractionEpisodeSource
   private writeTail: Promise<void> = Promise.resolve()
   private closing?: Promise<void>
 
   constructor(
-    private readonly domain: InteractionGapDomain,
-    private readonly episodes: InteractionEpisodeSource,
-  ) {}
+    domain: InteractionGapDomain,
+    episodes: InteractionEpisodeSource,
+  ) {
+    this.domain = domain
+    this.episodes = episodes
+  }
 
   derive(candidate: InteractionEpisodeV1): Promise<{
     readonly created: boolean
@@ -168,10 +173,16 @@ class DomainInteractionCapabilityGapStore implements InteractionCapabilityGapSto
  * retry repairs the reference without ever creating a dangling Gap.
  */
 export class CompletedInteractionGapRecorder {
+  private readonly episodes: Pick<InteractionEpisodeStore, 'seal'>
+  private readonly gaps: Pick<InteractionCapabilityGapStore, 'derive'>
+
   constructor(
-    private readonly episodes: Pick<InteractionEpisodeStore, 'seal'>,
-    private readonly gaps: Pick<InteractionCapabilityGapStore, 'derive'>,
-  ) {}
+    episodes: Pick<InteractionEpisodeStore, 'seal'>,
+    gaps: Pick<InteractionCapabilityGapStore, 'derive'>,
+  ) {
+    this.episodes = episodes
+    this.gaps = gaps
+  }
 
   async recordCompleted(input: InteractionEpisodeInputV1): Promise<CompletedInteractionGapResult> {
     const sealed = await this.episodes.seal(input)

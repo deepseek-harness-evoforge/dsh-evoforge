@@ -170,13 +170,18 @@ const interactionEpisodeDomainSpec = defineDomain({
 type InteractionEpisodeDomain = Domain<typeof interactionEpisodeDomainSpec>
 
 class DomainInteractionEpisodeStore implements InteractionEpisodeStore {
+  private readonly domain: InteractionEpisodeDomain
+  private readonly sourceIndex: Map<string, string>
   private writeTail: Promise<void> = Promise.resolve()
   private closing?: Promise<void>
 
   constructor(
-    private readonly domain: InteractionEpisodeDomain,
-    private readonly sourceIndex: Map<string, string>,
-  ) {}
+    domain: InteractionEpisodeDomain,
+    sourceIndex: Map<string, string>,
+  ) {
+    this.domain = domain
+    this.sourceIndex = sourceIndex
+  }
 
   seal(input: InteractionEpisodeInputV1): Promise<{
     readonly created: boolean
