@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -7,11 +7,15 @@ import { openCapabilityGapStore } from '../src/capability-gap-store.ts'
 import { openDeliveryOutcomeStore } from '../src/delivery-outcome-monitor.ts'
 import { openFeedbackSignalStore } from '../src/feedback-signal-monitor.ts'
 import {
+  openInteractionEpisodeStore,
+  type InteractionEpisodeInputV1,
+} from '../src/interaction-episode-store.ts'
+import {
   openSkillCandidateStore,
   type ExperienceSkillCandidateInput,
 } from '../src/skill-candidate-repository.ts'
 import { ExperienceDrivenSkillOpportunityDiscovery } from '../src/skill-opportunity-discovery.ts'
-import { WORKSPACE_ID } from './workspace-fixture.ts'
+import { OTHER_WORKSPACE_ID, WORKSPACE_ID } from './workspace-fixture.ts'
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const suiteRoot = resolve(packageRoot, '../..')
@@ -24,6 +28,131 @@ afterEach(async () => {
 })
 
 describe.skipIf(process.platform !== 'darwin')('Capability Gap durable queue', () => {
+  it('seals exact Interaction episodes by completed turn and recovers them without cross-Workspace reads', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-interaction-episodes-'))
+    temporaryRoots.push(root)
+    const configPath = await writeStorageConfig(root)
+    const firstCtx = await bootStorage(configPath)
+    const firstStore = await openInteractionEpisodeStore(firstCtx.storageDomain)
+    let firstId = ''
+    let secondId = ''
+    try {
+      const first = await firstStore.seal(interactionEpisodeInput(1))
+      const duplicate = await firstStore.seal(interactionEpisodeInput(1))
+      const second = await firstStore.seal(interactionEpisodeInput(2))
+
+      expect(first.created).toBe(true)
+      expect(duplicate).toEqual({ created: false, episode: first.episode })
+      expect(second.created).toBe(true)
+      expect(second.episode.id).not.toBe(first.episode.id)
+      expect(Object.isFrozen(first.episode)).toBe(true)
+      expect(firstStore.get(WORKSPACE_ID, first.episode.id)).toEqual(first.episode)
+      expect(firstStore.get(OTHER_WORKSPACE_ID, first.episode.id)).toBeUndefined()
+      firstId = first.episode.id
+      secondId = second.episode.id
+    } finally {
+      await firstStore.close()
+      await firstCtx.fiber.dispose()
+    }
+
+    const resumedCtx = await bootStorage(configPath)
+    const resumedStore = await openInteractionEpisodeStore(resumedCtx.storageDomain)
+    try {
+      expect(resumedStore.get(WORKSPACE_ID, firstId)).toMatchObject({
+        schemaVersion: 1,
+        kind: 'interaction-episode-v1',
+        id: firstId,
+        session: { id: 'shared-session' },
+        source: { turn: 1, turnEndSeq: 8 },
+      })
+      expect(resumedStore.get(WORKSPACE_ID, secondId)).toMatchObject({
+        id: secondId,
+        session: { id: 'shared-session' },
+        source: { turn: 2, turnEndSeq: 17 },
+      })
+    } finally {
+      await resumedStore.close()
+      await resumedCtx.fiber.dispose()
+    }
+  })
+
+  it('serializes concurrent Episode seals, snapshots inputs, and rejects conflicting claims for one turn', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-interaction-episode-conflict-'))
+    temporaryRoots.push(root)
+    const ctx = await bootStorage(await writeStorageConfig(root))
+    const store = await openInteractionEpisodeStore(ctx.storageDomain)
+    const input = interactionEpisodeInput(1)
+    try {
+      const firstPending = store.seal(input)
+      const duplicatePending = store.seal(input)
+      input.trigger.requestedSkill = 'mutated-after-submit'
+      const results = await Promise.all([firstPending, duplicatePending])
+
+      expect(results.map(result => result.created).sort()).toEqual([false, true])
+      expect(results[0]!.episode.trigger.requestedSkill).toBe('publish-dsh-plugin')
+      expect(Object.isFrozen(results[0]!.episode.trigger)).toBe(true)
+
+      const conflict = interactionEpisodeInput(1)
+      conflict.replay.turnDigest = '8'.repeat(64)
+      await expect(store.seal(conflict)).rejects.toThrow(/source conflicts/u)
+
+      const shiftedSource = interactionEpisodeInput(1)
+      shiftedSource.source = {
+        ...shiftedSource.source,
+        prefixThroughSeq: 19,
+        enqueueSeq: 20,
+        turnStartSeq: 21,
+        claimSeq: 22,
+        initiatingMessageSeq: 24,
+        triggerCallSeq: 25,
+        triggerResultSeq: 26,
+        turnEndSeq: 28,
+      }
+      await expect(store.seal(shiftedSource)).rejects.toThrow(/source conflicts/u)
+      expect(store.get(WORKSPACE_ID, results[0]!.episode.id)).toEqual(results[0]!.episode)
+
+      await store.close()
+      await expect(store.seal(interactionEpisodeInput(2))).rejects.toThrow(/closing/u)
+    } finally {
+      await store.close()
+      await ctx.fiber.dispose()
+    }
+  })
+
+  it('fails closed when a durable Episode table key drifts from its content identity', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-interaction-episode-integrity-'))
+    temporaryRoots.push(root)
+    const configPath = await writeStorageConfig(root)
+    const firstCtx = await bootStorage(configPath)
+    const firstStore = await openInteractionEpisodeStore(firstCtx.storageDomain)
+    try {
+      await firstStore.seal(interactionEpisodeInput(1))
+    } finally {
+      await firstStore.close()
+      await firstCtx.fiber.dispose()
+    }
+
+    const path = join(root, 'storage', 'evoforge_interaction_episodes.json')
+    const document = JSON.parse(await readFile(path, 'utf8')) as {
+      tables: { episodes: Record<string, unknown> }
+    }
+    const entry = Object.entries(document.tables.episodes)[0]
+    if (entry === undefined) throw new Error('expected one durable Interaction episode')
+    const [id, episode] = entry
+    const wrongKey = `${id[0] === '0' ? '1' : '0'}${id.slice(1)}`
+    document.tables.episodes = { [wrongKey]: episode }
+    await writeFile(path, `${JSON.stringify(document, null, 2)}\n`)
+
+    const resumedCtx = await bootStorage(configPath)
+    try {
+      await expect(openInteractionEpisodeStore(resumedCtx.storageDomain)).rejects.toThrow(
+        /table key/u,
+      )
+    } finally {
+      await resumedCtx.fiber.dispose()
+    }
+  })
+
   it('deduplicates content identity, evicts oldest records, and recovers after restart', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-capability-gaps-'))
     temporaryRoots.push(root)
@@ -335,6 +464,60 @@ function gapInput(observedAt: number, requestedSkill: string) {
       catalog: 'complete' as const,
       routing: 'requested-skill-absent' as const,
       providers: 'settled' as const,
+    },
+  }
+}
+
+function interactionEpisodeInput(turn: 1 | 2): InteractionEpisodeInputV1 {
+  const offset = turn === 1 ? 0 : 9
+  return {
+    workspaceId: WORKSPACE_ID,
+    session: {
+      id: 'shared-session',
+      formatVersion: 0,
+      createdAt: 1_786_895_000_000,
+      inheritedEventCount: 0,
+      agentPreset: 'default',
+    },
+    source: {
+      turn,
+      prefixThroughSeq: offset === 0 ? null : offset - 1,
+      enqueueSeq: offset,
+      turnStartSeq: offset + 1,
+      claimSeq: offset + 2,
+      initiatingMessageSeq: offset + 4,
+      triggerCallSeq: offset + 5,
+      triggerResultSeq: offset + 6,
+      turnEndSeq: offset + 8,
+      completedAt: 1_786_896_000_000 + turn,
+    },
+    ingress: {
+      messageId: `message-${turn}`,
+      source: 'user',
+      digest: String(turn).repeat(64),
+    },
+    trigger: {
+      kind: 'model-declared-skill-gap',
+      callId: `gap-call-${turn}`,
+      requestedSkill: 'publish-dsh-plugin',
+      catalogHash: '3'.repeat(64),
+      catalogSize: 0,
+      generationId: '4'.repeat(64),
+    },
+    replay: {
+      availability: 'source-dependent',
+      transcript: 'exact',
+      environment: 'sealed',
+      prefixDigest: String(turn + 4).repeat(64),
+      turnDigest: String(turn + 6).repeat(64),
+      workspaceSnapshotDigest: '9'.repeat(64),
+      compositionDigest: 'a'.repeat(64),
+      modelDigest: 'b'.repeat(64),
+      permissionDigest: 'c'.repeat(64),
+      sandboxDigest: 'd'.repeat(64),
+      budgetDigest: 'e'.repeat(64),
+      dshRevision: 'f'.repeat(40),
+      externalEffects: 'none',
     },
   }
 }

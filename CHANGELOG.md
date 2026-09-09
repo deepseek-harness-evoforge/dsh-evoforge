@@ -14,6 +14,8 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 - Reframed the runtime around ordinary DSH interactions. A native Goal is optional; the Gap Tool remains available when
   the Goal service is absent, and no-Goal reports persist an explicit `abstained` signal instead of entering the legacy
   Goal-linked Candidate path.
+- Added a content-addressed Interaction Episode ledger for immutable completed-turn provenance and replay-environment
+  digest bindings. DSH Session remains the transcript authority; the ledger does not copy conversation bodies.
 - Consolidated Gateway, channel, Evolution, and Doctor visualization into one Session-scoped native DSH Web view.
 - Moved Feishu and Telegram secrets to the DSH CredentialProvider contract and kept both adapters disabled until their
   exact deployment configuration is present.

@@ -1136,6 +1136,13 @@ export type {
   FeedbackSignal,
   FeedbackSignalSummary,
 } from './feedback-signal-monitor.ts'
+export { openInteractionEpisodeStore } from './interaction-episode-store.ts'
+export type {
+  InteractionEpisodeInputV1,
+  InteractionEpisodeSource,
+  InteractionEpisodeStore,
+  InteractionEpisodeV1,
+} from './interaction-episode-store.ts'
 export { installSkillUseMonitor, openSkillUseStore } from './skill-use-monitor.ts'
 export type {
   SkillReuseCounts,

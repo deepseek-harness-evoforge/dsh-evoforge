@@ -117,6 +117,7 @@ jobs:
           test/shadow-jobs-dsh.e2e.test.ts
           test/delivery-outcome-store.e2e.test.ts
           test/case-pack-calibration-cli.test.ts
+          test/capability-gap-store.e2e.test.ts
           test/feedback-signal-monitor.e2e.test.ts
           test/generation-store.e2e.test.ts
           test/generation-binder.e2e.test.ts
