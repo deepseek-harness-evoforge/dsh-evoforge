@@ -27,6 +27,7 @@ import {
   createInteractionEpisodeEvidenceResolver,
   createStockDshAlpha5InteractionEpisodeEvidenceResolver,
   type DurableInteractionEpisodeSubjectV1,
+  type InteractionEpisodeDerivedEvidenceV1,
 } from '../src/interaction-episode-evidence-resolver.ts'
 import * as publicApi from '../src/index.ts'
 
@@ -549,12 +550,14 @@ describe('Interaction Episode evidence resolver', () => {
     })
     const stored = physicalSnapshot(fixture.session)
     let observedSubject: DurableInteractionEpisodeSubjectV1 | undefined
+    let observedDerived: InteractionEpisodeDerivedEvidenceV1 | undefined
     const resolver = createInteractionEpisodeEvidenceResolver({
       sessions: { get: () => fixture.session, flush: async () => true },
       sessionPersistence: { readFrom: async () => stored },
       attestor: {
-        resolve: async (subject) => {
+        resolve: async (subject, derived) => {
           observedSubject = subject
+          observedDerived = derived
           return completeHostResolution(subject)
         },
       },
@@ -567,6 +570,29 @@ describe('Interaction Episode evidence resolver', () => {
     })
     expect(observedSubject?.session.events).toHaveLength(fixture.turnEndSeq + 1)
     expect(observedSubject?.session.throughSeq).toBe(fixture.turnEndSeq)
+    expect(observedDerived).toMatchObject({
+      triggerRequestControl: {
+        schemaVersion: 1,
+        kind: 'interaction-episode-trigger-request-control-fact-v1',
+        sourceDialect: 'deepseek-harness@0.1.2-alpha.5',
+        subject: {
+          sessionId: 'episode-session',
+          throughSeq: fixture.turnEndSeq,
+        },
+        boundary: {
+          kind: 'trigger-assistant-and-tool-pair',
+          requestHeaderSeq: 5,
+          requestContextSeq: 6,
+          assistantMessageSeq: 11,
+          triggerCallSeq: 12,
+          triggerResultSeq: 13,
+        },
+        declaredRoute: { provider: 'fixture', model: 'fixture-model' },
+      },
+    })
+    expect(Object.isFrozen(observedDerived)).toBe(true)
+    expect(Object.isFrozen(observedDerived?.triggerRequestControl)).toBe(true)
+    expect(JSON.stringify(observedDerived)).not.toContain('Find a reusable release audit method.')
   })
 
   it('never invokes Host attestation when the durable transcript cannot prove the target call', async () => {

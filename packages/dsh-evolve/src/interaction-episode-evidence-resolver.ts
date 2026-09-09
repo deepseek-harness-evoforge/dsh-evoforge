@@ -26,6 +26,11 @@ import {
   type InteractionEpisodeTranscriptSourceV1,
   type InteractionTranscriptDirectTriggerLocatorV1,
 } from './interaction-episode-projector.ts'
+import {
+  projectInteractionEpisodeTriggerRequestControlV1,
+  type InteractionEpisodeTriggerRequestControlFactV1,
+  type InteractionEpisodeTriggerRequestControlSubjectV1,
+} from './interaction-trigger-request-control.ts'
 import type { InteractionEpisodeInputV1 } from './interaction-episode-store.ts'
 
 const stockMissingDimensions = [
@@ -55,23 +60,20 @@ export interface InteractionEpisodeResolutionTargetV1 {
  * Physically read-back Session subject supplied only to a trusted Host attestor.
  * The event cut ends exactly at `turnEndSeq`; later persisted events are excluded.
  */
-export interface DurableInteractionEpisodeSubjectV1 {
-  readonly schemaVersion: 1
-  readonly kind: 'durable-interaction-episode-subject-v1'
-  readonly session: {
-    readonly header: SessionHeader
-    readonly inheritedEventCount: number
-    readonly throughSeq: number
-    readonly events: readonly SessionEvent[]
-  }
-  readonly transcript: InteractionEpisodeTranscriptProofV1
-}
+export interface DurableInteractionEpisodeSubjectV1
+  extends InteractionEpisodeTriggerRequestControlSubjectV1 {}
 
 /** @internal Authority-bearing trusted-composition port; not a public verifier. */
 export interface InteractionEpisodeHostEvidenceAttestorV1 {
   resolve(
     subject: DurableInteractionEpisodeSubjectV1,
+    derived: InteractionEpisodeDerivedEvidenceV1,
   ): Promise<InteractionEpisodeHostEvidenceResolutionV1>
+}
+
+/** Session-authoritative projections; neither Host evidence nor provider attestation. */
+export interface InteractionEpisodeDerivedEvidenceV1 {
+  readonly triggerRequestControl: InteractionEpisodeTriggerRequestControlFactV1
 }
 
 type SessionDurabilityReason =
@@ -227,9 +229,17 @@ export function createInteractionEpisodeEvidenceResolver(
         transcript: transcript.proof,
       } as const satisfies DurableInteractionEpisodeSubjectV1)
 
+      const requestControl = projectInteractionEpisodeTriggerRequestControlV1(subject)
+      if (requestControl.status !== 'projected') {
+        return hostEvidenceAbstention('evidence-conflict', ['subject'])
+      }
+      const derived = immutableCopy({
+        triggerRequestControl: requestControl.fact,
+      } as const satisfies InteractionEpisodeDerivedEvidenceV1)
+
       let rawHost: unknown
       try {
-        rawHost = await attestor.resolve(subject)
+        rawHost = await attestor.resolve(subject, derived)
       } catch {
         return hostEvidenceAbstention('attestor-invocation-failed', ['binding'])
       }
