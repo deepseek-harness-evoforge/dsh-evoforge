@@ -11,6 +11,10 @@ import {
   type InteractionEpisodeInputV1,
 } from '../src/interaction-episode-store.ts'
 import {
+  CompletedInteractionGapRecorder,
+  openInteractionCapabilityGapStore,
+} from '../src/interaction-capability-gap-store.ts'
+import {
   openSkillCandidateStore,
   type ExperienceSkillCandidateInput,
 } from '../src/skill-candidate-repository.ts'
@@ -150,6 +154,194 @@ describe.skipIf(process.platform !== 'darwin')('Capability Gap durable queue', (
       )
     } finally {
       await resumedCtx.fiber.dispose()
+    }
+  })
+
+  it('derives and recovers a reference-only Interaction Gap from a sealed Episode', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-interaction-gap-'))
+    temporaryRoots.push(root)
+    const configPath = await writeStorageConfig(root)
+    const firstCtx = await bootStorage(configPath)
+    const firstEpisodes = await openInteractionEpisodeStore(firstCtx.storageDomain)
+    const firstGaps = await openInteractionCapabilityGapStore(
+      firstCtx.storageDomain,
+      firstEpisodes,
+    )
+    const recorder = new CompletedInteractionGapRecorder(firstEpisodes, firstGaps)
+    let gapId = ''
+    try {
+      const first = await recorder.recordCompleted(interactionEpisodeInput(1))
+      const duplicate = await recorder.recordCompleted(interactionEpisodeInput(1))
+
+      expect(first.episodeCreated).toBe(true)
+      expect(first.gapCreated).toBe(true)
+      expect(duplicate.episodeCreated).toBe(false)
+      expect(duplicate.gapCreated).toBe(false)
+      expect(first.episode.id).toBe(
+        'a095daf96ddf0f8b45511190160714922a940d1ec393225753e7de6f3cc8a5ef',
+      )
+      expect(first.gap.id).toBe(
+        'd088da15b7ec3c3903af417c8b5b6cbfc2a0a8d79b4051b3d6ae8461a03c8104',
+      )
+      expect(first.gap).toEqual({
+        schemaVersion: 1,
+        kind: 'interaction-capability-gap-v1',
+        id: first.gap.id,
+        experience: {
+          kind: 'interaction-episode-v1',
+          workspaceId: WORKSPACE_ID,
+          episodeId: first.episode.id,
+        },
+      })
+      expect(firstGaps.list(WORKSPACE_ID)).toEqual([{ gap: first.gap, episode: first.episode }])
+      expect(firstGaps.get(OTHER_WORKSPACE_ID, first.gap.id)).toBeUndefined()
+
+      const forgedEpisode = structuredClone(first.episode)
+      forgedEpisode.trigger.catalogHash = '8'.repeat(64)
+      await expect(firstGaps.derive(forgedEpisode)).rejects.toThrow(/sealed source/u)
+      gapId = first.gap.id
+    } finally {
+      await firstGaps.close()
+      await firstEpisodes.close()
+      await firstCtx.fiber.dispose()
+    }
+
+    const resumedCtx = await bootStorage(configPath)
+    const resumedEpisodes = await openInteractionEpisodeStore(resumedCtx.storageDomain)
+    const resumedGaps = await openInteractionCapabilityGapStore(
+      resumedCtx.storageDomain,
+      resumedEpisodes,
+    )
+    try {
+      expect(resumedGaps.get(WORKSPACE_ID, gapId)).toMatchObject({
+        gap: {
+          id: gapId,
+          experience: { kind: 'interaction-episode-v1', workspaceId: WORKSPACE_ID },
+        },
+        episode: {
+          kind: 'interaction-episode-v1',
+          session: { id: 'shared-session' },
+          trigger: { requestedSkill: 'publish-dsh-plugin' },
+        },
+      })
+    } finally {
+      await resumedGaps.close()
+      await resumedEpisodes.close()
+      await resumedCtx.fiber.dispose()
+    }
+  })
+
+  it('repairs an orphan Episode when the derived Gap write is retried', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-interaction-gap-retry-'))
+    temporaryRoots.push(root)
+    const ctx = await bootStorage(await writeStorageConfig(root))
+    const episodes = await openInteractionEpisodeStore(ctx.storageDomain)
+    const gaps = await openInteractionCapabilityGapStore(ctx.storageDomain, episodes)
+    let injectFailure = true
+    const recorder = new CompletedInteractionGapRecorder(episodes, {
+      derive: async (episode) => {
+        if (injectFailure) {
+          injectFailure = false
+          throw new Error('injected Interaction Gap write failure')
+        }
+        return gaps.derive(episode)
+      },
+    })
+    const input = interactionEpisodeInput(1)
+    try {
+      await expect(recorder.recordCompleted(input)).rejects.toThrow(/injected/u)
+      expect(gaps.list(WORKSPACE_ID)).toEqual([])
+      expect((await episodes.seal(input)).created).toBe(false)
+
+      const repaired = await recorder.recordCompleted(input)
+      expect(repaired.episodeCreated).toBe(false)
+      expect(repaired.gapCreated).toBe(true)
+      const duplicate = await recorder.recordCompleted(input)
+      expect(duplicate.episodeCreated).toBe(false)
+      expect(duplicate.gapCreated).toBe(false)
+      expect(gaps.list(WORKSPACE_ID)).toEqual([{
+        gap: repaired.gap,
+        episode: repaired.episode,
+      }])
+    } finally {
+      await gaps.close()
+      await episodes.close()
+      await ctx.fiber.dispose()
+    }
+  })
+
+  it('fails closed on a durable Interaction Gap whose Episode was lost', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-interaction-gap-dangling-'))
+    temporaryRoots.push(root)
+    const configPath = await writeStorageConfig(root)
+    const firstCtx = await bootStorage(configPath)
+    const firstEpisodes = await openInteractionEpisodeStore(firstCtx.storageDomain)
+    const firstGaps = await openInteractionCapabilityGapStore(
+      firstCtx.storageDomain,
+      firstEpisodes,
+    )
+    try {
+      await new CompletedInteractionGapRecorder(firstEpisodes, firstGaps)
+        .recordCompleted(interactionEpisodeInput(1))
+    } finally {
+      await firstGaps.close()
+      await firstEpisodes.close()
+      await firstCtx.fiber.dispose()
+    }
+
+    const episodePath = join(root, 'storage', 'evoforge_interaction_episodes.json')
+    const originalEpisodeDocument = await readFile(episodePath, 'utf8')
+    const document = JSON.parse(originalEpisodeDocument) as {
+      tables: { episodes: Record<string, unknown> }
+    }
+    document.tables.episodes = {}
+    await writeFile(episodePath, `${JSON.stringify(document, null, 2)}\n`)
+
+    const danglingCtx = await bootStorage(configPath)
+    const missingEpisodes = await openInteractionEpisodeStore(danglingCtx.storageDomain)
+    try {
+      await expect(openInteractionCapabilityGapStore(
+        danglingCtx.storageDomain,
+        missingEpisodes,
+      )).rejects.toThrow(/references missing Episode/u)
+    } finally {
+      await missingEpisodes.close()
+      await danglingCtx.fiber.dispose()
+    }
+
+    await writeFile(episodePath, originalEpisodeDocument)
+    const repairedCtx = await bootStorage(configPath)
+    const repairedEpisodes = await openInteractionEpisodeStore(repairedCtx.storageDomain)
+    const repairedGaps = await openInteractionCapabilityGapStore(
+      repairedCtx.storageDomain,
+      repairedEpisodes,
+    )
+    try {
+      expect(repairedGaps.list(WORKSPACE_ID)).toHaveLength(1)
+    } finally {
+      await repairedGaps.close()
+      await repairedEpisodes.close()
+      await repairedCtx.fiber.dispose()
+    }
+  })
+
+  it('preserves the legacy Goal-qualified Gap V1 identity', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-legacy-gap-identity-'))
+    temporaryRoots.push(root)
+    const ctx = await bootStorage(await writeStorageConfig(root))
+    const store = await openCapabilityGapStore(ctx.storageDomain)
+    try {
+      const input = gapInput(1, 'first-missing')
+      const recorded = await store.record(input)
+      expect(recorded.gap).toEqual({
+        schemaVersion: 1,
+        id: '4a4c8a4aea980fcd6f2788581a29fd56b6711b90763e16b43b3d5e8ed1f0db62',
+        ...input,
+        status: 'confirmed',
+      })
+    } finally {
+      await store.close()
+      await ctx.fiber.dispose()
     }
   })
 

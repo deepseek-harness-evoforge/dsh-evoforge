@@ -1143,6 +1143,18 @@ export type {
   InteractionEpisodeStore,
   InteractionEpisodeV1,
 } from './interaction-episode-store.ts'
+export {
+  CompletedInteractionGapRecorder,
+  openInteractionCapabilityGapStore,
+} from './interaction-capability-gap-store.ts'
+export type {
+  CompletedInteractionGapResult,
+  InteractionCapabilityGapSource,
+  InteractionCapabilityGapStore,
+  InteractionCapabilityGapV1,
+  InteractionCapabilityGapViewV1,
+  InteractionEpisodeRefV1,
+} from './interaction-capability-gap-store.ts'
 export { installSkillUseMonitor, openSkillUseStore } from './skill-use-monitor.ts'
 export type {
   SkillReuseCounts,
