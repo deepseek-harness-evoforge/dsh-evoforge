@@ -11,8 +11,9 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
   Feishu, and Telegram are installed together; platform adapters stay disabled until configured.
 - Added `pnpm run dsh:install`, which verifies exact suite artifacts, stores local package sources in a durable
   content-addressed directory, withholds the effective DSH config from logs, and preserves recovery evidence on failure.
-- Reframed the runtime around ordinary DSH interactions. A native Goal is optional; no-Goal gap reports now persist an
-  explicit `abstained` signal instead of being rejected or entering the legacy Goal-linked Candidate path.
+- Reframed the runtime around ordinary DSH interactions. A native Goal is optional; the Gap Tool remains available when
+  the Goal service is absent, and no-Goal reports persist an explicit `abstained` signal instead of entering the legacy
+  Goal-linked Candidate path.
 - Consolidated Gateway, channel, Evolution, and Doctor visualization into one Session-scoped native DSH Web view.
 - Moved Feishu and Telegram secrets to the DSH CredentialProvider contract and kept both adapters disabled until their
   exact deployment configuration is present.

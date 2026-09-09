@@ -523,7 +523,7 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
     }
   })
 
-  it('loads with one stable autonomous Gap Tool and removal restores native model composition', async () => {
+  it('loads one stable autonomous Gap Tool without Goal and removal restores native model composition', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-runtime-plugin-'))
     temporaryRoots.push(root)
     const { evolvedConfig, nativeConfig } = await writeRuntimeConfigs(root)
@@ -542,6 +542,8 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
     }
 
     const evolvedCtx = await bootStorage(evolvedConfig)
+    expect(evolvedCtx.get('tools')).toBeDefined()
+    expect(evolvedCtx.get('goals')).toBeUndefined()
     const service = evolvedCtx.get('evoforge.evolution') as EvolutionStore | undefined
     expect(service).toBeDefined()
     if (service === undefined) throw new Error('evolution service did not load')
@@ -929,7 +931,6 @@ async function writeRuntimeConfigs(root: string): Promise<{
     { id: 'session', name: '@deepseek-ai/dsh-session' },
     { id: 'agent', name: '@deepseek-ai/dsh-agent' },
     { id: 'session-projection', name: '@deepseek-ai/dsh-session-projection' },
-    { id: 'goal', name: '@deepseek-ai/dsh-goal' },
     { id: 'storage', name: '@deepseek-ai/dsh-storage' },
     {
       id: 'storage-json',

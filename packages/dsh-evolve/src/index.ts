@@ -683,7 +683,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         : reconcileSkillOpportunities(gap.workspaceId),
     },
   )
-  ctx.inject(['tools', 'goals'], (toolCtx) => {
+  ctx.inject(['tools'], (toolCtx) => {
     installCapabilityGapTool(
       toolCtx,
       capabilityGaps,

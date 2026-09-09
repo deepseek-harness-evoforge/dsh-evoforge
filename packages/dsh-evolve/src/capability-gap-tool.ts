@@ -125,8 +125,10 @@ function currentGoal(
   ctx: Context,
   agent: Agent,
 ): CapabilityGap['goal'] | undefined {
+  const goals = ctx.get('goals')
+  if (goals === undefined) return undefined
   try {
-    const goal = ctx.goals.get(agent)
+    const goal = goals.get(agent)
     if (goal === undefined) return undefined
     return { id: goal.id, revision: goal.revision, objective: goal.objective }
   } catch {
