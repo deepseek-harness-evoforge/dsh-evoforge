@@ -36,6 +36,7 @@ afterEach(() => {
 
 describe('Interaction Episode evidence resolver', () => {
   it('keeps the injectable evidence authority outside the package root', () => {
+    expect(publicApi).not.toHaveProperty('createGatewayAwareDshAlpha5InteractionEpisodeEvidenceResolver')
     expect(publicApi).not.toHaveProperty('createInteractionEpisodeEvidenceResolver')
     expect(publicApi).not.toHaveProperty('createStockDshAlpha5InteractionEpisodeEvidenceResolver')
   })

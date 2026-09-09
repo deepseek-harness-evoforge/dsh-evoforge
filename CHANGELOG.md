@@ -18,6 +18,8 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
   digest bindings. DSH Session remains the transcript authority; the ledger does not copy conversation bodies.
 - Added a separate reference-only Interaction Capability Gap index and an Episode-first recorder. Failed Gap writes leave
   only a safe orphan Episode, and exact retry repairs the index without changing the legacy Goal-qualified Gap domain.
+- Added a redacted Gateway ingress witness for Interaction evidence. It binds an authorized Workspace route to one exact
+  durable Session enqueue; missing, ambiguous, or conflicting evidence abstains without delaying or failing delivery.
 - Consolidated Gateway, channel, Evolution, and Doctor visualization into one Session-scoped native DSH Web view.
 - Moved Feishu and Telegram secrets to the DSH CredentialProvider contract and kept both adapters disabled until their
   exact deployment configuration is present.

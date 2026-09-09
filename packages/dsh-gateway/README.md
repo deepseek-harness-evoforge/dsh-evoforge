@@ -31,6 +31,8 @@ or model-selected routing is rejected.
 ## Reliability and Web
 
 - Ingress identity and outbound intent are durable before effects; duplicate identity drift is rejected.
+- A read-only in-process evidence source can bind one settled ingress to its exact Workspace and Session enqueue. The
+  retained ticket contains hashes and opaque ids, not message bodies or paths; any mismatch abstains fail-closed.
 - Only an explicit rate-limit response permits bounded retry. Timeout, crash, or ambiguous send becomes `uncertain`.
 - Cordis owns every listener, transport, and timer; disable/reload/remove releases them.
 - The shared Control Center shows redacted transport, pairing, route, delivery, and failure state without message bodies,

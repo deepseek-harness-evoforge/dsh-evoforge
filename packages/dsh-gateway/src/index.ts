@@ -2,6 +2,11 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type Schema from '@deepseek-ai/schemastery'
 import { openGatewayIngressJournal } from './ingress-journal.js'
+import {
+  createGatewayIngressEvidenceSource,
+  openGatewayIngressEvidenceVault,
+  type GatewayIngressEvidenceVaultV1,
+} from './message-ingress-evidence.js'
 import { openGatewayOutboundJournal, type GatewayOutboundJournal } from './outbound-journal.js'
 import { DshGateway } from './gateway.js'
 import { GatewayRemoteService } from './gateway-remote.js'
@@ -14,6 +19,7 @@ export const inject = [
   'agents',
   'agentPresets',
   'commands',
+  'sessions',
   'sessionPersistence',
   'storageDomain',
   'workspaceRegistry',
@@ -62,6 +68,7 @@ export const Config: Schema<Config> = z.object({
 
 /** Install one shared Host Gateway for transport-only channel Adapters. */
 export async function apply(ctx: Context, config: Config = {}): Promise<void> {
+  const routes = resolveGatewayRoutes(config.routes ?? [])
   const journal = await openGatewayIngressJournal(ctx.storageDomain, {
     maxRecords: config.maxIngressRecords ?? 10_000,
   })
@@ -71,7 +78,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       maxRecords: config.maxOutboundRecords ?? 10_000,
     })
   } catch (error) {
-    await journal.close()
+    const cleanup = (await Promise.allSettled([journal.close()]))[0]
+    if (cleanup?.status === 'rejected') {
+      ctx.logger.warn(`dsh-gateway: startup cleanup failed: ${safeMessage(cleanup.reason)}`)
+    }
     throw error
   }
   let pairing: GatewayPairingAuthority | undefined
@@ -86,18 +96,30 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     await Promise.allSettled([outbound.close(), journal.close()])
     throw error
   }
+  let ingressEvidence: GatewayIngressEvidenceVaultV1
+  try {
+    ingressEvidence = await openGatewayIngressEvidenceVault(ctx.storageDomain, {
+      maxRecords: config.maxIngressRecords ?? 10_000,
+    })
+  } catch (error) {
+    await Promise.allSettled([pairing?.close(), outbound.close(), journal.close()])
+    throw error
+  }
   const gateway = new DshGateway(
     ctx,
-    resolveGatewayRoutes(config.routes ?? []),
+    routes,
     journal,
     outbound,
     pairing,
+    ingressEvidence,
   )
+  const ingressEvidenceSource = createGatewayIngressEvidenceSource(ingressEvidence, journal)
   try {
     await gateway.start()
     new GatewayRemoteService(ctx, gateway)
     ctx.effect(() => () => gateway.stop(), 'dsh-gateway.runtime')
     ctx.provide('evoforge.gateway' as never, gateway as never)
+    ctx.provide('evoforge.gatewayIngressEvidence', ingressEvidenceSource)
   } catch (error: unknown) {
     const cleanup = (await Promise.allSettled([gateway.stop()]))[0]
     if (cleanup?.status === 'rejected') {
@@ -142,6 +164,11 @@ export {
   type GatewayIngressJournalOptions,
   type PrepareGatewayIngressInput,
 } from './ingress-journal.js'
+export type {
+  GatewayIngressEvidenceQueryV1,
+  GatewayIngressEvidenceResolutionV1,
+  GatewayIngressEvidenceSourceV1,
+} from './message-ingress-evidence.js'
 export {
   GatewayOutboundCoordinator,
   type GatewayOutboundHealth,

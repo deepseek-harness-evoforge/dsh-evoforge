@@ -348,6 +348,31 @@ export const TYPERT = {
             "declaration": "export type GatewayTransportState = 'connecting' | 'ready' | 'degraded' | 'stopping';"
           }
         ]
+      },
+      {
+        "description": "Least-authority historical service; it cannot dispatch or inspect routes.",
+        "summary": "Least-authority historical service; it cannot dispatch or inspect routes.",
+        "tags": [],
+        "jsDoc": "/** Least-authority historical service; it cannot dispatch or inspect routes. */",
+        "key": "evoforge.gatewayIngressEvidence",
+        "exportName": "GatewayIngressEvidenceSourceV1",
+        "members": [
+          {
+            "kind": "method",
+            "name": "resolveIngressEvidence",
+            "signature": "resolveIngressEvidence( query: GatewayIngressEvidenceQueryV1, ): Promise<GatewayIngressEvidenceResolutionV1>"
+          }
+        ],
+        "types": [
+          {
+            "name": "GatewayIngressEvidenceQueryV1",
+            "declaration": "export interface GatewayIngressEvidenceQueryV1 {\n    readonly schemaVersion: 1;\n    readonly kind: 'gateway-ingress-evidence-query-v1';\n    readonly session: { readonly header: SessionHeader; readonly inheritedEventCount: number; };\n    readonly enqueue: SessionEvent<'agent/inbox/spliced'>;\n}"
+          },
+          {
+            "name": "GatewayIngressEvidenceResolutionV1",
+            "declaration": "export type GatewayIngressEvidenceResolutionV1 = { readonly status: 'matched'; readonly fact: { readonly schemaVersion: 1; readonly kind: 'gateway-ingress-workspace-fact-v1'; readonly workspaceId: string; }; } | { readonly status: 'abstained'; readonly reason: 'evidence-unavailable' | 'evidence-conflict'; };"
+          }
+        ]
       }
     ],
     "events": [

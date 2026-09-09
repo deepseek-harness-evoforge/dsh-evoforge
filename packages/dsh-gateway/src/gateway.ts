@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto'
+import { isDeepStrictEqual } from 'node:util'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent, AgentHandle } from '@deepseek-ai/dsh-agent'
 import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
@@ -6,7 +7,13 @@ import type {} from '@deepseek-ai/dsh-agent-presets'
 import { parseCommand } from '@deepseek-ai/dsh-commands'
 import type { CommandExecution } from '@deepseek-ai/dsh-commands/types'
 import { freezeMessage, MessageId } from '@deepseek-ai/dsh-llm'
-import { SessionId, type SessionEvent, type SessionHeader, type UserMessage } from '@deepseek-ai/dsh-session'
+import {
+  SessionId,
+  SessionLogOffset,
+  type SessionEvent,
+  type SessionHeader,
+  type UserMessage,
+} from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-session-persistence'
 import { WorkspaceId, type Workspace } from '@deepseek-ai/dsh-workspace'
 import type {
@@ -14,6 +21,10 @@ import type {
   GatewayIngressRecord,
   GatewayIngressJournal,
 } from './ingress-journal.js'
+import type {
+  GatewayIngressEvidenceObservationV1,
+  GatewayIngressEvidenceVaultV1,
+} from './message-ingress-evidence.js'
 import type {
   GatewayEndpoint,
   ResolvedGatewayRoute,
@@ -66,6 +77,15 @@ interface GatewayUserContent {
   readonly blocks: Readonly<UserMessage['content']>
   readonly commandText?: string
   readonly contentHash: string
+}
+
+interface IngressEvidenceBoundary {
+  readonly workspace: Workspace
+  readonly session: Agent['session']
+  readonly header: SessionHeader
+  readonly inheritedEventCount: number
+  readonly beforeSeq: number
+  readonly nextTurnLength: number
 }
 
 interface GatewayDispatchBase {
@@ -192,6 +212,7 @@ export class DshGateway {
     private readonly ingressJournal: GatewayIngressJournal,
     private readonly outboundJournal: GatewayOutboundJournal,
     private readonly pairing?: GatewayPairingAuthority,
+    private readonly ingressEvidence?: GatewayIngressEvidenceVaultV1,
   ) {
     this.outbound = new GatewayOutboundCoordinator(
       configured,
@@ -621,20 +642,41 @@ export class DshGateway {
 
   private cleanupResources(): Promise<void> {
     this.cleanupPromise ??= (async () => {
-      this.removeSessionEvents?.()
+      const failures: unknown[] = []
+      const settle = async (
+        operations: readonly (() => void | Promise<void>)[],
+      ): Promise<void> => {
+        const results = await Promise.allSettled(operations.map(operation =>
+          Promise.resolve().then(operation)))
+        for (const result of results) {
+          if (result.status === 'rejected') failures.push(result.reason)
+        }
+      }
+
+      const removeSessionEvents = this.removeSessionEvents
       this.removeSessionEvents = undefined
+      if (removeSessionEvents !== undefined) await settle([removeSessionEvents])
       await Promise.allSettled(this.ingressTails.values())
       // A direct resolve() may be creating or resuming a Native Agent without
       // an ingress tail. Wait before snapshotting owned handles so a late
       // resolution cannot publish an undisposed handle after Host shutdown.
       await Promise.allSettled(this.resolutions.values())
-      await this.outbound.stop()
-      this.transports.stop()
+      await settle([() => this.outbound.stop()])
+      await settle([() => this.transports.stop()])
       const handles = [...this.ownedHandles.values()]
       this.ownedHandles.clear()
-      await Promise.allSettled(handles.map(handle => handle.dispose()))
-      await this.ingressJournal.close()
-      await this.pairing?.close()
+      await settle(handles.map(handle => () => handle.dispose()))
+      const closes: Array<() => Promise<void>> = [() => this.ingressJournal.close()]
+      const ingressEvidence = this.ingressEvidence
+      if (ingressEvidence !== undefined) closes.push(() => ingressEvidence.close())
+      const pairing = this.pairing
+      if (pairing !== undefined) closes.push(() => pairing.close())
+      await settle(closes)
+
+      if (failures.length === 1) throw failures[0]
+      if (failures.length > 1) {
+        throw new AggregateError(failures, 'DSH gateway cleanup failed')
+      }
     })()
     return this.cleanupPromise
   }
@@ -662,23 +704,39 @@ export class DshGateway {
     })
     if (!prepared.created) return this.replaySettled(input.route, agent, prepared.record)
 
-    await this.ingressJournal.begin(input.ingressId, Date.now())
+    const executing = await this.ingressJournal.begin(input.ingressId, Date.now())
     if (kind === 'message') {
       const messageId = `channel:${input.ingressId}`
+      const message = freezeMessage({
+        id: MessageId(messageId),
+        role: 'user',
+        content: [...input.content.blocks],
+        source: { kind: 'user' },
+      } satisfies UserMessage)
+      let evidenceObservation: GatewayIngressEvidenceObservationV1 | undefined
       try {
         if (!messageSeen(agent, messageId)) {
-          agent.followup(freezeMessage({
-            id: MessageId(messageId),
-            role: 'user',
-            content: [...input.content.blocks],
-            source: { kind: 'user' },
-          } satisfies UserMessage))
+          const boundary = this.captureIngressEvidenceBoundary(input.route, agent)
+          if (boundary === undefined) {
+            agent.followup(message)
+          } else {
+            evidenceObservation = this.followupWithIngressEvidence(
+              executing,
+              input.route,
+              boundary,
+              agent,
+              message,
+            )
+          }
         }
       } catch (error: unknown) {
         await this.ingressJournal.markUncertain(input.ingressId, safeMessage(error), Date.now())
         throw error
       }
       await this.ingressJournal.settleMessage(input.ingressId, Date.now())
+      if (evidenceObservation !== undefined) {
+        this.retainIngressEvidence(evidenceObservation)
+      }
       return Object.freeze({
         kind: 'message', route: input.route, agent, duplicate: false, ingressId: input.ingressId,
       })
@@ -720,6 +778,166 @@ export class DshGateway {
       return Object.freeze({ kind: 'command', route, agent, duplicate: true, ingressId: record.id, result: record.commandResult })
     }
     return Object.freeze({ kind: 'message', route, agent, duplicate: true, ingressId: record.id })
+  }
+
+  /**
+   * Bracket the one synchronous alpha.5 followup commit. Everything before
+   * `followup` is an authority check; anything ambiguous after a successful
+   * return degrades only the auxiliary evidence, never message delivery.
+   */
+  private followupWithIngressEvidence(
+    ingress: GatewayIngressRecord,
+    route: ResolvedGatewayRoute,
+    boundary: IngressEvidenceBoundary,
+    agent: Agent,
+    message: UserMessage,
+  ): GatewayIngressEvidenceObservationV1 | undefined {
+    const evidence = this.ingressEvidence
+    if (evidence === undefined) {
+      agent.followup(message)
+      return undefined
+    }
+
+    // Every evidence-only read happened in the non-throwing capture. Once the
+    // ingress journal says `executing`, the primary effect is the first
+    // fallible operation; an unavailable witness must never poison an
+    // unattempted delivery as `uncertain`.
+    agent.followup(message)
+
+    const {
+      workspace,
+      session,
+      header,
+      inheritedEventCount,
+      beforeSeq,
+      nextTurnLength,
+    } = boundary
+
+    try {
+      const stable = this.ingressEvidenceBoundaryMatches(
+        route,
+        workspace,
+        agent,
+        session,
+        header,
+        inheritedEventCount,
+      )
+      const suffix = session.snapshotEvents(SessionLogOffset(beforeSeq))
+      const candidates = suffix.filter(
+        (event): event is SessionEvent<'agent/inbox/spliced'> =>
+          event.type === 'agent/inbox/spliced'
+          && event.data.inserted.some(inserted =>
+            inserted.id === message.id || isDeepStrictEqual(inserted, message)),
+      )
+      const enqueue = candidates[0]
+      if (!stable
+        || candidates.length !== 1
+        || enqueue === undefined
+        || enqueue.seq !== beforeSeq
+        || enqueue.data.target !== 'next-turn'
+        || enqueue.data.start !== nextTurnLength
+        || enqueue.data.removedCount !== undefined
+        || enqueue.data.outcome !== undefined
+        || enqueue.data.inserted.length !== 1
+        || !isDeepStrictEqual(enqueue.data.inserted[0], message)) {
+        return { status: 'conflict', ingress }
+      }
+      return {
+        status: 'resolved',
+        ingress,
+        workspace: {
+          id: String(workspace.id),
+          path: workspace.path,
+          createdAt: workspace.createdAt,
+        },
+        session: { header, inheritedEventCount },
+        message,
+        enqueue,
+      }
+    } catch (error: unknown) {
+      this.ctx.logger.warn(`dsh-gateway could not inspect ingress evidence: ${safeMessage(error)}`)
+      return { status: 'conflict', ingress }
+    }
+  }
+
+  private captureIngressEvidenceBoundary(
+    route: ResolvedGatewayRoute,
+    agent: Agent,
+  ): IngressEvidenceBoundary | undefined {
+    if (this.ingressEvidence === undefined) return undefined
+    try {
+      const workspace = this.ctx.workspaceRegistry.get(WorkspaceId(route.workspaceId))
+      if (workspace === undefined) return undefined
+      const session = agent.session
+      const header = structuredClone(session.header)
+      const inheritedEventCount: unknown = session.inheritedEventCount
+      const beforeSeq: unknown = session.seq
+      const nextTurnLength: unknown = agent.inbox.nextTurn.length
+      if (typeof inheritedEventCount !== 'number'
+        || !Number.isSafeInteger(inheritedEventCount)
+        || inheritedEventCount < 0
+        || typeof beforeSeq !== 'number'
+        || !Number.isSafeInteger(beforeSeq)
+        || beforeSeq < 0
+        || typeof nextTurnLength !== 'number'
+        || !Number.isSafeInteger(nextTurnLength)
+        || nextTurnLength < 0
+        || !this.ingressEvidenceBoundaryMatches(
+          route,
+          workspace,
+          agent,
+          session,
+          header,
+          inheritedEventCount,
+        )) return undefined
+      return {
+        workspace,
+        session,
+        header,
+        inheritedEventCount,
+        beforeSeq,
+        nextTurnLength,
+      }
+    } catch {
+      return undefined
+    }
+  }
+
+  private retainIngressEvidence(observation: GatewayIngressEvidenceObservationV1): void {
+    const label = observation.status === 'conflict' ? ' conflict' : ''
+    void this.ingressEvidence?.retain(observation).catch((error: unknown) => {
+      this.ctx.logger.warn(
+        `dsh-gateway could not retain ingress evidence${label}: ${safeMessage(error)}`,
+      )
+    })
+  }
+
+  private ingressEvidenceBoundaryMatches(
+    route: ResolvedGatewayRoute,
+    workspace: Workspace,
+    agent: Agent,
+    session: Agent['session'],
+    header: SessionHeader,
+    inheritedEventCount: number,
+  ): boolean {
+    try {
+      this.assertRunning()
+      if (!isDeepStrictEqual(this.route(route.id), route)
+        || this.ctx.workspaceRegistry.get(WorkspaceId(route.workspaceId)) !== workspace
+        || this.ctx.agents.get(SessionId(route.sessionId)) !== agent
+        || agent.session !== session
+        || this.ctx.sessions.get(SessionId(route.sessionId)) !== session
+        || String(workspace.id) !== route.workspaceId
+        || workspace.path !== header.cwd
+        || !workspace.sessionIds.some(id => id === session.id)
+        || !isDeepStrictEqual(session.header, header)
+        || session.inheritedEventCount !== inheritedEventCount
+        || !Number.isSafeInteger(inheritedEventCount)
+        || inheritedEventCount < 0) return false
+      return true
+    } catch {
+      return false
+    }
   }
 
   private commandIsRegistered(agent: Agent, line: string): boolean {

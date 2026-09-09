@@ -8,5 +8,8 @@
     "rewriteRelativeImportExtensions": true,
     "types": ["node"]
   },
+  "references": [
+    { "path": "../dsh-gateway" }
+  ],
   "include": ["src/**/*.ts"]
 }

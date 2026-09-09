@@ -79,7 +79,8 @@
     "@deepseek-ai/dsh-storage-domain": "0.1.2-alpha.5",
     "@deepseek-ai/dsh-tools": "0.1.2-alpha.5",
     "@deepseek-ai/dsh-typert-protocol": "0.1.2-alpha.5",
-    "@deepseek-ai/dsh-workspace": "0.1.2-alpha.5"
+    "@deepseek-ai/dsh-workspace": "0.1.2-alpha.5",
+    "dsh-evoforge-gateway": "0.1.0-alpha.1"
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "3.18.1",
@@ -107,6 +108,9 @@
       "optional": true
     },
     "@deepseek-ai/dsh-session-projection": {
+      "optional": true
+    },
+    "dsh-evoforge-gateway": {
       "optional": true
     }
   },
@@ -139,6 +143,7 @@
     "@deepseek-ai/dsh-workspace": "0.1.2-alpha.5",
     "@types/node": "^22.20.0",
     "@types/tar-stream": "3.1.4",
+    "dsh-evoforge-gateway": "workspace:*",
     "tsdown": "^0.22.2",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3",

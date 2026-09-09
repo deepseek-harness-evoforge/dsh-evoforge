@@ -2,9 +2,14 @@ import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent, AgentHandle } from '@deepseek-ai/dsh-agent'
 import type { DomainFacility, KvTable } from '@deepseek-ai/dsh-storage-domain'
-import type { SessionHeader } from '@deepseek-ai/dsh-session'
+import {
+  Session,
+  SessionId,
+  type SessionHeader,
+} from '@deepseek-ai/dsh-session'
 import { describe, expect, it, vi } from 'vitest'
 import { openGatewayIngressJournal } from '../src/ingress-journal.js'
+import type { GatewayIngressEvidenceVaultV1 } from '../src/message-ingress-evidence.js'
 import { openGatewayOutboundJournal } from '../src/outbound-journal.js'
 import { openGatewayPairingAuthority } from '../src/pairing.js'
 import { DshGateway } from '../src/gateway.js'
@@ -188,6 +193,115 @@ describe('DshGateway', () => {
 
     await expect(gateway.start()).rejects.toThrow("session 'session-a' cwd")
     await expect(gateway.stop()).rejects.toThrow('ingress close failed')
+  })
+
+  it('finishes every resident cleanup before reporting teardown failures', async () => {
+    const host = fakeNativeHost()
+    const facility = memoryFacility()
+    const ingress = await openGatewayIngressJournal(facility)
+    const outbound = await openGatewayOutboundJournal(facility)
+    const pairing = await openGatewayPairingAuthority(facility, {
+      codeTtlMs: 15 * 60_000,
+      maxPendingPerAccount: 3,
+    })
+    const outboundFailure = new Error('outbound close failed')
+    const evidenceFailure = new Error('evidence close failed')
+    vi.spyOn(outbound, 'close').mockRejectedValue(outboundFailure)
+
+    let releaseHandle!: () => void
+    const handleReleased = new Promise<void>(resolve => { releaseHandle = resolve })
+    let createdHandle: AgentHandle | undefined
+    const createAgent = host.ctx.agents.create.bind(host.ctx.agents)
+    vi.spyOn(host.ctx.agents, 'create').mockImplementation(async options => {
+      const handle = await createAgent(options)
+      const dispose = handle.dispose.bind(handle)
+      vi.spyOn(handle, 'dispose').mockImplementation(async () => {
+        await handleReleased
+        await dispose()
+      })
+      createdHandle = handle
+      return handle
+    })
+
+    let releaseIngress!: () => void
+    const ingressReleased = new Promise<void>(resolve => { releaseIngress = resolve })
+    const closeIngress = vi.spyOn(ingress, 'close').mockImplementation(async () => {
+      await ingressReleased
+    })
+    let releaseEvidence!: () => void
+    const evidenceReleased = new Promise<void>(resolve => { releaseEvidence = resolve })
+    const closeEvidence = vi.fn(async () => {
+      await evidenceReleased
+      throw evidenceFailure
+    })
+    const evidence: GatewayIngressEvidenceVaultV1 = {
+      async retain() {},
+      async resolve() { return { status: 'abstained', reason: 'evidence-unavailable' } },
+      close: closeEvidence,
+    }
+    let releasePairing!: () => void
+    const pairingReleased = new Promise<void>(resolve => { releasePairing = resolve })
+    const closePairing = vi.spyOn(pairing, 'close').mockImplementation(async () => {
+      await pairingReleased
+    })
+    const gateway = new DshGateway(
+      host.ctx,
+      routes,
+      ingress,
+      outbound,
+      pairing,
+      evidence,
+    )
+    await gateway.start()
+    await gateway.resolve('telegram-a')
+    expect(createdHandle).toBeDefined()
+    const transport = gateway.registerTransport({
+      adapter: 'telegram',
+      accountId: 'bot-a',
+      kind: 'long-poll',
+      routeIds: ['telegram-a'],
+      initial: { state: 'ready', observedAt: 1, connectedAt: 1 },
+    })
+
+    let stopSettled = false
+    const outcome = gateway.stop().then(
+      () => ({ status: 'resolved' as const }),
+      (error: unknown) => ({ status: 'rejected' as const, error }),
+    )
+    void outcome.then(() => { stopSettled = true })
+
+    await vi.waitFor(() => {
+      expect(outbound.close).toHaveBeenCalledOnce()
+      expect(createdHandle!.dispose).toHaveBeenCalledOnce()
+    })
+    expect(() => transport.report({ state: 'stopping', observedAt: 2 }))
+      .toThrow('Gateway transport registration is disposed')
+    expect(closeIngress).not.toHaveBeenCalled()
+    expect(stopSettled).toBe(false)
+
+    releaseHandle()
+    await vi.waitFor(() => {
+      expect(closeIngress).toHaveBeenCalledOnce()
+      expect(closeEvidence).toHaveBeenCalledOnce()
+      expect(closePairing).toHaveBeenCalledOnce()
+    })
+    expect(stopSettled).toBe(false)
+
+    releaseIngress()
+    releaseEvidence()
+    await Promise.resolve()
+    expect(stopSettled).toBe(false)
+
+    releasePairing()
+    const result = await outcome
+    expect(stopSettled).toBe(true)
+    expect(result.status).toBe('rejected')
+    if (result.status !== 'rejected') throw new Error('Gateway teardown unexpectedly resolved')
+    expect(result.error).toBeInstanceOf(AggregateError)
+    expect((result.error as AggregateError).errors).toEqual([
+      outboundFailure,
+      evidenceFailure,
+    ])
   })
 
   it('removes its session-event listener exactly once when stopped', async () => {
@@ -765,15 +879,29 @@ function fakeNativeHost(): {
 
   const createAgent = (sessionId: string, cwd: string, preset: string, provider: string, model: string): AgentHandle => {
     const inbox: { nextTurn: unknown[]; nextStep: unknown[] } = { nextTurn: [], nextStep: [] }
+    const id = SessionId(sessionId)
+    const session = Session.create(id, undefined, {
+      version: 0,
+      id,
+      createdAt: 1,
+      cwd,
+      isSeeded: false,
+      agentPreset: preset,
+    })
     const agent = {
       id: sessionId,
-      session: { id: sessionId, header: { id: sessionId, cwd, agentPreset: preset }, events: [] },
+      session,
       inbox,
       ctx: { preset },
       options: { provider, model },
       status: 'idle',
-      followup(message: { content: Array<{ text?: string }> }) {
-        inbox.nextTurn.push(message)
+      followup(message: { id: string; content: Array<{ text?: string }> }) {
+        const event = session.append('agent/inbox/spliced', {
+          target: 'next-turn',
+          start: inbox.nextTurn.length,
+          inserted: [message as never],
+        })
+        inbox.nextTurn.push(event.data.inserted[0]!)
         const list = messages.get(sessionId) ?? []
         list.push(message.content[0]?.text ?? '')
         messages.set(sessionId, list)
@@ -815,6 +943,9 @@ function fakeNativeHost(): {
         return createAgent(options.resumeSessionId, String(entry.meta.cwd), String(entry.meta.agentPreset), options.agentOptions.provider, options.agentOptions.model)
       },
     },
+    sessions: {
+      get: (id: string) => agents.get(id)?.session,
+    },
     commands: {
       list: (_agent: Agent) => [...commandLines].map(line => ({ name: line.slice(1).split(' ')[0] })),
       async execute(agent: Agent, line: string) {
@@ -822,6 +953,7 @@ function fakeNativeHost(): {
         return { commandId: 'command-1', result: { kind: 'success', text: 'goal active' } }
       },
     },
+    logger: { warn: vi.fn() },
     on() {},
     emit(event: string, value: Record<string, unknown>) {
       emitted.push({ event, value })
@@ -832,7 +964,9 @@ function fakeNativeHost(): {
 
 function workspace(id: string, path: string, attached: Map<string, string[]>): object {
   return {
-    id, path,
+    id, path, title: id,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
     get sessionIds() { return attached.get(id) ?? [] },
     async status() { return 'ok' },
     async attachSession(sessionId: string) {

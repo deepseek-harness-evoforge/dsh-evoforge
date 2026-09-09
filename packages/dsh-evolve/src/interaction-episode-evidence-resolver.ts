@@ -12,6 +12,7 @@ import {
   SessionPersistenceNotFoundError,
   type SessionPersistence,
 } from '@deepseek-ai/dsh-session-persistence'
+import type { GatewayIngressEvidenceSourceV1 } from 'dsh-evoforge-gateway'
 import {
   assembleInteractionEpisodeInputV1,
   type InteractionEpisodeAssemblyResultV1,
@@ -132,6 +133,11 @@ interface InteractionEpisodeEvidenceResolverDependenciesV1 {
 interface StockDshAlpha5ResolverDependenciesV1 {
   readonly sessions: Pick<SessionStore, 'get' | 'flush'>
   readonly sessionPersistence: Pick<SessionPersistence, 'readFrom'>
+}
+
+interface GatewayAwareDshAlpha5ResolverDependenciesV1
+extends StockDshAlpha5ResolverDependenciesV1 {
+  readonly gateway: GatewayIngressEvidenceSourceV1
 }
 
 /**
@@ -267,6 +273,150 @@ export function createStockDshAlpha5InteractionEpisodeEvidenceResolver(
     ...dependencies,
     attestor: stockDshAlpha5Attestor,
   })
+}
+
+/**
+ * Add one historical fact authored by the cooperative Gateway ingress path.
+ * The result still abstains until every other Host evidence dimension exists.
+ *
+ * @internal Trusted composition only. The Gateway source proves authorship;
+ * this resolver separately proves that the queried event is physically stored.
+ */
+export function createGatewayAwareDshAlpha5InteractionEpisodeEvidenceResolver(
+  dependencies: GatewayAwareDshAlpha5ResolverDependenciesV1,
+): InteractionEpisodeEvidenceResolverV1 {
+  return createInteractionEpisodeEvidenceResolver({
+    sessions: dependencies.sessions,
+    sessionPersistence: dependencies.sessionPersistence,
+    attestor: gatewayWorkspaceAttestor(dependencies.gateway),
+  })
+}
+
+function gatewayWorkspaceAttestor(
+  gateway: GatewayIngressEvidenceSourceV1,
+): InteractionEpisodeHostEvidenceAttestorV1 {
+  return Object.freeze({
+    async resolve(subject: DurableInteractionEpisodeSubjectV1) {
+      const enqueue = exactSubjectEnqueue(subject)
+      if (enqueue === undefined) {
+        return hostEvidenceResolution('evidence-conflict', ['workspace'])
+      }
+
+      // Do not catch a source rejection. The outer resolver classifies an
+      // authority invocation failure separately from an evidence conclusion.
+      const resolution: unknown = await gateway.resolveIngressEvidence({
+        schemaVersion: 1,
+        kind: 'gateway-ingress-evidence-query-v1',
+        session: {
+          header: subject.session.header,
+          inheritedEventCount: subject.session.inheritedEventCount,
+        },
+        enqueue,
+      })
+      return gatewayWorkspaceResolution(resolution)
+    },
+  })
+}
+
+function exactSubjectEnqueue(
+  subject: DurableInteractionEpisodeSubjectV1,
+): SessionEvent<'agent/inbox/spliced'> | undefined {
+  try {
+    const enqueueSeq = subject.transcript.source.enqueueSeq
+    const candidates = subject.session.events.filter(
+      (event): event is SessionEvent<'agent/inbox/spliced'> =>
+        Number(event.seq) === enqueueSeq
+        && event.type === 'agent/inbox/spliced',
+    )
+    if (candidates.length !== 1) return undefined
+    const enqueue = candidates[0]!
+    if (enqueue.data.target !== 'next-turn'
+      || enqueue.data.removedCount !== undefined
+      || enqueue.data.outcome !== undefined
+      || enqueue.data.inserted.length !== 1
+      || String(enqueue.data.inserted[0]?.id) !== subject.transcript.ingress.messageId) {
+      return undefined
+    }
+    return enqueue
+  } catch {
+    return undefined
+  }
+}
+
+function gatewayWorkspaceResolution(
+  resolution: unknown,
+): InteractionEpisodeHostEvidenceResolutionV1 {
+  const result = ownEnumerableDataSnapshot(resolution)
+  if (result === undefined) {
+    return hostEvidenceResolution('evidence-conflict', ['workspace'])
+  }
+  if (hasExactDataKeys(result, ['status', 'reason'])
+    && result.status === 'abstained') {
+    if (result.reason === 'evidence-unavailable') {
+      return hostEvidenceResolution('evidence-unavailable', stockMissingDimensions)
+    }
+    if (result.reason === 'evidence-conflict') {
+      return hostEvidenceResolution('evidence-conflict', ['workspace'])
+    }
+    return hostEvidenceResolution('evidence-conflict', ['workspace'])
+  }
+  if (!hasExactDataKeys(result, ['status', 'fact'])
+    || result.status !== 'matched') {
+    return hostEvidenceResolution('evidence-conflict', ['workspace'])
+  }
+  const fact = ownEnumerableDataSnapshot(result.fact)
+  if (fact === undefined
+    || !hasExactDataKeys(fact, ['schemaVersion', 'kind', 'workspaceId'])
+    || fact.schemaVersion !== 1
+    || fact.kind !== 'gateway-ingress-workspace-fact-v1'
+    || typeof fact.workspaceId !== 'string'
+    || !UUID_PATTERN.test(fact.workspaceId)) {
+    return hostEvidenceResolution('evidence-conflict', ['workspace'])
+  }
+  return hostEvidenceResolution('evidence-unavailable', stockMissingDimensions.filter(
+    dimension => dimension !== 'workspace',
+  ))
+}
+
+function hostEvidenceResolution(
+  reason: 'evidence-unavailable' | 'evidence-conflict',
+  dimensions: readonly InteractionEpisodeEvidenceDimensionV1[],
+): InteractionEpisodeHostEvidenceResolutionV1 {
+  return immutableCopy({ status: 'abstained', reason, dimensions } as const)
+}
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
+
+function ownEnumerableDataSnapshot(
+  value: unknown,
+): Readonly<Record<string, unknown>> | undefined {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return undefined
+  let descriptors: Record<PropertyKey, PropertyDescriptor | undefined>
+  try {
+    const prototype = Object.getPrototypeOf(value)
+    if (prototype !== Object.prototype && prototype !== null) return undefined
+    descriptors = Object.getOwnPropertyDescriptors(value)
+  } catch {
+    return undefined
+  }
+  const snapshot: Record<string, unknown> = Object.create(null)
+  for (const key of Reflect.ownKeys(descriptors)) {
+    if (typeof key !== 'string') return undefined
+    const descriptor = descriptors[key]
+    if (descriptor === undefined || !descriptor.enumerable || !('value' in descriptor)) {
+      return undefined
+    }
+    snapshot[key] = descriptor.value
+  }
+  return snapshot
+}
+
+function hasExactDataKeys(
+  snapshot: Readonly<Record<string, unknown>>,
+  keys: readonly string[],
+): boolean {
+  return Reflect.ownKeys(snapshot).length === keys.length
+    && keys.every(key => Object.hasOwn(snapshot, key))
 }
 
 const stockDshAlpha5Attestor: InteractionEpisodeHostEvidenceAttestorV1 = Object.freeze({
