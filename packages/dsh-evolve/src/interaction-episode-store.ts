@@ -143,6 +143,14 @@ export type InteractionEpisodeInputV1 = Omit<
   'schemaVersion' | 'kind'
 >
 
+/** Canonicalize and validate an Episode input against the durable V1 contract. */
+export function normalizeInteractionEpisodeInputV1(
+  input: InteractionEpisodeInputV1,
+): InteractionEpisodeInputV1 {
+  const { schemaVersion: _schemaVersion, kind: _kind, ...normalized } = normalizeContent(input)
+  return immutableCopy(normalized)
+}
+
 export interface InteractionEpisodeSource {
   get(workspaceId: string, episodeId: string): InteractionEpisodeV1 | undefined
 }
