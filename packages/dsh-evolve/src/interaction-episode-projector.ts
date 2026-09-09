@@ -9,8 +9,9 @@ import {
   interruptedTurnClosers,
   isAppendSurfaceEvent,
   isReplacementSurfaceEvent,
-  type Session,
   type SessionEvent,
+  type SessionHeader,
+  type SessionLogOffset,
   TOOL_NOT_STARTED,
 } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-tools'
@@ -94,6 +95,13 @@ export type InteractionEpisodeTranscriptProofResult =
       | 'transcript-not-proven'
   }
 
+/** Exact Session-shaped event source accepted by the transcript-only proof. */
+export interface InteractionEpisodeTranscriptSourceV1 {
+  readonly header: SessionHeader
+  readonly inheritedEventCount: SessionLogOffset
+  snapshotEvents(): readonly SessionEvent[]
+}
+
 /**
  * Prove the Session-owned transcript portion of one prospective Interaction
  * Episode. Environment, Workspace, catalog, Generation, permission, sandbox,
@@ -102,12 +110,13 @@ export type InteractionEpisodeTranscriptProofResult =
  * Episode v1 selects only a direct AgentLoop `tool/call` + `tool/result` pair;
  * any nested PTC Gap dispatch makes this proof abstain because the durable
  * Episode schema has no transport or call-ancestry fields.
- * This result covers the immutable in-memory snapshot only. A caller MUST
- * await `ctx.sessions.flush(session)` and observe `true` before sealing the
- * proof as durable Episode provenance.
+ * This result covers only the supplied immutable snapshot. A caller MUST
+ * independently establish an exact physical durability watermark before
+ * sealing Episode provenance; alpha.5 `SessionStore.flush() === true` alone
+ * is not such a watermark.
  */
 export function proveInteractionEpisodeTranscript(
-  session: Session,
+  session: InteractionEpisodeTranscriptSourceV1,
   turnEndSeq: number,
   directTrigger: InteractionTranscriptDirectTriggerLocatorV1,
 ): InteractionEpisodeTranscriptProofResult {
@@ -119,7 +128,7 @@ export function proveInteractionEpisodeTranscript(
 }
 
 function proveInteractionEpisodeTranscriptUnchecked(
-  session: Session,
+  session: InteractionEpisodeTranscriptSourceV1,
   turnEndSeq: number,
   directTrigger: InteractionTranscriptDirectTriggerLocatorV1,
 ): InteractionEpisodeTranscriptProofResult {
@@ -373,7 +382,7 @@ interface ProvenIngress {
 
 function findIngress(
   events: readonly SessionEvent[],
-  session: Session,
+  session: InteractionEpisodeTranscriptSourceV1,
   turnStart: SessionEvent<'turn/start'>,
   turnEnd: SessionEvent<'turn/end'>,
   initiating: SessionEvent<'user/message'>,
