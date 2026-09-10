@@ -4,8 +4,19 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
+import type { Session, SessionEvent } from '@deepseek-ai/dsh-session'
 import * as EvolvePlugin from '../src/index.js'
 import type { EvolutionStore } from '../src/generation-store.js'
+import {
+  compileInteractionGenerationEvidencePolicies,
+  openInteractionGenerationEvidenceVault,
+  type InteractionGenerationEvidenceSubjectV1,
+} from '../src/interaction-generation-evidence.ts'
+import { proveInteractionEpisodeTranscript } from '../src/interaction-episode-projector.ts'
+import {
+  projectInteractionEpisodeTriggerRequestControlV1,
+  type InteractionEpisodeTriggerRequestControlFactV1,
+} from '../src/interaction-trigger-request-control.ts'
 import {
   assembleSealedSkillBundleArchive,
   assembleSkillBundleArchive,
@@ -29,11 +40,18 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
   it('turns a natural-language native Goal into a durable model-declared Capability Gap through the real Agent Loop', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-model-gap-'))
     temporaryRoots.push(root)
-    const ctx = await bootStorage(await writeStorageConfig(root))
+    const configPath = await writeStorageConfig(root)
+    const ctx = await bootStorage(configPath)
     const adapter = await installAgentRuntime(ctx, undefined, {
       firstCapabilityGap: 'publish-dsh-plugin',
     })
-    await ctx.plugin(EvolvePlugin, { cacheRoot: join(root, 'cache') })
+    await ctx.plugin(EvolvePlugin, {
+      cacheRoot: join(root, 'cache'),
+      interactionEvidencePolicies: [{
+        workspaceId: WORKSPACE_ID,
+        retention: { generationMaxRecords: 1 },
+      }],
+    })
     const packages = (path: string) => pathToFileURL(
       join(dshSourceDir, 'packages', path, 'lib', 'index.js'),
     ).href
@@ -90,7 +108,187 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     expect(JSON.stringify(adapter.requests[1]))
       .toContain('internal Skill opportunity discovery continues asynchronously')
 
+    const { subject, requestControl } = generationEvidenceQuery(
+      handle.agent.session,
+      'model-declared-capability-gap',
+    )
+
     await ctx.fiber.dispose()
+
+    const evidenceCtx = await bootStorage(configPath)
+    const evidence = await openInteractionGenerationEvidenceVault(evidenceCtx.storageDomain, {
+      authority: compileInteractionGenerationEvidencePolicies([{
+        workspaceId: WORKSPACE_ID,
+        retention: { generationMaxRecords: 1 },
+      }]),
+    })
+    try {
+      await expect(evidence.resolveGenerationEvidence(subject, {
+        triggerRequestControl: requestControl,
+      })).resolves.toMatchObject({
+        status: 'matched',
+        fact: {
+          workspaceId: WORKSPACE_ID,
+          generation: {
+            kind: 'native',
+            pin: 'settled',
+            effectiveMount: { kind: 'native' },
+          },
+        },
+      })
+    } finally {
+      await evidence.close()
+      await evidenceCtx.fiber.dispose()
+    }
+  })
+
+  it('retains a mounted evolved Generation receipt across immediate real Agent Loop shutdown', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-evolved-generation-evidence-'))
+    temporaryRoots.push(root)
+    const cacheRoot = join(root, 'cache')
+    const configPath = await writeStorageConfig(root)
+    const ctx = await bootStorage(configPath)
+    const adapter = await installAgentRuntime(ctx, undefined, {
+      firstCapabilityGap: 'publish-evolved-dsh-plugin',
+    })
+    await ctx.plugin(EvolvePlugin, {
+      cacheRoot,
+      interactionEvidencePolicies: [{
+        workspaceId: WORKSPACE_ID,
+        retention: { generationMaxRecords: 1 },
+      }],
+    })
+    const store = ctx.get('evoforge.evolution') as EvolutionStore | undefined
+    if (store === undefined) throw new Error('evolution store did not load')
+
+    const bundle = await assembleSkillBundleArchive([{
+      path: 'SKILL.md',
+      content: [
+        '---',
+        'name: evolved-generation-proof',
+        'description: Prove the evolved Generation mount in one real Agent turn.',
+        '---',
+        '',
+        '# Evolved Generation Proof',
+        '',
+        'This content must come from the pinned content-addressed Generation.',
+        'Verify it with the [mount proof](references/proof.md).',
+        '',
+      ].join('\n'),
+    }, {
+      path: 'references/proof.md',
+      content: '# Proof\n\nRequire the exact mounted Generation id.\n',
+    }])
+    const generation = (await store.publishGeneration({
+      workspaceId: WORKSPACE_ID,
+      createdAt: 1_823_456_789_000,
+      artifacts: [{
+        kind: 'skill-bundle',
+        name: 'evolved-generation-proof',
+        artifactDigest: bundle.artifactDigest,
+        treeHash: bundle.treeHash,
+        contentBase64: bundle.content.toString('base64'),
+        lineage: {
+          kind: 'internal-skill-candidate-lineage-v3',
+          candidateId: '1'.repeat(64),
+          workspaceId: WORKSPACE_ID,
+          skillName: 'evolved-generation-proof',
+          opportunityId: '2'.repeat(64),
+          evaluationEvidenceId: '3'.repeat(64),
+          policyId: 'evolved-generation-proof-author',
+          versionKind: 'experience-authored-bundle-v1',
+          contentHash: bundle.artifactDigest,
+          candidateTreeHash: bundle.treeHash,
+          admissionId: '4'.repeat(64),
+          evaluationEnvelopeId: '5'.repeat(64),
+          releaseAuthority: 'none',
+        },
+      }],
+      evaluatorVersion: 'generation-binding-proof-v1',
+      policyVersion: 'human-review-v1',
+      compositionFingerprint: '6'.repeat(64),
+    })).generation
+    await store.promoteGeneration(WORKSPACE_ID, generation.id)
+
+    const packages = (path: string) => pathToFileURL(
+      join(dshSourceDir, 'packages', path, 'lib', 'index.js'),
+    ).href
+    const [llm, session] = await Promise.all([
+      import(packages('llm/llm')),
+      import(packages('core/session')),
+    ])
+    const handle = await ctx.agents.create({
+      sessionId: session.SessionId('evolved-generation-evidence'),
+      agentOptions: { provider: 'fixed', model: 'fixed' },
+      meta: { cwd: root },
+    })
+    const goals = ctx.get('goals') as {
+      create(agent: object, request: { objective: string }): { objective: string }
+    } | undefined
+    const skills = ctx.get('skills') as {
+      get(name: string, options: { cwd?: string; scope?: object }): Promise<{
+        provider: string
+        content: string
+      } | undefined>
+    } | undefined
+    if (goals === undefined || skills === undefined) {
+      throw new Error('Goal or Skill service did not load')
+    }
+    const objective = 'Publish the evolved plugin through the exact Generation pinned to this Session.'
+    goals.create(handle.agent, { objective })
+    handle.agent.followup(llm.createUserMessage({
+      content: [{ type: 'text', text: objective }],
+      source: { kind: 'user' },
+    }))
+    await handle.agent.whenIdle()
+
+    expect(adapter.requests).toHaveLength(2)
+    expect(store.getSessionGeneration(identityOf(handle.agent))?.id).toBe(generation.id)
+    await expect(skills.get('evolved-generation-proof', {
+      cwd: root,
+      scope: handle.agent,
+    })).resolves.toMatchObject({
+      provider: 'evoforge-generation',
+      content: expect.stringContaining('content-addressed Generation'),
+    })
+    const { subject, requestControl } = generationEvidenceQuery(
+      handle.agent.session,
+      'model-declared-capability-gap',
+    )
+
+    // Do not explicitly drain the evidence sink: root teardown must preserve
+    // every receipt that the synchronous turn/end observer already accepted.
+    await ctx.fiber.dispose()
+
+    const evidenceCtx = await bootStorage(configPath)
+    const evidence = await openInteractionGenerationEvidenceVault(evidenceCtx.storageDomain, {
+      authority: compileInteractionGenerationEvidencePolicies([{
+        workspaceId: WORKSPACE_ID,
+        retention: { generationMaxRecords: 1 },
+      }]),
+    })
+    try {
+      await expect(evidence.resolveGenerationEvidence(subject, {
+        triggerRequestControl: requestControl,
+      })).resolves.toMatchObject({
+        status: 'matched',
+        fact: {
+          workspaceId: WORKSPACE_ID,
+          generation: {
+            kind: 'evolved',
+            pin: 'settled',
+            generationId: generation.id,
+            effectiveMount: {
+              kind: 'evolved',
+              generationId: generation.id,
+            },
+          },
+        },
+      })
+    } finally {
+      await evidence.close()
+      await evidenceCtx.fiber.dispose()
+    }
   })
 
   it('pins an internally authored content-addressed Skill only into future Sessions and rolls back exactly', async () => {
@@ -487,6 +685,39 @@ function identityOf(agent: {
     createdAt,
     ...cwd === undefined ? {} : { cwd },
   }
+}
+
+function generationEvidenceQuery(session: Session, callId: string): {
+  readonly subject: InteractionGenerationEvidenceSubjectV1
+  readonly requestControl: InteractionEpisodeTriggerRequestControlFactV1
+} {
+  const events = session.snapshotEvents() as readonly SessionEvent[]
+  const turnEnd = [...events].reverse().find(event => event.type === 'turn/end')
+  if (turnEnd?.type !== 'turn/end') throw new Error('completed turn is missing')
+  const transcript = proveInteractionEpisodeTranscript(
+    session,
+    Number(turnEnd.seq),
+    { callId },
+  )
+  if (transcript.status !== 'proven') {
+    throw new Error(`real Agent Loop trigger was not proven: ${transcript.reason}`)
+  }
+  const subject = structuredClone({
+    schemaVersion: 1,
+    kind: 'durable-interaction-episode-subject-v1',
+    session: {
+      header: session.header,
+      inheritedEventCount: Number(session.inheritedEventCount),
+      throughSeq: Number(turnEnd.seq),
+      events,
+    },
+    transcript: transcript.proof,
+  } as const satisfies InteractionGenerationEvidenceSubjectV1)
+  const requestControl = projectInteractionEpisodeTriggerRequestControlV1(subject)
+  if (requestControl.status !== 'projected') {
+    throw new Error('real trigger request control was not projected')
+  }
+  return { subject, requestControl: requestControl.fact }
 }
 
 async function writeStorageConfig(root: string): Promise<string> {

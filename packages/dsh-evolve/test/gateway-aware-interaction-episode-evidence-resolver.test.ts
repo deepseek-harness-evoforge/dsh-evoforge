@@ -11,8 +11,12 @@ import {
 } from '@deepseek-ai/dsh-session'
 import type { SessionEventSuffix } from '@deepseek-ai/dsh-session-persistence'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { interactionGenerationSessionLifecycleDigest } from '../src/interaction-generation-evidence.ts'
 import {
   createGatewayAwareDshAlpha5InteractionEpisodeEvidenceResolver,
+  createStockDshAlpha5InteractionEpisodeEvidenceResolver,
+  type DurableInteractionEpisodeSubjectV1,
+  type InteractionEpisodeDerivedEvidenceV1,
 } from '../src/interaction-episode-evidence-resolver.ts'
 
 afterEach(() => {
@@ -100,6 +104,22 @@ describe('Gateway-aware Interaction Episode evidence resolver', () => {
 
     await expect(
       resolverFor(fixture, gateway).resolve(targetFor(fixture)),
+    ).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-conflict',
+      dimensions: ['workspace'],
+    })
+  })
+
+  it('rejects a Gateway fact with a non-native Workspace UUID version', async () => {
+    const fixture = completedGapTurn()
+
+    await expect(
+      resolverFor(
+        fixture,
+        gatewayReturning(matchedGatewayWorkspace(NON_NATIVE_WORKSPACE_ID)),
+      ).resolve(targetFor(fixture)),
     ).resolves.toEqual({
       status: 'abstained',
       stage: 'host-evidence',
@@ -400,7 +420,485 @@ describe('Gateway-aware Interaction Episode evidence resolver', () => {
   })
 })
 
+describe('DSH alpha.5 partial Host evidence composition', () => {
+  it.each(['native', 'evolved'] as const)(
+    'subtracts only Generation for a valid %s Generation fact', async (generation) => {
+      const fixture = completedGapTurn()
+      const generationEvidence = generationReturning(generation)
+      const resolver = createStockDshAlpha5InteractionEpisodeEvidenceResolver({
+        sessions: { get: () => fixture.session, flush: async () => true },
+        sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+        generationEvidence,
+      })
+
+      await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+        status: 'abstained',
+        stage: 'host-evidence',
+        reason: 'evidence-unavailable',
+        dimensions: MISSING_EXCEPT_GENERATION,
+      })
+      expect(generationEvidence.resolveGenerationEvidence).toHaveBeenCalledOnce()
+    },
+  )
+
+  it('preserves the exact stock missing list when Generation evidence is unavailable', async () => {
+    const fixture = completedGapTurn()
+    const generationEvidence = generationResult({
+      status: 'abstained',
+      reason: 'evidence-unavailable',
+    })
+    const resolver = createStockDshAlpha5InteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+      generationEvidence,
+    })
+
+    await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-unavailable',
+      dimensions: ALL_MISSING_DIMENSIONS,
+    })
+  })
+
+  it('combines matching Gateway Workspace and Generation facts', async () => {
+    const fixture = completedGapTurn()
+    const gateway = gatewayReturning(matchedGatewayWorkspace(WORKSPACE_ID))
+    const generationEvidence = generationReturning('evolved')
+
+    await expect(
+      resolverFor(fixture, gateway, generationEvidence).resolve(targetFor(fixture)),
+    ).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-unavailable',
+      dimensions: MISSING_EXCEPT_WORKSPACE_AND_GENERATION,
+    })
+  })
+
+  it('keeps only Gateway Workspace evidence when Generation is unavailable', async () => {
+    const fixture = completedGapTurn()
+    const gateway = gatewayReturning(matchedGatewayWorkspace(WORKSPACE_ID))
+    const generationEvidence = generationResult({
+      status: 'abstained',
+      reason: 'evidence-unavailable',
+    })
+
+    await expect(
+      resolverFor(fixture, gateway, generationEvidence).resolve(targetFor(fixture)),
+    ).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-unavailable',
+      dimensions: MISSING_EXCEPT_WORKSPACE,
+    })
+  })
+
+  it('keeps only Generation evidence when Gateway is unavailable', async () => {
+    const fixture = completedGapTurn()
+    const gateway = gatewayReturning({
+      status: 'abstained',
+      reason: 'evidence-unavailable',
+    })
+
+    await expect(
+      resolverFor(fixture, gateway, generationReturning('native')).resolve(targetFor(fixture)),
+    ).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-unavailable',
+      dimensions: MISSING_EXCEPT_GENERATION,
+    })
+  })
+
+  it('preserves all stock dimensions when both optional sources are unavailable', async () => {
+    const fixture = completedGapTurn()
+    const gateway = gatewayReturning({
+      status: 'abstained',
+      reason: 'evidence-unavailable',
+    })
+    const generationEvidence = generationResult({
+      status: 'abstained',
+      reason: 'evidence-unavailable',
+    })
+
+    await expect(
+      resolverFor(fixture, gateway, generationEvidence).resolve(targetFor(fixture)),
+    ).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-unavailable',
+      dimensions: ALL_MISSING_DIMENSIONS,
+    })
+  })
+
+  it('reports only Generation when Gateway matches but Generation conflicts', async () => {
+    const fixture = completedGapTurn()
+    const gateway = gatewayReturning(matchedGatewayWorkspace(WORKSPACE_ID))
+    const generationEvidence = generationResult({
+      status: 'abstained',
+      reason: 'evidence-conflict',
+    })
+
+    await expect(
+      resolverFor(fixture, gateway, generationEvidence).resolve(targetFor(fixture)),
+    ).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-conflict',
+      dimensions: ['generation'],
+    })
+  })
+
+  it('reports only Workspace when Generation matches but Gateway conflicts', async () => {
+    const fixture = completedGapTurn()
+    const gateway = gatewayReturning({
+      status: 'abstained',
+      reason: 'evidence-conflict',
+    })
+
+    await expect(
+      resolverFor(fixture, gateway, generationReturning('evolved')).resolve(targetFor(fixture)),
+    ).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-conflict',
+      dimensions: ['workspace'],
+    })
+  })
+
+  it('conflicts both dimensions when Gateway and Generation name different Workspaces', async () => {
+    const fixture = completedGapTurn()
+    const gateway = gatewayReturning(matchedGatewayWorkspace(WORKSPACE_ID))
+    const generationEvidence = generationReturning('native', OTHER_WORKSPACE_ID)
+
+    await expect(
+      resolverFor(fixture, gateway, generationEvidence).resolve(targetFor(fixture)),
+    ).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-conflict',
+      dimensions: ['workspace', 'generation'],
+    })
+  })
+
+  it.each([
+    [
+      'an explicit conflict',
+      { status: 'abstained', reason: 'evidence-conflict' },
+    ],
+    [
+      'a malformed matched result',
+      { status: 'matched', fact: {} },
+    ],
+  ])('narrows %s from the Generation source to Generation', async (_label, result) => {
+    const fixture = completedGapTurn()
+    const generationEvidence = generationResult(result)
+    const resolver = createStockDshAlpha5InteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+      generationEvidence,
+    })
+
+    await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-conflict',
+      dimensions: ['generation'],
+    })
+  })
+
+  it('rejects a Generation fact bound to another Session lifecycle', async () => {
+    const fixture = completedGapTurn()
+    const valid = generationReturning('native')
+    const generationEvidence = {
+      resolveGenerationEvidence: vi.fn(async (
+        subject: DurableInteractionEpisodeSubjectV1,
+        derived: InteractionEpisodeDerivedEvidenceV1,
+      ) => {
+        const result = await valid.resolveGenerationEvidence(subject, derived)
+        const currentDigest = result.fact.subject.sessionLifecycleDigest
+        return {
+          ...result,
+          fact: {
+            ...result.fact,
+            subject: {
+              ...result.fact.subject,
+              sessionLifecycleDigest: `${currentDigest[0] === 'f' ? 'e' : 'f'}${currentDigest.slice(1)}`,
+            },
+          },
+        }
+      }),
+    }
+    const resolver = createStockDshAlpha5InteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+      generationEvidence,
+    })
+
+    await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-conflict',
+      dimensions: ['generation'],
+    })
+  })
+
+  it('rejects a Generation fact with a non-native Workspace UUID version', async () => {
+    const fixture = completedGapTurn()
+    const resolver = createStockDshAlpha5InteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+      generationEvidence: generationReturning('native', NON_NATIVE_WORKSPACE_ID),
+    })
+
+    await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-conflict',
+      dimensions: ['generation'],
+    })
+  })
+
+  it('accepts an exact deeply frozen Generation fact', async () => {
+    const fixture = completedGapTurn()
+    const valid = generationReturning('evolved')
+    const generationEvidence = {
+      resolveGenerationEvidence: vi.fn(async (
+        subject: DurableInteractionEpisodeSubjectV1,
+        derived: InteractionEpisodeDerivedEvidenceV1,
+      ) => deepFreezeForTest(
+        await valid.resolveGenerationEvidence(subject, derived),
+      )),
+    }
+    const resolver = createStockDshAlpha5InteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+      generationEvidence,
+    })
+
+    await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-unavailable',
+      dimensions: MISSING_EXCEPT_GENERATION,
+    })
+  })
+
+  it('does not evaluate an accessor-backed Generation fact', async () => {
+    const fixture = completedGapTurn()
+    const valid = generationReturning('native')
+    let reads = 0
+    const generationEvidence = {
+      resolveGenerationEvidence: vi.fn(async (
+        subject: DurableInteractionEpisodeSubjectV1,
+        derived: InteractionEpisodeDerivedEvidenceV1,
+      ) => {
+        const resolution = await valid.resolveGenerationEvidence(subject, derived)
+        const fact = { ...resolution.fact }
+        Object.defineProperty(fact, 'generation', {
+          enumerable: true,
+          get() {
+            reads += 1
+            return resolution.fact.generation
+          },
+        })
+        return { status: 'matched' as const, fact }
+      }),
+    }
+    const resolver = createStockDshAlpha5InteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+      generationEvidence,
+    })
+
+    await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-conflict',
+      dimensions: ['generation'],
+    })
+    expect(reads).toBe(0)
+  })
+
+  it('rejects a symbol-bearing Generation result', async () => {
+    const fixture = completedGapTurn()
+    const valid = generationReturning('native')
+    const generationEvidence = {
+      resolveGenerationEvidence: vi.fn(async (
+        subject: DurableInteractionEpisodeSubjectV1,
+        derived: InteractionEpisodeDerivedEvidenceV1,
+      ) => {
+        const resolution = await valid.resolveGenerationEvidence(subject, derived)
+        Object.defineProperty(resolution, Symbol('privateState'), {
+          enumerable: true,
+          value: 'must-not-be-ignored',
+        })
+        return resolution
+      }),
+    }
+    const resolver = createStockDshAlpha5InteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+      generationEvidence,
+    })
+
+    await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-conflict',
+      dimensions: ['generation'],
+    })
+  })
+
+  it('contains a hostile Generation result Proxy as a Generation conflict', async () => {
+    const fixture = completedGapTurn()
+    const hostile = new Proxy({}, {
+      getPrototypeOf() {
+        throw new Error('generation proxy trap')
+      },
+    })
+    const resolver = createStockDshAlpha5InteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+      generationEvidence: generationResult(hostile),
+    })
+
+    await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-conflict',
+      dimensions: ['generation'],
+    })
+  })
+
+  it('combines independent Gateway and Generation conflicts in canonical order', async () => {
+    const fixture = completedGapTurn()
+    const gateway = gatewayReturning({
+      status: 'abstained',
+      reason: 'evidence-conflict',
+    })
+    const generationEvidence = generationResult({
+      status: 'abstained',
+      reason: 'evidence-conflict',
+    })
+
+    await expect(
+      resolverFor(fixture, gateway, generationEvidence).resolve(targetFor(fixture)),
+    ).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-conflict',
+      dimensions: ['workspace', 'generation'],
+    })
+    expect(gateway.resolveIngressEvidence).toHaveBeenCalledOnce()
+    expect(generationEvidence.resolveGenerationEvidence).toHaveBeenCalledOnce()
+  })
+
+  it('preserves a Generation conflict when the Gateway source rejects', async () => {
+    const fixture = completedGapTurn()
+    const generationEvidence = generationResult({
+      status: 'abstained',
+      reason: 'evidence-conflict',
+    })
+
+    const result = await resolverFor(
+      fixture,
+      gatewayRejecting(),
+      generationEvidence,
+    ).resolve(targetFor(fixture))
+
+    expect(result).toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-conflict',
+      dimensions: ['generation'],
+    })
+    expect(JSON.stringify(result)).not.toContain('gateway-secret')
+  })
+
+  it('preserves a Workspace conflict when the Generation source rejects', async () => {
+    const fixture = completedGapTurn()
+    const gateway = gatewayReturning({
+      status: 'abstained',
+      reason: 'evidence-conflict',
+    })
+
+    const result = await resolverFor(
+      fixture,
+      gateway,
+      generationRejecting(),
+    ).resolve(targetFor(fixture))
+
+    expect(result).toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-conflict',
+      dimensions: ['workspace'],
+    })
+    expect(JSON.stringify(result)).not.toContain('generation-secret')
+  })
+
+  it.each([
+    [
+      'Gateway',
+      () => gatewayRejecting(),
+      () => generationReturning('native'),
+    ],
+    [
+      'Generation',
+      () => gatewayReturning(matchedGatewayWorkspace(WORKSPACE_ID)),
+      () => generationRejecting(),
+    ],
+    [
+      'both sources',
+      () => gatewayRejecting(),
+      () => generationRejecting(),
+    ],
+  ] as const)(
+    'binds %s rejection when no fulfilled source proves a conflict',
+    async (_label, createGateway, createGenerationEvidence) => {
+      const fixture = completedGapTurn()
+      const result = await resolverFor(
+        fixture,
+        createGateway(),
+        createGenerationEvidence(),
+      ).resolve(targetFor(fixture))
+
+      expect(result).toEqual({
+        status: 'abstained',
+        stage: 'host-evidence',
+        reason: 'attestor-invocation-failed',
+        dimensions: ['binding'],
+      })
+      expect(JSON.stringify(result)).not.toMatch(/gateway-secret|generation-secret/u)
+    },
+  )
+
+  it('binds a rejected Generation source invocation to attestor failure', async () => {
+    const fixture = completedGapTurn()
+    const generationEvidence = generationRejecting()
+    const resolver = createStockDshAlpha5InteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+      generationEvidence,
+    })
+
+    const result = await resolver.resolve(targetFor(fixture))
+
+    expect(result).toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'attestor-invocation-failed',
+      dimensions: ['binding'],
+    })
+    expect(JSON.stringify(result)).not.toContain('generation-secret')
+  })
+})
+
 const WORKSPACE_ID = '11111111-1111-4111-8111-111111111111'
+const OTHER_WORKSPACE_ID = '22222222-2222-4222-8222-222222222222'
+const NON_NATIVE_WORKSPACE_ID = '33333333-3333-6333-8333-333333333333'
 
 const ALL_MISSING_DIMENSIONS = [
   'workspace',
@@ -421,10 +919,21 @@ const ALL_MISSING_DIMENSIONS = [
 
 const MISSING_EXCEPT_WORKSPACE = ALL_MISSING_DIMENSIONS.slice(1)
 
+const MISSING_EXCEPT_GENERATION = ALL_MISSING_DIMENSIONS.filter(
+  dimension => dimension !== 'generation',
+)
+
+const MISSING_EXCEPT_WORKSPACE_AND_GENERATION = ALL_MISSING_DIMENSIONS.filter(
+  dimension => dimension !== 'workspace' && dimension !== 'generation',
+)
+
 type Fixture = ReturnType<typeof completedGapTurn>
 type Gateway = Parameters<
   typeof createGatewayAwareDshAlpha5InteractionEpisodeEvidenceResolver
 >[0]['gateway']
+type GenerationEvidence = Parameters<
+  typeof createStockDshAlpha5InteractionEpisodeEvidenceResolver
+>[0]['generationEvidence']
 
 function targetFor(fixture: Fixture) {
   return {
@@ -442,6 +951,17 @@ function gatewayReturning(result: unknown): Gateway & {
   }
 }
 
+function matchedGatewayWorkspace(workspaceId: string) {
+  return {
+    status: 'matched' as const,
+    fact: {
+      schemaVersion: 1 as const,
+      kind: 'gateway-ingress-workspace-fact-v1' as const,
+      workspaceId,
+    },
+  }
+}
+
 function gatewayRejecting(): Gateway & {
   readonly resolveIngressEvidence: ReturnType<typeof vi.fn>
 } {
@@ -452,11 +972,81 @@ function gatewayRejecting(): Gateway & {
   }
 }
 
-function resolverFor(fixture: Fixture, gateway: Gateway) {
+function generationReturning(
+  generation: 'native' | 'evolved',
+  workspaceId = WORKSPACE_ID,
+) {
+  return {
+    resolveGenerationEvidence: vi.fn(async (
+      subject: DurableInteractionEpisodeSubjectV1,
+      derived: InteractionEpisodeDerivedEvidenceV1,
+    ) => ({
+      status: 'matched' as const,
+      fact: {
+        schemaVersion: 1 as const,
+        kind: 'interaction-generation-fact-v1' as const,
+        workspaceId,
+        subject: {
+          sessionLifecycleDigest: interactionGenerationSessionLifecycleDigest(subject),
+          prefixDigest: subject.transcript.replay.prefixDigest,
+          turnDigest: subject.transcript.replay.turnDigest,
+          turnEndSeq: subject.transcript.source.turnEndSeq,
+          triggerRequestSeq: derived.triggerRequestControl.boundary.assistantMessageSeq,
+          triggerCallSeq: subject.transcript.source.triggerCallSeq,
+          triggerResultSeq: subject.transcript.source.triggerResultSeq,
+        },
+        generation: generation === 'native'
+          ? {
+              kind: 'native' as const,
+              pin: 'settled' as const,
+              effectiveMount: { kind: 'native' as const },
+            }
+          : {
+              kind: 'evolved' as const,
+              pin: 'settled' as const,
+              generationId: 'b'.repeat(64),
+              effectiveMount: {
+                kind: 'evolved' as const,
+                generationId: 'b'.repeat(64),
+              },
+            },
+      },
+    })),
+  }
+}
+
+function generationResult(result: unknown) {
+  return {
+    resolveGenerationEvidence: vi.fn(async () => result as never),
+  }
+}
+
+function generationRejecting() {
+  return {
+    resolveGenerationEvidence: vi.fn(async () => {
+      throw new Error('generation-secret')
+    }),
+  }
+}
+
+function deepFreezeForTest<T>(value: T): T {
+  if (value !== null && typeof value === 'object' && !Object.isFrozen(value)) {
+    Object.freeze(value)
+    for (const child of Object.values(value)) deepFreezeForTest(child)
+  }
+  return value
+}
+
+function resolverFor(
+  fixture: Fixture,
+  gateway: Gateway,
+  generationEvidence?: GenerationEvidence,
+) {
   return createGatewayAwareDshAlpha5InteractionEpisodeEvidenceResolver({
     sessions: { get: () => fixture.session, flush: async () => true },
     sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
     gateway,
+    ...(generationEvidence === undefined ? {} : { generationEvidence }),
   })
 }
 

@@ -4,6 +4,15 @@ import { join, resolve } from 'node:path'
 import z from '@deepseek-ai/schemastery'
 import type Schema from '@deepseek-ai/schemastery'
 import { installGenerationBinder } from './generation-binder.ts'
+import {
+  compileInteractionGenerationEvidencePolicies,
+  createInteractionGenerationEvidenceSink,
+  INTERACTION_GENERATION_EVIDENCE_MAX_POLICIES,
+  INTERACTION_GENERATION_EVIDENCE_MAX_RECORDS_PER_WORKSPACE,
+  openInteractionGenerationEvidenceVault,
+  type InteractionGenerationEvidencePolicyConfig,
+} from './interaction-generation-evidence.ts'
+import { NATIVE_WORKSPACE_ID_PATTERN } from './workspace-identity.ts'
 import { CapabilityMap, installCapabilityMapObserver } from './capability-map.ts'
 import {
   installCapabilityGapMonitor,
@@ -137,7 +146,7 @@ declare module '@deepseek-ai/cordis' {
 }
 
 export const name = 'dsh-evolve'
-export const inject = ['sessions', 'storageDomain', 'workspaceRegistry']
+export const inject = ['agents', 'sessions', 'storageDomain', 'workspaceRegistry']
 
 /**
  * Public deployment policy. It deliberately contains no Skill source, target,
@@ -148,6 +157,8 @@ export interface Config {
   cacheRoot?: string
   selfDiscoveryPolicies?: SkillOpportunityAuthoringPolicyConfig[]
   candidateEvaluationPolicies?: SkillCandidateEvaluationPolicyConfig[]
+  /** Host-admin authorization to retain raw-free Generation receipts for exact Workspaces. */
+  interactionEvidencePolicies?: InteractionGenerationEvidencePolicyConfig[]
   /** Workspace-only authority for exact low-risk existing-Skill instruction promotion. */
   automaticPromotionPolicies?: ExistingSkillAutomaticPromotionPolicy[]
   supervisor?: {
@@ -172,6 +183,14 @@ export const Config: Schema<Config> = z.object({
     dshRevision: z.string(),
     maxAttemptsPerUtcDay: z.number().step(1).min(1).max(20).default(1),
   })).max(100).default([]),
+  interactionEvidencePolicies: z.array(z.object({
+    workspaceId: z.string().pattern(NATIVE_WORKSPACE_ID_PATTERN).required(),
+    retention: z.object({
+      generationMaxRecords: z.number().step(1).min(1)
+        .max(INTERACTION_GENERATION_EVIDENCE_MAX_RECORDS_PER_WORKSPACE)
+        .required(),
+    }).required(),
+  })).max(INTERACTION_GENERATION_EVIDENCE_MAX_POLICIES).default([]),
   automaticPromotionPolicies: z.array(z.object({
     id: z.string().required(),
     workspaceId: z.string().required(),
@@ -185,23 +204,125 @@ export const Config: Schema<Config> = z.object({
   }),
 })
 
+type RuntimeOwnershipPhase = 'producer' | 'revocation' | 'resource'
+type RuntimeCloser = () => void | Promise<void>
+
+/**
+ * Own every manually opened runtime resource from the first acquisition.
+ * Producers are synchronously asked to quiesce before the evidence authority
+ * is revoked; storage closes only after both phases have settled. Every closer
+ * is attempted even when a sibling fails.
+ */
+class RuntimeOwnership {
+  private readonly closers: Record<RuntimeOwnershipPhase, RuntimeCloser[]> = {
+    producer: [],
+    revocation: [],
+    resource: [],
+  }
+  private closing: Promise<void> | undefined
+
+  own(phase: RuntimeOwnershipPhase, closer: RuntimeCloser): void {
+    if (this.closing !== undefined) throw new Error('dsh-evolve runtime is closing')
+    this.closers[phase].push(closer)
+  }
+
+  close(): Promise<void> {
+    this.closing ??= this.closeNow()
+    return this.closing
+  }
+
+  private async closeNow(): Promise<void> {
+    const errors: unknown[] = []
+    // Invoking the complete producer phase is synchronous. In particular, the
+    // Generation binder flips its closing gate and removes listeners before
+    // the vault close below can revoke positive reads and wait for accepted writes.
+    const producerTasks = invokeRuntimeClosers(this.closers.producer)
+    const revocationTasks = invokeRuntimeClosers(this.closers.revocation)
+    collectRuntimeCloseErrors(await Promise.allSettled([
+      ...producerTasks,
+      ...revocationTasks,
+    ]), errors)
+    collectRuntimeCloseErrors(await Promise.allSettled(
+      invokeRuntimeClosers(this.closers.resource),
+    ), errors)
+    throwRuntimeCloseErrors(errors)
+  }
+}
+
+function invokeRuntimeClosers(closers: readonly RuntimeCloser[]): Promise<void>[] {
+  return [...closers].reverse().map((closer) => {
+    try {
+      return Promise.resolve(closer())
+    } catch (error) {
+      return Promise.reject(error)
+    }
+  })
+}
+
+function collectRuntimeCloseErrors(
+  results: readonly PromiseSettledResult<void>[],
+  errors: unknown[],
+): void {
+  for (const result of results) {
+    if (result.status === 'rejected') errors.push(result.reason)
+  }
+}
+
+function throwRuntimeCloseErrors(errors: readonly unknown[]): void {
+  if (errors.length === 1) throw errors[0]
+  if (errors.length > 1) {
+    throw new AggregateError(errors, 'dsh-evolve runtime cleanup failed')
+  }
+}
+
+async function disposeRuntimeGroup(
+  resources: readonly { dispose(): Promise<void> }[],
+): Promise<void> {
+  const errors: unknown[] = []
+  collectRuntimeCloseErrors(await Promise.allSettled(
+    invokeRuntimeClosers(resources.map(resource => () => resource.dispose())),
+  ), errors)
+  throwRuntimeCloseErrors(errors)
+}
+
 export async function apply(ctx: Context, config: Config = {}): Promise<void> {
+  const runtime = new RuntimeOwnership()
+  let runtimeCommitted = false
+  // The early owner rolls back partial acquisition when apply rejects.
+  ctx.effect(() => () => runtimeCommitted ? undefined : runtime.close(), 'dsh-evolve.runtimeRollback')
+  const interactionEvidenceAuthority = compileInteractionGenerationEvidencePolicies(
+    config.interactionEvidencePolicies ?? [],
+  )
   const source = new GenerationBundleRepository(
     config.cacheRoot ?? join(homedir(), '.dsh', 'evoforge', 'generation-cache'),
   )
-  const store = new VerifiedEvolutionStore(await openEvolutionStore(ctx.storageDomain), source)
+  const evolutionStore = await openEvolutionStore(ctx.storageDomain)
+  runtime.own('resource', () => evolutionStore.close())
+  const store = new VerifiedEvolutionStore(evolutionStore, source)
+  const interactionGenerationEvidence = await openInteractionGenerationEvidenceVault(
+    ctx.storageDomain,
+    { authority: interactionEvidenceAuthority },
+  )
+  runtime.own('revocation', () => interactionGenerationEvidence.close())
   const deliveryOutcomes = await openDeliveryOutcomeStore(ctx.storageDomain)
+  runtime.own('resource', () => deliveryOutcomes.close())
   const feedbackSignals = await openFeedbackSignalStore(ctx.storageDomain)
+  runtime.own('resource', () => feedbackSignals.close())
   const skillUses = await openSkillUseStore(ctx.storageDomain)
+  runtime.own('resource', () => skillUses.close())
   const longTermEffects = await openLongTermEffectsStore(ctx.storageDomain)
+  runtime.own('resource', () => longTermEffects.close())
   const skillOutcomeContext = new ExactSkillOutcomeContextProjection(skillUses, deliveryOutcomes)
   const capabilityGaps = await openCapabilityGapStore(ctx.storageDomain)
+  runtime.own('resource', () => capabilityGaps.close())
   const skillOpportunities = new ExperienceDrivenSkillOpportunityDiscovery(capabilityGaps, {
     feedback: feedbackSignals,
     outcomes: deliveryOutcomes,
   })
   const skillCandidateStore = await openSkillCandidateStore(ctx.storageDomain)
+  runtime.own('resource', () => skillCandidateStore.close())
   const existingSkillReleaseStore = await openExistingSkillReleaseStore(ctx.storageDomain)
+  runtime.own('resource', () => existingSkillReleaseStore.close())
   let durableFeedbackAttribution: DurableFeedbackAttribution | undefined
   let reconcileExistingSkillCandidates: ((workspaceId: string) => void) | undefined
   const feedbackMonitor = installFeedbackSignalMonitor(ctx, feedbackSignals, store, {
@@ -211,6 +332,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     },
     onSignalsChanged: workspaceId => reconcileExistingSkillCandidates?.(workspaceId),
   })
+  runtime.own('producer', () => feedbackMonitor.dispose())
   let counterfactualCanaryScheduler: CounterfactualCanaryScheduler | undefined
   let existingSkillCounterfactualCanaryScheduler: ExistingSkillCounterfactualCanaryScheduler | undefined
   const deliveryMonitor = installDeliveryOutcomeMonitor(ctx, deliveryOutcomes, store, {
@@ -221,6 +343,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       }
     },
   })
+  runtime.own('producer', () => deliveryMonitor.dispose())
   const candidateEvaluationPolicies = config.candidateEvaluationPolicies ?? []
   const selfDiscoveryPolicies = config.selfDiscoveryPolicies ?? []
   const automaticPromotionPolicies = config.automaticPromotionPolicies ?? []
@@ -306,11 +429,20 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     }[]
   } | undefined
   for (const observation of gateway?.recoveryObservations?.() ?? []) recordGatewayRecovery(observation)
-  const disposeBinder = installGenerationBinder(ctx, store, source)
+  const disposeBinder = installGenerationBinder(
+    ctx,
+    store,
+    source,
+    createInteractionGenerationEvidenceSink(interactionGenerationEvidence),
+  )
+  runtime.own('producer', disposeBinder)
   const skillUseMonitor = installSkillUseMonitor(ctx, skillUses, store)
+  runtime.own('producer', () => skillUseMonitor.dispose())
   const capabilities = new CapabilityMap()
   const capabilityMonitors = new Set<ReturnType<typeof installCapabilityMapObserver>>()
   const installedBaselineMonitors = new Set<ReturnType<typeof installInstalledSkillBaselineMonitor>>()
+  runtime.own('producer', () => disposeRuntimeGroup([...capabilityMonitors]))
+  runtime.own('producer', () => disposeRuntimeGroup([...installedBaselineMonitors]))
   let existingSkillBaselineQualification: ExistingSkillBaselineQualification | undefined
   let existingSkillBaselineVault: InstalledSkillBaselineVault | undefined
   let existingSkillEvaluationEvidence: ExistingSkillEvaluationEvidenceVault | undefined
@@ -683,6 +815,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         : reconcileSkillOpportunities(gap.workspaceId),
     },
   )
+  runtime.own('producer', () => capabilityGapMonitor.dispose())
   ctx.inject(['tools'], (toolCtx) => {
     installCapabilityGapTool(
       toolCtx,
@@ -972,32 +1105,21 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       }, 'dsh-evolve.shadowSupervisor')
     })
   }
-  ctx.effect(() => async () => {
-    await deliveryMonitor.dispose()
-    await skillUseMonitor.dispose()
-    await Promise.all([...installedBaselineMonitors].map(monitor => monitor.dispose()))
-    await Promise.all([...capabilityMonitors].map(monitor => monitor.dispose()))
-    await capabilityGapMonitor.dispose()
-    await feedbackMonitor.dispose()
-    await deliveryOutcomes.close()
-    await feedbackSignals.close()
-    await skillUses.close()
-    await longTermEffects.close()
-    await capabilityGaps.close()
-    await skillCandidateStore.close()
-    await existingSkillReleaseStore.close()
-    await disposeBinder()
-    await store.close()
-  }, 'dsh-evolve.runtimeClose')
+  // Registered last so ordinary unload revokes this runtime before the other
+  // plugin effects unwind; the early owner remains only as apply rollback.
+  ctx.effect(() => () => runtime.close(), 'dsh-evolve.runtimeClose')
+  runtimeCommitted = true
 }
 
 export type {
   CapabilityGeneration,
   EvolutionStore,
   GenerationInput,
+  SessionGenerationPinState,
   SessionIdentity,
   SkillGenerationArtifact,
 } from './generation-store.ts'
+export type { InteractionGenerationEvidencePolicyConfig } from './interaction-generation-evidence.ts'
 export type { SkillCandidateEvaluationPolicyConfig } from './skill-evaluation-envelope.ts'
 export type {
   SkillEvaluationCaseAuthorInput,

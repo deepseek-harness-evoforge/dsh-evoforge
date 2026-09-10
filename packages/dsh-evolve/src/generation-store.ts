@@ -61,6 +61,19 @@ export interface SessionIdentity {
   cwd?: string | undefined
 }
 
+/**
+ * Exact durable pin read for callers that must distinguish an intentionally
+ * native Session from an absent row or a reused Session id. The legacy
+ * `getSessionGeneration()` projection remains available for consumers that
+ * only need an evolved Generation, where all three non-evolved states project
+ * to `undefined`.
+ */
+export type SessionGenerationPinState =
+  | { readonly kind: 'missing' }
+  | { readonly kind: 'identity-conflict' }
+  | { readonly kind: 'native' }
+  | { readonly kind: 'evolved'; readonly generation: CapabilityGeneration }
+
 export type GenerationSelectionEvidence =
   | { readonly authority: 'direct-host' }
   | {
@@ -114,6 +127,7 @@ export interface EvolutionStore {
     options?: { parentSessionId?: string },
   ): Promise<CapabilityGeneration | undefined>
   fallbackSessionToNative(identity: SessionIdentity): Promise<void>
+  getSessionGenerationPin?(identity: SessionIdentity): SessionGenerationPinState
   getSessionGeneration(identity: SessionIdentity): CapabilityGeneration | undefined
   isRecoveryPaused(workspaceId: string): boolean
   setRecoveryPaused(workspaceId: string, paused: boolean): Promise<{ changed: boolean; paused: boolean }>
@@ -286,6 +300,35 @@ const evolutionDomainSpec = defineDomain({
 
 type EvolutionDomain = Domain<typeof evolutionDomainSpec>
 
+/**
+ * Strictly validate the identity of one Generation before it is used as
+ * historical Host evidence. The ordinary store API returns trusted rows; this
+ * additional check keeps an evidence producer from blessing a stale wrapper,
+ * malformed test double, or a row whose public id is not its content address.
+ *
+ * @internal Runtime-composition helper; deliberately not re-exported from the
+ * package root.
+ */
+export function verifyCapabilityGenerationIdentityV2(
+  value: unknown,
+  expectedWorkspaceId: string,
+): CapabilityGeneration {
+  const workspaceId = workspaceIdSchema.parse(expectedWorkspaceId)
+  const candidate = snapshotPlainJsonData(value)
+  const generation = generationSchema.parse(candidate)
+  if (generation.workspaceId !== workspaceId) {
+    throw new Error(
+      `Generation '${generation.id}' belongs to Workspace '${generation.workspaceId}', not '${workspaceId}'`,
+    )
+  }
+  const { id, ...content } = generation
+  const expectedId = createHash('sha256').update(canonicalJson(content)).digest('hex')
+  if (id !== expectedId) {
+    throw new Error(`Generation '${id}' is not its canonical content address`)
+  }
+  return immutableCopy(generation)
+}
+
 class DomainEvolutionStore implements EvolutionStore {
   private writeTail: Promise<void> = Promise.resolve()
   private closing?: Promise<void>
@@ -399,13 +442,18 @@ class DomainEvolutionStore implements EvolutionStore {
   }
 
   getSessionGeneration(identity: SessionIdentity): CapabilityGeneration | undefined {
+    const pin = this.getSessionGenerationPin(identity)
+    return pin.kind === 'evolved' ? pin.generation : undefined
+  }
+
+  getSessionGenerationPin(identity: SessionIdentity): SessionGenerationPinState {
     const normalized = sessionIdentitySchema.parse(identity)
     const pin = this.domain.table('session_pins').get(normalized.sessionId)
-    if (pin === undefined) return undefined
+    if (pin === undefined) return immutableCopy({ kind: 'missing' as const })
     if (canonicalJson(pin.identity) !== canonicalJson(normalized)) {
-      return undefined
+      return immutableCopy({ kind: 'identity-conflict' as const })
     }
-    if (pin.generationId === undefined) return undefined
+    if (pin.generationId === undefined) return immutableCopy({ kind: 'native' as const })
     const generation = this.getGeneration(pin.generationId)
     if (generation === undefined) {
       throw new Error(
@@ -417,7 +465,7 @@ class DomainEvolutionStore implements EvolutionStore {
         `Session pin '${normalized.sessionId}' references Generation '${pin.generationId}' from Workspace '${generation.workspaceId}'`,
       )
     }
-    return generation
+    return immutableCopy({ kind: 'evolved' as const, generation })
   }
 
   close(): Promise<void> {
@@ -722,6 +770,55 @@ function canonicalJson(value: unknown): string {
     .sort()
     .map(key => `${JSON.stringify(key)}:${canonicalJson(record[key])}`)
     .join(',')}}`
+}
+
+function snapshotPlainJsonData(value: unknown, seen = new Set<object>()): unknown {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') return value
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) throw new TypeError('Generation data contains a non-finite number')
+    return value
+  }
+  if (typeof value !== 'object' || seen.has(value)) {
+    throw new TypeError('Generation data must be an acyclic JSON value')
+  }
+  seen.add(value)
+  try {
+    const prototype = Object.getPrototypeOf(value)
+    if (Array.isArray(value)) {
+      if (prototype !== Array.prototype) throw new TypeError('Generation arrays must be plain')
+      const descriptors = Object.getOwnPropertyDescriptors(value)
+      const keys = Reflect.ownKeys(descriptors)
+      if (keys.some(key => key !== 'length'
+        && (typeof key !== 'string' || !/^(?:0|[1-9][0-9]*)$/u.test(key)))) {
+        throw new TypeError('Generation arrays contain non-index properties')
+      }
+      const result: unknown[] = []
+      for (let index = 0; index < value.length; index += 1) {
+        const descriptor = descriptors[String(index)]
+        if (descriptor === undefined || !descriptor.enumerable || !('value' in descriptor)) {
+          throw new TypeError('Generation arrays must be dense enumerable data')
+        }
+        result.push(snapshotPlainJsonData(descriptor.value, seen))
+      }
+      return result
+    }
+    if (prototype !== Object.prototype && prototype !== null) {
+      throw new TypeError('Generation objects must be plain')
+    }
+    const descriptors = Object.getOwnPropertyDescriptors(value)
+    const result: Record<string, unknown> = Object.create(null)
+    for (const key of Reflect.ownKeys(descriptors)) {
+      if (typeof key !== 'string') throw new TypeError('Generation objects cannot contain symbols')
+      const descriptor = descriptors[key]
+      if (descriptor === undefined || !descriptor.enumerable || !('value' in descriptor)) {
+        throw new TypeError('Generation objects must contain enumerable data properties only')
+      }
+      result[key] = snapshotPlainJsonData(descriptor.value, seen)
+    }
+    return result
+  } finally {
+    seen.delete(value)
+  }
 }
 
 function immutableCopy<T>(value: T): T {

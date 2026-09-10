@@ -14,6 +14,11 @@ import {
 } from '@deepseek-ai/dsh-session-persistence'
 import type { GatewayIngressEvidenceSourceV1 } from 'dsh-evoforge-gateway'
 import {
+  interactionGenerationSessionLifecycleDigest,
+  type InteractionEpisodeGenerationFactV1,
+  type InteractionGenerationEvidenceSourceV1,
+} from './interaction-generation-evidence.ts'
+import {
   assembleInteractionEpisodeInputV1,
   type InteractionEpisodeAssemblyResultV1,
   type InteractionEpisodeEvidenceDimensionV1,
@@ -32,6 +37,7 @@ import {
   type InteractionEpisodeTriggerRequestControlSubjectV1,
 } from './interaction-trigger-request-control.ts'
 import type { InteractionEpisodeInputV1 } from './interaction-episode-store.ts'
+import { isWorkspaceId } from './workspace-identity.ts'
 
 const stockMissingDimensions = [
   'workspace',
@@ -135,6 +141,7 @@ interface InteractionEpisodeEvidenceResolverDependenciesV1 {
 interface StockDshAlpha5ResolverDependenciesV1 {
   readonly sessions: Pick<SessionStore, 'get' | 'flush'>
   readonly sessionPersistence: Pick<SessionPersistence, 'readFrom'>
+  readonly generationEvidence?: InteractionGenerationEvidenceSourceV1
 }
 
 interface GatewayAwareDshAlpha5ResolverDependenciesV1
@@ -281,7 +288,11 @@ export function createStockDshAlpha5InteractionEpisodeEvidenceResolver(
 ): InteractionEpisodeEvidenceResolverV1 {
   return createInteractionEpisodeEvidenceResolver({
     ...dependencies,
-    attestor: stockDshAlpha5Attestor,
+    attestor: createDshAlpha5HostEvidenceAttestor({
+      ...(dependencies.generationEvidence === undefined
+        ? {}
+        : { generationEvidence: dependencies.generationEvidence }),
+    }),
   })
 }
 
@@ -298,8 +309,208 @@ export function createGatewayAwareDshAlpha5InteractionEpisodeEvidenceResolver(
   return createInteractionEpisodeEvidenceResolver({
     sessions: dependencies.sessions,
     sessionPersistence: dependencies.sessionPersistence,
-    attestor: gatewayWorkspaceAttestor(dependencies.gateway),
+    attestor: createDshAlpha5HostEvidenceAttestor({
+      gateway: dependencies.gateway,
+      ...(dependencies.generationEvidence === undefined
+        ? {}
+        : { generationEvidence: dependencies.generationEvidence }),
+    }),
   })
+}
+
+interface DshAlpha5HostEvidenceSourcesV1 {
+  readonly gateway?: GatewayIngressEvidenceSourceV1
+  readonly generationEvidence?: InteractionGenerationEvidenceSourceV1
+}
+
+function createDshAlpha5HostEvidenceAttestor(
+  sources: DshAlpha5HostEvidenceSourcesV1,
+): InteractionEpisodeHostEvidenceAttestorV1 {
+  const generationEvidence = sources.generationEvidence
+  if (generationEvidence === undefined) {
+    return sources.gateway === undefined
+      ? stockDshAlpha5Attestor
+      : gatewayWorkspaceAttestor(sources.gateway)
+  }
+  return Object.freeze({
+    async resolve(
+      subject: DurableInteractionEpisodeSubjectV1,
+      derived: InteractionEpisodeDerivedEvidenceV1,
+    ) {
+      const [generationResult, workspaceResult] = await Promise.allSettled([
+        resolveGenerationEvidence(generationEvidence, subject, derived),
+        sources.gateway === undefined
+          ? Promise.resolve({ status: 'unavailable' } as const)
+          : resolveGatewayWorkspaceEvidence(sources.gateway, subject),
+      ])
+      const conflicts = partialDshAlpha5ConflictDimensions(
+        workspaceResult.status === 'fulfilled' ? workspaceResult.value : undefined,
+        generationResult.status === 'fulfilled' ? generationResult.value : undefined,
+      )
+      if (conflicts.length > 0) {
+        return hostEvidenceResolution('evidence-conflict', conflicts)
+      }
+      if (generationResult.status === 'rejected' || workspaceResult.status === 'rejected') {
+        throw new Error('DSH alpha.5 Host evidence source invocation failed')
+      }
+      return composePartialDshAlpha5HostEvidence(
+        workspaceResult.value,
+        generationResult.value,
+      )
+    },
+  })
+}
+
+type GenerationEvidenceResolution =
+  | { readonly status: 'unavailable' }
+  | { readonly status: 'conflict' }
+  | { readonly status: 'matched'; readonly fact: InteractionEpisodeGenerationFactV1 }
+
+async function resolveGenerationEvidence(
+  source: InteractionGenerationEvidenceSourceV1,
+  subject: DurableInteractionEpisodeSubjectV1,
+  derived: InteractionEpisodeDerivedEvidenceV1,
+): Promise<GenerationEvidenceResolution> {
+  const resolution: unknown = await source.resolveGenerationEvidence(subject, derived)
+  return generationEvidenceResolution(resolution, subject, derived)
+}
+
+function generationEvidenceResolution(
+  resolution: unknown,
+  subject: DurableInteractionEpisodeSubjectV1,
+  derived: InteractionEpisodeDerivedEvidenceV1,
+): GenerationEvidenceResolution {
+  const result = ownEnumerableDataSnapshot(resolution)
+  if (result === undefined) return { status: 'conflict' }
+  if (hasExactDataKeys(result, ['status', 'reason'])
+    && result.status === 'abstained') {
+    if (result.reason === 'evidence-unavailable') return { status: 'unavailable' }
+    return { status: 'conflict' }
+  }
+  if (!hasExactDataKeys(result, ['status', 'fact']) || result.status !== 'matched') {
+    return { status: 'conflict' }
+  }
+  const fact = exactGenerationFact(result.fact, subject, derived)
+  return fact === undefined
+    ? { status: 'conflict' }
+    : { status: 'matched', fact }
+}
+
+function exactGenerationFact(
+  candidate: unknown,
+  subject: DurableInteractionEpisodeSubjectV1,
+  derived: InteractionEpisodeDerivedEvidenceV1,
+): InteractionEpisodeGenerationFactV1 | undefined {
+  const fact = ownEnumerableDataSnapshot(candidate)
+  if (fact === undefined
+    || !hasExactDataKeys(fact, ['schemaVersion', 'kind', 'workspaceId', 'subject', 'generation'])
+    || fact.schemaVersion !== 1
+    || fact.kind !== 'interaction-generation-fact-v1'
+    || !isWorkspaceId(fact.workspaceId)) return undefined
+  const factSubject = ownEnumerableDataSnapshot(fact.subject)
+  let sessionLifecycleDigest: string
+  try {
+    sessionLifecycleDigest = interactionGenerationSessionLifecycleDigest(subject)
+  } catch {
+    return undefined
+  }
+  if (factSubject === undefined
+    || !hasExactDataKeys(factSubject, [
+      'sessionLifecycleDigest',
+      'prefixDigest',
+      'turnDigest',
+      'turnEndSeq',
+      'triggerRequestSeq',
+      'triggerCallSeq',
+      'triggerResultSeq',
+    ])
+    || factSubject.sessionLifecycleDigest !== sessionLifecycleDigest
+    || factSubject.prefixDigest !== subject.transcript.replay.prefixDigest
+    || factSubject.turnDigest !== subject.transcript.replay.turnDigest
+    || factSubject.turnEndSeq !== subject.transcript.source.turnEndSeq
+    || factSubject.triggerRequestSeq
+      !== derived.triggerRequestControl.boundary.assistantMessageSeq
+    || factSubject.triggerCallSeq !== subject.transcript.source.triggerCallSeq
+    || factSubject.triggerResultSeq !== subject.transcript.source.triggerResultSeq) {
+    return undefined
+  }
+  const generation = ownEnumerableDataSnapshot(fact.generation)
+  if (generation === undefined || generation.pin !== 'settled') return undefined
+  const effectiveMount = ownEnumerableDataSnapshot(generation.effectiveMount)
+  if (generation.kind === 'native') {
+    if (!hasExactDataKeys(generation, ['kind', 'pin', 'effectiveMount'])
+      || effectiveMount === undefined
+      || !hasExactDataKeys(effectiveMount, ['kind'])
+      || effectiveMount.kind !== 'native') return undefined
+  } else if (generation.kind === 'evolved') {
+    if (!hasExactDataKeys(generation, ['kind', 'pin', 'generationId', 'effectiveMount'])
+      || typeof generation.generationId !== 'string'
+      || !HASH_PATTERN.test(generation.generationId)
+      || effectiveMount === undefined
+      || !hasExactDataKeys(effectiveMount, ['kind', 'generationId'])
+      || effectiveMount.kind !== 'evolved'
+      || effectiveMount.generationId !== generation.generationId) return undefined
+  } else {
+    return undefined
+  }
+  return immutableCopy({
+    schemaVersion: 1,
+    kind: 'interaction-generation-fact-v1',
+    workspaceId: fact.workspaceId,
+    subject: {
+      sessionLifecycleDigest: factSubject.sessionLifecycleDigest,
+      prefixDigest: factSubject.prefixDigest,
+      turnDigest: factSubject.turnDigest,
+      turnEndSeq: factSubject.turnEndSeq,
+      triggerRequestSeq: factSubject.triggerRequestSeq,
+      triggerCallSeq: factSubject.triggerCallSeq,
+      triggerResultSeq: factSubject.triggerResultSeq,
+    },
+    generation: generation.kind === 'native'
+      ? {
+          kind: 'native',
+          pin: 'settled',
+          effectiveMount: { kind: 'native' },
+        }
+      : {
+          kind: 'evolved',
+          pin: 'settled',
+          generationId: generation.generationId,
+          effectiveMount: {
+            kind: 'evolved',
+            generationId: generation.generationId,
+          },
+        },
+  } as InteractionEpisodeGenerationFactV1)
+}
+
+function composePartialDshAlpha5HostEvidence(
+  workspace: GatewayWorkspaceEvidenceResolution,
+  generation: GenerationEvidenceResolution,
+): InteractionEpisodeHostEvidenceResolutionV1 {
+  const conflicts = partialDshAlpha5ConflictDimensions(workspace, generation)
+  if (conflicts.length > 0) {
+    return hostEvidenceResolution('evidence-conflict', conflicts)
+  }
+  return hostEvidenceResolution('evidence-unavailable', stockMissingDimensions.filter(
+    dimension => (dimension !== 'workspace' || workspace.status !== 'matched')
+      && (dimension !== 'generation' || generation.status !== 'matched'),
+  ))
+}
+
+function partialDshAlpha5ConflictDimensions(
+  workspace: GatewayWorkspaceEvidenceResolution | undefined,
+  generation: GenerationEvidenceResolution | undefined,
+): readonly InteractionEpisodeEvidenceDimensionV1[] {
+  const conflicts: InteractionEpisodeEvidenceDimensionV1[] = []
+  if (workspace?.status === 'conflict') conflicts.push('workspace')
+  if (generation?.status === 'conflict') conflicts.push('generation')
+  if (workspace?.status === 'matched'
+    && generation?.status === 'matched'
+    && workspace.workspaceId !== generation.fact.workspaceId) {
+    conflicts.push('workspace', 'generation')
+  }
+  return [...new Set(conflicts)]
 }
 
 function gatewayWorkspaceAttestor(
@@ -307,25 +518,37 @@ function gatewayWorkspaceAttestor(
 ): InteractionEpisodeHostEvidenceAttestorV1 {
   return Object.freeze({
     async resolve(subject: DurableInteractionEpisodeSubjectV1) {
-      const enqueue = exactSubjectEnqueue(subject)
-      if (enqueue === undefined) {
-        return hostEvidenceResolution('evidence-conflict', ['workspace'])
-      }
-
-      // Do not catch a source rejection. The outer resolver classifies an
-      // authority invocation failure separately from an evidence conclusion.
-      const resolution: unknown = await gateway.resolveIngressEvidence({
-        schemaVersion: 1,
-        kind: 'gateway-ingress-evidence-query-v1',
-        session: {
-          header: subject.session.header,
-          inheritedEventCount: subject.session.inheritedEventCount,
-        },
-        enqueue,
-      })
-      return gatewayWorkspaceResolution(resolution)
+      return gatewayWorkspaceHostResolution(
+        await resolveGatewayWorkspaceEvidence(gateway, subject),
+      )
     },
   })
+}
+
+type GatewayWorkspaceEvidenceResolution =
+  | { readonly status: 'unavailable' }
+  | { readonly status: 'conflict' }
+  | { readonly status: 'matched'; readonly workspaceId: string }
+
+async function resolveGatewayWorkspaceEvidence(
+  gateway: GatewayIngressEvidenceSourceV1,
+  subject: DurableInteractionEpisodeSubjectV1,
+): Promise<GatewayWorkspaceEvidenceResolution> {
+  const enqueue = exactSubjectEnqueue(subject)
+  if (enqueue === undefined) return { status: 'conflict' }
+
+  // Do not catch a source rejection. The outer resolver classifies an
+  // authority invocation failure separately from an evidence conclusion.
+  const resolution: unknown = await gateway.resolveIngressEvidence({
+    schemaVersion: 1,
+    kind: 'gateway-ingress-evidence-query-v1',
+    session: {
+      header: subject.session.header,
+      inheritedEventCount: subject.session.inheritedEventCount,
+    },
+    enqueue,
+  })
+  return gatewayWorkspaceEvidenceResolution(resolution)
 }
 
 function exactSubjectEnqueue(
@@ -353,38 +576,39 @@ function exactSubjectEnqueue(
   }
 }
 
-function gatewayWorkspaceResolution(
+function gatewayWorkspaceEvidenceResolution(
   resolution: unknown,
-): InteractionEpisodeHostEvidenceResolutionV1 {
+): GatewayWorkspaceEvidenceResolution {
   const result = ownEnumerableDataSnapshot(resolution)
-  if (result === undefined) {
-    return hostEvidenceResolution('evidence-conflict', ['workspace'])
-  }
+  if (result === undefined) return { status: 'conflict' }
   if (hasExactDataKeys(result, ['status', 'reason'])
     && result.status === 'abstained') {
-    if (result.reason === 'evidence-unavailable') {
-      return hostEvidenceResolution('evidence-unavailable', stockMissingDimensions)
-    }
-    if (result.reason === 'evidence-conflict') {
-      return hostEvidenceResolution('evidence-conflict', ['workspace'])
-    }
-    return hostEvidenceResolution('evidence-conflict', ['workspace'])
+    if (result.reason === 'evidence-unavailable') return { status: 'unavailable' }
+    return { status: 'conflict' }
   }
   if (!hasExactDataKeys(result, ['status', 'fact'])
     || result.status !== 'matched') {
-    return hostEvidenceResolution('evidence-conflict', ['workspace'])
+    return { status: 'conflict' }
   }
   const fact = ownEnumerableDataSnapshot(result.fact)
   if (fact === undefined
     || !hasExactDataKeys(fact, ['schemaVersion', 'kind', 'workspaceId'])
     || fact.schemaVersion !== 1
     || fact.kind !== 'gateway-ingress-workspace-fact-v1'
-    || typeof fact.workspaceId !== 'string'
-    || !UUID_PATTERN.test(fact.workspaceId)) {
+    || !isWorkspaceId(fact.workspaceId)) {
+    return { status: 'conflict' }
+  }
+  return { status: 'matched', workspaceId: fact.workspaceId }
+}
+
+function gatewayWorkspaceHostResolution(
+  resolution: GatewayWorkspaceEvidenceResolution,
+): InteractionEpisodeHostEvidenceResolutionV1 {
+  if (resolution.status === 'conflict') {
     return hostEvidenceResolution('evidence-conflict', ['workspace'])
   }
   return hostEvidenceResolution('evidence-unavailable', stockMissingDimensions.filter(
-    dimension => dimension !== 'workspace',
+    dimension => dimension !== 'workspace' || resolution.status !== 'matched',
   ))
 }
 
@@ -395,7 +619,7 @@ function hostEvidenceResolution(
   return immutableCopy({ status: 'abstained', reason, dimensions } as const)
 }
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
+const HASH_PATTERN = /^[0-9a-f]{64}$/u
 
 function ownEnumerableDataSnapshot(
   value: unknown,

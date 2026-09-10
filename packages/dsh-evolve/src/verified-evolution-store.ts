@@ -5,6 +5,7 @@ import type {
   GenerationSelectionEvidence,
   GenerationInput,
   SessionIdentity,
+  SessionGenerationPinState,
 } from './generation-store.ts'
 
 /**
@@ -80,6 +81,14 @@ export class VerifiedEvolutionStore implements EvolutionStore {
 
   getSessionGeneration(identity: SessionIdentity): CapabilityGeneration | undefined {
     return this.store.getSessionGeneration(identity)
+  }
+
+  getSessionGenerationPin(identity: SessionIdentity): SessionGenerationPinState {
+    const read = this.store.getSessionGenerationPin
+    if (read === undefined) {
+      throw new Error('Evolution store does not expose exact Session pin state')
+    }
+    return read.call(this.store, identity)
   }
 
   isRecoveryPaused(workspaceId: string): boolean {

@@ -1045,6 +1045,11 @@ describe('Interaction Episode evidence assembler', () => {
       readonly evolved?: boolean
     }[] = [
       { path: ['subject', 'workspaceId'], value: 'not-a-workspace', dimension: 'workspace' },
+      {
+        path: ['subject', 'workspaceId'],
+        value: '0198f4b4-b664-7000-8000-000000000003',
+        dimension: 'workspace',
+      },
       { path: ['durability', 'throughSeq'], value: -1, dimension: 'session-durability' },
       { path: ['durability', 'throughSeq'], value: 13.5, dimension: 'session-durability' },
       {

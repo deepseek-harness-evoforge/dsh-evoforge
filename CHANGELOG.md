@@ -20,6 +20,9 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
   only a safe orphan Episode, and exact retry repairs the index without changing the legacy Goal-qualified Gap domain.
 - Added a redacted Gateway ingress witness for Interaction evidence. It binds an authorized Workspace route to one exact
   durable Session enqueue; missing, ambiguous, or conflicting evidence abstains without delaying or failing delivery.
+- Added default-deny, per-Workspace retention for raw-free Interaction Generation receipts. Receipts bind an exact
+  completed trigger turn to the Session's durable native/evolved pin and continuously mounted Generation tree; they do
+  not infer provider winners or close an Episode automatically.
 - Consolidated Gateway, channel, Evolution, and Doctor visualization into one Session-scoped native DSH Web view.
 - Moved Feishu and Telegram secrets to the DSH CredentialProvider contract and kept both adapters disabled until their
   exact deployment configuration is present.

@@ -42,10 +42,16 @@ describe.skipIf(process.platform !== 'darwin')('resident evolution settled signa
       join(dshSourceDir, 'packages', 'boot', 'app-boot', 'lib', 'index.js'),
     ).href)
     const ctx = await boot('dsh-evolution-settled-test', config)
-    const sessions = await import(pathToFileURL(
-      join(dshSourceDir, 'packages', 'core', 'session', 'lib', 'index.js'),
-    ).href)
+    const [sessions, agents] = await Promise.all([
+      import(pathToFileURL(
+        join(dshSourceDir, 'packages', 'core', 'session', 'lib', 'index.js'),
+      ).href),
+      import(pathToFileURL(
+        join(dshSourceDir, 'packages', 'core', 'agent', 'lib', 'index.js'),
+      ).href),
+    ])
     await ctx.plugin(sessions.default)
+    await ctx.plugin(agents.default)
     ctx.provide('workspaceRegistry', {
       resolveByPath: async () => ({ id: WORKSPACE_ID }),
     } as never)
@@ -65,4 +71,62 @@ describe.skipIf(process.platform !== 'darwin')('resident evolution settled signa
       await ctx.fiber.dispose()
     }
   }, 15_000)
+})
+
+describe.skipIf(process.platform !== 'darwin')('dsh-evolve runtime lifecycle', () => {
+  it('releases opened runtime domains when apply rejects so corrected config can load', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolution-apply-rollback-'))
+    temporaryRoots.push(root)
+    const config = join(root, 'cordis.yml')
+    await writeFile(config, JSON.stringify([
+      {
+        id: 'storage',
+        name: join(dshSourceDir, 'packages', 'storage', 'storage', 'lib', 'index.js'),
+      },
+      {
+        id: 'storage-json',
+        name: join(dshSourceDir, 'packages', 'storage', 'storage-json', 'lib', 'index.js'),
+        config: { root: join(root, 'storage') },
+      },
+      {
+        id: 'storage-domain',
+        name: join(dshSourceDir, 'packages', 'storage', 'storage-domain', 'lib', 'index.js'),
+        config: { backend: 'json' },
+      },
+    ], null, 2))
+    const { boot } = await import(pathToFileURL(
+      join(dshSourceDir, 'packages', 'boot', 'app-boot', 'lib', 'index.js'),
+    ).href)
+    const ctx = await boot('dsh-evolution-apply-rollback-test', config)
+    const [sessions, agents] = await Promise.all([
+      import(pathToFileURL(
+        join(dshSourceDir, 'packages', 'core', 'session', 'lib', 'index.js'),
+      ).href),
+      import(pathToFileURL(
+        join(dshSourceDir, 'packages', 'core', 'agent', 'lib', 'index.js'),
+      ).href),
+    ])
+    await ctx.plugin(sessions.default)
+    await ctx.plugin(agents.default)
+    ctx.provide('workspaceRegistry', {
+      resolveByPath: async () => ({ id: WORKSPACE_ID }),
+    } as never)
+    try {
+      await expect(ctx.plugin(EvolvePlugin, {
+        cacheRoot: join(root, 'failed-cache'),
+        selfDiscoveryPolicies: [{
+          id: 'missing-evaluation-governance',
+          workspaceId: WORKSPACE_ID,
+          runRoot: join(root, 'runs'),
+        }],
+      })).rejects.toThrow(/requires an evaluation governance policy/u)
+
+      await expect(ctx.plugin(EvolvePlugin, {
+        cacheRoot: join(root, 'corrected-cache'),
+      })).resolves.toBeDefined()
+      expect(ctx.get('evoforge.evolution')).toBeDefined()
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
 })

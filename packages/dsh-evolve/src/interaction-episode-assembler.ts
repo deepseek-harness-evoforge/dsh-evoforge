@@ -5,17 +5,21 @@ import {
   normalizeInteractionEpisodeInputV1,
   type InteractionEpisodeInputV1,
 } from './interaction-episode-store.ts'
+import { isWorkspaceId } from './workspace-identity.ts'
 
 const safeInteger = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
 const hashSchema = z.string().regex(/^[a-f0-9]{64}$/u)
 const gitRevisionSchema = z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/u)
 const skillNameSchema = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/u).max(128)
+const workspaceIdSchema = z.string().refine(isWorkspaceId, {
+  message: 'expected a canonical native Workspace UUID v1-v5',
+})
 
 const hostBindingSchema = z.strictObject({
   schemaVersion: z.literal(1),
   kind: z.literal('interaction-episode-host-binding-v1'),
   subject: z.strictObject({
-    workspaceId: z.uuid(),
+    workspaceId: workspaceIdSchema,
     transcript: z.unknown(),
   }),
   durability: z.strictObject({
@@ -142,6 +146,12 @@ export interface InteractionEpisodeHostBindingV1 {
         readonly presence: 'absent'
       }
     }
+    /**
+     * Settled Session pin and the corresponding Host-owned Generation tree
+     * mounted in the Agent scope for the trigger boundary. Provider precedence
+     * and the complete model-visible winner set belong to `catalog`; this field
+     * must not be used to infer either one.
+     */
     readonly generation:
       | {
         readonly kind: 'native'

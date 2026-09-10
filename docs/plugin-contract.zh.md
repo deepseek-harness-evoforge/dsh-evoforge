@@ -25,6 +25,27 @@ Storage 或生命周期。确需状态时，使用 DSH Storage 提供的 namespa
 跨包依赖通过 Cordis Service Definition/inject 表达，不能靠全局变量、固定启动顺序、端口探测或扫描其他包的
 私有目录。可选 Provider 出现/消失时，Consumer 必须正确 activate/dispose。
 
+### 2.1 Interaction Generation 证据保留策略
+
+`dsh-evolve.interactionEvidencePolicies` 是 Host 管理员对 raw-free Generation receipt 的逐 Workspace 保留授权，默认
+为空（不写入且不返回 positive match）。它不是用户同意、DSH Episode/Session 读取权限，也不能扩大 Tool、Skill、
+Provider 或 Workspace 权限。它只开始为未来的可信 Host evidence composer 保留私有历史账本；当前插件不会自动消费该账本，
+也不会自动闭合任何运行时 Episode evidence dimension。每项只接受一个 canonical 小写 native Workspace UUID v1-v5，
+最多 100 个 Workspace；
+`retention.generationMaxRecords` 必须是 `1..10000` 的整数，所有配置项之和不得超过 100000，durable vault 的物理记录
+数也不得超过 100000。
+
+配置撤回后必须立即拒绝该 Workspace 的新写入和 positive read，但不会自动清除已经持久化的记录；删除、导出和用户同意
+仍由各自的 Host 策略处理。逐 Workspace quota 只按 Host 持久化的单调写入序号裁剪 `resolved` 行，不使用事件自身的
+`observedAt`，也不影响其他 Workspace。receipt 的 subject identity/key 不包含 Workspace；同一 subject 的矛盾 Workspace
+声明因此会生成带排序 `workspaceIds` owner 元数据的全局 conflict tombstone。tombstone 永不因 quota 或 aggregate cap 被
+裁剪；跨配置轮换累计到第 101 个历史 owner 时，live vault 会整体 fail closed，而不会丢弃 owner 元数据。超过 aggregate
+cap 时 vault 在打开或新写入处 fail closed，不通过删除 tombstone 腾挪容量。
+
+冲突转换必须先写完整 tombstone；若写入报错，只在立即 readback 得到完全相同的 tombstone 时才视为已提交，否则当前
+vault authority 整体 unavailable，并由 `drain`/`close` 暴露失败。后端明确拒绝且未提交的矛盾观察不属于 durable
+accepted evidence；重启只能恢复此前真正持久化的状态，不能宣称存储从未接受的数据已跨重启封存。
+
 ## 3. 生命周期
 
 所有 listener、timer、watcher、transport、Remote、临时目录和文件句柄都由当前 fiber 持有。disable、reload、

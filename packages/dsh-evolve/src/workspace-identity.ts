@@ -1,10 +1,11 @@
 import type { Context } from '@deepseek-ai/cordis'
 
-const WORKSPACE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+export const NATIVE_WORKSPACE_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u
 
 /** Whether a value is a canonical native Workspace UUID. */
 export function isWorkspaceId(value: unknown): value is string {
-  return typeof value === 'string' && WORKSPACE_ID.test(value)
+  return typeof value === 'string' && NATIVE_WORKSPACE_ID_PATTERN.test(value)
 }
 
 /** Resolve the one native Workspace authority for a Session cwd without creating anything. */

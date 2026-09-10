@@ -40,6 +40,12 @@ describe('Interaction Episode evidence resolver', () => {
     expect(publicApi).not.toHaveProperty('createGatewayAwareDshAlpha5InteractionEpisodeEvidenceResolver')
     expect(publicApi).not.toHaveProperty('createInteractionEpisodeEvidenceResolver')
     expect(publicApi).not.toHaveProperty('createStockDshAlpha5InteractionEpisodeEvidenceResolver')
+    expect(publicApi).not.toHaveProperty('createDshAlpha5HostEvidenceAttestor')
+    expect(publicApi).not.toHaveProperty('createInteractionGenerationEvidenceReceiptV1')
+    expect(publicApi).not.toHaveProperty('createInteractionGenerationEvidenceSource')
+    expect(publicApi).not.toHaveProperty('createInteractionGenerationEvidenceSink')
+    expect(publicApi).not.toHaveProperty('openInteractionGenerationEvidenceVault')
+    expect(publicApi).not.toHaveProperty('interactionGenerationSessionLifecycleDigest')
   })
 
   it('proves the physical Session cut before the stock Host honestly abstains', async () => {
@@ -590,6 +596,7 @@ describe('Interaction Episode evidence resolver', () => {
         declaredRoute: { provider: 'fixture', model: 'fixture-model' },
       },
     })
+    expect(Object.keys(observedDerived ?? {})).toEqual(['triggerRequestControl'])
     expect(Object.isFrozen(observedDerived)).toBe(true)
     expect(Object.isFrozen(observedDerived?.triggerRequestControl)).toBe(true)
     expect(JSON.stringify(observedDerived)).not.toContain('Find a reusable release audit method.')

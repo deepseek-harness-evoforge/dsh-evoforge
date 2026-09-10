@@ -29,6 +29,23 @@ Use the Evolution surface in the same DSH Web conversation view. The compatibili
 for old deployments and isolated development. External Skill marketplaces, runtime downloads, and other Agents are not
 evolution sources.
 
+Generation receipts are not retained by default. A Host administrator can authorize bounded raw-free retention for an
+exact native Workspace in the plugin config:
+
+```yaml
+interactionEvidencePolicies:
+  - workspaceId: 11111111-1111-4111-8111-111111111111
+    retention:
+      generationMaxRecords: 1000
+```
+
+The maximum is 10,000 resolved records per Workspace, 100 configured Workspaces, and 100,000 records in aggregate.
+Removing a policy immediately blocks new writes and positive reads without automatically purging stored evidence. This
+setting is Host-admin authorization, not user consent or Session/Episode access permission. It starts a private
+historical ledger for a future trusted-Host evidence composer; the current plugin does not automatically consume that
+ledger or close any runtime Episode evidence dimension. See the
+[plugin contract](../../docs/plugin-contract.zh.md#21-interaction-generation-证据保留策略).
+
 ## Remove
 
 ```sh

@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { JobRegistry } from '@deepseek-ai/dsh-jobs'
 import { openEvolutionStore, type EvolutionStore } from '../src/generation-store.js'
+import { VerifiedEvolutionStore } from '../src/verified-evolution-store.js'
 import {
   openExistingSkillReleaseStore,
   type ExistingSkillReleaseDecision,
@@ -454,6 +455,54 @@ describe.skipIf(process.platform !== 'darwin')('Capability Generation store', ()
     } finally {
       await recoveredStore.close()
       await recoveredCtx.fiber.dispose()
+    }
+  })
+
+  it('distinguishes missing, identity-conflicted, native, and evolved Session pins through the verified store', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-exact-session-pin-state-'))
+    temporaryRoots.push(root)
+    const configPath = await writeStorageConfig(root)
+    const ctx = await bootStorage(configPath)
+    const domainStore = await openEvolutionStore(ctx.storageDomain)
+    const store = new VerifiedEvolutionStore(domainStore, {
+      providerFor: async () => ({
+        name: 'evoforge-generation',
+        list: async () => [],
+        get: async () => undefined,
+      }),
+    })
+    const missing = session('missing-pin', 10)
+    const native = session('native-pin', 11)
+    const evolved = session('evolved-pin', 12)
+    const conflicted = { ...native, createdAt: native.createdAt + 1 }
+    try {
+      expect(store.getSessionGenerationPin?.(missing)).toEqual({ kind: 'missing' })
+      await store.pinSession(native)
+      expect(store.getSessionGenerationPin?.(native)).toEqual({ kind: 'native' })
+      expect(store.getSessionGenerationPin?.(conflicted)).toEqual({ kind: 'identity-conflict' })
+
+      const generation = (await store.publishGeneration({
+        workspaceId: WORKSPACE_ID,
+        createdAt: 1_723_456_789_000,
+        artifacts: [{
+          kind: 'skill',
+          name: 'build-dsh-plugin',
+          gitCommit: '0123456789abcdef0123456789abcdef01234567',
+          treeHash: 'a'.repeat(64),
+        }],
+        evaluatorVersion: 'private-host-runtime-package-boundary-v1',
+        policyVersion: 'p0b.1',
+        compositionFingerprint: 'b'.repeat(64),
+      })).generation
+      await store.promoteGeneration(WORKSPACE_ID, generation.id)
+      await store.pinSession(evolved)
+      expect(store.getSessionGenerationPin?.(evolved)).toEqual({
+        kind: 'evolved',
+        generation,
+      })
+    } finally {
+      await store.close()
+      await ctx.fiber.dispose()
     }
   })
 
