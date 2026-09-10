@@ -12,8 +12,14 @@
   内容寻址的持久数据目录；失败保留可恢复产物且不打印 effective config。
 - 一个 Host、一个认证 Web URL、一个 Session-scoped Control Center；空态、401、刷新、断线和恢复可见。
 - 完成 add → dump → boot → reload/dispose → remove → native Session/Goal readback。
- `report_capability_gap` 的工具层硬依赖已拆除：无 Goal Interaction 会持久化 signal 并明确 `abstain`，且不触发旧慢环。
- 下一步把可重放 Interaction episode 接入 opportunity、Candidate 资格和评测门，再替换旧的 Goal-only 计数。
+- `report_capability_gap` 的工具层硬依赖已拆除：无 Goal Interaction 会持久化 signal 并明确 `abstain`；自有 Tool 的
+  exact schema/body/final result/Workspace/completed turn 已能形成独立 Routing receipt；Goal-linked Gap 也只有写入同源的
+  completed-turn qualification 后才能进入 authoring。普通 native Skill error、取消/改写/blocked turn 和历史未 qualification
+  行已退出新机会与评测资格。下一步由唯一 Host composer 消费现有 Gateway/Generation/Routing source，并继续补齐其余
+  Episode 维度，再替换旧的 Goal-only 计数。
+- DSH alpha.5 Storage Domain 尚不能取消或 fence 已接收的 KV mutation；source 读取已有 30 秒 fail-closed 上限，但 durable
+  write teardown 仍依赖 Provider settlement。发布前需要上游 abort/deadline/no-late-write 契约，再把同一 deadline 贯穿
+  Generation、Routing vault 与 producer dispose。
 
 退出：clean profile 可重复安装/升级/卸载，且不会残留 listener、网页、状态或秘密。
 
@@ -32,6 +38,8 @@
 - 统一 Gap/investigation、existing-Skill improvement 与 instruction-only Candidate 的证据模型。
 - 完成执行、Candidate、治理三平面隔离，holdout/retention 预封存，proposer 与裁判分离。
 - 记录真实 token、时延、cache-read、权限、失败归因、负迁移、遗忘、误晋升和回滚。
+- RP-1 当前 epoch 2 保持付费 hard block；在新 epoch 重新开放前，先把受审计的运行时 artifact、实际 Provider
+  配置、终态 revision 和所有失败输出绑定到同一次执行，且证明批准后仍不会泄漏 secret 或私有路径。
 - 在两套独立真实 Provider 上运行同条件 Hermes paired benchmark。
 
 退出：Candidate 只影响未来 Session；任何缺证据、泄漏、漂移或重复副作用都 fail closed；至少一个声明工作流达到

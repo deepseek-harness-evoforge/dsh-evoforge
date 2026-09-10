@@ -14,8 +14,10 @@ scheduler, database, or runtime.
 - Promotion changes only future Session selection. The active Session remains pinned; canary and rollback are exact
   Host decisions.
 
-The current implementation persists a no-Goal gap signal but deliberately stops it at `abstained`; the complete
-Interaction-episode slow loop and real-provider proof remain release blockers. See [current status](../../docs/status.zh.md).
+The current implementation accepts a model-declared Capability Gap for authoring only after its native Tool call and
+completed conversation turn agree. Cancelled, conflicting, and incomplete turns remain ineligible. Ordinary no-Goal
+signals still stop at `abstained`; complete Interaction-episode and real-provider proof remain release blockers. See
+[current status](../../docs/status.zh.md).
 
 ## Install and use
 
@@ -45,6 +47,23 @@ setting is Host-admin authorization, not user consent or Session/Episode access 
 historical ledger for a future trusted-Host evidence composer; the current plugin does not automatically consume that
 ledger or close any runtime Episode evidence dimension. See the
 [plugin contract](../../docs/plugin-contract.zh.md#21-interaction-generation-证据保留策略).
+
+Routing retention is a separate, independently default-denied authority and quota:
+
+```yaml
+interactionRoutingEvidencePolicies:
+  - workspaceId: 11111111-1111-4111-8111-111111111111
+    retention:
+      routingMaxRecords: 1000
+```
+
+The same 10,000-per-Workspace, 100-policy, and 100,000-record caps apply to this independent ledger. Its only eligible
+source is an exactly witnessed successful `report_capability_gap` execution in a matching completed turn. A failed native
+`skill` Tool call can also mean policy, loading, cancellation, or execution failure, so it does not create evolution
+evidence. Gap authoring eligibility remains independent of this optional retention setting: a Routing-ledger outage cannot
+grant or revoke it. The running plugin retains the ledger but does not yet assemble complete Interaction Episodes from it.
+See the
+[Routing contract](../../docs/plugin-contract.zh.md#22-interaction-routing-证据保留策略).
 
 ## Remove
 

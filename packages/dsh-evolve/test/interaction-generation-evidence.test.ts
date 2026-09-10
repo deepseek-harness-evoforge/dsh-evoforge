@@ -85,6 +85,85 @@ describe('Interaction Generation evidence vault', () => {
     await vault.close()
   })
 
+  it('keeps a direct resolution read failure sticky after the backend recovers', async () => {
+    const memory = memoryFacility()
+    const vault = await openInteractionGenerationEvidenceVault(memory.facility, {
+      authority: authorizedAuthority(),
+    })
+    const subject = fixtureSubject()
+    const derived = derivedFor(subject)
+    await vault.retain(createInteractionGenerationEvidenceReceiptV1({
+      workspaceId: WORKSPACE_ID,
+      subject,
+      derived,
+      generation: nativeGeneration(),
+      binderEpoch: 'binder-one',
+      lifecycleCutoff: 0,
+    }))
+    memory.table.failGetOnceForKey = [...memory.table.keys()][0]
+
+    await expect(vault.resolveGenerationEvidence(subject, derived))
+      .rejects.toThrow(/evidence read failed/u)
+    await expect(vault.resolveGenerationEvidence(subject, derived)).resolves.toEqual({
+      status: 'abstained',
+      reason: 'evidence-unavailable',
+    })
+    expect(vault.allows(WORKSPACE_ID)).toBe(false)
+    await expect(vault.drain()).rejects.toThrow(/evidence read failed/u)
+    await expect(vault.close()).rejects.toThrow(/evidence read failed/u)
+    expect(memory.closeCalls).toBe(1)
+  })
+
+  it('keeps a post-prune resolution read failure sticky after the backend recovers', async () => {
+    const memory = memoryFacility()
+    const vault = await openInteractionGenerationEvidenceVault(memory.facility, {
+      authority: authorizedAuthority(2),
+    })
+    const subjects = [
+      fixtureSubjectWithSessionId('post-prune-first'),
+      fixtureSubjectWithSessionId('post-prune-survivor'),
+      fixtureSubjectWithSessionId('post-prune-third'),
+    ]
+    const receipts = subjects.map((subject, index) =>
+      createInteractionGenerationEvidenceReceiptV1({
+        workspaceId: WORKSPACE_ID,
+        subject,
+        derived: derivedFor(subject),
+        generation: nativeGeneration(),
+        binderEpoch: `binder-${index}`,
+        lifecycleCutoff: 0,
+      }))
+    await vault.retain(receipts[0]!)
+    await vault.retain(receipts[1]!)
+
+    const deleteStarted = deferred<void>()
+    const deleteGate = deferred<void>()
+    memory.table.beforeDelete = async () => {
+      deleteStarted.resolve()
+      await deleteGate.promise
+    }
+    const pruning = vault.retain(receipts[2]!)
+    await deleteStarted.promise
+    const survivorKey = [...memory.table.keys()][1]!
+    const initialRead = deferred<void>()
+    memory.table.afterGet = key => {
+      if (key === survivorKey) initialRead.resolve()
+    }
+    const resolution = vault.resolveGenerationEvidence(subjects[1]!, derivedFor(subjects[1]!))
+    await initialRead.promise
+    memory.table.failGetOnceForKey = survivorKey
+    deleteGate.resolve()
+
+    await expect(pruning).resolves.toBeUndefined()
+    await expect(resolution).rejects.toThrow(/read failed after quota pruning/u)
+    await expect(vault.resolveGenerationEvidence(subjects[1]!, derivedFor(subjects[1]!)))
+      .resolves.toEqual({ status: 'abstained', reason: 'evidence-unavailable' })
+    expect(vault.allows(WORKSPACE_ID)).toBe(false)
+    await expect(vault.drain()).rejects.toThrow(/read failed after quota pruning/u)
+    await expect(vault.close()).rejects.toThrow(/read failed after quota pruning/u)
+    expect(memory.closeCalls).toBe(1)
+  })
+
   it('applies policy withdrawal on reopen without purging previously retained evidence', async () => {
     const memory = memoryFacility()
     const subject = fixtureSubject()
@@ -609,6 +688,160 @@ describe('Interaction Generation evidence vault', () => {
     await reopened.close()
   })
 
+  it('fails closed when an uncommitted conflict rejects with a hostile Error message', async () => {
+    const memory = memoryFacility()
+    const vault = await openInteractionGenerationEvidenceVault(memory.facility, {
+      authority: authorizedAuthority(),
+    })
+    const subject = fixtureSubject()
+    const derived = derivedFor(subject)
+    const first = createInteractionGenerationEvidenceReceiptV1({
+      workspaceId: WORKSPACE_ID,
+      subject,
+      derived,
+      generation: nativeGeneration(),
+      binderEpoch: 'binder-one',
+      lifecycleCutoff: 0,
+    })
+    await vault.retain(first)
+    const hostile = new Error('hidden')
+    Object.defineProperty(hostile, 'message', {
+      configurable: true,
+      get() { throw new Error('hostile message getter') },
+    })
+    memory.table.failPutWith = value =>
+      isRecord(value) && value.state === 'conflict' ? hostile : undefined
+
+    let rejected = false
+    try {
+      await vault.retain({
+        ...first,
+        provenance: { ...first.provenance, binderEpochDigest: 'f'.repeat(64) },
+      })
+    } catch {
+      rejected = true
+    }
+    const allowsAfterFailure = vault.allows(WORKSPACE_ID)
+    let closeRejected = false
+    try {
+      await vault.close()
+    } catch {
+      closeRejected = true
+    }
+
+    expect({ rejected, allowsAfterFailure, closeRejected }).toEqual({
+      rejected: true,
+      allowsAfterFailure: false,
+      closeRejected: true,
+    })
+  })
+
+  it('never invokes non-Error rejection hooks while rendering diagnostics', async () => {
+    const memory = memoryFacility()
+    const vault = await openInteractionGenerationEvidenceVault(memory.facility, {
+      authority: authorizedAuthority(),
+    })
+    const subject = fixtureSubject()
+    const receipt = createInteractionGenerationEvidenceReceiptV1({
+      workspaceId: WORKSPACE_ID,
+      subject,
+      derived: derivedFor(subject),
+      generation: nativeGeneration(),
+      binderEpoch: 'binder-one',
+      lifecycleCutoff: 0,
+    })
+    await vault.retain(receipt)
+    let hookCalls = 0
+    const hostileTarget = Object.create(null) as Record<string, unknown>
+    Object.defineProperty(hostileTarget, 'toJSON', {
+      enumerable: true,
+      get() {
+        hookCalls += 1
+        return () => {
+          hookCalls += 1
+          return { disguised: 'backend rejection' }
+        }
+      },
+    })
+    const hostile = new Proxy(hostileTarget, {
+      get(target, key, receiver) {
+        hookCalls += 1
+        return Reflect.get(target, key, receiver)
+      },
+      getPrototypeOf(target) {
+        hookCalls += 1
+        return Reflect.getPrototypeOf(target)
+      },
+      ownKeys(target) {
+        hookCalls += 1
+        return Reflect.ownKeys(target)
+      },
+      getOwnPropertyDescriptor(target, key) {
+        hookCalls += 1
+        return Reflect.getOwnPropertyDescriptor(target, key)
+      },
+    })
+    memory.table.failPutWith = value =>
+      isRecord(value) && value.state === 'conflict' ? hostile : undefined
+
+    await expect(vault.retain({
+      ...receipt,
+      provenance: { ...receipt.provenance, binderEpochDigest: 'f'.repeat(64) },
+    })).rejects.toThrow(/not committed/u)
+    expect(hookCalls).toBe(0)
+    expect(vault.allows(WORKSPACE_ID)).toBe(false)
+    await expect(vault.close()).rejects.toThrow(/not committed/u)
+  })
+
+  it('fails closed when a resolved put rejects hostilely after leaving a different row', async () => {
+    const memory = memoryFacility()
+    const vault = await openInteractionGenerationEvidenceVault(memory.facility, {
+      authority: authorizedAuthority(),
+    })
+    const subject = fixtureSubject()
+    const hostile = new Error('hidden')
+    Object.defineProperty(hostile, 'message', {
+      configurable: true,
+      get() { throw new Error('hostile message getter') },
+    })
+    memory.table.replacePutAndFail = (_key, value) => {
+      if (!isRecord(value) || value.state !== 'resolved') return undefined
+      return {
+        durable: { ...value, recordDigest: 'f'.repeat(64) },
+        error: hostile,
+      }
+    }
+
+    const receipt = createInteractionGenerationEvidenceReceiptV1({
+      workspaceId: WORKSPACE_ID,
+      subject,
+      derived: derivedFor(subject),
+      generation: nativeGeneration(),
+      binderEpoch: 'binder-one',
+      lifecycleCutoff: 0,
+    })
+    let rejected = false
+    try {
+      await vault.retain(receipt)
+    } catch {
+      rejected = true
+    }
+    const resolution = await vault.resolveGenerationEvidence(subject, derivedFor(subject))
+    let closeRejected = false
+    try {
+      await vault.close()
+    } catch {
+      closeRejected = true
+    }
+
+    expect({ rejected, allows: vault.allows(WORKSPACE_ID), resolution, closeRejected }).toEqual({
+      rejected: true,
+      allows: false,
+      resolution: { status: 'abstained', reason: 'evidence-unavailable' },
+      closeRejected: true,
+    })
+  })
+
   it('keeps an already-enrolled unrelated write durable when a conflict then fails', async () => {
     const memory = memoryFacility()
     const vault = await openInteractionGenerationEvidenceVault(memory.facility, {
@@ -750,6 +983,66 @@ describe('Interaction Generation evidence vault', () => {
     })
     expect(memory.table.size).toBe(1)
     await reopened.close()
+  })
+
+  it('fails closed when quota-enforcement entries become uncertain after commit', async () => {
+    const memory = memoryFacility()
+    const vault = await openInteractionGenerationEvidenceVault(memory.facility, {
+      authority: authorizedAuthority(1),
+    })
+    const subject = fixtureSubject()
+    const first = createInteractionGenerationEvidenceReceiptV1({
+      workspaceId: WORKSPACE_ID,
+      subject,
+      derived: derivedFor(subject),
+      generation: nativeGeneration(),
+      binderEpoch: 'binder-one',
+      lifecycleCutoff: 0,
+    })
+    const second = shiftedReceipt(first, 'd', 2_000)
+    await vault.retain(first)
+    memory.table.failEntries = true
+
+    await expect(vault.retain(second)).rejects.toThrow(/quota pruning read failed/u)
+    memory.table.failEntries = false
+    const resolution = await vault.resolveGenerationEvidence(subject, derivedFor(subject))
+    let closeRejected = false
+    try {
+      await vault.close()
+    } catch {
+      closeRejected = true
+    }
+    expect({ allows: vault.allows(WORKSPACE_ID), resolution, closeRejected }).toEqual({
+      allows: false,
+      resolution: { status: 'abstained', reason: 'evidence-unavailable' },
+      closeRejected: true,
+    })
+  })
+
+  it('fails closed when the selected quota victim cannot be re-read', async () => {
+    const memory = memoryFacility()
+    const vault = await openInteractionGenerationEvidenceVault(memory.facility, {
+      authority: authorizedAuthority(1),
+    })
+    const subject = fixtureSubject()
+    const first = createInteractionGenerationEvidenceReceiptV1({
+      workspaceId: WORKSPACE_ID,
+      subject,
+      derived: derivedFor(subject),
+      generation: nativeGeneration(),
+      binderEpoch: 'binder-one',
+      lifecycleCutoff: 0,
+    })
+    await vault.retain(first)
+    memory.table.failGetOnceForKey = [...memory.table.keys()][0]
+
+    await expect(vault.retain(shiftedReceipt(first, 'd', 2_000)))
+      .rejects.toThrow(/quota pruning read failed/u)
+    await expect(vault.resolveGenerationEvidence(subject, derivedFor(subject))).resolves.toEqual({
+      status: 'abstained',
+      reason: 'evidence-unavailable',
+    })
+    await expect(vault.close()).rejects.toThrow(/quota pruning read failed/u)
   })
 
   it('recomputes pruning after an earlier projected put fails', async () => {
@@ -1099,6 +1392,43 @@ describe('Interaction Generation evidence vault', () => {
     await expect(vault.retain(receipt)).rejects.toThrow(/closing/u)
   })
 
+  it('enrolls a write before storage can synchronously re-enter close', async () => {
+    const memory = memoryFacility()
+    const vault = await openInteractionGenerationEvidenceVault(memory.facility, {
+      authority: authorizedAuthority(),
+    })
+    const subject = fixtureSubject()
+    const gate = deferred<void>()
+    let closing: Promise<void> | undefined
+    let closeSettled = false
+    memory.table.onPut = () => {
+      closing = vault.close()
+      void closing.then(() => { closeSettled = true })
+    }
+    memory.table.beforePut = async () => {
+      await gate.promise
+    }
+
+    const retained = vault.retain(createInteractionGenerationEvidenceReceiptV1({
+      workspaceId: WORKSPACE_ID,
+      subject,
+      derived: derivedFor(subject),
+      generation: nativeGeneration(),
+      binderEpoch: 'reentrant-close-binder',
+      lifecycleCutoff: 0,
+    }))
+    expect(closing).toBeDefined()
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(closeSettled).toBe(false)
+    expect(memory.closeCalls).toBe(0)
+
+    gate.resolve()
+    await expect(retained).resolves.toBeUndefined()
+    await expect(closing).resolves.toBeUndefined()
+    expect(memory.closeCalls).toBe(1)
+  })
+
   it('does not make an unrelated identity resolution wait for a slow accepted write', async () => {
     const memory = memoryFacility()
     const authority = compileInteractionGenerationEvidencePolicies([
@@ -1368,20 +1698,47 @@ class MemoryTable<V> implements KvTable<string, V> {
   reportedSize: number | undefined
   deleteCalls = 0
   beforePut: ((key: string, value: V) => Promise<void>) | undefined
+  onPut: ((key: string, value: V) => void) | undefined
   beforeDelete: ((key: string) => Promise<void>) | undefined
+  afterGet: ((key: string) => void) | undefined
   failPut: ((value: V) => boolean) | undefined
+  failPutWith: ((value: V) => unknown | undefined) | undefined
   failPutAfter: ((value: V) => boolean) | undefined
+  replacePutAndFail: ((key: string, value: V) => {
+    readonly durable: V
+    readonly error: unknown
+  } | undefined) | undefined
   failDelete = false
+  failEntries = false
+  failGetOnceForKey: string | undefined
 
   get size(): number { return this.reportedSize ?? this.records.size }
-  get(key: string): V | undefined { return this.records.get(key) }
-  entries(): IterableIterator<[string, V]> { return this.records.entries() }
+  get(key: string): V | undefined {
+    if (this.failGetOnceForKey === key) {
+      this.failGetOnceForKey = undefined
+      throw new Error('injected get failure')
+    }
+    this.afterGet?.(key)
+    return this.records.get(key)
+  }
+  entries(): IterableIterator<[string, V]> {
+    if (this.failEntries) throw new Error('injected entries failure')
+    return this.records.entries()
+  }
   keys(): IterableIterator<string> { return this.records.keys() }
   replace(records: Map<string, V>): void { this.records = records }
 
   put(key: string, value: V): Promise<void> {
+    this.onPut?.(key, value)
     return this.enqueue(async () => {
       await this.beforePut?.(key, value)
+      const replacementFailure = this.replacePutAndFail?.(key, value)
+      if (replacementFailure !== undefined) {
+        this.records.set(key, structuredClone(replacementFailure.durable))
+        throw replacementFailure.error
+      }
+      const failure = this.failPutWith?.(value)
+      if (failure !== undefined) throw failure
       if (this.failPut?.(value) === true) throw new Error('injected put failure')
       this.records.set(key, structuredClone(value))
       if (this.failPutAfter?.(value) === true) throw new Error('injected post-commit put failure')

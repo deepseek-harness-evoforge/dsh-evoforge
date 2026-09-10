@@ -18,18 +18,32 @@ import {
   SessionPersistenceNotFoundError,
   type SessionEventSuffix,
 } from '@deepseek-ai/dsh-session-persistence'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import type {
   InteractionEpisodeHostBindingV1,
   InteractionEpisodeHostEvidenceResolutionV1,
 } from '../src/interaction-episode-assembler.ts'
 import {
   createInteractionEpisodeEvidenceResolver,
-  createStockDshAlpha5InteractionEpisodeEvidenceResolver,
+  createStockDshAlpha5InteractionEpisodeEvidenceResolver as createStockResolver,
   type DurableInteractionEpisodeSubjectV1,
   type InteractionEpisodeDerivedEvidenceV1,
 } from '../src/interaction-episode-evidence-resolver.ts'
 import * as publicApi from '../src/index.ts'
+
+const lifecycle = new Context()
+
+type StockResolverDependencies = Parameters<typeof createStockResolver>[0]
+
+function createStockDshAlpha5InteractionEpisodeEvidenceResolver(
+  dependencies: Omit<StockResolverDependencies, 'lifecycle'>,
+) {
+  return createStockResolver({ ...dependencies, lifecycle })
+}
+
+afterAll(async () => {
+  await lifecycle.fiber.dispose()
+})
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -46,6 +60,13 @@ describe('Interaction Episode evidence resolver', () => {
     expect(publicApi).not.toHaveProperty('createInteractionGenerationEvidenceSink')
     expect(publicApi).not.toHaveProperty('openInteractionGenerationEvidenceVault')
     expect(publicApi).not.toHaveProperty('interactionGenerationSessionLifecycleDigest')
+    expect(publicApi).not.toHaveProperty('installCapabilityGapRoutingEvidenceV1')
+    expect(publicApi).not.toHaveProperty('createInteractionRoutingEvidenceReceiptV1')
+    expect(publicApi).not.toHaveProperty('createInteractionRoutingEvidenceSource')
+    expect(publicApi).not.toHaveProperty('createInteractionRoutingEvidenceSink')
+    expect(publicApi).not.toHaveProperty('openInteractionRoutingEvidenceVault')
+    expect(publicApi).not.toHaveProperty('INTERACTION_ROUTING_EVIDENCE_TOOL_CONTRACT_V1')
+    expect(publicApi).not.toHaveProperty('interactionRoutingSessionLifecycleDigest')
   })
 
   it('proves the physical Session cut before the stock Host honestly abstains', async () => {
@@ -735,6 +756,44 @@ describe('Interaction Episode evidence resolver', () => {
           requestedSkill: 'release-audit',
         },
       },
+    })
+  })
+
+  it('does not accept owned-gap Routing evidence for a native Skill error', async () => {
+    const fixture = completedGapTurn('skill-tool-error')
+    const resolver = createStockDshAlpha5InteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+      routingEvidence: {
+        resolveRoutingEvidence: async (subject, derived) => ({
+          status: 'matched',
+          fact: {
+            schemaVersion: 1,
+            kind: 'interaction-routing-fact-v1',
+            workspaceId: WORKSPACE_ID,
+            subject: {
+              sessionLifecycleDigest: HASH_A,
+              prefixDigest: subject.transcript.replay.prefixDigest,
+              turnDigest: subject.transcript.replay.turnDigest,
+              turnEndSeq: subject.transcript.source.turnEndSeq,
+              triggerRequestSeq: derived.triggerRequestControl.boundary.assistantMessageSeq,
+              triggerCallSeq: subject.transcript.source.triggerCallSeq,
+              triggerResultSeq: subject.transcript.source.triggerResultSeq,
+            },
+            routing: {
+              rawTrigger: 'successful-gap-report',
+              conclusion: 'model-declared-no-applicable-skill',
+            },
+          },
+        }),
+      },
+    })
+
+    await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-conflict',
+      dimensions: ['routing'],
     })
   })
 

@@ -2,8 +2,17 @@ import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import {
+  defineDomain,
+  domainTable,
+  type DomainFacility,
+} from '@deepseek-ai/dsh-storage-domain'
+import { z } from 'zod'
 import { afterEach, describe, expect, it } from 'vitest'
-import { openCapabilityGapStore } from '../src/capability-gap-store.ts'
+import {
+  openCapabilityGapStore,
+  type CapabilityGap,
+} from '../src/capability-gap-store.ts'
 import { openDeliveryOutcomeStore } from '../src/delivery-outcome-monitor.ts'
 import { openFeedbackSignalStore } from '../src/feedback-signal-monitor.ts'
 import {
@@ -19,6 +28,7 @@ import {
   type ExperienceSkillCandidateInput,
 } from '../src/skill-candidate-repository.ts'
 import { ExperienceDrivenSkillOpportunityDiscovery } from '../src/skill-opportunity-discovery.ts'
+import { completedOwnedGapTurnQualification } from './capability-gap-authoring-qualification-fixture.ts'
 import { OTHER_WORKSPACE_ID, WORKSPACE_ID } from './workspace-fixture.ts'
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -26,6 +36,45 @@ const suiteRoot = resolve(packageRoot, '../..')
 const dshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
   ?? resolve(suiteRoot, '../deepseek-harness')
 const temporaryRoots: string[] = []
+const legacyHashSchema = z.string().regex(/^[a-f0-9]{64}$/)
+const legacySafeIntegerSchema = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
+const legacyGapV1Schema = z.strictObject({
+  schemaVersion: z.literal(1),
+  id: legacyHashSchema,
+  observedAt: legacySafeIntegerSchema,
+  workspaceId: z.uuid(),
+  sessionId: z.string().min(1).max(256),
+  requestedSkill: z.string().min(1).max(128),
+  catalogHash: legacyHashSchema,
+  catalogSize: legacySafeIntegerSchema,
+  generationId: legacyHashSchema.optional(),
+  goal: z.strictObject({
+    id: z.string().min(1).max(512),
+    revision: legacySafeIntegerSchema,
+    objective: z.string().min(1).max(8_192),
+  }).optional(),
+  abstention: z.strictObject({ reason: z.literal('missing-native-goal') }).optional(),
+  status: z.literal('confirmed'),
+  evidence: z.discriminatedUnion('kind', [
+    z.strictObject({
+      kind: z.literal('native-skill-miss'),
+      catalog: z.literal('complete'),
+      routing: z.literal('requested-skill-absent'),
+      providers: z.literal('settled'),
+    }),
+    z.strictObject({
+      kind: z.literal('model-declared-skill-gap'),
+      catalog: z.literal('complete'),
+      routing: z.literal('model-declared-no-applicable-skill'),
+      providers: z.literal('settled'),
+    }),
+  ]),
+})
+const legacyGapV1DomainSpec = defineDomain({
+  name: 'evoforge_capability_gaps',
+  version: 1,
+  tables: { gaps: domainTable<string, z.infer<typeof legacyGapV1Schema>>(legacyGapV1Schema) },
+})
 
 afterEach(async () => {
   await Promise.all(temporaryRoots.splice(0).map(path => rm(path, { force: true, recursive: true })))
@@ -345,6 +394,344 @@ describe.skipIf(process.platform !== 'darwin')('Capability Gap durable queue', (
     }
   })
 
+  it('durably qualifies one exact model-declared Gap only after a completed owned Tool turn', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-gap-authoring-qualification-'))
+    temporaryRoots.push(root)
+    const configPath = await writeStorageConfig(root)
+    const first = await bootStorage(configPath)
+    const store = await openCapabilityGapStore(first.storageDomain)
+    let gapId = ''
+    let qualification: ReturnType<typeof completedOwnedGapTurnQualification> | undefined
+    try {
+      const recorded = await store.record({
+        ...authoritativeGapInput(1, 'first-missing'),
+        generationId: undefined,
+        abstention: undefined,
+      })
+      gapId = recorded.gap.id
+      qualification = completedOwnedGapTurnQualification(recorded.gap, 'store-durability')
+      expect(recorded.gap.authoringQualification).toBeUndefined()
+      expect(recorded.gap).not.toHaveProperty('generationId')
+      expect(recorded.gap).not.toHaveProperty('abstention')
+
+      const qualified = await store.qualifyForAuthoring(gapId, qualification)
+      expect(qualified).toEqual({
+        qualified: true,
+        gap: { ...recorded.gap, authoringQualification: qualification },
+      })
+      await expect(store.qualifyForAuthoring(gapId, qualification)).resolves.toEqual({
+        qualified: false,
+        gap: qualified.gap,
+      })
+      await expect(store.record({
+        ...authoritativeGapInput(1, 'first-missing'),
+        generationId: undefined,
+        abstention: undefined,
+      })).resolves.toEqual({ created: false, gap: qualified.gap })
+      expect(qualified.gap.id).toBe(recorded.gap.id)
+    } finally {
+      await store.close()
+      await first.fiber.dispose()
+    }
+
+    const resumed = await bootStorage(configPath)
+    const recovered = await openCapabilityGapStore(resumed.storageDomain)
+    try {
+      expect(recovered.list(WORKSPACE_ID)).toEqual([expect.objectContaining({
+        id: gapId,
+        authoringQualification: qualification,
+      })])
+    } finally {
+      await recovered.close()
+      await resumed.fiber.dispose()
+    }
+  })
+
+  it('rejects transferring a valid qualification from Gap A to Gap B', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-gap-authority-transfer-'))
+    temporaryRoots.push(root)
+    const ctx = await bootStorage(await writeStorageConfig(root))
+    const store = await openCapabilityGapStore(ctx.storageDomain)
+    try {
+      const gapA = (await store.record(authoritativeGapInput(1, 'gap-a'))).gap
+      const gapB = (await store.record(authoritativeGapInput(2, 'gap-b'))).gap
+      const qualificationA = completedOwnedGapTurnQualification(gapA, 'gap-a')
+
+      await expect(store.qualifyForAuthoring(gapB.id, qualificationA)).rejects.toThrow(
+        /does not exactly bind/u,
+      )
+      const retained = store.list(WORKSPACE_ID)
+      expect(retained.map(gap => gap.id).sort()).toEqual([gapA.id, gapB.id].sort())
+      expect(retained.every(gap => gap.authoringQualification === undefined)).toBe(true)
+    } finally {
+      await store.close()
+      await ctx.fiber.dispose()
+    }
+  })
+
+  it('accepts only an exact duplicate of one durable qualification', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-gap-authority-conflict-'))
+    temporaryRoots.push(root)
+    const ctx = await bootStorage(await writeStorageConfig(root))
+    const store = await openCapabilityGapStore(ctx.storageDomain)
+    try {
+      const gap = (await store.record(authoritativeGapInput(1, 'conflicting-proof'))).gap
+      const first = completedOwnedGapTurnQualification(gap, 'first-proof')
+      const conflicting = completedOwnedGapTurnQualification(gap, 'conflicting-proof')
+
+      await expect(store.qualifyForAuthoring(gap.id, first)).resolves.toMatchObject({
+        qualified: true,
+      })
+      await expect(store.qualifyForAuthoring(gap.id, first)).resolves.toMatchObject({
+        qualified: false,
+      })
+      await expect(store.qualifyForAuthoring(gap.id, conflicting)).rejects.toThrow(
+        /conflicts with its durable authoring qualification/u,
+      )
+      expect(store.list(WORKSPACE_ID)[0]?.authoringQualification).toEqual(first)
+    } finally {
+      await store.close()
+      await ctx.fiber.dispose()
+    }
+  })
+
+  it('repairs a failed authority-first prune when duplicate record retries', async () => {
+    const fixture = pruneFailureFacility()
+    const store = await openCapabilityGapStore(fixture.facility, { maxRecords: 1 })
+    const oldInput = authoritativeGapInput(1, 'old-qualified-gap')
+    const oldGap = (await store.record(oldInput)).gap
+    await store.qualifyForAuthoring(
+      oldGap.id,
+      completedOwnedGapTurnQualification(oldGap, 'old-qualified-gap'),
+    )
+    fixture.failNextQualificationDelete()
+
+    const newerInput = authoritativeGapInput(2, 'newer-gap')
+    await expect(store.record(newerInput)).rejects.toThrow(/injected qualification delete/u)
+    expect(() => store.list(WORKSPACE_ID)).toThrow(/reconciliation is incomplete/u)
+
+    await expect(store.record(oldInput)).rejects.toThrow(/expired during retention/u)
+    const retained = store.list(WORKSPACE_ID)
+    expect(retained).toHaveLength(1)
+    const repaired = await store.record(newerInput)
+    expect(repaired.created).toBe(false)
+    expect(repaired.gap).toEqual(retained[0])
+    expect(store.list(WORKSPACE_ID)).toEqual([repaired.gap])
+    expect(fixture.gaps.has(oldGap.id)).toBe(false)
+    expect(fixture.qualifications.has(oldGap.id)).toBe(false)
+    await store.close()
+  })
+
+  it('repairs an over-cap qualified store before exposing it after reopen', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-gap-reopen-prune-'))
+    temporaryRoots.push(root)
+    const configPath = await writeStorageConfig(root)
+    const writerCtx = await bootStorage(configPath)
+    const writer = await openCapabilityGapStore(writerCtx.storageDomain, { maxRecords: 2 })
+    let oldId = ''
+    let retainedId = ''
+    try {
+      const oldGap = (await writer.record(authoritativeGapInput(1, 'old-reopen-gap'))).gap
+      oldId = oldGap.id
+      await writer.qualifyForAuthoring(
+        oldGap.id,
+        completedOwnedGapTurnQualification(oldGap, 'old-reopen-gap'),
+      )
+      retainedId = (await writer.record(authoritativeGapInput(2, 'retained-reopen-gap'))).gap.id
+    } finally {
+      await writer.close()
+      await writerCtx.fiber.dispose()
+    }
+
+    const resumedCtx = await bootStorage(configPath)
+    const resumed = await openCapabilityGapStore(resumedCtx.storageDomain, { maxRecords: 1 })
+    try {
+      expect(resumed.list(WORKSPACE_ID).map(gap => gap.id)).toEqual([retainedId])
+      const sidecar = JSON.parse(await readFile(
+        join(root, 'storage', 'evoforge_capability_gap_authoring_qualifications.json'),
+        'utf8',
+      )) as { tables: { qualifications: Record<string, unknown> } }
+      expect(sidecar.tables.qualifications).not.toHaveProperty(oldId)
+    } finally {
+      await resumed.close()
+      await resumedCtx.fiber.dispose()
+    }
+  })
+
+  it('keeps the Gap v1 medium readable by the strict old reader after a new qualification write', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-gap-v1-downgrade-'))
+    temporaryRoots.push(root)
+    const configPath = await writeStorageConfig(root)
+    const writerCtx = await bootStorage(configPath)
+    const writer = await openCapabilityGapStore(writerCtx.storageDomain)
+    let expectedGap: Awaited<ReturnType<typeof writer.record>>['gap']
+    try {
+      expectedGap = (await writer.record(authoritativeGapInput(1, 'downgrade-gap'))).gap
+      const qualification = completedOwnedGapTurnQualification(expectedGap, 'downgrade-gap')
+      expectedGap = (await writer.qualifyForAuthoring(expectedGap.id, qualification)).gap
+    } finally {
+      await writer.close()
+      await writerCtx.fiber.dispose()
+    }
+
+    const gapDocument = JSON.parse(await readFile(
+      join(root, 'storage', 'evoforge_capability_gaps.json'),
+      'utf8',
+    )) as { tables: { gaps: Record<string, unknown> } }
+    expect(gapDocument.tables.gaps[expectedGap.id]).not.toHaveProperty('authoringQualification')
+
+    const oldReaderCtx = await bootStorage(configPath)
+    const oldReader = await oldReaderCtx.storageDomain.open(legacyGapV1DomainSpec)
+    try {
+      expect(oldReader.table('gaps').get(expectedGap.id)).toEqual(
+        stripQualification(expectedGap),
+      )
+    } finally {
+      await oldReader.close()
+      await oldReaderCtx.fiber.dispose()
+    }
+
+    const resumedCtx = await bootStorage(configPath)
+    const resumed = await openCapabilityGapStore(resumedCtx.storageDomain)
+    try {
+      expect(resumed.list(WORKSPACE_ID)).toContainEqual(expectedGap)
+    } finally {
+      await resumed.close()
+      await resumedCtx.fiber.dispose()
+    }
+  })
+
+  it('fails closed when durable Gap or qualification identity and binding are tampered', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-gap-binding-tamper-'))
+    temporaryRoots.push(root)
+    const configPath = await writeStorageConfig(root)
+    const writerCtx = await bootStorage(configPath)
+    const writer = await openCapabilityGapStore(writerCtx.storageDomain)
+    let gapId = ''
+    try {
+      const gap = (await writer.record(authoritativeGapInput(1, 'tamper-gap'))).gap
+      gapId = gap.id
+      await writer.qualifyForAuthoring(
+        gap.id,
+        completedOwnedGapTurnQualification(gap, 'tamper-gap'),
+      )
+    } finally {
+      await writer.close()
+      await writerCtx.fiber.dispose()
+    }
+
+    const qualificationPath = join(
+      root,
+      'storage',
+      'evoforge_capability_gap_authoring_qualifications.json',
+    )
+    const originalQualificationDocument = await readFile(qualificationPath, 'utf8')
+    const qualificationDocument = JSON.parse(originalQualificationDocument) as {
+      tables: { qualifications: Record<string, { binding: { requestedSkill: string } }> }
+    }
+
+    const qualification = qualificationDocument.tables.qualifications[gapId]!
+    const wrongKey = `${gapId[0] === '0' ? '1' : '0'}${gapId.slice(1)}`
+    qualificationDocument.tables.qualifications = { [wrongKey]: qualification }
+    await writeFile(qualificationPath, `${JSON.stringify(qualificationDocument, null, 2)}\n`)
+
+    const tamperedKeyCtx = await bootStorage(configPath)
+    try {
+      await expect(openCapabilityGapStore(tamperedKeyCtx.storageDomain)).rejects.toThrow(
+        /table key/u,
+      )
+    } finally {
+      await tamperedKeyCtx.fiber.dispose()
+    }
+
+    await writeFile(qualificationPath, originalQualificationDocument)
+    qualificationDocument.tables.qualifications = { [gapId]: qualification }
+    qualificationDocument.tables.qualifications[gapId]!.binding.requestedSkill = 'transferred-skill'
+    await writeFile(qualificationPath, `${JSON.stringify(qualificationDocument, null, 2)}\n`)
+
+    const tamperedQualificationCtx = await bootStorage(configPath)
+    try {
+      await expect(openCapabilityGapStore(tamperedQualificationCtx.storageDomain)).rejects.toThrow()
+    } finally {
+      await tamperedQualificationCtx.fiber.dispose()
+    }
+
+    await writeFile(qualificationPath, originalQualificationDocument)
+    const gapPath = join(root, 'storage', 'evoforge_capability_gaps.json')
+    const originalGapDocument = await readFile(gapPath, 'utf8')
+    const gapDocument = JSON.parse(originalGapDocument) as {
+      tables: { gaps: Record<string, {
+        sessionId: string
+        goal: { objective: string }
+      }> }
+    }
+    gapDocument.tables.gaps[gapId]!.goal.objective = 'tampered but legacy-id-stable objective'
+    await writeFile(gapPath, `${JSON.stringify(gapDocument, null, 2)}\n`)
+
+    const tamperedBindingCtx = await bootStorage(configPath)
+    try {
+      await expect(openCapabilityGapStore(tamperedBindingCtx.storageDomain)).rejects.toThrow(
+        /does not exactly bind/u,
+      )
+    } finally {
+      await tamperedBindingCtx.fiber.dispose()
+    }
+
+    await writeFile(gapPath, originalGapDocument)
+    const orphanedQualificationDocument = JSON.parse(originalGapDocument) as {
+      tables: { gaps: Record<string, unknown> }
+    }
+    delete orphanedQualificationDocument.tables.gaps[gapId]
+    await writeFile(gapPath, `${JSON.stringify(orphanedQualificationDocument, null, 2)}\n`)
+
+    const orphanedQualificationCtx = await bootStorage(configPath)
+    try {
+      await expect(openCapabilityGapStore(orphanedQualificationCtx.storageDomain)).rejects.toThrow(
+        /references missing Gap/u,
+      )
+    } finally {
+      await orphanedQualificationCtx.fiber.dispose()
+    }
+
+    await writeFile(gapPath, originalGapDocument)
+    const identityDocument = JSON.parse(originalGapDocument) as {
+      tables: { gaps: Record<string, { sessionId: string }> }
+    }
+    identityDocument.tables.gaps[gapId]!.sessionId = 'tampered-session'
+    await writeFile(gapPath, `${JSON.stringify(identityDocument, null, 2)}\n`)
+
+    const tamperedGapCtx = await bootStorage(configPath)
+    try {
+      await expect(openCapabilityGapStore(tamperedGapCtx.storageDomain)).rejects.toThrow(
+        /content-address audit/u,
+      )
+    } finally {
+      await tamperedGapCtx.fiber.dispose()
+    }
+  })
+
+  it('does not let the record seam inject completed-turn authoring authority', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-gap-authoring-injection-'))
+    temporaryRoots.push(root)
+    const ctx = await bootStorage(await writeStorageConfig(root))
+    const store = await openCapabilityGapStore(ctx.storageDomain)
+    try {
+      const source = (await store.record(authoritativeGapInput(1, 'authority-source'))).gap
+      const input = authoritativeGapInput(2, 'injected-authority')
+      await expect(store.record({
+        ...input,
+        authoringQualification: completedOwnedGapTurnQualification(
+          source,
+          'injected-authority',
+        ),
+      } as never)).rejects.toThrow()
+      expect(store.list(WORKSPACE_ID)).toEqual([source])
+    } finally {
+      await store.close()
+      await ctx.fiber.dispose()
+    }
+  })
+
   it('deduplicates content identity, evicts oldest records, and recovers after restart', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-capability-gaps-'))
     temporaryRoots.push(root)
@@ -483,16 +870,24 @@ describe.skipIf(process.platform !== 'darwin')('Capability Gap durable queue', (
     const feedback = await openFeedbackSignalStore(first.storageDomain)
     const outcomes = await openDeliveryOutcomeStore(first.storageDomain)
     try {
-      await gaps.record({
-        ...gapInput(100, 'release-dsh-plugin'),
+      const firstGap = await gaps.record({
+        ...authoritativeGapInput(100, 'release-dsh-plugin'),
         sessionId: 'session-a',
         goal: { id: 'goal-a', revision: 1, objective: 'Release the first native plugin.' },
       })
-      await gaps.record({
-        ...gapInput(200, 'release-dsh-plugin'),
+      await gaps.qualifyForAuthoring(
+        firstGap.gap.id,
+        completedOwnedGapTurnQualification(firstGap.gap, 'durable-gap-a'),
+      )
+      const secondGap = await gaps.record({
+        ...authoritativeGapInput(200, 'release-dsh-plugin'),
         sessionId: 'session-b',
         goal: { id: 'goal-b', revision: 1, objective: 'Release another native plugin.' },
       })
+      await gaps.qualifyForAuthoring(
+        secondGap.gap.id,
+        completedOwnedGapTurnQualification(secondGap.gap, 'durable-gap-b'),
+      )
       await feedback.replaceSession({
         observedAt: 120,
         workspaceId: WORKSPACE_ID,
@@ -657,6 +1052,73 @@ function gapInput(observedAt: number, requestedSkill: string) {
       routing: 'requested-skill-absent' as const,
       providers: 'settled' as const,
     },
+  }
+}
+
+function authoritativeGapInput(observedAt: number, requestedSkill: string) {
+  return {
+    ...gapInput(observedAt, requestedSkill),
+    evidence: {
+      kind: 'model-declared-skill-gap' as const,
+      catalog: 'complete' as const,
+      routing: 'model-declared-no-applicable-skill' as const,
+      providers: 'settled' as const,
+    },
+  }
+}
+
+function stripQualification(gap: CapabilityGap) {
+  const { authoringQualification: _qualification, ...legacy } = gap
+  return legacy
+}
+
+function pruneFailureFacility(): {
+  readonly facility: DomainFacility
+  readonly gaps: Map<string, unknown>
+  readonly qualifications: Map<string, unknown>
+  failNextQualificationDelete(): void
+} {
+  const gaps = new Map<string, unknown>()
+  const qualifications = new Map<string, unknown>()
+  let failQualificationDelete = false
+  const table = (
+    values: Map<string, unknown>,
+    beforeDelete?: () => void,
+  ) => ({
+    get size() { return values.size },
+    get: (key: string) => values.get(key),
+    entries: () => values.entries(),
+    put: async (key: string, value: unknown) => { values.set(key, value) },
+    delete: async (key: string) => {
+      beforeDelete?.()
+      values.delete(key)
+    },
+  })
+  const facility = {
+    open: async (spec: { readonly name: string }) => ({
+      table: (name: string) => {
+        if (spec.name === 'evoforge_capability_gaps' && name === 'gaps') {
+          return table(gaps)
+        }
+        if (spec.name === 'evoforge_capability_gap_authoring_qualifications'
+          && name === 'qualifications') {
+          return table(qualifications, () => {
+            if (failQualificationDelete) {
+              failQualificationDelete = false
+              throw new Error('injected qualification delete failure')
+            }
+          })
+        }
+        throw new Error(`unexpected fake Domain table ${spec.name}/${name}`)
+      },
+      close: async () => {},
+    }),
+  } as unknown as DomainFacility
+  return {
+    facility,
+    gaps,
+    qualifications,
+    failNextQualificationDelete() { failQualificationDelete = true },
   }
 }
 

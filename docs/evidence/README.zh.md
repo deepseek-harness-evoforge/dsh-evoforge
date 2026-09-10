@@ -27,8 +27,8 @@
 ## 自我进化关键证据
 
 - [Candidate 冻结后才生成 private holdout](p0a-8-private-heldout.zh.md)：早期但仍约束当前治理边界的关键证据。
-- [Interaction-first Gap signal](v5-227-interaction-first-gap-signal-2026-09-05.zh.md)：普通 Interaction 可持久化并
-  fail-closed abstain；不等于完整慢环已经贯通。
+- [Capability Gap Routing 与 authoring qualification](v5-229-capability-gap-routing-authority-2026-09-11.zh.md)：
+  自有 Gap Tool 的 completed-turn 权威链、独立 Routing receipt、慢环资格 sidecar，以及 RP-1 当前付费阻断。
 
 `passed` 只表示单个文件明确声明的范围通过。`partial`、`not-run`、`blocked`、确定性 fixture 或缺少真实外部
 系统的结果都不能升级为发布结论；机器可读门禁以仓库根目录 `release-gates.json` 为准。

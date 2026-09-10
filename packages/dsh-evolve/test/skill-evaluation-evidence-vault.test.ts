@@ -9,6 +9,7 @@ import {
   skillEvaluationProtectedInputDigest,
 } from '../src/skill-evaluation-evidence-vault.ts'
 import type { SkillOpportunity } from '../src/skill-opportunity-discovery.ts'
+import { qualifiedCapabilityGap } from './capability-gap-authoring-qualification-fixture.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const roots: string[] = []
@@ -205,6 +206,114 @@ describe('Skill Evaluation Evidence Vault', () => {
     await expect(realpath(join(root, 'governance'))).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
+  it('rejects a legacy native Skill error even when an old opportunity references it', async () => {
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-evolve-evaluation-legacy-gap-')))
+    roots.push(root)
+    const gaps = [
+      legacyNativeSkillErrorGap(gap('1', 'goal-a', 10)),
+      legacyNativeSkillErrorGap(gap('2', 'goal-b', 20)),
+      legacyNativeSkillErrorGap(gap('3', 'goal-c', 30)),
+      legacyNativeSkillErrorGap(gap('4', 'goal-d', 40)),
+    ]
+    const vault = new SkillEvaluationEvidenceVault(
+      [{
+        id: 'workspace-governance',
+        workspaceId: WORKSPACE_ID,
+        governanceRoot: join(root, 'governance'),
+        runRoot: join(root, 'runs'),
+      }],
+      { list: () => gaps },
+    )
+
+    await expect(vault.prepare(skillOpportunity(gaps)))
+      .rejects.toThrow('Capability Gap routing evidence is not authoritative')
+  })
+
+  it('rejects historical model-declared Gaps without completed-turn authoring qualification', async () => {
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-evolve-evaluation-unqualified-gap-')))
+    roots.push(root)
+    const gaps = [
+      unqualifiedGap(gap('1', 'goal-a', 10)),
+      unqualifiedGap(gap('2', 'goal-b', 20)),
+      unqualifiedGap(gap('3', 'goal-c', 30)),
+      unqualifiedGap(gap('4', 'goal-d', 40)),
+    ]
+    const vault = new SkillEvaluationEvidenceVault(
+      [{
+        id: 'workspace-governance',
+        workspaceId: WORKSPACE_ID,
+        governanceRoot: join(root, 'governance'),
+        runRoot: join(root, 'runs'),
+      }],
+      { list: () => gaps },
+    )
+
+    await expect(vault.prepare(skillOpportunity(gaps)))
+      .rejects.toThrow('Capability Gap is not qualified by a completed owned Tool turn')
+  })
+
+  it('revokes a sealed sample when its live Gap authority is only a legacy Skill error', async () => {
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-evolve-evaluation-revoked-gap-')))
+    roots.push(root)
+    const gaps = [
+      gap('1', 'goal-a', 10),
+      gap('2', 'goal-b', 20),
+      gap('3', 'goal-c', 30),
+      gap('4', 'goal-d', 40),
+    ]
+    const opportunity = skillOpportunity(gaps)
+    const vault = new SkillEvaluationEvidenceVault(
+      [{
+        id: 'workspace-governance',
+        workspaceId: WORKSPACE_ID,
+        governanceRoot: join(root, 'governance'),
+        runRoot: join(root, 'runs'),
+      }],
+      { list: () => gaps },
+    )
+    const prepared = await vault.prepare(opportunity)
+    if (prepared.status !== 'ready') throw new Error('expected ready evidence')
+
+    gaps.splice(0, gaps.length, ...gaps.map(legacyNativeSkillErrorGap))
+
+    await expect(vault.readForGovernance(
+      WORKSPACE_ID,
+      opportunity.id,
+      prepared.evidence.id,
+    )).rejects.toThrow('Capability Gap routing evidence is not authoritative')
+  })
+
+  it('revokes sealed evidence when a live model-declared Gap loses completed-turn qualification', async () => {
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-evolve-evaluation-revoked-qualification-')))
+    roots.push(root)
+    const gaps: CapabilityGap[] = [
+      gap('1', 'goal-a', 10),
+      gap('2', 'goal-b', 20),
+      gap('3', 'goal-c', 30),
+      gap('4', 'goal-d', 40),
+    ]
+    const opportunity = skillOpportunity(gaps)
+    const vault = new SkillEvaluationEvidenceVault(
+      [{
+        id: 'workspace-governance',
+        workspaceId: WORKSPACE_ID,
+        governanceRoot: join(root, 'governance'),
+        runRoot: join(root, 'runs'),
+      }],
+      { list: () => gaps },
+    )
+    const prepared = await vault.prepare(opportunity)
+    if (prepared.status !== 'ready') throw new Error('expected ready evidence')
+
+    gaps.splice(0, gaps.length, ...gaps.map(unqualifiedGap))
+
+    await expect(vault.readForGovernance(
+      WORKSPACE_ID,
+      opportunity.id,
+      prepared.evidence.id,
+    )).rejects.toThrow('Capability Gap is not qualified by a completed owned Tool turn')
+  })
+
   it('fails closed when sealed governance evidence is modified before authoring or evaluation', async () => {
     const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-evolve-evaluation-evidence-')))
     roots.push(root)
@@ -263,10 +372,12 @@ describe('Skill Evaluation Evidence Vault', () => {
   it('rejects an oversized governance manifest before writing any evidence', async () => {
     const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-evolve-evaluation-evidence-')))
     roots.push(root)
-    const gaps = Array.from({ length: 900 }, (_, index) => ({
-      ...gap('1', `goal-${index.toString().padStart(4, '0')}-${'x'.repeat(300)}`, index),
-      id: (index + 1).toString(16).padStart(64, '0'),
-    }))
+    const gaps = Array.from({ length: 900 }, (_, index) => gap(
+      '1',
+      `goal-${index.toString().padStart(4, '0')}-${'x'.repeat(300)}`,
+      index,
+      `session-${index}`,
+    ))
     const governanceRoot = join(root, 'governance')
     const vault = new SkillEvaluationEvidenceVault(
       [{
@@ -284,13 +395,16 @@ describe('Skill Evaluation Evidence Vault', () => {
   })
 })
 
-function gap(id: string, goalId: string, observedAt: number): CapabilityGap {
-  return {
-    schemaVersion: 1,
-    id: id.repeat(64),
+function gap(
+  id: string,
+  goalId: string,
+  observedAt: number,
+  sessionId = `session-${goalId}`,
+): CapabilityGap {
+  return qualifiedCapabilityGap({
     observedAt,
     workspaceId: WORKSPACE_ID,
-    sessionId: `session-${goalId}`,
+    sessionId,
     requestedSkill: 'missing-release-skill',
     catalogHash: 'a'.repeat(64),
     catalogSize: 3,
@@ -299,7 +413,18 @@ function gap(id: string, goalId: string, observedAt: number): CapabilityGap {
       revision: 1,
       objective: `Goal ${goalId} needs missing-release-skill`,
     },
-    status: 'confirmed',
+    evidence: {
+      kind: 'model-declared-skill-gap',
+      catalog: 'complete',
+      routing: 'model-declared-no-applicable-skill',
+      providers: 'settled',
+    },
+  }, id)
+}
+
+function legacyNativeSkillErrorGap(value: CapabilityGap): CapabilityGap {
+  return {
+    ...value,
     evidence: {
       kind: 'native-skill-miss',
       catalog: 'complete',
@@ -307,6 +432,11 @@ function gap(id: string, goalId: string, observedAt: number): CapabilityGap {
       providers: 'settled',
     },
   }
+}
+
+function unqualifiedGap(value: CapabilityGap): CapabilityGap {
+  const { authoringQualification: _qualification, ...historical } = value
+  return historical
 }
 
 function skillOpportunity(gaps: readonly CapabilityGap[]): SkillOpportunity {

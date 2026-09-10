@@ -2,7 +2,11 @@ import { createHash, randomUUID } from 'node:crypto'
 import { lstat, mkdir, readFile, realpath, rename, rm } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { z } from 'zod'
-import type { CapabilityGap, CapabilityGapStore } from './capability-gap-store.ts'
+import {
+  isCapabilityGapQualifiedForAuthoring,
+  type CapabilityGap,
+  type CapabilityGapStore,
+} from './capability-gap-store.ts'
 import { writeDurableJson } from './shadow-run-state.ts'
 import type { ExperienceSkillCandidate } from './skill-candidate-repository.ts'
 import {
@@ -262,6 +266,7 @@ export class SkillEvaluationEvidenceVault {
       || manifest.id !== evidenceId) {
       throw new Error('evaluation evidence path does not match its manifest identity')
     }
+    assertManifestGapAuthority(manifest, this.gaps.list(workspaceId))
     return immutableCopy(manifest)
   }
 
@@ -337,8 +342,16 @@ function buildManifest(
     if (gap === undefined
       || gap.workspaceId !== opportunity.workspaceId
       || gap.requestedSkill !== opportunity.skillName
-      || gap.goal === undefined) {
+      || gap.evidence.kind !== 'model-declared-skill-gap'
+      || gap.goal === undefined
+      || gap.abstention !== undefined) {
+      if (gap?.evidence.kind === 'native-skill-miss') {
+        throw new Error('Capability Gap routing evidence is not authoritative')
+      }
       throw new Error('Skill Opportunity Gap evidence changed before evaluation evidence sealing')
+    }
+    if (!isCapabilityGapQualifiedForAuthoring(gap)) {
+      throw new Error('Capability Gap is not qualified by a completed owned Tool turn')
     }
     return gap as CapabilityGap & { readonly goal: NonNullable<CapabilityGap['goal']> }
   })
@@ -432,6 +445,30 @@ function buildManifest(
     throw new Error('evaluation evidence manifest exceeds its byte limit')
   }
   return manifest
+}
+
+function assertManifestGapAuthority(
+  manifest: SkillEvaluationEvidenceManifest,
+  gaps: readonly CapabilityGap[],
+): void {
+  const exact = new Map(gaps.map(gap => [gap.id, gap]))
+  for (const id of manifest.opportunity.gapIds) {
+    const gap = exact.get(id)
+    if (gap?.evidence.kind === 'native-skill-miss') {
+      throw new Error('Capability Gap routing evidence is not authoritative')
+    }
+    if (gap === undefined
+      || gap.workspaceId !== manifest.workspaceId
+      || gap.requestedSkill !== manifest.opportunity.skillName
+      || gap.evidence.kind !== 'model-declared-skill-gap'
+      || gap.goal === undefined
+      || gap.abstention !== undefined) {
+      throw new Error('Skill Opportunity Gap evidence changed after evaluation evidence sealing')
+    }
+    if (!isCapabilityGapQualifiedForAuthoring(gap)) {
+      throw new Error('Capability Gap is not qualified by a completed owned Tool turn')
+    }
+  }
 }
 
 function authoringView(manifest: SkillEvaluationEvidenceManifest): SkillAuthoringEvidence {

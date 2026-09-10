@@ -6,12 +6,17 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Session, SessionEvent } from '@deepseek-ai/dsh-session'
 import * as EvolvePlugin from '../src/index.js'
+import { openCapabilityGapStore } from '../src/capability-gap-store.ts'
 import type { EvolutionStore } from '../src/generation-store.js'
 import {
   compileInteractionGenerationEvidencePolicies,
   openInteractionGenerationEvidenceVault,
   type InteractionGenerationEvidenceSubjectV1,
 } from '../src/interaction-generation-evidence.ts'
+import {
+  compileInteractionRoutingEvidencePolicies,
+  openInteractionRoutingEvidenceVault,
+} from '../src/interaction-routing-evidence.ts'
 import { proveInteractionEpisodeTranscript } from '../src/interaction-episode-projector.ts'
 import {
   projectInteractionEpisodeTriggerRequestControlV1,
@@ -50,6 +55,10 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
       interactionEvidencePolicies: [{
         workspaceId: WORKSPACE_ID,
         retention: { generationMaxRecords: 1 },
+      }],
+      interactionRoutingEvidencePolicies: [{
+        workspaceId: WORKSPACE_ID,
+        retention: { routingMaxRecords: 1 },
       }],
     })
     const packages = (path: string) => pathToFileURL(
@@ -105,8 +114,10 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
       }],
     })
     expect(adapter.requests).toHaveLength(2)
-    expect(JSON.stringify(adapter.requests[1]))
-      .toContain('internal Skill opportunity discovery continues asynchronously')
+    const followupRequest = JSON.stringify(adapter.requests[1])
+    expect(followupRequest)
+      .toContain('authoring eligibility is checked only after an exact completed turn, and discovery may not run')
+    expect(followupRequest).not.toContain('discovery continues asynchronously')
 
     const { subject, requestControl } = generationEvidenceQuery(
       handle.agent.session,
@@ -116,13 +127,32 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     await ctx.fiber.dispose()
 
     const evidenceCtx = await bootStorage(configPath)
+    const qualifiedGaps = await openCapabilityGapStore(evidenceCtx.storageDomain)
     const evidence = await openInteractionGenerationEvidenceVault(evidenceCtx.storageDomain, {
       authority: compileInteractionGenerationEvidencePolicies([{
         workspaceId: WORKSPACE_ID,
         retention: { generationMaxRecords: 1 },
       }]),
     })
+    const routingEvidence = await openInteractionRoutingEvidenceVault(
+      evidenceCtx.storageDomain,
+      {
+        authority: compileInteractionRoutingEvidencePolicies([{
+          workspaceId: WORKSPACE_ID,
+          retention: { routingMaxRecords: 1 },
+        }]),
+      },
+    )
     try {
+      expect(qualifiedGaps.list(WORKSPACE_ID)).toEqual([
+        expect.objectContaining({
+          requestedSkill: 'publish-dsh-plugin',
+          authoringQualification: expect.objectContaining({
+            kind: 'completed-owned-gap-turn-v2',
+            sourceDialect: 'deepseek-harness@0.1.2-alpha.5',
+          }),
+        }),
+      ])
       await expect(evidence.resolveGenerationEvidence(subject, {
         triggerRequestControl: requestControl,
       })).resolves.toMatchObject({
@@ -136,8 +166,116 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
           },
         },
       })
+      await expect(routingEvidence.resolveRoutingEvidence(subject, {
+        triggerRequestControl: requestControl,
+      })).resolves.toMatchObject({
+        status: 'matched',
+        fact: {
+          workspaceId: WORKSPACE_ID,
+          routing: {
+            rawTrigger: 'successful-gap-report',
+            conclusion: 'model-declared-no-applicable-skill',
+          },
+        },
+      })
     } finally {
-      await evidence.close()
+      await Promise.all([qualifiedGaps.close(), evidence.close(), routingEvidence.close()])
+      await evidenceCtx.fiber.dispose()
+    }
+  })
+
+  it('keeps Routing evidence unavailable after a Generation-only real Agent Loop gap turn', async () => {
+    const { configPath, subject, requestControl } = await runPublicPluginGapTurn({
+      temporaryRootPrefix: 'dsh-evolve-generation-only-evidence-',
+      sessionId: 'generation-only-evidence',
+      requestedSkill: 'generation-only-release-audit',
+      pluginConfig: {
+        interactionEvidencePolicies: [{
+          workspaceId: WORKSPACE_ID,
+          retention: { generationMaxRecords: 1 },
+        }],
+      },
+    })
+
+    const evidenceCtx = await bootStorage(configPath)
+    const generationEvidence = await openInteractionGenerationEvidenceVault(
+      evidenceCtx.storageDomain,
+      {
+        authority: compileInteractionGenerationEvidencePolicies([{
+          workspaceId: WORKSPACE_ID,
+          retention: { generationMaxRecords: 1 },
+        }]),
+      },
+    )
+    const routingEvidence = await openInteractionRoutingEvidenceVault(
+      evidenceCtx.storageDomain,
+      {
+        authority: compileInteractionRoutingEvidencePolicies([{
+          workspaceId: WORKSPACE_ID,
+          retention: { routingMaxRecords: 1 },
+        }]),
+      },
+    )
+    try {
+      await expect(generationEvidence.resolveGenerationEvidence(subject, {
+        triggerRequestControl: requestControl,
+      })).resolves.toMatchObject({ status: 'matched' })
+      await expect(routingEvidence.resolveRoutingEvidence(subject, {
+        triggerRequestControl: requestControl,
+      })).resolves.toEqual({
+        status: 'abstained',
+        reason: 'evidence-unavailable',
+      })
+    } finally {
+      await Promise.all([generationEvidence.close(), routingEvidence.close()])
+      await evidenceCtx.fiber.dispose()
+    }
+  })
+
+  it('keeps Generation evidence unavailable after a Routing-only real Agent Loop gap turn', async () => {
+    const { configPath, subject, requestControl } = await runPublicPluginGapTurn({
+      temporaryRootPrefix: 'dsh-evolve-routing-only-evidence-',
+      sessionId: 'routing-only-evidence',
+      requestedSkill: 'routing-only-release-audit',
+      pluginConfig: {
+        interactionRoutingEvidencePolicies: [{
+          workspaceId: WORKSPACE_ID,
+          retention: { routingMaxRecords: 1 },
+        }],
+      },
+    })
+
+    const evidenceCtx = await bootStorage(configPath)
+    const generationEvidence = await openInteractionGenerationEvidenceVault(
+      evidenceCtx.storageDomain,
+      {
+        authority: compileInteractionGenerationEvidencePolicies([{
+          workspaceId: WORKSPACE_ID,
+          retention: { generationMaxRecords: 1 },
+        }]),
+      },
+    )
+    const routingEvidence = await openInteractionRoutingEvidenceVault(
+      evidenceCtx.storageDomain,
+      {
+        authority: compileInteractionRoutingEvidencePolicies([{
+          workspaceId: WORKSPACE_ID,
+          retention: { routingMaxRecords: 1 },
+        }]),
+      },
+    )
+    try {
+      await expect(routingEvidence.resolveRoutingEvidence(subject, {
+        triggerRequestControl: requestControl,
+      })).resolves.toMatchObject({ status: 'matched' })
+      await expect(generationEvidence.resolveGenerationEvidence(subject, {
+        triggerRequestControl: requestControl,
+      })).resolves.toEqual({
+        status: 'abstained',
+        reason: 'evidence-unavailable',
+      })
+    } finally {
+      await Promise.all([generationEvidence.close(), routingEvidence.close()])
       await evidenceCtx.fiber.dispose()
     }
   })
@@ -528,6 +666,57 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     await ctx.fiber.dispose()
   })
 })
+
+async function runPublicPluginGapTurn(input: {
+  readonly temporaryRootPrefix: string
+  readonly sessionId: string
+  readonly requestedSkill: string
+  readonly pluginConfig: Pick<
+    EvolvePlugin.Config,
+    'interactionEvidencePolicies' | 'interactionRoutingEvidencePolicies'
+  >
+}): Promise<{
+  readonly configPath: string
+  readonly subject: InteractionGenerationEvidenceSubjectV1
+  readonly requestControl: InteractionEpisodeTriggerRequestControlFactV1
+}> {
+  const root = await mkdtemp(join(tmpdir(), input.temporaryRootPrefix))
+  temporaryRoots.push(root)
+  const configPath = await writeStorageConfig(root)
+  const ctx = await bootStorage(configPath)
+  try {
+    const adapter = await installAgentRuntime(ctx, undefined, {
+      firstCapabilityGap: input.requestedSkill,
+    })
+    await ctx.plugin(EvolvePlugin, {
+      cacheRoot: join(root, 'cache'),
+      ...input.pluginConfig,
+    })
+    const session = await import(
+      pathToFileURL(join(dshSourceDir, 'packages', 'core', 'session', 'lib', 'index.js')).href
+    )
+    const handle = await ctx.agents.create({
+      sessionId: session.SessionId(input.sessionId),
+      agentOptions: { provider: 'fixed', model: 'fixed' },
+      meta: { cwd: root },
+    })
+    const goals = ctx.get('goals') as {
+      create(agent: object, request: { objective: string }): { objective: string }
+    } | undefined
+    if (goals === undefined) throw new Error('Goal service did not load')
+    const objective = `Exercise ${input.requestedSkill} through one real Agent Loop turn.`
+    goals.create(handle.agent, { objective })
+    await runAgentTurn(handle.agent, objective)
+    expect(adapter.requests).toHaveLength(2)
+    const query = generationEvidenceQuery(
+      handle.agent.session,
+      'model-declared-capability-gap',
+    )
+    return { configPath, ...query }
+  } finally {
+    await ctx.fiber.dispose()
+  }
+}
 
 async function installAgentRuntime(
   ctx: Awaited<ReturnType<typeof bootStorage>>,

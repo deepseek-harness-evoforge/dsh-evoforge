@@ -1,3 +1,4 @@
+import { Context } from '@deepseek-ai/cordis'
 import {
   freezeMessage,
   MessageId,
@@ -10,16 +11,39 @@ import {
   type SessionEvent,
 } from '@deepseek-ai/dsh-session'
 import type { SessionEventSuffix } from '@deepseek-ai/dsh-session-persistence'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import { interactionGenerationSessionLifecycleDigest } from '../src/interaction-generation-evidence.ts'
+import { interactionRoutingSessionLifecycleDigest } from '../src/interaction-routing-evidence.ts'
 import {
-  createGatewayAwareDshAlpha5InteractionEpisodeEvidenceResolver,
-  createStockDshAlpha5InteractionEpisodeEvidenceResolver,
+  createGatewayAwareDshAlpha5InteractionEpisodeEvidenceResolver as createGatewayAwareResolver,
+  createStockDshAlpha5InteractionEpisodeEvidenceResolver as createStockResolver,
   type DurableInteractionEpisodeSubjectV1,
   type InteractionEpisodeDerivedEvidenceV1,
 } from '../src/interaction-episode-evidence-resolver.ts'
 
+const lifecycle = new Context()
+
+type StockResolverDependencies = Parameters<typeof createStockResolver>[0]
+type GatewayAwareResolverDependencies = Parameters<typeof createGatewayAwareResolver>[0]
+
+function createStockDshAlpha5InteractionEpisodeEvidenceResolver(
+  dependencies: Omit<StockResolverDependencies, 'lifecycle'>,
+) {
+  return createStockResolver({ ...dependencies, lifecycle })
+}
+
+function createGatewayAwareDshAlpha5InteractionEpisodeEvidenceResolver(
+  dependencies: Omit<GatewayAwareResolverDependencies, 'lifecycle'>,
+) {
+  return createGatewayAwareResolver({ ...dependencies, lifecycle })
+}
+
+afterAll(async () => {
+  await lifecycle.fiber.dispose()
+})
+
 afterEach(() => {
+  vi.useRealTimers()
   vi.restoreAllMocks()
 })
 
@@ -365,6 +389,261 @@ describe('Gateway-aware Interaction Episode evidence resolver', () => {
     expect(JSON.stringify(result)).not.toContain('gateway-secret')
   })
 
+  it('removes the lifecycle deadline effect after normal Host source settlement', async () => {
+    const fixture = completedGapTurn()
+    const pendingGateway = deferred<unknown>()
+    const gateway = {
+      resolveIngressEvidence: vi.fn(() => pendingGateway.promise as never),
+    }
+    const resolver = createGatewayAwareDshAlpha5InteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+      gateway,
+    })
+
+    const resolution = resolver.resolve(targetFor(fixture))
+    await vi.waitFor(() => expect(gateway.resolveIngressEvidence).toHaveBeenCalledOnce())
+    expect(deadlineEffectCount(lifecycle)).toBe(1)
+
+    pendingGateway.resolve({ status: 'abstained', reason: 'evidence-unavailable' })
+    await expect(resolution).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-unavailable',
+      dimensions: ALL_MISSING_DIMENSIONS,
+    })
+    expect(deadlineEffectCount(lifecycle)).toBe(0)
+  })
+
+  it('bounds a Gateway evidence invocation that never settles', async () => {
+    vi.useFakeTimers()
+    const fixture = completedGapTurn()
+    const gateway = {
+      resolveIngressEvidence: vi.fn(() => new Promise<never>(() => {})),
+    }
+    const resolver = createGatewayAwareDshAlpha5InteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+      gateway,
+      hostEvidenceSourceTimeoutMs: 10,
+    })
+
+    const resolution = resolver.resolve(targetFor(fixture))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(deadlineEffectCount(lifecycle)).toBe(1)
+    await vi.advanceTimersByTimeAsync(10)
+
+    await expect(resolution).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'attestor-invocation-failed',
+      dimensions: ['binding'],
+    })
+    expect(gateway.resolveIngressEvidence).toHaveBeenCalledOnce()
+    expect(deadlineEffectCount(lifecycle)).toBe(0)
+  })
+
+  it('fails closed when its lifecycle owner is disposed during a pending invocation', async () => {
+    const owner = new Context()
+    let ownerDisposed = false
+    const fixture = completedGapTurn()
+    const gateway = {
+      resolveIngressEvidence: vi.fn(() => new Promise<never>(() => {})),
+    }
+    try {
+      const resolver = createGatewayAwareResolver({
+        sessions: { get: () => fixture.session, flush: async () => true },
+        sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+        lifecycle: owner,
+        gateway,
+        hostEvidenceSourceTimeoutMs: 120_000,
+      })
+
+      const resolution = resolver.resolve(targetFor(fixture))
+      await vi.waitFor(() => expect(gateway.resolveIngressEvidence).toHaveBeenCalledOnce())
+      expect(deadlineEffectCount(owner)).toBe(1)
+
+      await owner.fiber.dispose()
+      ownerDisposed = true
+
+      await expect(resolution).resolves.toEqual({
+        status: 'abstained',
+        stage: 'host-evidence',
+        reason: 'attestor-invocation-failed',
+        dimensions: ['binding'],
+      })
+      expect(deadlineEffectCount(owner)).toBe(0)
+    } finally {
+      if (!ownerDisposed) await owner.fiber.dispose()
+    }
+  })
+
+  it('does not invoke a Host source through an inactive lifecycle owner', async () => {
+    const root = new Context()
+    const ownerFiber = await root.plugin(() => {})
+    await ownerFiber.dispose()
+    const fixture = completedGapTurn()
+    const gateway = gatewayReturning(matchedGatewayWorkspace(WORKSPACE_ID))
+    try {
+      const resolver = createGatewayAwareResolver({
+        sessions: { get: () => fixture.session, flush: async () => true },
+        sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+        lifecycle: ownerFiber.ctx,
+        gateway,
+      })
+
+      await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+        status: 'abstained',
+        stage: 'host-evidence',
+        reason: 'attestor-invocation-failed',
+        dimensions: ['binding'],
+      })
+      expect(gateway.resolveIngressEvidence).not.toHaveBeenCalled()
+    } finally {
+      await root.fiber.dispose()
+    }
+  })
+
+  it('bounds a Generation evidence invocation that never settles', async () => {
+    vi.useFakeTimers()
+    const fixture = completedGapTurn()
+    const generationEvidence = {
+      resolveGenerationEvidence: vi.fn(() => new Promise<never>(() => {})),
+    }
+    const resolver = createStockDshAlpha5InteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+      generationEvidence,
+      hostEvidenceSourceTimeoutMs: 10,
+    })
+
+    const resolution = resolver.resolve(targetFor(fixture))
+    await vi.advanceTimersByTimeAsync(10)
+
+    await expect(resolution).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'attestor-invocation-failed',
+      dimensions: ['binding'],
+    })
+    expect(generationEvidence.resolveGenerationEvidence).toHaveBeenCalledOnce()
+  })
+
+  it('bounds a Routing evidence invocation that never settles', async () => {
+    vi.useFakeTimers()
+    const fixture = completedGapTurn()
+    const routingEvidence = {
+      resolveRoutingEvidence: vi.fn(() => new Promise<never>(() => {})),
+    }
+    const resolver = createStockDshAlpha5InteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+      routingEvidence,
+      hostEvidenceSourceTimeoutMs: 10,
+    })
+
+    const resolution = resolver.resolve(targetFor(fixture))
+    await vi.advanceTimersByTimeAsync(10)
+
+    await expect(resolution).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'attestor-invocation-failed',
+      dimensions: ['binding'],
+    })
+    expect(routingEvidence.resolveRoutingEvidence).toHaveBeenCalledOnce()
+  })
+
+  it('uses a bounded 30-second default for Host evidence sources', async () => {
+    vi.useFakeTimers()
+    const fixture = completedGapTurn()
+    const resolver = createGatewayAwareDshAlpha5InteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+      gateway: {
+        resolveIngressEvidence: vi.fn(() => new Promise<never>(() => {})),
+      },
+    })
+    let settled = false
+    const resolution = resolver.resolve(targetFor(fixture)).finally(() => {
+      settled = true
+    })
+
+    await vi.advanceTimersByTimeAsync(0)
+    await vi.advanceTimersByTimeAsync(29_999)
+    expect(settled).toBe(false)
+
+    await vi.advanceTimersByTimeAsync(1)
+    await expect(resolution).resolves.toMatchObject({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'attestor-invocation-failed',
+    })
+  })
+
+  it('observes late source settlement without changing the timed-out result', async () => {
+    vi.useFakeTimers()
+    const fixture = completedGapTurn()
+    const lateGateway = deferred<unknown>()
+    const lateGeneration = deferred<unknown>()
+    const unhandledRejection = vi.fn()
+    process.on('unhandledRejection', unhandledRejection)
+    try {
+      const resolver = createGatewayAwareDshAlpha5InteractionEpisodeEvidenceResolver({
+        sessions: { get: () => fixture.session, flush: async () => true },
+        sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+        gateway: {
+          resolveIngressEvidence: vi.fn(() => lateGateway.promise as never),
+        },
+        generationEvidence: {
+          resolveGenerationEvidence: vi.fn(() => lateGeneration.promise as never),
+        },
+        hostEvidenceSourceTimeoutMs: 10,
+      })
+
+      const resolution = resolver.resolve(targetFor(fixture))
+      await vi.advanceTimersByTimeAsync(10)
+      const timedOut = await resolution
+      expect(timedOut).toEqual({
+        status: 'abstained',
+        stage: 'host-evidence',
+        reason: 'attestor-invocation-failed',
+        dimensions: ['binding'],
+      })
+
+      lateGateway.resolve(matchedGatewayWorkspace(WORKSPACE_ID))
+      lateGeneration.reject(new Error('late-generation-secret'))
+      await Promise.resolve()
+      await Promise.resolve()
+      expect(await resolution).toBe(timedOut)
+      expect(vi.getTimerCount()).toBe(0)
+
+      vi.useRealTimers()
+      await new Promise<void>(resolve => setImmediate(resolve))
+      expect(unhandledRejection).not.toHaveBeenCalled()
+    } finally {
+      process.off('unhandledRejection', unhandledRejection)
+    }
+  })
+
+  it.each([
+    0,
+    -1,
+    1.5,
+    Number.NaN,
+    Number.POSITIVE_INFINITY,
+    120_001,
+    Number.MAX_SAFE_INTEGER + 1,
+  ])('rejects an invalid Host evidence source timeout: %s', timeoutMs => {
+    const fixture = completedGapTurn()
+
+    expect(() => createStockDshAlpha5InteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+      hostEvidenceSourceTimeoutMs: timeoutMs,
+    })).toThrow('Host evidence source timeout must be from 1 to 120000 milliseconds')
+  })
+
   it('does not consult Gateway when persisted enqueue evidence differs from the live event', async () => {
     const fixture = completedGapTurn()
     const stored = structuredClone(fixture.stored) as Mutable<SessionEventSuffix>
@@ -421,6 +700,182 @@ describe('Gateway-aware Interaction Episode evidence resolver', () => {
 })
 
 describe('DSH alpha.5 partial Host evidence composition', () => {
+  it('subtracts only Routing for a valid owned gap Routing fact', async () => {
+    const fixture = completedGapTurn()
+    const routingEvidence = routingReturning()
+    const resolver = createStockDshAlpha5InteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+      routingEvidence,
+    })
+
+    await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-unavailable',
+      dimensions: MISSING_EXCEPT_ROUTING,
+    })
+    expect(routingEvidence.resolveRoutingEvidence).toHaveBeenCalledOnce()
+  })
+
+  it('preserves Routing when Routing evidence is unavailable', async () => {
+    const fixture = completedGapTurn()
+    const routingEvidence = routingResult({
+      status: 'abstained',
+      reason: 'evidence-unavailable',
+    })
+    const resolver = createStockDshAlpha5InteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+      routingEvidence,
+    })
+
+    await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-unavailable',
+      dimensions: ALL_MISSING_DIMENSIONS,
+    })
+  })
+
+  it('narrows a malformed Routing result to Routing conflict', async () => {
+    const fixture = completedGapTurn()
+    const resolver = createStockDshAlpha5InteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+      routingEvidence: routingResult({ status: 'matched', fact: {} }),
+    })
+
+    await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-conflict',
+      dimensions: ['routing'],
+    })
+  })
+
+  it('rejects a Routing fact bound to another Session lifecycle', async () => {
+    const fixture = completedGapTurn()
+    const valid = routingReturning()
+    const routingEvidence = {
+      resolveRoutingEvidence: vi.fn(async (
+        subject: DurableInteractionEpisodeSubjectV1,
+        derived: InteractionEpisodeDerivedEvidenceV1,
+      ) => {
+        const result = await valid.resolveRoutingEvidence(subject, derived)
+        const currentDigest = result.fact.subject.sessionLifecycleDigest
+        return {
+          ...result,
+          fact: {
+            ...result.fact,
+            subject: {
+              ...result.fact.subject,
+              sessionLifecycleDigest: `${currentDigest[0] === 'f' ? 'e' : 'f'}${currentDigest.slice(1)}`,
+            },
+          },
+        }
+      }),
+    }
+    const resolver = createStockDshAlpha5InteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+      routingEvidence,
+    })
+
+    await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-conflict',
+      dimensions: ['routing'],
+    })
+  })
+
+  it('rejects a Routing fact whose coordinates do not match the durable subject', async () => {
+    const fixture = completedGapTurn()
+    const valid = routingReturning()
+    const routingEvidence = {
+      resolveRoutingEvidence: vi.fn(async (
+        subject: DurableInteractionEpisodeSubjectV1,
+        derived: InteractionEpisodeDerivedEvidenceV1,
+      ) => {
+        const result = await valid.resolveRoutingEvidence(subject, derived)
+        return {
+          ...result,
+          fact: {
+            ...result.fact,
+            subject: {
+              ...result.fact.subject,
+              triggerResultSeq: result.fact.subject.triggerResultSeq + 1,
+            },
+          },
+        }
+      }),
+    }
+    const resolver = createStockDshAlpha5InteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+      routingEvidence,
+    })
+
+    await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-conflict',
+      dimensions: ['routing'],
+    })
+  })
+
+  it('rejects a Routing fact with a non-native Workspace UUID version', async () => {
+    const fixture = completedGapTurn()
+    const resolver = createStockDshAlpha5InteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+      routingEvidence: routingReturning(NON_NATIVE_WORKSPACE_ID),
+    })
+
+    await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-conflict',
+      dimensions: ['routing'],
+    })
+  })
+
+  it('requires the exact owned-gap Routing conclusion', async () => {
+    const fixture = completedGapTurn()
+    const valid = routingReturning()
+    const routingEvidence = {
+      resolveRoutingEvidence: vi.fn(async (
+        subject: DurableInteractionEpisodeSubjectV1,
+        derived: InteractionEpisodeDerivedEvidenceV1,
+      ) => {
+        const result = await valid.resolveRoutingEvidence(subject, derived)
+        return {
+          ...result,
+          fact: {
+            ...result.fact,
+            routing: {
+              ...result.fact.routing,
+              unexpectedAuthorityExpansion: true,
+            },
+          },
+        }
+      }),
+    }
+    const resolver = createStockDshAlpha5InteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+      routingEvidence,
+    })
+
+    await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-conflict',
+      dimensions: ['routing'],
+    })
+  })
+
   it.each(['native', 'evolved'] as const)(
     'subtracts only Generation for a valid %s Generation fact', async (generation) => {
       const fixture = completedGapTurn()
@@ -473,6 +928,24 @@ describe('DSH alpha.5 partial Host evidence composition', () => {
       stage: 'host-evidence',
       reason: 'evidence-unavailable',
       dimensions: MISSING_EXCEPT_WORKSPACE_AND_GENERATION,
+    })
+  })
+
+  it('combines matching Gateway, Generation, and Routing facts', async () => {
+    const fixture = completedGapTurn()
+
+    await expect(
+      resolverFor(
+        fixture,
+        gatewayReturning(matchedGatewayWorkspace(WORKSPACE_ID)),
+        generationReturning('evolved'),
+        routingReturning(),
+      ).resolve(targetFor(fixture)),
+    ).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-unavailable',
+      dimensions: MISSING_EXCEPT_WORKSPACE_GENERATION_AND_ROUTING,
     })
   })
 
@@ -579,6 +1052,59 @@ describe('DSH alpha.5 partial Host evidence composition', () => {
       stage: 'host-evidence',
       reason: 'evidence-conflict',
       dimensions: ['workspace', 'generation'],
+    })
+  })
+
+  it('conflicts Workspace and Routing when Gateway and Routing name different Workspaces', async () => {
+    const fixture = completedGapTurn()
+
+    await expect(
+      resolverFor(
+        fixture,
+        gatewayReturning(matchedGatewayWorkspace(WORKSPACE_ID)),
+        undefined,
+        routingReturning(OTHER_WORKSPACE_ID),
+      ).resolve(targetFor(fixture)),
+    ).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-conflict',
+      dimensions: ['workspace', 'routing'],
+    })
+  })
+
+  it('conflicts Generation and Routing when their facts name different Workspaces', async () => {
+    const fixture = completedGapTurn()
+    const resolver = createStockDshAlpha5InteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+      generationEvidence: generationReturning('native', WORKSPACE_ID),
+      routingEvidence: routingReturning(OTHER_WORKSPACE_ID),
+    })
+
+    await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-conflict',
+      dimensions: ['generation', 'routing'],
+    })
+  })
+
+  it('unions every implicated dimension across three incompatible Workspaces', async () => {
+    const fixture = completedGapTurn()
+
+    await expect(
+      resolverFor(
+        fixture,
+        gatewayReturning(matchedGatewayWorkspace(WORKSPACE_ID)),
+        generationReturning('native', OTHER_WORKSPACE_ID),
+        routingReturning('44444444-4444-4444-8444-444444444444'),
+      ).resolve(targetFor(fixture)),
+    ).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-conflict',
+      dimensions: ['workspace', 'generation', 'routing'],
     })
   })
 
@@ -839,6 +1365,71 @@ describe('DSH alpha.5 partial Host evidence composition', () => {
     expect(JSON.stringify(result)).not.toContain('generation-secret')
   })
 
+  it('preserves a Routing conflict when both sibling sources reject', async () => {
+    const fixture = completedGapTurn()
+    const result = await resolverFor(
+      fixture,
+      gatewayRejecting(),
+      generationRejecting(),
+      routingResult({ status: 'abstained', reason: 'evidence-conflict' }),
+    ).resolve(targetFor(fixture))
+
+    expect(result).toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-conflict',
+      dimensions: ['routing'],
+    })
+    expect(JSON.stringify(result)).not.toMatch(/gateway-secret|generation-secret/u)
+  })
+
+  it('preserves a fulfilled conflict when one sibling times out', async () => {
+    vi.useFakeTimers()
+    const fixture = completedGapTurn()
+    const resolver = createGatewayAwareDshAlpha5InteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+      gateway: gatewayReturning({
+        status: 'abstained',
+        reason: 'evidence-conflict',
+      }),
+      generationEvidence: {
+        resolveGenerationEvidence: vi.fn(() => new Promise<never>(() => {})),
+      },
+      routingEvidence: routingRejecting(),
+      hostEvidenceSourceTimeoutMs: 10,
+    })
+
+    const resolution = resolver.resolve(targetFor(fixture))
+    await vi.advanceTimersByTimeAsync(10)
+
+    await expect(resolution).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-conflict',
+      dimensions: ['workspace'],
+    })
+  })
+
+  it('binds a rejected Routing source invocation to attestor failure', async () => {
+    const fixture = completedGapTurn()
+    const resolver = createStockDshAlpha5InteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+      routingEvidence: routingRejecting(),
+    })
+
+    const result = await resolver.resolve(targetFor(fixture))
+
+    expect(result).toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'attestor-invocation-failed',
+      dimensions: ['binding'],
+    })
+    expect(JSON.stringify(result)).not.toContain('routing-secret')
+  })
+
   it.each([
     [
       'Gateway',
@@ -923,8 +1514,18 @@ const MISSING_EXCEPT_GENERATION = ALL_MISSING_DIMENSIONS.filter(
   dimension => dimension !== 'generation',
 )
 
+const MISSING_EXCEPT_ROUTING = ALL_MISSING_DIMENSIONS.filter(
+  dimension => dimension !== 'routing',
+)
+
 const MISSING_EXCEPT_WORKSPACE_AND_GENERATION = ALL_MISSING_DIMENSIONS.filter(
   dimension => dimension !== 'workspace' && dimension !== 'generation',
+)
+
+const MISSING_EXCEPT_WORKSPACE_GENERATION_AND_ROUTING = ALL_MISSING_DIMENSIONS.filter(
+  dimension => dimension !== 'workspace'
+    && dimension !== 'generation'
+    && dimension !== 'routing',
 )
 
 type Fixture = ReturnType<typeof completedGapTurn>
@@ -934,6 +1535,9 @@ type Gateway = Parameters<
 type GenerationEvidence = Parameters<
   typeof createStockDshAlpha5InteractionEpisodeEvidenceResolver
 >[0]['generationEvidence']
+type RoutingEvidence = Parameters<
+  typeof createStockDshAlpha5InteractionEpisodeEvidenceResolver
+>[0]['routingEvidence']
 
 function targetFor(fixture: Fixture) {
   return {
@@ -1029,6 +1633,49 @@ function generationRejecting() {
   }
 }
 
+function routingReturning(workspaceId = WORKSPACE_ID) {
+  return {
+    resolveRoutingEvidence: vi.fn(async (
+      subject: DurableInteractionEpisodeSubjectV1,
+      derived: InteractionEpisodeDerivedEvidenceV1,
+    ) => ({
+      status: 'matched' as const,
+      fact: {
+        schemaVersion: 1 as const,
+        kind: 'interaction-routing-fact-v1' as const,
+        workspaceId,
+        subject: {
+          sessionLifecycleDigest: interactionRoutingSessionLifecycleDigest(subject),
+          prefixDigest: subject.transcript.replay.prefixDigest,
+          turnDigest: subject.transcript.replay.turnDigest,
+          turnEndSeq: subject.transcript.source.turnEndSeq,
+          triggerRequestSeq: derived.triggerRequestControl.boundary.assistantMessageSeq,
+          triggerCallSeq: subject.transcript.source.triggerCallSeq,
+          triggerResultSeq: subject.transcript.source.triggerResultSeq,
+        },
+        routing: {
+          rawTrigger: 'successful-gap-report' as const,
+          conclusion: 'model-declared-no-applicable-skill' as const,
+        },
+      },
+    })),
+  }
+}
+
+function routingResult(result: unknown) {
+  return {
+    resolveRoutingEvidence: vi.fn(async () => result as never),
+  }
+}
+
+function routingRejecting() {
+  return {
+    resolveRoutingEvidence: vi.fn(async () => {
+      throw new Error('routing-secret')
+    }),
+  }
+}
+
 function deepFreezeForTest<T>(value: T): T {
   if (value !== null && typeof value === 'object' && !Object.isFrozen(value)) {
     Object.freeze(value)
@@ -1037,16 +1684,34 @@ function deepFreezeForTest<T>(value: T): T {
   return value
 }
 
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((fulfill, fail) => {
+    resolve = fulfill
+    reject = fail
+  })
+  return { promise, resolve, reject }
+}
+
+function deadlineEffectCount(owner: Context): number {
+  return owner.fiber.getEffects().filter(
+    effect => effect.label === 'dsh-evolve.interactionEpisode.hostEvidenceSource',
+  ).length
+}
+
 function resolverFor(
   fixture: Fixture,
   gateway: Gateway,
   generationEvidence?: GenerationEvidence,
+  routingEvidence?: RoutingEvidence,
 ) {
   return createGatewayAwareDshAlpha5InteractionEpisodeEvidenceResolver({
     sessions: { get: () => fixture.session, flush: async () => true },
     sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
     gateway,
     ...(generationEvidence === undefined ? {} : { generationEvidence }),
+    ...(routingEvidence === undefined ? {} : { routingEvidence }),
   })
 }
 

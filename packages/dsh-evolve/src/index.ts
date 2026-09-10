@@ -12,13 +12,16 @@ import {
   openInteractionGenerationEvidenceVault,
   type InteractionGenerationEvidencePolicyConfig,
 } from './interaction-generation-evidence.ts'
+import {
+  compileInteractionRoutingEvidencePolicies,
+  INTERACTION_ROUTING_EVIDENCE_MAX_POLICIES,
+  INTERACTION_ROUTING_EVIDENCE_MAX_RECORDS_PER_WORKSPACE,
+  type InteractionRoutingEvidencePolicyConfig,
+} from './interaction-routing-evidence.ts'
 import { NATIVE_WORKSPACE_ID_PATTERN } from './workspace-identity.ts'
 import { CapabilityMap, installCapabilityMapObserver } from './capability-map.ts'
-import {
-  installCapabilityGapMonitor,
-  openCapabilityGapStore,
-} from './capability-gap-store.ts'
-import { installCapabilityGapTool } from './capability-gap-tool.ts'
+import { openCapabilityGapStore } from './capability-gap-store.ts'
+import { installCapabilityGapRoutingEvidenceV1 } from './capability-gap-routing-evidence.ts'
 import { ExperienceDrivenSkillOpportunityDiscovery } from './skill-opportunity-discovery.ts'
 import {
   SkillCandidateRepository,
@@ -159,6 +162,8 @@ export interface Config {
   candidateEvaluationPolicies?: SkillCandidateEvaluationPolicyConfig[]
   /** Host-admin authorization to retain raw-free Generation receipts for exact Workspaces. */
   interactionEvidencePolicies?: InteractionGenerationEvidencePolicyConfig[]
+  /** Independent Host-admin authorization to retain raw-free Routing receipts. */
+  interactionRoutingEvidencePolicies?: InteractionRoutingEvidencePolicyConfig[]
   /** Workspace-only authority for exact low-risk existing-Skill instruction promotion. */
   automaticPromotionPolicies?: ExistingSkillAutomaticPromotionPolicy[]
   supervisor?: {
@@ -166,6 +171,40 @@ export interface Config {
     scanIntervalMs?: number
   }
 }
+
+const interactionEvidencePoliciesConfig = z.transform(
+  z.array(z.object({
+    workspaceId: z.string().pattern(NATIVE_WORKSPACE_ID_PATTERN).required(),
+    retention: z.object({
+      generationMaxRecords: z.number().step(1).min(1)
+        .max(INTERACTION_GENERATION_EVIDENCE_MAX_RECORDS_PER_WORKSPACE)
+        .required(),
+    }).required(),
+  })).max(INTERACTION_GENERATION_EVIDENCE_MAX_POLICIES).default([]),
+  (policies) => {
+    const exact = policies as InteractionGenerationEvidencePolicyConfig[]
+    compileInteractionGenerationEvidencePolicies(exact)
+    return exact
+  },
+  true,
+).default([])
+
+const interactionRoutingEvidencePoliciesConfig = z.transform(
+  z.array(z.object({
+    workspaceId: z.string().pattern(NATIVE_WORKSPACE_ID_PATTERN).required(),
+    retention: z.object({
+      routingMaxRecords: z.number().step(1).min(1)
+        .max(INTERACTION_ROUTING_EVIDENCE_MAX_RECORDS_PER_WORKSPACE)
+        .required(),
+    }).required(),
+  })).max(INTERACTION_ROUTING_EVIDENCE_MAX_POLICIES).default([]),
+  (policies) => {
+    const exact = policies as InteractionRoutingEvidencePolicyConfig[]
+    compileInteractionRoutingEvidencePolicies(exact)
+    return exact
+  },
+  true,
+).default([])
 
 export const Config: Schema<Config> = z.object({
   cacheRoot: z.string(),
@@ -183,14 +222,8 @@ export const Config: Schema<Config> = z.object({
     dshRevision: z.string(),
     maxAttemptsPerUtcDay: z.number().step(1).min(1).max(20).default(1),
   })).max(100).default([]),
-  interactionEvidencePolicies: z.array(z.object({
-    workspaceId: z.string().pattern(NATIVE_WORKSPACE_ID_PATTERN).required(),
-    retention: z.object({
-      generationMaxRecords: z.number().step(1).min(1)
-        .max(INTERACTION_GENERATION_EVIDENCE_MAX_RECORDS_PER_WORKSPACE)
-        .required(),
-    }).required(),
-  })).max(INTERACTION_GENERATION_EVIDENCE_MAX_POLICIES).default([]),
+  interactionEvidencePolicies: interactionEvidencePoliciesConfig,
+  interactionRoutingEvidencePolicies: interactionRoutingEvidencePoliciesConfig,
   automaticPromotionPolicies: z.array(z.object({
     id: z.string().required(),
     workspaceId: z.string().required(),
@@ -801,12 +834,15 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       ctx.logger.warn(`dsh-evolve internal Skill authoring skipped work: ${warning}`)
     }
   }
-  const capabilityGapMonitor = installCapabilityGapMonitor(
+  const capabilityGapRoutingEvidence = await installCapabilityGapRoutingEvidenceV1(
     ctx,
-    capabilityGaps,
-    capabilities,
-    store,
     {
+      gaps: capabilityGaps,
+      capabilities,
+      evolution: store,
+    },
+    {
+      policies: config.interactionRoutingEvidencePolicies ?? [],
       // A no-Goal Interaction is a durable signal, not an authoring trigger.
       // The legacy slow loop remains strictly Goal-qualified until its
       // Interaction evidence contract is introduced in a new epoch.
@@ -815,22 +851,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         : reconcileSkillOpportunities(gap.workspaceId),
     },
   )
-  runtime.own('producer', () => capabilityGapMonitor.dispose())
-  ctx.inject(['tools'], (toolCtx) => {
-    installCapabilityGapTool(
-      toolCtx,
-      capabilityGaps,
-      capabilities,
-      store,
-      {
-        // Keep the old Goal-linked authoring path unchanged while making the
-        // new no-Goal durable signal explicitly fail closed.
-        onGap: gap => gap.goal === undefined
-          ? undefined
-          : reconcileSkillOpportunities(gap.workspaceId),
-      },
-    )
-  })
+  runtime.own('producer', () => capabilityGapRoutingEvidence.dispose())
 
   const review = config.supervisor === undefined || config.supervisor.runRoots.length === 0
     ? undefined
@@ -1120,6 +1141,7 @@ export type {
   SkillGenerationArtifact,
 } from './generation-store.ts'
 export type { InteractionGenerationEvidencePolicyConfig } from './interaction-generation-evidence.ts'
+export type { InteractionRoutingEvidencePolicyConfig } from './interaction-routing-evidence.ts'
 export type { SkillCandidateEvaluationPolicyConfig } from './skill-evaluation-envelope.ts'
 export type {
   SkillEvaluationCaseAuthorInput,

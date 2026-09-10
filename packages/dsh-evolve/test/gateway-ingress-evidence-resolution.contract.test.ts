@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { Context } from '@deepseek-ai/cordis'
 import {
   freezeMessage,
   MessageId,
@@ -13,9 +14,9 @@ import {
 } from '@deepseek-ai/dsh-session'
 import type { SessionEventSuffix } from '@deepseek-ai/dsh-session-persistence'
 import type { DomainFacility, KvTable } from '@deepseek-ai/dsh-storage-domain'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  createGatewayAwareDshAlpha5InteractionEpisodeEvidenceResolver,
+  createGatewayAwareDshAlpha5InteractionEpisodeEvidenceResolver as createGatewayAwareResolver,
 } from '../src/interaction-episode-evidence-resolver.ts'
 import type {
   GatewayIngressEvidenceQueryV1,
@@ -31,6 +32,19 @@ const SESSION_ID = SessionId('gateway-evolve-contract-session')
 const INGRESS_ID = sha256('telegram:contract-account:contract-chat:contract-event')
 const MESSAGE_ID = MessageId(`channel:${INGRESS_ID}`)
 const ORIGINAL_TEXT = 'Find a reusable release audit method.'
+const lifecycle = new Context()
+
+type GatewayAwareResolverDependencies = Parameters<typeof createGatewayAwareResolver>[0]
+
+function createGatewayAwareDshAlpha5InteractionEpisodeEvidenceResolver(
+  dependencies: Omit<GatewayAwareResolverDependencies, 'lifecycle'>,
+) {
+  return createGatewayAwareResolver({ ...dependencies, lifecycle })
+}
+
+afterAll(async () => {
+  await lifecycle.fiber.dispose()
+})
 
 afterEach(() => {
   vi.restoreAllMocks()

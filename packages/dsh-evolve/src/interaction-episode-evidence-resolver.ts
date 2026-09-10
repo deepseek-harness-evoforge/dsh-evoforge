@@ -1,4 +1,5 @@
 import { isDeepStrictEqual } from 'node:util'
+import type { Context } from '@deepseek-ai/cordis'
 import {
   SessionLogOffset,
   type Session,
@@ -19,6 +20,11 @@ import {
   type InteractionGenerationEvidenceSourceV1,
 } from './interaction-generation-evidence.ts'
 import {
+  interactionRoutingSessionLifecycleDigest,
+  type InteractionEpisodeRoutingFactV1,
+  type InteractionRoutingEvidenceSourceV1,
+} from './interaction-routing-evidence.ts'
+import {
   assembleInteractionEpisodeInputV1,
   type InteractionEpisodeAssemblyResultV1,
   type InteractionEpisodeEvidenceDimensionV1,
@@ -37,6 +43,7 @@ import {
   type InteractionEpisodeTriggerRequestControlSubjectV1,
 } from './interaction-trigger-request-control.ts'
 import type { InteractionEpisodeInputV1 } from './interaction-episode-store.ts'
+import { runWithLifecycleDeadline } from './lifecycle-deadline.ts'
 import { isWorkspaceId } from './workspace-identity.ts'
 
 const stockMissingDimensions = [
@@ -55,6 +62,9 @@ const stockMissingDimensions = [
   'dsh-revision',
   'external-effects',
 ] as const satisfies readonly InteractionEpisodeEvidenceDimensionV1[]
+
+const DEFAULT_HOST_EVIDENCE_SOURCE_TIMEOUT_MS = 30_000
+const MAX_HOST_EVIDENCE_SOURCE_TIMEOUT_MS = 120_000
 
 export interface InteractionEpisodeResolutionTargetV1 {
   readonly session: Session
@@ -141,7 +151,12 @@ interface InteractionEpisodeEvidenceResolverDependenciesV1 {
 interface StockDshAlpha5ResolverDependenciesV1 {
   readonly sessions: Pick<SessionStore, 'get' | 'flush'>
   readonly sessionPersistence: Pick<SessionPersistence, 'readFrom'>
+  /** Cordis fiber that owns every Host-source invocation deadline. */
+  readonly lifecycle: Pick<Context, 'effect'>
   readonly generationEvidence?: InteractionGenerationEvidenceSourceV1
+  readonly routingEvidence?: InteractionRoutingEvidenceSourceV1
+  /** @internal Test seam; production composition uses the bounded default. */
+  readonly hostEvidenceSourceTimeoutMs?: number
 }
 
 interface GatewayAwareDshAlpha5ResolverDependenciesV1
@@ -292,7 +307,10 @@ export function createStockDshAlpha5InteractionEpisodeEvidenceResolver(
       ...(dependencies.generationEvidence === undefined
         ? {}
         : { generationEvidence: dependencies.generationEvidence }),
-    }),
+      ...(dependencies.routingEvidence === undefined
+        ? {}
+        : { routingEvidence: dependencies.routingEvidence }),
+    }, dependencies.lifecycle, dependencies.hostEvidenceSourceTimeoutMs),
   })
 }
 
@@ -314,50 +332,94 @@ export function createGatewayAwareDshAlpha5InteractionEpisodeEvidenceResolver(
       ...(dependencies.generationEvidence === undefined
         ? {}
         : { generationEvidence: dependencies.generationEvidence }),
-    }),
+      ...(dependencies.routingEvidence === undefined
+        ? {}
+        : { routingEvidence: dependencies.routingEvidence }),
+    }, dependencies.lifecycle, dependencies.hostEvidenceSourceTimeoutMs),
   })
 }
 
 interface DshAlpha5HostEvidenceSourcesV1 {
   readonly gateway?: GatewayIngressEvidenceSourceV1
   readonly generationEvidence?: InteractionGenerationEvidenceSourceV1
+  readonly routingEvidence?: InteractionRoutingEvidenceSourceV1
 }
 
 function createDshAlpha5HostEvidenceAttestor(
   sources: DshAlpha5HostEvidenceSourcesV1,
+  lifecycle: Pick<Context, 'effect'>,
+  configuredSourceTimeoutMs?: number,
 ): InteractionEpisodeHostEvidenceAttestorV1 {
-  const generationEvidence = sources.generationEvidence
-  if (generationEvidence === undefined) {
-    return sources.gateway === undefined
-      ? stockDshAlpha5Attestor
-      : gatewayWorkspaceAttestor(sources.gateway)
-  }
+  const sourceTimeoutMs = hostEvidenceSourceTimeoutMs(configuredSourceTimeoutMs)
   return Object.freeze({
     async resolve(
       subject: DurableInteractionEpisodeSubjectV1,
       derived: InteractionEpisodeDerivedEvidenceV1,
     ) {
-      const [generationResult, workspaceResult] = await Promise.allSettled([
-        resolveGenerationEvidence(generationEvidence, subject, derived),
+      const [workspaceResult, generationResult, routingResult] = await Promise.allSettled([
         sources.gateway === undefined
           ? Promise.resolve({ status: 'unavailable' } as const)
-          : resolveGatewayWorkspaceEvidence(sources.gateway, subject),
+          : raceHostEvidenceSourceInvocation(
+              lifecycle,
+              () => resolveGatewayWorkspaceEvidence(sources.gateway!, subject),
+              sourceTimeoutMs,
+            ),
+        sources.generationEvidence === undefined
+          ? Promise.resolve({ status: 'unavailable' } as const)
+          : raceHostEvidenceSourceInvocation(
+              lifecycle,
+              () => resolveGenerationEvidence(sources.generationEvidence!, subject, derived),
+              sourceTimeoutMs,
+            ),
+        sources.routingEvidence === undefined
+          ? Promise.resolve({ status: 'unavailable' } as const)
+          : raceHostEvidenceSourceInvocation(
+              lifecycle,
+              () => resolveRoutingEvidence(sources.routingEvidence!, subject, derived),
+              sourceTimeoutMs,
+            ),
       ])
       const conflicts = partialDshAlpha5ConflictDimensions(
         workspaceResult.status === 'fulfilled' ? workspaceResult.value : undefined,
         generationResult.status === 'fulfilled' ? generationResult.value : undefined,
+        routingResult.status === 'fulfilled' ? routingResult.value : undefined,
       )
       if (conflicts.length > 0) {
         return hostEvidenceResolution('evidence-conflict', conflicts)
       }
-      if (generationResult.status === 'rejected' || workspaceResult.status === 'rejected') {
+      if (workspaceResult.status === 'rejected'
+        || generationResult.status === 'rejected'
+        || routingResult.status === 'rejected') {
         throw new Error('DSH alpha.5 Host evidence source invocation failed')
       }
       return composePartialDshAlpha5HostEvidence(
         workspaceResult.value,
         generationResult.value,
+        routingResult.value,
       )
     },
+  })
+}
+
+function hostEvidenceSourceTimeoutMs(configured: number | undefined): number {
+  const timeoutMs = configured ?? DEFAULT_HOST_EVIDENCE_SOURCE_TIMEOUT_MS
+  if (!Number.isSafeInteger(timeoutMs)
+    || timeoutMs < 1
+    || timeoutMs > MAX_HOST_EVIDENCE_SOURCE_TIMEOUT_MS) {
+    throw new Error('Host evidence source timeout must be from 1 to 120000 milliseconds')
+  }
+  return timeoutMs
+}
+
+function raceHostEvidenceSourceInvocation<T>(
+  lifecycle: Pick<Context, 'effect'>,
+  invocation: () => Promise<T>,
+  timeoutMs: number,
+): Promise<T> {
+  return runWithLifecycleDeadline(lifecycle, invocation, {
+    timeoutMs,
+    label: 'dsh-evolve.interactionEpisode.hostEvidenceSource',
+    timeoutMessage: 'DSH alpha.5 Host evidence source invocation timed out',
   })
 }
 
@@ -484,45 +546,150 @@ function exactGenerationFact(
   } as InteractionEpisodeGenerationFactV1)
 }
 
+type RoutingEvidenceResolution =
+  | { readonly status: 'unavailable' }
+  | { readonly status: 'conflict' }
+  | { readonly status: 'matched'; readonly fact: InteractionEpisodeRoutingFactV1 }
+
+async function resolveRoutingEvidence(
+  source: InteractionRoutingEvidenceSourceV1,
+  subject: DurableInteractionEpisodeSubjectV1,
+  derived: InteractionEpisodeDerivedEvidenceV1,
+): Promise<RoutingEvidenceResolution> {
+  const resolution: unknown = await source.resolveRoutingEvidence(subject, derived)
+  return routingEvidenceResolution(resolution, subject, derived)
+}
+
+function routingEvidenceResolution(
+  resolution: unknown,
+  subject: DurableInteractionEpisodeSubjectV1,
+  derived: InteractionEpisodeDerivedEvidenceV1,
+): RoutingEvidenceResolution {
+  const result = ownEnumerableDataSnapshot(resolution)
+  if (result === undefined) return { status: 'conflict' }
+  if (hasExactDataKeys(result, ['status', 'reason'])
+    && result.status === 'abstained') {
+    if (result.reason === 'evidence-unavailable') return { status: 'unavailable' }
+    return { status: 'conflict' }
+  }
+  if (!hasExactDataKeys(result, ['status', 'fact']) || result.status !== 'matched') {
+    return { status: 'conflict' }
+  }
+  const fact = exactRoutingFact(result.fact, subject, derived)
+  return fact === undefined
+    ? { status: 'conflict' }
+    : { status: 'matched', fact }
+}
+
+function exactRoutingFact(
+  candidate: unknown,
+  subject: DurableInteractionEpisodeSubjectV1,
+  derived: InteractionEpisodeDerivedEvidenceV1,
+): InteractionEpisodeRoutingFactV1 | undefined {
+  const fact = ownEnumerableDataSnapshot(candidate)
+  if (fact === undefined
+    || !hasExactDataKeys(fact, ['schemaVersion', 'kind', 'workspaceId', 'subject', 'routing'])
+    || fact.schemaVersion !== 1
+    || fact.kind !== 'interaction-routing-fact-v1'
+    || !isWorkspaceId(fact.workspaceId)
+    || subject.transcript.trigger.kind !== 'successful-gap-report') return undefined
+  const factSubject = ownEnumerableDataSnapshot(fact.subject)
+  let sessionLifecycleDigest: string
+  try {
+    sessionLifecycleDigest = interactionRoutingSessionLifecycleDigest(subject)
+  } catch {
+    return undefined
+  }
+  if (factSubject === undefined
+    || !hasExactDataKeys(factSubject, [
+      'sessionLifecycleDigest',
+      'prefixDigest',
+      'turnDigest',
+      'turnEndSeq',
+      'triggerRequestSeq',
+      'triggerCallSeq',
+      'triggerResultSeq',
+    ])
+    || factSubject.sessionLifecycleDigest !== sessionLifecycleDigest
+    || factSubject.prefixDigest !== subject.transcript.replay.prefixDigest
+    || factSubject.turnDigest !== subject.transcript.replay.turnDigest
+    || factSubject.turnEndSeq !== subject.transcript.source.turnEndSeq
+    || factSubject.triggerRequestSeq
+      !== derived.triggerRequestControl.boundary.assistantMessageSeq
+    || factSubject.triggerCallSeq !== subject.transcript.source.triggerCallSeq
+    || factSubject.triggerResultSeq !== subject.transcript.source.triggerResultSeq) {
+    return undefined
+  }
+  const routing = ownEnumerableDataSnapshot(fact.routing)
+  if (routing === undefined
+    || !hasExactDataKeys(routing, ['rawTrigger', 'conclusion'])
+    || routing.rawTrigger !== 'successful-gap-report'
+    || routing.conclusion !== 'model-declared-no-applicable-skill') return undefined
+  return immutableCopy({
+    schemaVersion: 1,
+    kind: 'interaction-routing-fact-v1',
+    workspaceId: fact.workspaceId,
+    subject: {
+      sessionLifecycleDigest: factSubject.sessionLifecycleDigest,
+      prefixDigest: factSubject.prefixDigest,
+      turnDigest: factSubject.turnDigest,
+      turnEndSeq: factSubject.turnEndSeq,
+      triggerRequestSeq: factSubject.triggerRequestSeq,
+      triggerCallSeq: factSubject.triggerCallSeq,
+      triggerResultSeq: factSubject.triggerResultSeq,
+    },
+    routing: {
+      rawTrigger: 'successful-gap-report',
+      conclusion: 'model-declared-no-applicable-skill',
+    },
+  } as InteractionEpisodeRoutingFactV1)
+}
+
 function composePartialDshAlpha5HostEvidence(
   workspace: GatewayWorkspaceEvidenceResolution,
   generation: GenerationEvidenceResolution,
+  routing: RoutingEvidenceResolution,
 ): InteractionEpisodeHostEvidenceResolutionV1 {
-  const conflicts = partialDshAlpha5ConflictDimensions(workspace, generation)
+  const conflicts = partialDshAlpha5ConflictDimensions(workspace, generation, routing)
   if (conflicts.length > 0) {
     return hostEvidenceResolution('evidence-conflict', conflicts)
   }
   return hostEvidenceResolution('evidence-unavailable', stockMissingDimensions.filter(
     dimension => (dimension !== 'workspace' || workspace.status !== 'matched')
-      && (dimension !== 'generation' || generation.status !== 'matched'),
+      && (dimension !== 'generation' || generation.status !== 'matched')
+      && (dimension !== 'routing' || routing.status !== 'matched'),
   ))
 }
 
 function partialDshAlpha5ConflictDimensions(
   workspace: GatewayWorkspaceEvidenceResolution | undefined,
   generation: GenerationEvidenceResolution | undefined,
+  routing: RoutingEvidenceResolution | undefined,
 ): readonly InteractionEpisodeEvidenceDimensionV1[] {
-  const conflicts: InteractionEpisodeEvidenceDimensionV1[] = []
-  if (workspace?.status === 'conflict') conflicts.push('workspace')
-  if (generation?.status === 'conflict') conflicts.push('generation')
+  const conflicts = new Set<InteractionEpisodeEvidenceDimensionV1>()
+  if (workspace?.status === 'conflict') conflicts.add('workspace')
+  if (generation?.status === 'conflict') conflicts.add('generation')
+  if (routing?.status === 'conflict') conflicts.add('routing')
   if (workspace?.status === 'matched'
     && generation?.status === 'matched'
     && workspace.workspaceId !== generation.fact.workspaceId) {
-    conflicts.push('workspace', 'generation')
+    conflicts.add('workspace')
+    conflicts.add('generation')
   }
-  return [...new Set(conflicts)]
-}
-
-function gatewayWorkspaceAttestor(
-  gateway: GatewayIngressEvidenceSourceV1,
-): InteractionEpisodeHostEvidenceAttestorV1 {
-  return Object.freeze({
-    async resolve(subject: DurableInteractionEpisodeSubjectV1) {
-      return gatewayWorkspaceHostResolution(
-        await resolveGatewayWorkspaceEvidence(gateway, subject),
-      )
-    },
-  })
+  if (workspace?.status === 'matched'
+    && routing?.status === 'matched'
+    && workspace.workspaceId !== routing.fact.workspaceId) {
+    conflicts.add('workspace')
+    conflicts.add('routing')
+  }
+  if (generation?.status === 'matched'
+    && routing?.status === 'matched'
+    && generation.fact.workspaceId !== routing.fact.workspaceId) {
+    conflicts.add('generation')
+    conflicts.add('routing')
+  }
+  return (['workspace', 'generation', 'routing'] as const)
+    .filter(dimension => conflicts.has(dimension))
 }
 
 type GatewayWorkspaceEvidenceResolution =
@@ -601,17 +768,6 @@ function gatewayWorkspaceEvidenceResolution(
   return { status: 'matched', workspaceId: fact.workspaceId }
 }
 
-function gatewayWorkspaceHostResolution(
-  resolution: GatewayWorkspaceEvidenceResolution,
-): InteractionEpisodeHostEvidenceResolutionV1 {
-  if (resolution.status === 'conflict') {
-    return hostEvidenceResolution('evidence-conflict', ['workspace'])
-  }
-  return hostEvidenceResolution('evidence-unavailable', stockMissingDimensions.filter(
-    dimension => dimension !== 'workspace' || resolution.status !== 'matched',
-  ))
-}
-
 function hostEvidenceResolution(
   reason: 'evidence-unavailable' | 'evidence-conflict',
   dimensions: readonly InteractionEpisodeEvidenceDimensionV1[],
@@ -652,16 +808,6 @@ function hasExactDataKeys(
   return Reflect.ownKeys(snapshot).length === keys.length
     && keys.every(key => Object.hasOwn(snapshot, key))
 }
-
-const stockDshAlpha5Attestor: InteractionEpisodeHostEvidenceAttestorV1 = Object.freeze({
-  async resolve() {
-    return immutableCopy({
-      status: 'abstained',
-      reason: 'evidence-unavailable',
-      dimensions: stockMissingDimensions,
-    } as const)
-  },
-})
 
 interface CapturedTarget {
   readonly session: Session

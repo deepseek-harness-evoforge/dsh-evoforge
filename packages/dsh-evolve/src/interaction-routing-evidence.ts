@@ -16,34 +16,32 @@ import {
 } from './interaction-trigger-request-control.ts'
 import { isWorkspaceId } from './workspace-identity.ts'
 
-const EVIDENCE_DOMAIN = 'evoforge_interaction_generation_evidence'
+const EVIDENCE_DOMAIN = 'evoforge_interaction_routing_evidence'
 const EVIDENCE_DOMAIN_VERSION = 1
 const SOURCE_DIALECT = 'deepseek-harness@0.1.2-alpha.5' as const
 const MAX_EPOCH_BYTES = 512
 
-export const INTERACTION_GENERATION_EVIDENCE_MAX_POLICIES = 100
-export const INTERACTION_GENERATION_EVIDENCE_MAX_RECORDS_PER_WORKSPACE = 10_000
-export const INTERACTION_GENERATION_EVIDENCE_MAX_AGGREGATE_RECORDS = 100_000
+export const INTERACTION_ROUTING_EVIDENCE_MAX_POLICIES = 100
+export const INTERACTION_ROUTING_EVIDENCE_MAX_RECORDS_PER_WORKSPACE = 10_000
+export const INTERACTION_ROUTING_EVIDENCE_MAX_AGGREGATE_RECORDS = 100_000
 
-const compiledPolicyAuthorities = new WeakSet<object>()
-
-const hashSchema = z.string().regex(/^[a-f0-9]{64}$/u)
-const safeInteger = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
 const workspaceIdSchema = z.string().refine(isWorkspaceId, {
   message: 'expected a canonical native Workspace UUID v1-v5',
 })
+const hashSchema = z.string().regex(/^[a-f0-9]{64}$/u)
+const safeInteger = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
 const triggerKindSchema = z.enum(['successful-gap-report', 'skill-tool-error'])
 
-const interactionEvidencePolicySchema = z.strictObject({
+const interactionRoutingEvidencePolicySchema = z.strictObject({
   workspaceId: workspaceIdSchema,
   retention: z.strictObject({
-    generationMaxRecords: z.number().int().min(1)
-      .max(INTERACTION_GENERATION_EVIDENCE_MAX_RECORDS_PER_WORKSPACE),
+    routingMaxRecords: z.number().int().min(1)
+      .max(INTERACTION_ROUTING_EVIDENCE_MAX_RECORDS_PER_WORKSPACE),
   }),
 })
 
-const interactionEvidencePoliciesSchema = z.array(interactionEvidencePolicySchema)
-  .max(INTERACTION_GENERATION_EVIDENCE_MAX_POLICIES)
+const interactionRoutingEvidencePoliciesSchema = z.array(interactionRoutingEvidencePolicySchema)
+  .max(INTERACTION_ROUTING_EVIDENCE_MAX_POLICIES)
   .superRefine((policies, context) => {
     const seen = new Set<string>()
     let aggregate = 0
@@ -53,44 +51,54 @@ const interactionEvidencePoliciesSchema = z.array(interactionEvidencePolicySchem
         context.addIssue({
           code: 'custom',
           path: [index, 'workspaceId'],
-          message: `duplicate Interaction Generation evidence policy for Workspace '${policy.workspaceId}'`,
+          message: `duplicate Interaction Routing evidence policy for Workspace '${policy.workspaceId}'`,
         })
       }
       seen.add(policy.workspaceId)
-      aggregate += policy.retention.generationMaxRecords
+      aggregate += policy.retention.routingMaxRecords
     }
-    if (aggregate > INTERACTION_GENERATION_EVIDENCE_MAX_AGGREGATE_RECORDS) {
+    if (aggregate > INTERACTION_ROUTING_EVIDENCE_MAX_AGGREGATE_RECORDS) {
       context.addIssue({
         code: 'custom',
-        message: 'Interaction Generation evidence policy aggregate exceeds the 100000-record safety cap',
+        message: 'Interaction Routing evidence policy aggregate exceeds the 100000-record safety cap',
       })
     }
   })
 
-const generationSchema = z.discriminatedUnion('kind', [
-  z.strictObject({
-    kind: z.literal('native'),
-    pin: z.literal('settled'),
-    effectiveMount: z.strictObject({ kind: z.literal('native') }),
-  }),
-  z.strictObject({
-    kind: z.literal('evolved'),
-    pin: z.literal('settled'),
-    generationId: hashSchema,
-    effectiveMount: z.strictObject({
-      kind: z.literal('evolved'),
-      generationId: hashSchema,
-    }),
-  }).superRefine((generation, context) => {
-    if (generation.effectiveMount.generationId !== generation.generationId) {
-      context.addIssue({
-        code: 'custom',
-        path: ['effectiveMount', 'generationId'],
-        message: 'effective Generation mount does not match the settled pin',
-      })
-    }
-  }),
-])
+export type InteractionRoutingEvidencePolicyConfig =
+  z.infer<typeof interactionRoutingEvidencePolicySchema>
+
+/** Host-admin retention authority; it grants neither user consent nor Episode access. */
+export interface InteractionRoutingEvidencePolicyAuthorityV1 {
+  allows(workspaceId: string): boolean
+  routingMaxRecords(workspaceId: string): number | undefined
+}
+
+const compiledPolicyAuthorities = new WeakSet<object>()
+
+/** @internal Compile raw plugin config into the only policy authority accepted by the vault. */
+export function compileInteractionRoutingEvidencePolicies(
+  rawPolicies: readonly InteractionRoutingEvidencePolicyConfig[] = [],
+): InteractionRoutingEvidencePolicyAuthorityV1 {
+  const policies = interactionRoutingEvidencePoliciesSchema.parse(snapshotJsonValue(rawPolicies))
+  const byWorkspace = new Map(policies.map(policy => [
+    policy.workspaceId,
+    policy.retention.routingMaxRecords,
+  ] as const))
+  const authority: InteractionRoutingEvidencePolicyAuthorityV1 = Object.freeze({
+    allows: (workspaceId: string) => isWorkspaceId(workspaceId) && byWorkspace.has(workspaceId),
+    routingMaxRecords: (workspaceId: string) => isWorkspaceId(workspaceId)
+      ? byWorkspace.get(workspaceId)
+      : undefined,
+  })
+  compiledPolicyAuthorities.add(authority)
+  return authority
+}
+
+const routingSchema = z.strictObject({
+  rawTrigger: z.literal('successful-gap-report'),
+  conclusion: z.literal('model-declared-no-applicable-skill'),
+})
 
 const receiptSubjectSchema = z.strictObject({
   sessionLifecycleDigest: hashSchema,
@@ -110,51 +118,43 @@ const receiptSubjectSchema = z.strictObject({
     && subject.triggerResultSeq < subject.turnEndSeq)) {
     context.addIssue({
       code: 'custom',
-      message: 'Generation evidence coordinates are not in strict causal order',
+      message: 'Routing evidence coordinates are not in strict causal order',
     })
   }
 })
 
-const provenanceSchema = z.discriminatedUnion('kind', [
-  z.strictObject({
-    kind: z.literal('native'),
-    binderEpochDigest: hashSchema,
-    lifecycleCutoffDigest: hashSchema,
-  }),
-  z.strictObject({
-    kind: z.literal('evolved'),
-    binderEpochDigest: hashSchema,
-    lifecycleCutoffDigest: hashSchema,
-    mountEpochDigest: hashSchema,
-    generationDigest: hashSchema,
-  }),
-])
+const provenanceSchema = z.strictObject({
+  authorityEpochDigest: hashSchema,
+  registrationEpochDigest: hashSchema,
+  executionEpochDigest: hashSchema,
+  lifecycleCutoffDigest: hashSchema,
+  bodyValueDigest: hashSchema,
+  finalResultDigest: hashSchema,
+  toolContractDigest: hashSchema,
+})
 
 const receiptSchema = z.strictObject({
   schemaVersion: z.literal(1),
-  kind: z.literal('interaction-generation-evidence-receipt-v1'),
+  kind: z.literal('interaction-routing-evidence-receipt-v1'),
   observedAt: safeInteger,
   sourceDialect: z.literal(SOURCE_DIALECT),
   workspaceId: workspaceIdSchema,
   subject: receiptSubjectSchema,
-  generation: generationSchema,
+  routing: routingSchema,
   provenance: provenanceSchema,
 }).superRefine((receipt, context) => {
-  if (receipt.generation.kind !== receipt.provenance.kind) {
+  if (receipt.subject.triggerKind !== 'successful-gap-report') {
     context.addIssue({
       code: 'custom',
-      path: ['provenance', 'kind'],
-      message: 'Generation evidence provenance does not match its pin kind',
+      path: ['subject', 'triggerKind'],
+      message: 'Routing evidence receipt is eligible only for a successful gap report',
     })
-    return
   }
-  if (receipt.generation.kind === 'evolved'
-    && receipt.provenance.kind === 'evolved'
-    && receipt.generation.generationId !== receipt.provenance.generationDigest) {
+  if (receipt.provenance.toolContractDigest !== routingToolContractDigest()) {
     context.addIssue({
       code: 'custom',
-      path: ['provenance', 'generationDigest'],
-      message: 'Generation evidence digest does not match its content-addressed Generation',
+      path: ['provenance', 'toolContractDigest'],
+      message: 'Routing evidence receipt does not match the fixed Tool contract',
     })
   }
 })
@@ -165,7 +165,7 @@ const receiptIdentitySchema = z.strictObject({
 })
 
 const workspaceIdsSchema = z.array(workspaceIdSchema).min(1)
-  .max(INTERACTION_GENERATION_EVIDENCE_MAX_POLICIES)
+  .max(INTERACTION_ROUTING_EVIDENCE_MAX_POLICIES)
   .superRefine((workspaceIds, context) => {
     const canonical = [...new Set(workspaceIds)].sort()
     if (!isDeepStrictEqual(workspaceIds, canonical)) {
@@ -175,7 +175,7 @@ const workspaceIdsSchema = z.array(workspaceIdSchema).min(1)
 
 const resolvedRecordSchema = z.strictObject({
   schemaVersion: z.literal(1),
-  kind: z.literal('interaction-generation-evidence-record-v1'),
+  kind: z.literal('interaction-routing-evidence-record-v1'),
   state: z.literal('resolved'),
   id: hashSchema,
   observedAt: safeInteger,
@@ -193,7 +193,7 @@ const resolvedRecordSchema = z.strictObject({
     context.addIssue({
       code: 'custom',
       path: ['receipt'],
-      message: 'record envelope does not match its Generation receipt',
+      message: 'record envelope does not match its Routing receipt',
     })
   }
   if (record.workspaceIds.length !== 1 || record.workspaceIds[0] !== record.receipt.workspaceId) {
@@ -207,7 +207,7 @@ const resolvedRecordSchema = z.strictObject({
 
 const conflictRecordSchema = z.strictObject({
   schemaVersion: z.literal(1),
-  kind: z.literal('interaction-generation-evidence-record-v1'),
+  kind: z.literal('interaction-routing-evidence-record-v1'),
   state: z.literal('conflict'),
   id: hashSchema,
   observedAt: safeInteger,
@@ -226,65 +226,60 @@ const evidenceRecordSchema = z.discriminatedUnion('state', [
   conflictRecordSchema,
 ])
 
-type InteractionGenerationEvidenceRecordV1 = z.infer<typeof evidenceRecordSchema>
+type InteractionRoutingEvidenceRecordV1 = z.infer<typeof evidenceRecordSchema>
 
 const evidenceDomainSpec = defineDomain({
   name: EVIDENCE_DOMAIN,
   version: EVIDENCE_DOMAIN_VERSION,
-  // One malformed receipt invalidates this evidence authority as a whole.
-  // Per-record recovery could otherwise turn corruption into false absence.
+  // A malformed row invalidates the whole authority. Treating corruption as
+  // absence could otherwise manufacture an apparently clean routing answer.
   layout: 'single',
   tables: {
-    receipts: domainTable<string, InteractionGenerationEvidenceRecordV1>(evidenceRecordSchema),
+    receipts: domainTable<string, InteractionRoutingEvidenceRecordV1>(evidenceRecordSchema),
   },
 })
 
-type InteractionGenerationEvidenceDomain = Domain<typeof evidenceDomainSpec>
+type InteractionRoutingEvidenceDomain = Domain<typeof evidenceDomainSpec>
 
-export type InteractionGenerationBindingV1 =
-  InteractionEpisodeHostBindingV1['capability']['generation']
+export type InteractionRoutingBindingV1 = Extract<
+  InteractionEpisodeHostBindingV1['capability']['routing'],
+  { readonly rawTrigger: 'successful-gap-report' }
+>
 
-/** Raw-free completed-turn receipt authored by the Generation binder. */
-export type InteractionGenerationEvidenceReceiptV1 = z.infer<typeof receiptSchema>
+/** Raw-free completed-turn receipt authored by the owned Routing witness. */
+export type InteractionRoutingEvidenceReceiptV1 = z.infer<typeof receiptSchema>
 
-export type InteractionGenerationEvidencePolicyConfig =
-  z.infer<typeof interactionEvidencePolicySchema>
-
-/** Host-admin retention authority; it grants neither user consent nor Episode access. */
-export interface InteractionGenerationEvidencePolicyAuthorityV1 {
-  allows(workspaceId: string): boolean
-  generationMaxRecords(workspaceId: string): number | undefined
-}
-
-/** @internal Compile raw plugin config into the only policy authority accepted by the vault. */
-export function compileInteractionGenerationEvidencePolicies(
-  rawPolicies: readonly InteractionGenerationEvidencePolicyConfig[] = [],
-): InteractionGenerationEvidencePolicyAuthorityV1 {
-  const policies = interactionEvidencePoliciesSchema.parse(snapshotJsonValue(rawPolicies))
-  const byWorkspace = new Map(policies.map(policy => [
-    policy.workspaceId,
-    policy.retention.generationMaxRecords,
-  ] as const))
-  const authority: InteractionGenerationEvidencePolicyAuthorityV1 = Object.freeze({
-    allows: (workspaceId: string) => isWorkspaceId(workspaceId) && byWorkspace.has(workspaceId),
-    generationMaxRecords: (workspaceId: string) => isWorkspaceId(workspaceId)
-      ? byWorkspace.get(workspaceId)
-      : undefined,
-  })
-  compiledPolicyAuthorities.add(authority)
-  return authority
-}
-
-export interface InteractionGenerationEvidenceDerivedV1 {
+export interface InteractionRoutingEvidenceDerivedV1 {
   readonly triggerRequestControl: InteractionEpisodeTriggerRequestControlFactV1
 }
 
-export type InteractionGenerationEvidenceSubjectV1 =
+export type InteractionRoutingEvidenceSubjectV1 =
   InteractionEpisodeTriggerRequestControlSubjectV1
 
-export interface InteractionEpisodeGenerationFactV1 {
+/**
+ * Getter-free canonical query identity used by the owned producer to
+ * linearize completion-time checks with reads of that exact subject.
+ * @internal This module-only seam is not exported from the package root.
+ */
+export function interactionRoutingEvidenceQueryIdentityIdV1(
+  subject: InteractionRoutingEvidenceSubjectV1,
+  derived: InteractionRoutingEvidenceDerivedV1,
+): string | undefined {
+  try {
+    const query = normalizeEvidenceQuery(subject, derived)
+    requireEligibleRouting(query)
+    return receiptIdentityId(receiptIdentitySchema.parse({
+      sourceDialect: query.sourceDialect,
+      subject: query.subject,
+    }))
+  } catch {
+    return undefined
+  }
+}
+
+export interface InteractionEpisodeRoutingFactV1 {
   readonly schemaVersion: 1
-  readonly kind: 'interaction-generation-fact-v1'
+  readonly kind: 'interaction-routing-fact-v1'
   /** Corroboration only; this fact closes no Workspace evidence dimension. */
   readonly workspaceId: string
   readonly subject: {
@@ -296,63 +291,67 @@ export interface InteractionEpisodeGenerationFactV1 {
     readonly triggerCallSeq: number
     readonly triggerResultSeq: number
   }
-  readonly generation: InteractionGenerationBindingV1
+  /** This fact closes only the Routing dimension. */
+  readonly routing: InteractionRoutingBindingV1
 }
 
-export type InteractionGenerationEvidenceResolutionV1 =
-  | { readonly status: 'matched'; readonly fact: InteractionEpisodeGenerationFactV1 }
+export type InteractionRoutingEvidenceResolutionV1 =
+  | { readonly status: 'matched'; readonly fact: InteractionEpisodeRoutingFactV1 }
   | {
       readonly status: 'abstained'
       readonly reason: 'evidence-unavailable' | 'evidence-conflict'
     }
 
-export interface InteractionGenerationEvidenceSinkV1 {
+export interface InteractionRoutingEvidenceConflictInputV1 {
+  readonly workspaceId: string
+  readonly subject: InteractionRoutingEvidenceSubjectV1
+  readonly derived: InteractionRoutingEvidenceDerivedV1
+}
+
+export interface InteractionRoutingEvidenceSinkV1 {
   /** Synchronous least-authority gate used before constructing a raw-free receipt. */
   allows(workspaceId: string): boolean
-  retain(receipt: InteractionGenerationEvidenceReceiptV1): Promise<void>
+  retain(receipt: InteractionRoutingEvidenceReceiptV1): Promise<void>
+  /** Irreversibly poison one eligible subject when the owned witness is ambiguous. */
+  recordConflict(input: InteractionRoutingEvidenceConflictInputV1): Promise<void>
   /** Wait for writes accepted before this call; it does not close the sink. */
   drain(): Promise<void>
 }
 
-/** Least-authority historical reader. It can neither pin nor mount a Generation. */
-export interface InteractionGenerationEvidenceSourceV1 {
-  resolveGenerationEvidence(
-    subject: InteractionGenerationEvidenceSubjectV1,
-    derived: InteractionGenerationEvidenceDerivedV1,
-  ): Promise<InteractionGenerationEvidenceResolutionV1>
+/** Least-authority historical reader; it cannot execute or register a Tool. */
+export interface InteractionRoutingEvidenceSourceV1 {
+  resolveRoutingEvidence(
+    subject: InteractionRoutingEvidenceSubjectV1,
+    derived: InteractionRoutingEvidenceDerivedV1,
+  ): Promise<InteractionRoutingEvidenceResolutionV1>
 }
 
-export interface InteractionGenerationEvidenceVaultV1
-  extends InteractionGenerationEvidenceSinkV1, InteractionGenerationEvidenceSourceV1 {
+export interface InteractionRoutingEvidenceVaultV1
+  extends InteractionRoutingEvidenceSinkV1, InteractionRoutingEvidenceSourceV1 {
   close(): Promise<void>
 }
 
-export interface InteractionGenerationEvidenceVaultOptions {
-  readonly authority?: InteractionGenerationEvidencePolicyAuthorityV1
+export interface InteractionRoutingEvidenceVaultOptions {
+  readonly authority?: InteractionRoutingEvidencePolicyAuthorityV1
 }
 
-export type CreateInteractionGenerationEvidenceReceiptInputV1 = {
+export interface CreateInteractionRoutingEvidenceReceiptInputV1 {
   readonly workspaceId: string
-  readonly subject: InteractionGenerationEvidenceSubjectV1
-  readonly derived: InteractionGenerationEvidenceDerivedV1
-  readonly generation: InteractionGenerationBindingV1
-  /** Opaque binder-lifecycle token. Only its domain-separated digest persists. */
-  readonly binderEpoch: string
+  readonly subject: InteractionRoutingEvidenceSubjectV1
+  readonly derived: InteractionRoutingEvidenceDerivedV1
+  /** Opaque Host authority token. Only its domain-separated digest persists. */
+  readonly authorityEpoch: string
+  /** Opaque exact Tool-registration token. Only its digest persists. */
+  readonly registrationEpoch: string
+  /** Opaque exact Tool-execution token. Only its digest persists. */
+  readonly executionEpoch: string
   /** Exact Session seq observed at the authenticated session-start boundary. */
   readonly lifecycleCutoff: number
-} & (
-  | {
-      readonly generation: Extract<InteractionGenerationBindingV1, { readonly kind: 'native' }>
-      readonly generationDigest?: never
-      readonly mountEpoch?: never
-    }
-  | {
-      readonly generation: Extract<InteractionGenerationBindingV1, { readonly kind: 'evolved' }>
-      readonly generationDigest: string
-      /** Opaque exact provider-registration token. Only its digest persists. */
-      readonly mountEpoch: string
-    }
-)
+  /** Exact canonical value returned by the owned Tool body; never persisted raw. */
+  readonly bodyValue: unknown
+  /** Exact canonical successful result observed at tools/result; never persisted raw. */
+  readonly finalResult: unknown
+}
 
 interface NormalizedEvidenceQuery {
   readonly sourceDialect: typeof SOURCE_DIALECT
@@ -360,10 +359,10 @@ interface NormalizedEvidenceQuery {
   readonly observedAt: number
 }
 
-class DomainInteractionGenerationEvidenceVault implements InteractionGenerationEvidenceVaultV1 {
-  private readonly domain: InteractionGenerationEvidenceDomain
-  private readonly authority: InteractionGenerationEvidencePolicyAuthorityV1
-  private readonly projectedRecords: Map<string, InteractionGenerationEvidenceRecordV1>
+class DomainInteractionRoutingEvidenceVault implements InteractionRoutingEvidenceVaultV1 {
+  private readonly domain: InteractionRoutingEvidenceDomain
+  private readonly authority: InteractionRoutingEvidencePolicyAuthorityV1
+  private readonly projectedRecords: Map<string, InteractionRoutingEvidenceRecordV1>
   private readonly projectedTokens = new Map<string, object>()
   private readonly pendingWrites = new Set<Promise<void>>()
   private readonly acceptedWritesById = new Map<string, Promise<void>>()
@@ -376,8 +375,8 @@ class DomainInteractionGenerationEvidenceVault implements InteractionGenerationE
   private readonly volatileConflicts: Set<string>
 
   constructor(
-    domain: InteractionGenerationEvidenceDomain,
-    authority: InteractionGenerationEvidencePolicyAuthorityV1,
+    domain: InteractionRoutingEvidenceDomain,
+    authority: InteractionRoutingEvidencePolicyAuthorityV1,
     volatileConflicts: Set<string>,
     highestRecordedSeq: number,
   ) {
@@ -395,51 +394,88 @@ class DomainInteractionGenerationEvidenceVault implements InteractionGenerationE
       && this.authority.allows(workspaceId)
   }
 
-  retain(rawReceipt: InteractionGenerationEvidenceReceiptV1): Promise<void> {
+  retain(rawReceipt: InteractionRoutingEvidenceReceiptV1): Promise<void> {
     if (this.closing !== undefined) {
-      return Promise.reject(new Error('Interaction Generation evidence vault is closing'))
+      return Promise.reject(new Error('Interaction Routing evidence vault is closing'))
     }
     if (this.unavailableError !== undefined) {
-      return Promise.reject(new Error('Interaction Generation evidence authority is unavailable', {
+      return Promise.reject(new Error('Interaction Routing evidence authority is unavailable', {
         cause: this.unavailableError,
       }))
     }
-    let receipt: InteractionGenerationEvidenceReceiptV1
+    let receipt: InteractionRoutingEvidenceReceiptV1
     try {
       receipt = normalizeReceipt(rawReceipt)
     } catch (error) {
       return Promise.reject(error)
     }
-    if (!this.allows(receipt.workspaceId)) {
-      return Promise.reject(new Error(
-        `Interaction Generation evidence retention is not authorized for Workspace '${receipt.workspaceId}'`,
-      ))
-    }
+    const maxRecords = this.authorizedMaxRecords(receipt.workspaceId)
+    if (maxRecords === undefined) return this.unauthorized(receipt.workspaceId)
     const identity = receiptIdentity(receipt)
     const id = receiptIdentityId(identity)
-    const generationMaxRecords = this.authority.generationMaxRecords(receipt.workspaceId)
-    if (generationMaxRecords === undefined) {
-      return Promise.reject(new Error(
-        `Interaction Generation evidence retention is not authorized for Workspace '${receipt.workspaceId}'`,
-      ))
-    }
     return this.startAcceptedWrite(
       id,
-      () => this.stageReceipt(id, identity, receipt, generationMaxRecords),
+      () => this.stageReceipt(id, identity, receipt, maxRecords),
     )
   }
 
+  recordConflict(rawInput: InteractionRoutingEvidenceConflictInputV1): Promise<void> {
+    if (this.closing !== undefined) {
+      return Promise.reject(new Error('Interaction Routing evidence vault is closing'))
+    }
+    if (this.unavailableError !== undefined) {
+      return Promise.reject(new Error('Interaction Routing evidence authority is unavailable', {
+        cause: this.unavailableError,
+      }))
+    }
+    let normalized: {
+      readonly workspaceId: string
+      readonly query: NormalizedEvidenceQuery
+    }
+    try {
+      normalized = normalizeConflictInput(rawInput)
+      requireEligibleRouting(normalized.query)
+    } catch (error) {
+      return Promise.reject(error)
+    }
+    if (this.authorizedMaxRecords(normalized.workspaceId) === undefined) {
+      return this.unauthorized(normalized.workspaceId)
+    }
+    const identity = receiptIdentitySchema.parse({
+      sourceDialect: normalized.query.sourceDialect,
+      subject: normalized.query.subject,
+    })
+    const id = receiptIdentityId(identity)
+    return this.startAcceptedWrite(id, () => this.stageConflict(
+      id,
+      identity,
+      normalized.query.observedAt,
+      normalized.workspaceId,
+    ))
+  }
+
+  private authorizedMaxRecords(workspaceId: string): number | undefined {
+    if (!this.allows(workspaceId)) return undefined
+    return this.authority.routingMaxRecords(workspaceId)
+  }
+
+  private unauthorized(workspaceId: string): Promise<never> {
+    return Promise.reject(new Error(
+      `Interaction Routing evidence retention is not authorized for Workspace '${workspaceId}'`,
+    ))
+  }
+
   /**
-   * Project first, then synchronously enroll the authoritative row mutation
-   * in the Domain chain. Cordis may start sibling-provider teardown on the
-   * next microtask, so deferring the initial put behind a private Promise tail
-   * can lose an already accepted receipt at clean shutdown.
+   * Project first, then synchronously enroll the authoritative row mutation in
+   * the Domain chain. A sibling provider may begin teardown on the next
+   * microtask, so an accepted observation cannot wait behind a private tail
+   * before its first put is enrolled.
    */
   private stageReceipt(
     id: string,
     identity: z.infer<typeof receiptIdentitySchema>,
-    receipt: InteractionGenerationEvidenceReceiptV1,
-    generationMaxRecords: number,
+    receipt: InteractionRoutingEvidenceReceiptV1,
+    maxRecords: number,
   ): Promise<void> {
     const table = this.domain.table('receipts')
     const existing = this.projectedRecords.get(id)
@@ -459,34 +495,24 @@ class DomainInteractionGenerationEvidenceVault implements InteractionGenerationE
         const pruned = this.enqueueWorkspacePrune(
           table,
           receipt.workspaceId,
-          generationMaxRecords,
+          maxRecords,
           confirmed,
         )
         return confirmed.then(() => pruned)
       }
-      if (existing === undefined
-        && Math.max(this.projectedRecords.size, table.size)
-          >= INTERACTION_GENERATION_EVIDENCE_MAX_AGGREGATE_RECORDS) {
-        throw new Error('Interaction Generation evidence aggregate safety cap is full')
-      }
-      const conflict = this.makeConflictRecord(
+      return this.projectAndPersistConflict(
+        table,
         id,
         existing?.identity ?? identity,
         existing?.observedAt ?? receipt.observedAt,
-        existing?.recordedSeq ?? this.allocateRecordedSequence(),
+        existing?.recordedSeq,
         mergeWorkspaceIds(existing?.workspaceIds ?? [], receipt.workspaceId),
       )
-      // A projected conflict is irreversible even while its put is in flight.
-      // A later same-id retain can therefore enqueue only another tombstone.
-      this.projectRecord(id, conflict)
-      this.volatileConflicts.add(id)
-      this.acceptedOperationSeq += 1
-      return this.persistConflict(table, conflict)
     }
 
     if (Math.max(this.projectedRecords.size, table.size)
-      >= INTERACTION_GENERATION_EVIDENCE_MAX_AGGREGATE_RECORDS) {
-      throw new Error('Interaction Generation evidence aggregate safety cap is full')
+      >= INTERACTION_ROUTING_EVIDENCE_MAX_AGGREGATE_RECORDS) {
+      throw new Error('Interaction Routing evidence aggregate safety cap is full')
     }
     const record = resolvedRecord(
       id,
@@ -496,7 +522,6 @@ class DomainInteractionGenerationEvidenceVault implements InteractionGenerationE
     )
     const projectionToken = this.projectRecord(id, record)
     const operationSeq = ++this.acceptedOperationSeq
-    // persistResolved invokes table.put before returning this Promise.
     const confirmed = this.confirmResolvedProjection(
       id,
       record,
@@ -507,16 +532,58 @@ class DomainInteractionGenerationEvidenceVault implements InteractionGenerationE
     const pruned = this.enqueueWorkspacePrune(
       table,
       receipt.workspaceId,
-      generationMaxRecords,
+      maxRecords,
       confirmed,
     )
     return confirmed.then(() => pruned)
   }
 
-  private projectRecord(
+  private stageConflict(
     id: string,
-    record: InteractionGenerationEvidenceRecordV1,
-  ): object {
+    identity: z.infer<typeof receiptIdentitySchema>,
+    observedAt: number,
+    workspaceId: string,
+  ): Promise<void> {
+    const table = this.domain.table('receipts')
+    const existing = this.projectedRecords.get(id)
+    return this.projectAndPersistConflict(
+      table,
+      id,
+      existing?.identity ?? identity,
+      existing?.observedAt ?? observedAt,
+      existing?.recordedSeq,
+      mergeWorkspaceIds(existing?.workspaceIds ?? [], workspaceId),
+    )
+  }
+
+  private projectAndPersistConflict(
+    table: KvTable<string, InteractionRoutingEvidenceRecordV1>,
+    id: string,
+    identity: z.infer<typeof receiptIdentitySchema>,
+    observedAt: number,
+    recordedSeq: number | undefined,
+    workspaceIds: readonly string[],
+  ): Promise<void> {
+    if (recordedSeq === undefined
+      && Math.max(this.projectedRecords.size, table.size)
+        >= INTERACTION_ROUTING_EVIDENCE_MAX_AGGREGATE_RECORDS) {
+      throw new Error('Interaction Routing evidence aggregate safety cap is full')
+    }
+    const conflict = this.makeConflictRecord(
+      id,
+      identity,
+      observedAt,
+      recordedSeq ?? this.allocateRecordedSequence(),
+      workspaceIds,
+    )
+    // Once projected, a conflict is irreversible even while its put is in flight.
+    this.projectRecord(id, conflict)
+    this.volatileConflicts.add(id)
+    this.acceptedOperationSeq += 1
+    return this.persistConflict(table, conflict)
+  }
+
+  private projectRecord(id: string, record: InteractionRoutingEvidenceRecordV1): object {
     const token = {}
     this.projectedRecords.set(id, record)
     this.projectedTokens.set(id, token)
@@ -525,7 +592,7 @@ class DomainInteractionGenerationEvidenceVault implements InteractionGenerationE
 
   private confirmResolvedProjection(
     id: string,
-    record: Extract<InteractionGenerationEvidenceRecordV1, { readonly state: 'resolved' }>,
+    record: Extract<InteractionRoutingEvidenceRecordV1, { readonly state: 'resolved' }>,
     projectionToken: object,
     operationSeq: number,
     persisted: Promise<void>,
@@ -539,7 +606,7 @@ class DomainInteractionGenerationEvidenceVault implements InteractionGenerationE
         }
         if (this.acceptedOperationSeq !== operationSeq) {
           throw this.makeUnavailable(
-            `Interaction Generation evidence '${id}' failed after later receipts were projected`,
+            `Interaction Routing evidence '${id}' failed after later observations were projected`,
             error,
           )
         }
@@ -550,7 +617,7 @@ class DomainInteractionGenerationEvidenceVault implements InteractionGenerationE
 
   private allocateRecordedSequence(): number {
     if (this.nextRecordedSeq >= Number.MAX_SAFE_INTEGER) {
-      throw new Error('Interaction Generation evidence insertion sequence is exhausted')
+      throw new Error('Interaction Routing evidence insertion sequence is exhausted')
     }
     this.nextRecordedSeq += 1
     return this.nextRecordedSeq
@@ -562,19 +629,19 @@ class DomainInteractionGenerationEvidenceVault implements InteractionGenerationE
     observedAt: number,
     recordedSeq: number,
     workspaceIds: readonly string[],
-  ): Extract<InteractionGenerationEvidenceRecordV1, { readonly state: 'conflict' }> {
+  ): Extract<InteractionRoutingEvidenceRecordV1, { readonly state: 'conflict' }> {
     try {
       return conflictRecord(id, identity, observedAt, recordedSeq, workspaceIds)
     } catch (error) {
       throw this.makeUnavailable(
-        `Interaction Generation evidence '${id}' conflict owner metadata is unavailable`,
+        `Interaction Routing evidence '${id}' conflict owner metadata is unavailable`,
         error,
       )
     }
   }
 
   private enqueueWorkspacePrune(
-    table: KvTable<string, InteractionGenerationEvidenceRecordV1>,
+    table: KvTable<string, InteractionRoutingEvidenceRecordV1>,
     workspaceId: string,
     maxSize: number,
     confirmed: Promise<void>,
@@ -600,16 +667,16 @@ class DomainInteractionGenerationEvidenceVault implements InteractionGenerationE
   }
 
   private async pruneConfirmedWorkspace(
-    table: KvTable<string, InteractionGenerationEvidenceRecordV1>,
+    table: KvTable<string, InteractionRoutingEvidenceRecordV1>,
     workspaceId: string,
     maxSize: number,
   ): Promise<void> {
-    let durableEntries: Array<[string, InteractionGenerationEvidenceRecordV1]>
+    let durableEntries: Array<[string, InteractionRoutingEvidenceRecordV1]>
     try {
       durableEntries = [...table.entries()]
     } catch (error) {
       throw this.makeUnavailable(
-        `Interaction Generation evidence Workspace '${workspaceId}' quota pruning read failed`,
+        `Interaction Routing evidence Workspace '${workspaceId}' quota pruning read failed`,
         error,
       )
     }
@@ -632,18 +699,15 @@ class DomainInteractionGenerationEvidenceVault implements InteractionGenerationE
       .slice(0, overflow)
     for (const { id: pruneId, durable: pruneRecord, projectionToken } of oldest) {
       const projected = this.projectedRecords.get(pruneId)
-      let currentDurable: InteractionGenerationEvidenceRecordV1 | undefined
+      let currentDurable: InteractionRoutingEvidenceRecordV1 | undefined
       try {
         currentDurable = table.get(pruneId)
       } catch (error) {
         throw this.makeUnavailable(
-          `Interaction Generation evidence Workspace '${workspaceId}' quota pruning read failed`,
+          `Interaction Routing evidence Workspace '${workspaceId}' quota pruning read failed`,
           error,
         )
       }
-      // A same-id retain can project a conflict or a newer exact rewrite while
-      // an earlier victim deletion is in flight. Recheck both views at the
-      // exact queue boundary so this deletion cannot erase that later intent.
       if (this.projectedTokens.get(pruneId) !== projectionToken
         || projected?.state !== 'resolved'
         || projected.recordDigest !== pruneRecord.recordDigest
@@ -654,19 +718,17 @@ class DomainInteractionGenerationEvidenceVault implements InteractionGenerationE
       }
       let deleted: boolean
       try {
-        // Deliberately enqueue only after the new put is confirmed. If that
-        // put fails, deleting an older positive would destroy safer evidence.
         deleted = await table.delete(pruneId)
       } catch (error) {
         throw this.makeUnavailable(
-          `Interaction Generation evidence Workspace '${workspaceId}' quota pruning failed`,
+          `Interaction Routing evidence Workspace '${workspaceId}' quota pruning failed`,
           error,
         )
       }
       if (!deleted) {
         throw this.makeUnavailable(
-          `Interaction Generation evidence Workspace '${workspaceId}' quota pruning failed`,
-          new Error(`Interaction Generation evidence '${pruneId}' vanished during pruning`),
+          `Interaction Routing evidence Workspace '${workspaceId}' quota pruning failed`,
+          new Error(`Interaction Routing evidence '${pruneId}' vanished during pruning`),
         )
       }
       const latestProjected = this.projectedRecords.get(pruneId)
@@ -679,10 +741,10 @@ class DomainInteractionGenerationEvidenceVault implements InteractionGenerationE
     }
   }
 
-  async resolveGenerationEvidence(
-    subject: InteractionGenerationEvidenceSubjectV1,
-    derived: InteractionGenerationEvidenceDerivedV1,
-  ): Promise<InteractionGenerationEvidenceResolutionV1> {
+  async resolveRoutingEvidence(
+    subject: InteractionRoutingEvidenceSubjectV1,
+    derived: InteractionRoutingEvidenceDerivedV1,
+  ): Promise<InteractionRoutingEvidenceResolutionV1> {
     if (this.closing !== undefined || this.unavailableError !== undefined) {
       return abstained('evidence-unavailable')
     }
@@ -695,15 +757,17 @@ class DomainInteractionGenerationEvidenceVault implements InteractionGenerationE
         : 'evidence-unavailable')
     }
     if (this.closing !== undefined) return abstained('evidence-unavailable')
+    // A native Skill miss is a real transcript trigger, but this authority has
+    // no owned witness capable of proving its routing conclusion.
+    if (query.subject.triggerKind === 'skill-tool-error') {
+      return abstained('evidence-unavailable')
+    }
 
     const identity = receiptIdentitySchema.parse({
       sourceDialect: query.sourceDialect,
       subject: query.subject,
     })
     const id = receiptIdentityId(identity)
-    // Wait only for writes to this exact subject accepted before this query.
-    // Global mutation ordering remains serialized, but an unrelated slow
-    // Workspace cannot stall this identity's already-authoritative read.
     const acceptedWrites = this.acceptedWritesById.get(id)
     if (acceptedWrites !== undefined) await acceptedWrites
     if (this.closing !== undefined || this.unavailableError !== undefined) {
@@ -711,11 +775,11 @@ class DomainInteractionGenerationEvidenceVault implements InteractionGenerationE
     }
     if (this.volatileConflicts.has(id)) return abstained('evidence-conflict')
 
-    let record: InteractionGenerationEvidenceRecordV1 | undefined
+    let record: InteractionRoutingEvidenceRecordV1 | undefined
     try {
       record = this.domain.table('receipts').get(id)
     } catch (error) {
-      throw this.makeUnavailable('Interaction Generation evidence read failed', error)
+      throw this.makeUnavailable('Interaction Routing evidence read failed', error)
     }
     if (record === undefined) return abstained('evidence-unavailable')
     if (record.state === 'conflict') return abstained('evidence-conflict')
@@ -729,7 +793,7 @@ class DomainInteractionGenerationEvidenceVault implements InteractionGenerationE
         record = this.domain.table('receipts').get(id)
       } catch (error) {
         throw this.makeUnavailable(
-          'Interaction Generation evidence read failed after quota pruning',
+          'Interaction Routing evidence read failed after quota pruning',
           error,
         )
       }
@@ -748,7 +812,7 @@ class DomainInteractionGenerationEvidenceVault implements InteractionGenerationE
       status: 'matched',
       fact: {
         schemaVersion: 1,
-        kind: 'interaction-generation-fact-v1',
+        kind: 'interaction-routing-fact-v1',
         workspaceId: record.receipt.workspaceId,
         subject: {
           sessionLifecycleDigest: query.subject.sessionLifecycleDigest,
@@ -759,7 +823,7 @@ class DomainInteractionGenerationEvidenceVault implements InteractionGenerationE
           triggerCallSeq: query.subject.triggerCallSeq,
           triggerResultSeq: query.subject.triggerResultSeq,
         },
-        generation: record.receipt.generation,
+        routing: record.receipt.routing,
       },
     } as const)
   }
@@ -780,7 +844,7 @@ class DomainInteractionGenerationEvidenceVault implements InteractionGenerationE
       if (this.unavailableError !== undefined && closeError !== undefined) {
         throw new AggregateError(
           [this.unavailableError, closeError],
-          'Interaction Generation evidence authority failure and domain close both failed',
+          'Interaction Routing evidence authority failure and domain close both failed',
         )
       }
       if (closeError !== undefined) throw closeError
@@ -827,7 +891,7 @@ class DomainInteractionGenerationEvidenceVault implements InteractionGenerationE
 
   private makeUnavailable(message: string, cause: unknown): Error {
     if (this.unavailableError !== undefined) {
-      return new Error('Interaction Generation evidence authority is unavailable', {
+      return new Error('Interaction Routing evidence authority is unavailable', {
         cause: this.unavailableError,
       })
     }
@@ -837,25 +901,25 @@ class DomainInteractionGenerationEvidenceVault implements InteractionGenerationE
   }
 
   private async persistConflict(
-    table: KvTable<string, InteractionGenerationEvidenceRecordV1>,
-    record: Extract<InteractionGenerationEvidenceRecordV1, { readonly state: 'conflict' }>,
+    table: KvTable<string, InteractionRoutingEvidenceRecordV1>,
+    record: Extract<InteractionRoutingEvidenceRecordV1, { readonly state: 'conflict' }>,
   ): Promise<void> {
     try {
       await table.put(record.id, record)
     } catch (error) {
-      let durable: InteractionGenerationEvidenceRecordV1 | undefined
+      let durable: InteractionRoutingEvidenceRecordV1 | undefined
       try {
         durable = table.get(record.id)
       } catch (readbackError) {
         const unavailable = new AggregateError(
           [error, readbackError],
-          `Interaction Generation evidence '${record.id}' conflict tombstone put and readback failed`,
+          `Interaction Routing evidence '${record.id}' conflict tombstone put and readback failed`,
         )
         this.unavailableError = unavailable
         throw unavailable
       }
       if (isDeepStrictEqual(durable, record)) return
-      const message = `Interaction Generation evidence '${record.id}' conflict tombstone was not committed`
+      const message = `Interaction Routing evidence '${record.id}' conflict tombstone was not committed`
       // Install the fail-closed state before inspecting a hostile rejection.
       // Diagnostics are secondary and must never reopen this authority.
       const unavailable = new Error(message, { cause: error })
@@ -866,19 +930,19 @@ class DomainInteractionGenerationEvidenceVault implements InteractionGenerationE
   }
 
   private async persistResolved(
-    table: KvTable<string, InteractionGenerationEvidenceRecordV1>,
-    record: Extract<InteractionGenerationEvidenceRecordV1, { readonly state: 'resolved' }>,
+    table: KvTable<string, InteractionRoutingEvidenceRecordV1>,
+    record: Extract<InteractionRoutingEvidenceRecordV1, { readonly state: 'resolved' }>,
   ): Promise<void> {
     try {
       await table.put(record.id, record)
     } catch (error) {
-      let durable: InteractionGenerationEvidenceRecordV1 | undefined
+      let durable: InteractionRoutingEvidenceRecordV1 | undefined
       try {
         durable = table.get(record.id)
       } catch (readbackError) {
         const unavailable = new AggregateError(
           [error, readbackError],
-          `Interaction Generation evidence '${record.id}' resolved put and readback failed`,
+          `Interaction Routing evidence '${record.id}' resolved put and readback failed`,
         )
         this.unavailableError = unavailable
         throw unavailable
@@ -886,7 +950,7 @@ class DomainInteractionGenerationEvidenceVault implements InteractionGenerationE
       if (durable === undefined) throw error
       if (isDeepStrictEqual(durable, record)) return
       const unavailable = new Error(
-        `Interaction Generation evidence '${record.id}' resolved row has an uncertain durable state`,
+        `Interaction Routing evidence '${record.id}' resolved row has an uncertain durable state`,
         { cause: error },
       )
       this.unavailableError = unavailable
@@ -896,90 +960,100 @@ class DomainInteractionGenerationEvidenceVault implements InteractionGenerationE
 }
 
 /**
- * Validate a binder observation against the exact trigger-control projection
- * and reduce it to a frozen, raw-free receipt before any asynchronous write.
+ * Validate one owned Tool observation against the exact trigger-control
+ * projection and reduce it to a frozen, raw-free receipt before any async write.
  */
-export function createInteractionGenerationEvidenceReceiptV1(
-  input: CreateInteractionGenerationEvidenceReceiptInputV1,
-): InteractionGenerationEvidenceReceiptV1 {
+export function createInteractionRoutingEvidenceReceiptV1(
+  input: CreateInteractionRoutingEvidenceReceiptInputV1,
+): InteractionRoutingEvidenceReceiptV1 {
   const snapshot = snapshotJsonValue(input)
   const values = exactOwnData(snapshot, [
     'workspaceId',
     'subject',
     'derived',
-    'generation',
-    'binderEpoch',
+    'authorityEpoch',
+    'registrationEpoch',
+    'executionEpoch',
     'lifecycleCutoff',
-    'generationDigest',
-    'mountEpoch',
+    'bodyValue',
+    'finalResult',
   ])
-  if (values === undefined) throw new Error('invalid Interaction Generation receipt input')
-  const generation = generationSchema.parse(values.generation)
-  const binderEpoch = boundedEpoch(values.binderEpoch, 'binder')
+  if (values === undefined
+    || !hasExactKeys(values, [
+      'workspaceId',
+      'subject',
+      'derived',
+      'authorityEpoch',
+      'registrationEpoch',
+      'executionEpoch',
+      'lifecycleCutoff',
+      'bodyValue',
+      'finalResult',
+    ])) {
+    throw new Error('invalid Interaction Routing receipt input')
+  }
   const normalized = normalizeEvidenceQuery(
-    values.subject as InteractionGenerationEvidenceSubjectV1,
-    values.derived as InteractionGenerationEvidenceDerivedV1,
+    values.subject as unknown as InteractionRoutingEvidenceSubjectV1,
+    values.derived as unknown as InteractionRoutingEvidenceDerivedV1,
   )
+  requireEligibleRouting(normalized)
   const lifecycleCutoff = safeNonNegativeInteger(values.lifecycleCutoff)
   if (lifecycleCutoff === undefined || lifecycleCutoff > normalized.subject.turnStartSeq) {
-    throw new Error('invalid Interaction Generation lifecycle cutoff')
+    throw new Error('invalid Interaction Routing lifecycle cutoff')
   }
-  const cutoffDigest = hashLifecycleCutoff(lifecycleCutoff)
-
-  let provenance: z.infer<typeof provenanceSchema>
-  if (generation.kind === 'native') {
-    if (Object.hasOwn(values, 'generationDigest') || Object.hasOwn(values, 'mountEpoch')) {
-      throw new Error('native Interaction Generation evidence cannot carry an evolved mount')
-    }
-    provenance = {
-      kind: 'native',
-      binderEpochDigest: epochDigest('binder', binderEpoch),
-      lifecycleCutoffDigest: cutoffDigest,
-    }
-  } else {
-    const generationDigest = exactHash(values.generationDigest)
-    const mountEpoch = boundedEpoch(values.mountEpoch, 'mount')
-    if (generationDigest === undefined || generationDigest !== generation.generationId) {
-      throw new Error('evolved Interaction Generation evidence has an invalid Generation digest')
-    }
-    provenance = {
-      kind: 'evolved',
-      binderEpochDigest: epochDigest('binder', binderEpoch),
-      lifecycleCutoffDigest: cutoffDigest,
-      mountEpochDigest: epochDigest('mount', mountEpoch),
-      generationDigest,
-    }
-  }
+  const authorityEpoch = boundedEpoch(values.authorityEpoch, 'authority')
+  const registrationEpoch = boundedEpoch(values.registrationEpoch, 'registration')
+  const executionEpoch = boundedEpoch(values.executionEpoch, 'execution')
+  const outcome = normalizeSuccessfulOutcome(values.bodyValue, values.finalResult)
 
   return immutableCopy(receiptSchema.parse({
     schemaVersion: 1,
-    kind: 'interaction-generation-evidence-receipt-v1',
+    kind: 'interaction-routing-evidence-receipt-v1',
     observedAt: normalized.observedAt,
     sourceDialect: normalized.sourceDialect,
     workspaceId: values.workspaceId,
     subject: normalized.subject,
-    generation,
-    provenance,
+    routing: {
+      rawTrigger: 'successful-gap-report',
+      conclusion: 'model-declared-no-applicable-skill',
+    },
+    provenance: {
+      authorityEpochDigest: epochDigest('authority', authorityEpoch),
+      registrationEpochDigest: epochDigest('registration', registrationEpoch),
+      executionEpochDigest: epochDigest('execution', executionEpoch),
+      lifecycleCutoffDigest: hashLifecycleCutoff(lifecycleCutoff),
+      bodyValueDigest: hashCanonical({
+        domain: 'evoforge_interaction_routing_body_value',
+        version: 1,
+        value: outcome.bodyValue,
+      }),
+      finalResultDigest: hashCanonical({
+        domain: 'evoforge_interaction_routing_final_result',
+        version: 1,
+        result: outcome.finalResult,
+      }),
+      toolContractDigest: routingToolContractDigest(),
+    },
   }))
 }
 
 /** @internal Opened and closed by the dsh-evolve plugin lifecycle. */
-export async function openInteractionGenerationEvidenceVault(
+export async function openInteractionRoutingEvidenceVault(
   facility: DomainFacility,
-  options: InteractionGenerationEvidenceVaultOptions = {},
-): Promise<InteractionGenerationEvidenceVaultV1> {
-  const authority = options.authority ?? compileInteractionGenerationEvidencePolicies()
+  options: InteractionRoutingEvidenceVaultOptions = {},
+): Promise<InteractionRoutingEvidenceVaultV1> {
+  const authority = options.authority ?? compileInteractionRoutingEvidencePolicies()
   if (!compiledPolicyAuthorities.has(authority)) {
-    throw new Error('Interaction Generation evidence policy authority was not compiled from Host config')
+    throw new Error('Interaction Routing evidence policy authority was not compiled from Host config')
   }
   const domain = await facility.open(evidenceDomainSpec)
   try {
     const audit = auditEvidence(domain)
-    if (domain.table('receipts').size > INTERACTION_GENERATION_EVIDENCE_MAX_AGGREGATE_RECORDS) {
-      throw new Error('Interaction Generation evidence exceeds the 100000-record aggregate safety cap')
+    if (domain.table('receipts').size > INTERACTION_ROUTING_EVIDENCE_MAX_AGGREGATE_RECORDS) {
+      throw new Error('Interaction Routing evidence exceeds the 100000-record aggregate safety cap')
     }
     await pruneAuthorizedResolved(domain.table('receipts'), authority)
-    return new DomainInteractionGenerationEvidenceVault(
+    return new DomainInteractionRoutingEvidenceVault(
       domain,
       authority,
       audit.conflicts,
@@ -991,33 +1065,35 @@ export async function openInteractionGenerationEvidenceVault(
     } catch (closeError) {
       throw new AggregateError(
         [auditError, closeError],
-        'Interaction Generation evidence audit and domain cleanup both failed',
+        'Interaction Routing evidence audit and domain cleanup both failed',
       )
     }
     throw auditError
   }
 }
 
-/** @internal Narrow mutable facade passed only to the Generation binder. */
-export function createInteractionGenerationEvidenceSink(
-  vault: Pick<InteractionGenerationEvidenceVaultV1, 'allows' | 'retain' | 'drain'>,
-): InteractionGenerationEvidenceSinkV1 {
+/** @internal Narrow mutable facade passed only to the owned Routing witness. */
+export function createInteractionRoutingEvidenceSink(
+  vault: Pick<InteractionRoutingEvidenceVaultV1, 'allows' | 'retain' | 'recordConflict' | 'drain'>,
+): InteractionRoutingEvidenceSinkV1 {
   return Object.freeze({
     allows: (workspaceId: string) => vault.allows(workspaceId),
-    retain: (receipt: InteractionGenerationEvidenceReceiptV1) => vault.retain(receipt),
+    retain: (receipt: InteractionRoutingEvidenceReceiptV1) => vault.retain(receipt),
+    recordConflict: (input: InteractionRoutingEvidenceConflictInputV1) =>
+      vault.recordConflict(input),
     drain: () => vault.drain(),
   })
 }
 
 /** @internal Narrow read facade passed only to trusted Host evidence composition. */
-export function createInteractionGenerationEvidenceSource(
-  vault: Pick<InteractionGenerationEvidenceVaultV1, 'resolveGenerationEvidence'>,
-): InteractionGenerationEvidenceSourceV1 {
+export function createInteractionRoutingEvidenceSource(
+  vault: Pick<InteractionRoutingEvidenceVaultV1, 'resolveRoutingEvidence'>,
+): InteractionRoutingEvidenceSourceV1 {
   return Object.freeze({
-    resolveGenerationEvidence: (
-      subject: InteractionGenerationEvidenceSubjectV1,
-      derived: InteractionGenerationEvidenceDerivedV1,
-    ) => vault.resolveGenerationEvidence(subject, derived),
+    resolveRoutingEvidence: (
+      subject: InteractionRoutingEvidenceSubjectV1,
+      derived: InteractionRoutingEvidenceDerivedV1,
+    ) => vault.resolveRoutingEvidence(subject, derived),
   })
 }
 
@@ -1026,8 +1102,8 @@ export function createInteractionGenerationEvidenceSource(
  * The full Session header is snapshotted without invoking accessors; no raw
  * header value is returned or persisted by this helper.
  */
-export function interactionGenerationSessionLifecycleDigest(
-  rawSubject: InteractionGenerationEvidenceSubjectV1,
+export function interactionRoutingSessionLifecycleDigest(
+  rawSubject: InteractionRoutingEvidenceSubjectV1,
 ): string {
   const subject = snapshotJsonValue(rawSubject)
   const root = jsonRecord(subject)
@@ -1038,37 +1114,58 @@ export function interactionGenerationSessionLifecycleDigest(
     || session === undefined
     || header === undefined
     || inheritedEventCount === undefined) {
-    throw new Error('invalid Interaction Generation Session lifecycle subject')
+    throw new Error('invalid Interaction Routing Session lifecycle subject')
   }
   return hashCanonical({
-    domain: 'evoforge_interaction_generation_session_lifecycle',
+    domain: 'evoforge_interaction_routing_session_lifecycle',
     version: 1,
     header,
     inheritedEventCount,
   })
 }
 
-function normalizeReceipt(receipt: InteractionGenerationEvidenceReceiptV1): InteractionGenerationEvidenceReceiptV1 {
+function normalizeReceipt(
+  receipt: InteractionRoutingEvidenceReceiptV1,
+): InteractionRoutingEvidenceReceiptV1 {
   return immutableCopy(receiptSchema.parse(snapshotJsonValue(receipt)))
 }
 
+function normalizeConflictInput(
+  input: InteractionRoutingEvidenceConflictInputV1,
+): { readonly workspaceId: string; readonly query: NormalizedEvidenceQuery } {
+  const snapshot = snapshotJsonValue(input)
+  const values = exactOwnData(snapshot, ['workspaceId', 'subject', 'derived'])
+  if (values === undefined
+    || !hasExactKeys(values, ['workspaceId', 'subject', 'derived'])) {
+    throw new Error('invalid Interaction Routing conflict input')
+  }
+  return {
+    workspaceId: workspaceIdSchema.parse(values.workspaceId),
+    query: normalizeEvidenceQuery(
+      values.subject as unknown as InteractionRoutingEvidenceSubjectV1,
+      values.derived as unknown as InteractionRoutingEvidenceDerivedV1,
+    ),
+  }
+}
+
 function normalizeEvidenceQuery(
-  rawSubject: InteractionGenerationEvidenceSubjectV1,
-  rawDerived: InteractionGenerationEvidenceDerivedV1,
+  rawSubject: InteractionRoutingEvidenceSubjectV1,
+  rawDerived: InteractionRoutingEvidenceDerivedV1,
 ): NormalizedEvidenceQuery {
   const subject = snapshotJsonValue(rawSubject)
   const derived = snapshotJsonValue(rawDerived)
   const projection = projectInteractionEpisodeTriggerRequestControlV1(
-    subject as unknown as InteractionGenerationEvidenceSubjectV1,
+    subject as unknown as InteractionRoutingEvidenceSubjectV1,
   )
   if (projection.status !== 'projected') {
-    throw new Error('Interaction Generation evidence subject does not project')
+    throw new Error('Interaction Routing evidence subject does not project')
   }
   const derivedValues = exactOwnData(derived, ['triggerRequestControl'])
   if (derivedValues === undefined
+    || !hasExactKeys(derivedValues, ['triggerRequestControl'])
     || canonicalJson(derivedValues.triggerRequestControl)
       !== canonicalJson(projection.fact)) {
-    throw new Error('Interaction Generation evidence derived control does not match its subject')
+    throw new Error('Interaction Routing evidence derived control does not match its subject')
   }
 
   const root = jsonRecord(subject)
@@ -1134,15 +1231,15 @@ function normalizeEvidenceQuery(
     || projection.fact.boundary.assistantMessageSeq !== triggerRequestSeq
     || projection.fact.boundary.triggerCallSeq !== triggerCallSeq
     || projection.fact.boundary.triggerResultSeq !== triggerResultSeq) {
-    throw new Error('invalid Interaction Generation evidence subject coordinates')
+    throw new Error('invalid Interaction Routing evidence subject coordinates')
   }
 
   return immutableCopy({
     sourceDialect: SOURCE_DIALECT,
     observedAt,
     subject: receiptSubjectSchema.parse({
-      sessionLifecycleDigest: interactionGenerationSessionLifecycleDigest(
-        subject as unknown as InteractionGenerationEvidenceSubjectV1,
+      sessionLifecycleDigest: interactionRoutingSessionLifecycleDigest(
+        subject as unknown as InteractionRoutingEvidenceSubjectV1,
       ),
       prefixDigest: projection.fact.subject.prefixDigest,
       turnDigest: projection.fact.subject.turnDigest,
@@ -1157,6 +1254,12 @@ function normalizeEvidenceQuery(
   })
 }
 
+function requireEligibleRouting(query: NormalizedEvidenceQuery): void {
+  if (query.subject.triggerKind !== 'successful-gap-report') {
+    throw new Error('Interaction Routing evidence is eligible only for a successful gap report')
+  }
+}
+
 function transcriptReplayDigest(
   transcript: JsonRecord,
   name: 'prefixDigest' | 'turnDigest',
@@ -1165,7 +1268,7 @@ function transcriptReplayDigest(
 }
 
 function receiptIdentity(
-  receipt: InteractionGenerationEvidenceReceiptV1,
+  receipt: InteractionRoutingEvidenceReceiptV1,
 ): z.infer<typeof receiptIdentitySchema> {
   return receiptIdentitySchema.parse({
     sourceDialect: receipt.sourceDialect,
@@ -1184,12 +1287,12 @@ function receiptIdentityId(identity: z.infer<typeof receiptIdentitySchema>): str
 function resolvedRecord(
   id: string,
   identity: z.infer<typeof receiptIdentitySchema>,
-  receipt: InteractionGenerationEvidenceReceiptV1,
+  receipt: InteractionRoutingEvidenceReceiptV1,
   recordedSeq: number,
-): Extract<InteractionGenerationEvidenceRecordV1, { readonly state: 'resolved' }> {
+): Extract<InteractionRoutingEvidenceRecordV1, { readonly state: 'resolved' }> {
   return stampRecord({
     schemaVersion: 1 as const,
-    kind: 'interaction-generation-evidence-record-v1' as const,
+    kind: 'interaction-routing-evidence-record-v1' as const,
     state: 'resolved' as const,
     id,
     observedAt: receipt.observedAt,
@@ -1206,10 +1309,10 @@ function conflictRecord(
   observedAt: number,
   recordedSeq: number,
   workspaceIds: readonly string[],
-): Extract<InteractionGenerationEvidenceRecordV1, { readonly state: 'conflict' }> {
+): Extract<InteractionRoutingEvidenceRecordV1, { readonly state: 'conflict' }> {
   return stampRecord({
     schemaVersion: 1 as const,
-    kind: 'interaction-generation-evidence-record-v1' as const,
+    kind: 'interaction-routing-evidence-record-v1' as const,
     state: 'conflict' as const,
     id,
     observedAt,
@@ -1233,7 +1336,7 @@ function stampRecord<T extends z.ZodType>(
   })
 }
 
-function auditEvidence(domain: InteractionGenerationEvidenceDomain): {
+function auditEvidence(domain: InteractionRoutingEvidenceDomain): {
   readonly conflicts: Set<string>
   readonly highestRecordedSeq: number
 } {
@@ -1243,7 +1346,7 @@ function auditEvidence(domain: InteractionGenerationEvidenceDomain): {
   for (const [key, raw] of domain.table('receipts').entries()) {
     const record = evidenceRecordSchema.parse(raw)
     if (key !== record.id) {
-      throw new Error(`Interaction Generation evidence key '${key}' does not match row id`)
+      throw new Error(`Interaction Routing evidence key '${key}' does not match row id`)
     }
     const { recordDigest: actual, ...content } = record
     const expected = hashCanonical({
@@ -1252,10 +1355,10 @@ function auditEvidence(domain: InteractionGenerationEvidenceDomain): {
       record: content,
     })
     if (actual !== expected) {
-      throw new Error(`Interaction Generation evidence '${record.id}' failed integrity audit`)
+      throw new Error(`Interaction Routing evidence '${record.id}' failed integrity audit`)
     }
     if (recordedSequences.has(record.recordedSeq)) {
-      throw new Error('Interaction Generation evidence insertion sequence is duplicated')
+      throw new Error('Interaction Routing evidence insertion sequence is duplicated')
     }
     recordedSequences.add(record.recordedSeq)
     highestRecordedSeq = Math.max(highestRecordedSeq, record.recordedSeq)
@@ -1265,13 +1368,13 @@ function auditEvidence(domain: InteractionGenerationEvidenceDomain): {
 }
 
 async function pruneWorkspaceResolved(
-  table: KvTable<string, InteractionGenerationEvidenceRecordV1>,
+  table: KvTable<string, InteractionRoutingEvidenceRecordV1>,
   workspaceId: string,
   maxSize: number,
 ): Promise<void> {
   const resolved = [...table.entries()].filter((entry): entry is [
     string,
-    Extract<InteractionGenerationEvidenceRecordV1, { readonly state: 'resolved' }>,
+    Extract<InteractionRoutingEvidenceRecordV1, { readonly state: 'resolved' }>,
   ] => entry[1].state === 'resolved' && entry[1].workspaceIds[0] === workspaceId)
   const overflow = resolved.length - maxSize
   if (overflow <= 0) return
@@ -1280,23 +1383,23 @@ async function pruneWorkspaceResolved(
       left[1].recordedSeq - right[1].recordedSeq || left[0].localeCompare(right[0]))
     .slice(0, overflow)
   if (oldest.length !== overflow) {
-    throw new Error('Interaction Generation evidence retention index is inconsistent')
+    throw new Error('Interaction Routing evidence retention index is inconsistent')
   }
   for (const [id] of oldest) {
     if (!(await table.delete(id))) {
-      throw new Error(`Interaction Generation evidence '${id}' vanished during pruning`)
+      throw new Error(`Interaction Routing evidence '${id}' vanished during pruning`)
     }
   }
 }
 
 async function pruneAuthorizedResolved(
-  table: KvTable<string, InteractionGenerationEvidenceRecordV1>,
-  authority: InteractionGenerationEvidencePolicyAuthorityV1,
+  table: KvTable<string, InteractionRoutingEvidenceRecordV1>,
+  authority: InteractionRoutingEvidencePolicyAuthorityV1,
 ): Promise<void> {
   const workspaces = new Set<string>()
   for (const [, record] of table.entries()) {
     if (record.state === 'resolved'
-      && authority.generationMaxRecords(record.workspaceIds[0]!) !== undefined) {
+      && authority.routingMaxRecords(record.workspaceIds[0]!) !== undefined) {
       workspaces.add(record.workspaceIds[0]!)
     }
   }
@@ -1304,7 +1407,7 @@ async function pruneAuthorizedResolved(
     await pruneWorkspaceResolved(
       table,
       workspaceId,
-      authority.generationMaxRecords(workspaceId)!,
+      authority.routingMaxRecords(workspaceId)!,
     )
   }
 }
@@ -1313,9 +1416,11 @@ function mergeWorkspaceIds(existing: readonly string[], workspaceId: string): st
   return [...new Set([...existing, workspaceId])].sort()
 }
 
-function epochDigest(kind: 'binder' | 'mount', epoch: string): string {
+type RoutingEpochKind = 'authority' | 'registration' | 'execution'
+
+function epochDigest(kind: RoutingEpochKind, epoch: string): string {
   return hashCanonical({
-    domain: `evoforge_interaction_generation_${kind}_epoch`,
+    domain: `evoforge_interaction_routing_${kind}_epoch`,
     version: 1,
     epoch,
   })
@@ -1323,19 +1428,121 @@ function epochDigest(kind: 'binder' | 'mount', epoch: string): string {
 
 function hashLifecycleCutoff(cutoff: number): string {
   return hashCanonical({
-    domain: 'evoforge_interaction_generation_lifecycle_cutoff',
+    domain: 'evoforge_interaction_routing_lifecycle_cutoff',
     version: 1,
     cutoff,
   })
 }
 
-function boundedEpoch(value: unknown, name: 'binder' | 'mount'): string {
+function boundedEpoch(value: unknown, name: RoutingEpochKind): string {
   if (typeof value !== 'string'
     || value.length === 0
     || Buffer.byteLength(value) > MAX_EPOCH_BYTES) {
-    throw new Error(`invalid Interaction Generation ${name} epoch`)
+    throw new Error(`invalid Interaction Routing ${name} epoch`)
   }
   return value
+}
+
+/**
+ * This projection is the v1 evidence contract of the owned Tool declaration.
+ * Any semantic change to that declaration must introduce a new evidence
+ * contract version rather than silently changing this digest.
+ */
+/**
+ * @internal Single v1 declaration projection shared with the owned producer.
+ * It is exported from this module only; the package root must not expose it.
+ */
+export const INTERACTION_ROUTING_EVIDENCE_TOOL_CONTRACT_V1 = deepFreeze({
+  name: 'report_capability_gap',
+  description: 'Report a missing reusable capability after reviewing the complete native Session Skill catalog and confirming no available Skill applies. Propose one kebab-case name. EvoForge records a durable Interaction signal; a native Goal is optional. Goal-linked signals may enter the legacy evidence loop, while a no-Goal signal is recorded and explicitly abstained until independent Interaction evidence exists. It never searches, downloads, or installs external Skills, and never changes the current Session.',
+  parameters: {
+    name: {
+      type: 'string',
+      required: true,
+      description: 'Proposed kebab-case name for the missing reusable Skill capability.',
+    },
+  },
+  output: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      status: {
+        type: 'string',
+        required: true,
+        enum: ['queued', 'already-recorded', 'abstained'],
+      },
+      gapId: { type: 'string', required: true },
+      requestedSkill: { type: 'string', required: true },
+      reason: { type: 'string', enum: ['missing-native-goal'] },
+    },
+  },
+  routing: {
+    rawTrigger: 'successful-gap-report',
+    conclusion: 'model-declared-no-applicable-skill',
+  },
+} as const)
+
+let fixedRoutingToolContractDigest: string | undefined
+
+function routingToolContractDigest(): string {
+  fixedRoutingToolContractDigest ??= hashCanonical({
+    domain: 'evoforge_interaction_routing_tool_contract',
+    version: 1,
+    contract: INTERACTION_ROUTING_EVIDENCE_TOOL_CONTRACT_V1,
+  })
+  return fixedRoutingToolContractDigest
+}
+
+function normalizeSuccessfulOutcome(
+  rawBodyValue: unknown,
+  rawFinalResult: unknown,
+): { readonly bodyValue: JsonValue; readonly finalResult: JsonRecord } {
+  const bodyValue = snapshotJsonValue(rawBodyValue)
+  validateCapabilityGapBody(bodyValue)
+  const finalSnapshot = snapshotJsonValue(rawFinalResult)
+  const finalResult = exactOwnData(finalSnapshot, [
+    'isError',
+    'value',
+    'content',
+    'meta',
+    'additionalContexts',
+    'concludesTurn',
+  ])
+  if (finalResult === undefined
+    || !Object.hasOwn(finalResult, 'isError')
+    || !Object.hasOwn(finalResult, 'value')
+    || !Object.hasOwn(finalResult, 'content')
+    || finalResult.isError !== false
+    || !Array.isArray(finalResult.content)
+    || (Object.hasOwn(finalResult, 'additionalContexts')
+      && !Array.isArray(finalResult.additionalContexts))
+    || (Object.hasOwn(finalResult, 'concludesTurn')
+      && finalResult.concludesTurn !== true)
+    || !isDeepStrictEqual(bodyValue, finalResult.value)) {
+    throw new Error('invalid Interaction Routing successful final result')
+  }
+  return {
+    bodyValue,
+    finalResult: finalResult as JsonRecord,
+  }
+}
+
+function validateCapabilityGapBody(value: JsonValue): void {
+  const body = jsonRecord(value)
+  const status = body?.status
+  const required = status === 'abstained'
+    ? ['status', 'gapId', 'requestedSkill', 'reason']
+    : ['status', 'gapId', 'requestedSkill']
+  if (body === undefined
+    || (status !== 'queued' && status !== 'already-recorded' && status !== 'abstained')
+    || !hasExactKeys(body, required)
+    || exactHash(body.gapId) === undefined
+    || typeof body.requestedSkill !== 'string'
+    || body.requestedSkill.length > 128
+    || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(body.requestedSkill)
+    || (status === 'abstained' && body.reason !== 'missing-native-goal')) {
+    throw new Error('invalid Interaction Routing Tool body value')
+  }
 }
 
 function exactHash(value: unknown): string | undefined {
@@ -1371,7 +1578,7 @@ function errorMessage(error: unknown): string {
 
 function abstained(
   reason: 'evidence-unavailable' | 'evidence-conflict',
-): InteractionGenerationEvidenceResolutionV1 {
+): InteractionRoutingEvidenceResolutionV1 {
   return immutableCopy({ status: 'abstained', reason } as const)
 }
 
@@ -1417,21 +1624,30 @@ function sessionEventAt(
   return event?.seq === seq && event.type === type ? event : undefined
 }
 
+function hasExactKeys(
+  value: Readonly<Record<string, unknown>>,
+  expected: readonly string[],
+): boolean {
+  const keys = Object.keys(value).sort()
+  return keys.length === expected.length
+    && keys.every((key, index) => key === [...expected].sort()[index])
+}
+
 function exactOwnData(
   value: unknown,
   allowedKeys: readonly string[],
-): Readonly<Record<string, unknown>> | undefined {
+): Readonly<Record<string, JsonValue>> | undefined {
   if (!isPlainObject(value)) return undefined
   const allowed = new Set(allowedKeys)
   const descriptors = Object.getOwnPropertyDescriptors(value)
-  const snapshot: Record<string, unknown> = Object.create(null)
+  const snapshot: Record<string, JsonValue> = Object.create(null)
   for (const key of Reflect.ownKeys(descriptors)) {
     if (typeof key !== 'string' || !allowed.has(key)) return undefined
     const descriptor = descriptors[key]
     if (descriptor === undefined || !descriptor.enumerable || !('value' in descriptor)) {
       return undefined
     }
-    snapshot[key] = descriptor.value
+    snapshot[key] = descriptor.value as JsonValue
   }
   return snapshot
 }

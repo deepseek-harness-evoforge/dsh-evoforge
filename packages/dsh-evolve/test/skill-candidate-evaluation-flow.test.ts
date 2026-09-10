@@ -21,6 +21,7 @@ import type {
 } from '../src/skill-candidate-repository.ts'
 import type { SkillOpportunity } from '../src/skill-opportunity-discovery.ts'
 import type { PairedTrialResult } from '../src/trial.ts'
+import { qualifiedCapabilityGap } from './capability-gap-authoring-qualification-fixture.ts'
 import { experienceSkillCandidate } from './skill-candidate-fixture.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
@@ -413,22 +414,21 @@ function internalOpportunity(): SkillOpportunity {
 }
 
 function opportunityGaps(): CapabilityGap[] {
-  return ['a', 'b', 'c', 'd'].map((seed, index) => ({
-    schemaVersion: 1,
-    id: String(index + 3).repeat(64),
-    observedAt: index + 1,
-    workspaceId: WORKSPACE_ID,
-    sessionId: `session-${seed}`,
-    requestedSkill: 'release-proof',
-    catalogHash: 'a'.repeat(64),
-    catalogSize: 1,
-    goal: { id: `goal-${seed}`, revision: 1, objective: `Prove release workflow ${seed}` },
-    status: 'confirmed',
-    evidence: {
-      kind: 'native-skill-miss',
-      catalog: 'complete',
-      routing: 'requested-skill-absent',
-      providers: 'settled',
-    },
-  }))
+  return ['a', 'b', 'c', 'd'].map((seed, index) => {
+    return qualifiedCapabilityGap({
+      observedAt: index + 1,
+      workspaceId: WORKSPACE_ID,
+      sessionId: `session-${seed}`,
+      requestedSkill: 'release-proof',
+      catalogHash: 'a'.repeat(64),
+      catalogSize: 1,
+      goal: { id: `goal-${seed}`, revision: 1, objective: `Prove release workflow ${seed}` },
+      evidence: {
+        kind: 'model-declared-skill-gap',
+        catalog: 'complete',
+        routing: 'model-declared-no-applicable-skill',
+        providers: 'settled',
+      },
+    }, seed)
+  })
 }

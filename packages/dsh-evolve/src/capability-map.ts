@@ -114,39 +114,111 @@ export function installCapabilityMapObserver(
 ): CapabilityMapMonitor {
   let disposed = false
   let tail: Promise<void> = Promise.resolve()
+  const observedSessions = new Map<string, { workspaceId: string; sessionId: string }>()
+  let catalogEpoch = 0
+  let nextObservationAttempt = 0
+  const latestObservationAttempts = new Map<string, number>()
+  const executionCatalogEpochs = new WeakMap<object, number>()
+
+  const revokeObservedSessions = () => {
+    for (const { workspaceId, sessionId } of observedSessions.values()) {
+      capabilities.remove(workspaceId, sessionId)
+    }
+    observedSessions.clear()
+  }
+
+  const revokeObservedSessionId = (sessionId: string) => {
+    for (const [key, identity] of observedSessions) {
+      if (identity.sessionId !== sessionId) continue
+      capabilities.remove(identity.workspaceId, identity.sessionId)
+      observedSessions.delete(key)
+      latestObservationAttempts.delete(key)
+    }
+  }
+
+  const removeSkillsChanged = ctx.on('skills/change', () => {
+    if (disposed) return
+    catalogEpoch += 1
+    revokeObservedSessions()
+  })
 
   const removePreStep = ctx.on('agent/pre-step', async ({ agent, signal }, next) => {
     if (!disposed) {
+      let identityResolved = false
       try {
-        if (ctx.get('skills') === undefined) throw new Error('DSH Skill Registry is not loaded')
         const identity = await sessionIdentityOf(ctx, agent)
-        const snapshot = await ctx.skills.snapshot({
-          cwd: agent.session.header.cwd,
-          signal,
-          scope: agent,
-        })
-        const generation = evolution.getSessionGeneration(identity)
-        capabilities.observe({
-          workspaceId: identity.workspaceId,
-          sessionId: identity.sessionId,
-          snapshot,
-          ...(generation === undefined ? {} : { generation }),
-        })
+        identityResolved = true
+        const key = sessionKey(identity.workspaceId, identity.sessionId)
+        const attempt = ++nextObservationAttempt
+        latestObservationAttempts.set(key, attempt)
+        const startedAtCatalogEpoch = catalogEpoch
+        try {
+          if (ctx.get('skills') === undefined) throw new Error('DSH Skill Registry is not loaded')
+          const snapshot = await ctx.skills.snapshot({
+            cwd: agent.session.header.cwd,
+            signal,
+            scope: agent,
+          })
+          const generation = evolution.getSessionGeneration(identity)
+          if (!disposed
+            && catalogEpoch === startedAtCatalogEpoch
+            && latestObservationAttempts.get(key) === attempt) {
+            capabilities.observe({
+              workspaceId: identity.workspaceId,
+              sessionId: identity.sessionId,
+              snapshot,
+              ...(generation === undefined ? {} : { generation }),
+            })
+            observedSessions.set(key, {
+              workspaceId: identity.workspaceId,
+              sessionId: identity.sessionId,
+            })
+          }
+        } catch (error) {
+          if (!disposed && latestObservationAttempts.get(key) === attempt) {
+            capabilities.remove(identity.workspaceId, identity.sessionId)
+            observedSessions.delete(key)
+          }
+          throw error
+        } finally {
+          if (latestObservationAttempts.get(key) === attempt) {
+            latestObservationAttempts.delete(key)
+          }
+        }
       } catch (error) {
+        if (!disposed && !identityResolved) revokeObservedSessionId(String(agent.id))
         ctx.logger.warn(`dsh-evolve skipped one Capability Map observation: ${errorMessage(error)}`)
       }
     }
     return next()
   })
 
+  const removeToolExecute = ctx.on('tools/execute', async (execution, next) => {
+    if (!disposed
+      && execution.name === 'skill'
+      && execution.agent !== undefined
+      && !executionCatalogEpochs.has(execution)) {
+      executionCatalogEpochs.set(execution, catalogEpoch)
+    }
+    return next()
+  })
+
   const removeToolResult = ctx.on('tools/result', (execution, result) => {
-    if (disposed || execution.name !== 'skill' || execution.agent === undefined || result.isError) return
+    const startedAtCatalogEpoch = executionCatalogEpochs.get(execution)
+    executionCatalogEpochs.delete(execution)
+    if (disposed
+      || execution.name !== 'skill'
+      || execution.agent === undefined
+      || result.isError
+      || startedAtCatalogEpoch === undefined) return
     const skillName = successfulSkillName(result)
     if (skillName === undefined) return
     tail = tail.then(async () => {
       try {
         const identity = await sessionIdentityOf(ctx, execution.agent!)
-        capabilities.recordRoute(identity.workspaceId, identity.sessionId, skillName, 'model-selected')
+        if (!disposed && catalogEpoch === startedAtCatalogEpoch) {
+          capabilities.recordRoute(identity.workspaceId, identity.sessionId, skillName, 'model-selected')
+        }
       } catch (error) {
         ctx.logger.warn(`dsh-evolve skipped one Capability route observation: ${errorMessage(error)}`)
       }
@@ -159,7 +231,11 @@ export function installCapabilityMapObserver(
       try {
         const identity = await sessionIdentityOf(ctx, agent)
         capabilities.remove(identity.workspaceId, identity.sessionId)
+        const key = sessionKey(identity.workspaceId, identity.sessionId)
+        observedSessions.delete(key)
+        latestObservationAttempts.delete(key)
       } catch (error) {
+        if (!disposed) revokeObservedSessionId(String(agent.id))
         ctx.logger.warn(`dsh-evolve skipped one Capability Map cleanup: ${errorMessage(error)}`)
       }
     })
@@ -173,8 +249,12 @@ export function installCapabilityMapObserver(
       if (!disposed) {
         disposed = true
         removePreStep()
+        removeToolExecute()
         removeToolResult()
         removeDisposed()
+        removeSkillsChanged()
+        revokeObservedSessions()
+        latestObservationAttempts.clear()
       }
       await tail
     },

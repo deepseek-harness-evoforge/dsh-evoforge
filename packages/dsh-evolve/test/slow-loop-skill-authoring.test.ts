@@ -19,6 +19,7 @@ import type {
   SkillCandidateProposal,
   ExperienceSkillCandidate,
 } from '../src/skill-candidate-repository.ts'
+import { qualifiedCapabilityGap } from './capability-gap-authoring-qualification-fixture.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const temporaryRoots: string[] = []
@@ -101,7 +102,7 @@ describe('experience-driven slow-loop Skill authoring', () => {
       skillName: 'missing-release-skill',
       policyId: 'workspace-self-discovery',
       opportunityId: expect.stringMatching(/^[a-f0-9]{64}$/),
-      gapIds: ['1'.repeat(64), '2'.repeat(64), '3'.repeat(64), '4'.repeat(64)],
+      gapIds: gaps.map(gap => gap.id).sort(),
       goalCount: 4,
       modelIdentity: 'provider/model@contract-v1',
       inputDigest: expect.stringMatching(/^[a-f0-9]{64}$/),
@@ -264,10 +265,8 @@ describe('experience-driven slow-loop Skill authoring', () => {
     const fixture = await setup()
     const jobs = fakeJobs()
     const reserve = vi.fn(async target => allowedReservation(target))
-    const gaps = Array.from({ length: 900 }, (_, index) => ({
-      ...gap('1', `goal-${index}`, index),
-      id: (index + 1).toString(16).padStart(64, '0'),
-    }))
+    const gaps = Array.from({ length: 900 }, (_, index) =>
+      gap('1', `goal-${index}`, index))
     const service = serviceFor(fixture.policy, gaps, jobs, { reserve })
     service.attachJobs(jobs.registry)
 
@@ -393,9 +392,7 @@ function allowedReservation(target: AutomaticEvolutionBudgetTarget) {
 }
 
 function gap(seed: string, goalId: string, observedAt: number): CapabilityGap {
-  return {
-    schemaVersion: 1,
-    id: seed.repeat(64),
+  return qualifiedCapabilityGap({
     observedAt,
     workspaceId: WORKSPACE_ID,
     sessionId: `session-${seed}`,
@@ -407,14 +404,13 @@ function gap(seed: string, goalId: string, observedAt: number): CapabilityGap {
       revision: 1,
       objective: `Goal ${goalId} needs missing-release-skill`,
     },
-    status: 'confirmed',
     evidence: {
-      kind: 'native-skill-miss',
+      kind: 'model-declared-skill-gap',
       catalog: 'complete',
-      routing: 'requested-skill-absent',
+      routing: 'model-declared-no-applicable-skill',
       providers: 'settled',
     },
-  }
+  }, seed)
 }
 
 function fourGaps(): CapabilityGap[] {

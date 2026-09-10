@@ -1,75 +1,61 @@
-# RP-1：双真实 Provider 的内部 Skill 自进化验收
+# RP-1：内部 Skill 自进化 Provider 验收
 
-## 这条门证明什么
+## 当前边界
 
-RP-1 是一个仓库级、阶段专用的验收入口，不是新插件、平台、Runtime、Session、Goal 或 evaluator 服务。
-它把五条冻结的 DSH 内部 Capability Gap 事实送入现有生产模块，验证：
+根目录 `benchmark:provider:rp1` 当前固定指向 epoch 2。这个 epoch 只保留两类可复核的无网络事实：
 
-1. 五个不同 Goal 自主形成一个 Skill Opportunity；
-2. proposer Provider 只基于密封的 authoring 证据生成完整 instruction-only Skill Candidate；
-3. 另一套 governance Provider 分别从 Candidate 不可见的 admission、holdout、Retention 证据生成三套治理包；
-4. Candidate 在准入前保持 `inactive/quarantined/unevaluated/never`；
-5. 生产 Admission、assembled Shadow 和独立 Retention 依次通过，且 DSH composition 不漂移。
+1. `manifest-interaction-current-epoch-2.json` 必须与已审阅内容逐字节一致；
+2. 五条确定性、带 completed-turn qualification 的 model-declared Capability Gap fixture，在读取 Provider 配置前
+   恰好形成一个内部 Skill Opportunity。
 
-assembled Trial 继续使用现有 macOS Seatbelt 路径：子进程环境不继承 Provider 凭据，网络被拒绝。真实
-Provider 只负责 Candidate 与 Candidate-blind evaluator 的生成；因此 RP-1 通过也只证明这一阶段，不等于
-真实用户长期效果、Hermes paired benchmark 或整体上位替代完成。
+manifest 描述的是计划中的双 Provider authoring、Candidate-blind governance、Admission、assembled holdout 与
+Retention 场景，不是这些步骤已经执行或通过的证据。fixture 也不是从 live AgentLoop、Routing receipt 或 routing
+ledger 采集的事实，不能证明线上 Routing provenance。
 
-## 付费与凭据边界
+当前 epoch 2 **没有经过 runtime attestation 的付费执行器**，因此不会进入 `ready`，不会调用 Provider，不会动态
+加载 DSH build，不会读取或复用缓存结果，也不会写 `result.json`。只有补齐并重新审计可执行代码、运行时 artifact、
+配置绑定、终态 revision 与私有输出边界后，才能在一个新 epoch 恢复付费路径；不能把当前 manifest 或确定性合同测试
+冒充为真实 Provider 证据。
 
-未提供下面的精确批准值时，入口在读取任何 Provider 配置或凭据前返回 `NOT_RUN`，退出码为 2：
+原 `manifest.json`、`contract.ts`、`execute.ts` 与 `run.ts` 是不可变的历史 epoch 1。根目录当前入口不调用它们的
+执行路径，也不会把历史结果重新标记为 epoch 2 或当前 Interaction/Routing 合同的证据。
+
+## 批准与退出码
+
+未提供精确批准值时，入口只读取批准环境名并返回 `NOT_RUN`：
 
 ```text
 DSH_EVOLVE_REAL_PROVIDER_APPROVED=I_APPROVE_PAID_REAL_PROVIDER_EVALUATION
 ```
 
-一次新执行最多发起 1 次 proposer authoring 和 3 次 governance authoring。批准代表允许本次外部付费
-请求；它不允许发布、晋升、写 Git tag、发送消息或产生其他外部副作用。
+下表中的退出码属于直接 epoch 2 runner 进程：
 
-每个 proposer/governance HTTP authoring 请求都有 60 秒 wall-clock 上限。Host cancellation 可更早中止，
-但不能移除该上限；治理调用在 dispatch 前先 durable 记录 `authoring-pending`，异常或 timeout 进入
-`uncertain`，相同付费调用不会被普通重启盲目重发。
+| 条件 | runner 退出码 | 报告 |
+|---|---:|---|
+| 未提供精确批准 | 2 | `status: not-run`，`paid-provider-execution-not-authorized` |
+| 提供精确批准 | 1 | `status: failed`，`paid-provider-execution-blocked:runtime-attestation-incomplete` |
 
-运行时需要以下环境引用，凭据只允许通过进程环境提供，不能放入命令参数、仓库或报告：
+批准后的失败发生在读取任何 Provider secret、endpoint、model identity、DSH source path 或 run path 之前。当前入口
+不需要、也不应注入这些值；它不存在退出码 0 或 `status: passed` 的路径。
 
-| 角色 | 必需环境名 |
-|---|---|
-| proposer | `DSH_EVOLVE_MODEL_PROVIDER_ID`、`DSH_EVOLVE_MODEL_BASE_URL`、`DSH_EVOLVE_MODEL_NAME`、`DSH_EVOLVE_MODEL_API_KEY` |
-| governance | `DSH_EVOLVE_GOVERNANCE_MODEL_PROVIDER_ID`、`DSH_EVOLVE_GOVERNANCE_MODEL_BASE_URL`、`DSH_EVOLVE_GOVERNANCE_MODEL_NAME`、`DSH_EVOLVE_GOVERNANCE_MODEL_API_KEY` |
-| 固定运行路径 | `DSH_EVOLVE_DSH_SOURCE_DIR`、`DSH_EVOLVE_REAL_PROVIDER_RUN_ROOT` |
+## 命令
 
-两个角色必须使用不同 declared provider id、HTTPS authority、credential value 和生产 model identity，否则在
-外部请求前失败。报告只保留 provider id、model、authority hash 和 model identity；base URL、API key 与
-私有路径不会进入 stdout 或 `result.json`。不同 authority/model 的声明仍不能证明供应商后台绝对独立，最终
-证据必须保留这一限制。
-
-## 命令与退出码
-
-先运行无付费合同门：
+无付费合同门验证 manifest、fixture、批准前 `NOT_RUN`、批准后 hard block，以及两条 runner 输出：
 
 ```sh
 pnpm benchmark:provider:rp1:check
 ```
 
-在部署者已经通过受保护方式注入全部环境引用、明确批准本次付费执行后运行：
+当前 runner 可用于确认部署环境仍被安全阻断：
 
 ```sh
 pnpm benchmark:provider:rp1
 ```
 
-| 退出码 | 含义 |
-|---|---|
-| 0 | 所有冻结 hard gate 通过，`status: passed` |
-| 1 | 已授权执行失败或 hard gate 未通过，`status: failed` |
-| 2 | 未授权或配置不完整，`status: not-run`；不是失败证据，也不是通过证据 |
+这个发布命令经过 `pnpm run` 和 `pnpm --filter ... exec` 两层生命周期包装；pnpm 会把 runner 的任意非零退出码
+统一报告为命令失败 1。因此未批准时，JSON 仍是 `status: not-run` 且内部错误行保留 child exit 2，但顶层
+`pnpm benchmark:provider:rp1` 的进程退出码是 1。自动化应同时读取 JSON `status` / `reasons`；不能把顶层 1
+单独解释成已批准后的 hard block。
 
-入口要求 EvoForge 工作树干净、DSH checkout 正好位于 manifest 固定 revision、DSH `jobs-local` 已构建，
-并把结果写入私有、内容寻址的 exact run。相同 epoch/revision/provider identity 的 terminal 结果不会自动重跑；
-未知付费结果也不会通过普通 retry 被覆盖。
-
-## 当前状态
-
-截至 2026-08-24，合同、类型和 `NOT_RUN` 路径已通过；V4.56 又验证两个 governance HTTP seam 都有
-60 秒硬上限，其中现有 Skill 路径同时验证了 Host signal 与 timeout 的组合。没有获得本次付费授权，且当前
-环境没有第二套独立 Provider，因此没有执行外部模型请求，也没有 `passed` 结果。该事实必须在 README、
-需求、路线图、状态和 V4.55/V4.56 证据中保持一致。
+截至 2026-09-11，当前 epoch 2 只有上述确定性合同证据；没有发起外部模型请求，没有生成当前 epoch 的 paid
+result，也没有 `passed` 结果。真实双 Provider 进化、长期负迁移/遗忘/误晋升与 Hermes paired 仍是发布阻断。

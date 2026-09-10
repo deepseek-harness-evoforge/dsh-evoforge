@@ -46,6 +46,63 @@ cap 时 vault 在打开或新写入处 fail closed，不通过删除 tombstone �
 vault authority 整体 unavailable，并由 `drain`/`close` 暴露失败。后端明确拒绝且未提交的矛盾观察不属于 durable
 accepted evidence；重启只能恢复此前真正持久化的状态，不能宣称存储从未接受的数据已跨重启封存。
 
+### 2.2 Interaction Routing 证据保留策略
+
+`dsh-evolve.interactionRoutingEvidencePolicies` 是与 Generation 完全独立的 raw-free Routing receipt 保留授权，默认
+为空。每项只接受 canonical 小写 native Workspace UUID v1-v5；`retention.routingMaxRecords` 必须是 `1..10000` 的整数，
+最多 100 项、配置总和及 vault 物理记录上限均为 100000。配置撤回只停止新写入与 positive read，不自动清除历史行。
+该策略不是用户同意、Session/Episode 读取权限、Gap 写入权限或自动 authoring 权限；不得借 Generation 策略隐式授权
+Routing，反之亦然。Goal-linked Gap 的 authoring qualification 是完成 turn 后写入独立、审计型 sidecar Domain 的另一份
+无原文标记；legacy Gap v1 行保持原样，读取时才合并 projection。qualification v2 以内容寻址 id 和完整 Gap 内容 digest
+绑定 exact gapId、Workspace、Session、requested Skill 与 Goal id/revision；它无条件服从自身证据合同，不由可选 Routing
+vault 的配置、成功或失败授予或撤回。新 qualification 才触发一次即时 reconcile；vault 失败不能把已证明的 Gap 变成
+未授权，重启扫描也只能消费通过 key/id/content/reference/binding 审计的 qualification。
+
+v1 只允许 EvoForge 自有 `report_capability_gap` Tool 的成功直接调用形成 Routing receipt。Producer 必须同时证明：
+
+- exact live Agent/Session 从 `agent/session-start` 起的连续物理事件；
+- 该 turn 每次 admission 的 exact owned Tool registration，且所有已落盘 request header 都包含固定、唯一、相同的
+  model-visible schema；
+- registry-minted root Tool execution、实际进入并完成的自有 body、body 写入的 model-declared Gap、最终冻结的
+  `tools/result` success，以及 DSH Session 中与 call event 精确相连的 durable result；
+- turn 以 `completed` 结束，read-only transcript projector 能证明唯一 direct Gap trigger、请求边界和因果顺序。
+
+任何 shadowed same-name Tool、重复 execution/call/result、post-execute 改写、取消、异常、事件乱序、生命周期冒充、
+schema 漂移、Tools unmount/HMR 跨 epoch 或 Workspace 漂移都不能产生 positive receipt；已有 subject 出现确定矛盾时写入
+sticky conflict tombstone。Tools 单独 remount 不要求伪造新的 Session start，但会使旧 registration 下所有未决观察失效；
+后续完整发生在新 registration epoch 的干净 turn 才可重新取证。
+
+这里的“实际进入自有 body”是 Producer 对 exact registry execution 与 body entry/settlement 的观察，不是 alpha.5 dispatcher
+提供的定义选择证明。当前固定版本既不暴露 dispatcher-selected `ToolDefinition`，也不暴露其内部 `bodyInvoked` 状态，因此
+不能承诺排除所有 captured-body 路径：若下游 `tools/execute` wrapper 在 registry 未发生 mutation/shadow 时，用同一个
+registry-minted execution 调用 captured official body、跳过 `next()` 并返回完全匹配的 success，Producer 会接受该边界。
+任何 registry mutation 或 same-name shadow 仍按上述规则使观察失效。
+
+Tool body 为了返回稳定 Gap id 可以先持久化 model-declared 行，但该行在 authoring 上仍是 provisional：只有上述 exact
+final result、durable Session result、Workspace 复核和 completed turn 全部成立后，Producer 才用同一 raw-free receipt 的
+subject/provenance 写入 `completed-owned-gap-turn-v2` qualification。sidecar 写入前必须 exact-match durable Gap；不同 Gap 之间
+不能转移 qualification，重启时任何 orphan、key/id/content 或 binding 漂移都会使该 authority fail closed。pipeline 外直接
+调用或伪造 execution 的 captured body、
+取消、post-execute 改写、blocked turn 和历史上没有 qualification 的 model-declared 行保持可读但不能进入 opportunity、
+evaluation seal 或重启 reconcile。
+
+普通 native `skill` Tool 的 error 不能证明 Skill 缺失：它也可能来自 policy、加载、取消或执行错误。因此该路径不再生成
+新 Gap，也不能进入 opportunity/evaluation 治理；旧 `native-skill-miss` 行只为 schema/readback 兼容保留。Routing fact
+只闭合 Episode 的 `routing` 维度，Workspace 仅用于与其他 Host source 交叉校验；它不证明 catalog winner、
+capability boundary、Generation、模型、权限、sandbox 或其他 composition。当前运行时只保留私有历史账本，不会自动
+消费 source 或创建完整 Episode。
+
+Routing vault 复用 2.1 的 subject-only identity、按 Host 单调写入序号裁剪 resolved 行、跨 Workspace owner 合并、
+sticky tombstone、冲突写入 readback、配置撤回和 fail-closed 规则，但使用独立 Domain、策略、quota 和 authority。
+普通用户输入不能直接制造 tombstone；它只来自已安装 Host composition 内的权威矛盾。tombstone 不因 Workspace
+resolved quota 被删除，最终仍受 100000 物理记录安全上限约束。
+
+Host composer 对 Gateway、Generation、Routing 每个 source 使用独立的 30 秒上限；超时只会产生
+`attestor-invocation-failed` abstention，迟到的成功或失败不得改变结果。DSH alpha.5 的 Storage Domain/KV mutation 与
+`close` 尚无 AbortSignal、deadline 或 no-late-write fence，因此已接收但永不 settle 的 durable write 还不能由插件同时做到
+有界退出和物理释放。当前实现选择等待真实 settlement，而不是伪报 cleanup 完成；该上游 seam 是发布前必须关闭的生命周期
+阻断。
+
 ## 3. 生命周期
 
 所有 listener、timer、watcher、transport、Remote、临时目录和文件句柄都由当前 fiber 持有。disable、reload、

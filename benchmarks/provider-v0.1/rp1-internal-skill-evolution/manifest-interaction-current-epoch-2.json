@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "rp1-internal-skill-evolution-epoch-2-model-declared-gap-fixture",
+  "scope": "real two-provider internal Skill authoring and candidate-blind governance downstream of deterministic model-declared Capability Gap fixtures, followed by assembled admission, holdout, and retention; not live routing-provenance, Hermes-paired, or long-term outcome evidence",
+  "revisions": {
+    "deepseekHarness": "db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5"
+  },
+  "scenario": {
+    "skillName": "recover-dsh-delivery",
+    "goalCount": 5,
+    "source": "deterministic frozen Capability Gap fixtures conforming to the accepted model-declared evidence tuple (kind, catalog, routing, providers); not captured routing receipts and not proof of live AgentLoop or routing-ledger provenance; no runtime external search or Skill acquisition",
+    "partitions": ["authoring", "admission", "holdout", "retention"]
+  },
+  "budget": {
+    "proposerCalls": 1,
+    "governanceCalls": 3,
+    "maxOutputTokensPerCall": 6000,
+    "trialCountPerSubject": 4
+  },
+  "hardGates": [
+    "five model-declared Gap fixtures yield exactly one internal Opportunity before provider dispatch",
+    "explicit paid-operation approval exists before credentials are resolved",
+    "proposer and governance use different declared providers, authorities, credentials, and production model identities",
+    "the internally authored whole-Skill remains inactive, quarantined, unevaluated, and never executed before admission",
+    "governance authors admission, holdout, and retention from pre-Candidate protected partitions",
+    "deterministic admission qualifies the exact Candidate",
+    "assembled holdout recommends promotion without composition drift",
+    "independent assembled retention classifies the exact Candidate as retained"
+  ]
+}

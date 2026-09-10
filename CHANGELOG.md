@@ -23,6 +23,26 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 - Added default-deny, per-Workspace retention for raw-free Interaction Generation receipts. Receipts bind an exact
   completed trigger turn to the Session's durable native/evolved pin and continuously mounted Generation tree; they do
   not infer provider winners or close an Episode automatically.
+- Added an independent default-deny Routing receipt vault for the EvoForge-owned successful Gap Tool path. Receipts
+  correlate the exact model-visible schema, owned body, final DSH Tool result, and authenticated completed Session turn;
+  the private resolver closes only Routing and is not yet consumed automatically by the running plugin.
+- Retired failed native `skill` Tool calls as new evolution evidence because alpha.5 cannot distinguish absence from
+  policy, load, cancellation, or execution failure. Historical rows remain readable but cannot qualify new opportunity
+  or evaluation decisions.
+- Made Goal-linked model-declared Gaps provisional for authoring until the owned Tool's exact final result, durable Session
+  result, Workspace identity, and completed turn write a raw-free, content-addressed v2 qualification in an independently
+  audited sidecar Domain. It binds the exact Gap/Workspace/Session/requested Skill/Goal and preserves the strict legacy Gap
+  v1 medium for downgrade readers. Cancelled, rewritten, blocked, pipeline-outside captured-body,
+  transferred/tampered authority, and historical unqualified rows cannot enter discovery, sealed evaluation, or restart
+  reconciliation; qualification remains
+  independent of optional Routing-receipt retention.
+- Hardened Generation and Routing evidence stores so hostile storage rejections and quota-read uncertainty fail the live
+  authority closed and remain visible to drain/close instead of leaking a stale positive read.
+- Bounded each Gateway, Generation, and Routing Host-evidence source invocation to 30 seconds; a known alpha.5 Storage
+  Domain limitation still prevents sound cancellation of an already accepted durable write and remains a release gate.
+- Hard-disabled the current RP-1 epoch-2 paid runner until runtime artifacts, configuration binding, terminal revisions,
+  and private failure output can be attested. Exact approval now returns a fixed failure before any Provider configuration
+  or private path is read; the pinned manifest and deterministic Gap-to-Opportunity fixture remain non-paid evidence only.
 - Consolidated Gateway, channel, Evolution, and Doctor visualization into one Session-scoped native DSH Web view.
 - Moved Feishu and Telegram secrets to the DSH CredentialProvider contract and kept both adapters disabled until their
   exact deployment configuration is present.
@@ -39,7 +59,9 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 ### Known blockers
 
 - No registry package or stable SemVer tag has been published.
-- The latest audited DSH canonical revision installs but has an upstream root type-entry build failure; the buildable
-  support baseline remains the separately audited alpha.5 revision.
+- The latest completed source audit (DSH 0.1.5-alpha.2) found Session v3 provenance, handle-based persistence, renamed PTC
+  events, and changed Agent test APIs. Remote master and tags have since advanced through 0.1.5-rc.2 without a current
+  compatibility audit; the verified support baseline remains the separately audited 0.1.2-alpha.5 revision.
 - Real long-running Feishu/Telegram, real-provider evolution, and complete same-condition Hermes paired evidence are not
-  finished, so the project does not claim an overall Hermes replacement.
+  finished. The current RP-1 epoch-2 paid path is explicitly runtime-attestation-blocked, so the project does not claim an
+  overall Hermes replacement.

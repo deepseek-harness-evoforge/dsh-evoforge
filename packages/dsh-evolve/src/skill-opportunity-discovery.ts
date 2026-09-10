@@ -1,5 +1,9 @@
 import { createHash } from 'node:crypto'
-import type { CapabilityGap, CapabilityGapStore } from './capability-gap-store.ts'
+import {
+  isCapabilityGapQualifiedForAuthoring,
+  type CapabilityGap,
+  type CapabilityGapStore,
+} from './capability-gap-store.ts'
 import type { DeliveryOutcome, DeliveryOutcomeStore } from './delivery-outcome-monitor.ts'
 import type { FeedbackSignal, FeedbackSignalStore } from './feedback-signal-monitor.ts'
 
@@ -104,6 +108,14 @@ export class ExperienceDrivenSkillOpportunityDiscovery {
 
     const uniqueGaps = new Map<string, CapabilityGap>()
     for (const gap of this.gaps.list(workspaceId)) {
+      // Alpha.5 does not expose enough structured ToolSkill authority to
+      // distinguish absence from policy, load, cancellation, or execution
+      // failure. Keep legacy native-skill-miss rows readable, but never let
+      // them qualify or corroborate new authoring decisions. Likewise, the
+      // owned Gap Tool's body write stays ineligible until its completed turn
+      // has been independently witnessed and durably bound in the audited
+      // qualification sidecar.
+      if (!isCapabilityGapQualifiedForAuthoring(gap)) continue
       if (!uniqueGaps.has(gap.id)) uniqueGaps.set(gap.id, gap)
     }
 

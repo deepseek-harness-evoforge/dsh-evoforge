@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
+import type { CapabilityGap } from '../src/capability-gap-store.ts'
 import type { DeliveryOutcome } from '../src/delivery-outcome-monitor.ts'
 import { EvolutionControlPlane } from '../src/evolution-control-plane.ts'
 import type { CapabilityGeneration, EvolutionStore } from '../src/generation-store.ts'
 import type { ReviewCandidate } from '../src/review-inbox.ts'
 import type { ExistingSkillCandidate } from '../src/skill-candidate-repository.ts'
+import { qualifiedCapabilityGap } from './capability-gap-authoring-qualification-fixture.ts'
 import { experienceSkillCandidate } from './skill-candidate-fixture.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
@@ -259,6 +261,26 @@ describe('EvolutionControlPlane', () => {
         route: 'model-selected' as const,
       }],
     }))
+    const qualifiedGap: CapabilityGap = qualifiedCapabilityGap({
+      observedAt: 1_786_896_000_200,
+      workspaceId: WORKSPACE_ID,
+      sessionId: 'second-private-gap-session',
+      requestedSkill: 'release-native-extension',
+      catalogHash: '6'.repeat(64),
+      catalogSize: 1,
+      generationId,
+      goal: {
+        id: 'goal-2',
+        revision: 1,
+        objective: 'Ship the verified extension from another Goal.',
+      },
+      evidence: {
+        kind: 'model-declared-skill-gap',
+        catalog: 'complete',
+        routing: 'model-declared-no-applicable-skill',
+        providers: 'settled',
+      },
+    }, 'control-gap')
     const control = new EvolutionControlPlane({
       store: store(generation(), [generation('7'.repeat(64))]),
       resident: { isPaused: () => false, pause: vi.fn(), resume: vi.fn() },
@@ -382,29 +404,7 @@ describe('EvolutionControlPlane', () => {
             routing: 'requested-skill-absent' as const,
             providers: 'settled' as const,
           },
-        }, {
-          schemaVersion: 1 as const,
-          id: 'd'.repeat(64),
-          observedAt: 1_786_896_000_200,
-          workspaceId: WORKSPACE_ID,
-          sessionId: 'second-private-gap-session',
-          requestedSkill: 'release-native-extension',
-          catalogHash: '6'.repeat(64),
-          catalogSize: 1,
-          generationId,
-          goal: {
-            id: 'goal-2',
-            revision: 1,
-            objective: 'Ship the verified extension from another Goal.',
-          },
-          status: 'confirmed' as const,
-          evidence: {
-            kind: 'model-declared-skill-gap' as const,
-            catalog: 'complete' as const,
-            routing: 'model-declared-no-applicable-skill' as const,
-            providers: 'settled' as const,
-          },
-        }],
+        }, qualifiedGap],
       },
       opportunities: {
         discover: () => [{
@@ -412,7 +412,7 @@ describe('EvolutionControlPlane', () => {
           id: '8'.repeat(64),
           workspaceId: WORKSPACE_ID,
           skillName: 'release-native-extension',
-          gapIds: ['5'.repeat(64), 'd'.repeat(64)],
+          gapIds: ['5'.repeat(64), qualifiedGap.id],
           goalIds: ['goal-1', 'goal-2'],
           gapCount: 2,
           goalCount: 2,
@@ -506,7 +506,7 @@ describe('EvolutionControlPlane', () => {
           opportunity: {
             kind: 'internal-experience-v1' as const,
             id: '8'.repeat(64),
-            gapIds: ['5'.repeat(64), 'd'.repeat(64)],
+            gapIds: ['5'.repeat(64), qualifiedGap.id],
             goalCount: 2,
           },
           authorship: {
@@ -1033,7 +1033,7 @@ describe('EvolutionControlPlane', () => {
           status: 'confirmed',
           evidence: { kind: 'native-skill-miss' },
         }, {
-          id: 'd'.repeat(64),
+          id: qualifiedGap.id,
           requestedSkill: 'release-native-extension',
           catalogHash: '6'.repeat(64),
           goal: { id: 'goal-2' },
@@ -1046,7 +1046,7 @@ describe('EvolutionControlPlane', () => {
         items: [{
           id: '8'.repeat(64),
           skillName: 'release-native-extension',
-          gapIds: ['5'.repeat(64), 'd'.repeat(64)],
+          gapIds: ['5'.repeat(64), qualifiedGap.id],
           goalIds: ['goal-1', 'goal-2'],
           gapCount: 2,
           goalCount: 2,
@@ -1120,7 +1120,7 @@ describe('EvolutionControlPlane', () => {
           opportunity: {
             kind: 'internal-experience-v1',
             id: '8'.repeat(64),
-            gapIds: ['5'.repeat(64), 'd'.repeat(64)],
+            gapIds: ['5'.repeat(64), qualifiedGap.id],
             goalCount: 2,
           },
           authorship: {

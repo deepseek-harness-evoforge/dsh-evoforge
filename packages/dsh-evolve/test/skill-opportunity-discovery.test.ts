@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import type { CapabilityGap } from '../src/capability-gap-store.ts'
+import {
+  isCapabilityGapQualifiedForAuthoring,
+  type CapabilityGap,
+} from '../src/capability-gap-store.ts'
 import type { DeliveryOutcome } from '../src/delivery-outcome-monitor.ts'
 import type { FeedbackSignal } from '../src/feedback-signal-monitor.ts'
 import { ExperienceDrivenSkillOpportunityDiscovery } from '../src/skill-opportunity-discovery.ts'
+import { qualifiedCapabilityGap } from './capability-gap-authoring-qualification-fixture.ts'
 
 const WORKSPACE = '11111111-1111-4111-8111-111111111111'
 
 describe('experience-driven Skill opportunity discovery', () => {
-  it('discovers a reusable Skill opportunity from repeated demand across distinct Goals', () => {
+  it('discovers a reusable Skill opportunity from completed-turn-qualified demand across distinct Goals', () => {
     const gaps = [
       gap('1', 'goal-a', 'release-dsh-plugin', 100),
       gap('2', 'goal-b', 'release-dsh-plugin', 200),
@@ -19,7 +23,7 @@ describe('experience-driven Skill opportunity discovery', () => {
       id: expect.stringMatching(/^[a-f0-9]{64}$/),
       workspaceId: WORKSPACE,
       skillName: 'release-dsh-plugin',
-      gapIds: ['1'.repeat(64), '2'.repeat(64)],
+      gapIds: gaps.map(gap => gap.id).sort(),
       goalIds: ['goal-a', 'goal-b'],
       gapCount: 2,
       goalCount: 2,
@@ -49,6 +53,22 @@ describe('experience-driven Skill opportunity discovery', () => {
       status: 'eligible-for-authoring',
       releaseAuthority: 'none',
     }])
+  })
+
+  it('rejects transferred qualification authority and a forged legacy Gap id', () => {
+    const gapA = gap('1', 'goal-a', 'release-dsh-plugin', 100)
+    const gapB = gap('2', 'goal-b', 'release-dsh-plugin', 200)
+    const transferred: CapabilityGap = {
+      ...gapB,
+      authoringQualification: gapA.authoringQualification,
+    }
+    const forged: CapabilityGap = { ...gapA, id: 'f'.repeat(64) }
+
+    expect(isCapabilityGapQualifiedForAuthoring(transferred)).toBe(false)
+    expect(isCapabilityGapQualifiedForAuthoring(forged)).toBe(false)
+    expect(new ExperienceDrivenSkillOpportunityDiscovery({
+      list: () => [transferred, forged],
+    }).discover(WORKSPACE)).toEqual([])
   })
 
   it('associates later outcomes across revisions only for one unambiguous Goal Skill', () => {
@@ -194,6 +214,26 @@ describe('experience-driven Skill opportunity discovery', () => {
     expect(discovery.discover(WORKSPACE)).toEqual([])
   })
 
+  it('keeps legacy native Skill errors as history but never treats them as absence evidence', () => {
+    const gaps = [
+      legacyNativeSkillErrorGap(gap('1', 'goal-a', 'release-dsh-plugin', 100)),
+      legacyNativeSkillErrorGap(gap('2', 'goal-b', 'release-dsh-plugin', 200)),
+    ]
+    const discovery = new ExperienceDrivenSkillOpportunityDiscovery({ list: () => gaps })
+
+    expect(discovery.discover(WORKSPACE)).toEqual([])
+  })
+
+  it('keeps historical model-declared rows readable but excludes them without completed-turn qualification', () => {
+    const gaps = [
+      unqualifiedGap(gap('1', 'goal-a', 'release-dsh-plugin', 100)),
+      unqualifiedGap(gap('2', 'goal-b', 'release-dsh-plugin', 200)),
+    ]
+    const discovery = new ExperienceDrivenSkillOpportunityDiscovery({ list: () => gaps })
+
+    expect(discovery.discover(WORKSPACE)).toEqual([])
+  })
+
   it('does not merge evidence across Workspaces or accept a caller-selected Skill path', () => {
     const gaps = [
       gap('1', 'goal-a', 'release-dsh-plugin', 100),
@@ -284,9 +324,7 @@ function gap(
   workspaceId = WORKSPACE,
   sessionId = `session-${marker}`,
 ): CapabilityGap {
-  return {
-    schemaVersion: 1,
-    id: marker.repeat(64),
+  return qualifiedCapabilityGap({
     observedAt,
     workspaceId,
     sessionId,
@@ -298,14 +336,30 @@ function gap(
       revision,
       objective: 'Deliver and verify a native DSH plugin capability.',
     },
-    status: 'confirmed',
     evidence: {
       kind: 'model-declared-skill-gap',
       catalog: 'complete',
       routing: 'model-declared-no-applicable-skill',
       providers: 'settled',
     },
+  }, marker)
+}
+
+function legacyNativeSkillErrorGap(value: CapabilityGap): CapabilityGap {
+  return {
+    ...value,
+    evidence: {
+      kind: 'native-skill-miss',
+      catalog: 'complete',
+      routing: 'requested-skill-absent',
+      providers: 'settled',
+    },
   }
+}
+
+function unqualifiedGap(value: CapabilityGap): CapabilityGap {
+  const { authoringQualification: _qualification, ...historical } = value
+  return historical
 }
 
 function signal(marker: string, sessionId: string, sourceUpdatedAt: number): FeedbackSignal {
