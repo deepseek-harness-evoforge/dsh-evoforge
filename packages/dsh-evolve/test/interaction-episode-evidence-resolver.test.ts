@@ -775,6 +775,7 @@ describe('Interaction Episode evidence resolver', () => {
               sessionLifecycleDigest: HASH_A,
               prefixDigest: subject.transcript.replay.prefixDigest,
               turnDigest: subject.transcript.replay.turnDigest,
+              loggedControlDigest: derived.triggerRequestControl.loggedControlDigest,
               turnEndSeq: subject.transcript.source.turnEndSeq,
               triggerRequestSeq: derived.triggerRequestControl.boundary.assistantMessageSeq,
               triggerCallSeq: subject.transcript.source.triggerCallSeq,

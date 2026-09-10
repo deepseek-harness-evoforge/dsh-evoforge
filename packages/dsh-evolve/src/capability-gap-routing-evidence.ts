@@ -479,12 +479,23 @@ export async function installCapabilityGapRoutingEvidenceV1(
     const gap = observed.bodyGap
     if (gap === undefined || observed.bodyGoal === undefined || closing) return
     if (receipt.subject.triggerKind !== 'successful-gap-report') return
+    const { loggedControlDigest } = receipt.subject
+    if (loggedControlDigest === undefined) {
+      safelyWarn(ctx,
+        'dsh-evolve refused a pre-control-digest Capability Gap authoring qualification',
+      )
+      return
+    }
     let qualification: ReturnType<typeof createCapabilityGapAuthoringQualificationV2>
     let qualified: Awaited<ReturnType<CapabilityGapStore['qualifyForAuthoring']>>
     try {
       qualification = createCapabilityGapAuthoringQualificationV2(gap, {
         sourceDialect: receipt.sourceDialect,
-        subject: { ...receipt.subject, triggerKind: 'successful-gap-report' },
+        subject: {
+          ...receipt.subject,
+          loggedControlDigest,
+          triggerKind: 'successful-gap-report',
+        },
         provenance: receipt.provenance,
       })
       qualified = await dependencies.gaps.qualifyForAuthoring(gap.id, qualification)

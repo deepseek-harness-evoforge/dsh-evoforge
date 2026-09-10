@@ -22,6 +22,7 @@ import {
   projectInteractionEpisodeTriggerRequestControlV1,
   type InteractionEpisodeTriggerRequestControlFactV1,
 } from '../src/interaction-trigger-request-control.ts'
+import { interactionSessionDialectForFormatVersion } from '../src/interaction-session-dialect.ts'
 import {
   assembleSealedSkillBundleArchive,
   assembleSkillBundleArchive,
@@ -49,6 +50,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     const ctx = await bootStorage(configPath)
     const adapter = await installAgentRuntime(ctx, undefined, {
       firstCapabilityGap: 'publish-dsh-plugin',
+      systemPromptUpdate: 'in-history',
     })
     await ctx.plugin(EvolvePlugin, {
       cacheRoot: join(root, 'cache'),
@@ -95,6 +97,29 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
       source: { kind: 'user' },
     }))
     await handle.agent.whenIdle()
+    const sessionFormatVersion = Number(handle.agent.session.header.version)
+    const sessionDialect = interactionSessionDialectForFormatVersion(sessionFormatVersion)
+    if (sessionDialect === undefined) {
+      throw new Error(`unsupported real Session format ${String(sessionFormatVersion)}`)
+    }
+    if (sessionFormatVersion === 3) {
+      const events = handle.agent.session.snapshotEvents() as unknown as Array<{
+        readonly type: string
+        readonly data: Record<string, unknown>
+      }>
+      const assistants = events.filter(event => event.type === 'assistant/message')
+      expect(events.filter(event => event.type === 'assistant/chunk')).toHaveLength(0)
+      expect(events.filter(event => event.type === 'request/context'))
+        .toEqual([expect.objectContaining({
+          data: expect.objectContaining({ systemPromptUpdate: 'in-history' }),
+        })])
+      expect(assistants).toHaveLength(2)
+      expect(assistants.every(event => Array.isArray(event.data.stream))).toBe(true)
+      expect((assistants[0]!.data.message as { content: Array<{ type: string }> }).content)
+        .toEqual([expect.objectContaining({ type: 'tool-call' })])
+      expect((assistants[1]!.data.message as { content: Array<{ type: string }> }).content)
+        .toEqual([expect.objectContaining({ type: 'text' })])
+    }
 
     const overview = await control.overview(WORKSPACE_ID, 'model-gap-session')
     expect(overview).toMatchObject({ capabilityMap: { status: 'complete' } })
@@ -149,7 +174,7 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
           requestedSkill: 'publish-dsh-plugin',
           authoringQualification: expect.objectContaining({
             kind: 'completed-owned-gap-turn-v2',
-            sourceDialect: 'deepseek-harness@0.1.2-alpha.5',
+            sourceDialect: sessionDialect,
           }),
         }),
       ])
@@ -721,7 +746,10 @@ async function runPublicPluginGapTurn(input: {
 async function installAgentRuntime(
   ctx: Awaited<ReturnType<typeof bootStorage>>,
   persistenceRoot?: string,
-  options: { readonly firstCapabilityGap?: string } = {},
+  options: {
+    readonly firstCapabilityGap?: string
+    readonly systemPromptUpdate?: 'in-history'
+  } = {},
 ) {
   const packages = (path: string) => pathToFileURL(
     join(dshSourceDir, 'packages', path, 'lib', 'index.js'),
@@ -762,7 +790,14 @@ async function installAgentRuntime(
     requests: unknown[] = []
 
     resolveModel(provider: string, model: string) {
-      return Promise.resolve({ provider, id: model, name: model })
+      return Promise.resolve({
+        provider,
+        id: model,
+        name: model,
+        ...(options.systemPromptUpdate === undefined
+          ? {}
+          : { systemPromptUpdate: options.systemPromptUpdate }),
+      })
     }
 
     async * stream(request: unknown) {

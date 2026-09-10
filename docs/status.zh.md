@@ -13,13 +13,13 @@ npm registry 包或 SemVer release tag。
 
 | 范围 | 当前结论 | 状态 |
 | --- | --- | --- |
-| DSH 兼容 | master `c291e796…` / CLI 0.1.5-rc.2 已在 clean worktree 完成 install、根构建和关键兼容取样；assembled readback 已适配 handle 返回值，但 Generation 仍有 4/6 因 Session v3 fail closed；完整支持组合仍为 0.1.2-alpha.5 | pinned alpha.5 verified；current audited/buildable, migration blocked |
+| DSH 兼容 | master `c291e796…` / CLI 0.1.5-rc.2 已在 clean worktree 完成 install、根构建和关键兼容取样；handle readback 与严格的 Session v3 human-first direct-turn Generation binder 6/6 已通过，但 resolver persistence、retry/replacement/compaction/PTC、依赖 pin 和完整矩阵尚未成组迁移；完整支持组合仍为 0.1.2-alpha.5 | pinned alpha.5 verified；current direct-turn cohort verified, full migration blocked |
 | 安装 | 默认 `product` 套件、一行仓库安装、exact manifest/SHA、持久内容地址、禁用依赖 install script 和配置输出保护已有合同 | clean-profile add/dump/boot/remove/reboot verified；registry 与当前 head reload/browser 未完成 |
 | 插件契约 | 官方 Bundle/profile patch、生命周期、独立启停/卸载和套件打包有本地合同 | implemented / local verified |
 | Gateway | Host 内常驻、pairing、路由、journal、幂等、uncertain、dispose 竞态有 assembled 证据 | verified locally; real soak pending |
 | Feishu | 已有原生凭据/Adapter、配对和局部 direct-DM smoke；完整 AS-2（重启新消息、Approval/Schedule/group、撤销、长期重连）未齐 | partial |
 | Telegram | Adapter、pairing assembled 和安全合同存在；真实 Bot AS-1 尚未完成 | partial |
-| Evolution | Interaction-first 设计已冻结；自有 Gap Tool 的 exact completed-turn Routing receipt、Candidate/隔离评测/future-Session pointer/canary/rollback 有本地合同 | partial；Routing 只闭合一个 Episode 维度，latest DSH 尚未迁移，普通 Interaction 仍未贯通完整慢环 |
+| Evolution | Interaction-first 设计已冻结；自有 Gap Tool 的 exact completed-turn Routing receipt、Candidate/隔离评测/future-Session pointer/canary/rollback 有本地合同；Session v0/v3 的严格 human-first direct-turn projector 已贯通同一证据路径 | partial；Routing 只闭合一个 Episode 维度，latest DSH 完整 cohort 尚未迁移，普通 Interaction 仍未贯通完整慢环 |
 | Provider 验收 | RP-1 epoch 2 只固定 manifest 并验证五条 qualified Gap fixture 形成一个 Opportunity；精确批准也会在读取 Provider 配置和私有路径前固定失败 | blocked：`runtime-attestation-incomplete`；没有当前 paid/passed 证据 |
 | Web | 一个 Session-scoped native conversation.view 和 child slots 有局部浏览器证据；blank Session/onboarding 不渲染 slot，当前 profile 仍需 clean recheck | partial |
 | Delivery/continuity | 公开 delivery 只含隔离交付；github-review 因 CredentialProvider 迁移未完成而阻断；Goal 冷恢复、Resident 协议有本地测试 | partial; real soak pending |
@@ -32,9 +32,13 @@ npm registry 包或 SemVer release tag。
   `0.1.5-rc.2` 的安装和官方根构建均 exit 0；最新 tag 为 `dsh-v0.1.5-rc.2` /
   `fb2c4b9e698e30edb738bca4cf0618587db7d203`。见[最新审计摘要](research/dsh-latest-audit-2026-09-11.zh.md)和
   [V5.230](evidence/v5-230-dsh-rc2-clean-profile-readback-2026-09-11.zh.md)。
-- 同一 current master 上的 assembled clean-profile 原生 handle readback 已通过；Doctor 24/24、Feishu 5/5 通过，
-  但 Generation binder 仍有 4/6 因 Session v3 embedded stream 被旧 projector 拒绝。上游 buildable 不能外推为
-  EvoForge supported；persistence/PTC/dialect/pin 与完整矩阵仍需成组迁移。
+- 同一 current master 上的 assembled clean-profile 原生 handle readback 已通过；Doctor 24/24、Feishu 5/5 通过。
+  Session v3 human-first、无预排 next-step context 的 settled direct turn 现在严格验证 embedded stream、AgentLoop 固定
+  System prompt source、`in-history` request context 与 request route；真实 source-aware Generation binder 在 current 与
+  alpha.5 均为 6/6。另有同一 20 文件 / 448 tests 回归选择在两个 source selector 下全通过，但多数静态单测仍链接 manifest 固定的
+  alpha.5 dependency，不能把总数解释为 current runtime 覆盖。见
+  [V5.231](evidence/v5-231-session-v3-direct-turn-attestation-2026-09-11.zh.md)。这仍不能外推为 EvoForge supported；
+  resolver persistence、retry/replacement/compaction/PTC、pin 与完整矩阵仍需成组迁移。
 - 已审计 alpha.5 支持组合的全量检查和套件合同见 [V5.221](evidence/v5-221-latest-dsh-full-check-2026-09-04.zh.md)。
 - 单页控制台历史复验见 [V5.196](evidence/v5-196-single-page-control-center-live-revalidation-2026-09-04.zh.md)；
   该证据不覆盖当前浏览器 profile。
@@ -61,5 +65,6 @@ conversation.view。安装器只能报告这些阻断并提供可恢复方案，
 普通 native `skill` error 可能来自 policy、加载、取消或执行错误，不能证明 Skill 缺失；对应 monitor 已撤下，历史
 `native-skill-miss` 行只保留可读性且不得进入 opportunity/evaluation。当前只允许自有 `report_capability_gap` 的 exact
 schema/body/final result/completed-turn 链形成 raw-free Routing receipt；model-declared Gap 也必须经同一 completed turn 的
-durable qualification 才能进入旧 authoring loop。下一增量仍需把完整、可重放的 Interaction Episode 接入
-opportunity/evaluation，并迁移 latest DSH；在此之前完整自我进化闭环仍是 partial。
+durable qualification 才能进入旧 authoring loop。下一增量仍需迁移 current handle-based resolver persistence、
+retry/replacement/compaction/PTC 与依赖/Case Pack pin，再把完整、可重放的 Interaction Episode 接入 opportunity/evaluation；
+在此之前完整自我进化闭环仍是 partial。

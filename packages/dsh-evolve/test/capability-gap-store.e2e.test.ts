@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -10,8 +11,10 @@ import {
 import { z } from 'zod'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
+  isCapabilityGapQualifiedForAuthoring,
   openCapabilityGapStore,
   type CapabilityGap,
+  type CapabilityGapAuthoringQualification,
 } from '../src/capability-gap-store.ts'
 import { openDeliveryOutcomeStore } from '../src/delivery-outcome-monitor.ts'
 import { openFeedbackSignalStore } from '../src/feedback-signal-monitor.ts'
@@ -444,6 +447,57 @@ describe.skipIf(process.platform !== 'darwin')('Capability Gap durable queue', (
     } finally {
       await recovered.close()
       await resumed.fiber.dispose()
+    }
+  })
+
+  it('reads pre-digest qualifications without granting authoring authority', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-gap-legacy-control-digest-'))
+    temporaryRoots.push(root)
+    const configPath = await writeStorageConfig(root)
+    const writerCtx = await bootStorage(configPath)
+    const writer = await openCapabilityGapStore(writerCtx.storageDomain)
+    const legacyByGap = new Map<string, CapabilityGapAuthoringQualification>()
+    try {
+      for (const observedAt of [1, 2]) {
+        const gap = (await writer.record(
+          authoritativeGapInput(observedAt, 'legacy-control-gap'),
+        )).gap
+        const current = completedOwnedGapTurnQualification(gap, `legacy-${observedAt}`)
+        const legacy = qualificationWithoutLoggedControlDigest(current)
+        legacyByGap.set(gap.id, legacy)
+        await expect(writer.qualifyForAuthoring(gap.id, legacy)).rejects.toThrow(
+          /logged control digest/u,
+        )
+        await writer.qualifyForAuthoring(gap.id, current)
+      }
+    } finally {
+      await writer.close()
+      await writerCtx.fiber.dispose()
+    }
+
+    const qualificationPath = join(
+      root,
+      'storage',
+      'evoforge_capability_gap_authoring_qualifications.json',
+    )
+    const qualificationDocument = JSON.parse(await readFile(qualificationPath, 'utf8')) as {
+      tables: { qualifications: Record<string, CapabilityGapAuthoringQualification> }
+    }
+    qualificationDocument.tables.qualifications = Object.fromEntries(legacyByGap)
+    await writeFile(qualificationPath, `${JSON.stringify(qualificationDocument, null, 2)}\n`)
+
+    const resumedCtx = await bootStorage(configPath)
+    const resumed = await openCapabilityGapStore(resumedCtx.storageDomain)
+    try {
+      const recovered = resumed.list(WORKSPACE_ID)
+      expect(recovered).toHaveLength(2)
+      expect(recovered.every(gap => gap.authoringQualification !== undefined)).toBe(true)
+      expect(recovered.every(gap => !isCapabilityGapQualifiedForAuthoring(gap))).toBe(true)
+      expect(new ExperienceDrivenSkillOpportunityDiscovery(resumed).discover(WORKSPACE_ID))
+        .toEqual([])
+    } finally {
+      await resumed.close()
+      await resumedCtx.fiber.dispose()
     }
   })
 
@@ -1070,6 +1124,31 @@ function authoritativeGapInput(observedAt: number, requestedSkill: string) {
 function stripQualification(gap: CapabilityGap) {
   const { authoringQualification: _qualification, ...legacy } = gap
   return legacy
+}
+
+function qualificationWithoutLoggedControlDigest(
+  qualification: CapabilityGapAuthoringQualification,
+): CapabilityGapAuthoringQualification {
+  const { id: _id, ...content } = structuredClone(qualification)
+  delete content.subject.loggedControlDigest
+  const id = createHash('sha256').update(canonicalJsonForLegacyQualification({
+    domain: 'evoforge_capability_gap_authoring_qualifications',
+    version: 1,
+    content,
+  })).digest('hex')
+  return { ...content, id }
+}
+
+function canonicalJsonForLegacyQualification(value: unknown): string {
+  if (value === null) return 'null'
+  if (typeof value === 'string' || typeof value === 'boolean') return JSON.stringify(value)
+  if (typeof value === 'number') return JSON.stringify(value)
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalJsonForLegacyQualification).join(',')}]`
+  }
+  const record = value as Record<string, unknown>
+  return `{${Object.keys(record).sort().map(key =>
+    `${JSON.stringify(key)}:${canonicalJsonForLegacyQualification(record[key])}`).join(',')}}`
 }
 
 function pruneFailureFacility(): {

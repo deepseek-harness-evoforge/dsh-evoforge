@@ -65,6 +65,73 @@ describe('Interaction Episode trigger request control projection', () => {
     expect(result.fact).not.toHaveProperty('budget')
   })
 
+  it('projects the Session v3 request-control cohort under its exact dialect identity', () => {
+    const subject = mutableSubject()
+    subject.session.header.version = 3
+    subject.transcript.session.formatVersion = 3
+    Reflect.deleteProperty(requestHeader(subject).data.header, 'system')
+    rebindReplayDigests(subject)
+
+    const result = projectSubject(subject)
+
+    expect(result).toMatchObject({
+      status: 'projected',
+      fact: {
+        sourceDialect: 'deepseek-harness@0.1.5-rc.2',
+        subject: { sessionFormatVersion: 3 },
+      },
+    })
+    expect(projectedFact(subject).loggedControlDigest)
+      .not.toBe(projectedFact(fixtureSubject()).loggedControlDigest)
+  })
+
+  it('binds only the rc.2 in-history system-prompt request context', () => {
+    const baseline = mutableSubject()
+    baseline.session.header.version = 3
+    baseline.transcript.session.formatVersion = 3
+    Reflect.deleteProperty(requestHeader(baseline).data.header, 'system')
+    rebindReplayDigests(baseline)
+
+    const supported = structuredClone(baseline) as unknown as MutableSubject
+    requestContext(supported).data.systemPromptUpdate = 'in-history'
+    rebindReplayDigests(supported)
+
+    expect(projectSubject(supported)).toMatchObject({ status: 'projected' })
+    expect(projectedFact(supported).loggedControlDigest)
+      .not.toBe(projectedFact(baseline).loggedControlDigest)
+
+    const unknown = structuredClone(baseline) as unknown as MutableSubject
+    requestContext(unknown).data.systemPromptUpdate = 'leading'
+    rebindReplayDigests(unknown)
+    expect(projectSubject(unknown)).toEqual({
+      status: 'abstained',
+      reason: 'subject-mismatch',
+    })
+  })
+
+  it('rejects the retired request-header system field in Session v3', () => {
+    const subject = mutableSubject()
+    subject.session.header.version = 3
+    subject.transcript.session.formatVersion = 3
+    rebindReplayDigests(subject)
+
+    expect(projectSubject(subject)).toEqual({
+      status: 'abstained',
+      reason: 'subject-mismatch',
+    })
+  })
+
+  it('rejects a Session header/transcript dialect mismatch', () => {
+    const subject = mutableSubject()
+    subject.session.header.version = 3
+    rebindReplayDigests(subject)
+
+    expect(projectSubject(subject)).toEqual({
+      status: 'abstained',
+      reason: 'subject-mismatch',
+    })
+  })
+
   it('binds the controls to the transcript digests before projecting them', () => {
     const changed = mutableSubject()
     requestHeader(changed).data.header.system = 'different system control'

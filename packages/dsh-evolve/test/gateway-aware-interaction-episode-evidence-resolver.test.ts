@@ -790,6 +790,42 @@ describe('DSH alpha.5 partial Host evidence composition', () => {
     })
   })
 
+  it('rejects a Routing fact bound to another logged request control', async () => {
+    const fixture = completedGapTurn()
+    const valid = routingReturning()
+    const routingEvidence = {
+      resolveRoutingEvidence: vi.fn(async (
+        subject: DurableInteractionEpisodeSubjectV1,
+        derived: InteractionEpisodeDerivedEvidenceV1,
+      ) => {
+        const result = await valid.resolveRoutingEvidence(subject, derived)
+        const digest = result.fact.subject.loggedControlDigest
+        return {
+          ...result,
+          fact: {
+            ...result.fact,
+            subject: {
+              ...result.fact.subject,
+              loggedControlDigest: `${digest[0] === 'f' ? 'e' : 'f'}${digest.slice(1)}`,
+            },
+          },
+        }
+      }),
+    }
+    const resolver = createStockDshAlpha5InteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+      routingEvidence,
+    })
+
+    await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-conflict',
+      dimensions: ['routing'],
+    })
+  })
+
   it('rejects a Routing fact whose coordinates do not match the durable subject', async () => {
     const fixture = completedGapTurn()
     const valid = routingReturning()
@@ -1151,6 +1187,42 @@ describe('DSH alpha.5 partial Host evidence composition', () => {
             subject: {
               ...result.fact.subject,
               sessionLifecycleDigest: `${currentDigest[0] === 'f' ? 'e' : 'f'}${currentDigest.slice(1)}`,
+            },
+          },
+        }
+      }),
+    }
+    const resolver = createStockDshAlpha5InteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+      generationEvidence,
+    })
+
+    await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-conflict',
+      dimensions: ['generation'],
+    })
+  })
+
+  it('rejects a Generation fact bound to another logged request control', async () => {
+    const fixture = completedGapTurn()
+    const valid = generationReturning('native')
+    const generationEvidence = {
+      resolveGenerationEvidence: vi.fn(async (
+        subject: DurableInteractionEpisodeSubjectV1,
+        derived: InteractionEpisodeDerivedEvidenceV1,
+      ) => {
+        const result = await valid.resolveGenerationEvidence(subject, derived)
+        const digest = result.fact.subject.loggedControlDigest
+        return {
+          ...result,
+          fact: {
+            ...result.fact,
+            subject: {
+              ...result.fact.subject,
+              loggedControlDigest: `${digest[0] === 'f' ? 'e' : 'f'}${digest.slice(1)}`,
             },
           },
         }
@@ -1594,6 +1666,7 @@ function generationReturning(
           sessionLifecycleDigest: interactionGenerationSessionLifecycleDigest(subject),
           prefixDigest: subject.transcript.replay.prefixDigest,
           turnDigest: subject.transcript.replay.turnDigest,
+          loggedControlDigest: derived.triggerRequestControl.loggedControlDigest,
           turnEndSeq: subject.transcript.source.turnEndSeq,
           triggerRequestSeq: derived.triggerRequestControl.boundary.assistantMessageSeq,
           triggerCallSeq: subject.transcript.source.triggerCallSeq,
@@ -1648,6 +1721,7 @@ function routingReturning(workspaceId = WORKSPACE_ID) {
           sessionLifecycleDigest: interactionRoutingSessionLifecycleDigest(subject),
           prefixDigest: subject.transcript.replay.prefixDigest,
           turnDigest: subject.transcript.replay.turnDigest,
+          loggedControlDigest: derived.triggerRequestControl.loggedControlDigest,
           turnEndSeq: subject.transcript.source.turnEndSeq,
           triggerRequestSeq: derived.triggerRequestControl.boundary.assistantMessageSeq,
           triggerCallSeq: subject.transcript.source.triggerCallSeq,

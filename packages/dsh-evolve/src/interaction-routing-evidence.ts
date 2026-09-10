@@ -14,11 +14,14 @@ import {
   type InteractionEpisodeTriggerRequestControlFactV1,
   type InteractionEpisodeTriggerRequestControlSubjectV1,
 } from './interaction-trigger-request-control.ts'
+import {
+  interactionSessionDialectSchema,
+  type InteractionSessionDialect,
+} from './interaction-session-dialect.ts'
 import { isWorkspaceId } from './workspace-identity.ts'
 
 const EVIDENCE_DOMAIN = 'evoforge_interaction_routing_evidence'
 const EVIDENCE_DOMAIN_VERSION = 1
-const SOURCE_DIALECT = 'deepseek-harness@0.1.2-alpha.5' as const
 const MAX_EPOCH_BYTES = 512
 
 export const INTERACTION_ROUTING_EVIDENCE_MAX_POLICIES = 100
@@ -104,6 +107,8 @@ const receiptSubjectSchema = z.strictObject({
   sessionLifecycleDigest: hashSchema,
   prefixDigest: hashSchema,
   turnDigest: hashSchema,
+  // Optional only so durable v1 rows written before this identity field remain readable.
+  loggedControlDigest: hashSchema.optional(),
   turn: safeInteger,
   turnStartSeq: safeInteger,
   turnEndSeq: safeInteger,
@@ -137,7 +142,7 @@ const receiptSchema = z.strictObject({
   schemaVersion: z.literal(1),
   kind: z.literal('interaction-routing-evidence-receipt-v1'),
   observedAt: safeInteger,
-  sourceDialect: z.literal(SOURCE_DIALECT),
+  sourceDialect: interactionSessionDialectSchema,
   workspaceId: workspaceIdSchema,
   subject: receiptSubjectSchema,
   routing: routingSchema,
@@ -160,7 +165,7 @@ const receiptSchema = z.strictObject({
 })
 
 const receiptIdentitySchema = z.strictObject({
-  sourceDialect: z.literal(SOURCE_DIALECT),
+  sourceDialect: interactionSessionDialectSchema,
   subject: receiptSubjectSchema,
 })
 
@@ -286,6 +291,7 @@ export interface InteractionEpisodeRoutingFactV1 {
     readonly sessionLifecycleDigest: string
     readonly prefixDigest: string
     readonly turnDigest: string
+    readonly loggedControlDigest: string
     readonly turnEndSeq: number
     readonly triggerRequestSeq: number
     readonly triggerCallSeq: number
@@ -354,7 +360,7 @@ export interface CreateInteractionRoutingEvidenceReceiptInputV1 {
 }
 
 interface NormalizedEvidenceQuery {
-  readonly sourceDialect: typeof SOURCE_DIALECT
+  readonly sourceDialect: InteractionSessionDialect
   readonly subject: z.infer<typeof receiptSubjectSchema>
   readonly observedAt: number
 }
@@ -818,6 +824,7 @@ class DomainInteractionRoutingEvidenceVault implements InteractionRoutingEvidenc
           sessionLifecycleDigest: query.subject.sessionLifecycleDigest,
           prefixDigest: query.subject.prefixDigest,
           turnDigest: query.subject.turnDigest,
+          loggedControlDigest: query.subject.loggedControlDigest!,
           turnEndSeq: query.subject.turnEndSeq,
           triggerRequestSeq: query.subject.triggerRequestSeq,
           triggerCallSeq: query.subject.triggerCallSeq,
@@ -1224,7 +1231,7 @@ function normalizeEvidenceQuery(
     || observedAt === undefined
     || source.completedAt !== observedAt
     || (triggerKind !== 'successful-gap-report' && triggerKind !== 'skill-tool-error')
-    || projection.fact.sourceDialect !== SOURCE_DIALECT
+    || !interactionSessionDialectSchema.safeParse(projection.fact.sourceDialect).success
     || projection.fact.subject.prefixDigest !== transcriptReplayDigest(transcript, 'prefixDigest')
     || projection.fact.subject.turnDigest !== transcriptReplayDigest(transcript, 'turnDigest')
     || projection.fact.subject.throughSeq !== turnEndSeq
@@ -1235,7 +1242,7 @@ function normalizeEvidenceQuery(
   }
 
   return immutableCopy({
-    sourceDialect: SOURCE_DIALECT,
+    sourceDialect: projection.fact.sourceDialect,
     observedAt,
     subject: receiptSubjectSchema.parse({
       sessionLifecycleDigest: interactionRoutingSessionLifecycleDigest(
@@ -1243,6 +1250,7 @@ function normalizeEvidenceQuery(
       ),
       prefixDigest: projection.fact.subject.prefixDigest,
       turnDigest: projection.fact.subject.turnDigest,
+      loggedControlDigest: projection.fact.loggedControlDigest,
       turn,
       turnStartSeq,
       turnEndSeq,

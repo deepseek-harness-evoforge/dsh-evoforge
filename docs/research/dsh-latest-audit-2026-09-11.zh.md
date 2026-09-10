@@ -33,22 +33,30 @@ canonical latest 的当前状态。
 - software-delivery clean-profile 与 suite-upgrade 合计 2 passed / 1 skipped；其中当前 assembled 路径完成 packed
   Bundle add、dump、boot、原生 Session/Goal/Tool、flush/dispose、remove、handle-based Session readback 和再次 CLI boot；
 - Feishu 四个兼容文件 5/5 通过；
-- Generation binder 只有 2/6 通过，四个正例都以 `turn-structure-invalid` fail closed。
+- Generation binder 在旧 projector 基线上只有 2/6 通过；完成本轮 Session v3 direct-turn projector 后，同一 exact
+  checkout 为 6/6。首个正例还令 fixture adapter 显式发布 `systemPromptUpdate: in-history`，验证 current request context
+  进入 transcript、request-control digest、qualification 和重开后的 Generation/Routing receipt 路径。
 
 clean-profile 原生 readback 的旧测试曾把 `SessionHandle.read()` 误当成事件数组；当前 DSH 实际返回
 `{ eventState, events }`。测试适配现在读取 `.events` 并在 `finally` 关闭 handle，alpha.5 的 `load()` fallback 保持不变。
 
 ## 尚未形成支持声明的边界
 
-当前 DSH 已从 Session format v0 演进到 v3：顶层 `assistant/chunk` 改为 `assistant/message.data.stream`，失败尝试使用
-`assistant/attempt`；Session persistence 改为 handle API；PTC event tag 和 surface replacement 坐标也发生变化。
-EvoForge 的 Interaction projector、部分 persistence consumer、PTC 识别、dialect 标识、依赖版本与兼容矩阵尚未作为
-一个完整 cohort 迁移。
+当前 DSH 已从 Session format v0 演进到 v3。EvoForge 现在对 format v0 与 format v3 使用显式 dialect：v3 human-first、
+没有预排 next-step inject/steering context，且无 retry、replacement、compaction、PTC 的 settled direct turn 会严格展开
+compact Assistant stream，核对 content/usage/replay/finish、AgentLoop 固定 System prompt source、request route 与
+`systemPromptUpdate`；System head 必须先于请求输入，本 cohort 的后续 prompt append 也必须位于继承 request header
+的后续 step 请求之前、真正改变有效 prompt 并绑定 effective `in-history` route；tail 存活后的请求也必须继续满足这两个
+route 条件。reader 扫描目标 `turn/end` 之前的整个前缀；未知 required 或混合格式继续 abstain，只有显式
+`ignorable: true` 的未知事件可以跳过。format v3 的 `assistant/attempt`/`llm/retry*`、surface replacement、
+`compaction/*` 和 PTC cohort 尚未迁移，Interaction evidence resolver 仍使用 alpha.5 `readFrom` contract；依赖版本、
+Case Pack revision 和 CI/兼容矩阵也没有迁移。
 
 因此当前支持基线仍是完整验证过的 `dsh-v0.1.2-alpha.5` / `db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`。
 `c291e796…` 现在是“latest audited + upstream buildable + 局部 assembled 取样”，不是 EvoForge supported runtime。
-必须先完成 Session v3/persistence/PTC/dialect/pin 的一致迁移，再重跑 typecheck、pack、官方 add/dump/boot、
+必须先完成剩余 Session v3/persistence/PTC/pin 的一致迁移，再重跑 typecheck、pack、官方 add/dump/boot、
 reload/dispose、Session 恢复、Web/渠道和卸载矩阵，才能改变支持声明。
 
-本轮命令、范围、结果与限制见
-[V5.230](../evidence/v5-230-dsh-rc2-clean-profile-readback-2026-09-11.zh.md)。
+构建/readback 基线见
+[V5.230](../evidence/v5-230-dsh-rc2-clean-profile-readback-2026-09-11.zh.md)，direct-turn projector 与双 dialect
+回归见 [V5.231](../evidence/v5-231-session-v3-direct-turn-attestation-2026-09-11.zh.md)。

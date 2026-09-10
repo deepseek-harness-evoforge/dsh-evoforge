@@ -6,6 +6,7 @@ import {
   type DomainFacility,
 } from '@deepseek-ai/dsh-storage-domain'
 import { z } from 'zod'
+import { interactionSessionDialectSchema } from './interaction-session-dialect.ts'
 
 const DEFAULT_MAX_RECORDS = 1_000
 const CAPABILITY_GAP_DOMAIN = 'evoforge_capability_gaps'
@@ -23,6 +24,9 @@ const completedOwnedGapTurnSubjectSchema = z.strictObject({
   sessionLifecycleDigest: hashSchema,
   prefixDigest: hashSchema,
   turnDigest: hashSchema,
+  // Optional only for completed-owned-gap-turn-v2 rows written before the
+  // request-control digest became part of the Routing receipt identity.
+  loggedControlDigest: hashSchema.optional(),
   turn: safeInteger,
   turnStartSeq: safeInteger,
   turnEndSeq: safeInteger,
@@ -53,7 +57,7 @@ const capabilityGapQualificationBindingSchema = z.strictObject({
   }),
 })
 const capabilityGapAuthoringQualificationProofSchema = z.strictObject({
-  sourceDialect: z.literal('deepseek-harness@0.1.2-alpha.5'),
+  sourceDialect: interactionSessionDialectSchema,
   subject: completedOwnedGapTurnSubjectSchema,
   provenance: z.strictObject({
     authorityEpochDigest: hashSchema,
@@ -159,8 +163,14 @@ export type CapabilityGap = CapabilityGapV1 & {
 }
 export type CapabilityGapAuthoringQualification =
   z.infer<typeof capabilityGapAuthoringQualificationSchema>
-export type CapabilityGapAuthoringQualificationProofV2 =
+type StoredCapabilityGapAuthoringQualificationProofV2 =
   z.infer<typeof capabilityGapAuthoringQualificationProofSchema>
+export type CapabilityGapAuthoringQualificationProofV2 =
+  Omit<StoredCapabilityGapAuthoringQualificationProofV2, 'subject'> & {
+    readonly subject:
+      & Omit<StoredCapabilityGapAuthoringQualificationProofV2['subject'], 'loggedControlDigest'>
+      & { readonly loggedControlDigest: string }
+  }
 export type CapabilityGapAbstentionReason = 'missing-native-goal'
 
 export interface CapabilityGapInput {
@@ -281,6 +291,11 @@ class DomainCapabilityGapStore implements CapabilityGapStore {
     } catch (error) {
       return Promise.reject(error)
     }
+    if (captured.subject.loggedControlDigest === undefined) {
+      return Promise.reject(new Error(
+        'Capability Gap authoring qualification requires a logged control digest',
+      ))
+    }
     return this.enqueue(async () => {
       if (!hashSchema.safeParse(gapId).success) {
         throw new Error('Capability Gap authoring qualification requires an exact Gap id')
@@ -388,6 +403,9 @@ export function createCapabilityGapAuthoringQualificationV2(
   const capturedProof = capabilityGapAuthoringQualificationProofSchema.parse(
     structuredClone(proof),
   )
+  if (capturedProof.subject.loggedControlDigest === undefined) {
+    throw new Error('Capability Gap authoring qualification requires a logged control digest')
+  }
   const content = capabilityGapAuthoringQualificationContentSchema.parse({
     schemaVersion: 2,
     kind: 'completed-owned-gap-turn-v2',
@@ -423,7 +441,8 @@ export function isCapabilityGapQualifiedForAuthoring(
     const qualification = capabilityGapAuthoringQualificationSchema.parse(
       gap.authoringQualification,
     )
-    return qualificationExactlyBindsGap(qualification, base)
+    return qualification.subject.loggedControlDigest !== undefined
+      && qualificationExactlyBindsGap(qualification, base)
   } catch {
     return false
   }

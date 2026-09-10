@@ -36,6 +36,7 @@ export function completedOwnedGapTurnQualification(
       sessionLifecycleDigest: digest('session-lifecycle', marker),
       prefixDigest: digest('prefix', marker),
       turnDigest: digest('turn', marker),
+      loggedControlDigest: digest('logged-control', marker),
       turn: 1,
       turnStartSeq: 1,
       turnEndSeq: 8,

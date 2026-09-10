@@ -17,6 +17,10 @@
   completed-turn qualification 后才能进入 authoring。普通 native Skill error、取消/改写/blocked turn 和历史未 qualification
   行已退出新机会与评测资格。下一步由唯一 Host composer 消费现有 Gateway/Generation/Routing source，并继续补齐其余
   Episode 维度，再替换旧的 Goal-only 计数。
+- Session format v3 的 human-first、无预排 next-step context settled direct turn 已进入与 alpha.5 相同的严格
+  projector/evidence 路径；下一兼容增量迁移
+  handle-based Interaction resolver persistence，再分别处理 retry/replacement/compaction/PTC，最后统一更新依赖、Case Pack
+  和 CI pin。
 - DSH alpha.5 Storage Domain 尚不能取消或 fence 已接收的 KV mutation；source 读取已有 30 秒 fail-closed 上限，但 durable
   write teardown 仍依赖 Provider settlement。发布前需要上游 abort/deadline/no-late-write 契约，再把同一 deadline 贯穿
   Generation、Routing vault 与 producer dispose。

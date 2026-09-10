@@ -481,6 +481,7 @@ function exactGenerationFact(
       'sessionLifecycleDigest',
       'prefixDigest',
       'turnDigest',
+      'loggedControlDigest',
       'turnEndSeq',
       'triggerRequestSeq',
       'triggerCallSeq',
@@ -489,6 +490,7 @@ function exactGenerationFact(
     || factSubject.sessionLifecycleDigest !== sessionLifecycleDigest
     || factSubject.prefixDigest !== subject.transcript.replay.prefixDigest
     || factSubject.turnDigest !== subject.transcript.replay.turnDigest
+    || factSubject.loggedControlDigest !== derived.triggerRequestControl.loggedControlDigest
     || factSubject.turnEndSeq !== subject.transcript.source.turnEndSeq
     || factSubject.triggerRequestSeq
       !== derived.triggerRequestControl.boundary.assistantMessageSeq
@@ -523,6 +525,7 @@ function exactGenerationFact(
       sessionLifecycleDigest: factSubject.sessionLifecycleDigest,
       prefixDigest: factSubject.prefixDigest,
       turnDigest: factSubject.turnDigest,
+      loggedControlDigest: factSubject.loggedControlDigest,
       turnEndSeq: factSubject.turnEndSeq,
       triggerRequestSeq: factSubject.triggerRequestSeq,
       triggerCallSeq: factSubject.triggerCallSeq,
@@ -605,6 +608,7 @@ function exactRoutingFact(
       'sessionLifecycleDigest',
       'prefixDigest',
       'turnDigest',
+      'loggedControlDigest',
       'turnEndSeq',
       'triggerRequestSeq',
       'triggerCallSeq',
@@ -613,6 +617,7 @@ function exactRoutingFact(
     || factSubject.sessionLifecycleDigest !== sessionLifecycleDigest
     || factSubject.prefixDigest !== subject.transcript.replay.prefixDigest
     || factSubject.turnDigest !== subject.transcript.replay.turnDigest
+    || factSubject.loggedControlDigest !== derived.triggerRequestControl.loggedControlDigest
     || factSubject.turnEndSeq !== subject.transcript.source.turnEndSeq
     || factSubject.triggerRequestSeq
       !== derived.triggerRequestControl.boundary.assistantMessageSeq
@@ -633,6 +638,7 @@ function exactRoutingFact(
       sessionLifecycleDigest: factSubject.sessionLifecycleDigest,
       prefixDigest: factSubject.prefixDigest,
       turnDigest: factSubject.turnDigest,
+      loggedControlDigest: factSubject.loggedControlDigest,
       turnEndSeq: factSubject.turnEndSeq,
       triggerRequestSeq: factSubject.triggerRequestSeq,
       triggerCallSeq: factSubject.triggerCallSeq,

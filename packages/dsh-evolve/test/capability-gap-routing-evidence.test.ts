@@ -101,6 +101,7 @@ describe('installed Capability Gap Routing evidence', () => {
           sessionLifecycleDigest: expect.stringMatching(/^[a-f0-9]{64}$/u),
           prefixDigest: subject.transcript.replay.prefixDigest,
           turnDigest: subject.transcript.replay.turnDigest,
+          loggedControlDigest: projected.fact.loggedControlDigest,
           turnEndSeq: 22,
           triggerRequestSeq: 11,
           triggerCallSeq: 12,

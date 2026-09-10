@@ -72,6 +72,24 @@ schema 漂移、Tools unmount/HMR 跨 epoch 或 Workspace 漂移都不能产生 
 sticky conflict tombstone。Tools 单独 remount 不要求伪造新的 Session start，但会使旧 registration 下所有未决观察失效；
 后续完整发生在新 registration epoch 的干净 turn 才可重新取证。
 
+Transcript 与 request-control reader 只接受两个显式 cohort：Session format v0 对应已审计 alpha.5 dialect，format v3
+对应 rc.2 reader semantics。v3 当前只证明 human-first、没有预排 `next-step` inject/steering context 的 settled direct turn；
+必须使用 embedded compact Assistant stream，逐条验证 record/chunk grammar，并令重新 assembly 的 content、usage、replay
+state、显式成功 finish 与 durable message 完全一致。raw Tool-call delta 可以先携带 current adapter 合法的空 identity，但
+最终 closing block 与 durable message 的 id/name 必须非空且完全一致。System prompt 只接受 AgentLoop 当前固定 source
+`{kind: plugin, plugin: @deepseek-ai/dsh-system-prompt}` 的 empty/单 text `system/message` 投影；
+首个 surface 必须是请求输入之前建立的受保护 System head；本 cohort 的后续非空 append 只能出现在继承 request header
+的后续 step 请求输入之前，不能重复当前有效 prompt；tail 存活后每个后续请求都必须继续继承 header 且保持 effective
+`systemPromptUpdate: in-history`，否则在 replacement 支持迁入前 abstain。
+`request/header.system` 必须缺席，request context 只额外接受并绑定 `systemPromptUpdate: in-history`。
+
+reader 会扫描从 Session 开头到目标 `turn/end` 的整个前缀：未知 required 事件、`assistant/attempt`、`llm/retry*`、surface
+replacement、`compaction/*`、PTC dispatch、顶层 legacy chunk/citation、compact stream 未知字段或 mixed dialect 都
+abstain；只有明确带 `ignorable: true` 的未知事件可跳过。`sourceDialect` 与 logged-control digest 都参与 receipt identity，
+后者还随 raw-free Generation/Routing fact 到 Host composer 做 exact match。旧的 digest-less receipt/qualification 行仍可读取和
+审计，但不能命中 current query，也不能授予 authoring/evaluation 权威；这些字段表示 reader semantics 与已记录 control，
+不证明历史运行时 revision，也不把这个窄 cohort 升级为完整 rc.2 支持声明。
+
 这里的“实际进入自有 body”是 Producer 对 exact registry execution 与 body entry/settlement 的观察，不是 alpha.5 dispatcher
 提供的定义选择证明。当前固定版本既不暴露 dispatcher-selected `ToolDefinition`，也不暴露其内部 `bodyInvoked` 状态，因此
 不能承诺排除所有 captured-body 路径：若下游 `tools/execute` wrapper 在 registry 未发生 mutation/shadow 时，用同一个

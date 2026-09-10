@@ -109,6 +109,7 @@ describe('Interaction Routing evidence vault', () => {
       workspaceId: WORKSPACE_ID,
       subject: {
         sessionLifecycleDigest: interactionRoutingSessionLifecycleDigest(subject),
+        loggedControlDigest: derived.triggerRequestControl.loggedControlDigest,
         turn: 1,
         turnStartSeq: 1,
         turnEndSeq: 22,
@@ -167,6 +168,7 @@ describe('Interaction Routing evidence vault', () => {
           sessionLifecycleDigest: receipt.subject.sessionLifecycleDigest,
           prefixDigest: receipt.subject.prefixDigest,
           turnDigest: receipt.subject.turnDigest,
+          loggedControlDigest: receipt.subject.loggedControlDigest,
           turnEndSeq: 22,
           triggerRequestSeq: 11,
           triggerCallSeq: 12,
@@ -177,6 +179,61 @@ describe('Interaction Routing evidence vault', () => {
     })
     expect(memory.table.size).toBe(1)
     await vault.close()
+  })
+
+  it('does not reuse a receipt across material Tool-schema key ordering', async () => {
+    const memory = memoryFacility()
+    const vault = await openInteractionRoutingEvidenceVault(memory.facility, {
+      authority: authorizedAuthority(),
+    })
+    const original = fixtureSubject()
+    const originalDerived = derivedFor(original)
+    await vault.retain(receiptFor(original))
+
+    const reordered = reorderFirstToolSchemaKeys(original)
+    const reorderedDerived = derivedFor(reordered)
+    expect(reordered.transcript.replay.turnDigest)
+      .toBe(original.transcript.replay.turnDigest)
+    expect(reorderedDerived.triggerRequestControl.loggedControlDigest)
+      .not.toBe(originalDerived.triggerRequestControl.loggedControlDigest)
+    await expect(vault.resolveRoutingEvidence(reordered, reorderedDerived)).resolves.toEqual({
+      status: 'abstained',
+      reason: 'evidence-unavailable',
+    })
+    await vault.close()
+  })
+
+  it('reopens a pre-control-digest receipt without granting it to a current query', async () => {
+    const memory = memoryFacility()
+    const authority = authorizedAuthority()
+    const subject = fixtureSubject()
+    const derived = derivedFor(subject)
+    const receipt = receiptFor(subject)
+    const writer = await openInteractionRoutingEvidenceVault(memory.facility, { authority })
+    await writer.retain(receipt)
+    await writer.close()
+
+    const entry = [...memory.table.entries()][0]
+    if (entry === undefined) throw new Error('expected retained Routing receipt')
+    const legacy = legacyRecordWithoutLoggedControlDigest(
+      entry[1],
+      'evoforge_interaction_routing_evidence',
+    )
+    memory.table.replace(new Map([[legacy.id, legacy]]))
+
+    const reopened = await openInteractionRoutingEvidenceVault(memory.facility, { authority })
+    await expect(reopened.resolveRoutingEvidence(subject, derived)).resolves.toEqual({
+      status: 'abstained',
+      reason: 'evidence-unavailable',
+    })
+    expect(memory.table.size).toBe(1)
+
+    await reopened.retain(receipt)
+    await expect(reopened.resolveRoutingEvidence(subject, derived)).resolves.toMatchObject({
+      status: 'matched',
+    })
+    expect(memory.table.size).toBe(2)
+    await reopened.close()
   })
 
   it('keeps a direct resolution read failure sticky after the backend recovers', async () => {
@@ -1095,6 +1152,19 @@ function isRecord(value: unknown): value is MutableEvidenceRecord {
   return value !== null && typeof value === 'object' && 'state' in value
 }
 
+function legacyRecordWithoutLoggedControlDigest(
+  value: unknown,
+  domain: string,
+): Record<string, any> & { id: string } {
+  const legacy = structuredClone(value) as Record<string, any>
+  delete legacy.identity.subject.loggedControlDigest
+  delete legacy.receipt.subject.loggedControlDigest
+  legacy.id = testHashCanonical({ domain, version: 1, identity: legacy.identity })
+  delete legacy.recordDigest
+  legacy.recordDigest = testHashCanonical({ domain, version: 1, record: legacy })
+  return legacy as Record<string, any> & { id: string }
+}
+
 function deferred<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void
   let reject!: (reason?: unknown) => void
@@ -1428,6 +1498,21 @@ function fixtureSubjectWithSessionId(sessionId: string): DurableInteractionEpiso
   const subject = structuredClone(fixtureSubject()) as unknown as MutableSubject
   subject.session.header.id = sessionId
   subject.transcript.session.id = sessionId
+  rebindReplayDigests(subject)
+  return subject as unknown as DurableInteractionEpisodeSubjectV1
+}
+
+function reorderFirstToolSchemaKeys(
+  source: DurableInteractionEpisodeSubjectV1,
+): DurableInteractionEpisodeSubjectV1 {
+  const subject = structuredClone(source) as unknown as MutableSubject
+  const header = subject.session.events[5]!.data.header as Record<string, any>
+  const firstTool = (header.tools as Array<Record<string, any>>)[0]!
+  const parameters = firstTool.parameters as Record<string, any>
+  firstTool.parameters = {
+    properties: structuredClone(parameters.properties),
+    type: parameters.type,
+  }
   rebindReplayDigests(subject)
   return subject as unknown as DurableInteractionEpisodeSubjectV1
 }

@@ -81,6 +81,27 @@ describe('Interaction Episode transcript proof', () => {
     expect(Object.isFrozen(result.proof.witness.assistantRequestRoutes[0])).toBe(true)
   })
 
+  it('rejects a reverse-mixed v3 embedded stream in a format-v0 Assistant message', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(2_000)
+    const { session, turnEndSeq } = completedModelDeclaredGapTurn()
+    const events = structuredClone(session.snapshotEvents()) as unknown as Array<{
+      type: string
+      data: Record<string, unknown>
+    }>
+    const assistant = events.find(event => event.type === 'assistant/message')
+    if (assistant === undefined) throw new Error('fixture Assistant message is missing')
+    assistant.data.stream = []
+
+    expect(proveInteractionEpisodeTranscript({
+      header: session.header,
+      inheritedEventCount: session.inheritedEventCount,
+      snapshotEvents: () => events as unknown as readonly SessionEvent[],
+    }, turnEndSeq, { callId: 'gap-call' })).toEqual({
+      status: 'abstained',
+      reason: 'transcript-not-proven',
+    })
+  })
+
   it('abstains when another direct human input interleaves before turn completion', () => {
     vi.spyOn(Date, 'now').mockReturnValue(2_000)
     const { session, turnEndSeq } = completedModelDeclaredGapTurn({

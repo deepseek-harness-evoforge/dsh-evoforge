@@ -5,8 +5,12 @@ import {
   type SessionHeader,
 } from '@deepseek-ai/dsh-session'
 import type { InteractionEpisodeTranscriptProofV1 } from './interaction-episode-projector.ts'
+import {
+  INTERACTION_SESSION_V3_DIALECT,
+  interactionSessionDialectForFormatVersion,
+  type InteractionSessionDialect,
+} from './interaction-session-dialect.ts'
 
-const sourceDialect = 'deepseek-harness@0.1.2-alpha.5' as const
 const hashPattern = /^[a-f0-9]{64}$/u
 
 /**
@@ -25,7 +29,7 @@ export interface InteractionEpisodeTriggerRequestControlFactV1 {
   readonly schemaVersion: 1
   readonly kind: 'interaction-episode-trigger-request-control-fact-v1'
   /** Projector/reader semantics, not evidence of the historical DSH revision. */
-  readonly sourceDialect: typeof sourceDialect
+  readonly sourceDialect: InteractionSessionDialect
   readonly subject: {
     readonly sessionId: string
     readonly sessionFormatVersion: number
@@ -123,12 +127,13 @@ function projectUnchecked(
   const throughSeq = safeNonNegativeInteger(session.throughSeq)
   const inheritedEventCount = safeNonNegativeInteger(session.inheritedEventCount)
   const sessionFormatVersion = safeNonNegativeInteger(sessionHeader.version)
+  const sourceDialect = interactionSessionDialectForFormatVersion(sessionFormatVersion)
   const sessionCreatedAt = safeInteger(sessionHeader.createdAt)
   const sessionId = nonEmptyString(sessionHeader.id)
   if (throughSeq === undefined
     || inheritedEventCount === undefined
     || sessionFormatVersion === undefined
-    || sessionFormatVersion !== 0
+    || sourceDialect === undefined
     || sessionCreatedAt === undefined
     || sessionId === undefined
     || events.length !== throughSeq + 1
@@ -205,7 +210,7 @@ function projectUnchecked(
     const route = parseRequestRoute(rawRoute)
     if (route === undefined
       || route.assistantMessageSeq <= previousAssistantSeq
-      || !routeMatchesEvents(route, events, throughSeq)) return abstained()
+      || !routeMatchesEvents(route, events, throughSeq, sourceDialect)) return abstained()
     routes.push(route)
     previousAssistantSeq = route.assistantMessageSeq
   }
@@ -236,8 +241,8 @@ function projectUnchecked(
   const assistantMessage = record(assistantData?.message)
   const assistantSource = record(assistantMessage?.source)
   const headerData = record(headerEvent.data)
-  const header = canonicalRequestHeader(headerData?.header)
-  const context = canonicalRequestContext(contextEvent.data)
+  const header = canonicalRequestHeader(headerData?.header, sourceDialect)
+  const context = canonicalRequestContext(contextEvent.data, sourceDialect)
   const callData = record(callEvent.data)
   const resultData = record(resultEvent.data)
   const resultMessage = record(resultData?.message)
@@ -323,8 +328,8 @@ function requestHeaderDigestValue(header: CanonicalRequestHeader): JsonRecord {
   const digestHeader: Record<string, JsonValue> = { ...header }
   if (Object.hasOwn(header, 'tools')) {
     const tools = array(header.tools)!
-    // alpha.5 request-header equality deliberately compares each ToolSchema
-    // with JSON.stringify, so nested schema key order is part of its identity.
+    // Both admitted dialect cohorts preserve request ToolSchema JSON ordering,
+    // so nested schema key order remains part of this logged identity.
     digestHeader.tools = tools.map(tool => JSON.stringify(tool))
   }
   return digestHeader
@@ -439,6 +444,7 @@ function routeMatchesEvents(
   route: RequestRoute,
   events: readonly JsonValue[],
   throughSeq: number,
+  sourceDialect: InteractionSessionDialect,
 ): boolean {
   if (route.assistantMessageSeq > throughSeq
     || route.headerSeq >= route.assistantMessageSeq
@@ -454,8 +460,8 @@ function routeMatchesEvents(
   const message = record(assistantData?.message)
   const loggedSource = record(message?.source)
   const headerData = record(header?.data)
-  const requestHeader = canonicalRequestHeader(headerData?.header)
-  const requestContext = canonicalRequestContext(context?.data)
+  const requestHeader = canonicalRequestHeader(headerData?.header, sourceDialect)
+  const requestContext = canonicalRequestContext(context?.data, sourceDialect)
   return assistant !== undefined
     && header !== undefined
     && context !== undefined
@@ -481,12 +487,18 @@ interface CanonicalRequestContext extends JsonRecord {
   readonly model: string
 }
 
-function canonicalRequestHeader(value: JsonValue | undefined): CanonicalRequestHeader | undefined {
+function canonicalRequestHeader(
+  value: JsonValue | undefined,
+  sourceDialect: InteractionSessionDialect,
+): CanonicalRequestHeader | undefined {
   const header = record(value)
   const config = record(header?.config)
+  const headerKeys = sourceDialect === INTERACTION_SESSION_V3_DIALECT
+    ? ['config', 'adapterDefaults', 'tools']
+    : ['config', 'adapterDefaults', 'system', 'tools']
   if (header === undefined
     || config === undefined
-    || !hasOnlyKeys(header, ['config', 'adapterDefaults', 'system', 'tools'])
+    || !hasOnlyKeys(header, headerKeys)
     || !hasOnlyKeys(config, [
       'provider',
       'model',
@@ -533,16 +545,24 @@ function canonicalRequestHeader(value: JsonValue | undefined): CanonicalRequestH
     : undefined
 }
 
-function canonicalRequestContext(value: JsonValue | undefined): CanonicalRequestContext | undefined {
+function canonicalRequestContext(
+  value: JsonValue | undefined,
+  sourceDialect: InteractionSessionDialect,
+): CanonicalRequestContext | undefined {
   const context = record(value)
+  const contextKeys = sourceDialect === INTERACTION_SESSION_V3_DIALECT
+    ? ['provider', 'model', 'contextWindow', 'systemPromptUpdate']
+    : ['provider', 'model', 'contextWindow']
   if (context === undefined
-    || !hasOnlyKeys(context, ['provider', 'model', 'contextWindow'])) return undefined
+    || !hasOnlyKeys(context, contextKeys)) return undefined
   const provider = nonEmptyString(context.provider)
   const model = nonEmptyString(context.model)
   if (provider === undefined || model === undefined) return undefined
   if (Object.hasOwn(context, 'contextWindow')
     && (safeNonNegativeInteger(context.contextWindow) === undefined
       || context.contextWindow === 0)) return undefined
+  if (Object.hasOwn(context, 'systemPromptUpdate')
+    && context.systemPromptUpdate !== 'in-history') return undefined
   return context as CanonicalRequestContext
 }
 

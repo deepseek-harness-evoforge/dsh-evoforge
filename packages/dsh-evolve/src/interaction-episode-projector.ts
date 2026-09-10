@@ -15,6 +15,11 @@ import {
   TOOL_NOT_STARTED,
 } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-tools'
+import {
+  INTERACTION_SESSION_V0_DIALECT,
+  INTERACTION_SESSION_V3_DIALECT,
+  interactionSessionDialectForFormatVersion,
+} from './interaction-session-dialect.ts'
 
 /** Selects one direct AgentLoop Tool pair; nested PTC dispatches are not Episode-v1 triggers. */
 export interface InteractionTranscriptDirectTriggerLocatorV1 {
@@ -102,6 +107,87 @@ export interface InteractionEpisodeTranscriptSourceV1 {
   snapshotEvents(): readonly SessionEvent[]
 }
 
+interface ValidatedV3AssistantSettlement {
+  readonly finishKind: 'stop' | 'tool-calls' | 'max-tokens'
+}
+
+type TranscriptDialectContext =
+  | { readonly kind: 'session-v0' }
+  | {
+    readonly kind: 'session-v3'
+    readonly settlements: ReadonlyMap<number, ValidatedV3AssistantSettlement>
+  }
+
+const V3_EVENT_ENVELOPE_KEYS = new Set([
+  'type',
+  'seq',
+  'time',
+  'data',
+  'surfaceOp',
+  'sourceEventSeqs',
+  'ignorable',
+])
+
+/** Frozen DSH rc.2 Session vocabulary understood by this reader. */
+const V3_KNOWN_EVENT_TYPES = new Set([
+  'agent-preset/selected',
+  'agent/inbox/spliced',
+  'approval/asked',
+  'approval/decided',
+  'approval/policy',
+  'assistant/attempt',
+  'assistant/message',
+  'command/done',
+  'command/run',
+  'compaction/end',
+  'compaction/prune',
+  'compaction/start',
+  'compaction/summary',
+  'deliverables/presented',
+  'feedback/message-delete',
+  'feedback/message-put',
+  'feedback/record',
+  'goal/change',
+  'hook/invoked',
+  'hook/result',
+  'llm/retry',
+  'llm/retry-started',
+  'model/selection',
+  'permission/preset',
+  'plan/mode',
+  'request/context',
+  'request/header',
+  'sandbox/mode',
+  'schedule/change',
+  'session-log-deepseek/delivery-accepted',
+  'session/end-seed',
+  'session/title',
+  'session/title-llm-request',
+  'step/end',
+  'step/start',
+  'subagent/catalog',
+  'subagent/descriptor',
+  'subagent/model-selection-policy',
+  'system/message',
+  'team/member',
+  'team/message/delivered',
+  'team/message/queued',
+  'team/task',
+  'todo/write',
+  'tool-workflow/agent-end',
+  'tool-workflow/agent-start',
+  'tool-workflow/run-end',
+  'tool-workflow/run-start',
+  'tool/call',
+  'tool/ptc-dispatch',
+  'tool/ptc-dispatch-start',
+  'tool/result',
+  'turn/end',
+  'turn/start',
+  'user/message',
+  'web/deepseek-search-llm-request',
+])
+
 /**
  * Prove the Session-owned transcript portion of one prospective Interaction
  * Episode. Environment, Workspace, catalog, Generation, permission, sandbox,
@@ -127,6 +213,533 @@ export function proveInteractionEpisodeTranscript(
   }
 }
 
+function transcriptDialectContext(
+  formatVersion: unknown,
+  events: readonly SessionEvent[],
+  turnEnd: SessionEvent<'turn/end'>,
+): TranscriptDialectContext | undefined {
+  const sourceDialect = interactionSessionDialectForFormatVersion(formatVersion)
+  if (sourceDialect === INTERACTION_SESSION_V0_DIALECT) {
+    return validateV0TranscriptDialect(events, Number(turnEnd.seq))
+      ? { kind: 'session-v0' }
+      : undefined
+  }
+  if (sourceDialect !== INTERACTION_SESSION_V3_DIALECT) return undefined
+  const settlements = validateV3Transcript(events, Number(turnEnd.seq))
+  return settlements === undefined
+    ? undefined
+    : { kind: 'session-v3', settlements }
+}
+
+/** Refuse v3-only carriers hidden behind a legacy format header. */
+function validateV0TranscriptDialect(
+  events: readonly SessionEvent[],
+  throughSeq: number,
+): boolean {
+  for (let index = 0; index <= throughSeq; index++) {
+    const event = events[index] as unknown
+    if (!isPlainRecord(event) || typeof event.type !== 'string') continue
+    if (event.type === 'system/message'
+      || event.type === 'assistant/attempt'
+      || event.type === 'tool/ptc-dispatch-start'
+      || event.type === 'tool/ptc-dispatch') return false
+    const data = isPlainRecord(event.data) ? event.data : undefined
+    if ((event.type === 'assistant/message' && Object.hasOwn(data ?? {}, 'stream'))
+      || (event.type === 'request/context'
+        && Object.hasOwn(data ?? {}, 'systemPromptUpdate'))) return false
+  }
+  return true
+}
+
+function validateV3Transcript(
+  events: readonly SessionEvent[],
+  throughSeq: number,
+): ReadonlyMap<number, ValidatedV3AssistantSettlement> | undefined {
+  const settlements = new Map<number, ValidatedV3AssistantSettlement>()
+  let hasSurface = false
+  let hasSystemHead = false
+  for (let index = 0; index <= throughSeq; index++) {
+    const event = events[index] as unknown
+    if (!isPlainRecord(event)
+      || !hasOnlyV3EventEnvelopeKeys(event)
+      || event.seq !== index
+      || Object.is(event.seq, -0)
+      || !Number.isSafeInteger(event.time)
+      || Object.is(event.time, -0)
+      || typeof event.type !== 'string'
+      || !isPlainRecord(event.data)
+      || (Object.hasOwn(event, 'ignorable') && event.ignorable !== true)) return undefined
+    const type = event.type
+    if (!V3_KNOWN_EVENT_TYPES.has(type) && event.ignorable !== true) return undefined
+    const isSurface = type === 'system/message'
+      || type === 'user/message'
+      || type === 'assistant/message'
+      || type === 'tool/result'
+    if ((Object.hasOwn(event, 'surfaceOp') && (!isSurface || event.surfaceOp !== 'append'))
+      || (!isSurface && Object.hasOwn(event, 'sourceEventSeqs'))
+      || type === 'assistant/chunk'
+      || type === 'assistant/attempt'
+      || type === 'llm/retry'
+      || type === 'llm/retry-started'
+      || type === 'tool/code-dispatch-start'
+      || type === 'tool/code-dispatch'
+      || type === 'tool/ptc-dispatch-start'
+      || type === 'tool/ptc-dispatch'
+      || type.startsWith('compaction/')) return undefined
+
+    if (isSurface) {
+      if (event.surfaceOp !== 'append') return undefined
+      if (Object.hasOwn(event, 'sourceEventSeqs')
+        && (type === 'assistant/message'
+          || type === 'system/message'
+          || !validV3SourceEventSeqs(event.sourceEventSeqs, index))) return undefined
+    }
+    if (type === 'system/message') {
+      if (hasSurface && !hasSystemHead) return undefined
+      if (Object.hasOwn(event, 'sourceEventSeqs') || !hasValidV3SystemMessageShape(event.data)) {
+        return undefined
+      }
+      if (!hasSurface) hasSystemHead = true
+      hasSurface = true
+      continue
+    }
+    if (isSurface) hasSurface = true
+    if (type !== 'assistant/message') continue
+    if (Object.hasOwn(event, 'sourceEventSeqs')) return undefined
+    const settlement = validateV3AssistantSettlement(event.data)
+    if (settlement === undefined) return undefined
+    settlements.set(index, settlement)
+  }
+  if (hasSurface && !hasSystemHead) return undefined
+  return hasValidV3SystemPromptSequence(events, throughSeq) ? settlements : undefined
+}
+
+function hasOnlyV3EventEnvelopeKeys(event: Record<string, unknown>): boolean {
+  return Reflect.ownKeys(event).every(
+    key => typeof key === 'string' && V3_EVENT_ENVELOPE_KEYS.has(key),
+  )
+}
+
+function validV3SourceEventSeqs(value: unknown, eventSeq: number): boolean {
+  if (!Array.isArray(value) || value.length === 0) return false
+  const seen = new Set<number>()
+  for (const candidate of value) {
+    if (!validStreamIndex(candidate) || candidate >= eventSeq || seen.has(candidate)) return false
+    seen.add(candidate)
+  }
+  return true
+}
+
+function hasValidV3SystemMessageShape(data: Record<string, unknown>): boolean {
+  if (!hasExactKeys(data, ['turn', 'step', 'message'])
+    || !positiveSafeInteger(data.turn)
+    || !positiveSafeInteger(data.step)) return false
+  const message = isPlainRecord(data.message) ? data.message : undefined
+  const source = isPlainRecord(message?.source) ? message.source : undefined
+  return message !== undefined
+    && hasExactKeys(message, ['id', 'role', 'source', 'content'])
+    && hasNonEmptyString(message, 'id')
+    && message.role === 'system'
+    && source !== undefined
+    // The admitted direct-turn cohort is exactly output-shaped like the
+    // current AgentLoop system-prompt projection.
+    && hasExactKeys(source, ['kind', 'plugin'])
+    && source.kind === 'plugin'
+    && source.plugin === '@deepseek-ai/dsh-system-prompt'
+    && Array.isArray(message.content)
+    && message.content.length <= 1
+    && message.content.every(validV3SystemContentBlock)
+}
+
+function validV3SystemContentBlock(value: unknown): boolean {
+  return isPlainRecord(value)
+    && hasExactKeys(value, ['type', 'text'])
+    && value.type === 'text'
+    && typeof value.text === 'string'
+    && value.text.length > 0
+}
+
+/**
+ * Bind later prompt appends to the order and route capability used by the
+ * current AgentLoop. The protected head is established before first input;
+ * a later append is one prompt change at the start of a subsequent step and
+ * is authoritative only for an inherited or newly logged in-history route.
+ */
+function hasValidV3SystemPromptSequence(
+  events: readonly SessionEvent[],
+  throughSeq: number,
+): boolean {
+  let openTurn: number | undefined
+  let openStep: number | undefined
+  let stepRequestStarted = false
+  let systemInStep = false
+  let firstSystem = true
+  let latestSystemText: string | undefined
+  let pendingLaterSystem = false
+  let activeLaterSystemTail = false
+  let effectiveContext: Record<string, unknown> | undefined
+
+  for (let index = 0; index <= throughSeq; index++) {
+    const event = events[index] as unknown
+    if (!isPlainRecord(event) || typeof event.type !== 'string') return false
+    const data = isPlainRecord(event.data) ? event.data : undefined
+    if (data === undefined) return false
+
+    if (event.type === 'turn/start') {
+      openTurn = typeof data.turn === 'number' ? data.turn : undefined
+      continue
+    }
+    if (event.type === 'turn/end') {
+      if (pendingLaterSystem) return false
+      openTurn = undefined
+      openStep = undefined
+      continue
+    }
+    if (event.type === 'step/start') {
+      if (pendingLaterSystem) return false
+      openStep = typeof data.step === 'number' ? data.step : undefined
+      stepRequestStarted = false
+      systemInStep = false
+      continue
+    }
+    if (event.type === 'step/end') {
+      if (pendingLaterSystem) return false
+      openStep = undefined
+      continue
+    }
+    if (event.type === 'request/context') {
+      effectiveContext = data
+      stepRequestStarted = true
+      continue
+    }
+    if (event.type === 'request/header') {
+      // This narrow cohort admits later prompt tails only while the original
+      // request header remains inherited. A new header would require proving
+      // whether AgentLoop consolidated every active tail by replacement.
+      if (pendingLaterSystem || activeLaterSystemTail) return false
+      stepRequestStarted = true
+      continue
+    }
+    if (event.type === 'system/message') {
+      if (data.turn !== openTurn
+        || data.step !== openStep
+        || systemInStep
+        || stepRequestStarted) return false
+      systemInStep = true
+      const message = isPlainRecord(data.message) ? data.message : undefined
+      const content = Array.isArray(message?.content) ? message.content : undefined
+      const block = content?.[0]
+      const systemText = content?.length === 0
+        ? ''
+        : isPlainRecord(block) && typeof block.text === 'string' ? block.text : undefined
+      if (systemText === undefined) return false
+      if (firstSystem) {
+        firstSystem = false
+        latestSystemText = systemText
+        continue
+      }
+      if (content?.length !== 1 || systemText === latestSystemText) return false
+      latestSystemText = systemText
+      pendingLaterSystem = true
+      activeLaterSystemTail = true
+      continue
+    }
+    if (event.type === 'assistant/message') {
+      if (activeLaterSystemTail && effectiveContext?.systemPromptUpdate !== 'in-history') {
+        return false
+      }
+      if (pendingLaterSystem) {
+        if (data.turn !== openTurn
+          || data.step !== openStep) return false
+        pendingLaterSystem = false
+      }
+      stepRequestStarted = true
+      continue
+    }
+    if (event.type === 'user/message' || event.type === 'tool/result') {
+      stepRequestStarted = true
+    }
+  }
+  return !firstSystem && !pendingLaterSystem
+}
+
+function validateV3AssistantSettlement(
+  data: Record<string, unknown>,
+): ValidatedV3AssistantSettlement | undefined {
+  const allowedDataKeys = data.usage === undefined
+    ? ['turn', 'step', 'message', 'stream']
+    : ['turn', 'step', 'message', 'stream', 'usage']
+  if (!hasExactKeys(data, allowedDataKeys)
+    || !positiveSafeInteger(data.turn)
+    || !positiveSafeInteger(data.step)
+    || !Array.isArray(data.stream)
+    || data.stream.length === 0) return undefined
+  const message = isPlainRecord(data.message) ? data.message : undefined
+  const source = isPlainRecord(message?.source) ? message.source : undefined
+  if (message === undefined
+    || source === undefined
+    || !hasExactKeys(message, ['id', 'role', 'source', 'content'])
+    || !hasNonEmptyString(message, 'id')
+    || message.role !== 'assistant'
+    || !hasValidV3ModelSourceShape(source)
+    || !Array.isArray(message.content)) return undefined
+
+  const chunks = expandAndValidateV3AssistantStream(data.stream)
+  if (chunks === undefined) return undefined
+  const grammar = validateV3AssistantStreamGrammar(chunks)
+  if (grammar === undefined) return undefined
+  const assembler = new BlockAssembler()
+  for (const chunk of chunks) assembler.push(chunk as never)
+  return canonicalEquals(assembler.blocks(), message.content)
+    && optionalCanonicalEquals(assembler.usage, data.usage)
+    && optionalCanonicalEquals(assembler.replayState, source.replayState)
+    ? { finishKind: grammar.finishKind }
+    : undefined
+}
+
+function hasValidV3ModelSourceShape(source: Record<string, unknown>): boolean {
+  const keys = Object.hasOwn(source, 'replayState')
+    ? ['kind', 'provider', 'model', 'replayState']
+    : ['kind', 'provider', 'model']
+  return hasExactKeys(source, keys)
+    && source.kind === 'model'
+    && hasNonEmptyString(source, 'provider')
+    && hasNonEmptyString(source, 'model')
+    && (!Object.hasOwn(source, 'replayState') || validReplayEnvelope(source.replayState))
+}
+
+type ValidatedStreamChunk = Record<string, unknown> & { readonly type: string }
+
+function expandAndValidateV3AssistantStream(
+  stream: readonly unknown[],
+): readonly ValidatedStreamChunk[] | undefined {
+  const chunks: ValidatedStreamChunk[] = []
+  for (const candidate of stream) {
+    if (!isPlainRecord(candidate) || typeof candidate.type !== 'string') return undefined
+    if (candidate.type === 'chunk') {
+      if (!hasExactKeys(candidate, ['type', 'time', 'chunk'])
+        || !Number.isSafeInteger(candidate.time)
+        || Object.is(candidate.time, -0)) return undefined
+      const chunk = validateV3StreamChunk(candidate.chunk)
+      if (chunk === undefined) return undefined
+      chunks.push(chunk)
+      continue
+    }
+    if (candidate.type !== 'text-chunks'
+      && candidate.type !== 'reasoning-chunks'
+      && candidate.type !== 'tool-call-chunks') return undefined
+    const isTool = candidate.type === 'tool-call-chunks'
+    const memberKey = isTool ? 'args' : 'texts'
+    const keys = isTool
+      ? Object.hasOwn(candidate, 'name')
+        ? ['type', 'time0', 'index', 'dt', 'id', 'name', 'args']
+        : ['type', 'time0', 'index', 'dt', 'id', 'args']
+      : ['type', 'time0', 'index', 'dt', 'texts']
+    const members = candidate[memberKey]
+    if (!hasExactKeys(candidate, keys)
+      || !Number.isSafeInteger(candidate.time0)
+      || Object.is(candidate.time0, -0)
+      || !validStreamIndex(candidate.index)
+      || !Array.isArray(candidate.dt)
+      || candidate.dt.some(gap => !Number.isSafeInteger(gap) || Object.is(gap, -0))
+      || !Array.isArray(members)
+      || members.length === 0
+      || members.some(member => typeof member !== 'string')
+      || candidate.dt.length !== members.length - 1
+      || (isTool && (!hasNonEmptyString(candidate, 'id')
+        || (Object.hasOwn(candidate, 'name') && !hasNonEmptyString(candidate, 'name'))))) {
+      return undefined
+    }
+    let time = candidate.time0 as number
+    for (let memberIndex = 0; memberIndex < members.length; memberIndex++) {
+      if (memberIndex > 0) {
+        time += candidate.dt[memberIndex - 1] as number
+        if (!Number.isSafeInteger(time) || Object.is(time, -0)) return undefined
+      }
+      const chunk = candidate.type === 'text-chunks'
+        ? { type: 'text-delta', index: candidate.index, text: members[memberIndex] }
+        : candidate.type === 'reasoning-chunks'
+          ? { type: 'reasoning-delta', index: candidate.index, text: members[memberIndex] }
+          : {
+              type: 'tool-call-delta',
+              index: candidate.index,
+              id: candidate.id,
+              ...(Object.hasOwn(candidate, 'name') ? { name: candidate.name } : {}),
+              argumentsDelta: members[memberIndex],
+            }
+      const validated = validateV3StreamChunk(chunk)
+      if (validated === undefined) return undefined
+      chunks.push(validated)
+    }
+  }
+  return chunks
+}
+
+function validateV3StreamChunk(value: unknown): ValidatedStreamChunk | undefined {
+  if (!isPlainRecord(value) || typeof value.type !== 'string') return undefined
+  switch (value.type) {
+    case 'block-start':
+      return hasExactKeys(value, ['type', 'index', 'blockType'])
+        && validStreamIndex(value.index)
+        && (value.blockType === 'text'
+          || value.blockType === 'reasoning'
+          || value.blockType === 'tool-call')
+        ? value as ValidatedStreamChunk
+        : undefined
+    case 'text-delta':
+    case 'reasoning-delta':
+      return hasExactKeys(value, ['type', 'index', 'text'])
+        && validStreamIndex(value.index)
+        && typeof value.text === 'string'
+        ? value as ValidatedStreamChunk
+        : undefined
+    case 'tool-call-delta': {
+      const keys = Object.hasOwn(value, 'name')
+        ? ['type', 'index', 'id', 'name', 'argumentsDelta']
+        : ['type', 'index', 'id', 'argumentsDelta']
+      return hasExactKeys(value, keys)
+        && validStreamIndex(value.index)
+        // Current adapters can establish Tool identity over several deltas.
+        // The authoritative closing block below remains non-empty and exact.
+        && typeof value.id === 'string'
+        && (!Object.hasOwn(value, 'name') || typeof value.name === 'string')
+        && typeof value.argumentsDelta === 'string'
+        ? value as ValidatedStreamChunk
+        : undefined
+    }
+    case 'block-end':
+      return hasExactKeys(value, ['type', 'index', 'block'])
+        && validStreamIndex(value.index)
+        && validV3AssistantBlock(value.block)
+        ? value as ValidatedStreamChunk
+        : undefined
+    case 'usage':
+      return hasExactKeys(value, ['type', 'usage']) && validTokenUsage(value.usage)
+        ? value as ValidatedStreamChunk
+        : undefined
+    case 'finish': {
+      const keys = Object.hasOwn(value, 'replayState')
+        ? ['type', 'reason', 'replayState']
+        : ['type', 'reason']
+      const reason = isPlainRecord(value.reason) ? value.reason : undefined
+      return hasExactKeys(value, keys)
+        && reason !== undefined
+        && hasExactKeys(reason, ['kind'])
+        && (reason.kind === 'stop'
+          || reason.kind === 'tool-calls'
+          || reason.kind === 'max-tokens')
+        && (!Object.hasOwn(value, 'replayState') || validReplayEnvelope(value.replayState))
+        ? value as ValidatedStreamChunk
+        : undefined
+    }
+    default:
+      return undefined
+  }
+}
+
+function validReplayEnvelope(value: unknown): boolean {
+  if (!isPlainRecord(value) || !Object.hasOwn(value, 'response')) return false
+  const keys = Object.hasOwn(value, 'blocks')
+    ? ['response', 'blocks']
+    : ['response']
+  return hasExactKeys(value, keys)
+    && (!Object.hasOwn(value, 'blocks') || Array.isArray(value.blocks))
+}
+
+function validateV3AssistantStreamGrammar(
+  chunks: readonly ValidatedStreamChunk[],
+): ValidatedV3AssistantSettlement | undefined {
+  const open = new Map<number, string>()
+  const used = new Set<number>()
+  let usageSeen = false
+  let finishKind: ValidatedV3AssistantSettlement['finishKind'] | undefined
+  for (const chunk of chunks) {
+    if (finishKind !== undefined) return undefined
+    const index = typeof chunk.index === 'number' ? chunk.index : undefined
+    if (chunk.type === 'block-start') {
+      if (index === undefined || used.has(index)) return undefined
+      used.add(index)
+      open.set(index, String(chunk.blockType))
+    } else if (chunk.type === 'text-delta'
+      || chunk.type === 'reasoning-delta'
+      || chunk.type === 'tool-call-delta') {
+      const expected = chunk.type === 'text-delta'
+        ? 'text'
+        : chunk.type === 'reasoning-delta' ? 'reasoning' : 'tool-call'
+      if (index === undefined || open.get(index) !== expected) return undefined
+    } else if (chunk.type === 'block-end') {
+      const block = isPlainRecord(chunk.block) ? chunk.block : undefined
+      if (index === undefined || block === undefined || open.get(index) !== block.type) {
+        return undefined
+      }
+      open.delete(index)
+    } else if (chunk.type === 'usage') {
+      if (usageSeen) return undefined
+      usageSeen = true
+    } else if (chunk.type === 'finish') {
+      const reason = isPlainRecord(chunk.reason) ? chunk.reason : undefined
+      if (reason === undefined
+        || (reason.kind !== 'stop'
+          && reason.kind !== 'tool-calls'
+          && reason.kind !== 'max-tokens')
+        || open.size > 0) return undefined
+      finishKind = reason.kind
+    }
+  }
+  return finishKind === undefined ? undefined : { finishKind }
+}
+
+function validV3AssistantBlock(value: unknown): boolean {
+  if (!isPlainRecord(value) || typeof value.type !== 'string') return false
+  if (value.type === 'text' || value.type === 'reasoning') {
+    return hasExactKeys(value, ['type', 'text']) && typeof value.text === 'string'
+  }
+  return value.type === 'tool-call'
+    && hasExactKeys(value, ['type', 'id', 'name', 'arguments'])
+    && hasNonEmptyString(value, 'id')
+    && hasNonEmptyString(value, 'name')
+    && typeof value.arguments === 'string'
+}
+
+function validTokenUsage(value: unknown): boolean {
+  if (!isPlainRecord(value)) return false
+  const allowed = new Set([
+    'inputTokens',
+    'outputTokens',
+    'totalTokens',
+    'cacheReadTokens',
+    'cacheWriteTokens',
+    'reasoningTokens',
+  ])
+  return Object.keys(value).every(key => allowed.has(key))
+    && safeTokenCount(value.inputTokens)
+    && safeTokenCount(value.outputTokens)
+    && Object.entries(value).every(([, count]) => safeTokenCount(count))
+}
+
+function safeTokenCount(value: unknown): value is number {
+  return Number.isSafeInteger(value) && (value as number) >= 0 && !Object.is(value, -0)
+}
+
+function validStreamIndex(value: unknown): value is number {
+  return Number.isSafeInteger(value) && (value as number) >= 0 && !Object.is(value, -0)
+}
+
+function positiveSafeInteger(value: unknown): value is number {
+  return Number.isSafeInteger(value) && (value as number) > 0
+}
+
+function hasExactKeys(record: Record<string, unknown>, expected: readonly string[]): boolean {
+  const keys = Object.keys(record)
+  return keys.length === expected.length && expected.every(key => Object.hasOwn(record, key))
+}
+
+function opaqueEventData(event: SessionEvent): Record<string, unknown> | undefined {
+  return isPlainRecord((event as unknown as Record<string, unknown>).data)
+    ? (event as unknown as { readonly data: Record<string, unknown> }).data
+    : undefined
+}
+
 function proveInteractionEpisodeTranscriptUnchecked(
   session: InteractionEpisodeTranscriptSourceV1,
   turnEndSeq: number,
@@ -136,6 +749,8 @@ function proveInteractionEpisodeTranscriptUnchecked(
   const turnEnd = events[turnEndSeq]
   if (turnEnd?.type !== 'turn/end') return abstain('turn-not-found')
   if (turnEnd.data.reason.kind !== 'completed') return abstain('turn-not-completed')
+  const dialect = transcriptDialectContext(session.header.version, events, turnEnd)
+  if (dialect === undefined) return abstain('transcript-not-proven')
   if (session.header.origin === 'subagent' || (session.header.delegationDepth ?? 0) > 0) {
     return abstain('subagent-session')
   }
@@ -147,10 +762,10 @@ function proveInteractionEpisodeTranscriptUnchecked(
     && event.seq < turnEnd.seq)
   if (turnStarts.length !== 1) return abstain('turn-not-found')
   const turnStart = turnStarts[0]!
-  if (!hasValidCoreTrace(events, turnEnd)) {
+  if (!hasValidCoreTrace(events, turnEnd, dialect)) {
     return abstain('turn-structure-invalid')
   }
-  if (!hasValidRequestStateLog(events, turnEnd)) {
+  if (!hasValidRequestStateLog(events, turnEnd, dialect)) {
     return abstain('request-not-proven')
   }
   const firstStepStart = events.find((event): event is SessionEvent<'step/start'> =>
@@ -206,18 +821,25 @@ function proveInteractionEpisodeTranscriptUnchecked(
     events,
     Number(session.inheritedEventCount),
     turnEnd,
+    dialect,
   )) return abstain('turn-structure-invalid')
   if (!hasProvenCompletedTurnStructure(
     events,
     Number(session.inheritedEventCount),
     turnStart,
     turnEnd,
+    dialect,
   )) {
     return abstain('turn-structure-invalid')
   }
-  const assistantRequestRoutes = proveAssistantRequestRoutes(events, turnStart, turnEnd)
+  const assistantRequestRoutes = proveAssistantRequestRoutes(
+    events,
+    turnStart,
+    turnEnd,
+    dialect,
+  )
   if (assistantRequestRoutes === undefined) return abstain('request-not-proven')
-  if (!humanIngressRemainsVisibleAtRequest(events, initiating, pair.request)) {
+  if (!humanIngressRemainsVisibleAtRequest(events, initiating, pair.request, dialect)) {
     return abstain('human-ingress-not-proven')
   }
   const pendingNextStep = pendingNextStepAt(events, session.inheritedEventCount, turnEnd)
@@ -290,7 +912,7 @@ function proveInteractionEpisodeTranscriptUnchecked(
       },
       trigger: {
         kind: pair.kind,
-        callId: String(pair.call.data.callId),
+        callId: pair.call.data.callId,
         requestedSkill: pair.requestedSkill,
       },
       replay: {
@@ -446,7 +1068,9 @@ function humanIngressRemainsVisibleAtRequest(
   events: readonly SessionEvent[],
   initiating: SessionEvent<'user/message'>,
   request: SessionEvent<'assistant/message'>,
+  dialect: TranscriptDialectContext,
 ): boolean {
+  if (dialect.kind === 'session-v3') return initiating.seq < request.seq
   const firstChunkSeq = request.sourceEventSeqs?.map(Number).at(0)
   if (firstChunkSeq === undefined) return false
   const surface = foldSurface(events.slice(0, firstChunkSeq))
@@ -479,7 +1103,7 @@ function findTriggerPair(
     event.type === 'tool/call'
     && event.seq > turnStart.seq
     && event.seq < turnEnd.seq
-    && String(event.data.callId) === trigger.callId)
+    && event.data.callId === trigger.callId)
   if (calls.length !== 1) return undefined
   const call = calls[0]!
   if (call.data.name !== 'report_capability_gap' && call.data.name !== 'skill') {
@@ -492,7 +1116,7 @@ function findTriggerPair(
     && isAppendSurfaceEvent(event)
     && event.seq > call.seq
     && event.seq < turnEnd.seq
-    && String(event.data.message.source.callId) === trigger.callId)
+    && event.data.message.source.callId === trigger.callId)
   if (results.length !== 1) return undefined
   const result = results[0]!
   if (!resultLinksCall(result, call)) return undefined
@@ -500,7 +1124,7 @@ function findTriggerPair(
     request.event.seq < call.seq
     && request.event.data.turn === call.data.turn
     && request.event.data.step === call.data.step
-    && String(request.block.id) === String(call.data.callId)
+    && request.block.id === call.data.callId
     && request.block.name === call.data.name
     && request.block.arguments === call.data.arguments)
   if (requests.length !== 1) return undefined
@@ -556,7 +1180,7 @@ function callMatchesRequest(
   return request.event.seq < call.seq
     && request.event.data.turn === call.data.turn
     && request.event.data.step === call.data.step
-    && String(request.block.id) === String(call.data.callId)
+    && request.block.id === call.data.callId
     && request.block.name === call.data.name
     && request.block.arguments === call.data.arguments
 }
@@ -615,6 +1239,7 @@ function toolRequestsThrough(
 function hasValidCoreTrace(
   events: readonly SessionEvent[],
   targetEnd: SessionEvent<'turn/end'>,
+  dialect: TranscriptDialectContext,
 ): boolean {
   let lastSeq = -1
   let openTurn: number | undefined
@@ -636,6 +1261,13 @@ function hasValidCoreTrace(
     if (event.seq <= lastSeq) return false
     if (!hasValidCoreMessageShape(event)) return false
     lastSeq = Number(event.seq)
+    if (dialect.kind === 'session-v3' && String(event.type) === 'system/message') {
+      const data = opaqueEventData(event)
+      if (data === undefined
+        || openTurn !== data.turn
+        || openStep !== data.step) return false
+      continue
+    }
     switch (event.type) {
       case 'turn/start':
         if (openTurn !== undefined || event.data.turn !== nextTurn) return false
@@ -670,7 +1302,12 @@ function hasValidCoreTrace(
       case 'tool/call':
         if (openTurn !== event.data.turn || openStep !== event.data.step) return false
         if (event.type === 'tool/call') {
-          const callId = String(event.data.callId)
+          if (typeof event.data.callId !== 'string'
+            || event.data.callId.length === 0
+            || typeof event.data.name !== 'string'
+            || event.data.name.length === 0
+            || typeof event.data.arguments !== 'string') return false
+          const callId = event.data.callId
           if (pendingCalls.has(callId)) return false
           pendingCalls.add(callId)
           if (event.data.name === 'run_code') activeCodeRoots.add(callId)
@@ -682,7 +1319,7 @@ function hasValidCoreTrace(
           break
         }
         if (openTurn !== event.data.turn || openStep !== event.data.step) return false
-        const callId = String(event.data.message.source.callId)
+        const callId = event.data.message.source.callId
         const block = event.data.message.content[0]
         const syntheticNotStarted = block.isError === true
           && event.data.error?.code === 'TOOL_NOT_STARTED'
@@ -801,6 +1438,7 @@ function hasProvenCompletedTurnStructure(
   inheritedEventCount: number,
   turnStart: SessionEvent<'turn/start'>,
   turnEnd: SessionEvent<'turn/end'>,
+  dialect: TranscriptDialectContext,
 ): boolean {
   interface OpenStep {
     readonly step: number
@@ -879,7 +1517,7 @@ function hasProvenCompletedTurnStructure(
         || event.data.step !== open.step
         || event.data.interrupted === true
         || open.assistant !== undefined
-        || !assistantMatchesCitedChunks(events, event)) return false
+        || !assistantMatchesCitedChunks(events, event, dialect)) return false
       open.modelStarted = true
       open.assistant = event
       continue
@@ -935,6 +1573,7 @@ function hasProvenStepContinuationsThrough(
   events: readonly SessionEvent[],
   inheritedEventCount: number,
   turnEnd: SessionEvent<'turn/end'>,
+  dialect: TranscriptDialectContext,
 ): boolean {
   const steps = completedStepEnvelopes(events, turnEnd)
   for (const step of steps) {
@@ -965,7 +1604,7 @@ function hasProvenStepContinuationsThrough(
         && event.seq > settledAssistants[0]!.seq
         && event.seq < last.end.seq
         && toolRequests.some(request =>
-          String(request.id) === String(event.data.message.source.callId)))
+          request.id === event.data.message.source.callId))
       if (toolResults.length === toolRequests.length
         && toolResults.every(result => result.data.message.content[0].isError === true)) {
         return false
@@ -986,7 +1625,7 @@ function hasProvenStepContinuationsThrough(
       && event.data.turn === end.data.turn
       && event.seq < end.seq)
     const hasMaxTokens = assistants.some(assistant =>
-      citedAssistantFinishKind(events, assistant) === 'max-tokens')
+      citedAssistantFinishKind(events, assistant, dialect) === 'max-tokens')
     if ((end.data.reason.kind === 'completed' && hasMaxTokens)
       || (end.data.reason.kind === 'max-tokens' && !hasMaxTokens)) return false
   }
@@ -1064,8 +1703,12 @@ function admittedMessagesBeforeModel(
 function citedAssistantFinishKind(
   events: readonly SessionEvent[],
   assistant: SessionEvent<'assistant/message'>,
+  dialect: TranscriptDialectContext,
 ): 'stop' | 'tool-calls' | 'max-tokens' | undefined {
-  if (!assistantMatchesCitedChunks(events, assistant)) return undefined
+  if (!assistantMatchesCitedChunks(events, assistant, dialect)) return undefined
+  if (dialect.kind === 'session-v3') {
+    return dialect.settlements.get(Number(assistant.seq))?.finishKind
+  }
   const assembler = new BlockAssembler()
   for (const sourceSeq of assistant.sourceEventSeqs ?? []) {
     const event = events[Number(sourceSeq)]
@@ -1081,7 +1724,11 @@ function citedAssistantFinishKind(
 function assistantMatchesCitedChunks(
   events: readonly SessionEvent[],
   message: SessionEvent<'assistant/message'>,
+  dialect: TranscriptDialectContext,
 ): boolean {
+  if (dialect.kind === 'session-v3') {
+    return dialect.settlements.has(Number(message.seq))
+  }
   if (message.sourceEventSeqs === undefined) return false
   const assembler = new BlockAssembler()
   let previousSeq = -1
@@ -1109,6 +1756,7 @@ function proveAssistantRequestRoutes(
   events: readonly SessionEvent[],
   turnStart: SessionEvent<'turn/start'>,
   turnEnd: SessionEvent<'turn/end'>,
+  dialect: TranscriptDialectContext,
 ): InteractionEpisodeTranscriptProofV1['witness']['assistantRequestRoutes'] | undefined {
   const witnesses: Array<{
     readonly assistantMessageSeq: number
@@ -1149,7 +1797,12 @@ function proveAssistantRequestRoutes(
       && (event.type === 'request/header'
         || event.type === 'request/context'
         || event.type === 'assistant/chunk'))) return undefined
-    const attempt = proveCitedModelAttempt(events, assistant, previousRequestAnchor)
+    const attempt = proveCitedModelAttempt(
+      events,
+      assistant,
+      previousRequestAnchor,
+      dialect,
+    )
     if (attempt === undefined) return undefined
     const { routeBoundarySeq, requestGenerationAnchor } = attempt
     previousRequestAnchor = requestGenerationAnchor
@@ -1275,7 +1928,7 @@ function proveFailedModelAttempts(
   return previousRequestAnchor
 }
 
-function proveCitedModelAttempt(
+function proveEmbeddedModelAttempt(
   events: readonly SessionEvent[],
   assistant: SessionEvent<'assistant/message'>,
   inheritedRequestAnchor: number | undefined,
@@ -1283,7 +1936,59 @@ function proveCitedModelAttempt(
   readonly routeBoundarySeq: number
   readonly requestGenerationAnchor: number
 } | undefined {
-  if (!assistantMatchesCitedChunks(events, assistant)) return undefined
+  const stepStarts = events.filter((event): event is SessionEvent<'step/start'> =>
+    event.type === 'step/start'
+    && event.data.turn === assistant.data.turn
+    && event.data.step === assistant.data.step
+    && event.seq < assistant.seq)
+  if (stepStarts.length !== 1) return undefined
+  const stepStart = stepStarts[0]!
+  const previousBoundary = Number(stepStart.seq)
+  const routeBoundarySeq = Number(assistant.seq)
+  const prelude = requestPreludeBetween(events, previousBoundary, routeBoundarySeq)
+  if (prelude === undefined) return undefined
+  const allowsResume = hasValidResumePosition(prelude, stepStart, previousBoundary)
+  if (allowsResume === undefined
+    || !hasValidRetryAssembly(events, prelude, stepStart, previousBoundary)) return undefined
+  const currentRequestAnchor = requestAnchor(prelude, routeBoundarySeq)
+  if (inheritedRequestAnchor !== undefined
+    && !hasRequiredSeriesMarker(
+      events,
+      inheritedRequestAnchor,
+      currentRequestAnchor,
+      prelude,
+      allowsResume,
+      true,
+    )) return undefined
+  const header = latestEventBefore(events, 'request/header', routeBoundarySeq)
+  const context = latestEventBefore(events, 'request/context', routeBoundarySeq)
+  if (header === undefined
+    || context === undefined
+    || header.data.header.config.provider !== context.data.provider
+    || header.data.header.config.model !== context.data.model) return undefined
+  return {
+    routeBoundarySeq,
+    requestGenerationAnchor: carriedRequestGenerationAnchor(
+      events,
+      previousBoundary,
+      currentRequestAnchor,
+    ),
+  }
+}
+
+function proveCitedModelAttempt(
+  events: readonly SessionEvent[],
+  assistant: SessionEvent<'assistant/message'>,
+  inheritedRequestAnchor: number | undefined,
+  dialect: TranscriptDialectContext,
+): {
+  readonly routeBoundarySeq: number
+  readonly requestGenerationAnchor: number
+} | undefined {
+  if (!assistantMatchesCitedChunks(events, assistant, dialect)) return undefined
+  if (dialect.kind === 'session-v3') {
+    return proveEmbeddedModelAttempt(events, assistant, inheritedRequestAnchor)
+  }
   const cited = assistant.sourceEventSeqs?.map(Number)
   if (cited === undefined) return undefined
   const hasEmptyFinalAttempt = cited.length === 0
@@ -1503,6 +2208,7 @@ function hasRequiredSeriesMarker(
 function hasValidRequestStateLog(
   events: readonly SessionEvent[],
   targetEnd: SessionEvent<'turn/end'>,
+  dialect: TranscriptDialectContext,
 ): boolean {
   let header: SessionEvent<'request/header'> | undefined
   let context: SessionEvent<'request/context'> | undefined
@@ -1510,7 +2216,7 @@ function hasValidRequestStateLog(
     if (event.seq > targetEnd.seq) break
     if (event.type === 'request/header') {
       const route = event.data.header.config
-      if (!hasValidRequestHeaderShape(event.data.header)
+      if (!hasValidRequestHeaderShape(event.data.header, dialect)
         || (event.data.reason !== 'initial'
           && event.data.reason !== 'resume'
           && event.data.reason !== 'change'
@@ -1533,21 +2239,23 @@ function hasValidRequestStateLog(
       continue
     }
     if (event.type !== 'request/context') continue
-    if (header === undefined
-      || event.data.provider.length === 0
-      || event.data.model.length === 0
-      || event.data.provider !== header.data.header.config.provider
-      || event.data.model !== header.data.header.config.model
-      || (event.data.contextWindow !== undefined
-        && (!Number.isSafeInteger(event.data.contextWindow) || event.data.contextWindow <= 0))
-      || (context !== undefined && canonicalEquals(context.data, event.data))) return false
+    const requestContext = event.data as unknown
+    if (!hasValidRequestContextShape(requestContext, dialect)
+      || header === undefined
+      || requestContext.provider !== header.data.header.config.provider
+      || requestContext.model !== header.data.header.config.model
+      || (context !== undefined && canonicalEquals(context.data, requestContext))) return false
     context = event
   }
   return true
 }
 
-function hasValidRequestHeaderShape(value: unknown): boolean {
+function hasValidRequestHeaderShape(
+  value: unknown,
+  dialect: TranscriptDialectContext,
+): boolean {
   if (!isPlainRecord(value) || !isPlainRecord(value.config)) return false
+  if (dialect.kind === 'session-v3' && Object.hasOwn(value, 'system')) return false
   const config = value.config
   if (!hasNonEmptyString(config, 'provider') || !hasNonEmptyString(config, 'model')) {
     return false
@@ -1563,6 +2271,23 @@ function hasValidRequestHeaderShape(value: unknown): boolean {
     || (defaults.reasoningEffort === true && config.reasoningEffort === undefined)
     || (defaults.maxTokens === true && config.maxTokens === undefined)) return false
   return true
+}
+
+function hasValidRequestContextShape(
+  value: unknown,
+  dialect: TranscriptDialectContext,
+): value is Record<string, unknown> & { readonly provider: string; readonly model: string } {
+  if (!isPlainRecord(value)) return false
+  const allowed = dialect.kind === 'session-v3'
+    ? new Set(['provider', 'model', 'contextWindow', 'systemPromptUpdate'])
+    : new Set(['provider', 'model', 'contextWindow'])
+  return Object.keys(value).every(key => allowed.has(key))
+    && hasNonEmptyString(value, 'provider')
+    && hasNonEmptyString(value, 'model')
+    && (!Object.hasOwn(value, 'contextWindow')
+      || (Number.isSafeInteger(value.contextWindow) && (value.contextWindow as number) > 0))
+    && (!Object.hasOwn(value, 'systemPromptUpdate')
+      || value.systemPromptUpdate === 'in-history')
 }
 
 function latestEventBefore<Type extends 'request/header' | 'request/context'>(
@@ -1616,11 +2341,11 @@ function resultLinksCall(
   const block = result.data.message.content[0]
   return result.data.turn === call.data.turn
     && result.data.step === call.data.step
-    && String(result.data.message.source.callId) === String(call.data.callId)
+    && result.data.message.source.callId === call.data.callId
     && result.sourceEventSeqs?.length === 1
     && result.sourceEventSeqs[0] === call.seq
     && block?.type === 'tool-result'
-    && String(block.toolCallId) === String(call.data.callId)
+    && block.toolCallId === call.data.callId
 }
 
 /** Mirrors the alpha.5 Session seed/load invariants needed for safe replay. */
