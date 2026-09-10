@@ -95,12 +95,6 @@
     "@deepseek-ai/dsh-commands": {
       "optional": true
     },
-    "@deepseek-ai/dsh-tools": {
-      "optional": true
-    },
-    "@deepseek-ai/dsh-goal": {
-      "optional": true
-    },
     "@deepseek-ai/dsh-message-feedback": {
       "optional": true
     },

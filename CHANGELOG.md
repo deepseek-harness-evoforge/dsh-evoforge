@@ -43,6 +43,8 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 - Hard-disabled the current RP-1 epoch-2 paid runner until runtime artifacts, configuration binding, terminal revisions,
   and private failure output can be attested. Exact approval now returns a fixed failure before any Provider configuration
   or private path is read; the pinned manifest and deterministic Gap-to-Opportunity fixture remain non-paid evidence only.
+- Corrected the `dsh-evolve` package contract so its statically imported native Goal and Tools packages are required peers;
+  lifecycle-injected service integrations remain optional.
 - Consolidated Gateway, channel, Evolution, and Doctor visualization into one Session-scoped native DSH Web view.
 - Moved Feishu and Telegram secrets to the DSH CredentialProvider contract and kept both adapters disabled until their
   exact deployment configuration is present.

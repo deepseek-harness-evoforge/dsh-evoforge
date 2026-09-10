@@ -38,6 +38,22 @@ afterEach(async () => {
 })
 
 describe.skipIf(process.platform !== 'darwin')('clean-profile assembled EvoForge suite', () => {
+  it('packs dsh-evolve with its static Goal and Tools packages as required peers', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evoforge-required-peers-'))
+    temporaryRoots.push(root)
+    await execFile('pnpm', ['--filter', 'dsh-evolve', 'pack', '--pack-destination', root], {
+      cwd: suiteRoot,
+      encoding: 'utf8',
+      timeout: 60_000,
+    })
+    const tarball = join(root, 'dsh-evolve-0.1.0-alpha.1.tgz')
+    const packedManifest = JSON.parse((await execFile('tar', [
+      '-xOf', tarball, 'package/package.json',
+    ], { encoding: 'utf8', timeout: 10_000 })).stdout)
+
+    expectRequiredEvolveRuntimePeers(packedManifest)
+  }, 90_000)
+
   it('installs packed Bundles, uses native Session/Goal/Storage, disposes, removes, and boots native DSH', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-evoforge-native-suite-'))
     temporaryRoots.push(root)
@@ -113,6 +129,7 @@ describe.skipIf(process.platform !== 'darwin')('clean-profile assembled EvoForge
         join(profileDir, 'node_modules', packageName, 'package.json'),
         'utf8',
       ))
+      if (packageName === 'dsh-evolve') expectRequiredEvolveRuntimePeers(installed)
       expect(installed.bin).toBeUndefined()
       for (const dependency of Object.keys(installed.dependencies ?? {})) {
         expect(dependency === '@deepseek-ai/cordis' || dependency.startsWith('@deepseek-ai/dsh-'))
@@ -300,6 +317,18 @@ describe.skipIf(process.platform !== 'darwin')('clean-profile assembled EvoForge
   }, 180_000)
 })
 
+function expectRequiredEvolveRuntimePeers(manifest: {
+  readonly peerDependencies?: Record<string, string>
+  readonly peerDependenciesMeta?: Record<string, { readonly optional?: boolean }>
+}): void {
+  expect(manifest.peerDependencies).toMatchObject({
+    '@deepseek-ai/dsh-goal': '0.1.2-alpha.5',
+    '@deepseek-ai/dsh-tools': '0.1.2-alpha.5',
+  })
+  expect(manifest.peerDependenciesMeta?.['@deepseek-ai/dsh-goal']).toBeUndefined()
+  expect(manifest.peerDependenciesMeta?.['@deepseek-ai/dsh-tools']).toBeUndefined()
+}
+
 function evoforgeRows(dump: string): string[] {
   return [...dump.matchAll(/^\s*name:\s*(dsh-evoforge-(?:doctor|feishu|gateway|telegram)|dsh-(?:control-center|evolve(?:-attention|-web)?|github-review|goal-continuity|resident|software-delivery))\s*$/gmu)]
     .map(match => match[1]!)
@@ -353,7 +382,8 @@ async function expectCliHostStarts(
   }
   child.kill('SIGTERM')
   const result = await exited
-  expect(result).toEqual({ code: 0, signal: null })
+  expect(result, `DSH Host did not exit cleanly:\n${stdout}${stderr}`)
+    .toEqual({ code: 0, signal: null })
   expect(`${stdout}${stderr}`).not.toContain('opening the default browser')
   expect(() => process.kill(child.pid!, 0)).toThrow()
 }
