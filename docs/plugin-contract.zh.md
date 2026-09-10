@@ -1,7 +1,7 @@
 # DSH 原生插件契约
 
 本文是 EvoForge 包级实现的当前最低要求。具体 DSH API 必须以每轮开发前审计的上游 revision 为准，不能从旧
-evidence 或历史源码链接推断。当前版本身份见 [DSH 最新审计](research/dsh-latest-audit-2026-09-05.zh.md)。
+evidence 或历史源码链接推断。当前版本身份见 [DSH 最新审计](research/dsh-latest-audit-2026-09-11.zh.md)。
 
 ## 1. 交付形态
 

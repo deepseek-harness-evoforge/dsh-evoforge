@@ -26,4 +26,4 @@ git ls-remote <公开仓库> HEAD
 3. 不把“模型写出了 SKILL.md”称为进化。EvoForge 必须用真实 Interaction 信号、独立 baseline/holdout、权限/成本/cache 门禁、未来 Session pin、原子晋升和精确回滚证明改进。
 4. 以上 revision 只服务于研究和 benchmark 身份。任何新 paired run 必须在运行前重新读取远端 HEAD，并在 evidence 中记录日期、命令和结果。
 
-当前 DSH 自身的 revision、构建结果和支持决策见 [DSH 最新版本审计](dsh-latest-audit-2026-09-05.zh.md)；当前产品边界见 [产品设计基线](../architecture/product-target-and-design.zh.md)。
+当前 DSH 自身的 revision、构建结果和支持决策见 [DSH 最新版本审计](dsh-latest-audit-2026-09-11.zh.md)；当前产品边界见 [产品设计基线](../architecture/product-target-and-design.zh.md)。

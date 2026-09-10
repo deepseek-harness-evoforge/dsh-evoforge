@@ -284,19 +284,27 @@ describe.skipIf(process.platform !== 'darwin')('clean-profile assembled EvoForge
         expect(nativeCtx.tools.get('complete_delivery')).toBeUndefined()
         expect(await nativeCtx.skills.get('software-delivery')).toBeUndefined()
         expect(nativeCtx.get('evoforge.evolution')).toBeUndefined()
-        // DSH rc.1 removed the old id-addressed `load()` helper. Prefer the
+        // The current DSH rc line removed the old id-addressed `load()` helper. Prefer the
         // official SessionPersistence handle seam; the pinned alpha.5 support
         // checkout still exposes only `load()`, so retain this test-only
         // compatibility fallback without reintroducing it in product code.
         const persistence = nativeCtx.sessionPersistence as unknown as {
-          open?: (id: SessionId, access: 'read') => Promise<{ read: () => Promise<readonly { type: string; data?: unknown }[]>; close: () => Promise<void> }>
+          open?: (id: SessionId, access: 'read') => Promise<{
+            read: () => Promise<{
+              readonly events: readonly { type: string; data?: unknown }[]
+            }>
+            close: () => Promise<void>
+          }>
           load?: (id: SessionId) => Promise<{ events: readonly { type: string; data?: unknown }[] }>
         }
         let restoredEvents: readonly { type: string; data?: unknown }[]
         if (typeof persistence.open === 'function') {
           const restoredHandle = await persistence.open(sessionId, 'read')
-          restoredEvents = await restoredHandle.read()
-          await restoredHandle.close()
+          try {
+            restoredEvents = (await restoredHandle.read()).events
+          } finally {
+            await restoredHandle.close()
+          }
         } else if (typeof persistence.load === 'function') {
           restoredEvents = (await persistence.load(sessionId)).events
         } else {

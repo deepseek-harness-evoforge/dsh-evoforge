@@ -7,9 +7,10 @@
 
 - [默认产品安装、Case Pack 契约与文档重置](v5-228-product-install-and-document-reset-2026-09-05.zh.md)：本轮
   clean-profile、全仓回归和删除范围。
-- [最新 DSH 审计](../research/dsh-latest-audit-2026-09-05.zh.md)：canonical latest 的安装与上游构建分类。
+- [最新 DSH 审计](../research/dsh-latest-audit-2026-09-11.zh.md)：canonical latest 的安装、上游构建与迁移阻断。
+- [DSH rc.2 clean-profile readback](v5-230-dsh-rc2-clean-profile-readback-2026-09-11.zh.md)：current master 的
+  build、原生 handle readback 与尚未通过的 Session v3 边界。
 - [最新可构建支持组合全量检查](v5-221-latest-dsh-full-check-2026-09-04.zh.md)。
-- [最新 DSH 上游构建阻断](v5-218-latest-dsh-build-reaudit-2026-09-04.zh.md)。
 - [套件打包与单页浏览器路径](v5-173-suite-pack-and-single-page-browser-2026-09-04.zh.md)。
 - [clean-profile 全仓回归](v5-175-full-check-after-suite-packer-fix-2026-09-04.zh.md)。
 - [单页 Control Center 真实浏览器复验](v5-196-single-page-control-center-live-revalidation-2026-09-04.zh.md)。

@@ -4,7 +4,7 @@
 
 ## 当前优先阅读
 
-1. [DSH 最新版本审计（2026-09-05）](dsh-latest-audit-2026-09-05.zh.md)：本轮开发前的最新 revision、安装/构建结果和支持决策。
+1. [DSH 最新版本审计（2026-09-11）](dsh-latest-audit-2026-09-11.zh.md)：本轮开发前的最新 revision、安装/构建结果和支持决策。
 2. [产品目标与设计](../architecture/product-target-and-design.zh.md)：当前唯一产品边界。
 3. [自我进化设计](../architecture/evolution-design.zh.md)：Interaction-first 双速闭环、Candidate 和治理门。
 4. [Hermes 对照记分卡](../architecture/hermes-replacement-scorecard.zh.md)：哪些只是局部已验证，哪些还不能宣称替代。
@@ -23,7 +23,7 @@
 ## 日期化资料
 
 ### Current（可作为当前设计/审计入口）
-[DSH 最新版本审计](dsh-latest-audit-2026-09-05.zh.md)：唯一当前 DSH revision 入口。
+[DSH 最新版本审计](dsh-latest-audit-2026-09-11.zh.md)：唯一当前 DSH revision 入口。
 Hermes paired 的冻结身份见 [参考生态最新 revision 审计](ecosystem-latest-audit-2026-09-05.zh.md)；前一日的结果页已移入 Historical。
 [参考生态最新 revision 审计](ecosystem-latest-audit-2026-09-05.zh.md)：Hermes、Hermes Self-Evolution、OpenClaw、HanaAgent 的同日远端 HEAD。
 [产品设计](../architecture/product-target-and-design.zh.md)、[进化设计](../architecture/evolution-design.zh.md)：当前实现基线。

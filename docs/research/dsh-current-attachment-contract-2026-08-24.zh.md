@@ -1,13 +1,13 @@
 # 【历史快照】DeepSeek Harness 附件契约审计（2026-08-24）
 
-> 当前 DSH 身份和支持判断只认 [最新审计](dsh-latest-audit-2026-09-05.zh.md)。附件能力扩大前必须重新核对
+> 当前 DSH 身份和支持判断只认 [最新审计](dsh-latest-audit-2026-09-11.zh.md)。附件能力扩大前必须重新核对
 > 上游源码，不能从本页推断今天的 API。
 
 > 性质：只读上游研究，不是插件完成证据，也不扩大 EvoForge 的支持范围。
 >
 > 一手来源仅限官方 [`deepseek-ai/deepseek-harness`](https://github.com/deepseek-ai/deepseek-harness) 的源码、文档与 Git 历史。
 >
-> 后续状态：兼容矩阵已经演进到新的 DSH 支持基线；当前判断见[最新审计](dsh-latest-audit-2026-09-05.zh.md)。下文只保留本次审计发生时的支持判断，避免用后来实现追溯改写研究记录。
+> 后续状态：兼容矩阵已经演进到新的 DSH 支持基线；当前判断见[最新审计](dsh-latest-audit-2026-09-11.zh.md)。下文只保留本次审计发生时的支持判断，避免用后来实现追溯改写研究记录。
 
 ## 固定 revision
 

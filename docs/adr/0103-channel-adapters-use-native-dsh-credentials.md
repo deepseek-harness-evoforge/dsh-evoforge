@@ -2,7 +2,7 @@
 
 ## 状态
 
-Accepted（2026-09-04）。本文保留当日凭据决策；其中 DSH revision 仅是历史依据，当前 API/支持基线以 [最新审计](../research/dsh-latest-audit-2026-09-05.zh.md) 为准。实现仍需真实渠道验收。
+Accepted（2026-09-04）。本文保留当日凭据决策；其中 DSH revision 仅是历史依据，当前 API/支持基线以 [最新审计](../research/dsh-latest-audit-2026-09-11.zh.md) 为准。实现仍需真实渠道验收。
 
 ## 背景
 

@@ -13,7 +13,7 @@ npm registry 包或 SemVer release tag。
 
 | 范围 | 当前结论 | 状态 |
 | --- | --- | --- |
-| DSH 兼容 | 远端 master 已到 c291e7961a515f6d7af9304e7fd1d257929aef26，tag 已到 0.1.5-rc.2；最近完成的源码适配审计为 0.1.5-alpha.2，其 Session v3、handle persistence、PTC event 与测试 API 均已越过当前适配；可构建支持组合仍为 0.1.2-alpha.5 | pinned alpha.5 verified；current migration unaudited/blocked |
+| DSH 兼容 | master `c291e796…` / CLI 0.1.5-rc.2 已在 clean worktree 完成 install、根构建和关键兼容取样；assembled readback 已适配 handle 返回值，但 Generation 仍有 4/6 因 Session v3 fail closed；完整支持组合仍为 0.1.2-alpha.5 | pinned alpha.5 verified；current audited/buildable, migration blocked |
 | 安装 | 默认 `product` 套件、一行仓库安装、exact manifest/SHA、持久内容地址、禁用依赖 install script 和配置输出保护已有合同 | clean-profile add/dump/boot/remove/reboot verified；registry 与当前 head reload/browser 未完成 |
 | 插件契约 | 官方 Bundle/profile patch、生命周期、独立启停/卸载和套件打包有本地合同 | implemented / local verified |
 | Gateway | Host 内常驻、pairing、路由、journal、幂等、uncertain、dispose 竞态有 assembled 证据 | verified locally; real soak pending |
@@ -28,14 +28,13 @@ npm registry 包或 SemVer release tag。
 
 ## 最近可复核事实
 
-- DSH latest audit（2026-09-05）：安装退出码 0，根构建退出码 1，分类为上游 dsh-root 缺失类型入口；见
-  [最新审计摘要](research/dsh-latest-audit-2026-09-05.zh.md)。[V5.218](evidence/v5-218-latest-dsh-build-reaudit-2026-09-04.zh.md)
-  是前一日的不可覆盖历史 evidence。
-- 2026-09-11 alpha.2 静态审计：`b2e3b2a0125854567a4a5fcba75782e42fe84901` / `dsh-v0.1.5-alpha.2`
-  已引入 Session v3 event/provenance、handle-based persistence、PTC event tag 和 Agent test API 变化；这不覆盖、也不改写
-  上一条 2026-09-05 历史审计。
-- 同日远端引用复核看到 master `c291e7961a515f6d7af9304e7fd1d257929aef26`、最新 tag
-  `dsh-v0.1.5-rc.2` / `fb2c4b9e698e30edb738bca4cf0618587db7d203`；尚未把 alpha.2 的静态结论外推为这两个 revision 的兼容结论。
+- DSH latest audit（2026-09-11）：clean master `c291e7961a515f6d7af9304e7fd1d257929aef26` / CLI
+  `0.1.5-rc.2` 的安装和官方根构建均 exit 0；最新 tag 为 `dsh-v0.1.5-rc.2` /
+  `fb2c4b9e698e30edb738bca4cf0618587db7d203`。见[最新审计摘要](research/dsh-latest-audit-2026-09-11.zh.md)和
+  [V5.230](evidence/v5-230-dsh-rc2-clean-profile-readback-2026-09-11.zh.md)。
+- 同一 current master 上的 assembled clean-profile 原生 handle readback 已通过；Doctor 24/24、Feishu 5/5 通过，
+  但 Generation binder 仍有 4/6 因 Session v3 embedded stream 被旧 projector 拒绝。上游 buildable 不能外推为
+  EvoForge supported；persistence/PTC/dialect/pin 与完整矩阵仍需成组迁移。
 - 已审计 alpha.5 支持组合的全量检查和套件合同见 [V5.221](evidence/v5-221-latest-dsh-full-check-2026-09-04.zh.md)。
 - 单页控制台历史复验见 [V5.196](evidence/v5-196-single-page-control-center-live-revalidation-2026-09-04.zh.md)；
   该证据不覆盖当前浏览器 profile。
