@@ -45,8 +45,9 @@
 ## 4. 当前结论
 
 当前仓库有 EV-1、SD-1、LC-1、AS-1 的确定性/assembled harness，以及局部真实飞书 smoke；这些证明边界和
-生命周期，不证明模型质量或整体替代。最新 DSH canonical master `c291e796…` 的安装、根构建、clean-profile readback
-和严格的 Session v3 human-first direct-turn binder 已通过，但完整 persistence/PTC/pin/兼容矩阵尚未迁移，可发布支持基线仍为
+生命周期，不证明模型质量或整体替代。最新 DSH canonical master `c291e796…` 的安装、根构建、clean-profile readback、
+严格的 Session v3 human-first direct-turn binder 与内部 handle-based resolver reader 已通过，但相邻 persistence consumer、
+完整 retry/replacement/compaction/PTC、pin/兼容矩阵尚未迁移，可发布支持基线仍为
 alpha.5。真实 Provider、完整渠道验收和长期 paired 数据未齐，当前结论是 partial，不能发布“Hermes 上位替代”。
 
 基准入口和冻结 epoch 见 [benchmarks/README](../../benchmarks/README.md)；当前状态和证据见

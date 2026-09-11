@@ -18,6 +18,7 @@ import {
   openInteractionRoutingEvidenceVault,
 } from '../src/interaction-routing-evidence.ts'
 import { proveInteractionEpisodeTranscript } from '../src/interaction-episode-projector.ts'
+import { createStockDshAlpha5InteractionEpisodeEvidenceResolver } from '../src/interaction-episode-evidence-resolver.ts'
 import {
   projectInteractionEpisodeTriggerRequestControlV1,
   type InteractionEpisodeTriggerRequestControlFactV1,
@@ -48,11 +49,11 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
     temporaryRoots.push(root)
     const configPath = await writeStorageConfig(root)
     const ctx = await bootStorage(configPath)
-    const adapter = await installAgentRuntime(ctx, undefined, {
+    const adapter = await installAgentRuntime(ctx, join(root, 'sessions'), {
       firstCapabilityGap: 'publish-dsh-plugin',
       systemPromptUpdate: 'in-history',
     })
-    await ctx.plugin(EvolvePlugin, {
+    const evolveRuntime = await ctx.plugin(EvolvePlugin, {
       cacheRoot: join(root, 'cache'),
       interactionEvidencePolicies: [{
         workspaceId: WORKSPACE_ID,
@@ -148,6 +149,69 @@ describe.skipIf(process.platform !== 'darwin')('Session Generation binder', () =
       handle.agent.session,
       'model-declared-capability-gap',
     )
+    const turnEnd = [...handle.agent.session.snapshotEvents()]
+      .reverse()
+      .find(event => event.type === 'turn/end')
+    if (turnEnd?.type !== 'turn/end') throw new Error('real completed turn is missing')
+    const persistence = ctx.sessionPersistence as unknown as {
+      readonly open?: unknown
+      readonly readFrom?: unknown
+    }
+    if (sessionFormatVersion === 3) {
+      expect(typeof persistence.open).toBe('function')
+      expect(persistence.readFrom).toBeUndefined()
+    } else {
+      expect(persistence.open).toBeUndefined()
+      expect(typeof persistence.readFrom).toBe('function')
+    }
+    // Dispose only EvoForge so its ordered drains close the evidence domains;
+    // the real Agent Session and persistence backend remain live for readback.
+    await evolveRuntime.dispose()
+    const liveGenerationEvidence = await openInteractionGenerationEvidenceVault(
+      ctx.storageDomain,
+      {
+        authority: compileInteractionGenerationEvidencePolicies([{
+          workspaceId: WORKSPACE_ID,
+          retention: { generationMaxRecords: 1 },
+        }]),
+      },
+    )
+    const liveRoutingEvidence = await openInteractionRoutingEvidenceVault(
+      ctx.storageDomain,
+      {
+        authority: compileInteractionRoutingEvidencePolicies([{
+          workspaceId: WORKSPACE_ID,
+          retention: { routingMaxRecords: 1 },
+        }]),
+      },
+    )
+    try {
+      const physicalResolver = createStockDshAlpha5InteractionEpisodeEvidenceResolver({
+        sessions: ctx.sessions,
+        sessionPersistence: persistence as never,
+        lifecycle: ctx,
+        generationEvidence: liveGenerationEvidence,
+        routingEvidence: liveRoutingEvidence,
+      })
+      const physicalResolution = await physicalResolver.resolve({
+        session: handle.agent.session as never,
+        turnEndSeq: Number(turnEnd.seq),
+        trigger: { callId: 'model-declared-capability-gap' },
+      })
+      expect(physicalResolution).toMatchObject({
+        status: 'abstained',
+        stage: 'host-evidence',
+        reason: 'evidence-unavailable',
+      })
+      if (physicalResolution.status !== 'abstained'
+        || physicalResolution.stage !== 'host-evidence') {
+        throw new Error('physical resolver did not reach Host evidence')
+      }
+      expect(physicalResolution.dimensions).not.toContain('generation')
+      expect(physicalResolution.dimensions).not.toContain('routing')
+    } finally {
+      await Promise.all([liveGenerationEvidence.close(), liveRoutingEvidence.close()])
+    }
 
     await ctx.fiber.dispose()
 

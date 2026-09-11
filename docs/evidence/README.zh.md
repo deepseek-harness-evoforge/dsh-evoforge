@@ -12,6 +12,8 @@
   build、原生 handle readback 与迁移前的 Session v3 失败定位。
 - [Session v3 普通 direct-turn 证据](v5-231-session-v3-direct-turn-attestation-2026-09-11.zh.md)：embedded stream、
   request control、Generation/Routing receipt 与 alpha.5 双 cohort 回归。
+- [Interaction Session 双 persistence reader](v5-232-session-persistence-dual-read-2026-09-11.zh.md)：alpha.5
+  `readFrom`、current `open/read/close`、lifecycle deadline、logical header identity 与真实 receipt match。
 - [最新可构建支持组合全量检查](v5-221-latest-dsh-full-check-2026-09-04.zh.md)。
 - [套件打包与单页浏览器路径](v5-173-suite-pack-and-single-page-browser-2026-09-04.zh.md)。
 - [clean-profile 全仓回归](v5-175-full-check-after-suite-packer-fix-2026-09-04.zh.md)。

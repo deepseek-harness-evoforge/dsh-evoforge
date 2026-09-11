@@ -11,7 +11,6 @@ import {
   SessionFormatUnsupportedError,
   SessionPersistenceCorruptionError,
   SessionPersistenceNotFoundError,
-  type SessionPersistence,
 } from '@deepseek-ai/dsh-session-persistence'
 import type { GatewayIngressEvidenceSourceV1 } from 'dsh-evoforge-gateway'
 import {
@@ -44,6 +43,12 @@ import {
 } from './interaction-trigger-request-control.ts'
 import type { InteractionEpisodeInputV1 } from './interaction-episode-store.ts'
 import { runWithLifecycleDeadline } from './lifecycle-deadline.ts'
+import {
+  InteractionSessionStoredCutConflictError,
+  readInteractionSessionStoredCutV1,
+  sessionPersistenceReadTimeoutMs,
+  type InteractionSessionPersistenceReadPortV1,
+} from './interaction-session-persistence-read.ts'
 import { isWorkspaceId } from './workspace-identity.ts'
 
 const stockMissingDimensions = [
@@ -144,19 +149,25 @@ export interface InteractionEpisodeEvidenceResolverV1 {
 
 interface InteractionEpisodeEvidenceResolverDependenciesV1 {
   readonly sessions: Pick<SessionStore, 'get' | 'flush'>
-  readonly sessionPersistence: Pick<SessionPersistence, 'readFrom'>
+  readonly sessionPersistence: InteractionSessionPersistenceReadPortV1
+  /** Cordis fiber that owns the physical Session read deadline. */
+  readonly lifecycle: Pick<Context, 'effect'>
   readonly attestor: InteractionEpisodeHostEvidenceAttestorV1
+  /** @internal Test seam; production composition uses the bounded default. */
+  readonly sessionPersistenceReadTimeoutMs?: number
 }
 
 interface StockDshAlpha5ResolverDependenciesV1 {
   readonly sessions: Pick<SessionStore, 'get' | 'flush'>
-  readonly sessionPersistence: Pick<SessionPersistence, 'readFrom'>
-  /** Cordis fiber that owns every Host-source invocation deadline. */
+  readonly sessionPersistence: InteractionSessionPersistenceReadPortV1
+  /** Cordis fiber that owns persistence and Host-source invocation deadlines. */
   readonly lifecycle: Pick<Context, 'effect'>
   readonly generationEvidence?: InteractionGenerationEvidenceSourceV1
   readonly routingEvidence?: InteractionRoutingEvidenceSourceV1
   /** @internal Test seam; production composition uses the bounded default. */
   readonly hostEvidenceSourceTimeoutMs?: number
+  /** @internal Test seam; production composition uses the bounded default. */
+  readonly sessionPersistenceReadTimeoutMs?: number
 }
 
 interface GatewayAwareDshAlpha5ResolverDependenciesV1
@@ -167,7 +178,7 @@ extends StockDshAlpha5ResolverDependenciesV1 {
 /**
  * Resolve one exact completed turn without writing an Episode or Gap.
  *
- * The resolver treats alpha.5 `flush() === true` as necessary but not
+ * The resolver treats DSH `flush() === true` as necessary but not
  * sufficient. It physically reads and compares the complete prefix before it
  * asks a trusted Host attestor for the remaining evidence.
  *
@@ -177,7 +188,10 @@ extends StockDshAlpha5ResolverDependenciesV1 {
 export function createInteractionEpisodeEvidenceResolver(
   dependencies: InteractionEpisodeEvidenceResolverDependenciesV1,
 ): InteractionEpisodeEvidenceResolverV1 {
-  const { attestor, sessionPersistence, sessions } = dependencies
+  const { attestor, lifecycle, sessionPersistence, sessions } = dependencies
+  const persistenceReadTimeoutMs = sessionPersistenceReadTimeoutMs(
+    dependencies.sessionPersistenceReadTimeoutMs,
+  )
   return Object.freeze({
     async resolve(
       target: InteractionEpisodeResolutionTargetV1,
@@ -210,9 +224,14 @@ export function createInteractionEpisodeEvidenceResolver(
 
       let stored: unknown
       try {
-        stored = await sessionPersistence.readFrom(
+        stored = await readInteractionSessionStoredCutV1(
+          sessionPersistence,
           captured.sessionId,
-          SessionLogOffset(0),
+          {
+            lifecycle,
+            timeoutMs: persistenceReadTimeoutMs,
+            requiredEventCount: captured.events.length,
+          },
         )
       } catch (error) {
         const reason = classifyStoredReadFailure(error, captured.sessionId)
@@ -295,8 +314,9 @@ export function createInteractionEpisodeEvidenceResolver(
 }
 
 /**
- * Stock DSH alpha.5 can prove the Session cut, but it does not retain enough
- * historical Host evidence to seal an Interaction Episode honestly.
+ * The compatibility-named stock resolver can prove either admitted Session
+ * persistence dialect, but DSH still does not retain enough historical Host
+ * evidence to seal an Interaction Episode honestly.
  */
 export function createStockDshAlpha5InteractionEpisodeEvidenceResolver(
   dependencies: StockDshAlpha5ResolverDependenciesV1,
@@ -327,6 +347,10 @@ export function createGatewayAwareDshAlpha5InteractionEpisodeEvidenceResolver(
   return createInteractionEpisodeEvidenceResolver({
     sessions: dependencies.sessions,
     sessionPersistence: dependencies.sessionPersistence,
+    lifecycle: dependencies.lifecycle,
+    ...(dependencies.sessionPersistenceReadTimeoutMs === undefined
+      ? {}
+      : { sessionPersistenceReadTimeoutMs: dependencies.sessionPersistenceReadTimeoutMs }),
     attestor: createDshAlpha5HostEvidenceAttestor({
       gateway: dependencies.gateway,
       ...(dependencies.generationEvidence === undefined
@@ -390,7 +414,7 @@ function createDshAlpha5HostEvidenceAttestor(
       if (workspaceResult.status === 'rejected'
         || generationResult.status === 'rejected'
         || routingResult.status === 'rejected') {
-        throw new Error('DSH alpha.5 Host evidence source invocation failed')
+        throw new Error('DSH Host evidence source invocation failed')
       }
       return composePartialDshAlpha5HostEvidence(
         workspaceResult.value,
@@ -419,7 +443,7 @@ function raceHostEvidenceSourceInvocation<T>(
   return runWithLifecycleDeadline(lifecycle, invocation, {
     timeoutMs,
     label: 'dsh-evolve.interactionEpisode.hostEvidenceSource',
-    timeoutMessage: 'DSH alpha.5 Host evidence source invocation timed out',
+    timeoutMessage: 'DSH Host evidence source invocation timed out',
   })
 }
 
@@ -890,10 +914,53 @@ function classifyStoredReadFailure(
     }
     if (error instanceof SessionFormatUnsupportedError) return 'stored-cut-unavailable'
     if (error instanceof SessionPersistenceCorruptionError) return 'stored-cut-conflict'
+    if (error instanceof InteractionSessionStoredCutConflictError) {
+      return 'stored-cut-conflict'
+    }
+    // Source-aware compatibility tests can load alpha.5 and current DSH from
+    // distinct package copies, so constructor identity is not stable. This
+    // fallback only refines an abstention reason; it can never grant evidence.
+    if (error instanceof Error) {
+      const crossCopyName = crossCopyPersistenceErrorName(error)
+      if (crossCopyName === 'SessionPersistenceNotFoundError') {
+        return Reflect.get(error, 'sessionId') === expectedSessionId
+          ? 'stored-cut-unavailable'
+          : 'stored-read-failed'
+      }
+      if (crossCopyName === 'SessionFormatUnsupportedError') {
+        return 'stored-cut-unavailable'
+      }
+      if (crossCopyName === 'SessionPersistenceCorruptionError') {
+        return 'stored-cut-conflict'
+      }
+    }
   } catch {
     // Hostile thrown values are invocation failures, never evidence conclusions.
   }
   return 'stored-read-failed'
+}
+
+type CrossCopyPersistenceErrorName =
+  | 'SessionPersistenceNotFoundError'
+  | 'SessionFormatUnsupportedError'
+  | 'SessionPersistenceCorruptionError'
+
+function crossCopyPersistenceErrorName(
+  error: Error,
+): CrossCopyPersistenceErrorName | undefined {
+  const prototype = Object.getPrototypeOf(error)
+  if (prototype === null || prototype === Error.prototype) return undefined
+  const constructor = Object.getOwnPropertyDescriptor(prototype, 'constructor')?.value
+  const name = error.name
+  if (typeof constructor !== 'function' || constructor.name !== name) return undefined
+  switch (name) {
+    case 'SessionPersistenceNotFoundError':
+    case 'SessionFormatUnsupportedError':
+    case 'SessionPersistenceCorruptionError':
+      return name
+    default:
+      return undefined
+  }
 }
 
 type StoredCutVerification =
@@ -941,7 +1008,10 @@ function verifyStoredCut(captured: CapturedTarget, candidate: unknown): StoredCu
     || inheritedEventCount < 0
     || Object.is(fromSeq, -0)
     || Object.is(inheritedEventCount, -0)
-    || !isDeepStrictEqual(header, captured.header)
+    || !isDeepStrictEqual(
+      canonicalDurableSessionHeader(header),
+      canonicalDurableSessionHeader(captured.header),
+    )
     || inheritedEventCount !== captured.inheritedEventCount) {
     return conflictingStoredCut()
   }
@@ -950,7 +1020,10 @@ function verifyStoredCut(captured: CapturedTarget, candidate: unknown): StoredCu
   if (!isDeepStrictEqual(exactEvents, captured.events)) return conflictingStoredCut()
 
   const events = immutableCopy(exactEvents)
-  const durableHeader = immutableCopy(header)
+  // The physical codecs materialize an absent top-level delegation depth as
+  // zero. After proving that one narrowly versioned equivalence, retain the
+  // captured logical representation used by completion-time evidence IDs.
+  const durableHeader = immutableCopy(captured.header)
   const source: InteractionEpisodeTranscriptSourceV1 = Object.freeze({
     header: durableHeader,
     inheritedEventCount: SessionLogOffset(inheritedEventCount),
@@ -963,6 +1036,18 @@ function verifyStoredCut(captured: CapturedTarget, candidate: unknown): StoredCu
     events,
     source,
   }
+}
+
+function canonicalDurableSessionHeader(header: SessionHeader): SessionHeader {
+  // Both admitted SessionStore generations may omit delegation depth while
+  // their physical codecs materialize that same default as zero.
+  return header !== null
+    && typeof header === 'object'
+    && !Array.isArray(header)
+    && (header.version === 0 || header.version === 3)
+    && !Object.hasOwn(header, 'delegationDepth')
+    ? { ...header, delegationDepth: 0 }
+    : header
 }
 
 function unavailableStoredCut(): StoredCutVerification {

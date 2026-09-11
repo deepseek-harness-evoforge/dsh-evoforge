@@ -478,26 +478,28 @@ describe('Gateway-aware Interaction Episode evidence resolver', () => {
     }
   })
 
-  it('does not invoke a Host source through an inactive lifecycle owner', async () => {
+  it('does not invoke persistence or a Host source through an inactive lifecycle owner', async () => {
     const root = new Context()
     const ownerFiber = await root.plugin(() => {})
     await ownerFiber.dispose()
     const fixture = completedGapTurn()
     const gateway = gatewayReturning(matchedGatewayWorkspace(WORKSPACE_ID))
+    const readFrom = vi.fn(async () => structuredClone(fixture.stored))
     try {
       const resolver = createGatewayAwareResolver({
         sessions: { get: () => fixture.session, flush: async () => true },
-        sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+        sessionPersistence: { readFrom },
         lifecycle: ownerFiber.ctx,
         gateway,
       })
 
       await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
         status: 'abstained',
-        stage: 'host-evidence',
-        reason: 'attestor-invocation-failed',
-        dimensions: ['binding'],
+        stage: 'session-durability',
+        reason: 'stored-read-failed',
+        dimensions: ['session-durability'],
       })
+      expect(readFrom).not.toHaveBeenCalled()
       expect(gateway.resolveIngressEvidence).not.toHaveBeenCalled()
     } finally {
       await root.fiber.dispose()

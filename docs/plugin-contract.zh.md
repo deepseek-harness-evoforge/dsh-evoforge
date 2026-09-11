@@ -90,6 +90,15 @@ abstain；只有明确带 `ignorable: true` 的未知事件可跳过。`sourceDi
 审计，但不能命中 current query，也不能授予 authoring/evaluation 权威；这些字段表示 reader semantics 与已记录 control，
 不证明历史运行时 revision，也不把这个窄 cohort 升级为完整 rc.2 支持声明。
 
+物理 Session cut reader 必须 exact XOR 选择 alpha.5 `readFrom` 或 current `open` capability，不能猜测或同时调用。
+current 路径只取得 read handle，按已冻结事件数执行有界 `read`，验证 result envelope，并在成功、失败、timeout 和 dispose
+路径 exactly-once `close`。同一个 Cordis-owned 30 秒 deadline 覆盖 capability 选择与 read/open/close；deadline 发布前先
+同步 abort，迟到 handle 只能关闭、不能开始迟到 read。read 成功后的 close error 是 invocation failure，不能伪装成
+NotFound/unsupported/corruption 结论。两个已审计 codec 把 header 中缺席的 `delegationDepth` 物理化为 `0`；
+verifier 只对 v0/v3 的这一默认值做 equality normalization，随后仍把捕获的 logical header 用于 transcript 与 receipt
+identity，其他 header 差异全部 conflict。这个 deadline 不包含此前的 `sessions.flush()`，因此不得声称整个 resolver
+end-to-end bounded。
+
 这里的“实际进入自有 body”是 Producer 对 exact registry execution 与 body entry/settlement 的观察，不是 alpha.5 dispatcher
 提供的定义选择证明。当前固定版本既不暴露 dispatcher-selected `ToolDefinition`，也不暴露其内部 `bodyInvoked` 状态，因此
 不能承诺排除所有 captured-body 路径：若下游 `tools/execute` wrapper 在 registry 未发生 mutation/shadow 时，用同一个

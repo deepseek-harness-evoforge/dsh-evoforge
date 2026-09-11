@@ -31,6 +31,10 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
   context, required versus ignorable vocabulary, and dialect/control-bound Generation/Routing receipts and facts. Retries, prequeued next-step
   context, surface replacements, compaction, PTC dispatches, mixed formats, and malformed streams remain fail closed;
   legacy receipts and qualifications lacking the control digest remain readable but no longer grant current authority.
+- Added an internal dual-dialect physical Session reader for Interaction evidence: alpha.5 `readFrom` and current
+  `open/read/close` now share one fail-closed cut contract, lifecycle-owned deadline, and logical-header identity;
+  current handles are closed exactly once. The deadline covers the physical reader only; the preceding Session flush
+  remains unbounded.
 - Retired failed native `skill` Tool calls as new evolution evidence because alpha.5 cannot distinguish absence from
   policy, load, cancellation, or execution failure. Historical rows remain readable but cannot qualify new opportunity
   or evaluation decisions.
@@ -66,10 +70,10 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 ### Known blockers
 
 - No registry package or stable SemVer tag has been published.
-- Canonical DSH master `c291e796…` / CLI 0.1.5-rc.2 now passes install, root build, clean-profile readback, and the strict
-  direct-turn Generation binder. Handle-based Interaction resolver persistence, retry/replacement/compaction/PTC cohorts,
-  dependency pins, Case Pack revisions, and the full support matrix remain unmigrated; the verified support baseline is
-  still the separately audited 0.1.2-alpha.5 revision.
+- Canonical DSH master `c291e796…` / CLI 0.1.5-rc.2 now passes install, root build, clean-profile readback, the strict
+  direct-turn Generation binder, and the internal handle-based Interaction resolver read cohort. Retry/replacement/
+  compaction/PTC cohorts, adjacent persistence consumers, dependency pins, Case Pack revisions, and the full support
+  matrix remain unmigrated; the verified support baseline is still the separately audited 0.1.2-alpha.5 revision.
 - Real long-running Feishu/Telegram, real-provider evolution, and complete same-condition Hermes paired evidence are not
   finished. The current RP-1 epoch-2 paid path is explicitly runtime-attestation-blocked, so the project does not claim an
   overall Hermes replacement.

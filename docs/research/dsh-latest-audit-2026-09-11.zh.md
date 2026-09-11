@@ -35,7 +35,8 @@ canonical latest 的当前状态。
 - Feishu 四个兼容文件 5/5 通过；
 - Generation binder 在旧 projector 基线上只有 2/6 通过；完成本轮 Session v3 direct-turn projector 后，同一 exact
   checkout 为 6/6。首个正例还令 fixture adapter 显式发布 `systemPromptUpdate: in-history`，验证 current request context
-  进入 transcript、request-control digest、qualification 和重开后的 Generation/Routing receipt 路径。
+  进入 transcript、request-control digest、qualification 和重开后的 Generation/Routing receipt 路径；随后加入的内部
+  persistence reader 还通过 current `open/read/close` 对同一真实 Session 做物理 readback，并令 Host composer 命中这两类 receipt。
 
 clean-profile 原生 readback 的旧测试曾把 `SessionHandle.read()` 误当成事件数组；当前 DSH 实际返回
 `{ eventState, events }`。测试适配现在读取 `.events` 并在 `finally` 关闭 handle，alpha.5 的 `load()` fallback 保持不变。
@@ -49,14 +50,17 @@ compact Assistant stream，核对 content/usage/replay/finish、AgentLoop 固定
 的后续 step 请求之前、真正改变有效 prompt 并绑定 effective `in-history` route；tail 存活后的请求也必须继续满足这两个
 route 条件。reader 扫描目标 `turn/end` 之前的整个前缀；未知 required 或混合格式继续 abstain，只有显式
 `ignorable: true` 的未知事件可以跳过。format v3 的 `assistant/attempt`/`llm/retry*`、surface replacement、
-`compaction/*` 和 PTC cohort 尚未迁移，Interaction evidence resolver 仍使用 alpha.5 `readFrom` contract；依赖版本、
-Case Pack revision 和 CI/兼容矩阵也没有迁移。
+`compaction/*` 和 PTC cohort 尚未迁移。Interaction evidence resolver 已用 exact capability XOR 同时支持 alpha.5
+`readFrom` 和 current `open/read/close` 的只读物理 cut，并对 open/read/close 设置 lifecycle deadline；该 deadline 不包含
+此前的 `sessions.flush()`。Gateway handle result、durable-feedback `inspect` 等相邻 consumer，以及依赖版本、Case Pack
+revision 和 CI/兼容矩阵仍没有迁移。
 
 因此当前支持基线仍是完整验证过的 `dsh-v0.1.2-alpha.5` / `db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`。
 `c291e796…` 现在是“latest audited + upstream buildable + 局部 assembled 取样”，不是 EvoForge supported runtime。
-必须先完成剩余 Session v3/persistence/PTC/pin 的一致迁移，再重跑 typecheck、pack、官方 add/dump/boot、
+必须先完成剩余 Session v3/persistence consumer/PTC/pin 的一致迁移，再重跑 typecheck、pack、官方 add/dump/boot、
 reload/dispose、Session 恢复、Web/渠道和卸载矩阵，才能改变支持声明。
 
 构建/readback 基线见
 [V5.230](../evidence/v5-230-dsh-rc2-clean-profile-readback-2026-09-11.zh.md)，direct-turn projector 与双 dialect
-回归见 [V5.231](../evidence/v5-231-session-v3-direct-turn-attestation-2026-09-11.zh.md)。
+回归见 [V5.231](../evidence/v5-231-session-v3-direct-turn-attestation-2026-09-11.zh.md)与
+[V5.232](../evidence/v5-232-session-persistence-dual-read-2026-09-11.zh.md)。

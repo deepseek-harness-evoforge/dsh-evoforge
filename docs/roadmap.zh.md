@@ -18,9 +18,10 @@
   行已退出新机会与评测资格。下一步由唯一 Host composer 消费现有 Gateway/Generation/Routing source，并继续补齐其余
   Episode 维度，再替换旧的 Goal-only 计数。
 - Session format v3 的 human-first、无预排 next-step context settled direct turn 已进入与 alpha.5 相同的严格
-  projector/evidence 路径；下一兼容增量迁移
-  handle-based Interaction resolver persistence，再分别处理 retry/replacement/compaction/PTC，最后统一更新依赖、Case Pack
-  和 CI pin。
+  projector/evidence 路径；Interaction resolver 也已对 alpha.5 `readFrom` 与 current `open/read/close` 完成同一物理
+  cut 的 fail-closed reader。下一兼容增量修复 Gateway handle result 与 durable-feedback `inspect` 等相邻 consumer，
+  再分别处理 retry/replacement/compaction/PTC，最后统一更新依赖、Case Pack 和 CI pin。reader 的 30 秒 deadline
+  不包含此前的 Session flush，不能外推为整个 resolution 有界。
 - DSH alpha.5 Storage Domain 尚不能取消或 fence 已接收的 KV mutation；source 读取已有 30 秒 fail-closed 上限，但 durable
   write teardown 仍依赖 Provider settlement。发布前需要上游 abort/deadline/no-late-write 契约，再把同一 deadline 贯穿
   Generation、Routing vault 与 producer dispose。

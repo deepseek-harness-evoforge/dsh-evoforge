@@ -13,6 +13,8 @@ interface LifecycleDeadlineOptions {
   readonly label: string
   readonly timeoutMessage: string
   readonly signal?: AbortSignal
+  /** Synchronous cancellation hook run before a deadline rejection is queued. */
+  readonly onDeadline?: () => void
 }
 
 export interface LifecycleTimerScope {
@@ -92,30 +94,51 @@ export async function runWithLifecycleDeadline<T>(
   try {
     disposeDeadline = owner.effect(() => {
       let timer: ReturnType<typeof setTimeout> | undefined
-      const abort = (): void => {
+      const abort = (reason: unknown): void => {
         if (deadlineSettled) return
         deadlineSettled = true
-        rejectDeadline(new LifecycleDeadlineDisposedError(
-          `${options.label} was disposed before completion`,
-        ))
+        try {
+          options.onDeadline?.()
+        } catch {
+          // Cancellation must still settle even when a defensive hook fails.
+        }
+        rejectDeadline(reason)
       }
       if (options.signal?.aborted) {
-        abort()
+        abort(new LifecycleDeadlineDisposedError(
+          `${options.label} was disposed before completion`,
+        ))
       } else {
         timer = setTimeout(() => {
-          if (deadlineSettled) return
-          deadlineSettled = true
-          rejectDeadline(new LifecycleDeadlineExceededError(options.timeoutMessage))
+          abort(new LifecycleDeadlineExceededError(options.timeoutMessage))
         }, options.timeoutMs)
-        options.signal?.addEventListener('abort', abort, { once: true })
+        const abortFromSignal = (): void => {
+          abort(new LifecycleDeadlineDisposedError(
+            `${options.label} was disposed before completion`,
+          ))
+        }
+        options.signal?.addEventListener('abort', abortFromSignal, { once: true })
+        return () => {
+          if (timer !== undefined) clearTimeout(timer)
+          options.signal?.removeEventListener('abort', abortFromSignal)
+          abort(new LifecycleDeadlineDisposedError(
+            `${options.label} was disposed before completion`,
+          ))
+        }
       }
       return () => {
         if (timer !== undefined) clearTimeout(timer)
-        options.signal?.removeEventListener('abort', abort)
-        abort()
+        abort(new LifecycleDeadlineDisposedError(
+          `${options.label} was disposed before completion`,
+        ))
       }
     }, options.label)
   } catch (error) {
+    try {
+      options.onDeadline?.()
+    } catch {
+      // Preserve the lifecycle attachment failure as the primary error.
+    }
     throw new LifecycleDeadlineDisposedError(
       `${options.label} could not attach to its Cordis lifecycle`,
       { cause: error },
@@ -130,8 +153,27 @@ export async function runWithLifecycleDeadline<T>(
     } catch (error) {
       invocation = Promise.reject(error)
     }
-    return await Promise.race([invocation, deadline])
+    // A lifecycle unload can start inside `invoke()` or in the same producer
+    // turn that settles it. Guard fulfillment at its own reaction boundary so
+    // the outcome whose cleanup/settlement was published first wins without
+    // inserting an unconditional checkpoint that could reverse the order.
+    const guardedInvocation = invocation.then(
+      value => {
+        if (deadlineSettled) return deadline
+        deadlineSettled = true
+        return value
+      },
+      error => {
+        if (deadlineSettled) return deadline
+        deadlineSettled = true
+        throw error
+      },
+    )
+    return await Promise.race([guardedInvocation, deadline])
   } finally {
+    // The invocation may have won the race. Mark the deadline settled before
+    // releasing its effect so ordinary cleanup cannot run onDeadline.
+    deadlineSettled = true
     // This effect owns only synchronous timer/listener cleanup. Calling the
     // disposer directly avoids inserting another microtask between a proven
     // completed turn and the producer's ordered shutdown drain.

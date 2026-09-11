@@ -24,7 +24,7 @@ import type {
   InteractionEpisodeHostEvidenceResolutionV1,
 } from '../src/interaction-episode-assembler.ts'
 import {
-  createInteractionEpisodeEvidenceResolver,
+  createInteractionEpisodeEvidenceResolver as createResolver,
   createStockDshAlpha5InteractionEpisodeEvidenceResolver as createStockResolver,
   type DurableInteractionEpisodeSubjectV1,
   type InteractionEpisodeDerivedEvidenceV1,
@@ -34,6 +34,13 @@ import * as publicApi from '../src/index.ts'
 const lifecycle = new Context()
 
 type StockResolverDependencies = Parameters<typeof createStockResolver>[0]
+type ResolverDependencies = Parameters<typeof createResolver>[0]
+
+function createInteractionEpisodeEvidenceResolver(
+  dependencies: Omit<ResolverDependencies, 'lifecycle'>,
+) {
+  return createResolver({ ...dependencies, lifecycle })
+}
 
 function createStockDshAlpha5InteractionEpisodeEvidenceResolver(
   dependencies: Omit<StockResolverDependencies, 'lifecycle'>,
@@ -46,6 +53,7 @@ afterAll(async () => {
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.restoreAllMocks()
 })
 
@@ -54,6 +62,7 @@ describe('Interaction Episode evidence resolver', () => {
     expect(publicApi).not.toHaveProperty('createGatewayAwareDshAlpha5InteractionEpisodeEvidenceResolver')
     expect(publicApi).not.toHaveProperty('createInteractionEpisodeEvidenceResolver')
     expect(publicApi).not.toHaveProperty('createStockDshAlpha5InteractionEpisodeEvidenceResolver')
+    expect(publicApi).not.toHaveProperty('readInteractionSessionStoredCutV1')
     expect(publicApi).not.toHaveProperty('createDshAlpha5HostEvidenceAttestor')
     expect(publicApi).not.toHaveProperty('createInteractionGenerationEvidenceReceiptV1')
     expect(publicApi).not.toHaveProperty('createInteractionGenerationEvidenceSource')
@@ -114,6 +123,7 @@ describe('Interaction Episode evidence resolver', () => {
     expect(sessionPersistence.readFrom).toHaveBeenCalledWith(
       fixture.session.id,
       SessionLogOffset(0),
+      expect.any(AbortSignal),
     )
     expect(sessions.flush).toHaveBeenCalledOnce()
     expect(sessionPersistence.readFrom).toHaveBeenCalledOnce()
@@ -121,6 +131,1001 @@ describe('Interaction Episode evidence resolver', () => {
     expect(Object.isFrozen(result)).toBe(true)
     expect(Object.isFrozen(result.dimensions)).toBe(true)
     expect('input' in result).toBe(false)
+  })
+
+  it('treats an omitted live root delegation depth as the physical zero default', async () => {
+    const fixture = completedGapTurn()
+    expect(Object.hasOwn(fixture.session.header, 'delegationDepth')).toBe(false)
+    const stored = structuredClone(fixture.stored) as Mutable<SessionEventSuffix>
+    stored.meta.delegationDepth = 0
+    const resolver = createStockDshAlpha5InteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom: async () => stored as SessionEventSuffix },
+    })
+
+    await expect(resolver.resolve(targetFor(fixture))).resolves.toMatchObject({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-unavailable',
+    })
+  })
+
+  it('reads and closes one exact current Session persistence handle', async () => {
+    const fixture = completedGapTurn()
+    const read = vi.fn(async () => ({
+      eventState: 'detached',
+      events: structuredClone(fixture.stored.events),
+    }))
+    const close = vi.fn(async () => {})
+    let openSignal: AbortSignal | undefined
+    const open = vi.fn(async (
+      _id: string,
+      _access: string,
+      options?: { readonly signal?: AbortSignal },
+    ) => {
+      openSignal = options?.signal
+      return {
+        id: fixture.session.id,
+        header: structuredClone(fixture.stored.meta),
+        inheritedEventCount: fixture.stored.inheritedEventCount,
+        access: 'read',
+        read,
+        close,
+      }
+    })
+    const resolver = createStockResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { open },
+      lifecycle,
+    })
+
+    await expect(resolver.resolve(targetFor(fixture))).resolves.toMatchObject({
+      status: 'abstained',
+      stage: 'host-evidence',
+      reason: 'evidence-unavailable',
+    })
+    expect(open).toHaveBeenCalledWith(
+      fixture.session.id,
+      'read',
+      { signal: expect.any(AbortSignal) },
+    )
+    expect(read).toHaveBeenCalledWith(
+      0,
+      fixture.turnEndSeq + 1,
+      { signal: openSignal },
+    )
+    expect(close).toHaveBeenCalledOnce()
+    expect(deadlineEffectCount(lifecycle, 'sessionPersistenceRead')).toBe(0)
+    expect(deadlineEffectCount(lifecycle, 'sessionPersistenceHandle')).toBe(0)
+  })
+
+  it('refuses an ambiguous persistence object without invoking either dialect', async () => {
+    const fixture = completedGapTurn()
+    const readFrom = vi.fn(async () => structuredClone(fixture.stored))
+    const open = vi.fn(async () => { throw new Error('must not open') })
+    const resolver = createStockResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom, open },
+      lifecycle,
+    })
+
+    await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+      status: 'abstained',
+      stage: 'session-durability',
+      reason: 'stored-read-failed',
+      dimensions: ['session-durability'],
+    })
+    expect(readFrom).not.toHaveBeenCalled()
+    expect(open).not.toHaveBeenCalled()
+  })
+
+  it('closes a current handle after read failure and preserves the primary classification', async () => {
+    const fixture = completedGapTurn()
+    const readFailure = new SessionPersistenceCorruptionError('corrupt current read', {
+      cause: new Error('private cause'),
+    })
+    const read = vi.fn(async () => { throw readFailure })
+    const close = vi.fn(async () => { throw new Error('private close failure') })
+    const resolver = createStockResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: {
+        open: async () => ({
+          id: fixture.session.id,
+          header: structuredClone(fixture.stored.meta),
+          inheritedEventCount: fixture.stored.inheritedEventCount,
+          access: 'read',
+          read,
+          close,
+        }),
+      },
+      lifecycle,
+    })
+
+    const result = await resolver.resolve(targetFor(fixture))
+
+    expect(result).toEqual({
+      status: 'abstained',
+      stage: 'session-durability',
+      reason: 'stored-cut-conflict',
+      dimensions: ['subject', 'session-durability'],
+    })
+    expect(read).toHaveBeenCalledOnce()
+    expect(close).toHaveBeenCalledOnce()
+    expect(JSON.stringify(result)).not.toMatch(/private|corrupt|close/u)
+  })
+
+  it('treats a successful current read whose close rejects as a read failure', async () => {
+    const fixture = completedGapTurn()
+    const close = vi.fn(async () => { throw new Error('private close failure') })
+    const resolver = createStockResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: {
+        open: async () => ({
+          id: fixture.session.id,
+          header: structuredClone(fixture.stored.meta),
+          inheritedEventCount: fixture.stored.inheritedEventCount,
+          access: 'read',
+          read: async () => ({
+            eventState: 'detached',
+            events: structuredClone(fixture.stored.events),
+          }),
+          close,
+        }),
+      },
+      lifecycle,
+    })
+
+    await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+      status: 'abstained',
+      stage: 'session-durability',
+      reason: 'stored-read-failed',
+      dimensions: ['session-durability'],
+    })
+    expect(close).toHaveBeenCalledOnce()
+  })
+
+  it.each([
+    ['not-found', () => new SessionPersistenceNotFoundError(SessionId('episode-session'))],
+    ['unsupported-format', () => new SessionFormatUnsupportedError('future format')],
+    ['corruption', () => new SessionPersistenceCorruptionError('corrupt close', {
+      cause: new Error('private cause'),
+    })],
+  ] as const)(
+    'never treats an official-looking %s close failure as stored evidence',
+    async (_label, closeFailure) => {
+      const fixture = completedGapTurn()
+      const close = vi.fn(async () => { throw closeFailure() })
+      const resolver = createStockResolver({
+        sessions: { get: () => fixture.session, flush: async () => true },
+        sessionPersistence: {
+          open: async () => ({
+            id: fixture.session.id,
+            header: structuredClone(fixture.stored.meta),
+            inheritedEventCount: fixture.stored.inheritedEventCount,
+            access: 'read',
+            read: async () => ({
+              eventState: 'detached',
+              events: structuredClone(fixture.stored.events),
+            }),
+            close,
+          }),
+        },
+        lifecycle,
+      })
+
+      await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+        status: 'abstained',
+        stage: 'session-durability',
+        reason: 'stored-read-failed',
+        dimensions: ['session-durability'],
+      })
+      expect(close).toHaveBeenCalledOnce()
+    },
+  )
+
+  it('times out a late current open, then closes it without starting a late read', async () => {
+    vi.useFakeTimers()
+    const fixture = completedGapTurn()
+    const pendingOpen = deferred<unknown>()
+    const read = vi.fn(async () => ({
+      eventState: 'detached',
+      events: structuredClone(fixture.stored.events),
+    }))
+    const close = vi.fn(async () => {})
+    let signal: AbortSignal | undefined
+    const open = vi.fn((
+      _id: string,
+      _access: string,
+      options?: { readonly signal?: AbortSignal },
+    ) => {
+      signal = options?.signal
+      return pendingOpen.promise
+    })
+    const resolver = createStockResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { open },
+      lifecycle,
+      sessionPersistenceReadTimeoutMs: 10,
+    })
+
+    const resolution = resolver.resolve(targetFor(fixture))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(open).toHaveBeenCalledOnce()
+    expect(deadlineEffectCount(lifecycle, 'sessionPersistenceRead')).toBe(1)
+    await vi.advanceTimersByTimeAsync(10)
+
+    await expect(resolution).resolves.toEqual({
+      status: 'abstained',
+      stage: 'session-durability',
+      reason: 'stored-read-failed',
+      dimensions: ['session-durability'],
+    })
+    expect(signal?.aborted).toBe(true)
+    pendingOpen.resolve({
+      id: fixture.session.id,
+      header: structuredClone(fixture.stored.meta),
+      inheritedEventCount: fixture.stored.inheritedEventCount,
+      access: 'read',
+      read,
+      close,
+    })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(read).not.toHaveBeenCalled()
+    expect(close).toHaveBeenCalledOnce()
+    expect(deadlineEffectCount(lifecycle, 'sessionPersistenceRead')).toBe(0)
+  })
+
+  it('observes a rejecting close from a handle returned after the read deadline', async () => {
+    vi.useFakeTimers()
+    const fixture = completedGapTurn()
+    const pendingOpen = deferred<unknown>()
+    const read = vi.fn()
+    const close = vi.fn(async () => {
+      throw new Error('private late handle close failure')
+    })
+    const resolver = createStockResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { open: () => pendingOpen.promise },
+      lifecycle,
+      sessionPersistenceReadTimeoutMs: 10,
+    })
+
+    const resolution = resolver.resolve(targetFor(fixture))
+    await vi.advanceTimersByTimeAsync(10)
+    await expect(resolution).resolves.toMatchObject({
+      status: 'abstained',
+      stage: 'session-durability',
+      reason: 'stored-read-failed',
+    })
+
+    pendingOpen.resolve({
+      id: fixture.session.id,
+      header: structuredClone(fixture.stored.meta),
+      inheritedEventCount: fixture.stored.inheritedEventCount,
+      access: 'read',
+      read,
+      close,
+    })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(read).not.toHaveBeenCalled()
+    expect(close).toHaveBeenCalledOnce()
+  })
+
+  it('times out a current read, closes immediately, and discards its late result', async () => {
+    vi.useFakeTimers()
+    const fixture = completedGapTurn()
+    const pendingRead = deferred<unknown>()
+    const read = vi.fn(() => pendingRead.promise)
+    const close = vi.fn(async () => {})
+    const resolver = createStockResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: {
+        open: async () => ({
+          id: fixture.session.id,
+          header: structuredClone(fixture.stored.meta),
+          inheritedEventCount: fixture.stored.inheritedEventCount,
+          access: 'read',
+          read,
+          close,
+        }),
+      },
+      lifecycle,
+      sessionPersistenceReadTimeoutMs: 10,
+    })
+
+    const resolution = resolver.resolve(targetFor(fixture))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(read).toHaveBeenCalledOnce()
+    await vi.advanceTimersByTimeAsync(10)
+
+    await expect(resolution).resolves.toMatchObject({
+      status: 'abstained',
+      stage: 'session-durability',
+      reason: 'stored-read-failed',
+    })
+    expect(close).toHaveBeenCalledOnce()
+    pendingRead.resolve({
+      eventState: 'detached',
+      events: structuredClone(fixture.stored.events),
+    })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(close).toHaveBeenCalledOnce()
+  })
+
+  it('waits for current handle close before invoking Host attestation', async () => {
+    const fixture = completedGapTurn()
+    const pendingClose = deferred<void>()
+    const attestor = vi.fn(async (subject: DurableInteractionEpisodeSubjectV1) =>
+      completeHostResolution(subject))
+    const resolver = createInteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: {
+        open: async () => ({
+          id: fixture.session.id,
+          header: structuredClone(fixture.stored.meta),
+          inheritedEventCount: fixture.stored.inheritedEventCount,
+          access: 'read',
+          read: async () => ({
+            eventState: 'detached',
+            events: structuredClone(fixture.stored.events),
+          }),
+          close: vi.fn(() => pendingClose.promise),
+        }),
+      },
+      attestor: { resolve: attestor },
+    })
+
+    const resolution = resolver.resolve(targetFor(fixture))
+    await vi.waitFor(() => {
+      expect(deadlineEffectCount(lifecycle, 'sessionPersistenceRead')).toBe(1)
+    })
+    expect(attestor).not.toHaveBeenCalled()
+
+    pendingClose.resolve()
+    await expect(resolution).resolves.toMatchObject({ status: 'assembled' })
+    expect(attestor).toHaveBeenCalledOnce()
+    expect(deadlineEffectCount(lifecycle, 'sessionPersistenceRead')).toBe(0)
+  })
+
+  it('bounds a current close that never settles and never invokes Host attestation', async () => {
+    vi.useFakeTimers()
+    const fixture = completedGapTurn()
+    const close = vi.fn(() => new Promise<never>(() => {}))
+    const attestor = vi.fn(async (subject: DurableInteractionEpisodeSubjectV1) =>
+      completeHostResolution(subject))
+    const resolver = createResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: {
+        open: async () => ({
+          id: fixture.session.id,
+          header: structuredClone(fixture.stored.meta),
+          inheritedEventCount: fixture.stored.inheritedEventCount,
+          access: 'read',
+          read: async () => ({
+            eventState: 'detached',
+            events: structuredClone(fixture.stored.events),
+          }),
+          close,
+        }),
+      },
+      lifecycle,
+      sessionPersistenceReadTimeoutMs: 10,
+      attestor: { resolve: attestor },
+    })
+
+    const resolution = resolver.resolve(targetFor(fixture))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(close).toHaveBeenCalledOnce()
+    expect(attestor).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(10)
+
+    await expect(resolution).resolves.toEqual({
+      status: 'abstained',
+      stage: 'session-durability',
+      reason: 'stored-read-failed',
+      dimensions: ['session-durability'],
+    })
+    expect(close).toHaveBeenCalledOnce()
+    expect(attestor).not.toHaveBeenCalled()
+    expect(deadlineEffectCount(lifecycle, 'sessionPersistenceHandle')).toBe(0)
+  })
+
+  it('aborts and closes a pending current read when its lifecycle owner is disposed', async () => {
+    const owner = new Context()
+    const fixture = completedGapTurn()
+    const pendingRead = deferred<unknown>()
+    const close = vi.fn(async () => {})
+    let openSignal: AbortSignal | undefined
+    let readSignal: AbortSignal | undefined
+    let ownerDisposed = false
+    try {
+      const resolver = createResolver({
+        sessions: { get: () => fixture.session, flush: async () => true },
+        sessionPersistence: {
+          open: async (
+            _id: string,
+            _access: string,
+            options?: { readonly signal?: AbortSignal },
+          ) => {
+            openSignal = options?.signal
+            return {
+              id: fixture.session.id,
+              header: structuredClone(fixture.stored.meta),
+              inheritedEventCount: fixture.stored.inheritedEventCount,
+              access: 'read',
+              read: (
+                _offset: number,
+                _length: number,
+                options?: { readonly signal?: AbortSignal },
+              ) => {
+                readSignal = options?.signal
+                return pendingRead.promise
+              },
+              close,
+            }
+          },
+        },
+        lifecycle: owner,
+        sessionPersistenceReadTimeoutMs: 120_000,
+        attestor: { resolve: vi.fn() },
+      })
+
+      const resolution = resolver.resolve(targetFor(fixture))
+      await vi.waitFor(() => expect(readSignal).toBeDefined())
+      expect(openSignal).toBe(readSignal)
+      expect(deadlineEffectCount(owner, 'sessionPersistenceRead')).toBe(1)
+
+      await owner.fiber.dispose()
+      ownerDisposed = true
+
+      await expect(resolution).resolves.toMatchObject({
+        status: 'abstained',
+        stage: 'session-durability',
+        reason: 'stored-read-failed',
+      })
+      expect(readSignal?.aborted).toBe(true)
+      expect(close).toHaveBeenCalledOnce()
+      expect(deadlineEffectCount(owner, 'sessionPersistenceRead')).toBe(0)
+      pendingRead.reject(new Error('late private read failure'))
+      await Promise.resolve()
+    } finally {
+      if (!ownerDisposed) await owner.fiber.dispose()
+    }
+  })
+
+  it('contains a current close rejection during lifecycle disposal', async () => {
+    const root = new Context()
+    const owner = await root.plugin(() => {})
+    const fixture = completedGapTurn()
+    const pendingRead = deferred<unknown>()
+    const observedLogs: unknown[][] = []
+    vi.spyOn(owner.ctx.logger, 'error').mockImplementation((...args: unknown[]) => {
+      observedLogs.push(args)
+    })
+    try {
+      const resolver = createResolver({
+        sessions: { get: () => fixture.session, flush: async () => true },
+        sessionPersistence: {
+          open: async () => ({
+            id: fixture.session.id,
+            header: structuredClone(fixture.stored.meta),
+            inheritedEventCount: fixture.stored.inheritedEventCount,
+            access: 'read',
+            read: () => pendingRead.promise,
+            close: async () => {
+              throw new Error('PRIVATE-CLOSE-MARKER')
+            },
+          }),
+        },
+        lifecycle: owner.ctx,
+        sessionPersistenceReadTimeoutMs: 120_000,
+        attestor: { resolve: vi.fn() },
+      })
+
+      const resolution = resolver.resolve(targetFor(fixture))
+      await vi.waitFor(() => {
+        expect(deadlineEffectCount(owner.ctx, 'sessionPersistenceHandle')).toBe(1)
+      })
+      await owner.dispose()
+      pendingRead.reject(new Error('late private read failure'))
+
+      await expect(resolution).resolves.toMatchObject({
+        status: 'abstained',
+        stage: 'session-durability',
+        reason: 'stored-read-failed',
+      })
+      expect(JSON.stringify(observedLogs)).not.toContain('PRIVATE-CLOSE-MARKER')
+    } finally {
+      pendingRead.reject(new Error('test cleanup'))
+      await owner.dispose()
+      await root.fiber.dispose()
+    }
+  })
+
+  it('joins an acquired current handle close before lifecycle disposal settles', async () => {
+    const root = new Context()
+    const owner = await root.plugin(() => {})
+    const fixture = completedGapTurn()
+    const pendingRead = deferred<unknown>()
+    const pendingClose = deferred<void>()
+    const close = vi.fn(() => pendingClose.promise)
+    let readStarted = false
+    try {
+      const resolver = createResolver({
+        sessions: { get: () => fixture.session, flush: async () => true },
+        sessionPersistence: {
+          open: async () => ({
+            id: fixture.session.id,
+            header: structuredClone(fixture.stored.meta),
+            inheritedEventCount: fixture.stored.inheritedEventCount,
+            access: 'read',
+            read: () => {
+              readStarted = true
+              return pendingRead.promise
+            },
+            close,
+          }),
+        },
+        lifecycle: owner.ctx,
+        sessionPersistenceReadTimeoutMs: 120_000,
+        attestor: { resolve: vi.fn() },
+      })
+
+      const resolution = resolver.resolve(targetFor(fixture))
+      await vi.waitFor(() => expect(readStarted).toBe(true))
+      let disposalSettled = false
+      const disposal = owner.dispose().then(() => { disposalSettled = true })
+      await vi.waitFor(() => expect(close).toHaveBeenCalledOnce())
+      await Promise.resolve()
+      expect(disposalSettled).toBe(false)
+
+      pendingClose.resolve()
+      await disposal
+      expect(disposalSettled).toBe(true)
+      pendingRead.reject(new Error('late read after closed handle'))
+      await expect(resolution).resolves.toMatchObject({
+        status: 'abstained',
+        stage: 'session-durability',
+        reason: 'stored-read-failed',
+      })
+      expect(close).toHaveBeenCalledOnce()
+    } finally {
+      pendingClose.resolve()
+      pendingRead.reject(new Error('test cleanup'))
+      await owner.dispose()
+      await root.fiber.dispose()
+    }
+  })
+
+  it('bounds lifecycle joining when an acquired current handle never closes', async () => {
+    vi.useFakeTimers()
+    const root = new Context()
+    const owner = await root.plugin(() => {})
+    const fixture = completedGapTurn()
+    const pendingRead = deferred<unknown>()
+    const close = vi.fn(() => new Promise<never>(() => {}))
+    let readStarted = false
+    try {
+      const resolver = createResolver({
+        sessions: { get: () => fixture.session, flush: async () => true },
+        sessionPersistence: {
+          open: async () => ({
+            id: fixture.session.id,
+            header: structuredClone(fixture.stored.meta),
+            inheritedEventCount: fixture.stored.inheritedEventCount,
+            access: 'read',
+            read: () => {
+              readStarted = true
+              return pendingRead.promise
+            },
+            close,
+          }),
+        },
+        lifecycle: owner.ctx,
+        sessionPersistenceReadTimeoutMs: 10,
+        attestor: { resolve: vi.fn() },
+      })
+
+      const resolution = resolver.resolve(targetFor(fixture))
+      await vi.advanceTimersByTimeAsync(0)
+      expect(readStarted).toBe(true)
+      await vi.advanceTimersByTimeAsync(6)
+      const wallNow = Date.now()
+      vi.spyOn(Date, 'now').mockReturnValue(wallNow - 3_600_000)
+      let disposalSettled = false
+      const disposal = owner.dispose().then(() => { disposalSettled = true })
+      await vi.advanceTimersByTimeAsync(3)
+      expect(close).toHaveBeenCalledOnce()
+      expect(disposalSettled).toBe(false)
+
+      await vi.advanceTimersByTimeAsync(1)
+      await disposal
+      expect(disposalSettled).toBe(true)
+      await expect(resolution).resolves.toMatchObject({
+        status: 'abstained',
+        stage: 'session-durability',
+        reason: 'stored-read-failed',
+      })
+      pendingRead.reject(new Error('late read after lifecycle deadline'))
+      await vi.advanceTimersByTimeAsync(0)
+      expect(close).toHaveBeenCalledOnce()
+    } finally {
+      pendingRead.reject(new Error('test cleanup'))
+      await owner.dispose()
+      await root.fiber.dispose()
+    }
+  })
+
+  it('aborts before a same-owner late open continuation can start a read during disposal', async () => {
+    const root = new Context()
+    const owner = await root.plugin(() => {})
+    const fixture = completedGapTurn()
+    let resolveOpen!: (handle: unknown) => void
+    let signal: AbortSignal | undefined
+    const read = vi.fn(() => new Promise<never>(() => {}))
+    const close = vi.fn(async () => {})
+    const open = vi.fn((
+      _id: string,
+      _access: string,
+      options?: { readonly signal?: AbortSignal },
+    ) => {
+      signal = options?.signal
+      owner.ctx.effect(() => () => {
+        resolveOpen({
+          id: fixture.session.id,
+          header: structuredClone(fixture.stored.meta),
+          inheritedEventCount: fixture.stored.inheritedEventCount,
+          access: 'read',
+          read,
+          close,
+        })
+      }, 'test.lateOpenOnDispose')
+      return new Promise<unknown>((resolve) => { resolveOpen = resolve })
+    })
+    try {
+      const resolver = createResolver({
+        sessions: { get: () => fixture.session, flush: async () => true },
+        sessionPersistence: { open },
+        lifecycle: owner.ctx,
+        sessionPersistenceReadTimeoutMs: 120_000,
+        attestor: { resolve: vi.fn() },
+      })
+
+      const resolution = resolver.resolve(targetFor(fixture))
+      await vi.waitFor(() => expect(open).toHaveBeenCalledOnce())
+      await owner.dispose()
+
+      await expect(resolution).resolves.toEqual({
+        status: 'abstained',
+        stage: 'session-durability',
+        reason: 'stored-read-failed',
+        dimensions: ['session-durability'],
+      })
+      expect(signal?.aborted).toBe(true)
+      expect(read).not.toHaveBeenCalled()
+      expect(close).toHaveBeenCalledOnce()
+    } finally {
+      await owner.dispose()
+      await root.fiber.dispose()
+    }
+  })
+
+  it('does not invoke persistence through an inactive lifecycle owner', async () => {
+    const root = new Context()
+    const owner = await root.plugin(() => {})
+    const fixture = completedGapTurn()
+    const open = vi.fn()
+    await owner.dispose()
+    try {
+      const resolver = createResolver({
+        sessions: { get: () => fixture.session, flush: async () => true },
+        sessionPersistence: { open },
+        lifecycle: owner.ctx,
+        attestor: { resolve: vi.fn() },
+      })
+
+      await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+        status: 'abstained',
+        stage: 'session-durability',
+        reason: 'stored-read-failed',
+        dimensions: ['session-durability'],
+      })
+      expect(open).not.toHaveBeenCalled()
+    } finally {
+      await root.fiber.dispose()
+    }
+  })
+
+  it('bounds an alpha.5 read and passes its AbortSignal positionally', async () => {
+    vi.useFakeTimers()
+    const fixture = completedGapTurn()
+    const pendingRead = deferred<unknown>()
+    let signal: AbortSignal | undefined
+    const readFrom = vi.fn((
+      _id: string,
+      _offset: number,
+      readSignal?: AbortSignal,
+    ) => {
+      signal = readSignal
+      return pendingRead.promise
+    })
+    const resolver = createStockResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom },
+      lifecycle,
+      sessionPersistenceReadTimeoutMs: 10,
+    })
+
+    const resolution = resolver.resolve(targetFor(fixture))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(readFrom).toHaveBeenCalledWith(
+      fixture.session.id,
+      SessionLogOffset(0),
+      expect.any(AbortSignal),
+    )
+    await vi.advanceTimersByTimeAsync(10)
+
+    await expect(resolution).resolves.toMatchObject({
+      status: 'abstained',
+      stage: 'session-durability',
+      reason: 'stored-read-failed',
+    })
+    expect(signal?.aborted).toBe(true)
+    pendingRead.resolve(structuredClone(fixture.stored))
+    await vi.advanceTimersByTimeAsync(0)
+  })
+
+  it.each([
+    ['bare event array', (fixture: ReturnType<typeof completedGapTurn>) =>
+      structuredClone(fixture.stored.events)],
+    ['missing event state', (fixture: ReturnType<typeof completedGapTurn>) => ({
+      events: structuredClone(fixture.stored.events),
+    })],
+    ['unknown event state', (fixture: ReturnType<typeof completedGapTurn>) => ({
+      eventState: 'borrowed',
+      events: structuredClone(fixture.stored.events),
+    })],
+    ['non-array events', () => ({ eventState: 'detached', events: {} })],
+    ['oversized slice', (fixture: ReturnType<typeof completedGapTurn>) => ({
+      eventState: 'detached',
+      events: [...structuredClone(fixture.stored.events), fixture.stored.events[0]],
+    })],
+  ] as const)('rejects and closes a malformed current fulfillment: %s', async (_label, result) => {
+    const fixture = completedGapTurn()
+    const close = vi.fn(async () => {})
+    const resolver = createStockResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: {
+        open: async () => ({
+          id: fixture.session.id,
+          header: structuredClone(fixture.stored.meta),
+          inheritedEventCount: fixture.stored.inheritedEventCount,
+          access: 'read',
+          read: async () => result(fixture),
+          close,
+        }),
+      },
+      lifecycle,
+    })
+
+    await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+      status: 'abstained',
+      stage: 'session-durability',
+      reason: 'stored-cut-conflict',
+      dimensions: ['subject', 'session-durability'],
+    })
+    expect(close).toHaveBeenCalledOnce()
+  })
+
+  it('rejects a current close accessor without invoking it', async () => {
+    const fixture = completedGapTurn()
+    const closeGetter = vi.fn(() => vi.fn(async () => {}))
+    const handle = {
+      id: fixture.session.id,
+      header: structuredClone(fixture.stored.meta),
+      inheritedEventCount: fixture.stored.inheritedEventCount,
+      access: 'read',
+      read: vi.fn(async () => ({
+        eventState: 'detached',
+        events: structuredClone(fixture.stored.events),
+      })),
+      get close() { return closeGetter() },
+    }
+    const resolver = createStockResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { open: async () => handle },
+      lifecycle,
+    })
+
+    await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+      status: 'abstained',
+      stage: 'session-durability',
+      reason: 'stored-read-failed',
+      dimensions: ['session-durability'],
+    })
+    expect(closeGetter).not.toHaveBeenCalled()
+    expect(handle.read).not.toHaveBeenCalled()
+  })
+
+  it.each(['alpha5', 'current'] as const)(
+    'contains a null physical header from the %s persistence dialect',
+    async (dialect) => {
+      const fixture = completedGapTurn()
+      const close = vi.fn(async () => {})
+      const sessionPersistence = dialect === 'alpha5'
+        ? {
+            readFrom: async () => ({
+              ...structuredClone(fixture.stored),
+              meta: null,
+            }),
+          }
+        : {
+            open: async () => ({
+              id: fixture.session.id,
+              header: null,
+              inheritedEventCount: fixture.stored.inheritedEventCount,
+              access: 'read',
+              read: async () => ({
+                eventState: 'detached',
+                events: structuredClone(fixture.stored.events),
+              }),
+              close,
+            }),
+          }
+      const resolver = createStockResolver({
+        sessions: { get: () => fixture.session, flush: async () => true },
+        sessionPersistence,
+        lifecycle,
+      })
+
+      await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+        status: 'abstained',
+        stage: 'session-durability',
+        reason: 'stored-cut-conflict',
+        dimensions: ['subject', 'session-durability'],
+      })
+      expect(close).toHaveBeenCalledTimes(dialect === 'current' ? 1 : 0)
+    },
+  )
+
+  it('classifies a current handle with missing header metadata as a physical conflict', async () => {
+    const fixture = completedGapTurn()
+    const close = vi.fn(async () => {})
+    const resolver = createStockResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: {
+        open: async () => ({
+          id: fixture.session.id,
+          inheritedEventCount: fixture.stored.inheritedEventCount,
+          access: 'read',
+          read: async () => ({
+            eventState: 'detached',
+            events: structuredClone(fixture.stored.events),
+          }),
+          close,
+        }),
+      },
+      lifecycle,
+    })
+
+    await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+      status: 'abstained',
+      stage: 'session-durability',
+      reason: 'stored-cut-conflict',
+      dimensions: ['subject', 'session-durability'],
+    })
+    expect(close).toHaveBeenCalledOnce()
+  })
+
+  it('rejects an array decorated to resemble the exact physical header', async () => {
+    const fixture = completedGapTurn()
+    const decoratedHeader = Object.assign([], structuredClone(fixture.stored.meta))
+    const resolver = createStockResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: {
+        readFrom: async () => ({
+          ...structuredClone(fixture.stored),
+          meta: decoratedHeader,
+        }),
+      },
+      lifecycle,
+    })
+
+    await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+      status: 'abstained',
+      stage: 'session-durability',
+      reason: 'stored-cut-conflict',
+      dimensions: ['subject', 'session-durability'],
+    })
+  })
+
+  it.each([
+    ['wrong handle id', { id: 'other-session', access: 'read', read: async () => undefined }],
+    ['write handle', { id: 'episode-session', access: 'write', read: async () => undefined }],
+    ['missing read', { id: 'episode-session', access: 'read' }],
+    ['non-callable read', { id: 'episode-session', access: 'read', read: true }],
+  ] as const)('fails and closes a malformed current handle: %s', async (_label, shape) => {
+    const fixture = completedGapTurn()
+    const close = vi.fn(async () => {})
+    const resolver = createStockResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: {
+        open: async () => ({
+          ...shape,
+          header: structuredClone(fixture.stored.meta),
+          inheritedEventCount: fixture.stored.inheritedEventCount,
+          close,
+        }),
+      },
+      lifecycle,
+    })
+
+    await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+      status: 'abstained',
+      stage: 'session-durability',
+      reason: 'stored-read-failed',
+      dimensions: ['session-durability'],
+    })
+    expect(close).toHaveBeenCalledOnce()
+  })
+
+  it.each([0, 1.5, 120_001, Number.NaN])(
+    'rejects an invalid Session persistence read timeout: %s',
+    (timeoutMs) => {
+      const fixture = completedGapTurn()
+      expect(() => createStockResolver({
+        sessions: { get: () => fixture.session, flush: async () => true },
+        sessionPersistence: { readFrom: async () => structuredClone(fixture.stored) },
+        lifecycle,
+        sessionPersistenceReadTimeoutMs: timeoutMs,
+      })).toThrow(
+        'Session persistence read timeout must be from 1 to 120000 milliseconds',
+      )
+    },
+  )
+
+  it.each([
+    ['SessionPersistenceNotFoundError', 'episode-session', 'stored-cut-unavailable'],
+    ['SessionPersistenceNotFoundError', 'other-session', 'stored-read-failed'],
+    ['SessionFormatUnsupportedError', undefined, 'stored-cut-unavailable'],
+    ['SessionPersistenceCorruptionError', undefined, 'stored-cut-conflict'],
+  ] as const)(
+    'classifies a foreign-copy %s without relying on instanceof',
+    async (name, sessionId, reason) => {
+      const fixture = completedGapTurn()
+      const foreignError = foreignPersistenceError(name, sessionId)
+      const resolver = createStockDshAlpha5InteractionEpisodeEvidenceResolver({
+        sessions: { get: () => fixture.session, flush: async () => true },
+        sessionPersistence: { readFrom: async () => { throw foreignError } },
+      })
+
+      const result = await resolver.resolve(targetFor(fixture))
+
+      expect(result).toMatchObject({
+        status: 'abstained',
+        stage: 'session-durability',
+        reason,
+      })
+      expect(JSON.stringify(result)).not.toContain('private')
+    },
+  )
+
+  it('does not trust a renamed plain Error as an official persistence conclusion', async () => {
+    const fixture = completedGapTurn()
+    const spoof = new Error('private spoof') as Error & { sessionId?: string }
+    spoof.name = 'SessionPersistenceNotFoundError'
+    spoof.sessionId = String(fixture.session.id)
+    const resolver = createStockDshAlpha5InteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom: async () => { throw spoof } },
+    })
+
+    await expect(resolver.resolve(targetFor(fixture))).resolves.toEqual({
+      status: 'abstained',
+      stage: 'session-durability',
+      reason: 'stored-read-failed',
+      dimensions: ['session-durability'],
+    })
   })
 
   it('yields once so later synchronous event observers can enqueue before flush', async () => {
@@ -623,6 +1628,32 @@ describe('Interaction Episode evidence resolver', () => {
     expect(JSON.stringify(observedDerived)).not.toContain('Find a reusable release audit method.')
   })
 
+  it('keeps the captured logical root header after verifying a materialized physical depth', async () => {
+    const fixture = completedGapTurn()
+    const stored = structuredClone(fixture.stored) as Mutable<SessionEventSuffix>
+    stored.meta.delegationDepth = 0
+    let observedSubject: DurableInteractionEpisodeSubjectV1 | undefined
+    const resolver = createInteractionEpisodeEvidenceResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: { readFrom: async () => stored as unknown as SessionEventSuffix },
+      attestor: {
+        resolve: async subject => {
+          observedSubject = subject
+          return completeHostResolution(subject)
+        },
+      },
+    })
+
+    await expect(resolver.resolve(targetFor(fixture))).resolves.toMatchObject({
+      status: 'assembled',
+    })
+    expect(observedSubject?.session.header).toEqual(fixture.session.header)
+    expect(Object.hasOwn(
+      observedSubject?.session.header ?? {},
+      'delegationDepth',
+    )).toBe(false)
+  })
+
   it('never invokes Host attestation when the durable transcript cannot prove the target call', async () => {
     const fixture = completedGapTurn()
     const attestor = vi.fn(async (subject: DurableInteractionEpisodeSubjectV1) =>
@@ -1054,6 +2085,47 @@ function completeHostResolution(
       },
     },
   }
+}
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((fulfill, fail) => {
+    resolve = fulfill
+    reject = fail
+  })
+  return { promise, resolve, reject }
+}
+
+function deadlineEffectCount(owner: Context, suffix: string): number {
+  return owner.fiber.getEffects().filter(
+    effect => effect.label === `dsh-evolve.interactionEpisode.${suffix}`,
+  ).length
+}
+
+function foreignPersistenceError(
+  name:
+    | 'SessionPersistenceNotFoundError'
+    | 'SessionFormatUnsupportedError'
+    | 'SessionPersistenceCorruptionError',
+  sessionId: string | undefined,
+): Error {
+  if (name === 'SessionPersistenceNotFoundError') {
+    return new (class SessionPersistenceNotFoundError extends Error {
+      override readonly name = 'SessionPersistenceNotFoundError'
+      constructor(readonly sessionId: string | undefined) {
+        super('foreign private persistence detail')
+      }
+    })(sessionId)
+  }
+  if (name === 'SessionFormatUnsupportedError') {
+    return new (class SessionFormatUnsupportedError extends Error {
+      override readonly name = 'SessionFormatUnsupportedError'
+    })('foreign private persistence detail')
+  }
+  return new (class SessionPersistenceCorruptionError extends Error {
+    override readonly name = 'SessionPersistenceCorruptionError'
+  })('foreign private persistence detail')
 }
 
 type Mutable<T> = T extends string | number | boolean | null | undefined
