@@ -1,17 +1,22 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { lstat, mkdir, readFile, realpath, rename, rm } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
+import { isDeepStrictEqual } from 'node:util'
 import { foldGoal } from '@deepseek-ai/dsh-goal'
 import type { MessageFeedbackService } from '@deepseek-ai/dsh-message-feedback'
 import type { SessionEvent, SessionId } from '@deepseek-ai/dsh-session'
-import type { SessionPersistence } from '@deepseek-ai/dsh-session-persistence'
 import { z } from 'zod'
+import type { DurableFeedbackAttribution } from './durable-feedback-attribution.ts'
 import type {
   ExistingSkillBaselineQualification,
   ExistingSkillBaselineQualificationManifest,
 } from './existing-skill-baseline-qualification.ts'
 import { durableSkillInvocations } from './durable-skill-invocation.ts'
-import type { FeedbackSignal, FeedbackSignalStore } from './feedback-signal-monitor.ts'
+import {
+  currentMessageFeedbackItemsFromStoredSession,
+  type FeedbackSignal,
+  type FeedbackSignalStore,
+} from './feedback-signal-monitor.ts'
 import { writeDurableJson } from './shadow-run-state.ts'
 import {
   assertSkillCandidateEvaluationPolicies,
@@ -45,8 +50,8 @@ const sampleSchema = z.strictObject({
   }),
   source: z.strictObject({
     feedbackSignalId: z.string().regex(CONTENT_ID),
-    sessionId: z.string().min(1).max(256),
-    messageId: z.string().min(1).max(512),
+    sessionId: z.string().min(1),
+    messageId: z.string().min(1),
     feedbackVersion: z.uuid(),
     assistantSeq: z.number().int().nonnegative(),
     invocationSeq: z.number().int().nonnegative(),
@@ -177,14 +182,16 @@ export class ExistingSkillEvaluationEvidenceVault {
   private readonly qualification: Pick<ExistingSkillBaselineQualification, 'qualify'>
   private readonly feedback: Pick<FeedbackSignalStore, 'list'>
   private readonly messageFeedback: MessageFeedbackReader
-  private readonly persistence: Pick<SessionPersistence, 'inspect'>
+  private readonly persistence: Pick<DurableFeedbackAttribution, 'readStoredSession'>
+  private readonly persistenceDialect: 'alpha5' | 'current'
 
   constructor(
     policies: readonly SkillCandidateEvaluationPolicyConfig[],
     qualification: Pick<ExistingSkillBaselineQualification, 'qualify'>,
     feedback: Pick<FeedbackSignalStore, 'list'>,
     messageFeedback: MessageFeedbackReader,
-    persistence: Pick<SessionPersistence, 'inspect'>,
+    persistence: Pick<DurableFeedbackAttribution, 'readStoredSession'>,
+    options: { readonly persistenceDialect: 'alpha5' | 'current' },
   ) {
     assertSkillCandidateEvaluationPolicies(policies)
     for (const policy of policies) {
@@ -198,6 +205,7 @@ export class ExistingSkillEvaluationEvidenceVault {
     this.feedback = feedback
     this.messageFeedback = messageFeedback
     this.persistence = persistence
+    this.persistenceDialect = options.persistenceDialect
   }
 
   async prepare(
@@ -374,8 +382,41 @@ export class ExistingSkillEvaluationEvidenceVault {
     } catch {
       return { status: 'abstained', reason: 'correction-evidence-unavailable' }
     }
-    if (durable === undefined
-      || durable.goal.id !== signal.attribution.goal.id
+    if (durable === undefined) {
+      return { status: 'abstained', reason: 'correction-evidence-drift' }
+    }
+    if (this.persistenceDialect === 'current') {
+      let durableItem
+      try {
+        const current = currentMessageFeedbackItemsFromStoredSession(
+          durable.stored,
+          signal.sessionId,
+        ).filter(candidate => candidate.messageId === signal.messageId)
+        if (current.length !== 1) {
+          return { status: 'abstained', reason: 'correction-evidence-drift' }
+        }
+        durableItem = current[0]
+      } catch {
+        return { status: 'abstained', reason: 'correction-evidence-unavailable' }
+      }
+      if (!isDeepStrictEqual(durableItem, item)) {
+        return { status: 'abstained', reason: 'correction-evidence-drift' }
+      }
+    } else {
+      let verified
+      try {
+        verified = await this.messageFeedback.list({ sessionId: signal.sessionId as SessionId })
+      } catch {
+        return { status: 'abstained', reason: 'correction-evidence-unavailable' }
+      }
+      if (!verified.ok) return { status: 'abstained', reason: 'correction-evidence-drift' }
+      const exactVerified = verified.value.items.filter(candidate =>
+        String(candidate.messageId) === signal.messageId)
+      if (exactVerified.length !== 1 || !isDeepStrictEqual(exactVerified[0], item)) {
+        return { status: 'abstained', reason: 'correction-evidence-drift' }
+      }
+    }
+    if (durable.goal.id !== signal.attribution.goal.id
       || durable.goal.revision !== signal.attribution.goal.revision
       || durable.skillName !== opportunity.skillName
       || durable.invocationContentHash !== opportunity.invocationContentHash) {
@@ -422,6 +463,7 @@ interface DurableCorrectionContext {
   readonly invocationContentHash: string
   readonly goal: { readonly id: string; readonly revision: number; readonly objective: string }
   readonly request: { readonly text: string; readonly omittedNonText: boolean }
+  readonly stored: Awaited<ReturnType<DurableFeedbackAttribution['readStoredSession']>>
 }
 
 function exactQualifiedSignals(
@@ -468,10 +510,10 @@ function selectOnePerGoal(
 }
 
 async function resolveDurableCorrection(
-  persistence: Pick<SessionPersistence, 'inspect'>,
+  persistence: Pick<DurableFeedbackAttribution, 'readStoredSession'>,
   signal: ExactCorrectionSignal,
 ): Promise<DurableCorrectionContext | undefined> {
-  const stored = await persistence.inspect(signal.sessionId as SessionId)
+  const stored = await persistence.readStoredSession(signal.sessionId)
   if (String(stored.meta.id) !== signal.sessionId) return undefined
   const assistants = stored.events.filter((event): event is SessionEvent<'assistant/message'> =>
     event.type === 'assistant/message'
@@ -509,6 +551,7 @@ async function resolveDurableCorrection(
     invocationContentHash: sha256(JSON.stringify(invocation.content)),
     goal: { id: String(goal.id), revision: goal.revision, objective: goal.objective },
     request,
+    stored,
   }
 }
 

@@ -1,10 +1,15 @@
 import { foldGoal } from '@deepseek-ai/dsh-goal'
-import type { SessionEvent, SessionId } from '@deepseek-ai/dsh-session'
-import type { SessionPersistence } from '@deepseek-ai/dsh-session-persistence'
+import type { Context } from '@deepseek-ai/cordis'
+import type { SessionEvent, SessionHeader, SessionId } from '@deepseek-ai/dsh-session'
 import {
   durableSkillInvocations,
   hashDurableSkillInvocationContent,
 } from './durable-skill-invocation.ts'
+import {
+  readInteractionSessionStoredCutV1,
+  sessionPersistenceReadTimeoutMs,
+  type InteractionSessionPersistenceReadPortV1,
+} from './interaction-session-persistence-read.ts'
 
 export interface ExactSkillInvocationAttribution {
   readonly kind: 'exact-skill-invocation-v1'
@@ -21,26 +26,67 @@ export interface ExactSkillInvocationAttribution {
   }
 }
 
+export interface DurableFeedbackStoredSession {
+  readonly meta: SessionHeader
+  readonly inheritedEventCount: number
+  readonly fromSeq: number
+  readonly events: readonly SessionEvent[]
+}
+
+export interface DurableFeedbackAttributionOptions {
+  readonly lifecycle: Pick<Context, 'effect'>
+  readonly sessionPersistenceReadTimeoutMs?: number
+}
+
 /**
  * Resolve one native feedback target from the exact durable Session log.
  * Ambiguous turns abstain; no transcript, Skill body, or feedback text leaves
  * this module's interface.
  */
 export class DurableFeedbackAttribution {
-  private readonly persistence: Pick<SessionPersistence, 'inspect'>
+  private readonly persistence: InteractionSessionPersistenceReadPortV1
+  private readonly lifecycle: Pick<Context, 'effect'>
+  private readonly timeoutMs: number
 
   constructor(
-    persistence: Pick<SessionPersistence, 'inspect'>,
+    persistence: InteractionSessionPersistenceReadPortV1,
+    options: DurableFeedbackAttributionOptions,
   ) {
     this.persistence = persistence
+    this.lifecycle = options.lifecycle
+    this.timeoutMs = sessionPersistenceReadTimeoutMs(options.sessionPersistenceReadTimeoutMs)
   }
 
   async resolve(
     sessionId: string,
     assistantMessageId: string,
   ): Promise<ExactSkillInvocationAttribution | undefined> {
-    const stored = await this.persistence.inspect(sessionId as SessionId)
-    if (String(stored.meta.id) !== sessionId) return undefined
+    const stored = await this.readStoredSession(sessionId)
+    return this.resolveStored(stored, sessionId, assistantMessageId)
+  }
+
+  async readStoredSession(
+    sessionId: string,
+    requiredEventCount = Number.MAX_SAFE_INTEGER,
+  ): Promise<DurableFeedbackStoredSession> {
+    const candidate = await readInteractionSessionStoredCutV1(
+      this.persistence,
+      sessionId as SessionId,
+      {
+        lifecycle: this.lifecycle,
+        timeoutMs: this.timeoutMs,
+        requiredEventCount,
+      },
+    )
+    return durableFeedbackStoredSession(candidate, sessionId)
+  }
+
+  resolveStored(
+    candidate: unknown,
+    sessionId: string,
+    assistantMessageId: string,
+  ): ExactSkillInvocationAttribution | undefined {
+    const stored = durableFeedbackStoredSession(candidate, sessionId)
     const assistants = stored.events.filter((event): event is SessionEvent<'assistant/message'> =>
       event.type === 'assistant/message'
       && String(event.data.message.id) === assistantMessageId)
@@ -78,6 +124,49 @@ export class DurableFeedbackAttribution {
       goal: Object.freeze({ id: String(goal.id), revision: goal.revision }),
     })
   }
+}
+
+function durableFeedbackStoredSession(
+  candidate: unknown,
+  expectedSessionId: string,
+): DurableFeedbackStoredSession {
+  if (candidate === null || typeof candidate !== 'object' || Array.isArray(candidate)) {
+    throw new Error('durable feedback Session read returned no stored cut')
+  }
+  const stored = candidate as {
+    readonly meta?: unknown
+    readonly inheritedEventCount?: unknown
+    readonly fromSeq?: unknown
+    readonly events?: unknown
+  }
+  if (stored.meta === null || typeof stored.meta !== 'object' || Array.isArray(stored.meta)
+    || !Array.isArray(stored.events)
+    || stored.fromSeq !== 0
+    || !nonNegativeSafeInteger(stored.inheritedEventCount)) {
+    throw new Error('durable feedback Session read returned a malformed stored cut')
+  }
+  let detached: DurableFeedbackStoredSession
+  try {
+    detached = structuredClone({
+      meta: stored.meta,
+      inheritedEventCount: stored.inheritedEventCount,
+      fromSeq: stored.fromSeq,
+      events: stored.events,
+    }) as DurableFeedbackStoredSession
+  } catch {
+    throw new Error('durable feedback Session read returned an unclonable stored cut')
+  }
+  if (String(detached.meta.id) !== expectedSessionId) {
+    throw new Error('durable feedback Session read returned the wrong Session')
+  }
+  return detached
+}
+
+function nonNegativeSafeInteger(candidate: unknown): candidate is number {
+  return typeof candidate === 'number'
+    && Number.isSafeInteger(candidate)
+    && candidate >= 0
+    && !Object.is(candidate, -0)
 }
 
 function sourceKind(source: unknown): string | undefined {

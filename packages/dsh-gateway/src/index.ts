@@ -69,63 +69,131 @@ export const Config: Schema<Config> = z.object({
 /** Install one shared Host Gateway for transport-only channel Adapters. */
 export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const routes = resolveGatewayRoutes(config.routes ?? [])
-  const journal = await openGatewayIngressJournal(ctx.storageDomain, {
-    maxRecords: config.maxIngressRecords ?? 10_000,
-  })
-  let outbound: GatewayOutboundJournal
-  try {
-    outbound = await openGatewayOutboundJournal(ctx.storageDomain, {
-      maxRecords: config.maxOutboundRecords ?? 10_000,
-    })
-  } catch (error) {
-    const cleanup = (await Promise.allSettled([journal.close()]))[0]
-    if (cleanup?.status === 'rejected') {
-      ctx.logger.warn(`dsh-gateway: startup cleanup failed: ${safeMessage(cleanup.reason)}`)
-    }
-    throw error
-  }
-  let pairing: GatewayPairingAuthority | undefined
-  try {
-    if (config.pairing?.enabled !== false) {
-      pairing = await openGatewayPairingAuthority(ctx.storageDomain, {
-        codeTtlMs: config.pairing?.codeTtlMs ?? 900_000,
-        maxPendingPerAccount: config.pairing?.maxPendingPerAccount ?? 3,
-      })
-    }
-  } catch (error) {
-    await Promise.allSettled([outbound.close(), journal.close()])
-    throw error
-  }
-  let ingressEvidence: GatewayIngressEvidenceVaultV1
-  try {
-    ingressEvidence = await openGatewayIngressEvidenceVault(ctx.storageDomain, {
-      maxRecords: config.maxIngressRecords ?? 10_000,
-    })
-  } catch (error) {
-    await Promise.allSettled([pairing?.close(), outbound.close(), journal.close()])
-    throw error
-  }
-  const gateway = new DshGateway(
-    ctx,
-    routes,
-    journal,
-    outbound,
-    pairing,
-    ingressEvidence,
+  const ownership = new GatewayApplyOwnership()
+  let committed = false
+  // Register rollback before the first domain acquisition. Provider reload or
+  // plugin disposal can therefore cancel a pending Gateway startup and close
+  // every resource acquired by the old generation.
+  ctx.effect(
+    () => () => committed ? undefined : ownership.close(),
+    'dsh-gateway.runtimeRollback',
   )
-  const ingressEvidenceSource = createGatewayIngressEvidenceSource(ingressEvidence, journal)
   try {
+    const journal = await ownership.acquire(
+      () => openGatewayIngressJournal(ctx.storageDomain, {
+        maxRecords: config.maxIngressRecords ?? 10_000,
+      }),
+      resource => resource.close(),
+    )
+    const outbound: GatewayOutboundJournal = await ownership.acquire(
+      () => openGatewayOutboundJournal(ctx.storageDomain, {
+        maxRecords: config.maxOutboundRecords ?? 10_000,
+      }),
+      resource => resource.close(),
+    )
+    let pairing: GatewayPairingAuthority | undefined
+    if (config.pairing?.enabled !== false) {
+      pairing = await ownership.acquire(
+        () => openGatewayPairingAuthority(ctx.storageDomain, {
+          codeTtlMs: config.pairing?.codeTtlMs ?? 900_000,
+          maxPendingPerAccount: config.pairing?.maxPendingPerAccount ?? 3,
+        }),
+        resource => resource.close(),
+      )
+    }
+    const ingressEvidence: GatewayIngressEvidenceVaultV1 = await ownership.acquire(
+      () => openGatewayIngressEvidenceVault(ctx.storageDomain, {
+        maxRecords: config.maxIngressRecords ?? 10_000,
+      }),
+      resource => resource.close(),
+    )
+    const gateway = new DshGateway(
+      ctx,
+      routes,
+      journal,
+      outbound,
+      pairing,
+      ingressEvidence,
+    )
+    await ownership.adopt(gateway)
+    const ingressEvidenceSource = createGatewayIngressEvidenceSource(ingressEvidence, journal)
     await gateway.start()
     new GatewayRemoteService(ctx, gateway)
     ctx.effect(() => () => gateway.stop(), 'dsh-gateway.runtime')
     ctx.provide('evoforge.gateway' as never, gateway as never)
     ctx.provide('evoforge.gatewayIngressEvidence', ingressEvidenceSource)
+    committed = true
   } catch (error: unknown) {
-    const cleanup = (await Promise.allSettled([gateway.stop()]))[0]
+    const cleanup = (await Promise.allSettled([ownership.close()]))[0]
     if (cleanup?.status === 'rejected') {
       ctx.logger.warn(`dsh-gateway: startup cleanup failed: ${safeMessage(cleanup.reason)}`)
     }
     throw error
+  }
+}
+
+type GatewayRuntimeCloser = () => void | Promise<void>
+
+class GatewayApplyOwnership {
+  private readonly acquired: GatewayRuntimeCloser[] = []
+  private readonly acquisitions = new Set<Promise<unknown>>()
+  private gateway: DshGateway | undefined
+  private closing: Promise<void> | undefined
+  private closeRequested = false
+
+  acquire<T>(open: () => Promise<T>, close: (resource: T) => void | Promise<void>): Promise<T> {
+    let task!: Promise<T>
+    task = Promise.resolve().then(open).then((resource) => {
+      // Publish ownership before observing disposal. closeNow() drains the
+      // registered acquisition and invokes this closer exactly once.
+      this.acquired.push(() => close(resource))
+      if (this.closeRequested) {
+        throw new Error('dsh-gateway runtime was disposed during startup')
+      }
+      return resource
+    })
+    this.acquisitions.add(task)
+    const forget = (): void => { this.acquisitions.delete(task) }
+    void task.then(forget, forget)
+    return task
+  }
+
+  async adopt(gateway: DshGateway): Promise<void> {
+    if (this.closeRequested) {
+      await this.close()
+      throw new Error('dsh-gateway runtime was disposed during startup')
+    }
+    this.gateway = gateway
+    this.acquired.length = 0
+  }
+
+  close(): Promise<void> {
+    this.closeRequested = true
+    this.closing ??= this.closeNow()
+    return this.closing
+  }
+
+  private async closeNow(): Promise<void> {
+    while (this.acquisitions.size > 0) {
+      await Promise.allSettled([...this.acquisitions])
+    }
+    const gateway = this.gateway
+    if (gateway !== undefined) {
+      await gateway.stop()
+      return
+    }
+    const results = await Promise.allSettled([...this.acquired].reverse().map(closer => {
+      try {
+        return Promise.resolve(closer())
+      } catch (error) {
+        return Promise.reject(error)
+      }
+    }))
+    const failures = results
+      .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+      .map(result => result.reason)
+    if (failures.length === 1) throw failures[0]
+    if (failures.length > 1) throw new AggregateError(failures, 'dsh-gateway startup cleanup failed')
   }
 }
 

@@ -1,7 +1,6 @@
 import { Context } from '@deepseek-ai/cordis'
 import type { MessageFeedbackListResult } from '@deepseek-ai/dsh-message-feedback'
 import { SessionId, SessionLogOffset, SessionSeq, type SessionEvent } from '@deepseek-ai/dsh-session'
-import type { SessionPersistence } from '@deepseek-ai/dsh-session-persistence'
 import SkillRegistry, { renderSkillContent } from '@deepseek-ai/dsh-skill'
 import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -119,6 +118,50 @@ describe('Existing Skill Evaluation Evidence Vault', () => {
     await fixture.ctx.fiber.dispose()
   })
 
+  it('revalidates the alpha.5 sidecar after the physical transcript read', async () => {
+    let mutated = false
+    const fixture = await evidenceFixture(4, {
+      beforeStoredRead(sessionId, feedbackItems) {
+        if (mutated) return
+        mutated = true
+        const [item] = feedbackItems.get(sessionId) ?? []
+        if (item !== undefined) feedbackItems.set(sessionId, [{ ...item, rating: 'positive' }])
+      },
+    })
+
+    await expect(fixture.vault.prepare(fixture.opportunity)).resolves.toMatchObject({
+      status: 'abstained',
+      reason: 'correction-evidence-drift',
+    })
+
+    await fixture.ctx.fiber.dispose()
+  })
+
+  it('rejects a current correction retracted in the same physical Session cut', async () => {
+    let mutated = false
+    const fixture = await evidenceFixture(4, {
+      persistenceDialect: 'current',
+      beforeStoredRead(sessionId, feedbackItems, storedSessions) {
+        if (mutated) return
+        mutated = true
+        const events = storedSessions.get(sessionId)
+        if (events === undefined) return
+        feedbackItems.set(sessionId, [])
+        events.push(event('feedback/message-delete', events.length, {
+          sessionId,
+          messageId: `message-${sessionId.replace('session-', '')}`,
+        }) as SessionEvent)
+      },
+    })
+
+    await expect(fixture.vault.prepare(fixture.opportunity)).resolves.toMatchObject({
+      status: 'abstained',
+      reason: 'correction-evidence-drift',
+    })
+
+    await fixture.ctx.fiber.dispose()
+  })
+
   it('reserves a fifth distinct correction exclusively for retention governance', async () => {
     const fixture = await evidenceFixture(5)
 
@@ -198,7 +241,17 @@ describe('Existing Skill Evaluation Evidence Vault', () => {
   })
 })
 
-async function evidenceFixture(goalCount = 4) {
+async function evidenceFixture(
+  goalCount = 4,
+  options: {
+    readonly persistenceDialect?: 'alpha5' | 'current'
+    readonly beforeStoredRead?: (
+      sessionId: string,
+      feedbackItems: Map<string, Extract<MessageFeedbackListResult, { ok: true }>['value']['items']>,
+      storedSessions: Map<string, SessionEvent[]>,
+    ) => void
+  } = {},
+) {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-evolve-existing-evidence-')))
   temporaryRoots.push(root)
   const skillRoot = join(root, 'skills', 'release-proof')
@@ -246,15 +299,23 @@ async function evidenceFixture(goalCount = 4) {
     expect(sealed.baseline.id).toBe(baselineId)
     const signal = correction(marker, sessionId, goalId, (index + 1) * 100, sealed.baseline.invocationContentHash)
     signals.push(signal)
-    sessions.set(sessionId, sessionEvents(marker, goalId, invocationContent[0].text))
-    items.set(sessionId, [{
+    const feedbackItem = {
       messageId: signal.messageId as never,
       rating: 'negative',
       note: `Correction ${marker}: preserve proof before release.`,
       version: signal.feedbackVersion as never,
       createdAt: signal.sourceUpdatedAt - 1,
       updatedAt: signal.sourceUpdatedAt,
-    }])
+    } as const
+    const storedEvents = sessionEvents(marker, goalId, invocationContent[0].text)
+    if (options.persistenceDialect === 'current') {
+      storedEvents.push(event('feedback/message-put', storedEvents.length, {
+        sessionId,
+        item: feedbackItem,
+      }) as SessionEvent)
+    }
+    sessions.set(sessionId, storedEvents)
+    items.set(sessionId, [feedbackItem])
   }
 
   const feedback = { list: () => [...signals] }
@@ -275,13 +336,15 @@ async function evidenceFixture(goalCount = 4) {
         : { ok: true, value: { items: found } }
     },
   }
-  const persistence: Pick<SessionPersistence, 'inspect'> = {
-    async inspect(sessionId) {
+  const persistence = {
+    async readStoredSession(sessionId: string) {
+      options.beforeStoredRead?.(String(sessionId), items, sessions)
       const found = sessions.get(String(sessionId))
       if (found === undefined) throw new Error('fixture Session not found')
       return {
         meta: { version: 0, id: SessionId(String(sessionId)), createdAt: 1, cwd: '/private/project', isSeeded: false },
         inheritedEventCount: SessionLogOffset(0),
+        fromSeq: SessionLogOffset(0),
         events: found,
       }
     },
@@ -297,6 +360,7 @@ async function evidenceFixture(goalCount = 4) {
     feedback,
     messageFeedback,
     persistence,
+    { persistenceDialect: options.persistenceDialect ?? 'alpha5' },
   )
   return {
     ctx,

@@ -1,9 +1,11 @@
 import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { Context } from '@deepseek-ai/cordis'
 import { defineDomain, domainTable } from '@deepseek-ai/dsh-storage-domain'
 import { z } from 'zod'
 import { SessionId, SessionLogOffset, SessionSeq, type SessionEvent } from '@deepseek-ai/dsh-session'
@@ -11,6 +13,7 @@ import { DurableFeedbackAttribution } from '../src/durable-feedback-attribution.
 import {
   installFeedbackSignalMonitor,
   openFeedbackSignalStore,
+  type FeedbackSignalStore,
 } from '../src/feedback-signal-monitor.js'
 import { openEvolutionStore } from '../src/generation-store.js'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
@@ -20,6 +23,11 @@ const suiteRoot = resolve(packageRoot, '../..')
 const dshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
   ?? resolve(suiteRoot, '../deepseek-harness')
 const temporaryRoots: string[] = []
+const sourceDshVersion = JSON.parse(readFileSync(
+  join(dshSourceDir, 'packages', 'core', 'session', 'package.json'),
+  'utf8',
+)) as { readonly version?: unknown }
+const isCurrentDsh = sourceDshVersion.version === '0.1.5-rc.2'
 
 const sourceFeedbackSpec = defineDomain({
   name: 'message_feedback',
@@ -32,6 +40,148 @@ afterEach(async () => {
 })
 
 describe.skipIf(process.platform !== 'darwin')('explicit feedback learning signal', () => {
+  it.skipIf(!isCurrentDsh)('projects real current live and cold feedback and repairs a failed live durability barrier', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-current-feedback-'))
+    temporaryRoots.push(root)
+    const current = await currentDshModules()
+    const signals = inMemoryFeedbackSignals()
+    const first = new current.Context()
+    installWorkspaceFixture(first)
+    await first.plugin(current.SessionStore)
+    await first.plugin(current.JsonlPersistence, { root: join(root, 'sessions'), compression: 'none' })
+    await first.plugin(current.MessageFeedback, { maxNoteBytes: 1024 })
+    const firstAttribution = new DurableFeedbackAttribution(first.sessionPersistence, {
+      lifecycle: first as unknown as Context,
+    })
+    const firstMonitor = installFeedbackSignalMonitor(first as unknown as Context, signals, {
+      getSessionGeneration: () => ({ id: 'c'.repeat(64) }),
+    } as never, currentMonitorOptions(first, firstAttribution, 61))
+    const session = first.sessions.create(current.SessionId('current-feedback-session'), {
+      meta: { cwd: '/private/customer-repo' },
+    })
+    const writer = await first.sessionPersistence.create(session.header)
+    const assistantMessageId = appendCurrentAttributedTranscript(current, session)
+    const flushLive = first.sessions.flush.bind(first.sessions)
+    const flush = vi.spyOn(first.sessions, 'flush')
+      .mockRejectedValueOnce(new Error('injected live durability failure'))
+      .mockImplementation(liveSession => flushLive(liveSession))
+    await expect(first.messageFeedback.put({
+      sessionId: session.id,
+      messageId: assistantMessageId,
+      rating: 'negative',
+      note: 'live correction',
+      ifVersion: null,
+    })).rejects.toThrow('injected live durability failure')
+    await firstMonitor.flush()
+    const live = await first.messageFeedback.list({ sessionId: session.id }) as {
+      readonly ok?: unknown
+      readonly value?: { readonly items?: ReadonlyArray<{ readonly version?: unknown }> }
+    }
+    const liveVersion = live.ok === true && live.value?.items?.length === 1
+      ? String(live.value.items[0]?.version)
+      : undefined
+    if (liveVersion === undefined) throw new Error('current live feedback was not retained after failed flush')
+
+    expect(signals.list(WORKSPACE_ID)).toEqual([
+      expect.objectContaining({
+        observedAt: 61,
+        sessionId: 'current-feedback-session',
+        messageId: String(assistantMessageId),
+        feedbackVersion: liveVersion,
+        generationId: 'c'.repeat(64),
+        attribution: expect.objectContaining({
+          skillName: 'build-dsh-plugin',
+          route: 'user-explicit',
+          goal: { id: 'goal-current-feedback', revision: 1 },
+        }),
+      }),
+    ])
+    expect(flush).toHaveBeenCalledTimes(2)
+
+    flush.mockRejectedValueOnce(new Error('injected live delete durability failure'))
+    await expect(first.messageFeedback.delete({
+      sessionId: session.id,
+      messageId: assistantMessageId,
+      ifVersion: liveVersion,
+    })).rejects.toThrow('injected live delete durability failure')
+    await firstMonitor.flush()
+    expect(signals.list(WORKSPACE_ID)).toEqual([])
+
+    const recreated = await first.messageFeedback.put({
+      sessionId: session.id,
+      messageId: assistantMessageId,
+      rating: 'negative',
+      note: 'live correction restored',
+      ifVersion: null,
+    })
+    if (!recreated.ok) throw new Error(`current live feedback failed: ${String(recreated.error.code)}`)
+    await firstMonitor.flush()
+    const liveVersionAfterDelete = String(recreated.value.version)
+    expect(signals.list(WORKSPACE_ID)).toEqual([
+      expect.objectContaining({ feedbackVersion: liveVersionAfterDelete }),
+    ])
+    flush.mockRestore()
+    await writer.close()
+    await firstMonitor.dispose()
+    await first.fiber.dispose()
+
+    const second = new current.Context()
+    const recoveredSignals = inMemoryFeedbackSignals()
+    installWorkspaceFixture(second)
+    await second.plugin(current.SessionStore)
+    await second.plugin(current.JsonlPersistence, { root: join(root, 'sessions'), compression: 'none' })
+    await second.plugin(current.MessageFeedback, { maxNoteBytes: 1024 })
+    const secondAttribution = new DurableFeedbackAttribution(second.sessionPersistence, {
+      lifecycle: second as unknown as Context,
+    })
+    const secondMonitor = installFeedbackSignalMonitor(second as unknown as Context, recoveredSignals, {
+      getSessionGeneration: () => ({ id: 'c'.repeat(64) }),
+    } as never, currentMonitorOptions(second, secondAttribution, 62))
+    try {
+      await secondMonitor.reconcileCurrent()
+      expect(recoveredSignals.list(WORKSPACE_ID)).toEqual([
+        expect.objectContaining({
+          sessionId: 'current-feedback-session',
+          feedbackVersion: liveVersionAfterDelete,
+          attribution: expect.objectContaining({ skillName: 'build-dsh-plugin' }),
+        }),
+      ])
+
+      const coldPositive = await second.messageFeedback.put({
+        sessionId: session.id,
+        messageId: assistantMessageId,
+        rating: 'positive',
+        note: 'resolved',
+        ifVersion: liveVersionAfterDelete,
+      })
+      if (!coldPositive.ok) throw new Error(`current cold feedback failed: ${String(coldPositive.error.code)}`)
+      await secondMonitor.flush()
+      expect(recoveredSignals.list(WORKSPACE_ID)).toEqual([])
+
+      const coldNegative = await second.messageFeedback.put({
+        sessionId: session.id,
+        messageId: assistantMessageId,
+        rating: 'negative',
+        note: 'cold correction',
+        ifVersion: coldPositive.value.version,
+      })
+      if (!coldNegative.ok) throw new Error(`current cold feedback failed: ${String(coldNegative.error.code)}`)
+      await secondMonitor.flush()
+      expect(recoveredSignals.list(WORKSPACE_ID)).toEqual([
+        expect.objectContaining({
+          observedAt: 62,
+          sessionId: 'current-feedback-session',
+          feedbackVersion: String(coldNegative.value.version),
+          attribution: expect.objectContaining({ skillName: 'build-dsh-plugin' }),
+        }),
+      ])
+      expect(second.sessions.get(session.id)).toBeUndefined()
+    } finally {
+      await secondMonitor.dispose()
+      await second.fiber.dispose()
+    }
+  })
+
   it('persists only a retractable reference to negative feedback with a note', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-evolve-feedback-signal-'))
     temporaryRoots.push(root)
@@ -53,7 +203,7 @@ describe.skipIf(process.platform !== 'darwin')('explicit feedback learning signa
     const monitor = installFeedbackSignalMonitor(ctx, signals, evolution, {
       now: () => 42,
       attribution: new DurableFeedbackAttribution({
-        inspect: async () => ({
+        readFrom: async () => ({
           meta: {
             version: 0,
             id: SessionId(lifecycle.sessionId),
@@ -62,9 +212,10 @@ describe.skipIf(process.platform !== 'darwin')('explicit feedback learning signa
             isSeeded: false,
           },
           inheritedEventCount: SessionLogOffset(0),
+          fromSeq: SessionLogOffset(0),
           events: attributedFeedbackEvents('assistant-negative'),
         }),
-      }),
+      }, { lifecycle: ctx }),
     })
     const negativeVersion = '11111111-1111-4111-8111-111111111111'
     const secretNote = ' API key leaked in logs '
@@ -178,10 +329,12 @@ describe.skipIf(process.platform !== 'darwin')('explicit feedback learning signa
     const first = await bootStorage(configPath)
     const firstStore = await openFeedbackSignalStore(first.storageDomain, { maxSessions: 2 })
     try {
-      for (let index = 1; index <= 3; index += 1) {
+      // Recovery order/observation time must not make old source feedback evict
+      // a newer Session. Replay the oldest source last.
+      for (const index of [3, 2, 1]) {
         const sessionId = `session-${index}`
         await firstStore.replaceSession({
-          observedAt: index,
+          observedAt: 100 - index,
           workspaceId: WORKSPACE_ID,
           sessionId,
           generationId: 'a'.repeat(64),
@@ -202,6 +355,20 @@ describe.skipIf(process.platform !== 'darwin')('explicit feedback learning signa
           }],
         })
       }
+      expect(firstStore.list(WORKSPACE_ID).map(signal => signal.sessionId)).toEqual(['session-2', 'session-3'])
+      const prior = firstStore.list(WORKSPACE_ID)[0]!
+      const { schemaVersion: _schemaVersion, observedAt: _observedAt,
+        workspaceId, sessionId, generationId, ...item } = prior
+      expect(await firstStore.replaceSession({
+        observedAt: 1000, workspaceId, sessionId, generationId, items: [item],
+      })).toBe(false)
+      expect(firstStore.list(WORKSPACE_ID)[0]!.observedAt).toBe(98)
+      let active = true
+      const retiredWrite = firstStore.replaceSession({
+        observedAt: 1001, workspaceId, sessionId, generationId, items: [],
+      }, () => active)
+      active = false
+      expect(await retiredWrite).toBe(false)
       expect(firstStore.list(WORKSPACE_ID).map(signal => signal.sessionId)).toEqual(['session-2', 'session-3'])
     } finally {
       await firstStore.close()
@@ -295,6 +462,193 @@ function attributedFeedbackEvents(assistantMessageId: string): SessionEvent[] {
 
 function sessionEvent(type: string, seq: number, data: unknown): Record<string, unknown> {
   return { type, seq: SessionSeq(seq), time: seq + 1, data }
+}
+
+interface CurrentSessionLike {
+  readonly id: string
+  readonly header: unknown
+  append(type: string, data: unknown, options?: unknown): unknown
+}
+
+interface CurrentContextLike {
+  plugin(plugin: unknown, config?: unknown): Promise<unknown>
+  readonly fiber: { dispose(): Promise<void> }
+  readonly sessions: {
+    create(id: string, options?: unknown): CurrentSessionLike
+    get(id: string): unknown
+    flush(session: unknown): Promise<boolean>
+  }
+  readonly sessionPersistence: {
+    readonly readFrom?: (...args: never[]) => unknown
+    readonly open?: (...args: never[]) => unknown
+    create(header: unknown): Promise<{ close(): Promise<void> }>
+    list(options?: { readonly signal?: AbortSignal }): Promise<ReadonlyArray<{
+      readonly header: { readonly id: string }
+    }>>
+  }
+  readonly messageFeedback: {
+    list(request: { readonly sessionId: string }): Promise<unknown>
+    delete(request: Record<string, unknown>): Promise<unknown>
+    put(request: Record<string, unknown>): Promise<{
+      readonly ok: boolean
+      readonly value: { readonly version: string }
+      readonly error: { readonly code: string }
+    }>
+  }
+}
+
+interface CurrentDshModules {
+  readonly Context: new () => CurrentContextLike
+  readonly SessionStore: never
+  readonly JsonlPersistence: never
+  readonly MessageFeedback: never
+  readonly SessionId: (id: string) => string
+  readonly createUserMessage: (input: Record<string, unknown>) => { readonly id: string }
+  readonly createAssistantMessage: (input: Record<string, unknown>) => { readonly id: string }
+}
+
+async function currentDshModules(): Promise<CurrentDshModules> {
+  const packageEntry = (path: string) => pathToFileURL(
+    join(dshSourceDir, 'packages', path, 'lib', 'index.js'),
+  ).href
+  const [cordis, session, persistence, feedback, llm] = await Promise.all([
+    import(pathToFileURL(join(dshSourceDir, 'vendor', 'cordis', 'lib', 'index.js')).href),
+    import(packageEntry('core/session')),
+    import(packageEntry('session/session-persistence-jsonl')),
+    import(packageEntry('feedback/message-feedback')),
+    import(packageEntry('llm/llm')),
+  ])
+  return {
+    Context: cordis.Context as CurrentDshModules['Context'],
+    SessionStore: session.default as never,
+    JsonlPersistence: persistence.default as never,
+    MessageFeedback: feedback.default as never,
+    SessionId: session.SessionId as CurrentDshModules['SessionId'],
+    createUserMessage: llm.createUserMessage as CurrentDshModules['createUserMessage'],
+    createAssistantMessage: llm.createAssistantMessage as CurrentDshModules['createAssistantMessage'],
+  }
+}
+
+function currentMonitorOptions(
+  ctx: CurrentContextLike,
+  attribution: DurableFeedbackAttribution,
+  observedAt: number,
+) {
+  const reconcile = async (sessionId: string, recoverLive: boolean) => {
+    const result = await ctx.messageFeedback.list({ sessionId }) as {
+      readonly ok?: unknown
+      readonly value?: { readonly items?: unknown }
+    }
+    if (result.ok !== true || !Array.isArray(result.value?.items)) {
+      throw new Error('real current feedback reconciliation failed')
+    }
+    if (recoverLive) {
+      const live = ctx.sessions.get(sessionId)
+      if (live !== undefined && await ctx.sessions.flush(live) !== true) {
+        throw new Error('real current feedback durability barrier was unavailable')
+      }
+    }
+    return {
+      dialect: 'current' as const,
+      stored: await attribution.readStoredSession(sessionId),
+      listedItems: structuredClone(result.value.items),
+    }
+  }
+  return {
+    now: () => observedAt,
+    attribution,
+    currentSession: {
+      reconcile: (sessionId: string) => reconcile(sessionId, false),
+      recover: (sessionId: string) => reconcile(sessionId, true),
+      listSessionIds: async () => (await ctx.sessionPersistence.list())
+        .map(snapshot => String(snapshot.header.id))
+        .sort((left, right) => left.localeCompare(right)),
+    },
+  }
+}
+
+function appendCurrentAttributedTranscript(
+  current: CurrentDshModules,
+  session: CurrentSessionLike,
+): string {
+  session.append('goal/change', {
+    kind: 'goal/change',
+    version: 1,
+    operation: 'create',
+    goal: {
+      id: 'goal-current-feedback',
+      revision: 1,
+      objective: 'Build and verify one native DSH plugin.',
+      phase: 'active',
+      maxGoalRounds: 8,
+    },
+    roundsStarted: 0,
+    createdAt: 1,
+    updatedAt: 1,
+  })
+  session.append('turn/start', { turn: 1 })
+  session.append('step/start', { turn: 1, step: 1 })
+  const direct = current.createUserMessage({
+    content: [{ type: 'text', text: 'Build it.' }],
+    source: { kind: 'user' },
+  })
+  session.append('user/message', direct, { surfaceOp: 'append' })
+  const skill = current.createUserMessage({
+    content: [{ type: 'text', text: '<skill_content />' }],
+    source: { kind: 'skill-invocation', name: 'build-dsh-plugin', form: 'instructions' },
+  })
+  session.append('user/message', skill, { surfaceOp: 'append' })
+  const assistant = current.createAssistantMessage({
+    content: [{ type: 'text', text: 'Built.' }],
+    source: { provider: 'fixture', model: 'fixture' },
+  })
+  session.append('assistant/message', {
+    stream: [],
+    turn: 1,
+    step: 1,
+    message: assistant,
+  }, { surfaceOp: 'append' })
+  session.append('step/end', { turn: 1, step: 1 })
+  session.append('turn/end', { turn: 1, reason: { kind: 'completed' } })
+  return assistant.id
+}
+
+function inMemoryFeedbackSignals(): FeedbackSignalStore {
+  const sessions = new Map<string, Parameters<FeedbackSignalStore['replaceSession']>[0]>()
+  return {
+    async replaceSession(input) {
+      if (input.items.length === 0) sessions.delete(input.sessionId)
+      else sessions.set(input.sessionId, structuredClone(input))
+    },
+    async removeSession(sessionId) { sessions.delete(sessionId) },
+    get(id, workspaceId) {
+      return this.list(workspaceId).find(signal => signal.id === id)
+    },
+    list(workspaceId) {
+      return [...sessions.values()]
+        .filter(session => workspaceId === undefined || session.workspaceId === workspaceId)
+        .flatMap(session => session.items.map(item => ({
+          schemaVersion: 2 as const,
+          id: item.id,
+          observedAt: session.observedAt,
+          workspaceId: session.workspaceId,
+          sessionId: session.sessionId,
+          messageId: item.messageId,
+          feedbackVersion: item.feedbackVersion,
+          sourceUpdatedAt: item.sourceUpdatedAt,
+          ...(session.generationId === undefined ? {} : { generationId: session.generationId }),
+          ...(item.attribution === undefined ? {} : { attribution: item.attribution }),
+        })))
+    },
+    summarize(workspaceId, selectedGenerationId) {
+      const all = this.list(workspaceId)
+      return {
+        all: all.length,
+        selected: all.filter(item => item.generationId === selectedGenerationId).length,
+      }
+    },
+    async close() {},
+  }
 }
 
 function installWorkspaceFixture(ctx: object): void {

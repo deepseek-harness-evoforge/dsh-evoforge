@@ -81,6 +81,11 @@ import {
   type LongTermEffectsStore,
 } from './long-term-effects.ts'
 import { DurableFeedbackAttribution } from './durable-feedback-attribution.ts'
+import { runWithLifecycleDeadline } from './lifecycle-deadline.ts'
+import {
+  interactionSessionPersistenceReadDialectV1,
+  sessionPersistenceReadTimeoutMs,
+} from './interaction-session-persistence-read.ts'
 import { InstalledSkillBaselineVault } from './installed-skill-baseline.ts'
 import { installInstalledSkillBaselineMonitor } from './installed-skill-baseline-monitor.ts'
 import { ExistingSkillBaselineQualification } from './existing-skill-baseline-qualification.ts'
@@ -308,6 +313,80 @@ function throwRuntimeCloseErrors(errors: readonly unknown[]): void {
   }
 }
 
+type RuntimeCallable = (...args: never[]) => unknown
+
+function requiredCallable(receiver: object, key: string, label: string): RuntimeCallable {
+  let cursor: object | null = receiver
+  const visited = new Set<object>()
+  try {
+    while (cursor !== null) {
+      if (visited.has(cursor)) throw new TypeError('cyclic prototype chain')
+      visited.add(cursor)
+      const descriptor = Reflect.getOwnPropertyDescriptor(cursor, key)
+      if (descriptor !== undefined) {
+        if (!('value' in descriptor) || typeof descriptor.value !== 'function') {
+          throw new TypeError('method is not a data function')
+        }
+        return descriptor.value as RuntimeCallable
+      }
+      cursor = Reflect.getPrototypeOf(cursor)
+    }
+  } catch {
+    throw new Error(`${label} has no safe '${key}' method`)
+  }
+  throw new Error(`${label} has no safe '${key}' method`)
+}
+
+function plainRuntimeRecord(candidate: unknown): Readonly<Record<string, unknown>> | undefined {
+  if (candidate === null || typeof candidate !== 'object' || Array.isArray(candidate)) return undefined
+  let descriptors: Record<PropertyKey, PropertyDescriptor | undefined>
+  try {
+    const prototype = Reflect.getPrototypeOf(candidate)
+    if (prototype !== Object.prototype && prototype !== null) return undefined
+    descriptors = Object.getOwnPropertyDescriptors(candidate)
+  } catch {
+    return undefined
+  }
+  const record: Record<string, unknown> = Object.create(null)
+  for (const key of Reflect.ownKeys(descriptors)) {
+    const descriptor = descriptors[key]
+    if (typeof key !== 'string' || descriptor === undefined || !('value' in descriptor)) return undefined
+    record[key] = descriptor.value
+  }
+  return record
+}
+
+function currentMessageFeedbackItems(candidate: unknown): readonly unknown[] {
+  const result = plainRuntimeRecord(candidate)
+  const value = plainRuntimeRecord(result?.value)
+  if (result?.ok !== true || !Array.isArray(value?.items)) {
+    throw new Error('current message feedback reconciliation failed')
+  }
+  try {
+    return structuredClone(value.items)
+  } catch {
+    throw new Error('current message feedback reconciliation returned unclonable items')
+  }
+}
+
+function currentPersistenceSessionIds(candidate: unknown): readonly string[] {
+  if (!Array.isArray(candidate)) throw new Error('current Session catalog is malformed')
+  const sessionIds = new Set<string>()
+  for (const item of candidate) {
+    const snapshot = plainRuntimeRecord(item)
+    const header = plainRuntimeRecord(snapshot?.header)
+    const id = header?.id
+    if (typeof id !== 'string' || id.length === 0 || sessionIds.has(id)
+      || typeof snapshot?.revision !== 'string'
+      || [snapshot.eventCount, snapshot.sizeBytes].some(value => value !== undefined
+        && (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0))) {
+      throw new Error('current Session catalog is malformed')
+    }
+    sessionIds.add(id)
+  }
+  return [...sessionIds].sort((left, right) => left.localeCompare(right))
+}
+
 async function disposeRuntimeGroup(
   resources: readonly { dispose(): Promise<void> }[],
 ): Promise<void> {
@@ -339,8 +418,22 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   runtime.own('revocation', () => interactionGenerationEvidence.close())
   const deliveryOutcomes = await openDeliveryOutcomeStore(ctx.storageDomain)
   runtime.own('resource', () => deliveryOutcomes.close())
-  const feedbackSignals = await openFeedbackSignalStore(ctx.storageDomain)
-  runtime.own('resource', () => feedbackSignals.close())
+  const retainedFeedbackSignals = await openFeedbackSignalStore(ctx.storageDomain)
+  runtime.own('resource', () => retainedFeedbackSignals.close())
+  let feedbackProjectionReady = false
+  let feedbackProviderGeneration: symbol | undefined
+  // Persisted projections cannot authorize feedback-derived work until the
+  // current provider generation has rebuilt its durable source catalog.
+  const feedbackSignals: typeof retainedFeedbackSignals = {
+    replaceSession: (...args) => retainedFeedbackSignals.replaceSession(...args),
+    removeSession: (...args) => retainedFeedbackSignals.removeSession(...args),
+    get: (...args) => feedbackProjectionReady ? retainedFeedbackSignals.get(...args) : undefined,
+    list: (...args) => feedbackProjectionReady ? retainedFeedbackSignals.list(...args) : [],
+    summarize: (...args) => feedbackProjectionReady
+      ? retainedFeedbackSignals.summarize(...args)
+      : { all: 0, selected: 0 },
+    close: () => retainedFeedbackSignals.close(),
+  }
   const skillUses = await openSkillUseStore(ctx.storageDomain)
   runtime.own('resource', () => skillUses.close())
   const longTermEffects = await openLongTermEffectsStore(ctx.storageDomain)
@@ -356,16 +449,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   runtime.own('resource', () => skillCandidateStore.close())
   const existingSkillReleaseStore = await openExistingSkillReleaseStore(ctx.storageDomain)
   runtime.own('resource', () => existingSkillReleaseStore.close())
-  let durableFeedbackAttribution: DurableFeedbackAttribution | undefined
   let reconcileExistingSkillCandidates: ((workspaceId: string) => void) | undefined
-  const feedbackMonitor = installFeedbackSignalMonitor(ctx, feedbackSignals, store, {
-    attribution: {
-      resolve: (sessionId, assistantMessageId) => durableFeedbackAttribution
-        ?.resolve(sessionId, assistantMessageId) ?? Promise.resolve(undefined),
-    },
-    onSignalsChanged: workspaceId => reconcileExistingSkillCandidates?.(workspaceId),
+  const feedbackMonitors = new Set<ReturnType<typeof installFeedbackSignalMonitor>>()
+  runtime.own('producer', async () => {
+    await disposeRuntimeGroup([...feedbackMonitors])
   })
-  runtime.own('producer', () => feedbackMonitor.dispose())
   let counterfactualCanaryScheduler: CounterfactualCanaryScheduler | undefined
   let existingSkillCounterfactualCanaryScheduler: ExistingSkillCounterfactualCanaryScheduler | undefined
   const deliveryMonitor = installDeliveryOutcomeMonitor(ctx, deliveryOutcomes, store, {
@@ -548,12 +636,29 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         feedbackSignals,
         baselineVault,
       )
+      const evidenceReadTimeoutMs = sessionPersistenceReadTimeoutMs(undefined)
+      const evidencePersistenceDialect = interactionSessionPersistenceReadDialectV1(
+        evidenceCtx.sessionPersistence,
+      )
       const evidence = new ExistingSkillEvaluationEvidenceVault(
         candidateEvaluationPolicies,
         qualification,
         feedbackSignals,
-        evidenceCtx.messageFeedback,
-        evidenceCtx.sessionPersistence,
+        {
+          list: request => runWithLifecycleDeadline(
+            evidenceCtx,
+            () => evidenceCtx.messageFeedback.list(request),
+            {
+              timeoutMs: evidenceReadTimeoutMs,
+              label: 'dsh-evolve.existingSkillEvidence.messageFeedbackRead',
+              timeoutMessage: 'Existing-Skill feedback evidence read timed out',
+            },
+          ),
+        },
+        new DurableFeedbackAttribution(evidenceCtx.sessionPersistence, {
+          lifecycle: evidenceCtx,
+        }),
+        { persistenceDialect: evidencePersistenceDialect },
       )
       evidenceCtx.effect(() => {
         existingSkillBaselineVault = baselineVault
@@ -962,14 +1067,158 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     skillOutcomeContext,
     feedback: feedbackSignals,
   })
-  ctx.inject(['sessionPersistence'], (attributionCtx) => {
-    const attribution = new DurableFeedbackAttribution(attributionCtx.sessionPersistence)
-    attributionCtx.effect(() => {
-      durableFeedbackAttribution = attribution
-      return () => {
-        if (durableFeedbackAttribution === attribution) durableFeedbackAttribution = undefined
+  ctx.inject(['messageFeedback', 'sessionPersistence', 'sessions'], (attributionCtx) => {
+    const feedbackPersistenceTimeoutMs = sessionPersistenceReadTimeoutMs(undefined)
+    const attribution = new DurableFeedbackAttribution(attributionCtx.sessionPersistence, {
+      lifecycle: attributionCtx,
+    })
+    const messageFeedback = attributionCtx.messageFeedback as unknown as {
+      list(request: { readonly sessionId: string }): Promise<unknown>
+    }
+    const sessions = attributionCtx.sessions as unknown as {
+      get(sessionId: string): unknown
+      flush(session: unknown): Promise<unknown>
+    }
+    const persistence = attributionCtx.sessionPersistence as unknown as {
+      readFrom?: (...args: never[]) => unknown
+      open?: (...args: never[]) => unknown
+      list?: (...args: never[]) => unknown
+      listSnapshots?: (...args: never[]) => unknown
+    }
+    const persistenceDialect = interactionSessionPersistenceReadDialectV1(persistence)
+    const catalogList = persistenceDialect === 'current'
+      ? requiredCallable(persistence, 'list', 'current Session persistence')
+      : undefined
+    let alpha5RecoveryRows = new Map<string, unknown>()
+    const feedback = {
+      dialect: persistenceDialect,
+      list: (request: { readonly sessionId: string }) => runWithLifecycleDeadline(
+        attributionCtx,
+        () => messageFeedback.list(request),
+        {
+          timeoutMs: feedbackPersistenceTimeoutMs,
+          label: 'dsh-evolve.feedbackSignal.messageFeedbackBarrier',
+          timeoutMessage: 'Message feedback reconciliation timed out',
+        },
+      ),
+      recoverLive: async (sessionId: string) => {
+        const live = sessions.get(sessionId)
+        if (live === undefined) return
+        const participated = await runWithLifecycleDeadline(
+          attributionCtx,
+          () => sessions.flush(live),
+          {
+            timeoutMs: feedbackPersistenceTimeoutMs,
+            label: 'dsh-evolve.feedbackSignal.liveSessionFlush',
+            timeoutMessage: 'Live feedback Session flush timed out',
+          },
+        )
+        if (participated !== true) {
+          throw new Error('Live feedback Session has no durability participant')
+        }
+      },
+      listSessionIds: async (): Promise<readonly string[] | undefined> => {
+        if (persistenceDialect === 'alpha5') {
+          const domain = attributionCtx.storageDomain.get('message_feedback')
+          if (domain === undefined) {
+            throw new Error('alpha.5 message feedback source domain is unavailable')
+          }
+          const rows = new Map<string, unknown>()
+          for (const [sessionId, row] of domain.table('sessions').entries()) {
+            if (typeof sessionId !== 'string' || sessionId.length === 0 || rows.has(sessionId)) {
+              throw new Error('alpha.5 message feedback source catalog is malformed')
+            }
+            try {
+              rows.set(sessionId, structuredClone(row))
+            } catch {
+              throw new Error('alpha.5 message feedback source catalog is unclonable')
+            }
+          }
+          alpha5RecoveryRows = rows
+          return [...rows.keys()].sort((left, right) => left.localeCompare(right))
+        }
+        if (catalogList === undefined) return undefined
+        const controller = new AbortController()
+        const listed = await runWithLifecycleDeadline(
+          attributionCtx,
+          () => Reflect.apply(catalogList, persistence, [
+            persistenceDialect === 'current' ? { signal: controller.signal } : controller.signal,
+          ]),
+          {
+            timeoutMs: feedbackPersistenceTimeoutMs,
+            label: 'dsh-evolve.feedbackSignal.sessionCatalog',
+            timeoutMessage: 'Current Session catalog read timed out',
+            signal: controller.signal,
+            onDeadline: () => { controller.abort() },
+          },
+        )
+        return currentPersistenceSessionIds(listed)
+      },
+      alpha5SourceRow: (sessionId: string): unknown => {
+        const row = alpha5RecoveryRows.get(sessionId)
+        if (row === undefined) throw new Error('alpha.5 message feedback source row is unavailable')
+        return structuredClone(row)
+      },
+    }
+    // Each injected provider generation owns its listeners, immutable service
+    // references and pending work. Revocation precedes draining that work.
+    let active = true
+    const providerGeneration = Symbol('feedback-provider-generation')
+    feedbackProviderGeneration = providerGeneration
+    feedbackProjectionReady = false
+    const changedWorkspaces = new Set<string>()
+    const recover = async (sessionId: string) => {
+      if (feedback.dialect === 'current') {
+        const listedItems = currentMessageFeedbackItems(await feedback.list({ sessionId }))
+        await feedback.recoverLive(sessionId)
+        const stored = await attribution.readStoredSession(sessionId)
+        return { dialect: 'current' as const, stored, listedItems }
       }
+      const sourceRow = feedback.alpha5SourceRow(sessionId)
+      const source = plainRuntimeRecord(sourceRow)
+      if (!Array.isArray(source?.items)) {
+        throw new Error('alpha.5 message feedback recovery row is malformed')
+      }
+      const stored = await attribution.readStoredSession(sessionId)
+      return {
+        dialect: 'alpha5' as const,
+        stored,
+        listedItems: structuredClone(source.items),
+        sourceRow,
+      }
+    }
+    const monitor = installFeedbackSignalMonitor(attributionCtx, feedbackSignals, store, {
+      attribution,
+      isActive: () => active && feedbackProviderGeneration === providerGeneration,
+      currentSession: {
+        dialect: persistenceDialect,
+        reconcile: recover,
+        recover,
+        listSessionIds: feedback.listSessionIds,
+      },
+      onSignalsChanged: workspaceId => {
+        if (feedbackProjectionReady) reconcileExistingSkillCandidates?.(workspaceId)
+        else changedWorkspaces.add(workspaceId)
+      },
+      onRecoveryReady: () => {
+        if (!active || feedbackProviderGeneration !== providerGeneration) return
+        feedbackProjectionReady = true
+        for (const workspaceId of changedWorkspaces) reconcileExistingSkillCandidates?.(workspaceId)
+        changedWorkspaces.clear()
+      },
+    })
+    feedbackMonitors.add(monitor)
+    attributionCtx.effect(() => () => {
+      active = false
+      if (feedbackProviderGeneration === providerGeneration) {
+        feedbackProviderGeneration = undefined
+        feedbackProjectionReady = false
+      }
+      return monitor.dispose().finally(() => { feedbackMonitors.delete(monitor) })
     }, 'dsh-evolve.durableFeedbackAttribution')
+    void monitor.reconcileCurrent().catch(error => {
+      if (active) attributionCtx.logger.warn(`dsh-evolve feedback recovery failed: ${String(error)}`)
+    })
   })
 
   if (skillAdmissionScheduler !== undefined || skillShadowScheduler !== undefined) {

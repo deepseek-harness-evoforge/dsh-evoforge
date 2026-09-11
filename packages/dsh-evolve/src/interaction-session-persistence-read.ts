@@ -55,6 +55,13 @@ export function sessionPersistenceReadTimeoutMs(configured: number | undefined):
   return timeoutMs
 }
 
+/** Identify the one supported physical-read dialect without invoking it. */
+export function interactionSessionPersistenceReadDialectV1(
+  persistence: InteractionSessionPersistenceReadPortV1,
+): 'alpha5' | 'current' {
+  return persistenceReadDialect(persistence).kind
+}
+
 /**
  * Read one durable Session prefix without recovery, cache publication, or
  * write ownership. The deadline covers capability selection plus the entire
@@ -76,6 +83,7 @@ export async function readInteractionSessionStoredCutV1(
   const controller = new AbortController()
   const deadlineAt = globalThis.performance.now() + timeoutMs
   const currentLease: { value?: CurrentReadHandleLease } = {}
+  let primary: { error: unknown } | undefined
   let completed = false
   try {
     const stored = await runWithLifecycleDeadline(options.lifecycle, async () => {
@@ -98,6 +106,7 @@ export async function readInteractionSessionStoredCutV1(
         options.lifecycle,
         controller,
         deadlineAt,
+        error => { if (!controller.signal.aborted && primary === undefined) primary = { error } },
       )
     }, {
       timeoutMs,
@@ -108,6 +117,8 @@ export async function readInteractionSessionStoredCutV1(
     })
     completed = true
     return stored
+  } catch (error) {
+    throw primary === undefined ? error : primary.error
   } finally {
     if (!completed) {
       controller.abort()
@@ -162,6 +173,7 @@ async function readCurrentStoredCut(
   lifecycle: Pick<Context, 'effect'>,
   controller: AbortController,
   deadlineAt: number,
+  recordPrimary: (error: unknown) => void,
 ): Promise<NormalizedInteractionSessionStoredCutV1> {
   const signal = controller.signal
   const candidate = await Reflect.apply(open, persistence, [
@@ -192,6 +204,7 @@ async function readCurrentStoredCut(
     }
   } catch (error) {
     primaryFailed = true
+    recordPrimary(error)
     throw error
   } finally {
     try {
@@ -305,12 +318,18 @@ class CurrentReadHandleLease {
   closeOnce(): Promise<void> {
     if (this.closeStarted) return this.closePromise!
     this.closeStarted = true
+    let resolveClose!: () => void
+    let rejectClose!: (error: unknown) => void
+    this.closePromise = new Promise<void>((resolve, reject) => {
+      resolveClose = resolve
+      rejectClose = reject
+    })
     try {
-      this.closePromise = Promise.resolve(
+      void Promise.resolve(
         Reflect.apply(this.close, this.receiver, []),
-      ).then(() => undefined)
+      ).then(resolveClose, rejectClose)
     } catch (error) {
-      this.closePromise = Promise.reject(error)
+      rejectClose(error)
     }
     return this.closePromise
   }

@@ -2322,6 +2322,11 @@ export const TYPERT = {
           },
           {
             "kind": "method",
+            "name": "getSessionGenerationPin",
+            "signature": "getSessionGenerationPin?(identity: SessionIdentity): SessionGenerationPinState"
+          },
+          {
+            "kind": "method",
             "name": "getSessionGeneration",
             "signature": "getSessionGeneration(identity: SessionIdentity): CapabilityGeneration | undefined"
           },
@@ -2365,6 +2370,10 @@ export const TYPERT = {
           {
             "name": "GitSkillGenerationArtifact",
             "declaration": "export interface GitSkillGenerationArtifact {\n    kind: 'skill';\n    name: string;\n    gitCommit: string;\n    treeHash: string;\n    lineage?: SkillCandidateLineage | undefined;\n}"
+          },
+          {
+            "name": "SessionGenerationPinState",
+            "declaration": "export type SessionGenerationPinState = { readonly kind: 'missing'; } | { readonly kind: 'identity-conflict'; } | { readonly kind: 'native'; } | { readonly kind: 'evolved'; readonly generation: CapabilityGeneration; };"
           },
           {
             "name": "SessionIdentity",

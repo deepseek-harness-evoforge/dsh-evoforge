@@ -35,6 +35,12 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
   `open/read/close` now share one fail-closed cut contract, lifecycle-owned deadline, and logical-header identity;
   current handles are closed exactly once. The deadline covers the physical reader only; the preceding Session flush
   remains unbounded.
+- Adapted Gateway persistence reads to current DSH handle envelopes and effective preset history, with cancellable
+  shared resolution, exactly-once handle cleanup, partial-startup rollback, and conflicting Session-route rejection.
+- Added current DSH live/cold feedback reconciliation and restart recovery through native feedback and Session services.
+  Feedback projections wait for durability, remain unavailable during provider recovery, and cannot be changed by a
+  retired provider's queued work. Recovery is idempotent and retains newer source feedback independently of scan order.
+  These are compatibility slices; full rc.2 support and release verification remain pending.
 - Retired failed native `skill` Tool calls as new evolution evidence because alpha.5 cannot distinguish absence from
   policy, load, cancellation, or execution failure. Historical rows remain readable but cannot qualify new opportunity
   or evaluation decisions.

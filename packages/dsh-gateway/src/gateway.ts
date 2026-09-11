@@ -185,6 +185,14 @@ export class GatewayIngressUncertainError extends Error {
   }
 }
 
+interface PendingAgentResolution {
+  readonly controller: AbortController
+  readonly promise: Promise<Agent>
+  readonly primary: PersistencePrimaryState
+  waiters: number
+  settled: boolean
+}
+
 /**
  * The shared Host-side routing seam used by platform adapters. It owns no
  * network transport: adapters authenticate and poll, then submit an exact
@@ -192,10 +200,16 @@ export class GatewayIngressUncertainError extends Error {
  */
 export class DshGateway {
   private readonly ownedHandles = new Map<string, AgentHandle>()
-  private readonly resolutions = new Map<string, Promise<Agent>>()
+  private readonly resolutions = new Map<string, PendingAgentResolution>()
+  private readonly activeResolutions = new Set<PendingAgentResolution>()
+  private readonly activePersistenceLeases = new Set<CurrentReadHandleLease>()
+  private readonly persistenceCloseFailures: unknown[] = []
+  private readonly lifecycleController = new AbortController()
+  private persistenceShutdownDeadlineAt: number | undefined
   private readonly ingressTails = new Map<string, Promise<void>>()
   private readonly activeIngressByRoute = new Map<string, number>()
   private readonly revokingRoutes = new Set<string>()
+  private pairingMutationTail: Promise<void> = Promise.resolve()
   private started = false
   private starting: Promise<void> | undefined
   private sessionEventsBound = false
@@ -276,19 +290,27 @@ export class DshGateway {
           this.outbound.wakeEndedTurn(String(session.id), event.data.turn)
         })
       }
-      const persisted = persistenceHeaders(await this.ctx.sessionPersistence.list())
+      const persisted = await listPersistenceHeaders(
+        this.ctx.sessionPersistence,
+        this.lifecycleController.signal,
+      )
       const persistedById = new Map(persisted.map(header => [String(header.id), header]))
       this.assertRouteSet()
       for (const route of this.allRoutes()) {
-        const workspace = await this.requireWorkspace(route)
-        await this.requirePreset(route)
+        const workspace = await this.requireWorkspace(route, this.lifecycleController.signal)
+        await this.requirePreset(route, this.lifecycleController.signal)
         const live = this.ctx.agents.get(SessionId(route.sessionId))
         if (live !== undefined) {
           this.assertLiveIdentity(route, workspace, live)
           continue
         }
         if (persistedById.has(route.sessionId)) {
-          const inspected = await inspectPersistenceSession(this.ctx.sessionPersistence, SessionId(route.sessionId))
+          const inspected = await inspectPersistenceSession(
+            this.ctx.sessionPersistence,
+            SessionId(route.sessionId),
+            this.lifecycleController.signal,
+            lease => { this.registerPersistenceLease(lease) },
+          )
           this.assertPersistedIdentity(route, workspace, inspected.meta, inspected.events)
         }
       }
@@ -302,8 +324,22 @@ export class DshGateway {
       // Teardown is still awaited, but a journal/transport close failure must
       // not replace the actionable startup validation error. Public stop() can
       // report the shared cleanup failure to its caller independently.
-      await Promise.allSettled([this.cleanupResources()])
-      this.stopping ??= this.cleanupPromise
+      const cleanup = this.cleanupResources()
+      await Promise.allSettled([cleanup])
+      if (this.stopping === undefined) {
+        this.persistenceShutdownDeadlineAt = globalThis.performance.now()
+          + GATEWAY_PERSISTENCE_TIMEOUT_MS
+        const stopping = Promise.resolve().then(async () => {
+          const cleanupResult = await Promise.allSettled([cleanup])
+          await this.quiescePersistenceLeases()
+          const failed = cleanupResult[0]
+          this.throwShutdownFailures(failed?.status === 'rejected' ? [failed.reason] : [])
+        })
+        // Startup reports its actionable validation failure. Retain and
+        // observe the separate teardown result for a later explicit stop().
+        void stopping.catch(() => undefined)
+        this.stopping = stopping
+      }
       throw error
     }
   }
@@ -356,14 +392,18 @@ export class DshGateway {
     return paired === undefined || this.revokingRoutes.has(paired.id) ? undefined : paired
   }
 
-  async approvePairing(input: GatewayPairingApprovalInput): Promise<GatewayPairingApproval> {
+  approvePairing(input: GatewayPairingApprovalInput): Promise<GatewayPairingApproval> {
     this.assertRunning()
     if (this.pairing === undefined) throw new Error('DSH gateway pairing is disabled')
-    await this.validatePairingTarget(input.target)
-    if (this.configured.byId.has(input.target.id) || this.pairing.route(input.target.id) !== undefined) {
-      throw new Error(`gateway pairing route id '${input.target.id}' is already configured`)
-    }
-    return this.pairing.approve(input)
+    return this.enqueuePairingMutation(async () => {
+      await this.validatePairingTarget(input.target)
+      if (this.configured.byId.has(input.target.id) || this.pairing!.route(input.target.id) !== undefined) {
+        throw new Error(`gateway pairing route id '${input.target.id}' is already configured`)
+      }
+      this.assertCompatibleSessionOwner(input.target)
+      this.assertRunning()
+      return this.pairing!.approve(input)
+    })
   }
 
   async approvePairingForSession(
@@ -372,7 +412,11 @@ export class DshGateway {
     this.assertRunning()
     if (this.pairing === undefined) throw new Error('DSH gateway pairing is disabled')
     const workspace = this.ctx.workspaceRegistry.get(WorkspaceId(input.workspaceId))
-    if (workspace === undefined || await workspace.status() !== 'ok') {
+    if (workspace === undefined || await runPersistenceDeadline(
+      async () => workspace.status(),
+      this.lifecycleController.signal,
+      `Gateway pairing Workspace '${input.workspaceId}' status`,
+    ) !== 'ok') {
       throw new Error(`gateway pairing names unavailable Workspace '${input.workspaceId}'`)
     }
     const sessionId = SessionId(input.sessionId)
@@ -418,7 +462,11 @@ export class DshGateway {
     this.assertRunning()
     if (this.pairing === undefined) throw new Error('DSH gateway pairing is disabled')
     const workspace = this.ctx.workspaceRegistry.get(WorkspaceId(input.workspaceId))
-    if (workspace === undefined || await workspace.status() !== 'ok') {
+    if (workspace === undefined || await runPersistenceDeadline(
+      async () => workspace.status(),
+      this.lifecycleController.signal,
+      `Gateway pairing Workspace '${input.workspaceId}' status`,
+    ) !== 'ok') {
       throw new Error(`gateway pairing names unavailable Workspace '${input.workspaceId}'`)
     }
     const sessionId = SessionId(input.sessionId)
@@ -456,15 +504,19 @@ export class DshGateway {
     })
   }
 
-  async approvePairingRequest(input: GatewayPairingRequestApprovalInput): Promise<GatewayPairingApproval> {
+  approvePairingRequest(input: GatewayPairingRequestApprovalInput): Promise<GatewayPairingApproval> {
     this.assertRunning()
     if (this.pairing === undefined) throw new Error('DSH gateway pairing is disabled')
     const target = input.target
-    await this.validatePairingTarget(target)
-    if (this.configured.byId.has(target.id) || this.pairing.route(target.id) !== undefined) {
-      throw new Error(`gateway pairing route id '${target.id}' is already configured`)
-    }
-    return this.pairing.approveRequest(input)
+    return this.enqueuePairingMutation(async () => {
+      await this.validatePairingTarget(target)
+      if (this.configured.byId.has(target.id) || this.pairing!.route(target.id) !== undefined) {
+        throw new Error(`gateway pairing route id '${target.id}' is already configured`)
+      }
+      this.assertCompatibleSessionOwner(target)
+      this.assertRunning()
+      return this.pairing!.approveRequest(input)
+    })
   }
 
   pendingPairings(observedAt = Date.now()): readonly GatewayPairingPendingRequest[] {
@@ -582,17 +634,38 @@ export class DshGateway {
   /** Resolve the exact configured native Agent without dispatching user input. */
   async resolve(routeOrId: ResolvedGatewayRoute | string, signal?: AbortSignal): Promise<Agent> {
     this.assertRunning()
-    const route = typeof routeOrId === 'string' ? this.route(routeOrId) : routeOrId
+    const routeId = typeof routeOrId === 'string' ? routeOrId : routeOrId.id
+    const route = this.route(routeId)
     if (route === undefined) throw new Error(`unknown gateway route '${String(routeOrId)}'`)
+    if (typeof routeOrId !== 'string' && !isDeepStrictEqual(routeOrId, route)) {
+      throw new Error(`gateway route '${routeId}' is stale or not authoritative`)
+    }
     signal?.throwIfAborted()
     let pending = this.resolutions.get(route.sessionId)
-    if (pending === undefined) {
-      pending = this.resolveNativeAgent(route, signal).finally(() => {
-        this.resolutions.delete(route.sessionId)
+    if (pending === undefined || pending.controller.signal.aborted) {
+      const controller = new AbortController()
+      const primary = persistencePrimaryState()
+      let created!: PendingAgentResolution
+      const promise = this.resolveNativeAgent(route, controller.signal, primary).finally(() => {
+        created.settled = true
+        if (this.resolutions.get(route.sessionId) === created) {
+          this.resolutions.delete(route.sessionId)
+        }
+        this.activeResolutions.delete(created)
       })
-      this.resolutions.set(route.sessionId, pending)
+      created = { controller, promise, primary, waiters: 0, settled: false }
+      pending = created
+      this.resolutions.set(route.sessionId, created)
+      this.activeResolutions.add(created)
+      // Every caller may cancel independently, leaving no public waiter on
+      // the shared operation. Keep its terminal rejection observed.
+      void promise.catch(() => undefined)
     }
-    return await pending
+    return await waitForAgentResolution(pending, signal, () => {
+      if (this.resolutions.get(route.sessionId) === pending) {
+        this.resolutions.delete(route.sessionId)
+      }
+    })
   }
 
   dispatch(input: GatewayDispatchInput): Promise<GatewayDispatchResult> {
@@ -629,15 +702,41 @@ export class DshGateway {
   }
 
   stop(): Promise<void> {
-    this.stopping ??= (async () => {
-      // A resident Host may receive shutdown while validation/recovery is still
-      // awaiting persistence. Let startup finish before closing its resources.
-      // Promise.allSettled keeps a startup validation error from masking cleanup.
-      const starting = this.starting
-      if (starting !== undefined) await Promise.allSettled([starting])
-      await this.cleanupResources()
-    })()
-    return this.stopping
+    if (this.stopping !== undefined) return this.stopping
+    let resolveStopping!: () => void
+    let rejectStopping!: (error: unknown) => void
+    const stopping = new Promise<void>((resolve, reject) => {
+      resolveStopping = resolve
+      rejectStopping = reject
+    })
+    // Publish the stopping state before any abort listener can re-enter stop().
+    this.stopping = stopping
+    this.persistenceShutdownDeadlineAt = globalThis.performance.now()
+      + GATEWAY_PERSISTENCE_TIMEOUT_MS
+    try {
+      void this.stopInternal().then(resolveStopping, rejectStopping)
+    } catch (error) {
+      rejectStopping(error)
+    }
+    return stopping
+  }
+
+  private async stopInternal(): Promise<void> {
+    const reason = new Error('DSH gateway is stopping')
+    this.lifecycleController.abort(reason)
+    for (const resolution of this.activeResolutions) {
+      resolution.controller.abort(reason)
+    }
+    // A resident Host may receive shutdown while validation/recovery is still
+    // awaiting persistence. Let startup finish before closing its resources.
+    // Promise.allSettled keeps a startup validation error from masking cleanup.
+    const starting = this.starting
+    if (starting !== undefined) await Promise.allSettled([starting])
+    await this.quiesceActiveResolutions()
+    await this.quiescePersistenceLeases()
+    const cleanup = await Promise.allSettled([this.cleanupResources()])
+    const failed = cleanup[0]
+    this.throwShutdownFailures(failed?.status === 'rejected' ? [failed.reason] : [])
   }
 
   private cleanupResources(): Promise<void> {
@@ -660,7 +759,7 @@ export class DshGateway {
       // A direct resolve() may be creating or resuming a Native Agent without
       // an ingress tail. Wait before snapshotting owned handles so a late
       // resolution cannot publish an undisposed handle after Host shutdown.
-      await Promise.allSettled(this.resolutions.values())
+      await this.quiesceActiveResolutions()
       await settle([() => this.outbound.stop()])
       await settle([() => this.transports.stop()])
       const handles = [...this.ownedHandles.values()]
@@ -679,6 +778,60 @@ export class DshGateway {
       }
     })()
     return this.cleanupPromise
+  }
+
+  private async quiesceActiveResolutions(): Promise<void> {
+    while (this.activeResolutions.size > 0) {
+      await Promise.allSettled(
+        [...this.activeResolutions].map(resolution => resolution.promise),
+      )
+    }
+  }
+
+  private registerPersistenceLease(lease: CurrentReadHandleLease): void {
+    this.activePersistenceLeases.add(lease)
+    const forget = (): void => { this.activePersistenceLeases.delete(lease) }
+    const forgetFailure = (error: unknown): void => {
+      this.activePersistenceLeases.delete(lease)
+      this.persistenceCloseFailures.push(error)
+    }
+    void lease.closed.then(forget, forgetFailure)
+    if (this.stopping !== undefined) {
+      void lease.closeUntil(this.persistenceShutdownDeadlineAt
+        ?? globalThis.performance.now()).then(forget, forget)
+    }
+  }
+
+  private async quiescePersistenceLeases(): Promise<void> {
+    while (this.activePersistenceLeases.size > 0) {
+      const leases = [...this.activePersistenceLeases]
+      const deadlineAt = this.persistenceShutdownDeadlineAt
+        ?? globalThis.performance.now() + GATEWAY_PERSISTENCE_TIMEOUT_MS
+      const results = await Promise.allSettled(leases.map(lease => lease.closeUntil(deadlineAt)))
+      for (const result of results) {
+        if (result.status === 'rejected' && !this.persistenceCloseFailures.includes(result.reason)) {
+          this.persistenceCloseFailures.push(result.reason)
+        }
+      }
+      for (const lease of leases) this.activePersistenceLeases.delete(lease)
+    }
+  }
+
+  private enqueuePairingMutation<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.pairingMutationTail.then(() => {
+      this.assertRunning()
+      return operation()
+    })
+    this.pairingMutationTail = result.then(() => undefined, () => undefined)
+    return result
+  }
+
+  private throwShutdownFailures(additional: readonly unknown[]): void {
+    const failures = [...additional, ...this.persistenceCloseFailures]
+    if (failures.length === 1) throw failures[0]
+    if (failures.length > 1) {
+      throw new AggregateError(failures, 'DSH gateway cleanup failed')
+    }
   }
 
   private async dispatchSerial(input: {
@@ -945,9 +1098,13 @@ export class DshGateway {
     return parsed !== undefined && this.ctx.commands.list(agent).some(command => command.name === parsed.name)
   }
 
-  private async resolveNativeAgent(route: ResolvedGatewayRoute, signal?: AbortSignal): Promise<Agent> {
-    const workspace = await this.requireWorkspace(route)
-    await this.requirePreset(route)
+  private async resolveNativeAgent(
+    route: ResolvedGatewayRoute,
+    signal: AbortSignal | undefined,
+    primary: PersistencePrimaryState,
+  ): Promise<Agent> {
+    const workspace = await this.requireWorkspace(route, signal)
+    await this.requirePreset(route, signal)
     const sessionId = SessionId(route.sessionId)
     const live = this.ctx.agents.get(sessionId)
     if (live !== undefined) {
@@ -956,7 +1113,7 @@ export class DshGateway {
       return live
     }
 
-    const header = persistenceHeaders(await this.ctx.sessionPersistence.list(signal))
+    const header = (await listPersistenceHeaders(this.ctx.sessionPersistence, signal, primary))
       .find(item => item.id === sessionId)
     let handle: AgentHandle
     try {
@@ -969,7 +1126,13 @@ export class DshGateway {
           setup: agentCtx => this.ctx.agentPresets.mount(agentCtx, route.agentPreset).then(() => undefined),
         })
       } else {
-        const inspected = await inspectPersistenceSession(this.ctx.sessionPersistence, sessionId, signal)
+        const inspected = await inspectPersistenceSession(
+          this.ctx.sessionPersistence,
+          sessionId,
+          signal,
+          lease => { this.registerPersistenceLease(lease) },
+          primary,
+        )
         this.assertPersistedIdentity(route, workspace, inspected.meta, inspected.events)
         handle = await this.ctx.agents.resume({
           resumeSessionId: sessionId,
@@ -1027,17 +1190,28 @@ export class DshGateway {
     })
   }
 
-  private async requireWorkspace(route: ResolvedGatewayRoute): Promise<Workspace> {
+  private async requireWorkspace(
+    route: ResolvedGatewayRoute,
+    signal?: AbortSignal,
+  ): Promise<Workspace> {
     const workspace = this.ctx.workspaceRegistry.get(WorkspaceId(route.workspaceId))
     if (workspace === undefined) throw new Error(`gateway route '${route.id}' names unknown Workspace '${route.workspaceId}'`)
-    if (await workspace.status() !== 'ok') {
+    if (await runPersistenceDeadline(
+      async () => workspace.status(),
+      signal,
+      `Gateway Workspace '${route.workspaceId}' status`,
+    ) !== 'ok') {
       throw new Error(`gateway route '${route.id}' Workspace '${route.workspaceId}' directory is missing`)
     }
     return workspace
   }
 
-  private async requirePreset(route: ResolvedGatewayRoute): Promise<void> {
-    const preset = await this.ctx.agentPresets.resolve(route.agentPreset)
+  private async requirePreset(route: ResolvedGatewayRoute, signal?: AbortSignal): Promise<void> {
+    const preset = await runPersistenceDeadline(
+      async () => this.ctx.agentPresets.resolve(route.agentPreset),
+      signal,
+      `Gateway Agent preset '${route.agentPreset}' resolution`,
+    )
     if (preset.broken !== undefined) {
       throw new Error(`gateway route '${route.id}' Agent preset '${route.agentPreset}' is broken: ${preset.broken}`)
     }
@@ -1120,11 +1294,36 @@ export class DshGateway {
   private assertRouteSet(): void {
     const ids = new Set<string>()
     const endpoints = new Set<string>()
+    const sessionOwners = new Map<string, GatewayPairingTarget>()
     for (const route of this.allRoutes()) {
       if (ids.has(route.id)) throw new Error(`gateway route id '${route.id}' is duplicated`)
       if (endpoints.has(route.endpointKey)) throw new Error('gateway routes claim the same external endpoint')
+      const owner = sessionOwners.get(route.sessionId)
+      if (owner !== undefined) this.assertSameSessionOwner(owner, route)
+      else sessionOwners.set(route.sessionId, route)
       ids.add(route.id)
       endpoints.add(route.endpointKey)
+    }
+  }
+
+  private assertCompatibleSessionOwner(target: GatewayPairingTarget): void {
+    for (const route of this.allRoutes()) {
+      if (route.sessionId === target.sessionId) this.assertSameSessionOwner(route, target)
+    }
+  }
+
+  private assertSameSessionOwner(
+    owner: GatewayPairingTarget,
+    candidate: GatewayPairingTarget,
+  ): void {
+    if (owner.workspaceId !== candidate.workspaceId
+      || owner.agentPreset !== candidate.agentPreset
+      || owner.provider !== candidate.provider
+      || owner.model !== candidate.model
+      || owner.maxTokens !== candidate.maxTokens) {
+      throw new Error(
+        `gateway Session '${candidate.sessionId}' cannot use incompatible Workspace, preset, or model routes`,
+      )
     }
   }
 
@@ -1137,18 +1336,70 @@ export class DshGateway {
       userId: 'pending',
       endpointKey: 'pending',
     })
-    const workspace = await this.requireWorkspace(candidate)
-    await this.requirePreset(candidate)
+    const workspace = await this.requireWorkspace(candidate, this.lifecycleController.signal)
+    await this.requirePreset(candidate, this.lifecycleController.signal)
     const live = this.ctx.agents.get(SessionId(target.sessionId))
     if (live !== undefined) {
       this.assertLiveIdentity(candidate, workspace, live)
       return
     }
-    const header = persistenceHeaders(await this.ctx.sessionPersistence.list())
+    const header = (await listPersistenceHeaders(
+      this.ctx.sessionPersistence,
+      this.lifecycleController.signal,
+    ))
       .find(item => String(item.id) === target.sessionId)
     if (header === undefined) return
-    const inspected = await inspectPersistenceSession(this.ctx.sessionPersistence, SessionId(target.sessionId))
+    const inspected = await inspectPersistenceSession(
+      this.ctx.sessionPersistence,
+      SessionId(target.sessionId),
+      this.lifecycleController.signal,
+      lease => { this.registerPersistenceLease(lease) },
+    )
     this.assertPersistedIdentity(candidate, workspace, inspected.meta, inspected.events)
+  }
+}
+
+async function waitForAgentResolution(
+  pending: PendingAgentResolution,
+  signal?: AbortSignal,
+  onAbandoned?: () => void,
+): Promise<Agent> {
+  signal?.throwIfAborted()
+  pending.waiters += 1
+  let waiterReleased = false
+  const releaseWaiter = (cancelled: boolean): void => {
+    if (waiterReleased) return
+    waiterReleased = true
+    pending.waiters -= 1
+    if (cancelled && pending.waiters === 0 && !pending.settled) {
+      onAbandoned?.()
+      pending.controller.abort(signal?.reason)
+    }
+  }
+  let removeAbort: (() => void) | undefined
+  const outcome = signal === undefined
+    ? pending.promise
+    : Promise.race([
+        pending.promise,
+        new Promise<never>((_resolve, reject) => {
+          const onAbort = (): void => {
+            // Release synchronously: an official handle metadata getter may
+            // re-enter the caller and abort while the shared read is on-stack.
+            releaseWaiter(true)
+            reject(pending.primary.recorded
+              ? pending.primary.error
+              : signal.reason ?? new Error('Gateway Agent resolution was cancelled'))
+          }
+          removeAbort = () => { signal.removeEventListener('abort', onAbort) }
+          signal.addEventListener('abort', onAbort, { once: true })
+          if (signal.aborted) onAbort()
+        }),
+      ])
+  try {
+    return await outcome
+  } finally {
+    removeAbort?.()
+    releaseWaiter(false)
   }
 }
 
@@ -1162,43 +1413,446 @@ function messageSeen(agent: Agent, messageId: string): boolean {
   })
 }
 
-/** DSH alpha.5 exposes list() snapshots; older builds returned bare headers. */
-function persistenceHeaders(value: readonly unknown[]): SessionHeader[] {
-  return value.flatMap(item => {
-    if (typeof item !== 'object' || item === null) return []
-    const record = item as { readonly header?: unknown; readonly id?: unknown }
-    const header = record.header ?? item
-    if (typeof header !== 'object' || header === null || typeof (header as { id?: unknown }).id !== 'string') return []
-    return [header as SessionHeader]
-  })
+type SessionPersistenceMethod = (...args: never[]) => unknown
+const GATEWAY_PERSISTENCE_TIMEOUT_MS = 30_000
+
+interface PersistencePrimaryState {
+  recorded: boolean
+  error: unknown
 }
 
-/** Read one persisted session across the pre-alpha5 and alpha5 APIs. */
+interface PersistenceDeadlineControl {
+  readonly signal: AbortSignal
+  readonly deadlineAt: number
+  recordPrimary(error: unknown): void
+}
+
+function persistencePrimaryState(): PersistencePrimaryState {
+  return { recorded: false, error: undefined }
+}
+
+type SessionPersistenceDialect =
+  | { readonly kind: 'alpha5'; readonly inspect: SessionPersistenceMethod }
+  | { readonly kind: 'current'; readonly open: SessionPersistenceMethod }
+
+/** Select exactly one released persistence read dialect without invoking accessors. */
+function sessionPersistenceDialect(persistence: object): SessionPersistenceDialect {
+  const inspect = optionalDataMethod(persistence, 'inspect')
+  const open = optionalDataMethod(persistence, 'open')
+  if ((inspect === undefined) === (open === undefined)) {
+    throw new Error('DSH session persistence must expose exactly one inspect/open read dialect')
+  }
+  return inspect === undefined
+    ? { kind: 'current', open: open! }
+    : { kind: 'alpha5', inspect }
+}
+
+/** Alpha.5 lists bare headers; current DSH lists header/revision snapshots. */
+async function listPersistenceHeaders(
+  persistence: unknown,
+  signal?: AbortSignal,
+  sharedPrimary?: PersistencePrimaryState,
+): Promise<SessionHeader[]> {
+  if ((typeof persistence !== 'object' || persistence === null)
+    && typeof persistence !== 'function') {
+    throw new Error('DSH session persistence service is unavailable')
+  }
+  const service = persistence as object
+  const dialect = sessionPersistenceDialect(service)
+  const list = requiredDataMethod(service, 'list')
+  return runPersistenceDeadline(async ({ signal: operationSignal }) => {
+    const raw = await Reflect.apply(list, service, dialect.kind === 'alpha5'
+      ? [operationSignal]
+      : [{ signal: operationSignal }])
+    operationSignal.throwIfAborted()
+    if (!Array.isArray(raw)) throw new Error('DSH session persistence list returned no array')
+    const headers: SessionHeader[] = []
+    const ids = new Set<string>()
+    for (const item of raw) {
+      let header: unknown
+      if (dialect.kind === 'alpha5') {
+        header = item
+      } else {
+        const snapshot = plainDataRecord(item)
+        if (snapshot === undefined
+          || typeof snapshot.revision !== 'string'
+          || !Object.hasOwn(snapshot, 'header')
+          || !optionalNonNegativeSafeInteger(snapshot.eventCount)
+          || !optionalNonNegativeSafeInteger(snapshot.sizeBytes)) {
+          throw new Error('DSH session persistence list returned a malformed snapshot')
+        }
+        header = snapshot.header
+      }
+      const detached = detachedSessionHeader(header)
+      const id = String(detached.id)
+      if (ids.has(id)) throw new Error(`DSH session persistence listed duplicate Session '${id}'`)
+      ids.add(id)
+      headers.push(detached)
+    }
+    return headers
+  }, signal, 'Gateway Session persistence list', sharedPrimary)
+}
+
+/** Read one persisted Session through exact alpha.5 or current capabilities. */
 async function inspectPersistenceSession(
   persistence: unknown,
   id: SessionId,
   signal?: AbortSignal,
+  onLease?: (lease: CurrentReadHandleLease) => void,
+  sharedPrimary?: PersistencePrimaryState,
 ): Promise<{ meta: SessionHeader; events: readonly SessionEvent[] }> {
-  const service = persistence as {
-    inspect?: (sessionId: SessionId, signal?: AbortSignal) => Promise<{ meta: SessionHeader; events: readonly SessionEvent[] }>
-    load?: (sessionId: SessionId, signal?: AbortSignal) => Promise<{ meta: SessionHeader; events: readonly SessionEvent[] }>
-    open?: (sessionId: SessionId, access: 'read', options?: { signal?: AbortSignal }) => Promise<{
-      header?: SessionHeader
-      read(offset?: number, length?: number, options?: { signal?: AbortSignal }): Promise<readonly SessionEvent[]>
-      close(): Promise<void>
-    }>
+  if ((typeof persistence !== 'object' || persistence === null)
+    && typeof persistence !== 'function') {
+    throw new Error('DSH session persistence service is unavailable')
   }
-  if (service.inspect !== undefined) return service.inspect(id, signal)
-  if (service.load !== undefined) return service.load(id, signal)
-  if (service.open === undefined) throw new Error('DSH session persistence does not expose inspect/load/open')
-  const handle = await service.open(id, 'read', signal === undefined ? undefined : { signal })
+  const service = persistence as object
+  const dialect = sessionPersistenceDialect(service)
+  if (dialect.kind === 'alpha5') {
+    return runPersistenceDeadline(async ({ signal: operationSignal }) => {
+      const inspected = await Reflect.apply(dialect.inspect, service, [id, operationSignal])
+      operationSignal.throwIfAborted()
+      const snapshot = plainDataRecord(inspected)
+      if (snapshot === undefined || !Object.hasOwn(snapshot, 'meta') || !Array.isArray(snapshot.events)) {
+        throw new Error(`persisted Session '${String(id)}' inspection is malformed`)
+      }
+      const meta = detachedSessionHeader(snapshot.meta, id)
+      return { meta, events: detachedSessionEvents(snapshot.events) }
+    }, signal, `Gateway persisted Session '${String(id)}' read`, sharedPrimary)
+  }
+  return runPersistenceDeadline(
+    control => inspectCurrentPersistenceSession(
+      service,
+      dialect.open,
+      id,
+      control,
+      onLease,
+    ),
+    signal,
+    `Gateway persisted Session '${String(id)}' read`,
+    sharedPrimary,
+  )
+}
+
+async function inspectCurrentPersistenceSession(
+  service: object,
+  open: SessionPersistenceMethod,
+  id: SessionId,
+  control: PersistenceDeadlineControl,
+  onLease?: (lease: CurrentReadHandleLease) => void,
+): Promise<{ meta: SessionHeader; events: readonly SessionEvent[] }> {
+  const { signal } = control
+  const candidate = await Reflect.apply(open, service, [id, 'read', { signal }])
+  const lease = CurrentReadHandleLease.capture(candidate, control.deadlineAt)
+  onLease?.(lease)
+  const closeOnAbort = (): void => { void lease.closeOnce().catch(() => undefined) }
+  signal.addEventListener('abort', closeOnAbort, { once: true })
+  if (signal.aborted) closeOnAbort()
+  let inspected: { meta: SessionHeader; events: readonly SessionEvent[] }
   try {
-    const meta = handle.header
-    if (meta === undefined) throw new Error(`persisted Session '${String(id)}' has no header`)
-    return { meta, events: await handle.read(0, Number.MAX_SAFE_INTEGER, signal === undefined ? undefined : { signal }) }
-  } finally {
-    await handle.close()
+    signal.throwIfAborted()
+    const handle = currentReadHandle(lease.receiver, id)
+    signal.throwIfAborted()
+    const result = await Reflect.apply(handle.read, lease.receiver, [
+      0,
+      Number.MAX_SAFE_INTEGER,
+      { signal },
+    ])
+    signal.throwIfAborted()
+    const envelope = plainDataRecord(result)
+    if (envelope === undefined
+      || !hasExactDataKeys(envelope, ['eventState', 'events'])
+      || (envelope.eventState !== 'detached' && envelope.eventState !== 'shared-frozen')
+      || !Array.isArray(envelope.events)) {
+      throw new Error(`persisted Session '${String(id)}' read result is malformed`)
+    }
+    inspected = {
+      meta: handle.header,
+      events: detachedSessionEvents(envelope.events),
+    }
+  } catch (error) {
+    control.recordPrimary(error)
+    // Teardown starts immediately but cannot replace a read, validation,
+    // cancellation, or deadline failure. Join it while this operation still
+    // owns budget; an abort/deadline can still bound an ignored close.
+    try {
+      await waitForCloseOrAbort(lease, signal)
+    } catch {
+      // Preserve the primary read/validation failure.
+    }
+    signal.removeEventListener('abort', closeOnAbort)
+    throw error
   }
+  try {
+    const closed = await waitForCloseOrAbort(lease, signal)
+    if (!closed) signal.throwIfAborted()
+    return inspected
+  } finally {
+    signal.removeEventListener('abort', closeOnAbort)
+  }
+}
+
+async function waitForCloseOrAbort(
+  lease: CurrentReadHandleLease,
+  signal: AbortSignal,
+): Promise<boolean> {
+  const close = lease.closeOnce()
+  void close.catch(() => undefined)
+  if (signal.aborted) return false
+  const aborted = Symbol('aborted')
+  let resolveAborted!: (value: typeof aborted) => void
+  const abortOutcome = new Promise<typeof aborted>(resolve => { resolveAborted = resolve })
+  const onAbort = (): void => { resolveAborted(aborted) }
+  signal.addEventListener('abort', onAbort, { once: true })
+  try {
+    const outcome = await Promise.race([close.then(() => true), abortOutcome])
+    return outcome === aborted ? false : outcome
+  } finally {
+    signal.removeEventListener('abort', onAbort)
+  }
+}
+
+class CurrentReadHandleLease {
+  readonly receiver: object
+  readonly closed: Promise<void>
+  private readonly close: SessionPersistenceMethod
+  private closeStarted = false
+  private resolveClosed!: () => void
+  private rejectClosed!: (error: unknown) => void
+
+  private constructor(
+    receiver: object,
+    close: SessionPersistenceMethod,
+  ) {
+    this.receiver = receiver
+    this.close = close
+    this.closed = new Promise<void>((resolve, reject) => {
+      this.resolveClosed = resolve
+      this.rejectClosed = reject
+    })
+  }
+
+  static capture(candidate: unknown, _deadlineAt: number): CurrentReadHandleLease {
+    if ((typeof candidate !== 'object' || candidate === null)
+      && typeof candidate !== 'function') {
+      throw new Error('DSH session persistence open returned no handle')
+    }
+    const receiver = candidate as object
+    const close = requiredDataMethod(receiver, 'close')
+    return new CurrentReadHandleLease(receiver, close)
+  }
+
+  closeOnce(): Promise<void> {
+    if (this.closeStarted) return this.closed
+    // Install the sentinel before invoking user/backend code: close may
+    // synchronously stop the Gateway and re-enter this method through abort.
+    this.closeStarted = true
+    try {
+      const result = Reflect.apply(this.close, this.receiver, [])
+      void Promise.resolve(result).then(this.resolveClosed, this.rejectClosed)
+    } catch (error) {
+      this.rejectClosed(error)
+    }
+    return this.closed
+  }
+
+  async closeUntil(deadlineAt: number): Promise<void> {
+    const close = this.closeOnce()
+    void close.catch(() => undefined)
+    const remainingMs = deadlineAt - globalThis.performance.now()
+    if (remainingMs <= 0) throw new Error('Gateway Session read handle cleanup timed out')
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const deadline = new Promise<void>((_resolve, reject) => {
+      timer = setTimeout(() => reject(new Error('Gateway Session read handle cleanup timed out')), remainingMs)
+    })
+    try {
+      await Promise.race([close, deadline])
+    } finally {
+      if (timer !== undefined) clearTimeout(timer)
+    }
+  }
+}
+
+function currentReadHandle(receiver: object, expectedId: SessionId): {
+  readonly receiver: object
+  readonly header: SessionHeader
+  readonly read: SessionPersistenceMethod
+} {
+  const read = requiredDataMethod(receiver, 'read')
+  let id: unknown
+  let access: unknown
+  let header: unknown
+  let inheritedEventCount: unknown
+  try {
+    id = Reflect.get(receiver, 'id')
+    access = Reflect.get(receiver, 'access')
+    header = Reflect.get(receiver, 'header')
+    inheritedEventCount = Reflect.get(receiver, 'inheritedEventCount')
+  } catch {
+    throw new Error('DSH Session read handle metadata inspection failed')
+  }
+  if (id !== expectedId || access !== 'read') {
+    throw new Error(`DSH persistence returned the wrong handle for Session '${String(expectedId)}'`)
+  }
+  if (!nonNegativeSafeInteger(inheritedEventCount)) {
+    throw new Error(`persisted Session '${String(expectedId)}' has malformed inherited metadata`)
+  }
+  return {
+    receiver,
+    header: detachedSessionHeader(header, expectedId),
+    read,
+  }
+}
+
+async function runPersistenceDeadline<T>(
+  invoke: (control: PersistenceDeadlineControl) => Promise<T>,
+  callerSignal: AbortSignal | undefined,
+  label: string,
+  sharedPrimary?: PersistencePrimaryState,
+): Promise<T> {
+  callerSignal?.throwIfAborted()
+  const controller = new AbortController()
+  const primary = persistencePrimaryState()
+  const deadlineAt = globalThis.performance.now() + GATEWAY_PERSISTENCE_TIMEOUT_MS
+  const recordPrimary = (error: unknown): void => {
+    if (controller.signal.aborted || primary.recorded) return
+    primary.recorded = true
+    primary.error = error
+    if (sharedPrimary !== undefined && !sharedPrimary.recorded) {
+      sharedPrimary.recorded = true
+      sharedPrimary.error = error
+    }
+  }
+  const onCallerAbort = (): void => {
+    controller.abort(callerSignal?.reason)
+  }
+  callerSignal?.addEventListener('abort', onCallerAbort, { once: true })
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeoutError = new Error(`${label} timed out after ${GATEWAY_PERSISTENCE_TIMEOUT_MS}ms`)
+  timer = setTimeout(() => { controller.abort(timeoutError) }, GATEWAY_PERSISTENCE_TIMEOUT_MS)
+  const invocation = Promise.resolve().then(() => {
+    controller.signal.throwIfAborted()
+    return invoke({ signal: controller.signal, deadlineAt, recordPrimary })
+  })
+  // A backend may ignore the abort and reject after the public deadline.
+  // Observe the invocation independently of which side wins.
+  void invocation.catch(() => undefined)
+  let removeAbort: (() => void) | undefined
+  const aborted = new Promise<never>((_resolve, reject) => {
+    const onAbort = (): void => {
+      reject(primary.recorded
+        ? primary.error
+        : controller.signal.reason ?? new Error(`${label} aborted`))
+    }
+    removeAbort = () => { controller.signal.removeEventListener('abort', onAbort) }
+    controller.signal.addEventListener('abort', onAbort, { once: true })
+    if (controller.signal.aborted) onAbort()
+  })
+  try {
+    return await Promise.race([invocation, aborted])
+  } finally {
+    if (timer !== undefined) clearTimeout(timer)
+    removeAbort?.()
+    callerSignal?.removeEventListener('abort', onCallerAbort)
+  }
+}
+
+function detachedSessionHeader(candidate: unknown, expectedId?: SessionId): SessionHeader {
+  if (candidate === null || typeof candidate !== 'object' || Array.isArray(candidate)) {
+    throw new Error('DSH session persistence returned a malformed Session header')
+  }
+  let header: SessionHeader
+  try {
+    header = structuredClone(candidate) as SessionHeader
+  } catch {
+    throw new Error('DSH session persistence returned an unclonable Session header')
+  }
+  if (typeof header.id !== 'string' || header.id.length === 0
+    || (expectedId !== undefined && header.id !== expectedId)) {
+    throw new Error(`DSH session persistence returned the wrong Session header${expectedId === undefined ? '' : ` for '${String(expectedId)}'`}`)
+  }
+  return header
+}
+
+function detachedSessionEvents(candidate: readonly unknown[]): readonly SessionEvent[] {
+  try {
+    return structuredClone(candidate) as readonly SessionEvent[]
+  } catch {
+    throw new Error('DSH session persistence returned unclonable Session events')
+  }
+}
+
+function optionalDataMethod(receiver: object, key: string): SessionPersistenceMethod | undefined {
+  const visited = new Set<object>()
+  let cursor: object | null = receiver
+  while (cursor !== null) {
+    if (visited.has(cursor)) throw new Error('DSH session persistence has a cyclic prototype chain')
+    visited.add(cursor)
+    let descriptor: PropertyDescriptor | undefined
+    try {
+      descriptor = Reflect.getOwnPropertyDescriptor(cursor, key)
+    } catch {
+      throw new Error(`DSH session persistence ${key} capability inspection failed`)
+    }
+    if (descriptor !== undefined) {
+      if (!('value' in descriptor) || typeof descriptor.value !== 'function') {
+        throw new Error(`DSH session persistence ${key} capability is not a data method`)
+      }
+      return descriptor.value as SessionPersistenceMethod
+    }
+    try {
+      cursor = Reflect.getPrototypeOf(cursor)
+    } catch {
+      throw new Error(`DSH session persistence ${key} capability inspection failed`)
+    }
+  }
+  return undefined
+}
+
+function requiredDataMethod(receiver: object, key: string): SessionPersistenceMethod {
+  const method = optionalDataMethod(receiver, key)
+  if (method === undefined) throw new Error(`DSH session persistence has no callable ${key}`)
+  return method
+}
+
+function plainDataRecord(candidate: unknown): Readonly<Record<string, unknown>> | undefined {
+  if (candidate === null || typeof candidate !== 'object' || Array.isArray(candidate)) return undefined
+  let descriptors: Record<PropertyKey, PropertyDescriptor | undefined>
+  try {
+    const prototype = Reflect.getPrototypeOf(candidate)
+    if (prototype !== Object.prototype && prototype !== null) return undefined
+    descriptors = Object.getOwnPropertyDescriptors(candidate)
+  } catch {
+    return undefined
+  }
+  const snapshot: Record<string, unknown> = Object.create(null)
+  for (const key of Reflect.ownKeys(descriptors)) {
+    const descriptor = descriptors[key]
+    if (typeof key !== 'string'
+      || descriptor === undefined
+      || !descriptor.enumerable
+      || !('value' in descriptor)) return undefined
+    snapshot[key] = descriptor.value
+  }
+  return snapshot
+}
+
+function hasExactDataKeys(
+  candidate: Readonly<Record<string, unknown>>,
+  keys: readonly string[],
+): boolean {
+  return Reflect.ownKeys(candidate).length === keys.length
+    && keys.every(key => Object.hasOwn(candidate, key))
+}
+
+function nonNegativeSafeInteger(candidate: unknown): candidate is number {
+  return typeof candidate === 'number'
+    && Number.isSafeInteger(candidate)
+    && candidate >= 0
+    && !Object.is(candidate, -0)
+}
+
+function optionalNonNegativeSafeInteger(candidate: unknown): boolean {
+  return candidate === undefined || nonNegativeSafeInteger(candidate)
 }
 
 function sessionPreset(header: SessionHeader, events: readonly SessionEvent[]): string | undefined {

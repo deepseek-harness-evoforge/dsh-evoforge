@@ -54,6 +54,10 @@ describe('dsh-gateway Bundle lifecycle', () => {
     const context = {
       storageDomain: domains.facility,
       logger,
+      effect: vi.fn((install: () => unknown) => {
+        install()
+        return vi.fn()
+      }),
     } as unknown as Context
 
     await expect(GatewayPlugin.apply(context, { pairing: { enabled: false } })).rejects
@@ -71,6 +75,7 @@ describe('dsh-gateway Bundle lifecycle', () => {
     const context = {
       storageDomain: domains.facility,
       sessionPersistence: {
+        async inspect() { throw new Error('unexpected persistence inspection') },
         async list() { throw new Error('startup validation failed') },
       },
       workspaceRegistry: { get: () => undefined },
@@ -91,17 +96,65 @@ describe('dsh-gateway Bundle lifecycle', () => {
     await expect(GatewayPlugin.apply(context, { pairing: { enabled: false } })).rejects
       .toThrow('startup validation failed')
     expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('startup cleanup failed'))
-    expect(context.effect).not.toHaveBeenCalled()
+    expect(context.effect).toHaveBeenCalledOnce()
     expect(context.provide).not.toHaveBeenCalled()
     expect(domains.closes).toHaveLength(3)
     for (const close of domains.closes) expect(close).toHaveBeenCalledOnce()
+  })
+
+  it('rolls back every acquired domain when the provider generation is disposed during startup', async () => {
+    const domains = trackedFacility()
+    const listed = deferred<readonly unknown[]>()
+    const list = vi.fn(() => listed.promise)
+    let rollback: (() => unknown) | undefined
+    const context = {
+      storageDomain: domains.facility,
+      sessionPersistence: {
+        inspect: async () => { throw new Error('unexpected persistence inspection') },
+        list,
+      },
+      workspaceRegistry: { get: () => undefined },
+      agents: { get: () => undefined },
+      agentPresets: {
+        async resolve(id: string) { return { id } },
+        async mount() {},
+        composedPreset: () => undefined,
+      },
+      commands: { list: () => [], execute: async () => undefined },
+      sessions: {},
+      on: () => () => {},
+      emit: () => {},
+      effect: vi.fn((install: () => (() => unknown), label: string) => {
+        const dispose = install()
+        if (label === 'dsh-gateway.runtimeRollback') rollback = dispose
+        return vi.fn()
+      }),
+      provide: vi.fn(),
+      logger: { warn: vi.fn() },
+    } as unknown as Context
+    const applying = GatewayPlugin.apply(context, { pairing: { enabled: false } })
+    await vi.waitFor(() => {
+      expect(list).toHaveBeenCalledOnce()
+      expect(domains.closes).toHaveLength(3)
+      expect(rollback).toBeDefined()
+    })
+
+    await expect(Promise.resolve(rollback!())).resolves.toBeUndefined()
+
+    await expect(applying).rejects.toThrow('DSH gateway is stopping')
+    for (const close of domains.closes) expect(close).toHaveBeenCalledOnce()
+    expect(context.provide).not.toHaveBeenCalled()
+    listed.resolve([])
   })
 })
 
 function runtimeContext(facility: DomainFacility): Context {
   const ctx = new Context()
   ctx.provide('storageDomain', facility)
-  ctx.provide('sessionPersistence', { async list() { return [] } } as never)
+  ctx.provide('sessionPersistence', {
+    async list() { return [] },
+    async inspect() { throw new Error('unexpected persistence inspection') },
+  } as never)
   ctx.provide('workspaceRegistry', { get: () => undefined } as never)
   ctx.provide('agents', { get: () => undefined } as never)
   ctx.provide('agentPresets', {
@@ -147,4 +200,10 @@ function trackedFacility(failingClose?: number, failingOpen?: number): {
     },
   } as unknown as DomainFacility
   return { facility, closes }
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>(done => { resolve = done })
+  return { promise, resolve }
 }

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { SessionId, SessionLogOffset, SessionSeq, type SessionEvent } from '@deepseek-ai/dsh-session'
 import { DurableFeedbackAttribution } from '../src/durable-feedback-attribution.ts'
 
@@ -15,6 +15,63 @@ describe('DurableFeedbackAttribution', () => {
       turn: 1,
       goal: { id: 'goal-release', revision: 1 },
     })
+  })
+
+  it('resolves through one current closeable Session read handle', async () => {
+    const events = validEvents()
+    let readSignal: AbortSignal | undefined
+    const read = vi.fn(async () => ({
+      eventState: 'detached',
+      events,
+    }))
+    const close = vi.fn(async () => {})
+    let openSignal: AbortSignal | undefined
+    const open = vi.fn(async (
+      _id: unknown,
+      _access: unknown,
+      options?: { signal?: AbortSignal },
+    ) => {
+      openSignal = options?.signal
+      return {
+      id: SessionId('session-1'),
+      header: {
+        version: 0,
+        id: SessionId('session-1'),
+        createdAt: 1,
+        cwd: '/private/project',
+        isSeeded: false,
+      },
+      inheritedEventCount: SessionLogOffset(0),
+      access: 'read',
+      read: vi.fn(async (
+        _offset: unknown,
+        _length: unknown,
+        options?: { signal?: AbortSignal },
+      ) => {
+        readSignal = options?.signal
+        return read()
+      }),
+      close,
+    }
+    })
+    const attribution = new DurableFeedbackAttribution(
+      { open } as never,
+      { lifecycle: immediateLifecycle() },
+    )
+
+    await expect(attribution.resolve('session-1', 'assistant-1')).resolves.toMatchObject({
+      kind: 'exact-skill-invocation-v1',
+      skillName: 'release-dsh-plugin',
+      assistantSeq: 5,
+    })
+    expect(open).toHaveBeenCalledWith(
+      SessionId('session-1'),
+      'read',
+      { signal: expect.any(AbortSignal) },
+    )
+    expect(read).toHaveBeenCalledOnce()
+    expect(readSignal).toBe(openSignal)
+    expect(close).toHaveBeenCalledOnce()
   })
 
   it('hashes the exact durable content shown by a user-explicit Skill invocation', async () => {
@@ -95,12 +152,22 @@ describe('DurableFeedbackAttribution', () => {
 
 function resolve(events: SessionEvent[], assistantMessageId: string) {
   return new DurableFeedbackAttribution({
-    inspect: async () => ({
+    readFrom: async () => ({
       meta: { version: 0, id: SessionId('session-1'), createdAt: 1, cwd: '/private/project', isSeeded: false },
       inheritedEventCount: SessionLogOffset(0),
+      fromSeq: SessionLogOffset(0),
       events,
     }),
-  }).resolve('session-1', assistantMessageId)
+  }, { lifecycle: immediateLifecycle() }).resolve('session-1', assistantMessageId)
+}
+
+function immediateLifecycle() {
+  return {
+    effect: ((setup: () => unknown) => {
+      const dispose = setup()
+      return () => typeof dispose === 'function' ? dispose() : undefined
+    }) as never,
+  }
 }
 
 function validEvents(): SessionEvent[] {

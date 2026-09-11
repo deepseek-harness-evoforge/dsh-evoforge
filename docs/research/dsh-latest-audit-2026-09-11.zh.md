@@ -52,8 +52,9 @@ route 条件。reader 扫描目标 `turn/end` 之前的整个前缀；未知 req
 `ignorable: true` 的未知事件可以跳过。format v3 的 `assistant/attempt`/`llm/retry*`、surface replacement、
 `compaction/*` 和 PTC cohort 尚未迁移。Interaction evidence resolver 已用 exact capability XOR 同时支持 alpha.5
 `readFrom` 和 current `open/read/close` 的只读物理 cut，并对 open/read/close 设置 lifecycle deadline；该 deadline 不包含
-此前的 `sessions.flush()`。Gateway handle result、durable-feedback `inspect` 等相邻 consumer，以及依赖版本、Case Pack
-revision 和 CI/兼容矩阵仍没有迁移。
+此前的 `sessions.flush()`。Gateway handle result 与 durable-feedback 的 current live/cold/recovery consumer 已完成局部
+兼容及双基线回归，见 [V5.233](../evidence/v5-233-gateway-feedback-persistence-2026-09-11.zh.md)；依赖版本、Case Pack
+revision 和 CI/兼容矩阵仍没有迁移。current 全量 Evolve 的六个旧 Case Pack revision 门仍失败，不能改写为支持通过。
 
 因此当前支持基线仍是完整验证过的 `dsh-v0.1.2-alpha.5` / `db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`。
 `c291e796…` 现在是“latest audited + upstream buildable + 局部 assembled 取样”，不是 EvoForge supported runtime。

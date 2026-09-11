@@ -571,7 +571,10 @@ function fakeNativeHost(): {
       async resolve(id: string) { return { id } },
       composedPreset(agentCtx: { preset?: string }) { return agentCtx.preset },
     },
-    sessionPersistence: { async list() { return [] } },
+    sessionPersistence: {
+      async list() { return [] },
+      async inspect() { throw new Error('unexpected persistence inspection') },
+    },
     workspaceRegistry: {
       get(id: string) {
         return id === 'workspace-a'

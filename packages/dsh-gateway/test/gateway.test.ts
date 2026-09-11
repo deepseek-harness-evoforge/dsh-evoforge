@@ -1,4 +1,9 @@
 import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent, AgentHandle } from '@deepseek-ai/dsh-agent'
 import type { DomainFacility, KvTable } from '@deepseek-ai/dsh-storage-domain'
@@ -26,8 +31,85 @@ const routes = resolveGatewayRoutes([
   { id: 'telegram-a', ...endpointA, workspaceId: 'workspace-a', sessionId: 'session-a', agentPreset: 'standard', provider: 'mock', model: 'mock-a' },
   { id: 'feishu-b', ...endpointB, workspaceId: 'workspace-b', sessionId: 'session-b', agentPreset: 'minimal', provider: 'mock', model: 'mock-b' },
 ])
+const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const suiteRoot = resolve(packageRoot, '../..')
+const dshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
+  ?? resolve(suiteRoot, '../deepseek-harness')
+const sourceDshVersion = JSON.parse(readFileSync(
+  join(dshSourceDir, 'packages', 'core', 'session', 'package.json'),
+  'utf8',
+)) as { readonly version?: unknown }
+const isCurrentDsh = sourceDshVersion.version === '0.1.5-rc.2'
 
 describe('DshGateway', () => {
+  it.skipIf(!isCurrentDsh)('validates an event-selected preset through the real current JSONL read handle', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-gateway-current-persistence-'))
+    const entry = (path: string) => pathToFileURL(
+      join(dshSourceDir, 'packages', path, 'lib', 'index.js'),
+    ).href
+    const [cordis, sessionPackage, jsonlPackage] = await Promise.all([
+      import(pathToFileURL(join(dshSourceDir, 'vendor', 'cordis', 'lib', 'index.js')).href),
+      import(entry('core/session')),
+      import(entry('session/session-persistence-jsonl')),
+    ])
+    const ctx = new cordis.Context() as Context
+    try {
+      await ctx.plugin(sessionPackage.default)
+      await ctx.plugin(jsonlPackage.default, { root: join(root, 'sessions'), compression: 'none' })
+      const id = sessionPackage.SessionId('session-a')
+      const header = {
+        version: 3,
+        id,
+        createdAt: 1,
+        cwd: '/work/a',
+        isSeeded: false,
+        delegationDepth: 0,
+        agentPreset: 'minimal',
+      }
+      const session = sessionPackage.Session.create(id, [], header)
+      session.append('agent-preset/selected', { agentPreset: 'standard' })
+      const handle = await (ctx.sessionPersistence as unknown as {
+        create(header: unknown): Promise<{
+          append(events: readonly unknown[]): Promise<void>
+          flush(): Promise<void>
+          close(): Promise<void>
+        }>
+      }).create(header)
+      await handle.append(session.snapshotEvents())
+      await handle.flush()
+      await handle.close()
+      Object.defineProperties(ctx, {
+        workspaceRegistry: { configurable: true, value: {
+          get: (workspaceId: string) => workspaceId === 'workspace-a'
+            ? { id: workspaceId, path: '/work/a', status: async () => 'ok' }
+            : undefined,
+        } },
+        agents: { configurable: true, value: { get: () => undefined } },
+        agentPresets: { configurable: true, value: {
+          resolve: async (preset: string) => ({ id: preset }),
+          composedPreset: () => undefined,
+        } },
+        commands: { configurable: true, value: { list: () => [] } },
+      })
+      const facility = memoryFacility()
+      const gateway = new DshGateway(
+        ctx,
+        resolveGatewayRoutes([{
+          id: 'telegram-a', ...endpointA, workspaceId: 'workspace-a', sessionId: 'session-a',
+          agentPreset: 'standard', provider: 'mock', model: 'mock-a',
+        }]),
+        await openGatewayIngressJournal(facility),
+        await openGatewayOutboundJournal(facility),
+      )
+
+      await expect(gateway.start()).resolves.toBeUndefined()
+      await gateway.stop()
+    } finally {
+      await ctx.fiber.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
   it('shares one startup promise when resident Host boot races', async () => {
     const host = fakeNativeHost()
     const on = vi.spyOn(host.ctx, 'on')
@@ -64,7 +146,7 @@ describe('DshGateway', () => {
     expect(gateway.healthSnapshot(Date.now()).lifecycle).toBe('stopping')
   })
 
-  it('waits for an in-flight startup before closing resident resources', async () => {
+  it('cancels an in-flight startup before closing resident resources', async () => {
     const host = fakeNativeHost()
     let releaseList!: () => void
     let reachedList!: () => void
@@ -92,12 +174,12 @@ describe('DshGateway', () => {
     expect(closeIngress).not.toHaveBeenCalled()
 
     releaseList()
-    await expect(starting).resolves.toBeUndefined()
+    await expect(starting).rejects.toThrow('DSH gateway is stopping')
     await expect(stopping).resolves.toBeUndefined()
     expect(closeIngress).toHaveBeenCalledTimes(1)
   })
 
-  it('coalesces cleanup when startup fails while stop races', async () => {
+  it('coalesces cleanup when startup cancellation races a later validation failure', async () => {
     const host = fakeNativeHost()
     host.persisted.set('session-a', {
       meta: { id: 'session-a', cwd: '/work/b', agentPreset: 'standard', version: 0, createdAt: 1 },
@@ -127,7 +209,7 @@ describe('DshGateway', () => {
     const stopping = gateway.stop()
     releaseList()
 
-    await expect(starting).rejects.toThrow("session 'session-a' cwd")
+    await expect(starting).rejects.toThrow('DSH gateway is stopping')
     await expect(stopping).resolves.toBeUndefined()
     expect(closeIngress).toHaveBeenCalledTimes(1)
   })
@@ -486,6 +568,109 @@ describe('DshGateway', () => {
     await gateway.stop()
   })
 
+  it('does not invoke pairing authority after stop begins during target validation', async () => {
+    const host = fakeNativeHost()
+    const facility = memoryFacility()
+    const pairing = await openGatewayPairingAuthority(facility, {
+      codeTtlMs: 15 * 60_000,
+      maxPendingPerAccount: 3,
+    })
+    const gateway = new DshGateway(
+      host.ctx,
+      resolveGatewayRoutes([]),
+      await openGatewayIngressJournal(facility),
+      await openGatewayOutboundJournal(facility),
+      pairing,
+    )
+    await gateway.start()
+    const offer = await gateway.accept({
+      endpoint: endpointB,
+      chatKind: 'direct',
+      eventId: 'late-pairing-offer',
+      text: 'pair me',
+      now: 1_000,
+    })
+    if (offer.kind !== 'pairing' || offer.offer.kind !== 'offered') {
+      throw new Error('Gateway did not offer pairing')
+    }
+    const status = deferred<'ok'>()
+    const workspaceB = host.ctx.workspaceRegistry.get('workspace-b' as never)
+    if (workspaceB === undefined) throw new Error('missing fixture Workspace')
+    const statusCall = vi.spyOn(workspaceB, 'status').mockImplementation(() => status.promise)
+    const approve = vi.spyOn(pairing, 'approve')
+
+    const approving = gateway.approvePairing({
+      adapter: 'feishu',
+      accountId: 'app-b',
+      code: offer.offer.code,
+      target: {
+        id: 'late-feishu-route',
+        workspaceId: 'workspace-b',
+        sessionId: 'session-b',
+        agentPreset: 'minimal',
+        provider: 'mock',
+        model: 'mock-b',
+      },
+      now: 2_000,
+    })
+    await vi.waitFor(() => expect(statusCall).toHaveBeenCalledOnce())
+
+    const stopping = gateway.stop()
+    status.resolve('ok')
+
+    await expect(approving).rejects.toThrow('DSH gateway is stopping')
+    expect(approve).not.toHaveBeenCalled()
+    await expect(stopping).resolves.toBeUndefined()
+  })
+
+  it('rejects a pairing grant that would give one Session incompatible model ownership', async () => {
+    const host = fakeNativeHost()
+    const facility = memoryFacility()
+    const pairing = await openGatewayPairingAuthority(facility, {
+      codeTtlMs: 15 * 60_000,
+      maxPendingPerAccount: 3,
+    })
+    const gateway = new DshGateway(
+      host.ctx,
+      resolveGatewayRoutes([{
+        id: 'telegram-a', ...endpointA, workspaceId: 'workspace-a', sessionId: 'session-a',
+        agentPreset: 'standard', provider: 'mock', model: 'mock-a',
+      }]),
+      await openGatewayIngressJournal(facility),
+      await openGatewayOutboundJournal(facility),
+      pairing,
+    )
+    await gateway.start()
+    const offer = await gateway.accept({
+      endpoint: endpointB,
+      chatKind: 'direct',
+      eventId: 'conflicting-session-owner',
+      text: 'pair me',
+      now: 1_000,
+    })
+    if (offer.kind !== 'pairing' || offer.offer.kind !== 'offered') {
+      throw new Error('Gateway did not offer pairing')
+    }
+    const approve = vi.spyOn(pairing, 'approve')
+
+    await expect(gateway.approvePairing({
+      adapter: 'feishu',
+      accountId: 'app-b',
+      code: offer.offer.code,
+      target: {
+        id: 'conflicting-owner',
+        workspaceId: 'workspace-a',
+        sessionId: 'session-a',
+        agentPreset: 'standard',
+        provider: 'mock',
+        model: 'different-model',
+      },
+      now: 2_000,
+    })).rejects.toThrow("Session 'session-a' cannot use incompatible")
+    expect(approve).not.toHaveBeenCalled()
+    await gateway.stop()
+  })
+
   it('projects redacted route, native Session, and ingress health from the Gateway authority', async () => {
     const host = fakeNativeHost()
     const facility = memoryFacility()
@@ -679,6 +864,32 @@ describe('DshGateway', () => {
     })).rejects.toThrow('no configured gateway route')
   })
 
+  it('rejects a structurally forged route before persistence or Agent creation', async () => {
+    const host = fakeNativeHost()
+    const facility = memoryFacility()
+    const routeSet = resolveGatewayRoutes([{
+      id: 'telegram-a', ...endpointA, workspaceId: 'workspace-a', sessionId: 'session-a',
+      agentPreset: 'standard', provider: 'mock', model: 'mock-a',
+    }])
+    const gateway = new DshGateway(
+      host.ctx,
+      routeSet,
+      await openGatewayIngressJournal(facility),
+      await openGatewayOutboundJournal(facility),
+    )
+    const list = vi.spyOn(host.ctx.sessionPersistence, 'list')
+    await gateway.start()
+    list.mockClear()
+    const canonical = routeSet.byId.get('telegram-a')
+    if (canonical === undefined) throw new Error('missing canonical route fixture')
+
+    await expect(gateway.resolve({ ...canonical, model: 'forged-model' }))
+      .rejects.toThrow("route 'telegram-a' is stale or not authoritative")
+    expect(list).not.toHaveBeenCalled()
+    expect(host.created).toHaveLength(0)
+    await gateway.stop()
+  })
+
   it('publishes exact native image references without exposing an Adapter resource key', async () => {
     const host = fakeNativeHost()
     const facility = memoryFacility()
@@ -797,6 +1008,675 @@ describe('DshGateway', () => {
     await expect(gateway.start()).rejects.toThrow("session 'session-a' cwd")
     expect(host.created).toEqual([])
     expect(host.attached.size).toBe(0)
+  })
+
+  it('validates a persisted Session through the current read-result envelope', async () => {
+    const host = fakeNativeHost()
+    const meta = {
+      id: 'session-a', cwd: '/work/a', agentPreset: 'minimal', version: 0, createdAt: 1,
+    }
+    const events = [{
+      type: 'agent-preset/selected',
+      seq: 0,
+      time: 1,
+      data: { agentPreset: 'standard' },
+    }]
+    host.persisted.set('session-a', { meta, events })
+    const read = vi.fn(async () => ({ eventState: 'detached', events }))
+    const close = vi.fn(async () => {})
+    const persistence = host.ctx.sessionPersistence as unknown as Record<string, unknown>
+    delete persistence.inspect
+    const list = vi.fn(async () => [{ header: meta, revision: 'fixture:1' }])
+    const open = vi.fn(async () => ({
+      id: SessionId('session-a'),
+      header: meta,
+      inheritedEventCount: 0,
+      access: 'read',
+      read,
+      close,
+    }))
+    persistence.list = list
+    persistence.open = open
+    const facility = memoryFacility()
+    const gateway = new DshGateway(
+      host.ctx,
+      resolveGatewayRoutes([{
+        id: 'telegram-a', ...endpointA, workspaceId: 'workspace-a', sessionId: 'session-a',
+        agentPreset: 'standard', provider: 'mock', model: 'mock-a',
+      }]),
+      await openGatewayIngressJournal(facility),
+      await openGatewayOutboundJournal(facility),
+    )
+
+    await expect(gateway.start()).resolves.toBeUndefined()
+    expect(list).toHaveBeenCalledOnce()
+    const listCalls = list.mock.calls as unknown as unknown[][]
+    const openCalls = open.mock.calls as unknown as unknown[][]
+    const listSignal = (listCalls[0]?.[0] as { signal?: unknown } | undefined)?.signal
+    const operationSignal = (openCalls[0]?.[2] as { signal?: unknown } | undefined)?.signal
+    expect(listSignal).toBeInstanceOf(AbortSignal)
+    expect(operationSignal).toBeInstanceOf(AbortSignal)
+    expect(open).toHaveBeenCalledWith(
+      SessionId('session-a'),
+      'read',
+      { signal: operationSignal },
+    )
+    expect(read).toHaveBeenCalledWith(
+      0,
+      Number.MAX_SAFE_INTEGER,
+      { signal: operationSignal },
+    )
+    expect(read).toHaveBeenCalledOnce()
+    expect(close).toHaveBeenCalledOnce()
+    await gateway.stop()
+  })
+
+  it('does not let a stale current Session header override the latest persisted preset event', async () => {
+    const host = fakeNativeHost()
+    const meta = {
+      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: 0, createdAt: 1,
+    }
+    const events = [{
+      type: 'agent-preset/selected',
+      seq: 0,
+      time: 1,
+      data: { agentPreset: 'minimal' },
+    }]
+    const close = vi.fn(async () => {})
+    const persistence = host.ctx.sessionPersistence as unknown as Record<string, unknown>
+    delete persistence.inspect
+    persistence.list = vi.fn(async () => [{ header: meta, revision: 'fixture:1' }])
+    persistence.open = vi.fn(async () => ({
+      id: SessionId('session-a'),
+      header: meta,
+      inheritedEventCount: 0,
+      access: 'read',
+      read: async () => ({ eventState: 'detached', events }),
+      close,
+    }))
+    const facility = memoryFacility()
+    const gateway = new DshGateway(
+      host.ctx,
+      resolveGatewayRoutes([{
+        id: 'telegram-a', ...endpointA, workspaceId: 'workspace-a', sessionId: 'session-a',
+        agentPreset: 'standard', provider: 'mock', model: 'mock-a',
+      }]),
+      await openGatewayIngressJournal(facility),
+      await openGatewayOutboundJournal(facility),
+    )
+
+    await expect(gateway.start()).rejects.toThrow("preset is 'minimal', expected 'standard'")
+    expect(close).toHaveBeenCalledOnce()
+  })
+
+  it('preserves a current Session read failure when closing the handle also fails', async () => {
+    const host = fakeNativeHost()
+    const meta = {
+      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: 0, createdAt: 1,
+    }
+    const readFailure = new Error('read failed first')
+    const closeFailure = new Error('close failed second')
+    const close = vi.fn(async () => { throw closeFailure })
+    const persistence = host.ctx.sessionPersistence as unknown as Record<string, unknown>
+    delete persistence.inspect
+    persistence.list = vi.fn(async () => [{ header: meta, revision: 'fixture:1' }])
+    persistence.open = vi.fn(async () => ({
+      id: SessionId('session-a'),
+      header: meta,
+      inheritedEventCount: 0,
+      access: 'read',
+      read: async () => { throw readFailure },
+      close,
+    }))
+    const facility = memoryFacility()
+    const gateway = new DshGateway(
+      host.ctx,
+      resolveGatewayRoutes([{
+        id: 'telegram-a', ...endpointA, workspaceId: 'workspace-a', sessionId: 'session-a',
+        agentPreset: 'standard', provider: 'mock', model: 'mock-a',
+      }]),
+      await openGatewayIngressJournal(facility),
+      await openGatewayOutboundJournal(facility),
+    )
+
+    await expect(gateway.start()).rejects.toBe(readFailure)
+    expect(close).toHaveBeenCalledOnce()
+    await expect(gateway.stop()).rejects.toBe(closeFailure)
+  })
+
+  it('joins current handle close after a read failure before settling startup', async () => {
+    const host = fakeNativeHost()
+    const meta = {
+      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: 0, createdAt: 1,
+    }
+    const readFailure = new Error('read failed before deferred close')
+    const closing = deferred<void>()
+    const close = vi.fn(() => closing.promise)
+    const persistence = host.ctx.sessionPersistence as unknown as Record<string, unknown>
+    delete persistence.inspect
+    persistence.list = vi.fn(async () => [{ header: meta, revision: 'fixture:1' }])
+    persistence.open = vi.fn(async () => ({
+      id: SessionId('session-a'),
+      header: meta,
+      inheritedEventCount: 0,
+      access: 'read',
+      read: async () => { throw readFailure },
+      close,
+    }))
+    const facility = memoryFacility()
+    const gateway = new DshGateway(
+      host.ctx,
+      resolveGatewayRoutes([{
+        id: 'telegram-a', ...endpointA, workspaceId: 'workspace-a', sessionId: 'session-a',
+        agentPreset: 'standard', provider: 'mock', model: 'mock-a',
+      }]),
+      await openGatewayIngressJournal(facility),
+      await openGatewayOutboundJournal(facility),
+    )
+
+    const starting = gateway.start()
+    let settled = false
+    void starting.then(
+      () => { settled = true },
+      () => { settled = true },
+    )
+    await vi.waitFor(() => expect(close).toHaveBeenCalledOnce())
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(settled).toBe(false)
+
+    closing.resolve(undefined)
+    await expect(starting).rejects.toBe(readFailure)
+    await expect(gateway.stop()).resolves.toBeUndefined()
+  })
+
+  it.each(['close', 'timeout'] as const)('preserves a current Session read failure through shutdown %s', async (outcome) => {
+    vi.useFakeTimers()
+    const host = fakeNativeHost()
+    const meta = {
+      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: 0, createdAt: 1,
+    }
+    const readFailure = new Error('read failed before hung close')
+    const closing = deferred<void>()
+    const close = vi.fn(() => closing.promise)
+    const persistence = host.ctx.sessionPersistence as unknown as Record<string, unknown>
+    delete persistence.inspect
+    persistence.list = vi.fn(async () => [{ header: meta, revision: 'fixture:1' }])
+    persistence.open = vi.fn(async () => ({
+      id: SessionId('session-a'),
+      header: meta,
+      inheritedEventCount: 0,
+      access: 'read',
+      read: async () => { throw readFailure },
+      close,
+    }))
+    const facility = memoryFacility()
+    const gateway = new DshGateway(
+      host.ctx,
+      resolveGatewayRoutes([{
+        id: 'telegram-a', ...endpointA, workspaceId: 'workspace-a', sessionId: 'session-a',
+        agentPreset: 'standard', provider: 'mock', model: 'mock-a',
+      }]),
+      await openGatewayIngressJournal(facility),
+      await openGatewayOutboundJournal(facility),
+    )
+    try {
+      const starting = gateway.start()
+      await vi.waitFor(() => expect(close).toHaveBeenCalledOnce())
+
+      await vi.advanceTimersByTimeAsync(30_000)
+
+      await expect(starting).rejects.toBe(readFailure)
+      let stopped = false
+      const stopping = gateway.stop().finally(() => { stopped = true })
+      void stopping.catch(() => undefined)
+      await Promise.resolve()
+      expect(stopped).toBe(false)
+      if (outcome === 'close') {
+        closing.resolve(undefined)
+        await expect(stopping).resolves.toBeUndefined()
+      } else {
+        await vi.advanceTimersByTimeAsync(30_000)
+        await expect(stopping).rejects.toThrow('handle cleanup timed out')
+        closing.resolve(undefined)
+      }
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('passes current list and read cancellation in option envelopes during cold resolution', async () => {
+    const host = fakeNativeHost()
+    const meta = {
+      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: 0, createdAt: 1,
+    }
+    const events: unknown[] = []
+    host.persisted.set('session-a', { meta, events })
+    const list = vi.fn(async (...args: unknown[]) => [{ header: meta, revision: 'fixture:1' }])
+    const read = vi.fn(async () => ({ eventState: 'detached', events }))
+    const close = vi.fn(async () => {})
+    const open = vi.fn(async () => ({
+      id: SessionId('session-a'),
+      header: meta,
+      inheritedEventCount: 0,
+      access: 'read',
+      read,
+      close,
+    }))
+    const persistence = host.ctx.sessionPersistence as unknown as Record<string, unknown>
+    delete persistence.inspect
+    persistence.list = list
+    persistence.open = open
+    const facility = memoryFacility()
+    const gateway = new DshGateway(
+      host.ctx,
+      resolveGatewayRoutes([{
+        id: 'telegram-a', ...endpointA, workspaceId: 'workspace-a', sessionId: 'session-a',
+        agentPreset: 'standard', provider: 'mock', model: 'mock-a',
+      }]),
+      await openGatewayIngressJournal(facility),
+      await openGatewayOutboundJournal(facility),
+    )
+    await gateway.start()
+    const controller = new AbortController()
+
+    await gateway.resolve('telegram-a', controller.signal)
+
+    const startupSignal = (list.mock.calls[0]?.[0] as { signal?: unknown } | undefined)?.signal
+    const resolutionSignal = (list.mock.calls[1]?.[0] as { signal?: unknown } | undefined)?.signal
+    const readSignal = ((open.mock.calls as unknown as unknown[][]).at(-1)?.[2] as {
+      signal?: unknown
+    } | undefined)?.signal
+    expect(startupSignal).toBeInstanceOf(AbortSignal)
+    expect(resolutionSignal).toBeInstanceOf(AbortSignal)
+    expect(resolutionSignal).not.toBe(controller.signal)
+    expect(readSignal).toBeInstanceOf(AbortSignal)
+    expect(open).toHaveBeenLastCalledWith(SessionId('session-a'), 'read', { signal: readSignal })
+    expect(read).toHaveBeenLastCalledWith(0, Number.MAX_SAFE_INTEGER, { signal: readSignal })
+    expect(close).toHaveBeenCalledTimes(2)
+    await gateway.stop()
+  })
+
+  it('bounds an ignored current open and closes its late handle exactly once', async () => {
+    vi.useFakeTimers()
+    const host = fakeNativeHost()
+    const meta = {
+      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: 0, createdAt: 1,
+    }
+    const lateOpen = deferred<{
+      id: string
+      header: typeof meta
+      inheritedEventCount: number
+      access: string
+      read: ReturnType<typeof vi.fn>
+      close: ReturnType<typeof vi.fn>
+    }>()
+    const read = vi.fn(async () => ({ eventState: 'detached', events: [] }))
+    const close = vi.fn(async () => {})
+    const open = vi.fn(() => lateOpen.promise)
+    const persistence = host.ctx.sessionPersistence as unknown as Record<string, unknown>
+    delete persistence.inspect
+    persistence.list = vi.fn(async () => [{ header: meta, revision: 'fixture:1' }])
+    persistence.open = open
+    const facility = memoryFacility()
+    const gateway = new DshGateway(
+      host.ctx,
+      resolveGatewayRoutes([{
+        id: 'telegram-a', ...endpointA, workspaceId: 'workspace-a', sessionId: 'session-a',
+        agentPreset: 'standard', provider: 'mock', model: 'mock-a',
+      }]),
+      await openGatewayIngressJournal(facility),
+      await openGatewayOutboundJournal(facility),
+    )
+    try {
+      const starting = gateway.start()
+      await vi.waitFor(() => expect(open).toHaveBeenCalledOnce())
+
+      await vi.advanceTimersByTimeAsync(30_000)
+      await expect(starting).rejects.toThrow("Gateway persisted Session 'session-a' read timed out")
+      await expect(gateway.stop()).resolves.toBeUndefined()
+
+      lateOpen.resolve({
+        id: SessionId('session-a'),
+        header: meta,
+        inheritedEventCount: 0,
+        access: 'read',
+        read,
+        close,
+      })
+      await vi.waitFor(() => expect(close).toHaveBeenCalledOnce())
+      expect(read).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('closes a malformed current handle and rejects mixed persistence dialects', async () => {
+    const host = fakeNativeHost()
+    const meta = {
+      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: 0, createdAt: 1,
+    }
+    const close = vi.fn(async () => {})
+    const persistence = host.ctx.sessionPersistence as unknown as Record<string, unknown>
+    delete persistence.inspect
+    persistence.list = vi.fn(async () => [{ header: meta, revision: 'fixture:1' }])
+    persistence.open = vi.fn(async () => ({
+      id: SessionId('some-other-session'),
+      header: meta,
+      inheritedEventCount: 0,
+      access: 'read',
+      read: async () => ({ eventState: 'detached', events: [] }),
+      close,
+    }))
+    const facility = memoryFacility()
+    const routeSet = resolveGatewayRoutes([{
+      id: 'telegram-a', ...endpointA, workspaceId: 'workspace-a', sessionId: 'session-a',
+      agentPreset: 'standard', provider: 'mock', model: 'mock-a',
+    }])
+    const malformed = new DshGateway(
+      host.ctx,
+      routeSet,
+      await openGatewayIngressJournal(facility),
+      await openGatewayOutboundJournal(facility),
+    )
+
+    await expect(malformed.start()).rejects.toThrow('wrong handle')
+    await vi.waitFor(() => expect(close).toHaveBeenCalledOnce())
+
+    persistence.inspect = vi.fn(async () => ({ meta, events: [] }))
+    const mixed = new DshGateway(
+      host.ctx,
+      routeSet,
+      await openGatewayIngressJournal(facility),
+      await openGatewayOutboundJournal(facility),
+    )
+    await expect(mixed.start()).rejects.toThrow('exactly one inspect/open')
+  })
+
+  it('propagates caller cancellation into a pending current persistence list', async () => {
+    const host = fakeNativeHost()
+    const meta = {
+      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: 0, createdAt: 1,
+    }
+    host.persisted.set('session-a', { meta, events: [] })
+    const pendingList = deferred<readonly unknown[]>()
+    let operationSignal: AbortSignal | undefined
+    let listCalls = 0
+    const list = vi.fn((options: { signal?: AbortSignal }) => {
+      listCalls += 1
+      if (listCalls === 1) return Promise.resolve([{ header: meta, revision: 'fixture:1' }])
+      operationSignal = options.signal
+      return pendingList.promise
+    })
+    const persistence = host.ctx.sessionPersistence as unknown as Record<string, unknown>
+    delete persistence.inspect
+    persistence.list = list
+    persistence.open = vi.fn(async () => ({
+      id: SessionId('session-a'),
+      header: meta,
+      inheritedEventCount: 0,
+      access: 'read',
+      read: async () => ({ eventState: 'detached', events: [] }),
+      close: async () => {},
+    }))
+    const facility = memoryFacility()
+    const gateway = new DshGateway(
+      host.ctx,
+      resolveGatewayRoutes([{
+        id: 'telegram-a', ...endpointA, workspaceId: 'workspace-a', sessionId: 'session-a',
+        agentPreset: 'standard', provider: 'mock', model: 'mock-a',
+      }]),
+      await openGatewayIngressJournal(facility),
+      await openGatewayOutboundJournal(facility),
+    )
+    await gateway.start()
+    const controller = new AbortController()
+    const reason = new Error('caller stopped waiting')
+
+    const resolution = gateway.resolve('telegram-a', controller.signal)
+    await vi.waitFor(() => expect(operationSignal).toBeInstanceOf(AbortSignal))
+    controller.abort(reason)
+
+    await expect(resolution).rejects.toBe(reason)
+    expect(operationSignal?.aborted).toBe(true)
+    await expect(gateway.stop()).resolves.toBeUndefined()
+    pendingList.resolve([])
+  })
+
+  it('does not let a cancelled zero-waiter resolution poison an immediate retry', async () => {
+    const host = fakeNativeHost()
+    const abandonedList = deferred<readonly unknown[]>()
+    let listCalls = 0
+    const persistence = host.ctx.sessionPersistence as unknown as Record<string, unknown>
+    delete persistence.inspect
+    persistence.list = vi.fn(() => {
+      listCalls += 1
+      if (listCalls === 2) return abandonedList.promise
+      return Promise.resolve([])
+    })
+    persistence.open = vi.fn(() => Promise.reject(new Error('unexpected persistence open')))
+    const facility = memoryFacility()
+    const gateway = new DshGateway(
+      host.ctx,
+      resolveGatewayRoutes([{
+        id: 'telegram-a', ...endpointA, workspaceId: 'workspace-a', sessionId: 'session-a',
+        agentPreset: 'standard', provider: 'mock', model: 'mock-a',
+      }]),
+      await openGatewayIngressJournal(facility),
+      await openGatewayOutboundJournal(facility),
+    )
+    await gateway.start()
+    const controller = new AbortController()
+    const reason = new Error('sole waiter abandoned resolution')
+    const first = gateway.resolve('telegram-a', controller.signal)
+    await vi.waitFor(() => expect(listCalls).toBe(2))
+    let retry: Promise<Agent> | undefined
+    controller.signal.addEventListener('abort', () => {
+      retry = gateway.resolve('telegram-a')
+    }, { once: true })
+
+    controller.abort(reason)
+
+    await expect(first).rejects.toBe(reason)
+    expect(retry).toBeDefined()
+    await expect(retry).resolves.toMatchObject({ id: 'session-a' })
+    expect(listCalls).toBe(3)
+    abandonedList.resolve([])
+    await expect(gateway.stop()).resolves.toBeUndefined()
+  })
+
+  it('waits for an acquired current read handle to close while stopping', async () => {
+    const host = fakeNativeHost()
+    const meta = {
+      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: 0, createdAt: 1,
+    }
+    const reading = deferred<{ eventState: 'detached'; events: readonly unknown[] }>()
+    const closing = deferred<void>()
+    const read = vi.fn(() => reading.promise)
+    const close = vi.fn(() => closing.promise)
+    let listCalls = 0
+    const persistence = host.ctx.sessionPersistence as unknown as Record<string, unknown>
+    delete persistence.inspect
+    persistence.list = vi.fn(async () => {
+      listCalls += 1
+      return listCalls === 1 ? [] : [{ header: meta, revision: 'fixture:1' }]
+    })
+    persistence.open = vi.fn(async () => ({
+      id: SessionId('session-a'),
+      header: meta,
+      inheritedEventCount: 0,
+      access: 'read',
+      read,
+      close,
+    }))
+    const facility = memoryFacility()
+    const ingress = await openGatewayIngressJournal(facility)
+    const closeIngress = vi.spyOn(ingress, 'close')
+    const gateway = new DshGateway(
+      host.ctx,
+      resolveGatewayRoutes([{
+        id: 'telegram-a', ...endpointA, workspaceId: 'workspace-a', sessionId: 'session-a',
+        agentPreset: 'standard', provider: 'mock', model: 'mock-a',
+      }]),
+      ingress,
+      await openGatewayOutboundJournal(facility),
+    )
+    await gateway.start()
+    const resolving = gateway.resolve('telegram-a')
+    void resolving.catch(() => undefined)
+    await vi.waitFor(() => expect(read).toHaveBeenCalledOnce())
+
+    let stopped = false
+    const stopping = gateway.stop().finally(() => { stopped = true })
+    await vi.waitFor(() => expect(close).toHaveBeenCalledOnce())
+    await Promise.resolve()
+
+    expect(stopped).toBe(false)
+    expect(closeIngress).not.toHaveBeenCalled()
+    closing.resolve(undefined)
+    await expect(stopping).resolves.toBeUndefined()
+    expect(closeIngress).toHaveBeenCalledOnce()
+    reading.resolve({ eventState: 'detached', events: [] })
+  })
+
+  it('calls a current read handle close once when close synchronously stops the Gateway', async () => {
+    const host = fakeNativeHost()
+    const meta = {
+      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: 0, createdAt: 1,
+    }
+    let listCalls = 0
+    let gateway!: DshGateway
+    const close = vi.fn(() => {
+      void gateway.stop()
+    })
+    const persistence = host.ctx.sessionPersistence as unknown as Record<string, unknown>
+    delete persistence.inspect
+    persistence.list = vi.fn(async () => {
+      listCalls += 1
+      return listCalls === 1 ? [] : [{ header: meta, revision: 'fixture:1' }]
+    })
+    persistence.open = vi.fn(async () => ({
+      id: SessionId('session-a'),
+      header: meta,
+      inheritedEventCount: 0,
+      access: 'read',
+      read: async () => ({ eventState: 'detached', events: [] }),
+      close,
+    }))
+    const facility = memoryFacility()
+    gateway = new DshGateway(
+      host.ctx,
+      resolveGatewayRoutes([{
+        id: 'telegram-a', ...endpointA, workspaceId: 'workspace-a', sessionId: 'session-a',
+        agentPreset: 'standard', provider: 'mock', model: 'mock-a',
+      }]),
+      await openGatewayIngressJournal(facility),
+      await openGatewayOutboundJournal(facility),
+    )
+    await gateway.start()
+
+    await expect(gateway.resolve('telegram-a')).rejects.toThrow('DSH gateway is stopping')
+    await expect(gateway.stop()).resolves.toBeUndefined()
+    expect(close).toHaveBeenCalledOnce()
+  })
+
+  it.each(['first', 'second'] as const)(
+    'isolates a %s caller cancellation while a coalesced resolution still has one waiter',
+    async (cancelled) => {
+      const host = fakeNativeHost()
+      const pendingList = deferred<readonly unknown[]>()
+      let operationSignal: AbortSignal | undefined
+      let listCalls = 0
+      const list = vi.fn((options: { signal?: AbortSignal }) => {
+        listCalls += 1
+        if (listCalls === 1) return Promise.resolve([])
+        operationSignal = options.signal
+        return pendingList.promise
+      })
+      const persistence = host.ctx.sessionPersistence as unknown as Record<string, unknown>
+      delete persistence.inspect
+      persistence.list = list
+      persistence.open = vi.fn(() => Promise.reject(new Error('unexpected persistence open')))
+      const facility = memoryFacility()
+      const gateway = new DshGateway(
+        host.ctx,
+        resolveGatewayRoutes([{
+          id: 'telegram-a', ...endpointA, workspaceId: 'workspace-a', sessionId: 'session-a',
+          agentPreset: 'standard', provider: 'mock', model: 'mock-a',
+        }]),
+        await openGatewayIngressJournal(facility),
+        await openGatewayOutboundJournal(facility),
+      )
+      await gateway.start()
+      const firstController = new AbortController()
+      const secondController = new AbortController()
+      const first = gateway.resolve('telegram-a', firstController.signal)
+      await vi.waitFor(() => expect(operationSignal).toBeInstanceOf(AbortSignal))
+      const second = gateway.resolve('telegram-a', secondController.signal)
+      void first.catch(() => undefined)
+      void second.catch(() => undefined)
+      const reason = new Error(`${cancelled} caller stopped waiting`)
+      const cancelledController = cancelled === 'first' ? firstController : secondController
+      const cancelledResolution = cancelled === 'first' ? first : second
+      const remainingResolution = cancelled === 'first' ? second : first
+
+      cancelledController.abort(reason)
+
+      await expect(cancelledResolution).rejects.toBe(reason)
+      expect(operationSignal?.aborted).toBe(false)
+      pendingList.resolve([])
+      await expect(remainingResolution).resolves.toMatchObject({ id: 'session-a' })
+      expect(host.created).toHaveLength(1)
+      await gateway.stop()
+    },
+  )
+
+  it('does not invoke current read after a handle metadata getter cancels the sole resolver', async () => {
+    const host = fakeNativeHost()
+    const meta = {
+      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: 0, createdAt: 1,
+    }
+    const controller = new AbortController()
+    const reason = new Error('metadata getter cancelled the caller')
+    const read = vi.fn(async () => ({ eventState: 'detached', events: [] }))
+    const close = vi.fn(async () => {})
+    const handle = {
+      id: SessionId('session-a'),
+      header: meta,
+      access: 'read',
+      read,
+      close,
+    }
+    Object.defineProperty(handle, 'inheritedEventCount', {
+      configurable: true,
+      get() {
+        controller.abort(reason)
+        return 0
+      },
+    })
+    let listCalls = 0
+    const persistence = host.ctx.sessionPersistence as unknown as Record<string, unknown>
+    delete persistence.inspect
+    persistence.list = vi.fn(async () => {
+      listCalls += 1
+      return listCalls === 1 ? [] : [{ header: meta, revision: 'fixture:1' }]
+    })
+    persistence.open = vi.fn(async () => handle)
+    const facility = memoryFacility()
+    const gateway = new DshGateway(
+      host.ctx,
+      resolveGatewayRoutes([{
+        id: 'telegram-a', ...endpointA, workspaceId: 'workspace-a', sessionId: 'session-a',
+        agentPreset: 'standard', provider: 'mock', model: 'mock-a',
+      }]),
+      await openGatewayIngressJournal(facility),
+      await openGatewayOutboundJournal(facility),
+    )
+    await gateway.start()
+
+    await expect(gateway.resolve('telegram-a', controller.signal)).rejects.toBe(reason)
+    await vi.waitFor(() => expect(close).toHaveBeenCalledOnce())
+    expect(read).not.toHaveBeenCalled()
+    await expect(gateway.stop()).resolves.toBeUndefined()
   })
 
   it('emits one workspace-scoped recovery observation for interrupted journals', async () => {
@@ -975,6 +1855,12 @@ function workspace(id: string, path: string, attached: Map<string, string[]>): o
       attached.set(id, list)
     },
   }
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((done) => { resolve = done })
+  return { promise, resolve }
 }
 
 function memoryFacility(): DomainFacility {

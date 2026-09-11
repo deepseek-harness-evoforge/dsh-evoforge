@@ -254,6 +254,35 @@ describe('Interaction Episode evidence resolver', () => {
     expect(JSON.stringify(result)).not.toMatch(/private|corrupt|close/u)
   })
 
+  it('preserves a corrupt read classification when handle close exhausts the read budget', async () => {
+    vi.useFakeTimers()
+    const fixture = completedGapTurn()
+    const close = vi.fn(() => new Promise<void>(() => {}))
+    const resolver = createStockResolver({
+      sessions: { get: () => fixture.session, flush: async () => true },
+      sessionPersistence: {
+        open: async () => ({
+          id: fixture.session.id,
+          header: structuredClone(fixture.stored.meta),
+          inheritedEventCount: fixture.stored.inheritedEventCount,
+          access: 'read',
+          read: async () => { throw new SessionPersistenceCorruptionError('corrupt physical cut', { cause: undefined }) },
+          close,
+        }),
+      },
+      lifecycle,
+      sessionPersistenceReadTimeoutMs: 10,
+    })
+    try {
+      const resolving = resolver.resolve(targetFor(fixture))
+      await vi.advanceTimersByTimeAsync(10)
+      await expect(resolving).resolves.toMatchObject({ reason: 'stored-cut-conflict' })
+      expect(close).toHaveBeenCalledOnce()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('treats a successful current read whose close rejects as a read failure', async () => {
     const fixture = completedGapTurn()
     const close = vi.fn(async () => { throw new Error('private close failure') })
