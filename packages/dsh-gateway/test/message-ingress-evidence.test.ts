@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { freezeMessage, MessageId } from '@deepseek-ai/dsh-llm'
-import { SessionId, type SessionEvent, type SessionHeader } from '@deepseek-ai/dsh-session'
+import { SESSION_FORMAT_VERSION, SessionId, type SessionEvent, type SessionHeader } from '@deepseek-ai/dsh-session'
 import type { DomainFacility, KvTable } from '@deepseek-ai/dsh-storage-domain'
 import { describe, expect, it } from 'vitest'
 import type { GatewayIngressJournal, GatewayIngressRecord } from '../src/ingress-journal.js'
@@ -474,8 +474,8 @@ describe('gateway message ingress evidence', () => {
     ['a string Session sequence', (observation: MutableResolvedObservation) => {
       Object.assign(observation.enqueue, { seq: '0' })
     }],
-    ['a non-alpha.5 Session version', (observation: MutableResolvedObservation) => {
-      observation.session.header.version = 1
+    ['a non-current Session version', (observation: MutableResolvedObservation) => {
+      Object.assign(observation.session.header, { version: 1 })
     }],
     ['a relative Session cwd', (observation: MutableResolvedObservation) => {
       observation.workspace.path = 'relative/workspace'
@@ -693,7 +693,7 @@ function ingressFixture(idNibble: string, observedAt: number): IngressFixture {
   const cwd = `/work/${idNibble}`
   const sessionId = SessionId(`session-${idNibble}`)
   const header: SessionHeader = {
-    version: 0,
+    version: SESSION_FORMAT_VERSION,
     id: sessionId,
     createdAt: observedAt - 100,
     cwd,

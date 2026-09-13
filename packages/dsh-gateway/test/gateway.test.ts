@@ -8,6 +8,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { Agent, AgentHandle } from '@deepseek-ai/dsh-agent'
 import type { DomainFacility, KvTable } from '@deepseek-ai/dsh-storage-domain'
 import {
+  SESSION_FORMAT_VERSION,
   Session,
   SessionId,
   type SessionHeader,
@@ -182,9 +183,10 @@ describe('DshGateway', () => {
   it('coalesces cleanup when startup cancellation races a later validation failure', async () => {
     const host = fakeNativeHost()
     host.persisted.set('session-a', {
-      meta: { id: 'session-a', cwd: '/work/b', agentPreset: 'standard', version: 0, createdAt: 1 },
+      meta: { id: 'session-a', cwd: '/work/b', agentPreset: 'standard', version: SESSION_FORMAT_VERSION, createdAt: 1 },
       events: [],
     })
+    const fixtureList = host.ctx.sessionPersistence.list.bind(host.ctx.sessionPersistence)
     let releaseList!: () => void
     let reachedList!: () => void
     const listReached = new Promise<void>(resolve => { reachedList = resolve })
@@ -192,7 +194,7 @@ describe('DshGateway', () => {
     vi.spyOn(host.ctx.sessionPersistence, 'list').mockImplementation(async () => {
       reachedList()
       await listReleased
-      return [...host.persisted.values()].map(entry => entry.meta) as unknown as SessionHeader[]
+      return fixtureList()
     })
     const facility = memoryFacility()
     const ingress = await openGatewayIngressJournal(facility)
@@ -260,7 +262,7 @@ describe('DshGateway', () => {
   it('preserves the startup validation error when cleanup itself fails', async () => {
     const host = fakeNativeHost()
     host.persisted.set('session-a', {
-      meta: { id: 'session-a', cwd: '/work/b', agentPreset: 'standard', version: 0, createdAt: 1 },
+      meta: { id: 'session-a', cwd: '/work/b', agentPreset: 'standard', version: SESSION_FORMAT_VERSION, createdAt: 1 },
       events: [],
     })
     const facility = memoryFacility()
@@ -409,7 +411,7 @@ describe('DshGateway', () => {
   it('cleans up startup resources when Session validation fails', async () => {
     const host = fakeNativeHost()
     host.persisted.set('session-a', {
-      meta: { id: 'session-a', cwd: '/work/b', agentPreset: 'standard', version: 0, createdAt: 1 },
+      meta: { id: 'session-a', cwd: '/work/b', agentPreset: 'standard', version: SESSION_FORMAT_VERSION, createdAt: 1 },
       events: [],
     })
     let removals = 0
@@ -998,7 +1000,7 @@ describe('DshGateway', () => {
   it('fails closed before binding a persisted Session owned by another Workspace', async () => {
     const host = fakeNativeHost()
     host.persisted.set('session-a', {
-      meta: { id: 'session-a', cwd: '/work/b', agentPreset: 'standard', version: 0, createdAt: 1 },
+      meta: { id: 'session-a', cwd: '/work/b', agentPreset: 'standard', version: SESSION_FORMAT_VERSION, createdAt: 1 },
       events: [],
     })
     const facility = memoryFacility()
@@ -1013,7 +1015,7 @@ describe('DshGateway', () => {
   it('validates a persisted Session through the current read-result envelope', async () => {
     const host = fakeNativeHost()
     const meta = {
-      id: 'session-a', cwd: '/work/a', agentPreset: 'minimal', version: 0, createdAt: 1,
+      id: 'session-a', cwd: '/work/a', agentPreset: 'minimal', version: SESSION_FORMAT_VERSION, createdAt: 1,
     }
     const events = [{
       type: 'agent-preset/selected',
@@ -1074,7 +1076,7 @@ describe('DshGateway', () => {
   it('does not let a stale current Session header override the latest persisted preset event', async () => {
     const host = fakeNativeHost()
     const meta = {
-      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: 0, createdAt: 1,
+      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: SESSION_FORMAT_VERSION, createdAt: 1,
     }
     const events = [{
       type: 'agent-preset/selected',
@@ -1112,7 +1114,7 @@ describe('DshGateway', () => {
   it('preserves a current Session read failure when closing the handle also fails', async () => {
     const host = fakeNativeHost()
     const meta = {
-      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: 0, createdAt: 1,
+      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: SESSION_FORMAT_VERSION, createdAt: 1,
     }
     const readFailure = new Error('read failed first')
     const closeFailure = new Error('close failed second')
@@ -1147,7 +1149,7 @@ describe('DshGateway', () => {
   it('joins current handle close after a read failure before settling startup', async () => {
     const host = fakeNativeHost()
     const meta = {
-      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: 0, createdAt: 1,
+      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: SESSION_FORMAT_VERSION, createdAt: 1,
     }
     const readFailure = new Error('read failed before deferred close')
     const closing = deferred<void>()
@@ -1193,7 +1195,7 @@ describe('DshGateway', () => {
     vi.useFakeTimers()
     const host = fakeNativeHost()
     const meta = {
-      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: 0, createdAt: 1,
+      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: SESSION_FORMAT_VERSION, createdAt: 1,
     }
     const readFailure = new Error('read failed before hung close')
     const closing = deferred<void>()
@@ -1247,7 +1249,7 @@ describe('DshGateway', () => {
   it('passes current list and read cancellation in option envelopes during cold resolution', async () => {
     const host = fakeNativeHost()
     const meta = {
-      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: 0, createdAt: 1,
+      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: SESSION_FORMAT_VERSION, createdAt: 1,
     }
     const events: unknown[] = []
     host.persisted.set('session-a', { meta, events })
@@ -1300,7 +1302,7 @@ describe('DshGateway', () => {
     vi.useFakeTimers()
     const host = fakeNativeHost()
     const meta = {
-      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: 0, createdAt: 1,
+      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: SESSION_FORMAT_VERSION, createdAt: 1,
     }
     const lateOpen = deferred<{
       id: string
@@ -1353,7 +1355,7 @@ describe('DshGateway', () => {
   it('closes a malformed current handle and rejects mixed persistence dialects', async () => {
     const host = fakeNativeHost()
     const meta = {
-      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: 0, createdAt: 1,
+      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: SESSION_FORMAT_VERSION, createdAt: 1,
     }
     const close = vi.fn(async () => {})
     const persistence = host.ctx.sessionPersistence as unknown as Record<string, unknown>
@@ -1395,7 +1397,7 @@ describe('DshGateway', () => {
   it('propagates caller cancellation into a pending current persistence list', async () => {
     const host = fakeNativeHost()
     const meta = {
-      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: 0, createdAt: 1,
+      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: SESSION_FORMAT_VERSION, createdAt: 1,
     }
     host.persisted.set('session-a', { meta, events: [] })
     const pendingList = deferred<readonly unknown[]>()
@@ -1487,7 +1489,7 @@ describe('DshGateway', () => {
   it('waits for an acquired current read handle to close while stopping', async () => {
     const host = fakeNativeHost()
     const meta = {
-      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: 0, createdAt: 1,
+      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: SESSION_FORMAT_VERSION, createdAt: 1,
     }
     const reading = deferred<{ eventState: 'detached'; events: readonly unknown[] }>()
     const closing = deferred<void>()
@@ -1541,7 +1543,7 @@ describe('DshGateway', () => {
   it('calls a current read handle close once when close synchronously stops the Gateway', async () => {
     const host = fakeNativeHost()
     const meta = {
-      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: 0, createdAt: 1,
+      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: SESSION_FORMAT_VERSION, createdAt: 1,
     }
     let listCalls = 0
     let gateway!: DshGateway
@@ -1633,7 +1635,7 @@ describe('DshGateway', () => {
   it('does not invoke current read after a handle metadata getter cancels the sole resolver', async () => {
     const host = fakeNativeHost()
     const meta = {
-      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: 0, createdAt: 1,
+      id: 'session-a', cwd: '/work/a', agentPreset: 'standard', version: SESSION_FORMAT_VERSION, createdAt: 1,
     }
     const controller = new AbortController()
     const reason = new Error('metadata getter cancelled the caller')
@@ -1761,7 +1763,7 @@ function fakeNativeHost(): {
     const inbox: { nextTurn: unknown[]; nextStep: unknown[] } = { nextTurn: [], nextStep: [] }
     const id = SessionId(sessionId)
     const session = Session.create(id, undefined, {
-      version: 0,
+      version: SESSION_FORMAT_VERSION,
       id,
       createdAt: 1,
       cwd,

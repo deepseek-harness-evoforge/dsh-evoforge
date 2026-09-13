@@ -1,13 +1,17 @@
 import type { Context } from '@deepseek-ai/cordis'
-import { Inbox, type Agent, type AgentHandle } from '@deepseek-ai/dsh-agent'
+import * as AgentPackage from '@deepseek-ai/dsh-agent'
+import type { Agent, AgentHandle } from '@deepseek-ai/dsh-agent'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import type { UserMessage } from '@deepseek-ai/dsh-llm'
 import {
+  SESSION_FORMAT_VERSION,
   Session,
   SessionId,
   type SessionEvent,
 } from '@deepseek-ai/dsh-session'
 import type { DomainFacility, KvTable } from '@deepseek-ai/dsh-storage-domain'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DshGateway } from '../src/gateway.js'
 import {
   createGatewayIngressEvidenceSource,
@@ -36,8 +40,13 @@ const routes = resolveGatewayRoutes([{
   model: 'mock-a',
 }])
 
+const nativeContexts: Context[] = []
+afterEach(async () => {
+  for (const ctx of nativeContexts.splice(0).reverse()) await ctx.fiber.dispose()
+})
+
 describe('Gateway ingress evidence dispatch boundary', () => {
-  it('matches the physical enqueue committed by a real alpha.5 Session', async () => {
+  it('matches the physical enqueue committed by the installed native Session', async () => {
     const host = createNativeHost()
     const facility = memoryFacility()
     const journal = await openGatewayIngressJournal(facility)
@@ -158,7 +167,7 @@ describe('Gateway ingress evidence dispatch boundary', () => {
   )
 
   it('selects the native Inbox insertion amid an idle Agent wake and immediate claim', async () => {
-    const host = createNativeHost(appendWithNativeIdleWake)
+    const host = await createNativeIdleWakeHost()
     const facility = memoryFacility()
     const journal = await openGatewayIngressJournal(facility)
     const evidence = await openGatewayIngressEvidenceVault(facility)
@@ -181,7 +190,12 @@ describe('Gateway ingress evidence dispatch boundary', () => {
         text: 'claim me synchronously',
       })
       const session = result.agent.session
-      const events = session.snapshotEvents()
+      const completeEvents = session.snapshotEvents()
+      const prefixLength = Number(SESSION_FORMAT_VERSION) === 0 ? 0 : 1
+      if (prefixLength === 1) expect(completeEvents[0]).toMatchObject({
+        type: 'agent-preset/selected', data: { agentPreset: 'standard' },
+      })
+      const events = completeEvents.slice(prefixLength)
       const enqueue = events[0]
 
       expect(events.map(event => event.type)).toEqual([
@@ -397,6 +411,7 @@ interface CreateAgentOptions {
 function createNativeHost(
   followup: FollowupBehavior = appendOneEnqueue,
   workspaceReadsBeforeMissing = Number.POSITIVE_INFINITY,
+  suppliedSession?: Session,
 ): {
   readonly ctx: Context
   readonly agent: (sessionId: string) => Agent | undefined
@@ -425,8 +440,8 @@ function createNativeHost(
     model: string,
   ): AgentHandle => {
     const id = SessionId(sessionId)
-    const session = Session.create(id, undefined, {
-      version: 0,
+    const session = suppliedSession ?? Session.create(id, undefined, {
+      version: SESSION_FORMAT_VERSION,
       id,
       createdAt: 1,
       cwd,
@@ -516,6 +531,16 @@ function appendThenThrow(context: FollowupContext): void {
 }
 
 function appendWithNativeIdleWake({ session, message }: FollowupContext): void {
+  // The alpha.5 public constructor was retired in rc.2. Only use it in its
+  // native cohort; current tests create a production Agent through the testkit.
+  const constructor = Reflect.get(AgentPackage, 'Inbox')
+  if (typeof constructor !== 'function') throw new Error('alpha.5 Inbox constructor is unavailable')
+  const Inbox = constructor as new (session: Session, dispatch: {
+    inserted(): void; discarded(): void; claimed(): void
+  }) => {
+    append(target: 'next-turn', message: UserMessage): void
+    claim(target: 'next-turn', turn: number): unknown
+  }
   const inbox = new Inbox(session, {
     inserted() {},
     discarded() {},
@@ -524,6 +549,32 @@ function appendWithNativeIdleWake({ session, message }: FollowupContext): void {
   inbox.append('next-turn', message)
   session.append('turn/start', { turn: 1 })
   inbox.claim('next-turn', 1)
+}
+
+async function createNativeIdleWakeHost(): Promise<ReturnType<typeof createNativeHost>> {
+  if (Number(SESSION_FORMAT_VERSION) === 0) return createNativeHost(appendWithNativeIdleWake)
+  const suiteRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
+  const source = process.env.DSH_EVOLVE_DSH_SOURCE_DIR ?? resolve(suiteRoot, '../deepseek-harness')
+  const entry = (path: string) => pathToFileURL(join(source, path, 'lib/index.js')).href
+  const [cordis, testkit, sessionPackage] = await Promise.all([
+    import(entry('vendor/cordis')),
+    import(entry('packages/test-support/agent-loop-testkit')),
+    import(entry('packages/core/session')),
+  ])
+  expect(sessionPackage.SESSION_FORMAT_VERSION).toBe(SESSION_FORMAT_VERSION)
+  const ctx = new cordis.Context() as Context
+  nativeContexts.push(ctx)
+  await testkit.mountAgentLoopTestDependencies(ctx)
+  const harness = await testkit.mountAgentLoopTestHarness(ctx)
+  const agent = await harness.create(SessionId('session-a'), {}, { cwd: '/work/a' }) as Agent
+  expect(agent.session.snapshotEvents()).toEqual([])
+  agent.session.append('agent-preset/selected', { agentPreset: 'standard' })
+  return createNativeHost(({ session, message }) => {
+    expect(session).toBe(agent.session)
+    agent.inbox.append('next-turn', message)
+    session.append('turn/start', { turn: 1 })
+    harness.claim(agent, 'next-turn', 1)
+  }, Number.POSITIVE_INFINITY, agent.session)
 }
 
 function appendAmbiguousSuffix({ session, inbox, message }: FollowupContext): void {
