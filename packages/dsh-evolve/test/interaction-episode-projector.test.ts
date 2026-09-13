@@ -8,7 +8,9 @@ import {
   type TokenUsage,
   ToolCallId,
 } from '@deepseek-ai/dsh-llm'
-import { Session, SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
+import { SessionId } from '@deepseek-ai/dsh-session'
+import type { TranscriptEvent as SessionEvent } from '../src/interaction-transcript-types.ts'
+import { HistoricalV0TranscriptFixture } from './historical-v0-transcript-fixture.ts'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { proveInteractionEpisodeTranscript } from '../src/interaction-episode-projector.ts'
 
@@ -1485,9 +1487,9 @@ function completedModelDeclaredGapTurn(
       | 'double-context-prelude'
     readonly schemaOrderHeaderChangeRetry?: boolean
   } = {},
-): { session: Session; turnEndSeq: number } {
+): { session: HistoricalV0TranscriptFixture; turnEndSeq: number } {
   const sessionId = SessionId('episode-session')
-  const session = Session.create(sessionId, undefined, {
+  const session = new HistoricalV0TranscriptFixture({
     version: 0,
     id: sessionId,
     createdAt: 1_000,
@@ -3065,7 +3067,7 @@ function completedModelDeclaredGapTurn(
 }
 
 function appendCompletedPriorCodeTurn(
-  session: Session,
+  session: HistoricalV0TranscriptFixture,
   turn: number,
   logRequest: boolean,
 ): void {
@@ -3146,7 +3148,7 @@ function appendCompletedPriorCodeTurn(
 }
 
 function appendModelMessage(
-  session: Session,
+  session: HistoricalV0TranscriptFixture,
   input: {
     readonly turn: number
     readonly step: number

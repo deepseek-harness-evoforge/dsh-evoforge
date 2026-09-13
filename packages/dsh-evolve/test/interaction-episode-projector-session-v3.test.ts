@@ -1,4 +1,8 @@
-import type { SessionEvent, SessionHeader } from '@deepseek-ai/dsh-session'
+import { SessionId, SessionLogOffset } from '@deepseek-ai/dsh-session'
+import type {
+  TranscriptEvent as SessionEvent,
+  TranscriptHeader,
+} from '../src/interaction-transcript-types.ts'
 import { describe, expect, it } from 'vitest'
 import {
   proveInteractionEpisodeTranscript,
@@ -299,7 +303,7 @@ type StreamMutation =
   | 'invalid-replay-envelope'
 
 interface MutableTranscriptSource extends InteractionEpisodeTranscriptSourceV1 {
-  header: SessionHeader & { version: number }
+  header: Omit<TranscriptHeader, 'version'> & { version: number }
   events: Array<Record<string, unknown>>
   triggerCallId: string
 }
@@ -628,16 +632,16 @@ function completedV3GapTurn(options: {
 
   const header = {
     version: 3,
-    id: 'episode-v3-session',
+    id: SessionId('episode-v3-session'),
     createdAt: 1_000,
     cwd: '/private/workspace',
     isSeeded: false,
     delegationDepth: 0,
     agentPreset: 'default',
-  } as unknown as SessionHeader & { version: number }
+  }
   return {
     header,
-    inheritedEventCount: 0 as never,
+    inheritedEventCount: SessionLogOffset(0),
     events,
     triggerCallId,
     snapshotEvents: () => events as unknown as readonly SessionEvent[],
