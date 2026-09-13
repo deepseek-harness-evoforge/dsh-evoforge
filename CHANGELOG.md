@@ -7,6 +7,9 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Channel health now refreshes automatically while its page is open. Failed background reads mark retained data
+  as historical, and successful reads recover the page without a manual refresh. Polling preserves pairing input,
+  revocation confirmation, and action errors, and does not accumulate overlapping background requests.
 - Simplified the channel page for daily use: current connections appear before counters, completed first-time setup
   is hidden, protocol details are collapsed, and quiet new connections no longer imply a configuration fault.
   Failed refreshes explicitly mark the snapshot and connection labels as historical until a successful refresh.

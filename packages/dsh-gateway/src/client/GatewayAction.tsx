@@ -31,13 +31,13 @@ export type GatewaySurfaceProps = ControlSurfaceProps & {
 }
 
 type ViewStatus = 'ready' | 'busy' | 'attention' | 'degraded' | 'stopping'
-const PENDING_POLL_INTERVAL_MS = 5_000
+const HEALTH_POLL_INTERVAL_MS = 5_000
 
 /** Gateway Adapter for the common DSH Control Surface. */
 export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: GatewaySurfaceProps) {
   const instanceId = useId().replaceAll(':', '')
   const requestRef = useRef(0)
-  const pendingRequestRef = useRef(0)
+  const activeRequestRef = useRef<number>()
   const workspaceId = useWorkspaces(state => state.items.find(workspace => workspace.sessionIds.includes(sessionId))?.workspaceId)
   const [busy, setBusy] = useState(false)
   const [pairingBusy, setPairingBusy] = useState(false)
@@ -51,12 +51,17 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
   const [stale, setStale] = useState(false)
   const [pendingPairings, setPendingPairings] = useState<readonly GatewayPairingPendingRequest[]>([])
   const [error, setError] = useState<string>()
+  const [readError, setReadError] = useState<string>()
 
-  const refresh = async () => {
+  const refresh = async (background = false) => {
+    // Polling must not accumulate reads or supersede a manual refresh.
+    if (background && activeRequestRef.current !== undefined) return
     const request = ++requestRef.current
-    const pendingRequest = ++pendingRequestRef.current
-    setBusy(true)
-    setError(undefined)
+    activeRequestRef.current = request
+    if (!background) {
+      setBusy(true)
+      setError(undefined)
+    }
     try {
       const [result, pendingResult] = await Promise.all([remote.overview(), remote.pendingPairings()])
       if (request !== requestRef.current) return
@@ -64,26 +69,17 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
       if (!pendingResult.ok) throw new Error(t('error.unavailable'))
       setSnapshot(result.value)
       setStale(false)
-      if (pendingRequest === pendingRequestRef.current) setPendingPairings(pendingResult.value)
-      setConfirmingRoute(undefined)
+      setReadError(undefined)
+      setPendingPairings(pendingResult.value)
+      if (!background) setConfirmingRoute(undefined)
     } catch (cause) {
       if (request === requestRef.current) {
         setStale(true)
-        setError(presentError(cause, t('error.unavailable')))
+        setReadError(presentError(cause, t('error.unavailable')))
       }
     } finally {
-      if (request === requestRef.current) setBusy(false)
-    }
-  }
-
-  const refreshPending = async () => {
-    const request = ++pendingRequestRef.current
-    try {
-      const result = await remote.pendingPairings()
-      if (request !== pendingRequestRef.current || !result.ok) return
-      setPendingPairings(result.value)
-    } catch {
-      // A transient polling failure must not erase the last authoritative list.
+      if (activeRequestRef.current === request) activeRequestRef.current = undefined
+      if (!background && request === requestRef.current) setBusy(false)
     }
   }
 
@@ -96,14 +92,15 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
     setPairingCode('')
     setConfirmingRoute(undefined)
     setError(undefined)
+    setReadError(undefined)
     requestRef.current += 1
-    pendingRequestRef.current += 1
+    activeRequestRef.current = undefined
     void refresh()
-    const interval = setInterval(() => { void refreshPending() }, PENDING_POLL_INTERVAL_MS)
+    const interval = setInterval(() => { void refresh(true) }, HEALTH_POLL_INTERVAL_MS)
     return () => {
       clearInterval(interval)
       requestRef.current += 1
-      pendingRequestRef.current += 1
+      activeRequestRef.current = undefined
     }
   }, [remote, sessionId, workspaceId])
 
@@ -206,7 +203,8 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
       </UI.Button>}
     />
 
-    {error !== undefined && <UI.Notice tone="danger" role="alert" title={t('error.title')}>{error}</UI.Notice>}
+    {readError !== undefined && <UI.Notice tone="danger" role="alert" title={t('error.title')}>{readError}</UI.Notice>}
+    {error !== undefined && <UI.Notice tone="danger" role="alert">{error}</UI.Notice>}
     {snapshot === undefined
       ? <UI.Loading cards={4} />
       : <>

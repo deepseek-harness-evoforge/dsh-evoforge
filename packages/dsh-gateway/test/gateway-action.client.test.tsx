@@ -139,7 +139,7 @@ describe('Gateway Control Surface', () => {
     expect(remote.approvePairingRequest).toHaveBeenCalledWith(requestId, 'workspace-a', 'session-a')
   })
 
-  it('refreshes pending requests on the same page without erasing the last snapshot on a poll error', async () => {
+  it('automatically marks failed reads stale and recovers both health and pending requests', async () => {
     let poll: (() => void) | undefined
     const realSetInterval = globalThis.setInterval
     vi.spyOn(globalThis, 'setInterval').mockImplementation((handler, timeout) => {
@@ -159,7 +159,8 @@ describe('Gateway Control Surface', () => {
           createdAt: 1_000,
           expiresAt: Date.now() + 600_000,
         }] })
-        .mockResolvedValueOnce({ ok: false, error: { code: 'host-unavailable', message: 'offline' } }),
+        .mockResolvedValueOnce({ ok: false, error: { code: 'host-unavailable', message: 'offline' } })
+        .mockResolvedValueOnce({ ok: true, value: [] }),
       approvePairing: vi.fn(),
       approvePairingRequest: vi.fn(),
       revokePairing: vi.fn(),
@@ -176,6 +177,80 @@ describe('Gateway Control Surface', () => {
     await waitFor(() => expect(screen.getByText('直接批准')).toBeTruthy())
     expect(screen.getByText('直接批准')).toBeTruthy()
     expect(remote.pendingPairings).toHaveBeenCalledTimes(3)
+    expect(await screen.findByText('状态已过期')).toBeTruthy()
+    expect(screen.getByText('上次状态：连接正常')).toBeTruthy()
+    expect(screen.queryByText(/本次连接尚未收到新消息/u)).toBeNull()
+    vi.mocked(remote.overview).mockResolvedValueOnce({
+      ok: true, value: { ...snapshot(), ingress: { ...snapshot().ingress, total: 7 } },
+    })
+    poll!()
+    await waitFor(() => expect(screen.queryByText('状态已过期')).toBeNull())
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.queryByText('直接批准')).toBeNull()
+    expect(screen.getByText('入站记录').closest('div')?.textContent).toContain('7')
+    expect(remote.overview).toHaveBeenCalledTimes(4)
+  })
+
+  it('keeps background reads single-flight, ignores an old poll after manual recovery, and clears its timer', async () => {
+    let poll: (() => void) | undefined
+    const realSetInterval = globalThis.setInterval
+    vi.spyOn(globalThis, 'setInterval').mockImplementation((handler, timeout) => {
+      if (timeout !== 5_000) return realSetInterval(handler, timeout)
+      poll = handler
+      return 1 as unknown as ReturnType<typeof setInterval>
+    })
+    const clear = vi.spyOn(globalThis, 'clearInterval')
+    let rejectPoll: ((cause: Error) => void) | undefined
+    const remote = {
+      overview: vi.fn()
+        .mockResolvedValueOnce({ ok: true, value: snapshot() })
+        .mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectPoll = reject }))
+        .mockResolvedValue({ ok: true, value: snapshot() }),
+      pendingPairings: vi.fn(async () => ({ ok: true, value: [] })),
+      approvePairing: vi.fn(), approvePairingRequest: vi.fn(), revokePairing: vi.fn(),
+    } as GatewayRemoteClient
+    const view = render(<GatewaySurface {...surfaceProps(remote)} />)
+    await screen.findByText('official-feishu-websocket')
+    poll!()
+    poll!()
+    expect(remote.overview).toHaveBeenCalledTimes(2)
+    fireEvent.click(screen.getByRole('button', { name: '刷新状态' }))
+    await waitFor(() => expect(screen.queryByText('正在刷新…')).toBeNull())
+    rejectPoll!(new Error('late disconnected read'))
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.queryByText('状态已过期')).toBeNull()
+    poll!()
+    await waitFor(() => expect(remote.overview).toHaveBeenCalledTimes(4))
+    view.unmount()
+    expect(clear).toHaveBeenCalledWith(1)
+  })
+
+  it('updates health in the background without clearing user input, confirmation, or action failures', async () => {
+    let poll: (() => void) | undefined
+    const realSetInterval = globalThis.setInterval
+    vi.spyOn(globalThis, 'setInterval').mockImplementation((handler, timeout) => {
+      if (timeout !== 5_000) return realSetInterval(handler, timeout)
+      poll = handler
+      return 1 as unknown as ReturnType<typeof setInterval>
+    })
+    const remote = {
+      overview: vi.fn(async () => ({ ok: true, value: snapshot() })),
+      pendingPairings: vi.fn(async () => ({ ok: true, value: [] })),
+      approvePairing: vi.fn(), approvePairingRequest: vi.fn(), revokePairing: vi.fn(),
+    } as GatewayRemoteClient
+    render(<GatewaySurface {...surfaceProps(remote)} />)
+    fireEvent.change(await screen.findByLabelText('配对码'), { target: { value: 'BAD' } })
+    fireEvent.click(screen.getByRole('button', { name: '批准渠道配对' }))
+    fireEvent.click(screen.getByRole('button', { name: '撤销 feishu-main' }))
+    poll!()
+    await waitFor(() => expect(remote.overview).toHaveBeenCalledTimes(2))
+    expect((screen.getByLabelText('配对码') as HTMLInputElement).value).toBe('BAD')
+    expect(screen.getByRole('button', { name: '确认撤销 feishu-main' })).toBeTruthy()
+    expect(screen.getByRole('alert').textContent).toContain('配对码格式无效')
+    expect(screen.queryByText('正在刷新…')).toBeNull()
+    expect(remote.revokePairing).not.toHaveBeenCalled()
   })
 
   it('shows the Feishu newcomer journey from authoritative connection facts', async () => {

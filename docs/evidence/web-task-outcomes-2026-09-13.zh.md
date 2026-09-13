@@ -74,3 +74,22 @@ Hermes 同条件比较仍缺证据。三个案例不能证明整体可日常使�
 重连追加复测：一次不整页刷新的受控重启后，新会话真实回复“新会话可用”（约 2 秒 / 7K token），
 故前述初始化卡住不是每次重启必现。另一次在断线期间进入新会话，Agent 预设控件保留
 `agentPresets/list failed: Failed to fetch` 提示；整页刷新恢复。当前仍只有现象与恢复方法，没有稳定根因。
+
+## 追加：重连卡住的红灯检查（11:08–11:11）
+
+在空闲的上述已完成会话内停止 Host，点击“新建会话”，页面无可见错误，控制台记录
+`new session failed: SessionCreateError: session create failed: gateway/internal: client api: session/create failed: Failed to fetch`。
+重启同一 profile 后重试新建会话，页面进入工作区选择；选择 EvoForge-Workspace 后仍显示“选择工作区”与
+禁用的“正在加载模型…”。使用 AX 与 Playwright 语义选择分别检查，重复选择没有恢复。
+已在打开的工作区菜单上执行以下红灯检查，不读取内部状态或调用模型：
+
+```js
+await tab.playwright.getByRole('menuitem', { name: 'EvoForge-Workspace', exact: true }).click()
+await tab.playwright.getByRole('button', { name: '正在加载模型…', exact: true })
+  .waitFor({ state: 'hidden', timeoutMs: 5000 })
+```
+
+实际结果：`locator.waitFor(hidden) timed out`，诊断为匹配到 1 个 visible、disabled 的加载按钮。
+仅改变页面生命周期，整页 reload 后再选择同一工作区，立即出现所选工作区和已加载的 gpt-5.6-sol。
+这排除了“Host 在整个窗口内持续无法服务”的解释，但尚未区分原生 Client 状态、事件恢复与插件组合的影响。
+未修改上游、未新增替代 Session 层；该问题仍未关闭，不能把本条称为纯原生最小复现或根因证明。
