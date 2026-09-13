@@ -1,9 +1,11 @@
 import { readFile } from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const require = createRequire(import.meta.url)
 
 describe('dsh-feishu package contract', () => {
   it('is an official DSH Bundle without a product bin or bundled Runtime', async () => {
@@ -12,6 +14,7 @@ describe('dsh-feishu package contract', () => {
       dsh?: unknown
       dependencies?: Record<string, string>
       peerDependencies?: Record<string, string>
+      devDependencies?: Record<string, string>
     }
     expect(manifest.bin).toBeUndefined()
     expect(manifest.dsh).toMatchObject({
@@ -20,8 +23,14 @@ describe('dsh-feishu package contract', () => {
     })
     expect(manifest.dependencies?.['@larksuiteoapi/node-sdk']).toBe('1.73.3')
     expect(manifest.peerDependencies?.['dsh-evoforge-gateway']).toBe('0.1.0-alpha.1')
-    expect(manifest.peerDependencies?.['@deepseek-ai/dsh-tools']).toBe('0.1.2-alpha.5')
-    expect(manifest.peerDependencies?.['@deepseek-ai/dsh-llm']).toBe('0.1.2-alpha.5')
+    const native = JSON.parse(await readFile(require.resolve('@deepseek-ai/dsh-session/package.json'), 'utf8'))
+    expect(native.version).toMatch(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u)
+    for (const peer of ['@deepseek-ai/dsh-tools', '@deepseek-ai/dsh-llm']) {
+      const installed = JSON.parse(await readFile(require.resolve(`${peer}/package.json`), 'utf8'))
+      expect(installed.version).toBe(native.version)
+      expect(manifest.peerDependencies?.[peer]).toBe(native.version)
+      expect(manifest.devDependencies?.[peer]).toBe(native.version)
+    }
     expect(Object.keys(manifest.dependencies ?? {})).not.toContain('@deepseek-ai/cordis')
     expect(Object.keys(manifest.dependencies ?? {}).filter(name => name.startsWith('@deepseek-ai/dsh-'))).toEqual([])
     expect(await readFile(resolve(packageRoot, 'cordis.patch.yml'), 'utf8')).toBe(
