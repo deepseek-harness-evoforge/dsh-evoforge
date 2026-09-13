@@ -663,7 +663,8 @@ async function setup(
   const ctx = new Context()
   await ctx.plugin(LlmRuntime)
   await ctx.plugin(SessionStore)
-  await ctx.plugin(SystemPrompt, { persona: 'Delivery completion fixture.' })
+  await ctx.plugin(SystemPrompt)
+  ctx.systemPrompt.section({ name: 'fixture:delivery-completion', order: 0, text: 'Delivery completion fixture.' })
   await ctx.plugin(ToolRuntime)
   installTestBash(ctx, interceptBash)
   await ctx.plugin(SkillRegistry)
@@ -675,7 +676,7 @@ async function setup(
   await ctx.plugin(AgentLoop, { agents: [] })
   const adapter = new ScriptedAdapter(script)
   ctx.llm.registerAdapter(['delivery-test'], adapter)
-  const agent = ctx.agentLoop.create(SessionId(`delivery-${Math.random().toString(16).slice(2)}`), {
+  const agent = await ctx.agentLoop.create(SessionId(`delivery-${Math.random().toString(16).slice(2)}`), {
     provider: 'delivery-test',
     model: 'delivery-test',
   })
