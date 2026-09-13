@@ -1,11 +1,6 @@
 import { createHash } from 'node:crypto'
-import {
-  Session,
-  SessionId,
-  SessionLogOffset,
-  type SessionEvent,
-  type SessionHeader,
-} from '@deepseek-ai/dsh-session'
+import { SessionLogOffset } from '@deepseek-ai/dsh-session'
+import type { TranscriptEvent, TranscriptHeader } from '../src/interaction-transcript-types.ts'
 import { describe, expect, it, vi } from 'vitest'
 import type { DurableInteractionEpisodeSubjectV1 } from '../src/interaction-episode-evidence-resolver.ts'
 import { proveInteractionEpisodeTranscript } from '../src/interaction-episode-projector.ts'
@@ -226,7 +221,7 @@ describe('Interaction Episode trigger request control projection', () => {
     subject.transcript.trigger.kind = 'skill-tool-error'
     rebindReplayDigests(subject)
 
-    expect(projectSubject(productionSubject(subject))).toMatchObject({
+    expect(projectSubject(provenHistoricalSubject(subject))).toMatchObject({
       status: 'projected',
       fact: {
         boundary: {
@@ -245,7 +240,8 @@ describe('Interaction Episode trigger request control projection', () => {
   })
 
   it('binds a seeded, inherited event prefix and nonzero enqueue coordinate', () => {
-    const subject = productionSubject(seededSubject())
+    const subject = provenHistoricalSubject(seededSubject())
+    expect(subject.session.events[2]).toMatchObject({ type: 'session/end-seed', seq: 2 })
 
     expect(projectSubject(subject)).toMatchObject({
       status: 'projected',
@@ -407,7 +403,7 @@ describe('Interaction Episode trigger request control projection', () => {
   })
 })
 
-function projectedFact(subject: DurableInteractionEpisodeSubjectV1 | MutableSubject) {
+function projectedFact(subject: DurableInteractionEpisodeSubjectV1 | MutableSubject | ReturnType<typeof provenHistoricalSubject>) {
   const result = projectSubject(subject)
   if (result.status !== 'projected') throw new Error('fixture did not project')
   return result.fact
@@ -883,61 +879,29 @@ function seededSubject(): MutableSubject {
   return subject
 }
 
-function productionSubject(subject: MutableSubject): DurableInteractionEpisodeSubjectV1 {
+function provenHistoricalSubject(subject: MutableSubject) {
+  // These are archived v0 reader cases, not Sessions writable by the current
+  // Host. Keep the explicit seed marker, inherited prefix, and physical times.
   const throughSeq = subject.transcript.source.turnEndSeq
   const inheritedEventCount = subject.session.inheritedEventCount
-  const seed = inheritedEventCount === 0
-    ? undefined
-    : structuredClone(subject.session.events.slice(0, inheritedEventCount))
-  const session = Session.create(
-    SessionId(subject.transcript.session.id),
-    seed as unknown as SessionEvent[] | undefined,
-    structuredClone(subject.session.header) as unknown as SessionHeader,
-    SessionLogOffset(inheritedEventCount),
-  )
-  const nextExpectedSeq = session.snapshotEvents().length
-  for (const event of subject.session.events.slice(nextExpectedSeq)) {
-    appendFixtureEvent(session, event)
-  }
-  const transcript = proveInteractionEpisodeTranscript(session, throughSeq, {
+  const header = structuredClone(subject.session.header) as unknown as TranscriptHeader
+  const events = structuredClone(subject.session.events.slice(0, throughSeq + 1)) as unknown as TranscriptEvent[]
+  const transcript = proveInteractionEpisodeTranscript({
+    header,
+    inheritedEventCount: SessionLogOffset(inheritedEventCount),
+    snapshotEvents: () => events,
+  }, throughSeq, {
     callId: String(subject.transcript.trigger.callId),
   })
   if (transcript.status !== 'proven') {
-    throw new Error(`fixture is not production-reachable: ${transcript.reason}`)
+    throw new Error(`historical fixture is not proven: ${transcript.reason}`)
   }
   return {
     schemaVersion: 1,
     kind: 'durable-interaction-episode-subject-v1',
-    session: {
-      header: session.header,
-      inheritedEventCount: Number(session.inheritedEventCount),
-      throughSeq,
-      events: session.snapshotEvents(
-        SessionLogOffset(0),
-        SessionLogOffset(throughSeq + 1),
-      ),
-    },
+    session: { header, inheritedEventCount, throughSeq, events },
     transcript: transcript.proof,
   }
-}
-
-function appendFixtureEvent(session: Session, event: MutableEvent): void {
-  const append = session.append as unknown as (
-    type: string,
-    data: Record<string, unknown>,
-    options?: { readonly surfaceOp: string; readonly sourceEventSeqs?: number[] },
-  ) => SessionEvent
-  const data = structuredClone(event.data)
-  if (event.surfaceOp === undefined) {
-    append.call(session, event.type, data)
-    return
-  }
-  append.call(session, event.type, data, {
-    surfaceOp: event.surfaceOp,
-    ...(event.sourceEventSeqs === undefined
-      ? {}
-      : { sourceEventSeqs: [...event.sourceEventSeqs] }),
-  })
 }
 
 function requestHeader(subject: MutableSubject) {
@@ -971,7 +935,7 @@ function assistantSource(subject: MutableSubject) {
 }
 
 function projectSubject(
-  subject: DurableInteractionEpisodeSubjectV1 | MutableSubject,
+  subject: DurableInteractionEpisodeSubjectV1 | MutableSubject | ReturnType<typeof provenHistoricalSubject>,
 ) {
   return projectInteractionEpisodeTriggerRequestControlV1(
     subject as unknown as DurableInteractionEpisodeSubjectV1,
