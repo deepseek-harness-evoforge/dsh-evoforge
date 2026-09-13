@@ -53,8 +53,12 @@ route 条件。reader 扫描目标 `turn/end` 之前的整个前缀；未知 req
 `compaction/*` 和 PTC cohort 尚未迁移。Interaction evidence resolver 已用 exact capability XOR 同时支持 alpha.5
 `readFrom` 和 current `open/read/close` 的只读物理 cut，并对 open/read/close 设置 lifecycle deadline；该 deadline 不包含
 此前的 `sessions.flush()`。Gateway handle result 与 durable-feedback 的 current live/cold/recovery consumer 已完成局部
-兼容及双基线回归，见 [V5.233](../evidence/v5-233-gateway-feedback-persistence-2026-09-11.zh.md)；依赖版本、Case Pack
-revision 和 CI/兼容矩阵仍没有迁移。current 全量 Evolve 的六个旧 Case Pack revision 门仍失败，不能改写为支持通过。
+兼容及双基线回归，见 [V5.233](../evidence/v5-233-gateway-feedback-persistence-2026-09-11.zh.md)。
+2026-09-13 使用现有准备脚本生成 revision-matched 的隔离 Case Pack 副本后，current 全量 Evolve 为
+81 files / 975 tests passed；仓库中的旧 Case Pack 和历史结果未改写。此前六项 revision 门的失败因此不能继续
+作为“新版执行路径不兼容”的证据。依赖版本、CI/支持矩阵和旧部署跨版本迁移仍未完成；本次测试仍使用仓库现有
+alpha.5 开发依赖，不能替代 rc.2 类型检查或完整支持声明。命令与失败重跑记录见
+[rc.2 升级兼容性复验](../evidence/dsh-rc2-upgrade-compatibility-2026-09-13.zh.md)。
 
 因此当前支持基线仍是完整验证过的 `dsh-v0.1.2-alpha.5` / `db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5`。
 `c291e796…` 现在是“latest audited + upstream buildable + 局部 assembled 取样”，不是 EvoForge supported runtime。
