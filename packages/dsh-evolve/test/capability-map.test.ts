@@ -1,9 +1,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import { agentEvents, type Agent } from '@deepseek-ai/dsh-agent'
-import { Inbox } from '@deepseek-ai/dsh-agent'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import { scopeTarget } from '@deepseek-ai/dsh-scope'
-import { Session, SessionId } from '@deepseek-ai/dsh-session'
 import SkillRegistry, { type SkillCatalogSnapshot } from '@deepseek-ai/dsh-skill'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import Tools, {
@@ -15,6 +13,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { CapabilityMap, installCapabilityMapObserver } from '../src/capability-map.ts'
 import type { CapabilityGeneration, EvolutionStore } from '../src/generation-store.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
+import { createObservationAgent } from './native-observation-agent.ts'
 
 const generationId = 'a'.repeat(64)
 
@@ -79,7 +78,7 @@ describe('CapabilityMap', () => {
       getSessionGeneration: vi.fn(() => generation('build-dsh-plugin')),
     } as unknown as EvolutionStore
     const monitor = installCapabilityMapObserver(ctx, capabilities, store)
-    const agent = sessionAgent('session-observed')
+    const agent = await createObservationAgent(ctx, 'session-observed')
 
     await agentEvents(ctx, agent).waterfall(
       'agent/pre-step',
@@ -121,7 +120,7 @@ describe('CapabilityMap', () => {
     const monitor = installCapabilityMapObserver(ctx, capabilities, {
       getSessionGeneration: vi.fn(),
     })
-    const agent = sessionAgent('session-identity-failure')
+    const agent = await createObservationAgent(ctx, 'session-identity-failure')
     const observe = (turn: number) => agentEvents(ctx, agent).waterfall(
       'agent/pre-step',
       { messages: [], turn, step: 1, signal: new AbortController().signal },
@@ -156,7 +155,7 @@ describe('CapabilityMap', () => {
     const monitor = installCapabilityMapObserver(ctx, capabilities, {
       getSessionGeneration: vi.fn(),
     })
-    const agent = sessionAgent('session-disposed-identity-failure')
+    const agent = await createObservationAgent(ctx, 'session-disposed-identity-failure')
     await agentEvents(ctx, agent).waterfall(
       'agent/pre-step',
       { messages: [], turn: 1, step: 1, signal: new AbortController().signal },
@@ -189,7 +188,7 @@ describe('CapabilityMap', () => {
     const monitor = installCapabilityMapObserver(ctx, capabilities, {
       getSessionGeneration: vi.fn(),
     })
-    const agent = sessionAgent('session-overlapping-success')
+    const agent = await createObservationAgent(ctx, 'session-overlapping-success')
     const observe = (turn: number) => agentEvents(ctx, agent).waterfall(
       'agent/pre-step',
       { messages: [], turn, step: 1, signal: new AbortController().signal },
@@ -237,7 +236,7 @@ describe('CapabilityMap', () => {
     const monitor = installCapabilityMapObserver(ctx, capabilities, {
       getSessionGeneration: vi.fn(),
     })
-    const agent = sessionAgent('session-overlapping-rejection')
+    const agent = await createObservationAgent(ctx, 'session-overlapping-rejection')
     const observe = (turn: number) => agentEvents(ctx, agent).waterfall(
       'agent/pre-step',
       { messages: [], turn, step: 1, signal: new AbortController().signal },
@@ -289,7 +288,7 @@ describe('CapabilityMap', () => {
     const monitor = installCapabilityMapObserver(ctx, capabilities, {
       getSessionGeneration: vi.fn(),
     })
-    const agent = sessionAgent('session-snapshot-rejection')
+    const agent = await createObservationAgent(ctx, 'session-snapshot-rejection')
     const observe = (turn: number) => agentEvents(ctx, agent).waterfall(
       'agent/pre-step',
       { messages: [], turn, step: 1, signal: new AbortController().signal },
@@ -323,8 +322,8 @@ describe('CapabilityMap', () => {
     const monitor = installCapabilityMapObserver(ctx, capabilities, {
       getSessionGeneration: vi.fn(),
     })
-    const first = sessionAgent('session-change-a')
-    const second = sessionAgent('session-change-b')
+    const first = await createObservationAgent(ctx, 'session-change-a')
+    const second = await createObservationAgent(ctx, 'session-change-b')
     const observe = (agent: Agent, turn: number) => agentEvents(ctx, agent).waterfall(
       'agent/pre-step',
       { messages: [], turn, step: 1, signal: new AbortController().signal },
@@ -396,7 +395,7 @@ describe('CapabilityMap', () => {
     const monitor = installCapabilityMapObserver(ctx, capabilities, {
       getSessionGeneration: vi.fn(),
     })
-    const agent = sessionAgent('session-mount-revoked')
+    const agent = await createObservationAgent(ctx, 'session-mount-revoked')
 
     await agentEvents(ctx, agent).waterfall(
       'agent/pre-step',
@@ -435,7 +434,7 @@ describe('CapabilityMap', () => {
     const monitor = installCapabilityMapObserver(ctx, capabilities, {
       getSessionGeneration: vi.fn(),
     })
-    const agent = sessionAgent('session-route-mutation')
+    const agent = await createObservationAgent(ctx, 'session-route-mutation')
     const observe = (turn: number) => agentEvents(ctx, agent).waterfall(
       'agent/pre-step',
       { messages: [], turn, step: 1, signal: new AbortController().signal },
@@ -481,26 +480,6 @@ describe('CapabilityMap', () => {
     await ctx.fiber.dispose()
   })
 })
-
-function sessionAgent(id: string): Agent {
-  const sessionId = SessionId(id)
-  const session = Session.create(sessionId, [], { version: 0, id: sessionId, createdAt: 1, cwd: '/repo', isSeeded: false })
-  return {
-    ctx: new Context(),
-    id: sessionId,
-    options: {},
-    session,
-    inbox: new Inbox(session, { inserted: () => {}, discarded: () => {}, claimed: () => {} }),
-    status: 'running',
-    send: () => {},
-    followup: () => {},
-    steer: () => {},
-    inject: () => { throw new Error('not used') },
-    cancel() {},
-    runMaintenance: task => task(new AbortController().signal),
-    whenIdle: () => Promise.resolve(),
-  }
-}
 
 async function emitSkillResult(ctx: Context, agent: Agent, isError: boolean): Promise<void> {
   const { execution, result } = skillResult(agent, isError)

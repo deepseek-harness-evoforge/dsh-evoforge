@@ -145,6 +145,9 @@ importers:
       '@deepseek-ai/dsh-agent':
         specifier: 0.1.2-alpha.5
         version: 0.1.2-alpha.5(fa501c54d1bae9af3acbbd6956a25b22)
+      '@deepseek-ai/dsh-agent-loop':
+        specifier: 0.1.2-alpha.5
+        version: 0.1.2-alpha.5(723d811aa66e21102192d50b784a3ed1)
       '@deepseek-ai/dsh-brand':
         specifier: 0.1.2-alpha.5
         version: 0.1.2-alpha.5(@deepseek-ai/cordis@4.0.2)

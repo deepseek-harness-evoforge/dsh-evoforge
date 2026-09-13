@@ -1,7 +1,6 @@
 import { Context } from '@deepseek-ai/cordis'
-import { agentEvents, Inbox, type Agent } from '@deepseek-ai/dsh-agent'
+import { agentEvents } from '@deepseek-ai/dsh-agent'
 import { MessageId } from '@deepseek-ai/dsh-llm'
-import { Session, SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
 import SkillRegistry, { renderSkillContent } from '@deepseek-ai/dsh-skill'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -10,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { InstalledSkillBaselineVault } from '../src/installed-skill-baseline.ts'
 import { installInstalledSkillBaselineMonitor } from '../src/installed-skill-baseline-monitor.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
+import { createObservationAgent } from './native-observation-agent.ts'
 
 const temporaryRoots: string[] = []
 
@@ -50,18 +50,13 @@ describe('installed Skill baseline monitor', () => {
       ctx.skills,
     )
     const monitor = installInstalledSkillBaselineMonitor(ctx, vault)
-    const agent = sessionAgent('session-monitored', [{
-      type: 'user/message',
-      seq: 0,
-      time: 1,
-      surfaceOp: 'append',
-      data: {
-        id: 'skill-injection',
-        role: 'user',
-        source: { kind: 'skill-invocation', name: 'release-proof', form: 'instructions' },
-        content: invocationContent,
-      },
-    } as SessionEvent])
+    const agent = await createObservationAgent(ctx, 'session-monitored')
+    agent.session.append('user/message', {
+      id: MessageId('skill-injection'),
+      role: 'user',
+      source: { kind: 'skill-invocation', name: 'release-proof', form: 'instructions' },
+      content: invocationContent,
+    }, { surfaceOp: 'append' })
     agentEvents(ctx, agent).emit('agent/session-start', { source: 'resume' })
 
     await agentEvents(ctx, agent).waterfall(
@@ -106,7 +101,7 @@ describe('installed Skill baseline monitor', () => {
     })
     const vault = new InstalledSkillBaselineVault([], ctx.skills)
     const monitor = installInstalledSkillBaselineMonitor(ctx, vault)
-    const agent = sessionAgent('session-continues', [])
+    const agent = await createObservationAgent(ctx, 'session-continues')
 
     await expect(agentEvents(ctx, agent).waterfall(
       'agent/pre-step',
@@ -118,29 +113,3 @@ describe('installed Skill baseline monitor', () => {
     await ctx.fiber.dispose()
   })
 })
-
-function sessionAgent(id: string, events: SessionEvent[]): Agent {
-  const sessionId = SessionId(id)
-  const session = Session.create(sessionId, events, {
-    version: 0,
-    id: sessionId,
-    createdAt: 1,
-    cwd: '/repo',
-    isSeeded: false,
-  })
-  return {
-    ctx: new Context(),
-    id: sessionId,
-    options: {},
-    session,
-    inbox: new Inbox(session, { inserted: () => {}, discarded: () => {}, claimed: () => {} }),
-    status: 'running',
-    send: () => {},
-    followup: () => {},
-    steer: () => {},
-    inject: () => { throw new Error('not used') },
-    cancel() {},
-    runMaintenance: task => task(new AbortController().signal),
-    whenIdle: () => Promise.resolve(),
-  }
-}
