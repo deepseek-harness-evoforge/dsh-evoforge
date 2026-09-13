@@ -1,12 +1,13 @@
 import { createHash } from 'node:crypto'
 import { Context } from '@deepseek-ai/cordis'
 import AgentRegistry, { type Agent } from '@deepseek-ai/dsh-agent'
+import { MessageId, ReasoningEffortId, ToolCallId } from '@deepseek-ai/dsh-llm'
 import SessionStore, {
   Session,
+  SESSION_FORMAT_VERSION,
   SessionId,
   SessionSeq,
   type SessionEvent,
-  type SessionHeader,
 } from '@deepseek-ai/dsh-session'
 import SkillRegistry, { type SkillProvider } from '@deepseek-ai/dsh-skill'
 import { describe, expect, it, vi } from 'vitest'
@@ -16,6 +17,7 @@ import {
   type InteractionGenerationEvidenceSinkV1,
 } from '../src/interaction-generation-evidence.js'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
+import { appendNativeAssistantFixture, appendNativeSystemHeadFixture } from './native-assistant-fixture.ts'
 
 const plannedEvents = new WeakMap<Session, readonly SessionEvent[]>()
 
@@ -41,14 +43,14 @@ describe('Generation binder completed-turn evidence', () => {
     )
 
     ctx.emit('agent/session-start', { agent, source: 'startup' })
-    emitSessionEvent(ctx, session, 2)
+    emitSessionEvent(ctx, session, 'inbox-claimed')
     await preStep(ctx, agent, 1, 1)
-    emitSessionEvent(ctx, session, 3)
-    emitSessionEvent(ctx, session, 14)
+    emitSessionEvent(ctx, session, 'step-1-start')
+    emitSessionEvent(ctx, session, 'step-1-end')
     await preStep(ctx, agent, 1, 2)
-    emitSessionEvent(ctx, session, 15)
-    emitSessionEvent(ctx, session, 21)
-    emitSessionEvent(ctx, session, 22)
+    emitSessionEvent(ctx, session, 'step-2-start')
+    emitSessionEvent(ctx, session, 'step-2-end')
+    emitSessionEvent(ctx, session, 'turn-end')
     await ctx.parallel('session/flush', session)
 
     expect(sink.retain).toHaveBeenCalledOnce()
@@ -57,10 +59,17 @@ describe('Generation binder completed-turn evidence', () => {
       workspaceId: WORKSPACE_ID,
       subject: {
         sessionLifecycleDigest: expect.stringMatching(/^[a-f0-9]{64}$/u),
-        turnEndSeq: 22,
-        triggerRequestSeq: 11,
-        triggerCallSeq: 12,
-        triggerResultSeq: 13,
+        ...(Number(SESSION_FORMAT_VERSION) === 0 ? {
+          turnEndSeq: 22,
+          triggerRequestSeq: 11,
+          triggerCallSeq: 12,
+          triggerResultSeq: 13,
+        } : {
+          turnEndSeq: 15,
+          triggerRequestSeq: 8,
+          triggerCallSeq: 9,
+          triggerResultSeq: 10,
+        }),
       },
       generation: {
         kind: 'native',
@@ -288,7 +297,7 @@ describe('Generation binder completed-turn evidence', () => {
           policyVersion: 'drifted-without-a-new-content-address',
         })
       }
-      emitSessionEvent(ctx, session, 22)
+      emitSessionEvent(ctx, session, 'turn-end')
       await ctx.parallel('session/flush', session)
 
       expect(sink.retain).not.toHaveBeenCalled()
@@ -391,7 +400,7 @@ describe('Generation binder completed-turn evidence', () => {
         ctx.emit('agent/session-start', { agent, source: 'resume' })
       }
       await runTurnAfterSessionStart(ctx, agent, session)
-      emitSessionEvent(ctx, session, 22)
+      emitSessionEvent(ctx, session, 'turn-end')
 
       expect(sink.retain).not.toHaveBeenCalled()
 
@@ -419,7 +428,7 @@ describe('Generation binder completed-turn evidence', () => {
     ctx.emit('agent/disposed', { agent })
     ctx.emit('agent/session-start', { agent, source: 'resume' })
     await runTurnAfterSessionStart(ctx, agent, session)
-    emitSessionEvent(ctx, session, 22)
+    emitSessionEvent(ctx, session, 'turn-end')
 
     expect(sink.retain).not.toHaveBeenCalled()
 
@@ -443,7 +452,7 @@ describe('Generation binder completed-turn evidence', () => {
     ctx.emit('agent/disposed', { agent })
     ctx.emit('agent/session-start', { agent, source: 'resume' })
     await runTurnAfterSessionStart(ctx, agent, session)
-    emitSessionEvent(ctx, session, 22)
+    emitSessionEvent(ctx, session, 'turn-end')
 
     expect(sink.retain).not.toHaveBeenCalled()
 
@@ -573,19 +582,19 @@ describe('Generation binder completed-turn evidence', () => {
     )
 
     ctx.emit('agent/session-start', { agent, source: 'startup' })
-    emitSessionEvent(ctx, session, 2)
+    emitSessionEvent(ctx, session, 'inbox-claimed')
     await preStep(ctx, agent, 1, 1)
-    emitSessionEvent(ctx, session, 3)
-    emitSessionEvent(ctx, session, 14)
+    emitSessionEvent(ctx, session, 'step-1-start')
+    emitSessionEvent(ctx, session, 'step-1-end')
 
     await firstSkillFiber.dispose()
     const reloadedSkillFiber = ctx.plugin(SkillRegistry)
     await reloadedSkillFiber
 
     await preStep(ctx, agent, 1, 2)
-    emitSessionEvent(ctx, session, 15)
-    emitSessionEvent(ctx, session, 21)
-    emitSessionEvent(ctx, session, 22)
+    emitSessionEvent(ctx, session, 'step-2-start')
+    emitSessionEvent(ctx, session, 'step-2-end')
+    emitSessionEvent(ctx, session, 'turn-end')
     await ctx.parallel('session/flush', session)
 
     expect(sink.retain).not.toHaveBeenCalled()
@@ -649,14 +658,14 @@ describe('Generation binder completed-turn evidence', () => {
     )
 
     ctx.emit('agent/session-start', { agent, source: 'startup' })
-    emitSessionEvent(ctx, session, 2)
+    emitSessionEvent(ctx, session, 'inbox-claimed')
     await preStep(ctx, agent, 1, 1)
-    emitSessionEvent(ctx, session, 3)
-    emitSessionEvent(ctx, session, 16)
+    emitSessionEvent(ctx, session, 'step-1-start')
+    emitSessionEvent(ctx, session, 'step-1-end')
     await preStep(ctx, agent, 1, 2)
-    emitSessionEvent(ctx, session, 17)
-    emitSessionEvent(ctx, session, 23)
-    emitSessionEvent(ctx, session, 24)
+    emitSessionEvent(ctx, session, 'step-2-start')
+    emitSessionEvent(ctx, session, 'step-2-end')
+    emitSessionEvent(ctx, session, 'turn-end')
     await ctx.parallel('session/flush', session)
 
     expect(sink.retain).not.toHaveBeenCalled()
@@ -678,13 +687,13 @@ describe('Generation binder completed-turn evidence', () => {
     )
 
     ctx.emit('agent/session-start', { agent, source: 'startup' })
-    emitSessionEvent(ctx, session, 2)
+    emitSessionEvent(ctx, session, 'inbox-claimed')
     await preStep(ctx, agent, 1, 1)
-    emitSessionEvent(ctx, session, 3)
-    emitSessionEvent(ctx, session, 14)
-    emitSessionEvent(ctx, session, 15)
-    emitSessionEvent(ctx, session, 21)
-    emitSessionEvent(ctx, session, 22)
+    emitSessionEvent(ctx, session, 'step-1-start')
+    emitSessionEvent(ctx, session, 'step-1-end')
+    emitSessionEvent(ctx, session, 'step-2-start')
+    emitSessionEvent(ctx, session, 'step-2-end')
+    emitSessionEvent(ctx, session, 'turn-end')
     await ctx.parallel('session/flush', session)
 
     expect(sink.retain).not.toHaveBeenCalled()
@@ -733,7 +742,7 @@ describe('Generation binder completed-turn evidence', () => {
     const dispose = installGenerationBinder(ctx, store, { providerFor: vi.fn() }, sink)
 
     await runTurnBeforeEnd(ctx, agent, session)
-    emitSessionEvent(ctx, session, 22)
+    emitSessionEvent(ctx, session, 'turn-end')
     expect(sink.retain).toHaveBeenCalledOnce()
 
     let disposed = false
@@ -874,7 +883,7 @@ async function preStep(ctx: Context, agent: Agent, turn: number, step: number): 
 
 async function runCompletedTurn(ctx: Context, agent: Agent, session: Session): Promise<void> {
   await runTurnBeforeEnd(ctx, agent, session)
-  emitSessionEvent(ctx, session, 22)
+  emitSessionEvent(ctx, session, 'turn-end')
   await ctx.parallel('session/flush', session)
 }
 
@@ -884,17 +893,31 @@ async function runTurnBeforeEnd(ctx: Context, agent: Agent, session: Session): P
 }
 
 async function runTurnAfterSessionStart(ctx: Context, agent: Agent, session: Session): Promise<void> {
-  emitSessionEvent(ctx, session, 2)
+  emitSessionEvent(ctx, session, 'inbox-claimed')
   await preStep(ctx, agent, 1, 1)
-  emitSessionEvent(ctx, session, 3)
-  emitSessionEvent(ctx, session, 14)
+  emitSessionEvent(ctx, session, 'step-1-start')
+  emitSessionEvent(ctx, session, 'step-1-end')
   await preStep(ctx, agent, 1, 2)
-  emitSessionEvent(ctx, session, 15)
-  emitSessionEvent(ctx, session, 21)
+  emitSessionEvent(ctx, session, 'step-2-start')
+  emitSessionEvent(ctx, session, 'step-2-end')
 }
 
-function emitSessionEvent(ctx: Context, session: Session, seq: number): void {
+type FixtureBoundary = 'inbox-claimed' | 'step-1-start' | 'step-1-end'
+  | 'step-2-start' | 'step-2-end' | 'turn-end'
+
+function emitSessionEvent(ctx: Context, session: Session, point: number | FixtureBoundary): void {
   const plan = plannedEvents.get(session)
+  const events = plan ?? session.snapshotEvents()
+  const boundary = typeof point === 'number' ? undefined : events.find(event => {
+    if (point === 'inbox-claimed') return event.type === 'agent/inbox/spliced'
+      && event.data.target === 'next-turn' && event.data.removedCount === 1
+    if (point === 'turn-end') return event.type === 'turn/end'
+    return (event.type === 'step/start' || event.type === 'step/end')
+      && event.data.step === Number(point.split('-')[1])
+      && event.type === (point.endsWith('start') ? 'step/start' : 'step/end')
+  })
+  const seq = typeof point === 'number' ? point : Number(boundary?.seq)
+  if (!Number.isSafeInteger(seq)) throw new Error(`fixture boundary ${point} is missing`)
   if (plan !== undefined) {
     while (Number(session.seq) <= seq) {
       const planned = plan[Number(session.seq)]
@@ -953,46 +976,40 @@ function completedTriggerSession(options?: {
     SessionId('generation-witness-session'),
     undefined,
     {
-      version: 0,
+      version: SESSION_FORMAT_VERSION,
       id: SessionId('generation-witness-session'),
       createdAt: 1_000,
       cwd: '/private/workspace',
       isSeeded: false,
       agentPreset: 'default',
-    } satisfies SessionHeader,
+    },
   )
   const human = {
-    id: 'human-message',
-    role: 'user',
-    source: { kind: 'user' },
-    content: [{ type: 'text', text: 'Find a reusable release audit method.' }],
+    id: MessageId('human-message'),
+    role: 'user' as const,
+    source: { kind: 'user' as const },
+    content: [{ type: 'text' as const, text: 'Find a reusable release audit method.' }],
   }
-  append(session, 'agent/inbox/spliced', {
-    target: 'next-turn',
-    start: 0,
-    inserted: [human],
+  session.append('agent/inbox/spliced', { target: 'next-turn', start: 0, inserted: [human] })
+  session.append('turn/start', { turn: 1 })
+  session.append('agent/inbox/spliced', {
+    target: 'next-turn', start: 0, removedCount: 1, inserted: [],
   })
-  append(session, 'turn/start', { turn: 1 })
-  append(session, 'agent/inbox/spliced', {
-    target: 'next-turn',
-    start: 0,
-    removedCount: 1,
-    inserted: [],
-  })
-  append(session, 'step/start', { turn: 1, step: 1 })
-  append(session, 'user/message', human, { surfaceOp: 'append' })
-  append(session, 'request/header', {
+  session.append('step/start', { turn: 1, step: 1 })
+  appendNativeSystemHeadFixture(session, 'private system control')
+  session.append('user/message', human, { surfaceOp: 'append' })
+  session.append('request/header', {
     header: {
       config: {
         provider: 'fixture',
         model: 'fixture-model',
-        reasoningEffort: 'high',
+        reasoningEffort: ReasoningEffortId('high'),
         temperature: 0.2,
         maxTokens: 4_096,
         stop: ['END', 'STOP'],
       },
       adapterDefaults: { maxTokens: true },
-      system: 'private system control',
+      ...(Number(session.header.version) === 0 ? { system: 'private system control' } : {}),
       tools: [{
         name: 'report_capability_gap',
         description: 'Record one capability gap.',
@@ -1001,147 +1018,81 @@ function completedTriggerSession(options?: {
     },
     reason: 'initial',
   })
-  append(session, 'request/context', {
-    provider: 'fixture',
-    model: 'fixture-model',
-    contextWindow: 32_768,
+  session.append('request/context', {
+    provider: 'fixture', model: 'fixture-model', contextWindow: 32_768,
   })
-  append(session, 'assistant/chunk', {
-    turn: 1,
-    step: 1,
-    chunk: { type: 'block-start', index: 0, blockType: 'tool-call' },
-  })
-  append(session, 'assistant/chunk', {
-    turn: 1,
-    step: 1,
-    chunk: {
-      type: 'tool-call-delta',
-      index: 0,
-      id: 'gap-call',
-      name: 'report_capability_gap',
-      argumentsDelta: '{"name":"release-audit"}',
-    },
-  })
-  append(session, 'assistant/chunk', {
-    turn: 1,
-    step: 1,
-    chunk: {
-      type: 'block-end',
-      index: 0,
-      block: {
-        type: 'tool-call',
-        id: 'gap-call',
-        name: 'report_capability_gap',
-        arguments: '{"name":"release-audit"}',
-      },
-    },
-  })
-  append(session, 'assistant/chunk', {
-    turn: 1,
-    step: 1,
-    chunk: { type: 'finish', reason: { kind: 'tool-calls' } },
-  })
-  append(session, 'assistant/message', {
+  const callId = ToolCallId('gap-call')
+  const toolBlock = {
+    type: 'tool-call' as const, id: callId,
+    name: 'report_capability_gap', arguments: '{"name":"release-audit"}',
+  }
+  appendNativeAssistantFixture(session, {
     turn: 1,
     step: 1,
     message: {
-      id: 'trigger-assistant',
+      id: MessageId('trigger-assistant'),
       role: 'assistant',
       source: { kind: 'model', provider: 'fixture', model: 'fixture-model' },
-      content: [{
-        type: 'tool-call',
-        id: 'gap-call',
-        name: 'report_capability_gap',
-        arguments: '{"name":"release-audit"}',
-      }],
+      content: [toolBlock],
     },
-  }, { surfaceOp: 'append', sourceEventSeqs: [7, 8, 9, 10] })
-  append(session, 'tool/call', {
-    turn: 1,
-    step: 1,
-    callId: 'gap-call',
-    name: 'report_capability_gap',
-    arguments: '{"name":"release-audit"}',
+  }, [
+    { type: 'block-start', index: 0, blockType: 'tool-call' },
+    { type: 'tool-call-delta', index: 0, id: callId, name: toolBlock.name, argumentsDelta: toolBlock.arguments },
+    { type: 'block-end', index: 0, block: toolBlock },
+    { type: 'finish', reason: { kind: 'tool-calls' } },
+  ])
+  const call = session.append('tool/call', {
+    turn: 1, step: 1, callId, name: toolBlock.name, arguments: toolBlock.arguments,
   })
-  append(session, 'tool/result', {
+  session.append('tool/result', {
     turn: 1,
     step: 1,
     message: {
-      id: 'gap-result',
-      role: 'user',
-      source: { kind: 'tool', callId: 'gap-call' },
+      id: MessageId('gap-result'), role: 'user', source: { kind: 'tool', callId },
       content: [{
-        type: 'tool-result',
-        toolCallId: 'gap-call',
-        isError: false,
+        type: 'tool-result', toolCallId: callId, isError: false,
         content: [{ type: 'text', text: 'Capability Gap recorded.' }],
       }],
     },
-  }, { surfaceOp: 'append', sourceEventSeqs: [12] })
+  }, { surfaceOp: 'append', sourceEventSeqs: [call.seq] })
   if (options?.secondTrigger === true) {
-    append(session, 'tool/call', {
-      turn: 1,
-      step: 1,
-      callId: 'second-gap-call',
-      name: 'report_capability_gap',
+    const secondCallId = ToolCallId('second-gap-call')
+    const second = session.append('tool/call', {
+      turn: 1, step: 1, callId: secondCallId, name: 'report_capability_gap',
       arguments: '{"name":"second-release-audit"}',
     })
-    append(session, 'tool/result', {
+    session.append('tool/result', {
       turn: 1,
       step: 1,
       message: {
-        id: 'second-gap-result',
-        role: 'user',
-        source: { kind: 'tool', callId: 'second-gap-call' },
+        id: MessageId('second-gap-result'), role: 'user', source: { kind: 'tool', callId: secondCallId },
         content: [{
-          type: 'tool-result',
-          toolCallId: 'second-gap-call',
-          isError: false,
+          type: 'tool-result', toolCallId: secondCallId, isError: false,
           content: [{ type: 'text', text: 'Capability Gap recorded.' }],
         }],
       },
-    }, { surfaceOp: 'append', sourceEventSeqs: [14] })
+    }, { surfaceOp: 'append', sourceEventSeqs: [second.seq] })
   }
-  append(session, 'step/end', { turn: 1, step: 1 })
-  append(session, 'step/start', { turn: 1, step: 2 })
-  append(session, 'assistant/chunk', {
-    turn: 1,
-    step: 2,
-    chunk: { type: 'block-start', index: 0, blockType: 'text' },
-  })
-  append(session, 'assistant/chunk', {
-    turn: 1,
-    step: 2,
-    chunk: { type: 'text-delta', index: 0, text: 'The gap was recorded.' },
-  })
-  append(session, 'assistant/chunk', {
-    turn: 1,
-    step: 2,
-    chunk: {
-      type: 'block-end',
-      index: 0,
-      block: { type: 'text', text: 'The gap was recorded.' },
-    },
-  })
-  append(session, 'assistant/chunk', {
-    turn: 1,
-    step: 2,
-    chunk: { type: 'finish', reason: { kind: 'stop' } },
-  })
-  append(session, 'assistant/message', {
+  session.append('step/end', { turn: 1, step: 1 })
+  session.append('step/start', { turn: 1, step: 2 })
+  const textBlock = { type: 'text' as const, text: 'The gap was recorded.' }
+  appendNativeAssistantFixture(session, {
     turn: 1,
     step: 2,
     message: {
-      id: 'terminal-assistant',
-      role: 'assistant',
+      id: MessageId('terminal-assistant'), role: 'assistant',
       source: { kind: 'model', provider: 'fixture', model: 'fixture-model' },
-      content: [{ type: 'text', text: 'The gap was recorded.' }],
+      content: [textBlock],
     },
-  }, { surfaceOp: 'append', sourceEventSeqs: [16, 17, 18, 19] })
-  append(session, 'step/end', { turn: 1, step: 2 })
-  append(session, 'turn/end', {
-    turn: 1,
-    reason: { kind: options?.turnEndReason ?? 'completed' },
+  }, [
+    { type: 'block-start', index: 0, blockType: 'text' },
+    { type: 'text-delta', index: 0, text: textBlock.text },
+    { type: 'block-end', index: 0, block: textBlock },
+    { type: 'finish', reason: { kind: 'stop' } },
+  ])
+  session.append('step/end', { turn: 1, step: 2 })
+  session.append('turn/end', {
+    turn: 1, reason: { kind: options?.turnEndReason ?? 'completed' },
   })
   return session
 }

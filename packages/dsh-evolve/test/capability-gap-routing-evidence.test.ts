@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import AgentRegistry, { type Agent } from '@deepseek-ai/dsh-agent'
 import { GoalId } from '@deepseek-ai/dsh-goal'
-import { MessageId, ToolCallId, type ToolSchema } from '@deepseek-ai/dsh-llm'
+import { MessageId, ToolCallId, type StreamChunk, type ToolSchema } from '@deepseek-ai/dsh-llm'
 import SessionStore, {
   SessionId,
   type Session,
@@ -32,6 +32,7 @@ import { proveInteractionEpisodeTranscript } from '../src/interaction-episode-pr
 import { INTERACTION_ROUTING_EVIDENCE_TOOL_CONTRACT_V1 } from '../src/interaction-routing-evidence.ts'
 import { projectInteractionEpisodeTriggerRequestControlV1 } from '../src/interaction-trigger-request-control.ts'
 import { OTHER_WORKSPACE_ID, WORKSPACE_ID } from './workspace-fixture.ts'
+import { appendNativeAssistantFixture, appendNativeSystemHeadFixture } from './native-assistant-fixture.ts'
 
 const LIFECYCLE_RETENTION_TEST =
   'releases native lifecycle subjects after shutdown while its handle remains reachable'
@@ -102,10 +103,17 @@ describe('installed Capability Gap Routing evidence', () => {
           prefixDigest: subject.transcript.replay.prefixDigest,
           turnDigest: subject.transcript.replay.turnDigest,
           loggedControlDigest: projected.fact.loggedControlDigest,
-          turnEndSeq: 22,
-          triggerRequestSeq: 11,
-          triggerCallSeq: 12,
-          triggerResultSeq: 13,
+          ...(Number(session.header.version) === 0 ? {
+            turnEndSeq: 22,
+            triggerRequestSeq: 11,
+            triggerCallSeq: 12,
+            triggerResultSeq: 13,
+          } : {
+            turnEndSeq: 15,
+            triggerRequestSeq: 8,
+            triggerCallSeq: 9,
+            triggerResultSeq: 10,
+          }),
         },
         routing: {
           rawTrigger: 'successful-gap-report',
@@ -2050,6 +2058,7 @@ async function runSuccessfulGapTurn(
   })
   await preStep(ctx, agent, turn, 1)
   session.append('step/start', { turn, step: 1 })
+  if (turn === 1) appendNativeSystemHeadFixture(session)
   session.append('user/message', human, { surfaceOp: 'append' })
   await options.beforeRequestHeader?.()
   session.append('request/header', {
@@ -2062,25 +2071,16 @@ async function runSuccessfulGapTurn(
   session.append('request/context', {
     provider: 'fixture', model: 'fixture-model', contextWindow: 32_768 + turn,
   })
-  const triggerChunks = [
-    session.append('assistant/chunk', {
-      turn, step: 1, chunk: { type: 'block-start', index: 0, blockType: 'tool-call' },
-    }),
-    session.append('assistant/chunk', {
-    turn,
-    step: 1,
-    chunk: {
+  const triggerChunks: StreamChunk[] = [
+    { type: 'block-start', index: 0, blockType: 'tool-call' },
+    {
       type: 'tool-call-delta',
       index: 0,
       id: callId,
       name: toolName,
       argumentsDelta: serializedArguments,
     },
-  }),
-    session.append('assistant/chunk', {
-    turn,
-    step: 1,
-    chunk: {
+    {
       type: 'block-end',
       index: 0,
       block: {
@@ -2090,12 +2090,9 @@ async function runSuccessfulGapTurn(
         arguments: serializedArguments,
       },
     },
-  }),
-    session.append('assistant/chunk', {
-      turn, step: 1, chunk: { type: 'finish', reason: { kind: 'tool-calls' } },
-    }),
+    { type: 'finish', reason: { kind: 'tool-calls' } },
   ]
-  session.append('assistant/message', {
+  appendNativeAssistantFixture(session, {
     turn,
     step: 1,
     message: {
@@ -2109,10 +2106,7 @@ async function runSuccessfulGapTurn(
         arguments: serializedArguments,
       }],
     },
-  }, {
-    surfaceOp: 'append',
-    sourceEventSeqs: triggerChunks.map(event => event.seq),
-  })
+  }, triggerChunks)
   const call = session.append('tool/call', {
     turn,
     step: 1,
@@ -2155,23 +2149,13 @@ async function runSuccessfulGapTurn(
   session.append('step/end', { turn, step: 1 })
   await preStep(ctx, agent, turn, 2)
   session.append('step/start', { turn, step: 2 })
-  const terminalChunks = [
-    session.append('assistant/chunk', {
-      turn, step: 2, chunk: { type: 'block-start', index: 0, blockType: 'text' },
-    }),
-    session.append('assistant/chunk', {
-      turn, step: 2, chunk: { type: 'text-delta', index: 0, text: 'The gap was recorded.' },
-    }),
-    session.append('assistant/chunk', {
-    turn,
-    step: 2,
-    chunk: { type: 'block-end', index: 0, block: { type: 'text', text: 'The gap was recorded.' } },
-  }),
-    session.append('assistant/chunk', {
-      turn, step: 2, chunk: { type: 'finish', reason: { kind: 'stop' } },
-    }),
+  const terminalChunks: StreamChunk[] = [
+    { type: 'block-start', index: 0, blockType: 'text' },
+    { type: 'text-delta', index: 0, text: 'The gap was recorded.' },
+    { type: 'block-end', index: 0, block: { type: 'text', text: 'The gap was recorded.' } },
+    { type: 'finish', reason: { kind: 'stop' } },
   ]
-  session.append('assistant/message', {
+  appendNativeAssistantFixture(session, {
     turn,
     step: 2,
     message: {
@@ -2180,10 +2164,7 @@ async function runSuccessfulGapTurn(
       source: { kind: 'model', provider: 'fixture', model: 'fixture-model' },
       content: [{ type: 'text', text: 'The gap was recorded.' }],
     },
-  }, {
-    surfaceOp: 'append',
-    sourceEventSeqs: terminalChunks.map(event => event.seq),
-  })
+  }, terminalChunks)
   session.append('step/end', { turn, step: 2 })
   await options.beforeTurnEnd?.()
   session.append('turn/end', { turn, reason: options.turnReason ?? { kind: 'completed' } })

@@ -33,7 +33,7 @@ export function appendNativeAssistantFixture(
 }
 
 /** Current AgentLoop installs its System head before admitting request input. */
-export function appendNativeSystemHeadFixture(session: Session): void {
+export function appendNativeSystemHeadFixture(session: Session, text = ''): void {
   const format = Number(session.header.version)
   if (format === 0) return
   if (format !== 3) throw new Error(`unsupported native fixture format ${format}`)
@@ -44,7 +44,7 @@ export function appendNativeSystemHeadFixture(session: Session): void {
       id: MessageId('fixture-system-head'),
       role: 'system',
       source: { kind: 'plugin', plugin: '@deepseek-ai/dsh-system-prompt' },
-      content: [],
+      content: text.length === 0 ? [] : [{ type: 'text', text }],
     },
   }, { surfaceOp: 'append' }])
 }
