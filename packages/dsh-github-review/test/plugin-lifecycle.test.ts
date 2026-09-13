@@ -1,11 +1,11 @@
 import { createServer } from 'node:http'
 import { Context } from '@deepseek-ai/cordis'
-import AgentRegistry, { Inbox, type Agent } from '@deepseek-ai/dsh-agent'
-import { Session, SessionId } from '@deepseek-ai/dsh-session'
+import AgentRegistry, { type Agent } from '@deepseek-ai/dsh-agent'
 import Storage from '@deepseek-ai/dsh-storage'
 import { DomainFacility } from '@deepseek-ai/dsh-storage-domain'
 import { describe, expect, it, vi } from 'vitest'
 import { apply } from '../src/index.js'
+import { createQueuedAgent } from './queued-agent.ts'
 
 describe('dsh-github-review plugin lifecycle', () => {
   it('turns a newly completed Draft PR watch into an immediate follow-up and disposes cleanly', async () => {
@@ -45,9 +45,7 @@ describe('dsh-github-review plugin lifecycle', () => {
     const facility = new DomainFacility(ctx, { backend: 'memory', routes: {} })
     ctx.storage.mount('domain', facility)
     ctx.provide('storageDomain', facility)
-    ctx.provide('tools', {} as never)
-    const agent = stubAgent('coder')
-    ctx.agents.register(agent)
+    const agent = await createQueuedAgent(ctx, 'coder')
 
     try {
       await apply(ctx, {
@@ -73,27 +71,6 @@ describe('dsh-github-review plugin lifecycle', () => {
     }
   })
 })
-
-function stubAgent(rawId: string): Agent {
-  const id = SessionId(rawId)
-  const session = Session.create(id)
-  const inbox = new Inbox(session, { inserted: () => {}, discarded: () => {}, claimed: () => {} })
-  return {
-    id,
-    options: {},
-    session,
-    inbox,
-    status: 'idle',
-    ctx: new Context(),
-    send: () => {},
-    followup: message => { inbox.append('next-turn', message) },
-    steer: () => ({ outcome: Promise.resolve({ status: 'rejected' as const }) }),
-    inject: () => {},
-    cancel() {},
-    runMaintenance: task => task(new AbortController().signal),
-    whenIdle: () => Promise.resolve(),
-  }
-}
 
 function execution(agent: Agent) {
   return {

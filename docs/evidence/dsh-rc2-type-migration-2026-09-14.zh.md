@@ -63,3 +63,6 @@ shell policy 拒绝、参数边界、精确提交与远端状态绑定、未知�
 
 Continuity 的两个测试配置错误也已关闭，并在 current 原生运行时验证冷恢复与独立进程 SIGKILL 恢复，
 见[冷恢复夹具适配](dsh-rc2-continuity-fixtures-2026-09-14.zh.md)。
+
+GitHub Review 的四项旧 Inbox 构造器错误已用真实 AgentLoop 队列夹具关闭，两版 assembled 与请求组成
+检查通过，见[原生队列迁移](dsh-rc2-review-inbox-2026-09-14.zh.md)。

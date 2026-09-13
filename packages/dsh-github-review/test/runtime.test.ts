@@ -1,12 +1,12 @@
 import { Context } from '@deepseek-ai/cordis'
-import AgentRegistry, { Inbox, type Agent } from '@deepseek-ai/dsh-agent'
-import { Session, SessionId } from '@deepseek-ai/dsh-session'
+import AgentRegistry from '@deepseek-ai/dsh-agent'
 import Storage from '@deepseek-ai/dsh-storage'
 import { DomainFacility } from '@deepseek-ai/dsh-storage-domain'
 import { describe, expect, it, vi } from 'vitest'
 import { GitHubReviewClient } from '../src/github-client.js'
 import { GitHubReviewRuntime } from '../src/runtime.js'
 import { openGitHubReviewStore } from '../src/review-store.js'
+import { createQueuedAgent } from './queued-agent.ts'
 
 describe('GitHub review follow-up runtime', () => {
   it('appends one durable follow-up to the exact originating Session and deduplicates rescans', async () => {
@@ -18,8 +18,7 @@ describe('GitHub review follow-up runtime', () => {
     const store = await openGitHubReviewStore(
       new DomainFacility(ctx, { backend: 'memory', routes: {} }),
     )
-    const agent = stubAgent('coder', 'coder')
-    const unregister = ctx.agents.register(agent)
+    const agent = await createQueuedAgent(ctx, 'coder')
     await store.upsertWatch({
       agentId: 'coder',
       sessionId: 'coder',
@@ -53,6 +52,8 @@ describe('GitHub review follow-up runtime', () => {
       await runtime.scanOnce()
 
       expect(agent.inbox.nextTurn).toHaveLength(1)
+      expect(agent.session.snapshotEvents().filter(event => event.type === 'agent/inbox/spliced'))
+        .toEqual([expect.objectContaining({ data: expect.objectContaining({ target: 'next-turn' }) })])
       expect(agent.inbox.nextTurn[0]).toMatchObject({
         id: expect.stringMatching(/^github-review:[a-f0-9]{64}$/u),
         role: 'user',
@@ -67,7 +68,6 @@ describe('GitHub review follow-up runtime', () => {
       ])
     } finally {
       await runtime.dispose()
-      unregister()
       await store.close()
       await ctx.fiber.dispose()
     }
@@ -82,14 +82,13 @@ describe('GitHub review follow-up runtime', () => {
     const store = await openGitHubReviewStore(
       new DomainFacility(ctx, { backend: 'memory', routes: {} }),
     )
-    const agent = stubAgent('coder', 'coder')
+    const agent = await createQueuedAgent(ctx, 'coder')
     const accept = agent.followup.bind(agent)
     let unavailable = true
     agent.followup = message => {
       if (unavailable) throw new Error('agent loop is restarting')
       accept(message)
     }
-    const unregister = ctx.agents.register(agent)
     await store.upsertWatch({
       agentId: 'coder',
       sessionId: 'coder',
@@ -134,7 +133,6 @@ describe('GitHub review follow-up runtime', () => {
       expect(store.listFollowups()).toEqual([expect.objectContaining({ status: 'delivered' })])
     } finally {
       await runtime.dispose()
-      unregister()
       await store.close()
       await ctx.fiber.dispose()
     }
@@ -149,9 +147,8 @@ describe('GitHub review follow-up runtime', () => {
     const store = await openGitHubReviewStore(
       new DomainFacility(ctx, { backend: 'memory', routes: {} }),
     )
-    const agent = stubAgent('coder', 'coder')
+    const agent = await createQueuedAgent(ctx, 'coder')
     const followup = vi.spyOn(agent, 'followup')
-    const unregister = ctx.agents.register(agent)
     const watch = await store.upsertWatch({
       agentId: 'coder', sessionId: 'coder', owner: 'org', repo: 'repo',
       pullNumber: 26, headCommit: 'b'.repeat(40),
@@ -184,35 +181,16 @@ describe('GitHub review follow-up runtime', () => {
       expect(recovered.delivered).toBe(1)
       expect(followup).not.toHaveBeenCalled()
       expect(agent.inbox.nextTurn).toHaveLength(1)
+      expect(agent.session.snapshotEvents().filter(event => event.type === 'agent/inbox/spliced'))
+        .toHaveLength(1)
       expect(store.listFollowups()).toEqual([expect.objectContaining({ status: 'delivered' })])
     } finally {
       await runtime.dispose()
-      unregister()
       await store.close()
       await ctx.fiber.dispose()
     }
   })
 })
-
-function stubAgent(rawId: string, rawSessionId: string): Agent {
-  const session = Session.create(SessionId(rawSessionId))
-  const inbox = new Inbox(session, { inserted: () => {}, discarded: () => {}, claimed: () => {} })
-  return {
-    id: SessionId(rawId),
-    options: {},
-    session,
-    inbox,
-    status: 'idle',
-    ctx: new Context(),
-    send: () => {},
-    followup: message => { inbox.append('next-turn', message) },
-    steer: () => ({ outcome: Promise.resolve({ status: 'rejected' as const }) }),
-    inject: () => {},
-    cancel() {},
-    runMaintenance: task => task(new AbortController().signal),
-    whenIdle: () => Promise.resolve(),
-  }
-}
 
 function memoryBackend(recordsByTable: Map<string, Map<string, unknown>>) {
   return {
