@@ -17,6 +17,21 @@ afterEach(() => {
 })
 
 describe('Interaction Episode transcript proof', () => {
+  it('retains a historical v0 system prompt when current native headers omit that field', () => {
+    const { session, turnEndSeq } = completedModelDeclaredGapTurn()
+    const events = structuredClone(session.snapshotEvents())
+    for (const event of events) {
+      if (event.type === 'request/header') {
+        Object.assign(event.data.header, { system: 'Historical fixed system prompt.' })
+      }
+    }
+    expect(proveInteractionEpisodeTranscript({
+      header: session.header,
+      inheritedEventCount: session.inheritedEventCount,
+      snapshotEvents: () => events,
+    }, turnEndSeq, { callId: 'gap-call' }).status).toBe('proven')
+  })
+
   it('proves one exact completed human turn without inventing environment evidence', () => {
     vi.spyOn(Date, 'now').mockReturnValue(2_000)
     const { session, turnEndSeq } = completedModelDeclaredGapTurn()

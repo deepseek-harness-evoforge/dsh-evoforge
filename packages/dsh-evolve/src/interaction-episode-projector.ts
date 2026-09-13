@@ -3,9 +3,7 @@ import type {} from '@deepseek-ai/dsh-agent'
 import { foldGoal } from '@deepseek-ai/dsh-goal'
 import { BlockAssembler } from '@deepseek-ai/dsh-llm'
 import {
-  canonicalHeader,
   foldSurface,
-  headerEquals,
   interruptedTurnClosers,
   isAppendSurfaceEvent,
   isReplacementSurfaceEvent,
@@ -15,6 +13,10 @@ import {
   TOOL_NOT_STARTED,
 } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-tools'
+import {
+  canonicalTranscriptHeader as canonicalHeader,
+  transcriptHeaderEquals as headerEquals,
+} from './interaction-request-header.ts'
 import {
   INTERACTION_SESSION_V0_DIALECT,
   INTERACTION_SESSION_V3_DIALECT,
