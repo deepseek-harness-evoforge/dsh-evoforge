@@ -72,3 +72,15 @@ Tool content 的单 block 限制与现有 transcript grammar 一致。失败仍�
 旧开发依赖源码/测试 typecheck 通过；以 current DSH source 执行 binder、request-control、header、
 evidence-resolver 四文件 147/147，通过范围仍遵守前述 assembled/static dependency 区分。
 本节关闭的是旧数据的 transcript surface 读取失败，不是新版 Host 的旧数据迁移或完整 rc.2 类型支持。
+
+## 后续修正：请求控制证据使用相同的历史请求头语义
+
+在 `524e122` 后继续检查消费者时，发现 `interaction-trigger-request-control.ts` 仍直接调用新版
+`canonicalHeader`。沿用上述隔离方法，仅将其测试的 v0 Session 构造器固定到 alpha.5，其余使用 current
+aliases，37 项中 6 failed / 31 passed；合法含 system 的请求头被判成 subject-mismatch。
+将消费者改为复用 `canonicalTranscriptHeader` 后，原文件 37/37，既有 expected digest 和负例断言未修改。
+
+完整 current reader 组合（header、surface、v0/v3 projector、request-control）5 文件 263/263；其中两个
+v0 测试文件使用旧构造器制造历史输入，而非让新版 Host 继续旧会话。原工作树源码与测试 typecheck 通过，
+current-source binder 加上 request-control、evidence-resolver 为 3 文件 144/144。没有增加模型输入、
+权限、持久化或外部效果；正式 Host 和依赖版本保持不变。事件类型边界的完整迁移仍待完成。

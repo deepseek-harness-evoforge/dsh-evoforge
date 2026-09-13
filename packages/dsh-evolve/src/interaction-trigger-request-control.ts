@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto'
 import {
-  canonicalHeader,
   type SessionEvent,
   type SessionHeader,
 } from '@deepseek-ai/dsh-session'
+import { canonicalTranscriptHeader as canonicalHeader } from './interaction-request-header.ts'
 import type { InteractionEpisodeTranscriptProofV1 } from './interaction-episode-projector.ts'
 import {
   INTERACTION_SESSION_V3_DIALECT,
