@@ -18,7 +18,7 @@ describe('dsh-feishu package contract', () => {
       bundle: { patch: './cordis.patch.yml' },
       client: { platform: 'web' },
     })
-    expect(manifest.dependencies?.['@larksuiteoapi/node-sdk']).toBe('1.73.0')
+    expect(manifest.dependencies?.['@larksuiteoapi/node-sdk']).toBe('1.73.3')
     expect(manifest.peerDependencies?.['dsh-evoforge-gateway']).toBe('0.1.0-alpha.1')
     expect(manifest.peerDependencies?.['@deepseek-ai/dsh-tools']).toBe('0.1.2-alpha.5')
     expect(manifest.peerDependencies?.['@deepseek-ai/dsh-llm']).toBe('0.1.2-alpha.5')

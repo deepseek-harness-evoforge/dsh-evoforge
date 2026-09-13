@@ -85,7 +85,7 @@ describe.skipIf(process.platform !== 'darwin')('built dsh-feishu package boundar
       join(profileDir, 'node_modules', '@larksuiteoapi', 'node-sdk', 'package.json'),
       'utf8',
     ))
-    expect(sdkManifest.version).toBe('1.73.0')
+    expect(sdkManifest.version).toBe('1.73.3')
     const dumped = await execFile(process.execPath, [dshBin, '--profile', 'fixture', '--dump-config'], {
       cwd: root, env, encoding: 'utf8', timeout: 30_000,
     })

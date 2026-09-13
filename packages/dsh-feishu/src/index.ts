@@ -5,12 +5,13 @@ import type {} from '@deepseek-ai/dsh-credentials'
 import type {} from '@deepseek-ai/dsh-workspace'
 import z from '@deepseek-ai/schemastery'
 import type Schema from '@deepseek-ai/schemastery'
-import type { DshGateway, ResolvedGatewayRoute } from 'dsh-evoforge-gateway'
+import type { DshGateway, GatewayTransportRegistration, ResolvedGatewayRoute } from 'dsh-evoforge-gateway'
 import {
   FEISHU_CONTENT_PERMISSIONS,
   resolveFeishuConfig,
   resolveFeishuPairingConfig,
   type FeishuContentPermission,
+  type ResolvedFeishuConfig,
 } from './config.js'
 import {
   createOfficialFeishuPairingPlatform,
@@ -19,7 +20,7 @@ import {
 } from './platform.js'
 import { FeishuCredentialRemoteService } from './feishu-credentials-remote.js'
 import type { FeishuHostNotice, FeishuHostRoute } from './host-route.js'
-import { FeishuRuntime } from './runtime.js'
+import { FeishuConnectionError, FeishuRuntime } from './runtime.js'
 
 export const name = 'dsh-evoforge-feishu'
 export const inject = ['attachments', 'commands', 'credentials', 'evoforge.gateway', 'workspaceRegistry']
@@ -59,6 +60,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   const appIdRef = config.appIdEnv ?? 'DSH_FEISHU_APP_ID'
   const appSecretRef = config.appSecretEnv ?? 'DSH_FEISHU_APP_SECRET'
   let runtime: FeishuRuntime | undefined
+  let failedTransport: GatewayTransportRegistration | undefined
   let startPromise: Promise<void> | undefined
   let disposed = false
   let credentialGeneration = 0
@@ -92,11 +94,15 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       return
     }
     const generation = credentialGeneration
+    failedTransport?.dispose()
+    failedTransport = undefined
     const attempt = (async () => {
       let candidate: FeishuRuntime | undefined
+      let resolvedConfig: ResolvedFeishuConfig | undefined
       try {
         if (config.mode === 'pairing') {
           const resolved = await resolveFeishuPairingConfig({ ...config, mode: 'pairing', routeIds }, ctx.credentials)
+          resolvedConfig = resolved
           candidate = new FeishuRuntime(
             ctx,
             resolved,
@@ -114,6 +120,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
             if (route !== undefined) routes.push(route)
           }
           const resolved = await resolveFeishuConfig({ ...config, mode: 'routes', routeIds }, routes, ctx.credentials)
+          resolvedConfig = resolved
           candidate = new FeishuRuntime(
             ctx,
             resolved,
@@ -145,6 +152,19 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
           } catch (disposeError: unknown) {
             ctx.logger.warn(`dsh-feishu: failed to dispose an unsuccessful start: ${safeMessage(disposeError)}`)
           }
+        }
+        if (error instanceof FeishuConnectionError && resolvedConfig !== undefined) {
+          if (!disposed && generation === credentialGeneration) {
+            failedTransport = gateway.registerTransport({
+              adapter: 'feishu', accountId: resolvedConfig.appId,
+              kind: 'official-feishu-websocket',
+              routeIds: resolvedConfig.routes.map(route => route.id),
+              pairedRoutes: resolvedConfig.pairedRoutes,
+              initial: { state: 'degraded', observedAt: Date.now() },
+            })
+            ctx.logger.warn(error.message)
+          }
+          return
         }
         if (!isCredentialUnavailableError(error)) throw error
         // A missing/invalid secret is a fail-closed channel state, not a reason
@@ -194,6 +214,8 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     await startPromise
     await runtime?.dispose()
     runtime = undefined
+    failedTransport?.dispose()
+    failedTransport = undefined
   }, 'dsh-feishu.runtime')
   await start()
 }

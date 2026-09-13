@@ -313,7 +313,15 @@ function createOfficialPlatform(
         }),
       ),
     }, channel.botIdentity?.openId === undefined ? 'unavailable' : 'verified'),
-    disconnect: () => channel.disconnect(),
+    disconnect: async () => {
+      try {
+        await channel.disconnect()
+      } finally {
+        // Official channel.disconnect() is a no-op until its first successful
+        // handshake. The public WS handle must still stop failed-start retries.
+        channel.rawWsClient?.close({ force: true })
+      }
+    },
     sendText: (chatId, text, sendOptions, signal) => transport.withSignal(
       signal,
       () => translateSendFailure(() => channel.send(

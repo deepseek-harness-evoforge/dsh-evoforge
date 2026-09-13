@@ -7,6 +7,9 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Isolated Feishu startup connection failures from native Host loading, retaining a degraded channel status and
+  allowing recovery through native plugin reload or credential updates. Upgraded the official SDK to 1.73.3 to fix
+  an unhandled WebSocket handshake-timeout error and explicitly closes failed-start sockets during disposal.
 - Made `product` the default installation result: Evolution, Doctor, the native Control Center, resident Gateway,
   Feishu, and Telegram are installed together; platform adapters stay disabled until configured.
 - Added `pnpm run dsh:install`, which verifies exact suite artifacts, stores local package sources in a durable

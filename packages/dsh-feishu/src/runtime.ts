@@ -51,6 +51,15 @@ const PLATFORM_SEND_TIMEOUT_MS = 30_000
 /** Do not disconnect a resident platform while an already-delivered callback can still send. */
 const INBOUND_DRAIN_TIMEOUT_MS = PLATFORM_SEND_TIMEOUT_MS
 
+/** A platform connection failure, distinct from Host registration/configuration defects. */
+export class FeishuConnectionError extends Error {
+  constructor() {
+    // SDK errors can contain request configuration and credentials. Do not retain their cause.
+    super('dsh-feishu: channel connection failed; check network and credentials, then reload the plugin')
+    this.name = 'FeishuConnectionError'
+  }
+}
+
 interface ReplyDestination {
   readonly route: ResolvedFeishuRoute
   readonly replyTo?: string
@@ -262,7 +271,11 @@ export class FeishuRuntime {
         }))
       }
       this.assertAvailable()
-      await this.platform.connect()
+      try {
+        await this.platform.connect()
+      } catch {
+        throw new FeishuConnectionError()
+      }
       this.assertAvailable()
       this.connectedAt = Date.now()
       this.transportState = 'ready'
