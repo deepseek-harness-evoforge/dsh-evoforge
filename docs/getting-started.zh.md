@@ -113,6 +113,11 @@ provider 和 model，不接受 wildcard。
 能力显示空态；读取失败保留 last-good 并标记 stale/error。当前真实 Provider 慢环仍未完成，状态页会明确写
 `partial`，不会用本地夹具冒充产品完成。
 
+需要文件产物时，请说清输入材料、输出位置和验收要求，例如“把未完成事项去重写成三列表格，写完回读核对”。
+后续可以直接指出哪一行要改，要求只修改该文件。当前飞书回复中的 Host 本地路径不是可下载附件；
+请在运行 Host 的电脑查看文件，不能把“返回路径”当作已经向手机交付文件。
+当前文件按纠正修改成功，也不表示相关方法已经学入 Skill 并通过未来任务评测。
+
 ## 7. 更新与卸载
 
 本地升级重新运行同一个安装命令，会产生新的内容地址并交给 DSH 协调。不要删除安装器打印的持久数据目录；
@@ -129,9 +134,13 @@ DSH 的 profile/lockfile 可能继续引用其中的 tarball。
 
 1. 在原生 Session 运行 `/doctor`，先看 Loader、Bundle 和 Gateway 状态。
 2. Web 401 时重新使用启动日志中的完整认证 URL。
-3. 渠道停在 waiting 时，检查 Adapter 是否启用、CredentialProvider 引用是否存在、平台事件订阅是否已发布。
-4. `unknown`/`uncertain` 时先核对 Gateway journal，不要重复发送。
-5. Issue 只附脱敏的 revision、命令和状态；不要附完整 `--dump-config`、Secret、token、真实消息或私有样本。
+3. 页面消息不更新或重启后选择工作区一直加载时，先展开侧边栏。若有“连接异常”，点击原生重连按钮。
+   仍未恢复时，先保留尚未发送的输入，再刷新同一个标签页。不要另启第二个 Host；已发送任务先核对原会话
+   与实际产物，不要直接重发。渠道连接正常不等于 Web 事件连接或任务结果正常。
+4. 渠道页打开时会自动读取状态；“状态已过期 / 上次状态”表示旧值，不代表当前仍在线。恢复后会自动更新，
+   也可手动刷新。渠道停在 waiting 时，检查 Adapter 是否启用、CredentialProvider 引用是否存在、平台事件订阅是否已发布。
+5. `unknown`/`uncertain` 时先核对 Gateway journal，不要重复发送。
+6. Issue 只附脱敏的 revision、命令和状态；不要附完整 `--dump-config`、Secret、token、真实消息或私有样本。
 
 套件边界见[能力套件](capability-suites.zh.md)。贡献者的真实渠道、Provider 与 Hermes 验收命令只在
 [发布门](releasing.zh.md)和[benchmarks 说明](../benchmarks/README.md)中维护，不属于用户流程。
