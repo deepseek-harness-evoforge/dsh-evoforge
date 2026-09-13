@@ -60,3 +60,6 @@ shell policy 拒绝、参数边界、精确提交与远端状态绑定、未知�
 
 后续：Evolve 的 106 项源码错误已通过显式历史输入边界迁移关闭，未删除历史分支或放宽 runtime 校验；
 范围与剩余门禁见[transcript 类型边界](dsh-rc2-transcript-type-boundary-2026-09-14.zh.md)。上表保留首轮扫描结果。
+
+Continuity 的两个测试配置错误也已关闭，并在 current 原生运行时验证冷恢复与独立进程 SIGKILL 恢复，
+见[冷恢复夹具适配](dsh-rc2-continuity-fixtures-2026-09-14.zh.md)。
