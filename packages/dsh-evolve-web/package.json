@@ -89,7 +89,7 @@
     "@deepseek-ai/dsh-typert-protocol": "0.1.2-alpha.5",
     "@testing-library/react": "^16.1.0",
     "@testing-library/dom": "^10.4.0",
-    "@types/node": "^22.20.0",
+    "@types/node": "^26.4.1",
     "@types/react": "~18.3.1",
     "dsh-control-center": "workspace:*",
     "dsh-evolve": "workspace:*",
