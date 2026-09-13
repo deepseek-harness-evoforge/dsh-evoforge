@@ -7,7 +7,7 @@ import {
   type TokenUsage,
 } from '@deepseek-ai/dsh-llm'
 import { GoalId } from '@deepseek-ai/dsh-goal'
-import SessionStore, { SessionId, type Session } from '@deepseek-ai/dsh-session'
+import SessionStore, { SessionId, SessionSeq, type Session } from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import * as SessionStats from '@deepseek-ai/dsh-session-stats'
 import TokenMeter from '@deepseek-ai/dsh-token-meter'
@@ -298,26 +298,50 @@ function appendTurn(session: Session, input: {
       ? { kind: 'goal', goalId: owner.goalId, revision: owner.revision, round: owner.round }
       : { kind: 'user' },
   }), { surfaceOp: 'append' }))
-  const firstToken = at(startAt + (turn === 4 ? 35 : 30), () => session.append('assistant/chunk', {
-    turn,
-    step,
-    chunk: { type: 'text-delta', index: 0, text: 'answer' },
-  }))
-  const usageChunk = at(startAt + 70, () => session.append('assistant/chunk', {
-    turn,
-    step,
-    chunk: { type: 'usage', usage },
-  }))
-  at(startAt + 100, () => session.append('assistant/message', {
+  const firstTokenAt = startAt + (turn === 4 ? 35 : 30)
+  const settlement = {
     turn,
     step,
     message: createMessage({
-      role: 'assistant',
+      role: 'assistant' as const,
       content: [{ type: 'text', text: 'answer' }],
       source: { kind: 'model', provider: 'fixture', model: 'fixture' },
     }),
     usage,
-  }, { surfaceOp: 'append', sourceEventSeqs: [firstToken.seq, usageChunk.seq] }))
+  }
+  if (Number(session.header.version) === 0) {
+    // The retired append vocabulary is reachable only on a real v0 Session.
+    // Do not add it back to the current native SessionEventMap.
+    const appendChunk = (time: number, chunk: { type: 'text-delta'; index: number; text: string }
+      | { type: 'usage'; usage: TokenUsage }) => at(time, () => {
+      const event: unknown = Reflect.apply(session.append, session, [
+        'assistant/chunk', { turn, step, chunk },
+      ])
+      if (event === null || typeof event !== 'object' || !('seq' in event)
+        || typeof event.seq !== 'number') throw new Error('invalid native v0 chunk receipt')
+      return SessionSeq(event.seq)
+    })
+    const firstToken = appendChunk(firstTokenAt, { type: 'text-delta', index: 0, text: 'answer' })
+    const usageChunk = appendChunk(startAt + 70, { type: 'usage', usage })
+    at(startAt + 100, () => Reflect.apply(session.append, session, [
+      'assistant/message', settlement,
+      { surfaceOp: 'append', sourceEventSeqs: [firstToken, usageChunk] },
+    ]))
+  } else if (Number(session.header.version) === 3) {
+    const embedded = {
+      ...settlement,
+      stream: [
+        { type: 'chunk' as const, time: firstTokenAt, chunk: { type: 'block-start' as const, index: 0, blockType: 'text' as const } },
+        { type: 'chunk' as const, time: firstTokenAt, chunk: { type: 'text-delta' as const, index: 0, text: 'answer' } },
+        { type: 'chunk' as const, time: startAt + 70, chunk: { type: 'usage' as const, usage } },
+        { type: 'chunk' as const, time: startAt + 100, chunk: { type: 'block-end' as const, index: 0, block: { type: 'text' as const, text: 'answer' } } },
+        { type: 'chunk' as const, time: startAt + 100, chunk: { type: 'finish' as const, reason: { kind: 'stop' as const } } },
+      ],
+    }
+    at(startAt + 100, () => session.append('assistant/message', embedded, { surfaceOp: 'append' }))
+  } else {
+    throw new Error('unsupported native metrics fixture format')
+  }
 
   let through = session.seq - 1
   let toolResultSeq: number | undefined
