@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ControlSurfaceUI } from 'dsh-control-center/client'
 import { GatewaySurface, type GatewayRemoteClient, type GatewaySurfaceProps } from '../src/client/GatewayAction.tsx'
@@ -27,6 +27,28 @@ const controlSurfaceUI: ControlSurfaceUI = {
 }
 
 describe('Gateway Control Surface', () => {
+  it('prioritizes current connections for a returning user without treating quiet connections as a fault', async () => {
+    const base = snapshot()
+    const value: GatewayHealthSnapshot = {
+      ...base,
+      transports: { ...base.transports, degraded: 0, ready: 2,
+        items: base.transports.items.map(item => ({ ...item, state: 'ready' as const })),
+      },
+    }
+    const remote = {
+      overview: vi.fn(async () => ({ ok: true, value })),
+      pendingPairings: vi.fn(async () => ({ ok: true, value: [] })),
+      approvePairing: vi.fn(), approvePairingRequest: vi.fn(), revokePairing: vi.fn(),
+    } as GatewayRemoteClient
+    render(<GatewaySurface {...surfaceProps(remote)} />)
+    await screen.findByText('official-feishu-websocket')
+    expect(screen.queryByRole('list', { name: '渠道首次连接进度' })).toBeNull()
+    expect(screen.getAllByRole('heading', { level: 3 })[0]?.textContent).toBe('连接状态')
+    expect(screen.getByText('official-feishu-websocket').closest('details')).not.toBeNull()
+    expect(screen.queryByText(/请确认机器人已启用/u)).toBeNull()
+    expect(screen.getAllByText(/本次连接尚未收到新消息/u)).toHaveLength(2)
+  })
+
   it('approves and revokes Feishu grants without exposing internal ids in the primary view', async () => {
     const remote = {
       overview: vi.fn(async () => ({ ok: true, value: snapshot() })),
@@ -79,11 +101,14 @@ describe('Gateway Control Surface', () => {
     expect(await screen.findByText('official-feishu-websocket')).toBeTruthy()
     expect(screen.getByText('telegram-long-poll')).toBeTruthy()
     expect(screen.getAllByText('feishu-main').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByText('1 个实时 Session')).toBeTruthy()
+    expect(screen.getByText('1 个活动会话')).toBeTruthy()
     expect(screen.getByText(/不调用模型/u)).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: '刷新状态' }))
     expect((await screen.findByRole('alert')).textContent).toContain('暂时无法连接 DSH Host')
+    expect(screen.getByText('状态已过期').closest('header')).not.toBeNull()
+    expect(screen.getByText('上次状态：连接正常')).toBeTruthy()
+    expect(screen.queryByText(/本次连接尚未收到新消息/u)).toBeNull()
     expect(screen.getByText('official-feishu-websocket')).toBeTruthy()
     expect(remote.overview).toHaveBeenCalledTimes(3)
   })
@@ -180,11 +205,11 @@ describe('Gateway Control Surface', () => {
     render(<GatewaySurface {...surfaceProps(remote)} />)
 
     const journey = await screen.findByRole('list', { name: '渠道首次连接进度' })
-    expect(journey.textContent).toContain('常驻连接: 飞书 · Adapter 已连接')
+    expect(journey.textContent).toContain('常驻连接: 飞书 · 机器人已连接')
     expect(journey.textContent).toContain('用户私聊: 让用户给机器人发送任意私聊')
     expect(journey.textContent).toContain('管理员批准: 收到陌生私聊后在本页批准')
-    expect(screen.getByText(/用户私聊/u).closest('li')?.getAttribute('aria-current')).toBe('step')
-    expect(await screen.findByText(/尚未观察到平台入站事件/u)).toBeTruthy()
+    expect(within(journey).getByText(/用户私聊/u).closest('li')?.getAttribute('aria-current')).toBe('step')
+    expect(await screen.findByText(/本次连接尚未收到新消息/u)).toBeTruthy()
   })
 
   it('renders generic pairing controls for a Telegram-only Host', async () => {
@@ -219,8 +244,7 @@ describe('Gateway Control Surface', () => {
     expect(screen.queryByText('待批准请求')).toBeNull()
     expect(screen.getByLabelText('配对码')).toBeTruthy()
     expect((screen.getByLabelText('渠道') as HTMLSelectElement).value).toBe('telegram')
-    const journey = await screen.findByRole('list', { name: '渠道首次连接进度' })
-    expect(journey.textContent).toContain('常驻连接: Telegram · Adapter 已连接')
+    expect(screen.queryByRole('list', { name: '渠道首次连接进度' })).toBeNull()
   })
 
   it('routes a typed pairing code through the selected Adapter', async () => {

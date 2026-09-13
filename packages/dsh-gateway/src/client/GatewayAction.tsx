@@ -48,6 +48,7 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
   const [confirmingRoute, setConfirmingRoute] = useState<string>()
   const [revocationReceipt, setRevocationReceipt] = useState<GatewayPairingRevocationReceipt>()
   const [snapshot, setSnapshot] = useState<GatewayHealthSnapshot>()
+  const [stale, setStale] = useState(false)
   const [pendingPairings, setPendingPairings] = useState<readonly GatewayPairingPendingRequest[]>([])
   const [error, setError] = useState<string>()
 
@@ -62,10 +63,14 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
       if (!result.ok) throw new Error(t('error.unavailable'))
       if (!pendingResult.ok) throw new Error(t('error.unavailable'))
       setSnapshot(result.value)
+      setStale(false)
       if (pendingRequest === pendingRequestRef.current) setPendingPairings(pendingResult.value)
       setConfirmingRoute(undefined)
     } catch (cause) {
-      if (request === requestRef.current) setError(presentError(cause, t('error.unavailable')))
+      if (request === requestRef.current) {
+        setStale(true)
+        setError(presentError(cause, t('error.unavailable')))
+      }
     } finally {
       if (request === requestRef.current) setBusy(false)
     }
@@ -84,6 +89,7 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
 
   useEffect(() => {
     setSnapshot(undefined)
+    setStale(false)
     setPendingPairings([])
     setPairingReceipt(undefined)
     setRevocationReceipt(undefined)
@@ -192,7 +198,9 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
       eyebrow={t('surface.eyebrow')}
       title={t('surface.title')}
       description={t('surface.description')}
-      status={status === undefined ? undefined : <UI.Status tone={statusTone(status)}>{t(`health.${status}`)}</UI.Status>}
+      status={stale
+        ? <UI.Status tone="attention">{t('health.stale')}</UI.Status>
+        : status === undefined ? undefined : <UI.Status tone={statusTone(status)}>{t(`health.${status}`)}</UI.Status>}
       actions={<UI.Button type="button" disabled={busy} onClick={() => { void refresh() }}>
         {busy ? t('status.refreshing') : t('status.refresh')}
       </UI.Button>}
@@ -206,13 +214,6 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
           <UI.Journey label={t('journey.label')} items={pairingJourney} />
         </UI.Section>}
 
-        <UI.Metrics items={[
-          { label: t('metric.routes'), value: snapshot.routes.total, hint: format(t('summary.sessions'), snapshot.routes.liveSessions) },
-          { label: t('delivery.ingress'), value: snapshot.ingress.total, hint: t('metric.durable') },
-          { label: t('delivery.outbound'), value: snapshot.outbound.total, hint: t('metric.durable') },
-          { label: t('metric.anomalies'), value: anomalies, hint: pending === 0 ? t('metric.noPending') : format(t('metric.pending'), pending), tone: anomalies > 0 ? 'danger' : pending > 0 ? 'working' : 'healthy' },
-        ]} />
-
         <UI.Section title={t('transport.title')} description={t('transport.description')}>
           {snapshot.transports.items.length === 0
             ? <UI.Empty title={t('transport.emptyTitle')} description={t('transport.empty')} />
@@ -220,9 +221,12 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
               key={`${item.adapter}:${item.kind}`}
               icon={item.adapter.slice(0, 1).toUpperCase()}
               title={adapterLabel(item.adapter)}
-              description={item.kind}
-              status={<UI.Status tone={transportTone(item.state)}>{transportLabel(t, item.state)}</UI.Status>}
+              description={item.state === 'degraded' ? t('transport.recovery') : undefined}
+              status={<UI.Status tone={stale ? 'neutral' : transportTone(item.state)}>
+                {stale ? `${t('transport.lastKnown')}${transportLabel(t, item.state)}` : transportLabel(t, item.state)}
+              </UI.Status>}
               details={<details><summary>{format(t('technical.routes'), item.routeIds.length)}</summary>
+                <div>{item.kind}</div>
                 {item.routeIds.map(id => <div key={id}><code>{id}</code></div>)}
                 <div>{t('transport.connectedAt')}: {formatTimestamp(item.connectedAt, t)}</div>
                 <div>{t('transport.lastInboundAt')}: {formatTimestamp(item.lastInboundAt, t)}</div>
@@ -233,10 +237,17 @@ export function GatewaySurface({ remote, t, sessionId, useWorkspaces, ui: UI }: 
         </UI.Section>
 
         {snapshot.transports.items
-          .filter(item => item.state === 'ready' && item.lastInboundAt === undefined)
-          .map(item => <UI.Notice key={`awaiting-inbound:${item.adapter}:${item.kind}`} tone="attention" title={adapterLabel(item.adapter)}>
+          .filter(item => !stale && item.state === 'ready' && item.lastInboundAt === undefined)
+          .map(item => <UI.Notice key={`awaiting-inbound:${item.adapter}:${item.kind}`} tone="neutral" title={adapterLabel(item.adapter)}>
             {t('transport.noInbound')}
           </UI.Notice>)}
+
+        <UI.Metrics items={[
+          { label: t('metric.anomalies'), value: anomalies, hint: pending === 0 ? t('metric.noPending') : format(t('metric.pending'), pending), tone: anomalies > 0 ? 'danger' : pending > 0 ? 'working' : 'healthy' },
+          { label: t('metric.routes'), value: snapshot.routes.total, hint: format(t('summary.sessions'), snapshot.routes.liveSessions) },
+          { label: t('delivery.ingress'), value: snapshot.ingress.total, hint: t('metric.durable') },
+          { label: t('delivery.outbound'), value: snapshot.outbound.total, hint: t('metric.durable') },
+        ]} />
 
         <UI.Section title={t('routes.title')} description={t('routes.help')}>
           {snapshot.routes.items.length === 0
@@ -380,6 +391,9 @@ function buildPairingJourney(
   const transports = snapshot.transports.items.filter(item => item.adapter === adapter)
   const requests = pendingPairings.filter(request => request.adapter === adapter)
   const routes = snapshot.routes.items.filter(route => route.adapter === adapter)
+  // A returning user's connection health belongs in the current-status section,
+  // not in a permanently completed onboarding checklist. Pending approvals remain visible below.
+  if (routes.length > 0) return undefined
   if (transports.length === 0 && requests.length === 0 && routes.length === 0) return undefined
 
   const connected = transports.some(item => item.state === 'ready')

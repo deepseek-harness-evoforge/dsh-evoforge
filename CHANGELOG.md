@@ -7,6 +7,9 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Simplified the channel page for daily use: current connections appear before counters, completed first-time setup
+  is hidden, protocol details are collapsed, and quiet new connections no longer imply a configuration fault.
+  Failed refreshes explicitly mark the snapshot and connection labels as historical until a successful refresh.
 - Isolated Feishu startup connection failures from native Host loading, retaining a degraded channel status and
   allowing recovery through native plugin reload or credential updates. Upgraded the official SDK to 1.73.3 to fix
   an unhandled WebSocket handshake-timeout error and explicitly closes failed-start sockets during disposal.
