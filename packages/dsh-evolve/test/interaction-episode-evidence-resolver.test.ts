@@ -1,12 +1,16 @@
 import { Context } from '@deepseek-ai/cordis'
+import type { NormalizedInteractionSessionStoredCutV1 as SessionEventSuffix } from '../src/interaction-session-persistence-read.ts'
+import { appendNativeAssistantFixture, appendNativeSystemHeadFixture } from './native-assistant-fixture.ts'
 import type {} from '@deepseek-ai/dsh-agent'
 import {
   freezeMessage,
+  type StreamChunk,
   MessageId,
   ToolCallId,
 } from '@deepseek-ai/dsh-llm'
 import {
   Session,
+  SESSION_FORMAT_VERSION,
   SessionId,
   SessionLogOffset,
   SessionStore,
@@ -16,7 +20,6 @@ import {
   SessionFormatUnsupportedError,
   SessionPersistenceCorruptionError,
   SessionPersistenceNotFoundError,
-  type SessionEventSuffix,
 } from '@deepseek-ai/dsh-session-persistence'
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import type {
@@ -1635,18 +1638,29 @@ describe('Interaction Episode evidence resolver', () => {
       triggerRequestControl: {
         schemaVersion: 1,
         kind: 'interaction-episode-trigger-request-control-fact-v1',
-        sourceDialect: 'deepseek-harness@0.1.2-alpha.5',
+        sourceDialect: Number(SESSION_FORMAT_VERSION) === 0
+          ? 'deepseek-harness@0.1.2-alpha.5'
+          : 'deepseek-harness@0.1.5-rc.2',
         subject: {
           sessionId: 'episode-session',
           throughSeq: fixture.turnEndSeq,
         },
         boundary: {
           kind: 'trigger-assistant-and-tool-pair',
-          requestHeaderSeq: 5,
-          requestContextSeq: 6,
-          assistantMessageSeq: 11,
-          triggerCallSeq: 12,
-          triggerResultSeq: 13,
+          // Fixed physical cuts for each grammar, not derived from the reader.
+          ...(Number(SESSION_FORMAT_VERSION) === 0 ? {
+            requestHeaderSeq: 5,
+            requestContextSeq: 6,
+            assistantMessageSeq: 11,
+            triggerCallSeq: 12,
+            triggerResultSeq: 13,
+          } : {
+            requestHeaderSeq: 6,
+            requestContextSeq: 7,
+            assistantMessageSeq: 8,
+            triggerCallSeq: 9,
+            triggerResultSeq: 10,
+          }),
         },
         declaredRoute: { provider: 'fixture', model: 'fixture-model' },
       },
@@ -2176,7 +2190,7 @@ function completedGapTurn(
   vi.spyOn(Date, 'now').mockReturnValue(2_000)
   const sessionId = SessionId('episode-session')
   const session = existingSession ?? Session.create(sessionId, undefined, {
-    version: 0,
+    version: SESSION_FORMAT_VERSION,
     id: sessionId,
     createdAt: 1_000,
     cwd: '/private/workspace',
@@ -2207,50 +2221,35 @@ function completedGapTurn(
     inserted: [],
   })
   session.append('step/start', { turn: 1, step: 1 })
+  appendNativeSystemHeadFixture(session)
   session.append('user/message', human, { surfaceOp: 'append' })
   session.append('request/header', {
     header: { config: { provider: 'fixture', model: 'fixture-model' } },
     reason: 'initial',
   })
   session.append('request/context', { provider: 'fixture', model: 'fixture-model' })
-  const triggerChunks = [
-    session.append('assistant/chunk', {
-      turn: 1,
-      step: 1,
-      chunk: { type: 'block-start', index: 0, blockType: 'tool-call' },
-    }),
-    session.append('assistant/chunk', {
-      turn: 1,
-      step: 1,
-      chunk: {
-        type: 'tool-call-delta',
-        index: 0,
+  const triggerChunks: StreamChunk[] = [
+    { type: 'block-start', index: 0, blockType: 'tool-call' },
+    {
+      type: 'tool-call-delta',
+      index: 0,
+      id: callId,
+      name: toolName,
+      argumentsDelta: '{"name":"release-audit"}',
+    },
+    {
+      type: 'block-end',
+      index: 0,
+      block: {
+        type: 'tool-call',
         id: callId,
         name: toolName,
-        argumentsDelta: '{"name":"release-audit"}',
+        arguments: '{"name":"release-audit"}',
       },
-    }),
-    session.append('assistant/chunk', {
-      turn: 1,
-      step: 1,
-      chunk: {
-        type: 'block-end',
-        index: 0,
-        block: {
-          type: 'tool-call',
-          id: callId,
-          name: toolName,
-          arguments: '{"name":"release-audit"}',
-        },
-      },
-    }),
-    session.append('assistant/chunk', {
-      turn: 1,
-      step: 1,
-      chunk: { type: 'finish', reason: { kind: 'tool-calls' } },
-    }),
+    },
+    { type: 'finish', reason: { kind: 'tool-calls' } },
   ]
-  session.append('assistant/message', {
+  appendNativeAssistantFixture(session, {
     turn: 1,
     step: 1,
     message: freezeMessage({
@@ -2264,10 +2263,7 @@ function completedGapTurn(
         arguments: '{"name":"release-audit"}',
       }],
     }),
-  }, {
-    sourceEventSeqs: triggerChunks.map(event => event.seq),
-    surfaceOp: 'append',
-  })
+  }, triggerChunks)
   const call = session.append('tool/call', {
     turn: 1,
     step: 1,
@@ -2300,37 +2296,21 @@ function completedGapTurn(
   })
   session.append('step/end', { turn: 1, step: 1 })
   session.append('step/start', { turn: 1, step: 2 })
-  const terminalChunks = [
-    session.append('assistant/chunk', {
-      turn: 1,
-      step: 2,
-      chunk: { type: 'block-start', index: 0, blockType: 'text' },
-    }),
-    session.append('assistant/chunk', {
-      turn: 1,
-      step: 2,
-      chunk: {
-        type: 'text-delta',
-        index: 0,
-        text: 'The missing capability was recorded.',
-      },
-    }),
-    session.append('assistant/chunk', {
-      turn: 1,
-      step: 2,
-      chunk: {
-        type: 'block-end',
-        index: 0,
-        block: { type: 'text', text: 'The missing capability was recorded.' },
-      },
-    }),
-    session.append('assistant/chunk', {
-      turn: 1,
-      step: 2,
-      chunk: { type: 'finish', reason: { kind: 'stop' } },
-    }),
+  const terminalChunks: StreamChunk[] = [
+    { type: 'block-start', index: 0, blockType: 'text' },
+    {
+      type: 'text-delta',
+      index: 0,
+      text: 'The missing capability was recorded.',
+    },
+    {
+      type: 'block-end',
+      index: 0,
+      block: { type: 'text', text: 'The missing capability was recorded.' },
+    },
+    { type: 'finish', reason: { kind: 'stop' } },
   ]
-  session.append('assistant/message', {
+  appendNativeAssistantFixture(session, {
     turn: 1,
     step: 2,
     message: freezeMessage({
@@ -2339,10 +2319,7 @@ function completedGapTurn(
       source: { kind: 'model' as const, provider: 'fixture', model: 'fixture-model' },
       content: [{ type: 'text' as const, text: 'The missing capability was recorded.' }],
     }),
-  }, {
-    sourceEventSeqs: terminalChunks.map(event => event.seq),
-    surfaceOp: 'append',
-  })
+  }, terminalChunks)
   session.append('step/end', { turn: 1, step: 2 })
   const turnEnd = session.append('turn/end', {
     turn: 1,

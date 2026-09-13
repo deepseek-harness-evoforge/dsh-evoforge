@@ -1,18 +1,21 @@
 import { createHash } from 'node:crypto'
 import { Context } from '@deepseek-ai/cordis'
+import type { NormalizedInteractionSessionStoredCutV1 as SessionEventSuffix } from '../src/interaction-session-persistence-read.ts'
+import { appendNativeAssistantFixture, appendNativeSystemHeadFixture } from './native-assistant-fixture.ts'
 import {
   freezeMessage,
+  type StreamChunk,
   MessageId,
   ToolCallId,
   type UserMessage,
 } from '@deepseek-ai/dsh-llm'
 import {
   Session,
+  SESSION_FORMAT_VERSION,
   SessionId,
   SessionLogOffset,
   type SessionEvent,
 } from '@deepseek-ai/dsh-session'
-import type { SessionEventSuffix } from '@deepseek-ai/dsh-session-persistence'
 import type { DomainFacility, KvTable } from '@deepseek-ai/dsh-storage-domain'
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -121,7 +124,7 @@ interface CompletedGapTurn {
 
 function completedGapTurn(text: string): CompletedGapTurn {
   const session = Session.create(SESSION_ID, undefined, {
-    version: 0,
+    version: SESSION_FORMAT_VERSION,
     id: SESSION_ID,
     createdAt: 1_000,
     cwd: WORKSPACE_PATH,
@@ -148,50 +151,35 @@ function completedGapTurn(text: string): CompletedGapTurn {
     inserted: [],
   })
   session.append('step/start', { turn: 1, step: 1 })
+  appendNativeSystemHeadFixture(session)
   session.append('user/message', message, { surfaceOp: 'append' })
   session.append('request/header', {
     header: { config: { provider: 'fixture', model: 'fixture-model' } },
     reason: 'initial',
   })
   session.append('request/context', { provider: 'fixture', model: 'fixture-model' })
-  const triggerChunks = [
-    session.append('assistant/chunk', {
-      turn: 1,
-      step: 1,
-      chunk: { type: 'block-start', index: 0, blockType: 'tool-call' },
-    }),
-    session.append('assistant/chunk', {
-      turn: 1,
-      step: 1,
-      chunk: {
-        type: 'tool-call-delta',
-        index: 0,
+  const triggerChunks: StreamChunk[] = [
+    { type: 'block-start', index: 0, blockType: 'tool-call' },
+    {
+      type: 'tool-call-delta',
+      index: 0,
+      id: callId,
+      name: 'report_capability_gap',
+      argumentsDelta: '{"name":"release-audit"}',
+    },
+    {
+      type: 'block-end',
+      index: 0,
+      block: {
+        type: 'tool-call',
         id: callId,
         name: 'report_capability_gap',
-        argumentsDelta: '{"name":"release-audit"}',
+        arguments: '{"name":"release-audit"}',
       },
-    }),
-    session.append('assistant/chunk', {
-      turn: 1,
-      step: 1,
-      chunk: {
-        type: 'block-end',
-        index: 0,
-        block: {
-          type: 'tool-call',
-          id: callId,
-          name: 'report_capability_gap',
-          arguments: '{"name":"release-audit"}',
-        },
-      },
-    }),
-    session.append('assistant/chunk', {
-      turn: 1,
-      step: 1,
-      chunk: { type: 'finish', reason: { kind: 'tool-calls' } },
-    }),
+    },
+    { type: 'finish', reason: { kind: 'tool-calls' } },
   ]
-  session.append('assistant/message', {
+  appendNativeAssistantFixture(session, {
     turn: 1,
     step: 1,
     message: freezeMessage({
@@ -205,10 +193,7 @@ function completedGapTurn(text: string): CompletedGapTurn {
         arguments: '{"name":"release-audit"}',
       }],
     }),
-  }, {
-    sourceEventSeqs: triggerChunks.map(event => event.seq),
-    surfaceOp: 'append',
-  })
+  }, triggerChunks)
   const call = session.append('tool/call', {
     turn: 1,
     step: 1,
@@ -240,33 +225,17 @@ function completedGapTurn(text: string): CompletedGapTurn {
   session.append('step/end', { turn: 1, step: 1 })
   session.append('step/start', { turn: 1, step: 2 })
   const terminalText = 'The missing capability was recorded.'
-  const terminalChunks = [
-    session.append('assistant/chunk', {
-      turn: 1,
-      step: 2,
-      chunk: { type: 'block-start', index: 0, blockType: 'text' },
-    }),
-    session.append('assistant/chunk', {
-      turn: 1,
-      step: 2,
-      chunk: { type: 'text-delta', index: 0, text: terminalText },
-    }),
-    session.append('assistant/chunk', {
-      turn: 1,
-      step: 2,
-      chunk: {
-        type: 'block-end',
-        index: 0,
-        block: { type: 'text', text: terminalText },
-      },
-    }),
-    session.append('assistant/chunk', {
-      turn: 1,
-      step: 2,
-      chunk: { type: 'finish', reason: { kind: 'stop' } },
-    }),
+  const terminalChunks: StreamChunk[] = [
+    { type: 'block-start', index: 0, blockType: 'text' },
+    { type: 'text-delta', index: 0, text: terminalText },
+    {
+      type: 'block-end',
+      index: 0,
+      block: { type: 'text', text: terminalText },
+    },
+    { type: 'finish', reason: { kind: 'stop' } },
   ]
-  session.append('assistant/message', {
+  appendNativeAssistantFixture(session, {
     turn: 1,
     step: 2,
     message: freezeMessage({
@@ -275,10 +244,7 @@ function completedGapTurn(text: string): CompletedGapTurn {
       source: { kind: 'model' as const, provider: 'fixture', model: 'fixture-model' },
       content: [{ type: 'text' as const, text: terminalText }],
     }),
-  }, {
-    sourceEventSeqs: terminalChunks.map(event => event.seq),
-    surfaceOp: 'append',
-  })
+  }, terminalChunks)
   session.append('step/end', { turn: 1, step: 2 })
   const turnEnd = session.append('turn/end', {
     turn: 1,
