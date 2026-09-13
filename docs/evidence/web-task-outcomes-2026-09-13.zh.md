@@ -93,3 +93,50 @@ await tab.playwright.getByRole('button', { name: '正在加载模型…', exact:
 仅改变页面生命周期，整页 reload 后再选择同一工作区，立即出现所选工作区和已加载的 gpt-5.6-sol。
 这排除了“Host 在整个窗口内持续无法服务”的解释，但尚未区分原生 Client 状态、事件恢复与插件组合的影响。
 未修改上游、未新增替代 Session 层；该问题仍未关闭，不能把本条称为纯原生最小复现或根因证明。
+
+## 追加：暂停重连与新建会话的可复现链路（11:35–11:46）
+
+本次把两种状态分开：Host 的普通读取请求可以成功，而 Web 的事件连接仍暂停。
+当前 alpha.5 的 ConnectionController 在最高退避档的一次失败后，等待手动 reconnect 或网络状态变化，
+不会永久自动重试。官方 `packages/client/connection/tests/connection.client.spec.ts` 中
+`uses jittered exponential backoff and stops after the capped retry fails` 明确验证该行为。
+在未修改的 alpha.5 checkout 运行整个文件，28/28 通过。
+
+### 真实页面最小化
+
+1. 先在旧工作区受控停机，观察 retry #1…#6 和侧边栏“连接异常”，再启动同一 Host。
+   此时新建/切换工作区曾成功，说明暂停不是所有加载问题的充分条件；复用已有空会话会干扰复现。
+2. 通过官方目录选择器登记新的空 `EvoForge-Reconnect-Workspace`，只发送一条无工具准备消息并等待完成。
+   它没有旧空会话。原飞书绑定与其他工作区不变。
+3. 停止空闲 Host，点击新建；实际控制台记录 `session/create failed: Failed to fetch`，原对话没有可见错误。
+   等到 retry #6 后出现“连接异常”。确认端口释放后启动同一 profile；没有第二 Host。
+4. 不点重连或刷新，再次点击新建。新会话出现在“未分组”，工作区标签仍为“选择工作区”，模型按钮禁用并
+   显示“正在加载模型…”。选择这个专用工作区后，原有 `waitFor(hidden)` 红灯断言再次超时。
+5. **仅点击原生“连接异常，点击立即重连”**：没有整页 reload，也没有再次选工作区，原生页面立即显示
+   EvoForge-Reconnect-Workspace、标准模式和 gpt-5.6-sol；模型可见断言通过，未分组的新会话归属恢复。
+
+因此这一路径的恢复确实依赖重新建立原生事件连接，而不只是 Host 进程存在。源码接缝与现象一致：
+SessionManager.create 的 unary 成功只发布 Session id/blank 等摘要，workspaceId 分支不补充 cwd；
+Workspace 的成员列表来自独立 follow 快照/增量。连接暂停时，普通请求成功不能代替这些事件基线更新。
+本次没有读取或修改浏览器内部 store，没有借插件伪造归属，也不把其他尚未最小化的加载问题并入此结论。
+
+### 无凭据、无 Host 的原生控制器对照
+
+新增 [复现脚本](../../scripts/repro-dsh-paused-connection.mjs)，直接导入指定官方构建的 ConnectionController，
+仅用可失败/恢复的内存 source 和缩短的退避周期，不加载 EvoForge、不运行模型或网络、不开第二 Host。
+它覆盖重试暂停这个基础机制，不是整套 Web/Workspace 的集成测试。
+
+```sh
+node scripts/repro-dsh-paused-connection.mjs <built-alpha5-checkout> --require-auto-recovery
+node scripts/repro-dsh-paused-connection.mjs <built-rc2-checkout> --require-auto-recovery
+node scripts/repro-dsh-paused-connection.mjs <built-alpha5-checkout>
+```
+
+实际对照：alpha.5 `db6bdc3576…` 自动恢复断言为红灯（连接数 0，要求 1）；rc.2 `c291e7961a…` 自动恢复为绿灯；
+alpha.5 原生手动 reconnect 为绿灯。三种各重复 5 次，判定均一致。最后一条只确认原生策略和恢复操作，
+不能冒充自动恢复已修复。
+
+官方 `1bd26370cc` 已移除暂停分支并增加握手恢复，`1e04fcff35` 补充配置校验；两者均包含于本轮已经审计、
+可构建的 c291e7961a。由此下一步应验证含该修复的官方版本与 EvoForge 的完整兼容性及真实页面恢复，
+而不是在插件中复制 ConnectionController 或继续盲目重启。
+**本机仍运行 alpha.5，没有仅凭控制器对照就升级现有 profile 或宣布 P1 已关闭。**
