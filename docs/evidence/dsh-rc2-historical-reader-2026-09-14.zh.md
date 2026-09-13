@@ -55,3 +55,20 @@ current 原生 Agent/Session、临时 Storage、Gap/receipt/readback 与卸载�
 
 本轮不宣称 106 项类型迁移错误已全部解决，不更新依赖/pin/支持矩阵，不把部分兼容提交部署成新版产品。
 原 alpha.5 单 Host PID 40511 继续监听 127.0.0.1:3000，未重启，用户历史与授权未被候选版本读取或改写。
+
+## 后续修正：v0 surface 只读边界
+
+在 `fdcf956` 后修正上述 9 项：`foldHistoricalV0Surface` 仅用于已选定 v0 dialect 的 human visibility
+证明，不创建或修改 Session，不向模型组成消息，不调用已改变语义的 current surface fold。
+按 alpha.5 `surface.ts` 冻结连续序号、surface eligibility、引用唯一/先于当前事件、完整覆盖 shadowed
+nodes、替换端点的当前位置，以及 Tool result 只能改 content 的规则；输入事件不被删除、重标记或改写。
+Tool content 的单 block 限制与现有 transcript grammar 一致。失败仍由 projector 转为 abstained。
+
+原 9 项失败全部通过：隔离 current reader + alpha.5 fixture constructor 跑完整旧 projector、v3 projector
+和新 surface 文件共 223/223；旧开发依赖下相同三文件同为 223/223。新 surface 的 19 个正反用例另外
+在隔离副本换成直接调用官方 alpha.5 `foldSurface`（仅缩减返回字段以比较本 reader 所需结果），19/19
+同样通过；随后恢复为产品 helper。没有改动旧 projector 的断言或 expected digest。
+
+旧开发依赖源码/测试 typecheck 通过；以 current DSH source 执行 binder、request-control、header、
+evidence-resolver 四文件 147/147，通过范围仍遵守前述 assembled/static dependency 区分。
+本节关闭的是旧数据的 transcript surface 读取失败，不是新版 Host 的旧数据迁移或完整 rc.2 类型支持。

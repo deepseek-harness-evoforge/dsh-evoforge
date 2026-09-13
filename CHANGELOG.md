@@ -7,8 +7,8 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
-- Preserved historical v0 system-prompt checks in the read-only transcript reader when using newer DSH header
-  helpers. This is partial migration work, not a declaration of rc.2 deployment support.
+- Preserved historical v0 system-prompt and surface-provenance checks in the read-only transcript reader when
+  using newer DSH helpers. This is partial migration work, not a declaration of rc.2 deployment support.
 - Channel health now refreshes automatically while its page is open. Failed background reads mark retained data
   as historical, and successful reads recover the page without a manual refresh. Polling preserves pairing input,
   revocation confirmation, and action errors, and does not accumulate overlapping background requests.

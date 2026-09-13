@@ -3,7 +3,6 @@ import type {} from '@deepseek-ai/dsh-agent'
 import { foldGoal } from '@deepseek-ai/dsh-goal'
 import { BlockAssembler } from '@deepseek-ai/dsh-llm'
 import {
-  foldSurface,
   interruptedTurnClosers,
   isAppendSurfaceEvent,
   isReplacementSurfaceEvent,
@@ -13,6 +12,7 @@ import {
   TOOL_NOT_STARTED,
 } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-tools'
+import { foldHistoricalV0Surface } from './interaction-v0-surface.ts'
 import {
   canonicalTranscriptHeader as canonicalHeader,
   transcriptHeaderEquals as headerEquals,
@@ -1075,8 +1075,8 @@ function humanIngressRemainsVisibleAtRequest(
   if (dialect.kind === 'session-v3') return initiating.seq < request.seq
   const firstChunkSeq = request.sourceEventSeqs?.map(Number).at(0)
   if (firstChunkSeq === undefined) return false
-  const surface = foldSurface(events.slice(0, firstChunkSeq))
-  let carrier = initiating.seq
+  const surface = foldHistoricalV0Surface(events.slice(0, firstChunkSeq))
+  let carrier = Number(initiating.seq)
   for (const replacement of surface.replacements) {
     if (!replacement.shadowedSeqs.includes(carrier)) continue
     const replacementEvent = events[Number(replacement.seq)]
