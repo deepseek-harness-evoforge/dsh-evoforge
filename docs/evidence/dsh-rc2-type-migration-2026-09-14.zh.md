@@ -57,3 +57,6 @@ shell policy 拒绝、参数边界、精确提交与远端状态绑定、未知�
 本轮未改变 peer/dev 版本、lockfile、CI 支持白名单或真实部署。原 alpha.5 Host 保持不变。
 剩余历史事件类型、其余夹具、完整依赖安装/构建和真实产品 profile 的权限与渠道回归仍需完成；
 原生 Web 的 rc.2 修复验收见[重连记录](dsh-rc2-web-reconnect-2026-09-14.zh.md)。
+
+后续：Evolve 的 106 项源码错误已通过显式历史输入边界迁移关闭，未删除历史分支或放宽 runtime 校验；
+范围与剩余门禁见[transcript 类型边界](dsh-rc2-transcript-type-boundary-2026-09-14.zh.md)。上表保留首轮扫描结果。

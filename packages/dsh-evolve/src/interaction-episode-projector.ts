@@ -1,17 +1,19 @@
 import { createHash } from 'node:crypto'
 import type {} from '@deepseek-ai/dsh-agent'
-import { foldGoal } from '@deepseek-ai/dsh-goal'
 import { BlockAssembler } from '@deepseek-ai/dsh-llm'
 import {
-  interruptedTurnClosers,
-  isAppendSurfaceEvent,
-  isReplacementSurfaceEvent,
-  type SessionEvent,
-  type SessionHeader,
   type SessionLogOffset,
   TOOL_NOT_STARTED,
 } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-tools'
+import { foldTranscriptGoal } from './interaction-goal-witness.ts'
+import { expectedTranscriptRepairSuffix } from './interaction-repair-witness.ts'
+import {
+  isTranscriptAppend as isAppendSurfaceEvent,
+  isTranscriptReplacement as isReplacementSurfaceEvent,
+  type TranscriptEvent as SessionEvent,
+  type TranscriptHeader as SessionHeader,
+} from './interaction-transcript-types.ts'
 import { foldHistoricalV0Surface } from './interaction-v0-surface.ts'
 import {
   canonicalTranscriptHeader as canonicalHeader,
@@ -876,7 +878,7 @@ function proveInteractionEpisodeTranscriptUnchecked(
   const turnEvents = events.slice(source.enqueueSeq, source.turnEndSeq + 1)
   let goal: InteractionEpisodeTranscriptProofV1['goal']
   try {
-    const durableGoal = foldGoal(prefixEvents).goal
+    const durableGoal = foldTranscriptGoal(prefixEvents).goal
     if (durableGoal?.phase === 'active') {
       goal = { id: String(durableGoal.id), revision: durableGoal.revision }
     }
@@ -1195,7 +1197,7 @@ function isNotStartedRepair(
 ): boolean {
   const callId = String(request.block.id)
   const block = result.data.message.content[0]
-  const expectedSuffix = interruptedTurnClosers(events.slice(0, Number(result.seq)))
+  const expectedSuffix = expectedTranscriptRepairSuffix(events.slice(0, Number(result.seq)))
   const actualSuffix = events.slice(
     Number(result.seq),
     Number(result.seq) + expectedSuffix.length,

@@ -50,6 +50,7 @@ import {
   type InteractionSessionPersistenceReadPortV1,
 } from './interaction-session-persistence-read.ts'
 import { isWorkspaceId } from './workspace-identity.ts'
+import type { TranscriptHeader } from './interaction-transcript-types.ts'
 
 const stockMissingDimensions = [
   'workspace',
@@ -1038,7 +1039,7 @@ function verifyStoredCut(captured: CapturedTarget, candidate: unknown): StoredCu
   }
 }
 
-function canonicalDurableSessionHeader(header: SessionHeader): SessionHeader {
+function canonicalDurableSessionHeader(header: TranscriptHeader): TranscriptHeader {
   // Both admitted SessionStore generations may omit delegation depth while
   // their physical codecs materialize that same default as zero.
   return header !== null
