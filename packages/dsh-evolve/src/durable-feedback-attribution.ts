@@ -1,6 +1,7 @@
 import { foldGoal } from '@deepseek-ai/dsh-goal'
 import type { Context } from '@deepseek-ai/cordis'
-import type { SessionEvent, SessionHeader, SessionId } from '@deepseek-ai/dsh-session'
+import type { SessionEvent, SessionId } from '@deepseek-ai/dsh-session'
+import type { TranscriptHeader } from './interaction-transcript-types.ts'
 import {
   durableSkillInvocations,
   hashDurableSkillInvocationContent,
@@ -27,7 +28,8 @@ export interface ExactSkillInvocationAttribution {
 }
 
 export interface DurableFeedbackStoredSession {
-  readonly meta: SessionHeader
+  /** Read-back metadata may predate the live Host's writable Session format. */
+  readonly meta: TranscriptHeader
   readonly inheritedEventCount: number
   readonly fromSeq: number
   readonly events: readonly SessionEvent[]
