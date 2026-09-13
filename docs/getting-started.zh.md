@@ -123,6 +123,11 @@ provider 和 model，不接受 wildcard。
 本地升级重新运行同一个安装命令，会产生新的内容地址并交给 DSH 协调。不要删除安装器打印的持久数据目录；
 DSH 的 profile/lockfile 可能继续引用其中的 tarball。
 
+这里更新的是 EvoForge 插件，不等于升级 DSH 核心。当前支持基线仍是 DSH alpha.5；不要直接把现有数据目录
+切到尚未完成产品验收的 rc.2。跨 DSH 版本升级必须另做停机备份和恢复验证。已验证的风险是：rc.2 续写后，
+换回 alpha.5 可能不报错，却只显示升级前的历史。因此不能只替换程序来回滚，也不要删除新格式日志。
+如需恢复升级前快照，先保留升级后的完整数据，并明确快照不包含升级后新增的消息与操作记录。
+
 成功输出会给出 `Verified manifest` 路径。打开该 manifest，复制 `dshRemove`，把 `<profile>` 换成实际 profile 后
 执行。然后重新启动一个 Host，确认 EvoForge 表面消失且原生 Session/Goal/Workspace 仍可读。卸载不会撤回
 消息、提交或其他外部效果。

@@ -66,3 +66,37 @@ pnpm --filter dsh-evoforge-feishu exec vitest run test/dsh-assembled-chat.e2e.te
 但本轮依旧使用 alpha.5 的开发依赖和类型基线，尚未完成依赖/lockfile/CI 支持迁移、旧 profile 跨版本历史与授权
 恢复、实际 rc.2 Web 重连复现、真实渠道回归。对 v3 未支持的 transcript cohort 仍按既有规则 abstain。
 当前支持版本和线上部署保持 alpha.5，高优先级自动重连问题仍未关闭。
+
+## 追加：跨版本原生会话与降级风险（12:07）
+
+新增 `scripts/repro-dsh-session-upgrade.mjs`，调用两个 clean、built 的 exact DSH checkout。
+每个阶段在独立 Node 进程运行；只加载该版本的原生 Cordis、Session、JSONL persistence、Agent、AgentLoop、
+Tool、SystemPrompt、LLM 服务，使用确定性内存 LLM adapter。没有读取实际 profile、凭据、授权或历史。
+
+```text
+node scripts/repro-dsh-session-upgrade.mjs <built-alpha5> <built-c291e796>
+node scripts/repro-dsh-session-upgrade.mjs <built-alpha5> <built-c291e796> --require-safe-downgrade
+```
+
+第一条命令 exit 0，证明以下 **普通已完成纯文本会话** 路径；raw JSONL 与默认 Zstandard 均通过：
+
+1. alpha.5 原生 AgentLoop 接收消息、产生完成 turn 并 flush；不是手工拼装冒充真实执行的日志。
+2. rc.2 read handle 将旧 v0 历史投影到 v3，identity 不变；append 被 `SessionReadOnlyError` 拒绝。
+   完整物理文件清单和 SHA-256 均不变，read-only migration 没有发布新文件。
+3. rc.2 原生 Agent resume 同一个 Session，接收第二条消息并完成。实际 LLM request 同时包含前后两条输入。
+   flush/dispose 后，新进程 readback 同时包含两条消息；旧文件字节不变，另有新格式文件发布。
+4. 再用 alpha.5 原生 persistence load 同一存储：**不报错，但只返回 v0 旧历史，缺少升级后消息**。
+   这次旧版只读操作没有改动升级后的任何文件。
+
+第二条命令要求降级能看见新历史或明确以不支持格式拒绝；实际 exit 1，错误为
+`old runtime silently exposes stale pre-upgrade history; binary-only downgrade is unsafe`。
+两种模式各重复 3 次，结果稳定；正常命令通过不是“降级安全”通过。临时数据每次在 finally 清理。
+
+初始探针用手工追加的无 step 用户 turn，被官方 migration 以“surface before first step”拒绝；这不能用于证明
+普通 Agent 会话升级失败。最终探针改为两端真实原生 AgentLoop，不靠补写历史绕过拒绝。初版路径和 Session
+snapshot 调用错误也已修正，仅最终上述命令作为验收依据。
+
+这关闭了已完成纯文本会话的 keyless 跨版本执行取样，但不覆盖真实模型、审批中的任务、Tool 外部效果、fork、
+compaction、PTC 或账户授权迁移。`SessionReadOnlyError` 只证明存储 handle 权限，不能外推到 Agent policy。
+仍不能直接升级现有用户目录或宣称完成支持；下一步需要真实 profile 的受控升级和明确的数据级恢复方案。
+本风险属于版本组合的原生行为；EvoForge 不实现旁路迁移，不删除新格式数据，也不修改上游核心。
