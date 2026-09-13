@@ -1,6 +1,7 @@
 import { execFile as execFileCallback, spawn } from 'node:child_process'
 import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
+import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -9,6 +10,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 const execFile = promisify(execFileCallback)
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const require = createRequire(import.meta.url)
 const suiteRoot = resolve(packageRoot, '../..')
 const dshSourceDir = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
   ?? resolve(suiteRoot, '../deepseek-harness')
@@ -51,7 +53,7 @@ describe.skipIf(process.platform !== 'darwin')('clean-profile assembled EvoForge
       '-xOf', tarball, 'package/package.json',
     ], { encoding: 'utf8', timeout: 10_000 })).stdout)
 
-    expectRequiredEvolveRuntimePeers(packedManifest)
+    await expectRequiredEvolveRuntimePeers(packedManifest)
   }, 90_000)
 
   it('installs packed Bundles, uses native Session/Goal/Storage, disposes, removes, and boots native DSH', async () => {
@@ -129,7 +131,7 @@ describe.skipIf(process.platform !== 'darwin')('clean-profile assembled EvoForge
         join(profileDir, 'node_modules', packageName, 'package.json'),
         'utf8',
       ))
-      if (packageName === 'dsh-evolve') expectRequiredEvolveRuntimePeers(installed)
+      if (packageName === 'dsh-evolve') await expectRequiredEvolveRuntimePeers(installed)
       expect(installed.bin).toBeUndefined()
       for (const dependency of Object.keys(installed.dependencies ?? {})) {
         expect(dependency === '@deepseek-ai/cordis' || dependency.startsWith('@deepseek-ai/dsh-'))
@@ -325,14 +327,20 @@ describe.skipIf(process.platform !== 'darwin')('clean-profile assembled EvoForge
   }, 180_000)
 })
 
-function expectRequiredEvolveRuntimePeers(manifest: {
+async function expectRequiredEvolveRuntimePeers(manifest: {
   readonly peerDependencies?: Record<string, string>
   readonly peerDependenciesMeta?: Record<string, { readonly optional?: boolean }>
-}): void {
+}): Promise<void> {
+  const native = JSON.parse(await readFile(require.resolve('@deepseek-ai/dsh-session/package.json'), 'utf8'))
+  expect(native.version).toMatch(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u)
   expect(manifest.peerDependencies).toMatchObject({
-    '@deepseek-ai/dsh-goal': '0.1.2-alpha.5',
-    '@deepseek-ai/dsh-tools': '0.1.2-alpha.5',
+    '@deepseek-ai/dsh-goal': native.version,
+    '@deepseek-ai/dsh-tools': native.version,
   })
+  for (const peer of ['@deepseek-ai/dsh-goal', '@deepseek-ai/dsh-tools']) {
+    const installed = JSON.parse(await readFile(require.resolve(`${peer}/package.json`), 'utf8'))
+    expect(installed.version).toBe(native.version)
+  }
   expect(manifest.peerDependenciesMeta?.['@deepseek-ai/dsh-goal']).toBeUndefined()
   expect(manifest.peerDependenciesMeta?.['@deepseek-ai/dsh-tools']).toBeUndefined()
 }

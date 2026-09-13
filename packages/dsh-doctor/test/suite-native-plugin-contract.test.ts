@@ -1,11 +1,12 @@
 import { readFile } from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const packagesRoot = resolve(packageRoot, '..')
-const supportedDshPeerRange = '0.1.2-alpha.5'
+const require = createRequire(import.meta.url)
 
 const contracts: readonly {
   readonly name: string
@@ -99,6 +100,11 @@ describe('EvoForge native DSH plugin suite contract', () => {
     disabled,
   }) => {
     const root = join(packagesRoot, name)
+    // Packaging consistency is not release-support authorization. Compare the
+    // declarations against the independently installed native cohort.
+    const native = JSON.parse(await readFile(require.resolve('@deepseek-ai/dsh-session/package.json'), 'utf8'))
+    expect(native.version).toMatch(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u)
+    const packageRequire = createRequire(join(root, 'package.json'))
     const manifest = JSON.parse(await readFile(join(root, 'package.json'), 'utf8')) as {
       bin?: unknown
       dependencies?: Record<string, string>
@@ -120,12 +126,16 @@ describe('EvoForge native DSH plugin suite contract', () => {
     for (const dependency of Object.keys(manifest.peerDependencies ?? {})) {
       if (dependency !== '@deepseek-ai/cordis' && !dependency.startsWith('@deepseek-ai/dsh-')) continue
       expect(manifest.devDependencies?.[dependency]).toBeDefined()
-      if (dependency.startsWith('@deepseek-ai/dsh-')) expect(manifest.peerDependencies?.[dependency])
-        .toBe(supportedDshPeerRange)
+      if (dependency.startsWith('@deepseek-ai/dsh-')) {
+        const installed = JSON.parse(await readFile(packageRequire.resolve(`${dependency}/package.json`), 'utf8'))
+        expect(installed.version).toBe(native.version)
+        expect(manifest.peerDependencies?.[dependency]).toBe(native.version)
+        expect(manifest.devDependencies?.[dependency]).toBe(native.version)
+      }
     }
     for (const dependency of manifest.dsh?.client?.inject ?? []) {
-      expect(manifest.peerDependencies?.[dependency]).toBe(supportedDshPeerRange)
-      expect(manifest.devDependencies?.[dependency]).toBe('0.1.2-alpha.5')
+      expect(manifest.peerDependencies?.[dependency]).toBe(native.version)
+      expect(manifest.devDependencies?.[dependency]).toBe(native.version)
     }
 
     const patch = await readFile(join(root, 'cordis.patch.yml'), 'utf8')
