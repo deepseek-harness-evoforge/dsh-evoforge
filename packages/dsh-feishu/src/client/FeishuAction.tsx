@@ -98,7 +98,9 @@ export function FeishuSurface({ commands, credentials, credentialReferences, t, 
   }
 
   const refresh = async () => {
-    const target = sessionId
+    // Control Center supplies the selected native Session's wire id. Branding
+    // is type-only; the Host still validates the id and authorizes commands.
+    const target = sessionId as SessionId
     setBusy(true)
     setError(undefined)
     try {
@@ -122,7 +124,7 @@ export function FeishuSurface({ commands, credentials, credentialReferences, t, 
     setBusy(false)
     setError(undefined)
     setHealth(undefined)
-    void commands.list(sessionId).then((result) => {
+    void commands.list(sessionId as SessionId).then((result) => {
       if (!current || sessionRef.current !== sessionId) return
       if (!result.ok) {
         setAvailable(true)

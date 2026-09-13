@@ -66,3 +66,6 @@ Continuity 的两个测试配置错误也已关闭，并在 current 原生运行
 
 GitHub Review 的四项旧 Inbox 构造器错误已用真实 AgentLoop 队列夹具关闭，两版 assembled 与请求组成
 检查通过，见[原生队列迁移](dsh-rc2-review-inbox-2026-09-14.zh.md)。
+
+最后两项 Feishu SessionId 类型边界已关闭；重新运行 12 个包的 tsconfig.json 均 exit 0。
+具体范围及仍未闭合的升级门禁见[源码配置复验](dsh-rc2-source-type-scan-2026-09-14.zh.md)。
