@@ -93,6 +93,10 @@ export interface GatewayOutboundReceipt {
 
 export interface GatewayTextAdapterRegistration {
   submit(intent: GatewayDeliveryIntent): Promise<GatewayOutboundReceipt>
+  /** Read-only observation. A deadline returns the current durable status, not a delivery claim.
+   * Aborting observation does not withdraw an already accepted intent or cancel its external effect.
+   */
+  waitForReceipt(id: string, options: { timeoutMs: number; signal?: AbortSignal }): Promise<GatewayOutboundReceipt>
   dispose(): Promise<void>
 }
 
@@ -247,6 +251,7 @@ class GatewayTextAdapterRegistrationImpl implements GatewayTextAdapterRegistrati
   private submitIdle: Promise<void> | undefined
   private resolveSubmitIdle: (() => void) | undefined
   private disposed?: Promise<void>
+  private readonly receiptWaiters = new Map<string, Set<(error?: Error) => void>>()
 
   constructor(
     private readonly config: GatewayTextAdapterConfig,
@@ -295,6 +300,58 @@ class GatewayTextAdapterRegistrationImpl implements GatewayTextAdapterRegistrati
     } finally {
       this.endSubmit()
     }
+  }
+
+  async waitForReceipt(
+    id: string,
+    options: { timeoutMs: number; signal?: AbortSignal },
+  ): Promise<GatewayOutboundReceipt> {
+    if (!Number.isSafeInteger(options.timeoutMs) || options.timeoutMs < 1 || options.timeoutMs > 120_000) {
+      throw new Error('Gateway receipt timeoutMs must be from 1 to 120000')
+    }
+    const signal = options.signal === undefined ? this.lifecycle.signal
+      : AbortSignal.any([this.lifecycle.signal, options.signal])
+    signal.throwIfAborted()
+    const current = this.readReceipt(id)
+    if (isTerminal(current.status)) return current
+    return new Promise<GatewayOutboundReceipt>((resolve, reject) => {
+      const cleanup = (): void => {
+        clearTimeout(timer)
+        signal.removeEventListener('abort', onAbort)
+        const waiters = this.receiptWaiters.get(id)
+        waiters?.delete(settle)
+        if (waiters?.size === 0) this.receiptWaiters.delete(id)
+      }
+      const settle = (error?: Error): void => {
+        cleanup()
+        if (error !== undefined) { reject(error); return }
+        try { resolve(this.readReceipt(id)) } catch (failure) { reject(failure) }
+      }
+      const onAbort = (): void => {
+        cleanup()
+        reject(signal.reason)
+      }
+      const timer = setTimeout(settle, options.timeoutMs)
+      const waiters = this.receiptWaiters.get(id) ?? new Set<(error?: Error) => void>()
+      waiters.add(settle)
+      this.receiptWaiters.set(id, waiters)
+      signal.addEventListener('abort', onAbort, { once: true })
+      if (signal.aborted) onAbort()
+    })
+  }
+
+  private readReceipt(id: string): GatewayOutboundReceipt {
+    const record = this.journal.get(id)
+    const route = record === undefined ? undefined : this.route(record.routeId)
+    if (record === undefined || route === undefined
+      || (record.kind === 'file' && record.destinationDigest !== gatewayFileDestinationDigest(route))) {
+      throw new Error('Gateway receipt is missing or no longer owned by this Adapter')
+    }
+    return Object.freeze({ id: record.id, created: false, status: record.status })
+  }
+
+  private settleReceiptWaiters(id: string, error?: Error): void {
+    for (const settle of [...this.receiptWaiters.get(id) ?? []]) settle(error)
   }
 
   ownsAny(routeIds: ReadonlySet<string>, includeUnboundPaired = false): boolean {
@@ -374,6 +431,7 @@ class GatewayTextAdapterRegistrationImpl implements GatewayTextAdapterRegistrati
       },
       () => {
         this.scheduled.delete(id)
+        this.settleReceiptWaiters(id, new Error('Gateway receipt could not be committed; delivery is not confirmed'))
         if (this.reschedule.delete(id)) this.enqueue(id)
       },
     )
@@ -428,6 +486,7 @@ class GatewayTextAdapterRegistrationImpl implements GatewayTextAdapterRegistrati
     }
     const finished = await this.journal.finish(id, result,
       sending.kind === 'file' ? { ...this.config, maxAttempts: 1 } : this.config, Date.now())
+    if (isTerminal(finished.status)) this.settleReceiptWaiters(id)
     try {
       this.onTerminal(finished)
     } catch {
@@ -443,6 +502,10 @@ class GatewayTextAdapterRegistrationImpl implements GatewayTextAdapterRegistrati
     if (paired?.adapter !== this.config.adapter || paired.accountId !== this.config.accountId) return undefined
     return paired
   }
+}
+
+function isTerminal(status: GatewayOutboundStatus): boolean {
+  return status === 'delivered' || status === 'failed' || status === 'uncertain'
 }
 
 function sendInput(record: Exclude<GatewayOutboundRecord, { kind: 'file' }>): GatewayOutboundSendInput {

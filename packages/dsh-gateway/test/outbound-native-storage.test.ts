@@ -5,6 +5,8 @@ import { pathToFileURL } from 'node:url'
 import type { DomainFacility } from '@deepseek-ai/dsh-storage-domain'
 import { expect, it } from 'vitest'
 import { openGatewayOutboundJournal } from '../src/outbound-journal.js'
+import { GatewayOutboundCoordinator, gatewayFileDestinationDigest } from '../src/outbound.js'
+import { resolveGatewayRoutes } from '../src/routing.js'
 
 const source = process.env.DSH_EVOLVE_DSH_SOURCE_DIR ?? resolve(import.meta.dirname, '../../../..', 'deepseek-harness')
 
@@ -66,5 +68,51 @@ it('preserves the legacy native text unit byte-for-byte while file state survive
     await resumed.close()
   } finally {
     try { await active?.ctx.fiber.dispose() } finally { await rm(root, { recursive: true, force: true }) }
+  }
+}, 10_000)
+
+it('returns delivered only after native file receipt commit and reads it after remount without resending', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'evoforge-file-receipt-'))
+  const routes = resolveGatewayRoutes([{
+    id: 'route-a', adapter: 'feishu', accountId: 'app-a', conversationId: 'chat-a', userId: 'user-a',
+    workspaceId: 'workspace-a', sessionId: 'session-a', agentPreset: 'standard', provider: 'mock', model: 'mock',
+  }])
+  const intent = {
+    routeId: 'route-a', kind: 'file' as const, intentKey: 'file:receipt',
+    file: { attachmentId: `sha256:${'a'.repeat(64)}`, name: 'result.txt', bytes: 19 },
+    destinationDigest: gatewayFileDestinationDigest(routes.routes[0]!),
+  }
+  let sends = 0
+  const config = {
+    adapter: 'feishu', accountId: 'app-a', routeIds: ['route-a'],
+    maxAttempts: 1, maxRetryAfterMs: 1_000, sendTimeoutMs: 1_000,
+    send: async () => { throw new Error('no text fallback') },
+    sendFile: async () => { sends += 1; return { kind: 'delivered' as const, externalMessageId: 'file-message' } },
+  }
+  let active: Awaited<ReturnType<typeof mount>> | undefined
+  let coordinator: GatewayOutboundCoordinator | undefined
+  try {
+    active = await mount(root)
+    coordinator = new GatewayOutboundCoordinator(routes, await openGatewayOutboundJournal(active.facility), async () => true)
+    await coordinator.start(1)
+    const first = coordinator.register(config)
+    const receipt = await first.submit(intent)
+    await expect(first.waitForReceipt(receipt.id, { timeoutMs: 1_000 })).resolves.toMatchObject({ status: 'delivered' })
+    const fileDocument = JSON.parse(await readFile(join(root, 'evoforge_gateway_file_outbound.json'), 'utf8'))
+    expect(fileDocument.tables.files[receipt.id]).toMatchObject({ status: 'delivered', externalMessageId: 'file-message' })
+    await coordinator.stop()
+    coordinator = undefined
+    await active.ctx.fiber.dispose()
+    active = undefined
+    active = await mount(root)
+    coordinator = new GatewayOutboundCoordinator(routes, await openGatewayOutboundJournal(active.facility), async () => true)
+    await coordinator.start(2)
+    const resumed = coordinator.register(config)
+    await expect(resumed.waitForReceipt(receipt.id, { timeoutMs: 1_000 })).resolves.toMatchObject({ status: 'delivered' })
+    expect(sends).toBe(1)
+  } finally {
+    try { await coordinator?.stop() } finally {
+      try { await active?.ctx.fiber.dispose() } finally { await rm(root, { recursive: true, force: true }) }
+    }
   }
 }, 10_000)

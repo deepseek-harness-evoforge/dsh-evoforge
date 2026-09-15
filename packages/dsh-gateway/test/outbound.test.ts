@@ -34,6 +34,131 @@ describe('Gateway file delivery', () => {
     send: vi.fn(async () => ({ kind: 'delivered' as const, externalMessageId: 'text' })),
   }
 
+  it('waits for durable file delivery instead of reporting queue acceptance as success', async () => {
+    const journal = await openGatewayOutboundJournal(memoryFacility())
+    const coordinator = new GatewayOutboundCoordinator(routes, journal, async () => true)
+    await coordinator.start(1)
+    let finish!: (value: { kind: 'delivered'; externalMessageId: string }) => void
+    const registration = coordinator.register({ ...config,
+      sendFile: () => new Promise(resolve => { finish = resolve }),
+    })
+    const receipt = await registration.submit(intent())
+    let settled = false
+    const pending = registration.waitForReceipt(receipt.id, { timeoutMs: 1_000 }).then(value => {
+      settled = true
+      return value
+    })
+    await eventually(() => journal.get(receipt.id)?.status === 'sending')
+    expect(settled).toBe(false)
+    finish({ kind: 'delivered', externalMessageId: 'file-message' })
+    await expect(pending).resolves.toEqual({ id: receipt.id, created: false, status: 'delivered' })
+    await expect(registration.waitForReceipt(receipt.id, { timeoutMs: 1_000 })).resolves.toMatchObject({ status: 'delivered' })
+    await coordinator.stop()
+  })
+
+  it('returns the current nonterminal status at the observation deadline without retrying', async () => {
+    const journal = await openGatewayOutboundJournal(memoryFacility())
+    const coordinator = new GatewayOutboundCoordinator(routes, journal, async () => true)
+    await coordinator.start(1)
+    const sendFile = vi.fn(() => new Promise<never>(() => {}))
+    const registration = coordinator.register({ ...config, sendFile, sendTimeoutMs: 30_000 })
+    const receipt = await registration.submit(intent())
+    await eventually(() => sendFile.mock.calls.length === 1)
+    await expect(registration.waitForReceipt(receipt.id, { timeoutMs: 10 })).resolves.toMatchObject({ status: 'sending' })
+    expect(journal.get(receipt.id)?.status).toBe('sending')
+    expect(sendFile).toHaveBeenCalledTimes(1)
+    await coordinator.stop()
+  })
+
+  it('cancels observation without cancelling an accepted effect and removes waiters on disposal', async () => {
+    const journal = await openGatewayOutboundJournal(memoryFacility())
+    const coordinator = new GatewayOutboundCoordinator(routes, journal, async () => false)
+    await coordinator.start(1)
+    let finish!: (value: { kind: 'delivered'; externalMessageId: string }) => void
+    const registration = coordinator.register({ ...config,
+      sendFile: () => new Promise(resolve => { finish = resolve }),
+    })
+    const receipt = await registration.submit(intent())
+    await eventually(() => journal.get(receipt.id)?.status === 'sending')
+    const controller = new AbortController()
+    const pending = registration.waitForReceipt(receipt.id, { timeoutMs: 1_000, signal: controller.signal })
+    const rejected = expect(pending).rejects.toThrow('stop observing')
+    controller.abort(new Error('stop observing'))
+    await rejected
+    expect(journal.get(receipt.id)?.status).toBe('sending')
+    finish({ kind: 'delivered', externalMessageId: 'file-message' })
+    await expect(registration.waitForReceipt(receipt.id, { timeoutMs: 1_000 })).resolves.toMatchObject({ status: 'delivered' })
+    const queued = await registration.submit({ routeId: 'telegram-a', kind: 'turn', intentKey: 'held', text: 'held', waitForTurnEnd: 5 })
+    const disposing = expect(registration.waitForReceipt(queued.id, { timeoutMs: 1_000 })).rejects.toThrow(/disposed/u)
+    await registration.dispose()
+    await disposing
+    await coordinator.stop()
+  })
+
+  it('rejects invalid observation bounds and unknown receipts without submitting a new effect', async () => {
+    const journal = await openGatewayOutboundJournal(memoryFacility())
+    const coordinator = new GatewayOutboundCoordinator(routes, journal, async () => true)
+    await coordinator.start(1)
+    const registration = coordinator.register(config)
+    for (const timeoutMs of [0, -1, 120_001, NaN, 1.5]) {
+      await expect(registration.waitForReceipt('missing', { timeoutMs })).rejects.toThrow(/timeoutMs/u)
+    }
+    await expect(registration.waitForReceipt('missing', { timeoutMs: 100 })).rejects.toThrow(/receipt/u)
+    expect(journal.list()).toHaveLength(0)
+    await coordinator.stop()
+  })
+
+  it('returns failed and uncertain receipts without treating either as success or retrying', async () => {
+    for (const outcome of ['rejected', 'uncertain'] as const) {
+      const journal = await openGatewayOutboundJournal(memoryFacility())
+      const coordinator = new GatewayOutboundCoordinator(routes, journal, async () => true)
+      await coordinator.start(1)
+      const sendFile = vi.fn(async () => outcome === 'rejected'
+        ? { kind: 'rejected' as const, code: 'denied' } : { kind: 'uncertain' as const })
+      const registration = coordinator.register({ ...config, sendFile })
+      const receipt = await registration.submit(intent())
+      await expect(registration.waitForReceipt(receipt.id, { timeoutMs: 1_000 })).resolves.toMatchObject({
+        status: outcome === 'rejected' ? 'failed' : 'uncertain',
+      })
+      expect(sendFile).toHaveBeenCalledTimes(1)
+      await coordinator.stop()
+    }
+  })
+
+  it('never confirms a send when durable result recording fails', async () => {
+    const journal = await openGatewayOutboundJournal(memoryFacility())
+    const coordinator = new GatewayOutboundCoordinator(routes, journal, async () => true)
+    await coordinator.start(1)
+    let finish!: (value: { kind: 'delivered'; externalMessageId: string }) => void
+    const registration = coordinator.register({ ...config,
+      sendFile: () => new Promise(resolve => { finish = resolve }),
+    })
+    const receipt = await registration.submit(intent())
+    await eventually(() => journal.get(receipt.id)?.status === 'sending')
+    vi.spyOn(journal, 'finish').mockRejectedValueOnce(new Error('storage unavailable'))
+    const pending = expect(registration.waitForReceipt(receipt.id, { timeoutMs: 1_000 }))
+      .rejects.toThrow(/not confirmed/u)
+    finish({ kind: 'delivered', externalMessageId: 'file-message' })
+    await pending
+    expect(journal.get(receipt.id)?.status).toBe('sending')
+    await coordinator.stop()
+  })
+
+  it('refuses to disclose foreign-route or rebound-file receipts', async () => {
+    const journal = await openGatewayOutboundJournal(memoryFacility())
+    const foreign = await journal.prepare({ ...intent(), routeId: 'another-route', now: 1 })
+    const changed = await journal.prepare({ ...intent(), destinationDigest: 'b'.repeat(64), now: 1 })
+    const coordinator = new GatewayOutboundCoordinator(routes, journal, async () => true)
+    await coordinator.start(1)
+    const registration = coordinator.register({ ...config,
+      sendFile: async () => ({ kind: 'delivered', externalMessageId: 'must-not-send' }),
+    })
+    for (const record of [foreign.record, changed.record]) {
+      await expect(registration.waitForReceipt(record.id, { timeoutMs: 1_000 })).rejects.toThrow(/owned/u)
+    }
+    await coordinator.stop()
+  })
+
   it('journals only the native reference and delivers it once through the same account queue', async () => {
     const journal = await openGatewayOutboundJournal(memoryFacility())
     const coordinator = new GatewayOutboundCoordinator(routes, journal, async () => true)
