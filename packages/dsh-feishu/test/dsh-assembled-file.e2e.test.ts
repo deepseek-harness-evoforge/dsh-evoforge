@@ -11,8 +11,10 @@ const packageRoot = resolve(import.meta.dirname, '..')
 const source = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
 
 // Explicit current-core acceptance. The supported image-only alpha.5 cohort cannot enable this feature.
-it.skipIf(process.env.DSH_FEISHU_TEST_NATIVE_FILES !== '1').each(['approve', 'reject', 'wrong-user'] as const)(
-  'runs native file delivery through a real DSH Agent, Approval and durable Gateway receipt: %s', async mode => {
+it.skipIf(process.env.DSH_FEISHU_TEST_NATIVE_FILES !== '1').each(
+  ['feishu_file_send', 'present'].flatMap(tool => ['approve', 'reject', 'wrong-user'].map(mode => ({ tool, mode }))),
+)(
+  'runs native file delivery through a real DSH Agent, Approval and durable Gateway receipt: $tool / $mode', async ({ tool, mode }) => {
   if (source === undefined) throw new Error('Set DSH_EVOLVE_DSH_SOURCE_DIR to the audited native-file Host')
   const root = await mkdtemp(join(tmpdir(), 'feishu-native-file-'))
   const home = join(root, '.dsh-home')
@@ -21,12 +23,14 @@ it.skipIf(process.env.DSH_FEISHU_TEST_NATIVE_FILES !== '1').each(['approve', 're
   const presets = join(root, 'presets')
   await mkdir(join(presets, 'file-test'), { recursive: true })
   await writeFile(join(presets, 'file-test', 'preset.yml'), 'name: File Test\n')
-  await writeFile(join(presets, 'file-test', 'agent.cordis.yml'), '[]\n')
+  await writeFile(join(presets, 'file-test', 'agent.cordis.yml'), JSON.stringify([
+    { name: join(source, 'packages/fs/tool-present/lib/index.js'), config: { maxFiles: 8 } },
+  ]))
   await writeFile(join(root, 'result.txt'), original)
   const configPath = join(root, 'cordis.json')
   const entry = (path: string) => join(source, path, 'lib/index.js')
   const config = [
-    { id: 'file-llm', name: join(packageRoot, 'test/fixtures/content-llm.ts'), config: { fileMode: true } },
+    { id: 'file-llm', name: join(packageRoot, 'test/fixtures/content-llm.ts'), config: { fileMode: true, presentMode: tool === 'present' } },
     { id: 'base', config: { patches: [
       { id: 'llm-deepseek', disabled: true },
       { id: 'agent-loop', config: { agents: [], workspaceContext: false, dshHome: home,
@@ -68,9 +72,11 @@ it.skipIf(process.env.DSH_FEISHU_TEST_NATIVE_FILES !== '1').each(['approve', 're
     const { platform, runtime } = ctx.get('evoforge.feishuTest')
     const agent = ctx.agents.get('main')
     expect(ctx.tools.get('feishu_file_send', agent)).toBeDefined()
+    expect(ctx.tools.get('present', agent)).toBeDefined()
     await platform.emitMessage({ messageId: 'om_file_test', chatId: 'oc_file', chatType: 'p2p', senderId: 'ou_file',
       content: '把 result.txt 作为文件发给我。', rawContentType: 'text', resources: [] })
-    await vi.waitFor(() => expect(platform.cards).toHaveLength(1), { timeout: 10_000 })
+    await vi.waitFor(() => expect(platform.cards.length > 0 || platform.texts.length > 0).toBe(true), { timeout: 10_000 })
+    expect(platform.cards).toHaveLength(1)
     expect(platform.files).toHaveLength(0)
     expect(JSON.stringify(platform.cards[0].card)).toContain(expectedDigest)
     // The approval applies to the stored snapshot, not bytes reread from a mutable path later.

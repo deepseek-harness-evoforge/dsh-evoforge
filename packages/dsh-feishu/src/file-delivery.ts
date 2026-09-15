@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto'
+import { basename } from 'node:path'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { FileSystem } from '@deepseek-ai/dsh-fs'
 import { HarnessError } from '@deepseek-ai/dsh-llm'
-import { defineTool } from '@deepseek-ai/dsh-tools'
+import { defineTool, type ToolExecution } from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-user-approval'
 import type { GatewayFileDeliveryIntent, GatewayFileReference, GatewayOutboundReceipt } from 'dsh-evoforge-gateway'
 
@@ -136,44 +137,7 @@ export function installFeishuFileTool(agent: Agent, enabled: boolean, delivery: 
     }),
     async execute(args, exec) {
       check()
-      if (exec.agent !== agent) throw failure('File delivery belongs to one exact Agent', 'FILE_AGENT_MISMATCH')
-      const approval = agent.ctx.get('approval')
-      if (approval === undefined) throw failure('Native Approval is required before file delivery', 'FILE_APPROVAL_UNAVAILABLE')
-      assertName(args.file_name)
-      const sourcePath = args.file_path
-      const signal = AbortSignal.any([lifecycle.signal, exec.signal])
-      signal.throwIfAborted()
-      const destination = Object.freeze({ ...delivery.destination() })
-      const file = Object.freeze({ ...await delivery.snapshot(sourcePath, args.file_name, signal) })
-      assertReference(file)
-      signal.throwIfAborted()
-      const outcome = await approval.request({
-        agent, toolName: FEISHU_FILE_TOOL, callId: exec.callId, signal,
-        reason: `发送文件 ${JSON.stringify(file.name)}（${file.bytes} 字节）到 ${destination.description}。\n`
-          + `原文件：${JSON.stringify(sourcePath)}\n文件快照：${file.attachmentId}\n接收方绑定：${destination.destinationDigest}\n`
-          + '只批准这个快照和接收方；开始提交后，取消等待不能保证撤回发送。',
-      })
-      signal.throwIfAborted()
-      check()
-      if (outcome !== 'allowed-once') throw failure('Native Approval did not allow this file delivery', 'FILE_APPROVAL_DENIED')
-      const current = delivery.destination()
-      if (current.routeId !== destination.routeId || current.destinationDigest !== destination.destinationDigest
-        || current.replyToExternalId !== destination.replyToExternalId || current.replyInThread !== destination.replyInThread) {
-        throw failure('Feishu recipient changed while approval was pending', 'FILE_DESTINATION_CHANGED')
-      }
-      const receipt = await delivery.submit({
-        kind: 'file', routeId: destination.routeId, destinationDigest: destination.destinationDigest,
-        intentKey: `file:${String(agent.session.id)}:${String(exec.callId)}`, file,
-        ...(destination.replyToExternalId === undefined ? {} : { replyToExternalId: destination.replyToExternalId }),
-        ...(destination.replyInThread === undefined ? {} : { replyInThread: destination.replyInThread }),
-      })
-      const observed = await delivery.waitForReceipt(receipt.id, { timeoutMs: 35_000, signal })
-      const result = { status: observed.status, delivered: observed.status === 'delivered', fileName: file.name, bytes: file.bytes,
-        receiptId: receipt.id, notice: statusTitle(observed.status) }
-      if (observed.status === 'failed' || observed.status === 'uncertain') {
-        throw failure(`${JSON.stringify(result)}；不要自动重发。`, `FILE_DELIVERY_${observed.status.toUpperCase()}`)
-      }
-      return result
+      return sendApprovedFile(agent, enabled, lifecycle.signal, delivery, args.file_path, args.file_name, exec)
     },
   }))
   const offGuard = agent.ctx.tools.guard(exec => exec.name !== FEISHU_FILE_TOOL ? undefined
@@ -184,6 +148,101 @@ export function installFeishuFileTool(agent: Agent, enabled: boolean, delivery: 
     offGuard()
     offTool()
   }
+}
+
+/** Adapt a native present call only while answering an actual Feishu ingress turn. */
+export function installFeishuPresentDelivery(
+  agent: Agent,
+  enabled: boolean,
+  delivery: FeishuFileDelivery,
+  isFeishuTurn: () => boolean,
+): () => void {
+  const lifecycle = new AbortController()
+  const off = agent.ctx.on('tools/post-execute', async (exec, result, next) => {
+    if (exec.agent !== agent || exec.name !== 'present' || result.isError || !isFeishuTurn()) return next()
+    const decision = await next()
+    if (decision.kind !== 'accept') return decision
+    try {
+      if (decision.value !== undefined) {
+        throw failure('Native present value was replaced by another policy; no Feishu file was sent', 'PRESENT_VALUE_CHANGED')
+      }
+      const value = result.value
+      const args = exec.arguments
+      if (!isRecord(value) || !isRecord(args)
+        || !Array.isArray(value.files) || value.files.length !== 1
+        || !Array.isArray(args.files) || args.files.length !== 1
+        || !isRecord(value.files[0]) || !isRecord(args.files[0])
+        || typeof value.files[0].path !== 'string' || value.files[0].path !== args.files[0].path) {
+        throw failure('Feishu delivery requires one matching file per present call; no file was sent', 'PRESENT_FILES_INVALID')
+      }
+      // Do not rewrite the native schema, canonical value, or durable declaration.
+      // The result projection gains the actual transport outcome, not a guessed text claim.
+      const outcome = await sendApprovedFile(agent, enabled, lifecycle.signal, delivery,
+        value.files[0].path, basename(value.files[0].path), exec)
+      if (!outcome.delivered) {
+        return { kind: 'block', feedback: [{ type: 'text', text: `${JSON.stringify(outcome)}；不要自动重发。` }] }
+      }
+      return { kind: 'accept', content: [
+        ...(decision.content ?? result.content), { type: 'text', text: JSON.stringify(outcome) },
+      ], ...(decision.additionalContexts === undefined ? {} : { additionalContexts: decision.additionalContexts }) }
+    } catch (error) {
+      return { kind: 'block', feedback: [{ type: 'text',
+        text: `飞书附件未确认送达，不能宣称已发送：${error instanceof Error ? error.message : 'file delivery failed'}`,
+      }] }
+    }
+  })
+  return () => {
+    if (lifecycle.signal.aborted) return
+    lifecycle.abort(new Error('Feishu native present delivery disposed'))
+    off()
+  }
+}
+
+async function sendApprovedFile(
+  agent: Agent, enabled: boolean, lifecycle: AbortSignal, delivery: FeishuFileDelivery,
+  sourcePath: string, name: string, exec: ToolExecution,
+) {
+  const signal = AbortSignal.any([lifecycle, exec.signal])
+  signal.throwIfAborted()
+  if (!enabled) throw failure('Feishu file delivery is disabled; Web presentation does not send a Feishu attachment', 'FILE_DELIVERY_DISABLED')
+  if (exec.agent !== agent) throw failure('File delivery belongs to one exact Agent', 'FILE_AGENT_MISMATCH')
+  const approval = agent.ctx.get('approval')
+  if (approval === undefined) throw failure('Native Approval is required before file delivery', 'FILE_APPROVAL_UNAVAILABLE')
+  assertName(name)
+  const destination = Object.freeze({ ...delivery.destination() })
+  const file = Object.freeze({ ...await delivery.snapshot(sourcePath, name, signal) })
+  assertReference(file)
+  signal.throwIfAborted()
+  const outcome = await approval.request({
+    agent, toolName: exec.name, callId: exec.callId, signal,
+    reason: `发送文件 ${JSON.stringify(file.name)}（${file.bytes} 字节）到 ${destination.description}。\n`
+      + `原文件：${JSON.stringify(sourcePath)}\n文件快照：${file.attachmentId}\n接收方绑定：${destination.destinationDigest}\n`
+      + '只批准这个快照和接收方；开始提交后，取消等待不能保证撤回发送。',
+  })
+  signal.throwIfAborted()
+  if (outcome !== 'allowed-once') throw failure('Native Approval did not allow this file delivery', 'FILE_APPROVAL_DENIED')
+  const current = delivery.destination()
+  if (current.routeId !== destination.routeId || current.destinationDigest !== destination.destinationDigest
+    || current.replyToExternalId !== destination.replyToExternalId || current.replyInThread !== destination.replyInThread) {
+    throw failure('Feishu recipient changed while approval was pending', 'FILE_DESTINATION_CHANGED')
+  }
+  const receipt = await delivery.submit({
+    kind: 'file', routeId: destination.routeId, destinationDigest: destination.destinationDigest,
+    intentKey: `file:${String(agent.session.id)}:${String(exec.callId)}`, file,
+    ...(destination.replyToExternalId === undefined ? {} : { replyToExternalId: destination.replyToExternalId }),
+    ...(destination.replyInThread === undefined ? {} : { replyInThread: destination.replyInThread }),
+  })
+  const observed = await delivery.waitForReceipt(receipt.id, { timeoutMs: 35_000, signal })
+  const result = { status: observed.status, delivered: observed.status === 'delivered', fileName: file.name, bytes: file.bytes,
+    receiptId: receipt.id, notice: statusTitle(observed.status) }
+  if (observed.status === 'failed' || observed.status === 'uncertain') {
+    throw failure(`${JSON.stringify(result)}；不要自动重发。`, `FILE_DELIVERY_${observed.status.toUpperCase()}`)
+  }
+  return result
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 
 function statusOf(value: unknown): string {

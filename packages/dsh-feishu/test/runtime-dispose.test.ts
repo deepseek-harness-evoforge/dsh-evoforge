@@ -1,4 +1,6 @@
 import { Context } from '@deepseek-ai/cordis'
+import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
+import ToolRuntime from '@deepseek-ai/dsh-tools'
 import { describe, expect, it } from 'vitest'
 import type { DshGateway } from 'dsh-evoforge-gateway'
 import { resolveFeishuConfig, resolveFeishuPairingConfig } from '../src/config.js'
@@ -12,6 +14,8 @@ import { FeishuRuntime } from '../src/runtime.js'
 describe('Feishu runtime teardown', () => {
   it('cleans up a registered transport when startup fails before platform connect', async () => {
     const ctx = new Context()
+    await ctx.plugin(SystemPrompt)
+    await ctx.plugin(ToolRuntime)
     let transportDisposed = 0
     let disconnectCount = 0
     const route = {
@@ -30,11 +34,7 @@ describe('Feishu runtime teardown', () => {
     const agent = {
       id: route.sessionId,
       session: { id: route.sessionId, requestHeader: () => undefined },
-      ctx: {
-        inject(_deps: readonly string[], callback: (value: unknown) => unknown) {
-          callback({ commands: { register: () => undefined } })
-        },
-      },
+      ctx,
     }
     const gateway = {
       resolve: async () => agent,

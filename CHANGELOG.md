@@ -7,13 +7,15 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Feishu output delivery now adapts native `present` during channel-triggered turns: exact snapshot approval and durable
+  delivery are required before success. Web-only file presentation is no longer sufficient evidence of a sent attachment.
 - Moved the development build to the pinned DSH 0.1.6-alpha.1 core, its awaited Agent creation lifecycle and native
   Typert codec factories. Clean-profile checks now require the control-plane contributions to be registered, not merely
   a running Host. Existing alpha.5 installations are not automatically upgraded; binary-only downgrade cannot recover
   messages written in the newer Session format.
 - Added opt-in Feishu file delivery through a native output snapshot, exact-recipient Approval and durable Gateway
   receipt. Only delivered receipts confirm success; failures and uncertain results do not appear as successful Tool calls.
-  This path is verified in an isolated newer DSH Host, not yet deployed or enabled on the image-only alpha.5 baseline.
+  This requires the pinned native-file core; image-only alpha.5 installations cannot enable it.
 - Preserved historical v0 system-prompt and surface-provenance checks in the read-only transcript reader when
   using newer DSH helpers. This is partial migration work, not a declaration of rc.2 deployment support.
 - Channel health now refreshes automatically while its page is open. Failed background reads mark retained data

@@ -9,7 +9,8 @@ import {
 
 class FeishuContentAdapter extends LlmAdapter {
   private readonly fileMode: boolean
-  constructor(fileMode = false) { super(); this.fileMode = fileMode }
+  private readonly presentMode: boolean
+  constructor(fileMode = false, presentMode = false) { super(); this.fileMode = fileMode; this.presentMode = presentMode }
   readonly requests: Array<{
     readonly tools: GenerateOptions['tools']
     readonly system?: string
@@ -30,8 +31,9 @@ class FeishuContentAdapter extends LlmAdapter {
     this.requests.push({ tools: options.tools, ...(options.system === undefined ? {} : { system: options.system }) })
     const result = options.messages.at(-1)?.content.find(block => block.type === 'tool-result')
     if (result === undefined) {
-      const toolName = this.fileMode ? 'feishu_file_send' : 'feishu_content_read'
-      const args = JSON.stringify(this.fileMode ? { file_path: 'result.txt', file_name: 'result.txt' }
+      const toolName = this.presentMode ? 'present' : this.fileMode ? 'feishu_file_send' : 'feishu_content_read'
+      const args = JSON.stringify(this.presentMode ? { files: [{ path: 'result.txt' }] }
+        : this.fileMode ? { file_path: 'result.txt', file_name: 'result.txt' }
         : { kind: 'document', token_or_url: 'doxcnApproved123' })
       yield { type: 'block-start', index: 0, blockType: 'tool-call' }
       yield {
@@ -58,8 +60,8 @@ class FeishuContentAdapter extends LlmAdapter {
 export const name = 'dsh-feishu-content-llm'
 export const inject = ['llm']
 
-export function apply(ctx: Context, config: { fileMode?: boolean } = {}): void {
-  const adapter = new FeishuContentAdapter(config.fileMode)
+export function apply(ctx: Context, config: { fileMode?: boolean; presentMode?: boolean } = {}): void {
+  const adapter = new FeishuContentAdapter(config.fileMode, config.presentMode)
   ctx.llm.registerAdapter(['feishu-content-mock'], adapter)
   ctx.provide('evoforge.feishuContentLlm' as never, adapter as never)
 }

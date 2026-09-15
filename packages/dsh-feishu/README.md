@@ -40,6 +40,18 @@ Pairing grants only the minimal message path. Group chat, images, files, Docs, W
 route plus individually enabled `contentPermissions`, platform scopes, and the applicable DSH Attachment/Tool/Approval
 contract. Unsupported content is rejected explicitly.
 
+### Output files
+
+On the pinned DSH `0.1.6-alpha.1` Host, set `fileDeliveryEnabled: true` independently of content-reading permissions.
+When a Feishu task calls native `present`, the adapter requests approval for one immutable file snapshot and its exact
+recipient, then sends a downloadable attachment. Web-initiated `present` stays local. Each call accepts one nonempty
+regular output file inside the Session workspace, up to 30 MB. Approve only the expected filename, size, hash, and recipient.
+
+Existing Sessions keep their tool schemas; they can use their existing `present`. New Sessions may also use
+`feishu_file_send`. A Web file card or a local path alone is not proof of Feishu delivery. Disabled, rejected, pending,
+failed, and uncertain sends must not be reported as delivered. Do not automatically retry an uncertain send; inspect the
+destination first. Disabling/removing the adapter cannot withdraw an attachment already sent.
+
 Ambiguous sends become `uncertain`; only explicit 429 evidence can trigger bounded retry. Disable/reload/remove closes the
 WebSocket. Health, pairing, permission, and delivery state appear in the shared DSH page without secrets or message bodies.
 

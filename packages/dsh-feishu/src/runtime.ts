@@ -25,8 +25,8 @@ import {
   shouldInstallFeishuContentTool,
 } from './content.js'
 import {
-  installFeishuFileTool, readNativeFile, requireNativeFileAttachments, shouldInstallFeishuFileTool,
-  snapshotNativeFile, type FeishuFileDestination,
+  installFeishuFileTool, installFeishuPresentDelivery, readNativeFile, requireNativeFileAttachments, shouldInstallFeishuFileTool,
+  snapshotNativeFile, type FeishuFileDestination, type FeishuFileDelivery,
 } from './file-delivery.js'
 import { materializeFeishuInbound } from './inbound-images.js'
 import type {
@@ -516,10 +516,10 @@ export class FeishuRuntime {
     this.agentsBySession.set(sessionId, agent)
     if (this.bound.has(agent)) return
     this.bound.add(agent)
-    if (shouldInstallFeishuFileTool(agent, this.config.fileDeliveryEnabled)) {
+    {
       const scope = agent.ctx.inject(['tools'], () => {
         if (this.disposed || this.fileToolDisposers.has(agent)) return
-        const disposeTool = installFeishuFileTool(agent, this.config.fileDeliveryEnabled, {
+        const delivery: FeishuFileDelivery = {
           destination: () => this.fileDestination(agent),
           snapshot: async (path, name, signal) => {
             const fs = agent.ctx.get('fs')
@@ -534,7 +534,17 @@ export class FeishuRuntime {
             return this.requireOutbound().submit(intent)
           },
           waitForReceipt: (id, options) => this.requireOutbound().waitForReceipt(id, options),
-        })
+        }
+        const disposePresent = installFeishuPresentDelivery(agent, this.config.fileDeliveryEnabled, {
+          ...delivery,
+          destination: () => {
+            if (!this.latestDestination.has(agent)) throw new Error('dsh-feishu: native present is no longer answering a Feishu message')
+            return this.fileDestination(agent)
+          },
+        }, () => this.latestDestination.has(agent))
+        const disposeExplicit = shouldInstallFeishuFileTool(agent, this.config.fileDeliveryEnabled)
+          ? installFeishuFileTool(agent, this.config.fileDeliveryEnabled, delivery) : () => {}
+        const disposeTool = () => { disposePresent(); disposeExplicit() }
         this.fileToolDisposers.set(agent, disposeTool)
         return () => {
           disposeTool()
