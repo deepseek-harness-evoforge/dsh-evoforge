@@ -59,7 +59,7 @@
     "@deepseek-ai/dsh-session-projection": "0.1.6-alpha.1",
     "@deepseek-ai/dsh-system-prompt": "0.1.6-alpha.1",
     "@deepseek-ai/dsh-tools": "0.1.6-alpha.1",
-    "@types/node": "^22.20.0",
+    "@types/node": "^26.5.1",
     "tsdown": "^0.22.2",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3",
