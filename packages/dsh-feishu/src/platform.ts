@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
+import { createHash } from 'node:crypto'
 import {
   createLarkChannel,
   Domain,
@@ -167,6 +168,13 @@ export interface FeishuSendOptions {
   readonly replyInThread?: boolean
 }
 
+/** Transport input only; callers must first authorize and journal the exact snapshot/destination. */
+export interface FeishuFileSnapshot {
+  readonly name: string
+  readonly data: Uint8Array
+  readonly sha256: string
+}
+
 export interface FeishuPlatform {
   onMessage(handler: (message: FeishuInboundMessage) => Promise<void>): () => void
   onApprovalAction(handler: (action: FeishuApprovalAction) => Promise<void>): () => void
@@ -189,6 +197,13 @@ export interface FeishuPlatform {
   sendCard(
     chatId: string,
     card: object,
+    options: FeishuSendOptions | undefined,
+    signal: AbortSignal,
+  ): Promise<{ readonly messageId: string }>
+  /** Optional for custom platforms. Never accepts a local path or URL. */
+  sendFile?(
+    chatId: string,
+    snapshot: FeishuFileSnapshot,
     options: FeishuSendOptions | undefined,
     signal: AbortSignal,
   ): Promise<{ readonly messageId: string }>
@@ -344,6 +359,33 @@ function createOfficialPlatform(
         },
       )),
     ),
+    sendFile: async (chatId, snapshot, sendOptions, signal) => {
+      signal.throwIfAborted()
+      const { name, data, sha256 } = snapshot
+      if (typeof name !== 'string' || name.length === 0 || Buffer.byteLength(name) > 255
+        || name.trim() !== name || name === '.' || name === '..'
+        || /[/\\\u0000-\u001f\u007f]/u.test(name)
+        || !(data instanceof Uint8Array) || data.byteLength === 0 || data.byteLength > 30_000_000
+        || typeof sha256 !== 'string' || !/^[a-f0-9]{64}$/u.test(sha256)) {
+        throw new Error('dsh-feishu: invalid file snapshot')
+      }
+      // Hash and send the same owned bytes; later caller mutations cannot change the upload.
+      const source = Buffer.from(data)
+      if (createHash('sha256').update(source).digest('hex') !== sha256) {
+        throw new Error('dsh-feishu: file snapshot digest mismatch')
+      }
+      signal.throwIfAborted()
+      const result = await transport.withSignal(signal, () => translateSendFailure(() => channel.send(
+        chatId,
+        { file: { source, fileName: name } },
+        sendOptions === undefined ? undefined : {
+          ...(sendOptions.replyTo === undefined ? {} : { replyTo: sendOptions.replyTo }),
+          ...(sendOptions.replyInThread === undefined ? {} : { replyInThread: sendOptions.replyInThread }),
+        },
+      )))
+      signal.throwIfAborted()
+      return result
+    },
     downloadMessageResource: async (messageId, fileKey, type, maxBytes, signal) => {
       signal?.throwIfAborted()
       if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > 100 * 1024 * 1024) {

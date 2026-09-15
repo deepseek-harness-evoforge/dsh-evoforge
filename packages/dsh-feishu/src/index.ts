@@ -289,6 +289,7 @@ export {
   type FeishuPairingPlatformOptions,
   type FeishuPlatformOptions,
   type FeishuSendOptions,
+  type FeishuFileSnapshot,
 } from './platform.js'
 export { FeishuRuntime } from './runtime.js'
 export { FeishuCredentialRemoteService } from './feishu-credentials-remote.js'
