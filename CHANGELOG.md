@@ -7,6 +7,9 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Added opt-in Feishu file delivery through a native output snapshot, exact-recipient Approval and durable Gateway
+  receipt. Only delivered receipts confirm success; failures and uncertain results do not appear as successful Tool calls.
+  This path is verified in an isolated newer DSH Host, not yet deployed or enabled on the image-only alpha.5 baseline.
 - Preserved historical v0 system-prompt and surface-provenance checks in the read-only transcript reader when
   using newer DSH helpers. This is partial migration work, not a declaration of rc.2 deployment support.
 - Channel health now refreshes automatically while its page is open. Failed background reads mark retained data

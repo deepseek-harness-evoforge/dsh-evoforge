@@ -5,6 +5,7 @@
 
 ## 当前决策
 
+- [ADR-0105：飞书文件外发批准原生快照](0105-feishu-file-delivery-approves-native-snapshots.md)
 - [ADR-0104：会话优先、Goal 可选的运行时与进化](0104-conversation-first-runtime-and-goal-optional-evolution.md)
 - [ADR-0041：DSH 是唯一运行时和安装面](0041-dsh-is-the-only-runtime-and-install-surface.md)
 - [ADR-0047：main 开发线与验证 tag](0047-main-is-the-live-development-line-and-tags-mark-verified-releases.md)

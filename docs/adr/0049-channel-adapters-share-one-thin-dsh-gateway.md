@@ -31,7 +31,7 @@ append-only Session 中 dispatch 必然早于该 follow-up 的 turn 事件，dis
 key。该结论只保护外部渠道效果；官方 Schedule 仍可能重新运行模型并重复 token、时延和成本，不能宣称完整
 exactly-once。
 
-## 原生文件出站记录（2026-09-15，尚未接入用户发送路径）
+## 原生文件出站记录（2026-09-15）
 
 同一 account registration 现在可选提供 `sendFile`，与文本共用串行队列、wall-clock timeout、卸载 drain、
 健康投影和终态观察。文件 intent 只保存原生 `FileAttachmentRef` 的 wire shape（内容地址、名称、字节数），
@@ -49,11 +49,11 @@ Adapter 在异步读取附件后仍须再次核对 live route。内容、接收�
 新 Workspace。未注册 file handler 时不能回退为文本发送。`sending` 经恢复变为 `uncertain`，文件发送始终只有一次
 平台尝试，即便 rate limit 也不自动重试。幂等仍受已声明的有界记录保留期限制，不承诺无限历史 exactly-once。
 
-这个 Host seam 不授予权限。调用者必须先完成原生文件快照和原生外发审批；目前飞书只实现了底层 transport，
-未注册文件 Tool、未开放用户发送，也未部署真实文件交付。后续仍须验证审批拒绝、端到端实际附件和恢复。
+这个 Host seam 不授予权限。调用者必须先完成原生文件快照和原生外发审批；飞书的默认关闭 Tool 与运行时接线由
+[ADR-0105](0105-feishu-file-delivery-approves-native-snapshots.md) 定义。现用 alpha.5 尚未部署真实文件交付。
 
 `submit()` 的回执仅表示持久入队；需要向用户报告发送结果的调用者可以在同一 registration 上调用
 `waitForReceipt()`。它只观察已拥有的记录，不提交或重试发送：终态写入成功后才返回对应状态，等待期限届满时
 返回当前 `prepared/sending/retrying` 等实际状态，不能解释为送达。取消等待不撤回已接受的外部效果；卸载会取消
 所有等待并释放 timer/listener。终态持久化失败会拒绝等待，不能把平台的成功返回当成 durable 成功。等待不暴露
-正文、文件内容或外部消息 id，过期被裁剪或归属变化的记录拒绝查询；此接缝尚不代表用户文件 Tool 已接通。
+正文、文件内容或外部消息 id，过期被裁剪或归属变化的记录拒绝查询；此接缝不授予任何外发权限。

@@ -11,6 +11,7 @@ import type {
   FeishuPlatform,
   FeishuPlatformReject,
   FeishuSendOptions,
+  FeishuFileSnapshot,
   ResolvedFeishuConfig,
 } from '../../src/index.ts'
 
@@ -23,6 +24,7 @@ interface Config {
   readonly appIdEnv: string
   readonly appSecretEnv: string
   readonly contentPermissions?: readonly FeishuContentPermission[]
+  readonly fileDeliveryEnabled?: boolean
   readonly maxContentChars?: number
   readonly maxBitableRecords?: number
   /** Test-only durable observation of accepted text effects across Host processes. */
@@ -43,6 +45,7 @@ interface SentCard {
 }
 
 class FakeFeishuPlatform implements FeishuPlatform {
+  readonly files: Array<{ chatId: string; snapshot: FeishuFileSnapshot; options?: FeishuSendOptions }> = []
   readonly texts: SentText[] = []
   readonly cards: SentCard[] = []
   readonly sendAttempts: string[] = []
@@ -86,6 +89,12 @@ class FakeFeishuPlatform implements FeishuPlatform {
   async connect(): Promise<void> { this.connected = true }
 
   async disconnect(): Promise<void> { this.connected = false }
+
+  async sendFile(chatId: string, snapshot: FeishuFileSnapshot, options?: FeishuSendOptions, signal?: AbortSignal): Promise<{ messageId: string }> {
+    signal?.throwIfAborted()
+    this.files.push({ chatId, snapshot: { ...snapshot, data: Buffer.from(snapshot.data) }, ...(options === undefined ? {} : { options }) })
+    return { messageId: `om_file_${this.files.length}` }
+  }
 
   async sendText(
     chatId: string,

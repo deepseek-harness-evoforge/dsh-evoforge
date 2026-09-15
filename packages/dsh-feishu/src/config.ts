@@ -22,6 +22,7 @@ export interface FeishuConfigInput {
   readonly maxSendAttempts?: number
   readonly maxTextChars?: number
   readonly contentPermissions?: readonly FeishuContentPermission[]
+  readonly fileDeliveryEnabled?: boolean
   readonly maxContentChars?: number
   readonly maxBitableRecords?: number
 }
@@ -48,6 +49,7 @@ export interface ResolvedFeishuConfig {
   readonly maxSendAttempts: number
   readonly maxTextChars: number
   readonly contentPermissions: ReadonlySet<FeishuContentPermission>
+  readonly fileDeliveryEnabled: boolean
   readonly maxContentChars: number
   readonly maxBitableRecords: number
   readonly routes: readonly ResolvedFeishuRoute[]
@@ -87,6 +89,7 @@ export async function resolveFeishuConfig(
   const maxSendAttempts = config.maxSendAttempts ?? 3
   const maxTextChars = config.maxTextChars ?? 4_000
   const contentPermissions = resolveContentPermissions(config.contentPermissions)
+  const fileDeliveryEnabled = resolveFileDelivery(config.fileDeliveryEnabled)
   const maxContentChars = config.maxContentChars ?? 20_000
   const maxBitableRecords = config.maxBitableRecords ?? 20
   assertIntegerRange('handshakeTimeoutMs', handshakeTimeoutMs, 1_000, 60_000)
@@ -118,6 +121,7 @@ export async function resolveFeishuConfig(
     maxSendAttempts,
     maxTextChars,
     contentPermissions,
+    fileDeliveryEnabled,
     maxContentChars,
     maxBitableRecords,
     routes: Object.freeze(resolvedRoutes),
@@ -140,6 +144,13 @@ function resolveContentPermissions(
   return Object.freeze(resolved)
 }
 
+function resolveFileDelivery(value: boolean | undefined): boolean {
+  if (value !== undefined && typeof value !== 'boolean') {
+    throw new Error('dsh-feishu: fileDeliveryEnabled must be a boolean')
+  }
+  return value ?? false
+}
+
 /** Resolve resident unknown-DM pairing mode; Gateway owns grants and exact route bindings. */
 export async function resolveFeishuPairingConfig(
   config: FeishuConfigInput,
@@ -152,6 +163,7 @@ export async function resolveFeishuPairingConfig(
   if ((config.contentPermissions?.length ?? 0) !== 0) {
     throw new Error('dsh-feishu: pairing mode cannot enable contentPermissions')
   }
+  const fileDeliveryEnabled = resolveFileDelivery(config.fileDeliveryEnabled)
   const { appId, appIdEnv, appSecret, appSecretEnv } = await resolveCredentials(config, credentials)
   const handshakeTimeoutMs = config.handshakeTimeoutMs ?? 15_000
   const maxRetryAfterSeconds = config.maxRetryAfterSeconds ?? 300
@@ -181,6 +193,7 @@ export async function resolveFeishuPairingConfig(
     routes: Object.freeze([]),
     routeIds: Object.freeze(new Set<string>()),
     pairedRoutes: true,
+    fileDeliveryEnabled,
   })
 }
 

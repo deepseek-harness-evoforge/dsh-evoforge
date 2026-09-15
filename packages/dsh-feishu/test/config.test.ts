@@ -44,6 +44,16 @@ function credentialReader(values: Readonly<Record<string, string>>) {
 const credentials = credentialReader(credentialValues)
 
 describe('Feishu protected deployment config', () => {
+  it('keeps file delivery independently disabled by default and accepts only an explicit boolean opt-in', async () => {
+    const input = { mode: 'pairing' as const, routeIds: [], appIdEnv: 'FEISHU_ID', appSecretEnv: 'FEISHU_SECRET' }
+    expect((await resolveFeishuPairingConfig(input, credentials)).fileDeliveryEnabled).toBe(false)
+    expect((await resolveFeishuPairingConfig({ ...input, fileDeliveryEnabled: true }, credentials)).fileDeliveryEnabled).toBe(true)
+    await expect(resolveFeishuPairingConfig({ ...input, fileDeliveryEnabled: 'yes' as unknown as boolean }, credentials))
+      .rejects.toThrow(/fileDeliveryEnabled/u)
+    const staticInput = { routeIds: ['feishu-private'], appIdEnv: 'FEISHU_ID', appSecretEnv: 'FEISHU_SECRET' }
+    expect((await resolveFeishuConfig(staticInput, [routes[0]!], credentials)).fileDeliveryEnabled).toBe(false)
+    expect((await resolveFeishuConfig({ ...staticInput, fileDeliveryEnabled: true }, [routes[0]!], credentials)).fileDeliveryEnabled).toBe(true)
+  })
   it('resolves credential references through the native DSH credential provider', async () => {
     const calls: string[] = []
     const resolved = await resolveFeishuPairingConfig({

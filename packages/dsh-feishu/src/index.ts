@@ -35,6 +35,7 @@ export interface Config {
   readonly maxSendAttempts?: number
   readonly maxTextChars?: number
   readonly contentPermissions?: readonly FeishuContentPermission[]
+  readonly fileDeliveryEnabled?: boolean
   readonly maxContentChars?: number
   readonly maxBitableRecords?: number
 }
@@ -49,6 +50,7 @@ export const Config: Schema<Config> = z.object({
   maxSendAttempts: z.number().step(1).min(1).max(5).default(3),
   maxTextChars: z.number().step(1).min(256).max(30_000).default(4_000),
   contentPermissions: z.array(z.union(FEISHU_CONTENT_PERMISSIONS)).default([]),
+  fileDeliveryEnabled: z.boolean().default(false),
   maxContentChars: z.number().step(1).min(1_024).max(100_000).default(20_000),
   maxBitableRecords: z.number().step(1).min(1).max(100).default(20),
 }) as Schema<Config>

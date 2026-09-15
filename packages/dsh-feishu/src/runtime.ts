@@ -6,6 +6,8 @@ import type {} from '@deepseek-ai/dsh-tools'
 import type { ApprovalOutcome, ApprovalRequest } from '@deepseek-ai/dsh-user-approval'
 import {
   GatewayIngressUncertainError,
+  gatewayFileDestinationDigest,
+  type GatewayFileSendInput,
   type GatewayEndpoint,
   type ResolvedGatewayRoute,
   type DshGateway,
@@ -22,6 +24,10 @@ import {
   installFeishuContentTool,
   shouldInstallFeishuContentTool,
 } from './content.js'
+import {
+  installFeishuFileTool, readNativeFile, requireNativeFileAttachments, shouldInstallFeishuFileTool,
+  snapshotNativeFile, type FeishuFileDestination,
+} from './file-delivery.js'
 import { materializeFeishuInbound } from './inbound-images.js'
 import type {
   FeishuHostNotice,
@@ -88,6 +94,8 @@ export class FeishuRuntime {
   private readonly latestDestination = new WeakMap<Agent, ReplyDestination>()
   private readonly pendingApprovals = new Map<string, PendingApproval>()
   private readonly contentToolDisposers = new Map<Agent, () => void>()
+  private readonly fileToolDisposers = new Map<Agent, () => void>()
+  private readonly fileToolScopes = new Map<Agent, ReturnType<Context['inject']>>()
   private readonly observedChatKinds = new Map<string, 'direct' | 'group'>()
   private readonly unsubscribers: Array<() => void> = []
   private activeInboundCallbacks = 0
@@ -136,6 +144,10 @@ export class FeishuRuntime {
     if (this.disposed) throw new Error('dsh-feishu: runtime is already disposed')
     this.started = true
     try {
+      if (this.config.fileDeliveryEnabled) {
+        requireNativeFileAttachments(this.ctx.get('attachments'))
+        if (this.platform.sendFile === undefined) throw new Error('dsh-feishu: platform file delivery is unavailable')
+      }
       const startingAt = Date.now()
       this.transport = this.gateway.registerTransport({
       adapter: 'feishu',
@@ -159,6 +171,9 @@ export class FeishuRuntime {
       maxRetryAfterMs: this.config.maxRetryAfterMs,
       sendTimeoutMs: PLATFORM_SEND_TIMEOUT_MS,
       send: (input, signal) => this.sendOutbound(input, signal),
+      ...(this.config.fileDeliveryEnabled ? {
+        sendFile: (input: GatewayFileSendInput, signal: AbortSignal) => this.sendFileOutbound(input, signal),
+      } : {}),
       })
 
       this.unsubscribers.push(this.ctx.on('agent/created', ({ agent }) => {
@@ -177,6 +192,9 @@ export class FeishuRuntime {
       this.unsubscribers.push(this.ctx.on('agent/disposed', ({ agent }) => {
       this.contentToolDisposers.get(agent)?.()
       this.contentToolDisposers.delete(agent)
+      this.fileToolDisposers.get(agent)?.()
+      this.fileToolDisposers.delete(agent)
+      this.fileToolScopes.delete(agent)
       if (this.agentsBySession.get(String(agent.session.id)) === agent) {
         this.agentsBySession.delete(String(agent.session.id))
       }
@@ -330,6 +348,14 @@ export class FeishuRuntime {
       }
     }
     this.contentToolDisposers.clear()
+    for (const disposeTool of this.fileToolDisposers.values()) {
+      try { disposeTool() } catch (error) { failures.push(error) }
+    }
+    this.fileToolDisposers.clear()
+    for (const scope of this.fileToolScopes.values()) {
+      try { await scope.dispose() } catch (error) { failures.push(error) }
+    }
+    this.fileToolScopes.clear()
     for (const [nonce, pending] of this.pendingApprovals) {
       this.pendingApprovals.delete(nonce)
       if (pending.onAbort !== undefined) pending.signal?.removeEventListener('abort', pending.onAbort)
@@ -483,12 +509,40 @@ export class FeishuRuntime {
   }
 
   private bind(agent: Agent): void {
+    if (this.disposed) return
     const sessionId = String(agent.session.id)
     const routes = this.routesBySession.get(sessionId)
     if (routes === undefined) return
     this.agentsBySession.set(sessionId, agent)
     if (this.bound.has(agent)) return
     this.bound.add(agent)
+    if (shouldInstallFeishuFileTool(agent, this.config.fileDeliveryEnabled)) {
+      const scope = agent.ctx.inject(['tools'], () => {
+        if (this.disposed || this.fileToolDisposers.has(agent)) return
+        const disposeTool = installFeishuFileTool(agent, this.config.fileDeliveryEnabled, {
+          destination: () => this.fileDestination(agent),
+          snapshot: async (path, name, signal) => {
+            const fs = agent.ctx.get('fs')
+            if (fs === undefined) throw new Error('dsh-feishu: native filesystem is unavailable')
+            const cwd = agent.session.header.cwd
+            if (cwd === undefined) throw new Error('dsh-feishu: native Session working directory is unavailable')
+            return snapshotNativeFile(fs, requireNativeFileAttachments(this.ctx.get('attachments')),
+              cwd, path, name, signal)
+          },
+          submit: intent => {
+            this.assertAvailable()
+            return this.requireOutbound().submit(intent)
+          },
+          waitForReceipt: (id, options) => this.requireOutbound().waitForReceipt(id, options),
+        })
+        this.fileToolDisposers.set(agent, disposeTool)
+        return () => {
+          disposeTool()
+          if (this.fileToolDisposers.get(agent) === disposeTool) this.fileToolDisposers.delete(agent)
+        }
+      })
+      this.fileToolScopes.set(agent, scope)
+    }
     if (shouldInstallFeishuContentTool(agent, this.config.contentPermissions)) {
       if (this.platform.readContent === undefined) {
         throw new Error('dsh-feishu: configured content reads require a Feishu content platform')
@@ -784,6 +838,62 @@ export class FeishuRuntime {
   private requireOutbound(): GatewayTextAdapterRegistration {
     if (this.outbound === undefined) throw new Error('dsh-feishu: Gateway outbound is unavailable')
     return this.outbound
+  }
+
+  private fileDestination(agent: Agent): FeishuFileDestination {
+    this.assertAvailable()
+    this.syncActivePairedRoutes()
+    const sessionId = String(agent.session.id)
+    if (this.agentsBySession.get(sessionId) !== agent) throw new Error('dsh-feishu: file Agent is no longer bound')
+    const routes = this.routesBySession.get(sessionId)
+    const destination = this.latestDestination.get(agent)
+      ?? (routes?.length === 1 ? { route: routes[0]!, replyInThread: routes[0]!.endpoint.threadId !== undefined } : undefined)
+    if (destination === undefined) throw new Error('dsh-feishu: file delivery requires one exact current recipient')
+    const route = this.gateway.route(destination.route.id)
+    const expected = destination.route
+    if (route === undefined || route.adapter !== 'feishu' || route.accountId !== this.config.appId
+      || route.sessionId !== sessionId || route.workspaceId !== expected.workspaceId
+      || route.conversationId !== expected.endpoint.conversationId || route.threadId !== expected.endpoint.threadId
+      || route.userId !== expected.endpoint.userId) throw new Error('dsh-feishu: file recipient is no longer bound')
+    return Object.freeze({
+      routeId: route.id, destinationDigest: gatewayFileDestinationDigest(route),
+      description: `飞书会话 ${route.conversationId}，用户 ${route.userId}${route.threadId === undefined ? '' : `，话题 ${route.threadId}`}`,
+      ...(destination.replyTo === undefined ? {} : { replyToExternalId: destination.replyTo }),
+      ...(destination.replyInThread ? { replyInThread: true } : {}),
+    })
+  }
+
+  private async sendFileOutbound(input: GatewayFileSendInput, signal: AbortSignal): Promise<GatewayOutboundSendResult> {
+    const currentRoute = (): ResolvedGatewayRoute | undefined => {
+      const route = this.gateway.route(input.routeId)
+      return !this.disposed && this.config.fileDeliveryEnabled && route?.adapter === 'feishu'
+        && route.accountId === this.config.appId && gatewayFileDestinationDigest(route) === input.destinationDigest ? route : undefined
+    }
+    let data: Uint8Array
+    try {
+      signal.throwIfAborted()
+      if (currentRoute() === undefined || this.platform.sendFile === undefined) return { kind: 'rejected', code: 'file_route_unavailable' }
+      data = await readNativeFile(requireNativeFileAttachments(this.ctx.get('attachments')), input.file, signal)
+      signal.throwIfAborted()
+    } catch {
+      return { kind: 'rejected', code: 'file_snapshot_unavailable' }
+    }
+    const route = currentRoute()
+    if (route === undefined) return { kind: 'rejected', code: 'file_destination_changed' }
+    try {
+      const options = input.replyToExternalId === undefined && !input.replyInThread ? undefined : {
+        ...(input.replyToExternalId === undefined ? {} : { replyTo: input.replyToExternalId }),
+        ...(input.replyInThread ? { replyInThread: true } : {}),
+      }
+      const sent = await this.platform.sendFile!(route.conversationId, {
+        name: input.file.name, data, sha256: input.file.attachmentId.slice('sha256:'.length),
+      }, options, signal)
+      signal.throwIfAborted()
+      this.observeTransportActivity()
+      return { kind: 'delivered', externalMessageId: sent.messageId }
+    } catch (error) {
+      return classifyPlatformFailure(error)
+    }
   }
 
   private async requestApproval(
