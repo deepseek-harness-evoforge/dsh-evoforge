@@ -22,7 +22,7 @@ jobs:
         node: [22.19.0, 24]
     steps:
       - name: Checkout
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install pnpm
         uses: pnpm/action-setup@a8198c4bff370c8506180b035930dea56dbd5288 # v5
         with:
@@ -33,7 +33,7 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: pnpm
       - name: Checkout pinned DeepSeek Harness
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: deepseek-ai/deepseek-harness
           ref: 0d1f50007f9bca3f52b06e1c3074fa14d5fb0720
@@ -65,9 +65,9 @@ jobs:
             revision: 0d1f50007f9bca3f52b06e1c3074fa14d5fb0720
     steps:
       - name: Checkout EvoForge
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Checkout pinned DeepSeek Harness
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: deepseek-ai/deepseek-harness
           ref: ${{ matrix.dsh.revision }}
