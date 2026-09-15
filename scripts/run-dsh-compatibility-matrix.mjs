@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 export const SUPPORTED_DSH_TARGETS = Object.freeze({
-  'db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5': '0.1.2-alpha.5',
+  '0d1f50007f9bca3f52b06e1c3074fa14d5fb0720': '0.1.6-alpha.1',
 })
 
 export function assertSupportedDshTarget({ revision, version, dirty }) {
@@ -32,12 +32,13 @@ export function inspectDshTarget(sourceDir) {
 
 export function runCompatibilityMatrix(sourceDir) {
   const target = inspectDshTarget(sourceDir)
-  const env = { ...process.env, DSH_EVOLVE_DSH_SOURCE_DIR: target.root }
+  const env = { ...process.env, DSH_EVOLVE_DSH_SOURCE_DIR: target.root, DSH_FEISHU_TEST_NATIVE_FILES: '1' }
   const checks = [
+    ['exec', 'node', 'scripts/verify-native-typert.mjs'],
     ['--filter', 'dsh-evoforge-doctor', 'exec', 'vitest', 'run', 'test/suite-native-plugin-contract.test.ts', '--maxWorkers', '1'],
     ['--filter', 'dsh-software-delivery', 'exec', 'vitest', 'run', 'test/clean-profile-suite.e2e.test.ts', 'test/suite-upgrade.e2e.test.ts', '--maxWorkers', '1'],
     ['--filter', 'dsh-evolve', 'exec', 'vitest', 'run', 'test/generation-binder.e2e.test.ts', '--maxWorkers', '1'],
-    ['--filter', 'dsh-evoforge-feishu', 'exec', 'vitest', 'run', 'test/dsh-assembled-chat.e2e.test.ts', 'test/dsh-assembled-content.e2e.test.ts', 'test/full-channel-cache-composition.e2e.test.ts', 'test/native-schedule-restart.e2e.test.ts', '--maxWorkers', '1'],
+    ['--filter', 'dsh-evoforge-feishu', 'exec', 'vitest', 'run', 'test/dsh-assembled-chat.e2e.test.ts', 'test/dsh-assembled-content.e2e.test.ts', 'test/dsh-assembled-file.e2e.test.ts', 'test/full-channel-cache-composition.e2e.test.ts', 'test/native-schedule-restart.e2e.test.ts', '--maxWorkers', '1'],
   ]
   process.stdout.write(`DSH compatibility target ${target.version} ${target.revision} at ${target.root}\n`)
   for (const args of checks) {

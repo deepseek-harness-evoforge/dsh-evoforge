@@ -33,7 +33,7 @@ if (!descriptor || descriptor.method !== 'overview' || descriptor.parameters.len
 const revokeDescriptor = remote.TYPERT_REMOTE.descriptors.find(row =>
   row?.namespace === 'evoforgeGateway' && row.method === 'revokePairing')
 if (!revokeDescriptor || revokeDescriptor.parameters.length !== 1
-  || revokeDescriptor.parameters[0]?.codec?.schema?.type !== 'string') {
+  || revokeDescriptor.parameters[0]?.codec?.create?.()?.type !== 'string') {
   throw new Error('evoforgeGateway/revokePairing must accept exactly one string route id')
 }
 const pendingDescriptor = remote.TYPERT_REMOTE.descriptors.find(row =>
@@ -44,7 +44,7 @@ if (!pendingDescriptor || pendingDescriptor.parameters.length !== 0) {
 const requestDescriptor = remote.TYPERT_REMOTE.descriptors.find(row =>
   row?.namespace === 'evoforgeGateway' && row.method === 'approvePairingRequest')
 if (!requestDescriptor || requestDescriptor.parameters.length !== 3
-  || requestDescriptor.parameters.some(parameter => parameter?.codec?.schema?.type !== 'string')) {
+  || requestDescriptor.parameters.some(parameter => parameter?.codec?.create?.()?.type !== 'string')) {
   throw new Error('evoforgeGateway/approvePairingRequest must accept exactly three string parameters')
 }
 

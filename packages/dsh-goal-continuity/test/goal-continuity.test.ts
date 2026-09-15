@@ -25,7 +25,7 @@ describe('dsh-goal-continuity', () => {
     })
     allowed.ctx.goals.disarm(allowed.agent)
 
-    agentEvents(allowed.ctx, allowed.agent).emit('agent/session-start', { source: 'resume' })
+    await agentEvents(allowed.ctx, allowed.agent).serial('agent/created', { source: 'resume' })
 
     expect(allowed.ctx.goals.get(allowed.agent)).toMatchObject({
       id: goal.id,
@@ -39,7 +39,7 @@ describe('dsh-goal-continuity', () => {
     const denied = await harness('other-session', ['allowed-session'])
     const deniedGoal = denied.ctx.goals.create(denied.agent, { objective: 'Stay disarmed.' })
     denied.ctx.goals.disarm(denied.agent)
-    agentEvents(denied.ctx, denied.agent).emit('agent/session-start', { source: 'resume' })
+    await agentEvents(denied.ctx, denied.agent).serial('agent/created', { source: 'resume' })
     expect(denied.ctx.goals.get(denied.agent)).toMatchObject({
       id: deniedGoal.id,
       revision: deniedGoal.revision,
@@ -59,7 +59,7 @@ describe('dsh-goal-continuity', () => {
           ? test.ctx.goals.block(test.agent, created, { code: 'needs-human', message: 'Human input is required.' })
           : test.ctx.goals.complete(test.agent, created)
 
-      agentEvents(test.ctx, test.agent).emit('agent/session-start', { source: 'resume' })
+      await agentEvents(test.ctx, test.agent).serial('agent/created', { source: 'resume' })
 
       expect(test.ctx.goals.get(test.agent)).toMatchObject({
         id: terminal.id,
@@ -75,14 +75,14 @@ describe('dsh-goal-continuity', () => {
     const created = test.ctx.goals.create(test.agent, { objective: 'Require a real cold resume.' })
     test.ctx.goals.disarm(test.agent)
 
-    agentEvents(test.ctx, test.agent).emit('agent/session-start', { source: 'startup' })
+    await agentEvents(test.ctx, test.agent).serial('agent/created', { source: 'startup' })
     expect(test.ctx.goals.get(test.agent)).toMatchObject({
       revision: created.revision,
       activation: 'disarmed',
     })
 
     await test.plugin.dispose()
-    agentEvents(test.ctx, test.agent).emit('agent/session-start', { source: 'resume' })
+    await agentEvents(test.ctx, test.agent).serial('agent/created', { source: 'resume' })
     expect(test.ctx.goals.get(test.agent)).toMatchObject({
       revision: created.revision,
       activation: 'disarmed',

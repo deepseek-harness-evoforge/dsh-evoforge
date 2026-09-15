@@ -686,7 +686,7 @@ export async function installCapabilityGapRoutingEvidenceV1(
       'dsh-evolve.capabilityGapRouting.workspaceRecheckTimers',
     )
     lifecycleDisposers.push(
-      ctx.on('agent/session-start', ({ agent }) => {
+      ctx.on('agent/created', ({ agent }) => {
         if (closing) return
         if (!isExactLiveSubject(ctx, agent)) {
           const state = idBindings.get(String(agent.id))

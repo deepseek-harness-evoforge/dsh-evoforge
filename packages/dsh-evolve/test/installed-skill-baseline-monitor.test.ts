@@ -57,7 +57,7 @@ describe('installed Skill baseline monitor', () => {
       source: { kind: 'skill-invocation', name: 'release-proof', form: 'instructions' },
       content: invocationContent,
     }, { surfaceOp: 'append' })
-    agentEvents(ctx, agent).emit('agent/session-start', { source: 'resume' })
+    await agentEvents(ctx, agent).serial('agent/created', { source: 'resume' })
 
     await agentEvents(ctx, agent).waterfall(
       'agent/pre-step',

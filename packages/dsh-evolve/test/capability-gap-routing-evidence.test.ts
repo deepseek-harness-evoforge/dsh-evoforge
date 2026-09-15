@@ -71,8 +71,7 @@ describe('installed Capability Gap Routing evidence', () => {
     const session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
 
     const execution = await runSuccessfulGapTurn(ctx, agent, session)
     expect(execution).toMatchObject({
@@ -147,8 +146,7 @@ describe('installed Capability Gap Routing evidence', () => {
     const session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
     const captured = ctx.tools.get('report_capability_gap', agent)
     if (captured === undefined) throw new Error('owned Capability Gap Tool was not mounted')
     const callId = ToolCallId('captured-direct-call')
@@ -191,8 +189,7 @@ describe('installed Capability Gap Routing evidence', () => {
     const session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
     const official = ctx.tools.get('report_capability_gap', agent)
     if (official === undefined) throw new Error('owned Capability Gap Tool was not mounted')
     let wrapperEntries = 0
@@ -258,8 +255,7 @@ describe('installed Capability Gap Routing evidence', () => {
     const session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
     vi.spyOn(ctx.skills, 'snapshot')
       .mockRejectedValueOnce(new Error('catalog unavailable'))
       .mockRejectedValueOnce(new Error('catalog unavailable'))
@@ -323,8 +319,7 @@ describe('installed Capability Gap Routing evidence', () => {
     const session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
 
     const mutated = await runSuccessfulGapTurn(ctx, agent, session, {
       beforeExecute: () => {
@@ -401,8 +396,7 @@ describe('installed Capability Gap Routing evidence', () => {
     const session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
 
     const execution = await runSuccessfulGapTurn(ctx, agent, session)
 
@@ -442,8 +436,7 @@ describe('installed Capability Gap Routing evidence', () => {
     const session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
 
     await runSuccessfulGapTurn(ctx, agent, session, {
       beforeTurnEnd: () => expect(onGap).not.toHaveBeenCalled(),
@@ -505,8 +498,7 @@ describe('installed Capability Gap Routing evidence', () => {
     const session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
 
     await runSuccessfulGapTurn(ctx, agent, session, { durableGoal })
     await nextEventLoopTurn()
@@ -537,8 +529,7 @@ describe('installed Capability Gap Routing evidence', () => {
       const session = ctx.sessions.create(SessionId('routing-evidence-session'), {
         meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
       })
-      const agent = agentFixture(ctx, session)
-      ctx.emit('agent/session-start', { agent, source: 'startup' })
+      const agent = await agentFixture(ctx, session)
 
       const result = await runSuccessfulGapTurn(ctx, agent, session)
       await nextEventLoopTurn()
@@ -572,8 +563,7 @@ describe('installed Capability Gap Routing evidence', () => {
     const session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
 
     await runSuccessfulGapTurn(ctx, agent, session)
     await nextEventLoopTurn()
@@ -615,8 +605,7 @@ describe('installed Capability Gap Routing evidence', () => {
     const session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
 
     await runSuccessfulGapTurn(ctx, agent, session, { callId: 'poison-gap-call' })
     await nextEventLoopTurn()
@@ -668,8 +657,7 @@ describe('installed Capability Gap Routing evidence', () => {
     const session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
 
     const result = await runSuccessfulGapTurn(ctx, agent, session)
     expect(result).toMatchObject({ isError: false, value: { gapId: '6'.repeat(64) } })
@@ -709,8 +697,7 @@ describe('installed Capability Gap Routing evidence', () => {
     const session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
 
     const result = await runSuccessfulGapTurn(ctx, agent, session)
 
@@ -758,8 +745,7 @@ describe('installed Capability Gap Routing evidence', () => {
     const session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
 
     const result = await runSuccessfulGapTurn(ctx, agent, session)
 
@@ -796,8 +782,7 @@ describe('installed Capability Gap Routing evidence', () => {
     const session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
 
     const result = await runSuccessfulGapTurn(ctx, agent, session, {
       signal: controller.signal,
@@ -825,8 +810,7 @@ describe('installed Capability Gap Routing evidence', () => {
     const session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
 
     const result = await runSuccessfulGapTurn(ctx, agent, session)
     expect(result.isError).toBe(true)
@@ -864,8 +848,7 @@ describe('installed Capability Gap Routing evidence', () => {
     const session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
 
     const result = await runSuccessfulGapTurn(ctx, agent, session, {
       callId: 'skill-call',
@@ -899,8 +882,7 @@ describe('installed Capability Gap Routing evidence', () => {
     const session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
 
     const loggedTools = ctx.tools.schemas(agent).map(schema =>
       schema.name === 'report_capability_gap'
@@ -934,7 +916,6 @@ describe('installed Capability Gap Routing evidence', () => {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
     const { agent } = await scopedAgentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
     let removeShadow: (() => void) | undefined
 
     const result = await runSuccessfulGapTurn(ctx, agent, session, {
@@ -968,7 +949,6 @@ describe('installed Capability Gap Routing evidence', () => {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
     const { agent } = await scopedAgentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
     const owned = ctx.tools.get('report_capability_gap', agent)
     if (owned === undefined) throw new Error('owned Capability Gap Tool was not mounted')
     let attacked = false
@@ -1036,8 +1016,7 @@ describe('installed Capability Gap Routing evidence', () => {
     const session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
 
     const result = await runSuccessfulGapTurn(ctx, agent, session, {
       executeAgain: async () => {
@@ -1076,8 +1055,7 @@ describe('installed Capability Gap Routing evidence', () => {
     const session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
 
     await runSuccessfulGapTurn(ctx, agent, session, {
       beforeTurnEnd: () => {
@@ -1135,8 +1113,7 @@ describe('installed Capability Gap Routing evidence', () => {
     session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
 
     await runSuccessfulGapTurn(ctx, agent, session)
     await nextEventLoopTurn()
@@ -1203,8 +1180,7 @@ describe('installed Capability Gap Routing evidence', () => {
     session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
 
     await runSuccessfulGapTurn(ctx, agent, session)
     await nextEventLoopTurn()
@@ -1266,8 +1242,7 @@ describe('installed Capability Gap Routing evidence', () => {
     const session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
 
     const result = await runSuccessfulGapTurn(ctx, agent, session)
     await completionLookupStarted.promise
@@ -1336,8 +1311,7 @@ describe('installed Capability Gap Routing evidence', () => {
     session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
 
     await runSuccessfulGapTurn(ctx, agent, session)
     await completionLookupStarted.promise
@@ -1396,8 +1370,7 @@ describe('installed Capability Gap Routing evidence', () => {
     const session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
 
     await runSuccessfulGapTurn(ctx, agent, session)
     await completionLookupStarted.promise
@@ -1460,8 +1433,7 @@ describe('installed Capability Gap Routing evidence', () => {
     session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
 
     await runSuccessfulGapTurn(ctx, agent, session)
     await completionLookupStarted.promise
@@ -1518,8 +1490,7 @@ describe('installed Capability Gap Routing evidence', () => {
     const session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
 
     const turn = runSuccessfulGapTurn(ctx, agent, session)
     await completionLookup.promise
@@ -1559,8 +1530,7 @@ describe('installed Capability Gap Routing evidence', () => {
     const session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
 
     await runSuccessfulGapTurn(ctx, agent, session)
     expect(duplicated).toBe(true)
@@ -1594,8 +1564,7 @@ describe('installed Capability Gap Routing evidence', () => {
     const session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
     await runSuccessfulGapTurn(ctx, agent, session)
 
     await expect(resolveFor(installed.source, session, 'gap-call')).resolves.toMatchObject({
@@ -1657,8 +1626,7 @@ describe('installed Capability Gap Routing evidence', () => {
     const session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
     await runSuccessfulGapTurn(ctx, agent, session)
     await expect(resolveFor(installed.source, session, 'gap-call')).resolves.toMatchObject({
       status: 'matched',
@@ -1725,8 +1693,7 @@ describe('installed Capability Gap Routing evidence', () => {
     const session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
 
     const oldTurn = runSuccessfulGapTurn(ctx, agent, session, { callId: 'old-gap-call' })
     await entered.promise
@@ -1769,8 +1736,7 @@ describe('installed Capability Gap Routing evidence', () => {
     const session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
 
     await runSuccessfulGapTurn(ctx, agent, session, { callId: 'reused-gap-call' })
     await runSuccessfulGapTurn(ctx, agent, session, {
@@ -1800,8 +1766,7 @@ describe('installed Capability Gap Routing evidence', () => {
     const session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
 
     const provisional = await runSuccessfulGapTurn(ctx, agent, session, {
       callId: 'reused-after-unfinished',
@@ -1854,8 +1819,7 @@ describe('installed Capability Gap Routing evidence', () => {
     const session = ctx.sessions.create(SessionId('routing-evidence-session'), {
       meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
     })
-    const agent = agentFixture(ctx, session)
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    const agent = await agentFixture(ctx, session)
 
     const replayed = await runSuccessfulGapTurn(ctx, agent, session, {
       afterEnqueue: event => ctx.emit('session/event', session, event),
@@ -1893,9 +1857,9 @@ async function contextFixture(options: {
   return ctx
 }
 
-function agentFixture(ctx: Context, session: Session): Agent {
+async function agentFixture(ctx: Context, session: Session): Promise<Agent> {
   const agent = { id: session.id, ctx, session } as unknown as Agent
-  ctx.agents.register(agent)
+  await ctx.agents.register(agent)
   return agent
 }
 
@@ -1908,7 +1872,7 @@ async function scopedAgentFixture(
   await toolsContext
   const scope = createScope(toolsContext.ctx, agent)
   Object.assign(agent, { ctx: scope.ctx })
-  ctx.agents.register(agent)
+  await ctx.agents.register(agent)
   return { agent }
 }
 
@@ -2359,8 +2323,7 @@ async function disposedLifecycleRetentionProbe() {
     meta: { createdAt: 1_000, cwd: '/private/workspace', agentPreset: 'default' },
   })
   let agent: Agent | undefined = { id: session.id, ctx, session } as unknown as Agent
-  const removeAgent = ctx.agents.register(agent)
-  ctx.emit('agent/session-start', { agent, source: 'startup' })
+  const removeAgent = await ctx.agents.register(agent)
   const agentRef = new WeakRef(agent)
   const sessionRef = new WeakRef(session)
 

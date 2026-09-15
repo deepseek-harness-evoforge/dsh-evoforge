@@ -1,7 +1,9 @@
 # DSH 原生插件契约
 
 本文是 EvoForge 包级实现的当前最低要求。具体 DSH API 必须以每轮开发前审计的上游 revision 为准，不能从旧
-evidence 或历史源码链接推断。当前上游审计与不变的支持基线见 [DSH 最新审计](research/dsh-latest-audit-2026-09-15.zh.md)。
+evidence 或历史源码链接推断。当前代码固定使用 DSH `0.1.6-alpha.1` / `0d1f50007f9bca3f52b06e1c3074fa14d5fb0720`；
+原生初始化使用 awaited `agent/created`，Typert 由同 revision 官方生成器生成。历史 alpha.5 部署不会自动升级，
+也不能加载这组新包。上游身份见 [DSH 最新审计](research/dsh-latest-audit-2026-09-15.zh.md)；其旧支持基线说明仅适用于该审计时点。
 
 ## 1. 交付形态
 

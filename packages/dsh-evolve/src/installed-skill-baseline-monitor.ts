@@ -22,7 +22,7 @@ export function installInstalledSkillBaselineMonitor(
   const tails = new WeakMap<Agent, Promise<void>>()
   const pending = new Set<Promise<void>>()
 
-  const removeSessionStart = ctx.on('agent/session-start', ({ agent }) => {
+  const removeSessionStart = ctx.on('agent/created', ({ agent }) => {
     startupHighWater.set(agent, lastEventSeq(agent))
   })
 

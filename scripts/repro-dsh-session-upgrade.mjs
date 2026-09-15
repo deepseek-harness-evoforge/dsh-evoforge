@@ -20,7 +20,7 @@ if (args[0] === '--phase') {
     'usage: repro-dsh-session-upgrade.mjs <built-alpha5> <built-rc2> [--require-safe-downgrade]')
   for (const [source, expected] of [
     [oldSource, 'db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5'],
-    [newSource, 'c291e7961a515f6d7af9304e7fd1d257929aef26'],
+    [newSource, '0d1f50007f9bca3f52b06e1c3074fa14d5fb0720'],
   ]) {
     assert.equal(execFileSync('git', ['rev-parse', 'HEAD'], { cwd: source, encoding: 'utf8' }).trim(), expected)
     assert.equal(execFileSync('git', ['status', '--porcelain'], { cwd: source, encoding: 'utf8' }).trim(), '')

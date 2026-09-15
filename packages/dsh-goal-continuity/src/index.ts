@@ -21,7 +21,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   const authorized = resolveSessionIds(config.autoResumeSessionIds ?? [])
   if (authorized.size === 0) return
 
-  ctx.on('agent/session-start', ({ agent, source }) => {
+  ctx.on('agent/created', ({ agent, source }) => {
     if (source !== 'resume' || !authorized.has(String(agent.id))) return
     const goal = ctx.goals.get(agent)
     if (goal === undefined

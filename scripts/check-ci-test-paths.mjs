@@ -105,8 +105,8 @@ if (!/^\s+run: pnpm --dir \.evoforge\/deepseek-harness build\s*$/mu.test(workflo
   throw new Error('assembled DSH CI job must run the full DSH build; clean Web profiles require frontend dist and all runtime package entrypoints')
 }
 
-if (!workflow.includes('ref: db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5')) {
-  throw new Error('Node CI jobs must checkout the latest audited DSH alpha.5 revision for package tests that exercise native DSH paths')
+if (!supportedRevisions.some(revision => workflow.includes(`ref: ${revision}`))) {
+  throw new Error('Node CI jobs must checkout an audited DSH revision from the compatibility allowlist for package tests that exercise native DSH paths')
 }
 
 if (!workflow.includes('DSH_EVOLVE_DSH_SOURCE_DIR: ${{ github.workspace }}/.evoforge/deepseek-harness')) {

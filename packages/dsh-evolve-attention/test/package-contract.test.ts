@@ -19,7 +19,7 @@ describe('dsh-evolve-attention package contract', () => {
       'dsh-evoforge-feishu': { optional: true },
       'dsh-evoforge-telegram': { optional: true },
     })
-    expect(manifest.dependencies).toEqual({ '@deepseek-ai/schemastery': '3.18.1' })
+    expect(manifest.dependencies).toEqual({ '@deepseek-ai/schemastery': '3.18.2' })
     expect(manifest.exports?.['./cordis.patch.yml']).toBe('./cordis.patch.yml')
     expect(manifest.files).toContain('cordis.patch.yml')
     expect(manifest.files).toContain('README.md')

@@ -94,10 +94,9 @@ if (mode === 'before-session-durable') {
   // the backend itself. Resolve both shapes so this fixture fails loudly when
   // the current DSH backend no longer provides a durable interception seam.
   const backend = persistence.coordinator?.backend ?? persistence
-  const appendBatch = backend.appendBatch ?? backend.persistBatch
-  if (typeof appendBatch !== 'function') throw new Error('alpha5 persistence appendBatch seam is unavailable')
-  const boundAppendBatch = appendBatch.bind(backend)
-  backend.appendBatch = async (storage, events, isMaterialized, ...rest) => {
+  const method = typeof backend.appendBatch === 'function' ? 'appendBatch' : 'persistBatch'
+  if (typeof backend[method] !== 'function') throw new Error('native persistence batch seam is unavailable')
+  backend[method] = async () => {
     if (!announced) {
       announced = true
       process.stdout.write('BEFORE_SESSION_DURABLE\n')

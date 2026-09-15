@@ -331,7 +331,7 @@ export function installDeliveryOutcomeMonitor(
   const removeEvent = ctx.on('session/event', (session, event) => {
     if (event.type === 'tool/result') enqueue(session, event)
   })
-  const removeStart = ctx.on('agent/session-start', ({ agent }) => {
+  const removeStart = ctx.on('agent/created', ({ agent }) => {
     for (const event of sessionEvents(agent.session)) {
       if (event.type === 'tool/result') enqueue(agent.session, event)
     }

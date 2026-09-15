@@ -64,7 +64,7 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           repository: deepseek-ai/deepseek-harness
-          ref: db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5
+          ref: 0d1f50007f9bca3f52b06e1c3074fa14d5fb0720
           path: .evoforge/deepseek-harness
 
       - name: Install dependencies
@@ -79,6 +79,7 @@ jobs:
       - name: Run complete repository checks
         env:
           DSH_EVOLVE_DSH_SOURCE_DIR: ${{ github.workspace }}/.evoforge/deepseek-harness
+          DSH_FEISHU_TEST_NATIVE_FILES: '1'
         run: pnpm check
 
       - name: Run static release preflight

@@ -170,6 +170,8 @@ describe.skipIf(process.platform !== 'darwin')('clean-profile assembled EvoForge
       expect(toolNames).toContain('complete_delivery')
       expect(await installedCtx.skills.get('software-delivery')).toBeDefined()
       expect(installedCtx.get('evoforge.evolution')).toBeDefined()
+      expect(installedCtx.typert.getPackage('dsh-evolve', 'host')).toBeDefined()
+      expect(installedCtx.typert.getPackage('dsh-evoforge-gateway', 'host')).toBeDefined()
       const preset = await installedCtx.agentPresets.resolve()
       const canonicalWorktree = await realpath(worktree)
       const nativeWorkspace = await installedCtx.workspaceRegistry.create(canonicalWorktree)
@@ -286,6 +288,8 @@ describe.skipIf(process.platform !== 'darwin')('clean-profile assembled EvoForge
         expect(nativeCtx.tools.get('complete_delivery')).toBeUndefined()
         expect(await nativeCtx.skills.get('software-delivery')).toBeUndefined()
         expect(nativeCtx.get('evoforge.evolution')).toBeUndefined()
+        expect(nativeCtx.typert.getPackage('dsh-evolve', 'host')).toBeUndefined()
+        expect(nativeCtx.typert.getPackage('dsh-evoforge-gateway', 'host')).toBeUndefined()
         // The current DSH rc line removed the old id-addressed `load()` helper. Prefer the
         // official SessionPersistence handle seam; the pinned alpha.5 support
         // checkout still exposes only `load()`, so retain this test-only

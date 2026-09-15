@@ -42,7 +42,7 @@ describe('Generation binder completed-turn evidence', () => {
       sink,
     )
 
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    await ctx.agents.announce(agent, 'startup')
     emitSessionEvent(ctx, session, 'inbox-claimed')
     await preStep(ctx, agent, 1, 1)
     emitSessionEvent(ctx, session, 'step-1-start')
@@ -243,7 +243,7 @@ describe('Generation binder completed-turn evidence', () => {
       session,
       ctx: { inject: vi.fn(() => providerFiber) },
     } as unknown as Agent
-    ctx.agents.register(agent)
+    ctx.effect(() => ctx.agents.enter(agent, undefined))
     const sink = sinkFixture()
     const warn = vi.spyOn(ctx.logger, 'warn')
     const dispose = installGenerationBinder(
@@ -382,7 +382,7 @@ describe('Generation binder completed-turn evidence', () => {
         sink,
       )
 
-      ctx.emit('agent/session-start', { agent, source: 'startup' })
+      await ctx.agents.announce(agent, 'startup')
       if (corruption === 'synthetic-event') {
         const synthetic = plannedEvents.get(session)?.[0]
         if (synthetic === undefined) throw new Error('synthetic fixture event is missing')
@@ -397,7 +397,7 @@ describe('Generation binder completed-turn evidence', () => {
         if (replayed === undefined) throw new Error('replay fixture event is missing')
         ctx.emit('session/event', session, replayed)
       } else {
-        ctx.emit('agent/session-start', { agent, source: 'resume' })
+        await ctx.serial('agent/created', { agent, source: 'resume' })
       }
       await runTurnAfterSessionStart(ctx, agent, session)
       emitSessionEvent(ctx, session, 'turn-end')
@@ -423,10 +423,10 @@ describe('Generation binder completed-turn evidence', () => {
     const synthetic = plannedEvents.get(session)?.[0]
     if (synthetic === undefined) throw new Error('synthetic fixture event is missing')
 
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    await ctx.agents.announce(agent, 'startup')
     ctx.emit('session/event', session, synthetic)
     ctx.emit('agent/disposed', { agent })
-    ctx.emit('agent/session-start', { agent, source: 'resume' })
+    await ctx.serial('agent/created', { agent, source: 'resume' })
     await runTurnAfterSessionStart(ctx, agent, session)
     emitSessionEvent(ctx, session, 'turn-end')
 
@@ -450,7 +450,7 @@ describe('Generation binder completed-turn evidence', () => {
 
     await preStep(ctx, agent, 1, 1)
     ctx.emit('agent/disposed', { agent })
-    ctx.emit('agent/session-start', { agent, source: 'resume' })
+    await ctx.serial('agent/created', { agent, source: 'resume' })
     await runTurnAfterSessionStart(ctx, agent, session)
     emitSessionEvent(ctx, session, 'turn-end')
 
@@ -514,7 +514,7 @@ describe('Generation binder completed-turn evidence', () => {
     const store = storeFixture(undefined)
     const dispose = installGenerationBinder(ctx, store, { providerFor: vi.fn() }, sinkFixture())
 
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    await ctx.serial('agent/created', { agent, source: 'startup' })
     await Promise.resolve()
 
     expect(store.pinSession).not.toHaveBeenCalled()
@@ -531,7 +531,7 @@ describe('Generation binder completed-turn evidence', () => {
     const store = storeFixture(undefined)
     const dispose = installGenerationBinder(ctx, store, { providerFor: vi.fn() }, sinkFixture())
 
-    ctx.emit('agent/session-start', { agent: impostor, source: 'startup' })
+    await ctx.serial('agent/created', { agent: impostor, source: 'startup' })
     await Promise.resolve()
 
     expect(store.pinSession).not.toHaveBeenCalled()
@@ -547,11 +547,11 @@ describe('Generation binder completed-turn evidence', () => {
     })
     const impostor = Session.create(live.id, undefined, live.header)
     const agent = { id: impostor.id, ctx, session: impostor } as unknown as Agent
-    ctx.agents.register(agent)
+    ctx.effect(() => ctx.agents.enter(agent, undefined))
     const store = storeFixture(undefined)
     const dispose = installGenerationBinder(ctx, store, { providerFor: vi.fn() }, sinkFixture())
 
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    await ctx.agents.announce(agent, 'startup')
     await Promise.resolve()
 
     expect(store.pinSession).not.toHaveBeenCalled()
@@ -581,7 +581,7 @@ describe('Generation binder completed-turn evidence', () => {
       sink,
     )
 
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    await ctx.agents.announce(agent, 'startup')
     emitSessionEvent(ctx, session, 'inbox-claimed')
     await preStep(ctx, agent, 1, 1)
     emitSessionEvent(ctx, session, 'step-1-start')
@@ -657,7 +657,7 @@ describe('Generation binder completed-turn evidence', () => {
       sink,
     )
 
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    await ctx.agents.announce(agent, 'startup')
     emitSessionEvent(ctx, session, 'inbox-claimed')
     await preStep(ctx, agent, 1, 1)
     emitSessionEvent(ctx, session, 'step-1-start')
@@ -686,7 +686,7 @@ describe('Generation binder completed-turn evidence', () => {
       sink,
     )
 
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    await ctx.agents.announce(agent, 'startup')
     emitSessionEvent(ctx, session, 'inbox-claimed')
     await preStep(ctx, agent, 1, 1)
     emitSessionEvent(ctx, session, 'step-1-start')
@@ -757,7 +757,7 @@ describe('Generation binder completed-turn evidence', () => {
     await pendingDispose
     expect(sink.drain).toHaveBeenCalledOnce()
 
-    ctx.emit('agent/session-start', { agent, source: 'startup' })
+    await ctx.serial('agent/created', { agent, source: 'startup' })
     await ctx.parallel('session/flush', session)
     await Promise.resolve()
     expect(store.pinSession).toHaveBeenCalledOnce()
@@ -866,7 +866,9 @@ function canonicalJson(value: unknown): string {
 
 function agentFixture(ctx: Context, session: Session): Agent {
   const agent = { id: session.id, ctx, session } as unknown as Agent
-  ctx.agents.register(agent)
+  // Keep the native publication boundary explicit: tests install observers before announce(),
+  // and malformed/replayed creation events remain separate adversarial dispatches.
+  ctx.effect(() => ctx.agents.enter(agent, undefined))
   return agent
 }
 
@@ -888,7 +890,7 @@ async function runCompletedTurn(ctx: Context, agent: Agent, session: Session): P
 }
 
 async function runTurnBeforeEnd(ctx: Context, agent: Agent, session: Session): Promise<void> {
-  ctx.emit('agent/session-start', { agent, source: 'startup' })
+  await ctx.agents.announce(agent, 'startup')
   await runTurnAfterSessionStart(ctx, agent, session)
 }
 

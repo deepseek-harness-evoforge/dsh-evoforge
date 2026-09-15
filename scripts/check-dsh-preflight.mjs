@@ -12,8 +12,8 @@ export function requireDshPreflight(env = process.env) {
   if (sourceDir === undefined || sourceDir === '') {
     throw new Error([
       'DSH preflight failed: DSH_EVOLVE_DSH_SOURCE_DIR is required for pnpm check.',
-      'Point it at a clean checkout of the exact audited DSH alpha.5 target, for example:',
-      '  DSH_EVOLVE_DSH_SOURCE_DIR=/path/to/dsh-v0.1.2-alpha.5 pnpm run check',
+      'Point it at a clean checkout of the exact audited DSH 0.1.6-alpha.1 target, for example:',
+      '  DSH_EVOLVE_DSH_SOURCE_DIR=/path/to/dsh-v0.1.6-alpha.1 pnpm run check',
       'Run pnpm run check:docs or pnpm run check:ci for checks that do not load DSH runtime artifacts.',
     ].join('\n'))
   }
@@ -27,7 +27,7 @@ export function requireDshPreflight(env = process.env) {
     throw new Error([
       `DSH preflight failed for '${sourceDir}'.`,
       detail,
-      'Use a clean checkout of the exact audited DSH alpha.5 target; do not point the full check at latest master unless it is explicitly admitted.',
+      'Use a clean checkout of the exact audited DSH 0.1.6-alpha.1 target; do not point the full check at latest master unless it is explicitly admitted.',
     ].join('\n'))
   }
 }

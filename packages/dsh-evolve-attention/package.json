@@ -40,7 +40,7 @@
     "node": "^22.19.0 || >=24.0.0"
   },
   "dependencies": {
-    "@deepseek-ai/schemastery": "3.18.1"
+    "@deepseek-ai/schemastery": "3.18.2"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "4.0.2",

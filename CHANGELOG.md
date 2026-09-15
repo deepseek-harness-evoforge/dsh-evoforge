@@ -7,6 +7,10 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Moved the development build to the pinned DSH 0.1.6-alpha.1 core, its awaited Agent creation lifecycle and native
+  Typert codec factories. Clean-profile checks now require the control-plane contributions to be registered, not merely
+  a running Host. Existing alpha.5 installations are not automatically upgraded; binary-only downgrade cannot recover
+  messages written in the newer Session format.
 - Added opt-in Feishu file delivery through a native output snapshot, exact-recipient Approval and durable Gateway
   receipt. Only delivered receipts confirm success; failures and uncertain results do not appear as successful Tool calls.
   This path is verified in an isolated newer DSH Host, not yet deployed or enabled on the image-only alpha.5 baseline.

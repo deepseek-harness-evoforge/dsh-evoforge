@@ -5,6 +5,15 @@ import {
   assertSupportedDshTarget,
 } from './run-dsh-compatibility-matrix.mjs'
 
+test('pins the native-file and awaited Agent creation cohort', () => {
+  assert.deepEqual(SUPPORTED_DSH_TARGETS, {
+    '0d1f50007f9bca3f52b06e1c3074fa14d5fb0720': '0.1.6-alpha.1',
+  })
+  assert.throws(() => assertSupportedDshTarget({
+    revision: 'db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5', version: '0.1.2-alpha.5', dirty: '',
+  }), /unsupported DSH revision/u)
+})
+
 test('admits only the current audited DSH revision/version pair', () => {
   for (const [revision, version] of Object.entries(SUPPORTED_DSH_TARGETS)) {
     assert.deepEqual(

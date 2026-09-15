@@ -36,7 +36,7 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           repository: deepseek-ai/deepseek-harness
-          ref: db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5
+          ref: 0d1f50007f9bca3f52b06e1c3074fa14d5fb0720
           path: .evoforge/deepseek-harness
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -47,6 +47,7 @@ jobs:
       - name: Check repository
         env:
           DSH_EVOLVE_DSH_SOURCE_DIR: ${{ github.workspace }}/.evoforge/deepseek-harness
+          DSH_FEISHU_TEST_NATIVE_FILES: '1'
         run: pnpm check
       - name: Check release metadata
         run: pnpm run check:release
@@ -60,8 +61,8 @@ jobs:
       fail-fast: false
       matrix:
         dsh:
-          - version: 0.1.2-alpha.5
-            revision: db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5
+          - version: 0.1.6-alpha.1
+            revision: 0d1f50007f9bca3f52b06e1c3074fa14d5fb0720
     steps:
       - name: Checkout EvoForge
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -127,7 +128,11 @@ jobs:
         env:
           DSH_EVOLVE_DSH_SOURCE_DIR: ${{ github.workspace }}/.evoforge/deepseek-harness
           DSH_EVOLVE_CASE_PACK_ROOT: ${{ runner.temp }}/evoforge-case-packs
+          DSH_FEISHU_TEST_NATIVE_FILES: '1'
         run: |
+          node scripts/verify-native-typert.mjs
+          pnpm --filter dsh-evoforge-feishu exec vitest run --maxWorkers 1 \
+            test/dsh-assembled-file.e2e.test.ts
           pnpm --filter dsh-evoforge-doctor exec vitest run \
             test/suite-native-plugin-contract.test.ts
           pnpm --filter dsh-software-delivery exec vitest run \

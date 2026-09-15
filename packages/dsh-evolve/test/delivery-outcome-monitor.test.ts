@@ -96,7 +96,7 @@ describe('verified delivery outcome monitor', () => {
     const agent = testAgent()
     appendDurablePair(undefined, agent, 'recovered-call', successfulDeliveryValue(), 1_723_456_789_111)
 
-    emitAgentSessionStart(ctx, agent)
+    await announceAgentCreated(ctx, agent)
     await monitor.flush()
 
     expect(outcomes.record).toHaveBeenCalledOnce()
@@ -328,11 +328,11 @@ function emitSessionEvent(ctx: Context, agent: TestAgent, event: object): void {
   emitter.emit('session/event', agent.session, event)
 }
 
-function emitAgentSessionStart(ctx: Context, agent: TestAgent): void {
+async function announceAgentCreated(ctx: Context, agent: TestAgent): Promise<void> {
   const emitter = ctx as unknown as {
-    emit(name: 'agent/session-start', payload: { agent: object }): void
+    serial(name: 'agent/created', payload: { agent: object; source: 'resume' }): Promise<void>
   }
-  emitter.emit('agent/session-start', { agent })
+  await emitter.serial('agent/created', { agent, source: 'resume' })
 }
 
 function installWorkspaceFixture(ctx: Context): void {
