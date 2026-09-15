@@ -20,7 +20,25 @@ V5.16 随后完成 rc.5/rc.2 双版本兼容矩阵：rc.2 路径优先调用 Hos
 `originalDimensions`；rc.5 继续使用“先整批 validate、再逐个 save”的兼容路径。两者都只传递官方
 `ImageAttachmentRef`，没有增加 file/audio/video 私有块。
 
-## 背景
+## 2026-09-15 原生通用文件边界复核
+
+下述“只有图片”是本 ADR 当时固定版本的事实，不是当前上游能力结论。直接检查官方
+`c291e7961a515f6d7af9304e7fd1d257929aef26`（CLI `0.1.5-rc.2`）和本日 fetch 后的
+`0d1f50007f9bca3f52b06e1c3074fa14d5fb0720`（CLI `0.1.6-alpha.1`）发现，两者均已提供：
+
+- `packages/attachment/attachment/src/types.ts` 中的 `FileAttachmentRef`，只含内容地址、文件名与字节数；
+- `AttachmentAdmissionPart` / `AdmittedPromptContentPart` 中的原生 `file` 成员；
+- `packages/attachment/attachment/src/index.ts` 中的 `saveFile`、`saveFileStream`、`readFileStream` 与
+  `fileHostPath`，由原生附件 Provider 持久化并校验文件，而非 Adapter 自建文件库。
+
+因此通用文件接入的后续工作不再以“等待上游发明 file block”为前提，而是固定支持版本、适配原生引用、完成
+权限/取消/完整性/重启与真实渠道验收。此复核本身不启用能力，不改变当前 alpha.5 支持范围，也不替代新的实现 ADR。
+
+入站附件与出站产物仍是两种不同的动作：当前 `FeishuPlatform` 只有 `sendText` / `sendCard`，没有文件上传与发送
+接口。不能仅因原生附件已存在，就声称飞书可以交付文件；更不能扫描模型回复中的本地路径并自动上传。出站必须另有
+明确的原生权限决策、精确接收方、内容快照与 durable 外部效果意图，未知结果不能自动重发。
+
+## 历史背景
 
 飞书事件把图片表示为平台 `fileKey`。该 key 是 Adapter 的外部资源身份，不是持久内容，也不应进入
 DSH Session、模型上下文或 Gateway journal。固定 DSH revision 已提供 `ctx.attachments`、
