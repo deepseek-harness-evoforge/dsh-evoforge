@@ -1,4 +1,5 @@
 import { setTimeout as wait } from 'node:timers/promises'
+import { createHash } from 'node:crypto'
 import type { ResolvedGatewayRoute, ResolvedGatewayRoutes } from './routing.js'
 import type {
   GatewayOutboundJournal,
@@ -15,6 +16,43 @@ export interface GatewayTextDeliveryIntent {
   readonly replyInThread?: boolean
   /** Persist now, but do not send until this native DSH turn has ended. */
   readonly waitForTurnEnd?: number
+}
+
+/** The audited native FileAttachmentRef wire shape; Gateway never stores file bytes or host paths. */
+export interface GatewayFileReference {
+  readonly attachmentId: string
+  readonly name: string
+  readonly bytes: number
+}
+
+/** Host-only: native permission and an immutable attachment must be established before submission. */
+export interface GatewayFileDeliveryIntent {
+  readonly routeId: string
+  readonly kind: 'file'
+  readonly intentKey: string
+  readonly file: GatewayFileReference
+  readonly destinationDigest: string
+  readonly replyToExternalId?: string
+  readonly replyInThread?: boolean
+}
+
+export type GatewayDeliveryIntent = GatewayTextDeliveryIntent | GatewayFileDeliveryIntent
+
+export interface GatewayFileSendInput {
+  readonly routeId: string
+  readonly file: GatewayFileReference
+  readonly destinationDigest: string
+  readonly replyToExternalId?: string
+  readonly replyInThread?: boolean
+}
+
+/** Bind both the external recipient and native owner, not a mutable route label alone. */
+export function gatewayFileDestinationDigest(route: ResolvedGatewayRoute): string {
+  return createHash('sha256').update(JSON.stringify([
+    'gateway-file-destination-v1', route.id, route.adapter, route.accountId,
+    route.conversationId, route.threadId ?? null, route.userId,
+    route.workspaceId, route.sessionId, route.agentPreset,
+  ])).digest('hex')
 }
 
 export interface GatewayOutboundPolicy {
@@ -43,6 +81,8 @@ export interface GatewayTextAdapterConfig extends GatewayOutboundPolicy {
   /** Own future exact routes created by this Gateway's pairing authority for the same account. */
   readonly pairedRoutes?: boolean
   send(input: GatewayOutboundSendInput, signal: AbortSignal): Promise<GatewayOutboundSendResult>
+  /** Must recheck destinationDigest against the live route before reading/sending the native attachment. */
+  sendFile?(input: GatewayFileSendInput, signal: AbortSignal): Promise<GatewayOutboundSendResult>
 }
 
 export interface GatewayOutboundReceipt {
@@ -52,7 +92,7 @@ export interface GatewayOutboundReceipt {
 }
 
 export interface GatewayTextAdapterRegistration {
-  submit(intent: GatewayTextDeliveryIntent): Promise<GatewayOutboundReceipt>
+  submit(intent: GatewayDeliveryIntent): Promise<GatewayOutboundReceipt>
   dispose(): Promise<void>
 }
 
@@ -227,14 +267,21 @@ class GatewayTextAdapterRegistrationImpl implements GatewayTextAdapterRegistrati
 
   private readonly routesById: ReadonlyMap<string, ResolvedGatewayRoute>
 
-  async submit(intent: GatewayTextDeliveryIntent): Promise<GatewayOutboundReceipt> {
+  async submit(intent: GatewayDeliveryIntent): Promise<GatewayOutboundReceipt> {
     this.beginSubmit()
     try {
       if (this.disposed !== undefined || this.lifecycle.signal.aborted) {
         throw new Error('Gateway text Adapter registration is disposed')
       }
-      if (this.route(intent.routeId) === undefined) {
+      const route = this.route(intent.routeId)
+      if (route === undefined) {
         throw new Error(`Gateway text Adapter does not own route '${intent.routeId}'`)
+      }
+      if (intent.kind === 'file') {
+        if (this.config.sendFile === undefined) throw new Error('Gateway Adapter does not support file delivery')
+        if (intent.destinationDigest !== gatewayFileDestinationDigest(route)) {
+          throw new Error('Gateway file destination changed')
+        }
       }
       const prepared = await this.journal.prepare({ ...intent, now: Date.now() })
       if (prepared.record.status === 'prepared' || prepared.record.status === 'retrying') {
@@ -355,7 +402,23 @@ class GatewayTextAdapterRegistrationImpl implements GatewayTextAdapterRegistrati
     let result: GatewayOutboundSendResult
     try {
       result = normalizeResult(await raceWithAbort(
-        () => this.config.send(sendInput(sending), signal),
+        () => {
+          if (sending.kind !== 'file') return this.config.send(sendInput(sending), signal)
+          const route = this.route(sending.routeId)
+          if (route === undefined || gatewayFileDestinationDigest(route) !== sending.destinationDigest) {
+            return Promise.resolve({ kind: 'rejected', code: 'file-destination-changed' } as const)
+          }
+          if (this.config.sendFile === undefined) {
+            return Promise.resolve({ kind: 'rejected', code: 'file-delivery-unavailable' } as const)
+          }
+          return this.config.sendFile(Object.freeze({
+            routeId: sending.routeId,
+            file: Object.freeze({ ...sending.file }),
+            destinationDigest: sending.destinationDigest,
+            ...(sending.replyToExternalId === undefined ? {} : { replyToExternalId: sending.replyToExternalId }),
+            ...(sending.replyInThread === undefined ? {} : { replyInThread: sending.replyInThread }),
+          }), signal)
+        },
         signal,
       ))
     } catch {
@@ -363,7 +426,8 @@ class GatewayTextAdapterRegistrationImpl implements GatewayTextAdapterRegistrati
     } finally {
       clearTimeout(timer)
     }
-    const finished = await this.journal.finish(id, result, this.config, Date.now())
+    const finished = await this.journal.finish(id, result,
+      sending.kind === 'file' ? { ...this.config, maxAttempts: 1 } : this.config, Date.now())
     try {
       this.onTerminal(finished)
     } catch {
@@ -381,7 +445,7 @@ class GatewayTextAdapterRegistrationImpl implements GatewayTextAdapterRegistrati
   }
 }
 
-function sendInput(record: GatewayOutboundRecord): GatewayOutboundSendInput {
+function sendInput(record: Exclude<GatewayOutboundRecord, { kind: 'file' }>): GatewayOutboundSendInput {
   return Object.freeze({
     routeId: record.routeId,
     text: record.text,

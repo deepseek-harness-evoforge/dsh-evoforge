@@ -30,3 +30,24 @@ append-only Session 中 dispatch 必然早于该 follow-up 的 turn 事件，dis
 因此不会第二次调用 Adapter send。Gateway 不解析 reminder framing、不复制 schedule id，也不增加通用 causal
 key。该结论只保护外部渠道效果；官方 Schedule 仍可能重新运行模型并重复 token、时延和成本，不能宣称完整
 exactly-once。
+
+## 原生文件出站记录（2026-09-15，尚未接入用户发送路径）
+
+同一 account registration 现在可选提供 `sendFile`，与文本共用串行队列、wall-clock timeout、卸载 drain、
+健康投影和终态观察。文件 intent 只保存原生 `FileAttachmentRef` 的 wire shape（内容地址、名称、字节数），
+不保存文件字节、Host 路径、URL 或平台 file key。读取和完整性校验由 Adapter 调用原生 Attachment Provider；
+Gateway 不成为附件库，也不从模型回复推断文件。
+
+现有单文件 Storage 对版本差异严格拒绝，不能把 `compatibleVersions` 当作自动迁移。因此保持
+`evoforge_gateway_outbound` v1 文本 unit/schema 不变；同一 journal facade 另开 Gateway-owned 的原生
+`evoforge_gateway_file_outbound` v1 Domain，仅容纳文件元数据。两者共用写入顺序、跨类型 identity 检查和
+现有 `maxRecords` 总量约束。打开失败须关闭已经取得的全部 Domain；卸载不删除任一原生 unit 或原生附件。
+旧插件不会读取新文件 Domain；这不是文件发送状态的自动降级或回滚。
+
+文件 intent 绑定 exact 外部 endpoint、native Workspace/Session 与 preset 的摘要；提交时与实际发送前均核对，
+Adapter 在异步读取附件后仍须再次核对 live route。内容、接收方或 identity 漂移拒绝；接收方变化的记录也不归因给
+新 Workspace。未注册 file handler 时不能回退为文本发送。`sending` 经恢复变为 `uncertain`，文件发送始终只有一次
+平台尝试，即便 rate limit 也不自动重试。幂等仍受已声明的有界记录保留期限制，不承诺无限历史 exactly-once。
+
+这个 Host seam 不授予权限。调用者必须先完成原生文件快照和原生外发审批；目前飞书只实现了底层 transport，
+未注册文件 Tool、未开放用户发送，也未部署真实文件交付。后续仍须验证审批拒绝、端到端实际附件和恢复。

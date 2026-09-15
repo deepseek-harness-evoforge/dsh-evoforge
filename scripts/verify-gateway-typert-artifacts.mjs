@@ -60,6 +60,7 @@ async function sourceDigest() {
     'packages/dsh-gateway/src/gateway-remote.ts',
     'packages/dsh-gateway/src/gateway-remote.typert.ts',
     'packages/dsh-gateway/src/outbound.ts',
+    'packages/dsh-gateway/src/outbound-journal.ts',
     'packages/dsh-gateway/src/transport-health.ts',
     'packages/dsh-gateway/typert-generator-compat.d.ts',
     'packages/dsh-gateway/tsconfig.typert.json',

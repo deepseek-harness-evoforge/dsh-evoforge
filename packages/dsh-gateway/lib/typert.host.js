@@ -73,7 +73,7 @@ const dsh_evoforge_gateway_evoforgeGateway_overview_result$schema = z.object({
   'last': z.union([z.undefined(), z.object({
   'id': z.string().readonly(),
   'routeId': z.string().readonly(),
-  'kind': z.union([z.literal("turn"), z.literal("response"), z.literal("notice")]).readonly(),
+  'kind': z.union([z.literal("turn"), z.literal("response"), z.literal("notice"), z.literal("file")]).readonly(),
   'status': z.union([z.literal("prepared"), z.literal("sending"), z.literal("retrying"), z.literal("delivered"), z.literal("uncertain"), z.literal("failed")]).readonly(),
   'attempts': z.number().readonly(),
   'updatedAt': z.number().readonly(),

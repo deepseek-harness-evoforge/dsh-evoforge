@@ -239,6 +239,11 @@ export type {
 } from './message-ingress-evidence.js'
 export {
   GatewayOutboundCoordinator,
+  gatewayFileDestinationDigest,
+  type GatewayDeliveryIntent,
+  type GatewayFileDeliveryIntent,
+  type GatewayFileReference,
+  type GatewayFileSendInput,
   type GatewayOutboundHealth,
   type GatewayOutboundObservation,
   type GatewayOutboundPolicy,

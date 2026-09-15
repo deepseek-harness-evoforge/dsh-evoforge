@@ -8,6 +8,21 @@ import type { FeishuContentPermission } from '../src/config.js'
 import type { SummarizeFeishuContentHealthInput } from '../src/health.js'
 
 describe('Feishu authoritative health snapshot', () => {
+  it('keeps an uncertain file delivery visible in the native command projection', () => {
+    const snapshot = summarizeFeishuHealth({
+      now: 1_000, accountId: 'cli_test_app',
+      transport: gatewayTransport('ready', ['main'], 999),
+      routes: [{ id: 'main', workspaceId: 'workspace-a', sessionId: 'session-a', threadScoped: false }],
+      outbound: outbound({ total: 1, uncertain: 1,
+        last: { id: 'file-effect', routeId: 'main', kind: 'file', status: 'uncertain', attempts: 1, updatedAt: 999 },
+      }),
+      pendingApprovals: 0, content: contentHealth(),
+    })
+    expect(snapshot.status).toBe('attention')
+    expect(snapshot.deliveries.last).toMatchObject({ source: 'file', status: 'uncertain' })
+    expect(parseFeishuHealthCommand(renderFeishuHealthCommand(snapshot))).toEqual(snapshot)
+  })
+
   it('filters the durable journal to one native Session and exposes no endpoint or content', () => {
     const snapshot = summarizeFeishuHealth({
       now: 900,

@@ -43,13 +43,13 @@ describe('dsh-gateway Bundle lifecycle', () => {
     await fiber.dispose()
 
     expect(ctx.get('evoforge.gatewayIngressEvidence')).toBeUndefined()
-    expect(domains.closes).toHaveLength(3)
+    expect(domains.closes).toHaveLength(4)
     for (const close of domains.closes) expect(close).toHaveBeenCalledOnce()
     await ctx.fiber.dispose()
   })
 
-  it('preserves an outbound-open error when ingress cleanup also rejects', async () => {
-    const domains = trackedFacility(0, 1)
+  it.each([1, 2])('preserves outbound-open error %i when ingress cleanup also rejects', async failingOpen => {
+    const domains = trackedFacility(0, failingOpen)
     const logger = { warn: vi.fn() }
     const context = {
       storageDomain: domains.facility,
@@ -62,8 +62,8 @@ describe('dsh-gateway Bundle lifecycle', () => {
 
     await expect(GatewayPlugin.apply(context, { pairing: { enabled: false } })).rejects
       .toThrow('outbound journal open failed')
-    expect(domains.closes).toHaveLength(1)
-    expect(domains.closes[0]).toHaveBeenCalledOnce()
+    expect(domains.closes).toHaveLength(failingOpen)
+    for (const close of domains.closes) expect(close).toHaveBeenCalledOnce()
     expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining(
       'startup cleanup failed: journal close failed',
     ))
@@ -98,7 +98,7 @@ describe('dsh-gateway Bundle lifecycle', () => {
     expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('startup cleanup failed'))
     expect(context.effect).toHaveBeenCalledOnce()
     expect(context.provide).not.toHaveBeenCalled()
-    expect(domains.closes).toHaveLength(3)
+    expect(domains.closes).toHaveLength(4)
     for (const close of domains.closes) expect(close).toHaveBeenCalledOnce()
   })
 
@@ -135,7 +135,7 @@ describe('dsh-gateway Bundle lifecycle', () => {
     const applying = GatewayPlugin.apply(context, { pairing: { enabled: false } })
     await vi.waitFor(() => {
       expect(list).toHaveBeenCalledOnce()
-      expect(domains.closes).toHaveLength(3)
+      expect(domains.closes).toHaveLength(4)
       expect(rollback).toBeDefined()
     })
 

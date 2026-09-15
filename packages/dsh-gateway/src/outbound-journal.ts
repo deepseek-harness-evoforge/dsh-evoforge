@@ -10,16 +10,14 @@ import { z } from 'zod'
 import type {
   GatewayOutboundPolicy,
   GatewayOutboundSendResult,
-  GatewayTextDeliveryIntent,
+  GatewayDeliveryIntent,
 } from './outbound.js'
 
-const outboundSchema = z.strictObject({
+const commonOutboundSchema = z.strictObject({
   id: z.string().regex(/^[a-f0-9]{64}$/u),
   schemaVersion: z.literal(1),
   routeId: z.string().min(1).max(64),
-  kind: z.enum(['turn', 'response', 'notice']),
   intentKey: z.string().min(1).max(1_024),
-  text: z.string().min(1).max(30_000),
   replyToExternalId: z.string().min(1).max(512).optional(),
   replyInThread: z.boolean().optional(),
   waitForTurnEnd: z.number().int().positive().optional(),
@@ -32,6 +30,25 @@ const outboundSchema = z.strictObject({
   error: z.string().min(1).max(512).optional(),
 })
 
+const textOutboundSchema = commonOutboundSchema.extend({
+  kind: z.enum(['turn', 'response', 'notice']),
+  text: z.string().min(1).max(30_000),
+})
+const fileOutboundSchema = commonOutboundSchema.extend({
+  kind: z.literal('file'),
+  destinationDigest: z.string().regex(/^[a-f0-9]{64}$/u),
+  file: z.strictObject({
+    attachmentId: z.string().regex(/^sha256:[a-f0-9]{64}$/u),
+    name: z.string().min(1).refine(value => Buffer.byteLength(value) <= 255
+      && value.trim() === value && value !== '.' && value !== '..'
+      && !/[/\\\u0000-\u001f\u007f]/u.test(value)),
+    bytes: z.number().int().positive().max(30_000_000),
+  }),
+})
+const outboundSchema = z.union([textOutboundSchema,
+  fileOutboundSchema.refine(record => record.waitForTurnEnd === undefined),
+])
+
 export type GatewayOutboundRecord = z.infer<typeof outboundSchema>
 export type GatewayOutboundStatus = GatewayOutboundRecord['status']
 
@@ -39,16 +56,28 @@ const gatewayOutboundDomainSpec = defineDomain({
   name: 'evoforge_gateway_outbound',
   version: 1,
   global: { schema: z.strictObject({}), initial: {} },
-  tables: { outbound: domainTable<string, GatewayOutboundRecord>(outboundSchema) },
+  tables: { outbound: domainTable<string, GatewayOutboundRecord>(textOutboundSchema) },
+})
+
+// Keep the legacy native unit byte/schema compatible; file metadata is a sibling
+// Domain owned by this same journal/coordinator, never a second sending authority.
+const gatewayFileOutboundDomainSpec = defineDomain({
+  name: 'evoforge_gateway_file_outbound',
+  version: 1,
+  global: { schema: z.strictObject({}), initial: {} },
+  tables: { files: domainTable<string, GatewayOutboundRecord>(
+    fileOutboundSchema.refine(record => record.waitForTurnEnd === undefined),
+  ) },
 })
 
 type GatewayOutboundDomain = Domain<typeof gatewayOutboundDomainSpec>
+type GatewayFileOutboundDomain = Domain<typeof gatewayFileOutboundDomainSpec>
 const DEFAULT_MAX_RECORDS = 10_000
 const TERMINAL = new Set<GatewayOutboundStatus>(['delivered', 'uncertain', 'failed'])
 
 export interface GatewayOutboundJournal {
   prepare(
-    input: GatewayTextDeliveryIntent & { readonly now: number },
+    input: GatewayDeliveryIntent & { readonly now: number },
   ): Promise<{ created: boolean; record: GatewayOutboundRecord }>
   get(id: string): GatewayOutboundRecord | undefined
   list(): GatewayOutboundRecord[]
@@ -67,25 +96,40 @@ class DomainGatewayOutboundJournal implements GatewayOutboundJournal {
   private tail: Promise<void> = Promise.resolve()
   private closing?: Promise<void>
 
-  constructor(private readonly domain: GatewayOutboundDomain, private readonly maxRecords: number) {}
+  constructor(
+    private readonly domain: GatewayOutboundDomain,
+    private readonly files: GatewayFileOutboundDomain,
+    private readonly maxRecords: number,
+  ) {
+    const seen = new Set<string>()
+    for (const table of this.tables()) {
+      for (const [id, record] of table.entries()) {
+        if (id !== record.id || id !== outboundId(record.routeId, exactIntentKey(record.intentKey)) || seen.has(id)) {
+          throw new Error('Gateway outbound durable identity is inconsistent')
+        }
+        seen.add(id)
+      }
+    }
+  }
 
-  prepare(
-    input: GatewayTextDeliveryIntent & { readonly now: number },
+  async prepare(
+    input: GatewayDeliveryIntent & { readonly now: number },
   ): Promise<{ created: boolean; record: GatewayOutboundRecord }> {
+    const snapshot = structuredClone(input)
     return this.write(async () => {
-      const { now: rawNow, ...intent } = input
+      const { now: rawNow, ...intent } = snapshot
       const now = exactTime(rawNow)
-      const intentKey = exactIntentKey(input.intentKey)
-      const id = outboundId(input.routeId, intentKey)
-      if (input.waitForTurnEnd !== undefined && input.kind !== 'turn') {
+      const intentKey = exactIntentKey(snapshot.intentKey)
+      const id = outboundId(snapshot.routeId, intentKey)
+      if ('waitForTurnEnd' in snapshot && snapshot.waitForTurnEnd !== undefined && snapshot.kind !== 'turn') {
         throw new Error('Only a Gateway turn delivery may wait for native turn/end')
       }
       const candidate = outboundSchema.parse({
         ...intent,
         intentKey,
-        ...(input.replyToExternalId === undefined
+        ...(snapshot.replyToExternalId === undefined
           ? {}
-          : { replyToExternalId: exactExternalId(input.replyToExternalId) }),
+          : { replyToExternalId: exactExternalId(snapshot.replyToExternalId) }),
         id,
         schemaVersion: 1,
         status: 'prepared',
@@ -93,25 +137,28 @@ class DomainGatewayOutboundJournal implements GatewayOutboundJournal {
         createdAt: now,
         updatedAt: now,
       })
-      const table = this.domain.table('outbound')
-      const existing = table.get(id)
+      const table = this.tableFor(candidate)
+      const existing = this.get(id)
       if (existing !== undefined) {
         assertSameIntent(existing, candidate)
         return { created: false, record: copy(existing) }
       }
-      await prune(table, this.maxRecords - 1)
+      await prune(this.tables(), this.maxRecords - 1)
       await table.put(id, candidate)
       return { created: true, record: copy(candidate) }
     })
   }
 
   get(id: string): GatewayOutboundRecord | undefined {
-    const value = this.domain.table('outbound').get(id)
+    const text = this.domain.table('outbound').get(id)
+    const file = this.files.table('files').get(id)
+    if (text !== undefined && file !== undefined) throw new Error('Gateway outbound identity exists in both native domains')
+    const value = text ?? file
     return value === undefined ? undefined : copy(value)
   }
 
   list(): GatewayOutboundRecord[] {
-    return [...this.domain.table('outbound').entries()]
+    return this.tables().flatMap(table => [...table.entries()])
       .map(([, value]) => value)
       .sort((left, right) => left.createdAt - right.createdAt || left.id.localeCompare(right.id))
       .map(copy)
@@ -197,11 +244,10 @@ class DomainGatewayOutboundJournal implements GatewayOutboundJournal {
   recoverInflight(now: number): Promise<number> {
     return this.write(async () => {
       exactTime(now)
-      const table = this.domain.table('outbound')
       let recovered = 0
-      for (const [id, record] of table.entries()) {
+      for (const record of this.list()) {
         if (record.status !== 'sending') continue
-        await table.put(id, outboundSchema.parse(clean({
+        await this.tableFor(record).put(record.id, outboundSchema.parse(clean({
           ...record,
           status: 'uncertain',
           updatedAt: now,
@@ -209,13 +255,17 @@ class DomainGatewayOutboundJournal implements GatewayOutboundJournal {
         })))
         recovered += 1
       }
-      await prune(table, this.maxRecords)
+      await prune(this.tables(), this.maxRecords)
       return recovered
     })
   }
 
   close(): Promise<void> {
-    this.closing ??= this.tail.then(() => this.domain.close())
+    this.closing ??= this.tail.then(async () => {
+      const results = await Promise.allSettled([this.domain.close(), this.files.close()])
+      const failed = results.filter(result => result.status === 'rejected')
+      if (failed.length > 0) throw new AggregateError(failed.map(result => result.reason), 'Gateway outbound close failed')
+    })
     return this.closing
   }
 
@@ -224,11 +274,21 @@ class DomainGatewayOutboundJournal implements GatewayOutboundJournal {
     transform: (current: GatewayOutboundRecord) => GatewayOutboundRecord,
   ): Promise<GatewayOutboundRecord> {
     return this.write(async () => {
-      const table = this.domain.table('outbound')
+      const current = this.get(id)
+      if (current === undefined) throw new Error('Gateway outbound record is missing')
+      const table = this.tableFor(current)
       const value = await table.update(id, current => outboundSchema.parse(transform(current)))
-      if (TERMINAL.has(value.status)) await prune(table, this.maxRecords)
+      if (TERMINAL.has(value.status)) await prune(this.tables(), this.maxRecords)
       return copy(value)
     })
+  }
+
+  private tables(): KvTable<string, GatewayOutboundRecord>[] {
+    return [this.domain.table('outbound'), this.files.table('files')]
+  }
+
+  private tableFor(record: GatewayOutboundRecord): KvTable<string, GatewayOutboundRecord> {
+    return record.kind === 'file' ? this.files.table('files') : this.domain.table('outbound')
   }
 
   private write<T>(job: () => Promise<T>): Promise<T> {
@@ -247,12 +307,27 @@ export async function openGatewayOutboundJournal(
   if (!Number.isSafeInteger(maxRecords) || maxRecords < 1 || maxRecords > 100_000) {
     throw new Error('Gateway outbound maxRecords must be from 1 to 100000')
   }
-  return new DomainGatewayOutboundJournal(await facility.open(gatewayOutboundDomainSpec), maxRecords)
+  const domain = await facility.open(gatewayOutboundDomainSpec)
+  let files: GatewayFileOutboundDomain | undefined
+  try {
+    files = await facility.open(gatewayFileOutboundDomainSpec)
+    return new DomainGatewayOutboundJournal(domain, files, maxRecords)
+  } catch (error) {
+    const cleanup = await Promise.allSettled([domain.close(), ...(files === undefined ? [] : [files.close()])])
+    const failed = cleanup.filter(result => result.status === 'rejected')
+    if (failed.length > 0) throw new AggregateError([error, ...failed.map(result => result.reason)], 'Gateway outbound open cleanup failed')
+    throw error
+  }
 }
 
 function assertSameIntent(existing: GatewayOutboundRecord, candidate: GatewayOutboundRecord): void {
   if (existing.routeId !== candidate.routeId || existing.kind !== candidate.kind
-    || existing.intentKey !== candidate.intentKey || existing.text !== candidate.text
+    || existing.intentKey !== candidate.intentKey
+    || (existing.kind === 'file' ? candidate.kind !== 'file'
+      || existing.destinationDigest !== candidate.destinationDigest
+      || existing.file.attachmentId !== candidate.file.attachmentId
+      || existing.file.name !== candidate.file.name || existing.file.bytes !== candidate.file.bytes
+      : candidate.kind === 'file' || existing.text !== candidate.text)
     || existing.replyToExternalId !== candidate.replyToExternalId
     || existing.replyInThread !== candidate.replyInThread
     || existing.waitForTurnEnd !== candidate.waitForTurnEnd) {
@@ -261,18 +336,19 @@ function assertSameIntent(existing: GatewayOutboundRecord, candidate: GatewayOut
 }
 
 async function prune(
-  table: KvTable<string, GatewayOutboundRecord>,
+  tables: readonly KvTable<string, GatewayOutboundRecord>[],
   maxSize: number,
 ): Promise<void> {
-  if (table.size <= maxSize) return
-  const candidates = [...table.entries()]
-    .filter(([, value]) => TERMINAL.has(value.status))
-    .sort((left, right) => left[1].createdAt - right[1].createdAt || left[0].localeCompare(right[0]))
-  for (const [id] of candidates) {
-    if (table.size <= maxSize) return
+  const size = () => tables.reduce((total, table) => total + table.size, 0)
+  if (size() <= maxSize) return
+  const candidates = tables.flatMap(table => [...table.entries()].map(([id, value]) => ({ table, id, value })))
+    .filter(({ value }) => TERMINAL.has(value.status))
+    .sort((left, right) => left.value.createdAt - right.value.createdAt || left.id.localeCompare(right.id))
+  for (const { table, id } of candidates) {
+    if (size() <= maxSize) return
     await table.delete(id)
   }
-  if (table.size > maxSize) throw new Error('Gateway outbound journal is full of active records')
+  if (size() > maxSize) throw new Error('Gateway outbound journal is full of active records')
 }
 
 function outboundId(routeId: string, intentKey: string): string {

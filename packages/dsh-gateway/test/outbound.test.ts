@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { DshGateway } from '../src/gateway.js'
 import { openGatewayIngressJournal } from '../src/ingress-journal.js'
 import { openGatewayOutboundJournal } from '../src/outbound-journal.js'
+import { GatewayOutboundCoordinator, gatewayFileDestinationDigest, type GatewayFileSendInput } from '../src/outbound.js'
 import { openGatewayPairingAuthority } from '../src/pairing.js'
 import { resolveGatewayRoutes } from '../src/routing.js'
 
@@ -20,6 +21,166 @@ const routes = resolveGatewayRoutes([{
   provider: 'mock',
   model: 'mock-a',
 }])
+
+describe('Gateway file delivery', () => {
+  const file = { attachmentId: `sha256:${'a'.repeat(64)}`, name: 'result.txt', bytes: 19 }
+  const intent = () => ({
+    routeId: 'telegram-a', kind: 'file' as const, intentKey: 'file:fixed-task', file,
+    destinationDigest: gatewayFileDestinationDigest(routes.routes[0]!),
+  })
+  const config = {
+    adapter: 'telegram', accountId: 'bot-a', routeIds: ['telegram-a'],
+    maxAttempts: 3, maxRetryAfterMs: 1_000, sendTimeoutMs: 30_000,
+    send: vi.fn(async () => ({ kind: 'delivered' as const, externalMessageId: 'text' })),
+  }
+
+  it('journals only the native reference and delivers it once through the same account queue', async () => {
+    const journal = await openGatewayOutboundJournal(memoryFacility())
+    const coordinator = new GatewayOutboundCoordinator(routes, journal, async () => true)
+    await coordinator.start(1)
+    const sendFile = vi.fn(async (_input: GatewayFileSendInput) => ({ kind: 'delivered' as const, externalMessageId: 'file-message' }))
+    const registration = coordinator.register({ ...config, sendFile })
+    const receipt = await registration.submit(intent())
+    await eventually(() => journal.get(receipt.id)?.status === 'delivered')
+    expect(sendFile).toHaveBeenCalledTimes(1)
+    expect(sendFile.mock.calls[0]?.[0]).toEqual({
+      routeId: 'telegram-a', file, destinationDigest: intent().destinationDigest,
+    })
+    expect(journal.get(receipt.id)).toMatchObject({ kind: 'file', file, attempts: 1 })
+    expect(journal.get(receipt.id)).not.toHaveProperty('text')
+    await expect(registration.submit(intent())).resolves.toMatchObject({ created: false, status: 'delivered' })
+    expect(sendFile).toHaveBeenCalledTimes(1)
+    await coordinator.stop()
+  })
+
+  it('rejects changed file content, destination and unsupported file handlers before another effect', async () => {
+    const journal = await openGatewayOutboundJournal(memoryFacility())
+    const coordinator = new GatewayOutboundCoordinator(routes, journal, async () => true)
+    await coordinator.start(1)
+    const unsupported = coordinator.register(config)
+    await expect(unsupported.submit(intent())).rejects.toThrow(/file/u)
+    expect(journal.list()).toHaveLength(0)
+    await unsupported.dispose()
+    const registration = coordinator.register({ ...config,
+      sendFile: async () => ({ kind: 'delivered', externalMessageId: 'file-message' }),
+    })
+    await expect(registration.submit({ ...intent(), destinationDigest: 'b'.repeat(64) })).rejects.toThrow(/destination/u)
+    const receipt = await registration.submit(intent())
+    await eventually(() => journal.get(receipt.id)?.status === 'delivered')
+    await expect(registration.submit({ ...intent(), file: { ...file, bytes: 20 } })).rejects.toThrow(/changed/u)
+    await coordinator.stop()
+  })
+
+  it('serializes files and text in one account queue', async () => {
+    const journal = await openGatewayOutboundJournal(memoryFacility())
+    const coordinator = new GatewayOutboundCoordinator(routes, journal, async () => true)
+    await coordinator.start(1)
+    let finish!: (value: { kind: 'delivered'; externalMessageId: string }) => void
+    const send = vi.fn(async () => ({ kind: 'delivered' as const, externalMessageId: 'text-message' }))
+    const sendFile = vi.fn(() => new Promise<{ kind: 'delivered'; externalMessageId: string }>(resolve => { finish = resolve }))
+    const registration = coordinator.register({ ...config, send, sendFile })
+    const fileReceipt = await registration.submit(intent())
+    await eventually(() => sendFile.mock.calls.length === 1)
+    const textReceipt = await registration.submit({
+      routeId: 'telegram-a', kind: 'notice', intentKey: 'text:after-file', text: 'done',
+    })
+    expect(send).not.toHaveBeenCalled()
+    finish({ kind: 'delivered', externalMessageId: 'file-message' })
+    await eventually(() => journal.get(textReceipt.id)?.status === 'delivered')
+    expect(journal.get(fileReceipt.id)?.status).toBe('delivered')
+    expect(send).toHaveBeenCalledTimes(1)
+    await coordinator.stop()
+  })
+
+  it('does not change a queued native file reference when its caller mutates the input', async () => {
+    const journal = await openGatewayOutboundJournal(memoryFacility())
+    const mutable = { ...intent(), file: { ...file } }
+    const pending = journal.prepare({ ...mutable, now: 1 })
+    mutable.file.bytes = 20
+    const prepared = await pending
+    expect(prepared.record).toMatchObject({ file })
+    await journal.close()
+  })
+
+  it('rejects malformed native references without writing a file intent', async () => {
+    const journal = await openGatewayOutboundJournal(memoryFacility())
+    for (const invalid of [
+      { ...file, attachmentId: '/private/file' }, { ...file, name: '../private.txt' },
+      { ...file, bytes: 0 }, { ...file, bytes: 30_000_001 },
+    ]) {
+      await expect(journal.prepare({ ...intent(), file: invalid, now: 1 })).rejects.toThrow()
+    }
+    expect(journal.list()).toHaveLength(0)
+    await journal.close()
+  })
+
+  it('retains uncertain in-flight files across reopen and never retries them', async () => {
+    const facility = memoryFacility()
+    const first = await openGatewayOutboundJournal(facility)
+    const prepared = await first.prepare({ ...intent(), now: 1 })
+    await first.begin(prepared.record.id, 2)
+    await first.close()
+    const reopened = await openGatewayOutboundJournal(facility)
+    const coordinator = new GatewayOutboundCoordinator(routes, reopened, async () => true)
+    expect(await coordinator.start(3)).toBe(1)
+    const sendFile = vi.fn(async () => ({ kind: 'delivered' as const, externalMessageId: 'must-not-send' }))
+    const registration = coordinator.register({ ...config, sendFile })
+    await expect(registration.submit(intent())).resolves.toMatchObject({ created: false, status: 'uncertain' })
+    expect(sendFile).not.toHaveBeenCalled()
+    await coordinator.stop()
+  })
+
+  it('does not deliver a prepared file to a changed route after restart', async () => {
+    const facility = memoryFacility()
+    const first = await openGatewayOutboundJournal(facility)
+    const prepared = await first.prepare({ ...intent(), now: 1 })
+    await first.close()
+    const changed = resolveGatewayRoutes([{ ...routes.routes[0]!, conversationId: 'different-chat' }])
+    const reopened = await openGatewayOutboundJournal(facility)
+    const coordinator = new GatewayOutboundCoordinator(changed, reopened, async () => true)
+    await coordinator.start(3)
+    const sendFile = vi.fn(async () => ({ kind: 'delivered' as const, externalMessageId: 'must-not-send' }))
+    coordinator.register({ ...config, sendFile })
+    await eventually(() => reopened.get(prepared.record.id)?.status === 'failed')
+    expect(sendFile).not.toHaveBeenCalled()
+    await coordinator.stop()
+  })
+
+  it('fails a recovered file instead of falling back to text when its handler is removed', async () => {
+    const facility = memoryFacility()
+    const first = await openGatewayOutboundJournal(facility)
+    const prepared = await first.prepare({ ...intent(), now: 1 })
+    await first.close()
+    const reopened = await openGatewayOutboundJournal(facility)
+    const coordinator = new GatewayOutboundCoordinator(routes, reopened, async () => true)
+    await coordinator.start(3)
+    const send = vi.fn(async () => ({ kind: 'delivered' as const, externalMessageId: 'must-not-send' }))
+    coordinator.register({ ...config, send })
+    await eventually(() => reopened.get(prepared.record.id)?.status === 'failed')
+    expect(send).not.toHaveBeenCalled()
+    await coordinator.stop()
+  })
+
+  it('bounds file sends and disables automatic retries even for rate limits', async () => {
+    for (const mode of ['timeout', 'rate-limit'] as const) {
+      const journal = await openGatewayOutboundJournal(memoryFacility())
+      const coordinator = new GatewayOutboundCoordinator(routes, journal, async () => true)
+      await coordinator.start(1)
+      let signal: AbortSignal | undefined
+      const sendFile = vi.fn(async (_input, inputSignal: AbortSignal) => {
+        signal = inputSignal
+        return mode === 'timeout' ? await new Promise<never>(() => {})
+          : { kind: 'rate-limited' as const, retryAfterMs: 1 }
+      })
+      const registration = coordinator.register({ ...config, sendTimeoutMs: 10, sendFile })
+      const receipt = await registration.submit(intent())
+      await eventually(() => journal.get(receipt.id)?.status === (mode === 'timeout' ? 'uncertain' : 'failed'))
+      expect(sendFile).toHaveBeenCalledTimes(1)
+      if (mode === 'timeout') expect(signal?.aborted).toBe(true)
+      await coordinator.stop()
+    }
+  })
+})
 
 describe('Gateway outbound text delivery', () => {
   it('lets one resident Adapter own routes approved after its account registration', async () => {

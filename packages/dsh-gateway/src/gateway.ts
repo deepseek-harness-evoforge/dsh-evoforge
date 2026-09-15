@@ -33,6 +33,7 @@ import type {
 import { sessionEvents } from './session-log.ts'
 import {
   GatewayOutboundCoordinator,
+  gatewayFileDestinationDigest,
   type GatewayOutboundObservation,
   type GatewayOutboundHealth,
   type GatewayTextAdapterConfig,
@@ -241,6 +242,7 @@ export class DshGateway {
   private observeOutbound(record: import('./outbound-journal.js').GatewayOutboundRecord): void {
     const route = this.route(record.routeId)
     if (route === undefined || !['delivered', 'uncertain', 'failed'].includes(record.status)) return
+    if (record.kind === 'file' && gatewayFileDestinationDigest(route) !== record.destinationDigest) return
     const operationKeyHash = createHash('sha256')
       .update(`${route.adapter}:${record.kind}`)
       .digest('hex')
@@ -363,6 +365,7 @@ export class DshGateway {
     for (const record of outboundBefore) {
       const route = this.route(record.routeId)
       if (route === undefined) continue
+      if (record.kind === 'file' && gatewayFileDestinationDigest(route) !== record.destinationDigest) continue
       const entry = byWorkspace.get(route.workspaceId) ?? { ingressRecovered: 0, outboundRecovered: 0 }
       entry.outboundRecovered += 1
       byWorkspace.set(route.workspaceId, entry)

@@ -88,7 +88,7 @@ export interface FeishuHealthSnapshot {
     readonly last?: {
       readonly id: string
       readonly routeId: string
-      readonly source: 'turn' | 'response' | 'notice'
+      readonly source: NonNullable<GatewayOutboundHealth['last']>['kind']
       readonly status: GatewayOutboundStatus
       readonly attempts: number
       readonly updatedAt: number
@@ -360,7 +360,7 @@ function deliveries(value: Record<string, unknown>): boolean {
   if (!numeric.every(key => integer(value[key]))) return false
   if (value.last === undefined) return true
   return record(value.last) && text(value.last.id) && text(value.last.routeId)
-    && oneOf(value.last.source, ['turn', 'response', 'notice'])
+    && oneOf(value.last.source, ['turn', 'response', 'notice', 'file'])
     && oneOf(value.last.status, ['prepared', 'sending', 'retrying', 'delivered', 'uncertain', 'failed'])
     && integer(value.last.attempts) && integer(value.last.updatedAt)
 }
