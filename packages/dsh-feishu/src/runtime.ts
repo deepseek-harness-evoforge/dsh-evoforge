@@ -647,6 +647,12 @@ export class FeishuRuntime {
       this.ctx.attachments,
       this.lifecycle.signal,
     )
+    // followup may claim the inbox before dispatch's durable settlement returns.
+    // Paired routes are adopted lazily, so bind their native Agent first; otherwise
+    // the first turn loses its channel provenance and present skips file approval.
+    const agent = await this.gateway.resolve(authorization.route, this.lifecycle.signal)
+    this.assertAvailable()
+    this.bind(agent)
     const messageId = this.gateway.messageIdFor(endpoint, eventId)
     if (!this.repliesByMessage.has(messageId)
       && this.repliesByMessage.size >= MAX_PENDING_REPLY_CORRELATIONS) {

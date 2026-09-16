@@ -7,6 +7,8 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Bind lazily paired Feishu sessions before message dispatch, so the first channel turn keeps its recipient and requests
+  file approval instead of reporting Web-only presentation as an attachment delivery.
 - Feishu output delivery now adapts native `present` during channel-triggered turns: exact snapshot approval and durable
   delivery are required before success. Web-only file presentation is no longer sufficient evidence of a sent attachment.
 - Moved the development build to the pinned DSH 0.1.6-alpha.1 core, its awaited Agent creation lifecycle and native

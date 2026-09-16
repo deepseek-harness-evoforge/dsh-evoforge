@@ -25,6 +25,7 @@ interface Config {
   readonly appSecretEnv: string
   readonly contentPermissions?: readonly FeishuContentPermission[]
   readonly fileDeliveryEnabled?: boolean
+  readonly mode?: 'routes' | 'pairing'
   readonly maxContentChars?: number
   readonly maxBitableRecords?: number
   /** Test-only durable observation of accepted text effects across Host processes. */
@@ -199,8 +200,11 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       routes: readonly ResolvedGatewayRoute[],
       credentials: Context['credentials'],
     ): Promise<ResolvedFeishuConfig>
+    resolveFeishuPairingConfig(config: Config, credentials: Context['credentials']): Promise<ResolvedFeishuConfig>
   }
-  const resolved = await feishu.resolveFeishuConfig(config, routes, ctx.credentials)
+  const resolved = config.mode === 'pairing'
+    ? await feishu.resolveFeishuPairingConfig(config, ctx.credentials)
+    : await feishu.resolveFeishuConfig(config, routes, ctx.credentials)
   const platform = new FakeFeishuPlatform(config.textEffectPath)
   const runtime = new feishu.FeishuRuntime(ctx, resolved, gateway, platform)
   ctx.effect(() => async () => runtime.dispose(), 'dsh-feishu.test-runtime')

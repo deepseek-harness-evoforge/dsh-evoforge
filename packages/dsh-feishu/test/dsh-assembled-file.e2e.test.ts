@@ -12,10 +12,13 @@ const source = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
 
 // Explicit current-core acceptance. The supported image-only alpha.5 cohort cannot enable this feature.
 it.skipIf(process.env.DSH_FEISHU_TEST_NATIVE_FILES !== '1').each(
-  ['feishu_file_send', 'present'].flatMap(tool => ['approve', 'reject', 'wrong-user'].map(mode => ({ tool, mode }))),
+  ['routes', 'pairing', 'pairing-old-header'].flatMap(routing =>
+    (routing === 'pairing-old-header' ? ['present'] : ['feishu_file_send', 'present']).flatMap(tool =>
+    ['approve', 'reject', 'wrong-user'].map(mode => ({ routing, tool, mode })))),
 )(
-  'runs native file delivery through a real DSH Agent, Approval and durable Gateway receipt: $tool / $mode', async ({ tool, mode }) => {
+  'runs native file delivery through a real DSH Agent, Approval and durable Gateway receipt: $routing / $tool / $mode', async ({ routing, tool, mode }) => {
   if (source === undefined) throw new Error('Set DSH_EVOLVE_DSH_SOURCE_DIR to the audited native-file Host')
+  const paired = routing !== 'routes'
   const root = await mkdtemp(join(tmpdir(), 'feishu-native-file-'))
   const home = join(root, '.dsh-home')
   const original = Buffer.from('Approved native file\n固定的文件验收内容\n')
@@ -50,12 +53,12 @@ it.skipIf(process.env.DSH_FEISHU_TEST_NATIVE_FILES !== '1').each(
     { id: 'workspace', name: entry('packages/workspace/workspace') },
     { id: 'gateway-bootstrap', name: join(packageRoot, 'test/fixtures/gateway-bootstrap.ts'), config: {
       gatewayEntry: pathToFileURL(join(packageRoot, '../dsh-gateway/dist/index.mjs')).href,
-      workspacePath: root, routeId: 'file-route', accountId: 'cli_file_app', conversationId: 'oc_file', userId: 'ou_file',
+      workspacePath: root, routeId: 'file-route', accountId: 'cli_file_app', conversationId: paired ? 'oc_placeholder' : 'oc_file', userId: 'ou_file',
       sessionId: 'main', agentPreset: 'file-test', provider: 'feishu-content-mock', model: 'feishu-content-mock',
     } },
     { id: 'feishu-runtime', name: join(packageRoot, 'test/fixtures/runtime-bootstrap.ts'), config: {
       feishuEntry: pathToFileURL(join(packageRoot, 'dist/index.mjs')).href,
-      routeIds: ['file-route'], appIdEnv: 'DSH_FEISHU_FILE_TEST_ID', appSecretEnv: 'DSH_FEISHU_FILE_TEST_SECRET', fileDeliveryEnabled: true,
+      mode: paired ? 'pairing' : 'routes', routeIds: paired ? [] : ['file-route'], appIdEnv: 'DSH_FEISHU_FILE_TEST_ID', appSecretEnv: 'DSH_FEISHU_FILE_TEST_SECRET', fileDeliveryEnabled: true,
     } },
   ]
   await writeFile(configPath, JSON.stringify(config))
@@ -70,12 +73,33 @@ it.skipIf(process.env.DSH_FEISHU_TEST_NATIVE_FILES !== '1').each(
   try {
     ctx = await bootLatestDshProfile({ binName: 'feishu-file-test', configPath, dshSourceDir: source, home })
     const { platform, runtime } = ctx.get('evoforge.feishuTest')
-    const agent = ctx.agents.get('main')
-    expect(ctx.tools.get('feishu_file_send', agent)).toBeDefined()
+    const gateway = ctx.get('evoforge.gateway')
+    const agent = paired ? await gateway.resolve('file-route') : ctx.agents.get('main')
+    if (routing === 'pairing-old-header') {
+      agent.followup({ id: 'web-file-test', role: 'user', content: [{ type: 'text', text: 'Show result.txt in Web.' }], source: { kind: 'user' } })
+      await vi.waitFor(() => expect(sessionEvents(agent.session).some(event => event.type === 'turn/end')).toBe(true))
+      expect(platform.cards).toHaveLength(0)
+      expect(platform.files).toHaveLength(0)
+      expect(agent.session.requestHeader().tools.some((item: { name: string }) => item.name === 'feishu_file_send')).toBe(false)
+    }
+    const priorResultCount = sessionEvents(agent.session).filter(event => event.type === 'tool/result').length
+    if (paired) {
+      await platform.emitMessage({ messageId: 'om_pair', chatId: 'oc_file', chatType: 'p2p', senderId: 'ou_file',
+        content: '配对', rawContentType: 'text', resources: [] })
+      const code = platform.texts.at(-1)?.text.match(/[A-HJ-NP-Z2-9]{10}/u)?.[0]
+      expect(code).toBeDefined()
+      await gateway.approvePairing({ adapter: 'feishu', accountId: 'cli_file_app', code,
+        target: { id: 'paired-file', workspaceId: gateway.route('file-route').workspaceId, sessionId: 'main',
+          agentPreset: 'file-test', provider: 'feishu-content-mock', model: 'feishu-content-mock' }, now: Date.now() })
+      platform.texts.splice(0)
+    } else {
+      expect(ctx.tools.get('feishu_file_send', agent)).toBeDefined()
+    }
     expect(ctx.tools.get('present', agent)).toBeDefined()
     await platform.emitMessage({ messageId: 'om_file_test', chatId: 'oc_file', chatType: 'p2p', senderId: 'ou_file',
       content: '把 result.txt 作为文件发给我。', rawContentType: 'text', resources: [] })
-    await vi.waitFor(() => expect(platform.cards.length > 0 || platform.texts.length > 0).toBe(true), { timeout: 10_000 })
+    await vi.waitFor(() => expect(platform.cards.length > 0 || sessionEvents(agent.session)
+      .filter(event => event.type === 'tool/result').length > priorResultCount).toBe(true), { timeout: 10_000 })
     expect(platform.cards).toHaveLength(1)
     expect(platform.files).toHaveLength(0)
     expect(JSON.stringify(platform.cards[0].card)).toContain(expectedDigest)
