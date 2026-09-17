@@ -7,6 +7,10 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Add optional, Workspace-budgeted ordinary-chat correction inspection through native DSH LLM and Jobs. Preserve exact
+  source references and unverified hypotheses separately from answer feedback; do not author, activate or promote Skills.
+  The Evolution view distinguishes pending, uncertain and budget-exhausted inspection from verified improvement.
+
 - Clarify that Evolution feedback counts cover saved negative answer feedback with a note, not ordinary chat corrections.
   Configured evaluation policies and feedback counts now show pending eligibility, not an autonomous evaluation claim.
 

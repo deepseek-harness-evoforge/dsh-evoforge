@@ -87,6 +87,11 @@ automatic duplicate effects.
 A factual observation attached to an Interaction or artifact: outcome, explicit correction, validation result, observed
 additional work, measured token/latency/cache use, or external effect. It is not a reward or causal proof.
 
+**Correction Hypothesis**
+A model interpretation that a native user message corrects a prior answer, bound to those exact Interaction sources.
+It is not verified feedback, causal Skill attribution, an independent sample, or permission to author or promote a Candidate.
+_Avoid_: learned correction, verified improvement
+
 **Capability Map**
 A Host-visible inventory of installed Skill/Tool identity, scope, version, verification, permissions, and selected Generation.
 It guides internal routing and is not a user menu or second registry.

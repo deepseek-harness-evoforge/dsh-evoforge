@@ -1,0 +1,126 @@
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import { describe, expect, it, vi } from 'vitest'
+import type { Context } from '@deepseek-ai/cordis'
+import type { GenerateOptions, StreamChunk } from '@deepseek-ai/dsh-llm'
+import type { Session } from '@deepseek-ai/dsh-session'
+import { installConversationCorrectionMonitor } from '../src/conversation-correction-monitor.ts'
+import { openCorrectionLedger } from '../src/conversation-correction-intake.ts'
+import { WORKSPACE_ID } from './workspace-fixture.ts'
+
+const dshRoot = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
+
+describe.skipIf(dshRoot === undefined)('native DSH conversation correction intake', () => {
+  it('uses real durable no-Goal turns, native LLM and Jobs; cold replay does not spend again or mutate Session history', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'evoforge-correction-native-'))
+    const entry = (path: string) => pathToFileURL(join(dshRoot!, path, 'lib/index.js')).href
+    const cordis = await import(entry('vendor/cordis')) as typeof import('@deepseek-ai/cordis')
+    const nativeSession = await import(entry('packages/core/session')) as typeof import('@deepseek-ai/dsh-session')
+    const nativeLlm = await import(entry('packages/llm/llm')) as typeof import('@deepseek-ai/dsh-llm')
+    const persistence = await import(entry('packages/session/session-persistence-jsonl'))
+    const storage = await import(entry('packages/storage/storage'))
+    const storageJson = await import(entry('packages/storage/storage-json'))
+    const storageDomain = await import(entry('packages/storage/storage-domain'))
+    const jobs = await import(entry('packages/jobs/jobs-local'))
+    const calls: GenerateOptions[] = []
+    let waitForCancellation = false
+    class ClassifierAdapter extends nativeLlm.LlmAdapter {
+      async *stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
+        calls.push(options)
+        if (waitForCancellation) {
+          await new Promise<never>((_resolve, reject) => {
+            if (options.signal?.aborted) reject(options.signal.reason)
+            else options.signal?.addEventListener('abort', () => reject(options.signal!.reason), { once: true })
+          })
+        }
+        yield { type: 'text-delta', index: 0, text: JSON.stringify({ kind: 'correction', dimension: 'presentation', quote: '表格太宽，飞书预览看不到来源' }) }
+        yield { type: 'usage', usage: { inputTokens: 91, outputTokens: 24 } }
+        yield { type: 'finish', reason: { kind: 'stop' } }
+      }
+    }
+    const boot = async (): Promise<Context> => {
+      const ctx = new cordis.Context()
+      Object.defineProperty(ctx, 'workspaceRegistry', { configurable: true, value: { resolveByPath: async () => ({ id: WORKSPACE_ID }) } })
+      await ctx.plugin(storage.default)
+      await ctx.plugin(storageJson as { apply(ctx: Context, config: { root: string }): void }, { root: join(root, 'storage') })
+      await ctx.plugin(storageDomain as { apply(ctx: Context, config: { backend: string }): Promise<void> }, { backend: 'json' })
+      await ctx.plugin(nativeSession.default)
+      await ctx.plugin(persistence.default, { root: join(root, 'sessions'), compression: 'none' })
+      await ctx.plugin(nativeLlm.default)
+      await ctx.plugin(jobs.default)
+      ctx.llm.registerAdapter(['fixture'], new ClassifierAdapter())
+      return ctx
+    }
+    const sessionId = nativeSession.SessionId('session-11111111-1111-4111-8111-111111111111')
+    const policy = [{ workspaceId: WORKSPACE_ID, maxAttemptsPerUtcDay: 3, replaySessionIds: [sessionId] }]
+    let first: Context | undefined
+    let second: Context | undefined
+    let monitor: ReturnType<typeof installConversationCorrectionMonitor> | undefined
+    let ledger: Awaited<ReturnType<typeof openCorrectionLedger>> | undefined
+    let writer: { close(): Promise<void> } | undefined
+    const appendTurn = (session: Session, turn: number, text: string, answer: string): void => {
+      session.append('turn/start', { turn })
+      session.append('step/start', { turn, step: 1 })
+      if (turn === 1) session.append('request/header', { reason: 'initial', header: { config: { provider: 'fixture', model: 'fixture' } } })
+      session.append('user/message', nativeLlm.createUserMessage({ source: { kind: 'user' }, content: [{ type: 'text', text }] }), { surfaceOp: 'append' })
+      const accumulator = new nativeLlm.AssistantStreamAccumulator()
+      accumulator.push({ time: 1, chunk: { type: 'text-delta', index: 0, text: answer } })
+      accumulator.push({ time: 2, chunk: { type: 'finish', reason: { kind: 'stop' } } })
+      session.append('assistant/message', { turn, step: 1, stream: [...accumulator.snapshot()],
+        message: nativeLlm.createAssistantMessage({ source: { provider: 'fixture', model: 'fixture' }, content: [{ type: 'text', text: answer }] }) }, { surfaceOp: 'append' })
+      session.append('step/end', { turn, step: 1 })
+      session.append('turn/end', { turn, reason: { kind: 'completed' } })
+    }
+    try {
+      first = await boot()
+      ledger = await openCorrectionLedger(first.storageDomain, policy)
+      // No history replay until the named Session actually exists.
+      monitor = installConversationCorrectionMonitor(first, ledger, [{ ...policy[0]!, replaySessionIds: [] }])
+      const session = first.sessions.create(sessionId, { meta: { cwd: '/private/correction-fixture' } })
+      writer = await first.sessionPersistence.create(session.header)
+      appendTurn(session, 1, '整理材料并生成报告。', '已生成五列表格。')
+      await first.sessions.flush(session)
+      appendTurn(session, 2, '上一版表格太宽，飞书预览看不到来源。请改为逐条段落。', '已改成逐条段落，未声称验证预览。')
+      const before = JSON.stringify(session.snapshotEvents())
+      await vi.waitFor(() => expect(ledger!.summarize(WORKSPACE_ID).correctionCount).toBe(1))
+      expect(calls).toHaveLength(1)
+      expect(calls[0]?.tools).toBeUndefined()
+      expect(JSON.stringify(session.snapshotEvents())).toBe(before)
+      expect(ledger.records(WORKSPACE_ID)[0]?.source.turn).toBe(2)
+      expect(ledger.records(WORKSPACE_ID)[0]?.source).not.toHaveProperty('goal')
+      expect(first.jobs.list().every(job => job.ownerSession === undefined)).toBe(true)
+
+      waitForCancellation = true
+      appendTurn(session, 3, '仍然表格太宽，飞书预览看不到来源。请保留事实重新排版。', '已重新排版。')
+      await vi.waitFor(() => expect(calls).toHaveLength(2))
+      await monitor.dispose()
+      monitor = undefined
+      expect(ledger.summarize(WORKSPACE_ID)).toMatchObject({ pendingCount: 0, uncertainCount: 1, observerAvailable: false })
+      await vi.waitFor(() => expect(first!.jobs.list().every(job => job.status !== 'running' && job.status !== 'stopping')).toBe(true))
+      await ledger.close()
+      ledger = undefined
+      await writer.close()
+      writer = undefined
+      await first.fiber.dispose()
+      first = undefined
+
+      second = await boot()
+      ledger = await openCorrectionLedger(second.storageDomain, policy)
+      monitor = installConversationCorrectionMonitor(second, ledger, policy)
+      await vi.waitFor(() => expect(second!.jobs.list()).toHaveLength(1))
+      await vi.waitFor(() => expect(second!.jobs.list()[0]?.status).toBe('completed'))
+      expect(calls).toHaveLength(2)
+      expect(ledger.summarize(WORKSPACE_ID)).toMatchObject({ correctionCount: 1, uncertainCount: 1, attemptsToday: 2 })
+      expect(second.sessions.get(sessionId)).toBeUndefined()
+    } finally {
+      await monitor?.dispose()
+      await ledger?.close()
+      await writer?.close()
+      await first?.fiber.dispose()
+      await second?.fiber.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  }, 30_000)
+})

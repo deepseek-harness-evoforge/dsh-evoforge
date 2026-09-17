@@ -713,6 +713,30 @@ async function selectAdvanced() {
 }
 
 describe('EvolutionAction', () => {
+  it('shows ordinary-chat hypotheses separately from explicit feedback and verified improvements', async () => {
+    const api = remote()
+    vi.mocked(api.overview).mockImplementationOnce(() => success({
+      schemaVersion: 1, workspaceId,
+      recovery: { available: true, paused: false },
+      generationSelectionHistory: emptyGenerationSelectionHistory(),
+      feedbackSignals: { all: 0, selected: 0 },
+      conversationCorrections: { enabled: true, observerAvailable: true, correctionCount: 2, classifiedCount: 3,
+        pendingCount: 0, uncertainCount: 1, attemptsToday: 4, maxAttemptsPerUtcDay: 4,
+        inputTokens: 800, outputTokens: 80, cacheReadTokens: 100, usageMissingCount: 1, warningCount: 0, releaseAuthority: 'none' },
+      reviews: { available: true, pendingCount: 0, actionableCount: 0, warningCount: 0, items: [], inactiveGenerations: [] },
+    }))
+    render(<EvolutionAction remote={api} t={key => zh[key as keyof typeof zh] ?? key}
+      wide useSessions={sessionHook()} useWorkspaces={workspaceHook()} />)
+    fireEvent.click(screen.getByRole('button', { name: zh['trigger.label'] }))
+    expect(await screen.findByRole('heading', { name: '聊天纠正识别' })).toBeTruthy()
+    expect(screen.getByText('条待核对的聊天纠正').parentElement?.textContent).toBe('2条待核对的聊天纠正')
+    expect(screen.getByText('这些是模型识别的线索，不是已验证的改进。尚未生成或启用 Skill。')).toBeTruthy()
+    expect(screen.getByText('今日识别预算已用完，后续识别暂停。')).toBeTruthy()
+    expect(screen.getByText('部分请求用量未知，不代表零消耗。')).toBeTruthy()
+    expect(screen.queryByText(zh['onboarding.scopeLimit'])).toBeNull()
+    expect(screen.queryByText(/已学会|已进入自主评测闭环/u)).toBeNull()
+  })
+
   it.each([
     { locale: zh, configured: 0, count: 0, heading: '反馈可记录，自动改进尚未就绪' },
     { locale: zh, configured: 1, count: 1, heading: '反馈已记录，等待资格检查' },

@@ -117,6 +117,8 @@ import {
 import { EvolutionControlPlane } from './evolution-control-plane.ts'
 import { EvolutionRemoteService } from './evolution-remote.ts'
 import { AutomaticEvolutionBudget } from './automatic-evolution-budget.ts'
+import { openCorrectionLedger, validateCorrectionPolicies, type ConversationCorrectionPolicy } from './conversation-correction-intake.ts'
+import { installConversationCorrectionMonitor } from './conversation-correction-monitor.ts'
 import {
   assertSlowLoopSkillAuthoringRootSeparation,
   SlowLoopSkillAuthoring,
@@ -164,6 +166,8 @@ export interface Config {
   /** Private content-addressed materialization root for internally authored Generations. */
   cacheRoot?: string
   selfDiscoveryPolicies?: SkillOpportunityAuthoringPolicyConfig[]
+  /** Explicit bounded native-model inspection of ordinary follow-ups; never candidate or release authority. */
+  conversationCorrectionPolicies?: ConversationCorrectionPolicy[]
   candidateEvaluationPolicies?: SkillCandidateEvaluationPolicyConfig[]
   /** Host-admin authorization to retain raw-free Generation receipts for exact Workspaces. */
   interactionEvidencePolicies?: InteractionGenerationEvidencePolicyConfig[]
@@ -213,6 +217,15 @@ const interactionRoutingEvidencePoliciesConfig = z.transform(
 
 export const Config: Schema<Config> = z.object({
   cacheRoot: z.string(),
+  conversationCorrectionPolicies: z.transform(z.array(z.object({
+    workspaceId: z.string().pattern(NATIVE_WORKSPACE_ID_PATTERN).required(),
+    maxAttemptsPerUtcDay: z.number().step(1).min(1).max(20).required(),
+    replaySessionIds: z.array(z.string()).max(10),
+  })).max(20).default([]), policies => {
+    const exact = policies as ConversationCorrectionPolicy[]
+    validateCorrectionPolicies(exact)
+    return exact
+  }, true).default([]),
   selfDiscoveryPolicies: z.array(z.object({
     id: z.string().required(),
     workspaceId: z.string().required(),
@@ -420,6 +433,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   runtime.own('resource', () => deliveryOutcomes.close())
   const retainedFeedbackSignals = await openFeedbackSignalStore(ctx.storageDomain)
   runtime.own('resource', () => retainedFeedbackSignals.close())
+  const correctionPolicies = config.conversationCorrectionPolicies ?? []
+  const conversationCorrections = await openCorrectionLedger(ctx.storageDomain, correctionPolicies)
+  runtime.own('resource', () => conversationCorrections.close())
+  const correctionMonitors = new Set<ReturnType<typeof installConversationCorrectionMonitor>>()
+  runtime.own('producer', () => disposeRuntimeGroup([...correctionMonitors]))
   let feedbackProjectionReady = false
   let feedbackProviderGeneration: symbol | undefined
   // Persisted projections cannot authorize feedback-derived work until the
@@ -1051,6 +1069,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     skillUses,
     skillOutcomeContext,
     feedback: feedbackSignals,
+    conversationCorrections,
     longTermEffects: new LongTermEffectsProjection(longTermEffects, store, {
       outcomes: deliveryOutcomes,
     }),
@@ -1373,6 +1392,15 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           await supervisor.stop()
         }
       }, 'dsh-evolve.shadowSupervisor')
+    })
+  }
+  if (correctionPolicies.length > 0) {
+    ctx.inject(['sessionPersistence', 'sessions', 'llm', 'jobs'], correctionCtx => {
+      correctionCtx.effect(() => {
+        const monitor = installConversationCorrectionMonitor(correctionCtx, conversationCorrections, correctionPolicies)
+        correctionMonitors.add(monitor)
+        return () => monitor.dispose().finally(() => { correctionMonitors.delete(monitor) })
+      }, 'dsh-evolve.conversationCorrectionIntake')
     })
   }
   // Registered last so ordinary unload revokes this runtime before the other

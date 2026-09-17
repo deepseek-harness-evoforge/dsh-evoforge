@@ -1351,6 +1351,24 @@ export interface EvolutionLongTermEffectsView {
   }
 }
 
+/** Raw-free intake counters, not verified feedback or Skill eligibility. */
+export interface ConversationCorrectionSummary {
+  readonly enabled: boolean
+  readonly observerAvailable: boolean
+  readonly correctionCount: number
+  readonly classifiedCount: number
+  readonly pendingCount: number
+  readonly uncertainCount: number
+  readonly attemptsToday: number
+  readonly maxAttemptsPerUtcDay: number
+  readonly inputTokens: number
+  readonly outputTokens: number
+  readonly cacheReadTokens: number
+  readonly usageMissingCount: number
+  readonly warningCount: number
+  readonly releaseAuthority: 'none'
+}
+
 /** Browser overview. Dynamic global state stays outside Session and model context. */
 export interface EvolutionOverview {
   readonly schemaVersion: 1
@@ -1407,6 +1425,7 @@ export interface EvolutionOverview {
     readonly all: number
     readonly selected: number
   }
+  readonly conversationCorrections?: ConversationCorrectionSummary
   readonly reviews: {
     readonly available: boolean
     readonly pendingCount: number

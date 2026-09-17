@@ -22,9 +22,10 @@ mismatched responses, and never falls back to a recent Workspace. It renders Hos
 and diff, gates, measurements, Generation selection, canary, and rollback. Reads preserve last-good data with a visible
 stale/error state; mutations go through the Host Remote and native permissions.
 
-The overview counts saved negative answer feedback with a note. Ordinary chat corrections are not yet automatically
-connected to Skill improvement. Configured evaluation policies and recorded feedback do not prove candidate eligibility,
-an evaluation run, or a successful improvement; these remain separate states.
+The overview counts saved negative answer feedback with a note. When a Host administrator enables bounded ordinary-chat
+inspection, its unverified hypotheses, uncertain requests and daily budget appear separately. They are not yet connected
+to Skill improvement. Configured policies and recorded feedback do not prove candidate eligibility, an evaluation run,
+or a successful improvement; these remain separate states.
 
 Historical browser tests do not replace a clean-profile rerun for the current checkout. Current limitations are recorded
 in [status](../../docs/status.zh.md).

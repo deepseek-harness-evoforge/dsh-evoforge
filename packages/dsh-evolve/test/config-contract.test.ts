@@ -23,6 +23,7 @@ describe('dsh-evolve public configuration', () => {
       'automaticPromotionPolicies',
       'cacheRoot',
       'candidateEvaluationPolicies',
+      'conversationCorrectionPolicies',
       'interactionEvidencePolicies',
       'interactionRoutingEvidencePolicies',
       'selfDiscoveryPolicies',
@@ -50,6 +51,16 @@ describe('dsh-evolve public configuration', () => {
     expect(Object.keys(routing.dict.retention!.dict!).sort())
       .toEqual(['routingMaxRecords'])
     expect(Config({}).interactionRoutingEvidencePolicies).toEqual([])
+  })
+
+  it('keeps ordinary-chat inspection default-off, explicitly budgeted, and separate from release authority', () => {
+    expect(Config({}).conversationCorrectionPolicies).toEqual([])
+    const policy = { workspaceId: WORKSPACE_ID, maxAttemptsPerUtcDay: 4, replaySessionIds: ['session-test'] }
+    expect(Config({ conversationCorrectionPolicies: [policy] }).conversationCorrectionPolicies).toEqual([policy])
+    expect(() => Config({ conversationCorrectionPolicies: [{ workspaceId: WORKSPACE_ID }] } as never)).toThrow()
+    expect(() => Config({ conversationCorrectionPolicies: [{ ...policy, maxAttemptsPerUtcDay: 21 }] })).toThrow()
+    expect(() => Config({ conversationCorrectionPolicies: [policy, policy] })).toThrow()
+    expect(() => Config({ conversationCorrectionPolicies: [{ ...policy, replaySessionIds: ['same', 'same'] }] })).toThrow()
   })
 
   it('keeps Routing retention independently bounded and default-deny', () => {

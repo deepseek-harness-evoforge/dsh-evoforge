@@ -16,7 +16,8 @@ scheduler, database, or runtime.
 
 The current implementation accepts a model-declared Capability Gap for authoring only after its native Tool call and
 completed conversation turn agree. Cancelled, conflicting, and incomplete turns remain ineligible. Ordinary no-Goal
-signals still stop at `abstained`; complete Interaction-episode and real-provider proof remain release blockers. See
+Gap signals still stop at `abstained`; ordinary-chat inspection below records unverified hypotheses separately.
+Complete Interaction-episode and improvement-effect proof remain release blockers. See
 [current status](../../docs/status.zh.md).
 
 ## Install and use
@@ -30,6 +31,30 @@ pnpm run dsh:install
 Use the Evolution surface in the same DSH Web conversation view. The compatibility `core`/`evolution` suites exist only
 for old deployments and isolated development. External Skill marketplaces, runtime downloads, and other Agents are not
 evolution sources.
+
+### Ordinary-chat correction inspection
+
+A Host administrator may enable bounded post-turn inspection for one native Workspace:
+
+```yaml
+conversationCorrectionPolicies:
+  - workspaceId: 11111111-1111-4111-8111-111111111111
+    maxAttemptsPerUtcDay: 4
+```
+
+This is off by default and uses the existing DSH model route and credentials, not another API configuration. It checks
+completed follow-ups in a native background Job; it never modifies the current conversation, runs tools, or activates a
+Skill. The Evolution view shows **unverified correction hypotheses**, separately from explicit answer feedback.
+Hypotheses still need independent evidence and are not connected to Candidate authoring or promotion yet.
+
+An optional `replaySessionIds` list explicitly authorizes inspecting the last two completed turns of those stored Sessions
+on startup. Other history is not scanned. The maximum is 20 attempts per UTC day per Workspace, across its Sessions;
+each request has a 24,000-byte conversation-input limit, an 800-output-token cap and a 60-second model deadline.
+Interrupted/uncertain requests are retained and not automatically resent. Missing usage is not reported as zero cost.
+Removing the policy stops new inspection and cancels its in-flight work; raw-free records remain in native Storage.
+The intake stores source references and hashes, classifications and measured usage, not message bodies or model quotes.
+Only complete, unambiguous v3 turn pairs with a logged model route are supported; unsupported inputs are skipped.
+This does not prove the user's correction worked, that two retries are independent examples, or that a Skill improved.
 
 Generation receipts are not retained by default. A Host administrator can authorize bounded raw-free retention for an
 exact native Workspace in the plugin config:

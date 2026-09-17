@@ -447,7 +447,7 @@ function BeginnerOverview({ summary, openAdvanced, t }: {
       <div className="dsh-evolve-eyebrow">{t('onboarding.eyebrow')}</div>
       <h3>{headline}</h3>
       <p>{explanation}</p>
-      <p className="dsh-evolve-guidance">{t('onboarding.scopeLimit')}</p>
+      <p className="dsh-evolve-guidance">{t(summary.conversationCorrections?.enabled ? 'correction.scopeLimit' : 'onboarding.scopeLimit')}</p>
       {pending > 0 && (
         <button type="button" className="dsh-evolve-button dsh-evolve-primary" onClick={openAdvanced}>
           {t('onboarding.review')}
@@ -459,6 +459,20 @@ function BeginnerOverview({ summary, openAdvanced, t }: {
       <div><strong>{pending}</strong><span>{t('onboarding.pending')}</span></div>
       <div><strong>{corrections}</strong><span>{t('onboarding.recorded')}</span></div>
     </div>
+    {summary.conversationCorrections?.enabled && <section className="dsh-evolve-welcome">
+      <h3>{t('correction.title')}</h3>
+      <p>{t(summary.conversationCorrections.observerAvailable ? 'correction.enabled' : 'correction.unavailable')}</p>
+      <div className="dsh-evolve-simple-summary">
+        <div><strong>{summary.conversationCorrections.correctionCount}</strong><span>{t('correction.hypotheses')}</span></div>
+        <div><strong>{summary.conversationCorrections.pendingCount}</strong><span>{t('correction.pending')}</span></div>
+        <div><strong>{summary.conversationCorrections.uncertainCount}</strong><span>{t('correction.incomplete')}</span></div>
+      </div>
+      <p>{t('correction.budget')} {summary.conversationCorrections.attemptsToday} / {summary.conversationCorrections.maxAttemptsPerUtcDay}</p>
+      {summary.conversationCorrections.attemptsToday >= summary.conversationCorrections.maxAttemptsPerUtcDay && <p>{t('correction.budgetExhausted')}</p>}
+      {summary.conversationCorrections.usageMissingCount > 0 && <p>{t('correction.usageUnknown')}</p>}
+      {summary.conversationCorrections.warningCount > 0 && <p>{t('correction.warning')}</p>}
+      <p className="dsh-evolve-guidance">{t('correction.limit')}</p>
+    </section>}
     <section>
       <h3 className="dsh-evolve-section-title">{t('onboarding.how')}</h3>
       <ol className="dsh-evolve-steps">

@@ -132,6 +132,30 @@ Host composer 对 Gateway、Generation、Routing 每个 source 使用独立的 3
 有界退出和物理释放。当前实现选择等待真实 settlement，而不是伪报 cleanup 完成；该上游 seam 是发布前必须关闭的生命周期
 阻断。
 
+### 2.3 普通聊天纠正识别策略
+
+`dsh-evolve.conversationCorrectionPolicies` 默认空。每项绑定一个 canonical native Workspace UUID，显式指定
+`maxAttemptsPerUtcDay`（1–20）；最多 20 个 Workspace。它只授权该 Workspace 的有限原生模型识别调用，
+不授权工具执行、文件修改、Candidate authoring、评测或晋升，也不会写入/冒充原生 `messageFeedback`。
+识别在 completed turn 后的原生 Jobs 中进行，不在用户请求之前分类或选路，不修改当前 Session 的模型组成和历史。
+模型仅通过当前 DSH LLM 服务及来源 turn 已记录的 provider/model route 调用；不引入 API Key 环境变量或另一模型服务。
+
+来源只选 v3 持久化前缀中明确的前后完整 turn、各自唯一的直接 user 消息与最后 assistant 文本，并绑定 exact seq、
+前缀/输入/模型 route digest。中间合成上下文不会被当作用户纠正；文本上限为 JSON-framed 24,000 字节，不截断后伪称完整。
+模型输出必须落在固定分类枚举内；声称纠正时必须给出当前 user 文本中的 8–256 字符原句，持久化仅保留其 digest。
+这只是 unverified Correction Hypothesis，不是完成效果、Skill 因果归因、独立样本或完整 replay/composition 证明。
+当前不会将这些记录送入旧的 Goal-qualified Candidate 管线。
+
+可选 `replaySessionIds` 最多 10 项，显式授权启动时检查各指定 Session 的最后两个 completed turn；除此之外不扫描历史。
+所有会话共用该 Workspace 的每日预留计数；单次输出上限 800 token、模型 deadline 60 秒。预留和 dispatch marker 在模型
+调用前持久化；相同来源幂等。崩溃遗留 reserved/dispatching 或未知请求结果变为 uncertain，不在重启后自动重发。
+预算按 UTC 日计，包含保守保留的中断预留；它不是货币价格承诺。实际 token 用量可用时才记录，缺失标记 unknown。
+
+所有 raw-free 记录位于独立 native Storage Domain，使用整体校验布局；总计最多 10,000 行，满时停止采集，不通过删除历史
+规避幂等或预算。存储失败使该账本停止新请求；卸载/策略撤回取消并等待自有工作，不清除原始 Session 或既有记录。
+Job 标签与结果不携带原文、路径或 provider 错误，模型结果不直接显示为“已学会”。原生控制面分别显示回答负反馈、
+聊天纠正线索、识别中、结果不明和预算耗尽。该状态不能代替独立评测与后续未见任务效果验证。
+
 ## 3. 生命周期
 
 所有 listener、timer、watcher、transport、Remote、临时目录和文件句柄都由当前 fiber 持有。disable、reload、
