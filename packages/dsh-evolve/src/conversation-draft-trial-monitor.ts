@@ -64,8 +64,7 @@ export function installConversationDraftTrialMonitor(ctx: Context, corrections: 
     if (active.has(workspaceId)) { rescan.add(workspaceId); return }
     const summary = store.summarize(workspaceId)
     if (!summary.enabled || !summary.observerAvailable || summary.reservedModelCallsToday + 24 > summary.maxModelCallsPerUtcDay) return
-    const recorded = new Set(store.records(workspaceId).map(record => record.draftId))
-    const sources = drafts.records(workspaceId).filter(record => record.phase === 'draft' && !recorded.has(record.id))
+    const sources = drafts.records(workspaceId).filter(record => record.phase === 'draft' && store.canReserve(record))
       .sort((a, b) => a.reservedAt - b.reservedAt || a.id.localeCompare(b.id))
     if (sources.length === 0) return
     const controller = new AbortController()

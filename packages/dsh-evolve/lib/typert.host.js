@@ -1617,6 +1617,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = () => (dsh_evolve_ev
   'items': z.array(z.object({
   'id': z.string().readonly(),
   'draftId': z.string().readonly(),
+  'retryOf': z.union([z.undefined(), z.string()]).readonly().optional(),
   'phase': z.union([z.literal("uncertain"), z.literal("reserved"), z.literal("running"), z.literal("completed")]).readonly(),
   'settledLegs': z.number().readonly(),
   'dispatchMarkers': z.number().readonly(),
@@ -2594,7 +2595,7 @@ export const TYPERT = {
           },
           {
             "name": "ConversationDraftTrialSummary",
-            "declaration": "export interface ConversationDraftTrialSummary {\n    readonly enabled: boolean;\n    readonly observerAvailable: boolean;\n    readonly warningCount: number;\n    readonly pendingCount: number;\n    readonly uncertainCount: number;\n    readonly reservedModelCallsToday: number;\n    readonly maxModelCallsPerUtcDay: number;\n    readonly items: readonly { readonly id: string; readonly draftId: string; readonly phase: 'reserved' | 'running' | 'completed' | 'uncertain'; readonly settledLegs: number; readonly dispatchMarkers: number; readonly requestCount: number; readonly inputTokens: number; readonly outputTokens: number; readonly usageMissingCount: number; readonly elapsedMs: number; readonly comparison?: { readonly baselinePassed: number; readonly draftPassed: number; readonly improved: number; readonly regressed: number; readonly comparablePairs: number; readonly loadedDraftLegs: number; readonly outcome: 'improvement-observed' | 'no-improvement' | 'regression' | 'inconclusive'; }; readonly reason?: 'interrupted' | 'cancelled' | 'source-conflict' | 'execution-failed'; }[];\n    readonly releaseAuthority: 'none';\n}"
+            "declaration": "export interface ConversationDraftTrialSummary {\n    readonly enabled: boolean;\n    readonly observerAvailable: boolean;\n    readonly warningCount: number;\n    readonly pendingCount: number;\n    readonly uncertainCount: number;\n    readonly reservedModelCallsToday: number;\n    readonly maxModelCallsPerUtcDay: number;\n    readonly items: readonly { readonly id: string; readonly draftId: string; readonly retryOf?: string; readonly phase: 'reserved' | 'running' | 'completed' | 'uncertain'; readonly settledLegs: number; readonly dispatchMarkers: number; readonly requestCount: number; readonly inputTokens: number; readonly outputTokens: number; readonly usageMissingCount: number; readonly elapsedMs: number; readonly comparison?: { readonly baselinePassed: number; readonly draftPassed: number; readonly improved: number; readonly regressed: number; readonly comparablePairs: number; readonly loadedDraftLegs: number; readonly outcome: 'improvement-observed' | 'no-improvement' | 'regression' | 'inconclusive'; }; readonly reason?: 'interrupted' | 'cancelled' | 'source-conflict' | 'execution-failed'; }[];\n    readonly releaseAuthority: 'none';\n}"
           },
           {
             "name": "ConversationSkillDraftSummary",

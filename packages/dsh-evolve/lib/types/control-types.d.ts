@@ -1184,6 +1184,7 @@ export interface ConversationDraftTrialSummary {
     readonly items: readonly {
         readonly id: string;
         readonly draftId: string;
+        readonly retryOf?: string;
         readonly phase: 'reserved' | 'running' | 'completed' | 'uncertain';
         readonly settledLegs: number;
         readonly dispatchMarkers: number;

@@ -228,6 +228,10 @@ export const Config: Schema<Config> = z.object({
   conversationDraftTrialPolicies: z.transform(z.array(z.object({
     workspaceId: z.string().pattern(NATIVE_WORKSPACE_ID_PATTERN).required(),
     maxModelCallsPerUtcDay: z.number().step(1).min(24).max(72).required(),
+    retryFailedTrials: z.array(z.object({
+      trialId: z.string().pattern(/^[a-f0-9]{64}$/u).required(),
+      expiresAt: z.number().step(1).min(1).max(8_640_000_000_000_000).required(),
+    })).max(10),
   })).max(20).default([]), policies => {
     const exact = policies as ConversationDraftTrialPolicy[]
     validateConversationDraftTrialPolicies(exact)

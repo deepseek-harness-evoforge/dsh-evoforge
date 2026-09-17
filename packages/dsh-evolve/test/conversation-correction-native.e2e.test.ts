@@ -11,14 +11,14 @@ import { openCorrectionLedger } from '../src/conversation-correction-intake.ts'
 import { openConversationDraftStore, type ConversationLearningPolicy } from '../src/conversation-skill-draft.ts'
 import { installConversationSkillDraftMonitor } from '../src/conversation-skill-draft-monitor.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
-import { openConversationDraftTrialStore } from '../src/conversation-draft-trial-store.ts'
+import { openConversationDraftTrialStore, type ConversationDraftTrialPolicy } from '../src/conversation-draft-trial-store.ts'
 import { installConversationDraftTrialMonitor } from '../src/conversation-draft-trial-monitor.ts'
 import { DurableFeedbackAttribution } from '../src/durable-feedback-attribution.ts'
 
 const dshRoot = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
 
 describe.skipIf(dshRoot === undefined)('native DSH conversation correction intake', () => {
-  it.each([false, true])('uses native no-Goal turns and cold recovery without duplicate calls (explicit retry: %s)', async retry => {
+  it.each([[false, false], [true, false], [false, true]])('uses native no-Goal turns and cold recovery without duplicate calls (draft retry: %s, trial recovery: %s)', async (retry, trialRecovery) => {
     const root = await mkdtemp(join(tmpdir(), 'evoforge-correction-native-'))
     const entry = (path: string) => pathToFileURL(join(dshRoot!, path, 'lib/index.js')).href
     const cordis = await import(entry('vendor/cordis')) as typeof import('@deepseek-ai/cordis')
@@ -118,7 +118,7 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
     let draftMonitor: ReturnType<typeof installConversationSkillDraftMonitor> | undefined
     let trials: Awaited<ReturnType<typeof openConversationDraftTrialStore>> | undefined
     let trialMonitor: ReturnType<typeof installConversationDraftTrialMonitor> | undefined
-    const trialPolicy = [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 24 }]
+    let trialPolicy: ConversationDraftTrialPolicy[] = [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 24 }]
     let learningPolicy: ConversationLearningPolicy[] = [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 2 }]
     const appendTurn = (session: Session, turn: number, text: string, answer: string): void => {
       session.append('turn/start', { turn })
@@ -176,9 +176,20 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
       await draftMonitor.dispose()
       draftMonitor = undefined
       trials = await openConversationDraftTrialStore(first.storageDomain, trialPolicy)
+      let failedTrial: unknown
+      if (trialRecovery) {
+        const draft = drafts.records(WORKSPACE_ID).find(record => record.phase === 'draft')!
+        const reserved = (await trials.reserve(draft, { provider: 'fixture', model: 'fixture' }))!
+        failedTrial = await trials.interrupt(await trials.startLeg(reserved, 0), 'execution-failed')
+        await trials.close()
+        trialPolicy = [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 48,
+          retryFailedTrials: [{ trialId: reserved.id, expiresAt: Date.now() + 60_000 }] }]
+        trials = await openConversationDraftTrialStore(first.storageDomain, trialPolicy)
+      }
       trialMonitor = installConversationDraftTrialMonitor(first, ledger, drafts, trials, trialPolicy)
-      await vi.waitFor(() => expect(trials!.records(WORKSPACE_ID)[0]?.phase).toBe('completed'))
-      const trial = trials.records(WORKSPACE_ID)[0]!
+      await vi.waitFor(() => expect(trials!.records(WORKSPACE_ID).at(-1)?.phase).toBe('completed'))
+      const trial = trials.records(WORKSPACE_ID).at(-1)!
+      if (trialRecovery) expect(trials.records(WORKSPACE_ID)[0]).toEqual(failedTrial)
       expect(trial.comparison).toMatchObject({ outcome: 'no-improvement', baselinePassed: 4, draftPassed: 4, comparablePairs: 4, loadedDraftLegs: 4 })
       expect(calls).toHaveLength(retry ? 16 : 15)
       expect(JSON.stringify(session.snapshotEvents())).toBe(before)
@@ -223,8 +234,9 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
       if (retry) expect(drafts.records(WORKSPACE_ID)[0]).toEqual(originalFailure)
       trials = await openConversationDraftTrialStore(second.storageDomain, trialPolicy)
       trialMonitor = installConversationDraftTrialMonitor(second, ledger, drafts, trials, trialPolicy)
-      expect(trials.records(WORKSPACE_ID)[0]).toEqual(trial)
-      expect(trials.summarize(WORKSPACE_ID).reservedModelCallsToday).toBe(24)
+      expect(trials.records(WORKSPACE_ID).at(-1)).toEqual(trial)
+      if (trialRecovery) expect(trials.records(WORKSPACE_ID)[0]).toEqual(failedTrial)
+      expect(trials.summarize(WORKSPACE_ID).reservedModelCallsToday).toBe(trialRecovery ? 48 : 24)
       expect(calls).toHaveLength(retry ? 17 : 16)
     } finally {
       await trialMonitor?.dispose()

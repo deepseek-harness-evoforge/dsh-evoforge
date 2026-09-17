@@ -11,11 +11,20 @@ const integer = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
 const MAX_PLANS = 20
 const policySchema = z.strictObject({
   workspaceId: z.string().regex(NATIVE_WORKSPACE_ID_PATTERN), maxModelCallsPerUtcDay: z.number().int().min(24).max(72),
+  retryFailedTrials: z.array(z.strictObject({ trialId: hash, expiresAt: integer.positive().max(8_640_000_000_000_000) })).max(10).optional(),
 })
-export type ConversationDraftTrialPolicy = z.infer<typeof policySchema>
+export interface ConversationDraftTrialPolicy {
+  readonly workspaceId: string
+  readonly maxModelCallsPerUtcDay: number
+  readonly retryFailedTrials?: { readonly trialId: string; readonly expiresAt: number }[]
+}
 export function validateConversationDraftTrialPolicies(policies: readonly ConversationDraftTrialPolicy[]): void {
   z.array(policySchema).max(20).parse(policies)
   if (new Set(policies.map(policy => policy.workspaceId)).size !== policies.length) throw new Error('duplicate trial Workspace')
+  for (const policy of policies) {
+    const grants = policy.retryFailedTrials ?? []
+    if (new Set(grants.map(grant => grant.trialId)).size !== grants.length) throw new Error('duplicate trial retry grant')
+  }
 }
 
 const resultSchema = z.strictObject({
@@ -50,6 +59,7 @@ const legSchema = z.strictObject({
 })
 const recordSchema = z.strictObject({
   schemaVersion: z.literal(1), id: hash, draftId: hash, workspaceId: z.string().regex(NATIVE_WORKSPACE_ID_PATTERN),
+  retryOf: hash.optional(),
   draftSnapshotDigest: hash, contentHash: hash, governanceDigest: hash,
   provider: z.string().min(1).max(256), model: z.string().min(1).max(256),
   reservedAt: integer.max(8_640_000_000_000_000), reservedModelCalls: z.literal(24),
@@ -57,7 +67,7 @@ const recordSchema = z.strictObject({
   comparison: comparisonSchema.optional(), reason: z.enum(['interrupted', 'cancelled', 'source-conflict', 'execution-failed']).optional(),
 }).superRefine((record, ctx) => {
   const pairs = [0, 2, 4, 6].map(index => record.legs.slice(index, index + 2))
-  const invalid = record.id !== trialId(record.draftId)
+  const invalid = record.id !== trialId(record.draftId, record.retryOf)
     || record.legs.some((leg, i) => leg.index !== i || leg.sessionId !== legSessionId(record.id, i)
       || (leg.phase === 'settled') !== (leg.result !== undefined)
       || leg.phase === 'pending' && leg.dispatchMarkers !== 0
@@ -80,9 +90,20 @@ const recordSchema = z.strictObject({
 export type ConversationDraftTrialRecord = z.infer<typeof recordSchema>
 const spec = defineDomain({ name: 'evoforge_conversation_draft_trials', version: 1, layout: 'single',
   tables: { records: domainTable<string, ConversationDraftTrialRecord>(recordSchema) } })
-function trialId(draftId: string): string { return digest({ kind: 'conversation-draft-paired-v1', draftId }) }
+function trialId(draftId: string, retryOf?: string): string {
+  return digest({ kind: 'conversation-draft-paired-v1', draftId, ...(retryOf === undefined ? {} : { retryOf }) })
+}
 function legSessionId(id: string, index: number): string { return `evoforge-trial-${id}-${index}` }
 function day(time: number): string { return new Date(time).toISOString().slice(0, 10) }
+function zeroDispatchRoot(record: ConversationDraftTrialRecord): boolean {
+  return record.retryOf === undefined && record.phase === 'uncertain'
+    && record.legs.every(leg => leg.dispatchMarkers === 0 && leg.result === undefined)
+}
+function frozenPlan(record: ConversationDraftTrialRecord): unknown {
+  return { draftId: record.draftId, workspaceId: record.workspaceId, draftSnapshotDigest: record.draftSnapshotDigest,
+    contentHash: record.contentHash, governanceDigest: record.governanceDigest, provider: record.provider, model: record.model,
+    legs: record.legs.map(({ index, caseId, partition, inputDigest, variant }) => ({ index, caseId, partition, inputDigest, variant })) }
+}
 
 /** Private one-shot plan and results. Native Sessions remain the execution log authority. */
 export class ConversationDraftTrialStore {
@@ -101,6 +122,20 @@ export class ConversationDraftTrialStore {
     return [...this.domain.table('records').entries()].map(([, record]) => record)
       .filter(record => record.workspaceId === workspaceId).map(record => structuredClone(record))
   }
+  canReserve(source: ConversationDraftRecord): boolean {
+    return !this.failed && this.closing === undefined && this.nextIdentity(source) !== undefined
+  }
+  private nextIdentity(source: ConversationDraftRecord): { id: string; retryOf?: string } | undefined {
+    const policy = this.policy(source.workspaceId)
+    if (policy === undefined) return undefined
+    const table = this.domain.table('records'), rootId = trialId(source.id), root = table.get(rootId)
+    if (root === undefined) return { id: rootId }
+    const grant = policy.retryFailedTrials?.find(grant => grant.trialId === rootId)
+    if (grant === undefined || grant.expiresAt <= this.now() || !zeroDispatchRoot(root)
+      || root.workspaceId !== source.workspaceId || root.draftSnapshotDigest !== digest(source)) return undefined
+    const id = trialId(source.id, rootId)
+    return table.get(id) === undefined ? { id, retryOf: rootId } : undefined
+  }
   reserve(source: ConversationDraftRecord, route: { provider: string; model: string }): Promise<ConversationDraftTrialRecord | undefined> {
     return this.enqueue(async () => {
       const policy = this.policy(source.workspaceId)
@@ -111,8 +146,11 @@ export class ConversationDraftTrialStore {
         throw new Error('conversation trial requires an intact sealed draft')
       }
       validateDraftGovernance(source.governance)
-      const table = this.domain.table('records'), id = trialId(source.id), reservedAt = this.now()
-      if (table.get(id) !== undefined || table.size >= MAX_PLANS) return undefined
+      const table = this.domain.table('records'), identity = this.nextIdentity(source), reservedAt = this.now()
+      if (identity === undefined || table.size >= MAX_PLANS) return undefined
+      const { id, retryOf } = identity
+      const parent = retryOf === undefined ? undefined : table.get(retryOf)
+      if (parent !== undefined && (parent.provider !== route.provider || parent.model !== route.model)) return undefined
       const used = this.records(source.workspaceId).filter(record => day(record.reservedAt) === day(reservedAt))
         .reduce((sum, record) => sum + record.reservedModelCalls, 0)
       if (used + 24 > policy.maxModelCallsPerUtcDay) return undefined
@@ -123,8 +161,12 @@ export class ConversationDraftTrialStore {
           sessionId: legSessionId(id, caseIndex * 2 + offset), phase: 'pending' as const, dispatchMarkers: 0 }))
       })
       const record = recordSchema.parse({ schemaVersion: 1, id, draftId: source.id, workspaceId: source.workspaceId,
+        ...(retryOf === undefined ? {} : { retryOf }),
         draftSnapshotDigest: digest(source), contentHash: source.draft.contentHash, governanceDigest: source.governanceDigest,
         provider: route.provider, model: route.model, reservedAt, reservedModelCalls: 24, phase: 'reserved', legs })
+      if (parent !== undefined && (reservedAt < parent.reservedAt || digest(frozenPlan(record)) !== digest(frozenPlan(parent)))) {
+        throw new Error('trial retry changed its frozen plan')
+      }
       await this.put(record)
       return structuredClone(record)
     })
@@ -178,6 +220,7 @@ export class ConversationDraftTrialStore {
       reservedModelCallsToday: records.filter(record => day(record.reservedAt) === day(this.now())).reduce((n, record) => n + record.reservedModelCalls, 0),
       maxModelCallsPerUtcDay: policy?.maxModelCallsPerUtcDay ?? 0,
       items: records.slice(-5).reverse().map(record => ({ id: record.id, draftId: record.draftId, phase: record.phase,
+        ...(record.retryOf === undefined ? {} : { retryOf: record.retryOf }),
         settledLegs: record.legs.filter(leg => leg.phase === 'settled').length,
         dispatchMarkers: record.legs.reduce((n, leg) => n + leg.dispatchMarkers, 0),
         requestCount: record.legs.reduce((n, leg) => n + (leg.result?.requestCount ?? 0), 0),
@@ -221,6 +264,18 @@ export async function openConversationDraftTrialStore(facility: DomainFacility, 
     for (const [key, value] of table.entries()) {
       const record = recordSchema.parse(value)
       if (key !== record.id) throw new Error('conversation trial key mismatch')
+      if (record.retryOf !== undefined) {
+        const parent = table.get(record.retryOf)
+        if (parent === undefined || !zeroDispatchRoot(recordSchema.parse(parent)) || record.reservedAt < parent.reservedAt
+          || digest(frozenPlan(parent)) !== digest(frozenPlan(record))) throw new Error('conversation trial retry ancestry mismatch')
+      }
+    }
+    for (const policy of policies) for (const grant of policy.retryFailedTrials ?? []) {
+      const parent = table.get(grant.trialId)
+      if (parent === undefined || parent.workspaceId !== policy.workspaceId || !zeroDispatchRoot(parent)
+        || grant.expiresAt > now() + 86_400_000) throw new Error('conversation trial retry grant is invalid')
+    }
+    for (const [key, record] of table.entries()) {
       if (['reserved', 'running'].includes(record.phase)) await table.put(key, { ...record, phase: 'uncertain', reason: 'interrupted' })
     }
     return new ConversationDraftTrialStore(domain, structuredClone(policies), now)

@@ -68,11 +68,15 @@ describe('dsh-evolve public configuration', () => {
   it('keeps native draft trials default-off and reserves a whole eight-leg plan without operator-selected tests', () => {
     expect(Config({}).conversationDraftTrialPolicies).toEqual([])
     const policy = { workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 24 }
-    expect(Config({ conversationDraftTrialPolicies: [policy] }).conversationDraftTrialPolicies).toEqual([policy])
+    expect(Config({ conversationDraftTrialPolicies: [policy] }).conversationDraftTrialPolicies).toEqual([{ ...policy, retryFailedTrials: [] }])
     expect(() => Config({ conversationDraftTrialPolicies: [{ ...policy, maxModelCallsPerUtcDay: 23 }] })).toThrow()
     expect(() => Config({ conversationDraftTrialPolicies: [{ ...policy, maxModelCallsPerUtcDay: 73 }] })).toThrow()
     expect(() => Config({ conversationDraftTrialPolicies: [policy, policy] })).toThrow()
-    expect(Object.keys(configArrayObject('conversationDraftTrialPolicies').dict).sort()).toEqual(['maxModelCallsPerUtcDay', 'workspaceId'])
+    expect(Object.keys(configArrayObject('conversationDraftTrialPolicies').dict).sort()).toEqual(['maxModelCallsPerUtcDay', 'retryFailedTrials', 'workspaceId'])
+    const grant = { trialId: 'a'.repeat(64), expiresAt: Date.now() + 60_000 }
+    expect(Config({ conversationDraftTrialPolicies: [{ ...policy, retryFailedTrials: [grant] }] }).conversationDraftTrialPolicies)
+      .toEqual([{ ...policy, retryFailedTrials: [grant] }])
+    expect(() => Config({ conversationDraftTrialPolicies: [{ ...policy, retryFailedTrials: [grant, grant] }] })).toThrow()
   })
 
   it('keeps conversation draft preparation independently budgeted without target Skills or operator test packs', () => {

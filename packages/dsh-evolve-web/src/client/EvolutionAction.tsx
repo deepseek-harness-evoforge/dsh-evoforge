@@ -511,6 +511,7 @@ function BeginnerOverview({ summary, openAdvanced, t }: {
       {trials.warningCount > 0 && <p>{t('correction.warning')}</p>}
       {trials.items.map(trial => <article key={trial.id}>
         <h4>{drafts?.items.find(draft => draft.id === trial.draftId)?.name ?? t('trial.title')}</h4>
+        {trial.retryOf !== undefined && <p>{t('trial.setupRetry')}</p>}
         <p>{t(trial.comparison === undefined ? `trial.phase.${trial.phase}` : `trial.outcome.${trial.comparison.outcome}`)}</p>
         <p>{t('trial.progress')} {trial.settledLegs} / 8</p>
         {trial.comparison !== undefined && <>

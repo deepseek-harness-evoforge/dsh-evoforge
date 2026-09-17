@@ -1617,6 +1617,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = () => (dsh_evolve_ev
   'items': z.array(z.object({
   'id': z.string().readonly(),
   'draftId': z.string().readonly(),
+  'retryOf': z.union([z.undefined(), z.string()]).readonly().optional(),
   'phase': z.union([z.literal("uncertain"), z.literal("reserved"), z.literal("running"), z.literal("completed")]).readonly(),
   'settledLegs': z.number().readonly(),
   'dispatchMarkers': z.number().readonly(),

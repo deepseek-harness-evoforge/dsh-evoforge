@@ -82,3 +82,72 @@ it('requires a configured budget and rejects invalid sealed draft content', asyn
   await expect(store.reserve({ ...source, governanceDigest: 'f'.repeat(64) }, route)).rejects.toThrow()
   await expect(openConversationDraftTrialStore(f.facility, [{ ...policy, maxModelCallsPerUtcDay: 23 }])).rejects.toThrow()
 })
+
+it('allows exactly one explicit zero-dispatch recovery with frozen cases and both reservations retained', async () => {
+  const f = fixture(), first = await openConversationDraftTrialStore(f.facility, [policy], () => 1000)
+  let root = (await first.reserve(source, route))!
+  root = await first.startLeg(root, 0)
+  root = await first.interrupt(root, 'execution-failed')
+  await first.close()
+  const grant = { trialId: root.id, expiresAt: 10_000 }
+  const recoveryPolicy = { ...policy, maxModelCallsPerUtcDay: 48, retryFailedTrials: [grant] }
+  const recovered = await openConversationDraftTrialStore(f.facility, [recoveryPolicy], () => 2000)
+  const attempts = await Promise.all([1, 2].map(() => recovered.reserve(source, route)))
+  const child = attempts.find(value => value !== undefined)!
+  expect(attempts.filter(Boolean)).toHaveLength(1)
+  expect(child.retryOf).toBe(root.id)
+  expect(child.draftSnapshotDigest).toBe(root.draftSnapshotDigest)
+  expect(child.governanceDigest).toBe(root.governanceDigest)
+  expect(child.legs.map(({ sessionId, ...leg }) => leg)).toEqual(root.legs.map(({ sessionId, ...leg }) => ({ ...leg, phase: 'pending' })))
+  expect(new Set([...root.legs, ...child.legs].map(leg => leg.sessionId)).size).toBe(16)
+  expect(recovered.records(WORKSPACE_ID).find(record => record.id === root.id)).toEqual(root)
+  expect(recovered.summarize(WORKSPACE_ID).reservedModelCallsToday).toBe(48)
+  expect(recovered.summarize(WORKSPACE_ID).items[0]?.retryOf).toBe(root.id)
+  await recovered.close()
+  const cold = await openConversationDraftTrialStore(f.facility, [recoveryPolicy], () => 3000)
+  expect(await cold.reserve(source, route)).toBeUndefined()
+  expect(cold.records(WORKSPACE_ID)).toHaveLength(2)
+  await cold.close()
+  const nextDay = await openConversationDraftTrialStore(f.facility, [{ ...recoveryPolicy,
+    retryFailedTrials: [{ ...grant, expiresAt: 86_410_000 }] }], () => 86_401_000)
+  expect(await nextDay.reserve(source, route)).toBeUndefined()
+  await nextDay.close()
+  f.rows.set(child.id, { ...child, provider: 'forged-route' })
+  await expect(openConversationDraftTrialStore(f.facility, [], () => 86_401_000)).rejects.toThrow('ancestry')
+})
+
+it('rejects recovery after any dispatch marker and rejects forged recovery ancestry on readback', async () => {
+  const f = fixture(), first = await openConversationDraftTrialStore(f.facility, [policy], () => 1000)
+  let root = (await first.reserve(source, route))!
+  root = await first.startLeg(root, 0)
+  root = await first.markDispatch(root, 0, 1)
+  root = await first.interrupt(root, 'execution-failed')
+  await first.close()
+  await expect(openConversationDraftTrialStore(f.facility, [{ ...policy, maxModelCallsPerUtcDay: 48,
+    retryFailedTrials: [{ trialId: root.id, expiresAt: 10_000 }] }], () => 2000)).rejects.toThrow('retry')
+  f.rows.set(root.id, { ...root, retryOf: 'e'.repeat(64) })
+  await expect(openConversationDraftTrialStore(f.facility, [], () => 2000)).rejects.toThrow()
+})
+
+it('does not recover with an expired grant, insufficient budget, changed source, or changed model route', async () => {
+  const f = fixture(), first = await openConversationDraftTrialStore(f.facility, [policy], () => 1000)
+  const root = await first.interrupt((await first.reserve(source, route))!, 'execution-failed')
+  await first.close()
+  let now = 2000
+  const grant = { trialId: root.id, expiresAt: 3000 }
+  const limited = await openConversationDraftTrialStore(f.facility, [{ ...policy, retryFailedTrials: [grant] }], () => now)
+  expect(await limited.reserve(source, route)).toBeUndefined()
+  await limited.close()
+  const allowed = await openConversationDraftTrialStore(f.facility, [{ ...policy, maxModelCallsPerUtcDay: 48,
+    retryFailedTrials: [grant] }], () => now)
+  expect(await allowed.reserve({ ...source, reservedAt: source.reservedAt + 1 }, route)).toBeUndefined()
+  expect(await allowed.reserve(source, { ...route, model: 'different' })).toBeUndefined()
+  now = 3000
+  expect(await allowed.reserve(source, route)).toBeUndefined()
+  expect(allowed.records(WORKSPACE_ID)).toEqual([root])
+  await allowed.close()
+  await expect(openConversationDraftTrialStore(f.facility, [{ ...policy,
+    retryFailedTrials: [{ ...grant, expiresAt: now + 86_400_001 }] }], () => now)).rejects.toThrow('retry grant')
+  const revoked = await openConversationDraftTrialStore(f.facility, [policy], () => 2000)
+  expect(await revoked.reserve(source, route)).toBeUndefined()
+})

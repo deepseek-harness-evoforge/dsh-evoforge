@@ -7,6 +7,9 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Allow one explicit, expiring setup recovery for a failed draft comparison only when no model dispatch or leg result was
+  recorded. Preserve the failed plan, frozen tests and both budget reservations; never repeat a recovery or a dispatched trial.
+
 - Fix draft comparison initialization when programmatic Agents do not inherit a global Skill tool. Supply the official
   reader only within the trial Agent; preserve existing readers, tool restrictions, and failed-plan history.
 
