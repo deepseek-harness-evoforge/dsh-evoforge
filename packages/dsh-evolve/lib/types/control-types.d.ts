@@ -1185,7 +1185,7 @@ export interface ConversationDraftTrialSummary {
         readonly id: string;
         readonly draftId: string;
         readonly retryOf?: string;
-        readonly phase: 'reserved' | 'running' | 'completed' | 'uncertain';
+        readonly phase: 'reserved' | 'running' | 'completed' | 'uncertain' | 'blocked';
         readonly settledLegs: number;
         readonly dispatchMarkers: number;
         readonly requestCount: number;
@@ -1202,7 +1202,7 @@ export interface ConversationDraftTrialSummary {
             readonly loadedDraftLegs: number;
             readonly outcome: 'improvement-observed' | 'no-improvement' | 'regression' | 'inconclusive';
         };
-        readonly reason?: 'interrupted' | 'cancelled' | 'source-conflict' | 'execution-failed';
+        readonly reason?: 'interrupted' | 'cancelled' | 'source-conflict' | 'execution-failed' | 'evaluator-unqualified';
     }[];
     readonly releaseAuthority: 'none';
 }

@@ -33,7 +33,7 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
     const fixtureGovernance = { scope: 'A private calibration fixture for native role separation, not a real evaluation.',
       cases: ['h1', 'h2', 'r1', 'r2'].map((id, index) => ({ id, partition: index < 2 ? 'holdout' : 'retention',
         input: `Unseen fixture ${id}: respond with answer-${id}.`, mustInclude: [`answer-${id}`], mustNotInclude: [],
-        layout: 'any', referenceAnswer: `answer-${id}`, negativeAnswer: 'wrong' })) }
+        layout: 'any', referenceAnswer: `answer-${id}`, alternateAnswer: `Fact: answer-${id}`, negativeAnswer: 'wrong' })) }
     const fixtureDraft = { status: 'draft', name: 'readable-report', description: 'Readable reports for narrow chat previews.',
       body: 'Use short sections for narrow report previews. Preserve source facts and unknown states. Follow an explicit format request and leave unrelated answers unchanged.' }
     let waitForCancellation = false

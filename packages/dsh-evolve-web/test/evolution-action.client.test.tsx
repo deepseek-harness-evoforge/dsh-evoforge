@@ -776,6 +776,25 @@ describe('EvolutionAction', () => {
     expect(screen.queryByRole('button', { name: /启用|晋升/u })).toBeNull()
   })
 
+  it('shows evaluator rejection as unstarted, without a score or activation action', async () => {
+    const api = remote()
+    vi.mocked(api.overview).mockImplementationOnce(() => success({
+      schemaVersion: 1, workspaceId, recovery: { available: true, paused: false },
+      generationSelectionHistory: emptyGenerationSelectionHistory(),
+      conversationDraftTrials: { enabled: true, observerAvailable: true, pendingCount: 0, uncertainCount: 0, warningCount: 0,
+        reservedModelCallsToday: 0, maxModelCallsPerUtcDay: 24, releaseAuthority: 'none',
+        items: [{ id: 'f'.repeat(64), draftId: 'd'.repeat(64), phase: 'blocked', reason: 'evaluator-unqualified', settledLegs: 0,
+          dispatchMarkers: 0, requestCount: 0, inputTokens: 0, outputTokens: 0, usageMissingCount: 0, elapsedMs: 0 }] },
+      reviews: { available: true, pendingCount: 0, actionableCount: 0, warningCount: 0, items: [], inactiveGenerations: [] },
+    }))
+    render(<EvolutionAction remote={api} t={key => zh[key as keyof typeof zh] ?? key}
+      wide useSessions={sessionHook()} useWorkspaces={workspaceHook()} />)
+    fireEvent.click(screen.getByRole('button', { name: zh['trigger.label'] }))
+    expect(await screen.findByText(zh['trial.phase.blocked'])).toBeTruthy()
+    expect(screen.queryByText(/字面断言通过/u)).toBeNull()
+    expect(screen.queryByRole('button', { name: /启用|晋升/u })).toBeNull()
+  })
+
   it('shows ordinary-chat hypotheses separately from explicit feedback and verified improvements', async () => {
     const api = remote()
     vi.mocked(api.overview).mockImplementationOnce(() => success({

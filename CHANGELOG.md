@@ -7,6 +7,10 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Require new draft checks to accept an alternate correct expression before authoring or trial execution. Unqualified
+  material gets a durable, zero-budget rejection; historical results stay unchanged. Label scores as literal checks,
+  not task completion rates or proof of learning.
+
 - Allow one explicit, expiring setup recovery for a failed draft comparison only when no model dispatch or leg result was
   recorded. Preserve the failed plan, frozen tests and both budget reservations; never repeat a recovery or a dispatched trial.
 

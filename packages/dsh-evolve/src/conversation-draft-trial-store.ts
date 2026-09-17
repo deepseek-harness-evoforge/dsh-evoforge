@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { defineDomain, domainTable, type Domain, type DomainFacility } from '@deepseek-ai/dsh-storage-domain'
 import { z } from 'zod'
 import { digest } from './conversation-correction-intake.ts'
-import { validateDraftGovernance, type ConversationDraftRecord } from './conversation-skill-draft.ts'
+import { requireDraftCaseCalibration, validateDraftGovernance, type ConversationDraftRecord } from './conversation-skill-draft.ts'
 import { NATIVE_WORKSPACE_ID_PATTERN } from './workspace-identity.ts'
 import type { ConversationDraftTrialSummary } from './control-types.ts'
 
@@ -62,9 +62,9 @@ const recordSchema = z.strictObject({
   retryOf: hash.optional(),
   draftSnapshotDigest: hash, contentHash: hash, governanceDigest: hash,
   provider: z.string().min(1).max(256), model: z.string().min(1).max(256),
-  reservedAt: integer.max(8_640_000_000_000_000), reservedModelCalls: z.literal(24),
-  phase: z.enum(['reserved', 'running', 'completed', 'uncertain']), legs: z.array(legSchema).length(8),
-  comparison: comparisonSchema.optional(), reason: z.enum(['interrupted', 'cancelled', 'source-conflict', 'execution-failed']).optional(),
+  reservedAt: integer.max(8_640_000_000_000_000), reservedModelCalls: z.union([z.literal(0), z.literal(24)]),
+  phase: z.enum(['reserved', 'running', 'completed', 'uncertain', 'blocked']), legs: z.array(legSchema).length(8),
+  comparison: comparisonSchema.optional(), reason: z.enum(['interrupted', 'cancelled', 'source-conflict', 'execution-failed', 'evaluator-unqualified']).optional(),
 }).superRefine((record, ctx) => {
   const pairs = [0, 2, 4, 6].map(index => record.legs.slice(index, index + 2))
   const invalid = record.id !== trialId(record.draftId, record.retryOf)
@@ -84,7 +84,10 @@ const recordSchema = z.strictObject({
     || (record.phase === 'completed') !== (record.comparison !== undefined)
     || record.phase === 'completed' && record.legs.some(leg => leg.phase !== 'settled')
     || record.phase === 'reserved' && record.legs.some(leg => leg.phase !== 'pending')
-    || (record.phase === 'uncertain') !== (record.reason !== undefined)
+    || (record.phase === 'blocked') !== (record.reservedModelCalls === 0)
+    || (record.phase === 'blocked') !== (record.reason === 'evaluator-unqualified')
+    || record.phase === 'blocked' && record.legs.some(leg => leg.phase !== 'pending')
+    || (['uncertain', 'blocked'].includes(record.phase)) !== (record.reason !== undefined)
   if (invalid) ctx.addIssue({ code: 'custom', message: 'inconsistent conversation trial identity or lifecycle' })
 })
 export type ConversationDraftTrialRecord = z.infer<typeof recordSchema>
@@ -123,7 +126,13 @@ export class ConversationDraftTrialStore {
       .filter(record => record.workspaceId === workspaceId).map(record => structuredClone(record))
   }
   canReserve(source: ConversationDraftRecord): boolean {
-    return !this.failed && this.closing === undefined && this.nextIdentity(source) !== undefined
+    if (this.failed || this.closing !== undefined || this.nextIdentity(source) === undefined) return false
+    if (source.governance !== undefined) {
+      try { requireDraftCaseCalibration(source.governance) } catch { return true }
+    }
+    const used = this.records(source.workspaceId).filter(record => day(record.reservedAt) === day(this.now()))
+      .reduce((sum, record) => sum + record.reservedModelCalls, 0)
+    return used + 24 <= (this.policy(source.workspaceId)?.maxModelCallsPerUtcDay ?? 0)
   }
   private nextIdentity(source: ConversationDraftRecord): { id: string; retryOf?: string } | undefined {
     const policy = this.policy(source.workspaceId)
@@ -151,9 +160,12 @@ export class ConversationDraftTrialStore {
       const { id, retryOf } = identity
       const parent = retryOf === undefined ? undefined : table.get(retryOf)
       if (parent !== undefined && (parent.provider !== route.provider || parent.model !== route.model)) return undefined
+      let qualified = true
+      try { requireDraftCaseCalibration(source.governance) } catch { qualified = false }
+      const reservedModelCalls = qualified ? 24 : 0
       const used = this.records(source.workspaceId).filter(record => day(record.reservedAt) === day(reservedAt))
         .reduce((sum, record) => sum + record.reservedModelCalls, 0)
-      if (used + 24 > policy.maxModelCallsPerUtcDay) return undefined
+      if (qualified && used + reservedModelCalls > policy.maxModelCallsPerUtcDay) return undefined
       const legs = source.governance.cases.flatMap((test, caseIndex) => {
         const variants = caseIndex % 2 === 0 ? ['baseline', 'draft'] as const : ['draft', 'baseline'] as const
         return variants.map((variant, offset) => ({ index: caseIndex * 2 + offset, caseId: test.id,
@@ -163,7 +175,8 @@ export class ConversationDraftTrialStore {
       const record = recordSchema.parse({ schemaVersion: 1, id, draftId: source.id, workspaceId: source.workspaceId,
         ...(retryOf === undefined ? {} : { retryOf }),
         draftSnapshotDigest: digest(source), contentHash: source.draft.contentHash, governanceDigest: source.governanceDigest,
-        provider: route.provider, model: route.model, reservedAt, reservedModelCalls: 24, phase: 'reserved', legs })
+        provider: route.provider, model: route.model, reservedAt, reservedModelCalls,
+        ...(qualified ? { phase: 'reserved' } : { phase: 'blocked', reason: 'evaluator-unqualified' }), legs })
       if (parent !== undefined && (reservedAt < parent.reservedAt || digest(frozenPlan(record)) !== digest(frozenPlan(parent)))) {
         throw new Error('trial retry changed its frozen plan')
       }

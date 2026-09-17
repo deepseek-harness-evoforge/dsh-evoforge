@@ -30,16 +30,16 @@ const governance = {
   cases: [
     { id: 'h1', partition: 'holdout', input: '给手机读者整理甲事项，责任人周，状态待确认。',
       mustInclude: ['甲事项', '周', '待确认'], mustNotInclude: ['已完成'], layout: 'no-table',
-      referenceAnswer: '甲事项\n负责人：周\n状态：待确认', negativeAnswer: '已完成' },
+      referenceAnswer: '甲事项\n负责人：周\n状态：待确认', alternateAnswer: '甲事项由周负责，目前待确认。', negativeAnswer: '已完成' },
     { id: 'h2', partition: 'holdout', input: '在聊天窄屏中列乙事项和来源记录C，截止有冲突周四/周六。',
       mustInclude: ['乙事项', '记录C', '周四', '周六'], mustNotInclude: [], layout: 'no-table',
-      referenceAnswer: '乙事项\n来源：记录C\n截止冲突：周四/周六', negativeAnswer: '乙事项周四' },
+      referenceAnswer: '乙事项\n来源：记录C\n截止冲突：周四/周六', alternateAnswer: '据记录C，乙事项截止存在周四与周六的冲突。', negativeAnswer: '乙事项周四' },
     { id: 'r1', partition: 'retention', input: '我明确要两列表格：事项丙，状态待处理。',
       mustInclude: ['丙', '待处理'], mustNotInclude: [], layout: 'table',
-      referenceAnswer: '| 事项 | 状态 |\n| --- | --- |\n| 丙 | 待处理 |', negativeAnswer: '丙：待处理' },
+      referenceAnswer: '| 事项 | 状态 |\n| --- | --- |\n| 丙 | 待处理 |', alternateAnswer: '|事项|状态|\n|---|---|\n|丙|待处理|', negativeAnswer: '丙：待处理' },
     { id: 'r2', partition: 'retention', input: '只回答7减2的结果。',
       mustInclude: ['5'], mustNotInclude: ['报告'], layout: 'any',
-      referenceAnswer: '5', negativeAnswer: '报告：7' },
+      referenceAnswer: '5', alternateAnswer: '5', negativeAnswer: '报告：7' },
   ],
 }
 const proposal = { status: 'draft', name: 'readable-channel-report', description: '整理供聊天窄屏阅读的多事项报告。',
@@ -71,6 +71,7 @@ describe('conversation-derived Skill draft', () => {
       if (request.role === 'governance') return { value: governance, usage }
       expect(store.records(WORKSPACE_ID)[0]?.governance).toEqual(governance)
       expect(JSON.stringify(request)).not.toContain('referenceAnswer')
+      expect(JSON.stringify(request)).not.toContain('alternateAnswer')
       expect(JSON.stringify(request)).not.toContain('只回答7减2')
       return { value: proposal, usage }
     })
@@ -85,6 +86,7 @@ describe('conversation-derived Skill draft', () => {
     const view = store.summarize(WORKSPACE_ID)
     expect(view).toMatchObject({ draftCount: 1, reservedModelCallsToday: 2 })
     expect(JSON.stringify(view)).not.toContain('referenceAnswer')
+    expect(JSON.stringify(view)).not.toContain('alternateAnswer')
     expect(JSON.stringify(view)).not.toContain('甲事项')
   })
 
@@ -228,6 +230,33 @@ describe('conversation-derived Skill draft', () => {
     const model = vi.fn(async () => ({ value: {}, usage }))
     expect(await authorConversationSkillDraft(store, correction, input, model, signal())).toBe('abstained')
     expect(model).toHaveBeenCalledTimes(1)
+    expect(store.records(WORKSPACE_ID)[0]?.draft).toBeUndefined()
+  })
+
+  it('requires fresh checks to accept an alternate valid answer without rewriting their assertions', () => {
+    const calibrated = { ...governance, cases: governance.cases.map((test, index) => ({ ...test,
+      alternateAnswer: index === 0 ? '甲事项由周负责，目前待确认。' : `${test.referenceAnswer}\n`,
+    })) }
+    expect(validateDraftGovernance(calibrated, input)).toEqual(calibrated)
+    const brittle = { ...calibrated, cases: calibrated.cases.map((test, index) => index === 0
+      ? { ...test, mustInclude: [...test.mustInclude, '负责人：周'] } : test) }
+    expect(() => validateDraftGovernance(brittle, input)).toThrow('calibration')
+  })
+
+  it('keeps legacy sealed material readable but does not admit it as newly calibrated material', () => {
+    const legacy = { ...governance, cases: governance.cases.map(({ alternateAnswer: _, ...test }) => test) }
+    expect(validateDraftGovernance(legacy)).toEqual(legacy)
+    expect(() => validateDraftGovernance(legacy, input)).toThrow('calibration')
+  })
+
+  it('stops before the proposer when a proposed checker rejects its alternate correct answer', async () => {
+    const store = await openConversationDraftStore(facility().value, [policy], () => 100)
+    const brittle = { ...governance, cases: governance.cases.map((test, index) => index === 0
+      ? { ...test, mustInclude: [...test.mustInclude, '负责人：周'] } : test) }
+    const model = vi.fn(async () => ({ value: brittle, usage }))
+    expect(await authorConversationSkillDraft(store, correction, input, model, signal())).toBe('abstained')
+    expect(model).toHaveBeenCalledTimes(1)
+    expect(store.records(WORKSPACE_ID)[0]).toMatchObject({ reason: 'invalid-governance', modelCalls: 1 })
     expect(store.records(WORKSPACE_ID)[0]?.draft).toBeUndefined()
   })
 

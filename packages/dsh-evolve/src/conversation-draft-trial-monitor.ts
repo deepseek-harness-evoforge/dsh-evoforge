@@ -16,6 +16,7 @@ export async function executeConversationDraftTrial(ctx: Context, store: Convers
   initial: ConversationDraftTrialRecord, source: ConversationDraftRecord, cwd: string, signal: AbortSignal,
   sourceStillMatches: () => boolean): Promise<ConversationDraftTrialRecord> {
   let record = initial
+  if (record.phase === 'blocked') return record
   try {
     if (source.draft === undefined || source.governance === undefined || digest(source) !== record.draftSnapshotDigest) {
       return await store.interrupt(record, 'source-conflict')
@@ -63,7 +64,7 @@ export function installConversationDraftTrialMonitor(ctx: Context, corrections: 
     if (closing) return
     if (active.has(workspaceId)) { rescan.add(workspaceId); return }
     const summary = store.summarize(workspaceId)
-    if (!summary.enabled || !summary.observerAvailable || summary.reservedModelCallsToday + 24 > summary.maxModelCallsPerUtcDay) return
+    if (!summary.enabled || !summary.observerAvailable) return
     const sources = drafts.records(workspaceId).filter(record => record.phase === 'draft' && store.canReserve(record))
       .sort((a, b) => a.reservedAt - b.reservedAt || a.id.localeCompare(b.id))
     if (sources.length === 0) return
@@ -95,7 +96,7 @@ export function installConversationDraftTrialMonitor(ctx: Context, corrections: 
               }
               if (!sourceStillMatches()) { store.warn(workspaceId); incomplete = true; continue }
               const reserved = await store.reserve(source, input.route)
-              if (reserved === undefined) break
+              if (reserved === undefined) continue
               const result = await executeConversationDraftTrial(ctx, store, reserved, source, cwd, controller.signal, sourceStillMatches)
               if (result.phase === 'completed' && result.comparison?.outcome !== 'inconclusive') completed++
               else incomplete = true

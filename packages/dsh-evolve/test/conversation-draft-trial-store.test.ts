@@ -1,9 +1,11 @@
 import { createHash } from 'node:crypto'
 import type { DomainFacility } from '@deepseek-ai/dsh-storage-domain'
+import type { Context } from '@deepseek-ai/cordis'
 import { expect, it } from 'vitest'
 import { digest } from '../src/conversation-correction-intake.ts'
 import type { ConversationDraftRecord } from '../src/conversation-skill-draft.ts'
 import { openConversationDraftTrialStore } from '../src/conversation-draft-trial-store.ts'
+import { executeConversationDraftTrial } from '../src/conversation-draft-trial-monitor.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 function fixture() {
@@ -22,7 +24,7 @@ const governance = { scope: 'Improve narrow report reading without changing unre
   cases: ['h1', 'h2', 'r1', 'r2'].map((id, i) => ({
     id, partition: i < 2 ? 'holdout' as const : 'retention' as const,
     input: `Self-contained private task ${id}: keep fact ${id}.`, mustInclude: [id], mustNotInclude: ['fabricated'],
-    layout: 'any' as const, referenceAnswer: id, negativeAnswer: 'fabricated',
+    layout: 'any' as const, referenceAnswer: id, alternateAnswer: `Fact: ${id}`, negativeAnswer: 'fabricated',
   })) }
 const source: ConversationDraftRecord = {
   schemaVersion: 1, id: 'a'.repeat(64), workspaceId: WORKSPACE_ID, correctionId: 'b'.repeat(64),
@@ -34,6 +36,40 @@ const source: ConversationDraftRecord = {
 }
 const route = { provider: 'fixed', model: 'fixed' }
 const policy = { workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 24 }
+
+it('persists an unqualified evaluator without spending budget or permitting execution, retry or cold resume', async () => {
+  for (const alternateAnswer of [undefined, 'wrong']) {
+    const f = fixture(), store = await openConversationDraftTrialStore(f.facility, [policy], () => 1000)
+    const unqualified = { ...governance, cases: governance.cases.map(test => {
+      const { alternateAnswer: _, ...rest } = test
+      return { ...rest, ...(alternateAnswer === undefined ? {} : { alternateAnswer }) }
+    }) }
+    const legacy = { ...source, governance: unqualified, governanceDigest: digest(unqualified) }
+    const record = (await store.reserve(legacy, route))!
+    expect(record).toMatchObject({ phase: 'blocked', reason: 'evaluator-unqualified', reservedModelCalls: 0 })
+    expect(record.legs.every(leg => leg.phase === 'pending' && leg.dispatchMarkers === 0 && leg.result === undefined)).toBe(true)
+    expect(await executeConversationDraftTrial({} as Context, store, record, legacy, '/unused', new AbortController().signal,
+      () => { throw new Error('blocked plan must not reach execution') })).toEqual(record)
+    await expect(store.startLeg(record, 0)).rejects.toThrow()
+    expect(store.canReserve(legacy)).toBe(false)
+    expect(store.summarize(WORKSPACE_ID)).toMatchObject({ reservedModelCallsToday: 0, pendingCount: 0, uncertainCount: 0 })
+    await store.close()
+    const reopened = await openConversationDraftTrialStore(f.facility, [policy], () => 86_401_000)
+    expect(reopened.records(WORKSPACE_ID)).toEqual([record])
+    expect(await reopened.reserve(legacy, route)).toBeUndefined()
+    await expect(openConversationDraftTrialStore(f.facility, [{ ...policy,
+      retryFailedTrials: [{ trialId: record.id, expiresAt: 86_402_000 }] }], () => 86_401_000)).rejects.toThrow('grant')
+  }
+})
+
+it('records evaluator rejection even when another trial exhausted the daily budget', async () => {
+  const f = fixture(), store = await openConversationDraftTrialStore(f.facility, [policy], () => 1000)
+  await store.reserve(source, route)
+  const legacy = { ...governance, cases: governance.cases.map(({ alternateAnswer: _, ...test }) => test) }
+  const rejected = await store.reserve({ ...source, id: 'e'.repeat(64), governance: legacy, governanceDigest: digest(legacy) }, route)
+  expect(rejected?.phase).toBe('blocked')
+  expect(store.summarize(WORKSPACE_ID).reservedModelCallsToday).toBe(24)
+})
 
 it('reserves every leg before dispatch and prevents concurrent or next-day re-evaluation', async () => {
   const f = fixture(), store = await openConversationDraftTrialStore(f.facility, [policy], () => 1000)

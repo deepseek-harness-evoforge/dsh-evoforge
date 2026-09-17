@@ -309,7 +309,7 @@ it('finishes all eight native legs, retains equal outcomes, and never converts t
   const governance = { scope: 'Fixture-only self-contained preservation checks.',
     cases: ['h1', 'h2', 'r1', 'r2'].map((id, index) => ({ id, partition: index < 2 ? 'holdout' as const : 'retention' as const,
       input: `Task ${id}: preserve this stated fact.`, mustInclude: ['Preserved fact'], mustNotInclude: ['invented'],
-      layout: 'any' as const, referenceAnswer: 'Preserved fact', negativeAnswer: 'invented' })) }
+      layout: 'any' as const, referenceAnswer: 'Preserved fact', alternateAnswer: 'Preserved fact.', negativeAnswer: 'invented' })) }
   const source: ConversationDraftRecord = {
     schemaVersion: 1, id: 'a'.repeat(64), workspaceId: WORKSPACE_ID, correctionId: 'b'.repeat(64), sourceDigest: 'c'.repeat(64),
     sourceSessionId: 'original-user-session', sourceTurn: 3, inputDigest: 'd'.repeat(64), reservedAt: 100,
