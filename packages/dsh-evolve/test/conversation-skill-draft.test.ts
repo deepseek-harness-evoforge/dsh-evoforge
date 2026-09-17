@@ -180,4 +180,23 @@ describe('conversation-derived Skill draft', () => {
     const missingFinish = { llm: { async *stream() { yield { type: 'text-delta', index: 0, text: JSON.stringify(proposal) } } } } as unknown as Pick<Context, 'llm'>
     await expect(nativeConversationDraftModel(missingFinish)(request, signal())).rejects.toThrow()
   })
+
+  it.each([
+    { finish: { kind: 'max-tokens' }, text: '{', reason: 'output-limit', phase: 'abstained' },
+    { finish: { kind: 'stop' }, text: 'not JSON', reason: 'invalid-json', phase: 'abstained' },
+    { finish: { kind: 'error', failure: { message: 'private provider details should never persist', code: 'PROVIDER_ERROR' } }, text: '', reason: 'provider-error', phase: 'uncertain' },
+  ])('retains the redacted $reason and known usage rather than losing both behind a generic failure', async ({ finish, text, reason, phase }) => {
+    const ctx = { llm: { async *stream() {
+      yield { type: 'text-delta', index: 0, text }
+      yield { type: 'usage', usage: { inputTokens: 234, outputTokens: 56 } }
+      yield { type: 'finish', reason: finish }
+    } } } as unknown as Pick<Context, 'llm'>
+    const store = await openConversationDraftStore(facility().value, [policy], () => 100)
+    await authorConversationSkillDraft(store, correction, input, nativeConversationDraftModel(ctx), signal())
+    const row = store.records(WORKSPACE_ID)[0]!
+    expect(row).toMatchObject({ phase, reason, usages: [{ inputTokens: 234, outputTokens: 56 }] })
+    expect(JSON.stringify(row)).not.toContain('private provider details')
+    expect(store.summarize(WORKSPACE_ID).failures).toEqual([{ reason, count: 1 }])
+    expect(store.summarize(WORKSPACE_ID).usageMissingCount).toBe(0)
+  })
 })

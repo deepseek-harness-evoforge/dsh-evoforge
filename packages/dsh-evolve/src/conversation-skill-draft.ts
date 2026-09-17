@@ -103,7 +103,8 @@ const recordSchema = z.strictObject({
   modelCalls: z.number().int().min(0).max(2),
   governance: governanceSchema.optional(), governanceDigest: HASH.optional(),
   draft: draftSchema.optional(), usages: z.array(usageSchema).max(2),
-  reason: z.enum(['interrupted', 'cancelled', 'invalid-governance', 'invalid-draft', 'not-generalizable', 'model-request-failed', 'source-conflict']).optional(),
+  reason: z.enum(['interrupted', 'cancelled', 'invalid-governance', 'invalid-draft', 'not-generalizable', 'model-request-failed', 'source-conflict',
+    'provider-error', 'provider-aborted', 'model-timeout', 'output-limit', 'invalid-json', 'invalid-stream', 'tool-output']).optional(),
 }).superRefine((r, ctx) => {
   const invalid = r.id !== draftId(r.workspaceId, r.correctionId)
     || (r.governance !== undefined) !== (r.governanceDigest !== undefined)
@@ -182,6 +183,8 @@ export class ConversationDraftStore {
       outputTokens: records.flatMap(r => r.usages).reduce((n, u) => n + u.outputTokens, 0),
       usageMissingCount: records.reduce((n, r) => n + r.modelCalls - r.usages.length, 0),
       warningCount: (this.warnings.get(workspaceId) ?? 0) + (this.failed ? 1 : 0),
+      failures: [...new Set(records.flatMap(r => r.reason === undefined ? [] : [r.reason]))].sort()
+        .map(reason => ({ reason, count: records.filter(r => r.reason === reason).length })),
       items: ready.slice(-5).reverse().map(r => ({ id: r.id, name: r.draft!.name, description: r.draft!.description,
         markdown: r.draft!.markdown, contentHash: r.draft!.contentHash, proposedTestCount: r.governance!.cases.length })),
       releaseAuthority: 'none' }
@@ -218,27 +221,44 @@ function draftInputDigest(input: CorrectionInput): string { return digest({ inpu
 export interface ConversationDraftModelRequest { readonly role: 'governance' | 'author'; readonly input: CorrectionInput }
 export type ConversationDraftModel = (request: ConversationDraftModelRequest, signal: AbortSignal) => Promise<{ readonly value: unknown; readonly usage?: TokenUsage }>
 
+class NativeDraftResponseError extends Error {
+  constructor(readonly reason: NonNullable<ConversationDraftRecord['reason']>, readonly usage?: TokenUsage) {
+    super(reason)
+  }
+}
+
 export function nativeConversationDraftModel(ctx: Pick<Context, 'llm'>): ConversationDraftModel {
   return async ({ role, input }, signal) => {
     using limit = deadline(signal, 60_000, 'EVOFORGE_CONVERSATION_DRAFT_TIMEOUT')
     const assembler = new BlockAssembler()
     let bytes = 0, finishes = 0
-    for await (const chunk of ctx.llm.stream({ ...input.route, sessionId: input.source.sessionId as SessionId,
+    try {
+      for await (const chunk of ctx.llm.stream({ ...input.route, sessionId: input.source.sessionId as SessionId,
       system: role === 'governance' ? governanceSystem : authorSystem, maxTokens: role === 'governance' ? 4000 : 2000,
       messages: [createUserMessage({ source: { kind: 'plugin', plugin: 'dsh-evolve' }, content: [{ type: 'text', text: JSON.stringify(input.messages) }] })],
       signal: limit.signal,
     })) {
       limit.signal.throwIfAborted()
-      if (finishes > 0 && chunk.type !== 'usage') throw new Error('draft output after finish')
+      if (finishes > 0 && chunk.type !== 'usage') throw new NativeDraftResponseError('invalid-stream', assembler.usage)
       if (chunk.type === 'finish') finishes += 1
       bytes += Buffer.byteLength(JSON.stringify(chunk))
-      if (bytes > 512_000) throw new Error('draft output exceeds limit')
+      if (bytes > 512_000) throw new NativeDraftResponseError('output-limit', assembler.usage)
       assembler.push(chunk)
     }
     limit.signal.throwIfAborted()
-    if (finishes !== 1 || assembler.finish.kind !== 'stop' || assembler.blocks().some(b => b.type === 'tool-call')) throw new Error('draft model did not finish with text')
+    if (finishes !== 1) throw new NativeDraftResponseError('invalid-stream', assembler.usage)
+    if (assembler.finish.kind === 'max-tokens') throw new NativeDraftResponseError('output-limit', assembler.usage)
+    if (assembler.finish.kind === 'error') throw new NativeDraftResponseError('provider-error', assembler.usage)
+    if (assembler.finish.kind === 'aborted') throw new NativeDraftResponseError('provider-aborted', assembler.usage)
+    if (assembler.finish.kind !== 'stop' || assembler.blocks().some(b => b.type === 'tool-call')) throw new NativeDraftResponseError('tool-output', assembler.usage)
     const text = assembler.blocks().flatMap(b => b.type === 'text' ? [b.text] : []).join('\n')
-    return { value: JSON.parse(text), ...(assembler.usage === undefined ? {} : { usage: assembler.usage }) }
+    let value: unknown
+    try { value = JSON.parse(text) } catch { throw new NativeDraftResponseError('invalid-json', assembler.usage) }
+    return { value, ...(assembler.usage === undefined ? {} : { usage: assembler.usage }) }
+    } catch (error) {
+      if (error instanceof NativeDraftResponseError) throw error
+      throw new NativeDraftResponseError(signal.aborted ? 'cancelled' : limit.signal.aborted ? 'model-timeout' : 'model-request-failed', assembler.usage)
+    }
   }
 }
 
@@ -272,7 +292,14 @@ export async function authorConversationSkillDraft(store: ConversationDraftStore
     record = await store.update(record, { phase: role === 'governance' ? 'governance-pending' : 'authoring-pending', modelCalls: role === 'governance' ? 1 : 2 })
     let result: Awaited<ReturnType<ConversationDraftModel>>
     try { result = await model({ role, input }, signal); signal.throwIfAborted() }
-    catch { await store.update(record, { phase: 'uncertain', reason: signal.aborted ? 'cancelled' : 'model-request-failed' }); return 'uncertain' }
+    catch (error) {
+      const reason = signal.aborted ? 'cancelled' : error instanceof NativeDraftResponseError ? error.reason : 'model-request-failed'
+      let usages = record.usages
+      try { if (error instanceof NativeDraftResponseError) usages = [...usages, ...retainUsage(error.usage)] } catch { /* Invalid usage stays unknown. */ }
+      const phase = ['output-limit', 'invalid-json', 'invalid-stream', 'tool-output'].includes(reason) ? 'abstained' : 'uncertain'
+      await store.update(record, { phase, reason, usages })
+      return phase
+    }
     let usages: ConversationDraftRecord['usages']
     try { usages = [...record.usages, ...retainUsage(result.usage)] }
     catch { await store.update(record, { phase: 'abstained', reason: role === 'governance' ? 'invalid-governance' : 'invalid-draft' }); return 'abstained' }

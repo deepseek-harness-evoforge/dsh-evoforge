@@ -488,6 +488,10 @@ function BeginnerOverview({ summary, openAdvanced, t }: {
       {drafts.reservedModelCallsToday + 2 > drafts.maxModelCallsPerUtcDay && <p>{t('draft.budgetExhausted')}</p>}
       {drafts.usageMissingCount > 0 && <p>{t('correction.usageUnknown')}</p>}
       {drafts.warningCount > 0 && <p>{t('correction.warning')}</p>}
+      {(drafts.failures ?? []).map(failure => <p key={failure.reason}>
+        {failure.count} · {t(`draft.failure.${failure.reason}`)}
+      </p>)}
+      {drafts.uncertainCount > 0 && <p className="dsh-evolve-guidance">{t('draft.noRetry')}</p>}
       {drafts.items.map(draft => <details key={draft.id} className="dsh-evolve-draft">
         <summary>{draft.name} · {t('draft.inspect')}</summary>
         <p>{draft.description}</p>

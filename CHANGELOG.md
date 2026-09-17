@@ -7,6 +7,9 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Explain incomplete Skill drafts with redacted failure categories and retain available model usage on failures;
+  unknown causes and missing usage remain explicit, and incomplete requests are not automatically retried.
+
 - Add separately budgeted ordinary-correction Skill drafts: prepare hidden test material before a separate native-model
   proposer, retain the draft in native Storage, and let users inspect its source. Drafts remain inactive and unevaluated;
   this does not install a Skill or replace independent task evaluation.

@@ -713,6 +713,24 @@ async function selectAdvanced() {
 }
 
 describe('EvolutionAction', () => {
+  it.each([zh, en])('explains incomplete drafts without claiming a retry or known usage', async locale => {
+    const api = remote()
+    vi.mocked(api.overview).mockImplementationOnce(() => success({
+      schemaVersion: 1, workspaceId, recovery: { available: true, paused: false },
+      generationSelectionHistory: emptyGenerationSelectionHistory(),
+      conversationSkillDrafts: { enabled: true, observerAvailable: true, draftCount: 0, pendingCount: 0, uncertainCount: 1,
+        reservedModelCallsToday: 2, maxModelCallsPerUtcDay: 2, inputTokens: 0, outputTokens: 0, usageMissingCount: 1, warningCount: 0,
+        failures: [{ reason: 'model-request-failed', count: 1 }], items: [], releaseAuthority: 'none' },
+      reviews: { available: true, pendingCount: 0, actionableCount: 0, warningCount: 0, items: [], inactiveGenerations: [] },
+    }))
+    render(<EvolutionAction remote={api} t={key => locale[key as keyof typeof zh] ?? key}
+      wide useSessions={sessionHook()} useWorkspaces={workspaceHook()} />)
+    fireEvent.click(screen.getByRole('button', { name: locale['trigger.label'] }))
+    expect(await screen.findByText(locale['draft.failure.model-request-failed'], { exact: false })).toBeTruthy()
+    expect(screen.getByText(locale['draft.noRetry'])).toBeTruthy()
+    expect(screen.getByText(locale['correction.usageUnknown'])).toBeTruthy()
+    expect(screen.queryByText(locale['draft.headline'])).toBeNull()
+  })
   it.each([{ locale: zh, heading: '已生成草稿，尚未验证改进' }, { locale: en, heading: 'Draft prepared; improvement is not verified' }])('shows inspectable inactive drafts without calling proposed tests evaluation results', async ({ locale, heading }) => {
     const api = remote()
     vi.mocked(api.overview).mockImplementationOnce(() => success({

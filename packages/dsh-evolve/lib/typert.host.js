@@ -1591,6 +1591,10 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = () => (dsh_evolve_ev
   'outputTokens': z.number().readonly(),
   'usageMissingCount': z.number().readonly(),
   'warningCount': z.number().readonly(),
+  'failures': z.union([z.undefined(), z.array(z.object({
+  'reason': z.string().readonly(),
+  'count': z.number().readonly(),
+}))]).readonly().optional(),
   'items': z.array(z.object({
   'id': z.string().readonly(),
   'name': z.string().readonly(),
@@ -2557,7 +2561,7 @@ export const TYPERT = {
           },
           {
             "name": "ConversationSkillDraftSummary",
-            "declaration": "export interface ConversationSkillDraftSummary {\n    readonly enabled: boolean;\n    readonly observerAvailable: boolean;\n    readonly draftCount: number;\n    readonly pendingCount: number;\n    readonly uncertainCount: number;\n    readonly reservedModelCallsToday: number;\n    readonly maxModelCallsPerUtcDay: number;\n    readonly inputTokens: number;\n    readonly outputTokens: number;\n    readonly usageMissingCount: number;\n    readonly warningCount: number;\n    readonly items: readonly { readonly id: string; readonly name: string; readonly description: string; readonly markdown: string; readonly contentHash: string; readonly proposedTestCount: number; }[];\n    readonly releaseAuthority: 'none';\n}"
+            "declaration": "export interface ConversationSkillDraftSummary {\n    readonly enabled: boolean;\n    readonly observerAvailable: boolean;\n    readonly draftCount: number;\n    readonly pendingCount: number;\n    readonly uncertainCount: number;\n    readonly reservedModelCallsToday: number;\n    readonly maxModelCallsPerUtcDay: number;\n    readonly inputTokens: number;\n    readonly outputTokens: number;\n    readonly usageMissingCount: number;\n    readonly warningCount: number;\n    readonly failures?: readonly { readonly reason: string; readonly count: number; }[];\n    readonly items: readonly { readonly id: string; readonly name: string; readonly description: string; readonly markdown: string; readonly contentHash: string; readonly proposedTestCount: number; }[];\n    readonly releaseAuthority: 'none';\n}"
           },
           {
             "name": "DeliveryOutcomeCounts",

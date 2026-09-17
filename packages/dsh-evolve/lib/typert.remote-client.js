@@ -1591,6 +1591,10 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = () => (dsh_evolve_ev
   'outputTokens': z.number().readonly(),
   'usageMissingCount': z.number().readonly(),
   'warningCount': z.number().readonly(),
+  'failures': z.union([z.undefined(), z.array(z.object({
+  'reason': z.string().readonly(),
+  'count': z.number().readonly(),
+}))]).readonly().optional(),
   'items': z.array(z.object({
   'id': z.string().readonly(),
   'name': z.string().readonly(),
