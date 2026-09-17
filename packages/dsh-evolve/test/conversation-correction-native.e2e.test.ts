@@ -8,6 +8,8 @@ import type { GenerateOptions, StreamChunk } from '@deepseek-ai/dsh-llm'
 import type { Session } from '@deepseek-ai/dsh-session'
 import { installConversationCorrectionMonitor } from '../src/conversation-correction-monitor.ts'
 import { openCorrectionLedger } from '../src/conversation-correction-intake.ts'
+import { openConversationDraftStore } from '../src/conversation-skill-draft.ts'
+import { installConversationSkillDraftMonitor } from '../src/conversation-skill-draft-monitor.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const dshRoot = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
@@ -25,10 +27,23 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
     const storageDomain = await import(entry('packages/storage/storage-domain'))
     const jobs = await import(entry('packages/jobs/jobs-local'))
     const calls: GenerateOptions[] = []
+    const fixtureGovernance = { scope: 'A private calibration fixture for native role separation, not a real evaluation.',
+      cases: ['h1', 'h2', 'r1', 'r2'].map((id, index) => ({ id, partition: index < 2 ? 'holdout' : 'retention',
+        input: `Unseen fixture ${id}: respond with answer-${id}.`, mustInclude: [`answer-${id}`], mustNotInclude: [],
+        layout: 'any', referenceAnswer: `answer-${id}`, negativeAnswer: 'wrong' })) }
+    const fixtureDraft = { status: 'draft', name: 'readable-report', description: 'Readable reports for narrow chat previews.',
+      body: 'Use short sections for narrow report previews. Preserve source facts and unknown states. Follow an explicit format request and leave unrelated answers unchanged.' }
     let waitForCancellation = false
     class ClassifierAdapter extends nativeLlm.LlmAdapter {
       async *stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
         calls.push(options)
+        if (typeof options.system === 'string' && (options.system.startsWith('You prepare independent test material') || options.system.startsWith('Draft a small reusable DSH Skill'))) {
+          const governanceRole = options.system.startsWith('You prepare independent test material')
+          yield { type: 'text-delta', index: 0, text: JSON.stringify(governanceRole ? fixtureGovernance : fixtureDraft) }
+          yield { type: 'usage', usage: { inputTokens: 111, outputTokens: 55 } }
+          yield { type: 'finish', reason: { kind: 'stop' } }
+          return
+        }
         if (waitForCancellation) {
           await new Promise<never>((_resolve, reject) => {
             if (options.signal?.aborted) reject(options.signal.reason)
@@ -60,6 +75,9 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
     let monitor: ReturnType<typeof installConversationCorrectionMonitor> | undefined
     let ledger: Awaited<ReturnType<typeof openCorrectionLedger>> | undefined
     let writer: { close(): Promise<void> } | undefined
+    let drafts: Awaited<ReturnType<typeof openConversationDraftStore>> | undefined
+    let draftMonitor: ReturnType<typeof installConversationSkillDraftMonitor> | undefined
+    const learningPolicy = [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 2 }]
     const appendTurn = (session: Session, turn: number, text: string, answer: string): void => {
       session.append('turn/start', { turn })
       session.append('step/start', { turn, step: 1 })
@@ -92,9 +110,22 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
       expect(ledger.records(WORKSPACE_ID)[0]?.source).not.toHaveProperty('goal')
       expect(first.jobs.list().every(job => job.ownerSession === undefined)).toBe(true)
 
+      drafts = await openConversationDraftStore(first.storageDomain, learningPolicy)
+      draftMonitor = installConversationSkillDraftMonitor(first, ledger, drafts, learningPolicy)
+      await vi.waitFor(() => expect(drafts!.summarize(WORKSPACE_ID).draftCount).toBe(1))
+      expect(calls).toHaveLength(3)
+      expect(JSON.stringify(calls[2]?.messages)).not.toContain('answer-h1')
+      expect(drafts.records(WORKSPACE_ID)[0]?.governance).toEqual(fixtureGovernance)
+      expect(JSON.stringify(session.snapshotEvents())).toBe(before)
+      expect(first.jobs.list().every(job => job.ownerSession === undefined)).toBe(true)
+      await draftMonitor.dispose()
+      draftMonitor = undefined
+      await drafts.close()
+      drafts = undefined
+
       waitForCancellation = true
       appendTurn(session, 3, '仍然表格太宽，飞书预览看不到来源。请保留事实重新排版。', '已重新排版。')
-      await vi.waitFor(() => expect(calls).toHaveLength(2))
+      await vi.waitFor(() => expect(calls).toHaveLength(4))
       await monitor.dispose()
       monitor = undefined
       expect(ledger.summarize(WORKSPACE_ID)).toMatchObject({ pendingCount: 0, uncertainCount: 1, observerAvailable: false })
@@ -111,10 +142,16 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
       monitor = installConversationCorrectionMonitor(second, ledger, policy)
       await vi.waitFor(() => expect(second!.jobs.list()).toHaveLength(1))
       await vi.waitFor(() => expect(second!.jobs.list()[0]?.status).toBe('completed'))
-      expect(calls).toHaveLength(2)
+      expect(calls).toHaveLength(4)
       expect(ledger.summarize(WORKSPACE_ID)).toMatchObject({ correctionCount: 1, uncertainCount: 1, attemptsToday: 2 })
       expect(second.sessions.get(sessionId)).toBeUndefined()
+      drafts = await openConversationDraftStore(second.storageDomain, learningPolicy)
+      draftMonitor = installConversationSkillDraftMonitor(second, ledger, drafts, learningPolicy)
+      expect(drafts.summarize(WORKSPACE_ID)).toMatchObject({ draftCount: 1, reservedModelCallsToday: 2 })
+      expect(calls).toHaveLength(4)
     } finally {
+      await draftMonitor?.dispose()
+      await drafts?.close()
       await monitor?.dispose()
       await ledger?.close()
       await writer?.close()

@@ -24,6 +24,7 @@ describe('dsh-evolve public configuration', () => {
       'cacheRoot',
       'candidateEvaluationPolicies',
       'conversationCorrectionPolicies',
+      'conversationLearningPolicies',
       'interactionEvidencePolicies',
       'interactionRoutingEvidencePolicies',
       'selfDiscoveryPolicies',
@@ -61,6 +62,14 @@ describe('dsh-evolve public configuration', () => {
     expect(() => Config({ conversationCorrectionPolicies: [{ ...policy, maxAttemptsPerUtcDay: 21 }] })).toThrow()
     expect(() => Config({ conversationCorrectionPolicies: [policy, policy] })).toThrow()
     expect(() => Config({ conversationCorrectionPolicies: [{ ...policy, replaySessionIds: ['same', 'same'] }] })).toThrow()
+  })
+
+  it('keeps conversation draft preparation independently budgeted without target Skills or operator test packs', () => {
+    expect(Config({}).conversationLearningPolicies).toEqual([])
+    const policy = { workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 2 }
+    expect(Config({ conversationLearningPolicies: [policy] }).conversationLearningPolicies).toEqual([policy])
+    expect(() => Config({ conversationLearningPolicies: [{ ...policy, maxModelCallsPerUtcDay: 1 }] })).toThrow()
+    expect(() => Config({ conversationLearningPolicies: [policy, policy] })).toThrow()
   })
 
   it('keeps Routing retention independently bounded and default-deny', () => {

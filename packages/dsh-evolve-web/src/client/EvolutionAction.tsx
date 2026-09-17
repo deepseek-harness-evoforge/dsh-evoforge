@@ -430,9 +430,12 @@ function BeginnerOverview({ summary, openAdvanced, t }: {
   const activeSkills = summary.active?.artifacts.filter(isSkillArtifact).length ?? 0
   const corrections = recordedCorrectionCount(summary)
   const verificationConfigured = hasVerificationTarget(summary)
+  const drafts = summary.conversationSkillDrafts
   const headline = pending > 0
     ? `${pending} ${t('onboarding.actionable')}`
-    : corrections > 0
+    : (drafts?.draftCount ?? 0) > 0
+      ? t('draft.headline')
+      : corrections > 0
       ? t(verificationConfigured ? 'onboarding.feedbackPending' : 'onboarding.feedbackBlocked')
       : verificationConfigured
         ? t('onboarding.idle')
@@ -447,7 +450,7 @@ function BeginnerOverview({ summary, openAdvanced, t }: {
       <div className="dsh-evolve-eyebrow">{t('onboarding.eyebrow')}</div>
       <h3>{headline}</h3>
       <p>{explanation}</p>
-      <p className="dsh-evolve-guidance">{t(summary.conversationCorrections?.enabled ? 'correction.scopeLimit' : 'onboarding.scopeLimit')}</p>
+      <p className="dsh-evolve-guidance">{t(drafts?.enabled ? 'draft.scopeLimit' : summary.conversationCorrections?.enabled ? 'correction.scopeLimit' : 'onboarding.scopeLimit')}</p>
       {pending > 0 && (
         <button type="button" className="dsh-evolve-button dsh-evolve-primary" onClick={openAdvanced}>
           {t('onboarding.review')}
@@ -471,7 +474,27 @@ function BeginnerOverview({ summary, openAdvanced, t }: {
       {summary.conversationCorrections.attemptsToday >= summary.conversationCorrections.maxAttemptsPerUtcDay && <p>{t('correction.budgetExhausted')}</p>}
       {summary.conversationCorrections.usageMissingCount > 0 && <p>{t('correction.usageUnknown')}</p>}
       {summary.conversationCorrections.warningCount > 0 && <p>{t('correction.warning')}</p>}
-      <p className="dsh-evolve-guidance">{t('correction.limit')}</p>
+      {!drafts?.enabled && <p className="dsh-evolve-guidance">{t('correction.limit')}</p>}
+    </section>}
+    {drafts?.enabled && <section className="dsh-evolve-welcome">
+      <h3>{t('draft.title')}</h3>
+      <p>{t(drafts.observerAvailable ? 'draft.enabled' : 'draft.unavailable')}</p>
+      <div className="dsh-evolve-simple-summary">
+        <div><strong>{drafts.draftCount}</strong><span>{t('draft.ready')}</span></div>
+        <div><strong>{drafts.pendingCount}</strong><span>{t('draft.pending')}</span></div>
+        <div><strong>{drafts.uncertainCount}</strong><span>{t('draft.incomplete')}</span></div>
+      </div>
+      <p>{t('draft.budget')} {drafts.reservedModelCallsToday} / {drafts.maxModelCallsPerUtcDay}</p>
+      {drafts.reservedModelCallsToday + 2 > drafts.maxModelCallsPerUtcDay && <p>{t('draft.budgetExhausted')}</p>}
+      {drafts.usageMissingCount > 0 && <p>{t('correction.usageUnknown')}</p>}
+      {drafts.warningCount > 0 && <p>{t('correction.warning')}</p>}
+      {drafts.items.map(draft => <details key={draft.id} className="dsh-evolve-draft">
+        <summary>{draft.name} · {t('draft.inspect')}</summary>
+        <p>{draft.description}</p>
+        <p>{draft.proposedTestCount} {t('draft.testsPending')}</p>
+        <pre className="dsh-evolve-diff">{draft.markdown}</pre>
+      </details>)}
+      <p className="dsh-evolve-guidance">{t('draft.limit')}</p>
     </section>}
     <section>
       <h3 className="dsh-evolve-section-title">{t('onboarding.how')}</h3>

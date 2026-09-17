@@ -119,6 +119,8 @@ import { EvolutionRemoteService } from './evolution-remote.ts'
 import { AutomaticEvolutionBudget } from './automatic-evolution-budget.ts'
 import { openCorrectionLedger, validateCorrectionPolicies, type ConversationCorrectionPolicy } from './conversation-correction-intake.ts'
 import { installConversationCorrectionMonitor } from './conversation-correction-monitor.ts'
+import { openConversationDraftStore, validateConversationLearningPolicies, type ConversationLearningPolicy } from './conversation-skill-draft.ts'
+import { installConversationSkillDraftMonitor } from './conversation-skill-draft-monitor.ts'
 import {
   assertSlowLoopSkillAuthoringRootSeparation,
   SlowLoopSkillAuthoring,
@@ -168,6 +170,8 @@ export interface Config {
   selfDiscoveryPolicies?: SkillOpportunityAuthoringPolicyConfig[]
   /** Explicit bounded native-model inspection of ordinary follow-ups; never candidate or release authority. */
   conversationCorrectionPolicies?: ConversationCorrectionPolicy[]
+  /** Independently budgeted hidden-test preparation and inactive Skill drafting. Never installation or release authority. */
+  conversationLearningPolicies?: ConversationLearningPolicy[]
   candidateEvaluationPolicies?: SkillCandidateEvaluationPolicyConfig[]
   /** Host-admin authorization to retain raw-free Generation receipts for exact Workspaces. */
   interactionEvidencePolicies?: InteractionGenerationEvidencePolicyConfig[]
@@ -217,6 +221,14 @@ const interactionRoutingEvidencePoliciesConfig = z.transform(
 
 export const Config: Schema<Config> = z.object({
   cacheRoot: z.string(),
+  conversationLearningPolicies: z.transform(z.array(z.object({
+    workspaceId: z.string().pattern(NATIVE_WORKSPACE_ID_PATTERN).required(),
+    maxModelCallsPerUtcDay: z.number().step(1).min(2).max(20).required(),
+  })).max(20).default([]), policies => {
+    const exact = policies as ConversationLearningPolicy[]
+    validateConversationLearningPolicies(exact)
+    return exact
+  }, true).default([]),
   conversationCorrectionPolicies: z.transform(z.array(z.object({
     workspaceId: z.string().pattern(NATIVE_WORKSPACE_ID_PATTERN).required(),
     maxAttemptsPerUtcDay: z.number().step(1).min(1).max(20).required(),
@@ -438,6 +450,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   runtime.own('resource', () => conversationCorrections.close())
   const correctionMonitors = new Set<ReturnType<typeof installConversationCorrectionMonitor>>()
   runtime.own('producer', () => disposeRuntimeGroup([...correctionMonitors]))
+  const conversationLearningPolicies = config.conversationLearningPolicies ?? []
+  if (conversationLearningPolicies.some(policy => !correctionPolicies.some(p => p.workspaceId === policy.workspaceId))) {
+    throw new Error('conversation Skill drafting requires a matching Workspace correction inspection policy')
+  }
+  const conversationSkillDrafts = await openConversationDraftStore(ctx.storageDomain, conversationLearningPolicies)
+  runtime.own('resource', () => conversationSkillDrafts.close())
+  const conversationDraftMonitors = new Set<ReturnType<typeof installConversationSkillDraftMonitor>>()
+  runtime.own('producer', () => disposeRuntimeGroup([...conversationDraftMonitors]))
   let feedbackProjectionReady = false
   let feedbackProviderGeneration: symbol | undefined
   // Persisted projections cannot authorize feedback-derived work until the
@@ -1070,6 +1090,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     skillOutcomeContext,
     feedback: feedbackSignals,
     conversationCorrections,
+    conversationSkillDrafts,
     longTermEffects: new LongTermEffectsProjection(longTermEffects, store, {
       outcomes: deliveryOutcomes,
     }),
@@ -1401,6 +1422,15 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         correctionMonitors.add(monitor)
         return () => monitor.dispose().finally(() => { correctionMonitors.delete(monitor) })
       }, 'dsh-evolve.conversationCorrectionIntake')
+    })
+  }
+  if (conversationLearningPolicies.length > 0) {
+    ctx.inject(['sessionPersistence', 'llm', 'jobs'], draftCtx => {
+      draftCtx.effect(() => {
+        const monitor = installConversationSkillDraftMonitor(draftCtx, conversationCorrections, conversationSkillDrafts, conversationLearningPolicies)
+        conversationDraftMonitors.add(monitor)
+        return () => monitor.dispose().finally(() => { conversationDraftMonitors.delete(monitor) })
+      }, 'dsh-evolve.conversationSkillDrafts')
     })
   }
   // Registered last so ordinary unload revokes this runtime before the other

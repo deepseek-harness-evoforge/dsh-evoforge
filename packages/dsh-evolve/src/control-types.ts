@@ -1369,6 +1369,30 @@ export interface ConversationCorrectionSummary {
   readonly releaseAuthority: 'none'
 }
 
+/** Private draft content may be inspected by its Workspace; proposed test inputs and answers stay Host-only. */
+export interface ConversationSkillDraftSummary {
+  readonly enabled: boolean
+  readonly observerAvailable: boolean
+  readonly draftCount: number
+  readonly pendingCount: number
+  readonly uncertainCount: number
+  readonly reservedModelCallsToday: number
+  readonly maxModelCallsPerUtcDay: number
+  readonly inputTokens: number
+  readonly outputTokens: number
+  readonly usageMissingCount: number
+  readonly warningCount: number
+  readonly items: readonly {
+    readonly id: string
+    readonly name: string
+    readonly description: string
+    readonly markdown: string
+    readonly contentHash: string
+    readonly proposedTestCount: number
+  }[]
+  readonly releaseAuthority: 'none'
+}
+
 /** Browser overview. Dynamic global state stays outside Session and model context. */
 export interface EvolutionOverview {
   readonly schemaVersion: 1
@@ -1426,6 +1450,7 @@ export interface EvolutionOverview {
     readonly selected: number
   }
   readonly conversationCorrections?: ConversationCorrectionSummary
+  readonly conversationSkillDrafts?: ConversationSkillDraftSummary
   readonly reviews: {
     readonly available: boolean
     readonly pendingCount: number

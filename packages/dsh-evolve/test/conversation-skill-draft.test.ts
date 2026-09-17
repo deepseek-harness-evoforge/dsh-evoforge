@@ -1,0 +1,183 @@
+import { describe, expect, it, vi } from 'vitest'
+import type { Context } from '@deepseek-ai/cordis'
+import type { DomainFacility } from '@deepseek-ai/dsh-storage-domain'
+import type { CorrectionInput, CorrectionRecord } from '../src/conversation-correction-intake.ts'
+import { digest } from '../src/conversation-correction-intake.ts'
+import {
+  authorConversationSkillDraft, openConversationDraftStore, nativeConversationDraftModel,
+  validateConversationLearningPolicies, validateDraftGovernance,
+} from '../src/conversation-skill-draft.ts'
+import { WORKSPACE_ID } from './workspace-fixture.ts'
+import { latestCorrectionChainEnds } from '../src/conversation-skill-draft-monitor.ts'
+
+const input: CorrectionInput = {
+  source: { workspaceId: WORKSPACE_ID, sessionId: 'session-example', turn: 3,
+    previousUserSeq: 1, previousAssistantSeq: 2, userSeq: 5, assistantSeq: 6, turnEndSeq: 7,
+    prefixDigest: '1'.repeat(64), inputDigest: '2'.repeat(64), modelIdentityDigest: '3'.repeat(64) },
+  route: { provider: 'native', model: 'native' },
+  messages: { request: '整理活动材料，供飞书预览。', answer: '已提供五列表格。',
+    correction: '五列表格仍太宽，来源列还是要横向滚动，因此阅读问题没有解决。请按事项改成短段落。',
+    response: '已改为每项一个小节，保留来源与未知状态。' },
+}
+const correction: CorrectionRecord = {
+  schemaVersion: 1, id: '4'.repeat(64), source: input.source, reservedAt: 100,
+  phase: 'classified', modelCalls: 1,
+  interpretation: { kind: 'correction', dimension: 'presentation', quoteDigest: '5'.repeat(64), verification: 'unverified', releaseAuthority: 'none' },
+}
+const policy = { workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 2 }
+const governance = {
+  scope: '在窄屏上阅读带来源的多事项报告；保留用户明确要求的输出格式。',
+  cases: [
+    { id: 'h1', partition: 'holdout', input: '给手机读者整理甲事项，责任人周，状态待确认。',
+      mustInclude: ['甲事项', '周', '待确认'], mustNotInclude: ['已完成'], layout: 'no-table',
+      referenceAnswer: '甲事项\n负责人：周\n状态：待确认', negativeAnswer: '已完成' },
+    { id: 'h2', partition: 'holdout', input: '在聊天窄屏中列乙事项和来源记录C，截止有冲突周四/周六。',
+      mustInclude: ['乙事项', '记录C', '周四', '周六'], mustNotInclude: [], layout: 'no-table',
+      referenceAnswer: '乙事项\n来源：记录C\n截止冲突：周四/周六', negativeAnswer: '乙事项周四' },
+    { id: 'r1', partition: 'retention', input: '我明确要两列表格：事项丙，状态待处理。',
+      mustInclude: ['丙', '待处理'], mustNotInclude: [], layout: 'table',
+      referenceAnswer: '| 事项 | 状态 |\n| --- | --- |\n| 丙 | 待处理 |', negativeAnswer: '丙：待处理' },
+    { id: 'r2', partition: 'retention', input: '只回答7减2的结果。',
+      mustInclude: ['5'], mustNotInclude: ['报告'], layout: 'any',
+      referenceAnswer: '5', negativeAnswer: '报告：7' },
+  ],
+}
+const proposal = { status: 'draft', name: 'readable-channel-report', description: '整理供聊天窄屏阅读的多事项报告。',
+  body: '对窄屏上的多字段事项，用每项一个短小节。保留来源、冲突和未知状态；用户指定表格时遵从指定格式。对纯问答不增加报告结构。' }
+const usage = { inputTokens: 100, outputTokens: 80 }
+function facility() {
+  const rows = new Map<string, unknown>()
+  let fail = false
+  const value = { async open() { return { close: async () => {}, table: () => ({
+    get size() { return rows.size }, get: (key: string) => structuredClone(rows.get(key)),
+    entries: () => [...rows].map(([key, value]) => [key, structuredClone(value)]),
+    put: async (key: string, value: unknown) => { if (fail) throw new Error('write denied'); rows.set(key, structuredClone(value)) },
+  }) } } } as unknown as DomainFacility
+  return { value, rows, fail: () => { fail = true } }
+}
+const signal = () => new AbortController().signal
+
+describe('conversation-derived Skill draft', () => {
+  it('uses the last correction in a connected chain without treating two retries as independent samples', () => {
+    const earlier = { ...correction, id: '6'.repeat(64), source: { ...input.source, previousUserSeq: 0, userSeq: 1, turn: 2 } }
+    const independent = { ...correction, id: '7'.repeat(64), source: { ...input.source, sessionId: 'another-session' } }
+    expect(latestCorrectionChainEnds([earlier, correction, independent]).map(r => r.id).sort()).toEqual([correction.id, independent.id].sort())
+  })
+  it('seals hidden tests before authoring and never passes tests or expected answers to the proposer', async () => {
+    const f = facility(), store = await openConversationDraftStore(f.value, [policy], () => 100)
+    const requests: unknown[] = []
+    const model = vi.fn(async (request) => {
+      requests.push(request)
+      if (request.role === 'governance') return { value: governance, usage }
+      expect(store.records(WORKSPACE_ID)[0]?.governance).toEqual(governance)
+      expect(JSON.stringify(request)).not.toContain('referenceAnswer')
+      expect(JSON.stringify(request)).not.toContain('只回答7减2')
+      return { value: proposal, usage }
+    })
+    expect(await authorConversationSkillDraft(store, correction, input, model, signal())).toBe('draft')
+    const record = store.records(WORKSPACE_ID)[0]!
+    expect(record).toMatchObject({ phase: 'draft', modelCalls: 2, governanceDigest: digest(governance),
+      draft: { lifecycle: 'inactive', verification: 'unevaluated', releaseAuthority: 'none' } })
+    expect(record.draft?.markdown).toContain('name: readable-channel-report')
+    expect(record.draft?.contentHash).toMatch(/^[a-f0-9]{64}$/u)
+    expect(JSON.stringify(record)).not.toContain(input.messages.correction)
+    expect(requests).toHaveLength(2)
+    const view = store.summarize(WORKSPACE_ID)
+    expect(view).toMatchObject({ draftCount: 1, reservedModelCallsToday: 2 })
+    expect(JSON.stringify(view)).not.toContain('referenceAnswer')
+    expect(JSON.stringify(view)).not.toContain('甲事项')
+  })
+
+  it('does not consume policy, unclear interpretation, or mismatched source as authoring permission', async () => {
+    const model = vi.fn()
+    const store = await openConversationDraftStore(facility().value, [], () => 100)
+    expect(await authorConversationSkillDraft(store, correction, input, model, signal())).toBe('skipped')
+    const enabled = await openConversationDraftStore(facility().value, [policy], () => 100)
+    expect(await authorConversationSkillDraft(enabled, { ...correction, phase: 'uncertain', interpretation: undefined }, input, model, signal())).toBe('skipped')
+    expect(await authorConversationSkillDraft(enabled, { ...correction, source: { ...input.source, inputDigest: '6'.repeat(64) } }, input, model, signal())).toBe('skipped')
+    expect(model).not.toHaveBeenCalled()
+  })
+
+  it('reserves the whole bounded run before calls, deduplicates concurrency, and does not redraft on reopen', async () => {
+    const f = facility(), store = await openConversationDraftStore(f.value, [policy], () => 100)
+    const model = vi.fn(async request => ({ value: request.role === 'governance' ? governance : proposal, usage }))
+    await Promise.all([1, 2].map(() => authorConversationSkillDraft(store, correction, input, model, signal())))
+    expect(model).toHaveBeenCalledTimes(2)
+    const other = { ...correction, id: '7'.repeat(64) }
+    expect(await authorConversationSkillDraft(store, other, input, model, signal())).toBe('skipped')
+    const reopened = await openConversationDraftStore(f.value, [policy], () => 86_400_100)
+    expect(reopened.summarize(WORKSPACE_ID).reservedModelCallsToday).toBe(0)
+    expect(await authorConversationSkillDraft(reopened, correction, input, model, signal())).toBe('skipped')
+    expect(model).toHaveBeenCalledTimes(2)
+  })
+
+  it.each(['reserved', 'governance-pending', 'governance-ready', 'authoring-pending'] as const)('does not resume paid work from a persisted %s crash point', async phase => {
+    const f = facility(), store = await openConversationDraftStore(f.value, [policy], () => 100)
+    let row = (await store.reserve(correction, input, () => true))!
+    if (phase !== 'reserved') row = await store.update(row, { phase: 'governance-pending', modelCalls: 1 })
+    if (phase === 'governance-ready' || phase === 'authoring-pending') row = await store.update(row, { phase: 'governance-ready', governance: validateDraftGovernance(governance, input), governanceDigest: digest(governance) })
+    if (phase === 'authoring-pending') await store.update(row, { phase: 'authoring-pending', modelCalls: 2 })
+    const reopened = await openConversationDraftStore(f.value, [policy], () => 86_400_100)
+    const model = vi.fn()
+    expect(await authorConversationSkillDraft(reopened, correction, input, model, signal())).toBe('skipped')
+    expect(reopened.records(WORKSPACE_ID)[0]).toMatchObject({ phase: 'uncertain', reason: 'interrupted' })
+    expect(model).not.toHaveBeenCalled()
+  })
+
+  it('does not author if governance fails calibration, duplicates a case or copies the correction', async () => {
+    expect(() => validateDraftGovernance({ ...governance, cases: [...governance.cases.slice(0, 3), governance.cases[0]] }, input)).toThrow()
+    expect(() => validateDraftGovernance({ ...governance, cases: governance.cases.map((c, i) => i ? c : { ...c, negativeAnswer: c.referenceAnswer }) }, input)).toThrow()
+    expect(() => validateDraftGovernance({ ...governance, cases: governance.cases.map((c, i) => i ? c : { ...c, input: input.messages.correction }) }, input)).toThrow()
+    const store = await openConversationDraftStore(facility().value, [policy], () => 100)
+    const model = vi.fn(async () => ({ value: {}, usage }))
+    expect(await authorConversationSkillDraft(store, correction, input, model, signal())).toBe('abstained')
+    expect(model).toHaveBeenCalledTimes(1)
+    expect(store.records(WORKSPACE_ID)[0]?.draft).toBeUndefined()
+  })
+
+  it('keeps cancellation and crash uncertain, and never resumes a partially paid run automatically', async () => {
+    const f = facility(), store = await openConversationDraftStore(f.value, [policy], () => 100)
+    const controller = new AbortController()
+    const model = vi.fn(async () => { controller.abort(); return { value: governance, usage } })
+    expect(await authorConversationSkillDraft(store, correction, input, model, controller.signal)).toBe('uncertain')
+    expect(model).toHaveBeenCalledTimes(1)
+    const reopened = await openConversationDraftStore(f.value, [policy], () => 100)
+    expect(await authorConversationSkillDraft(reopened, correction, input, model, signal())).toBe('skipped')
+    expect(reopened.summarize(WORKSPACE_ID).uncertainCount).toBe(1)
+  })
+
+  it('fails closed on write failure and refuses malformed or executable draft output', async () => {
+    const f = facility(), store = await openConversationDraftStore(f.value, [policy], () => 100)
+    f.fail()
+    const model = vi.fn()
+    await expect(authorConversationSkillDraft(store, correction, input, model, signal())).rejects.toThrow()
+    expect(model).not.toHaveBeenCalled()
+    const fresh = await openConversationDraftStore(facility().value, [policy], () => 100)
+    const bad = vi.fn(async request => ({ value: request.role === 'governance' ? governance : { ...proposal, script: 'execute()' }, usage }))
+    expect(await authorConversationSkillDraft(fresh, correction, input, bad, signal())).toBe('abstained')
+    expect(fresh.summarize(WORKSPACE_ID).draftCount).toBe(0)
+  })
+
+  it('keeps policy bounded, default-deny and independent from inspection budget', () => {
+    expect(() => validateConversationLearningPolicies([{ ...policy, maxModelCallsPerUtcDay: 1 }])).toThrow()
+    expect(() => validateConversationLearningPolicies([policy, policy])).toThrow()
+    expect(() => validateConversationLearningPolicies([{ ...policy, activate: true } as never])).toThrow()
+    expect(() => validateConversationLearningPolicies([])).not.toThrow()
+  })
+
+  it('uses only a bounded native auxiliary request and requires an explicit successful finish', async () => {
+    const options: unknown[] = []
+    const ctx = { llm: { async *stream(option: unknown) {
+      options.push(option)
+      yield { type: 'text-delta', index: 0, text: JSON.stringify(proposal) }
+      yield { type: 'finish', reason: { kind: 'stop' } }
+    } } } as unknown as Pick<Context, 'llm'>
+    const model = nativeConversationDraftModel(ctx)
+    const request = { role: 'author' as const, input }
+    expect((await model(request, signal())).value).toEqual(proposal)
+    expect(options[0]).toMatchObject({ provider: 'native', model: 'native', sessionId: 'session-example', maxTokens: 2000 })
+    expect(options[0]).not.toHaveProperty('tools')
+    const missingFinish = { llm: { async *stream() { yield { type: 'text-delta', index: 0, text: JSON.stringify(proposal) } } } } as unknown as Pick<Context, 'llm'>
+    await expect(nativeConversationDraftModel(missingFinish)(request, signal())).rejects.toThrow()
+  })
+})

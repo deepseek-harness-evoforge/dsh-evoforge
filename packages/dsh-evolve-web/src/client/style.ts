@@ -84,6 +84,7 @@ export const cssText = `
 .dsh-evolve-claim-card{padding:10px;border-radius:10px;background:var(--dsw-alias-fill-l1)}
 .dsh-evolve-claim-card p{margin:4px 0 0;font-size:13px;line-height:19px}
 .dsh-evolve-diff{max-height:260px;margin:6px 0 0;padding:10px;overflow:auto;border-radius:8px;background:var(--dsw-alias-fill-l1);font:11px/17px var(--dsw-font-mono);white-space:pre-wrap}
+.dsh-evolve-draft{margin:12px 0;overflow-wrap:anywhere}.dsh-evolve-draft summary{cursor:pointer;font-weight:600}.dsh-evolve-draft .dsh-evolve-diff{overflow-wrap:anywhere}
 .dsh-evolve-note{box-sizing:border-box;width:100%;min-height:64px;padding:8px 10px;resize:vertical;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-fill-l1);color:inherit;font:12px/18px inherit}
 .dsh-evolve-message{padding:8px 10px;border-radius:8px;background:var(--dsw-alias-fill-l1);font-size:12px;line-height:18px}
 .dsh-evolve-error{color:var(--dsw-alias-red)}

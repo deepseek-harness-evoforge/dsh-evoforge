@@ -7,8 +7,12 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Add separately budgeted ordinary-correction Skill drafts: prepare hidden test material before a separate native-model
+  proposer, retain the draft in native Storage, and let users inspect its source. Drafts remain inactive and unevaluated;
+  this does not install a Skill or replace independent task evaluation.
+
 - Add optional, Workspace-budgeted ordinary-chat correction inspection through native DSH LLM and Jobs. Preserve exact
-  source references and unverified hypotheses separately from answer feedback; do not author, activate or promote Skills.
+  source references and unverified hypotheses separately from answer feedback; inspection alone cannot author, activate or promote Skills.
   The Evolution view distinguishes pending, uncertain and budget-exhausted inspection from verified improvement.
 
 - Clarify that Evolution feedback counts cover saved negative answer feedback with a note, not ordinary chat corrections.

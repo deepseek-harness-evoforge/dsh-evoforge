@@ -23,8 +23,9 @@ and diff, gates, measurements, Generation selection, canary, and rollback. Reads
 stale/error state; mutations go through the Host Remote and native permissions.
 
 The overview counts saved negative answer feedback with a note. When a Host administrator enables bounded ordinary-chat
-inspection, its unverified hypotheses, uncertain requests and daily budget appear separately. They are not yet connected
-to Skill improvement. Configured policies and recorded feedback do not prove candidate eligibility, an evaluation run,
+inspection, its unverified hypotheses, uncertain requests and daily budget appear separately. A separately authorized draft
+stage displays inactive instruction proposals and their source text, but does not expose hidden test inputs/answers or offer
+activation. Proposed test material is not a real task evaluation. Configured policies and recorded feedback do not prove candidate eligibility, an evaluation run,
 or a successful improvement; these remain separate states.
 
 Historical browser tests do not replace a clean-profile rerun for the current checkout. Current limitations are recorded

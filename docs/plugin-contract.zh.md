@@ -144,7 +144,7 @@ Host composer 对 Gateway、Generation、Routing 每个 source 使用独立的 3
 前缀/输入/模型 route digest。中间合成上下文不会被当作用户纠正；文本上限为 JSON-framed 24,000 字节，不截断后伪称完整。
 模型输出必须落在固定分类枚举内；声称纠正时必须给出当前 user 文本中的 8–256 字符原句，持久化仅保留其 digest。
 这只是 unverified Correction Hypothesis，不是完成效果、Skill 因果归因、独立样本或完整 replay/composition 证明。
-当前不会将这些记录送入旧的 Goal-qualified Candidate 管线。
+当前不会将这些记录送入旧的 Goal-qualified Candidate 管线；独立授权的草稿阶段见 2.4。
 
 可选 `replaySessionIds` 最多 10 项，显式授权启动时检查各指定 Session 的最后两个 completed turn；除此之外不扫描历史。
 所有会话共用该 Workspace 的每日预留计数；单次输出上限 800 token、模型 deadline 60 秒。预留和 dispatch marker 在模型
@@ -155,6 +155,30 @@ Host composer 对 Gateway、Generation、Routing 每个 source 使用独立的 3
 规避幂等或预算。存储失败使该账本停止新请求；卸载/策略撤回取消并等待自有工作，不清除原始 Session 或既有记录。
 Job 标签与结果不携带原文、路径或 provider 错误，模型结果不直接显示为“已学会”。原生控制面分别显示回答负反馈、
 聊天纠正线索、识别中、结果不明和预算耗尽。该状态不能代替独立评测与后续未见任务效果验证。
+
+### 2.4 普通纠正的隔离 Skill 草稿
+
+`conversationLearningPolicies` 默认空，每项只接受 canonical Workspace UUID 与 `maxModelCallsPerUtcDay`（2–20），
+最多 20 个 Workspace；必须同时存在该 Workspace 的纠正识别策略。它不接受操作者指定的 Skill、测试包、能力来源或
+晋升开关。原生 Jobs 启动时及纠正识别 Job 完成后，从已保存线索选择纠正链的末端，物理重读并 exact-match 来源后才处理。
+来源是未验证模型解释，不会变成已验证用户反馈、独立样本或既有 Skill 归因。
+
+一次运行在调用前持久预留两个预算槽：第一个原生 LLM 请求生成四个隔离测试材料（两个 holdout、两个 retention），
+通过结构、唯一性及正反例断言校验后封存；第二个独立请求只收到原纠正上下文，不能收到测试题、参考答案或评分反馈。
+两者复用来源的原生 provider/model，均无 Tools 和 Agent Loop 标记；输出上限分别 4000/2000 token，每次 60 秒。
+测试作者本身也是模型；此校验不是基线效果、泛化或事实正确性证明，更不是独立评测成功。
+
+输出是私有 Conversation Skill Draft，不是具备资格的 Evolution Candidate。名称、描述和单个自包含 `SKILL.md` 内容
+由模型提出，Host 固定元数据和内容 digest；不存在脚本文件、安装、Skill provider 注册、Generation 选择或晋升入口。
+当前 Session 组成与历史不变。旧 Goal-qualified Candidate 资格和发布门禁不接受草稿记录。
+
+草稿和封存测试材料存于独立 native Domain，总计最多 100 条，达到上限停止。来源只保留 identity/digest；模型生成
+内容仍可能反映来源语义，因此整份 Domain 是私有内容，不能称为 raw-free。Web 可显示本 Workspace 的最后五份草稿，
+不返回测试输入、参考答案或负例；正文以转义文本呈现。准备中、未成稿/不确定、草稿未启用和预算分别显示。
+
+预留/dispatch marker 都先持久化；相同来源幂等，崩溃遗留未决状态变 uncertain，跨 UTC 日也不自动重发。
+策略撤回取消并等待自有工作，不清除历史或存储记录；存储错误 fail closed。草稿及测试内容仍需独立效果和安全检查，
+没有 activation、release 或 rollback 权威；不能以“没启用所以无需回滚”为完整学习链路验收。
 
 ## 3. 生命周期
 

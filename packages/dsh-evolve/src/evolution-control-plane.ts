@@ -6,6 +6,7 @@ import type {
 } from './counterfactual-canary.ts'
 import type { FeedbackSignalStore } from './feedback-signal-monitor.ts'
 import type { CorrectionLedger } from './conversation-correction-intake.ts'
+import type { ConversationDraftStore } from './conversation-skill-draft.ts'
 import type { SkillUseStore } from './skill-use-monitor.ts'
 import type {
   ExactSkillOutcomeContextReader,
@@ -94,6 +95,7 @@ export interface EvolutionControlPlaneModules {
   readonly skillOutcomeContext?: Pick<ExactSkillOutcomeContextReader, 'summarize'>
   readonly feedback?: Pick<FeedbackSignalStore, 'summarize'>
   readonly conversationCorrections?: Pick<CorrectionLedger, 'summarize'>
+  readonly conversationSkillDrafts?: Pick<ConversationDraftStore, 'summarize'>
   readonly longTermEffects?: Pick<LongTermEffectsReader, 'summarize'>
   readonly capabilities?: {
     readonly snapshot: (workspaceId: string, sessionId?: string) => EvolutionCapabilityMapView
@@ -497,6 +499,9 @@ export class EvolutionControlPlane {
       ...(this.modules.conversationCorrections === undefined
         ? {}
         : { conversationCorrections: this.modules.conversationCorrections.summarize(workspaceId) }),
+      ...(this.modules.conversationSkillDrafts === undefined
+        ? {}
+        : { conversationSkillDrafts: this.modules.conversationSkillDrafts.summarize(workspaceId) }),
       reviews: scan === undefined
         ? {
             available: false,

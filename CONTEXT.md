@@ -92,6 +92,11 @@ A model interpretation that a native user message corrects a prior answer, bound
 It is not verified feedback, causal Skill attribution, an independent sample, or permission to author or promote a Candidate.
 _Avoid_: learned correction, verified improvement
 
+**Conversation Skill Draft**
+An inactive instruction proposal derived from a Correction Hypothesis, with separately prepared test material withheld
+from its proposer; it is not a qualified Evolution Candidate or evidence that a Skill improved.
+_Avoid_: learned Skill, evaluated candidate
+
 **Capability Map**
 A Host-visible inventory of installed Skill/Tool identity, scope, version, verification, permissions, and selected Generation.
 It guides internal routing and is not a user menu or second registry.

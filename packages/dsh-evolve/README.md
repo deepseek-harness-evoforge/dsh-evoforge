@@ -45,7 +45,7 @@ conversationCorrectionPolicies:
 This is off by default and uses the existing DSH model route and credentials, not another API configuration. It checks
 completed follow-ups in a native background Job; it never modifies the current conversation, runs tools, or activates a
 Skill. The Evolution view shows **unverified correction hypotheses**, separately from explicit answer feedback.
-Hypotheses still need independent evidence and are not connected to Candidate authoring or promotion yet.
+Hypotheses still need independent evidence. Optional drafting below does not qualify them for Candidate promotion.
 
 An optional `replaySessionIds` list explicitly authorizes inspecting the last two completed turns of those stored Sessions
 on startup. Other history is not scanned. The maximum is 20 attempts per UTC day per Workspace, across its Sessions;
@@ -55,6 +55,33 @@ Removing the policy stops new inspection and cancels its in-flight work; raw-fre
 The intake stores source references and hashes, classifications and measured usage, not message bodies or model quotes.
 Only complete, unambiguous v3 turn pairs with a logged model route are supported; unsupported inputs are skipped.
 This does not prove the user's correction worked, that two retries are independent examples, or that a Skill improved.
+
+### Inactive Skill drafts from corrections
+
+For a Workspace already authorized for correction inspection, a separate policy can permit draft preparation:
+
+```yaml
+conversationLearningPolicies:
+  - workspaceId: 11111111-1111-4111-8111-111111111111
+    maxModelCallsPerUtcDay: 2
+```
+
+One run reserves two auxiliary model calls: prepare four proposed holdout/retention cases, then ask a separate native-model
+request for a self-contained Skill draft. The proposer receives the correction, not test inputs, expected answers or
+evaluator feedback. Adjacent correction chains use their latest correction; repeated attempts are not independent samples.
+The policy is default-off and does not ask the operator to select a Skill, author a test pack, or supply another API key.
+
+The Evolution view lets you inspect inactive draft text. Test material has only schema and positive/negative calibration
+checks; it has **not** been run on a real baseline/candidate pair. Drafts have no install, promotion or current-Session
+mutation authority and do not enter the old Goal-qualified Candidate pipeline. Generalization and factual correctness of
+the proposed checks still need independent verification before any activation path can consume them.
+
+Each run uses at most 4,000 governance output tokens and 2,000 proposer output tokens, with a 60-second deadline per request.
+The shared daily reservation limit is 2–20 calls per Workspace; interrupted runs keep their reservation and are not
+automatically resumed. The native draft Domain retains up to 100 records and stops rather than deleting idempotency history.
+It contains private model-generated drafts/test material and source digests, not copies of conversation messages. Generated
+content can still reflect source meaning and should be treated as private and untrusted. Removing the policy cancels owned
+work without deleting native history or drafts. It does not remove already spent provider usage.
 
 Generation receipts are not retained by default. A Host administrator can authorize bounded raw-free retention for an
 exact native Workspace in the plugin config:
