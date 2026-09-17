@@ -67,9 +67,13 @@ describe('dsh-evolve public configuration', () => {
   it('keeps conversation draft preparation independently budgeted without target Skills or operator test packs', () => {
     expect(Config({}).conversationLearningPolicies).toEqual([])
     const policy = { workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 2 }
-    expect(Config({ conversationLearningPolicies: [policy] }).conversationLearningPolicies).toEqual([policy])
+    expect(Config({ conversationLearningPolicies: [policy] }).conversationLearningPolicies).toEqual([{ ...policy, retryFailedDrafts: [] }])
     expect(() => Config({ conversationLearningPolicies: [{ ...policy, maxModelCallsPerUtcDay: 1 }] })).toThrow()
     expect(() => Config({ conversationLearningPolicies: [policy, policy] })).toThrow()
+    const retry = { draftId: 'a'.repeat(64), expiresAt: 12345 }
+    expect(Config({ conversationLearningPolicies: [{ ...policy, retryFailedDrafts: [retry] }] }).conversationLearningPolicies)
+      .toEqual([{ ...policy, retryFailedDrafts: [retry] }])
+    expect(() => Config({ conversationLearningPolicies: [{ ...policy, retryFailedDrafts: [retry, retry] }] })).toThrow()
   })
 
   it('keeps Routing retention independently bounded and default-deny', () => {

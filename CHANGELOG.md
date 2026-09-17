@@ -7,6 +7,9 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Allow one explicitly authorized, expiring diagnostic retry for an early uncertain draft request. Keep the original
+  failure and both budget reservations; sealed test material, successful drafts and retries cannot be retried again.
+
 - Explain incomplete Skill drafts with redacted failure categories and retain available model usage on failures;
   unknown causes and missing usage remain explicit, and incomplete requests are not automatically retried.
 

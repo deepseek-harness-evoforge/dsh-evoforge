@@ -1383,6 +1383,7 @@ export interface ConversationSkillDraftSummary {
   readonly usageMissingCount: number
   readonly warningCount: number
   readonly failures?: readonly { readonly reason: string; readonly count: number }[]
+  readonly retryCount?: number
   readonly items: readonly {
     readonly id: string
     readonly name: string

@@ -8,14 +8,14 @@ import type { GenerateOptions, StreamChunk } from '@deepseek-ai/dsh-llm'
 import type { Session } from '@deepseek-ai/dsh-session'
 import { installConversationCorrectionMonitor } from '../src/conversation-correction-monitor.ts'
 import { openCorrectionLedger } from '../src/conversation-correction-intake.ts'
-import { openConversationDraftStore } from '../src/conversation-skill-draft.ts'
+import { openConversationDraftStore, type ConversationLearningPolicy } from '../src/conversation-skill-draft.ts'
 import { installConversationSkillDraftMonitor } from '../src/conversation-skill-draft-monitor.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const dshRoot = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
 
 describe.skipIf(dshRoot === undefined)('native DSH conversation correction intake', () => {
-  it('uses real durable no-Goal turns, native LLM and Jobs; cold replay does not spend again or mutate Session history', async () => {
+  it.each([false, true])('uses native no-Goal turns and cold recovery without duplicate calls (explicit retry: %s)', async retry => {
     const root = await mkdtemp(join(tmpdir(), 'evoforge-correction-native-'))
     const entry = (path: string) => pathToFileURL(join(dshRoot!, path, 'lib/index.js')).href
     const cordis = await import(entry('vendor/cordis')) as typeof import('@deepseek-ai/cordis')
@@ -34,11 +34,17 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
     const fixtureDraft = { status: 'draft', name: 'readable-report', description: 'Readable reports for narrow chat previews.',
       body: 'Use short sections for narrow report previews. Preserve source facts and unknown states. Follow an explicit format request and leave unrelated answers unchanged.' }
     let waitForCancellation = false
+    let failFirstDraft = retry
     class ClassifierAdapter extends nativeLlm.LlmAdapter {
       async *stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
         calls.push(options)
         if (typeof options.system === 'string' && (options.system.startsWith('You prepare independent test material') || options.system.startsWith('Draft a small reusable DSH Skill'))) {
           const governanceRole = options.system.startsWith('You prepare independent test material')
+          if (failFirstDraft) {
+            failFirstDraft = false
+            yield { type: 'finish', reason: { kind: 'error', failure: { code: 'FIXTURE', message: 'Controlled initial failure' } } }
+            return
+          }
           yield { type: 'text-delta', index: 0, text: JSON.stringify(governanceRole ? fixtureGovernance : fixtureDraft) }
           yield { type: 'usage', usage: { inputTokens: 111, outputTokens: 55 } }
           yield { type: 'finish', reason: { kind: 'stop' } }
@@ -77,7 +83,7 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
     let writer: { close(): Promise<void> } | undefined
     let drafts: Awaited<ReturnType<typeof openConversationDraftStore>> | undefined
     let draftMonitor: ReturnType<typeof installConversationSkillDraftMonitor> | undefined
-    const learningPolicy = [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 2 }]
+    let learningPolicy: ConversationLearningPolicy[] = [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 2 }]
     const appendTurn = (session: Session, turn: number, text: string, answer: string): void => {
       session.append('turn/start', { turn })
       session.append('step/start', { turn, step: 1 })
@@ -112,10 +118,23 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
 
       drafts = await openConversationDraftStore(first.storageDomain, learningPolicy)
       draftMonitor = installConversationSkillDraftMonitor(first, ledger, drafts, learningPolicy)
+      let originalFailure: unknown
+      if (retry) {
+        await vi.waitFor(() => expect(drafts!.summarize(WORKSPACE_ID).uncertainCount).toBe(1))
+        originalFailure = drafts.records(WORKSPACE_ID)[0]!
+        const failedId = drafts.records(WORKSPACE_ID)[0]!.id
+        await draftMonitor.dispose()
+        await drafts.close()
+        learningPolicy = [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 4,
+          retryFailedDrafts: [{ draftId: failedId, expiresAt: Date.now() + 60_000 }] }]
+        drafts = await openConversationDraftStore(first.storageDomain, learningPolicy)
+        draftMonitor = installConversationSkillDraftMonitor(first, ledger, drafts, learningPolicy)
+      }
       await vi.waitFor(() => expect(drafts!.summarize(WORKSPACE_ID).draftCount).toBe(1))
-      expect(calls).toHaveLength(3)
-      expect(JSON.stringify(calls[2]?.messages)).not.toContain('answer-h1')
-      expect(drafts.records(WORKSPACE_ID)[0]?.governance).toEqual(fixtureGovernance)
+      expect(calls).toHaveLength(retry ? 4 : 3)
+      expect(JSON.stringify(calls.at(-1)?.messages)).not.toContain('answer-h1')
+      expect(drafts.records(WORKSPACE_ID).find(r => r.phase === 'draft')?.governance).toEqual(fixtureGovernance)
+      if (retry) expect(drafts.records(WORKSPACE_ID)[0]).toEqual(originalFailure)
       expect(JSON.stringify(session.snapshotEvents())).toBe(before)
       expect(first.jobs.list().every(job => job.ownerSession === undefined)).toBe(true)
       await draftMonitor.dispose()
@@ -125,7 +144,7 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
 
       waitForCancellation = true
       appendTurn(session, 3, '仍然表格太宽，飞书预览看不到来源。请保留事实重新排版。', '已重新排版。')
-      await vi.waitFor(() => expect(calls).toHaveLength(4))
+      await vi.waitFor(() => expect(calls).toHaveLength(retry ? 5 : 4))
       await monitor.dispose()
       monitor = undefined
       expect(ledger.summarize(WORKSPACE_ID)).toMatchObject({ pendingCount: 0, uncertainCount: 1, observerAvailable: false })
@@ -142,13 +161,14 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
       monitor = installConversationCorrectionMonitor(second, ledger, policy)
       await vi.waitFor(() => expect(second!.jobs.list()).toHaveLength(1))
       await vi.waitFor(() => expect(second!.jobs.list()[0]?.status).toBe('completed'))
-      expect(calls).toHaveLength(4)
+      expect(calls).toHaveLength(retry ? 5 : 4)
       expect(ledger.summarize(WORKSPACE_ID)).toMatchObject({ correctionCount: 1, uncertainCount: 1, attemptsToday: 2 })
       expect(second.sessions.get(sessionId)).toBeUndefined()
       drafts = await openConversationDraftStore(second.storageDomain, learningPolicy)
       draftMonitor = installConversationSkillDraftMonitor(second, ledger, drafts, learningPolicy)
-      expect(drafts.summarize(WORKSPACE_ID)).toMatchObject({ draftCount: 1, reservedModelCallsToday: 2 })
-      expect(calls).toHaveLength(4)
+      expect(drafts.summarize(WORKSPACE_ID)).toMatchObject({ draftCount: 1, reservedModelCallsToday: retry ? 4 : 2 })
+      if (retry) expect(drafts.records(WORKSPACE_ID)[0]).toEqual(originalFailure)
+      expect(calls).toHaveLength(retry ? 5 : 4)
     } finally {
       await draftMonitor?.dispose()
       await drafts?.close()

@@ -1595,6 +1595,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = () => (dsh_evolve_ev
   'reason': z.string().readonly(),
   'count': z.number().readonly(),
 }))]).readonly().optional(),
+  'retryCount': z.union([z.undefined(), z.number()]).readonly().optional(),
   'items': z.array(z.object({
   'id': z.string().readonly(),
   'name': z.string().readonly(),

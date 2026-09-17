@@ -111,6 +111,102 @@ describe('conversation-derived Skill draft', () => {
     expect(model).toHaveBeenCalledTimes(2)
   })
 
+  it('allows one expiring explicitly authorized retry without overwriting the failed attempt or escaping the budget', async () => {
+    const f = facility(), first = await openConversationDraftStore(f.value, [policy], () => 100)
+    await authorConversationSkillDraft(first, correction, input, async () => { throw new Error('unknown result') }, signal())
+    const original = first.records(WORKSPACE_ID)[0]!
+    await first.close()
+    const retryFailedDrafts = [{ draftId: original.id, expiresAt: 2000 }]
+    const denied = await openConversationDraftStore(f.value, [{ ...policy, retryFailedDrafts }], () => 200)
+    const model = vi.fn(async request => ({ value: request.role === 'governance' ? governance : proposal, usage }))
+    expect(await authorConversationSkillDraft(denied, correction, input, model, signal())).toBe('skipped')
+    expect(model).not.toHaveBeenCalled()
+    await denied.close()
+    const authorized = { ...policy, maxModelCallsPerUtcDay: 4, retryFailedDrafts }
+    const store = await openConversationDraftStore(f.value, [authorized], () => 300)
+    await Promise.all([1, 2].map(() => authorConversationSkillDraft(store, correction, input, model, signal())))
+    expect(model).toHaveBeenCalledTimes(2)
+    expect(store.records(WORKSPACE_ID)).toHaveLength(2)
+    expect(store.records(WORKSPACE_ID).find(r => r.id === original.id)).toEqual(original)
+    expect(store.records(WORKSPACE_ID).find(r => r.id !== original.id)).toMatchObject({ retryOf: original.id, phase: 'draft' })
+    expect(store.summarize(WORKSPACE_ID).reservedModelCallsToday).toBe(4)
+    await store.close()
+    const reopened = await openConversationDraftStore(f.value, [authorized], () => 400)
+    expect(await authorConversationSkillDraft(reopened, correction, input, model, signal())).toBe('skipped')
+    expect(model).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not turn expired retry permission or a changed source into another paid attempt', async () => {
+    const f = facility(), first = await openConversationDraftStore(f.value, [policy], () => 100)
+    await authorConversationSkillDraft(first, correction, input, async () => { throw new Error('unknown result') }, signal())
+    const original = first.records(WORKSPACE_ID)[0]!
+    await first.close()
+    const retryPolicy = { ...policy, maxModelCallsPerUtcDay: 4, retryFailedDrafts: [{ draftId: original.id, expiresAt: 200 }] }
+    const store = await openConversationDraftStore(f.value, [retryPolicy], () => 201)
+    const model = vi.fn()
+    expect(await authorConversationSkillDraft(store, correction, input, model, signal())).toBe('skipped')
+    await store.close()
+    const active = await openConversationDraftStore(f.value, [{ ...retryPolicy, retryFailedDrafts: [{ draftId: original.id, expiresAt: 2000 }] }], () => 300)
+    expect(await authorConversationSkillDraft(active, correction, { ...input, messages: { ...input.messages, answer: 'changed' } }, model, signal())).toBe('skipped')
+    expect(active.records(WORKSPACE_ID)).toEqual([original])
+    expect(model).not.toHaveBeenCalled()
+  })
+
+  it('rejects retrying a sealed test set or successful draft and malformed retry grants', async () => {
+    const f = facility(), first = await openConversationDraftStore(f.value, [policy], () => 100)
+    await authorConversationSkillDraft(first, correction, input, async request => {
+      if (request.role === 'author') throw new Error('author request failed')
+      return { value: governance, usage }
+    }, signal())
+    const original = first.records(WORKSPACE_ID)[0]!
+    await first.close()
+    const grant = { draftId: original.id, expiresAt: 2000 }
+    await expect(openConversationDraftStore(f.value, [{ ...policy, maxModelCallsPerUtcDay: 4, retryFailedDrafts: [grant] }], () => 200)).rejects.toThrow()
+    expect(() => validateConversationLearningPolicies([{ ...policy, retryFailedDrafts: [grant, grant] }])).toThrow()
+    expect(() => validateConversationLearningPolicies([{ ...policy, retryFailedDrafts: [{ ...grant, expiresAt: -1 }] }])).toThrow()
+  })
+
+  it('rejects chaining retry grants, foreign targets, long-lived grants and tampered retry lineage', async () => {
+    const f = facility(), first = await openConversationDraftStore(f.value, [policy], () => 100)
+    const fail = vi.fn(async () => { throw new Error('request did not complete') })
+    await authorConversationSkillDraft(first, correction, input, fail, signal())
+    const original = first.records(WORKSPACE_ID)[0]!
+    await first.close()
+    const grant = { draftId: original.id, expiresAt: 2000 }
+    await expect(openConversationDraftStore(f.value, [{ ...policy, retryFailedDrafts: [{ ...grant, draftId: 'f'.repeat(64) }] }], () => 200)).rejects.toThrow()
+    await expect(openConversationDraftStore(f.value, [{ ...policy, retryFailedDrafts: [{ ...grant, expiresAt: 86_400_201 }] }], () => 200)).rejects.toThrow()
+    const retryPolicy = { ...policy, maxModelCallsPerUtcDay: 4, retryFailedDrafts: [grant] }
+    const second = await openConversationDraftStore(f.value, [retryPolicy], () => 200)
+    expect(await authorConversationSkillDraft(second, correction, input, fail, signal())).toBe('uncertain')
+    const retry = second.records(WORKSPACE_ID).find(r => r.retryOf !== undefined)!
+    await second.close()
+    await expect(openConversationDraftStore(f.value, [{ ...retryPolicy, retryFailedDrafts: [{ ...grant, draftId: retry.id }] }], () => 300)).rejects.toThrow()
+    f.rows.set(retry.id, { ...retry, sourceDigest: 'e'.repeat(64) })
+    await expect(openConversationDraftStore(f.value, [policy], () => 300)).rejects.toThrow('retry lineage')
+    expect(fail).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not resume a reserved retry after a crash or allow retrying a successful root', async () => {
+    const f = facility(), first = await openConversationDraftStore(f.value, [policy], () => 100)
+    await authorConversationSkillDraft(first, correction, input, async () => { throw new Error('unknown result') }, signal())
+    const original = first.records(WORKSPACE_ID)[0]!
+    await first.close()
+    const retryPolicy = { ...policy, maxModelCallsPerUtcDay: 4, retryFailedDrafts: [{ draftId: original.id, expiresAt: 2000 }] }
+    const second = await openConversationDraftStore(f.value, [retryPolicy], () => 200)
+    expect(await second.reserve(correction, input, () => true)).toMatchObject({ retryOf: original.id, phase: 'reserved' })
+    await second.close()
+    const reopened = await openConversationDraftStore(f.value, [retryPolicy], () => 300)
+    const model = vi.fn()
+    expect(await authorConversationSkillDraft(reopened, correction, input, model, signal())).toBe('skipped')
+    expect(reopened.records(WORKSPACE_ID).find(r => r.retryOf !== undefined)).toMatchObject({ phase: 'uncertain', reason: 'interrupted', modelCalls: 0 })
+    expect(reopened.records(WORKSPACE_ID)[0]).toEqual(original)
+    expect(model).not.toHaveBeenCalled()
+    const successFacility = facility(), successful = await openConversationDraftStore(successFacility.value, [policy], () => 100)
+    await authorConversationSkillDraft(successful, correction, input, async request => ({ value: request.role === 'governance' ? governance : proposal, usage }), signal())
+    await successful.close()
+    await expect(openConversationDraftStore(successFacility.value, [retryPolicy], () => 200)).rejects.toThrow('retry grant')
+  })
+
   it.each(['reserved', 'governance-pending', 'governance-ready', 'authoring-pending'] as const)('does not resume paid work from a persisted %s crash point', async phase => {
     const f = facility(), store = await openConversationDraftStore(f.value, [policy], () => 100)
     let row = (await store.reserve(correction, input, () => true))!

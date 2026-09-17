@@ -488,6 +488,7 @@ function BeginnerOverview({ summary, openAdvanced, t }: {
       {drafts.reservedModelCallsToday + 2 > drafts.maxModelCallsPerUtcDay && <p>{t('draft.budgetExhausted')}</p>}
       {drafts.usageMissingCount > 0 && <p>{t('correction.usageUnknown')}</p>}
       {drafts.warningCount > 0 && <p>{t('correction.warning')}</p>}
+      {(drafts.retryCount ?? 0) > 0 && <p>{drafts.retryCount} {t('draft.retryCount')}</p>}
       {(drafts.failures ?? []).map(failure => <p key={failure.reason}>
         {failure.count} · {t(`draft.failure.${failure.reason}`)}
       </p>)}

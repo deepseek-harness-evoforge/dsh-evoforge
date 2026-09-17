@@ -39,14 +39,21 @@ export interface ConversationLearningPolicy {
   readonly workspaceId: string
   /** A run reserves two calls: hidden test preparation followed by a separate proposer. */
   readonly maxModelCallsPerUtcDay: number
+  /** One new attempt per named failed root, never a continuation of its uncertain request. */
+  readonly retryFailedDrafts?: { readonly draftId: string; readonly expiresAt: number }[]
 }
 const policySchema = z.strictObject({
   workspaceId: z.string().regex(NATIVE_WORKSPACE_ID_PATTERN),
   maxModelCallsPerUtcDay: z.number().int().min(2).max(20),
+  retryFailedDrafts: z.array(z.strictObject({ draftId: HASH, expiresAt: INT.positive().max(8_640_000_000_000_000) })).max(10).optional(),
 })
 export function validateConversationLearningPolicies(policies: readonly ConversationLearningPolicy[]): void {
   z.array(policySchema).max(20).parse(policies)
   if (new Set(policies.map(p => p.workspaceId)).size !== policies.length) throw new Error('duplicate conversation learning Workspace')
+  for (const policy of policies) {
+    const grants = policy.retryFailedDrafts ?? []
+    if (new Set(grants.map(g => g.draftId)).size !== grants.length) throw new Error('duplicate conversation draft retry grant')
+  }
 }
 
 const caseSchema = z.strictObject({
@@ -98,6 +105,7 @@ const usageSchema = z.strictObject({ inputTokens: INT, outputTokens: INT, cacheR
 const recordSchema = z.strictObject({
   schemaVersion: z.literal(1), id: HASH, workspaceId: z.string().regex(NATIVE_WORKSPACE_ID_PATTERN),
   correctionId: HASH, sourceDigest: HASH, sourceSessionId: z.string().min(1).max(256), sourceTurn: INT.positive(),
+  retryOf: HASH.optional(),
   inputDigest: HASH, reservedAt: INT.max(8_640_000_000_000_000), reservedModelCalls: z.literal(2),
   phase: z.enum(['reserved', 'governance-pending', 'governance-ready', 'authoring-pending', 'draft', 'abstained', 'uncertain']),
   modelCalls: z.number().int().min(0).max(2),
@@ -106,7 +114,7 @@ const recordSchema = z.strictObject({
   reason: z.enum(['interrupted', 'cancelled', 'invalid-governance', 'invalid-draft', 'not-generalizable', 'model-request-failed', 'source-conflict',
     'provider-error', 'provider-aborted', 'model-timeout', 'output-limit', 'invalid-json', 'invalid-stream', 'tool-output']).optional(),
 }).superRefine((r, ctx) => {
-  const invalid = r.id !== draftId(r.workspaceId, r.correctionId)
+  const invalid = r.id !== draftId(r.workspaceId, r.correctionId, r.retryOf)
     || (r.governance !== undefined) !== (r.governanceDigest !== undefined)
     || (r.governance !== undefined && r.governanceDigest !== digest(r.governance))
     || (r.phase === 'draft') !== (r.draft !== undefined)
@@ -121,7 +129,14 @@ const recordSchema = z.strictObject({
 export type ConversationDraftRecord = z.infer<typeof recordSchema>
 const domainSpec = defineDomain({ name: 'evoforge_conversation_skill_drafts', version: 1, layout: 'single',
   tables: { records: domainTable<string, ConversationDraftRecord>(recordSchema) } })
-function draftId(workspaceId: string, correctionId: string): string { return digest({ kind: 'conversation-skill-draft-v1', workspaceId, correctionId }) }
+function draftId(workspaceId: string, correctionId: string, retryOf?: string): string {
+  return digest({ kind: 'conversation-skill-draft-v1', workspaceId, correctionId, ...(retryOf === undefined ? {} : { retryOf }) })
+}
+function retryEligible(record: ConversationDraftRecord): boolean {
+  return record.retryOf === undefined && record.phase === 'uncertain' && record.modelCalls <= 1
+    && record.governance === undefined && record.draft === undefined
+    && ['interrupted', 'cancelled', 'model-request-failed', 'provider-error', 'provider-aborted', 'model-timeout'].includes(record.reason ?? '')
+}
 function textHash(text: string): string { return createHash('sha256').update(text).digest('hex') }
 function day(time: number): string { return new Date(time).toISOString().slice(0, 10) }
 
@@ -139,25 +154,47 @@ export class ConversationDraftStore {
     if (this.failed) return []
     return [...this.domain.table('records').entries()].map(([, r]) => r).filter(r => r.workspaceId === workspaceId).map(r => structuredClone(r))
   }
+  canStart(correction: CorrectionRecord): boolean {
+    if (this.failed || this.closing !== undefined) return false
+    const policy = this.policy(correction.source.workspaceId)
+    if (policy === undefined) return false
+    const original = this.domain.table('records').get(draftId(policy.workspaceId, correction.id))
+    if (original === undefined) return true
+    return this.retryTarget(policy, original) !== undefined
+  }
+  private retryTarget(policy: ConversationLearningPolicy, original: ConversationDraftRecord): string | undefined {
+    if (!retryEligible(original)) return undefined
+    const grant = policy.retryFailedDrafts?.find(g => g.draftId === original.id)
+    if (grant === undefined || grant.expiresAt <= this.now()) return undefined
+    const id = draftId(policy.workspaceId, original.correctionId, original.id)
+    return this.domain.table('records').get(id) === undefined ? id : undefined
+  }
   reserve(correction: CorrectionRecord, input: CorrectionInput, isActive: () => boolean): Promise<ConversationDraftRecord | undefined> {
     return this.enqueue(async () => {
       if (!isActive()) return undefined
       const policy = this.policy(input.source.workspaceId)
       if (policy === undefined) return undefined
-      const table = this.domain.table('records'), id = draftId(policy.workspaceId, correction.id)
+      const table = this.domain.table('records')
+      let id = draftId(policy.workspaceId, correction.id), retryOf: string | undefined
       const previous = table.get(id)
       if (previous !== undefined) {
+        const retryId = this.retryTarget(policy, previous)
+        if (retryId === undefined) return undefined
         if (previous.sourceDigest !== digest(correction.source) || previous.inputDigest !== draftInputDigest(input)) {
-          await this.put({ ...previous, phase: 'abstained', draft: undefined, reason: 'source-conflict' })
+          this.warn(policy.workspaceId)
+          return undefined
         }
-        return undefined
+        retryOf = previous.id
+        id = retryId
       }
       const reservedAt = this.now()
+      if (previous !== undefined && reservedAt < previous.reservedAt) { this.warn(policy.workspaceId); return undefined }
       const used = this.records(policy.workspaceId).filter(r => day(r.reservedAt) === day(reservedAt)).reduce((n, r) => n + r.reservedModelCalls, 0)
       if (table.size >= MAX_RECORDS || used + 2 > policy.maxModelCallsPerUtcDay) { this.warn(policy.workspaceId); return undefined }
       const record = recordSchema.parse({ schemaVersion: 1, id, workspaceId: policy.workspaceId,
         correctionId: correction.id, sourceDigest: digest(correction.source), sourceSessionId: correction.source.sessionId,
         sourceTurn: correction.source.turn, inputDigest: draftInputDigest(input), reservedAt, reservedModelCalls: 2,
+        ...(retryOf === undefined ? {} : { retryOf }),
         phase: 'reserved', modelCalls: 0, usages: [] })
       await this.put(record)
       return structuredClone(record)
@@ -185,6 +222,7 @@ export class ConversationDraftStore {
       warningCount: (this.warnings.get(workspaceId) ?? 0) + (this.failed ? 1 : 0),
       failures: [...new Set(records.flatMap(r => r.reason === undefined ? [] : [r.reason]))].sort()
         .map(reason => ({ reason, count: records.filter(r => r.reason === reason).length })),
+      retryCount: records.filter(r => r.retryOf !== undefined).length,
       items: ready.slice(-5).reverse().map(r => ({ id: r.id, name: r.draft!.name, description: r.draft!.description,
         markdown: r.draft!.markdown, contentHash: r.draft!.contentHash, proposedTestCount: r.governance!.cases.length })),
       releaseAuthority: 'none' }
@@ -213,6 +251,20 @@ export async function openConversationDraftStore(facility: DomainFacility, polic
       if (r.governance !== undefined) validateDraftGovernance(r.governance)
       if (!['draft', 'abstained', 'uncertain'].includes(r.phase)) await table.put(key, { ...r, phase: 'uncertain', reason: 'interrupted' })
     }
+    for (const [, r] of table.entries()) {
+      if (r.retryOf === undefined) continue
+      const parent = table.get(r.retryOf)
+      if (parent === undefined || !retryEligible(parent) || parent.workspaceId !== r.workspaceId
+        || parent.correctionId !== r.correctionId || parent.sourceDigest !== r.sourceDigest || parent.inputDigest !== r.inputDigest
+        || parent.sourceSessionId !== r.sourceSessionId || parent.sourceTurn !== r.sourceTurn || parent.reservedAt > r.reservedAt) {
+        throw new Error('conversation draft retry lineage is inconsistent')
+      }
+    }
+    for (const policy of policies) for (const grant of policy.retryFailedDrafts ?? []) {
+      const parent = table.get(grant.draftId)
+      if (parent === undefined || parent.workspaceId !== policy.workspaceId || !retryEligible(parent)
+        || grant.expiresAt > now() + 86_400_000) throw new Error('conversation draft retry grant is invalid')
+    }
     return new ConversationDraftStore(domain, structuredClone(policies), now)
   } catch (error) { await domain.close(); throw error }
 }
@@ -234,27 +286,27 @@ export function nativeConversationDraftModel(ctx: Pick<Context, 'llm'>): Convers
     let bytes = 0, finishes = 0
     try {
       for await (const chunk of ctx.llm.stream({ ...input.route, sessionId: input.source.sessionId as SessionId,
-      system: role === 'governance' ? governanceSystem : authorSystem, maxTokens: role === 'governance' ? 4000 : 2000,
-      messages: [createUserMessage({ source: { kind: 'plugin', plugin: 'dsh-evolve' }, content: [{ type: 'text', text: JSON.stringify(input.messages) }] })],
-      signal: limit.signal,
-    })) {
+        system: role === 'governance' ? governanceSystem : authorSystem, maxTokens: role === 'governance' ? 4000 : 2000,
+        messages: [createUserMessage({ source: { kind: 'plugin', plugin: 'dsh-evolve' }, content: [{ type: 'text', text: JSON.stringify(input.messages) }] })],
+        signal: limit.signal,
+      })) {
+        limit.signal.throwIfAborted()
+        if (finishes > 0 && chunk.type !== 'usage') throw new NativeDraftResponseError('invalid-stream', assembler.usage)
+        if (chunk.type === 'finish') finishes += 1
+        bytes += Buffer.byteLength(JSON.stringify(chunk))
+        if (bytes > 512_000) throw new NativeDraftResponseError('output-limit', assembler.usage)
+        assembler.push(chunk)
+      }
       limit.signal.throwIfAborted()
-      if (finishes > 0 && chunk.type !== 'usage') throw new NativeDraftResponseError('invalid-stream', assembler.usage)
-      if (chunk.type === 'finish') finishes += 1
-      bytes += Buffer.byteLength(JSON.stringify(chunk))
-      if (bytes > 512_000) throw new NativeDraftResponseError('output-limit', assembler.usage)
-      assembler.push(chunk)
-    }
-    limit.signal.throwIfAborted()
-    if (finishes !== 1) throw new NativeDraftResponseError('invalid-stream', assembler.usage)
-    if (assembler.finish.kind === 'max-tokens') throw new NativeDraftResponseError('output-limit', assembler.usage)
-    if (assembler.finish.kind === 'error') throw new NativeDraftResponseError('provider-error', assembler.usage)
-    if (assembler.finish.kind === 'aborted') throw new NativeDraftResponseError('provider-aborted', assembler.usage)
-    if (assembler.finish.kind !== 'stop' || assembler.blocks().some(b => b.type === 'tool-call')) throw new NativeDraftResponseError('tool-output', assembler.usage)
-    const text = assembler.blocks().flatMap(b => b.type === 'text' ? [b.text] : []).join('\n')
-    let value: unknown
-    try { value = JSON.parse(text) } catch { throw new NativeDraftResponseError('invalid-json', assembler.usage) }
-    return { value, ...(assembler.usage === undefined ? {} : { usage: assembler.usage }) }
+      if (finishes !== 1) throw new NativeDraftResponseError('invalid-stream', assembler.usage)
+      if (assembler.finish.kind === 'max-tokens') throw new NativeDraftResponseError('output-limit', assembler.usage)
+      if (assembler.finish.kind === 'error') throw new NativeDraftResponseError('provider-error', assembler.usage)
+      if (assembler.finish.kind === 'aborted') throw new NativeDraftResponseError('provider-aborted', assembler.usage)
+      if (assembler.finish.kind !== 'stop' || assembler.blocks().some(b => b.type === 'tool-call')) throw new NativeDraftResponseError('tool-output', assembler.usage)
+      const text = assembler.blocks().flatMap(b => b.type === 'text' ? [b.text] : []).join('\n')
+      let value: unknown
+      try { value = JSON.parse(text) } catch { throw new NativeDraftResponseError('invalid-json', assembler.usage) }
+      return { value, ...(assembler.usage === undefined ? {} : { usage: assembler.usage }) }
     } catch (error) {
       if (error instanceof NativeDraftResponseError) throw error
       throw new NativeDraftResponseError(signal.aborted ? 'cancelled' : limit.signal.aborted ? 'model-timeout' : 'model-request-failed', assembler.usage)

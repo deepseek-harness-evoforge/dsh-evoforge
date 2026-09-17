@@ -33,8 +33,12 @@ export function installConversationSkillDraftMonitor(ctx: Context, corrections: 
     if (active.has(workspaceId)) { rescan.add(workspaceId); return }
     const summary = store.summarize(workspaceId)
     if (!summary.enabled || !summary.observerAvailable || summary.reservedModelCallsToday + 2 > summary.maxModelCallsPerUtcDay) return
-    const existing = new Set(store.records(workspaceId).map(r => r.correctionId))
-    const sources = latestCorrectionChainEnds(corrections.records(workspaceId)).filter(r => !existing.has(r.id))
+    const retryIds = new Set(store.policy(workspaceId)?.retryFailedDrafts?.map(grant => grant.draftId) ?? [])
+    const retrySources = new Set(store.records(workspaceId).filter(r => retryIds.has(r.id)).map(r => r.correctionId))
+    const recorded = corrections.records(workspaceId)
+    const latest = new Set(latestCorrectionChainEnds(recorded).map(r => r.id))
+    const sources = recorded.filter(r => (retrySources.has(r.id) || latest.has(r.id)) && store.canStart(r))
+      .sort((a, b) => Number(retrySources.has(b.id)) - Number(retrySources.has(a.id)) || b.reservedAt - a.reservedAt)
     if (sources.length === 0) return
     const controller = new AbortController()
     active.set(workspaceId, controller)

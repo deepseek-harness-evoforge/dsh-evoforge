@@ -83,6 +83,16 @@ It contains private model-generated drafts/test material and source digests, not
 content can still reflect source meaning and should be treated as private and untrusted. Removing the policy cancels owned
 work without deleting native history or drafts. It does not remove already spent provider usage.
 
+A Host administrator can authorize one diagnostic retry of a specific uncertain request using the optional
+`retryFailedDrafts: [{ draftId, expiresAt }]` field on its learning policy. `expiresAt` is a Unix-millisecond deadline,
+at most 24 hours after policy load; expired grants do nothing. The shared daily budget must still have two free slots.
+Only a failed original attempt with at most one dispatch and no sealed test material is eligible. Successful drafts,
+author-stage failures and retry attempts cannot be selected. Invalid targets fail policy loading.
+The new attempt preserves the original record and its budget reservation, and cannot repeat on restart or a new day.
+Do not edit/delete the native ledger to retry. The page counts authorized retries separately from independent samples.
+Removing the retry grant prevents future dispatch; removing the whole learning policy also cancels owned in-flight work.
+Rollback must use a package that understands the persisted retry schema; older readers may reject these records.
+
 Generation receipts are not retained by default. A Host administrator can authorize bounded raw-free retention for an
 exact native Workspace in the plugin config:
 

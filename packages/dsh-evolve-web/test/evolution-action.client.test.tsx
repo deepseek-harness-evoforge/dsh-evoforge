@@ -738,7 +738,7 @@ describe('EvolutionAction', () => {
       generationSelectionHistory: emptyGenerationSelectionHistory(),
       conversationSkillDrafts: { enabled: true, observerAvailable: true, draftCount: 1, pendingCount: 0, uncertainCount: 0,
         reservedModelCallsToday: 2, maxModelCallsPerUtcDay: 2, inputTokens: 300, outputTokens: 200, usageMissingCount: 0, warningCount: 0,
-        items: [{ id: 'd'.repeat(64), name: 'readable-report', description: 'Short sections for narrow chat previews.',
+        retryCount: 1, items: [{ id: 'd'.repeat(64), name: 'readable-report', description: 'Short sections for narrow chat previews.',
           markdown: '---\nname: readable-report\n---\n\nPreserve unknown states and explicit user formats.', contentHash: 'e'.repeat(64), proposedTestCount: 4 }], releaseAuthority: 'none' },
       reviews: { available: true, pendingCount: 0, actionableCount: 0, warningCount: 0, items: [], inactiveGenerations: [] },
     }))
@@ -748,6 +748,7 @@ describe('EvolutionAction', () => {
     expect(await screen.findByText(heading)).toBeTruthy()
     expect(screen.getByText(locale['draft.limit'])).toBeTruthy()
     expect(screen.getByText(locale['draft.testsPending'], { exact: false })).toBeTruthy()
+    expect(screen.getByText(locale['draft.retryCount'], { exact: false })).toBeTruthy()
     expect(screen.getByText(/Preserve unknown states and explicit user formats/u)).toBeTruthy()
     expect(screen.queryByRole('button', { name: /启用|晋升|Promote|Enable/u })).toBeNull()
     expect(screen.queryByText(locale['onboarding.scopeLimit'])).toBeNull()

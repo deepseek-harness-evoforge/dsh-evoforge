@@ -1161,6 +1161,7 @@ export interface ConversationSkillDraftSummary {
         readonly reason: string;
         readonly count: number;
     }[];
+    readonly retryCount?: number;
     readonly items: readonly {
         readonly id: string;
         readonly name: string;
