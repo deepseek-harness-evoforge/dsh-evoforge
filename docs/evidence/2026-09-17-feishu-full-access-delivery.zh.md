@@ -16,5 +16,19 @@
 - Feishu build、typecheck、`pnpm peers check`、`pnpm run check:docs`、`git diff --check` 全部通过。
 - 官方 `dsh:install -- --suite product --profile web` 在隔离预检 home 完成打包、add 和 dump，持久产物保留。
 
-上述 transport 仍是测试实现，不能代替真实平台上传和下载验收。生产部署、实际文件回执与下载核对完成后另补本页；
-目前不据此声明真实渠道已修复，也不声明 Hermes 优势或完整进化验收。
+## 真实部署与平台下载
+
+- 修复提交 `ee95c44` 已推送 main；安装产物为 product `b1cc477bb85f6aa8d9b0756d8098d0813b649f02a62057532b9364e0ac0e7e59`。
+- 停止已核实的唯一旧 Host 后冷备份 profiles/sessions；官方 add 七包及私有 dump 通过。升级后 22 个 Session 文件
+  逐字节相同，原 profile patch 逐字节相同。未更改凭据、配对、完全访问或 `approval: never`。
+- `FEISHU-20260917-C4` 在原 DSH 私聊请求同一份虚构表；真实模型调用原生 `read` 与 `present`，turn 以 completed 结束。
+  工具结果包含 `authorization: native-full-access` 和 `delivered: true`，该 turn 没有 approval/asked 或 approval/decided。
+- 飞书实际出现 `evoforge-feishu-acceptance-result.md`、131 Byte 的文件气泡；预览表格为林/完成登录页文案/周三、
+  周/补齐退款说明/周四。通过飞书下载按钮保存到本机，再以 `shasum -a 256` 比较下载与源文件，二者均为
+  `980434b0776b633935e9a582a728e49bb71e249e394bb0734ed35d3179d0c16b`。
+- Gateway durable 文件账本为一个 delivered、attempts=1；随后再次冷停并启动同一 profile，未重发文件。
+  同一 Web 页刷新后恢复 C4 结果，并显示当前完全权限。页面记录本轮 16 秒、31.2K tok；这不是费用或性能优势声明。
+- 冷重启后真实飞书 C5 要求仅回读、不重发；原生记录只有 read 调用且 completed，飞书回复林：周三、周：周四。
+  文件账本仍为同一条 delivered、attempts=1；原生完全访问与 never 保持不变。
+
+本页证明此 exact 真实渠道交付修复；不声明其他所有文件类型、Hermes 优势或完整进化验收。
