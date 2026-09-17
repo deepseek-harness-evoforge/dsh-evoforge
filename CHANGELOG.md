@@ -7,6 +7,9 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Render table-bearing Feishu replies with native Markdown rich text instead of visible pipe-delimited source. Preserve
+  message content, reply targeting and delivery recovery; literal platform markup and image syntax stay plain text.
+
 - Keep the Control Center's selected child page across browser refreshes and view remounts using the native per-Session
   Client store. Sessions keep independent choices; unavailable plugins fall back safely without replacing the saved choice.
 

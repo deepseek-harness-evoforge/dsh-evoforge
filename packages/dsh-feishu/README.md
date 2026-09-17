@@ -40,6 +40,12 @@ Pairing grants only the minimal message path. Group chat, images, files, Docs, W
 route plus individually enabled `contentPermissions`, platform scopes, and the applicable DSH Attachment/Tool/Approval
 contract. Unsupported content is rejected explicitly.
 
+Table-bearing replies use Feishu's native Markdown rich text, keeping the original text and reply destination. Other
+messages remain plain text. Replies over the SDK's 3,500-character single-message boundary, or containing literal
+HTML/platform tags or Markdown image syntax, also stay plain text
+so formatting cannot introduce mentions or media. A definite platform format rejection may fall back to plain text through
+the official SDK; an uncertain send is not retried. This changes presentation only, not the stored Session or permissions.
+
 ### Output files
 
 On the pinned DSH `0.1.6-alpha.1` Host, set `fileDeliveryEnabled: true` independently of content-reading permissions.

@@ -20,6 +20,8 @@ import type {
 } from './content.js'
 
 const FEISHU_API_URL = 'https://open.feishu.cn/'
+// Match the pinned official SDK's default single-message text chunk limit.
+const TABLE_POST_MAX_CHARS = 3_500
 
 export interface FeishuInboundMessage {
   readonly messageId: string
@@ -341,7 +343,7 @@ function createOfficialPlatform(
       signal,
       () => translateSendFailure(() => channel.send(
         chatId,
-        { text },
+        tablePresentation(text),
         sendOptions === undefined ? undefined : {
           ...(sendOptions.replyTo === undefined ? {} : { replyTo: sendOptions.replyTo }),
           ...(sendOptions.replyInThread === undefined ? {} : { replyInThread: sendOptions.replyInThread }),
@@ -415,6 +417,27 @@ function createOfficialPlatform(
     ),
   }
   return Object.freeze(platform)
+}
+
+/** Presentation only: the native md renderer owns parsing; never rewrite table cells. */
+function tablePresentation(text: string): { text: string } | { post: object } {
+  // Do not turn literal platform markup or image syntax into mentions/media.
+  // Ordinary text and these uncertain inputs retain the existing literal transport.
+  if (text.length > TABLE_POST_MAX_CHARS || text.includes('<') || /!\s*\[/u.test(text)) return { text }
+  const lines = text.split(/\r?\n/u)
+  if (!lines.some((line, index) => index > 0
+    && lines[index - 1]!.includes('|') && isTableDelimiter(line))) return { text }
+  // Send one native post, not SDK markdown chunking/heading rewriting. The
+  // existing SDK handles definite format rejection; uncertain sends never retry.
+  return { post: { zh_cn: { title: '', content: [[{ tag: 'md', text }]] } } }
+}
+
+function isTableDelimiter(line: string): boolean {
+  if (!line.includes('|')) return false
+  const cells = line.trim().split('|').map(cell => cell.trim())
+  if (cells[0] === '') cells.shift()
+  if (cells.at(-1) === '') cells.pop()
+  return cells.length > 0 && cells.every(cell => /^:?-{3,}:?$/u.test(cell))
 }
 
 /** Process-local proxy adaptation; never mutates deployment environment or global agents. */
