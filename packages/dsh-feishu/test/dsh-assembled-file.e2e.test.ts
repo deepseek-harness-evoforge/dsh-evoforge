@@ -14,7 +14,7 @@ const source = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
 it.skipIf(process.env.DSH_FEISHU_TEST_NATIVE_FILES !== '1').each(
   ['routes', 'pairing', 'pairing-old-header'].flatMap(routing =>
     (routing === 'pairing-old-header' ? ['present'] : ['feishu_file_send', 'present']).flatMap(tool =>
-    ['approve', 'reject', 'wrong-user'].map(mode => ({ routing, tool, mode })))),
+    ['approve', 'reject', 'wrong-user', 'full-access'].map(mode => ({ routing, tool, mode })))),
 )(
   'runs native file delivery through a real DSH Agent, Approval and durable Gateway receipt: $routing / $tool / $mode', async ({ routing, tool, mode }) => {
   if (source === undefined) throw new Error('Set DSH_EVOLVE_DSH_SOURCE_DIR to the audited native-file Host')
@@ -75,6 +75,10 @@ it.skipIf(process.env.DSH_FEISHU_TEST_NATIVE_FILES !== '1').each(
     const { platform, runtime } = ctx.get('evoforge.feishuTest')
     const gateway = ctx.get('evoforge.gateway')
     const agent = paired ? await gateway.resolve('file-route') : ctx.agents.get('main')
+    if (mode === 'full-access') {
+      ctx.permissionPresets.set(agent.session, 'danger-full-access')
+      expect(ctx.permissionPresets.current(agent.session)).toBe('danger-full-access')
+    }
     if (routing === 'pairing-old-header') {
       agent.followup({ id: 'web-file-test', role: 'user', content: [{ type: 'text', text: 'Show result.txt in Web.' }], source: { kind: 'user' } })
       await vi.waitFor(() => expect(sessionEvents(agent.session).some(event => event.type === 'turn/end')).toBe(true))
@@ -100,33 +104,40 @@ it.skipIf(process.env.DSH_FEISHU_TEST_NATIVE_FILES !== '1').each(
       content: '把 result.txt 作为文件发给我。', rawContentType: 'text', resources: [] })
     await vi.waitFor(() => expect(platform.cards.length > 0 || sessionEvents(agent.session)
       .filter(event => event.type === 'tool/result').length > priorResultCount).toBe(true), { timeout: 10_000 })
-    expect(platform.cards).toHaveLength(1)
-    expect(platform.files).toHaveLength(0)
-    expect(JSON.stringify(platform.cards[0].card)).toContain(expectedDigest)
-    // The approval applies to the stored snapshot, not bytes reread from a mutable path later.
-    await writeFile(join(root, 'result.txt'), 'changed while approval was pending')
-    const card = platform.cards[0]
-    const value = card.card.body.elements[1].actions[mode === 'reject' ? 1 : 0].value
-    if (mode === 'wrong-user') {
-      await platform.emitApproval({ messageId: card.messageId, chatId: 'oc_file', operatorId: 'untrusted-user', value })
+    if (mode === 'full-access') {
+      expect(platform.cards).toHaveLength(0)
+      expect(platform.files).toHaveLength(1)
+      expect(sessionEvents(agent.session).some(event => event.type === 'approval/asked')).toBe(false)
+      expect(ctx.permissionPresets.current(agent.session)).toBe('danger-full-access')
+    } else {
+      expect(platform.cards).toHaveLength(1)
       expect(platform.files).toHaveLength(0)
-      expect(sessionEvents(agent.session).some(event => event.type === 'approval/decided')).toBe(false)
-    }
-    await platform.emitApproval({ messageId: card.messageId, chatId: 'oc_file', operatorId: 'ou_file', value })
-    if (mode === 'reject') {
-      await vi.waitFor(() => expect(platform.texts.at(-1)?.text).toContain('Native Approval did not allow'), { timeout: 10_000 })
-      expect(platform.files).toHaveLength(0)
-      expect(sessionEvents(agent.session).some(event => event.type === 'approval/decided' && event.data.outcome === 'rejected')).toBe(true)
-      await expect(readFile(join(root, 'storage/evoforge_gateway_file_outbound.json'), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
-      await runtime.dispose()
-      expect(ctx.tools.get('feishu_file_send', agent)).toBeUndefined()
-      return
+      expect(JSON.stringify(platform.cards[0].card)).toContain(expectedDigest)
+      // The approval applies to the stored snapshot, not bytes reread from a mutable path later.
+      await writeFile(join(root, 'result.txt'), 'changed while approval was pending')
+      const card = platform.cards[0]
+      const value = card.card.body.elements[1].actions[mode === 'reject' ? 1 : 0].value
+      if (mode === 'wrong-user') {
+        await platform.emitApproval({ messageId: card.messageId, chatId: 'oc_file', operatorId: 'untrusted-user', value })
+        expect(platform.files).toHaveLength(0)
+        expect(sessionEvents(agent.session).some(event => event.type === 'approval/decided')).toBe(false)
+      }
+      await platform.emitApproval({ messageId: card.messageId, chatId: 'oc_file', operatorId: 'ou_file', value })
+      if (mode === 'reject') {
+        await vi.waitFor(() => expect(platform.texts.at(-1)?.text).toContain('Native Approval did not allow'), { timeout: 10_000 })
+        expect(platform.files).toHaveLength(0)
+        expect(sessionEvents(agent.session).some(event => event.type === 'approval/decided' && event.data.outcome === 'rejected')).toBe(true)
+        await expect(readFile(join(root, 'storage/evoforge_gateway_file_outbound.json'), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+        await runtime.dispose()
+        expect(ctx.tools.get('feishu_file_send', agent)).toBeUndefined()
+        return
+      }
     }
     await vi.waitFor(() => expect(platform.texts.at(-1)?.text).toContain('"status":"delivered"'), { timeout: 10_000 })
     expect(platform.files).toHaveLength(1)
     expect(platform.files[0].snapshot).toEqual({ name: 'result.txt', data: original, sha256: expectedDigest })
     const events = sessionEvents(agent.session)
-    expect(events.some(event => event.type === 'approval/decided' && event.data.outcome === 'allowed-once')).toBe(true)
+    expect(events.some(event => event.type === 'approval/decided' && event.data.outcome === 'allowed-once')).toBe(mode !== 'full-access')
     expect(events.some(event => event.type === 'tool/result'
       && event.data.message.content.some(block => block.content.some(item => item.type === 'text'
         && item.text.includes('"status":"delivered"'))))).toBe(true)

@@ -36,6 +36,67 @@ async function harness(enabled = true, withApproval = true) {
 }
 
 describe('Feishu file delivery native Tool', () => {
+  function fullAccess(h: Awaited<ReturnType<typeof harness>>) {
+    const current = vi.fn(() => 'danger-full-access')
+    const resolve = vi.fn(() => ({ sandbox: 'danger-full-access', approval: 'never' }))
+    h.ctx.provide('permissionPresets', { current, resolve } as never)
+    h.backend.isCurrentChannelTurn = vi.fn(() => true)
+    return { current, resolve }
+  }
+
+  it('uses native full access only for the authenticated current channel turn', async () => {
+    const h = await harness()
+    fullAccess(h)
+    try {
+      await expect(h.run()).resolves.toMatchObject({ isError: false, value: { authorization: 'native-full-access', delivered: true } })
+      expect(h.events.map(event => event.type)).toEqual(['turn/start'])
+      expect(h.backend.submit).toHaveBeenCalledOnce()
+    } finally { h.dispose(); await h.ctx.fiber.dispose() }
+  })
+
+  it.each(['web', 'custom-preset', 'missing-provider'] as const)('does not grant standing delivery for %s', async mode => {
+    const h = await harness()
+    if (mode !== 'missing-provider') {
+      const presets = fullAccess(h)
+      if (mode === 'web') h.backend.isCurrentChannelTurn = () => false
+      else presets.resolve.mockReturnValue({ sandbox: 'workspace-write', approval: 'never' })
+    } else h.backend.isCurrentChannelTurn = () => true
+    h.ctx.on('approval/request', () => Promise.resolve<ApprovalOutcome>('rejected'))
+    try {
+      expect((await h.run()).isError).toBe(true)
+      expect(h.backend.submit).not.toHaveBeenCalled()
+    } finally { h.dispose(); await h.ctx.fiber.dispose() }
+  })
+
+  it.each(['permission', 'channel', 'recipient', 'dispose', 'cancel'] as const)('blocks %s changes while the snapshot is being saved', async mode => {
+    const h = await harness()
+    const presets = fullAccess(h)
+    const abort = new AbortController()
+    vi.mocked(h.backend.snapshot).mockImplementation(async () => {
+      if (mode === 'permission') presets.current.mockReturnValue('workspace-write')
+      if (mode === 'channel') h.backend.isCurrentChannelTurn = () => false
+      if (mode === 'recipient') vi.mocked(h.backend.destination).mockReturnValue({ ...destination, routeId: 'other' })
+      if (mode === 'dispose') h.dispose()
+      if (mode === 'cancel') abort.abort()
+      return file
+    })
+    try {
+      expect((await h.run(abort.signal)).isError).toBe(true)
+      expect(h.backend.submit).not.toHaveBeenCalled()
+    } finally { h.dispose(); await h.ctx.fiber.dispose() }
+  })
+
+  it('does not override a native guard under full access', async () => {
+    const h = await harness()
+    fullAccess(h)
+    h.ctx.tools.guard(() => 'native policy denied')
+    try {
+      expect((await h.run()).isError).toBe(true)
+      expect(h.backend.snapshot).not.toHaveBeenCalled()
+      expect(h.backend.submit).not.toHaveBeenCalled()
+    } finally { h.dispose(); await h.ctx.fiber.dispose() }
+  })
+
   it('freezes the tool surface at the native request header', () => {
     const agent = (tools: unknown[] | undefined) => ({ session: {
       requestHeader: () => tools === undefined ? undefined : { tools },
@@ -44,6 +105,21 @@ describe('Feishu file delivery native Tool', () => {
     expect(shouldInstallFeishuFileTool(agent(undefined), false)).toBe(false)
     expect(shouldInstallFeishuFileTool(agent([]), true)).toBe(false)
     expect(shouldInstallFeishuFileTool(agent([{ name: FEISHU_FILE_TOOL }]), false)).toBe(true)
+  })
+
+  it('preserves the historical tool description and schema when restoring a Session', async () => {
+    const h = await harness()
+    const original = h.ctx.tools.get(FEISHU_FILE_TOOL, h.agent)!
+    h.dispose()
+    h.agent.session.requestHeader = () => ({ tools: [{ name: FEISHU_FILE_TOOL,
+      description: 'Historical immutable snapshot approval description',
+    }] }) as never
+    const dispose = installFeishuFileTool(h.agent, true, h.backend)
+    try {
+      const restored = h.ctx.tools.get(FEISHU_FILE_TOOL, h.agent)!
+      expect(restored.description).toBe('Historical immutable snapshot approval description')
+      expect(restored.parameters).toEqual(original.parameters)
+    } finally { dispose(); await h.ctx.fiber.dispose() }
   })
 
   it('approves exact immutable bytes and recipient before submitting, then waits for a durable receipt', async () => {

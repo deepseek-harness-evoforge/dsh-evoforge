@@ -75,6 +75,10 @@ DSH CredentialProvider. Never put cleartext credentials in YAML, logs, or Git. T
 The exact profile fragment, platform permissions, Telegram setup, and recovery steps are in the
 [installation guide](docs/getting-started.zh.md).
 
+With `fileDeliveryEnabled`, a current Feishu-triggered task can send workspace output files under native full-access
+permissions; other permission modes still require native approval of the snapshot and recipient. Web file presentation
+does not automatically send files. Only a confirmed delivered receipt means the file was sent successfully.
+
 ## Upgrade and removal
 
 Run the same installer again for a local upgrade. Remove packages with DSH's official `plugin remove` using the names in

@@ -70,6 +70,9 @@ dsh --profile web --no-open
 
 所需 profile 片段、平台权限、Telegram 和故障恢复见[安装指南](docs/getting-started.zh.md)。
 
+启用 `fileDeliveryEnabled` 后，飞书发起的当前任务在原生“完全访问”权限下可直接发送工作区输出文件；其他权限
+仍需原生批准文件快照和接收方。Web 发起的文件展示不会自动外发。只有确认送达的回执才代表文件发送成功。
+
 ## 更新与卸载
 
 本地升级重新运行同一安装命令。卸载必须使用持久安装 manifest 中的包名和 DSH 官方 `plugin remove`；卸载

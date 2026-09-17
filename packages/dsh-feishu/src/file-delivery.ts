@@ -5,6 +5,7 @@ import type { FileSystem } from '@deepseek-ai/dsh-fs'
 import { HarnessError } from '@deepseek-ai/dsh-llm'
 import { defineTool, type ToolExecution } from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-user-approval'
+import type {} from '@deepseek-ai/dsh-permission-presets'
 import type { GatewayFileDeliveryIntent, GatewayFileReference, GatewayOutboundReceipt } from 'dsh-evoforge-gateway'
 
 export const FEISHU_FILE_TOOL = 'feishu_file_send'
@@ -19,6 +20,8 @@ export interface FeishuFileDestination {
 }
 
 export interface FeishuFileDelivery {
+  /** Only the live, authenticated inbound turn may use standing full-access delivery. */
+  isCurrentChannelTurn?(): boolean
   destination(): FeishuFileDestination
   snapshot(path: string, name: string, signal: AbortSignal): Promise<GatewayFileReference>
   submit(intent: GatewayFileDeliveryIntent): Promise<GatewayOutboundReceipt>
@@ -120,7 +123,8 @@ export function installFeishuFileTool(agent: Agent, enabled: boolean, delivery: 
   }
   const offTool = agent.ctx.tools.register(defineTool({
     name: FEISHU_FILE_TOOL,
-    description: 'Send one local output file to this conversation’s exact Feishu recipient after native approval of its immutable snapshot. Returns the durable delivery status; only delivered confirms success. Do not automatically retry uncertain or pending sends. Once submission starts, cancellation cannot guarantee withdrawal of the external effect.',
+    description: agent.session.requestHeader()?.tools?.find(tool => tool.name === FEISHU_FILE_TOOL)?.description
+      ?? 'Send one local output file to this conversation’s exact Feishu recipient. Uses the current native full-access permission for a live Feishu turn; otherwise requires native approval of the immutable snapshot. Only delivered confirms success. Do not automatically retry uncertain or pending sends. Once submission starts, cancellation cannot guarantee withdrawal of the external effect.',
     parameters: {
       file_path: { type: 'string', required: true, description: 'Exact output file path within this Session’s workspace; relative paths use its working directory.' },
       file_name: { type: 'string', required: true, description: 'Display filename including extension, without any directory components.' },
@@ -208,19 +212,26 @@ async function sendApprovedFile(
   if (exec.agent !== agent) throw failure('File delivery belongs to one exact Agent', 'FILE_AGENT_MISMATCH')
   const approval = agent.ctx.get('approval')
   if (approval === undefined) throw failure('Native Approval is required before file delivery', 'FILE_APPROVAL_UNAVAILABLE')
+  const standingPermission = hasStandingFilePermission(agent, delivery)
   assertName(name)
   const destination = Object.freeze({ ...delivery.destination() })
   const file = Object.freeze({ ...await delivery.snapshot(sourcePath, name, signal) })
   assertReference(file)
   signal.throwIfAborted()
-  const outcome = await approval.request({
-    agent, toolName: exec.name, callId: exec.callId, signal,
-    reason: `发送文件 ${JSON.stringify(file.name)}（${file.bytes} 字节）到 ${destination.description}。\n`
-      + `原文件：${JSON.stringify(sourcePath)}\n文件快照：${file.attachmentId}\n接收方绑定：${destination.destinationDigest}\n`
-      + '只批准这个快照和接收方；开始提交后，取消等待不能保证撤回发送。',
-  })
-  signal.throwIfAborted()
-  if (outcome !== 'allowed-once') throw failure('Native Approval did not allow this file delivery', 'FILE_APPROVAL_DENIED')
+  if (standingPermission) {
+    if (!hasStandingFilePermission(agent, delivery)) {
+      throw failure('Current channel or full-access permission changed before file submission', 'FILE_PERMISSION_CHANGED')
+    }
+  } else {
+    const outcome = await approval.request({
+      agent, toolName: exec.name, callId: exec.callId, signal,
+      reason: `发送文件 ${JSON.stringify(file.name)}（${file.bytes} 字节）到 ${destination.description}。\n`
+        + `原文件：${JSON.stringify(sourcePath)}\n文件快照：${file.attachmentId}\n接收方绑定：${destination.destinationDigest}\n`
+        + '只批准这个快照和接收方；开始提交后，取消等待不能保证撤回发送。',
+    })
+    signal.throwIfAborted()
+    if (outcome !== 'allowed-once') throw failure('Native Approval did not allow this file delivery', 'FILE_APPROVAL_DENIED')
+  }
   const current = delivery.destination()
   if (current.routeId !== destination.routeId || current.destinationDigest !== destination.destinationDigest
     || current.replyToExternalId !== destination.replyToExternalId || current.replyInThread !== destination.replyInThread) {
@@ -234,11 +245,21 @@ async function sendApprovedFile(
   })
   const observed = await delivery.waitForReceipt(receipt.id, { timeoutMs: 35_000, signal })
   const result = { status: observed.status, delivered: observed.status === 'delivered', fileName: file.name, bytes: file.bytes,
+    authorization: standingPermission ? 'native-full-access' : 'native-approval',
     receiptId: receipt.id, notice: statusTitle(observed.status) }
   if (observed.status === 'failed' || observed.status === 'uncertain') {
     throw failure(`${JSON.stringify(result)}；不要自动重发。`, `FILE_DELIVERY_${observed.status.toUpperCase()}`)
   }
   return result
+}
+
+/** This is a declared channel delivery policy, not an interpretation of `never` as an approval grant. */
+function hasStandingFilePermission(agent: Agent, delivery: FeishuFileDelivery): boolean {
+  if (delivery.isCurrentChannelTurn?.() !== true) return false
+  const presets = agent.ctx.get('permissionPresets')
+  if (presets?.current(agent.session) !== 'danger-full-access') return false
+  const spec = presets.resolve('danger-full-access')
+  return spec.sandbox === 'danger-full-access' && spec.approval === 'never'
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

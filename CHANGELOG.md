@@ -7,6 +7,10 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Enabled direct output-file delivery for current authenticated Feishu turns under the native full-access preset when
+  file delivery is enabled. Other permission modes still require snapshot approval; native denials, cancellation,
+  recipient changes, and Web-only presentation do not acquire this permission. Existing Session tool descriptions stay fixed.
+
 - Bind lazily paired Feishu sessions before message dispatch, so the first channel turn keeps its recipient and requests
   file approval instead of reporting Web-only presentation as an attachment delivery.
 - Feishu output delivery now adapts native `present` during channel-triggered turns: exact snapshot approval and durable

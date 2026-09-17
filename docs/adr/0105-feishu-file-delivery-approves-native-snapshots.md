@@ -2,7 +2,7 @@
 
 文件输出必须在手机上成为可下载附件，而不只是模型回复中的本地路径。我们选择一个默认关闭、Agent-scoped 的
 `feishu_file_send` 原生 Tool：先经 DSH FS 读取输出并保存到原生 AttachmentStore，再用原生 Approval 批准确切快照
-和接收方，最后提交到既有 Gateway 队列；不扫描回复自动上传，也不把入站附件授权扩张为外发授权。
+和接收方（或使用下述显式渠道策略），最后提交到既有 Gateway 队列；不扫描回复自动上传，也不把入站附件授权扩张为外发授权。
 
 ## 原生 present 的渠道语义
 
@@ -29,8 +29,15 @@ FS 契约之外的恶意并发换链。审批展示所选路径、文件名、�
 权限授予，其他原生 Tool policy/guard 仍可在进入 body 前拒绝。
 
 批准的是已持久化的字节快照，而不是审批后再次打开路径的权限。开始提交前复核当前路由；Adapter 上传前从原生
-附件存储读回并校验字节，再复核 live route。内容或接收方变化不能复用批准。只有 native `allowed-once` 可提交；
+附件存储读回并校验字节，再复核 live route。内容或接收方变化不能复用批准。默认只有 native `allowed-once` 可提交；
 拒绝和取消不产生 Gateway 文件 intent，也不上传。快照即使未获批准仍可能留在原生存储，保留和清理由 DSH 管理。
+
+启用文件交付时，Adapter 声明一项有限的原生完全访问策略：仅当前经过认证、由飞书入站触发的 exact Agent turn，
+且原生 `permissionPresets.current(session)` 为 `danger-full-access`、其原生定义同时为同名 sandbox 与 `approval: never`，
+可以不再请求一次快照审批。单独的 `never`、其他 sandbox、自定义同名但不同配置、缺失 preset provider 或 Web 发起
+均不能授予此权限，继续走原生 Approval。快照后再次复核当前 turn、preset 和接收方；撤回、取消或卸载阻止提交。
+该策略不修改 Session 权限，不伪造 `allowed-once`，不覆盖原生 pre/guard/post 的拒绝。快照与 durable receipt 合同不变。
+旧 Session 恢复已有 Tool 的原 description，Schema 不变；新 Session 使用说明此策略的固定 description。
 
 ## 效果、恢复与卸载
 

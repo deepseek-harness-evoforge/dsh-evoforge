@@ -520,6 +520,7 @@ export class FeishuRuntime {
       const scope = agent.ctx.inject(['tools'], () => {
         if (this.disposed || this.fileToolDisposers.has(agent)) return
         const delivery: FeishuFileDelivery = {
+          isCurrentChannelTurn: () => this.latestDestination.has(agent),
           destination: () => this.fileDestination(agent),
           snapshot: async (path, name, signal) => {
             const fs = agent.ctx.get('fs')
