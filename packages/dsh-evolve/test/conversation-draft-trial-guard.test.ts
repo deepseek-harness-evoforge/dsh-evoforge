@@ -61,6 +61,19 @@ async function fixture(failing = false, respond?: (options: GenerateOptions) => 
   return { ctx, requests, registrations, calls: () => calls }
 }
 
+it('provides the official scoped Skill tool when the Host has no global Skill tool', async () => {
+  const f = await fixture()
+  f.registrations[0]!()
+  const result = await runConversationDraftTrialLeg(f.ctx, {
+    sessionId: SessionId('trial-without-global-skill'), cwd: '/repo', input: 'Return an answer.',
+    provider: 'fixed', model: 'fixed', signal: new AbortController().signal, beforeDispatch: async () => {},
+  })
+  expect(result.dispatchMarkers).toBe(1)
+  expect(f.calls()).toBe(1)
+  expect(f.requests[0]?.tools?.map(tool => tool.name)).toEqual(['skill'])
+  expect(f.ctx.tools.get('skill')).toBeUndefined()
+})
+
 it('runs an owned native leg, mounts the exact draft only there, and keeps its native trace', async () => {
   const f = await fixture(false, async function* (options) {
     const hasResult = options.messages.some(message => message.content.some(block => block.type === 'tool-result'))
@@ -120,8 +133,8 @@ it('restricts only its new native Session and persists the marker before dispatc
   const markers: number[] = []
   const handle = await f.ctx.agents.create({
     sessionId: SessionId('guarded'), agentOptions: { provider: 'fixed', model: 'fixed', maxTokens: 2000 },
-    setup(scoped, agent) {
-      installConversationDraftTrialGuard(scoped, agent, {
+    async setup(scoped, agent) {
+      await installConversationDraftTrialGuard(scoped, agent, {
         provider: 'fixed', model: 'fixed', maxCalls: 1, maxTokens: 2000,
         beforeDispatch: async call => { expect(f.calls()).toBe(0); markers.push(call) },
       })
@@ -146,8 +159,8 @@ it('does not enter an earlier global retry policy on provider failure', async ()
   f.ctx.on('agent/request-error', async () => { retries++; return retries < 3 ? { kind: 'retry' } : undefined })
   const handle = await f.ctx.agents.create({
     sessionId: SessionId('no-retry'), agentOptions: { provider: 'fixed', model: 'fixed', maxTokens: 2000 },
-    setup(scoped, agent) {
-      installConversationDraftTrialGuard(scoped, agent, {
+    async setup(scoped, agent) {
+      await installConversationDraftTrialGuard(scoped, agent, {
         provider: 'fixed', model: 'fixed', maxCalls: 3, maxTokens: 2000, beforeDispatch: async () => {},
       })
     },
@@ -163,8 +176,8 @@ it('dispatches nothing when the durable marker fails', async () => {
   const f = await fixture()
   const handle = await f.ctx.agents.create({
     sessionId: SessionId('write-failure'), agentOptions: { provider: 'fixed', model: 'fixed', maxTokens: 2000 },
-    setup(scoped, agent) {
-      installConversationDraftTrialGuard(scoped, agent, {
+    async setup(scoped, agent) {
+      await installConversationDraftTrialGuard(scoped, agent, {
         provider: 'fixed', model: 'fixed', maxCalls: 3, maxTokens: 2000,
         beforeDispatch: async () => { throw new Error('storage unavailable') },
       })
@@ -201,8 +214,8 @@ it('rejects same-schema tool replacement after a durable dispatch marker', async
   const f = await fixture()
   const handle = await f.ctx.agents.create({
     sessionId: SessionId('tool-shadow'), agentOptions: { provider: 'fixed', model: 'fixed', maxTokens: 2000 },
-    setup(scoped, agent) {
-      installConversationDraftTrialGuard(scoped, agent, {
+    async setup(scoped, agent) {
+      await installConversationDraftTrialGuard(scoped, agent, {
         provider: 'fixed', model: 'fixed', maxCalls: 3, maxTokens: 2000,
         beforeDispatch: async () => {
           scoped.tools.register(defineTool({

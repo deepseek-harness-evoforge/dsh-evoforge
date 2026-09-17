@@ -1,6 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-tools'
+import * as NativeSkillTool from '@deepseek-ai/dsh-tool-skill'
 
 interface TrialRequestBounds {
   readonly provider: string
@@ -17,11 +18,11 @@ interface TrialRequestBounds {
  * before creation and supplies its durable per-call marker. No retry is safe
  * without a new marker, including the native loop's within-step retry path.
  */
-export function installConversationDraftTrialGuard(
+export async function installConversationDraftTrialGuard(
   scoped: Context,
   agent: Agent,
   bounds: TrialRequestBounds,
-): void {
+): Promise<void> {
   bounds = Object.freeze({ ...bounds })
   if (!bounds.provider || !bounds.model
     || !Number.isSafeInteger(bounds.maxCalls) || bounds.maxCalls < 1 || bounds.maxCalls > 3
@@ -29,7 +30,11 @@ export function installConversationDraftTrialGuard(
     throw new Error('invalid conversation trial request bounds')
   }
   scoped.tools.presentAs('native')
-  scoped.tools.restrict({ allow: ['skill'] })
+  // A programmatic Agent does not inherit a user-facing preset. Supply the
+  // official reader if absent; do not double-mount an existing catalog owner.
+  if (scoped.tools.get('skill', agent) === undefined) await scoped.plugin(NativeSkillTool)
+  // Restrictions name global tools only; scoped registrations survive this mask.
+  scoped.tools.restrict({ allow: scoped.tools.get('skill') === undefined ? [] : ['skill'] })
   const skillTool = scoped.tools.get('skill', agent)
   const schemas = JSON.stringify(scoped.tools.schemas(agent))
   const verifyTools = (): void => {

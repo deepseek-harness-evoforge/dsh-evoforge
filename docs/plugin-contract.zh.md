@@ -196,6 +196,8 @@ Job 标签与结果不携带原文、路径或 provider 错误，模型结果不
 两个原生 Session，共八个分支，每分支最多三次请求、每次最多 2000 输出 token、90 秒取消通知；按任务交替先后顺序。
 baseline 与 draft 使用相同来源 provider/model、cwd 和工具限制；只有 draft 分支在新 Agent 的 scoped Skill registry 中
 挂载草稿。正文只能通过原生 `skill` Tool 按需加载；禁止其他工具和额外辅助模型请求，不改变当前 Session 或全局 Skill。
+程序化 Agent 不假定继承用户 preset：若没有可见 `skill`，在该 Agent 内挂载官方 `dsh-tool-skill`，卸载随 handle 释放。
+已有读取工具时不重复挂载目录监听器；全局工具限制只引用全局名称，局部读取工具不被误列为全局白名单。
 原生 Agent 的请求信号、精确 Session id、输入与已持久化 marker 用于关联最终请求；不依赖跨模块实例不共享的 WeakSet 标记。
 测试 Agent 不自动重试。取消后等待原生 handle dispose；不声称能为不响应 abort 的上游提供物理释放时限。
 

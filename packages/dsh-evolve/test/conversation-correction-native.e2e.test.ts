@@ -101,7 +101,8 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
       await ctx.plugin((await import(entry('packages/core/system-prompt'))).default)
       await ctx.plugin((await import(entry('packages/core/tools'))).default)
       await ctx.plugin((await import(entry('packages/skill/skill'))).default)
-      await ctx.plugin(await import(entry('packages/skill/tool-skill')))
+      // Match the deployed Host: user-facing presets own their Skill reader;
+      // programmatic trial Agents must supply it without a global registration.
       await ctx.plugin((await import(entry('packages/core/agent-loop'))).default, { agents: [] })
       ctx.llm.registerAdapter(['fixture'], new ClassifierAdapter())
       return ctx

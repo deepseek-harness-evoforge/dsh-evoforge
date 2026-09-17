@@ -65,3 +65,32 @@ sessions 文件名检查及 `lsof -nP -iTCP:3000 -sTCP:LISTEN`。有效配置包
 
 结论：部署已执行，真实对照未完成，改善、退步、可比性和实际成本均未测得。无密钥测试通过不能覆盖此次失败，
 也不能替代真实效果、部署后冷恢复或完整 clean-profile 卸载验收。
+
+### 初始化诊断与修复
+
+随后在同一个真实 Host 临时加载了仅用于诊断的官方 Cordis 模块。它使用无业务内容的独立 Session identity，
+在 beforeDispatch 强制拒绝，并另加精确 Session 的 LLM 发送拒绝；未读取封存测试题、未发出模型请求。
+启动立即运行的诊断先发现工厂尚未注册；等待启动完成的诊断则得到
+`tools.restrict() names unknown global tool "skill"`。直接检查新建 Agent 的工具视图只有 `report_capability_gap`，
+没有 `skill`；有效配置中列出工具模块不代表程序化 Agent 自动继承了用户 preset。
+
+修复只在缺失读取工具的试验 Agent 内挂载官方 Skill 插件；已有工具时复用其目录监听器，避免双重目录组成。
+工具限制区分全局与局部注册，不改变普通会话权限。新增无全局 Skill 工具的回归测试修复前明确失败；
+原生持久化八分支测试也改用与部署一致的无全局 Skill 配置。四文件 18 项测试、runtime surface 两项及类型检查通过。
+这些 fixture 验证配置和生命周期，不证明草稿改善。
+
+修复后的真实 Host 诊断到达 beforeDispatch，并按预设停止：`dispatchMarkers=0`、`requestCount=0`。
+移除诊断配置后，`cmp` 确认 profile patch 与诊断前备份完全相同。保留诊断原生历史和私有诊断结果；
+原失败计划仍为 uncertain，未重发、未替换草稿或治理材料。最初失败记录没有保存具体异常，因此不能反推它首先遇到
+工厂时序还是工具缺失；这里证明的是可重复的工具配置缺陷及其修复，不是原始调用的完整异常追踪。
+
+修复已打包到 product manifest hash `8a709c567c5354d8fa42f67997e4475ccd7aeec083c7e8e146e74392d9857bad`，
+逐包 SHA-256 校验后移入持久内容地址；此次只通过官方 `plugin --profile web add <exact-tarball> --ignore-scripts`
+更新 `dsh-evolve`，其余已安装包保持原版本。官方安装退出 0。`pnpm peers check` 仍报告 Host 提供的原生包未列在
+独立 profile 的依赖树中；不能将该检查称为通过。实际 Host 加载与浏览器控制面恢复正常。
+诊断验证使用修复后的本地编译模块；部署产物完成了构建/原生外置依赖检查和启动，但没有重跑真实封存实验。
+
+部署后只有一个 Host 监听 `127.0.0.1:3000`。浏览器 reload 后仍是原会话 22 轮/47 步、原模型与权限，
+对照区显示“实验未完成或结果不明，不自动重跑”、0/8 分支和零已记录请求，没有伪报成功。
+逐字节检查诊断前备份的 22 个原生历史文件与七个原插件存储文件全部相同；profile patch 也相同。
+试验 Domain 仍只有原失败计划且全部 marker 为零。完整效果对照、受控零调用恢复和 clean-profile 全生命周期验收仍未完成。

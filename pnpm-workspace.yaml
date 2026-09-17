@@ -5,6 +5,7 @@ allowBuilds:
   esbuild: true
   protobufjs: true
 minimumReleaseAgeExclude:
+  - '@deepseek-ai/dsh-tool-skill@0.1.6-alpha.1'
   - '@deepseek-ai/dsh-agent-loop@0.1.6-alpha.1'
   - '@deepseek-ai/dsh-agent-presets@0.1.6-alpha.1'
   - '@deepseek-ai/dsh-agent@0.1.6-alpha.1'

@@ -90,7 +90,7 @@ export async function runConversationDraftTrialLeg(
             if (existing.some(skill => skill.name === registration.name)) throw new Error('conversation trial draft name collision')
             scoped.skills.register(registration)
           }
-          installConversationDraftTrialGuard(scoped, agent, {
+          await installConversationDraftTrialGuard(scoped, agent, {
             provider: frozen.provider, model: frozen.model, maxTokens: 2000, maxCalls: 3,
             async beforeDispatch(call, signal) {
               await frozen.beforeDispatch(call)

@@ -7,6 +7,9 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Fix draft comparison initialization when programmatic Agents do not inherit a global Skill tool. Supply the official
+  reader only within the trial Agent; preserve existing readers, tool restrictions, and failed-plan history.
+
 - Add optional one-shot native comparisons for sealed conversation drafts, with durable budgets, isolated test Sessions,
   actual Skill-load evidence and read-only results. Equal outcomes, regressions and inconclusive comparisons remain explicit;
   these limited model-proposed checks do not activate Skills or establish general improvement.
