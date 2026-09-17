@@ -36,9 +36,9 @@ it('uses one blind native request with no draft, reference, variant, history or 
 })
 
 it('retains uncertainty and does not retry malformed, interrupted or tool-producing judgments', async () => {
-  for (const finish of ['max-tokens', 'aborted', 'tool-calls'] as const) {
+  for (const finish of ['max-tokens', 'aborted', 'tool-calls', 'stop'] as const) {
     const stream = vi.fn(async function* () {
-      yield { type: 'text-delta', index: 0, text: JSON.stringify(decision) }
+      yield { type: 'text-delta', index: 0, text: finish === 'stop' ? 'not-json' : JSON.stringify(decision) }
       yield { type: 'usage', usage: { inputTokens: 30, outputTokens: 20 } }
       yield { type: 'finish', reason: { kind: finish } }
     })
