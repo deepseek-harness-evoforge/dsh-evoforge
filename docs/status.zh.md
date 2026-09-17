@@ -1,72 +1,61 @@
 # 当前状态
 
-更新时间：2026-09-11。本文只保留当前结论和阻断；逐次命令与历史结果见 [evidence 索引](evidence/README.zh.md)。
-状态词的含义见 [Hermes 对照记分卡](architecture/hermes-replacement-scorecard.zh.md)。
+更新时间：2026-09-17。本文区分已部署真实路径、局部实现和未取得的效果证据；历史验收不随本页改写。
+状态词见 [Hermes 对照记分卡](architecture/hermes-replacement-scorecard.zh.md)。
 
 ## 总结
 
-项目仍是 pre-alpha。插件代码、Cordis 生命周期、套件打包和一部分 assembled 测试可复现；真实渠道、真实 Provider、
-长期进化效果和同条件 Hermes paired 还没有形成发布证据。因此当前不能宣称“整体 Hermes 上位替代”，也没有稳定
-npm registry 包或 SemVer release tag。
+项目仍是 pre-alpha，尚不能宣称整体替代 Hermes。单一生产 Host 已升级到 DSH `0.1.6-alpha.1` /
+`0d1f50007f9bca3f52b06e1c3074fa14d5fb0720`。Web 旧会话回读、飞书附件下载与冷重启续接已有真实证据。
+这不是完整渠道矩阵、可靠自我进化或模型质量比较通过；未发布 registry 包或通过全部门禁的 release tag。
 
 ## 当前矩阵
 
-| 范围 | 当前结论 | 状态 |
+| 范围 | 当前结论 | 未闭合边界 |
 | --- | --- | --- |
-| DSH 兼容 | master `c291e796…` / CLI 0.1.5-rc.2 已在 clean worktree 完成 install、根构建和关键兼容取样；handle readback、严格的 Session v3 human-first direct-turn binder 及内部 resolver `open/read/close` 物理读取均通过，但 retry/replacement/compaction/PTC、相邻 persistence consumer、依赖 pin 和完整矩阵尚未成组迁移；完整支持组合仍为 0.1.2-alpha.5 | pinned alpha.5 verified；current direct-turn + resolver-read cohorts verified, full migration blocked |
-| 安装 | 默认 `product` 套件、一行仓库安装、exact manifest/SHA、持久内容地址、禁用依赖 install script 和配置输出保护已有合同 | clean-profile add/dump/boot/remove/reboot verified；registry 与当前 head reload/browser 未完成 |
-| 插件契约 | 官方 Bundle/profile patch、生命周期、独立启停/卸载和套件打包有本地合同 | implemented / local verified |
-| Gateway | Host 内常驻、pairing、路由、journal、幂等、uncertain、dispose 竞态有 assembled 证据 | verified locally; real soak pending |
-| Feishu | 已有原生凭据/Adapter、配对和局部 direct-DM smoke；完整 AS-2（重启新消息、Approval/Schedule/group、撤销、长期重连）未齐 | partial |
-| Telegram | Adapter、pairing assembled 和安全合同存在；真实 Bot AS-1 尚未完成 | partial |
-| Evolution | Interaction-first 设计已冻结；自有 Gap Tool 的 exact completed-turn Routing receipt、Candidate/隔离评测/future-Session pointer/canary/rollback 有本地合同；Session v0/v3 的严格 human-first direct-turn projector 已贯通同一证据路径 | partial；Routing 只闭合一个 Episode 维度，latest DSH 完整 cohort 尚未迁移，普通 Interaction 仍未贯通完整慢环 |
-| Provider 验收 | RP-1 epoch 2 只固定 manifest 并验证五条 qualified Gap fixture 形成一个 Opportunity；精确批准也会在读取 Provider 配置和私有路径前固定失败 | blocked：`runtime-attestation-incomplete`；没有当前 paid/passed 证据 |
-| Web | 一个 Session-scoped native conversation.view 和 child slots 有局部浏览器证据；blank Session/onboarding 不渲染 slot，当前 profile 仍需 clean recheck | partial |
-| Delivery/continuity | 公开 delivery 只含隔离交付；github-review 因 CredentialProvider 迁移未完成而阻断；Goal 冷恢复、Resident 协议有本地测试 | partial; real soak pending |
-| Hermes paired | EV-1/SD-1/LC-1/AS-1 为冻结 deterministic/assembled slices，不等于模型质量或整体替代 | not-measured for full claim |
-| Registry/release | 未发布 registry 包；没有通过所有 required gates 的 annotated tag | blocked |
+| DSH 兼容与安装 | 固定新版核心及原生依赖已部署；完整 build/typecheck/test、兼容矩阵、历史副本迁移和官方安装路径通过 | 不是未来版本兼容声明；追加新消息后不能只换回旧核心 |
+| Web | 原会话实际文件回读与重启恢复通过；子页刷新、重挂载、会话隔离、断线提示与恢复已部署实测 | blank Session/onboarding 原生 slot 边界仍存在；非全部任务状态验收 |
+| Gateway / Feishu | 私聊原生 read/present 实际交付 131 字节附件，平台下载哈希一致；重启回读成功、无重复发送 | 群聊、审批、计划、撤销和长期重连尚未形成同一轮完整真实发布矩阵 |
+| Telegram | Adapter、pairing 和安全合同有 assembled 证据 | 真实 Bot AS-1 未完成 |
+| Evolution | Candidate、隔离评测、future-Session 固定与回滚有局部合同 | 普通无 Goal 纠正尚未贯通慢环；未见任务实际收益未证明 |
+| Provider 进化验收 | RP-1 epoch 2 资格检查在读取 Provider 配置前拒绝不完整 attestation | runtime-attestation-incomplete；真实聊天不能替代进化验收 |
+| Delivery / continuity | 安装、原生 Session/Goal/Storage 移除读回及局部恢复合同通过 | 不外推所有附加套件或长期效果 |
+| Hermes paired | 有冻结 deterministic/assembled 切片 | 同任务、模型、权限、预算的实际质量优势仍 not-measured |
+| Registry / release | 未发布 | 完整 required gates 未通过 |
 
-## 最近可复核事实
+## 已关闭的真实问题
 
-- DSH latest audit（2026-09-11）：clean master `c291e7961a515f6d7af9304e7fd1d257929aef26` / CLI
-  `0.1.5-rc.2` 的安装和官方根构建均 exit 0；最新 tag 为 `dsh-v0.1.5-rc.2` /
-  `fb2c4b9e698e30edb738bca4cf0618587db7d203`。见[最新审计摘要](research/dsh-latest-audit-2026-09-11.zh.md)和
-  [V5.230](evidence/v5-230-dsh-rc2-clean-profile-readback-2026-09-11.zh.md)。
-- 同一 current master 上的 assembled clean-profile 原生 handle readback 已通过；Doctor 24/24、Feishu 5/5 通过。
-  Session v3 human-first、无预排 next-step context 的 settled direct turn 现在严格验证 embedded stream、AgentLoop 固定
-  System prompt source、`in-history` request context 与 request route；真实 source-aware Generation binder 在 current 与
-  alpha.5 均为 6/6。内部 resolver 也已用 alpha.5 `readFrom` 与 current `open/read/close` 对同一物理 cut 做有界读取，
-  并在真实 binder 中命中重开的 Generation/Routing receipt；同一 20 文件 / 501 tests 回归选择在两个 source selector 下全通过，但多数静态单测仍链接 manifest 固定的
-  alpha.5 dependency，不能把总数解释为 current runtime 覆盖。见
-  [V5.231](evidence/v5-231-session-v3-direct-turn-attestation-2026-09-11.zh.md)与
-  [V5.232](evidence/v5-232-session-persistence-dual-read-2026-09-11.zh.md)。这仍不能外推为 EvoForge supported；
-  reader deadline 不包含此前的 Session flush，retry/replacement/compaction/PTC、相邻 persistence consumer、pin 与完整矩阵仍需成组迁移。
-- 已审计 alpha.5 支持组合的全量检查和套件合同见 [V5.221](evidence/v5-221-latest-dsh-full-check-2026-09-04.zh.md)。
-- 单页控制台历史复验见 [V5.196](evidence/v5-196-single-page-control-center-live-revalidation-2026-09-04.zh.md)；
-  该证据不覆盖当前浏览器 profile。
-- 本地 pairing assembled 回归见 [V5.223](evidence/v5-223-local-pairing-assembled-regression-2026-09-04.zh.md)。
-- Hermes 当前冻结切片入口见 [V5.224](evidence/v5-224-current-hermes-benchmark-suite-2026-09-04.zh.md)。
-- 默认 `product` 安装、卸载、全仓测试和文档收敛见
-  [V5.228](evidence/v5-228-product-install-and-document-reset-2026-09-05.zh.md)。
+- 核心迁移、旧会话真实回读与历史保护见
+  [9 月 16 日部署验收](evidence/2026-09-16-native-core-deployment-and-feishu-present.zh.md)。
+  其中附件失败是当日事实，当前附件状态以下一条为准。
+- 把 Web present 成功误称为飞书送达的问题已修复。原私聊实际收到附件，下载字节一致，重启回读后账本仍仅一次发送，
+  见 [9 月 17 日文件验收](evidence/2026-09-17-feishu-full-access-delivery.zh.md)。凭据、配对与原生完全访问权限未改变。
+  该轮 16 秒、31.2K tok 仅为单次记录，不是性能或成本优势。
+- 刷新控制台丢失子页的问题已修复；会话隔离和断线后自动恢复通过，
+  见 [9 月 17 日控制台验收](evidence/2026-09-17-control-center-view-recovery.zh.md)。
+  此前“当前 profile 未验证”“生产仍为 alpha.5”“EACCES 阻止主要路径”的概括已过时；没有因此修改历史文件权限。
 
-## 当前环境注意事项
+## 普通纠正链路的实际缺口
 
-最近一次运行态探测发现：当前用户 profile 的部分 DSH fallback 文件归属导致 CLI 出现 EACCES；裸 Web 端口没有
-认证 cookie 会返回 401，必须使用启动日志中带 token 的完整 URL；空白/未绑定 Session 也不会显示
-conversation.view。安装器只能报告这些阻断并提供可恢复方案，不得自动 chown、删除用户文件或创建第二网页。
+9 月 17 日按当前生产入口源码核对：
 
-## 下一退出门
+1. `feedback-signal-monitor.ts` 监听原生 message feedback，投影 negative-with-note；它不是自然语言返工消息识别器。
+2. `skill-opportunity-discovery.ts` 的现有 Skill 改进机会仍要求 exact invocation content 和
+   `two-or-more-distinct-goals-same-invocation-content`。不能要求普通聊天先创建 Goal 来冒充交互优先。
+3. `index.ts` 把无 Goal Gap 保留为 signal，不触发旧 authoring reconcile。独立 Interaction resolver 仅组合局部
+   Workspace/Generation/Routing 证据，返回 `evidence-unavailable`，没有提供完整运行时 attestation。
 
-1. 当前 head Web：clean profile 热 reload/dispose、带认证 URL 的单 Host/单页面和真实 Session readback；
-2. 真实 Feishu/Telegram：配对、回复、重启新消息、Approval/Schedule/group、撤销、uncertain 和长期重连；
-3. Provider 验收：先在新 epoch 补齐可执行代码、运行时 artifact、配置绑定、终态 revision 和私有输出 attestation，
-   再以两套独立 Provider 验证未见样本、负迁移/遗忘、误晋升、成本/时延/cache-read 和精确回滚；
-4. 同任务/模型/权限/预算 Hermes paired：每个声明工作流 verified，至少一个核心指标 better；
-5. registry 命名空间、可恢复安装器、release gates 全部通过后才创建首个 annotated tag。
+“收到纠正”“记录 signal”“生成候选”“未见任务改善”是不同验收点。不能删除 Goal 检查或把一句纠正当作充分因果
+证据来接通晋升，也不能用 fixture 成功声明运行时已经学会。
 
-普通 native `skill` error 可能来自 policy、加载、取消或执行错误，不能证明 Skill 缺失；对应 monitor 已撤下，历史
-`native-skill-miss` 行只保留可读性且不得进入 opportunity/evaluation。当前只允许自有 `report_capability_gap` 的 exact
-schema/body/final result/completed-turn 链形成 raw-free Routing receipt；model-declared Gap 也必须经同一 completed turn 的
-durable qualification 才能进入旧 authoring loop。下一增量需修复 current Gateway/durable-feedback persistence consumer，
-再迁移 retry/replacement/compaction/PTC 与依赖/Case Pack pin，把完整、可重放的 Interaction Episode 接入 opportunity/evaluation；
-在此之前完整自我进化闭环仍是 partial。
+## 下一退出门（按用户优先级）
+
+1. 扩大固定真实任务的正确率、完成度、人工干预、耗时和 token 记录；优先修结果不完整、半途停止、失败却报成功。
+   复用已通过的 Web/飞书路径，不重复迁移核心或修已关闭的子页问题。
+2. 贯通一个普通纠正的最小纵向切片：原生消息与具体失败/修复证据关联，形成 inactive Skill 候选，再经 proposer
+   不能改写的独立 baseline/candidate、未见 holdout 和 retention。不足则 abstain，当前 Session 不漂移且可精确回滚。
+3. 补齐真实渠道审批、恢复和不确定外部效果矩阵；保持单一 Host，不扩大授权、不盲目重发。
+4. 同任务/模型/权限/预算比较 Hermes，仅对证据充分的具体工作流声明更好；最后进入 release/registry 门禁。
+
+插件恢复、Skill Generation 回滚和核心降级是不同操作。新核心追加历史后，不得仅换旧二进制或恢复旧快照而静默
+丢弃新消息；保留当前核心与数据，使用兼容插件恢复或关闭对应外发能力。
