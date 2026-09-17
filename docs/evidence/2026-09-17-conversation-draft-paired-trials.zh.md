@@ -48,4 +48,20 @@ fixture 中两边均通过四项，明确记录为 `no-improvement`，没有把 
 
 ## 部署与真实结果
 
-本节在实际部署和请求结束后补充。在此之前，只有计划和无密钥证据，不能称真实效果已经验证。
+2026-09-17 已通过官方 CLI 将 `dsh-evolve` 与 `dsh-evolve-web` 更新到持久内容地址
+`d6caa504c6fec695c04a29f8e211a53f200657c82cd1fc0829f2e86f8ababd15` 对应的 product pack。
+只更新这两个包；保留旧 pack、配置备份、原生历史和凭据。默认关闭启动后，显式为原验收 Workspace 配置
+24 次/UTC 日的试验策略并重启同一个 Host。端口检查确认只有一个进程监听 `127.0.0.1:3000`。
+
+真实计划 `17171e9db4dbf9b7954a298a90cdb9ae6d1e5dfd73ba63dbf9df6272bc38c621` 已终止为
+`uncertain / execution-failed`：第一个 baseline 分支为 running，后七个 pending，全部 dispatch marker 为零，
+没有已保存的结果或用量。原生 sessions 目录未发现这八个试验身份的文件；尚不能证明具体初始化失败点。
+24 个名额为保守预留，不是 24 次实际模型消耗。原始失败记录保留，没有删除计划、重跑或修改封存草稿与题目。
+
+只读复核执行了官方 `--profile web --dump-config`（仅输出匹配的模块名称）、原生 Domain 的 phase/marker 投影、
+sessions 文件名检查及 `lsof -nP -iTCP:3000 -sTCP:LISTEN`。有效配置包含原生 `tool-skill` 与 `agent-loop`。
+另一个无密钥、无网络监听的最小运行时在缺少 `tool-skill` 时能复现初始化拒绝，但它与真实配置不一致，
+不能据此认定线上根因。当前 catch 丢失具体异常，后续需用受限诊断取得真实初始化原因。
+
+结论：部署已执行，真实对照未完成，改善、退步、可比性和实际成本均未测得。无密钥测试通过不能覆盖此次失败，
+也不能替代真实效果、部署后冷恢复或完整 clean-profile 卸载验收。
