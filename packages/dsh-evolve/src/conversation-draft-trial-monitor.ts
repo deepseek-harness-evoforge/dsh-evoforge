@@ -8,18 +8,51 @@ import { runConversationDraftTrialLeg } from './conversation-draft-trial-native.
 import { compareConversationDraftTrial, projectConversationDraftTrialResult } from './conversation-draft-trial-result.ts'
 import type { ConversationDraftTrialPolicy, ConversationDraftTrialRecord, ConversationDraftTrialStore } from './conversation-draft-trial-store.ts'
 import { workspaceIdForCwd } from './workspace-identity.ts'
+import { DraftJudgeError, nativeConversationDraftJudge, parseDraftJudgment, type ConversationDraftJudge } from './conversation-draft-judge.ts'
+import type { TokenUsage } from '@deepseek-ai/dsh-llm'
 
 declare module '@deepseek-ai/dsh-jobs' { interface JobKindMap { conversationDraftTrial: 'evoforge-conversation-draft-trial' } }
 
 /** Consume exactly one previously reserved plan; never author, select new tests or promote. */
 export async function executeConversationDraftTrial(ctx: Context, store: ConversationDraftTrialStore,
   initial: ConversationDraftTrialRecord, source: ConversationDraftRecord, cwd: string, signal: AbortSignal,
-  sourceStillMatches: () => boolean): Promise<ConversationDraftTrialRecord> {
+  sourceStillMatches: () => boolean, judge: ConversationDraftJudge = nativeConversationDraftJudge(ctx)): Promise<ConversationDraftTrialRecord> {
   let record = initial
-  if (record.phase === 'blocked') return record
+  if (record.phase !== 'reserved') return record
+  const judgeAnswer = async (task: string, answer: string): Promise<'pass' | 'fail' | 'uncertain' | undefined> => {
+    signal.throwIfAborted()
+    const workspaceMatches = await workspaceIdForCwd(ctx, cwd) === record.workspaceId
+    signal.throwIfAborted()
+    if (!sourceStillMatches() || !workspaceMatches) { record = await store.interrupt(record, 'source-conflict'); return undefined }
+    const route = { provider: record.provider, model: record.model }
+    record = await store.startJudge(record, digest({ task, answer, route, promptHash: record.judge!.promptHash }))
+    let usage: TokenUsage | undefined
+    try {
+      const result = await judge({ task, answer, route }, signal)
+      usage = result.usage
+      signal.throwIfAborted()
+      if (!sourceStillMatches()) { record = await store.failJudge(record, usage, 'source-conflict'); return undefined }
+      const decision = parseDraftJudgment(result.decision, task, answer)
+      record = await store.finishJudge(record, decision, usage)
+      return decision.verdict
+    } catch (error) {
+      record = await store.failJudge(record, error instanceof DraftJudgeError ? error.usage : usage, signal.aborted ? 'cancelled' : 'judge-unavailable')
+      return undefined
+    }
+  }
   try {
     if (source.draft === undefined || source.governance === undefined || digest(source) !== record.draftSnapshotDigest) {
       return await store.interrupt(record, 'source-conflict')
+    }
+    if (record.judge !== undefined) {
+      for (const test of source.governance.cases) {
+        if (!sourceStillMatches() || await workspaceIdForCwd(ctx, cwd) !== record.workspaceId) return await store.interrupt(record, 'source-conflict')
+        for (const [answer, expected] of [[test.referenceAnswer, 'pass'], [test.alternateAnswer!, 'pass'], [test.negativeAnswer, 'fail']] as const) {
+          const verdict = await judgeAnswer(test.input, answer)
+          if (verdict === undefined) return record
+          if (verdict !== expected) return await store.rejectJudgeCalibration(record)
+        }
+      }
     }
     for (let index = 0; index < record.legs.length; index++) {
       signal.throwIfAborted()
@@ -41,10 +74,16 @@ export async function executeConversationDraftTrial(ctx: Context, store: Convers
       })
       record = await store.finishLeg(record, index, projectConversationDraftTrialResult(result, test,
         leg.variant === 'draft' ? source.draft : undefined))
+      if (record.judge !== undefined) {
+        const settled = record.legs[index]!.result!
+        if (settled.status !== 'completed') return await store.interrupt(record, 'execution-failed')
+        if (await judgeAnswer(test.input, settled.answer) === undefined) return record
+      }
     }
     signal.throwIfAborted()
     return await store.finish(record, compareConversationDraftTrial(record, source.draft))
   } catch {
+    if (!['reserved', 'running'].includes(record.phase)) return record
     return await store.interrupt(record, signal.aborted ? 'cancelled' : 'execution-failed')
   }
 }

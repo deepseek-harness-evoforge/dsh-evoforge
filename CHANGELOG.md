@@ -7,6 +7,10 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Add opt-in, independently prompted semantic judging for new draft trials, with blind single-answer requests,
+  sealed contrast calibration, one bounded reservation and no automatic replay. Distinguish semantic scores from literal
+  checks and preserve unknown outcomes; historical trials are never rescored and no Skill is activated.
+
 - Require new draft checks to accept an alternate correct expression before authoring or trial execution. Unqualified
   material gets a durable, zero-budget rejection; historical results stay unchanged. Label scores as literal checks,
   not task completion rates or proof of learning.

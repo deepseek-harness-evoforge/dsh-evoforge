@@ -14,11 +14,12 @@ import { WORKSPACE_ID } from './workspace-fixture.ts'
 import { openConversationDraftTrialStore, type ConversationDraftTrialPolicy } from '../src/conversation-draft-trial-store.ts'
 import { installConversationDraftTrialMonitor } from '../src/conversation-draft-trial-monitor.ts'
 import { DurableFeedbackAttribution } from '../src/durable-feedback-attribution.ts'
+import { compareConversationDraftTrial } from '../src/conversation-draft-trial-result.ts'
 
 const dshRoot = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
 
 describe.skipIf(dshRoot === undefined)('native DSH conversation correction intake', () => {
-  it.each([[false, false], [true, false], [false, true]])('uses native no-Goal turns and cold recovery without duplicate calls (draft retry: %s, trial recovery: %s)', async (retry, trialRecovery) => {
+  it.each([[false, false, false], [true, false, false], [false, true, false], [false, false, true]])('uses native no-Goal turns and cold recovery without duplicate calls (draft retry: %s, trial recovery: %s, semantic judge: %s)', async (retry, trialRecovery, semantic) => {
     const root = await mkdtemp(join(tmpdir(), 'evoforge-correction-native-'))
     const entry = (path: string) => pathToFileURL(join(dshRoot!, path, 'lib/index.js')).href
     const cordis = await import(entry('vendor/cordis')) as typeof import('@deepseek-ai/cordis')
@@ -41,6 +42,19 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
     class ClassifierAdapter extends nativeLlm.LlmAdapter {
       async *stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
         calls.push(options)
+        if (typeof options.system === 'string' && options.system.startsWith('You independently assess one answer')) {
+          expect(options.tools).toBeUndefined()
+          const content = options.messages[0]!.content[0]!
+          if (content.type !== 'text') throw new Error('expected blind judge text')
+          const input = JSON.parse(content.text) as { task: string; answer: string }
+          expect(Object.keys(input).sort()).toEqual(['answer', 'task'])
+          const decision = { verdict: input.answer === 'wrong' ? 'fail' : 'pass', explanation: 'Fixture-only semantic protocol verdict.',
+            citations: [{ source: 'task', quote: input.task }, { source: 'answer', quote: input.answer }] }
+          yield { type: 'text-delta', index: 0, text: JSON.stringify(decision) }
+          yield { type: 'usage', usage: { inputTokens: 17, outputTokens: 9 } }
+          yield { type: 'finish', reason: { kind: 'stop' } }
+          return
+        }
         if (String(options.sessionId).startsWith('evoforge-trial-')) {
           const catalog = JSON.stringify(options.messages).includes('readable-report')
           const loaded = options.messages.some(message => message.content.some(block => block.type === 'tool-result'))
@@ -118,7 +132,8 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
     let draftMonitor: ReturnType<typeof installConversationSkillDraftMonitor> | undefined
     let trials: Awaited<ReturnType<typeof openConversationDraftTrialStore>> | undefined
     let trialMonitor: ReturnType<typeof installConversationDraftTrialMonitor> | undefined
-    let trialPolicy: ConversationDraftTrialPolicy[] = [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 24 }]
+    let trialPolicy: ConversationDraftTrialPolicy[] = [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: semantic ? 44 : 24, semanticEvaluation: semantic }]
+    const postTrialCalls = (retry ? 16 : 15) + (semantic ? 20 : 0)
     let learningPolicy: ConversationLearningPolicy[] = [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 2 }]
     const appendTurn = (session: Session, turn: number, text: string, answer: string): void => {
       session.append('turn/start', { turn })
@@ -191,7 +206,18 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
       const trial = trials.records(WORKSPACE_ID).at(-1)!
       if (trialRecovery) expect(trials.records(WORKSPACE_ID)[0]).toEqual(failedTrial)
       expect(trial.comparison).toMatchObject({ outcome: 'no-improvement', baselinePassed: 4, draftPassed: 4, comparablePairs: 4, loadedDraftLegs: 4 })
-      expect(calls).toHaveLength(retry ? 16 : 15)
+      expect(calls).toHaveLength(postTrialCalls)
+      if (semantic) {
+        expect(trial.reservedModelCalls).toBe(44)
+        expect(trial.judge?.requests).toHaveLength(20)
+        expect(trials.summarize(WORKSPACE_ID).items.at(-1)?.judge).toMatchObject({ calibrated: true, calibrationCompleted: 12, completedJudgments: 20 })
+        const fixtureCopy = structuredClone(trial)
+        for (const leg of fixtureCopy.legs) leg.result!.passed = false
+        const sealedDraft = drafts.records(WORKSPACE_ID).find(record => record.phase === 'draft')!.draft!
+        expect(compareConversationDraftTrial(fixtureCopy, sealedDraft)).toMatchObject({ baselinePassed: 4, draftPassed: 4, outcome: 'no-improvement' })
+        fixtureCopy.judge!.requests[12]!.decision!.verdict = 'uncertain'
+        expect(compareConversationDraftTrial(fixtureCopy, sealedDraft).outcome).toBe('inconclusive')
+      }
       expect(JSON.stringify(session.snapshotEvents())).toBe(before)
       const nativeReader = new DurableFeedbackAttribution(first.sessionPersistence, { lifecycle: first })
       for (const leg of trial.legs) {
@@ -208,7 +234,7 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
 
       waitForCancellation = true
       appendTurn(session, 3, '仍然表格太宽，飞书预览看不到来源。请保留事实重新排版。', '已重新排版。')
-      await vi.waitFor(() => expect(calls).toHaveLength(retry ? 17 : 16))
+      await vi.waitFor(() => expect(calls).toHaveLength(postTrialCalls + 1))
       await monitor.dispose()
       monitor = undefined
       expect(ledger.summarize(WORKSPACE_ID)).toMatchObject({ pendingCount: 0, uncertainCount: 1, observerAvailable: false })
@@ -225,7 +251,7 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
       monitor = installConversationCorrectionMonitor(second, ledger, policy)
       await vi.waitFor(() => expect(second!.jobs.list()).toHaveLength(1))
       await vi.waitFor(() => expect(second!.jobs.list()[0]?.status).toBe('completed'))
-      expect(calls).toHaveLength(retry ? 17 : 16)
+      expect(calls).toHaveLength(postTrialCalls + 1)
       expect(ledger.summarize(WORKSPACE_ID)).toMatchObject({ correctionCount: 1, uncertainCount: 1, attemptsToday: 2 })
       expect(second.sessions.get(sessionId)).toBeUndefined()
       drafts = await openConversationDraftStore(second.storageDomain, learningPolicy)
@@ -236,8 +262,8 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
       trialMonitor = installConversationDraftTrialMonitor(second, ledger, drafts, trials, trialPolicy)
       expect(trials.records(WORKSPACE_ID).at(-1)).toEqual(trial)
       if (trialRecovery) expect(trials.records(WORKSPACE_ID)[0]).toEqual(failedTrial)
-      expect(trials.summarize(WORKSPACE_ID).reservedModelCallsToday).toBe(trialRecovery ? 48 : 24)
-      expect(calls).toHaveLength(retry ? 17 : 16)
+      expect(trials.summarize(WORKSPACE_ID).reservedModelCallsToday).toBe(trialRecovery ? 48 : semantic ? 44 : 24)
+      expect(calls).toHaveLength(postTrialCalls + 1)
     } finally {
       await trialMonitor?.dispose()
       await trials?.close()

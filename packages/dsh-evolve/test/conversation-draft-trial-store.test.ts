@@ -6,6 +6,8 @@ import { digest } from '../src/conversation-correction-intake.ts'
 import type { ConversationDraftRecord } from '../src/conversation-skill-draft.ts'
 import { openConversationDraftTrialStore } from '../src/conversation-draft-trial-store.ts'
 import { executeConversationDraftTrial } from '../src/conversation-draft-trial-monitor.ts'
+import { vi } from 'vitest'
+import { DraftJudgeError } from '../src/conversation-draft-judge.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 function fixture() {
@@ -36,6 +38,80 @@ const source: ConversationDraftRecord = {
 }
 const route = { provider: 'fixed', model: 'fixed' }
 const policy = { workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 24 }
+
+it('reserves a semantic trial as one 44-call envelope and requires calibration before execution', async () => {
+  const f = fixture(), semantic = { ...policy, semanticEvaluation: true, maxModelCallsPerUtcDay: 44 }
+  const store = await openConversationDraftTrialStore(f.facility, [semantic], () => 1000)
+  let plan = (await store.reserve(source, route))!
+  expect(plan.reservedModelCalls).toBe(44)
+  expect(plan.judge?.requests).toEqual([])
+  await expect(store.startLeg(plan, 0)).rejects.toThrow('calibration')
+  plan = await store.startJudge(plan, '1'.repeat(64))
+  expect(plan.judge?.requests).toHaveLength(1)
+  await expect(store.startJudge(plan, '2'.repeat(64))).rejects.toThrow()
+  await store.close()
+  const reopened = await openConversationDraftTrialStore(f.facility, [semantic], () => 1000)
+  expect(reopened.records(WORKSPACE_ID)[0]?.phase).toBe('uncertain')
+  expect(await reopened.reserve(source, route)).toBeUndefined()
+  await expect(openConversationDraftTrialStore(f.facility, [{ ...semantic,
+    retryFailedTrials: [{ trialId: plan.id, expiresAt: 5000 }] }], () => 1000)).rejects.toThrow('grant')
+})
+
+it('rejects a wrong calibration verdict before any Agent exists and retains the paid reservation across restart', async () => {
+  const f = fixture(), semantic = { ...policy, semanticEvaluation: true, maxModelCallsPerUtcDay: 44 }
+  const store = await openConversationDraftTrialStore(f.facility, [semantic], () => 1000)
+  const plan = (await store.reserve(source, route))!
+  const judge = vi.fn(async () => ({ decision: { verdict: 'fail' as const, explanation: 'Controlled disagreement.',
+    citations: [{ source: 'task' as const, quote: 'Self-contained' }] }, usage: { inputTokens: 9, outputTokens: 5 } }))
+  const ctx = { workspaceRegistry: { resolveByPath: async () => ({ id: WORKSPACE_ID }) } } as unknown as Context
+  const rejected = await executeConversationDraftTrial(ctx, store, plan, source, '/fixture', new AbortController().signal, () => true, judge)
+  expect(rejected).toMatchObject({ phase: 'rejected', reason: 'judge-calibration-failed', reservedModelCalls: 44 })
+  expect(judge).toHaveBeenCalledTimes(1)
+  expect(rejected.legs.every(leg => leg.dispatchMarkers === 0 && leg.phase === 'pending')).toBe(true)
+  expect(store.summarize(WORKSPACE_ID).items[0]).toMatchObject({ inputTokens: 9, outputTokens: 5,
+    judge: { dispatchMarkers: 1, completedJudgments: 1, calibrated: false } })
+  expect(JSON.stringify(store.summarize(WORKSPACE_ID))).not.toContain('Controlled disagreement')
+  expect(JSON.stringify(store.summarize(WORKSPACE_ID))).not.toContain('Self-contained')
+  await store.close()
+  const cold = await openConversationDraftTrialStore(f.facility, [semantic], () => 86_401_000)
+  expect(cold.records(WORKSPACE_ID)).toEqual([rejected])
+  expect(await cold.reserve(source, route)).toBeUndefined()
+})
+
+it('retains partial judge usage on request failure without converting uncertainty into a score', async () => {
+  const store = await openConversationDraftTrialStore(fixture().facility, [{ ...policy, semanticEvaluation: true, maxModelCallsPerUtcDay: 44 }], () => 1000)
+  const plan = (await store.reserve(source, route))!
+  const ctx = { workspaceRegistry: { resolveByPath: async () => ({ id: WORKSPACE_ID }) } } as unknown as Context
+  const judge = vi.fn(async () => { throw new DraftJudgeError({ inputTokens: 9, outputTokens: 5 }) })
+  const failed = await executeConversationDraftTrial(ctx, store, plan, source, '/fixture', new AbortController().signal, () => true, judge)
+  expect(failed).toMatchObject({ phase: 'uncertain', reason: 'judge-unavailable' })
+  expect(failed.comparison).toBeUndefined()
+  expect(failed.judge?.requests[0]?.usage).toEqual({ inputTokens: 9, outputTokens: 5 })
+  expect(judge).toHaveBeenCalledTimes(1)
+})
+
+it('cancels an in-flight judge without sending another request or resuming it after cold open', async () => {
+  const f = fixture(), semantic = { ...policy, semanticEvaluation: true, maxModelCallsPerUtcDay: 44 }
+  const store = await openConversationDraftTrialStore(f.facility, [semantic], () => 1000)
+  const plan = (await store.reserve(source, route))!
+  const ctx = { workspaceRegistry: { resolveByPath: async () => ({ id: WORKSPACE_ID }) } } as unknown as Context
+  const controller = new AbortController()
+  const judge = vi.fn(async (_: unknown, signal: AbortSignal): Promise<never> => new Promise((_, reject) => {
+    signal.addEventListener('abort', () => reject(new DraftJudgeError({ inputTokens: 9, outputTokens: 1 })), { once: true })
+  }))
+  const running = executeConversationDraftTrial(ctx, store, plan, source, '/fixture', controller.signal, () => !controller.signal.aborted, judge)
+  await vi.waitFor(() => expect(judge).toHaveBeenCalledTimes(1))
+  controller.abort()
+  const cancelled = await running
+  expect(cancelled).toMatchObject({ phase: 'uncertain', reason: 'cancelled' })
+  expect(cancelled.judge?.requests).toHaveLength(1)
+  expect(cancelled.legs.every(leg => leg.phase === 'pending')).toBe(true)
+  await store.close()
+  const cold = await openConversationDraftTrialStore(f.facility, [semantic], () => 86_401_000)
+  expect(cold.records(WORKSPACE_ID)).toEqual([cancelled])
+  expect(await cold.reserve(source, route)).toBeUndefined()
+  expect(judge).toHaveBeenCalledTimes(1)
+})
 
 it('persists an unqualified evaluator without spending budget or permitting execution, retry or cold resume', async () => {
   for (const alternateAnswer of [undefined, 'wrong']) {

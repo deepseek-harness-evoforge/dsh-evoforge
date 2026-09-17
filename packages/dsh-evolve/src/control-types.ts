@@ -1398,6 +1398,7 @@ export interface ConversationSkillDraftSummary {
 /** Read-only proposed-check results; never returns test inputs, answers, request snapshots or activation authority. */
 export interface ConversationDraftTrialSummary {
   readonly enabled: boolean
+  readonly semanticEvaluationEnabled?: boolean
   readonly observerAvailable: boolean
   readonly warningCount: number
   readonly pendingCount: number
@@ -1408,7 +1409,9 @@ export interface ConversationDraftTrialSummary {
     readonly id: string
     readonly draftId: string
     readonly retryOf?: string
-    readonly phase: 'reserved' | 'running' | 'completed' | 'uncertain' | 'blocked'
+    readonly phase: 'reserved' | 'running' | 'completed' | 'uncertain' | 'blocked' | 'rejected'
+    readonly judge?: { readonly version: 'semantic-v1'; readonly dispatchMarkers: number; readonly completedJudgments: number;
+      readonly calibrationCompleted: number; readonly calibrated: boolean }
     readonly settledLegs: number
     readonly dispatchMarkers: number
     readonly requestCount: number
@@ -1425,7 +1428,7 @@ export interface ConversationDraftTrialSummary {
       readonly loadedDraftLegs: number
       readonly outcome: 'improvement-observed' | 'no-improvement' | 'regression' | 'inconclusive'
     }
-    readonly reason?: 'interrupted' | 'cancelled' | 'source-conflict' | 'execution-failed' | 'evaluator-unqualified'
+    readonly reason?: 'interrupted' | 'cancelled' | 'source-conflict' | 'execution-failed' | 'evaluator-unqualified' | 'judge-calibration-failed' | 'judge-unavailable'
   }[]
   readonly releaseAuthority: 'none'
 }

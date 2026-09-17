@@ -1608,6 +1608,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = () => (dsh_evolve_ev
 })]).readonly().optional(),
   'conversationDraftTrials': z.union([z.undefined(), z.object({
   'enabled': z.boolean().readonly(),
+  'semanticEvaluationEnabled': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
   'observerAvailable': z.boolean().readonly(),
   'warningCount': z.number().readonly(),
   'pendingCount': z.number().readonly(),
@@ -1618,7 +1619,14 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = () => (dsh_evolve_ev
   'id': z.string().readonly(),
   'draftId': z.string().readonly(),
   'retryOf': z.union([z.undefined(), z.string()]).readonly().optional(),
-  'phase': z.union([z.literal("uncertain"), z.literal("blocked"), z.literal("reserved"), z.literal("running"), z.literal("completed")]).readonly(),
+  'phase': z.union([z.literal("uncertain"), z.literal("blocked"), z.literal("rejected"), z.literal("reserved"), z.literal("running"), z.literal("completed")]).readonly(),
+  'judge': z.union([z.undefined(), z.object({
+  'version': z.literal("semantic-v1").readonly(),
+  'dispatchMarkers': z.number().readonly(),
+  'completedJudgments': z.number().readonly(),
+  'calibrationCompleted': z.number().readonly(),
+  'calibrated': z.boolean().readonly(),
+})]).readonly().optional(),
   'settledLegs': z.number().readonly(),
   'dispatchMarkers': z.number().readonly(),
   'requestCount': z.number().readonly(),
@@ -1635,7 +1643,7 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = () => (dsh_evolve_ev
   'loadedDraftLegs': z.number().readonly(),
   'outcome': z.union([z.literal("improvement-observed"), z.literal("no-improvement"), z.literal("regression"), z.literal("inconclusive")]).readonly(),
 })]).readonly().optional(),
-  'reason': z.union([z.undefined(), z.literal("cancelled"), z.literal("interrupted"), z.literal("source-conflict"), z.literal("execution-failed"), z.literal("evaluator-unqualified")]).readonly().optional(),
+  'reason': z.union([z.undefined(), z.literal("cancelled"), z.literal("interrupted"), z.literal("source-conflict"), z.literal("execution-failed"), z.literal("evaluator-unqualified"), z.literal("judge-calibration-failed"), z.literal("judge-unavailable")]).readonly().optional(),
 })).readonly(),
   'releaseAuthority': z.literal("none").readonly(),
 })]).readonly().optional(),
@@ -2595,7 +2603,7 @@ export const TYPERT = {
           },
           {
             "name": "ConversationDraftTrialSummary",
-            "declaration": "export interface ConversationDraftTrialSummary {\n    readonly enabled: boolean;\n    readonly observerAvailable: boolean;\n    readonly warningCount: number;\n    readonly pendingCount: number;\n    readonly uncertainCount: number;\n    readonly reservedModelCallsToday: number;\n    readonly maxModelCallsPerUtcDay: number;\n    readonly items: readonly { readonly id: string; readonly draftId: string; readonly retryOf?: string; readonly phase: 'reserved' | 'running' | 'completed' | 'uncertain' | 'blocked'; readonly settledLegs: number; readonly dispatchMarkers: number; readonly requestCount: number; readonly inputTokens: number; readonly outputTokens: number; readonly usageMissingCount: number; readonly elapsedMs: number; readonly comparison?: { readonly baselinePassed: number; readonly draftPassed: number; readonly improved: number; readonly regressed: number; readonly comparablePairs: number; readonly loadedDraftLegs: number; readonly outcome: 'improvement-observed' | 'no-improvement' | 'regression' | 'inconclusive'; }; readonly reason?: 'interrupted' | 'cancelled' | 'source-conflict' | 'execution-failed' | 'evaluator-unqualified'; }[];\n    readonly releaseAuthority: 'none';\n}"
+            "declaration": "export interface ConversationDraftTrialSummary {\n    readonly enabled: boolean;\n    readonly semanticEvaluationEnabled?: boolean;\n    readonly observerAvailable: boolean;\n    readonly warningCount: number;\n    readonly pendingCount: number;\n    readonly uncertainCount: number;\n    readonly reservedModelCallsToday: number;\n    readonly maxModelCallsPerUtcDay: number;\n    readonly items: readonly { readonly id: string; readonly draftId: string; readonly retryOf?: string; readonly phase: 'reserved' | 'running' | 'completed' | 'uncertain' | 'blocked' | 'rejected'; readonly judge?: { readonly version: 'semantic-v1'; readonly dispatchMarkers: number; readonly completedJudgments: number; readonly calibrationCompleted: number; readonly calibrated: boolean; }; readonly settledLegs: number; readonly dispatchMarkers: number; readonly requestCount: number; readonly inputTokens: number; readonly outputTokens: number; readonly usageMissingCount: number; readonly elapsedMs: number; readonly comparison?: { readonly baselinePassed: number; readonly draftPassed: number; readonly improved: number; readonly regressed: number; readonly comparablePairs: number; readonly loadedDraftLegs: number; readonly outcome: 'improvement-observed' | 'no-improvement' | 'regression' | 'inconclusive'; }; readonly reason?: 'interrupted' | 'cancelled' | 'source-conflict' | 'execution-failed' | 'evaluator-unqualified' | 'judge-calibration-failed' | 'judge-unavailable'; }[];\n    readonly releaseAuthority: 'none';\n}"
           },
           {
             "name": "ConversationSkillDraftSummary",

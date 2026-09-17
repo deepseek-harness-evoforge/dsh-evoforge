@@ -4,6 +4,7 @@ import { digest } from './conversation-correction-intake.ts'
 import { matchesDraftCase } from './conversation-skill-draft.ts'
 import { CONVERSATION_TRIAL_PROVIDER, type ConversationDraftTrialLegInput, type runConversationDraftTrialLeg } from './conversation-draft-trial-native.ts'
 import type { ConversationDraftTrialComparison, ConversationDraftTrialRecord, ConversationDraftTrialResult } from './conversation-draft-trial-store.ts'
+import { trialJudgeCalibrated, trialLegPassed } from './conversation-draft-trial-store.ts'
 
 type Draft = NonNullable<ConversationDraftTrialLegInput['draft']>
 type NativeLeg = Awaited<ReturnType<typeof runConversationDraftTrialLeg>>
@@ -120,20 +121,24 @@ export function sameTrialInitialComposition(baseline: string | undefined, candid
 export function compareConversationDraftTrial(record: ConversationDraftTrialRecord, draft: Draft): ConversationDraftTrialComparison {
   let baselinePassed = 0, draftPassed = 0, improved = 0, regressed = 0, comparablePairs = 0, loadedDraftLegs = 0
   let allCompleted = true, attributable = true
+  if (record.judge !== undefined && (!trialJudgeCalibrated(record) || record.judge.requests.length !== 20
+    || record.judge.requests.some(request => request.decision === undefined || request.decision.verdict === 'uncertain'))) allCompleted = false
   for (let i = 0; i < 8; i += 2) {
     const pair = record.legs.slice(i, i + 2)
     const baseline = pair.find(leg => leg.variant === 'baseline')?.result
     const candidate = pair.find(leg => leg.variant === 'draft')?.result
     if (!baseline || !candidate || baseline.status !== 'completed' || candidate.status !== 'completed') allCompleted = false
-    if (baseline?.passed) baselinePassed++
-    if (candidate?.passed) draftPassed++
+    const baselinePass = trialLegPassed(record, pair.find(leg => leg.variant === 'baseline')!.index)
+    const candidatePass = trialLegPassed(record, pair.find(leg => leg.variant === 'draft')!.index)
+    if (baselinePass) baselinePassed++
+    if (candidatePass) draftPassed++
     if (candidate?.skillLoaded) loadedDraftLegs++
     if (sameTrialInitialComposition(baseline?.firstRequest, candidate?.firstRequest, draft)) comparablePairs++
-    if (baseline && candidate && !baseline.passed && candidate.passed) {
+    if (baseline && candidate && !baselinePass && candidatePass) {
       improved++
       if (!candidate.skillLoaded) attributable = false
     }
-    if (baseline?.passed && candidate && !candidate.passed) regressed++
+    if (baselinePass && candidate && !candidatePass) regressed++
   }
   const outcome = !allCompleted || comparablePairs !== 4 ? 'inconclusive'
     : regressed > 0 ? 'regression'

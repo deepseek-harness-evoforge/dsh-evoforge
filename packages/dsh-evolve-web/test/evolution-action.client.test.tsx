@@ -795,6 +795,33 @@ describe('EvolutionAction', () => {
     expect(screen.queryByRole('button', { name: /启用|晋升/u })).toBeNull()
   })
 
+  it.each(['rejected', 'uncertain', 'completed'] as const)('shows semantic judging %s separately from literal scores and activation', async phase => {
+    const api = remote()
+    vi.mocked(api.overview).mockImplementationOnce(() => success({
+      schemaVersion: 1, workspaceId, recovery: { available: true, paused: false },
+      generationSelectionHistory: emptyGenerationSelectionHistory(),
+      conversationDraftTrials: { enabled: true, semanticEvaluationEnabled: true, observerAvailable: true, pendingCount: 0,
+        uncertainCount: phase === 'uncertain' ? 1 : 0, warningCount: 0, reservedModelCallsToday: 44, maxModelCallsPerUtcDay: 44, releaseAuthority: 'none',
+        items: [{ id: 'f'.repeat(64), draftId: 'd'.repeat(64), phase, settledLegs: phase === 'completed' ? 8 : 0,
+          dispatchMarkers: 12, requestCount: phase === 'completed' ? 12 : 0, inputTokens: 500, outputTokens: 200, usageMissingCount: 0, elapsedMs: 4000,
+          judge: { version: 'semantic-v1', dispatchMarkers: phase === 'completed' ? 20 : 1, completedJudgments: phase === 'completed' ? 20 : 1,
+            calibrationCompleted: phase === 'completed' ? 12 : 1, calibrated: phase === 'completed' },
+          ...(phase === 'completed' ? { comparison: { baselinePassed: 3, draftPassed: 4, improved: 1, regressed: 0,
+            comparablePairs: 4, loadedDraftLegs: 2, outcome: 'improvement-observed' as const } }
+            : { reason: phase === 'rejected' ? 'judge-calibration-failed' as const : 'judge-unavailable' as const }) }] },
+      reviews: { available: true, pendingCount: 0, actionableCount: 0, warningCount: 0, items: [], inactiveGenerations: [] },
+    }))
+    render(<EvolutionAction remote={api} t={key => zh[key as keyof typeof zh] ?? key}
+      wide useSessions={sessionHook()} useWorkspaces={workspaceHook()} />)
+    fireEvent.click(screen.getByRole('button', { name: zh['trigger.label'] }))
+    expect(await screen.findByText(zh['trial.semanticBudget'])).toBeTruthy()
+    expect(screen.getByText(zh['trial.semanticLimit'])).toBeTruthy()
+    if (phase === 'completed') expect(screen.getByText(/原有能力语义判分通过/u)).toBeTruthy()
+    else expect(screen.getByText(zh[`trial.phase.${phase}`])).toBeTruthy()
+    expect(screen.queryByText(/原有能力字面断言通过/u)).toBeNull()
+    expect(screen.queryByRole('button', { name: /启用|晋升/u })).toBeNull()
+  })
+
   it('shows ordinary-chat hypotheses separately from explicit feedback and verified improvements', async () => {
     const api = remote()
     vi.mocked(api.overview).mockImplementationOnce(() => success({

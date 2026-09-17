@@ -508,14 +508,20 @@ function BeginnerOverview({ summary, openAdvanced, t }: {
       <h3>{t('trial.title')}</h3>
       {!trials.observerAvailable && <p>{t('trial.unavailable')}</p>}
       <p>{t('trial.budget')} {trials.reservedModelCallsToday} / {trials.maxModelCallsPerUtcDay}</p>
+      {trials.semanticEvaluationEnabled && <p>{t('trial.semanticBudget')}</p>}
       {trials.warningCount > 0 && <p>{t('correction.warning')}</p>}
       {trials.items.map(trial => <article key={trial.id}>
         <h4>{drafts?.items.find(draft => draft.id === trial.draftId)?.name ?? t('trial.title')}</h4>
         {trial.retryOf !== undefined && <p>{t('trial.setupRetry')}</p>}
         <p>{t(trial.comparison === undefined ? `trial.phase.${trial.phase}` : `trial.outcome.${trial.comparison.outcome}`)}</p>
+        {trial.reason === 'judge-unavailable' && <p>{t('trial.judgeUnavailable')}</p>}
+        {trial.judge !== undefined && <>
+          <p>{t('trial.judgeCalibration')} {trial.judge.calibrationCompleted} / 12</p>
+          <p>{t('trial.judgeRequests')} {trial.judge.dispatchMarkers} / {trial.judge.completedJudgments}</p>
+        </>}
         <p>{t('trial.progress')} {trial.settledLegs} / 8</p>
         {trial.comparison !== undefined && <>
-          <p>{t('trial.baseline')} {trial.comparison.baselinePassed} / 4 · {t('trial.draft')} {trial.comparison.draftPassed} / 4</p>
+          <p>{t(trial.judge === undefined ? 'trial.baseline' : 'trial.semanticBaseline')} {trial.comparison.baselinePassed} / 4 · {t(trial.judge === undefined ? 'trial.draft' : 'trial.semanticDraft')} {trial.comparison.draftPassed} / 4</p>
           <p>{t('trial.loaded')} {trial.comparison.loadedDraftLegs} / 4 · {t('trial.pairs')} {trial.comparison.comparablePairs} / 4</p>
         </>}
         <p>{t('trial.requests')} {trial.requestCount} · {t('trial.seconds')} {Math.round(trial.elapsedMs / 1000)}</p>
@@ -523,6 +529,7 @@ function BeginnerOverview({ summary, openAdvanced, t }: {
         {trial.usageMissingCount > 0 && <p>{t('trial.usageUnknown')}</p>}
       </article>)}
       <p className="dsh-evolve-guidance">{t('trial.limit')}</p>
+      {trials.items.some(trial => trial.judge !== undefined) && <p className="dsh-evolve-guidance">{t('trial.semanticLimit')}</p>}
     </section>}
     <section>
       <h3 className="dsh-evolve-section-title">{t('onboarding.how')}</h3>
