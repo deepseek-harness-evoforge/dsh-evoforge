@@ -25,7 +25,32 @@ episode，不能算两个独立训练样本。随后发送一条明确“新增�
 
 ## 真实运行
 
-待部署后填写实际结果；目前不得把上述 fixture 结果当作真实模型正确率。
+实现提交 `66d1f1f` 已推送 origin/main。仅从上述校验过的 product pack 安装 dsh-evolve 与 dsh-evolve-web，
+在原 profile 加一条精确 evolution override，保留 bundle 的 cacheRoot；其他包依赖不变。
+安装前冷备份 profile 和 sessions，22 个历史文件逐字节核对不变。附加 storages 备份遇到一个原生
+session_projcache 文件 EACCES；没有改变该文件权限，备份不能称为完整存储备份。
+
+真实原生模型 gpt/gpt-5.6-sol 结果：
+
+| 输入 | 实际分类 | 输入 token | 输出 token | 判据 |
+|---|---|---:|---:|---|
+| 已有飞书 E2（turn 20） | correction / presentation | 652 | 183 | 通过 |
+| 已有飞书 E3（turn 21） | correction / presentation | 679 | 139 | 通过 |
+| Web 新增标题要求（turn 22） | changed-requirement / instruction-following | 483 | 71 | 通过：不是纠正 |
+
+合计 3 次辅助请求，输入 1,814、输出 393 token；provider 未提供 cache-read/cache-write 数值，不推断零缓存或货币成本。
+这三项是窄样本验收，不是泛化正确率。标题任务本身另有一次原生 Agent 请求，Web 显示约 15.3K token、3 秒，
+真实回复“活动行动简报”，无工具调用。该主任务消耗不包含在辅助识别合计里。
+
+真实原生控制台刷新显示 2 条待核对纠正、0 正在识别、0 结果不明、今日预算 3/4；普通回答负反馈仍为 0。
+531px 窄屏截图检查了卡片顶部和滚动后底部，字段换行正常。断开唯一 Host 后点击刷新，出现读取失败并保留旧计数；
+重启同一 profile 后手动刷新恢复，权限保持完全访问，没有另建 Host 或 Session。
+
+冷重启后纠正账本逐字节不变：三条记录仍 classified、modelCalls 各 1，未追加识别预留或重复请求。
+最初用压缩 Session 文件哈希验证得到不同，进一步用官方 zstd frame reader 核查：DSH 正常退出追加了原生
+`session/end-seed`（seq 417）；最后完成的仍是 turn 22，前两个纠正及新增要求的来源重放没有冲突。
+因此只声明来源和任务历史保留，不声明压缩 Session 整文件在运行与退出间逐字节不变。
+五个 Gateway 持久文件与冷备份逐字节一致，含 pairing、ingress、outbound 与 file outbound；本次没有新增渠道发送或配对变更。
 
 ## 已知限制
 
