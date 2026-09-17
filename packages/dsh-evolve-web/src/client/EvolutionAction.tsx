@@ -433,20 +433,21 @@ function BeginnerOverview({ summary, openAdvanced, t }: {
   const headline = pending > 0
     ? `${pending} ${t('onboarding.actionable')}`
     : corrections > 0
-      ? t(verificationConfigured ? 'onboarding.feedbackReady' : 'onboarding.feedbackBlocked')
+      ? t(verificationConfigured ? 'onboarding.feedbackPending' : 'onboarding.feedbackBlocked')
       : verificationConfigured
         ? t('onboarding.idle')
         : t('onboarding.verificationMissing')
   const explanation = pending > 0 || (corrections === 0 && verificationConfigured)
     ? t('onboarding.intro')
     : corrections > 0
-      ? t(verificationConfigured ? 'onboarding.feedbackReadyHelp' : 'onboarding.feedbackBlockedHelp')
+      ? t(verificationConfigured ? 'onboarding.feedbackPendingHelp' : 'onboarding.feedbackBlockedHelp')
       : t('onboarding.verificationMissingHelp')
   return <>
     <section className="dsh-evolve-welcome">
       <div className="dsh-evolve-eyebrow">{t('onboarding.eyebrow')}</div>
       <h3>{headline}</h3>
       <p>{explanation}</p>
+      <p className="dsh-evolve-guidance">{t('onboarding.scopeLimit')}</p>
       {pending > 0 && (
         <button type="button" className="dsh-evolve-button dsh-evolve-primary" onClick={openAdvanced}>
           {t('onboarding.review')}

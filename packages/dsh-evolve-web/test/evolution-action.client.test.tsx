@@ -5,6 +5,7 @@ import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
 import { EvolutionAction } from '../src/client/EvolutionAction.tsx'
 import { apply } from '../src/client/index.ts'
 import type { EvolutionRemoteClient } from '../src/client/remote.ts'
+import { en, zh } from '../src/client/locales.ts'
 
 afterEach(cleanup)
 
@@ -299,13 +300,14 @@ const t = (key: string) => ({
   'onboarding.idle': 'Nothing needs your attention',
   'onboarding.step.correct': 'Mark the assistant answer as problematic',
   'onboarding.step.correctHelp': 'Under the answer, select “Bad response”, then “Add a note”; explain what was wrong and the correct result, and save it.',
-  'onboarding.verificationMissing': 'Corrections are available, but independent evaluation governance is not configured',
-  'onboarding.verificationMissingHelp': 'You can still leave a correction under an answer. Until independent evaluation governance is configured, EvoForge records internal evidence without pretending that evolution ran.',
-  'onboarding.feedbackBlocked': 'A correction is recorded, but verification is not configured',
-  'onboarding.feedbackBlockedHelp': 'Your correction remains safely in this Workspace. Independent evaluation governance must be configured before the system can author and isolate a Candidate from internal experience.',
-  'onboarding.feedbackReady': 'Correction recorded for autonomous evaluation',
-  'onboarding.feedbackReadyHelp': 'EvoForge will attribute and cluster this evidence internally. It will surface a review only after an isolated Candidate passes governance.',
-  'onboarding.recorded': 'recorded corrections',
+  'onboarding.verificationMissing': en['onboarding.verificationMissing'],
+  'onboarding.verificationMissingHelp': en['onboarding.verificationMissingHelp'],
+  'onboarding.feedbackBlocked': en['onboarding.feedbackBlocked'],
+  'onboarding.feedbackBlockedHelp': en['onboarding.feedbackBlockedHelp'],
+  'onboarding.feedbackPending': en['onboarding.feedbackPending'],
+  'onboarding.feedbackPendingHelp': en['onboarding.feedbackPendingHelp'],
+  'onboarding.scopeLimit': en['onboarding.scopeLimit'],
+  'onboarding.recorded': en['onboarding.recorded'],
   'skills.empty': 'No evolved Skills yet.',
   'skills.catalog': 'Session capability map',
   'skills.catalog.complete': 'Catalog observed',
@@ -711,6 +713,32 @@ async function selectAdvanced() {
 }
 
 describe('EvolutionAction', () => {
+  it.each([
+    { locale: zh, configured: 0, count: 0, heading: '反馈可记录，自动改进尚未就绪' },
+    { locale: zh, configured: 1, count: 1, heading: '反馈已记录，等待资格检查' },
+    { locale: en, configured: 0, count: 0, heading: 'Feedback can be recorded; automatic improvement is not ready' },
+    { locale: en, configured: 1, count: 1, heading: 'Feedback recorded; eligibility still needs checking' },
+  ])('does not present chat corrections or configured policies as an active learning loop ($configured/$count)', async ({ locale, configured, count, heading }) => {
+    const api = remote()
+    vi.mocked(api.overview).mockImplementationOnce(() => success({
+      schemaVersion: 1, workspaceId,
+      recovery: { available: true, paused: false },
+      generationSelectionHistory: emptyGenerationSelectionHistory(),
+      feedbackSignals: { all: count, selected: count },
+      skillEvaluationGovernance: { configuredPolicyCount: configured, warningCount: 0, runs: [] },
+      reviews: { available: true, pendingCount: 0, actionableCount: 0, warningCount: 0, items: [], inactiveGenerations: [] },
+    }))
+    render(<EvolutionAction remote={api} t={key => locale[key as keyof typeof zh] ?? key}
+      wide useSessions={sessionHook()} useWorkspaces={workspaceHook()} />)
+    fireEvent.click(screen.getByRole('button', { name: locale['trigger.label'] }))
+    expect(await screen.findByRole('heading', { name: heading })).toBeTruthy()
+    const limitation = locale === zh
+      ? '当前限制：普通聊天中的纠正尚未自动接入 Skill 改进。计数仅包含已保存的带说明负反馈，不包含普通纠正消息。'
+      : 'Current limit: corrections in ordinary chat are not automatically connected to Skill improvement. The count includes saved negative answer feedback with a note, not correction messages.'
+    expect(screen.getByText(limitation)).toBeTruthy()
+    expect(screen.queryByText(/纠正已进入自主评测闭环|Correction recorded for autonomous evaluation/u)).toBeNull()
+  })
+
   it('guides a first-time user before exposing evolution machinery', async () => {
     const api = remote()
     vi.mocked(api.overview).mockImplementationOnce(() => success({
@@ -734,8 +762,8 @@ describe('EvolutionAction', () => {
     expect((await screen.findByRole('tab', { name: 'Overview' })).getAttribute('aria-selected')).toBe('true')
     expect(screen.getByRole('tab', { name: 'Skills' })).toBeTruthy()
     expect(screen.getByRole('tab', { name: 'Advanced' })).toBeTruthy()
-    expect(screen.getByText('Corrections are available, but independent evaluation governance is not configured')).toBeTruthy()
-    expect(screen.getByText(/without pretending that evolution ran/u)).toBeTruthy()
+    expect(screen.getByText(en['onboarding.verificationMissing'])).toBeTruthy()
+    expect(screen.getByText(en['onboarding.verificationMissingHelp'])).toBeTruthy()
     expect(screen.getByText('Mark the assistant answer as problematic')).toBeTruthy()
     expect(screen.getByText(/select “Bad response”, then “Add a note”/u)).toBeTruthy()
     expect(screen.queryByText(/Generation|Shadow|Evaluator/)).toBeNull()
@@ -765,14 +793,14 @@ describe('EvolutionAction', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
 
-    expect(await screen.findByText('A correction is recorded, but verification is not configured')).toBeTruthy()
-    expect(screen.getByText(/governance must be configured before the system can author/u)).toBeTruthy()
-    expect(screen.getByText('recorded corrections').parentElement?.textContent).toBe('1recorded corrections')
+    expect(await screen.findByText(en['onboarding.feedbackBlocked'])).toBeTruthy()
+    expect(screen.getByText(en['onboarding.feedbackBlockedHelp'])).toBeTruthy()
+    expect(screen.getByText(en['onboarding.recorded']).parentElement?.textContent).toBe(`1${en['onboarding.recorded']}`)
     expect(screen.queryByText('Nothing needs your attention')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Process recorded correction' })).toBeNull()
   })
 
-  it('records a correction for autonomous internal evaluation without offering a route', async () => {
+  it('keeps configured feedback pending eligibility without offering a route', async () => {
     const api = remote()
     const configured = remote()
     vi.mocked(api.overview).mockImplementationOnce(async (requestedWorkspaceId: string) => {
@@ -792,7 +820,7 @@ describe('EvolutionAction', () => {
     renderEvolution(api)
 
     fireEvent.click(screen.getByRole('button', { name: 'Evolution' }))
-    expect(await screen.findByText('Correction recorded for autonomous evaluation')).toBeTruthy()
+    expect(await screen.findByText(en['onboarding.feedbackPending'])).toBeTruthy()
     expect(screen.queryByRole('button', { name: /Process|Shadow|Evaluator/u })).toBeNull()
     fireEvent.click(screen.getByRole('tab', { name: 'Skills' }))
 

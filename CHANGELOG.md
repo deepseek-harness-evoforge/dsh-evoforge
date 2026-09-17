@@ -7,6 +7,9 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Clarify that Evolution feedback counts cover saved negative answer feedback with a note, not ordinary chat corrections.
+  Configured evaluation policies and feedback counts now show pending eligibility, not an autonomous evaluation claim.
+
 - Render table-bearing Feishu replies with native Markdown rich text instead of visible pipe-delimited source. Preserve
   message content, reply targeting and delivery recovery; literal platform markup and image syntax stay plain text.
 
