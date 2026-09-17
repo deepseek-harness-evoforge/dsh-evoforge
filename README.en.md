@@ -13,8 +13,9 @@ Skills, Tools, Approvals, Jobs, Workspaces, permissions, and storage.
   inside the existing DSH Host.
 - **Feishu and Telegram:** independently disabled and removable adapters. An unknown direct message receives a pairing
   code; only the next message after approval enters an existing DSH Session.
-- **Verifiable evolution:** corrections, failures, checks, and outcomes become evidence. Inactive Candidates are isolated
-  from current Skills and must pass independent gates before future Sessions can use them.
+- **Isolated improvement and evaluation:** separately authorize correction inspection, inactive Skill drafts, and limited
+  comparisons without changing current capabilities. Candidate management has separate future-Session pinning and rollback
+  mechanisms; the full ordinary-correction-to-activation path and unseen-task gains remain unverified.
 - **One control surface:** Gateway, Channels, Evolution, Doctor, and other installed modules share one native DSH Web view.
 - **Optional delivery and continuity:** isolated software delivery, Draft PR support, native Goal cold resume, and a
   user-level resident service are separate add-ons.
@@ -60,8 +61,9 @@ Open the full URL printed by DSH, including `?token=...`; the bare port returns 
 starting another Host. Open or create a native Session before expecting the Session-scoped control view to appear.
 
 Use DSH normally: chat, attach supported material, or correct a result. There is no separate evolution workflow to start.
-A native Goal is only needed when the user wants DSH's long-running continuation. Evolution runs beside the conversation;
-one failure, retry, or model self-score cannot rewrite a Skill, and an active Session never switches Generation mid-run.
+A native Goal is only needed when the user wants DSH's long-running continuation. Paid correction inspection, drafting,
+and comparisons are off by default and require separate administrator budgets. One failure, retry, or model self-score
+cannot rewrite a Skill. Ordinary-correction drafts remain inactive and do not change the current conversation.
 
 ## Feishu pairing
 
@@ -69,7 +71,7 @@ Explicitly enable `evoforge-feishu` in the DSH profile with pairing mode, and sa
 DSH CredentialProvider. Never put cleartext credentials in YAML, logs, or Git. Then:
 
 1. The user sends any direct message. Gateway returns a one-time code and does not dispatch that first message.
-2. An administrator selects an existing Workspace/Session in the same DSH Web **Channels** view and approves it.
+2. An administrator opens the intended Workspace/Session, then checks and approves pairing in **Control Center → Channels**.
 3. The user's next message enters that native Session.
 
 The exact profile fragment, platform permissions, Telegram setup, and recovery steps are in the

@@ -15,9 +15,9 @@
 | --- | --- | --- |
 | DSH 兼容与安装 | 固定新版核心及原生依赖已部署；完整 build/typecheck/test、兼容矩阵、历史副本迁移和官方安装路径通过 | 不是未来版本兼容声明；追加新消息后不能只换回旧核心 |
 | Web | 原会话实际文件回读与重启恢复通过；子页刷新、重挂载、会话隔离、断线提示与恢复已部署实测 | blank Session/onboarding 原生 slot 边界仍存在；非全部任务状态验收 |
-| Gateway / Feishu | 私聊原生 read/present 实际交付 131 字节附件，平台下载哈希一致；重启回读成功、无重复发送 | 群聊、审批、计划、撤销和长期重连尚未形成同一轮完整真实发布矩阵 |
+| Gateway / Feishu | 私聊附件实际下载哈希一致，重启回读无重复发送；短表格消息正确渲染；多材料报告事实通过，但可读版需两次返工 | 群聊、审批、计划、撤销和长期重连尚未形成同一轮完整真实发布矩阵；附件宽表仍需人工核验 |
 | Telegram | Adapter、pairing 和安全合同有 assembled 证据 | 真实 Bot AS-1 未完成 |
-| Evolution | Candidate、隔离评测、future-Session 固定与回滚有局部合同 | 普通无 Goal 纠正尚未贯通慢环；未见任务实际收益未证明 |
+| Evolution | 普通无 Goal 纠正识别、隔离草稿与八分支真实对照已运行；语义裁判默认关闭且只有无付费机制证据 | 旧字面检查双方 0/4、未证明改善；未见任务收益、普通草稿启用及精确回滚未闭合 |
 | Provider 进化验收 | RP-1 epoch 2 资格检查在读取 Provider 配置前拒绝不完整 attestation | runtime-attestation-incomplete；真实聊天不能替代进化验收 |
 | Delivery / continuity | 安装、原生 Session/Goal/Storage 移除读回及局部恢复合同通过 | 不外推所有附加套件或长期效果 |
 | Hermes paired | 有冻结 deterministic/assembled 切片 | 同任务、模型、权限、预算的实际质量优势仍 not-measured |
@@ -34,26 +34,40 @@
 - 刷新控制台丢失子页的问题已修复；会话隔离和断线后自动恢复通过，
   见 [9 月 17 日控制台验收](evidence/2026-09-17-control-center-view-recovery.zh.md)。
   此前“当前 profile 未验证”“生产仍为 alpha.5”“EACCES 阻止主要路径”的概括已过时；没有因此修改历史文件权限。
+- 飞书短表格不再显示竖线原文，真实私聊及重启续接通过，见
+  [表格呈现验收](evidence/2026-09-17-feishu-table-presentation.zh.md)。这不保证附件预览中的宽表可读。
+- 草稿评测会话不再生成普通纠正后台任务；真实来源错误仍报告。已部署，无密钥原生八分支与冷回读证明隔离行为，
+  见[纠正与评测隔离](evidence/2026-09-17-correction-evaluation-isolation.zh.md)。本次没有重跑付费实验。
 
-## 普通纠正链路的实际缺口
+## 真实任务效果与普通纠正链路
 
-9 月 17 日按当前生产入口源码核对：
+9 月 17 日的[约束任务](evidence/2026-09-17-feishu-constraint-task.zh.md)两轮内容通过，额外提示为零；
+[多材料报告](evidence/2026-09-17-feishu-conflicting-material-task.zh.md)首次事实与附件交付 6/6 通过，
+但可读性需要两次排版纠正：第二版仍失败，第三版才在实际预览中通过。三轮原生耗时合计 85.629 秒，UI 用量
+约 161.7K tok，费用未测。这是受监督返工，不是一次自治完成，也不是相对 Hermes 的质量优势。
 
-1. `feedback-signal-monitor.ts` 监听原生 message feedback，投影 negative-with-note；它不是自然语言返工消息识别器。
-2. `skill-opportunity-discovery.ts` 的现有 Skill 改进机会仍要求 exact invocation content 和
-   `two-or-more-distinct-goals-same-invocation-content`。不能要求普通聊天先创建 Goal 来冒充交互优先。
-3. `index.ts` 把无 Goal Gap 保留为 signal，不触发旧 authoring reconcile。独立 Interaction resolver 仅组合局部
-   Workspace/Generation/Routing 证据，返回 `evidence-unavailable`，没有提供完整运行时 attestation。
+当前普通纠正的新增路径与旧 Goal-qualified Candidate 路径分开：
+
+1. 原生 message feedback 仍投影回答负反馈；另一个默认关闭、逐 Workspace 授权的监听器识别普通聊天纠正，
+   保存未验证解释而不是冒充用户反馈。现用界面有两条线索，不能据此认定方法有效。
+2. 单独预算的草稿阶段先封存测试，再由看不到测试题的请求起草；已生成一份真实草稿，仍未安装或启用。
+3. 已执行八个原生 baseline/draft 分支，四组首请求可比，十次执行请求；字面断言双方 0/4，未观察到改善。
+   事后发现逐字标签与表达要求过严，不能将分数解释成任务完成率，也不修改或重评旧实验。
+4. 新材料增加替代表达校准；可选语义裁判须先通过正反例校准，但仍复用来源模型，可能误判。
+   [语义判分验收](evidence/2026-09-17-draft-semantic-judge.zh.md)仅证明机制，现用配置未开启，真实质量待验证。
+5. 普通草稿没有通往自动晋升的权限。旧机会发现仍要求 exact invocation 与 distinct Goals；独立 Interaction
+   resolver 仍缺完整运行时 attestation。不能移除门禁把这些草稿伪装成合格 Candidate。
 
 “收到纠正”“记录 signal”“生成候选”“未见任务改善”是不同验收点。不能删除 Goal 检查或把一句纠正当作充分因果
-证据来接通晋升，也不能用 fixture 成功声明运行时已经学会。
+证据来接通晋升，也不能用 fixture 成功声明运行时已经学会。新真实试点仍须明确预算并遵守每日上限；不得清零旧预留，
+也不得复用操作者已经看过的旧答案冒充未见样本。
 
 ## 下一退出门（按用户优先级）
 
 1. 扩大固定真实任务的正确率、完成度、人工干预、耗时和 token 记录；优先修结果不完整、半途停止、失败却报成功。
    复用已通过的 Web/飞书路径，不重复迁移核心或修已关闭的子页问题。
-2. 贯通一个普通纠正的最小纵向切片：原生消息与具体失败/修复证据关联，形成 inactive Skill 候选，再经 proposer
-   不能改写的独立 baseline/candidate、未见 holdout 和 retention。不足则 abstain，当前 Session 不漂移且可精确回滚。
+2. 在已有普通纠正与草稿链路上验证语义判分质量，取得新的未见 holdout/retention 效果，再补齐合格候选、未来会话启用
+   与精确回滚。不得重新运行旧试验来挑选分数；当前 Session 不漂移，证据不足时保留未启用状态。
 3. 补齐真实渠道审批、恢复和不确定外部效果矩阵；保持单一 Host，不扩大授权、不盲目重发。
 4. 同任务/模型/权限/预算比较 Hermes，仅对证据充分的具体工作流声明更好；最后进入 release/registry 门禁。
 
