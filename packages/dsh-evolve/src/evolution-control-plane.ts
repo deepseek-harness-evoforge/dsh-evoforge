@@ -7,6 +7,7 @@ import type {
 import type { FeedbackSignalStore } from './feedback-signal-monitor.ts'
 import type { CorrectionLedger } from './conversation-correction-intake.ts'
 import type { ConversationDraftStore } from './conversation-skill-draft.ts'
+import type { ConversationDraftTrialStore } from './conversation-draft-trial-store.ts'
 import type { SkillUseStore } from './skill-use-monitor.ts'
 import type {
   ExactSkillOutcomeContextReader,
@@ -96,6 +97,7 @@ export interface EvolutionControlPlaneModules {
   readonly feedback?: Pick<FeedbackSignalStore, 'summarize'>
   readonly conversationCorrections?: Pick<CorrectionLedger, 'summarize'>
   readonly conversationSkillDrafts?: Pick<ConversationDraftStore, 'summarize'>
+  readonly conversationDraftTrials?: Pick<ConversationDraftTrialStore, 'summarize'>
   readonly longTermEffects?: Pick<LongTermEffectsReader, 'summarize'>
   readonly capabilities?: {
     readonly snapshot: (workspaceId: string, sessionId?: string) => EvolutionCapabilityMapView
@@ -502,6 +504,9 @@ export class EvolutionControlPlane {
       ...(this.modules.conversationSkillDrafts === undefined
         ? {}
         : { conversationSkillDrafts: this.modules.conversationSkillDrafts.summarize(workspaceId) }),
+      ...(this.modules.conversationDraftTrials === undefined
+        ? {}
+        : { conversationDraftTrials: this.modules.conversationDraftTrials.summarize(workspaceId) }),
       reviews: scan === undefined
         ? {
             available: false,

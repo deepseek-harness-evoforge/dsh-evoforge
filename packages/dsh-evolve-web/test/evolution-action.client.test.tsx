@@ -754,6 +754,27 @@ describe('EvolutionAction', () => {
     expect(screen.queryByText(locale['onboarding.scopeLimit'])).toBeNull()
   })
 
+  it.each(['improvement-observed', 'no-improvement', 'regression', 'inconclusive'] as const)('shows proposed trial outcome %s without enabling a draft', async outcome => {
+    const api = remote()
+    vi.mocked(api.overview).mockImplementationOnce(() => success({
+      schemaVersion: 1, workspaceId, recovery: { available: true, paused: false },
+      generationSelectionHistory: emptyGenerationSelectionHistory(),
+      conversationDraftTrials: { enabled: true, observerAvailable: true, pendingCount: 0, uncertainCount: 0, warningCount: 0,
+        reservedModelCallsToday: 24, maxModelCallsPerUtcDay: 24, releaseAuthority: 'none',
+        items: [{ id: 'f'.repeat(64), draftId: 'd'.repeat(64), phase: 'completed', settledLegs: 8,
+          dispatchMarkers: 12, requestCount: 12, inputTokens: 800, outputTokens: 600, usageMissingCount: 1, elapsedMs: 40_000,
+          comparison: { baselinePassed: 3, draftPassed: 4, improved: 1, regressed: 0, comparablePairs: 4, loadedDraftLegs: 2, outcome } }] },
+      reviews: { available: true, pendingCount: 0, actionableCount: 0, warningCount: 0, items: [], inactiveGenerations: [] },
+    }))
+    render(<EvolutionAction remote={api} t={key => zh[key as keyof typeof zh] ?? key}
+      wide useSessions={sessionHook()} useWorkspaces={workspaceHook()} />)
+    fireEvent.click(screen.getByRole('button', { name: zh['trigger.label'] }))
+    expect(await screen.findByText(zh[`trial.outcome.${outcome}`])).toBeTruthy()
+    expect(screen.getByText(zh['trial.limit'])).toBeTruthy()
+    expect(screen.getByText(zh['trial.usageUnknown'])).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /启用|晋升/u })).toBeNull()
+  })
+
   it('shows ordinary-chat hypotheses separately from explicit feedback and verified improvements', async () => {
     const api = remote()
     vi.mocked(api.overview).mockImplementationOnce(() => success({

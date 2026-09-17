@@ -11,6 +11,9 @@ import { openCorrectionLedger } from '../src/conversation-correction-intake.ts'
 import { openConversationDraftStore, type ConversationLearningPolicy } from '../src/conversation-skill-draft.ts'
 import { installConversationSkillDraftMonitor } from '../src/conversation-skill-draft-monitor.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
+import { openConversationDraftTrialStore } from '../src/conversation-draft-trial-store.ts'
+import { installConversationDraftTrialMonitor } from '../src/conversation-draft-trial-monitor.ts'
+import { DurableFeedbackAttribution } from '../src/durable-feedback-attribution.ts'
 
 const dshRoot = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
 
@@ -38,6 +41,28 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
     class ClassifierAdapter extends nativeLlm.LlmAdapter {
       async *stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
         calls.push(options)
+        if (String(options.sessionId).startsWith('evoforge-trial-')) {
+          const catalog = JSON.stringify(options.messages).includes('readable-report')
+          const loaded = options.messages.some(message => message.content.some(block => block.type === 'tool-result'))
+          if (catalog && !loaded) {
+            const id = nativeLlm.ToolCallId('native-trial-load')
+            const args = JSON.stringify({ name: 'readable-report' })
+            yield { type: 'block-start', index: 0, blockType: 'tool-call' }
+            yield { type: 'tool-call-delta', index: 0, id, name: 'skill', argumentsDelta: args }
+            yield { type: 'block-end', index: 0, block: { type: 'tool-call', id, name: 'skill', arguments: args } }
+            yield { type: 'usage', usage: { inputTokens: 11, outputTokens: 6 } }
+            yield { type: 'finish', reason: { kind: 'tool-calls' } }
+            return
+          }
+          const task = options.messages.find(message => message.role === 'user' && message.source.kind === 'plugin' && message.source.plugin === 'dsh-evolve')
+          const text = JSON.stringify(task).match(/answer-(h1|h2|r1|r2)/u)?.[0] ?? 'unexpected fixture input'
+          yield { type: 'block-start', index: 0, blockType: 'text' }
+          yield { type: 'text-delta', index: 0, text }
+          yield { type: 'block-end', index: 0, block: { type: 'text', text } }
+          yield { type: 'usage', usage: { inputTokens: 11, outputTokens: 6 } }
+          yield { type: 'finish', reason: { kind: 'stop' } }
+          return
+        }
         if (typeof options.system === 'string' && (options.system.startsWith('You prepare independent test material') || options.system.startsWith('Draft a small reusable DSH Skill'))) {
           const governanceRole = options.system.startsWith('You prepare independent test material')
           if (failFirstDraft) {
@@ -71,6 +96,13 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
       await ctx.plugin(persistence.default, { root: join(root, 'sessions'), compression: 'none' })
       await ctx.plugin(nativeLlm.default)
       await ctx.plugin(jobs.default)
+      await ctx.plugin((await import(entry('packages/core/agent'))).default)
+      await ctx.plugin((await import(entry('packages/session/session-projection'))).default)
+      await ctx.plugin((await import(entry('packages/core/system-prompt'))).default)
+      await ctx.plugin((await import(entry('packages/core/tools'))).default)
+      await ctx.plugin((await import(entry('packages/skill/skill'))).default)
+      await ctx.plugin(await import(entry('packages/skill/tool-skill')))
+      await ctx.plugin((await import(entry('packages/core/agent-loop'))).default, { agents: [] })
       ctx.llm.registerAdapter(['fixture'], new ClassifierAdapter())
       return ctx
     }
@@ -83,6 +115,9 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
     let writer: { close(): Promise<void> } | undefined
     let drafts: Awaited<ReturnType<typeof openConversationDraftStore>> | undefined
     let draftMonitor: ReturnType<typeof installConversationSkillDraftMonitor> | undefined
+    let trials: Awaited<ReturnType<typeof openConversationDraftTrialStore>> | undefined
+    let trialMonitor: ReturnType<typeof installConversationDraftTrialMonitor> | undefined
+    const trialPolicy = [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 24 }]
     let learningPolicy: ConversationLearningPolicy[] = [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 2 }]
     const appendTurn = (session: Session, turn: number, text: string, answer: string): void => {
       session.append('turn/start', { turn })
@@ -139,12 +174,29 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
       expect(first.jobs.list().every(job => job.ownerSession === undefined)).toBe(true)
       await draftMonitor.dispose()
       draftMonitor = undefined
+      trials = await openConversationDraftTrialStore(first.storageDomain, trialPolicy)
+      trialMonitor = installConversationDraftTrialMonitor(first, ledger, drafts, trials, trialPolicy)
+      await vi.waitFor(() => expect(trials!.records(WORKSPACE_ID)[0]?.phase).toBe('completed'))
+      const trial = trials.records(WORKSPACE_ID)[0]!
+      expect(trial.comparison).toMatchObject({ outcome: 'no-improvement', baselinePassed: 4, draftPassed: 4, comparablePairs: 4, loadedDraftLegs: 4 })
+      expect(calls).toHaveLength(retry ? 16 : 15)
+      expect(JSON.stringify(session.snapshotEvents())).toBe(before)
+      const nativeReader = new DurableFeedbackAttribution(first.sessionPersistence, { lifecycle: first })
+      for (const leg of trial.legs) {
+        const persisted = await nativeReader.readStoredSession(leg.sessionId, Number.MAX_SAFE_INTEGER)
+        expect(persisted.events.some(event => event.type === 'turn/end' && event.data.reason.kind === 'completed')).toBe(true)
+        expect(first.agents.get(nativeSession.SessionId(leg.sessionId))).toBeUndefined()
+      }
+      await trialMonitor.dispose()
+      trialMonitor = undefined
+      await trials.close()
+      trials = undefined
       await drafts.close()
       drafts = undefined
 
       waitForCancellation = true
       appendTurn(session, 3, '仍然表格太宽，飞书预览看不到来源。请保留事实重新排版。', '已重新排版。')
-      await vi.waitFor(() => expect(calls).toHaveLength(retry ? 5 : 4))
+      await vi.waitFor(() => expect(calls).toHaveLength(retry ? 17 : 16))
       await monitor.dispose()
       monitor = undefined
       expect(ledger.summarize(WORKSPACE_ID)).toMatchObject({ pendingCount: 0, uncertainCount: 1, observerAvailable: false })
@@ -161,15 +213,21 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
       monitor = installConversationCorrectionMonitor(second, ledger, policy)
       await vi.waitFor(() => expect(second!.jobs.list()).toHaveLength(1))
       await vi.waitFor(() => expect(second!.jobs.list()[0]?.status).toBe('completed'))
-      expect(calls).toHaveLength(retry ? 5 : 4)
+      expect(calls).toHaveLength(retry ? 17 : 16)
       expect(ledger.summarize(WORKSPACE_ID)).toMatchObject({ correctionCount: 1, uncertainCount: 1, attemptsToday: 2 })
       expect(second.sessions.get(sessionId)).toBeUndefined()
       drafts = await openConversationDraftStore(second.storageDomain, learningPolicy)
       draftMonitor = installConversationSkillDraftMonitor(second, ledger, drafts, learningPolicy)
       expect(drafts.summarize(WORKSPACE_ID)).toMatchObject({ draftCount: 1, reservedModelCallsToday: retry ? 4 : 2 })
       if (retry) expect(drafts.records(WORKSPACE_ID)[0]).toEqual(originalFailure)
-      expect(calls).toHaveLength(retry ? 5 : 4)
+      trials = await openConversationDraftTrialStore(second.storageDomain, trialPolicy)
+      trialMonitor = installConversationDraftTrialMonitor(second, ledger, drafts, trials, trialPolicy)
+      expect(trials.records(WORKSPACE_ID)[0]).toEqual(trial)
+      expect(trials.summarize(WORKSPACE_ID).reservedModelCallsToday).toBe(24)
+      expect(calls).toHaveLength(retry ? 17 : 16)
     } finally {
+      await trialMonitor?.dispose()
+      await trials?.close()
       await draftMonitor?.dispose()
       await drafts?.close()
       await monitor?.dispose()

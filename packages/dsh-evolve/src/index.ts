@@ -120,6 +120,8 @@ import { AutomaticEvolutionBudget } from './automatic-evolution-budget.ts'
 import { openCorrectionLedger, validateCorrectionPolicies, type ConversationCorrectionPolicy } from './conversation-correction-intake.ts'
 import { installConversationCorrectionMonitor } from './conversation-correction-monitor.ts'
 import { openConversationDraftStore, validateConversationLearningPolicies, type ConversationLearningPolicy } from './conversation-skill-draft.ts'
+import { openConversationDraftTrialStore, validateConversationDraftTrialPolicies, type ConversationDraftTrialPolicy } from './conversation-draft-trial-store.ts'
+import { installConversationDraftTrialMonitor } from './conversation-draft-trial-monitor.ts'
 import { installConversationSkillDraftMonitor } from './conversation-skill-draft-monitor.ts'
 import {
   assertSlowLoopSkillAuthoringRootSeparation,
@@ -172,6 +174,8 @@ export interface Config {
   conversationCorrectionPolicies?: ConversationCorrectionPolicy[]
   /** Independently budgeted hidden-test preparation and inactive Skill drafting. Never installation or release authority. */
   conversationLearningPolicies?: ConversationLearningPolicy[]
+  /** One-shot native tests for sealed inactive drafts; no Skill activation or release authority. */
+  conversationDraftTrialPolicies?: ConversationDraftTrialPolicy[]
   candidateEvaluationPolicies?: SkillCandidateEvaluationPolicyConfig[]
   /** Host-admin authorization to retain raw-free Generation receipts for exact Workspaces. */
   interactionEvidencePolicies?: InteractionGenerationEvidencePolicyConfig[]
@@ -221,6 +225,14 @@ const interactionRoutingEvidencePoliciesConfig = z.transform(
 
 export const Config: Schema<Config> = z.object({
   cacheRoot: z.string(),
+  conversationDraftTrialPolicies: z.transform(z.array(z.object({
+    workspaceId: z.string().pattern(NATIVE_WORKSPACE_ID_PATTERN).required(),
+    maxModelCallsPerUtcDay: z.number().step(1).min(24).max(72).required(),
+  })).max(20).default([]), policies => {
+    const exact = policies as ConversationDraftTrialPolicy[]
+    validateConversationDraftTrialPolicies(exact)
+    return exact
+  }, true).default([]),
   conversationLearningPolicies: z.transform(z.array(z.object({
     workspaceId: z.string().pattern(NATIVE_WORKSPACE_ID_PATTERN).required(),
     maxModelCallsPerUtcDay: z.number().step(1).min(2).max(20).required(),
@@ -462,6 +474,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   runtime.own('resource', () => conversationSkillDrafts.close())
   const conversationDraftMonitors = new Set<ReturnType<typeof installConversationSkillDraftMonitor>>()
   runtime.own('producer', () => disposeRuntimeGroup([...conversationDraftMonitors]))
+  const conversationDraftTrialPolicies = config.conversationDraftTrialPolicies ?? []
+  if (conversationDraftTrialPolicies.some(policy => !conversationLearningPolicies.some(p => p.workspaceId === policy.workspaceId))) {
+    throw new Error('conversation draft tests require a matching Workspace learning policy')
+  }
+  const conversationDraftTrials = await openConversationDraftTrialStore(ctx.storageDomain, conversationDraftTrialPolicies)
+  runtime.own('resource', () => conversationDraftTrials.close())
+  const conversationTrialMonitors = new Set<ReturnType<typeof installConversationDraftTrialMonitor>>()
+  runtime.own('producer', () => disposeRuntimeGroup([...conversationTrialMonitors]))
   let feedbackProjectionReady = false
   let feedbackProviderGeneration: symbol | undefined
   // Persisted projections cannot authorize feedback-derived work until the
@@ -1095,6 +1115,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     feedback: feedbackSignals,
     conversationCorrections,
     conversationSkillDrafts,
+    conversationDraftTrials,
     longTermEffects: new LongTermEffectsProjection(longTermEffects, store, {
       outcomes: deliveryOutcomes,
     }),
@@ -1435,6 +1456,16 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         conversationDraftMonitors.add(monitor)
         return () => monitor.dispose().finally(() => { conversationDraftMonitors.delete(monitor) })
       }, 'dsh-evolve.conversationSkillDrafts')
+    })
+  }
+  if (conversationDraftTrialPolicies.length > 0) {
+    ctx.inject(['sessionPersistence', 'llm', 'jobs', 'skills', 'tools'], trialCtx => {
+      trialCtx.effect(() => {
+        const monitor = installConversationDraftTrialMonitor(trialCtx, conversationCorrections, conversationSkillDrafts,
+          conversationDraftTrials, conversationDraftTrialPolicies)
+        conversationTrialMonitors.add(monitor)
+        return () => monitor.dispose().finally(() => { conversationTrialMonitors.delete(monitor) })
+      }, 'dsh-evolve.conversationDraftTrials')
     })
   }
   // Registered last so ordinary unload revokes this runtime before the other

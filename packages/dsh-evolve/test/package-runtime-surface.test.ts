@@ -18,7 +18,7 @@ describe('packed dsh-evolve runtime surface', () => {
     expect(shadow).not.toMatch(/DSH_EVOLVE_MODEL_|requestProposal|fetch\(/u)
   })
 
-  it('declares the statically imported Goal and Tools packages as required peers', async () => {
+  it('declares the statically imported Goal, Tools and LLM packages as required peers', async () => {
     const runtime = await readFile(resolve(packageRoot, 'dist/index.mjs'), 'utf8')
     const manifest = JSON.parse(await readFile(resolve(packageRoot, 'package.json'), 'utf8'))
     // Compare declarations with the independently installed native cohort.
@@ -28,10 +28,12 @@ describe('packed dsh-evolve runtime surface', () => {
     const requiredStaticPeers = {
       '@deepseek-ai/dsh-goal': native.version,
       '@deepseek-ai/dsh-tools': native.version,
+      '@deepseek-ai/dsh-llm': native.version,
     }
 
     expect(runtime).toMatch(/^import .* from ["']@deepseek-ai\/dsh-goal["'];?$/mu)
     expect(runtime).toMatch(/^import .* from ["']@deepseek-ai\/dsh-tools["'];?$/mu)
+    expect(runtime).toMatch(/^import .* from ["']@deepseek-ai\/dsh-llm["'];?$/mu)
     expect(manifest.peerDependencies).toMatchObject(requiredStaticPeers)
     expect(manifest.devDependencies).toMatchObject(requiredStaticPeers)
     for (const peer of Object.keys(requiredStaticPeers)) {

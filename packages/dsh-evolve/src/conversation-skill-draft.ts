@@ -68,7 +68,7 @@ const governanceSchema = z.strictObject({ scope: z.string().min(8).max(1000), ca
 export type ConversationDraftGovernance = z.infer<typeof governanceSchema>
 
 /** Declarative calibration only. A model-written reference is not a real baseline or task result. */
-export function matchesDraftCase(answer: string, test: z.infer<typeof caseSchema>): boolean {
+export function matchesDraftCase(answer: string, test: Pick<z.infer<typeof caseSchema>, 'mustInclude' | 'mustNotInclude' | 'layout'>): boolean {
   const table = /^\s*\|?\s*:?-{3,}:?\s*\|(?:\s*:?-{3,}:?\s*\|?)+\s*$/mu.test(answer)
   return test.mustInclude.every(value => answer.includes(value)) && test.mustNotInclude.every(value => !answer.includes(value))
     && (test.layout === 'any' || (test.layout === 'table' ? table : !table))
@@ -269,7 +269,7 @@ export async function openConversationDraftStore(facility: DomainFacility, polic
   } catch (error) { await domain.close(); throw error }
 }
 
-function draftInputDigest(input: CorrectionInput): string { return digest({ input, governanceSystem, authorSystem, governanceTokens: 4000, authorTokens: 2000 }) }
+export function draftInputDigest(input: CorrectionInput): string { return digest({ input, governanceSystem, authorSystem, governanceTokens: 4000, authorTokens: 2000 }) }
 export interface ConversationDraftModelRequest { readonly role: 'governance' | 'author'; readonly input: CorrectionInput }
 export type ConversationDraftModel = (request: ConversationDraftModelRequest, signal: AbortSignal) => Promise<{ readonly value: unknown; readonly usage?: TokenUsage }>
 

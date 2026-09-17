@@ -12,7 +12,14 @@ import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import Skills from '@deepseek-ai/dsh-skill'
 import { runConversationDraftTrialLeg } from '../src/conversation-draft-trial-native.ts'
+import { projectConversationDraftTrialResult, sameTrialInitialComposition } from '../src/conversation-draft-trial-result.ts'
 import { installConversationDraftTrialGuard } from '../src/conversation-draft-trial-guard.ts'
+import type { DomainFacility } from '@deepseek-ai/dsh-storage-domain'
+import { executeConversationDraftTrial } from '../src/conversation-draft-trial-monitor.ts'
+import { openConversationDraftTrialStore } from '../src/conversation-draft-trial-store.ts'
+import { digest } from '../src/conversation-correction-intake.ts'
+import type { ConversationDraftRecord } from '../src/conversation-skill-draft.ts'
+import { WORKSPACE_ID } from './workspace-fixture.ts'
 
 const roots: Context[] = []
 afterEach(async () => { await Promise.all(roots.splice(0).map(ctx => ctx.fiber.dispose())) })
@@ -93,6 +100,19 @@ it('runs an owned native leg, mounts the exact draft only there, and keeps its n
   expect(JSON.stringify(f.requests[0])).not.toContain('Keep each item in its own section.')
   expect(JSON.stringify(f.requests[1])).toContain('Keep each item in its own section.')
   expect(JSON.stringify(result.events.filter(event => event.type === 'tool/result'))).toContain('evoforge-conversation-draft-trial')
+  const projected = projectConversationDraftTrialResult(result, {
+    mustInclude: ['Task result'], mustNotInclude: [], layout: 'any',
+  }, draft)
+  expect(projected).toMatchObject({ status: 'completed', passed: true, skillLoaded: true, requestCount: 2, usageMissingCount: 2 })
+  const baseline = await runConversationDraftTrialLeg(f.ctx, {
+    sessionId: SessionId('native-trial-baseline'), cwd: '/repo', input: 'Organize these self-contained facts.',
+    provider: 'fixed', model: 'fixed', signal: new AbortController().signal, beforeDispatch: async () => {},
+  })
+  expect(sameTrialInitialComposition(baseline.requestSnapshots[0], result.requestSnapshots[0], draft)).toBe(true)
+  expect(sameTrialInitialComposition(baseline.requestSnapshots[0]?.replace('Organize', 'Summarize'), result.requestSnapshots[0], draft)).toBe(false)
+  expect(projectConversationDraftTrialResult(baseline, {
+    mustInclude: ['Task result'], mustNotInclude: [], layout: 'any',
+  })).toMatchObject({ status: 'incomplete', passed: false, skillLoaded: false })
 })
 
 it('restricts only its new native Session and persists the marker before dispatch', async () => {
@@ -240,4 +260,63 @@ it('does not run with an unavailable Skill dependency', async () => {
     signal: new AbortController().signal, beforeDispatch: async () => { throw new Error('must not dispatch') },
   })).rejects.toThrow('dependencies unavailable')
   expect(ctx.agents.get(SessionId('missing-skills'))).toBeUndefined()
+})
+
+it('finishes all eight native legs, retains equal outcomes, and never converts them to improvement', async () => {
+  const f = await fixture(false, async function* (options) {
+    const catalog = JSON.stringify(options.messages).includes('item-sections')
+    const loaded = options.messages.some(message => message.content.some(block => block.type === 'tool-result'))
+    if (catalog && !loaded) {
+      const id = ToolCallId('pair-load')
+      const args = JSON.stringify({ name: 'item-sections' })
+      yield { type: 'block-start', index: 0, blockType: 'tool-call' }
+      yield { type: 'tool-call-delta', index: 0, id, name: 'skill', argumentsDelta: args }
+      yield { type: 'block-end', index: 0, block: { type: 'tool-call', id, name: 'skill', arguments: args } }
+      yield { type: 'finish', reason: { kind: 'tool-calls' } }
+      return
+    }
+    yield { type: 'block-start', index: 0, blockType: 'text' }
+    yield { type: 'text-delta', index: 0, text: 'Preserved fact' }
+    yield { type: 'block-end', index: 0, block: { type: 'text', text: 'Preserved fact' } }
+    yield { type: 'usage', usage: { inputTokens: 10, outputTokens: 5 } }
+    yield { type: 'finish', reason: { kind: 'stop' } }
+  })
+  f.registrations[0]!()
+  const sourceRoot = process.env.DSH_EVOLVE_DSH_SOURCE_DIR ?? resolve(process.cwd(), '../../../deepseek-harness')
+  await f.ctx.plugin(await import(pathToFileURL(resolve(sourceRoot, 'packages/skill/tool-skill/lib/index.js')).href))
+  // Resolver fixture only; the Agent, loop, scoped Skill and tool dispatch are native.
+  f.ctx.provide('workspaceRegistry', { resolveByPath: async () => ({ id: WORKSPACE_ID }) })
+  const rows = new Map<string, unknown>()
+  const facility = { async open() { return { close: async () => {}, table: () => ({
+    get size() { return rows.size }, get: (key: string) => structuredClone(rows.get(key)), entries: () => [...rows],
+    put: async (key: string, value: unknown) => { rows.set(key, structuredClone(value)) },
+  }) } } } as unknown as DomainFacility
+  const store = await openConversationDraftTrialStore(facility, [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 24 }])
+  const markdown = '---\nname: item-sections\ndescription: "Use short sections for reports"\n---\n\nPreserve every fact and explicit choice.\n'
+  const governance = { scope: 'Fixture-only self-contained preservation checks.',
+    cases: ['h1', 'h2', 'r1', 'r2'].map((id, index) => ({ id, partition: index < 2 ? 'holdout' as const : 'retention' as const,
+      input: `Task ${id}: preserve this stated fact.`, mustInclude: ['Preserved fact'], mustNotInclude: ['invented'],
+      layout: 'any' as const, referenceAnswer: 'Preserved fact', negativeAnswer: 'invented' })) }
+  const source: ConversationDraftRecord = {
+    schemaVersion: 1, id: 'a'.repeat(64), workspaceId: WORKSPACE_ID, correctionId: 'b'.repeat(64), sourceDigest: 'c'.repeat(64),
+    sourceSessionId: 'original-user-session', sourceTurn: 3, inputDigest: 'd'.repeat(64), reservedAt: 100,
+    reservedModelCalls: 2, modelCalls: 2, usages: [], phase: 'draft', governance, governanceDigest: digest(governance),
+    draft: { name: 'item-sections', description: 'Use short sections for reports', markdown,
+      contentHash: createHash('sha256').update(markdown).digest('hex'), lifecycle: 'inactive', verification: 'unevaluated', releaseAuthority: 'none' },
+  }
+  const initial = (await store.reserve(source, { provider: 'fixed', model: 'fixed' }))!
+  const completed = await executeConversationDraftTrial(f.ctx, store, initial, source, '/repo', new AbortController().signal, () => true)
+  expect(completed.phase).toBe('completed')
+  expect(completed.comparison).toEqual({ baselinePassed: 4, draftPassed: 4, improved: 0, regressed: 0,
+    comparablePairs: 4, loadedDraftLegs: 4, outcome: 'no-improvement' })
+  expect(f.calls()).toBe(12)
+  expect(await f.ctx.skills.list()).toEqual([])
+  for (const leg of completed.legs) expect(f.ctx.agents.get(SessionId(leg.sessionId))).toBeUndefined()
+  const publicView = JSON.stringify(store.summarize(WORKSPACE_ID))
+  expect(publicView).not.toContain('Task h1')
+  expect(publicView).not.toContain('Preserved fact')
+  await store.close()
+  const reopened = await openConversationDraftTrialStore(facility, [])
+  expect(reopened.records(WORKSPACE_ID)[0]).toEqual(completed)
+  expect(source.draft?.lifecycle).toBe('inactive')
 })

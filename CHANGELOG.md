@@ -7,6 +7,10 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Add optional one-shot native comparisons for sealed conversation drafts, with durable budgets, isolated test Sessions,
+  actual Skill-load evidence and read-only results. Equal outcomes, regressions and inconclusive comparisons remain explicit;
+  these limited model-proposed checks do not activate Skills or establish general improvement.
+
 - Allow one explicitly authorized, expiring diagnostic retry for an early uncertain draft request. Keep the original
   failure and both budget reservations; sealed test material, successful drafts and retries cannot be retried again.
 

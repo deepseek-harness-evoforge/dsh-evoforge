@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import type { AgentHandle } from '@deepseek-ai/dsh-agent'
-import { createUserMessage, isAgentLoopRequest } from '@deepseek-ai/dsh-llm'
+import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { SessionEvent, SessionId } from '@deepseek-ai/dsh-session'
 import type { SkillRegistration } from '@deepseek-ai/dsh-skill'
 import { deadline } from '@deepseek-ai/dsh-timeout'
@@ -46,6 +46,7 @@ export async function runConversationDraftTrialLeg(
       invocation: { modelInvocable: true, userInvocable: false } }
   }
   let dispatchMarkers = 0
+  let requestSignal: AbortSignal | undefined
   const started = Date.now()
   using limit = deadline(frozen.signal, 90_000, 'EVOFORGE_CONVERSATION_TRIAL_TIMEOUT')
   limit.signal.throwIfAborted()
@@ -57,7 +58,9 @@ export async function runConversationDraftTrialLeg(
   // no other Agent's requests or auxiliary work may be observed or changed.
   const detachRequest = ctx.on('llm/stream', async function* (options, next) {
     if (options.sessionId !== frozen.sessionId) { yield* next(); return }
-    if (!isAgentLoopRequest(options) || options.purpose !== undefined
+    // Correlate with the actual Agent request hook. A package-local WeakSet
+    // marker cannot cross independently resolved Host/plugin module instances.
+    if (requestSignal === undefined || options.signal !== requestSignal || options.purpose !== undefined
       || options.provider !== frozen.provider || options.model !== frozen.model || options.maxTokens !== 2000
       || requestSnapshots.length >= dispatchMarkers || requestSnapshots.length >= 3 || limit.signal.aborted) {
       throw new Error('conversation trial received an unreserved model request')
@@ -89,9 +92,10 @@ export async function runConversationDraftTrialLeg(
           }
           installConversationDraftTrialGuard(scoped, agent, {
             provider: frozen.provider, model: frozen.model, maxTokens: 2000, maxCalls: 3,
-            async beforeDispatch(call) {
+            async beforeDispatch(call, signal) {
               await frozen.beforeDispatch(call)
               dispatchMarkers = call
+              requestSignal = signal
             },
           })
           ready = true

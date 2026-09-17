@@ -8,7 +8,7 @@ interface TrialRequestBounds {
   readonly maxTokens: number
   readonly maxCalls: number
   /** Must durably commit a dispatch marker; rejection prevents provider entry. */
-  readonly beforeDispatch: (call: number) => Promise<void>
+  readonly beforeDispatch: (call: number, signal: AbortSignal) => Promise<void>
 }
 
 /**
@@ -68,7 +68,7 @@ export function installConversationDraftTrialGuard(
     // be reused in this process. Recovery belongs to the durable caller.
     calls++
     try {
-      await bounds.beforeDispatch(calls)
+      await bounds.beforeDispatch(calls, signal)
       signal.throwIfAborted()
       verifyTools()
       return config

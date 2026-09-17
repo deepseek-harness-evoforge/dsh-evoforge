@@ -24,6 +24,7 @@ describe('dsh-evolve public configuration', () => {
       'cacheRoot',
       'candidateEvaluationPolicies',
       'conversationCorrectionPolicies',
+      'conversationDraftTrialPolicies',
       'conversationLearningPolicies',
       'interactionEvidencePolicies',
       'interactionRoutingEvidencePolicies',
@@ -62,6 +63,16 @@ describe('dsh-evolve public configuration', () => {
     expect(() => Config({ conversationCorrectionPolicies: [{ ...policy, maxAttemptsPerUtcDay: 21 }] })).toThrow()
     expect(() => Config({ conversationCorrectionPolicies: [policy, policy] })).toThrow()
     expect(() => Config({ conversationCorrectionPolicies: [{ ...policy, replaySessionIds: ['same', 'same'] }] })).toThrow()
+  })
+
+  it('keeps native draft trials default-off and reserves a whole eight-leg plan without operator-selected tests', () => {
+    expect(Config({}).conversationDraftTrialPolicies).toEqual([])
+    const policy = { workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 24 }
+    expect(Config({ conversationDraftTrialPolicies: [policy] }).conversationDraftTrialPolicies).toEqual([policy])
+    expect(() => Config({ conversationDraftTrialPolicies: [{ ...policy, maxModelCallsPerUtcDay: 23 }] })).toThrow()
+    expect(() => Config({ conversationDraftTrialPolicies: [{ ...policy, maxModelCallsPerUtcDay: 73 }] })).toThrow()
+    expect(() => Config({ conversationDraftTrialPolicies: [policy, policy] })).toThrow()
+    expect(Object.keys(configArrayObject('conversationDraftTrialPolicies').dict).sort()).toEqual(['maxModelCallsPerUtcDay', 'workspaceId'])
   })
 
   it('keeps conversation draft preparation independently budgeted without target Skills or operator test packs', () => {
@@ -231,7 +242,7 @@ function workspaceId(index: number): string {
 }
 
 function configArrayObject(
-  key: 'interactionEvidencePolicies' | 'interactionRoutingEvidencePolicies',
+  key: 'interactionEvidencePolicies' | 'interactionRoutingEvidencePolicies' | 'conversationDraftTrialPolicies',
 ): { dict: Record<string, { dict?: Record<string, unknown> }> } {
   const root = Config as unknown as { dict: Record<string, ConfigSchemaNode> }
   let schema = root.dict[key]!

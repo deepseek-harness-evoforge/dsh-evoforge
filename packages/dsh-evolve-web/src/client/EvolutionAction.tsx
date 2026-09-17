@@ -431,16 +431,19 @@ function BeginnerOverview({ summary, openAdvanced, t }: {
   const corrections = recordedCorrectionCount(summary)
   const verificationConfigured = hasVerificationTarget(summary)
   const drafts = summary.conversationSkillDrafts
+  const trials = summary.conversationDraftTrials
   const headline = pending > 0
     ? `${pending} ${t('onboarding.actionable')}`
-    : (drafts?.draftCount ?? 0) > 0
+    : (trials?.items.length ?? 0) > 0
+      ? t('trial.title')
+      : (drafts?.draftCount ?? 0) > 0
       ? t('draft.headline')
       : corrections > 0
       ? t(verificationConfigured ? 'onboarding.feedbackPending' : 'onboarding.feedbackBlocked')
       : verificationConfigured
         ? t('onboarding.idle')
         : t('onboarding.verificationMissing')
-  const explanation = pending > 0 || (corrections === 0 && verificationConfigured)
+  const explanation = trials?.enabled ? t('trial.explanation') : pending > 0 || (corrections === 0 && verificationConfigured)
     ? t('onboarding.intro')
     : corrections > 0
       ? t(verificationConfigured ? 'onboarding.feedbackPendingHelp' : 'onboarding.feedbackBlockedHelp')
@@ -496,10 +499,29 @@ function BeginnerOverview({ summary, openAdvanced, t }: {
       {drafts.items.map(draft => <details key={draft.id} className="dsh-evolve-draft">
         <summary>{draft.name} · {t('draft.inspect')}</summary>
         <p>{draft.description}</p>
-        <p>{draft.proposedTestCount} {t('draft.testsPending')}</p>
+        <p>{draft.proposedTestCount} {t(trials?.items.some(trial => trial.draftId === draft.id) ? 'draft.testsSealed' : 'draft.testsPending')}</p>
         <pre className="dsh-evolve-diff">{draft.markdown}</pre>
       </details>)}
-      <p className="dsh-evolve-guidance">{t('draft.limit')}</p>
+      <p className="dsh-evolve-guidance">{t(trials?.enabled ? 'draft.trialLimit' : 'draft.limit')}</p>
+    </section>}
+    {trials?.enabled && <section className="dsh-evolve-welcome">
+      <h3>{t('trial.title')}</h3>
+      {!trials.observerAvailable && <p>{t('trial.unavailable')}</p>}
+      <p>{t('trial.budget')} {trials.reservedModelCallsToday} / {trials.maxModelCallsPerUtcDay}</p>
+      {trials.warningCount > 0 && <p>{t('correction.warning')}</p>}
+      {trials.items.map(trial => <article key={trial.id}>
+        <h4>{drafts?.items.find(draft => draft.id === trial.draftId)?.name ?? t('trial.title')}</h4>
+        <p>{t(trial.comparison === undefined ? `trial.phase.${trial.phase}` : `trial.outcome.${trial.comparison.outcome}`)}</p>
+        <p>{t('trial.progress')} {trial.settledLegs} / 8</p>
+        {trial.comparison !== undefined && <>
+          <p>{t('trial.baseline')} {trial.comparison.baselinePassed} / 4 · {t('trial.draft')} {trial.comparison.draftPassed} / 4</p>
+          <p>{t('trial.loaded')} {trial.comparison.loadedDraftLegs} / 4 · {t('trial.pairs')} {trial.comparison.comparablePairs} / 4</p>
+        </>}
+        <p>{t('trial.requests')} {trial.requestCount} · {t('trial.seconds')} {Math.round(trial.elapsedMs / 1000)}</p>
+        <p>{t('trial.tokens')} {trial.inputTokens} / {trial.outputTokens}</p>
+        {trial.usageMissingCount > 0 && <p>{t('trial.usageUnknown')}</p>}
+      </article>)}
+      <p className="dsh-evolve-guidance">{t('trial.limit')}</p>
     </section>}
     <section>
       <h3 className="dsh-evolve-section-title">{t('onboarding.how')}</h3>

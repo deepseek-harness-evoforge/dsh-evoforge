@@ -1395,6 +1395,40 @@ export interface ConversationSkillDraftSummary {
   readonly releaseAuthority: 'none'
 }
 
+/** Read-only proposed-check results; never returns test inputs, answers, request snapshots or activation authority. */
+export interface ConversationDraftTrialSummary {
+  readonly enabled: boolean
+  readonly observerAvailable: boolean
+  readonly warningCount: number
+  readonly pendingCount: number
+  readonly uncertainCount: number
+  readonly reservedModelCallsToday: number
+  readonly maxModelCallsPerUtcDay: number
+  readonly items: readonly {
+    readonly id: string
+    readonly draftId: string
+    readonly phase: 'reserved' | 'running' | 'completed' | 'uncertain'
+    readonly settledLegs: number
+    readonly dispatchMarkers: number
+    readonly requestCount: number
+    readonly inputTokens: number
+    readonly outputTokens: number
+    readonly usageMissingCount: number
+    readonly elapsedMs: number
+    readonly comparison?: {
+      readonly baselinePassed: number
+      readonly draftPassed: number
+      readonly improved: number
+      readonly regressed: number
+      readonly comparablePairs: number
+      readonly loadedDraftLegs: number
+      readonly outcome: 'improvement-observed' | 'no-improvement' | 'regression' | 'inconclusive'
+    }
+    readonly reason?: 'interrupted' | 'cancelled' | 'source-conflict' | 'execution-failed'
+  }[]
+  readonly releaseAuthority: 'none'
+}
+
 /** Browser overview. Dynamic global state stays outside Session and model context. */
 export interface EvolutionOverview {
   readonly schemaVersion: 1
@@ -1453,6 +1487,7 @@ export interface EvolutionOverview {
   }
   readonly conversationCorrections?: ConversationCorrectionSummary
   readonly conversationSkillDrafts?: ConversationSkillDraftSummary
+  readonly conversationDraftTrials?: ConversationDraftTrialSummary
   readonly reviews: {
     readonly available: boolean
     readonly pendingCount: number

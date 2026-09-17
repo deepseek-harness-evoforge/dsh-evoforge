@@ -169,7 +169,7 @@ Job 标签与结果不携带原文、路径或 provider 错误，模型结果不
 测试作者本身也是模型；此校验不是基线效果、泛化或事实正确性证明，更不是独立评测成功。
 
 输出是私有 Conversation Skill Draft，不是具备资格的 Evolution Candidate。名称、描述和单个自包含 `SKILL.md` 内容
-由模型提出，Host 固定元数据和内容 digest；不存在脚本文件、安装、Skill provider 注册、Generation 选择或晋升入口。
+由模型提出，Host 固定元数据和内容 digest；起草阶段不存在脚本文件、安装、Skill provider 注册、Generation 选择或晋升入口。
 当前 Session 组成与历史不变。旧 Goal-qualified Candidate 资格和发布门禁不接受草稿记录。
 
 草稿和封存测试材料存于独立 native Domain，总计最多 100 条，达到上限停止。来源只保留 identity/digest；模型生成
@@ -185,6 +185,31 @@ Job 标签与结果不携带原文、路径或 provider 错误，模型结果不
 撤回授权只阻止新尝试；如需取消已 dispatch 的工作，应撤回整个草稿策略以触发原生生命周期取消，不能撤回既有消耗。
 策略撤回取消并等待自有工作，不清除历史或存储记录；存储错误 fail closed。草稿及测试内容仍需独立效果和安全检查，
 没有 activation、release 或 rollback 权威；不能以“没启用所以无需回滚”为完整学习链路验收。
+
+### 2.5 普通草稿的有限原生对照检查
+
+`conversationDraftTrialPolicies` 默认空；每项绑定 canonical Workspace UUID 与 `maxModelCallsPerUtcDay`（24–72），
+最多 20 项，且必须存在相同 Workspace 的草稿策略。它不接受操作者指定的测试包、Skill、参考答案或晋升开关。
+原生 Jobs 在启动及草稿完成后，按来源时间检查未试验的草稿；重读来源会话前缀、纠正记录与草稿 hash，匹配后才预留。
+
+一份草稿只能建立一次固定实验，跨日和重启不重新运行。一次预留 24 个调用名额：四个已封存任务各创建 baseline/draft
+两个原生 Session，共八个分支，每分支最多三次请求、每次最多 2000 输出 token、90 秒取消通知；按任务交替先后顺序。
+baseline 与 draft 使用相同来源 provider/model、cwd 和工具限制；只有 draft 分支在新 Agent 的 scoped Skill registry 中
+挂载草稿。正文只能通过原生 `skill` Tool 按需加载；禁止其他工具和额外辅助模型请求，不改变当前 Session 或全局 Skill。
+原生 Agent 的请求信号、精确 Session id、输入与已持久化 marker 用于关联最终请求；不依赖跨模块实例不共享的 WeakSet 标记。
+测试 Agent 不自动重试。取消后等待原生 handle dispose；不声称能为不响应 abort 的上游提供物理释放时限。
+
+执行方只收到任务，不收到参考答案、负例或断言；评分在 Host 侧执行已封存的确定性检查。必须同时验证 completed turn、
+无工具错误、实际 Skill 加载，以及四组完整首请求的组成相同（只排除会话/消息标识和已校验的草稿目录项）。未知目录格式、
+系统提示/工具/参数/任务漂移均不可比。检查通过数、改善/退步数、可比组数、Skill 加载数和已知用量分开记录；两边都通过
+是未观察到改善，不是学习成功。存在退步、执行不完整、组成不可比或改善分支未加载草稿时，不给出可靠改善结论。
+这些任务仍是模型提出的有限检查，不能证明全面正确、独立样本规模、泛化或完整发布资格；没有自动启用、晋升或回滚权限。
+
+私有 `evoforge_conversation_draft_trials` Domain 最多保留 20 份计划，保存来源 hash、原生 Session id、断言结果和至多
+128000 字节的首请求快照；其他请求保留 digest，原生 Session 日志保持执行权威。结果和状态先写入再返回；存储失败停止
+该账本的新调用。未完成计划在冷恢复时标为 uncertain，不自动重发；卸载或撤回策略取消并等待当前工作，不删除原生历史。
+控制面只返回计数、有限结果与用量，不返回测试输入、答案或请求快照。dispatch marker 是保守预留，不等于已测量调用；
+缺失用量和费用保持 unknown。完整的未来 Session 验证、启用与精确回滚仍须经过其他独立门禁。
 
 ## 3. 生命周期
 
