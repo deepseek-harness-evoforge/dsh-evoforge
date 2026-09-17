@@ -152,7 +152,8 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
       first = await boot()
       ledger = await openCorrectionLedger(first.storageDomain, policy)
       // No history replay until the named Session actually exists.
-      monitor = installConversationCorrectionMonitor(first, ledger, [{ ...policy[0]!, replaySessionIds: [] }])
+      monitor = installConversationCorrectionMonitor(first, ledger, [{ ...policy[0]!, replaySessionIds: [] }],
+        id => trials?.ownsSession(id) ?? false)
       const session = first.sessions.create(sessionId, { meta: { cwd: '/private/correction-fixture' } })
       writer = await first.sessionPersistence.create(session.header)
       appendTurn(session, 1, '整理材料并生成报告。', '已生成五列表格。')
@@ -191,6 +192,7 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
       await draftMonitor.dispose()
       draftMonitor = undefined
       trials = await openConversationDraftTrialStore(first.storageDomain, trialPolicy)
+      const correctionJobsBeforeTrial = first.jobs.list().filter(job => job.kind === 'evoforge-correction').length
       let failedTrial: unknown
       if (trialRecovery) {
         const draft = drafts.records(WORKSPACE_ID).find(record => record.phase === 'draft')!
@@ -207,6 +209,8 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
       if (trialRecovery) expect(trials.records(WORKSPACE_ID)[0]).toEqual(failedTrial)
       expect(trial.comparison).toMatchObject({ outcome: 'no-improvement', baselinePassed: 4, draftPassed: 4, comparablePairs: 4, loadedDraftLegs: 4 })
       expect(calls).toHaveLength(postTrialCalls)
+      expect(first.jobs.list().filter(job => job.kind === 'evoforge-correction')).toHaveLength(correctionJobsBeforeTrial)
+      expect(ledger.summarize(WORKSPACE_ID).warningCount).toBe(0)
       if (semantic) {
         expect(trial.reservedModelCalls).toBe(44)
         expect(trial.judge?.requests).toHaveLength(20)
@@ -248,9 +252,14 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
 
       second = await boot()
       ledger = await openCorrectionLedger(second.storageDomain, policy)
-      monitor = installConversationCorrectionMonitor(second, ledger, policy)
-      await vi.waitFor(() => expect(second!.jobs.list()).toHaveLength(1))
-      await vi.waitFor(() => expect(second!.jobs.list()[0]?.status).toBe('completed'))
+      trials = await openConversationDraftTrialStore(second.storageDomain, trialPolicy)
+      monitor = installConversationCorrectionMonitor(second, ledger,
+        [{ ...policy[0]!, replaySessionIds: [sessionId, ...trial.legs.map(leg => leg.sessionId), 'missing-user-session'] }],
+        id => trials!.ownsSession(id))
+      await vi.waitFor(() => expect(second!.jobs.list()).toHaveLength(2))
+      await vi.waitFor(() => expect(second!.jobs.list().map(job => job.status).sort()).toEqual(['completed', 'failed']))
+      expect(second.jobs.list().find(job => job.status === 'failed')?.detail).toBe('inspection-unavailable')
+      expect(ledger.summarize(WORKSPACE_ID).warningCount).toBe(1)
       expect(calls).toHaveLength(postTrialCalls + 1)
       expect(ledger.summarize(WORKSPACE_ID)).toMatchObject({ correctionCount: 1, uncertainCount: 1, attemptsToday: 2 })
       expect(second.sessions.get(sessionId)).toBeUndefined()
@@ -258,7 +267,6 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
       draftMonitor = installConversationSkillDraftMonitor(second, ledger, drafts, learningPolicy)
       expect(drafts.summarize(WORKSPACE_ID)).toMatchObject({ draftCount: 1, reservedModelCallsToday: retry ? 4 : 2 })
       if (retry) expect(drafts.records(WORKSPACE_ID)[0]).toEqual(originalFailure)
-      trials = await openConversationDraftTrialStore(second.storageDomain, trialPolicy)
       trialMonitor = installConversationDraftTrialMonitor(second, ledger, drafts, trials, trialPolicy)
       expect(trials.records(WORKSPACE_ID).at(-1)).toEqual(trial)
       if (trialRecovery) expect(trials.records(WORKSPACE_ID)[0]).toEqual(failedTrial)

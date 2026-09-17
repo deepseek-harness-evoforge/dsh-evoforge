@@ -1448,7 +1448,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   if (correctionPolicies.length > 0) {
     ctx.inject(['sessionPersistence', 'sessions', 'llm', 'jobs'], correctionCtx => {
       correctionCtx.effect(() => {
-        const monitor = installConversationCorrectionMonitor(correctionCtx, conversationCorrections, correctionPolicies)
+        const monitor = installConversationCorrectionMonitor(correctionCtx, conversationCorrections, correctionPolicies,
+          sessionId => conversationDraftTrials.ownsSession(sessionId))
         correctionMonitors.add(monitor)
         return () => monitor.dispose().finally(() => { correctionMonitors.delete(monitor) })
       }, 'dsh-evolve.conversationCorrectionIntake')

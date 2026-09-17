@@ -24,6 +24,7 @@ export function installConversationCorrectionMonitor(
   ctx: Context,
   ledger: CorrectionLedger,
   policies: readonly ConversationCorrectionPolicy[],
+  isEvaluationSession: (sessionId: string) => boolean,
 ): { dispose(): Promise<void> } {
   let closing = false
   const operations = new Set<Promise<JobOutcome>>()
@@ -38,6 +39,12 @@ export function installConversationCorrectionMonitor(
   const schedule = (sessionId: string, endSeq?: number, authorizedWorkspaceId?: string): void => {
     const key = `${sessionId}:${endSeq ?? 'replay'}`
     if (closing || pending.has(key) || pending.size >= 20) return
+    try {
+      if (isEvaluationSession(sessionId)) return
+    } catch {
+      if (authorizedWorkspaceId !== undefined) ledger.warn(authorizedWorkspaceId)
+      return
+    }
     pending.add(key)
     const controller = new AbortController()
     controllers.add(controller)
@@ -50,6 +57,9 @@ export function installConversationCorrectionMonitor(
         run: () => {
           const operation = tail.then(async (): Promise<JobOutcome> => {
             controller.signal.throwIfAborted()
+            if (isEvaluationSession(sessionId)) {
+              return { status: 'completed', detail: 'evaluation-source-excluded', output: 'No inspection or Skill change.' }
+            }
             const live = ctx.sessions.get(sessionId as SessionId)
             if (live !== undefined) {
               await runWithLifecycleDeadline(ctx, () => ctx.sessions.flush(live), {

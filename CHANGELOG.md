@@ -7,6 +7,9 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Exclude owned draft-evaluation Sessions from ordinary correction inspection before creating background Jobs, including
+  cold replay and withdrawn evaluation policies. Preserve genuine source failures and all existing histories.
+
 - Add opt-in, independently prompted semantic judging for new draft trials, with blind single-answer requests,
   sealed contrast calibration, one bounded reservation and no automatic replay. Distinguish semantic scores from literal
   checks and preserve unknown outcomes; historical trials are never rescored and no Skill is activated.

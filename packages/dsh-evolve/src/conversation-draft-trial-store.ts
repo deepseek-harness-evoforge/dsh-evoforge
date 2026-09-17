@@ -165,6 +165,11 @@ export class ConversationDraftTrialStore {
   setAvailable(value: boolean): void { this.available = value }
   warn(workspaceId: string): void { this.warnings.set(workspaceId, (this.warnings.get(workspaceId) ?? 0) + 1) }
   policy(workspaceId: string): ConversationDraftTrialPolicy | undefined { return this.policies.find(policy => policy.workspaceId === workspaceId) }
+  ownsSession(sessionId: string): boolean {
+    if (this.failed) throw new Error('conversation trial ownership unavailable')
+    return [...this.domain.table('records').entries()]
+      .some(([, record]) => record.legs.some(leg => leg.sessionId === sessionId))
+  }
   records(workspaceId: string): ConversationDraftTrialRecord[] {
     if (this.failed) return []
     return [...this.domain.table('records').entries()].map(([, record]) => record)

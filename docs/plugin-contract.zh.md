@@ -138,6 +138,9 @@ Host composer 对 Gateway、Generation、Routing 每个 source 使用独立的 3
 `maxAttemptsPerUtcDay`（1–20）；最多 20 个 Workspace。它只授权该 Workspace 的有限原生模型识别调用，
 不授权工具执行、文件修改、Candidate authoring、评测或晋升，也不会写入/冒充原生 `messageFeedback`。
 识别在 completed turn 后的原生 Jobs 中进行，不在用户请求之前分类或选路，不修改当前 Session 的模型组成和历史。
+创建 Job 前及开始检查前，按已持久化的草稿评测计划排除精确匹配的原生评测 Session；启动回读同样排除。
+该归属检查不依赖名称前缀或当前评测策略，历史计划在策略撤回后仍有效。归属不可读取时停止检查并显示警告，
+不把评测输出当成用户纠正；其他来源读取错误仍按失败报告，不隐藏真实故障。
 模型仅通过当前 DSH LLM 服务及来源 turn 已记录的 provider/model route 调用；不引入 API Key 环境变量或另一模型服务。
 
 来源只选 v3 持久化前缀中明确的前后完整 turn、各自唯一的直接 user 消息与最后 assistant 文本，并绑定 exact seq、
