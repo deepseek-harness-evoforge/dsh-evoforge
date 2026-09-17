@@ -1,15 +1,48 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { useSyncExternalStore } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ControlCenterView, type ControlCenterViewProps, type ControlSurfaceCatalog } from '../src/client/ControlCenterView.tsx'
 import { zh } from '../src/client/locales.ts'
+import { createControlCenterViewStore } from '../src/client/view-store.ts'
+
+function selectionProps(sessionId = 'session-test'): Pick<ControlCenterViewProps, 'useStore' | 'actions'> {
+  const instance = createControlCenterViewStore().create(sessionId)
+  return {
+    useStore(selector) {
+      return selector(useSyncExternalStore(instance.subscribe, instance.getSnapshot, instance.getSnapshot))
+    },
+    actions: instance.actions,
+  }
+}
 
 afterEach(() => {
   cleanup()
+  localStorage.clear()
   vi.restoreAllMocks()
 })
 
 describe('ControlCenterView', () => {
+  it('restores the native Session-scoped selected surface after a view remount', () => {
+    let requested: string | null = 'gateway'
+    const props = {
+      surfaces: {
+        list: () => [{ id: 'doctor', label: '运行诊断' }, { id: 'gateway', label: '渠道' }],
+        subscribe: () => () => {}, version: () => 1,
+      },
+      t: (key: string) => zh[key as keyof typeof zh] ?? key,
+      renderSlot: vi.fn((_name: string, _owner: unknown, options: { only?: string }) => <div>{options.only}</div>),
+      useStore: (selector: (state: { requested: string | null }) => unknown) => selector({ requested }),
+      actions: { selectSurface: (id: string) => { requested = id } },
+    } as unknown as ControlCenterViewProps
+    const mounted = render(<ControlCenterView {...props} />)
+    expect(screen.getByRole('tab', { name: /渠道/u }).getAttribute('aria-selected')).toBe('true')
+    fireEvent.click(screen.getByRole('tab', { name: /运行诊断/u }))
+    mounted.unmount()
+    render(<ControlCenterView {...props} />)
+    expect(screen.getByRole('tab', { name: /运行诊断/u }).getAttribute('aria-selected')).toBe('true')
+  })
+
   it('renders contributed DSH surfaces inside one native view and switches locally', () => {
     const catalog: ControlSurfaceCatalog = {
       list: () => [
@@ -21,6 +54,7 @@ describe('ControlCenterView', () => {
     }
     const renderSlot = vi.fn((_name: string, _owner: unknown, options: { only?: string }) => <div>{options.only}</div>)
     const props = {
+      ...selectionProps(),
       surfaces: catalog,
       t: (key: string) => zh[key as keyof typeof zh] ?? key,
       renderSlot,
@@ -58,6 +92,7 @@ describe('ControlCenterView', () => {
       version: () => 1,
     }
     const props = {
+      ...selectionProps(),
       surfaces: catalog,
       t: (key: string) => zh[key as keyof typeof zh] ?? key,
       renderSlot: vi.fn(() => <div>surface</div>),
@@ -78,6 +113,7 @@ describe('ControlCenterView', () => {
 
   it('owns a stable empty state when no Adapter is installed', () => {
     const props = {
+      ...selectionProps(),
       surfaces: { list: () => [], subscribe: () => () => {}, version: () => 0 },
       t: (key: string) => zh[key as keyof typeof zh] ?? key,
       renderSlot: vi.fn(),

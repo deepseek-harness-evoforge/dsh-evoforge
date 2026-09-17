@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsdown'
 
 const id = 'dsh-control-center'
-const externals = ['react', 'react/jsx-runtime', 'react/jsx-dev-runtime', '@deepseek-ai/cordis']
+const externals = ['react', 'react/jsx-runtime', 'react/jsx-dev-runtime', '@deepseek-ai/cordis', '@deepseek-ai/dsh-client-store']
 
 export default defineConfig([
   {

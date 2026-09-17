@@ -4,6 +4,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { ControlCenterView, type ControlCenterViewProps, type ControlSurfaceCatalog, type ControlSurfaceTab } from './ControlCenterView.tsx'
 import { en, NS, zh } from './locales.ts'
 import { cssText, STYLE_ID } from './style.ts'
+import { createControlCenterViewStore } from './view-store.ts'
 
 interface StoredSurfaceEntry {
   readonly options: { readonly id?: string; readonly label?: string | (() => string) }
@@ -51,6 +52,7 @@ export function apply(context: Context): void {
     subscribe: listener => ctx.slots.subscribe('evoforge.control.surface', listener),
     version: () => ctx.slots.getVersion('evoforge.control.surface'),
   }
+  const viewStore = createControlCenterViewStore()
 
   ctx.slots.inject('conversation.view', () => ctx.slots.register({
     name: 'conversation.view',
@@ -58,6 +60,7 @@ export function apply(context: Context): void {
     order: 30,
     label: () => t('view.label'),
     locale: NS,
+    store: viewStore,
     children: {
       'evoforge.control.surface': { kind: 'list', scope: 'session' },
     },

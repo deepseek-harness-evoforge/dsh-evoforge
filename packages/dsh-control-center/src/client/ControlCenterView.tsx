@@ -1,7 +1,8 @@
-import { useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
-import type { PropsRenderSlots, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import { useId, useLayoutEffect, useRef, useSyncExternalStore } from 'react'
+import type { PropsRenderSlots, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { controlSurfaceUI, type ControlSurfaceUI } from './primitives.tsx'
+import type { ControlCenterViewStore } from './view-store.ts'
 
 export interface ControlSurfaceOwnerProps {
   /** Common visual primitives owned by the Control Center shell. */
@@ -62,19 +63,21 @@ export interface ControlSurfaceCatalog {
 
 export type ControlCenterViewProps = PropsRuntime<'conversation.view'>
   & PropsRenderSlots<'evoforge.control.surface'>
+  & PropsStore<ControlCenterViewStore>
   & {
     readonly surfaces: ControlSurfaceCatalog
     readonly t: (key: string) => string
   }
 
 /** One native DSH conversation view that owns layout while plugins own surface data. */
-export function ControlCenterView({ renderSlot, surfaces, t }: ControlCenterViewProps) {
+export function ControlCenterView({ renderSlot, surfaces, t, useStore, actions }: ControlCenterViewProps) {
   const instanceId = useId().replaceAll(':', '')
   const rootRef = useRef<HTMLDivElement>(null)
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
   useSyncExternalStore(surfaces.subscribe, surfaces.version, surfaces.version)
   const tabs = surfaces.list()
-  const [requested, setRequested] = useState<string>()
+  const requested = useStore(state => state.requested)
+  const setRequested = actions.selectSurface
   const active = tabs.find(tab => tab.id === requested) ?? tabs[0]
   useLayoutEffect(() => {
     rootRef.current?.scrollIntoView?.({ block: 'start' })

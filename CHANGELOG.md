@@ -7,6 +7,9 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Keep the Control Center's selected child page across browser refreshes and view remounts using the native per-Session
+  Client store. Sessions keep independent choices; unavailable plugins fall back safely without replacing the saved choice.
+
 - Enabled direct output-file delivery for current authenticated Feishu turns under the native full-access preset when
   file delivery is enabled. Other permission modes still require snapshot approval; native denials, cancellation,
   recipient changes, and Web-only presentation do not acquire this permission. Existing Session tool descriptions stay fixed.

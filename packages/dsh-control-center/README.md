@@ -6,6 +6,12 @@ Shared native DSH Web shell for EvoForge. It registers one Session-scoped `conve
 It does not start a server, call a model, read credentials, create Session/Goal state, or copy another plugin's data.
 Each child surface keeps its own Host authority and permissions.
 
+The selected child page is remembered per Session through DSH's native Client store, so a browser refresh or returning
+from the conversation keeps the selection. If that plugin is unavailable, the first available page is shown. This is a
+browser-local display preference, not a copy of Session or channel data. Blocked browser storage leaves navigation usable
+but cannot preserve the choice across refreshes. Removing the view leaves the harmless preference; DSH clears the active
+store's persisted preference when its Session scope is removed.
+
 ## Install
 
 Normal users install it through the complete product from the repository root:

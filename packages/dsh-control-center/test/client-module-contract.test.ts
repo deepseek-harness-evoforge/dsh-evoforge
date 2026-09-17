@@ -16,6 +16,8 @@ describe('Control Center native DSH Client Module', () => {
     })
     expect(manifest.exports['./client']?.default).toBe('./lib/client.js')
     expect(manifest.files).not.toContain('test')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-client-store']).toBe('0.1.6-alpha.1')
+    expect(manifest.dependencies?.['@deepseek-ai/dsh-client-store']).toBeUndefined()
   })
 
   it('declares one child contribution slot and never creates a second router or fixed page', async () => {
@@ -23,6 +25,10 @@ describe('Control Center native DSH Client Module', () => {
     expect(client).toContain('conversation.view')
     expect(client).toContain('evoforge.control.surface')
     expect(client).toContain('window.__ModuleLoader__.load({')
+    expect(client).toContain('require("@deepseek-ai/dsh-client-store")')
+    expect(client).toContain('evoforge.control-center.view')
+    expect(client).not.toContain('function createSnapshotStore')
+    expect(client).not.toContain('localStorage.setItem')
     // DSH's own width handle is a z-indexed sibling of the conversation body.
     // Keep the native Control Center nav above that hit target so mouse users
     // can activate a Surface instead of only moving keyboard focus.
