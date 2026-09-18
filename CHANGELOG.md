@@ -7,6 +7,9 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Let progressing draft requests finish beyond one minute while retaining a 60-second inactivity limit and a three-minute
+  total limit. Show the two timeout causes separately, preserve usage and failed attempts, and never retry automatically.
+
 - Allow current negative answer feedback with a note from explicitly authorized native Sessions to enter the existing
   isolated draft and trial pipeline without an extra classifier call. Share budgets, preserve edits/deletions and
   cross-source deduplication, exclude evaluation Sessions, and keep every draft inactive.

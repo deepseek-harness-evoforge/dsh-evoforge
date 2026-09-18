@@ -194,7 +194,12 @@ Job 标签与结果不携带原文、路径或 provider 错误，模型结果不
 通过结构、唯一性及正反例断言校验后封存。新材料还必须提供 `alternateAnswer`：在任务允许时使用不同表达但保留事实与
 指定格式的另一正确答案，唯一指定输出可以相同。两个正例均须通过固定字面断言，负例须失败；不合格时在 proposer 前停止，
 不改写断言或自动重抽题。第二个独立请求只收到原纠正上下文，不能收到测试题、参考答案、替代答案或评分反馈。
-两者复用来源的原生 provider/model，均无 Tools 和 Agent Loop 标记；输出上限分别 4000/2000 token，每次 60 秒。
+两者复用来源的原生 provider/model，均无 Tools 和 Agent Loop 标记；输出上限分别 4000/2000 token。
+每次请求通过原生 `idleWatchdog` 限制连续60秒未收到新流事件，并通过 `deadline` 限制总时长180秒；
+持续响应不再因总时长达到60秒而提前截断。两个信号传播至同一个原生流，并等待 iterator 清理；
+对不响应取消的 provider 不承诺物理释放时限，不用脱离后台工作的 Promise race 冒充结束。
+新失败分别记录 `model-idle-timeout` / `model-total-timeout`，旧 `model-timeout` 保持历史含义、不重分类。
+两种新失败仍保留调用/预留和已知用量、冷恢复不自动重发；旧程序不保证能读取新增原因，不覆盖账本降级。
 测试作者本身也是模型；此校验不是基线效果、泛化或事实正确性证明，更不是独立评测成功。
 
 输出是私有 Conversation Skill Draft，不是具备资格的 Evolution Candidate。名称、描述和单个自包含 `SKILL.md` 内容

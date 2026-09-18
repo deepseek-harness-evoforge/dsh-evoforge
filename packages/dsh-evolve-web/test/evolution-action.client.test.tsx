@@ -745,15 +745,18 @@ describe('EvolutionAction', () => {
     vi.mocked(api.overview).mockImplementationOnce(() => success({
       schemaVersion: 1, workspaceId, recovery: { available: true, paused: false },
       generationSelectionHistory: emptyGenerationSelectionHistory(),
-      conversationSkillDrafts: { enabled: true, observerAvailable: true, draftCount: 0, pendingCount: 0, uncertainCount: 1,
-        reservedModelCallsToday: 2, maxModelCallsPerUtcDay: 2, inputTokens: 0, outputTokens: 0, usageMissingCount: 1, warningCount: 0,
-        failures: [{ reason: 'model-request-failed', count: 1 }], items: [], releaseAuthority: 'none' },
+      conversationSkillDrafts: { enabled: true, observerAvailable: true, draftCount: 0, pendingCount: 0, uncertainCount: 3,
+        reservedModelCallsToday: 6, maxModelCallsPerUtcDay: 6, inputTokens: 0, outputTokens: 0, usageMissingCount: 3, warningCount: 0,
+        failures: [{ reason: 'model-request-failed', count: 1 }, { reason: 'model-idle-timeout', count: 1 },
+          { reason: 'model-total-timeout', count: 1 }], items: [], releaseAuthority: 'none' },
       reviews: { available: true, pendingCount: 0, actionableCount: 0, warningCount: 0, items: [], inactiveGenerations: [] },
     }))
     render(<EvolutionAction remote={api} t={key => locale[key as keyof typeof zh] ?? key}
       wide useSessions={sessionHook()} useWorkspaces={workspaceHook()} />)
     fireEvent.click(screen.getByRole('button', { name: locale['trigger.label'] }))
     expect(await screen.findByText(locale['draft.failure.model-request-failed'], { exact: false })).toBeTruthy()
+    expect(screen.getByText(locale === zh ? '连续60秒未收到新的模型响应，已停止等待。' : 'No new model response arrived for 60 seconds; waiting stopped.', { exact: false })).toBeTruthy()
+    expect(screen.getByText(locale === zh ? '模型请求达到180秒总时限，未形成完整结果。' : 'The model request reached its 180-second total limit without a complete result.', { exact: false })).toBeTruthy()
     expect(screen.getByText(locale['draft.noRetry'])).toBeTruthy()
     expect(screen.getByText(locale['correction.usageUnknown'])).toBeTruthy()
     expect(screen.queryByText(locale['draft.headline'])).toBeNull()

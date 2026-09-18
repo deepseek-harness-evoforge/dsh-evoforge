@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import { BlockAssembler, createUserMessage, type TokenUsage } from '@deepseek-ai/dsh-llm'
 import type { SessionId } from '@deepseek-ai/dsh-session'
-import { deadline } from '@deepseek-ai/dsh-timeout'
+import { deadline, idleWatchdog, timeoutOf } from '@deepseek-ai/dsh-timeout'
 import { defineDomain, domainTable, type Domain, type DomainFacility } from '@deepseek-ai/dsh-storage-domain'
 import { z } from 'zod'
 import type { ConversationSkillDraftSummary } from './control-types.ts'
@@ -132,7 +132,8 @@ const recordSchema = z.strictObject({
   governance: governanceSchema.optional(), governanceDigest: HASH.optional(),
   draft: draftSchema.optional(), usages: z.array(usageSchema).max(2),
   reason: z.enum(['interrupted', 'cancelled', 'invalid-governance', 'invalid-draft', 'not-generalizable', 'model-request-failed', 'source-conflict',
-    'provider-error', 'provider-aborted', 'model-timeout', 'output-limit', 'invalid-json', 'invalid-stream', 'tool-output']).optional(),
+    'provider-error', 'provider-aborted', 'model-timeout', 'model-idle-timeout', 'model-total-timeout',
+    'output-limit', 'invalid-json', 'invalid-stream', 'tool-output']).optional(),
 }).superRefine((r, ctx) => {
   const invalid = r.id !== draftId(r.workspaceId, r.correctionId, r.retryOf)
     || (r.governance !== undefined) !== (r.governanceDigest !== undefined)
@@ -159,7 +160,8 @@ function draftId(workspaceId: string, correctionId: string, retryOf?: string): s
 function retryEligible(record: ConversationDraftRecord): boolean {
   return record.retryOf === undefined && record.phase === 'uncertain' && record.modelCalls <= 1
     && record.governance === undefined && record.draft === undefined
-    && ['interrupted', 'cancelled', 'model-request-failed', 'provider-error', 'provider-aborted', 'model-timeout'].includes(record.reason ?? '')
+    && ['interrupted', 'cancelled', 'model-request-failed', 'provider-error', 'provider-aborted',
+      'model-timeout', 'model-idle-timeout', 'model-total-timeout'].includes(record.reason ?? '')
 }
 function textHash(text: string): string { return createHash('sha256').update(text).digest('hex') }
 function day(time: number): string { return new Date(time).toISOString().slice(0, 10) }
@@ -313,23 +315,36 @@ class NativeDraftResponseError extends Error {
 
 export function nativeConversationDraftModel(ctx: Pick<Context, 'llm'>): ConversationDraftModel {
   return async ({ role, input }, signal) => {
-    using limit = deadline(signal, 60_000, 'EVOFORGE_CONVERSATION_DRAFT_TIMEOUT')
+    using limit = deadline(signal, 180_000, 'EVOFORGE_CONVERSATION_DRAFT_TOTAL_TIMEOUT')
+    using idle = idleWatchdog(limit.signal, 60_000, 'EVOFORGE_CONVERSATION_DRAFT_IDLE_TIMEOUT')
     const assembler = new BlockAssembler()
     let bytes = 0, finishes = 0
     try {
-      for await (const chunk of ctx.llm.stream({ ...input.route, sessionId: input.source.sessionId as SessionId,
+      idle.signal.throwIfAborted()
+      const iterator = ctx.llm.stream({ ...input.route, sessionId: input.source.sessionId as SessionId,
         system: role === 'governance' ? governanceSystem : authorSystem, maxTokens: role === 'governance' ? 4000 : 2000,
         messages: [createUserMessage({ source: { kind: 'plugin', plugin: 'dsh-evolve' }, content: [{ type: 'text', text: JSON.stringify(input.messages) }] })],
-        signal: limit.signal,
-      })) {
-        limit.signal.throwIfAborted()
-        if (finishes > 0 && chunk.type !== 'usage') throw new NativeDraftResponseError('invalid-stream', assembler.usage)
-        if (chunk.type === 'finish') finishes += 1
-        bytes += Buffer.byteLength(JSON.stringify(chunk))
-        if (bytes > 512_000) throw new NativeDraftResponseError('output-limit', assembler.usage)
-        assembler.push(chunk)
+        signal: idle.signal,
+      })[Symbol.asyncIterator]()
+      let complete = false
+      try {
+        while (true) {
+          const next = await idle.next(iterator)
+          idle.signal.throwIfAborted()
+          if (next.done) { complete = true; break }
+          const chunk = next.value
+          if (finishes > 0 && chunk.type !== 'usage') throw new NativeDraftResponseError('invalid-stream', assembler.usage)
+          if (chunk.type === 'finish') finishes += 1
+          bytes += Buffer.byteLength(JSON.stringify(chunk))
+          if (bytes > 512_000) throw new NativeDraftResponseError('output-limit', assembler.usage)
+          assembler.push(chunk)
+        }
+      } finally {
+        // Await the actual provider cleanup; abort is notification, not a claim
+        // that a provider ignoring its signal has physically stopped.
+        if (!complete) await iterator.return?.()
       }
-      limit.signal.throwIfAborted()
+      idle.signal.throwIfAborted()
       if (finishes !== 1) throw new NativeDraftResponseError('invalid-stream', assembler.usage)
       if (assembler.finish.kind === 'max-tokens') throw new NativeDraftResponseError('output-limit', assembler.usage)
       if (assembler.finish.kind === 'error') throw new NativeDraftResponseError('provider-error', assembler.usage)
@@ -341,7 +356,10 @@ export function nativeConversationDraftModel(ctx: Pick<Context, 'llm'>): Convers
       return { value, ...(assembler.usage === undefined ? {} : { usage: assembler.usage }) }
     } catch (error) {
       if (error instanceof NativeDraftResponseError) throw error
-      throw new NativeDraftResponseError(signal.aborted ? 'cancelled' : limit.signal.aborted ? 'model-timeout' : 'model-request-failed', assembler.usage)
+      const reason = timeoutOf(idle.signal, 'EVOFORGE_CONVERSATION_DRAFT_IDLE_TIMEOUT') !== undefined ? 'model-idle-timeout'
+        : timeoutOf(idle.signal, 'EVOFORGE_CONVERSATION_DRAFT_TOTAL_TIMEOUT') !== undefined ? 'model-total-timeout'
+          : signal.aborted ? 'cancelled' : 'model-request-failed'
+      throw new NativeDraftResponseError(reason, assembler.usage)
     }
   }
 }

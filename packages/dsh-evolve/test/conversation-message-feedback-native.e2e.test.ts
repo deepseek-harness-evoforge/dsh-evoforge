@@ -2,6 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { setTimeout as delay } from 'node:timers/promises'
 import { describe, expect, it, vi } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import type { GenerateOptions, StreamChunk } from '@deepseek-ai/dsh-llm'
@@ -16,7 +17,9 @@ import { WORKSPACE_ID } from './workspace-fixture.ts'
 const dshRoot = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
 
 describe.skipIf(dshRoot === undefined)('native feedback-to-draft path', () => {
-  it.each(['live', 'cold', 'withdraw-during-author', 'withdraw-before-trial', 'owned-evaluation', 'ownership-unavailable'])('handles %s feedback using native ownership, one shared budget and no classifier', async scenario => {
+  it.each(['live', 'cold', 'withdraw-during-author', 'withdraw-before-trial', 'owned-evaluation', 'ownership-unavailable',
+    ...(process.env.DSH_EVOLVE_SLOW_STREAM_TEST === '1' ? ['slow-governance'] : []),
+  ])('handles %s feedback using native ownership, one shared budget and no classifier', async scenario => {
     const root = await mkdtemp(join(tmpdir(), 'evoforge-message-feedback-'))
     const entry = (path: string) => pathToFileURL(join(dshRoot!, path, 'lib/index.js')).href
     const cordis = await import(entry('vendor/cordis')) as typeof import('@deepseek-ai/cordis')
@@ -65,7 +68,15 @@ describe.skipIf(dshRoot === undefined)('native feedback-to-draft path', () => {
           text = JSON.stringify(task).match(/answer-(h1|h2|r1|r2)/u)?.[0] ?? 'wrong'
         } else throw new Error('unexpected classifier or auxiliary request')
         yield { type: 'block-start', index: 0, blockType: 'text' }
-        yield { type: 'text-delta', index: 0, text }
+        if (scenario === 'slow-governance' && options.system?.startsWith('You prepare independent test material')) {
+          // Opt-in wall-clock integration: a real native Job/adapter remains
+          // productive beyond the previous total deadline, without paid calls.
+          const width = Math.ceil(text.length / 5)
+          for (let part = 0; part < 5; part++) {
+            await delay(15_000, undefined, { signal: options.signal })
+            yield { type: 'text-delta', index: 0, text: text.slice(part * width, (part + 1) * width) }
+          }
+        } else yield { type: 'text-delta', index: 0, text }
         yield { type: 'block-end', index: 0, block: { type: 'text', text } }
         yield { type: 'usage', usage: { inputTokens: 21, outputTokens: 9 } }
         yield { type: 'finish', reason: { kind: 'stop' } }
@@ -138,7 +149,7 @@ describe.skipIf(dshRoot === undefined)('native feedback-to-draft path', () => {
         expect(ctx.jobs.list()).toEqual([])
         return
       }
-      await vi.waitFor(() => expect(drafts!.records(WORKSPACE_ID)[0]?.phase).toBe(scenario === 'withdraw-during-author' ? 'uncertain' : 'draft'), { timeout: 10_000 })
+      await vi.waitFor(() => expect(drafts!.records(WORKSPACE_ID)[0]?.phase).toBe(scenario === 'withdraw-during-author' ? 'uncertain' : 'draft'), { timeout: scenario === 'slow-governance' ? 90_000 : 10_000 })
       expect(calls).toHaveLength(2)
       expect(ledger.records(WORKSPACE_ID)).toEqual([])
       const draft = drafts.records(WORKSPACE_ID)[0]!
@@ -153,7 +164,7 @@ describe.skipIf(dshRoot === undefined)('native feedback-to-draft path', () => {
       if (scenario === 'withdraw-before-trial') await withdraw()
       trials = await openConversationDraftTrialStore(ctx.storageDomain, [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 24 }])
       trialMonitor = installConversationDraftTrialMonitor(ctx, ledger, drafts, trials, [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 24 }])
-      if (scenario === 'live' || scenario === 'cold') {
+      if (scenario === 'live' || scenario === 'cold' || scenario === 'slow-governance') {
         await vi.waitFor(() => expect(trials!.records(WORKSPACE_ID)[0]?.phase).toBe('completed'), { timeout: 10_000 })
         expect(calls).toHaveLength(14)
         expect(trials.records(WORKSPACE_ID)[0]?.comparison).toMatchObject({ outcome: 'no-improvement', comparablePairs: 4, loadedDraftLegs: 4 })
@@ -195,5 +206,5 @@ describe.skipIf(dshRoot === undefined)('native feedback-to-draft path', () => {
       await ctx?.fiber.dispose()
       await rm(root, { recursive: true, force: true })
     }
-  }, 30_000)
+  }, 120_000)
 })

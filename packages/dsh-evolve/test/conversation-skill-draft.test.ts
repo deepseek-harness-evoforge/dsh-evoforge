@@ -57,6 +57,15 @@ function facility() {
 }
 const signal = () => new AbortController().signal
 
+function fixtureWait(ms: number, signal: AbortSignal): Promise<void> {
+  signal.throwIfAborted()
+  return new Promise((resolve, reject) => {
+    const onAbort = () => { clearTimeout(timer); reject(signal.reason) }
+    const timer = setTimeout(() => { signal.removeEventListener('abort', onAbort); resolve() }, ms)
+    signal.addEventListener('abort', onAbort, { once: true })
+  })
+}
+
 describe('conversation-derived Skill draft', () => {
   it.each(['governance', 'author'] as const)('stops when the source changes during %s and retains usage without redrafting', async role => {
     const f = facility(), store = await openConversationDraftStore(f.value, [policy], () => 100)
@@ -331,6 +340,74 @@ describe('conversation-derived Skill draft', () => {
     expect(options[0]).not.toHaveProperty('tools')
     const missingFinish = { llm: { async *stream() { yield { type: 'text-delta', index: 0, text: JSON.stringify(proposal) } } } } as unknown as Pick<Context, 'llm'>
     await expect(nativeConversationDraftModel(missingFinish)(request, signal())).rejects.toThrow()
+  })
+
+  it.each(['governance', 'author'] as const)('allows a continuously progressing %s response to finish after sixty seconds', async role => {
+    vi.useFakeTimers()
+    try {
+      const value = role === 'governance' ? governance : proposal
+      const text = JSON.stringify(value)
+      let closed = false
+      const ctx = { llm: { async *stream(options: { signal: AbortSignal }) {
+        try {
+          for (let part = 0; part < 5; part++) {
+            await fixtureWait(15_000, options.signal)
+            const width = Math.ceil(text.length / 5)
+            yield { type: 'text-delta', index: 0, text: text.slice(part * width, (part + 1) * width) }
+          }
+          yield { type: 'finish', reason: { kind: 'stop' } }
+        } finally { closed = true }
+      } } } as unknown as Pick<Context, 'llm'>
+      const result = nativeConversationDraftModel(ctx)({ role, input }, signal())
+        .then(response => ({ value: response.value }), error => ({ failure: error.message }))
+      await vi.advanceTimersByTimeAsync(75_000)
+      expect(await result).toEqual({ value })
+      expect(closed).toBe(true)
+      expect(vi.getTimerCount()).toBe(0)
+    } finally { vi.useRealTimers() }
+  })
+
+  it.each([
+    { mode: 'silent', reason: 'model-idle-timeout', milliseconds: 60_000 },
+    { mode: 'partial-stall', reason: 'model-idle-timeout', milliseconds: 60_000 },
+    { mode: 'after-finish', reason: 'model-idle-timeout', milliseconds: 60_000 },
+    { mode: 'continuous', reason: 'model-total-timeout', milliseconds: 180_000 },
+    { mode: 'cancelled', reason: 'cancelled', milliseconds: 30_000 },
+  ])('bounds $mode without dropping consumed budget or known usage', async ({ mode, reason, milliseconds }) => {
+    vi.useFakeTimers()
+    try {
+      const controller = new AbortController()
+      let closed = false, calls = 0
+      const ctx = { llm: { async *stream(options: { signal: AbortSignal }) {
+        calls++
+        try {
+          if (mode !== 'silent') yield { type: 'usage', usage: { inputTokens: 23, outputTokens: 4 } }
+          if (mode === 'partial-stall') yield { type: 'text-delta', index: 0, text: '{"scope":' }
+          if (mode === 'after-finish') {
+            yield { type: 'text-delta', index: 0, text: JSON.stringify(governance) }
+            yield { type: 'finish', reason: { kind: 'stop' } }
+          }
+          while (true) {
+            await fixtureWait(mode === 'continuous' ? 15_000 : 300_000, options.signal)
+            yield { type: 'text-delta', index: 0, text: ' ' }
+          }
+        } finally { closed = true }
+      } } } as unknown as Pick<Context, 'llm'>
+      const f = facility(), store = await openConversationDraftStore(f.value, [policy], () => 100)
+      const run = authorConversationSkillDraft(store, correction, input, nativeConversationDraftModel(ctx), controller.signal)
+      if (mode === 'cancelled') setTimeout(() => controller.abort(new Error('private cancellation detail')), 30_000)
+      await vi.advanceTimersByTimeAsync(milliseconds)
+      expect(await run).toBe('uncertain')
+      expect(store.records(WORKSPACE_ID)[0]).toMatchObject({ reason, reservedModelCalls: 2, modelCalls: 1,
+        usages: mode === 'silent' ? [] : [{ inputTokens: 23, outputTokens: 4 }] })
+      expect(closed).toBe(true)
+      expect(calls).toBe(1)
+      expect(vi.getTimerCount()).toBe(0)
+      const reopened = await openConversationDraftStore(f.value, [policy], () => 86_400_100)
+      expect(await authorConversationSkillDraft(reopened, correction, input, nativeConversationDraftModel(ctx), signal())).toBe('skipped')
+      expect(calls).toBe(1)
+      expect(JSON.stringify(reopened.records(WORKSPACE_ID))).not.toContain('private cancellation detail')
+    } finally { vi.useRealTimers() }
   })
 
   it.each([
