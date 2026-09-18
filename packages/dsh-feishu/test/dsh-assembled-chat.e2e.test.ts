@@ -399,8 +399,12 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
         })])
       }, { timeout: 5_000, interval: 10 })
 
+      const approvalCall = agent.session.snapshotEvents().findLast((event: SessionEvent) => event.type === 'tool/call'
+        && event.data.name === 'bash')
+      expect(approvalCall).toBeDefined()
       const approval = agentModule.agentEvents(ctx, agent).waterfall('approval/request', {
-        toolName: 'deploy',
+        toolName: 'bash',
+        callId: approvalCall.data.callId,
         reason: 'Protected action.',
         signal: new AbortController().signal,
       }, () => Promise.resolve<ApprovalOutcome>('unavailable'))
@@ -415,10 +419,11 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
       const card = service.platform.cards[0]!.card as {
         body?: { elements?: Array<{ behaviors?: Array<{ value?: unknown }> }> }
       }
+      expect(JSON.stringify(card)).toContain(JSON.stringify(approvalCall.data.arguments).slice(1, -1))
       // Feishu Card 2.0 rejects the old action container and top-level button value.
       // Check the actual Adapter output, not a separately constructed valid fixture.
       expect(card.body?.elements).toEqual([
-        expect.objectContaining({ tag: 'markdown' }),
+        expect.objectContaining({ tag: 'div', text: { tag: 'plain_text', content: expect.stringContaining(approvalCall.data.arguments) } }),
         expect.objectContaining({
           tag: 'button',
           text: { tag: 'plain_text', content: '允许一次' },
@@ -473,6 +478,24 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
       })
       expect(service.runtime.healthSnapshot().pendingApprovals).toBe(0)
 
+      for (const mode of ['missing-call', 'oversized'] as const) {
+        const fallback = vi.fn(() => Promise.resolve<ApprovalOutcome>('unavailable'))
+        const outcome = await agentModule.agentEvents(ctx, agent).waterfall('approval/request', {
+          toolName: 'bash',
+          callId: mode === 'missing-call' ? ToolCallId('missing-native-call') : approvalCall.data.callId,
+          reason: mode === 'oversized' ? 'unsafe-to-truncate'.repeat(4000) : 'Missing native arguments.',
+          signal: new AbortController().signal,
+        }, fallback)
+        expect(outcome).toBe('unavailable')
+        expect(fallback).toHaveBeenCalledOnce()
+        expect(service.runtime.healthSnapshot().pendingApprovals).toBe(0)
+        const notice = service.platform.cards.at(-1)!.card as { body: { elements: unknown[] } }
+        expect(notice.body.elements).toEqual([{ tag: 'div', text: {
+          tag: 'plain_text', content: expect.stringContaining('DSH Web 的原会话'),
+        } }])
+        expect(JSON.stringify(notice)).not.toContain('unsafe-to-truncate')
+      }
+
       await expect(service.runtime.notifyHost({
         id: 'f'.repeat(64),
         routeId: 'feishu-main',
@@ -525,7 +548,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
         reason: 'Must not survive Adapter disposal.',
         signal: new AbortController().signal,
       }, () => Promise.resolve<ApprovalOutcome>('unavailable'))
-      await vi.waitFor(() => { expect(service.platform.cards).toHaveLength(2) })
+      await vi.waitFor(() => { expect(service.platform.cards).toHaveLength(4) })
     } finally {
       await ctx.fiber.dispose()
       process.chdir(previousCwd)

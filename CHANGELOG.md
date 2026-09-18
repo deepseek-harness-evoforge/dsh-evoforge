@@ -7,6 +7,9 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Show complete current-turn native tool arguments in Feishu approval cards as plain text. If details are unavailable,
+  ambiguous or too long, omit approval buttons and direct the user to the original DSH Web conversation.
+
 - Use Feishu Card 2.0 buttons and callback behaviors for native approval cards instead of the unsupported legacy action
   wrapper. Show Chinese approval labels and explain one-time permission; preserve exact recipient checks and native decisions.
 

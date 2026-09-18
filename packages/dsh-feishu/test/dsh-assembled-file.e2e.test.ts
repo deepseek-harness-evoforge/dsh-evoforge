@@ -113,6 +113,10 @@ it.skipIf(process.env.DSH_FEISHU_TEST_NATIVE_FILES !== '1').each(
       expect(platform.cards).toHaveLength(1)
       expect(platform.files).toHaveLength(0)
       expect(JSON.stringify(platform.cards[0].card)).toContain(expectedDigest)
+      const requestedCall = sessionEvents(agent.session).filter(event => event.type === 'tool/call').at(-1)
+      expect(requestedCall?.type).toBe('tool/call')
+      if (requestedCall?.type !== 'tool/call') throw new Error('Native approval must reference an actual tool call')
+      expect(JSON.stringify(platform.cards[0].card)).toContain(JSON.stringify(requestedCall.data.arguments).slice(1, -1))
       // The approval applies to the stored snapshot, not bytes reread from a mutable path later.
       await writeFile(join(root, 'result.txt'), 'changed while approval was pending')
       const card = platform.cards[0]

@@ -43,6 +43,7 @@ import {
 } from './health.js'
 import { boundText, hasNonChannelTurnInput, outboundTextForTurn } from './outbound.js'
 import { FeishuPlatformSendError } from './platform.js'
+import { approvalDetails, APPROVAL_DETAILS_UNAVAILABLE } from './approval-presentation.js'
 import type {
   FeishuApprovalAction,
   FeishuInboundMessage,
@@ -960,17 +961,14 @@ export class FeishuRuntime {
         : undefined)
     if (destination === undefined) return next()
     const nonce = randomBytes(9).toString('base64url')
-    const content = boundText(
-      `**等待审批**\n\n操作：${request.toolName}${request.reason === undefined ? '' : `\n\n原因：${request.reason}`}\n\n请核对上述操作；允许一次只批准本次请求，不会永久放宽权限。`,
-      this.config.maxTextChars,
-    )
+    const content = approvalDetails(request, events, this.config.maxTextChars)
     let sent: { readonly messageId: string }
     try {
       const signals = [this.lifecycle.signal, AbortSignal.timeout(PLATFORM_SEND_TIMEOUT_MS)]
       if (request.signal !== undefined) signals.push(request.signal)
       sent = await this.platform.sendCard(
         destination.route.endpoint.conversationId,
-        approvalCard(content, nonce),
+        approvalCard(content ?? APPROVAL_DETAILS_UNAVAILABLE, content === undefined ? undefined : nonce),
         sendOptionsFor(destination),
         AbortSignal.any(signals),
       )
@@ -978,6 +976,7 @@ export class FeishuRuntime {
       return next()
     }
     if (this.lifecycle.signal.aborted || isAborted(request.signal)) return 'cancelled'
+    if (content === undefined) return next()
     return new Promise<ApprovalOutcome>((resolve) => {
       const settle = (outcome: ApprovalOutcome): void => {
         if (!this.pendingApprovals.delete(nonce)) return
@@ -1069,14 +1068,14 @@ function isPlatformSendError(error: unknown): error is FeishuPlatformSendError {
       || (Number.isSafeInteger(error.retryAfterMs) && (error.retryAfterMs as number) > 0))
 }
 
-function approvalCard(content: string, nonce: string): object {
+function approvalCard(content: string, nonce?: string): object {
   return Object.freeze({
     schema: '2.0',
     config: { update_multi: true },
     body: {
       elements: [
-        { tag: 'markdown', content },
-        {
+        { tag: 'div', text: { tag: 'plain_text', content } },
+        ...(nonce === undefined ? [] : [{
           tag: 'button',
           text: { tag: 'plain_text', content: '允许一次' },
           type: 'primary',
@@ -1087,7 +1086,7 @@ function approvalCard(content: string, nonce: string): object {
           text: { tag: 'plain_text', content: '拒绝' },
           type: 'danger',
           behaviors: [{ type: 'callback', value: { evoforge: 'dsh-approval-v1', nonce, outcome: 'rejected' } }],
-        },
+        }]),
       ],
     },
   })
