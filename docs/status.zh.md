@@ -1,6 +1,6 @@
 # 当前状态
 
-更新时间：2026-09-17。本文区分已部署真实路径、局部实现和未取得的效果证据；历史验收不随本页改写。
+更新时间：2026-09-18。本文区分已部署真实路径、局部实现和未取得的效果证据；历史验收不随本页改写。
 状态词见 [Hermes 对照记分卡](architecture/hermes-replacement-scorecard.zh.md)。
 
 ## 总结
@@ -40,6 +40,10 @@
   见[纠正与评测隔离](evidence/2026-09-17-correction-evaluation-isolation.zh.md)。本次没有重跑付费实验。
 
 ## 真实任务效果与普通纠正链路
+
+9 月 18 日新增[订单核对与跨渠道恢复](evidence/2026-09-18-web-order-reconciliation.zh.md)：Web 真实读写、回读与展示
+首次八项通过；单 Host 冷重启后只读结果正确，飞书能接续同一会话的 Web 产物。飞书首次自动输入残缺，重录后通过，
+计一次输入干预；保留该无效输入的消耗和澄清回复。运行代码、权限与预算未改，没有新草稿或评测。
 
 9 月 17 日的[约束任务](evidence/2026-09-17-feishu-constraint-task.zh.md)两轮内容通过，额外提示为零；
 [多材料报告](evidence/2026-09-17-feishu-conflicting-material-task.zh.md)首次事实与附件交付 6/6 通过，
