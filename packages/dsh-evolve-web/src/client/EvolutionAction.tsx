@@ -258,6 +258,7 @@ export function EvolutionSurface({ remote, t, sessionId, useWorkspaces, ui: UI, 
   }
 
   const pending = actionableCount(overview)
+  const status = overviewStatus(overview, error, pending)
   useLayoutEffect(() => { onPendingChange?.(pending) }, [onPendingChange, pending])
   return (
     <UI.Surface ariaLabel={t('panel.title')}>
@@ -265,7 +266,7 @@ export function EvolutionSurface({ remote, t, sessionId, useWorkspaces, ui: UI, 
         eyebrow={t('surface.eyebrow')}
         title={t('panel.title')}
         description={t('surface.description')}
-        status={pending > 0 ? <UI.Status tone="attention">{pending} {t('surface.pending')}</UI.Status> : <UI.Status tone="healthy">{t('surface.stable')}</UI.Status>}
+        status={<UI.Status tone={status.tone}>{status.key === 'surface.pending' ? `${pending} ` : ''}{t(status.key)}</UI.Status>}
         actions={<UI.Button type="button" disabled={busy} onClick={() => { void refreshVisibleState() }}>{busy ? t('action.refreshing') : t('action.refresh')}</UI.Button>}
       />
       <nav className="dsh-evolve-tabs" role="tablist" aria-label={t('view.label')}>
@@ -432,6 +433,7 @@ function BeginnerOverview({ summary, openAdvanced, t }: {
   const verificationConfigured = hasVerificationTarget(summary)
   const drafts = summary.conversationSkillDrafts
   const trials = summary.conversationDraftTrials
+  const ordinaryDraftOnly = pending === 0 && (drafts?.enabled === true || trials?.enabled === true)
   const headline = pending > 0
     ? `${pending} ${t('onboarding.actionable')}`
     : (trials?.items.length ?? 0) > 0
@@ -536,11 +538,33 @@ function BeginnerOverview({ summary, openAdvanced, t }: {
       <ol className="dsh-evolve-steps">
         <li><span>1</span><div><strong>{t('onboarding.step.correct')}</strong><p>{t('onboarding.step.correctHelp')}</p></div></li>
         <li><span>2</span><div><strong>{t('onboarding.step.verify')}</strong><p>{t('onboarding.step.verifyHelp')}</p></div></li>
-        <li><span>3</span><div><strong>{t('onboarding.step.decide')}</strong><p>{t('onboarding.step.decideHelp')}</p></div></li>
+        <li><span>3</span><div><strong>{t(ordinaryDraftOnly ? 'draft.step.decide' : 'onboarding.step.decide')}</strong><p>{t(ordinaryDraftOnly ? 'draft.step.decideHelp' : 'onboarding.step.decideHelp')}</p></div></li>
       </ol>
       <p className="dsh-evolve-guidance">{t('onboarding.hint')}</p>
     </section>
   </>
+}
+
+/** A lack of authorized actions is not proof that reads or draft checks succeeded. */
+function overviewStatus(overview: EvolutionOverview | undefined, error: string | undefined, pending: number): {
+  tone: 'healthy' | 'working' | 'attention' | 'danger'
+  key: string
+} {
+  if (error !== undefined) return { tone: 'danger', key: 'surface.unavailable' }
+  if (overview === undefined) return { tone: 'working', key: 'surface.loading' }
+  if (pending > 0) return { tone: 'attention', key: 'surface.pending' }
+  const corrections = overview.conversationCorrections
+  const drafts = overview.conversationSkillDrafts
+  const trials = overview.conversationDraftTrials
+  if ((corrections?.pendingCount ?? 0) + (drafts?.pendingCount ?? 0) + (trials?.pendingCount ?? 0) > 0) {
+    return { tone: 'working', key: 'surface.checking' }
+  }
+  if ((corrections?.correctionCount ?? 0) + (corrections?.uncertainCount ?? 0)
+    + (drafts?.draftCount ?? 0) + (drafts?.uncertainCount ?? 0)
+    + (trials?.uncertainCount ?? 0) + (trials?.items.length ?? 0) > 0) {
+    return { tone: 'attention', key: 'surface.unverified' }
+  }
+  return { tone: 'healthy', key: 'surface.stable' }
 }
 
 function recordedCorrectionCount(summary: EvolutionOverview): number {

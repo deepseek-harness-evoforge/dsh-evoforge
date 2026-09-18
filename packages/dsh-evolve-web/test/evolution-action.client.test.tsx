@@ -713,6 +713,33 @@ async function selectAdvanced() {
 }
 
 describe('EvolutionAction', () => {
+  it.each([zh, en])('distinguishes in-progress checks from a truly idle snapshot without creating actions', async locale => {
+    const api = remote()
+    const summary = {
+      schemaVersion: 1 as const, workspaceId, recovery: { available: true, paused: false },
+      generationSelectionHistory: emptyGenerationSelectionHistory(),
+      conversationSkillDrafts: { enabled: true, observerAvailable: true, draftCount: 0, pendingCount: 1, uncertainCount: 0,
+        reservedModelCallsToday: 2, maxModelCallsPerUtcDay: 2, inputTokens: 0, outputTokens: 0, usageMissingCount: 0, warningCount: 0,
+        items: [], releaseAuthority: 'none' as const },
+      reviews: { available: true, pendingCount: 0, actionableCount: 0, warningCount: 0, items: [], inactiveGenerations: [] },
+    }
+    vi.mocked(api.overview).mockImplementationOnce(() => success(summary))
+    render(<EvolutionAction remote={api} t={key => locale[key as keyof typeof zh] ?? key}
+      wide useSessions={sessionHook()} useWorkspaces={workspaceHook()} />)
+    fireEvent.click(screen.getByRole('button', { name: locale['trigger.label'] }))
+    expect(await screen.findByText(locale['surface.checking'])).toBeTruthy()
+    expect(screen.queryByText(locale['surface.stable'])).toBeNull()
+    expect(screen.queryByRole('button', { name: locale['onboarding.review'] })).toBeNull()
+    vi.mocked(api.overview).mockImplementationOnce(() => success({ ...summary,
+      conversationSkillDrafts: { ...summary.conversationSkillDrafts, pendingCount: 0 } }))
+    fireEvent.click(screen.getByRole('button', { name: locale['action.refresh'] }))
+    expect(await screen.findByText(locale['surface.stable'])).toBeTruthy()
+    expect(screen.queryByText(locale['surface.checking'])).toBeNull()
+    vi.mocked(api.overview).mockRejectedValueOnce(new Error('offline'))
+    fireEvent.click(screen.getByRole('button', { name: locale['action.refresh'] }))
+    expect(await screen.findByText(locale['surface.unavailable'])).toBeTruthy()
+    expect(screen.queryByText(locale['surface.stable'])).toBeNull()
+  })
   it.each([zh, en])('explains incomplete drafts without claiming a retry or known usage', async locale => {
     const api = remote()
     vi.mocked(api.overview).mockImplementationOnce(() => success({
@@ -770,10 +797,29 @@ describe('EvolutionAction', () => {
       wide useSessions={sessionHook()} useWorkspaces={workspaceHook()} />)
     fireEvent.click(screen.getByRole('button', { name: zh['trigger.label'] }))
     expect(await screen.findByText(zh[`trial.outcome.${outcome}`])).toBeTruthy()
+    expect(screen.getByText('改进尚未验证')).toBeTruthy()
+    expect(screen.queryByText(zh['surface.stable'])).toBeNull()
+    expect(screen.getByText('普通草稿暂无启用入口')).toBeTruthy()
+    expect(screen.queryByText(zh['onboarding.step.decide'])).toBeNull()
     expect(screen.getByText(zh['trial.setupRetry'])).toBeTruthy()
     expect(screen.getByText(zh['trial.limit'])).toBeTruthy()
     expect(screen.getByText(zh['trial.usageUnknown'])).toBeTruthy()
     expect(screen.queryByRole('button', { name: /启用|晋升/u })).toBeNull()
+  })
+
+  it('does not claim a healthy idle state while loading or after an unavailable overview', async () => {
+    const api = remote()
+    let reject!: (error: Error) => void
+    vi.mocked(api.overview).mockImplementationOnce(() => new Promise((_resolve, fail) => { reject = fail }))
+    render(<EvolutionAction remote={api} t={key => zh[key as keyof typeof zh] ?? key}
+      wide useSessions={sessionHook()} useWorkspaces={workspaceHook()} />)
+    fireEvent.click(screen.getByRole('button', { name: zh['trigger.label'] }))
+    expect(screen.queryByText(zh['surface.stable'])).toBeNull()
+    expect(screen.getByText('正在读取状态')).toBeTruthy()
+    reject(new Error('offline'))
+    expect(await screen.findByRole('alert')).toBeTruthy()
+    expect(screen.getByText('当前状态未确认')).toBeTruthy()
+    expect(screen.queryByText(zh['surface.stable'])).toBeNull()
   })
 
   it('shows evaluator rejection as unstarted, without a score or activation action', async () => {

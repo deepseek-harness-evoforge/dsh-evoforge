@@ -7,6 +7,9 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Distinguish loading, unavailable, running checks and unverified conversation drafts from an idle evolution overview.
+  Explain that ordinary drafts have no direct activation or rollback action; keep native review authority unchanged.
+
 - Stop automatically mirroring Web/local replies and approval details into a bound Feishu chat after channel use.
   Mixed local/channel turns stay local; native Schedule continuation and explicit approved file delivery remain separate.
 
