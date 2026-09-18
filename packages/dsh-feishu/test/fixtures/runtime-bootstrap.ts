@@ -49,6 +49,10 @@ class FakeFeishuPlatform implements FeishuPlatform {
   readonly files: Array<{ chatId: string; snapshot: FeishuFileSnapshot; options?: FeishuSendOptions }> = []
   readonly texts: SentText[] = []
   readonly cards: SentCard[] = []
+  readonly cardUpdates: Array<{ messageId: string; card: object }> = []
+  private readonly cardUpdateFailures: unknown[] = []
+  waitForCardUpdateAbort = false
+  cardUpdateAborted = false
   readonly sendAttempts: string[] = []
   readonly sendSignals: AbortSignal[] = []
   readonly cardSignals: AbortSignal[] = []
@@ -125,6 +129,18 @@ class FakeFeishuPlatform implements FeishuPlatform {
     return { messageId }
   }
 
+  async updateCard(messageId: string, card: object, signal: AbortSignal): Promise<void> {
+    signal.throwIfAborted()
+    this.cardUpdates.push({ messageId, card })
+    if (this.cardUpdateFailures.length > 0) throw this.cardUpdateFailures.shift()
+    if (this.waitForCardUpdateAbort) await new Promise<void>((_resolve, reject) => {
+      signal.addEventListener('abort', () => {
+        this.cardUpdateAborted = true
+        reject(new Error('test card update cancelled'))
+      }, { once: true })
+    })
+  }
+
   async downloadMessageResource(
     messageId: string,
     fileKey: string,
@@ -174,6 +190,7 @@ class FakeFeishuPlatform implements FeishuPlatform {
   }
 
   queueFailure(error: unknown): void { this.failures.push(error) }
+  queueCardUpdateFailure(error: unknown): void { this.cardUpdateFailures.push(error) }
 }
 
 export async function apply(ctx: Context, config: Config): Promise<void> {

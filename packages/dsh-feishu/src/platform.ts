@@ -202,6 +202,8 @@ export interface FeishuPlatform {
     options: FeishuSendOptions | undefined,
     signal: AbortSignal,
   ): Promise<{ readonly messageId: string }>
+  /** Best-effort projection of a consumed approval; never decides or retries the native action. */
+  updateCard?(messageId: string, card: object, signal: AbortSignal): Promise<void>
   /** Optional for custom platforms. Never accepts a local path or URL. */
   sendFile?(
     chatId: string,
@@ -361,6 +363,19 @@ function createOfficialPlatform(
         },
       )),
     ),
+    updateCard: async (messageId, card, signal) => {
+      signal.throwIfAborted()
+      try {
+        const response = await transport.withSignal(signal, () => channel.rawClient.im.v1.message.patch({
+          path: { message_id: messageId },
+          data: { content: JSON.stringify(card) },
+        }))
+        signal.throwIfAborted()
+        if (response.code !== 0) throw new Error('unconfirmed')
+      } catch {
+        throw new FeishuPlatformSendError('transport', 'Feishu card update was not confirmed')
+      }
+    },
     sendFile: async (chatId, snapshot, sendOptions, signal) => {
       signal.throwIfAborted()
       const { name, data, sha256 } = snapshot

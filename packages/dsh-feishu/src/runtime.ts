@@ -828,6 +828,14 @@ export class FeishuRuntime {
     this.pendingApprovals.delete(selected.nonce)
     if (pending.onAbort !== undefined) pending.signal?.removeEventListener('abort', pending.onAbort)
     pending.resolve(selected.outcome)
+    // The decision is consumed before presentation I/O: a failed/slow patch must never repeat or block approval.
+    if (this.platform.updateCard !== undefined && !this.lifecycle.signal.aborted) {
+      const text = selected.outcome === 'allowed-once'
+        ? '已提交允许一次\n\n仅针对本次请求，不会永久放宽权限；这不代表任务已完成。请以原会话中的执行结果为准。'
+        : '已提交拒绝\n\n本次请求未获批准。请以原会话中的后续结果为准。'
+      await this.platform.updateCard(pending.externalMessageId, approvalCard(text),
+        AbortSignal.any([this.lifecycle.signal, AbortSignal.timeout(PLATFORM_SEND_TIMEOUT_MS)]))
+    }
   }
 
   private async prepareResponse(

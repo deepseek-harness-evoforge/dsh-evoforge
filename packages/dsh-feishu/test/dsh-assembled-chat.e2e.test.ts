@@ -161,6 +161,10 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
         cardSignals: AbortSignal[]
         texts: Array<{ chatId: string; text: string; options?: FeishuSendOptions }>
         cards: Array<{ messageId: string; chatId: string; card: object; options?: FeishuSendOptions }>
+        cardUpdates: Array<{ messageId: string; card: object }>
+        queueCardUpdateFailure(error: unknown): void
+        waitForCardUpdateAbort: boolean
+        cardUpdateAborted: boolean
         emitMessage(message: FeishuInboundMessage): Promise<void>
         emitApproval(action: FeishuApprovalAction): Promise<void>
         emitError(error: unknown): void
@@ -172,6 +176,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
     } | undefined
     if (service === undefined) throw new Error('Feishu test runtime service did not load')
     let approvalCancelledByDispose: Promise<ApprovalOutcome> | undefined
+    let callbackCancelledByDispose: Promise<void> | undefined
     try {
       expect(service.platform.connected).toBe(true)
       const hostRoute = ctx.get('evoforge.feishuRoute') as {
@@ -462,6 +467,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
         value,
       })
       expect(service.runtime.healthSnapshot().pendingApprovals).toBe(1)
+      expect(service.platform.cardUpdates).toHaveLength(0)
       await service.platform.emitApproval({
         messageId: cardMessageId,
         chatId: 'oc_main',
@@ -470,6 +476,13 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
       })
       await expect(approval).resolves.toBe('allowed-once')
       expect(service.runtime.healthSnapshot().pendingApprovals).toBe(0)
+      expect(service.platform.cardUpdates).toEqual([{
+        messageId: cardMessageId,
+        card: expect.objectContaining({ body: { elements: [{ tag: 'div', text: {
+          tag: 'plain_text', content: expect.stringContaining('已提交允许一次'),
+        } }] } }),
+      }])
+      expect(JSON.stringify(service.platform.cardUpdates[0])).toContain('不代表任务已完成')
       await service.platform.emitApproval({
         messageId: cardMessageId,
         chatId: 'oc_main',
@@ -477,6 +490,30 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
         value,
       })
       expect(service.runtime.healthSnapshot().pendingApprovals).toBe(0)
+
+      expect(service.platform.cardUpdates).toHaveLength(1)
+      for (const failUpdate of [false, true]) {
+        const request = agentModule.agentEvents(ctx, agent).waterfall('approval/request', {
+          toolName: 'bash', callId: approvalCall.data.callId, reason: 'Reject this request.',
+          signal: new AbortController().signal,
+        }, () => Promise.resolve<ApprovalOutcome>('unavailable'))
+        await vi.waitFor(() => { expect(service.runtime.healthSnapshot().pendingApprovals).toBe(1) })
+        const sent = service.platform.cards.at(-1)!
+        const rejectCard = sent.card as { body: { elements: Array<{ behaviors?: Array<{ value: unknown }> }> } }
+        if (failUpdate) service.platform.queueCardUpdateFailure(new Error('test update failure'))
+        const action = { messageId: sent.messageId, chatId: 'oc_main', operatorId: 'ou_alice',
+          value: rejectCard.body.elements[2]!.behaviors![0]!.value }
+        await service.platform.emitApproval(action)
+        await expect(request).resolves.toBe('rejected')
+        expect(service.runtime.healthSnapshot().pendingApprovals).toBe(0)
+        if (failUpdate) expect(service.runtime.healthSnapshot().status).toBe('degraded')
+        expect(service.platform.cardUpdates.at(-1)).toMatchObject({ messageId: sent.messageId,
+          card: { body: { elements: [{ tag: 'div', text: { tag: 'plain_text', content: expect.stringContaining('已提交拒绝') } }] } },
+        })
+        const count = service.platform.cardUpdates.length
+        await service.platform.emitApproval(action)
+        expect(service.platform.cardUpdates).toHaveLength(count)
+      }
 
       for (const mode of ['missing-call', 'oversized'] as const) {
         const fallback = vi.fn(() => Promise.resolve<ApprovalOutcome>('unavailable'))
@@ -548,12 +585,28 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
         reason: 'Must not survive Adapter disposal.',
         signal: new AbortController().signal,
       }, () => Promise.resolve<ApprovalOutcome>('unavailable'))
-      await vi.waitFor(() => { expect(service.platform.cards).toHaveLength(4) })
+      await vi.waitFor(() => { expect(service.platform.cards).toHaveLength(6) })
+      const approvalWithSlowUpdate = agentModule.agentEvents(ctx, agent).waterfall('approval/request', {
+        toolName: 'slow-card-update', reason: 'Presentation must not block the native decision.',
+        signal: new AbortController().signal,
+      }, () => Promise.resolve<ApprovalOutcome>('unavailable'))
+      await vi.waitFor(() => { expect(service.platform.cards).toHaveLength(7) })
+      const slowCard = service.platform.cards.at(-1)!
+      service.platform.waitForCardUpdateAbort = true
+      callbackCancelledByDispose = service.platform.emitApproval({
+        messageId: slowCard.messageId, chatId: 'oc_main', operatorId: 'ou_alice',
+        value: (slowCard.card as { body: { elements: Array<{ behaviors?: Array<{ value: unknown }> }> } })
+          .body.elements[1]!.behaviors![0]!.value,
+      })
+      await expect(approvalWithSlowUpdate).resolves.toBe('allowed-once')
+      expect(service.platform.cardUpdateAborted).toBe(false)
     } finally {
       await ctx.fiber.dispose()
       process.chdir(previousCwd)
     }
     await expect(approvalCancelledByDispose).resolves.toBe('cancelled')
+    await callbackCancelledByDispose
+    expect(service.platform.cardUpdateAborted).toBe(true)
     expect(service.platform.connected).toBe(false)
   }, 30_000)
 })

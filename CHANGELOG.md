@@ -7,6 +7,9 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Replace a consumed Feishu approval card with a button-free decision acknowledgement. Keep approval separate from
+  task completion; failed card updates never repeat the decision and surface as degraded channel health.
+
 - Show complete current-turn native tool arguments in Feishu approval cards as plain text. If details are unavailable,
   ambiguous or too long, omit approval buttons and direct the user to the original DSH Web conversation.
 
