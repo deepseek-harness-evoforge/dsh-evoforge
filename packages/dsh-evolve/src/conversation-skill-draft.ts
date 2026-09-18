@@ -8,6 +8,7 @@ import { z } from 'zod'
 import type { ConversationSkillDraftSummary } from './control-types.ts'
 import { digest, type CorrectionInput, type CorrectionRecord } from './conversation-correction-intake.ts'
 import { NATIVE_WORKSPACE_ID_PATTERN } from './workspace-identity.ts'
+import { conversationSourceAvailable, type ConversationSourceCheck } from './conversation-source-check.ts'
 
 const HASH = z.string().regex(/^[a-f0-9]{64}$/u)
 const INT = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
@@ -344,15 +345,22 @@ function validateProposal(value: unknown): z.infer<typeof draftSchema> | undefin
 
 /** Hypothesis-to-draft only: no Skill registration, Goal, tool, evaluation verdict or promotion authority. */
 export async function authorConversationSkillDraft(store: ConversationDraftStore, correction: CorrectionRecord,
-  input: CorrectionInput, model: ConversationDraftModel, signal: AbortSignal): Promise<'draft' | 'skipped' | 'abstained' | 'uncertain'> {
+  input: CorrectionInput, model: ConversationDraftModel, signal: AbortSignal,
+  sourceStillMatches: ConversationSourceCheck = () => true): Promise<'draft' | 'skipped' | 'abstained' | 'uncertain'> {
   signal.throwIfAborted()
   if (correction.phase !== 'classified' || correction.interpretation?.kind !== 'correction'
-    || digest(correction.source) !== digest(input.source)) return 'skipped'
+    || digest(correction.source) !== digest(input.source) || !await conversationSourceAvailable(sourceStillMatches, signal)) return 'skipped'
   let record = await store.reserve(correction, input, () => !signal.aborted)
   if (record === undefined) return 'skipped'
   for (const role of ['governance', 'author'] as const) {
     if (signal.aborted) { await store.update(record, { phase: 'uncertain', reason: 'cancelled' }); return 'uncertain' }
+    if (!await conversationSourceAvailable(sourceStillMatches, signal)) {
+      await store.update(record, { phase: 'uncertain', reason: signal.aborted ? 'cancelled' : 'source-conflict' }); return 'uncertain'
+    }
     record = await store.update(record, { phase: role === 'governance' ? 'governance-pending' : 'authoring-pending', modelCalls: role === 'governance' ? 1 : 2 })
+    if (!await conversationSourceAvailable(sourceStillMatches, signal)) {
+      await store.update(record, { phase: 'uncertain', reason: signal.aborted ? 'cancelled' : 'source-conflict' }); return 'uncertain'
+    }
     let result: Awaited<ReturnType<ConversationDraftModel>>
     try { result = await model({ role, input }, signal); signal.throwIfAborted() }
     catch (error) {
@@ -366,6 +374,9 @@ export async function authorConversationSkillDraft(store: ConversationDraftStore
     let usages: ConversationDraftRecord['usages']
     try { usages = [...record.usages, ...retainUsage(result.usage)] }
     catch { await store.update(record, { phase: 'abstained', reason: role === 'governance' ? 'invalid-governance' : 'invalid-draft' }); return 'abstained' }
+    if (!await conversationSourceAvailable(sourceStillMatches, signal)) {
+      await store.update(record, { phase: 'uncertain', reason: signal.aborted ? 'cancelled' : 'source-conflict', usages }); return 'uncertain'
+    }
     if (role === 'governance') {
       let governance: ConversationDraftGovernance
       try { governance = validateDraftGovernance(result.value, input) }

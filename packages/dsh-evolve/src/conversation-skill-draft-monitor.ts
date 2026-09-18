@@ -59,7 +59,16 @@ export function installConversationSkillDraftMonitor(ctx: Context, corrections: 
               const liveSource = corrections.records(workspaceId).find(r => r.id === source.id)
               if (input === undefined || liveSource === undefined || digest(liveSource) !== digest(source)
                 || digest(input.source) !== digest(source.source)) { store.warn(workspaceId); continue }
-              const outcome = await authorConversationSkillDraft(store, source, input, model, controller.signal)
+              const sourceStillMatches = async (): Promise<boolean> => {
+                if (closing || controller.signal.aborted) return false
+                const fresh = await reader.readStoredSession(source.source.sessionId, source.source.turnEndSeq + 1)
+                const currentSource = corrections.records(workspaceId).find(r => r.id === source.id)
+                const projected = projectCorrectionInput(fresh, workspaceId, source.source.sessionId, source.source.turnEndSeq)
+                return !closing && !controller.signal.aborted && await workspaceIdForCwd(ctx, fresh.meta.cwd) === workspaceId
+                  && currentSource !== undefined && digest(currentSource) === digest(source)
+                  && projected !== undefined && digest(projected) === digest(input)
+              }
+              const outcome = await authorConversationSkillDraft(store, source, input, model, controller.signal, sourceStillMatches)
               if (outcome === 'draft') authored += 1
               if (outcome === 'uncertain' || outcome === 'abstained') incomplete = true
             }

@@ -275,7 +275,8 @@ it('does not run with an unavailable Skill dependency', async () => {
   expect(ctx.agents.get(SessionId('missing-skills'))).toBeUndefined()
 })
 
-it('finishes all eight native legs, retains equal outcomes, and never converts them to improvement', async () => {
+it.each([0, 1, 8])('retains native leg results but refuses a comparison when source invalidation occurs after response %s', async invalidateAfter => {
+  let responses = 0, current = true
   const f = await fixture(false, async function* (options) {
     const catalog = JSON.stringify(options.messages).includes('item-sections')
     const loaded = options.messages.some(message => message.content.some(block => block.type === 'tool-result'))
@@ -293,6 +294,8 @@ it('finishes all eight native legs, retains equal outcomes, and never converts t
     yield { type: 'block-end', index: 0, block: { type: 'text', text: 'Preserved fact' } }
     yield { type: 'usage', usage: { inputTokens: 10, outputTokens: 5 } }
     yield { type: 'finish', reason: { kind: 'stop' } }
+    responses += 1
+    if (responses === invalidateAfter) current = false
   })
   f.registrations[0]!()
   const sourceRoot = process.env.DSH_EVOLVE_DSH_SOURCE_DIR ?? resolve(process.cwd(), '../../../deepseek-harness')
@@ -318,11 +321,17 @@ it('finishes all eight native legs, retains equal outcomes, and never converts t
       contentHash: createHash('sha256').update(markdown).digest('hex'), lifecycle: 'inactive', verification: 'unevaluated', releaseAuthority: 'none' },
   }
   const initial = (await store.reserve(source, { provider: 'fixed', model: 'fixed' }))!
-  const completed = await executeConversationDraftTrial(f.ctx, store, initial, source, '/repo', new AbortController().signal, () => true)
-  expect(completed.phase).toBe('completed')
-  expect(completed.comparison).toEqual({ baselinePassed: 4, draftPassed: 4, improved: 0, regressed: 0,
-    comparablePairs: 4, loadedDraftLegs: 4, outcome: 'no-improvement' })
-  expect(f.calls()).toBe(12)
+  const completed = await executeConversationDraftTrial(f.ctx, store, initial, source, '/repo', new AbortController().signal, async () => current)
+  if (invalidateAfter === 0) {
+    expect(completed.phase).toBe('completed')
+    expect(completed.comparison).toEqual({ baselinePassed: 4, draftPassed: 4, improved: 0, regressed: 0,
+      comparablePairs: 4, loadedDraftLegs: 4, outcome: 'no-improvement' })
+  } else {
+    expect(completed).toMatchObject({ phase: 'uncertain', reason: 'source-conflict', reservedModelCalls: 24 })
+    expect(completed.comparison).toBeUndefined()
+    expect(completed.legs.filter(leg => leg.result !== undefined)).toHaveLength(invalidateAfter)
+  }
+  expect(f.calls()).toBe(invalidateAfter === 1 ? 1 : 12)
   expect(await f.ctx.skills.list()).toEqual([])
   for (const leg of completed.legs) expect(f.ctx.agents.get(SessionId(leg.sessionId))).toBeUndefined()
   const publicView = JSON.stringify(store.summarize(WORKSPACE_ID))

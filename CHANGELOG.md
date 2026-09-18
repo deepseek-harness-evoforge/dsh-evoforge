@@ -7,6 +7,9 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Revalidate conversation draft sources before and after auxiliary requests and before publishing a comparison.
+  Unavailable or changed sources stop further work, retain known usage and stay uncertain without automatic retry.
+
 - Distinguish loading, unavailable, running checks and unverified conversation drafts from an idle evolution overview.
   Explain that ordinary drafts have no direct activation or rollback action; keep native review authority unchanged.
 

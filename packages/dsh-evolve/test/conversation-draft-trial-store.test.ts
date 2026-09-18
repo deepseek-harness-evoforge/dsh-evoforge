@@ -39,6 +39,25 @@ const source: ConversationDraftRecord = {
 const route = { provider: 'fixed', model: 'fixed' }
 const policy = { workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 24 }
 
+it('awaits source revalidation and retains judge usage when the source is withdrawn in flight', async () => {
+  const store = await openConversationDraftTrialStore(fixture().facility, [{ ...policy, semanticEvaluation: true, maxModelCallsPerUtcDay: 44 }], () => 1000)
+  const plan = (await store.reserve(source, route))!
+  const ctx = { workspaceRegistry: { resolveByPath: async () => ({ id: WORKSPACE_ID }) } } as unknown as Context
+  let current = true
+  const judge = vi.fn(async () => {
+    current = false
+    return { decision: { verdict: 'pass' as const, explanation: 'Fixture', citations: [{ source: 'task' as const, quote: 'Self-contained' }] },
+      usage: { inputTokens: 9, outputTokens: 5 } }
+  })
+  const result = await executeConversationDraftTrial(ctx, store, plan, source, '/fixture', new AbortController().signal, async () => current, judge)
+  expect(result).toMatchObject({ phase: 'uncertain', reason: 'source-conflict' })
+  expect(result.judge?.requests).toHaveLength(1)
+  expect(result.judge?.requests[0]?.usage).toEqual({ inputTokens: 9, outputTokens: 5 })
+  expect(result.comparison).toBeUndefined()
+  expect(judge).toHaveBeenCalledTimes(1)
+  expect(result.legs.every(leg => leg.dispatchMarkers === 0)).toBe(true)
+})
+
 it('reserves a semantic trial as one 44-call envelope and requires calibration before execution', async () => {
   const f = fixture(), semantic = { ...policy, semanticEvaluation: true, maxModelCallsPerUtcDay: 44 }
   const store = await openConversationDraftTrialStore(f.facility, [semantic], () => 1000)

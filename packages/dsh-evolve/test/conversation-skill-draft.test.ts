@@ -58,6 +58,33 @@ function facility() {
 const signal = () => new AbortController().signal
 
 describe('conversation-derived Skill draft', () => {
+  it.each(['governance', 'author'] as const)('stops when the source changes during %s and retains usage without redrafting', async role => {
+    const f = facility(), store = await openConversationDraftStore(f.value, [policy], () => 100)
+    let current = true
+    const model = vi.fn(async request => {
+      if (request.role === role) current = false
+      return { value: request.role === 'governance' ? governance : proposal, usage }
+    })
+    expect(await authorConversationSkillDraft(store, correction, input, model, signal(), async () => current)).toBe('uncertain')
+    const record = store.records(WORKSPACE_ID)[0]!
+    expect(record).toMatchObject({ phase: 'uncertain', reason: 'source-conflict', reservedModelCalls: 2,
+      modelCalls: role === 'governance' ? 1 : 2 })
+    expect(record.draft).toBeUndefined()
+    expect(record.usages).toHaveLength(role === 'governance' ? 1 : 2)
+    expect(model).toHaveBeenCalledTimes(role === 'governance' ? 1 : 2)
+    await store.close()
+    const cold = await openConversationDraftStore(f.value, [policy], () => 86_400_100)
+    expect(cold.records(WORKSPACE_ID)).toEqual([record])
+    expect(await authorConversationSkillDraft(cold, correction, input, model, signal(), async () => true)).toBe('skipped')
+  })
+
+  it.each(['false', 'reject'] as const)('does not reserve or call models when the initial source check is %s', async outcome => {
+    const store = await openConversationDraftStore(facility().value, [policy], () => 100), model = vi.fn()
+    const check = async () => { if (outcome === 'reject') throw new Error('source unavailable'); return false }
+    expect(await authorConversationSkillDraft(store, correction, input, model, signal(), check)).toBe('skipped')
+    expect(model).not.toHaveBeenCalled()
+    expect(store.records(WORKSPACE_ID)).toEqual([])
+  })
   it('uses the last correction in a connected chain without treating two retries as independent samples', () => {
     const earlier = { ...correction, id: '6'.repeat(64), source: { ...input.source, previousUserSeq: 0, userSeq: 1, turn: 2 } }
     const independent = { ...correction, id: '7'.repeat(64), source: { ...input.source, sessionId: 'another-session' } }

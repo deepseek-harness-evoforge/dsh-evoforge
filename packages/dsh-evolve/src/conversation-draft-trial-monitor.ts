@@ -10,28 +10,31 @@ import type { ConversationDraftTrialPolicy, ConversationDraftTrialRecord, Conver
 import { workspaceIdForCwd } from './workspace-identity.ts'
 import { DraftJudgeError, nativeConversationDraftJudge, parseDraftJudgment, type ConversationDraftJudge } from './conversation-draft-judge.ts'
 import type { TokenUsage } from '@deepseek-ai/dsh-llm'
+import { conversationSourceAvailable, type ConversationSourceCheck } from './conversation-source-check.ts'
 
 declare module '@deepseek-ai/dsh-jobs' { interface JobKindMap { conversationDraftTrial: 'evoforge-conversation-draft-trial' } }
 
 /** Consume exactly one previously reserved plan; never author, select new tests or promote. */
 export async function executeConversationDraftTrial(ctx: Context, store: ConversationDraftTrialStore,
   initial: ConversationDraftTrialRecord, source: ConversationDraftRecord, cwd: string, signal: AbortSignal,
-  sourceStillMatches: () => boolean, judge: ConversationDraftJudge = nativeConversationDraftJudge(ctx)): Promise<ConversationDraftTrialRecord> {
+  sourceStillMatches: ConversationSourceCheck, judge: ConversationDraftJudge = nativeConversationDraftJudge(ctx)): Promise<ConversationDraftTrialRecord> {
   let record = initial
   if (record.phase !== 'reserved') return record
+  const sourceMatches = () => conversationSourceAvailable(sourceStillMatches, signal)
   const judgeAnswer = async (task: string, answer: string): Promise<'pass' | 'fail' | 'uncertain' | undefined> => {
     signal.throwIfAborted()
     const workspaceMatches = await workspaceIdForCwd(ctx, cwd) === record.workspaceId
     signal.throwIfAborted()
-    if (!sourceStillMatches() || !workspaceMatches) { record = await store.interrupt(record, 'source-conflict'); return undefined }
+    if (!await sourceMatches() || !workspaceMatches) { record = await store.interrupt(record, signal.aborted ? 'cancelled' : 'source-conflict'); return undefined }
     const route = { provider: record.provider, model: record.model }
     record = await store.startJudge(record, digest({ task, answer, route, promptHash: record.judge!.promptHash }))
+    if (!await sourceMatches()) { record = await store.failJudge(record, undefined, signal.aborted ? 'cancelled' : 'source-conflict'); return undefined }
     let usage: TokenUsage | undefined
     try {
       const result = await judge({ task, answer, route }, signal)
       usage = result.usage
       signal.throwIfAborted()
-      if (!sourceStillMatches()) { record = await store.failJudge(record, usage, 'source-conflict'); return undefined }
+      if (!await sourceMatches()) { record = await store.failJudge(record, usage, signal.aborted ? 'cancelled' : 'source-conflict'); return undefined }
       const decision = parseDraftJudgment(result.decision, task, answer)
       record = await store.finishJudge(record, decision, usage)
       return decision.verdict
@@ -46,7 +49,7 @@ export async function executeConversationDraftTrial(ctx: Context, store: Convers
     }
     if (record.judge !== undefined) {
       for (const test of source.governance.cases) {
-        if (!sourceStillMatches() || await workspaceIdForCwd(ctx, cwd) !== record.workspaceId) return await store.interrupt(record, 'source-conflict')
+        if (!await sourceMatches() || await workspaceIdForCwd(ctx, cwd) !== record.workspaceId) return await store.interrupt(record, signal.aborted ? 'cancelled' : 'source-conflict')
         for (const [answer, expected] of [[test.referenceAnswer, 'pass'], [test.alternateAnswer!, 'pass'], [test.negativeAnswer, 'fail']] as const) {
           const verdict = await judgeAnswer(test.input, answer)
           if (verdict === undefined) return record
@@ -56,8 +59,8 @@ export async function executeConversationDraftTrial(ctx: Context, store: Convers
     }
     for (let index = 0; index < record.legs.length; index++) {
       signal.throwIfAborted()
-      if (!sourceStillMatches() || await workspaceIdForCwd(ctx, cwd) !== record.workspaceId) {
-        return await store.interrupt(record, 'source-conflict')
+      if (!await sourceMatches() || await workspaceIdForCwd(ctx, cwd) !== record.workspaceId) {
+        return await store.interrupt(record, signal.aborted ? 'cancelled' : 'source-conflict')
       }
       const leg = record.legs[index]!
       const test = source.governance.cases.find(test => test.id === leg.caseId)
@@ -68,12 +71,14 @@ export async function executeConversationDraftTrial(ctx: Context, store: Convers
         ...(leg.variant === 'draft' ? { draft: source.draft } : {}), signal,
         async beforeDispatch(call) {
           signal.throwIfAborted()
-          if (!sourceStillMatches()) throw new Error('conversation trial source changed')
+          if (!await sourceMatches()) throw new Error('conversation trial source changed')
           record = await store.markDispatch(record, index, call)
+          if (!await sourceMatches()) throw new Error('conversation trial source changed')
         },
       })
       record = await store.finishLeg(record, index, projectConversationDraftTrialResult(result, test,
         leg.variant === 'draft' ? source.draft : undefined))
+      if (!await sourceMatches()) return await store.interrupt(record, signal.aborted ? 'cancelled' : 'source-conflict')
       if (record.judge !== undefined) {
         const settled = record.legs[index]!.result!
         if (settled.status !== 'completed') return await store.interrupt(record, 'execution-failed')
@@ -81,6 +86,7 @@ export async function executeConversationDraftTrial(ctx: Context, store: Convers
       }
     }
     signal.throwIfAborted()
+    if (!await sourceMatches() || await workspaceIdForCwd(ctx, cwd) !== record.workspaceId) return await store.interrupt(record, signal.aborted ? 'cancelled' : 'source-conflict')
     return await store.finish(record, compareConversationDraftTrial(record, source.draft))
   } catch {
     if (!['reserved', 'running'].includes(record.phase)) return record
@@ -127,13 +133,18 @@ export function installConversationDraftTrialMonitor(ctx: Context, corrections: 
               if (input === undefined || digest(input.source) !== source.sourceDigest || draftInputDigest(input) !== source.inputDigest) {
                 store.warn(workspaceId); incomplete = true; continue
               }
-              const sourceStillMatches = (): boolean => {
+              const sourceStillMatches = async (): Promise<boolean> => {
+                if (closing || controller.signal.aborted) return false
+                const fresh = await reader.readStoredSession(source.sourceSessionId, correction.source.turnEndSeq + 1)
+                const projected = projectCorrectionInput(fresh, workspaceId, source.sourceSessionId, correction.source.turnEndSeq)
                 const currentDraft = drafts.records(workspaceId).find(record => record.id === source.id)
                 const currentCorrection = corrections.records(workspaceId).find(record => record.id === correction.id)
                 return !closing && !controller.signal.aborted && currentDraft !== undefined && currentCorrection !== undefined
                   && digest(currentDraft) === digest(source) && digest(currentCorrection) === digest(correction)
+                  && await workspaceIdForCwd(ctx, fresh.meta.cwd) === workspaceId
+                  && projected !== undefined && digest(projected) === digest(input)
               }
-              if (!sourceStillMatches()) { store.warn(workspaceId); incomplete = true; continue }
+              if (!await sourceStillMatches()) { store.warn(workspaceId); incomplete = true; continue }
               const reserved = await store.reserve(source, input.route)
               if (reserved === undefined) continue
               const result = await executeConversationDraftTrial(ctx, store, reserved, source, cwd, controller.signal, sourceStillMatches)
