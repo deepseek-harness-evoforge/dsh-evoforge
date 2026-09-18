@@ -221,10 +221,13 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled dual Workspace cha
         feishuAgent?.followup(freezeMessage({
           id: MessageId('native:feishu-continuation:dual'),
           role: 'user',
-          content: [{ type: 'text', text: 'feishu continuation only' }],
+          content: [{ type: 'text', text: 'local continuation in the Feishu-bound Session' }],
           source: { kind: 'user' },
         }))
-        await vi.waitFor(() => { expect(feishu.platform.texts).toHaveLength(3) }, { timeout: 15_000, interval: 25 })
+        await feishuAgent?.whenIdle()
+        await new Promise(resolve => setTimeout(resolve, 100))
+        // A direct human followup is Web/local input, not native Schedule delivery.
+        expect(feishu.platform.texts).toHaveLength(2)
         expect(telegramSends).toHaveLength(4)
 
         const gateway = first.get('evoforge.gateway') as {

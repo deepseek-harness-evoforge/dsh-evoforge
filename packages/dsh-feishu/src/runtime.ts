@@ -41,7 +41,7 @@ import {
   type FeishuHealthSnapshot,
   type FeishuTransportState,
 } from './health.js'
-import { boundText, outboundTextForTurn } from './outbound.js'
+import { boundText, hasNonChannelTurnInput, outboundTextForTurn } from './outbound.js'
 import { FeishuPlatformSendError } from './platform.js'
 import type {
   FeishuApprovalAction,
@@ -90,6 +90,7 @@ export class FeishuRuntime {
   private readonly bound = new WeakSet<Agent>()
   private readonly repliesByMessage = new Map<string, ReplyDestination>()
   private readonly repliesByTurn = new WeakMap<Agent, Map<number, ReplyDestination>>()
+  private readonly nonChannelTurns = new WeakMap<Agent, Set<number>>()
   private readonly outboundByTurn = new WeakMap<Agent, Map<number, GatewayTextDeliveryIntent>>()
   private readonly latestDestination = new WeakMap<Agent, ReplyDestination>()
   private readonly pendingApprovals = new Map<string, PendingApproval>()
@@ -202,14 +203,31 @@ export class FeishuRuntime {
       this.unsubscribers.push(this.ctx.on('agent/inbox/claimed', ({ agent, message, turn }) => {
       if (!this.bound.has(agent)) return
       const destination = this.repliesByMessage.get(String(message.id))
-      if (destination === undefined) return
+      if (destination === undefined) {
+        // Session binding is not a subscription to local/Web conversation.
+        // Keep the native Schedule continuation path, but a foreign input in
+        // any step vetoes automatic delivery of the entire mixed turn.
+        if (message.source.kind !== 'plugin' || message.source.plugin !== 'schedule') {
+          let turns = this.nonChannelTurns.get(agent)
+          if (turns === undefined) this.nonChannelTurns.set(agent, turns = new Set())
+          turns.add(turn)
+          this.latestDestination.delete(agent)
+        }
+        return
+      }
       this.repliesByMessage.delete(String(message.id))
       this.turnMap(this.repliesByTurn, agent).set(turn, destination)
-      this.latestDestination.set(agent, destination)
+      if (!this.nonChannelTurns.get(agent)?.has(turn)) this.latestDestination.set(agent, destination)
       }))
       this.unsubscribers.push(this.ctx.on('agent/turn-stopping', async ({ agent, turn }) => {
       if (!this.bound.has(agent)) return
+      if (this.nonChannelTurns.get(agent)?.has(turn)) return
       const replies = this.turnMap(this.repliesByTurn, agent)
+      const currentReply = replies.get(turn)
+      const events = sessionEvents(agent.session)
+      const channelMessageId = currentReply?.replyTo === undefined ? undefined
+        : this.gateway.messageIdFor(currentReply.route.endpoint, `message:${currentReply.replyTo}`)
+      if (hasNonChannelTurnInput(events, turn, channelMessageId)) return
       if (!replies.has(turn)) {
         const routes = this.routesBySession.get(String(agent.session.id))
         if (routes?.length === 1) {
@@ -218,7 +236,7 @@ export class FeishuRuntime {
       }
       const destination = replies.get(turn)
       if (destination === undefined) return
-      const text = outboundTextForTurn(sessionEvents(agent.session), turn, this.config.maxTextChars)
+      const text = outboundTextForTurn(events, turn, this.config.maxTextChars)
       if (text === undefined) return
       const intent: GatewayTextDeliveryIntent = Object.freeze({
         routeId: destination.route.id,
@@ -240,6 +258,7 @@ export class FeishuRuntime {
       const intent = this.turnMap(this.outboundByTurn, agent).get(event.data.turn)
       this.turnMap(this.repliesByTurn, agent).delete(event.data.turn)
       this.turnMap(this.outboundByTurn, agent).delete(event.data.turn)
+      this.nonChannelTurns.get(agent)?.delete(event.data.turn)
       if (destination !== undefined && this.latestDestination.get(agent) === destination) {
         this.latestDestination.delete(agent)
       }
@@ -918,6 +937,22 @@ export class FeishuRuntime {
     next: () => Promise<ApprovalOutcome>,
   ): Promise<ApprovalOutcome> {
     if (isAborted(request.signal)) return 'cancelled'
+    if ((this.nonChannelTurns.get(request.agent)?.size ?? 0) > 0) return next()
+    const events = sessionEvents(request.agent.session)
+    for (let index = events.length - 1; index >= 0; index -= 1) {
+      const event = events[index]!
+      if (event.type === 'turn/end') break
+      if (event.type !== 'turn/start') continue
+      const reply = this.turnMap(this.repliesByTurn, request.agent).get(event.data.turn)
+      // A reload may occur after inbox claim but before user/message commit.
+      // Do not infer a recipient in that unproven window.
+      if (reply === undefined && !events.slice(index + 1).some(item => item.type === 'user/message'
+        && item.data.source.kind === 'plugin' && item.data.source.plugin === 'schedule')) return next()
+      const messageId = reply?.replyTo === undefined ? undefined
+        : this.gateway.messageIdFor(reply.route.endpoint, `message:${reply.replyTo}`)
+      if (hasNonChannelTurnInput(events, event.data.turn, messageId)) return next()
+      break
+    }
     const routes = this.routesBySession.get(String(request.agent.session.id))
     const destination = this.latestDestination.get(request.agent)
       ?? (routes?.length === 1

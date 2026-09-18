@@ -10,6 +10,12 @@ Telegram 与飞书随后共同证明了普通文本出站的真实重复点：�
 send 调用、卡片/Approval UI 与 transport `ready/degraded` 仍留在 Adapter；Gateway 不推断平台配额，
 不提供全局 token bucket，不声称 exactly-once，也不把平台特有消息类型塞入公共契约。
 
+飞书普通回复的目的地必须受当前输入来源约束：唯一 Session route 不能授权自动转发后续 Web/local 交互。
+飞书 Adapter 对本轮 exact ingress message 关联之外的原生输入设 veto，并在发送前重读原生 Session/inbox 记录，
+避免重载丢失内存标记后重新兜底外发。原生注入上下文不是独立输入，Schedule 续接保留原路径；混合本地/渠道
+输入的整轮不自动发送，当前本地轮次的审批继续交给下一原生 provider。这个收紧不创建持久 origin 状态库、
+不改变模型组成、不撤回既有发送，也不授予显式文件交付新的权限。
+
 公共出站 seam 同时拥有每次平台 send 的 wall-clock 治理。Adapter 注册必须显式声明 `sendTimeoutMs`；Gateway
 把 timeout 与 registration lifecycle 组合并主动 race Adapter Promise，而不是假设第三方 SDK 必然服从 signal。
 timeout、disable、reload 或 remove 都会将已 durable 标记为 `sending` 的未知效果终结为 `uncertain`，并禁止

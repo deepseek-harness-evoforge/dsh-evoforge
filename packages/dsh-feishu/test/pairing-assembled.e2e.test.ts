@@ -150,6 +150,7 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', (
         resolve(id: string): Promise<{
           session: { snapshotEvents(): readonly SessionEvent[] }
           whenIdle(): Promise<void>
+          followup(message: { id: string; role: 'user'; source: { kind: 'user' }; content: { type: 'text'; text: string }[] }): void
         }>
         route(id: string): { workspaceId: string } | undefined
         healthSnapshot(now?: number, routeIds?: readonly string[]): {
@@ -232,6 +233,13 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', (
         routeId: 'feishu-paired',
         workspaceId: gateway.route('existing-test-route')!.workspaceId,
       }])
+
+      await eventually(() => service.platform.texts.length === 2)
+      agent.followup({ id: 'paired-web-input', role: 'user', source: { kind: 'user' },
+        content: [{ type: 'text', text: 'Answer in Web only.' }] })
+      await agent.whenIdle()
+      await new Promise(resolve => setTimeout(resolve, 100))
+      expect(service.platform.texts, 'A paired route must not mirror Web input').toHaveLength(2)
 
       const agentModule = await import(pathToFileURL(
         join(dshSourceDir, 'packages', 'core', 'agent', 'lib', 'index.js'),

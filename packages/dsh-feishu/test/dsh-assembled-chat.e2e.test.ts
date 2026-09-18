@@ -224,6 +224,54 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
       expect(agent?.session.snapshotEvents().some((event: SessionEvent) => event.type === 'user/message'
         && String(event.data.id).startsWith('channel:'))).toBe(true)
 
+      // A bound Session is not permission to mirror later local/Web input.
+      await agent!.whenIdle()
+      const agentModule = await import(pathToFileURL(
+        join(dshSourceDir, 'packages', 'core', 'agent', 'lib', 'index.js'),
+      ).href)
+      let webApproval: ApprovalOutcome | undefined
+      let checkedWebApproval = false
+      const removeWebApprovalProbe = ctx.on('agent/request', async (_request: unknown, next: () => Promise<unknown>) => {
+        if (!checkedWebApproval) {
+          checkedWebApproval = true
+          webApproval = await agentModule.agentEvents(ctx, agent).waterfall('approval/request', {
+            toolName: 'web-only-protected-action', reason: 'Must stay on the local approval surface.',
+            signal: AbortSignal.timeout(100),
+          }, () => Promise.resolve<ApprovalOutcome>('unavailable'))
+        }
+        return next()
+      })
+      agent!.followup({
+        id: 'web-after-feishu', role: 'user', source: { kind: 'user' },
+        content: [{ type: 'text', text: 'Reply only in Web; do not send to Feishu.' }],
+      })
+      await agent!.whenIdle()
+      removeWebApprovalProbe()
+      expect(webApproval, 'Web approval must stay with the next native provider').toBe('unavailable')
+      expect(service.platform.cards, 'Web approval details must not be sent to Feishu').toHaveLength(0)
+      await new Promise(resolve => setTimeout(resolve, 100))
+      expect(service.platform.texts, 'Web turn must not be mirrored to Feishu').toHaveLength(1)
+      expect([...(deliveryDomain?.table('outbound').entries() ?? [])],
+        'Web turn must not create an outbound intent').toHaveLength(1)
+
+      let steered = false
+      const removeSteering = ctx.on('agent/request', async (_request: unknown, next: () => Promise<unknown>) => {
+        if (!steered) {
+          steered = true
+          agent!.send({ id: 'web-steering', role: 'user', source: { kind: 'user' },
+            content: [{ type: 'text', text: 'Local-only steering; do not mirror this turn.' }] }, 'next-step', false)
+        }
+        return next()
+      })
+      await service.platform.emitMessage(message({ messageId: 'om_mixed_turn' }))
+      await agent!.whenIdle()
+      removeSteering()
+      expect(agent!.session.snapshotEvents().some((event: SessionEvent) => event.type === 'user/message'
+        && String(event.data.id) === 'web-steering')).toBe(true)
+      await new Promise(resolve => setTimeout(resolve, 100))
+      expect(service.platform.texts, 'A mixed channel/local turn must stay local').toHaveLength(1)
+      expect([...(deliveryDomain?.table('outbound').entries() ?? [])]).toHaveLength(1)
+
       await service.platform.emitMessage(inbound)
       await new Promise(resolve => setTimeout(resolve, 100))
       expect(service.platform.texts).toHaveLength(1)
@@ -351,9 +399,6 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
         })])
       }, { timeout: 5_000, interval: 10 })
 
-      const agentModule = await import(pathToFileURL(
-        join(dshSourceDir, 'packages', 'core', 'agent', 'lib', 'index.js'),
-      ).href)
       const approval = agentModule.agentEvents(ctx, agent).waterfall('approval/request', {
         toolName: 'deploy',
         reason: 'Protected action.',

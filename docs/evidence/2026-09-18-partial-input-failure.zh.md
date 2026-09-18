@@ -51,3 +51,38 @@ assert.equal(rows.filter(row => row.intentKey === 'turn:27').length, 0,
 实际 `1 !== 0`。这是生产证据断言，不是可在修复后转绿的完整回归：历史收据必须保留，不能删除来绿化。
 下一步须构造独立隔离的「渠道输入→Web 输入」可重复原生回归，再定位和修复；不能靠提示词要求禁止外发。
 目前没有更改运行代码、渠道配置、权限、凭据、预算或历史，也没有撤回已经发送的消息。
+
+## 修复与预定复验（保留上面的原始失败）
+
+上述「尚未修复」是 09:53 现场状态。后续修复只涉及飞书 Adapter，不修改 Gateway/DSH 核心或 Telegram。
+根因是 `agent/turn-stopping` 在无本轮回复目的地时，无条件用唯一绑定 route 兜底，绑定后的 Web 输入因此也被投递。
+原生装配回归在修复前得到「期望一条，实际两条」；额外审批探针得到 cancelled 而不是下一原生 provider 的 unavailable，
+证明 Web 审批详情也进入了飞书卡片。两项均已修复。未打开第二生产 Host，未增加模型可见内容、模型调用或持久 origin 库。
+
+本轮 native inbox claimed 的外来输入会 veto 整轮自动出站，并清除 present 的当前渠道标记；发送前读取原生 Session
+与 inbox 插入记录复核，不能把 AGENTS/策略注入等 user/message 上下文误当作新用户输入。审批在当前本地轮次交给下一
+原生 provider；重载后尚未提交消息的来源不明窗口也不推断飞书接收方。原生 Schedule 续接与已存在的显式文件审批路径保留。
+旧 dual-Workspace fixture 的普通 `source: user` followup 断言原先要求自动镜像，这正是错误语义；改为要求原生执行结束而不外发，
+没有把它改装成 Schedule 来源来绕过检查。Telegram 的相似兜底不在本补丁内，不能由飞书结果宣称全渠道隔离。
+
+已运行（固定 alpha.1）：
+
+- `DSH_EVOLVE_DSH_SOURCE_DIR=<audited-source> DSH_FEISHU_TEST_NATIVE_FILES=1 pnpm exec vitest run --maxWorkers 1`
+  （工作目录 packages/dsh-feishu）：29 文件 164 项通过，79.61 秒。含静态/配对切换、混合输入、Web 审批不出站、
+  原生附件 20 个分支、Schedule 冷恢复与 dispatch 持久化窗口，以及包 add/dump/remove。SDK/模型为测试替身，不能代替实际飞书。
+- `pnpm exec vitest run test/suite-native-plugin-contract.test.ts --maxWorkers 1`（packages/dsh-doctor）：24 项通过。
+- 飞书 typecheck、`pnpm run check:docs`、`git diff --check` 通过，临时 DEBUG 探针已删除。
+- canonical checkout fetch 后 origin/master 为 `ddefc45fbc7f8e46dd73185e68295696d1297887`，出现 alpha.2 标签；
+  本轮不升级核心，继续固定支持的 `0d1f500` / alpha.1。该 checkout 无改动、无 exact tag；
+  `pnpm install --frozen-lockfile && pnpm run build` 完整通过。alpha.2 尚未完成构建/兼容审计，不称当前支持版本为 latest。
+
+部署前固定真实复验序列，均在原有 Session、模型和权限内：
+
+1. F2 飞书：真正读取原有核对结果与缺失追加确认；预期明确未完成、无输出/附件，允许一条失败说明回复当前私聊。
+2. F3 Web：同一两材料任务；预期两次读取、一成功一失败、无输出/附件，且不新增任何渠道文本收据。
+3. F4 飞书：只回复固定标记「渠道仍可用」，不调用工具；预期一次回复，证明 Web veto 不粘连到未来渠道轮次。
+4. F5 Web：只回复固定标记「仅在网页显示」，不调用工具；预期当前 Web 可见而飞书收据不变。
+
+每次先核对完整输入再发送，一次提交；记录精确原生 turn、耗时和用量。旧 turn 27 收据必须保持不变。
+生产只更新飞书包，保留旧包以便精确回退；回退会重新引入此缺陷，不能视为安全推荐。不更改 profile 策略、权限、凭据或历史。
+当前尚未完成本节真实复验，不提前宣布问题关闭。

@@ -7,6 +7,9 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Stop automatically mirroring Web/local replies and approval details into a bound Feishu chat after channel use.
+  Mixed local/channel turns stay local; native Schedule continuation and explicit approved file delivery remain separate.
+
 - Exclude owned draft-evaluation Sessions from ordinary correction inspection before creating background Jobs, including
   cold replay and withdrawn evaluation policies. Preserve genuine source failures and all existing histories.
 

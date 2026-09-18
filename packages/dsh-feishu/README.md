@@ -36,6 +36,10 @@ credentials or permissions stay visible as waiting/attention rather than faking 
 The first unknown direct message returns a one-time code and does not enter the Agent. Approve it in DSH Web Channels by
 binding an existing Workspace/Session; the next message enters that Session. No manual `chat_id`/`open_id` is needed.
 
+Binding does not subscribe Feishu to every Web reply. Ordinary Web/local turns stay local, including their approval
+requests. If local input is inserted into an ongoing Feishu turn, that mixed turn is not automatically sent to Feishu;
+read its result in Web. Native scheduled continuations on a unique bound route retain their existing delivery behavior.
+
 Pairing grants only the minimal message path. Group chat, images, files, Docs, Wiki, Drive, and Bitable require an exact
 route plus individually enabled `contentPermissions`, platform scopes, and the applicable DSH Attachment/Tool/Approval
 contract. Unsupported content is rejected explicitly.
