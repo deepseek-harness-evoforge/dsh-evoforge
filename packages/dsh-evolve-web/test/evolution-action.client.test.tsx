@@ -776,6 +776,8 @@ describe('EvolutionAction', () => {
     expect(screen.getByText(locale['draft.limit'])).toBeTruthy()
     expect(screen.getByText(locale['draft.testsPending'], { exact: false })).toBeTruthy()
     expect(screen.getByText(locale['draft.retryCount'], { exact: false })).toBeTruthy()
+    expect(screen.getByText(locale === zh ? '先生成未验证草稿' : 'Prepare an unverified draft first')).toBeTruthy()
+    expect(screen.queryByText(locale['onboarding.step.verify'])).toBeNull()
     expect(screen.getByText(/Preserve unknown states and explicit user formats/u)).toBeTruthy()
     expect(screen.queryByRole('button', { name: /启用|晋升|Promote|Enable/u })).toBeNull()
     expect(screen.queryByText(locale['onboarding.scopeLimit'])).toBeNull()

@@ -162,14 +162,33 @@ Job 标签与结果不携带原文、路径或 provider 错误，模型结果不
 ### 2.4 普通纠正的隔离 Skill 草稿
 
 `conversationLearningPolicies` 默认空，每项只接受 canonical Workspace UUID 与 `maxModelCallsPerUtcDay`（2–20），
-最多 20 个 Workspace；必须同时存在该 Workspace 的纠正识别策略。它不接受操作者指定的 Skill、测试包、能力来源或
-晋升开关。原生 Jobs 启动时及纠正识别 Job 完成后，从已保存线索选择纠正链的末端，物理重读并 exact-match 来源后才处理。
+最多 20 个 Workspace；须存在该 Workspace 的纠正识别策略，或配置下述明确反馈 Session。它不接受操作者指定的 Skill、
+测试包或晋升开关。原生 Jobs 启动时及纠正识别 Job 完成后，从已保存线索选择纠正链的末端，物理重读并 exact-match 来源后才处理。
 来源是未验证模型解释，不会变成已验证用户反馈、独立样本或既有 Skill 归因。
 
 起草每个角色调用前后再次物理回读并核对来源前缀、原始输入、纠正记录和 Workspace；评测在模型发送前、
 分支结束后及提交比较结论前执行同样复核。读取失败、来源变化或撤回策略时不继续调用、不提交新的草稿/比较结论；
 已经记录的预留、dispatch marker、分支结果与已知用量保留，未知消耗不按零。复核是原生读取，不新增识别模型请求。
-这不撤销已经完成的历史实验，也不把可编辑消息反馈自动接入当前聊天纠正来源。
+这不撤销已经完成的历史实验；消息反馈使用下述独立来源，不冒充聊天识别结果。
+
+可选 `explicitFeedbackSessionIds` 默认空，最多十个不重复的原生 Session id。管理员只允许这些 Session 的当前带说明负反馈
+参与同一个两调用草稿预算，既不扩大日预算，也不需要先支付一次模型调用来把明确反馈再识别为纠正。
+只读启动回读和原生 `session/event`、`feedback/committed` 触发覆盖这些确切 Session，不扫描其他历史。
+冷提交观察器不等待同 Session 的反馈操作；工作交给原生 Job 后先加入 `messageFeedback.list` 队列，再核对实际持久化前缀。
+配置包含该来源时，监控器显式依赖原生 messageFeedback 服务；依赖消失或配置撤回会取消并等待自有工作。
+按已保存评测计划排除精确的评测 Session，归属不可读取时停止，不能把测试材料交回 proposer。
+
+消息反馈来源只接受至多 20000 事件的完整 v3 前缀、非继承的唯一直接文本 user、对应 completed turn 的最后 append assistant，
+以及在完成后保存、当前仍匹配的负反馈 note。替换 surface、compaction、附件型 user、歧义目标、未完成 turn、
+空说明或合计超过 JSON-framed 24000 字节的文本不进入草稿。来源绑定 messageId、反馈版本、反馈事件、原生 seq、
+前缀/文本/模型 digest；没有虚构第二个对话 turn、分类调用、已验证解释或 Skill 因果归因。
+
+同一回答的反馈修改、删除后重建或跨 UTC 日不会制造新起草身份；聊天纠正与明确反馈引用同一回答时，不重复起草。
+新记录用可选 `messageFeedbackSource`、`sourceAnswerSeq` 保留来源，原 `correctionId` 对新来源仅是稳定来源 hash，
+不指向或伪造 CorrectionLedger 行。旧记录保留原样，旧记录的回答身份可从其真实纠正账本复核。
+两个角色及评测共用一个来源解析器，每次检查都重读当前 native feedback 和物理日志；修改、转为正面或撤回后不得继续
+生成草稿或启动/提交新的比较。已消费的尝试、用量和历史结果不删除，也不把编辑当作新独立样本。
+可通过撤回该来源配置停用并保留历史；新增来源元数据不保证能由旧二进制严格 schema 读取，不自动降级程序或覆盖账本。
 
 一次运行在调用前持久预留两个预算槽：第一个原生 LLM 请求生成四个隔离测试材料（两个 holdout、两个 retention），
 通过结构、唯一性及正反例断言校验后封存。新材料还必须提供 `alternateAnswer`：在任务允许时使用不同表达但保留事实与

@@ -60,11 +60,20 @@ it.skipIf(source === undefined || pack === undefined)('installs, reloads and rem
     let calls = 0
     class FixtureAdapter extends llm.LlmAdapter {
       async resolveModel(provider: string, model: string) { return { provider, id: model, name: model } }
-      async *stream() {
+      async *stream(options: { system?: string }) {
         calls++
+        const value = options.system?.startsWith('You prepare independent test material')
+          ? JSON.stringify({ scope: 'Packed fixture-only source separation checks.', cases: ['h1', 'h2', 'r1', 'r2'].map((id, i) => ({
+            id, partition: i < 2 ? 'holdout' : 'retention', input: `Fixture ${id}: say yes.`, mustInclude: ['yes'], mustNotInclude: [],
+            layout: 'any', referenceAnswer: 'yes', alternateAnswer: 'yes', negativeAnswer: 'no',
+          })) })
+          : options.system?.startsWith('Draft a small reusable DSH Skill')
+            ? JSON.stringify({ status: 'draft', name: 'packed-feedback-method', description: 'Preserve uncertainty when summarizing source facts.',
+              body: 'Preserve unresolved alternatives rather than choosing one without support. Retain explicit source limits and follow the user when a conflict has been resolved.' })
+            : 'Packed profile native readback fixture.'
         yield { type: 'block-start', index: 0, blockType: 'text' }
-        yield { type: 'text-delta', index: 0, text: 'Packed profile native readback fixture.' }
-        yield { type: 'block-end', index: 0, block: { type: 'text', text: 'Packed profile native readback fixture.' } }
+        yield { type: 'text-delta', index: 0, text: value }
+        yield { type: 'block-end', index: 0, block: { type: 'text', text: value } }
         yield { type: 'usage', usage: { inputTokens: 1, outputTokens: 1 } }
         yield { type: 'finish', reason: { kind: 'stop' } }
       }
@@ -88,6 +97,29 @@ it.skipIf(source === undefined || pack === undefined)('installs, reloads and rem
     expect(JSON.stringify(events)).toContain('Packed profile native readback fixture.')
     await ctx.sessions.flush(handle.agent.session)
     await handle.dispose()
+    const originalConfig = structuredClone(hostEntry.options.config)
+    const workspaceId = (await ctx.workspaceRegistry.resolveByPath(cwd)).id
+    await hostEntry.update({ config: { ...originalConfig, conversationLearningPolicies: [{
+      workspaceId, maxModelCallsPerUtcDay: 2, explicitFeedbackSessionIds: [id],
+    }] } })
+    await ctx.loader.await()
+    const target = events.findLast((event: any) => event.type === 'assistant/message')!.data.message.id
+    expect((await ctx.messageFeedback.put({ sessionId: id, messageId: target, rating: 'negative',
+      note: 'Fixture feedback: preserve source uncertainty instead of unsupported confirmation.', ifVersion: null })).ok).toBe(true)
+    const draftRecords = () => [...ctx.storageDomain.get('evoforge_conversation_skill_drafts').table('records').entries()].map(([, record]: any) => record)
+    await vi.waitFor(() => expect(draftRecords()[0]?.phase).toBe('draft'), { timeout: 10_000 })
+    expect(calls).toBe(4)
+    expect(draftRecords()[0].messageFeedbackSource).toMatchObject({ kind: 'message-feedback-v1', sessionId: id, messageId: target })
+    expect(ctx.storageDomain.get('evoforge_conversation_corrections').table('records').size).toBe(0)
+    const history = await ctx.sessionPersistence.open(id, 'read')
+    let feedbackEvents: unknown[]
+    try { feedbackEvents = (await history.read()).events } finally { await history.close() }
+    expect(feedbackEvents.slice(0, events.length)).toEqual(events)
+    expect(feedbackEvents).toHaveLength(events.length + 1)
+    await hostEntry.update({ config: originalConfig })
+    await ctx.loader.await()
+    expect(draftRecords()[0]?.phase).toBe('draft')
+    expect(calls).toBe(4)
     await ctx.fiber.dispose()
     expect(ctx.get('evoforge.evolutionControl')).toBeUndefined()
     ctx = undefined
@@ -100,7 +132,7 @@ it.skipIf(source === undefined || pack === undefined)('installs, reloads and rem
     expect(ctx.get('evoforge.evolutionControl')).toBeUndefined()
     expect(ctx.typert.getPackage('dsh-evolve', 'host')).toBeUndefined()
     const reader = await ctx.sessionPersistence.open(id, 'read')
-    try { expect((await reader.read()).events).toEqual(events) } finally { await reader.close() }
+    try { expect((await reader.read()).events).toEqual(feedbackEvents) } finally { await reader.close() }
   } finally {
     await ctx?.fiber.dispose()
     log.mockRestore()

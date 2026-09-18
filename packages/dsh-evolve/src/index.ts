@@ -241,6 +241,7 @@ export const Config: Schema<Config> = z.object({
   conversationLearningPolicies: z.transform(z.array(z.object({
     workspaceId: z.string().pattern(NATIVE_WORKSPACE_ID_PATTERN).required(),
     maxModelCallsPerUtcDay: z.number().step(1).min(2).max(20).required(),
+    explicitFeedbackSessionIds: z.array(z.string()).max(10),
     retryFailedDrafts: z.array(z.object({
       draftId: z.string().pattern(/^[a-f0-9]{64}$/u).required(),
       expiresAt: z.number().step(1).min(1).max(8_640_000_000_000_000).required(),
@@ -472,8 +473,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const correctionMonitors = new Set<ReturnType<typeof installConversationCorrectionMonitor>>()
   runtime.own('producer', () => disposeRuntimeGroup([...correctionMonitors]))
   const conversationLearningPolicies = config.conversationLearningPolicies ?? []
-  if (conversationLearningPolicies.some(policy => !correctionPolicies.some(p => p.workspaceId === policy.workspaceId))) {
-    throw new Error('conversation Skill drafting requires a matching Workspace correction inspection policy')
+  if (conversationLearningPolicies.some(policy => !correctionPolicies.some(p => p.workspaceId === policy.workspaceId)
+    && (policy.explicitFeedbackSessionIds?.length ?? 0) === 0)) {
+    throw new Error('conversation Skill drafting requires a matching Workspace correction inspection policy or explicit feedback Sessions')
   }
   const conversationSkillDrafts = await openConversationDraftStore(ctx.storageDomain, conversationLearningPolicies)
   runtime.own('resource', () => conversationSkillDrafts.close())
@@ -1456,16 +1458,19 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     })
   }
   if (conversationLearningPolicies.length > 0) {
-    ctx.inject(['sessionPersistence', 'llm', 'jobs'], draftCtx => {
+    const feedbackDependencies = conversationLearningPolicies.some(policy => (policy.explicitFeedbackSessionIds?.length ?? 0) > 0) ? ['messageFeedback'] : []
+    ctx.inject(['sessionPersistence', 'llm', 'jobs', ...feedbackDependencies], draftCtx => {
       draftCtx.effect(() => {
-        const monitor = installConversationSkillDraftMonitor(draftCtx, conversationCorrections, conversationSkillDrafts, conversationLearningPolicies)
+        const monitor = installConversationSkillDraftMonitor(draftCtx, conversationCorrections, conversationSkillDrafts, conversationLearningPolicies,
+          sessionId => conversationDraftTrials.ownsSession(sessionId))
         conversationDraftMonitors.add(monitor)
         return () => monitor.dispose().finally(() => { conversationDraftMonitors.delete(monitor) })
       }, 'dsh-evolve.conversationSkillDrafts')
     })
   }
   if (conversationDraftTrialPolicies.length > 0) {
-    ctx.inject(['sessionPersistence', 'llm', 'jobs', 'skills', 'tools'], trialCtx => {
+    const feedbackDependencies = conversationLearningPolicies.some(policy => (policy.explicitFeedbackSessionIds?.length ?? 0) > 0) ? ['messageFeedback'] : []
+    ctx.inject(['sessionPersistence', 'llm', 'jobs', 'skills', 'tools', ...feedbackDependencies], trialCtx => {
       trialCtx.effect(() => {
         const monitor = installConversationDraftTrialMonitor(trialCtx, conversationCorrections, conversationSkillDrafts,
           conversationDraftTrials, conversationDraftTrialPolicies)

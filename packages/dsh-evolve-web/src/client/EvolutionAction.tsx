@@ -537,7 +537,7 @@ function BeginnerOverview({ summary, openAdvanced, t }: {
       <h3 className="dsh-evolve-section-title">{t('onboarding.how')}</h3>
       <ol className="dsh-evolve-steps">
         <li><span>1</span><div><strong>{t('onboarding.step.correct')}</strong><p>{t('onboarding.step.correctHelp')}</p></div></li>
-        <li><span>2</span><div><strong>{t('onboarding.step.verify')}</strong><p>{t('onboarding.step.verifyHelp')}</p></div></li>
+        <li><span>2</span><div><strong>{t(drafts?.enabled ? 'draft.step.verify' : 'onboarding.step.verify')}</strong><p>{t(drafts?.enabled ? 'draft.step.verifyHelp' : 'onboarding.step.verifyHelp')}</p></div></li>
         <li><span>3</span><div><strong>{t(ordinaryDraftOnly ? 'draft.step.decide' : 'onboarding.step.decide')}</strong><p>{t(ordinaryDraftOnly ? 'draft.step.decideHelp' : 'onboarding.step.decideHelp')}</p></div></li>
       </ol>
       <p className="dsh-evolve-guidance">{t('onboarding.hint')}</p>

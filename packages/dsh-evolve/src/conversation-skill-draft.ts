@@ -6,9 +6,11 @@ import { deadline } from '@deepseek-ai/dsh-timeout'
 import { defineDomain, domainTable, type Domain, type DomainFacility } from '@deepseek-ai/dsh-storage-domain'
 import { z } from 'zod'
 import type { ConversationSkillDraftSummary } from './control-types.ts'
-import { digest, type CorrectionInput, type CorrectionRecord } from './conversation-correction-intake.ts'
+import { digest } from './conversation-correction-intake.ts'
 import { NATIVE_WORKSPACE_ID_PATTERN } from './workspace-identity.ts'
 import { conversationSourceAvailable, type ConversationSourceCheck } from './conversation-source-check.ts'
+import { draftOriginAnswerSeq, explicitFeedbackId, explicitFeedbackSourceSchema, isExplicitFeedbackOrigin,
+  type ConversationDraftInput, type ConversationDraftOrigin } from './conversation-message-feedback.ts'
 
 const HASH = z.string().regex(/^[a-f0-9]{64}$/u)
 const INT = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
@@ -41,18 +43,23 @@ export interface ConversationLearningPolicy {
   readonly workspaceId: string
   /** A run reserves two calls: hidden test preparation followed by a separate proposer. */
   readonly maxModelCallsPerUtcDay: number
+  /** Explicit native Sessions whose current negative notes may enter the same two-call draft budget. */
+  readonly explicitFeedbackSessionIds?: string[]
   /** One new attempt per named failed root, never a continuation of its uncertain request. */
   readonly retryFailedDrafts?: { readonly draftId: string; readonly expiresAt: number }[]
 }
 const policySchema = z.strictObject({
   workspaceId: z.string().regex(NATIVE_WORKSPACE_ID_PATTERN),
   maxModelCallsPerUtcDay: z.number().int().min(2).max(20),
+  explicitFeedbackSessionIds: z.array(z.string().min(1).max(256)).max(10).optional(),
   retryFailedDrafts: z.array(z.strictObject({ draftId: HASH, expiresAt: INT.positive().max(8_640_000_000_000_000) })).max(10).optional(),
 })
 export function validateConversationLearningPolicies(policies: readonly ConversationLearningPolicy[]): void {
   z.array(policySchema).max(20).parse(policies)
   if (new Set(policies.map(p => p.workspaceId)).size !== policies.length) throw new Error('duplicate conversation learning Workspace')
   for (const policy of policies) {
+    const sessions = policy.explicitFeedbackSessionIds ?? []
+    if (new Set(sessions).size !== sessions.length) throw new Error('duplicate explicit feedback Session')
     const grants = policy.retryFailedDrafts ?? []
     if (new Set(grants.map(g => g.draftId)).size !== grants.length) throw new Error('duplicate conversation draft retry grant')
   }
@@ -77,7 +84,7 @@ export function matchesDraftCase(answer: string, test: Pick<z.infer<typeof caseS
   return test.mustInclude.every(value => answer.includes(value)) && test.mustNotInclude.every(value => !answer.includes(value))
     && (test.layout === 'any' || (test.layout === 'table' ? table : !table))
 }
-export function validateDraftGovernance(value: unknown, input?: CorrectionInput): ConversationDraftGovernance {
+export function validateDraftGovernance(value: unknown, input?: ConversationDraftInput): ConversationDraftGovernance {
   const result = governanceSchema.parse(value)
   if (Buffer.byteLength(JSON.stringify(result)) > 32_000
     || new Set(result.cases.map(c => c.id)).size !== 4
@@ -117,6 +124,7 @@ const usageSchema = z.strictObject({ inputTokens: INT, outputTokens: INT, cacheR
 const recordSchema = z.strictObject({
   schemaVersion: z.literal(1), id: HASH, workspaceId: z.string().regex(NATIVE_WORKSPACE_ID_PATTERN),
   correctionId: HASH, sourceDigest: HASH, sourceSessionId: z.string().min(1).max(256), sourceTurn: INT.positive(),
+  sourceAnswerSeq: INT.optional(), messageFeedbackSource: explicitFeedbackSourceSchema.optional(),
   retryOf: HASH.optional(),
   inputDigest: HASH, reservedAt: INT.max(8_640_000_000_000_000), reservedModelCalls: z.literal(2),
   phase: z.enum(['reserved', 'governance-pending', 'governance-ready', 'authoring-pending', 'draft', 'abstained', 'uncertain']),
@@ -136,6 +144,10 @@ const recordSchema = z.strictObject({
     || (['authoring-pending', 'draft'].includes(r.phase) && (r.modelCalls !== 2 || r.governance === undefined))
     || (['abstained', 'uncertain'].includes(r.phase) !== (r.reason !== undefined))
     || r.usages.length > r.modelCalls
+    || (r.messageFeedbackSource !== undefined && (r.correctionId !== explicitFeedbackId(r.messageFeedbackSource)
+      || r.sourceDigest !== digest(r.messageFeedbackSource) || r.workspaceId !== r.messageFeedbackSource.workspaceId
+      || r.sourceSessionId !== r.messageFeedbackSource.sessionId || r.sourceTurn !== r.messageFeedbackSource.turn
+      || r.sourceAnswerSeq !== r.messageFeedbackSource.assistantSeq))
   if (invalid) ctx.addIssue({ code: 'custom', message: 'conversation draft identity or state is inconsistent' })
 })
 export type ConversationDraftRecord = z.infer<typeof recordSchema>
@@ -166,13 +178,19 @@ export class ConversationDraftStore {
     if (this.failed) return []
     return [...this.domain.table('records').entries()].map(([, r]) => r).filter(r => r.workspaceId === workspaceId).map(r => structuredClone(r))
   }
-  canStart(correction: CorrectionRecord): boolean {
+  canStart(correction: ConversationDraftOrigin): boolean {
     if (this.failed || this.closing !== undefined) return false
     const policy = this.policy(correction.source.workspaceId)
-    if (policy === undefined) return false
+    if (policy === undefined || !originPermitted(policy, correction) || this.hasOtherAnswerAttempt(correction)) return false
     const original = this.domain.table('records').get(draftId(policy.workspaceId, correction.id))
     if (original === undefined) return true
     return this.retryTarget(policy, original) !== undefined
+  }
+  private hasOtherAnswerAttempt(origin: ConversationDraftOrigin): boolean {
+    return [...this.domain.table('records').entries()].some(([, record]) =>
+      (record.workspaceId !== origin.source.workspaceId || record.correctionId !== origin.id)
+      && record.sourceSessionId === origin.source.sessionId
+      && (record.correctionId === origin.id || record.sourceAnswerSeq === draftOriginAnswerSeq(origin)))
   }
   private retryTarget(policy: ConversationLearningPolicy, original: ConversationDraftRecord): string | undefined {
     if (!retryEligible(original)) return undefined
@@ -181,11 +199,11 @@ export class ConversationDraftStore {
     const id = draftId(policy.workspaceId, original.correctionId, original.id)
     return this.domain.table('records').get(id) === undefined ? id : undefined
   }
-  reserve(correction: CorrectionRecord, input: CorrectionInput, isActive: () => boolean): Promise<ConversationDraftRecord | undefined> {
+  reserve(correction: ConversationDraftOrigin, input: ConversationDraftInput, isActive: () => boolean): Promise<ConversationDraftRecord | undefined> {
     return this.enqueue(async () => {
       if (!isActive()) return undefined
       const policy = this.policy(input.source.workspaceId)
-      if (policy === undefined) return undefined
+      if (policy === undefined || !originPermitted(policy, correction) || this.hasOtherAnswerAttempt(correction)) return undefined
       const table = this.domain.table('records')
       let id = draftId(policy.workspaceId, correction.id), retryOf: string | undefined
       const previous = table.get(id)
@@ -206,6 +224,8 @@ export class ConversationDraftStore {
       const record = recordSchema.parse({ schemaVersion: 1, id, workspaceId: policy.workspaceId,
         correctionId: correction.id, sourceDigest: digest(correction.source), sourceSessionId: correction.source.sessionId,
         sourceTurn: correction.source.turn, inputDigest: draftInputDigest(input), reservedAt, reservedModelCalls: 2,
+        sourceAnswerSeq: draftOriginAnswerSeq(correction),
+        ...(isExplicitFeedbackOrigin(correction) ? { messageFeedbackSource: correction.source } : {}),
         ...(retryOf === undefined ? {} : { retryOf }),
         phase: 'reserved', modelCalls: 0, usages: [] })
       await this.put(record)
@@ -281,8 +301,8 @@ export async function openConversationDraftStore(facility: DomainFacility, polic
   } catch (error) { await domain.close(); throw error }
 }
 
-export function draftInputDigest(input: CorrectionInput): string { return digest({ input, governanceSystem, authorSystem, governanceTokens: 4000, authorTokens: 2000 }) }
-export interface ConversationDraftModelRequest { readonly role: 'governance' | 'author'; readonly input: CorrectionInput }
+export function draftInputDigest(input: ConversationDraftInput): string { return digest({ input, governanceSystem, authorSystem, governanceTokens: 4000, authorTokens: 2000 }) }
+export interface ConversationDraftModelRequest { readonly role: 'governance' | 'author'; readonly input: ConversationDraftInput }
 export type ConversationDraftModel = (request: ConversationDraftModelRequest, signal: AbortSignal) => Promise<{ readonly value: unknown; readonly usage?: TokenUsage }>
 
 class NativeDraftResponseError extends Error {
@@ -344,12 +364,14 @@ function validateProposal(value: unknown): z.infer<typeof draftSchema> | undefin
 }
 
 /** Hypothesis-to-draft only: no Skill registration, Goal, tool, evaluation verdict or promotion authority. */
-export async function authorConversationSkillDraft(store: ConversationDraftStore, correction: CorrectionRecord,
-  input: CorrectionInput, model: ConversationDraftModel, signal: AbortSignal,
+export async function authorConversationSkillDraft(store: ConversationDraftStore, correction: ConversationDraftOrigin,
+  input: ConversationDraftInput, model: ConversationDraftModel, signal: AbortSignal,
   sourceStillMatches: ConversationSourceCheck = () => true): Promise<'draft' | 'skipped' | 'abstained' | 'uncertain'> {
   signal.throwIfAborted()
-  if (correction.phase !== 'classified' || correction.interpretation?.kind !== 'correction'
-    || digest(correction.source) !== digest(input.source) || !await conversationSourceAvailable(sourceStillMatches, signal)) return 'skipped'
+  const eligible = isExplicitFeedbackOrigin(correction)
+    ? correction.id === explicitFeedbackId(correction.source) && correction.source.inputDigest === digest({ messages: input.messages, route: input.route })
+    : correction.phase === 'classified' && correction.interpretation?.kind === 'correction'
+  if (!eligible || digest(correction.source) !== digest(input.source) || !await conversationSourceAvailable(sourceStillMatches, signal)) return 'skipped'
   let record = await store.reserve(correction, input, () => !signal.aborted)
   if (record === undefined) return 'skipped'
   for (const role of ['governance', 'author'] as const) {
@@ -392,4 +414,9 @@ export async function authorConversationSkillDraft(store: ConversationDraftStore
     }
   }
   throw new Error('draft authoring did not reach a terminal state')
+}
+
+function originPermitted(policy: ConversationLearningPolicy, origin: ConversationDraftOrigin): boolean {
+  return policy.workspaceId === origin.source.workspaceId && (!isExplicitFeedbackOrigin(origin)
+    || origin.id === explicitFeedbackId(origin.source) && policy.explicitFeedbackSessionIds?.includes(origin.source.sessionId) === true)
 }

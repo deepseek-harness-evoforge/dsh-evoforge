@@ -2,7 +2,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { JobOutcome } from '@deepseek-ai/dsh-jobs'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import { DurableFeedbackAttribution } from './durable-feedback-attribution.ts'
-import { digest, projectCorrectionInput, type CorrectionLedger } from './conversation-correction-intake.ts'
+import { digest, type CorrectionLedger } from './conversation-correction-intake.ts'
 import { draftInputDigest, type ConversationDraftRecord, type ConversationDraftStore } from './conversation-skill-draft.ts'
 import { runConversationDraftTrialLeg } from './conversation-draft-trial-native.ts'
 import { compareConversationDraftTrial, projectConversationDraftTrialResult } from './conversation-draft-trial-result.ts'
@@ -11,6 +11,7 @@ import { workspaceIdForCwd } from './workspace-identity.ts'
 import { DraftJudgeError, nativeConversationDraftJudge, parseDraftJudgment, type ConversationDraftJudge } from './conversation-draft-judge.ts'
 import type { TokenUsage } from '@deepseek-ai/dsh-llm'
 import { conversationSourceAvailable, type ConversationSourceCheck } from './conversation-source-check.ts'
+import { explicitFeedbackId, resolveConversationDraftOrigin, type ConversationDraftOrigin } from './conversation-message-feedback.ts'
 
 declare module '@deepseek-ai/dsh-jobs' { interface JobKindMap { conversationDraftTrial: 'evoforge-conversation-draft-trial' } }
 
@@ -122,27 +123,28 @@ export function installConversationDraftTrialMonitor(ctx: Context, corrections: 
             let completed = 0, incomplete = false
             for (const source of sources) {
               controller.signal.throwIfAborted()
-              const correction = corrections.records(workspaceId).find(record => record.id === source.correctionId)
-              if (correction === undefined || correction.phase !== 'classified' || correction.interpretation?.kind !== 'correction'
-                || digest(correction.source) !== source.sourceDigest) { store.warn(workspaceId); incomplete = true; continue }
-              const stored = await reader.readStoredSession(source.sourceSessionId, correction.source.turnEndSeq + 1)
-              controller.signal.throwIfAborted()
-              const cwd = stored.meta.cwd
-              if (cwd === undefined || await workspaceIdForCwd(ctx, cwd) !== workspaceId) { store.warn(workspaceId); incomplete = true; continue }
-              const input = projectCorrectionInput(stored, workspaceId, source.sourceSessionId, correction.source.turnEndSeq)
-              if (input === undefined || digest(input.source) !== source.sourceDigest || draftInputDigest(input) !== source.inputDigest) {
+              const feedback = source.messageFeedbackSource
+              if (feedback !== undefined && drafts.policy(workspaceId)?.explicitFeedbackSessionIds?.includes(feedback.sessionId) !== true) {
                 store.warn(workspaceId); incomplete = true; continue
               }
+              const origin: ConversationDraftOrigin | undefined = feedback === undefined
+                ? corrections.records(workspaceId).find(record => record.id === source.correctionId)
+                : { kind: 'message-feedback', id: explicitFeedbackId(feedback), source: feedback }
+              if (origin === undefined || origin.id !== source.correctionId || digest(origin.source) !== source.sourceDigest) {
+                store.warn(workspaceId); incomplete = true; continue
+              }
+              const resolved = await resolveConversationDraftOrigin(ctx, reader, corrections, origin)
+              controller.signal.throwIfAborted()
+              if (resolved === undefined || resolved.cwd === undefined || draftInputDigest(resolved.input) !== source.inputDigest) {
+                store.warn(workspaceId); incomplete = true; continue
+              }
+              const { input, cwd } = resolved
               const sourceStillMatches = async (): Promise<boolean> => {
                 if (closing || controller.signal.aborted) return false
-                const fresh = await reader.readStoredSession(source.sourceSessionId, correction.source.turnEndSeq + 1)
-                const projected = projectCorrectionInput(fresh, workspaceId, source.sourceSessionId, correction.source.turnEndSeq)
+                const fresh = await resolveConversationDraftOrigin(ctx, reader, corrections, origin)
                 const currentDraft = drafts.records(workspaceId).find(record => record.id === source.id)
-                const currentCorrection = corrections.records(workspaceId).find(record => record.id === correction.id)
-                return !closing && !controller.signal.aborted && currentDraft !== undefined && currentCorrection !== undefined
-                  && digest(currentDraft) === digest(source) && digest(currentCorrection) === digest(correction)
-                  && await workspaceIdForCwd(ctx, fresh.meta.cwd) === workspaceId
-                  && projected !== undefined && digest(projected) === digest(input)
+                return !closing && !controller.signal.aborted && currentDraft !== undefined && digest(currentDraft) === digest(source)
+                  && fresh !== undefined && fresh.cwd === cwd && digest(fresh.input) === digest(input)
               }
               if (!await sourceStillMatches()) { store.warn(workspaceId); incomplete = true; continue }
               const reserved = await store.reserve(source, input.route)

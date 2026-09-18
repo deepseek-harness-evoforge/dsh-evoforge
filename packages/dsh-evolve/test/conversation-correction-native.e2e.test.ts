@@ -204,7 +204,8 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
         trials = await openConversationDraftTrialStore(first.storageDomain, trialPolicy)
       }
       trialMonitor = installConversationDraftTrialMonitor(first, ledger, drafts, trials, trialPolicy)
-      await vi.waitFor(() => expect(trials!.records(WORKSPACE_ID).at(-1)?.phase).toBe('completed'))
+      // Native durable source reads around every request can exceed the default one-second wait under parallel IO.
+      await vi.waitFor(() => expect(trials!.records(WORKSPACE_ID).at(-1)?.phase).toBe('completed'), { timeout: 10_000 })
       const trial = trials.records(WORKSPACE_ID).at(-1)!
       if (trialRecovery) expect(trials.records(WORKSPACE_ID)[0]).toEqual(failedTrial)
       expect(trial.comparison).toMatchObject({ outcome: 'no-improvement', baselinePassed: 4, draftPassed: 4, comparablePairs: 4, loadedDraftLegs: 4 })

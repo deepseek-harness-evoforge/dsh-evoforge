@@ -7,6 +7,10 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Allow current negative answer feedback with a note from explicitly authorized native Sessions to enter the existing
+  isolated draft and trial pipeline without an extra classifier call. Share budgets, preserve edits/deletions and
+  cross-source deduplication, exclude evaluation Sessions, and keep every draft inactive.
+
 - Revalidate conversation draft sources before and after auxiliary requests and before publishing a comparison.
   Unavailable or changed sources stop further work, retain known usage and stay uncertain without automatic retry.
 
