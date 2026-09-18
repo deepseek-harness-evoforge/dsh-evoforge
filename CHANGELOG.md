@@ -7,6 +7,9 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Use Feishu Card 2.0 buttons and callback behaviors for native approval cards instead of the unsupported legacy action
+  wrapper. Show Chinese approval labels and explain one-time permission; preserve exact recipient checks and native decisions.
+
 - Let progressing draft requests finish beyond one minute while retaining a 60-second inactivity limit and a three-minute
   total limit. Show the two timeout causes separately, preserve usage and failed attempts, and never retry automatically.
 

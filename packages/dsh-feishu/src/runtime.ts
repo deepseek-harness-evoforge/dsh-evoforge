@@ -961,7 +961,7 @@ export class FeishuRuntime {
     if (destination === undefined) return next()
     const nonce = randomBytes(9).toString('base64url')
     const content = boundText(
-      `**Approval required**\n\nTool: ${request.toolName}${request.reason === undefined ? '' : `\n\nReason: ${request.reason}`}`,
+      `**等待审批**\n\n操作：${request.toolName}${request.reason === undefined ? '' : `\n\n原因：${request.reason}`}\n\n请核对上述操作；允许一次只批准本次请求，不会永久放宽权限。`,
       this.config.maxTextChars,
     )
     let sent: { readonly messageId: string }
@@ -1077,21 +1077,16 @@ function approvalCard(content: string, nonce: string): object {
       elements: [
         { tag: 'markdown', content },
         {
-          tag: 'action',
-          actions: [
-            {
-              tag: 'button',
-              text: { tag: 'plain_text', content: 'Allow once' },
-              type: 'primary',
-              value: { evoforge: 'dsh-approval-v1', nonce, outcome: 'allowed-once' },
-            },
-            {
-              tag: 'button',
-              text: { tag: 'plain_text', content: 'Reject' },
-              type: 'danger',
-              value: { evoforge: 'dsh-approval-v1', nonce, outcome: 'rejected' },
-            },
-          ],
+          tag: 'button',
+          text: { tag: 'plain_text', content: '允许一次' },
+          type: 'primary',
+          behaviors: [{ type: 'callback', value: { evoforge: 'dsh-approval-v1', nonce, outcome: 'allowed-once' } }],
+        },
+        {
+          tag: 'button',
+          text: { tag: 'plain_text', content: '拒绝' },
+          type: 'danger',
+          behaviors: [{ type: 'callback', value: { evoforge: 'dsh-approval-v1', nonce, outcome: 'rejected' } }],
         },
       ],
     },

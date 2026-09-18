@@ -72,7 +72,13 @@ onboarding 页面可能不会渲染该 slot。
 Host 后，在同一 Control Center 的 Feishu 凭据表单保存 App ID/Secret；值只进入 DSH CredentialProvider，不能
 写进 YAML、Git、日志或 Session。
 
-飞书开发者后台至少需要机器人、长连接事件 `im.message.receive_v1` 和发送消息权限，并发布当前应用版本。随后：
+飞书开发者后台至少需要机器人、长连接事件 `im.message.receive_v1` 和发送消息权限，并发布当前应用版本。
+
+若要在飞书卡片上完成审批，还须在 **事件与回调 → 回调配置** 启用卡片交互回调 `card.action.trigger`。
+它与消息事件订阅不同；回调沿现有长连接进入 Host，不需要另开服务。仅看到连接成功、普通消息回复或审批卡片，
+都不能证明按钮回调可用。参见[飞书官方回调配置说明](https://github.com/larksuite/cli/blob/main/skills/lark-im/references/lark-im-card-action-reply.md)。
+
+完成配置后：
 
 1. 陌生用户发送第一条私聊；Gateway 返回一次性配对码，消息不进入 Agent。
 2. 管理员先打开要绑定的工作区与会话，再进入 **控制台 → 渠道**，核对后批准配对。

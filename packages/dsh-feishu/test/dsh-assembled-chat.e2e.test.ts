@@ -413,10 +413,29 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu chat', () =
         options: { replyInThread: true },
       })
       const card = service.platform.cards[0]!.card as {
-        body?: { elements?: Array<{ actions?: Array<{ value?: unknown }> }> }
+        body?: { elements?: Array<{ behaviors?: Array<{ value?: unknown }> }> }
       }
+      // Feishu Card 2.0 rejects the old action container and top-level button value.
+      // Check the actual Adapter output, not a separately constructed valid fixture.
+      expect(card.body?.elements).toEqual([
+        expect.objectContaining({ tag: 'markdown' }),
+        expect.objectContaining({
+          tag: 'button',
+          text: { tag: 'plain_text', content: '允许一次' },
+          behaviors: [{ type: 'callback', value: {
+            evoforge: 'dsh-approval-v1', nonce: expect.stringMatching(/^[A-Za-z0-9_-]{12}$/u), outcome: 'allowed-once',
+          } }],
+        }),
+        expect.objectContaining({
+          tag: 'button',
+          text: { tag: 'plain_text', content: '拒绝' },
+          behaviors: [{ type: 'callback', value: {
+            evoforge: 'dsh-approval-v1', nonce: expect.stringMatching(/^[A-Za-z0-9_-]{12}$/u), outcome: 'rejected',
+          } }],
+        }),
+      ])
       const cardMessageId = service.platform.cards[0]!.messageId
-      const value = card.body?.elements?.[1]?.actions?.[0]?.value
+      const value = card.body?.elements?.[1]?.behaviors?.[0]?.value
       await service.platform.emitApproval({
         messageId: 'om_other_card',
         chatId: 'oc_main',

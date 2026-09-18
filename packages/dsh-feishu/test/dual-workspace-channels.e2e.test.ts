@@ -188,10 +188,10 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled dual Workspace cha
         await vi.waitFor(() => { expect(feishu.platform.cards).toHaveLength(1) })
         expect(telegramSends).toHaveLength(3)
         const card = feishu.platform.cards[0]!.card as {
-          body?: { elements?: Array<{ actions?: Array<{ value?: unknown }> }> }
+          body?: { elements?: Array<{ behaviors?: Array<{ value?: unknown }> }> }
         }
         const cardMessageId = feishu.platform.cards[0]!.messageId
-        const value = card.body?.elements?.[1]?.actions?.[0]?.value
+        const value = card.body?.elements?.[1]?.behaviors?.[0]?.value
         await feishu.platform.emitApproval({
           messageId: cardMessageId,
           chatId: 'oc_dual',

@@ -252,8 +252,8 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu pairing', (
       await eventually(() => service.platform.cards.length === 1)
       const card = service.platform.cards[0]!
       const value = (card.card as {
-        body?: { elements?: Array<{ actions?: Array<{ value?: unknown }> }> }
-      }).body?.elements?.[1]?.actions?.[0]?.value
+        body?: { elements?: Array<{ behaviors?: Array<{ value?: unknown }> }> }
+      }).body?.elements?.[1]?.behaviors?.[0]?.value
       await service.platform.emitApproval({
         messageId: card.messageId,
         chatId: 'oc_discovered',

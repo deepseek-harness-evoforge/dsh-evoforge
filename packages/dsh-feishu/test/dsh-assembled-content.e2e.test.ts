@@ -102,8 +102,8 @@ describe.skipIf(process.platform !== 'darwin')('DSH assembled Feishu content', (
       expect(service.platform.contentReads).toHaveLength(0)
       const card = service.platform.cards[0]!
       const value = (card.card as {
-        body?: { elements?: Array<{ actions?: Array<{ value?: unknown }> }> }
-      }).body?.elements?.[1]?.actions?.[0]?.value
+        body?: { elements?: Array<{ behaviors?: Array<{ value?: unknown }> }> }
+      }).body?.elements?.[1]?.behaviors?.[0]?.value
       await service.platform.emitApproval({
         messageId: card.messageId,
         chatId: 'oc_content',

@@ -116,7 +116,7 @@ it.skipIf(process.env.DSH_FEISHU_TEST_NATIVE_FILES !== '1').each(
       // The approval applies to the stored snapshot, not bytes reread from a mutable path later.
       await writeFile(join(root, 'result.txt'), 'changed while approval was pending')
       const card = platform.cards[0]
-      const value = card.card.body.elements[1].actions[mode === 'reject' ? 1 : 0].value
+      const value = card.card.body.elements[mode === 'reject' ? 2 : 1].behaviors[0].value
       if (mode === 'wrong-user') {
         await platform.emitApproval({ messageId: card.messageId, chatId: 'oc_file', operatorId: 'untrusted-user', value })
         expect(platform.files).toHaveLength(0)
