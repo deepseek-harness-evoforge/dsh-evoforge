@@ -41,3 +41,34 @@
 复现：新建独立会话→仅可查看→发送本页 A1→等待第二次同命令审批→观察截图所示状态→拒绝→核对结果→刷新。
 没有修改 DSH 核心或插件代码，也没有以测试数量代替上述真实结果。下一步改善这些呈现须使用原生控制面受支持扩展，
 不能另做审批系统或直接篡改核心。允许与飞书审批仍未验收。
+
+## 上游定位与可运行复现
+
+后续使用仓库 build-dsh-plugin 与 diagnosing-bugs 规范。没有改变运行代码或重新部署，因为两处属于原生 DSH：
+ChatView 的 turn status 只根据 Session `running` 渲染，没有读取已有 `useSessionPendingInteraction`；
+原生 ApprovalPanel 直接显示 `pending.reason`，沙箱 escalation 服务将固定英文前缀与中文 justification 拼在一起。
+审批没有丢失或串会话：实际审批卡和原生 rejected 已证明投递链路工作。
+
+在已安装依赖的 canonical DSH 源码根目录运行（`<evoforge>` 为本仓库路径）：
+
+```sh
+pnpm exec vitest run packages/client/ui-chat/tests/chat-view.client.spec.tsx \
+  --config <evoforge>/scripts/repro-dsh-approval-status.config.mjs \
+  -t 'EvoForge upstream:' --maxWorkers 1
+```
+
+[复现配置](../../scripts/repro-dsh-approval-status.config.mjs)仅在 Vite 转换内存中给 DSH 原测试 harness 追加三项探针，
+运行真实 ChatView 和 PendingApproval 类；不写 DSH 源文件、不启动 Host、不调用模型、不注入生产页面。
+最初探针的 harness 名称保护写错导致零测试，修正后获得目标断言失败；不是把配置失败当成问题复现。
+普通执行与另一会话待审批两个对照通过；当前会话待审批断言失败，实际仍为「深度求索中...」。
+该复现有意退出 1，不加入产品绿色 CI，也不能当作修复。真实页面复现仍使用上节 A1。
+
+canonical checkout fetch 后 HEAD 仍 `0d1f50007f9bca3f52b06e1c3074fa14d5fb0720` / alpha.1、无 exact tag，
+工作树干净；origin/master 为 `ddefc45fbc7f8e46dd73185e68295696d1297887`。本日早前同一 revision 的 frozen install
+与完整 build 成功记录沿用，未在生产运行时再次构建。只读对比 origin/master 的相关源文件未见该状态判断修复；
+没有安装/构建 alpha.2，不能称已验证其运行行为。
+
+按 upstream-fixed 判断，不新增遮盖核心缺陷的插件、CSS/DOM 拦截或第二审批界面。建议原生 ChatView 使用已有
+Session-scoped pending interaction 区分等待与执行；审批国际化需要保留原始动作/权限含义，不用字符串替换猜测。
+用户说明已增加“以审批卡为准、拒绝不回滚已发生动作、不要为消除提示放宽权限”。没有向上游自动发 issue/PR。
+两项 P2 保持未修复，但不阻止继续验证其他真实任务或开发独立的插件能力。
