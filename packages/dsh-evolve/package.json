@@ -152,7 +152,7 @@
     "@deepseek-ai/dsh-user-approval": "0.1.6-alpha.1",
     "@deepseek-ai/dsh-util-values": "0.1.6-alpha.1",
     "@deepseek-ai/dsh-workspace": "0.1.6-alpha.1",
-    "@types/node": "^22.20.0",
+    "@types/node": "^26.5.1",
     "@types/tar-stream": "3.1.4",
     "dsh-evoforge-gateway": "workspace:*",
     "tsdown": "^0.22.2",
