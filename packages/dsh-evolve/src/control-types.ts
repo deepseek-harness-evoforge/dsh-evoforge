@@ -1385,6 +1385,7 @@ export interface ConversationSkillDraftSummary {
   readonly warningCount: number
   readonly failures?: readonly { readonly reason: string; readonly count: number }[]
   readonly retryCount?: number
+  readonly preparationUpgradeCount?: number
   readonly items: readonly {
     readonly id: string
     readonly name: string
@@ -1396,7 +1397,7 @@ export interface ConversationSkillDraftSummary {
   readonly releaseAuthority: 'none'
 }
 
-/** Read-only proposed-check results; never returns test inputs, answers, request snapshots or activation authority. */
+/** Read-only results; protected text tests/request snapshots stay private. Completed file trials expose bounded artifact/check snapshots, never authoring authority. */
 export interface ConversationDraftTrialSummary {
   readonly enabled: boolean
   readonly semanticEvaluationEnabled?: boolean
@@ -1413,6 +1414,23 @@ export interface ConversationDraftTrialSummary {
     readonly phase: 'reserved' | 'running' | 'completed' | 'uncertain' | 'blocked' | 'rejected'
     readonly judge?: { readonly version: 'semantic-v1'; readonly dispatchMarkers: number; readonly completedJudgments: number;
       readonly calibrationCompleted: number; readonly calibrated: boolean }
+    readonly fileEvaluation?: { readonly version: 'file-records-v1'; readonly recipeHash: string }
+    readonly fileArtifacts?: readonly {
+      readonly caseId: string
+      readonly partition: 'holdout' | 'retention'
+      readonly variant: 'baseline' | 'draft'
+      readonly sessionId: string
+      readonly root: string
+      readonly passed: boolean
+      readonly deliveryPassed: boolean
+      readonly skillLoaded: boolean
+      readonly toolErrors: number
+      readonly policyViolations: number
+      readonly inputs: readonly { readonly path: string; readonly hash: string; readonly read: boolean; readonly unchanged: boolean }[]
+      readonly outputs: readonly { readonly path: string; readonly status: 'present' | 'missing' | 'unreadable';
+        readonly content?: string; readonly hash?: string; readonly written: boolean; readonly readBack: boolean; readonly presented: boolean }[]
+      readonly checks: readonly { readonly field: string; readonly passed: boolean; readonly expectedJson?: string; readonly actualJson?: string }[]
+    }[]
     readonly settledLegs: number
     readonly dispatchMarkers: number
     readonly requestCount: number

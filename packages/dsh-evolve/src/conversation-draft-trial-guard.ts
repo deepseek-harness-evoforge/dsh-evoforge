@@ -2,6 +2,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-tools'
 import * as NativeSkillTool from '@deepseek-ai/dsh-tool-skill'
+import { FILE_TRIAL_MAX_CALLS, FILE_TRIAL_MAX_TOKENS, FILE_TRIAL_TOOL_NAMES, type prepareConversationFileTrial } from './conversation-file-trial.ts'
 
 interface TrialRequestBounds {
   readonly provider: string
@@ -10,6 +11,7 @@ interface TrialRequestBounds {
   readonly maxCalls: number
   /** Must durably commit a dispatch marker; rejection prevents provider entry. */
   readonly beforeDispatch: (call: number, signal: AbortSignal) => Promise<void>
+  readonly fileTrial?: Awaited<ReturnType<typeof prepareConversationFileTrial>>
 }
 
 /**
@@ -25,22 +27,26 @@ export async function installConversationDraftTrialGuard(
 ): Promise<void> {
   bounds = Object.freeze({ ...bounds })
   if (!bounds.provider || !bounds.model
-    || !Number.isSafeInteger(bounds.maxCalls) || bounds.maxCalls < 1 || bounds.maxCalls > 3
-    || !Number.isSafeInteger(bounds.maxTokens) || bounds.maxTokens < 1 || bounds.maxTokens > 2000) {
+    || !Number.isSafeInteger(bounds.maxCalls) || bounds.maxCalls < 1 || bounds.maxCalls > (bounds.fileTrial ? FILE_TRIAL_MAX_CALLS : 3)
+    || !Number.isSafeInteger(bounds.maxTokens) || bounds.maxTokens < 1 || bounds.maxTokens > (bounds.fileTrial ? FILE_TRIAL_MAX_TOKENS : 2000)) {
     throw new Error('invalid conversation trial request bounds')
   }
   scoped.tools.presentAs('native')
+  if (bounds.fileTrial !== undefined) await bounds.fileTrial.install(scoped, agent)
   // A programmatic Agent does not inherit a user-facing preset. Supply the
   // official reader if absent; do not double-mount an existing catalog owner.
   if (scoped.tools.get('skill', agent) === undefined) await scoped.plugin(NativeSkillTool)
   // Restrictions name global tools only; scoped registrations survive this mask.
-  scoped.tools.restrict({ allow: scoped.tools.get('skill') === undefined ? [] : ['skill'] })
-  const skillTool = scoped.tools.get('skill', agent)
+  const allowed = bounds.fileTrial === undefined ? ['skill'] : [...FILE_TRIAL_TOOL_NAMES]
+  scoped.tools.restrict({ allow: allowed.filter(name => scoped.tools.get(name) !== undefined) })
+  const definitions = new Map(allowed.map(name => [name, scoped.tools.get(name, agent)]))
   const schemas = JSON.stringify(scoped.tools.schemas(agent))
   const verifyTools = (): void => {
     const visible = scoped.tools.schemas(agent)
-    if (skillTool === undefined || scoped.tools.get('skill', agent) !== skillTool
-      || visible.length !== 1 || visible[0]?.name !== 'skill' || JSON.stringify(visible) !== schemas) {
+    const required = bounds.fileTrial === undefined ? ['skill'] : ['skill', 'read', 'write', 'edit', 'present']
+    if (required.some(name => definitions.get(name) === undefined)
+      || [...definitions].some(([name, definition]) => scoped.tools.get(name, agent) !== definition)
+      || visible.some(tool => !allowed.includes(tool.name)) || JSON.stringify(visible) !== schemas) {
       throw new Error('conversation trial tool composition changed')
     }
   }
@@ -55,7 +61,8 @@ export async function installConversationDraftTrialGuard(
   scoped.on('tools/execute', async (exec, next) => {
     if (exec.agent !== agent) return next()
     verifyTools()
-    if (exec.name !== 'skill') throw new Error('conversation trial permits only skill loading')
+    if (bounds.fileTrial !== undefined) await bounds.fileTrial.checkTool(exec)
+    else if (exec.name !== 'skill') throw new Error('conversation trial permits only skill loading')
     return next()
   }, { prepend: true })
   scoped.on('agent/request', async ({ agent: current, turn, signal }, next) => {

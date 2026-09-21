@@ -228,7 +228,7 @@ export const Config: Schema<Config> = z.object({
   cacheRoot: z.string(),
   conversationDraftTrialPolicies: z.transform(z.array(z.object({
     workspaceId: z.string().pattern(NATIVE_WORKSPACE_ID_PATTERN).required(),
-    maxModelCallsPerUtcDay: z.number().step(1).min(24).max(72).required(),
+    maxModelCallsPerUtcDay: z.number().step(1).min(24).max(Number.MAX_SAFE_INTEGER).required(),
     semanticEvaluation: z.boolean().default(false),
     retryFailedTrials: z.array(z.object({
       trialId: z.string().pattern(/^[a-f0-9]{64}$/u).required(),
@@ -242,9 +242,13 @@ export const Config: Schema<Config> = z.object({
   conversationLearningPolicies: z.transform(z.array(z.object({
     workspaceId: z.string().pattern(NATIVE_WORKSPACE_ID_PATTERN).required(),
     maxModelCallsPerUtcDay: z.number().step(1).min(2).max(Number.MAX_SAFE_INTEGER).required(),
-    testPreparation: z.const('staged-v1'),
+    testPreparation: z.union([z.const('staged-v1'), z.const('file-records-v1')]),
     explicitFeedbackSessionIds: z.array(z.string()).max(10),
     retryFailedDrafts: z.array(z.object({
+      draftId: z.string().pattern(/^[a-f0-9]{64}$/u).required(),
+      expiresAt: z.number().step(1).min(1).max(8_640_000_000_000_000).required(),
+    })).max(10),
+    upgradeFailedPreparations: z.array(z.object({
       draftId: z.string().pattern(/^[a-f0-9]{64}$/u).required(),
       expiresAt: z.number().step(1).min(1).max(8_640_000_000_000_000).required(),
     })).max(10),

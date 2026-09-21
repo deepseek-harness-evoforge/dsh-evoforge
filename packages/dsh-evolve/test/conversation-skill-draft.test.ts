@@ -126,6 +126,53 @@ describe('conversation-derived Skill draft', () => {
     expect(JSON.stringify(view)).not.toContain('甲事项')
   })
 
+  it('seals deterministic file governance before one isolated author call', async () => {
+    const f = facility(), filePolicy = { ...policy, testPreparation: 'file-records-v1' as const }
+    const store = await openConversationDraftStore(f.value, [filePolicy], () => 100)
+    const model = vi.fn(async request => {
+      expect(request).toEqual({ role: 'author', input })
+      const saved = store.records(WORKSPACE_ID)[0]!
+      expect(saved.fileWorkflow?.cases).toHaveLength(4)
+      expect(saved.governance).toBeUndefined()
+      expect(saved.modelCalls).toBe(1)
+      expect(saved.reservedModelCalls).toBe(1)
+      return { value: proposal, usage }
+    })
+    expect(await authorConversationSkillDraft(store, correction, input, model, signal())).toBe('draft')
+    const record = store.records(WORKSPACE_ID)[0]!
+    expect(model).toHaveBeenCalledTimes(1)
+    expect(record).toMatchObject({ phase: 'draft', testPreparation: 'file-records-v1', modelCalls: 1 })
+    expect(record.governanceDigest).toBe(digest(record.fileWorkflow))
+    expect(JSON.stringify(store.summarize(WORKSPACE_ID))).not.toContain('exportRows')
+    await store.close()
+    const cold = await openConversationDraftStore(f.value, [filePolicy], () => 200)
+    expect(cold.records(WORKSPACE_ID)).toEqual([record])
+    expect(await authorConversationSkillDraft(cold, correction, input, model, signal())).toBe('skipped')
+  })
+
+  it('records an explicit new file protocol epoch after failed preparation without rewriting or retrying its old tests', async () => {
+    const f = facility(), legacy = await openConversationDraftStore(f.value, [policy], () => 100)
+    expect(await authorConversationSkillDraft(legacy, correction, input, async () => ({ value: { invalid: true }, usage }), signal())).toBe('abstained')
+    const failed = legacy.records(WORKSPACE_ID)[0]!
+    await legacy.close()
+    const filePolicy = { ...policy, maxModelCallsPerUtcDay: 3, testPreparation: 'file-records-v1' as const,
+      upgradeFailedPreparations: [{ draftId: failed.id, expiresAt: 500 }] }
+    const upgraded = await openConversationDraftStore(f.value, [filePolicy], () => 200)
+    const model = vi.fn(async request => { expect(request).toEqual({ role: 'author', input }); return { value: proposal, usage } })
+    expect(await authorConversationSkillDraft(upgraded, correction, input, model, signal())).toBe('draft')
+    const records = upgraded.records(WORKSPACE_ID)
+    expect(records[0]).toEqual(failed)
+    expect(records[1]).toMatchObject({ preparationUpgradeOf: failed.id, previousInputDigest: failed.inputDigest, phase: 'draft' })
+    expect(records[1]?.retryOf).toBeUndefined()
+    expect(records[1]?.inputDigest).not.toBe(failed.inputDigest)
+    expect(upgraded.summarize(WORKSPACE_ID)).toMatchObject({ preparationUpgradeCount: 1, retryCount: 0, uncertainCount: 1 })
+    expect(await authorConversationSkillDraft(upgraded, correction, input, model, signal())).toBe('skipped')
+    expect(model).toHaveBeenCalledTimes(1)
+    await upgraded.close()
+    const cold = await openConversationDraftStore(f.value, [filePolicy], () => 300)
+    expect(cold.records(WORKSPACE_ID)).toEqual(records)
+  })
+
   it('stages four fixed tasks and their calibration in eight durably counted requests before the isolated proposer', async () => {
     const f = facility(), stagedPolicy = { ...policy, maxModelCallsPerUtcDay: 20, testPreparation: 'staged-v1' as const }
     const store = await openConversationDraftStore(f.value, [stagedPolicy], () => 100)

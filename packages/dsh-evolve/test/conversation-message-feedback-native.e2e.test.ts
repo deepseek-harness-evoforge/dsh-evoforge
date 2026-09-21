@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { chmod, mkdtemp, readdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -13,11 +13,16 @@ import { openConversationDraftTrialStore } from '../src/conversation-draft-trial
 import { installConversationDraftTrialMonitor } from '../src/conversation-draft-trial-monitor.ts'
 import { DurableFeedbackAttribution } from '../src/durable-feedback-attribution.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
+import { ConversationSkillRelease } from '../src/conversation-skill-release.ts'
+import { openEvolutionStore } from '../src/generation-store.ts'
+import { GenerationBundleRepository } from '../src/generation-bundle-repository.ts'
+import { VerifiedEvolutionStore } from '../src/verified-evolution-store.ts'
+import { installGenerationBinder } from '../src/generation-binder.ts'
 
 const dshRoot = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
 
 describe.skipIf(dshRoot === undefined)('native feedback-to-draft path', () => {
-  it.each(['live', 'cold', 'withdraw-during-author', 'withdraw-before-trial', 'owned-evaluation', 'ownership-unavailable', 'staged', 'staged-recovery',
+  it.each(['live', 'cold', 'withdraw-during-author', 'withdraw-before-trial', 'owned-evaluation', 'ownership-unavailable', 'staged', 'staged-recovery', 'file', 'file-release',
     ...(process.env.DSH_EVOLVE_SLOW_STREAM_TEST === '1' ? ['slow-governance'] : []),
   ])('handles %s feedback using native ownership, one shared budget and no classifier', async scenario => {
     const root = await mkdtemp(join(tmpdir(), 'evoforge-message-feedback-'))
@@ -27,8 +32,10 @@ describe.skipIf(dshRoot === undefined)('native feedback-to-draft path', () => {
     const nativeLlm = await import(entry('packages/llm/llm')) as typeof import('@deepseek-ai/dsh-llm')
     const calls: GenerateOptions[] = []
     const staged = scenario.startsWith('staged')
+    const file = scenario.startsWith('file')
+    const release = scenario === 'file-release'
     let stagedFailure = scenario === 'staged-recovery'
-    const draftCalls = staged ? 9 + Number(stagedFailure) : 2
+    const draftCalls = file ? 1 : staged ? 9 + Number(stagedFailure) : 2
     const governance = { scope: 'Private native feedback protocol fixture, not evidence of task improvement.',
       cases: ['h1', 'h2', 'r1', 'r2'].map((id, index) => ({ id, partition: index < 2 ? 'holdout' : 'retention',
         input: `New fixture ${id}: output answer-${id}.`, mustInclude: [`answer-${id}`], mustNotInclude: [], layout: 'any',
@@ -80,8 +87,40 @@ describe.skipIf(dshRoot === undefined)('native feedback-to-draft path', () => {
           expect(JSON.stringify(options.messages)).not.toContain('referenceAnswer')
           if (scenario === 'withdraw-during-author') await withdraw()
           text = JSON.stringify(proposal)
-        } else if (String(options.sessionId).startsWith('evoforge-trial-')) {
+        } else if (String(options.sessionId).startsWith('evoforge-trial-') || String(options.sessionId).startsWith('future-file-')) {
           const catalog = JSON.stringify(options.messages).includes('preserve-conflicts')
+          if (file && String(options.sessionId).startsWith('evoforge-trial-')) {
+            const source = drafts!.records(WORKSPACE_ID).at(-1)!
+            const plan = trials!.records(WORKSPACE_ID)[0]!
+            const leg = plan.legs.find(leg => leg.sessionId === options.sessionId)!
+            const test = source.fileWorkflow!.cases.find(test => test.id === leg.caseId)!
+            const folder = `.evoforge/workflow-trials/${plan.id}/${leg.index}`
+            const output = release && !catalog && leg.partition === 'holdout' ? { wrong: true } : test.expected
+            const actions: { name: string; args: unknown }[] = [
+              ...(catalog ? [{ name: 'skill', args: { name: 'preserve-conflicts' } }] : []),
+              ...test.files.map(input => ({ name: 'read', args: { file_path: `${folder}/${input.path}` } })),
+              { name: 'write', args: { file_path: `${folder}/result.json`, content: JSON.stringify(output, null, 2) } },
+              { name: 'read', args: { file_path: `${folder}/result.json` } },
+              { name: 'present', args: { files: [{ path: `${folder}/result.json` }] } },
+            ]
+            const previous = options.messages.flatMap(message => message.content.filter(block => block.type === 'tool-call')).length
+            const action = actions[previous]
+            if (action !== undefined) {
+              const id = nativeLlm.ToolCallId(`file-step-${previous}`), args = JSON.stringify(action.args)
+              yield { type: 'block-start', index: 0, blockType: 'tool-call' }
+              yield { type: 'tool-call-delta', index: 0, id, name: action.name, argumentsDelta: args }
+              yield { type: 'block-end', index: 0, block: { type: 'tool-call', id, name: action.name, arguments: args } }
+              yield { type: 'usage', usage: { inputTokens: 21, outputTokens: 9 } }
+              yield { type: 'finish', reason: { kind: 'tool-calls' } }
+              return
+            }
+            yield { type: 'block-start', index: 0, blockType: 'text' }
+            yield { type: 'text-delta', index: 0, text: '已交付。' }
+            yield { type: 'block-end', index: 0, block: { type: 'text', text: '已交付。' } }
+            yield { type: 'usage', usage: { inputTokens: 21, outputTokens: 9 } }
+            yield { type: 'finish', reason: { kind: 'stop' } }
+            return
+          }
           const loaded = options.messages.some(message => message.content.some(block => block.type === 'tool-result'))
           if (catalog && !loaded) {
             const id = nativeLlm.ToolCallId('feedback-trial-load'), args = JSON.stringify({ name: 'preserve-conflicts' })
@@ -126,6 +165,10 @@ describe.skipIf(dshRoot === undefined)('native feedback-to-draft path', () => {
       await context.plugin((await import(entry('packages/core/tools'))).default)
       await context.plugin((await import(entry('packages/skill/skill'))).default)
       await context.plugin((await import(entry('packages/core/agent-loop'))).default, { agents: [] })
+      if (file) {
+        await context.plugin((await import(entry('packages/fs/fs-local'))).default)
+        await context.plugin((await import(entry('packages/sandbox/sandbox-policy'))).default, { mode: 'workspace-write' })
+      }
       context.llm.registerAdapter(['fixture'], new FixtureAdapter())
       return context
     }
@@ -135,8 +178,11 @@ describe.skipIf(dshRoot === undefined)('native feedback-to-draft path', () => {
     let trials: Awaited<ReturnType<typeof openConversationDraftTrialStore>> | undefined
     let draftMonitor: ReturnType<typeof installConversationSkillDraftMonitor> | undefined
     let trialMonitor: ReturnType<typeof installConversationDraftTrialMonitor> | undefined
+    let generationStore: Awaited<ReturnType<typeof openEvolutionStore>> | undefined
+    let stopBinder: (() => Promise<void>) | undefined
+    let releaseGate: ConversationSkillRelease | undefined
     let policy: ConversationLearningPolicy[] = [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: staged ? 20 : 2,
-      ...(staged ? { testPreparation: 'staged-v1' as const } : {}), explicitFeedbackSessionIds: [sessionId] }]
+      ...(file ? { testPreparation: 'file-records-v1' as const } : staged ? { testPreparation: 'staged-v1' as const } : {}), explicitFeedbackSessionIds: [sessionId] }]
     const drained = () => vi.waitFor(() => expect(ctx!.jobs.list().every(job => job.status !== 'running' && job.status !== 'stopping')).toBe(true), { timeout: 10_000 })
     try {
       ctx = await boot()
@@ -199,7 +245,7 @@ describe.skipIf(dshRoot === undefined)('native feedback-to-draft path', () => {
       expect(ledger.records(WORKSPACE_ID)).toEqual([])
       const draft = drafts.records(WORKSPACE_ID).at(-1)!
       expect(draft.messageFeedbackSource?.messageId).toBe(message.id)
-      expect(draft.reservedModelCalls).toBe(staged ? scenario === 'staged-recovery' ? 5 : 9 : 2)
+      expect(draft.reservedModelCalls).toBe(file ? 1 : staged ? scenario === 'staged-recovery' ? 5 : 9 : 2)
       if (staged) {
         expect(draft.governance).toEqual(governance)
         expect(draft.requestTimings).toHaveLength(draft.modelCalls)
@@ -212,15 +258,88 @@ describe.skipIf(dshRoot === undefined)('native feedback-to-draft path', () => {
       }
       await draftMonitor.dispose(); draftMonitor = undefined
       if (scenario === 'withdraw-before-trial') await withdraw()
-      trials = await openConversationDraftTrialStore(ctx.storageDomain, [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 24 }])
-      trialMonitor = installConversationDraftTrialMonitor(ctx, ledger, drafts, trials, [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 24 }])
-      if (scenario === 'live' || scenario === 'cold' || scenario === 'slow-governance' || staged) {
+      const trialPolicy = [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: file ? 1000 : 24 }]
+      trials = await openConversationDraftTrialStore(ctx.storageDomain, trialPolicy)
+      generationStore = await openEvolutionStore(ctx.storageDomain)
+      const bundles = new GenerationBundleRepository(join(root, 'generation-cache'))
+      const verifiedStore = new VerifiedEvolutionStore(generationStore, bundles)
+      stopBinder = installGenerationBinder(ctx, verifiedStore, bundles)
+      trialMonitor = installConversationDraftTrialMonitor(ctx, ledger, drafts, trials, trialPolicy, verifiedStore)
+      if (scenario === 'live' || scenario === 'cold' || scenario === 'slow-governance' || staged || file) {
         await vi.waitFor(() => expect(trials!.records(WORKSPACE_ID)[0]?.phase).toBe('completed'), { timeout: 10_000 })
-        expect(calls).toHaveLength(draftCalls + 12)
-        expect(trials.records(WORKSPACE_ID)[0]?.comparison).toMatchObject({ outcome: 'no-improvement', comparablePairs: 4, loadedDraftLegs: 4 })
+        expect(calls).toHaveLength(draftCalls + (file ? 46 : 12))
+        expect(trials.records(WORKSPACE_ID)[0]?.comparison).toMatchObject({ outcome: release ? 'improvement-observed' : 'no-improvement', comparablePairs: 4, loadedDraftLegs: 4 })
+        if (file) {
+          expect(trials.records(WORKSPACE_ID)[0]?.comparison).toMatchObject({ baselinePassed: release ? 2 : 4, draftPassed: 4 })
+          expect(trials.records(WORKSPACE_ID)[0]?.legs.every(leg => leg.result?.fileResult?.deliveryPassed)).toBe(true)
+          expect(trials.summarize(WORKSPACE_ID).items[0]?.fileArtifacts).toHaveLength(8)
+          expect(trials.summarize(WORKSPACE_ID).items[0]?.fileArtifacts?.[0]?.outputs[0]?.content).toBeDefined()
+          expect(trials.summarize(WORKSPACE_ID).items[0]?.fileEvaluation?.version).toBe('file-records-v1')
+        }
       }
       await drained()
       await trialMonitor.dispose(); trialMonitor = undefined
+      if (file) {
+        const trial = trials.records(WORKSPACE_ID)[0]!
+        releaseGate = new ConversationSkillRelease(ctx, { corrections: ledger, drafts, trials, store: verifiedStore, bundles })
+        const sourceIdentity = { workspaceId: WORKSPACE_ID, sessionId, createdAt: session.header.createdAt, cwd: root }
+        await verifiedStore.pinSession(sourceIdentity)
+        if (!release) {
+          await expect(releaseGate.enable(WORKSPACE_ID, trial.id, draft.draft!.contentHash, 0)).rejects.toThrow('blocked')
+        } else {
+          expect(await releaseGate.eligibility(WORKSPACE_ID, trial.id)).toMatchObject({ status: 'eligible', selectionSequence: 0 })
+          for (const mutate of [
+            (copy: typeof trial) => { delete copy.fileEvaluation },
+            (copy: typeof trial) => { delete copy.baseline },
+            (copy: typeof trial) => { copy.comparison!.improved = 0 },
+            (copy: typeof trial) => { copy.legs[1]!.result!.fileEvidence!.outputs[0]!.content = '{"fake":true}' },
+            (copy: typeof trial) => { copy.legs[1]!.result!.fileResult!.checks[0]!.passed = false },
+            (copy: typeof trial) => { copy.legs[1]!.result!.fileEvidence!.inputs[0]!.read = false },
+            (copy: typeof trial) => { copy.legs[1]!.result!.fileEvidence!.outputs[0]!.readBack = false },
+            (copy: typeof trial) => { copy.legs[1]!.result!.skillLoaded = false },
+            (copy: typeof trial) => { copy.legs[5]!.result!.passed = false },
+          ]) {
+            const copy = structuredClone(trial)
+            mutate(copy)
+            const denied = new ConversationSkillRelease(ctx, { corrections: ledger, drafts,
+              trials: { records: () => [copy], policy: () => trialPolicy[0] }, store: verifiedStore, bundles })
+            try { await expect(denied.enable(WORKSPACE_ID, trial.id, draft.draft!.contentHash, 0)).rejects.toThrow('blocked') }
+            finally { await denied.close() }
+            expect(verifiedStore.getActiveGeneration(WORKSPACE_ID)).toBeUndefined()
+          }
+          const enabled = await releaseGate.enable(WORKSPACE_ID, trial.id, draft.draft!.contentHash, 0)
+          expect(verifiedStore.getSessionGeneration(sourceIdentity)).toBeUndefined()
+          const future = await ctx.agents.create({ sessionId: nativeSession.SessionId('future-file-enabled'),
+            meta: { cwd: root }, agentOptions: { provider: 'fixture', model: 'fixture' },
+            async setup(scoped) { await scoped.plugin(await import(entry('packages/skill/tool-skill'))) },
+          })
+          const futureIdentity = { workspaceId: WORKSPACE_ID, sessionId: 'future-file-enabled', createdAt: future.agent.session.header.createdAt, cwd: root }
+          try {
+            future.agent.followup(nativeLlm.createUserMessage({ source: { kind: 'user' }, content: [{ type: 'text', text: 'A new fixture task.' }] }))
+            await future.agent.whenIdle()
+            expect(future.agent.session.snapshotEvents().filter(e => e.type === 'tool/call').map(e => e.data.name)).toEqual(['skill'])
+            expect(JSON.stringify(future.agent.session.snapshotEvents().filter(e => e.type === 'tool/result'))).toContain(proposal.body)
+            expect(verifiedStore.getSessionGeneration(futureIdentity)?.id).toBe(enabled.generation.id)
+            await expect(releaseGate.disable(WORKSPACE_ID, '0'.repeat(64))).rejects.toThrow('changed')
+            await releaseGate.disable(WORKSPACE_ID, enabled.generation.id)
+            expect(verifiedStore.getActiveGeneration(WORKSPACE_ID)).toBeUndefined()
+            expect(verifiedStore.getSessionGeneration(futureIdentity)?.id).toBe(enabled.generation.id)
+          } finally { await future.dispose() }
+          const rolledBack = await ctx.agents.create({ sessionId: nativeSession.SessionId('future-file-rolled-back'),
+            meta: { cwd: root }, agentOptions: { provider: 'fixture', model: 'fixture' },
+            async setup(scoped) { await scoped.plugin(await import(entry('packages/skill/tool-skill'))) },
+          })
+          try {
+            rolledBack.agent.followup(nativeLlm.createUserMessage({ source: { kind: 'user' }, content: [{ type: 'text', text: 'A second new fixture task.' }] }))
+            await rolledBack.agent.whenIdle()
+            expect(rolledBack.agent.session.snapshotEvents().filter(e => e.type === 'tool/call')).toEqual([])
+          } finally { await rolledBack.dispose() }
+          expect(verifiedStore.listGenerationSelectionEvents(WORKSPACE_ID).map(e => e.kind)).toEqual(['promotion', 'rollback'])
+        }
+        await releaseGate.close(); releaseGate = undefined
+      }
+      await stopBinder(); stopBinder = undefined
+      await generationStore.close(); generationStore = undefined
       if (scenario.startsWith('withdraw')) {
         expect(trials.records(WORKSPACE_ID)).toEqual([])
         expect(calls).toHaveLength(2)
@@ -236,6 +355,9 @@ describe.skipIf(dshRoot === undefined)('native feedback-to-draft path', () => {
       await writer?.close(); writer = undefined
       await ctx.fiber.dispose()
       ctx = await boot()
+      generationStore = await openEvolutionStore(ctx.storageDomain)
+      expect(generationStore.listGenerationSelectionEvents(WORKSPACE_ID)).toHaveLength(release ? 2 : 0)
+      expect(generationStore.getActiveGeneration(WORKSPACE_ID)).toBeUndefined()
       ledger = await openCorrectionLedger(ctx.storageDomain, [])
       drafts = await openConversationDraftStore(ctx.storageDomain, policy, () => Date.now() + 86_400_000)
       trials = await openConversationDraftTrialStore(ctx.storageDomain, [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 24 }])
@@ -247,6 +369,9 @@ describe.skipIf(dshRoot === undefined)('native feedback-to-draft path', () => {
       expect(calls).toHaveLength(count)
       expect(ctx.sessions.get(sessionId)).toBeUndefined()
     } finally {
+      await releaseGate?.close()
+      await stopBinder?.()
+      await generationStore?.close()
       await trialMonitor?.dispose()
       await draftMonitor?.dispose()
       await trials?.close()
@@ -254,7 +379,17 @@ describe.skipIf(dshRoot === undefined)('native feedback-to-draft path', () => {
       await ledger?.close()
       await writer?.close()
       await ctx?.fiber.dispose()
+      await writable(root)
       await rm(root, { recursive: true, force: true })
     }
   }, 120_000)
 })
+
+async function writable(root: string): Promise<void> {
+  await chmod(root, 0o700)
+  for (const item of await readdir(root, { withFileTypes: true })) {
+    const path = join(root, item.name)
+    if (item.isDirectory()) await writable(path)
+    else if (item.isFile()) await chmod(path, 0o600)
+  }
+}

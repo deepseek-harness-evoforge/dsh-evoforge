@@ -9,6 +9,7 @@ import { executeConversationDraftTrial } from '../src/conversation-draft-trial-m
 import { vi } from 'vitest'
 import { DraftJudgeError } from '../src/conversation-draft-judge.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
+import { buildFileWorkflow, FILE_WORKFLOW_RECIPE_HASH } from '../src/conversation-file-workflow.ts'
 
 function fixture() {
   const rows = new Map<string, unknown>()
@@ -38,6 +39,26 @@ const source: ConversationDraftRecord = {
 }
 const route = { provider: 'fixed', model: 'fixed' }
 const policy = { workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 24 }
+
+it('reserves a frozen native file comparison without spending on text judges or weakening old trials', async () => {
+  const f = fixture(), fileWorkflow = buildFileWorkflow('0'.repeat(64))
+  const { governance: _old, ...base } = source
+  const fileSource = { ...base, testPreparation: 'file-records-v1' as const, fileWorkflow, governanceDigest: digest(fileWorkflow),
+    modelCalls: 1, reservedModelCalls: 1 }
+  const store = await openConversationDraftTrialStore(f.facility, [{ ...policy, maxModelCallsPerUtcDay: 1000, semanticEvaluation: true }], () => 1000)
+  let plan = (await store.reserve(fileSource, route))!
+  expect(plan.reservedModelCalls).toBe(96)
+  expect(plan.judge).toBeUndefined()
+  expect(plan.fileEvaluation).toEqual({ version: 'file-records-v1', recipeHash: FILE_WORKFLOW_RECIPE_HASH })
+  expect(plan.legs.map(leg => leg.variant)).toEqual(['baseline', 'draft', 'draft', 'baseline', 'baseline', 'draft', 'draft', 'baseline'])
+  plan = await store.startLeg(plan, 0)
+  for (let count = 1; count <= 12; count++) plan = await store.markDispatch(plan, 0, count)
+  await expect(store.markDispatch(plan, 0, 13)).rejects.toThrow()
+  await store.close()
+  const cold = await openConversationDraftTrialStore(f.facility, [{ ...policy, maxModelCallsPerUtcDay: 1000 }], () => 2000)
+  expect(cold.records(WORKSPACE_ID)[0]).toMatchObject({ phase: 'uncertain', reservedModelCalls: 96 })
+  expect(await cold.reserve(fileSource, route)).toBeUndefined()
+})
 
 it('awaits source revalidation and retains judge usage when the source is withdrawn in flight', async () => {
   const store = await openConversationDraftTrialStore(fixture().facility, [{ ...policy, semanticEvaluation: true, maxModelCallsPerUtcDay: 44 }], () => 1000)

@@ -71,7 +71,8 @@ describe('dsh-evolve public configuration', () => {
     expect(Config({ conversationDraftTrialPolicies: [policy] }).conversationDraftTrialPolicies).toEqual([{ ...policy, semanticEvaluation: false, retryFailedTrials: [] }])
     expect(() => Config({ conversationDraftTrialPolicies: [{ ...policy, semanticEvaluation: true }] })).toThrow('44')
     expect(() => Config({ conversationDraftTrialPolicies: [{ ...policy, maxModelCallsPerUtcDay: 23 }] })).toThrow()
-    expect(() => Config({ conversationDraftTrialPolicies: [{ ...policy, maxModelCallsPerUtcDay: 73 }] })).toThrow()
+    expect(Config({ conversationDraftTrialPolicies: [{ ...policy, maxModelCallsPerUtcDay: 1000 }] }).conversationDraftTrialPolicies?.[0]?.maxModelCallsPerUtcDay).toBe(1000)
+    expect(() => Config({ conversationDraftTrialPolicies: [{ ...policy, maxModelCallsPerUtcDay: Number.MAX_SAFE_INTEGER + 1 }] })).toThrow()
     expect(() => Config({ conversationDraftTrialPolicies: [policy, policy] })).toThrow()
     expect(Object.keys(configArrayObject('conversationDraftTrialPolicies').dict).sort()).toEqual(['maxModelCallsPerUtcDay', 'retryFailedTrials', 'semanticEvaluation', 'workspaceId'])
     const grant = { trialId: 'a'.repeat(64), expiresAt: Date.now() + 60_000 }
@@ -83,22 +84,26 @@ describe('dsh-evolve public configuration', () => {
   it('keeps conversation draft preparation independently budgeted without target Skills or operator test packs', () => {
     expect(Config({}).conversationLearningPolicies).toEqual([])
     const policy = { workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 2 }
-    expect(Config({ conversationLearningPolicies: [policy] }).conversationLearningPolicies).toEqual([{ ...policy, retryFailedDrafts: [], explicitFeedbackSessionIds: [] }])
+    expect(Config({ conversationLearningPolicies: [policy] }).conversationLearningPolicies).toEqual([{ ...policy, retryFailedDrafts: [], upgradeFailedPreparations: [], explicitFeedbackSessionIds: [] }])
     expect(() => Config({ conversationLearningPolicies: [{ ...policy, maxModelCallsPerUtcDay: 1 }] })).toThrow()
     expect(() => Config({ conversationLearningPolicies: [policy, policy] })).toThrow()
     const retry = { draftId: 'a'.repeat(64), expiresAt: 12345 }
     expect(Config({ conversationLearningPolicies: [{ ...policy, retryFailedDrafts: [retry] }] }).conversationLearningPolicies)
-      .toEqual([{ ...policy, retryFailedDrafts: [retry], explicitFeedbackSessionIds: [] }])
+      .toEqual([{ ...policy, retryFailedDrafts: [retry], upgradeFailedPreparations: [], explicitFeedbackSessionIds: [] }])
     expect(() => Config({ conversationLearningPolicies: [{ ...policy, retryFailedDrafts: [retry, retry] }] })).toThrow()
     expect(Config({ conversationLearningPolicies: [{ ...policy, explicitFeedbackSessionIds: ['session-one'] }] }).conversationLearningPolicies)
-      .toEqual([{ ...policy, retryFailedDrafts: [], explicitFeedbackSessionIds: ['session-one'] }])
+      .toEqual([{ ...policy, retryFailedDrafts: [], upgradeFailedPreparations: [], explicitFeedbackSessionIds: ['session-one'] }])
     expect(() => Config({ conversationLearningPolicies: [{ ...policy, explicitFeedbackSessionIds: ['session-one', 'session-one'] }] })).toThrow()
     expect(() => Config({ conversationLearningPolicies: [{ ...policy, explicitFeedbackSessionIds: [''] }] })).toThrow()
     expect(() => Config({ conversationLearningPolicies: [{ ...policy, testPreparation: 'staged-v1' }] })).toThrow('nine-call')
     expect(Config({ conversationLearningPolicies: [{ ...policy, maxModelCallsPerUtcDay: 9, testPreparation: 'staged-v1' }] }).conversationLearningPolicies)
-      .toEqual([{ ...policy, maxModelCallsPerUtcDay: 9, testPreparation: 'staged-v1', retryFailedDrafts: [], explicitFeedbackSessionIds: [] }])
+      .toEqual([{ ...policy, maxModelCallsPerUtcDay: 9, testPreparation: 'staged-v1', retryFailedDrafts: [], upgradeFailedPreparations: [], explicitFeedbackSessionIds: [] }])
     expect(Config({ conversationLearningPolicies: [{ ...policy, maxModelCallsPerUtcDay: 1000, testPreparation: 'staged-v1' }] }).conversationLearningPolicies?.[0]?.maxModelCallsPerUtcDay).toBe(1000)
     expect(() => Config({ conversationLearningPolicies: [{ ...policy, maxModelCallsPerUtcDay: Infinity }] })).toThrow()
+    const upgrade = { draftId: 'b'.repeat(64), expiresAt: Date.now() + 60_000 }
+    expect(() => Config({ conversationLearningPolicies: [{ ...policy, upgradeFailedPreparations: [upgrade] }] })).toThrow()
+    expect(Config({ conversationLearningPolicies: [{ ...policy, testPreparation: 'file-records-v1', upgradeFailedPreparations: [upgrade] }] }).conversationLearningPolicies?.[0]?.testPreparation).toBe('file-records-v1')
+    expect(() => Config({ conversationLearningPolicies: [{ ...policy, testPreparation: 'file-records-v1', upgradeFailedPreparations: [upgrade, upgrade] }] })).toThrow()
   })
 
   it('keeps Routing retention independently bounded and default-deny', () => {

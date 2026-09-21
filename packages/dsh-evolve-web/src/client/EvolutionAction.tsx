@@ -516,10 +516,11 @@ function BeginnerOverview({ summary, openAdvanced, busy, enableConversation, dis
         <div><strong>{drafts.uncertainCount}</strong><span>{t('draft.incomplete')}</span></div>
       </div>
       <p>{t('draft.budget')} {drafts.reservedModelCallsToday} / {drafts.maxModelCallsPerUtcDay}</p>
-      {drafts.reservedModelCallsToday + 2 > drafts.maxModelCallsPerUtcDay && <p>{t('draft.budgetExhausted')}</p>}
+      {drafts.reservedModelCallsToday >= drafts.maxModelCallsPerUtcDay && <p>{t('draft.budgetExhausted')}</p>}
       {drafts.usageMissingCount > 0 && <p>{t('correction.usageUnknown')}</p>}
       {drafts.warningCount > 0 && <p>{t('correction.warning')}</p>}
       {(drafts.retryCount ?? 0) > 0 && <p>{drafts.retryCount} {t('draft.retryCount')}</p>}
+      {(drafts.preparationUpgradeCount ?? 0) > 0 && <p>{drafts.preparationUpgradeCount} {t('draft.preparationUpgradeCount')}</p>}
       {(drafts.failures ?? []).map(failure => <p key={failure.reason}>
         {failure.count} · {t(`draft.failure.${failure.reason}`)}
       </p>)}
@@ -549,12 +550,28 @@ function BeginnerOverview({ summary, openAdvanced, busy, enableConversation, dis
         </>}
         <p>{t('trial.progress')} {trial.settledLegs} / 8</p>
         {trial.comparison !== undefined && <>
-          <p>{t(trial.judge === undefined ? 'trial.baseline' : 'trial.semanticBaseline')} {trial.comparison.baselinePassed} / 4 · {t(trial.judge === undefined ? 'trial.draft' : 'trial.semanticDraft')} {trial.comparison.draftPassed} / 4</p>
+          <p>{t(trial.fileEvaluation !== undefined ? 'trial.fileBaseline' : trial.judge === undefined ? 'trial.baseline' : 'trial.semanticBaseline')} {trial.comparison.baselinePassed} / 4 · {t(trial.fileEvaluation !== undefined ? 'trial.fileDraft' : trial.judge === undefined ? 'trial.draft' : 'trial.semanticDraft')} {trial.comparison.draftPassed} / 4</p>
           <p>{t('trial.loaded')} {trial.comparison.loadedDraftLegs} / 4 · {t('trial.pairs')} {trial.comparison.comparablePairs} / 4</p>
         </>}
         <p>{t('trial.requests')} {trial.requestCount} · {t('trial.seconds')} {Math.round(trial.elapsedMs / 1000)}</p>
         <p>{t('trial.tokens')} {trial.inputTokens} / {trial.outputTokens}</p>
         {trial.usageMissingCount > 0 && <p>{t('trial.usageUnknown')}</p>}
+        {trial.fileEvaluation !== undefined && <p className="dsh-evolve-guidance">{t('trial.fileLimit')}</p>}
+        {trial.fileArtifacts?.map(artifact => <details key={`${artifact.caseId}-${artifact.variant}`}>
+          <summary>{artifact.caseId} · {t(`trial.partition.${artifact.partition}`)} · {t(`trial.variant.${artifact.variant}`)} · {t(artifact.passed ? 'trial.filePassed' : 'trial.fileFailed')}</summary>
+          <p>{t('trial.fileDelivery')} {t(artifact.deliveryPassed ? 'trial.yes' : 'trial.no')} · {t('trial.fileLoaded')} {t(artifact.skillLoaded ? 'trial.yes' : 'trial.no')}</p>
+          <p>{t('trial.fileErrors')} {artifact.toolErrors} · {t('trial.fileViolations')} {artifact.policyViolations}</p>
+          {artifact.inputs.map(input => <p key={input.path}>{input.path} · {t('trial.fileRead')} {t(input.read ? 'trial.yes' : 'trial.no')} · {t('trial.fileUnchanged')} {t(input.unchanged ? 'trial.yes' : 'trial.no')}</p>)}
+          {artifact.outputs.map(output => <div key={output.path}>
+            <p>{artifact.root}/{output.path} · {t(`trial.fileStatus.${output.status}`)}</p>
+            <p>{t('trial.fileWritten')} {t(output.written ? 'trial.yes' : 'trial.no')} · {t('trial.fileReadBack')} {t(output.readBack ? 'trial.yes' : 'trial.no')} · {t('trial.filePresented')} {t(output.presented ? 'trial.yes' : 'trial.no')}</p>
+            {output.hash !== undefined && <p>SHA-256: {output.hash}</p>}
+            {output.content !== undefined && <pre className="dsh-evolve-diff">{output.content}</pre>}
+          </div>)}
+          <table className="dsh-evolve-table"><thead><tr><th>{t('trial.fileField')}</th><th>{t('trial.fileExpected')}</th><th>{t('trial.fileActual')}</th><th>{t('trial.fileVerdict')}</th></tr></thead>
+            <tbody>{artifact.checks.map(check => <tr key={check.field}><td>{check.field}</td><td><code>{check.expectedJson ?? '—'}</code></td><td><code>{check.actualJson ?? '—'}</code></td><td>{t(check.passed ? 'trial.filePassed' : 'trial.fileFailed')}</td></tr>)}</tbody>
+          </table>
+        </details>)}
         {summary.conversationSkillReleases?.filter(item => item.trialId === trial.id).map(release => <div key={release.trialId}>
           {release.skill !== undefined && <details><summary>{release.skill.name} · {t('conversationRelease.inspect')}</summary>
             <pre className="dsh-evolve-diff">{release.skill.markdown}</pre></details>}

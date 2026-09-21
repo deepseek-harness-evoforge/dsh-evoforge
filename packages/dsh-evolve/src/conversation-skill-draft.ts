@@ -15,6 +15,7 @@ import { governanceSchema, validateDraftGovernance, preparationStepsSchema, next
   appendDraftPreparation, assembleDraftPreparation, STAGED_DRAFT_PREPARATION_DIGEST,
   type ConversationDraftGovernance, type StagedDraftRequest } from './conversation-draft-preparation.ts'
 export { validateDraftGovernance, requireDraftCaseCalibration, matchesDraftCase, type ConversationDraftGovernance } from './conversation-draft-preparation.ts'
+import { buildFileWorkflow, fileWorkflowSchema, FILE_WORKFLOW_RECIPE_HASH, FILE_WORKFLOW_VERSION } from './conversation-file-workflow.ts'
 
 const HASH = z.string().regex(/^[a-f0-9]{64}$/u)
 const INT = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
@@ -48,18 +49,21 @@ export interface ConversationLearningPolicy {
   /** Full-run reservation; interrupted reservations are never reclaimed. */
   readonly maxModelCallsPerUtcDay: number
   /** Four task requests, four fixed-task calibrations, then the separate proposer. */
-  readonly testPreparation?: 'staged-v1'
+  readonly testPreparation?: 'staged-v1' | typeof FILE_WORKFLOW_VERSION
   /** Explicit native Sessions whose current negative notes may enter the shared draft budget. */
   readonly explicitFeedbackSessionIds?: string[]
   /** One new attempt per exact transport failure. Staged attempts inherit, never redraw, completed material. */
   readonly retryFailedDrafts?: { readonly draftId: string; readonly expiresAt: number }[]
+  /** Explicit new file-protocol epoch, only before any prior proposer or evaluation. Not a retry/regrade. */
+  readonly upgradeFailedPreparations?: { readonly draftId: string; readonly expiresAt: number }[]
 }
 const policySchema = z.strictObject({
   workspaceId: z.string().regex(NATIVE_WORKSPACE_ID_PATTERN),
   maxModelCallsPerUtcDay: z.number().int().min(2).max(Number.MAX_SAFE_INTEGER),
-  testPreparation: z.literal('staged-v1').optional(),
+  testPreparation: z.enum(['staged-v1', FILE_WORKFLOW_VERSION]).optional(),
   explicitFeedbackSessionIds: z.array(z.string().min(1).max(256)).max(10).optional(),
   retryFailedDrafts: z.array(z.strictObject({ draftId: HASH, expiresAt: INT.positive().max(8_640_000_000_000_000) })).max(10).optional(),
+  upgradeFailedPreparations: z.array(z.strictObject({ draftId: HASH, expiresAt: INT.positive().max(8_640_000_000_000_000) })).max(10).optional(),
 })
 export function validateConversationLearningPolicies(policies: readonly ConversationLearningPolicy[]): void {
   z.array(policySchema).max(20).parse(policies)
@@ -70,6 +74,10 @@ export function validateConversationLearningPolicies(policies: readonly Conversa
     if (new Set(sessions).size !== sessions.length) throw new Error('duplicate explicit feedback Session')
     const grants = policy.retryFailedDrafts ?? []
     if (new Set(grants.map(g => g.draftId)).size !== grants.length) throw new Error('duplicate conversation draft retry grant')
+    const upgrades = policy.upgradeFailedPreparations ?? []
+    if (upgrades.length > 0 && policy.testPreparation !== FILE_WORKFLOW_VERSION
+      || new Set(upgrades.map(grant => grant.draftId)).size !== upgrades.length
+      || upgrades.some(grant => grants.some(retry => retry.draftId === grant.draftId))) throw new Error('invalid file preparation upgrade policy')
   }
 }
 
@@ -93,7 +101,8 @@ const recordBaseSchema = z.strictObject({
   correctionId: HASH, sourceDigest: HASH, sourceSessionId: z.string().min(1).max(256), sourceTurn: INT.positive(),
   sourceAnswerSeq: INT.optional(), messageFeedbackSource: explicitFeedbackSourceSchema.optional(),
   retryOf: HASH.optional(),
-  testPreparation: z.literal('staged-v1').optional(), preparationSteps: preparationStepsSchema.optional(),
+  testPreparation: z.enum(['staged-v1', FILE_WORKFLOW_VERSION]).optional(), preparationSteps: preparationStepsSchema.optional(),
+  preparationUpgradeOf: HASH.optional(), fileWorkflow: fileWorkflowSchema.optional(),
   preparationInheritedCount: z.number().int().min(0).max(8).optional(), previousInputDigest: HASH.optional(),
   inputDigest: HASH, reservedAt: INT.max(8_640_000_000_000_000), reservedModelCalls: z.number().int().min(1).max(9),
   phase: z.enum(['reserved', 'governance-pending', 'governance-preparing', 'governance-ready', 'authoring-pending', 'draft', 'abstained', 'uncertain']),
@@ -106,9 +115,11 @@ const recordBaseSchema = z.strictObject({
     'output-limit', 'invalid-json', 'invalid-stream', 'tool-output']).optional(),
 })
 const recordSchema = recordBaseSchema.superRefine((r, ctx) => {
-  const invalid = r.id !== draftId(r.workspaceId, r.correctionId, r.retryOf)
-    || (r.governance !== undefined) !== (r.governanceDigest !== undefined)
+  const invalid = r.id !== draftId(r.workspaceId, r.correctionId, r.retryOf, r.preparationUpgradeOf)
+    || r.retryOf !== undefined && r.preparationUpgradeOf !== undefined
+    || (r.governance !== undefined || r.fileWorkflow !== undefined) !== (r.governanceDigest !== undefined)
     || (r.governance !== undefined && r.governanceDigest !== digest(r.governance))
+    || (r.fileWorkflow !== undefined && r.governanceDigest !== digest(r.fileWorkflow))
     || (r.phase === 'draft') !== (r.draft !== undefined)
     || (r.draft !== undefined && r.draft.contentHash !== textHash(r.draft.markdown))
     || (r.phase === 'reserved' && r.modelCalls !== 0)
@@ -124,6 +135,15 @@ const recordSchema = recordBaseSchema.superRefine((r, ctx) => {
 export type ConversationDraftRecord = z.infer<typeof recordSchema>
 
 function draftPreparationStateValid(r: z.infer<typeof recordBaseSchema>): boolean {
+  if (r.testPreparation === FILE_WORKFLOW_VERSION) return r.fileWorkflow !== undefined && r.governance === undefined
+    && r.fileWorkflow.seed === fileWorkflowSeed(r.sourceDigest)
+    && r.reservedModelCalls === 1 && r.modelCalls <= 1 && r.preparationSteps === undefined && r.preparationInheritedCount === undefined
+    && (r.preparationUpgradeOf !== undefined) === (r.previousInputDigest !== undefined)
+    && !['governance-pending', 'governance-preparing', 'governance-ready'].includes(r.phase)
+    && (!['authoring-pending', 'draft'].includes(r.phase) || r.modelCalls === 1)
+    && (r.requestTimings === undefined || r.requestTimings.length <= 1
+      && r.requestTimings.every(t => t.role === 'author' && t.requestIndex === 0 && r.modelCalls === 1))
+  if (r.fileWorkflow !== undefined || r.preparationUpgradeOf !== undefined) return false
   if (r.testPreparation === undefined) return r.reservedModelCalls === 2 && r.modelCalls <= 2
     && r.preparationSteps === undefined && r.preparationInheritedCount === undefined && r.previousInputDigest === undefined
     && r.phase !== 'governance-preparing'
@@ -152,8 +172,14 @@ function draftPreparationStateValid(r: z.infer<typeof recordBaseSchema>): boolea
 
 const domainSpec = defineDomain({ name: 'evoforge_conversation_skill_drafts', version: 1, layout: 'single',
   tables: { records: domainTable<string, ConversationDraftRecord>(recordSchema) } })
-function draftId(workspaceId: string, correctionId: string, retryOf?: string): string {
-  return digest({ kind: 'conversation-skill-draft-v1', workspaceId, correctionId, ...(retryOf === undefined ? {} : { retryOf }) })
+function draftId(workspaceId: string, correctionId: string, retryOf?: string, preparationUpgradeOf?: string): string {
+  return digest({ kind: 'conversation-skill-draft-v1', workspaceId, correctionId, ...(retryOf === undefined ? {} : { retryOf }),
+    ...(preparationUpgradeOf === undefined ? {} : { preparationUpgradeOf }) })
+}
+function fileWorkflowSeed(sourceDigest: string): string { return digest({ kind: 'file-workflow-seal-v1', sourceDigest, recipe: FILE_WORKFLOW_RECIPE_HASH }) }
+function upgradeEligible(record: ConversationDraftRecord): boolean {
+  return record.testPreparation !== FILE_WORKFLOW_VERSION && record.phase === 'abstained' && record.reason === 'invalid-governance'
+    && record.draft === undefined && record.governance === undefined
 }
 function retryEligible(record: ConversationDraftRecord): boolean {
   return record.phase === 'uncertain' && record.draft === undefined
@@ -192,14 +218,20 @@ export class ConversationDraftStore {
       && record.sourceSessionId === origin.source.sessionId
       && (record.correctionId === origin.id || record.sourceAnswerSeq === draftOriginAnswerSeq(origin)))
   }
-  private retryTarget(policy: ConversationLearningPolicy, original: ConversationDraftRecord): { id: string; parent: ConversationDraftRecord } | undefined {
+  private retryTarget(policy: ConversationLearningPolicy, original: ConversationDraftRecord): { id: string; parent: ConversationDraftRecord; upgrade?: true } | undefined {
     const table = this.domain.table('records'), seen = new Set<string>()
     let parent = original
-    while (retryEligible(parent) && !seen.has(parent.id)) {
+    while (!seen.has(parent.id)) {
       seen.add(parent.id)
       const id = draftId(policy.workspaceId, original.correctionId, parent.id)
-      const child = table.get(id)
+      const upgradeId = draftId(policy.workspaceId, original.correctionId, undefined, parent.id)
+      const child = table.get(id) ?? table.get(upgradeId)
       if (child !== undefined) { parent = child; continue }
+      const upgrade = policy.upgradeFailedPreparations?.find(grant => grant.draftId === parent.id)
+      if (policy.testPreparation === FILE_WORKFLOW_VERSION && upgradeEligible(parent) && upgrade !== undefined && upgrade.expiresAt > this.now()) {
+        return { id: upgradeId, parent, upgrade: true }
+      }
+      if (!retryEligible(parent)) return undefined
       const grant = policy.retryFailedDrafts?.find(g => g.draftId === parent.id)
       if (parent.testPreparation !== undefined && parent.testPreparation !== policy.testPreparation) return undefined
       return grant !== undefined && grant.expiresAt > this.now() ? { id, parent } : undefined
@@ -212,7 +244,7 @@ export class ConversationDraftStore {
       const policy = this.policy(input.source.workspaceId)
       if (policy === undefined || !originPermitted(policy, correction) || this.hasOtherAnswerAttempt(correction)) return undefined
       const table = this.domain.table('records')
-      let id = draftId(policy.workspaceId, correction.id), retryOf: string | undefined
+      let id = draftId(policy.workspaceId, correction.id), retryOf: string | undefined, preparationUpgradeOf: string | undefined
       let previous = table.get(id)
       if (previous !== undefined) {
         const target = this.retryTarget(policy, previous)
@@ -222,15 +254,18 @@ export class ConversationDraftStore {
           this.warn(policy.workspaceId)
           return undefined
         }
-        retryOf = previous.id
+        if (target.upgrade) preparationUpgradeOf = previous.id
+        else retryOf = previous.id
         id = target.id
       }
       const reservedAt = this.now()
       if (previous !== undefined && reservedAt < previous.reservedAt) { this.warn(policy.workspaceId); return undefined }
       const used = this.records(policy.workspaceId).filter(r => day(r.reservedAt) === day(reservedAt)).reduce((n, r) => n + r.reservedModelCalls, 0)
       const staged = policy.testPreparation === 'staged-v1'
+      const fileWorkflow = policy.testPreparation === FILE_WORKFLOW_VERSION
+        ? previous?.fileWorkflow ?? buildFileWorkflow(fileWorkflowSeed(digest(correction.source))) : undefined
       const inheritedSteps = staged && previous?.testPreparation === 'staged-v1' ? previous.preparationSteps! : []
-      const reservedModelCalls = staged ? 9 - inheritedSteps.length : 2
+      const reservedModelCalls = fileWorkflow !== undefined ? 1 : staged ? 9 - inheritedSteps.length : 2
       if (table.size >= MAX_RECORDS || used + reservedModelCalls > policy.maxModelCallsPerUtcDay) { this.warn(policy.workspaceId); return undefined }
       const record = recordSchema.parse({ schemaVersion: 1, id, workspaceId: policy.workspaceId,
         correctionId: correction.id, sourceDigest: digest(correction.source), sourceSessionId: correction.source.sessionId,
@@ -238,6 +273,8 @@ export class ConversationDraftStore {
         sourceAnswerSeq: draftOriginAnswerSeq(correction),
         ...(isExplicitFeedbackOrigin(correction) ? { messageFeedbackSource: correction.source } : {}),
         ...(retryOf === undefined ? {} : { retryOf }),
+        ...(preparationUpgradeOf === undefined ? {} : { preparationUpgradeOf, previousInputDigest: previous!.inputDigest }),
+        ...(fileWorkflow === undefined ? {} : { testPreparation: FILE_WORKFLOW_VERSION, fileWorkflow, governanceDigest: digest(fileWorkflow) }),
         ...(staged ? { testPreparation: 'staged-v1', preparationSteps: inheritedSteps, preparationInheritedCount: inheritedSteps.length,
           ...(previous !== undefined && previous.testPreparation === undefined ? { previousInputDigest: previous.inputDigest } : {}),
           ...(inheritedSteps.length === 8 ? { governance: previous!.governance, governanceDigest: previous!.governanceDigest } : {}),
@@ -276,8 +313,9 @@ export class ConversationDraftStore {
       failures: [...new Set(records.flatMap(r => r.reason === undefined ? [] : [r.reason]))].sort()
         .map(reason => ({ reason, count: records.filter(r => r.reason === reason).length })),
       retryCount: records.filter(r => r.retryOf !== undefined).length,
+      preparationUpgradeCount: records.filter(r => r.preparationUpgradeOf !== undefined).length,
       items: ready.slice(-5).reverse().map(r => ({ id: r.id, name: r.draft!.name, description: r.draft!.description,
-        markdown: r.draft!.markdown, contentHash: r.draft!.contentHash, proposedTestCount: r.governance!.cases.length })),
+        markdown: r.draft!.markdown, contentHash: r.draft!.contentHash, proposedTestCount: (r.governance ?? r.fileWorkflow)!.cases.length })),
       releaseAuthority: 'none' }
   }
   close(): Promise<void> { this.closing ??= this.tail.then(() => this.domain.close()); return this.closing }
@@ -305,18 +343,31 @@ export async function openConversationDraftStore(facility: DomainFacility, polic
       if (!['draft', 'abstained', 'uncertain'].includes(r.phase)) await table.put(key, { ...r, phase: 'uncertain', reason: 'interrupted' })
     }
     for (const [, r] of table.entries()) {
-      if (r.retryOf === undefined) continue
-      const parent = table.get(r.retryOf)
-      if (parent === undefined || !retryEligible(parent) || parent.workspaceId !== r.workspaceId
-        || parent.correctionId !== r.correctionId || parent.sourceDigest !== r.sourceDigest || !retryPreparationMatches(parent, r)
+      if (r.retryOf === undefined && r.preparationUpgradeOf === undefined) continue
+      const parent = table.get((r.retryOf ?? r.preparationUpgradeOf)!)
+      const validPreparation = parent !== undefined && (r.preparationUpgradeOf === undefined
+        ? retryEligible(parent) && retryPreparationMatches(parent, r)
+        : upgradeEligible(parent) && r.testPreparation === FILE_WORKFLOW_VERSION && r.previousInputDigest === parent.inputDigest)
+      if (parent === undefined || !validPreparation || parent.workspaceId !== r.workspaceId
+        || parent.correctionId !== r.correctionId || parent.sourceDigest !== r.sourceDigest
         || parent.sourceSessionId !== r.sourceSessionId || parent.sourceTurn !== r.sourceTurn || parent.reservedAt > r.reservedAt) {
         throw new Error('conversation draft retry lineage is inconsistent')
+      }
+    }
+    for (const [, parent] of table.entries()) {
+      if ([...table.entries()].filter(([, child]) => child.retryOf === parent.id || child.preparationUpgradeOf === parent.id).length > 1) {
+        throw new Error('conversation draft attempt lineage forked')
       }
     }
     for (const policy of policies) for (const grant of policy.retryFailedDrafts ?? []) {
       const parent = table.get(grant.draftId)
       if (parent === undefined || parent.workspaceId !== policy.workspaceId || !retryEligible(parent)
         || grant.expiresAt > now() + 86_400_000) throw new Error('conversation draft retry grant is invalid')
+    }
+    for (const policy of policies) for (const grant of policy.upgradeFailedPreparations ?? []) {
+      const parent = table.get(grant.draftId)
+      if (parent === undefined || parent.workspaceId !== policy.workspaceId || !upgradeEligible(parent)
+        || grant.expiresAt > now() + 86_400_000) throw new Error('conversation file preparation upgrade grant is invalid')
     }
     return new ConversationDraftStore(domain, structuredClone(policies), now)
   } catch (error) { await domain.close(); throw error }
@@ -327,12 +378,15 @@ function retryPreparationMatches(parent: ConversationDraftRecord, child: Convers
     if (parent.inputDigest !== child.inputDigest || child.previousInputDigest !== undefined) return false
   } else if (parent.testPreparation !== undefined || child.testPreparation !== 'staged-v1' || child.previousInputDigest !== parent.inputDigest) return false
   if (child.testPreparation === undefined) return true
+  if (child.testPreparation === FILE_WORKFLOW_VERSION) return parent.testPreparation === FILE_WORKFLOW_VERSION
+    && digest(child.fileWorkflow) === digest(parent.fileWorkflow) && child.preparationUpgradeOf === undefined
   const inherited = parent.testPreparation === 'staged-v1' ? parent.preparationSteps! : []
   return child.preparationInheritedCount === inherited.length
     && digest(child.preparationSteps!.slice(0, inherited.length)) === digest(inherited)
 }
 
-export function draftInputDigest(input: ConversationDraftInput, preparation?: 'staged-v1'): string {
+export function draftInputDigest(input: ConversationDraftInput, preparation?: ConversationLearningPolicy['testPreparation']): string {
+  if (preparation === FILE_WORKFLOW_VERSION) return digest({ input, preparation, preparationDigest: FILE_WORKFLOW_RECIPE_HASH, authorSystem, authorTokens: 2000 })
   return digest(preparation === undefined ? { input, governanceSystem, authorSystem, governanceTokens: 4000, authorTokens: 2000 }
     : { input, preparation, preparationDigest: STAGED_DRAFT_PREPARATION_DIGEST, authorSystem, governanceTokens: 4000, authorTokens: 2000 })
 }
@@ -438,7 +492,7 @@ export async function authorConversationSkillDraft(store: ConversationDraftStore
   let record = await store.reserve(correction, input, () => !signal.aborted)
   if (record === undefined) return 'skipped'
   while (true) {
-    const role = record.governance === undefined ? 'governance' : 'author'
+    const role = record.governance === undefined && record.fileWorkflow === undefined ? 'governance' : 'author'
     const preparation = role === 'governance' && record.testPreparation === 'staged-v1' ? nextDraftPreparation(record.preparationSteps!) : undefined
     if (signal.aborted) { await store.update(record, { phase: 'uncertain', reason: 'cancelled' }); return 'uncertain' }
     if (!await conversationSourceAvailable(sourceStillMatches, signal)) {

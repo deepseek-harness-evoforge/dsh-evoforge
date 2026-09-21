@@ -15,6 +15,7 @@ import { conversationSourceAvailable, type ConversationSourceCheck } from './con
 import { explicitFeedbackId, resolveConversationDraftOrigin, type ConversationDraftOrigin } from './conversation-message-feedback.ts'
 import type { EvolutionStore } from './generation-store.ts'
 import { conversationTrialBaseline } from './conversation-skill-release.ts'
+import { fileWorkflowRoot, renderFileWorkflowTask } from './conversation-file-workflow.ts'
 
 declare module '@deepseek-ai/dsh-jobs' { interface JobKindMap { conversationDraftTrial: 'evoforge-conversation-draft-trial' } }
 
@@ -48,10 +49,12 @@ export async function executeConversationDraftTrial(ctx: Context, store: Convers
     }
   }
   try {
-    if (source.draft === undefined || source.governance === undefined || digest(source) !== record.draftSnapshotDigest) {
+    const governance = source.governance ?? source.fileWorkflow
+    if (source.draft === undefined || governance === undefined || digest(source) !== record.draftSnapshotDigest) {
       return await store.interrupt(record, 'source-conflict')
     }
     if (record.judge !== undefined) {
+      if (source.governance === undefined) return await store.interrupt(record, 'source-conflict')
       for (const test of source.governance.cases) {
         if (!await sourceMatches() || await workspaceIdForCwd(ctx, cwd) !== record.workspaceId) return await store.interrupt(record, signal.aborted ? 'cancelled' : 'source-conflict')
         for (const [answer, expected] of [[test.referenceAnswer, 'pass'], [test.alternateAnswer!, 'pass'], [test.negativeAnswer, 'fail']] as const) {
@@ -67,11 +70,14 @@ export async function executeConversationDraftTrial(ctx: Context, store: Convers
         return await store.interrupt(record, signal.aborted ? 'cancelled' : 'source-conflict')
       }
       const leg = record.legs[index]!
-      const test = source.governance.cases.find(test => test.id === leg.caseId)
+      const test = governance.cases.find(test => test.id === leg.caseId)
       if (test === undefined || digest(test.input) !== leg.inputDigest) return await store.interrupt(record, 'source-conflict')
+      const fileTest = 'files' in test ? test : undefined
+      const fileRoot = fileTest === undefined ? undefined : fileWorkflowRoot(record.id, index)
       record = await store.startLeg(record, index)
       const result = await runConversationDraftTrialLeg(ctx, {
-        sessionId: SessionId(leg.sessionId), cwd, input: test.input, provider: record.provider, model: record.model,
+        sessionId: SessionId(leg.sessionId), cwd, input: fileTest === undefined ? test.input : renderFileWorkflowTask(fileTest, fileRoot!), provider: record.provider, model: record.model,
+        ...(fileTest === undefined ? {} : { fileWorkflow: { root: fileRoot!, inputs: fileTest.files, outputs: ['result.json'] } }),
         ...(leg.variant === 'draft' ? { draft: source.draft } : {}), signal,
         async beforeDispatch(call) {
           signal.throwIfAborted()

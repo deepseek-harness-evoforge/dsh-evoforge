@@ -814,6 +814,39 @@ describe('EvolutionAction', () => {
     expect(screen.queryByRole('button', { name: /启用|晋升/u })).toBeNull()
   })
 
+  it('shows actual file artifacts and typed fact differences without calling them literal checks', async () => {
+    const api = remote()
+    vi.mocked(api.overview).mockImplementationOnce(() => success({
+      schemaVersion: 1, workspaceId, recovery: { available: true, paused: false },
+      generationSelectionHistory: emptyGenerationSelectionHistory(),
+      conversationDraftTrials: { enabled: true, observerAvailable: true, pendingCount: 0, uncertainCount: 0, warningCount: 0,
+        reservedModelCallsToday: 96, maxModelCallsPerUtcDay: 1000, releaseAuthority: 'none',
+        items: [{ id: 'f'.repeat(64), draftId: 'd'.repeat(64), phase: 'completed', settledLegs: 8,
+          dispatchMarkers: 46, requestCount: 46, inputTokens: 800, outputTokens: 600, usageMissingCount: 0, elapsedMs: 40_000,
+          fileEvaluation: { version: 'file-records-v1', recipeHash: 'e'.repeat(64) },
+          fileArtifacts: [{ caseId: 'h1', partition: 'holdout', variant: 'baseline', sessionId: 'native-file-fixture',
+            root: '.evoforge/workflow-trials/fixed/0', passed: false, deliveryPassed: true, skillLoaded: false,
+            toolErrors: 1, policyViolations: 0, inputs: [{ path: 'input.json', hash: 'a'.repeat(64), read: true, unchanged: true }],
+            outputs: [{ path: 'result.json', status: 'present', content: '{"count":15,"note":"<script>unsafe()</script>"}',
+              hash: 'b'.repeat(64), written: true, readBack: true, presented: true }],
+            checks: [{ field: '$.count', expectedJson: '14', actualJson: '15', passed: false }] }],
+          comparison: { baselinePassed: 2, draftPassed: 4, improved: 2, regressed: 0, comparablePairs: 4, loadedDraftLegs: 4, outcome: 'improvement-observed' } }] },
+      reviews: { available: true, pendingCount: 0, actionableCount: 0, warningCount: 0, items: [], inactiveGenerations: [] },
+    }))
+    const { container } = render(<EvolutionAction remote={api} t={key => zh[key as keyof typeof zh] ?? key}
+      wide useSessions={sessionHook()} useWorkspaces={workspaceHook()} />)
+    fireEvent.click(screen.getByRole('button', { name: zh['trigger.label'] }))
+    expect(await screen.findByText(zh['trial.fileLimit'])).toBeTruthy()
+    expect(screen.getByText(/原有能力文件任务通过： 2 \/ 4/u)).toBeTruthy()
+    expect(screen.queryByText(/原有能力字面断言通过/u)).toBeNull()
+    expect(screen.getByText('$.count')).toBeTruthy()
+    expect(screen.getByText('14')).toBeTruthy()
+    expect(screen.getByText('15')).toBeTruthy()
+    expect(screen.getByText('{"count":15,"note":"<script>unsafe()</script>"}')).toBeTruthy()
+    expect(container.querySelector('script')).toBeNull()
+    expect(screen.queryByRole('button', { name: /启用|晋升/u })).toBeNull()
+  })
+
   it('confirms an exact independently eligible conversation Skill and rolls back the shown version', async () => {
     const api = remote(), trialId = 'f'.repeat(64), contentHash = 'b'.repeat(64)
     let state: 'eligible' | 'active' = 'eligible'

@@ -6,6 +6,8 @@ import type { SessionEvent, SessionId } from '@deepseek-ai/dsh-session'
 import type { SkillRegistration } from '@deepseek-ai/dsh-skill'
 import { deadline } from '@deepseek-ai/dsh-timeout'
 import { installConversationDraftTrialGuard } from './conversation-draft-trial-guard.ts'
+import { prepareConversationFileTrial, FILE_TRIAL_MAX_CALLS, FILE_TRIAL_MAX_TOKENS, FILE_TRIAL_DEADLINE_MS,
+  type FileTrialBounds, type FileTrialEvidence } from './conversation-file-trial.ts'
 
 export interface ConversationDraftTrialLegInput {
   readonly sessionId: SessionId
@@ -17,6 +19,8 @@ export interface ConversationDraftTrialLegInput {
   readonly draft?: { readonly name: string; readonly description: string; readonly markdown: string; readonly contentHash: string }
   readonly signal: AbortSignal
   readonly beforeDispatch: (call: number) => Promise<void>
+  /** Sealed input bytes and output names only; never expected answers or oracle code. */
+  readonly fileWorkflow?: FileTrialBounds
 }
 
 export const CONVERSATION_TRIAL_PROVIDER = 'evoforge-conversation-draft-trial'
@@ -30,8 +34,9 @@ export async function runConversationDraftTrialLeg(
   ctx: Context,
   input: ConversationDraftTrialLegInput,
 ): Promise<{ readonly events: readonly SessionEvent[]; readonly requestSnapshots: readonly string[];
-  readonly dispatchMarkers: number; readonly elapsedMs: number }> {
-  const frozen = { ...input, draft: input.draft === undefined ? undefined : { ...input.draft } }
+  readonly dispatchMarkers: number; readonly elapsedMs: number; readonly fileEvidence?: FileTrialEvidence }> {
+  const frozen = { ...input, draft: input.draft === undefined ? undefined : { ...input.draft },
+    fileWorkflow: input.fileWorkflow === undefined ? undefined : structuredClone(input.fileWorkflow) }
   if (!frozen.input.trim() || frozen.input.length > 4000) throw new Error('invalid conversation trial input')
   let registration: SkillRegistration | undefined
   if (frozen.draft !== undefined) {
@@ -48,11 +53,15 @@ export async function runConversationDraftTrialLeg(
   let dispatchMarkers = 0
   let requestSignal: AbortSignal | undefined
   const started = Date.now()
-  using limit = deadline(frozen.signal, 90_000, 'EVOFORGE_CONVERSATION_TRIAL_TIMEOUT')
+  const maxCalls = frozen.fileWorkflow === undefined ? 3 : FILE_TRIAL_MAX_CALLS
+  const maxTokens = frozen.fileWorkflow === undefined ? 2000 : FILE_TRIAL_MAX_TOKENS
+  using limit = deadline(frozen.signal, frozen.fileWorkflow === undefined ? 90_000 : FILE_TRIAL_DEADLINE_MS, 'EVOFORGE_CONVERSATION_TRIAL_TIMEOUT')
   limit.signal.throwIfAborted()
   if (ctx.agents.get(frozen.sessionId) !== undefined || ctx.sessions.get(frozen.sessionId) !== undefined) {
     throw new Error('conversation trial requires a fresh Session identity')
   }
+  const fileTrial = frozen.fileWorkflow === undefined ? undefined
+    : await prepareConversationFileTrial(ctx, frozen.cwd, frozen.fileWorkflow, limit.signal)
   const requestSnapshots: string[] = []
   // This native event is unscoped. Exact fresh Session identity is essential:
   // no other Agent's requests or auxiliary work may be observed or changed.
@@ -61,8 +70,8 @@ export async function runConversationDraftTrialLeg(
     // Correlate with the actual Agent request hook. A package-local WeakSet
     // marker cannot cross independently resolved Host/plugin module instances.
     if (requestSignal === undefined || options.signal !== requestSignal || options.purpose !== undefined
-      || options.provider !== frozen.provider || options.model !== frozen.model || options.maxTokens !== 2000
-      || requestSnapshots.length >= dispatchMarkers || requestSnapshots.length >= 3 || limit.signal.aborted) {
+      || options.provider !== frozen.provider || options.model !== frozen.model || options.maxTokens !== maxTokens
+      || requestSnapshots.length >= dispatchMarkers || requestSnapshots.length >= maxCalls || limit.signal.aborted) {
       throw new Error('conversation trial received an unreserved model request')
     }
     const tasks = options.messages.filter(message => message.role === 'user'
@@ -81,7 +90,7 @@ export async function runConversationDraftTrialLeg(
   try {
     handle = await ctx.agents.create({
       sessionId: frozen.sessionId, meta: { cwd: frozen.cwd }, signal: limit.signal,
-      agentOptions: { provider: frozen.provider, model: frozen.model, maxTokens: 2000 },
+      agentOptions: { provider: frozen.provider, model: frozen.model, maxTokens },
       async setup(scoped, agent) {
         let ready = false
         await scoped.inject(['skills', 'tools'], async scoped => {
@@ -91,7 +100,8 @@ export async function runConversationDraftTrialLeg(
             scoped.skills.register(registration)
           }
           await installConversationDraftTrialGuard(scoped, agent, {
-            provider: frozen.provider, model: frozen.model, maxTokens: 2000, maxCalls: 3,
+            provider: frozen.provider, model: frozen.model, maxTokens, maxCalls,
+            ...(fileTrial === undefined ? {} : { fileTrial }),
             async beforeDispatch(call, signal) {
               await frozen.beforeDispatch(call)
               dispatchMarkers = call
@@ -113,7 +123,8 @@ export async function runConversationDraftTrialLeg(
     // The native Session owns all request, Skill, usage, and terminal facts.
     // An idle or interrupted Agent is not automatically a completed answer.
     const events = handle.agent.session.snapshotEvents()
-    return { events, requestSnapshots, dispatchMarkers, elapsedMs: Date.now() - started }
+    return { events, requestSnapshots, dispatchMarkers, elapsedMs: Date.now() - started,
+      ...(fileTrial === undefined ? {} : { fileEvidence: await fileTrial.snapshot(events) }) }
   } finally {
     if (cancel !== undefined) limit.signal.removeEventListener('abort', cancel)
     try { await handle?.dispose() } finally { detachRequest() }

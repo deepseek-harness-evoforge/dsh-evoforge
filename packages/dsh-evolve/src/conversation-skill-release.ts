@@ -2,7 +2,7 @@ import { isDeepStrictEqual } from 'node:util'
 import type { Context } from '@deepseek-ai/cordis'
 import { digest, type CorrectionLedger } from './conversation-correction-intake.ts'
 import { draftInputDigest, type ConversationDraftRecord, type ConversationDraftStore } from './conversation-skill-draft.ts'
-import { compareConversationDraftTrial } from './conversation-draft-trial-result.ts'
+import { compareConversationDraftTrial, fileTrialResultMatches } from './conversation-draft-trial-result.ts'
 import { trialJudgeCalibrated, trialLegPassed, type ConversationDraftTrialRecord, type ConversationDraftTrialStore } from './conversation-draft-trial-store.ts'
 import { DurableFeedbackAttribution } from './durable-feedback-attribution.ts'
 import { explicitFeedbackId, resolveConversationDraftOrigin, type ConversationDraftOrigin } from './conversation-message-feedback.ts'
@@ -67,8 +67,8 @@ export class ConversationSkillRelease {
         contentHash: bundle.artifactDigest, candidateTreeHash: bundle.treeHash, baseline, releaseAuthority: 'none',
       })
       const input = { workspaceId, ...(active === undefined ? {} : { parentId: active.id }),
-        createdAt: trial.reservedAt, evaluatorVersion: trial.judge!.version,
-        policyVersion: 'conversation-independent-human-review-v1',
+        createdAt: trial.reservedAt, evaluatorVersion: trial.fileEvaluation?.version ?? trial.judge!.version,
+        policyVersion: trial.fileEvaluation === undefined ? 'conversation-independent-human-review-v1' : 'conversation-independent-file-review-v1',
         compositionFingerprint: digest(trial.legs.map(leg => leg.result!.requestDigests[0])),
         artifacts: [...(active?.artifacts ?? []), {
           kind: 'skill-bundle' as const, name: draft.name, artifactDigest: bundle.artifactDigest,
@@ -122,9 +122,9 @@ export class ConversationSkillRelease {
     const trial = trials.records(workspaceId).find(record => record.id === trialId)
     if (trial === undefined) return blocked('trial-not-found')
     source = drafts.records(workspaceId).find(record => record.id === trial.draftId)
-    if (source?.phase !== 'draft' || source.draft === undefined || source.governance === undefined
+    if (source?.phase !== 'draft' || source.draft === undefined || (source.governance ?? source.fileWorkflow) === undefined
       || digest(source) !== trial.draftSnapshotDigest || source.draft.contentHash !== trial.contentHash
-      || digest(source.governance) !== trial.governanceDigest) return blocked('draft-changed')
+      || digest(source.governance ?? source.fileWorkflow) !== trial.governanceDigest) return blocked('draft-changed')
     const active = store.getActiveGeneration(workspaceId)
     const currentBaseline = conversationTrialBaseline(store, workspaceId)
     if (active?.artifacts.some(artifact => artifact.kind === 'skill-bundle'
@@ -137,8 +137,13 @@ export class ConversationSkillRelease {
         selectionSequence: currentBaseline.selectionSequence, rollbackAvailable, skill: { name: source.draft.name, markdown: source.draft.markdown } } }
     }
     if (drafts.policy(workspaceId) === undefined || trials.policy(workspaceId) === undefined) return blocked('policy-unavailable')
-    if (trial.phase !== 'completed' || trial.judge === undefined || !trialJudgeCalibrated(trial)
-      || trial.judge.requests.length !== 20) return blocked('independent-evaluation-required')
+    const independentlyChecked = trial.fileEvaluation === undefined
+      ? trial.judge !== undefined && trialJudgeCalibrated(trial) && trial.judge.requests.length === 20
+      : source.fileWorkflow !== undefined && trial.judge === undefined && trial.legs.every((leg, index) => {
+        const test = source!.fileWorkflow!.cases.find(test => test.id === leg.caseId)
+        return test !== undefined && fileTrialResultMatches(trial, index, test)
+      })
+    if (trial.phase !== 'completed' || !independentlyChecked) return blocked('independent-evaluation-required')
     if (trial.baseline === undefined) return blocked('baseline-unsealed')
     if (trial.baseline.generationId !== currentBaseline.generationId) return blocked('baseline-changed')
     const comparison = compareConversationDraftTrial(trial, source.draft)

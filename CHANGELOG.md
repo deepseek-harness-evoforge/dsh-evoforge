@@ -7,6 +7,11 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Add an opt-in, presealed file-workflow evaluation protocol for record reconciliation. Execute baseline/draft tasks
+  through the same native file tools, verify actual JSON artifacts and complete readback/delivery, and show factual
+  differences. Preserve failed preparation history, require independent improvement/retention gates for future-Session
+  activation, and remove the configurable trial policy's development-only 72-call ceiling.
+
 - Support staged conversation-draft preparation: persist four fixed tasks, calibrate each separately, then call the
   isolated proposer. Count every request; explicitly targeted transport recovery inherits completed material without
   redrawing it. Preserve legacy attempts and remove the development-only 20-call ceiling on configurable draft policies.

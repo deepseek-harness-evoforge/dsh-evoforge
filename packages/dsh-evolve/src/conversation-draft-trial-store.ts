@@ -8,12 +8,14 @@ import type { ConversationDraftTrialSummary } from './control-types.ts'
 import { DRAFT_JUDGE_PROMPT_HASH, DRAFT_JUDGE_VERSION, draftJudgmentSchema, type DraftJudgment } from './conversation-draft-judge.ts'
 import type { TokenUsage } from '@deepseek-ai/dsh-llm'
 import { conversationTrialBaselineSchema, type ConversationTrialBaseline } from './conversation-skill-lineage.ts'
+import { fileTrialEvidenceSchema, FILE_TRIAL_MAX_CALLS } from './conversation-file-trial.ts'
+import { FILE_WORKFLOW_VERSION, FILE_WORKFLOW_RECIPE_HASH, validateFileWorkflow } from './conversation-file-workflow.ts'
 
 const hash = z.string().regex(/^[a-f0-9]{64}$/u)
 const integer = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
 const MAX_PLANS = 20
 const policySchema = z.strictObject({
-  workspaceId: z.string().regex(NATIVE_WORKSPACE_ID_PATTERN), maxModelCallsPerUtcDay: z.number().int().min(24).max(72),
+  workspaceId: z.string().regex(NATIVE_WORKSPACE_ID_PATTERN), maxModelCallsPerUtcDay: z.number().int().min(24).max(Number.MAX_SAFE_INTEGER),
   semanticEvaluation: z.boolean().optional(),
   retryFailedTrials: z.array(z.strictObject({ trialId: hash, expiresAt: integer.positive().max(8_640_000_000_000_000) })).max(10).optional(),
 })
@@ -35,17 +37,24 @@ export function validateConversationDraftTrialPolicies(policies: readonly Conver
 
 const resultSchema = z.strictObject({
   status: z.enum(['completed', 'incomplete']), answer: z.string().max(32_000), passed: z.boolean(), skillLoaded: z.boolean(),
-  elapsedMs: integer, requestCount: z.number().int().min(0).max(3), eventDigest: hash,
-  requestDigests: z.array(hash).max(3), firstRequest: z.string().max(128_000).optional(),
-  inputTokens: integer, outputTokens: integer, usageMissingCount: z.number().int().min(0).max(3),
+  elapsedMs: integer, requestCount: z.number().int().min(0).max(FILE_TRIAL_MAX_CALLS), eventDigest: hash,
+  requestDigests: z.array(hash).max(FILE_TRIAL_MAX_CALLS), firstRequest: z.string().max(128_000).optional(),
+  inputTokens: integer, outputTokens: integer, usageMissingCount: z.number().int().min(0).max(FILE_TRIAL_MAX_CALLS),
   cacheReadTokens: integer.optional(), cacheWriteTokens: integer.optional(),
+  fileEvidence: fileTrialEvidenceSchema.optional(),
+  fileResult: z.strictObject({ deliveryPassed: z.boolean(), toolErrors: integer,
+    checks: z.array(z.strictObject({ field: z.string().min(1).max(256), passed: z.boolean(),
+      expectedJson: z.string().max(64_000).optional(), actualJson: z.string().max(64_000).optional() })).min(1).max(256),
+  }).optional(),
 }).superRefine((result, ctx) => {
   let firstRequestValid = result.requestCount === 0 && result.firstRequest === undefined
   if (result.firstRequest !== undefined) {
     try { firstRequestValid = digest(JSON.parse(result.firstRequest)) === result.requestDigests[0] } catch { firstRequestValid = false }
   }
   if (!firstRequestValid || result.requestCount !== result.requestDigests.length || result.status === 'incomplete' && result.passed
-    || result.firstRequest !== undefined && Buffer.byteLength(result.firstRequest) > 128_000) {
+    || result.firstRequest !== undefined && Buffer.byteLength(result.firstRequest) > 128_000
+    || (result.fileEvidence !== undefined) !== (result.fileResult !== undefined)
+    || result.fileResult !== undefined && result.passed !== (result.status === 'completed' && result.fileResult.deliveryPassed && result.fileResult.checks.every(check => check.passed))) {
     ctx.addIssue({ code: 'custom', message: 'inconsistent native trial result' })
   }
 })
@@ -84,7 +93,7 @@ const legSchema = z.strictObject({
   index: z.number().int().min(0).max(7), caseId: z.string().regex(/^[a-z0-9-]{1,64}$/u),
   partition: z.enum(['holdout', 'retention']), inputDigest: hash, variant: z.enum(['baseline', 'draft']),
   sessionId: z.string().min(1).max(128), phase: z.enum(['pending', 'running', 'settled']),
-  dispatchMarkers: z.number().int().min(0).max(3), result: resultSchema.optional(),
+  dispatchMarkers: z.number().int().min(0).max(FILE_TRIAL_MAX_CALLS), result: resultSchema.optional(),
 })
 const recordSchema = z.strictObject({
   schemaVersion: z.literal(1), id: hash, draftId: hash, workspaceId: z.string().regex(NATIVE_WORKSPACE_ID_PATTERN),
@@ -92,9 +101,10 @@ const recordSchema = z.strictObject({
   draftSnapshotDigest: hash, contentHash: hash, governanceDigest: hash,
   provider: z.string().min(1).max(256), model: z.string().min(1).max(256),
   baseline: conversationTrialBaselineSchema.optional(),
-  reservedAt: integer.max(8_640_000_000_000_000), reservedModelCalls: z.union([z.literal(0), z.literal(24), z.literal(44)]),
+  reservedAt: integer.max(8_640_000_000_000_000), reservedModelCalls: z.union([z.literal(0), z.literal(24), z.literal(44), z.literal(96)]),
   phase: z.enum(['reserved', 'running', 'completed', 'uncertain', 'blocked', 'rejected']), legs: z.array(legSchema).length(8),
   judge: judgeSchema.optional(),
+  fileEvaluation: z.strictObject({ version: z.literal(FILE_WORKFLOW_VERSION), recipeHash: z.literal(FILE_WORKFLOW_RECIPE_HASH) }).optional(),
   comparison: comparisonSchema.optional(), reason: z.enum(['interrupted', 'cancelled', 'source-conflict', 'execution-failed', 'evaluator-unqualified', 'judge-calibration-failed', 'judge-unavailable']).optional(),
 }).superRefine((record, ctx) => {
   const pairs = [0, 2, 4, 6].map(index => record.legs.slice(index, index + 2))
@@ -102,7 +112,9 @@ const recordSchema = z.strictObject({
     || record.legs.some((leg, i) => leg.index !== i || leg.sessionId !== legSessionId(record.id, i)
       || (leg.phase === 'settled') !== (leg.result !== undefined)
       || leg.phase === 'pending' && leg.dispatchMarkers !== 0
-      || (leg.result?.requestCount ?? 0) > leg.dispatchMarkers)
+      || (leg.result?.requestCount ?? 0) > leg.dispatchMarkers
+      || record.fileEvaluation === undefined && (leg.dispatchMarkers > 3 || leg.result?.fileEvidence !== undefined)
+      || record.fileEvaluation !== undefined && leg.result !== undefined && leg.result.fileEvidence === undefined)
     || record.legs.filter(leg => leg.phase === 'running').length > 1
     || new Set(pairs.map(pair => pair[0]?.caseId)).size !== 4
     || record.legs.filter(leg => leg.partition === 'holdout').length !== 4
@@ -118,7 +130,8 @@ const recordSchema = z.strictObject({
     || (record.phase === 'blocked') !== (record.reservedModelCalls === 0)
     || (record.phase === 'blocked') !== (record.reason === 'evaluator-unqualified')
     || record.phase === 'blocked' && record.legs.some(leg => leg.phase !== 'pending')
-    || record.phase !== 'blocked' && record.reservedModelCalls !== (record.judge === undefined ? 24 : 44)
+    || record.fileEvaluation !== undefined && (record.judge !== undefined || record.phase === 'blocked' || record.phase === 'rejected')
+    || record.phase !== 'blocked' && record.reservedModelCalls !== (record.fileEvaluation !== undefined ? 96 : record.judge === undefined ? 24 : 44)
     || record.judge !== undefined && (
       record.legs.some(leg => leg.phase !== 'pending') && !calibrated(record.judge)
       || record.judge.requests.length > 12 && record.judge.requests.slice(12).some((_, index) => record.legs[index]?.phase !== 'settled')
@@ -153,7 +166,8 @@ function frozenPlan(record: ConversationDraftTrialRecord): unknown {
     contentHash: record.contentHash, governanceDigest: record.governanceDigest, provider: record.provider, model: record.model,
     ...(record.baseline === undefined ? {} : { baseline: record.baseline }),
     legs: record.legs.map(({ index, caseId, partition, inputDigest, variant }) => ({ index, caseId, partition, inputDigest, variant })),
-    ...(record.judge === undefined ? {} : { judge: { version: record.judge.version, promptHash: record.judge.promptHash } }) }
+    ...(record.judge === undefined ? {} : { judge: { version: record.judge.version, promptHash: record.judge.promptHash } }),
+    ...(record.fileEvaluation === undefined ? {} : { fileEvaluation: record.fileEvaluation }) }
 }
 
 /** Private one-shot plan and results. Native Sessions remain the execution log authority. */
@@ -186,7 +200,7 @@ export class ConversationDraftTrialStore {
     const used = this.records(source.workspaceId).filter(record => day(record.reservedAt) === day(this.now()))
       .reduce((sum, record) => sum + record.reservedModelCalls, 0)
     const policy = this.policy(source.workspaceId)
-    return used + (policy?.semanticEvaluation ? 44 : 24) <= (policy?.maxModelCallsPerUtcDay ?? 0)
+    return used + (source.fileWorkflow !== undefined ? 96 : policy?.semanticEvaluation ? 44 : 24) <= (policy?.maxModelCallsPerUtcDay ?? 0)
   }
   private nextIdentity(source: ConversationDraftRecord): { id: string; retryOf?: string } | undefined {
     const policy = this.policy(source.workspaceId)
@@ -195,7 +209,7 @@ export class ConversationDraftTrialStore {
     if (root === undefined) return { id: rootId }
     const grant = policy.retryFailedTrials?.find(grant => grant.trialId === rootId)
     if (grant === undefined || grant.expiresAt <= this.now() || !zeroDispatchRoot(root)
-      || (root.judge !== undefined) !== (policy.semanticEvaluation === true)
+      || root.fileEvaluation === undefined && (root.judge !== undefined) !== (policy.semanticEvaluation === true)
       || root.workspaceId !== source.workspaceId || root.draftSnapshotDigest !== digest(source)) return undefined
     const id = trialId(source.id, rootId)
     return table.get(id) === undefined ? { id, retryOf: rootId } : undefined
@@ -204,12 +218,14 @@ export class ConversationDraftTrialStore {
     return this.enqueue(async () => {
       const policy = this.policy(source.workspaceId)
       if (policy === undefined) return undefined
-      if (source.phase !== 'draft' || source.draft === undefined || source.governance === undefined
-        || digest(source.governance) !== source.governanceDigest
+      const governance = source.governance ?? source.fileWorkflow
+      if (source.phase !== 'draft' || source.draft === undefined || governance === undefined
+        || digest(governance) !== source.governanceDigest
         || createHash('sha256').update(source.draft.markdown).digest('hex') !== source.draft.contentHash) {
         throw new Error('conversation trial requires an intact sealed draft')
       }
-      validateDraftGovernance(source.governance)
+      if (source.fileWorkflow !== undefined) validateFileWorkflow(source.fileWorkflow)
+      else validateDraftGovernance(source.governance)
       const table = this.domain.table('records'), identity = this.nextIdentity(source), reservedAt = this.now()
       if (identity === undefined || table.size >= MAX_PLANS) return undefined
       const { id, retryOf } = identity
@@ -220,12 +236,12 @@ export class ConversationDraftTrialStore {
       // Never upgrade an old experiment into release evidence on retry.
       const sealedBaseline = parent === undefined ? baseline : parent.baseline
       let qualified = true
-      try { requireDraftCaseCalibration(source.governance) } catch { qualified = false }
-      const reservedModelCalls = qualified ? policy.semanticEvaluation ? 44 : 24 : 0
+      if (source.fileWorkflow === undefined) try { requireDraftCaseCalibration(source.governance!) } catch { qualified = false }
+      const reservedModelCalls = qualified ? source.fileWorkflow !== undefined ? 96 : policy.semanticEvaluation ? 44 : 24 : 0
       const used = this.records(source.workspaceId).filter(record => day(record.reservedAt) === day(reservedAt))
         .reduce((sum, record) => sum + record.reservedModelCalls, 0)
       if (qualified && used + reservedModelCalls > policy.maxModelCallsPerUtcDay) return undefined
-      const legs = source.governance.cases.flatMap((test, caseIndex) => {
+      const legs = governance.cases.flatMap((test, caseIndex) => {
         const variants = caseIndex % 2 === 0 ? ['baseline', 'draft'] as const : ['draft', 'baseline'] as const
         return variants.map((variant, offset) => ({ index: caseIndex * 2 + offset, caseId: test.id,
           partition: test.partition, inputDigest: digest(test.input), variant,
@@ -236,7 +252,8 @@ export class ConversationDraftTrialStore {
         draftSnapshotDigest: digest(source), contentHash: source.draft.contentHash, governanceDigest: source.governanceDigest,
         provider: route.provider, model: route.model, reservedAt, reservedModelCalls,
         ...(sealedBaseline === undefined ? {} : { baseline: sealedBaseline }),
-        ...(policy.semanticEvaluation ? { judge: { version: DRAFT_JUDGE_VERSION, promptHash: DRAFT_JUDGE_PROMPT_HASH, requests: [] } } : {}),
+        ...(source.fileWorkflow !== undefined ? { fileEvaluation: { version: FILE_WORKFLOW_VERSION, recipeHash: FILE_WORKFLOW_RECIPE_HASH } }
+          : policy.semanticEvaluation ? { judge: { version: DRAFT_JUDGE_VERSION, promptHash: DRAFT_JUDGE_PROMPT_HASH, requests: [] } } : {}),
         ...(qualified ? { phase: 'reserved' } : { phase: 'blocked', reason: 'evaluator-unqualified' }), legs })
       if (parent !== undefined && (reservedAt < parent.reservedAt || digest(frozenPlan(record)) !== digest(frozenPlan(parent)))) {
         throw new Error('trial retry changed its frozen plan')
@@ -298,7 +315,7 @@ export class ConversationDraftTrialStore {
   markDispatch(record: ConversationDraftTrialRecord, index: number, call: number): Promise<ConversationDraftTrialRecord> {
     return this.change(record, current => {
       const leg = current.legs[index]
-      if (current.phase !== 'running' || leg?.phase !== 'running' || call !== leg.dispatchMarkers + 1 || call > 3) {
+      if (current.phase !== 'running' || leg?.phase !== 'running' || call !== leg.dispatchMarkers + 1 || call > (current.fileEvaluation === undefined ? 3 : FILE_TRIAL_MAX_CALLS)) {
         throw new Error('trial dispatch marker is not contiguous')
       }
       leg.dispatchMarkers = call
@@ -337,6 +354,21 @@ export class ConversationDraftTrialStore {
       maxModelCallsPerUtcDay: policy?.maxModelCallsPerUtcDay ?? 0,
       items: records.slice(-5).reverse().map(record => ({ id: record.id, draftId: record.draftId, phase: record.phase,
         ...(record.retryOf === undefined ? {} : { retryOf: record.retryOf }),
+        ...(record.fileEvaluation === undefined ? {} : { fileEvaluation: structuredClone(record.fileEvaluation),
+          ...(['completed', 'uncertain'].includes(record.phase) ? { fileArtifacts: record.legs.flatMap(leg => {
+            const result = leg.result, evidence = result?.fileEvidence, facts = result?.fileResult
+            return result === undefined || evidence === undefined || facts === undefined ? [] : [{
+              caseId: leg.caseId, partition: leg.partition, variant: leg.variant, sessionId: leg.sessionId,
+              root: evidence.root, passed: result.passed, deliveryPassed: facts.deliveryPassed, skillLoaded: result.skillLoaded,
+              toolErrors: facts.toolErrors, policyViolations: evidence.policyViolations,
+              inputs: structuredClone(evidence.inputs), outputs: evidence.outputs.map(output => ({ path: output.path, status: output.status,
+                written: output.written, readBack: output.readBack, presented: output.presented,
+                ...(output.content === undefined ? {} : { content: output.content }), ...(output.hash === undefined ? {} : { hash: output.hash }) })),
+              checks: facts.checks.map(check => ({ field: check.field, passed: check.passed,
+                ...(check.expectedJson === undefined ? {} : { expectedJson: check.expectedJson }),
+                ...(check.actualJson === undefined ? {} : { actualJson: check.actualJson }) })),
+            }]
+          }) } : {}) }),
         settledLegs: record.legs.filter(leg => leg.phase === 'settled').length,
         dispatchMarkers: record.legs.reduce((n, leg) => n + leg.dispatchMarkers, 0),
         requestCount: record.legs.reduce((n, leg) => n + (leg.result?.requestCount ?? 0), 0),

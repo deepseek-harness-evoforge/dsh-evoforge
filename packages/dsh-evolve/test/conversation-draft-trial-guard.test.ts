@@ -8,6 +8,8 @@ import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import Tools, { defineTool } from '@deepseek-ai/dsh-tools'
 import { afterEach, expect, it } from 'vitest'
 import { createHash } from 'node:crypto'
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import Skills from '@deepseek-ai/dsh-skill'
@@ -20,6 +22,7 @@ import { openConversationDraftTrialStore } from '../src/conversation-draft-trial
 import { digest } from '../src/conversation-correction-intake.ts'
 import type { ConversationDraftRecord } from '../src/conversation-skill-draft.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
+import { prepareConversationFileTrial } from '../src/conversation-file-trial.ts'
 
 const roots: Context[] = []
 afterEach(async () => { await Promise.all(roots.splice(0).map(ctx => ctx.fiber.dispose())) })
@@ -72,6 +75,112 @@ it('provides the official scoped Skill tool when the Host has no global Skill to
   expect(f.calls()).toBe(1)
   expect(f.requests[0]?.tools?.map(tool => tool.name)).toEqual(['skill'])
   expect(f.ctx.tools.get('skill')).toBeUndefined()
+})
+
+it.each(['full', 'partial-input', 'partial-output'])('executes a real file workflow and verifies complete readback (%s)', async scenario => {
+  const cwd = await mkdtemp(resolve(tmpdir(), 'evoforge-file-workflow-'))
+  const root = `.evoforge/workflow-trials/${'0'.repeat(64)}/0`
+  const inputPath = `${root}/input.json`, outputPath = `${root}/result.json`
+  let step = 0
+  const actions = [
+    ['read', { file_path: inputPath, ...(scenario === 'partial-input' ? { limit: 1 } : {}) }],
+    ['write', { file_path: outputPath, content: '{\n  "rows":2\n}\n' }],
+    ['read', { file_path: outputPath, ...(scenario === 'partial-output' ? { limit: 1 } : {}) }],
+    ['present', { files: [{ path: outputPath }] }],
+  ] as const
+  const f = await fixture(false, async function* (options) {
+    const action = actions[step++]
+    if (action === undefined) {
+      yield { type: 'block-start', index: 0, blockType: 'text' }
+      yield { type: 'text-delta', index: 0, text: '已写入并交付结果。' }
+      yield { type: 'block-end', index: 0, block: { type: 'text', text: '已写入并交付结果。' } }
+      yield { type: 'finish', reason: { kind: 'stop' } }
+      return
+    }
+    expect(options.tools?.map(tool => tool.name)).toEqual(expect.arrayContaining(['read', 'write', 'present', 'skill']))
+    const id = ToolCallId(`file-workflow-${step}`), args = JSON.stringify(action[1])
+    yield { type: 'block-start', index: 0, blockType: 'tool-call' }
+    yield { type: 'tool-call-delta', index: 0, id, name: action[0], argumentsDelta: args }
+    yield { type: 'block-end', index: 0, block: { type: 'tool-call', id, name: action[0], arguments: args } }
+    yield { type: 'finish', reason: { kind: 'tool-calls' } }
+  })
+  const source = process.env.DSH_EVOLVE_DSH_SOURCE_DIR ?? resolve(process.cwd(), '../../../deepseek-harness')
+  const entry = (path: string) => pathToFileURL(resolve(source, path, 'lib/index.js')).href
+  await f.ctx.plugin((await import(entry('packages/fs/fs-local'))).default)
+  await f.ctx.plugin((await import(entry('packages/sandbox/sandbox-policy'))).default, { mode: 'workspace-write' })
+  f.registrations[0]!()
+  try {
+    const result = await runConversationDraftTrialLeg(f.ctx, {
+      sessionId: SessionId('native-file-workflow'), cwd,
+      input: `读取 ${inputPath}，将行数写入 ${outputPath}，回读并交付。`,
+      provider: 'fixed', model: 'fixed', signal: new AbortController().signal, beforeDispatch: async () => {},
+      fileWorkflow: { root, inputs: [{ path: 'input.json', content: '[\n{"id":"a"},{"id":"a"}\n]\n' }], outputs: ['result.json'] },
+    } as Parameters<typeof runConversationDraftTrialLeg>[1])
+    expect(f.calls()).toBe(5)
+    expect(await readFile(resolve(cwd, outputPath), 'utf8')).toBe('{\n  "rows":2\n}\n')
+    expect(await readFile(resolve(cwd, inputPath), 'utf8')).toBe('[\n{"id":"a"},{"id":"a"}\n]\n')
+    expect(result.fileEvidence?.inputs[0]?.read).toBe(scenario !== 'partial-input')
+    expect(result.fileEvidence?.outputs[0]).toMatchObject({ written: true, readBack: scenario !== 'partial-output', presented: scenario !== 'partial-output' })
+    expect(result.events.filter(event => (event as { type: string }).type === 'deliverables/presented')).toHaveLength(1)
+    expect(f.ctx.tools.schemas().map(tool => tool.name)).toEqual(['external_write'])
+    expect(f.ctx.agents.get(SessionId('native-file-workflow'))).toBeUndefined()
+  } finally { await rm(cwd, { recursive: true, force: true }) }
+})
+
+it.each(['write-input', 'write-outside', 'read-outside', 'present-input', 'escalation'])('denies native file trial path/policy expansion: %s', async attack => {
+  const cwd = await mkdtemp(resolve(tmpdir(), 'evoforge-file-denial-'))
+  const root = `.evoforge/workflow-trials/${'1'.repeat(64)}/0`
+  let step = 0
+  const action = attack === 'read-outside' ? { name: 'read', args: { file_path: 'outside.json' } }
+    : attack === 'present-input' ? { name: 'present', args: { files: [{ path: `${root}/input.json` }] } }
+    : { name: 'write', args: { file_path: attack === 'write-input' ? `${root}/input.json` : attack === 'write-outside' ? 'outside.json' : `${root}/result.json`,
+      content: 'changed', ...(attack === 'escalation' ? { sandbox_permissions: 'require_escalated' } : {}) } }
+  const f = await fixture(false, async function* () {
+    if (step++ === 0) {
+      const id = ToolCallId('forbidden-file-effect'), args = JSON.stringify(action.args)
+      yield { type: 'block-start', index: 0, blockType: 'tool-call' }
+      yield { type: 'tool-call-delta', index: 0, id, name: action.name, argumentsDelta: args }
+      yield { type: 'block-end', index: 0, block: { type: 'tool-call', id, name: action.name, arguments: args } }
+      yield { type: 'finish', reason: { kind: 'tool-calls' } }
+    } else {
+      yield { type: 'block-start', index: 0, blockType: 'text' }
+      yield { type: 'text-delta', index: 0, text: 'Could not execute.' }
+      yield { type: 'block-end', index: 0, block: { type: 'text', text: 'Could not execute.' } }
+      yield { type: 'finish', reason: { kind: 'stop' } }
+    }
+  })
+  const source = process.env.DSH_EVOLVE_DSH_SOURCE_DIR ?? resolve(process.cwd(), '../../../deepseek-harness')
+  const entry = (path: string) => pathToFileURL(resolve(source, path, 'lib/index.js')).href
+  await f.ctx.plugin((await import(entry('packages/fs/fs-local'))).default)
+  await f.ctx.plugin((await import(entry('packages/sandbox/sandbox-policy'))).default, { mode: 'workspace-write' })
+  f.registrations[0]!()
+  try {
+    await writeFile(resolve(cwd, 'outside.json'), 'private-outside')
+    const result = await runConversationDraftTrialLeg(f.ctx, { sessionId: SessionId(`native-denied-${attack}`), cwd,
+      input: 'Controlled policy-denial fixture.', provider: 'fixed', model: 'fixed', signal: new AbortController().signal,
+      beforeDispatch: async () => {}, fileWorkflow: { root, inputs: [{ path: 'input.json', content: '[1,2]' }], outputs: ['result.json'] } })
+    expect(await readFile(resolve(cwd, 'outside.json'), 'utf8')).toBe('private-outside')
+    expect(await readFile(resolve(cwd, root, 'input.json'), 'utf8')).toBe('[1,2]')
+    expect(result.fileEvidence?.policyViolations).toBe(1)
+    expect(result.fileEvidence?.outputs[0]?.status).toBe('missing')
+    expect(JSON.stringify(f.requests)).not.toContain('private-outside')
+  } finally { await rm(cwd, { recursive: true, force: true }) }
+})
+
+it('does not reuse an existing trial directory or follow an escaped parent symlink', async () => {
+  const cwd = await mkdtemp(resolve(tmpdir(), 'evoforge-file-root-'))
+  const outside = await mkdtemp(resolve(tmpdir(), 'evoforge-file-outside-'))
+  const f = await fixture()
+  const source = process.env.DSH_EVOLVE_DSH_SOURCE_DIR ?? resolve(process.cwd(), '../../../deepseek-harness')
+  await f.ctx.plugin((await import(pathToFileURL(resolve(source, 'packages/fs/fs-local/lib/index.js')).href)).default)
+  const bounds = { root: `.evoforge/workflow-trials/${'2'.repeat(64)}/0`, inputs: [{ path: 'input.json', content: '[1]' }], outputs: ['result.json'] }
+  try {
+    await mkdir(resolve(cwd, bounds.root), { recursive: true })
+    await expect(prepareConversationFileTrial(f.ctx, cwd, bounds, new AbortController().signal)).rejects.toThrow('absent owned')
+    await symlink(outside, resolve(cwd, '.evoforge/workflow-trials', '3'.repeat(64)))
+    await expect(prepareConversationFileTrial(f.ctx, cwd, { ...bounds, root: bounds.root.replace('2'.repeat(64), '3'.repeat(64)) }, new AbortController().signal)).rejects.toThrow('absent owned')
+    expect(f.calls()).toBe(0)
+  } finally { await rm(cwd, { recursive: true, force: true }); await rm(outside, { recursive: true, force: true }) }
 })
 
 it('runs an owned native leg, mounts the exact draft only there, and keeps its native trace', async () => {

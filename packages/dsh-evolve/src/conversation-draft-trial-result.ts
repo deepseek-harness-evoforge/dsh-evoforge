@@ -5,25 +5,32 @@ import { matchesDraftCase } from './conversation-skill-draft.ts'
 import { CONVERSATION_TRIAL_PROVIDER, type ConversationDraftTrialLegInput, type runConversationDraftTrialLeg } from './conversation-draft-trial-native.ts'
 import type { ConversationDraftTrialComparison, ConversationDraftTrialRecord, ConversationDraftTrialResult } from './conversation-draft-trial-store.ts'
 import { trialJudgeCalibrated, trialLegPassed } from './conversation-draft-trial-store.ts'
+import { checkFileWorkflowAnswer, checkFileWorkflowDelivery, FILE_WORKFLOW_ROOT_TOKEN, fileWorkflowRoot, type FileWorkflowCase } from './conversation-file-workflow.ts'
+import { createHash } from 'node:crypto'
 
 type Draft = NonNullable<ConversationDraftTrialLegInput['draft']>
 type NativeLeg = Awaited<ReturnType<typeof runConversationDraftTrialLeg>>
 type Assertions = Parameters<typeof matchesDraftCase>[1]
 
 /** Deterministic checks, not a model judge or a claim that proposed expectations are factual gold. */
-export function projectConversationDraftTrialResult(native: NativeLeg, test: Assertions, draft?: Draft): ConversationDraftTrialResult {
+export function projectConversationDraftTrialResult(native: NativeLeg, test: Assertions | FileWorkflowCase, draft?: Draft): ConversationDraftTrialResult {
+  const fileTest = 'files' in test ? test : undefined
   const ends = native.events.filter(event => event.type === 'turn/end')
   const assistants = native.events.filter(event => event.type === 'assistant/message')
   const toolResults = native.events.filter(event => event.type === 'tool/result')
   const calls = native.events.filter(event => event.type === 'tool/call')
   const last = assistants.at(-1)
+  const toolErrors = toolResults.filter(event => event.data.error !== undefined
+    || event.data.message.content.some(block => block.type === 'tool-result' && block.isError === true)).length
   const answer = last?.data.message.content.filter(block => block.type === 'text').map(block => block.text).join('') ?? ''
   const completed = ends.length === 1 && ends[0]?.data.turn === 1 && ends[0]?.data.reason.kind === 'completed'
     && last !== undefined && answer.trim().length > 0 && answer.length <= 32_000
     && assistants.every(event => event.data.interrupted !== true)
     && native.events.every(event => event.type !== 'assistant/attempt')
-    && toolResults.every(event => event.data.error === undefined
-      && event.data.message.content.every(block => block.type !== 'tool-result' || block.isError !== true))
+    && (fileTest !== undefined || toolErrors === 0)
+  if (fileTest !== undefined && native.fileEvidence === undefined) throw new Error('file trial did not return artifact evidence')
+  const fileChecks = fileTest === undefined ? undefined : checkFileWorkflowAnswer(fileTest, native.fileEvidence!.outputs[0]?.content)
+  const deliveryPassed = checkFileWorkflowDelivery(native.fileEvidence)
   let skillLoaded = false
   if (draft !== undefined) {
     const prefix = `---\nname: ${draft.name}\ndescription: ${JSON.stringify(draft.description)}\n---\n\n`
@@ -43,7 +50,11 @@ export function projectConversationDraftTrialResult(native: NativeLeg, test: Ass
   const usageMissingCount = Math.max(0, native.dispatchMarkers - usages.length)
   return {
     status: completed ? 'completed' : 'incomplete', answer: answer.slice(0, 32_000),
-    passed: completed && matchesDraftCase(answer, test), skillLoaded,
+    passed: completed && (fileChecks === undefined ? matchesDraftCase(answer, test as Assertions) : fileChecks.passed && deliveryPassed), skillLoaded,
+    ...(fileChecks === undefined ? {} : { fileEvidence: native.fileEvidence!, fileResult: { deliveryPassed, toolErrors,
+      checks: fileChecks.checks.map(check => ({ field: check.field, passed: check.passed,
+        ...(check.expected === undefined ? {} : { expectedJson: JSON.stringify(check.expected) }),
+        ...(check.actual === undefined ? {} : { actualJson: JSON.stringify(check.actual) }) })) } }),
     elapsedMs: native.elapsedMs, requestCount: native.requestSnapshots.length, eventDigest: digest(native.events),
     requestDigests: native.requestSnapshots.map(snapshot => digest(JSON.parse(snapshot))),
     ...(native.requestSnapshots[0] === undefined ? {} : { firstRequest: native.requestSnapshots[0] }),
@@ -72,15 +83,22 @@ function catalogText(entries: readonly { name: string; description: string }[]):
     '</system-reminder>'].join('\n')
 }
 
-function normalizedRequest(serialized: string, draft: Draft, variant: 'baseline' | 'draft'): unknown {
+function normalizedRequest(serialized: string, draft: Draft, variant: 'baseline' | 'draft', fileRoot?: string): unknown {
   const request: unknown = JSON.parse(serialized)
   if (!object(request) || !Array.isArray(request.messages)) throw new Error('missing native request messages')
   delete request.sessionId // model-hidden transport identity, unlike every prompt byte below
-  let catalogs = 0, removed = 0
+  let catalogs = 0, removed = 0, fileTasks = 0
   request.messages = request.messages.flatMap((raw: unknown) => {
     if (!object(raw)) throw new Error('invalid native message')
     const message = { ...raw }
     delete message.id // native message identity, not model-visible content
+    if (fileRoot !== undefined && object(message.source) && message.source.kind === 'plugin' && message.source.plugin === 'dsh-evolve') {
+      if (message.role !== 'user' || !Array.isArray(message.content) || message.content.length !== 1
+        || !object(message.content[0]) || message.content[0].type !== 'text' || typeof message.content[0].text !== 'string'
+        || !message.content[0].text.includes(`${fileRoot}/`) || message.content[0].text.includes(FILE_WORKFLOW_ROOT_TOKEN)) throw new Error('file trial task binding changed')
+      fileTasks++
+      message.content = [{ type: 'text', text: message.content[0].text.replaceAll(fileRoot, FILE_WORKFLOW_ROOT_TOKEN) }]
+    }
     if (!object(message.source) || message.source.kind !== 'skill-catalog') return [message]
     catalogs++
     const source = message.source
@@ -108,13 +126,14 @@ function normalizedRequest(serialized: string, draft: Draft, variant: 'baseline'
     }
     return [message]
   })
-  if (catalogs > 1 || variant === 'draft' && removed !== 1) throw new Error('missing or duplicate experimental catalog')
+  if (catalogs > 1 || variant === 'draft' && removed !== 1 || fileRoot !== undefined && fileTasks !== 1) throw new Error('missing or duplicate experimental catalog or task')
   return request
 }
 
-export function sameTrialInitialComposition(baseline: string | undefined, candidate: string | undefined, draft: Draft): boolean {
+export function sameTrialInitialComposition(baseline: string | undefined, candidate: string | undefined, draft: Draft,
+  files?: { readonly baselineRoot: string; readonly draftRoot: string }): boolean {
   if (baseline === undefined || candidate === undefined) return false
-  try { return isDeepStrictEqual(normalizedRequest(baseline, draft, 'baseline'), normalizedRequest(candidate, draft, 'draft')) }
+  try { return isDeepStrictEqual(normalizedRequest(baseline, draft, 'baseline', files?.baselineRoot), normalizedRequest(candidate, draft, 'draft', files?.draftRoot)) }
   catch { return false }
 }
 
@@ -125,15 +144,21 @@ export function compareConversationDraftTrial(record: ConversationDraftTrialReco
     || record.judge.requests.some(request => request.decision === undefined || request.decision.verdict === 'uncertain'))) allCompleted = false
   for (let i = 0; i < 8; i += 2) {
     const pair = record.legs.slice(i, i + 2)
-    const baseline = pair.find(leg => leg.variant === 'baseline')?.result
-    const candidate = pair.find(leg => leg.variant === 'draft')?.result
+    const baselineLeg = pair.find(leg => leg.variant === 'baseline')!, draftLeg = pair.find(leg => leg.variant === 'draft')!
+    const baseline = baselineLeg.result, candidate = draftLeg.result
     if (!baseline || !candidate || baseline.status !== 'completed' || candidate.status !== 'completed') allCompleted = false
     const baselinePass = trialLegPassed(record, pair.find(leg => leg.variant === 'baseline')!.index)
     const candidatePass = trialLegPassed(record, pair.find(leg => leg.variant === 'draft')!.index)
     if (baselinePass) baselinePassed++
     if (candidatePass) draftPassed++
     if (candidate?.skillLoaded) loadedDraftLegs++
-    if (sameTrialInitialComposition(baseline?.firstRequest, candidate?.firstRequest, draft)) comparablePairs++
+    const files = record.fileEvaluation === undefined ? undefined : {
+      baselineRoot: fileWorkflowRoot(record.id, baselineLeg.index), draftRoot: fileWorkflowRoot(record.id, draftLeg.index),
+    }
+    const fileComparable = files === undefined || baseline?.fileEvidence?.root === files.baselineRoot
+      && candidate?.fileEvidence?.root === files.draftRoot
+      && isDeepStrictEqual(baseline.fileEvidence.inputs.map(({ path, hash }) => ({ path, hash })), candidate.fileEvidence.inputs.map(({ path, hash }) => ({ path, hash })))
+    if (fileComparable && sameTrialInitialComposition(baseline?.firstRequest, candidate?.firstRequest, draft, files)) comparablePairs++
     if (baseline && candidate && !baselinePass && candidatePass) {
       improved++
       if (!candidate.skillLoaded) attributable = false
@@ -144,4 +169,23 @@ export function compareConversationDraftTrial(record: ConversationDraftTrialReco
     : regressed > 0 ? 'regression'
       : improved > 0 ? attributable ? 'improvement-observed' : 'inconclusive' : 'no-improvement'
   return { baselinePassed, draftPassed, improved, regressed, comparablePairs, loadedDraftLegs, outcome }
+}
+
+/** Recompute file facts from the sealed task and actual bytes; never trust UI verdicts. */
+export function fileTrialResultMatches(record: ConversationDraftTrialRecord, index: number, test: FileWorkflowCase): boolean {
+  const leg = record.legs[index], result = leg?.result
+  if (record.fileEvaluation === undefined || leg?.caseId !== test.id || leg.partition !== test.partition
+    || leg.inputDigest !== digest(test.input) || result?.fileEvidence === undefined || result.fileResult === undefined
+    || result.fileEvidence.root !== fileWorkflowRoot(record.id, index)) return false
+  const evidence = result.fileEvidence
+  if (!isDeepStrictEqual(evidence.inputs.map(({ path, hash }) => ({ path, hash })), test.files.map(file => ({
+    path: file.path, hash: createHash('sha256').update(file.content).digest('hex'),
+  })))) return false
+  const checked = checkFileWorkflowAnswer(test, evidence.outputs[0]?.content)
+  const checks = checked.checks.map(check => ({ field: check.field, passed: check.passed,
+    ...(check.expected === undefined ? {} : { expectedJson: JSON.stringify(check.expected) }),
+    ...(check.actual === undefined ? {} : { actualJson: JSON.stringify(check.actual) }) }))
+  const deliveryPassed = checkFileWorkflowDelivery(evidence)
+  return isDeepStrictEqual(checks, result.fileResult.checks) && result.fileResult.deliveryPassed === deliveryPassed
+    && result.passed === (result.status === 'completed' && checked.passed && deliveryPassed)
 }
