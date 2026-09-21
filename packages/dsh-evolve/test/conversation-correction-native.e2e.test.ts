@@ -24,7 +24,7 @@ import { installGenerationBinder } from '../src/generation-binder.ts'
 const dshRoot = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
 
 describe.skipIf(dshRoot === undefined)('native DSH conversation correction intake', () => {
-  it.each([[false, false, false, false], [true, false, false, false], [false, true, false, false], [false, false, true, false], [false, false, true, true]])('uses native no-Goal turns and cold recovery without duplicate calls (draft retry: %s, trial recovery: %s, semantic judge: %s, release: %s)', async (retry, trialRecovery, semantic, release) => {
+  it.each([[0, false, false, false], [1, false, false, false], [2, false, false, false], [0, true, false, false], [0, false, true, false], [0, false, true, true]] as const)('uses native no-Goal turns and cold recovery without duplicate calls (draft retries: %s, trial recovery: %s, semantic judge: %s, release: %s)', async (retry, trialRecovery, semantic, release) => {
     const root = await mkdtemp(join(tmpdir(), 'evoforge-correction-native-'))
     const entry = (path: string) => pathToFileURL(join(dshRoot!, path, 'lib/index.js')).href
     const cordis = await import(entry('vendor/cordis')) as typeof import('@deepseek-ai/cordis')
@@ -43,7 +43,7 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
     const fixtureDraft = { status: 'draft', name: 'readable-report', description: 'Readable reports for narrow chat previews.',
       body: 'Use short sections for narrow report previews. Preserve source facts and unknown states. Follow an explicit format request and leave unrelated answers unchanged.' }
     let waitForCancellation = false
-    let failFirstDraft = retry
+    let remainingDraftFailures: number = retry
     class ClassifierAdapter extends nativeLlm.LlmAdapter {
       async *stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
         calls.push(options)
@@ -86,8 +86,8 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
         }
         if (typeof options.system === 'string' && (options.system.startsWith('You prepare independent test material') || options.system.startsWith('Draft a small reusable DSH Skill'))) {
           const governanceRole = options.system.startsWith('You prepare independent test material')
-          if (failFirstDraft) {
-            failFirstDraft = false
+          if (remainingDraftFailures > 0) {
+            remainingDraftFailures -= 1
             yield { type: 'finish', reason: { kind: 'error', failure: { code: 'FIXTURE', message: 'Controlled initial failure' } } }
             return
           }
@@ -143,7 +143,7 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
     let generationStore: Awaited<ReturnType<typeof openEvolutionStore>> | undefined
     let stopBinder: (() => Promise<void>) | undefined
     let trialPolicy: ConversationDraftTrialPolicy[] = [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: semantic ? 44 : 24, semanticEvaluation: semantic }]
-    const postTrialCalls = (retry ? 16 : 15) + (semantic ? 20 : 0)
+    const postTrialCalls = 15 + retry + (semantic ? 20 : 0)
     let futureCalls = 0
     let releasedGenerationId: string | undefined
     let learningPolicy: ConversationLearningPolicy[] = [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 2 }]
@@ -187,19 +187,19 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
       drafts = await openConversationDraftStore(first.storageDomain, learningPolicy)
       draftMonitor = installConversationSkillDraftMonitor(first, ledger, drafts, learningPolicy)
       let originalFailure: unknown
-      if (retry) {
-        await vi.waitFor(() => expect(drafts!.summarize(WORKSPACE_ID).uncertainCount).toBe(1))
+      for (let recovery = 0; recovery < retry; recovery++) {
+        await vi.waitFor(() => expect(drafts!.summarize(WORKSPACE_ID).uncertainCount).toBe(recovery + 1))
         originalFailure = drafts.records(WORKSPACE_ID)[0]!
-        const failedId = drafts.records(WORKSPACE_ID)[0]!.id
+        const failedId = drafts.records(WORKSPACE_ID).at(-1)!.id
         await draftMonitor.dispose()
         await drafts.close()
-        learningPolicy = [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 4,
+        learningPolicy = [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: (recovery + 2) * 2,
           retryFailedDrafts: [{ draftId: failedId, expiresAt: Date.now() + 60_000 }] }]
         drafts = await openConversationDraftStore(first.storageDomain, learningPolicy)
         draftMonitor = installConversationSkillDraftMonitor(first, ledger, drafts, learningPolicy)
       }
       await vi.waitFor(() => expect(drafts!.summarize(WORKSPACE_ID).draftCount).toBe(1))
-      expect(calls).toHaveLength(retry ? 4 : 3)
+      expect(calls).toHaveLength(3 + retry)
       expect(JSON.stringify(calls.at(-1)?.messages)).not.toContain('answer-h1')
       expect(drafts.records(WORKSPACE_ID).find(r => r.phase === 'draft')?.governance).toEqual(fixtureGovernance)
       if (retry) expect(drafts.records(WORKSPACE_ID)[0]).toEqual(originalFailure)
@@ -403,7 +403,7 @@ describe.skipIf(dshRoot === undefined)('native DSH conversation correction intak
       expect(second.sessions.get(sessionId)).toBeUndefined()
       drafts = await openConversationDraftStore(second.storageDomain, learningPolicy)
       draftMonitor = installConversationSkillDraftMonitor(second, ledger, drafts, learningPolicy)
-      expect(drafts.summarize(WORKSPACE_ID)).toMatchObject({ draftCount: 1, reservedModelCallsToday: retry ? 4 : 2 })
+      expect(drafts.summarize(WORKSPACE_ID)).toMatchObject({ draftCount: 1, reservedModelCallsToday: (retry + 1) * 2 })
       if (retry) expect(drafts.records(WORKSPACE_ID)[0]).toEqual(originalFailure)
       trialMonitor = installConversationDraftTrialMonitor(second, ledger, drafts, trials, trialPolicy)
       expect(trials.records(WORKSPACE_ID).at(-1)).toEqual(trial)

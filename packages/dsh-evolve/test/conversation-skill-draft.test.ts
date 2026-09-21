@@ -204,7 +204,7 @@ describe('conversation-derived Skill draft', () => {
     expect(() => validateConversationLearningPolicies([{ ...policy, retryFailedDrafts: [{ ...grant, expiresAt: -1 }] }])).toThrow()
   })
 
-  it('rejects chaining retry grants, foreign targets, long-lived grants and tampered retry lineage', async () => {
+  it('requires a fresh explicit grant for each pre-governance transport recovery and preserves the full chain', async () => {
     const f = facility(), first = await openConversationDraftStore(f.value, [policy], () => 100)
     const fail = vi.fn(async () => { throw new Error('request did not complete') })
     await authorConversationSkillDraft(first, correction, input, fail, signal())
@@ -218,7 +218,24 @@ describe('conversation-derived Skill draft', () => {
     expect(await authorConversationSkillDraft(second, correction, input, fail, signal())).toBe('uncertain')
     const retry = second.records(WORKSPACE_ID).find(r => r.retryOf !== undefined)!
     await second.close()
-    await expect(openConversationDraftStore(f.value, [{ ...retryPolicy, retryFailedDrafts: [{ ...grant, draftId: retry.id }] }], () => 300)).rejects.toThrow()
+    const unchanged = await openConversationDraftStore(f.value, [{ ...retryPolicy, maxModelCallsPerUtcDay: 8 }], () => 250)
+    expect(await authorConversationSkillDraft(unchanged, correction, input, fail, signal())).toBe('skipped')
+    await unchanged.close()
+    const nextPolicy = { ...retryPolicy, maxModelCallsPerUtcDay: 8, retryFailedDrafts: [{ ...grant, draftId: retry.id }] }
+    const third = await openConversationDraftStore(f.value, [nextPolicy], () => 300)
+    const model = vi.fn(async request => ({ value: request.role === 'governance' ? governance : proposal, usage }))
+    await Promise.all([1, 2].map(() => authorConversationSkillDraft(third, correction, input, model, signal())))
+    expect(model).toHaveBeenCalledTimes(2)
+    expect(third.records(WORKSPACE_ID)).toHaveLength(3)
+    expect(third.records(WORKSPACE_ID).find(r => r.id === original.id)).toEqual(original)
+    expect(third.records(WORKSPACE_ID).find(r => r.id === retry.id)).toEqual(retry)
+    expect(third.records(WORKSPACE_ID).find(r => r.retryOf === retry.id)).toMatchObject({ phase: 'draft' })
+    expect(third.summarize(WORKSPACE_ID).reservedModelCallsToday).toBe(6)
+    await third.close()
+    const cold = await openConversationDraftStore(f.value, [nextPolicy], () => 400)
+    expect(await authorConversationSkillDraft(cold, correction, input, model, signal())).toBe('skipped')
+    expect(model).toHaveBeenCalledTimes(2)
+    await cold.close()
     f.rows.set(retry.id, { ...retry, sourceDigest: 'e'.repeat(64) })
     await expect(openConversationDraftStore(f.value, [policy], () => 300)).rejects.toThrow('retry lineage')
     expect(fail).toHaveBeenCalledTimes(2)
@@ -367,11 +384,33 @@ describe('conversation-derived Skill draft', () => {
     } finally { vi.useRealTimers() }
   })
 
+  it.each(['governance', 'author'] as const)('does not equate delayed %s content with a dead native transport', async role => {
+    vi.useFakeTimers()
+    try {
+      const value = role === 'governance' ? governance : proposal
+      let closed = false
+      const ctx = { llm: { async *stream(options: { signal: AbortSignal }) {
+        try {
+          // DSH adapters can receive transport heartbeats without yielding a model chunk.
+          await fixtureWait(120_000, options.signal)
+          yield { type: 'text-delta', index: 0, text: JSON.stringify(value) }
+          yield { type: 'finish', reason: { kind: 'stop' } }
+        } finally { closed = true }
+      } } } as unknown as Pick<Context, 'llm'>
+      const result = nativeConversationDraftModel(ctx)({ role, input }, signal())
+        .then(response => ({ value: response.value }), error => ({ failure: error.message }))
+      await vi.advanceTimersByTimeAsync(120_000)
+      expect(await result).toEqual({ value })
+      expect(closed).toBe(true)
+      expect(vi.getTimerCount()).toBe(0)
+    } finally { vi.useRealTimers() }
+  })
+
   it.each([
-    { mode: 'silent', reason: 'model-idle-timeout', milliseconds: 60_000 },
-    { mode: 'partial-stall', reason: 'model-idle-timeout', milliseconds: 60_000 },
-    { mode: 'after-finish', reason: 'model-idle-timeout', milliseconds: 60_000 },
-    { mode: 'continuous', reason: 'model-total-timeout', milliseconds: 180_000 },
+    { mode: 'silent', reason: 'model-total-timeout', milliseconds: 600_000 },
+    { mode: 'partial-stall', reason: 'model-total-timeout', milliseconds: 600_000 },
+    { mode: 'after-finish', reason: 'model-total-timeout', milliseconds: 600_000 },
+    { mode: 'continuous', reason: 'model-total-timeout', milliseconds: 600_000 },
     { mode: 'cancelled', reason: 'cancelled', milliseconds: 30_000 },
   ])('bounds $mode without dropping consumed budget or known usage', async ({ mode, reason, milliseconds }) => {
     vi.useFakeTimers()
@@ -388,7 +427,7 @@ describe('conversation-derived Skill draft', () => {
             yield { type: 'finish', reason: { kind: 'stop' } }
           }
           while (true) {
-            await fixtureWait(mode === 'continuous' ? 15_000 : 300_000, options.signal)
+            await fixtureWait(mode === 'continuous' ? 15_000 : 900_000, options.signal)
             yield { type: 'text-delta', index: 0, text: ' ' }
           }
         } finally { closed = true }
@@ -400,6 +439,10 @@ describe('conversation-derived Skill draft', () => {
       expect(await run).toBe('uncertain')
       expect(store.records(WORKSPACE_ID)[0]).toMatchObject({ reason, reservedModelCalls: 2, modelCalls: 1,
         usages: mode === 'silent' ? [] : [{ inputTokens: 23, outputTokens: 4 }] })
+      expect(store.records(WORKSPACE_ID)[0]?.requestTimings).toEqual([{ role: 'governance', timing: {
+        elapsedMs: milliseconds, ...(mode === 'silent' ? {} : { firstChunkMs: 0 }),
+        chunkCount: mode === 'silent' ? 0 : mode === 'partial-stall' ? 2 : mode === 'after-finish' ? 3 : mode === 'continuous' ? 40 : 1,
+      } }])
       expect(closed).toBe(true)
       expect(calls).toBe(1)
       expect(vi.getTimerCount()).toBe(0)

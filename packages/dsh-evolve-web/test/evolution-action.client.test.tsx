@@ -758,7 +758,7 @@ describe('EvolutionAction', () => {
     fireEvent.click(screen.getByRole('button', { name: locale['trigger.label'] }))
     expect(await screen.findByText(locale['draft.failure.model-request-failed'], { exact: false })).toBeTruthy()
     expect(screen.getByText(locale === zh ? '连续60秒未收到新的模型响应，已停止等待。' : 'No new model response arrived for 60 seconds; waiting stopped.', { exact: false })).toBeTruthy()
-    expect(screen.getByText(locale === zh ? '模型请求达到180秒总时限，未形成完整结果。' : 'The model request reached its 180-second total limit without a complete result.', { exact: false })).toBeTruthy()
+    expect(screen.getByText(locale === zh ? '模型请求达到该次请求的总时限，未形成完整结果。' : 'The model request reached its recorded total limit without a complete result.', { exact: false })).toBeTruthy()
     expect(screen.getByText(locale['draft.noRetry'])).toBeTruthy()
     expect(screen.getByText(locale['correction.usageUnknown'])).toBeTruthy()
     expect(screen.queryByText(locale['draft.headline'])).toBeNull()

@@ -20,8 +20,9 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 - Use Feishu Card 2.0 buttons and callback behaviors for native approval cards instead of the unsupported legacy action
   wrapper. Show Chinese approval labels and explain one-time permission; preserve exact recipient checks and native decisions.
 
-- Let progressing draft requests finish beyond one minute while retaining a 60-second inactivity limit and a three-minute
-  total limit. Show the two timeout causes separately, preserve usage and failed attempts, and never retry automatically.
+- Let native model adapters judge transport liveness instead of aborting drafts after one minute without content. Keep
+  a ten-minute total deadline and cancellation, record response timing without raw content, and allow each explicitly
+  targeted pre-governance transport recovery while preserving the full failure chain and sealed-test boundaries.
 
 - Allow current negative answer feedback with a note from explicitly authorized native Sessions to enter the existing
   isolated draft and trial pipeline without an extra classifier call. Share budgets, preserve edits/deletions and
