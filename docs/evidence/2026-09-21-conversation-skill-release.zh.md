@@ -22,7 +22,7 @@
 支持检出仍为 `0d1f50007f9bca3f52b06e1c3074fa14d5fb0720` / DSH `0.1.6-alpha.1`，没有改动核心，
 不是最新 alpha.2 支持声明。支持检出的 `pnpm install --frozen-lockfile --ignore-scripts` 与官方 `pnpm run build` 均通过。
 Host/Web 动作不调用模型；模型可见变化仅为用户确认后新 Session 的原生 Skill 目录/按需正文。
-不修改当前凭据、权限、反馈、来源会话、付费策略或旧实验，不增加模型请求。
+不修改当前凭据、权限、反馈、来源会话、付费策略或旧实验。重启触发的现有授权识别调用单独列在部署结果中。
 
 ## 执行过的验证
 
@@ -40,6 +40,7 @@ Host/Web 动作不调用模型；模型可见变化仅为用户确认后新 Sess
   展示正文不执行 HTML；回滚后的第二次确认携带新序号，不误调旧 Candidate 晋升接口。
 - Host/Web 测试 TypeScript 检查、官方 `generate:typert`、两个包 build、`check:docs`、`check:ci`、`check:suites`
   （15 项）与 `git diff --check` 通过。
+- `test/package-declarations-contract.test.ts test/config-contract.test.ts`：2 文件 8 项通过。
 - `DSH_EVOLVE_DSH_SOURCE_DIR=… pnpm --filter dsh-software-delivery exec vitest run test/clean-profile-suite.e2e.test.ts --maxWorkers 1`：
   首轮 1 通过/1 失败；安装遇 npm ECONNRESET 并超过命令时限，未进入启动门禁。确认 pnpm 11 不读取该测试原有
   `npm_config_store_dir`，随后仅在运行命令指定 `pnpm_config_store_dir` / `pnpm_config_cache_dir` 为本地现有缓存，
@@ -48,5 +49,20 @@ Host/Web 动作不调用模型；模型可见变化仅为用户确认后新 Sess
 
 ## 本机部署
 
-两个 exact tarball 已生成并保存在本机持久内容地址，尚未在本段记录生产切换成功。
-生产验收必须另外核对唯一 Host、原生历史前缀、私有账本、策略与实际 Web；安装测试不代替这些结果。
+源码 `215fb68` 已推送到 origin/main。唯一生产 Host 从 PID6884 切换为 PID22180，继续使用原 alpha.1 核心、
+原 web profile、127.0.0.1:3000；只替换 dsh-evolve / dsh-evolve-web 两项依赖。
+两包安装后的代码与测试构建逐字节一致，profile 其余字段及策略文件不变。
+持久包组 hash 为 `08e9c2d5c40f5184f32f5416ede50bce416a790ea55ec555879af133b4bee000`；
+Host tarball SHA256 `b17f0bec48701847a46e03e2af8f807648f3a4547926a0695ce69a0507616883`，
+Web tarball SHA256 `d0bc1079dd14fe87917189c55bec53ba0917cd216b4fff66f2780f6c5997e2e1`。
+旧包保留在本机持久目录；重启前另备份 profile、原生会话和11份插件账本，不将私有内容放入本证据。
+
+实际浏览器整页刷新后：原会话仍32轮66步/完全权限，控制台显示“改进尚未验证”、0启用，以及两份历史实验的
+“尚不能启用／需完成独立语义评测”。宽表的原有能力0/4、草稿0/4、实际加载2/4、10请求及9357/1567 token未变。
+真实页面验证了不可启用状态；当前没有合格真实实验，因此生产上的正向启用/回滚按钮操作尚未验收，不能冒充已通过。
+渠道同页显示飞书连接正常、1个原授权、入站26/出站31/待处理0；本次没有发新飞书消息，不当作新真实渠道效果验收。
+
+33个原生压缩会话文件与重启前逐字节相同。11份插件账本中10份字节相同（包括草稿、实验、版本和两份外发账本）。
+唯一变化为纠正识别账本：原7条全部不变，按既有 replaySessionIds 和当日4次策略新增原会话31/32轮的两次识别，
+均 classified/changed-requirement，合计输入586、输出222 token，费用未知。它们此前因日预算未被处理；没有重试旧根记录，
+没有新草稿、评测、启用、消息或工具副作用。页面回到0识别中，不把这两次请求写成“零模型调用”。
