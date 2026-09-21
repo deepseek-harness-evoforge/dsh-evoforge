@@ -1,4 +1,4 @@
-import { chmod, mkdtemp, readdir, rm } from 'node:fs/promises'
+import { chmod, mkdtemp, readFile, readdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -7,9 +7,9 @@ import { describe, expect, it, vi } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import type { GenerateOptions, StreamChunk } from '@deepseek-ai/dsh-llm'
 import { openCorrectionLedger } from '../src/conversation-correction-intake.ts'
-import { openConversationDraftStore, type ConversationLearningPolicy } from '../src/conversation-skill-draft.ts'
+import { openConversationDraftStore, type ConversationDraftRecord, type ConversationLearningPolicy } from '../src/conversation-skill-draft.ts'
 import { installConversationSkillDraftMonitor } from '../src/conversation-skill-draft-monitor.ts'
-import { openConversationDraftTrialStore } from '../src/conversation-draft-trial-store.ts'
+import { openConversationDraftTrialStore, type ConversationDraftTrialRecord } from '../src/conversation-draft-trial-store.ts'
 import { installConversationDraftTrialMonitor } from '../src/conversation-draft-trial-monitor.ts'
 import { DurableFeedbackAttribution } from '../src/durable-feedback-attribution.ts'
 import { WORKSPACE_ID } from './workspace-fixture.ts'
@@ -22,7 +22,7 @@ import { installGenerationBinder } from '../src/generation-binder.ts'
 const dshRoot = process.env.DSH_EVOLVE_DSH_SOURCE_DIR
 
 describe.skipIf(dshRoot === undefined)('native feedback-to-draft path', () => {
-  it.each(['live', 'cold', 'withdraw-during-author', 'withdraw-before-trial', 'owned-evaluation', 'ownership-unavailable', 'staged', 'staged-recovery', 'file', 'file-release',
+  it.each(['live', 'cold', 'withdraw-during-author', 'withdraw-before-trial', 'owned-evaluation', 'ownership-unavailable', 'staged', 'staged-recovery', 'file', 'file-release', 'file-plugin',
     ...(process.env.DSH_EVOLVE_SLOW_STREAM_TEST === '1' ? ['slow-governance'] : []),
   ])('handles %s feedback using native ownership, one shared budget and no classifier', async scenario => {
     const root = await mkdtemp(join(tmpdir(), 'evoforge-message-feedback-'))
@@ -34,6 +34,11 @@ describe.skipIf(dshRoot === undefined)('native feedback-to-draft path', () => {
     const staged = scenario.startsWith('staged')
     const file = scenario.startsWith('file')
     const release = scenario === 'file-release'
+    const production = scenario === 'file-plugin'
+    const stored = async <T,>(name: string): Promise<T[]> => {
+      const data = JSON.parse(await readFile(join(root, 'storage', `${name}.json`), 'utf8')) as { tables: { records: Record<string, T> } }
+      return Object.values(data.tables.records)
+    }
     let stagedFailure = scenario === 'staged-recovery'
     const draftCalls = file ? 1 : staged ? 9 + Number(stagedFailure) : 2
     const governance = { scope: 'Private native feedback protocol fixture, not evidence of task improvement.',
@@ -90,8 +95,8 @@ describe.skipIf(dshRoot === undefined)('native feedback-to-draft path', () => {
         } else if (String(options.sessionId).startsWith('evoforge-trial-') || String(options.sessionId).startsWith('future-file-')) {
           const catalog = JSON.stringify(options.messages).includes('preserve-conflicts')
           if (file && String(options.sessionId).startsWith('evoforge-trial-')) {
-            const source = drafts!.records(WORKSPACE_ID).at(-1)!
-            const plan = trials!.records(WORKSPACE_ID)[0]!
+            const source = production ? (await stored<ConversationDraftRecord>('evoforge_conversation_skill_drafts')).at(-1)! : drafts!.records(WORKSPACE_ID).at(-1)!
+            const plan = production ? (await stored<ConversationDraftTrialRecord>('evoforge_conversation_draft_trials'))[0]! : trials!.records(WORKSPACE_ID)[0]!
             const leg = plan.legs.find(leg => leg.sessionId === options.sessionId)!
             const test = source.fileWorkflow!.cases.find(test => test.id === leg.caseId)!
             const folder = `.evoforge/workflow-trials/${plan.id}/${leg.index}`
@@ -150,7 +155,7 @@ describe.skipIf(dshRoot === undefined)('native feedback-to-draft path', () => {
     }
     const boot = async (): Promise<Context> => {
       const context = new cordis.Context()
-      Object.defineProperty(context, 'workspaceRegistry', { configurable: true, value: { resolveByPath: async () => ({ id: WORKSPACE_ID }) } })
+      context.provide('workspaceRegistry', { resolveByPath: async () => ({ id: WORKSPACE_ID }) })
       await context.plugin((await import(entry('packages/storage/storage'))).default)
       await context.plugin(await import(entry('packages/storage/storage-json')), { root: join(root, 'storage') })
       await context.plugin(await import(entry('packages/storage/storage-domain')), { backend: 'json' })
@@ -166,8 +171,8 @@ describe.skipIf(dshRoot === undefined)('native feedback-to-draft path', () => {
       await context.plugin((await import(entry('packages/skill/skill'))).default)
       await context.plugin((await import(entry('packages/core/agent-loop'))).default, { agents: [] })
       if (file) {
-        await context.plugin((await import(entry('packages/fs/fs-local'))).default)
         await context.plugin((await import(entry('packages/sandbox/sandbox-policy'))).default, { mode: 'workspace-write' })
+        await context.plugin((await import(entry(production ? 'packages/fs/fs-sandbox' : 'packages/fs/fs-local'))).default)
       }
       context.llm.registerAdapter(['fixture'], new FixtureAdapter())
       return context
@@ -201,6 +206,24 @@ describe.skipIf(dshRoot === undefined)('native feedback-to-draft path', () => {
       session.append('turn/end', { turn: 1, reason: { kind: 'completed' } })
       await ctx.sessions.flush(session)
       const original = JSON.stringify(session.snapshotEvents())
+      if (production) {
+        // Exercise the actual Cordis consumer, not only monitors installed on a
+        // root Context (which bypasses declared-dependency enforcement).
+        await ctx.plugin(await import('../src/index.ts'), { conversationLearningPolicies: policy,
+          conversationDraftTrialPolicies: [{ workspaceId: WORKSPACE_ID, maxModelCallsPerUtcDay: 1000 }] })
+        expect((await ctx.messageFeedback.put({ sessionId, messageId: message.id, rating: 'negative',
+          note: '你把尚未确认的数量当成已确认了。请保留6和7两个候选，不要自行选择。', ifVersion: null })).ok).toBe(true)
+        await vi.waitFor(async () => {
+          const records = await stored<ConversationDraftTrialRecord>('evoforge_conversation_draft_trials')
+          expect(records[0]?.phase).toBe('completed')
+        }, { timeout: 10_000 })
+        const record = (await stored<ConversationDraftTrialRecord>('evoforge_conversation_draft_trials'))[0]!
+        expect(record.comparison).toMatchObject({ outcome: 'no-improvement', baselinePassed: 4, draftPassed: 4, comparablePairs: 4 })
+        expect(record.legs.every(leg => leg.result?.fileResult?.deliveryPassed)).toBe(true)
+        expect(calls).toHaveLength(47)
+        expect(await ctx.skills.list()).toEqual([])
+        return
+      }
       if (scenario === 'cold') {
         await writer.close(); writer = undefined
         await ctx.fiber.dispose()

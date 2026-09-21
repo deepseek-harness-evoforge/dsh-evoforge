@@ -1481,7 +1481,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   }
   if (conversationDraftTrialPolicies.length > 0) {
     const feedbackDependencies = conversationLearningPolicies.some(policy => (policy.explicitFeedbackSessionIds?.length ?? 0) > 0) ? ['messageFeedback'] : []
-    ctx.inject(['sessionPersistence', 'llm', 'jobs', 'skills', 'tools', ...feedbackDependencies], trialCtx => {
+    const fileDependencies = conversationLearningPolicies.some(policy => policy.testPreparation === 'file-records-v1')
+      || conversationDraftTrialPolicies.some(policy => conversationSkillDrafts.records(policy.workspaceId).some(record => record.fileWorkflow !== undefined)) ? ['fs'] : []
+    ctx.inject(['sessionPersistence', 'llm', 'jobs', 'skills', 'tools', ...feedbackDependencies, ...fileDependencies], trialCtx => {
       trialCtx.effect(() => {
         const monitor = installConversationDraftTrialMonitor(trialCtx, conversationCorrections, conversationSkillDrafts,
           conversationDraftTrials, conversationDraftTrialPolicies, store)

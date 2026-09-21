@@ -54,3 +54,30 @@
 ## 实际运行
 
 预注册提交时尚未开始。后续仅追加原始结果，不覆盖本节以上的任务、期望或门槛。
+
+### 首次部署与计算更正
+
+代码 `002b3f3` 已提交推送并通过官方 add/dump；仅替换 Host/Web 两个包。112项相关测试、49项Web测试、
+整组12包的两个clean-profile生命周期用例通过。原进程退出后启动同一 profile 的唯一 Host，旧历史保留。
+
+真实提出者成功：记录 `3774035d821f956b244e72da0a37480dd93b0ae26996ace6cd65d807e2ce391f`，
+一次原生请求，26397ms（首片段10322ms），输入839/输出651token。形成未启用草稿；这不是改善证据。
+首次文件计划 `4b3f6dc2b15f86a3e71a619bbb66ed757e9d5f0d6c5da3b09ce94f2ab6372ffc` 为
+`uncertain/execution-failed`：首分支初始化失败，全部dispatch marker为0，没有评测结果。96槽预留保留，不当成实际消费。
+
+预注册计算命令有错误：直接以sourceDigest调用buildFileWorkflow，漏掉代码中已固定的
+`digest({kind: 'file-workflow-seal-v1', sourceDigest, recipe: FILE_WORKFLOW_RECIPE_HASH})`。
+上方计划hash和h1/h2期望hash因此不匹配实际封存计划；不能声称那几个数值是该运行的准确预注册。
+这不是根据评测结果换题：提交中算法从未改变，实际计划在提出者前已封存，且此时尚无任何评测模型请求。
+保留上方原文，并记录按**原提交算法**复算、与持久记录完全匹配的身份：
+
+- seed：`bbee38398c36aa7509942aaecc721ec039896efc7650d598850a6c3903985c7c`。
+- 完整计划hash：`c4e8084fa5474c79d997b6642fc2e3ad8f628a36885c80e26c2720de5f9baf43`。
+- h1期望hash：`051bf3eab76271158b6ccffc6d680cb234354d24366a0c84b96748552b56fe2d`。
+- h2期望hash：`abc8d71fc8d9b2e462059557b5d923a253a91183e4c7758c1b1da73139f91b72`。
+- r1/r2、来源及协议hash与上方一致。后续必须沿用这一份已封存计划、同一草稿，不重新起草或重抽材料。
+
+启动问题的受控复现改为装载**真实 dsh-evolve 插件**，不再直接在根 Context 上安装 monitor。
+原代码得到同样的 `uncertain`；原生 Cordis 在插件上下文中拒绝未声明的 `fs` 访问，而根 Context 测试没有此限制。
+补充文件协议的 `fs` 依赖后同一用例通过；保留原生 sandbox 文件提供者，不以全局可写 provider 绕过。
+此修复不修改草稿、输入、期望、执行顺序、请求预算或评分算法。初始失败无发送/结果，才可按既有精确初始化恢复合同继续。
