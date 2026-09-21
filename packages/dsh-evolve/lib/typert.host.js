@@ -43,6 +43,48 @@ const dsh_evolve_evoforgeEvolution_approveReview_result$schema = () => (dsh_evol
   'rollbackAuthority': z.union([z.undefined(), z.literal("explicit-human"), z.literal("counterfactual-canary"), z.literal("existing-skill-counterfactual-canary")]).readonly().optional(),
   'canaryId': z.union([z.undefined(), z.string()]).readonly().optional(),
 }))
+let dsh_evolve_evoforgeEvolution_disableConversationSkill_parameter_0$schema$value
+const dsh_evolve_evoforgeEvolution_disableConversationSkill_parameter_0$schema = () => (dsh_evolve_evoforgeEvolution_disableConversationSkill_parameter_0$schema$value ??= z.string())
+let dsh_evolve_evoforgeEvolution_disableConversationSkill_parameter_1$schema$value
+const dsh_evolve_evoforgeEvolution_disableConversationSkill_parameter_1$schema = () => (dsh_evolve_evoforgeEvolution_disableConversationSkill_parameter_1$schema$value ??= z.string())
+let dsh_evolve_evoforgeEvolution_disableConversationSkill_result$schema$value
+const dsh_evolve_evoforgeEvolution_disableConversationSkill_result$schema = () => (dsh_evolve_evoforgeEvolution_disableConversationSkill_result$schema$value ??= z.object({
+  'schemaVersion': z.literal(1).readonly(),
+  'workspaceId': z.string().readonly(),
+  'action': z.union([z.literal("rollback"), z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback-existing-skill")]).readonly(),
+  'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'candidateId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'status': z.union([z.undefined(), z.literal("approved"), z.literal("rejected")]).readonly().optional(),
+  'generationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'previousGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'activeGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'recoveryPaused': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
+  'rollbackAuthority': z.union([z.undefined(), z.literal("explicit-human"), z.literal("counterfactual-canary"), z.literal("existing-skill-counterfactual-canary")]).readonly().optional(),
+  'canaryId': z.union([z.undefined(), z.string()]).readonly().optional(),
+}))
+let dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_0$schema$value
+const dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_0$schema = () => (dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_0$schema$value ??= z.string())
+let dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_1$schema$value
+const dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_1$schema = () => (dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_1$schema$value ??= z.string())
+let dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_2$schema$value
+const dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_2$schema = () => (dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_2$schema$value ??= z.string())
+let dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_3$schema$value
+const dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_3$schema = () => (dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_3$schema$value ??= z.number())
+let dsh_evolve_evoforgeEvolution_enableConversationSkill_result$schema$value
+const dsh_evolve_evoforgeEvolution_enableConversationSkill_result$schema = () => (dsh_evolve_evoforgeEvolution_enableConversationSkill_result$schema$value ??= z.object({
+  'schemaVersion': z.literal(1).readonly(),
+  'workspaceId': z.string().readonly(),
+  'action': z.union([z.literal("rollback"), z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback-existing-skill")]).readonly(),
+  'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'candidateId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'status': z.union([z.undefined(), z.literal("approved"), z.literal("rejected")]).readonly().optional(),
+  'generationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'previousGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'activeGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'recoveryPaused': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
+  'rollbackAuthority': z.union([z.undefined(), z.literal("explicit-human"), z.literal("counterfactual-canary"), z.literal("existing-skill-counterfactual-canary")]).readonly().optional(),
+  'canaryId': z.union([z.undefined(), z.string()]).readonly().optional(),
+}))
 let dsh_evolve_evoforgeEvolution_overview_parameter_0$schema$value
 const dsh_evolve_evoforgeEvolution_overview_parameter_0$schema = () => (dsh_evolve_evoforgeEvolution_overview_parameter_0$schema$value ??= z.string())
 let dsh_evolve_evoforgeEvolution_overview_parameter_1$schema$value
@@ -100,6 +142,11 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = () => (dsh_evolve_ev
   'activeGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'evidence': z.union([z.object({
   'authority': z.literal("direct-host").readonly(),
+}), z.object({
+  'authority': z.literal("conversation-independent-review").readonly(),
+  'trialId': z.string().readonly(),
+  'draftId': z.string().readonly(),
+  'expectedSelectionSequence': z.number().readonly(),
 }), z.object({
   'authority': z.literal("internal-retention").readonly(),
   'reviewId': z.string().readonly(),
@@ -1647,6 +1694,20 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = () => (dsh_evolve_ev
 })).readonly(),
   'releaseAuthority': z.literal("none").readonly(),
 })]).readonly().optional(),
+  'conversationSkillReleases': z.union([z.undefined(), z.array(z.object({
+  'trialId': z.string().readonly(),
+  'status': z.union([z.literal("eligible"), z.literal("blocked"), z.literal("active")]).readonly(),
+  'reason': z.union([z.undefined(), z.literal("trial-not-found"), z.literal("policy-unavailable"), z.literal("draft-changed"), z.literal("independent-evaluation-required"), z.literal("baseline-unsealed"), z.literal("baseline-changed"), z.literal("improvement-not-proven"), z.literal("retention-not-proven"), z.literal("source-unavailable"), z.literal("skill-name-conflict"), z.literal("runtime-unavailable")]).readonly().optional(),
+  'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'contentHash': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'selectionSequence': z.union([z.undefined(), z.number()]).readonly().optional(),
+  'generationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'rollbackAvailable': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
+  'skill': z.union([z.undefined(), z.object({
+  'name': z.string().readonly(),
+  'markdown': z.string().readonly(),
+})]).readonly().optional(),
+}))]).readonly().optional(),
   'reviews': z.object({
   'available': z.boolean().readonly(),
   'pendingCount': z.number().readonly(),
@@ -2043,6 +2104,96 @@ export const TYPERT = {
       sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":46,"column":3},
     },
     {
+      id: 'dsh-evolve#evoforgeEvolution/disableConversationSkill',
+      service: 'evoforge.evolutionControl',
+      namespace: 'evoforgeEvolution',
+      method: 'disableConversationSkill',
+      invocation: { kind: 'direct' },
+      parameters: [
+        {
+          name: 'workspaceId',
+          wire: 'workspaceId',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/disableConversationSkill:workspaceId',
+            create: dsh_evolve_evoforgeEvolution_disableConversationSkill_parameter_0$schema,
+          },
+        },
+        {
+          name: 'generationId',
+          wire: 'generationId',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/disableConversationSkill:generationId',
+            create: dsh_evolve_evoforgeEvolution_disableConversationSkill_parameter_1$schema,
+          },
+        },
+      ],
+      result: {
+        mode: 'strict',
+        typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
+        create: dsh_evolve_evoforgeEvolution_disableConversationSkill_result$schema,
+      },
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":116,"column":3},
+    },
+    {
+      id: 'dsh-evolve#evoforgeEvolution/enableConversationSkill',
+      service: 'evoforge.evolutionControl',
+      namespace: 'evoforgeEvolution',
+      method: 'enableConversationSkill',
+      invocation: { kind: 'direct' },
+      parameters: [
+        {
+          name: 'workspaceId',
+          wire: 'workspaceId',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/enableConversationSkill:workspaceId',
+            create: dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_0$schema,
+          },
+        },
+        {
+          name: 'trialId',
+          wire: 'trialId',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/enableConversationSkill:trialId',
+            create: dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_1$schema,
+          },
+        },
+        {
+          name: 'contentHash',
+          wire: 'contentHash',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/enableConversationSkill:contentHash',
+            create: dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_2$schema,
+          },
+        },
+        {
+          name: 'selectionSequence',
+          wire: 'selectionSequence',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/enableConversationSkill:selectionSequence',
+            create: dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_3$schema,
+          },
+        },
+      ],
+      result: {
+        mode: 'strict',
+        typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
+        create: dsh_evolve_evoforgeEvolution_enableConversationSkill_result$schema,
+      },
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":107,"column":3},
+    },
+    {
       id: 'dsh-evolve#evoforgeEvolution/overview',
       service: 'evoforge.evolutionControl',
       namespace: 'evoforgeEvolution',
@@ -2392,7 +2543,7 @@ export const TYPERT = {
         typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
         create: dsh_evolve_evoforgeEvolution_rollbackExistingSkill_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":107,"column":3},
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":123,"column":3},
     },
   ],
   model: {
@@ -2474,6 +2625,10 @@ export const TYPERT = {
             "declaration": "export interface CapabilityGeneration extends GenerationInput {\n    id: string;\n    schemaVersion: 2;\n}"
           },
           {
+            "name": "ConversationSkillLineage",
+            "declaration": "export type ConversationSkillLineage = z.infer<typeof lineageSchema>;"
+          },
+          {
             "name": "ExistingSkillCandidateLineage",
             "declaration": "export interface ExistingSkillCandidateLineage {\n    readonly kind: 'existing-skill-candidate-lineage-v1';\n    readonly candidateId: string;\n    readonly workspaceId: string;\n    readonly skillName: string;\n    readonly opportunityId: string;\n    readonly qualificationId: string;\n    readonly baselineId: string;\n    readonly baselineArtifactDigest: string;\n    readonly baselineTreeHash: string;\n    readonly evaluationEvidenceId: string;\n    readonly policyId: string;\n    readonly versionKind: 'existing-skill-improvement-bundle-v1';\n    readonly contentHash: string;\n    readonly candidateTreeHash: string;\n    readonly admissionId: string;\n    readonly evaluationEnvelopeId: string;\n    readonly holdoutEvaluationId: string;\n    readonly holdoutCasePackHash: string;\n    readonly retentionEvaluationId: string;\n    readonly retentionCasePackHash: string;\n    readonly releaseAuthority: 'none';\n}"
           },
@@ -2487,7 +2642,7 @@ export const TYPERT = {
           },
           {
             "name": "GenerationSelectionEvidence",
-            "declaration": "export type GenerationSelectionEvidence = { readonly authority: 'direct-host'; } | { readonly authority: 'internal-retention'; readonly reviewId: string; readonly retentionId: string; } | { readonly authority: 'existing-skill-release'; readonly candidateId: string; readonly releaseDecisionId: string; } | { readonly authority: 'explicit-human'; } | { readonly authority: 'counterfactual-canary'; readonly canaryId: string; } | { readonly authority: 'existing-skill-counterfactual-canary'; readonly canaryId: string; };"
+            "declaration": "export type GenerationSelectionEvidence = { readonly authority: 'direct-host'; } | { readonly authority: 'conversation-independent-review'; readonly trialId: string; readonly draftId: string; readonly expectedSelectionSequence: number; } | { readonly authority: 'internal-retention'; readonly reviewId: string; readonly retentionId: string; } | { readonly authority: 'existing-skill-release'; readonly candidateId: string; readonly releaseDecisionId: string; } | { readonly authority: 'explicit-human'; } | { readonly authority: 'counterfactual-canary'; readonly canaryId: string; } | { readonly authority: 'existing-skill-counterfactual-canary'; readonly canaryId: string; };"
           },
           {
             "name": "GitSkillGenerationArtifact",
@@ -2503,7 +2658,7 @@ export const TYPERT = {
           },
           {
             "name": "SkillBundleGenerationArtifact",
-            "declaration": "export interface SkillBundleGenerationArtifact {\n    kind: 'skill-bundle';\n    name: string;\n    artifactDigest: string;\n    treeHash: string;\n    contentBase64: string;\n    lineage: SkillCandidateLineage | ExistingSkillCandidateLineage;\n}"
+            "declaration": "export interface SkillBundleGenerationArtifact {\n    kind: 'skill-bundle';\n    name: string;\n    artifactDigest: string;\n    treeHash: string;\n    contentBase64: string;\n    lineage: SkillCandidateLineage | ExistingSkillCandidateLineage | ConversationSkillLineage;\n}"
           },
           {
             "name": "SkillCandidateLineage",
@@ -2579,6 +2734,16 @@ export const TYPERT = {
           },
           {
             "kind": "method",
+            "name": "enableConversationSkill",
+            "signature": "enableConversationSkill(workspaceId: string, trialId: string, contentHash: string, selectionSequence: number): Promise<EvolutionActionReceipt>"
+          },
+          {
+            "kind": "method",
+            "name": "disableConversationSkill",
+            "signature": "disableConversationSkill(workspaceId: string, generationId: string): Promise<EvolutionActionReceipt>"
+          },
+          {
+            "kind": "method",
             "name": "rollback",
             "signature": "rollback(workspaceId: string, canaryId?: string): Promise<EvolutionActionReceipt>"
           },
@@ -2608,6 +2773,14 @@ export const TYPERT = {
           {
             "name": "ConversationSkillDraftSummary",
             "declaration": "export interface ConversationSkillDraftSummary {\n    readonly enabled: boolean;\n    readonly observerAvailable: boolean;\n    readonly draftCount: number;\n    readonly pendingCount: number;\n    readonly uncertainCount: number;\n    readonly reservedModelCallsToday: number;\n    readonly maxModelCallsPerUtcDay: number;\n    readonly inputTokens: number;\n    readonly outputTokens: number;\n    readonly usageMissingCount: number;\n    readonly warningCount: number;\n    readonly failures?: readonly { readonly reason: string; readonly count: number; }[];\n    readonly retryCount?: number;\n    readonly items: readonly { readonly id: string; readonly name: string; readonly description: string; readonly markdown: string; readonly contentHash: string; readonly proposedTestCount: number; }[];\n    readonly releaseAuthority: 'none';\n}"
+          },
+          {
+            "name": "ConversationSkillReleaseEligibility",
+            "declaration": "export interface ConversationSkillReleaseEligibility {\n    readonly trialId: string;\n    readonly status: 'eligible' | 'blocked' | 'active';\n    readonly reason?: ConversationSkillReleaseReason;\n    readonly draftId?: string;\n    readonly contentHash?: string;\n    readonly selectionSequence?: number;\n    readonly generationId?: string;\n    readonly rollbackAvailable?: boolean;\n    readonly skill?: { readonly name: string; readonly markdown: string; };\n}"
+          },
+          {
+            "name": "ConversationSkillReleaseReason",
+            "declaration": "export type ConversationSkillReleaseReason = 'trial-not-found' | 'policy-unavailable' | 'draft-changed' | 'independent-evaluation-required' | 'baseline-unsealed' | 'baseline-changed' | 'improvement-not-proven' | 'retention-not-proven' | 'source-unavailable' | 'skill-name-conflict' | 'runtime-unavailable';"
           },
           {
             "name": "DeliveryOutcomeCounts",
@@ -2727,7 +2900,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionGenerationSelectionEvidenceView",
-            "declaration": "export type EvolutionGenerationSelectionEvidenceView = { readonly authority: 'direct-host'; } | { readonly authority: 'internal-retention'; readonly reviewId: string; readonly retentionId: string; } | { readonly authority: 'existing-skill-release'; readonly candidateId: string; readonly releaseDecisionId: string; } | { readonly authority: 'explicit-human'; } | { readonly authority: 'counterfactual-canary'; readonly canaryId: string; } | { readonly authority: 'existing-skill-counterfactual-canary'; readonly canaryId: string; };"
+            "declaration": "export type EvolutionGenerationSelectionEvidenceView = { readonly authority: 'direct-host'; } | { readonly authority: 'conversation-independent-review'; readonly trialId: string; readonly draftId: string; readonly expectedSelectionSequence: number; } | { readonly authority: 'internal-retention'; readonly reviewId: string; readonly retentionId: string; } | { readonly authority: 'existing-skill-release'; readonly candidateId: string; readonly releaseDecisionId: string; } | { readonly authority: 'explicit-human'; } | { readonly authority: 'counterfactual-canary'; readonly canaryId: string; } | { readonly authority: 'existing-skill-counterfactual-canary'; readonly canaryId: string; };"
           },
           {
             "name": "EvolutionGenerationSelectionHistoryView",
@@ -2763,7 +2936,7 @@ export const TYPERT = {
           },
           {
             "name": "EvolutionOverview",
-            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly workspaceId: string;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly generationSelectionHistory: EvolutionGenerationSelectionHistoryView;\n    readonly longTermEffects?: EvolutionLongTermEffectsView;\n    readonly capabilityMap?: EvolutionCapabilityMapView;\n    readonly capabilityGaps?: EvolutionCapabilityGapQueueView;\n    readonly skillOpportunities?: EvolutionSkillOpportunityQueueView;\n    readonly skillImprovementOpportunities?: EvolutionSkillImprovementOpportunityQueueView;\n    readonly skillCandidates?: EvolutionSkillCandidateQueueView;\n    readonly existingSkillCandidates?: EvolutionExistingSkillCandidateQueueView;\n    readonly existingSkillAuthoring?: EvolutionExistingSkillAuthoringView;\n    readonly existingSkillHoldoutGovernance?: EvolutionExistingSkillHoldoutGovernanceView;\n    readonly existingSkillAdmission?: EvolutionExistingSkillAdmissionView;\n    readonly existingSkillHoldoutEvaluation?: EvolutionExistingSkillHoldoutEvaluationView;\n    readonly existingSkillRetentionEvaluation?: EvolutionExistingSkillRetentionEvaluationView;\n    readonly existingSkillRelease?: EvolutionExistingSkillReleaseView;\n    readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView;\n    readonly skillEvaluationGovernance?: EvolutionSkillEvaluationGovernanceView;\n    readonly skillAdmission?: EvolutionSkillAdmissionView;\n    readonly skillEvaluationRuns?: EvolutionSkillEvaluationRunsView;\n    readonly counterfactualCanary?: EvolutionCounterfactualCanaryView;\n    readonly existingSkillCounterfactualCanary?: EvolutionExistingSkillCounterfactualCanaryView;\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; readonly baseline?: DeliveryOutcomeCounts; readonly metrics: { readonly all: EvolutionDeliveryMetricRollupView; readonly selected: EvolutionDeliveryMetricRollupView; readonly baseline?: EvolutionDeliveryMetricRollupView; readonly recent: readonly EvolutionDeliveryMetricEvidenceView[]; }; };\n    readonly skillReuse?: { readonly all: EvolutionSkillReuseCountsView; readonly selected: EvolutionSkillReuseCountsView; readonly baseline?: EvolutionSkillReuseCountsView; readonly items: readonly EvolutionSkillReuseEvidenceView[]; };\n    readonly skillOutcomeContext?: { readonly all: EvolutionExactSkillOutcomeContextRollupView; readonly selected: EvolutionExactSkillOutcomeContextRollupView; readonly baseline?: EvolutionExactSkillOutcomeContextRollupView; readonly items: readonly EvolutionExactSkillOutcomeContextEvidenceView[]; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly conversationCorrections?: ConversationCorrectionSummary;\n    readonly conversationSkillDrafts?: ConversationSkillDraftSummary;\n    readonly conversationDraftTrials?: ConversationDraftTrialSummary;\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
+            "declaration": "export interface EvolutionOverview {\n    readonly schemaVersion: 1;\n    readonly workspaceId: string;\n    readonly active?: EvolutionGenerationView;\n    readonly recovery: { readonly available: boolean; readonly paused?: boolean; };\n    readonly generationSelectionHistory: EvolutionGenerationSelectionHistoryView;\n    readonly longTermEffects?: EvolutionLongTermEffectsView;\n    readonly capabilityMap?: EvolutionCapabilityMapView;\n    readonly capabilityGaps?: EvolutionCapabilityGapQueueView;\n    readonly skillOpportunities?: EvolutionSkillOpportunityQueueView;\n    readonly skillImprovementOpportunities?: EvolutionSkillImprovementOpportunityQueueView;\n    readonly skillCandidates?: EvolutionSkillCandidateQueueView;\n    readonly existingSkillCandidates?: EvolutionExistingSkillCandidateQueueView;\n    readonly existingSkillAuthoring?: EvolutionExistingSkillAuthoringView;\n    readonly existingSkillHoldoutGovernance?: EvolutionExistingSkillHoldoutGovernanceView;\n    readonly existingSkillAdmission?: EvolutionExistingSkillAdmissionView;\n    readonly existingSkillHoldoutEvaluation?: EvolutionExistingSkillHoldoutEvaluationView;\n    readonly existingSkillRetentionEvaluation?: EvolutionExistingSkillRetentionEvaluationView;\n    readonly existingSkillRelease?: EvolutionExistingSkillReleaseView;\n    readonly slowLoopAuthoring?: EvolutionSlowLoopAuthoringView;\n    readonly skillEvaluationGovernance?: EvolutionSkillEvaluationGovernanceView;\n    readonly skillAdmission?: EvolutionSkillAdmissionView;\n    readonly skillEvaluationRuns?: EvolutionSkillEvaluationRunsView;\n    readonly counterfactualCanary?: EvolutionCounterfactualCanaryView;\n    readonly existingSkillCounterfactualCanary?: EvolutionExistingSkillCounterfactualCanaryView;\n    readonly deliveryOutcomes?: { readonly all: DeliveryOutcomeCounts; readonly selected: DeliveryOutcomeCounts; readonly baseline?: DeliveryOutcomeCounts; readonly metrics: { readonly all: EvolutionDeliveryMetricRollupView; readonly selected: EvolutionDeliveryMetricRollupView; readonly baseline?: EvolutionDeliveryMetricRollupView; readonly recent: readonly EvolutionDeliveryMetricEvidenceView[]; }; };\n    readonly skillReuse?: { readonly all: EvolutionSkillReuseCountsView; readonly selected: EvolutionSkillReuseCountsView; readonly baseline?: EvolutionSkillReuseCountsView; readonly items: readonly EvolutionSkillReuseEvidenceView[]; };\n    readonly skillOutcomeContext?: { readonly all: EvolutionExactSkillOutcomeContextRollupView; readonly selected: EvolutionExactSkillOutcomeContextRollupView; readonly baseline?: EvolutionExactSkillOutcomeContextRollupView; readonly items: readonly EvolutionExactSkillOutcomeContextEvidenceView[]; };\n    readonly feedbackSignals?: { readonly all: number; readonly selected: number; };\n    readonly conversationCorrections?: ConversationCorrectionSummary;\n    readonly conversationSkillDrafts?: ConversationSkillDraftSummary;\n    readonly conversationDraftTrials?: ConversationDraftTrialSummary;\n    readonly conversationSkillReleases?: readonly ConversationSkillReleaseEligibility[];\n    readonly reviews: { readonly available: boolean; readonly pendingCount: number; readonly actionableCount: number; readonly warningCount: number; readonly items: readonly EvolutionReviewView[]; readonly inactiveGenerations: readonly EvolutionInactiveGenerationView[]; };\n}"
           },
           {
             "name": "EvolutionProviderUsageView",

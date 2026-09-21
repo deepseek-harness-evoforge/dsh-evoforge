@@ -15,7 +15,9 @@ Skills, Tools, Approvals, Jobs, Workspaces, permissions, and storage.
   code; only the next message after approval enters an existing DSH Session.
 - **Isolated improvement and evaluation:** separately authorize correction inspection, inactive Skill drafts, and limited
   comparisons without changing current capabilities. Candidate management has separate future-Session pinning and rollback
-  mechanisms; the full ordinary-correction-to-activation path and unseen-task gains remain unverified.
+  mechanisms. New trials with independent semantic improvement and retained prior behavior can receive human-confirmed
+  future-Session activation and exact rollback; historical literal checks cannot qualify. This has controlled lifecycle
+  evidence only: real ordinary-correction gains on unseen tasks and full product effectiveness remain unverified.
 - **One control surface:** Gateway, Channels, Evolution, Doctor, and other installed modules share one native DSH Web view.
 - **Optional delivery and continuity:** isolated software delivery, Draft PR support, native Goal cold resume, and a
   user-level resident service are separate add-ons.
@@ -63,7 +65,8 @@ starting another Host. Open or create a native Session before expecting the Sess
 Use DSH normally: chat, attach supported material, or correct a result. There is no separate evolution workflow to start.
 A native Goal is only needed when the user wants DSH's long-running continuation. Paid correction inspection, drafting,
 and comparisons are off by default and require separate administrator budgets. One failure, retry, or model self-score
-cannot rewrite a Skill. Ordinary-correction drafts remain inactive and do not change the current conversation.
+cannot rewrite a Skill. The console distinguishes drafts, comparisons, activation eligibility and future-Session versions;
+confirmed activation does not change the current conversation.
 
 ## Feishu pairing
 

@@ -7,6 +7,10 @@ results live in `docs/evidence/` and Git history; they are intentionally not dup
 
 ### Changed
 
+- Connect independently evaluated ordinary-conversation Skills to the existing future-Session Generation and exact
+  rollback system through explicit human confirmation. Reject literal-only results, changed baselines, withdrawn sources
+  and incomplete improvement/retention evidence; preserve all current Sessions and historical experiments.
+
 - Replace a consumed Feishu approval card with a button-free decision acknowledgement. Keep approval separate from
   task completion; failed card updates never repeat the decision and surface as degraded channel health.
 

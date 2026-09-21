@@ -8,6 +8,7 @@ import type { FeedbackSignalStore } from './feedback-signal-monitor.ts'
 import type { CorrectionLedger } from './conversation-correction-intake.ts'
 import type { ConversationDraftStore } from './conversation-skill-draft.ts'
 import type { ConversationDraftTrialStore } from './conversation-draft-trial-store.ts'
+import type { ConversationSkillRelease } from './conversation-skill-release.ts'
 import type { SkillUseStore } from './skill-use-monitor.ts'
 import type {
   ExactSkillOutcomeContextReader,
@@ -98,6 +99,7 @@ export interface EvolutionControlPlaneModules {
   readonly conversationCorrections?: Pick<CorrectionLedger, 'summarize'>
   readonly conversationSkillDrafts?: Pick<ConversationDraftStore, 'summarize'>
   readonly conversationDraftTrials?: Pick<ConversationDraftTrialStore, 'summarize'>
+  readonly conversationSkillRelease?: Pick<ConversationSkillRelease, 'eligibility' | 'enable' | 'disable'>
   readonly longTermEffects?: Pick<LongTermEffectsReader, 'summarize'>
   readonly capabilities?: {
     readonly snapshot: (workspaceId: string, sessionId?: string) => EvolutionCapabilityMapView
@@ -142,6 +144,10 @@ export class EvolutionControlPlane {
   }
 
   async overview(workspaceId: string, sessionId?: string): Promise<EvolutionOverview> {
+    const conversationTrials = this.modules.conversationDraftTrials?.summarize(workspaceId)
+    const conversationSkillReleases = this.modules.conversationSkillRelease === undefined ? undefined
+      : await Promise.all((conversationTrials?.items ?? []).map(trial =>
+        this.modules.conversationSkillRelease!.eligibility(workspaceId, trial.id)))
     const active = this.modules.store.getActiveGeneration(workspaceId)
     const generationSelectionHistory = projectGenerationSelectionHistory(
       this.modules.store.listGenerationSelectionEvents(workspaceId),
@@ -504,9 +510,8 @@ export class EvolutionControlPlane {
       ...(this.modules.conversationSkillDrafts === undefined
         ? {}
         : { conversationSkillDrafts: this.modules.conversationSkillDrafts.summarize(workspaceId) }),
-      ...(this.modules.conversationDraftTrials === undefined
-        ? {}
-        : { conversationDraftTrials: this.modules.conversationDraftTrials.summarize(workspaceId) }),
+      ...(conversationTrials === undefined ? {} : { conversationDraftTrials: conversationTrials }),
+      ...(conversationSkillReleases === undefined ? {} : { conversationSkillReleases }),
       reviews: scan === undefined
         ? {
             available: false,
@@ -658,6 +663,20 @@ export class EvolutionControlPlane {
       ...(result.previousId === undefined ? {} : { previousGenerationId: result.previousId }),
       activeGenerationId: result.generation.id,
     }
+  }
+
+  async enableConversationSkill(workspaceId: string, trialId: string, contentHash: string, selectionSequence: number): Promise<EvolutionActionReceipt> {
+    if (this.modules.conversationSkillRelease === undefined) throw new Error('conversation Skill release is not configured')
+    const result = await this.modules.conversationSkillRelease.enable(workspaceId, trialId, contentHash, selectionSequence)
+    return { schemaVersion: 1, workspaceId, action: 'promote', activeGenerationId: result.generation.id,
+      ...(result.previousId === undefined ? {} : { previousGenerationId: result.previousId }) }
+  }
+
+  async disableConversationSkill(workspaceId: string, generationId: string): Promise<EvolutionActionReceipt> {
+    if (this.modules.conversationSkillRelease === undefined) throw new Error('conversation Skill release is not configured')
+    const result = await this.modules.conversationSkillRelease.disable(workspaceId, generationId)
+    return { schemaVersion: 1, workspaceId, action: 'rollback', previousGenerationId: result.previousId,
+      rollbackAuthority: 'explicit-human', ...(result.generation === undefined ? {} : { activeGenerationId: result.generation.id }) }
   }
 
   async rollback(workspaceId: string, canaryId?: string): Promise<EvolutionActionReceipt> {

@@ -72,6 +72,14 @@ export class EvolutionRemoteService extends TypertRemoteService {
     return this.control.promote(workspaceId, generationId)
   }
 
+  enableConversationSkill(workspaceId: string, trialId: string, contentHash: string, selectionSequence: number): Promise<EvolutionActionReceipt> {
+    return this.control.enableConversationSkill(workspaceId, trialId, contentHash, selectionSequence)
+  }
+
+  disableConversationSkill(workspaceId: string, generationId: string): Promise<EvolutionActionReceipt> {
+    return this.control.disableConversationSkill(workspaceId, generationId)
+  }
+
   rollback(workspaceId: string, canaryId?: string): Promise<EvolutionActionReceipt> {
     return this.control.rollback(workspaceId, canaryId)
   }
@@ -93,6 +101,8 @@ export const EVOLUTION_REMOTE_METHODS = [
   'rejectExistingSkill',
   'promoteExistingSkill',
   'promote',
+  'enableConversationSkill',
+  'disableConversationSkill',
   'rollback',
   'rollbackExistingSkill',
 ] as const satisfies readonly (keyof EvolutionRemoteService)[]

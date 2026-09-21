@@ -9,6 +9,8 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
   interface TypertRemoteNamespace$65766f666f72676545766f6c7574696f6e {
     approveExistingSkill: (workspaceId: string, candidateId: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     approveReview: (workspaceId: string, id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
+    disableConversationSkill: (workspaceId: string, generationId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
+    enableConversationSkill: (workspaceId: string, trialId: string, contentHash: string, selectionSequence: number) => Promise<RemoteResult<EvolutionActionReceipt>>
     overview: (workspaceId: string, sessionId?: string) => Promise<RemoteResult<EvolutionOverview>>
     pause: (workspaceId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     promote: (workspaceId: string, generationId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
@@ -23,6 +25,8 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
   interface TypertRemoteMap {
     'evoforgeEvolution/approveExistingSkill': (workspaceId: string, candidateId: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     'evoforgeEvolution/approveReview': (workspaceId: string, id: string, note: string) => Promise<RemoteResult<EvolutionActionReceipt>>
+    'evoforgeEvolution/disableConversationSkill': (workspaceId: string, generationId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
+    'evoforgeEvolution/enableConversationSkill': (workspaceId: string, trialId: string, contentHash: string, selectionSequence: number) => Promise<RemoteResult<EvolutionActionReceipt>>
     'evoforgeEvolution/overview': (workspaceId: string, sessionId?: string) => Promise<RemoteResult<EvolutionOverview>>
     'evoforgeEvolution/pause': (workspaceId: string) => Promise<RemoteResult<EvolutionActionReceipt>>
     'evoforgeEvolution/promote': (workspaceId: string, generationId: string) => Promise<RemoteResult<EvolutionActionReceipt>>

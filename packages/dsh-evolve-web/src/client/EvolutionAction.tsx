@@ -54,6 +54,8 @@ type ConfirmAction =
   | 'promote'
   | 'rollback'
   | 'rollback-existing-skill'
+  | 'enable-conversation-skill'
+  | 'disable-conversation-skill'
 type EvolutionView = 'overview' | 'skills' | 'advanced'
 
 /** Evolution adapter rendered inside the native EvoForge Control Center. */
@@ -71,6 +73,8 @@ export function EvolutionSurface({ remote, t, sessionId, useWorkspaces, ui: UI, 
   const [promotionTarget, setPromotionTarget] = useState<string>()
   const [rollbackCanaryId, setRollbackCanaryId] = useState<string>()
   const [existingSkillRollbackCanaryId, setExistingSkillRollbackCanaryId] = useState<string>()
+  const [conversationTarget, setConversationTarget] = useState<{ trialId: string; contentHash: string; selectionSequence: number }>()
+  const [conversationRollbackTarget, setConversationRollbackTarget] = useState<string>()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   const [notice, setNotice] = useState<string>()
@@ -90,6 +94,8 @@ export function EvolutionSurface({ remote, t, sessionId, useWorkspaces, ui: UI, 
     setPromotionTarget(undefined)
     setRollbackCanaryId(undefined)
     setExistingSkillRollbackCanaryId(undefined)
+    setConversationTarget(undefined)
+    setConversationRollbackTarget(undefined)
     setNotice(undefined)
     setConfirm(undefined)
   }
@@ -198,6 +204,8 @@ export function EvolutionSurface({ remote, t, sessionId, useWorkspaces, ui: UI, 
       if (workspaceRef.current !== targetWorkspaceId) return
       if (receipt.action === 'promote') setPromotionTarget(undefined)
       if (receipt.action === 'rollback') setRollbackCanaryId(undefined)
+      setConversationTarget(undefined)
+      setConversationRollbackTarget(undefined)
       if (receipt.action === 'rollback-existing-skill') setExistingSkillRollbackCanaryId(undefined)
       if (receipt.action === 'approve-existing-skill'
         || receipt.action === 'reject-existing-skill'
@@ -254,6 +262,10 @@ export function EvolutionSurface({ remote, t, sessionId, useWorkspaces, ui: UI, 
       void run(() => remoteValue(remote.rollback(workspaceId, rollbackCanaryId)))
     } else if (confirm === 'rollback-existing-skill' && existingSkillRollbackCanaryId !== undefined) {
       void run(() => remoteValue(remote.rollbackExistingSkill(workspaceId, existingSkillRollbackCanaryId)))
+    } else if (confirm === 'enable-conversation-skill' && conversationTarget !== undefined) {
+      void run(() => remoteValue(remote.enableConversationSkill(workspaceId, conversationTarget.trialId, conversationTarget.contentHash, conversationTarget.selectionSequence)))
+    } else if (confirm === 'disable-conversation-skill' && conversationRollbackTarget !== undefined) {
+      void run(() => remoteValue(remote.disableConversationSkill(workspaceId, conversationRollbackTarget)))
     }
   }
 
@@ -293,6 +305,15 @@ export function EvolutionSurface({ remote, t, sessionId, useWorkspaces, ui: UI, 
             {overview !== undefined && view === 'overview' && (
               <BeginnerOverview
                 summary={overview}
+                busy={busy}
+                enableConversation={(trialId, contentHash, selectionSequence) => {
+                  setConversationTarget({ trialId, contentHash, selectionSequence })
+                  setConfirm('enable-conversation-skill')
+                }}
+                disableConversation={generationId => {
+                  setConversationRollbackTarget(generationId)
+                  setConfirm('disable-conversation-skill')
+                }}
                 openAdvanced={() => setView(overview.reviews.actionableCount > 0 ? 'advanced' : 'skills')}
                 t={t}
               />
@@ -375,6 +396,8 @@ export function EvolutionSurface({ remote, t, sessionId, useWorkspaces, ui: UI, 
                 setConfirm(undefined)
                 if (confirm === 'rollback') setRollbackCanaryId(undefined)
                 if (confirm === 'rollback-existing-skill') setExistingSkillRollbackCanaryId(undefined)
+                if (confirm === 'enable-conversation-skill') setConversationTarget(undefined)
+                if (confirm === 'disable-conversation-skill') setConversationRollbackTarget(undefined)
                 if (confirm === 'approve-existing'
                   || confirm === 'reject-existing'
                   || confirm === 'promote-existing') setExistingReleaseTarget(undefined)
@@ -422,9 +445,12 @@ export function EvolutionAction({ remote, t, useSessions, useWorkspaces, wide }:
   </>
 }
 
-function BeginnerOverview({ summary, openAdvanced, t }: {
+function BeginnerOverview({ summary, openAdvanced, busy, enableConversation, disableConversation, t }: {
   summary: EvolutionOverview
   openAdvanced: () => void
+  busy: boolean
+  enableConversation: (trialId: string, contentHash: string, selectionSequence: number) => void
+  disableConversation: (generationId: string) => void
   t: (key: string) => string
 }) {
   const pending = actionableCount(summary)
@@ -504,7 +530,7 @@ function BeginnerOverview({ summary, openAdvanced, t }: {
         <p>{draft.proposedTestCount} {t(trials?.items.some(trial => trial.draftId === draft.id) ? 'draft.testsSealed' : 'draft.testsPending')}</p>
         <pre className="dsh-evolve-diff">{draft.markdown}</pre>
       </details>)}
-      <p className="dsh-evolve-guidance">{t(trials?.enabled ? 'draft.trialLimit' : 'draft.limit')}</p>
+      <p className="dsh-evolve-guidance">{t(summary.conversationSkillReleases !== undefined ? 'conversationRelease.limit' : trials?.enabled ? 'draft.trialLimit' : 'draft.limit')}</p>
     </section>}
     {trials?.enabled && <section className="dsh-evolve-welcome">
       <h3>{t('trial.title')}</h3>
@@ -529,8 +555,24 @@ function BeginnerOverview({ summary, openAdvanced, t }: {
         <p>{t('trial.requests')} {trial.requestCount} · {t('trial.seconds')} {Math.round(trial.elapsedMs / 1000)}</p>
         <p>{t('trial.tokens')} {trial.inputTokens} / {trial.outputTokens}</p>
         {trial.usageMissingCount > 0 && <p>{t('trial.usageUnknown')}</p>}
+        {summary.conversationSkillReleases?.filter(item => item.trialId === trial.id).map(release => <div key={release.trialId}>
+          {release.skill !== undefined && <details><summary>{release.skill.name} · {t('conversationRelease.inspect')}</summary>
+            <pre className="dsh-evolve-diff">{release.skill.markdown}</pre></details>}
+          {release.status === 'blocked' && <p>{t('conversationRelease.blocked')} · {t(`conversationRelease.reason.${release.reason}`)}</p>}
+          {release.status === 'eligible' && release.contentHash !== undefined && release.selectionSequence !== undefined && release.skill !== undefined && <>
+            <p>{t('conversationRelease.eligible')}</p>
+            <button type="button" className="dsh-evolve-button" disabled={busy}
+              onClick={() => enableConversation(release.trialId, release.contentHash!, release.selectionSequence!)}>{t('conversationRelease.enable')}</button>
+          </>}
+          {release.status === 'active' && release.generationId !== undefined && <>
+            <p>{t('conversationRelease.active')} · {shortId(release.generationId)}</p>
+            {release.rollbackAvailable === true ? <button type="button" className="dsh-evolve-button" disabled={busy}
+              onClick={() => disableConversation(release.generationId!)}>{t('conversationRelease.disable')}</button>
+              : <p>{t('conversationRelease.inherited')}</p>}
+          </>}
+        </div>)}
       </article>)}
-      <p className="dsh-evolve-guidance">{t('trial.limit')}</p>
+      <p className="dsh-evolve-guidance">{t(summary.conversationSkillReleases !== undefined ? 'conversationRelease.limit' : 'trial.limit')}</p>
       {trials.items.some(trial => trial.judge !== undefined) && <p className="dsh-evolve-guidance">{t('trial.semanticLimit')}</p>}
     </section>}
     <section>
@@ -538,7 +580,7 @@ function BeginnerOverview({ summary, openAdvanced, t }: {
       <ol className="dsh-evolve-steps">
         <li><span>1</span><div><strong>{t('onboarding.step.correct')}</strong><p>{t('onboarding.step.correctHelp')}</p></div></li>
         <li><span>2</span><div><strong>{t(drafts?.enabled ? 'draft.step.verify' : 'onboarding.step.verify')}</strong><p>{t(drafts?.enabled ? 'draft.step.verifyHelp' : 'onboarding.step.verifyHelp')}</p></div></li>
-        <li><span>3</span><div><strong>{t(ordinaryDraftOnly ? 'draft.step.decide' : 'onboarding.step.decide')}</strong><p>{t(ordinaryDraftOnly ? 'draft.step.decideHelp' : 'onboarding.step.decideHelp')}</p></div></li>
+        <li><span>3</span><div><strong>{t(summary.conversationSkillReleases !== undefined ? 'conversationRelease.step' : ordinaryDraftOnly ? 'draft.step.decide' : 'onboarding.step.decide')}</strong><p>{t(summary.conversationSkillReleases !== undefined ? 'conversationRelease.stepHelp' : ordinaryDraftOnly ? 'draft.step.decideHelp' : 'onboarding.step.decideHelp')}</p></div></li>
       </ol>
       <p className="dsh-evolve-guidance">{t('onboarding.hint')}</p>
     </section>
@@ -2113,6 +2155,8 @@ function renderGenerationSelectionEvidence(
 ): string {
   const authority = t(`generationSelectionHistory.authority.${evidence.authority}`)
   switch (evidence.authority) {
+    case 'conversation-independent-review':
+      return `${authority} · ${shortId(evidence.trialId)} · ${shortId(evidence.draftId)}`
     case 'internal-retention':
       return `${authority} · ${shortId(evidence.reviewId)} · ${shortId(evidence.retentionId)}`
     case 'existing-skill-release':

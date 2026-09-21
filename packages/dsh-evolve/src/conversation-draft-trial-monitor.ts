@@ -1,4 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
+import { isDeepStrictEqual } from 'node:util'
 import type { JobOutcome } from '@deepseek-ai/dsh-jobs'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import { DurableFeedbackAttribution } from './durable-feedback-attribution.ts'
@@ -12,6 +13,8 @@ import { DraftJudgeError, nativeConversationDraftJudge, parseDraftJudgment, type
 import type { TokenUsage } from '@deepseek-ai/dsh-llm'
 import { conversationSourceAvailable, type ConversationSourceCheck } from './conversation-source-check.ts'
 import { explicitFeedbackId, resolveConversationDraftOrigin, type ConversationDraftOrigin } from './conversation-message-feedback.ts'
+import type { EvolutionStore } from './generation-store.ts'
+import { conversationTrialBaseline } from './conversation-skill-release.ts'
 
 declare module '@deepseek-ai/dsh-jobs' { interface JobKindMap { conversationDraftTrial: 'evoforge-conversation-draft-trial' } }
 
@@ -97,7 +100,8 @@ export async function executeConversationDraftTrial(ctx: Context, store: Convers
 
 /** Native Jobs own bounded tests. Completion reports contain no cases, answers or Skill body. */
 export function installConversationDraftTrialMonitor(ctx: Context, corrections: CorrectionLedger, drafts: ConversationDraftStore,
-  store: ConversationDraftTrialStore, policies: readonly ConversationDraftTrialPolicy[]): { dispose(): Promise<void> } {
+  store: ConversationDraftTrialStore, policies: readonly ConversationDraftTrialPolicy[],
+  generations?: Pick<EvolutionStore, 'getActiveGeneration' | 'listGenerationSelectionEvents'>): { dispose(): Promise<void> } {
   let closing = false, disposal: Promise<void> | undefined
   const active = new Map<string, AbortController>()
   const rescan = new Set<string>()
@@ -139,15 +143,17 @@ export function installConversationDraftTrialMonitor(ctx: Context, corrections: 
                 store.warn(workspaceId); incomplete = true; continue
               }
               const { input, cwd } = resolved
+              const baseline = generations === undefined ? undefined : conversationTrialBaseline(generations, workspaceId)
               const sourceStillMatches = async (): Promise<boolean> => {
                 if (closing || controller.signal.aborted) return false
                 const fresh = await resolveConversationDraftOrigin(ctx, reader, corrections, origin)
                 const currentDraft = drafts.records(workspaceId).find(record => record.id === source.id)
                 return !closing && !controller.signal.aborted && currentDraft !== undefined && digest(currentDraft) === digest(source)
                   && fresh !== undefined && fresh.cwd === cwd && digest(fresh.input) === digest(input)
+                  && (generations === undefined || isDeepStrictEqual(baseline, conversationTrialBaseline(generations, workspaceId)))
               }
               if (!await sourceStillMatches()) { store.warn(workspaceId); incomplete = true; continue }
-              const reserved = await store.reserve(source, input.route)
+              const reserved = await store.reserve(source, input.route, baseline)
               if (reserved === undefined) continue
               const result = await executeConversationDraftTrial(ctx, store, reserved, source, cwd, controller.signal, sourceStillMatches)
               if (result.phase === 'completed' && result.comparison?.outcome !== 'inconclusive') completed++

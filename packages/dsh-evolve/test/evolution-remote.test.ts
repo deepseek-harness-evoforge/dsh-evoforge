@@ -20,6 +20,8 @@ describe('EvolutionRemoteService', () => {
       rejectExistingSkill: vi.fn(),
       promoteExistingSkill: vi.fn(),
       promote: vi.fn(),
+      enableConversationSkill: vi.fn(),
+      disableConversationSkill: vi.fn(),
       rollback: vi.fn(),
       rollbackExistingSkill: vi.fn(),
     } as unknown as EvolutionControlPlane
@@ -37,6 +39,10 @@ describe('EvolutionRemoteService', () => {
     expect(control.approveExistingSkill).toHaveBeenCalledWith(WORKSPACE_ID, 'd'.repeat(64), 'verified')
     await remote.promoteExistingSkill(WORKSPACE_ID, 'd'.repeat(64))
     expect(control.promoteExistingSkill).toHaveBeenCalledWith(WORKSPACE_ID, 'd'.repeat(64))
+    await remote.enableConversationSkill(WORKSPACE_ID, '1'.repeat(64), '2'.repeat(64), 2)
+    expect(control.enableConversationSkill).toHaveBeenCalledWith(WORKSPACE_ID, '1'.repeat(64), '2'.repeat(64), 2)
+    await remote.disableConversationSkill(WORKSPACE_ID, '3'.repeat(64))
+    expect(control.disableConversationSkill).toHaveBeenCalledWith(WORKSPACE_ID, '3'.repeat(64))
     expect(ctx.get('evoforge.evolutionControl')).toMatchObject({ name: 'evoforge.evolutionControl' })
     expect(remote.typertRemote).toMatchObject({
       serviceKey: 'evoforge.evolutionControl',
@@ -53,6 +59,8 @@ describe('EvolutionRemoteService', () => {
       'rejectExistingSkill',
       'promoteExistingSkill',
       'promote',
+      'enableConversationSkill',
+      'disableConversationSkill',
       'rollback',
       'rollbackExistingSkill',
     ])

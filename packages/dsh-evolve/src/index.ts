@@ -122,6 +122,7 @@ import { installConversationCorrectionMonitor } from './conversation-correction-
 import { openConversationDraftStore, validateConversationLearningPolicies, type ConversationLearningPolicy } from './conversation-skill-draft.ts'
 import { openConversationDraftTrialStore, validateConversationDraftTrialPolicies, type ConversationDraftTrialPolicy } from './conversation-draft-trial-store.ts'
 import { installConversationDraftTrialMonitor } from './conversation-draft-trial-monitor.ts'
+import { ConversationSkillRelease } from './conversation-skill-release.ts'
 import { installConversationSkillDraftMonitor } from './conversation-skill-draft-monitor.ts'
 import {
   assertSlowLoopSkillAuthoringRootSeparation,
@@ -489,6 +490,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   runtime.own('resource', () => conversationDraftTrials.close())
   const conversationTrialMonitors = new Set<ReturnType<typeof installConversationDraftTrialMonitor>>()
   runtime.own('producer', () => disposeRuntimeGroup([...conversationTrialMonitors]))
+  const conversationSkillRelease = new ConversationSkillRelease(ctx, {
+    corrections: conversationCorrections, drafts: conversationSkillDrafts, trials: conversationDraftTrials, store, bundles: source,
+  })
+  runtime.own('producer', () => conversationSkillRelease.close())
   let feedbackProjectionReady = false
   let feedbackProviderGeneration: symbol | undefined
   // Persisted projections cannot authorize feedback-derived work until the
@@ -1123,6 +1128,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     conversationCorrections,
     conversationSkillDrafts,
     conversationDraftTrials,
+    conversationSkillRelease,
     longTermEffects: new LongTermEffectsProjection(longTermEffects, store, {
       outcomes: deliveryOutcomes,
     }),
@@ -1473,7 +1479,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     ctx.inject(['sessionPersistence', 'llm', 'jobs', 'skills', 'tools', ...feedbackDependencies], trialCtx => {
       trialCtx.effect(() => {
         const monitor = installConversationDraftTrialMonitor(trialCtx, conversationCorrections, conversationSkillDrafts,
-          conversationDraftTrials, conversationDraftTrialPolicies)
+          conversationDraftTrials, conversationDraftTrialPolicies, store)
         conversationTrialMonitors.add(monitor)
         return () => monitor.dispose().finally(() => { conversationTrialMonitors.delete(monitor) })
       }, 'dsh-evolve.conversationDraftTrials')

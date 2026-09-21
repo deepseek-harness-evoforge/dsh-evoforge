@@ -104,6 +104,22 @@ export class EvolutionRemoteTypertContract extends TypertRemoteService {
   }
 
   @Remote
+  enableConversationSkill(workspaceId: string, trialId: string, contentHash: string, selectionSequence: number): Promise<EvolutionActionReceipt> {
+    void workspaceId
+    void trialId
+    void contentHash
+    void selectionSequence
+    throw new Error('static Typert contract')
+  }
+
+  @Remote
+  disableConversationSkill(workspaceId: string, generationId: string): Promise<EvolutionActionReceipt> {
+    void workspaceId
+    void generationId
+    throw new Error('static Typert contract')
+  }
+
+  @Remote
   rollbackExistingSkill(workspaceId: string, canaryId: string): Promise<EvolutionActionReceipt> {
     void workspaceId
     void canaryId

@@ -7,6 +7,7 @@ import { NATIVE_WORKSPACE_ID_PATTERN } from './workspace-identity.ts'
 import type { ConversationDraftTrialSummary } from './control-types.ts'
 import { DRAFT_JUDGE_PROMPT_HASH, DRAFT_JUDGE_VERSION, draftJudgmentSchema, type DraftJudgment } from './conversation-draft-judge.ts'
 import type { TokenUsage } from '@deepseek-ai/dsh-llm'
+import { conversationTrialBaselineSchema, type ConversationTrialBaseline } from './conversation-skill-lineage.ts'
 
 const hash = z.string().regex(/^[a-f0-9]{64}$/u)
 const integer = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
@@ -90,6 +91,7 @@ const recordSchema = z.strictObject({
   retryOf: hash.optional(),
   draftSnapshotDigest: hash, contentHash: hash, governanceDigest: hash,
   provider: z.string().min(1).max(256), model: z.string().min(1).max(256),
+  baseline: conversationTrialBaselineSchema.optional(),
   reservedAt: integer.max(8_640_000_000_000_000), reservedModelCalls: z.union([z.literal(0), z.literal(24), z.literal(44)]),
   phase: z.enum(['reserved', 'running', 'completed', 'uncertain', 'blocked', 'rejected']), legs: z.array(legSchema).length(8),
   judge: judgeSchema.optional(),
@@ -149,6 +151,7 @@ function zeroDispatchRoot(record: ConversationDraftTrialRecord): boolean {
 function frozenPlan(record: ConversationDraftTrialRecord): unknown {
   return { draftId: record.draftId, workspaceId: record.workspaceId, draftSnapshotDigest: record.draftSnapshotDigest,
     contentHash: record.contentHash, governanceDigest: record.governanceDigest, provider: record.provider, model: record.model,
+    ...(record.baseline === undefined ? {} : { baseline: record.baseline }),
     legs: record.legs.map(({ index, caseId, partition, inputDigest, variant }) => ({ index, caseId, partition, inputDigest, variant })),
     ...(record.judge === undefined ? {} : { judge: { version: record.judge.version, promptHash: record.judge.promptHash } }) }
 }
@@ -197,7 +200,7 @@ export class ConversationDraftTrialStore {
     const id = trialId(source.id, rootId)
     return table.get(id) === undefined ? { id, retryOf: rootId } : undefined
   }
-  reserve(source: ConversationDraftRecord, route: { provider: string; model: string }): Promise<ConversationDraftTrialRecord | undefined> {
+  reserve(source: ConversationDraftRecord, route: { provider: string; model: string }, baseline?: ConversationTrialBaseline): Promise<ConversationDraftTrialRecord | undefined> {
     return this.enqueue(async () => {
       const policy = this.policy(source.workspaceId)
       if (policy === undefined) return undefined
@@ -212,6 +215,10 @@ export class ConversationDraftTrialStore {
       const { id, retryOf } = identity
       const parent = retryOf === undefined ? undefined : table.get(retryOf)
       if (parent !== undefined && (parent.provider !== route.provider || parent.model !== route.model)) return undefined
+      if (parent?.baseline !== undefined && digest(parent.baseline) !== digest(baseline)) return undefined
+      // Recovery preserves the parent's epoch, including its lack of a seal.
+      // Never upgrade an old experiment into release evidence on retry.
+      const sealedBaseline = parent === undefined ? baseline : parent.baseline
       let qualified = true
       try { requireDraftCaseCalibration(source.governance) } catch { qualified = false }
       const reservedModelCalls = qualified ? policy.semanticEvaluation ? 44 : 24 : 0
@@ -228,6 +235,7 @@ export class ConversationDraftTrialStore {
         ...(retryOf === undefined ? {} : { retryOf }),
         draftSnapshotDigest: digest(source), contentHash: source.draft.contentHash, governanceDigest: source.governanceDigest,
         provider: route.provider, model: route.model, reservedAt, reservedModelCalls,
+        ...(sealedBaseline === undefined ? {} : { baseline: sealedBaseline }),
         ...(policy.semanticEvaluation ? { judge: { version: DRAFT_JUDGE_VERSION, promptHash: DRAFT_JUDGE_PROMPT_HASH, requests: [] } } : {}),
         ...(qualified ? { phase: 'reserved' } : { phase: 'blocked', reason: 'evaluator-unqualified' }), legs })
       if (parent !== undefined && (reservedAt < parent.reservedAt || digest(frozenPlan(record)) !== digest(frozenPlan(parent)))) {

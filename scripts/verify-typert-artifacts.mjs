@@ -8,6 +8,8 @@ const output = join(workspace, 'packages/dsh-evolve/lib')
 const expectedMethods = [
   'approveExistingSkill',
   'approveReview',
+  'disableConversationSkill',
+  'enableConversationSkill',
   'overview',
   'pause',
   'promote',
@@ -45,6 +47,8 @@ if (JSON.stringify(hostMethods) !== JSON.stringify(expectedMethods)
 const expectedParameters = {
   approveExistingSkill: ['workspaceId', 'candidateId', 'note'],
   approveReview: ['workspaceId', 'id', 'note'],
+  disableConversationSkill: ['workspaceId', 'generationId'],
+  enableConversationSkill: ['workspaceId', 'trialId', 'contentHash', 'selectionSequence'],
   overview: ['workspaceId', 'sessionId'],
   pause: ['workspaceId'],
   promote: ['workspaceId', 'generationId'],

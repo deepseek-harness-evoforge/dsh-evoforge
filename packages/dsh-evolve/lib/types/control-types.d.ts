@@ -1029,6 +1029,11 @@ export interface EvolutionInactiveGenerationView {
 export type EvolutionGenerationSelectionEvidenceView = {
     readonly authority: 'direct-host';
 } | {
+    readonly authority: 'conversation-independent-review';
+    readonly trialId: string;
+    readonly draftId: string;
+    readonly expectedSelectionSequence: number;
+} | {
     readonly authority: 'internal-retention';
     readonly reviewId: string;
     readonly retentionId: string;
@@ -1214,6 +1219,21 @@ export interface ConversationDraftTrialSummary {
     }[];
     readonly releaseAuthority: 'none';
 }
+export type ConversationSkillReleaseReason = 'trial-not-found' | 'policy-unavailable' | 'draft-changed' | 'independent-evaluation-required' | 'baseline-unsealed' | 'baseline-changed' | 'improvement-not-proven' | 'retention-not-proven' | 'source-unavailable' | 'skill-name-conflict' | 'runtime-unavailable';
+export interface ConversationSkillReleaseEligibility {
+    readonly trialId: string;
+    readonly status: 'eligible' | 'blocked' | 'active';
+    readonly reason?: ConversationSkillReleaseReason;
+    readonly draftId?: string;
+    readonly contentHash?: string;
+    readonly selectionSequence?: number;
+    readonly generationId?: string;
+    readonly rollbackAvailable?: boolean;
+    readonly skill?: {
+        readonly name: string;
+        readonly markdown: string;
+    };
+}
 /** Browser overview. Dynamic global state stays outside Session and model context. */
 export interface EvolutionOverview {
     readonly schemaVersion: 1;
@@ -1273,6 +1293,7 @@ export interface EvolutionOverview {
     readonly conversationCorrections?: ConversationCorrectionSummary;
     readonly conversationSkillDrafts?: ConversationSkillDraftSummary;
     readonly conversationDraftTrials?: ConversationDraftTrialSummary;
+    readonly conversationSkillReleases?: readonly ConversationSkillReleaseEligibility[];
     readonly reviews: {
         readonly available: boolean;
         readonly pendingCount: number;

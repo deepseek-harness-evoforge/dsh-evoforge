@@ -18,6 +18,7 @@ import type {
   SkillProvider,
 } from '@deepseek-ai/dsh-skill'
 import { parse as parseYaml } from 'yaml'
+import { assembleConversationSkillArchive } from './conversation-skill-lineage.ts'
 import type {
   CapabilityGeneration,
   SkillBundleGenerationArtifact,
@@ -146,7 +147,9 @@ export class GenerationBundleRepository {
       throw new Error(`Generation Skill bundle '${artifact.name}' is not canonical base64`)
     }
     const decoded = await decodeSkillBundleArchive(content)
-    const assembled = artifact.lineage.kind === 'existing-skill-candidate-lineage-v1'
+    const assembled = artifact.lineage.kind === 'conversation-skill-lineage-v1'
+      ? await assembleConversationSkillArchive(decoded.files, artifact.lineage.draftContentHash)
+      : artifact.lineage.kind === 'existing-skill-candidate-lineage-v1'
       ? await assembleSealedSkillBundleArchive(decoded.files)
       : await assembleSkillBundleArchive(decoded.files.map(file => ({
           path: file.path,

@@ -43,6 +43,48 @@ const dsh_evolve_evoforgeEvolution_approveReview_result$schema = () => (dsh_evol
   'rollbackAuthority': z.union([z.undefined(), z.literal("explicit-human"), z.literal("counterfactual-canary"), z.literal("existing-skill-counterfactual-canary")]).readonly().optional(),
   'canaryId': z.union([z.undefined(), z.string()]).readonly().optional(),
 }))
+let dsh_evolve_evoforgeEvolution_disableConversationSkill_parameter_0$schema$value
+const dsh_evolve_evoforgeEvolution_disableConversationSkill_parameter_0$schema = () => (dsh_evolve_evoforgeEvolution_disableConversationSkill_parameter_0$schema$value ??= z.string())
+let dsh_evolve_evoforgeEvolution_disableConversationSkill_parameter_1$schema$value
+const dsh_evolve_evoforgeEvolution_disableConversationSkill_parameter_1$schema = () => (dsh_evolve_evoforgeEvolution_disableConversationSkill_parameter_1$schema$value ??= z.string())
+let dsh_evolve_evoforgeEvolution_disableConversationSkill_result$schema$value
+const dsh_evolve_evoforgeEvolution_disableConversationSkill_result$schema = () => (dsh_evolve_evoforgeEvolution_disableConversationSkill_result$schema$value ??= z.object({
+  'schemaVersion': z.literal(1).readonly(),
+  'workspaceId': z.string().readonly(),
+  'action': z.union([z.literal("rollback"), z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback-existing-skill")]).readonly(),
+  'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'candidateId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'status': z.union([z.undefined(), z.literal("approved"), z.literal("rejected")]).readonly().optional(),
+  'generationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'previousGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'activeGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'recoveryPaused': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
+  'rollbackAuthority': z.union([z.undefined(), z.literal("explicit-human"), z.literal("counterfactual-canary"), z.literal("existing-skill-counterfactual-canary")]).readonly().optional(),
+  'canaryId': z.union([z.undefined(), z.string()]).readonly().optional(),
+}))
+let dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_0$schema$value
+const dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_0$schema = () => (dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_0$schema$value ??= z.string())
+let dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_1$schema$value
+const dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_1$schema = () => (dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_1$schema$value ??= z.string())
+let dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_2$schema$value
+const dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_2$schema = () => (dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_2$schema$value ??= z.string())
+let dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_3$schema$value
+const dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_3$schema = () => (dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_3$schema$value ??= z.number())
+let dsh_evolve_evoforgeEvolution_enableConversationSkill_result$schema$value
+const dsh_evolve_evoforgeEvolution_enableConversationSkill_result$schema = () => (dsh_evolve_evoforgeEvolution_enableConversationSkill_result$schema$value ??= z.object({
+  'schemaVersion': z.literal(1).readonly(),
+  'workspaceId': z.string().readonly(),
+  'action': z.union([z.literal("rollback"), z.literal("promote"), z.literal("pause"), z.literal("resume"), z.literal("approve-review"), z.literal("reject-review"), z.literal("approve-existing-skill"), z.literal("reject-existing-skill"), z.literal("promote-existing-skill"), z.literal("rollback-existing-skill")]).readonly(),
+  'reviewId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'candidateId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'status': z.union([z.undefined(), z.literal("approved"), z.literal("rejected")]).readonly().optional(),
+  'generationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'previousGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'activeGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'recoveryPaused': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
+  'rollbackAuthority': z.union([z.undefined(), z.literal("explicit-human"), z.literal("counterfactual-canary"), z.literal("existing-skill-counterfactual-canary")]).readonly().optional(),
+  'canaryId': z.union([z.undefined(), z.string()]).readonly().optional(),
+}))
 let dsh_evolve_evoforgeEvolution_overview_parameter_0$schema$value
 const dsh_evolve_evoforgeEvolution_overview_parameter_0$schema = () => (dsh_evolve_evoforgeEvolution_overview_parameter_0$schema$value ??= z.string())
 let dsh_evolve_evoforgeEvolution_overview_parameter_1$schema$value
@@ -100,6 +142,11 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = () => (dsh_evolve_ev
   'activeGenerationId': z.union([z.undefined(), z.string()]).readonly().optional(),
   'evidence': z.union([z.object({
   'authority': z.literal("direct-host").readonly(),
+}), z.object({
+  'authority': z.literal("conversation-independent-review").readonly(),
+  'trialId': z.string().readonly(),
+  'draftId': z.string().readonly(),
+  'expectedSelectionSequence': z.number().readonly(),
 }), z.object({
   'authority': z.literal("internal-retention").readonly(),
   'reviewId': z.string().readonly(),
@@ -1647,6 +1694,20 @@ const dsh_evolve_evoforgeEvolution_overview_result$schema = () => (dsh_evolve_ev
 })).readonly(),
   'releaseAuthority': z.literal("none").readonly(),
 })]).readonly().optional(),
+  'conversationSkillReleases': z.union([z.undefined(), z.array(z.object({
+  'trialId': z.string().readonly(),
+  'status': z.union([z.literal("eligible"), z.literal("blocked"), z.literal("active")]).readonly(),
+  'reason': z.union([z.undefined(), z.literal("trial-not-found"), z.literal("policy-unavailable"), z.literal("draft-changed"), z.literal("independent-evaluation-required"), z.literal("baseline-unsealed"), z.literal("baseline-changed"), z.literal("improvement-not-proven"), z.literal("retention-not-proven"), z.literal("source-unavailable"), z.literal("skill-name-conflict"), z.literal("runtime-unavailable")]).readonly().optional(),
+  'draftId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'contentHash': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'selectionSequence': z.union([z.undefined(), z.number()]).readonly().optional(),
+  'generationId': z.union([z.undefined(), z.string()]).readonly().optional(),
+  'rollbackAvailable': z.union([z.undefined(), z.literal(false), z.literal(true)]).readonly().optional(),
+  'skill': z.union([z.undefined(), z.object({
+  'name': z.string().readonly(),
+  'markdown': z.string().readonly(),
+})]).readonly().optional(),
+}))]).readonly().optional(),
   'reviews': z.object({
   'available': z.boolean().readonly(),
   'pendingCount': z.number().readonly(),
@@ -2040,6 +2101,96 @@ export const TYPERT_REMOTE = {
       sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":46,"column":3},
     },
     {
+      id: 'dsh-evolve#evoforgeEvolution/disableConversationSkill',
+      service: 'evoforge.evolutionControl',
+      namespace: 'evoforgeEvolution',
+      method: 'disableConversationSkill',
+      invocation: { kind: 'direct' },
+      parameters: [
+        {
+          name: 'workspaceId',
+          wire: 'workspaceId',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/disableConversationSkill:workspaceId',
+            create: dsh_evolve_evoforgeEvolution_disableConversationSkill_parameter_0$schema,
+          },
+        },
+        {
+          name: 'generationId',
+          wire: 'generationId',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/disableConversationSkill:generationId',
+            create: dsh_evolve_evoforgeEvolution_disableConversationSkill_parameter_1$schema,
+          },
+        },
+      ],
+      result: {
+        mode: 'strict',
+        typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
+        create: dsh_evolve_evoforgeEvolution_disableConversationSkill_result$schema,
+      },
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":116,"column":3},
+    },
+    {
+      id: 'dsh-evolve#evoforgeEvolution/enableConversationSkill',
+      service: 'evoforge.evolutionControl',
+      namespace: 'evoforgeEvolution',
+      method: 'enableConversationSkill',
+      invocation: { kind: 'direct' },
+      parameters: [
+        {
+          name: 'workspaceId',
+          wire: 'workspaceId',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/enableConversationSkill:workspaceId',
+            create: dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_0$schema,
+          },
+        },
+        {
+          name: 'trialId',
+          wire: 'trialId',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/enableConversationSkill:trialId',
+            create: dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_1$schema,
+          },
+        },
+        {
+          name: 'contentHash',
+          wire: 'contentHash',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/enableConversationSkill:contentHash',
+            create: dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_2$schema,
+          },
+        },
+        {
+          name: 'selectionSequence',
+          wire: 'selectionSequence',
+          source: 'json',
+          codec: {
+            mode: 'strict',
+            typeSymbol: 'dsh-evolve#evoforgeEvolution/enableConversationSkill:selectionSequence',
+            create: dsh_evolve_evoforgeEvolution_enableConversationSkill_parameter_3$schema,
+          },
+        },
+      ],
+      result: {
+        mode: 'strict',
+        typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
+        create: dsh_evolve_evoforgeEvolution_enableConversationSkill_result$schema,
+      },
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":107,"column":3},
+    },
+    {
       id: 'dsh-evolve#evoforgeEvolution/overview',
       service: 'evoforge.evolutionControl',
       namespace: 'evoforgeEvolution',
@@ -2389,7 +2540,7 @@ export const TYPERT_REMOTE = {
         typeSymbol: 'dsh-evolve/client#EvolutionActionReceipt',
         create: dsh_evolve_evoforgeEvolution_rollbackExistingSkill_result$schema,
       },
-      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":107,"column":3},
+      sourceLocation: {"file":"packages/dsh-evolve/src/evolution-remote.typert.ts","line":123,"column":3},
     },
   ],
 }

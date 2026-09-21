@@ -272,6 +272,8 @@ function remote(
       activeGenerationId: generationId,
     })),
     promote: vi.fn(() => success({ schemaVersion: 1 as const, workspaceId, action: 'promote' as const, activeGenerationId: generationId })),
+    enableConversationSkill: vi.fn(() => success({ schemaVersion: 1 as const, workspaceId, action: 'promote' as const, activeGenerationId: generationId })),
+    disableConversationSkill: vi.fn(() => success({ schemaVersion: 1 as const, workspaceId, action: 'rollback' as const, previousGenerationId: generationId })),
     rollback: vi.fn((_requestedWorkspaceId: string, canaryId?: string) => success({
       schemaVersion: 1 as const,
       workspaceId,
@@ -810,6 +812,52 @@ describe('EvolutionAction', () => {
     expect(screen.getByText(zh['trial.limit'])).toBeTruthy()
     expect(screen.getByText(zh['trial.usageUnknown'])).toBeTruthy()
     expect(screen.queryByRole('button', { name: /启用|晋升/u })).toBeNull()
+  })
+
+  it('confirms an exact independently eligible conversation Skill and rolls back the shown version', async () => {
+    const api = remote(), trialId = 'f'.repeat(64), contentHash = 'b'.repeat(64)
+    let state: 'eligible' | 'active' = 'eligible'
+    let selectionSequence = 0
+    vi.mocked(api.overview).mockImplementation(() => success({
+      schemaVersion: 1, workspaceId, recovery: { available: true, paused: false },
+      generationSelectionHistory: emptyGenerationSelectionHistory(),
+      conversationDraftTrials: { enabled: true, observerAvailable: true, pendingCount: 0, uncertainCount: 0, warningCount: 0,
+        reservedModelCallsToday: 44, maxModelCallsPerUtcDay: 44, releaseAuthority: 'none',
+        items: [{ id: trialId, draftId: 'd'.repeat(64), phase: 'completed', settledLegs: 8,
+          dispatchMarkers: 12, requestCount: 12, inputTokens: 800, outputTokens: 600, usageMissingCount: 0, elapsedMs: 40_000,
+          comparison: { baselinePassed: 2, draftPassed: 4, improved: 2, regressed: 0, comparablePairs: 4, loadedDraftLegs: 2, outcome: 'improvement-observed' } }] },
+      conversationSkillReleases: [{ trialId, status: state, contentHash, selectionSequence, skill: { name: 'fixture-method', markdown: 'Complete reviewed instructions <script>not HTML</script>' },
+        ...(state === 'active' ? { generationId, rollbackAvailable: true } : {}) }],
+      reviews: { available: true, pendingCount: 0, actionableCount: 0, warningCount: 0, items: [], inactiveGenerations: [] },
+    }))
+    vi.mocked(api.enableConversationSkill).mockImplementation(async () => {
+      state = 'active'
+      selectionSequence++
+      return success({ schemaVersion: 1, workspaceId, action: 'promote', activeGenerationId: generationId })
+    })
+    vi.mocked(api.disableConversationSkill).mockImplementation(async () => {
+      state = 'eligible'
+      selectionSequence++
+      return success({ schemaVersion: 1, workspaceId, action: 'rollback', previousGenerationId: generationId })
+    })
+    render(<EvolutionAction remote={api} t={key => zh[key as keyof typeof zh] ?? key}
+      wide useSessions={sessionHook()} useWorkspaces={workspaceHook()} />)
+    fireEvent.click(screen.getByRole('button', { name: zh['trigger.label'] }))
+    fireEvent.click(await screen.findByRole('button', { name: zh['conversationRelease.enable'] }))
+    expect(api.enableConversationSkill).not.toHaveBeenCalled()
+    expect(screen.getByText('Complete reviewed instructions <script>not HTML</script>').tagName).toBe('PRE')
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: zh['action.confirm'] }))
+    await waitFor(() => expect(api.enableConversationSkill).toHaveBeenCalledWith(workspaceId, trialId, contentHash, 0))
+    fireEvent.click(await screen.findByRole('button', { name: zh['conversationRelease.disable'] }))
+    expect(api.disableConversationSkill).not.toHaveBeenCalled()
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: zh['action.confirm'] }))
+    await waitFor(() => expect(api.disableConversationSkill).toHaveBeenCalledWith(workspaceId, generationId))
+    fireEvent.click(await screen.findByRole('button', { name: zh['conversationRelease.enable'] }))
+    expect(api.enableConversationSkill).toHaveBeenCalledTimes(1)
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: zh['action.confirm'] }))
+    await waitFor(() => expect(api.enableConversationSkill).toHaveBeenLastCalledWith(workspaceId, trialId, contentHash, 2))
+    expect(api.promote).not.toHaveBeenCalled()
+    expect(api.rollback).not.toHaveBeenCalled()
   })
 
   it('does not claim a healthy idle state while loading or after an unavailable overview', async () => {

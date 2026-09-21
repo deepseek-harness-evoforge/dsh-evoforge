@@ -19,6 +19,7 @@ import {
   assembleSkillBundleArchive,
   decodeSkillBundleArchive,
 } from './skill-bundle-archive.ts'
+import { assembleConversationSkillArchive, parseConversationSkillLineage, type ConversationSkillLineage } from './conversation-skill-lineage.ts'
 
 export interface GitSkillGenerationArtifact {
   kind: 'skill'
@@ -34,7 +35,7 @@ export interface SkillBundleGenerationArtifact {
   artifactDigest: string
   treeHash: string
   contentBase64: string
-  lineage: SkillCandidateLineage | ExistingSkillCandidateLineage
+  lineage: SkillCandidateLineage | ExistingSkillCandidateLineage | ConversationSkillLineage
 }
 
 export type SkillGenerationArtifact = GitSkillGenerationArtifact | SkillBundleGenerationArtifact
@@ -76,6 +77,7 @@ export type SessionGenerationPinState =
 
 export type GenerationSelectionEvidence =
   | { readonly authority: 'direct-host' }
+  | { readonly authority: 'conversation-independent-review'; readonly trialId: string; readonly draftId: string; readonly expectedSelectionSequence: number }
   | {
       readonly authority: 'internal-retention'
       readonly reviewId: string
@@ -138,6 +140,8 @@ const hashSchema = z.string().regex(/^[a-f0-9]{64}$/)
 const workspaceIdSchema = z.uuid()
 const generationSelectionEvidenceSchema = z.discriminatedUnion('authority', [
   z.strictObject({ authority: z.literal('direct-host') }),
+  z.strictObject({ authority: z.literal('conversation-independent-review'), trialId: hashSchema, draftId: hashSchema,
+    expectedSelectionSequence: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER) }),
   z.strictObject({
     authority: z.literal('internal-retention'),
     reviewId: hashSchema,
@@ -176,6 +180,7 @@ const generationSelectionEventContentSchema = z.strictObject({
   }
   const promotionAuthority = event.evidence.authority === 'internal-retention'
     || event.evidence.authority === 'existing-skill-release'
+    || event.evidence.authority === 'conversation-independent-review'
   const rollbackAuthority = event.evidence.authority === 'explicit-human'
     || event.evidence.authority === 'counterfactual-canary'
     || event.evidence.authority === 'existing-skill-counterfactual-canary'
@@ -204,7 +209,7 @@ const newSkillLineageSchema = z.custom<SkillCandidateLineage>((value) => {
     return false
   }
 }, 'invalid Skill Candidate lineage').transform(value => parseSkillCandidateLineage(value))
-const generationLineageSchema = z.custom<SkillCandidateLineage | ExistingSkillCandidateLineage>((value) => {
+const generationLineageSchema = z.custom<SkillCandidateLineage | ExistingSkillCandidateLineage | ConversationSkillLineage>((value) => {
   try {
     parseGenerationLineage(value)
     return true
@@ -526,7 +531,17 @@ class DomainEvolutionStore implements EvolutionStore {
     if (generation.workspaceId !== workspaceId) {
       throw new Error(`Generation '${id}' belongs to Workspace '${generation.workspaceId}', not '${workspaceId}'`)
     }
-    const previousId = this.workspaceState(workspaceId).activeGenerationId
+    const current = this.workspaceState(workspaceId)
+    const previousId = current.activeGenerationId
+    if (evidence.authority === 'conversation-independent-review') {
+      const artifacts = generation.artifacts.filter(artifact => artifact.kind === 'skill-bundle'
+        && artifact.lineage.kind === 'conversation-skill-lineage-v1' && artifact.lineage.trialId === evidence.trialId
+        && artifact.lineage.draftId === evidence.draftId
+        && artifact.lineage.baseline.generationId === generation.parentId)
+      if (artifacts.length !== 1 || previousId !== id && (current.selectionRevision ?? 0) !== evidence.expectedSelectionSequence) {
+        throw new Error('conversation Skill release baseline or lineage changed')
+      }
+    }
     if (previousId !== id && generation.parentId !== previousId) {
       throw new Error(
         previousId === undefined
@@ -723,7 +738,9 @@ async function verifySkillBundleArtifact(
     throw new Error(`Skill bundle artifact '${artifact.name}' has invalid ownership or encoding`)
   }
   const decoded = await decodeSkillBundleArchive(content)
-  const assembled = artifact.lineage.kind === 'existing-skill-candidate-lineage-v1'
+  const assembled = artifact.lineage.kind === 'conversation-skill-lineage-v1'
+    ? await assembleConversationSkillArchive(decoded.files, artifact.lineage.draftContentHash)
+    : artifact.lineage.kind === 'existing-skill-candidate-lineage-v1'
     ? await assembleSealedSkillBundleArchive(decoded.files)
     : await assembleSkillBundleArchive(decoded.files.map(file => ({
         path: file.path,
@@ -736,7 +753,8 @@ async function verifySkillBundleArtifact(
   }
 }
 
-function parseGenerationLineage(value: unknown): SkillCandidateLineage | ExistingSkillCandidateLineage {
+function parseGenerationLineage(value: unknown): SkillCandidateLineage | ExistingSkillCandidateLineage | ConversationSkillLineage {
+  if (isRecord(value) && value.kind === 'conversation-skill-lineage-v1') return parseConversationSkillLineage(value)
   if (isRecord(value) && value.kind === 'existing-skill-candidate-lineage-v1') {
     return parseExistingSkillCandidateLineage(value)
   }
